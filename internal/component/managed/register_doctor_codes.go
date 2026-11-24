@@ -17,13 +17,13 @@ var doctorDiagnosticCodes = []diagnostic.CodeMeta{
 	{
 		Code:        codeHubUnreachable,
 		Title:       "Management hub unreachable",
-		Description: "This node is configured as a managed client (plugin/hub/client) but none of its management hubs answered a TCP probe. The node still boots and runs its committed config; it will not receive hub-pushed config updates until a hub becomes reachable.",
+		Description: "This node is configured as a managed client (bus/hub/client) but none of its management hubs answered a TCP probe. The node still boots and runs its committed config; it will not receive hub-pushed config updates until a hub becomes reachable.",
 		Examples:    []string{"ze doctor --json", "ze show diagnostic doctor-hub-unreachable"},
 	},
 	{
 		Code:  codeDoctorHubClientMissing,
 		Title: "Managed client follows no hub",
-		Description: "This node is a managed client (meta/instance/managed is true) and its configuration has no plugin hub client block, so it connects to no hub and receives no configuration change. " +
+		Description: "This node is a managed client (meta/instance/managed is true) and its configuration has no bus hub client block, so it connects to no hub and receives no configuration change. " +
 			"A hub can no longer correct this node: the configuration it serves for this node lost the block, and the node applied it.",
 		Examples: []string{exampleShowDoctor, "ze show diagnostic doctor-hub-client-missing"},
 	},

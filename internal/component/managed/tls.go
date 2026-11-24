@@ -27,7 +27,7 @@ var errCANotConfigured = errors.New("managed client: pki ca is not configured")
 //
 // Four ways to authenticate the hub, in this order:
 //
-//  1. The pki ca entry the client names (plugin/hub/client/ca). That entry
+//  1. The pki ca entry the client names (bus/hub/client/ca). That entry
 //     holds the hub's certificate authority root, which the operator exported
 //     from the hub. The chain is validated against it and against nothing else,
 //     so a hub that reissues its leaf stays reachable with no client change.

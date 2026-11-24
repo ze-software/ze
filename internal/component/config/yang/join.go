@@ -109,7 +109,7 @@ func Join(compiled *Resolved, externals []ExternalModule, validators *ValidatorR
 	if err := refuseRedefinedRoots(compiled, joined, declared); err != nil {
 		return nil, err
 	}
-	if err := refuseUnheldRegistrations(joined, declared, validators); err != nil {
+	if err := refuseUnheldRegistrations(joined, declared, validators, compiled.FirstPassRoots()); err != nil {
 		return nil, err
 	}
 	if err := refuseCommandConflicts(compiled, joined, declared); err != nil {
@@ -319,6 +319,10 @@ func (r *Resolved) reloaded() (*Loader, error) {
 	loader := NewLoader()
 	loaded := make(map[string]bool, len(modules))
 	for _, module := range modules {
+		if module.Name == busParticipantsModuleName {
+			// Synthesized freshly over compiled and external modules in resolveJoined.
+			continue
+		}
 		source := m.source(module)
 		if !source.parsed {
 			panic("BUG: resolved YANG module " + module.Name + " has no recorded text; every module is loaded through Loader, which records it")
@@ -348,6 +352,9 @@ func resolveJoined(compiled *Resolved, declared []declaredModule) (*Resolved, er
 		if err := loader.AddModuleFromText(externalFile(module.external), module.external.Text); err != nil {
 			return nil, invalidModuleRefusal(module.external, err)
 		}
+	}
+	if err := loader.loadBusParticipants(); err != nil {
+		return nil, err
 	}
 	joined, resolveErr := loader.Resolve()
 	if resolveErr == nil {
@@ -679,7 +686,7 @@ func refuseRedefinedRoots(compiled, joined *Resolved, declared []declaredModule)
 // judged against the registry its own extension reads. The walk covers every
 // entry of the joined set and keeps the ones an external module wrote, so a
 // leaf augmented into a compiled-in container is judged too.
-func refuseUnheldRegistrations(joined *Resolved, declared []declaredModule, validators *ValidatorRegistry) error {
+func refuseUnheldRegistrations(joined *Resolved, declared []declaredModule, validators *ValidatorRegistry, firstPass []string) error {
 	owners := make(map[*gyang.Module]declaredModule, len(declared))
 	for _, module := range declared {
 		owners[joined.GetModule(module.name)] = module
@@ -705,7 +712,7 @@ func refuseUnheldRegistrations(joined *Resolved, declared []declaredModule, vali
 			if !external {
 				continue
 			}
-			if err := refuseFirstPassAddition(entry, owner); err != nil {
+			if err := refuseFirstPassAddition(entry, owner, firstPass); err != nil {
 				return err
 			}
 			if err := unheldRegistration(entry, owner, validators); err != nil {
@@ -716,16 +723,54 @@ func refuseUnheldRegistrations(joined *Resolved, declared []declaredModule, vali
 	return nil
 }
 
-// firstPassRoots names the config roots ze reads before any plugin runs, over
-// the compiled-in modules alone, and strictly: `plugin`, which says which
-// plugins to run, and `environment`. It is the one declaration of that set:
-// the first pass of the config load derives its schema from it
-// (FirstPassRoots).
-var firstPassRoots = []string{"plugin", "environment"}
+// hasFirstPassExtension reports whether entry carries the ze:first-pass extension.
+func hasFirstPassExtension(entry *gyang.Entry) bool {
+	for _, ext := range entry.Exts {
+		if ext.Keyword == "ze:first-pass" {
+			return true
+		}
+		if strings.HasSuffix(ext.Keyword, ":first-pass") {
+			return true
+		}
+	}
+	return false
+}
 
-// FirstPassRoots answers the config roots ze reads before any plugin runs.
+// FirstPassRoots answers the sorted, deduplicated top-level config root names
+// marked with ze:first-pass across all resolved -conf modules.
+func (r *Resolved) FirstPassRoots() []string {
+	seen := make(map[string]struct{})
+	for _, modName := range r.ConfModuleNames() {
+		entry := r.GetEntry(modName)
+		if entry == nil {
+			continue
+		}
+		for name, child := range entry.Dir {
+			if hasFirstPassExtension(child) {
+				seen[name] = struct{}{}
+			}
+		}
+	}
+	if len(seen) == 0 {
+		return nil
+	}
+	roots := make([]string, 0, len(seen))
+	for name := range seen {
+		roots = append(roots, name)
+	}
+	slices.Sort(roots)
+	return roots
+}
+
+// FirstPassRoots answers the config roots ze reads before any plugin runs,
+// derived from the ze:first-pass annotations of DefaultLoader's resolved modules.
 func FirstPassRoots() []string {
-	return slices.Clone(firstPassRoots)
+	resolved, err := DefaultLoader()
+	// refuse-by-default: guards DefaultLoader -- when default modules fail to resolve, callers fail at DefaultLoader/YANGSchema before using roots.
+	if err != nil {
+		return nil
+	}
+	return resolved.FirstPassRoots()
 }
 
 // refuseFirstPassAddition refuses a node an external module adds under a root
@@ -738,7 +783,7 @@ func FirstPassRoots() []string {
 //
 // entry MUST be a node owner's module wrote. A root of that name the module
 // defines itself never reaches here: refuseRedefinedRoots refused it.
-func refuseFirstPassAddition(entry *gyang.Entry, owner declaredModule) error {
+func refuseFirstPassAddition(entry *gyang.Entry, owner declaredModule, firstPass []string) error {
 	// The climb is bounded by the depth of entry, which the walk that found
 	// it already traversed.
 	top := entry
@@ -751,14 +796,14 @@ func refuseFirstPassAddition(entry *gyang.Entry, owner declaredModule) error {
 	if top == entry {
 		return nil
 	}
-	if !slices.Contains(firstPassRoots, top.Name) {
+	if !slices.Contains(firstPass, top.Name) {
 		return nil
 	}
 	plugin := quoted(owner.external.Plugin)
 	return opererr.New(
 		"Module "+quoted(owner.name)+" of plugin "+plugin+" adds "+entry.Path()+" under the config root "+quoted(top.Name)+
 			", which ze reads before it starts a plugin",
-		"ze reads the "+strings.Join(firstPassRoots, " and ")+" blocks before any external plugin runs, from the schema compiled into ze, "+
+		"ze reads the "+strings.Join(firstPass, " and ")+" blocks before any external plugin runs, from the schema compiled into ze, "+
 			"so a config that used the added name would be refused before plugin "+plugin+" declared it",
 		"move "+quoted(entry.Name)+" out of "+quoted(top.Name)+" into a config root module "+quoted(owner.name)+
 			" defines, then restart ze",

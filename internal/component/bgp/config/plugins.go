@@ -1,5 +1,5 @@
-// Design: docs/architecture/config/syntax.md — BGP plugin extraction from config
-// Overview: loader.go — reactor loading calls plugin extraction
+// Design: docs/architecture/config/syntax.md — BGP plugin reference validation
+// Overview: loader.go — reactor loading calls plugin reference validation
 
 package bgpconfig
 
@@ -8,77 +8,8 @@ import (
 
 	"github.com/ze-software/ze/internal/component/bgp/reactor"
 	"github.com/ze-software/ze/internal/component/config"
-	"github.com/ze-software/ze/internal/component/plugin"
 	"github.com/ze-software/ze/internal/component/plugin/registry"
 )
-
-// extractBGPInlinePlugins extracts inline plugin configs from BGP peer process bindings.
-// Registered with config.RegisterPluginExtractor so config.LoadConfig discovers them.
-func extractBGPInlinePlugins(tree *config.Tree) ([]plugin.PluginConfig, error) {
-	if tree.GetContainer("bgp") == nil {
-		return nil, nil
-	}
-	bgpTree, err := ResolveBGPTree(tree)
-	if err != nil {
-		return nil, fmt.Errorf("resolve templates for plugin extraction: %w", err)
-	}
-	return extractInlinePluginsFromMap(bgpTree), nil
-}
-
-// extractInlinePluginsFromMap finds inline plugins in the resolved bgpTree map.
-// An inline plugin is a process binding with "run" defined inside a peer config.
-func extractInlinePluginsFromMap(bgpTree map[string]any) []reactor.PluginConfig {
-	peers, ok := bgpTree["peer"].(map[string]any)
-	if !ok {
-		return nil
-	}
-
-	seen := make(map[string]bool)
-	var plugins []reactor.PluginConfig
-
-	for _, peerVal := range peers {
-		peerMap, ok := peerVal.(map[string]any)
-		if !ok {
-			continue
-		}
-		attach, ok := peerMap["attach"].(map[string]any)
-		if !ok {
-			continue
-		}
-		processes, ok := attach["process"].(map[string]any)
-		if !ok {
-			continue
-		}
-		for name, procVal := range processes {
-			procMap, ok := procVal.(map[string]any)
-			if !ok {
-				continue
-			}
-			run, _ := procMap["run"].(string)
-			use, _ := procMap["use"].(string)
-			if run == "" && use == "" {
-				continue
-			}
-			if use != "" {
-				run = use
-			}
-			if seen[name] {
-				continue
-			}
-			seen[name] = true
-			pc := reactor.PluginConfig{
-				Name:          name,
-				Run:           run,
-				Encoder:       config.EncoderText,
-				ReceiveUpdate: true,
-			}
-			config.MarkInternalPlugin(&pc)
-			plugins = append(plugins, pc)
-		}
-	}
-
-	return plugins
-}
 
 // ValidatePluginReferences checks that all process binding plugin references
 // point to declared plugins. Skip bindings with inline Run (defines plugin inline).

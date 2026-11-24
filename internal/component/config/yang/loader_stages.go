@@ -34,6 +34,9 @@ func StageLoad() (*Loader, error) {
 	if err := l.LoadRegistered(); err != nil {
 		return nil, err
 	}
+	if err := l.loadBusParticipants(); err != nil {
+		return nil, err
+	}
 	return l, nil
 }
 

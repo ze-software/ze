@@ -519,7 +519,7 @@ type ProcessSpawner interface {
 }
 
 // HubServerConfig holds a named hub server block.
-// Extracted from: plugin { hub { server <name> { host; port; secret; } } }.
+// Extracted from: bus { hub { server <name> { ip; port; secret; } } }.
 type HubServerConfig struct {
 	Name    string            // Server block name (e.g., "local", "central")
 	Host    string            // Listen address
@@ -541,7 +541,7 @@ func (s HubServerConfig) Address() string {
 }
 
 // HubClientConfig holds a hub-level client block (outbound connection).
-// Extracted from: plugin { hub { client <name> { host; port; secret; source-address; } } }.
+// Extracted from: bus { hub { client <name> { host; port; secret; source-address; } } }.
 type HubClientConfig struct {
 	Name          string // Client identity name
 	Host          string // Remote hub address
@@ -559,8 +559,8 @@ func (c HubClientConfig) Address() string {
 	return b.Reset().Str(c.Host).Byte(':').Uint16(c.Port).String()
 }
 
-// HubConfig holds plugin transport configuration.
-// Extracted from: plugin { hub { server ...; client ...; } }.
+// HubConfig holds bus hub transport configuration.
+// Extracted from: bus { hub { server ...; client ...; } }.
 type HubConfig struct {
 	Servers []HubServerConfig // Named server blocks (listeners)
 	Clients []HubClientConfig // Hub-level client blocks (outbound)
@@ -592,7 +592,9 @@ const (
 	RespawnDeclined RespawnRequest = 2
 )
 
-// PluginConfig holds plugin configuration.
+// PluginConfig holds endpoint process configuration. Bus send/receive filter
+// blocks live outside PluginConfig so live filter reloads never trip
+// external-process declaration change refusals.
 type PluginConfig struct {
 	Name            string         // Endpoint identifier.
 	CompiledPlugin  string         // Explicit compiled registration name; identifies the compiled plugin regardless of Name or SeparateProcess.
@@ -600,10 +602,11 @@ type PluginConfig struct {
 	Run             string         // Command to execute (empty for compiled-in plugins unless using legacy Internal+Run spelling).
 	Encoder         string         // "json" or "text".
 	Respawn         RespawnRequest // What the block's `respawn` leaf asked for.
+	OnExit          string         // "" or "withdraw" withdraws originated routes on exit; "keep" keeps them (ExaBGP compatibility).
 	WorkDir         string         // Working directory for plugin execution.
 	ReceiveUpdate   bool           // Forward received UPDATEs to plugin stdin.
 	StageTimeout    time.Duration  // Startup stall timeout: how long a stage may go with no plugin progress (0 = use default 5s).
-	Internal        bool           // Legacy in-daemon compiled flag kept for Phase-3 callers until Phase 4 replaces plugin {} with bus {}.
+	Internal        bool           // In-daemon compiled flag.
 }
 
 // CompiledIdentity returns the compiled registration identity this config

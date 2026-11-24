@@ -154,16 +154,17 @@ type Node interface {
 
 // LeafNode represents a terminal value.
 type LeafNode struct {
-	Type        ValueType
-	Default     string
-	Sensitive   bool     // ze:sensitive — value is a password/key, masked in display ($9$ reversible)
-	Bcrypt      bool     // ze:bcrypt — one-way password hash (bcrypt written, SHA-crypt kept as given); parser skips $9$ decode, commit bcrypt-hashes plaintext sibling
-	Hidden      bool     // ze:hidden — kept out of completion, the web editor and the annotated views; the file form still prints it
-	Ephemeral   bool     // ze:ephemeral — present in schema, not persisted to config file
-	Decorate    string   // ze:decorate — decorator name for display-time enrichment
-	ShortHelp   string   // One-line summary from the ze:help extension, for tooltips/help
-	Description string   // Long explanation from the YANG description statement
-	Enums       []string // Valid enum values in YANG declaration order (nil for non-enum types)
+	Type         ValueType
+	Default      string
+	Sensitive    bool     // ze:sensitive — value is a password/key, masked in display ($9$ reversible)
+	Bcrypt       bool     // ze:bcrypt — one-way password hash (bcrypt written, SHA-crypt kept as given); parser skips $9$ decode, commit bcrypt-hashes plaintext sibling
+	Hidden       bool     // ze:hidden — kept out of completion, the web editor and the annotated views; the file form still prints it
+	Ephemeral    bool     // ze:ephemeral — present in schema, not persisted to config file
+	ReplaceWhole bool     // ze:replace-whole — replaces an inherited leaf value wholesale
+	Decorate     string   // ze:decorate — decorator name for display-time enrichment
+	ShortHelp    string   // One-line summary from the ze:help extension, for tooltips/help
+	Description  string   // Long explanation from the YANG description statement
+	Enums        []string // Valid enum values in YANG declaration order (nil for non-enum types)
 	// EnumHelp holds the one-line ze:help of each enum value, by name; a
 	// value that declares none is absent (configyang.EnumValueSummaries).
 	EnumHelp map[string]string
@@ -209,6 +210,7 @@ type ContainerNode struct {
 	Ephemeral    bool                    // ze:ephemeral — present in schema, not persisted to config file
 	Presence     bool                    // YANG presence container: accepts flag (;), value (word;), or block ({})
 	Flatten      bool                    // ze:flatten — printed as "<container> <child> ..." rather than a nested block (see serialize_flatten.go)
+	ReplaceWhole bool                    // ze:replace-whole — replaces an inherited container wholesale instead of deep-merging
 	ShortHelp    string                  // One-line summary from the ze:help extension, for tooltips
 	Description  string                  // Long explanation from the YANG description statement
 	Backend      []string                // ze:backend — supporting backends; nil = unrestricted (see backend_gate.go)
@@ -239,27 +241,28 @@ func (n *ContainerNode) Children() []string {
 
 // ListNode represents a keyed collection of containers.
 type ListNode struct {
-	KeyType     ValueType
-	KeyName     string         // YANG key name (empty = keyless list like update)
-	KeyLeaf     *LeafNode      // Full YANG restrictions for the key leaf, when present
-	DisplayKey  string         // ze:display-key leaf name for UI label (keyless lists)
-	Unique      [][]string     // YANG unique constraints: each sub-slice is leaf paths for one constraint
-	Required    [][]string     // ze:required fields: must have value after config inheritance resolution
-	Suggest     [][]string     // ze:suggest fields: shown in creation dialog but not mandatory
-	Hidden      bool           // ze:hidden -- kept out of completion, the web editor and the annotated views; the file form still prints it
-	Ephemeral   bool           // ze:ephemeral -- present in schema, not persisted to config file
-	UserOrdered bool           // YANG `ordered-by user` -- the entry order is part of the value, so the file form keeps it (listBlockKeys)
-	Listener    bool           // ze:listener -- marks list as a network listener for port conflict detection
-	Filter      bool           // ze:filter -- each entry is a named route policy filter instance (internal/component/policy)
-	ShortHelp   string         // One-line summary from the ze:help extension, for tooltips
-	Description string         // Long explanation from the YANG description statement
-	Backend     []string       // ze:backend -- supporting backends; nil = unrestricted (see backend_gate.go)
-	Related     []*RelatedTool // ze:related -- operator tools attached to this list (see related.go)
-	children    map[string]Node
-	order       []string
-	cases       choiceMembers           // the children a YANG choice holds, for ApplyDefaults (see schema_defaults.go)
-	retired     map[string]string       // retired leaf name -> its refusal hint (see retired_leaf.go)
-	otherOS     map[string]otherOSChild // child name -> the GOOS whose ze:os the build pruned it for, and the node it converted (see os_restricted.go)
+	KeyType      ValueType
+	KeyName      string         // YANG key name (empty = keyless list like update)
+	KeyLeaf      *LeafNode      // Full YANG restrictions for the key leaf, when present
+	DisplayKey   string         // ze:display-key leaf name for UI label (keyless lists)
+	Unique       [][]string     // YANG unique constraints: each sub-slice is leaf paths for one constraint
+	Required     [][]string     // ze:required fields: must have value after config inheritance resolution
+	Suggest      [][]string     // ze:suggest fields: shown in creation dialog but not mandatory
+	Hidden       bool           // ze:hidden -- kept out of completion, the web editor and the annotated views; the file form still prints it
+	Ephemeral    bool           // ze:ephemeral -- present in schema, not persisted to config file
+	UserOrdered  bool           // YANG `ordered-by user` -- the entry order is part of the value, so the file form keeps it (listBlockKeys)
+	Listener     bool           // ze:listener -- marks list as a network listener for port conflict detection
+	Filter       bool           // ze:filter -- each entry is a named route policy filter instance (internal/component/policy)
+	ReplaceWhole bool           // ze:replace-whole -- replaces an inherited keyed list entry wholesale instead of merging
+	ShortHelp    string         // One-line summary from the ze:help extension, for tooltips
+	Description  string         // Long explanation from the YANG description statement
+	Backend      []string       // ze:backend -- supporting backends; nil = unrestricted (see backend_gate.go)
+	Related      []*RelatedTool // ze:related -- operator tools attached to this list (see related.go)
+	children     map[string]Node
+	order        []string
+	cases        choiceMembers           // the children a YANG choice holds, for ApplyDefaults (see schema_defaults.go)
+	retired      map[string]string       // retired leaf name -> its refusal hint (see retired_leaf.go)
+	otherOS      map[string]otherOSChild // child name -> the GOOS whose ze:os the build pruned it for, and the node it converted (see os_restricted.go)
 }
 
 func (n *ListNode) Kind() NodeKind { return NodeList }
@@ -366,12 +369,18 @@ func mergeNode(dst, src Node) {
 			if len(d.Backend) == 0 && len(s.Backend) > 0 {
 				d.Backend = s.Backend
 			}
+			if s.ReplaceWhole {
+				d.ReplaceWhole = true
+			}
 			mergeContainer(d, s)
 		}
 	case *ListNode:
 		if s, ok := src.(*ListNode); ok {
 			if len(d.Backend) == 0 && len(s.Backend) > 0 {
 				d.Backend = s.Backend
+			}
+			if s.ReplaceWhole {
+				d.ReplaceWhole = true
 			}
 			for _, childName := range s.order {
 				if _, dup := d.children[childName]; dup {
@@ -700,6 +709,8 @@ type MultiLeafNode struct {
 	FractionDigits int
 	// Constraint holds the error-messages of the native restrictions.
 	Constraint configyang.ConstraintMessages
+	// ReplaceWhole marks this multi-leaf as replacing an inherited value whole.
+	ReplaceWhole bool
 }
 
 func (n *MultiLeafNode) Kind() NodeKind { return NodeLeaf }
@@ -732,6 +743,8 @@ type BracketLeafListNode struct {
 	// the parser preserves duplicates instead of deduplicating. See
 	// Tree.AppendSequence.
 	Ordered bool
+	// ReplaceWhole marks this leaf-list as replacing an inherited value whole.
+	ReplaceWhole bool
 }
 
 func (n *BracketLeafListNode) Kind() NodeKind { return NodeLeaf }
@@ -763,6 +776,28 @@ type ValueOrArrayNode struct {
 	// from the ze:ordered YANG extension; the parser preserves duplicates instead
 	// of deduplicating. See Tree.AppendSequence.
 	Ordered bool
+	// ReplaceWhole marks this leaf-list as replacing an inherited value whole.
+	ReplaceWhole bool
+}
+
+// IsReplaceWhole reports whether n carries the ze:replace-whole marker.
+func IsReplaceWhole(n Node) bool {
+	switch v := n.(type) {
+	case *ContainerNode:
+		return v.ReplaceWhole
+	case *ListNode:
+		return v.ReplaceWhole
+	case *LeafNode:
+		return v.ReplaceWhole
+	case *ValueOrArrayNode:
+		return v.ReplaceWhole
+	case *BracketLeafListNode:
+		return v.ReplaceWhole
+	case *MultiLeafNode:
+		return v.ReplaceWhole
+	default:
+		return false
+	}
 }
 
 func (n *ValueOrArrayNode) Kind() NodeKind { return NodeLeaf }

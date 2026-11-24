@@ -169,14 +169,14 @@ func requireShowcaseBaseTree(tree *config.Tree) error {
 			}
 		}
 	}
-	if plugins := tree.GetContainer("plugin"); plugins != nil {
-		for name, plugin := range plugins.GetList("internal") {
+	if bus := tree.GetContainer("bus"); bus != nil {
+		for name, ep := range bus.GetList("endpoint") {
 			if name != "bgp-adj-rib-in" && name != pluginBGPRIB {
-				return fmt.Errorf("showcase base preconfigures plugin %s", name)
+				return fmt.Errorf("showcase base preconfigures endpoint %s", name)
 			}
 			if name == pluginBGPRIB {
-				if use, _ := plugin.Get("use"); use != pluginBGPRIB {
-					return fmt.Errorf("showcase base plugin bgp-rib uses %q, not bgp-rib", use)
+				if internal, _ := ep.Get("internal"); internal != pluginBGPRIB {
+					return fmt.Errorf("showcase base endpoint bgp-rib uses %q, not bgp-rib", internal)
 				}
 			}
 		}

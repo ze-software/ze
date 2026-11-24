@@ -8,7 +8,7 @@
 | Release reason | Security and configuration correctness of shipped behavior: closes the authorization bypass every plugin identity holds on `dispatch-command` (`aaa.ReservedInternalPrefix`), replaces the ExaBGP-derived `plugin { }` and per-peer `attach process` grammar with one message bus on which every participant registers what it sends and receives and the operator overrides it with `to`, `from` and allow-lists, shows every registered default beside what the operator wrote, converts all repository configs, tests and docs with no hybrid layering, and fixes aliased plugin state-key and doctor snapshot keying |
 | RFC gaps | - |
 | Depends | - |
-| Phase | 4/8 (Schema, Loader, First Pass, Validation) |
+| Phase | 5/8 (Filter, Delivery, Forwarders) |
 | Handoff | - |
 | Design tier | strongest tier |
 | Implementation tier | development tier |

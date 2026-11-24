@@ -24,14 +24,14 @@ import (
 )
 
 // PluginOnlySchema answers the schema of the first pass (FirstPass): the roots
-// Ze reads to RUN a declared plugin, before that plugin's own module is known.
-// They are `plugin`, which holds the declarations and the hub listener a
-// forked plugin connects back to, and `environment`. Every other root is
-// absent, so a strict parse over this schema refuses it and a parser in
-// SkipUnknownRoots mode skips it.
+// Ze reads to RUN a declared external program, before that program's own module
+// is known. They are derived from the ze:first-pass annotations of the resolved
+// -conf modules (`bus`, which holds the declarations and hub listener, and
+// `environment`). Every other root is absent, so a strict parse over this
+// schema refuses it and a parser in SkipUnknownRoots mode skips it.
 //
-// The schema is cut from YANGSchema, never resolved again: each root is the
-// full schema's own node, with what every compiled-in module merged or
+// The schema is cut from SchemaOf(resolved), never resolved again: each root is
+// the full schema's own node, with what every compiled-in module merged or
 // augmented into it. The first pass runs on every start, so a loader of its
 // own would cost each start a second resolve of the whole module set. The
 // nodes are shared with YANGSchema and MUST NOT be written through this
@@ -40,12 +40,16 @@ import (
 // A root this build's schema does not hold is left out. No config of this
 // build can hold it either: the full parse refuses it.
 func PluginOnlySchema() (*Schema, error) {
-	full, err := YANGSchema()
+	resolved, err := yang.DefaultLoader()
+	if err != nil {
+		return nil, fmt.Errorf("resolve YANG modules: %w", err)
+	}
+	full, err := SchemaOf(resolved)
 	if err != nil {
 		return nil, err
 	}
 	schema := NewSchema()
-	for _, root := range firstPassRoots {
+	for _, root := range resolved.FirstPassRoots() {
 		node := full.Get(root)
 		if node == nil {
 			continue
@@ -691,6 +695,19 @@ func hasEphemeralExtension(entry *gyang.Entry) bool {
 	return false
 }
 
+// hasReplaceWholeExtension reports whether a YANG entry carries the ze:replace-whole extension.
+func hasReplaceWholeExtension(entry *gyang.Entry) bool {
+	for _, ext := range entry.Exts {
+		if ext.Keyword == "ze:replace-whole" {
+			return true
+		}
+		if strings.HasSuffix(ext.Keyword, ":replace-whole") {
+			return true
+		}
+	}
+	return false
+}
+
 // schemaBuildErrors accumulates errors produced by extension extractors
 // that cannot easily return errors through the existing yangTo* signature
 // chain (yangToNode, yangToContainer, yangToList, yangToLeaf all return
@@ -786,6 +803,7 @@ func yangToLeaf(entry *gyang.Entry, path string) *LeafNode {
 	node.Bcrypt = yang.HasBcryptExtension(entry)
 	node.Hidden = hasHiddenExtension(entry)
 	node.Ephemeral = hasEphemeralExtension(entry)
+	node.ReplaceWhole = hasReplaceWholeExtension(entry)
 	node.Decorate = getDecorateExtension(entry)
 	node.ShortHelp = yang.GetHelpExtension(entry.Exts) // the ze:help summary
 	node.Description = entry.Description               // the long explanation
@@ -1091,6 +1109,7 @@ func yangToContainer(entry *gyang.Entry, path string) *ContainerNode {
 	// Check for YANG presence statement — enables flag/value/block modes
 	container.Presence = hasPresenceStatement(entry)
 	container.Flatten = hasFlattenExtension(entry)
+	container.ReplaceWhole = hasReplaceWholeExtension(entry)
 	container.ShortHelp = yang.GetHelpExtension(entry.Exts) // the ze:help summary
 	container.Description = entry.Description               // the long explanation
 	container.Backend = getBackendExtension(entry)
@@ -1166,6 +1185,7 @@ func yangToList(entry *gyang.Entry, path string) *ListNode {
 	l.UserOrdered = entry.ListAttr != nil && entry.ListAttr.OrderedByUser
 	l.Listener = hasListenerExtension(entry)
 	l.Filter = hasFilterExtension(entry)
+	l.ReplaceWhole = hasReplaceWholeExtension(entry)
 	l.ShortHelp = yang.GetHelpExtension(entry.Exts) // the ze:help summary
 	l.Description = entry.Description               // the long explanation
 	l.Backend = getBackendExtension(entry)

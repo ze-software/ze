@@ -41,8 +41,8 @@ func treeValue(t *testing.T, tree map[string]any, path ...string) string {
 // the tree the reactor was handed.
 //
 // VALIDATES: the address binds positionally, and asn, local-as, local-address,
-// router-id, the timers, connect, accept, family, graceful-restart,
-// group-updates and attach each land on the leaf parsePeerFromTree reads.
+// router-id, the timers, connect, accept, family, graceful-restart and
+// group-updates each land on the leaf parsePeerFromTree reads.
 // PREVENTS: a keyword accepted by the grammar and dropped before the reactor,
 // which builds a session that is not the one the operator asked for and reports
 // success for it (ai/rules/principles.md).
@@ -64,7 +64,6 @@ func TestCreateBgpPeerReachesTheReactorFromTheCommandLine(t *testing.T) {
 		"family ipv4/unicast,ipv6/unicast",
 		"graceful-restart 120",
 		"group-updates false",
-		"attach peer-lifecycle,bgp-rib",
 	}, " "))
 	require.NoError(t, err)
 	assert.Equal(t, plugin.StatusDone, resp.Status)
@@ -85,15 +84,6 @@ func TestCreateBgpPeerReachesTheReactorFromTheCommandLine(t *testing.T) {
 	assert.Equal(t, "enable", treeValue(t, tree, "session", "family", "ipv6/unicast"))
 	assert.Equal(t, "120", treeValue(t, tree, "session", "capability", "graceful-restart", "short-lived", "restart-time"))
 	assert.Equal(t, "false", treeValue(t, tree, "behavior", "group-updates"))
-
-	processes, ok := tree["attach"].(map[string]any)["process"].(map[string]any)
-	require.True(t, ok, "attach names the processes bound to this peer")
-	for _, name := range []string{"peer-lifecycle", "bgp-rib"} {
-		binding, bound := processes[name].(map[string]any)
-		require.True(t, bound, "each name in attach is bound")
-		assert.Equal(t, "*", binding["receive"], "a bound process receives every message from this peer")
-		assert.Equal(t, "*", binding["send"], "a bound process may send every type toward this peer")
-	}
 
 	data, ok := resp.Data.(plugin.Map)
 	require.True(t, ok, "the answer is structured data, so every pipe renders it")
@@ -151,6 +141,7 @@ func TestCreateBgpPeerTakesTheAddressAndTheASAlone(t *testing.T) {
 func TestCreateBgpPeerCreatesNoPeerFromARefusedLine(t *testing.T) {
 	for _, command := range []string{
 		"create bgp peer 192.0.2.7 asn 65002 md5 secret",
+		"create bgp peer 192.0.2.7 asn 65002 attach bgp-rib",
 		"create bgp peer 192.0.2.7 asn 65002 router-id",
 		"create bgp peer 192.0.2.7",
 		"create bgp peer 192.0.2.7 asn 65002 family ipv4/nonesuch",

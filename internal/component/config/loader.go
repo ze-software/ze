@@ -11,7 +11,6 @@ import (
 	"slices"
 	"strings"
 	"sync"
-	"time"
 
 	"github.com/ze-software/ze/internal/component/plugin"
 	"github.com/ze-software/ze/internal/component/plugin/registry"
@@ -476,109 +475,19 @@ func detectLegacySyntaxHint(input string, parseErr error) string {
 	return ""
 }
 
-// ExtractPluginsFromTree extracts plugin configurations from a parsed config tree.
-// Extracts explicit plugins from plugin { internal <name> { ... } } and
-// plugin { external <name> { ... } }, plus inline plugins from registered
-// plugin extractors (e.g., BGP peer process bindings).
+// ExtractPluginsFromTree extracts endpoint plugin configurations from a parsed
+// config tree. It reads explicit endpoints from `bus { endpoint <name> { ... } }`
+// and merges any additional plugins supplied by registered plugin extractors.
 //
-// The declared plugins are answered in config order, internal then external:
-// a refusal that names the plugins a config declares (DeclaredSchemas) names
-// them in the order the operator wrote them, and the same config always gives
-// the same list. GetList is a map, whose order Go randomizes.
+// Declared endpoints are answered in config order so diagnostics and refusal
+// messages are deterministic.
 func ExtractPluginsFromTree(tree *Tree) ([]plugin.PluginConfig, error) {
-	var plugins []plugin.PluginConfig
-	seen := make(map[string]bool)
-
-	if pluginContainer := tree.GetContainer("plugin"); pluginContainer != nil {
-		for _, entry := range pluginContainer.GetListOrdered("internal") {
-			name, proc := entry.Key, entry.Value
-			if strings.HasPrefix(name, "_") {
-				return nil, fmt.Errorf("plugin name %q: names starting with underscore are reserved", name)
-			}
-			if seen[name] {
-				return nil, fmt.Errorf("plugin %q: duplicate plugin name", name)
-			}
-			seen[name] = true
-			useVal, _ := proc.Get("use")
-			if useVal == "" {
-				return nil, fmt.Errorf("plugin %q: internal plugin requires use", name)
-			}
-			if runVal, _ := proc.Get("run"); runVal != "" {
-				return nil, fmt.Errorf("plugin %q: internal plugins do not support run", name)
-			}
-			plugins = append(plugins, plugin.PluginConfig{
-				Name:           name,
-				CompiledPlugin: strings.TrimPrefix(useVal, "ze."),
-				Internal:       true,
-				Run:            useVal,
-			})
-		}
-
-		for _, entry := range pluginContainer.GetListOrdered("external") {
-			name, proc := entry.Key, entry.Value
-			if strings.HasPrefix(name, "_") {
-				return nil, fmt.Errorf("plugin name %q: names starting with underscore are reserved", name)
-			}
-			if seen[name] {
-				return nil, fmt.Errorf("plugin %q: duplicate plugin name", name)
-			}
-			seen[name] = true
-			pc := plugin.PluginConfig{Name: name}
-			runVal, _ := proc.Get("run")
-			useVal, _ := proc.Get("use")
-			if runVal != "" && useVal != "" {
-				return nil, fmt.Errorf("plugin %q: run and use are mutually exclusive", name)
-			}
-			if runVal != "" {
-				pc.Run = runVal
-			}
-			if useVal != "" {
-				pc.CompiledPlugin = strings.TrimPrefix(useVal, "ze.")
-				pc.Internal = true
-				pc.Run = useVal
-			}
-			if v, ok := proc.Get("encoder"); ok {
-				pc.Encoder = v
-			}
-			if v, ok := proc.Get("respawn"); ok {
-				// A value the daemon cannot read is refused rather than taken as
-				// false: the operator wrote the leaf to say something, and
-				// starting as though they had not is the silent wrong answer.
-				//
-				// An absent leaf is left as RespawnUnstated, which is not the
-				// same as false: silence leaves the decision to the plugin's own
-				// declaration, and false takes a restart away from a plugin
-				// willing to have one (plugin.RespawnRequest).
-				respawn, err := ParseBoolStrict(v)
-				if err != nil {
-					return nil, fmt.Errorf("plugin %q: invalid respawn %q: %w", name, v, err)
-				}
-				pc.Respawn = plugin.RespawnDeclined
-				if respawn {
-					pc.Respawn = plugin.RespawnAsked
-				}
-			}
-			if v, ok := proc.Get("timeout"); ok {
-				d, err := time.ParseDuration(v)
-				if err != nil {
-					return nil, fmt.Errorf("plugin %q: invalid timeout %q: %w", name, v, err)
-				}
-				if d < 0 {
-					return nil, fmt.Errorf("plugin %q: timeout must be positive, got %q", name, v)
-				}
-				pc.StageTimeout = d
-			}
-			if pc.Encoder == EncoderText {
-				pc.ReceiveUpdate = true
-			}
-			if !pc.IsCompiled() {
-				MarkInternalPlugin(&pc)
-			}
-			plugins = append(plugins, pc)
-		}
+	plugins, _, _, err := parseBusEndpoints(tree)
+	if err != nil {
+		return nil, err
 	}
 
-	// Inline plugins from registered extractors (e.g., BGP peer process bindings).
+	// Additional plugins from registered extractors.
 	pluginExtractorMu.RLock()
 	extractors := pluginExtractors
 	pluginExtractorMu.RUnlock()

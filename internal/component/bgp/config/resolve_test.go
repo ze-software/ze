@@ -1790,7 +1790,7 @@ func TestResolveDynamicGroupRejectsTTLConflict(t *testing.T) {
 		},
 	}
 
-	_, err := resolveDynamicGroup("ix", groupFields, nil)
+	_, err := resolveDynamicGroup("ix", groupFields, nil, nil)
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "ttl max cannot be combined with ttl set or ttl min")
 }
@@ -1807,7 +1807,7 @@ func TestResolveDynamicGroupRejectsInvalidTTL(t *testing.T) {
 		},
 	}
 
-	_, err := resolveDynamicGroup("ix", groupFields, nil)
+	_, err := resolveDynamicGroup("ix", groupFields, nil, nil)
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "ttl min must be in range 0..255")
 }

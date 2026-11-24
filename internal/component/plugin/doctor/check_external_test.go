@@ -18,7 +18,7 @@ import (
 // at the parsed-config phase, naming the block, the allowed form and a fix; a
 // valid name gets nothing.
 func TestExternalPluginNameCheck(t *testing.T) {
-	tree, err := config.ParseTreeForValidation("plugin {\n\texternal a_b {\n\t\trun \"/bin/true\"\n\t}\n\texternal good-one {\n\t\trun \"/bin/true\"\n\t}\n}\n")
+	tree, err := config.ParseTreeForValidation("bus {\n\tendpoint a_b {\n\t\texternal { run \"/bin/true\"; }\n\t}\n\tendpoint good-one {\n\t\texternal { run \"/bin/true\"; }\n\t}\n}\n")
 	if err != nil {
 		t.Fatalf("parse: %v", err)
 	}
@@ -72,7 +72,7 @@ func TestExternalUnsupportedCheckReadsField(t *testing.T) {
 	if rows[0].Code != diagnostic.CodeDoctorPluginExternalUnsupported {
 		t.Errorf("code = %q", rows[0].Code)
 	}
-	if !strings.HasPrefix(rows[0].Fix, "move it to an internal block") {
+	if !strings.HasPrefix(rows[0].Fix, "bus { endpoint ") {
 		t.Errorf("fix = %q", rows[0].Fix)
 	}
 }

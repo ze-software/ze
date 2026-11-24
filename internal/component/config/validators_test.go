@@ -2,12 +2,15 @@ package config
 
 import (
 	"net"
+	"slices"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
 	"github.com/ze-software/ze/internal/component/plugin/registry"
+	"github.com/ze-software/ze/internal/core/events"
+	"github.com/ze-software/ze/pkg/plugin/rpc"
 )
 
 // TestAddressFamilyValidator_Validate verifies address family validation.
@@ -137,176 +140,149 @@ func TestCommunityRangeValidator(t *testing.T) {
 	assert.Contains(t, names, "blackhole")
 }
 
-// TestReceiveEventValidator_Validate verifies receive event type validation.
+// TestBusMessageValidators verifies bus message and path custom validators.
 //
-// VALIDATES: Valid BGP events accepted, invalid rejected.
-// PREVENTS: Invalid event types silently accepted in config receive list.
-func TestReceiveEventValidator_Validate(t *testing.T) {
-	v := ReceiveEventValidator()
+// VALIDATES: BusMessageNameValidator, BusMessageOrNoneValidator,
+// BusPathOrNoneValidator, and BusParticipantPathValidator accept registered
+// non-cli, external-declared, and cli: messages and canonical paths, refuse
+// malformed/unregistered/non-string values with errors naming both the
+// offending token and valid registered messages, and offer sorted completions.
+// PREVENTS: Malformed or unregistered bus message identifiers entering config
+// trees, silent omission of valid tokens in error text, or unsorted completions.
+func TestBusMessageValidators(t *testing.T) {
+	restoreExt := ResetExternalBusDeclsForTest()
+	t.Cleanup(restoreExt)
 
-	// Valid base event types.
-	assert.NoError(t, v.ValidateFn("bgp/peer/attach/process.receive", "update"))
-	assert.NoError(t, v.ValidateFn("bgp/peer/attach/process.receive", "state"))
-	assert.NoError(t, v.ValidateFn("bgp/peer/attach/process.receive", "open"))
+	require.NoError(t, events.RegisterMessage("valtest", "alpha"))
+	require.NoError(t, events.RegisterMessage("valtest", "zeta"))
+	RecordExternalBusDecl(ExternalBusDecl{
+		Endpoint: "ext-probe",
+		Sends:    []rpc.MessageSendDecl{{Message: "valext:ping"}, {Message: "valtest:alpha"}},
+		Receives: []rpc.MessageReceiveDecl{{Message: "valext:pong"}},
+	})
 
-	// Invalid event type.
-	err := v.ValidateFn("bgp/peer/attach/process.receive", "nonexistent")
+	msgVal := BusMessageNameValidator()
+	msgOrNone := BusMessageOrNoneValidator()
+	pathVal := BusParticipantPathValidator()
+	pathOrNone := BusPathOrNoneValidator()
+
+	// Valid registered non-cli messages, externally declared messages, and cli: prefixes.
+	for _, valid := range []string{"valtest:alpha", "valtest:zeta", "valext:ping", "valext:pong", "cli:show version"} {
+		assert.NoError(t, msgVal.ValidateFn("bus/endpoint/send/message.name", valid), "msgVal should accept %q", valid)
+		assert.NoError(t, msgOrNone.ValidateFn("bus/endpoint/send.allow", valid), "msgOrNone should accept %q", valid)
+	}
+	assert.NoError(t, msgOrNone.ValidateFn("bus/endpoint/send.allow", "none"))
+
+	// Malformed messages are refused naming the offending token and format example.
+	err := msgVal.ValidateFn("bus/endpoint/send/message.name", "no-colon")
 	require.Error(t, err)
-	assert.Contains(t, err.Error(), "nonexistent")
-	assert.Contains(t, err.Error(), "not a valid receive event type")
+	assert.Contains(t, err.Error(), "no-colon")
+	assert.Contains(t, err.Error(), "expected namespace:name, e.g.")
 
-	// Non-string rejected.
-	assert.Error(t, v.ValidateFn("bgp/peer/attach/process.receive", 42))
-}
-
-// TestReceiveEventValidatorAcceptsDirectionAndWildcard verifies the vocabulary
-// the receive list needs to say what a plugin declares: a type in one
-// direction, and the wildcard.
-//
-// The refusals matter as much as the acceptances. A validator that accepts
-// everything grants an event type that can never be delivered, which is the
-// fail-open case ai/rules/evidence.md exists to catch.
-//
-// VALIDATES: `update-received`, `update-sent` and `*` validate; an
-// unregistered type is still refused, with or without a direction suffix.
-// PREVENTS: eight in-tree plugins staying inexpressible in the config leaf,
-// and a typo being accepted because the leaf learned a wildcard.
-func TestReceiveEventValidatorAcceptsDirectionAndWildcard(t *testing.T) {
-	v := ReceiveEventValidator()
-	const path = "bgp/peer/attach/process.receive"
-
-	for _, token := range []string{"update", "update-received", "update-sent", "open-received", "state-sent", "*"} {
-		assert.NoError(t, v.ValidateFn(path, token), "%q must validate", token)
-	}
-
-	for _, token := range []string{"nonexistent", "nonexistent-sent", "update-bogus", "all", "*-sent"} {
-		err := v.ValidateFn(path, token)
-		require.Error(t, err, "%q must be refused", token)
-		assert.Contains(t, err.Error(), token)
-	}
-
-	// The retired token. It named a direction, never a type.
-	err := v.ValidateFn(path, "sent")
-	require.Error(t, err, "the bare direction word must be refused")
-	assert.Contains(t, err.Error(), "update-sent", "the refusal must name the spelling that replaces it")
-}
-
-// TestSendMessageValidatorAcceptsWildcard verifies the send list can grant
-// every message type, which is what the ExaBGP bridge declares.
-//
-// VALIDATES: `*` validates, and an unregistered send type is still refused.
-// PREVENTS: a program whose contract is "whatever the API can express" being
-// inexpressible in the send list.
-func TestSendMessageValidatorAcceptsWildcard(t *testing.T) {
-	v := SendMessageValidator()
-	const path = "bgp/peer/attach/process.send"
-
-	assert.NoError(t, v.ValidateFn(path, "*"))
-
-	err := v.ValidateFn(path, "nonexistent")
+	err = msgVal.ValidateFn("bus/endpoint/send/message.name", "none")
 	require.Error(t, err)
-	assert.Contains(t, err.Error(), "nonexistent")
-}
+	assert.Contains(t, err.Error(), "none")
 
-// TestReceiveEventValidator_Complete verifies completion returns event type names.
-//
-// VALIDATES: CompleteFn returns sorted BGP event types.
-// PREVENTS: Missing completion values for receive event types.
-func TestReceiveEventValidator_Complete(t *testing.T) {
-	v := ReceiveEventValidator()
-	require.NotNil(t, v.CompleteFn)
-
-	values := v.CompleteFn()
-	require.NotEmpty(t, values, "should return event type names")
-	assert.Contains(t, values, "update")
-	assert.Contains(t, values, "state")
-	assert.Contains(t, values, "open")
-
-	// Should be sorted.
-	for i := 1; i < len(values); i++ {
-		assert.True(t, values[i-1] <= values[i],
-			"values should be sorted: %q > %q", values[i-1], values[i])
-	}
-}
-
-// TestSendMessageValidator_Validate verifies send message type validation.
-//
-// VALIDATES: Base send types accepted, invalid rejected.
-// PREVENTS: Invalid send types silently accepted in config send list.
-func TestSendMessageValidator_Validate(t *testing.T) {
-	v := SendMessageValidator()
-
-	// Valid base types.
-	assert.NoError(t, v.ValidateFn("bgp/peer/attach/process.send", "update"))
-	assert.NoError(t, v.ValidateFn("bgp/peer/attach/process.send", "refresh"))
-
-	// Invalid type.
-	err := v.ValidateFn("bgp/peer/attach/process.send", "nonexistent")
-	require.Error(t, err)
-	assert.Contains(t, err.Error(), "nonexistent")
-	assert.Contains(t, err.Error(), "not a valid send type")
-
-	// Non-string rejected.
-	assert.Error(t, v.ValidateFn("bgp/peer/attach/process.send", 42))
-}
-
-// TestSendMessageValidator_Complete verifies completion returns send type names.
-//
-// VALIDATES: CompleteFn returns base send types sorted.
-// PREVENTS: Missing completion values for send types.
-func TestSendMessageValidator_Complete(t *testing.T) {
-	v := SendMessageValidator()
-	require.NotNil(t, v.CompleteFn)
-
-	values := v.CompleteFn()
-	require.NotEmpty(t, values, "should return send type names")
-	assert.Contains(t, values, "update")
-	assert.Contains(t, values, "refresh")
-
-	// Should be sorted.
-	for i := 1; i < len(values); i++ {
-		assert.True(t, values[i-1] <= values[i],
-			"values should be sorted: %q > %q", values[i-1], values[i])
-	}
-}
-
-// TestAllBGPEventNames verifies the helper that extracts sorted event names.
-//
-// VALIDATES: Returns a sorted list carrying every token the validator accepts:
-// the wildcard, each type, and each type in each single direction.
-// PREVENTS: Empty or unsorted completion lists, and a vocabulary an operator
-// can only discover by reading the YANG.
-func TestAllBGPEventNames(t *testing.T) {
-	names := allBGPEventNames()
-	require.NotEmpty(t, names, "should return event names from the registry")
-	for _, want := range []string{"*", "update", "state", "update-received", "update-sent", "state-received"} {
-		assert.Contains(t, names, want)
+	// Unregistered messages are refused naming both the offending token and valid registered messages.
+	for _, tc := range []struct {
+		name string
+		fn   func(string, any) error
+		path string
+	}{
+		{"BusMessageNameValidator", msgVal.ValidateFn, "bus/endpoint/send/message.name"},
+		{"BusMessageOrNoneValidator", msgOrNone.ValidateFn, "bus/endpoint/send.allow"},
+	} {
+		unregErr := tc.fn(tc.path, "unknownns:nosuch")
+		require.Error(t, unregErr, tc.name)
+		assert.Contains(t, unregErr.Error(), "unknownns:nosuch", tc.name)
+		assert.Contains(t, unregErr.Error(), "(valid:", tc.name)
+		assert.Contains(t, unregErr.Error(), "valtest:alpha", tc.name)
+		assert.Contains(t, unregErr.Error(), "valext:ping", tc.name)
 	}
 
-	// Every offered token must validate: completion and validation read the
-	// same registry, so an offer the parser refuses is a defect.
-	v := ReceiveEventValidator()
-	for _, token := range names {
-		assert.NoError(t, v.ValidateFn("bgp/peer/attach/process.receive", token),
-			"completion offered %q", token)
+	// Non-string values are rejected by both message validators.
+	assert.Error(t, msgVal.ValidateFn("bus/endpoint/send/message.name", 42))
+	assert.Error(t, msgOrNone.ValidateFn("bus/endpoint/send.allow", 42))
+
+	// Valid and invalid bus participant paths.
+	assert.NoError(t, pathVal.ValidateFn("bus/participant.path", "/bus/endpoint/collector"))
+	assert.Error(t, pathVal.ValidateFn("bus/participant.path", "none"))
+	assert.Error(t, pathVal.ValidateFn("bus/participant.path", "relative/path"))
+	assert.Error(t, pathVal.ValidateFn("bus/participant.path", "/trailing/"))
+	assert.Error(t, pathVal.ValidateFn("bus/participant.path", "/double//slash"))
+
+	assert.NoError(t, pathOrNone.ValidateFn("bus/endpoint/send.to", "none"))
+	assert.NoError(t, pathOrNone.ValidateFn("bus/endpoint/send.to", "/bus/endpoint/collector"))
+	assert.Error(t, pathOrNone.ValidateFn("bus/endpoint/send.to", "relative/path"))
+
+	// BusMessageNameValidator completions are non-empty, sorted, and include registered + external messages.
+	require.NotNil(t, msgVal.CompleteFn)
+	msgCompletions := msgVal.CompleteFn()
+	require.NotEmpty(t, msgCompletions)
+	assert.True(t, slices.IsSorted(msgCompletions), "BusMessageNameValidator completions must be sorted: %v", msgCompletions)
+	assert.Contains(t, msgCompletions, "valtest:alpha")
+	assert.Contains(t, msgCompletions, "valtest:zeta")
+	assert.Contains(t, msgCompletions, "valext:ping")
+	assert.Contains(t, msgCompletions, "valext:pong")
+	for _, tok := range msgCompletions {
+		assert.NoError(t, msgVal.ValidateFn("bus/endpoint/send/message.name", tok), "completion token %q must validate", tok)
 	}
 
-	// Verify sorted.
-	for i := 1; i < len(names); i++ {
-		assert.True(t, names[i-1] <= names[i],
-			"names should be sorted: %q > %q", names[i-1], names[i])
+	// BusMessageOrNoneValidator completions begin with "none" followed by sorted registered + external messages.
+	require.NotNil(t, msgOrNone.CompleteFn)
+	orNoneCompletions := msgOrNone.CompleteFn()
+	require.NotEmpty(t, orNoneCompletions)
+	assert.Equal(t, "none", orNoneCompletions[0])
+	assert.True(t, slices.IsSorted(orNoneCompletions[1:]), "BusMessageOrNoneValidator message completions must be sorted: %v", orNoneCompletions[1:])
+	assert.Contains(t, orNoneCompletions, "valtest:alpha")
+	assert.Contains(t, orNoneCompletions, "valext:ping")
+	for _, tok := range orNoneCompletions {
+		assert.NoError(t, msgOrNone.ValidateFn("bus/endpoint/send.allow", tok), "completion token %q must validate", tok)
 	}
+
+	assert.Contains(t, pathOrNone.CompleteFn(), "none")
+	assert.Contains(t, pathVal.CompleteFn(), "/bus/endpoint")
 }
 
-// TestAllSendTypeNames verifies the helper that formats send type names.
+// TestAllBusMessageNames verifies allBusMessageNames collects, deduplicates,
+// and sorts registered and external bus messages, and that every offered token
+// passes both message validators.
 //
-// VALIDATES: Returns comma-separated base types plus the wildcard.
-// PREVENTS: Malformed error messages, and an error that hides a valid token.
-func TestAllSendTypeNames(t *testing.T) {
-	result := allSendTypeNames()
-	assert.Contains(t, result, "update")
-	assert.Contains(t, result, "refresh")
-	assert.Contains(t, result, "*")
+// VALIDATES: Completion-validation agreement and deduplicated sorted output of
+// allBusMessageNames across compiled-in and externally declared bus messages.
+// PREVENTS: Duplicate or unsorted completions, or completion tokens rejected
+// by BusMessageNameValidator / BusMessageOrNoneValidator.
+func TestAllBusMessageNames(t *testing.T) {
+	restoreExt := ResetExternalBusDeclsForTest()
+	t.Cleanup(restoreExt)
+
+	require.NoError(t, events.RegisterMessage("allmsgtest", "beta"))
+	require.NoError(t, events.RegisterMessage("allmsgtest", "alpha"))
+	RecordExternalBusDecl(ExternalBusDecl{
+		Endpoint: "ext-dedup",
+		Sends:    []rpc.MessageSendDecl{{Message: "allmsgtest:alpha"}, {Message: "allmsgext:one"}},
+		Receives: []rpc.MessageReceiveDecl{{Message: "allmsgext:one"}, {Message: "allmsgext:two"}},
+	})
+
+	names := allBusMessageNames()
+	require.NotEmpty(t, names)
+	assert.True(t, slices.IsSorted(names), "allBusMessageNames must be sorted: %v", names)
+
+	seen := make(map[string]bool, len(names))
+	for _, name := range names {
+		assert.False(t, seen[name], "duplicate message name %q in allBusMessageNames", name)
+		seen[name] = true
+	}
+	for _, want := range []string{"allmsgtest:alpha", "allmsgtest:beta", "allmsgext:one", "allmsgext:two"} {
+		assert.True(t, seen[want], "missing expected message %q in allBusMessageNames", want)
+	}
+
+	msgVal := BusMessageNameValidator()
+	msgOrNone := BusMessageOrNoneValidator()
+	for _, name := range names {
+		assert.NoError(t, msgVal.ValidateFn("bus/endpoint/send/message.name", name), "allBusMessageNames token %q must pass BusMessageNameValidator", name)
+		assert.NoError(t, msgOrNone.ValidateFn("bus/endpoint/send.allow", name), "allBusMessageNames token %q must pass BusMessageOrNoneValidator", name)
+	}
 }
 
 // TestMACAddressValidator_Validate verifies MAC address format validation.

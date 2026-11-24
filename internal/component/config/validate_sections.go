@@ -90,14 +90,11 @@ var ErrCustomValidation = errors.New("config validation failed")
 //   - Twenty-five real top-level sections of the thirty-six the schema derives
 //     are absent.
 //
-// Widening it is gated on three separate defects, each with its own blast
-// radius. AddressFamilyValidator reads registry.FamilyMap(), which excludes the
-// builtin families, so adding `bgp` and `redistribute` would refuse 742 + 33
-// family sites across 687 shipped configs. `send-message-type` and
-// `receive-event-type` read the unified BGP message registry (until attach is
-// removed in favor of bus filters).
+// Widening it is gated on AddressFamilyValidator, which reads
+// registry.FamilyMap() and excludes builtin families, so adding `bgp` and
+// `redistribute` would refuse 742 + 33 family sites across 687 shipped configs.
 var validatedSections = []string{
-	sectionInterface, "sysctl", "fib", sectionPlugin, sectionWeb, "ssh", "dns",
+	sectionInterface, "sysctl", "fib", sectionBus, sectionWeb, "ssh", "dns",
 	sectionTelemetry, sectionLookingGlass, "mcp", "managed", "vpp",
 	"vpn", "pki", "l2tp", "isis", "ospf", "service", "system", "rib",
 	"rsvp-te",

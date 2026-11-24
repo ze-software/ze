@@ -590,4 +590,28 @@ module ze-extensions {
                      looks up the sibling by this exact prefix; a different
                      name silently disables auto-hash for that pair.";
     }
+
+    // Extension: first-pass
+    // Marks a top-level config root as parsed during the first pass before any
+    // external plugin starts. The loader and external-module join derive the
+    // first-pass root set from this annotation on resolved -conf modules rather
+    // than hardcoding root names.
+    extension first-pass {
+        description "Marks a top-level configuration root parsed during the
+                     first pass before external plugins start. External modules
+                     are refused from augmenting under a first-pass root.";
+    }
+
+    // Extension: replace-whole
+    // Marks a container, keyed list, or leaf-list whose value replaces an
+    // inherited value wholesale during hierarchical config inheritance instead
+    // of deep-merging key by key. On a container, writing the child container
+    // replaces the inherited container whole. On a keyed list, writing an entry
+    // under a key replaces the inherited entry for that key whole while sibling
+    // entries not written still inherit.
+    extension replace-whole {
+        description "Marks a container, list, or leaf-list whose value replaces
+                     the inherited value wholesale during config inheritance
+                     instead of deep-merging key by key.";
+    }
 }

@@ -19,10 +19,10 @@ import (
 
 	"github.com/ze-software/ze/internal/component/config/redistribute"
 	"github.com/ze-software/ze/internal/component/config/yang"
+	"github.com/ze-software/ze/internal/component/plugin"
 	"github.com/ze-software/ze/internal/component/plugin/ipc"
 	"github.com/ze-software/ze/internal/component/plugin/registry"
 	"github.com/ze-software/ze/internal/core/bgp/attribute"
-	bgpevents "github.com/ze-software/ze/internal/core/bgp/events"
 	"github.com/ze-software/ze/internal/core/configvalue"
 	"github.com/ze-software/ze/internal/core/events"
 	"github.com/ze-software/ze/internal/core/redact"
@@ -32,109 +32,170 @@ import (
 
 var errPort0IsNotValidIn = errors.New("port 0 is not valid in port spec")
 
-// ReceiveEventValidator returns a validator for one token of the receive
-// leaf-list. A token names an event type, and the type may carry the direction
-// it is granted in: "update" means both directions, "update-received" and
-// "update-sent" mean one. The wildcard "*" names every type. Resolution reads
-// the BGP event registry at call time, so a plugin-registered type such as
-// "update-rpki" validates, and it reads the whole token before any direction
-// suffix, so a registered name that ends in "-sent" keeps its name.
-func ReceiveEventValidator() yang.CustomValidator {
+// BusMessageNameValidator returns a validator for canonical "namespace:name"
+// (and "cli:<prefix>") bus message identifiers.
+func BusMessageNameValidator() yang.CustomValidator {
 	return yang.CustomValidator{
 		ValidateFn: func(path string, value any) error {
 			str, ok := value.(string)
 			if !ok {
 				return fmt.Errorf("expected string, got %T", value)
 			}
-			if str == events.TokenWildcard {
-				return nil
-			}
-			if _, _, ok := events.SplitTypeToken(bgpevents.Namespace, str); ok {
-				return nil
-			}
-			if hint := events.DirectionWordHint(str); hint != "" {
-				return fmt.Errorf("%q is not a valid receive event type: %s", str, hint)
-			}
-			return fmt.Errorf("%q is not a valid receive event type (valid: %s, %s, or a type with -received or -sent)",
-				str, events.TokenWildcard, events.ValidEventNames(bgpevents.Namespace))
+			return validateBusMessageName(str)
 		},
-		CompleteFn: allBGPEventNames,
+		CompleteFn: allBusMessageNames,
 	}
 }
 
-// SendMessageValidator returns a validator for one token of the send
-// leaf-list. Built-in types plus any plugin-registered send type, and the
-// wildcard "*" for a program whose contract is whatever the API can express.
-func SendMessageValidator() yang.CustomValidator {
+// BusMessageOrNoneValidator returns a validator accepting either the "none"
+// keyword or a canonical bus message identifier.
+func BusMessageOrNoneValidator() yang.CustomValidator {
 	return yang.CustomValidator{
 		ValidateFn: func(path string, value any) error {
 			str, ok := value.(string)
 			if !ok {
 				return fmt.Errorf("expected string, got %T", value)
 			}
-			if str == events.TokenWildcard {
+			if str == plugin.BusKeywordNone {
 				return nil
 			}
-			if slices.Contains(bgpevents.BaseSendTypes(), str) {
-				return nil
-			}
-			if events.IsValidEvent(bgpevents.Namespace, str) {
-				return nil
-			}
-			return fmt.Errorf("%q is not a valid send type (valid: %s)",
-				str, allSendTypeNames())
+			return validateBusMessageName(str)
 		},
-		CompleteFn: allSendTypeCompletions,
+		CompleteFn: func() []string {
+			names := allBusMessageNames()
+			out := make([]string, 0, len(names)+1)
+			out = append(out, plugin.BusKeywordNone)
+			out = append(out, names...)
+			return out
+		},
 	}
 }
 
-// allBGPEventNames returns the sorted receive tokens: the wildcard, every
-// registered BGP event type, and each type in each single direction.
-func allBGPEventNames() []string {
-	raw := events.ValidEventNames(bgpevents.Namespace)
-	if raw == "" {
+// BusPathOrNoneValidator returns a validator accepting either the "none"
+// keyword or a short slash bus participant path.
+func BusPathOrNoneValidator() yang.CustomValidator {
+	return yang.CustomValidator{
+		ValidateFn: func(path string, value any) error {
+			str, ok := value.(string)
+			if !ok {
+				return fmt.Errorf("expected string, got %T", value)
+			}
+			return plugin.ValidateBusPathOrNone(str)
+		},
+		CompleteFn: func() []string {
+			targets := allBusParticipantCompletions()
+			out := make([]string, 0, len(targets)+1)
+			out = append(out, plugin.BusKeywordNone)
+			out = append(out, targets...)
+			return out
+		},
+	}
+}
+
+// BusParticipantPathValidator returns a validator for short slash bus
+// participant paths (without the "none" keyword).
+func BusParticipantPathValidator() yang.CustomValidator {
+	return yang.CustomValidator{
+		ValidateFn: func(path string, value any) error {
+			str, ok := value.(string)
+			if !ok {
+				return fmt.Errorf("expected string, got %T", value)
+			}
+			return plugin.ValidateBusPathSyntax(str)
+		},
+		CompleteFn: allBusParticipantCompletions,
+	}
+}
+
+func validateBusMessageName(str string) error {
+	ns, _, ok := events.SplitMessageName(str)
+	if !ok {
+		return fmt.Errorf("%q is not a valid bus message name (expected namespace:name, e.g. %s)",
+			str, firstBusMessageExample())
+	}
+	if ns == events.NamespaceCLI {
 		return nil
 	}
-	names := []string{events.TokenWildcard}
-	for part := range strings.SplitSeq(raw, ", ") {
-		names = append(names,
-			part,
-			events.DirectionToken(part, events.DirReceived),
-			events.DirectionToken(part, events.DirSent))
+	if events.IsValidMessage(str) {
+		return nil
 	}
-	slices.Sort(names)
-	return names
+	if externalDeclaresBusMessage(str) {
+		return nil
+	}
+	if known := allBusMessageNames(); len(known) > 0 {
+		return fmt.Errorf("%q is not a registered bus message (valid: %s)", str, textbuf.Join(known, ", "))
+	}
+	return fmt.Errorf("%q is not a registered bus message", str)
 }
 
-// allSendTypeCompletions returns the sorted send tokens: the wildcard, the
-// built-in types, and every message registered in the BGP namespace.
-func allSendTypeCompletions() []string {
+func externalDeclaresBusMessage(full string) bool {
+	for _, ext := range ExternalBusDeclarations() {
+		for _, s := range ext.Sends {
+			if s.Message == full {
+				return true
+			}
+		}
+		for _, r := range ext.Receives {
+			if r.Message == full {
+				return true
+			}
+		}
+	}
+	return false
+}
+
+func allBusMessageNames() []string {
 	seen := make(map[string]bool)
-	var names []string
-	add := func(tok string) {
-		if seen[tok] {
+	var out []string
+	add := func(name string) {
+		if name == "" {
 			return
 		}
-		seen[tok] = true
-		names = append(names, tok)
+		if seen[name] {
+			return
+		}
+		seen[name] = true
+		out = append(out, name)
 	}
-	add(events.TokenWildcard)
-	for _, base := range bgpevents.BaseSendTypes() {
-		add(base)
+	for _, def := range events.AllMessages() {
+		add(def.FullName())
 	}
-	if extra := events.ValidEventNames(bgpevents.Namespace); extra != "" {
-		for part := range strings.SplitSeq(extra, ", ") {
-			add(part)
+	for _, ext := range ExternalBusDeclarations() {
+		for _, s := range ext.Sends {
+			add(s.Message)
+		}
+		for _, r := range ext.Receives {
+			add(r.Message)
 		}
 	}
-	slices.Sort(names)
-	return names
+	slices.Sort(out)
+	return out
 }
 
-// allSendTypeNames returns a comma-separated string of all valid send tokens
-// for error messages.
-func allSendTypeNames() string {
-	return textbuf.Join(allSendTypeCompletions(), ", ")
+func firstBusMessageExample() string {
+	if known := allBusMessageNames(); len(known) > 0 {
+		return known[0]
+	}
+	return "cli:show"
+}
+
+func allBusParticipantCompletions() []string {
+	seen := map[string]bool{busEndpointPrefixHint: true}
+	out := []string{busEndpointPrefixHint}
+	for _, target := range yang.BusParticipantTargets() {
+		segs := stripSchemaPrefixes(target)
+		if len(segs) == 0 {
+			continue
+		}
+		short := "/" + textbuf.Join(segs, "/")
+		if seen[short] {
+			continue
+		}
+		seen[short] = true
+		out = append(out, short)
+	}
+	slices.Sort(out)
+	return out
 }
 
 // AddressFamilyValidator returns a validator that checks if a value is a registered address family.

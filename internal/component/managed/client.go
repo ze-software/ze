@@ -38,12 +38,12 @@ var (
 	errEndpointChanged = errors.New("the applied config changed the hub connection")
 	// errHubClientRemoved ends the client: the applied config has no hub
 	// client block, which is a config that asks for no hub connection.
-	errHubClientRemoved = errors.New("the applied config has no plugin hub client block")
+	errHubClientRemoved = errors.New("the applied config has no bus hub client block")
 )
 
 // ErrNoHubClient is what ClientConfig.Endpoint answers for a config that
 // declares no hub client block.
-var ErrNoHubClient = errors.New("no plugin hub client block")
+var ErrNoHubClient = errors.New("no bus hub client block")
 
 const (
 	heartbeatInterval = 30 * time.Second
@@ -63,7 +63,7 @@ type ClientConfig struct {
 	Token       string // Auth token
 	TLSInsecure bool   // Skip TLS certificate verification (INSECURE: only for testing or self-signed hubs with explicit opt-in)
 	// CA names the pki ca entry holding the hub's certificate authority root
-	// (plugin/hub/client/ca). It authenticates a hub whose certificate no
+	// (bus/hub/client/ca). It authenticates a hub whose certificate no
 	// public CA issued, which is what a private fleet hub presents, and it
 	// keeps authenticating it after the hub reissues its leaf. Empty means the
 	// trust anchor comes from the system CA pool. See clientTLSConfig.
@@ -334,7 +334,7 @@ func RunManagedClient(ctx context.Context, cfg ClientConfig) {
 			return // shutdown
 		}
 		if errors.Is(err, errHubClientRemoved) {
-			logger().Warn("the config the hub sent has no plugin hub client block, so this node no longer follows its hub",
+			logger().Warn("the config the hub sent has no bus hub client block, so this node no longer follows its hub",
 				"code", codeDoctorHubClientMissing, "name", cfg.Name, "fix", hubClientMissingFix)
 			return
 		}

@@ -110,6 +110,7 @@ func swapModuleSet(declared []ExternalModule, validators *ValidatorRegistry) (jo
 	defaultSchema.external = &publishedModules{modules: declared, validators: validators}
 	// moduleSetLocked left the entry on the registry's generation, so the
 	// joined set replaces the compiled-in one for that same generation.
+	defaultSchema.entry.busTargets = BusParticipantTargets()
 	defaultSchema.entry.schema = joined
 	return joined, true, nil
 }
@@ -242,7 +243,7 @@ func refuseKeptModuleSet(declared []ExternalModule) error {
 			" declare: it already built "+strings.Join(keepers, ", ")+" without them",
 		"each of those is built once for the life of the process and would keep answering without the plugins' modules; "+
 			"this is a Ze defect, report it, and until it is corrected ze starts only without those plugins",
-		"delete plugin external "+declared[0].Plugin,
+		"delete bus endpoint "+declared[0].Plugin,
 	)
 }
 

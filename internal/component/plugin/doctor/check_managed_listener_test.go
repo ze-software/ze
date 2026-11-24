@@ -149,7 +149,7 @@ func TestManagedListenerCollisionNamesBothBlocks(t *testing.T) {
 // address cases above take a HubConfig the test built. This one proves the
 // check reaches the same struct from what an operator writes.
 func TestManagedListenerCheckReadsTheConfigTree(t *testing.T) {
-	const collides = `plugin {
+	const collides = `bus {
     hub {
         server local {
             ip 127.0.0.1;
@@ -160,7 +160,7 @@ func TestManagedListenerCheckReadsTheConfigTree(t *testing.T) {
     }
 }
 `
-	const separate = `plugin {
+	const separate = `bus {
     hub {
         server local {
             ip 127.0.0.1;

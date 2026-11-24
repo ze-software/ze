@@ -7,12 +7,16 @@
 package config
 
 import (
+	"context"
 	"errors"
 	"slices"
+	"strings"
 	"sync"
+	"time"
 
 	"github.com/ze-software/ze/internal/component/config/yang"
 	"github.com/ze-software/ze/internal/component/plugin"
+	"github.com/ze-software/ze/internal/component/plugin/registry"
 	"github.com/ze-software/ze/internal/core/opererr"
 	"github.com/ze-software/ze/internal/core/textbuf"
 )
@@ -108,6 +112,17 @@ type DeclaredSchemas struct {
 	// path is the path of the one source the step was given, and "" when it
 	// was given several or none.
 	path string
+	// queried holds the endpoint names of external programs started in query
+	// mode during offline validation (S-3), in config order.
+	queried []string
+}
+
+// Queried answers the endpoint names of external programs started in query mode
+// to read their Stage 1 declarations offline, in config order. Empty when no
+// external program was queried (for example inside a running daemon or when no
+// external endpoint was declared).
+func (d *DeclaredSchemas) Queried() []string {
+	return slices.Clone(d.queried)
 }
 
 // A plugin in the list refuses nothing by itself: a config with no name the
@@ -324,6 +339,12 @@ var declaredStep struct {
 	// for a command that asked one before it judged the config here
 	// (RecordDaemonUnanswered). It is nil in a process that asked none.
 	unanswered *DaemonUnanswered
+	// commandLinePlugins is the --plugin selector list the ze dispatcher parsed
+	// before any verb ran or daemon started (RecordCommandLinePlugins). Nil or
+	// empty in a process started with no --plugin.
+	// queried records the external endpoint names queried in query mode when
+	// this process fixed its module set offline.
+	queried []string
 }
 
 // RecordDaemonUnanswered records that this process, a command with no daemon
@@ -372,6 +393,7 @@ func RecordStartedPlugins(started []StartedPlugin) {
 // started: a restart with that declaration can bring a schema.
 // The caller MUST hold declaredStep.mu.
 func startedWithoutSchemaLocked(external plugin.PluginConfig) bool {
+	external.WorkDir = ""
 	for _, entry := range declaredStep.started {
 		if entry.Declaration != external {
 			continue
@@ -379,6 +401,19 @@ func startedWithoutSchemaLocked(external plugin.PluginConfig) bool {
 		return entry.Schema == SchemaNone
 	}
 	return false
+}
+
+// HasUnresolvedExternalPlugins reports whether sources declare any external
+// endpoint while this process's module set is not yet fixed (offline CLI
+// command). It reads only the first pass, starts no external program, and does
+// not fix the process module set, so a CLI command can ask a running daemon
+// first before falling back to offline query mode (AC-18). Safe for concurrent
+// use.
+func HasUnresolvedExternalPlugins(sources ...ConfigSource) bool {
+	if yang.ModuleSetFixed() {
+		return false
+	}
+	return len(declaredExternalPlugins(sources)) > 0
 }
 
 // SchemaWithDeclaredPlugins answers the schema a command parses sources
@@ -434,6 +469,10 @@ func PublishDeclaredSchemas(sources ...ConfigSource) (*DeclaredSchemas, error) {
 }
 
 // publishDeclaredSchemas is steps 1 and 2 of SchemaWithDeclaredPlugins.
+// In offline mode (!yang.ModuleSetFixed()), each declared external program is
+// started in query mode (ze.plugin.mode=declare, never its run loop) to read
+// its Stage 1 declaration, schemas, and bus declarations (S-3). Any query or
+// declaration refusal fails closed.
 func publishDeclaredSchemas(sources []ConfigSource) (*DeclaredSchemas, error) {
 	declared := &DeclaredSchemas{}
 	if len(sources) == 1 {
@@ -444,15 +483,21 @@ func publishDeclaredSchemas(sources []ConfigSource) (*DeclaredSchemas, error) {
 	declaredStep.mu.Lock()
 	defer declaredStep.mu.Unlock()
 	if !yang.ModuleSetFixed() {
-		// No external module: the set of a command with no daemon is the
-		// compiled-in one, and it is fixed here so every later reader of the
-		// process answers from it.
-		if err := PublishExternalModules(nil); err != nil {
+		modules, busDecls, queried, err := queryExternalDeclarations(externals)
+		if err != nil {
+			return nil, err
+		}
+		for _, bd := range busDecls {
+			RecordExternalBusDecl(bd)
+		}
+		if err := PublishExternalModules(modules); err != nil {
 			return nil, err
 		}
 		declaredStep.fixedHere = true
+		declaredStep.queried = slices.Clone(queried)
 	}
 	declared.offline = declaredStep.fixedHere
+	declared.queried = slices.Clone(declaredStep.queried)
 	if declaredStep.unanswered != nil {
 		asked := *declaredStep.unanswered
 		declared.unanswered = &asked
@@ -471,9 +516,139 @@ func publishDeclaredSchemas(sources []ConfigSource) (*DeclaredSchemas, error) {
 		if startedWithoutSchemaLocked(external) {
 			continue
 		}
+		if slices.Contains(declared.queried, external.Name) {
+			continue
+		}
 		declared.plugins = append(declared.plugins, external.Name)
 	}
 	return declared, nil
+}
+
+// queryExternalDeclarations asks each declared external program for its Stage 1
+// declaration in query mode (S-3), failing closed on any execution, timeout,
+// decode, or Stage 1 judgement error.
+func queryExternalDeclarations(externals []plugin.PluginConfig) ([]yang.ExternalModule, []ExternalBusDecl, []string, error) {
+	if len(externals) == 0 {
+		return nil, nil, nil, nil
+	}
+	budget, err := plugin.QueryBudget()
+	if err != nil {
+		return nil, nil, nil, err
+	}
+	var modules []yang.ExternalModule
+	busDecls := make([]ExternalBusDecl, 0, len(externals))
+	queried := make([]string, 0, len(externals))
+
+	for _, pc := range externals {
+		q := plugin.QueryDeclaration(context.Background(), pc, budget)
+		if !q.Declared {
+			return nil, nil, nil, externalQueryRefusal(pc, queryFailureCause(q, budget))
+		}
+		if q.Refusal != nil {
+			return nil, nil, nil, externalQueryRefusal(pc, q.Refusal.Error())
+		}
+		if err := judgeQueriedDeclaration(pc, &q); err != nil {
+			return nil, nil, nil, err
+		}
+		for i := range q.Declaration.Schemas {
+			s := &q.Declaration.Schemas[i]
+			if s.YANGText == "" {
+				continue
+			}
+			modules = append(modules, yang.ExternalModule{
+				Plugin:    pc.Name,
+				Module:    s.Module,
+				Namespace: s.Namespace,
+				Text:      s.YANGText,
+			})
+		}
+		busDecls = append(busDecls, ExternalBusDecl{
+			Endpoint:         pc.Name,
+			ParticipantNodes: q.Declaration.ParticipantNodes,
+			Sends:            q.Declaration.Sends,
+			Receives:         q.Declaration.Receives,
+		})
+		queried = append(queried, pc.Name)
+	}
+	return modules, busDecls, queried, nil
+}
+
+func judgeQueriedDeclaration(pc plugin.PluginConfig, q *plugin.DeclarationQuery) error {
+	judgement, err := plugin.JudgeDeclaration(pc.Name, &q.Declaration)
+	if err == nil {
+		if refusal := judgement.Refusal(); refusal != nil {
+			return externalQueryRefusal(pc, refusal.Error())
+		}
+		return nil
+	}
+	if !errors.Is(err, plugin.ErrNoDeclarationJudge) {
+		return externalQueryRefusal(pc, err.Error())
+	}
+	// When no full Stage 1 judge is linked (for example in standalone config
+	// package unit tests), still validate the bus declaration fields directly.
+	if err := registry.CheckParticipantNodeDecls(pc.Name, q.Declaration.ParticipantNodes); err != nil {
+		return externalQueryRefusal(pc, err.Error())
+	}
+	if err := registry.CheckMessageSendDecls(pc.Name, q.Declaration.Sends); err != nil {
+		return externalQueryRefusal(pc, err.Error())
+	}
+	if err := registry.CheckMessageReceiveDecls(pc.Name, q.Declaration.Receives); err != nil {
+		return externalQueryRefusal(pc, err.Error())
+	}
+	return nil
+}
+
+func queryFailureCause(q plugin.DeclarationQuery, budget time.Duration) string {
+	var tb textbuf.Buffer
+	switch q.Exit {
+	case plugin.QueryExitNotStarted:
+		if q.ExitCode == 127 {
+			return "command not found (exit status 127)"
+		}
+		if q.ExitCode == 126 {
+			return "command is not executable (exit status 126)"
+		}
+		if q.Cause != "" {
+			return "could not start program: " + q.Cause
+		}
+		return "program could not be started"
+	case plugin.QueryExitTimeout:
+		return tb.Str("timed out waiting for declaration within ").Str(budget.String()).String()
+	case plugin.QueryExitCanceled:
+		if q.Cause != "" {
+			return "declaration query canceled: " + q.Cause
+		}
+		return "declaration query canceled"
+	case plugin.QueryExitFailed:
+		if q.ExitCode >= 0 {
+			return tb.Str("program exited with status ").Int(int64(q.ExitCode)).Str(" without writing a declaration").String()
+		}
+		if q.Cause != "" {
+			return "program failed without writing a declaration: " + q.Cause
+		}
+		return "program failed without writing a declaration"
+	case plugin.QueryExitClean, plugin.QueryExitOutlived:
+		return "program exited without writing a Stage 1 declaration"
+	case plugin.QueryExitUnspecified:
+		return "program produced no declaration"
+	}
+	return "program produced no declaration"
+}
+
+func externalQueryRefusal(pc plugin.PluginConfig, cause string) *opererr.Error {
+	var problem, fix textbuf.Buffer
+	problem.Str("bus endpoint ").Quoted(pc.Name).Str(" (run ").Quoted(pc.Run).
+		Str("): declaration query failed: ").Str(cause)
+	fix.Str("ze show plugin conformance run ")
+	if strings.Contains(pc.Run, `"`) {
+		fix.Str(`"<the run string of this endpoint>"`)
+	} else {
+		fix.Byte('"').Str(pc.Run).Byte('"')
+	}
+	return opererr.New(
+		problem.String(),
+		"offline validation queries each declared external program in declare mode without starting its run loop, and refuses when a program cannot declare",
+		fix.String())
 }
 
 // declaredExternalPlugins answers each external plugin sources declare, as
@@ -487,6 +662,9 @@ func declaredExternalPlugins(sources []ConfigSource) []plugin.PluginConfig {
 			continue
 		}
 		for _, external := range firstPass.External {
+			if external.WorkDir == "" {
+				external.WorkDir = firstPass.ConfigDir
+			}
 			sameName := func(held plugin.PluginConfig) bool { return held.Name == external.Name }
 			if slices.ContainsFunc(externals, sameName) {
 				continue
@@ -500,28 +678,33 @@ func declaredExternalPlugins(sources []ConfigSource) []plugin.PluginConfig {
 // ResetDeclaredSchemasForTest puts the process back to one that has published
 // no module set (yang.ResetPublishedModulesForTest), that this file fixed
 // nothing in and that recorded no started plugin, and returns the function
-// that restores what it found. A test
-// that calls SchemaWithDeclaredPlugins, or an entry that does, with a config
-// that declares an external plugin calls it first.
+// that restores what it found. A test that calls
+// SchemaWithDeclaredPlugins, or an entry that does, with a config that declares
+// an external plugin calls it first.
 // MUST be paired with the returned restore, typically through t.Cleanup. Not
 // safe for concurrent use: such a test MUST NOT run in parallel with another
 // test that loads YANG.
 func ResetDeclaredSchemasForTest() (restore func()) {
 	restorePublished := yang.ResetPublishedModulesForTest()
+	restoreBusDecls := ResetExternalBusDeclsForTest()
 	declaredStep.mu.Lock()
 	saved := declaredStep.fixedHere
 	savedStarted := declaredStep.started
 	savedUnanswered := declaredStep.unanswered
+	savedQueried := declaredStep.queried
 	declaredStep.fixedHere = false
 	declaredStep.started = nil
 	declaredStep.unanswered = nil
+	declaredStep.queried = nil
 	declaredStep.mu.Unlock()
 	return func() {
 		declaredStep.mu.Lock()
 		declaredStep.fixedHere = saved
 		declaredStep.started = savedStarted
 		declaredStep.unanswered = savedUnanswered
+		declaredStep.queried = savedQueried
 		declaredStep.mu.Unlock()
+		restoreBusDecls()
 		restorePublished()
 	}
 }

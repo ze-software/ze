@@ -71,7 +71,10 @@ func init() {
 		})
 	}
 
-	zeconfig.RegisterPluginExtractor(string(zeconfig.ConfigTypeBGP), extractBGPInlinePlugins)
+	zeconfig.RegisterBusSecondaryPathResolver(zeconfig.BusSecondaryPathResolver{
+		Prefix:  bgpSecondaryIPPrefix,
+		Resolve: resolveBGPSecondaryIPPath,
+	})
 	if err := zeconfig.RegisterTreeValidator("bgp-filter-policy", validateFilterPolicies); err != nil {
 		panic("BUG: BGP filter policy validator registration failed: " + err.Error())
 	}

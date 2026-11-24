@@ -5,19 +5,315 @@ module ze-plugin-conf {
     import ze-types { prefix zt; }
     import ze-extensions { prefix ze; }
 
-    description "Plugin configuration for ZeBGP";
+    description "Message bus, endpoint, participant filter, and hub transport configuration for Ze.";
+
+    revision 2026-11-24 {
+        description "Replace container plugin with container bus (ze:first-pass) and reusable grouping participant-bus.";
+    }
 
     revision 2026-01-01 {
         description "Initial revision";
     }
 
-    container plugin {
-        description "Declares the plugins this daemon runs, and the hub transport they connect back over. A built-in
-            plugin that claims a configured address family starts with no block here, because the engine loads it for
-            that family. Declare an internal block to run a built-in plugin under a name you choose. Declare an
-            external block to run a program of your own. Declare a hub block to set the TLS listener and its secrets.
-            The name of an internal or external block is the name a peer's 'attach process' binding refers to.";
-        ze:help "Plugin configuration";
+    grouping participant-bus {
+        description "Direction-separated message bus delivery and filtering rules shared by bus endpoints,
+            central participant overrides, and participant schema nodes augmented with a bus block.";
+
+        container receive {
+            presence "Configure inbound bus delivery rules.";
+            description "Inbound bus delivery rules controlling which messages this participant may receive,
+                which senders may address it, and optional per-message sender or tag filters.";
+            ze:help "Inbound message bus delivery and filtering rules.";
+
+            leaf-list allow {
+                type string;
+                ze:validate "bus-message-or-none";
+                ze:replace-whole;
+                description "Message names this participant is allowed to receive. Absent allows every message
+                    the participant kind declared receiving. A listed set narrows to those message names only.
+                    Writing 'none' allows no inbound messages and cannot be combined with other names.";
+                ze:help "Allowed inbound message names, or 'none' to block all inbound messages.";
+            }
+
+            leaf-list from {
+                type string;
+                ze:validate "bus-path-or-none";
+                ze:replace-whole;
+                description "Participant paths (short form) allowed to address this participant for every
+                    message. Absent allows every sender. A listed set narrows to those senders and their
+                    descendants. Writing 'none' allows nobody and cannot be combined with other paths.";
+                ze:help "Allowed sender participant paths, or 'none' to accept from nobody.";
+            }
+
+            list message {
+                key "name";
+                ze:replace-whole;
+                description "Per-message inbound overrides. Each entry replaces an inherited entry for the
+                    same message name whole while sibling message entries remain inherited.";
+                ze:help "Per-message inbound sender and tag filters.";
+
+                leaf name {
+                    type string;
+                    ze:validate "bus-message-name";
+                    description "Qualified message name in '<namespace>:<message>' form (or 'cli:<path>')
+                        declared as receivable by this participant kind.";
+                    ze:help "Message name to filter inbound.";
+                }
+
+                leaf-list from {
+                    type string;
+                    ze:validate "bus-path-or-none";
+                    ze:replace-whole;
+                    description "Sender participant paths allowed for this message alone, overriding the
+                        block-level receive > from list. Writing 'none' blocks every sender for this message.";
+                    ze:help "Allowed sender paths for this message, or 'none'.";
+                }
+
+                list tag {
+                    key "name";
+                    ze:replace-whole;
+                    description "Inbound tag filters for this message. Multiple tag entries must all match.
+                        Writing a tag entry replaces an inherited entry for the same tag name whole.";
+                    ze:help "Tag filter narrowing inbound delivery of this message.";
+
+                    leaf name {
+                        type string;
+                        description "Tag name declared on this message by its sending participant kinds.";
+                        ze:help "Tag name to filter on.";
+                    }
+
+                    leaf-list value {
+                        type string;
+                        ze:replace-whole;
+                        description "Allowed values for this tag. The participant receives the message only
+                            when the message carries one of the listed values.";
+                        ze:help "Allowed tag values.";
+                    }
+                }
+            }
+        }
+
+        container send {
+            presence "Configure outbound bus delivery rules.";
+            description "Outbound bus delivery rules controlling which messages this participant may send,
+                where its messages go, and optional per-message destination or tag filters.";
+            ze:help "Outbound message bus delivery and filtering rules.";
+
+            leaf-list allow {
+                type string;
+                ze:validate "bus-message-or-none";
+                ze:replace-whole;
+                description "Message names this participant is allowed to send. Absent allows every message
+                    the participant kind declared sending. A listed set narrows to those message names only.
+                    Writing 'none' allows no outbound messages and cannot be combined with other names.";
+                ze:help "Allowed outbound message names, or 'none' to block all outbound messages.";
+            }
+
+            leaf-list to {
+                type string;
+                ze:validate "bus-path-or-none";
+                ze:replace-whole;
+                description "Destination participant paths (short form) for every message this participant
+                    sends. Absent uses the destinations registered by the participant kind. A listed set
+                    replaces the registered destinations entirely. Writing 'none' sends to nobody and cannot
+                    be combined with other paths.";
+                ze:help "Destination participant paths replacing defaults, or 'none' to send to nobody.";
+            }
+
+            list message {
+                key "name";
+                ze:replace-whole;
+                description "Per-message outbound overrides. Each entry replaces an inherited entry for the
+                    same message name whole while sibling message entries remain inherited.";
+                ze:help "Per-message outbound destination and tag filters.";
+
+                leaf name {
+                    type string;
+                    ze:validate "bus-message-name";
+                    description "Qualified message name in '<namespace>:<message>' form (or 'cli:<path>')
+                        declared as sendable by this participant kind.";
+                    ze:help "Message name to filter outbound.";
+                }
+
+                leaf-list to {
+                    type string;
+                    ze:validate "bus-path-or-none";
+                    ze:replace-whole;
+                    description "Destination participant paths for this message alone, overriding the
+                        block-level send > to list. Writing 'none' sends this message to nobody.";
+                    ze:help "Destination paths for this message, or 'none'.";
+                }
+
+                list tag {
+                    key "name";
+                    ze:replace-whole;
+                    description "Outbound tag filters for this message. Multiple tag entries must all match.
+                        Writing a tag entry replaces an inherited entry for the same tag name whole.";
+                    ze:help "Tag filter narrowing outbound emission of this message.";
+
+                    leaf name {
+                        type string;
+                        description "Tag name declared on this message by this participant kind.";
+                        ze:help "Tag name to filter on.";
+                    }
+
+                    leaf-list value {
+                        type string;
+                        ze:replace-whole;
+                        description "Allowed values for this tag. The bus admits the outbound message only
+                            when the message carries one of the listed values.";
+                        ze:help "Allowed tag values.";
+                    }
+                }
+            }
+        }
+    }
+
+    container bus {
+        ze:first-pass;
+        description "Declares message bus endpoints, central participant filters, and the hub transport
+            listener and client connections. Built-in plugins load automatically when their configuration
+            roots are present; declare an endpoint entry to run a built-in plugin under a chosen name or
+            in a separate process, to run an external program, or to override its bus delivery rules.
+            Declare a participant entry to apply bus filters centrally to any participant by its path.";
+        ze:help "Message bus endpoints, participant filters, and hub transport.";
+
+        list endpoint {
+            key "name";
+            description "Declares one program on the message bus, either a compiled-in plugin (internal)
+                or a program Ze did not ship (external). Its participant path is '/bus/endpoint/<name>'.
+                A compiled-in plugin keeps its compiled registration identity under any endpoint name
+                and on either transport. internal and external are mutually exclusive.";
+            ze:help "Program endpoint connected to the message bus.";
+
+            leaf name {
+                type string;
+                ze:validate "external-plugin-name";
+                description "The key of the endpoint, forming the participant path '/bus/endpoint/<name>'
+                    and passed to a forked process as ZE_PLUGIN_NAME. The hub binds the connect-back token
+                    to this name, so one endpoint's token authenticates no other. The name is 1 to 64
+                    letters, digits and hyphens, starting with a letter or digit.";
+                ze:help "Endpoint name (1..64 alphanumeric or hyphen characters).";
+            }
+
+            leaf internal {
+                type string;
+                ze:validate "internal-plugin-name";
+                description "Registry name of a compiled-in plugin shipped inside the ze binary. The
+                    endpoint keeps the compiled registration's identity, state grants, and defaults
+                    regardless of endpoint name or process mode. Mutually exclusive with external.";
+                ze:help "Registered name of a compiled-in plugin.";
+            }
+
+            leaf process {
+                type enumeration {
+                    enum in-daemon {
+                        ze:help "Run the compiled-in plugin inside the ze daemon over an in-memory pipe.";
+                    }
+                    enum separate {
+                        ze:help "Fork the ze binary to run the compiled-in plugin over TLS connect-back.";
+                    }
+                }
+                default "in-daemon";
+                description "Execution mode for a compiled-in plugin (valid with internal only).
+                    in-daemon runs the plugin as a goroutine of the ze daemon with no fork. separate
+                    forks the running ze binary for that plugin over TLS connect-back while keeping the
+                    same registration identity and grants. Refused for plugins that declare
+                    RunsInProcessOnly.";
+                ze:help "Process execution mode for an internal endpoint (in-daemon or separate).";
+            }
+
+            container external {
+                presence "Run an external program not shipped by Ze.";
+                description "Runs an external program not shipped by Ze as a separate subprocess. Its
+                    identity is the endpoint name alone, and it inherits no grants from any compiled-in
+                    plugin of the same name. Mutually exclusive with internal.";
+                ze:help "External program process settings.";
+
+                leaf run {
+                    type string;
+                    description "Command line that starts the external program. The engine runs it with
+                        '/bin/sh -c', so arguments, quoting and PATH lookup work as in a shell. The
+                        directory of the running ze binary is added to PATH as a fallback. The child
+                        reads ZE_PLUGIN_HUB_HOST, ZE_PLUGIN_HUB_PORT, ZE_PLUGIN_HUB_TOKEN,
+                        ZE_PLUGIN_CA_PEM and ZE_PLUGIN_NAME from its environment and connects back
+                        over TLS.";
+                    ze:help "Shell command line to launch the external program.";
+                }
+
+                leaf respawn {
+                    type boolean;
+                    description "Controls whether Ze restarts this external program when its process
+                        exits. When absent, the program's own Stage 1 declaration decides. Setting false
+                        leaves the endpoint stopped on exit even when the program declared respawnable.
+                        Setting true against a program that declared non-respawnable is refused at start.
+                        Restarts are bounded at 5 in 60 seconds and 20 in the life of the daemon.";
+                    ze:help "Restart the external program when it exits.";
+                }
+
+                leaf timeout {
+                    type string;
+                    description "Bounds a stall in the startup handshake across endpoints starting
+                        together in one tier. Write a duration with a unit, such as 10s or 1m; a value
+                        with no unit or a negative value is refused. When absent, Ze uses the
+                        ze.plugin.stage.timeout environment variable (default 5s).";
+                    ze:help "Startup handshake stall timeout (e.g., 10s, 1m).";
+                }
+
+                leaf on-exit {
+                    type enumeration {
+                        enum withdraw {
+                            ze:help "Withdraw routes originated by this endpoint when its process exits (default).";
+                        }
+                        enum keep {
+                            ze:help "Keep routes originated by this endpoint after its process exits (ExaBGP compatibility).";
+                        }
+                    }
+                    default "withdraw";
+                    description "Controls what happens to routes originated by this external endpoint
+                        when its process disappears. withdraw (the default) withdraws every route the
+                        endpoint originated. keep leaves its originated routes in place after exit and
+                        exists solely for ExaBGP compatibility.";
+                    ze:help "Disposition of routes originated by this endpoint when it exits (withdraw or keep).";
+                }
+            }
+
+            leaf encoding {
+                type enumeration {
+                    enum json {
+                        ze:help "JSON event encoding (default).";
+                    }
+                    enum text {
+                        ze:help "Human-readable text event encoding.";
+                    }
+                }
+                default "json";
+                description "Wire encoding of events delivered to this endpoint: json for JSON objects
+                    or text for line-oriented text.";
+                ze:help "Wire encoding format for events delivered to this endpoint (json or text).";
+            }
+
+            uses participant-bus;
+        }
+
+        list participant {
+            key "path";
+            description "Applies bus delivery and filtering rules centrally to any participant or bus
+                subtree identified by its short-form path (for example '/bus/endpoint/collector').
+                Compiles with any bus block written directly on the participant into one filter;
+                disagreeing content for the same field is refused at commit naming both lines, while
+                identical content is accepted.";
+            ze:help "Central bus delivery and filtering rules for a participant path.";
+
+            leaf path {
+                type string;
+                ze:validate "bus-participant-path";
+                description "Short-form participant path naming a configured participant or bus subtree.";
+                ze:help "Short-form participant path.";
+            }
+
+            uses participant-bus;
+        }
 
         container hub {
             description "Sets the TLS listener that plugin processes connect back to, and the outbound connection this
@@ -177,120 +473,5 @@ module ze-plugin-conf {
                 }
             }
         }
-
-        list internal {
-            key "name";
-            description "Runs a plugin that ships inside the ze binary as a goroutine of this process. There is no fork,
-                no TLS connect-back and no shell command: the engine and the plugin exchange messages over an
-                in-memory pipe. Each block needs a use leaf naming the built-in plugin, and a block that also sets run
-                is refused. Declare a block here to bind a built-in plugin to a peer with 'attach process', or to run
-                one under a name of your own. A plugin that claims a configured address family loads without a block.";
-            ze:help "Built-in plugin running in-process";
-
-            leaf name {
-                type string {
-                    length "1..64";
-                }
-                description "The key of the block, and the name the rest of the config uses for this plugin. A peer's
-                    'attach process' binding names it. It is independent of the use leaf, so the same built-in plugin
-                    can run under two names. A name that starts with an underscore is reserved and the config is
-                    refused. The name MUST NOT repeat a name in the external list.";
-                ze:help "Plugin name";
-            }
-
-            leaf use {
-                type string {
-                    length "1..64";
-                }
-                ze:validate "internal-plugin-name";
-                description "Names the built-in plugin this block runs. The value MUST be a plugin registered in this
-                    binary. A value that is not registered is refused, and the error prints the registered names.
-                    Command completion offers that same list. The leaf is required, and a block with no use is refused
-                    with 'internal plugin requires use'.";
-                ze:help "Name of a built-in plugin to run in-process";
-            }
-        }
-
-        list external {
-            key "name";
-            description "Runs a plugin as a separate process. The engine starts the run command with '/bin/sh -c'. The
-                child connects back to the hub listener over TLS. It reads the address, the certificate authority root
-                and its token from its environment. A block that sets use instead of run runs a built-in plugin in
-                this process, with no fork. The block name is the name a peer's 'attach process' binding refers to,
-                and the name the hub binds the connect-back token to.";
-            ze:help "External plugin process";
-
-            leaf name {
-                type string;
-                ze:validate "external-plugin-name";
-                description "The key of the block, and the name the rest of the config uses for this plugin. A peer's
-                    'attach process' binding names it, and the child reads it as ZE_PLUGIN_NAME. The hub binds the
-                    connect-back token to this name, so one plugin's token authenticates no other. The name is 1 to 64
-                    letters, digits and hyphens, the first a letter or a digit, the one form the connect-back accepts:
-                    the commit refuses any other name, an underscore or a dot included. The name MUST NOT repeat a
-                    name in the internal list.";
-                ze:help "Plugin name";
-            }
-
-            leaf run {
-                type string;
-                description "The command line that starts the plugin. The engine runs it with '/bin/sh -c', so arguments,
-                    quoting and a PATH lookup work as they do in a shell. The directory of the running ze binary is
-                    added to PATH as a fallback, so 'ze plugin <name>' finds the binary in a development tree. The
-                    child reads ZE_PLUGIN_HUB_HOST, ZE_PLUGIN_HUB_PORT, ZE_PLUGIN_HUB_TOKEN, ZE_PLUGIN_CA_PEM and
-                    ZE_PLUGIN_NAME from its environment, and connects back over TLS. A value of the form 'ze.<plugin>'
-                    names a built-in plugin, which the engine then runs in this process rather than as a fork. run and
-                    use are mutually exclusive, and a block that sets both is refused.";
-                ze:help "Command to execute plugin as external process (with args)";
-            }
-
-            leaf use {
-                type string;
-                description "Names a built-in plugin to run in this process instead of a command. The block then behaves
-                    like an internal block: no fork, no TLS connect-back, and an in-memory pipe between the engine and
-                    the plugin. run and use are mutually exclusive, and a block that sets both is refused. The use
-                    leaf of an internal block is checked against the registered plugin names, and this one is not. An
-                    unknown name here fails at startup with 'unknown internal plugin'.";
-                ze:help "Name of a built-in plugin to run in-process (mutually exclusive with run)";
-            }
-
-            leaf encoder {
-                type enumeration {
-                    enum json { ze:help "JSON encoding"; }
-                    enum text { ze:help "Human-readable text encoding"; }
-                }
-                description "Chooses how the engine encodes the events it sends this plugin: 'json' for JSON objects,
-                    'text' for the line format ExaBGP plugins read. 'text' also makes the engine forward every
-                    received BGP UPDATE to the plugin. A peer's 'attach process' binding can set an encoding of its
-                    own, and that value wins over this one. With no value here and none on the binding, the engine
-                    uses 'text'.";
-                ze:help "Event encoding format";
-            }
-
-            leaf respawn {
-                type boolean;
-                description "States what you expect ze to do when this plugin's process exits. The plugin itself declares
-                    whether it may be started again, and this leaf is a request inside that declaration. With no leaf
-                    here the plugin's own declaration decides. With 'false' the plugin is left stopped even when it
-                    would have been started again. With 'true' against a plugin that declares it must not be
-                    restarted, ze refuses to start, and the error names the plugin and the policy it declared: ze
-                    honors neither side in silence. The spelling comes from ExaBGP, whose process block carries the
-                    same leaf. A restart is bounded at 5 in 60 seconds and 20 in the life of the daemon, after which
-                    the plugin is disabled and 'show health' reports doctor-plugin-stopped.";
-                ze:help "Respawn on exit";
-            }
-
-            leaf timeout {
-                type string;
-                description "Bounds a stall in the plugin startup handshake, and does not bound the handshake itself. The
-                    handshake runs in stages across every plugin that starts together. The timer expires only when no
-                    plugin of that group completes a stage for this long. Write a duration with a unit, such as 10s or
-                    1m: a value with no unit is refused, and so is a negative value. With no value the engine uses the
-                    ze.plugin.stage.timeout environment variable, which defaults to 5s. Raise it for a plugin that
-                    needs longer to reach its first stage.";
-                ze:help "Startup timeout (e.g., 10s, 1m)";
-            }
-        }
     }
-
 }

@@ -71,7 +71,7 @@ func ValidateSemantics(tree *Tree) []diagnostic.Diagnostic {
 		})
 	}
 
-	if tree.GetContainer("plugin") != nil {
+	if tree.GetContainer("bus") != nil {
 		if _, err := ExtractHubConfig(tree); err != nil {
 			diags = append(diags, diagnostic.Diagnostic{
 				Code:     diagnostic.CodeConfigHubInvalid,

@@ -80,7 +80,7 @@ type ListenerService struct {
 // Naming: path components between the root and the ze:listener list are joined
 // with "-", dropping "environment" and "interface" prefixes (common top-level
 // groupings) and "server" suffixes (conventional list names). This produces
-// names like "web", "ssh", "plugin-hub", "api-server-rest", "wireguard".
+// names like "web", "ssh", "bus-hub", "api-server-rest", "wireguard".
 //
 // Protocol: lists whose schema children include both "ip" and "port" (from the
 // zt:listener grouping) are TCP. Lists with a "listen-port" child are UDP.
@@ -132,7 +132,7 @@ func buildListenerService(ln *ListNode, fullPath []string, parentNode Node) List
 	// Derive human-readable name: drop well-known top-level grouping
 	// containers (environment, telemetry, interface) and the list name
 	// if it is the conventional "server". Other top-level containers
-	// like "plugin" are kept because they carry meaning (e.g. "plugin-hub").
+	// like "bus" are kept because they carry meaning (e.g. "bus-hub").
 	var nameParts []string
 	for i, p := range containers {
 		if i == 0 && (p == sectionEnvironment || p == sectionInterface || p == sectionTelemetry) {
@@ -362,7 +362,7 @@ func CollectListeners(tree *Tree, schema *Schema) []ListenerEndpoint {
 		}
 
 		// Check enabled leaf -- YANG default is false, so absent = disabled.
-		// Services without an enabled leaf in the schema (e.g. plugin-hub)
+		// Services without an enabled leaf in the schema (e.g. bus-hub)
 		// are always collected.
 		if svc.HasEnabledLeaf {
 			v, ok := container.Get("enabled")

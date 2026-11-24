@@ -17,7 +17,10 @@ import (
 // grammar. Ze rewrites no file: the operator edits the keyword, which is why the
 // replacement has to be in the refusal.
 var retiredKeywords = map[string]string{
-	"process": "attach process",
+	"process": "bus { endpoint <name> { ... } } and a participant's bus { send { ... } receive { ... } } block",
+	"plugin":  "bus { endpoint <name> { internal <plugin>; } } or bus { endpoint <name> { external { run \"...\"; } } }",
+	"attach":  "a participant's bus { send { to [ ... ]; } receive { from [ ... ]; } } block (or bus { participant <path> { ... } })",
+	"exabgp":  "bus { endpoint <name> { external { run \"ze exabgp plugin ...\"; } } }",
 	// Administrative distance had two containers declaring the same numbers,
 	// `bgp { admin-distance }` and `rib { admin-distance }`, and which one
 	// decided depended on whether the rib block existed. One declaration

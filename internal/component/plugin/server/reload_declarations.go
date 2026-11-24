@@ -92,7 +92,7 @@ func declarationChanges(started, candidate []plugin.PluginConfig) []string {
 		if !held {
 			continue
 		}
-		if previous == declaration {
+		if externalDeclarationsEqual(previous, declaration) {
 			continue
 		}
 		changes = append(changes, declarationPhrase("it changes plugin ", declaration.Name,
@@ -128,6 +128,40 @@ func declarationNamed(declarations []plugin.PluginConfig, name string) (plugin.P
 	return plugin.PluginConfig{}, false
 }
 
+// externalDeclarationsEqual compares only the external process declaration
+// fields (run, encoding, respawn, timeout, on-exit). Bus send/receive filters
+// live outside these fields so filter reloads proceed live without restarting
+// ze.
+func externalDeclarationsEqual(before, after plugin.PluginConfig) bool {
+	if before.Run != after.Run {
+		return false
+	}
+	if canonicalEncoding(before.Encoder) != canonicalEncoding(after.Encoder) {
+		return false
+	}
+	if before.Respawn != after.Respawn {
+		return false
+	}
+	if before.StageTimeout != after.StageTimeout {
+		return false
+	}
+	return canonicalOnExit(before.OnExit) == canonicalOnExit(after.OnExit)
+}
+
+func canonicalEncoding(enc string) string {
+	if enc == "" {
+		return plugin.EncodingJSON
+	}
+	return enc
+}
+
+func canonicalOnExit(onExit string) string {
+	if onExit == "" {
+		return plugin.OnExitWithdraw
+	}
+	return onExit
+}
+
 // changedLeaves names the leaves of the `external` block in which after
 // differs from before. A difference in a field no leaf below names is still a
 // changed declaration, and is said as such: the list is never empty for two
@@ -137,14 +171,17 @@ func changedLeaves(before, after plugin.PluginConfig) []string {
 	if before.Run != after.Run {
 		leaves = append(leaves, "run")
 	}
-	if before.Encoder != after.Encoder {
-		leaves = append(leaves, "encoder")
+	if canonicalEncoding(before.Encoder) != canonicalEncoding(after.Encoder) {
+		leaves = append(leaves, "encoding")
 	}
 	if before.Respawn != after.Respawn {
 		leaves = append(leaves, "respawn")
 	}
 	if before.StageTimeout != after.StageTimeout {
 		leaves = append(leaves, "timeout")
+	}
+	if canonicalOnExit(before.OnExit) != canonicalOnExit(after.OnExit) {
+		leaves = append(leaves, "on-exit")
 	}
 	if len(leaves) == 0 {
 		leaves = append(leaves, "another part of its declaration")

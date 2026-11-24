@@ -48,11 +48,6 @@ module ze-peer-cmd {
         description "One or more AFI/SAFI names, comma separated (ipv4/unicast,ipv6/unicast).";
     }
 
-    typedef process-list {
-        type string { pattern '[a-zA-Z0-9_][a-zA-Z0-9_.-]*(,[a-zA-Z0-9_][a-zA-Z0-9_.-]*)*'; }
-        description "One or more plugin process names, comma separated.";
-    }
-
     container show {
         config false;
 
@@ -218,10 +213,7 @@ commit or a reload whose configuration does not declare the peer keeps it
 running. 'delete bgp peer' is how it leaves, and it does not change the file on
 disk either; 'update bgp config' writes the running peers to the file. An
 address that already names a peer is refused, and so is a keyword Ze cannot
-honor. Each name in 'attach' is bound to the whole surface: that process
-receives every message from this peer and can send every type toward it. Write
-the receive and send lists in the configuration file when the process needs
-less.";
+honor.";
                 ze:help "Add a peer to the running daemon.";
 
                 // The leaf is named 'selector' because the dispatcher bridges
@@ -326,13 +318,6 @@ the graceful restart capability of its OPEN. Absent, the session advertises none
 of UPDATE messages from one per route to one per set of path attributes. Use false for a
 peer that requires one prefix per UPDATE.";
                     ze:help "Group this peer's UPDATEs with other peers, default true";
-                }
-                leaf attach {
-                    type process-list;
-                    description "Each name is a plugin process the configuration declares. Ze binds the
-peer to each one with the whole surface: the process receives every message from this peer
-and can send every type toward it. An empty name is refused.";
-                    ze:help "Plugin processes bound to this peer, comma separated";
                 }
             }
         }

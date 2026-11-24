@@ -4,7 +4,7 @@
 // Related: baseline.go -- ManagedFlag, ActiveVersion, BaselineVersion and Diverged, the one reader of each fact the checks judge
 // Related: ../plugin/server/managed_held.go -- HeldClients and ReadHeldRecord, the hub's copies the hub-side check reports
 
-// The managed component owns the plugin/hub/client dependency (a node's outbound
+// The managed component owns the bus/hub/client dependency (a node's outbound
 // connection to a management hub), so it owns this doctor check
 // (ai/rules/repo-maintenance.md "Components that are not plugins"). It mirrors the
 // radius component doctor pattern. The check is a STATELESS config-tree
@@ -228,9 +228,9 @@ func diagnoseHeldOrphan(name string, record pluginserver.HeldRecord) diagnostic.
 		Code:     codeDoctorManagedClientDiverged,
 		Severity: diagnostic.SeverityWarning,
 		Message: "this hub keeps a copy of the configuration client " + name + " holds (version " + record.Version() +
-			"), and no plugin hub server block declares " + name + ", so the copy is orphaned: the client cannot connect and the hold cannot be resolved",
+			"), and no bus hub server block declares " + name + ", so the copy is orphaned: the client cannot connect and the hold cannot be resolved",
 		Help: "declaring the client again lets it connect, and the hold is then resolved from this hub; the copy is the only one this hub keeps of what the client runs",
-		Fix: "declare client " + name + " again in a plugin hub server block, or remove the copy with the hub stopped: ze data rm " +
+		Fix: "declare client " + name + " again in a bus hub server block, or remove the copy with the hub stopped: ze data rm " +
 			pluginserver.HeldRecordKey(name),
 	}
 }
@@ -383,7 +383,7 @@ func diagnoseManagedUncompared(what string, cause error) []diagnostic.Diagnostic
 const hubClientMissingFix = "ze init --managed --force"
 
 // checkHubClientDeclared warns when this node is a managed client and its
-// configuration has no plugin/hub/client block. Such a node connects to no
+// configuration has no bus/hub/client block. Such a node connects to no
 // hub and is never told of a change, and the running client says so only
 // once, in its log, when it applies that configuration.
 //
@@ -421,7 +421,7 @@ func diagnoseHubClientDeclared(managed bool, clientBlocks int) []diagnostic.Diag
 	return []diagnostic.Diagnostic{{
 		Code:     codeDoctorHubClientMissing,
 		Severity: diagnostic.SeverityWarning,
-		Message: "this node is a managed client and its configuration has no plugin hub client block, " +
+		Message: "this node is a managed client and its configuration has no bus hub client block, " +
 			"so it follows no hub and receives no configuration change",
 		Help: "add the client block to this node's configuration on the hub, then provision the node again so that it fetches it",
 		Fix:  hubClientMissingFix,
@@ -429,7 +429,7 @@ func diagnoseHubClientDeclared(managed bool, clientBlocks int) []diagnostic.Diag
 }
 
 // checkHubReachable warns when this node is configured as a managed client
-// (plugin/hub/client block) but none of its hubs answers a TCP probe, so an
+// (bus/hub/client block) but none of its hubs answers a TCP probe, so an
 // operator sees the degraded hub connection via `ze doctor` instead of only in
 // the daemon logs (startup-resilience AC-5). No-op when no hub client is
 // configured; a malformed hub block is left to config validation, not flagged
@@ -468,7 +468,7 @@ func diagnoseHubReachability(clients []plugin.HubClientConfig) []diagnostic.Diag
 		Severity: diagnostic.SeverityWarning,
 		Message:  "the configured management hub is not reachable",
 		Fix: "start the hub at " + primary.Address() + ", or correct the host and port of this device's " +
-			"plugin hub client block in its configuration on the hub; ze doctor on the hub reports a managed listener that did not bind",
+			"bus hub client block in its configuration on the hub; ze doctor on the hub reports a managed listener that did not bind",
 	}}
 }
 

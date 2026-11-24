@@ -56,15 +56,23 @@ func DefaultLoader() (*Resolved, error) {
 }
 
 // moduleSetLocked answers the process's module set for the registry's
-// generation, resolving it when the cached entry is of another generation or
-// holds nothing. The caller MUST hold defaultSchema.mu.
+// generation and registered bus participant targets, resolving it when the
+// cached entry is of another generation, target set, or holds nothing. The
+// caller MUST hold defaultSchema.mu.
 func moduleSetLocked() (*Resolved, error) {
+	targets := BusParticipantTargets()
 	entry := &defaultSchema.entry
-	if entry.answers(modulesGeneration) {
+	if entry.answers(modulesGeneration, targets) {
 		return entry.schema, entry.err
 	}
 	schema, err := resolveProcessSet()
-	*entry = moduleSetEntry{resolved: true, generation: modulesGeneration, schema: schema, err: err}
+	*entry = moduleSetEntry{
+		resolved:   true,
+		generation: modulesGeneration,
+		busTargets: targets,
+		schema:     schema,
+		err:        err,
+	}
 	return schema, err
 }
 
@@ -88,16 +96,21 @@ var defaultSchema struct {
 type moduleSetEntry struct {
 	resolved   bool
 	generation uint64
+	busTargets []string
 	schema     *Resolved
 	err        error
 }
 
-// answers reports whether the entry holds the answer for generation.
-func (e *moduleSetEntry) answers(generation uint64) bool {
+// answers reports whether the entry holds the answer for generation and
+// bus participant targets.
+func (e *moduleSetEntry) answers(generation uint64, targets []string) bool {
 	if !e.resolved {
 		return false
 	}
-	return e.generation == generation
+	if e.generation != generation {
+		return false
+	}
+	return slices.Equal(e.busTargets, targets)
 }
 
 // resolveProcessSet resolves the compiled-in modules and joins the published
@@ -119,15 +132,17 @@ func resolveProcessSet() (*Resolved, error) {
 }
 
 // resolveDefault runs the work DefaultLoader caches: every embedded and
-// registered module into a new Loader, then Resolve.
+// registered module into a new Loader, synthesized bus participant augments,
+// then Resolve.
 func resolveDefault() (*Resolved, error) {
 	l := NewLoader()
 	if err := l.LoadEmbedded(); err != nil {
 		return nil, fmt.Errorf("YANG LoadEmbedded: %w", err)
 	}
 	registeredErr := l.LoadRegistered()
+	busErr := l.loadBusParticipants()
 	schema, resolveErr := l.Resolve()
-	if err := errors.Join(registeredErr, resolveErr); err != nil {
+	if err := errors.Join(registeredErr, busErr, resolveErr); err != nil {
 		return nil, err
 	}
 	return schema, nil

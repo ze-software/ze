@@ -32,14 +32,19 @@ var cumulativePaths = map[string]bool{
 	"filter/egress/community/strip":  true,
 }
 
-// replacePaths lists config container paths where a peer-level container replaces
-// its group-level container wholesale instead of deep-merging key by key.
-// ze-graceful-restart.yang and grCapabilityFor specify that a peer writing
-// graceful-restart replaces its group's graceful-restart for both short-lived
-// and long-lived phases, so filter insertion and reactor config parsing must see
-// the same precedence.
-var replacePaths = map[string]bool{
-	"session/capability/graceful-restart": true,
+// peerSchemaNode answers the schema node for a BGP peer entry (bgp > peer) so
+// deepMergeAt reads ze:replace-whole markers directly from the YANG schema.
+func peerSchemaNode() config.Node {
+	schema, err := config.YANGSchema()
+	// refuse-by-default: guards YANGSchema -- when no schema is registered (stripped unit tests), merge falls back to key-by-key recursion.
+	if err != nil {
+		return nil
+	}
+	bgpNode, ok := schema.Get("bgp").(*config.ContainerNode)
+	if !ok {
+		return nil
+	}
+	return bgpNode.Get("peer")
 }
 
 // ResolveBGPTree resolves peer-group inheritance and returns the bgp block as map[string]any.
@@ -69,6 +74,7 @@ func ResolveBGPTree(tree *config.Tree) (map[string]any, error) {
 	// override them via deepMergeMaps. No field whitelist needed: unknown
 	// fields are harmlessly ignored by PeersFromTree downstream.
 	bgpDefaults := deepCopyMap(result)
+	peerSchema := peerSchemaNode()
 
 	peerMap := make(map[string]any)
 	peerNames := make(map[string]string) // name -> addr (for uniqueness check)
@@ -91,7 +97,7 @@ func ResolveBGPTree(tree *config.Tree) (map[string]any, error) {
 
 		// Detect dynamic group: connection > remote > ip == "dynamic".
 		if config.IsDynamicBGPGroup(groupFields) {
-			tmpl, err := resolveDynamicGroup(groupName, groupFields, bgpDefaults)
+			tmpl, err := resolveDynamicGroup(groupName, groupFields, bgpDefaults, peerSchema)
 			if err != nil {
 				return nil, err
 			}
@@ -115,13 +121,13 @@ func ResolveBGPTree(tree *config.Tree) (map[string]any, error) {
 			resolved := make(map[string]any)
 
 			// Layer 1: BGP-level defaults (lowest precedence).
-			deepMergeMaps(resolved, deepCopyMap(bgpDefaults), cumulativePaths)
+			deepMergeMapsWithSchema(resolved, deepCopyMap(bgpDefaults), cumulativePaths, peerSchema)
 
 			// Layer 2: Apply group defaults.
-			deepMergeMaps(resolved, groupFields, cumulativePaths)
+			deepMergeMapsWithSchema(resolved, groupFields, cumulativePaths, peerSchema)
 
 			// Layer 3: Apply peer's own values (highest precedence).
-			deepMergeMaps(resolved, peerTree.ToMap(), cumulativePaths)
+			deepMergeMapsWithSchema(resolved, peerTree.ToMap(), cumulativePaths, peerSchema)
 
 			// Inject group name so PeersFromTree can populate PeerSettings.GroupName.
 			resolved["group-name"] = groupName
@@ -141,10 +147,10 @@ func ResolveBGPTree(tree *config.Tree) (map[string]any, error) {
 		resolved := make(map[string]any)
 
 		// Layer 1: BGP-level defaults (lowest precedence).
-		deepMergeMaps(resolved, deepCopyMap(bgpDefaults), cumulativePaths)
+		deepMergeMapsWithSchema(resolved, deepCopyMap(bgpDefaults), cumulativePaths, peerSchema)
 
 		// Layer 3: Apply peer's own values (highest precedence).
-		deepMergeMaps(resolved, peerTree.ToMap(), cumulativePaths)
+		deepMergeMapsWithSchema(resolved, peerTree.ToMap(), cumulativePaths, peerSchema)
 
 		// Validate peer name (the list key).
 		if err := validatePeerName(peerName); err != nil {
@@ -188,7 +194,7 @@ type DynamicGroupTemplate struct {
 }
 
 // resolveDynamicGroup validates and resolves a dynamic group into a template.
-func resolveDynamicGroup(groupName string, groupFields, bgpDefaults map[string]any) (DynamicGroupTemplate, error) {
+func resolveDynamicGroup(groupName string, groupFields, bgpDefaults map[string]any, peerSchema config.Node) (DynamicGroupTemplate, error) {
 	if _, ok := groupFields["connection"].(map[string]any); !ok {
 		return DynamicGroupTemplate{}, fmt.Errorf("bgp/group %s: missing connection block", groupName)
 	}
@@ -240,8 +246,8 @@ func resolveDynamicGroup(groupName string, groupFields, bgpDefaults map[string]a
 
 	// Build resolved template (merge bgp defaults + group fields).
 	resolved := make(map[string]any)
-	deepMergeMaps(resolved, deepCopyMap(bgpDefaults), cumulativePaths)
-	deepMergeMaps(resolved, groupFields, cumulativePaths)
+	deepMergeMapsWithSchema(resolved, deepCopyMap(bgpDefaults), cumulativePaths, peerSchema)
+	deepMergeMapsWithSchema(resolved, groupFields, cumulativePaths, peerSchema)
 	resolved["group-name"] = groupName
 	if err := validateDynamicGroupTTL(groupName, resolved); err != nil {
 		return DynamicGroupTemplate{}, err
@@ -473,28 +479,62 @@ func validateGroupName(name string) error {
 	return nil
 }
 
-// deepCopyMap returns a deep copy of a map, recursively copying nested maps.
-// Non-map values are shared (strings, ints are immutable so this is safe).
+// cloneScalarOrSlice returns a defensive copy for slice values so peer and
+// group layers never share a mutable backing array.
+func cloneScalarOrSlice(v any) any {
+	switch s := v.(type) {
+	case []string:
+		return slices.Clone(s)
+	case []any:
+		return slices.Clone(s)
+	default:
+		return v
+	}
+}
+
+// deepCopyMap returns a deep copy of a map, recursively copying nested maps
+// and cloning slice values.
 func deepCopyMap(src map[string]any) map[string]any {
 	dst := make(map[string]any, len(src))
 	for k, v := range src {
 		if m, ok := v.(map[string]any); ok {
 			dst[k] = deepCopyMap(m)
 		} else {
-			dst[k] = v
+			dst[k] = cloneScalarOrSlice(v)
 		}
 	}
 	return dst
 }
 
-// deepMergeMaps recursively merges src into dst.
+// deepMergeMaps recursively merges src into dst without schema replace-whole metadata.
 // For leaf values (non-map), src overwrites dst.
 // For map values, keys are merged recursively so both sides contribute.
 // If cumulative is non-nil, keys whose dot-path is in the set accumulate
 // slice values (append) instead of replacing them. Used for ze:cumulative
 // leaf-lists like filter tag/strip that must gather values from all config levels.
 func deepMergeMaps(dst, src map[string]any, cumulative map[string]bool) {
-	deepMergeAt(dst, src, cumulative, "")
+	deepMergeAt(dst, src, cumulative, "", nil)
+}
+
+// deepMergeMapsWithSchema recursively merges src into dst, walking schema in
+// lockstep so containers, keyed list entries, and leaf-lists marked
+// ze:replace-whole replace inherited values wholesale instead of deep-merging.
+func deepMergeMapsWithSchema(dst, src map[string]any, cumulative map[string]bool, schema config.Node) {
+	deepMergeAt(dst, src, cumulative, "", schema)
+}
+
+// childSchemaNode answers the schema node for key under parent when parent
+// carries child definitions.
+func childSchemaNode(parent config.Node, key string) (config.Node, bool) {
+	cp, ok := parent.(config.ChildProvider)
+	if !ok {
+		return nil, false
+	}
+	child := cp.Get(key)
+	if child == nil {
+		return nil, false
+	}
+	return child, true
 }
 
 // toAnySlice converts []any, []string, or a bare string to []any.
@@ -515,21 +555,25 @@ func toAnySlice(v any) []any {
 	return nil
 }
 
-// deepMergeAt is the recursive worker for deepMergeMaps, tracking the dot-path
-// prefix for cumulative key lookups.
-func deepMergeAt(dst, src map[string]any, cumulative map[string]bool, prefix string) {
+// deepMergeAt is the recursive worker for deepMergeMaps and
+// deepMergeMapsWithSchema, tracking the path prefix for cumulative key lookups
+// and walking schema in lockstep for ze:replace-whole nodes. Bounded by the
+// depth of the parsed config tree.
+func deepMergeAt(dst, src map[string]any, cumulative map[string]bool, prefix string, schema config.Node) {
 	for k, srcVal := range src {
 		path := k
 		if prefix != "" {
 			path = config.AppendPath(prefix, k)
 		}
+		childSchema, _ := childSchemaNode(schema, k)
 
 		srcMap, srcIsMap := srcVal.(map[string]any)
 		if !srcIsMap {
-			// Cumulative: append slices instead of replacing.
+			// Cumulative: append slices instead of replacing, unless the schema
+			// explicitly marks the node ze:replace-whole.
 			// ToMap() produces []string for multiValues, JSON round-trip produces []any.
 			// Handle both types uniformly by converting to []any for accumulation.
-			if cumulative[path] {
+			if cumulative[path] && !config.IsReplaceWhole(childSchema) {
 				srcSlice := toAnySlice(srcVal)
 				dstSlice := toAnySlice(dst[k])
 				if srcSlice != nil && dstSlice != nil {
@@ -542,26 +586,53 @@ func deepMergeAt(dst, src map[string]any, cumulative map[string]bool, prefix str
 					continue
 				}
 			}
-			dst[k] = srcVal
+			dst[k] = cloneScalarOrSlice(srcVal)
 			continue
 		}
 		dstMap, dstIsMap := dst[k].(map[string]any)
 		if !dstIsMap {
 			// dst holds no map here, so it takes a COPY of src's. Assigning
 			// src's map would leave dst ALIASING it, and the next merge into
-			// dst would write through into src. That is what let one group
-			// member's own `attach process` block rewrite the group's block,
-			// which every sibling then inherited: the group map reaches each
-			// member as layer 2 (ResolveBGPTree), so it is shared by
-			// construction (AC-6b, spec-fixit-peer-process-event-filter).
+			// dst would write through into src, corrupting the shared group map
+			// inherited by sibling peers.
 			dst[k] = deepCopyMap(srcMap)
 			continue
 		}
-		if replacePaths[path] {
+		if listNode, isList := childSchema.(*config.ListNode); isList {
+			mergeListEntries(dstMap, srcMap, cumulative, path, listNode)
+			continue
+		}
+		if config.IsReplaceWhole(childSchema) {
 			dst[k] = deepCopyMap(srcMap)
 			continue
 		}
 		// Both are maps -- recurse.
-		deepMergeAt(dstMap, srcMap, cumulative, path)
+		deepMergeAt(dstMap, srcMap, cumulative, path, childSchema)
+	}
+}
+
+// mergeListEntries merges keyed entries of a YANG list from src into dst.
+// Sibling entries present in dst and absent from src stay inherited. For each
+// entry present in src, a list marked ze:replace-whole replaces dst's entry
+// map wholesale; otherwise the entry's child fields merge recursively against
+// listNode's schema.
+func mergeListEntries(dst, src map[string]any, cumulative map[string]bool, prefix string, listNode *config.ListNode) {
+	for entryKey, srcEntry := range src {
+		entryPath := config.AppendPath(prefix, entryKey)
+		srcEntryMap, srcIsMap := srcEntry.(map[string]any)
+		if !srcIsMap {
+			dst[entryKey] = cloneScalarOrSlice(srcEntry)
+			continue
+		}
+		dstEntryMap, dstIsMap := dst[entryKey].(map[string]any)
+		if !dstIsMap {
+			dst[entryKey] = deepCopyMap(srcEntryMap)
+			continue
+		}
+		if listNode.ReplaceWhole {
+			dst[entryKey] = deepCopyMap(srcEntryMap)
+			continue
+		}
+		deepMergeAt(dstEntryMap, srcEntryMap, cumulative, entryPath, listNode)
 	}
 }

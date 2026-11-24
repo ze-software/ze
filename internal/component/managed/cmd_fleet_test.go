@@ -4,6 +4,9 @@ import (
 	"errors"
 	"testing"
 
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+
 	"github.com/ze-software/ze/internal/component/command"
 	"github.com/ze-software/ze/internal/component/config/storage"
 	_ "github.com/ze-software/ze/internal/component/hub/yang"    // the environment root the plugin schema is read beside
@@ -12,14 +15,11 @@ import (
 	"github.com/ze-software/ze/internal/core/opererr"
 	"github.com/ze-software/ze/pkg/fleet"
 	"github.com/ze-software/ze/pkg/zefs"
-
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
 )
 
 // fleetStatusConfig is a device configuration that declares a hub. It is the
 // shape cmd/ze's start-path tests read with the same first pass.
-const fleetStatusConfig = `plugin {
+const fleetStatusConfig = `bus {
     hub {
         server local {
             ip 127.0.0.1;
@@ -331,7 +331,7 @@ func TestManagedFlagAbsentIsNotManaged(t *testing.T) {
 
 // fleetConfigNoHub is a device configuration that declares no hub: the plugin
 // hub block holds the local server and no client block.
-const fleetConfigNoHub = `plugin {
+const fleetConfigNoHub = `bus {
     hub {
         server local {
             ip 127.0.0.1;

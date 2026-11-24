@@ -137,30 +137,12 @@ type suppliedQuestion struct {
 	placeholders []string
 }
 
-// needsDaemon reports whether the answer about sources needs the running ze:
-// they declare an external plugin this process holds no schema of.
-//
-// A schema that does not build needs none: the local judgment reports it.
+// needsDaemon reports whether the answer about sources should ask a running ze
+// first: they declare an external endpoint while this process has not yet fixed
+// its module set. It starts no external program and fixes no module set, so a
+// running daemon is always asked before offline query mode runs (AC-18).
 func (q suppliedQuestion) needsDaemon(sources []config.ConfigSource) bool {
-	declared, err := config.PublishDeclaredSchemas(sources...)
-	if err != nil {
-		return false
-	}
-	return asksRunningDaemon(declared)
-}
-
-// asksRunningDaemon reports whether the verdict of a config needs the running
-// ze: the config declares an external plugin this process holds no schema of.
-//
-// declared.Offline is the guard against a loop: it is false in a process that
-// holds a daemon's module set, and a daemon is never asked from inside one.
-// The daemon serves every command of this route through a producer that asks
-// nobody.
-func asksRunningDaemon(declared *config.DeclaredSchemas) bool {
-	if !declared.Offline() {
-		return false
-	}
-	return len(declared.WithoutSchema()) > 0
+	return config.HasUnresolvedExternalPlugins(sources...)
 }
 
 // line is the line that asks the running ze.

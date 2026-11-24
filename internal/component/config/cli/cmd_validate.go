@@ -128,6 +128,7 @@ type validationResult struct {
 	Path        string
 	Diagnostics []diagnostic.Diagnostic
 	Config      *validationSummary
+	Queried     []string
 	refusals    map[int]*configyang.ValidationError
 }
 
@@ -423,9 +424,21 @@ func runValidationUnanswered(input, path string, unanswered *config.DaemonUnansw
 	// daemon joined from its plugins when it started.
 	schema, declared, err := config.SchemaWithDeclaredPlugins(config.ConfigSource{Text: input, Path: path})
 	if err != nil {
+		if opErr, ok := errors.AsType[*opererr.Error](err); ok {
+			result.Valid = false
+			result.Diagnostics = append(result.Diagnostics, diagnostic.Diagnostic{
+				Code:     "config-parse",
+				Severity: diagnostic.SeverityError,
+				Message:  opErr.Problem(),
+				Help:     opErr.Why(),
+				Fix:      opErr.Fix(),
+			})
+			return result
+		}
 		result.addError("config-parse", "YANG schema: "+err.Error())
 		return result
 	}
+	result.Queried = declared.Queried()
 	if unanswered != nil {
 		declared = declared.Unanswered(*unanswered)
 	}
@@ -704,7 +717,7 @@ func runValidationUnanswered(input, path string, unanswered *config.DaemonUnansw
 	}
 
 	// Hub config validation (secret length, client blocks).
-	if tree.GetContainer("plugin") != nil {
+	if tree.GetContainer("bus") != nil {
 		if _, hubErr := config.ExtractHubConfig(tree); hubErr != nil {
 			result.addError("config-hub-invalid", hubErr.Error())
 			return result
@@ -762,10 +775,8 @@ func buildValidationSummary(bgpTree map[string]any, peers infra.BGPPeerSummaries
 		summary.IncompletePeers = append(summary.IncompletePeers, incompletePeer{Name: p.Name, Reason: p.Reason})
 	}
 
-	if pluginContainer := tree.GetContainer("plugin"); pluginContainer != nil {
-		// Count both external (subprocess) and internal (in-process) plugins;
-		// counting only "external" undercounts configs that use the `internal` keyword.
-		summary.Plugins = len(pluginContainer.GetList("external")) + len(pluginContainer.GetList("internal"))
+	if busContainer := tree.GetContainer("bus"); busContainer != nil {
+		summary.Plugins = len(busContainer.GetList("endpoint"))
 	}
 
 	return summary
@@ -930,6 +941,11 @@ func outputValidateText(result *validationResult, verbose, quiet bool) int {
 
 	if result.Valid {
 		fmt.Fprintf(os.Stdout, "configuration valid: %s\n", result.Path) //nolint:errcheck // output
+		if len(result.Queried) > 0 {
+			var qLine textbuf.Buffer
+			qLine.Str("queried external plugins: ").Join(result.Queried, ", ")
+			fmt.Fprintln(os.Stdout, qLine.String()) //nolint:errcheck // output
+		}
 
 		if verbose && result.Config != nil {
 			fmt.Fprintln(os.Stdout)                           //nolint:errcheck // output
@@ -974,8 +990,13 @@ func outputValidateText(result *validationResult, verbose, quiet bool) int {
 	}
 
 	fmt.Fprintf(os.Stdout, "configuration invalid: %s\n", result.Path) //nolint:errcheck // output
-	fmt.Fprintln(os.Stdout)                                            //nolint:errcheck // output
-	fmt.Fprintln(os.Stdout, "Errors:")                                 //nolint:errcheck // output
+	if len(result.Queried) > 0 {
+		var qLine textbuf.Buffer
+		qLine.Str("queried external plugins: ").Join(result.Queried, ", ")
+		fmt.Fprintln(os.Stdout, qLine.String()) //nolint:errcheck // output
+	}
+	fmt.Fprintln(os.Stdout)            //nolint:errcheck // output
+	fmt.Fprintln(os.Stdout, "Errors:") //nolint:errcheck // output
 	for i := range result.Diagnostics {
 		d := &result.Diagnostics[i]
 		if d.Severity != diagnostic.SeverityError {

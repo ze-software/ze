@@ -981,14 +981,14 @@ func extractGNMIBlock(tree *Tree) (GNMIListenConfig, bool, bool) {
 // minTokenLength is the minimum length for hub auth tokens.
 const minTokenLength = 32
 
-// ExtractHubConfig extracts plugin hub transport config from a parsed config tree.
+// ExtractHubConfig extracts bus hub transport config from a parsed config tree.
 // Returns zero-value HubConfig with no servers/clients if no hub block is present.
 func ExtractHubConfig(tree *Tree) (plugin.HubConfig, error) {
-	pluginContainer := tree.GetContainer("plugin")
-	if pluginContainer == nil {
+	busContainer := tree.GetContainer("bus")
+	if busContainer == nil {
 		return plugin.HubConfig{}, nil
 	}
-	hubContainer := pluginContainer.GetContainer("hub")
+	hubContainer := busContainer.GetContainer("hub")
 	if hubContainer == nil {
 		return plugin.HubConfig{}, nil
 	}

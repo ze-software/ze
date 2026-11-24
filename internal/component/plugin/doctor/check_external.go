@@ -42,11 +42,11 @@ func checkExternalPluginNames(ctx diagnostic.DoctorCheckContext) []diagnostic.Di
 	if tree == nil {
 		return []diagnostic.Diagnostic{externalNameUnreadRow()}
 	}
-	plugins := tree.GetContainer("plugin")
-	if plugins == nil {
-		return nil // No plugin block, so no external block to judge.
+	bus := tree.GetContainer("bus")
+	if bus == nil {
+		return nil // No bus block, so no endpoint block to judge.
 	}
-	blocks := plugins.GetList("external")
+	blocks := bus.GetList("endpoint")
 	var rows []diagnostic.Diagnostic
 	for _, name := range slices.Sorted(maps.Keys(blocks)) {
 		if ipc.ValidPluginName(name) {
@@ -72,10 +72,10 @@ func externalNameUnreadRow() diagnostic.Diagnostic {
 // externalNameRow is the row for one refused external name.
 func externalNameRow(name string) diagnostic.Diagnostic {
 	var message, fix textbuf.Buffer
-	message.Str("plugin external ").Quoted(name).
+	message.Str("bus endpoint ").Quoted(name).
 		Str(": the connect-back refuses this name, because the hub binds the plugin's token to it and a name is ").
 		Str(ipc.PluginNameForm).Str("; ze refuses the config, and the plugin never attaches")
-	fix.Str("rename the block to a name of that form, then run ze config validate")
+	fix.Str("rename the endpoint to a name of that form under bus { endpoint <name> { ... } }, then run ze config validate")
 	return diagnostic.Diagnostic{
 		Code:     ipc.ConnectBackRefusedCode,
 		Severity: diagnostic.SeverityError,
@@ -118,14 +118,14 @@ func inProcessOnlyRegistration(block zeplugin.PluginConfig) *registry.Registrati
 	return nil
 }
 
-// externalInProcessRow is the row for one external block running an
+// externalInProcessRow is the row for one separate-process endpoint running an
 // in-process-only plugin.
 func externalInProcessRow(block, plugin string) diagnostic.Diagnostic {
 	var message, fix textbuf.Buffer
-	message.Str("plugin external ").Quoted(block).Str(" runs ").Str(plugin).
-		Str(", which works only inside the daemon: a forked process does not hold the daemon state it reaches, ").
+	message.Str("bus endpoint ").Quoted(block).Str(" runs ").Str(plugin).
+		Str(" as a separate process, which works only inside the daemon: a forked process does not hold the daemon state it reaches, ").
 		Str("so it starts and does nothing")
-	fix.Str("move it to an internal block: plugin { internal ").Str(block).Str(" { use ").Str(plugin).Str("; } }")
+	fix.Str("bus { endpoint ").Str(block).Str(" { internal ").Str(plugin).Str("; } }")
 	return diagnostic.Diagnostic{
 		Code:     diagnostic.CodeDoctorPluginExternalUnsupported,
 		Severity: diagnostic.SeverityError,

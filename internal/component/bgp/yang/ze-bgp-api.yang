@@ -567,12 +567,6 @@ family registry entry matches is refused.";
 carry the same attributes. When false they are built for this peer alone.";
                 ze:help "Group this peer's UPDATEs with other peers (default true)";
             }
-            leaf-list attach {
-                type zt:node-name;
-                description "The name of a plugin process that receives every message from this peer and
-can send every message type to it. Give one entry per process.";
-                ze:help "Plugin process this peer feeds";
-            }
         }
         output {
             leaf peer {

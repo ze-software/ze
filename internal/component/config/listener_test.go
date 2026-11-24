@@ -233,12 +233,12 @@ func TestValidateListenerConflicts_BGPPeer(t *testing.T) {
 	assert.Contains(t, err.Error(), "web")
 }
 
-// TestValidateListenerConflicts_PluginHub verifies plugin hub server participates.
-// VALIDATES: AC-7 -- plugin hub server entry conflicts with web detected.
-// PREVENTS: Plugin hub endpoints excluded from conflict check.
+// TestValidateListenerConflicts_PluginHub verifies bus hub server participates.
+// VALIDATES: AC-7 -- bus hub server entry conflicts with web detected.
+// PREVENTS: Bus hub endpoints excluded from conflict check.
 func TestValidateListenerConflicts_PluginHub(t *testing.T) {
 	endpoints := []ListenerEndpoint{
-		{Service: "plugin hub local", IP: net.ParseIP("127.0.0.1"), Port: 12700},
+		{Service: "bus hub local", IP: net.ParseIP("127.0.0.1"), Port: 12700},
 		{Service: "web", IP: net.ParseIP("0.0.0.0"), Port: 12700},
 	}
 	err := ValidateListenerConflicts(endpoints)
@@ -297,19 +297,19 @@ func TestCollectListeners(t *testing.T) {
 
 	tree.SetContainer("environment", env)
 
-	// Plugin hub: no enabled leaf in YANG -- always collected.
-	plug := NewTree()
+	// Bus hub: no enabled leaf in YANG -- always collected.
+	bus := NewTree()
 	hub := NewTree()
 	hubSrv := NewTree()
 	hubSrv.Set("ip", "127.0.0.1")
 	hubSrv.Set("port", "12700")
 	hub.AddListEntry("server", "local", hubSrv)
-	plug.SetContainer("hub", hub)
-	tree.SetContainer("plugin", plug)
+	bus.SetContainer("hub", hub)
+	tree.SetContainer("bus", bus)
 
 	endpoints := CollectListeners(tree, schema)
 
-	// Should have web + plugin-hub, NOT ssh or mcp.
+	// Should have web + bus-hub, NOT ssh or mcp.
 	require.Len(t, endpoints, 2)
 	byName := map[string]ListenerEndpoint{}
 	for _, ep := range endpoints {
@@ -317,8 +317,8 @@ func TestCollectListeners(t *testing.T) {
 	}
 	require.Contains(t, byName, "web main")
 	assert.Equal(t, uint16(3443), byName["web main"].Port)
-	require.Contains(t, byName, "plugin-hub local")
-	assert.Equal(t, uint16(12700), byName["plugin-hub local"].Port)
+	require.Contains(t, byName, "bus-hub local")
+	assert.Equal(t, uint16(12700), byName["bus-hub local"].Port)
 }
 
 // TestCollectListeners_EmptyTree verifies empty tree returns nil.
@@ -559,7 +559,7 @@ func TestDynamicListenerWalk(t *testing.T) {
 	}
 
 	// All 8 TCP services must be discovered.
-	for _, name := range []string{"web", "ssh", "mcp", "looking-glass", "prometheus", "plugin-hub", "api-server-rest", "api-server-grpc"} {
+	for _, name := range []string{"web", "ssh", "mcp", "looking-glass", "prometheus", "bus-hub", "api-server-rest", "api-server-grpc"} {
 		svc, ok := byName[name]
 		require.True(t, ok, "service %q must be discovered", name)
 		assert.Equal(t, []string{ProtocolTCP}, svc.Protocols, "service %q must be TCP", name)
@@ -572,8 +572,8 @@ func TestDynamicListenerWalk(t *testing.T) {
 	assert.Equal(t, []string{ProtocolUDP}, wg.Protocols)
 	assert.False(t, wg.ServerList, "wireguard uses flat listen-port, not server sub-list")
 
-	// Plugin-hub has no enabled leaf in YANG.
-	assert.False(t, byName["plugin-hub"].HasEnabledLeaf, "plugin-hub has no enabled leaf")
+	// Bus-hub has no enabled leaf in YANG.
+	assert.False(t, byName["bus-hub"].HasEnabledLeaf, "bus-hub has no enabled leaf")
 
 	// Web has an enabled leaf in YANG.
 	assert.True(t, byName["web"].HasEnabledLeaf, "web has an enabled leaf")

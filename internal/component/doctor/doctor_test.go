@@ -164,9 +164,9 @@ func TestCheckPlugins_MissingBinary(t *testing.T) {
 func TestRunChecksExecutesRegisteredPluginCheck(t *testing.T) {
 	// VALIDATES: AC-1 runChecks executes a registered post-config plugin check through the production runner.
 	// PREVENTS: plugin check migration that only registers metadata but is never reached from ze doctor.
-	cfgPath := writeTestConfig(t, `plugin {
-	internal rib {
-		use bgp-rib
+	cfgPath := writeTestConfig(t, `bus {
+	endpoint rib {
+		internal bgp-rib;
 	}
 }
 `)
@@ -224,9 +224,9 @@ func TestRunChecksExecutesRegisteredPluginCheck(t *testing.T) {
 // MUTATION: build the context in RunRuntimeChecks without its Tree, and the
 // loaded case goes red (the check receives no tree).
 func TestRuntimeChecksReceiveTheConfigurationDoctorRead(t *testing.T) {
-	cfgPath := writeTestConfig(t, `plugin {
-	internal rib {
-		use bgp-rib
+	cfgPath := writeTestConfig(t, `bus {
+	endpoint rib {
+		internal bgp-rib;
 	}
 }
 `)
@@ -1144,7 +1144,7 @@ var doctorDependencyCovered = map[string]string{
 // from a config that names both ip and port (config.CollectListeners).
 var doctorDependencyExcluded = map[string]string{
 	"listener/wireguard": "buildWireguardConfig (internal/plugins/iface/netlink/wireguard_linux.go) sends no ListenPort unless the interface names one, so the kernel picks the port and there is no endpoint to probe",
-	"listener/plugin-hub": "extractHubServerConfig (internal/component/config/loader_extract.go) reads ip and port verbatim and fills in no default, " +
+	"listener/bus-hub": "extractHubServerConfig (internal/component/config/loader_extract.go) reads ip and port verbatim and fills in no default, " +
 		"so an entry without a port carries none, and an empty server list starts no hub server",
 	"listener/bmp": "(*BMPPlugin).startReceiver (internal/component/bgp/plugins/bmp/bmp.go) joins ip and port verbatim, so an entry without a port binds an ephemeral one, " +
 		"and it iterates cfg.Servers so an empty list starts nothing at all",

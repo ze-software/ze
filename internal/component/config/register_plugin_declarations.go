@@ -34,12 +34,12 @@ func init() {
 // LoadConfig, because this command is daemon-served: LoadConfig would push the
 // file's environment block into the answering daemon's log and env settings.
 //
-// The file is parsed whole, after the step that reads which external plugins
+// The file is parsed whole, after the step that reads which external endpoints
 // it declares (PublishDeclaredSchemas). Served by a daemon, a section of a
-// plugin the daemon started with is read; with no daemon it is refused, with
-// the command that reaches a running ze. The first
-// pass alone would not answer this list: it leaves out the compiled-in
-// plugins, the plugins a section declares inline and their dependencies.
+// plugin the daemon started with is read; with no daemon, each external program
+// is queried in declare mode (S-3) so its schema and bus declarations join the
+// compiled-in set. The first pass alone would not answer this list: it leaves
+// out compiled-in endpoints and their dependencies.
 //
 // The process is the answer of that same step (DeclaredSchemas.Offline), so
 // the command that starts no external plugin with no daemon and the parse that

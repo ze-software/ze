@@ -166,7 +166,6 @@ var peerCreateKeywords = map[string]func(tree map[string]any, value string) erro
 	"family":            setFamilies,
 	"graceful-restart":  setGracefulRestart,
 	"group-updates":     setGroupUpdates,
-	"attach":            setAttach,
 }
 
 // peerCreateKeywordNames answers every keyword the command takes, sorted, so a
@@ -276,32 +275,6 @@ func setGracefulRestart(tree map[string]any, value string) error {
 		return fmt.Errorf("a graceful restart time is 0 to 4095 seconds, got %q", value)
 	}
 	treeReach(tree, "session", "capability", "graceful-restart", "short-lived")["restart-time"] = value
-	return nil
-}
-
-// setAttach binds the peer to each named plugin process.
-//
-// The binding grants the WHOLE surface. The process receives every message from
-// this peer, and it can send every type toward it. A binding is the peer's
-// receive AUTHORIZATION and its send permission both (Server.PeerScopedProcs,
-// internal/component/plugin/server/delivery_graph.go). So a binding with no
-// grant attaches the process and permits it nothing. That is an attach that
-// looks done and does nothing (ai/rules/principles.md).
-//
-// The whole surface is also what the ExaBGP construct this carries means: a
-// neighbor's `api <process>` gives that process the neighbor's events and lets
-// it announce to the neighbor. `ze exabgp migrate` writes the same grant for
-// the bridge (addProcessBinding, internal/exabgp/migration/migrate.go). A
-// narrower grant is expressed in the configuration file, where the receive and
-// send lists are written out.
-func setAttach(tree map[string]any, value string) error {
-	processes := treeReach(tree, "attach", "process")
-	for name := range strings.SplitSeq(value, ",") {
-		if name == "" {
-			return fmt.Errorf("a process name is not empty: %q", value)
-		}
-		processes[name] = map[string]any{"receive": "*", "send": "*"}
-	}
 	return nil
 }
 

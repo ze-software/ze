@@ -9,26 +9,18 @@ package config
 import (
 	"fmt"
 
-	"github.com/ze-software/ze/internal/component/config/yang"
 	"github.com/ze-software/ze/internal/component/plugin"
 )
 
-// firstPassRoots names the roots Ze reads before any plugin runs: `plugin`,
-// read by ExtractPluginsFromTree and ExtractHubConfig, and `environment`, read
-// by ExtractEnvironment. PluginOnlySchema holds these and no other. The set is
-// declared once, in yang.FirstPassRoots, because the join of an external
-// module refuses a node added under one of them.
-var firstPassRoots = yang.FirstPassRoots()
-
-// FirstPassResult is what a config and the command line say about the plugins
+// FirstPassResult is what a config and the command line say about the endpoints
 // to run, read before the full config can be parsed. FirstPass builds it.
 type FirstPassResult struct {
-	// External holds each declared plugin that runs as another program: an
+	// External holds each declared endpoint that runs as another program: an
 	// `external` block with a `run` string, or a command line named with
-	// --plugin. A plugin compiled into ze is absent: its module is already
+	// --plugin. A compiled-in plugin is absent: its module is already
 	// registered. An inactive entry is absent too.
 	External []plugin.PluginConfig
-	// Hub is the listener a forked plugin connects back to, from `plugin hub`.
+	// Hub is the listener a forked plugin connects back to, from `bus hub`.
 	// The zero value means the config declares none.
 	Hub plugin.HubConfig
 	// Environment holds the values of the `environment` block, as

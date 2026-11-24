@@ -259,7 +259,7 @@ func TestDivergedFixNamesHubCommands(t *testing.T) {
 // each of clients.
 func hubServingTree(t *testing.T, clients ...string) *config.Tree {
 	t.Helper()
-	text := "plugin {\n\thub {\n\t\tserver fleet {\n\t\t\tip 127.0.0.1;\n\t\t\tport 1790;\n" +
+	text := "bus {\n\thub {\n\t\tserver fleet {\n\t\t\tip 127.0.0.1;\n\t\t\tport 1790;\n" +
 		"\t\t\tsecret \"fleet-server-secret-of-at-least-32ch\";\n"
 	for _, name := range clients {
 		text += "\t\t\tclient " + name + " {\n\t\t\t\tsecret \"" + name + "-secret-of-at-least-32-chars\";\n\t\t\t}\n"

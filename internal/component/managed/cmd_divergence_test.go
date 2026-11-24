@@ -32,13 +32,13 @@ const (
 // divergenceClientConfig is a managed client's configuration with its hub at
 // host, authenticated with secret.
 func divergenceClientConfig(host, secret string) string {
-	return "plugin {\n    hub {\n        client " + divergenceClient + " {\n            host " + host +
+	return "bus {\n    hub {\n        client " + divergenceClient + " {\n            host " + host +
 		";\n            port 1791;\n            secret \"" + secret + "\";\n        }\n    }\n}\n"
 }
 
 // divergenceHubConfig is the hub's own configuration: one serving block that
 // declares the divergence client.
-const divergenceHubConfig = `plugin {
+const divergenceHubConfig = `bus {
     hub {
         server central {
             ip 127.0.0.1;
@@ -146,8 +146,8 @@ func TestShowDivergenceMasksSecrets(t *testing.T) {
 	require.NotNil(t, detail.ChangeCount)
 	assert.Equal(t, len(detail.Changes), *detail.ChangeCount)
 	assert.Equal(t, []divergenceChange{
-		{Path: "plugin/hub/client/edge-01/host", Change: changeChanged, Old: "10.0.0.1", New: "10.0.0.2"},
-		{Path: "plugin/hub/client/edge-01/secret", Change: changeChanged, Old: config.SecretDataPlaceholder, New: config.SecretDataPlaceholder},
+		{Path: "bus/hub/client/edge-01/host", Change: changeChanged, Old: "10.0.0.1", New: "10.0.0.2"},
+		{Path: "bus/hub/client/edge-01/secret", Change: changeChanged, Old: config.SecretDataPlaceholder, New: config.SecretDataPlaceholder},
 	}, detail.Changes)
 
 	encoded, err := json.Marshal(got.Payload)
@@ -289,7 +289,7 @@ func TestShowDivergenceListKeepsCopyOfUnservedRow(t *testing.T) {
 // of zero, for a client whose diff the hub cannot compute.
 func TestShowDivergenceUncheckedPluginDegrades(t *testing.T) {
 	served := divergenceClientConfig("10.0.0.1", divergenceServedSecret)
-	held := served + "plugin {\n    external acme {\n        run \"acme-monitor\";\n    }\n}\nacme {\n    interval 7;\n}\n"
+	held := served + "bus {\n    endpoint acme {\n        external {\n            run \"acme-monitor\";\n        }\n    }\n}\nacme {\n    interval 7;\n}\n"
 	fleetStatusStore(t,
 		map[string]string{divergenceHeldKey(divergenceClient): divergenceHeldRecord(t, held)},
 		map[string]string{pluginserver.ClientConfigKey(divergenceClient): served})

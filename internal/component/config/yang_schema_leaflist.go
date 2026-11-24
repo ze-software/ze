@@ -33,6 +33,7 @@ func yangToMultiLeaf(entry *gyang.Entry, path string) *MultiLeafNode {
 		Format: value.Format, Patterns: value.Patterns,
 		Ranges: value.Ranges, Lengths: value.Lengths, Union: value.Union,
 		FractionDigits: value.FractionDigits, Constraint: value.Constraint,
+		ReplaceWhole: hasReplaceWholeExtension(entry),
 	}
 }
 
@@ -43,7 +44,8 @@ func yangToBracketLeafList(entry *gyang.Entry, path string) *BracketLeafListNode
 		Format: value.Format, Patterns: value.Patterns,
 		Ranges: value.Ranges, Lengths: value.Lengths, Union: value.Union,
 		FractionDigits: value.FractionDigits, Constraint: value.Constraint,
-		Ordered: getOrderedExtension(entry),
+		Ordered:      getOrderedExtension(entry),
+		ReplaceWhole: hasReplaceWholeExtension(entry),
 	}
 }
 
@@ -54,6 +56,7 @@ func yangToValueOrArray(entry *gyang.Entry, path string) *ValueOrArrayNode {
 		Format: value.Format, Patterns: value.Patterns,
 		Ranges: value.Ranges, Lengths: value.Lengths, Union: value.Union,
 		FractionDigits: value.FractionDigits, Constraint: value.Constraint,
-		Ordered: getOrderedExtension(entry),
+		Ordered:      getOrderedExtension(entry),
+		ReplaceWhole: hasReplaceWholeExtension(entry),
 	}
 }

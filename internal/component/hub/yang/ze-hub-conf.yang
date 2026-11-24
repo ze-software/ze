@@ -12,6 +12,7 @@ module ze-hub-conf {
 
     // Environment block - ZeBGP-specific settings
     container environment {
+        ze:first-pass;
         description "Ze copies the ordinary environment settings in this block into environment variables at config load. The OS
             environment wins: a variable already set there keeps its value, and the leaf is ignored. Ze
             also refuses to overwrite a variable it set itself. A changed leaf therefore reaches the

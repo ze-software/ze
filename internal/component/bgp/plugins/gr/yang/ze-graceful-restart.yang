@@ -27,6 +27,7 @@ module ze-graceful-restart {
     grouping graceful-restart-config {
         container graceful-restart {
             presence "Graceful Restart capability enabled";
+            ze:replace-whole;
             description "The container carries presence, so writing it makes Ze send the Graceful Restart capability,
                 code 64, to this peer. With no short-lived container, code 64 carries Restart Time 0 and no address
                 family tuple, which RFC 4724 Section 3 reads as a Receiving Speaker that preserves nothing of its own

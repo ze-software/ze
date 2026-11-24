@@ -94,14 +94,12 @@ func addSectionNodes(g *Graph, tree *Tree) {
 	}
 }
 
-// addBGPEdges adds peer, group, and plugin-binding edges from the bgp section.
+// addBGPEdges adds peer and group edges from the bgp section.
 func addBGPEdges(g *Graph, tree *Tree) {
 	bgp := tree.GetContainer(sectionBGP)
 	if bgp == nil {
 		return
 	}
-
-	pluginContainer := tree.GetContainer("plugin")
 
 	var tb textbuf.Buffer
 	for _, groupEntry := range bgp.GetListOrdered("group") {
@@ -115,8 +113,6 @@ func addBGPEdges(g *Graph, tree *Tree) {
 			peerID := tb.Reset().Str("peer/").Str(peerName).String()
 			g.addNode(peerID, NodePeer, peerName)
 			g.addEdge(peerID, groupID, EdgeInherits)
-
-			addProcessBindings(g, peerEntry.Value, peerID, pluginContainer)
 		}
 	}
 
@@ -125,58 +121,6 @@ func addBGPEdges(g *Graph, tree *Tree) {
 		peerID := tb.Reset().Str("peer/").Str(peerName).String()
 		g.addNode(peerID, NodePeer, peerName)
 		g.addEdge("section/bgp", peerID, EdgeContains)
-
-		addProcessBindings(g, peerEntry.Value, peerID, pluginContainer)
-	}
-}
-
-// addProcessBindings adds edges from a peer to the plugins it attaches with
-// `attach process <name> { ... }`.
-func addProcessBindings(g *Graph, peerTree *Tree, peerID string, pluginContainer *Tree) {
-	var tb textbuf.Buffer
-	attach := peerTree.GetContainer("attach")
-	if attach == nil {
-		return
-	}
-	processList := attach.GetList("process")
-	for name, processTree := range processList {
-		if name == KeyDefault {
-			continue
-		}
-
-		run, hasRun := processTree.Get("run")
-		use, hasUse := processTree.Get("use")
-
-		if hasRun && run != "" {
-			pluginID := tb.Reset().Str("plugin/").Str(name).String()
-			g.addNode(pluginID, NodePlugin, name)
-			g.addEdge(peerID, pluginID, EdgeProcessBinds)
-			continue
-		}
-		if hasUse && use != "" {
-			pluginID := tb.Reset().Str("plugin/").Str(name).String()
-			g.addNode(pluginID, NodePlugin, name)
-			g.addEdge(peerID, pluginID, EdgeProcessBinds)
-			continue
-		}
-
-		if pluginContainer != nil {
-			if internals := pluginContainer.GetList("internal"); internals != nil {
-				if _, ok := internals[name]; ok {
-					pluginID := tb.Reset().Str("plugin/").Str(name).String()
-					g.addNode(pluginID, NodePlugin, name)
-					g.addEdge(peerID, pluginID, EdgeProcessBinds)
-					continue
-				}
-			}
-			if externals := pluginContainer.GetList("external"); externals != nil {
-				if _, ok := externals[name]; ok {
-					pluginID := tb.Reset().Str("plugin/").Str(name).String()
-					g.addNode(pluginID, NodePlugin, name)
-					g.addEdge(peerID, pluginID, EdgeProcessBinds)
-				}
-			}
-		}
 	}
 }
 
@@ -231,7 +175,7 @@ func addListenerNodes(g *Graph, tree *Tree, schema *Schema) {
 
 // listenerSectionName maps a listener service name back to the top-level config
 // section that owns it. Listener service names use the conventions from
-// DiscoverListenerServices: "web", "ssh", "plugin-hub", "looking-glass", etc.
+// DiscoverListenerServices: "web", "ssh", "bus-hub", "looking-glass", etc.
 func listenerSectionName(service string) string {
 	switch {
 	case service == sectionWeb || strings.HasPrefix(service, sectionWeb+" "):
@@ -242,8 +186,8 @@ func listenerSectionName(service string) string {
 		return sectionLookingGlass
 	case service == "mcp" || strings.HasPrefix(service, "mcp "):
 		return sectionEnvironment
-	case strings.HasPrefix(service, "plugin-hub"):
-		return sectionPlugin
+	case strings.HasPrefix(service, "bus-hub"):
+		return sectionBus
 	case strings.HasPrefix(service, "dns"):
 		return "dns"
 	case strings.HasPrefix(service, sectionTelemetry):
@@ -264,7 +208,7 @@ const (
 	sectionBGP          = "bgp"
 	sectionEnvironment  = "environment"
 	sectionInterface    = "interface"
-	sectionPlugin       = "plugin"
+	sectionBus          = "bus"
 	sectionDaemon       = "daemon"
 	sectionReactor      = "reactor"
 	sectionChaos        = "chaos"

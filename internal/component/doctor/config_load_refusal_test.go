@@ -24,7 +24,7 @@ func TestRunChecksGivesLoaderRefusalsAnActionableFix(t *testing.T) {
 		content string
 		refused bool
 	}{
-		{name: "loader-refusal", content: "plugin {\n internal incomplete {\n }\n}\n", refused: true},
+		{name: "loader-refusal", content: "bus {\n endpoint incomplete {\n }\n}\n", refused: true},
 		{name: "valid-config", content: "# valid empty configuration\n"},
 	} {
 		t.Run(test.name, func(t *testing.T) {
@@ -35,7 +35,7 @@ func TestRunChecksGivesLoaderRefusalsAnActionableFix(t *testing.T) {
 			require.NotNil(t, parsed)
 			loaded, loadErr := config.ReadConfig(test.content, path, nil)
 			if test.refused {
-				require.ErrorContains(t, loadErr, "internal plugin requires use")
+				require.ErrorContains(t, loadErr, "internal or external")
 				require.Nil(t, loaded)
 			} else {
 				require.NoError(t, loadErr)
@@ -60,9 +60,9 @@ func TestRunChecksGivesLoaderRefusalsAnActionableFix(t *testing.T) {
 			require.NotNil(t, parseFinding)
 			assert.Nil(t, judged, "a refused load must not reach the post-config/runtime tree")
 			assert.Equal(t, diagnostic.SeverityError, parseFinding.Severity)
-			assert.Contains(t, parseFinding.Message, `plugin "incomplete"`)
-			assert.Contains(t, parseFinding.Message, "internal plugin requires use")
-			assert.Equal(t, "ze config validate "+path, parseFinding.Fix)
+			assert.Contains(t, parseFinding.Message, `endpoint "incomplete"`)
+			assert.Contains(t, parseFinding.Message, "must specify either internal or external")
+			assert.Contains(t, parseFinding.Fix, "bus { endpoint incomplete")
 			assert.NotContains(t, parseFinding.Message, "\nfix: ", "the fix belongs only on the finding's fix line")
 		})
 	}
