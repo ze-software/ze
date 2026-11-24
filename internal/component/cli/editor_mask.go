@@ -45,8 +45,9 @@ func (e *Editor) displayTreeOf(raw string) *config.Tree {
 	return config.MaskSecrets(tree, e.schema)
 }
 
-// serializeMasked renders an already masked tree at path. wholeOnMiss says what
-// a path that does not resolve answers: the whole tree, or nothing.
+// serializeMasked renders an already masked tree at path. Bare keyed-list paths
+// render only that list's entries (or empty when none exist). wholeOnMiss says
+// what a path that does not resolve answers: the whole tree, or nothing.
 func (e *Editor) serializeMasked(masked *config.Tree, path []string, wholeOnMiss bool) string {
 	if masked == nil || e.schema == nil {
 		return ""
@@ -55,13 +56,16 @@ func (e *Editor) serializeMasked(masked *config.Tree, path []string, wholeOnMiss
 		return config.Serialize(masked, e.schema)
 	}
 	subtree, schemaNode := e.walkPathWithSchemaFrom(masked, path)
-	if subtree == nil || schemaNode == nil {
-		if wholeOnMiss {
-			return config.Serialize(masked, e.schema)
-		}
-		return ""
+	if subtree != nil && schemaNode != nil {
+		return config.SerializeSubtree(subtree, schemaNode)
 	}
-	return config.SerializeSubtree(subtree, schemaNode)
+	if content, ok := e.serializeBareListAtPath(masked, path); ok {
+		return content
+	}
+	if wholeOnMiss {
+		return config.Serialize(masked, e.schema)
+	}
+	return ""
 }
 
 // displayTree answers the whole working tree with every secret leaf masked, and
@@ -92,7 +96,7 @@ func (e *Editor) displayTree() *config.Tree {
 // command prints. A path that does not resolve answers nil, so the caller can
 // report a miss rather than fall back to the whole tree. A configuration that
 // parses nowhere answers nil too, and the caller reports THAT rather than the
-// empty tree newEditor substitutes.
+// empty tree newRawFallbackEditor substitutes.
 func (e *Editor) DisplayTreeAtPath(path []string) *config.Tree {
 	masked := e.displayTree()
 	if masked == nil || len(path) == 0 {
@@ -170,10 +174,33 @@ func (e *Editor) changedSecretsBetween(base, work *config.Tree, path []string) [
 	}
 	baseSub, node := e.walkPathWithSchemaFrom(base, path)
 	workSub, _ := e.walkPathWithSchemaFrom(work, path)
-	if baseSub == nil || workSub == nil || node == nil {
-		return nil
+	if baseSub != nil && workSub != nil && node != nil {
+		return config.ChangedSecretPathsSubtree(baseSub, workSub, node)
 	}
-	return config.ChangedSecretPathsSubtree(baseSub, workSub, node)
+	// A path that resolves neither to a subtree nor to a bare list in both
+	// trees holds no comparable secret leaves.
+	baseParent, listName, listNode, baseOK := e.walkBareListFrom(base, path)
+	workParent, _, _, workOK := e.walkBareListFrom(work, path)
+	var changed []string
+	if baseOK && workOK && baseParent != nil && workParent != nil {
+		baseEntries := baseParent.GetList(listName)
+		workEntries := workParent.GetList(listName)
+		var tb textbuf.Buffer
+		for _, item := range workParent.GetListOrdered(listName) {
+			baseEntry := baseEntries[item.Key]
+			workEntry := workEntries[item.Key]
+			if baseEntry == nil {
+				continue
+			}
+			if workEntry == nil {
+				continue
+			}
+			for _, subPath := range config.ChangedSecretPathsSubtree(baseEntry, workEntry, listNode) {
+				changed = append(changed, tb.Reset().Str(item.Key).Byte('.').Str(subPath).String())
+			}
+		}
+	}
+	return changed
 }
 
 // DisplayContentAtPath mirrors ContentAtPath but masks every secret leaf value

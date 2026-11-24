@@ -222,8 +222,14 @@ func (m *Model) rollbackConfirmed() (commandResult, error) {
 // handleConfirmCountdown processes a countdown tick during a commit confirmed window.
 // Decrements the counter each second, triggers rollback at zero.
 func (m Model) handleConfirmCountdown() (tea.Model, tea.Cmd) {
-	if !m.confirmTimerActive || m.editor == nil {
+	if !m.confirmTimerActive {
 		return m, nil
+	}
+	if m.editor == nil {
+		return m, nil
+	}
+	if m.dispatch.busy() {
+		return m, m.tick(100*time.Millisecond, confirmCountdownMsg{})
 	}
 
 	m.confirmSecondsLeft--

@@ -725,10 +725,24 @@ func (m Model) finishPasteMode() (tea.Model, tea.Cmd) {
 	// The paste lands where `load terminal` ran, which is the root under
 	// `top`. It is applied on a copy at that position, as a dispatched
 	// command runs on a copy, so the real position stays where it is and the
-	// result's view is drawn there.
+	// result's view is drawn there. When another command is already in flight,
+	// queue the paste on m.dispatch so it never races the active turn.
 	at := m
 	at.contextPath = m.pasteModePosition
-	result, err := at.applyLoad(m.pasteModeLocation, m.pasteModeAction, content, loadSourceTerminal)
+	location := m.pasteModeLocation
+	action := m.pasteModeAction
+	if m.dispatch.busy() {
+		wait, done := m.dispatch.reserve()
+		return m, func() tea.Msg {
+			if !m.dispatch.await(wait) {
+				done()
+				return nil
+			}
+			result, err := at.applyLoad(location, action, content, loadSourceTerminal)
+			return commandResultMsg{result: result, err: err, turnDone: done}
+		}
+	}
+	result, err := at.applyLoad(location, action, content, loadSourceTerminal)
 	if err != nil {
 		m.setError(err)
 		return m, nil

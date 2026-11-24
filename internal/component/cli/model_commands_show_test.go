@@ -318,6 +318,7 @@ func TestCmdShowDisplayCompareUnparseableBaselineStaysVisible(t *testing.T) {
 
 	// A committed config the schema parser cannot accept (unknown leaf).
 	m.editor.originalContent = "bgp {\n  not-a-real-leaf 1\n}\n"
+	require.NoError(t, m.editor.store.WriteFile(m.editor.originalPath, []byte(m.editor.originalContent), 0o600))
 	require.NoError(t, m.editor.SetValue([]string{"bgp"}, "router-id", "9.9.9.9"))
 
 	result, err := m.cmdShowDisplay(fmtTree, srcConfirmed)

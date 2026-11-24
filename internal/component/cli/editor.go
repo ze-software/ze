@@ -25,6 +25,7 @@ import (
 	"github.com/ze-software/ze/internal/component/config/confirm"
 	"github.com/ze-software/ze/internal/component/config/storage"
 	"github.com/ze-software/ze/internal/core/cliio"
+	"github.com/ze-software/ze/internal/core/diagnostic"
 	"github.com/ze-software/ze/internal/core/helpfmt"
 	"github.com/ze-software/ze/internal/core/textbuf"
 )
@@ -94,13 +95,15 @@ type BackupInfo struct {
 
 // NewLooseFileEditor opens an explicit config file. A supplied store records
 // versions; nil leaves the file usable without creating a store.
+// Unparseable loose files keep raw-text inspection so operators can repair
+// broken syntax interactively; stored editors use newEditor and fail closed.
 // The caller MUST close any supplied store after closing the editor.
 func NewLooseFileEditor(store storage.Storage, configPath string) (*Editor, error) {
 	data, err := cliio.ReadFile(configPath)
 	if err != nil {
 		return nil, fmt.Errorf("cannot read config file: %w", err)
 	}
-	ed, err := newEditor(store, configPath, string(data), false)
+	ed, err := newRawFallbackEditor(store, configPath, string(data), false)
 	if err != nil {
 		return nil, err
 	}
@@ -165,19 +168,39 @@ func NewOfflineSessionEditor(store storage.Storage, configPath, user string) (*E
 }
 
 // NewEditorFromContent builds an editor from in-memory content instead of a
-// stored path, for a config supplied on stdin ("-"). identity is a synthetic
-// name (typically "-") used only for display and error context; no on-disk
-// ".edit" sibling is probed, since a stdin source has none. A stdin-sourced
-// editor is shown or emitted to stdout (see SetStdoutSink), never written back
-// to a path derived from identity.
+// stored path, for a config supplied on stdin ("-") or one-shot file display.
+// identity is a synthetic name (typically "-") used only for display and error
+// context; no on-disk ".edit" sibling is probed, since a stdin source has none.
+// Unparseable content retains raw-text display so local inspection (`ze config
+// show`) can print a broken file for repair while tree paths fail closed. A
+// stdin-sourced editor is shown or emitted to stdout (see SetStdoutSink), never
+// written back to a path derived from identity.
 func NewEditorFromContent(content []byte, identity string) (*Editor, error) {
-	return newEditor(nil, identity, string(content), false)
+	return newRawFallbackEditor(nil, identity, string(content), false)
 }
 
 // newEditor parses content into the tree/meta and assembles the Editor.
-// checkPending probes the on-disk ".edit" sibling (skipped for content-sourced
-// editors, which have no sibling).
+// It fails closed on parse errors rather than substituting an empty tree, so
+// stored editors never mistake corrupt configuration for an empty one.
+// checkPending probes the ".edit" sibling in store.
 func newEditor(store storage.Storage, identity, content string, checkPending bool) (*Editor, error) {
+	schema, _, err := config.SchemaWithDeclaredPlugins(config.ConfigSource{Text: content, Path: identity})
+	if err != nil {
+		return nil, fmt.Errorf("YANG schema: %w", err)
+	}
+	tree, meta, err := parseEditingConfig(content, schema)
+	if err != nil {
+		return nil, fmt.Errorf("parse configuration %s: %w", identity, err)
+	}
+	_ = meta // metadata used later by SetSession
+	return buildEditor(store, identity, content, schema, tree, true, checkPending), nil
+}
+
+// newRawFallbackEditor constructs an Editor that retains raw text with
+// treeValid=false when content cannot be parsed. Callers MUST use this only
+// for explicit raw-text inspection or loose-file repair paths where displaying
+// the broken source is required.
+func newRawFallbackEditor(store storage.Storage, identity, content string, checkPending bool) (*Editor, error) {
 	// Parse config into tree using the YANG-derived schema of this process's
 	// module set (config.SchemaWithDeclaredPlugins), which starts no program.
 	// With no daemon that is the compiled-in set, so a section of an external
@@ -194,17 +217,18 @@ func newEditor(store storage.Storage, identity, content string, checkPending boo
 		meta = nil
 	}
 	_ = meta // metadata used later by SetSession
+	return buildEditor(store, identity, content, schema, tree, err == nil, checkPending), nil
+}
 
+// buildEditor assembles an Editor from a resolved schema and tree.
+func buildEditor(store storage.Storage, identity, content string, schema *config.Schema, tree *config.Tree, treeValid, checkPending bool) *Editor {
 	// Check for existing edit file (only for path-backed editors).
 	hasPending := false
-	if checkPending {
+	if checkPending && store != nil {
 		var tb textbuf.Buffer
 		editPath := tb.Str(identity).Str(".edit").String()
 		hasPending = store.Exists(editPath)
 	}
-
-	// Parse succeeded if tree has content (not the empty fallback)
-	treeValid := err == nil
 
 	return &Editor{
 		originalPath:    identity,
@@ -219,7 +243,7 @@ func newEditor(store storage.Storage, identity, content string, checkPending boo
 		showColumns:     newShowColumnDefaults(),
 		diffGutter:      true,
 		now:             time.Now,
-	}, nil
+	}
 }
 
 // Tree returns the parsed configuration tree.
@@ -292,7 +316,7 @@ func (e *Editor) pendingEditDiff() string {
 	if err != nil {
 		return ""
 	}
-	return computeDiff(e.originalContent, string(data))
+	return diffOrderedLines(e.originalContent, string(data))
 }
 
 // PendingEditAction represents user's choice for pending edit file.
@@ -478,6 +502,21 @@ func (e *Editor) OriginalContent() string {
 	return e.originalContent
 }
 
+// liveCommittedContent returns the current committed configuration.
+// Store-backed editors read the verified active version from storage so
+// external commits are reflected immediately; loose-file and content-only
+// editors return their loaded original content.
+func (e *Editor) liveCommittedContent() (string, error) {
+	if e.store != nil && !e.looseFile {
+		data, err := storage.ReadActiveConfig(e.store, e.originalPath)
+		if err != nil {
+			return "", fmt.Errorf("read committed configuration: %w", err)
+		}
+		return string(data), nil
+	}
+	return e.originalContent, nil
+}
+
 // WorkingContent returns the current working content.
 // When a session is active with metadata, returns set+meta format (matching
 // what CommitSession writes). Otherwise returns hierarchical format.
@@ -526,15 +565,19 @@ func (e *Editor) OriginalContentAtPath(path []string) string {
 		return config.Serialize(origTree, e.schema)
 	}
 	subtree, schemaNode := e.walkPathWithSchemaFrom(origTree, path)
-	if subtree == nil || schemaNode == nil {
-		return ""
+	if subtree != nil && schemaNode != nil {
+		return config.SerializeSubtree(subtree, schemaNode)
 	}
-	return config.SerializeSubtree(subtree, schemaNode)
+	if content, ok := e.serializeBareListAtPath(origTree, path); ok {
+		return content
+	}
+	return ""
 }
 
 // ContentAtPath returns the serialized content at the given context path in tree format.
 // Always returns tree (junos-style) format for display, regardless of session state.
-// If the path doesn't resolve, falls back to full tree content.
+// Bare keyed list paths serialize only that list's entries (or empty when none exist).
+// If an unrecognized path doesn't resolve, falls back to full tree content.
 func (e *Editor) ContentAtPath(path []string) string {
 	if len(path) == 0 {
 		if e.treeValid && e.tree != nil && e.schema != nil {
@@ -547,13 +590,13 @@ func (e *Editor) ContentAtPath(path []string) string {
 	}
 
 	subtree, schemaNode := e.walkPathWithSchema(path)
-	if subtree == nil || schemaNode == nil {
-		if e.treeValid && e.tree != nil && e.schema != nil {
-			return config.Serialize(e.tree, e.schema)
-		}
-		return e.workingContent
+	if subtree != nil && schemaNode != nil {
+		return config.SerializeSubtree(subtree, schemaNode)
 	}
-	return config.SerializeSubtree(subtree, schemaNode)
+	if content, ok := e.serializeBareListAtPath(e.tree, path); ok {
+		return content
+	}
+	return config.Serialize(e.tree, e.schema)
 }
 
 // activeContentAtPath returns config text showing only active nodes (inactive pruned).
@@ -702,6 +745,159 @@ func (e *Editor) walkPathWithSchemaFrom(tree *config.Tree, path []string) (*conf
 		return nil, nil
 	}
 	return currentTree, node
+}
+
+// walkBareListFrom resolves a path that stops at a list schema node without a
+// key (for example ["bgp", "peer"]). It returns the parent tree (which may be
+// nil when the parent container has no entries yet), the list name, the list
+// schema node, and true. Anonymous lists holding KeyDefault are handled by
+// walkPathWithSchemaFrom and return false here.
+func (e *Editor) walkBareListFrom(tree *config.Tree, path []string) (*config.Tree, string, config.Node, bool) {
+	if e.schema == nil {
+		return nil, "", nil, false
+	}
+	if len(path) == 0 {
+		return nil, "", nil, false
+	}
+
+	currentTree := tree
+	var currentSchema schemaGetter = e.schema
+
+	for i := 0; i < len(path); {
+		name := path[i]
+		schemaNode := currentSchema.Get(name)
+		if schemaNode == nil {
+			return nil, "", nil, false
+		}
+
+		if i+1 == len(path) {
+			switch schemaNode.(type) {
+			case *config.ListNode, *config.InlineListNode:
+				if currentTree != nil {
+					if entries := currentTree.GetList(name); entries[config.KeyDefault] != nil {
+						return nil, "", nil, false
+					}
+				}
+				return currentTree, name, schemaNode, true
+			default:
+				return nil, "", nil, false
+			}
+		}
+
+		switch n := schemaNode.(type) {
+		case *config.ContainerNode:
+			if currentTree != nil {
+				currentTree = currentTree.GetContainer(name)
+			}
+			currentSchema = n
+			i++
+		case *config.FlexNode:
+			if currentTree != nil {
+				currentTree = currentTree.GetContainer(name)
+			}
+			currentSchema = n
+			i++
+		case *config.ListNode:
+			if n.Get(path[i+1]) != nil {
+				if currentTree != nil {
+					currentTree = currentTree.GetList(name)[config.KeyDefault]
+				}
+				currentSchema = n
+				i++
+				continue
+			}
+			addr, err := config.ListPathStep(name, n, path[i+1:])
+			if err != nil {
+				return nil, "", nil, false
+			}
+			step := 1 + addr.Tokens
+			if i+step >= len(path) {
+				return nil, "", nil, false
+			}
+			if currentTree != nil {
+				if entry := resolveListKey(currentTree, name, addr.Key); entry != nil {
+					currentTree = entry
+				} else {
+					currentTree = currentTree.GetList(name)[addr.Key]
+				}
+			}
+			currentSchema = n
+			i += step
+		case *config.InlineListNode:
+			if n.Get(path[i+1]) != nil {
+				if currentTree != nil {
+					currentTree = currentTree.GetList(name)[config.KeyDefault]
+				}
+				currentSchema = n
+				i++
+				continue
+			}
+			if i+2 >= len(path) {
+				return nil, "", nil, false
+			}
+			if currentTree != nil {
+				currentTree = currentTree.GetList(name)[path[i+1]]
+			}
+			currentSchema = n
+			i += 2
+		default:
+			return nil, "", nil, false
+		}
+	}
+
+	return nil, "", nil, false
+}
+
+// serializeBareListAtPath serializes every entry of a bare list path in
+// hierarchical tree format. It returns ("", true) when the path names a valid
+// bare list that currently holds no entries, and ("", false) when the path does
+// not end at a bare list.
+func (e *Editor) serializeBareListAtPath(tree *config.Tree, path []string) (string, bool) {
+	parent, name, node, ok := e.walkBareListFrom(tree, path)
+	if !ok {
+		return "", false
+	}
+	if parent == nil {
+		return "", true
+	}
+	entries := parent.GetList(name)
+	if len(entries) == 0 {
+		return "", true
+	}
+
+	ordered := parent.GetListOrdered(name)
+	order := make([]string, len(ordered))
+	for i, item := range ordered {
+		order[i] = item.Key
+	}
+	keys := config.ListEntryKeys(entries, order)
+
+	var b textbuf.Buffer
+	switch n := node.(type) {
+	case *config.ListNode:
+		if config.ListUsesMultiBlock(entries, n) {
+			b.Str(name).Str(" {\n")
+			for _, key := range keys {
+				if entry := entries[key]; entry != nil {
+					config.WritePositionalListEntry(&b, entry, key, n, "\t")
+				}
+			}
+			b.Str("}\n")
+			return b.String(), true
+		}
+		for _, key := range keys {
+			if entry := entries[key]; entry != nil {
+				config.WriteListEntry(&b, entry, name, key, n, "", "")
+			}
+		}
+	case *config.InlineListNode:
+		for _, key := range keys {
+			if entry := entries[key]; entry != nil {
+				config.WriteInlineListEntry(&b, entry, name, key, n, "")
+			}
+		}
+	}
+	return b.String(), true
 }
 
 // WalkPath navigates the tree using the schema to distinguish containers from list keys.
@@ -1165,76 +1361,94 @@ func (e *Editor) SetSession(session *EditSession) {
 	}
 }
 
-// Diff returns a line diff between the committed config and the working
-// config, with every secret leaf masked.
+// Diff returns a path-qualified line diff between the committed config and the
+// working config, with every secret leaf masked.
 //
-// It is the one diff producer in this package. Four sinks read it:
+// In an active storage-backed editing session, Diff delegates to PendingReview
+// (the same RenderPendingChanges renderer web EditorManager.Diff uses), so
+// every line names its full configuration path and identical leaf lines under
+// distinct sibling blocks never collapse. Non-session editors with parsed trees
+// compare masked set-format lines via ordered LCS and append changed-secret
+// notices; unparsed raw fallback editors compare ordered display lines.
 //
-//   - the commit audit record (Model.recordConfigCommit, model_commands_commit.go)
-//   - the REST and gRPC session diff (ConfigSessionManager.Diff, internal/component/api/config_session.go)
-//   - the hub (editorAdapter.Diff, cmd/ze/hub/editor_adapter.go)
+// Four sinks read Diff:
+//
+//   - the commit and discard audit records (model_commands_commit.go)
+//   - the REST and gRPC session diff (internal/component/api/config_session.go)
+//   - the hub (cmd/ze/hub/editor_adapter.go)
 //   - the --dry-run form of `ze config set` and `ze config deactivate`
-//
-// A raw text diff wrote the old value AND the new value of a rotated credential
-// into every one of them.
-//
-// Both sides come from the tree, so the diff reports what the editor holds
-// rather than the text it was loaded from. SetValue writes the tree alone, so
-// the raw text this compared was stale for every tree edit. Only a config that
-// parses nowhere falls back to its own text, which is the rule displayTreeOf
-// states.
-//
-// The mask gives a rotated secret the same placeholder on both sides, so the
-// line diff reads them as equal and reports nothing. changedSecretsAt names the
-// leaf that moved, and it publishes neither value.
 func (e *Editor) Diff() string {
+	if e.session != nil && e.store != nil && !e.looseFile {
+		review, err := e.PendingReview(nil)
+		if err == nil {
+			return review
+		}
+		draftLogger.Warn("session pending review failed during diff",
+			"code", diagnostic.CodeDoctorStoreIntegrity, "error", err)
+	}
+
 	var b textbuf.Buffer
-	b.Str(computeDiff(e.DisplayOriginalContentAtPath(nil), e.DisplayContentAtPath(nil)))
+	if e.schema != nil && e.treeValid && e.tree != nil {
+		if origTree := e.committedTree(); origTree != nil {
+			origSet := stripSetPrefixes(config.SerializeSet(config.MaskSecrets(origTree, e.schema), e.schema))
+			workSet := stripSetPrefixes(config.SerializeSet(config.MaskSecrets(e.tree, e.schema), e.schema))
+			b.Str(diffOrderedLines(origSet, workSet))
+			for _, leafPath := range e.changedSecretsAt(nil) {
+				b.Str(secretChangeLine(leafPath)).Byte('\n')
+			}
+			return b.String()
+		}
+	}
+
+	b.Str(diffOrderedLines(e.DisplayOriginalContentAtPath(nil), e.DisplayContentAtPath(nil)))
 	for _, leafPath := range e.changedSecretsAt(nil) {
 		b.Str(secretChangeLine(leafPath)).Byte('\n')
 	}
 	return b.String()
 }
 
-// computeDiff computes a simple line-based diff between two strings.
-func computeDiff(original, modified string) string {
+// stripSetPrefixes removes the leading "set " verb from SerializeSet lines so
+// non-session path-qualified diffs match RenderPendingChanges formatting.
+func stripSetPrefixes(content string) string {
+	if content == "" {
+		return ""
+	}
+	var b textbuf.Buffer
+	for _, line := range splitDiffLines(content) {
+		if strings.TrimSpace(line) == "" {
+			continue
+		}
+		b.Str(strings.TrimPrefix(line, "set ")).Byte('\n')
+	}
+	return b.String()
+}
+
+// diffOrderedLines computes an ordered LCS line diff emitting separate removed
+// ("- ") and added ("+ ") lines without collapsing duplicate lines across
+// distinct blocks.
+func diffOrderedLines(original, modified string) string {
 	if original == modified {
 		return ""
 	}
 
-	originalLines := strings.Split(original, "\n")
-	modifiedLines := strings.Split(modified, "\n")
-
-	originalSet := make(map[string]bool)
-	for _, line := range originalLines {
-		if strings.TrimSpace(line) != "" {
-			originalSet[line] = true
-		}
-	}
-
-	modifiedSet := make(map[string]bool)
-	for _, line := range modifiedLines {
-		if strings.TrimSpace(line) != "" {
-			modifiedSet[line] = true
-		}
-	}
+	origLines := splitDiffLines(original)
+	modLines := splitDiffLines(modified)
+	dp := lcsTable(origLines, modLines)
+	raw := backtrackDiff(dp, origLines, modLines)
 
 	var diff textbuf.Buffer
-
-	// Removed lines
-	for _, line := range originalLines {
-		if strings.TrimSpace(line) != "" && !modifiedSet[line] {
-			diff.Str("- ").Str(line).Byte('\n')
+	for _, dl := range raw {
+		if strings.TrimSpace(dl.Text) == "" {
+			continue
+		}
+		switch dl.Marker {
+		case diffRemoved:
+			diff.Str("- ").Str(dl.Text).Byte('\n')
+		case diffAdded:
+			diff.Str("+ ").Str(dl.Text).Byte('\n')
+		case diffUnchanged, diffModified:
 		}
 	}
-
-	// Added lines
-	for _, line := range modifiedLines {
-		if strings.TrimSpace(line) != "" && !originalSet[line] {
-			diff.Str("+ ").Str(line).Byte('\n')
-		}
-	}
-
 	return diff.String()
 }
 

@@ -35,18 +35,19 @@ func (m *Model) cmdShow(args []string) (commandResult, error) {
 		}
 	}
 
-	// Source selection: show confirmed | show saved | show (= show edit).
+	// Source selection: show confirmed [path...] | show saved [path...] | show [path...].
 	source := ""
-	if len(args) > 0 && (args[0] == srcConfirmed || args[0] == srcSaved) {
-		source = args[0]
-		return m.cmdShowDisplayWithSource(fmtTree, "", source)
+	pathArgs := args
+	if len(pathArgs) > 0 && (pathArgs[0] == srcConfirmed || pathArgs[0] == srcSaved) {
+		source = pathArgs[0]
+		pathArgs = pathArgs[1:]
 	}
 
-	// Path arguments: "show bgp" navigates temporarily into bgp for display.
-	if len(args) > 0 {
+	// Path arguments: "show bgp" or "show confirmed bgp peer" navigates temporarily for display.
+	if len(pathArgs) > 0 {
 		saved := m.contextPath
-		m.contextPath = append(append([]string{}, m.contextPath...), args...)
-		result, err := m.cmdShowDisplayWithSource(fmtTree, "", "")
+		m.contextPath = append(append([]string{}, m.contextPath...), pathArgs...)
+		result, err := m.cmdShowDisplayWithSource(fmtTree, "", source)
 		m.contextPath = saved
 		return result, err
 	}
@@ -74,7 +75,11 @@ func (m *Model) cmdShowDisplayWithSource(format, compareTarget, source string) (
 
 	// For alternate sources, render that source's content directly.
 	if source == srcConfirmed {
-		return m.showAlternateSource(m.renderRawSourceAtPath(m.editor.OriginalContent(), m.contextPath, format))
+		raw, err := m.editor.liveCommittedContent()
+		if err != nil {
+			return commandResult{}, err
+		}
+		return m.showAlternateSource(m.renderRawSourceAtPath(raw, m.contextPath, format))
 	}
 	if source == srcSaved {
 		draft := m.editor.savedDraftContent()
@@ -186,10 +191,13 @@ func (m *Model) renderTreeAtPath(tree *config.Tree, path []string, format string
 		return config.Serialize(tree, m.editor.schema)
 	}
 	subtree, schemaNode := m.editor.walkPathWithSchemaFrom(tree, path)
-	if subtree == nil || schemaNode == nil {
-		return ""
+	if subtree != nil && schemaNode != nil {
+		return config.SerializeSubtree(subtree, schemaNode)
 	}
-	return config.SerializeSubtree(subtree, schemaNode)
+	if content, ok := m.editor.serializeBareListAtPath(tree, path); ok {
+		return content
+	}
+	return ""
 }
 
 // showColumns returns the ShowColumns based on current DB preferences.
@@ -220,7 +228,10 @@ func (m *Model) compareView(format, compareTarget, source string) (commandResult
 		return commandResult{}, err
 	}
 
-	displayed, msg := m.sourceTree(source)
+	displayed, msg, err := m.sourceTree(source)
+	if err != nil {
+		return commandResult{}, err
+	}
 	if msg != "" {
 		return commandResult{output: msg}, nil
 	}
@@ -267,7 +278,10 @@ func (m *Model) compareViewUnpruned(format, compareTarget, source string, column
 	if err != nil {
 		return commandResult{}, err
 	}
-	content := m.sourceContent(source, columns, format)
+	content, err := m.sourceContent(source, columns, format)
+	if err != nil {
+		return commandResult{}, err
+	}
 	if content == "" {
 		return commandResult{output: emptyConfiguration}, nil
 	}
@@ -283,34 +297,46 @@ func (m *Model) compareViewUnpruned(format, compareTarget, source string, column
 // sourceTree returns the parsed tree for a show source, or a message when the source
 // has nothing to show. A nil tree with an empty message means the source could not be
 // parsed: the caller falls back to the unpruned text views.
-func (m *Model) sourceTree(source string) (*config.Tree, string) {
+func (m *Model) sourceTree(source string) (*config.Tree, string, error) {
 	switch source {
+	case "", "edit":
+		if !m.editor.treeValid {
+			return nil, "", nil
+		}
+		return m.editor.tree, "", nil
 	case srcConfirmed:
-		return m.parseSourceTree(m.editor.OriginalContent()), ""
+		raw, err := m.editor.liveCommittedContent()
+		if err != nil {
+			return nil, "", err
+		}
+		return m.parseSourceTree(raw), "", nil
 	case srcSaved:
 		draft := m.editor.savedDraftContent()
 		if draft == "" {
-			return nil, noSavedDraft
+			return nil, noSavedDraft, nil
 		}
-		return m.parseSourceTree(draft), ""
+		return m.parseSourceTree(draft), "", nil
 	default:
-		if !m.editor.treeValid {
-			return nil, ""
-		}
-		return m.editor.tree, ""
+		return nil, "", fmt.Errorf("unknown config source: %q", source)
 	}
 }
 
 // sourceContent renders a show source as text, the way it was rendered before
 // tree-level pruning existed.
-func (m *Model) sourceContent(source string, columns config.ShowColumns, format string) string {
+func (m *Model) sourceContent(source string, columns config.ShowColumns, format string) (string, error) {
 	switch source {
+	case "", "edit":
+		return m.renderShowContent(columns, format), nil
 	case srcConfirmed:
-		return m.renderRawSourceAtPath(m.editor.OriginalContent(), m.contextPath, format)
+		raw, err := m.editor.liveCommittedContent()
+		if err != nil {
+			return "", err
+		}
+		return m.renderRawSourceAtPath(raw, m.contextPath, format), nil
 	case srcSaved:
-		return m.renderRawSourceAtPath(m.editor.savedDraftContent(), m.contextPath, format)
+		return m.renderRawSourceAtPath(m.editor.savedDraftContent(), m.contextPath, format), nil
 	default:
-		return m.renderShowContent(columns, format)
+		return "", fmt.Errorf("unknown config source: %q", source)
 	}
 }
 
@@ -363,14 +389,22 @@ func (m *Model) resolveCompareBaselineTree(target string) (*config.Tree, error) 
 	}
 
 	if normalized == srcConfirmed {
-		return m.parseSourceTree(m.editor.OriginalContent()), nil
+		raw, err := m.editor.liveCommittedContent()
+		if err != nil {
+			return nil, err
+		}
+		return m.parseSourceTree(raw), nil
 	}
 
 	// Treat as username: build baseline by reverting that user's changes.
 	baseline := m.editor.contentWithoutUser(target)
 	if baseline == "" {
 		// No metadata or no changes by that user -- fall back to committed.
-		return m.parseSourceTree(m.editor.OriginalContent()), nil
+		raw, err := m.editor.liveCommittedContent()
+		if err != nil {
+			return nil, err
+		}
+		return m.parseSourceTree(raw), nil
 	}
 	return m.parseSourceTree(baseline), nil
 }
@@ -404,14 +438,22 @@ func (m *Model) resolveCompareBaseline(target, format string) (string, error) {
 	}
 
 	if normalized == srcConfirmed {
-		return m.renderRawSourceAtPath(m.editor.OriginalContent(), m.contextPath, format), nil
+		raw, err := m.editor.liveCommittedContent()
+		if err != nil {
+			return "", err
+		}
+		return m.renderRawSourceAtPath(raw, m.contextPath, format), nil
 	}
 
 	// Treat as username: build baseline by reverting that user's changes.
 	baseline := m.editor.contentWithoutUser(target)
 	if baseline == "" {
 		// No metadata or no changes by that user -- fall back to committed.
-		return m.renderRawSourceAtPath(m.editor.OriginalContent(), m.contextPath, format), nil
+		raw, err := m.editor.liveCommittedContent()
+		if err != nil {
+			return "", err
+		}
+		return m.renderRawSourceAtPath(raw, m.contextPath, format), nil
 	}
 	return m.renderRawSourceAtPath(baseline, m.contextPath, format), nil
 }

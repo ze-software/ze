@@ -593,13 +593,15 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		// Show config on first size event (startup)
 		if !m.showViewport && m.viewportContent == "" {
 			if m.hasEditor() {
-				if m.editor.HasPendingEdit() {
-					if err := m.editor.LoadPendingEdit(); err == nil {
-						m.statusMessage = "Restored snapshot from previous session. Use 'commit now' to apply or 'discard' to revert."
-						m.runValidation()
+				if !m.dispatch.busy() {
+					if m.editor.HasPendingEdit() {
+						if err := m.editor.LoadPendingEdit(); err == nil {
+							m.statusMessage = "Restored snapshot from previous session. Use 'commit now' to apply or 'discard' to revert."
+							m.runValidation()
+						}
 					}
+					m.showConfigContent()
 				}
-				m.showConfigContent()
 			} else {
 				m.showViewport = true
 			}
@@ -713,15 +715,18 @@ func (m Model) handleCommandResult(msg commandResultMsg) (tea.Model, tea.Cmd) {
 
 	// Run validation before viewport update so highlightValidationIssues uses fresh errors.
 	// A validation tick that arrived while the command held the editor was
-	// deferred to here (validationDeferred).
-	if r.revalidate || m.validationDeferred {
+	// deferred to here (validationDeferred). An operational command result
+	// (turnDone == nil) arriving while a config command is still in flight MUST
+	// NOT read the editor.
+	editorOwns := msg.turnDone != nil || !m.dispatch.busy()
+	if (r.revalidate || m.validationDeferred) && editorOwns {
 		m.validationDeferred = false
 		m.runValidation()
 	}
 
 	// Apply viewport changes
 	switch {
-	case r.refreshConfig && m.hasEditor():
+	case r.refreshConfig && m.hasEditor() && editorOwns:
 		m.setViewportData(*m.configViewAtPath(m.contextPath))
 	case r.configView != nil:
 		m.setViewportData(*r.configView)
@@ -1042,9 +1047,14 @@ func (m Model) Dirty() bool {
 
 // hasPendingChanges returns true if the editor has pending changes,
 // using session-aware detection when a session is active.
+// While a dispatched command owns the editor on another goroutine, this
+// returns true without touching the editor so exit/quit prompts safely wait.
 func (m Model) hasPendingChanges() bool {
 	if !m.hasEditor() {
 		return false
+	}
+	if m.dispatch.busy() {
+		return true
 	}
 	if m.editor.HasSession() {
 		return m.editor.hasPendingSessionChanges()
@@ -1082,8 +1092,18 @@ func (m Model) handleDraftPoll() (tea.Model, tea.Cmd) {
 
 // autoSaveOnQuit saves a .edit snapshot when force-quitting with unsaved changes.
 // In session mode, write-through already persists to .draft, so no snapshot needed.
+// Skips touching the editor while a dispatched command owns it on another goroutine.
 func (m *Model) autoSaveOnQuit() {
-	if m.hasEditor() && !m.editor.HasSession() && m.editor.Dirty() {
+	if !m.hasEditor() {
+		return
+	}
+	if m.dispatch.busy() {
+		return
+	}
+	if m.editor.HasSession() {
+		return
+	}
+	if m.editor.Dirty() {
 		_ = m.editor.saveEditState() // Best effort — quitting anyway
 	}
 }
@@ -1128,10 +1148,15 @@ func (m Model) ViewportContent() string {
 }
 
 // completionTree is the candidate tree a config completion reads: the
-// editor's working tree, or nil when the model has no editor. It is read at
-// each completion call, so a completion always sees the edits made so far.
+// editor's working tree, or nil when the model has no editor or a dispatched
+// command currently owns the editor on another goroutine. Returning nil while
+// busy lets the completer fall back to schema-only completions without racing
+// an in-flight commit or mutation.
 func (m *Model) completionTree() *config.Tree {
 	if m.editor == nil {
+		return nil
+	}
+	if m.dispatch.busy() {
 		return nil
 	}
 	return m.editor.Tree()
@@ -1140,13 +1165,18 @@ func (m *Model) completionTree() *config.Tree {
 // refreshActiveBackends propagates the backend names the working tree selects
 // to the command completer. It MUST be called after every edit that can change
 // a component's backend leaf: the command completer keeps the names it was
-// last given.
+// last given. Callers run inside a dispatched command turn, so reading
+// m.editor.Tree() directly is serialized with other mutations.
 func (m *Model) refreshActiveBackends() {
 	if m.completer == nil {
 		return
 	}
+	var tree *config.Tree
+	if m.editor != nil {
+		tree = m.editor.Tree()
+	}
 	if cc, ok := m.commandCompleter.(*CommandCompleter); ok {
-		cc.SetActiveBackends(m.completer.Backends(m.completionTree()))
+		cc.SetActiveBackends(m.completer.Backends(tree))
 	}
 }
 

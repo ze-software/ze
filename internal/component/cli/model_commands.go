@@ -134,6 +134,9 @@ func (q *dispatchQueue) reserve() (wait <-chan struct{}, done func()) {
 // busy reports whether a command is in flight: reserved, and its result not
 // yet applied. Safe for concurrent use.
 func (q *dispatchQueue) busy() bool {
+	if q == nil {
+		return false
+	}
 	q.mu.Lock()
 	defer q.mu.Unlock()
 	return q.pending > 0
@@ -401,9 +404,12 @@ func (m *Model) cmdEdit(args []string) (commandResult, error) {
 }
 
 // showConfigContent displays config content in viewport with proper highlighting.
-// Used only in WindowSizeMsg handler for initial display.
+// Skips reading the editor while a dispatched command owns it on another goroutine.
 func (m *Model) showConfigContent() {
 	if m.editor == nil {
+		return
+	}
+	if m.dispatch.busy() {
 		return
 	}
 	if m.editor.ContentAtPath(m.contextPath) == "" {

@@ -5,11 +5,14 @@
 package cli
 
 import (
+	"errors"
+	"io/fs"
 	"slices"
 	"strconv"
 	"strings"
 
 	"github.com/ze-software/ze/internal/component/config"
+	"github.com/ze-software/ze/internal/core/diagnostic"
 	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
@@ -49,12 +52,49 @@ func (e *Editor) annotatedViewOf(tree *config.Tree, path []string, columns confi
 			// Use SerializeAnnotatedTree/Set with a schema wrapper
 			return e.annotatedAtNode(subtree, meta, schemaNode, columns, setFormat)
 		}
+		if parent, listName, listNode, ok := e.walkBareListFrom(tree, path); ok {
+			if parent == nil {
+				return ""
+			}
+			ordered := parent.GetListOrdered(listName)
+			if len(ordered) == 0 {
+				return ""
+			}
+			onlyList := config.NewTree()
+			for _, item := range ordered {
+				onlyList.AddListEntry(listName, item.Key, item.Value)
+			}
+			parentMeta := meta
+			if len(path) > 1 {
+				parentMeta = e.walkMetaPath(meta, path[:len(path)-1])
+			}
+			cp := singleChildProvider{name: listName, node: listNode}
+			if setFormat {
+				return config.SerializeAnnotatedSubtreeSet(onlyList, parentMeta, cp, columns)
+			}
+			return config.SerializeAnnotatedSubtree(onlyList, parentMeta, cp, columns)
+		}
 	}
 
 	if setFormat {
 		return config.SerializeAnnotatedSet(tree, meta, schema, columns)
 	}
 	return config.SerializeAnnotatedTree(tree, meta, schema, columns)
+}
+
+// singleChildProvider exposes one named schema child for bare-list annotated rendering.
+type singleChildProvider struct {
+	name string
+	node config.Node
+}
+
+func (s singleChildProvider) Children() []string { return []string{s.name} }
+
+func (s singleChildProvider) Get(name string) config.Node {
+	if name == s.name {
+		return s.node
+	}
+	return nil
 }
 
 // annotatedAtNode renders annotated output at a specific schema node (for sub-paths).
@@ -302,12 +342,20 @@ func (e *Editor) revertUserChanges(tree *config.Tree, meta *config.MetaTree, use
 }
 
 // savedDraftContent returns the content of the saved draft file on disk.
-// Returns empty string if no draft exists.
+// Returns empty string when no store is attached or no draft exists.
 func (e *Editor) savedDraftContent() string {
+	if e.store == nil {
+		return ""
+	}
 	var tb textbuf.Buffer
 	draftPath := tb.Str(e.originalPath).Str(".draft").String()
 	data, err := e.store.ReadFile(draftPath)
+	// refuse-by-default: guards cmdShowDisplayWithSource -- absent draft returns empty string so show saved prints noSavedDraft; non-NotExist errors log at WARN
 	if err != nil {
+		if !errors.Is(err, fs.ErrNotExist) {
+			draftLogger.Warn("failed to read saved draft",
+				"code", diagnostic.CodeDoctorStoreIntegrity, "path", draftPath, "error", err)
+		}
 		return ""
 	}
 	return string(data)
