@@ -51,6 +51,31 @@ judge and is owned by the GR spec.
    `./le spec design check` prints `ready to present`; on refuse, revise and
    judge again.
 
+## Update: the tenth-refusal revision landed
+
+The revision in item 1 above is committed (digest 1b71ffcdb3c5). One deviation
+from the brief was accepted: EPE's unacquired replay answer sends the cleanup as
+its own tagged `ApplyReplay` batch and the adds only once it is accepted,
+because both writers' `handleMPLSEntry` keep applying a batch after a refused
+entry, so a single batch would install adds behind a refused cleanup.
+
+Before the eleventh judge, one gap needs a design decision (the main session's,
+not Thomas's, unless it changes what he decided):
+
+- **Live label applies during the reload window.** Between the new writer's
+  start (`autoLoadForNewConfigPaths`) and the displaced writer's stop
+  (`stopCollectedProcesses`, `reload.go`), a live label apply (a new LDP FEC, an
+  OSPF SR change, an RSVP-TE refresh) reaches both writers and is refused
+  through fib-dummy. LDP and OSPF SR keep it wanted but re-apply only when a
+  writer next opens, so it stays out of fib-kernel until re-signalled.
+- Options: (a) after the reload stops a displaced `ProgramsFIB` writer, the
+  remaining writer issues one more targeted label replay request; (b) reorder
+  the swap in `reloadConfig` (rejected so far: compensation ordering needs its
+  own design); (c) record it as a limitation.
+- Recommended: (a). It reuses the replay request the spec already adds (AC-21),
+  needs no reordering, and closes the window for every label source at once.
+  Write it as an AC with a test where a live apply lands in the window.
+
 ## Choices waiting for Thomas
 
 | Spec | Choice | Options | Recommended |
