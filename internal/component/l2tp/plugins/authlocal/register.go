@@ -22,7 +22,7 @@ var authInstance = newLocalAuth()
 const configRootL2TP = "l2tp"
 
 func init() {
-	l2tp.RegisterAuthHandler(authInstance.handle)
+	l2tp.RegisterAuthHandler(l2tp.AuthPriorityLocal, authInstance.handle)
 
 	reg := registry.Registration{
 		Name:                    Name,

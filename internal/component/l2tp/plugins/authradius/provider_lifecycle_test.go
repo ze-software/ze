@@ -91,10 +91,9 @@ func lifecycleRadiusConfig(t *testing.T, address string, timeout int) string {
 
 func preserveLifecycleLocal(t *testing.T) {
 	t.Helper()
-	original := l2tp.GetAuthHandler()
 	t.Cleanup(func() {
 		l2tpauthlocal.ResetForTest()
-		l2tp.RegisterAuthHandler(original)
+		l2tp.UnregisterAuthHandler(l2tp.AuthPriorityRemote)
 	})
 }
 

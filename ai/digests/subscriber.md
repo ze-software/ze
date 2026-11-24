@@ -282,7 +282,7 @@ the kernel unit's disconnect/EOF drain still fences reconnection.
 | `ppp/start_session.go` | `StartSession`: the transport/PPP contract struct (fds, auth/NCP config, proxy-LCP bytes) |
 | `subscriber/session.go` | Shared `Session` snapshot type (`AccessType`, `State`, IPs, accounting fields) |
 | `subscriber/registry.go` | `Registry`: `Add`/`Remove`/`Get`/`LookupByAcctSessionID`, used by both transports |
-| `subscriber/handler_registry.go` | Transport-generic `AuthHandler`/`PoolHandler`/`ShaperHandler` registration (package-level singletons) |
+| `subscriber/handler_registry.go` | Transport-generic prioritized `AuthHandler` registry (`AuthPriorityRemote` 50 over `AuthPriorityLocal` 200) plus `PoolHandler`/`ShaperHandler` singletons |
 | `subscriber/service.go` | `DefaultRegistry` singleton + `LookupService()` locator for CLI/plugins |
 | `subscriber/events/events.go` | Cross-access-type EventBus namespace (`SessionUp`/`Down`/`IPAssigned`/`RateChange`/`AuthResult`) |
 | `plugins/authradius/handler.go` | RADIUS `Access-Request` auth handler (`radiusAuth.handle`), registered via `l2tp.RegisterAuthHandler` |
@@ -325,12 +325,14 @@ the kernel unit's disconnect/EOF drain still fences reconnection.
   (`subscriber/service.go`). Both `pppoe.Subsystem.eventConsumer` and L2TP's
   `subscriberBridge` write to it directly; tests that run both subsystems in the same
   process share one registry.
-- **`AuthHandler`/`PoolHandler`/`ShaperHandler` are also package-level singletons**
-  (`subscriber/handler_registry.go`), set once by whichever auth/pool/shaper plugin's
-  `init()` runs; only one of each can be registered process-wide. L2TP's own
-  `RegisterAuthHandler`/`RegisterPoolHandler` (`l2tp/handler_registry.go`) are thin adapters
-  that delegate to the same subscriber-level singleton (`l2tp/handler_registry.go`): plugins
-  written against the older L2TP-typed API still work unchanged.
+- **Auth handlers are prioritized by `AuthPriority`; pool and shaper handlers
+  are package-level singletons** (`subscriber/handler_registry.go`).
+  `l2tp-auth-local` registers at `AuthPriorityLocal` (200) in `init()`, and
+  `l2tp-auth-radius` registers at `AuthPriorityRemote` (50) when configured and
+  unregisters it on removal, so `GetAuthHandler()` always selects configured
+  RADIUS over local regardless of registration order. L2TP's own
+  `RegisterAuthHandler`/`UnregisterAuthHandler`/`RegisterPoolHandler`
+  (`l2tp/handler_registry.go`) are thin adapters delegating to `subscriber`.
 - **`subscriberBridge` requires a non-nil EventBus.** L2TP's subsystem only builds the bridge
   `if bus != nil` (`l2tp/subsystem.go`); L2TP subsystem tests that pass a nil bus get no
   subscriber registration at all. PPPoE guards the same way per-emit (`if s.bus != nil`,

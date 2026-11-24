@@ -18,13 +18,29 @@ var (
 	prefixReleaser PrefixReleaser
 )
 
-// RegisterAuthHandler delegates to subscriber.RegisterAuthHandler,
+// AuthPriority orders registered subscriber authentication handlers. Lower
+// non-zero values take precedence.
+type AuthPriority = subscriber.AuthPriority
+
+const (
+	// AuthPriorityUnspecified marks an unset priority and is rejected on registration.
+	AuthPriorityUnspecified = subscriber.AuthPriorityUnspecified
+	// AuthPriorityRemote is the precedence slot for a configured remote AAA
+	// backend such as RADIUS.
+	AuthPriorityRemote = subscriber.AuthPriorityRemote
+	// AuthPriorityLocal is the precedence slot for the local static user store.
+	AuthPriorityLocal = subscriber.AuthPriorityLocal
+)
+
+// RegisterAuthHandler delegates to subscriber.RegisterAuthHandler at priority,
 // adapting the L2TP-typed handler to the subscriber type system.
-func RegisterAuthHandler(h AuthHandler) {
+// Safe for concurrent use.
+func RegisterAuthHandler(priority AuthPriority, h AuthHandler) {
 	if h == nil {
+		subscriber.RegisterAuthHandler(priority, nil)
 		return
 	}
-	subscriber.RegisterAuthHandler(func(req ppp.EventAuthRequest, respond subscriber.AuthRespondFunc) subscriber.AuthResult {
+	subscriber.RegisterAuthHandler(priority, func(req ppp.EventAuthRequest, respond subscriber.AuthRespondFunc) subscriber.AuthResult {
 		l2tpRespond := AuthRespondFunc(respond)
 		r := h(req, l2tpRespond)
 		return subscriber.AuthResult{
@@ -36,8 +52,9 @@ func RegisterAuthHandler(h AuthHandler) {
 	})
 }
 
-// GetAuthHandler returns the registered auth handler adapted from the
-// subscriber registry, or nil if none.
+// GetAuthHandler returns the highest-precedence registered auth handler
+// adapted from the subscriber registry, or nil if none.
+// Safe for concurrent use.
 func GetAuthHandler() AuthHandler {
 	sh := subscriber.GetAuthHandler()
 	if sh == nil {
@@ -55,9 +72,10 @@ func GetAuthHandler() AuthHandler {
 	}
 }
 
-// UnregisterAuthHandler removes the auth handler. Only for use in tests.
-func UnregisterAuthHandler() {
-	subscriber.UnregisterAuthHandler()
+// UnregisterAuthHandler removes the auth handler registered at priority.
+// Safe for concurrent use.
+func UnregisterAuthHandler(priority AuthPriority) {
+	subscriber.UnregisterAuthHandler(priority)
 }
 
 // RegisterPoolHandler delegates to subscriber.RegisterPoolHandler.

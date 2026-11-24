@@ -38,8 +38,9 @@ func (rs *relaySink) Relay(req callsink.Request) (callsink.RelayCall, bool, erro
 	rs.s.mu.Lock()
 	rem, matched := rs.s.relayTargetLocked(req.Service)
 	var reactor *l2tpReactor
-	if matched && len(rs.s.reactors) > 0 {
-		reactor = rs.s.reactors[0]
+	var reactorErr error
+	if matched {
+		reactor, reactorErr = rs.s.reactorForRemoteLocked(rem.Address, errRelayNoListener)
 	}
 	rs.s.mu.Unlock()
 
@@ -48,9 +49,9 @@ func (rs *relaySink) Relay(req callsink.Request) (callsink.RelayCall, bool, erro
 		countRelay(relayKindService, relayOutcomeNoMatch)
 		return nil, false, nil
 	}
-	if reactor == nil {
+	if reactorErr != nil {
 		countRelay(relayKindService, relayOutcomeRefused)
-		return nil, false, errRelayNoListener
+		return nil, false, reactorErr
 	}
 
 	if req.Handoff == nil {
@@ -113,8 +114,11 @@ func (rs *relaySink) RelayRealm(req callsink.RealmRequest) (callsink.RelayCall, 
 	binding, matched := rs.s.params.LookupRealmRelay(req.Realm)
 	rem, remoteKnown := rs.s.params.LookupRemote(binding.Remote)
 	var reactor *l2tpReactor
-	if matched && len(rs.s.reactors) > 0 {
-		reactor = rs.s.reactors[0]
+	var reactorErr error
+	if matched {
+		if remoteKnown {
+			reactor, reactorErr = rs.s.reactorForRemoteLocked(rem.Address, errRelayNoListener)
+		}
 	}
 	rs.s.mu.Unlock()
 
@@ -128,9 +132,9 @@ func (rs *relaySink) RelayRealm(req callsink.RealmRequest) (callsink.RelayCall, 
 		// the remote between the two reads lands here.
 		return nil, false, fmt.Errorf("%w: realm %q -> remote %q", errRelayRealmNoRemote, binding.Realm, binding.Remote)
 	}
-	if reactor == nil {
+	if reactorErr != nil {
 		countRelay(relayKindRealm, relayOutcomeRefused)
-		return nil, false, errRelayNoListener
+		return nil, false, reactorErr
 	}
 	if req.Auth.Kind == callsink.AuthKindUnspecified {
 		countRelay(relayKindRealm, relayOutcomeRefused)

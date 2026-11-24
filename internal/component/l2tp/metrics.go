@@ -6,13 +6,16 @@ package l2tp
 
 import (
 	"context"
+	"sync"
 	"sync/atomic"
 	"time"
 
 	"github.com/ze-software/ze/internal/component/iface"
 	"github.com/ze-software/ze/internal/component/l2tp/ppp"
+	"github.com/ze-software/ze/internal/component/plugin/registry"
 	"github.com/ze-software/ze/internal/core/env"
 	"github.com/ze-software/ze/internal/core/metrics"
+	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
 // l2tpMetrics holds registered Prometheus metrics for the L2TP subsystem.
@@ -59,6 +62,66 @@ var echoRTTBuckets = []float64{
 }
 
 var l2tpMetricsPtr atomic.Pointer[l2tpMetrics]
+
+// lateMetricsHookSeq allocates a distinct hook name per deferred Subsystem
+// start so registry.InjectPluginMetrics's per-name idempotency never suppresses
+// a subsequent start or test run in the same process.
+var lateMetricsHookSeq atomic.Uint64
+
+// lateMetricsHandle links one Subsystem.Start invocation to the callback
+// registered with registry.InjectPluginMetrics. Stop and unwind detach the
+// handle so a stopped subsystem is neither referenced nor mutated when a
+// registry arrives later.
+//
+// Lock ordering: Subsystem.mu -> lateMetricsHandle.mu (detach). invoke copies
+// sub under lateMetricsHandle.mu, releases it, and only then acquires
+// Subsystem.mu inside onLateMetricsRegistry. Safe for concurrent use.
+type lateMetricsHandle struct {
+	mu  sync.Mutex
+	sub *Subsystem
+	gen uint64
+}
+
+func (h *lateMetricsHandle) detach() {
+	h.mu.Lock()
+	h.sub = nil
+	h.mu.Unlock()
+}
+
+func (h *lateMetricsHandle) isAttached() bool {
+	h.mu.Lock()
+	attached := h.sub != nil
+	h.mu.Unlock()
+	return attached
+}
+
+func (h *lateMetricsHandle) invoke(reg metrics.Registry) {
+	h.mu.Lock()
+	sub := h.sub
+	gen := h.gen
+	h.sub = nil
+	h.mu.Unlock()
+	if sub == nil {
+		return
+	}
+	sub.onLateMetricsRegistry(gen, reg)
+}
+
+func nextL2TPMetricsHookName() string {
+	var tb textbuf.Buffer
+	return tb.Str("l2tp-subsystem-").Uint(lateMetricsHookSeq.Add(1)).String()
+}
+
+// registerLateL2TPMetrics asks the plugin registry to invoke h once a metrics
+// registry exists (immediately if one arrived between Start's nil check and
+// this call). Caller MUST NOT hold Subsystem.mu because InjectPluginMetrics
+// may invoke h.invoke synchronously.
+func registerLateL2TPMetrics(h *lateMetricsHandle) {
+	if !h.isAttached() {
+		return
+	}
+	registry.InjectPluginMetrics(nextL2TPMetricsHookName(), h.invoke)
+}
 
 func bindL2TPMetrics(reg metrics.Registry) *l2tpMetrics {
 	if reg == nil {

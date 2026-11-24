@@ -4,7 +4,8 @@ Session metrics for L2TP and server metrics for RADIUS. A 30-second poller reads
 the kernel counters. Per-session series carry the full label set and are removed
 asynchronously after teardown.
 
-<!-- source: internal/component/l2tp/metrics.go -- bindL2TPMetrics, l2tpStatsPoller, deleteSessionSeries -->
+<!-- source: internal/component/l2tp/metrics.go -- bindL2TPMetrics, registerLateL2TPMetrics, l2tpStatsPoller, deleteSessionSeries -->
+<!-- source: internal/component/l2tp/subsystem.go -- Subsystem.Start, Subsystem.onLateMetricsRegistry, Subsystem.startStatsPollerLocked -->
 <!-- source: internal/component/l2tp/observer_metrics.go -- retainCQMSeries, observeCQMBucket -->
 <!-- source: internal/component/l2tp/plugins/authradius/metrics.go -- RADIUS server metrics -->
 
@@ -32,8 +33,17 @@ Expected and received echo counts retain their complete 64-bit values through
 the loss calculation. A short positive sampling interval does not narrow the
 expected count before computing the ratio.
 
-**Quality series belong to their original physical registration.** Startup
-binds metrics before constructing the observer. Each bounded login slot retains
+**Quality series belong to their original physical registration.** When the
+metrics registry already exists at `Start`, startup binds metrics before
+constructing the observer and starts the stats poller immediately. When the
+registry is created after `Start` (for example on an L2TP-only daemon without
+BGP), `Subsystem.Start` defers binding through `registry.InjectPluginMetrics`
+(after releasing `Subsystem.mu` so synchronous callbacks cannot deadlock). When
+the registry arrives, `onLateMetricsRegistry` binds `ze_l2tp_*` and subscriber
+metrics, attaches the binding to the live observer (retaining series leases for
+any already-tracked logins without replacing an existing binding), and starts
+the stats poller; `Stop` and `unwindLocked` detach the pending handle so a
+stopped subsystem never starts a late poller. Each bounded login slot retains
 the three original vectors before publishing measured values. A failed or
 partial retention releases only its new interests and preserves useful old
 history. Eviction and final Stop release those exact leases; the last holder
@@ -42,7 +52,7 @@ series or redirect measurements into a replacement registry. Retention alone
 publishes no sample.
 
 <!-- source: internal/component/l2tp/observer_metrics.go -- cqmSeriesLease, retainCQMSeries, observeCQMBucket -->
-<!-- source: internal/component/l2tp/observer.go -- touchLogin, evictLRU, Stop -->
+<!-- source: internal/component/l2tp/observer.go -- attachMetrics, touchLogin, evictLRU, Stop -->
 
 <!-- source: internal/component/l2tp/cqm.go -- CQMBucket, BucketInterval -->
 

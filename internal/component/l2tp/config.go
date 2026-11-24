@@ -622,45 +622,71 @@ func validateRelays(p *Parameters) error {
 	return nil
 }
 
-// validateDialSources refuses a config whose dialing listener is on a loopback
-// address while a remote is on another host. Every dial, the outgoing-call RPC
-// (outgoing_call.go) and the PPPoE relay (relay_sink.go) alike, uses the
-// reactor of the first listener, s.reactors[0], bound from ListenAddrs[0]. So
-// only that listener is checked: a loopback second listener never dials, and
-// refusing it would refuse a config that works. Which listener a dial should
-// use is open in plan/journal/dial-ignores-which-listener-reaches-the-remote.md.
-// A loopback dialing listener whose remotes are all on the loopback stays
-// valid. The runtime refusal in handleDial is the backstop for a listener
-// this check never saw.
+// validateDialSources refuses a config when a configured remote cannot be
+// reached by any configured listener. Outgoing calls (outgoing_call.go) and
+// PPPoE relays (relay_sink.go) pick the reactor whose listener reaches the
+// remote (matching IP address family and loopback compatibility), so a remote
+// is accepted when at least one listener reaches it and refused when none can.
+// The runtime refusal in reactorForRemoteLocked and handleDial is the backstop
+// for listeners this check never saw.
 func validateDialSources(p *Parameters) error {
-	if len(p.ListenAddrs) == 0 {
-		return nil
-	}
-	return checkDialSource(p, p.ListenAddrs[0], listenName(p, 0))
+	return checkDialSources(p.Remotes, p.ListenAddrs, p.ListenNames)
 }
 
-// checkDialSource refuses the first remote in p that a socket bound to listen
-// cannot reach. server is the `environment l2tp server` key that declares
-// listen, named in the operator error.
-func checkDialSource(p *Parameters, listen netip.AddrPort, server string) error {
-	for i := range p.Remotes {
-		remote := p.Remotes[i]
-		if !dialSourceUnreachable(listen.Addr(), remote.Address.Addr()) {
-			continue
+// checkDialSources verifies every remote in remotes can be reached by at least
+// one listener in listens. When listens is empty nothing is refused here
+// (Start with no listeners is a no-op). Returns ErrDialFromLoopback when a
+// same-family loopback listener is the only blocker, or ErrNoReachingListener
+// when no listener matches the remote's IP address family.
+func checkDialSources(remotes []Remote, listens []netip.AddrPort, names []string) error {
+	if len(listens) == 0 {
+		return nil
+	}
+	for i := range remotes {
+		if err := checkRemoteReachable(remotes[i], listens, names); err != nil {
+			return err
 		}
-		label := "remote " + strconv.Quote(remote.Name) + " at " + remote.Address.String()
-		return dialFromLoopbackError(label, listen, server, remote.Address.Addr())
 	}
 	return nil
+}
+
+// checkRemoteReachable returns nil when at least one listener in listens can
+// reach remote. Otherwise it returns ErrDialFromLoopback for the first
+// same-family loopback listener, or ErrNoReachingListener when no listener
+// matches the remote's IP address family.
+func checkRemoteReachable(remote Remote, listens []netip.AddrPort, names []string) error {
+	remoteAddr := remote.Address.Addr()
+	sameFamilyIdx := -1
+	for i, listen := range listens {
+		if listenerCanReach(listen.Addr(), remoteAddr) {
+			return nil
+		}
+		if sameFamilyIdx < 0 {
+			if sameIPFamily(listen.Addr(), remoteAddr) {
+				sameFamilyIdx = i
+			}
+		}
+	}
+	label := "remote " + strconv.Quote(remote.Name) + " at " + remote.Address.String()
+	if sameFamilyIdx >= 0 {
+		return dialFromLoopbackError(label, listens[sameFamilyIdx], listenNameAt(names, sameFamilyIdx), remoteAddr)
+	}
+	return noReachingListenerError(label, listens, remoteAddr)
+}
+
+// listenNameAt returns names[index], or the placeholder `<name>` when names is
+// shorter than the listener slice (Parameters built without names in tests).
+func listenNameAt(names []string, index int) string {
+	if index < len(names) {
+		return names[index]
+	}
+	return "<name>"
 }
 
 // listenName returns the server key that declared ListenAddrs[index], or
 // the placeholder `<name>` for Parameters built without names (tests).
 func listenName(p *Parameters, index int) string {
-	if index < len(p.ListenNames) {
-		return p.ListenNames[index]
-	}
-	return "<name>"
+	return listenNameAt(p.ListenNames, index)
 }
 
 // LookupRemote returns the configured remote with the given name and true,

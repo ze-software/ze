@@ -95,11 +95,13 @@ a user takes effect at once on every credential surface
 
 ## Traps
 
-- **One subscriber auth handler, last write wins.** `RegisterAuthHandler`
-  (`l2tp/subscriber/handler_registry.go`) holds one handler. `authradius`
-  claims it at configure time over `authlocal`, and in a test the local handler
-  still answered. Open (`plan/journal/design-claim-never-measured.md`,
-  2026-09-03).
+- **Subscriber auth handler precedence used to depend on registration order.**
+  `RegisterAuthHandler` (`l2tp/subscriber/handler_registry.go`) previously held
+  one last-write-wins slot. It now stores handlers by `AuthPriority` (lower
+  non-zero wins): `AuthPriorityRemote` (50, `authradius` while configured)
+  always beats `AuthPriorityLocal` (200, `authlocal` at `init()`), and
+  unregistering `AuthPriorityRemote` immediately falls back to local. Fixed
+  (`plan/journal/design-claim-never-measured.md`, 2026-09-03).
 - **A field list over a config type misses the next field.**
   `peerConfigChanged` named eight of twelve peer fields, so a narrowed traffic
   selector committed and never applied. Fixed by `SiteToSitePeer.Equal`

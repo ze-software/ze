@@ -30,6 +30,10 @@ var ErrMaxTunnels = errors.New("l2tp: max-tunnels limit reached")
 // could only time out. The dial is refused before any tunnel exists.
 var ErrDialFromLoopback = errors.New("l2tp: a listener on a loopback address cannot dial a remote on another host")
 
+// ErrNoReachingListener is returned when one or more L2TP listeners are
+// configured, but none matches the remote's IP address family or reachability.
+var ErrNoReachingListener = errors.New("l2tp: no L2TP listener can reach the remote")
+
 // ErrCallTimeout is returned by placeOutgoingCallSync when neither a
 // success nor a failure outcome arrives within the caller's deadline. The
 // underlying dial/tunnel keeps running; the operator can observe it via
@@ -193,17 +197,22 @@ func (r *l2tpReactor) handleDial(req dialRequest) {
 	// fixed for the tunnel's life, so a loopback-bound listener has no source
 	// address that can ever reach an off-host destination.
 	local := r.listener.Addr()
-	if dialSourceUnreachable(local.Addr(), req.target.Remote.Addr()) {
-		r.tunnelsMu.Lock()
-		configured := r.params.ConfiguredListen
-		r.tunnelsMu.Unlock()
+	if !listenerCanReach(local.Addr(), req.target.Remote.Addr()) {
 		label := "remote " + req.target.Remote.String()
-		err := dialFromLoopbackError(label, local, r.params.ServerName, req.target.Remote.Addr())
-		// A reload already moved the listener off the loopback, but a
-		// listener is bound only at start: repeating the applied fix would
-		// send the operator in a circle.
-		if listenerAwaitsRestart(configured, local, req.target.Remote.Addr()) {
-			err = dialFromStaleListenerError(label, local, r.params.ServerName, configured)
+		var err error
+		if sameIPFamily(local.Addr(), req.target.Remote.Addr()) {
+			r.tunnelsMu.Lock()
+			configured := r.params.ConfiguredListen
+			r.tunnelsMu.Unlock()
+			err = dialFromLoopbackError(label, local, r.params.ServerName, req.target.Remote.Addr())
+			// A reload already moved the listener off the loopback, but a
+			// listener is bound only at start: repeating the applied fix would
+			// send the operator in a circle.
+			if listenerAwaitsRestart(configured, local, req.target.Remote.Addr()) {
+				err = dialFromStaleListenerError(label, local, r.params.ServerName, configured)
+			}
+		} else {
+			err = noReachingListenerError(label, []netip.AddrPort{local}, req.target.Remote.Addr())
 		}
 		r.logger.Warn("l2tp: dial refused; listener cannot reach the remote",
 			"remote", req.target.Remote.String(), "listener", local.String(), "error", err.Error())
@@ -295,6 +304,30 @@ func (r *l2tpReactor) handleDial(req dialRequest) {
 	req.result <- dialResult{localTID: localTID}
 }
 
+// sameIPFamily reports whether a and b belong to the same IP address family
+// after unmapping IPv4-mapped IPv6 addresses. UDPListener binds udp4 for IPv4
+// and udp6 with IPV6_V6ONLY for IPv6, so a socket reaches only its own family.
+func sameIPFamily(a, b netip.Addr) bool {
+	if !a.IsValid() {
+		return false
+	}
+	if !b.IsValid() {
+		return false
+	}
+	return a.Unmap().Is6() == b.Unmap().Is6()
+}
+
+// listenerCanReach reports whether a UDP listener bound to local can send
+// datagrams to remote: matching IP address family (udp4 vs IPV6_V6ONLY udp6)
+// and loopback compatibility (a loopback source cannot reach an off-host
+// remote).
+func listenerCanReach(local, remote netip.Addr) bool {
+	if !sameIPFamily(local, remote) {
+		return false
+	}
+	return !dialSourceUnreachable(local, remote)
+}
+
 // dialSourceUnreachable reports whether a socket bound to local can never send
 // to remote: a loopback source reaches only a loopback destination. A wildcard
 // or a host address leaves the choice to the kernel's route, so it is never
@@ -304,6 +337,23 @@ func dialSourceUnreachable(local, remote netip.Addr) bool {
 		return false
 	}
 	return !remote.IsLoopback()
+}
+
+// noReachingListenerError builds the operator error when configured L2TP
+// listeners exist but none matches the remote's IP address family: the problem
+// (naming the remote and available listeners), why, and the exact fix command
+// on its own last line.
+func noReachingListenerError(remote string, listeners []netip.AddrPort, remoteAddr netip.Addr) error {
+	family := "IPv4"
+	if remoteAddr.Unmap().Is6() {
+		family = "IPv6"
+	}
+	return fmt.Errorf("%w\n"+
+		"No configured L2TP listener can reach %s (available listeners: %s).\n"+
+		"Ze sends every tunnel from a listener of the same IP family, and none is bound for %s.\n"+
+		"Add a listener for that address family:\n"+
+		"  set environment l2tp server <name> ip %s",
+		ErrNoReachingListener, remote, formatListenAddrs(listeners), family, wildcardFor(remoteAddr))
 }
 
 // dialFromLoopbackError builds the operator error for a loopback listener

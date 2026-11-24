@@ -8,7 +8,7 @@ were invisible to downstream plugins and to the show commands.
 
 <!-- source: internal/component/l2tp/subscriber/session.go -- Session, AccessType -->
 <!-- source: internal/component/l2tp/subscriber/registry.go -- Registry, Add, Remove, All, ByAccessType, LookupByAcctSessionID -->
-<!-- source: internal/component/l2tp/subscriber/handler_registry.go -- RegisterAuthHandler, RegisterPoolHandler, RegisterShaperHandler -->
+<!-- source: internal/component/l2tp/subscriber/handler_registry.go -- AuthPriority, RegisterAuthHandler, UnregisterAuthHandler, GetAuthHandler, RegisterPoolHandler, RegisterShaperHandler -->
 <!-- source: internal/component/l2tp/subscriber/events/events.go -- the subscriber event namespace -->
 <!-- source: internal/component/l2tp/subscriber_bridge.go -- subscriberBridge, onSessionUp, onSessionDown, onSessionIPAssigned -->
 
@@ -22,9 +22,17 @@ and the bridge is a clean seam.
 The session struct is 408 bytes, so range copies were flagged. Callers still get
 value copies, so no caller can mutate registry state.
 
-**L2TP handler registration delegates to the subscriber registry.** The L2TP
-register functions wrap and forward. Existing L2TP plugins keep working with no
-code change, and they do not import the subscriber package.
+**L2TP handler registration delegates to the subscriber registry, and auth
+handlers are ordered by `AuthPriority`.** The L2TP register functions wrap and
+forward so L2TP plugins do not import the subscriber package. Authentication
+handlers register under a typed `AuthPriority` where lower non-zero values win:
+`AuthPriorityRemote` (50, used by `l2tp-auth-radius` while configured) always
+takes precedence over `AuthPriorityLocal` (200, registered by `l2tp-auth-local`
+in `init()`), regardless of registration or reload timing. Unregistering
+`AuthPriorityRemote` immediately exposes `AuthPriorityLocal` without
+snapshotting or restoring a prior closure, and `GetAuthHandler()` returns `nil`
+when no priority slot is populated. `AuthPriorityUnspecified` (0) is rejected
+with a `BUG` panic on registration.
 
 **Prefix handlers stay L2TP-scoped.** The prefix request and result types carry
 a tunnel-id and session-id tuple that is specific to L2TP. Generalization waits

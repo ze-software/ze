@@ -1,0 +1,71 @@
+# Test: with both local and RADIUS subscriber auth configured, RADIUS
+# authenticates the L2TP CHAP session.
+# VALIDATES: spec-ppp-l2tp-aaa-one-off-defects AC-6 (RADIUS-over-local
+#            precedence) -- when l2tp auth radius is configured alongside
+#            l2tp auth local, RADIUS takes precedence regardless of plugin
+#            init/configure ordering.
+# PREVENTS:  l2tp-auth-local answering ahead of a configured RADIUS server.
+#            The local user entry deliberately carries a wrong password
+#            ("wrong-local-password") while the mock RADIUS server accepts
+#            the peer's CHAP credential, so if local answered the session
+#            would fail CHAP and no Access-Request would reach the server.
+#
+# Real kernel PPPoL2TP is required to carry PPP CHAP and IPCP frames, so this
+# test declares needs-linux:caps=net-admin and omits ze.l2tp.skip-kernel-probe.
+
+stdin=config:terminator=EOF_CONF
+l2tp {
+    enabled true
+    shared-secret s3cr3t
+    auth-method chap-md5
+    auth {
+        local {
+            user subscriber@ze {
+                password wrong-local-password
+            }
+        }
+        radius {
+            nas-identifier lns1
+            timeout 5
+            retries 2
+            server mock {
+                address 127.0.0.1
+                port $PORT2
+                accounting-port $PORT2
+                shared-key testing123
+            }
+        }
+    }
+    pool {
+        ipv4 {
+            gateway 10.99.21.1
+            start 10.99.21.10
+            end 10.99.21.10
+        }
+    }
+}
+environment {
+    l2tp {
+        server main {
+            ip 127.0.0.1
+            port $PORT
+        }
+    }
+}
+EOF_CONF
+
+option=needs-linux:caps=net-admin
+option=env:var=ze.log.l2tp:value=debug
+option=env:var=ze.log.l2tp.auth.local:value=info
+option=env:var=ze.log.l2tp.auth.radius:value=debug
+option=env:var=TEST_SECRET:value=s3cr3t
+
+cmd=background:seq=1:exec=le test fixture l2tp/radius-acct-wire/radius $PORT2 testing123
+cmd=background:seq=2:exec=ze -:stdin=config
+cmd=foreground:seq=3:exec=le test fixture l2tp/auth-precedence $PORT radius:timeout=60s:exit=0
+expect=exit:code=0
+expect=stdout:contains=OK: CHAP Success received
+expect=stdout:contains=OK: IPCP opened, ze assigned 10.99.21.10
+expect=stdout:contains=OK: RADIUS server received Access-Request for subscriber@ze
+reject=stderr:contains=l2tp-auth-local: CHAP-MD5
+reject=stderr:contains=l2tp-auth-local: no users configured

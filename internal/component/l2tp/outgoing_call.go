@@ -8,6 +8,7 @@ package l2tp
 import (
 	"errors"
 	"fmt"
+	"net/netip"
 	"time"
 )
 
@@ -52,8 +53,11 @@ func (s *Subsystem) PlaceOutgoingCall(remoteName, calledNumber string) (Outgoing
 	s.mu.Lock()
 	rem, ok := s.params.LookupRemote(remoteName)
 	var reactor *l2tpReactor
-	if len(s.reactors) > 0 {
-		reactor = s.reactors[0]
+	var reactorErr error
+	if ok {
+		if rem.OutgoingCalls {
+			reactor, reactorErr = s.reactorForRemoteLocked(rem.Address, errNoReactorForOutgoing)
+		}
 	}
 	s.mu.Unlock()
 
@@ -64,8 +68,8 @@ func (s *Subsystem) PlaceOutgoingCall(remoteName, calledNumber string) (Outgoing
 	if !rem.OutgoingCalls {
 		return res, fmt.Errorf("%w: %q", errRemoteNoOutgoing, remoteName)
 	}
-	if reactor == nil {
-		return res, errNoReactorForOutgoing
+	if reactorErr != nil {
+		return res, reactorErr
 	}
 
 	target := DialTarget{Remote: rem.Address, SharedSecret: rem.SharedSecret}
@@ -86,4 +90,94 @@ func (s *Subsystem) PlaceOutgoingCall(remoteName, calledNumber string) (Outgoing
 	}
 	res.Established = true
 	return res, nil
+}
+
+// reactorForRemoteLocked picks the reactor whose bound UDP listener can reach
+// remote. Caller MUST hold s.mu.
+//
+// Selection matches IP address family (udp4 vs IPV6_V6ONLY udp6) and loopback
+// compatibility:
+//   - For a loopback remote, a loopback listener of the same family is
+//     preferred; if none matches, the first non-loopback listener of the same
+//     family is used.
+//   - For an off-host remote, the first non-loopback listener of the same
+//     family is used.
+//
+// When no reactors are running, returns noListenerErr. When reactors exist but
+// none can reach remote, returns an operator error naming the remote and the
+// available listeners (ErrDialFromLoopback when a same-family loopback
+// listener is the blocker, or ErrNoReachingListener when no listener matches
+// the remote's IP address family).
+func (s *Subsystem) reactorForRemoteLocked(remote netip.AddrPort, noListenerErr error) (*l2tpReactor, error) {
+	if len(s.reactors) == 0 {
+		return nil, noListenerErr
+	}
+	remoteAddr := remote.Addr()
+	if remoteAddr.IsLoopback() {
+		for _, r := range s.reactors {
+			if r.listener == nil {
+				continue
+			}
+			local := r.listener.Addr()
+			if !local.IsValid() {
+				continue
+			}
+			if !local.Addr().IsLoopback() {
+				continue
+			}
+			if sameIPFamily(local.Addr(), remoteAddr) {
+				return r, nil
+			}
+		}
+	}
+	for _, r := range s.reactors {
+		if r.listener == nil {
+			continue
+		}
+		local := r.listener.Addr()
+		if !local.IsValid() {
+			continue
+		}
+		if listenerCanReach(local.Addr(), remoteAddr) {
+			return r, nil
+		}
+	}
+	return nil, s.unreachableRemoteErrorLocked(remote)
+}
+
+// unreachableRemoteErrorLocked builds the operator error when s.reactors is
+// non-empty but no bound listener can reach remote. Caller MUST hold s.mu.
+func (s *Subsystem) unreachableRemoteErrorLocked(remote netip.AddrPort) error {
+	remoteAddr := remote.Addr()
+	label := "remote " + remote.String()
+	var loopbackReactor *l2tpReactor
+	var loopbackLocal netip.AddrPort
+	bound := make([]netip.AddrPort, 0, len(s.reactors))
+	for _, r := range s.reactors {
+		if r.listener == nil {
+			continue
+		}
+		local := r.listener.Addr()
+		if !local.IsValid() {
+			continue
+		}
+		bound = append(bound, local)
+		if !sameIPFamily(local.Addr(), remoteAddr) {
+			continue
+		}
+		r.tunnelsMu.Lock()
+		configured := r.params.ConfiguredListen
+		r.tunnelsMu.Unlock()
+		if listenerAwaitsRestart(configured, local, remoteAddr) {
+			return dialFromStaleListenerError(label, local, r.params.ServerName, configured)
+		}
+		if loopbackReactor == nil {
+			loopbackReactor = r
+			loopbackLocal = local
+		}
+	}
+	if loopbackReactor != nil {
+		return dialFromLoopbackError(label, loopbackLocal, loopbackReactor.params.ServerName, remoteAddr)
+	}
+	return noReachingListenerError(label, bound, remoteAddr)
 }

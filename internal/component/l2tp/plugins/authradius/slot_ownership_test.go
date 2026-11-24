@@ -1,6 +1,6 @@
-// Related: register.go -- activateRadiusConfig claims the auth slot
-// Related: ../authlocal/register.go -- claims it at init as the base handler
-// Related: ../../subscriber/handler_registry.go -- the single-owner slot
+// Related: register.go -- activateRadiusConfig registers at AuthPriorityRemote
+// Related: ../authlocal/register.go -- registers at AuthPriorityLocal in init
+// Related: ../../subscriber/handler_registry.go -- prioritized auth handler registry
 
 // An EXTERNAL test package on purpose. A package-level variable in an internal
 // test file is initialized BEFORE the package's own init() runs, so it could

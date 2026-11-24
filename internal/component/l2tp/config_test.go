@@ -1192,3 +1192,99 @@ environment {
 	_, err = l2tp.ParseProxyLCPPolicy("trust")
 	require.ErrorContains(t, err, "want accept or renegotiate")
 }
+
+// TestConfig_LoopbackFirstRoutableSecondAcceptsOffHostRemote proves
+// validateDialSources accepts a config when a later listener reaches the
+// remote, matching runtime reactor selection (AC-7).
+//
+// VALIDATES: server "local" on 127.0.0.1 first, server "wan" on 0.0.0.0
+// second, and a remote at 203.0.113.10 load without error.
+// PREVENTS: config validation refusing a working multi-listener setup because
+// it inspected only ListenAddrs[0].
+func TestConfig_LoopbackFirstRoutableSecondAcceptsOffHostRemote(t *testing.T) {
+	const src = `l2tp {
+	enabled true
+	remote lns {
+		address 203.0.113.10
+		outgoing-calls true
+	}
+}
+environment {
+	l2tp {
+		server local {
+			ip 127.0.0.1
+			port 1702
+		}
+		server wan {
+			ip 0.0.0.0
+			port 1701
+		}
+	}
+}`
+	p, err := l2tp.ExtractParameters(loadTree(t, src))
+	require.NoError(t, err)
+	assert.Equal(t, []string{"local", "wan"}, p.ListenNames)
+}
+
+// TestConfig_IPv4ListenerOnlyRefusesIPv6Remote proves validateDialSources
+// refuses a remote whose IP family matches no configured listener.
+//
+// VALIDATES: an IPv4-only listener with an IPv6 remote fails ExtractParameters
+// with ErrNoReachingListener naming the remote, available listener, and `::`.
+// PREVENTS: accepting a config whose remote no listener socket can ever send to.
+func TestConfig_IPv4ListenerOnlyRefusesIPv6Remote(t *testing.T) {
+	const src = `l2tp {
+	enabled true
+	remote lns6 {
+		address 2001:db8::10
+		outgoing-calls true
+	}
+}
+environment {
+	l2tp {
+		server v4 {
+			ip 0.0.0.0
+			port 1701
+		}
+	}
+}`
+	err := extractRefusal(t, src)
+	require.ErrorIs(t, err, l2tp.ErrNoReachingListener)
+	assert.Contains(t, err.Error(), `remote "lns6" at [2001:db8::10]:1701`)
+	assert.Contains(t, err.Error(), "0.0.0.0:1701")
+	assert.True(t, strings.HasSuffix(err.Error(), "\n  set environment l2tp server <name> ip ::"), err.Error())
+}
+
+// TestConfig_IPv4AndIPv6ListenersAcceptBothFamilyRemotes proves dual-family
+// listeners allow both IPv4 and IPv6 remotes to load cleanly.
+//
+// VALIDATES: AC-7 dual-family config validation matching runtime selection.
+func TestConfig_IPv4AndIPv6ListenersAcceptBothFamilyRemotes(t *testing.T) {
+	const src = `l2tp {
+	enabled true
+	remote lns4 {
+		address 203.0.113.10
+		outgoing-calls true
+	}
+	remote lns6 {
+		address 2001:db8::10
+		outgoing-calls true
+	}
+}
+environment {
+	l2tp {
+		server v4 {
+			ip 0.0.0.0
+			port 1701
+		}
+		server v6 {
+			ip ::
+			port 1701
+		}
+	}
+}`
+	p, err := l2tp.ExtractParameters(loadTree(t, src))
+	require.NoError(t, err)
+	assert.Equal(t, []string{"v4", "v6"}, p.ListenNames)
+	require.Len(t, p.Remotes, 2)
+}

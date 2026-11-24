@@ -1,0 +1,56 @@
+# Test: with RADIUS unconfigured and local users configured, l2tp-auth-local
+# authenticates the L2TP CHAP session.
+# VALIDATES: spec-ppp-l2tp-aaa-one-off-defects AC-6 (local fallback when
+#            RADIUS is unconfigured) -- with l2tp-auth-radius compiled in but
+#            unconfigured, AuthPriorityLocal answers and admits the peer's
+#            matching CHAP-MD5 credential.
+# PREVENTS:  an unconfigured RADIUS plugin claiming the subscriber auth
+#            registry and rejecting local subscribers with "no RADIUS client".
+#
+# Real kernel PPPoL2TP is required to carry PPP CHAP and IPCP frames, so this
+# test declares needs-linux:caps=net-admin and omits ze.l2tp.skip-kernel-probe.
+
+stdin=config:terminator=EOF_CONF
+l2tp {
+    enabled true
+    shared-secret s3cr3t
+    auth-method chap-md5
+    auth {
+        local {
+            user subscriber@ze {
+                password chapsecret
+            }
+        }
+    }
+    pool {
+        ipv4 {
+            gateway 10.99.22.1
+            start 10.99.22.10
+            end 10.99.22.10
+        }
+    }
+}
+environment {
+    l2tp {
+        server main {
+            ip 127.0.0.1
+            port $PORT
+        }
+    }
+}
+EOF_CONF
+
+option=needs-linux:caps=net-admin
+option=env:var=ze.log.l2tp:value=debug
+option=env:var=ze.log.l2tp.auth.local:value=info
+option=env:var=ze.log.l2tp.auth.radius:value=debug
+option=env:var=TEST_SECRET:value=s3cr3t
+
+cmd=background:seq=1:exec=ze -:stdin=config
+cmd=foreground:seq=2:exec=le test fixture l2tp/auth-precedence $PORT local:timeout=60s:exit=0
+expect=exit:code=0
+expect=stdout:contains=OK: CHAP Success received
+expect=stdout:contains=OK: IPCP opened, ze assigned 10.99.22.10
+expect=stdout:contains=OK: local auth admitted CHAP session for subscriber@ze
+expect=stderr:contains=l2tp-auth-local: CHAP-MD5 accepted
+reject=stderr:contains=no RADIUS client

@@ -147,10 +147,9 @@ func TestDoReloadRadiusRemovalLateBindFailurePreservesAccounting(t *testing.T) {
 	registerRadiusReloadProbe(t)
 	ctx, cancel := context.WithTimeout(context.Background(), 45*time.Second)
 	t.Cleanup(cancel)
-	originalAuth := l2tp.GetAuthHandler()
 	originalBus := registry.GetEventBus()
 	t.Cleanup(func() {
-		l2tp.RegisterAuthHandler(originalAuth)
+		l2tp.UnregisterAuthHandler(l2tp.AuthPriorityRemote)
 		registry.SetEventBus(originalBus)
 		registry.Lookup(l2tpauthradius.Name).ConfigureEventBus(originalBus)
 	})

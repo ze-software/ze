@@ -177,8 +177,17 @@ type lruEntry struct {
 	contributor  subscriberid.L2TPBirth
 	downConsumed bool
 	series       cqmSeriesLease
+	metrics      *l2tpMetrics
 	prev         *lruEntry
 	next         *lruEntry
+}
+
+// observerMetricRefusal records a login whose CQM series lease could not be
+// retained during late metric attachment, reported after locks are released.
+type observerMetricRefusal struct {
+	birth subscriberid.L2TPBirth
+	login string
+	cause error
 }
 
 // Observer manages per-session event rings and per-login CQM sample
@@ -441,6 +450,43 @@ func (o *Observer) Stop() {
 	}
 }
 
+// attachMetrics binds a late-arriving metrics registry to an observer that
+// started before any registry existed. It never replaces an existing binding
+// (preserving original physical registration custody) and is a no-op once
+// admission has sealed. Already-tracked logins retain their series leases on m;
+// any login whose retention fails keeps its CQM history without publishing
+// unleased samples, and its refusal is returned for reporting outside locks.
+func (o *Observer) attachMetrics(m *l2tpMetrics) []observerMetricRefusal {
+	if o == nil {
+		return nil
+	}
+	if m == nil {
+		return nil
+	}
+	o.mu.Lock()
+	defer o.mu.Unlock()
+	if o.metrics != nil {
+		return nil
+	}
+	if o.admission != observerOpen {
+		return nil
+	}
+	o.metrics = m
+	var refusals []observerMetricRefusal
+	for login, entry := range o.logins {
+		lease, err := m.retainCQMSeries(login)
+		if err != nil {
+			refusals = append(refusals, observerMetricRefusal{
+				birth: entry.contributor, login: login, cause: err,
+			})
+			continue
+		}
+		entry.series = lease
+		entry.metrics = m
+	}
+	return refusals
+}
+
 // errLoginUntracked is touchLogin's answer when no sample ring is free and no
 // tracked login can be evicted for one. The event then carries no quality
 // history for that login. It is a bound reached, not a failure: callers MUST
@@ -474,7 +520,7 @@ func (o *Observer) touchLogin(login string, now time.Time, birth subscriberid.L2
 	}
 	entry := &lruEntry{
 		login: login, ring: ring, state: BucketStateNegotiating,
-		contributor: birth, series: series,
+		contributor: birth, series: series, metrics: o.metrics,
 		current: CQMBucket{Start: now, State: BucketStateNegotiating},
 	}
 	o.logins[login] = entry
@@ -493,7 +539,7 @@ func (o *Observer) maybeCloseBucket(entry *lruEntry, now time.Time) {
 	// buckets would just overwrite each other in the ring anyway.
 	ringCap := len(entry.ring.buckets) + 1
 	for i := 0; now.Sub(entry.current.Start) >= BucketInterval && i < ringCap; i++ {
-		o.metrics.observeCQMBucket(entry.login, entry.current, o.expectedEchoesPerBucket)
+		entry.metrics.observeCQMBucket(entry.login, entry.current, o.expectedEchoesPerBucket)
 		entry.ring.append(entry.current)
 		entry.current = CQMBucket{
 			Start: entry.current.Start.Add(BucketInterval),

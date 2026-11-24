@@ -728,9 +728,12 @@ assignment whose range was removed until that subscriber ends its session.
 <!-- source: internal/component/l2tp/plugins/pool/reload.go -- installPoolConfiguration -->
 
 These plugins register via the L2TP handler registry (`RegisterAuthHandler`,
-`RegisterPoolHandler`) at init time. Only one auth handler is active at a
-time (last registered wins). The pool and shaper plugins subscribe to
-session lifecycle events via the EventBus.
+`RegisterPoolHandler`). Auth handlers are ordered by `AuthPriority` (lower
+non-zero wins): `l2tp-auth-local` registers `AuthPriorityLocal` (200) at init,
+and `l2tp-auth-radius` registers `AuthPriorityRemote` (50) while configured and
+unregisters it on removal, so configured RADIUS always takes precedence over
+local authentication regardless of registration timing. The pool and shaper
+plugins subscribe to session lifecycle events via the EventBus.
 
 See [L2TP guide](l2tp.md) for configuration details.
 

@@ -14,11 +14,8 @@ import (
 // listenerMetricsHookName is the key registry.InjectPluginMetrics stores this
 // hook under. It is a namespace, not a plugin declaration: the registry keys
 // the deferral by name only, and no plugin under internal/plugins/ carries
-// this one. It is a separate hook from l2tpMetrics's own binding
-// (metrics.go) rather than a field added to that struct, because
-// bindL2TPMetrics still reads registry.GetMetricsRegistry directly and
-// readLoop's counter must not inherit that gap (see the note on
-// registerListenerMetrics below).
+// this one. It stays separate from Subsystem's per-start l2tp metrics hook
+// (metrics.go) because UDPListener can be started independently of Subsystem.
 const listenerMetricsHookName = "l2tp-listener"
 
 // listenerMetrics holds the Prometheus counter readLoop publishes for a read
@@ -52,16 +49,9 @@ func initListenerMetrics(reg metrics.Registry) *listenerMetrics {
 // Reading registry.GetMetricsRegistry here instead would bind nothing on an
 // L2TP-only daemon with no bgp block, and leave
 // ze_l2tp_listener_read_errors_total absent for the process lifetime with
-// no line saying so: the same gap internal/component/l2tp/pppoe/metrics.go
-// and internal/component/l2tp/ppp/metrics.go document and close for their
-// own counters. This package's own bindL2TPMetrics (metrics.go) still reads
-// registry.GetMetricsRegistry directly at Subsystem.Start and carries that
-// gap for the session gauges and CQM series it binds; it is unrelated to
-// readLoop's counter, untouched by this change, and recorded in
-// plan/journal/registry-read-outruns-its-lazy-creation.md rather than fixed
-// here, because folding readLoop's counter into that same call site would
-// also have to defer poller.start() and s.statsPoller's assignment, which
-// changes the concurrency of code this work does not otherwise touch.
+// no line saying so: the same startup-order deferral
+// internal/component/l2tp/pppoe/metrics.go, internal/component/l2tp/ppp/metrics.go,
+// and Subsystem.Start (subsystem.go) use for their own counters.
 func registerListenerMetrics() {
 	registry.InjectPluginMetrics(listenerMetricsHookName, bindListenerMetrics)
 }

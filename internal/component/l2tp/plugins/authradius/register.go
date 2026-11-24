@@ -131,14 +131,6 @@ func runPlugin(conn net.Conn) int {
 	var transactionMu sync.Mutex
 	var retirements sync.WaitGroup
 	var stopped bool
-	fallback := l2tp.GetAuthHandler()
-	restoreFallback := func() {
-		if fallback == nil {
-			l2tp.UnregisterAuthHandler()
-		} else {
-			l2tp.RegisterAuthHandler(fallback)
-		}
-	}
 	retireAccounting := func() {
 		if retired := acctInstance.detach(); retired != nil {
 			retirements.Go(func() {
@@ -197,7 +189,7 @@ func runPlugin(conn net.Conn) int {
 		transactionMu.Lock()
 		stopped = true
 		if current != nil {
-			restoreFallback()
+			l2tp.UnregisterAuthHandler(l2tp.AuthPriorityRemote)
 		}
 		retireAuthClient()
 		closeCoAListener()
@@ -226,7 +218,7 @@ func runPlugin(conn net.Conn) int {
 			return activateRadiusConfig(cfg, p.DispatchCommandArgs)
 		}
 		if current != nil {
-			restoreFallback()
+			l2tp.UnregisterAuthHandler(l2tp.AuthPriorityRemote)
 			acctInstance.pauseAdmissions()
 			// Accounting retains its own client until whole-reload
 			// acceptance. Compensation can resume the existing accounting
@@ -384,16 +376,13 @@ func activateRadiusConfig(cfg *radiusConfig, dispatch coaCommandDispatch) error 
 	}
 	oldClient := authInstance.swapClient(client, cfg.NASIdentifier, primaryAddr, cfg.SourceAddress, cfg.NASPortIDFormat)
 	authInstance.setExclusions(cfg.Exclusions)
-	// Claim the auth slot HERE, not in init(). The slot holds one handler
-	// (internal/component/l2tp/subscriber/handler_registry.go), and this plugin
-	// and l2tp-auth-local both sit in the same binary, so an init()-time claim
-	// made the owner a function of link order rather than of configuration. An
-	// unconfigured RADIUS plugin then answered every CHAP Response with "no
-	// RADIUS client", and the operator's local users were never consulted: a
-	// PPPoE or L2TP subscriber authenticated against a local credential could
-	// not come up at all. Claiming it once RADIUS has a client makes the
-	// precedence "RADIUS when configured, local otherwise".
-	l2tp.RegisterAuthHandler(func(req ppp.EventAuthRequest, respond l2tp.AuthRespondFunc) l2tp.AuthResult {
+	// Register at AuthPriorityRemote HERE, once RADIUS is configured, rather
+	// than in init(). The subscriber auth registry orders providers by
+	// AuthPriority (internal/component/l2tp/subscriber/handler_registry.go):
+	// AuthPriorityRemote (50) beats AuthPriorityLocal (200) regardless of
+	// registration order, and unregistering AuthPriorityRemote immediately
+	// falls back to l2tp-auth-local without snapshotting or restoring state.
+	l2tp.RegisterAuthHandler(l2tp.AuthPriorityRemote, func(req ppp.EventAuthRequest, respond l2tp.AuthRespondFunc) l2tp.AuthResult {
 		return authInstance.handle(req, respond)
 	})
 	// The accountant owns the accounting client from here, and closes the one

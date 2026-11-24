@@ -6,9 +6,9 @@ stubs, states that were never entered, and no way to dial a remote. Ze now dials
 a tunnel, places a network-server-side outgoing call through an RPC, and relays
 a PPPoE subscriber into an access-concentrator incoming call.
 
-<!-- source: internal/component/l2tp/outgoing_call.go -- PlaceOutgoingCall, OutgoingCallResult -->
+<!-- source: internal/component/l2tp/outgoing_call.go -- PlaceOutgoingCall, OutgoingCallResult, reactorForRemoteLocked -->
 <!-- source: internal/component/l2tp/cmd/outgoing_call.go -- handleOutgoingCall -->
-<!-- source: internal/component/l2tp/relay_sink.go -- relaySink.Relay, relayTargetLocked -->
+<!-- source: internal/component/l2tp/relay_sink.go -- relaySink.Relay, relaySink.RelayRealm, relayTargetLocked -->
 <!-- source: internal/core/callsink/callsink.go -- Sink, Register, Unregister, Lookup -->
 <!-- source: internal/component/l2tp/bridge_linux.go -- maybeBridgePPPoE, maybeBridgePPPoEWith -->
 
@@ -118,6 +118,24 @@ snapshot.
 **A call is an operational event, not config.** The operator surface is the
 remote dial-target list plus a `request l2tp outgoing-call` RPC. A config-driven
 auto-dial was rejected because it turns an event into state.
+
+**Dials select a listener that can reach the remote.** With multiple
+`environment l2tp server` blocks (for example a loopback listener alongside a
+routable listener, or IPv4 and IPv6 listeners), `PlaceOutgoingCall`,
+`relaySink.Relay`, and `relaySink.RelayRealm` select the reactor whose bound
+listener matches the remote's IP address family (`udp4` vs `IPV6_V6ONLY`
+`udp6`) and loopback compatibility via `reactorForRemoteLocked`. A loopback
+remote prefers a same-family loopback listener and falls back to a same-family
+non-loopback listener when none is configured; an off-host remote requires a
+same-family non-loopback listener. When no listener can reach the remote, the
+dial refuses with an operator error naming the remote and listeners. Config load
+(`validateDialSources`) and reload (`reloadDialSources`) apply the same
+reachability predicate so configuration validation matches runtime selection.
+
+<!-- source: internal/component/l2tp/outgoing_call.go -- reactorForRemoteLocked, unreachableRemoteErrorLocked -->
+<!-- source: internal/component/l2tp/reactor_dial.go -- sameIPFamily, listenerCanReach, ErrNoReachingListener -->
+<!-- source: internal/component/l2tp/config.go -- validateDialSources, checkDialSources -->
+<!-- source: internal/component/l2tp/subsystem_reload.go -- reloadDialSources -->
 
 **The functional test drives the RPC over the token-guarded REST API.** The
 no-authentication REST surface is read-only, so the test config sets an API

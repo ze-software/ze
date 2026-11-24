@@ -203,8 +203,10 @@ const localAfterReload = `{"l2tp":{"auth":{"local":{"user":{"alice":{"password":
 // MUTATION: leaving OnConfigVerify stateless makes apply keep the old password;
 // clearing pending without undoing an applied reload leaves rollback ineffective.
 func TestRegisteredLocalCredentialReload(t *testing.T) {
-	original := l2tp.GetAuthHandler()
-	t.Cleanup(func() { l2tpauthlocal.ResetForTest(); l2tp.RegisterAuthHandler(original) })
+	t.Cleanup(func() {
+		l2tpauthlocal.ResetForTest()
+		l2tp.UnregisterAuthHandler(l2tp.AuthPriorityRemote)
+	})
 	ctx, local := startAuthProvider(t, "l2tp-auth-local", localBeforeReload)
 	assertProviderPAP(t, "before", true, false)
 	assertProviderPAP(t, "after", false, false)
@@ -235,8 +237,10 @@ func TestRegisteredLocalCredentialReload(t *testing.T) {
 }
 
 func TestRegisteredLocalFirstApplyRollback(t *testing.T) {
-	original := l2tp.GetAuthHandler()
-	t.Cleanup(func() { l2tpauthlocal.ResetForTest(); l2tp.RegisterAuthHandler(original) })
+	t.Cleanup(func() {
+		l2tpauthlocal.ResetForTest()
+		l2tp.UnregisterAuthHandler(l2tp.AuthPriorityRemote)
+	})
 	ctx, local := startAuthProvider(t, "l2tp-auth-local", "")
 	assertProviderPAP(t, "before", false, false)
 	verifyAuthConfig(t, ctx, local, localBeforeReload, rpc.StatusOK)
@@ -249,8 +253,10 @@ func TestRegisteredLocalFirstApplyRollback(t *testing.T) {
 // MUTATION: ignoring errNoRADIUSConfig on reload strands the shared slot on
 // RADIUS. Local credential reload must not steal that slot while RADIUS owns it.
 func TestRegisteredProviderReloadTransitions(t *testing.T) {
-	original := l2tp.GetAuthHandler()
-	t.Cleanup(func() { l2tpauthlocal.ResetForTest(); l2tp.RegisterAuthHandler(original) })
+	t.Cleanup(func() {
+		l2tpauthlocal.ResetForTest()
+		l2tp.UnregisterAuthHandler(l2tp.AuthPriorityRemote)
+	})
 	bus := installProviderLifecycleBus(t)
 	ctx, local := startAuthProvider(t, "l2tp-auth-local", localBeforeReload)
 	_, remote := startAuthProvider(t, Name, `{}`)
@@ -320,4 +326,47 @@ func TestRegisteredProviderReloadTransitions(t *testing.T) {
 	assertProviderPAP(t, "after", false, true)
 	rollbackAuthConfig(t, ctx, remote)
 	assertProviderPAP(t, "after", true, false)
+}
+
+// VALIDATES: with RADIUS configured, a subsequent AuthPriorityLocal
+// registration does not displace RADIUS, and removing RADIUS immediately
+// exposes the local handler.
+// PREVENTS: last-write-wins precedence where registration timing decides
+// whether RADIUS or local authenticates subscribers.
+func TestRegisteredRadiusBeatsLateLocalRegistration(t *testing.T) {
+	originalLocal := l2tp.GetAuthHandler()
+	t.Cleanup(func() {
+		l2tpauthlocal.ResetForTest()
+		l2tp.UnregisterAuthHandler(l2tp.AuthPriorityRemote)
+		if originalLocal != nil {
+			l2tp.RegisterAuthHandler(l2tp.AuthPriorityLocal, originalLocal)
+		}
+	})
+	bus := installProviderLifecycleBus(t)
+	server, address := startMockRADIUS(t, []byte("order-key"), radius.CodeAccessAccept)
+	t.Cleanup(func() { _ = server.Close() })
+	_, port, err := net.SplitHostPort(address)
+	if err != nil {
+		t.Fatal(err)
+	}
+	radiusConfig := fmt.Sprintf(`{"l2tp":{"auth":{"radius":{"server":[{"name":"test","address":"127.0.0.1","port":%s,"shared-key":"order-key"}]}}}}`, port)
+
+	// Start and configure RADIUS before any local handler is registered.
+	l2tp.UnregisterAuthHandler(l2tp.AuthPriorityLocal)
+	ctx, remote := startAuthProvider(t, Name, radiusConfig)
+	assertProviderPAP(t, "remote-only", true, true)
+
+	// Register a local handler AFTER RADIUS is active; RADIUS must still win.
+	lateLocal := func(_ ppp.EventAuthRequest, _ l2tp.AuthRespondFunc) l2tp.AuthResult {
+		return l2tp.AuthResult{Accept: true, Message: "late-local"}
+	}
+	l2tp.RegisterAuthHandler(l2tp.AuthPriorityLocal, lateLocal)
+	assertProviderPAP(t, "remote-only", true, true)
+
+	// Removing RADIUS must immediately fall back to the late-registered local
+	// handler rather than whatever existed before RADIUS started.
+	verifyAuthConfig(t, ctx, remote, `{}`, rpc.StatusOK)
+	applyAuthConfig(t, ctx, remote)
+	commitProviderLifecycle(t, bus)
+	assertProviderPAP(t, "any-password", true, false)
 }

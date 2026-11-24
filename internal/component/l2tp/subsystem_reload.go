@@ -59,13 +59,15 @@ func (s *Subsystem) Reload(_ context.Context, cfg ze.ConfigProvider) error {
 	if err != nil {
 		return fmt.Errorf("l2tp reload: %w", err)
 	}
-	// validateDialSources would read next.ListenAddrs[0], but the provider
-	// map carries no config order, so that index names no particular server.
-	// The dialing listener is the one bound at Start from s.params.
-	if listen, server, ok := reloadDialSource(&s.params, &next); ok {
-		if err := checkDialSource(&next, listen, server); err != nil {
-			return fmt.Errorf("l2tp reload: %w", err)
-		}
+	// Reload checks remotes against every effective listener (the address next
+	// declares for each bound server, falling back to the bound address when a
+	// server was removed from next, plus any newly declared server in next).
+	// Dials pick whichever bound reactor can reach the remote; a listener moved
+	// off loopback in next is accepted here and reactorForRemoteLocked names
+	// the restart until ze rebinds.
+	listens, names := reloadDialSources(&s.params, &next)
+	if err := checkDialSources(next.Remotes, listens, names); err != nil {
+		return fmt.Errorf("l2tp reload: %w", err)
 	}
 
 	prev := s.params
@@ -558,24 +560,39 @@ func appendRemotesFromProvider(p *Parameters, l2tpRoot map[string]any) error {
 	return validateRelayRealms(p)
 }
 
-// reloadDialSource returns the endpoint a reload checks its remotes against
-// and the server key that declares it, or false when nothing is bound and no
-// dial can happen. Dials use s.reactors[0], bound at Start from
-// prev.ListenAddrs[0] (validateDialSources). A reload cannot rebind it, so the
-// endpoint is the one next declares for that same server: a config moving it
-// to 0.0.0.0 is accepted, and handleDial then names the restart. A server the
-// reload removed falls back to the bound endpoint, which keeps dialing until
-// ze restarts. The check judges today's dialing server only: a reload that adds
-// a loopback server ahead of it is accepted here and refused at the next start.
-func reloadDialSource(prev, next *Parameters) (netip.AddrPort, string, bool) {
+// reloadDialSources returns the listener endpoints and server keys a reload
+// checks its remotes against, or nil when nothing was bound at Start and no
+// dial can happen. Each bound server uses the address next declares for it (so
+// moving a loopback listener to 0.0.0.0 in the same reload as an off-host
+// remote is accepted, and runtime dial names the restart), falling back to its
+// bound endpoint if next removed that server. Any new server next added is
+// included too so a valid next-start config is not refused here.
+func reloadDialSources(prev, next *Parameters) ([]netip.AddrPort, []string) {
 	if len(prev.ListenAddrs) == 0 {
-		return netip.AddrPort{}, "", false
+		return nil, nil
 	}
-	server := listenName(prev, 0)
-	if addr, ok := configuredListen(next, server); ok {
-		return addr, server, true
+	listens := make([]netip.AddrPort, 0, len(prev.ListenAddrs)+len(next.ListenAddrs))
+	names := make([]string, 0, len(prev.ListenAddrs)+len(next.ListenAddrs))
+	seen := make(map[string]struct{}, len(prev.ListenAddrs))
+	for i, bound := range prev.ListenAddrs {
+		server := listenName(prev, i)
+		seen[server] = struct{}{}
+		if addr, ok := configuredListen(next, server); ok {
+			listens = append(listens, addr)
+		} else {
+			listens = append(listens, bound)
+		}
+		names = append(names, server)
 	}
-	return prev.ListenAddrs[0], server, true
+	for i, addr := range next.ListenAddrs {
+		server := listenName(next, i)
+		if _, ok := seen[server]; ok {
+			continue
+		}
+		listens = append(listens, addr)
+		names = append(names, server)
+	}
+	return listens, names
 }
 
 // configuredListen returns the endpoint p declares for the server key, and

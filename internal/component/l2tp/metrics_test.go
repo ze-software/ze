@@ -1,11 +1,17 @@
 package l2tp
 
 import (
+	"log/slog"
 	"net/netip"
+	"strings"
+	"sync"
 	"testing"
 	"time"
 
+	"github.com/stretchr/testify/require"
+
 	"github.com/ze-software/ze/internal/component/iface"
+	"github.com/ze-software/ze/internal/component/plugin/registry"
 	"github.com/ze-software/ze/internal/core/metrics"
 )
 
@@ -189,5 +195,174 @@ func TestParsePollInterval_Default(t *testing.T) {
 	d := parsePollInterval()
 	if d != 30*time.Second {
 		t.Errorf("expected 30s default, got %v", d)
+	}
+}
+
+func newInertMetricsTestSubsystem(t *testing.T, cqm bool) *Subsystem {
+	t.Helper()
+	previousProbe, previousWorker := probeKernelModulesFn, newSubsystemKernelWorkerFn
+	probeKernelModulesFn = func() error { return nil }
+	newSubsystemKernelWorkerFn = func(chan<- kernelSetupFailed, chan<- kernelSetupSucceeded, *slog.Logger, kernelBackendPreparation) (*kernelWorker, error) {
+		return nil, nil //nolint:nilnil // inert root without privileged netlink
+	}
+	t.Cleanup(func() {
+		probeKernelModulesFn, newSubsystemKernelWorkerFn = previousProbe, previousWorker
+	})
+	return NewSubsystem(&Parameters{
+		Enabled:                 true,
+		ListenAddrs:             []netip.AddrPort{netip.MustParseAddrPort("127.0.0.1:0")},
+		ListenNames:             []string{"lab"},
+		MaxTunnels:              4,
+		MaxSessions:             4,
+		MRU:                     1500,
+		HelloInterval:           60 * time.Second,
+		CQMEnabled:              cqm,
+		MaxLogins:               4,
+		EventRingSizePerSession: 8,
+		SampleRetentionSeconds:  300,
+	})
+}
+
+// TestSubsystemMetricsBindWhenRegistryArrivesAfterStart proves AC-12
+// (registry-read-outruns-its-lazy-creation): on an L2TP-only daemon without
+// BGP, Subsystem.Start runs before startStandaloneTelemetry creates the
+// Prometheus registry, and deferring through registry.InjectPluginMetrics
+// binds ze_l2tp_* gauges, attaches the CQM observer (including logins tracked
+// before the registry arrived), starts the stats poller, and cleans up on Stop.
+//
+// VALIDATES: AC-12 end-to-end against scraped /metrics output from the
+// late-registered PrometheusRegistry, plus clean Stop teardown.
+// PREVENTS: Subsystem.Start reading nil from registry.GetMetricsRegistry and
+// leaving ze_l2tp_* gauges and CQM series absent for the process lifetime.
+func TestSubsystemMetricsBindWhenRegistryArrivesAfterStart(t *testing.T) {
+	previousRegistry, previousBinding := registry.GetMetricsRegistry(), l2tpMetricsPtr.Load()
+	t.Cleanup(func() {
+		registry.SetMetricsRegistry(previousRegistry)
+		l2tpMetricsPtr.Store(previousBinding)
+	})
+	registry.SetMetricsRegistry(nil)
+	l2tpMetricsPtr.Store(nil)
+	t.Setenv("ze.l2tp.metrics.poll-interval", "20ms")
+
+	sub := newInertMetricsTestSubsystem(t, true)
+	bus := newCQMNativeBus(t)
+	ctx := t.Context()
+	require.NoError(t, sub.Start(ctx, bus, nil))
+	t.Cleanup(func() { require.NoError(t, sub.Stop(ctx)) })
+
+	// Nothing is bound yet while no registry exists.
+	require.Nil(t, l2tpMetricsPtr.Load())
+	sub.mu.Lock()
+	require.Nil(t, sub.statsPoller)
+	obs := sub.observer
+	sub.mu.Unlock()
+	require.NotNil(t, obs)
+
+	// Track one CQM login before the registry arrives to prove late attach
+	// retains its series leases too.
+	preBirth := cqmAPIBirth(t)
+	at := time.Unix(2000, 0)
+	cqmAPIEstablished(t, obs, obs.generation, preBirth, "pre-reg", at)
+
+	// Telemetry creates the registry AFTER Subsystem.Start.
+	reg := metrics.NewPrometheusRegistry()
+	registry.SetMetricsRegistry(reg)
+
+	require.NotNil(t, l2tpMetricsPtr.Load(), "ze_l2tp_* metrics must bind when registry arrives late")
+
+	// The stats poller must have started and populated the core gauges.
+	require.Eventually(t, func() bool {
+		body := cqmAPIScrape(t, reg)
+		return strings.Contains(body, "ze_l2tp_tunnels_active 0\n") &&
+			strings.Contains(body, "ze_l2tp_sessions_active 0\n")
+	}, 2*time.Second, 10*time.Millisecond, "late-started stats poller must populate ze_l2tp_* gauges")
+
+	// Both pre-existing and newly admitted CQM logins publish into reg.
+	postBirth := cqmAPIBirth(t)
+	cqmAPIEstablished(t, obs, obs.generation, postBirth, "post-reg", at)
+	require.NoError(t, obs.observeEvent(obs.generation, cqmAPIEvent(preBirth, ObserverEventEchoRTT, at.Add(BucketInterval), 11*time.Millisecond), "pre-reg"))
+	require.NoError(t, obs.observeEvent(obs.generation, cqmAPIEvent(postBirth, ObserverEventEchoRTT, at.Add(BucketInterval), 19*time.Millisecond), "post-reg"))
+
+	scraped := cqmAPIScrape(t, reg)
+	require.Contains(t, scraped, `ze_l2tp_lcp_echo_rtt_seconds_count{username="pre-reg"} 1`+"\n")
+	require.Contains(t, scraped, `ze_l2tp_lcp_echo_rtt_seconds_count{username="post-reg"} 1`+"\n")
+
+	// Stop cleans up the poller and releases CQM series leases cleanly.
+	require.NoError(t, sub.Stop(ctx))
+	sub.mu.Lock()
+	require.Nil(t, sub.statsPoller)
+	sub.mu.Unlock()
+	afterStop := cqmAPIScrape(t, reg)
+	require.NotContains(t, afterStop, `username="pre-reg"`)
+	require.NotContains(t, afterStop, `username="post-reg"`)
+}
+
+// TestSubsystemStopBeforeLateMetricsRegistryStartsNoPoller proves stopping a
+// subsystem before the metrics registry arrives detaches its deferred hook so
+// no stats poller goroutine leaks on a stopped subsystem.
+//
+// VALIDATES: AC-12 teardown safety when Stop precedes SetMetricsRegistry.
+// PREVENTS: a late InjectPluginMetrics callback starting a poller goroutine on
+// an already-stopped Subsystem.
+func TestSubsystemStopBeforeLateMetricsRegistryStartsNoPoller(t *testing.T) {
+	previousRegistry, previousBinding := registry.GetMetricsRegistry(), l2tpMetricsPtr.Load()
+	t.Cleanup(func() {
+		registry.SetMetricsRegistry(previousRegistry)
+		l2tpMetricsPtr.Store(previousBinding)
+	})
+	registry.SetMetricsRegistry(nil)
+	l2tpMetricsPtr.Store(nil)
+
+	sub := newInertMetricsTestSubsystem(t, false)
+	ctx := t.Context()
+	require.NoError(t, sub.Start(ctx, nil, nil))
+	require.NoError(t, sub.Stop(ctx))
+
+	registry.SetMetricsRegistry(metrics.NewPrometheusRegistry())
+
+	sub.mu.Lock()
+	poller := sub.statsPoller
+	sub.mu.Unlock()
+	require.Nil(t, poller, "late metrics registry must not start a poller on a stopped subsystem")
+}
+
+// TestSubsystemConcurrentStopAndLateMetricsRegistry exercises concurrent
+// Subsystem.Stop and registry.SetMetricsRegistry under -race to verify lock
+// ordering and zero leaked pollers across interleavings.
+//
+// VALIDATES: AC-12 race freedom and clean poller shutdown under concurrent
+// Stop and late SetMetricsRegistry.
+func TestSubsystemConcurrentStopAndLateMetricsRegistry(t *testing.T) {
+	previousRegistry, previousBinding := registry.GetMetricsRegistry(), l2tpMetricsPtr.Load()
+	t.Cleanup(func() {
+		registry.SetMetricsRegistry(previousRegistry)
+		l2tpMetricsPtr.Store(previousBinding)
+	})
+	t.Setenv("ze.l2tp.metrics.poll-interval", "10ms")
+
+	ctx := t.Context()
+	for range 8 {
+		registry.SetMetricsRegistry(nil)
+		l2tpMetricsPtr.Store(nil)
+
+		sub := newInertMetricsTestSubsystem(t, true)
+		require.NoError(t, sub.Start(ctx, newCQMNativeBus(t), nil))
+
+		var wg sync.WaitGroup
+		wg.Add(2)
+		go func() {
+			defer wg.Done()
+			registry.SetMetricsRegistry(metrics.NewPrometheusRegistry())
+		}()
+		go func() {
+			defer wg.Done()
+			require.NoError(t, sub.Stop(ctx))
+		}()
+		wg.Wait()
+
+		sub.mu.Lock()
+		poller := sub.statsPoller
+		sub.mu.Unlock()
+		require.Nil(t, poller, "stats poller must be stopped and nil after concurrent Stop")
 	}
 }

@@ -18,10 +18,9 @@ import (
 // MUTATION: resolving the handler once before starting the goroutine makes the
 // second session use the previous provider, despite the registry replacement.
 func TestPPPoEAuthDrainFollowsProviderReplacement(t *testing.T) {
-	original := subscriber.GetAuthHandler()
 	t.Cleanup(func() {
-		subscriber.UnregisterAuthHandler()
-		subscriber.RegisterAuthHandler(original)
+		subscriber.UnregisterAuthHandler(subscriber.AuthPriorityRemote)
+		subscriber.UnregisterAuthHandler(subscriber.AuthPriorityLocal)
 	})
 	bus := newRecordBus()
 	decisions := make(chan *subevents.SessionAuthResultPayload, 3)
@@ -39,7 +38,7 @@ func TestPPPoEAuthDrainFollowsProviderReplacement(t *testing.T) {
 	remote := func(ppp.EventAuthRequest, subscriber.AuthRespondFunc) subscriber.AuthResult {
 		return subscriber.AuthResult{Accept: false}
 	}
-	subscriber.RegisterAuthHandler(local)
+	subscriber.RegisterAuthHandler(subscriber.AuthPriorityLocal, local)
 	done := startPPPoEAuthDrain(slog.Default(), driver, subscriber.GetAuthHandler, bus, &pending, nil)
 	t.Cleanup(func() {
 		driver.Stop()
@@ -51,9 +50,9 @@ func TestPPPoEAuthDrainFollowsProviderReplacement(t *testing.T) {
 	})
 	for index, want := range []bool{true, false, true} {
 		if index == 1 {
-			subscriber.RegisterAuthHandler(remote)
+			subscriber.RegisterAuthHandler(subscriber.AuthPriorityRemote, remote)
 		} else {
-			subscriber.RegisterAuthHandler(local)
+			subscriber.UnregisterAuthHandler(subscriber.AuthPriorityRemote)
 		}
 		func() {
 			fds, err := unix.Socketpair(unix.AF_UNIX, unix.SOCK_STREAM, 0)
@@ -99,13 +98,8 @@ func TestPPPoEAuthDrainFollowsProviderReplacement(t *testing.T) {
 // with no handler registered and asserts the drain emits a reject.
 // MUTATION: accepting when the handler is nil admits the session.
 func TestPPPoEAuthDrainRefusesWithoutProvider(t *testing.T) {
-	original := subscriber.GetAuthHandler()
-	subscriber.UnregisterAuthHandler()
-	t.Cleanup(func() {
-		if original != nil {
-			subscriber.RegisterAuthHandler(original)
-		}
-	})
+	subscriber.UnregisterAuthHandler(subscriber.AuthPriorityRemote)
+	subscriber.UnregisterAuthHandler(subscriber.AuthPriorityLocal)
 	bus := newRecordBus()
 	decisions := make(chan *subevents.SessionAuthResultPayload, 1)
 	subevents.SessionAuthResult.Subscribe(bus, func(result *subevents.SessionAuthResultPayload) {

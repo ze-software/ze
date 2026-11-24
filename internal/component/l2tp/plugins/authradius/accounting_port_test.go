@@ -150,7 +150,6 @@ func TestAccountingRequestGoesToTheAccountingPort(t *testing.T) {
 		"                accounting-port "+acctPort+"\n"+
 		"                shared-key testing123\n")
 
-	previousHandler := l2tp.GetAuthHandler()
 	if err := activateRadiusConfig(cfg, nil); err != nil {
 		t.Fatal(err)
 	}
@@ -160,11 +159,7 @@ func TestAccountingRequestGoesToTheAccountingPort(t *testing.T) {
 		}
 		// The accountant owns its client and closes the replaced one.
 		acctInstance.setClient(nil, "", 0, "", nil, "")
-		if previousHandler == nil {
-			l2tp.UnregisterAuthHandler()
-			return
-		}
-		l2tp.RegisterAuthHandler(previousHandler)
+		l2tp.UnregisterAuthHandler(l2tp.AuthPriorityRemote)
 	})
 
 	resp := newFakeResponder()

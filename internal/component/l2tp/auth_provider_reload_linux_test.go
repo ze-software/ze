@@ -18,11 +18,10 @@ import (
 // MUTATION: resolving the auth handler once at drain startup makes the second
 // session retain the accepting provider after the registry switches to rejection.
 func TestL2TPAuthDrainFollowsProviderReplacement(t *testing.T) {
-	// The provider slot is process-global, so this test must remain serial.
-	original := subscriber.GetAuthHandler()
+	// The provider slots are process-global, so this test must remain serial.
 	t.Cleanup(func() {
-		subscriber.UnregisterAuthHandler()
-		subscriber.RegisterAuthHandler(original)
+		UnregisterAuthHandler(AuthPriorityRemote)
+		UnregisterAuthHandler(AuthPriorityLocal)
 	})
 	bus := newTestBus()
 	decisions := make(chan *subevents.SessionAuthResultPayload, 3)
@@ -39,7 +38,7 @@ func TestL2TPAuthDrainFollowsProviderReplacement(t *testing.T) {
 	replacement := func(ppp.EventAuthRequest, AuthRespondFunc) AuthResult {
 		return AuthResult{Accept: false}
 	}
-	RegisterAuthHandler(local)
+	RegisterAuthHandler(AuthPriorityLocal, local)
 	done := startAuthDrain(slog.Default(), driver, GetAuthHandler, bus)
 	t.Cleanup(func() {
 		driver.Stop()
@@ -58,9 +57,9 @@ func TestL2TPAuthDrainFollowsProviderReplacement(t *testing.T) {
 		{true, protocolFixtureIdentity("ppp2", 0x80000002)},
 	} {
 		if index == 1 {
-			RegisterAuthHandler(replacement)
+			RegisterAuthHandler(AuthPriorityRemote, replacement)
 		} else {
-			RegisterAuthHandler(local)
+			UnregisterAuthHandler(AuthPriorityRemote)
 		}
 		func() {
 			fds, err := unix.Socketpair(unix.AF_UNIX, unix.SOCK_STREAM, 0)

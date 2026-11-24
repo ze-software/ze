@@ -22,6 +22,7 @@ import (
 	"github.com/ze-software/ze/internal/component/plugin/registry"
 	"github.com/ze-software/ze/internal/core/callsink"
 	"github.com/ze-software/ze/internal/core/env"
+	"github.com/ze-software/ze/internal/core/metrics"
 	"github.com/ze-software/ze/internal/core/opererr"
 	"github.com/ze-software/ze/internal/core/privilege"
 	"github.com/ze-software/ze/internal/core/slogutil"
@@ -67,6 +68,7 @@ type Subsystem struct {
 
 	mu        sync.Mutex
 	started   bool
+	startGen  uint64
 	listeners []*UDPListener
 	reactors  []*l2tpReactor
 	// Old generations remain owning roots until every original physical
@@ -91,8 +93,14 @@ type Subsystem struct {
 	// Created at Start when CQMEnabled; nil otherwise.
 	observer *Observer
 	// statsPoller periodically reads pppN interface counters for Prometheus.
-	// Created at Start when metrics registry is available; nil otherwise.
+	// Created at Start when the metrics registry already exists, or started
+	// asynchronously through registry.InjectPluginMetrics when the registry
+	// arrives later; nil until then.
 	statsPoller *l2tpStatsPoller
+	// lateMetrics is the pending InjectPluginMetrics handle for the active
+	// start generation when Start saw no metrics registry yet. Detached on
+	// Stop/unwind and cleared once the callback runs.
+	lateMetrics *lateMetricsHandle
 	// subBridge translates L2TP session events into subscriber namespace
 	// events and maintains the subscriber registry.
 	subBridge *subscriberBridge
@@ -168,10 +176,14 @@ func (s *Subsystem) tunnelDefaults() TunnelDefaults {
 func (s *Subsystem) Start(ctx context.Context, bus ze.EventBus, _ ze.ConfigProvider) error {
 	s.mu.Lock()
 	var observerStartErr error
+	var lateHandle *lateMetricsHandle
 	defer func() {
 		s.mu.Unlock()
 		if observerStartErr != nil {
 			reportObserverStartFailure(s.logger, observerStartErr)
+		}
+		if lateHandle != nil {
+			registerLateL2TPMetrics(lateHandle)
 		}
 	}()
 
@@ -440,18 +452,18 @@ func (s *Subsystem) Start(ctx context.Context, bus ze.EventBus, _ ze.ConfigProvi
 		s.pppDrivers = append(s.pppDrivers, pppDriver)
 		s.logger.Info("L2TP listener bound", "address", ln.Addr().String())
 	}
-	// spec-l2tp-10: bind Prometheus metrics and start the stats poller.
+	// spec-l2tp-10: bind Prometheus metrics and start the stats poller when the
+	// registry already exists; otherwise defer binding through
+	// registry.InjectPluginMetrics after releasing s.mu so an L2TP-only daemon
+	// without BGP still publishes ze_l2tp_* gauges and CQM series once
+	// standalone telemetry creates the registry.
+	s.startGen++
 	if metricsRegistry != nil {
 		subscriber.BindMetrics(metricsRegistry)
-		pollInterval := parsePollInterval()
-		poller := newL2TPStatsPoller(s.reactors, pollInterval)
-		if s.kernelBackend != nil {
-			poller.readStats = s.kernelBackend.GetStats
-		}
-		poller.start()
-		s.statsPoller = poller
-		s.logger.Info("l2tp: metrics bound and stats poller started",
-			"poll-interval", pollInterval)
+		s.startStatsPollerLocked()
+	} else {
+		lateHandle = &lateMetricsHandle{sub: s, gen: s.startGen}
+		s.lateMetrics = lateHandle
 	}
 
 	s.started = true
@@ -464,6 +476,58 @@ func (s *Subsystem) Start(ctx context.Context, bus ze.EventBus, _ ze.ConfigProvi
 	// binding, so registering unconditionally is safe and reload-ready.
 	callsink.Register(&relaySink{s: s})
 	return nil
+}
+
+// startStatsPollerLocked creates and starts the periodic pppN stats poller
+// when reactors are running and no poller is active yet. Caller MUST hold s.mu.
+func (s *Subsystem) startStatsPollerLocked() {
+	if s.statsPoller != nil {
+		return
+	}
+	if len(s.reactors) == 0 {
+		return
+	}
+	pollInterval := parsePollInterval()
+	poller := newL2TPStatsPoller(s.reactors, pollInterval)
+	if s.kernelBackend != nil {
+		poller.readStats = s.kernelBackend.GetStats
+	}
+	poller.start()
+	s.statsPoller = poller
+	s.logger.Info("l2tp: metrics bound and stats poller started",
+		"poll-interval", pollInterval)
+}
+
+// onLateMetricsRegistry binds L2TP metrics, attaches them to any live CQM
+// observer, and starts the stats poller when the metrics registry arrives
+// after Start. Safe for concurrent use; a no-op if the subsystem has already
+// stopped or moved to a later start generation.
+func (s *Subsystem) onLateMetricsRegistry(gen uint64, reg metrics.Registry) {
+	if reg == nil {
+		return
+	}
+	s.mu.Lock()
+	if !s.started {
+		s.mu.Unlock()
+		return
+	}
+	if s.startGen != gen {
+		s.mu.Unlock()
+		return
+	}
+	s.lateMetrics = nil
+	binding := bindL2TPMetrics(reg)
+	subscriber.BindMetrics(reg)
+	var refusals []observerMetricRefusal
+	if s.observer != nil {
+		refusals = s.observer.attachMetrics(binding)
+	}
+	s.startStatsPollerLocked()
+	s.mu.Unlock()
+
+	for _, refusal := range refusals {
+		reportObserverMetricRefusal(refusal.birth, refusal.login, refusal.cause)
+	}
 }
 
 // stopKernelWorkersLocked releases every kernel worker's resources and reaps its
@@ -560,6 +624,10 @@ func (s *Subsystem) unwindLocked() {
 			errs = append(errs, err)
 		}
 	}
+	if s.lateMetrics != nil {
+		s.lateMetrics.detach()
+		s.lateMetrics = nil
+	}
 	if s.statsPoller != nil {
 		s.statsPoller.stop()
 		s.statsPoller = nil
@@ -634,6 +702,10 @@ func (s *Subsystem) Stop(ctx context.Context) error {
 		if err := l.Stop(); err != nil {
 			errs = append(errs, err)
 		}
+	}
+	if s.lateMetrics != nil {
+		s.lateMetrics.detach()
+		s.lateMetrics = nil
 	}
 	if s.statsPoller != nil {
 		s.statsPoller.stop()
