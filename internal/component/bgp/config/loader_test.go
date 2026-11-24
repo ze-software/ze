@@ -898,10 +898,15 @@ func TestMergeCliPluginsInternal(t *testing.T) {
 	assert.Equal(t, "./custom-plugin", result2[0].Run)
 }
 
-// TestHostnameAlwaysAvailable verifies hostname/domain-name are always parseable.
+// TestHostnameAlwaysAvailable verifies session > capability > hostname is always
+// parseable with the default schema and the removed legacy session > host-name
+// and session > domain-name leaves are rejected.
 //
-// VALIDATES: host-name/domain-name parse with default schema (internal plugin YANG always loaded).
-// PREVENTS: Regression in internal plugin YANG loading.
+// VALIDATES: capability > hostname > {host, domain} parse with default schema
+// (internal plugin YANG always loaded), while legacy session/host-name and
+// session/domain-name are refused.
+// PREVENTS: Regression in internal plugin YANG loading or reintroducing inert
+// legacy FQDN leaves.
 func TestHostnameAlwaysAvailable(t *testing.T) {
 	input := `
 bgp {
@@ -915,7 +920,12 @@ bgp {
             asn {
                 remote 65001
             }
-            host-name my-host-name;
+            capability {
+                hostname {
+                    host my-host-name;
+                    domain my-domain-name.com;
+                }
+            }
         }
     }
 }
@@ -929,6 +939,29 @@ bgp {
 	// Parsing should succeed - internal plugin YANG is always loaded
 	require.NoError(t, err)
 	require.NotNil(t, tree)
+
+	// Legacy session/host-name and session/domain-name leaves were removed from ze-hostname.yang.
+	for _, legacyLeaf := range []string{"host-name my-host-name;", "domain-name my-domain-name.com;"} {
+		legacyInput := `
+bgp {
+    peer transit1 {
+        connection {
+            remote {
+                ip 192.0.2.1
+            }
+        }
+        session {
+            asn {
+                remote 65001
+            }
+            ` + legacyLeaf + `
+        }
+    }
+}
+`
+		_, legacyErr := p.Parse(legacyInput)
+		require.Error(t, legacyErr, "removed legacy leaf %q must be rejected by schema", legacyLeaf)
+	}
 }
 
 // TestHoldTimeZeroPreserved verifies receive-hold-time 0 is preserved, not defaulted.

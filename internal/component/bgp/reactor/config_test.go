@@ -833,12 +833,13 @@ func TestParsePeerCapabilityHostname(t *testing.T) {
 	assert.Equal(t, "example.com", ps.RawCapabilityConfig["hostname"]["domain"])
 }
 
-// TestParsePeerCapabilityHostnameTopLevel verifies YANG-augmented hostname fields.
+// TestParsePeerCapabilityHostnameIgnoresLegacySessionLeaves verifies the removed
+// legacy session.host-name and session.domain-name leaves are not populated into
+// RawCapabilityConfig["hostname"].
 //
-// VALIDATES: Top-level host-name/domain-name fields (from plugin YANG augmentation) are
-// mapped to RawCapabilityConfig["hostname"].
-// PREVENTS: Plugin-augmented fields being ignored.
-func TestParsePeerCapabilityHostnameTopLevel(t *testing.T) {
+// VALIDATES: Only session.capability.hostname.{host,domain} populates hostname config.
+// PREVENTS: Reintroducing the inert legacy session-level spelling.
+func TestParsePeerCapabilityHostnameIgnoresLegacySessionLeaves(t *testing.T) {
 	tree := map[string]any{
 		"connection": map[string]any{"remote": map[string]any{"ip": "10.0.0.1"}, "local": map[string]any{"ip": "auto"}},
 		"session":    map[string]any{"asn": map[string]any{"remote": "65001"}, "host-name": "myhost", "domain-name": "mydomain.net", "capability": map[string]any{}},
@@ -846,10 +847,7 @@ func TestParsePeerCapabilityHostnameTopLevel(t *testing.T) {
 
 	ps, err := parsePeerFromTree("peer1", tree, 65000, 0)
 	require.NoError(t, err)
-
-	require.NotNil(t, ps.RawCapabilityConfig)
-	assert.Equal(t, "myhost", ps.RawCapabilityConfig["hostname"]["host"])
-	assert.Equal(t, "mydomain.net", ps.RawCapabilityConfig["hostname"]["domain"])
+	assert.NotContains(t, ps.RawCapabilityConfig, "hostname")
 }
 
 // TestParsePeerProcessBindings verifies process binding parsing.

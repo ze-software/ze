@@ -9,6 +9,10 @@ module ze-hostname {
         "FQDN capability plugin for ZeBGP (draft-walton-bgp-hostname, code 73).
          Advertises hostname and domain name of the BGP speaker.";
 
+    revision 2026-11-24 {
+        description "Remove the six inert legacy session/host-name and session/domain-name leaves; capability > hostname > {host, domain} is the sole spelling.";
+    }
+
     revision 2025-01-29 {
         description "Initial revision.";
     }
@@ -97,81 +101,6 @@ module ze-hostname {
                     limit.";
                 ze:help "Domain name (max 255 bytes).";
             }
-        }
-    }
-
-    // Standalone peers: legacy syntax (in session container)
-    augment "/bgp:bgp/bgp:peer/bgp:session" {
-        leaf host-name {
-            type string {
-                length "0..255";
-            }
-            description "Ze reads the leaf after capability > hostname > host and replaces that value with it, so a
-                peer that writes both leaves sends this one. The capability writes a 1-byte length in front of the
-                host name, which is the 255-byte limit. Write capability > hostname > host in a new config:
-                ze exabgp migrate produces that spelling and never this one.";
-            ze:help "Legacy: Host name for FQDN capability.";
-        }
-
-        leaf domain-name {
-            type string {
-                length "0..255";
-            }
-            description "Ze reads the leaf after capability > hostname > domain and replaces that value with it, so a
-                peer that writes both leaves sends this one. The capability writes a 1-byte length in front of the
-                domain name, which is the 255-byte limit. Write capability > hostname > domain in a new config:
-                ze exabgp migrate produces that spelling and never this one.";
-            ze:help "Legacy: Domain name for FQDN capability.";
-        }
-    }
-
-    // Grouped peers: legacy syntax (in session container)
-    augment "/bgp:bgp/bgp:group/bgp:peer/bgp:session" {
-        leaf host-name {
-            type string {
-                length "0..255";
-            }
-            description "Ze reads the leaf after capability > hostname > host and replaces that value with it, so a
-                peer that writes both leaves sends this one. The capability writes a 1-byte length in front of the
-                host name, which is the 255-byte limit. Write capability > hostname > host in a new config:
-                ze exabgp migrate produces that spelling and never this one.";
-            ze:help "Legacy: Host name for FQDN capability.";
-        }
-
-        leaf domain-name {
-            type string {
-                length "0..255";
-            }
-            description "Ze reads the leaf after capability > hostname > domain and replaces that value with it, so a
-                peer that writes both leaves sends this one. The capability writes a 1-byte length in front of the
-                domain name, which is the 255-byte limit. Write capability > hostname > domain in a new config:
-                ze exabgp migrate produces that spelling and never this one.";
-            ze:help "Legacy: Domain name for FQDN capability.";
-        }
-    }
-
-    // Group-level: legacy syntax (in session container)
-    augment "/bgp:bgp/bgp:group/bgp:session" {
-        leaf host-name {
-            type string {
-                length "0..255";
-            }
-            description "A member peer that states no host-name of its own takes this value. Ze reads the leaf after
-                capability > hostname > host and replaces that value with it. The capability writes a 1-byte length
-                in front of the host name, which is the 255-byte limit. Write capability > hostname > host in a new
-                config: ze exabgp migrate produces that spelling and never this one.";
-            ze:help "Legacy: Host name for FQDN capability (group default).";
-        }
-
-        leaf domain-name {
-            type string {
-                length "0..255";
-            }
-            description "A member peer that states no domain-name of its own takes this value. Ze reads the leaf after
-                capability > hostname > domain and replaces that value with it. The capability writes a 1-byte length
-                in front of the domain name, which is the 255-byte limit. Write capability > hostname > domain in a new
-                config: ze exabgp migrate produces that spelling and never this one.";
-            ze:help "Legacy: Domain name for FQDN capability (group default).";
         }
     }
 }

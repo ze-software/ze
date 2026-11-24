@@ -184,26 +184,6 @@ func parseCapabilitiesFromTree(tree map[string]any, ps *PeerSettings) error {
 			ps.RawCapabilityConfig["hostname"]["domain"] = v
 		}
 	}
-
-	// Also check top-level host-name/domain-name (plugin YANG augmented fields).
-	if v, ok := mapString(tree, "host-name"); ok {
-		if ps.RawCapabilityConfig == nil {
-			ps.RawCapabilityConfig = make(map[string]map[string]string)
-		}
-		if ps.RawCapabilityConfig["hostname"] == nil {
-			ps.RawCapabilityConfig["hostname"] = make(map[string]string)
-		}
-		ps.RawCapabilityConfig["hostname"]["host"] = v
-	}
-	if v, ok := mapString(tree, "domain-name"); ok {
-		if ps.RawCapabilityConfig == nil {
-			ps.RawCapabilityConfig = make(map[string]map[string]string)
-		}
-		if ps.RawCapabilityConfig["hostname"] == nil {
-			ps.RawCapabilityConfig["hostname"] = make(map[string]string)
-		}
-		ps.RawCapabilityConfig["hostname"]["domain"] = v
-	}
 	return nil
 }
 

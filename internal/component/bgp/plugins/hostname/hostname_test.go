@@ -256,9 +256,9 @@ func TestHostnamePluginYANG(t *testing.T) {
 	assert.Contains(t, yang, "augment") // YANG keyword is "augment" not "augments"
 	assert.Contains(t, yang, "leaf host")
 	assert.Contains(t, yang, "leaf domain")
-	// Legacy paths for trigger detection
-	assert.Contains(t, yang, "host-name")
-	assert.Contains(t, yang, "domain-name")
+	// Legacy session/host-name and session/domain-name leaves were removed.
+	assert.NotContains(t, yang, "leaf host-name")
+	assert.NotContains(t, yang, "leaf domain-name")
 }
 
 // TestRunDecodeModeJSON verifies JSON decode format (explicit and backward compat).
