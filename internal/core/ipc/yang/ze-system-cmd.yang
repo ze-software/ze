@@ -163,6 +163,12 @@ command needs a running reactor, so a daemon that has none refuses it.";
 
     container request {
         config false;
+        // The top-level request verb root. Owned by this always-on core module
+        // so stripped builds without ze_bgp still describe request.
+        description "This keyword runs nothing on its own. Operational modules merge their own
+subcommands onto it for actions that change live daemon or subsystem state
+without editing configuration.";
+        ze:help "Commands that act on the running system.";
 
         container plugin {
             config false;

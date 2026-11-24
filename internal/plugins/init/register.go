@@ -35,6 +35,6 @@ func init() {
 		{Name: "--seed", Description: "create an appliance seed artifact without interface discovery", ValueHint: registry.FlagValueNone},
 		{Name: flagConfirm, Description: "ask about each discovered interface and write only the ones answered yes", ValueHint: registry.FlagValueNone},
 		{Name: "--from", Description: "import a blob artifact from a local path or a URL into the live store", ValueHint: registry.FlagValueFile},
-		{Name: "--sha256", Description: "refuse the --from source unless its bytes have this SHA-256 (64 hex digits)", ValueHint: registry.FlagValueNone},
+		{Name: "--sha256", Description: "refuse the --from source unless its bytes have this SHA-256 (64 hex digits)", ValueHint: registry.FlagValueText},
 	})
 }

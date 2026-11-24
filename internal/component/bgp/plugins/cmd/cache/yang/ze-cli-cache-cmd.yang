@@ -24,14 +24,9 @@ retain flag and no consumer state beside them.";
     container request {
         config false;
 
-        // The top-level request verb root, and this is the only module that
-        // describes it. The summary names what every child does, because the
-        // children come from a dozen owners: as112, bgp, cache, commit,
-        // config, interface, l2tp, log, ospf, peer, quiesce and subscribe.
-        // A summary naming the cache alone was false for the other eleven.
-        description "This keyword runs nothing on its own. Thirteen modules merge their own children
-onto it, and this module is the one that describes it.";
-        ze:help "Commands that act on the running system.";
+        // No text on this container. ze-system-cmd owns the top-level request
+        // verb root in every build, and a second module that restates either
+        // half with different wording triggers a mergeHelpText mismatch.
 
         container cache {
             config false;

@@ -2,9 +2,13 @@ package yang
 
 import (
 	"bytes"
+	"go/parser"
+	"go/token"
 	"log/slog"
 	"os"
+	"path/filepath"
 	"slices"
+	"strconv"
 	"strings"
 	"testing"
 
@@ -2152,4 +2156,136 @@ module texts-cmd {
 // that compare them as a slice.
 func enumValuesOf(def command.ArgDef) []string { //nolint:gocritic // hugeParam: Keep the fixture's value-copy signature consistent with ArgDef's immutable value API.
 	return slices.Collect(def.EnumValues())
+}
+
+// alwaysOnCmdYANGFiles parses internal/component/plugin/all/all.go and returns
+// every *-cmd.yang path owned by the always-on schema packages linked into a
+// stripped ze_core build (without ze_bgp or other feature gates).
+func alwaysOnCmdYANGFiles(t *testing.T) []string {
+	t.Helper()
+	const modulePrefix = "github.com/ze-software/ze/"
+	allPath := filepath.Join("..", "..", "plugin", "all", "all.go")
+	fset := token.NewFileSet()
+	file, err := parser.ParseFile(fset, allPath, nil, parser.ImportsOnly)
+	require.NoError(t, err, "parse %s", allPath)
+
+	var files []string
+	for _, imp := range file.Imports {
+		pkgPath, unquoteErr := strconv.Unquote(imp.Path.Value)
+		require.NoError(t, unquoteErr)
+		if !strings.HasPrefix(pkgPath, modulePrefix) {
+			continue
+		}
+		if !strings.HasSuffix(pkgPath, "/yang") {
+			continue
+		}
+		rel := strings.TrimPrefix(pkgPath, modulePrefix)
+		dir := filepath.Join("..", "..", "..", "..", filepath.FromSlash(rel))
+		matches, globErr := filepath.Glob(filepath.Join(dir, "*-cmd.yang"))
+		require.NoError(t, globErr, "glob %s", dir)
+		files = append(files, matches...)
+	}
+	slices.Sort(files)
+	return files
+}
+
+// TestStrippedCoreCommandModulesCarryAllSummaries loads every always-on
+// *-cmd.yang module from plugin/all/all.go (no ze_bgp or other feature gates)
+// and verifies BuildCommandTree produces non-empty help texts on `request` and
+// `show policy` with zero missing-summary or mismatch warnings.
+//
+// VALIDATES: Stripped ze_core builds carry both ze:help and description for
+// `request` and `show policy` and emit zero `YANG command node missing ze:help
+// summary` warnings on BuildCommandTree.
+// PREVENTS: Regression where `request` or `show policy` depends on a ze_bgp
+// module for its summary, causing startup WARN lines on stripped builds and
+// commands like `ze pipe json compact`.
+func TestStrippedCoreCommandModulesCarryAllSummaries(t *testing.T) {
+	cmdFiles := alwaysOnCmdYANGFiles(t)
+	require.NotEmpty(t, cmdFiles, "always-on plugin/all/all.go must yield at least one *-cmd.yang module")
+
+	loader := NewLoader()
+	require.NoError(t, loader.LoadEmbedded())
+	for _, path := range cmdFiles {
+		loadCmdModule(t, loader, path)
+	}
+	schema, err := loader.Resolve()
+	require.NoError(t, err)
+
+	var buf bytes.Buffer
+	old := slog.Default()
+	slog.SetDefault(slog.New(slog.NewTextHandler(&buf, &slog.HandlerOptions{Level: slog.LevelWarn})))
+	defer slog.SetDefault(old)
+
+	tree := BuildCommandTree(schema)
+	require.NotNil(t, tree)
+
+	req := tree.Children["request"]
+	require.NotNil(t, req, "always-on command tree must contain request")
+	assert.NotEmpty(t, req.ShortHelp, "request must carry ze:help in stripped builds")
+	assert.NotEmpty(t, req.Description, "request must carry description in stripped builds")
+	assert.NotEqual(t, req.ShortHelp, req.Description, "request description must differ from ze:help")
+
+	showNode := tree.Children["show"]
+	require.NotNil(t, showNode, "always-on command tree must contain show")
+	showPolicy := showNode.Children["policy"]
+	require.NotNil(t, showPolicy, "always-on command tree must contain show policy")
+	assert.NotEmpty(t, showPolicy.ShortHelp, "show policy must carry ze:help in stripped builds")
+	assert.NotEmpty(t, showPolicy.Description, "show policy must carry description in stripped builds")
+	assert.NotEqual(t, showPolicy.ShortHelp, showPolicy.Description, "show policy description must differ from ze:help")
+
+	assert.NotContains(t, buf.String(), "YANG command node missing ze:help summary")
+	assert.NotContains(t, buf.String(), "YANG command help text mismatch")
+}
+
+// TestFullBuildRequestAndShowPolicyMergeCleanly merges the always-on owners of
+// `request` and `show policy` together with the BGP and policy-routing modules
+// that extend those containers.
+//
+// VALIDATES: Moving `request` text to ze-system-cmd and `show policy` text to
+// ze-cli-show-cmd introduces zero help-text mismatch warnings and preserves
+// every merged child subtree in a full build.
+// PREVENTS: Duplicate or conflicting ze:help/description declarations between
+// always-on core modules and gated protocol modules.
+func TestFullBuildRequestAndShowPolicyMergeCleanly(t *testing.T) {
+	loader := NewLoader()
+	require.NoError(t, loader.LoadEmbedded())
+	for _, path := range []string{
+		"../../../core/ipc/yang/ze-system-cmd.yang",
+		cmdBase + "show/yang/ze-cli-show-cmd.yang",
+		cmdPluginBase + "cmd/cache/yang/ze-cli-cache-cmd.yang",
+		cmdPluginBase + "cmd/raw/yang/ze-raw-cmd.yang",
+		cmdPluginBase + "cmd/policy/yang/ze-policy-cmd.yang",
+		"../../../plugins/policyroute/yang/ze-policyroute-cmd.yang",
+	} {
+		loadCmdModule(t, loader, path)
+	}
+	schema, err := loader.Resolve()
+	require.NoError(t, err)
+
+	var buf bytes.Buffer
+	old := slog.Default()
+	slog.SetDefault(slog.New(slog.NewTextHandler(&buf, &slog.HandlerOptions{Level: slog.LevelWarn})))
+	defer slog.SetDefault(old)
+
+	tree := BuildCommandTree(schema)
+	require.NotNil(t, tree)
+
+	req := tree.Children["request"]
+	require.NotNil(t, req)
+	assert.NotEmpty(t, req.ShortHelp)
+	assert.NotEmpty(t, req.Description)
+	assert.NotNil(t, req.Children["cache"], "ze-cli-cache-cmd children must still merge under request")
+
+	showPolicy := tree.Children["show"].Children["policy"]
+	require.NotNil(t, showPolicy)
+	assert.NotEmpty(t, showPolicy.ShortHelp)
+	assert.NotEmpty(t, showPolicy.Description)
+	assert.NotNil(t, showPolicy.Children["list"], "ze-cli-show-cmd child must exist under show policy")
+	assert.NotNil(t, showPolicy.Children["chain"], "ze-policy-cmd chain child must merge under show policy")
+	assert.NotNil(t, showPolicy.Children["test"], "ze-policy-cmd test child must merge under show policy")
+	assert.NotNil(t, showPolicy.Children["routes"], "ze-policyroute-cmd routes child must merge under show policy")
+
+	assert.NotContains(t, buf.String(), "YANG command node missing ze:help summary")
+	assert.NotContains(t, buf.String(), "YANG command help text mismatch")
 }

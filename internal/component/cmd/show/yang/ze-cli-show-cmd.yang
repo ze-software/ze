@@ -447,9 +447,10 @@ see nothing from this peer'.";
 
         container policy {
             config false;
-            // No text on this container. ze-policy-cmd owns show policy and
-            // states both halves, and a second module that restates one half
-            // is what mergeHelpText reports as a mismatch.
+            description "This keyword runs nothing on its own. 'list' shows the registered policy filter
+types and instances, and protocol modules merge additional read-only inspection
+commands such as filter chains, dry-run tests, and policy-based routing rules.";
+            ze:help "Inspect and test route policy filters.";
 
             container list {
                 config false;

@@ -138,8 +138,10 @@ one meaning everywhere.
 Each command in the list, and the object that `/api/v1/commands/{path}`
 returns, carries the keys `name`, `short-help`, `description`, `read-only`
 and `params`. Each entry in `params` carries `name`, `type`, `short-help`,
-`description` and `required`. An empty `short-help`, `description` or
-`params` is omitted. `read-only` and `required` are always sent.
+`description`, `required`, `anchor` and `flag`: `anchor` names the command-path
+keyword the value follows, and `flag` is `true` when the keyword alone supplies
+the argument. Empty `short-help`, `description`, `params` and `anchor` values,
+and a `false` `flag`, are omitted. `read-only` and `required` are always sent.
 
 ```json
 {
@@ -150,6 +152,7 @@ and `params`. Each entry in `params` carries `name`, `type`, `short-help`,
 }
 ```
 <!-- source: internal/component/api/types.go -- CommandMeta, ParamMeta json tags -->
+<!-- source: cmd/ze/hub/command_meta.go -- anchoredParams -->
 
 POST `/api/v1/execute` body:
 ```json

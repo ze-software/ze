@@ -16,10 +16,10 @@ module ze-policy-cmd {
 
         container policy {
             config false;
-            description "This keyword runs nothing on its own. 'chain' reads the filter chain a peer has,
-'test' feeds one UPDATE through it, and 'list', which ze-cli-show-cmd declares, names the
-filter types available. All three are read-only.";
-            ze:help "Inspect and test route policy filters.";
+            // No text on this container. ze-cli-show-cmd owns show policy in
+            // every build and states both halves, and a second module that
+            // restates either half with different wording is what mergeHelpText
+            // reports as a mismatch.
 
             container chain {
                 config false;
