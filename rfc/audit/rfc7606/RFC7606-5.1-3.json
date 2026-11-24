@@ -2,7 +2,7 @@
   "code": {
     "internal/component/bgp/reactor/session_validation.go::applyRFC7606": "6b0e26eeab25a51f"
   },
-  "note": "Re-judged 2026-11-14 by an independent auditor who authored none of the change, after 96ead494aa moved the body of checkRFC7606MixedUpdate into checkMixedUpdateWire (internal/le/interoplab/bgp/check_mixed_discard.go); the tagged unit is now a one-line delegate to it. RFC 7606 Section 5.1: \"Since older BGP speakers may not implement these restrictions, an implementation MUST still be prepared to receive these fields in any position or combination.\" The Go units (TestRFC7606MPReachIPv4NextHopValid and the four TestRFC7606Section51Accepts* units) and the two functional carriers are unchanged, and Session.applyRFC7606 is unchanged. The new interop body is stricter than the one judged before: it requires the FRR session and both Ze peers up, then the replayed and seeded prefixes both in FRR's BGP table and installed via the injector, the client AS_PATH 65004, and only then releases the ONE mixed UPDATE through the source fence; it then requires the announced half and the trailing fence installed, the seeded prefix withdrawn from FRR's BGP table and absent from the installed table beside the fence, an exact capture of Ze's output (requireMixedSplitWire: one valid OPEN, one split withdrawal of exactly the seed, no repeated attribute, unchanged ORIGIN, NEXT_HOP and AS_PATH, each prefix once, in order) and the session still up. The withdrawn half is now seeded, so its removal is credited as withdrawal delivery, which the earlier note withheld. Receiver tolerance of the mixed shape is still what the carrier proves; a reset, a drop or a stripped half each fails it. Caveat for the next auditor: the unit fingerprint covers only the delegate, so a later edit of checkMixedUpdateWire will not stale this verdict. This is a source rejudgment; no runtime or producer-break result is claimed.",
+  "note": "Independent HEAD re-judgment against RFC 7606 Section 5.1: \"Since older BGP speakers may not implement these restrictions, an implementation MUST still be prepared to receive these fields in any position or combination.\" Verified the {single-polarity: positive} annotation: rejecting any permitted combination solely for sender restrictions would violate this receiver obligation. Read all eight tagged carriers (TestRFC7606Section51AcceptsMPUnreachAfterOtherAttributes, TestRFC7606Section51AcceptsReachAndUnreachTogether, TestRFC7606Section51AcceptsMPReachWithLegacyNLRI, TestRFC7606Section51AcceptsMPUnreachWithLegacyNLRI, TestRFC7606MPReachIPv4NextHopValid, test/plugin/rfc7606-receive-combinations.ci, test/plugin/rfc7606-relay-one-field.ci, and checkRFC7606MixedUpdate delegating to checkMixedUpdateWire) plus producer applyRFC7606. All five Go units assert RFC7606ActionNone for trailing MP attributes and mixed combinations; both .ci tests verify live-daemon acceptance, relay delivery, and absence of Error NOTIFICATIONs; checkMixedUpdateWire verifies real FRR interop with seeded withdrawal, announcement installation, exact split wire capture, and surviving session. Changes since the prior audit (next-hop unchanged in rfc7606-relay-one-field.ci and edits to an unrelated function in check_rfc.go) preserved every receive-acceptance assertion. Source re-judgment only; no test or gate run claimed.",
   "requirement_sha": "9a74ae4539a69bb6",
   "tests": {
     "internal/component/bgp/message/rfc7606_section51_receive_test.go::TestRFC7606Section51AcceptsMPReachWithLegacyNLRI": "b2618235905384c1",
@@ -10,9 +10,9 @@
     "internal/component/bgp/message/rfc7606_section51_receive_test.go::TestRFC7606Section51AcceptsMPUnreachWithLegacyNLRI": "b2618235905384c1",
     "internal/component/bgp/message/rfc7606_section51_receive_test.go::TestRFC7606Section51AcceptsReachAndUnreachTogether": "b2618235905384c1",
     "internal/component/bgp/message/rfc7606_test.go::TestRFC7606MPReachIPv4NextHopValid": "bc2b72193ea95ce6",
-    "internal/le/interoplab/bgp/check_rfc.go::checkRFC7606MixedUpdate": "a19bf492823e14b9",
+    "internal/le/interoplab/bgp/check_rfc.go::checkRFC7606MixedUpdate": "7aa0ef34755a56dc",
     "test/plugin/rfc7606-receive-combinations.ci": "21d4ea7e57771364",
-    "test/plugin/rfc7606-relay-one-field.ci": "5f2499ca180ea902"
+    "test/plugin/rfc7606-relay-one-field.ci": "58b8df6e1c5e71c3"
   },
   "units": {
     "internal/component/bgp/message/rfc7606_section51_receive_test.go::TestRFC7606Section51AcceptsMPReachWithLegacyNLRI": "319eea7142888e0d",
@@ -22,7 +22,7 @@
     "internal/component/bgp/message/rfc7606_test.go::TestRFC7606MPReachIPv4NextHopValid": "e8d83289676a1ed9",
     "internal/le/interoplab/bgp/check_rfc.go::checkRFC7606MixedUpdate": "d6c8e973eeb34730",
     "test/plugin/rfc7606-receive-combinations.ci": "21d4ea7e57771364",
-    "test/plugin/rfc7606-relay-one-field.ci": "5f2499ca180ea902"
+    "test/plugin/rfc7606-relay-one-field.ci": "58b8df6e1c5e71c3"
   },
   "verdict": "enforced"
 }

@@ -34,6 +34,17 @@
   },
   {
     "rid": "RFC4271-5-3",
+    "polarity": "negative",
+    "unit": "internal/component/bgp/reactor/rfc4271_test.go::TestRFC4271PartialNotSetOnRecognizedOrNonTransitive",
+    "unit-sha": "3e739f0c8a353e35",
+    "claim-sha": "5aa3a7abfe402fbc",
+    "route": "mutant",
+    "producer": "internal/core/bgp/attribute/partial.go::SetPartialOnUnrecognizedTransitive",
+    "producer-sha": "f3388c8f4f616c7e",
+    "break": "line 131: \"if flags\u0026(optionalTransitive|FlagPartial) == optionalTransitive \u0026\u0026 !code.Recognized() {\" -\u003e \"if flags\u0026(optionalTransitive|FlagPartial) == optionalTransitive \u0026\u0026 (code.Recognized() || !code.Recognized()) {\""
+  },
+  {
+    "rid": "RFC4271-5-3",
     "polarity": "positive",
     "unit": "internal/component/bgp/reactor/rfc4271_test.go::TestRFC4271PartialSetOnUnrecognizedTransitiveOptional",
     "unit-sha": "f6886fb7cd3c3546",
@@ -42,6 +53,17 @@
     "producer": "internal/core/bgp/attribute/partial.go::SetPartialOnUnrecognizedTransitive",
     "producer-sha": "f3388c8f4f616c7e",
     "break": "line 131: \"if flags\u0026(optionalTransitive|FlagPartial) == optionalTransitive \u0026\u0026 !code.Recognized() {\" -\u003e \"if flags\u0026(optionalTransitive|FlagPartial) == optionalTransitive \u0026\u0026 !code.Recognized() \u0026\u0026 code != 250 {\""
+  },
+  {
+    "rid": "RFC4271-5-3",
+    "polarity": "negative",
+    "unit": "internal/core/bgp/attribute/rfc4271_test.go::TestRFC4271PartialNotStampedOnExcludedClasses",
+    "unit-sha": "4177c9595dbc0bec",
+    "claim-sha": "bb53b13f767558a8",
+    "route": "mutant",
+    "producer": "internal/core/bgp/attribute/partial.go::SetPartialOnUnrecognizedTransitive",
+    "producer-sha": "f3388c8f4f616c7e",
+    "break": "line 131: \"if flags\u0026(optionalTransitive|FlagPartial) == optionalTransitive \u0026\u0026 !code.Recognized() {\" -\u003e \"if flags\u0026(optionalTransitive|FlagPartial) == optionalTransitive \u0026\u0026 (code.Recognized() || !code.Recognized()) {\""
   },
   {
     "rid": "RFC4271-5-3",

@@ -1,17 +1,17 @@
 {
-  "note": "Re-judged 2026-10-12 (independent auditor) after owner-approved lint-only edits in 96ec49327b and 4e731b2d96; the row text is unchanged and each changed unit was re-read diff by diff. TestRFC7606DiagnosticWireAndMPNLRI joins consecutive appends of the same attribute bytes, iterates log lines with strings.SplitSeq (same lines as strings.Split), and calls registerTypeLenRecognizer without the constant lo of 1. No input byte or assertion changed. Verdict stands. Diagnostic assertions compare the complete original wire UPDATE and affected NLRI rather than merely checking that logging occurred; controls cover ordinary/coalesced readers, extended/nonextended frames, legacy/MP IPv4/MP IPv6/typed NLRI, NEW/OLD first-AS handling, in-place discard, late empty-MP reset and typed-NLRI early return; next-hop policy diagnostics explicitly identify their processed representation, and disabled-debug allocation controls remain intact",
+  "note": "Independent HEAD re-judgment against RFC 7606 Section 6: \"Because of these potential issues, a BGP speaker must provide debugging facilities to permit issues caused by a malformed attribute to be diagnosed. At a minimum, such facilities must include logging an error listing the NLRI involved and containing the entire malformed UPDATE message when such an attribute is detected.\" Read all six tagged unit bindings (TestRFC7606DiagnosticWireAndMPNLRI positive and negative, TestRFC7606DiagnosticsListNLRIAndUpdate, TestRFC7606DiagnosticsCoverSessionReset, TestRFC7606DiagnosticsSilentWhenDebugDisabled, TestRFC7606DiagnosticsCostsNothingWhenDisabled) and producers rfc7606Diagnostics/rfc7606DiagnosticsWithWire/mpDiagnosticNLRI. Positive tests drive both ordinary and coalesced readers across standard and extended frames, legacy IPv4, MP IPv4, MP IPv6, typed EVPN NLRI, first-AS (NEW and OLD/AS4_PATH), after in-place discard (confirming pre-rewrite received bytes), late empty-MP reset, late tunnel-encap errors, and structural session reset, asserting exact header-inclusive update-wire-hex and exact NLRI lists. Negative tests verify zero diagnostic records for conforming adjacent UPDATEs, silence when debug is disabled, and zero allocations via the Enabled() guard. The only change since the prior audit was adding the leading *Session parameter to SetMessageCallback in rfc7606_receive_boundary_test.go; all inputs and assertions are unchanged. Source re-judgment only; no test or gate run claimed.",
   "requirement_sha": "c8ea3856dba88232",
   "tests": {
-    "internal/component/bgp/reactor/rfc7606_receive_boundary_test.go::TestRFC7606DiagnosticWireAndMPNLRI": "9420b1b0962a738b",
-    "internal/component/bgp/reactor/rfc7606_receive_boundary_test.go::TestRFC7606DiagnosticWireAndMPNLRI#2": "9420b1b0962a738b",
+    "internal/component/bgp/reactor/rfc7606_receive_boundary_test.go::TestRFC7606DiagnosticWireAndMPNLRI": "694956b4ee7fe141",
+    "internal/component/bgp/reactor/rfc7606_receive_boundary_test.go::TestRFC7606DiagnosticWireAndMPNLRI#2": "694956b4ee7fe141",
     "internal/component/bgp/reactor/rfc7606_session_diag_cost_test.go::TestRFC7606DiagnosticsCostsNothingWhenDisabled": "cf28baddb4c03fa0",
     "internal/component/bgp/reactor/rfc7606_session_diagnostics_test.go::TestRFC7606DiagnosticsCoverSessionReset": "913a03481690f01e",
     "internal/component/bgp/reactor/rfc7606_session_diagnostics_test.go::TestRFC7606DiagnosticsListNLRIAndUpdate": "913a03481690f01e",
     "internal/component/bgp/reactor/rfc7606_session_diagnostics_test.go::TestRFC7606DiagnosticsSilentWhenDebugDisabled": "913a03481690f01e"
   },
   "units": {
-    "internal/component/bgp/reactor/rfc7606_receive_boundary_test.go::TestRFC7606DiagnosticWireAndMPNLRI": "104e3d5a5cc0a132",
-    "internal/component/bgp/reactor/rfc7606_receive_boundary_test.go::TestRFC7606DiagnosticWireAndMPNLRI#2": "104e3d5a5cc0a132",
+    "internal/component/bgp/reactor/rfc7606_receive_boundary_test.go::TestRFC7606DiagnosticWireAndMPNLRI": "264e1f39ab0b1fd0",
+    "internal/component/bgp/reactor/rfc7606_receive_boundary_test.go::TestRFC7606DiagnosticWireAndMPNLRI#2": "264e1f39ab0b1fd0",
     "internal/component/bgp/reactor/rfc7606_session_diag_cost_test.go::TestRFC7606DiagnosticsCostsNothingWhenDisabled": "f2537f84e2894288",
     "internal/component/bgp/reactor/rfc7606_session_diagnostics_test.go::TestRFC7606DiagnosticsCoverSessionReset": "60ade385ef485179",
     "internal/component/bgp/reactor/rfc7606_session_diagnostics_test.go::TestRFC7606DiagnosticsListNLRIAndUpdate": "e84b2584c5c1535a",

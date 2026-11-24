@@ -7,8 +7,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/ze-software/ze/internal/core/bgp/msgtype"
-
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
@@ -20,6 +18,7 @@ import (
 	"github.com/ze-software/ze/internal/component/plugin"
 	"github.com/ze-software/ze/internal/core/bgp/attribute"
 	bgpctx "github.com/ze-software/ze/internal/core/bgp/context"
+	"github.com/ze-software/ze/internal/core/bgp/msgtype"
 	"github.com/ze-software/ze/internal/core/bgp/wire"
 	"github.com/ze-software/ze/internal/core/family"
 	"github.com/ze-software/ze/pkg/plugin/rpc"
@@ -1349,6 +1348,11 @@ func TestRFC4271PartialSetOnUnrecognizedTransitiveOptional(t *testing.T) {
 // PREVENTS: setting Partial on well-known or non-transitive attributes while
 // stamping unknown attributes. Recognized COMMUNITY is a separate software control.
 //
+// RFC requirement: RFC4271-5-3 negative -- enforceRFC7606 via publishBase stamps Partial
+// only on unrecognized optional transitive attributes: well-known ORIGIN, optional
+// non-transitive MED and recognized optional transitive COMMUNITIES leave the receive
+// path with Partial clear (internal/core/bgp/attribute/partial.go,
+// SetPartialOnUnrecognizedTransitive).
 // RFC requirement: RFC4271-4.3-2 positive -- the Partial bit stays 0 on a well-known
 // attribute and on an optional non-transitive one after the receive path has run.
 func TestRFC4271PartialNotSetOnRecognizedOrNonTransitive(t *testing.T) {

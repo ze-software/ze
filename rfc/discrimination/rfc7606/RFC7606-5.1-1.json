@@ -36,12 +36,12 @@
     "rid": "RFC7606-5.1-1",
     "polarity": "negative",
     "unit": "internal/component/bgp/reactor/rfc7606_forward_mp_first_test.go::TestForwardLeadingMPAttributeKeepsZeroCopy",
-    "unit-sha": "60b15d2aefa9ff84",
+    "unit-sha": "74217eb6f84cc98e",
     "claim-sha": "156ffed2369f0a9c",
     "route": "mutant",
     "producer": "internal/component/bgp/message/rfc7606_shape.go::MPAttributesTrail",
     "producer-sha": "c2c3bd8a9c3d411f",
-    "break": "line 79: \"otherSeen\" -\u003e \"true\""
+    "break": "line 81: \"if otherSeen {\" -\u003e \"if true {\""
   },
   {
     "rid": "RFC7606-5.1-1",

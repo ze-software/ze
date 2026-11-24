@@ -12,6 +12,28 @@
   },
   {
     "rid": "RFC4271-5-4",
+    "polarity": "negative",
+    "unit": "internal/component/bgp/reactor/rfc4271_partial_negative_test.go::TestRFC4271CompleteRecognizedTransitiveStaysClearOnSessionWire",
+    "unit-sha": "8c4bd69026bc1edd",
+    "claim-sha": "e28bfb2bd539afb2",
+    "route": "mutant",
+    "producer": "internal/component/bgp/plugins/rib/storage/routeentry.go::pooledTransitiveFlags",
+    "producer-sha": "0f5ce016fd09e0f5",
+    "break": "line 199: \"if e.partial\u0026mask != 0 {\" -\u003e \"if e.partial\u0026mask != 0 || mask != 0 {\""
+  },
+  {
+    "rid": "RFC4271-5-4",
+    "polarity": "negative",
+    "unit": "internal/component/bgp/reactor/rfc4271_partial_negative_test.go::TestRFC4271PartialClearedOutsideOptionalTransitiveOnRelayedWire",
+    "unit-sha": "df1d94873d23973a",
+    "claim-sha": "34949dd2975e7374",
+    "route": "mutant",
+    "producer": "internal/core/bgp/attribute/partial.go::ClearPartialOnWellKnownAndNonTransitive",
+    "producer-sha": "4f5ecaa367c3b95c",
+    "break": "line 69: \"section[pos] = byte(flags \u0026^ FlagPartial)\" -\u003e \"section[pos] = byte(flags)\""
+  },
+  {
+    "rid": "RFC4271-5-4",
     "polarity": "positive",
     "unit": "internal/component/bgp/reactor/rfc4271_partial_protocol_rewrite_test.go::TestPrefixSIDPartialSurvivesNextHopCleanup",
     "unit-sha": "a182c27efccc2d44",

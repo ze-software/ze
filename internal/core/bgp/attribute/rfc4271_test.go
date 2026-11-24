@@ -164,6 +164,10 @@ func TestRFC4271PartialStampedOnUnrecognizedTransitive(t *testing.T) {
 // PREVENTS: stamping unknown attributes while setting Partial on well-known or
 // non-transitive attributes. Recognized COMMUNITY is a separate software control.
 //
+// RFC requirement: RFC4271-5-3 negative -- SetPartialOnUnrecognizedTransitive stamps
+// only unrecognized optional transitive attributes: well-known ORIGIN, optional
+// non-transitive MED and recognized optional transitive COMMUNITIES are returned
+// unchanged with zero stamps (internal/core/bgp/attribute/partial.go).
 // RFC requirement: RFC4271-4.3-2 negative -- the Partial bit is not merely left alone by
 // an encoder that never sets it: a walk whose whole purpose is to SET the bit still leaves
 // it 0 on a well-known attribute and on an optional non-transitive one.

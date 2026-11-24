@@ -1,5 +1,6 @@
 // Design: docs/architecture/api/update-syntax.md -- Raw Passthrough Commands family admission
 // RFC: rfc/short/rfc4659.md -- Section 3.4 (labeled IPv6 VPN NLRI requires negotiated AFI 2 / SAFI 128)
+// RFC naming: untagged -- AC-27 raw UPDATE VPNv6 family admission regression; RFC4659-3.4-1 whole-row proof stays on the tagged managed units and interop scenario.
 // Related: session_write.go, session_ownership.go, rfc4659_vpnv6_negotiated_send_test.go
 
 package reactor
