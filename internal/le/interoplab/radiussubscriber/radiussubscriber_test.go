@@ -11,10 +11,14 @@ package radiussubscriber
 import (
 	"bytes"
 	"encoding/binary"
+	"log/slog"
+	"os"
 	"slices"
 	"strings"
 	"testing"
 
+	"github.com/ze-software/ze/internal/core/env"
+	"github.com/ze-software/ze/internal/core/slogutil"
 	"github.com/ze-software/ze/internal/le/interoplab"
 	lepath "github.com/ze-software/ze/internal/le/le/path"
 )
@@ -244,5 +248,34 @@ func TestUnknownSelectorFailsBeforePeerSetup(t *testing.T) {
 		if report.Code != 1 || report.SetupError != want {
 			t.Fatalf("missing selector report = %+v, want %q", report, want)
 		}
+	}
+}
+
+// VALIDATES: zePeerConfig's container environment enables debug logging on
+// l2tp.auth.radius (which emits the Info CoA teardown line checkCoADuplicate
+// reads) and sets no dead ze.l2tp.ncp.* env keys.
+// PREVENTS: a misspelled log key leaving authradius at WARN so CoA teardown
+// assertions time out, and dead NCP env keys creeping back into the lab.
+func TestZePeerEnvironmentEnablesAuthRadiusLogging(t *testing.T) {
+	for _, entry := range os.Environ() {
+		name, _, _ := strings.Cut(entry, "=")
+		canonical := strings.ToLower(strings.ReplaceAll(name, ".", "_"))
+		if canonical == "ze_log" || strings.HasPrefix(canonical, "ze_log_") {
+			t.Setenv(name, "")
+		}
+	}
+	t.Cleanup(env.ResetCache)
+
+	peer := zePeerConfig(interoplab.ScenarioSource{Name: scenarioCoADuplicate, Directory: t.TempDir()}, "ze-radsub-test")
+	for _, variable := range peer.Environment {
+		if strings.HasPrefix(variable.Name, "ze.l2tp.ncp.") {
+			t.Errorf("zePeerConfig sets dead env key %q", variable.Name)
+		}
+		t.Setenv(variable.Name, variable.Value)
+	}
+	env.ResetCache()
+
+	if !slogutil.Logger("l2tp.auth.radius").Enabled(t.Context(), slog.LevelDebug) {
+		t.Fatalf("zePeerConfig environment %v does not enable debug logging for l2tp.auth.radius", peer.Environment)
 	}
 }

@@ -241,8 +241,6 @@ func zePeerConfig(source interoplab.ScenarioSource, container string) interoplab
 			// is ze.log.l2tp.auth.radius; ZE_LOG_LEVEL names a subsystem
 			// called "level" and leaves the plugin at WARN.
 			{Name: "ze.log.l2tp.auth.radius", Value: "debug"},
-			{Name: "ze.l2tp.ncp.enable-ipv6cp", Value: "false"},
-			{Name: "ze.l2tp.ncp.ip-timeout", Value: "15s"},
 			{Name: "ze.l2tp.auth.timeout", Value: "15s"},
 		},
 		Command: []string{"start", zeConfigTarget},

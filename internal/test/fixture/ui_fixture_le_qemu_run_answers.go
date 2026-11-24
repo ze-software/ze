@@ -138,13 +138,13 @@ func leQEMURunAnswers(ctx context.Context) error {
 	}
 
 	baseEnv := uiLeQemuRunAnswersEnvironment(os.Environ(), map[string]string{
-		envPath:                  stubs + string(os.PathListSeparator) + os.Getenv("PATH"),
-		envRepoRoot:              fixtureRoot,
-		"XDG_CACHE_HOME":         cache,
-		"HOMEBREW_PREFIX":        brew,
-		"ZE_QEMU_SSH_PORT":       "2222",
-		"ZE_QEMU_BOOT_TIMEOUT":   "30s",
-		"ze.l2tp.ncp.ip-timeout": "9",
+		envPath:                     stubs + string(os.PathListSeparator) + os.Getenv("PATH"),
+		envRepoRoot:                 fixtureRoot,
+		"XDG_CACHE_HOME":            cache,
+		"HOMEBREW_PREFIX":           brew,
+		"ZE_QEMU_SSH_PORT":          "2222",
+		"ZE_QEMU_BOOT_TIMEOUT":      "30s",
+		"ze.l2tp.cqm.echo-interval": "5s",
 	})
 	runLE := func(guestCode, record string, args ...string) uiLeQemuRunAnswersCommandResult {
 		recordPath := filepath.Join(work, record)
@@ -206,7 +206,7 @@ func leQEMURunAnswers(ctx context.Context) error {
 		if call.Program != wantPrograms[i] {
 			return fmt.Errorf("FAIL: command order changed: %#v", calls)
 		}
-		if !contains(call.Dotted, "ze.l2tp.ncp.ip-timeout") {
+		if !contains(call.Dotted, "ze.l2tp.cqm.echo-interval") {
 			return fmt.Errorf("FAIL: dotted environment key was lost: %#v", call)
 		}
 	}

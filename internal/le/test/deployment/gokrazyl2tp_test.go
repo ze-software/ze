@@ -180,7 +180,7 @@ func TestAnUnknownArchitectureIsAnErrorRatherThanASilentPass(t *testing.T) {
 	}
 }
 
-// VALIDATES: the instance patch adds this proof's three settings to ze's own
+// VALIDATES: the instance patch adds this proof's settings to ze's own
 // package entry and leaves everything else in the file alone.
 // PREVENTS: the boundary defect this proof exists to catch. A setting that does
 // not reach the appliance's daemon makes the proof fail deep inside a
@@ -191,7 +191,7 @@ func TestTheInstancePatchAddsTheProofSettingsAndNothingElse(t *testing.T) {
     "Hostname": "ze",
     "PackageConfig": {
         "github.com/ze-software/ze/cmd/ze": {
-            "Environment": ["ZE_LOG_LEVEL=info"]
+            "Environment": ["ze.log=info"]
         },
         "github.com/gokrazy/serial-busybox": {}
     }
@@ -226,7 +226,7 @@ func TestTheInstancePatchAddsTheProofSettingsAndNothingElse(t *testing.T) {
 			got = append(got, text)
 		}
 	}
-	if !slices.Contains(got, "ZE_LOG_LEVEL=info") {
+	if !slices.Contains(got, "ze.log=info") {
 		t.Errorf("the patch dropped a setting the instance already carried: %v", got)
 	}
 	for _, want := range ProofDaemonEnv {
@@ -244,7 +244,7 @@ func TestTheInstancePatchAddsTheProofSettingsAndNothingElse(t *testing.T) {
 // the environment's own last-wins rule rather than anybody's decision.
 func TestTheInstancePatchDoesNotDuplicateASettingAlreadyThere(t *testing.T) {
 	source := filepath.Join(t.TempDir(), "config.json")
-	original := `{"PackageConfig": {"github.com/ze-software/ze/cmd/ze": {"Environment": ["ze.l2tp.ncp.ip-timeout=90s"]}}}`
+	original := `{"PackageConfig": {"github.com/ze-software/ze/cmd/ze": {"Environment": ["ze.log.l2tp=info"]}}}`
 	if err := os.WriteFile(source, []byte(original), 0o600); err != nil {
 		t.Fatalf("write the fixture configuration: %v", err)
 	}
@@ -253,10 +253,10 @@ func TestTheInstancePatchDoesNotDuplicateASettingAlreadyThere(t *testing.T) {
 	if err != nil {
 		t.Fatalf("patch the configuration: %v", err)
 	}
-	if count := strings.Count(string(patched), "ze.l2tp.ncp.ip-timeout="); count != 1 {
+	if count := strings.Count(string(patched), "ze.log.l2tp="); count != 1 {
 		t.Errorf("the key appears %d times, want 1:\n%s", count, patched)
 	}
-	if !strings.Contains(string(patched), "ze.l2tp.ncp.ip-timeout=90s") {
+	if !strings.Contains(string(patched), "ze.log.l2tp=info") {
 		t.Errorf("the patch overwrote the instance's own value:\n%s", patched)
 	}
 }

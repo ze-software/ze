@@ -148,7 +148,7 @@ notation supported). See [configuration.md](../../guide/configuration.md).
 |--------|--------|---------|--------|-------|
 | Web | `ze.web.listen` | `ze.web.enabled`, `ze.web.insecure` | - | YANG |
 | MCP | `ze.mcp.listen` | `ze.mcp.enabled` | `ze.mcp.token` | YANG |
-| Looking glass | `ze.looking-glass.listen` | `ze.looking-glass.enabled`, `ze.looking-glass.tls` | `ze.looking-glass.token` | YANG |
+| Looking glass | `ze.looking-glass.listen` | `ze.looking-glass.enabled` | `ze.looking-glass.token` | YANG |
 | API REST | `ze.api-server.rest.listen` | `ze.api-server.rest.enabled` | `ze.api-server.token` | YANG |
 | API gRPC | `ze.api-server.grpc.listen` | `ze.api-server.grpc.enabled` | `ze.api-server.token` | YANG |
 
@@ -160,9 +160,6 @@ notation supported). See [configuration.md](../../guide/configuration.md).
 |----------|---------|-------|-------------|
 | `ze.l2tp.auth.timeout` | 30s | PROMOTE | PPP auth-phase timeout |
 | `ze.l2tp.auth.reauth-interval` | 0s | PROMOTE | PPP periodic re-auth interval (0 disables) |
-| `ze.l2tp.ncp.enable-ipcp` | true | PROMOTE | Enable IPCP NCP |
-| `ze.l2tp.ncp.enable-ipv6cp` | true | PROMOTE | Enable IPv6CP NCP |
-| `ze.l2tp.ncp.ip-timeout` | 30s | PROMOTE | NCP phase wait for IP handler response |
 | `ze.log.l2tp` | warn | ENV | L2TP subsystem log level (private) |
 | `ze.l2tp.skip-kernel-probe` | false | ENV | Test-only: skip kernel module probe (private) |
 | `ze.l2tp.cqm.echo-interval` | 1s | ENV | LCP echo interval for CQM RTT and loss sampling, applied only when CQM is enabled; an invalid or non-positive value falls back to 1s |
@@ -383,9 +380,6 @@ in `9a951f717`.
 |---------|-----------------|----------|------|
 | `ze.l2tp.auth.timeout` | `l2tp/auth-timeout` | Medium | spec-l2tp-env-promote |
 | `ze.l2tp.auth.reauth-interval` | `l2tp/reauth-interval` | Medium | spec-l2tp-env-promote |
-| `ze.l2tp.ncp.enable-ipcp` | `l2tp/ncp-enable-ipcp` | Medium | spec-l2tp-env-promote |
-| `ze.l2tp.ncp.enable-ipv6cp` | `l2tp/ncp-enable-ipv6cp` | Medium | spec-l2tp-env-promote |
-| `ze.l2tp.ncp.ip-timeout` | `l2tp/ncp-ip-timeout` | Low | spec-l2tp-env-promote |
 
 ### Naming Violations
 
@@ -393,7 +387,7 @@ in `9a951f717`.
 |----------|-------|---------|
 | Abbreviations in key | 11 | `fwd`, `chan`, `buf`, `rs`, `dest`, `cap` |
 | Path doesn't mirror YANG | 4 | `ze.pid.file` vs `daemon/pid`, `ze.bgp.chaos.*` vs `environment/chaos/*` |
-| Missing unit suffix | 3 | `teardown.grace`, `auth.timeout`, `ncp.ip-timeout` |
+| Missing unit suffix | 2 | `teardown.grace`, `auth.timeout` |
 | Leaf segment mismatch | 1 | `ze.bgp.announce.delay` (dots) vs `announce-delay` (kebab) |
 
 Naming fixes are paired with PROMOTE work: when a var gets a YANG leaf, register

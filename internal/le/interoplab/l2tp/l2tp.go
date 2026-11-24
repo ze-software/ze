@@ -289,8 +289,6 @@ func zePeer(suffix, config string) interoplab.PeerConfig {
 		Arguments:    interoplab.PPPDeviceArguments(),
 		Environment: []interoplab.EnvironmentVariable{
 			{Name: "ZE_LOG_L2TP", Value: "debug"},
-			{Name: "ze.l2tp.ncp.enable-ipv6cp", Value: "false"},
-			{Name: "ze.l2tp.ncp.ip-timeout", Value: "15s"},
 			{Name: "ze.l2tp.auth.timeout", Value: "15s"},
 		},
 		Command: []string{"start", "/etc/ze/ze.conf"},

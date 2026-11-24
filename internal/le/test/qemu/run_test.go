@@ -488,14 +488,14 @@ func TestRuntimeKernelAssertionIsReportData(t *testing.T) {
 	}
 	calls := 0
 	run.ops.Environ = func() []string {
-		return []string{"ze.l2tp.ncp.ip-timeout=9"}
+		return []string{"ze.l2tp.cqm.echo-interval=5s"}
 	}
 	run.ops.Run = func(_ context.Context, spec commandSpec) (commandResult, error) {
 		calls++
 		if spec.Name != "ssh" || !strings.Contains(spec.Args[len(spec.Args)-1], "7.2|7.2.*") {
 			t.Fatalf("kernel probe command = %#v", spec)
 		}
-		if !reflect.DeepEqual(spec.Env, []string{"ze.l2tp.ncp.ip-timeout=9"}) {
+		if !reflect.DeepEqual(spec.Env, []string{"ze.l2tp.cqm.echo-interval=5s"}) {
 			t.Fatalf("dotted environment changed: %#v", spec.Env)
 		}
 		return commandResult{Code: 1}, nil

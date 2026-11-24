@@ -3,6 +3,7 @@ package radius
 import (
 	"context"
 	"errors"
+	"log/slog"
 	"os"
 	"path/filepath"
 	"slices"
@@ -11,6 +12,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/ze-software/ze/internal/core/env"
+	"github.com/ze-software/ze/internal/core/slogutil"
 	"github.com/ze-software/ze/internal/le/interoplab"
 	lepath "github.com/ze-software/ze/internal/le/le/path"
 )
@@ -793,5 +796,33 @@ func TestParseStubLoginReadsEachFieldInOrder(t *testing.T) {
 	}
 	if _, _, got := parseStubLogin("sh -c echo hello"); got != "" {
 		t.Fatalf("a script with no ze cli invocation answered command %q", got)
+	}
+}
+
+// VALIDATES: zePeerConfig's container environment enables debug logging on the
+// real slogutil subsystems the RADIUS admin auth path and checkers read.
+// PREVENTS: an unregistered lookalike such as ZE_LOG_LEVEL leaving hub.ssh,
+// hub.aaa, and radius at WARN so Info auth lines never appear.
+func TestZePeerEnvironmentEnablesAdminAuthLogging(t *testing.T) {
+	// Clear inherited ze.log* variables so a host setting cannot mask a bad key.
+	for _, entry := range os.Environ() {
+		name, _, _ := strings.Cut(entry, "=")
+		canonical := strings.ToLower(strings.ReplaceAll(name, ".", "_"))
+		if canonical == "ze_log" || strings.HasPrefix(canonical, "ze_log_") {
+			t.Setenv(name, "")
+		}
+	}
+	t.Cleanup(env.ResetCache)
+
+	peer := zePeerConfig(interoplab.ScenarioSource{Name: scenarioPAP, Directory: t.TempDir()}, "ze-radius-test")
+	for _, variable := range peer.Environment {
+		t.Setenv(variable.Name, variable.Value)
+	}
+	env.ResetCache()
+
+	for _, subsystem := range []string{"hub.ssh", "hub.aaa", "radius"} {
+		if !slogutil.Logger(subsystem).Enabled(t.Context(), slog.LevelDebug) {
+			t.Fatalf("zePeerConfig environment %v does not enable debug logging for %q", peer.Environment, subsystem)
+		}
 	}
 }

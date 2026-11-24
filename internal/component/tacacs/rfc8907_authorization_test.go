@@ -7,6 +7,7 @@ import (
 	"errors"
 	"slices"
 	"strings"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -242,7 +243,17 @@ func TestTacacsAuthenticatorPAPDataCannotOverrideSessionDenial(t *testing.T) {
 // Invalid local request text is a terminal rejection, never an infrastructure
 // failure which permits the AAA chain or local authorization fallback.
 func TestTacacsInvalidRequestCannotFallBack(t *testing.T) {
-	client := NewTacacsClient(TacacsClientConfig{Timeout: time.Second})
+	key := []byte("invalid-request-key")
+	var packets atomic.Int32
+	baseReply := profileReplies(1)
+	srv := newProfileServer(t, key, func(header PacketHeader, body []byte) []byte {
+		packets.Add(1)
+		return baseReply(header, body)
+	})
+	client := NewTacacsClient(TacacsClientConfig{
+		Servers: []TacacsServer{{Address: srv.addr(), Key: key}},
+		Timeout: 2 * time.Second,
+	})
 	t.Cleanup(client.Close)
 	auth := newTacacsAuthenticator(client, map[int][]string{1: {"admin"}}, nil)
 	result, err := auth.Authenticate(aaa.AuthRequest{Username: "alice", Password: "bad\npassword"})
@@ -256,5 +267,15 @@ func TestTacacsInvalidRequestCannotFallBack(t *testing.T) {
 	}
 	if local.calls != 0 {
 		t.Fatal("invalid command request consulted local fallback")
+	}
+	if got := packets.Load(); got != 0 {
+		t.Fatalf("invalid requests reached TACACS+ server: packets=%d", got)
+	}
+	validResult, err := auth.Authenticate(aliceRequest)
+	if err != nil || !validResult.Authenticated || !slices.Equal(validResult.Profiles, []string{"admin"}) {
+		t.Fatalf("reachable control request failed: result=%+v err=%v", validResult, err)
+	}
+	if got := packets.Load(); got != 2 {
+		t.Fatalf("reachable control request packet count=%d, want 2", got)
 	}
 }

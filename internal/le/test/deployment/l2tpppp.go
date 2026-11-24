@@ -607,8 +607,6 @@ func (l *L2TPPPP) daemonEnv(work string) []string {
 	return append(kept,
 		"ZE_LOG_L2TP=debug",
 		tb.Str("ZE_CONFIG_DIR=").Str(filepath.Join(work, "ze")).String(),
-		"ze.l2tp.ncp.enable-ipv6cp=false",
-		"ze.l2tp.ncp.ip-timeout=15s",
 		"ze.l2tp.auth.timeout=15s",
 	)
 }

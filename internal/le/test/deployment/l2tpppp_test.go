@@ -78,13 +78,14 @@ func TestTheDaemonEnvironmentStripsTheEscapeAndCarriesTheSettings(t *testing.T) 
 		if key == SkipKernelProbeEnv || key == SkipKernelProbeKey {
 			t.Errorf("the daemon would have inherited %s", key)
 		}
+		if strings.HasPrefix(key, "ze.l2tp.ncp.") {
+			t.Errorf("the daemon environment sets dead key %s", key)
+		}
 	}
 
 	wanted := []string{
 		"ZE_LOG_L2TP=debug",
 		"ZE_CONFIG_DIR=" + filepath.Join(work, "ze"),
-		"ze.l2tp.ncp.enable-ipv6cp=false",
-		"ze.l2tp.ncp.ip-timeout=15s",
 		"ze.l2tp.auth.timeout=15s",
 	}
 	for _, want := range wanted {

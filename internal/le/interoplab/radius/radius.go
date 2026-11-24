@@ -66,8 +66,9 @@ const (
 	// answered request. checkers.go reads it as the server's own record.
 	serverLogPath = "/var/log/freeradius/ze-request.log"
 
-	zeConfigTarget = "/etc/ze/ze.conf"
-	sshPort        = "2222"
+	zeConfigTarget      = "/etc/ze/ze.conf"
+	sshPort             = "2222"
+	radiusLogLevelDebug = "debug"
 )
 
 // networkPrefix is this lab's own subnet. The BGP suite holds 172.30.0.0/24,
@@ -289,7 +290,15 @@ func zePeerConfig(source interoplab.ScenarioSource, container string) interoplab
 			{Source: filepath.Join(source.Directory, "ze.conf"), Target: zeConfigTarget, ReadOnly: true},
 		},
 		Environment: []interoplab.EnvironmentVariable{
-			{Name: "ZE_LOG_LEVEL", Value: "debug"},
+			// ze.log.hub.ssh enables the Info "SSH auth success" line checkers.go
+			// assertAuthSource reads; ze.log.hub.aaa enables the RADIUS admin
+			// authenticator and client logger passed by buildAAABundle;
+			// ze.log.radius covers the radius component's own logger.
+			// ZE_LOG_LEVEL names a subsystem called "level" and leaves every
+			// logger at WARN.
+			{Name: "ze.log.hub.ssh", Value: radiusLogLevelDebug},
+			{Name: "ze.log.hub.aaa", Value: radiusLogLevelDebug},
+			{Name: "ze.log.radius", Value: radiusLogLevelDebug},
 		},
 		// The hostname is what ze sends as NAS-Identifier, so fixing it here
 		// makes the server's record name ze rather than a container id.

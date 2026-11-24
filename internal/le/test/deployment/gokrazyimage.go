@@ -40,12 +40,11 @@ const ZePackage = "github.com/ze-software/ze/cmd/ze"
 // ProofDaemonEnv is the environment that the appliance's ze receives in
 // addition to whatever the checked-in instance already sets.
 //
-// IPv6CP is off because the pool this proof configures hands out v4 only. The
-// two timeouts are shorter so a stalled negotiation is REPORTED inside the
-// proof's own bound rather than after that bound.
+// L2TP debug logging keeps session and NCP progress lines visible on the
+// appliance console for this proof's observers. NCP settings themselves come
+// from the l2tp ncp config container, not environment variables.
 var ProofDaemonEnv = []string{
-	"ze.l2tp.ncp.enable-ipv6cp=false",
-	"ze.l2tp.ncp.ip-timeout=15s",
+	"ze.log.l2tp=debug",
 	"ze.l2tp.auth.timeout=15s",
 }
 

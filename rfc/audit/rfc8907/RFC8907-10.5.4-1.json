@@ -4,9 +4,9 @@
   "tests": {
     "internal/component/tacacs/rfc8907_arguments_test.go::TestRFC8907SharedArgumentsKeepDefinedMeaning": "fb302ebfa0d9b135",
     "internal/component/tacacs/rfc8907_arguments_test.go::TestRFC8907SharedArgumentsNeverReinterpreted": "fb302ebfa0d9b135",
-    "internal/component/tacacs/rfc8907_authorization_test.go::TestRFC8907MandatoryCommandPolicyAccepted": "7e3084d65c3e691a",
-    "internal/component/tacacs/rfc8907_authorization_test.go::TestRFC8907MandatoryCommandPolicyDenied": "7e3084d65c3e691a",
-    "internal/component/tacacs/rfc8907_authorization_test.go::TestRFC8907MandatorySessionPolicyDenied": "7e3084d65c3e691a"
+    "internal/component/tacacs/rfc8907_authorization_test.go::TestRFC8907MandatoryCommandPolicyAccepted": "222a323ba4df4455",
+    "internal/component/tacacs/rfc8907_authorization_test.go::TestRFC8907MandatoryCommandPolicyDenied": "222a323ba4df4455",
+    "internal/component/tacacs/rfc8907_authorization_test.go::TestRFC8907MandatorySessionPolicyDenied": "222a323ba4df4455"
   },
   "units": {
     "internal/component/tacacs/rfc8907_arguments_test.go::TestRFC8907SharedArgumentsKeepDefinedMeaning": "0f98d0756ec86dd4",
