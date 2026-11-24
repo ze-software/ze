@@ -145,24 +145,29 @@ until the call establishes (returning the local/remote session IDs) or fails
 (returning the cause and RFC 2661 Result Code: tunnel auth reject, tie-breaker
 loss, peer CDN, or timeout). The remote must have `outgoing-calls true`.
 
-A dialed tunnel sends from the L2TP listener socket, so the listener's `ip`
+A dialed tunnel sends from an L2TP listener socket, so the listener's `ip`
 is the tunnel's source address (RFC 2661 Section 8.1 requires the addresses
-and ports to stay static for the life of the tunnel). Every dial, from this
-command or from a relay, uses the first `environment l2tp server`. When that
-listener is on a loopback address it cannot reach another host, so Ze refuses
-a config that pairs it with an off-host remote: Ze does not start with it,
-and a reload that adds such a remote is refused and changes nothing.
-`ze config validate` does not check this yet. A dial that still meets the
-case is refused at once. Each error names the remote, the listener and the fix: bind `environment l2tp server <name> ip`
-to an address that reaches the remote, or to the wildcard of the remote's
-family (`0.0.0.0` for IPv4, `::` for IPv6) to let the route choose it. Ze
-binds a listener only when it starts, so after a reload that moves the
-listener, a dial asks for a restart instead.
+and ports to stay static for the life of the tunnel). Each dial, from this
+command or from a relay, picks a bound `environment l2tp server` listener that
+can reach the remote's IP address family and scope: a loopback remote prefers
+a same-family loopback listener and otherwise uses a non-loopback listener of
+the same family, while an off-host remote requires a non-loopback listener of
+the same family. Ze refuses a config where no declared listener can reach a
+configured remote: `ze config validate`, startup, and reload all enforce the
+same reachability check (reload refuses the change and keeps the running
+config). A dial that still meets an unreachable remote is refused at once.
+Each error names the remote, the listener and the fix: bind
+`environment l2tp server <name> ip` to an address that reaches the remote, or
+to the wildcard of the remote's family (`0.0.0.0` for IPv4, `::` for IPv6) to
+let the route choose it. Ze binds a listener only when it starts, so after a
+reload that moves the listener, a dial asks for a restart instead.
 
 <!-- source: internal/component/l2tp/config.go -- validateDialSources -->
+<!-- source: internal/component/l2tp/config_policy.go -- validateParameters -->
 <!-- source: cmd/ze/hub/register_l2tp.go -- registerBNGSubsystems -->
-<!-- source: internal/component/l2tp/subsystem_reload.go -- Reload, reloadDialSource -->
-<!-- source: internal/component/l2tp/reactor_dial.go -- handleDial, dialSourceUnreachable, wildcardFor -->
+<!-- source: internal/component/l2tp/subsystem_reload.go -- Reload, reloadDialSources -->
+<!-- source: internal/component/l2tp/outgoing_call.go -- reactorForRemoteLocked -->
+<!-- source: internal/component/l2tp/reactor_dial.go -- handleDial, listenerCanReach, wildcardFor -->
 
 The `relay` binding is the LAC path: a PPPoE subscriber whose Service-Name
 matches is relayed into an L2TP incoming call (ICRQ) toward the bound remote
@@ -1452,10 +1457,15 @@ slot.
 <!-- source: internal/component/l2tp/plugins/pool/register.go -- handle -->
 <!-- source: internal/component/l2tp/plugins/pool/radius.go -- reserveRADIUSAddressLocked -->
 
-The two special values of RFC 2865 Section 5.8 name no address:
-`255.255.255.254` ("the NAS should select an address for the user") and
-`255.255.255.255` (the user selects) leave the choice to the pool, so the
-accounting records report the address the pool gave (RFC 2866 Section 4.1).
+The two special values of RFC 2865 Section 5.8 name no static address and stay
+unset on `FramedIP` so accounting reports the real assigned address (RFC 2866
+Section 4.1). `255.255.255.254` ("the NAS should select an address for the
+user") leaves the choice to the pool. `255.255.255.255` ("the NAS Should allow
+the user to select an address (e.g. Negotiated)") bypasses pool allocation,
+supplies the selected pool's gateway and DNS, and lets IPCP accept a
+peer-proposed unicast IPv4 address that is distinct from the local gateway,
+outside every configured IPv4 pool, and not already held by another live
+session (releasing it on IPCP down, LCP reset, or session teardown).
 `Framed-IP-Netmask` is parsed into session metadata, but the current IPv4 IPCP
 response has no netmask field to apply.
 
@@ -1463,6 +1473,8 @@ Ze does not read `Delegated-IPv6-Prefix` or `Framed-IPv6-Prefix` from an
 Access-Accept, so no RADIUS-supplied IPv6 prefix reaches a subscriber today.
 L2TP subscribers are IPv4-only.
 <!-- source: internal/component/l2tp/plugins/authradius/extract.go -- extractAuthMetadata -->
+<!-- source: internal/component/l2tp/plugins/pool/radius.go -- peerNegotiatedAnswer, admitPeerAddress, releasePeerAddress -->
+<!-- source: internal/component/l2tp/ppp/ncp.go -- evalIPCPRequest, isValidNegotiatedPeerIPv4 -->
 
 The IPCP DNS offered follows the pool's `dns-source` list. With none written,
 an Access-Accept's MS-Primary-DNS-Server and MS-Secondary-DNS-Server (RFC 2548,

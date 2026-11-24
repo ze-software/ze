@@ -6,4 +6,4 @@ that can sits idle.
 
 | Date | Spec | Surface | Symptom | Fix |
 |------|------|---------|---------|-----|
-| 2026-10-17 | - (L2TP review, walked into) | `Subsystem.PlaceOutgoingCall` (`internal/component/l2tp/outgoing_call.go`), the PPPoE relay sink (`relay_sink.go`) | Both dial from `s.reactors[0]`, so with several `environment l2tp server` blocks a loopback first server refuses a remote another listener reaches. Read, not run | open: pick the reactor whose listener can reach the remote, or refuse naming the server to use |
+| 2026-10-17 | - (L2TP review, walked into) | `Subsystem.PlaceOutgoingCall` (`l2tp/outgoing_call.go`), PPPoE relay sink (`relay_sink.go`) | Both dialed from `s.reactors[0]`, so a loopback first server refused a remote another listener reached | fixed: `reactorForRemoteLocked` (`outgoing_call.go`) picks a listener matching IP family and loopback reachability for `PlaceOutgoingCall` and `relay_sink.go`; `validateDialSources`/`reloadDialSources` aligned; `outgoing_call_test.go`, `relay_sink_test.go`, `config_test.go` |

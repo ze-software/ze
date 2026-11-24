@@ -43,7 +43,7 @@ Each instance is resolved by exactly one answer, judged in this order
 | 3 | Going on is right and nobody can act (a close at teardown, an error reply to a peer already gone) | `// refuse-by-default: guards <Symbol> -- <why>` on the line above |
 
 `spec-ipsec-11-mobike.md` (design) owns the MOBIKE protocol logic and
-`spec-ppp-l2tp-aaa-one-off-defects.md` owns open PPP defects; neither owns
+`spec-ppp-l2tp-aaa-one-off-defects` (closed) owns PPP defects; neither owns
 these log levels. Where an answer-1 instance is a protocol defect already in
 one of them, this child resolves the log level and names that spec.
 

@@ -2,7 +2,7 @@
   "note": "Independent re-judgment against RFC 5176 Section 3.4 and HEAD code (coa.go admitRequest). TestRFC5176MessageAuthenticatorAbsentIsAcceptedByDefault sends a valid Disconnect-Request omitting Message-Authenticator under the default config (CoARequireMessageAuthenticator false) and asserts Disconnect-ACK and one teardown. TestCoAListenerMissingMessageAuthenticatorDroppedWhenRequired enables CoARequireMessageAuthenticator and asserts an otherwise valid unsigned-MA CoA-Request gets no response. Mandatory verification when present is separately tested by 3.4-3.",
   "requirement_sha": "76d3f6211fedecf1",
   "tests": {
-    "internal/component/l2tp/plugins/authradius/rfc5176_coa_listener_test.go::TestCoAListenerMissingMessageAuthenticatorDroppedWhenRequired": "29009bc2185d3fd7",
+    "internal/component/l2tp/plugins/authradius/rfc5176_coa_listener_test.go::TestCoAListenerMissingMessageAuthenticatorDroppedWhenRequired": "d547ecf67e8f848a",
     "internal/component/l2tp/plugins/authradius/rfc5176_message_authenticator_optional_test.go::TestRFC5176MessageAuthenticatorAbsentIsAcceptedByDefault": "9817db31a49478f3"
   },
   "units": {

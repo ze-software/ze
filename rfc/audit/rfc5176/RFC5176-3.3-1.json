@@ -7,7 +7,7 @@
     "internal/component/l2tp/plugins/authradius/rfc5176_account_identity_test.go::TestDisconnectOldAccountingIdentityCannotTerminateNewIncarnation": "cddb08175fa65a2f",
     "internal/component/l2tp/plugins/authradius/rfc5176_coa_branches_test.go::TestRFC5176MatchedIdentificationSucceeds": "5f3f208e05b07a3f",
     "internal/component/l2tp/plugins/authradius/rfc5176_coa_branches_test.go::TestRFC5176UnmatchedIdentificationIsNAKed": "5f3f208e05b07a3f",
-    "internal/component/l2tp/plugins/authradius/rfc5176_coa_listener_test.go::TestDisconnectReplayReturnsCachedResponse": "29009bc2185d3fd7",
+    "internal/component/l2tp/plugins/authradius/rfc5176_coa_listener_test.go::TestDisconnectReplayReturnsCachedResponse": "d547ecf67e8f848a",
     "internal/component/l2tp/plugins/authradius/rfc5176_coa_test.go::TestRFC5176NoSessionIdNotActedOn": "26886fa0813e7fa4",
     "internal/component/l2tp/plugins/authradius/rfc5176_owner_apply_test.go::TestCoARegisteredSubscriberAllSelectorsMustMatch": "9b3a1fbc11c840c4"
   },
