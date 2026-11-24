@@ -11,6 +11,7 @@ import (
 	"testing"
 
 	"github.com/ze-software/ze/internal/component/config"
+	_ "github.com/ze-software/ze/internal/component/iface/yang"
 	"github.com/ze-software/ze/internal/component/plugin/registry"
 	"github.com/ze-software/ze/internal/core/diagnostic"
 )
@@ -63,6 +64,15 @@ func TestDataPlaneWriterCheckFromTree(t *testing.T) {
 	cli := func([]string) int { return 0 }
 	for _, reg := range []registry.Registration{
 		{
+			Name: "dataplane-selector-fixture", Description: "test", RunEngine: run, CLIHandler: cli,
+			DataPlaneSelector: &registry.DataPlaneSelector{
+				LeafPath:           "/interface/backend",
+				Roots:              []string{"interface"},
+				SelectsDataPlane:   true,
+				RegisteredBackends: func() []string { return []string{"kernel"} },
+			},
+		},
+		{
 			Name: dataPlaneProducerFixture, Description: "test", RunEngine: run, CLIHandler: cli,
 			NeedsDataPlane: true, ConfigRoots: []string{dataPlaneProducerRoot},
 		},
@@ -107,5 +117,102 @@ func TestDataPlaneWriterCheckFromTree(t *testing.T) {
 	rows := checkDataPlaneWriter(diagnostic.DoctorCheckContext{Tree: dataPlaneWriterTree(true, dataPlaneFIBName)})
 	if len(rows) != 0 {
 		t.Errorf("fib block naming %s: rows = %+v; want none, its plugin is the writer", dataPlaneFIBFixture, rows)
+	}
+}
+
+// TestDoctorWriterRowUsesTheJudgement proves dataPlaneWriterRows agrees with
+// registry.JudgeDataPlaneWriter across producer/no-producer, chosen FIB plugin
+// in selected or configured lists, programmed plane, and unprogrammed plane.
+//
+// VALIDATES: spec-fib-dummy Phase 5 -- doctor's writer row calls the shared
+// registry.JudgeDataPlaneWriter judgement so doctor and boot/reload agree.
+// PREVENTS: doctor drifting from the engine's writer judgement when a FIB
+// plugin is chosen via config root, bus endpoint, or --plugin.
+func TestDoctorWriterRowUsesTheJudgement(t *testing.T) {
+	snap := registry.Snapshot()
+	t.Cleanup(func() { registry.Restore(snap) })
+
+	run := func(_ net.Conn) int { return 0 }
+	cli := func([]string) int { return 0 }
+
+	const (
+		producer     = "doc-judge-producer"
+		observer     = "doc-judge-observer"
+		planeA       = "doc-judge-plane-a"
+		writerA      = "doc-judge-writer-a"
+		chosenFIB    = "doc-judge-chosen-fib"
+		unprogrammed = "doc-judge-unprogrammed"
+	)
+
+	for _, reg := range []registry.Registration{
+		{Name: producer, Description: "test", RunEngine: run, CLIHandler: cli, NeedsDataPlane: true},
+		{Name: observer, Description: "test", RunEngine: run, CLIHandler: cli},
+		{Name: writerA, Description: "test", RunEngine: run, CLIHandler: cli, ProgramsFIB: true, DataPlane: planeA},
+		{Name: chosenFIB, Description: "test", RunEngine: run, CLIHandler: cli, ProgramsFIB: true, NoDataPlaneChoice: true},
+	} {
+		if err := registry.Register(reg); err != nil {
+			t.Fatalf("register %s: %v", reg.Name, err)
+		}
+	}
+
+	cases := []struct {
+		name       string
+		selected   []string
+		configured []string
+		dataPlane  string
+		wantRows   int
+		wantCode   string
+	}{
+		{
+			name:      "producer on unprogrammed plane reports error",
+			selected:  []string{producer},
+			dataPlane: unprogrammed,
+			wantRows:  1,
+			wantCode:  codeDoctorPluginNoDataPlaneWriter,
+		},
+		{
+			name:      "producer on programmed plane reports nothing",
+			selected:  []string{producer},
+			dataPlane: planeA,
+			wantRows:  0,
+		},
+		{
+			name:      "chosen FIB in selected suppresses error",
+			selected:  []string{producer, chosenFIB},
+			dataPlane: unprogrammed,
+			wantRows:  0,
+		},
+		{
+			name:       "chosen FIB in configured suppresses error",
+			selected:   []string{producer},
+			configured: []string{chosenFIB},
+			dataPlane:  unprogrammed,
+			wantRows:   0,
+		},
+		{
+			name:      "no producer on unprogrammed plane reports nothing",
+			selected:  []string{observer},
+			dataPlane: unprogrammed,
+			wantRows:  0,
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			rows := dataPlaneWriterRows(tc.selected, tc.configured, tc.dataPlane)
+			if len(rows) != tc.wantRows {
+				t.Fatalf("rows = %+v; want %d", rows, tc.wantRows)
+			}
+			if tc.wantRows > 0 && rows[0].Code != tc.wantCode {
+				t.Errorf("code = %q; want %q", rows[0].Code, tc.wantCode)
+			}
+			chosen := make([]string, 0, len(tc.selected)+len(tc.configured))
+			chosen = append(chosen, tc.selected...)
+			chosen = append(chosen, tc.configured...)
+			_, judgeErr := registry.JudgeDataPlaneWriter(tc.selected, chosen, tc.dataPlane)
+			if (judgeErr != nil) != (len(rows) > 0) {
+				t.Errorf("doctor rows (%d) disagree with JudgeDataPlaneWriter err (%v)", len(rows), judgeErr)
+			}
+		})
 	}
 }

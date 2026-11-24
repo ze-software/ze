@@ -55,4 +55,7 @@ func init() {
 	if err := diagnostic.RegisterEventCode(diagnostic.EventCode{Code: codeDoctorInvalidChange}); err != nil {
 		panic("BUG: fib-dummy: register invalid-change event code: " + err.Error())
 	}
+	if err := diagnostic.RegisterDoctorCheck(holdsRoutesDoctorCheck); err != nil {
+		panic("BUG: fib-dummy: register holds-routes doctor check: " + err.Error())
+	}
 }

@@ -9,6 +9,7 @@ func init() {
 	Register("plugin/bus-assert-refused-count", busAssertRefusedCountDriver)
 	Register("plugin/bus-assert-refused-series", busAssertRefusedSeriesDriver)
 	Register("plugin/bus-sighup-reload", busSIGHUPReloadDriver)
+	Register("plugin/bus-sighup-reload-refused", busSIGHUPReloadRefusedDriver)
 	Register("plugin/bus-assert-same-pid", busAssertSamePIDDriver)
 	Register("plugin/bus-event-collector", busEventCollectorDriver)
 	Register("plugin/bus-assert-collector", busAssertCollectorDriver)

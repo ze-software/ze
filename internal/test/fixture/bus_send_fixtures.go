@@ -447,8 +447,20 @@ func busAssertRefusedSeriesDriver(ctx context.Context, args []string) error {
 // last-outcome "applied", and writes doneMarker.
 // Usage: plugin/bus-sighup-reload <src-conf> <dst-conf> <done-marker>.
 func busSIGHUPReloadDriver(ctx context.Context, args []string) error {
+	return busSIGHUPReloadExpect(ctx, args, "applied", "plugin/bus-sighup-reload")
+}
+
+// busSIGHUPReloadRefusedDriver copies srcConf onto dstConf, sends SIGHUP to
+// daemon.pid, polls `ze cli -c "show reload-status | json"` until generation
+// advances with last-outcome "failed", and writes doneMarker.
+// Usage: plugin/bus-sighup-reload-refused <src-conf> <dst-conf> <done-marker>.
+func busSIGHUPReloadRefusedDriver(ctx context.Context, args []string) error {
+	return busSIGHUPReloadExpect(ctx, args, "failed", "plugin/bus-sighup-reload-refused")
+}
+
+func busSIGHUPReloadExpect(ctx context.Context, args []string, wantOutcome, usageName string) error {
 	if len(args) != 3 {
-		return errors.New("usage: plugin/bus-sighup-reload <src-conf> <dst-conf> <done-marker>")
+		return fmt.Errorf("usage: %s <src-conf> <dst-conf> <done-marker>", usageName)
 	}
 	srcConf, dstConf, doneMarker := args[0], args[1], args[2]
 
@@ -480,27 +492,27 @@ func busSIGHUPReloadDriver(ctx context.Context, args []string) error {
 	var gen int64
 	var outcome string
 	var pollErr error
-	applied := Poll(ctx, busPollAttempts, busPollDelay, func() bool {
+	advanced := Poll(ctx, busPollAttempts, busPollDelay, func() bool {
 		gen, outcome, pollErr = busReadReloadStatusCLI(ctx)
 		if pollErr != nil {
 			return false
 		}
 		return gen > baseline
 	})
-	if !applied {
+	if !advanced {
 		return fmt.Errorf("SIGHUP reload of %s never advanced generation past %d (last gen=%d outcome=%q err=%v)",
 			srcConf, baseline, gen, outcome, pollErr)
 	}
-	if outcome != "applied" {
-		return fmt.Errorf("SIGHUP reload of %s ended with last-outcome=%q (generation=%d), want applied",
-			srcConf, outcome, gen)
+	if outcome != wantOutcome {
+		return fmt.Errorf("SIGHUP reload of %s ended with last-outcome=%q (generation=%d), want %s",
+			srcConf, outcome, gen, wantOutcome)
 	}
 	var genBuf textbuf.Buffer
 	if err := busWriteAtomicFile(doneMarker, genBuf.Int(gen).Byte('\n').String()); err != nil {
 		return err
 	}
 	var tb textbuf.Buffer
-	return tb.Str("OK: SIGHUP reload ").Str(srcConf).Str(" applied at generation ").Int(gen).Byte('\n').StdOut()
+	return tb.Str("OK: SIGHUP reload ").Str(srcConf).Byte(' ').Str(wantOutcome).Str(" at generation ").Int(gen).Byte('\n').StdOut()
 }
 
 // busReadReloadStatusCLI runs `ze cli -c "show reload-status | json"` and

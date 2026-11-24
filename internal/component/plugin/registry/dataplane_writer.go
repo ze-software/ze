@@ -8,9 +8,34 @@ package registry
 
 import (
 	"fmt"
+	"slices"
 
 	"github.com/ze-software/ze/internal/core/opererr"
 )
+
+// JudgeDataPlaneWriter decides whether the engine should add a data-plane
+// writer for a configuration holding producers and chosenFIB on dataPlane.
+//
+// Rules:
+//  1. If no plugin in producers declares NeedsDataPlane, no writer is needed.
+//  2. If any plugin in chosenFIB declares ProgramsFIB, the operator has
+//     already chosen their FIB plugin(s), so the engine adds none.
+//  3. Otherwise, DataPlaneWriter answers the writer for the first producer
+//     in producers that declares NeedsDataPlane on dataPlane, or the refusal.
+//
+// Boot (Server.getConfigPathAutoLoaded), reload (Server.judgeReloadWriters),
+// and `ze doctor` (doctor.dataPlaneWriterRows) all call this one judgement so
+// they agree on every candidate.
+func JudgeDataPlaneWriter(producers, chosenFIB []string, dataPlane string) (string, error) {
+	producerIndex := slices.IndexFunc(producers, NeedsDataPlane)
+	if producerIndex < 0 {
+		return "", nil
+	}
+	if slices.ContainsFunc(chosenFIB, ProgramsFIB) {
+		return "", nil
+	}
+	return DataPlaneWriter(producers[producerIndex], dataPlane)
+}
 
 // DataPlaneWriter answers the plugin that programs dataPlane for producer, a
 // selected plugin whose routes reach forwarding only through a data-plane

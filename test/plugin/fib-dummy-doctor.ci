@@ -1,0 +1,58 @@
+# Test: `ze doctor` reports `doctor-fib-dummy-holds-routes` (WARNING with a
+#       `NeedsDataPlane` producer, INFO without one) and
+#       `doctor-dataplane-mismatch` when `fib dummy` is configured beside
+#       `fib kernel`.
+#
+# VALIDATES: spec-fib-dummy AC-4, AC-8 -- post-config `fib-dummy-holds-routes`
+#            check reports WARNING naming `static` when `static` is configured,
+#            INFO when no `NeedsDataPlane` producer is configured, and parsed-
+#            config `dataplane-compatibility` reports `doctor-dataplane-mismatch`
+#            with the AC-4 What / Why / Fix when `fib dummy` sits beside
+#            `fib kernel`.
+# PREVENTS:  `ze doctor` staying silent on a dummy box with static routes or
+#            dropping the AC-4 diagnostic behind a `ReadConfig` refusal.
+
+tmpfs=dummy-with-static.conf:terminator=EOF_STATIC
+fib {
+	dummy { }
+}
+static {
+	table default {
+		route 192.0.2.0/24 {
+			next { hop 198.51.100.1 { } }
+		}
+	}
+}
+EOF_STATIC
+
+tmpfs=dummy-alone.conf:terminator=EOF_ALONE
+fib {
+	dummy { }
+}
+EOF_ALONE
+
+tmpfs=dummy-beside-kernel.conf:refused=config-plugin-verify:terminator=EOF_BESIDE
+fib {
+	dummy { }
+	kernel { }
+}
+EOF_BESIDE
+
+# AC-8: `fib dummy` + `static` -> WARNING naming `static` with `delete fib dummy`.
+cmd=foreground:seq=1:exec=ze doctor --json config dummy-with-static.conf:exit=0
+expect=stdout:contains="code": "doctor-fib-dummy-holds-routes"
+expect=stdout:contains="severity": "warning"
+expect=stdout:contains=fib dummy is configured, and this config loads static, whose routes reach forwarding only through a data-plane writer: fib dummy holds those routes and writes them to no forwarding table
+expect=stdout:contains="fix": "delete fib dummy"
+
+# AC-8: `fib dummy` alone -> INFO stating selected routes reach no forwarding table.
+cmd=foreground:seq=2:exec=ze doctor --json config dummy-alone.conf:exit=0
+expect=stdout:contains="severity": "info"
+expect=stdout:contains=fib dummy is configured: ze writes no route the system RIB selects to any forwarding table
+
+# AC-4: `fib dummy` beside `fib kernel` -> ERROR under `doctor-dataplane-mismatch`.
+cmd=foreground:seq=3:exec=ze doctor --json config dummy-beside-kernel.conf:exit=1
+expect=stdout:contains="code": "doctor-dataplane-mismatch"
+expect=stdout:contains="severity": "error"
+expect=stdout:contains=fib dummy is configured beside fib kernel: fib dummy is the choice to program no route, and fib kernel programs the kernel data plane
+expect=stdout:contains="fix": "delete fib dummy, or delete fib kernel"

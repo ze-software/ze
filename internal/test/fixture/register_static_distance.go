@@ -27,6 +27,7 @@ func init() {
 	// and an interface-only next-hop survive the route's trip through the
 	// Loc-RIB.
 	Register("static/static-kernel-setup", staticKernelSetup)
+	Register("static/kernel-route-absent", staticKernelRouteAbsent)
 	Register("static/static-kernel-distance-static-wins",
 		observer02("static-kernel-test", staticKernelDistanceWinner(protocolStatic, kernelStaticGateway)), StopsDaemon)
 	Register("static/static-kernel-distance-bgp-wins",

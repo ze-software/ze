@@ -44,6 +44,24 @@ func staticKernelSetup(ctx context.Context, _ []string) error {
 	return staticSetup(kernelLink, kernelStaticAddress, kernelBGPAddress)(ctx, nil)
 }
 
+// staticKernelRouteAbsent verifies that Linux holds no route for the exact
+// prefix in any routing table.
+func staticKernelRouteAbsent(ctx context.Context, args []string) error {
+	if len(args) != 1 {
+		return fmt.Errorf("usage: static/kernel-route-absent <prefix>")
+	}
+	prefix := args[0]
+	out, err := netfilterCommandOutput(ctx, "ip", "-N", "route", "show", "table", "all", "exact", prefix)
+	if err != nil {
+		return fmt.Errorf("ip route show for %s: %w", prefix, err)
+	}
+	if trimmed := strings.TrimSpace(out); trimmed != "" {
+		return fmt.Errorf("kernel still holds route for %s: %s", prefix, trimmed)
+	}
+	var tb textbuf.Buffer
+	return tb.Str("OK: ").Str(prefix).Str(" absent from kernel\n").StdOut()
+}
+
 // staticKernelDistanceWinner builds the scenario that reads the arbitration's
 // outcome from the KERNEL: the system RIB must name wantProtocol for the
 // contested prefix, and the kernel must then hold exactly one entry for it, in

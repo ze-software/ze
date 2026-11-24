@@ -44,26 +44,21 @@ func checkDataPlaneWriter(ctx diagnostic.DoctorCheckContext) []diagnostic.Diagno
 	return dataPlaneWriterRows(autoloadSet(tree, ctx.Plugins), configured, server.ConfigDataPlane(tree.ToMap()))
 }
 
-// dataPlaneWriterRows judges one selection the way appendDataPlaneWriter
-// does: the first NeedsDataPlane producer it holds, unless a plugin that
-// ProgramsFIB is selected or configured (an explicit `fib { ... }` block,
-// whose plugin is then the writer).
+// dataPlaneWriterRows judges one selection through registry.JudgeDataPlaneWriter,
+// the one judgement boot and reload share: the first NeedsDataPlane producer it
+// holds needs a writer for dataPlane unless a plugin that ProgramsFIB is
+// selected or configured (an explicit `fib { ... }` block, bus endpoint, or
+// `--plugin` entry).
 func dataPlaneWriterRows(selected, configured []string, dataPlane string) []diagnostic.Diagnostic {
-	producerIndex := slices.IndexFunc(selected, registry.NeedsDataPlane)
-	if producerIndex < 0 {
-		return nil
-	}
-	if slices.ContainsFunc(selected, registry.ProgramsFIB) {
-		return nil
-	}
-	if slices.ContainsFunc(configured, registry.ProgramsFIB) {
-		return nil
-	}
-	producer := selected[producerIndex]
-	_, err := registry.DataPlaneWriter(producer, dataPlane)
+	chosen := make([]string, 0, len(selected)+len(configured))
+	chosen = append(chosen, selected...)
+	chosen = append(chosen, configured...)
+	_, err := registry.JudgeDataPlaneWriter(selected, chosen, dataPlane)
 	if err == nil {
 		return nil
 	}
+	producerIndex := slices.IndexFunc(selected, registry.NeedsDataPlane)
+	producer := selected[producerIndex]
 	var message textbuf.Buffer
 	message.Str("this config loads ").Str(producer).Str(", whose routes reach forwarding only through a data-plane writer, ").
 		Str("so ze refuses to start or reload it: ").Err(err)
