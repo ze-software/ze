@@ -136,16 +136,19 @@ func (r *Reactor) notifyPeerNegotiated(peer *Peer, session *Session, neg *capabi
 	// already resolved the current OPEN's full-width remote identity.
 	peer.mu.RLock()
 	peerInfo := plugin.PeerInfo{
-		ConnectionID:    connectionIDOf(session),
-		PeerOwner:       peer.sourceOwner,
-		Address:         peer.settings.Address,
-		LocalAddress:    peer.settings.LocalAddress,
-		AddressStr:      peer.addrString,
-		LocalAddressStr: peer.localAddrString,
-		Name:            peer.settings.Name,
-		GroupName:       peer.settings.GroupName,
-		PeerAS:          rpc.RemoteASOf(neg.PeerASN),
-		LocalAS:         peer.settings.LocalAS,
+		ConnectionID:         connectionIDOf(session),
+		PeerOwner:            peer.sourceOwner,
+		Address:              peer.settings.Address,
+		LocalAddress:         peer.settings.LocalAddress,
+		AddressStr:           peer.addrString,
+		LocalAddressStr:      peer.localAddrString,
+		Name:                 peer.settings.Name,
+		GroupName:            peer.settings.GroupName,
+		PeerAS:               rpc.RemoteASOf(neg.PeerASN),
+		LocalAS:              peer.settings.LocalAS,
+		IsIBGP:               peer.settings.isIBGPWith(neg.PeerASN),
+		RSClient:             peer.settings.RSClient,
+		RouteReflectorClient: peer.settings.RouteReflectorClient,
 	}
 	peer.mu.RUnlock()
 
@@ -204,6 +207,7 @@ func (r *Reactor) emitCongestionEvent(peerAddr netip.Addr, eventType string) {
 	}
 	s := peer.Settings()
 	addrStr := peer.addrString
+	peerAS := peer.PeerAS()
 	peerInfo := plugin.PeerInfo{
 		PeerOwner:       peer.sourceOwner,
 		Address:         s.Address,
@@ -215,9 +219,12 @@ func (r *Reactor) emitCongestionEvent(peerAddr netip.Addr, eventType string) {
 		LocalAS:         s.LocalAS,
 		// PeerAS via the guarded accessor: this runs on the congestion controller
 		// goroutine, which can race a dynamic peer's establishment write of PeerAS.
-		PeerAS:   rpc.RemoteASOf(peer.PeerAS()),
-		RouterID: s.RouterID,
-		State:    peer.State().PluginState(),
+		PeerAS:               rpc.RemoteASOf(peerAS),
+		RouterID:             s.RouterID,
+		State:                peer.State().PluginState(),
+		IsIBGP:               s.isIBGPWith(peerAS),
+		RSClient:             s.RSClient,
+		RouteReflectorClient: s.RouteReflectorClient,
 	}
 	r.mu.RUnlock()
 
@@ -454,8 +461,11 @@ func (r *Reactor) notifyOneMessage(originalPeer *Peer, captured *Session, peerAd
 			// this one, and it reaches best-path selection only through the
 			// UPDATE events built here (rib.peerMetadata.RemoteRouterID).
 			// An atomic load, so it is safe on every goroutine this runs on.
-			RemoteRouterID: peer.RemoteRouterID(),
-			State:          peer.State().PluginState(),
+			RemoteRouterID:       peer.RemoteRouterID(),
+			State:                peer.State().PluginState(),
+			IsIBGP:               s.isIBGPWith(peerAS),
+			RSClient:             s.RSClient,
+			RouteReflectorClient: s.RouteReflectorClient,
 		}
 		if direction == rpc.DirectionSent {
 			if msgType == msgtype.TypeUPDATE {

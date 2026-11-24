@@ -35,6 +35,7 @@ type Event struct {
 	Reason           string // State reason: why a session went down, or rpc.ReasonAttached on an attached up
 	InitialReplay    uint64 // Captured peer-up session receipt; zero grants no readiness.
 	UpdateSendDenied bool   // This recipient may receive input without sending UPDATEs to the peer.
+	RSClient         bool   // Session has session rs-client true (RFC 7947).
 	// SessionGeneration is, on a down, the session the down ended; the
 	// departure names it as recovery-generation. Zero on every other event.
 	SessionGeneration  uint64
@@ -466,6 +467,9 @@ func parseTextState(text string) *Event {
 		PeerAddr: addr,
 	}
 	updateSendSeen := false
+	rsClientSeen := false
+	isIBGPSeen := false
+	rrClientSeen := false
 
 	// Keyword loop
 	for !s.Done() {
@@ -492,20 +496,37 @@ func parseTextState(text string) *Event {
 			if v, ok := s.Next(); ok {
 				event.Reason = v
 			}
-		case "update-send-denied":
-			if updateSendSeen {
+		case "update-send-denied", "rs-client", "is-ibgp", "rr-client":
+			var seen *bool
+			switch tok {
+			case "update-send-denied":
+				seen = &updateSendSeen
+			case "rs-client":
+				seen = &rsClientSeen
+			case "is-ibgp":
+				seen = &isIBGPSeen
+			case "rr-client":
+				seen = &rrClientSeen
+			}
+			if *seen {
 				return nil
 			}
 			value, ok := s.Next()
+			// refuse-by-default: guards routeServer.dispatchText -- nil is the parser's refusal of a state flag missing its boolean value
 			if !ok {
 				return nil
 			}
-			denied, err := strconv.ParseBool(value)
+			flag, err := strconv.ParseBool(value)
 			if err != nil {
 				return nil
 			}
-			event.UpdateSendDenied = denied
-			updateSendSeen = true
+			switch tok {
+			case "update-send-denied":
+				event.UpdateSendDenied = flag
+			case "rs-client":
+				event.RSClient = flag
+			}
+			*seen = true
 		case "initial-replay":
 			value, ok := s.Next()
 			if !ok {

@@ -335,14 +335,6 @@ func (c *Coordinator) PeerNegotiatedCapabilities(addr netip.Addr) *PeerCapabilit
 	return nil
 }
 
-// GetPeerProcessBindings returns process bindings for a specific peer.
-func (c *Coordinator) GetPeerProcessBindings(peerAddr netip.Addr) []PeerProcessBinding {
-	if r := c.getReactor(); r != nil {
-		return r.GetPeerProcessBindings(peerAddr)
-	}
-	return nil
-}
-
 // --- ReactorPeerController ---
 
 // Stop signals the reactor to shut down.

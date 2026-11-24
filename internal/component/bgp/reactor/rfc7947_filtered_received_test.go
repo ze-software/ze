@@ -39,7 +39,7 @@ func newFilteredReceivedLive(t *testing.T, client bool, policy filterapi.Policy)
 	for _, settings := range []*PeerSettings{source, control} {
 		// A wildcard is an existing grant. It admits a separately registered
 		// filtered event without naming a type that does not exist yet.
-		require.NoError(t, EnsureProcessBinding(settings, "bgp-adj-rib-in", "*", "update"))
+		addTestPeerBusGrant(settings, testPeerEndpointGrant{Name: "bgp-adj-rib-in", ReceiveAll: true, Send: []string{"update"}})
 	}
 	peers := lowLiveRouter(t, source, control)
 	f := &filteredReceivedLive{source: peers[0], control: peers[1]}

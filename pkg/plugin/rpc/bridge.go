@@ -1136,6 +1136,10 @@ type StructuredEvent struct {
 	// recipient no send-update permission. It suppresses destination work only;
 	// source identity remains live. False or absence grants no write authority.
 	UpdateSendDenied bool
+	// Session scope flags copied from PeerInfo on state events (Q-5, AC-19).
+	IsIBGP               bool // Session is iBGP (internal); false for eBGP
+	RSClient             bool // Session has session rs-client true (RFC 7947)
+	RouteReflectorClient bool // Session has route-reflector-client true (RFC 4456)
 	// SessionGeneration is, for a down state event, the forward generation of
 	// the session the down ended. A forwarding plugin's departure for that
 	// down names it as recovery-generation meta, so the engine owes only
@@ -1194,6 +1198,9 @@ func PutStructuredEvent(se *StructuredEvent) {
 	se.SelectedDestination = false
 	se.OrdinaryReplayOwned = false
 	se.UpdateSendDenied = false
+	se.IsIBGP = false
+	se.RSClient = false
+	se.RouteReflectorClient = false
 	se.SessionGeneration = 0
 	se.SourceID = 0
 	se.SourcePolicyEpoch = 0

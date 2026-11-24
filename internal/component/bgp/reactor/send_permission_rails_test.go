@@ -112,8 +112,7 @@ func railFixture(t *testing.T) *railEnv {
 	captureRecoveryFixtureOrigin(t, src, srcSession, ctxID)
 	dst := makeRSPeer(t, railDest, 65002, ctx, ctxID)
 	dst.settings.LocalAddress = netip.MustParseAddr("10.0.0.254")
-	dst.settings.ProcessBindings = []ProcessBinding{sendUpdateOnly(railGranted)}
-	dst.refreshForwardFacts()
+	dst.settings.Bus = testBusBlockForGrants(sendUpdateOnly(railGranted))
 
 	env := &railEnv{source: src, saw: make(chan struct{}, 8)}
 	pool := newFwdPool(func(_ fwdKey, items []fwdItem) {
@@ -143,6 +142,10 @@ func railFixture(t *testing.T) *railEnv {
 		},
 		fwdPool: pool,
 	}
+	src.reactor = r
+	dst.reactor = r
+	publishTestBusGraph(t, r)
+	dst.refreshForwardFacts()
 	env.api = &reactorAPIAdapter{r: r}
 	return env
 }
@@ -219,10 +222,10 @@ func TestCacheForwardRefusalNamesTheAttachBlock(t *testing.T) {
 	require.ErrorIs(t, err, errSendNotPermitted)
 
 	const want = "process stranger may not send update messages to selector 10.0.0.2\n" +
-		"a peer takes a message from a process only when its attach block names the process" +
-		" and lists the message type under send: send refused: no peer this selector names attaches" +
+		"a peer takes a message from a process only when the compiled bus filter permits the endpoint" +
+		" to send that message type to the peer: send refused: no peer this selector names attaches" +
 		" this process with the required send permission: selector 10.0.0.2, process stranger, send type update\n" +
-		"fix: add 'attach process stranger { send [ update ]; }' to each peer the process sends to"
+		"fix: permit bgp:update from /bus/endpoint/stranger in the peer's bus receive filter or the endpoint's bus send filter"
 	assert.Equal(t, want, err.Error())
 	require.NotNil(t, resp)
 	assert.Equal(t, "forward failed: "+want, resp.Error)
@@ -247,7 +250,7 @@ func TestPeerRawEntryPointNeedsTheRawSendWord(t *testing.T) {
 	resetSendPermissionMetrics(t)
 
 	peer, conn := newAttachedPeer(t, railDest, sendUpdateOnly(railOther), sendRawOnly(railGranted))
-	api := newSendPermissionReactor(peer)
+	api := newSendPermissionReactor(t, peer)
 
 	refused := railServer(t, api, plugin.ProcessSender(railRefused))
 	resp, err := refused.Server.Dispatcher().Dispatch(refused, "send bgp "+railDest+" raw hex DEADBEEF type update")
@@ -328,10 +331,14 @@ func TestRelayStoredRouteRailRefusesAnUnattachedProcess(t *testing.T) {
 	dst := netip.MustParseAddr(railDest)
 	for key, peer := range env.api.r.peers {
 		if key.Addr() == dst {
-			peer.settings.ProcessBindings = append(peer.settings.ProcessBindings,
-				ProcessBinding{PluginName: receiveOnly, ReceiveAll: true}, sendRawOnly(rawOnly))
+			peer.settings.Bus = testBusBlockForGrants(
+				sendUpdateOnly(railGranted),
+				testPeerEndpointGrant{Name: receiveOnly, ReceiveAll: true},
+				sendRawOnly(rawOnly),
+			)
 		}
 	}
+	publishTestBusGraph(t, env.api.r)
 
 	route := storedIPv4Route(forwardSourceAddr)
 	route.SourceOwner = env.source.sourceOwner

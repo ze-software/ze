@@ -98,6 +98,9 @@ func getStructuredEvent(peer *plugin.PeerInfo, msg *bgptypes.RawMessage) *rpc.St
 	se.LocalAddress = peer.LocalAddrStr()
 	se.LocalPort = peer.LocalPort
 	se.RemotePort = peer.RemotePort
+	se.IsIBGP = peer.IsIBGP
+	se.RSClient = peer.RSClient
+	se.RouteReflectorClient = peer.RouteReflectorClient
 	se.EventType = eventKindForMessage(msg)
 	se.Direction = msg.Direction
 	se.MessageID = msg.MessageID
@@ -135,6 +138,9 @@ func getStructuredStateEvent(peer *plugin.PeerInfo, state rpc.SessionState, reas
 	se.LocalAddress = peer.LocalAddrStr()
 	se.LocalPort = peer.LocalPort
 	se.RemotePort = peer.RemotePort
+	se.IsIBGP = peer.IsIBGP
+	se.RSClient = peer.RSClient
+	se.RouteReflectorClient = peer.RouteReflectorClient
 	se.EventType = rpc.EventKindState
 	se.State = state
 	se.InitialReplay = peer.InitialReplay
@@ -753,16 +759,14 @@ func onPeerStateChange(s *pluginserver.Server, peer *plugin.PeerInfo, state rpc.
 }
 
 // peerStateRecipients captures actual process identities and their role
-// permissions from the immutable graph before a removal releases its lock.
-func peerStateRecipients(s *pluginserver.Server, peer *plugin.PeerInfo, state rpc.SessionState, reason string) ([]*process.Process, []string) {
+// permissions from the immutable compiled DeliveryGraph before a removal
+// releases its lock. Every recipient, including OPEN validators observing
+// peer removal, is admitted through PeerScopedProcs (AC-39, S32).
+func peerStateRecipients(s *pluginserver.Server, peer *plugin.PeerInfo, _ rpc.SessionState, _ string) ([]*process.Process, []string) {
 	graph := s.DeliveryGraph()
 	stateETID := events.LookupEventTypeID(bgpevents.EventState)
 	procs := s.PeerScopedProcs(bgpNS(), stateETID, events.DirUnspecified, peer.AddrStr(), peer.Name)
-	fed := procs
-	if state == rpc.SessionStateDown && reason == rpc.ReasonPeerRemoved {
-		procs = addOpenRemovalObservers(s, peer, procs)
-	}
-	return procs, peerStateUnheldRoles(s, peer, fed, graph)
+	return procs, peerStateUnheldRoles(s, peer, procs, graph)
 }
 
 // onPeerStateChangeTo delivers a previously captured state recipient set.
@@ -791,55 +795,71 @@ func onPeerStateChangeTo(s *pluginserver.Server, peer *plugin.PeerInfo, state rp
 	})
 }
 
-// peerStateUnheldRoles judges only the peer-fed set, not additional terminal
-// observers, against the graph captured for this lifetime.
+// peerStateUnheldRoles judges the peer-fed set against the compiled delivery
+// graph and each claimant's registered ClaimSessionScope (S13, AC-19).
 func peerStateUnheldRoles(s *pluginserver.Server, peer *plugin.PeerInfo, fed []*process.Process, graph *pluginserver.DeliveryGraph) []string {
 	return s.UnheldRoles(fed, func(role string, proc *process.Process) bool {
-		// A replay claimant must be able to emit retained UPDATEs, not merely
-		// observe state. Other roles retain their existing delivery semantics.
-		return role != "bgp-peer-up-replay" || graph.MaySend(peer.AddrStr(), proc.Name(), bgpevents.SendUpdate)
+		// A replay claimant must be permitted to send bgp:update to this peer
+		// AND this peer must satisfy the claimant's registered session scope
+		// (e.g. rs-client for bgp-rs, ibgp for bgp-rr).
+		if role != "bgp-peer-up-replay" {
+			return true
+		}
+		if !graph.MaySend(peer.AddrStr(), proc.Name(), bgpevents.SendUpdate) {
+			return false
+		}
+		regName := proc.RegistrationName()
+		if regName == "" {
+			regName = proc.Name()
+		}
+		return peerMatchesClaimScope(peer, registry.ClaimSessionScopeFor(regName))
 	})
 }
 
-// addOpenRemovalObservers closes the lifetime opened by askOpenValidators:
-// every registered validator receives OPENs even without a peer attachment,
-// so its state subscription also receives the peer's removal. No other state
-// or message gains a grant, and subscription peer selectors still apply. A
-// validator with no matching state subscription gains nothing.
-//
-// A validator is a subscribed process whose own registration declares
-// WantsValidateOpen, the test askOpenValidators applies to each process it
-// asks. Reading each subscriber's registration keeps this path off the
-// process manager's lock: a removal captures its recipients under the
-// reactor's write lock (CapturePeerStateChange), and ProcessManager.Respawn
-// holds the manager's lock across the join of a process whose handler can be
-// waiting on that reactor lock, so listing the manager's processes here
-// stalled every reactor user until the join gave up, and recorded a false
-// restart overlap.
-func addOpenRemovalObservers(s *pluginserver.Server, peer *plugin.PeerInfo, procs []*process.Process) []*process.Process {
-	// No process manager means the plugin phase never ran, so
-	// broadcastStampedValidateOpen asked no validator any OPEN.
-	if s.ProcessManager() == nil {
-		return procs
+func peerMatchesClaimScope(peer *plugin.PeerInfo, scope []rpc.FilterSessionFact) bool {
+	if len(scope) == 0 {
+		return true
 	}
-	subscribers := s.SubscribedProcs(bgpNS(), events.LookupEventTypeID(bgpevents.EventState),
-		events.DirUnspecified, peer.AddrStr(), peer.Name)
-	extra := subscribers[:0]
-	for _, proc := range subscribers {
-		reg := proc.Registration()
-		if reg == nil {
-			continue
+	for _, fact := range scope {
+		val, known := peerSessionFactValue(peer, fact.Fact)
+		if !known {
+			return false
 		}
-		if !reg.WantsValidateOpen {
-			continue
-		}
-		if !slices.Contains(procs, proc) {
-			extra = append(extra, proc)
+		if len(fact.Values) > 0 && !slices.Contains(fact.Values, val) {
+			return false
 		}
 	}
-	// deliverPeerState sorts procs. Keep fed's original backing array intact
-	// when extending it, so an observer cannot replace a peer-fed claimant.
-	return append(slices.Clip(procs), extra...)
+	return true
+}
+
+func peerSessionFactValue(peer *plugin.PeerInfo, fact string) (string, bool) {
+	if peer == nil {
+		return "", false
+	}
+	switch fact {
+	case "rs-client":
+		if peer.RSClient {
+			return "true", true
+		}
+		return "false", true
+	case "session-type":
+		if peer.IsIBGP {
+			return "ibgp", true
+		}
+		return "ebgp", true
+	case "route-reflector-client":
+		if peer.RouteReflectorClient {
+			return "true", true
+		}
+		return "false", true
+	case "ibgp":
+		if peer.IsIBGP {
+			return "true", true
+		}
+		return "false", true
+	default:
+		return "", false
+	}
 }
 
 // deliverPeerState delivers one peer state event to procs, sequentially and in
@@ -972,19 +992,14 @@ func deliverPeerState(s *pluginserver.Server, peer *plugin.PeerInfo, procs []*pr
 }
 
 // onPeerUnbound tells the named processes that a live peer no longer feeds
-// them. A reload removed a receive-only binding from the peer's settings, or
-// changed its grant (peer_derived_bindings.go in the reactor), and the
-// republished delivery graph already omits the edge, so PeerScopedProcs cannot find them and they are
-// looked up by name. Only a process that subscribed to state events is told.
-//
-// The CLI monitors are not told: the peer is still up, and a monitor watches the
-// peer rather than one consumer's view of it.
+// them. Delivery is evaluated through PeerScopedProcsNamed against the compiled
+// bus filter so no lifecycle delivery bypasses a participant's bus block (AC-39).
 func onPeerUnbound(s *pluginserver.Server, peer *plugin.PeerInfo, state rpc.SessionState, reason string, names []string) {
 	if s.Context().Err() != nil {
 		return
 	}
 	stateETID := events.LookupEventTypeID(bgpevents.EventState)
-	procs := s.SubscribedProcsNamed(bgpNS(), stateETID, events.DirUnspecified, peer.AddrStr(), peer.Name, names)
+	procs := s.PeerScopedProcsUnbind(bgpNS(), stateETID, events.DirUnspecified, peer.AddrStr(), peer.Name, names)
 	if len(procs) == 0 {
 		return
 	}
@@ -994,26 +1009,9 @@ func onPeerUnbound(s *pluginserver.Server, peer *plugin.PeerInfo, state rpc.Sess
 }
 
 // onPeerBound tells the named processes that a live peer, already up, now
-// feeds them. A reload attached them to the running session
-// (Peer.applyHotSwappableSettings in the reactor), and the delivery graph does
-// not carry their edges yet: the reactor publishes the edges only after this
-// returns, so every process has acknowledged its up before the first message of
-// the session can reach it. They are therefore looked up by name, like
-// onPeerUnbound's.
-//
-// The up carries reason rpc.ReasonAttached and whatever InitialReplay the caller
-// put in peer, which the reactor sets to 0 for legacy observers. An eligible
-// ordinary destination gets its captured DestinationSession as the replay
-// receipt, so it can send a current selected snapshot. It arms no peer-up barrier. The claimed roles
-// on it are judged over every process the peer feeds once the edges land, the
-// graph's state subscribers and the named ones together.
-//
-// stateNames are the processes whose binding grants the state event, and
-// negotiatedNames those whose binding grants the negotiated event. The
-// negotiated event follows the up, to its own list, and is skipped when neg is
-// nil. Both deliveries wait for every result before returning. The CLI monitors
-// are not told, for onPeerUnbound's reason: a monitor watches the peer, and the
-// peer did not change state.
+// feeds them. Both state and negotiated deliveries pass through
+// PeerScopedProcsBind so no lifecycle delivery bypasses the endpoint's compiled
+// bus filter (AC-39, S32) while the peer's new send block is staged pre-publish.
 func onPeerBound(s *pluginserver.Server, encoder *format.JSONEncoder, peer *plugin.PeerInfo, neg any, stateNames, negotiatedNames []string) {
 	if s.Context().Err() != nil {
 		return
@@ -1021,7 +1019,7 @@ func onPeerBound(s *pluginserver.Server, encoder *format.JSONEncoder, peer *plug
 	peerAddr := peer.AddrStr()
 	if len(stateNames) > 0 {
 		stateETID := events.LookupEventTypeID(bgpevents.EventState)
-		procs := s.SubscribedProcsNamed(bgpNS(), stateETID, events.DirUnspecified, peerAddr, peer.Name, stateNames)
+		procs := s.PeerScopedProcsBind(bgpNS(), stateETID, events.DirUnspecified, peerAddr, peer.Name, stateNames)
 		if len(procs) > 0 {
 			fed := peerBoundFedSet(s.PeerScopedProcs(bgpNS(), stateETID, events.DirUnspecified, peerAddr, peer.Name), procs)
 			var fmtCache formatCache
@@ -1042,7 +1040,7 @@ func onPeerBound(s *pluginserver.Server, encoder *format.JSONEncoder, peer *plug
 		return
 	}
 	negETID := events.LookupEventTypeID(bgpevents.EventNegotiated)
-	procs := s.SubscribedProcsNamed(bgpNS(), negETID, events.DirUnspecified, peerAddr, peer.Name, negotiatedNames)
+	procs := s.PeerScopedProcsBind(bgpNS(), negETID, events.DirUnspecified, peerAddr, peer.Name, negotiatedNames)
 	if len(procs) == 0 {
 		return
 	}

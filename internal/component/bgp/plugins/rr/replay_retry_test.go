@@ -14,6 +14,7 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/require"
+
 	"github.com/ze-software/ze/internal/component/bgp/format"
 	"github.com/ze-software/ze/internal/component/bgp/retention"
 	"github.com/ze-software/ze/internal/component/plugin"
@@ -288,9 +289,9 @@ func TestRRRegisteredCleanupKeepsUnknownOriginalScoped(t *testing.T) {
 				ctx, cancel := context.WithTimeout(t.Context(), 10*time.Second)
 				defer cancel()
 				engine := pluginengine.Start(t, transport, runRouteReflectorCallbacks)
-				source := plugin.PeerInfo{Address: netip.MustParseAddr("192.0.2.1"), PeerOwner: 701, ConnectionID: 41, SessionGeneration: 1041, DestinationSession: 141, PeerAS: rpc.RemoteASOf(65001)}
-				target := plugin.PeerInfo{Address: netip.MustParseAddr("192.0.2.2"), PeerOwner: 702, ConnectionID: 42, SessionGeneration: 1042, DestinationSession: 142, PeerAS: rpc.RemoteASOf(65002)}
-				useful := plugin.PeerInfo{Address: netip.MustParseAddr("192.0.2.3"), PeerOwner: 703, ConnectionID: 43, SessionGeneration: 1043, DestinationSession: 143, PeerAS: rpc.RemoteASOf(65003)}
+				source := plugin.PeerInfo{Address: netip.MustParseAddr("192.0.2.1"), PeerOwner: 701, ConnectionID: 41, SessionGeneration: 1041, DestinationSession: 141, PeerAS: rpc.RemoteASOf(65001), IsIBGP: true, RouteReflectorClient: true}
+				target := plugin.PeerInfo{Address: netip.MustParseAddr("192.0.2.2"), PeerOwner: 702, ConnectionID: 42, SessionGeneration: 1042, DestinationSession: 142, PeerAS: rpc.RemoteASOf(65002), IsIBGP: true, RouteReflectorClient: true}
+				useful := plugin.PeerInfo{Address: netip.MustParseAddr("192.0.2.3"), PeerOwner: 703, ConnectionID: 43, SessionGeneration: 1043, DestinationSession: 143, PeerAS: rpc.RemoteASOf(65003), IsIBGP: true, RouteReflectorClient: true}
 				receipt := engine.IssueSource(source.Address.String(), 701)
 				survivor := engine.IssueSource(useful.Address.String(), 703)
 				var mu sync.Mutex
@@ -415,8 +416,8 @@ func TestRRReplayDoctorKeepsCurrentScopes(t *testing.T) {
 	original := rrOriginalFixture(t, "192.0.2.2", 702, 42)
 	healthy := rrOriginalFixture(t, "192.0.2.3", 703, 43)
 	rr := &routeReflector{plugin: plugin, peers: map[peerIdentity]*peerState{
-		original: {Identity: original, Up: true, DestinationSession: 142, ReplayGen: 1},
-		healthy:  {Identity: healthy, Up: true, DestinationSession: 143, ReplayGen: 1},
+		original: {Identity: original, Up: true, Internal: true, RRClient: true, DestinationSession: 142, ReplayGen: 1},
+		healthy:  {Identity: healthy, Up: true, Internal: true, RRClient: true, DestinationSession: 143, ReplayGen: 1},
 	}}
 	target := peerTarget{identity: original, session: 142, generation: 1}
 	ctx, cancel := context.WithTimeout(t.Context(), time.Second)
@@ -486,6 +487,6 @@ func TestRRHeldReadinessKeepsItsOriginalActor(t *testing.T) {
 	role.mu.RUnlock()
 	require.ErrorContains(t, debt, "original ready writer completion unknown")
 	useful := rrOriginalFixture(t, "192.0.2.252", 174, 204)
-	require.NoError(t, role.handleStructuredState(&rpc.StructuredEvent{PeerAddress: "192.0.2.252", PeerOwner: 174, ConnectionID: 204, SessionGeneration: 1204, DestinationSession: 304, State: rpc.SessionStateUp, Reason: rpc.ReasonAttached}))
+	require.NoError(t, role.handleStructuredState(&rpc.StructuredEvent{PeerAddress: "192.0.2.252", PeerOwner: 174, ConnectionID: 204, SessionGeneration: 1204, DestinationSession: 304, State: rpc.SessionStateUp, Reason: rpc.ReasonAttached, IsIBGP: true, RouteReflectorClient: true}))
 	require.True(t, role.peers[useful].Up, "unrelated accepted state is not poisoned by the original output obligation")
 }

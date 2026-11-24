@@ -54,10 +54,9 @@ func deliveriesTo(steps []string, name string) []string {
 }
 
 // TestOnPeerBoundTargetsNamedProcesses proves the targeted up of the ordered
-// bind delivery: the named process, absent from the graph, is told the peer is
-// up with reason attached, then the negotiated event when granted it; a
-// process the graph feeds this peer is told nothing (AC-8, "no other process
-// receives either").
+// bind delivery: the named process, admitted by the compiled bus filter, is
+// told the peer is up with reason attached, then the negotiated event when
+// granted it; another admitted process the bind did not name is told nothing.
 func TestOnPeerBoundTargetsNamedProcesses(t *testing.T) {
 	srv, rec := newBarrierTestServer(t)
 
@@ -71,7 +70,7 @@ func TestOnPeerBoundTargetsNamedProcesses(t *testing.T) {
 	subscribeNegotiated(srv, bystander)
 	go payloadResponder(t.Context(), bystanderConn, rec, "bystander")
 
-	attachForDelivery(t, srv, testPeerInfo(), "bystander")
+	attachForDelivery(t, srv, testPeerInfo(), "monitor", "bystander")
 
 	onPeerBound(srv, format.NewJSONEncoder("6.0.0"), testPeerInfo(), format.DecodedNegotiated{}, []string{"monitor"}, []string{"monitor"})
 
@@ -102,6 +101,7 @@ func TestPeerBoundCarriesNoReplayOrBarrier(t *testing.T) {
 	proc, conn := newTestProcWithConn(t, barrierName)
 	subscribeState(srv, proc)
 	go payloadResponder(t.Context(), conn, rec, barrierName)
+	attachForDelivery(t, srv, testPeerInfo(), barrierName)
 
 	onPeerBound(srv, format.NewJSONEncoder("6.0.0"), testPeerInfo(), nil, []string{barrierName}, nil)
 

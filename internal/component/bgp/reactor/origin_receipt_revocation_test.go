@@ -4,9 +4,7 @@ package reactor
 
 import (
 	"context"
-	"maps"
 	"net/netip"
-	"slices"
 	"sync"
 	"sync/atomic"
 	"testing"
@@ -18,6 +16,7 @@ import (
 	"github.com/ze-software/ze/internal/component/bgp/filterapi"
 	bgptypes "github.com/ze-software/ze/internal/component/bgp/types"
 	"github.com/ze-software/ze/internal/component/plugin"
+	pluginserver "github.com/ze-software/ze/internal/component/plugin/server"
 	"github.com/ze-software/ze/internal/core/bgp/nlri"
 	"github.com/ze-software/ze/internal/core/selector"
 )
@@ -67,6 +66,21 @@ func (wait *originRevocationWaitContext) Done() <-chan struct{} {
 	return wait.Context.Done()
 }
 
+func originRevocationPublishGraph(t *testing.T, writer *selectedWriterFixture) {
+	t.Helper()
+	writer.api.r.mu.RLock()
+	settings := make([]*PeerSettings, 0, len(writer.api.r.peers))
+	for _, p := range writer.api.r.peers {
+		settings = append(settings, p.settingsSnapshot())
+	}
+	writer.api.r.mu.RUnlock()
+	peers := append([]pluginserver.DeliveryPeer{
+		testDeliveryPeer("192.0.2.79", "", testBusSourceLease(selectedWriterProcess)),
+	}, deliveryPeersFromSettings(settings)...)
+	endpoints := buildTestEndpointInputsForPeers(peers, writer.api.r.api, nil)
+	require.NoError(t, writer.api.r.api.UpdateDeliveryGraphWithEndpoints("bgp", peers, endpoints))
+}
+
 // originRevocationScope supplies a distinct original Peer and an actual
 // Established recording Session using the same concrete declaration resolver.
 func originRevocationScope(t *testing.T, writer *selectedWriterFixture, address string, token uint64) (*Peer, *recordingConn) {
@@ -74,7 +88,7 @@ func originRevocationScope(t *testing.T, writer *selectedWriterFixture, address 
 	peer, conn := newGroupUpdatesPeer(t, address, "absent")
 	peer.settings.LocalAddress = writer.peer.settings.LocalAddress
 	peer.settings.ExportPolicy = writer.peer.settings.ExportPolicy
-	peer.settings.ProcessBindings = writer.peer.settings.ProcessBindings
+	peer.settings.Bus = writer.peer.settings.Bus.Clone()
 	peer.sendCtx.Store(writer.peer.sendCtx.Load())
 	peer.sendCtxID = writer.peer.sendCtxID
 	peer.session.sendCtxID = writer.peer.session.sendCtxID
@@ -86,6 +100,7 @@ func originRevocationScope(t *testing.T, writer *selectedWriterFixture, address 
 	writer.api.r.mu.Lock()
 	writer.api.r.peers[peer.Settings().PeerKey()] = peer
 	writer.api.r.mu.Unlock()
+	originRevocationPublishGraph(t, writer)
 	writer.api.r.fwdPool.registerOutgoingPool(fwdKey{peerAddr: peer.Settings().PeerKey()}, 4096)
 	peer.refreshForwardFacts()
 	require.NotNil(t, peer.selectedOwnerSnapshot())
@@ -176,7 +191,7 @@ func TestOriginIssuerRevocationFencesPreflightedIssue(t *testing.T) {
 			require.NoError(t, err)
 			producer, err := newProcessOriginProducer(owner)
 			require.NoError(t, err)
-			originalBindings := writer.peer.settings.ProcessBindings
+			originalBus := writer.peer.settings.Bus.Clone()
 			originalSnapshot := writer.peer.selectedOwnerSnapshot()
 			id, err := store.issue(work, producer, source, value, writer.peer, owner)
 			require.NoError(t, err)
@@ -214,12 +229,10 @@ func TestOriginIssuerRevocationFencesPreflightedIssue(t *testing.T) {
 			if test.removePeer {
 				writer.peer.stopping.Store(true)
 			} else {
-				removed := slices.Clone(originalBindings)
-				for i := range removed {
-					removed[i].Send = maps.Clone(removed[i].Send)
-					delete(removed[i].Send, "update")
-				}
-				writer.peer.writeBindings(writer.api.r, removed)
+				removed := originalBus.Clone()
+				removed.Receive = plugin.BusDirectionBlock{AllowPresent: true, AllowNone: true}
+				writer.peer.writeBus(writer.api.r, removed)
+				originRevocationPublishGraph(t, writer)
 			}
 			require.Same(t, originalSnapshot, writer.peer.selectedOwnerSnapshot(), "the preflight publication itself did not change")
 			revoke := func(ctx context.Context) error {
@@ -266,7 +279,8 @@ func TestOriginIssuerRevocationFencesPreflightedIssue(t *testing.T) {
 
 			var fresh uint64
 			if test.regrantBeforeResume {
-				writer.peer.writeBindings(writer.api.r, originalBindings)
+				writer.peer.writeBus(writer.api.r, originalBus)
+				originRevocationPublishGraph(t, writer)
 				fresh, err = store.issue(work, producer, source, value, writer.peer, owner)
 				require.NoError(t, err)
 			}
@@ -292,7 +306,8 @@ func TestOriginIssuerRevocationFencesPreflightedIssue(t *testing.T) {
 				write.complete()
 				originRevocationAssertScope(t, store, writer.peer, 0)
 			} else {
-				writer.peer.writeBindings(writer.api.r, originalBindings)
+				writer.peer.writeBus(writer.api.r, originalBus)
+				originRevocationPublishGraph(t, writer)
 				if fresh == 0 {
 					fresh, err = store.issue(work, producer, source, value, writer.peer, owner)
 					require.NoError(t, err)

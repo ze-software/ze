@@ -17,7 +17,6 @@ import (
 	"github.com/ze-software/ze/internal/component/plugin/registry"
 	bgpctx "github.com/ze-software/ze/internal/core/bgp/context"
 	bgpevents "github.com/ze-software/ze/internal/core/bgp/events"
-	"github.com/ze-software/ze/internal/core/events"
 	"github.com/ze-software/ze/internal/core/selector"
 	"github.com/ze-software/ze/pkg/plugin/rpc"
 )
@@ -591,13 +590,7 @@ func TestEstablishedIsPublishedBehindTheReplayFence(t *testing.T) {
 	}))
 
 	r, src, dst, conn, ctxID := newSyncOrderRail(t)
-	dst.mu.Lock()
-	dst.settings.ProcessBindings = []ProcessBinding{{
-		PluginName: rsFenceFixture,
-		Send:       map[string]bool{bgpevents.SendUpdate: true},
-		Receive:    map[string]events.Direction{bgpevents.EventState: events.DirReceived},
-	}}
-	dst.mu.Unlock()
+	setTestPeerBus(t, dst, testBusBoth(rsFenceFixture, []string{bgpevents.EventState}, []string{bgpevents.SendUpdate}))
 	dst.refreshForwardFacts()
 	dst.state.Store(int32(PeerStateConnecting))
 	dst.testInitialSync().sendingInitialRoutes.Store(0)
@@ -659,13 +652,7 @@ func TestRSFastPathHandsBackAnUpdateOlderThanTheSession(t *testing.T) {
 	}))
 
 	r, src, dst, _, ctxID := newSyncOrderRail(t)
-	dst.mu.Lock()
-	dst.settings.ProcessBindings = []ProcessBinding{{
-		PluginName: rsFenceFixture,
-		Send:       map[string]bool{bgpevents.SendUpdate: true},
-		Receive:    map[string]events.Direction{bgpevents.EventState: events.DirReceived},
-	}}
-	dst.mu.Unlock()
+	setTestPeerBus(t, dst, testBusBoth(rsFenceFixture, []string{bgpevents.EventState}, []string{bgpevents.SendUpdate}))
 	dst.refreshForwardFacts()
 	dst.state.Store(int32(PeerStateConnecting))
 	dst.testInitialSync().sendingInitialRoutes.Store(0)
@@ -718,13 +705,7 @@ func TestRSFastPathHandsBackADestinationNotYetEstablished(t *testing.T) {
 	}))
 
 	r, src, dst, _, ctxID := newSyncOrderRail(t)
-	dst.mu.Lock()
-	dst.settings.ProcessBindings = []ProcessBinding{{
-		PluginName: rsFenceFixture,
-		Send:       map[string]bool{bgpevents.SendUpdate: true},
-		Receive:    map[string]events.Direction{bgpevents.EventState: events.DirReceived},
-	}}
-	dst.mu.Unlock()
+	setTestPeerBus(t, dst, testBusBoth(rsFenceFixture, []string{bgpevents.EventState}, []string{bgpevents.SendUpdate}))
 	dst.refreshForwardFacts()
 	dst.state.Store(int32(PeerStateConnecting))
 	dst.testInitialSync().sendingInitialRoutes.Store(0)

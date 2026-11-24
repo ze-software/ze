@@ -4,8 +4,10 @@ package reactor
 
 import (
 	"errors"
+	"slices"
 
 	"github.com/ze-software/ze/internal/component/plugin"
+	bgpevents "github.com/ze-software/ze/internal/core/bgp/events"
 	"github.com/ze-software/ze/internal/core/events"
 )
 
@@ -73,30 +75,22 @@ func (store *sourceReceiptStore) beginLive(id uint64, owner plugin.SelectedOwner
 	return write, nil
 }
 
-// liveSourceReceiveGranted reads the same exact configured UPDATE receive word
-// as event delivery. The caller MUST hold peer.mu; the authenticated Sender was
-// captured from the actual Process before this call. No alias grants authority.
+// liveSourceReceiveGranted reads the same compiled delivery graph UPDATE
+// receive edge as event delivery. The caller MUST hold peer.mu; the
+// authenticated Sender was captured from the actual Process before this call.
+// No alias grants authority.
 func liveSourceReceiveGranted(peer *Peer, sender plugin.Sender) bool {
 	name, named := sender.Process()
 	if !named {
 		return false
 	}
-	for _, binding := range peer.settings.ProcessBindings {
-		if binding.PluginName != name {
-			continue
-		}
-		if binding.ReceiveAll {
-			return true
-		}
-		direction := binding.Receive["update"]
-		if direction == events.DirReceived {
-			return true
-		}
-		if direction == events.DirBoth {
-			return true
-		}
+	g := peer.reactor.DeliveryGraph()
+	if g == nil {
+		return false
 	}
-	return false
+	bgpNS := events.LookupNamespaceID(bgpevents.Namespace)
+	updateET := events.LookupEventTypeID(bgpevents.EventUpdate)
+	return slices.Contains(g.Receivers(bgpNS, updateET, events.DirReceived, peer.addrString), name)
 }
 
 // invalidateLivePeer cancels only currently referenced original sessions whose

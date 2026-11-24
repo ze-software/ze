@@ -11,6 +11,7 @@ import (
 	"io"
 	"net"
 	"net/netip"
+	"strings"
 	"sync"
 	"sync/atomic"
 	"testing"
@@ -517,10 +518,11 @@ func extendedRecoveryPeersWithGate(t *testing.T, alternate bool, handler func(fw
 			{"bgp-rs", "update state open-received refresh"},
 			{"bgp-adj-rib-in", "update-received state"},
 		} {
-			attachment := ProcessBinding{PluginName: binding.name, Explicit: true}
-			require.NoError(t, parseReceiveFlags(binding.receive, &attachment))
-			require.NoError(t, parseSendFlags("update", &attachment))
-			s.ProcessBindings = append(s.ProcessBindings, attachment)
+			addTestPeerBusGrant(s, testPeerEndpointGrant{
+				Name:    binding.name,
+				Receive: strings.Fields(binding.receive),
+				Send:    []string{"update"},
+			})
 		}
 		require.NoError(t, r.AddPeer(s))
 	}

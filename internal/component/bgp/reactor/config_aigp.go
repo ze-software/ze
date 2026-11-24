@@ -50,6 +50,15 @@ func applyAIGPSettings(ps *PeerSettings, name string, session map[string]any) er
 		}
 		ps.AIGPDomainAS = append(ps.AIGPDomainAS, value)
 	}
+	// YANG default expansion materializes container aigp with originate=false
+	// even when the operator wrote no aigp block. Only an explicit non-default
+	// AIGP setting (enabled true, originate true, link-metric, or domain-as)
+	// without explicit enabled=false activates the AIGP bus requirement (AC-15).
+	explicitEnabled := ps.AIGPSession != nil && *ps.AIGPSession
+	explicitDisabled := ps.AIGPSession != nil && !*ps.AIGPSession
+	if !explicitDisabled && (explicitEnabled || ps.AIGPOriginate || ps.AIGPLinkMetric != 0 || len(ps.AIGPDomainAS) > 0) {
+		ps.AIGPConfigured = true
+	}
 	return nil
 }
 

@@ -5,11 +5,12 @@ package rs
 import (
 	"context"
 	"errors"
+	"slices"
+	"strings"
+
 	"github.com/ze-software/ze/internal/core/family"
 	"github.com/ze-software/ze/internal/core/textbuf"
 	"github.com/ze-software/ze/pkg/plugin/rpc"
-	"slices"
-	"strings"
 )
 
 type forwardBatch struct {
@@ -24,6 +25,9 @@ type forwardBatch struct {
 // A named sibling sharing the source address remains a separate recipient.
 func (rs *routeServer) selectForwardTargets(buf []rpc.ForwardTarget, source workerKey, msgID uint64, families map[family.Family]bool) []rpc.ForwardTarget {
 	buf = buf[:0]
+	if rs.peers[source].nonRSClient() {
+		return buf
+	}
 	for key, peer := range rs.peers {
 		if key.owner == source.owner {
 			continue
@@ -135,6 +139,9 @@ func (rs *routeServer) fastPathOwedTarget(target rpc.ForwardTarget, source worke
 		if !peer.Up {
 			return false
 		}
+		if !peer.RSClient {
+			return false
+		}
 		if msgID != 0 {
 			if msgID <= peer.ForwardFrom {
 				return false
@@ -156,6 +163,12 @@ func (rs *routeServer) fastPathOwedTarget(target rpc.ForwardTarget, source worke
 func (rs *routeServer) batchForwardUpdateSkipped(key workerKey, sourcePeer string, msgID uint64, families map[family.Family]bool, skipped []rpc.ForwardTarget) {
 	batch := rs.workerBatch(key)
 	rs.mu.RLock()
+	if rs.peers[key].nonRSClient() {
+		batch.targetBuf = batch.targetBuf[:0]
+		rs.mu.RUnlock()
+		rs.accumulateForward(batch, msgID, nil)
+		return
+	}
 	targets := batch.targetBuf[:0]
 	for _, target := range skipped {
 		if rs.fastPathOwedTarget(target, key, msgID, families) {

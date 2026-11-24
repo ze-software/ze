@@ -10,12 +10,14 @@ package watchdog
 
 import (
 	"context"
+	"encoding/json"
 	"log/slog"
 	"net"
 	"strconv"
 	"strings"
 	"sync/atomic"
 
+	"github.com/ze-software/ze/internal/core/events"
 	"github.com/ze-software/ze/internal/core/metrics"
 	"github.com/ze-software/ze/internal/core/slogutil"
 	"github.com/ze-software/ze/internal/core/textbuf"
@@ -116,17 +118,10 @@ func runWatchdogPlugin(conn net.Conn) int {
 		return nil
 	})
 
-	// Fallback: handle text events for non-DirectBridge delivery (external plugins).
+	// Handle bus:participant-exit lifecycle events (both DirectBridge and
+	// external transport) and text bgp:state events (external fallback).
 	p.OnEvent(func(eventStr string) error {
-		peerAddr, state, reason, initialReplay := parseStateEvent(eventStr)
-		if peerAddr == "" {
-			return nil // Not a state event we care about
-		}
-		if state == "up" {
-			srv.handlePeerUp(peerAddr, reason, initialReplay)
-		} else {
-			srv.handleStateDown(peerAddr)
-		}
+		srv.handleBusEvent(eventStr)
 		return nil
 	})
 
@@ -150,6 +145,53 @@ func runWatchdogPlugin(conn net.Conn) int {
 		return 1
 	}
 	return 0
+}
+
+// handleBusEvent dispatches one event delivered to OnEvent: either a
+// bus:participant-exit JSON notification (DirectBridge and external transport)
+// or a text bgp:state event (external transport fallback).
+func (s *watchdogServer) handleBusEvent(eventStr string) {
+	if endpoint, ok := parseParticipantExitEvent(eventStr); ok {
+		s.handleParticipantExit(endpoint)
+		return
+	}
+	peerAddr, state, reason, initialReplay := parseStateEvent(eventStr)
+	if peerAddr == "" {
+		return
+	}
+	if state == "up" {
+		s.handlePeerUp(peerAddr, reason, initialReplay)
+	} else {
+		s.handleStateDown(peerAddr)
+	}
+}
+
+// parseParticipantExitEvent extracts the exited endpoint name from a
+// bus:participant-exit JSON event (bare payload or wrapped in EventEnvelope).
+func parseParticipantExitEvent(raw string) (string, bool) {
+	trimmed := strings.TrimSpace(raw)
+	if len(trimmed) == 0 {
+		return "", false
+	}
+	if trimmed[0] != '{' {
+		return "", false
+	}
+	var exit events.ParticipantExitEvent
+	if err := json.Unmarshal([]byte(trimmed), &exit); err == nil {
+		if exit.Type == events.MessageParticipantExit && exit.Endpoint != "" {
+			return exit.Endpoint, true
+		}
+	}
+	var env rpc.EventEnvelope
+	if err := json.Unmarshal([]byte(trimmed), &env); err == nil {
+		if env.Namespace == events.NamespaceBus && env.Event == events.EventParticipantExit {
+			var inner events.ParticipantExitEvent
+			if err := json.Unmarshal(env.Payload, &inner); err == nil && inner.Endpoint != "" {
+				return inner.Endpoint, true
+			}
+		}
+	}
+	return "", false
 }
 
 // parseStateEvent extracts peer address, state, reason and replay token from a text state event.

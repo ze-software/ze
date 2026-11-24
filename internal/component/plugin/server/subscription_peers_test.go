@@ -38,8 +38,10 @@ func TestSubscriptionPeerSelectorsDelivery(t *testing.T) {
 			s := newSubscriptionServer()
 			proc, batches := newDeliveryProbe(t, "selector-probe")
 			subscriptionPeerCleanup(t, proc)
-			peers := subscriptionPeerGrants(proc.Name())
-			s.UpdateDeliveryGraph(graphNS, peers)
+			peers, eps := subscriptionPeerGrants(proc.Name())
+			if err := s.UpdateDeliveryGraphWithEndpoints(graphNS, peers, eps); err != nil {
+				t.Fatalf("update delivery graph: %v", err)
+			}
 			s.registerSubscriptions(proc, &rpc.SubscribeEventsInput{
 				Namespace: graphNS,
 				Events:    tc.events,
@@ -109,8 +111,10 @@ func TestSubscriptionPeerSelectorMatching(t *testing.T) {
 			})
 			// Exercise declaration-before-graph as well as the reverse order
 			// used by the wire test: both are real startup sequences.
-			peers := subscriptionPeerGrants(proc.Name())
-			s.UpdateDeliveryGraph(graphNS, peers)
+			peers, eps := subscriptionPeerGrants(proc.Name())
+			if err := s.UpdateDeliveryGraphWithEndpoints(graphNS, peers, eps); err != nil {
+				t.Fatalf("update delivery graph: %v", err)
+			}
 			for i, peer := range peers {
 				got := s.PeerScopedProcs(ns, update, events.DirReceived, peer.Addr, peer.Name)
 				if !tc.want[i] {
@@ -143,7 +147,10 @@ func TestSubscriptionPeerSelectorsRuntime(t *testing.T) {
 	s := newSubscriptionServer()
 	proc, batches := newDeliveryProbe(t, "runtime-selector-probe")
 	subscriptionPeerCleanup(t, proc)
-	s.UpdateDeliveryGraph(graphNS, subscriptionPeerGrants(proc.Name()))
+	peers, eps := subscriptionPeerGrants(proc.Name())
+	if err := s.UpdateDeliveryGraphWithEndpoints(graphNS, peers, eps); err != nil {
+		t.Fatalf("update delivery graph: %v", err)
+	}
 	params, err := json.Marshal(&rpc.SubscribeEventsInput{
 		Namespace: graphNS,
 		Events:    []string{"update direction received"},
@@ -192,7 +199,10 @@ func TestSubscriptionPeerSelectorsRejectedNamespace(t *testing.T) {
 	s := newSubscriptionServer()
 	proc, batches := newDeliveryProbe(t, "namespace-selector-probe")
 	subscriptionPeerCleanup(t, proc)
-	s.UpdateDeliveryGraph(graphNS, subscriptionPeerGrants(proc.Name()))
+	peers, eps := subscriptionPeerGrants(proc.Name())
+	if err := s.UpdateDeliveryGraphWithEndpoints(graphNS, peers, eps); err != nil {
+		t.Fatalf("update delivery graph: %v", err)
+	}
 	s.registerSubscriptions(proc, &rpc.SubscribeEventsInput{
 		Namespace: graphNS,
 		Events:    []string{"update direction received"},
@@ -229,24 +239,30 @@ func TestSubscriptionPeerSelectorsRejectedNamespace(t *testing.T) {
 }
 
 // subscriptionPeerGrants grants both UPDATE directions and received state to
-// three peers. The fourth has no receive grant, even when explicitly selected.
-func subscriptionPeerGrants(name string) []DeliveryPeer {
+// three peers. The fourth excludes delivery via send > to none.
+func subscriptionPeerGrants(name string) ([]DeliveryPeer, []BusParticipantInput) {
 	peers := []DeliveryPeer{
-		{Addr: "192.0.2.2", Name: "first"},
-		{Addr: "192.0.2.3", Name: "second"},
-		{Addr: "192.0.2.4", Name: "third"},
-		{Addr: "192.0.2.5", Name: "ungranted"},
-	}
-	for i := range 3 {
-		peers[i].Bindings = []plugin.PeerProcessBinding{{
-			PluginName: name,
-			Receive: map[string]events.Direction{
-				graphUpdate: events.DirBoth,
-				graphState:  events.DirReceived,
+		{Addr: "192.0.2.2", Name: "first", Path: "/" + graphNS + "/entry/first"},
+		{Addr: "192.0.2.3", Name: "second", Path: "/" + graphNS + "/entry/second"},
+		{Addr: "192.0.2.4", Name: "third", Path: "/" + graphNS + "/entry/third"},
+		{
+			Addr: "192.0.2.5",
+			Name: "ungranted",
+			Path: "/" + graphNS + "/entry/ungranted",
+			Bus: plugin.BusBlock{
+				Send: plugin.BusDirectionBlock{TargetsPresent: true, TargetsNone: true},
 			},
-		}}
+		},
 	}
-	return peers
+	eps := []BusParticipantInput{{
+		Path:         plugin.EndpointPath(name),
+		EndpointName: name,
+		Receives: []rpc.MessageReceiveDecl{
+			{Message: graphMsg(graphUpdate), Tags: graphDirTag(events.DirectionReceived, events.DirectionSent)},
+			{Message: graphMsg(graphState), Tags: graphDirTag(events.DirectionReceived)},
+		},
+	}}
+	return peers, eps
 }
 
 func subscriptionPeerDelivery(t *testing.T, s *Server, batches <-chan []string, peer, event, direction, payload string, want bool) {

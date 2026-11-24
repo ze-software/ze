@@ -15,7 +15,6 @@ import (
 	"github.com/ze-software/ze/internal/component/bgp/filterapi"
 	"github.com/ze-software/ze/internal/component/bgp/message"
 	"github.com/ze-software/ze/internal/component/bgp/wireu"
-	routepolicy "github.com/ze-software/ze/internal/component/policy"
 	bgpctx "github.com/ze-software/ze/internal/core/bgp/context"
 	"github.com/ze-software/ze/internal/core/family"
 	"github.com/ze-software/ze/pkg/plugin/rpc"
@@ -272,7 +271,7 @@ func newFanoutHarnessWith(t testing.TB, n, g int, opts fanoutOpts) *fanoutHarnes
 			RouterID:   uint32(0x0A010000 + i), //nolint:gosec // fixture index
 			// The route server's send grant: the RS fast path reaches no
 			// destination without it, as the cached rail does not.
-			ProcessBindings: []ProcessBinding{rsRelaySendBinding()},
+			Bus: rsRelaySendBinding(),
 		}
 		if modify {
 			// The group's own next-hop. Identical within a group and distinct
@@ -335,6 +334,13 @@ func newFanoutHarnessWith(t testing.TB, n, g int, opts fanoutOpts) *fanoutHarnes
 		// failed change.
 		updateGroups:    newUpdateGroupIndex(opts.groups),
 		forwardDedupOff: opts.dedupOff,
+	}
+	for _, p := range peers {
+		p.reactor = r
+	}
+	publishTestBusGraph(t, r)
+	for _, p := range dests {
+		p.refreshForwardFacts()
 	}
 
 	if opts.withdraw {
@@ -641,8 +647,8 @@ func TestDifferentBaseSameEditSetNeverShares(t *testing.T) {
 	overridden := h.dests[0]
 	overridden.settings.ExportPolicy = answerPolicy(t, routepolicy.FinalAccept, "rewrite")
 	overridden.refreshForwardFacts()
-	require.Empty(t, h.dests[1].forwardFacts().exportPolicy.Filters(),
-		"the second destination must reach the chain with no filters, so its base stays the original")
+	require.False(t, h.dests[1].forwardFacts().exportChainActive,
+		"the second destination must stay on the static fast path with no active filter chain, so its base stays the original")
 
 	before := readFanoutCounters()
 	require.NoError(t, h.forward())

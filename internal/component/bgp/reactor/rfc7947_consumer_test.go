@@ -97,17 +97,18 @@ func TestRFC7947ClientPolicyControlsWire(t *testing.T) {
 	f := newAIGPReplayFixture(t, nil)
 	other, otherConn := newAnnouncePeer(t, "198.18.232.3")
 	other.settings.GlobalLocalAS = 65000
-	other.settings.ProcessBindings = f.destination.settings.ProcessBindings
+	other.settings.Bus = f.destination.settings.Bus.Clone()
 	other.sendCtx.Store(f.destination.sendCtx.Load())
 	other.sendCtxID, other.recvCtxID = f.ctxID, f.ctxID
 	other.negotiated.Store(f.destination.negotiated.Load())
 	other.session.sendCtxID = f.ctxID
 	other.session.negotiated = f.destination.session.negotiated
+	other.SetReactor(f.r)
 	f.r.peers[other.settings.PeerKey()] = other
+	publishTestBusGraph(t, f.r)
 	f.r.fwdPool.registerOutgoingPool(fwdKey{peerAddr: other.settings.PeerKey()}, 4096)
 	for _, p := range []*Peer{f.destination, other} {
 		p.settings.RSClient = true
-		p.settings.NextHopMode = NextHopUnchanged
 		p.settings.ExportPolicy = answerPolicy(t, routepolicy.FinalAccept, "client-policy")
 		p.refreshForwardFacts()
 	}

@@ -94,7 +94,7 @@ func TestOriginAcceptedOwnerEndPreservesOnlyAPIOriginal(t *testing.T) {
 	require.NoError(t, err)
 	api, err := store.issue(t.Context(), producer, local, value, f.peer, producer.owner)
 	require.NoError(t, err)
-	records, err := store.endOwner(t.Context(), producer.owner)
+	records, err := store.endOwnerWithPolicy(t.Context(), producer.owner, true)
 	require.NoError(t, err)
 	require.Len(t, records, 2)
 	require.NotContains(t, store.receipts, redistributed)

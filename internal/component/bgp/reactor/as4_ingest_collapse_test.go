@@ -539,7 +539,7 @@ func collapseDestPeer(t *testing.T, dest collapseDest, ctx *bgpctx.EncodingConte
 		RSClient:      dest.rsClient,
 		// The route server's send grant: the RS fast path reaches no
 		// destination without it, as the cached rail does not.
-		ProcessBindings: []ProcessBinding{rsRelaySendBinding()},
+		Bus: rsRelaySendBinding(),
 	})
 	peer.state.Store(int32(PeerStateEstablished))
 	peer.negotiated.Store(&NegotiatedCapabilities{
@@ -547,6 +547,7 @@ func collapseDestPeer(t *testing.T, dest collapseDest, ctx *bgpctx.EncodingConte
 	})
 	peer.sendCtx.Store(ctx)
 	peer.sendCtxID = ctxID
+	setTestPeerBus(t, peer, rsRelaySendBinding())
 	peer.refreshForwardFacts()
 	return peer
 }

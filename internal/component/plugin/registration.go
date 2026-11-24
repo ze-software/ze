@@ -7,6 +7,7 @@
 package plugin
 
 import (
+	"bytes"
 	"encoding/base64"
 	"encoding/hex"
 	"fmt"
@@ -16,6 +17,8 @@ import (
 	"time"
 
 	"github.com/ze-software/ze/internal/component/plugin/registry"
+	"github.com/ze-software/ze/internal/core/opererr"
+	"github.com/ze-software/ze/internal/core/textbuf"
 	"github.com/ze-software/ze/pkg/plugin/rpc"
 )
 
@@ -442,22 +445,57 @@ type InjectedCapability struct {
 	PeerAddr string // Empty = global (applies to all peers)
 }
 
+// capabilityOwners tracks the shared payload value and owning endpoints for one
+// capability code within a single scope (global or one selector).
+type capabilityOwners struct {
+	value  []byte
+	owners []string
+}
+
+func (o *capabilityOwners) addOwner(owner string) {
+	if slices.Contains(o.owners, owner) {
+		return
+	}
+	o.owners = append(o.owners, owner)
+}
+
+// removeOwner drops owner from the record and reports whether zero owners
+// remain.
+func (o *capabilityOwners) removeOwner(owner string) bool {
+	idx := slices.Index(o.owners, owner)
+	if idx < 0 {
+		return len(o.owners) == 0
+	}
+	o.owners = slices.Delete(o.owners, idx, idx+1)
+	return len(o.owners) == 0
+}
+
+func (o *capabilityOwners) firstOwner() string {
+	if len(o.owners) == 0 {
+		return ""
+	}
+	return o.owners[0]
+}
+
 // CapabilityInjector collects and manages plugin capabilities for OPEN messages.
-// Supports both global capabilities (all peers) and per-peer capabilities.
+// Supports both global capabilities and per-selector capabilities. Identical
+// (code, value) declarations from multiple endpoints share ownership and
+// deduplicate on the wire; differing values for the same code within one scope
+// are refused.
 type CapabilityInjector struct {
 	mu           sync.RWMutex
-	globalCaps   []InjectedCapability            // Capabilities for all peers
-	peerCaps     map[string][]InjectedCapability // peerAddr -> capabilities
-	globalByCode map[uint8]string                // code -> plugin name (global)
-	peerByCode   map[string]map[uint8]string     // peerAddr -> code -> plugin name
+	globalCaps   []InjectedCapability                   // Capabilities for all destinations
+	peerCaps     map[string][]InjectedCapability        // selector -> capabilities
+	globalByCode map[uint8]*capabilityOwners            // code -> shared value and owners (global)
+	peerByCode   map[string]map[uint8]*capabilityOwners // selector -> code -> shared value and owners
 }
 
 // NewCapabilityInjector creates a new capability injector.
 func NewCapabilityInjector() *CapabilityInjector {
 	return &CapabilityInjector{
-		globalByCode: make(map[uint8]string),
+		globalByCode: make(map[uint8]*capabilityOwners),
 		peerCaps:     make(map[string][]InjectedCapability),
-		peerByCode:   make(map[string]map[uint8]string),
+		peerByCode:   make(map[string]map[uint8]*capabilityOwners),
 	}
 }
 
@@ -551,12 +589,14 @@ func (ci *CapabilityInjector) replacementLocked(declarations map[string]*PluginC
 	return candidate, nil
 }
 
-// planLocked decodes caps and checks every code against the store. It returns
-// the entries to store, or the first conflict. The caller MUST hold ci.mu, or
+// planLocked decodes caps and checks every code against the store. Identical
+// (code, value) pairs share ownership with no conflict; differing values for
+// the same code within one scope are refused with an operator error naming both
+// endpoints, the code, both values, and the fix. The caller MUST hold ci.mu, or
 // own the private unpublished store.
 func (ci *CapabilityInjector) planLocked(caps *PluginCapabilities) ([]InjectedCapability, error) {
-	addedGlobals := make(map[uint8]string)
-	addedPeers := make(map[string]map[uint8]string)
+	addedGlobals := make(map[uint8][]byte)
+	addedTargets := make(map[string]map[uint8][]byte)
 	pending := make([]InjectedCapability, 0, len(caps.Capabilities))
 
 	for _, cap := range caps.Capabilities {
@@ -567,12 +607,24 @@ func (ci *CapabilityInjector) planLocked(caps *PluginCapabilities) ([]InjectedCa
 
 		if len(cap.Peers) == 0 {
 			if existing, ok := ci.globalByCode[cap.Code]; ok {
-				return nil, fmt.Errorf("capability conflict: code %d already registered by %s", cap.Code, existing)
+				if !bytes.Equal(existing.value, value) {
+					return nil, capabilityConflictError(
+						cap.Code, "", existing.firstOwner(), existing.value, caps.PluginName, value,
+					)
+				}
+				if slices.Contains(existing.owners, caps.PluginName) {
+					continue
+				}
 			}
-			if existing, ok := addedGlobals[cap.Code]; ok {
-				return nil, fmt.Errorf("capability conflict: code %d already registered by %s", cap.Code, existing)
+			if prev, ok := addedGlobals[cap.Code]; ok {
+				if !bytes.Equal(prev, value) {
+					return nil, capabilityConflictError(
+						cap.Code, "", caps.PluginName, prev, caps.PluginName, value,
+					)
+				}
+				continue
 			}
-			addedGlobals[cap.Code] = caps.PluginName
+			addedGlobals[cap.Code] = value
 			pending = append(pending, InjectedCapability{
 				Code:   cap.Code,
 				Value:  value,
@@ -581,26 +633,36 @@ func (ci *CapabilityInjector) planLocked(caps *PluginCapabilities) ([]InjectedCa
 			continue
 		}
 
-		for _, peerAddr := range cap.Peers {
-			if peerCodes := ci.peerByCode[peerAddr]; peerCodes != nil {
-				if existing, ok := peerCodes[cap.Code]; ok {
-					return nil, fmt.Errorf("capability conflict: code %d for peer %s already registered by %s",
-						cap.Code, peerAddr, existing)
+		for _, target := range cap.Peers {
+			if targetCodes := ci.peerByCode[target]; targetCodes != nil {
+				if existing, ok := targetCodes[cap.Code]; ok {
+					if !bytes.Equal(existing.value, value) {
+						return nil, capabilityConflictError(
+							cap.Code, target, existing.firstOwner(), existing.value, caps.PluginName, value,
+						)
+					}
+					if slices.Contains(existing.owners, caps.PluginName) {
+						continue
+					}
 				}
 			}
-			if addedPeers[peerAddr] == nil {
-				addedPeers[peerAddr] = make(map[uint8]string)
+			if addedTargets[target] == nil {
+				addedTargets[target] = make(map[uint8][]byte)
 			}
-			if existing, ok := addedPeers[peerAddr][cap.Code]; ok {
-				return nil, fmt.Errorf("capability conflict: code %d for peer %s already registered by %s",
-					cap.Code, peerAddr, existing)
+			if prev, ok := addedTargets[target][cap.Code]; ok {
+				if !bytes.Equal(prev, value) {
+					return nil, capabilityConflictError(
+						cap.Code, target, caps.PluginName, prev, caps.PluginName, value,
+					)
+				}
+				continue
 			}
-			addedPeers[peerAddr][cap.Code] = caps.PluginName
+			addedTargets[target][cap.Code] = value
 			pending = append(pending, InjectedCapability{
 				Code:     cap.Code,
 				Value:    value,
 				Plugin:   caps.PluginName,
-				PeerAddr: peerAddr,
+				PeerAddr: target,
 			})
 		}
 	}
@@ -608,19 +670,77 @@ func (ci *CapabilityInjector) planLocked(caps *PluginCapabilities) ([]InjectedCa
 	return pending, nil
 }
 
+// formatCapabilityValue renders a capability payload for conflict diagnostics:
+// lowercase hex when non-empty, or "empty" when zero-length.
+func formatCapabilityValue(value []byte) string {
+	if len(value) == 0 {
+		return "empty"
+	}
+	return textbuf.StringHex(value)
+}
+
+// capabilityConflictError builds an operator error when two declarations state
+// differing payload values for one capability code in the same scope.
+func capabilityConflictError(code uint8, scope, existingOwner string, existingValue []byte, candidateOwner string, candidateValue []byte) error {
+	existingHex := formatCapabilityValue(existingValue)
+	candidateHex := formatCapabilityValue(candidateValue)
+
+	var problem textbuf.Buffer
+	problem.Reset().Str("capability conflict: code ").Uint8(code)
+	if scope != "" {
+		problem.Str(" for peer ").Str(scope)
+	}
+	problem.Str(" already registered by ").Str(existingOwner).
+		Str(" (value ").Str(existingHex).Str("), conflicts with ").
+		Str(candidateOwner).Str(" (value ").Str(candidateHex).Byte(')')
+
+	var why textbuf.Buffer
+	why.Reset().Str("endpoints declared differing values for capability code ").Uint8(code)
+	if scope != "" {
+		why.Str(" on destination ").Str(scope)
+	}
+
+	var fix textbuf.Buffer
+	fix.Reset()
+	if existingOwner == candidateOwner {
+		fix.Str("declare one value for capability code ").Uint8(code).
+			Str(" on endpoint ").Str(candidateOwner)
+	} else {
+		fix.Str("align the capability declaration across endpoints ").
+			Str(existingOwner).Str(" and ").Str(candidateOwner).
+			Str(", or narrow their bus send > to lists so they do not target the same destination")
+	}
+
+	return opererr.New(problem.String(), why.String(), fix.String())
+}
+
 // storeLocked adds entries planLocked accepted. The caller holds ci.mu.
 func (ci *CapabilityInjector) storeLocked(pending []InjectedCapability) {
 	for _, cap := range pending {
 		if cap.PeerAddr == "" {
 			ci.globalCaps = append(ci.globalCaps, cap)
-			ci.globalByCode[cap.Code] = cap.Plugin
+			if rec, ok := ci.globalByCode[cap.Code]; ok {
+				rec.addOwner(cap.Plugin)
+			} else {
+				ci.globalByCode[cap.Code] = &capabilityOwners{
+					value:  cap.Value,
+					owners: []string{cap.Plugin},
+				}
+			}
 			continue
 		}
 		ci.peerCaps[cap.PeerAddr] = append(ci.peerCaps[cap.PeerAddr], cap)
 		if ci.peerByCode[cap.PeerAddr] == nil {
-			ci.peerByCode[cap.PeerAddr] = make(map[uint8]string)
+			ci.peerByCode[cap.PeerAddr] = make(map[uint8]*capabilityOwners)
 		}
-		ci.peerByCode[cap.PeerAddr][cap.Code] = cap.Plugin
+		if rec, ok := ci.peerByCode[cap.PeerAddr][cap.Code]; ok {
+			rec.addOwner(cap.Plugin)
+		} else {
+			ci.peerByCode[cap.PeerAddr][cap.Code] = &capabilityOwners{
+				value:  cap.Value,
+				owners: []string{cap.Plugin},
+			}
+		}
 	}
 }
 
@@ -631,36 +751,46 @@ func (ci *CapabilityInjector) RemovePluginCapabilities(pluginName string) {
 	ci.removeLocked(pluginName)
 }
 
-// removeLocked drops every entry pluginName owns. The caller holds ci.mu.
+// removeLocked drops every entry pluginName owns, deleting a code record only
+// when zero owners remain. The caller holds ci.mu.
 func (ci *CapabilityInjector) removeLocked(pluginName string) {
-
 	globalCaps := ci.globalCaps[:0]
 	for _, cap := range ci.globalCaps {
 		if cap.Plugin == pluginName {
-			delete(ci.globalByCode, cap.Code)
+			if rec := ci.globalByCode[cap.Code]; rec != nil {
+				if rec.removeOwner(pluginName) {
+					delete(ci.globalByCode, cap.Code)
+				}
+			}
 			continue
 		}
 		globalCaps = append(globalCaps, cap)
 	}
+	clear(ci.globalCaps[len(globalCaps):])
 	ci.globalCaps = globalCaps
 
-	for peerAddr, caps := range ci.peerCaps {
+	for target, caps := range ci.peerCaps {
 		kept := caps[:0]
 		for _, cap := range caps {
 			if cap.Plugin == pluginName {
-				if peerCodes := ci.peerByCode[peerAddr]; peerCodes != nil {
-					delete(peerCodes, cap.Code)
+				if targetCodes := ci.peerByCode[target]; targetCodes != nil {
+					if rec := targetCodes[cap.Code]; rec != nil {
+						if rec.removeOwner(pluginName) {
+							delete(targetCodes, cap.Code)
+						}
+					}
 				}
 				continue
 			}
 			kept = append(kept, cap)
 		}
+		clear(caps[len(kept):])
 		if len(kept) == 0 {
-			delete(ci.peerCaps, peerAddr)
-			delete(ci.peerByCode, peerAddr)
+			delete(ci.peerCaps, target)
+			delete(ci.peerByCode, target)
 			continue
 		}
-		ci.peerCaps[peerAddr] = kept
+		ci.peerCaps[target] = kept
 	}
 }
 
@@ -718,11 +848,13 @@ func (ci *CapabilityInjector) GetCapabilitiesForSelectors(selectors ...string) [
 		}
 	}
 
-	// Add global capabilities that weren't overridden
+	// Add global capabilities that were not overridden, once per code.
 	for _, cap := range ci.globalCaps {
-		if !seenCodes[cap.Code] {
-			result = append(result, cap)
+		if seenCodes[cap.Code] {
+			continue
 		}
+		result = append(result, cap)
+		seenCodes[cap.Code] = true
 	}
 
 	return result

@@ -1,93 +1,129 @@
-// Design: docs/architecture/api/architecture.md -- the derived half of a delivery edge
-// Related: filter_state_binding.go -- grantFilterOwnersState
-
+// Design: docs/architecture/api/architecture.md -- filter-owner bgp:state requirement.
+// Related: bus_requirements.go -- checkFilterOwnerStateRequirements.
 package bgpconfig
 
 import (
+	"net"
 	"testing"
 
 	"github.com/stretchr/testify/require"
 
-	"github.com/ze-software/ze/internal/component/bgp/reactor"
+	"github.com/ze-software/ze/internal/component/config"
+	configyang "github.com/ze-software/ze/internal/component/config/yang"
+	"github.com/ze-software/ze/internal/component/plugin/registry"
 	bgpevents "github.com/ze-software/ze/internal/core/bgp/events"
+	"github.com/ze-software/ze/internal/core/events"
+	"github.com/ze-software/ze/internal/core/opererr"
 	"github.com/ze-software/ze/pkg/plugin/rpc"
 )
 
-// inserterProcess is the plugin registerInserter registers, whose derived
-// binding every case below inspects.
 const inserterProcess = "fake-inserter"
 
-// stateBinding answers the binding the peer holds for inserterProcess, and
-// whether it grants the peer's state events, marked implicit, and no send type.
-func stateBinding(ps *reactor.PeerSettings) (found, stateOnly bool) {
-	b := processBinding(ps)
-	if b == nil {
-		return false, false
-	}
-	_, state := b.Receive[bgpevents.EventState]
-	implicit := b.Implicit[bgpevents.EventState] && len(b.Implicit) == 1
-	return true, state && implicit && len(b.Receive) == 1 && !b.ReceiveAll && !b.SendAll && len(b.Send) == 0
+// registerStateInserter registers a test filter plugin that declares bgp:state
+// reception so checkFilterOwnerStateRequirements validates state delivery for
+// any peer carrying one of its filter members.
+func registerStateInserter(t *testing.T, insertions ...rpc.FilterInsertion) {
+	t.Helper()
+	snap := registry.Snapshot()
+	t.Cleanup(func() { registry.Restore(snap) })
+	t.Cleanup(configyang.RegisterModuleForTest("ze-test-inserter-conf.yang", insertionTestYANG))
+	registry.SetRuntimeLoadedPlugins(func() []string { return []string{inserterProcess} })
+	t.Cleanup(func() { registry.SetRuntimeLoadedPlugins(nil) })
+	require.NoError(t, registry.Register(registry.Registration{
+		YANG:        insertionTestYANG,
+		Name:        inserterProcess,
+		Description: "test state inserter",
+		RunEngine:   func(net.Conn) int { return 0 },
+		CLIHandler:  func([]string) int { return 0 },
+		ConfigRoots: []string{"bgp"},
+		Receives: []rpc.MessageReceiveDecl{
+			{Message: bgpevents.Namespace + ":" + bgpevents.EventState},
+		},
+		Filters: []rpc.FilterDecl{
+			{Name: "early"},
+			{Name: "late"},
+		},
+		FilterInsertions: insertions,
+	}))
 }
 
-// processBinding answers the peer's binding for inserterProcess, or nil.
-func processBinding(ps *reactor.PeerSettings) *reactor.ProcessBinding {
-	for i := range ps.ProcessBindings {
-		if ps.ProcessBindings[i].PluginName == inserterProcess {
-			return &ps.ProcessBindings[i]
-		}
-	}
-	return nil
+// TestFilterOwnerStateRequirement verifies AC-14 and S35: a plugin declaring
+// bgp:state whose filter member sits on a peer's chain (inserted or operator-named)
+// receives bgp:state by default, and any bus override removing that reception is
+// refused with a typed operational fix.
+//
+// VALIDATES: checkFilterOwnerStateRequirements enforces bgp:state delivery to
+// active filter owners without mutating written config.
+// PREVENTS: silently dropping peer removal notifications for stateful filter plugins.
+func TestFilterOwnerStateRequirement(t *testing.T) {
+	t.Run("inserted member receives state by default and refuses override removing state", func(t *testing.T) {
+		registerStateInserter(t, rpc.FilterInsertion{
+			Filter:    "fake-inserter:late",
+			Direction: rpc.FilterImport,
+			Priority:  5,
+			Config:    rrClient,
+			Values:    []string{"on"},
+		})
+
+		defaultCfg := formatFilterStateCfg("", "", "")
+		graph := graphFromConfig(t, defaultCfg)
+		require.Contains(t, fedBy(graph, bgpevents.EventState, events.DirUnspecified, "10.0.0.2"), inserterProcess)
+
+		cutCfg := formatFilterStateCfg(
+			`bus { endpoint fake-inserter { internal fake-inserter; receive { allow none; } } }`,
+			"",
+			"",
+		)
+		_, err := config.LoadConfig(cutCfg, "", nil)
+		require.Error(t, err, "cutting bgp:state from an active inserted filter owner must be refused")
+		var oe *opererr.Error
+		require.ErrorAs(t, err, &oe)
+		require.Contains(t, err.Error(), inserterProcess)
+		require.NotEmpty(t, oe.Fix)
+	})
+
+	t.Run("operator-named member refuses peer send block omitting state", func(t *testing.T) {
+		registerStateInserter(t)
+
+		peerFilter := `filter { export { filters [ fake-inserter:early ]; final accept; } }`
+		okCfg := formatFilterStateCfg("", peerFilter, "")
+		graph := graphFromConfig(t, okCfg)
+		require.Contains(t, fedBy(graph, bgpevents.EventState, events.DirUnspecified, "10.0.0.2"), inserterProcess)
+
+		cutPeerA := peerFilter + ` bus { send { allow [ bgp:update ]; } }`
+		_, err := config.LoadConfig(formatFilterStateCfg("", cutPeerA, ""), "", nil)
+		require.Error(t, err, "cutting bgp:state on a peer naming fake-inserter:early must be refused")
+		var oe *opererr.Error
+		require.ErrorAs(t, err, &oe)
+		require.Contains(t, err.Error(), "A")
+		require.NotEmpty(t, oe.Fix)
+	})
+
+	t.Run("peer without filter member may cut state freely", func(t *testing.T) {
+		registerStateInserter(t)
+
+		peerFilter := `filter { export { filters [ fake-inserter:early ]; final accept; } }`
+		cutPeerB := `bus { send { allow none; } }`
+		_, err := config.LoadConfig(formatFilterStateCfg("", peerFilter, cutPeerB), "", nil)
+		require.NoError(t, err, "peer B carries no member of fake-inserter and is unconstrained")
+	})
 }
 
-// TestFilterOwnerReceivesPeerState checks spec-filter-wire-6-stage-filters
-// phase 2's implicit `state` delivery: the plugin whose member a peer's
-// chain carries, inserted or named by the operator, is fed that peer's
-// state events with no `attach process` block, and nothing else, so the
-// peer's removal reaches the per-peer state it keeps on either transport.
-// Method: an insertion places fake-inserter:late on A's import list; then,
-// with no insertion, the operator names fake-inserter:early on A's export
-// list; last, the operator attaches fake-inserter to A for updates only, and
-// state joins that block, marked implicit. B carries no member in any case.
-func TestFilterOwnerReceivesPeerState(t *testing.T) {
-	t.Run("an inserted member", func(t *testing.T) {
-		registerInserter(t, rpc.FilterInsertion{Filter: "fake-inserter:late", Direction: rpc.FilterImport,
-			Priority: 5, Config: rrClient, Values: []string{"on"}})
-		peers, err := insertionPeers(t, "")
-		require.NoError(t, err)
-		found, stateOnly := stateBinding(peers["A"])
-		require.True(t, found, "peer A carries fake-inserter's member, so fake-inserter is fed A's state")
-		require.True(t, stateOnly, "the derived binding grants state and nothing else")
-		found, _ = stateBinding(peers["B"])
-		require.False(t, found, "peer B carries no member of fake-inserter, so it feeds it nothing")
-	})
-	t.Run("an operator-named member", func(t *testing.T) {
-		registerInserter(t)
-		peers, err := insertionPeers(t, "filter { export { filters [ fake-inserter:early ]; final accept; } }")
-		require.NoError(t, err)
-		found, stateOnly := stateBinding(peers["A"])
-		require.True(t, found, "peer A's export list names fake-inserter:early")
-		require.True(t, stateOnly, "the derived binding grants state and nothing else")
-		found, _ = stateBinding(peers["B"])
-		require.False(t, found, "peer B names no member of fake-inserter")
-	})
-	t.Run("an operator attach block without state", func(t *testing.T) {
-		registerInserter(t)
-		peers, err := insertionPeers(t, "filter { export { filters [ fake-inserter:early ]; final accept; } } "+
-			"attach process fake-inserter { receive [ update-received ]; send [ update ]; }")
-		require.NoError(t, err)
-		b := processBinding(peers["A"])
-		require.NotNil(t, b, "the operator's block is kept")
-		require.Contains(t, b.Receive, bgpevents.EventState, "the plugin a chain names receives the peer's state regardless")
-		require.True(t, b.Implicit[bgpevents.EventState], "the added state grant is marked implicit")
-		require.Contains(t, b.Receive, "update", "the operator's grant is kept")
-		require.False(t, b.Implicit["update"], "the operator's grant is not implicit")
-		require.True(t, b.Send["update"], "the operator's send grant is kept")
-		owned := 0
-		for i := range peers["A"].ProcessBindings {
-			if peers["A"].ProcessBindings[i].PluginName == "fake-inserter" {
-				owned++
-			}
-		}
-		require.Equal(t, 1, owned, "no second binding is made for one process")
-	})
+func formatFilterStateCfg(busBlock, peerAExtra, peerBExtra string) string {
+	return busBlock + `
+bgp {
+    router-id 10.0.0.1;
+    session { asn { local 65000; } }
+    peer A {
+        connection { remote { ip 10.0.0.2; } local { ip 10.0.0.1; } }
+        session { asn { local 65000; remote 65000; } }
+        insertion-test { mode on; }
+        ` + peerAExtra + `
+    }
+    peer B {
+        connection { remote { ip 10.0.0.3; } local { ip 10.0.0.1; } }
+        session { asn { local 65000; remote 65001; } }
+        ` + peerBExtra + `
+    }
+}`
 }

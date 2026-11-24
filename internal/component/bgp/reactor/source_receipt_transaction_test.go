@@ -7,8 +7,6 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/require"
-
-	pluginserver "github.com/ze-software/ze/internal/component/plugin/server"
 )
 
 // TestSourceGrantAbortRestoresRetainedAuthority proves an already-DOWN source
@@ -57,8 +55,8 @@ func TestSourceGrantAbortRestoresRetainedAuthority(t *testing.T) {
 		require.NoError(t, write.current())
 		write.complete()
 	}
-	peer.settings.ProcessBindings = []ProcessBinding{sourceLeaseGrant(first.Name())}
-	restored, err := applied.restore(&pluginserver.Server{}, first)
+	peer.settings.Bus = testBusBlockForGrants(sourceLeaseGrant(first.Name()))
+	restored, err := applied.restore(sourceLeaseTestServer(t, first, second), first)
 	require.NoError(t, err)
 	fresh, err := receipts.acquire(live.ID(), owner)
 	require.NoError(t, err)
@@ -114,8 +112,8 @@ func TestSourceGrantApplyJoinsOldGuard(t *testing.T) {
 		t.Fatal("apply failed to cancel its outstanding guard")
 	}
 	require.Error(t, write.current())
-	peer.settings.ProcessBindings = []ProcessBinding{sourceLeaseGrant(proc.Name())}
-	_, err = applied.restore(&pluginserver.Server{}, proc)
+	peer.settings.Bus = testBusBlockForGrants(sourceLeaseGrant(proc.Name()))
+	_, err = applied.restore(sourceLeaseTestServer(t, proc), proc)
 	require.Error(t, err, "restoration must not overtake an outstanding old writer")
 	require.ErrorIs(t, applied.finalize(ctx), context.Canceled,
 		"finalize cannot acknowledge while an old guard still owns its write")
@@ -148,15 +146,14 @@ func TestSourceGrantRestoreAuthenticatesExactGrant(t *testing.T) {
 	require.NoError(t, err)
 	applied, err := prepared.apply(t.Context())
 	require.NoError(t, err)
-	server := &pluginserver.Server{}
+	server := sourceLeaseTestServer(t, proc)
+	peer.settings.Bus = testBusNone()
 	_, err = applied.restore(server, proc)
 	require.Error(t, err, "the original grant is still removed")
-	derived := sourceLeaseGrant(proc.Name())
-	derived.Explicit = false
-	peer.settings.ProcessBindings = []ProcessBinding{derived}
+	peer.settings.Bus = testBusReceiveOnly(proc.Name(), "state")
 	_, err = applied.restore(server, proc)
-	require.Error(t, err, "derived grants cannot authorize restoration")
-	peer.settings.ProcessBindings = []ProcessBinding{sourceLeaseGrant(proc.Name())}
+	require.Error(t, err, "narrowed grants cannot authorize restoration")
+	peer.settings.Bus = testBusBlockForGrants(sourceLeaseGrant(proc.Name()))
 	_, err = applied.restore(server, replacement)
 	require.Error(t, err, "a same-name successor cannot restore old ownership")
 	_, err = receipts.acquire(live.ID(), owner)
@@ -221,9 +218,9 @@ func TestSourceGrantRestoreRefusesRemovedSource(t *testing.T) {
 	require.NoError(t, err)
 	applied, err := prepared.apply(t.Context())
 	require.NoError(t, err)
-	peer.settings.ProcessBindings = []ProcessBinding{sourceLeaseGrant(proc.Name())}
+	peer.settings.Bus = testBusBlockForGrants(sourceLeaseGrant(proc.Name()))
 	peer.stopping.Store(true)
-	_, err = applied.restore(&pluginserver.Server{}, proc)
+	_, err = applied.restore(sourceLeaseTestServer(t, proc), proc)
 	require.Error(t, err)
 	require.NoError(t, applied.finalize(t.Context()))
 	require.Empty(t, receipts.entries)
@@ -246,9 +243,9 @@ func TestSourceGrantRestoreRefusesEndedOwner(t *testing.T) {
 	require.NoError(t, err)
 	applied, err := prepared.apply(t.Context())
 	require.NoError(t, err)
-	peer.settings.ProcessBindings = []ProcessBinding{sourceLeaseGrant(proc.Name())}
+	peer.settings.Bus = testBusBlockForGrants(sourceLeaseGrant(proc.Name()))
 	proc.Stop()
-	_, err = applied.restore(&pluginserver.Server{}, proc)
+	_, err = applied.restore(sourceLeaseTestServer(t, proc), proc)
 	require.Error(t, err)
 	require.NoError(t, applied.finalize(t.Context()))
 	require.Empty(t, receipts.entries)

@@ -62,7 +62,7 @@ func nhSelfLinkLocalDest(t *testing.T, addr string, nextHopSelf, llnh bool) *Pee
 		RouterID:      0x0a000001,
 		// The route server's send grant: the RS fast path reaches no
 		// destination without it, as the cached rail does not.
-		ProcessBindings: []ProcessBinding{rsRelaySendBinding()},
+		Bus: rsRelaySendBinding(),
 	}
 	if nextHopSelf {
 		settings.NextHopMode = NextHopSelf
@@ -84,6 +84,7 @@ func nhSelfLinkLocalDest(t *testing.T, addr string, nextHopSelf, llnh bool) *Pee
 		session.transport.Store(&sessionTransport{local: nhSelfLinkLocalEndpoint})
 		peer.session = session
 	}
+	setTestPeerBus(t, peer, rsRelaySendBinding())
 	peer.fwdFacts.Store(peer.buildForwardFacts())
 	peer.session = nil
 	return peer

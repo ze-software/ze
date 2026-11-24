@@ -10,6 +10,8 @@ import (
 	"slices"
 	"strconv"
 	"strings"
+
+	"github.com/ze-software/ze/internal/core/diagnostic"
 )
 
 const (
@@ -238,8 +240,17 @@ func (s *watchdogServer) handleForget(args []string) (string, any, error) {
 		return statusError, nil, errors.New("request bgp watchdog forget needs the one owner whose routes it forgets; " +
 			"write request bgp watchdog forget <owner>")
 	}
-	owner := args[0]
+	res, err := s.forgetOwner(args[0])
+	if err != nil {
+		return statusError, nil, err
+	}
+	return statusDone, res, nil
+}
 
+// forgetOwner removes every route owner gave any watchdog and withdraws those
+// currently announced, restoring any configured route of the same prefix.
+// Shared by `request bgp watchdog forget` and `bus:participant-exit`.
+func (s *watchdogServer) forgetOwner(owner string) (watchdogForgetResult, error) {
 	s.mu.Lock()
 	var withdraw []*givenRoute
 	forgotten := 0
@@ -270,10 +281,23 @@ func (s *watchdogServer) handleForget(args []string) (string, any, error) {
 		}
 	}
 	logger().Debug("watchdog owner forgotten", "owner", owner, "routes", forgotten, "withdrawn", len(withdraw)-len(refused))
+	res := watchdogForgetResult{Owner: owner, Forgotten: forgotten, Withdrawn: len(withdraw)}
 	if len(refused) != 0 {
-		return statusError, nil, errors.Join(refused...)
+		return res, errors.Join(refused...)
 	}
-	return statusDone, watchdogForgetResult{Owner: owner, Forgotten: forgotten, Withdrawn: len(withdraw)}, nil
+	return res, nil
+}
+
+// handleParticipantExit forgets and withdraws every watchdog route given by an
+// exited bus participant endpoint, logging any engine refusal because lifecycle
+// events carry no command caller.
+func (s *watchdogServer) handleParticipantExit(endpoint string) {
+	if endpoint == "" {
+		return
+	}
+	if _, err := s.forgetOwner(endpoint); err != nil {
+		logger().Warn("watchdog participant-exit forget failed", "endpoint", endpoint, "error", err, "code", diagnostic.CodeDoctorPluginRequestRefused)
+	}
 }
 
 // watchdogForgetResult is the answer to `request bgp watchdog forget`.

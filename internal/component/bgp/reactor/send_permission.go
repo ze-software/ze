@@ -12,6 +12,7 @@ import (
 
 	"github.com/ze-software/ze/internal/component/plugin"
 	bgpevents "github.com/ze-software/ze/internal/core/bgp/events"
+	"github.com/ze-software/ze/internal/core/diagnostic"
 	"github.com/ze-software/ze/internal/core/metrics"
 	"github.com/ze-software/ze/internal/core/opererr"
 	"github.com/ze-software/ze/internal/core/selector"
@@ -69,7 +70,7 @@ func refreshOrigin(sender plugin.Sender) sendOrigin {
 // no word for a message of the caller's choosing; the owner added the word on
 // 2026-08-30, so the peer now states the permission instead of implying it, and
 // a raw-capable binding is countable by the initial-sync barrier that holds this
-// peer's End-of-RIB (peer_run.go, ProcessBinding.MayPushRoutes).
+// peer's End-of-RIB (peer_run.go, Peer.initialUpdateReporters).
 func rawOrigin(sender plugin.Sender) sendOrigin {
 	return sendOrigin{sender: sender, sendType: bgpevents.SendRaw}
 }
@@ -81,8 +82,8 @@ func rawOrigin(sender plugin.Sender) sendOrigin {
 var errSendNotPermitted = errors.New("send refused: no peer this selector names attaches this process with the required send permission")
 
 // sendPermissionWhy is the reason every send-permission refusal gives: the
-// grant lives in the peer's config, so the operator knows where to look.
-const sendPermissionWhy = "a peer takes a message from a process only when its attach block names the process and lists the message type under send"
+// grant lives in the compiled bus filter, so the operator knows where to look.
+const sendPermissionWhy = "a peer takes a message from a process only when the compiled bus filter permits the endpoint to send that message type to the peer"
 
 // sendNotPermitted builds the refusal a rail answers when every peer it
 // addressed refused origin. target is what the caller addressed, in its own
@@ -93,8 +94,8 @@ const sendPermissionWhy = "a peer takes a message from a process only when its a
 // plugin receives the refusal as an RPC error string and recognizes it by that
 // text (filter_irr sendNotPermittedText), and errors.Is still finds the
 // sentinel in process. The operator error adds what the bare refusal never
-// said: which process may not send what, that the peer's attach block is what
-// grants it, and the statement that does.
+// said: which process may not send what, that the compiled bus filter is what
+// grants it, and the bus configuration that does.
 func sendNotPermitted(target string, origin sendOrigin) error {
 	cause := fmt.Errorf("%w: %s, process %s, send type %s",
 		errSendNotPermitted, target, origin.sender, origin.sendType)
@@ -102,55 +103,30 @@ func sendNotPermitted(target string, origin sendOrigin) error {
 	var problem, fix textbuf.Buffer
 	problem.Str("process ").Str(process).Str(" may not send ").Str(origin.sendType).
 		Str(" messages to ").Str(target)
-	fix.Str("add 'attach process ").Str(process).Str(" { send [ ").Str(origin.sendType).
-		Str(" ]; }' to each peer the process sends to")
+	fix.Str("permit bgp:").Str(origin.sendType).Str(" from /bus/endpoint/").Str(process).
+		Str(" in the peer's bus receive filter or the endpoint's bus send filter")
 	return opererr.Wrap(cause, problem.String(), sendPermissionWhy, fix.String())
 }
 
 // errSendNoSender is returned when a send command reaches the resolver and
-// nothing said who issued it. There is no attach block to consult for an
+// nothing said who issued it. There is no bus filter to consult for an
 // unnamed issuer, and the operator's exemption belongs to the operator, so the
 // command is refused. It is a defect in the dispatch path that produced the
 // command, not an operator or process mistake, so the message names the field
 // to set (ai/rules/evidence.md).
-var errSendNoSender = errors.New("send refused: the command names no sender, so no attach block can permit it; the dispatch path must set CommandContext.Sender")
+var errSendNoSender = errors.New("send refused: the command names no sender, so no bus filter can permit it; the dispatch path must set CommandContext.Sender")
 
-// maySend reports whether this peer's config permits one process to generate
-// one message type toward it.
+// maySend reports whether the compiled delivery graph permits one process to
+// generate one message type toward this peer.
 //
-// It FAILS CLOSED, and every branch that returns false is a deliberate no: a
-// sender that names no process, a peer that attaches nothing, a peer that
-// attaches other processes only, and a binding whose `send` list omits the type
-// all deny. A missing block is the operator saying nothing about this process,
-// and saying nothing is not a grant (ai/rules/evidence.md).
-//
-// Reads p.settings directly rather than through settingsSnapshot, which copies
-// the struct under p.mu. The one later writer of ProcessBindings delivers a
-// derived feed-only change while holding r.mu, which the caller holds here, so
-// the copy would buy nothing and this runs once per send command per matched
-// peer. Settings() returns the same
-// pointer and would read identically; the direct field is used because the
-// caller already holds r.mu and the intent is a field read, not a handle.
+// It FAILS CLOSED: an unnamed sender, a missing reactor or delivery graph, or
+// an absent compiled send edge all return false.
 func (p *Peer) maySend(origin sendOrigin) bool {
-	return bindingsMaySend(p.settings.ProcessBindings, origin)
-}
-
-// bindingsMaySend is the same cold grant evaluator for published old/new bindings.
-func bindingsMaySend(bindings []ProcessBinding, origin sendOrigin) bool {
 	process, ok := origin.sender.Process()
 	if !ok {
 		return false
 	}
-	for i := range bindings {
-		b := &bindings[i]
-		if b.PluginName != process {
-			continue
-		}
-		if b.MaySend(origin.sendType) {
-			return true
-		}
-	}
-	return false
+	return p.reactor.DeliveryGraph().MaySend(p.addrString, process, origin.sendType)
 }
 
 // filterPermittedPeers keeps the peers whose config permits origin, reports
@@ -201,13 +177,14 @@ func filterPermittedPeers(matched []*Peer, origin sendOrigin) (permitted []*Peer
 func sendPermissionDenied(peer *Peer, origin sendOrigin) {
 	var tb textbuf.Buffer
 	process := origin.sender.String()
-	action := tb.Str("add `attach process ").Str(process).Str(" { send [ ").Str(origin.sendType).Str(" ] }` to this peer").String()
-	routesLogger().Warn("send refused: this peer does not attach that process with the send permission it needs",
+	action := tb.Str("permit bgp:").Str(origin.sendType).Str(" from /bus/endpoint/").Str(process).Str(" in this peer's bus receive filter or the endpoint's bus send filter").String()
+	routesLogger().Warn("send refused: the compiled bus filter does not permit this process to send that message type to this peer",
 		"peer", peer.settings.Address,
 		"process", process,
 		"send-type", origin.sendType,
 		"effect", "nothing was sent to this peer; other peers in the selector are unaffected",
-		"action", action)
+		"action", action,
+		"code", diagnostic.CodeDoctorPluginRequestRefused)
 	recordSendRefused(process, origin.sendType)
 }
 
@@ -220,12 +197,13 @@ func sendPermissionDenied(peer *Peer, origin sendOrigin) {
 // shares the label set of every other refusal, and Sender.String() gives it the
 // bounded value "unset" (recordSendRefused).
 func sendNoSenderDenied(target string, origin sendOrigin) {
-	routesLogger().Warn("send refused: this command names no sender, so no attach block can permit it",
+	routesLogger().Warn("send refused: this command names no sender, so no bus filter can permit it",
 		"target", target,
 		"process", origin.sender.String(),
 		"send-type", origin.sendType,
 		"effect", "nothing was sent to any peer this command names",
-		"action", "the dispatch path that built this command must set CommandContext.Sender")
+		"action", "the dispatch path that built this command must set CommandContext.Sender",
+		"code", diagnostic.CodeDoctorPluginRequestRefused)
 	recordSendRefused(origin.sender.String(), origin.sendType)
 }
 

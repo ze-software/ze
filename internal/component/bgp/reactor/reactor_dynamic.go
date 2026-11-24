@@ -122,10 +122,10 @@ func (r *Reactor) createDynamicPeer(dg *DynamicGroupConfig, remoteAddr netip.Add
 
 	// The index is keyed on the peer ADDRESS and this peer has one, so it enters
 	// it like any other peer: buildDynamicPeerSettings copies the whole
-	// template, ProcessBindings included, so its group's attach blocks are
-	// already on it. Without this republish delivery finds no edges for it and
-	// feeds it to nobody, which is the fail-closed guard reading as a dead
-	// session (delivery_graph.go).
+	// template, Bus included, so its group's bus block is already on it.
+	// Without this republish delivery finds no edges for it and feeds it to
+	// nobody, which is the fail-closed guard reading as a dead session
+	// (delivery_graph.go).
 	if r.deliveryPublished {
 		r.publishDeliveryGraphLocked()
 	}
@@ -179,6 +179,9 @@ func (r *Reactor) buildDynamicPeerSettings(dg *DynamicGroupConfig, remoteAddr ne
 	ps.PeerAS = 0                     // RFC 4271 Section 4.2: learned from the peer's OPEN
 	ps.Connection = ConnectionPassive // `ip dynamic` requires `connect false`
 	ps.IsDynamic = true
+	ps.Bus = tmpl.Bus.Clone()
+	ps.BusGroupPath = "/bgp/group/" + dg.GroupName
+	ps.BusPath = ps.BusGroupPath + "/peer/" + ps.Name
 
 	// Every prefix map is CLONED, never aliased. Dynamic peers are built one per
 	// accepted connection from one template, so a shared map would let a later
@@ -752,6 +755,7 @@ func (p *Peer) publishDynamicResolution(read dynamicTemplateRead, remoteAS uint3
 		return false
 	}
 	p.settings.PeerAS = remoteAS
+	p.resolvedPeerAS.Store(remoteAS)
 	p.settings.ImportPolicy = newImport
 	if !p.settings.ExportPolicy.SameDecisions(newExport) {
 		// RFC 2918 Section 4

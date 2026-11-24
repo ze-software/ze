@@ -38,7 +38,6 @@ func TestExportPolicyEventRejectsSameNameReplacement(t *testing.T) {
 			const name = "policy-same-name"
 			const address = "192.0.2.186"
 			var oldCalls, newCalls atomic.Int32
-			bindings := []plugin.PeerProcessBinding{{PluginName: name, Explicit: true, Receive: map[string]events.Direction{bgpevents.EventState: events.DirBoth}}}
 			receives := []rpc.MessageReceiveDecl{{Message: bgpevents.Namespace + ":" + bgpevents.EventState}}
 			start := func(implementation string, calls *atomic.Int32) *pluginserver.Server {
 				require.NoError(t, registry.Register(registry.Registration{Name: implementation, Receives: receives, CLIHandler: func([]string) int { return 0 }, RunEngine: func(conn net.Conn) int {
@@ -56,10 +55,10 @@ func TestExportPolicyEventRejectsSameNameReplacement(t *testing.T) {
 					}
 					return 0
 				}}))
-				host, err := pluginserver.NewServer(&pluginserver.ServerConfig{Plugins: []plugin.PluginConfig{{Name: name, Run: implementation, Internal: true, Encoder: plugin.EncodingJSON}}, ConfigNeedHolds: config.ConfigNeedHolds(map[string]any{})}, nil)
+				host, err := pluginserver.NewServer(&pluginserver.ServerConfig{Plugins: []plugin.PluginConfig{{Name: name, CompiledPlugin: implementation, Run: implementation, Internal: true, Encoder: plugin.EncodingJSON}}, ConfigNeedHolds: config.ConfigNeedHolds(map[string]any{})}, nil)
 				require.NoError(t, err)
 				host.SetProcessSpawner(&openObserverSpawner{ctx: ctx})
-				host.UpdateDeliveryGraph(bgpevents.Namespace, []pluginserver.DeliveryPeer{{Addr: address, Bindings: bindings}})
+				host.UpdateDeliveryGraph(bgpevents.Namespace, []pluginserver.DeliveryPeer{{Addr: address, Path: "/bgp/ip/" + address}})
 				t.Cleanup(host.Stop)
 				require.NoError(t, host.StartWithContext(ctx))
 				require.NoError(t, host.WaitForStartupComplete(ctx))
@@ -90,9 +89,13 @@ func TestExportPolicyEventRejectsSameNameReplacement(t *testing.T) {
 			require.Zero(t, newCalls.Load(), "old token must not reoffer through the successor")
 			require.NoError(t, dispatcher.OnPeerExportPolicy(ctx, peer, successor, false))
 			require.Equal(t, int32(1), newCalls.Load(), "the same ready successor must remain useful with its own token")
-			// The exact owner alone is no state grant. A missing peer binding
-			// refuses it, while the separate healthy host remains useful.
-			originalHost.UpdateDeliveryGraph(bgpevents.Namespace, []pluginserver.DeliveryPeer{{Addr: address}})
+			// The exact owner alone is no state grant. Narrowing the peer via
+			// send > to none refuses it, while the separate healthy host remains useful.
+			originalHost.UpdateDeliveryGraph(bgpevents.Namespace, []pluginserver.DeliveryPeer{{
+				Addr: address,
+				Path: "/bgp/ip/" + address,
+				Bus:  plugin.BusBlock{Send: plugin.BusDirectionBlock{TargetsPresent: true, TargetsNone: true}},
+			}})
 			require.ErrorContains(t, dispatcher.OnPeerExportPolicy(ctx, peer, successor, false), "granted destination state")
 			require.Equal(t, int32(1), newCalls.Load())
 			require.NoError(t, NewEventDispatcher(replacementHost).OnPeerExportPolicy(ctx, peer, successor, false))

@@ -52,6 +52,7 @@ func policyReplayServer(t *testing.T, r *Reactor, execute func() (any, error)) {
 	t.Cleanup(func() { registry.Restore(snapshot) })
 	if err := registry.Register(registry.Registration{
 		Name: name, Description: "Policy retained-page barrier",
+		Sends: testAllBGPSendDecls(), Receives: testAllBGPReceiveDecls(),
 		RunEngine: func(conn net.Conn) int {
 			p := sdk.NewWithConn(name, conn)
 			p.OnExecuteCommand(func(_, _ string, _ []string, _ string, _ []sdk.PipeOperation) (string, any, error) {
@@ -59,6 +60,8 @@ func policyReplayServer(t *testing.T, r *Reactor, execute func() (any, error)) {
 				return rpc.StatusDone, data, err
 			})
 			if err := p.Run(context.Background(), &sdk.Registration{
+				Sends:    testAllBGPSendDecls(),
+				Receives: testAllBGPReceiveDecls(),
 				Commands: []sdk.CommandDecl{{Name: ribevents.ReplayRoutesCommand}},
 			}); err != nil {
 				return 1
@@ -120,6 +123,9 @@ func policyFinalPluginServer(t *testing.T, r *Reactor, names ...string) *plugins
 	if err := srv.WaitForStartupComplete(t.Context()); err != nil {
 		t.Fatal(err)
 	}
+	r.mu.Lock()
+	r.publishDeliveryGraphLocked()
+	r.mu.Unlock()
 	return srv
 }
 
@@ -313,9 +319,11 @@ func TestPolicyFinalRestoreFailureRollsBack(t *testing.T) {
 	destination.testInitialSync().sendingInitialRoutes.Store(0)
 	api, _ := readyProducerServer(t, r, "bgp-rs")
 	r.api = api.server
-	destination.settings.ProcessBindings = []ProcessBinding{
-		operatorBinding(t, "bgp-rs", "state", "update"),
-	}
+	destination.settings.RSClient = true
+	destination.settings.Bus = testBusBlockForGrants(
+		operatorGrant("bgp-rs", "state", "update"),
+	)
+	publishTestBusGraph(t, r)
 	destination.settings.ExportPolicy = mustPolicy(t, nil, routepolicy.FinalReject)
 	destination.refreshForwardFacts()
 	policyStopReplayStore(t, r.api, destination.Settings().Address)
@@ -361,14 +369,11 @@ func TestPolicyFinalFlowSpecOnlyRestorationWithoutReceiveStore(t *testing.T) {
 			{"bgp-rib", "update state refresh"},
 			{"bgp-rs", "update-received state open-received refresh"},
 		} {
-			attachment := ProcessBinding{PluginName: binding.name, Explicit: true}
-			if err := parseReceiveFlags(binding.receive, &attachment); err != nil {
-				t.Fatal(err)
-			}
-			if err := parseSendFlags("update", &attachment); err != nil {
-				t.Fatal(err)
-			}
-			setting.ProcessBindings = append(setting.ProcessBindings, attachment)
+			addTestPeerBusGrant(setting, testPeerEndpointGrant{
+				Name:    binding.name,
+				Receive: strings.Fields(binding.receive),
+				Send:    []string{"update"},
+			})
 		}
 		if err := r.AddPeer(setting); err != nil {
 			t.Fatal(err)
@@ -557,9 +562,9 @@ func testPolicyFinalReplayWithdrawnAddPath(t *testing.T, gapEviction bool) {
 		t.Fatalf("identifier setup did not announce and withdraw its unrelated path: %+v", events)
 	}
 	wireOffset := len(conn.written())
-	destination.settings.ProcessBindings = []ProcessBinding{
-		operatorBinding(t, "policy-retained-page", "state", "update"),
-	}
+	destination.settings.Bus = testBusBlockForGrants(
+		operatorGrant("policy-retained-page", "state", "update"),
+	)
 	route := storedIPv4Route(source.Settings().Address.String())
 	route.SourceOwner = originalSource.owner
 	route.SourceReceipt = originalSource.receipt
@@ -708,16 +713,19 @@ func TestPolicyFinalReplayPreservesPreAdmittedBatchOrder(t *testing.T) {
 // restores both its template and running peer when retained-source replay fails.
 func TestPolicyFinalDynamicRestoreFailureRollsBack(t *testing.T) {
 	group := dynamicReloadGroup(t)
+	group.Settings.RSClient = true
 	group.Settings.ExportPolicy = mustPolicy(t, nil, routepolicy.FinalReject)
-	group.Settings.ProcessBindings = []ProcessBinding{operatorBinding(t, "bgp-rs", "state", "update")}
+	group.Settings.Bus = testBusBlockForGrants(operatorGrant("bgp-rs", "state", "update"))
 	r, destination := newDynamicReloadReactor(t, group, netip.MustParseAddr("185.1.69.42"), nil)
 	establishDynamicPeer(t, r, destination)
 	api, _ := readyProducerServer(t, r, "bgp-rs")
 	r.api = api.server
+	publishTestBusGraph(t, r)
 	policyStopReplayStore(t, r.api, destination.Settings().Address)
 	next := dynamicReloadGroup(t)
+	next.Settings.RSClient = true
 	next.Settings.ExportPolicy = mustPolicy(t, nil, routepolicy.FinalAccept)
-	next.Settings.ProcessBindings = group.Settings.ProcessBindings
+	next.Settings.Bus = group.Settings.Bus.Clone()
 	err := api.reconcileDynamicGroupsJournaled([]*DynamicGroupConfig{next}, "test", &internalJournal{})
 	if err == nil {
 		t.Fatal("dynamic reload committed despite unavailable retained-source replay")

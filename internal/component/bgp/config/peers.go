@@ -7,7 +7,6 @@
 package bgpconfig
 
 import (
-	"errors"
 	"fmt"
 	"net/netip"
 	"slices"
@@ -24,7 +23,6 @@ import (
 	"github.com/ze-software/ze/internal/component/bgp/policychain"
 	"github.com/ze-software/ze/internal/component/bgp/reactor"
 	"github.com/ze-software/ze/internal/core/bgp/attribute"
-	"github.com/ze-software/ze/internal/core/bgp/capability"
 	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
@@ -65,36 +63,24 @@ func PeersFromConfigTree(tree *config.Tree) ([]*reactor.PeerSettings, error) {
 // fail both. Each refusal names its own completing line, and both are
 // reported, so the operator fixes every refusal in one edit.
 func peersAndDynamicGroups(tree *config.Tree) ([]*reactor.PeerSettings, []*reactor.DynamicGroupConfig, error) {
-	peers, groups, err := buildPeerPopulations(tree)
+	peers, groups, resolvedBGPTree, err := buildPeerPopulationsWithResolved(tree)
 	if err != nil {
 		return nil, nil, err
 	}
-	settings := populationSettings(peers, groups)
-	feeds := requireSelectionFeeds(tree, settings)
-	dissemination := validateDissemination(tree, settings)
-	if err := errors.Join(feeds, dissemination); err != nil {
+	if err := validateBGPBusRequirementsForPopulations(tree, peers, groups, resolvedBGPTree, nil); err != nil {
 		return nil, nil, err
 	}
 	return peers, groups, nil
 }
 
-// peerPopulationsFromTree runs the shared full peer walk and refuses a config
-// whose explicit binding starves a selecting-RIB feed. Runtime callers resolve
-// ownership against authenticated declarations after this build; offline
-// callers use peersAndDynamicGroups to check compiled declarations too.
+// peerPopulationsFromTree runs the shared full peer walk and validates BGP
+// feature requirements against the compiled bus filters.
 func peerPopulationsFromTree(tree *config.Tree) ([]*reactor.PeerSettings, []*reactor.DynamicGroupConfig, error) {
-	peers, groups, err := buildPeerPopulations(tree)
-	if err != nil {
-		return nil, nil, err
-	}
-	if err := requireSelectionFeeds(tree, populationSettings(peers, groups)); err != nil {
-		return nil, nil, err
-	}
-	return peers, groups, nil
+	return peersAndDynamicGroups(tree)
 }
 
 // populationSettings answers the statically configured peers followed by each
-// dynamic group's template: every settings value a binding check judges.
+// dynamic group's template: every settings value a requirement check judges.
 func populationSettings(peers []*reactor.PeerSettings, groups []*reactor.DynamicGroupConfig) []*reactor.PeerSettings {
 	settings := make([]*reactor.PeerSettings, 0, len(peers)+len(groups))
 	settings = append(settings, peers...)
@@ -104,17 +90,24 @@ func populationSettings(peers []*reactor.PeerSettings, groups []*reactor.Dynamic
 	return settings
 }
 
-// buildPeerPopulations is the peer walk both entry points share. It derives
-// the feature bindings and leaves judging their completeness to its callers.
+// buildPeerPopulations builds peer and dynamic-group populations without
+// running bus requirement checks.
 func buildPeerPopulations(tree *config.Tree) ([]*reactor.PeerSettings, []*reactor.DynamicGroupConfig, error) {
+	peers, groups, _, err := buildPeerPopulationsWithResolved(tree)
+	return peers, groups, err
+}
+
+// buildPeerPopulationsWithResolved is the shared peer walk returning peers,
+// dynamic groups, and the resolved BGP map (used to check explicit AIGP blocks).
+func buildPeerPopulationsWithResolved(tree *config.Tree) ([]*reactor.PeerSettings, []*reactor.DynamicGroupConfig, map[string]any, error) {
 	// A daemon may configure another subsystem alone. Absence is an empty BGP
 	// population, not permission to invent a bgp block in its running tree.
 	if tree.GetContainer("bgp") == nil {
-		return nil, nil, nil
+		return nil, nil, nil, nil
 	}
 	parsed, err := peerSettingsFromTree(tree)
 	if err != nil {
-		return nil, nil, err
+		return nil, nil, nil, err
 	}
 	peers, groups := parsed.peers, parsed.groups
 	schema, bgpTree := parsed.schema, parsed.resolved
@@ -127,16 +120,8 @@ func buildPeerPopulations(tree *config.Tree) ([]*reactor.PeerSettings, []*reacto
 		dynByGroup[dg.GroupName] = dg.Settings
 	}
 
-	// Step 2a: derive the process bindings the config's redistribution rules
-	// depend on. It runs over `settings`, so a dynamic group's template takes
-	// them with the statically configured peers. It runs before the route and
-	// filter layers because it reads the config alone.
-	if err := wireRedistributeDelivery(tree, settings); err != nil {
-		return nil, nil, err
-	}
-
 	if len(settings) == 0 {
-		return peers, groups, nil
+		return peers, groups, bgpTree, nil
 	}
 
 	// Step 3: Extract routes from group and peer layers.
@@ -145,7 +130,7 @@ func buildPeerPopulations(tree *config.Tree) ([]*reactor.PeerSettings, []*reacto
 	//   Layer 2: Peer's own routes
 	bgpContainer := tree.GetContainer("bgp")
 	if bgpContainer == nil {
-		return peers, groups, nil
+		return peers, groups, bgpTree, nil
 	}
 
 	// Build name -> PeerSettings index for matching.
@@ -158,7 +143,7 @@ func buildPeerPopulations(tree *config.Tree) ([]*reactor.PeerSettings, []*reacto
 	// Layer 0: BGP-level routes (global defaults for all peers).
 	for _, ps := range settings {
 		if err := patchRoutes(ps, ps.Name, bgpContainer); err != nil {
-			return nil, nil, err
+			return nil, nil, nil, err
 		}
 	}
 
@@ -170,7 +155,7 @@ func buildPeerPopulations(tree *config.Tree) ([]*reactor.PeerSettings, []*reacto
 
 		if ds, ok := dynByGroup[groupEntry.Key]; ok {
 			if err := patchRoutes(ds, groupEntry.Key, groupTree); err != nil {
-				return nil, nil, err
+				return nil, nil, nil, err
 			}
 		}
 
@@ -185,12 +170,12 @@ func buildPeerPopulations(tree *config.Tree) ([]*reactor.PeerSettings, []*reacto
 
 			// Layer 1: Routes from group defaults.
 			if err := patchRoutes(ps, addr, groupTree); err != nil {
-				return nil, nil, err
+				return nil, nil, nil, err
 			}
 
 			// Layer 2: Routes from peer's own tree.
 			if err := patchRoutes(ps, addr, peerTree); err != nil {
-				return nil, nil, err
+				return nil, nil, nil, err
 			}
 		}
 	}
@@ -206,7 +191,7 @@ func buildPeerPopulations(tree *config.Tree) ([]*reactor.PeerSettings, []*reacto
 		}
 
 		if err := patchRoutes(ps, addr, peerTree); err != nil {
-			return nil, nil, err
+			return nil, nil, nil, err
 		}
 	}
 
@@ -214,17 +199,17 @@ func buildPeerPopulations(tree *config.Tree) ([]*reactor.PeerSettings, []*reacto
 	policyTree := tree.GetContainer(policy.RootName)
 	filterReg, err := policyRegistryOf(tree, schema)
 	if err != nil {
-		return nil, nil, err
+		return nil, nil, nil, err
 	}
 
 	// Step 3b: Extract filter chains from all layers (cumulative).
 	// Like routes, filters accumulate: bgp + group + peer.
 	bgpImport, bgpExport, err := extractFilterPolicies(bgpContainer, "bgp")
 	if err != nil {
-		return nil, nil, err
+		return nil, nil, nil, err
 	}
 	if err := validateExportPolicyReferences(bgpExport, filterReg, "bgp"); err != nil {
-		return nil, nil, err
+		return nil, nil, nil, err
 	}
 
 	for _, groupEntry := range bgpContainer.GetListOrdered("group") {
@@ -237,10 +222,10 @@ func buildPeerPopulations(tree *config.Tree) ([]*reactor.PeerSettings, []*reacto
 		}
 		groupImport, groupExport, err := extractFilterPolicies(groupTree, "bgp/group/"+groupEntry.Key)
 		if err != nil {
-			return nil, nil, err
+			return nil, nil, nil, err
 		}
 		if err := validateExportPolicyReferences(groupExport, filterReg, "bgp", "group", groupEntry.Key); err != nil {
-			return nil, nil, err
+			return nil, nil, nil, err
 		}
 
 		// The dynamic group's own chain is bgp + group, which is the whole
@@ -258,10 +243,10 @@ func buildPeerPopulations(tree *config.Tree) ([]*reactor.PeerSettings, []*reacto
 			}
 			peerImport, peerExport, err := extractFilterPolicies(peerEntry.Value, "bgp/group/"+groupEntry.Key+"/peer/"+peerEntry.Key)
 			if err != nil {
-				return nil, nil, err
+				return nil, nil, nil, err
 			}
 			if err := validateExportPolicyReferences(peerExport, filterReg, "bgp", "group", groupEntry.Key, "peer", peerEntry.Key); err != nil {
-				return nil, nil, err
+				return nil, nil, nil, err
 			}
 			ps.ImportPolicy = filterapi.CompilePolicy(policy.ConcatChains(bgpImport, groupImport, peerImport))
 			ps.ExportPolicy = filterapi.CompilePolicy(policy.ConcatChains(bgpExport, groupExport, peerExport))
@@ -275,10 +260,10 @@ func buildPeerPopulations(tree *config.Tree) ([]*reactor.PeerSettings, []*reacto
 		}
 		peerImport, peerExport, err := extractFilterPolicies(peerEntry.Value, "bgp/peer/"+peerEntry.Key)
 		if err != nil {
-			return nil, nil, err
+			return nil, nil, nil, err
 		}
 		if err := validateExportPolicyReferences(peerExport, filterReg, "bgp", "peer", peerEntry.Key); err != nil {
-			return nil, nil, err
+			return nil, nil, nil, err
 		}
 		ps.ImportPolicy = filterapi.CompilePolicy(policy.ConcatChains(bgpImport, peerImport))
 		ps.ExportPolicy = filterapi.CompilePolicy(policy.ConcatChains(bgpExport, peerExport))
@@ -293,11 +278,11 @@ func buildPeerPopulations(tree *config.Tree) ([]*reactor.PeerSettings, []*reacto
 	for _, ps := range settings {
 		tb.Reset()
 		if err := validateChainNames(filterReg, ps.ImportPolicy.Filters(), ps.IsDynamic, "bgp import", tb.Str("peer ").Str(ps.Name).Str(" import filters").String()); err != nil {
-			return nil, nil, err
+			return nil, nil, nil, err
 		}
 		tb.Reset()
 		if err := validateChainNames(filterReg, ps.ExportPolicy.Filters(), ps.IsDynamic, attachmentExport, tb.Str("peer ").Str(ps.Name).Str(" export filters").String()); err != nil {
-			return nil, nil, err
+			return nil, nil, nil, err
 		}
 	}
 
@@ -315,27 +300,25 @@ func buildPeerPopulations(tree *config.Tree) ([]*reactor.PeerSettings, []*reacto
 
 	// Step 3b3: Insert the members plugins declare for the peers whose config
 	// needs them (filter_insertion.go), then prepend the operator's default
-	// filters (loop-detection) unless already referenced, so loop detection
-	// stays at the head of every import chain.
+	// filters (loop-detection) unless already referenced so loop detection
+	// stays at the head of every import chain, and append the RFC 4271 default
+	// next-hop:auto step to the tail of every export chain unless an explicit
+	// built-in next-hop:* step is already present.
 	conditional, err := insertDeclaredFilters(bgpTree, peers, groups, filterReg)
 	if err != nil {
-		return nil, nil, err
+		return nil, nil, nil, err
 	}
 	prependDefaultFilters(policyTree, settings, filterReg)
-	// The plugin whose member a peer's chain carries is fed that peer's
-	// state, so its removal reaches the plugin (filter_state_binding.go).
-	if err := grantFilterOwnersState(tree, settings); err != nil {
-		return nil, nil, err
-	}
+	appendDefaultExportFilters(settings)
 
 	// Step 3b4: Compile the chains of the members that evaluate in process
 	// over the route view, after every ref is canonical and bound.
 	bases, err := parseAttributeBases(tree, schema)
 	if err != nil {
-		return nil, nil, err
+		return nil, nil, nil, err
 	}
 	if err := compileLibraryChains(settings, conditional, filterReg, bases); err != nil {
-		return nil, nil, err
+		return nil, nil, nil, err
 	}
 
 	// Step 3c: Extract loop-detection policy settings into PeerSettings.
@@ -360,13 +343,8 @@ func buildPeerPopulations(tree *config.Tree) ([]*reactor.PeerSettings, []*reacto
 	// Step 5: Validate connection mode.
 	for _, ps := range settings {
 		if !ps.Connection.Connect && !ps.Connection.Accept {
-			return nil, nil, fmt.Errorf("peer %s: connect and accept cannot both be false", ps.Name)
+			return nil, nil, nil, fmt.Errorf("peer %s: connect and accept cannot both be false", ps.Name)
 		}
-	}
-
-	// Step 5: Validate capability-process constraints.
-	if err := validatePeerProcessCaps(settings); err != nil {
-		return nil, nil, err
 	}
 
 	// Step 0a: Refuse a `bgp update-delay` container the reactor could not honor.
@@ -376,12 +354,12 @@ func buildPeerPopulations(tree *config.Tree) ([]*reactor.PeerSettings, []*reacto
 	// from the generic custom-validator walk. Without it an operator's verify
 	// accepts a config the daemon refuses at startup.
 	if _, err := ParseUpdateDelay(tree); err != nil {
-		return nil, nil, err
+		return nil, nil, nil, err
 	}
 
 	warnStrictPeersWithoutEngine(peers, tree)
 
-	return peers, groups, nil
+	return peers, groups, bgpTree, nil
 }
 
 // policyRegistryOf builds the namespace of filter instances from the
@@ -404,6 +382,11 @@ func policyRegistryOf(tree *config.Tree, schema *config.Schema) (*policy.Registr
 // policy root, an instance whose filter type no BGP filter serves, and an
 // instance that reads or sets a route field the BGP attachment does not carry
 // or allow (policy.CheckChain at attachment, "bgp import" or "bgp export").
+// Built-in next-hop:* engine steps are valid on export only; inactive:next-hop:auto
+// and unknown next-hop:<other> names are refused here before external fallback.
+// On import, policy { modify } instances setting an egress-only next-hop mode
+// (self, unchanged, auto) are refused while explicit IPv4 and global IPv6
+// addresses remain permitted.
 // A reference to an external plugin's filter gets the same judgement of the
 // fields that plugin declared at Stage 1 (checkExternalChainRef).
 // A deactivated reference is checked like an active one, because deactivation
@@ -434,6 +417,11 @@ func validateChainNames(reg *policy.Registry, refs []policy.Ref, dynamic bool, a
 		}
 		if err := bgpServesFilterType(ref, entry, typesMap, attachment, context); err != nil {
 			return err
+		}
+		if attachment == attachmentImportBGP {
+			if err := checkImportModifyNextHop(entry, context); err != nil {
+				return err
+			}
 		}
 		names = append(names, entry.Name)
 	}
@@ -755,70 +743,6 @@ func patchStaticRoutes(ps *reactor.PeerSettings, routes []StaticRouteConfig, add
 	return nil
 }
 
-// validatePeerProcessCaps checks that peers with route-refresh or graceful-restart
-// capabilities attach at least one process permitted to put a route on the wire.
-// These capabilities require a process to resend routes on demand.
-//
-// Reads ProcessBinding.MayPushRoutes rather than MaySend(SendUpdate), because
-// either rail satisfies the demand: ze builds the UPDATE from the process's
-// route operation (`send [ update ]`), or the process hands over a whole message
-// it built itself (`send [ raw ]`). The owner added the `raw` word on 2026-08-30
-// and ruled that what it carries belongs to this speaker's routing update, so a
-// raw-only process answers a route refresh and refills a peer after a restart.
-// Naming one rail here would refuse a config that can serve both capabilities.
-func validatePeerProcessCaps(peers []*reactor.PeerSettings) error {
-	for _, ps := range peers {
-		needsProcess := false
-		capName := ""
-		for _, cap := range ps.Capabilities {
-			// Only route-refresh and graceful-restart require a route-pushing process binding.
-			//exhaustive:ignore
-			switch cap.Code() {
-			case capability.CodeRouteRefresh:
-				needsProcess = true
-				if capName == "" {
-					capName = "route-refresh"
-				}
-			case capability.CodeGracefulRestart:
-				needsProcess = true
-				capName = "graceful-restart"
-			}
-		}
-		// Graceful-restart is stored in RawCapabilityConfig (built by GR plugin at runtime),
-		// not as a capability.Capability in the slice.
-		if _, ok := ps.RawCapabilityConfig["graceful-restart"]; ok {
-			needsProcess = true
-			capName = "graceful-restart"
-		}
-		if !needsProcess {
-			continue
-		}
-
-		hasValidProcess := false
-		for _, b := range ps.ProcessBindings {
-			if b.MayPushRoutes() {
-				hasValidProcess = true
-				break
-			}
-		}
-		if hasValidProcess {
-			continue
-		}
-
-		if len(ps.ProcessBindings) == 0 {
-			return fmt.Errorf("peer %s: %s requires an attached process with send [ update ] or send [ raw ]\n  the peer attaches no process",
-				ps.Address, capName)
-		}
-		var names []string
-		for _, b := range ps.ProcessBindings {
-			names = append(names, "attach process "+b.PluginName)
-		}
-		return fmt.Errorf("peer %s: %s requires an attached process with send [ update ] or send [ raw ]\n  configured: %s - none carry either word",
-			ps.Address, capName, textbuf.Join(names, ", "))
-	}
-	return nil
-}
-
 // filterInstanceName strips the prefix a chain ref can carry, leaving the
 // instance name that keys the policy registry. The plain form carries no
 // prefix; the filter-type form, the plugin form and the canonical form each
@@ -921,7 +845,12 @@ func prependDefaultFilters(policyTree *config.Tree, peers []*reactor.PeerSetting
 				continue
 			}
 			// bound is nil when no reference bound in process, else parallel to refs.
-			ps.ImportPolicy = ps.ImportPolicy.Prepend(dflt, i < len(bound) && bound[i])
+			ps.ImportPolicy = ps.ImportPolicy.Prepend(dflt, i < len(bound) && bound[i]).WithImplied(filterapi.ImpliedFilter{
+				Direction: directionImport,
+				Position:  filterapi.ImpliedPositionHead,
+				Ref:       dflt.Name,
+				ImpliedBy: "policy loop-detection",
+			})
 		}
 	}
 }

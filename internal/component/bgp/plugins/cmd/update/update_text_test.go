@@ -10,14 +10,6 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/ze-software/ze/pkg/plugin/rpc"
-
-	"github.com/ze-software/ze/internal/component/bgp/route"
-	bgptypes "github.com/ze-software/ze/internal/component/bgp/types"
-	"github.com/ze-software/ze/internal/component/plugin"
-	"github.com/ze-software/ze/internal/component/plugin/registry"
-	pluginserver "github.com/ze-software/ze/internal/component/plugin/server"
-
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
@@ -30,12 +22,18 @@ import (
 	vplspkg "github.com/ze-software/ze/internal/component/bgp/plugins/nlri/vpls"
 	vpn "github.com/ze-software/ze/internal/component/bgp/plugins/nlri/vpn"
 	"github.com/ze-software/ze/internal/component/bgp/rib"
+	"github.com/ze-software/ze/internal/component/bgp/route"
+	bgptypes "github.com/ze-software/ze/internal/component/bgp/types"
 	"github.com/ze-software/ze/internal/component/command/commandtest"
+	"github.com/ze-software/ze/internal/component/plugin"
+	"github.com/ze-software/ze/internal/component/plugin/registry"
+	pluginserver "github.com/ze-software/ze/internal/component/plugin/server"
 	"github.com/ze-software/ze/internal/core/bgp/attribute"
 	"github.com/ze-software/ze/internal/core/bgp/nlri"
 	"github.com/ze-software/ze/internal/core/bgp/nlri/flowspec"
 	"github.com/ze-software/ze/internal/core/family"
 	"github.com/ze-software/ze/internal/core/selector"
+	"github.com/ze-software/ze/pkg/plugin/rpc"
 )
 
 // testExtractOrigin extracts Origin from Wire for testing.
@@ -1328,9 +1326,6 @@ func (m *mockReactorBatch) SendRoutes(_ *selector.Selector, _ []*rib.Route, _ []
 	return bgptypes.TransactionResult{}, nil
 }
 func (m *mockReactorBatch) ClearRIBIn() int { return 0 }
-func (m *mockReactorBatch) GetPeerProcessBindings(_ netip.Addr) []plugin.PeerProcessBinding {
-	return nil
-}
 func (m *mockReactorBatch) PeerNegotiatedCapabilities(_ netip.Addr) *plugin.PeerCapabilitiesInfo {
 	return nil
 }

@@ -3,12 +3,12 @@
     "rid": "RFC7947-x-1",
     "polarity": "negative",
     "unit": "internal/component/bgp/reactor/rfc7947_forward_rs_test.go::TestReactorForwardRSEBGPPrepend",
-    "unit-sha": "842dbd96339e057b",
+    "unit-sha": "f0456ab9cd16464c",
     "claim-sha": "ea166aed1ccb77c4",
-    "route": "mutant",
+    "route": "revert",
     "producer": "internal/component/bgp/reactor/forward_rs.go::reactorForwardRSSectionResult",
-    "producer-sha": "dc16f1bcecb222e8",
-    "break": "line 634: \"!facts.rsClient\" -\u003e \"false\""
+    "producer-sha": "43e96fa5a9e49a07",
+    "break": "body of reactorForwardRSSectionResult replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   },
   {
     "rid": "RFC7947-x-1",

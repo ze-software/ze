@@ -66,10 +66,6 @@ func (m *mockReactor) Stats() plugin.ReactorStats {
 	return m.stats
 }
 
-func (m *mockReactor) GetPeerProcessBindings(_ netip.Addr) []plugin.PeerProcessBinding {
-	return nil
-}
-
 func (m *mockReactor) PeerNegotiatedCapabilities(_ netip.Addr) *plugin.PeerCapabilitiesInfo {
 	return nil
 }

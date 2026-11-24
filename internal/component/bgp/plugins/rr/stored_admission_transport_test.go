@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/require"
+
 	"github.com/ze-software/ze/internal/component/bgp/format"
 	bgptypes "github.com/ze-software/ze/internal/component/bgp/types"
 	"github.com/ze-software/ze/internal/component/bgp/wireu"
@@ -42,6 +43,7 @@ func (input rrAdmissionInput) deliverState(t *testing.T, ctx context.Context, en
 		require.NoError(t, engine.DeliverStructured([]any{&rpc.StructuredEvent{EventType: rpc.EventKindState,
 			PeerAddress: peer.Address.String(), PeerOwner: peer.PeerOwner, ConnectionID: peer.ConnectionID,
 			SessionGeneration: peer.SessionGeneration, DestinationSession: peer.DestinationSession, InitialReplay: peer.InitialReplay,
+			IsIBGP: peer.IsIBGP, RSClient: peer.RSClient, RouteReflectorClient: peer.RouteReflectorClient,
 			State: rpc.SessionStateUp, Reason: reason}}))
 		return
 	}
@@ -107,9 +109,9 @@ func TestRRColdReplayRechecksWithdrawnRowAcrossRegisteredTransports(t *testing.T
 				defer cancel()
 				engine := pluginengine.Start(t, transport, runRouteReflectorCallbacks)
 				source := plugin.PeerInfo{Address: netip.MustParseAddr("192.0.2.1"), PeerAS: rpc.RemoteASOf(65001), PeerOwner: 701,
-					ConnectionID: 41, SessionGeneration: 1041, DestinationSession: 141}
+					ConnectionID: 41, SessionGeneration: 1041, DestinationSession: 141, IsIBGP: true, RouteReflectorClient: true}
 				target := plugin.PeerInfo{Address: netip.MustParseAddr("192.0.2.2"), PeerAS: rpc.RemoteASOf(65002), PeerOwner: 702,
-					ConnectionID: 42, SessionGeneration: 1042, DestinationSession: 142, InitialReplay: 142}
+					ConnectionID: 42, SessionGeneration: 1042, DestinationSession: 142, InitialReplay: 142, IsIBGP: true, RouteReflectorClient: true}
 				receipt := engine.IssueSource(source.Address.String(), source.PeerOwner)
 				route := func(id uint64, hex string) rpc.StoredRoute {
 					return rpc.StoredRoute{SourcePeer: source.Address.String(), SourceOwner: source.PeerOwner,

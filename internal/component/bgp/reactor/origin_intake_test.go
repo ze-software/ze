@@ -18,7 +18,6 @@ import (
 	"github.com/ze-software/ze/internal/core/bgp/attribute"
 	bgpctx "github.com/ze-software/ze/internal/core/bgp/context"
 	"github.com/ze-software/ze/internal/core/bgp/nlri"
-	"github.com/ze-software/ze/internal/core/events"
 	"github.com/ze-software/ze/internal/core/family"
 	"github.com/ze-software/ze/internal/core/selector"
 	"github.com/ze-software/ze/pkg/plugin/rpc"
@@ -62,7 +61,8 @@ func TestOriginIntakeActualBatchEntryPoints(t *testing.T) {
 			started := make(chan struct{})
 			accepted := make(map[uint64]rpc.OriginIntakeInput)
 			offers := make(chan rpc.OriginIntakeInput, 4)
-			require.NoError(t, registry.Register(registry.Registration{Name: name, CLIHandler: func([]string) int { return 0 }, Dissemination: declarations,
+			require.NoError(t, registry.Register(registry.Registration{Name: name, CLIHandler: func([]string) int { return 0 },
+				Sends: testAllBGPSendDecls(), Receives: testAllBGPReceiveDecls(), Dissemination: declarations,
 				RunEngine: func(conn net.Conn) int {
 					if !typed {
 						conn = struct{ net.Conn }{conn}
@@ -84,7 +84,7 @@ func TestOriginIntakeActualBatchEntryPoints(t *testing.T) {
 							Outcome: rpc.RouteAdmissionRetained, Disposition: rpc.RouteAdmissionSuppressedSelection}}}, nil
 					})
 					decider.OnStarted(func(context.Context) error { close(started); return nil })
-					if err := decider.Run(ctx, &sdk.Registration{Dissemination: declarations}); err != nil {
+					if err := decider.Run(ctx, &sdk.Registration{Sends: testAllBGPSendDecls(), Receives: testAllBGPReceiveDecls(), Dissemination: declarations}); err != nil {
 						t.Errorf("deciding plugin: %v", err)
 						return 1
 					}
@@ -92,11 +92,10 @@ func TestOriginIntakeActualBatchEntryPoints(t *testing.T) {
 				}}))
 			host, err := pluginserver.NewServer(&pluginserver.ServerConfig{Plugins: []plugin.PluginConfig{{Name: name, Run: name, Internal: true}}}, nil)
 			require.NoError(t, err)
-			bindings := []plugin.PeerProcessBinding{{PluginName: name, Explicit: true,
-				Receive: map[string]events.Direction{"state": events.DirBoth, "refresh": events.DirBoth, "update": events.DirSent}, Send: map[string]bool{"update": true}}}
+			destBus := testBusSelectedDest(name)
 			host.UpdateDeliveryGraph("bgp", []pluginserver.DeliveryPeer{
-				{Addr: "192.0.2.79", Bindings: []plugin.PeerProcessBinding{{PluginName: name, Explicit: true, Receive: map[string]events.Direction{"state": events.DirBoth, "update": events.DirReceived}}}},
-				{Addr: f.peer.addrString, Bindings: bindings},
+				testDeliveryPeer("192.0.2.79", "", testBusSourceLease(name)),
+				testDeliveryPeer(f.peer.addrString, "", destBus),
 			})
 			startOriginIntakeTestHost(t, ctx, host)
 			select {
@@ -106,8 +105,8 @@ func TestOriginIntakeActualBatchEntryPoints(t *testing.T) {
 			}
 			require.NoError(t, host.WaitForStartupComplete(ctx), "provider must finish its real runtime-ready publication")
 			f.api.r.api = host
-			f.peer.settings.ProcessBindings = []ProcessBinding{{PluginName: name, Explicit: true, Receive: bindings[0].Receive, Send: bindings[0].Send}}
-			configured, err := host.ResolveDisseminationOwnerForPeer(pluginserver.DeliveryPeer{Addr: f.peer.addrString, Bindings: bindings}, SelectedDisseminationRole)
+			f.peer.settings.Bus = destBus
+			configured, err := host.ResolveDisseminationOwnerForPeer(testDeliveryPeer(f.peer.addrString, "", destBus), SelectedDisseminationRole)
 			require.NoError(t, err)
 			f.peer.settings.DisseminationOwner = configured
 			f.peer.refreshForwardFacts()

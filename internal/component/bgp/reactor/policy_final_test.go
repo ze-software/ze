@@ -339,16 +339,11 @@ func TestPolicyFinalReloadStoreSelfReplay(t *testing.T) {
 	lowEventually(t, func() bool { _, held := ownershipLiveRead(t, destination).routes[prefix]; return !held }, "self-replay setup withdrawal")
 	next = destination.peer.settingsSnapshot()
 	next.ExportPolicy = mustPolicy(t, nil, routepolicy.FinalAccept)
-	var bindings []ProcessBinding
-	for _, binding := range next.ProcessBindings {
-		if binding.PluginName == "bgp-adj-rib-in" {
-			bindings = append(bindings, binding)
-		}
-	}
-	next.ProcessBindings = bindings
-	// A binding with a send grant is not hot-swappable. Install the intended
+	bus := testBusBoth("bgp-adj-rib-in", []string{"update-received", "state"}, []string{"update"})
+	next.Bus = bus
+	// A bus filter with a receive (endpoint-send) grant is not hot-swappable. Install the intended
 	// receive-store-only graph explicitly before exercising policy restoration.
-	destination.peer.writeBindings(destination.peer.reactor, bindings)
+	destination.peer.writeBus(destination.peer.reactor, bus)
 	mustApplyHotSwappableSettings(t, destination.peer, next, hotSwappableSettings)
 	ownershipLiveThrough(t, destination, prefix, attrs)
 	if owner := destination.peer.policyReplayOwner(); owner != plugin.ProcessSender("bgp-adj-rib-in") {

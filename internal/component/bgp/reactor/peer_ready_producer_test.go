@@ -146,6 +146,7 @@ func readyProducerServer(t *testing.T, r *Reactor, name string) (*readyProducerA
 	require.NotNil(t, proc)
 	require.NotNil(t, proc.Bridge())
 	require.True(t, proc.Bridge().Ready())
+	publishTestBusGraph(t, r)
 	return api, proc
 }
 
@@ -167,11 +168,12 @@ func readyProducerReplace(peer *Peer, session *Session) {
 	readyProducerSession(peer).sendingInitialRoutes.Store(0)
 }
 
-func readyProducerOutputGrant(name string) ProcessBinding {
-	binding := sendUpdateOnly(name)
-	binding.Explicit = true
-	binding.Receive = map[string]events.Direction{"state": events.DirBoth, "update": events.DirSent}
-	return binding
+func readyProducerOutputGrant(name string) testPeerEndpointGrant {
+	return testPeerEndpointGrant{
+		Name:    name,
+		Receive: []string{"state", "update-sent"},
+		Send:    []string{"update"},
+	}
 }
 
 func readyProducerState(t *testing.T, proc *process.Process, peer *Peer, session *Session, state rpc.SessionState, token uint64) {
@@ -189,6 +191,7 @@ func readyProducerStateWithReason(t *testing.T, proc *process.Process, peer *Pee
 	require.NoError(t, proc.Bridge().DeliverStructured([]any{&rpc.StructuredEvent{
 		PeerAddress: info.AddrStr(), PeerOwner: info.PeerOwner, ConnectionID: info.ConnectionID,
 		PeerAS: info.PeerAS, SessionGeneration: info.SessionGeneration, DestinationSession: info.DestinationSession,
+		IsIBGP: info.IsIBGP, RSClient: info.RSClient, RouteReflectorClient: info.RouteReflectorClient,
 		EventType: rpc.EventKindState, State: state, InitialReplay: token, Reason: reason,
 	}}))
 }
@@ -196,7 +199,10 @@ func readyProducerStateWithReason(t *testing.T, proc *process.Process, peer *Pee
 func readyProducerAttachSource(t *testing.T, peer *Peer, procs ...*process.Process) *Session {
 	t.Helper()
 	for _, proc := range procs {
-		peer.settings.ProcessBindings = append(peer.settings.ProcessBindings, sourceLeaseGrant(proc.Name()))
+		addTestPeerBusGrant(peer.settings, sourceLeaseGrant(proc.Name()))
+	}
+	if peer.reactor != nil {
+		publishTestBusGraph(t, peer.reactor)
 	}
 	peer.advanceSourcePolicyEpoch()
 	session := readyProducerSession(peer)
@@ -216,6 +222,7 @@ func readyProducerReceive(t *testing.T, proc *process.Process, peer *Peer, sessi
 	require.NoError(t, proc.Bridge().DeliverStructured([]any{&rpc.StructuredEvent{
 		PeerAddress: peer.addrString, PeerAS: rpc.RemoteASOf(peer.PeerAS()), PeerOwner: update.SourceOwner,
 		ConnectionID: session.connectionID, EventType: rpc.EventKindUpdate,
+		IsIBGP: !peer.IsEBGP(), RSClient: peer.Settings().RSClient, RouteReflectorClient: peer.Settings().RouteReflectorClient,
 		Direction: rpc.DirectionReceived, MessageID: update.WireUpdate.MessageID(),
 		SourceReceipt: update.SourceReceipt, SourcePolicyEpoch: update.SourcePolicyEpoch,
 		RawMessage: &bgptypes.RawMessage{WireUpdate: update.WireUpdate, AttrsWire: attrs,
@@ -275,7 +282,7 @@ func TestPeerReadySDKProducers(t *testing.T) {
 	for _, owner := range []string{"bgp-rib", "bgp-rs", "bgp-rr", "bgp-adj-rib-in", "bgp-watchdog"} {
 		t.Run(owner, func(t *testing.T) {
 			r, source, destination, _, ctxID := newSyncOrderRail(t)
-			destination.settings.ProcessBindings = []ProcessBinding{readyProducerOutputGrant(owner)}
+			destination.settings.Bus = testBusBlockForGrants(readyProducerOutputGrant(owner))
 			api, proc := readyProducerServer(t, r, owner)
 			oldSession := readyProducerSession(destination)
 			oldToken := oldSession.initialReplay.Load()
@@ -330,7 +337,7 @@ func TestPeerReadyRIBReplayCompletion(t *testing.T) {
 			f := ownershipRailNew(t, nil)
 			f.source.settings.PeerAS = 65002
 			f.source.refreshForwardFacts()
-			f.destination.settings.ProcessBindings = []ProcessBinding{readyProducerOutputGrant(owner)}
+			f.destination.settings.Bus = testBusBlockForGrants(readyProducerOutputGrant(owner))
 			api, proc := readyProducerServer(t, f.r, owner)
 			f.destination.resetAPISync([]string{owner})
 			raiseTestReplayFence(f.destination, owner)
@@ -442,7 +449,7 @@ func TestPeerReadyRIBReplayCompletion(t *testing.T) {
 func TestPeerReadyRIBReconnectBeforeRelease(t *testing.T) {
 	const owner = "bgp-rib"
 	f := ownershipRailNew(t, nil)
-	f.destination.settings.ProcessBindings = []ProcessBinding{readyProducerOutputGrant(owner)}
+	f.destination.settings.Bus = testBusBlockForGrants(readyProducerOutputGrant(owner))
 	api, proc := readyProducerServer(t, f.r, owner)
 	f.destination.resetAPISync([]string{owner})
 	raiseTestReplayFence(f.destination, owner)
@@ -519,9 +526,9 @@ func TestPeerReadyRIBNativeReconnect(t *testing.T) {
 				f.destination.settings.Capabilities = []capability.Capability{&capability.Multiprotocol{AFI: fam.AFI, SAFI: fam.SAFI}}
 				f.destination.negotiated.Load().families[fam] = true
 				f.destination.session.negotiated = forwardFixtureNegotiation(f.destination)
-				f.destination.settings.ProcessBindings = []ProcessBinding{readyProducerOutputGrant(owner)}
-				f.destination.refreshForwardFacts()
+				f.destination.settings.Bus = testBusBlockForGrants(readyProducerOutputGrant(owner))
 				api, proc := readyProducerServer(t, f.r, owner)
+				f.destination.refreshForwardFacts()
 				f.destination.resetAPISync([]string{owner})
 				raiseTestReplayFence(f.destination, owner)
 				initial := f.destination.initialReplayToken()
@@ -647,7 +654,12 @@ func TestPeerReadyRRReplayErrorCompletion(t *testing.T) {
 		t.Run(name, func(t *testing.T) {
 			const owner = "bgp-rr"
 			f := ownershipRailNew(t, nil)
-			f.destination.settings.ProcessBindings = []ProcessBinding{readyProducerOutputGrant(owner), rsRelaySendBinding()}
+			f.destination.settings.RouteReflectorClient = true
+			f.destination.refreshForwardFacts()
+			f.destination.settings.Bus = testBusBlockForGrants(
+				readyProducerOutputGrant(owner),
+				testPeerEndpointGrant{Name: rsFixtureRelay, Send: []string{"update"}},
+			)
 			api, proc := readyProducerServer(t, f.r, owner)
 			adj := api.server.ProcessManager().GetProcess("bgp-adj-rib-in")
 			require.NotNil(t, adj)

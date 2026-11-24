@@ -38,7 +38,7 @@ func newPolicyRouteServer(t *testing.T) (*routeServer, *departureLog) {
 	t.Helper()
 	rs := newTestRouteServer(t)
 	for index, peer := range []string{policySource, policyOther} {
-		rs.peers[rsFixtureKey(peer, uint64(index+1), uint64(index+101))] = &PeerState{Address: peer, DestinationSession: uint64(index + 201), SessionGeneration: 3, Up: true, StateSeen: true}
+		rs.peers[rsFixtureKey(peer, uint64(index+1), uint64(index+101))] = &PeerState{Address: peer, DestinationSession: uint64(index + 201), SessionGeneration: 3, Up: true, RSClient: true, StateSeen: true}
 	}
 	rs.withdrawals[policySource] = map[withdrawalKey]withdrawalEntry{
 		policyKey("10.1.0.0/24"): {owner: 1, connectionID: 101, sourceReceipt: 301, sourcePolicyEpoch: 5},

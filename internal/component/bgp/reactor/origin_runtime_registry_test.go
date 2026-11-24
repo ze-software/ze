@@ -122,7 +122,11 @@ func TestOriginRuntimeRegistryTimerMatchesAcceptedLineage(t *testing.T) {
 			f := newOriginRuntimeSDKFixture(t, typed)
 			producer, stop := originOwnerFixture(t, "origin-registry-source")
 			peer := f.writer.peer
-			peer.settings.ProcessBindings = append(peer.settings.ProcessBindings, ProcessBinding{PluginName: "origin-registry-source", Explicit: true, Send: map[string]bool{"update": true}})
+			peer.settings.Bus = testBusBlockForGrants(
+				testPeerEndpointGrant{Name: f.name, Receive: []string{"state", "refresh", "update-sent"}, Send: []string{"update"}},
+				testPeerEndpointGrant{Name: "origin-registry-source", Send: []string{"update"}},
+			)
+			f.publishGraph(t)
 			peer.refreshForwardFacts()
 			f.sender, f.batch.OriginOwner = producer.Sender(), producer
 			first, timedA := originRegistryAnnounce(t, f, f.batch, producer)
@@ -135,7 +139,7 @@ func TestOriginRuntimeRegistryTimerMatchesAcceptedLineage(t *testing.T) {
 			_, _ = originRegistryAnnounce(t, f, other, producer)
 			stop()
 			require.Error(t, producer.Current())
-			require.NoError(t, f.writer.api.EndOriginOwner(f.ctx, producer))
+			require.NoError(t, f.writer.api.EndOriginOwnerWithPolicy(f.ctx, producer, true))
 			for range 2 {
 				select {
 				case <-f.offers:
@@ -207,7 +211,7 @@ func TestOriginRuntimeBridgeExitRetiresBeforeConfiguredRestore(t *testing.T) {
 			hop, present := bodyPathAttr(t, bodies[before+1], 3)
 			require.True(t, present)
 			require.Equal(t, []byte{192, 0, 2, 252}, hop)
-			require.NoError(t, f.writer.api.EndOriginOwner(f.ctx, owner))
+			require.NoError(t, f.writer.api.EndOriginOwnerWithPolicy(f.ctx, owner, true))
 			require.NoError(t, originGenerationReady(f.ctx, f.host, proc))
 			var surviving rpc.OriginIntakeInput
 			select {

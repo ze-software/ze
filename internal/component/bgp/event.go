@@ -34,6 +34,9 @@ var KnownFields = map[string]bool{
 	"selected-destination":  true,
 	"ordinary-replay-owned": true,
 	"update-send-denied":    true,
+	"rs-client":             true,
+	"is-ibgp":               true,
+	"rr-client":             true,
 	"destination-session":   true,
 	"peer":                  true, "state": true, "origin": true, "as-path": true,
 	"med": true, "local-preference": true, "communities": true,
@@ -414,6 +417,10 @@ type Event struct {
 	// UpdateSendDenied is a captured per-recipient UP denial advisory. Its
 	// absence grants no output authority; writers still enforce current grants.
 	UpdateSendDenied bool `json:"update-send-denied,omitempty"`
+	// Session scope flags for forwarders (Q-5, AC-19).
+	RSClient bool `json:"rs-client,omitempty"`
+	IsIBGP   bool `json:"is-ibgp,omitempty"`
+	RRClient bool `json:"rr-client,omitempty"`
 	// SessionGeneration names, on a down state event, the session the down
 	// ended (reactor Peer.forwardGeneration); a departure echoes it as
 	// recovery-generation. Zero on every other event.

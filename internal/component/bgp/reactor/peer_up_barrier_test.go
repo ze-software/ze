@@ -194,7 +194,7 @@ func TestPeerUpBarrierAndAPISyncAreIndependent(t *testing.T) {
 	// release its own.
 	peer := newBarrierPeer(t)
 	peer.session = NewSession(peer.settings)
-	peer.settings.ProcessBindings = []ProcessBinding{sendUpdateOnly("pusher")}
+	setTestPeerBus(t, peer, testBusBlockForGrants(sendUpdateOnly("pusher")))
 	peer.resetAPISync([]string{"pusher"})
 	raiseTestReplayFence(peer, "pusher")
 	peer.SetPeerUpBarrier(1)
@@ -208,7 +208,7 @@ func TestPeerUpBarrierAndAPISyncAreIndependent(t *testing.T) {
 	// And the reverse: a registrar acknowledgement must not lower the replay
 	// fence, but must open the peer-up barrier.
 	peer2 := newBarrierPeer(t)
-	peer2.settings.ProcessBindings = []ProcessBinding{sendUpdateOnly("pusher")}
+	setTestPeerBus(t, peer2, testBusBlockForGrants(sendUpdateOnly("pusher")))
 	peer2.resetAPISync([]string{"pusher"})
 	raiseTestReplayFence(peer2, "pusher")
 	peer2.SetPeerUpBarrier(1)

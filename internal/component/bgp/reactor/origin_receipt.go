@@ -6,7 +6,6 @@ import (
 	"context"
 	"errors"
 	"math"
-	"slices"
 	"sync"
 
 	"github.com/ze-software/ze/internal/component/plugin"
@@ -201,10 +200,7 @@ func (store *originReceiptStore) issueOriginal(ctx context.Context, producer ori
 	if snapshot == nil {
 		// A configured Peer is a valid admitted scope before TCP exists. Do not
 		// publish forwarding facts for it: final output still needs a real Session.
-		peer.mu.RLock()
-		bindings := slices.Clone(peer.settings.ProcessBindings)
-		peer.mu.RUnlock()
-		snapshot = peer.buildDisseminationSnapshot(nil, bindings)
+		snapshot = peer.buildDisseminationSnapshot(nil, peer.settingsSnapshot())
 	}
 	if snapshot.owner.Explicit() {
 		return 0, errors.New("origin ordinary intake cannot replace an explicit dissemination role")

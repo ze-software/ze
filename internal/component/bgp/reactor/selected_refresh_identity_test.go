@@ -20,6 +20,7 @@ func TestSelectedRefreshSameAddressSiblingKeepsOwnAuthority(t *testing.T) {
 	sibling, wire := newGroupUpdatesPeer(t, original.Destination, "absent")
 	sibling.settings.Port = 1179
 	sibling.settings.ExportPolicy = fixture.peer.settings.ExportPolicy
+	sibling.settings.Bus = testBusNone()
 	sibling.reactor = fixture.api.r
 	sibling.session.initialReplay.Store(72)
 	sibling.negotiated.Load().EnhancedRouteRefresh = true
@@ -34,7 +35,7 @@ func TestSelectedRefreshSameAddressSiblingKeepsOwnAuthority(t *testing.T) {
 	require.Empty(t, wire.written())
 	require.Equal(t, rpc.SelectedRefreshWritten, selectedRefreshCall(t, fixture, original).Outcome)
 	require.Equal(t, []string{"borr"}, refreshWireLabels(t, fixture.conn.written()))
-	sibling.settings.ProcessBindings = fixture.peer.settings.ProcessBindings
+	sibling.settings.Bus = fixture.peer.settings.Bus.Clone()
 	sibling.refreshForwardFacts()
 	borrowed := input
 	borrowed.PeerOwner = original.PeerOwner

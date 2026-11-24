@@ -276,7 +276,10 @@ type Reactor struct {
 	// constructs it before enabling origin intake and joins revocation at stop.
 	// Nil grants no origin receipt and refuses an opted-in provider.
 	originReceipts *originReceiptStore
-	config         *Config
+	// directOrigins tracks process-originated routes written directly to peers
+	// without bgp-rib OriginIntake (origin_direct.go). Zero value is ready.
+	directOrigins directOriginTable
+	config        *Config
 
 	// Injectable abstractions for simulation.
 	clock             clock.Clock
@@ -480,6 +483,14 @@ type Reactor struct {
 	// they do, and a peer added in between would otherwise leave the index
 	// stale with nothing to say so.
 	deliveryPublished bool
+	// deliveryGraph caches the compiled DeliveryGraph when running without a
+	// pluginserver.Server (standalone tests). When r.api != nil,
+	// r.api.DeliveryGraph() is authoritative.
+	deliveryGraph atomic.Pointer[pluginserver.DeliveryGraph]
+	// busConfig and testBusEndpoints supply bus config and endpoint inputs
+	// when publishDeliveryGraphLocked compiles a standalone graph without r.api.
+	busConfig        plugin.BusConfig
+	testBusEndpoints []pluginserver.BusParticipantInput
 	// stopping is set by stop() and cleared by Reactor.StartWithContext, both
 	// under r.mu, which is also the one place Peer.stopping is cleared. It is
 	// the reactor-tier twin of Peer.stopping (peer.go): between the

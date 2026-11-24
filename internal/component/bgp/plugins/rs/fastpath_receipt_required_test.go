@@ -34,8 +34,8 @@ func TestRSFastReceiptRequiresExplicitFields(t *testing.T) {
 			rs.workers = newWorkerPool(func(_ workerKey, item workItem) { items <- item }, poolConfig{chanSize: 1})
 			const source = "10.0.0.1"
 			const target = "10.0.0.2"
-			rs.peers[rsFixtureKey(source, 1, 101)] = &PeerState{Address: source, DestinationSession: 201, SessionGeneration: 3, Up: true, StateSeen: true}
-			rs.peers[rsFixtureKey(target, 2, 102)] = &PeerState{Address: target, DestinationSession: 202, SessionGeneration: 3, Up: true, StateSeen: true}
+			rs.peers[rsFixtureKey(source, 1, 101)] = &PeerState{Address: source, DestinationSession: 201, SessionGeneration: 3, Up: true, RSClient: true, StateSeen: true}
+			rs.peers[rsFixtureKey(target, 2, 102)] = &PeerState{Address: target, DestinationSession: 202, SessionGeneration: 3, Up: true, RSClient: true, StateSeen: true}
 			message := fastPathServedAnnounce(t)
 			message.Type = msgtype.TypeUPDATE
 			message.Direction = rpc.DirectionReceived

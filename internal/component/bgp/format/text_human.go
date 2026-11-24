@@ -5,10 +5,11 @@ package format
 
 import (
 	"encoding/hex"
+	"strconv"
+
 	"github.com/ze-software/ze/internal/component/bgp/message"
 	"github.com/ze-software/ze/internal/core/bufpool"
 	"github.com/ze-software/ze/internal/core/family"
-	"strconv"
 
 	bgpfilter "github.com/ze-software/ze/internal/component/bgp/filter"
 	"github.com/ze-software/ze/internal/component/bgp/textparse"
@@ -354,6 +355,15 @@ func appendStateChangeText(buf []byte, peer *plugin.PeerInfo, state rpc.SessionS
 	}
 	if peer.UpdateSendDenied {
 		buf = append(buf, " update-send-denied true"...)
+	}
+	if peer.RSClient {
+		buf = append(buf, " rs-client true"...)
+	}
+	if peer.IsIBGP {
+		buf = append(buf, " is-ibgp true"...)
+	}
+	if peer.RouteReflectorClient {
+		buf = append(buf, " rr-client true"...)
 	}
 	buf = append(buf, '\n')
 	return buf

@@ -26,8 +26,8 @@ func TestValidationReplayFollowsBufferedForward(t *testing.T) {
 	rs := newTestRouteServer(t)
 	source := "10.0.0.1"
 	target := "10.0.0.2"
-	rs.peers[rsFixtureKey(source, 1, 101)] = &PeerState{Address: source, DestinationSession: 201, SessionGeneration: 3, adoptionOpen: true, Up: true}
-	rs.peers[rsFixtureKey(target, 2, 102)] = &PeerState{Address: target, DestinationSession: 202, SessionGeneration: 3, adoptionOpen: true, Up: true, ForwardFrom: 100}
+	rs.peers[rsFixtureKey(source, 1, 101)] = &PeerState{Address: source, DestinationSession: 201, SessionGeneration: 3, adoptionOpen: true, Up: true, RSClient: true}
+	rs.peers[rsFixtureKey(target, 2, 102)] = &PeerState{Address: target, DestinationSession: 202, SessionGeneration: 3, adoptionOpen: true, Up: true, RSClient: true, ForwardFrom: 100}
 	key := rsFixtureKey(source, 1, 101)
 	rs.batches.Store(key, &forwardBatch{ids: []uint64{90}, targets: []rpc.ForwardTarget{rsFixtureTarget(target, 2, 202)}})
 	var delivered []string
@@ -182,11 +182,11 @@ func TestPeerUpReplaysExistingFlowSpecBeforeEOR(t *testing.T) {
 			})
 			bridge.SetReady()
 			rs := &routeServer{withdrawals: make(map[string]map[withdrawalKey]withdrawalEntry), plugin: plugin, seenMsgID: 42, peers: map[workerKey]*PeerState{
-				rsFixtureKey(source, 1, 101): {Address: source, DestinationSession: 201, SessionGeneration: 3, adoptionOpen: true, Up: true},
+				rsFixtureKey(source, 1, 101): {Address: source, DestinationSession: 201, SessionGeneration: 3, adoptionOpen: true, Up: true, RSClient: true},
 				rsFixtureKey(target, 2, 102): {Address: target, DestinationSession: 202, SessionGeneration: 3, Families: map[family.Family]bool{fam: true}},
 			}}
 			rsFixtureCurrentFlowSpec(t, rs, rsFixtureKey(source, 1, 101), 301, 5, 42, fam, "0501180a0000")
-			rs.handleState(&Event{PeerAddr: target, PeerOwner: 2, ConnectionID: 102, DestinationSession: 202, State: "up", InitialReplay: 17})
+			rs.handleState(&Event{PeerAddr: target, PeerOwner: 2, ConnectionID: 102, DestinationSession: 202, State: "up", InitialReplay: 17, RSClient: true})
 			select {
 			case <-done:
 			case <-time.After(5 * time.Second):
@@ -277,7 +277,7 @@ func TestPeerUpReplaysFlowSpecJudgedBeforeTheTargetWasUp(t *testing.T) {
 	// seenMsgID 42: this route server has not yet seen the UPDATE (43) the
 	// RIB has already judged, so the target's cut lands below the rule.
 	rs := &routeServer{withdrawals: make(map[string]map[withdrawalKey]withdrawalEntry), plugin: plugin, seenMsgID: 42, peers: map[workerKey]*PeerState{
-		rsFixtureKey(source, 1, 101): {Address: source, DestinationSession: 201, SessionGeneration: 3, adoptionOpen: true, Up: true, StateSeen: true},
+		rsFixtureKey(source, 1, 101): {Address: source, DestinationSession: 201, SessionGeneration: 3, adoptionOpen: true, Up: true, RSClient: true, StateSeen: true},
 		rsFixtureKey(target, 2, 102): {Address: target, DestinationSession: 202, SessionGeneration: 3, Families: map[family.Family]bool{fam: true}},
 	}}
 	rsFixtureCurrentFlowSpec(t, rs, rsFixtureKey(source, 1, 101), 301, 5, 43, fam, "0501180a0000")
@@ -288,7 +288,7 @@ func TestPeerUpReplaysFlowSpecJudgedBeforeTheTargetWasUp(t *testing.T) {
 	if len(early) != 0 {
 		t.Fatalf("validation change reached a peer that was not up: %v", early)
 	}
-	rs.handleState(&Event{PeerAddr: target, PeerOwner: 2, ConnectionID: 102, DestinationSession: 202, State: "up", InitialReplay: 17})
+	rs.handleState(&Event{PeerAddr: target, PeerOwner: 2, ConnectionID: 102, DestinationSession: 202, State: "up", InitialReplay: 17, RSClient: true})
 	select {
 	case <-done:
 	case <-time.After(5 * time.Second):
@@ -369,8 +369,8 @@ func newFlowSpecOrderFixture(t *testing.T, ruleMsgID uint64) *flowSpecOrderFixtu
 	})
 	bridge.SetReady()
 	f.rs = &routeServer{plugin: plugin, peers: map[workerKey]*PeerState{
-		rsFixtureKey(source, 1, 101): {Address: source, DestinationSession: 201, SessionGeneration: 3, adoptionOpen: true, Up: true, StateSeen: true},
-		rsFixtureKey(target, 2, 102): {Address: target, DestinationSession: 202, SessionGeneration: 3, adoptionOpen: true, Up: true, StateSeen: true},
+		rsFixtureKey(source, 1, 101): {Address: source, DestinationSession: 201, SessionGeneration: 3, adoptionOpen: true, Up: true, RSClient: true, StateSeen: true},
+		rsFixtureKey(target, 2, 102): {Address: target, DestinationSession: 202, SessionGeneration: 3, adoptionOpen: true, Up: true, RSClient: true, StateSeen: true},
 	}, withdrawals: make(map[string]map[withdrawalKey]withdrawalEntry)}
 	rsFixtureCurrentFlowSpec(t, f.rs, f.key, 301, 5, ruleMsgID, fam, "0501180a0000")
 	f.rs.forwardCachedHook = func(ids []uint64, _ []string) {
@@ -493,8 +493,8 @@ func TestValidationChangeArrivesThroughEventDelivery(t *testing.T) {
 	rs := newTestRouteServer(t)
 	source := "10.0.0.1"
 	target := "10.0.0.2"
-	rs.peers[rsFixtureKey(source, 1, 101)] = &PeerState{Address: source, DestinationSession: 201, SessionGeneration: 3, adoptionOpen: true, Up: true}
-	rs.peers[rsFixtureKey(target, 2, 102)] = &PeerState{Address: target, DestinationSession: 202, SessionGeneration: 3, adoptionOpen: true, Up: true}
+	rs.peers[rsFixtureKey(source, 1, 101)] = &PeerState{Address: source, DestinationSession: 201, SessionGeneration: 3, adoptionOpen: true, Up: true, RSClient: true}
+	rs.peers[rsFixtureKey(target, 2, 102)] = &PeerState{Address: target, DestinationSession: 202, SessionGeneration: 3, adoptionOpen: true, Up: true, RSClient: true}
 	var replayed []string
 	rs.dispatchCommandHook = func(command string, args []string, _ string) (string, json.RawMessage, error) {
 		replayed = append(replayed, command+" "+strings.Join(args, " "))

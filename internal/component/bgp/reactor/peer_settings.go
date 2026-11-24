@@ -14,10 +14,9 @@ import (
 
 	"github.com/ze-software/ze/internal/component/bgp/filterapi"
 	bgptypes "github.com/ze-software/ze/internal/component/bgp/types"
+	"github.com/ze-software/ze/internal/component/plugin"
 	pluginserver "github.com/ze-software/ze/internal/component/plugin/server"
 	"github.com/ze-software/ze/internal/core/bgp/capability"
-	bgpevents "github.com/ze-software/ze/internal/core/bgp/events"
-	"github.com/ze-software/ze/internal/core/events"
 	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
@@ -541,8 +540,18 @@ type PeerSettings struct {
 	// these dates through OldestPrefixUpdated.
 	PrefixUpdated map[string]string
 
-	// Process bindings - which plugins receive messages from this peer.
-	ProcessBindings []ProcessBinding
+	// Bus holds this peer's resolved bus filter block (after group inheritance).
+	Bus plugin.BusBlock
+	// BusOrigin records whether Bus was written directly or inherited.
+	BusOrigin pluginserver.BusEdgeOrigin
+	// BusSource is the human-readable configuration location of Bus.
+	BusSource string
+	// BusPath is the canonical short bus path for this peer, e.g. "/bgp/peer/c1",
+	// "/bgp/group/ixp/peer/c1", or "/bgp/ip/192.0.2.1".
+	BusPath string
+	// BusGroupPath is the parent group path for group members and dynamic peers,
+	// e.g. "/bgp/group/ixp".
+	BusGroupPath string
 
 	// ImportPolicy carries the cumulative import filters and the effective final.
 	// References are immutable after publication.
@@ -594,6 +603,12 @@ type PeerSettings struct {
 	// AIGPSession overrides the RFC 7311 Section 3.3 session default.
 	// Nil selects enabled for iBGP and disabled for eBGP.
 	AIGPSession *bool
+
+	// AIGPConfigured reports whether the operator explicitly configured a
+	// `session { aigp { ... } }` block on this peer without `enabled false`.
+	// Distinct from AIGPEnabled(), which follows the RFC 7311 Section 3.3 iBGP
+	// default even when no `aigp` block was written.
+	AIGPConfigured bool
 
 	// AcceptASSet is the peer's `session as-set accept`: a received AS_SET or
 	// AS_CONFED_SET in AS_PATH or AS4_PATH is kept instead of treated as
@@ -687,127 +702,6 @@ type PeerSettings struct {
 	// OPEN carried are kept (pluginCapabilityConfigSettings,
 	// peer_settings_negotiation.go).
 	RawCapabilityConfig map[string]map[string]string
-}
-
-// ProcessBinding represents a binding between this peer and a plugin.
-// Controls what messages are forwarded and in what format.
-type ProcessBinding struct {
-	PluginName string // Reference to plugin name
-	// Explicit is set only while parsing an operator's attach-process block.
-	// Derived bindings and implicit-only grants leave it false.
-	Explicit bool
-
-	// Content settings (HOW messages are formatted)
-	Encoding string // "json" | "text" (empty = inherit from plugin)
-	Format   string // "parsed" | "raw" | "full" (empty = "parsed")
-
-	// Receive settings (WHAT the peer feeds this process).
-	//
-	// ReceiveAll is the "*" token: every event type, in both directions.
-	// Receive names one type per key, each mapped to the direction that type
-	// is granted in, so one type can be received-only while another is both.
-	// A type with no key is not granted. Base and plugin-registered types
-	// share the map: what the parser tells apart is auto-loading, never
-	// delivery (AutoLoadReceiveTypes).
-	//
-	// A grant only ever adds, so a list holding "*" and a named type grants
-	// everything: the named type takes nothing away.
-	ReceiveAll bool
-	Receive    map[string]events.Direction
-
-	// Implicit names the Receive types the config granted on its own rather
-	// than an operator: the peer's `state` for a plugin whose filter member
-	// the peer's chain carries (GrantImplicitReceive). Delivery reads Receive
-	// alone. The plugin server's reconcile does not report an implicit type
-	// the plugin never declared, because no operator asked for it.
-	Implicit map[string]bool
-
-	// Send settings (WHAT this process may generate toward the peer).
-	// SendAll is the "*" token and grants every type, named or not. Read both
-	// through MaySend.
-	SendAll bool
-	Send    map[string]bool
-}
-
-// baseReceiveTypes are the event types the receive list has always named
-// directly. A granted type outside this set is plugin-provided, so it drives
-// plugin auto-loading (internal/component/bgp/config/loader_create.go).
-var baseReceiveTypes = map[string]bool{
-	bgpevents.EventUpdate:       true,
-	bgpevents.EventOpen:         true,
-	bgpevents.EventNotification: true,
-	bgpevents.EventKeepalive:    true,
-	bgpevents.EventRefresh:      true,
-	bgpevents.EventState:        true,
-	bgpevents.EventNegotiated:   true,
-}
-
-// MaySend reports whether this binding permits the process to generate the
-// named message type toward the peer.
-func (b *ProcessBinding) MaySend(sendType string) bool {
-	return b.SendAll || b.Send[sendType]
-}
-
-// MayPushRoutes reports whether this binding permits the process to put a route
-// on the peer's wire, by either rail that reaches it: a message ze builds from
-// the process's own route operation (`send [ update ]`), or a whole message the
-// process built itself (`send [ raw ]`).
-//
-// It is the first filter of the processes a session names as reporters of its
-// initial update (Peer.initialUpdateReporters, peer_run.go), so it answers the
-// question RFC 4724 Section 4 asks -- whose routes belong to this speaker's
-// initial routing update -- rather than naming one rail. Their reports lower
-// the replay fence (Peer.SignalAPIReady). The End-of-RIB waits for none of them:
-// the owner ruled on 2026-09-18 that the marker follows ze's own table
-// (sendInitialRoutes, peer_initial_sync.go).
-func (b *ProcessBinding) MayPushRoutes() bool {
-	return b.MaySend(bgpevents.SendUpdate) || b.MaySend(bgpevents.SendRaw)
-}
-
-// ReceivesPeerState reports whether this binding delivers the peer's state
-// events to the process, by the wildcard or by naming the type. Direction does
-// not narrow it: a state event has one direction and any grant of the type
-// carries it (parseOneReceiveFlag, config.go).
-//
-// The peer-up event is the only thing that tells a process a session started,
-// so it is what a process needs before it can push a route into that session's
-// INITIAL routing update, and before it can report those routes are out. The
-// initial-sync barrier reads it for that reason (peer_run.go).
-func (b *ProcessBinding) ReceivesPeerState() bool {
-	if b.ReceiveAll {
-		return true
-	}
-	return b.Receive[bgpevents.EventState] != events.DirUnspecified
-}
-
-// AutoLoadReceiveTypes returns the granted event types no base token names,
-// sorted. The plugin server maps each to the plugin that produces it, so
-// `receive [ update-rpki ]` starts bgp-rpki-decorator. The direction a type
-// carries does not change which plugin produces it. The wildcard names no
-// type, so it offers none.
-func (b *ProcessBinding) AutoLoadReceiveTypes() []string {
-	var out []string
-	for et := range b.Receive {
-		if !baseReceiveTypes[et] {
-			out = append(out, et)
-		}
-	}
-	slices.Sort(out)
-	return out
-}
-
-// AutoLoadSendTypes returns the granted send types no built-in type names,
-// sorted, so `send [ enhanced-refresh ]` starts bgp-route-refresh. The
-// wildcard names no type, so it offers none.
-func (b *ProcessBinding) AutoLoadSendTypes() []string {
-	var out []string
-	for st := range b.Send {
-		if !slices.Contains(bgpevents.BaseSendTypes(), st) {
-			out = append(out, st)
-		}
-	}
-	slices.Sort(out)
-	return out
 }
 
 // NewPeerSettings creates a peer settings with default values.

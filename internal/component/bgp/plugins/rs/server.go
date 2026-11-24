@@ -803,6 +803,13 @@ func (rs *routeServer) dispatchText(text string) {
 			rs.releaseCache(msgID)
 			return
 		}
+		rs.mu.RLock()
+		nonClient := rs.peers[key].nonRSClient()
+		rs.mu.RUnlock()
+		if nonClient {
+			rs.releaseCache(msgID)
+			return
+		}
 		item := workItem{msgID: msgID, sourcePeer: peerAddr, textPayload: payload, sourcePolicyEpoch: sourcePolicyEpoch, sourceReceipt: sourceReceipt, sourceOwner: peerOwner}
 		if enveloped {
 			item.reactorForwarded = receipt.ReactorForwarded
@@ -881,6 +888,13 @@ func (rs *routeServer) dispatchStructured(peerAddr string, msg *bgptypes.RawMess
 		rs.releaseCache(msgID)
 		return
 	}
+	rs.mu.RLock()
+	nonClient := rs.peers[key].nonRSClient()
+	rs.mu.RUnlock()
+	if nonClient {
+		rs.releaseCache(msgID)
+		return
+	}
 	item := workItem{msgID: msgID, sourcePeer: peerAddr, msg: msg, sourcePolicyEpoch: msg.SourcePolicyEpoch, sourceReceipt: msg.SourceReceipt, sourceOwner: msg.SourceOwner,
 		reactorForwarded: msg.ReactorForwarded, fastPathSkipped: slices.Clone(msg.FastPathSkipped)}
 	if err := rs.dispatchSourceUpdate(key, item, msg.SourceReceipt); err != nil {
@@ -917,6 +931,7 @@ func parseStructuredState(se *rpc.StructuredEvent) *Event {
 		Reason:           se.Reason,
 		InitialReplay:    se.InitialReplay,
 		UpdateSendDenied: se.UpdateSendDenied,
+		RSClient:         se.RSClient,
 		// The session the down ended, which its departure names.
 		SessionGeneration: se.SessionGeneration,
 		PeerOwner:         se.PeerOwner,

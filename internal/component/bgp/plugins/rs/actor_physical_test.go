@@ -2,8 +2,9 @@
 package rs
 
 import (
-	"github.com/ze-software/ze/pkg/plugin/rpc"
 	"testing"
+
+	"github.com/ze-software/ze/pkg/plugin/rpc"
 )
 
 // Same-address named peers retain independent OPEN capabilities and UP state;
@@ -28,7 +29,7 @@ func TestRSPhysicalActorsKeepSameAddressSiblingAndSuccessor(t *testing.T) {
 	}
 	for _, key := range []workerKey{first, sibling, successor} {
 		server.handleOpen(&Event{PeerAddr: address, PeerOwner: key.owner, ConnectionID: key.connectionID, Open: &OpenInfo{Capabilities: []CapabilityInfo{{Code: 2, Name: "route-refresh"}}}})
-		server.handleState(&Event{PeerAddr: address, PeerOwner: key.owner, ConnectionID: key.connectionID, DestinationSession: key.connectionID + 100, State: "up", Reason: rpc.ReasonAttached})
+		server.handleState(&Event{PeerAddr: address, PeerOwner: key.owner, ConnectionID: key.connectionID, DestinationSession: key.connectionID + 100, State: "up", Reason: rpc.ReasonAttached, RSClient: true})
 	}
 	server.handleState(&Event{PeerAddr: address, PeerOwner: first.owner, ConnectionID: first.connectionID, State: "down", SessionGeneration: 77})
 	// DOWN queues departure cleanup, which may delete the old actor while
@@ -90,9 +91,9 @@ func TestRSSourcePolicyMatchesOriginalPublishedUPGeneration(t *testing.T) {
 	t.Cleanup(server.workers.Stop)
 	t.Cleanup(server.stopDepartures)
 	for _, event := range []*Event{
-		{PeerAddr: "192.0.2.74", PeerOwner: 7401, ConnectionID: 7411, SessionGeneration: 7491, DestinationSession: 7441, State: "up", Reason: rpc.ReasonAttached},
-		{PeerAddr: "192.0.2.74", PeerOwner: 7402, ConnectionID: 7421, SessionGeneration: 7491, DestinationSession: 7442, State: "up", Reason: rpc.ReasonAttached},
-		{PeerAddr: "192.0.2.74", PeerOwner: 7401, ConnectionID: 7412, SessionGeneration: 7492, DestinationSession: 7443, State: "up", Reason: rpc.ReasonAttached},
+		{PeerAddr: "192.0.2.74", PeerOwner: 7401, ConnectionID: 7411, SessionGeneration: 7491, DestinationSession: 7441, State: "up", Reason: rpc.ReasonAttached, RSClient: true},
+		{PeerAddr: "192.0.2.74", PeerOwner: 7402, ConnectionID: 7421, SessionGeneration: 7491, DestinationSession: 7442, State: "up", Reason: rpc.ReasonAttached, RSClient: true},
+		{PeerAddr: "192.0.2.74", PeerOwner: 7401, ConnectionID: 7412, SessionGeneration: 7492, DestinationSession: 7443, State: "up", Reason: rpc.ReasonAttached, RSClient: true},
 	} {
 		server.handleState(event)
 	}

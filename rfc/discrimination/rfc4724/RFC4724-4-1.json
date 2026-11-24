@@ -3,11 +3,11 @@
     "rid": "RFC4724-4-1",
     "polarity": "positive",
     "unit": "internal/component/bgp/reactor/peer_initial_sync_test.go::TestInitialSyncMarkerWaitsForNoProcess",
-    "unit-sha": "a62eec2895fa1cbb",
+    "unit-sha": "b85dfe32ef8c748c",
     "claim-sha": "4affefea53f93ce6",
     "route": "revert",
     "producer": "internal/component/bgp/reactor/peer_initial_sync.go::Peer.sendInitialRoutes",
-    "producer-sha": "078f7ad064ba4389",
+    "producer-sha": "50939d1671422940",
     "break": "body of Peer.sendInitialRoutes replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   },
   {

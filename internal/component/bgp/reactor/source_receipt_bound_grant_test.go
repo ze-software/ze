@@ -5,14 +5,11 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/require"
-
-	"github.com/ze-software/ze/internal/core/events"
 )
 
-func boundSourceGrant(peer *Peer, name string) {
-	peer.mu.Lock()
-	defer peer.mu.Unlock()
-	peer.settings.ProcessBindings = []ProcessBinding{{PluginName: name, Explicit: true, Receive: map[string]events.Direction{"update": events.DirReceived, "state": events.DirBoth}}}
+func boundSourceGrant(t *testing.T, peer *Peer, name string) {
+	t.Helper()
+	setTestPeerBus(t, peer, testBusSourceLease(name))
 }
 func TestBoundLiveSourceGrantCutRefusesNewEnrollment(t *testing.T) {
 	peer, facts := sourceReceiptFixture(t)
@@ -22,14 +19,14 @@ func TestBoundLiveSourceGrantCutRefusesNewEnrollment(t *testing.T) {
 	defer live.close()
 	owner, done := sourceReceiptOwner(t)
 	defer close(done)
-	boundSourceGrant(peer, "foreign")
+	boundSourceGrant(t, peer, "foreign")
 	_, err = store.beginLive(live.ID(), owner, peer.sourcePolicyEpoch.Load())
 	require.Error(t, err)
-	boundSourceGrant(peer, "rib")
+	boundSourceGrant(t, peer, "rib")
 	write, err := store.beginLive(live.ID(), owner, peer.sourcePolicyEpoch.Load())
 	require.NoError(t, err)
 	require.NoError(t, write.current())
-	boundSourceGrant(peer, "foreign")
+	boundSourceGrant(t, peer, "foreign")
 	_, err = store.beginLive(live.ID(), owner, peer.sourcePolicyEpoch.Load())
 	require.Error(t, err, "an existing transient guard cannot grant another live write after the receive cut")
 	prepared, err := store.prepareGrant(peer, owner)

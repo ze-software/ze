@@ -10,6 +10,7 @@ import (
 	"encoding/binary"
 	"net/netip"
 	"slices"
+	"strings"
 	"sync"
 	"sync/atomic"
 	"testing"
@@ -56,11 +57,10 @@ func announcementLiveLate(t *testing.T, fastPath, rs bool, api func(*reactorAPIA
 		// relay; keep bgp-rib receive-only so it serves recovery elections
 		// without claiming OrdinaryReplayOwned on the client.
 		for _, setting := range settings {
-			require.NoError(t, parseProcessBindingsFromTree(map[string]any{
-				"attach": map[string]any{"process": map[string]any{
-					"bgp-rib": map[string]any{"receive": "update state refresh"},
-				}},
-			}, setting))
+			addTestPeerBusGrant(setting, testPeerEndpointGrant{
+				Name:    "bgp-rib",
+				Receive: []string{"update", "state", "refresh"},
+			})
 		}
 	}
 	peers := lowLiveStart(t, lowLiveOptions{api: api, withoutRS: !rs}, settings...)
@@ -741,16 +741,14 @@ type lowLiveOptions struct {
 // derived one; this helper MUST NOT complete or authorize that block.
 func lowLiveAttachProcess(t *testing.T, settings *PeerSettings, process, receive string) {
 	t.Helper()
-	for _, binding := range settings.ProcessBindings {
-		if binding.PluginName == process {
-			return
-		}
+	if testBusHasEndpoint(settings.Bus, process) {
+		return
 	}
-	require.NoError(t, parseProcessBindingsFromTree(map[string]any{
-		"attach": map[string]any{"process": map[string]any{
-			process: map[string]any{"receive": receive, "send": "update"},
-		}},
-	}, settings))
+	addTestPeerBusGrant(settings, testPeerEndpointGrant{
+		Name:    process,
+		Receive: strings.Fields(receive),
+		Send:    []string{"update"},
+	})
 }
 
 // lowLiveStart starts lowLiveRouter's reactor and plugins and returns its

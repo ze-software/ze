@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/require"
+
 	"github.com/ze-software/ze/internal/core/family"
 	"github.com/ze-software/ze/pkg/plugin/rpc"
 )
@@ -31,9 +32,9 @@ func TestFastPathHandbackKeepsOriginalEndpoint(t *testing.T) {
 			require.NoError(t, err)
 			destination, err := newWorkerKey("10.0.0.2", 2, 102)
 			require.NoError(t, err)
-			rs.peers[source] = &PeerState{Address: source.address.String(), Up: true, StateSeen: true,
+			rs.peers[source] = &PeerState{Address: source.address.String(), Up: true, RSClient: true, StateSeen: true,
 				DestinationSession: 201, InitialReplay: 20}
-			rs.peers[destination] = &PeerState{Address: destination.address.String(), Up: true, StateSeen: true,
+			rs.peers[destination] = &PeerState{Address: destination.address.String(), Up: true, RSClient: true, StateSeen: true,
 				DestinationSession: 202, ForwardFrom: 10, InitialReplay: 20}
 			var forwarded []string
 			rs.forwardCachedHook = func(ids []uint64, targets []string) {

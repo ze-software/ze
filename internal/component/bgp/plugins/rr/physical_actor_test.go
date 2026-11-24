@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/require"
+
 	"github.com/ze-software/ze/internal/component/bgp/retention"
 	"github.com/ze-software/ze/internal/core/family"
 	"github.com/ze-software/ze/pkg/plugin/rpc"
@@ -24,11 +25,11 @@ func TestRRPhysicalStateKeepsSiblingAndSuccessorBothInputs(t *testing.T) {
 			t.Cleanup(rr.stopDepartures)
 			feed := func(owner, connection uint64, state rpc.SessionState) {
 				if textInput {
-					rr.dispatchText(fmt.Sprintf("peer 192.0.2.1 remote as 65001 state %s peer-owner %d connection-id %d destination-session %d session-generation %d reason attached", state, owner, connection, connection+100, connection+1000))
+					rr.dispatchText(fmt.Sprintf("peer 192.0.2.1 remote as 65001 state %s peer-owner %d connection-id %d destination-session %d session-generation %d reason attached is-ibgp true rr-client true", state, owner, connection, connection+100, connection+1000))
 					return
 				}
 				rr.handleStructuredState(&rpc.StructuredEvent{PeerAddress: "192.0.2.1", PeerOwner: owner, ConnectionID: connection,
-					DestinationSession: connection + 100, SessionGeneration: connection + 1000, State: state, Reason: rpc.ReasonAttached})
+					DestinationSession: connection + 100, SessionGeneration: connection + 1000, State: state, Reason: rpc.ReasonAttached, IsIBGP: true, RouteReflectorClient: true})
 			}
 			original, err := newPeerIdentity("192.0.2.1", 701, 41)
 			require.NoError(t, err)

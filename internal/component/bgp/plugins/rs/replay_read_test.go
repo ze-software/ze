@@ -4,13 +4,14 @@ package rs
 import (
 	"context"
 	"errors"
-	"github.com/ze-software/ze/internal/core/bgp/ribevents"
-	"github.com/ze-software/ze/internal/core/family"
-	"github.com/ze-software/ze/pkg/plugin/rpc"
 	"net/netip"
 	"slices"
 	"testing"
 	"time"
+
+	"github.com/ze-software/ze/internal/core/bgp/ribevents"
+	"github.com/ze-software/ze/internal/core/family"
+	"github.com/ze-software/ze/pkg/plugin/rpc"
 )
 
 // A refused optional read must preserve useful mandatory rule/EOR/ready output
@@ -30,7 +31,7 @@ func TestRSOptionalReadRefusalCompletesMandatoryReplayAndReconciles(t *testing.T
 				return ribevents.FlowSpecPath{Attributes: attrs, MsgID: 42, SourceReceipt: 201, SourcePolicyEpoch: 7}, candidate == rule
 			}, func() []ribevents.ValidationRoute { return []ribevents.ValidationRoute{rule} })
 			t.Cleanup(func() { ribevents.RegisterFlowSpecLookup(nil, nil, nil, nil) })
-			rs.peers[target] = &PeerState{Address: target.address.String(), Up: true, StateSeen: true, DestinationSession: 209, InitialReplay: 17, ForwardFrom: 42, ReplayGen: 1, Families: map[family.Family]bool{fam: true}}
+			rs.peers[target] = &PeerState{Address: target.address.String(), Up: true, RSClient: true, StateSeen: true, DestinationSession: 209, InitialReplay: 17, ForwardFrom: 42, ReplayGen: 1, Families: map[family.Family]bool{fam: true}}
 			refuseRead := true
 			var delivered []string
 			rs.plugin = coldRSProtocol(t, native, func(_ context.Context, method string, value any) (any, error) {

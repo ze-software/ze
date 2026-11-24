@@ -78,6 +78,9 @@ func (p *Peer) newSessionWithEpoch(epoch negotiationEpoch) *Session {
 			Address:      settings.Address, AddressStr: p.addrString,
 			LocalAddress: settings.LocalAddress, LocalAddressStr: p.localAddrString,
 			LocalAS: settings.LocalAS, PeerAS: rpc.RemoteASOf(settings.PeerAS), RouterID: settings.RouterID,
+			IsIBGP:               settings.IsIBGP(),
+			RSClient:             settings.RSClient,
+			RouteReflectorClient: settings.RouteReflectorClient,
 		}
 		session.onWireMessage = func(wire []byte, ctxID bgpctx.ContextID, sent bool, endpoints *sessionTransport) {
 			p.reactor.dispatchObservedWire(&wirePeer, wire, ctxID, sent, endpoints)

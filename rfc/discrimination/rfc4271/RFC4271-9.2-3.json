@@ -36,12 +36,12 @@
     "rid": "RFC4271-9.2-3",
     "polarity": "positive",
     "unit": "internal/component/bgp/reactor/rfc4271_selected_exclusion_boundary_proof_test.go::TestRFC4271FramedForkedSelectRoutesExclusionWithdrawsPriorRoute",
-    "unit-sha": "452ce0b70e644631",
+    "unit-sha": "bd2b1c213ac8c0d1",
     "claim-sha": "66125f5a06d9c3ee",
-    "route": "mutant",
-    "producer": "pkg/plugin/sdk/sdk_selected.go::SelectRoutes",
+    "route": "revert",
+    "producer": "pkg/plugin/sdk/sdk_selected.go::Plugin.SelectRoutes",
     "producer-sha": "681b830c4bc1b8c6",
-    "break": "line 28: \"result, err = p.engineMux.CallRPCCancellable(ctx, rpc.MethodSelectRoutes, \u0026input)\" -\u003e \"if len(input.Routes) \u003e 0 \u0026\u0026 input.Routes[0].Kind == rpc.SelectedRouteAbsent { return \u0026rpc.SelectRoutesOutput{Results: []rpc.SelectedRouteResult{{Family: input.Routes[0].Family, KeyNLRI: input.Routes[0].KeyNLRI, Revision: input.Routes[0].Revision, CurrentRevision: input.Routes[0].Revision, Outcome: rpc.SelectedAbsent}}}, nil }; result, err = p.engineMux.CallRPCCancellable(ctx, rpc.MethodSelectRoutes, \u0026input)\""
+    "break": "body of Plugin.SelectRoutes replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   },
   {
     "rid": "RFC4271-9.2-3",

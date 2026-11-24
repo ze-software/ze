@@ -32,16 +32,17 @@ func TestRSSkipsReplayOnAttachedUp(t *testing.T) {
 	require.NoError(t, keyErr)
 	deliver := map[string]func(rs *routeServer){
 		"text": func(rs *routeServer) {
-			rs.dispatchText("peer " + target + " remote as 65001 state up peer-owner 51 connection-id 501 session-generation 700 destination-session 801 reason " + rpc.ReasonAttached + "\n")
+			rs.dispatchText("peer " + target + " remote as 65001 state up peer-owner 51 connection-id 501 session-generation 700 destination-session 801 reason " + rpc.ReasonAttached + " rs-client true\n")
 		},
 		"structured": func(rs *routeServer) {
 			ev := parseStructuredState(&rpc.StructuredEvent{
 				EventType:   rpc.EventKindState,
 				PeerAddress: target,
 				PeerOwner:   51, ConnectionID: 501, SessionGeneration: 700, DestinationSession: 801,
-				PeerAS: rpc.RemoteASOf(65001),
-				State:  rpc.SessionStateUp,
-				Reason: rpc.ReasonAttached,
+				PeerAS:   rpc.RemoteASOf(65001),
+				State:    rpc.SessionStateUp,
+				Reason:   rpc.ReasonAttached,
+				RSClient: true,
 			})
 			require.NotNil(t, ev)
 			rs.handleState(ev)

@@ -41,7 +41,6 @@ func (m *mockReactor) Stats() plugin.ReactorStats { return plugin.ReactorStats{}
 func (m *mockReactor) PeerNegotiatedCapabilities(_ netip.Addr) *plugin.PeerCapabilitiesInfo {
 	return nil
 }
-func (m *mockReactor) GetPeerProcessBindings(_ netip.Addr) []plugin.PeerProcessBinding { return nil }
 
 // --- ReactorPeerController ---
 

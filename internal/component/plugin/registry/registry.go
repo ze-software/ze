@@ -104,6 +104,12 @@ type Registration struct {
 	// runtime message: it must not be re-derived from a callback that races
 	// session establishment.
 	Claims []string
+	// ClaimSessionScope optionally restricts which BGP sessions this plugin's
+	// Claims (e.g. "bgp-peer-up-replay") and SignalsSessionReady apply to, using
+	// the same FilterSessionFact vocabulary as FilterInsertions (e.g.
+	// rs-client=true for bgp-rs, session-type=ibgp for bgp-rr). Empty means the
+	// claim applies to every session the compiled bus filter reaches (Q-5, Q-9).
+	ClaimSessionScope []rpc.FilterSessionFact
 
 	// Dissemination declares the peer-output roles and grants this plugin
 	// needs. A declaration grants nothing; explicit Claims of a declared role
@@ -1214,6 +1220,20 @@ func ClaimsFor(name string) []string {
 		return nil
 	}
 	return slices.Clone(reg.Claims)
+}
+
+// ClaimSessionScopeFor returns the session-fact scope limiting when name's
+// Claims and SignalsSessionReady apply. Empty/nil means all sessions reached by
+// the compiled bus filter.
+func ClaimSessionScopeFor(name string) []rpc.FilterSessionFact {
+	mu.RLock()
+	defer mu.RUnlock()
+
+	reg := plugins[name]
+	if reg == nil {
+		return nil
+	}
+	return slices.Clone(reg.ClaimSessionScope)
 }
 
 // RequiresPeerUpBarrier reports whether a registered plugin declares

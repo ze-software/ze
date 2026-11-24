@@ -7,10 +7,8 @@ import (
 
 	"github.com/stretchr/testify/require"
 
-	"github.com/ze-software/ze/internal/component/plugin"
 	"github.com/ze-software/ze/internal/component/plugin/registry"
 	pluginserver "github.com/ze-software/ze/internal/component/plugin/server"
-	"github.com/ze-software/ze/internal/core/events"
 )
 
 // TestDisseminationSnapshotSurvivesFactsRefresh proves an unrelated forwarding
@@ -42,7 +40,7 @@ func TestDisseminationSnapshotChangesWhenDestinationGrantEnds(t *testing.T) {
 	f := newSelectedWriterFixture(t, false)
 	before := f.peer.selectedOwnerSnapshot()
 	f.peer.mu.Lock()
-	f.peer.settings.ProcessBindings = nil
+	f.peer.settings.Bus = testBusNone()
 	f.peer.mu.Unlock()
 	f.peer.refreshForwardFacts()
 	after := f.peer.selectedOwnerSnapshot()
@@ -56,8 +54,7 @@ func TestDisseminationSettingsPreservesUnreadDynamicSources(t *testing.T) {
 	f := newSelectedWriterFixture(t, false)
 	r := f.api.r
 	r.dynamicGroups = []*DynamicGroupConfig{{GroupName: "retained", Settings: &PeerSettings{
-		ProcessBindings: []ProcessBinding{{PluginName: selectedWriterProcess, Explicit: true,
-			Receive: map[string]events.Direction{"update": events.DirReceived, "state": events.DirBoth}}},
+		Bus: testBusSourceLease(selectedWriterProcess),
 	}}}
 	destination := f.peer.settingsSnapshot()
 	require.NoError(t, r.resolveDisseminationSettings([]*PeerSettings{destination}, dynamicGroupsNotRead))
@@ -71,8 +68,7 @@ func TestDisseminationSettingsPreservesUnreadDynamicSources(t *testing.T) {
 // keep independent grants in the configuration gate as well as at runtime.
 func TestDisseminationTemplatesRemainSeparate(t *testing.T) {
 	f := newSelectedWriterFixture(t, false)
-	source := &PeerSettings{ProcessBindings: []ProcessBinding{{PluginName: selectedWriterProcess, Explicit: true,
-		Receive: map[string]events.Direction{"update": events.DirReceived, "state": events.DirBoth}}}}
+	source := &PeerSettings{Bus: testBusSourceLease(selectedWriterProcess)}
 	destination := f.peer.settingsSnapshot()
 	destination.Address = netip.Addr{}
 	nodes := DisseminationPeersFromSettings([]*PeerSettings{source, destination})
@@ -87,12 +83,9 @@ func TestDisseminationTemplatesRemainSeparate(t *testing.T) {
 func TestDisseminationOwnerClassRestartsSameNamedProcess(t *testing.T) {
 	f := newSelectedWriterFixture(t, false)
 	ordinary := f.peer.selectedOwnerSnapshot().owner
-	graph := pluginserver.NewDisseminationGraph("bgp", []pluginserver.DeliveryPeer{
-		{Addr: "source", Bindings: []plugin.PeerProcessBinding{{PluginName: selectedWriterProcess, Explicit: true,
-			Receive: map[string]events.Direction{"update": events.DirReceived, "state": events.DirBoth}}}},
-		{Addr: "destination", Bindings: []plugin.PeerProcessBinding{{PluginName: selectedWriterProcess, Explicit: true,
-			Receive: map[string]events.Direction{"state": events.DirBoth, "refresh": events.DirBoth, "update": events.DirSent},
-			Send:    map[string]bool{"update": true}}}},
+	graph := buildTestDisseminationGraph(t, []pluginserver.DeliveryPeer{
+		testDeliveryPeer("source", "source", testBusSourceLease(selectedWriterProcess)),
+		testDeliveryPeer("destination", "destination", testBusSelectedDest(selectedWriterProcess)),
 	})
 	declaration := registry.Lookup(selectedWriterProcess)
 	require.NotNil(t, declaration)

@@ -1,5 +1,5 @@
 // Design: docs/architecture/api/architecture.md -- peer dissemination ownership.
-// Related: delivery_graph.go -- the immutable actual-grant index.
+// Related: delivery_graph.go -- the immutable compiled-bus delivery index.
 // Related: startup_claims.go -- aliases and authenticated Stage 1 declarations.
 package server
 
@@ -7,8 +7,10 @@ import (
 	"fmt"
 	"slices"
 
+	plugin "github.com/ze-software/ze/internal/component/plugin"
 	"github.com/ze-software/ze/internal/component/plugin/registry"
 	"github.com/ze-software/ze/internal/core/events"
+	"github.com/ze-software/ze/internal/core/textbuf"
 	"github.com/ze-software/ze/pkg/plugin/rpc"
 )
 
@@ -17,9 +19,10 @@ import (
 // caller MUST keep it unchanged while resolving the graph. Separate configured
 // names remain separate instances even when they use one implementation.
 type DisseminationProcess struct {
-	Name         string
-	Claims       []string
-	Declarations []rpc.DisseminationDecl
+	Name              string
+	Claims            []string
+	ClaimSessionScope []rpc.FilterSessionFact
+	Declarations      []rpc.DisseminationDecl
 }
 
 // DisseminationOwner identifies one configuration's effective peer-output
@@ -41,10 +44,10 @@ func (owner DisseminationOwner) Name() string { return owner.name }
 func (owner DisseminationOwner) Explicit() bool { return owner.explicit }
 
 // ResolveDisseminationOwner resolves a destination from one immutable graph.
-// Complete explicit blocks are required on the same process's source and
-// destination; derived bindings and implicit receive additions grant no role.
-// One eligible claimant supersedes ordinary owners. Ambiguity in the winning
-// class is refused, never ordered by declarations. Safe for concurrent use.
+// Complete compiled-bus grants are required on the same process's source and
+// destination. One eligible claimant supersedes ordinary owners. Ambiguity in
+// the winning class is refused, never ordered by declarations. Safe for
+// concurrent use.
 func (g *DeliveryGraph) ResolveDisseminationOwner(peer, role string, processes []DisseminationProcess) (DisseminationOwner, error) {
 	var ordinary, explicit []string
 	for i := range processes {
@@ -57,6 +60,9 @@ func (g *DeliveryGraph) ResolveDisseminationOwner(peer, role string, processes [
 		}
 		if err := registry.CheckDisseminationEvents(process.Name, process.Declarations); err != nil {
 			return DisseminationOwner{}, err
+		}
+		if !g.peerMatchesSessionFacts(peer, process.ClaimSessionScope) {
+			continue
 		}
 		for j := range process.Declarations {
 			decl := &process.Declarations[j]
@@ -83,6 +89,30 @@ func (g *DeliveryGraph) ResolveDisseminationOwner(peer, role string, processes [
 		return g.disseminationWinner(peer, role, explicit, true)
 	}
 	return g.disseminationWinner(peer, role, ordinary, false)
+}
+
+func (g *DeliveryGraph) peerMatchesSessionFacts(peer string, scope []rpc.FilterSessionFact) bool {
+	if len(scope) == 0 {
+		return true
+	}
+	pd := g.peers[peer]
+	// refuse-by-default: guards DeliveryGraph.ResolveDisseminationOwner -- absent session facts keep scope unconstrained.
+	if pd == nil {
+		return true
+	}
+	if len(pd.sessionFacts) == 0 {
+		return true
+	}
+	for _, fact := range scope {
+		val, known := pd.sessionFacts[fact.Fact]
+		if !known {
+			return false
+		}
+		if len(fact.Values) > 0 && !slices.Contains(fact.Values, val) {
+			return false
+		}
+	}
+	return true
 }
 
 func appendDisseminationOwner(owners []string, name string) []string {
@@ -131,19 +161,12 @@ func (g *DeliveryGraph) disseminationDestination(peer, process string, decl *rpc
 }
 
 func (g *DeliveryGraph) disseminationReceive(peer, process string, required []string) bool {
-	attachment := g.disseminationAttachment(peer, process)
-	if attachment == nil {
-		return false
-	}
-	if !attachment.explicit {
+	if g.peers[peer] == nil {
 		return false
 	}
 	for _, token := range required {
 		name, direction, known := events.SplitTypeToken(g.namespace, token)
 		if !known {
-			return false
-		}
-		if slices.Contains(attachment.implicit, name) {
 			return false
 		}
 		if !g.disseminationReceives(peer, process, events.LookupEventTypeID(name), direction) {
@@ -153,17 +176,12 @@ func (g *DeliveryGraph) disseminationReceive(peer, process string, required []st
 	return len(required) > 0
 }
 
-func (g *DeliveryGraph) disseminationAttachment(peer, process string) *processDelivery {
+func (g *DeliveryGraph) peerHasProcess(peer, process string) bool {
 	destination := g.peers[peer]
 	if destination == nil {
-		return nil
+		return false
 	}
-	for i := range destination.procs {
-		if destination.procs[i].name == process {
-			return &destination.procs[i]
-		}
-	}
-	return nil
+	return slices.Contains(destination.allProcs, process)
 }
 
 func (g *DeliveryGraph) disseminationReceives(peer, process string, event events.EventTypeID, direction events.Direction) bool {
@@ -204,31 +222,61 @@ func (s *Server) disseminationProcesses() []DisseminationProcess {
 	return processes
 }
 
+func (s *Server) buildDeliveryGraphForPeers(namespace string, peers []DeliveryPeer, busCfg plugin.BusConfig) (*DeliveryGraph, error) {
+	if busCfg.IsEmpty() {
+		busCfg = s.BusConfig()
+	}
+	endpoints := s.collectBusEndpointInputs(namespace, busCfg)
+	return BuildDeliveryGraph(namespace, peers, busCfg, endpoints)
+}
+
 // ResolveDisseminationOwnerForPeer resolves one exact destination's grants,
 // preserving all original source nodes even when peers share an IP address.
 // This is a cold lifecycle lookup: it acquires process-manager locks and MUST
 // NOT run under a socket writer lock, reactor lock or peer lock.
 func (s *Server) ResolveDisseminationOwnerForPeer(peer DeliveryPeer, role string) (DisseminationOwner, error) {
 	graph := s.DeliveryGraph()
+	ns := graph.namespace
+	if ns == "" {
+		ns = "bus"
+	}
 	peers := make([]DeliveryPeer, 0, len(graph.disseminationPeers)+1)
+	var tb textbuf.Buffer
 	for i, source := range graph.disseminationPeers {
-		source.Addr = fmt.Sprintf("source-%d", i)
+		source.Addr = tb.Reset().Str("source-").Int(int64(i)).String()
+		source.Path = tb.Reset().Byte('/').Str(ns).Str("/source-").Int(int64(i)).String()
+		source.SecondaryPaths = nil
 		peers = append(peers, source)
 	}
 	peer.Addr = "destination"
+	peer.Path = tb.Reset().Byte('/').Str(ns).Str("/destination").String()
+	peer.SecondaryPaths = nil
 	peers = append(peers, peer)
-	return newDeliveryGraph(graph.namespace, peers).ResolveDisseminationOwner("destination", role, s.disseminationProcesses())
+	built, err := s.buildDeliveryGraphForPeers(ns, peers, plugin.BusConfig{})
+	if err != nil {
+		return DisseminationOwner{}, err
+	}
+	return built.ResolveDisseminationOwner("destination", role, s.disseminationProcesses())
 }
 
 // ValidateDisseminationBindings applies the same complete-grant gate to
 // authenticated runtime declarations, including third-party processes.
 func (s *Server) ValidateDisseminationBindings() error {
 	graph := s.DeliveryGraph()
-	peers := slices.Clone(graph.disseminationPeers)
+	peers := cloneDeliveryPeers(graph.disseminationPeers)
+	var tb textbuf.Buffer
 	for i := range peers {
-		peers[i].Addr = fmt.Sprintf("peer-%d", i)
+		peers[i].Addr = tb.Reset().Str("peer-").Int(int64(i)).String()
+		if peers[i].Path == "" {
+			peers[i].Path = tb.Reset().Byte('/').Str(graph.namespace).Str("/peer-").Int(int64(i)).String()
+		}
+		peers[i].SecondaryPaths = nil
 	}
-	return newDeliveryGraph(graph.namespace, peers).ValidateDisseminationBindings(s.disseminationProcesses())
+	built, err := s.buildDeliveryGraphForPeers(graph.namespace, peers, plugin.BusConfig{})
+	if err != nil {
+		return err
+	}
+	return built.ValidateDisseminationBindings(s.disseminationProcesses())
 }
 
 // ResolveDisseminationOwners verifies a complete candidate before publication.
@@ -236,7 +284,10 @@ func (s *Server) ValidateDisseminationBindings() error {
 // including an empty claim or declaration list, supersede compiled metadata.
 // Callers MUST hold no reactor or peer lock while this reads declarations.
 func (s *Server) ResolveDisseminationOwners(namespace, role string, peers []DeliveryPeer) (map[string]DisseminationOwner, error) {
-	graph := newDeliveryGraph(namespace, peers)
+	graph, err := s.buildDeliveryGraphForPeers(namespace, peers, plugin.BusConfig{})
+	if err != nil {
+		return nil, err
+	}
 	processes := s.disseminationProcesses()
 	if err := graph.ValidateDisseminationBindings(processes); err != nil {
 		return nil, err
@@ -253,17 +304,34 @@ func (s *Server) ResolveDisseminationOwners(namespace, role string, peers []Deli
 }
 
 func (s *Server) disseminationForPlugin(prospective prospectivePlugin) DisseminationProcess {
+	var scope []rpc.FilterSessionFact
+	for _, name := range prospective.registry {
+		if s := registry.ClaimSessionScopeFor(name); len(s) > 0 {
+			scope = s
+			break
+		}
+	}
 	if manager := s.procManager.Load(); manager != nil {
-		if process := manager.GetProcess(prospective.process); process != nil {
-			if declaration := process.Registration(); declaration != nil {
-				return DisseminationProcess{Name: prospective.process, Claims: declaration.Claims, Declarations: declaration.Dissemination}
+		if proc := manager.GetProcess(prospective.process); proc != nil {
+			if declaration := proc.Registration(); declaration != nil {
+				return DisseminationProcess{
+					Name:              prospective.process,
+					Claims:            declaration.Claims,
+					ClaimSessionScope: scope,
+					Declarations:      declaration.Dissemination,
+				}
 			}
 		}
 	}
 	for _, name := range prospective.registry {
 		if declaration := registry.Lookup(name); declaration != nil {
 			if len(declaration.Dissemination) > 0 {
-				return DisseminationProcess{Name: prospective.process, Claims: declaration.Claims, Declarations: declaration.Dissemination}
+				return DisseminationProcess{
+					Name:              prospective.process,
+					Claims:            declaration.Claims,
+					ClaimSessionScope: slices.Clone(declaration.ClaimSessionScope),
+					Declarations:      declaration.Dissemination,
+				}
 			}
 		}
 	}

@@ -38,7 +38,6 @@ import (
 	"github.com/ze-software/ze/internal/core/bgp/capability"
 	"github.com/ze-software/ze/internal/core/bgp/msgtype"
 	"github.com/ze-software/ze/internal/core/bgp/ribevents"
-	"github.com/ze-software/ze/internal/core/events"
 	"github.com/ze-software/ze/internal/core/family"
 	"github.com/ze-software/ze/pkg/plugin/rpc"
 	"github.com/ze-software/ze/pkg/plugin/sdk"
@@ -705,18 +704,6 @@ func recoveryDeliveryRouter(t *testing.T, ctx context.Context, observers ...regi
 		settings.ImportPolicy = accept
 		settings.ExportPolicy = accept
 		settings.Capabilities = []capability.Capability{&capability.ASN4{ASN: 65000}, &capability.Multiprotocol{AFI: capability.AFIIPv4, SAFI: capability.SAFIUnicast}}
-		// These are the fixture's configured attachments, not derived grants.
-		settings.ProcessBindings = []reactor.ProcessBinding{
-			{PluginName: "bgp-rib", Explicit: true,
-				Receive: map[string]events.Direction{"update": events.DirBoth, "state": events.DirBoth, "refresh": events.DirBoth},
-				Send:    map[string]bool{"update": true}},
-			{PluginName: "bgp-rs", Explicit: true,
-				Receive: map[string]events.Direction{"update": events.DirReceived, "state": events.DirBoth, "open": events.DirReceived, "refresh": events.DirBoth},
-				Send:    map[string]bool{"update": true}},
-			{PluginName: "bgp-adj-rib-in", Explicit: true,
-				Receive: map[string]events.Direction{"update": events.DirReceived, "state": events.DirBoth},
-				Send:    map[string]bool{"update": true}},
-		}
 		if err := r.AddPeer(settings); err != nil {
 			t.Fatal(err)
 		}

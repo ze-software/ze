@@ -7,10 +7,12 @@ package reactor
 import (
 	"errors"
 	"fmt"
+	"slices"
 	"time"
 
 	bgptypes "github.com/ze-software/ze/internal/component/bgp/types"
 	"github.com/ze-software/ze/internal/component/plugin/registry"
+	bgpevents "github.com/ze-software/ze/internal/core/bgp/events"
 	"github.com/ze-software/ze/internal/core/taskguard"
 
 	"github.com/ze-software/ze/internal/component/bgp/fsm"
@@ -987,39 +989,54 @@ func (p *Peer) replayFenceOwners() []string {
 // waits for none of them (owner ruling, 2026-09-18): the marker follows ze's
 // own table (sendInitialRoutes, peer_initial_sync.go).
 //
-// Three facts have to hold together, and each one alone admits a process that
+// Four facts have to hold together, and each one alone admits a process that
 // can never report:
 //
-//   - The peer GRANTS the process a route-push rail, by `send [ update ]` for a
-//     message ze builds or `send [ raw ]` for one the process built
-//     (MayPushRoutes). Without it nothing the process does reaches this wire.
+//   - The compiled delivery graph permits the process to send `bgp:update` or
+//     `bgp:raw` to this peer.
+//   - The compiled delivery graph feeds this peer's `bgp:state` events to the
+//     process.
 //   - The plugin DECLARES that its routes belong to the initial update and that
-//     it reports when they are out (registry.SignalsSessionReady). The owner
-//     made this voluntary on 2026-09-02: a plugin that pushes on its own
-//     schedule declares nothing and is not credited. An external plugin
-//     declares it at Stage 1 (`signals-session-ready`).
-//   - The peer TELLS the process the session came up (ReceivesPeerState). The
-//     report answers the peer-up event, so a binding with no state grant leaves
-//     the plugin unable to push into this update and unable to report it.
-//
-// The reactor learns no plugin name here: the grant is config, the declaration
-// is a registry lookup on the name the binding already carries, and nothing in
-// this package interprets either (ai/rules/plugins.md).
+//     it reports when they are out (registry.SignalsSessionReady).
+//   - The peer satisfies the plugin's registered ClaimSessionScope (e.g.
+//     rs-client for bgp-rs, ibgp for bgp-rr).
 func (p *Peer) initialUpdateReporters() []string {
-	var reporters []string
-	// Under p.mu: a reload can deliver a derived binding change onto the
-	// running peer (applyHotSwappableSettings, peer_settings_apply.go).
+	g := p.reactor.DeliveryGraph()
+	if g == nil {
+		return nil
+	}
+	updateSenders := g.SendersForPeer(p.addrString, bgpevents.SendUpdate)
+	rawSenders := g.SendersForPeer(p.addrString, bgpevents.SendRaw)
+	if len(updateSenders) == 0 && len(rawSenders) == 0 {
+		return nil
+	}
+	candidates := make([]string, 0, len(updateSenders)+len(rawSenders))
+	candidates = append(candidates, updateSenders...)
+	for _, name := range rawSenders {
+		if !slices.Contains(candidates, name) {
+			candidates = append(candidates, name)
+		}
+	}
+	slices.Sort(candidates)
+
 	p.mu.RLock()
-	bindings := p.settings.ProcessBindings
+	settings := p.settings
+	peerAS := p.settings.PeerAS
 	p.mu.RUnlock()
-	for _, binding := range bindings {
-		if !binding.MayPushRoutes() || !binding.ReceivesPeerState() {
+
+	var reporters []string
+	for _, procName := range candidates {
+		if !g.ProcessReceivesState(p.addrString, procName) {
 			continue
 		}
-		if !registry.SignalsSessionReady(binding.PluginName) {
+		regName := resolveRegistrationName(p.reactor, procName)
+		if !registry.SignalsSessionReady(regName) && !registry.SignalsSessionReady(procName) {
 			continue
 		}
-		reporters = append(reporters, binding.PluginName)
+		if !peerSettingsMatchesClaimScope(settings, peerAS, registry.ClaimSessionScopeFor(regName)) {
+			continue
+		}
+		reporters = append(reporters, procName)
 	}
 	return reporters
 }

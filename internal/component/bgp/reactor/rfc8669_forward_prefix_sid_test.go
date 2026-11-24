@@ -76,7 +76,7 @@ func prefixSIDPeer(addr string, peerAS, routerID uint32, propagate, rsClient boo
 		PropagateSRv6PrefixSID: propagate,
 		// The route server's send grant: the RS fast path reaches no
 		// destination without it, as the cached rail does not.
-		ProcessBindings: []ProcessBinding{rsRelaySendBinding()},
+		Bus: rsRelaySendBinding(),
 	})
 	p.state.Store(int32(PeerStateEstablished))
 	p.negotiated.Store(&NegotiatedCapabilities{
@@ -84,6 +84,7 @@ func prefixSIDPeer(addr string, peerAS, routerID uint32, propagate, rsClient boo
 	})
 	p.sendCtx.Store(ctx)
 	p.sendCtxID = ctxID
+	setTestPeerBusPanic(p, rsRelaySendBinding())
 	p.refreshForwardFacts()
 	return p
 }

@@ -110,6 +110,8 @@ type peerState struct {
 	RetainPending       bool
 	ASN                 uint32
 	Up                  bool
+	Internal            bool // Session is iBGP (internal); false for eBGP (Q-5, AC-19).
+	RRClient            bool // Session is an RFC 4456 route-reflector client.
 	UpdateSendDenied    bool
 	ReplayGen           uint64 // Incremented on each state-up, guards stale goroutines
 	Families            map[family.Family]bool
@@ -482,6 +484,8 @@ func (rr *routeReflector) handleStructuredState(se *rpc.StructuredEvent) error {
 		}
 		peer.Up = true
 		peer.UpdateSendDenied = se.UpdateSendDenied
+		peer.Internal = se.IsIBGP
+		peer.RRClient = se.RouteReflectorClient
 		peer.DestinationSession = se.DestinationSession
 		peer.PublishedGeneration = se.SessionGeneration
 		if asn, known := se.PeerAS.ASN(); known {
@@ -491,6 +495,14 @@ func (rr *routeReflector) handleStructuredState(se *rpc.StructuredEvent) error {
 			peer.Up = false
 			rr.mu.Unlock()
 			return err
+		}
+		if !peer.Internal {
+			target := peerTarget{identity: identity, session: peer.DestinationSession, generation: peer.ReplayGen}
+			rr.mu.Unlock()
+			if se.InitialReplay != 0 && !se.UpdateSendDenied && se.Reason != rpc.ReasonAttached && rr.plugin != nil {
+				rr.signalExternalReady(target, se.InitialReplay)
+			}
+			return nil
 		}
 		if se.Reason == rpc.ReasonAttached {
 			rr.mu.Unlock()
@@ -1136,12 +1148,35 @@ func (rr *routeReflector) signalSessionReady(parent context.Context, target peer
 	if !rr.targetCurrent(target) {
 		return nil
 	}
+	return rr.dispatchSessionReady(parent, target, initialReplay)
+}
+
+func (rr *routeReflector) dispatchSessionReady(parent context.Context, target peerTarget, initialReplay uint64) error {
 	ctx, cancel := context.WithTimeout(parent, updateRouteTimeout)
 	defer cancel()
 	var text textbuf.Buffer
 	command := text.Str("request peer ").Str(target.identity.address.String()).Str(" plugin session ready session ").Uint(initialReplay).String()
 	_, _, err := rr.plugin.DispatchDestinationCommand(ctx, rpc.DispatchCommandInput{Command: command, DestinationOwner: target.identity.owner, DestinationSession: target.session})
 	return err
+}
+
+// signalExternalReady lowers an eBGP session's initial-update barrier when the
+// engine asks bgp-rr for one, without running peer-up replay toward an eBGP peer.
+func (rr *routeReflector) signalExternalReady(target peerTarget, initialReplay uint64) {
+	done := make(chan struct{})
+	ctx, admitted := rr.replays.begin(rr.downCtx, done)
+	if !admitted {
+		rr.replays.finish(done)
+		return
+	}
+	go rr.runExternalReady(ctx, done, target, initialReplay)
+}
+
+func (rr *routeReflector) runExternalReady(ctx context.Context, done chan struct{}, target peerTarget, initialReplay uint64) {
+	defer rr.replays.finish(done)
+	if err := rr.dispatchSessionReady(ctx, target, initialReplay); err != nil {
+		rr.reportUpdateFailure(target.identity.address.String(), "external session ready", err)
+	}
 }
 
 // nlriDelCmd is one text withdrawal of prefixes, each a complete NLRI

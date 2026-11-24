@@ -11,8 +11,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/ze-software/ze/internal/core/bgp/msgtype"
-
 	"github.com/stretchr/testify/require"
 
 	"github.com/ze-software/ze/internal/component/bgp/format"
@@ -22,6 +20,7 @@ import (
 	"github.com/ze-software/ze/internal/component/plugin/process"
 	pluginserver "github.com/ze-software/ze/internal/component/plugin/server"
 	bgpevents "github.com/ze-software/ze/internal/core/bgp/events"
+	"github.com/ze-software/ze/internal/core/bgp/msgtype"
 	"github.com/ze-software/ze/internal/core/events"
 	"github.com/ze-software/ze/pkg/plugin/rpc"
 )
@@ -110,15 +109,32 @@ func TestMain(m *testing.M) {
 func attachForDelivery(t *testing.T, srv *pluginserver.Server, peer *plugin.PeerInfo, names ...string) {
 	t.Helper()
 
-	bindings := make([]plugin.PeerProcessBinding, 0, len(names))
-	for _, name := range names {
-		bindings = append(bindings, plugin.PeerProcessBinding{PluginName: name, ReceiveAll: true})
+	var allReceives []rpc.MessageReceiveDecl
+	for _, et := range events.AllEventTypes()[bgpevents.Namespace] {
+		allReceives = append(allReceives, rpc.MessageReceiveDecl{
+			Message: bgpevents.Namespace + ":" + et,
+		})
 	}
-	srv.UpdateDeliveryGraph(bgpevents.Namespace, []pluginserver.DeliveryPeer{{
-		Addr:     peer.AddrStr(),
-		Name:     peer.Name,
-		Bindings: bindings,
-	}})
+	endpoints := make([]pluginserver.BusParticipantInput, 0, len(names))
+	for _, name := range names {
+		endpoints = append(endpoints, pluginserver.BusParticipantInput{
+			Path:         plugin.EndpointPath(name),
+			EndpointName: name,
+			Receives:     allReceives,
+		})
+	}
+	peerPath := "/bgp/peer/" + peer.Name
+	if peer.Name == "" {
+		peerPath = "/bgp/ip/" + peer.AddrStr()
+	}
+	if err := srv.UpdateDeliveryGraphWithEndpoints(bgpevents.Namespace, []pluginserver.DeliveryPeer{{
+		Addr:           peer.AddrStr(),
+		Name:           peer.Name,
+		Path:           peerPath,
+		SecondaryPaths: []string{"/bgp/ip/" + peer.AddrStr()},
+	}}, endpoints); err != nil {
+		t.Fatalf("update delivery graph: %v", err)
+	}
 }
 
 // keepaliveMsg returns a simple KEEPALIVE RawMessage for testing.

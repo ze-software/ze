@@ -136,7 +136,7 @@ func TestForkedRRReflectsFlowSpecThroughGate(t *testing.T) {
 	}
 	rr.dispatchText(string(envelope))
 
-	rr.handleStructuredState(&rpc.StructuredEvent{PeerAddress: target, PeerOwner: 702, ConnectionID: 42, SessionGeneration: 7, DestinationSession: 142, State: rpc.SessionStateUp, InitialReplay: 17})
+	rr.handleStructuredState(&rpc.StructuredEvent{PeerAddress: target, PeerOwner: 702, ConnectionID: 42, SessionGeneration: 7, DestinationSession: 142, State: rpc.SessionStateUp, InitialReplay: 17, IsIBGP: true, RouteReflectorClient: true})
 	select {
 	case <-done:
 	case <-time.After(5 * time.Second):

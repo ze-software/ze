@@ -8,6 +8,7 @@ import (
 	"net"
 	"net/netip"
 	"slices"
+	"strings"
 	"sync"
 	"testing"
 
@@ -364,12 +365,13 @@ func extendedRecoveryPeers(t *testing.T, extended, alternate bool, families ...c
 			{"bgp-rs", "update state open-received refresh"},
 			{"bgp-adj-rib-in", "update-received state"},
 		} {
-			// These are the fixture operator's actual explicit attachments,
+			// These are the fixture operator's actual explicit bus grants,
 			// including both received and sent UPDATEs for each selected writer.
-			attachment := ProcessBinding{PluginName: binding.name, Explicit: true}
-			require.NoError(t, parseReceiveFlags(binding.receive, &attachment))
-			require.NoError(t, parseSendFlags("update", &attachment))
-			s.ProcessBindings = append(s.ProcessBindings, attachment)
+			addTestPeerBusGrant(s, testPeerEndpointGrant{
+				Name:    binding.name,
+				Receive: strings.Fields(binding.receive),
+				Send:    []string{"update"},
+			})
 		}
 		require.NoError(t, r.AddPeer(s))
 	}

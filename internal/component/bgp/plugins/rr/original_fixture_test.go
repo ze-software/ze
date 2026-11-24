@@ -5,11 +5,13 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
-	"github.com/stretchr/testify/require"
-	bgptypes "github.com/ze-software/ze/internal/component/bgp/types"
-	"github.com/ze-software/ze/pkg/plugin/rpc"
 	"testing"
 	"time"
+
+	"github.com/stretchr/testify/require"
+
+	bgptypes "github.com/ze-software/ze/internal/component/bgp/types"
+	"github.com/ze-software/ze/pkg/plugin/rpc"
 )
 
 // rrOriginalFixture constructs one explicit original physical source for tests.
@@ -72,7 +74,7 @@ func rrFixtureStart(t *testing.T, rr *routeReflector, original peerIdentity, rec
 	t.Helper()
 	require.NoError(t, rr.handleStructuredState(&rpc.StructuredEvent{PeerAddress: original.address.String(), PeerOwner: original.owner,
 		ConnectionID: original.connection, State: rpc.SessionStateUp, Reason: rpc.ReasonAttached,
-		SessionGeneration: generation, DestinationSession: session}))
+		SessionGeneration: generation, DestinationSession: session, IsIBGP: true, RouteReflectorClient: true}))
 	if receipt == 0 {
 		return
 	}

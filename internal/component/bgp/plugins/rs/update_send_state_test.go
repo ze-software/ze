@@ -24,9 +24,9 @@ func TestRSUpdateSendDenialKeepsSource(t *testing.T) {
 	}{
 		{"structured", parseStructuredState(&rpc.StructuredEvent{PeerAddress: "192.0.2.1",
 			State: rpc.SessionStateUp, PeerOwner: 701, ConnectionID: 41, DestinationSession: 141,
-			SessionGeneration: 1041, InitialReplay: 141, UpdateSendDenied: true})},
+			SessionGeneration: 1041, InitialReplay: 141, UpdateSendDenied: true, RSClient: true})},
 		{"native text", parseTextState("peer 192.0.2.1 remote as 65001 state up peer-owner 701 connection-id 41" +
-			" destination-session 141 session-generation 1041 initial-replay 141 update-send-denied true")},
+			" destination-session 141 session-generation 1041 initial-replay 141 update-send-denied true rs-client true")},
 	} {
 		t.Run(transport.name, func(t *testing.T) {
 			require.NotNil(t, transport.event)
@@ -44,7 +44,7 @@ func TestRSUpdateSendDenialKeepsSource(t *testing.T) {
 			require.NoError(t, rs.acquireSource(origin, 1001))
 			require.Equal(t, rpc.SourceLeaseInput{SourceReceipt: 1001, PeerOwner: 701, Action: rpc.SourceLeaseAcquire}, lease)
 
-			rs.handleState(&Event{PeerAddr: "192.0.2.2", State: "up", Reason: rpc.ReasonAttached,
+			rs.handleState(&Event{PeerAddr: "192.0.2.2", State: "up", Reason: rpc.ReasonAttached, RSClient: true,
 				PeerOwner: 702, ConnectionID: 42, DestinationSession: 142, SessionGeneration: 1042})
 			permitted := rpc.ForwardTarget{Destination: "192.0.2.2", DestinationOwner: 702, DestinationSession: 142}
 			denied := rpc.ForwardTarget{Destination: "192.0.2.1", DestinationOwner: 701, DestinationSession: 141}

@@ -25,6 +25,7 @@ func TestRemovalDownRetainsRecipientsAcrossConcurrentPublication(t *testing.T) {
 	session, client := shutdownTestSession(t, fsm.StateEstablished)
 	r := New(&Config{ListenAddr: "127.0.0.1:0"})
 	srv := flowForwardPluginServer(t, r)
+	setupDeliveryGraphTestServer(t, srv, "old-owner", "next-owner")
 	r.api = srv
 	r.removalEvents = bgpserver.NewEventDispatcher(srv)
 	oldLog, nextLog := &stateLog{}, &stateLog{}
@@ -33,8 +34,7 @@ func TestRemovalDownRetainsRecipientsAcrossConcurrentPublication(t *testing.T) {
 
 	settings := session.settings
 	settings.Name = "removed-peer"
-	settings.ProcessBindings = []ProcessBinding{{PluginName: "old-owner",
-		Receive: map[string]events.Direction{bgpevents.EventState: events.DirBoth}}}
+	settings.Bus = testBusReceiveOnly("old-owner", bgpevents.EventState)
 	peer := NewPeer(settings)
 	peer.SetReactor(r)
 	peer.session = session
@@ -66,8 +66,7 @@ func TestRemovalDownRetainsRecipientsAcrossConcurrentPublication(t *testing.T) {
 	next := NewPeerSettings(settings.Address, settings.LocalAS, 65003, settings.RouterID)
 	next.Name = "replacement-peer"
 	next.Connection = ConnectionPassive
-	next.ProcessBindings = []ProcessBinding{{PluginName: "next-owner",
-		Receive: map[string]events.Direction{bgpevents.EventState: events.DirBoth}}}
+	next.Bus = testBusReceiveOnly("next-owner", bgpevents.EventState)
 	published := make(chan error, 1)
 	go func() { published <- r.AddPeer(next) }()
 	select {

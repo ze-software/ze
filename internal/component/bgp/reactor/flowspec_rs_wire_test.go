@@ -6,6 +6,7 @@ import (
 	"context"
 	"net"
 	"net/netip"
+	"strings"
 	"testing"
 	"time"
 
@@ -105,7 +106,6 @@ func flowForwardLiveRouter(t *testing.T, mode string) []*lowLivePeer {
 	source := lowLiveSettings("192.0.2.1", 65000, 65002)
 	dest := lowLiveSettings("192.0.2.2", 65000, 65003)
 	source.RSClient, dest.RSClient = true, true
-	flowForwardNextHopSettings(dest, mode)
 	// The connected TCP endpoint supplies self; a synthetic address would
 	// instead ask reactor startup to bind a nonlocal listener.
 	dest.LocalAddress = netip.Addr{}
@@ -115,6 +115,10 @@ func flowForwardLiveRouter(t *testing.T, mode string) []*lowLivePeer {
 		// policy, so each carries explicit accepting import and export policies.
 		s.ImportPolicy = mustPolicy(t, nil, routepolicy.FinalAccept)
 		s.ExportPolicy = mustPolicy(t, nil, routepolicy.FinalAccept)
+		if s == dest {
+			flowForwardNextHopSettings(s, mode)
+			s.LocalAddress = netip.Addr{}
+		}
 		for _, afi := range []capability.AFI{1, 2} {
 			for _, safi := range []capability.SAFI{1, 128, 133, 134} {
 				if afi != 1 || safi != 1 {
@@ -127,18 +131,20 @@ func flowForwardLiveRouter(t *testing.T, mode string) []*lowLivePeer {
 			{"bgp-rs", "update-received state open-received refresh"},
 			{"bgp-adj-rib-in", "update-received state"},
 		} {
-			// Source leases use the operator's explicit attachment to this process.
-			attachment := ProcessBinding{PluginName: binding.name, Explicit: true}
-			if err := parseReceiveFlags(binding.receive, &attachment); err != nil {
-				t.Fatal(err)
-			}
-			if err := parseSendFlags("update", &attachment); err != nil {
-				t.Fatal(err)
-			}
-			s.ProcessBindings = append(s.ProcessBindings, attachment)
+			// Source leases use the operator's explicit bus grant to this process.
+			addTestPeerBusGrant(s, testPeerEndpointGrant{
+				Name:    binding.name,
+				Receive: strings.Fields(binding.receive),
+				Send:    []string{"update"},
+			})
 		}
 		if err := r.AddPeer(s); err != nil {
 			t.Fatal(err)
+		}
+	}
+	if mode == "explicit4" || mode == "explicit6" {
+		if destPeer, ok := r.findPeerByAddr(dest.Address); ok {
+			flowForwardApplyNextHop(t, r, destPeer, mode)
 		}
 	}
 	srv := flowForwardPluginServer(t, r)

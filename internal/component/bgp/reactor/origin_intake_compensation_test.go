@@ -20,7 +20,6 @@ import (
 	"github.com/ze-software/ze/internal/component/plugin/registry"
 	pluginserver "github.com/ze-software/ze/internal/component/plugin/server"
 	"github.com/ze-software/ze/internal/core/bgp/nlri"
-	"github.com/ze-software/ze/internal/core/events"
 	"github.com/ze-software/ze/internal/core/family"
 	"github.com/ze-software/ze/internal/core/selector"
 	"github.com/ze-software/ze/pkg/plugin/rpc"
@@ -55,7 +54,8 @@ func newOriginCompensationFixture(t *testing.T, typed bool) *originCompensationF
 	t.Cleanup(cancel)
 	const name = "origin-compensation-provider-test"
 	declarations := registry.Lookup(selectedWriterProcess).Dissemination
-	require.NoError(t, registry.Register(registry.Registration{Name: name, CLIHandler: func([]string) int { return 0 }, Dissemination: declarations,
+	require.NoError(t, registry.Register(registry.Registration{Name: name, CLIHandler: func([]string) int { return 0 },
+		Sends: testAllBGPSendDecls(), Receives: testAllBGPReceiveDecls(), Dissemination: declarations,
 		RunEngine: func(conn net.Conn) int {
 			defer func() { f.mu.Lock(); clear(f.candidates); f.mu.Unlock() }() // Provider state dies only after its joined SDK lifetime.
 			if !typed {
@@ -110,7 +110,7 @@ func newOriginCompensationFixture(t *testing.T, typed bool) *originCompensationF
 				}
 				return originCompensationReply(in), nil
 			})
-			if err := p.Run(ctx, &sdk.Registration{Dissemination: declarations}); err != nil {
+			if err := p.Run(ctx, &sdk.Registration{Sends: testAllBGPSendDecls(), Receives: testAllBGPReceiveDecls(), Dissemination: declarations}); err != nil {
 				t.Errorf("compensation SDK: %v", err)
 				return 1
 			}
@@ -119,10 +119,10 @@ func newOriginCompensationFixture(t *testing.T, typed bool) *originCompensationF
 	host, err := pluginserver.NewServer(&pluginserver.ServerConfig{Plugins: []plugin.PluginConfig{{Name: name, Run: name, Internal: true}}}, nil)
 	require.NoError(t, err)
 	f.host = host
-	bindings := []plugin.PeerProcessBinding{{PluginName: name, Explicit: true, Receive: map[string]events.Direction{"state": events.DirBoth, "refresh": events.DirBoth, "update": events.DirSent}, Send: map[string]bool{"update": true}}}
+	destBus := testBusSelectedDest(name)
 	host.UpdateDeliveryGraph("bgp", []pluginserver.DeliveryPeer{
-		{Addr: "192.0.2.79", Bindings: []plugin.PeerProcessBinding{{PluginName: name, Explicit: true, Receive: map[string]events.Direction{"state": events.DirBoth, "update": events.DirReceived}}}},
-		{Addr: writer.peer.addrString, Bindings: bindings},
+		testDeliveryPeer("192.0.2.79", "", testBusSourceLease(name)),
+		testDeliveryPeer(writer.peer.addrString, "", destBus),
 	})
 	startOriginIntakeTestHost(t, ctx, host)
 	f.original = host.ProcessManager().GetProcess(name)
@@ -138,8 +138,8 @@ func newOriginCompensationFixture(t *testing.T, typed bool) *originCompensationF
 		require.NoError(t, f.original.Wait(join))
 	})
 	writer.api.r.api = host
-	writer.peer.settings.ProcessBindings = []ProcessBinding{{PluginName: name, Explicit: true, Receive: bindings[0].Receive, Send: bindings[0].Send}}
-	configured, err := host.ResolveDisseminationOwnerForPeer(pluginserver.DeliveryPeer{Addr: writer.peer.addrString, Bindings: bindings}, SelectedDisseminationRole)
+	writer.peer.settings.Bus = destBus
+	configured, err := host.ResolveDisseminationOwnerForPeer(testDeliveryPeer(writer.peer.addrString, "", destBus), SelectedDisseminationRole)
 	require.NoError(t, err)
 	writer.peer.settings.DisseminationOwner = configured
 	writer.peer.refreshForwardFacts()

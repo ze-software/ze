@@ -11,7 +11,6 @@ import (
 
 	"github.com/ze-software/ze/internal/component/bgp/filterapi"
 	"github.com/ze-software/ze/internal/component/bgp/message"
-	routepolicy "github.com/ze-software/ze/internal/component/policy"
 	"github.com/ze-software/ze/internal/core/bgp/msgtype"
 )
 
@@ -221,16 +220,12 @@ func TestRecoveryPackReowesEveryKeyWhenSourceEnds(t *testing.T) {
 func TestRecoveryPackLiveDepartureOneUpdatePerFit(t *testing.T) {
 	const keys = 300
 	settings := []*PeerSettings{
-		lowLiveSettings("192.0.2.1", 65000, 65002),
-		lowLiveSettings("192.0.2.2", 65000, 65003),
-		lowLiveSettings("192.0.2.3", 65000, 65004),
+		acceptingLiveSettings(t, "192.0.2.1", 65000, 65002),
+		acceptingLiveSettings(t, "192.0.2.2", 65000, 65003),
+		acceptingLiveSettings(t, "192.0.2.3", 65000, 65004),
 	}
 	for _, setting := range settings {
 		setting.RSClient = true
-		// Every session is EBGP, and RFC 8212 Section 3 rejects at an absent
-		// policy, so each carries explicit accepting import and export policies.
-		setting.ImportPolicy = mustPolicy(t, nil, routepolicy.FinalAccept)
-		setting.ExportPolicy = mustPolicy(t, nil, routepolicy.FinalAccept)
 	}
 	peers := rsLiveRouter(t, settings...)
 	a, b, c := peers[0], peers[1], peers[2]

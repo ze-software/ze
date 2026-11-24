@@ -49,7 +49,10 @@ func newAIGPReplayFixture(t *testing.T, before func([]fwdItem)) *aigpReplayFixtu
 		peer.settings.NextHopMode = NextHopSelf
 		// rsRelaySendBinding is the route server's send grant: the RS fast
 		// path reaches no destination without it, as the cached rail does not.
-		peer.settings.ProcessBindings = []ProcessBinding{{PluginName: "aigp-forwarder", SendAll: true}, rsRelaySendBinding()}
+		peer.settings.Bus = testBusBlockForGrants(
+			testPeerEndpointGrant{Name: "aigp-forwarder", SendAll: true},
+			testPeerEndpointGrant{Name: rsFixtureRelay, Send: []string{"update"}},
+		)
 		// Both sessions are EBGP, and RFC 8212 Section 3 rejects at an absent
 		// policy, so each carries explicit accepting import and export policies.
 		peer.settings.ImportPolicy = mustPolicy(t, nil, routepolicy.FinalAccept)
@@ -58,7 +61,6 @@ func newAIGPReplayFixture(t *testing.T, before func([]fwdItem)) *aigpReplayFixtu
 		peer.sendCtx.Store(ctx)
 		peer.sendCtxID, peer.recvCtxID = ctxID, ctxID
 		peer.session.sendCtxID = ctxID
-		peer.refreshForwardFacts()
 	}
 	cache := newRecentUpdateCache(100)
 	cache.RegisterConsumer("aigp-forwarder")
@@ -71,6 +73,11 @@ func newAIGPReplayFixture(t *testing.T, before func([]fwdItem)) *aigpReplayFixtu
 		messageReceiver: &testDeliveryReceiver{consumerCount: 1},
 		attrModHandlers: attrModHandlersWithDefaults(),
 	}
+	source.SetReactor(f.r)
+	destination.SetReactor(f.r)
+	publishTestBusGraph(t, f.r)
+	source.refreshForwardFacts()
+	destination.refreshForwardFacts()
 	destination.session.aigpPeer = destination
 	destination.session.aigpReactor = f.r
 	f.r.fwdPool = newFwdPool(func(key fwdKey, items []fwdItem) {
@@ -280,9 +287,7 @@ func TestAIGPReadvertisementRechecksSenderPermission(t *testing.T) {
 	f.forward(t, f.receive(t, f.body(t, 100)))
 	f.waitBatch(t)
 	before := f.conn.written()
-	f.r.mu.Lock()
-	f.destination.settings.ProcessBindings = nil
-	f.r.mu.Unlock()
+	setTestPeerBus(t, f.destination, testBusNone())
 	f.metric(11)
 	f.r.readvertiseAIGP()
 	f.drain(t)

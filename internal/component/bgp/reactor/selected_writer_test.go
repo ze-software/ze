@@ -49,6 +49,7 @@ func newSelectedWriterFixture(t *testing.T, addPath bool) *selectedWriterFixture
 	require.NoError(t, events.RegisterNamespace("bgp", "update", "state", "refresh"))
 	require.NoError(t, registry.Register(registry.Registration{
 		Name: selectedWriterProcess, RunEngine: func(net.Conn) int { return 0 }, CLIHandler: func([]string) int { return 0 },
+		Sends: testAllBGPSendDecls(), Receives: testAllBGPReceiveDecls(),
 		Dissemination: []rpc.DisseminationDecl{{Namespace: "bgp", Role: SelectedDisseminationRole,
 			SourceReceive:      []string{"update-received", "state"},
 			DestinationReceive: []string{"state", "refresh", "update-sent"}, DestinationSend: []string{"update"}}},
@@ -59,9 +60,7 @@ func newSelectedWriterFixture(t *testing.T, addPath bool) *selectedWriterFixture
 	peer.settings.LocalAddress = netip.MustParseAddr("192.0.2.254")
 	peer.settings.ExportPolicy, err = filterapi.NewPolicy(nil, policy.FinalAccept)
 	require.NoError(t, err)
-	peer.settings.ProcessBindings = []ProcessBinding{{PluginName: selectedWriterProcess, Explicit: true,
-		Receive: map[string]events.Direction{"state": events.DirBoth, "refresh": events.DirBoth, "update": events.DirSent},
-		Send:    map[string]bool{"update": true}}}
+	peer.settings.Bus = testBusSelectedDest(selectedWriterProcess)
 	encoding := bgpctx.EncodingContextWithAddPath(true, map[family.Family]bool{family.IPv4Unicast: addPath})
 	contextID, err := bgpctx.Registry.Register(encoding)
 	require.NoError(t, err)
@@ -72,10 +71,8 @@ func newSelectedWriterFixture(t *testing.T, addPath bool) *selectedWriterFixture
 		return peer.forwardFacts().exportPolicy.AcceptsExportAtEnd(true, kind)
 	}
 	host.UpdateDeliveryGraph("bgp", []pluginserver.DeliveryPeer{
-		{Addr: "192.0.2.79", Bindings: []plugin.PeerProcessBinding{{PluginName: selectedWriterProcess, Explicit: true,
-			Receive: map[string]events.Direction{"update": events.DirReceived, "state": events.DirBoth}}}},
-		{Addr: "192.0.2.80", Bindings: []plugin.PeerProcessBinding{{PluginName: selectedWriterProcess, Explicit: true,
-			Receive: map[string]events.Direction{"state": events.DirBoth, "refresh": events.DirBoth, "update": events.DirSent}, Send: map[string]bool{"update": true}}}},
+		testDeliveryPeer("192.0.2.79", "", testBusSourceLease(selectedWriterProcess)),
+		testDeliveryPeer("192.0.2.80", "", testBusSelectedDest(selectedWriterProcess)),
 	})
 	pool := newFwdPool(func(fwdKey, []fwdItem) { t.Error("selected work escaped to a detached forwarding worker") }, fwdPoolConfig{chanSize: 8, idleTimeout: time.Second})
 	t.Cleanup(pool.Stop)

@@ -39,7 +39,7 @@ func makeRSPeer(t testing.TB, addr string, peerAS uint32, ctx *bgpctx.EncodingCo
 		RSFastPath:    true,
 		// The route server's send grant: the RS fast path reaches no
 		// destination without it, as the cached rail does not.
-		ProcessBindings: []ProcessBinding{rsRelaySendBinding()},
+		Bus: rsRelaySendBinding(),
 		// Every fixture peer is EBGP to the route server, and RFC 8212
 		// Section 3 rejects at an absent policy, so each carries explicit
 		// accepting import and export policies with no filter. A test that
@@ -55,6 +55,7 @@ func makeRSPeer(t testing.TB, addr string, peerAS uint32, ctx *bgpctx.EncodingCo
 	})
 	peer.sendCtx.Store(ctx)
 	peer.sendCtxID = ctxID
+	setTestPeerBus(t, peer, rsRelaySendBinding())
 	peer.refreshForwardFacts()
 	return peer
 }
@@ -109,11 +110,12 @@ func TestRSFastPathGateRespectsCapability(t *testing.T) {
 			ps.RSFastPath = true
 			// The route server's receive grant: the fast path relays only a
 			// source the route server's cached forward would relay.
-			ps.ProcessBindings = []ProcessBinding{rsRelayReceiveBinding()}
+			ps.Bus = rsRelayReceiveBinding()
 			require.NoError(t, reactor.AddPeer(ps))
 			reactor.mu.RLock()
 			src := reactor.peers[ps.PeerKey()]
 			reactor.mu.RUnlock()
+			publishTestBusGraph(t, reactor)
 			src.setState(PeerStateEstablished)
 			// An established session holds a forwarding snapshot
 			// (setEncodingContexts); the gate reads the receive grant from it.
@@ -366,14 +368,14 @@ func TestReactorForwardRSEBGPPrepend(t *testing.T) {
 	src := makeRSPeer(t, "10.0.0.1", 65001, ctx, ctxID)
 	// EBGP destination: different AS.
 	dstSettings := &PeerSettings{
-		Connection:      ConnectionBoth,
-		Address:         netip.MustParseAddr("10.0.0.2"),
-		LocalAS:         65000,
-		GlobalLocalAS:   65000,
-		PeerAS:          65002,
-		RouterID:        0x01020302,
-		RSFastPath:      true,
-		ProcessBindings: []ProcessBinding{rsRelaySendBinding()},
+		Connection:    ConnectionBoth,
+		Address:       netip.MustParseAddr("10.0.0.2"),
+		LocalAS:       65000,
+		GlobalLocalAS: 65000,
+		PeerAS:        65002,
+		RouterID:      0x01020302,
+		RSFastPath:    true,
+		Bus:           rsRelaySendBinding(),
 		// RFC 8212 Section 3 rejects at an absent export policy toward an
 		// EBGP peer, so the destination carries an explicit accepting one.
 		ExportPolicy: mustPolicy(t, nil, routepolicy.FinalAccept),
@@ -386,6 +388,7 @@ func TestReactorForwardRSEBGPPrepend(t *testing.T) {
 	})
 	dst.sendCtx.Store(ctx)
 	dst.sendCtxID = ctxID
+	setTestPeerBus(t, dst, rsRelaySendBinding())
 	dst.refreshForwardFacts()
 
 	var dispatched []fwdItem
@@ -627,7 +630,7 @@ func TestReactorForwardRSRouteReflection(t *testing.T) {
 		PeerAS:               65000,
 		RouterID:             0x01020301,
 		RSFastPath:           true,
-		ProcessBindings:      []ProcessBinding{rsRelaySendBinding()},
+		Bus:                  rsRelaySendBinding(),
 		RouteReflectorClient: true,
 	}
 	src := NewPeer(srcSettings)
@@ -637,19 +640,20 @@ func TestReactorForwardRSRouteReflection(t *testing.T) {
 	})
 	src.sendCtx.Store(ctx)
 	src.sendCtxID = ctxID
+	setTestPeerBus(t, src, rsRelaySendBinding())
 	src.refreshForwardFacts()
 	src.remoteRouterID.Store(0x0A000001) // 10.0.0.1
 
 	// Destination: IBGP non-client (route reflection target).
 	dstSettings := &PeerSettings{
-		Connection:      ConnectionBoth,
-		Address:         netip.MustParseAddr("10.0.0.2"),
-		LocalAS:         65000,
-		PeerAS:          65000,
-		RouterID:        0x01020302,
-		RSFastPath:      true,
-		ProcessBindings: []ProcessBinding{rsRelaySendBinding()},
-		ClusterID:       0x01020302,
+		Connection: ConnectionBoth,
+		Address:    netip.MustParseAddr("10.0.0.2"),
+		LocalAS:    65000,
+		PeerAS:     65000,
+		RouterID:   0x01020302,
+		RSFastPath: true,
+		Bus:        rsRelaySendBinding(),
+		ClusterID:  0x01020302,
 	}
 	dst := NewPeer(dstSettings)
 	dst.state.Store(int32(PeerStateEstablished))
@@ -658,6 +662,7 @@ func TestReactorForwardRSRouteReflection(t *testing.T) {
 	})
 	dst.sendCtx.Store(ctx)
 	dst.sendCtxID = ctxID
+	setTestPeerBus(t, dst, rsRelaySendBinding())
 	dst.refreshForwardFacts()
 
 	handlers := attrModHandlersWithDefaults()

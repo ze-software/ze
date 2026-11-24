@@ -12,16 +12,20 @@ import (
 	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
-// Config map keys for the direction-oriented participant-bus YANG grouping.
+// Config map keys for the direction-oriented participant-bus YANG schema block.
+// and central bus section.
 const (
-	busKeyReceive = "receive"
-	busKeySend    = "send"
-	busKeyAllow   = "allow"
-	busKeyFrom    = "from"
-	busKeyTo      = "to"
-	busKeyMessage = "message"
-	busKeyTag     = "tag"
-	busKeyValue   = "value"
+	busKeyBus         = "bus"
+	busKeyEndpoint    = "endpoint"
+	busKeyParticipant = "participant"
+	busKeyReceive     = "receive"
+	busKeySend        = "send"
+	busKeyAllow       = "allow"
+	busKeyFrom        = "from"
+	busKeyTo          = "to"
+	busKeyMessage     = "message"
+	busKeyTag         = "tag"
+	busKeyValue       = "value"
 )
 
 // BusMessageRule holds per-message target and tag overrides within one bus
@@ -132,6 +136,115 @@ type BusParticipantOverride struct {
 	Path   string
 	Source string
 	Block  BusBlock
+}
+
+// BusConfig holds the parsed central bus configuration: per-endpoint filter
+// blocks (from bus > endpoint <name>) and central participant overrides
+// (from bus > participant <path>).
+type BusConfig struct {
+	Endpoints    map[string]BusBlock
+	Participants map[string]BusParticipantOverride
+}
+
+// IsEmpty reports whether c carries neither endpoint blocks nor participant
+// overrides.
+func (c BusConfig) IsEmpty() bool {
+	return len(c.Endpoints) == 0 && len(c.Participants) == 0
+}
+
+// Clone returns a deep copy of c.
+func (c BusConfig) Clone() BusConfig {
+	var out BusConfig
+	if len(c.Endpoints) > 0 {
+		out.Endpoints = make(map[string]BusBlock, len(c.Endpoints))
+		for k, v := range c.Endpoints {
+			out.Endpoints[k] = v.Clone()
+		}
+	}
+	if len(c.Participants) > 0 {
+		out.Participants = make(map[string]BusParticipantOverride, len(c.Participants))
+		for k, v := range c.Participants {
+			out.Participants[k] = BusParticipantOverride{
+				Path:   v.Path,
+				Source: v.Source,
+				Block:  v.Block.Clone(),
+			}
+		}
+	}
+	return out
+}
+
+// ExtractBusConfigFromMap extracts the central "bus" section from a top-level
+// configuration map and parses its endpoint and participant filter blocks.
+func ExtractBusConfigFromMap(root map[string]any) (BusConfig, error) {
+	if len(root) == 0 {
+		return BusConfig{}, nil
+	}
+	rawBus, ok := root[busKeyBus]
+	// refuse-by-default: guards BusConfig -- absent central bus section means no overrides, so zero BusConfig is valid.
+	if !ok {
+		return BusConfig{}, nil
+	}
+	busMap, ok := rawBus.(map[string]any)
+	if !ok {
+		return BusConfig{}, invalidBusContainerError("config", busKeyBus)
+	}
+	return ParseBusConfigFromMap(busMap)
+}
+
+// ParseBusConfigFromMap parses a "bus" container map (holding optional
+// "endpoint" and "participant" submaps) into a BusConfig.
+func ParseBusConfigFromMap(busMap map[string]any) (BusConfig, error) {
+	if len(busMap) == 0 {
+		return BusConfig{}, nil
+	}
+	var cfg BusConfig
+	if rawEndpoints, ok := busMap[busKeyEndpoint]; ok {
+		epMap, ok := rawEndpoints.(map[string]any)
+		if !ok {
+			return BusConfig{}, invalidBusContainerError(busKeyBus, busKeyEndpoint)
+		}
+		if len(epMap) > 0 {
+			cfg.Endpoints = make(map[string]BusBlock, len(epMap))
+			for _, name := range slices.Sorted(maps.Keys(epMap)) {
+				entryMap, ok := epMap[name].(map[string]any)
+				if !ok {
+					return BusConfig{}, invalidBusContainerError(busKeyBus+" > "+busKeyEndpoint, name)
+				}
+				block, err := ParseBusBlockFromMap(entryMap, busKeyBus+" > "+busKeyEndpoint+" "+name)
+				if err != nil {
+					return BusConfig{}, err
+				}
+				cfg.Endpoints[name] = block
+			}
+		}
+	}
+	if rawParticipants, ok := busMap[busKeyParticipant]; ok {
+		pMap, ok := rawParticipants.(map[string]any)
+		if !ok {
+			return BusConfig{}, invalidBusContainerError(busKeyBus, busKeyParticipant)
+		}
+		if len(pMap) > 0 {
+			cfg.Participants = make(map[string]BusParticipantOverride, len(pMap))
+			for _, path := range slices.Sorted(maps.Keys(pMap)) {
+				entryMap, ok := pMap[path].(map[string]any)
+				if !ok {
+					return BusConfig{}, invalidBusContainerError(busKeyBus+" > "+busKeyParticipant, path)
+				}
+				src := busKeyBus + " > " + busKeyParticipant + " " + path
+				block, err := ParseBusBlockFromMap(entryMap, src)
+				if err != nil {
+					return BusConfig{}, err
+				}
+				cfg.Participants[path] = BusParticipantOverride{
+					Path:   path,
+					Source: src,
+					Block:  block,
+				}
+			}
+		}
+	}
+	return cfg, nil
 }
 
 // BusBlockEqual reports whether a and b represent the same bus filter rules,
@@ -321,6 +434,9 @@ func parseBusDirectionFromMap(m map[string]any, dirLoc, targetKey string) (BusDi
 			if noneErr != nil {
 				return BusDirectionBlock{}, noneErr
 			}
+			if pathErr := validateBusTargets(clean, dirLoc+" > "+targetKey); pathErr != nil {
+				return BusDirectionBlock{}, pathErr
+			}
 			dir.TargetsPresent = true
 			dir.TargetsNone = isNone
 			dir.Targets = clean
@@ -361,6 +477,9 @@ func parseBusMessageRuleFromMap(m map[string]any, msgLoc, targetKey string) (*Bu
 			isNone, clean, noneErr := parseNoneOrValues(vals, msgLoc+" > "+targetKey)
 			if noneErr != nil {
 				return nil, noneErr
+			}
+			if pathErr := validateBusTargets(clean, msgLoc+" > "+targetKey); pathErr != nil {
+				return nil, pathErr
 			}
 			rule.TargetsPresent = true
 			rule.TargetsNone = isNone
@@ -475,6 +594,21 @@ func stringSliceFromAny(raw any, loc string) ([]string, error) {
 			"bus filter list entries must be strings",
 			"write string entries in "+loc)
 	}
+}
+
+func validateBusTargets(targets []string, loc string) error {
+	for _, target := range targets {
+		if err := ValidateBusPathSyntax(target); err != nil {
+			var problem, fix textbuf.Buffer
+			problem.Str(loc).Str(": invalid bus path ").Str(target)
+			fix.Str("write a valid participant path in ").Str(loc)
+			return opererr.Wrap(err,
+				problem.String(),
+				"bus targets must use short slash form",
+				fix.String())
+		}
+	}
+	return nil
 }
 
 func invalidBusContainerError(loc, child string) *opererr.Error {

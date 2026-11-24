@@ -17,7 +17,6 @@ import (
 	"github.com/ze-software/ze/internal/component/plugin/registry"
 	pluginserver "github.com/ze-software/ze/internal/component/plugin/server"
 	"github.com/ze-software/ze/internal/core/bgp/nlri"
-	"github.com/ze-software/ze/internal/core/events"
 	"github.com/ze-software/ze/internal/core/family"
 	"github.com/ze-software/ze/internal/core/selector"
 	"github.com/ze-software/ze/pkg/plugin/rpc"
@@ -33,7 +32,8 @@ func newOriginOwnerGapFixture(t *testing.T, intake bool) (*selectedWriterFixture
 	const name = "origin-owner-gap-provider-test"
 	declarations := registry.Lookup(selectedWriterProcess).Dissemination
 	callbacks := new(atomic.Int32)
-	require.NoError(t, registry.Register(registry.Registration{Name: name, CLIHandler: func([]string) int { return 0 }, Dissemination: declarations,
+	require.NoError(t, registry.Register(registry.Registration{Name: name, CLIHandler: func([]string) int { return 0 },
+		Sends: testAllBGPSendDecls(), Receives: testAllBGPReceiveDecls(), Dissemination: declarations,
 		RunEngine: func(conn net.Conn) int {
 			p := sdk.NewWithConn(name, conn)
 			if intake {
@@ -43,7 +43,7 @@ func newOriginOwnerGapFixture(t *testing.T, intake bool) (*selectedWriterFixture
 						Destination: in.Destination, PeerOwner: in.PeerOwner, Generation: in.OriginReceipt, Outcome: rpc.RouteAdmissionRetained, Disposition: rpc.RouteAdmissionSuppressedSelection}}}, nil
 				})
 			}
-			if err := p.Run(ctx, &sdk.Registration{Dissemination: declarations}); err != nil {
+			if err := p.Run(ctx, &sdk.Registration{Sends: testAllBGPSendDecls(), Receives: testAllBGPReceiveDecls(), Dissemination: declarations}); err != nil {
 				t.Errorf("owner fixture SDK: %v", err)
 				return 1
 			}
@@ -52,11 +52,10 @@ func newOriginOwnerGapFixture(t *testing.T, intake bool) (*selectedWriterFixture
 	host, err := pluginserver.NewServer(&pluginserver.ServerConfig{Plugins: []plugin.PluginConfig{{Name: name, Run: name, Internal: true}}}, nil)
 	require.NoError(t, err)
 	t.Cleanup(cancel)
-	bindings := []plugin.PeerProcessBinding{{PluginName: name, Explicit: true,
-		Receive: map[string]events.Direction{"state": events.DirBoth, "refresh": events.DirBoth, "update": events.DirSent}, Send: map[string]bool{"update": true}}}
+	destBus := testBusSelectedDest(name)
 	host.UpdateDeliveryGraph("bgp", []pluginserver.DeliveryPeer{
-		{Addr: "192.0.2.79", Bindings: []plugin.PeerProcessBinding{{PluginName: name, Explicit: true, Receive: map[string]events.Direction{"state": events.DirBoth, "update": events.DirReceived}}}},
-		{Addr: f.peer.addrString, Bindings: bindings},
+		testDeliveryPeer("192.0.2.79", "", testBusSourceLease(name)),
+		testDeliveryPeer(f.peer.addrString, "", destBus),
 	})
 	startOriginIntakeTestHost(t, ctx, host)
 	require.NoError(t, host.WaitForStartupComplete(ctx))
@@ -70,8 +69,8 @@ func newOriginOwnerGapFixture(t *testing.T, intake bool) (*selectedWriterFixture
 		require.NoError(t, original.Wait(join))
 	})
 	f.api.r.api = host
-	f.peer.settings.ProcessBindings = []ProcessBinding{{PluginName: name, Explicit: true, Receive: bindings[0].Receive, Send: bindings[0].Send}}
-	owner, err := host.ResolveDisseminationOwnerForPeer(pluginserver.DeliveryPeer{Addr: f.peer.addrString, Bindings: bindings}, SelectedDisseminationRole)
+	f.peer.settings.Bus = destBus
+	owner, err := host.ResolveDisseminationOwnerForPeer(testDeliveryPeer(f.peer.addrString, "", destBus), SelectedDisseminationRole)
 	require.NoError(t, err)
 	f.peer.settings.DisseminationOwner = owner
 	f.peer.refreshForwardFacts()

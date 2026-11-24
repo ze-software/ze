@@ -111,7 +111,7 @@ func newSyncOrderDest(t *testing.T, ctx *bgpctx.EncodingContext, ctxID bgpctx.Co
 		RouterID:   0x01020302,
 		// The route server's send grant: the RS fast path reaches no
 		// destination without it, as the cached rail does not.
-		ProcessBindings: []ProcessBinding{rsRelaySendBinding()},
+		Bus: rsRelaySendBinding(),
 	}
 	peer := NewPeer(settings)
 	peer.state.Store(int32(PeerStateEstablished))
@@ -121,6 +121,7 @@ func newSyncOrderDest(t *testing.T, ctx *bgpctx.EncodingContext, ctxID bgpctx.Co
 	})
 	peer.sendCtx.Store(ctx)
 	peer.sendCtxID = ctxID
+	setTestPeerBus(t, peer, rsRelaySendBinding())
 	peer.refreshForwardFacts()
 
 	session := NewSession(settings)
@@ -199,7 +200,10 @@ func newSyncOrderRailWith(t *testing.T, handler func(fwdKey, []fwdItem)) (*React
 		},
 		fwdPool: pool,
 	}
+	src.SetReactor(r)
 	dst.SetReactor(r)
+	publishTestBusGraph(t, r)
+	dst.refreshForwardFacts()
 
 	return r, src, dst, conn, ctxID
 }

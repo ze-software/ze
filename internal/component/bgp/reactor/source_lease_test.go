@@ -30,6 +30,7 @@ func sourceLeaseProcessFactory(t *testing.T) func(string) *process.Process {
 	t.Cleanup(func() { registry.Restore(snapshot) })
 	const implementation = "source-lease-test-runner"
 	require.NoError(t, registry.Register(registry.Registration{Name: implementation,
+		Sends: testAllBGPSendDecls(), Receives: testAllBGPReceiveDecls(),
 		RunEngine: func(conn net.Conn) int {
 			var input [1]byte
 			if _, err := conn.Read(input[:]); err != nil {
@@ -43,8 +44,11 @@ func sourceLeaseProcessFactory(t *testing.T) func(string) *process.Process {
 		require.NoError(t, proc.StartWithContext(t.Context()))
 		require.NoError(t, proc.InitConns())
 		proc.Conn().SetBridge(proc.Bridge())
-		proc.SetRegistration(&plugin.PluginRegistration{Dissemination: []rpc.DisseminationDecl{{Namespace: "bgp", Role: sourceLeaseRole,
-			SourceReceive: []string{"update-received", "state"}, DestinationReceive: []string{"state"}, DestinationSend: []string{"update"}}}})
+		proc.SetRegistration(&plugin.PluginRegistration{
+			Sends: testAllBGPSendDecls(), Receives: testAllBGPReceiveDecls(),
+			Dissemination: []rpc.DisseminationDecl{{Namespace: "bgp", Role: sourceLeaseRole,
+				SourceReceive: []string{"update-received", "state"}, DestinationReceive: []string{"state"}, DestinationSend: []string{"update"}}},
+		})
 		t.Cleanup(func() {
 			proc.Stop()
 			sourceLeaseCleanup(proc)
@@ -56,9 +60,22 @@ func sourceLeaseProcessFactory(t *testing.T) func(string) *process.Process {
 	}
 }
 
-func sourceLeaseGrant(name string) ProcessBinding {
-	return ProcessBinding{PluginName: name, Explicit: true,
-		Receive: map[string]events.Direction{"update": events.DirReceived, "state": events.DirBoth}}
+func sourceLeaseTestServer(t *testing.T, procs ...*process.Process) *pluginserver.Server {
+	t.Helper()
+	plugins := make([]plugin.PluginConfig, 0, len(procs))
+	for _, proc := range procs {
+		plugins = append(plugins, proc.Config())
+	}
+	srv, err := pluginserver.NewServer(&pluginserver.ServerConfig{Plugins: plugins}, nil)
+	require.NoError(t, err)
+	return srv
+}
+
+func sourceLeaseGrant(name string) testPeerEndpointGrant {
+	return testPeerEndpointGrant{
+		Name:    name,
+		Receive: []string{"update-received", "state"},
+	}
 }
 
 func sourceLeaseRequest(action rpc.SourceLeaseAction, receipt, peerOwner uint64) rpc.SourceLeaseInput {
@@ -70,11 +87,11 @@ func sourceLeaseRequest(action rpc.SourceLeaseAction, receipt, peerOwner uint64)
 func TestSourceLeaseAuthenticatedAdapters(t *testing.T) {
 	proc := sourceLeaseProcessFactory(t)("rib-one")
 	peer, facts := sourceReceiptFixture(t)
-	peer.settings.ProcessBindings = []ProcessBinding{sourceLeaseGrant(proc.Name())}
+	peer.settings.Bus = testBusBlockForGrants(sourceLeaseGrant(proc.Name()))
 	live, err := sourceReceipts.issue(facts)
 	require.NoError(t, err)
 	t.Cleanup(live.close)
-	server := &pluginserver.Server{}
+	server := sourceLeaseTestServer(t, proc)
 	for _, native := range []bool{false, true} {
 		for _, action := range []rpc.SourceLeaseAction{rpc.SourceLeaseAcquire, rpc.SourceLeaseRetain, rpc.SourceLeaseRelease} {
 			input := sourceLeaseRequest(action, live.ID(), peer.sourceOwner)
@@ -110,27 +127,27 @@ func TestSourceLeaseRequiresExactExplicitSource(t *testing.T) {
 	live, err := sourceReceipts.issue(facts)
 	require.NoError(t, err)
 	t.Cleanup(live.close)
-	server := &pluginserver.Server{}
-	for _, binding := range []ProcessBinding{
-		{PluginName: first.Name(), Explicit: true, Receive: map[string]events.Direction{"state": events.DirBoth}},
-		{PluginName: first.Name(), Explicit: false, ReceiveAll: true},
-		{PluginName: first.Name(), Explicit: true, ReceiveAll: true, Implicit: map[string]bool{"state": true}},
-		sourceLeaseGrant(second.Name()),
+	server := sourceLeaseTestServer(t, first, second)
+	for _, block := range []plugin.BusBlock{
+		testBusReceiveOnly(first.Name(), "state"),
+		testBusNone(),
+		testBusReceiveOnly(first.Name(), "update-sent", "state"),
+		testBusBlockForGrants(sourceLeaseGrant(second.Name())),
 	} {
-		peer.settings.ProcessBindings = []ProcessBinding{binding}
+		peer.settings.Bus = block
 		_, err := sourceLeaseApply(server, t.Context(), first, sourceLeaseRequest(rpc.SourceLeaseAcquire, live.ID(), peer.sourceOwner))
 		require.Error(t, err)
 	}
 	// A sibling's full grant at the same address does not authorize this exact
 	// original Peer at another TCP port.
 	siblingPeer := NewPeer(&PeerSettings{Address: peer.settings.Address, Port: 1179,
-		Name: "sibling", ProcessBindings: []ProcessBinding{sourceLeaseGrant(first.Name())}})
+		Name: "sibling", Bus: testBusBlockForGrants(sourceLeaseGrant(first.Name()))})
 	sibling := deliveryPeersFromSettings([]*PeerSettings{siblingPeer.settings})[0]
 	require.NoError(t, server.CheckDisseminationSource(first, sibling, "bgp", sourceLeaseRole))
-	peer.settings.ProcessBindings = nil
+	peer.settings.Bus = testBusNone()
 	_, err = sourceLeaseApply(server, t.Context(), first, sourceLeaseRequest(rpc.SourceLeaseAcquire, live.ID(), peer.sourceOwner))
 	require.Error(t, err)
-	peer.settings.ProcessBindings = []ProcessBinding{sourceLeaseGrant(first.Name())}
+	peer.settings.Bus = testBusBlockForGrants(sourceLeaseGrant(first.Name()))
 	_, err = sourceLeaseApply(server, t.Context(), first, sourceLeaseRequest(rpc.SourceLeaseAcquire, live.ID(), peer.sourceOwner))
 	require.NoError(t, err)
 	// Runtime absence is authoritative even though the implementation declared
@@ -138,7 +155,7 @@ func TestSourceLeaseRequiresExactExplicitSource(t *testing.T) {
 	first.SetRegistration(&plugin.PluginRegistration{})
 	_, err = sourceLeaseApply(server, t.Context(), first, sourceLeaseRequest(rpc.SourceLeaseRetain, live.ID(), peer.sourceOwner))
 	require.Error(t, err)
-	peer.settings.ProcessBindings = nil
+	peer.settings.Bus = testBusNone()
 	_, err = sourceLeaseApply(server, t.Context(), first, sourceLeaseRequest(rpc.SourceLeaseRelease, live.ID(), peer.sourceOwner))
 	require.NoError(t, err, "owned cleanup survives receive grant removal")
 }
@@ -150,11 +167,11 @@ func TestSourceLeaseReleaseJoinsFinalWrite(t *testing.T) {
 	defer stop()
 	proc := sourceLeaseProcessFactory(t)("rib-one")
 	peer, facts := sourceReceiptFixture(t)
-	peer.settings.ProcessBindings = []ProcessBinding{sourceLeaseGrant(proc.Name())}
+	peer.settings.Bus = testBusBlockForGrants(sourceLeaseGrant(proc.Name()))
 	live, err := sourceReceipts.issue(facts)
 	require.NoError(t, err)
 	t.Cleanup(live.close)
-	server := &pluginserver.Server{}
+	server := sourceLeaseTestServer(t, proc)
 	_, err = sourceLeaseApply(server, t.Context(), proc, sourceLeaseRequest(rpc.SourceLeaseAcquire, live.ID(), peer.sourceOwner))
 	require.NoError(t, err)
 	owner, err := proc.SelectedOwner()
@@ -188,11 +205,11 @@ func TestSourceLeaseCleanupUsesEndedIncarnation(t *testing.T) {
 	makeProcess := sourceLeaseProcessFactory(t)
 	old, replacement := makeProcess("rib-one"), makeProcess("rib-one")
 	peer, facts := sourceReceiptFixture(t)
-	peer.settings.ProcessBindings = []ProcessBinding{sourceLeaseGrant(old.Name())}
+	peer.settings.Bus = testBusBlockForGrants(sourceLeaseGrant(old.Name()))
 	live, err := sourceReceipts.issue(facts)
 	require.NoError(t, err)
 	t.Cleanup(live.close)
-	server := &pluginserver.Server{}
+	server := sourceLeaseTestServer(t, old)
 	for _, proc := range []*process.Process{old, replacement} {
 		_, err := sourceLeaseApply(server, t.Context(), proc, sourceLeaseRequest(rpc.SourceLeaseAcquire, live.ID(), peer.sourceOwner))
 		require.NoError(t, err)
@@ -298,11 +315,11 @@ func TestSourceLeasePermanentRemovalCancelsAndJoins(t *testing.T) {
 func TestSourceLeaseProcessStopCancelsBeforeGenerationCleanup(t *testing.T) {
 	proc := sourceLeaseProcessFactory(t)("rib-one")
 	peer, facts := sourceReceiptFixture(t)
-	peer.settings.ProcessBindings = []ProcessBinding{sourceLeaseGrant(proc.Name())}
+	peer.settings.Bus = testBusBlockForGrants(sourceLeaseGrant(proc.Name()))
 	live, err := sourceReceipts.issue(facts)
 	require.NoError(t, err)
 	t.Cleanup(live.close)
-	_, err = sourceLeaseApply(&pluginserver.Server{}, t.Context(), proc, sourceLeaseRequest(rpc.SourceLeaseAcquire, live.ID(), peer.sourceOwner))
+	_, err = sourceLeaseApply(sourceLeaseTestServer(t, proc), t.Context(), proc, sourceLeaseRequest(rpc.SourceLeaseAcquire, live.ID(), peer.sourceOwner))
 	require.NoError(t, err)
 	owner, err := proc.SelectedOwner()
 	require.NoError(t, err)

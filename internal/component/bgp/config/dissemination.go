@@ -1,27 +1,30 @@
-// Design: docs/architecture/api/architecture.md -- declared transit grants.
-// Related: peers.go -- the common validate, commit and startup peer walk.
+// Design: docs/architecture/api/architecture.md -- declared dissemination ownership over compiled bus filters
+// Related: bus_requirements.go -- compiles the bus and runs all BGP feature requirements
+// Related: peers.go -- the common validate, commit and startup peer walk
 package bgpconfig
 
 import (
+	"slices"
+
 	"github.com/ze-software/ze/internal/component/bgp/reactor"
-	"github.com/ze-software/ze/internal/component/config"
 	"github.com/ze-software/ze/internal/component/plugin"
 	"github.com/ze-software/ze/internal/component/plugin/registry"
 	pluginserver "github.com/ze-software/ze/internal/component/plugin/server"
-	bgpevents "github.com/ze-software/ze/internal/core/bgp/events"
 )
 
-// validateDissemination resolves registrations rather than naming particular
-// implementations. Explicit attachments to compiled declarations are checked
-// before any peer starts; external declarations receive the same runtime gate.
-func validateDissemination(tree *config.Tree, peers []*reactor.PeerSettings) error {
-	configured, err := config.ExtractPluginsFromTree(tree)
-	if err != nil {
-		return err
-	}
+// validateDisseminationOnGraph resolves dissemination declarations across all
+// configured and auto-loaded compiled endpoints in busCtx, validates complete
+// grants on the compiled DeliveryGraph, and records each peer's resolved
+// DisseminationOwner.
+func validateDisseminationOnGraph(settings []*reactor.PeerSettings, busCtx *bgpCompiledBusContext) error {
 	var processes []pluginserver.DisseminationProcess
 	seen := make(map[string]bool)
+	seenCompiled := make(map[string]bool)
+
 	add := func(name string, identities []string) {
+		if name == "" {
+			return
+		}
 		if seen[name] {
 			return
 		}
@@ -31,28 +34,51 @@ func validateDissemination(tree *config.Tree, peers []*reactor.PeerSettings) err
 			if row == nil {
 				continue
 			}
+			seenCompiled[row.Name] = true
 			if len(row.Dissemination) == 0 {
 				continue
 			}
-			processes = append(processes, pluginserver.DisseminationProcess{Name: name, Claims: row.Claims, Declarations: row.Dissemination})
+			processes = append(processes, pluginserver.DisseminationProcess{
+				Name:              name,
+				Claims:            row.Claims,
+				ClaimSessionScope: slices.Clone(row.ClaimSessionScope),
+				Declarations:      row.Dissemination,
+			})
 			return
 		}
 	}
-	for _, process := range configured {
-		add(process.Name, plugin.RegistryNames(process))
+
+	for _, ep := range busCtx.endpoints {
+		ids := plugin.RegistryNames(ep)
+		if id := ep.CompiledIdentity(); id != "" && !slices.Contains(ids, id) {
+			ids = append([]string{id}, ids...)
+		}
+		add(ep.Name, ids)
 	}
-	for _, peer := range peers {
-		for _, binding := range peer.ProcessBindings {
-			add(binding.PluginName, []string{binding.PluginName})
+	if busCtx.compiled != nil {
+		for _, pPath := range busCtx.compiled.Participants() {
+			f := busCtx.compiled.Filter(pPath)
+			if f == nil {
+				continue
+			}
+			if f.EndpointName == "" {
+				continue
+			}
+			if seen[f.EndpointName] {
+				continue
+			}
+			if row := registry.Lookup(f.EndpointName); row != nil && !seenCompiled[row.Name] {
+				add(f.EndpointName, []string{row.Name})
+			}
 		}
 	}
-	delivery := reactor.DisseminationPeersFromSettings(peers)
-	graph := pluginserver.NewDisseminationGraph(bgpevents.Namespace, delivery)
-	if err := graph.ValidateDisseminationBindings(processes); err != nil {
+
+	if err := busCtx.graph.ValidateDisseminationBindings(processes); err != nil {
 		return err
 	}
-	for i, peer := range peers {
-		owner, err := graph.ResolveDisseminationOwner(delivery[i].Addr, reactor.SelectedDisseminationRole, processes)
+	for _, peer := range settings {
+		addr := busCtx.peerToAddr[peer]
+		owner, err := busCtx.graph.ResolveDisseminationOwner(addr, reactor.SelectedDisseminationRole, processes)
 		if err != nil {
 			return err
 		}

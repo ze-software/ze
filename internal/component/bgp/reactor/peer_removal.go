@@ -76,21 +76,25 @@ func (r *Reactor) removalLocked(peer *Peer, stop peerStop) peerRemoval {
 	r.closeCapturesForPeer(settings.Address)
 	peer.advanceForwardGeneration()
 	destinationSession, _ := peer.selectedStateDestination()
+	peerAS := peer.PeerAS()
 	removal := peerRemoval{source: peer, stop: stop, removed: &plugin.PeerInfo{
-		PeerOwner:          peer.sourceOwner,
-		ConnectionID:       connectionIDOf(peer.currentSession()),
-		Address:            settings.Address,
-		LocalAddress:       settings.LocalAddress,
-		AddressStr:         peer.addrString,
-		LocalAddressStr:    peer.localAddrString,
-		Name:               settings.Name,
-		GroupName:          settings.GroupName,
-		LocalAS:            settings.LocalAS,
-		PeerAS:             rpc.RemoteASOf(peer.PeerAS()), // guarded: a dynamic peer may still be resolving its ASN
-		RouterID:           settings.RouterID,
-		State:              peer.State().PluginState(),
-		SessionGeneration:  peer.forwardGeneration.Load(),
-		DestinationSession: destinationSession,
+		PeerOwner:            peer.sourceOwner,
+		ConnectionID:         connectionIDOf(peer.currentSession()),
+		Address:              settings.Address,
+		LocalAddress:         settings.LocalAddress,
+		AddressStr:           peer.addrString,
+		LocalAddressStr:      peer.localAddrString,
+		Name:                 settings.Name,
+		GroupName:            settings.GroupName,
+		LocalAS:              settings.LocalAS,
+		PeerAS:               rpc.RemoteASOf(peerAS), // guarded: a dynamic peer may still be resolving its ASN
+		RouterID:             settings.RouterID,
+		State:                peer.State().PluginState(),
+		IsIBGP:               settings.isIBGPWith(peerAS),
+		RSClient:             settings.RSClient,
+		RouteReflectorClient: settings.RouteReflectorClient,
+		SessionGeneration:    peer.forwardGeneration.Load(),
+		DestinationSession:   destinationSession,
 	}}
 	if r.removalEvents != nil {
 		// Capture allocates only on this cold removal path. The returned

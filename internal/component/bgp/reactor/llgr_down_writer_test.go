@@ -7,6 +7,7 @@ import (
 	"context"
 	"net"
 	"slices"
+	"strings"
 	"sync/atomic"
 	"testing"
 
@@ -114,6 +115,7 @@ func llgrDownLiveRouter(t *testing.T, restart uint16) ([]*lowLivePeer, *process.
 		lowLiveSettings("192.0.2.2", 65000, 65000),
 	}
 	for i, s := range settings {
+		s.RSClient = true
 		s.RouteReflectorClient = true
 		s.ClusterID = 0x0a0a0a0a
 		// The local OPEN advertises 3600; the remote OPEN below advertises 60.
@@ -126,17 +128,18 @@ func llgrDownLiveRouter(t *testing.T, restart uint16) ([]*lowLivePeer, *process.
 			{"bgp-rs", "update-received state open-received refresh"},
 			{"bgp-adj-rib-in", "update-received state"},
 		} {
-			entry := map[string]any{"receive": binding.receive}
+			grant := testPeerEndpointGrant{
+				Name:    binding.name,
+				Receive: strings.Fields(binding.receive),
+			}
 			if i == 1 {
 				if binding.name == "bgp-rib" {
-					entry["send"] = "update refresh"
+					grant.Send = []string{"update", "refresh"}
 				} else {
-					entry["send"] = "update"
+					grant.Send = []string{"update"}
 				}
 			}
-			require.NoError(t, parseProcessBindingsFromTree(map[string]any{
-				"attach": map[string]any{"process": map[string]any{binding.name: entry}},
-			}, s))
+			addTestPeerBusGrant(s, grant)
 		}
 		require.NoError(t, r.AddPeer(s))
 	}

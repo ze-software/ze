@@ -963,6 +963,20 @@ func (s *Server) cleanupProcess(proc *process.Process) {
 		report.ClearSource(proc.Name())
 		s.forgetPluginReports(proc.Name())
 
+		// Notify bus subscribers that this participant exited unless the
+		// endpoint keeps its originated state across exit (on-exit keep).
+		if proc.Config().OnExit != plugin.OnExitKeep {
+			if name := proc.Name(); name != "" {
+				if _, err := s.EmitEngineEvent(events.NamespaceBus, events.EventParticipantExit, events.ParticipantExitEvent{
+					Type:        events.MessageParticipantExit,
+					Endpoint:    name,
+					Participant: plugin.EndpointPath(name),
+				}); err != nil {
+					logger().Warn("participant-exit lifecycle event failed", "endpoint", name, "error", err, "code", CodeDoctorPluginDeliveryDisagreement)
+				}
+			}
+		}
+
 		s.runProcessGenerationCleanups(proc)
 		runProcessCleanupHooks(proc.Name())
 	})

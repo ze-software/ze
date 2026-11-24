@@ -8,7 +8,6 @@ import (
 	"errors"
 	"net"
 	"net/netip"
-	"slices"
 	"strings"
 	"sync"
 	"testing"
@@ -25,9 +24,7 @@ import (
 	"github.com/ze-software/ze/internal/component/plugin/registry"
 	pluginserver "github.com/ze-software/ze/internal/component/plugin/server"
 	"github.com/ze-software/ze/internal/core/bgp/attribute"
-	bgpevents "github.com/ze-software/ze/internal/core/bgp/events"
 	"github.com/ze-software/ze/internal/core/bgp/nlri"
-	"github.com/ze-software/ze/internal/core/events"
 	"github.com/ze-software/ze/internal/core/family"
 	"github.com/ze-software/ze/internal/core/selector"
 	"github.com/ze-software/ze/internal/core/slogutil"
@@ -65,9 +62,11 @@ func newOriginRuntimeSDKFixtureWithIntakeSession(t *testing.T, typed bool, intak
 	const name = "origin-runtime-wire-provider"
 	declarations := []rpc.DisseminationDecl{{Namespace: "bgp", Role: SelectedDisseminationRole,
 		SourceReceive: []string{"update-received", "state"}, DestinationReceive: []string{"state", "refresh", "update-sent"}, DestinationSend: []string{"update"}}}
-	receives := []rpc.MessageReceiveDecl{{Message: bgpevents.Namespace + ":" + bgpevents.EventState}}
+	sends := testAllBGPSendDecls()
+	receives := testAllBGPReceiveDecls()
 	offers := make(chan rpc.OriginIntakeInput, 4)
-	require.NoError(t, registry.Register(registry.Registration{Name: name, CLIHandler: func([]string) int { return 0 }, Dissemination: declarations, Receives: receives,
+	require.NoError(t, registry.Register(registry.Registration{Name: name, CLIHandler: func([]string) int { return 0 },
+		Sends: sends, Receives: receives, Dissemination: declarations,
 		RunEngine: func(conn net.Conn) int {
 			if !typed {
 				conn = struct{ net.Conn }{conn}
@@ -154,7 +153,7 @@ func newOriginRuntimeSDKFixtureWithIntakeSession(t *testing.T, typed bool, intak
 					return out, nil
 				})
 			}
-			if err := provider.Run(ctx, &sdk.Registration{Dissemination: declarations, Receives: receives}); err != nil && ctx.Err() == nil {
+			if err := provider.Run(ctx, &sdk.Registration{Sends: sends, Receives: receives, Dissemination: declarations}); err != nil && ctx.Err() == nil {
 				t.Errorf("actual SDK provider: %v", err)
 				return 1
 			}
@@ -162,19 +161,18 @@ func newOriginRuntimeSDKFixtureWithIntakeSession(t *testing.T, typed bool, intak
 		}}))
 	host, err := pluginserver.NewServer(&pluginserver.ServerConfig{Plugins: []plugin.PluginConfig{{Name: name, Run: name, Internal: true}}}, f.api)
 	require.NoError(t, err)
-	binding := plugin.PeerProcessBinding{PluginName: name, Explicit: true,
-		Receive: map[string]events.Direction{"state": events.DirBoth, "refresh": events.DirBoth, "update": events.DirSent}, Send: map[string]bool{"update": true}}
+	destBus := testBusSelectedDest(name)
 	host.UpdateDeliveryGraph("bgp", []pluginserver.DeliveryPeer{
-		{Addr: "192.0.2.79", Bindings: []plugin.PeerProcessBinding{{PluginName: name, Explicit: true, Receive: map[string]events.Direction{"state": events.DirBoth, "update": events.DirReceived}}}},
-		{Addr: f.peer.addrString, Bindings: []plugin.PeerProcessBinding{binding}},
+		testDeliveryPeer("192.0.2.79", "", testBusSourceLease(name)),
+		testDeliveryPeer(f.peer.addrString, "", destBus),
 	})
 	f.api.r.api = host
 	f.api.r.originReceipts, err = newOriginReceiptStore(ctx)
 	require.NoError(t, err)
 	t.Cleanup(func() { require.NoError(t, f.api.r.originReceipts.close(context.Background())) })
 	startOriginIntakeTestHost(t, ctx, host)
-	f.peer.settings.ProcessBindings = []ProcessBinding{{PluginName: name, Explicit: true, Receive: binding.Receive, Send: binding.Send}}
-	configured, err := host.ResolveDisseminationOwnerForPeer(pluginserver.DeliveryPeer{Addr: f.peer.addrString, Bindings: []plugin.PeerProcessBinding{binding}}, SelectedDisseminationRole)
+	f.peer.settings.Bus = destBus
+	configured, err := host.ResolveDisseminationOwnerForPeer(testDeliveryPeer(f.peer.addrString, "", destBus), SelectedDisseminationRole)
 	require.NoError(t, err)
 	f.peer.settings.DisseminationOwner = configured
 	f.peer.refreshForwardFacts()
@@ -345,23 +343,38 @@ func TestOriginRuntimeBridgeChildExitKeepAndWithdraw(t *testing.T) {
 	}
 }
 
+func (f *originRuntimeSDKFixture) publishGraph(t *testing.T) *pluginserver.DeliveryGraph {
+	t.Helper()
+	peers := []pluginserver.DeliveryPeer{
+		testDeliveryPeer("192.0.2.79", "", testBusSourceLease(f.name)),
+		deliveryPeerFromSettings(f.writer.peer.settingsSnapshot()),
+	}
+	endpoints := buildTestEndpointInputsForPeers(peers, f.host, nil)
+	require.NoError(t, f.host.UpdateDeliveryGraphWithEndpoints("bgp", peers, endpoints))
+	return f.host.DeliveryGraph()
+}
+
 func TestOriginRuntimeSourceSendGrantRemovalKeepsUsefulSibling(t *testing.T) {
 	for _, typed := range []bool{false, true} {
 		t.Run(map[bool]string{false: "framed", true: "typed"}[typed], func(t *testing.T) {
 			f := newOriginRuntimeSDKFixture(t, typed)
 			producerOwner, _ := originOwnerFixture(t, "origin-source-grant-test")
 			peer := f.writer.peer
-			producer := ProcessBinding{PluginName: "origin-source-grant-test", Explicit: true, Send: map[string]bool{"update": true}}
-			peer.settings.ProcessBindings = append(peer.settings.ProcessBindings, producer)
+			peer.settings.Bus = testBusBlockForGrants(
+				testPeerEndpointGrant{Name: f.name, Receive: []string{"state", "refresh", "update-sent"}, Send: []string{"update"}},
+				testPeerEndpointGrant{Name: "origin-source-grant-test", Send: []string{"update"}},
+			)
+			beforeGraph := f.publishGraph(t)
 			peer.refreshForwardFacts()
 			f.sender = producerOwner.Sender()
 			f.batch.OriginOwner = producerOwner
 			original := f.announce(t)
-			before := slices.Clone(peer.settings.ProcessBindings)
-			after := slices.Clone(before[:1])
-			peer.settings.ProcessBindings = after
+			before := peer.settingsSnapshot()
+			peer.settings.Bus = testBusSelectedDest(f.name)
+			after := peer.settingsSnapshot()
+			afterGraph := f.publishGraph(t)
 			peer.refreshForwardFacts()
-			require.NoError(t, peer.revokeRemovedSourceGrants(f.writer.api.r, before, after))
+			require.NoError(t, peer.revokeRemovedSourceGrants(f.writer.api.r, before, after, beforeGraph, afterGraph))
 			originRuntimeExpectCounts(t, f.writer.api.r.originReceipts, 0, 0, 0, 0)
 			bodies := updateBodies(t, f.writer.conn.written())
 			require.Len(t, bodies, 2)
@@ -388,12 +401,15 @@ func TestOriginRuntimeDestinationGrantRemovalUsesJoinedTerminalDown(t *testing.T
 			f.announce(t)
 			peer := f.writer.peer
 			f.writer.api.r.bindEvents = bgpserver.NewEventDispatcher(f.host)
-			before := slices.Clone(peer.settings.ProcessBindings)
-			peer.settings.ProcessBindings = nil
+			before := peer.settingsSnapshot()
+			beforeGraph := f.host.DeliveryGraph()
+			peer.settings.Bus = testBusNone()
+			after := peer.settingsSnapshot()
 			peer.refreshForwardFacts()
 			// Publish the removal before the barrier, as actual config reconciliation does.
 			f.host.UpdateDeliveryGraph("bgp", nil)
-			require.NoError(t, peer.revokeRemovedOriginGrants(f.writer.api.r, before, nil))
+			afterGraph := f.host.DeliveryGraph()
+			require.NoError(t, peer.revokeRemovedOriginGrants(f.writer.api.r, before, after, beforeGraph, afterGraph))
 			originRuntimeExpectCounts(t, f.writer.api.r.originReceipts, 0, 0, 0, 0)
 			bodies := updateBodies(t, f.writer.conn.written())
 			require.Len(t, bodies, 2)
@@ -463,9 +479,8 @@ func TestOriginRuntimeCompleteDestinationGrantChangeRequiresRestart(t *testing.T
 	f := newOriginRuntimeSDKFixture(t, false)
 	current := f.writer.peer.Settings()
 	next := *current
-	next.ProcessBindings = slices.Clone(current.ProcessBindings)
-	next.ProcessBindings[0].Receive = map[string]events.Direction{"state": events.DirBoth, "refresh": events.DirBoth, "update": events.DirBoth}
-	require.False(t, onlyReceiveOnlyBindingsDiffer(current.ProcessBindings, next.ProcessBindings), "ordinary destination's mandatory send grant makes its attachment restart-scoped")
+	next.Bus = testBusBoth(f.name, []string{"state", "refresh", "update"}, []string{"update"})
+	require.False(t, onlyReceiveOnlyBusDiffers(current.Bus, next.Bus), "ordinary destination's mandatory send grant makes its bus attachment restart-scoped")
 	require.True(t, peerSettingsRestartRequired(current, &next, f.writer.peer.session))
 }
 
@@ -525,9 +540,10 @@ func TestOriginRuntimeTrustedRegistryRetiresParkedLiveOriginal(t *testing.T) {
 			f.sender = owner.Sender()
 			f.batch.OriginOwner = owner
 			first := f.announce(t)
-			// Park the already accepted original without replacing its live provider.
+			// Park the already accepted original without replacing its live provider
+			// (exercising the on-exit keep policy).
 			// This is the exact retained record a registry callback must forget.
-			_, err = f.writer.api.r.originReceipts.endOwner(f.ctx, owner)
+			_, err = f.writer.api.r.originReceipts.endOwnerWithPolicy(f.ctx, owner, true)
 			require.NoError(t, err)
 			expired := plugin.WithOriginRetirement(f.ctx, originRuntimeIntakeRetirement(t, owner, first))
 			result, err := f.writer.api.WithdrawNLRIBatchResult(expired, selector.ParseDefault(f.writer.peer.addrString), f.batch, f.sender)

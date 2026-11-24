@@ -15,9 +15,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/ze-software/ze/internal/component/plugin/registry"
-	bgpevents "github.com/ze-software/ze/internal/core/bgp/events"
 	"github.com/ze-software/ze/internal/core/bgp/ribevents"
-	"github.com/ze-software/ze/internal/core/events"
 	"github.com/ze-software/ze/pkg/plugin/rpc"
 	"github.com/ze-software/ze/pkg/plugin/sdk"
 )
@@ -123,7 +121,9 @@ func TestRFC8212ImportRefusesForwarderWithoutSentOwner(t *testing.T) {
 	snapshot := registry.Snapshot()
 	t.Cleanup(func() { registry.Restore(snapshot) })
 	require.NoError(t, registry.Register(registry.Registration{
-		Name: rfc8212ForwarderName, Description: "RFC 8212 forwarding owner fixture", FencesLiveForwards: true, SignalsSessionReady: true,
+		Name: rfc8212ForwarderName, Description: "RFC 8212 forwarding owner fixture",
+		Sends: testAllBGPSendDecls(), Receives: testAllBGPReceiveDecls(),
+		FencesLiveForwards: true, SignalsSessionReady: true,
 		RunEngine: func(conn net.Conn) int {
 			p := sdk.NewWithConn(rfc8212ForwarderName, conn)
 			defer p.Close() //nolint:errcheck // The server owns shutdown.
@@ -131,7 +131,9 @@ func TestRFC8212ImportRefusesForwarderWithoutSentOwner(t *testing.T) {
 				called.Add(1)
 				return nil
 			})
-			if err := p.Run(context.Background(), &sdk.Registration{}); err != nil {
+			if err := p.Run(context.Background(), &sdk.Registration{
+				Sends: testAllBGPSendDecls(), Receives: testAllBGPReceiveDecls(),
+			}); err != nil {
 				return 1
 			}
 			return 0
@@ -140,8 +142,10 @@ func TestRFC8212ImportRefusesForwarderWithoutSentOwner(t *testing.T) {
 	}))
 	fx := newRFC8212ImportFixtureWith(t, false, rfc8212ForwarderName)
 	fx.r.mu.Lock()
-	fx.peer.settings.ProcessBindings = append(fx.peer.settings.ProcessBindings, ProcessBinding{PluginName: rfc8212ForwarderName,
-		Receive: map[string]events.Direction{bgpevents.EventUpdate: events.DirReceived}})
+	addTestPeerBusGrant(fx.peer.settings, testPeerEndpointGrant{
+		Name:    rfc8212ForwarderName,
+		Receive: []string{"update-received"},
+	})
 	fx.r.publishDeliveryGraphLocked()
 	fx.r.mu.Unlock()
 	j := &rfc8212TxJournal{Journal: sdk.NewJournal(), txID: "tx-no-sent-owner", deadline: time.Now().Add(30 * time.Second)}

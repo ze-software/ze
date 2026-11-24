@@ -18,7 +18,6 @@ import (
 	"github.com/ze-software/ze/internal/component/plugin/registry"
 	pluginserver "github.com/ze-software/ze/internal/component/plugin/server"
 	bgpevents "github.com/ze-software/ze/internal/core/bgp/events"
-	"github.com/ze-software/ze/internal/core/events"
 	"github.com/ze-software/ze/internal/core/selfcert"
 )
 
@@ -67,11 +66,7 @@ func TestExternalReplayFenceUsesAuthenticatedReadiness(t *testing.T) {
 			require.True(t, proc.Config().RunsExternalProgram(), "a compiled name must still run the actual TLS child")
 			require.False(t, proc.Conn().HasBridge())
 			r, source, destination, wire, encoding := newSyncOrderRail(t)
-			destination.mu.Lock()
-			destination.settings.ProcessBindings = []ProcessBinding{{PluginName: name,
-				Send:    map[string]bool{bgpevents.SendUpdate: true},
-				Receive: map[string]events.Direction{bgpevents.EventState: events.DirReceived}}}
-			destination.mu.Unlock()
+			setTestPeerBus(t, destination, testBusBoth(name, []string{bgpevents.EventState}, []string{bgpevents.SendUpdate}))
 			destination.refreshForwardFacts()
 			require.Equal(t, []string{name}, destination.initialUpdateReporters(), "the actual reporter caller must use current Stage-1 readiness")
 			destination.state.Store(int32(PeerStateConnecting))

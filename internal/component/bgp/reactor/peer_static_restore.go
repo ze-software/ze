@@ -11,6 +11,7 @@ import (
 	"github.com/ze-software/ze/internal/core/bgp/msgtype"
 	"github.com/ze-software/ze/internal/core/bgp/nlri"
 	"github.com/ze-software/ze/internal/core/bgp/nlri/nlrisplit"
+	"github.com/ze-software/ze/internal/core/family"
 )
 
 // restoreConfigured gives back the configured routes a withdrawal names, and
@@ -102,16 +103,66 @@ func configuredRouteFor(configured []StaticRoute, n nlri.NLRI) (StaticRoute, boo
 // MUST be ignored." A withdrawn labeled or VPN NLRI carries that field where
 // the announcement carried its label stack, so the label is not part of the
 // key, and a configured route is named whatever label it was given.
+// restoreConfiguredOrigin gives back a peer's configured static route after an
+// exited participant's selected origin candidate was retired and left no
+// surviving selected advertisement for build.key on the current session.
+func (p *Peer) restoreConfiguredOrigin(build *originBuildValue) {
+	if build == nil {
+		return
+	}
+	configured := p.staticRoutes()
+	if len(configured) == 0 {
+		return
+	}
+	var match StaticRoute
+	found := false
+	for i := range configured {
+		if staticRouteNamesRaw(&configured[i], build.family, build.pathID, build.native) {
+			match = configured[i]
+			found = true
+			break
+		}
+	}
+	if !found {
+		return
+	}
+
+	p.staticMu.Lock()
+	defer p.staticMu.Unlock()
+
+	session := p.currentSession()
+	if session == nil {
+		return
+	}
+	if p.staticWire.session != session {
+		return
+	}
+	if session.adjOut.hasSelectedPath(build.key) {
+		return
+	}
+	nc := p.negotiated.Load()
+	if nc == nil {
+		return
+	}
+	maxMsgSize := int(message.MaxMessageLength(msgtype.TypeUPDATE, nc.ExtendedMessage))
+	restore := p.sendingConfigStatic.Swap(true)
+	p.sendStaticRoutes(session, []StaticRoute{match}, p.settings.GroupUpdates, maxMsgSize, p.prefixSIDAllowed())
+	p.sendingConfigStatic.Store(restore)
+}
+
 func staticRouteNamesNLRI(r *StaticRoute, n nlri.NLRI) bool {
-	fam := r.Family()
-	if fam != n.Family() {
+	return staticRouteNamesRaw(r, n.Family(), n.PathID(), n.Bytes())
+}
+
+func staticRouteNamesRaw(r *StaticRoute, fam family.Family, pathID uint32, raw []byte) bool {
+	if r.Family() != fam {
 		return false
 	}
-	if r.PathID != n.PathID() {
+	if r.PathID != pathID {
 		return false
 	}
 	var withdrawnScratch, configuredScratch [nlrisplit.PrefixKeyScratchSize]byte
-	withdrawn, err := nlrisplit.GetPrefixKey(fam)(n.Bytes(), withdrawnScratch[:], true)
+	withdrawn, err := nlrisplit.GetPrefixKey(fam)(raw, withdrawnScratch[:], true)
 	if err != nil {
 		// A withdrawn NLRI the family cannot frame names no configured route.
 		return false

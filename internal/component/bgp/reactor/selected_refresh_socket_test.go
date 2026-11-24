@@ -17,7 +17,6 @@ import (
 	"github.com/ze-software/ze/internal/component/plugin/process"
 	"github.com/ze-software/ze/internal/component/plugin/registry"
 	pluginserver "github.com/ze-software/ze/internal/component/plugin/server"
-	"github.com/ze-software/ze/internal/core/events"
 	"github.com/ze-software/ze/pkg/plugin/rpc"
 	"github.com/ze-software/ze/pkg/plugin/sdk"
 )
@@ -98,6 +97,7 @@ func TestSelectedRefreshSocketCancellationJoinsRealWriter(t *testing.T) {
 			runnerDone := make(chan struct{})
 			const implementation = "selected-refresh-socket-runner"
 			require.NoError(t, registry.Register(registry.Registration{Name: implementation,
+				Sends: testAllBGPSendDecls(), Receives: testAllBGPReceiveDecls(),
 				Dissemination: declaration, CLIHandler: func([]string) int { return 0 },
 				RunEngine: func(conn net.Conn) int {
 					defer close(runnerDone)
@@ -105,7 +105,7 @@ func TestSelectedRefreshSocketCancellationJoinsRealWriter(t *testing.T) {
 					defer func() { _ = client.Close() }()
 					client.OnConfigure(func([]sdk.ConfigSection) error { return nil })
 					client.OnStarted(func(context.Context) error { ready <- client; return nil })
-					_ = client.Run(work, &sdk.Registration{Dissemination: declaration})
+					_ = client.Run(work, &sdk.Registration{Sends: testAllBGPSendDecls(), Receives: testAllBGPReceiveDecls(), Dissemination: declaration})
 					return 0
 				}}))
 			host, err := pluginserver.NewServer(&pluginserver.ServerConfig{
@@ -115,14 +115,11 @@ func TestSelectedRefreshSocketCancellationJoinsRealWriter(t *testing.T) {
 			require.NoError(t, err)
 			spawner := &selectedRefreshSpawner{ctx: work}
 			host.SetProcessSpawner(spawner)
-			destinationGrant := plugin.PeerProcessBinding{PluginName: selectedWriterProcess, Explicit: true,
-				Receive: map[string]events.Direction{"state": events.DirBoth, "refresh": events.DirBoth, "update": events.DirSent},
-				Send:    map[string]bool{"update": true}}
+			destBus := testBusSelectedDest(selectedWriterProcess)
 			host.UpdateDeliveryGraph("bgp", []pluginserver.DeliveryPeer{
-				{Addr: "192.0.2.79", Bindings: []plugin.PeerProcessBinding{{PluginName: selectedWriterProcess, Explicit: true,
-					Receive: map[string]events.Direction{"update": events.DirReceived, "state": events.DirBoth}}}},
-				{Addr: input.Destination, Bindings: []plugin.PeerProcessBinding{destinationGrant}},
-				{Addr: "192.0.2.81", Bindings: []plugin.PeerProcessBinding{destinationGrant}},
+				testDeliveryPeer("192.0.2.79", "", testBusSourceLease(selectedWriterProcess)),
+				testDeliveryPeer(input.Destination, "", destBus),
+				testDeliveryPeer("192.0.2.81", "", destBus),
 			})
 			fixture.api.r.api = host
 			require.NoError(t, host.StartWithContext(work))
@@ -164,7 +161,7 @@ func TestSelectedRefreshSocketCancellationJoinsRealWriter(t *testing.T) {
 
 			sibling, siblingWire := newGroupUpdatesPeer(t, "192.0.2.81", "absent")
 			sibling.settings.ExportPolicy = fixture.peer.settings.ExportPolicy
-			sibling.settings.ProcessBindings = fixture.peer.settings.ProcessBindings
+			sibling.settings.Bus = fixture.peer.settings.Bus.Clone()
 			sibling.reactor = fixture.api.r
 			sibling.session.initialReplay.Store(72)
 			sibling.negotiated.Load().EnhancedRouteRefresh = true

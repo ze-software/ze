@@ -16,7 +16,6 @@ import (
 	pluginserver "github.com/ze-software/ze/internal/component/plugin/server"
 	routepolicy "github.com/ze-software/ze/internal/component/policy"
 	"github.com/ze-software/ze/internal/core/bgp/configop"
-	"github.com/ze-software/ze/internal/core/events"
 	"github.com/ze-software/ze/pkg/plugin/rpc"
 	"github.com/ze-software/ze/pkg/plugin/sdk"
 )
@@ -43,8 +42,7 @@ func TestOperationCandidateResolvesRuntimeOwner(t *testing.T) {
 			destination.DisseminationOwner = pluginserver.DisseminationOwner{}
 			destination.ExportPolicy = mustPolicy(t, nil, routepolicy.FinalReject)
 			source := &PeerSettings{Name: "source", Address: netip.MustParseAddr("192.0.2.79"),
-				ProcessBindings: []ProcessBinding{{PluginName: runtime.name, Explicit: true,
-					Receive: map[string]events.Direction{"update": events.DirReceived, "state": events.DirBoth}}}}
+				Bus: testBusSourceLease(runtime.name)}
 			peers := []*PeerSettings{source, destination}
 			var groups []*DynamicGroupConfig
 			if dynamic {
@@ -115,14 +113,12 @@ func TestReconcilePeersVerifyRuntimeOwnerPreflight(t *testing.T) {
 				destination.ImportPolicy = mustPolicy(t, nil, routepolicy.FinalAccept)
 			}
 			source := &PeerSettings{Name: "source", Address: netip.MustParseAddr("192.0.2.79"),
-				ProcessBindings: []ProcessBinding{{PluginName: selectedWriterProcess, Explicit: true,
-					Receive: map[string]events.Direction{"update": events.DirReceived, "state": events.DirBoth}}}}
+				Bus: testBusSourceLease(selectedWriterProcess)}
 			var groups []*DynamicGroupConfig
 			if tc.badDynamicDestination {
 				groups = []*DynamicGroupConfig{{GroupName: "incomplete-destination", Settings: &PeerSettings{
-					ProcessBindings: []ProcessBinding{{PluginName: selectedWriterProcess, Explicit: true,
-						Receive: map[string]events.Direction{"state": events.DirBoth, "update": events.DirSent},
-						Send:    map[string]bool{"update": true}}}}}}
+					Bus: testBusBoth(selectedWriterProcess, []string{"state", "update-sent"}, []string{"update"}),
+				}}}
 			}
 			f.api.r.SetConfigPath("residual-runtime-preflight")
 			f.api.r.SetReloadFunc(func(string) ([]*PeerSettings, Globals, []*DynamicGroupConfig, error) {
@@ -154,10 +150,21 @@ func TestReconcilePeersVerifyRuntimeOwnerPreflight(t *testing.T) {
 // PREVENTS: Fallback operations producing zero DisseminationOwner and causing
 // spurious restarts or bypassing dissemination validation.
 func TestOperationConfigFallbackResolvesRuntimeOwner(t *testing.T) {
+	destBusJSON := `"bus": {
+		"send": {
+			"allow": ["bgp:state", "bgp:refresh", "bgp:update"],
+			"to": ["/bus/endpoint/` + selectedWriterProcess + `"],
+			"message": {"bgp:update": {"tag": {"direction": {"value": ["sent"]}}}}
+		},
+		"receive": {
+			"allow": ["bgp:update"],
+			"from": ["/bus/endpoint/` + selectedWriterProcess + `"]
+		}
+	}`
 	destinationConfig := json.RawMessage(`{
 		"connection": {"remote": {"ip": "192.0.2.80"}, "local": {"ip": "192.0.2.254"}},
 		"session": {"asn": {"local": "65000", "remote": "65001"}, "router-id": "1.2.3.80"},
-		"attach": {"process": {"` + selectedWriterProcess + `": {"receive": "state refresh update-sent", "send": "update"}}}
+		` + destBusJSON + `
 	}`)
 
 	for _, dynamic := range []bool{false, true} {
@@ -175,11 +182,7 @@ func TestOperationConfigFallbackResolvesRuntimeOwner(t *testing.T) {
 
 			sourceSettings := NewPeerSettings(netip.MustParseAddr("192.0.2.79"), 65000, 65002, 0x0102034F)
 			sourceSettings.Name = "source"
-			sourceSettings.ProcessBindings = []ProcessBinding{{
-				PluginName: selectedWriterProcess,
-				Explicit:   true,
-				Receive:    map[string]events.Direction{"update": events.DirReceived, "state": events.DirBoth},
-			}}
+			sourceSettings.Bus = testBusSourceLease(selectedWriterProcess)
 			if dynamic {
 				sourceSettings.Address = netip.Addr{}
 				f.api.r.dynamicGroups = []*DynamicGroupConfig{{GroupName: "sources", Settings: sourceSettings}}
@@ -209,7 +212,7 @@ func TestOperationConfigFallbackResolvesRuntimeOwner(t *testing.T) {
 			addConfig := json.RawMessage(`{
 				"connection": {"remote": {"ip": "192.0.2.81"}, "local": {"ip": "192.0.2.254"}},
 				"session": {"asn": {"local": "65000", "remote": "65003"}, "router-id": "1.2.3.81"},
-				"attach": {"process": {"` + selectedWriterProcess + `": {"receive": "state refresh update-sent", "send": "update"}}}
+				` + destBusJSON + `
 			}`)
 			addOp := &rpc.ConfigOperation{
 				ID:     "bgp-add-peer-destination2",
@@ -233,16 +236,22 @@ func TestOperationConfigFallbackResolvesRuntimeOwner(t *testing.T) {
 		f.peer.settings.Name = "destination"
 		sourceSettings := NewPeerSettings(netip.MustParseAddr("192.0.2.79"), 65000, 65002, 0x0102034F)
 		sourceSettings.Name = "source"
-		sourceSettings.ProcessBindings = []ProcessBinding{{
-			PluginName: selectedWriterProcess,
-			Explicit:   true,
-			Receive:    map[string]events.Direction{"update": events.DirReceived, "state": events.DirBoth},
-		}}
+		sourceSettings.Bus = testBusSourceLease(selectedWriterProcess)
 		f.api.r.peers[sourceSettings.PeerKey()] = NewPeer(sourceSettings)
 		incompleteConfig := json.RawMessage(`{
 			"connection": {"remote": {"ip": "192.0.2.81"}, "local": {"ip": "192.0.2.254"}},
 			"session": {"asn": {"local": "65000", "remote": "65003"}, "router-id": "1.2.3.81"},
-			"attach": {"process": {"` + selectedWriterProcess + `": {"receive": "state update-sent", "send": "update"}}}
+			"bus": {
+				"send": {
+					"allow": ["bgp:state", "bgp:update"],
+					"to": ["/bus/endpoint/` + selectedWriterProcess + `"],
+					"message": {"bgp:update": {"tag": {"direction": {"value": ["sent"]}}}}
+				},
+				"receive": {
+					"allow": ["bgp:update"],
+					"from": ["/bus/endpoint/` + selectedWriterProcess + `"]
+				}
+			}
 		}`)
 		addOp := &rpc.ConfigOperation{
 			ID:     "bgp-add-peer-incomplete",

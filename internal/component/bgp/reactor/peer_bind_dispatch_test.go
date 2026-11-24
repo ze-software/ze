@@ -102,11 +102,13 @@ func TestAttachWhileSessionClosingDispatcherDeliversDown(t *testing.T) {
 	setSessionFacts(peer, true, true)
 	r := New(&Config{ListenAddr: "127.0.0.1:0"})
 	srv := flowForwardPluginServer(t, r)
+	setupDeliveryGraphTestServer(t, srv, "monitor")
 	r.api = srv
 	dispatcher := bgpserver.NewEventDispatcher(srv)
 	r.eventDispatcher = dispatcher
 	r.bindEvents = dispatcher
 	r.addPeerObserver(&apiStateObserver{dispatcher: dispatcher, reactor: r})
+	peer.settings.Bus = testBusNone()
 	r.peers[peer.settings.PeerKey()] = peer
 	peer.mu.Lock()
 	peer.reactor = r
@@ -123,7 +125,7 @@ func TestAttachWhileSessionClosingDispatcherDeliversDown(t *testing.T) {
 		peer.announceDown(r, closeWithReason(rpc.ReasonTCPFailure))
 	})
 
-	next := withBindings(peer.settings, operatorBinding(t, "monitor", "update-received state", ""))
+	next := withBusGrants(peer.settings, operatorGrant("monitor", "update-received state", ""))
 	copier, reason := peerSettingsSwapPlan(peer.settings, next, peer.session)
 	require.Empty(t, reason)
 	mustApplyHotSwappableSettings(t, peer, next, copier)

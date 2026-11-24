@@ -96,8 +96,8 @@ func TestHandleUpdate_ZeBGPFormat(t *testing.T) {
 	rs := newTestRouteServer(t)
 
 	rs.mu.Lock()
-	rs.peers[rsFixtureKey("10.0.0.1", 1, 101)] = &PeerState{Address: "10.0.0.1", DestinationSession: 201, SessionGeneration: 3, Up: true}
-	rs.peers[rsFixtureKey("10.0.0.2", 2, 102)] = &PeerState{Address: "10.0.0.2", DestinationSession: 202, SessionGeneration: 3, Up: true}
+	rs.peers[rsFixtureKey("10.0.0.1", 1, 101)] = &PeerState{Address: "10.0.0.1", DestinationSession: 201, SessionGeneration: 3, Up: true, RSClient: true}
+	rs.peers[rsFixtureKey("10.0.0.2", 2, 102)] = &PeerState{Address: "10.0.0.2", DestinationSession: 202, SessionGeneration: 3, Up: true, RSClient: true}
 	rs.mu.Unlock()
 
 	rs.dispatchText("peer 10.0.0.1 remote as 65001 received update 123 peer-owner 1 connection-id 101 source-receipt 301 source-policy-epoch 5 origin igp as-path 65001 local-preference 100 next-hop 192.168.1.1 nlri ipv4/unicast add prefix 10.0.0.0/24")
@@ -123,8 +123,8 @@ func TestHandleUpdate_Withdraw_ZeBGPFormat(t *testing.T) {
 	rs := newTestRouteServer(t)
 
 	rs.mu.Lock()
-	rs.peers[rsFixtureKey("10.0.0.1", 1, 101)] = &PeerState{Address: "10.0.0.1", DestinationSession: 201, SessionGeneration: 3, Up: true}
-	rs.peers[rsFixtureKey("10.0.0.2", 2, 102)] = &PeerState{Address: "10.0.0.2", DestinationSession: 202, SessionGeneration: 3, Up: true}
+	rs.peers[rsFixtureKey("10.0.0.1", 1, 101)] = &PeerState{Address: "10.0.0.1", DestinationSession: 201, SessionGeneration: 3, Up: true, RSClient: true}
+	rs.peers[rsFixtureKey("10.0.0.2", 2, 102)] = &PeerState{Address: "10.0.0.2", DestinationSession: 202, SessionGeneration: 3, Up: true, RSClient: true}
 	rs.mu.Unlock()
 
 	// Pre-populate withdrawal map (simulating prior add).
@@ -153,8 +153,8 @@ func TestHandleUpdate_MultiFamilyMixed(t *testing.T) {
 	rs := newTestRouteServer(t)
 
 	rs.mu.Lock()
-	rs.peers[rsFixtureKey("10.0.0.1", 1, 101)] = &PeerState{Address: "10.0.0.1", DestinationSession: 201, SessionGeneration: 3, Up: true}
-	rs.peers[rsFixtureKey("10.0.0.2", 2, 102)] = &PeerState{Address: "10.0.0.2", DestinationSession: 202, SessionGeneration: 3, Up: true,
+	rs.peers[rsFixtureKey("10.0.0.1", 1, 101)] = &PeerState{Address: "10.0.0.1", DestinationSession: 201, SessionGeneration: 3, Up: true, RSClient: true}
+	rs.peers[rsFixtureKey("10.0.0.2", 2, 102)] = &PeerState{Address: "10.0.0.2", DestinationSession: 202, SessionGeneration: 3, Up: true, RSClient: true,
 		Families: map[family.Family]bool{family.IPv4Unicast: true, family.IPv6Unicast: true}}
 	rs.mu.Unlock()
 
@@ -191,7 +191,7 @@ func TestHandleUpdate_MultiFamilyMixed(t *testing.T) {
 // PREVENTS: Stale routes remaining after session teardown.
 func TestHandleState_Down_ZeBGPFormat(t *testing.T) {
 	rs := newTestRouteServer(t)
-	rs.handleState(&Event{PeerAddr: "10.0.0.1", PeerOwner: 1, ConnectionID: 101, DestinationSession: 201, SessionGeneration: 3, State: "up", Reason: rpc.ReasonAttached})
+	rs.handleState(&Event{PeerAddr: "10.0.0.1", PeerOwner: 1, ConnectionID: 101, DestinationSession: 201, SessionGeneration: 3, State: "up", Reason: rpc.ReasonAttached, RSClient: true})
 	original := rs.peers[rsFixtureKey("10.0.0.1", 1, 101)]
 
 	// Populate withdrawal map (replaces old rs.rib.Insert).
@@ -239,7 +239,7 @@ func TestHandleState_Up_ZeBGPFormat(t *testing.T) {
 		return statusDone, json.RawMessage(`{"last-index":0,"replayed":0}`), nil
 	}
 
-	rs.dispatchText("peer 10.0.0.1 remote as 65001 state up initial-replay 17 peer-owner 1 connection-id 101 destination-session 201 session-generation 3")
+	rs.dispatchText("peer 10.0.0.1 remote as 65001 state up initial-replay 17 peer-owner 1 connection-id 101 destination-session 201 session-generation 3 rs-client true")
 
 	require.Eventually(t, dispatched.Load, 2*time.Second, time.Millisecond,
 		"expected DispatchCommand to be called for replay")
@@ -269,7 +269,7 @@ func TestHandleState_Up_ExcludesSelf(t *testing.T) {
 		return statusDone, json.RawMessage(`{"last-index":0,"replayed":0}`), nil
 	}
 
-	rs.dispatchText("peer 10.0.0.1 remote as 65001 state up initial-replay 17 peer-owner 1 connection-id 101 destination-session 201 session-generation 3")
+	rs.dispatchText("peer 10.0.0.1 remote as 65001 state up initial-replay 17 peer-owner 1 connection-id 101 destination-session 201 session-generation 3 rs-client true")
 
 	require.Eventually(t, func() bool {
 		v := replayCall.Load()
@@ -344,11 +344,13 @@ func TestHandleRefresh_ZeBGPFormat(t *testing.T) {
 	rs.peers[rsFixtureKey("10.0.0.1", 1, 101)] = &PeerState{
 		Address: "10.0.0.1", DestinationSession: 201, SessionGeneration: 3,
 		Up:           true,
+		RSClient:     true,
 		Capabilities: map[string]bool{"route-refresh": true},
 	}
 	rs.peers[rsFixtureKey("10.0.0.2", 2, 102)] = &PeerState{
 		Address: "10.0.0.2", DestinationSession: 202, SessionGeneration: 3,
 		Up:           true,
+		RSClient:     true,
 		Capabilities: map[string]bool{"route-refresh": true},
 	}
 	rs.mu.Unlock()
@@ -370,16 +372,19 @@ func TestFilterUpdateByFamily(t *testing.T) {
 	rs.peers[rsFixtureKey("10.0.0.1", 1, 101)] = &PeerState{
 		Address: "10.0.0.1", DestinationSession: 201, SessionGeneration: 3,
 		Up:       true,
+		RSClient: true,
 		Families: map[family.Family]bool{family.IPv4Unicast: true, family.IPv6Unicast: true},
 	}
 	rs.peers[rsFixtureKey("10.0.0.2", 2, 102)] = &PeerState{
 		Address: "10.0.0.2", DestinationSession: 202, SessionGeneration: 3,
 		Up:       true,
+		RSClient: true,
 		Families: map[family.Family]bool{family.IPv4Unicast: true},
 	}
 	rs.peers[rsFixtureKey("10.0.0.3", 3, 103)] = &PeerState{
 		Address: "10.0.0.3", DestinationSession: 203, SessionGeneration: 3,
 		Up:       true,
+		RSClient: true,
 		Families: map[family.Family]bool{family.IPv4Unicast: true, family.IPv6Unicast: true},
 	}
 	rs.mu.Unlock()
@@ -410,17 +415,20 @@ func TestFilterRefreshByCapability(t *testing.T) {
 	rs.peers[rsFixtureKey("10.0.0.1", 1, 101)] = &PeerState{
 		Address: "10.0.0.1", DestinationSession: 201, SessionGeneration: 3,
 		Up:           true,
+		RSClient:     true,
 		Capabilities: map[string]bool{"route-refresh": true},
 		Families:     map[family.Family]bool{family.IPv4Unicast: true},
 	}
 	rs.peers[rsFixtureKey("10.0.0.2", 2, 102)] = &PeerState{
 		Address: "10.0.0.2", DestinationSession: 202, SessionGeneration: 3,
 		Up:       true,
+		RSClient: true,
 		Families: map[family.Family]bool{family.IPv4Unicast: true},
 	}
 	rs.peers[rsFixtureKey("10.0.0.3", 3, 103)] = &PeerState{
 		Address: "10.0.0.3", DestinationSession: 203, SessionGeneration: 3,
 		Up:           true,
+		RSClient:     true,
 		Capabilities: map[string]bool{"route-refresh": true},
 		Families:     map[family.Family]bool{family.IPv4Unicast: true},
 	}
@@ -446,17 +454,19 @@ func TestFilterReplayByFamily(t *testing.T) {
 	rs.peers[rsFixtureKey("10.0.0.1", 1, 101)] = &PeerState{
 		Address: "10.0.0.1", DestinationSession: 201, SessionGeneration: 3,
 		Up:       true,
+		RSClient: true,
 		Families: map[family.Family]bool{family.IPv4Unicast: true},
 	}
 	rs.peers[rsFixtureKey("10.0.0.2", 2, 102)] = &PeerState{
 		Address: "10.0.0.2", DestinationSession: 202, SessionGeneration: 3,
 		Up:       true,
+		RSClient: true,
 		Families: map[family.Family]bool{family.IPv4Unicast: true, family.IPv6Unicast: true},
 	}
 	rs.mu.Unlock()
 
 	// handleState/handleStateUp calls updateRoute for route replay.
-	rs.dispatchText("peer 10.0.0.1 remote as 65001 state up initial-replay 17 peer-owner 1 connection-id 101 destination-session 201 session-generation 3")
+	rs.dispatchText("peer 10.0.0.1 remote as 65001 state up initial-replay 17 peer-owner 1 connection-id 101 destination-session 201 session-generation 3 rs-client true")
 
 	rs.mu.RLock()
 	peer := rs.peers[rsFixtureKey("10.0.0.1", 1, 101)]
@@ -503,7 +513,7 @@ func TestHandleCommand_Peers(t *testing.T) {
 	rs := newTestRouteServer(t)
 
 	rs.mu.Lock()
-	rs.peers[rsFixtureKey("10.0.0.1", 1, 101)] = &PeerState{Address: "10.0.0.1", DestinationSession: 201, SessionGeneration: 3, ASN: 65001, Up: true}
+	rs.peers[rsFixtureKey("10.0.0.1", 1, 101)] = &PeerState{Address: "10.0.0.1", DestinationSession: 201, SessionGeneration: 3, ASN: 65001, Up: true, RSClient: true}
 	rs.peers[rsFixtureKey("10.0.0.2", 2, 102)] = &PeerState{Address: "10.0.0.2", DestinationSession: 202, SessionGeneration: 3, ASN: 65002, Up: false}
 	rs.mu.Unlock()
 
@@ -602,8 +612,8 @@ func TestBatchForwardSingleFlushOnDrain(t *testing.T) {
 	}
 
 	rs.mu.Lock()
-	rs.peers[rsFixtureKey("10.0.0.1", 1, 101)] = &PeerState{Address: "10.0.0.1", DestinationSession: 201, SessionGeneration: 3, Up: true}
-	rs.peers[rsFixtureKey("10.0.0.2", 2, 102)] = &PeerState{Address: "10.0.0.2", DestinationSession: 202, SessionGeneration: 3, Up: true}
+	rs.peers[rsFixtureKey("10.0.0.1", 1, 101)] = &PeerState{Address: "10.0.0.1", DestinationSession: 201, SessionGeneration: 3, Up: true, RSClient: true}
+	rs.peers[rsFixtureKey("10.0.0.2", 2, 102)] = &PeerState{Address: "10.0.0.2", DestinationSession: 202, SessionGeneration: 3, Up: true, RSClient: true}
 	rs.mu.Unlock()
 
 	rs.dispatchText(buildTestUpdate(rsFixtureKey("10.0.0.1", 1, 101), 1))
@@ -634,8 +644,8 @@ func TestDispatchPauseOnBackpressure(t *testing.T) {
 	t.Cleanup(func() { close(block); rs.workers.Stop() })
 
 	rs.mu.Lock()
-	rs.peers[rsFixtureKey("10.0.0.1", 1, 101)] = &PeerState{Address: "10.0.0.1", DestinationSession: 201, SessionGeneration: 3, Up: true}
-	rs.peers[rsFixtureKey("10.0.0.2", 2, 102)] = &PeerState{Address: "10.0.0.2", DestinationSession: 202, SessionGeneration: 3, Up: true}
+	rs.peers[rsFixtureKey("10.0.0.1", 1, 101)] = &PeerState{Address: "10.0.0.1", DestinationSession: 201, SessionGeneration: 3, Up: true, RSClient: true}
+	rs.peers[rsFixtureKey("10.0.0.2", 2, 102)] = &PeerState{Address: "10.0.0.2", DestinationSession: 202, SessionGeneration: 3, Up: true, RSClient: true}
 	rs.mu.Unlock()
 
 	// Dispatch enough updates to trigger backpressure (>75% of 8 = >6).
@@ -673,8 +683,8 @@ func TestDispatchResumeOnDrain(t *testing.T) {
 	t.Cleanup(func() { release(); rs.workers.Stop() })
 
 	rs.mu.Lock()
-	rs.peers[rsFixtureKey("10.0.0.1", 1, 101)] = &PeerState{Address: "10.0.0.1", DestinationSession: 201, SessionGeneration: 3, Up: true}
-	rs.peers[rsFixtureKey("10.0.0.2", 2, 102)] = &PeerState{Address: "10.0.0.2", DestinationSession: 202, SessionGeneration: 3, Up: true}
+	rs.peers[rsFixtureKey("10.0.0.1", 1, 101)] = &PeerState{Address: "10.0.0.1", DestinationSession: 201, SessionGeneration: 3, Up: true, RSClient: true}
+	rs.peers[rsFixtureKey("10.0.0.2", 2, 102)] = &PeerState{Address: "10.0.0.2", DestinationSession: 202, SessionGeneration: 3, Up: true, RSClient: true}
 	rs.mu.Unlock()
 
 	// Fill channel to trigger backpressure.
@@ -716,9 +726,9 @@ func TestMultiSourceBackpressure(t *testing.T) {
 	t.Cleanup(func() { close(block); rs.workers.Stop() })
 
 	rs.mu.Lock()
-	rs.peers[rsFixtureKey("10.0.0.1", 1, 101)] = &PeerState{Address: "10.0.0.1", DestinationSession: 201, SessionGeneration: 3, Up: true}
-	rs.peers[rsFixtureKey("10.0.0.2", 2, 102)] = &PeerState{Address: "10.0.0.2", DestinationSession: 202, SessionGeneration: 3, Up: true}
-	rs.peers[rsFixtureKey("10.0.0.3", 3, 103)] = &PeerState{Address: "10.0.0.3", DestinationSession: 203, SessionGeneration: 3, Up: true}
+	rs.peers[rsFixtureKey("10.0.0.1", 1, 101)] = &PeerState{Address: "10.0.0.1", DestinationSession: 201, SessionGeneration: 3, Up: true, RSClient: true}
+	rs.peers[rsFixtureKey("10.0.0.2", 2, 102)] = &PeerState{Address: "10.0.0.2", DestinationSession: 202, SessionGeneration: 3, Up: true, RSClient: true}
+	rs.peers[rsFixtureKey("10.0.0.3", 3, 103)] = &PeerState{Address: "10.0.0.3", DestinationSession: 203, SessionGeneration: 3, Up: true, RSClient: true}
 	rs.mu.Unlock()
 
 	// Saturate peer 1 and peer 2, leave peer 3 light.
@@ -763,8 +773,8 @@ func TestShutdownResumesAllPeers(t *testing.T) {
 	t.Cleanup(func() { release(); rs.workers.Stop() })
 
 	rs.mu.Lock()
-	rs.peers[rsFixtureKey("10.0.0.1", 1, 101)] = &PeerState{Address: "10.0.0.1", DestinationSession: 201, SessionGeneration: 3, Up: true}
-	rs.peers[rsFixtureKey("10.0.0.2", 2, 102)] = &PeerState{Address: "10.0.0.2", DestinationSession: 202, SessionGeneration: 3, Up: true}
+	rs.peers[rsFixtureKey("10.0.0.1", 1, 101)] = &PeerState{Address: "10.0.0.1", DestinationSession: 201, SessionGeneration: 3, Up: true, RSClient: true}
+	rs.peers[rsFixtureKey("10.0.0.2", 2, 102)] = &PeerState{Address: "10.0.0.2", DestinationSession: 202, SessionGeneration: 3, Up: true, RSClient: true}
 	rs.mu.Unlock()
 
 	// Trigger backpressure.
@@ -813,7 +823,7 @@ func TestPausedPeerResumesOnDrain(t *testing.T) {
 	t.Cleanup(func() { release(); rs.workers.Stop() })
 
 	rs.mu.Lock()
-	rs.peers[rsFixtureKey("10.0.0.1", 1, 101)] = &PeerState{Address: "10.0.0.1", DestinationSession: 201, SessionGeneration: 3, Up: true}
+	rs.peers[rsFixtureKey("10.0.0.1", 1, 101)] = &PeerState{Address: "10.0.0.1", DestinationSession: 201, SessionGeneration: 3, Up: true, RSClient: true}
 	rs.mu.Unlock()
 
 	// Fill to trigger backpressure.
@@ -877,7 +887,7 @@ func TestPauseRPCFailure(t *testing.T) {
 	t.Cleanup(func() { close(block); rs.workers.Stop() })
 
 	rs.mu.Lock()
-	rs.peers[rsFixtureKey("10.0.0.1", 1, 101)] = &PeerState{Address: "10.0.0.1", DestinationSession: 201, SessionGeneration: 3, Up: true}
+	rs.peers[rsFixtureKey("10.0.0.1", 1, 101)] = &PeerState{Address: "10.0.0.1", DestinationSession: 201, SessionGeneration: 3, Up: true, RSClient: true}
 	rs.mu.Unlock()
 
 	// Fill to trigger backpressure — the exact original pause RPC returns its intended failure.
@@ -907,7 +917,7 @@ func TestDispatchPassesPreParsedPayload(t *testing.T) {
 	rs := newTestRouteServer(t)
 
 	rs.mu.Lock()
-	rs.peers[rsFixtureKey("10.0.0.1", 1, 101)] = &PeerState{Address: "10.0.0.1", DestinationSession: 201, SessionGeneration: 3, Up: true}
+	rs.peers[rsFixtureKey("10.0.0.1", 1, 101)] = &PeerState{Address: "10.0.0.1", DestinationSession: 201, SessionGeneration: 3, Up: true, RSClient: true}
 	rs.mu.Unlock()
 
 	// Replace workers to capture the workItem directly.
@@ -956,8 +966,8 @@ func TestProcessForwardPopulatesWithdrawalMap(t *testing.T) {
 	rs := newTestRouteServer(t)
 
 	rs.mu.Lock()
-	rs.peers[rsFixtureKey("10.0.0.1", 1, 101)] = &PeerState{Address: "10.0.0.1", DestinationSession: 201, SessionGeneration: 3, Up: true}
-	rs.peers[rsFixtureKey("10.0.0.2", 2, 102)] = &PeerState{Address: "10.0.0.2", DestinationSession: 202, SessionGeneration: 3, Up: true}
+	rs.peers[rsFixtureKey("10.0.0.1", 1, 101)] = &PeerState{Address: "10.0.0.1", DestinationSession: 201, SessionGeneration: 3, Up: true, RSClient: true}
+	rs.peers[rsFixtureKey("10.0.0.2", 2, 102)] = &PeerState{Address: "10.0.0.2", DestinationSession: 202, SessionGeneration: 3, Up: true, RSClient: true}
 	rs.mu.Unlock()
 
 	rs.dispatchText("peer 10.0.0.1 remote as 65001 received update 99 peer-owner 1 connection-id 101 source-receipt 301 source-policy-epoch 5 origin igp next-hop 1.1.1.1 nlri ipv4/unicast add prefix 10.0.0.0/24")
@@ -995,8 +1005,8 @@ func TestProcessForwardSourceNotYetUp(t *testing.T) {
 	// 10.0.0.3: was up, then went down (StateSeen true, Up false).
 	rs.mu.Lock()
 	rs.peers[rsFixtureKey("10.0.0.1", 1, 101)] = &PeerState{Address: "10.0.0.1"}
-	rs.peers[rsFixtureKey("10.0.0.2", 2, 102)] = &PeerState{Address: "10.0.0.2", DestinationSession: 202, SessionGeneration: 3, Up: true, StateSeen: true}
-	rs.peers[rsFixtureKey("10.0.0.3", 3, 103)] = &PeerState{Address: "10.0.0.3", DestinationSession: 203, SessionGeneration: 3, StateSeen: true}
+	rs.peers[rsFixtureKey("10.0.0.2", 2, 102)] = &PeerState{Address: "10.0.0.2", DestinationSession: 202, SessionGeneration: 3, Up: true, RSClient: true, StateSeen: true}
+	rs.peers[rsFixtureKey("10.0.0.3", 3, 103)] = &PeerState{Address: "10.0.0.3", DestinationSession: 203, SessionGeneration: 3, RSClient: true, StateSeen: true}
 	rs.mu.Unlock()
 
 	rs.dispatchText("peer 10.0.0.1 remote as 65001 received update 41 peer-owner 1 connection-id 101 source-receipt 301 source-policy-epoch 5 origin igp next-hop 1.1.1.1 nlri ipv4/unicast add prefix 10.1.0.0/24")
@@ -1022,14 +1032,14 @@ func TestProcessForwardSourceNotYetUp(t *testing.T) {
 func TestHandleStateMarksStateSeen(t *testing.T) {
 	rs := newTestRouteServer(t)
 
-	rs.handleState(&Event{PeerAddr: "10.0.0.1", PeerOwner: 1, ConnectionID: 101, DestinationSession: 201, State: "up", InitialReplay: 17})
+	rs.handleState(&Event{PeerAddr: "10.0.0.1", PeerOwner: 1, ConnectionID: 101, DestinationSession: 201, State: "up", InitialReplay: 17, RSClient: true})
 	rs.mu.RLock()
 	afterUpSeen, afterUp := rs.peers[rsFixtureKey("10.0.0.1", 1, 101)].StateSeen, rs.peers[rsFixtureKey("10.0.0.1", 1, 101)].Up
 	rs.mu.RUnlock()
 	require.True(t, afterUpSeen, "state=up must set StateSeen")
 	require.True(t, afterUp, "state=up must set Up")
 
-	rs.handleState(&Event{PeerAddr: "10.0.0.2", PeerOwner: 2, ConnectionID: 102, DestinationSession: 202, SessionGeneration: 3, State: "up", Reason: rpc.ReasonAttached})
+	rs.handleState(&Event{PeerAddr: "10.0.0.2", PeerOwner: 2, ConnectionID: 102, DestinationSession: 202, SessionGeneration: 3, State: "up", Reason: rpc.ReasonAttached, RSClient: true})
 	rs.mu.RLock()
 	originalDown := rs.peers[rsFixtureKey("10.0.0.2", 2, 102)]
 	rs.mu.RUnlock()
@@ -1049,8 +1059,8 @@ func TestWithdrawalMapConsistency(t *testing.T) {
 	rs := newTestRouteServer(t)
 
 	rs.mu.Lock()
-	rs.peers[rsFixtureKey("10.0.0.1", 1, 101)] = &PeerState{Address: "10.0.0.1", DestinationSession: 201, SessionGeneration: 3, Up: true}
-	rs.peers[rsFixtureKey("10.0.0.2", 2, 102)] = &PeerState{Address: "10.0.0.2", DestinationSession: 202, SessionGeneration: 3, Up: true}
+	rs.peers[rsFixtureKey("10.0.0.1", 1, 101)] = &PeerState{Address: "10.0.0.1", DestinationSession: 201, SessionGeneration: 3, Up: true, RSClient: true}
+	rs.peers[rsFixtureKey("10.0.0.2", 2, 102)] = &PeerState{Address: "10.0.0.2", DestinationSession: 202, SessionGeneration: 3, Up: true, RSClient: true}
 	rs.mu.Unlock()
 
 	// Dispatch multiple UPDATEs.
@@ -1097,7 +1107,7 @@ func TestReleaseCacheAsync(t *testing.T) {
 	rs := newTestRouteServer(t)
 
 	rs.mu.Lock()
-	rs.peers[rsFixtureKey("10.0.0.1", 1, 101)] = &PeerState{Address: "10.0.0.1", DestinationSession: 201, SessionGeneration: 3, Up: true}
+	rs.peers[rsFixtureKey("10.0.0.1", 1, 101)] = &PeerState{Address: "10.0.0.1", DestinationSession: 201, SessionGeneration: 3, Up: true, RSClient: true}
 	rs.mu.Unlock()
 
 	// releaseCache should return quickly (async channel send, not blocking RPC).
@@ -1136,8 +1146,8 @@ func TestBatchForwardAccumulation(t *testing.T) {
 	}
 
 	rs.mu.Lock()
-	rs.peers[rsFixtureKey("10.0.0.1", 1, 101)] = &PeerState{Address: "10.0.0.1", DestinationSession: 201, SessionGeneration: 3, Up: true}
-	rs.peers[rsFixtureKey("10.0.0.2", 2, 102)] = &PeerState{Address: "10.0.0.2", DestinationSession: 202, SessionGeneration: 3, Up: true}
+	rs.peers[rsFixtureKey("10.0.0.1", 1, 101)] = &PeerState{Address: "10.0.0.1", DestinationSession: 201, SessionGeneration: 3, Up: true, RSClient: true}
+	rs.peers[rsFixtureKey("10.0.0.2", 2, 102)] = &PeerState{Address: "10.0.0.2", DestinationSession: 202, SessionGeneration: 3, Up: true, RSClient: true}
 	rs.mu.Unlock()
 
 	// Gate: block the worker handler until all items are dispatched.
@@ -1185,10 +1195,10 @@ func TestSelectForwardTargetsDeterministic(t *testing.T) {
 	rs := newTestRouteServer(t)
 
 	rs.mu.Lock()
-	rs.peers[rsFixtureKey("10.0.0.3", 3, 103)] = &PeerState{Address: "10.0.0.3", DestinationSession: 203, SessionGeneration: 3, Up: true}
-	rs.peers[rsFixtureKey("10.0.0.1", 1, 101)] = &PeerState{Address: "10.0.0.1", DestinationSession: 201, SessionGeneration: 3, Up: true}
-	rs.peers[rsFixtureKey("10.0.0.4", 4, 104)] = &PeerState{Address: "10.0.0.4", DestinationSession: 204, SessionGeneration: 3, Up: true}
-	rs.peers[rsFixtureKey("10.0.0.2", 2, 102)] = &PeerState{Address: "10.0.0.2", DestinationSession: 202, SessionGeneration: 3, Up: true}
+	rs.peers[rsFixtureKey("10.0.0.3", 3, 103)] = &PeerState{Address: "10.0.0.3", DestinationSession: 203, SessionGeneration: 3, Up: true, RSClient: true}
+	rs.peers[rsFixtureKey("10.0.0.1", 1, 101)] = &PeerState{Address: "10.0.0.1", DestinationSession: 201, SessionGeneration: 3, Up: true, RSClient: true}
+	rs.peers[rsFixtureKey("10.0.0.4", 4, 104)] = &PeerState{Address: "10.0.0.4", DestinationSession: 204, SessionGeneration: 3, Up: true, RSClient: true}
+	rs.peers[rsFixtureKey("10.0.0.2", 2, 102)] = &PeerState{Address: "10.0.0.2", DestinationSession: 202, SessionGeneration: 3, Up: true, RSClient: true}
 	rs.mu.Unlock()
 
 	families := map[family.Family]bool{family.IPv4Unicast: true}
@@ -1246,8 +1256,8 @@ func TestRSFlushCallsForwardCached(t *testing.T) {
 	}
 
 	rs.mu.Lock()
-	rs.peers[rsFixtureKey("10.0.0.1", 1, 101)] = &PeerState{Address: "10.0.0.1", DestinationSession: 201, SessionGeneration: 3, Up: true}
-	rs.peers[rsFixtureKey("10.0.0.2", 2, 102)] = &PeerState{Address: "10.0.0.2", DestinationSession: 202, SessionGeneration: 3, Up: true}
+	rs.peers[rsFixtureKey("10.0.0.1", 1, 101)] = &PeerState{Address: "10.0.0.1", DestinationSession: 201, SessionGeneration: 3, Up: true, RSClient: true}
+	rs.peers[rsFixtureKey("10.0.0.2", 2, 102)] = &PeerState{Address: "10.0.0.2", DestinationSession: 202, SessionGeneration: 3, Up: true, RSClient: true}
 	rs.mu.Unlock()
 
 	for i := uint64(1); i <= 3; i++ {
@@ -1303,9 +1313,9 @@ func TestHandleStateUpReplay(t *testing.T) {
 	}
 
 	rs.mu.Lock()
-	rs.peers[rsFixtureKey("10.0.0.1", 1, 101)] = &PeerState{Address: "10.0.0.1", DestinationSession: 201, SessionGeneration: 3, Up: true,
+	rs.peers[rsFixtureKey("10.0.0.1", 1, 101)] = &PeerState{Address: "10.0.0.1", DestinationSession: 201, SessionGeneration: 3, Up: true, RSClient: true,
 		Families: map[family.Family]bool{family.IPv4Unicast: true}}
-	rs.peers[rsFixtureKey("10.0.0.2", 2, 102)] = &PeerState{Address: "10.0.0.2", DestinationSession: 202, SessionGeneration: 3, Up: true,
+	rs.peers[rsFixtureKey("10.0.0.2", 2, 102)] = &PeerState{Address: "10.0.0.2", DestinationSession: 202, SessionGeneration: 3, Up: true, RSClient: true,
 		Families:     map[family.Family]bool{family.IPv4Unicast: true},
 		Capabilities: map[string]bool{"route-refresh": true}}
 	rs.mu.Unlock()
@@ -1373,6 +1383,7 @@ func TestRSSoftDepSkipsReplay(t *testing.T) {
 	rs.peers[rsFixtureKey("10.0.0.1", 1, 101)] = &PeerState{
 		Address: "10.0.0.1", DestinationSession: 201, SessionGeneration: 3,
 		Up:       true,
+		RSClient: true,
 		Families: map[family.Family]bool{family.IPv4Unicast: true},
 	}
 	rs.mu.Unlock()
@@ -1431,9 +1442,9 @@ func TestReplayingPeerIncludedInForwardTargets(t *testing.T) {
 	rs := newTestRouteServer(t)
 
 	rs.mu.Lock()
-	rs.peers[rsFixtureKey("10.0.0.1", 1, 101)] = &PeerState{Address: "10.0.0.1", DestinationSession: 201, SessionGeneration: 3, Up: true, replayDone: make(chan struct{}),
+	rs.peers[rsFixtureKey("10.0.0.1", 1, 101)] = &PeerState{Address: "10.0.0.1", DestinationSession: 201, SessionGeneration: 3, Up: true, RSClient: true, replayDone: make(chan struct{}),
 		Families: map[family.Family]bool{family.IPv4Unicast: true}}
-	rs.peers[rsFixtureKey("10.0.0.2", 2, 102)] = &PeerState{Address: "10.0.0.2", DestinationSession: 202, SessionGeneration: 3, Up: true,
+	rs.peers[rsFixtureKey("10.0.0.2", 2, 102)] = &PeerState{Address: "10.0.0.2", DestinationSession: 202, SessionGeneration: 3, Up: true, RSClient: true,
 		Families: map[family.Family]bool{family.IPv4Unicast: true}}
 	rs.mu.Unlock()
 
@@ -1468,7 +1479,7 @@ func TestHandleStateUpDelta(t *testing.T) {
 	}
 
 	rs.mu.Lock()
-	rs.peers[rsFixtureKey("10.0.0.1", 1, 101)] = &PeerState{Address: "10.0.0.1", DestinationSession: 201, SessionGeneration: 3, Up: true,
+	rs.peers[rsFixtureKey("10.0.0.1", 1, 101)] = &PeerState{Address: "10.0.0.1", DestinationSession: 201, SessionGeneration: 3, Up: true, RSClient: true,
 		Families: map[family.Family]bool{family.IPv4Unicast: true}}
 	rs.mu.Unlock()
 
@@ -1512,7 +1523,7 @@ func TestHandleStateUpNonBlocking(t *testing.T) {
 	}
 
 	rs.mu.Lock()
-	rs.peers[rsFixtureKey("10.0.0.1", 1, 101)] = &PeerState{Address: "10.0.0.1", DestinationSession: 201, SessionGeneration: 3, Up: true,
+	rs.peers[rsFixtureKey("10.0.0.1", 1, 101)] = &PeerState{Address: "10.0.0.1", DestinationSession: 201, SessionGeneration: 3, Up: true, RSClient: true,
 		Families: map[family.Family]bool{family.IPv4Unicast: true}}
 	rs.mu.Unlock()
 
@@ -1557,8 +1568,8 @@ func TestWithdrawalOnPeerDown(t *testing.T) {
 	}
 
 	rs.mu.Lock()
-	rs.peers[rsFixtureKey("10.0.0.1", 1, 101)] = &PeerState{Address: "10.0.0.1", DestinationSession: 201, SessionGeneration: 3, Up: true}
-	rs.peers[rsFixtureKey("10.0.0.2", 2, 102)] = &PeerState{Address: "10.0.0.2", DestinationSession: 202, SessionGeneration: 3, Up: true}
+	rs.peers[rsFixtureKey("10.0.0.1", 1, 101)] = &PeerState{Address: "10.0.0.1", DestinationSession: 201, SessionGeneration: 3, Up: true, RSClient: true}
+	rs.peers[rsFixtureKey("10.0.0.2", 2, 102)] = &PeerState{Address: "10.0.0.2", DestinationSession: 202, SessionGeneration: 3, Up: true, RSClient: true}
 	rs.mu.Unlock()
 
 	// Populate withdrawal map directly.
@@ -1651,7 +1662,7 @@ func TestReplayGeneration_RapidReconnect(t *testing.T) {
 	}
 
 	rs.mu.Lock()
-	rs.peers[rsFixtureKey("10.0.0.1", 1, 101)] = &PeerState{Address: "10.0.0.1", DestinationSession: 201, SessionGeneration: 3, Up: true,
+	rs.peers[rsFixtureKey("10.0.0.1", 1, 101)] = &PeerState{Address: "10.0.0.1", DestinationSession: 201, SessionGeneration: 3, Up: true, RSClient: true,
 		Families: map[family.Family]bool{family.IPv4Unicast: true}}
 	originalActor := rs.peers[rsFixtureKey("10.0.0.1", 1, 101)]
 	rs.mu.Unlock()
@@ -1950,9 +1961,9 @@ func TestSelectForwardTargetsReusesBuffer(t *testing.T) {
 	rs := newTestRouteServer(t)
 
 	rs.mu.Lock()
-	rs.peers[rsFixtureKey("10.0.0.1", 1, 101)] = &PeerState{Address: "10.0.0.1", DestinationSession: 201, SessionGeneration: 3, Up: true}
-	rs.peers[rsFixtureKey("10.0.0.2", 2, 102)] = &PeerState{Address: "10.0.0.2", DestinationSession: 202, SessionGeneration: 3, Up: true}
-	rs.peers[rsFixtureKey("10.0.0.3", 3, 103)] = &PeerState{Address: "10.0.0.3", DestinationSession: 203, SessionGeneration: 3, Up: true}
+	rs.peers[rsFixtureKey("10.0.0.1", 1, 101)] = &PeerState{Address: "10.0.0.1", DestinationSession: 201, SessionGeneration: 3, Up: true, RSClient: true}
+	rs.peers[rsFixtureKey("10.0.0.2", 2, 102)] = &PeerState{Address: "10.0.0.2", DestinationSession: 202, SessionGeneration: 3, Up: true, RSClient: true}
+	rs.peers[rsFixtureKey("10.0.0.3", 3, 103)] = &PeerState{Address: "10.0.0.3", DestinationSession: 203, SessionGeneration: 3, Up: true, RSClient: true}
 	rs.mu.Unlock()
 
 	families := map[family.Family]bool{family.IPv4Unicast: true}
@@ -2008,11 +2019,12 @@ func TestReplayForPeer_SendsEOR(t *testing.T) {
 	rs.peers[rsFixtureKey("10.0.0.1", 1, 101)] = &PeerState{
 		Address: "10.0.0.1", DestinationSession: 201, SessionGeneration: 3,
 		Up:       true,
+		RSClient: true,
 		Families: map[family.Family]bool{family.IPv4Unicast: true, family.IPv6Unicast: true},
 	}
 	rs.mu.Unlock()
 
-	rs.dispatchText("peer 10.0.0.1 remote as 65001 state up initial-replay 17 peer-owner 1 connection-id 101 destination-session 201 session-generation 3")
+	rs.dispatchText("peer 10.0.0.1 remote as 65001 state up initial-replay 17 peer-owner 1 connection-id 101 destination-session 201 session-generation 3 rs-client true")
 
 	// Wait for both EOR commands (one per family) to arrive.
 	require.Eventually(t, func() bool {
@@ -2089,11 +2101,12 @@ func TestReplayForPeer_NoFamilies_NoEOR(t *testing.T) {
 	rs.mu.Lock()
 	rs.peers[rsFixtureKey("10.0.0.1", 1, 101)] = &PeerState{
 		Address: "10.0.0.1", DestinationSession: 201, SessionGeneration: 3,
-		Up: true,
+		Up:       true,
+		RSClient: true,
 	}
 	rs.mu.Unlock()
 
-	rs.dispatchText("peer 10.0.0.1 remote as 65001 state up initial-replay 17 peer-owner 1 connection-id 101 destination-session 201 session-generation 3")
+	rs.dispatchText("peer 10.0.0.1 remote as 65001 state up initial-replay 17 peer-owner 1 connection-id 101 destination-session 201 session-generation 3 rs-client true")
 
 	// No EOR should be sent for a peer without families.
 	require.Never(t, func() bool {
@@ -2145,11 +2158,12 @@ func TestReplayForPeer_FailedReplay_SendsEOR(t *testing.T) {
 	rs.peers[rsFixtureKey("10.0.0.1", 1, 101)] = &PeerState{
 		Address: "10.0.0.1", DestinationSession: 201, SessionGeneration: 3,
 		Up:       true,
+		RSClient: true,
 		Families: map[family.Family]bool{family.IPv4Unicast: true},
 	}
 	rs.mu.Unlock()
 
-	rs.dispatchText("peer 10.0.0.1 remote as 65001 state up initial-replay 17 peer-owner 1 connection-id 101 destination-session 201 session-generation 3")
+	rs.dispatchText("peer 10.0.0.1 remote as 65001 state up initial-replay 17 peer-owner 1 connection-id 101 destination-session 201 session-generation 3 rs-client true")
 
 	select {
 	case <-eorCh:

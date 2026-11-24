@@ -16,7 +16,6 @@ import (
 	"github.com/ze-software/ze/internal/component/plugin"
 	"github.com/ze-software/ze/internal/component/plugin/registry"
 	bgpevents "github.com/ze-software/ze/internal/core/bgp/events"
-	"github.com/ze-software/ze/internal/core/events"
 )
 
 // syncOwedFenceOwner is the process the fenced peer in these tests waits for.
@@ -46,13 +45,7 @@ func establishSettledPeer(t *testing.T, address string, fenced bool) (*Peer, *Se
 	t.Helper()
 	peer := NewPeer(NewPeerSettings(mustParseAddr(address), 65000, 65001, 0x01010101))
 	if fenced {
-		peer.mu.Lock()
-		peer.settings.ProcessBindings = []ProcessBinding{{
-			PluginName: syncOwedFenceOwner,
-			Send:       map[string]bool{bgpevents.SendUpdate: true},
-			Receive:    map[string]events.Direction{bgpevents.EventState: events.DirReceived},
-		}}
-		peer.mu.Unlock()
+		setTestPeerBus(t, peer, testBusBoth(syncOwedFenceOwner, []string{bgpevents.EventState}, []string{bgpevents.SendUpdate}))
 	}
 	session := peer.testInitialSync()
 	peer.enterEstablished(session)

@@ -128,10 +128,19 @@ func scopeOriginOwner(scope originScope, owner plugin.SelectedOwner) bool {
 	return scope.key.producer.kind == originProducerProcess && scope.key.producer.owner.SameIncarnation(owner)
 }
 
-// endOwner first seals every actual old intake/callback/write, then joins them.
-// Generic update-route output already survives Process exit. Only its original
-// data survives here; the exited incarnation can never issue a new contribution.
+// endOwner seals and joins an exited owner's intakes, callbacks, and writes
+// using the default withdraw-on-exit policy (E-2).
 func (store *originReceiptStore) endOwner(ctx context.Context, owner plugin.SelectedOwner) ([]*originReceiptRecord, error) {
+	return store.endOwnerWithPolicy(ctx, owner, false)
+}
+
+// endOwnerWithPolicy first seals every actual old intake/callback/write, then
+// joins them. When keep is false (default), routes produced by owner are
+// invalidated so the deciding RIB retires them; when keep is true (external
+// on-exit keep), local BGP originals stay parked as retained while
+// redistributed inputs are still invalidated. Exited incarnations can never
+// issue a new contribution.
+func (store *originReceiptStore) endOwnerWithPolicy(ctx context.Context, owner plugin.SelectedOwner, keep bool) ([]*originReceiptRecord, error) {
 	if owner.Done() == nil {
 		return nil, errors.New("origin cleanup has no original process incarnation")
 	}
@@ -157,9 +166,11 @@ func (store *originReceiptStore) endOwner(ctx context.Context, owner plugin.Sele
 		if producing {
 			if record.source.identity.kind == originSourceRedistributed {
 				store.invalidate(record)
-			} else {
+			} else if keep {
 				record.retained = true
 				store.park(record)
+			} else {
+				store.invalidate(record)
 			}
 		} else {
 			store.park(record)
@@ -220,7 +231,7 @@ func (store *originReceiptStore) originWithdrawal(ctx context.Context, producer 
 		return nil, errors.New("origin withdrawal Peer is missing")
 	}
 	peer.mu.RLock()
-	allowed := producer.sender().IsOperator() || bindingsMaySend(peer.settings.ProcessBindings, announceOrigin(producer.sender()))
+	allowed := producer.sender().IsOperator() || peer.maySend(announceOrigin(producer.sender()))
 	peer.mu.RUnlock()
 	if !allowed {
 		return nil, errors.New("origin withdrawal has no current original Peer grant")
@@ -342,31 +353,48 @@ func (a *reactorAPIAdapter) replayOrigin(ctx context.Context, original *originRe
 
 // EndOriginOwner is the typed generic process-generation cleanup extension.
 // No replacement is acknowledged before old callbacks and final writes join.
+// Uses the default withdraw-on-exit policy (E-2).
 func (a *reactorAPIAdapter) EndOriginOwner(ctx context.Context, owner plugin.SelectedOwner) error {
+	return a.EndOriginOwnerWithPolicy(ctx, owner, false)
+}
+
+// EndOriginOwnerWithPolicy cleans up originated routes owned by an exited
+// process incarnation on both the direct (no-bgp-rib) path and the selected-RIB
+// (originReceiptStore) path. When keep is false (default), routes originated by
+// owner are retired or withdrawn unless another participant still holds them.
+// When keep is true (external { on-exit keep; }), local BGP routes stay
+// advertised across process exit.
+func (a *reactorAPIAdapter) EndOriginOwnerWithPolicy(ctx context.Context, owner plugin.SelectedOwner, keep bool) error {
+	var failures []error
+	if err := a.endDirectOriginOwner(ctx, owner, keep); err != nil {
+		failures = append(failures, err)
+	}
 	store := a.r.originReceipts
 	if store == nil {
-		return nil
+		return errors.Join(failures...)
 	}
-	records, err := store.endOwner(ctx, owner)
+	records, err := store.endOwnerWithPolicy(ctx, owner, keep)
 	if err != nil {
 		// The server's cleanup callback has no error channel to defer its barrier.
 		// Rights are already canceled; keep joining outside every component lock.
-		_, joined := store.endOwner(context.Background(), owner)
-		return errors.Join(err, joined)
+		_, joined := store.endOwnerWithPolicy(context.Background(), owner, keep)
+		failures = append(failures, err, joined)
+		return errors.Join(failures...)
 	}
-	var failures []error
 	for _, record := range records {
-		if record.source.identity.kind == originSourceRedistributed {
-			if record.key.producer.owner.SameIncarnation(owner) {
-				if !record.provider.SameIncarnation(owner) {
-					if record.provider.Current() == nil {
-						if err := a.retireOriginCandidate(ctx, record); err != nil {
-							failures = append(failures, err)
-						}
+		producing := record.key.producer.kind == originProducerProcess && record.key.producer.owner.SameIncarnation(owner)
+		retire := producing && (record.source.identity.kind == originSourceRedistributed || !keep)
+		if retire {
+			if !record.provider.SameIncarnation(owner) {
+				if record.provider.Current() == nil {
+					if err := a.retireOriginCandidate(ctx, record); err != nil {
+						failures = append(failures, err)
+					} else if record.source.identity.kind == originSourceLocalBGP {
+						record.peer.restoreConfiguredOrigin(record.build)
 					}
 				}
-				continue
 			}
+			continue
 		}
 		if record.provider.SameIncarnation(owner) {
 			continue
@@ -417,6 +445,7 @@ func (a *reactorAPIAdapter) ReplayOriginOwner(ctx context.Context, owner plugin.
 }
 
 func (r *Reactor) completeOriginClose() {
+	r.directOrigins.clear()
 	if r.originReceipts == nil {
 		return
 	}
@@ -435,6 +464,7 @@ func (r *Reactor) completeOriginClose() {
 }
 
 func (r *Reactor) completeOriginPeerRemoval(peer *Peer) {
+	r.directOrigins.removePeer(peer)
 	if r.originReceipts == nil {
 		return
 	}

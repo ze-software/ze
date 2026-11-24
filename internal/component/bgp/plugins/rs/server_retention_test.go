@@ -75,8 +75,8 @@ func TestPeerDownRetainedFamilies(t *testing.T) {
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			rs := newTestRouteServer(t)
-			rs.handleState(&Event{PeerAddr: source, PeerOwner: 1, ConnectionID: 101, DestinationSession: 201, SessionGeneration: 7, State: "up", Reason: rpc.ReasonAttached})
-			rs.handleState(&Event{PeerAddr: other, PeerOwner: 2, ConnectionID: 102, DestinationSession: 202, SessionGeneration: 7, State: "up", Reason: rpc.ReasonAttached})
+			rs.handleState(&Event{PeerAddr: source, PeerOwner: 1, ConnectionID: 101, DestinationSession: 201, SessionGeneration: 7, State: "up", Reason: rpc.ReasonAttached, RSClient: true})
+			rs.handleState(&Event{PeerAddr: other, PeerOwner: 2, ConnectionID: 102, DestinationSession: 202, SessionGeneration: 7, State: "up", Reason: rpc.ReasonAttached, RSClient: true})
 			if tc.provider {
 				retainedOwner, retainedConnection := uint64(1), uint64(101)
 				if tc.retainedPeer == other {
@@ -223,8 +223,8 @@ func TestPeerDownRecoveryUsesJoinedLifecycle(t *testing.T) {
 			})
 			bridge.SetReady()
 			source := rsFixtureKey("192.0.2.1", 1, 101)
-			rs.handleState(&Event{PeerAddr: "192.0.2.1", PeerOwner: 1, ConnectionID: 101, DestinationSession: 201, SessionGeneration: 7, State: "up", Reason: rpc.ReasonAttached})
-			rs.handleState(&Event{PeerAddr: "192.0.2.2", PeerOwner: 2, ConnectionID: 102, DestinationSession: 202, SessionGeneration: 8, State: "up", Reason: rpc.ReasonAttached})
+			rs.handleState(&Event{PeerAddr: "192.0.2.1", PeerOwner: 1, ConnectionID: 101, DestinationSession: 201, SessionGeneration: 7, State: "up", Reason: rpc.ReasonAttached, RSClient: true})
+			rs.handleState(&Event{PeerAddr: "192.0.2.2", PeerOwner: 2, ConnectionID: 102, DestinationSession: 202, SessionGeneration: 8, State: "up", Reason: rpc.ReasonAttached, RSClient: true})
 			require.NoError(t, rs.acquireSource(source, 301))
 			original := rs.peers[source]
 			rs.withdrawals["192.0.2.1"] = map[withdrawalKey]withdrawalEntry{{owner: 1, fam: family.IPv4Unicast, prefix: netip.MustParsePrefix("192.0.2.0/24")}: {owner: 1, connectionID: 101, sourceReceipt: 301}}

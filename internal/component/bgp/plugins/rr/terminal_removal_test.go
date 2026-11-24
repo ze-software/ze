@@ -29,6 +29,7 @@ func TestRRConnectionlessTerminalRemoval(t *testing.T) {
 				EventType: rpc.EventKindState, PeerAddress: peer.Address.String(),
 				PeerOwner: peer.PeerOwner, ConnectionID: peer.ConnectionID,
 				DestinationSession: peer.DestinationSession, SessionGeneration: peer.SessionGeneration,
+				IsIBGP: peer.IsIBGP, RSClient: peer.RSClient, RouteReflectorClient: peer.RouteReflectorClient,
 				State: state, Reason: reason,
 			})
 		}},
@@ -41,7 +42,7 @@ func TestRRConnectionlessTerminalRemoval(t *testing.T) {
 			rr := &routeReflector{}
 			t.Cleanup(rr.stopDepartures)
 			original := plugin.PeerInfo{Address: netip.MustParseAddr("192.0.2.1"), PeerAS: rpc.RemoteASOf(65001),
-				PeerOwner: 701, ConnectionID: 41, DestinationSession: 141, SessionGeneration: 1041}
+				PeerOwner: 701, ConnectionID: 41, DestinationSession: 141, SessionGeneration: 1041, IsIBGP: true, RouteReflectorClient: true}
 			sibling := original
 			sibling.PeerOwner = 702
 			sibling.ConnectionID = 42

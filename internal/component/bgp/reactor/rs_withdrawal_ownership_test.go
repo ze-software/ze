@@ -8,6 +8,7 @@ import (
 	"context"
 	"net"
 	"net/netip"
+	"strings"
 	"testing"
 
 	"github.com/ze-software/ze/internal/component/bgp/fsm"
@@ -411,15 +412,12 @@ func ownershipLiveSameASPeers(t *testing.T) []*lowLivePeer {
 			{"bgp-rs", "update state open-received refresh"},
 			{"bgp-adj-rib-in", "update-received state"},
 		} {
-			// These are the fixture operator's explicit original attachments.
-			attachment := ProcessBinding{PluginName: binding.name, Explicit: true}
-			if err := parseReceiveFlags(binding.receive, &attachment); err != nil {
-				t.Fatal(err)
-			}
-			if err := parseSendFlags("update", &attachment); err != nil {
-				t.Fatal(err)
-			}
-			s.ProcessBindings = append(s.ProcessBindings, attachment)
+			// These are the fixture operator's explicit original bus grants.
+			addTestPeerBusGrant(s, testPeerEndpointGrant{
+				Name:    binding.name,
+				Receive: strings.Fields(binding.receive),
+				Send:    []string{"update"},
+			})
 		}
 		if err := r.AddPeer(s); err != nil {
 			t.Fatal(err)

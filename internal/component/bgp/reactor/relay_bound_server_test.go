@@ -26,7 +26,7 @@ func boundRelaySecondTarget(t *testing.T, f *boundRelayWireFixture, address stri
 	peer, conn := newGroupUpdatesPeer(t, address, "absent")
 	peer.settings.Port = port
 	peer.settings.LocalAddress = f.target.peer.settings.LocalAddress
-	peer.settings.ProcessBindings = f.target.peer.settings.ProcessBindings
+	peer.settings.Bus = f.target.peer.settings.Bus.Clone()
 	peer.settings.ExportPolicy = f.target.peer.settings.ExportPolicy
 	peer.sendCtx.Store(f.target.peer.sendCtx.Load())
 	peer.sendCtxID = f.target.peer.sendCtxID
@@ -35,8 +35,9 @@ func boundRelaySecondTarget(t *testing.T, f *boundRelayWireFixture, address stri
 	peer.establishedSession.Store(peer.session)
 	peer.reactor = f.target.api.r
 	peer.session.egressFinalAccepts = f.target.peer.session.egressFinalAccepts
-	peer.refreshForwardFacts()
 	f.target.api.r.peers[peer.settings.PeerKey()] = peer
+	originRevocationPublishGraph(t, f.target)
+	peer.refreshForwardFacts()
 	f.target.api.r.fwdPool.registerOutgoingPool(fwdKey{peerAddr: peer.settings.PeerKey()}, 4096)
 	return peer, conn
 }
@@ -150,11 +151,16 @@ func TestBoundRelayServerTransportsJoinHeldLiveLifetime(t *testing.T) {
 					f.source.setState(PeerStateStopped)
 					cleanup <- nil
 				} else {
+					before := f.source.settingsSnapshot()
+					beforeGraph := f.target.api.r.DeliveryGraph()
 					f.source.mu.Lock()
-					before := f.source.settings.ProcessBindings
-					f.source.settings.ProcessBindings = nil
+					f.source.settings.Bus = testBusNone()
 					f.source.mu.Unlock()
-					go func() { cleanup <- f.source.revokeRemovedSourceGrants(f.target.api.r, before, nil) }()
+					after := f.source.settingsSnapshot()
+					afterGraph := publishTestBusGraph(t, f.target.api.r)
+					go func() {
+						cleanup <- f.source.revokeRemovedSourceGrants(f.target.api.r, before, after, beforeGraph, afterGraph)
+					}()
 				}
 				select {
 				case <-held.interrupted:

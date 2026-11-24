@@ -51,11 +51,11 @@ func TestRSFastReceiptSkippedAndReplayTargets(t *testing.T) {
 			rs.workers = newWorkerPool(func(_ workerKey, item workItem) { items <- item }, poolConfig{chanSize: 1})
 			const source = "10.0.0.1"
 			for address, state := range map[workerKey]*PeerState{
-				rsFixtureKey(source, 1, 101):     {Up: true, StateSeen: true},
-				rsFixtureKey("10.0.0.2", 2, 102): {Up: true, StateSeen: true, InitialReplay: 20},
-				rsFixtureKey("10.0.0.3", 3, 103): {Up: true, StateSeen: true, InitialReplay: 20},
-				rsFixtureKey("10.0.0.4", 4, 104): {Up: true, StateSeen: true, InitialReplay: 50},
-				rsFixtureKey("10.0.0.5", 5, 105): {Up: true, StateSeen: true, ForwardFrom: 45, InitialReplay: 60},
+				rsFixtureKey(source, 1, 101):     {Up: true, RSClient: true, StateSeen: true},
+				rsFixtureKey("10.0.0.2", 2, 102): {Up: true, RSClient: true, StateSeen: true, InitialReplay: 20},
+				rsFixtureKey("10.0.0.3", 3, 103): {Up: true, RSClient: true, StateSeen: true, InitialReplay: 20},
+				rsFixtureKey("10.0.0.4", 4, 104): {Up: true, RSClient: true, StateSeen: true, InitialReplay: 50},
+				rsFixtureKey("10.0.0.5", 5, 105): {Up: true, RSClient: true, StateSeen: true, ForwardFrom: 45, InitialReplay: 60},
 				rsFixtureKey("10.0.0.6", 6, 106): {StateSeen: true},
 			} {
 				state.Address = address.address.String()
@@ -133,7 +133,7 @@ func TestRSFastReceiptRejectsMismatchedIdentity(t *testing.T) {
 			message.SourceReceipt = 301
 			message.Meta = map[string]any{"reactor-forwarded": true}
 			rs.mu.Lock()
-			rs.peers[rsFixtureKey("10.0.0.1", 1, 101)] = &PeerState{Address: "10.0.0.1", Up: true, StateSeen: true}
+			rs.peers[rsFixtureKey("10.0.0.1", 1, 101)] = &PeerState{Address: "10.0.0.1", Up: true, RSClient: true, StateSeen: true}
 			rs.mu.Unlock()
 			rs.dispatchText(receiptEnvelope(t, message, "10.0.0.1", nil))
 			select {

@@ -63,7 +63,7 @@ func rsASPathSockets(t *testing.T, received []uint32, delta string, override boo
 		peer.settings.MigrationAS = tc.migration
 		peer.settings.ASOverride = override
 		peer.settings.NextHopMode = NextHopUnchanged
-		peer.settings.ProcessBindings = []ProcessBinding{rsRelaySendBinding()}
+		peer.settings.Bus = rsRelaySendBinding()
 		peer.settings.ImportPolicy = mustPolicy(t, nil, routepolicy.FinalAccept)
 		peer.settings.ExportPolicy = mustPolicy(t, nil, routepolicy.FinalAccept)
 		if delta != "" {
@@ -80,6 +80,8 @@ func rsASPathSockets(t *testing.T, received []uint32, delta string, override boo
 		peer.sendCtx.Store(ctx)
 		peer.sendCtxID = ctxID
 		peer.session.sendCtxID = ctxID
+		peer.SetReactor(f.r)
+		publishTestBusGraph(t, f.r)
 		peer.refreshForwardFacts()
 		recipients = append(recipients, recipient{tc.name, conn, asSequence4(tc.want...)})
 	}

@@ -75,9 +75,9 @@ func (snapshot *disseminationSnapshot) ExportKind(owner plugin.SelectedOwner, re
 }
 
 // buildDisseminationSnapshot runs only at forwarding lifecycle boundaries,
-// outside peer/reactor locks. The exact destination binding snapshot prevents
+// outside peer/reactor locks. The exact destination settings snapshot prevents
 // a same-address sibling from supplying send or lifecycle authority.
-func (p *Peer) buildDisseminationSnapshot(session *Session, bindings []ProcessBinding) *disseminationSnapshot {
+func (p *Peer) buildDisseminationSnapshot(session *Session, settings *PeerSettings) *disseminationSnapshot {
 	snapshot := &disseminationSnapshot{peer: p, session: session}
 	if p.reactor == nil {
 		snapshot.err = errors.New("select-routes: reactor is unavailable")
@@ -87,8 +87,7 @@ func (p *Peer) buildDisseminationSnapshot(session *Session, bindings []ProcessBi
 		snapshot.err = errors.New("select-routes: plugin server is unavailable")
 		return snapshot
 	}
-	settings := &PeerSettings{Address: p.settings.Address, Name: p.settings.Name, ProcessBindings: bindings}
-	peer := deliveryPeersFromSettings([]*PeerSettings{settings})[0]
+	peer := deliveryPeerFromSettings(settings)
 	snapshot.owner, snapshot.err = p.reactor.api.ResolveDisseminationOwnerForPeer(peer, SelectedDisseminationRole)
 	if snapshot.err != nil {
 		return snapshot

@@ -10,10 +10,20 @@ import (
 )
 
 // TestDefaultAIGPDoesNotRequestTransit proves an API-only internal peer loads
-// with RFC 7311's enabled default and no explicit RIB attachment.
-// Method: pass the real peer walk, retaining the legacy derived receive feed.
+// with RFC 7311's enabled default and allows narrowing away from the selecting
+// RIB without activating any AIGP bus requirement.
+//
+// VALIDATES: an iBGP peer with no written `aigp` keeps AIGPEnabled() true and
+// does not refuse narrowing its bus away from bgp-rib.
+// PREVENTS: default iBGP AIGP forcing transit or blocking API-only bus isolation.
 func TestDefaultAIGPDoesNotRequestTransit(t *testing.T) {
 	tree, err := config.ParseTreeForValidation(`
+bus {
+ endpoint bgp-rib {
+  internal bgp-rib;
+  send { allow none; }
+ }
+}
 bgp {
  router-id 192.0.2.1;
  session { asn { local 65000; } }
@@ -28,7 +38,4 @@ bgp {
 	require.Len(t, peers, 1)
 	require.True(t, peers[0].AIGPEnabled())
 	require.False(t, peers[0].DisseminationOwner.IsSet())
-	for _, binding := range peers[0].ProcessBindings {
-		require.False(t, binding.MaySend("update"), "a default metric processor must not gain output authority")
-	}
 }

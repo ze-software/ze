@@ -43,6 +43,13 @@ func (rs *routeServer) processForward(key workerKey, item workItem) {
 		}
 	}()
 
+	rs.mu.RLock()
+	nonClient := rs.peers[key].nonRSClient()
+	rs.mu.RUnlock()
+	if nonClient {
+		return
+	}
+
 	// Extract families for forward target selection.
 	// Structured path (DirectBridge): read directly from wire, no text parsing.
 	// Text path (fork-mode): parse from text payload.

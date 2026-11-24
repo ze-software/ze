@@ -229,7 +229,6 @@ bgp {
                 route-refresh enable;
             }
         }
-        attach process rib { send [ update ]; }
     }
 }
 `
@@ -1409,9 +1408,6 @@ func (m *mockIntrospector) Stats() plugin.ReactorStats { return plugin.ReactorSt
 func (m *mockIntrospector) PeerNegotiatedCapabilities(_ netip.Addr) *plugin.PeerCapabilitiesInfo {
 	return nil
 }
-func (m *mockIntrospector) GetPeerProcessBindings(_ netip.Addr) []plugin.PeerProcessBinding {
-	return nil
-}
 
 // TestCollectPrefixWarningsOneStale verifies that a single stale peer shows the specific warning.
 // Bus seeded with one prefix-stale entry; banner reads from the bus.
@@ -1699,21 +1695,23 @@ func TestReloadFuncRefusesIncompleteCandidate(t *testing.T) {
 }
 
 // TestRouteRefreshAcceptsARawOnlyProcess pins the population of the
-// capability validator that demands a route-pushing process.
+// capability validator that demands a route-pushing endpoint.
 //
-// VALIDATES: validatePeerProcessCaps reads ProcessBinding.MayPushRoutes, so a
-// process that puts a whole message it built itself on the wire satisfies
-// route-refresh and graceful-restart, and a process that can put no route on
-// the wire at all still does not.
+// VALIDATES: validatePeerProcessCapsOnGraph checks compiled bus senders for
+// bgp:update or bgp:raw, so an endpoint permitted to send bgp:raw satisfies
+// route-refresh, and an endpoint permitted only bgp:refresh does not.
 //
-// PREVENTS: the `raw` send word, added on 2026-08-30, being expressible in the
-// config and refused by this validator. Before that word a raw injector had to
-// carry `send [ update ]` as well, so naming one rail here cost nothing; it now
-// refuses a peer whose only route-pushing process declares the rail it uses.
+// PREVENTS: bgp:raw being expressible in bus config yet refused by the
+// capability validator.
 func TestRouteRefreshAcceptsARawOnlyProcess(t *testing.T) {
-	peerConfig := func(sendList string) string {
+	peerConfig := func(sendMsg string) string {
 		return `
-plugin { external injector { run ./injector; } }
+bus {
+    endpoint injector {
+        external { run "./injector"; }
+        send { allow [ ` + sendMsg + ` ]; }
+    }
+}
 
 bgp {
     router-id 10.0.0.1;
@@ -1740,21 +1738,24 @@ bgp {
                 route-refresh enable;
             }
         }
-        attach process injector { send [ ` + sendList + ` ]; }
+        bus {
+            receive { from [ /bus/endpoint/injector ]; }
+        }
     }
 }
 `
 	}
 
-	t.Run("raw alone is a route-pushing process", func(t *testing.T) {
-		r, err := loadReactor(peerConfig("raw"))
+	t.Run("raw alone is a route-pushing endpoint", func(t *testing.T) {
+		r, err := loadReactor(peerConfig("bgp:raw"))
 		require.NoError(t, err)
 		require.Len(t, r.Peers(), 1)
 	})
 
 	t.Run("refresh alone pushes no route", func(t *testing.T) {
-		_, err := loadReactor(peerConfig("refresh"))
+		_, err := loadReactor(peerConfig("bgp:refresh"))
 		require.Error(t, err)
-		assert.Contains(t, err.Error(), "send [ update ] or send [ raw ]")
+		assert.Contains(t, err.Error(), "bgp:update")
+		assert.Contains(t, err.Error(), "bgp:raw")
 	})
 }

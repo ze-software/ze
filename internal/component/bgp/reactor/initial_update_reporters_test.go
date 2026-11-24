@@ -9,7 +9,6 @@ import (
 
 	"github.com/ze-software/ze/internal/component/plugin/registry"
 	bgpevents "github.com/ze-software/ze/internal/core/bgp/events"
-	"github.com/ze-software/ze/internal/core/events"
 )
 
 // registerReporterTestPlugins puts one declaring and one non-declaring plugin
@@ -40,25 +39,28 @@ func registerReporterTestPlugins(t *testing.T) (declaring, silent string) {
 	return declaring, silent
 }
 
-// sendUpdateBinding is a binding that grants the route-push rail, with the peer
-// state grant chosen by the caller.
-func sendUpdateBinding(name string, receivesState bool) ProcessBinding {
-	b := ProcessBinding{
-		PluginName: name,
-		Send:       map[string]bool{bgpevents.SendUpdate: true},
+// sendUpdateGrant is a grant for the route-push rail, with the peer state
+// grant chosen by the caller.
+func sendUpdateGrant(name string, receivesState bool) testPeerEndpointGrant {
+	g := testPeerEndpointGrant{
+		Name: name,
+		Send: []string{bgpevents.SendUpdate},
 	}
 	if receivesState {
-		b.Receive = map[string]events.Direction{bgpevents.EventState: events.DirBoth}
+		g.Receive = []string{bgpevents.EventState}
 	}
-	return b
+	return g
 }
 
-// peerWithBindings builds the minimum Peer the barrier population reads.
-func peerWithBindings(bindings ...ProcessBinding) *Peer {
-	return &Peer{settings: &PeerSettings{
-		Address:         netip.MustParseAddr("192.0.2.1"),
-		ProcessBindings: bindings,
-	}}
+// peerWithBusGrants builds the minimum Peer with a compiled DeliveryGraph that
+// initialUpdateReporters reads.
+func peerWithBusGrants(t *testing.T, grants ...testPeerEndpointGrant) *Peer {
+	t.Helper()
+	peer := NewPeer(&PeerSettings{
+		Address: netip.MustParseAddr("192.0.2.1"),
+	})
+	setTestPeerBus(t, peer, testBusBlockForGrants(grants...))
+	return peer
 }
 
 // VALIDATES: a peer's session-ready expectation set names exactly the
@@ -66,69 +68,67 @@ func peerWithBindings(bindings ...ProcessBinding) *Peer {
 // Registration.SignalsSessionReady, AND are told the session came up.
 // PREVENTS: the two opposite failures this set can produce. Naming a process
 // that will never report keeps any replay fence it owns up for the whole
-// session, which is the stall a plugin bound `send [ update ]` with no
-// `receive [ state ]` used to cause (it once held the End-of-RIB to a timeout;
-// the marker now waits for no report). Naming none of them never raises the
-// fence, so a live forward can overtake a declaring plugin's peer-up replay.
+// session. Naming none of them never raises the fence, so a live forward can
+// overtake a declaring plugin's peer-up replay.
 func TestInitialUpdateReporters(t *testing.T) {
 	declaring, silent := registerReporterTestPlugins(t)
 
 	tests := []struct {
-		name     string
-		bindings []ProcessBinding
-		want     []string
+		name   string
+		grants []testPeerEndpointGrant
+		want   []string
 	}{
 		{
-			name:     "declaring plugin with both grants is waited for",
-			bindings: []ProcessBinding{sendUpdateBinding(declaring, true)},
-			want:     []string{declaring},
+			name:   "declaring plugin with both grants is waited for",
+			grants: []testPeerEndpointGrant{sendUpdateGrant(declaring, true)},
+			want:   []string{declaring},
 		},
 		{
-			name:     "declaring plugin with no peer-state grant is not waited for",
-			bindings: []ProcessBinding{sendUpdateBinding(declaring, false)},
-			want:     nil,
+			name:   "declaring plugin with no peer-state grant is not waited for",
+			grants: []testPeerEndpointGrant{sendUpdateGrant(declaring, false)},
+			want:   nil,
 		},
 		{
-			name:     "non-declaring plugin is not waited for",
-			bindings: []ProcessBinding{sendUpdateBinding(silent, true)},
-			want:     nil,
+			name:   "non-declaring plugin is not waited for",
+			grants: []testPeerEndpointGrant{sendUpdateGrant(silent, true)},
+			want:   nil,
 		},
 		{
-			name:     "unregistered plugin declares nothing and is not waited for",
-			bindings: []ProcessBinding{sendUpdateBinding("test-never-registered-reporter", true)},
-			want:     nil,
+			name:   "unregistered plugin declares nothing and is not waited for",
+			grants: []testPeerEndpointGrant{sendUpdateGrant("test-never-registered-reporter", true)},
+			want:   nil,
 		},
 		{
 			name: "no route-push grant is not waited for",
-			bindings: []ProcessBinding{{
-				PluginName: declaring,
-				Receive:    map[string]events.Direction{bgpevents.EventState: events.DirBoth},
+			grants: []testPeerEndpointGrant{{
+				Name:    declaring,
+				Receive: []string{bgpevents.EventState},
 			}},
 			want: nil,
 		},
 		{
 			name: "the wildcard receive list carries the peer-state grant",
-			bindings: []ProcessBinding{{
-				PluginName: declaring,
-				Send:       map[string]bool{bgpevents.SendUpdate: true},
+			grants: []testPeerEndpointGrant{{
+				Name:       declaring,
+				Send:       []string{bgpevents.SendUpdate},
 				ReceiveAll: true,
 			}},
 			want: []string{declaring},
 		},
 		{
 			name: "the raw rail is a route-push grant too",
-			bindings: []ProcessBinding{{
-				PluginName: declaring,
-				Send:       map[string]bool{bgpevents.SendRaw: true},
-				Receive:    map[string]events.Direction{bgpevents.EventState: events.DirBoth},
+			grants: []testPeerEndpointGrant{{
+				Name:    declaring,
+				Send:    []string{bgpevents.SendRaw},
+				Receive: []string{bgpevents.EventState},
 			}},
 			want: []string{declaring},
 		},
 		{
 			name: "one qualifying binding beside one that does not",
-			bindings: []ProcessBinding{
-				sendUpdateBinding(silent, true),
-				sendUpdateBinding(declaring, true),
+			grants: []testPeerEndpointGrant{
+				sendUpdateGrant(silent, true),
+				sendUpdateGrant(declaring, true),
 			},
 			want: []string{declaring},
 		},
@@ -136,7 +136,7 @@ func TestInitialUpdateReporters(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got := peerWithBindings(tt.bindings...).initialUpdateReporters()
+			got := peerWithBusGrants(t, tt.grants...).initialUpdateReporters()
 			require.Equal(t, tt.want, got)
 		})
 	}
@@ -146,14 +146,11 @@ func TestInitialUpdateReporters(t *testing.T) {
 // by the runtime seam, which is the only route an EXTERNAL plugin has to the
 // session-ready declaration.
 // PREVENTS: an external plugin that DOES report being unreachable by the
-// barrier. Before the seam existed the reactor answered false for every
-// unregistered name, so a plugin injecting a route through `send [ raw ]` could
-// not be waited for and its route raced the marker that claims the initial
-// routing update is complete (test/plugin/initial-sync-barrier-raw.ci).
+// barrier.
 func TestInitialUpdateReportersReadsTheRuntimeDeclaration(t *testing.T) {
 	const external = "test-external-session-ready-process"
 
-	peer := peerWithBindings(sendUpdateBinding(external, true))
+	peer := peerWithBusGrants(t, sendUpdateGrant(external, true))
 	require.Empty(t, peer.initialUpdateReporters(), "no seam: an unregistered process declares nothing")
 
 	registry.SetRuntimeSessionReady(func(process string) bool { return process == external })
@@ -162,21 +159,12 @@ func TestInitialUpdateReportersReadsTheRuntimeDeclaration(t *testing.T) {
 	require.Equal(t, []string{external}, peer.initialUpdateReporters())
 
 	// The seam answers per process, not for every unregistered name.
-	other := peerWithBindings(sendUpdateBinding("test-external-silent-process", true))
+	other := peerWithBusGrants(t, sendUpdateGrant("test-external-silent-process", true))
 	require.Empty(t, other.initialUpdateReporters())
 }
 
-// VALIDATES: the name the declaration is looked up under is the name the
-// binding carries, which is the operator's `attach process <name>` key and the
-// same name the barrier holds and credits reports to.
-// PREVENTS: the two namespaces being read as one here. A process name is a
-// registry key only when the operator did not rename the implementation:
-// `internal rs { use bgp-rs }` runs the process as "rs" and files the
-// registration under "bgp-rs". This package must keep asking under the process
-// name, because that is what a report carries; resolving it to the
-// implementation is the plugin server's job, and its own red is
-// TestDeclaresSessionReadyResolvesTheProcessAlias
-// (internal/component/plugin/server/events_session_ready_test.go).
+// VALIDATES: the name the declaration is looked up under is the endpoint name
+// carried by the compiled DeliveryGraph and credited by the barrier.
 func TestInitialUpdateReportersAsksUnderTheProcessName(t *testing.T) {
 	const alias = "test-aliased-session-ready-process"
 
@@ -187,22 +175,23 @@ func TestInitialUpdateReportersAsksUnderTheProcessName(t *testing.T) {
 	})
 	t.Cleanup(func() { registry.SetRuntimeSessionReady(nil) })
 
-	peer := peerWithBindings(sendUpdateBinding(alias, true))
+	peer := peerWithBusGrants(t, sendUpdateGrant(alias, true))
 	require.Equal(t, []string{alias}, peer.initialUpdateReporters())
 	require.Equal(t, []string{alias}, asked,
 		"the declaration must be asked for under the name the barrier will hold")
 }
 
-// VALIDATES: ReceivesPeerState answers for the state event alone.
+// VALIDATES: ProcessReceivesState on DeliveryGraph answers for the state event
+// alone.
 // PREVENTS: reading any receive grant as the peer-up grant, which would put a
 // process that only takes UPDATEs into the barrier and stall the peer.
 func TestReceivesPeerState(t *testing.T) {
-	updateOnly := ProcessBinding{Receive: map[string]events.Direction{bgpevents.EventUpdate: events.DirReceived}}
-	require.False(t, updateOnly.ReceivesPeerState())
+	updateOnly := peerWithBusGrants(t, testPeerEndpointGrant{Name: "p", Receive: []string{"update-received"}})
+	require.False(t, updateOnly.reactor.DeliveryGraph().ProcessReceivesState(updateOnly.addrString, "p"))
 
-	stateReceived := ProcessBinding{Receive: map[string]events.Direction{bgpevents.EventState: events.DirReceived}}
-	require.True(t, stateReceived.ReceivesPeerState())
+	stateReceived := peerWithBusGrants(t, testPeerEndpointGrant{Name: "p", Receive: []string{bgpevents.EventState}})
+	require.True(t, stateReceived.reactor.DeliveryGraph().ProcessReceivesState(stateReceived.addrString, "p"))
 
-	none := ProcessBinding{}
-	require.False(t, none.ReceivesPeerState())
+	none := peerWithBusGrants(t)
+	require.False(t, none.reactor.DeliveryGraph().ProcessReceivesState(none.addrString, "p"))
 }

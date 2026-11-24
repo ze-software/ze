@@ -40,13 +40,12 @@ func (m *mockReactor) Peers() []plugin.PeerInfo { return m.peers }
 
 func (m *mockReactor) UpdateDelayStatus() plugin.UpdateDelayStatus { return plugin.UpdateDelayStatus{} }
 
-func (m *mockReactor) Stats() plugin.ReactorStats                                      { return m.stats }
-func (m *mockReactor) Stop()                                                           {}
-func (m *mockReactor) Reload() error                                                   { return nil }
-func (m *mockReactor) DrainPeerSync(_ context.Context) error                           { return nil }
-func (m *mockReactor) VerifyConfig(_ map[string]any) error                             { return nil }
-func (m *mockReactor) ApplyConfigDiff(_ map[string]any) error                          { return nil }
-func (m *mockReactor) GetPeerProcessBindings(_ netip.Addr) []plugin.PeerProcessBinding { return nil }
+func (m *mockReactor) Stats() plugin.ReactorStats             { return m.stats }
+func (m *mockReactor) Stop()                                  {}
+func (m *mockReactor) Reload() error                          { return nil }
+func (m *mockReactor) DrainPeerSync(_ context.Context) error  { return nil }
+func (m *mockReactor) VerifyConfig(_ map[string]any) error    { return nil }
+func (m *mockReactor) ApplyConfigDiff(_ map[string]any) error { return nil }
 func (m *mockReactor) PeerNegotiatedCapabilities(_ netip.Addr) *plugin.PeerCapabilitiesInfo {
 	return m.peerCaps
 }

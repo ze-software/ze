@@ -49,10 +49,9 @@ func TestAddDynamicPeerReadsTheTreeItWasGiven(t *testing.T) {
 		},
 		"timer":    map[string]any{"receive-hold-time": "90", "connect-retry": "5"},
 		"behavior": map[string]any{"group-updates": "false"},
-		"attach": map[string]any{
-			"process": map[string]any{
-				"peer-lifecycle": map[string]any{"receive": "*", "send": "*"},
-			},
+		"bus": map[string]any{
+			"send":    map[string]any{"to": []string{"/bus/endpoint/peer-lifecycle"}},
+			"receive": map[string]any{"from": []string{"/bus/endpoint/peer-lifecycle"}},
 		},
 	}
 
@@ -74,14 +73,12 @@ func TestAddDynamicPeerReadsTheTreeItWasGiven(t *testing.T) {
 	assert.Equal(t, 5*time.Second, settings.ConnectRetry)
 	assert.False(t, settings.GroupUpdates)
 
-	// The attach block is the peer's receive authorization and its send
-	// permission both, so a binding that reaches the peer with neither grant
-	// attaches a process and permits it nothing.
-	require.Len(t, settings.ProcessBindings, 1, "the named process is bound to the peer")
-	binding := settings.ProcessBindings[0]
-	assert.Equal(t, "peer-lifecycle", binding.PluginName)
-	assert.True(t, binding.ReceiveAll, "the process receives every message from this peer")
-	assert.True(t, binding.SendAll, "the process may send every type toward this peer")
+	// The bus block carries both the peer's send (feed) and receive (command)
+	// target filters for the named endpoint.
+	assert.Equal(t, []string{"/bus/endpoint/peer-lifecycle"}, settings.Bus.Send.Targets,
+		"the endpoint receives messages sent by this peer")
+	assert.Equal(t, []string{"/bus/endpoint/peer-lifecycle"}, settings.Bus.Receive.Targets,
+		"the endpoint may send messages toward this peer")
 }
 
 // TestAddDynamicPeerDefaultsTheLocalAddress holds the one leaf the caller may

@@ -14,6 +14,7 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/require"
+
 	"github.com/ze-software/ze/internal/core/bgp/ribevents"
 	"github.com/ze-software/ze/internal/core/clock"
 	"github.com/ze-software/ze/internal/core/family"
@@ -56,7 +57,7 @@ func newReplayQuestion(t *testing.T, relay func(context.Context, []rpc.StoredRou
 	consumer, engine := net.Pipe()
 	p := sdk.NewWithConn("role-replay-lifetime-question", rpc.NewBridgedConn(consumer, bridge))
 	source := rsFixtureKey("192.0.2.247", 171, 181)
-	role := &routeServer{plugin: p, peers: map[workerKey]*PeerState{source: {Address: "192.0.2.247", Up: true, StateSeen: true, DestinationSession: 381, SessionGeneration: 7}}, withdrawals: make(map[string]map[withdrawalKey]withdrawalEntry), downCtx: down, clk: clock.RealClock{}}
+	role := &routeServer{plugin: p, peers: map[workerKey]*PeerState{source: {Address: "192.0.2.247", Up: true, RSClient: true, StateSeen: true, DestinationSession: 381, SessionGeneration: 7}}, withdrawals: make(map[string]map[withdrawalKey]withdrawalEntry), downCtx: down, clk: clock.RealClock{}}
 	var targetsMu sync.Mutex
 	targets := make(map[rpc.ForwardTarget]uint64)
 	var leased bool

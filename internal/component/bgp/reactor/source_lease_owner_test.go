@@ -6,7 +6,6 @@ import (
 
 	"github.com/stretchr/testify/require"
 
-	pluginserver "github.com/ze-software/ze/internal/component/plugin/server"
 	"github.com/ze-software/ze/pkg/plugin/rpc"
 )
 
@@ -17,11 +16,11 @@ func TestSourceLeaseRefusesAnotherPeerOwner(t *testing.T) {
 		t.Run(map[bool]string{false: "json", true: "native"}[native], func(t *testing.T) {
 			proc := sourceLeaseProcessFactory(t)("source-owner-binding")
 			peer, facts := sourceReceiptFixture(t)
-			peer.settings.ProcessBindings = []ProcessBinding{sourceLeaseGrant(proc.Name())}
+			peer.settings.Bus = testBusBlockForGrants(sourceLeaseGrant(proc.Name()))
 			live, err := sourceReceipts.issue(facts)
 			require.NoError(t, err)
 			t.Cleanup(live.close)
-			server := &pluginserver.Server{}
+			server := sourceLeaseTestServer(t, proc)
 			wrong := peer.sourceOwner + 1
 			for _, owner := range []uint64{0, wrong} {
 				_, err = sourceLeaseRetryAdapter(server, t.Context(), proc, native, sourceLeaseRequest(rpc.SourceLeaseAcquire, live.ID(), owner))

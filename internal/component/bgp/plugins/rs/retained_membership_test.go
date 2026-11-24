@@ -6,14 +6,15 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
-	"github.com/ze-software/ze/internal/component/bgp/retention"
-	"github.com/ze-software/ze/internal/core/family"
-	"github.com/ze-software/ze/pkg/plugin/rpc"
 	"net/netip"
 	"runtime"
 	"sync"
 	"testing"
 	"time"
+
+	"github.com/ze-software/ze/internal/component/bgp/retention"
+	"github.com/ze-software/ze/internal/core/family"
+	"github.com/ze-software/ze/pkg/plugin/rpc"
 )
 
 func retainedRSTestOwner(t *testing.T) (*routeServer, workerKey, rpc.StoredRoute, rpc.StoredRoute) {
@@ -23,7 +24,7 @@ func retainedRSTestOwner(t *testing.T) (*routeServer, workerKey, rpc.StoredRoute
 		t.Fatal(err)
 	}
 	rs := &routeServer{peers: make(map[workerKey]*PeerState), withdrawals: make(map[string]map[withdrawalKey]withdrawalEntry)}
-	rs.peers[key] = &PeerState{Address: key.address.String(), Up: false, StateSeen: true, sourceLease: true, sourceReceipt: 201}
+	rs.peers[key] = &PeerState{Address: key.address.String(), Up: false, RSClient: true, StateSeen: true, sourceLease: true, sourceReceipt: 201}
 	a := rpc.StoredRoute{SourcePeer: key.address.String(), SourceOwner: key.owner, SourceConnectionID: key.connectionID, SourceReceipt: 201, SourcePolicyEpoch: 7, MsgID: 301, Family: family.IPv4Unicast.String(), NLRIFraming: rpc.NLRIFramingPrefixOnly, NLRIHex: "180a0001"}
 	b := a
 	b.NLRIHex = "180a0002"
@@ -201,7 +202,7 @@ func TestRSCleanupFailedOutputJoinKeepsOriginalLeaseAndMembership(t *testing.T) 
 func TestRSFinalCurrentRouteReleasesOnlyItsOriginalLease(t *testing.T) {
 	rs, key, _, _ := retainedRSTestOwner(t)
 	sibling, _ := newWorkerKey(key.address.String(), 12, 102)
-	rs.peers[sibling] = &PeerState{Address: key.address.String(), Up: true, sourceLease: true, sourceReceipt: 202}
+	rs.peers[sibling] = &PeerState{Address: key.address.String(), Up: true, RSClient: true, sourceLease: true, sourceReceipt: 202}
 	siblingRoute := withdrawalKey{owner: sibling.owner, fam: family.IPv4Unicast, prefix: netip.MustParsePrefix("10.0.9.0/24")}
 	rs.withdrawals[key.address.String()][siblingRoute] = withdrawalEntry{owner: sibling.owner, connectionID: sibling.connectionID, sourceReceipt: 202, sourcePolicyEpoch: 7, msgID: 309}
 	calls := []rpc.SourceLeaseInput{}

@@ -37,9 +37,7 @@ func TestPassiveIncomingAcrossSessionStart(t *testing.T) {
 		t.Run(name, func(t *testing.T) {
 			settings := NewPeerSettings(netip.MustParseAddr("127.0.0.1"), 65000, 65001, 0x01010101)
 			settings.Connection = ConnectionPassive
-			if err := EnsureProcessBinding(settings, "startup-monitor", "connected fsm", ""); err != nil {
-				t.Fatal(err)
-			}
+			addTestPeerBusGrant(settings, operatorGrant("startup-monitor", "connected fsm", ""))
 			r := New(&Config{ListenAddr: "127.0.0.1:0"})
 			if err := r.AddPeer(settings); err != nil {
 				t.Fatal(err)
@@ -171,6 +169,7 @@ func passiveStartEventSubscriber(t *testing.T, r *Reactor) *stateLog {
 			Direction: events.DirUnspecified,
 		})
 	}
+	setupDeliveryGraphTestServer(t, r.api, "startup-monitor")
 	r.mu.Lock()
 	r.publishDeliveryGraphLocked()
 	r.mu.Unlock()

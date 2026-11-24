@@ -30,19 +30,15 @@ func setSessionFacts(peer *Peer, receivedRoute, routeRefresh bool) {
 	peer.negotiated.Load().RouteRefresh = routeRefresh
 }
 
-// withDerivedRIBFeed returns a copy of settings carrying the derived bgp-rib
-// feed the config builder adds for RFC 7311 AIGP selection, built by the real
-// producer (EnsureProcessBinding).
+// withDerivedRIBFeed returns a copy of settings carrying a feed-only bgp-rib
+// bus block (`bgp:update` direction received, `bgp:state`).
 func withDerivedRIBFeed(t *testing.T, settings *PeerSettings) *PeerSettings {
 	t.Helper()
-	next := *settings
-	next.ProcessBindings = append([]ProcessBinding(nil), settings.ProcessBindings...)
-	require.NoError(t, EnsureProcessBinding(&next, "bgp-rib", "update-received state", ""))
-	return &next
+	return withBusGrants(settings, operatorGrant("bgp-rib", "update-received state", ""))
 }
 
 // TestDerivedFeedSwapKeepsSessionAndCatchesUp proves the reload path for a
-// derived feed-only binding: the session stays up, the binding reaches the
+// feed-only bus change: the session stays up, the bus block reaches the
 // running peer and its delivery edges, and the peer is asked to re-send what it
 // already sent so the new consumer learns it.
 //
@@ -50,27 +46,28 @@ func withDerivedRIBFeed(t *testing.T, settings *PeerSettings) *PeerSettings {
 // the change swappable, and
 // applyHotSwappableSettings writes one ROUTE-REFRESH per negotiated family on
 // the SAME session (RFC 2918 Section 3).
-// PREVENTS: adding the first iBGP peer restarting every established session
-// (reload-dynamic-peer-survives.ci), and a new RIB consumer that holds none of
-// the routes the peer sent before the reload.
+// PREVENTS: adding a feed-only consumer restarting every established session,
+// and a new RIB consumer that holds none of the routes the peer sent before
+// the reload.
 func TestDerivedFeedSwapKeepsSessionAndCatchesUp(t *testing.T) {
 	peer, conn := newInitialSyncPeer(t, true, family.IPv4Unicast, family.IPv6Unicast)
+	peer.settings.Bus = testBusNone()
 	setSessionFacts(peer, true, true)
 	session := peer.session
 
 	next := withDerivedRIBFeed(t, peer.settings)
 	copier, reason := peerSettingsSwapPlan(peer.settings, next, session)
-	require.Empty(t, reason, "a derived feed-only binding must not restart the session")
+	require.Empty(t, reason, "a feed-only bus change must not restart the session")
 	require.NotNil(t, copier)
 
 	mustApplyHotSwappableSettings(t, peer, next, copier)
 
 	assert.Same(t, session, peer.session, "the running session must survive the swap")
 	assert.Equal(t, PeerStateEstablished, peer.State())
-	require.Len(t, peer.settings.ProcessBindings, 1)
-	assert.Equal(t, "bgp-rib", peer.settings.ProcessBindings[0].PluginName)
+	feeds, _ := busSendEndpointFeeds(peer.settings.Bus.Send)
+	require.Contains(t, feeds, "bgp-rib")
 	delivery := deliveryPeersFromSettings([]*PeerSettings{peer.settings})
-	require.Len(t, delivery[0].Bindings, 1, "the delivery graph input must carry the new feed")
+	require.False(t, delivery[0].Bus.IsEmpty(), "the delivery graph input must carry the new feed")
 
 	frames := bgpFrames(t, conn.written())
 	require.Len(t, frames, 2, "one ROUTE-REFRESH per negotiated family")
@@ -94,6 +91,7 @@ func TestDerivedFeedSwapKeepsSessionAndCatchesUp(t *testing.T) {
 // PREVENTS: a session that sent no route restarting on a derived feed.
 func TestDerivedFeedWithoutRoutesNeedsNoCatchUp(t *testing.T) {
 	peer, conn := newInitialSyncPeer(t, true, family.IPv4Unicast)
+	peer.settings.Bus = testBusNone()
 	setSessionFacts(peer, false, false)
 	session := peer.session
 
@@ -103,7 +101,8 @@ func TestDerivedFeedWithoutRoutesNeedsNoCatchUp(t *testing.T) {
 	mustApplyHotSwappableSettings(t, peer, next, copier)
 
 	assert.Same(t, session, peer.session, "the running session must survive the swap")
-	require.Len(t, peer.settings.ProcessBindings, 1)
+	feeds, _ := busSendEndpointFeeds(peer.settings.Bus.Send)
+	require.Contains(t, feeds, "bgp-rib")
 	assert.Empty(t, conn.written(), "nothing to re-send, so nothing is asked")
 }
 
@@ -113,6 +112,7 @@ func TestDerivedFeedWithoutRoutesNeedsNoCatchUp(t *testing.T) {
 // Configuration Change" rather than leave the new consumer without that route.
 func TestDerivedFeedRouteArrivingBeforeApplyRestarts(t *testing.T) {
 	peer, conn := newInitialSyncPeer(t, true, family.IPv4Unicast)
+	peer.settings.Bus = testBusNone()
 	peer.testInitialSync().sendingInitialRoutes.Store(0)
 	setSessionFacts(peer, false, false)
 
@@ -156,10 +156,11 @@ func TestNoteReceivedRouteCountsAnnouncementsOnly(t *testing.T) {
 // the consumer with half the peer's routes.
 func TestDerivedFeedWithoutRouteRefreshRestarts(t *testing.T) {
 	peer, _ := newInitialSyncPeer(t, true, family.IPv4Unicast)
+	peer.settings.Bus = testBusNone()
 	setSessionFacts(peer, true, false)
 
 	_, reason := peerSettingsSwapPlan(peer.settings, withDerivedRIBFeed(t, peer.settings), peer.session)
-	assert.Equal(t, "ProcessBindings", reason)
+	assert.Equal(t, "Bus", reason)
 }
 
 // TestDerivedFeedRemovalSendsNoRefresh proves the removal half: the lost
@@ -168,36 +169,46 @@ func TestDerivedFeedWithoutRouteRefreshRestarts(t *testing.T) {
 func TestDerivedFeedRemovalSendsNoRefresh(t *testing.T) {
 	peer, conn := newInitialSyncPeer(t, true, family.IPv4Unicast)
 	setSessionFacts(peer, true, true)
-	peer.settings.ProcessBindings = withDerivedRIBFeed(t, peer.settings).ProcessBindings
+	peer.settings.Bus = withDerivedRIBFeed(t, peer.settings).Bus
 
 	next := *peer.settings
-	next.ProcessBindings = nil
-	gained, lost := receiveBindingChange(peer.settings.ProcessBindings, next.ProcessBindings)
+	next.Bus = testBusNone()
+	gained, lost := busFeedChange(peer.settings.Bus, next.Bus)
 	assert.Empty(t, gained)
 	assert.Equal(t, []string{"bgp-rib"}, lost)
 
 	copier, reason := peerSettingsSwapPlan(peer.settings, &next, peer.session)
 	require.Empty(t, reason)
 	mustApplyHotSwappableSettings(t, peer, &next, copier)
-	assert.Empty(t, peer.settings.ProcessBindings)
+	assert.True(t, peer.settings.Bus.Send.AllowNone)
 	assert.Empty(t, conn.written(), "a removed feed asks the peer for nothing")
 }
 
-// operatorBinding returns the binding an operator's
-// `attach process <name> { receive [ receive ]; send [ send ]; }` block parses
-// to, through the same parsers parseProcessBindingsFromTree uses.
-func operatorBinding(t *testing.T, name, receive, send string) ProcessBinding {
-	t.Helper()
-	b := ProcessBinding{PluginName: name}
-	require.NoError(t, parseReceiveFlags(receive, &b))
-	require.NoError(t, parseSendFlags(send, &b))
-	return b
+// operatorGrant builds a testPeerEndpointGrant from space-separated receive and
+// send token strings.
+func operatorGrant(name, receive, send string) testPeerEndpointGrant {
+	g := testPeerEndpointGrant{Name: name}
+	for tok := range strings.FieldsSeq(receive) {
+		if tok == events.TokenWildcard {
+			g.ReceiveAll = true
+		} else {
+			g.Receive = append(g.Receive, tok)
+		}
+	}
+	for tok := range strings.FieldsSeq(send) {
+		if tok == events.TokenWildcard {
+			g.SendAll = true
+		} else {
+			g.Send = append(g.Send, tok)
+		}
+	}
+	return g
 }
 
-// withBindings returns a copy of settings holding exactly bindings.
-func withBindings(settings *PeerSettings, bindings ...ProcessBinding) *PeerSettings {
+// withBusGrants returns a copy of settings whose Bus encodes grants.
+func withBusGrants(settings *PeerSettings, grants ...testPeerEndpointGrant) *PeerSettings {
 	next := *settings
-	next.ProcessBindings = bindings
+	next.Bus = testBusBlockForGrants(grants...)
 	return &next
 }
 
@@ -260,6 +271,7 @@ func (b *bindRecorder) recorded() []bindStep {
 func newBindingReactor(t *testing.T, peer *Peer, conn *recordingConn) (*pluginserver.Server, *bindRecorder) {
 	t.Helper()
 	srv := &pluginserver.Server{}
+	setupDeliveryGraphTestServer(t, srv, "bgp-rib", "bgp-rpki", "bystander", "monitor", "watcher")
 	r := newTestReactor(t)
 	r.api = srv
 	rec := &bindRecorder{t: t, srv: srv, conn: conn}
@@ -280,24 +292,24 @@ func fedUpdates(srv *pluginserver.Server, peer *Peer) []string {
 	return recv(srv.DeliveryGraph(), bgpevents.EventUpdate, events.DirReceived, peer.settings.Address.String())
 }
 
-// TestOperatorReceiveOnlyBindingSwaps proves AC-1: an attach block the operator
-// typed that grants no send type and receives no OPEN is swapped like one the
-// config builder derived.
+// TestOperatorReceiveOnlyBindingSwaps proves AC-1: a feed-only bus change
+// granting no send permission and touching no bgp:open rule swaps in place.
 //
 // VALIDATES: peerSettingsSwapPlan returns a copier and no reason.
 // PREVENTS: attaching bgp-rpki or a monitor to a running peer resetting it.
 func TestOperatorReceiveOnlyBindingSwaps(t *testing.T) {
 	peer, _ := newInitialSyncPeer(t, true, family.IPv4Unicast)
+	peer.settings.Bus = testBusNone()
 	setSessionFacts(peer, true, true)
 
-	next := withBindings(peer.settings, operatorBinding(t, "bgp-rpki", "update-received state", ""))
+	next := withBusGrants(peer.settings, operatorGrant("bgp-rpki", "update-received state", ""))
 	copier, reason := peerSettingsSwapPlan(peer.settings, next, peer.session)
-	assert.Empty(t, reason, "a receive-only operator binding must not restart the session")
+	assert.Empty(t, reason, "a feed-only bus change must not restart the session")
 	assert.NotNil(t, copier)
 }
 
-// TestOperatorSendOrOpenBindingStillRestarts proves AC-2: a binding that may
-// put routes on the wire, or that must be shown an OPEN, restarts.
+// TestOperatorSendOrOpenBindingStillRestarts proves AC-2: a bus change that
+// alters send-to-peer permissions or bgp:open delivery restarts.
 func TestOperatorSendOrOpenBindingStillRestarts(t *testing.T) {
 	for _, tc := range []struct{ name, receive, send string }{
 		{"send update", "update-received", "update"},
@@ -307,23 +319,25 @@ func TestOperatorSendOrOpenBindingStillRestarts(t *testing.T) {
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			peer, _ := newInitialSyncPeer(t, true, family.IPv4Unicast)
+			peer.settings.Bus = testBusNone()
 			setSessionFacts(peer, false, true)
-			next := withBindings(peer.settings, operatorBinding(t, "monitor", tc.receive, tc.send))
+			next := withBusGrants(peer.settings, operatorGrant("monitor", tc.receive, tc.send))
 			_, reason := peerSettingsSwapPlan(peer.settings, next, peer.session)
-			assert.Equal(t, "ProcessBindings", reason)
+			assert.Equal(t, "Bus", reason)
 		})
 	}
 }
 
 // TestReceiveOnlyGainWithoutRouteRefreshRestarts proves AC-10: a peer that sent
-// routes and cannot re-send them restarts for a route-bearing receive grant.
+// routes and cannot re-send them restarts for a route-bearing feed gain.
 func TestReceiveOnlyGainWithoutRouteRefreshRestarts(t *testing.T) {
 	peer, _ := newInitialSyncPeer(t, true, family.IPv4Unicast)
+	peer.settings.Bus = testBusNone()
 	setSessionFacts(peer, true, false)
 
-	next := withBindings(peer.settings, operatorBinding(t, "monitor", "update-received", ""))
+	next := withBusGrants(peer.settings, operatorGrant("monitor", "update-received", ""))
 	_, reason := peerSettingsSwapPlan(peer.settings, next, peer.session)
-	assert.Equal(t, "ProcessBindings", reason)
+	assert.Equal(t, "Bus", reason)
 }
 
 // TestGainedReceiveOnlyBindingGetsUpBeforeRefresh proves AC-4's order: the
@@ -333,11 +347,12 @@ func TestReceiveOnlyGainWithoutRouteRefreshRestarts(t *testing.T) {
 func TestGainedReceiveOnlyBindingGetsUpBeforeRefresh(t *testing.T) {
 	peer, conn := newInitialSyncPeer(t, true, family.IPv4Unicast, family.IPv6Unicast)
 	setSessionFacts(peer, true, true)
-	peer.settings.ProcessBindings = []ProcessBinding{operatorBinding(t, "bystander", "update-received state", "")}
+	bystander := operatorGrant("bystander", "update-received state", "")
+	peer.settings.Bus = testBusBlockForGrants(bystander)
 	session := peer.session
 	_, rec := newBindingReactor(t, peer, conn)
 
-	next := withBindings(peer.settings, peer.settings.ProcessBindings[0], operatorBinding(t, "monitor", "update-received state", ""))
+	next := withBusGrants(peer.settings, bystander, operatorGrant("monitor", "update-received state", ""))
 	copier, reason := peerSettingsSwapPlan(peer.settings, next, peer.session)
 	require.Empty(t, reason)
 	mustApplyHotSwappableSettings(t, peer, next, copier)
@@ -358,10 +373,11 @@ func TestGainedReceiveOnlyBindingGetsUpBeforeRefresh(t *testing.T) {
 // in that window cannot reach it; once the apply returns, it does.
 func TestUpAcknowledgedBeforeGraphEdge(t *testing.T) {
 	peer, conn := newInitialSyncPeer(t, true, family.IPv4Unicast)
+	peer.settings.Bus = testBusNone()
 	setSessionFacts(peer, false, true)
 	srv, rec := newBindingReactor(t, peer, conn)
 
-	next := withBindings(peer.settings, operatorBinding(t, "monitor", "update-received state", ""))
+	next := withBusGrants(peer.settings, operatorGrant("monitor", "update-received state", ""))
 	copier, reason := peerSettingsSwapPlan(peer.settings, next, peer.session)
 	require.Empty(t, reason)
 	mustApplyHotSwappableSettings(t, peer, next, copier)
@@ -373,24 +389,25 @@ func TestUpAcknowledgedBeforeGraphEdge(t *testing.T) {
 }
 
 // TestChangedReceiveGrantIsDownThenUp proves AC-8 at the reactor: a kept
-// receive-only binding whose grant changes is told down and then up, its edge
+// feed-only endpoint whose feed changes is told down and then up, its edge
 // absent from the graph for both, the ROUTE-REFRESH after the up, and the
-// process that kept its binding named in neither.
+// process that kept its feed named in neither.
 func TestChangedReceiveGrantIsDownThenUp(t *testing.T) {
 	peer, conn := newInitialSyncPeer(t, true, family.IPv4Unicast)
 	setSessionFacts(peer, true, true)
-	peer.settings.ProcessBindings = []ProcessBinding{
-		operatorBinding(t, "bgp-rib", "update-received", ""),
-		operatorBinding(t, "bystander", "update-received state", ""),
-	}
+	bystander := operatorGrant("bystander", "update-received state", "")
+	peer.settings.Bus = testBusBlockForGrants(
+		operatorGrant("bgp-rib", "update-received", ""),
+		bystander,
+	)
 	srv, rec := newBindingReactor(t, peer, conn)
 	require.Contains(t, fedUpdates(srv, peer), "bgp-rib")
 
-	next := withBindings(peer.settings,
-		operatorBinding(t, "bgp-rib", "update-received state", ""),
-		peer.settings.ProcessBindings[1])
+	next := withBusGrants(peer.settings,
+		operatorGrant("bgp-rib", "update-received state", ""),
+		bystander)
 	copier, reason := peerSettingsSwapPlan(peer.settings, next, peer.session)
-	require.Empty(t, reason, "a changed receive-only grant swaps")
+	require.Empty(t, reason, "a changed receive-only feed swaps")
 	mustApplyHotSwappableSettings(t, peer, next, copier)
 
 	steps := rec.recorded()
@@ -400,14 +417,14 @@ func TestChangedReceiveGrantIsDownThenUp(t *testing.T) {
 	for _, step := range steps {
 		assert.Equal(t, []string{"bgp-rib"}, step.processes, "no other process is told")
 		assert.NotContains(t, step.graphFed, "bgp-rib", "the edge is absent between the down and the up")
-		assert.Contains(t, step.graphFed, "bystander", "the kept binding keeps its edge")
+		assert.Contains(t, step.graphFed, "bystander", "the kept endpoint keeps its edge")
 		assert.Zero(t, step.wireFrames, "the ROUTE-REFRESH follows the up")
 	}
 	assert.Contains(t, fedUpdates(srv, peer), "bgp-rib")
 	assert.Len(t, bgpFrames(t, conn.written()), 1, "one ROUTE-REFRESH for the one family")
 }
 
-// TestSentDirectionGrantNeedsNothingAdvertised proves AC-13: a grant covering
+// TestSentDirectionGrantNeedsNothingAdvertised proves AC-13: a feed covering
 // the routes this speaker sent restarts once the session advertised one, since
 // nothing re-sends them, and swaps on a session that advertised nothing, where
 // the apply keeps the one connection and writes nothing. The wildcard restarts
@@ -416,17 +433,19 @@ func TestSentDirectionGrantNeedsNothingAdvertised(t *testing.T) {
 	for _, receive := range []string{"update-sent state", "update"} {
 		t.Run(receive+" advertised", func(t *testing.T) {
 			peer, _ := newInitialSyncPeer(t, true, family.IPv4Unicast)
+			peer.settings.Bus = testBusNone()
 			setSessionFacts(peer, false, true)
 			peer.session.advertised.Store(true)
 			require.True(t, peer.hasAdvertised())
-			_, reason := peerSettingsSwapPlan(peer.settings, withBindings(peer.settings, operatorBinding(t, "monitor", receive, "")), peer.session)
-			assert.Equal(t, "ProcessBindings", reason)
+			_, reason := peerSettingsSwapPlan(peer.settings, withBusGrants(peer.settings, operatorGrant("monitor", receive, "")), peer.session)
+			assert.Equal(t, "Bus", reason)
 		})
 		t.Run(receive+" nothing advertised", func(t *testing.T) {
 			peer, conn := newInitialSyncPeer(t, true, family.IPv4Unicast)
+			peer.settings.Bus = testBusNone()
 			setSessionFacts(peer, false, false)
 			session := peer.session
-			next := withBindings(peer.settings, operatorBinding(t, "monitor", receive, ""))
+			next := withBusGrants(peer.settings, operatorGrant("monitor", receive, ""))
 			copier, reason := peerSettingsSwapPlan(peer.settings, next, peer.session)
 			require.Empty(t, reason)
 			mustApplyHotSwappableSettings(t, peer, next, copier)
@@ -436,23 +455,25 @@ func TestSentDirectionGrantNeedsNothingAdvertised(t *testing.T) {
 		})
 	}
 	peer, _ := newInitialSyncPeer(t, true, family.IPv4Unicast)
+	peer.settings.Bus = testBusNone()
 	setSessionFacts(peer, false, true)
-	_, reason := peerSettingsSwapPlan(peer.settings, withBindings(peer.settings, operatorBinding(t, "monitor", "*", "")), peer.session)
-	assert.Equal(t, "ProcessBindings", reason)
+	_, reason := peerSettingsSwapPlan(peer.settings, withBusGrants(peer.settings, operatorGrant("monitor", "*", "")), peer.session)
+	assert.Equal(t, "Bus", reason)
 }
 
-// TestRouteFreeGrantNeedsNoCatchUp proves AC-14: a grant carrying no route needs
+// TestRouteFreeGrantNeedsNoCatchUp proves AC-14: a feed carrying no route needs
 // no catch-up, even on a peer that sent routes and cannot re-send them, and a
 // plugin-registered type counts as route-bearing.
 func TestRouteFreeGrantNeedsNoCatchUp(t *testing.T) {
 	peer, conn := newInitialSyncPeer(t, true, family.IPv4Unicast)
+	peer.settings.Bus = testBusNone()
 	setSessionFacts(peer, true, false)
 	session := peer.session
 	_, rec := newBindingReactor(t, peer, conn)
 
-	next := withBindings(peer.settings, operatorBinding(t, "watcher", "state", ""))
+	next := withBusGrants(peer.settings, operatorGrant("watcher", "state", ""))
 	copier, reason := peerSettingsSwapPlan(peer.settings, next, peer.session)
-	require.Empty(t, reason, "a route-free grant does not restart")
+	require.Empty(t, reason, "a route-free feed does not restart")
 	mustApplyHotSwappableSettings(t, peer, next, copier)
 	assert.Same(t, session, peer.session)
 	assert.Empty(t, conn.written(), "no ROUTE-REFRESH and no NOTIFICATION")
@@ -460,7 +481,7 @@ func TestRouteFreeGrantNeedsNoCatchUp(t *testing.T) {
 	require.Len(t, steps, 1)
 	assert.Equal(t, "up", steps[0].event)
 
-	plugged := ProcessBinding{PluginName: "decorator", Receive: map[string]events.Direction{"update-rpki": events.DirReceived}}
+	plugged := endpointFeedSpec{msgs: map[string]events.Direction{"update-rpki": events.DirReceived}}
 	received, sent := plugged.routeDirections()
 	assert.True(t, received, "a plugin-registered type is route-bearing")
 	assert.False(t, sent)
@@ -472,6 +493,7 @@ func TestRouteFreeGrantNeedsNoCatchUp(t *testing.T) {
 // belongs to no session or a second one from the next.
 func TestBindRacesEstablished(t *testing.T) {
 	peer, conn := newInitialSyncPeer(t, true, family.IPv4Unicast)
+	peer.settings.Bus = testBusNone()
 	setSessionFacts(peer, true, true)
 	_, rec := newBindingReactor(t, peer, conn)
 	replacement := NewSession(peer.settings)
@@ -481,30 +503,29 @@ func TestBindRacesEstablished(t *testing.T) {
 		peer.mu.Unlock()
 	}
 
-	next := withBindings(peer.settings, operatorBinding(t, "monitor", "update-received state", ""))
+	next := withBusGrants(peer.settings, operatorGrant("monitor", "update-received state", ""))
 	copier, reason := peerSettingsSwapPlan(peer.settings, next, peer.session)
 	require.Empty(t, reason)
 	mustApplyHotSwappableSettings(t, peer, next, copier)
 
-	var events []string
+	var evs []string
 	for _, step := range rec.recorded() {
-		events = append(events, step.event+":"+strings.Join(step.processes, ","))
+		evs = append(evs, step.event+":"+strings.Join(step.processes, ","))
 	}
-	assert.Equal(t, []string{"up:monitor", "down:monitor"}, events, "exactly one up, matched by a down")
+	assert.Equal(t, []string{"up:monitor", "down:monitor"}, evs, "exactly one up, matched by a down")
 	assert.Empty(t, conn.written(), "no ROUTE-REFRESH on a session the up was not about")
 }
 
-// TestIdenticalOperatorBindingReplacingDerived proves AC-18: an attach block
-// granting what the config builder's binding granted is the same binding, so it
-// changes nothing: no restart, and no process told down or up.
+// TestIdenticalOperatorBindingReplacingDerived proves AC-18: an equivalent bus
+// block changes nothing: no restart, and no process told down or up.
 func TestIdenticalOperatorBindingReplacingDerived(t *testing.T) {
 	peer, conn := newInitialSyncPeer(t, true, family.IPv4Unicast)
 	setSessionFacts(peer, true, false)
-	peer.settings.ProcessBindings = withDerivedRIBFeed(t, peer.settings).ProcessBindings
+	peer.settings.Bus = withDerivedRIBFeed(t, peer.settings).Bus
 	_, rec := newBindingReactor(t, peer, conn)
 
-	next := withBindings(peer.settings, operatorBinding(t, "bgp-rib", "update-received state", ""))
-	assert.True(t, peerSettingsEqual(peer.settings, next), "the two bindings are one")
+	next := withBusGrants(peer.settings, operatorGrant("bgp-rib", "update-received state", ""))
+	assert.True(t, peerSettingsEqual(peer.settings, next), "the two bus blocks are equivalent")
 	copier, reason := peerSettingsSwapPlan(peer.settings, next, peer.session)
 	require.Empty(t, reason)
 	mustApplyHotSwappableSettings(t, peer, next, copier)
@@ -596,6 +617,7 @@ func setUpPhase(peer *Peer, phase sessionUpPhase) {
 // dispatcher does. Red when the apply judges the session by State() alone.
 func TestAttachBeforeEstablishedUpIsOneUp(t *testing.T) {
 	peer, conn := newInitialSyncPeer(t, true, family.IPv4Unicast)
+	peer.settings.Bus = testBusNone()
 	setSessionFacts(peer, false, true)
 	srv, rec := newBindingReactor(t, peer, conn)
 	obs := &graphUpObserver{srv: srv}
@@ -603,7 +625,7 @@ func TestAttachBeforeEstablishedUpIsOneUp(t *testing.T) {
 	session := peer.session
 	setUpPhase(peer, sessionUpUnspecified)
 
-	next := withBindings(peer.settings, operatorBinding(t, "monitor", "update-received state", ""))
+	next := withBusGrants(peer.settings, operatorGrant("monitor", "update-received state", ""))
 	copier, reason := peerSettingsSwapPlan(peer.settings, next, peer.session)
 	require.Empty(t, reason)
 	mustApplyHotSwappableSettings(t, peer, next, copier)
@@ -619,11 +641,12 @@ func TestAttachBeforeEstablishedUpIsOneUp(t *testing.T) {
 // was told nothing targeted.
 func TestAttachWhileUpDeliveringRestarts(t *testing.T) {
 	peer, conn := newInitialSyncPeer(t, true, family.IPv4Unicast)
+	peer.settings.Bus = testBusNone()
 	setSessionFacts(peer, false, true)
 	_, rec := newBindingReactor(t, peer, conn)
 	setUpPhase(peer, sessionUpDelivering)
 
-	next := withBindings(peer.settings, operatorBinding(t, "monitor", "update-received state", ""))
+	next := withBusGrants(peer.settings, operatorGrant("monitor", "update-received state", ""))
 	copier, reason := peerSettingsSwapPlan(peer.settings, next, peer.session)
 	require.Empty(t, reason)
 	mustApplyHotSwappableSettings(t, peer, next, copier)
@@ -639,11 +662,12 @@ func TestAttachWhileUpDeliveringRestarts(t *testing.T) {
 // event before it, and the process was told nothing targeted.
 func TestAttachWhileNegotiatedRestarts(t *testing.T) {
 	peer, conn := newInitialSyncPeer(t, true, family.IPv4Unicast)
+	peer.settings.Bus = testBusNone()
 	setSessionFacts(peer, false, true)
 	_, rec := newBindingReactor(t, peer, conn)
 	setUpPhase(peer, sessionUpNegotiated)
 
-	next := withBindings(peer.settings, operatorBinding(t, "monitor", "update-received state", ""))
+	next := withBusGrants(peer.settings, operatorGrant("monitor", "update-received state", ""))
 	copier, reason := peerSettingsSwapPlan(peer.settings, next, peer.session)
 	require.Empty(t, reason)
 	mustApplyHotSwappableSettings(t, peer, next, copier)
@@ -660,11 +684,12 @@ func TestAttachWhileNegotiatedRestarts(t *testing.T) {
 // and moves the phase there.
 func TestAttachWhileUpPhaseMovesRestarts(t *testing.T) {
 	peer, conn := newInitialSyncPeer(t, true, family.IPv4Unicast)
+	peer.settings.Bus = testBusNone()
 	setSessionFacts(peer, false, true)
 	_, rec := newBindingReactor(t, peer, conn)
 	setUpPhase(peer, sessionUpUnspecified)
 
-	next := withBindings(peer.settings, operatorBinding(t, "monitor", "update-received state", ""))
+	next := withBusGrants(peer.settings, operatorGrant("monitor", "update-received state", ""))
 	copier, reason := peerSettingsSwapPlan(peer.settings, next, peer.session)
 	require.Empty(t, reason)
 	calls := 0
@@ -691,12 +716,12 @@ func TestAttachWhileUpPhaseMovesRestarts(t *testing.T) {
 func TestDetachedProcessToldDownWhenSessionClosesAfterPublish(t *testing.T) {
 	peer, conn := newInitialSyncPeer(t, true, family.IPv4Unicast)
 	setSessionFacts(peer, true, true)
-	peer.settings.ProcessBindings = []ProcessBinding{operatorBinding(t, "monitor", "update-received state", "")}
+	peer.settings.Bus = testBusBlockForGrants(operatorGrant("monitor", "update-received state", ""))
 	_, rec := newBindingReactor(t, peer, conn)
 
-	next := withBindings(peer.settings)
+	next := withBusGrants(peer.settings)
 	copier, reason := peerSettingsSwapPlan(peer.settings, next, peer.session)
-	require.Empty(t, reason, "removing a receive-only binding swaps")
+	require.Empty(t, reason, "removing a feed-only endpoint swaps")
 	calls := 0
 	closing := func(dst, src *PeerSettings) {
 		calls++
@@ -707,11 +732,11 @@ func TestDetachedProcessToldDownWhenSessionClosesAfterPublish(t *testing.T) {
 	}
 	mustApplyHotSwappableSettings(t, peer, next, closing)
 
-	var events []string
+	var evs []string
 	for _, step := range rec.recorded() {
-		events = append(events, step.event+":"+strings.Join(step.processes, ","))
+		evs = append(evs, step.event+":"+strings.Join(step.processes, ","))
 	}
-	assert.Equal(t, []string{"down:monitor"}, events, "the detached process is told down")
+	assert.Equal(t, []string{"down:monitor"}, evs, "the detached process is told down")
 }
 
 // TestAttachWhileSessionClosingIsToldDown proves review finding I5: the
@@ -748,6 +773,7 @@ func TestAttachWhileSessionClosingIsToldDown(t *testing.T) {
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			peer, conn := newInitialSyncPeer(t, true, family.IPv4Unicast)
+			peer.settings.Bus = testBusNone()
 			setSessionFacts(peer, true, true)
 			srv, rec := newBindingReactor(t, peer, conn)
 			obs := &graphUpObserver{srv: srv}
@@ -783,7 +809,7 @@ func TestAttachWhileSessionClosingIsToldDown(t *testing.T) {
 				}
 			}
 
-			next := withBindings(peer.settings, operatorBinding(t, "monitor", "update-received state", ""))
+			next := withBusGrants(peer.settings, operatorGrant("monitor", "update-received state", ""))
 			copier, reason := peerSettingsSwapPlan(peer.settings, next, peer.session)
 			require.Empty(t, reason)
 			mustApplyHotSwappableSettings(t, peer, next, copier)

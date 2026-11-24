@@ -18,18 +18,18 @@ import (
 )
 
 // newAttachedPeer builds one Established peer, backed by a recordingConn, whose
-// config carries the given attach blocks. The conn is what makes the assertions
-// about REACHING a peer rather than about an error code: a peer the permission
-// dropped has written nothing.
-func newAttachedPeer(t *testing.T, addr string, bindings ...ProcessBinding) (*Peer, *recordingConn) {
+// config carries the given bus endpoint grants. The conn is what makes the
+// assertions about REACHING a peer rather than about an error code: a peer the
+// permission dropped has written nothing.
+func newAttachedPeer(t *testing.T, addr string, grants ...testPeerEndpointGrant) (*Peer, *recordingConn) {
 	t.Helper()
 	settings := &PeerSettings{
-		Connection:      ConnectionBoth,
-		Address:         netip.MustParseAddr(addr),
-		LocalAS:         65000,
-		PeerAS:          65001,
-		RouterID:        0x01020301,
-		ProcessBindings: bindings,
+		Connection: ConnectionBoth,
+		Address:    netip.MustParseAddr(addr),
+		LocalAS:    65000,
+		PeerAS:     65001,
+		RouterID:   0x01020301,
+		Bus:        testBusBlockForGrants(grants...),
 	}
 	peer := NewPeer(settings)
 	peer.state.Store(int32(PeerStateEstablished))
@@ -57,28 +57,30 @@ func newAttachedPeer(t *testing.T, addr string, bindings ...ProcessBinding) (*Pe
 	return peer, conn
 }
 
-// newSendPermissionReactor assembles an adapter over the given peers.
-func newSendPermissionReactor(peers ...*Peer) *reactorAPIAdapter {
+// newSendPermissionReactor assembles an adapter over the given peers and
+// publishes their compiled DeliveryGraph.
+func newSendPermissionReactor(t *testing.T, peers ...*Peer) *reactorAPIAdapter {
+	t.Helper()
 	m := make(map[netip.AddrPort]*Peer, len(peers))
+	r := &Reactor{config: &Config{LocalAS: 65000}, peers: m}
 	for _, p := range peers {
 		m[p.settings.PeerKey()] = p
+		p.reactor = r
 	}
-	return &reactorAPIAdapter{r: &Reactor{config: &Config{LocalAS: 65000}, peers: m}}
+	publishTestBusGraph(t, r)
+	return &reactorAPIAdapter{r: r}
 }
 
-// sendUpdateOnly is the binding an operator writes for a program that
-// originates routes toward a peer and is told nothing by it: `attach process
-// <name> { send [ update ] }`, with no receive line at all. AC-11's config half.
-func sendUpdateOnly(process string) ProcessBinding {
-	return ProcessBinding{PluginName: process, Send: map[string]bool{bgpevents.SendUpdate: true}}
+// sendUpdateOnly grants a program permission to originate routes (`bgp:update`)
+// toward a peer without receiving anything from it.
+func sendUpdateOnly(process string) testPeerEndpointGrant {
+	return testPeerEndpointGrant{Name: process, Send: []string{bgpevents.SendUpdate}}
 }
 
-// sendRawOnly is the binding an operator writes for a program that builds whole
-// BGP messages itself: `attach process <name> { send [ raw ] }`. It is a
-// separate word from `update` because the bytes can be any message, an OPEN or a
-// NOTIFICATION included (owner ruling, 2026-08-30).
-func sendRawOnly(process string) ProcessBinding {
-	return ProcessBinding{PluginName: process, Send: map[string]bool{bgpevents.SendRaw: true}}
+// sendRawOnly grants a program permission to inject raw BGP messages (`bgp:raw`)
+// toward a peer.
+func sendRawOnly(process string) testPeerEndpointGrant {
+	return testPeerEndpointGrant{Name: process, Send: []string{bgpevents.SendRaw}}
 }
 
 // resetSendPermissionMetrics puts the package back to its unwired state so tests
@@ -126,7 +128,7 @@ func TestSendPermissionRefusesUnattachedPeer(t *testing.T) {
 
 	attached, attachedConn := newAttachedPeer(t, "10.0.0.2", sendUpdateOnly("injector"))
 	unattached, unattachedConn := newAttachedPeer(t, "10.0.0.3")
-	adapter := newSendPermissionReactor(attached, unattached)
+	adapter := newSendPermissionReactor(t, attached, unattached)
 
 	// AC-9. One command, every peer named, two different answers.
 	err := adapter.AnnounceEOR(selector.All(), uint16(family.AFIIPv4), uint8(family.SAFIUnicast), plugin.ProcessSender("injector"))
@@ -173,11 +175,11 @@ func TestSendPermissionRefusesUnattachedPeer(t *testing.T) {
 func TestSendPermissionSeparatesUpdateFromRefresh(t *testing.T) {
 	resetSendPermissionMetrics(t)
 
-	refreshOnly, conn := newAttachedPeer(t, "10.0.0.2", ProcessBinding{
-		PluginName: "poller",
-		Send:       map[string]bool{bgpevents.SendRefresh: true},
+	refreshOnly, conn := newAttachedPeer(t, "10.0.0.2", testPeerEndpointGrant{
+		Name: "poller",
+		Send: []string{bgpevents.SendRefresh},
 	})
-	adapter := newSendPermissionReactor(refreshOnly)
+	adapter := newSendPermissionReactor(t, refreshOnly)
 	all := selector.All()
 
 	require.NoError(t, adapter.SendRefresh(all, uint16(family.AFIIPv4), uint8(family.SAFIUnicast), plugin.ProcessSender("poller")),
@@ -199,7 +201,7 @@ func TestSendPermissionSeparatesUpdateFromRefresh(t *testing.T) {
 
 	// And the converse, so neither type is simply always allowed.
 	updateOnly, _ := newAttachedPeer(t, "10.0.0.4", sendUpdateOnly("injector"))
-	updateAdapter := newSendPermissionReactor(updateOnly)
+	updateAdapter := newSendPermissionReactor(t, updateOnly)
 	require.ErrorIs(t,
 		updateAdapter.SendRefresh(all, uint16(family.AFIIPv4), uint8(family.SAFIUnicast), plugin.ProcessSender("injector")),
 		errSendNotPermitted,
@@ -218,10 +220,10 @@ func TestSendPermissionGrantsTheWildcardAndNamesTheRightProcess(t *testing.T) {
 	resetSendPermissionMetrics(t)
 
 	peer, conn := newAttachedPeer(t, "10.0.0.2",
-		ProcessBinding{PluginName: "bridge", SendAll: true},
-		ProcessBinding{PluginName: "observer"}, // attached, granted nothing
+		testPeerEndpointGrant{Name: "bridge", SendAll: true},
+		testPeerEndpointGrant{Name: "observer"}, // attached, granted nothing
 	)
-	adapter := newSendPermissionReactor(peer)
+	adapter := newSendPermissionReactor(t, peer)
 	all := selector.All()
 
 	require.NoError(t, adapter.AnnounceEOR(all, uint16(family.AFIIPv4), uint8(family.SAFIUnicast), plugin.ProcessSender("bridge")),
@@ -258,7 +260,7 @@ func TestSendPermissionDoesNotGateAnOperator(t *testing.T) {
 	setSendPermissionMetricsRegistry(reg)
 
 	bare, conn := newAttachedPeer(t, "10.0.0.2")
-	adapter := newSendPermissionReactor(bare)
+	adapter := newSendPermissionReactor(t, bare)
 	all := selector.All()
 
 	require.NoError(t, adapter.AnnounceEOR(all, uint16(family.AFIIPv4), uint8(family.SAFIUnicast), plugin.OperatorSender()))
@@ -295,7 +297,7 @@ func TestSendPermissionRefusesACommandWithNoSender(t *testing.T) {
 
 	bare, conn := newAttachedPeer(t, "10.0.0.2")
 	attached, attachedConn := newAttachedPeer(t, "10.0.0.5", sendUpdateOnly("injector"))
-	adapter := newSendPermissionReactor(bare, attached)
+	adapter := newSendPermissionReactor(t, bare, attached)
 	all := selector.All()
 
 	var nobody plugin.Sender // the zero value: nobody said who is sending

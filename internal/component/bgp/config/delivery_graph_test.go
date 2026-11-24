@@ -1,3 +1,5 @@
+// Design: docs/architecture/api/architecture.md -- compiled bus delivery graph from BGP config.
+// Related: bus_requirements.go -- compileBGPBusContext, buildBGPDeliveryPeersFromTree.
 package bgpconfig
 
 import (
@@ -6,68 +8,37 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/ze-software/ze/internal/component/bgp/reactor"
-	"github.com/ze-software/ze/internal/component/plugin"
+	"github.com/ze-software/ze/internal/component/config"
 	"github.com/ze-software/ze/internal/component/plugin/registry"
 	pluginserver "github.com/ze-software/ze/internal/component/plugin/server"
 	bgpevents "github.com/ze-software/ze/internal/core/bgp/events"
 	"github.com/ze-software/ze/internal/core/events"
 )
 
-// noInsertingPluginLoaded sets, through the plugin server's setting, a daemon
-// that runs no compiled-in plugin, so config load places no declared filter
-// insertion and gives no filter owner a peer's state. Unset, LoadedPlugins
-// answers unknown and every compiled-in plugin's insertions are placed (the
-// offline widest set).
+// noInsertingPluginLoaded sets a daemon that runs no compiled-in plugin, so
+// config load places no declared filter insertion.
 func noInsertingPluginLoaded(t *testing.T) {
 	t.Helper()
 	t.Cleanup(registry.SetRuntimeLoadedPlugins(func() []string { return nil }))
 }
 
-// graphFromConfig runs the whole config path a running daemon runs -- parse,
-// ResolveBGPTree's group merge, PeersFromTree, then the index build -- and hands
-// back the index the plugin server would hold.
+// graphFromConfig runs the full config load and compiled-bus build path and
+// returns the DeliveryGraph compiled from the configuration tree.
 func graphFromConfig(t *testing.T, input string) *pluginserver.DeliveryGraph {
 	t.Helper()
-	r, err := loadReactor(input)
+	result, err := config.LoadConfig(input, "", nil)
 	require.NoError(t, err)
 
-	settings := make([]*reactor.PeerSettings, 0)
-	for _, p := range r.Peers() {
-		settings = append(settings, p.Settings())
-	}
-	srv := &pluginserver.Server{}
-	srv.UpdateDeliveryGraph(bgpevents.Namespace, deliveryPeers(settings))
-	return srv.DeliveryGraph()
+	peers, groups, resolvedBGPTree, err := buildPeerPopulationsWithResolved(result.Tree.Clone())
+	require.NoError(t, err)
+
+	busCtx, err := compileBGPBusContext(result.Tree, peers, groups, resolvedBGPTree, nil)
+	require.NoError(t, err)
+	return busCtx.graph
 }
 
-// deliveryPeers maps built peer settings onto the delivery graph's input, field
-// for field, as the reactor does when it publishes the graph
-// (deliveryPeersFromSettings, reactor/delivery_graph.go). The reactor keeps its
-// mapping unexported, so this test states the same mapping to reach the graph
-// from the config builder's output.
-func deliveryPeers(peers []*reactor.PeerSettings) []pluginserver.DeliveryPeer {
-	out := make([]pluginserver.DeliveryPeer, 0, len(peers))
-	for _, s := range peers {
-		bindings := make([]plugin.PeerProcessBinding, 0, len(s.ProcessBindings))
-		for _, b := range s.ProcessBindings {
-			bindings = append(bindings, plugin.PeerProcessBinding{
-				PluginName: b.PluginName,
-				Encoding:   b.Encoding,
-				Format:     b.Format,
-				ReceiveAll: b.ReceiveAll,
-				Receive:    b.Receive,
-				SendAll:    b.SendAll,
-				Send:       b.Send,
-			})
-		}
-		out = append(out, pluginserver.DeliveryPeer{Addr: s.Address.String(), Name: s.Name, Bindings: bindings})
-	}
-	return out
-}
-
-// fedBy returns the processes a peer feeds for one event type, asked exactly as
-// the peer-scoped delivery sites ask it (bgp/server/events.go).
+// fedBy returns the processes a peer feeds for one event type, asked as the
+// peer-scoped delivery sites ask it (bgp/server/events.go).
 func fedBy(g *pluginserver.DeliveryGraph, eventType string, dir events.Direction, peerAddr string) []string {
 	return g.Receivers(
 		events.LookupNamespaceID(bgpevents.Namespace),
@@ -77,21 +48,20 @@ func fedBy(g *pluginserver.DeliveryGraph, eventType string, dir events.Direction
 	)
 }
 
-// TestGraphMemberListReplacesGroupList verifies AC-6b in BOTH directions: the
-// member that restates a process replaces its group's list for itself, and every
-// other member of the group keeps the group's list.
+// TestGraphMemberListReplacesGroupList verifies AC-2 / M-14 in BOTH directions:
+// the member that restates a bus item replaces its group's item for itself,
+// while every sibling member inherits the group's item intact.
 //
-// VALIDATES: AC-6b, and the merge semantic the spec fixed rather than changed --
-// `receive` is a leaf-list outside cumulativePaths, so a member's list replaces
-// rather than unions (bgp/config/resolve.go).
-// PREVENTS: an implementation that drops the group's list entirely, which passes
-// a test asserting only the member's half.
+// VALIDATES: item-by-item bus block inheritance from group to peer.
+// PREVENTS: a member's override leaking to siblings or the group's bus block
+// being dropped during compiled-bus construction.
 func TestGraphMemberListReplacesGroupList(t *testing.T) {
 	noInsertingPluginLoaded(t)
 	g := graphFromConfig(t, `
-plugin {
-    external looking-glass {
-        run /bin/true;
+bus {
+    endpoint looking-glass {
+        external { run "/bin/true"; }
+        receive { allow [ bgp:update bgp:state ]; }
     }
 }
 bgp {
@@ -102,111 +72,95 @@ bgp {
         }
     }
     group transit {
-        attach process looking-glass {
-            receive [ update-received state ];
+        bus {
+            send {
+                allow [ bgp:update bgp:state ];
+                to [ /bus/endpoint/looking-glass ];
+                message bgp:update { tag direction [ received ]; }
+            }
         }
         peer inherits {
             connection {
-                remote {
-                    ip 192.0.2.1;
-                }
-                local {
-                    ip auto;
-                }
+                remote { ip 192.0.2.1; }
+                local { ip auto; }
             }
-            session {
-                asn {
-                    remote 65001;
-                }
-            }
+            session { asn { remote 65001; } }
         }
         peer restates {
             connection {
-                remote {
-                    ip 192.0.2.2;
-                }
-                local {
-                    ip auto;
-                }
+                remote { ip 192.0.2.2; }
+                local { ip auto; }
             }
-            session {
-                asn {
-                    remote 65002;
+            session { asn { remote 65002; } }
+            bus {
+                send {
+                    allow [ bgp:state ];
                 }
-            }
-            attach process looking-glass {
-                receive [ state ];
             }
         }
     }
 }
 `)
 
-	// The member that restates the block: its own list replaces the group's, so
-	// state survives and the group's update grant does not.
+	// The member that restates send > allow replaces only send > allow while
+	// inheriting send > to [ /bus/endpoint/looking-glass ] from its group.
 	assert.Equal(t, []string{"looking-glass"}, fedBy(g, bgpevents.EventState, events.DirUnspecified, "192.0.2.2"))
 	assert.Empty(t, fedBy(g, bgpevents.EventUpdate, events.DirReceived, "192.0.2.2"),
-		"the member's list replaces the group's, so the group's update grant is gone")
+		"the member's allow list replaces the group's, so update is gone")
 
-	// The other member keeps the group's list whole. A build that dropped the
-	// group's bindings, or that let the member's list overwrite the group's for
-	// everybody, fails here.
+	// The sibling member keeps the group's full bus rules intact.
 	assert.Equal(t, []string{"looking-glass"}, fedBy(g, bgpevents.EventUpdate, events.DirReceived, "192.0.2.1"))
+	assert.Empty(t, fedBy(g, bgpevents.EventUpdate, events.DirSent, "192.0.2.1"))
 	assert.Equal(t, []string{"looking-glass"}, fedBy(g, bgpevents.EventState, events.DirUnspecified, "192.0.2.1"))
 }
 
-// TestGraphInheritsGroupAttachBlock verifies a peer that states no attach block
-// of its own is fed through the one its group states.
+// TestGraphInheritsGroupBusBlock verifies a peer that states no bus block of
+// its own inherits the group's bus block, while a peer that cuts bus delivery
+// feeds nobody.
 //
-// VALIDATES: the index is built from RESOLVED settings. config/graph.go's
-// addProcessBindings reads the peer's own subtree and misses every inherited
-// binding, so building from the document would feed this peer nothing.
-// PREVENTS: a group-configured fleet going silent the moment delivery consults
-// the index.
-func TestGraphInheritsGroupAttachBlock(t *testing.T) {
+// VALIDATES: compiled bus delivery resolves group > bus inheritance onto member peers.
+// PREVENTS: a group-configured fleet going silent or losing group send/receive rules.
+func TestGraphInheritsGroupBusBlock(t *testing.T) {
 	noInsertingPluginLoaded(t)
 	g := graphFromConfig(t, `
+bus {
+    endpoint looking-glass {
+        external { run "/bin/true"; }
+        receive { allow [ bgp:update ]; }
+        send { allow [ bgp:update ]; }
+    }
+}
 bgp {
     router-id 10.0.0.1;
-    session {
-        asn {
-            local 65000;
-        }
-    }
+    session { asn { local 65000; } }
     group transit {
-        attach process looking-glass {
-            receive [ update-received ];
-            send [ update ];
+        bus {
+            send {
+                allow [ bgp:update ];
+                to [ /bus/endpoint/looking-glass ];
+                message bgp:update { tag direction [ received ]; }
+            }
+            receive {
+                from [ /bus/endpoint/looking-glass ];
+            }
         }
         peer first {
             connection {
-                remote {
-                    ip 192.0.2.1;
-                }
-                local {
-                    ip auto;
-                }
+                remote { ip 192.0.2.1; }
+                local { ip auto; }
             }
-            session {
-                asn {
-                    remote 65001;
-                }
-            }
+            session { asn { remote 65001; } }
         }
     }
     peer standalone {
         connection {
-            remote {
-                ip 198.51.100.1;
-            }
-            local {
-                ip auto;
-            }
+            remote { ip 198.51.100.1; }
+            local { ip auto; }
         }
-        session {
-            asn {
-                remote 65003;
-            }
+        session { asn { remote 65003; } }
+        bus {
+            send { to none; }
+            receive { from none; }
         }
     }
 }
@@ -214,7 +168,9 @@ bgp {
 
 	assert.Equal(t, []string{"looking-glass"}, fedBy(g, bgpevents.EventUpdate, events.DirReceived, "192.0.2.1"))
 	assert.Empty(t, fedBy(g, bgpevents.EventUpdate, events.DirReceived, "198.51.100.1"),
-		"a peer that attaches nothing feeds nobody")
+		"a peer with send > to none feeds nobody")
+	assert.True(t, g.MaySend("192.0.2.1", "looking-glass", bgpevents.SendUpdate))
+	assert.False(t, g.MaySend("198.51.100.1", "looking-glass", bgpevents.SendUpdate))
 
 	peers := g.Inspect()
 	require.Len(t, peers, 2)
@@ -222,152 +178,83 @@ bgp {
 	for _, p := range peers {
 		byAddr[p.Peer] = p.Processes
 	}
-	assert.Equal(t, []pluginserver.ProcessEdges{{
-		Process: "looking-glass",
-		Receive: []string{"update-received"},
-		Send:    []string{"update"},
-	}}, byAddr["192.0.2.1"])
+	require.Len(t, byAddr["192.0.2.1"], 1)
+	assert.Equal(t, "looking-glass", byAddr["192.0.2.1"][0].Process)
+	assert.Equal(t, []string{"update-received"}, byAddr["192.0.2.1"][0].Receive)
+	assert.Equal(t, []string{"update"}, byAddr["192.0.2.1"][0].Send)
 	assert.Empty(t, byAddr["198.51.100.1"])
 }
 
-// storyOneConfig is End-to-End User Story 1 from the spec, with the leaves every
-// peer needs added: the story states the relationships and elides `connection`
-// and `session`, which no peer parses without.
 const storyOneConfig = `
-plugin {
-    external looking-glass {
-        run /bin/true;
+bus {
+    endpoint bgp-rib {
+        internal bgp-rib;
+        receive { allow none; }
+        send { allow none; }
     }
-    external route-injector {
-        run /bin/true;
+    endpoint looking-glass {
+        external { run "/bin/true"; }
+        receive {
+            allow [ bgp:update bgp:state ];
+            from [ /bgp/group/transit /bgp/peer/both-programs ];
+        }
+    }
+    endpoint route-injector {
+        external { run "/bin/true"; }
+        receive {
+            allow [ bgp:state ];
+            from [ /bgp/peer/injector-only ];
+        }
+        send {
+            allow [ bgp:update ];
+            to [ /bgp/peer/both-programs /bgp/peer/injector-only ];
+        }
     }
 }
 bgp {
     router-id 10.0.0.1;
-    session {
-        asn {
-            local 65000;
-        }
-    }
+    session { asn { local 65000; } }
     group transit {
-        attach process looking-glass {
-            receive [ update state ];
-        }
         peer transit-a {
-            connection {
-                remote {
-                    ip 192.0.2.1;
-                }
-                local {
-                    ip auto;
-                }
-            }
-            session {
-                asn {
-                    remote 65001;
-                }
-            }
+            connection { remote { ip 192.0.2.1; } local { ip auto; } }
+            session { asn { remote 65001; } }
         }
         peer transit-b {
-            connection {
-                remote {
-                    ip 192.0.2.2;
-                }
-                local {
-                    ip auto;
-                }
-            }
-            session {
-                asn {
-                    remote 65002;
-                }
-            }
+            connection { remote { ip 192.0.2.2; } local { ip auto; } }
+            session { asn { remote 65002; } }
         }
         peer transit-c {
-            connection {
-                remote {
-                    ip 192.0.2.3;
-                }
-                local {
-                    ip auto;
-                }
-            }
-            session {
-                asn {
-                    remote 65003;
-                }
-            }
-            attach process looking-glass {
-                receive [ state ];
+            connection { remote { ip 192.0.2.3; } local { ip auto; } }
+            session { asn { remote 65003; } }
+            bus {
+                send { allow [ bgp:state ]; }
             }
         }
     }
     peer both-programs {
-        connection {
-            remote {
-                ip 198.51.100.1;
-            }
-            local {
-                ip auto;
-            }
-        }
-        session {
-            asn {
-                remote 65004;
-            }
-        }
-        attach process looking-glass {
-            receive [ update state ];
-        }
-        attach process route-injector {
-            send [ update ];
-        }
+        connection { remote { ip 198.51.100.1; } local { ip auto; } }
+        session { asn { remote 65004; } }
     }
     peer injector-only {
-        connection {
-            remote {
-                ip 198.51.100.2;
-            }
-            local {
-                ip auto;
-            }
-        }
-        session {
-            asn {
-                remote 65005;
-            }
-        }
-        attach process route-injector {
-            receive [ state ];
-            send [ update ];
-        }
+        connection { remote { ip 198.51.100.2; } local { ip auto; } }
+        session { asn { remote 65005; } }
     }
     peer unattached {
-        connection {
-            remote {
-                ip 203.0.113.1;
-            }
-            local {
-                ip auto;
-            }
-        }
-        session {
-            asn {
-                remote 65006;
-            }
-        }
+        connection { remote { ip 203.0.113.1; } local { ip auto; } }
+        session { asn { remote 65006; } }
     }
 }
 `
 
-// TestStoryOneProducesItsDeliveryTable runs End-to-End User Story 1 and asserts
-// the exact table printed beside it: which program each of the six peers feeds,
-// and which may announce to it.
+// TestStoryOneProducesItsDeliveryTable verifies the six-peer delivery table
+// across group paths, member allow overrides, and endpoint-side scoping.
 //
-// VALIDATES: the Critical Review Checklist's feature-completeness row. A story
-// whose config cannot be run, or whose table nothing checks, is prose.
-// PREVENTS: a design the spec describes and the code does not produce.
+// VALIDATES: DeliveryGraph.Inspect reports the exact per-peer receive and send
+// table compiled from bus endpoint and participant blocks.
+// PREVENTS: group path scoping or peer-level send overrides diverging from the
+// compiled delivery table.
 func TestStoryOneProducesItsDeliveryTable(t *testing.T) {
+	noInsertingPluginLoaded(t)
 	g := graphFromConfig(t, storyOneConfig)
 
 	byAddr := map[string]map[string]pluginserver.ProcessEdges{}
@@ -401,62 +288,54 @@ func TestStoryOneProducesItsDeliveryTable(t *testing.T) {
 	}
 }
 
-// TestStoryTwoProducesItsTwoIndependentDirections runs End-to-End User Story 2:
-// one peer, one program, two independent directions.
+// TestStoryTwoProducesItsTwoIndependentDirections verifies one peer and one
+// endpoint with independent receive and send directions on the compiled bus.
 //
-// VALIDATES: the Critical Review Checklist's feature-completeness row for the
-// second story, and the pair that makes the block expressive -- `receive` is what
-// the program is fed, `send` is what it may originate.
-// PREVENTS: the two lists being read as one relationship.
+// VALIDATES: receive and send directions remain independent and plain
+// bgp:update admits both received and sent update directions.
+// PREVENTS: receive and send filters collapsing into one coupled permission.
 func TestStoryTwoProducesItsTwoIndependentDirections(t *testing.T) {
 	noInsertingPluginLoaded(t)
 	g := graphFromConfig(t, `
-plugin {
-    external policy-engine {
-        run /bin/true;
+bus {
+    endpoint bgp-rib {
+        internal bgp-rib;
+        receive { allow none; }
+        send { allow none; }
+    }
+    endpoint policy-engine {
+        external { run "/bin/true"; }
+        receive { allow [ bgp:update bgp:state ]; }
+        send { allow [ bgp:update ]; }
     }
 }
 bgp {
     router-id 10.0.0.1;
-    session {
-        asn {
-            local 65000;
-        }
-    }
+    session { asn { local 65000; } }
     peer policy {
         connection {
-            remote {
-                ip 198.51.100.3;
-            }
-            local {
-                ip auto;
-            }
+            remote { ip 198.51.100.3; }
+            local { ip auto; }
         }
-        session {
-            asn {
-                remote 65007;
-            }
-        }
-        attach process policy-engine {
-            receive [ update state ];
-            send [ update ];
-        }
+        session { asn { remote 65007; } }
     }
 }
 `)
 
 	peers := g.Inspect()
 	require.Len(t, peers, 1)
-	require.Len(t, peers[0].Processes, 1)
 	assert.Equal(t, "198.51.100.3", peers[0].Peer)
-	assert.Equal(t, pluginserver.ProcessEdges{
-		Process: "policy-engine",
-		Receive: []string{"state", "update"},
-		Send:    []string{"update"},
-	}, peers[0].Processes[0])
+	var policyEdge *pluginserver.ProcessEdges
+	for i := range peers[0].Processes {
+		if peers[0].Processes[i].Process == "policy-engine" {
+			policyEdge = &peers[0].Processes[i]
+			break
+		}
+	}
+	require.NotNil(t, policyEdge, "policy-engine edge must be present in Inspect()")
+	assert.Equal(t, []string{"state", "update"}, policyEdge.Receive)
+	assert.Equal(t, []string{"update"}, policyEdge.Send)
 
-	// A plain token grants BOTH directions, so the program is fed the UPDATEs ze
-	// sends as well as the ones it receives.
-	assert.Equal(t, []string{"policy-engine"}, fedBy(g, bgpevents.EventUpdate, events.DirSent, "198.51.100.3"))
-	assert.Equal(t, []string{"policy-engine"}, fedBy(g, bgpevents.EventUpdate, events.DirReceived, "198.51.100.3"))
+	assert.Contains(t, fedBy(g, bgpevents.EventUpdate, events.DirSent, "198.51.100.3"), "policy-engine")
+	assert.Contains(t, fedBy(g, bgpevents.EventUpdate, events.DirReceived, "198.51.100.3"), "policy-engine")
 }

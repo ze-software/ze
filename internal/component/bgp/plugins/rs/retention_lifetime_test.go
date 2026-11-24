@@ -67,7 +67,7 @@ func TestRetentionBusOwnershipLifetime(t *testing.T) {
 			}
 			const owned = "192.0.2.1"
 			original := rsFixtureKey(owned, 1, 101)
-			deliver("peer 192.0.2.1 remote as 65001 state up reason attached peer-owner 1 connection-id 101 destination-session 201 session-generation 7")
+			deliver("peer 192.0.2.1 remote as 65001 state up reason attached peer-owner 1 connection-id 101 destination-session 201 session-generation 7 rs-client true")
 			if err := rs.acquireSource(original, 301); err != nil {
 				t.Fatal(err)
 			}
@@ -88,7 +88,7 @@ func TestRetentionBusOwnershipLifetime(t *testing.T) {
 			}
 			// The same display address's next physical lifetime owns no old verdict.
 			successor := rsFixtureKey(owned, 1, 102)
-			deliver("peer 192.0.2.1 remote as 65001 state up reason attached peer-owner 1 connection-id 102 destination-session 202 session-generation 8")
+			deliver("peer 192.0.2.1 remote as 65001 state up reason attached peer-owner 1 connection-id 102 destination-session 202 session-generation 8 rs-client true")
 			emit(successor, nil)
 			deliver("peer 192.0.2.1 remote as 65001 state down session-generation 8 peer-owner 1 connection-id 102")
 			if err := rs.settlePendingDown(ctx, successor); err != nil {
@@ -133,7 +133,7 @@ func TestRetentionStructuredOwnershipLifetime(t *testing.T) {
 	for index, reason := range []string{rpc.ReasonNotification, rpc.ReasonPeerRemoved} {
 		physical := uint64(index + 101)
 		original := rsFixtureKey(peer, 1, physical)
-		rs.handleState(parseStructuredState(&rpc.StructuredEvent{PeerAddress: peer, PeerOwner: 1, ConnectionID: physical, DestinationSession: uint64(index + 201), SessionGeneration: uint64(index + 7), State: rpc.SessionStateUp, Reason: rpc.ReasonAttached}))
+		rs.handleState(parseStructuredState(&rpc.StructuredEvent{PeerAddress: peer, PeerOwner: 1, ConnectionID: physical, DestinationSession: uint64(index + 201), SessionGeneration: uint64(index + 7), State: rpc.SessionStateUp, Reason: rpc.ReasonAttached, RSClient: true}))
 		if err := rs.acquireSource(original, uint64(index+301)); err != nil {
 			t.Fatal(err)
 		}

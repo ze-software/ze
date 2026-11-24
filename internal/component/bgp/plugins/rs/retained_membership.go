@@ -8,6 +8,9 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"errors"
+	"net/netip"
+	"strings"
+
 	"github.com/ze-software/ze/internal/component/bgp/textparse"
 	"github.com/ze-software/ze/internal/core/bgp/attribute"
 	"github.com/ze-software/ze/internal/core/bgp/nlri"
@@ -15,8 +18,6 @@ import (
 	"github.com/ze-software/ze/internal/core/bgp/ribevents"
 	"github.com/ze-software/ze/internal/core/family"
 	"github.com/ze-software/ze/pkg/plugin/rpc"
-	"net/netip"
-	"strings"
 )
 
 func wireNoLLGR(attrs *attribute.AttributesWire) bool {
@@ -202,6 +203,10 @@ func (rs *routeServer) currentStoredRouteLocked(route rpc.StoredRoute) bool {
 		rs.mu.RUnlock()
 		return false
 	}
+	if !actor.RSClient {
+		rs.mu.RUnlock()
+		return false
+	}
 	if !actor.sourceLease || actor.sourceReceipt != route.SourceReceipt {
 		rs.mu.RUnlock()
 		return false
@@ -281,7 +286,7 @@ func (rs *routeServer) prepareStoredSources(ctx context.Context, routes []rpc.St
 		}
 		actor.leaseMu.Lock()
 		rs.mu.RLock()
-		adopt := actor.Up && actor.adoptionOpen
+		adopt := actor.Up && actor.RSClient && actor.adoptionOpen
 		rs.mu.RUnlock()
 		if adopt {
 			err = rs.acquireSourceLocked(source, route.SourceReceipt)
@@ -384,7 +389,7 @@ func (rs *routeServer) checkColdRoutes(ctx context.Context, routes []rpc.StoredR
 		actor := rs.peers[source]
 		command := rs.receiveGate
 		flowCommand := rs.flowSpecGate
-		live := actor != nil && actor.Up && actor.adoptionOpen && actor.sourceLease
+		live := actor != nil && actor.Up && actor.RSClient && actor.adoptionOpen && actor.sourceLease
 		var revision, processed uint64
 		if live {
 			revision, processed = actor.inventoryRevision, actor.processedMsgID
@@ -548,6 +553,7 @@ func (rs *routeServer) adoptStoredRouteLocked(source workerKey, route rpc.Stored
 	// the original scalar identifier including zero, independent of whether the
 	// source context negotiated it. This flag describes these command bytes.
 	raw, err := hex.DecodeString(route.NLRIHex)
+	// refuse-by-default: guards admitStoredRoutesLocked -- corrupt stored hex rejects adoption so the caller refuses the cold page.
 	if err != nil {
 		return false
 	}

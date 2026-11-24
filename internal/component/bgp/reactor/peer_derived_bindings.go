@@ -1,15 +1,16 @@
 // Design: docs/architecture/core-design.md — config reload delivers changed peer settings
-// Related: peer_settings_apply.go — hotSwappableSettings carries receive-only bindings, applyHotSwappableSettings delivers them in order
-// Related: reactor_dynamic.go — reconcileDynamicGroupsJournaled swaps a dynamic peer's bindings through the same ordered delivery
-// Related: delivery_graph.go — the peer-to-process index a delivered binding republishes
-// Related: config.go — parseProcessBindingsFromTree and EnsureProcessBinding, the writers of a binding
+// Related: peer_settings_apply.go — hotSwappableSettings carries feed-only bus changes, applyHotSwappableSettings delivers them in order
+// Related: reactor_dynamic.go — reconcileDynamicGroupsJournaled swaps a dynamic peer's bus block through the same ordered delivery
+// Related: delivery_graph.go — the peer-to-process index a delivered bus block republishes
+// Related: config.go — parsePeerBusFromTree, the parser of a peer's bus filter block
 // RFC: rfc/short/rfc2918.md — ROUTE-REFRESH, how a new consumer learns what the peer sent
 package reactor
 
 import (
 	"fmt"
-	"reflect"
+	"maps"
 	"slices"
+	"strings"
 
 	"github.com/ze-software/ze/internal/component/bgp/format"
 	"github.com/ze-software/ze/internal/component/bgp/message"
@@ -17,8 +18,16 @@ import (
 	"github.com/ze-software/ze/internal/component/plugin"
 	"github.com/ze-software/ze/internal/core/bgp/capability"
 	bgpevents "github.com/ze-software/ze/internal/core/bgp/events"
+	"github.com/ze-software/ze/internal/core/diagnostic"
 	"github.com/ze-software/ze/internal/core/events"
 	"github.com/ze-software/ze/pkg/plugin/rpc"
+)
+
+const (
+	bgpMsgOpen       = bgpevents.Namespace + ":" + bgpevents.EventOpen
+	bgpMsgState      = bgpevents.Namespace + ":" + bgpevents.EventState
+	bgpMsgNegotiated = bgpevents.Namespace + ":" + bgpevents.EventNegotiated
+	bgpMsgPrefix     = bgpevents.Namespace + ":"
 )
 
 // peerBindEvents is what the ordered bind delivery tells the plugins when a
@@ -36,12 +45,12 @@ type peerBindEvents interface {
 	OnPeerUnbound(peer *plugin.PeerInfo, state rpc.SessionState, reason string, processes []string)
 }
 
-// routeFreeReceiveTypes are the receive types that carry no route. A process
-// attached with only these to a running session has nothing to catch up on.
+// routeFreeReceiveTypes are the event types that carry no route. A process
+// fed only these from a running session has nothing to catch up on.
 // Every other type, a plugin-registered one included, counts as route-bearing:
 // answering "carries routes" for a type that does not costs one catch-up, where
 // the opposite answer would leave a consumer without routes. The OPEN is not
-// listed because a binding receiving it is never receive-only.
+// listed because a bus change touching bgp:open is never hot-swappable.
 var routeFreeReceiveTypes = map[string]bool{
 	bgpevents.EventState:        true,
 	bgpevents.EventNegotiated:   true,
@@ -50,35 +59,39 @@ var routeFreeReceiveTypes = map[string]bool{
 	bgpevents.EventRefresh:      true,
 }
 
-// receiveOnly reports whether b grants the process no send type and does not
-// show it the OPEN exchange. Such a binding only feeds a consumer: the process
-// can put nothing on this peer's wire through it, so it is outside the initial
-// routing update and the session-ready expectation set that arms the replay
-// fence (ProcessBinding.MayPushRoutes, Peer.resetAPISync), and a running
-// session can take it on or let it go.
-//
-// The rule reads the grant, never who wrote it: an operator's attach block and
-// a binding the config builder adds (EnsureProcessBinding) are judged alike.
-// The OPEN refuses it because only a new session produces an OPEN the process
-// can be shown, and the wildcard grants the OPEN.
-func (b *ProcessBinding) receiveOnly() bool {
-	if b.SendAll {
-		return false
-	}
-	if len(b.Send) > 0 {
-		return false
-	}
-	if b.ReceiveAll {
-		return false
-	}
-	return b.Receive[bgpevents.EventOpen] == events.DirUnspecified
+// endpointFeedSpec summarizes the messages and directions one peer's bus send
+// block feeds to a specific endpoint.
+type endpointFeedSpec struct {
+	allMsgs bool
+	msgs    map[string]events.Direction
 }
 
-// routeDirections reports whether b's grant carries routes the peer sent
-// (received) and routes this speaker sent the peer (sent). A bare type is
-// granted in both directions (events.SplitTypeToken), so `update` sets both.
-func (b *ProcessBinding) routeDirections() (received, sent bool) {
-	for eventType, dir := range b.Receive {
+func (f endpointFeedSpec) equal(other endpointFeedSpec) bool {
+	if f.allMsgs != other.allMsgs {
+		return false
+	}
+	return maps.Equal(f.msgs, other.msgs)
+}
+
+func (f endpointFeedSpec) receivesState() bool {
+	if f.allMsgs {
+		return true
+	}
+	return f.msgs[bgpevents.EventState] != events.DirUnspecified
+}
+
+func (f endpointFeedSpec) receivesNegotiated() bool {
+	if f.allMsgs {
+		return true
+	}
+	return f.msgs[bgpevents.EventNegotiated] != events.DirUnspecified
+}
+
+func (f endpointFeedSpec) routeDirections() (received, sent bool) {
+	if f.allMsgs {
+		return true, true
+	}
+	for eventType, dir := range f.msgs {
 		if routeFreeReceiveTypes[eventType] {
 			continue
 		}
@@ -88,104 +101,334 @@ func (b *ProcessBinding) routeDirections() (received, sent bool) {
 	return received, sent
 }
 
-// onlyReceiveOnlyBindingsDiffer reports whether current and next hold the same
-// bindings, in the same order, once the receive-only bindings on each side are
-// set aside.
-//
-// A binding that may send, or that receives the OPEN, still restarts the
-// session when it changes. So does a binding that moves between the two kinds,
-// because it is set aside on one side only.
-//
-// Each pass of the loop consumes one binding from each list, so it runs at most
-// len(current)+len(next) times.
-func onlyReceiveOnlyBindingsDiffer(current, next []ProcessBinding) bool {
-	i, j := 0, 0
-	for {
-		for i < len(current) && current[i].receiveOnly() {
-			i++
+// busSendOpenSpec returns the effective bgp:open feed rule of a peer's bus send
+// block so onlyReceiveOnlyBusDiffers can detect any OPEN delivery change.
+func busSendOpenSpec(d plugin.BusDirectionBlock) (allowed, targetsNone bool, targets []string, tags map[string][]string) {
+	if d.AllowPresent {
+		if d.AllowNone {
+			return false, false, nil, nil
 		}
-		for j < len(next) && next[j].receiveOnly() {
-			j++
+		if !slices.Contains(d.Allow, bgpMsgOpen) {
+			return false, false, nil, nil
 		}
-		if i == len(current) || j == len(next) {
-			return i == len(current) && j == len(next)
+	}
+	if rule := d.Messages[bgpMsgOpen]; rule != nil {
+		tags = rule.Tags
+		if rule.TargetsPresent {
+			return true, rule.TargetsNone, rule.Targets, tags
 		}
-		if !reflect.DeepEqual(current[i], next[j]) {
+	}
+	if d.TargetsPresent {
+		return true, d.TargetsNone, d.Targets, tags
+	}
+	return true, false, nil, tags
+}
+
+func tagsEqual(a, b map[string][]string) bool {
+	if len(a) != len(b) {
+		return false
+	}
+	for k, va := range a {
+		vb, ok := b[k]
+		if !ok {
 			return false
 		}
-		i++
-		j++
-	}
-}
-
-// receiveBindingChange names the processes a peer starts and stops feeding
-// through a receive-only binding when its bindings move from before to after.
-//
-// A process that keeps a receive-only binding with a different grant is in
-// BOTH lists: its consumer's picture under the old grant cannot be told apart
-// from the new one, so it is told the peer is down and then up again, and is
-// caught up like a process attached for the first time.
-func receiveBindingChange(before, after []ProcessBinding) (gained, lost []string) {
-	for i := range after {
-		if after[i].receiveOnly() && !holdsSameBinding(before, &after[i]) {
-			gained = append(gained, after[i].PluginName)
+		if !plugin.StringSetEqual(va, vb) {
+			return false
 		}
 	}
-	for i := range before {
-		if before[i].receiveOnly() && !holdsSameBinding(after, &before[i]) {
-			lost = append(lost, before[i].PluginName)
-		}
-	}
-	return gained, lost
+	return true
 }
 
-// holdsSameBinding reports whether bindings holds b's process with b's grant.
-func holdsSameBinding(bindings []ProcessBinding, b *ProcessBinding) bool {
-	for i := range bindings {
-		if bindings[i].PluginName == b.PluginName {
-			return reflect.DeepEqual(bindings[i], *b)
+func busTargetsCover(targets []string, epPath string) bool {
+	for _, target := range targets {
+		if plugin.PathCovers(target, epPath) {
+			return true
 		}
 	}
 	return false
 }
 
-// bindingFor returns the binding bindings holds for process, or nil.
-func bindingFor(bindings []ProcessBinding, process string) *ProcessBinding {
-	for i := range bindings {
-		if bindings[i].PluginName == process {
-			return &bindings[i]
+// busReceivePermitsEndpoint reports whether a peer's Bus.Receive block permits
+// endpointName (at /bus/endpoint/<name>) to send at least one message to the peer.
+func busReceivePermitsEndpoint(d plugin.BusDirectionBlock, endpointName string) bool {
+	if d.AllowPresent && d.AllowNone {
+		return false
+	}
+	epPath := plugin.EndpointPath(endpointName)
+	for _, rule := range d.Messages {
+		if rule == nil {
+			continue
+		}
+		if rule.TargetsPresent {
+			if !rule.TargetsNone && busTargetsCover(rule.Targets, epPath) {
+				return true
+			}
+			continue
+		}
+		if !d.TargetsPresent {
+			return true
+		}
+		if !d.TargetsNone && busTargetsCover(d.Targets, epPath) {
+			return true
 		}
 	}
-	return nil
+	if !d.TargetsPresent {
+		return true
+	}
+	if d.TargetsNone {
+		return false
+	}
+	return busTargetsCover(d.Targets, epPath)
 }
 
-// withoutProcesses returns a copy of bindings with the named processes' bindings
-// left out.
-func withoutProcesses(bindings []ProcessBinding, processes []string) []ProcessBinding {
-	kept := make([]ProcessBinding, 0, len(bindings))
-	for i := range bindings {
-		if !slices.Contains(processes, bindings[i].PluginName) {
-			kept = append(kept, bindings[i])
+// onlyReceiveOnlyBusDiffers reports whether current and next differ only in
+// non-OPEN peer-to-endpoint feed rules (Bus.Send) for endpoints that hold no
+// send grant toward this peer. Any change to Bus.Receive, to bgp:open delivery,
+// or to the feed of an endpoint that holds a send grant forces a session restart.
+func onlyReceiveOnlyBusDiffers(current, next plugin.BusBlock) bool {
+	if !plugin.BusDirectionBlockEqual(current.Receive, next.Receive) {
+		return false
+	}
+	if plugin.BusDirectionBlockEqual(current.Send, next.Send) {
+		return true
+	}
+	cOpen, cNone, cTargets, cTags := busSendOpenSpec(current.Send)
+	nOpen, nNone, nTargets, nTags := busSendOpenSpec(next.Send)
+	if cOpen != nOpen {
+		return false
+	}
+	if cOpen {
+		if cNone != nNone {
+			return false
+		}
+		if !plugin.StringSetEqual(cTargets, nTargets) {
+			return false
+		}
+		if !tagsEqual(cTags, nTags) {
+			return false
 		}
 	}
-	return kept
+	curFeeds, curWild := busSendEndpointFeeds(current.Send)
+	nextFeeds, nextWild := busSendEndpointFeeds(next.Send)
+	if curWild != nextWild {
+		if !(current.Receive.AllowPresent && current.Receive.AllowNone) &&
+			!(current.Receive.TargetsPresent && current.Receive.TargetsNone && len(current.Receive.Messages) == 0) {
+			return false
+		}
+	}
+	for ep, cf := range curFeeds {
+		if nf, ok := nextFeeds[ep]; !ok || !cf.equal(nf) {
+			if busReceivePermitsEndpoint(current.Receive, ep) {
+				return false
+			}
+		}
+	}
+	for ep := range nextFeeds {
+		if _, ok := curFeeds[ep]; !ok {
+			if busReceivePermitsEndpoint(current.Receive, ep) {
+				return false
+			}
+		}
+	}
+	return true
 }
 
-// grantedProcesses returns the processes among names whose binding in bindings
-// passes granted.
-func grantedProcesses(bindings []ProcessBinding, names []string, granted func(*ProcessBinding) bool) []string {
-	var out []string
-	for _, name := range names {
-		if b := bindingFor(bindings, name); b != nil && granted(b) {
-			out = append(out, name)
+func directionFromRule(rule *plugin.BusMessageRule) events.Direction {
+	if rule == nil {
+		return events.DirBoth
+	}
+	vals := rule.Tags[events.TagDirection]
+	if len(vals) == 0 {
+		return events.DirBoth
+	}
+	var dir events.Direction
+	for _, v := range vals {
+		switch v {
+		case events.DirectionReceived:
+			dir |= events.DirReceived
+		case events.DirectionSent:
+			dir |= events.DirSent
+		}
+	}
+	return dir
+}
+
+func bareBGPEventName(msg string) string {
+	return strings.TrimPrefix(msg, bgpMsgPrefix)
+}
+
+func endpointNameFromBusPath(path string) (string, bool) {
+	ep, ok := strings.CutPrefix(path, plugin.BusEndpointPathPrefix)
+	if !ok {
+		return "", false
+	}
+	if ep == "" {
+		return "", false
+	}
+	if strings.Contains(ep, "/") {
+		return "", false
+	}
+	return ep, true
+}
+
+// busSendEndpointFeeds projects a peer's bus send block into per-endpoint feed
+// specs for every exact /bus/endpoint/<name> target named in the block, and
+// reports whether the block also covers wildcard or prefix targets.
+func busSendEndpointFeeds(d plugin.BusDirectionBlock) (feeds map[string]endpointFeedSpec, wildcard bool) {
+	if d.AllowPresent && d.AllowNone {
+		return nil, false
+	}
+	feeds = make(map[string]endpointFeedSpec)
+	addMsg := func(ep, bareMsg string, dir events.Direction) {
+		if dir == events.DirUnspecified {
+			return
+		}
+		spec := feeds[ep]
+		if spec.msgs == nil {
+			spec.msgs = make(map[string]events.Direction)
+		}
+		spec.msgs[bareMsg] |= dir
+		feeds[ep] = spec
+	}
+	addAll := func(ep string) {
+		spec := feeds[ep]
+		spec.allMsgs = true
+		feeds[ep] = spec
+	}
+
+	if d.AllowPresent {
+		for _, msg := range d.Allow {
+			bare := bareBGPEventName(msg)
+			rule := d.Messages[msg]
+			dir := directionFromRule(rule)
+			targetsPresent := d.TargetsPresent
+			targetsNone := d.TargetsNone
+			targets := d.Targets
+			if rule != nil && rule.TargetsPresent {
+				targetsPresent = true
+				targetsNone = rule.TargetsNone
+				targets = rule.Targets
+			}
+			if targetsNone {
+				continue
+			}
+			if !targetsPresent {
+				wildcard = true
+				continue
+			}
+			for _, tp := range targets {
+				if ep, ok := endpointNameFromBusPath(tp); ok {
+					addMsg(ep, bare, dir)
+				} else {
+					wildcard = true
+				}
+			}
+		}
+		return feeds, wildcard
+	}
+
+	// !AllowPresent: all declared messages allowed unless narrowed per message.
+	if d.TargetsPresent {
+		if !d.TargetsNone {
+			for _, tp := range d.Targets {
+				if ep, ok := endpointNameFromBusPath(tp); ok {
+					addAll(ep)
+				} else {
+					wildcard = true
+				}
+			}
+		}
+	} else {
+		wildcard = true
+	}
+	for msg, rule := range d.Messages {
+		if rule == nil {
+			continue
+		}
+		if !rule.TargetsPresent {
+			continue
+		}
+		if rule.TargetsNone {
+			continue
+		}
+		bare := bareBGPEventName(msg)
+		dir := directionFromRule(rule)
+		for _, tp := range rule.Targets {
+			if ep, ok := endpointNameFromBusPath(tp); ok {
+				addMsg(ep, bare, dir)
+			} else {
+				wildcard = true
+			}
+		}
+	}
+	return feeds, wildcard
+}
+
+// busFeedChange returns the sorted endpoint names that gained or lost (or
+// changed) their peer-to-endpoint feed when moving from before to after.
+// An endpoint whose feed spec changed appears in both lists (rebound).
+func busFeedChange(before, after plugin.BusBlock) (gained, lost []string) {
+	beforeFeeds, _ := busSendEndpointFeeds(before.Send)
+	afterFeeds, _ := busSendEndpointFeeds(after.Send)
+
+	for _, name := range slices.Sorted(maps.Keys(afterFeeds)) {
+		bSpec, existed := beforeFeeds[name]
+		if !existed || !bSpec.equal(afterFeeds[name]) {
+			gained = append(gained, name)
+		}
+	}
+	for _, name := range slices.Sorted(maps.Keys(beforeFeeds)) {
+		aSpec, exists := afterFeeds[name]
+		if !exists || !aSpec.equal(beforeFeeds[name]) {
+			lost = append(lost, name)
+		}
+	}
+	return gained, lost
+}
+
+// withoutBusEndpoints returns a copy of blk with every /bus/endpoint/<name>
+// target listed in names removed from blk.Send (used for the intermediate
+// unbind step of a rebound endpoint).
+func withoutBusEndpoints(blk plugin.BusBlock, names []string) plugin.BusBlock {
+	out := blk.Clone()
+	if len(names) == 0 {
+		return out
+	}
+	filterTargets := func(targets []string) ([]string, bool) {
+		kept := make([]string, 0, len(targets))
+		for _, tp := range targets {
+			if ep, ok := endpointNameFromBusPath(tp); ok && slices.Contains(names, ep) {
+				continue
+			}
+			kept = append(kept, tp)
+		}
+		return kept, len(kept) == 0
+	}
+	if out.Send.TargetsPresent && !out.Send.TargetsNone {
+		kept, empty := filterTargets(out.Send.Targets)
+		out.Send.Targets = kept
+		if empty {
+			out.Send.TargetsNone = true
+		}
+	}
+	for _, rule := range out.Send.Messages {
+		if rule == nil {
+			continue
+		}
+		if !rule.TargetsPresent {
+			continue
+		}
+		if rule.TargetsNone {
+			continue
+		}
+		kept, empty := filterTargets(rule.Targets)
+		rule.Targets = kept
+		if empty {
+			rule.TargetsNone = true
 		}
 	}
 	return out
-}
-
-// receivesNegotiated reports whether b grants the negotiated event.
-func receivesNegotiated(b *ProcessBinding) bool {
-	return b.ReceiveAll || b.Receive[bgpevents.EventNegotiated] != events.DirUnspecified
 }
 
 // feedCatchUp names how a consumer that starts being fed a running peer's
@@ -208,24 +451,33 @@ const (
 	feedCatchUpImpossible
 )
 
-// receiveBindingsDeliverable reports whether a running session can take the
-// change from current to next in place. The caller has already established that
-// only receive-only bindings differ (onlyReceiveOnlyBindingsDiffer).
-//
-// Every process the change attaches, or re-attaches with a new grant
-// (receiveBindingChange), must also learn what the session already carried in
-// each direction its grant covers, or it holds half of that peer's routes.
-// Session.bindingCatchUp says whether it can; any process that cannot restarts
-// the whole change.
-func receiveBindingsDeliverable(current, next []ProcessBinding, s *Session) bool {
-	gained, _ := receiveBindingChange(current, next)
-	for _, name := range gained {
-		switch s.bindingCatchUp(bindingFor(next, name)) {
+// busFeedDeliverable reports whether a running session can take the feed-only
+// bus change from current to next in place. The caller has already established
+// that only non-OPEN peer-to-endpoint feeds differ (onlyReceiveOnlyBusDiffers).
+func busFeedDeliverable(current, next plugin.BusBlock, s *Session) bool {
+	if plugin.BusDirectionBlockEqual(current.Send, next.Send) {
+		return true
+	}
+	_, beforeWild := busSendEndpointFeeds(current.Send)
+	afterFeeds, afterWild := busSendEndpointFeeds(next.Send)
+	if afterWild && !beforeWild {
+		switch s.feedDirectionsCatchUp(true, true) {
 		case feedCatchUpNothing, feedCatchUpRouteRefresh:
 		case feedCatchUpUnspecified, feedCatchUpImpossible:
 			return false
 		default:
-			panic("BUG: invalid binding catch-up outcome")
+			panic("BUG: invalid bus feed catch-up outcome")
+		}
+	}
+	gained, _ := busFeedChange(current, next)
+	for _, name := range gained {
+		received, sent := afterFeeds[name].routeDirections()
+		switch s.feedDirectionsCatchUp(received, sent) {
+		case feedCatchUpNothing, feedCatchUpRouteRefresh:
+		case feedCatchUpUnspecified, feedCatchUpImpossible:
+			return false
+		default:
+			panic("BUG: invalid bus feed catch-up outcome")
 		}
 	}
 	return true
@@ -256,9 +508,9 @@ func (s *Session) noteReceivedRoute(wu *wireu.WireUpdate) {
 	}
 }
 
-// feedCatchUp answers Session.bindingCatchUp's question for the routes the
-// peer sent. No session, and a session that announced no route, owe a new
-// consumer nothing. Otherwise the peer's Route Refresh capability decides.
+// feedCatchUp answers whether session s can re-deliver routes the peer already
+// sent. No session, and a session that announced no route, owe a new consumer
+// nothing. Otherwise the peer's Route Refresh capability decides.
 func (s *Session) feedCatchUp() feedCatchUp {
 	if s == nil {
 		return feedCatchUpNothing
@@ -280,18 +532,9 @@ func (s *Session) feedCatchUp() feedCatchUp {
 	return feedCatchUpImpossible
 }
 
-// bindingCatchUp says how a process attached to session s through binding b
-// learns the routes the session carried before, in each direction b covers.
-//
-// A grant that carries no route needs nothing. Routes this speaker sent cannot
-// be asked for again: nothing re-sends them, so once the session advertised one
-// (Session.advertised, the state Peer.hasAdvertised reads) a grant covering the
-// sent direction is impossible. Routes the peer sent are feedCatchUp's answer.
-func (s *Session) bindingCatchUp(b *ProcessBinding) feedCatchUp {
-	if b == nil {
-		return feedCatchUpImpossible
-	}
-	received, sent := b.routeDirections()
+// feedDirectionsCatchUp says how a newly attached consumer covering received
+// and/or sent routes learns the routes session s carried before.
+func (s *Session) feedDirectionsCatchUp(received, sent bool) feedCatchUp {
 	if sent && s != nil && s.advertised.Load() {
 		return feedCatchUpImpossible
 	}
@@ -310,15 +553,14 @@ func bindEventsOf(r *Reactor) peerBindEvents {
 	return r.bindEvents
 }
 
-// writeBindings replaces the peer's running bindings and republishes the
-// delivery graph. It takes r.mu then p.mu, the order every writer uses, because
-// the graph build and maySend read the bindings under r.mu alone.
-func (p *Peer) writeBindings(r *Reactor, bindings []ProcessBinding) {
+// writeBus replaces the peer's running bus block and republishes the delivery
+// graph. It takes r.mu then p.mu, the order every writer uses.
+func (p *Peer) writeBus(r *Reactor, bus plugin.BusBlock) {
 	if r != nil {
 		r.mu.Lock()
 	}
 	p.mu.Lock()
-	p.settings.ProcessBindings = bindings
+	p.settings.Bus = bus.Clone()
 	p.mu.Unlock()
 	if r != nil {
 		if r.deliveryPublished {
@@ -446,10 +688,10 @@ func (p *Peer) announceDown(r *Reactor, closed sessionClose) {
 	r.notifyPeerClosed(p, closed)
 }
 
-// bindProcesses tells the named processes, whose bindings bindings holds, that
-// the running session is up for them: a state up with reason
-// rpc.ReasonAttached to the ones granted the state event, then the negotiated
-// event to the ones granted it.
+// bindProcesses tells the named processes, whose feeds bus holds, that the
+// running session is up for them: a state up with reason rpc.ReasonAttached to
+// the ones fed bgp:state, then the negotiated event to the ones fed
+// bgp:negotiated.
 //
 // The up carries InitialReplay 0. The session's initial routing update is not
 // the attached process's to replay, and a token on it would authorize a replay
@@ -459,7 +701,7 @@ func (p *Peer) announceDown(r *Reactor, closed sessionClose) {
 // processes' delivery edges yet: the delivery waits for every process
 // (peerBindEvents), and the graph without the edges is what keeps the
 // session's messages away from a process that has not been told it is up.
-func (p *Peer) bindProcesses(r *Reactor, session *Session, bindings []ProcessBinding, names []string) {
+func (p *Peer) bindProcesses(r *Reactor, session *Session, bus plugin.BusBlock, names []string) {
 	sink := bindEventsOf(r)
 	if sink == nil {
 		return
@@ -467,8 +709,20 @@ func (p *Peer) bindProcesses(r *Reactor, session *Session, bindings []ProcessBin
 	if len(names) == 0 {
 		return
 	}
-	stateNames := grantedProcesses(bindings, names, (*ProcessBinding).ReceivesPeerState)
-	negotiatedNames := grantedProcesses(bindings, names, receivesNegotiated)
+	feeds, _ := busSendEndpointFeeds(bus.Send)
+	var stateNames, negotiatedNames []string
+	for _, name := range names {
+		spec, ok := feeds[name]
+		if !ok {
+			continue
+		}
+		if spec.receivesState() {
+			stateNames = append(stateNames, name)
+		}
+		if spec.receivesNegotiated() {
+			negotiatedNames = append(negotiatedNames, name)
+		}
+	}
 	if len(stateNames) == 0 && len(negotiatedNames) == 0 {
 		return
 	}
@@ -491,11 +745,6 @@ func (p *Peer) bindProcesses(r *Reactor, session *Session, bindings []ProcessBin
 // nothing and keeps the peer's routes, and the detached one drops them rather
 // than select over routes nobody updates.
 //
-// The down is not narrowed to the processes granted the state event, where the
-// up is: a process holds the peer's routes by its update grant, and the down is
-// what makes it let them go. The plugin server still delivers it only to a
-// process subscribed to state events.
-//
 // The down ends no session, so it advances the peer's revocation epoch first:
 // every Adj-RIB-Out path the peer owns at a destination stops being current,
 // and the departure the down provokes (bgp-rs handleStateDown) owes those keys
@@ -505,7 +754,7 @@ func (p *Peer) unbindProcesses(r *Reactor, names []string) {
 		return
 	}
 	p.forwardRevocation.Add(1)
-	// The revoked binding's released receipts can never be restored.
+	// The revoked edge's released receipts can never be restored.
 	r.dropReleasedSource(p)
 	sink := bindEventsOf(r)
 	if sink == nil {
@@ -522,21 +771,20 @@ func (p *Peer) unbindProcesses(r *Reactor, names []string) {
 // session level with the routes it already carried, after their up was
 // delivered and their edges published.
 //
-// The answer is decided again here, per process (Session.bindingCatchUp),
-// because the peer can have announced its first route, or this speaker
-// advertised one, since the swap plan asked. The read path marks a route
-// received before it looks the consumers up in the graph, so a route this
-// check does not see reaches the new consumer live. One process that cannot
-// catch up restarts the session; otherwise one ROUTE-REFRESH per negotiated
-// family serves every process that needs the peer's routes.
-//
 // The caller MUST NOT hold r.mu or p.mu: the calls below can block on the
 // peer's socket.
-func (p *Peer) catchUpBoundProcesses(bindings []ProcessBinding, gained []string) {
+func (p *Peer) catchUpBoundProcesses(bus plugin.BusBlock, gained []string) {
 	session := p.currentSession()
+	feeds, _ := busSendEndpointFeeds(bus.Send)
 	refresh := false
 	for _, name := range gained {
-		switch session.bindingCatchUp(bindingFor(bindings, name)) {
+		spec, ok := feeds[name]
+		if !ok {
+			p.restartForBinding(session, gained, "process bound without a resolved feed rule: restarting the session")
+			return
+		}
+		received, sent := spec.routeDirections()
+		switch session.feedDirectionsCatchUp(received, sent) {
 		case feedCatchUpNothing:
 		case feedCatchUpRouteRefresh:
 			refresh = true
@@ -544,7 +792,7 @@ func (p *Peer) catchUpBoundProcesses(bindings []ProcessBinding, gained []string)
 			p.restartForBinding(session, gained, "process bound without the routes the session already carried: restarting the session")
 			return
 		default:
-			panic("BUG: invalid binding catch-up outcome")
+			panic("BUG: invalid bus feed catch-up outcome")
 		}
 	}
 	if refresh {
@@ -555,7 +803,7 @@ func (p *Peer) catchUpBoundProcesses(bindings []ProcessBinding, gained []string)
 	}
 }
 
-// restartForBinding ends target because a binding change could not be
+// restartForBinding ends target because a bus feed change could not be
 // delivered to it in place: a new session is the one way every consumer holds
 // the same routes and sees one up. It ends target only, never the session
 // after it, so a nil target, or one the peer has already left, ends nothing.
@@ -566,8 +814,8 @@ func (p *Peer) restartForBinding(target *Session, processes []string, why string
 	peerLogger().Warn(why, "peer", p.settings.Address, "processes", processes)
 	// RFC 4486 Section 4: subcode 6 "Other Configuration Change".
 	if err := p.teardownOf(target, ceaseNotice(message.NotifyCeaseOtherConfigChange, ""), false); err != nil {
-		peerLogger().Warn("binding change: session restart not queued",
-			"peer", p.settings.Address, "error", err)
+		peerLogger().Warn("bus feed change: session restart not queued",
+			"peer", p.settings.Address, "error", err, "code", diagnostic.CodeDoctorInternalDefect)
 	}
 }
 

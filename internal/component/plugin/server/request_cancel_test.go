@@ -50,8 +50,13 @@ func TestSelectedSocketCancellationJoinsWriter(t *testing.T) {
 		started: make(chan struct{}), canceled: make(chan struct{}), release: release}
 	host := &Server{ctx: work, reactor: reactor}
 	proc := nativeOwnerProcess(t, host)
-	host.UpdateDeliveryGraph(graphNS, []DeliveryPeer{{Addr: "192.0.2.7", Bindings: []plugin.PeerProcessBinding{{
-		PluginName: proc.Name(), Send: map[string]bool{"update": true}}}}})
+	if err := host.UpdateDeliveryGraphWithEndpoints(graphNS, []DeliveryPeer{{Addr: "192.0.2.7", Name: "p7", Path: "/" + graphNS + "/entry/p7"}}, []BusParticipantInput{{
+		Path:         plugin.EndpointPath(proc.Name()),
+		EndpointName: proc.Name(),
+		Sends:        []rpc.MessageSendDecl{{Message: graphMsg(graphUpdate)}},
+	}}); err != nil {
+		t.Fatal(err)
+	}
 	client, engine := net.Pipe()
 	peer := sdk.NewWithConn(proc.Name(), client)
 	conn := plugipc.NewPluginConn(engine, engine)
@@ -292,8 +297,13 @@ func TestSelectedSocketDisconnectCancelsBeforeDispatchJoin(t *testing.T) {
 		started: make(chan struct{}), canceled: make(chan struct{})}
 	host := &Server{ctx: work, reactor: reactor}
 	proc := nativeOwnerProcess(t, host)
-	host.UpdateDeliveryGraph(graphNS, []DeliveryPeer{{Addr: "192.0.2.7", Bindings: []plugin.PeerProcessBinding{{
-		PluginName: proc.Name(), Send: map[string]bool{"update": true}}}}})
+	if err := host.UpdateDeliveryGraphWithEndpoints(graphNS, []DeliveryPeer{{Addr: "192.0.2.7", Name: "p7", Path: "/" + graphNS + "/entry/p7"}}, []BusParticipantInput{{
+		Path:         plugin.EndpointPath(proc.Name()),
+		EndpointName: proc.Name(),
+		Sends:        []rpc.MessageSendDecl{{Message: graphMsg(graphUpdate)}},
+	}}); err != nil {
+		t.Fatal(err)
+	}
 	client, engine := net.Pipe()
 	peer := sdk.NewWithConn(proc.Name(), client)
 	conn := plugipc.NewPluginConn(engine, engine)
@@ -360,8 +370,13 @@ func TestSelectedRuntimeEnrollmentRequiresExistingGrant(t *testing.T) {
 	if rejected != nil {
 		rejected.finish()
 	}
-	host.UpdateDeliveryGraph(graphNS, []DeliveryPeer{{Addr: input.Destination, Bindings: []plugin.PeerProcessBinding{{
-		PluginName: proc.Name(), Send: map[string]bool{"update": true}}}}})
+	if err := host.UpdateDeliveryGraphWithEndpoints(graphNS, []DeliveryPeer{{Addr: input.Destination, Name: "dst", Path: "/" + graphNS + "/entry/dst"}}, []BusParticipantInput{{
+		Path:         plugin.EndpointPath(proc.Name()),
+		EndpointName: proc.Name(),
+		Sends:        []rpc.MessageSendDecl{{Message: graphMsg(graphUpdate)}},
+	}}); err != nil {
+		t.Fatal(err)
+	}
 	admitted, err := requests.admit(&rpc.Request{ID: 2, Method: rpc.MethodSelectRoutes, Params: encoded})
 	if err != nil {
 		t.Fatal(err)

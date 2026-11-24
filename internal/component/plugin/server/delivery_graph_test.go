@@ -1,3 +1,7 @@
+// Design: docs/architecture/api/architecture.md -- compiled bus DeliveryGraph tests and benchmarks
+// Related: delivery_graph.go -- BuildDeliveryGraph, DeliveryGraph, Server.SetDeliveryGraph
+// Related: bus_filter.go -- CompiledBus
+
 package server
 
 import (
@@ -9,6 +13,7 @@ import (
 
 	"github.com/ze-software/ze/internal/component/plugin"
 	"github.com/ze-software/ze/internal/core/events"
+	"github.com/ze-software/ze/pkg/plugin/rpc"
 )
 
 // graphNS is this file's own event namespace. The graph is namespace-agnostic,
@@ -18,10 +23,11 @@ const graphNS = "delivery-graph-test"
 const (
 	graphUpdate = "update"
 	graphState  = "state"
+	graphRaw    = "raw"
 )
 
 func init() {
-	_ = events.RegisterNamespace(graphNS, graphUpdate, graphState)
+	_ = events.RegisterNamespace(graphNS, graphUpdate, graphState, graphRaw)
 }
 
 func graphIDs(t *testing.T) (events.NamespaceID, events.EventTypeID, events.EventTypeID) {
@@ -31,164 +37,302 @@ func graphIDs(t *testing.T) (events.NamespaceID, events.EventTypeID, events.Even
 	return ns, events.LookupEventTypeID(graphUpdate), events.LookupEventTypeID(graphState)
 }
 
-// twoPeerGraph is the shape story 1 in the spec describes: one peer feeds a
-// program received UPDATEs and state and lets a second program announce, the
-// other feeds a third program both directions of UPDATE.
-func twoPeerGraph() *DeliveryGraph {
-	return newDeliveryGraph(graphNS, twoPeerInput())
+func graphMsg(name string) string {
+	return graphNS + ":" + name
 }
 
-// twoPeerInput is the same shape as the reactor hands it over, for a test that
-// publishes it into a server rather than building the index directly.
+func graphDirTag(dirs ...string) []rpc.MessageTagDecl {
+	return []rpc.MessageTagDecl{{
+		Name:   events.TagDirection,
+		Values: dirs,
+	}}
+}
+
+// twoPeerInput returns two address participants used across delivery_graph_test
+// and delivery_filter_test.
 func twoPeerInput() []DeliveryPeer {
 	return []DeliveryPeer{
-		{Addr: "192.0.2.1", Name: "first", Bindings: []plugin.PeerProcessBinding{
-			{
-				PluginName: "looking-glass",
-				Receive:    map[string]events.Direction{graphUpdate: events.DirReceived, graphState: events.DirBoth},
-			},
-			{PluginName: "route-injector", Send: map[string]bool{graphUpdate: true}},
-		}},
-		{Addr: "192.0.2.2", Name: "second", Bindings: []plugin.PeerProcessBinding{
-			{PluginName: "policy-engine", Receive: map[string]events.Direction{graphUpdate: events.DirBoth}},
-		}},
+		{
+			Addr:           "192.0.2.1",
+			Name:           "first",
+			Path:           "/" + graphNS + "/entry/first",
+			SecondaryPaths: []string{"/" + graphNS + "/ip/192.0.2.1"},
+		},
+		{
+			Addr:           "192.0.2.2",
+			Name:           "second",
+			Path:           "/" + graphNS + "/entry/second",
+			SecondaryPaths: []string{"/" + graphNS + "/ip/192.0.2.2"},
+		},
 	}
 }
 
-// TestGraphFeedsOnlyAttachedProcesses verifies a peer's edges name exactly the
-// processes its config attaches, in the direction each one was granted.
+// twoPeerEndpoints returns the three endpoints matching the two-participant
+// fixture: looking-glass receives update(received) and state from first;
+// route-injector sends update to first; policy-engine receives update(both)
+// from second.
+func twoPeerEndpoints() []BusParticipantInput {
+	return []BusParticipantInput{
+		{
+			Path:         plugin.EndpointPath("looking-glass"),
+			EndpointName: "looking-glass",
+			Receives: []rpc.MessageReceiveDecl{
+				{Message: graphMsg(graphUpdate), Tags: graphDirTag(events.DirectionReceived)},
+				{Message: graphMsg(graphState)},
+			},
+			OwnBlock: plugin.BusBlock{
+				Receive: plugin.BusDirectionBlock{
+					TargetsPresent: true,
+					Targets:        []string{"/" + graphNS + "/entry/first"},
+				},
+			},
+		},
+		{
+			Path:         plugin.EndpointPath("route-injector"),
+			EndpointName: "route-injector",
+			Sends: []rpc.MessageSendDecl{
+				{Message: graphMsg(graphUpdate)},
+			},
+			OwnBlock: plugin.BusBlock{
+				Send: plugin.BusDirectionBlock{
+					TargetsPresent: true,
+					Targets:        []string{"/" + graphNS + "/entry/first"},
+				},
+			},
+		},
+		{
+			Path:         plugin.EndpointPath("policy-engine"),
+			EndpointName: "policy-engine",
+			Receives: []rpc.MessageReceiveDecl{
+				{Message: graphMsg(graphUpdate), Tags: graphDirTag(events.DirectionReceived, events.DirectionSent)},
+			},
+			OwnBlock: plugin.BusBlock{
+				Receive: plugin.BusDirectionBlock{
+					TargetsPresent: true,
+					Targets:        []string{"/" + graphNS + "/entry/second"},
+				},
+			},
+		},
+	}
+}
+
+func twoPeerGraph(t testing.TB) *DeliveryGraph {
+	t.Helper()
+	g, err := BuildDeliveryGraph(graphNS, twoPeerInput(), plugin.BusConfig{}, twoPeerEndpoints())
+	require.NoError(t, err)
+	return g
+}
+
+// TestGraphFeedsOnlyAdmittedEndpoints verifies that each participant feeds
+// only endpoints admitted by the compiled bus filter in the declared direction.
 //
-// VALIDATES: AC-2 both ways (a process with no block on a peer is fed nothing
-// by it, and is still fed by the peer that does attach it) and AC-3 (a
-// direction the list omits is not delivered).
-// PREVENTS: the defect this spec exists to fix -- every process fed every
-// peer's events whatever the config said.
-func TestGraphFeedsOnlyAttachedProcesses(t *testing.T) {
-	g := twoPeerGraph()
+// VALIDATES: Receivers, MaySend, SendersForPeer, ProcessReceivesState,
+// ParticipantPathForAddr, ProcessListForPeer, and Inspect over CompiledBus.
+// PREVENTS: delivering events across narrowed to/from boundaries or wrong
+// directions, or failing open on unknown addresses.
+func TestGraphFeedsOnlyAdmittedEndpoints(t *testing.T) {
+	g := twoPeerGraph(t)
 	ns, update, state := graphIDs(t)
 
 	assert.Equal(t, []string{"looking-glass"}, g.Receivers(ns, update, events.DirReceived, "192.0.2.1"))
-	assert.Equal(t, []string{"looking-glass"}, g.Receivers(ns, state, events.DirUnspecified, "192.0.2.1"))
+	assert.Equal(t, []string{"looking-glass"}, g.ReceiversForPeer("192.0.2.1", ns, state, events.DirUnspecified))
 	assert.Empty(t, g.Receivers(ns, update, events.DirSent, "192.0.2.1"),
-		"the received direction alone was granted")
+		"looking-glass only receives direction received")
 	assert.Empty(t, g.Receivers(ns, state, events.DirUnspecified, "192.0.2.2"),
-		"policy-engine asked for update, not state")
+		"policy-engine declared update, not state")
 
-	// policy-engine runs and is attached to 192.0.2.2, so it must not appear on
-	// 192.0.2.1, and looking-glass must not appear on 192.0.2.2.
 	assert.Equal(t, []string{"policy-engine"}, g.Receivers(ns, update, events.DirSent, "192.0.2.2"))
 	assert.NotContains(t, g.Receivers(ns, update, events.DirReceived, "192.0.2.1"), "policy-engine")
 
-	// A peer no config named has no edges. The guard fails closed: nothing, not
-	// everything.
+	assert.True(t, g.MaySend("192.0.2.1", "route-injector", graphUpdate))
+	assert.True(t, g.MaySend("192.0.2.1", "route-injector", graphMsg(graphUpdate)))
+	assert.False(t, g.MaySend("192.0.2.2", "route-injector", graphUpdate))
+	assert.False(t, g.MaySend("192.0.2.1", "looking-glass", graphUpdate))
+	assert.Equal(t, []string{"route-injector"}, g.SendersForPeer("192.0.2.1", graphUpdate))
+	assert.Equal(t, []string{"route-injector"}, g.SendersForPeer("192.0.2.1", graphMsg(graphUpdate)))
+	assert.True(t, g.ProcessReceivesState("192.0.2.1", "looking-glass"))
+	assert.False(t, g.ProcessReceivesState("192.0.2.1", "route-injector"))
+	assert.Equal(t, "/"+graphNS+"/entry/first", g.ParticipantPathForAddr("192.0.2.1"))
+	assert.Equal(t, []string{"looking-glass", "route-injector"}, g.ProcessListForPeer("192.0.2.1"))
+
+	// Unknown address fails closed.
 	assert.Empty(t, g.Receivers(ns, update, events.DirReceived, "198.51.100.1"))
 	assert.Empty(t, g.Receivers(ns, update, events.DirUnspecified, ""))
+	assert.False(t, g.MaySend("198.51.100.1", "route-injector", graphUpdate))
 
-	// The send permission is carried, and it feeds route-injector nothing.
+	// Stage2FilterFor carries resolved remote addresses alongside paths.
+	f := g.Stage2FilterFor("route-injector")
+	require.NotNil(t, f)
+	require.Len(t, f.SendRules, 1)
+	require.Len(t, f.SendRules[0].Targets, 1)
+	assert.Equal(t, "/"+graphNS+"/entry/first", f.SendRules[0].Targets[0].Path)
+	assert.Equal(t, "192.0.2.1", f.SendRules[0].Targets[0].Address)
+
+	// Inspect surfaces deterministic edges with compiled origins.
 	edges := g.Inspect()
 	require.Len(t, edges, 2)
 	assert.Equal(t, []string{"192.0.2.1", "192.0.2.2"}, []string{edges[0].Peer, edges[1].Peer})
+	require.Len(t, edges[0].Processes, 2)
 	injector := edges[0].Processes[1]
 	assert.Equal(t, "route-injector", injector.Process)
 	assert.Equal(t, []string{graphUpdate}, injector.Send)
 	assert.Empty(t, injector.Receive)
 }
 
-// TestGraphWildcardGrantsEveryRegisteredType verifies "*" names every type the
-// registry holds, in both directions, and that a named type beside it takes
-// nothing away.
+// TestDeliveryIndexFromFilters verifies that newly added and container-parented
+// participants are covered by prefix paths and secondary address paths without
+// modifying endpoint configuration.
 //
-// VALIDATES: the wildcard adopted in phase 2, expanded the same way the ready
-// RPC expands a plugin's own "*" (dispatch.go).
-// PREVENTS: "*" silently meaning "no type", which is what a literal reading of
-// an empty Receive map would give.
-func TestGraphWildcardGrantsEveryRegisteredType(t *testing.T) {
-	g := newDeliveryGraph(graphNS, []DeliveryPeer{
-		{Addr: "192.0.2.1", Bindings: []plugin.PeerProcessBinding{
-			{
-				PluginName: "exabgp",
-				ReceiveAll: true,
-				Receive:    map[string]events.Direction{graphUpdate: events.DirReceived},
+// VALIDATES: AC-1, AC-21 (dynamic container coverage and per-address rules).
+// PREVENTS: a newly added participant or parented member missing compiled
+// delivery edges or leaking across sibling containers.
+func TestDeliveryIndexFromFilters(t *testing.T) {
+	ns, update, _ := graphIDs(t)
+	endpoints := []BusParticipantInput{
+		{
+			Path:         plugin.EndpointPath("container-watcher"),
+			EndpointName: "container-watcher",
+			Receives:     []rpc.MessageReceiveDecl{{Message: graphMsg(graphUpdate)}},
+			OwnBlock: plugin.BusBlock{
+				Receive: plugin.BusDirectionBlock{
+					TargetsPresent: true,
+					Targets:        []string{"/" + graphNS + "/container/c1"},
+				},
 			},
-		}},
-	})
-	ns, update, state := graphIDs(t)
+		},
+		{
+			Path:         plugin.EndpointPath("addr-watcher"),
+			EndpointName: "addr-watcher",
+			Receives:     []rpc.MessageReceiveDecl{{Message: graphMsg(graphUpdate)}},
+			OwnBlock: plugin.BusBlock{
+				Receive: plugin.BusDirectionBlock{
+					TargetsPresent: true,
+					Targets:        []string{"/" + graphNS + "/ip/198.51.100.7"},
+				},
+			},
+		},
+	}
 
-	assert.Equal(t, []string{"exabgp"}, g.Receivers(ns, state, events.DirSent, "192.0.2.1"))
-	assert.Equal(t, []string{"exabgp"}, g.Receivers(ns, update, events.DirSent, "192.0.2.1"),
-		"a named type beside the wildcard adds, it never narrows")
-	assert.Equal(t, []string{"exabgp"}, g.Receivers(ns, update, events.DirReceived, "192.0.2.1"))
+	g1, err := BuildDeliveryGraph(graphNS, []DeliveryPeer{
+		{
+			Addr:           "198.51.100.5",
+			Name:           "m1",
+			Path:           "/" + graphNS + "/container/c1/member/m1",
+			ParentPath:     "/" + graphNS + "/container/c1",
+			SecondaryPaths: []string{"/" + graphNS + "/ip/198.51.100.5"},
+		},
+		{
+			Addr:           "198.51.100.9",
+			Name:           "m2",
+			Path:           "/" + graphNS + "/container/c2/member/m2",
+			ParentPath:     "/" + graphNS + "/container/c2",
+			SecondaryPaths: []string{"/" + graphNS + "/ip/198.51.100.9"},
+		},
+	}, plugin.BusConfig{}, endpoints)
+	require.NoError(t, err)
+
+	assert.Equal(t, []string{"container-watcher"}, g1.Receivers(ns, update, events.DirReceived, "198.51.100.5"))
+	assert.Empty(t, g1.Receivers(ns, update, events.DirReceived, "198.51.100.9"))
+
+	// Once 198.51.100.7 joins c1, both container-watcher and addr-watcher see it;
+	// 198.51.100.8 in c1 is seen by container-watcher alone.
+	g2, err := BuildDeliveryGraph(graphNS, []DeliveryPeer{
+		{
+			Addr:           "198.51.100.7",
+			Name:           "m7",
+			Path:           "/" + graphNS + "/container/c1/member/m7",
+			ParentPath:     "/" + graphNS + "/container/c1",
+			SecondaryPaths: []string{"/" + graphNS + "/ip/198.51.100.7"},
+		},
+		{
+			Addr:           "198.51.100.8",
+			Name:           "m8",
+			Path:           "/" + graphNS + "/container/c1/member/m8",
+			ParentPath:     "/" + graphNS + "/container/c1",
+			SecondaryPaths: []string{"/" + graphNS + "/ip/198.51.100.8"},
+		},
+	}, plugin.BusConfig{}, endpoints)
+	require.NoError(t, err)
+
+	assert.Equal(t, []string{"addr-watcher", "container-watcher"}, g2.Receivers(ns, update, events.DirReceived, "198.51.100.7"))
+	assert.Equal(t, []string{"container-watcher"}, g2.Receivers(ns, update, events.DirReceived, "198.51.100.8"))
+
+	added, removed := g1.EdgeDiff(g2, "198.51.100.7")
+	assert.Equal(t, []string{"addr-watcher", "container-watcher"}, added)
+	assert.Empty(t, removed)
 }
 
-// TestGraphReportsUnresolvedTokens verifies a granted token the event registry
-// does not know carries no edge, and is named where an operator can see it.
+// TestDeliveryGraphAllocatesNothing verifies that hot-path Receivers and MaySend
+// lookups over the compiled DeliveryGraph allocate zero heap objects.
 //
-// VALIDATES: ai/rules/evidence.md -- a guard that drops an edge says so.
-// PREVENTS: a custom event type whose plugin never loaded looking identical to
-// a working edge.
-func TestGraphReportsUnresolvedTokens(t *testing.T) {
-	g := newDeliveryGraph(graphNS, []DeliveryPeer{
-		{Addr: "192.0.2.1", Bindings: []plugin.PeerProcessBinding{
-			{PluginName: "decorator", Receive: map[string]events.Direction{"update-rpki": events.DirReceived}},
-		}},
-	})
-	ns, _, _ := graphIDs(t)
-
-	assert.Empty(t, g.Receivers(ns, events.LookupEventTypeID("update-rpki"), events.DirReceived, "192.0.2.1"))
-	edges := g.Inspect()
-	require.Len(t, edges, 1)
-	require.Len(t, edges[0].Processes, 1)
-	assert.Equal(t, []string{"update-rpki-received"}, edges[0].Processes[0].Unresolved)
-	assert.Empty(t, edges[0].Processes[0].Receive)
-}
-
-// TestGraphLookupAllocatesNothing verifies the per-event lookup returns a
-// stored slice and allocates nothing.
-//
-// VALIDATES: AC-8 and R-8, proven by measurement rather than by inspection.
-// The lookup runs once per peer-scoped event, on the UPDATE path, so an
-// allocation here is an allocation per BGP message.
-// PREVENTS: the cost SubscriptionManager.getMatching has today -- a scan of
-// every process and a fresh result slice on every event.
-func TestGraphLookupAllocatesNothing(t *testing.T) {
-	g := twoPeerGraph()
+// VALIDATES: AC-17 (zero allocation on broadcast lookup and send check).
+// PREVENTS: per-event heap allocation or runtime path parsing on the hot path.
+func TestDeliveryGraphAllocatesNothing(t *testing.T) {
+	g := twoPeerGraph(t)
 	ns, update, _ := graphIDs(t)
 
 	var hit []string
 	hits := testing.AllocsPerRun(100, func() {
 		hit = g.Receivers(ns, update, events.DirReceived, "192.0.2.1")
 	})
-	require.NotEmpty(t, hit, "a lookup that finds nothing would make zero allocations vacuous")
-	t.Logf("hit path: %v allocations per lookup", hits)
-	assert.Zero(t, hits, "the hit path allocates")
+	require.NotEmpty(t, hit)
+	assert.Zero(t, hits, "Receivers hit path must not allocate")
 
 	var miss []string
 	misses := testing.AllocsPerRun(100, func() {
 		miss = g.Receivers(ns, update, events.DirReceived, "198.51.100.1")
 	})
 	assert.Empty(t, miss)
-	assert.Zero(t, misses, "the miss path allocates")
+	assert.Zero(t, misses, "Receivers miss path must not allocate")
+
+	var allowed bool
+	sendAllocs := testing.AllocsPerRun(100, func() {
+		allowed = g.MaySend("192.0.2.1", "route-injector", graphUpdate)
+	})
+	require.True(t, allowed)
+	assert.Zero(t, sendAllocs, "MaySend hit path must not allocate")
+}
+
+// BenchmarkDeliveryGraph benchmarks hot-path Receivers and MaySend lookups over
+// the compiled DeliveryGraph.
+func BenchmarkDeliveryGraph(b *testing.B) {
+	g := twoPeerGraph(b)
+	ns := events.LookupNamespaceID(graphNS)
+	update := events.LookupEventTypeID(graphUpdate)
+
+	b.Run("Receivers", func(b *testing.B) {
+		b.ReportAllocs()
+		for range b.N {
+			_ = g.Receivers(ns, update, events.DirReceived, "192.0.2.1")
+		}
+	})
+	b.Run("MaySend", func(b *testing.B) {
+		b.ReportAllocs()
+		for range b.N {
+			_ = g.MaySend("192.0.2.1", "route-injector", graphUpdate)
+		}
+	})
 }
 
 // TestGraphSwapIsAtomicAcrossReload verifies a reader takes the whole index in
-// one load, so a rebuild shows it the old graph or the new one and never a
+// one load, so a rebuild shows either the old graph or the new one and never a
 // half-built one.
 //
-// VALIDATES: R-7 and AC-4's second half -- an edge that survives the reload
-// misses no event during it.
-// PREVENTS: a reload window in which a peer that feeds a process before and
-// after the reload feeds it nothing during.
-// Run with -race.
+// VALIDATES: R-7 atomic snapshot publication under concurrent readers.
+// PREVENTS: a reload window with an empty or half-built delivery graph.
 func TestGraphSwapIsAtomicAcrossReload(t *testing.T) {
 	s := &Server{}
 	ns, update, _ := graphIDs(t)
 
-	graphFor := func(process string) []DeliveryPeer {
-		return []DeliveryPeer{{Addr: "192.0.2.1", Bindings: []plugin.PeerProcessBinding{
-			{PluginName: process, Receive: map[string]events.Direction{graphUpdate: events.DirReceived}},
-		}}}
+	peers := []DeliveryPeer{{Addr: "192.0.2.1", Path: "/" + graphNS + "/entry/first"}}
+	endpointsFor := func(name string) []BusParticipantInput {
+		return []BusParticipantInput{{
+			Path:         plugin.EndpointPath(name),
+			EndpointName: name,
+			Receives:     []rpc.MessageReceiveDecl{{Message: graphMsg(graphUpdate), Tags: graphDirTag(events.DirectionReceived)}},
+		}}
 	}
-	s.UpdateDeliveryGraph(graphNS, graphFor("alpha"))
+	require.NoError(t, s.UpdateDeliveryGraphWithEndpoints(graphNS, peers, endpointsFor("alpha")))
 
 	const reloads = 200
 	var wg sync.WaitGroup
@@ -213,10 +357,10 @@ func TestGraphSwapIsAtomicAcrossReload(t *testing.T) {
 
 	for i := range reloads {
 		if i%2 == 0 {
-			s.UpdateDeliveryGraph(graphNS, graphFor("beta"))
+			require.NoError(t, s.UpdateDeliveryGraphWithEndpoints(graphNS, peers, endpointsFor("beta")))
 			continue
 		}
-		s.UpdateDeliveryGraph(graphNS, graphFor("alpha"))
+		require.NoError(t, s.UpdateDeliveryGraphWithEndpoints(graphNS, peers, endpointsFor("alpha")))
 	}
 	close(stop)
 	wg.Wait()
@@ -225,11 +369,10 @@ func TestGraphSwapIsAtomicAcrossReload(t *testing.T) {
 }
 
 // TestEmptyGraphFeedsNobody verifies a server that has applied no config feeds
-// nothing, rather than answering nil and being read as "no filter".
+// nothing rather than failing open.
 //
-// VALIDATES: ai/rules/evidence.md -- the guard fails closed.
-// PREVENTS: a daemon whose index is not published yet delivering every event to
-// every process.
+// VALIDATES: empty DeliveryGraph fails closed.
+// PREVENTS: an uninitialized server delivering events to every endpoint.
 func TestEmptyGraphFeedsNobody(t *testing.T) {
 	s := &Server{}
 	ns, update, _ := graphIDs(t)

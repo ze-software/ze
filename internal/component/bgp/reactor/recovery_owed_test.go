@@ -13,7 +13,6 @@ import (
 	"github.com/ze-software/ze/internal/component/bgp/message"
 	bgptypes "github.com/ze-software/ze/internal/component/bgp/types"
 	"github.com/ze-software/ze/internal/component/plugin"
-	bgpevents "github.com/ze-software/ze/internal/core/bgp/events"
 	"github.com/ze-software/ze/internal/core/bgp/nlri/nlrisplit"
 	"github.com/ze-software/ze/internal/core/bgp/ribevents"
 	"github.com/ze-software/ze/internal/core/family"
@@ -556,6 +555,6 @@ func owesWithdrawalProbe(t *testing.T, rail *owedRail, raw []byte, between func(
 // longer receives rail's source's UPDATEs, as removing its attach block does.
 func detachRecoveryOwner(t *testing.T, rail *owedRail) {
 	t.Helper()
-	rail.source.settings.ProcessBindings = nil
-	rail.r.api.UpdateDeliveryGraph(bgpevents.Namespace, deliveryPeersFromSettings([]*PeerSettings{rail.source.settings}))
+	rail.source.settings.Bus = testBusNone()
+	publishTestBusGraph(t, rail.r)
 }

@@ -76,3 +76,12 @@ func (table *adjRIBOut) dropSelected(key adjOutKey, original fwdPathKey) {
 		return
 	}
 }
+
+// hasSelectedPath reports whether the Adj-RIB-Out currently advertises any
+// selected route for original. Safe for concurrent use.
+func (table *adjRIBOut) hasSelectedPath(original fwdPathKey) bool {
+	table.mu.Lock()
+	defer table.mu.Unlock()
+	_, found := table.selectedPaths[original]
+	return found
+}

@@ -5,9 +5,12 @@
 package config
 
 import (
+	"maps"
+	"slices"
 	"sort"
 	"strings"
 
+	"github.com/ze-software/ze/internal/component/plugin"
 	"github.com/ze-software/ze/internal/component/plugin/registry"
 	"github.com/ze-software/ze/internal/core/textbuf"
 )
@@ -77,6 +80,7 @@ func BuildGraph(tree *Tree, schema *Schema) *Graph {
 
 	addSectionNodes(g, tree)
 	addBGPEdges(g, tree)
+	addBusEdges(g, tree)
 	addAuthzEdges(g, tree)
 	addListenerNodes(g, tree, schema)
 	addPluginRegistryEdges(g)
@@ -122,6 +126,106 @@ func addBGPEdges(g *Graph, tree *Tree) {
 		g.addNode(peerID, NodePeer, peerName)
 		g.addEdge("section/bgp", peerID, EdgeContains)
 	}
+}
+
+// addBusEdges adds endpoint nodes and directional bus filter edges from
+// bus > endpoint, bus > participant, and participant-local bus blocks.
+func addBusEdges(g *Graph, tree *Tree) {
+	if tree == nil {
+		return
+	}
+	var tb textbuf.Buffer
+
+	if busTree := tree.GetContainer(sectionBus); busTree != nil {
+		busCfg, err := plugin.ParseBusConfigFromMap(busTree.ToMap())
+		if err == nil {
+			for _, epName := range slices.Sorted(maps.Keys(busCfg.Endpoints)) {
+				epID := tb.Reset().Str("plugin/").Str(epName).String()
+				g.addNode(epID, NodePlugin, epName)
+				g.addEdge("section/bus", epID, EdgeContains)
+				addBusBlockGraphEdges(g, epID, busCfg.Endpoints[epName])
+			}
+			for _, pPath := range slices.Sorted(maps.Keys(busCfg.Participants)) {
+				srcID := graphNodeIDForBusPath(pPath)
+				if srcID == "" {
+					continue
+				}
+				addBusBlockGraphEdges(g, srcID, busCfg.Participants[pPath].Block)
+			}
+		}
+	}
+
+	// Walk every registered participant schema node that carries a local bus block.
+	for _, tmpl := range collectParticipantNodeTemplates() {
+		var matches []walkedParticipantNode
+		walkParticipantNodes(tree, tmpl.segments, 0, "", false, &matches)
+		for _, m := range matches {
+			busSub := m.tree.GetContainer(sectionBus)
+			if busSub == nil {
+				continue
+			}
+			block, err := plugin.ParseBusBlockFromMap(busSub.ToMap(), m.path+" > bus")
+			if err != nil {
+				continue
+			}
+			srcID := graphNodeIDForBusPath(m.path)
+			if srcID == "" {
+				continue
+			}
+			addBusBlockGraphEdges(g, srcID, block)
+		}
+	}
+}
+
+func addBusBlockGraphEdges(g *Graph, srcID string, block plugin.BusBlock) {
+	for _, target := range collectBusBlockTargets(block) {
+		dstID := graphNodeIDForBusPath(target)
+		if dstID == "" {
+			continue
+		}
+		if dstID == srcID {
+			continue
+		}
+		g.addEdge(srcID, dstID, EdgeProcessBinds)
+	}
+}
+
+func collectBusBlockTargets(block plugin.BusBlock) []string {
+	var out []string
+	appendDir := func(dir plugin.BusDirectionBlock) {
+		if dir.TargetsPresent && !dir.TargetsNone {
+			out = append(out, dir.Targets...)
+		}
+		for _, msg := range slices.Sorted(maps.Keys(dir.Messages)) {
+			rule := dir.Messages[msg]
+			if rule != nil && rule.TargetsPresent && !rule.TargetsNone {
+				out = append(out, rule.Targets...)
+			}
+		}
+	}
+	appendDir(block.Send)
+	appendDir(block.Receive)
+	return out
+}
+
+func graphNodeIDForBusPath(path string) string {
+	if strings.HasPrefix(path, plugin.BusEndpointPathPrefix) {
+		name := strings.TrimPrefix(path, plugin.BusEndpointPathPrefix)
+		if name == "" {
+			return ""
+		}
+		var tb textbuf.Buffer
+		return tb.Str("plugin/").Str(name).String()
+	}
+	segs := plugin.PathSegments(path)
+	if len(segs) == 0 {
+		return ""
+	}
+	var tb textbuf.Buffer
+	if len(segs) == 1 {
+		return tb.Str("section/").Str(segs[0]).String()
+	}
+	return tb.Str(segs[len(segs)-2]).Byte('/').Str(segs[len(segs)-1]).String()
 }
 
 // addAuthzEdges adds user->profile reference edges from system.authentication/authorization.

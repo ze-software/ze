@@ -79,25 +79,30 @@ func newBoundLegacyWireRIBFixture(t *testing.T, socket, holdSecondClose, withRIB
 	work, cancel := context.WithTimeout(t.Context(), 20*time.Second)
 	t.Cleanup(cancel)
 	fixture := &boundLegacyWireFixture{rail: rail, peers: [2]*Peer{first, twin}, work: work}
-	grant := ProcessBinding{PluginName: boundLegacyProcess, Explicit: true,
-		Receive: map[string]events.Direction{"state": events.DirBoth, "refresh": events.DirBoth, "update": events.DirSent},
-		Send:    map[string]bool{"update": true, "refresh": true}}
-	ribGrant := ProcessBinding{PluginName: "bgp-rib", Explicit: true,
-		Receive: map[string]events.Direction{"state": events.DirBoth, "refresh": events.DirBoth, "update": events.DirSent},
-		Send:    map[string]bool{"update": true, "refresh": true}}
+	grant := testPeerEndpointGrant{
+		Name:    boundLegacyProcess,
+		Receive: []string{"state", "refresh", "update-sent"},
+		Send:    []string{"update", "refresh"},
+	}
+	ribGrant := testPeerEndpointGrant{
+		Name:    "bgp-rib",
+		Receive: []string{"state", "refresh", "update-sent"},
+		Send:    []string{"update", "refresh"},
+	}
+	sourceGrants := []testPeerEndpointGrant{sourceLeaseGrant(boundLegacyProcess)}
+	destGrants := []testPeerEndpointGrant{grant}
 	if withRIB {
 		rail.source.settings.Name = "bound-source"
-		rail.source.settings.ProcessBindings = append(rail.source.settings.ProcessBindings, sourceLeaseGrant("bgp-rib"))
+		sourceGrants = append(sourceGrants, sourceLeaseGrant("bgp-rib"))
+		destGrants = append(destGrants, ribGrant)
 		rail.source.advanceSourcePolicyEpoch()
 		fixture.sourceSession = sourceSessionFixture(t, rail.source)
 		require.NoError(t, fixture.sourceSession.captureSourceReceipt(rail.source, &sourceReceipts))
 		t.Cleanup(fixture.sourceSession.closeSourceReceipt)
 	}
+	rail.source.settings.Bus = testBusBlockForGrants(sourceGrants...)
 	for index, peer := range fixture.peers {
-		peer.settings.ProcessBindings = append(peer.settings.ProcessBindings, grant)
-		if withRIB {
-			peer.settings.ProcessBindings = append(peer.settings.ProcessBindings, ribGrant)
-		}
+		peer.settings.Bus = testBusBlockForGrants(destGrants...)
 		peer.negotiated.Load().EnhancedRouteRefresh = true
 		peer.negotiated.Load().RouteRefresh = true
 		peer.session.negotiated.EnhancedRouteRefresh = true
@@ -112,6 +117,7 @@ func newBoundLegacyWireRIBFixture(t *testing.T, socket, holdSecondClose, withRIB
 	const implementation = "bound-legacy-maintenance-runner"
 	require.NoError(t, registry.Register(registry.Registration{Name: implementation,
 		Claims: []string{SelectedDisseminationRole}, Dissemination: declaration,
+		Sends: testAllBGPSendDecls(), Receives: testAllBGPReceiveDecls(),
 		CLIHandler: func([]string) int { return 0 }, RunEngine: func(conn net.Conn) int {
 			defer close(done)
 			if socket {
@@ -121,7 +127,10 @@ func newBoundLegacyWireRIBFixture(t *testing.T, socket, holdSecondClose, withRIB
 			defer func() { _ = client.Close() }() //nolint:errcheck // Host shutdown owns this connection.
 			client.OnConfigure(func([]sdk.ConfigSection) error { return nil })
 			client.OnStarted(func(context.Context) error { ready <- client; return nil })
-			_ = client.Run(work, &sdk.Registration{Claims: []string{SelectedDisseminationRole}, Dissemination: declaration}) //nolint:errcheck // The joined host stop is this fixture's terminal path.
+			_ = client.Run(work, &sdk.Registration{
+				Claims: []string{SelectedDisseminationRole}, Dissemination: declaration,
+				Sends: testAllBGPSendDecls(), Receives: testAllBGPReceiveDecls(),
+			}) //nolint:errcheck // The joined host stop is this fixture's terminal path.
 			return 0
 		}}))
 	plugins := []plugin.PluginConfig{{Name: boundLegacyProcess, Run: implementation, Internal: true, Encoder: plugin.EncodingJSON}}
@@ -133,6 +142,7 @@ func newBoundLegacyWireRIBFixture(t *testing.T, socket, holdSecondClose, withRIB
 		ribDone = make(chan struct{})
 		require.NoError(t, registry.Register(registry.Registration{Name: "bound-actual-rib-runner",
 			CLIHandler: func([]string) int { return 0 }, Commands: actual.Commands, Dissemination: actual.Dissemination,
+			Sends: actual.Sends, Receives: actual.Receives,
 			SignalsSessionReady: actual.SignalsSessionReady, FencesLiveForwards: actual.FencesLiveForwards,
 			RunEngine: func(conn net.Conn) int {
 				defer close(ribDone)
@@ -147,17 +157,7 @@ func newBoundLegacyWireRIBFixture(t *testing.T, socket, holdSecondClose, withRIB
 		Plugins: plugins}, &reactorAPIAdapter{r: rail.r})
 	require.NoError(t, err)
 	host.SetProcessSpawner(&selectedRefreshSpawner{ctx: work})
-	graph := []pluginserver.DeliveryPeer{
-		{Addr: rail.source.addrString, Bindings: []plugin.PeerProcessBinding{{PluginName: boundLegacyProcess, Explicit: true,
-			Receive: map[string]events.Direction{"update": events.DirReceived, "state": events.DirBoth}}}},
-		{Name: first.settings.Name, Addr: first.addrString, Bindings: []plugin.PeerProcessBinding{plugin.PeerProcessBinding(grant)}},
-		{Name: twin.settings.Name, Addr: twin.addrString, Bindings: []plugin.PeerProcessBinding{plugin.PeerProcessBinding(grant)}},
-	}
-	if withRIB {
-		graph[0].Bindings = append(graph[0].Bindings, plugin.PeerProcessBinding(sourceLeaseGrant("bgp-rib")))
-		graph[1].Bindings = append(graph[1].Bindings, plugin.PeerProcessBinding(ribGrant))
-		graph[2].Bindings = append(graph[2].Bindings, plugin.PeerProcessBinding(ribGrant))
-	}
+	graph := deliveryPeersFromSettings([]*PeerSettings{rail.source.settings, first.settings, twin.settings})
 	host.UpdateDeliveryGraph("bgp", graph)
 	rail.r.api = host
 	if withRIB {

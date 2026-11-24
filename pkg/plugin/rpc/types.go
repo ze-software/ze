@@ -514,6 +514,38 @@ type BusCatalogEntry struct {
 	Tags        []MessageTagDecl `json:"tags,omitempty"`
 }
 
+// BusFilterTarget identifies one resolved participant reachable through a
+// compiled bus filter rule, carrying its canonical path and optional lookup
+// address beside secondary lookup paths.
+type BusFilterTarget struct {
+	Path           string   `json:"path"`
+	EndpointName   string   `json:"endpoint-name,omitempty"`
+	Address        string   `json:"address,omitempty"`
+	SecondaryPaths []string `json:"secondary-paths,omitempty"`
+}
+
+// BusFilterRule describes one compiled send or receive message rule handed to
+// a participant in Stage 2 configure or on filter rebuild.
+type BusFilterRule struct {
+	Message string              `json:"message"`
+	Allowed bool                `json:"allowed"`
+	Targets []BusFilterTarget   `json:"targets,omitempty"`
+	Tags    map[string][]string `json:"tags,omitempty"`
+}
+
+// BusParticipantFilter carries one participant's own compiled bus filter,
+// delivered generically at Stage 2 configure and on filter rebuilds.
+type BusParticipantFilter struct {
+	ParticipantPath string          `json:"participant-path"`
+	EndpointName    string          `json:"endpoint-name,omitempty"`
+	SendAll         bool            `json:"send-all,omitempty"`
+	SendNone        bool            `json:"send-none,omitempty"`
+	SendRules       []BusFilterRule `json:"send-rules,omitempty"`
+	ReceiveAll      bool            `json:"receive-all,omitempty"`
+	ReceiveNone     bool            `json:"receive-none,omitempty"`
+	ReceiveRules    []BusFilterRule `json:"receive-rules,omitempty"`
+}
+
 // PipeDecl declares a pipe word for one of the plugin's own commands, the word
 // an operator types after the pipe character. It is declared during Stage 1
 // registration, and it is one of two kinds, told apart by which of Expansion
@@ -974,6 +1006,11 @@ type ConfigureInput struct {
 	// Stage 2 beside Claims so every plugin sees the complete message set
 	// before Stage 5 ready.
 	BusCatalog []BusCatalogEntry `json:"bus-catalog,omitempty"`
+
+	// ParticipantFilter carries this participant's own compiled bus filter
+	// (allowed sends/receives and resolved target paths with remote addresses),
+	// delivered generically at Stage 2 and refreshed on filter rebuild.
+	ParticipantFilter *BusParticipantFilter `json:"participant-filter,omitempty"`
 }
 
 // DeclareCapabilitiesInput is the input for ze-plugin-engine:declare-capabilities (Stage 3).

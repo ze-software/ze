@@ -305,8 +305,10 @@ func (s *Session) buildOpenFromSnapshot(settings *PeerSettings, configCaps []cap
 	// Add remaining capabilities.
 	caps = append(caps, otherCaps...)
 
-	// Add plugin-declared capabilities (e.g., hostname from RFC 9234 plugin).
-	caps = append(caps, plugins.capabilities...)
+	// Add plugin-declared capabilities (e.g., hostname from RFC 9234 plugin),
+	// deduplicating exact (code, value) TLVs already present in configured or
+	// earlier plugin capabilities.
+	caps = appendUniquePluginCapabilities(caps, plugins.capabilities)
 
 	// draft-abraitis-idr-addpath-paths-limit-04 Section 3: multiple families
 	// "MUST" be included "in a single instance of the PATHS-LIMIT capability."
@@ -348,6 +350,55 @@ func (s *Session) buildOpenFromSnapshot(settings *PeerSettings, configCaps []cap
 		OptionalParams: optParams,
 		ExtendedParams: extendedParams,
 	}, nil
+}
+
+// appendUniquePluginCapabilities appends pluginCaps to base, skipping any
+// plugin capability whose encoded (code, value) TLV already appears in base or
+// an earlier entry of pluginCaps. Distinct values sharing a capability code
+// (such as multiple Multiprotocol families) are retained, and entries whose
+// declared length falls outside RFC 5492 TLV bounds pass through so downstream
+// length validation refuses them explicitly.
+func appendUniquePluginCapabilities(base, pluginCaps []capability.Capability) []capability.Capability {
+	if len(pluginCaps) == 0 {
+		return base
+	}
+	seen := make(map[string]struct{}, len(base)+len(pluginCaps))
+	var wire [257]byte
+	for _, c := range base {
+		if tlv, ok := encodeCapabilityTLV(c, &wire); ok {
+			seen[string(tlv)] = struct{}{}
+		}
+	}
+	for _, c := range pluginCaps {
+		tlv, ok := encodeCapabilityTLV(c, &wire)
+		if !ok {
+			base = append(base, c)
+			continue
+		}
+		if _, dup := seen[string(tlv)]; dup {
+			continue
+		}
+		seen[string(tlv)] = struct{}{}
+		base = append(base, c)
+	}
+	return base
+}
+
+// encodeCapabilityTLV writes c into wire when its declared length fits one
+// RFC 5492 capability TLV (2..257 octets) and WriteTo matches that length.
+func encodeCapabilityTLV(c capability.Capability, wire *[257]byte) ([]byte, bool) {
+	size := c.Len()
+	if size < 2 {
+		return nil, false
+	}
+	if size > len(wire) {
+		return nil, false
+	}
+	n := c.WriteTo(wire[:size], 0)
+	if n != size {
+		return nil, false
+	}
+	return wire[:n], true
 }
 
 // coalescePathsLimit compacts the builder-owned slice in place. Caller-owned

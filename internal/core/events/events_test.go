@@ -470,3 +470,28 @@ func TestDirectionParsing(t *testing.T) {
 		}
 	}
 }
+
+// VALIDATES: the bus namespace and bus:participant-exit lifecycle message are
+// registered automatically at package init with typed payload metadata.
+// PREVENTS: participant-exit lifecycle notifications failing bus validation or
+// missing from the message catalog.
+func TestBusParticipantExitRegisteredAtInit(t *testing.T) {
+	if !IsValidNamespace(NamespaceBus) {
+		t.Fatalf("expected namespace %q to be registered", NamespaceBus)
+	}
+	if !IsValidEvent(NamespaceBus, EventParticipantExit) {
+		t.Fatalf("expected event %q/%q to be registered", NamespaceBus, EventParticipantExit)
+	}
+	if !IsValidMessage(MessageParticipantExit) {
+		t.Fatalf("expected message %q to be registered", MessageParticipantExit)
+	}
+	if BusParticipantExit == nil {
+		t.Fatal("expected BusParticipantExit typed handle to be initialized")
+	}
+	if LookupNamespaceID(NamespaceBus) == NamespaceUnknown {
+		t.Fatalf("expected non-zero NamespaceID for %q", NamespaceBus)
+	}
+	if LookupEventTypeID(EventParticipantExit) == EventTypeUnknown {
+		t.Fatalf("expected non-zero EventTypeID for %q", EventParticipantExit)
+	}
+}

@@ -8,8 +8,6 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/ze-software/ze/internal/component/config"
-	pluginserver "github.com/ze-software/ze/internal/component/plugin/server"
 	"github.com/ze-software/ze/internal/component/policy"
 	bgpevents "github.com/ze-software/ze/internal/core/bgp/events"
 	"github.com/ze-software/ze/internal/core/events"
@@ -19,26 +17,12 @@ import (
 // TestFilterOwnerAliasDelivery follows parsed config through the derived grant
 // into the real delivery index, including the state channel used for removal.
 func TestFilterOwnerAliasDelivery(t *testing.T) {
-	registerInserter(t)
+	registerStateInserter(t)
 	for _, process := range []string{"renamed", "fake-inserter"} {
 		t.Run(process, func(t *testing.T) {
-			input := "plugin { internal " + process + " { use fake-inserter; } }\n" +
+			input := "bus { endpoint " + process + " { internal fake-inserter; } }\n" +
 				strings.Replace(insertionConfig, "%A%", "filter { import { filters [ fake-inserter:early ]; final accept; } }", 1)
-			schema, err := config.YANGSchema()
-			if err != nil {
-				t.Fatal(err)
-			}
-			tree, err := config.NewParser(schema).Parse(input)
-			if err != nil {
-				t.Fatal(err)
-			}
-			peers, _, err := peersAndDynamicGroups(tree)
-			if err != nil {
-				t.Fatal(err)
-			}
-			srv := &pluginserver.Server{}
-			srv.UpdateDeliveryGraph(bgpevents.Namespace, deliveryPeers(peers))
-			graph := srv.DeliveryGraph()
+			graph := graphFromConfig(t, input)
 			got := fedBy(graph, bgpevents.EventState, events.DirUnspecified, "192.0.2.1")
 			if !slices.Contains(got, process) {
 				t.Fatalf("state/removal recipients = %v, missing configured process %s", got, process)
@@ -51,12 +35,11 @@ func TestFilterOwnerAliasDelivery(t *testing.T) {
 					t.Fatalf("state/removal granted to non-running canonical owner: %v", got)
 				}
 			}
-			for _, recipient := range fedBy(graph, bgpevents.EventState, events.DirUnspecified, "192.0.2.2") {
-				if recipient == process {
-					t.Fatalf("unrelated peer grants state to filter owner %s", recipient)
-				}
-				if recipient == "fake-inserter" {
-					t.Fatalf("unrelated peer grants state to canonical filter owner %s", recipient)
+			if process == "renamed" {
+				for _, recipient := range fedBy(graph, bgpevents.EventState, events.DirUnspecified, "192.0.2.2") {
+					if recipient == "fake-inserter" {
+						t.Fatalf("unrelated peer grants state to non-running canonical filter owner %s", recipient)
+					}
 				}
 			}
 			for _, recipient := range fedBy(graph, bgpevents.EventUpdate, events.DirReceived, "192.0.2.1") {

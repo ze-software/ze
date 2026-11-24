@@ -10,18 +10,18 @@ import (
 	"github.com/ze-software/ze/internal/component/plugin"
 	"github.com/ze-software/ze/internal/component/plugin/process"
 	"github.com/ze-software/ze/internal/core/events"
+	"github.com/ze-software/ze/pkg/plugin/rpc"
 )
 
-// filterServer builds a server whose index is the two-peer graph of the spec's
-// first story, with every named process running and subscribed to BOTH types in
-// both directions. The plugin half is therefore never what narrows delivery:
-// anything the filter drops, the CONFIG dropped.
+// filterServer builds a server whose index is the two-peer compiled bus graph,
+// with every named process running and subscribed to BOTH types in both
+// directions.
 func filterServer(t *testing.T, names ...string) (*Server, map[string]*process.Process) {
 	t.Helper()
 	ns, update, state := graphIDs(t)
 
 	s := &Server{subscriptions: newSubscriptionManager()}
-	s.UpdateDeliveryGraph(graphNS, twoPeerInput())
+	require.NoError(t, s.UpdateDeliveryGraphWithEndpoints(graphNS, twoPeerInput(), twoPeerEndpoints()))
 
 	procs := make(map[string]*process.Process, len(names))
 	for _, name := range names {
@@ -139,7 +139,7 @@ func TestPeerScopedProcsAddsNoAllocation(t *testing.T) {
 func TestRuntimeSubscribeSurvivesAPublishThatIsNotAnApply(t *testing.T) {
 	ns, update, state := graphIDs(t)
 	s := &Server{subscriptions: newSubscriptionManager()}
-	s.UpdateDeliveryGraph(graphNS, twoPeerInput())
+	require.NoError(t, s.UpdateDeliveryGraphWithEndpoints(graphNS, twoPeerInput(), twoPeerEndpoints()))
 
 	lookingGlass := process.NewProcess(plugin.PluginConfig{Name: "looking-glass"})
 	s.subscriptions.Add(lookingGlass, &Subscription{
@@ -163,7 +163,7 @@ func TestRuntimeSubscribeSurvivesAPublishThatIsNotAnApply(t *testing.T) {
 	assert.Empty(t, s.PeerScopedProcs(ns, state, events.DirUnspecified, "192.0.2.2", "second"),
 		"a live override cannot widen the configured grant")
 
-	s.UpdateDeliveryGraph(graphNS, twoPeerInput())
+	require.NoError(t, s.UpdateDeliveryGraphWithEndpoints(graphNS, twoPeerInput(), twoPeerEndpoints()))
 	assert.Equal(t, []string{"looking-glass"},
 		procNames(s.PeerScopedProcs(ns, state, events.DirUnspecified, "192.0.2.1", "first")),
 		"a publish that is not a config apply leaves the permitted override standing")
@@ -222,35 +222,36 @@ func TestReconcileNamesEachDisagreementAndIsSilentOnAgreement(t *testing.T) {
 	ns, update, state := graphIDs(t)
 
 	s := &Server{subscriptions: newSubscriptionManager()}
-	s.UpdateDeliveryGraph(graphNS, []DeliveryPeer{{
-		Addr: "192.0.2.1", Name: "first",
-		Bindings: []plugin.PeerProcessBinding{{
-			PluginName: "policy-engine",
-			Receive:    map[string]events.Direction{graphUpdate: events.DirReceived, graphState: events.DirBoth},
-		}},
-	}})
+	p1 := DeliveryPeer{Addr: "192.0.2.1", Name: "first", Path: "/" + graphNS + "/entry/first"}
+	epRecvOnly := []BusParticipantInput{{
+		Path:         plugin.EndpointPath("policy-engine"),
+		EndpointName: "policy-engine",
+		Receives: []rpc.MessageReceiveDecl{
+			{Message: graphMsg(graphUpdate), Tags: graphDirTag(events.DirectionReceived)},
+			{Message: graphMsg(graphState)},
+		},
+		OwnBlock: plugin.BusBlock{
+			Receive: plugin.BusDirectionBlock{TargetsPresent: true, Targets: []string{p1.Path}},
+		},
+	}}
+	require.NoError(t, s.UpdateDeliveryGraphWithEndpoints(graphNS, []DeliveryPeer{p1}, epRecvOnly))
 
-	// Nothing has declared yet: the plugin half is unknown, so there is nothing
-	// to disagree with and nothing to say.
 	assert.Empty(t, s.deliveryDisagreements(nil), "a process that has not declared is not a disagreement")
 
 	engine := process.NewProcess(plugin.PluginConfig{Name: "policy-engine"})
 	s.subscriptions.Add(engine, &Subscription{Namespace: ns, EventType: update, Direction: events.DirSent})
 
-	// One line per disagreeing triple, in the order the operator surface prints
-	// the granted tokens, which is sorted.
 	found := s.deliveryDisagreements(nil)
 	require.Len(t, found, 2)
 	assert.Equal(t, deliveryDisagreement{
 		peer: "192.0.2.1", process: "policy-engine",
 		reason: reasonUndeclared, granted: graphState,
-	}, found[0], "the config grants state and the plugin never asked for it")
+	}, found[0], "the compiled bus grants state and the plugin never asked for it")
 	assert.Equal(t, deliveryDisagreement{
 		peer: "192.0.2.1", process: "policy-engine",
 		reason: reasonDirection, granted: "update-received", declared: "update-sent",
 	}, found[1], "the type agrees and the directions never meet, so nothing is delivered")
 
-	// The plugin declares a type for this peer that the peer does not grant.
 	s.subscriptions.Add(engine, &Subscription{
 		Namespace: ns, EventType: state, Direction: events.DirBoth,
 		PeerFilter: &PeerFilter{Selector: "192.0.2.1"},
@@ -260,116 +261,57 @@ func TestReconcileNamesEachDisagreementAndIsSilentOnAgreement(t *testing.T) {
 	})
 	assert.Empty(t, s.deliveryDisagreements(nil), "both halves now agree, so the report says nothing")
 
-	// A peer the config does not attach the process to is not reported: the
-	// operator asked for nothing there, so there is nothing to reconcile.
-	s.UpdateDeliveryGraph(graphNS, []DeliveryPeer{
-		{Addr: "192.0.2.1", Name: "first", Bindings: []plugin.PeerProcessBinding{{
-			PluginName: "policy-engine",
-			Receive:    map[string]events.Direction{graphUpdate: events.DirBoth, graphState: events.DirBoth},
-		}}},
-		{Addr: "192.0.2.9", Name: "ninth"},
-	})
+	epBoth := []BusParticipantInput{{
+		Path:         plugin.EndpointPath("policy-engine"),
+		EndpointName: "policy-engine",
+		Receives: []rpc.MessageReceiveDecl{
+			{Message: graphMsg(graphUpdate), Tags: graphDirTag(events.DirectionReceived, events.DirectionSent)},
+			{Message: graphMsg(graphState)},
+		},
+		OwnBlock: plugin.BusBlock{
+			Receive: plugin.BusDirectionBlock{TargetsPresent: true, Targets: []string{p1.Path}},
+		},
+	}}
+	require.NoError(t, s.UpdateDeliveryGraphWithEndpoints(graphNS, []DeliveryPeer{
+		p1,
+		{Addr: "192.0.2.9", Name: "ninth", Path: "/" + graphNS + "/entry/ninth"},
+	}, epBoth))
 	assert.Empty(t, s.deliveryDisagreements(nil))
 }
 
-// TestReconcileNamesAProcessNoPeerAttaches verifies the one disagreement that
-// has no peer to name: a running program that declared events and appears in no
-// attach block anywhere in the config.
-//
-// VALIDATES: AC-7b at whole-process scope. The per-edge report walks the index,
-// and a process nobody attaches HAS no edge, so it was the one case the report
-// could not reach -- while being the case with the largest consequence, since no
-// peer-scoped event of any type reaches the program rather than it being fed
-// less than it asked for.
-// PREVENTS: the silence measured on 2026-08-15, where two route-server fixtures
-// ran bgp-rs with no `attach process rs` on any peer. The plugin took delivery
-// of no peer-up event, so it never made a peer a live forward target, its
-// FastPathSkipped fallback and its peer-up replay could not run, and nothing in
-// the daemon said so (test/plugin/bgp-rs-reactor-fastpath-fallback.ci).
 func TestReconcileNamesAProcessNoPeerAttaches(t *testing.T) {
 	ns, update, state := graphIDs(t)
 
 	s := &Server{subscriptions: newSubscriptionManager()}
-	s.UpdateDeliveryGraph(graphNS, twoPeerInput())
+	require.NoError(t, s.UpdateDeliveryGraphWithEndpoints(graphNS, twoPeerInput(), twoPeerEndpoints()))
 
-	// Attached and declaring exactly what its peer grants, so the two halves
-	// agree and nothing is said about it.
 	glass := process.NewProcess(plugin.PluginConfig{Name: "looking-glass"})
 	s.subscriptions.Add(glass, &Subscription{Namespace: ns, EventType: update, Direction: events.DirReceived})
 	s.subscriptions.Add(glass, &Subscription{Namespace: ns, EventType: state, Direction: events.DirBoth})
 
-	// Running and declaring, attached by no peer in the index.
 	stranger := process.NewProcess(plugin.PluginConfig{Name: "route-server"})
 	s.subscriptions.Add(stranger, &Subscription{Namespace: ns, EventType: update, Direction: events.DirBoth})
 
 	assert.Equal(t, []deliveryDisagreement{{process: "route-server", reason: reasonUnattached}},
 		s.deliveryDisagreements(nil),
-		"the process no peer attaches is named, and the attached one is not")
+		"the process no peer feeds is named, and the fed one is not")
 
-	// Scoped to one process, the finding still holds for that process alone.
-	assert.Empty(t, s.deliveryDisagreements(glass), "the attached process has nothing to report")
+	assert.Empty(t, s.deliveryDisagreements(glass), "the fed process has nothing to report")
 	assert.Len(t, s.deliveryDisagreements(stranger), 1)
 
-	// Attaching it anywhere ends the finding: one peer serving it is enough for
-	// the process to be reachable, and the per-edge rows own everything after.
-	s.UpdateDeliveryGraph(graphNS, append(twoPeerInput(), DeliveryPeer{
-		Addr: "192.0.2.3", Name: "third", Bindings: []plugin.PeerProcessBinding{{
-			PluginName: "route-server",
-			Receive:    map[string]events.Direction{graphUpdate: events.DirBoth},
-		}},
-	}))
+	third := DeliveryPeer{Addr: "192.0.2.3", Name: "third", Path: "/" + graphNS + "/entry/third"}
+	rsEp := BusParticipantInput{
+		Path:         plugin.EndpointPath("route-server"),
+		EndpointName: "route-server",
+		Receives:     []rpc.MessageReceiveDecl{{Message: graphMsg(graphUpdate), Tags: graphDirTag(events.DirectionReceived, events.DirectionSent)}},
+		OwnBlock: plugin.BusBlock{
+			Receive: plugin.BusDirectionBlock{TargetsPresent: true, Targets: []string{third.Path}},
+		},
+	}
+	require.NoError(t, s.UpdateDeliveryGraphWithEndpoints(graphNS, append(twoPeerInput(), third), append(twoPeerEndpoints(), rsEp)))
 	assert.Empty(t, s.deliveryDisagreements(stranger))
 
-	// A process that declared NOTHING is not reported: its half is not known
-	// yet, and the existing report already refuses to guess about it.
 	silent := process.NewProcess(plugin.PluginConfig{Name: "not-yet-declared"})
 	s.subscriptions.subscriptions[silent] = nil
 	assert.Empty(t, s.deliveryDisagreements(silent))
-}
-
-// TestReconcileExemptsAnImplicitGrant verifies that a receive type the config
-// granted on its own, rather than an operator, is not reported as undeclared
-// when the plugin does not subscribe to it: the plugin whose filter member a
-// peer's chain carries is granted that peer's `state`, so its removal can
-// reach the plugin, and a filter plugin that keeps no per-peer state never
-// asks for it (spec-filter-wire-6-stage-filters, "Peer removal notice").
-//
-// VALIDATES: the implicit grant is silent when undeclared, an operator grant
-// beside it on the same edge is still judged, and the operator surface names
-// the implicit type.
-// PREVENTS: one false "the config grants an event the plugin never declared"
-// line per peer for every filter plugin a chain names.
-func TestReconcileExemptsAnImplicitGrant(t *testing.T) {
-	ns, update, _ := graphIDs(t)
-
-	s := &Server{subscriptions: newSubscriptionManager()}
-	s.UpdateDeliveryGraph(graphNS, []DeliveryPeer{{
-		Addr: "192.0.2.1", Name: "first",
-		Bindings: []plugin.PeerProcessBinding{{
-			PluginName: "policy-engine",
-			Receive:    map[string]events.Direction{graphUpdate: events.DirBoth, graphState: events.DirBoth},
-			Implicit:   map[string]bool{graphState: true},
-		}},
-	}})
-
-	engine := process.NewProcess(plugin.PluginConfig{Name: "policy-engine"})
-	s.subscriptions.Add(engine, &Subscription{Namespace: ns, EventType: update, Direction: events.DirBoth})
-	assert.Empty(t, s.deliveryDisagreements(nil),
-		"the implicit state grant is not a disagreement when the plugin never asked for state")
-
-	edges := s.DeliveryGraph().Inspect()[0].Processes[0]
-	assert.Equal(t, []string{graphState}, edges.Implicit, "the operator surface names the implicit grant")
-
-	// The same edge with state written by the operator is still judged.
-	s.UpdateDeliveryGraph(graphNS, []DeliveryPeer{{
-		Addr: "192.0.2.1", Name: "first",
-		Bindings: []plugin.PeerProcessBinding{{
-			PluginName: "policy-engine",
-			Receive:    map[string]events.Direction{graphUpdate: events.DirBoth, graphState: events.DirBoth},
-		}},
-	}})
-	assert.Equal(t, []deliveryDisagreement{{
-		peer: "192.0.2.1", process: "policy-engine",
-		reason: reasonUndeclared, granted: graphState,
-	}}, s.deliveryDisagreements(nil), "an operator grant nobody declared is still reported")
 }

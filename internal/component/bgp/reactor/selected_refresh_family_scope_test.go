@@ -22,7 +22,7 @@ func TestSelectedRefreshSharedEncodingKeepsSessionFamilies(t *testing.T) {
 	sibling, wire := newGroupUpdatesPeer(t, six.Destination, "absent")
 	sibling.settings.Port = 1179
 	sibling.settings.ExportPolicy = ipv6.peer.settings.ExportPolicy
-	sibling.settings.ProcessBindings = ipv6.peer.settings.ProcessBindings
+	sibling.settings.Bus = ipv6.peer.settings.Bus.Clone()
 	sibling.reactor = ipv6.api.r
 	sibling.session.initialReplay.Store(72)
 	writer := &observedBGPWriter{session: sibling.session, writer: wire}

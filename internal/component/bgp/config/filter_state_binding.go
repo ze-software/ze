@@ -1,12 +1,10 @@
-// Design: docs/architecture/api/architecture.md -- the derived half of a delivery edge
+// Design: docs/architecture/api/architecture.md -- filter-owner resolution for compiled bus state requirements
 // Related: filter_insertion.go -- insertDeclaredFilters, which places the members this reads
-// Related: redistribute_binding.go -- processNameFor, the process a registry name runs under
-// Related: internal/component/bgp/reactor/config.go -- GrantImplicitReceive, the grant and its precedence
+// Related: bus_requirements.go -- validates that every filter owner receives bgp:state
 
 package bgpconfig
 
 import (
-	"fmt"
 	"slices"
 	"strings"
 
@@ -15,52 +13,15 @@ import (
 	"github.com/ze-software/ze/internal/component/plugin"
 	"github.com/ze-software/ze/internal/component/plugin/registry"
 	"github.com/ze-software/ze/internal/component/policy"
-	bgpevents "github.com/ze-software/ze/internal/core/bgp/events"
 )
 
-// filterOwnerReceive is the grant derived for the plugin whose member a
-// peer's chain carries: the peer's state, and nothing else. A member keeps
-// state per peer (a learned role, say), and the `state` event with reason
-// `removed` is how it learns to free it, on either transport
-// (spec-filter-wire-6-stage-filters, "Peer removal notice").
-const filterOwnerReceive = bgpevents.EventState
-
-// grantFilterOwnersState grants, on every peer and dynamic group template,
-// the peer's `state` to each plugin one of whose members the peer's import
-// or export list carries, inserted or named by the operator, marked
-// implicit. It MUST run after the insertions are placed and the references
-// are canonical. An operator's `attach process` block for that plugin that
-// does not grant `state` gains it: the plugin receives the peer's removal
-// regardless, because the per-peer state its member keeps is the plugin's
-// obligation, not the operator's (GrantImplicitReceive). Delivery is still
-// the overlap of both halves, so a plugin that does not subscribe to
-// `state` receives nothing more.
-func grantFilterOwnersState(tree *config.Tree, settings []*reactor.PeerSettings) error {
-	plugins, err := config.ExtractPluginsFromTree(tree)
-	if err != nil {
-		return err
-	}
-	types := registry.FilterTypesMap()
-	for _, ps := range settings {
-		for _, ref := range slices.Concat(ps.ImportPolicy.Filters(), ps.ExportPolicy.Filters()) {
-			process, owned := filterOwnerProcess(ref, plugins, types)
-			if !owned {
-				continue
-			}
-			if err := reactor.GrantImplicitReceive(ps, process, filterOwnerReceive); err != nil {
-				return fmt.Errorf("peer %s: %w", ps.Name, err)
-			}
-		}
-	}
-	return nil
-}
-
-// filterOwnerProcess answers the process that serves an active canonical
+// filterOwnerProcess answers the endpoint that serves an active canonical
 // reference: the owner of a `<type>:<instance>` filter type, under the name
 // the plugin server runs it, or the plugin of `<plugin>:<filter>` when a
-// compiled registration or the config's plugin block knows it. A reference
-// no process serves (a bare policy name, an in-process bound member) and an
-// inactive member, which runs nowhere, answer false.
+// compiled registration or the config's bus endpoint list knows it. A reference
+// no process serves (a bare policy name, an in-process bound member, or a
+// built-in next-hop:* engine step) and an inactive member, which runs
+// nowhere, answer false.
 func filterOwnerProcess(ref policy.Ref, plugins []plugin.PluginConfig, types map[string]string) (string, bool) {
 	if ref.Inactive {
 		return "", false

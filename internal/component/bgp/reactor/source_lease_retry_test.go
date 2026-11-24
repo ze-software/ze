@@ -58,11 +58,11 @@ func TestSourceLeaseReleaseRetryAfterCanceledJoin(t *testing.T) {
 			makeProcess := sourceLeaseProcessFactory(t)
 			first, other := makeProcess("rib-one"), makeProcess("rib-other")
 			peer, facts := sourceReceiptFixture(t)
-			peer.settings.ProcessBindings = []ProcessBinding{sourceLeaseGrant(first.Name()), sourceLeaseGrant(other.Name())}
+			peer.settings.Bus = testBusBlockForGrants(sourceLeaseGrant(first.Name()), sourceLeaseGrant(other.Name()))
 			live, err := sourceReceipts.issue(facts)
 			require.NoError(t, err)
 			t.Cleanup(live.close)
-			server := &pluginserver.Server{}
+			server := sourceLeaseTestServer(t, first, other)
 			for _, proc := range []*process.Process{first, other} {
 				for _, action := range []rpc.SourceLeaseAction{rpc.SourceLeaseAcquire, rpc.SourceLeaseRetain} {
 					_, err = sourceLeaseRetryAdapter(server, work, proc, native, sourceLeaseRequest(action, live.ID(), peer.sourceOwner))
@@ -127,11 +127,11 @@ func TestSourceLeaseReleaseAbsentOwnerIsTerminal(t *testing.T) {
 	makeProcess := sourceLeaseProcessFactory(t)
 	first, other := makeProcess("rib-one"), makeProcess("rib-other")
 	peer, facts := sourceReceiptFixture(t)
-	peer.settings.ProcessBindings = []ProcessBinding{sourceLeaseGrant(other.Name())}
+	peer.settings.Bus = testBusBlockForGrants(sourceLeaseGrant(other.Name()))
 	live, err := sourceReceipts.issue(facts)
 	require.NoError(t, err)
 	t.Cleanup(live.close)
-	server := &pluginserver.Server{}
+	server := sourceLeaseTestServer(t, first, other)
 	_, err = sourceLeaseApply(server, t.Context(), other, sourceLeaseRequest(rpc.SourceLeaseAcquire, live.ID(), peer.sourceOwner))
 	require.NoError(t, err)
 	for _, receipt := range []uint64{live.ID(), ^uint64(0)} {

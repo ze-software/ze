@@ -350,7 +350,7 @@ func armAPISyncPeer(t *testing.T, r *Reactor, addr netip.Addr, port uint16) (fun
 	peer.session = NewSession(settings)
 
 	peer.SetClock(sim.NewFakeClock(time.Now()))
-	peer.settings.ProcessBindings = []ProcessBinding{sendUpdateOnly("pusher")}
+	setTestPeerBus(t, peer, testBusBlockForGrants(sendUpdateOnly("pusher")))
 	peer.resetAPISync([]string{"pusher"})
 	raiseTestReplayFence(peer, "pusher")
 	require.True(t, peer.initialUpdateOwed.Load(), "the replay fence must be up before any report")

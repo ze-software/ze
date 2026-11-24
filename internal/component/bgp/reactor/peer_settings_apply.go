@@ -11,6 +11,8 @@ import (
 	"reflect"
 	"slices"
 	"strings"
+
+	"github.com/ze-software/ze/internal/component/plugin"
 )
 
 // settingsCopier copies from src to dst the PeerSettings fields ONE swap decision
@@ -77,15 +79,14 @@ type peerSettingsSwap struct {
 //     not hold and withdraws what the configuration no longer names. Its one
 //     reader, sendInitialRoutes, goes through the p.mu-guarded accessor
 //     Peer.staticRoutes, and p.staticMu serializes the two writers of the wire.
-//   - ProcessBindings, and only when the two lists differ in receive-only
-//     bindings alone, the ones that grant no send type and do not receive the
-//     OPEN, whoever wrote them (onlyReceiveOnlyBindingsDiffer,
-//     peer_derived_bindings.go). Its consumer is the delivery graph, which
-//     applyHotSwappableSettings republishes in the order the attached
-//     processes need: told up first, edges published after, caught up last.
-//     Any other binding change is left undelivered here, so it still reads as
-//     a difference and restarts. Its readers hold r.mu (the graph build,
-//     maySend) or p.mu (initialUpdateReporters), and the write holds both.
+//   - Bus, and only when the two blocks differ in non-OPEN peer-to-endpoint
+//     feed rules alone (onlyReceiveOnlyBusDiffers, peer_derived_bindings.go).
+//     Its consumer is the delivery graph, which applyHotSwappableSettings
+//     republishes in the order the attached processes need: told up first,
+//     edges published after, caught up last. Any change to Bus.Receive or
+//     bgp:open is left undelivered here, so it still reads as a difference and
+//     restarts. Its readers hold r.mu or read the atomic DeliveryGraph snapshot,
+//     and the write holds r.mu and p.mu.
 //   - BFD, and only when neither side runs strict mode (bfdOptInStrict). A
 //     non-strict peer's BFD client runs beside the session and changes
 //     nothing it negotiated, so applyHotSwappableSettings delivers the opt-in
@@ -116,8 +117,10 @@ func hotSwappableSettings(dst, src *PeerSettings) {
 	dst.PrefixUpdated = src.PrefixUpdated
 	dst.StaticRoutes = src.StaticRoutes
 	dst.Description = src.Description
-	if onlyReceiveOnlyBindingsDiffer(dst.ProcessBindings, src.ProcessBindings) {
-		dst.ProcessBindings = src.ProcessBindings
+	if onlyReceiveOnlyBusDiffers(dst.Bus, src.Bus) {
+		dst.Bus = src.Bus.Clone()
+		dst.BusOrigin = src.BusOrigin
+		dst.BusSource = src.BusSource
 	}
 	if !bfdOptInStrict(dst.BFD) && !bfdOptInStrict(src.BFD) {
 		dst.BFD = src.BFD
@@ -180,12 +183,14 @@ func peerSettingsSwapPlan(current, next *PeerSettings, s *Session) (settingsCopi
 	// values. What remains different is what a swap cannot deliver.
 	c := *current
 	hotSwappableSettings(&c, next)
-	// A process a receive-only binding attaches needs the routes the session
-	// already carried in the directions its grant covers, and a session that
+	// A process a feed-only bus change attaches needs the routes the session
+	// already carried in the directions its feed covers, and a session that
 	// owes some and cannot send them again restarts instead
-	// (receiveBindingsDeliverable).
-	if !receiveBindingsDeliverable(current.ProcessBindings, c.ProcessBindings, s) {
-		c.ProcessBindings = current.ProcessBindings
+	// (busFeedDeliverable).
+	if !busFeedDeliverable(current.Bus, c.Bus, s) {
+		c.Bus = current.Bus
+		c.BusOrigin = current.BusOrigin
+		c.BusSource = current.BusSource
 	}
 	// A plugin capability the running OPEN carried is judged apart from the
 	// settings, because a plugin changes it in the injector store and no
@@ -223,10 +228,14 @@ func peerSettingsSwapPlan(current, next *PeerSettings, s *Session) (settingsCopi
 	if !capabilitiesEqual(c.Capabilities, n.Capabilities) {
 		changed = append(changed, "Capabilities")
 	}
+	if !plugin.BusBlockEqual(c.Bus, n.Bus) {
+		changed = append(changed, "Bus")
+	}
 	if !pluginKept {
 		changed = append(changed, "PluginCapabilities")
 	}
 	c.Capabilities, n.Capabilities = nil, nil
+	c.Bus, n.Bus = plugin.BusBlock{}, plugin.BusBlock{}
 
 	cv, nv := reflect.ValueOf(c), reflect.ValueOf(n)
 	structType := cv.Type()
@@ -377,6 +386,11 @@ func importFallNeedsTransaction(peer *Peer) error {
 func (p *Peer) hotSwappableSnapshot(copy settingsCopier) *PeerSettings {
 	previous := &PeerSettings{}
 	p.mu.RLock()
+	// Pre-seed Bus with the peer's current Bus so onlyReceiveOnlyBusDiffers
+	// preserves both Receive and Send on rollback snapshots.
+	previous.Bus = p.settings.Bus.Clone()
+	previous.BusOrigin = p.settings.BusOrigin
+	previous.BusSource = p.settings.BusSource
 	copy(previous, p.settings)
 	if p.settings.IsDynamic {
 		previous.ImportPolicy = p.dynImportPolicy
@@ -440,7 +454,11 @@ func (p *Peer) applyHotSwappableSettings(next *PeerSettings, copy settingsCopier
 	p.mu.RLock()
 	r := p.reactor
 	session := p.session
-	bindingsBefore := p.settings.ProcessBindings
+	busBefore := p.settings.Bus.Clone()
+	busOriginBefore := p.settings.BusOrigin
+	busSourceBefore := p.settings.BusSource
+	settingsBefore := *p.settings
+	settingsBefore.Bus = busBefore
 	shutdownBefore := p.settings.AdminShutdown
 	// RFC 8212 Section 3: a dynamic candidate can still carry an unresolved AS.
 	// The captured live session's classification governs this hot policy swap.
@@ -451,6 +469,7 @@ func (p *Peer) applyHotSwappableSettings(next *PeerSettings, copy settingsCopier
 	restoreFinal := beforeFinal.restores(nextFinal)
 	announced := p.upPhaseLocked(session)
 	p.mu.RUnlock()
+	beforeGraph := r.DeliveryGraph()
 	stateUp := p.State() == PeerStateEstablished
 	if restoreFinal && stateUp && session != nil {
 		// Cover publication itself, not only the later retained-page read.
@@ -459,10 +478,14 @@ func (p *Peer) applyHotSwappableSettings(next *PeerSettings, copy settingsCopier
 		defer p.endPolicyReplay()
 	}
 	established := stateUp && announced == sessionUpDelivered
-	probe := PeerSettings{ProcessBindings: bindingsBefore}
+	probe := PeerSettings{
+		Bus:       busBefore.Clone(),
+		BusOrigin: busOriginBefore,
+		BusSource: busSourceBefore,
+	}
 	copy(&probe, next)
-	bindingsAfter := probe.ProcessBindings
-	gained, lost := receiveBindingChange(bindingsBefore, bindingsAfter)
+	busAfter := probe.Bus
+	gained, lost := busFeedChange(busBefore, busAfter)
 	var rebound, detached []string
 	for _, name := range lost {
 		if slices.Contains(gained, name) {
@@ -473,27 +496,26 @@ func (p *Peer) applyHotSwappableSettings(next *PeerSettings, copy settingsCopier
 	}
 
 	if established && len(gained) > 0 {
-		// A process whose grant changed is told down before it is told up, and
+		// A process whose feed changed is told down before it is told up, and
 		// its edge is absent from the graph between the two, or a live message
-		// could reach it under neither grant. The journal's undo is the
+		// could reach it under neither feed. The journal's undo is the
 		// snapshot taken before this apply, so a rollback never restores the
-		// intermediate list.
+		// intermediate block.
 		if len(rebound) > 0 {
 			if err := p.parkReboundOrigins(r, rebound); err != nil {
 				return err
 			}
-			p.writeBindings(r, withoutProcesses(bindingsBefore, rebound))
+			p.writeBus(r, withoutBusEndpoints(busBefore, rebound))
 			p.unbindProcesses(r, rebound)
 		}
 		// Step 2: every attached process acknowledges its up while the graph
 		// still lacks its edge.
-		p.bindProcesses(r, session, bindingsAfter, gained)
+		p.bindProcesses(r, session, busAfter, gained)
 	}
 
-	// Step 3: the write. r.mu is held across it because ProcessBindings is one
-	// of the fields a copier can deliver, and the delivery graph build and
-	// maySend read it under r.mu alone. Lock order is r.mu, then p.mu, as
-	// everywhere else.
+	// Step 3: the write. r.mu is held across it because Bus is one of the
+	// fields a copier can deliver, and the delivery graph build reads it under
+	// r.mu alone. Lock order is r.mu, then p.mu, as everywhere else.
 	if r != nil {
 		r.mu.Lock()
 	}
@@ -504,18 +526,6 @@ func (p *Peer) applyHotSwappableSettings(next *PeerSettings, copy settingsCopier
 	current := p.session
 	currentPhase := p.upPhaseLocked(current)
 	sameSession := current == session && (p.State() == PeerStateEstablished) == stateUp && announcedAtWrite == announced
-	// The step-1 session is going away on its own once its close is marked,
-	// and is gone once runOnce's defer replaced it, which also clears the
-	// mark. Either way its FSM down read the graph after the mark, so a
-	// process this apply tells up may have missed it.
-	//
-	// What holds the peer now decides whether anything restarts. No session,
-	// or a successor whose up has not started or is already closing, reads its
-	// edges from the graph published below, so the step-1 session's departure
-	// is the whole story: closing. A successor whose up started read the graph
-	// before this publish and lacks the new edge, so it is not closing: it
-	// restarts below, and the restart names it. A session step 1 did not have
-	// is not closing either: one published since then still restarts.
 	successorUnannounced := currentPhase == sessionUpUnspecified || currentPhase == sessionUpClosing
 	closing := announcedAtWrite == sessionUpClosing || (session != nil && current != session && successorUnannounced)
 	before := p.settings.StaticRoutes
@@ -527,6 +537,8 @@ func (p *Peer) applyHotSwappableSettings(next *PeerSettings, copy settingsCopier
 	if p.settings.IsDynamic {
 		p.writeDynamicTemplateLocked(next)
 	}
+	settingsAfter := *p.settings
+	settingsAfter.Bus = p.settings.Bus.Clone()
 	after := p.settings.StaticRoutes
 	finalChanged := acceptedBefore.changed(exportFinalDisposition(p.settings.ExportPolicy, p.settings.IsEBGP(), ordinary))
 	// A reload rebuilds every chain, so this asks what the chain decides and not
@@ -538,12 +550,13 @@ func (p *Peer) applyHotSwappableSettings(next *PeerSettings, copy settingsCopier
 	bfd.after, bfd.requestAfter = p.settings.BFD, bfdRequestFor(p.settings)
 	p.mu.Unlock()
 	if r != nil {
-		if (len(gained) > 0 || len(lost) > 0) && r.deliveryPublished {
+		if (!plugin.BusBlockEqual(busBefore, busAfter) || len(gained) > 0 || len(lost) > 0) && r.deliveryPublished {
 			r.publishDeliveryGraphLocked()
 		}
 		r.mu.Unlock()
 	}
-	if err := p.revokeRemovedSourceGrants(r, bindingsBefore, bindingsAfter); err != nil {
+	afterGraph := r.DeliveryGraph()
+	if err := p.revokeRemovedSourceGrants(r, &settingsBefore, &settingsAfter, beforeGraph, afterGraph); err != nil {
 		return err
 	}
 
@@ -590,7 +603,7 @@ func (p *Peer) applyHotSwappableSettings(next *PeerSettings, copy settingsCopier
 	case restart:
 		p.restartForBinding(current, gained, "session changed while processes were bound to it: restarting the session")
 	case established && p.State() == PeerStateEstablished:
-		p.catchUpBoundProcesses(bindingsAfter, gained)
+		p.catchUpBoundProcesses(busAfter, gained)
 	}
 
 	p.refreshForwardFactsIfLive()

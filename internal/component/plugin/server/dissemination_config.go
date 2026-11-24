@@ -1,5 +1,5 @@
 // Design: docs/architecture/api/process-protocol.md -- candidate Stage 1 grants.
-// Related: startup_removal.go -- the exact Configure lifetime owns this graph.
+// Related: startup_removal.go -- the exact Configure lifetime owns this candidate scope.
 package server
 
 import (
@@ -7,11 +7,12 @@ import (
 	"slices"
 	"sync"
 
+	plugin "github.com/ze-software/ze/internal/component/plugin"
 	"github.com/ze-software/ze/internal/component/plugin/process"
 	"github.com/ze-software/ze/internal/core/opererr"
 )
 
-// DisseminationConfigResolver projects one namespace's resolved attachments
+// DisseminationConfigResolver projects one namespace's resolved participants
 // from a whole candidate tree. It MUST apply nothing or retain the tree. The
 // returned values are borrowed only until the caller builds its owned graph.
 type DisseminationConfigResolver func(map[string]any) ([]DeliveryPeer, error)
@@ -43,9 +44,17 @@ func RegisterDisseminationConfigResolver(namespace string, resolve Dissemination
 	return nil
 }
 
-// candidateDisseminationGraphs runs before removalMu is acquired. A Configure
-// scope owns one immutable graph per namespace, shared by its Stage 1 readers.
-func candidateDisseminationGraphs(tree map[string]any) ([]*DeliveryGraph, error) {
+// candidateDisseminationScope holds cloned candidate DeliveryPeers per
+// namespace and the candidate central BusConfig for one Configure attempt.
+type candidateDisseminationScope struct {
+	peersByNS map[string][]DeliveryPeer
+	busCfg    plugin.BusConfig
+}
+
+// captureCandidateDissemination runs before removalMu is acquired. A Configure
+// scope owns its candidate DeliveryPeers and BusConfig snapshot, compiled on
+// demand once Stage 1 runtime declarations arrive.
+func captureCandidateDissemination(tree map[string]any) (*candidateDisseminationScope, error) {
 	disseminationConfigResolvers.RLock()
 	resolvers := make(map[string]DisseminationConfigResolver, len(disseminationConfigResolvers.byNamespace))
 	namespaces := make([]string, 0, len(disseminationConfigResolvers.byNamespace))
@@ -55,20 +64,29 @@ func candidateDisseminationGraphs(tree map[string]any) ([]*DeliveryGraph, error)
 	}
 	disseminationConfigResolvers.RUnlock()
 	slices.Sort(namespaces)
-	graphs := make([]*DeliveryGraph, 0, len(namespaces))
+
+	busCfg, err := plugin.ExtractBusConfigFromMap(tree)
+	if err != nil {
+		return nil, err
+	}
+	peersByNS := make(map[string][]DeliveryPeer, len(namespaces))
 	for _, namespace := range namespaces {
 		peers, err := resolvers[namespace](tree)
 		if err != nil {
 			return nil, err
 		}
-		graphs = append(graphs, newDeliveryGraph(namespace, peers))
+		peersByNS[namespace] = cloneDeliveryPeers(peers)
 	}
-	return graphs, nil
+	return &candidateDisseminationScope{
+		peersByNS: peersByNS,
+		busCfg:    busCfg,
+	}, nil
 }
 
-// validateDisseminationForProcess uses the map owned by this exact Configure
-// attempt, never an active graph with different grants. A process outside a
-// Configure attempt is judged against the active graph, as a runtime restart is.
+// validateDisseminationForProcess uses the candidate owned by this exact
+// Configure attempt, never an active graph with different filters. A process
+// outside a Configure attempt is judged against the active graph, as a runtime
+// restart is.
 func (s *Server) validateDisseminationForProcess(proc *process.Process) error {
 	selected, scoped := s.pluginConfigureConfig(proc)
 	if !scoped {
@@ -77,23 +95,28 @@ func (s *Server) validateDisseminationForProcess(proc *process.Process) error {
 	if selected.tree == nil {
 		return s.ValidateDisseminationBindings()
 	}
+	if selected.dissemination == nil {
+		return s.ValidateDisseminationBindings()
+	}
 	processes := s.disseminationProcesses()
 	for _, declaration := range processes {
 		for _, role := range declaration.Declarations {
-			found := false
-			for _, graph := range selected.dissemination {
-				if graph.namespace == role.Namespace {
-					found = true
-					break
-				}
-			}
-			if !found {
-				return opererr.New("Cannot validate peer grants for process "+declaration.Name+" in namespace "+role.Namespace+".",
-					"The namespace has no configuration resolver, so Ze cannot safely start this peer-output role.", "ze show plugin declarations")
+			if _, found := selected.dissemination.peersByNS[role.Namespace]; !found {
+				return opererr.New("Cannot validate grants for process "+declaration.Name+" in namespace "+role.Namespace+".",
+					"The namespace has no configuration resolver, so Ze cannot safely start this dissemination role.", "ze show plugin declarations")
 			}
 		}
 	}
-	for _, graph := range selected.dissemination {
+	namespaces := make([]string, 0, len(selected.dissemination.peersByNS))
+	for ns := range selected.dissemination.peersByNS {
+		namespaces = append(namespaces, ns)
+	}
+	slices.Sort(namespaces)
+	for _, ns := range namespaces {
+		graph, err := s.buildDeliveryGraphForPeers(ns, selected.dissemination.peersByNS[ns], selected.dissemination.busCfg)
+		if err != nil {
+			return err
+		}
 		if err := graph.ValidateDisseminationBindings(processes); err != nil {
 			return err
 		}

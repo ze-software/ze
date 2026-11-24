@@ -78,14 +78,14 @@ func newReplayOrderFixture(t *testing.T) *replayOrderFixture {
 
 	fams := map[family.Family]bool{family.IPv4Unicast: true}
 	f.rs.mu.Lock()
-	f.rs.peers[rsFixtureKey(f.source, 1, 101)] = &PeerState{Address: f.source, DestinationSession: 201, SessionGeneration: 3, Up: true, StateSeen: true, Families: fams}
-	f.rs.peers[rsFixtureKey(f.other, 3, 103)] = &PeerState{Address: f.other, DestinationSession: 203, SessionGeneration: 3, Up: true, StateSeen: true, Families: fams}
+	f.rs.peers[rsFixtureKey(f.source, 1, 101)] = &PeerState{Address: f.source, DestinationSession: 201, SessionGeneration: 3, Up: true, RSClient: true, StateSeen: true, Families: fams}
+	f.rs.peers[rsFixtureKey(f.other, 3, 103)] = &PeerState{Address: f.other, DestinationSession: 203, SessionGeneration: 3, Up: true, RSClient: true, StateSeen: true, Families: fams}
 	f.rs.peers[rsFixtureKey(f.dest, 2, 102)] = &PeerState{Address: f.dest, DestinationSession: 202, SessionGeneration: 3, Families: fams}
 	// Message 1 was taken delivery of before dest came up: it is the replay's.
 	f.rs.seenMsgID = 1
 	f.rs.mu.Unlock()
 
-	f.rs.handleState(&Event{PeerAddr: f.dest, PeerOwner: 2, ConnectionID: 102, DestinationSession: 202, State: "up", InitialReplay: 17})
+	f.rs.handleState(&Event{PeerAddr: f.dest, PeerOwner: 2, ConnectionID: 102, DestinationSession: 202, State: "up", InitialReplay: 17, RSClient: true})
 	select {
 	case <-entered:
 	case <-time.After(2 * time.Second):

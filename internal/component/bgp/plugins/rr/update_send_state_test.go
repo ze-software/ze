@@ -24,21 +24,23 @@ func TestRRUpdateSendDenialKeepsSource(t *testing.T) {
 			name: "structured",
 			feed: func(rr *routeReflector) error {
 				return rr.handleStructuredState(&rpc.StructuredEvent{
-					PeerAddress:        "192.0.2.1",
-					State:              rpc.SessionStateUp,
-					PeerOwner:          701,
-					ConnectionID:       41,
-					DestinationSession: 141,
-					SessionGeneration:  1041,
-					InitialReplay:      141,
-					UpdateSendDenied:   true,
+					PeerAddress:          "192.0.2.1",
+					State:                rpc.SessionStateUp,
+					PeerOwner:            701,
+					ConnectionID:         41,
+					DestinationSession:   141,
+					SessionGeneration:    1041,
+					InitialReplay:        141,
+					UpdateSendDenied:     true,
+					IsIBGP:               true,
+					RouteReflectorClient: true,
 				})
 			},
 		},
 		{
 			name: "native text",
 			feed: func(rr *routeReflector) error {
-				return rr.dispatchText("peer 192.0.2.1 remote as 65001 state up peer-owner 701 connection-id 41 destination-session 141 session-generation 1041 initial-replay 141 update-send-denied true")
+				return rr.dispatchText("peer 192.0.2.1 remote as 65001 state up peer-owner 701 connection-id 41 destination-session 141 session-generation 1041 initial-replay 141 update-send-denied true is-ibgp true rr-client true")
 			},
 		},
 	} {
@@ -56,13 +58,15 @@ func TestRRUpdateSendDenialKeepsSource(t *testing.T) {
 
 			permitted := rrOriginalFixture(t, "192.0.2.2", 702, 42)
 			require.NoError(t, rr.handleStructuredState(&rpc.StructuredEvent{
-				PeerAddress:        "192.0.2.2",
-				State:              rpc.SessionStateUp,
-				Reason:             rpc.ReasonAttached,
-				PeerOwner:          702,
-				ConnectionID:       42,
-				DestinationSession: 142,
-				SessionGeneration:  1042,
+				PeerAddress:          "192.0.2.2",
+				State:                rpc.SessionStateUp,
+				Reason:               rpc.ReasonAttached,
+				PeerOwner:            702,
+				ConnectionID:         42,
+				DestinationSession:   142,
+				SessionGeneration:    1042,
+				IsIBGP:               true,
+				RouteReflectorClient: true,
 			}))
 
 			third := rrOriginalFixture(t, "192.0.2.3", 703, 43)

@@ -197,6 +197,9 @@ func teForwardedAttrs(t *testing.T, body []byte, rebuild bool, expectedTunnel ..
 		recentUpdates:   cache,
 		attrModHandlers: attrModHandlersWithDefaults(),
 	}
+	source.SetReactor(r)
+	destination.SetReactor(r)
+	publishTestBusGraph(t, r)
 	var edit rpc.FilterUpdateOutput
 	if rebuild {
 		// The destination's export filter sets MED 50 on the body it is
@@ -296,7 +299,7 @@ func tePropagationPeer(t *testing.T, address string, peerAS uint32, families ...
 	// The propagation fixture's peers belong to one SR domain. An EBGP source
 	// must opt in; otherwise RFC 8669 Section 4 correctly discards Prefix-SID.
 	settings.AcceptSRv6PrefixSID = true
-	settings.ProcessBindings = []ProcessBinding{{PluginName: "tunnel-forwarder", SendAll: true}}
+	settings.Bus = testBusSendAll("tunnel-forwarder")
 	peer := NewPeer(settings)
 	peer.state.Store(int32(PeerStateEstablished))
 	caps := []capability.Capability{&capability.ASN4{ASN: 65001}}

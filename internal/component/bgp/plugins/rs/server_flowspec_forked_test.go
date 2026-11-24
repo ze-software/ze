@@ -110,7 +110,7 @@ func TestForkedRSReplaysFlowSpecThroughGate(t *testing.T) {
 	})
 	bridge.SetReady()
 	rs := &routeServer{withdrawals: make(map[string]map[withdrawalKey]withdrawalEntry), plugin: plugin, seenMsgID: 42, peers: map[workerKey]*PeerState{
-		rsFixtureKey(source, 1, 101): {Address: source, DestinationSession: 201, SessionGeneration: 3, adoptionOpen: true, Up: true},
+		rsFixtureKey(source, 1, 101): {Address: source, DestinationSession: 201, SessionGeneration: 3, adoptionOpen: true, Up: true, RSClient: true},
 		rsFixtureKey(target, 2, 102): {Address: target, DestinationSession: 202, SessionGeneration: 3, Families: map[family.Family]bool{fam: true}},
 	}}
 	t.Cleanup(ribevents.RegisterGateDispatch(rs.dispatchCommand))
@@ -125,7 +125,7 @@ func TestForkedRSReplaysFlowSpecThroughGate(t *testing.T) {
 	}
 	rs.dispatchText(string(envelope))
 
-	rs.handleState(&Event{PeerAddr: target, PeerOwner: 2, ConnectionID: 102, DestinationSession: 202, State: "up", InitialReplay: 17})
+	rs.handleState(&Event{PeerAddr: target, PeerOwner: 2, ConnectionID: 102, DestinationSession: 202, State: "up", InitialReplay: 17, RSClient: true})
 	select {
 	case <-done:
 	case <-time.After(5 * time.Second):

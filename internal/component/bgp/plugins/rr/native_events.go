@@ -45,9 +45,14 @@ func (rr *routeReflector) textState(fields []string) error {
 	seenReason := false
 	seenFlags := make(map[string]bool)
 	updateSendDenied := false
+	isIBGP := false
+	rsClient := false
+	rrClient := false
 	for index := 7; index < len(fields); {
 		key := fields[index]
-		if key == "selected-destination" || key == "ordinary-replay-owned" || key == "update-send-denied" {
+		switch key {
+		case "selected-destination", "ordinary-replay-owned", "update-send-denied",
+			"rs-client", "is-ibgp", "rr-client":
 			if seenFlags[key] {
 				return errors.New("bgp-rr: duplicate state flag " + key)
 			}
@@ -58,8 +63,15 @@ func (rr *routeReflector) textState(fields []string) error {
 			if err != nil {
 				return err
 			}
-			if key == "update-send-denied" {
+			switch key {
+			case "update-send-denied":
 				updateSendDenied = parsedBool
+			case "rs-client":
+				rsClient = parsedBool
+			case "is-ibgp":
+				isIBGP = parsedBool
+			case "rr-client":
+				rrClient = parsedBool
 			}
 			seenFlags[key] = true
 			index += 2
@@ -101,8 +113,12 @@ func (rr *routeReflector) textState(fields []string) error {
 	default:
 		return errors.New("bgp-rr: unknown state value")
 	}
-	return rr.handleStructuredState(&rpc.StructuredEvent{PeerAddress: fields[1], PeerOwner: values["peer-owner"], ConnectionID: values["connection-id"],
-		DestinationSession: values["destination-session"], SessionGeneration: values["session-generation"], InitialReplay: values["initial-replay"], State: kind, Reason: reason, UpdateSendDenied: updateSendDenied})
+	return rr.handleStructuredState(&rpc.StructuredEvent{
+		PeerAddress: fields[1], PeerOwner: values["peer-owner"], ConnectionID: values["connection-id"],
+		DestinationSession: values["destination-session"], SessionGeneration: values["session-generation"],
+		InitialReplay: values["initial-replay"], State: kind, Reason: reason, UpdateSendDenied: updateSendDenied,
+		IsIBGP: isIBGP, RSClient: rsClient, RouteReflectorClient: rrClient,
+	})
 }
 
 func (rr *routeReflector) textOpen(fields []string) error {

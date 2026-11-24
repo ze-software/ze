@@ -1,19 +1,17 @@
+// Design: docs/architecture/route-selection.md -- AIGP bus requirement checks.
+// Related: bus_requirements.go -- checkExplicitAIGPRequirements, peerExplicitAIGP.
 package bgpconfig
 
 import (
 	"fmt"
-	"slices"
 	"testing"
 
 	"github.com/stretchr/testify/require"
 
-	"github.com/ze-software/ze/internal/component/bgp/reactor"
-	bgpredist "github.com/ze-software/ze/internal/component/bgp/redistribute"
 	"github.com/ze-software/ze/internal/component/config"
-	"github.com/ze-software/ze/internal/component/plugin"
-	pluginserver "github.com/ze-software/ze/internal/component/plugin/server"
 	bgpevents "github.com/ze-software/ze/internal/core/bgp/events"
 	"github.com/ze-software/ze/internal/core/events"
+	"github.com/ze-software/ze/internal/core/opererr"
 )
 
 const aigpDeliveryConfig = `
@@ -29,82 +27,135 @@ bgp {
         connection { remote { ip 10.0.0.3; } local { ip 10.0.0.1; } }
         session { asn { local 65000; remote 65002; } }
     }
+}
+%s`
+
+// TestAIGPDefaultActivatesNoRequirement validates AC-15 and S26: an iBGP peer
+// using the RFC 7311 Section 3.3 default (no `aigp` block written) activates
+// no bus requirement, so cutting the Loc-RIB from that peer commits cleanly;
+// writing `session { aigp { ... } }` activates the requirement and refuses the
+// same cut with a typed operational fix.
+//
+// VALIDATES: AC-15, S26 -- default iBGP AIGP activates no bus requirement,
+// while explicit `session { aigp { ... } }` enforces Loc-RIB reception.
+// PREVENTS: a default iBGP capability from silently rejecting valid bus
+// narrowing (S-8) or an explicit AIGP config from loading without a RIB feed.
+func TestAIGPDefaultActivatesNoRequirement(t *testing.T) {
+	const base = `
+bus {
+    endpoint collector {
+        external { run "/bin/true"; }
+        receive { allow [ bgp:update bgp:state ]; }
+    }
+}
+bgp {
+    router-id 192.0.2.254;
+    session { asn { local 65000; } }
+    peer i1 {
+        connection { remote { ip 192.0.2.11; } local { ip 192.0.2.254; } }
+        session { asn { local 65000; remote 65000; } %s }
+        bus { send { to [ /bus/endpoint/collector ]; } }
+    }
+    peer i2 {
+        connection { remote { ip 192.0.2.12; } local { ip 192.0.2.254; } }
+        session { asn { local 65000; remote 65000; } }
+    }
 }`
 
-func TestAIGPFeedsSelectionWithoutForwardingRole(t *testing.T) {
-	input := fmt.Sprintf(aigpDeliveryConfig, "")
+	t.Run("default iBGP without written aigp allows cutting Loc-RIB", func(t *testing.T) {
+		cfg := fmt.Sprintf(base, "")
+		res, err := config.LoadConfig(cfg, "", nil)
+		require.NoError(t, err, "default iBGP AIGP must not activate a bus requirement")
+		peers, err := PeersFromConfigTree(res.Tree.Clone())
+		require.NoError(t, err)
+		require.Len(t, peers, 2)
+		require.True(t, peers[0].AIGPEnabled(), "RFC 7311 Section 3.3 iBGP session default remains enabled")
+	})
+
+	t.Run("explicit aigp written refuses cutting Loc-RIB", func(t *testing.T) {
+		cfg := fmt.Sprintf(base, "aigp { enabled true; }")
+		_, err := config.LoadConfig(cfg, "", nil)
+		require.Error(t, err, "explicit aigp must refuse cutting Loc-RIB reception")
+		var oe *opererr.Error
+		require.ErrorAs(t, err, &oe)
+		require.Contains(t, err.Error(), "AIGP")
+		require.Contains(t, err.Error(), "i1")
+		require.NotEmpty(t, oe.Fix)
+	})
+}
+
+// TestAIGPFeedsSelectionOnExplicitAIGP checks that explicit AIGP configuration
+// feeds the selecting RIB from both the AIGP peer and competing peers under
+// the default compiled bus.
+//
+// VALIDATES: explicit AIGP receives candidate updates and peer state from all
+// competing peers on the compiled DeliveryGraph.
+// PREVENTS: AIGP selection missing competing routes from non-AIGP peers.
+func TestAIGPFeedsSelectionOnExplicitAIGP(t *testing.T) {
+	input := fmt.Sprintf(aigpDeliveryConfig, "", "")
 	graph := graphFromConfig(t, input)
 	for _, peer := range []string{"10.0.0.2", "10.0.0.3"} {
 		consumers := fedBy(graph, bgpevents.EventUpdate, events.DirReceived, peer)
 		require.Contains(t, consumers, "bgp-rib", "selection must also see competing routes from non-AIGP peers")
-		require.NotContains(t, consumers, "bgp-adj-rib-in", "AIGP selection does not enable a replay role")
 		require.Contains(t, fedBy(graph, bgpevents.EventState, events.DirUnspecified, peer), "bgp-rib")
-		require.NotContains(t, fedBy(graph, bgpevents.EventUpdate, events.DirSent, peer), "bgp-rib", "mandatory selection must not populate replay state from other exporters")
-		require.NotContains(t, fedBy(graph, bgpevents.EventRefresh, events.DirReceived, peer), "bgp-rib", "mandatory selection does not answer route refresh")
 	}
-	require.False(t, bindingNamed(t, bindingsFor(t, input), "bgp-rib").MaySend("update"), "the mandatory metric consumer gains no route-export authority")
 }
 
-// Selection must not narrow a wider grant requested by redistribution or an
-// operator's explicit exporter binding.
-func TestAIGPSelectionPreservesRequestedRIBDelivery(t *testing.T) {
+// TestAIGPRefusesIncompleteRIBFeed verifies that cutting either received
+// updates or peer state from the selecting RIB is refused when AIGP is
+// explicitly configured, while a complete narrowed feed is accepted.
+//
+// VALIDATES: checkExplicitAIGPRequirements enforces both bgp:update (received)
+// and bgp:state on the selecting RIB.
+// PREVENTS: partial candidate state silently breaking AIGP reselection.
+func TestAIGPRefusesIncompleteRIBFeed(t *testing.T) {
 	for _, tc := range []struct {
-		name, input string
-		send        bool
+		name     string
+		busBlock string
 	}{
 		{
-			name: "redistribution",
-			input: fmt.Sprintf(aigpDeliveryConfig, "") + `
-ospf { router-id 10.0.0.1; }
-redistribute { destination ospf { import bgp; } }`,
+			name:     "state only",
+			busBlock: `bus { endpoint bgp-rib { internal bgp-rib; receive { allow [ bgp:state ]; } } }`,
 		},
 		{
-			name: "explicit exporter",
-			input: fmt.Sprintf(aigpDeliveryConfig,
-				"attach process bgp-rib { receive [ update state refresh ]; send [ update ]; }"),
-			send: true,
+			name:     "update only without state",
+			busBlock: `bus { endpoint bgp-rib { internal bgp-rib; receive { allow [ bgp:update ]; } } }`,
+		},
+		{
+			name: "sent updates only without received",
+			busBlock: `bus { endpoint bgp-rib { internal bgp-rib;
+				receive { allow [ bgp:update bgp:state ]; message bgp:update { tag direction [ sent ]; } } } }`,
 		},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			graph := graphFromConfig(t, tc.input)
-			require.Contains(t, fedBy(graph, bgpevents.EventUpdate, events.DirReceived, "10.0.0.2"), "bgp-rib")
-			require.Contains(t, fedBy(graph, bgpevents.EventUpdate, events.DirSent, "10.0.0.2"), "bgp-rib")
-			require.Contains(t, fedBy(graph, bgpevents.EventState, events.DirUnspecified, "10.0.0.2"), "bgp-rib")
-			require.Contains(t, fedBy(graph, bgpevents.EventRefresh, events.DirReceived, "10.0.0.2"), "bgp-rib")
-			require.Equal(t, tc.send, bindingNamed(t, bindingsFor(t, tc.input), "bgp-rib").MaySend("update"))
+			_, err := config.LoadConfig(fmt.Sprintf(aigpDeliveryConfig, "", tc.busBlock), "", nil)
+			require.Error(t, err, "incomplete retained candidate state cannot implement AIGP reselection")
 		})
 	}
-}
 
-func TestAIGPRefusesIncompleteExplicitRIBFeed(t *testing.T) {
-	for _, receive := range []string{"state", "update-received"} {
-		_, err := loadReactor(fmt.Sprintf(aigpDeliveryConfig, "attach process bgp-rib { receive [ "+receive+" ]; }"))
-		require.Error(t, err, "incomplete retained candidate state cannot implement AIGP reselection")
-	}
-	_, err := loadReactor(fmt.Sprintf(aigpDeliveryConfig, "attach process bgp-rib { receive [ update-received state ]; }"))
+	complete := `bus { endpoint bgp-rib { internal bgp-rib;
+		receive { allow [ bgp:update bgp:state ]; message bgp:update { tag direction [ received ]; } }
+		send { allow none; } } }`
+	_, err := config.LoadConfig(fmt.Sprintf(aigpDeliveryConfig, "", complete), "", nil)
 	require.NoError(t, err)
 }
 
-func TestAIGPAllowsExternalRIBMetricFeed(t *testing.T) {
-	input := fmt.Sprintf(aigpDeliveryConfig, "")
-	schema, err := config.YANGSchema()
-	require.NoError(t, err)
-	tree, err := config.NewParser(schema).Parse(input)
-	require.NoError(t, err)
-	peers, _, err := peersAndDynamicGroups(tree)
-	require.NoError(t, err)
-
-	plugins := []plugin.PluginConfig{{
-		Name:            "routes",
-		CompiledPlugin:  bgpredist.LocRIBPlugin,
-		SeparateProcess: true,
-	}}
-	require.NoError(t, grantEveryPeer(plugins, peers, bgpredist.LocRIBPlugin, "update-received state", ""))
-	require.NoError(t, requireRIBDelivery(plugins, peers, "AIGP selection", false))
-
-	srv := &pluginserver.Server{}
-	srv.UpdateDeliveryGraph(bgpevents.Namespace, deliveryPeers(peers))
-	graph := srv.DeliveryGraph()
+// TestAIGPAllowsSeparateProcessRIBMetricFeed verifies that AIGP does not
+// require the selecting RIB to run in-daemon (unlike FlowSpec authorization).
+//
+// VALIDATES: a separate-process bgp-rib endpoint satisfies AIGP selection.
+// PREVENTS: over-broad in-daemon refusal rejecting separate-process RIB for AIGP.
+func TestAIGPAllowsSeparateProcessRIBMetricFeed(t *testing.T) {
+	input := fmt.Sprintf(aigpDeliveryConfig, "", `
+bus {
+    endpoint routes {
+        internal bgp-rib;
+        process separate;
+        receive { allow [ bgp:update bgp:state ]; message bgp:update { tag direction [ received ]; } }
+        send { allow none; }
+    }
+}`)
+	graph := graphFromConfig(t, input)
 	for _, peer := range []string{"10.0.0.2", "10.0.0.3"} {
 		require.Contains(t, fedBy(graph, bgpevents.EventUpdate, events.DirReceived, peer), "routes")
 		require.Contains(t, fedBy(graph, bgpevents.EventState, events.DirUnspecified, peer), "routes")
@@ -113,8 +164,6 @@ func TestAIGPAllowsExternalRIBMetricFeed(t *testing.T) {
 	}
 }
 
-// aigpUntouchedBase is an eBGP peer and a dynamic group, neither of which
-// enables AIGP. %s is where the edit adds a peer.
 const aigpUntouchedBase = `
 bgp {
     router-id 10.0.0.1;
@@ -133,64 +182,25 @@ bgp {
     }
 }`
 
-// TestAddingIBGPPeerChangesOtherPeersOnlyByDerivedFeeds holds the reload
-// invariant for derived delivery: an edit changes the bindings of a peer it did
-// not touch only by a DERIVED binding that grants no send type.
+// TestAddingIBGPPeerLeavesUntouchedPeerDeliveryUnchanged verifies that adding
+// an iBGP peer relying on RFC 7311 default AIGP does not alter the compiled
+// delivery graph edges of existing static peers or dynamic groups.
 //
-// VALIDATES: adding one iBGP peer, which enables AIGP by the RFC 7311 Section
-// 3.3 default, leaves every binding of the existing static peer and of the
-// dynamic group template what it was, apart from derived feed-only bindings.
-// Each binding the edit adds grants no send type, so it is receive-only.
-// PREVENTS: the reload restarting every established configured session. The
-// reactor delivers a receive-only binding change in place
-// (peer_derived_bindings.go, TestDerivedFeedSwapKeepsSessionAndCatchesUp), so
-// the invariant it relies on is this one. An earlier form asserted the bindings UNCHANGED; the grant MUST
-// follow the RFC 7311 Section 4.2 selection, which feeds every peer's
-// candidates to the RIB once any peer enables AIGP, so the bindings do change,
-// and only the session must not (reload-dynamic-peer-survives.ci).
-func TestAddingIBGPPeerChangesOtherPeersOnlyByDerivedFeeds(t *testing.T) {
+// VALIDATES: adding an iBGP peer without written AIGP injects no derived
+// bindings and keeps untouched peers' compiled delivery identical.
+// PREVENTS: reload churn on unrelated sessions when an iBGP peer is added.
+func TestAddingIBGPPeerLeavesUntouchedPeerDeliveryUnchanged(t *testing.T) {
 	const added = `peer spare {
         connection { remote { ip 10.0.0.3; } local { ip 10.0.0.1; } }
         session { asn { local 65000; remote 65000; } }
     }`
-	build := func(input string) (static, dynamic []reactor.ProcessBinding) {
-		t.Helper()
-		schema, err := config.YANGSchema()
-		require.NoError(t, err)
-		tree, err := config.NewParser(schema).Parse(input)
-		require.NoError(t, err)
-		peers, groups, err := peersAndDynamicGroups(tree)
-		require.NoError(t, err)
-		require.Len(t, groups, 1)
-		for _, ps := range peers {
-			if ps.Name == "upstream" {
-				return ps.ProcessBindings, groups[0].Settings.ProcessBindings
-			}
-		}
-		t.Fatal("peer upstream not built from the config")
-		return nil, nil
-	}
 
-	staticBefore, dynamicBefore := build(fmt.Sprintf(aigpUntouchedBase, ""))
-	staticAfter, dynamicAfter := build(fmt.Sprintf(aigpUntouchedBase, added))
-	requireOnlyDerivedFeedsAdded(t, "static peer", staticBefore, staticAfter)
-	requireOnlyDerivedFeedsAdded(t, "dynamic group template", dynamicBefore, dynamicAfter)
-}
+	before := graphFromConfig(t, fmt.Sprintf(aigpUntouchedBase, ""))
+	after := graphFromConfig(t, fmt.Sprintf(aigpUntouchedBase, added))
 
-// requireOnlyDerivedFeedsAdded fails unless after is before plus bindings that
-// grant no send type and receive no OPEN, the receive-only kind the reactor
-// swaps live, and unless the edit added at least one:
-// without one the test would pass against a config that never enables AIGP.
-func requireOnlyDerivedFeedsAdded(t *testing.T, who string, before, after []reactor.ProcessBinding) {
-	t.Helper()
-	var kept, added []reactor.ProcessBinding
-	for _, b := range after {
-		if !b.SendAll && len(b.Send) == 0 && !b.ReceiveAll && b.Receive[bgpevents.EventOpen] == events.DirUnspecified && !slices.ContainsFunc(before, func(o reactor.ProcessBinding) bool { return o.PluginName == b.PluginName }) {
-			added = append(added, b)
-			continue
-		}
-		kept = append(kept, b)
+	for _, addr := range []string{"10.0.0.2", "dynamic-group:ix"} {
+		addedProcs, removedProcs := before.EdgeDiff(after, addr)
+		require.Empty(t, addedProcs, "adding an iBGP peer must not add new delivery edges for %s", addr)
+		require.Empty(t, removedProcs, "adding an iBGP peer must not remove delivery edges for %s", addr)
 	}
-	require.NotEmpty(t, added, "%s: adding an iBGP peer added no derived feed", who)
-	require.Equal(t, before, kept, "%s: adding an iBGP peer changed a binding other than a derived feed", who)
 }

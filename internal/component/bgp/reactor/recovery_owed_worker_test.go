@@ -18,11 +18,9 @@ import (
 
 	"github.com/ze-software/ze/internal/component/bgp/message"
 	bgpctx "github.com/ze-software/ze/internal/core/bgp/context"
-	bgpevents "github.com/ze-software/ze/internal/core/bgp/events"
 	"github.com/ze-software/ze/internal/core/bgp/nlri/nlrisplit"
 	"github.com/ze-software/ze/internal/core/bgp/ribevents"
 	"github.com/ze-software/ze/internal/core/clock"
-	"github.com/ze-software/ze/internal/core/events"
 	"github.com/ze-software/ze/internal/core/family"
 )
 
@@ -80,15 +78,13 @@ func attachRecoveryOwner(t *testing.T, r *Reactor, sources ...*Peer) {
 	t.Helper()
 	command := r.api.Dispatcher().Registry().Lookup(recoveryCommandName)
 	require.NotNil(t, command)
-	settings := make([]*PeerSettings, 0, len(sources))
 	for _, source := range sources {
-		source.settings.ProcessBindings = append(source.settings.ProcessBindings, ProcessBinding{
-			PluginName: command.Process.Name(),
-			Receive:    map[string]events.Direction{bgpevents.EventUpdate: events.DirReceived},
+		addTestPeerBusGrant(source.settings, testPeerEndpointGrant{
+			Name:    command.Process.Name(),
+			Receive: []string{"update-received"},
 		})
-		settings = append(settings, source.settings)
 	}
-	r.api.UpdateDeliveryGraph(bgpevents.Namespace, deliveryPeersFromSettings(settings))
+	publishTestBusGraph(t, r)
 }
 
 func (rail *owedRail) forward(t *testing.T, withdraw bool, raw []byte) {

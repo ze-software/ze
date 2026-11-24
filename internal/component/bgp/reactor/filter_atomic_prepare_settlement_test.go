@@ -291,7 +291,10 @@ func atomicPreparationExtraPeer(t *testing.T, f *aigpReplayFixture, last byte) (
 	peer.settings.NextHopMode = NextHopUnchanged
 	peer.settings.ImportPolicy = mustPolicy(t, nil, routepolicy.FinalAccept)
 	peer.settings.ExportPolicy = mustPolicy(t, nil, routepolicy.FinalAccept)
-	peer.settings.ProcessBindings = []ProcessBinding{{PluginName: "aigp-forwarder", SendAll: true}, rsRelaySendBinding()}
+	peer.settings.Bus = testBusBlockForGrants(
+		testPeerEndpointGrant{Name: "aigp-forwarder", SendAll: true},
+		testPeerEndpointGrant{Name: rsFixtureRelay, Send: []string{"update"}},
+	)
 	negotiateForwardTestFamilies(peer, family.IPv4Unicast, family.IPv6Unicast,
 		family.Family{AFI: family.AFIBGPLS, SAFI: family.SAFIBGPLinkState})
 	peer.session.negotiated.ExtendedMessageSend = true
@@ -303,10 +306,12 @@ func atomicPreparationExtraPeer(t *testing.T, f *aigpReplayFixture, last byte) (
 	peer.sendCtxID, peer.recvCtxID = f.destination.sendCtxID, f.ctxID
 	peer.session.sendCtxID = peer.sendCtxID
 	peer.session.adjOut = &peer.adjOut
-	peer.refreshForwardFacts()
+	peer.reactor = f.r
 	f.r.mu.Lock()
 	f.r.peers[peer.Settings().PeerKey()] = peer
 	f.r.mu.Unlock()
+	publishTestBusGraph(t, f.r)
+	peer.refreshForwardFacts()
 	f.r.fwdPool.registerOutgoingPool(fwdKey{peerAddr: peer.Settings().PeerKey()}, message.ExtMsgLen)
 	return peer, conn
 }

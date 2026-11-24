@@ -70,7 +70,7 @@ func (s *Server) reconcileDelivery(only *process.Process) {
 			logger().Warn(d.reason,
 				"process", d.process,
 				"effect", "no peer-scoped event of any type reaches this process",
-				"action", "name it in an `attach process` block on each peer it serves",
+				"action", "check the bus filter on bus > endpoint "+d.process+" or the emitting participant",
 				"code", CodeDoctorPluginDeliveryDisagreement)
 			continue
 		}
@@ -133,12 +133,6 @@ func (s *Server) edgeDisagreements(g *DeliveryGraph, peer PeerEdges, edges Proce
 		granted = append(granted, etID)
 
 		declared, declaredDir := s.subscriptions.declaredDirection(proc, g.ns, etID, peer.Peer, peer.Name)
-		// An implicit grant is the config's, not the operator's: a plugin
-		// that does not ask for it simply has no use for it, and there is
-		// nobody to tell.
-		if !declared && slices.Contains(edges.Implicit, eventType) {
-			continue
-		}
 		if !declared {
 			out = append(out, deliveryDisagreement{
 				peer: peer.Peer, process: edges.Process,

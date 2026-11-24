@@ -29,8 +29,13 @@ func TestRuntimeDuplicateLiveIDEndsConnection(t *testing.T) {
 				started, canceled, release := make(chan struct{}), make(chan struct{}), make(chan struct{})
 				host := &Server{ctx: work, reactor: &mockReactor{}}
 				proc := nativeOwnerProcess(t, host)
-				host.UpdateDeliveryGraph(graphNS, []DeliveryPeer{{Addr: "192.0.2.7", Bindings: []plugin.PeerProcessBinding{{
-					PluginName: proc.Name(), Send: map[string]bool{"update": true}}}}})
+				if err := host.UpdateDeliveryGraphWithEndpoints(graphNS, []DeliveryPeer{{Addr: "192.0.2.7", Name: "p7", Path: "/" + graphNS + "/entry/p7"}}, []BusParticipantInput{{
+					Path:         plugin.EndpointPath(proc.Name()),
+					EndpointName: proc.Name(),
+					Sends:        []rpc.MessageSendDecl{{Message: graphMsg(graphUpdate)}},
+				}}); err != nil {
+					t.Fatal(err)
+				}
 				method := rpc.MethodSelectRoutes
 				if original == "selected" {
 					host.reactor = &selectedCancellationReactor{mockReactor: &mockReactor{}, parent: work,
@@ -161,8 +166,13 @@ func TestRuntimeDuplicateCancelIDEndsConnection(t *testing.T) {
 		started: make(chan struct{}), canceled: make(chan struct{}), release: release}
 	host := &Server{ctx: work, reactor: reactor}
 	proc := nativeOwnerProcess(t, host)
-	host.UpdateDeliveryGraph(graphNS, []DeliveryPeer{{Addr: "192.0.2.7", Bindings: []plugin.PeerProcessBinding{{
-		PluginName: proc.Name(), Send: map[string]bool{"update": true}}}}})
+	if err := host.UpdateDeliveryGraphWithEndpoints(graphNS, []DeliveryPeer{{Addr: "192.0.2.7", Name: "p7", Path: "/" + graphNS + "/entry/p7"}}, []BusParticipantInput{{
+		Path:         plugin.EndpointPath(proc.Name()),
+		EndpointName: proc.Name(),
+		Sends:        []rpc.MessageSendDecl{{Message: graphMsg(graphUpdate)}},
+	}}); err != nil {
+		t.Fatal(err)
+	}
 	client, engine := net.Pipe()
 	conn := plugipc.NewPluginConn(engine, engine)
 	serverDone := make(chan struct{})

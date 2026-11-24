@@ -24,7 +24,8 @@ func TestDraftLinkLocalOneHopLostNextHopWithdraws(t *testing.T) {
 	f := newAIGPReplayFixture(t, nil)
 	delete(f.r.peers, f.destination.settings.PeerKey())
 	dest, conn := newAnnouncePeer(t, "2001:db8:1::3")
-	dest.settings.ProcessBindings = f.destination.settings.ProcessBindings
+	dest.settings.Bus = f.destination.settings.Bus.Clone()
+	dest.SetReactor(f.r)
 	dest.sendCtx.Store(f.destination.sendCtx.Load())
 	dest.sendCtxID, dest.recvCtxID = f.ctxID, f.ctxID
 	dest.session.sendCtxID = f.ctxID
@@ -46,8 +47,9 @@ func TestDraftLinkLocalOneHopLostNextHopWithdraws(t *testing.T) {
 	dest.session.negotiated = neg
 	dest.negotiated.Store(NewNegotiatedCapabilities(neg))
 	dest.llScope.Store(newLinkScopeFrom(llnhSegment, dest.settings.Address))
-	dest.refreshForwardFacts()
 	f.r.peers[dest.settings.PeerKey()] = dest
+	publishTestBusGraph(t, f.r)
+	dest.refreshForwardFacts()
 	f.r.fwdPool.registerOutgoingPool(fwdKey{peerAddr: dest.settings.PeerKey()}, 4096)
 	body, err := message.UnpackUpdate(llnhReflectedPayload("2001:db8:9::1"))
 	if err != nil {

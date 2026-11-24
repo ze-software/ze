@@ -1,5 +1,5 @@
-// Design: docs/architecture/api/architecture.md -- explicit peer attachments.
-// Related: config.go -- binding parser; delivery_graph.go -- graph input producer.
+// Design: docs/architecture/api/architecture.md -- explicit peer bus filter provenance.
+// Related: config.go -- parsePeerBusFromTree; delivery_graph.go -- deliveryPeersFromSettings.
 package reactor
 
 import (
@@ -9,31 +9,41 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/ze-software/ze/internal/component/plugin"
+	pluginserver "github.com/ze-software/ze/internal/component/plugin/server"
 )
 
-// TestProcessBindingExplicitProvenance proves only parsed operator blocks
-// request dissemination and both public readers preserve that distinction.
-// Method: parse a real attachment, add existing derived and implicit grants,
-// then inspect graph input and the reactor API's independent conversion.
+// TestProcessBindingExplicitProvenance proves parsed peer bus blocks preserve
+// written origin, source location, and canonical bus path into the delivery
+// graph input.
+//
+// VALIDATES: parsePeerBusFromTree records BusOriginWritten, canonical BusPath,
+// and BusSource, and deliveryPeersFromSettings preserves them on DeliveryPeer.
+// PREVENTS: losing written-vs-inherited bus origin or canonical peer path when
+// constructing delivery graph inputs.
 func TestProcessBindingExplicitProvenance(t *testing.T) {
 	address := netip.MustParseAddr("192.0.2.41")
-	settings := &PeerSettings{Address: address}
-	require.NoError(t, parseProcessBindingsFromTree(map[string]any{"attach": map[string]any{"process": map[string]any{
-		"operator": map[string]any{"receive": "update-received state", "send": "update"},
-	}}}, settings))
-	require.NoError(t, EnsureProcessBinding(settings, "derived", "update state refresh", "update"))
-	require.NoError(t, GrantImplicitReceive(settings, "implicit", "state"))
-	assertProvenance := func(bindings []plugin.PeerProcessBinding) {
-		t.Helper()
-		require.Len(t, bindings, 3)
-		for _, binding := range bindings {
-			require.Equal(t, binding.PluginName == "operator", binding.Explicit, binding.PluginName)
-		}
-	}
+	settings := &PeerSettings{Name: "edge", Address: address}
+	require.NoError(t, parsePeerBusFromTree("edge", map[string]any{
+		"bus": map[string]any{
+			"send": map[string]any{
+				"allow": []string{"bgp:update", "bgp:state"},
+				"to":    []string{"/bus/endpoint/operator"},
+			},
+			"receive": map[string]any{
+				"allow": []string{"bgp:update"},
+				"from":  []string{"/bus/endpoint/operator"},
+			},
+		},
+	}, settings))
+	require.Equal(t, pluginserver.BusOriginWritten, settings.BusOrigin)
+	require.Equal(t, "/bgp/peer/edge", settings.BusPath)
+	require.Equal(t, "/bgp/peer/edge > bus", settings.BusSource)
+
 	graph := deliveryPeersFromSettings([]*PeerSettings{settings})
 	require.Len(t, graph, 1)
-	assertProvenance(graph[0].Bindings)
-	reactor := New(&Config{})
-	reactor.peers[peerKeyFromAddrPort(address, DefaultBGPPort)] = NewPeer(settings)
-	assertProvenance((&reactorAPIAdapter{r: reactor}).GetPeerProcessBindings(address))
+	require.Equal(t, "/bgp/peer/edge", graph[0].Path)
+	require.Equal(t, []string{"/bgp/ip/192.0.2.41"}, graph[0].SecondaryPaths)
+	require.Equal(t, pluginserver.BusOriginWritten, graph[0].BusOrigin)
+	require.Equal(t, "/bgp/peer/edge > bus", graph[0].BusSource)
+	require.True(t, plugin.BusBlockEqual(settings.Bus, graph[0].Bus))
 }

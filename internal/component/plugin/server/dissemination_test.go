@@ -1,5 +1,5 @@
-// Design: docs/architecture/api/architecture.md -- explicit peer dissemination ownership.
-// Related: dissemination.go -- roles are resolved from declarations and actual grants.
+// Design: docs/architecture/api/architecture.md -- compiled-bus dissemination ownership.
+// Related: dissemination.go -- roles are resolved from declarations and compiled bus filters.
 package server
 
 import (
@@ -20,7 +20,11 @@ const disseminationTestNamespace = "dissemination-test"
 const disseminationTestRole = "selected-output"
 
 func init() {
-	_ = events.RegisterNamespace(disseminationTestNamespace, "update", "state", "refresh")
+	_ = events.RegisterNamespace(disseminationTestNamespace, "update", "state", "refresh", "raw")
+}
+
+func disseminationMsg(name string) string {
+	return disseminationTestNamespace + ":" + name
 }
 
 func disseminationTestDeclaration() rpc.DisseminationDecl {
@@ -33,6 +37,21 @@ func disseminationTestDeclaration() rpc.DisseminationDecl {
 	}
 }
 
+func disseminationTestSends() []rpc.MessageSendDecl {
+	return []rpc.MessageSendDecl{
+		{Message: disseminationMsg("update")},
+		{Message: disseminationMsg("raw")},
+	}
+}
+
+func disseminationTestReceives() []rpc.MessageReceiveDecl {
+	return []rpc.MessageReceiveDecl{
+		{Message: disseminationMsg("update"), Tags: []rpc.MessageTagDecl{{Name: events.TagDirection, Values: []string{events.DirectionReceived, events.DirectionSent}}}},
+		{Message: disseminationMsg("state")},
+		{Message: disseminationMsg("refresh")},
+	}
+}
+
 func disseminationTestProcess(name string, explicit bool) DisseminationProcess {
 	process := DisseminationProcess{Name: name, Declarations: []rpc.DisseminationDecl{disseminationTestDeclaration()}}
 	if explicit {
@@ -41,40 +60,56 @@ func disseminationTestProcess(name string, explicit bool) DisseminationProcess {
 	return process
 }
 
-func disseminationTestSource(process string) plugin.PeerProcessBinding {
-	return plugin.PeerProcessBinding{
-		PluginName: process,
-		Explicit:   true,
-		Receive:    map[string]events.Direction{"update": events.DirReceived, "state": events.DirBoth},
-	}
-}
-
-func disseminationTestDestination(process string) plugin.PeerProcessBinding {
-	return plugin.PeerProcessBinding{
-		PluginName: process,
-		Explicit:   true,
-		Receive: map[string]events.Direction{
-			"state": events.DirBoth, "refresh": events.DirBoth, "update": events.DirSent,
-		},
-		Send: map[string]bool{"update": true},
+func disseminationEndpointInput(name string, block plugin.BusBlock) BusParticipantInput {
+	return BusParticipantInput{
+		Path:         plugin.EndpointPath(name),
+		EndpointName: name,
+		Sends:        disseminationTestSends(),
+		Receives:     disseminationTestReceives(),
+		OwnBlock:     block,
 	}
 }
 
 // TestDisseminationOwnerUsesSameInstance proves source and destination grants
-// complete one configured process, never two aliases of the same implementation.
-// Method: split grants across instances, then complete only the destination's instance.
+// complete one configured endpoint, never two aliases of the same implementation.
+//
+// VALIDATES: ResolveDisseminationOwner requires both source and destination on
+// the same configured instance.
+// PREVENTS: splitting source and destination grants across distinct aliases.
 func TestDisseminationOwnerUsesSameInstance(t *testing.T) {
+	p1 := "/" + disseminationTestNamespace + "/entry/p1"
+	p2 := "/" + disseminationTestNamespace + "/entry/p2"
 	peers := []DeliveryPeer{
-		{Addr: "192.0.2.1", Bindings: []plugin.PeerProcessBinding{disseminationTestSource("one")}},
-		{Addr: "192.0.2.2", Bindings: []plugin.PeerProcessBinding{disseminationTestDestination("two")}},
+		{Addr: "192.0.2.1", Name: "p1", Path: p1},
+		{Addr: "192.0.2.2", Name: "p2", Path: p2},
 	}
 	processes := []DisseminationProcess{disseminationTestProcess("one", false), disseminationTestProcess("two", false)}
-	graph := newDeliveryGraph(disseminationTestNamespace, peers)
+
+	// Endpoint "one" only receives from p1; endpoint "two" only interacts with p2.
+	epOne := disseminationEndpointInput("one", plugin.BusBlock{
+		Receive: plugin.BusDirectionBlock{TargetsPresent: true, Targets: []string{p1}},
+		Send:    plugin.BusDirectionBlock{TargetsPresent: true, TargetsNone: true},
+	})
+	epTwo := disseminationEndpointInput("two", plugin.BusBlock{
+		Receive: plugin.BusDirectionBlock{TargetsPresent: true, Targets: []string{p2}},
+		Send:    plugin.BusDirectionBlock{TargetsPresent: true, Targets: []string{p2}},
+	})
+	// Narrow p2's update to sent only so p2 alone is not a complete source (no update-received).
+	epTwo.OwnBlock.Receive.Messages = map[string]*plugin.BusMessageRule{
+		disseminationMsg("update"): {Tags: map[string][]string{events.TagDirection: {events.DirectionSent}}},
+	}
+
+	graph, err := BuildDeliveryGraph(disseminationTestNamespace, peers, plugin.BusConfig{}, []BusParticipantInput{epOne, epTwo})
+	require.NoError(t, err)
 	owner, err := graph.ResolveDisseminationOwner("192.0.2.2", disseminationTestRole, processes)
 	require.NoError(t, err)
 	require.False(t, owner.IsSet(), "different aliases must not complete each other's grants")
-	peers[0].Bindings = append(peers[0].Bindings, disseminationTestSource("two"))
-	graph = newDeliveryGraph(disseminationTestNamespace, peers)
+
+	// Now let endpoint "two" receive from both p1 and p2 (complete source on p1, destination on p2).
+	epTwo.OwnBlock.Receive.Targets = []string{p1, p2}
+	epTwo.OwnBlock.Receive.Messages = nil
+	graph, err = BuildDeliveryGraph(disseminationTestNamespace, peers, plugin.BusConfig{}, []BusParticipantInput{epOne, epTwo})
+	require.NoError(t, err)
 	owner, err = graph.ResolveDisseminationOwner("192.0.2.2", disseminationTestRole, processes)
 	require.NoError(t, err)
 	require.True(t, owner.IsSet())
@@ -82,33 +117,39 @@ func TestDisseminationOwnerUsesSameInstance(t *testing.T) {
 	require.False(t, owner.Explicit(), "ordinary output has not claimed the role")
 }
 
-// TestDisseminationOwnerRequiresExplicitCompleteGrants proves derived feeds,
-// implicit state and incomplete destination grants cannot request ordinary transit.
-// Method: remove one authority fact at a time while retaining the useful complete case.
-func TestDisseminationOwnerRequiresExplicitCompleteGrants(t *testing.T) {
-	for _, defect := range []string{"none", "derived source", "derived destination", "implicit source state", "missing refresh", "missing sent updates", "raw only"} {
+// TestDisseminationOwnerRequiresCompleteGrants proves incomplete source or
+// destination bus filters cannot request ordinary dissemination.
+//
+// VALIDATES: removing any required receive or send message disables ownership.
+// PREVENTS: partial compiled-bus filters silently activating dissemination.
+func TestDisseminationOwnerRequiresCompleteGrants(t *testing.T) {
+	p1 := "/" + disseminationTestNamespace + "/entry/p1"
+	p2 := "/" + disseminationTestNamespace + "/entry/p2"
+	for _, defect := range []string{"none", "missing source update", "missing refresh", "missing sent updates", "raw only"} {
 		t.Run(defect, func(t *testing.T) {
-			source := disseminationTestSource("ordinary")
-			target := disseminationTestDestination("ordinary")
+			ep := disseminationEndpointInput("ordinary", plugin.BusBlock{})
 			switch defect {
 			case "none":
-			case "derived source":
-				source.Explicit = false
-			case "derived destination":
-				target.Explicit = false
-			case "implicit source state":
-				source.Implicit = map[string]bool{"state": true}
+			case "missing source update":
+				ep.OwnBlock.Receive.Messages = map[string]*plugin.BusMessageRule{
+					disseminationMsg("update"): {Tags: map[string][]string{events.TagDirection: {events.DirectionSent}}},
+				}
 			case "missing refresh":
-				delete(target.Receive, "refresh")
+				ep.OwnBlock.Receive.AllowPresent = true
+				ep.OwnBlock.Receive.Allow = []string{disseminationMsg("update"), disseminationMsg("state")}
 			case "missing sent updates":
-				delete(target.Receive, "update")
+				ep.OwnBlock.Receive.Messages = map[string]*plugin.BusMessageRule{
+					disseminationMsg("update"): {Tags: map[string][]string{events.TagDirection: {events.DirectionReceived}}},
+				}
 			case "raw only":
-				target.Send = map[string]bool{"raw": true}
+				ep.OwnBlock.Send.AllowPresent = true
+				ep.OwnBlock.Send.Allow = []string{disseminationMsg("raw")}
 			}
-			graph := newDeliveryGraph(disseminationTestNamespace, []DeliveryPeer{
-				{Addr: "192.0.2.1", Bindings: []plugin.PeerProcessBinding{source}},
-				{Addr: "192.0.2.2", Bindings: []plugin.PeerProcessBinding{target}},
-			})
+			graph, err := BuildDeliveryGraph(disseminationTestNamespace, []DeliveryPeer{
+				{Addr: "192.0.2.1", Name: "p1", Path: p1},
+				{Addr: "192.0.2.2", Name: "p2", Path: p2},
+			}, plugin.BusConfig{}, []BusParticipantInput{ep})
+			require.NoError(t, err)
 			owner, err := graph.ResolveDisseminationOwner("192.0.2.2", disseminationTestRole, []DisseminationProcess{disseminationTestProcess("ordinary", false)})
 			require.NoError(t, err)
 			require.Equal(t, defect == "none", owner.IsSet())
@@ -117,14 +158,25 @@ func TestDisseminationOwnerRequiresExplicitCompleteGrants(t *testing.T) {
 }
 
 // TestDisseminationOwnerScopesExplicitClaim proves an eligible explicit role
-// displaces ordinary output only at the destination that grants that instance.
-// Method: compare a role destination with a sibling ordinary destination.
+// displaces ordinary output only at the destination covered by its bus filter.
+//
+// VALIDATES: explicit claim precedence scoped by send > to / receive > from.
+// PREVENTS: an explicit claimant displacing ordinary output on uncovered peers.
 func TestDisseminationOwnerScopesExplicitClaim(t *testing.T) {
-	graph := newDeliveryGraph(disseminationTestNamespace, []DeliveryPeer{
-		{Addr: "192.0.2.1", Bindings: []plugin.PeerProcessBinding{disseminationTestSource("ordinary"), disseminationTestSource("role-alias")}},
-		{Addr: "192.0.2.2", Bindings: []plugin.PeerProcessBinding{disseminationTestDestination("ordinary"), disseminationTestDestination("role-alias")}},
-		{Addr: "192.0.2.3", Bindings: []plugin.PeerProcessBinding{disseminationTestDestination("ordinary")}},
+	p1 := "/" + disseminationTestNamespace + "/entry/p1"
+	p2 := "/" + disseminationTestNamespace + "/entry/p2"
+	p3 := "/" + disseminationTestNamespace + "/entry/p3"
+	graph, err := BuildDeliveryGraph(disseminationTestNamespace, []DeliveryPeer{
+		{Addr: "192.0.2.1", Name: "p1", Path: p1},
+		{Addr: "192.0.2.2", Name: "p2", Path: p2},
+		{Addr: "192.0.2.3", Name: "p3", Path: p3},
+	}, plugin.BusConfig{}, []BusParticipantInput{
+		disseminationEndpointInput("ordinary", plugin.BusBlock{}),
+		disseminationEndpointInput("role-alias", plugin.BusBlock{
+			Send: plugin.BusDirectionBlock{TargetsPresent: true, Targets: []string{p2}},
+		}),
 	})
+	require.NoError(t, err)
 	processes := []DisseminationProcess{disseminationTestProcess("ordinary", false), disseminationTestProcess("role-alias", true)}
 	role, err := graph.ResolveDisseminationOwner("192.0.2.2", disseminationTestRole, processes)
 	require.NoError(t, err)
@@ -137,13 +189,19 @@ func TestDisseminationOwnerScopesExplicitClaim(t *testing.T) {
 }
 
 // TestDisseminationOwnerRefusesAmbiguousClaim proves claim order cannot pick
-// between two explicitly eligible instances. Method: grant both complete sets
-// and require the refusal to identify the peer and both configured names.
+// between two explicitly eligible instances.
+//
+// VALIDATES: ambiguous explicit claimants are refused naming peer and both endpoints.
+// PREVENTS: order-dependent silent winner selection.
 func TestDisseminationOwnerRefusesAmbiguousClaim(t *testing.T) {
-	graph := newDeliveryGraph(disseminationTestNamespace, []DeliveryPeer{
-		{Addr: "192.0.2.1", Bindings: []plugin.PeerProcessBinding{disseminationTestSource("left"), disseminationTestSource("right")}},
-		{Addr: "192.0.2.2", Name: "destination", Bindings: []plugin.PeerProcessBinding{disseminationTestDestination("left"), disseminationTestDestination("right")}},
+	graph, err := BuildDeliveryGraph(disseminationTestNamespace, []DeliveryPeer{
+		{Addr: "192.0.2.1", Name: "source", Path: "/" + disseminationTestNamespace + "/entry/source"},
+		{Addr: "192.0.2.2", Name: "destination", Path: "/" + disseminationTestNamespace + "/entry/destination"},
+	}, plugin.BusConfig{}, []BusParticipantInput{
+		disseminationEndpointInput("left", plugin.BusBlock{}),
+		disseminationEndpointInput("right", plugin.BusBlock{}),
 	})
+	require.NoError(t, err)
 	owner, err := graph.ResolveDisseminationOwner("192.0.2.2", disseminationTestRole, []DisseminationProcess{disseminationTestProcess("right", true), disseminationTestProcess("left", true)})
 	require.Error(t, err)
 	require.False(t, owner.IsSet())
@@ -152,14 +210,20 @@ func TestDisseminationOwnerRefusesAmbiguousClaim(t *testing.T) {
 	require.ErrorContains(t, err, "right")
 }
 
-// TestDisseminationOwnerRefusesAmbiguousOrdinary proves two independent RIB
-// instances cannot select the same destination without one effective owner.
-// Method: reuse complete grants with neither process claiming the role.
+// TestDisseminationOwnerRefusesAmbiguousOrdinary proves two independent
+// ordinary instances cannot select the same destination without one owner.
+//
+// VALIDATES: ambiguous ordinary owners are refused naming both endpoints.
+// PREVENTS: order-dependent silent winner selection between ordinary owners.
 func TestDisseminationOwnerRefusesAmbiguousOrdinary(t *testing.T) {
-	graph := newDeliveryGraph(disseminationTestNamespace, []DeliveryPeer{
-		{Addr: "192.0.2.1", Bindings: []plugin.PeerProcessBinding{disseminationTestSource("left"), disseminationTestSource("right")}},
-		{Addr: "192.0.2.2", Bindings: []plugin.PeerProcessBinding{disseminationTestDestination("left"), disseminationTestDestination("right")}},
+	graph, err := BuildDeliveryGraph(disseminationTestNamespace, []DeliveryPeer{
+		{Addr: "192.0.2.1", Name: "source", Path: "/" + disseminationTestNamespace + "/entry/source"},
+		{Addr: "192.0.2.2", Name: "destination", Path: "/" + disseminationTestNamespace + "/entry/destination"},
+	}, plugin.BusConfig{}, []BusParticipantInput{
+		disseminationEndpointInput("left", plugin.BusBlock{}),
+		disseminationEndpointInput("right", plugin.BusBlock{}),
 	})
+	require.NoError(t, err)
 	owner, err := graph.ResolveDisseminationOwner("192.0.2.2", disseminationTestRole, []DisseminationProcess{disseminationTestProcess("left", false), disseminationTestProcess("right", false)})
 	require.Error(t, err)
 	require.False(t, owner.IsSet())
@@ -168,15 +232,17 @@ func TestDisseminationOwnerRefusesAmbiguousOrdinary(t *testing.T) {
 }
 
 // TestDisseminationOwnerDeclarationTransports proves alias resolution and a
-// genuine external declaration preserve the same configured owner. Method:
-// compare a compiled alias with JSON Stage 1 input absent from the registry,
-// then remove its runtime claim without falling back to a compiled claim.
+// genuine external declaration preserve the same configured owner.
+//
+// VALIDATES: compiled alias and runtime Stage 1 declaration resolve identically.
+// PREVENTS: falling back to a compiled claim after an empty runtime claim.
 func TestDisseminationOwnerDeclarationTransports(t *testing.T) {
 	snapshot := registry.Snapshot()
 	t.Cleanup(func() { registry.Restore(snapshot) })
 	require.NoError(t, registry.Register(registry.Registration{
 		Name: "dissemination-implementation", RunEngine: func(net.Conn) int { return 0 }, CLIHandler: func([]string) int { return 0 },
 		Claims: []string{disseminationTestRole}, Dissemination: []rpc.DisseminationDecl{disseminationTestDeclaration()},
+		Sends: disseminationTestSends(), Receives: disseminationTestReceives(),
 	}))
 	for _, external := range []bool{false, true} {
 		name := "configured-alias"
@@ -186,7 +252,12 @@ func TestDisseminationOwnerDeclarationTransports(t *testing.T) {
 			name = "external-not-in-registry"
 			configuration = plugin.PluginConfig{Name: name, Run: "external-program"}
 			server.config.Plugins = []plugin.PluginConfig{configuration}
-			declaration := rpc.DeclareRegistrationInput{Claims: []string{disseminationTestRole}, Dissemination: []rpc.DisseminationDecl{disseminationTestDeclaration()}}
+			declaration := rpc.DeclareRegistrationInput{
+				Claims:        []string{disseminationTestRole},
+				Dissemination: []rpc.DisseminationDecl{disseminationTestDeclaration()},
+				Sends:         disseminationTestSends(),
+				Receives:      disseminationTestReceives(),
+			}
 			encoded, err := json.Marshal(declaration)
 			require.NoError(t, err)
 			var decoded rpc.DeclareRegistrationInput
@@ -197,16 +268,20 @@ func TestDisseminationOwnerDeclarationTransports(t *testing.T) {
 			require.NoError(t, manager.AddProcess(name, owner))
 			server.procManager.Store(manager)
 		}
-		server.deliveryGraph.Store(newDeliveryGraph(disseminationTestNamespace, []DeliveryPeer{
-			{Addr: "192.0.2.1", Bindings: []plugin.PeerProcessBinding{disseminationTestSource(name)}},
-			{Addr: "192.0.2.2", Bindings: []plugin.PeerProcessBinding{disseminationTestDestination(name)}},
+		require.NoError(t, server.SetDeliveryGraph(disseminationTestNamespace, []DeliveryPeer{
+			{Addr: "192.0.2.1", Name: "p1", Path: "/" + disseminationTestNamespace + "/entry/p1"},
+			{Addr: "192.0.2.2", Name: "p2", Path: "/" + disseminationTestNamespace + "/entry/p2"},
 		}))
 		owner, err := server.ResolveDisseminationOwner("192.0.2.2", disseminationTestRole)
 		require.NoError(t, err)
 		require.Equal(t, name, owner.Name())
 		require.True(t, owner.Explicit())
 		if external {
-			server.procManager.Load().GetProcess(name).SetRegistration(&plugin.PluginRegistration{Dissemination: []rpc.DisseminationDecl{disseminationTestDeclaration()}})
+			server.procManager.Load().GetProcess(name).SetRegistration(&plugin.PluginRegistration{
+				Dissemination: []rpc.DisseminationDecl{disseminationTestDeclaration()},
+				Sends:         disseminationTestSends(),
+				Receives:      disseminationTestReceives(),
+			})
 			owner, err = server.ResolveDisseminationOwner("192.0.2.2", disseminationTestRole)
 			require.NoError(t, err)
 			require.False(t, owner.Explicit(), "an authenticated empty runtime claim is authoritative")

@@ -471,9 +471,11 @@ func TestAnnounceSealedSessionRIBReconnect(t *testing.T) {
 	const owner = "bgp-rib"
 	f := ownershipRailNew(t, nil)
 	peer := f.destination
-	peer.settings.ProcessBindings = []ProcessBinding{sendUpdateOnly(owner)}
+	peer.settings.Bus = testBusBlockForGrants(sendUpdateOnly(owner))
 	peer.refreshForwardFacts()
 	api, proc := readyProducerServer(t, f.r, owner)
+	f.r.api = api.server
+	publishTestBusGraph(t, f.r)
 	peer.resetAPISync([]string{owner})
 	raiseTestReplayFence(peer, owner)
 	session := readyProducerSession(peer)

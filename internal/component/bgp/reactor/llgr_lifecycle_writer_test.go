@@ -18,7 +18,6 @@ import (
 	"github.com/ze-software/ze/internal/component/plugin/process"
 	bgpctx "github.com/ze-software/ze/internal/core/bgp/context"
 	"github.com/ze-software/ze/internal/core/bgp/nlri/nlrisplit"
-	"github.com/ze-software/ze/internal/core/events"
 	"github.com/ze-software/ze/internal/core/family"
 	"github.com/ze-software/ze/pkg/plugin/rpc"
 )
@@ -52,11 +51,9 @@ func TestLLGREORWriterKeepsRefreshedRoute(t *testing.T) {
 				f.destination.refreshForwardFacts()
 			}
 			for _, ingress := range []*Peer{f.source, f.other} {
-				ingress.settings.ProcessBindings = append(ingress.settings.ProcessBindings, sourceLeaseGrant(owner))
+				addTestPeerBusGrant(ingress.settings, sourceLeaseGrant(owner))
 			}
-			f.destination.settings.ProcessBindings = []ProcessBinding{{PluginName: owner, Explicit: true,
-				Receive: map[string]events.Direction{"state": events.DirBoth, "refresh": events.DirBoth, "update": events.DirSent},
-				Send:    map[string]bool{"update": true}}}
+			f.destination.settings.Bus = testBusSelectedDest(owner)
 			api, proc := readyProducerServer(t, f.r, owner)
 			// Publish the actual physical source actor before its received events.
 			// Attached observers acquire source state, never a replay completion.

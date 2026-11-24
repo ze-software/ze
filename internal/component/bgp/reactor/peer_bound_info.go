@@ -14,25 +14,27 @@ import (
 // Nil explicitly means no physical connection and grants no selected output.
 func boundPeerInfo(peer *Peer, session *Session) plugin.PeerInfo {
 	settings := peer.settingsSnapshot()
-	// Own only the names, not the settings' mutable container. A known empty
-	// capture differs from a synthetic PeerInfo that supplied no binding facts.
-	updateSendGrants := make([]string, 0, len(settings.ProcessBindings))
-	for i := range settings.ProcessBindings {
-		binding := &settings.ProcessBindings[i]
-		if binding.MaySend(bgpevents.SendUpdate) {
-			updateSendGrants = append(updateSendGrants, binding.PluginName)
-		}
-	}
+	// Own only the names, not the graph's read-only slice. A known empty
+	// capture differs from a synthetic PeerInfo that supplied no grant facts.
+	senders := peer.reactor.DeliveryGraph().SendersForPeer(peer.addrString, bgpevents.SendUpdate)
+	updateSendGrants := make([]string, len(senders))
+	copy(updateSendGrants, senders)
+	peerAS := peer.PeerAS()
 	info := plugin.PeerInfo{
 		PeerOwner: peer.sourceOwner,
 		Address:   settings.Address, AddressStr: peer.addrString,
 		LocalAddress: settings.LocalAddress, LocalAddressStr: peer.localAddrString,
 		Name: settings.Name, GroupName: settings.GroupName,
-		LocalAS:  settings.LocalAS,
-		RouterID: settings.RouterID,
-		Connect:  settings.Connection.Connect, Accept: settings.Connection.Accept,
-		State:            plugin.PeerStateEstablished,
-		UpdateSendGrants: updateSendGrants,
+		LocalAS:              settings.LocalAS,
+		PeerAS:               rpc.RemoteASOf(peerAS),
+		RouterID:             settings.RouterID,
+		Connect:              settings.Connection.Connect,
+		Accept:               settings.Connection.Accept,
+		State:                plugin.PeerStateEstablished,
+		IsIBGP:               settings.isIBGPWith(peerAS),
+		RSClient:             settings.RSClient,
+		RouteReflectorClient: settings.RouteReflectorClient,
+		UpdateSendGrants:     updateSendGrants,
 	}
 	if session == nil {
 		return info
@@ -41,12 +43,17 @@ func boundPeerInfo(peer *Peer, session *Session) plugin.PeerInfo {
 	info.SessionGeneration = session.publishedGeneration.Load()
 	info.DestinationSession, info.SelectedOwner = peer.selectedDestinationForSession(session)
 	session.mu.RLock()
+	activeSettings := settings
 	if session.proposal != nil {
-		info.LocalAS = session.proposal.settings.LocalAS
+		if session.proposal.settings != nil {
+			activeSettings = session.proposal.settings
+			info.LocalAS = session.proposal.settings.LocalAS
+		}
 		info.RouterID = session.proposal.message.BGPIdentifier
 	}
 	if session.negotiated != nil {
 		info.PeerAS = rpc.RemoteASOf(session.negotiated.PeerASN)
+		info.IsIBGP = activeSettings.isIBGPWith(session.negotiated.PeerASN)
 	}
 	if session.peerOpen != nil {
 		info.RemoteRouterID = session.peerOpen.BGPIdentifier

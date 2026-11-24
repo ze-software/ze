@@ -91,9 +91,11 @@ type Server struct {
 	rpcHandlersOnce   sync.Once
 	commitManager     any
 	procManager       atomic.Pointer[process.ProcessManager]
+	busConfig         atomic.Pointer[plugin.BusConfig]
 	spawner           plugin.ProcessSpawner         // PluginManager for process lifecycle
 	subscriptions     *SubscriptionManager          // API-driven event subscriptions (plugin processes)
-	deliveryGraph     atomic.Pointer[DeliveryGraph] // config-derived peer-to-process edges (delivery_graph.go)
+	deliveryGraph     atomic.Pointer[DeliveryGraph] // compiled bus delivery index (delivery_graph.go)
+	prevDeliveryGraph atomic.Pointer[DeliveryGraph] // previous delivery graph retained for post-swap unbind delivery
 	engineSubscribers *engineEventSubscribers       // Engine-side stream subscribers (orchestrator etc.)
 	monitors          *MonitorManager               // CLI monitor subscriptions
 	quiescers         QuiescerRegistry              // Subsystem drains invoked by `request quiesce`

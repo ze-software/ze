@@ -68,11 +68,11 @@ func TestPeerDownDepartureWorkersBounded(t *testing.T) {
 
 	addresses := make([]string, downs)
 	keys := make([]workerKey, downs)
-	rs.handleState(&Event{PeerAddr: "198.51.100.254", PeerOwner: 254, ConnectionID: 354, DestinationSession: 454, SessionGeneration: 7, State: "up", Reason: rpc.ReasonAttached})
+	rs.handleState(&Event{PeerAddr: "198.51.100.254", PeerOwner: 254, ConnectionID: 354, DestinationSession: 454, SessionGeneration: 7, State: "up", Reason: rpc.ReasonAttached, RSClient: true})
 	for i := range downs {
 		addresses[i] = netip.AddrFrom4([4]byte{192, 0, 2, byte(i + 1)}).String()
 		keys[i] = rsFixtureKey(addresses[i], uint64(i+1), uint64(i+101))
-		rs.handleState(&Event{PeerAddr: addresses[i], PeerOwner: keys[i].owner, ConnectionID: keys[i].connectionID, DestinationSession: uint64(i + 201), SessionGeneration: 7, State: "up", Reason: rpc.ReasonAttached})
+		rs.handleState(&Event{PeerAddr: addresses[i], PeerOwner: keys[i].owner, ConnectionID: keys[i].connectionID, DestinationSession: uint64(i + 201), SessionGeneration: 7, State: "up", Reason: rpc.ReasonAttached, RSClient: true})
 		rs.withdrawals[addresses[i]] = map[withdrawalKey]withdrawalEntry{
 			{owner: keys[i].owner, fam: family.IPv4Unicast, prefix: netip.MustParsePrefix("10.0.0.0/24")}: {owner: keys[i].owner, connectionID: keys[i].connectionID},
 		}

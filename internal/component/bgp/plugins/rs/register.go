@@ -86,8 +86,9 @@ func init() {
 		// what makes the stand-down deterministic: the engine delivers the claim
 		// on bgp-adj-rib-in's Stage-2 configure, which completes before peers
 		// start. See ClaimPeerUpReplay in server_handlers.go.
-		Claims:        []string{ClaimPeerUpReplay, disseminationRole},
-		Dissemination: disseminationDecls(),
+		Claims:            []string{ClaimPeerUpReplay, disseminationRole},
+		ClaimSessionScope: []rpc.FilterSessionFact{{Fact: "rs-client", Values: []string{"true"}}},
+		Dissemination:     disseminationDecls(),
 		// handleState makes a peer a live forward target (Up + ForwardFrom, one
 		// critical section, server_handlers.go). An UPDATE taken delivery of
 		// before that lands at or below the peer's cut, so it belongs to the

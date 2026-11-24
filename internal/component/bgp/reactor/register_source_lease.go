@@ -46,7 +46,19 @@ func sourceGenerationCleanup(server *pluginserver.Server, proc *process.Process)
 	if !captured {
 		return
 	}
+	keep := proc.Config().OnExit == plugin.OnExitKeep
 	if origins, ok := server.Reactor().(interface {
+		EndOriginOwnerWithPolicy(context.Context, plugin.SelectedOwner, bool) error
+	}); ok {
+		ctx, cancel := context.WithTimeout(context.Background(), rpc.CancellableRequestTimeout+rpc.RequestCancelTimeout)
+		err := origins.EndOriginOwnerWithPolicy(ctx, owner, keep)
+		cancel()
+		if err != nil {
+			message := report.FitMessage("Origin cleanup for stopped process " + proc.Name() + " failed: " + err.Error())
+			report.RaiseErrorFix(reportSourceBGP, codeSourceLeaseCleanup, proc.Name(), message, "ze show bgp peers")
+			peerLogger().Error(message, "code", codeSourceLeaseCleanup, "plugin", proc.Name(), "fix", "ze show bgp peers")
+		}
+	} else if origins, ok := server.Reactor().(interface {
 		EndOriginOwner(context.Context, plugin.SelectedOwner) error
 	}); ok {
 		ctx, cancel := context.WithTimeout(context.Background(), rpc.CancellableRequestTimeout+rpc.RequestCancelTimeout)

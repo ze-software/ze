@@ -73,7 +73,7 @@ func wkPeer(t testing.TB, addr string, peerAS uint32, ctx *bgpctx.EncodingContex
 		LocalAddress:  netip.MustParseAddr("10.0.0.254"),
 		// The route server's send grant: the RS fast path reaches no
 		// destination without it, as the cached rail does not.
-		ProcessBindings: []ProcessBinding{rsRelaySendBinding()},
+		Bus: rsRelaySendBinding(),
 		// An EBGP fixture peer is both a source and a destination, and RFC 8212
 		// Section 3 rejects at an absent policy, so it carries explicit
 		// accepting import and export policies. An IBGP one is unaffected.
@@ -86,6 +86,7 @@ func wkPeer(t testing.TB, addr string, peerAS uint32, ctx *bgpctx.EncodingContex
 	})
 	peer.sendCtx.Store(ctx)
 	peer.sendCtxID = ctxID
+	setTestPeerBus(t, peer, rsRelaySendBinding())
 	peer.refreshForwardFacts()
 	return peer
 }

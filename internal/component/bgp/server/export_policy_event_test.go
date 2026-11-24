@@ -16,7 +16,6 @@ import (
 	"github.com/ze-software/ze/internal/component/plugin/registry"
 	pluginserver "github.com/ze-software/ze/internal/component/plugin/server"
 	bgpevents "github.com/ze-software/ze/internal/core/bgp/events"
-	"github.com/ze-software/ze/internal/core/events"
 	"github.com/ze-software/ze/pkg/plugin/rpc"
 	"github.com/ze-software/ze/pkg/plugin/sdk"
 )
@@ -74,16 +73,13 @@ func TestExportPolicyEventJoinsCapturedOwnerDeferredOutput(t *testing.T) {
 						}
 						return 0
 					}}))
-				plugins = append(plugins, plugin.PluginConfig{Name: name, Run: "ze." + name, Internal: true, Encoder: plugin.EncodingJSON})
+				plugins = append(plugins, plugin.PluginConfig{Name: name, CompiledPlugin: name, Run: "ze." + name, Internal: true, Encoder: plugin.EncodingJSON})
 			}
 			srv, err := pluginserver.NewServer(&pluginserver.ServerConfig{Plugins: plugins,
 				ConfigNeedHolds: config.ConfigNeedHolds(map[string]any{})}, nil)
 			require.NoError(t, err)
 			srv.SetProcessSpawner(&openObserverSpawner{ctx: ctx})
-			srv.UpdateDeliveryGraph(bgpevents.Namespace, []pluginserver.DeliveryPeer{{Addr: "192.0.2.185", Bindings: []plugin.PeerProcessBinding{
-				{PluginName: owner, Explicit: true, Receive: map[string]events.Direction{bgpevents.EventState: events.DirBoth}},
-				{PluginName: observer, Explicit: true, Receive: map[string]events.Direction{bgpevents.EventState: events.DirBoth}},
-			}}})
+			srv.UpdateDeliveryGraph(bgpevents.Namespace, []pluginserver.DeliveryPeer{{Addr: "192.0.2.185", Path: "/bgp/ip/192.0.2.185"}})
 			require.NoError(t, srv.StartWithContext(ctx))
 			t.Cleanup(srv.Stop)
 			require.NoError(t, srv.WaitForStartupComplete(ctx))

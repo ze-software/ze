@@ -26,10 +26,9 @@ import (
 	"github.com/ze-software/ze/internal/component/bgp/configjson"
 	"github.com/ze-software/ze/internal/component/bgp/filterapi"
 	"github.com/ze-software/ze/internal/component/bgp/fsm"
-	bgptypes "github.com/ze-software/ze/internal/component/bgp/types"
-
 	"github.com/ze-software/ze/internal/component/bgp/message"
 	"github.com/ze-software/ze/internal/component/bgp/rib"
+	bgptypes "github.com/ze-software/ze/internal/component/bgp/types"
 	"github.com/ze-software/ze/internal/component/plugin"
 	"github.com/ze-software/ze/internal/core/bgp/attribute"
 	"github.com/ze-software/ze/internal/core/bgp/capability"
@@ -227,10 +226,11 @@ const DefaultOpQueueSize = 10000
 // Note: Route persistence across reconnects is delegated to external API programs.
 // See capability contract for route-refresh handling.
 type Peer struct {
-	settings *PeerSettings
-	clock    clock.Clock
-	dialer   network.Dialer
-	session  *Session
+	settings       *PeerSettings
+	resolvedPeerAS atomic.Uint32 // Lock-free mirror of settings.PeerAS for publishDeliveryGraphLocked
+	clock          clock.Clock
+	dialer         network.Dialer
+	session        *Session
 
 	// defaultOriginateRefusalLog bounds the Warn for a default-originate route
 	// the builder refuses to one line per second for this peer. The refusal
@@ -780,6 +780,7 @@ func NewPeer(settings *PeerSettings) *Peer {
 	p.advanceSourcePolicyEpoch()
 
 	p.adminDown.Store(settings.AdminShutdown.Held)
+	p.resolvedPeerAS.Store(settings.PeerAS)
 
 	// A dynamic peer's template pair is captured here, before the peer starts,
 	// so no establishment and no reload swap ever sees it unset: the chains
@@ -805,7 +806,7 @@ func NewPeer(settings *PeerSettings) *Peer {
 // running on a different goroutine than those writes MUST read those eight fields
 // through PeerAS()/ImportPolicy()/ExportPolicy()/oldestPrefixUpdated()/
 // ConfiguredCapabilities()/staticRoutes()/bfdSettings()/Description(), not off this
-// pointer, or it races the write. ProcessBindings is written under r.mu and p.mu and read under
+// pointer, or it races the write. Bus is written under r.mu and p.mu and read under
 // either (hotSwappableSettings). Every other PeerSettings field is set at
 // construction and never mutated, so reading it off this pointer is race-free.
 //
@@ -983,14 +984,13 @@ func (p *Peer) SetDialer(d network.Dialer) {
 
 // resetAPISync resets the per-session API synchronization state.
 // Called when session transitions to Established.
-// expected names the process bindings that may push a route into this peer's
-// initial routing update, by either rail: `send [ update ]` or `send [ raw ]`
-// (ProcessBinding.MayPushRoutes, collected in peer_run.go).
+// expected names the endpoints permitted by the compiled delivery graph to push
+// routes into this peer's initial routing update (`bgp:update` or `bgp:raw`)
+// that also receive `bgp:state` and declare SignalsSessionReady (peer_run.go).
 //
-// The names are unique by construction: a peer's `attach process <name>` blocks
-// are one YANG map keyed by that name (parseProcessBindingsFromTree in
-// config.go), so no process appears twice and the report set below can be
-// compared against this one by length.
+// The names are deduplicated and sorted by initialUpdateReporters, so no
+// process appears twice and the report set below can be compared against this
+// one by length.
 func (p *Peer) resetAPISync(expected []string) {
 	p.mu.Lock()
 	p.apiSyncExpected = expected
@@ -1889,7 +1889,8 @@ func (p *Peer) resolveNextHop(session *Session, nh bgptypes.RouteNextHop, fam fa
 // the BGP speaker SHOULD use the IP address of the interface that the speaker
 // uses to establish the BGP connection to peer X in the NEXT_HOP attribute."
 // An internal peer keeps the gateway unless it is IPv6 link-local or names that peer.
-// External third-party next hops are optional; the default here is self.
+// External third-party next hops are optional; the default here is self unless
+// the peer's static export policy selects next-hop:unchanged.
 func defaultOriginationNextHop(s *PeerSettings, candidate netip.Addr) (bgptypes.RouteNextHop, error) {
 	if !candidate.IsValid() {
 		return bgptypes.RouteNextHop{}, ErrNextHopUnset

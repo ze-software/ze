@@ -4,10 +4,11 @@ package rs
 import (
 	"context"
 	"fmt"
+	"testing"
+
 	"github.com/ze-software/ze/internal/core/bgp/ribevents"
 	"github.com/ze-software/ze/internal/core/family"
 	"github.com/ze-software/ze/pkg/plugin/rpc"
-	"testing"
 )
 
 // rsFixtureKey constructs only from the original identities written at the
@@ -45,7 +46,7 @@ func rsFixtureRetainedRoute(t *testing.T, rs *routeServer, key workerKey, receip
 	t.Helper()
 	rs.mu.Lock()
 	if rs.peers[key] == nil {
-		rs.peers[key] = &PeerState{Address: key.address.String(), Up: true, StateSeen: true}
+		rs.peers[key] = &PeerState{Address: key.address.String(), Up: true, RSClient: true, StateSeen: true}
 	}
 	rs.mu.Unlock()
 	if err := rs.acquireSource(key, receipt); err != nil {
@@ -123,8 +124,8 @@ func rsFixtureNativeOperation(_ context.Context, method string, value any) (any,
 func rsFixtureNativeActors(rs *routeServer, source workerKey, target workerKey, session uint64) {
 	rs.mu.Lock()
 	defer rs.mu.Unlock()
-	rs.peers[source] = &PeerState{Address: source.address.String(), Up: true, StateSeen: true}
-	rs.peers[target] = &PeerState{Address: target.address.String(), Up: true, StateSeen: true, DestinationSession: session, SessionGeneration: 3}
+	rs.peers[source] = &PeerState{Address: source.address.String(), Up: true, RSClient: true, StateSeen: true}
+	rs.peers[target] = &PeerState{Address: target.address.String(), Up: true, RSClient: true, StateSeen: true, DestinationSession: session, SessionGeneration: 3}
 }
 
 func rsFixtureOriginalRecords(records *nlriRecords, source workerKey, receipt, epoch uint64) {

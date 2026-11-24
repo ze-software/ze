@@ -11,13 +11,13 @@ import (
 	"testing"
 	"time"
 
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+
 	"github.com/ze-software/ze/internal/component/bgp/wireu"
 	"github.com/ze-software/ze/internal/core/bgp/capability"
 	bgpctx "github.com/ze-software/ze/internal/core/bgp/context"
 	"github.com/ze-software/ze/internal/core/family"
-
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
 )
 
 // rrPeer builds an established iBGP RS-fast-path peer for route-reflection tests.
@@ -30,7 +30,7 @@ func rrPeer(addr string, routerID, clusterID, remoteRID uint32, rrClient bool, c
 		RouterID:             routerID,
 		ClusterID:            clusterID,
 		RSFastPath:           true,
-		ProcessBindings:      []ProcessBinding{rsRelaySendBinding()},
+		Bus:                  rsRelaySendBinding(),
 		RouteReflectorClient: rrClient,
 	})
 	p.state.Store(int32(PeerStateEstablished))
@@ -97,6 +97,11 @@ func rrForward(t *testing.T, payload []byte, srcIsClient, dstIsClient bool, srcR
 		},
 		fwdPool: testPool,
 	}
+	src.SetReactor(r)
+	dst.SetReactor(r)
+	publishTestBusGraph(t, r)
+	src.refreshForwardFacts()
+	dst.refreshForwardFacts()
 
 	reactorForwardRS(r, update, 200, netip.MustParseAddr("10.0.0.1"), src)
 

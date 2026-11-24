@@ -553,7 +553,7 @@ func TestRSColdEmptyPageReleasesOnlyItsAcquiredSourceBothTransports(t *testing.T
 			if err != nil {
 				t.Fatal(err)
 			}
-			rs.peers[sibling] = &PeerState{Address: key.address.String(), Up: true, sourceLease: true, sourceReceipt: 202}
+			rs.peers[sibling] = &PeerState{Address: key.address.String(), Up: true, RSClient: true, sourceLease: true, sourceReceipt: 202}
 			useful := withdrawalKey{owner: sibling.owner, fam: family.IPv4Unicast, prefix: netip.MustParsePrefix("10.0.9.0/24")}
 			rs.withdrawals[key.address.String()] = map[withdrawalKey]withdrawalEntry{useful: {owner: sibling.owner, connectionID: sibling.connectionID, sourceReceipt: 202, msgID: 309}}
 			rs.receiveGate = "request bgp adj-rib-in eligibility"

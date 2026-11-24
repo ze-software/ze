@@ -3,6 +3,7 @@ package reactor
 import (
 	"context"
 	"encoding/json"
+	"net"
 	"net/netip"
 	"testing"
 
@@ -12,6 +13,7 @@ import (
 	"github.com/ze-software/ze/internal/component/bgp/message"
 	"github.com/ze-software/ze/internal/component/plugin"
 	"github.com/ze-software/ze/internal/component/plugin/process"
+	"github.com/ze-software/ze/internal/component/plugin/registry"
 	pluginserver "github.com/ze-software/ze/internal/component/plugin/server"
 	"github.com/ze-software/ze/internal/core/bgp/configop"
 	bgpevents "github.com/ze-software/ze/internal/core/bgp/events"
@@ -19,10 +21,38 @@ import (
 	"github.com/ze-software/ze/pkg/plugin/rpc"
 )
 
+// setupDeliveryGraphTestServer registers the test endpoint names in the plugin
+// registry (restored on cleanup) and seeds srv's BusConfig so srv.UpdateDeliveryGraph
+// compiles real edges for those endpoints through the production pipeline.
+func setupDeliveryGraphTestServer(t *testing.T, srv *pluginserver.Server, names ...string) {
+	t.Helper()
+	snapshot := registry.Snapshot()
+	t.Cleanup(func() { registry.Restore(snapshot) })
+	busCfg := srv.BusConfig()
+	if busCfg.Endpoints == nil {
+		busCfg.Endpoints = make(map[string]plugin.BusBlock, len(names))
+	}
+	for _, name := range names {
+		if registry.Lookup(name) == nil {
+			require.NoError(t, registry.Register(registry.Registration{
+				Name:       name,
+				RunEngine:  func(net.Conn) int { return 0 },
+				CLIHandler: func([]string) int { return 0 },
+				Sends:      testAllBGPSendDecls(),
+				Receives:   testAllBGPReceiveDecls(),
+			}))
+		}
+		if _, exists := busCfg.Endpoints[name]; !exists {
+			busCfg.Endpoints[name] = plugin.BusBlock{}
+		}
+	}
+	srv.SetBusConfig(busCfg)
+}
+
 // deliveryTree is the resolved bgp tree both wiring tests load. Two peers, two
-// programs, three relationships: 192.0.2.1 feeds the program firstAttach names,
+// programs, three relationships: 192.0.2.1 feeds the program firstBus names,
 // 192.0.2.2 feeds nothing and lets route-injector announce.
-func deliveryTree(firstAttach map[string]any) map[string]any {
+func deliveryTree(firstBus map[string]any) map[string]any {
 	return map[string]any{
 		"router-id": "10.0.0.1",
 		"session":   map[string]any{"asn": map[string]any{"local": "65000"}},
@@ -33,7 +63,7 @@ func deliveryTree(firstAttach map[string]any) map[string]any {
 					"local":  map[string]any{"ip": "auto"},
 				},
 				"session": map[string]any{"asn": map[string]any{"remote": "65001"}},
-				"attach":  map[string]any{"process": firstAttach},
+				"bus":     firstBus,
 			},
 			"second": map[string]any{
 				"connection": map[string]any{
@@ -41,18 +71,33 @@ func deliveryTree(firstAttach map[string]any) map[string]any {
 					"local":  map[string]any{"ip": "auto"},
 				},
 				"session": map[string]any{"asn": map[string]any{"remote": "65002"}},
-				"attach": map[string]any{"process": map[string]any{
-					"route-injector": map[string]any{"send": "update"},
-				}},
+				"bus": map[string]any{
+					"send": map[string]any{"allow": "none"},
+					"receive": map[string]any{
+						"allow": []string{"bgp:update"},
+						"from":  []string{"/bus/endpoint/route-injector"},
+					},
+				},
 			},
 		},
 	}
 }
 
-// lookingGlass is the first peer's attach block before the reload: it is fed
-// received UPDATEs and session state, and may announce nothing.
+// lookingGlass is the first peer's bus block before the reload: it feeds
+// received UPDATEs and session state to looking-glass, and accepts nothing.
 var lookingGlass = map[string]any{
-	"looking-glass": map[string]any{"receive": "update-received state"},
+	"send": map[string]any{
+		"allow": []string{"bgp:update", "bgp:state"},
+		"to":    []string{"/bus/endpoint/looking-glass"},
+		"message": map[string]any{
+			"bgp:update": map[string]any{
+				"tag": map[string]any{
+					"direction": map[string]any{"value": []string{"received"}},
+				},
+			},
+		},
+	},
+	"receive": map[string]any{"allow": "none"},
 }
 
 // addPeersFromTree parses a resolved bgp tree and adds every peer, which is what
@@ -96,8 +141,8 @@ func recv(g *pluginserver.DeliveryGraph, eventType string, dir events.Direction,
 //
 // The chain is three functions and this test drives all three. The group's
 // `attach process` block is read by the SAME parser a static peer's is
-// (ParseDynamicGroupTemplate -> parsePeerSettings -> parseProcessBindingsFromTree),
-// buildDynamicPeerSettings copies the template whole so ProcessBindings arrives
+// (ParseDynamicGroupTemplate -> parsePeerSettings -> parsePeerBusFromTree),
+// buildDynamicPeerSettings copies the template whole so Bus arrives
 // by inheritance rather than by a copy list, and the index keys the member on
 // the address its connection arrived from.
 //
@@ -113,12 +158,16 @@ func TestDynamicPeerEntersTheIndexUnderItsOwnAddress(t *testing.T) {
 			"local":  map[string]any{"ip": "auto"},
 		},
 		"session": map[string]any{"asn": map[string]any{"local": "65000"}},
-		"attach": map[string]any{"process": map[string]any{
-			"looking-glass": map[string]any{"receive": "state"},
-		}},
+		"bus": map[string]any{
+			"send": map[string]any{
+				"allow": []string{"bgp:state"},
+				"to":    []string{"/bus/endpoint/looking-glass"},
+			},
+			"receive": map[string]any{"allow": "none"},
+		},
 	}, 65000, 0x0A000001)
 	require.NoError(t, err)
-	require.Len(t, tmpl.ProcessBindings, 1, "the group's attach block is parsed by the peer parser")
+	require.False(t, tmpl.Bus.IsEmpty(), "the group's bus block is parsed by the peer parser")
 
 	dg := &DynamicGroupConfig{
 		GroupName: "ix",
@@ -128,13 +177,12 @@ func TestDynamicPeerEntersTheIndexUnderItsOwnAddress(t *testing.T) {
 	member, err := (&Reactor{}).buildDynamicPeerSettings(dg, netip.MustParseAddr("192.0.2.7"))
 	require.NoError(t, err)
 
-	// The member holds the group's bindings, unchanged. This is the field R-2
-	// assumed a dynamic peer could not carry, and TestDynamicPeerInheritsEvery
-	// PeerSettingsField refuses a divergence row for it.
-	require.Equal(t, tmpl.ProcessBindings, member.ProcessBindings)
+	// The member holds the group's bus block, unchanged.
+	require.True(t, plugin.BusBlockEqual(tmpl.Bus, member.Bus))
 	require.Equal(t, "dyn-192.0.2.7", member.Name, "no config document holds this name")
 
 	srv := &pluginserver.Server{}
+	setupDeliveryGraphTestServer(t, srv, "looking-glass")
 	srv.UpdateDeliveryGraph(bgpevents.Namespace, deliveryPeersFromSettings([]*PeerSettings{member}))
 	g := srv.DeliveryGraph()
 
@@ -159,6 +207,7 @@ func TestDynamicPeerEntersTheIndexUnderItsOwnAddress(t *testing.T) {
 // PREVENTS: an index nobody publishes to, which no later phase could consult.
 func TestConfigLoadPublishesDeliveryGraph(t *testing.T) {
 	srv := &pluginserver.Server{}
+	setupDeliveryGraphTestServer(t, srv, "looking-glass", "route-injector")
 	r := newTestReactor(t)
 	r.api = srv
 
@@ -183,13 +232,14 @@ func TestConfigLoadPublishesDeliveryGraph(t *testing.T) {
 
 // TestReloadRepublishesDeliveryGraph is the second half of the wiring: a peer
 // whose attach block changes goes through RemovePeer and AddPeer, because
-// ProcessBindings is outside hotSwappableSettings (peer_settings_apply.go), and
+// Bus with receive grants is outside hotSwappableSettings (peer_settings_apply.go), and
 // both republish the index while the reactor runs.
 //
 // VALIDATES: AC-4's first half, that delivery edges follow the new config.
 // PREVENTS: an index that answers from the config the daemon started with.
 func TestReloadRepublishesDeliveryGraph(t *testing.T) {
 	srv := &pluginserver.Server{}
+	setupDeliveryGraphTestServer(t, srv, "looking-glass", "policy-engine", "route-injector")
 	r := newTestReactor(t)
 	r.api = srv
 	// A LIVE index is what makes AddPeer and RemovePeer republish: before the
@@ -211,7 +261,18 @@ func TestReloadRepublishesDeliveryGraph(t *testing.T) {
 		recv(srv.DeliveryGraph(), bgpevents.EventState, events.DirUnspecified, "192.0.2.1"))
 
 	next := deliveryTree(map[string]any{
-		"policy-engine": map[string]any{"receive": "update-received"},
+		"send": map[string]any{
+			"allow": []string{"bgp:update"},
+			"to":    []string{"/bus/endpoint/policy-engine"},
+			"message": map[string]any{
+				"bgp:update": map[string]any{
+					"tag": map[string]any{
+						"direction": map[string]any{"value": []string{"received"}},
+					},
+				},
+			},
+		},
+		"receive": map[string]any{"allow": "none"},
 	})
 	newPeers, err := PeersFromTree(next)
 	require.NoError(t, err)
@@ -221,8 +282,10 @@ func TestReloadRepublishesDeliveryGraph(t *testing.T) {
 	assert.Empty(t, recv(g, bgpevents.EventState, events.DirUnspecified, "192.0.2.1"),
 		"the replaced list no longer grants state")
 	assert.Equal(t, []string{"policy-engine"}, recv(g, bgpevents.EventUpdate, events.DirReceived, "192.0.2.1"))
-	assert.Equal(t, []pluginserver.ProcessEdges{{Process: "route-injector", Send: []string{"update"}}},
-		peerView(t, g, "192.0.2.2").Processes, "the untouched peer keeps its send edge")
+	secondEdges := peerView(t, g, "192.0.2.2").Processes
+	require.Len(t, secondEdges, 1, "the untouched peer keeps its send edge")
+	assert.Equal(t, "route-injector", secondEdges[0].Process)
+	assert.Equal(t, []string{"update"}, secondEdges[0].Send)
 }
 
 // TestConfigApplyDiscardsRuntimeSubscriptions is the discard half of R-10, driven
@@ -243,6 +306,7 @@ func TestReloadRepublishesDeliveryGraph(t *testing.T) {
 func TestConfigApplyDiscardsRuntimeSubscriptions(t *testing.T) {
 	srv, err := pluginserver.NewServer(&pluginserver.ServerConfig{}, nil)
 	require.NoError(t, err)
+	setupDeliveryGraphTestServer(t, srv, "looking-glass", "route-injector")
 
 	r := newTestReactor(t)
 	r.api = srv
@@ -289,6 +353,7 @@ func TestConfigApplyDiscardsRuntimeSubscriptions(t *testing.T) {
 func TestRebuildOfTheRunningConfigKeepsRuntimeSubscriptions(t *testing.T) {
 	srv, err := pluginserver.NewServer(&pluginserver.ServerConfig{}, nil)
 	require.NoError(t, err)
+	setupDeliveryGraphTestServer(t, srv, "looking-glass", "route-injector")
 
 	r := newTestReactor(t)
 	r.api = srv
@@ -347,6 +412,7 @@ func (j *overrideProbeJournal) Record(apply, undo func() error) error {
 func TestConfigOperationDiscardsRuntimeSubscriptionsBeforePeerChanges(t *testing.T) {
 	srv, err := pluginserver.NewServer(&pluginserver.ServerConfig{}, nil)
 	require.NoError(t, err)
+	setupDeliveryGraphTestServer(t, srv, "looking-glass", "route-injector")
 
 	r := newTestReactor(t)
 	r.api = srv
@@ -404,6 +470,7 @@ func TestConfigOperationDiscardsRuntimeSubscriptionsBeforePeerChanges(t *testing
 // PREVENTS: a down event for a removed peer that no process receives.
 func TestRemovedPeerStaysInTheIndexUntilItsDownEvent(t *testing.T) {
 	srv := &pluginserver.Server{}
+	setupDeliveryGraphTestServer(t, srv, "looking-glass", "route-injector")
 	r := newTestReactor(t)
 	r.api = srv
 	r.eventDispatcher = nil

@@ -365,10 +365,9 @@ func (m *mockReactor) Stats() ReactorStats { return ReactorStats{} }
 func (m *mockReactor) PeerNegotiatedCapabilities(netip.Addr) *PeerCapabilitiesInfo {
 	return nil
 }
-func (m *mockReactor) GetPeerProcessBindings(netip.Addr) []PeerProcessBinding { return nil }
-func (m *mockReactor) Stop()                                                  {}
-func (m *mockReactor) DisablePeer(netip.Addr, string) error                   { return nil }
-func (m *mockReactor) EnablePeer(netip.Addr) error                            { return nil }
+func (m *mockReactor) Stop()                                {}
+func (m *mockReactor) DisablePeer(netip.Addr, string) error { return nil }
+func (m *mockReactor) EnablePeer(netip.Addr) error          { return nil }
 func (m *mockReactor) TeardownPeer(netip.Addr, uint8, uint8, []byte) error {
 	m.teardownCalled = true
 	return nil

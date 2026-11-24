@@ -30,7 +30,7 @@ func newBoundRelayWireFixture(t *testing.T, addPath bool) *boundRelayWireFixture
 	target := newSelectedWriterFixture(t, addPath)
 	source := NewPeer(&PeerSettings{Address: netip.MustParseAddr("192.0.2.79"), Port: 179, LocalAS: 65000, PeerAS: 65003})
 	acceptingPolicies(t, source.settings)
-	boundSourceGrant(source, selectedWriterProcess)
+	boundSourceGrant(t, source, selectedWriterProcess)
 	session := sourceSessionFixture(t, source)
 	contextID, err := bgpctx.Registry.Register(bgpctx.EncodingContextWithAddPath(true, map[family.Family]bool{family.IPv4Unicast: addPath}))
 	require.NoError(t, err)

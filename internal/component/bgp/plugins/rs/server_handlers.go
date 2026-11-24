@@ -131,7 +131,16 @@ func (rs *routeServer) handleState(event *Event) {
 			rs.warnLifecycle("retention lifetime refused", "code", lifecycleDoctorCode, "fix", lifecycleDoctorFix, "error", err)
 			return
 		}
-		if event.Reason == rpc.ReasonAttached || event.UpdateSendDenied {
+		if !event.RSClient {
+			rs.handleUpWithoutReplay(key, event)
+			rs.signalNonClientReady(key, event)
+			return
+		}
+		if event.Reason == rpc.ReasonAttached {
+			rs.handleUpWithoutReplay(key, event)
+			return
+		}
+		if event.UpdateSendDenied {
 			rs.handleUpWithoutReplay(key, event)
 			return
 		}
@@ -529,6 +538,8 @@ func (rs *routeServer) handleStateUp(key workerKey, initialReplay, destinationSe
 	peer.SessionGeneration = generation
 	peer.DestinationSession = destinationSession
 	peer.Up = true
+	// refuse-by-default: guards selectForwardTargets -- handleStateUp is called only for state-up events with event.RSClient true
+	peer.RSClient = true
 	peer.updateSendDenied = false
 	peer.StateSeen = true
 	// THE CUT. Every UPDATE at or below it is the replay's to deliver, every
@@ -581,10 +592,11 @@ func (rs *routeServer) handleUpWithoutReplay(key workerKey, event *Event) {
 		}
 	}
 	peer.downApplied = false
-	peer.adoptionOpen = true
+	peer.adoptionOpen = event.RSClient
 	peer.SessionGeneration = event.SessionGeneration
 	peer.DestinationSession = event.DestinationSession
 	peer.Up = true
+	peer.RSClient = event.RSClient
 	peer.updateSendDenied = event.UpdateSendDenied
 	peer.StateSeen = true
 	peer.ForwardFrom = rs.seenMsgID
@@ -595,7 +607,49 @@ func (rs *routeServer) handleUpWithoutReplay(key workerKey, event *Event) {
 	rs.mu.Unlock()
 
 	logger().Debug("peer state applied", "peer", peerAddr, "state", "up", "reason", event.Reason,
-		"update-send-denied", event.UpdateSendDenied, "cut", cut)
+		"rs-client", event.RSClient, "update-send-denied", event.UpdateSendDenied, "cut", cut)
+}
+
+// signalNonClientReady lowers a non-RS-client session's initial-update barrier
+// when the engine asks bgp-rs for one, without running replayForPeer.
+func (rs *routeServer) signalNonClientReady(key workerKey, event *Event) {
+	if event.InitialReplay == 0 {
+		return
+	}
+	if event.UpdateSendDenied {
+		return
+	}
+	if event.Reason == rpc.ReasonAttached {
+		return
+	}
+	if rs.plugin == nil {
+		return
+	}
+	rs.mu.RLock()
+	peer := rs.peers[key]
+	if peer == nil {
+		rs.mu.RUnlock()
+		return
+	}
+	target, err := targetOf(key, peer)
+	rs.mu.RUnlock()
+	if err != nil {
+		rs.warnLifecycle("non-client readiness target refused", "code", lifecycleDoctorCode, "fix", lifecycleDoctorFix, "error", err)
+		return
+	}
+	done := make(chan struct{})
+	ctx, admitted := rs.replays.begin(rs.downCtx, done)
+	if !admitted {
+		rs.replays.finish(done)
+		return
+	}
+	initialReplay := event.InitialReplay
+	go func() {
+		defer rs.replays.finish(done)
+		if err := rs.signalSessionReady(ctx, target, initialReplay); err != nil {
+			rs.logEngineCallFailure("non-client session ready failed", err, "peer-owner", target.DestinationOwner)
+		}
+	}()
 }
 
 // endReplay opens the replay gate of one peer-up replay. The replay goroutine
@@ -893,6 +947,10 @@ func (rs *routeServer) handleRefresh(event *Event) {
 	}
 	fam := family.Family{AFI: event.AFI, SAFI: event.SAFI}
 	rs.mu.RLock()
+	if rs.peers[original].nonRSClient() {
+		rs.mu.RUnlock()
+		return
+	}
 	var targets []rpc.ForwardTarget
 	for key, peer := range rs.peers {
 		if key.owner == original.owner {
@@ -926,14 +984,16 @@ func (rs *routeServer) handleRefresh(event *Event) {
 		rs.replays.finish(done)
 		return
 	}
-	go func() {
-		defer rs.replays.finish(done)
-		for _, target := range targets {
-			if err := rs.peerDestinationAction(ctx, target, "refresh "+fam.String()); err != nil {
-				rs.logEngineCallFailure("captured refresh failed", err, "peer-owner", target.DestinationOwner)
-			}
+	go rs.runCapturedRefresh(ctx, done, targets, fam)
+}
+
+func (rs *routeServer) runCapturedRefresh(ctx context.Context, done chan struct{}, targets []rpc.ForwardTarget, fam family.Family) {
+	defer rs.replays.finish(done)
+	for _, target := range targets {
+		if err := rs.peerDestinationAction(ctx, target, "refresh "+fam.String()); err != nil {
+			rs.logEngineCallFailure("captured refresh failed", err, "peer-owner", target.DestinationOwner)
 		}
-	}()
+	}
 }
 
 // handleCommand processes command requests via SDK execute-command callback.

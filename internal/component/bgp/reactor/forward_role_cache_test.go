@@ -151,12 +151,16 @@ func testForwardOpaqueTreatment(t *testing.T, preserve [2]bool, modify bool) {
 					// The LOCAL_PREF 101 edit, when modify, is the destination's
 					// own export chain's, as every egress edit is in production.
 					peer.settings.ExportPolicy = opaqueExportPolicy(t, preserve[i], modify)
-					peer.settings.ProcessBindings = f.source.settings.ProcessBindings
+					peer.settings.Bus = f.source.settings.Bus.Clone()
+					peer.reactor = f.r
 					peer.sendCtx.Store(f.source.sendCtx.Load())
 					peer.sendCtxID, peer.recvCtxID = f.ctxID, f.ctxID
 					peer.negotiated.Store(f.source.negotiated.Load())
 					peer.session.sendCtxID = f.ctxID
 					peer.session.negotiated = f.source.session.negotiated
+				}
+				publishTestBusGraph(t, f.r)
+				for _, peer := range []*Peer{f.destination, other} {
 					peer.refreshForwardFacts()
 				}
 				// The export chain is the general rail's one step, as

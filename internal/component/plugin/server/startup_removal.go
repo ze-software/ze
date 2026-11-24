@@ -24,7 +24,7 @@ type removalRecoveryContextKey struct{}
 type configureConfig struct {
 	tree          map[string]any
 	recovering    bool
-	dissemination []*DeliveryGraph
+	dissemination *candidateDisseminationScope
 }
 
 func (s *Server) currentConfigureConfig() configureConfig {
@@ -39,11 +39,11 @@ func (s *Server) currentConfigureConfig() configureConfig {
 // the caller MUST clear that exact set after Configure and failure-policy readers finish.
 func (s *Server) bindConfigureConfig(procs []*process.Process, selected configureConfig) error {
 	if selected.tree != nil {
-		graphs, err := candidateDisseminationGraphs(selected.tree)
+		scope, err := captureCandidateDissemination(selected.tree)
 		if err != nil {
 			return err
 		}
-		selected.dissemination = graphs
+		selected.dissemination = scope
 	}
 	s.removalMu.Lock()
 	defer s.removalMu.Unlock()

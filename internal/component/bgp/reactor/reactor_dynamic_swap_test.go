@@ -81,17 +81,16 @@ func TestDynamicTemplateReceiveOnlySwap(t *testing.T) {
 	session := peer.currentSession()
 
 	changed := dynamicReloadGroup(t)
-	changed.Settings.ProcessBindings = []ProcessBinding{operatorBinding(t, "monitor", "update-received state", "")}
+	changed.Settings.Bus = testBusBlockForGrants(operatorGrant("monitor", "update-received state", ""))
 	reloadDynamicGroups(t, r, changed)
 
 	key := netip.AddrPortFrom(addr, DefaultBGPPort)
 	r.mu.RLock()
 	after := r.peers[key]
 	r.mu.RUnlock()
-	require.True(t, after == peer, "a receive-only template binding must not restart the dynamic peer")
+	require.True(t, after == peer, "a receive-only template bus filter must not restart the dynamic peer")
 	assert.True(t, after.currentSession() == session, "the session must be the same session")
-	require.Len(t, peer.settingsSnapshot().ProcessBindings, 1, "the binding must reach the running peer")
-	assert.Equal(t, "monitor", peer.settingsSnapshot().ProcessBindings[0].PluginName)
+	assert.True(t, testBusHasEndpoint(peer.settingsSnapshot().Bus, "monitor"), "the bus filter must reach the running peer")
 	assert.Equal(t, []routepolicy.Ref{{Name: "policy:in-65010"}}, peer.ImportPolicy().Filters(),
 		"the running chain must stay resolved against the learned AS")
 
@@ -103,7 +102,7 @@ func TestDynamicTemplateReceiveOnlySwap(t *testing.T) {
 
 	// The second pass: the same template again, rebuilt.
 	again := dynamicReloadGroup(t)
-	again.Settings.ProcessBindings = []ProcessBinding{operatorBinding(t, "monitor", "update-received state", "")}
+	again.Settings.Bus = testBusBlockForGrants(operatorGrant("monitor", "update-received state", ""))
 	reloadDynamicGroups(t, r, again)
 	assert.Len(t, rec.recorded(), 1, "the second pass must deliver no second up")
 	r.mu.RLock()
@@ -318,11 +317,11 @@ func TestFailingReloadRollsBackDynamicSwap(t *testing.T) {
 	defer api.SetService(nil)
 
 	changed := dynamicReloadGroup(t)
-	changed.Settings.ProcessBindings = []ProcessBinding{operatorBinding(t, "monitor", "update-received state", "")}
+	changed.Settings.Bus = testBusBlockForGrants(operatorGrant("monitor", "update-received state", ""))
 	changed.Settings.ImportPolicy = mustPolicy(t, []routepolicy.Ref{{Name: "policy:strict-$remote_as"}}, routepolicy.FinalAccept)
 	changed.Settings.BFD = nonStrictBFD("fast")
 	j := reloadDynamicGroups(t, r, changed)
-	require.Len(t, peer.settingsSnapshot().ProcessBindings, 1, "the fixture must swap before it rolls back")
+	require.True(t, testBusHasEndpoint(peer.settingsSnapshot().Bus, "monitor"), "the fixture must swap before it rolls back")
 	live, _ := svc.state()
 	require.Equal(t, 1, live, "the fixture must open the BFD client before it rolls back")
 
@@ -334,7 +333,7 @@ func TestFailingReloadRollsBackDynamicSwap(t *testing.T) {
 	r.mu.RUnlock()
 	require.True(t, after == peer, "the rollback must keep the same peer")
 	assert.True(t, after.currentSession() == session, "the rollback must keep the same session")
-	assert.Empty(t, peer.settingsSnapshot().ProcessBindings, "the bindings must be the pre-reload ones")
+	assert.False(t, testBusHasEndpoint(peer.settingsSnapshot().Bus, "monitor"), "the bus filter must be the pre-reload one")
 	assert.Equal(t, []routepolicy.Ref{{Name: "policy:in-65010"}}, peer.ImportPolicy().Filters(),
 		"the running chain must be the pre-reload one, still resolved")
 	peer.mu.RLock()
@@ -510,7 +509,7 @@ func TestDynamicFilterSwapRacingEstablishmentKeepsSession(t *testing.T) {
 			next := peer.settingsSnapshot()
 			next.ImportPolicy = mustPolicy(t, []routepolicy.Ref{{Name: "policy:strict-$remote_as"}}, routepolicy.FinalAccept)
 			if tc.bind {
-				next.ProcessBindings = []ProcessBinding{operatorBinding(t, "monitor", "update-received state", "")}
+				next.Bus = testBusBlockForGrants(operatorGrant("monitor", "update-received state", ""))
 			}
 			copier, reason := peerSettingsSwapPlan(peer.settingsSnapshot(), next, session)
 			require.Empty(t, reason, "the swap must be planned in place")

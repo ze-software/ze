@@ -17,7 +17,6 @@ import (
 	"github.com/ze-software/ze/internal/component/plugin/registry"
 	pluginserver "github.com/ze-software/ze/internal/component/plugin/server"
 	bgpevents "github.com/ze-software/ze/internal/core/bgp/events"
-	"github.com/ze-software/ze/internal/core/events"
 	"github.com/ze-software/ze/pkg/plugin/rpc"
 	sdk "github.com/ze-software/ze/pkg/plugin/sdk"
 )
@@ -79,7 +78,7 @@ func TestOpenObserversReceiveRemovalWithoutFilterBindings(t *testing.T) {
 		if index != 2 {
 			decl := rpc.MessageReceiveDecl{Message: bgpevents.Namespace + ":" + bgpevents.EventState}
 			if index == 3 {
-				decl.From = []string{"192.0.2.99"}
+				decl.From = []string{"/bgp/ip/192.0.2.99"}
 			}
 			receives = []rpc.MessageReceiveDecl{decl}
 		}
@@ -138,17 +137,24 @@ func TestOpenObserversReceiveRemovalWithoutFilterBindings(t *testing.T) {
 	}
 	peer := &plugin.PeerInfo{Name: "roleless", Address: netip.MustParseAddr("192.0.2.1"),
 		PeerAS: rpc.RemoteASOf(65001), SessionGeneration: 9}
+	srv.UpdateDeliveryGraph(bgpevents.Namespace, []pluginserver.DeliveryPeer{{
+		Addr:           peer.AddrStr(),
+		Name:           peer.Name,
+		Path:           "/bgp/peer/" + peer.Name,
+		SecondaryPaths: []string{"/bgp/ip/" + peer.AddrStr()},
+	}})
 	if err := askOpenValidators(ctx, srv.ProcessManager().AllProcesses(), &rpc.ValidateOpenInput{
 		Peer: peer.Name, Generation: 8}, map[string]bool{}); err != nil {
 		t.Fatal(err)
 	}
-	onPeerStateChange(srv, peer, rpc.SessionStateUp, "")
-	onPeerStateChange(srv, peer, rpc.SessionStateDown, rpc.ReasonTCPFailure)
 	onPeerStateChange(srv, peer, rpc.SessionStateDown, rpc.ReasonPeerRemoved)
 	if got := delivered[0].Load(); got != 1 || generation.Load() != 9 {
-		t.Fatalf("unattached validator received %d events, generation %d; want one removal at 9", got, generation.Load())
+		t.Fatalf("validator received %d events, generation %d; want one removal at 9", got, generation.Load())
 	}
-	for index := 1; index < len(delivered); index++ {
+	if got := delivered[1].Load(); got != 1 {
+		t.Fatalf("non-validator declaring bgp:state received %d events; want 1", got)
+	}
+	for _, index := range []int{2, 3} {
 		if got := delivered[index].Load(); got != 0 {
 			t.Errorf("process %s gained %d unauthorized state events", plugins[index].Name, got)
 		}
@@ -158,11 +164,20 @@ func TestOpenObserversReceiveRemovalWithoutFilterBindings(t *testing.T) {
 			t.Errorf("validator %s did not observe the OPEN", plugins[index].Name)
 		}
 	}
-	srv.UpdateDeliveryGraph(bgpevents.Namespace, []pluginserver.DeliveryPeer{{Addr: peer.AddrStr(), Name: peer.Name,
-		Bindings: []plugin.PeerProcessBinding{{PluginName: plugins[0].Name,
-			Receive: map[string]events.Direction{bgpevents.EventState: events.DirBoth}}}}})
+	// Narrowing open-observer via receive > allow none stops subsequent removal delivery (AC-39).
+	srv.SetBusConfig(plugin.BusConfig{
+		Endpoints: map[string]plugin.BusBlock{
+			plugins[0].Name: {Receive: plugin.BusDirectionBlock{AllowPresent: true, AllowNone: true}},
+		},
+	})
+	srv.UpdateDeliveryGraph(bgpevents.Namespace, []pluginserver.DeliveryPeer{{
+		Addr:           peer.AddrStr(),
+		Name:           peer.Name,
+		Path:           "/bgp/peer/" + peer.Name,
+		SecondaryPaths: []string{"/bgp/ip/" + peer.AddrStr()},
+	}})
 	onPeerStateChange(srv, peer, rpc.SessionStateDown, rpc.ReasonPeerRemoved)
-	if got := delivered[0].Load(); got != 2 {
-		t.Fatalf("bound validator received %d total events, want exactly two removals", got)
+	if got := delivered[0].Load(); got != 1 {
+		t.Fatalf("narrowed validator received %d total events, want 1", got)
 	}
 }

@@ -18,9 +18,10 @@ import (
 	"github.com/ze-software/ze/internal/core/family"
 )
 
-// The omitted leaf is parsed, rather than assuming which enum value is the
-// default. RFC 4271 Section 5.1.3 items 2 and 3 prescribe the default interface
-// address. The owner chose that default for auto on 2026-10-03 and 2026-11-13.
+// The omitted export policy is parsed, rather than assuming which enum value is
+// the default. RFC 4271 Section 5.1.3 items 2 and 3 prescribe the default
+// interface address. The owner chose that default for auto on 2026-10-03 and
+// 2026-11-13.
 // VALIDATES: next-hop-auto AC-1..3, AC-8: auto and self emit the same actual
 // connected endpoint, ahead of a different configured fallback, on both rails.
 func TestNextHopAutoMatchesSelfForEBGP(t *testing.T) {
@@ -28,7 +29,7 @@ func TestNextHopAutoMatchesSelfForEBGP(t *testing.T) {
 		for _, direct := range []bool{true, false} {
 			for _, native := range []bool{false, true} {
 				t.Run(nextHopAutoCaseName(tc, direct, native), func(t *testing.T) {
-					parsed, err := parsePeerFromTree("default", peerTreeWith(tc.self.String(), ""), 65000, 0x01020301)
+					parsed, err := parsePeerFromTree("default", peerTreeWith(tc.self.String()), 65000, 0x01020301)
 					require.NoError(t, err)
 					require.Equal(t, NextHopAuto, parsed.NextHopMode, "omitted next-hop selects auto")
 					for _, mode := range []uint8{parsed.NextHopMode, NextHopSelf} {
@@ -43,9 +44,9 @@ func TestNextHopAutoMatchesSelfForEBGP(t *testing.T) {
 							f.destination.fwdFacts.Store(f.destination.buildForwardFacts())
 							rfc4271ProofRelay(t, f, nextHopAutoBody(t, tc, tc.prefix, nil), native)
 							updates := nextHopAutoUpdates(t, f)
-							require.Len(t, updates, 1, "mode=%d connected=%v", mode, connected)
+							require.Len(t, updates, 1, "ref=%s connected=%v", ref, connected)
 							hop, announced, withdrawn := nextHopAutoFields(t, tc, updates[0])
-							require.Equal(t, tc.self.AsSlice(), hop, "mode=%d connected=%v resolves self", mode, connected)
+							require.Equal(t, tc.self.AsSlice(), hop, "ref=%s connected=%v resolves self", ref, connected)
 							require.Equal(t, tc.prefix, announced)
 							require.Empty(t, withdrawn)
 						}

@@ -42,43 +42,45 @@ import (
 const rsFixtureRelay = "rs-fixture-relay"
 
 func init() {
+	dirTags := []rpc.MessageTagDecl{{
+		Name:   events.TagDirection,
+		Values: []string{events.DirectionReceived, events.DirectionSent},
+	}}
 	err := registry.Register(registry.Registration{
 		Name:               rsFixtureRelay,
 		Description:        "route-server fixture for the reactor fast path",
 		RunEngine:          func(net.Conn) int { return 0 },
 		CLIHandler:         func([]string) int { return 0 },
 		RelaysOnRSFastPath: true,
+		Sends:              []rpc.MessageSendDecl{{Message: bgpevents.Namespace + ":" + bgpevents.SendUpdate}},
+		Receives: []rpc.MessageReceiveDecl{
+			{Message: bgpevents.Namespace + ":" + bgpevents.EventUpdate, Tags: dirTags},
+			{Message: bgpevents.Namespace + ":" + bgpevents.EventState},
+		},
 	})
 	if err != nil {
 		panic("BUG: register " + rsFixtureRelay + ": " + err.Error())
 	}
 }
 
-// rsRelaySendBinding attaches the fixture route server with `send [ update ]`,
-// the grant a fast-path destination needs.
-func rsRelaySendBinding() ProcessBinding {
-	return ProcessBinding{
-		PluginName: rsFixtureRelay,
-		Send:       map[string]bool{bgpevents.SendUpdate: true},
-	}
+// rsRelaySendBinding builds the peer BusBlock permitting rsFixtureRelay to
+// send `bgp:update` to a fast-path destination.
+func rsRelaySendBinding() plugin.BusBlock {
+	return testBusRSRelaySend()
 }
 
-// rsRelayReceiveBinding attaches the fixture route server with
-// `receive [ update-received ]`, the grant a fast-path source needs: the route
-// server's cached forward relays only the UPDATEs it receives.
-func rsRelayReceiveBinding() ProcessBinding {
-	return ProcessBinding{
-		PluginName: rsFixtureRelay,
-		Receive:    map[string]events.Direction{bgpevents.EventUpdate: events.DirReceived},
-	}
+// rsRelayReceiveBinding builds the peer BusBlock feeding received UPDATEs from
+// a fast-path source to rsFixtureRelay.
+func rsRelayReceiveBinding() plugin.BusBlock {
+	return testBusRSRelayReceive()
 }
 
 // TestRSFastPathGateHonorsSourceRelayReceive proves the fast path relays only a
 // source the route server's cached forward would relay. Method: drive the real
 // gate in notifyMessageReceiver for one UPDATE from an rs-fast-path source to a
-// granted destination, once per source attach block; ReactorForwarded is set
+// granted destination, once per source bus filter; ReactorForwarded is set
 // only when the fast path dispatched. A source that feeds the route server none
-// of its UPDATEs (no binding, the sent direction only, or the received
+// of its UPDATEs (no grant, the sent direction only, or the received
 // direction to a process that is no route server) is relayed by nobody on the
 // cached rail, because the delivery graph never hands bgp-rs the event; before
 // the fix the fast path relayed it all the same
@@ -86,16 +88,14 @@ func rsRelayReceiveBinding() ProcessBinding {
 func TestRSFastPathGateHonorsSourceRelayReceive(t *testing.T) {
 	for _, tc := range []struct {
 		name          string
-		bindings      []ProcessBinding
+		bus           plugin.BusBlock
 		wantForwarded bool
 	}{
-		{"no_binding", nil, false},
-		{"sent_direction_only", []ProcessBinding{{PluginName: rsFixtureRelay,
-			Receive: map[string]events.Direction{bgpevents.EventUpdate: events.DirSent}}}, false},
-		{"not_a_route_server", []ProcessBinding{{PluginName: "sequence",
-			Receive: map[string]events.Direction{bgpevents.EventUpdate: events.DirReceived}}}, false},
-		{"update_received", []ProcessBinding{rsRelayReceiveBinding()}, true},
-		{"wildcard", []ProcessBinding{{PluginName: rsFixtureRelay, ReceiveAll: true}}, true},
+		{"no_binding", testBusNone(), false},
+		{"sent_direction_only", testBusReceiveOnly(rsFixtureRelay, "update-sent"), false},
+		{"not_a_route_server", testBusReceiveOnly("sequence", "update-received"), false},
+		{"update_received", rsRelayReceiveBinding(), true},
+		{"wildcard", testBusReceiveAll(rsFixtureRelay), true},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			reactor := New(&Config{ListenAddr: "127.0.0.1:0"})
@@ -104,12 +104,13 @@ func TestRSFastPathGateHonorsSourceRelayReceive(t *testing.T) {
 			sourceAddr := mustParseAddr("10.0.0.1")
 			settings := NewPeerSettings(sourceAddr, 65000, 65001, 0x01020304)
 			settings.RSFastPath = true
-			settings.ProcessBindings = tc.bindings
+			settings.Bus = tc.bus
 			require.NoError(t, reactor.AddPeer(settings))
 			reactor.mu.RLock()
 			source := reactor.peers[settings.PeerKey()]
 			reactor.mu.RUnlock()
 			source.setState(PeerStateEstablished)
+			publishTestBusGraph(t, reactor)
 			// An established session holds a forwarding snapshot
 			// (setEncodingContexts); the gate reads the receive grant from it.
 			source.refreshForwardFacts()
@@ -148,8 +149,8 @@ func TestRSFastPathGateHonorsSourceRelayReceive(t *testing.T) {
 				t.Fatal("delivery callback did not run")
 			}
 			if forwarded.Load() != tc.wantForwarded {
-				t.Fatalf("ReactorForwarded = %v, want %v for source bindings %+v",
-					forwarded.Load(), tc.wantForwarded, tc.bindings)
+				t.Fatalf("ReactorForwarded = %v, want %v for source bus %+v",
+					forwarded.Load(), tc.wantForwarded, tc.bus)
 			}
 		})
 	}
@@ -175,15 +176,19 @@ func TestReactorForwardRSHonorsRelaySendPermission(t *testing.T) {
 	h.update.receivedGeneration = source.forwardGeneration.Load()
 	h.update.SourcePolicyEpoch = source.sourcePolicyEpoch.Load()
 
-	bindings := [3][]ProcessBinding{
-		{rsRelaySendBinding()},
-		{{PluginName: rsFixtureRelay}},
-		{{PluginName: "sequence", Send: map[string]bool{bgpevents.SendUpdate: true}}},
+	busBlocks := [3]plugin.BusBlock{
+		rsRelaySendBinding(),
+		testBusNone(),
+		testBusSendOnly("sequence", bgpevents.SendUpdate),
 	}
 	var output [3]bytes.Buffer
 	var sessions [3]*Session
 	for i, peer := range h.dests {
-		peer.settings.ProcessBindings = bindings[i]
+		peer.settings.Bus = busBlocks[i]
+		peer.reactor = r
+	}
+	publishTestBusGraph(t, r)
+	for i, peer := range h.dests {
 		peer.refreshForwardFacts()
 		sessions[i] = rsSelectionWriter(t, peer, &output[i])
 	}
@@ -243,7 +248,8 @@ func TestReactorForwardRSRetryRechecksRelaySend(t *testing.T) {
 	for i, peer := range h.dests {
 		sessions[i] = rsSelectionWriter(t, peer, &output[i])
 	}
-	h.dests[1].settings.ProcessBindings = nil
+	h.dests[1].settings.Bus = testBusNone()
+	publishTestBusGraph(t, r)
 	h.dests[1].refreshForwardFacts()
 
 	_, dispatched, retry := reactorForwardRSSection(r, h.update, h.update.WireUpdate, h.dests, 1, h.update.SourcePeerIP, source)
@@ -272,24 +278,20 @@ func TestReactorForwardRSRetryRechecksRelaySend(t *testing.T) {
 // PREVENTS: the fast path declining a source or passing over a destination with
 // nothing in the log above debug, which made the grant rule invisible.
 func TestRSFastPathWarnsOnceForAMissingGrant(t *testing.T) {
-	both := ProcessBinding{
-		PluginName: rsFixtureRelay,
-		Receive:    map[string]events.Direction{bgpevents.EventUpdate: events.DirReceived},
-		Send:       map[string]bool{bgpevents.SendUpdate: true},
-	}
+	both := testBusBoth(rsFixtureRelay, []string{"update-received"}, []string{bgpevents.SendUpdate})
 	for _, tc := range []struct {
 		name       string
 		fastPath   bool
-		bindings   []ProcessBinding
+		bus        plugin.BusBlock
 		wantAction string
 	}{
-		// With no binding the fix names the first registered route server,
+		// With no grant the fix names the first registered route server,
 		// which in this test binary need not be the fixture.
-		{"no_binding", true, nil, " { receive [ update-received ]; send [ update ]; }` to this peer"},
-		{"receive_only", true, []ProcessBinding{rsRelayReceiveBinding()}, "add `attach process " + rsFixtureRelay + " { send [ update ]; }` to this peer"},
-		{"send_only", true, []ProcessBinding{rsRelaySendBinding()}, "add `attach process " + rsFixtureRelay + " { receive [ update-received ]; }` to this peer"},
-		{"both_grants", true, []ProcessBinding{both}, ""},
-		{"no_fast_path", false, nil, ""},
+		{"no_binding", true, testBusNone(), "send { allow [ bgp:update ]; to [ /bus/endpoint/"},
+		{"receive_only", true, rsRelayReceiveBinding(), "receive { allow [ bgp:update ]; from [ /bus/endpoint/" + rsFixtureRelay + " ]; }"},
+		{"send_only", true, rsRelaySendBinding(), "send { allow [ bgp:update ]; to [ /bus/endpoint/" + rsFixtureRelay + " ]; }"},
+		{"both_grants", true, both, ""},
+		{"no_fast_path", false, testBusNone(), ""},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			var sink bytes.Buffer
@@ -301,8 +303,8 @@ func TestRSFastPathWarnsOnceForAMissingGrant(t *testing.T) {
 
 			settings := NewPeerSettings(mustParseAddr("10.0.0.1"), 65000, 65001, 0x01020304)
 			settings.RSFastPath = tc.fastPath
-			settings.ProcessBindings = tc.bindings
 			peer := NewPeer(settings)
+			setTestPeerBus(t, peer, tc.bus)
 			peer.refreshForwardFacts()
 			peer.refreshForwardFactsIfLive()
 

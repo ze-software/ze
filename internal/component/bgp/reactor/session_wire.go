@@ -126,7 +126,10 @@ func (r *Reactor) dispatchObservedWire(epoch *plugin.PeerInfo, wire []byte, ctxI
 		Address:      epoch.Address, AddressStr: epoch.AddressStr,
 		LocalAddress: epoch.LocalAddress, LocalAddressStr: epoch.LocalAddressStr,
 		LocalAS: epoch.LocalAS, PeerAS: epoch.PeerAS, RouterID: epoch.RouterID,
-		MessageContextID: ctxID,
+		IsIBGP:               epoch.IsIBGP,
+		RSClient:             epoch.RSClient,
+		RouteReflectorClient: epoch.RouteReflectorClient,
+		MessageContextID:     ctxID,
 	}
 	if ctx := bgpctx.Registry.Get(ctxID); ctx != nil {
 		peer.PeerAS = rpc.RemoteASOf(ctx.PeerASN())

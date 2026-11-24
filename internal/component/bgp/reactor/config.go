@@ -12,7 +12,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"maps"
 	"math"
 	"net/netip"
 	"slices"
@@ -21,9 +20,9 @@ import (
 	"time"
 
 	"github.com/ze-software/ze/internal/component/config"
+	"github.com/ze-software/ze/internal/component/plugin"
+	pluginserver "github.com/ze-software/ze/internal/component/plugin/server"
 	"github.com/ze-software/ze/internal/core/bgp/capability"
-	bgpevents "github.com/ze-software/ze/internal/core/bgp/events"
-	"github.com/ze-software/ze/internal/core/events"
 	"github.com/ze-software/ze/internal/core/family"
 	"github.com/ze-software/ze/internal/core/network"
 	"github.com/ze-software/ze/internal/core/textbuf"
@@ -137,6 +136,11 @@ func ParseDynamicGroupTemplate(groupName string, tree map[string]any, localAS, r
 	}
 	ps.Name = groupName
 	ps.GroupName = groupName
+	ps.BusPath = "/bgp/group/" + groupName
+	ps.BusGroupPath = ""
+	if !ps.Bus.IsEmpty() {
+		ps.BusSource = ps.BusPath + " > bus"
+	}
 	ps.IsDynamic = true
 	// `ip dynamic` requires `connect false` (resolveDynamicGroup), so the group
 	// only ever accepts. Stating it here keeps a template that reached this
@@ -445,8 +449,8 @@ func parsePeerSettings(name string, tree map[string]any, ip netip.Addr, peerAS, 
 		return nil, fmt.Errorf("peer %s: %w", name, err)
 	}
 
-	// Parse process bindings.
-	if err := parseProcessBindingsFromTree(tree, ps); err != nil {
+	// Parse per-peer bus filter block and canonical bus path.
+	if err := parsePeerBusFromTree(name, tree, ps); err != nil {
 		return nil, fmt.Errorf("peer %s: %w", name, err)
 	}
 
@@ -795,6 +799,7 @@ func PeersAndSkippedFromTree(bgpTree map[string]any) ([]*PeerSettings, []Skipped
 		if groupName, ok := mapString(peerTree, "group-name"); ok {
 			ps.GroupName = groupName
 		}
+		assignPeerBusPaths(ps)
 
 		peers = append(peers, ps)
 	}
@@ -971,228 +976,49 @@ func parseFamilyMode(s string) familyMode {
 	return familyModeEnable
 }
 
-// parseProcessBindingsFromTree parses the peer's process attachments, written
-// `attach process <name> { ... }` and held under the peer's attach container.
-func parseProcessBindingsFromTree(tree map[string]any, ps *PeerSettings) error {
-	attachMap, ok := mapMap(tree, "attach")
+// parsePeerBusFromTree parses the peer's resolved `bus { ... }` filter block
+// and records its canonical bus participant path and parent group path.
+func parsePeerBusFromTree(name string, tree map[string]any, ps *PeerSettings) error {
+	groupName, _ := mapString(tree, "group-name")
+	var tb textbuf.Buffer
+	switch {
+	case groupName != "" && name != "":
+		ps.BusPath = tb.Str("/bgp/group/").Str(groupName).Str("/peer/").Str(name).String()
+		ps.BusGroupPath = "/bgp/group/" + groupName
+	case name != "":
+		ps.BusPath = tb.Str("/bgp/peer/").Str(name).String()
+	case ps.Address.IsValid():
+		ps.BusPath = tb.Str("/bgp/ip/").Addr(ps.Address).String()
+	}
+
+	busMap, ok := mapMap(tree, "bus")
 	if !ok {
 		return nil
 	}
-	procMap, ok := mapMap(attachMap, "process")
-	if !ok {
-		return nil
+	source := ps.BusPath + " > bus"
+	blk, err := plugin.ParseBusBlockFromMap(busMap, source)
+	if err != nil {
+		return err
 	}
-
-	// Sort the process names. Go maps iterate in random order, and the reload
-	// diff compares the running peer's settings with the re-parsed file whole
-	// (peerSettingsSwapPlan, peer_settings_apply.go): an attach list in map order
-	// read as a changed peer on half the reloads and restarted an Established
-	// session the operator had not touched.
-	names := make([]string, 0, len(procMap))
-	for name := range procMap {
-		names = append(names, name)
-	}
-	slices.Sort(names)
-
-	for _, name := range names {
-		pMap, ok := procMap[name].(map[string]any)
-		if !ok {
-			continue
-		}
-
-		binding := ProcessBinding{PluginName: name, Explicit: true}
-
-		// Content settings.
-		if contentMap, ok := mapMap(pMap, "content"); ok {
-			if v, ok := mapString(contentMap, "encoding"); ok {
-				binding.Encoding = strings.ToLower(v)
-			}
-			if v, ok := mapString(contentMap, "format"); ok {
-				binding.Format = strings.ToLower(v)
-			}
-		}
-
-		// Receive settings — leaf-list: "update state negotiated".
-		if v, ok := mapStringJoined(pMap, "receive"); ok {
-			if err := parseReceiveFlags(v, &binding); err != nil {
-				return fmt.Errorf("process %q: %w", name, err)
-			}
-		}
-
-		// Send settings — leaf-list: "update refresh".
-		if v, ok := mapStringJoined(pMap, "send"); ok {
-			if err := parseSendFlags(v, &binding); err != nil {
-				return fmt.Errorf("process %q: %w", name, err)
-			}
-		}
-
-		ps.ProcessBindings = append(ps.ProcessBindings, binding)
+	ps.Bus = blk
+	if !blk.IsEmpty() {
+		ps.BusOrigin = pluginserver.BusOriginWritten
+		ps.BusSource = source
 	}
 	return nil
 }
 
-// EnsureProcessBinding grants a peer the receive tokens a DERIVED binding owes
-// a process. It does nothing when the peer's own config already names that
-// process.
-//
-// receive and send are written in the operator's own vocabulary. Each is the
-// space-separated list `attach process <name> { receive [ ... ]; send [ ... ]; }`
-// takes, and the same parsers read them. A derived grant and a typed one
-// therefore cannot mean two different things. Either one CAN be empty.
-//
-// Precedence lives here, beside parseProcessBindingsFromTree. That function is
-// the one site that appends what the operator wrote.
-//
-// A binding an operator typed is the operator's decision about what that
-// process is fed. A derived binding never widens it; GrantImplicitReceive is
-// the one exception, for one type, marked implicit. The peer's attach block is
-// the receive authorization for every delivery to that process
-// (Server.PeerScopedProcs, internal/component/plugin/server/delivery_graph.go).
-// A second binding for one process would grant events nobody asked for.
-//
-// An error here is a Ze defect rather than an operating one. Both lists come
-// from a caller's own constant, never from the config file.
-func EnsureProcessBinding(ps *PeerSettings, processName, receive, send string) error {
-	if ps == nil || processName == "" {
-		return nil
+// assignPeerBusPaths ensures ps.BusPath and ps.BusGroupPath match ps.Name and
+// ps.GroupName once PeersAndSkippedFromTree finishes populating both.
+func assignPeerBusPaths(ps *PeerSettings) {
+	if ps == nil {
+		return
 	}
-	for i := range ps.ProcessBindings {
-		if ps.ProcessBindings[i].PluginName == processName {
-			return nil
-		}
+	ps.BusPath = deliveryPeerPathForSettings(ps)
+	ps.BusGroupPath = deliveryPeerParentPathForSettings(ps)
+	if !ps.Bus.IsEmpty() && ps.BusSource == "" && ps.BusPath != "" {
+		ps.BusSource = ps.BusPath + " > bus"
 	}
-
-	binding := ProcessBinding{PluginName: processName}
-	if err := parseReceiveFlags(receive, &binding); err != nil {
-		return fmt.Errorf("derived binding for process %q: %w", processName, err)
-	}
-	if err := parseSendFlags(send, &binding); err != nil {
-		return fmt.Errorf("derived binding for process %q: %w", processName, err)
-	}
-	ps.ProcessBindings = append(ps.ProcessBindings, binding)
-	return nil
-}
-
-// GrantImplicitReceive grants processName one receive type on the peer that
-// no operator wrote, marked Implicit. It is the one exception to the
-// precedence EnsureProcessBinding keeps: an operator's block for the process
-// gains the type, because the obligation behind it is the plugin's, not the
-// operator's. A plugin whose filter member a peer's chain carries keeps
-// state for that peer, and the peer's `state` event with reason `removed` is
-// how it learns to free it (spec-filter-wire-6-stage-filters, "Peer removal
-// notice": "a bound procedure's plugin receives the `state` event of every
-// peer it is bound to"). A type the block already grants, by name or by "*",
-// is left as written and not marked. A type the event registry does not know
-// is an error, a Ze defect: the caller passes its own constant.
-func GrantImplicitReceive(ps *PeerSettings, processName, eventType string) error {
-	if ps == nil || processName == "" {
-		return nil
-	}
-	index := slices.IndexFunc(ps.ProcessBindings, func(b ProcessBinding) bool { return b.PluginName == processName })
-	if index < 0 {
-		ps.ProcessBindings = append(ps.ProcessBindings, ProcessBinding{PluginName: processName})
-		index = len(ps.ProcessBindings) - 1
-	}
-	if ps.ProcessBindings[index].ReceiveAll {
-		return nil
-	}
-	if _, granted := ps.ProcessBindings[index].Receive[eventType]; granted {
-		return nil
-	}
-	// A binding resolved from a group can share its slice and maps with the
-	// group's other peers, so the grant writes to copies of this peer's own.
-	ps.ProcessBindings = slices.Clone(ps.ProcessBindings)
-	binding := &ps.ProcessBindings[index]
-	binding.Receive = maps.Clone(binding.Receive)
-	binding.Implicit = maps.Clone(binding.Implicit)
-	if err := parseOneReceiveFlag(eventType, binding); err != nil {
-		return fmt.Errorf("implicit grant for process %q: %w", processName, err)
-	}
-	if binding.Implicit == nil {
-		binding.Implicit = make(map[string]bool, 1)
-	}
-	binding.Implicit[eventType] = true
-	return nil
-}
-
-// parseReceiveFlags grants event types on a ProcessBinding from a
-// space-separated list. Unknown event types cause a config parse error
-// (fail-on-unknown per config.md).
-func parseReceiveFlags(s string, b *ProcessBinding) error {
-	for token := range strings.FieldsSeq(s) {
-		if err := parseOneReceiveFlag(token, b); err != nil {
-			return err
-		}
-	}
-	return nil
-}
-
-// parseOneReceiveFlag handles a single receive token. A token names an event
-// type, and the type carries the direction it is granted in: "update" means
-// both directions, "update-received" and "update-sent" mean one each. The
-// token is resolved against the event registry whole before any suffix is cut,
-// so a registered name ending in "-sent" keeps its name (R-11).
-//
-// "*" grants every type. "all" is not accepted: a word that reads like a type
-// would grant a type a plugin registers later, which is the silent-inclusion
-// case "*" makes deliberate.
-func parseOneReceiveFlag(token string, b *ProcessBinding) error {
-	if token == events.TokenWildcard {
-		b.ReceiveAll = true
-		return nil
-	}
-	eventType, dir, ok := events.SplitTypeToken(bgpevents.Namespace, token)
-	if !ok {
-		if hint := events.DirectionWordHint(token); hint != "" {
-			return fmt.Errorf("invalid value for receive: %s", hint)
-		}
-		return fmt.Errorf("invalid value for receive: %q (valid: %s, %s, or a type with -received or -sent)",
-			token, events.TokenWildcard, events.ValidEventNames(bgpevents.Namespace))
-	}
-	if b.Receive == nil {
-		b.Receive = make(map[string]events.Direction)
-	}
-	// Naming one type in both single directions grants both.
-	if prev, seen := b.Receive[eventType]; seen && prev != dir {
-		dir = events.DirBoth
-	}
-	b.Receive[eventType] = dir
-	return nil
-}
-
-// parseSendFlags grants send permissions on a ProcessBinding from a
-// space-separated list.
-func parseSendFlags(s string, b *ProcessBinding) error {
-	for token := range strings.FieldsSeq(s) {
-		if err := parseOneSendFlag(token, b); err != nil {
-			return err
-		}
-	}
-	return nil
-}
-
-// parseOneSendFlag handles a single send token. Built-in types, plus any type
-// a plugin registered (e.g. enhanced-refresh), plus "*" for a program whose
-// contract is whatever the API can express. "all" is not accepted, for the
-// same reason it is not accepted in a receive list.
-func parseOneSendFlag(token string, b *ProcessBinding) error {
-	if token == events.TokenWildcard {
-		b.SendAll = true
-		return nil
-	}
-	if !slices.Contains(bgpevents.BaseSendTypes(), token) && !events.IsValidEvent(bgpevents.Namespace, token) {
-		var tb textbuf.Buffer
-		tb.Str(events.TokenWildcard).Str(", ").Join(bgpevents.BaseSendTypes(), ", ")
-		if extra := events.ValidEventNames(bgpevents.Namespace); extra != "" {
-			tb.Str(", ").Str(extra)
-		}
-		return fmt.Errorf("invalid value for send: %q (valid: %s)", token, tb.String())
-	}
-	if b.Send == nil {
-		b.Send = make(map[string]bool)
-	}
-	b.Send[token] = true
-	return nil
 }
 
 // --- Map navigation helpers ---
@@ -1336,6 +1162,7 @@ func mapToJSON(m map[string]any) string {
 		return ""
 	}
 	data, err := json.Marshal(m)
+	// refuse-by-default: guards parsePeerSettings -- unmarshalable map yields empty JSON so callers fall back to default attributes.
 	if err != nil {
 		return ""
 	}

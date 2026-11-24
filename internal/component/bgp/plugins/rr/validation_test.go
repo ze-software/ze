@@ -194,7 +194,7 @@ func TestPeerUpReflectsExistingFlowSpecBeforeEOR(t *testing.T) {
 			rrFixtureStart(t, rr, original, 70, 7, 141)
 			rr.peers[recipient] = &peerState{Identity: recipient, Address: target, Families: map[family.Family]bool{fam: true}}
 			t.Cleanup(func() { rr.replays.stop() })
-			rr.handleStructuredState(&rpc.StructuredEvent{PeerAddress: target, PeerOwner: 702, ConnectionID: 42, SessionGeneration: 7, DestinationSession: 142, State: rpc.SessionStateUp, InitialReplay: 17})
+			rr.handleStructuredState(&rpc.StructuredEvent{PeerAddress: target, PeerOwner: 702, ConnectionID: 42, SessionGeneration: 7, DestinationSession: 142, State: rpc.SessionStateUp, InitialReplay: 17, IsIBGP: true, RouteReflectorClient: true})
 			select {
 			case <-done:
 			case <-time.After(5 * time.Second):

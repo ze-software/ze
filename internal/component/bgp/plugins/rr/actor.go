@@ -65,12 +65,21 @@ func (rr *routeReflector) sourcePolicyActor(owner, generation uint64) (peerIdent
 func (rr *routeReflector) targets(source peerIdentity, fam family.Family) []peerTarget {
 	rr.mu.RLock()
 	defer rr.mu.RUnlock()
+	src := rr.peers[source]
 	targets := make([]peerTarget, 0, len(rr.peers))
 	for identity, state := range rr.peers {
 		if identity.owner == source.owner {
 			continue
 		}
 		if !state.Up {
+			continue
+		}
+		if !state.Internal {
+			continue
+		}
+		// RFC 4456 Section 6: a route from an internal non-client is reflected
+		// to clients only, never to another internal non-client.
+		if src != nil && src.Internal && !src.RRClient && !state.RRClient {
 			continue
 		}
 		if state.DestinationSession == 0 {
@@ -97,6 +106,9 @@ func (rr *routeReflector) targetCurrent(target peerTarget) bool {
 		return false
 	}
 	if !state.Up {
+		return false
+	}
+	if !state.Internal {
 		return false
 	}
 	if state.DestinationSession != target.session {
@@ -161,6 +173,10 @@ func (rr *routeReflector) relayToPeer(ctx context.Context, target peerTarget, _ 
 	if !rr.targetCurrent(target) {
 		return nil
 	}
+	rr.mu.RLock()
+	targetState := rr.peers[target.identity]
+	targetClient := targetState != nil && targetState.RRClient
+	rr.mu.RUnlock()
 	admitted := make([]rpc.StoredRoute, 0, len(routes))
 	defer func() {
 		for range admitted {
@@ -168,6 +184,17 @@ func (rr *routeReflector) relayToPeer(ctx context.Context, target peerTarget, _ 
 		}
 	}()
 	for _, route := range routes {
+		if !targetClient {
+			if srcID, idErr := newPeerIdentity(route.SourcePeer, route.SourceOwner, route.SourceConnectionID); idErr == nil {
+				rr.mu.RLock()
+				srcState := rr.peers[srcID]
+				blocked := srcState != nil && srcState.Internal && !srcState.RRClient
+				rr.mu.RUnlock()
+				if blocked {
+					continue
+				}
+			}
+		}
 		accepted, err := rr.admitStoredRoute(ctx, route)
 		if err != nil {
 			return &storedAdmissionError{cause: err}

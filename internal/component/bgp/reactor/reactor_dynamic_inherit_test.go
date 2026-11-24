@@ -56,14 +56,18 @@ type divergence struct {
 // reader who cannot follow one must delete the row and watch what breaks.
 func dynamicPeerDivergence(groupName string, addr netip.Addr) map[string]divergence {
 	var tb textbuf.Buffer
+	name := tb.Str("dyn-").Addr(addr).String()
+	groupPath := "/bgp/group/" + groupName
 	return map[string]divergence{
-		"Name":       {tb.Str("dyn-").Addr(addr).String(), "a dynamic peer names itself after the address it connected from; no configuration names it"},
-		"GroupName":  {groupName, "the group whose range the accepted connection matched"},
-		"Address":    {addr, "the remote address arrives with the TCP connection, not from configuration"},
-		"Port":       {uint16(DefaultBGPPort), "the peer map is keyed on (address, port) and the remote source port is ephemeral, so every dynamic peer keys on the canonical port. The template's own Port is what the group LISTENS on"},
-		"PeerAS":     {uint32(0), "RFC 4271 Section 4.2: the peer's AS arrives in its OPEN, and resolveDynamicPeerSettings writes it there"},
-		"Connection": {ConnectionPassive, "`ip dynamic` requires `connect false`: the group only ever accepts"},
-		"IsDynamic":  {true, "the flag that says this peer was built from a group rather than configured"},
+		"Name":         {name, "a dynamic peer names itself after the address it connected from; no configuration names it"},
+		"GroupName":    {groupName, "the group whose range the accepted connection matched"},
+		"Address":      {addr, "the remote address arrives with the TCP connection, not from configuration"},
+		"Port":         {uint16(DefaultBGPPort), "the peer map is keyed on (address, port) and the remote source port is ephemeral, so every dynamic peer keys on the canonical port. The template's own Port is what the group LISTENS on"},
+		"PeerAS":       {uint32(0), "RFC 4271 Section 4.2: the peer's AS arrives in its OPEN, and resolveDynamicPeerSettings writes it there"},
+		"Connection":   {ConnectionPassive, "`ip dynamic` requires `connect false`: the group only ever accepts"},
+		"IsDynamic":    {true, "the flag that says this peer was built from a group rather than configured"},
+		"BusGroupPath": {groupPath, "the canonical bus group path derived from the matching dynamic group name"},
+		"BusPath":      {groupPath + "/peer/" + name, "the canonical per-member bus path so each accepted dynamic peer has a unique participant path in the compiled delivery graph"},
 	}
 }
 
@@ -226,13 +230,14 @@ func fillDistinctValue(field reflect.Value, seed int) error {
 		}
 		var tb textbuf.Buffer
 		name := tb.Str("sentinel-owner-").Int(int64(seed)).String()
-		graph := pluginserver.NewDisseminationGraph("bgp", []pluginserver.DeliveryPeer{
-			{Addr: "source", Bindings: []plugin.PeerProcessBinding{{PluginName: name, Explicit: true,
-				Receive: map[string]events.Direction{"update": events.DirReceived, "state": events.DirBoth}}}},
-			{Addr: "destination", Bindings: []plugin.PeerProcessBinding{{PluginName: name, Explicit: true,
-				Receive: map[string]events.Direction{"state": events.DirBoth, "refresh": events.DirBoth, "update": events.DirSent},
-				Send:    map[string]bool{"update": true}}}},
-		})
+		peers := []pluginserver.DeliveryPeer{
+			testDeliveryPeer("source", "", testBusSourceLease(name)),
+			testDeliveryPeer("destination", "", testBusSelectedDest(name)),
+		}
+		graph, err := pluginserver.NewDisseminationGraph("bgp", peers, plugin.BusConfig{}, []pluginserver.BusParticipantInput{testBusEndpointAll(name)})
+		if err != nil {
+			return err
+		}
 		owner, err := graph.ResolveDisseminationOwner("destination", SelectedDisseminationRole, []pluginserver.DisseminationProcess{{
 			Name: name,
 			Declarations: []rpc.DisseminationDecl{{

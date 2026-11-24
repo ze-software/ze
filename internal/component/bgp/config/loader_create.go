@@ -83,7 +83,7 @@ func CreateReactorFromTree(tree *config.Tree, configDir, configPath string, plug
 	// validation errors still fail. ONE walk answers both: a dynamic group's
 	// template is a peer settings like any other and takes every layer the
 	// statically configured peers take.
-	peers, dynGroups, err := peerPopulationsFromTree(tree)
+	peers, dynGroups, err := buildPeerPopulations(tree)
 	if err != nil {
 		return nil, fmt.Errorf("build peers: %w", err)
 	}
@@ -99,52 +99,10 @@ func CreateReactorFromTree(tree *config.Tree, configDir, configPath string, plug
 		return nil, fmt.Errorf("config validation: %w", err)
 	}
 
-	// Derive ConfiguredFamilies from peer capabilities.
-	// Multiprotocol capabilities declare which families each peer supports.
-	var configuredFamilies []string
-	familySeen := make(map[string]bool)
-	for _, ps := range peers {
-		for _, cap := range ps.Capabilities {
-			if mp, ok := cap.(*capability.Multiprotocol); ok {
-				fam := family.Family{AFI: mp.AFI, SAFI: mp.SAFI}
-				fs := fam.String()
-				if !familySeen[fs] {
-					familySeen[fs] = true
-					configuredFamilies = append(configuredFamilies, fs)
-				}
-			}
-		}
-	}
-
-	// Derive ConfiguredCustomEvents from peer process receive bindings.
-	// Custom event types (e.g., "update-rpki") trigger auto-loading of producing plugins.
-	var configuredCustomEvents []string
-	customEventSeen := make(map[string]bool)
-	for _, ps := range peers {
-		for _, pb := range ps.ProcessBindings {
-			for _, et := range pb.AutoLoadReceiveTypes() {
-				if !customEventSeen[et] {
-					customEventSeen[et] = true
-					configuredCustomEvents = append(configuredCustomEvents, et)
-				}
-			}
-		}
-	}
-
-	// Derive ConfiguredCustomSendTypes from peer process send bindings.
-	// Custom send types (e.g., "enhanced-refresh") trigger auto-loading of enabling plugins.
-	var configuredCustomSendTypes []string
-	customSendSeen := make(map[string]bool)
-	for _, ps := range peers {
-		for _, pb := range ps.ProcessBindings {
-			for _, st := range pb.AutoLoadSendTypes() {
-				if !customSendSeen[st] {
-					customSendSeen[st] = true
-					configuredCustomSendTypes = append(configuredCustomSendTypes, st)
-				}
-			}
-		}
-	}
+	// Derive ConfiguredFamilies from both static peer capabilities and dynamic
+	// group templates (AC-36, S22) so families configured only on a dynamic
+	// group auto-load their implied endpoints (e.g. FlowSpec).
+	configuredFamilies := collectConfiguredFamilies(peers, dynGroups)
 
 	// Extract hub config for TLS plugin transport.
 	hubConfig, hubErr := config.ExtractHubConfig(tree)
@@ -167,14 +125,12 @@ func CreateReactorFromTree(tree *config.Tree, configDir, configPath string, plug
 		ConfigDir:           configDir,
 		// Running authority retains list order and inactive member intent.
 		// Public plugin delivery projects it back to active-only data.
-		ConfigTree:                tree.ToRunningMap(),
-		ConfiguredFamilies:        configuredFamilies,
-		ConfiguredCustomEvents:    configuredCustomEvents,
-		ConfiguredCustomSendTypes: configuredCustomSendTypes,
-		ConfiguredPaths:           config.CollectContainerPaths(tree),
-		Plugins:                   plugins,
-		Hub:                       hubPtr,
-		RecentUpdateMax:           coreenv.GetInt("ze.bgp.reactor.cache-max", 1000000),
+		ConfigTree:         tree.ToRunningMap(),
+		ConfiguredFamilies: configuredFamilies,
+		ConfiguredPaths:    config.CollectContainerPaths(tree),
+		Plugins:            plugins,
+		Hub:                hubPtr,
+		RecentUpdateMax:    coreenv.GetInt("ze.bgp.reactor.cache-max", 1000000),
 		// Borrow (production) unless the caller requests self-hosting (le chaos run
 		// in-process sim, integration harness). See reactor.Config.
 		Standalone: standalone,
@@ -272,6 +228,36 @@ func CreateReactorFromTree(tree *config.Tree, configDir, configPath string, plug
 	return r, nil
 }
 
+// collectConfiguredFamilies collects every unique AFI/SAFI family string
+// declared on static peers and dynamic group templates (AC-36, S22).
+func collectConfiguredFamilies(peers []*reactor.PeerSettings, dynGroups []*reactor.DynamicGroupConfig) []string {
+	var configured []string
+	seen := make(map[string]bool)
+	addFrom := func(ps *reactor.PeerSettings) {
+		if ps == nil {
+			return
+		}
+		for _, c := range ps.Capabilities {
+			if mp, ok := c.(*capability.Multiprotocol); ok {
+				fs := (family.Family{AFI: mp.AFI, SAFI: mp.SAFI}).String()
+				if !seen[fs] {
+					seen[fs] = true
+					configured = append(configured, fs)
+				}
+			}
+		}
+	}
+	for _, ps := range peers {
+		addFrom(ps)
+	}
+	for _, dg := range dynGroups {
+		if dg != nil {
+			addFrom(dg.Settings)
+		}
+	}
+	return configured
+}
+
 // chaosRateFromEnv returns ze.bgp.chaos.rate as a float64.
 // Falls back to 0.1 (YANG default) when unset or malformed.
 func chaosRateFromEnv() float64 {
@@ -363,7 +349,7 @@ func reloadPeersFromTree(tree *config.Tree) ([]*reactor.PeerSettings, reactor.Gl
 	// the dynamic groups from the same walk. The groups are returned even
 	// when the config declares none: an empty list is how a removed group's
 	// peers are torn down by the reload's dynamic step.
-	peers, dynGroups, err := peerPopulationsFromTree(tree)
+	peers, dynGroups, err := buildPeerPopulations(tree)
 	if err != nil {
 		return nil, reactor.Globals{}, nil, err
 	}

@@ -23,7 +23,6 @@ import (
 	pluginserver "github.com/ze-software/ze/internal/component/plugin/server"
 	bgpevents "github.com/ze-software/ze/internal/core/bgp/events"
 	"github.com/ze-software/ze/internal/core/env"
-	"github.com/ze-software/ze/internal/core/events"
 	"github.com/ze-software/ze/internal/core/selfcert"
 	"github.com/ze-software/ze/pkg/plugin/sdk"
 )
@@ -125,9 +124,7 @@ func TestOrdinarySelectedExternalFenceDeclaration(t *testing.T) {
 			require.True(t, registry.SignalsSessionReady(name))
 
 			r, source, destination, wire, encoding := newSyncOrderRail(t)
-			destination.mu.Lock()
-			destination.settings.ProcessBindings = []ProcessBinding{{PluginName: name, Send: map[string]bool{bgpevents.SendUpdate: true}, Receive: map[string]events.Direction{bgpevents.EventState: events.DirReceived}}}
-			destination.mu.Unlock()
+			setTestPeerBus(t, destination, testBusBoth(name, []string{bgpevents.EventState}, []string{bgpevents.SendUpdate}))
 			destination.refreshForwardFacts()
 			destination.state.Store(int32(PeerStateConnecting))
 			destination.enterEstablished(destination.testInitialSync())

@@ -71,7 +71,7 @@ func llnhExternalPeer(t *testing.T, addr string, connected []netip.Prefix, mode 
 		NextHopMode:   mode,
 		// The route server's send grant: the RS fast path reaches no
 		// destination without it, as the cached rail does not.
-		ProcessBindings: []ProcessBinding{rsRelaySendBinding()},
+		Bus: rsRelaySendBinding(),
 		// The peer is EBGP, and RFC 8212 Section 3 rejects at an absent
 		// policy, so it carries explicit accepting import and export policies.
 		ImportPolicy: mustPolicy(t, nil, routepolicy.FinalAccept),
@@ -89,6 +89,7 @@ func llnhExternalPeer(t *testing.T, addr string, connected []netip.Prefix, mode 
 	peer.sendCtx.Store(ctx)
 	peer.sendCtxID = ctxID
 	peer.llScope.Store(newLinkScopeFrom(connected, peer.settings.Address))
+	setTestPeerBus(t, peer, rsRelaySendBinding())
 	peer.fwdFacts.Store(peer.buildForwardFacts())
 	return peer
 }

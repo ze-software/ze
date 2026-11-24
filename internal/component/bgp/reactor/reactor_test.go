@@ -8,22 +8,20 @@ import (
 	"testing"
 	"time"
 
-	"github.com/ze-software/ze/internal/core/bgp/msgtype"
-
-	bgptypes "github.com/ze-software/ze/internal/component/bgp/types"
-	"github.com/ze-software/ze/internal/component/bgp/wireu"
-	"github.com/ze-software/ze/internal/core/network"
-	"github.com/ze-software/ze/pkg/plugin/rpc"
-
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
 	"github.com/ze-software/ze/internal/component/bgp/message"
+	bgptypes "github.com/ze-software/ze/internal/component/bgp/types"
+	"github.com/ze-software/ze/internal/component/bgp/wireu"
 	"github.com/ze-software/ze/internal/component/plugin"
 	"github.com/ze-software/ze/internal/core/bgp/attribute"
 	bgpctx "github.com/ze-software/ze/internal/core/bgp/context"
 	bgpevents "github.com/ze-software/ze/internal/core/bgp/events"
+	"github.com/ze-software/ze/internal/core/bgp/msgtype"
 	"github.com/ze-software/ze/internal/core/events"
+	"github.com/ze-software/ze/internal/core/network"
+	"github.com/ze-software/ze/pkg/plugin/rpc"
 )
 
 // Compile-time interface satisfaction checks.
@@ -767,113 +765,34 @@ func BenchmarkWriteAnnounceUpdateIPv6(b *testing.B) {
 	}
 }
 
-// TestGetPeerProcessBindingsEncodingInheritance verifies encoding inheritance chain.
+// TestReactorDeliveryGraphPublishesBusGrants verifies compiled DeliveryGraph
+// direction and unknown-peer handling on a standalone reactor.
 //
-// VALIDATES: Empty peer encoding inherits from process, empty process defaults to "text".
-//
-// PREVENTS: Empty encoding causing silent failures in message dispatch.
-func TestGetPeerProcessBindingsEncodingInheritance(t *testing.T) {
-	cfg := &Config{
-		ListenAddr: "127.0.0.1:0",
-		Plugins: []PluginConfig{
-			{Name: "json-proc", Run: "./test", Encoder: "json"},
-			{Name: "text-proc", Run: "./test", Encoder: "text"},
-			{Name: "empty-proc", Run: "./test", Encoder: ""},
-		},
-	}
-
-	reactor := New(cfg)
-
-	// Add peer with bindings that test inheritance
-	settings := NewPeerSettings(
-		mustParseAddr("192.0.2.1"),
-		65000, 65001, 0x01010101,
-	)
-	settings.ProcessBindings = []ProcessBinding{
-		{PluginName: "json-proc", Encoding: "text"}, // Explicit override
-		{PluginName: "json-proc", Encoding: ""},     // Inherit from process (json)
-		{PluginName: "text-proc", Encoding: ""},     // Inherit from process (text)
-		{PluginName: "empty-proc", Encoding: ""},    // Process empty, default to text
-	}
-
-	err := reactor.AddPeer(settings)
-	require.NoError(t, err)
-
-	// Get bindings through API adapter
-	adapter := &reactorAPIAdapter{r: reactor}
-	bindings := adapter.GetPeerProcessBindings(mustParseAddr("192.0.2.1"))
-
-	require.Len(t, bindings, 4)
-
-	// Verify inheritance chain
-	require.Equal(t, "text", bindings[0].Encoding, "explicit override should be text")
-	require.Equal(t, "json", bindings[1].Encoding, "empty should inherit from json-proc")
-	require.Equal(t, "text", bindings[2].Encoding, "empty should inherit from text-proc")
-	require.Equal(t, "text", bindings[3].Encoding, "empty proc should default to text")
-
-	// Verify format defaults to "parsed"
-	require.Equal(t, "parsed", bindings[0].Format, "format should default to parsed")
-}
-
-// TestGetPeerProcessBindingsNotFound verifies nil return for unknown peer.
-//
-// VALIDATES: GetPeerProcessBindings returns nil for non-existent peer.
-//
-// PREVENTS: Panic on unknown peer lookup.
-func TestGetPeerProcessBindingsNotFound(t *testing.T) {
+// VALIDATES: DeliveryGraph returns empty for unknown peers and preserves
+// per-direction receive filters (negotiated, update-sent) for configured peers.
+// PREVENTS: direction filters being dropped or panicking on unknown peers.
+func TestReactorDeliveryGraphPublishesBusGrants(t *testing.T) {
 	cfg := &Config{
 		ListenAddr: "127.0.0.1:0",
 	}
-
-	reactor := New(cfg)
-
-	adapter := &reactorAPIAdapter{r: reactor}
-	bindings := adapter.GetPeerProcessBindings(mustParseAddr("192.0.2.99"))
-
-	require.Nil(t, bindings, "unknown peer should return nil")
-}
-
-// TestGetPeerProcessBindingsGrants verifies the grants pass through, per
-// binding and per direction.
-//
-// VALIDATES: the receive grants and their directions are copied from
-// reactor.ProcessBinding to plugin.PeerProcessBinding, and one binding's
-// grants do not leak into another's.
-//
-// PREVENTS: Config setting `receive [ negotiated ]` having no effect, and a
-// direction being dropped on the way to the plugin side.
-func TestGetPeerProcessBindingsGrants(t *testing.T) {
-	cfg := &Config{
-		ListenAddr: "127.0.0.1:0",
-		Plugins:    []PluginConfig{{Name: "test-proc", Run: "./test"}},
-	}
-
 	reactor := New(cfg)
 
 	settings := NewPeerSettings(
 		mustParseAddr("192.0.2.1"),
 		65000, 65001, 0x01010101,
 	)
-	settings.ProcessBindings = []ProcessBinding{
-		{PluginName: "test-proc", Receive: map[string]events.Direction{
-			bgpevents.EventNegotiated: events.DirBoth,
-			bgpevents.EventUpdate:     events.DirSent,
-		}},
-		{PluginName: "test-proc"},
-	}
+	settings.Bus = testBusReceiveOnly("test-proc", bgpevents.EventNegotiated, "update-sent")
 
 	err := reactor.AddPeer(settings)
 	require.NoError(t, err)
+	publishTestBusGraph(t, reactor)
 
-	adapter := &reactorAPIAdapter{r: reactor}
-	bindings := adapter.GetPeerProcessBindings(mustParseAddr("192.0.2.1"))
-
-	require.Len(t, bindings, 2)
-	require.Equal(t, events.DirBoth, bindings[0].Receive[bgpevents.EventNegotiated],
-		"negotiated must reach the plugin side")
-	require.Equal(t, events.DirSent, bindings[0].Receive[bgpevents.EventUpdate],
-		"the direction must reach the plugin side")
-	require.Empty(t, bindings[1].Receive, "a binding that grants nothing must stay empty")
+	g := reactor.DeliveryGraph()
+	require.NotNil(t, g)
+	require.Empty(t, g.ProcessListForPeer("192.0.2.99"), "unknown peer should have no edges")
+	require.Equal(t, []string{"test-proc"}, recv(g, bgpevents.EventNegotiated, events.DirUnspecified, "192.0.2.1"))
+	require.Equal(t, []string{"test-proc"}, recv(g, bgpevents.EventUpdate, events.DirSent, "192.0.2.1"))
+	require.Empty(t, recv(g, bgpevents.EventUpdate, events.DirReceived, "192.0.2.1"))
 }
 
 // =============================================================================

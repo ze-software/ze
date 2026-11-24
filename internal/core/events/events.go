@@ -40,6 +40,29 @@ const (
 // namespace separator.
 const NamespaceCLI = "cli"
 
+// NamespaceBus is the namespace for generic bus participant lifecycle messages.
+const NamespaceBus = "bus"
+
+// EventParticipantExit is emitted when a bus participant exits without
+// keep-on-exit policy, so subscribers holding per-participant state can
+// release it.
+const EventParticipantExit = "participant-exit"
+
+// MessageParticipantExit is the canonical "namespace:name" identifier for
+// participant-exit lifecycle notifications.
+const MessageParticipantExit = NamespaceBus + ":" + EventParticipantExit
+
+// ParticipantExitEvent carries the identity of a bus participant that exited.
+type ParticipantExitEvent struct {
+	Type        string `json:"type"`
+	Endpoint    string `json:"endpoint"`
+	Participant string `json:"participant"`
+}
+
+// BusParticipantExit is the typed handle for bus:participant-exit lifecycle
+// notifications. Initialized in register.go after package-level maps are ready.
+var BusParticipantExit *Event[ParticipantExitEvent]
+
 // TagDirection is the canonical tag name for bidirectional protocol messages.
 const TagDirection = "direction"
 

@@ -605,6 +605,28 @@ func (a *reactorAPIAdapter) announceNLRIBatch(ctx context.Context, sel *selector
 		return nil
 	}
 
+	directOwner, trackDirect := directOriginOwner(ctx, batch, sender)
+	var directBuilds []*originBuildValue
+	if trackDirect {
+		directBuilds = captureDirectOriginBuilds(batch)
+	}
+	return a.writeDirectAnnounceNLRIBatch(ctx, peers, batch, sender, attrs, userASPath, initialSource, initialGeneration, initialState, output, directOwner, directBuilds)
+}
+
+func (a *reactorAPIAdapter) writeDirectAnnounceNLRIBatch(
+	ctx context.Context,
+	peers []*Peer,
+	batch bgptypes.NLRIBatch,
+	sender plugin.Sender,
+	attrs []attribute.Attribute,
+	userASPath *attribute.ASPath,
+	initialSource *Peer,
+	initialGeneration uint64,
+	initialState PeerState,
+	output *rpc.UpdateRouteOutput,
+	directOwner plugin.SelectedOwner,
+	directBuilds []*originBuildValue,
+) error {
 	var lastErr error
 	// acceptedCount is what went out: one for each peer whose operations were
 	// queued, and one for each UPDATE written to an established peer. A peer
@@ -658,6 +680,7 @@ func (a *reactorAPIAdapter) announceNLRIBatch(ctx context.Context, sel *selector
 		// unless the queueing gate opened partway through queueing it, and then
 		// it is the NLRIs the queue refused, which no update group shares.
 		peerBatch := batch
+		peerBuilds := directBuilds
 		partial := false
 		if queued {
 			if !queuedEVPNChecked && batch.Wire == nil &&
@@ -674,6 +697,7 @@ func (a *reactorAPIAdapter) announceNLRIBatch(ctx context.Context, sel *selector
 			}
 			if queueErr == nil {
 				acceptedCount++ // Queued counts as accepted
+				a.recordDirectOrigins(directOwner, peer, batch.NLRIs, directBuilds)
 				continue
 			}
 			if !errors.Is(queueErr, errQueueGateOpen) {
@@ -686,7 +710,11 @@ func (a *reactorAPIAdapter) announceNLRIBatch(ctx context.Context, sel *selector
 			// drain already sent.
 			if refused > 0 {
 				acceptedCount++ // The queued part counts as accepted.
+				a.recordDirectOrigins(directOwner, peer, batch.NLRIs[:refused], directBuilds)
 				peerBatch.NLRIs = batch.NLRIs[refused:]
+				if len(directBuilds) >= refused {
+					peerBuilds = directBuilds[refused:]
+				}
 				partial = true
 			}
 		}
@@ -754,6 +782,9 @@ func (a *reactorAPIAdapter) announceNLRIBatch(ctx context.Context, sel *selector
 			targets := [1]announceTarget{target}
 			n, sendErr := a.announceBatchToPeers(ctx, targets[:], peerBatch, facts, attrs, userASPath)
 			acceptedCount += n
+			if n > 0 {
+				a.recordDirectOrigins(directOwner, peer, peerBatch.NLRIs, peerBuilds)
+			}
 			if sendErr != nil {
 				lastErr = retainAnnounceError(lastErr, sendErr)
 			}
@@ -766,6 +797,11 @@ func (a *reactorAPIAdapter) announceNLRIBatch(ctx context.Context, sel *selector
 	for _, bg := range buildGroups {
 		n, sendErr := a.announceBatchToPeers(ctx, bg.targets, batch, bg.facts, attrs, userASPath)
 		acceptedCount += n
+		if n > 0 {
+			for _, target := range bg.targets {
+				a.recordDirectOrigins(directOwner, target.peer, batch.NLRIs, directBuilds)
+			}
+		}
 		if sendErr != nil {
 			lastErr = retainAnnounceError(lastErr, sendErr)
 		}
@@ -1205,7 +1241,7 @@ func (a *reactorAPIAdapter) withdrawNLRIBatch(ctx context.Context, sel *selector
 	if len(peers) == 0 {
 		return nil
 	}
-	return a.writeWithdrawNLRIBatch(ctx, peers, batch, sender, output)
+	return a.withdrawDirectWithOwnership(ctx, peers, batch, sender, output)
 }
 
 // writeWithdrawNLRIBatch writes output withdrawals after source admission.

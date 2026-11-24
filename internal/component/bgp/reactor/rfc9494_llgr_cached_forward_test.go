@@ -13,8 +13,6 @@ import (
 	"testing"
 	"time"
 
-	routepolicy "github.com/ze-software/ze/internal/component/policy"
-
 	"github.com/stretchr/testify/require"
 
 	"github.com/ze-software/ze/internal/component/bgp/message"
@@ -22,6 +20,7 @@ import (
 	bgptypes "github.com/ze-software/ze/internal/component/bgp/types"
 	"github.com/ze-software/ze/internal/component/bgp/wireu"
 	"github.com/ze-software/ze/internal/component/plugin"
+	routepolicy "github.com/ze-software/ze/internal/component/policy"
 	bgpctx "github.com/ze-software/ze/internal/core/bgp/context"
 	"github.com/ze-software/ze/internal/core/bgp/msgtype"
 	"github.com/ze-software/ze/internal/core/family"
@@ -106,7 +105,7 @@ func receiveAndForward(t *testing.T, localLLGR, rs bool) llgrForwardRun {
 		RSFastPath:   rs,
 		// The route server's receive grant: the RS fast path relays only a
 		// source the route server's cached forward would relay.
-		ProcessBindings: []ProcessBinding{rsRelayReceiveBinding()},
+		Bus: rsRelayReceiveBinding(),
 	})
 	source.state.Store(int32(PeerStateEstablished))
 	session := NewSession(source.Settings())
@@ -120,6 +119,7 @@ func receiveAndForward(t *testing.T, localLLGR, rs bool) llgrForwardRun {
 	t.Cleanup(session.closeSourceReceipt)
 	// An established session holds a forwarding snapshot (setEncodingContexts);
 	// the RS fast-path gate reads the source's receive grant from it.
+	setTestPeerBus(t, source, rsRelayReceiveBinding())
 	source.refreshForwardFacts()
 
 	dest := NewPeer(&PeerSettings{
@@ -135,12 +135,13 @@ func receiveAndForward(t *testing.T, localLLGR, rs bool) llgrForwardRun {
 		RouterID:     0x0a000001,
 		// The route server's send grant: the RS fast path reaches no
 		// destination without it, as the cached rail does not.
-		ProcessBindings: []ProcessBinding{rsRelaySendBinding()},
+		Bus: rsRelaySendBinding(),
 	})
 	dest.state.Store(int32(PeerStateEstablished))
 	dest.negotiated.Store(&NegotiatedCapabilities{families: map[family.Family]bool{family.IPv4Unicast: true}})
 	dest.sendCtx.Store(ctx)
 	dest.sendCtxID = ctxID
+	setTestPeerBus(t, dest, rsRelaySendBinding())
 	dest.refreshForwardFacts()
 
 	var mu sync.Mutex

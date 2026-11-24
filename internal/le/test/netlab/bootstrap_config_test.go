@@ -6,7 +6,7 @@ package testnetlab
 import (
 	"os"
 	"path/filepath"
-	"reflect"
+	"slices"
 	"testing"
 
 	// Register the actual schemas for every root the complete reference renders
@@ -18,12 +18,15 @@ import (
 	"github.com/ze-software/ze/internal/component/config"
 	_ "github.com/ze-software/ze/internal/component/config/redistribute/yang"
 	_ "github.com/ze-software/ze/internal/component/iface/yang"
+	"github.com/ze-software/ze/internal/component/plugin"
+	pluginserver "github.com/ze-software/ze/internal/component/plugin/server"
 	_ "github.com/ze-software/ze/internal/component/plugin/yang"
 	_ "github.com/ze-software/ze/internal/component/ssh/yang"
-	"github.com/ze-software/ze/internal/core/events"
+	bgpevents "github.com/ze-software/ze/internal/core/bgp/events"
 	_ "github.com/ze-software/ze/internal/plugins/connected/yang"
 	_ "github.com/ze-software/ze/internal/plugins/isis/yang"
 	_ "github.com/ze-software/ze/internal/plugins/ospf/yang"
+	"github.com/ze-software/ze/internal/plugins/redistribute"
 	_ "github.com/ze-software/ze/internal/plugins/static/yang"
 )
 
@@ -57,29 +60,44 @@ func TestReferencePeersAuthorizeRedistributionStateReplay(t *testing.T) {
 			if len(peers) != count {
 				t.Fatalf("parsed %d peers, want %d", len(peers), count)
 			}
+			srv, err := pluginserver.NewServer(&pluginserver.ServerConfig{
+				Plugins: []plugin.PluginConfig{{Name: redistribute.Name, Internal: true}},
+			}, nil)
+			if err != nil {
+				t.Fatal(err)
+			}
+			srv.UpdateDeliveryGraph(bgpevents.Namespace, reactor.DisseminationPeersFromSettings(peers))
+			graph := srv.DeliveryGraph()
+			byPeer := make(map[string][]pluginserver.ProcessEdges, len(peers))
+			for _, pd := range graph.Inspect() {
+				byPeer[pd.Peer] = pd.Processes
+			}
 			for _, peer := range peers {
-				var bindings int
-				for _, binding := range peer.ProcessBindings {
-					if binding.PluginName != "redistribute-orchestrator" {
-						continue
-					}
-					bindings++
-					wantReceive := map[string]events.Direction{"state": events.DirBoth}
-					if binding.ReceiveAll {
-						t.Errorf("peer %s grants every receive type", peer.Name)
-					}
-					if !reflect.DeepEqual(binding.Receive, wantReceive) {
-						t.Errorf("peer %s receives %v, want state delivery only", peer.Name, binding.Receive)
-					}
-					if binding.SendAll {
-						t.Errorf("peer %s grants every send type", peer.Name)
-					}
-					if !reflect.DeepEqual(binding.Send, map[string]bool{"update": true}) {
-						t.Errorf("peer %s sends %v, want UPDATE permission only", peer.Name, binding.Send)
+				addr := peer.PeerKey().String()
+				if !graph.ProcessReceivesState(addr, redistribute.Name) {
+					t.Errorf("peer %s does not deliver bgp:state to %s", peer.Name, redistribute.Name)
+				}
+				if !graph.MaySend(addr, redistribute.Name, bgpevents.SendUpdate) {
+					t.Errorf("peer %s does not permit bgp:update from %s", peer.Name, redistribute.Name)
+				}
+				if graph.MaySend(addr, redistribute.Name, bgpevents.SendRaw) {
+					t.Errorf("peer %s must not permit bgp:raw from %s", peer.Name, redistribute.Name)
+				}
+				var edge *pluginserver.ProcessEdges
+				for i := range byPeer[addr] {
+					if byPeer[addr][i].Process == redistribute.Name {
+						edge = &byPeer[addr][i]
+						break
 					}
 				}
-				if bindings != 1 {
-					t.Errorf("peer %s has %d orchestrator bindings, want exactly one", peer.Name, bindings)
+				if edge == nil {
+					t.Fatalf("peer %s missing %s edge in DeliveryGraph.Inspect()", peer.Name, redistribute.Name)
+				}
+				if !slices.Equal(edge.Receive, []string{bgpevents.EventState}) {
+					t.Errorf("peer %s %s receive = %v, want [%s]", peer.Name, redistribute.Name, edge.Receive, bgpevents.EventState)
+				}
+				if !slices.Equal(edge.Send, []string{bgpevents.SendUpdate}) {
+					t.Errorf("peer %s %s send = %v, want [%s]", peer.Name, redistribute.Name, edge.Send, bgpevents.SendUpdate)
 				}
 			}
 		})

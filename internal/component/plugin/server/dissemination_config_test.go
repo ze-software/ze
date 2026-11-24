@@ -32,26 +32,38 @@ func candidateDisseminationResolver(t *testing.T, resolve DisseminationConfigRes
 
 // TestDisseminationStage1UsesCandidateScope drives the real registration sink
 // for a program absent from the compiled registry. Opposite active/candidate
-// grant sets prove neither transport decoding nor an old graph decides startup.
+// filter sets prove neither transport decoding nor an old graph decides startup.
+//
+// VALIDATES: Stage 1 dissemination validation compiles against candidate scope.
+// PREVENTS: Stage 1 judging a new external program against an active old graph.
 func TestDisseminationStage1UsesCandidateScope(t *testing.T) {
 	for _, complete := range []bool{true, false} {
 		t.Run(map[bool]string{true: "new complete grants", false: "new incomplete grants"}[complete], func(t *testing.T) {
 			const name = "external-candidate-table"
 			require.Nil(t, registry.Lookup(name))
-			peers := func(valid bool) []DeliveryPeer {
-				destination := disseminationTestDestination(name)
+			peers := []DeliveryPeer{
+				{Addr: "192.0.2.1", Name: "p1", Path: "/" + disseminationTestNamespace + "/entry/p1"},
+				{Addr: "192.0.2.2", Name: "p2", Path: "/" + disseminationTestNamespace + "/entry/p2"},
+			}
+			treeFor := func(valid bool) map[string]any {
+				m := map[string]any{"complete": valid}
 				if !valid {
-					destination.Receive = nil
+					m["bus"] = map[string]any{
+						"endpoint": map[string]any{
+							name: map[string]any{
+								"receive": map[string]any{
+									"allow": []any{"none"},
+								},
+							},
+						},
+					}
 				}
-				return []DeliveryPeer{
-					{Addr: "192.0.2.1", Bindings: []plugin.PeerProcessBinding{disseminationTestSource(name)}},
-					{Addr: "192.0.2.2", Bindings: []plugin.PeerProcessBinding{destination}},
-				}
+				return m
 			}
 			candidateDisseminationResolver(t, func(tree map[string]any) ([]DeliveryPeer, error) {
-				valid, known := tree["complete"].(bool)
+				_, known := tree["complete"].(bool)
 				require.True(t, known, "resolver must read the selected candidate")
-				return peers(valid), nil
+				return peers, nil
 			})
 			s, _ := newLifecycleStartupServer(t)
 			configuration := plugin.PluginConfig{Name: name, Run: "external-program"}
@@ -60,15 +72,24 @@ func TestDisseminationStage1UsesCandidateScope(t *testing.T) {
 			manager := process.NewProcessManager(nil)
 			require.NoError(t, manager.AddProcess(name, proc))
 			s.procManager.Store(manager)
-			active := newDeliveryGraph(disseminationTestNamespace, peers(!complete))
+			active, err := BuildDeliveryGraph(disseminationTestNamespace, peers, plugin.BusConfig{}, []BusParticipantInput{
+				disseminationEndpointInput(name, plugin.BusBlock{}),
+			})
+			require.NoError(t, err)
 			s.deliveryGraph.Store(active)
-			tree := map[string]any{"complete": complete}
+
+			tree := treeFor(complete)
 			require.NoError(t, s.bindConfigureConfig([]*process.Process{proc}, configureConfig{tree: tree}))
 			defer s.clearConfigureConfig([]*process.Process{proc})
-			// The graph owns its parsed values, not a mutable resolver result.
+			// The scope owns its cloned candidate, not a mutable map reference.
 			tree["complete"] = !complete
-			input := &rpc.DeclareRegistrationInput{ProtocolVersion: rpc.ProtocolVersion,
-				Dissemination: []rpc.DisseminationDecl{disseminationTestDeclaration()}}
+
+			input := &rpc.DeclareRegistrationInput{
+				ProtocolVersion: rpc.ProtocolVersion,
+				Dissemination:   []rpc.DisseminationDecl{disseminationTestDeclaration()},
+				Sends:           disseminationTestSends(),
+				Receives:        disseminationTestReceives(),
+			}
 			wire, err := json.Marshal(input)
 			require.NoError(t, err)
 			var decoded rpc.DeclareRegistrationInput
@@ -86,6 +107,9 @@ func TestDisseminationStage1UsesCandidateScope(t *testing.T) {
 
 // TestDisseminationCandidateNeedsNamespaceResolver proves a missing producer
 // refuses instead of using a plausible active graph for a different candidate.
+//
+// VALIDATES: missing namespace resolver fails closed during Stage 1 validation.
+// PREVENTS: silently accepting an unverified external dissemination declaration.
 func TestDisseminationCandidateNeedsNamespaceResolver(t *testing.T) {
 	candidateDisseminationResolver(t, nil)
 	const name = "external-no-resolver"
@@ -93,7 +117,11 @@ func TestDisseminationCandidateNeedsNamespaceResolver(t *testing.T) {
 	configuration := plugin.PluginConfig{Name: name, Run: "external-program"}
 	s.config.Plugins = []plugin.PluginConfig{configuration}
 	proc := process.NewProcess(configuration)
-	proc.SetRegistration(&plugin.PluginRegistration{Dissemination: []rpc.DisseminationDecl{disseminationTestDeclaration()}})
+	proc.SetRegistration(&plugin.PluginRegistration{
+		Dissemination: []rpc.DisseminationDecl{disseminationTestDeclaration()},
+		Sends:         disseminationTestSends(),
+		Receives:      disseminationTestReceives(),
+	})
 	manager := process.NewProcessManager(nil)
 	require.NoError(t, manager.AddProcess(name, proc))
 	s.procManager.Store(manager)

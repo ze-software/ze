@@ -15,6 +15,7 @@ import (
 	zeconfig "github.com/ze-software/ze/internal/component/config"
 	"github.com/ze-software/ze/internal/component/config/infra"
 	"github.com/ze-software/ze/internal/component/config/storage"
+	configyang "github.com/ze-software/ze/internal/component/config/yang"
 	"github.com/ze-software/ze/internal/component/plugin"
 	"github.com/ze-software/ze/internal/component/plugin/registry"
 	"github.com/ze-software/ze/internal/component/policy"
@@ -32,6 +33,10 @@ const attachmentOwnerBGP = "bgp"
 const attachmentImportBGP = "bgp import"
 
 func init() {
+	configyang.RegisterBusParticipantTarget("/bgp/peer")
+	configyang.RegisterBusParticipantTarget("/bgp/group")
+	configyang.RegisterBusParticipantTarget("/bgp/group/peer")
+
 	// The filter attachment points a BGP peer's config holds, with the route
 	// fields their routes carry and a filter there may set (the route field
 	// vocabulary, internal/component/policy/fields.go). They are declared here,
@@ -78,6 +83,7 @@ func init() {
 	if err := zeconfig.RegisterTreeValidator("bgp-filter-policy", validateFilterPolicies); err != nil {
 		panic("BUG: BGP filter policy validator registration failed: " + err.Error())
 	}
+	zeconfig.RegisterBusRequirementValidator("bgp-features", validateBGPBusRequirements)
 	registry.RegisterReactorFactory(createReactorFromCoordinator)
 
 	// Fill the always-on infra seams (internal/component/config/infra) so

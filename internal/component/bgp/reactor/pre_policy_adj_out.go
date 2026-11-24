@@ -153,6 +153,13 @@ func (r *Reactor) emitPrePolicyAdjRIBOut(peer *Peer, facts *peerForwardFacts, bo
 		peerInfo.LocalAddress = s.LocalAddress
 		peerInfo.GroupName = s.GroupName
 		peerInfo.RouterID = s.RouterID
+		peerInfo.IsIBGP = s.isIBGPWith(peerAS)
+		peerInfo.RSClient = s.RSClient
+		peerInfo.RouteReflectorClient = s.RouteReflectorClient
+	} else if facts != nil {
+		peerInfo.IsIBGP = !facts.isEBGP
+		peerInfo.RSClient = facts.rsClient
+		peerInfo.RouteReflectorClient = facts.rrClient
 	}
 	bodyCopy := append([]byte(nil), body...)
 	rawMsg := bgptypes.RawMessage{

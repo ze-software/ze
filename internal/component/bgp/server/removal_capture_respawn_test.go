@@ -1,6 +1,6 @@
 // Design: docs/architecture/api/process-protocol.md -- OPEN observer removal lifetime.
 // Related: event_dispatcher.go -- CapturePeerStateChange, the capture under the reactor lock
-// Related: events.go -- addOpenRemovalObservers, the derivation under test
+// Related: events.go -- PeerScopedProcsNamed, the compiled-bus state delivery under test
 
 package server
 
@@ -124,6 +124,13 @@ func startRemovalCaptureServer(t *testing.T, gate *sync.RWMutex, inFlight chan<-
 	if err := srv.WaitForStartupComplete(ctx); err != nil {
 		t.Fatal(err)
 	}
+	peer := removalCapturePeer()
+	srv.UpdateDeliveryGraph(bgpevents.Namespace, []pluginserver.DeliveryPeer{{
+		Addr:           peer.AddrStr(),
+		Name:           peer.Name,
+		Path:           "/bgp/peer/" + peer.Name,
+		SecondaryPaths: []string{"/bgp/ip/" + peer.AddrStr()},
+	}})
 	return removalCaptureServer{srv: srv, ctx: ctx, observerEvents: observerEvents}
 }
 
@@ -166,7 +173,7 @@ func restartOverlapRaised() []report.Issue {
 // stand-in reactor lock is released the join succeeds and no restart overlap
 // is raised; and the captured recipients still carry the OPEN validator that
 // subscribed to state, which receives the removal when the delivery runs.
-// PREVENTS: addOpenRemovalObservers listing the manager's processes
+// PREVENTS: peer-removal state capture listing the manager's processes
 // (pm.AllProcesses takes pm.mu) under the reactor's write lock. The removal
 // then waited for Respawn, Respawn waited for the old handler, and the handler
 // waited for the reactor lock, until the join bound expired: every reactor
@@ -264,19 +271,14 @@ func TestRemovalCaptureDoesNotWaitOnRespawn(t *testing.T) {
 	}
 }
 
-// TestOpenRemovalObserversAreTheSubscribedValidators reads the removal
-// observers of a peer no plugin is attached to.
+// TestOpenRemovalObserversFollowCompiledBus verifies that peer removal
+// recipients are determined solely by the compiled bus filter (PeerScopedProcs)
+// with no separate WantsValidateOpen bypass (AC-39, S32).
 //
-// VALIDATES: addOpenRemovalObservers adds exactly the processes that both
-// declared WantsValidateOpen and subscribed to BGP state for the peer, by
-// process identity: a validator with no state subscription is not added, and
-// a subscriber that validates nothing is not added. A process already in the
-// fed set is not added twice, and the fed slice's spare capacity is not
-// written, so an observer cannot replace a peer-fed claimant.
-// PREVENTS: the derivation that replaced the process manager's list narrowing
-// or widening the set it had: the same four combinations through the name
-// list gave the same answer.
-func TestOpenRemovalObserversAreTheSubscribedValidators(t *testing.T) {
+// VALIDATES: peerStateRecipients returns every subscribed endpoint that
+// declared bgp:state and omits unsubscribed or bus-narrowed endpoints.
+// PREVENTS: an OPEN validator bypassing a participant's receive allow-list.
+func TestOpenRemovalObserversFollowCompiledBus(t *testing.T) {
 	var gate sync.RWMutex
 	server := startRemovalCaptureServer(t, &gate, make(chan struct{}, 1))
 	stuck := removalCaptureProcess(t, server.srv, removalCaptureStuck)
@@ -285,38 +287,30 @@ func TestOpenRemovalObserversAreTheSubscribedValidators(t *testing.T) {
 	plain := removalCaptureProcess(t, server.srv, removalCapturePlain)
 	peer := removalCapturePeer()
 
-	got := addOpenRemovalObservers(server.srv, peer, nil)
-	if len(got) != 2 {
-		t.Fatalf("removal observers = %d processes, want the 2 subscribed validators", len(got))
-	}
-	for _, want := range []*process.Process{stuck, observer} {
+	got, _ := peerStateRecipients(server.srv, peer, rpc.SessionStateDown, rpc.ReasonPeerRemoved)
+	for _, want := range []*process.Process{stuck, observer, plain} {
 		if !slices.Contains(got, want) {
-			t.Errorf("subscribed validator %s is not a removal observer", want.Name())
+			t.Errorf("subscribed process %s did not receive removal", want.Name())
 		}
 	}
-	for _, unwanted := range []*process.Process{unsubscribed, plain} {
-		if slices.Contains(got, unwanted) {
-			t.Errorf("process %s became a removal observer", unwanted.Name())
-		}
+	if slices.Contains(got, unsubscribed) {
+		t.Errorf("unsubscribed validator %s unexpectedly received removal", unsubscribed.Name())
 	}
 
-	fed := make([]*process.Process, 1, 4)
-	fed[0] = observer
-	got = addOpenRemovalObservers(server.srv, peer, fed)
-	if len(got) != 2 {
-		t.Fatalf("fed plus observers = %d processes, want the fed validator once and the other validator", len(got))
-	}
-	if got[0] != observer {
-		t.Errorf("the fed process is no longer first: %s", got[0].Name())
-	}
-	if got[1] != stuck {
-		t.Errorf("the added observer is %s, want %s", got[1].Name(), stuck.Name())
-	}
-	if spare := fed[:2][1]; spare != nil {
-		t.Errorf("the fed slice's spare capacity was written with %s", spare.Name())
-	}
-
-	if procs, _ := peerStateRecipients(server.srv, peer, rpc.SessionStateDown, rpc.ReasonTCPFailure); len(procs) != 0 {
-		t.Errorf("an ordinary down of an unattached peer reached %d processes, want none", len(procs))
+	// Narrowing observer via bus > endpoint > receive > allow none excludes it.
+	server.srv.SetBusConfig(plugin.BusConfig{
+		Endpoints: map[string]plugin.BusBlock{
+			removalCaptureObserver: {Receive: plugin.BusDirectionBlock{AllowPresent: true, AllowNone: true}},
+		},
+	})
+	server.srv.UpdateDeliveryGraph(bgpevents.Namespace, []pluginserver.DeliveryPeer{{
+		Addr:           peer.AddrStr(),
+		Name:           peer.Name,
+		Path:           "/bgp/peer/" + peer.Name,
+		SecondaryPaths: []string{"/bgp/ip/" + peer.AddrStr()},
+	}})
+	got, _ = peerStateRecipients(server.srv, peer, rpc.SessionStateDown, rpc.ReasonPeerRemoved)
+	if slices.Contains(got, observer) {
+		t.Errorf("bus-narrowed validator %s bypassed compiled bus filter on removal", observer.Name())
 	}
 }

@@ -29,10 +29,8 @@ import (
 	"github.com/ze-software/ze/internal/core/bgp/attribute"
 	"github.com/ze-software/ze/internal/core/bgp/capability"
 	bgpctx "github.com/ze-software/ze/internal/core/bgp/context"
-	bgpevents "github.com/ze-software/ze/internal/core/bgp/events"
 	"github.com/ze-software/ze/internal/core/bgp/msgtype"
 	"github.com/ze-software/ze/internal/core/bgp/wire"
-	"github.com/ze-software/ze/internal/core/events"
 	"github.com/ze-software/ze/internal/core/family"
 	"github.com/ze-software/ze/pkg/plugin/rpc"
 	"github.com/ze-software/ze/pkg/plugin/sdk"
@@ -517,7 +515,7 @@ func TestRFC8212RawAPIAdmission(t *testing.T) {
 					if packet {
 						kind, payload = 0, rawOwnershipPacket(tc.body, msgtype.TypeUPDATE)
 					}
-					api := newSendPermissionReactor(peer)
+					api := newSendPermissionReactor(t, peer)
 					if err := api.SendRawMessage(peer.settings.Address, kind, payload, plugin.ProcessSender(railGranted)); err != nil {
 						t.Fatal(err)
 					}
@@ -576,7 +574,7 @@ func TestRFC8212RawControlUnaffected(t *testing.T) {
 					facts := peer.forwardFacts()
 					return facts.exportPolicy.AcceptsAtEnd(facts.isEBGP)
 				}
-				api := newSendPermissionReactor(peer)
+				api := newSendPermissionReactor(t, peer)
 				if err := api.SendRawMessage(peer.settings.Address, tc.kind, tc.payload, plugin.ProcessSender(railGranted)); err != nil {
 					t.Fatal(err)
 				}
@@ -962,8 +960,7 @@ func newRFC8212ImportFixtureWith(t *testing.T, wire bool, extra ...string) *rfc8
 	require.NoError(t, err)
 	settings := NewPeerSettings(netip.MustParseAddr("192.0.2.1"), 65001, 65002, 0x01020301)
 	settings.ImportPolicy = accept
-	settings.ProcessBindings = []ProcessBinding{{PluginName: rfc8212ImportOwnerName,
-		Receive: map[string]events.Direction{bgpevents.EventUpdate: events.DirReceived}}}
+	settings.Bus = testBusReceiveOnly(rfc8212ImportOwnerName, "update-received")
 	fx.peer = NewPeer(settings)
 	fx.peer.state.Store(int32(PeerStateEstablished))
 	fx.peer.session = fx.f.s
@@ -997,6 +994,7 @@ func newRFC8212ImportFixtureWith(t *testing.T, wire bool, extra ...string) *rfc8
 	owner := fx.owner
 	require.NoError(t, registry.Register(registry.Registration{
 		Name: rfc8212ImportOwnerName, Description: "RFC 8212 import owner fixture",
+		Sends: testAllBGPSendDecls(), Receives: testAllBGPReceiveDecls(),
 		RunEngine: func(conn net.Conn) int {
 			if wire {
 				conn = struct{ net.Conn }{conn}
@@ -1007,7 +1005,9 @@ func newRFC8212ImportFixtureWith(t *testing.T, wire bool, extra ...string) *rfc8
 			owner.plugin = p
 			owner.mu.Unlock()
 			p.OnSourcePolicy(owner.handle)
-			if err := p.Run(context.Background(), &sdk.Registration{}); err != nil {
+			if err := p.Run(context.Background(), &sdk.Registration{
+				Sends: testAllBGPSendDecls(), Receives: testAllBGPReceiveDecls(),
+			}); err != nil {
 				return 1
 			}
 			return 0

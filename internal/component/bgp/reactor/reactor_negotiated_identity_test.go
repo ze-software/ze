@@ -42,7 +42,7 @@ func TestNegotiatedEventUsesCurrentOpenIdentity(t *testing.T) {
 			settings.LocalAddress = mustParseAddr("10.0.0.1")
 			settings.PeerAS = tc.configured
 			settings.IsDynamic = tc.configured == 0
-			settings.ProcessBindings = []ProcessBinding{operatorBinding(t, "monitor", "negotiated", "")}
+			settings.Bus = testBusBlockForGrants(operatorGrant("monitor", "negotiated", ""))
 			peer := NewPeer(settings)
 			// The fixture packs the peer's ASN4 capability into OPEN optional
 			// parameters. negotiateWith resolves that OPEN, not settings.PeerAS.
@@ -55,9 +55,7 @@ func TestNegotiatedEventUsesCurrentOpenIdentity(t *testing.T) {
 			r.eventDispatcher = bgpserver.NewEventDispatcher(srv)
 			r.peers[settings.PeerKey()] = peer
 			peer.reactor = r
-			r.mu.Lock()
-			r.publishDeliveryGraphLocked()
-			r.mu.Unlock()
+			publishTestBusGraph(t, r)
 
 			engineSide, pluginSide := net.Pipe()
 			proc := process.NewProcess(plugin.PluginConfig{Name: "monitor"})

@@ -23,6 +23,7 @@ func watchdogBusSends() []rpc.MessageSendDecl {
 func watchdogBusReceives() []rpc.MessageReceiveDecl {
 	return []rpc.MessageReceiveDecl{
 		{Message: bgpevents.Namespace + ":" + bgpevents.EventState},
+		{Message: events.MessageParticipantExit},
 	}
 }
 

@@ -91,6 +91,7 @@ func (o *apiStateObserver) OnPeerClosed(peer *Peer, closed sessionClose) {
 		return
 	}
 	s := peer.Settings()
+	peerAS := peer.PeerAS()
 	peerInfo := plugin.PeerInfo{
 		PeerOwner:       peer.sourceOwner,
 		Address:         s.Address,
@@ -105,11 +106,14 @@ func (o *apiStateObserver) OnPeerClosed(peer *Peer, closed sessionClose) {
 		// can be drained on the hold-timer goroutine, racing a dynamic peer's reconnect
 		// resolveDynamicPeerSettings write (reactor_dynamic.go). Other fields are immutable
 		// post-construction (PeerAS/ImportPolicy/ExportPolicy use guarded accessors).
-		PeerAS:   rpc.RemoteASOf(peer.PeerAS()),
-		RouterID: s.RouterID,
-		Connect:  s.Connection.Connect,
-		Accept:   s.Connection.Accept,
-		State:    peer.State().PluginState(),
+		PeerAS:               rpc.RemoteASOf(peerAS),
+		RouterID:             s.RouterID,
+		Connect:              s.Connection.Connect,
+		Accept:               s.Connection.Accept,
+		State:                peer.State().PluginState(),
+		IsIBGP:               s.isIBGPWith(peerAS),
+		RSClient:             s.RSClient,
+		RouteReflectorClient: s.RouteReflectorClient,
 		// The FSM event travels beside the reason so a plugin that has to
 		// name it (BMP Peer Down reason 2) reads what closed the session.
 		CloseFSMEvent: closed.fsmEvent,
@@ -170,8 +174,9 @@ func (a *reactorAPIAdapter) Peers() []plugin.PeerInfo {
 		// Section 4.2 migration ASN reports internal here for the same reason it takes the
 		// internal branch everywhere else, so what a plugin reads about a peer agrees with
 		// what the forward path did to that peer's routes.
+		isIBGP := s.isIBGPWith(peerAS)
 		peerType := "external"
-		if s.isIBGPWith(peerAS) {
+		if isIBGP {
 			peerType = "internal"
 		}
 		localPort, remotePort := p.tCPPorts()
@@ -207,6 +212,8 @@ func (a *reactorAPIAdapter) Peers() []plugin.PeerInfo {
 			EORReceived:          stats.EORReceived,
 			EORSent:              stats.EORSent,
 			PrefixUpdated:        prefixUpdated,
+			IsIBGP:               isIBGP,
+			RSClient:             s.RSClient,
 			RouteReflectorClient: s.RouteReflectorClient,
 			ClusterID:            s.ClusterID,
 			NextHopMode:          s.NextHopMode,
@@ -1583,6 +1590,9 @@ func peerSettingsEqual(a, b *PeerSettings) bool {
 	if !capabilitiesEqual(a.Capabilities, b.Capabilities) {
 		return false
 	}
+	if !plugin.BusBlockEqual(a.Bus, b.Bus) {
+		return false
+	}
 
 	// Compare every remaining field structurally. Copy so the exclusions below do
 	// not mutate the caller's settings. PeerSettings holds no locks, funcs, or
@@ -1592,6 +1602,7 @@ func peerSettingsEqual(a, b *PeerSettings) bool {
 
 	// Excluded: compared semantically above.
 	ac.Capabilities, bc.Capabilities = nil, nil
+	ac.Bus, bc.Bus = plugin.BusBlock{}, plugin.BusBlock{}
 
 	// PrefixUpdated is NOT excluded. It holds the per-family ISO dates the prefix
 	// maximums were last refreshed from PeeringDB (peer_settings.go), and it drives
@@ -1847,61 +1858,6 @@ func (a *reactorAPIAdapter) RIBStats() bgptypes.RIBStatsInfo {
 // Engine has no RIB — route storage is owned by plugins.
 func (a *reactorAPIAdapter) ClearRIBIn() int {
 	return 0
-}
-
-// GetPeerProcessBindings returns process bindings for a specific peer.
-// Returns nil if peer not found.
-// Resolves encoding inheritance: peer binding -> plugin encoder -> "text" default.
-func (a *reactorAPIAdapter) GetPeerProcessBindings(peerAddr netip.Addr) []plugin.PeerProcessBinding {
-	a.r.mu.RLock()
-	defer a.r.mu.RUnlock()
-
-	peer, ok := a.r.findPeerByAddr(peerAddr)
-	if !ok {
-		return nil
-	}
-
-	settings := peer.Settings()
-	result := make([]plugin.PeerProcessBinding, 0, len(settings.ProcessBindings))
-	for _, b := range settings.ProcessBindings {
-		// Resolve encoding: peer override -> plugin default -> "text"
-		encoding := b.Encoding
-		if encoding == "" {
-			encoding = a.getPluginEncoder(b.PluginName)
-		}
-		if encoding == "" {
-			encoding = "text"
-		}
-
-		// Resolve format: peer override -> "parsed"
-		format := b.Format
-		if format == "" {
-			format = "parsed"
-		}
-
-		result = append(result, plugin.PeerProcessBinding{
-			PluginName: b.PluginName,
-			Explicit:   b.Explicit,
-			Encoding:   encoding,
-			Format:     format,
-			ReceiveAll: b.ReceiveAll,
-			Receive:    maps.Clone(b.Receive),
-			Implicit:   maps.Clone(b.Implicit),
-			SendAll:    b.SendAll,
-			Send:       maps.Clone(b.Send),
-		})
-	}
-	return result
-}
-
-// getPluginEncoder returns the encoder for a plugin, or empty if not found.
-func (a *reactorAPIAdapter) getPluginEncoder(name string) string {
-	for _, pc := range a.r.config.Plugins {
-		if pc.Name == name {
-			return pc.Encoder
-		}
-	}
-	return ""
 }
 
 // getMatchingPeersSel resolves the peers a send command may reach: the peers

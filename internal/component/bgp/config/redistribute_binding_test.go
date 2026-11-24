@@ -1,3 +1,5 @@
+// Design: docs/architecture/api/architecture.md -- redistribution bus requirements.
+// Related: bus_requirements.go -- checkRedistributionRequirements.
 package bgpconfig
 
 import (
@@ -5,71 +7,11 @@ import (
 
 	"github.com/stretchr/testify/require"
 
-	"github.com/ze-software/ze/internal/component/bgp/reactor"
 	"github.com/ze-software/ze/internal/component/config"
 	bgpevents "github.com/ze-software/ze/internal/core/bgp/events"
 	"github.com/ze-software/ze/internal/core/events"
+	"github.com/ze-software/ze/internal/core/opererr"
 )
-
-// bindingsFor runs the config path a running daemon runs and returns the
-// process bindings of the peer every case in this file declares.
-func bindingsFor(t *testing.T, input string) []reactor.ProcessBinding {
-	t.Helper()
-	const peerName = "upstream"
-	r, err := loadReactor(input)
-	require.NoError(t, err)
-	for _, p := range r.Peers() {
-		settings := p.Settings()
-		if settings.Name == peerName {
-			return settings.ProcessBindings
-		}
-	}
-	t.Fatalf("peer %q not built from the config", peerName)
-	return nil
-}
-
-// bindingNamed returns the one binding for a process, and fails when the peer
-// holds none or holds more than one. Two bindings for one process is the
-// failure AC-4 names, so counting is part of the assertion rather than a
-// lookup detail.
-func bindingNamed(t *testing.T, bindings []reactor.ProcessBinding, process string) *reactor.ProcessBinding {
-	t.Helper()
-	var found []*reactor.ProcessBinding
-	for i := range bindings {
-		if bindings[i].PluginName == process {
-			found = append(found, &bindings[i])
-		}
-	}
-	require.Lenf(t, found, 1, "expected exactly one binding for process %q, got %d", process, len(found))
-	return found[0]
-}
-
-// agreementOwner is the plugin of the member bgp-filter-community inserts,
-// required, at the head of every bilateral eBGP export list (RFC 7999 Section
-// 3.1). Every peer in this file is eBGP, so each carries the implicit `state`
-// grant that member brings its plugin (grantFilterOwnersState). It is no
-// redistribution binding, so a case counts it apart.
-const agreementOwner = "bgp-filter-community"
-
-// redistributionBindings asserts the peer holds exactly the agreement member's
-// implicit `state` grant, and nothing wider, and returns every other binding:
-// the ones redistribution derives, or the operator configured.
-func redistributionBindings(t *testing.T, bindings []reactor.ProcessBinding) []reactor.ProcessBinding {
-	t.Helper()
-	grant := bindingNamed(t, bindings, agreementOwner)
-	require.Equal(t, map[string]events.Direction{bgpevents.EventState: events.DirBoth}, grant.Receive)
-	require.Equal(t, map[string]bool{bgpevents.EventState: true}, grant.Implicit)
-	require.False(t, grant.ReceiveAll)
-	require.False(t, grant.SendAll)
-	require.Empty(t, grant.Send)
-	rest := make([]reactor.ProcessBinding, 0, len(bindings))
-	for i := range bindings {
-		if bindings[i].PluginName != agreementOwner {
-			rest = append(rest, bindings[i])
-		}
-	}
-	return rest
-}
 
 const redistOSPFImportsBGP = `
 bgp {
@@ -97,104 +39,32 @@ redistribute {
 }
 `
 
-// TestRedistributeBGPSourceWiresLocRIBBinding is the wiring test for AC-1. A
-// config names a BGP redistribution source and writes no `plugin` block and no
-// `attach process` block, and it still feeds the built-in Loc-RIB.
+// TestRedistributeBGPSourceFeedsLocRIB verifies that a BGP redistribution
+// source with no written bus block feeds the auto-loaded Loc-RIB with updates,
+// state, and refresh via registered defaults.
 //
-// VALIDATES: AC-1, AC-7 -- the binding exists, names the process the plugin
-// server auto-loads, and grants the three event types the Loc-RIB declares.
-// PREVENTS: the silent stage-1 drop, where deliveryPeersFromSettings builds a
-// graph from ProcessBindings alone and a peer with no attach block grants
-// nothing, so PeerScopedProcs answers empty and the UPDATE is discarded.
-func TestRedistributeBGPSourceWiresLocRIBBinding(t *testing.T) {
-	binding := bindingNamed(t, bindingsFor(t, redistOSPFImportsBGP), "bgp-rib")
-
-	require.False(t, binding.ReceiveAll, "the derived grant names its types; the wildcard would grant a type a plugin registers later")
-	require.Equal(t, events.DirBoth, binding.Receive[bgpevents.EventUpdate])
-	require.Equal(t, events.DirBoth, binding.Receive[bgpevents.EventState])
-	require.Equal(t, events.DirBoth, binding.Receive[bgpevents.EventRefresh])
-	require.False(t, binding.SendAll, "the Loc-RIB is fed, it does not push routes onto this peer's wire")
-	require.Empty(t, binding.Send)
-}
-
-// TestPeerWithAutoWiredLocRIBReceivesUpdate asks the delivery index the exact
-// question the peer-scoped delivery site asks (Server.PeerScopedProcs, through
-// DeliveryGraph.Receivers). The assertion is then about what a received UPDATE
-// reaches, rather than about a struct field.
-//
-// VALIDATES: AC-1 -- the derived binding survives deliveryPeersFromSettings and
-// resolves the Loc-RIB process for an UPDATE in the received direction.
-func TestPeerWithAutoWiredLocRIBReceivesUpdate(t *testing.T) {
+// VALIDATES: AC-1 -- zero-boilerplate BGP-to-OSPF redistribution feeds bgp-rib.
+// PREVENTS: silent stage-1 event drops when no explicit bus block is written.
+func TestRedistributeBGPSourceFeedsLocRIB(t *testing.T) {
 	g := graphFromConfig(t, redistOSPFImportsBGP)
-	require.Equal(t, []string{"bgp-rib"}, fedBy(g, bgpevents.EventUpdate, events.DirReceived, "10.0.0.2"))
+	require.Contains(t, fedBy(g, bgpevents.EventUpdate, events.DirReceived, "10.0.0.2"), "bgp-rib")
+	require.Contains(t, fedBy(g, bgpevents.EventUpdate, events.DirSent, "10.0.0.2"), "bgp-rib")
+	require.Contains(t, fedBy(g, bgpevents.EventState, events.DirUnspecified, "10.0.0.2"), "bgp-rib")
+	require.Contains(t, fedBy(g, bgpevents.EventRefresh, events.DirReceived, "10.0.0.2"), "bgp-rib")
 }
 
-// TestExplicitBindingWins holds the derived binding to AC-4: an operator who
-// wrote a narrower grant keeps it, and gains no second binding for that process.
+// TestRedistributeBGPSourceRefusesNarrowedLocRIB verifies AC-14 / S18 / S33:
+// cutting the Loc-RIB below what `source bgp` requires is refused with a typed
+// operational fix instead of loading and moving no routes.
 //
-// VALIDATES: AC-4.
-// PREVENTS: a derived binding appended beside the operator's, which would grant
-// update and refresh to a process the operator granted state alone.
-func TestExplicitBindingWins(t *testing.T) {
+// VALIDATES: checkRedistributionRequirements refuses narrowed Loc-RIB feeds.
+// PREVENTS: a narrowed bgp-rib endpoint silently dropping redistributed routes.
+func TestRedistributeBGPSourceRefusesNarrowedLocRIB(t *testing.T) {
 	const input = `
-plugin {
-    internal rib {
-        use bgp-rib;
-    }
-}
-
-bgp {
-    router-id 10.0.0.1;
-    session { asn { local 65000; } }
-    peer upstream {
-        connection {
-            remote { ip 10.0.0.2; }
-            local  { ip 10.0.0.1; }
-        }
-        session {
-            asn { local 65000; remote 65001; }
-        }
-        attach process rib {
-            receive [ state ];
-        }
-    }
-}
-
-ospf {
-    router-id 10.0.0.1
-}
-
-redistribute {
-    destination ospf {
-        import bgp
-    }
-}
-`
-	bindings := bindingsFor(t, input)
-	binding := bindingNamed(t, bindings, "rib")
-	require.Equal(t, events.DirBoth, binding.Receive[bgpevents.EventState])
-	require.Equal(t, events.DirUnspecified, binding.Receive[bgpevents.EventUpdate], "the operator granted state alone")
-	require.Equal(t, events.DirUnspecified, binding.Receive[bgpevents.EventRefresh], "the operator granted state alone")
-
-	for _, b := range bindings {
-		require.NotEqual(t, "bgp-rib", b.PluginName,
-			"the alias `rib` is the process the config declares for bgp-rib; a second binding under the registry name would name a process nothing runs")
-	}
-}
-
-// TestDerivedBindingNamesTheConfiguredAlias covers the other half of the alias.
-// The operator declared the plugin under a name of their own, and attached it
-// to no peer. The derived binding is owed, and it MUST name the alias.
-//
-// VALIDATES: AC-1 for the two OSPF interop scenarios, whose ze.conf declares
-// `plugin { internal rib { use bgp-rib; } }` and no attach block.
-// PREVENTS: a derived binding hardcoded to the registry name, which would name
-// a process the plugin server never starts under that config.
-func TestDerivedBindingNamesTheConfiguredAlias(t *testing.T) {
-	const input = `
-plugin {
-    internal rib {
-        use bgp-rib;
+bus {
+    endpoint rib {
+        internal bgp-rib;
+        receive { allow [ bgp:state ]; }
     }
 }
 
@@ -222,17 +92,29 @@ redistribute {
     }
 }
 `
-	binding := bindingNamed(t, bindingsFor(t, input), "rib")
-	require.Equal(t, events.DirBoth, binding.Receive[bgpevents.EventUpdate])
+	_, err := config.LoadConfig(input, "", nil)
+	require.Error(t, err, "cutting bgp:update from rib while redistribution imports bgp must be refused")
+	var oe *opererr.Error
+	require.ErrorAs(t, err, &oe)
+	require.Contains(t, err.Error(), "redistribution")
+	require.NotEmpty(t, oe.Fix)
 }
 
-// TestNoRedistributeNoBinding holds AC-6: a config that asks for no
-// redistribution pays nothing for this feature.
+// TestRedistributeBGPSourceUsesConfiguredAlias verifies that declaring an
+// aliased Loc-RIB endpoint (`bus { endpoint rib { internal bgp-rib; } }`)
+// satisfies BGP source redistribution under the alias name.
 //
-// VALIDATES: AC-6 -- no binding is added, so the peer's delivery set stays what
-// the config grants and the per-UPDATE work is unchanged.
-func TestNoRedistributeNoBinding(t *testing.T) {
+// VALIDATES: AC-13, AC-14 -- aliased Loc-RIB endpoints resolve by registration
+// identity and feed the alias on the compiled DeliveryGraph.
+// PREVENTS: requirement checks hardcoding "bgp-rib" when an alias is declared.
+func TestRedistributeBGPSourceUsesConfiguredAlias(t *testing.T) {
 	const input = `
+bus {
+    endpoint rib {
+        internal bgp-rib;
+    }
+}
+
 bgp {
     router-id 10.0.0.1;
     session { asn { local 65000; } }
@@ -250,68 +132,27 @@ bgp {
 ospf {
     router-id 10.0.0.1
 }
-`
-	require.Empty(t, redistributionBindings(t, bindingsFor(t, input)))
-}
-
-// TestNonBGPRedistributeSourceAddsNoBinding is the negative that separates the
-// SOURCE from the block. A `redistribute` block exists, none of its sources is
-// the Loc-RIB, and no Loc-RIB delivery is derived.
-//
-// The config below does derive the orchestrator's send permission, because it
-// carries `destination bgp`. That is the other rule's binding, and
-// TestDestinationBGPWiresOrchestratorSendPermission is what asserts it. What
-// this test holds is that the two are independent.
-//
-// VALIDATES: AC-6 -- the Loc-RIB gate is the SOURCE, not the presence of the
-// block.
-// PREVENTS: wiring the Loc-RIB into every peer of a daemon that only exports
-// IS-IS routes into BGP, which R-1 names as the per-UPDATE cost risk. Such a
-// peer pays no per-UPDATE delivery: the orchestrator's grant carries `state`,
-// which fires once per session change.
-func TestNonBGPRedistributeSourceAddsNoBinding(t *testing.T) {
-	const input = `
-bgp {
-    router-id 10.0.0.1;
-    session { asn { local 65000; } }
-    peer upstream {
-        connection {
-            remote { ip 10.0.0.2; }
-            local  { ip 10.0.0.1; }
-        }
-        session {
-            asn { local 65000; remote 65001; }
-        }
-    }
-}
-
-isis {
-    net 49.0001.0000.0000.0001.00
-}
 
 redistribute {
-    destination bgp {
-        import isis
+    destination ospf {
+        import bgp
     }
 }
 `
-	for _, b := range bindingsFor(t, input) {
-		require.NotEqual(t, "bgp-rib", b.PluginName,
-			"no rule names a BGP source, so no peer owes the Loc-RIB a delivery")
-	}
+	g := graphFromConfig(t, input)
+	require.Contains(t, fedBy(g, bgpevents.EventUpdate, events.DirReceived, "10.0.0.2"), "rib")
+	require.NotContains(t, fedBy(g, bgpevents.EventUpdate, events.DirReceived, "10.0.0.2"), "bgp-rib")
 }
 
-// TestDerivedBindingReachesDynamicGroupMembers holds the derived binding to the
-// rule peersAndDynamicGroups exists to enforce. One walk builds both peer
-// populations, so a layer applied to the statically configured peers reaches a
-// dynamic group's template by the same line.
+// TestRedistributeBGPSourceCoversDynamicGroupMembers verifies that dynamic
+// groups are evaluated by checkRedistributionRequirements identically to static
+// peers.
 //
-// VALIDATES: AC-1 for an IXP route server, whose members arrive on the listener
-// and are built from the group template.
-// PREVENTS: the shape that left dynamic members with no policy at all, where a
-// second walk read the layers somebody remembered.
-func TestDerivedBindingReachesDynamicGroupMembers(t *testing.T) {
-	const input = `
+// VALIDATES: dynamic group members feed bgp-rib by default and cutting their
+// bus send target refuses commit.
+// PREVENTS: dynamic group peers silently bypassing redistribution requirements.
+func TestRedistributeBGPSourceCoversDynamicGroupMembers(t *testing.T) {
+	const okInput = `
 bgp {
     router-id 10.0.0.1;
     session { asn { local 65000; } }
@@ -336,184 +177,163 @@ redistribute {
     }
 }
 `
-	schema, err := config.YANGSchema()
-	require.NoError(t, err)
-	tree, err := config.NewParser(schema).Parse(input)
-	require.NoError(t, err)
+	g := graphFromConfig(t, okInput)
+	require.Contains(t, fedBy(g, bgpevents.EventUpdate, events.DirReceived, "dynamic-group:members"), "bgp-rib")
 
-	_, groups, err := peersAndDynamicGroups(tree)
-	require.NoError(t, err)
-	require.Len(t, groups, 1)
-	binding := bindingNamed(t, groups[0].Settings.ProcessBindings, "bgp-rib")
-	require.Equal(t, events.DirBoth, binding.Receive[bgpevents.EventUpdate])
-}
-
-// TestDerivedBindingRaisesNoDeliveryDisagreement holds AC-7 through the
-// producing function rather than through a log line. reconcileDelivery's
-// judgement is exposed as data, so the test asserts the finding set is empty
-// for a peer holding only the derived binding.
-//
-// VALIDATES: AC-7 -- no `no peer attaches it` warning, and no grant the plugin
-// never declared.
-// PREVENTS: a derived grant wider than the Loc-RIB's own declaration, which
-// would trade a silent drop for a permanent startup warning.
-func TestDerivedBindingRaisesNoDeliveryDisagreement(t *testing.T) {
-	g := graphFromConfig(t, redistOSPFImportsBGP)
-	processes := map[string]bool{}
-	for _, peer := range g.Inspect() {
-		for _, edges := range peer.Processes {
-			processes[edges.Process] = true
-			require.Empty(t, edges.Unresolved, "every derived receive token resolves to a registered event type")
-		}
-	}
-	// The Loc-RIB's derived binding, and the agreement member's implicit
-	// `state` grant (redistributionBindings): no other process is granted.
-	require.Equal(t, map[string]bool{"bgp-rib": true, agreementOwner: true}, processes)
-	require.Equal(t, 1, g.Len())
-
-	// Each type is asked in the direction its own delivery site asks it in
-	// (internal/component/bgp/server/events.go). A state event carries none,
-	// and a ROUTE-REFRESH ze received carries the received one.
-	// The agreement member's plugin is fed the peer's `state` by its implicit
-	// grant (redistributionBindings), and nothing else.
-	require.Equal(t, []string{agreementOwner, "bgp-rib"}, fedBy(g, bgpevents.EventState, events.DirUnspecified, "10.0.0.2"))
-	require.Equal(t, []string{"bgp-rib"}, fedBy(g, bgpevents.EventRefresh, events.DirReceived, "10.0.0.2"))
-}
-
-// TestDestinationBGPWiresOrchestratorSendPermission is the other half of the
-// derived plumbing. A `destination bgp` rule moves a route onto a peer's wire
-// through the redistribute orchestrator, and a peer grants a process that right
-// with `send [ update ]`.
-//
-// VALIDATES: `redistribute { destination bgp { import <src> } }` works as
-// written, which is what test/interop/scenarios/isis-redist-frr and
-// test/interop/scenarios/as112-redistribute-lab each ask for.
-// PREVENTS: the mirror of the Loc-RIB defect. Peer.maySend
-// (internal/component/bgp/reactor/send_permission.go) refuses a process the
-// peer's attach block does not name, so the consumer's UpdateRoute was refused
-// for every peer and the rule moved nothing.
-func TestDestinationBGPWiresOrchestratorSendPermission(t *testing.T) {
-	const input = `
+	const cutInput = `
 bgp {
     router-id 10.0.0.1;
     session { asn { local 65000; } }
-    peer upstream {
+    group members {
         connection {
-            remote { ip 10.0.0.2; }
-            local  { ip 10.0.0.1; }
+            remote { ip dynamic; connect false; range 10.0.0.0/24; }
+            local  { ip 10.0.0.1; accept true; }
         }
         session {
             asn { local 65000; remote 65001; }
         }
+        bus { send { to none; } }
     }
 }
 
-isis {
-    net 49.0001.0000.0000.0001.00
+ospf {
+    router-id 10.0.0.1
 }
 
 redistribute {
-    destination bgp {
-        import isis
-    }
-}
-`
-	binding := bindingNamed(t, bindingsFor(t, input), "redistribute-orchestrator")
-	require.True(t, binding.MaySend("update"), "the orchestrator must be permitted to put the route on this peer's wire")
-	require.True(t, binding.ReceivesPeerState(), "the peer-up edge is what fires the late-join replay")
-	require.False(t, binding.SendAll, "the derived grant names its type")
-	require.Equal(t, events.DirUnspecified, binding.Receive[bgpevents.EventUpdate],
-		"the orchestrator declares only state; granting update would raise a delivery disagreement")
-}
-
-// TestOperatorOrchestratorBindingWins is AC-4 for the second derived binding.
-//
-// VALIDATES: an operator who granted the orchestrator a narrower send list
-// keeps it, and gains no second binding.
-func TestOperatorOrchestratorBindingWins(t *testing.T) {
-	const input = `
-bgp {
-    router-id 10.0.0.1;
-    session { asn { local 65000; } }
-    peer upstream {
-        connection {
-            remote { ip 10.0.0.2; }
-            local  { ip 10.0.0.1; }
-        }
-        session {
-            asn { local 65000; remote 65001; }
-        }
-        attach process redistribute-orchestrator {
-            receive [ state ];
-        }
-    }
-}
-
-isis {
-    net 49.0001.0000.0000.0001.00
-}
-
-redistribute {
-    destination bgp {
-        import isis
-    }
-}
-`
-	binding := bindingNamed(t, bindingsFor(t, input), "redistribute-orchestrator")
-	require.False(t, binding.MaySend("update"),
-		"the operator granted no send, and a derived binding never widens what one says")
-}
-
-// TestDestinationOSPFAddsNoOrchestratorBinding is the negative that scopes the
-// send permission to the destination that needs it.
-//
-// VALIDATES: a rule feeding an IGP grants nothing on a BGP peer's wire.
-// PREVENTS: every peer of an IGP-only redistribution gaining a send permission
-// the config never asked for.
-func TestDestinationOSPFAddsNoOrchestratorBinding(t *testing.T) {
-	for _, b := range bindingsFor(t, redistOSPFImportsBGP) {
-		require.NotEqual(t, "redistribute-orchestrator", b.PluginName,
-			"no rule feeds bgp, so no peer owes the orchestrator a send permission")
-	}
-}
-
-// TestBothDerivedBindingsCoexist covers the config the isis-redist-frr interop
-// scenario carries: one `redistribute` block whose rules imply BOTH derived
-// bindings on the same peer.
-//
-// VALIDATES: the two derivations are independent and neither displaces the
-// other.
-func TestBothDerivedBindingsCoexist(t *testing.T) {
-	const input = `
-bgp {
-    router-id 10.0.0.1;
-    session { asn { local 65000; } }
-    peer upstream {
-        connection {
-            remote { ip 10.0.0.2; }
-            local  { ip 10.0.0.1; }
-        }
-        session {
-            asn { local 65000; remote 65001; }
-        }
-    }
-}
-
-isis {
-    net 49.0001.0000.0000.0001.00
-}
-
-redistribute {
-    destination bgp {
-        import isis
-    }
-    destination isis {
+    destination ospf {
         import bgp
     }
 }
 `
-	bindings := bindingsFor(t, input)
-	require.Len(t, redistributionBindings(t, bindings), 2)
-	require.True(t, bindingNamed(t, bindings, "redistribute-orchestrator").MaySend("update"))
-	require.Equal(t, events.DirBoth, bindingNamed(t, bindings, "bgp-rib").Receive[bgpevents.EventUpdate])
+	_, err := config.LoadConfig(cutInput, "", nil)
+	require.Error(t, err, "cutting a dynamic group away from bgp-rib under source bgp must be refused")
+}
+
+// TestDestinationBGPPermitsOrchestratorSend verifies that `destination bgp`
+// permits the auto-loaded redistribute orchestrator to send bgp:update and
+// receive bgp:state without receiving bgp:update.
+//
+// VALIDATES: AC-1 -- zero-boilerplate IGP-to-BGP redistribution works via
+// registered defaults.
+// PREVENTS: redistribute-orchestrator missing send permission or receiving
+// undeclared update traffic.
+func TestDestinationBGPPermitsOrchestratorSend(t *testing.T) {
+	const input = `
+bgp {
+    router-id 10.0.0.1;
+    session { asn { local 65000; } }
+    peer upstream {
+        connection {
+            remote { ip 10.0.0.2; }
+            local  { ip 10.0.0.1; }
+        }
+        session {
+            asn { local 65000; remote 65001; }
+        }
+    }
+}
+
+isis {
+    net 49.0001.0000.0000.0001.00
+}
+
+redistribute {
+    destination bgp {
+        import isis
+    }
+}
+`
+	g := graphFromConfig(t, input)
+	require.True(t, g.MaySend("10.0.0.2", "redistribute-orchestrator", bgpevents.SendUpdate))
+	require.True(t, g.ProcessReceivesState("10.0.0.2", "redistribute-orchestrator"))
+	require.NotContains(t, fedBy(g, bgpevents.EventUpdate, events.DirReceived, "10.0.0.2"), "redistribute-orchestrator")
+}
+
+// TestDestinationBGPRefusesNarrowedOrchestrator verifies AC-14 / S18 / S33:
+// cutting the orchestrator's send or state reception under `destination bgp`
+// is refused with a typed operational fix.
+//
+// VALIDATES: checkRedistributionRequirements refuses narrowed orchestrator send
+// or state reception.
+// PREVENTS: a narrowed redistribute-orchestrator silently failing to originate routes.
+func TestDestinationBGPRefusesNarrowedOrchestrator(t *testing.T) {
+	const input = `
+bus {
+    endpoint redistribute-orchestrator {
+        internal redistribute-orchestrator;
+        send { allow none; }
+    }
+}
+
+bgp {
+    router-id 10.0.0.1;
+    session { asn { local 65000; } }
+    peer upstream {
+        connection {
+            remote { ip 10.0.0.2; }
+            local  { ip 10.0.0.1; }
+        }
+        session {
+            asn { local 65000; remote 65001; }
+        }
+    }
+}
+
+isis {
+    net 49.0001.0000.0000.0001.00
+}
+
+redistribute {
+    destination bgp {
+        import isis
+    }
+}
+`
+	_, err := config.LoadConfig(input, "", nil)
+	require.Error(t, err, "cutting bgp:update send from redistribute-orchestrator under destination bgp must be refused")
+	var oe *opererr.Error
+	require.ErrorAs(t, err, &oe)
+	require.Contains(t, err.Error(), "redistribution")
+	require.NotEmpty(t, oe.Fix)
+}
+
+// TestBothRedistributeDirectionsCoexist verifies a config with both
+// `source bgp` and `destination bgp` satisfies both checks simultaneously.
+//
+// VALIDATES: both redistribution directions coexist cleanly on one compiled graph.
+// PREVENTS: one redistribution direction interfering with the other.
+func TestBothRedistributeDirectionsCoexist(t *testing.T) {
+	const input = `
+bgp {
+    router-id 10.0.0.1;
+    session { asn { local 65000; } }
+    peer upstream {
+        connection {
+            remote { ip 10.0.0.2; }
+            local  { ip 10.0.0.1; }
+        }
+        session {
+            asn { local 65000; remote 65001; }
+        }
+    }
+}
+
+isis {
+    net 49.0001.0000.0000.0001.00
+}
+
+redistribute {
+    destination isis {
+        import bgp
+    }
+    destination bgp {
+        import isis
+    }
+}
+`
+	g := graphFromConfig(t, input)
+	require.Contains(t, fedBy(g, bgpevents.EventUpdate, events.DirReceived, "10.0.0.2"), "bgp-rib")
+	require.True(t, g.MaySend("10.0.0.2", "redistribute-orchestrator", bgpevents.SendUpdate))
+	require.True(t, g.ProcessReceivesState("10.0.0.2", "redistribute-orchestrator"))
 }

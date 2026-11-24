@@ -6,11 +6,12 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
-	"fmt"
 	"net/netip"
 	"time"
 
 	"github.com/ze-software/ze/internal/component/plugin/process"
+	"github.com/ze-software/ze/internal/core/opererr"
+	"github.com/ze-software/ze/internal/core/textbuf"
 	"github.com/ze-software/ze/pkg/plugin/rpc"
 )
 
@@ -70,7 +71,13 @@ func selectedCancellationScope(s *Server, proc *process.Process, params json.Raw
 		return requestScope{}, err
 	}
 	if !s.DeliveryGraph().MaySend(destination.String(), proc.Name(), "update") {
-		return requestScope{}, fmt.Errorf("select-routes: process has no update send grant for destination %s", destination)
+		var problem, fix textbuf.Buffer
+		problem.Str("select-routes: endpoint ").Quoted(proc.Name()).Str(" is not permitted to send bgp:update to ").Str(destination.String())
+		fix.Str("bus { endpoint ").Str(proc.Name()).Str(" { send { allow [ bgp:update ]; } } }")
+		return requestScope{}, opererr.New(
+			problem.String(),
+			"the compiled bus filter does not allow bgp:update from this endpoint to the requested destination",
+			fix.String())
 	}
 	return requestScopeFor(rpc.MethodSelectRoutes, destination, deadline), nil
 }

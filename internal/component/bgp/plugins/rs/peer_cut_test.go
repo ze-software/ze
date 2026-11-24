@@ -4,12 +4,12 @@
 package rs
 
 import (
-	"github.com/ze-software/ze/pkg/plugin/rpc"
 	"testing"
 
 	"github.com/stretchr/testify/require"
 
 	"github.com/ze-software/ze/internal/core/family"
+	"github.com/ze-software/ze/pkg/plugin/rpc"
 )
 
 // TestPeerUpCutPartitionsRailsExactly pins the peer-up cut: every UPDATE belongs
@@ -35,11 +35,11 @@ func TestPeerUpCutPartitionsRailsExactly(t *testing.T) {
 		}
 		rs.mu.Unlock()
 	}
-	rs.handleState(&Event{Type: eventState, PeerAddr: "10.0.0.2", PeerOwner: 2, ConnectionID: 102, DestinationSession: 202, State: "up", InitialReplay: 17})
+	rs.handleState(&Event{Type: eventState, PeerAddr: "10.0.0.2", PeerOwner: 2, ConnectionID: 102, DestinationSession: 202, State: "up", InitialReplay: 17, RSClient: true})
 
 	rs.mu.Lock()
 	rs.peers[rsFixtureKey("10.0.0.2", 2, 102)].Families = families
-	rs.peers[rsFixtureKey("10.0.0.1", 1, 101)] = &PeerState{Address: "10.0.0.1", DestinationSession: 201, SessionGeneration: 3, Up: true, Families: families}
+	rs.peers[rsFixtureKey("10.0.0.1", 1, 101)] = &PeerState{Address: "10.0.0.1", DestinationSession: 201, SessionGeneration: 3, Up: true, RSClient: true, Families: families}
 	cut := rs.peers[rsFixtureKey("10.0.0.2", 2, 102)].ForwardFrom
 	rs.mu.Unlock()
 
@@ -78,11 +78,11 @@ func TestPeerUpCutOfZeroLeavesEveryUpdateOnTheLiveRail(t *testing.T) {
 	families := map[family.Family]bool{family.IPv4Unicast: true}
 
 	// No UPDATE has been taken delivery of yet: seenMsgID is still its zero value.
-	rs.handleState(&Event{Type: eventState, PeerAddr: "10.0.0.2", PeerOwner: 2, ConnectionID: 102, DestinationSession: 202, State: "up", InitialReplay: 17})
+	rs.handleState(&Event{Type: eventState, PeerAddr: "10.0.0.2", PeerOwner: 2, ConnectionID: 102, DestinationSession: 202, State: "up", InitialReplay: 17, RSClient: true})
 
 	rs.mu.Lock()
 	rs.peers[rsFixtureKey("10.0.0.2", 2, 102)].Families = families
-	rs.peers[rsFixtureKey("10.0.0.1", 1, 101)] = &PeerState{Address: "10.0.0.1", DestinationSession: 201, SessionGeneration: 3, Up: true, Families: families}
+	rs.peers[rsFixtureKey("10.0.0.1", 1, 101)] = &PeerState{Address: "10.0.0.1", DestinationSession: 201, SessionGeneration: 3, Up: true, RSClient: true, Families: families}
 	cut := rs.peers[rsFixtureKey("10.0.0.2", 2, 102)].ForwardFrom
 	rs.mu.Unlock()
 
@@ -114,7 +114,7 @@ func TestPeerUpCutCapturedAtomicallyWithForwardTarget(t *testing.T) {
 	rs.mu.Lock()
 	rs.seenMsgID = 5
 	rs.mu.Unlock()
-	rs.handleState(&Event{Type: eventState, PeerAddr: "10.0.0.2", PeerOwner: 2, ConnectionID: 102, DestinationSession: 202, State: "up", InitialReplay: 17})
+	rs.handleState(&Event{Type: eventState, PeerAddr: "10.0.0.2", PeerOwner: 2, ConnectionID: 102, DestinationSession: 202, State: "up", InitialReplay: 17, RSClient: true})
 	rs.mu.RLock()
 	original := rs.peers[oldKey]
 	oldUp, oldCut := original.Up, original.ForwardFrom
@@ -126,10 +126,10 @@ func TestPeerUpCutCapturedAtomicallyWithForwardTarget(t *testing.T) {
 	rs.mu.Lock()
 	rs.seenMsgID = 42
 	rs.mu.Unlock()
-	rs.handleState(&Event{Type: eventState, PeerAddr: "10.0.0.2", PeerOwner: 2, ConnectionID: 112, DestinationSession: 212, State: "up", InitialReplay: 18})
+	rs.handleState(&Event{Type: eventState, PeerAddr: "10.0.0.2", PeerOwner: 2, ConnectionID: 112, DestinationSession: 212, State: "up", InitialReplay: 18, RSClient: true})
 	rs.mu.Lock()
 	rs.peers[newKey].Families = families
-	rs.peers[source] = &PeerState{Address: "10.0.0.1", DestinationSession: 201, SessionGeneration: 3, Up: true, Families: families}
+	rs.peers[source] = &PeerState{Address: "10.0.0.1", DestinationSession: 201, SessionGeneration: 3, Up: true, RSClient: true, Families: families}
 	rs.mu.Unlock()
 	rs.mu.RLock()
 	newCut, newSession := rs.peers[newKey].ForwardFrom, rs.peers[newKey].DestinationSession

@@ -86,7 +86,7 @@ func llnhClient(t *testing.T, addr string, connected []netip.Prefix, nextHopSelf
 		RouteReflectorClient: true,
 		// The route server's send grant: the RS fast path reaches no
 		// destination without it, as the cached rail does not.
-		ProcessBindings: []ProcessBinding{rsRelaySendBinding()},
+		Bus: rsRelaySendBinding(),
 	}
 	if nextHopSelf {
 		settings.NextHopMode = NextHopSelf
@@ -104,6 +104,7 @@ func llnhClient(t *testing.T, addr string, connected []netip.Prefix, nextHopSelf
 	peer.sendCtx.Store(ctx)
 	peer.sendCtxID = ctxID
 	peer.llScope.Store(newLinkScopeFrom(connected, peer.settings.Address))
+	setTestPeerBus(t, peer, rsRelaySendBinding())
 	peer.fwdFacts.Store(peer.buildForwardFacts())
 	return peer
 }

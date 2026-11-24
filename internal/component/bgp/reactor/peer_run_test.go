@@ -652,9 +652,7 @@ func sessionDownHistoryRow(t *testing.T, p *Peer, reason string) {
 // newNegotiatedLifetimePeer wires a real peer, dispatcher and IPC subscriber.
 func newNegotiatedLifetimePeer(t *testing.T, settings *PeerSettings) (*Peer, *stateLog, *mockLifecycleObserver) {
 	t.Helper()
-	if err := EnsureProcessBinding(settings, "monitor", "open-received negotiated state", ""); err != nil {
-		t.Fatal(err)
-	}
+	addTestPeerBusGrant(settings, operatorGrant("monitor", "open-received negotiated state", ""))
 	r := New(&Config{ListenAddr: "127.0.0.1:0"})
 	if err := r.AddPeer(settings); err != nil {
 		t.Fatal(err)
@@ -663,6 +661,7 @@ func newNegotiatedLifetimePeer(t *testing.T, settings *PeerSettings) (*Peer, *st
 	p.ctx, p.cancel = context.WithCancel(t.Context())
 	t.Cleanup(p.cancel)
 	srv := flowForwardPluginServer(t, r)
+	setupDeliveryGraphTestServer(t, srv, "monitor")
 	r.api = srv
 	dispatcher := bgpserver.NewEventDispatcher(srv)
 	r.eventDispatcher = dispatcher

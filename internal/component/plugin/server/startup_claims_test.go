@@ -467,19 +467,26 @@ func TestUnheldRolesOverTheRealDeliverySet(t *testing.T) {
 		})
 	}
 
-	s.UpdateDeliveryGraph(graphNS, []DeliveryPeer{
+	bothPath := "/" + graphNS + "/entry/both"
+	alonePath := "/" + graphNS + "/entry/alone"
+	require.NoError(t, s.UpdateDeliveryGraphWithEndpoints(graphNS, []DeliveryPeer{
+		{Addr: bothPeer, Name: "both", Path: bothPath},
+		{Addr: alonePeer, Name: "alone", Path: alonePath},
+	}, []BusParticipantInput{
 		{
-			Addr: bothPeer,
-			Bindings: []plugin.PeerProcessBinding{
-				{PluginName: owner, ReceiveAll: true},
-				{PluginName: stoodDown, ReceiveAll: true},
+			Path:         plugin.EndpointPath(owner),
+			EndpointName: owner,
+			Receives:     []rpc.MessageReceiveDecl{{Message: graphMsg(graphState)}},
+			OwnBlock: plugin.BusBlock{
+				Receive: plugin.BusDirectionBlock{TargetsPresent: true, Targets: []string{bothPath}},
 			},
 		},
 		{
-			Addr:     alonePeer,
-			Bindings: []plugin.PeerProcessBinding{{PluginName: stoodDown, ReceiveAll: true}},
+			Path:         plugin.EndpointPath(stoodDown),
+			EndpointName: stoodDown,
+			Receives:     []rpc.MessageReceiveDecl{{Message: graphMsg(graphState)}},
 		},
-	})
+	}))
 
 	unheldFor := func(peerAddr string) []string {
 		procs := s.PeerScopedProcs(ns, stateET, events.DirUnspecified, peerAddr, "")
@@ -529,15 +536,33 @@ func TestUnheldRolesRespectsDeliveredClaimantAuthority(t *testing.T) {
 		{name: "other-claimant-authorized", receive: true, secondWriter: true},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			bindings := []plugin.PeerProcessBinding{{
-				PluginName: owner, ReceiveAll: tc.receive, SendAll: tc.sendAll, Send: tc.send,
-			}}
+			peerPath := "/" + graphNS + "/entry/p1"
+			ownerEP := BusParticipantInput{
+				Path:         plugin.EndpointPath(owner),
+				EndpointName: owner,
+			}
+			if tc.receive {
+				ownerEP.Receives = []rpc.MessageReceiveDecl{{Message: graphMsg(graphState)}}
+			}
+			if tc.sendAll {
+				ownerEP.Sends = []rpc.MessageSendDecl{{Message: graphMsg(graphUpdate)}, {Message: graphMsg(graphRaw)}}
+			} else {
+				for st, ok := range tc.send {
+					if ok {
+						ownerEP.Sends = append(ownerEP.Sends, rpc.MessageSendDecl{Message: graphMsg(st)})
+					}
+				}
+			}
+			eps := []BusParticipantInput{ownerEP}
 			if tc.secondWriter {
-				bindings = append(bindings, plugin.PeerProcessBinding{
-					PluginName: second, ReceiveAll: true, Send: map[string]bool{"update": true},
+				eps = append(eps, BusParticipantInput{
+					Path:         plugin.EndpointPath(second),
+					EndpointName: second,
+					Receives:     []rpc.MessageReceiveDecl{{Message: graphMsg(graphState)}},
+					Sends:        []rpc.MessageSendDecl{{Message: graphMsg(graphUpdate)}},
 				})
 			}
-			s.UpdateDeliveryGraph(graphNS, []DeliveryPeer{{Addr: peerAddr, Bindings: bindings}})
+			require.NoError(t, s.UpdateDeliveryGraphWithEndpoints(graphNS, []DeliveryPeer{{Addr: peerAddr, Name: "p1", Path: peerPath}}, eps))
 			procs := s.PeerScopedProcs(ns, stateET, events.DirUnspecified, peerAddr, "")
 			graph := s.DeliveryGraph()
 			unheld := s.UnheldRoles(procs, func(role string, proc *process.Process) bool {

@@ -14,7 +14,6 @@ import (
 	"github.com/ze-software/ze/internal/component/bgp/filterapi"
 	"github.com/ze-software/ze/internal/component/plugin"
 	pluginserver "github.com/ze-software/ze/internal/component/plugin/server"
-	"github.com/ze-software/ze/internal/core/events"
 	"github.com/ze-software/ze/pkg/plugin/rpc"
 )
 
@@ -25,7 +24,7 @@ func TestSelectedWriterBlockedDestinationDoesNotBlockSibling(t *testing.T) {
 	other, otherWire := newGroupUpdatesPeer(t, "192.0.2.81", "absent")
 	other.settings.ExportPolicy = f.peer.settings.ExportPolicy
 	other.settings.LocalAddress = f.peer.settings.LocalAddress
-	other.settings.ProcessBindings = f.peer.settings.ProcessBindings
+	other.settings.Bus = f.peer.settings.Bus.Clone()
 	other.sendCtx.Store(f.peer.sendCtx.Load())
 	other.sendCtxID, other.session.sendCtxID = f.peer.sendCtxID, f.peer.sendCtxID
 	other.session.initialReplay.Store(72)
@@ -36,14 +35,11 @@ func TestSelectedWriterBlockedDestinationDoesNotBlockSibling(t *testing.T) {
 	}
 	f.api.r.peers[other.Settings().PeerKey()] = other
 	f.api.r.fwdPool.registerOutgoingPool(fwdKey{peerAddr: other.Settings().PeerKey()}, 4096)
-	destinationGrant := plugin.PeerProcessBinding{PluginName: selectedWriterProcess, Explicit: true,
-		Receive: map[string]events.Direction{"state": events.DirBoth, "refresh": events.DirBoth, "update": events.DirSent},
-		Send:    map[string]bool{"update": true}}
+	destinationBus := testBusSelectedDest(selectedWriterProcess)
 	f.api.r.api.UpdateDeliveryGraph("bgp", []pluginserver.DeliveryPeer{
-		{Addr: "192.0.2.79", Bindings: []plugin.PeerProcessBinding{{PluginName: selectedWriterProcess, Explicit: true,
-			Receive: map[string]events.Direction{"update": events.DirReceived, "state": events.DirBoth}}}},
-		{Addr: "192.0.2.80", Bindings: []plugin.PeerProcessBinding{destinationGrant}},
-		{Addr: "192.0.2.81", Bindings: []plugin.PeerProcessBinding{destinationGrant}},
+		testDeliveryPeer("192.0.2.79", "", testBusSourceLease(selectedWriterProcess)),
+		testDeliveryPeer("192.0.2.80", "", destinationBus),
+		testDeliveryPeer("192.0.2.81", "", destinationBus),
 	})
 	writer, remote := net.Pipe()
 	t.Cleanup(func() { _ = writer.Close(); _ = remote.Close() })

@@ -61,7 +61,7 @@ func TestRetentionBusOwnershipLifetime(t *testing.T) {
 				}
 			}
 			const owned = "192.0.2.1"
-			up := "peer " + owned + " remote as 65001 state up peer-owner 701 connection-id 41 session-generation 7 destination-session 141 reason attached"
+			up := "peer " + owned + " remote as 65001 state up peer-owner 701 connection-id 41 session-generation 7 destination-session 141 reason attached is-ibgp true rr-client true"
 			down := "peer " + owned + " remote as 65001 state down peer-owner 701 connection-id 41 session-generation 7"
 			deliver(up)
 			entries := map[withdrawalKey]withdrawalInfo{{owner: 701, connection: 41, route: "retained"}: {SourceOwner: 701, ConnectionID: 41, SourceReceipt: 70, Family: family.IPv4Unicast}}
@@ -80,7 +80,7 @@ func TestRetentionBusOwnershipLifetime(t *testing.T) {
 				t.Fatal("DOWN left a verdict behind")
 			}
 			// The same address's next physical lifetime starts without old retention.
-			up = "peer " + owned + " remote as 65001 state up peer-owner 701 connection-id 44 session-generation 8 destination-session 144 reason attached"
+			up = "peer " + owned + " remote as 65001 state up peer-owner 701 connection-id 44 session-generation 8 destination-session 144 reason attached is-ibgp true rr-client true"
 			down = "peer " + owned + " remote as 65001 state down peer-owner 701 connection-id 44 session-generation 8"
 			deliver(up)
 			emit(owned, 701, 44, nil)
@@ -128,7 +128,7 @@ func TestRetentionStructuredOwnershipLifetime(t *testing.T) {
 	for index, reason := range []string{rpc.ReasonNotification, rpc.ReasonPeerRemoved} {
 		connection := uint64(41 + index)
 		rr.handleStructuredState(&rpc.StructuredEvent{
-			PeerAddress: peer, PeerOwner: 701, ConnectionID: connection, SessionGeneration: 7, DestinationSession: 141 + uint64(index), State: rpc.SessionStateUp, Reason: rpc.ReasonAttached,
+			PeerAddress: peer, PeerOwner: 701, ConnectionID: connection, SessionGeneration: 7, DestinationSession: 141 + uint64(index), State: rpc.SessionStateUp, Reason: rpc.ReasonAttached, IsIBGP: true, RouteReflectorClient: true,
 		})
 		rrFixtureStart(t, rr, rrOriginalFixture(t, peer, 701, connection), 70+uint64(index), 7, 141+uint64(index))
 		rr.dispatchText(retentionEvent(t, peer, 701, connection, family.IPv4Unicast))

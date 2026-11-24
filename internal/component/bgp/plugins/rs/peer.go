@@ -4,9 +4,10 @@
 package rs
 
 import (
+	"sync"
+
 	"github.com/ze-software/ze/internal/component/bgp/retention"
 	"github.com/ze-software/ze/internal/core/family"
-	"sync"
 )
 
 // PeerState tracks the state of a BGP peer.
@@ -42,6 +43,7 @@ type PeerState struct {
 	Address            string // Peer IP address
 	ASN                uint32 // Peer AS number
 	Up                 bool   // Session is established
+	RSClient           bool   // Session is a route-server client (RFC 7947).
 	updateSendDenied   bool   // The current state event excluded this recipient from UPDATE output.
 	// StateSeen records that handleState has processed at least one state event
 	// for this peer, which is what makes Up == false READABLE.
@@ -123,7 +125,23 @@ type PeerState struct {
 // updateTarget reports whether this established actor can be an UPDATE target.
 // The caller holds the route server's peer lock.
 func (p *PeerState) updateTarget() bool {
-	return p.Up && !p.updateSendDenied
+	return p.Up && p.RSClient && !p.updateSendDenied
+}
+
+// nonRSClient reports whether this actor is known not to be a route-server client.
+// An actor that has only recorded OPEN (StateSeen == false and !Up) is not yet classified.
+// The caller holds the route server's peer lock.
+func (p *PeerState) nonRSClient() bool {
+	if p == nil {
+		return false
+	}
+	if p.RSClient {
+		return false
+	}
+	if p.StateSeen {
+		return true
+	}
+	return p.Up
 }
 
 // hasCapability returns true if peer supports the given capability.

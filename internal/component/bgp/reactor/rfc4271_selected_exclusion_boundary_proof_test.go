@@ -27,7 +27,6 @@ import (
 	policy "github.com/ze-software/ze/internal/component/policy"
 	bgpctx "github.com/ze-software/ze/internal/core/bgp/context"
 	"github.com/ze-software/ze/internal/core/bgp/msgtype"
-	"github.com/ze-software/ze/internal/core/events"
 	"github.com/ze-software/ze/internal/core/family"
 	"github.com/ze-software/ze/pkg/plugin/rpc"
 	"github.com/ze-software/ze/pkg/plugin/sdk"
@@ -169,6 +168,8 @@ func TestRFC4271FramedForkedSelectRoutesExclusionWithdrawsPriorRoute(t *testing.
 	const implementation = "rfc4271-selected-exclusion-socket-runner"
 	require.NoError(t, registry.Register(registry.Registration{
 		Name:          implementation,
+		Sends:         testAllBGPSendDecls(),
+		Receives:      testAllBGPReceiveDecls(),
 		Dissemination: declaration,
 		CLIHandler:    func([]string) int { return 0 },
 		RunEngine: func(conn net.Conn) int {
@@ -201,7 +202,11 @@ func TestRFC4271FramedForkedSelectRoutesExclusionWithdrawsPriorRoute(t *testing.
 				return out, nil
 			})
 			client.OnStarted(func(context.Context) error { ready <- client; return nil })
-			_ = client.Run(work, &sdk.Registration{Dissemination: declaration})
+			_ = client.Run(work, &sdk.Registration{
+				Sends:         testAllBGPSendDecls(),
+				Receives:      testAllBGPReceiveDecls(),
+				Dissemination: declaration,
+			})
 			return 0
 		},
 	}))
@@ -219,17 +224,8 @@ func TestRFC4271FramedForkedSelectRoutesExclusionWithdrawsPriorRoute(t *testing.
 	spawner := &selectedRefreshSpawner{ctx: work}
 	host.SetProcessSpawner(spawner)
 	host.UpdateDeliveryGraph("bgp", []pluginserver.DeliveryPeer{
-		{Addr: "192.0.2.79", Bindings: []plugin.PeerProcessBinding{{
-			PluginName: selectedWriterProcess,
-			Explicit:   true,
-			Receive:    map[string]events.Direction{"update": events.DirReceived, "state": events.DirBoth},
-		}}},
-		{Addr: fixture.peer.addrString, Bindings: []plugin.PeerProcessBinding{{
-			PluginName: selectedWriterProcess,
-			Explicit:   true,
-			Receive:    map[string]events.Direction{"state": events.DirBoth, "refresh": events.DirBoth, "update": events.DirSent},
-			Send:       map[string]bool{"update": true},
-		}}},
+		testDeliveryPeer("192.0.2.79", "", testBusSourceLease(selectedWriterProcess)),
+		testDeliveryPeer(fixture.peer.addrString, "", testBusSelectedDest(selectedWriterProcess)),
 	})
 	fixture.api.r.api = host
 	require.NoError(t, host.StartWithContext(work))

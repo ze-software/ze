@@ -81,11 +81,12 @@ func delayOpenConnectedHandshake(t *testing.T, passive bool, delay time.Duration
 // goroutine and no process callback replaces the production FSM callback.
 func delayOpenConnectedSubscriber(t *testing.T, peer *Peer) *stateLog {
 	t.Helper()
-	require.NoError(t, EnsureProcessBinding(peer.settings, "monitor", "connected fsm", ""))
+	addTestPeerBusGrant(peer.settings, operatorGrant("monitor", "connected fsm", ""))
 	r := New(&Config{ListenAddr: "127.0.0.1:0"})
 	r.peers[peer.settings.PeerKey()] = peer
 	peer.reactor = r
 	srv := flowForwardPluginServer(t, r)
+	setupDeliveryGraphTestServer(t, srv, "monitor")
 	r.api = srv
 	r.eventDispatcher = bgpserver.NewEventDispatcher(srv)
 

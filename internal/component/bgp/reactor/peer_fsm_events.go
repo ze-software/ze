@@ -31,10 +31,13 @@ func (p *Peer) emitConnected(session *Session) {
 		LocalAddress: settings.LocalAddress, LocalAddressStr: p.localAddrString,
 		Name: settings.Name, GroupName: settings.GroupName,
 		LocalAS: settings.LocalAS, RouterID: settings.RouterID,
-		State: p.State().PluginState(),
+		State:                p.State().PluginState(),
+		RSClient:             settings.RSClient,
+		RouteReflectorClient: settings.RouteReflectorClient,
 	}
 	if !settings.IsDynamic {
 		info.PeerAS = rpc.RemoteASOf(settings.PeerAS)
+		info.IsIBGP = settings.IsIBGP()
 	}
 	if transport := session.transport.Load(); transport != nil {
 		if transport.local.IsValid() {
@@ -69,6 +72,7 @@ func (p *Peer) emitFSMEvents(from, to fsm.State) {
 func fsmEventPeerInfo(peer *Peer) plugin.PeerInfo {
 	s := peer.Settings()
 	local, localString := connectedLocalEndpoint(peer, s.LocalAddress, peer.localAddrString)
+	peerAS := peer.PeerAS()
 	return plugin.PeerInfo{
 		PeerOwner:       peer.sourceOwner,
 		Address:         s.Address,
@@ -80,8 +84,11 @@ func fsmEventPeerInfo(peer *Peer) plugin.PeerInfo {
 		LocalAS:         s.LocalAS,
 		// PeerAS via the guarded accessor: a dynamic peer's establishment
 		// writes it, and a transition can be drained on another goroutine.
-		PeerAS:   rpc.RemoteASOf(peer.PeerAS()),
-		RouterID: s.RouterID,
-		State:    peer.State().PluginState(),
+		PeerAS:               rpc.RemoteASOf(peerAS),
+		RouterID:             s.RouterID,
+		State:                peer.State().PluginState(),
+		IsIBGP:               s.isIBGPWith(peerAS),
+		RSClient:             s.RSClient,
+		RouteReflectorClient: s.RouteReflectorClient,
 	}
 }

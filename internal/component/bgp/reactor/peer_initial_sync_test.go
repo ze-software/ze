@@ -369,7 +369,7 @@ func TestInitialSyncEORWaitsForPeerUpBarrier(t *testing.T) {
 // relayed route twice.
 func TestInitialSyncShutsTheQueueGateAndFreesTheRailsWithTheMarker(t *testing.T) {
 	peer, conn := newInitialSyncPeer(t, true, family.IPv4Unicast)
-	peer.settings.ProcessBindings = []ProcessBinding{sendUpdateOnly("pusher")}
+	setTestPeerBus(t, peer, testBusBlockForGrants(sendUpdateOnly("pusher")))
 	peer.resetAPISync([]string{"pusher"}) // named, and it never reports
 
 	peer.runInitialSyncNow()
@@ -405,7 +405,7 @@ func TestInitialSyncShutsTheQueueGateAndFreesTheRailsWithTheMarker(t *testing.T)
 // initial update on another producer's behalf.
 func TestInitialSyncSuppressesAnotherProducersEORWhileItsOwnIsOwed(t *testing.T) {
 	peer, conn := newInitialSyncPeer(t, true, family.IPv4Unicast)
-	peer.settings.ProcessBindings = []ProcessBinding{sendUpdateOnly("caller")}
+	peer.settings.Bus = testBusBlockForGrants(sendUpdateOnly("caller"))
 	peer.resetAPISync([]string{"caller"})
 
 	// The owed marker is the whole condition, so it is set directly. It used to
@@ -415,7 +415,7 @@ func TestInitialSyncSuppressesAnotherProducersEORWhileItsOwnIsOwed(t *testing.T)
 	// depending on how long anything takes.
 	peer.testInitialSync().initialSyncEOROwed.Store(true)
 
-	api := newSendPermissionReactor(peer)
+	api := newSendPermissionReactor(t, peer)
 	require.NoError(t,
 		api.AnnounceEOR(selector.All(), uint16(family.AFIIPv4), uint8(family.SAFIUnicast),
 			plugin.ProcessSender("caller")),
@@ -446,19 +446,23 @@ func TestInitialSyncSuppressesAnotherProducersEORWhileItsOwnIsOwed(t *testing.T)
 // after the marker that claimed the update was complete.
 func TestRoutePushingBindingsCountBothRails(t *testing.T) {
 	cases := []struct {
-		name    string
-		binding ProcessBinding
-		want    bool
+		name  string
+		grant testPeerEndpointGrant
+		want  bool
 	}{
 		{"update", sendUpdateOnly("p"), true},
 		{"raw", sendRawOnly("p"), true},
-		{"wildcard", ProcessBinding{PluginName: "p", SendAll: true}, true},
-		{"refresh only", ProcessBinding{PluginName: "p", Send: map[string]bool{bgpevents.SendRefresh: true}}, false},
-		{"attached only", ProcessBinding{PluginName: "p"}, false},
+		{"wildcard", testPeerEndpointGrant{Name: "p", SendAll: true}, true},
+		{"refresh only", testPeerEndpointGrant{Name: "p", Send: []string{bgpevents.SendRefresh}}, false},
+		{"attached only", testPeerEndpointGrant{Name: "p", Receive: []string{bgpevents.EventState}}, false},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			assert.Equal(t, tc.want, tc.binding.MayPushRoutes())
+			peer, _ := newAttachedPeer(t, "192.0.2.1", tc.grant)
+			newSendPermissionReactor(t, peer)
+			g := peer.reactor.DeliveryGraph()
+			mayPush := g.MaySend(peer.addrString, "p", bgpevents.SendUpdate) || g.MaySend(peer.addrString, "p", bgpevents.SendRaw)
+			assert.Equal(t, tc.want, mayPush)
 		})
 	}
 }
@@ -811,11 +815,11 @@ func TestInitialSyncEORSentWhenNeitherSideDeclaredAFamily(t *testing.T) {
 // process's own routes landed on depended on a two-second timer.
 func TestInitialSyncMarkerWaitsForNoProcess(t *testing.T) {
 	peer, conn := newInitialSyncPeer(t, true, family.IPv4Unicast)
-	peer.settings.ProcessBindings = []ProcessBinding{
+	setTestPeerBus(t, peer, testBusBlockForGrants(
 		sendUpdateOnly("pusher-one"),
 		sendRawOnly("pusher-two"),
-		{PluginName: "listener"}, // attached for events; pushes no route
-	}
+		testPeerEndpointGrant{Name: "listener", Receive: []string{bgpevents.EventState}}, // receives events; pushes no route
+	))
 	peer.resetAPISync([]string{"pusher-one", "pusher-two"})
 	raiseTestReplayFence(peer, "pusher-one", "pusher-two")
 
@@ -861,11 +865,11 @@ func TestInitialSyncMarkerWaitsForNoProcess(t *testing.T) {
 // its replay, and one talkative process lowering a fence that names two.
 func TestInitialSyncBarrierCreditsOnlyTheProcessesItNames(t *testing.T) {
 	peer, _ := newInitialSyncPeer(t, true, family.IPv4Unicast)
-	peer.settings.ProcessBindings = []ProcessBinding{
+	setTestPeerBus(t, peer, testBusBlockForGrants(
 		sendUpdateOnly("pusher-one"),
 		sendRawOnly("pusher-two"),
-		{PluginName: "listener"}, // attached for events; pushes no route
-	}
+		testPeerEndpointGrant{Name: "listener", Receive: []string{bgpevents.EventState}}, // receives events; pushes no route
+	))
 	peer.resetAPISync([]string{"pusher-one", "pusher-two"})
 	raiseTestReplayFence(peer, "pusher-one", "pusher-two")
 

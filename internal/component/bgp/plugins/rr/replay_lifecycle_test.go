@@ -167,7 +167,7 @@ func newReplayQuestion(t *testing.T, relay func(context.Context, []rpc.StoredRou
 		role.replays.mu.Unlock()
 		err := role.handleStructuredState(&rpc.StructuredEvent{
 			PeerAddress: destination, PeerOwner: owner, ConnectionID: receipt, SessionGeneration: receipt + 1000, DestinationSession: receipt + 100,
-			State: rpc.SessionStateUp, InitialReplay: receipt,
+			State: rpc.SessionStateUp, InitialReplay: receipt, IsIBGP: true, RouteReflectorClient: true,
 		})
 		if !stopped {
 			require.NoError(t, err)

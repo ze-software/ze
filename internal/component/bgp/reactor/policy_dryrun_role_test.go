@@ -7,9 +7,7 @@ import (
 
 	"github.com/stretchr/testify/require"
 
-	"github.com/ze-software/ze/internal/component/plugin"
 	pluginserver "github.com/ze-software/ze/internal/component/plugin/server"
-	"github.com/ze-software/ze/internal/core/events"
 	"github.com/ze-software/ze/pkg/plugin/rpc"
 )
 
@@ -114,12 +112,9 @@ func dryRunAliasPeers(t *testing.T) (*Reactor, *Peer, *Peer) {
 func dryRunRoleOwner(t *testing.T) pluginserver.DisseminationOwner {
 	t.Helper()
 	const process = "dry-run-role"
-	graph := pluginserver.NewDisseminationGraph("bgp", []pluginserver.DeliveryPeer{
-		{Addr: "source", Bindings: []plugin.PeerProcessBinding{{PluginName: process, Explicit: true,
-			Receive: map[string]events.Direction{"update": events.DirReceived, "state": events.DirBoth}}}},
-		{Addr: "destination", Bindings: []plugin.PeerProcessBinding{{PluginName: process, Explicit: true,
-			Receive: map[string]events.Direction{"state": events.DirBoth, "refresh": events.DirBoth, "update": events.DirSent},
-			Send:    map[string]bool{"update": true}}}},
+	graph := buildTestDisseminationGraph(t, []pluginserver.DeliveryPeer{
+		testDeliveryPeer("source", "", testBusSourceLease(process)),
+		testDeliveryPeer("destination", "", testBusSelectedDest(process)),
 	})
 	owner, err := graph.ResolveDisseminationOwner("destination", SelectedDisseminationRole, []pluginserver.DisseminationProcess{{
 		Name: process, Claims: []string{SelectedDisseminationRole}, Declarations: []rpc.DisseminationDecl{{

@@ -51,7 +51,7 @@ func newFilteredSelectedLive(t *testing.T, policy filterapi.Policy, fastPath, co
 		setting.RSFastPath = fastPath
 		// The existing wildcard admits a future distinct filtered event without
 		// naming or fabricating an event the product has not registered yet.
-		require.NoError(t, EnsureProcessBinding(setting, "bgp-adj-rib-in", "*", "update"))
+		addTestPeerBusGrant(setting, testPeerEndpointGrant{Name: "bgp-adj-rib-in", ReceiveAll: true, Send: []string{"update"}})
 	}
 	peers := lowLiveStart(t, lowLiveOptions{}, settings...)
 	loc := locrib.Default()

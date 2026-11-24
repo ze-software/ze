@@ -17,7 +17,6 @@ import (
 	"time"
 
 	bgpctx "github.com/ze-software/ze/internal/core/bgp/context"
-	"github.com/ze-software/ze/internal/core/events"
 	"github.com/ze-software/ze/internal/core/family"
 	"github.com/ze-software/ze/pkg/plugin/rpc"
 )
@@ -262,6 +261,12 @@ type PeerInfo struct {
 	// peer sits in OPENSENT has no other way to learn that BFD is why.
 	BFDSubState string
 
+	// Session scope flags for forwarders (Q-5, AC-19).
+	// IsIBGP reports whether the session is internal (iBGP) rather than external (eBGP).
+	// RSClient reports whether the session is a route-server client (RFC 7947).
+	IsIBGP   bool
+	RSClient bool
+
 	// Route reflection (RFC 4456).
 	RouteReflectorClient bool   // Peer is an RR client
 	ClusterID            uint32 // Explicit cluster-id (0 = use router-id)
@@ -490,9 +495,6 @@ type ReactorIntrospector interface {
 	// PeerNegotiatedCapabilities returns negotiated capabilities for a peer.
 	// Returns nil if peer not found or negotiation not complete.
 	PeerNegotiatedCapabilities(addr netip.Addr) *PeerCapabilitiesInfo
-
-	// GetPeerProcessBindings returns process bindings for a specific peer.
-	GetPeerProcessBindings(peerAddr netip.Addr) []PeerProcessBinding
 }
 
 // PolicyTraceEntry records an external filter result, or marks a named in-process
@@ -743,34 +745,4 @@ type ReactorLifecycle interface {
 	// assertion at RUNTIME, degrading every peer-up replay to a warning.
 	// Composing it makes a missing delegation a compile error.
 	ReactorRelayCoordinator
-}
-
-// PeerProcessBinding describes which plugin receives messages from a BGP peer.
-// It mirrors reactor.ProcessBinding with the content settings already
-// resolved.
-type PeerProcessBinding struct {
-	PluginName string // Reference to plugin name
-	// Explicit identifies a block the operator wrote, including an inherited
-	// block. Derived bindings stay false and cannot request dissemination.
-	Explicit bool
-
-	// Content settings (HOW messages are formatted)
-	Encoding string // "json" | "text" (empty = inherit from plugin)
-	Format   string // "parsed" | "raw" | "full" (empty = "parsed")
-
-	// Receive settings (WHAT the peer feeds this process).
-	// ReceiveAll is the "*" token. Receive maps each granted event type to the
-	// direction it is granted in; a type with no key is not granted.
-	ReceiveAll bool
-	Receive    map[string]events.Direction
-
-	// Implicit names the Receive types the config granted on its own rather
-	// than an operator (reactor.GrantImplicitReceive). Reconcile does not
-	// report one the plugin never declared.
-	Implicit map[string]bool
-
-	// Send settings (WHAT this process may generate toward the peer).
-	// SendAll is the "*" token.
-	SendAll bool
-	Send    map[string]bool
 }

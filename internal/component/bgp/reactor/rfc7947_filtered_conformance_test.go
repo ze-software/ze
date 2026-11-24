@@ -17,10 +17,10 @@ import (
 	"github.com/ze-software/ze/internal/component/bgp/message"
 	"github.com/ze-software/ze/internal/component/bgp/wireu"
 	"github.com/ze-software/ze/internal/component/config"
+	"github.com/ze-software/ze/internal/component/plugin"
 	routepolicy "github.com/ze-software/ze/internal/component/policy"
 	bgpevents "github.com/ze-software/ze/internal/core/bgp/events"
 	"github.com/ze-software/ze/internal/core/bgp/msgtype"
-	"github.com/ze-software/ze/internal/core/events"
 	"github.com/ze-software/ze/pkg/plugin/rpc"
 )
 
@@ -122,35 +122,38 @@ func TestRFC7947OrdinaryPeerDeniedUpdateAbsentFromAdjRIBIn(t *testing.T) {
 }
 
 // TestReceiveGrantAcceptsUpdateFilteredToken verifies that the registered
-// update-filtered event name reaches both parseOneReceiveFlag and the YANG
+// update-filtered event name reaches both ParseBusBlockFromMap and the YANG
 // ReceiveEventValidator + completion list, while misspellings are rejected.
 //
 // VALIDATES: AC-10 and AC-11 of spec-rfc7947-adj-rib-in-accepts-filtered-updates.
 func TestReceiveGrantAcceptsUpdateFilteredToken(t *testing.T) {
 	const misspelled = "update-filterd" //nolint:misspell // the near miss is the input under test
-	b := &ProcessBinding{}
-	require.NoError(t, parseOneReceiveFlag(bgpevents.EventUpdateFiltered, b))
-	assert.Equal(t, events.DirBoth, b.Receive[bgpevents.EventUpdateFiltered])
+	msgName := bgpevents.Namespace + ":" + bgpevents.EventUpdateFiltered
 
-	bRecv := &ProcessBinding{}
-	require.NoError(t, parseOneReceiveFlag(bgpevents.EventUpdateFiltered+"-received", bRecv))
-	assert.Equal(t, events.DirReceived, bRecv.Receive[bgpevents.EventUpdateFiltered])
+	blk, err := plugin.ParseBusBlockFromMap(map[string]any{
+		"send": map[string]any{
+			"allow": msgName,
+			"message": map[string]any{
+				msgName: map[string]any{
+					"tags": map[string]any{"direction": "received"},
+				},
+			},
+		},
+	}, "test")
+	require.NoError(t, err)
+	assert.Equal(t, []string{msgName}, blk.Send.Allow)
+	require.Contains(t, blk.Send.Messages, msgName)
+	assert.Equal(t, []string{"received"}, blk.Send.Messages[msgName].Tags["direction"])
 
-	err := parseOneReceiveFlag(misspelled, &ProcessBinding{})
-	require.Error(t, err)
-	assert.Contains(t, err.Error(), misspelled)
-	assert.Contains(t, err.Error(), bgpevents.EventUpdateFiltered)
-
-	v := config.ReceiveEventValidator()
-	require.NoError(t, v.ValidateFn("receive", bgpevents.EventUpdateFiltered))
-	require.NoError(t, v.ValidateFn("receive", bgpevents.EventUpdateFiltered+"-received"))
-	err = v.ValidateFn("receive", misspelled)
+	v := config.BusMessageNameValidator()
+	require.NoError(t, v.ValidateFn("receive", msgName))
+	err = v.ValidateFn("receive", bgpevents.Namespace+":"+misspelled)
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), misspelled)
 
 	completions := v.CompleteFn()
-	assert.True(t, slices.Contains(completions, bgpevents.EventUpdateFiltered),
-		"completion list must offer %s (got %v)", bgpevents.EventUpdateFiltered, completions)
+	assert.True(t, slices.Contains(completions, msgName),
+		"completion list must offer %s (got %v)", msgName, completions)
 }
 
 // TestRFC7947FilteredRetainedPopulationBound runs the AC-15 counterexample
@@ -206,7 +209,7 @@ func TestRFC7947FilteredRetainedPopulationBound(t *testing.T) {
 		control := acceptingLiveSettings(t, "192.0.2.2", 65000, 65003)
 		control.RSClient = true
 		for _, settings := range []*PeerSettings{source, control} {
-			require.NoError(t, EnsureProcessBinding(settings, "bgp-adj-rib-in", "*", "update"))
+			addTestPeerBusGrant(settings, testPeerEndpointGrant{Name: "bgp-adj-rib-in", ReceiveAll: true, Send: []string{"update"}})
 		}
 		peers := lowLiveRouter(t, source, control)
 		f := &filteredReceivedLive{source: peers[0], control: peers[1]}

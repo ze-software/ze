@@ -49,9 +49,13 @@ func TestSelectedRefreshBoundaryTransports(t *testing.T) {
 	input := rpc.SelectRefreshInput{Destination: "192.0.2.7", PeerOwner: 17,
 		DestinationSession: 71, Family: "ipv4/unicast", Action: rpc.SelectedRefreshBegin,
 		DeadlineMS: time.Now().Add(5 * time.Second).UnixMilli()}
-	host.UpdateDeliveryGraph("bgp", []DeliveryPeer{{Addr: input.Destination,
-		Bindings: []plugin.PeerProcessBinding{{PluginName: proc.Name(), Explicit: true,
-			Send: map[string]bool{"update": true}}}}})
+	if err := host.UpdateDeliveryGraphWithEndpoints(graphNS, []DeliveryPeer{{Addr: input.Destination, Name: "dst", Path: "/" + graphNS + "/entry/dst"}}, []BusParticipantInput{{
+		Path:         plugin.EndpointPath(proc.Name()),
+		EndpointName: proc.Name(),
+		Sends:        []rpc.MessageSendDecl{{Message: graphMsg(graphUpdate)}},
+	}}); err != nil {
+		t.Fatal(err)
+	}
 	encoded, err := json.Marshal(input)
 	if err != nil {
 		t.Fatal(err)

@@ -545,7 +545,7 @@ func dynamicNext(fx *rfc8212ImportFixture, to filterapi.Policy) *DynamicGroupCon
 	next := newTestDynamicGroup("ix", []string{"192.0.2.0/24"}, 10)
 	next.Settings.Connection = ConnectionPassive
 	next.Settings.ImportPolicy = to
-	next.Settings.ProcessBindings = fx.peer.Settings().ProcessBindings
+	next.Settings.Bus = fx.peer.Settings().Bus.Clone()
 	return next
 }
 

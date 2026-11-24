@@ -269,49 +269,75 @@ func (p *Peer) flushPolicyReplay(ctx context.Context, session *Session) error {
 	return err
 }
 
-// policyReplayOwner reads the actual configured claimant, not an implementation
-// name. External and aliased plugins use the same runtime declaration and grant.
+// policyReplayOwner reads the actual configured claimant from the compiled
+// delivery graph, not an implementation name. External and aliased plugins use
+// the same runtime declaration, compiled bus grant, and ClaimSessionScope.
 func (p *Peer) policyReplayOwner() plugin.Sender {
 	manager := p.reactor.api.ProcessManager()
 	if manager == nil {
 		return plugin.Sender{}
 	}
+	g := p.reactor.DeliveryGraph()
+	if g == nil {
+		return plugin.Sender{}
+	}
 	p.mu.RLock()
-	bindings := p.settings.ProcessBindings
+	settings := p.settings
+	peerAS := p.settings.PeerAS
 	p.mu.RUnlock()
+
 	replayCommand := p.reactor.api.Dispatcher().Registry().Lookup(ribevents.ReplayRoutesCommand)
 	var selfReplay plugin.Sender
-	for i := range bindings {
-		binding := &bindings[i]
-		if !binding.MaySend(bgpevents.SendUpdate) {
+	var claimants []string
+	for _, procName := range g.SendersForPeer(p.addrString, bgpevents.SendUpdate) {
+		if !g.ProcessReceivesState(p.addrString, procName) {
 			continue
 		}
-		if !binding.ReceivesPeerState() {
-			continue
-		}
-		process := manager.GetProcess(binding.PluginName)
+		process := manager.GetProcess(procName)
 		if process == nil {
 			continue
 		}
 		// The store self-replays when no claimant receives this peer's state.
 		// Its command registration identifies the real process, including aliases.
 		if replayCommand != nil && replayCommand.Process == process {
-			selfReplay = plugin.ProcessSender(binding.PluginName)
+			selfReplay = plugin.ProcessSender(procName)
 		}
+		regName := resolveRegistrationName(p.reactor, procName)
+		claimScope := registry.ClaimSessionScopeFor(regName)
+		hasClaim := false
 		registration := process.Registration()
 		if registration != nil && len(registration.Claims) > 0 {
-			if slices.Contains(registration.Claims, "bgp-peer-up-replay") {
-				return plugin.ProcessSender(binding.PluginName)
+			hasClaim = slices.Contains(registration.Claims, "bgp-peer-up-replay")
+		} else {
+			// Built-in plugins can declare the role only in their compiled
+			// registration. Resolve aliases exactly as server.claimsForPlugin does.
+			for _, name := range plugin.RegistryNames(process.Config()) {
+				if slices.Contains(registry.ClaimsFor(name), "bgp-peer-up-replay") {
+					hasClaim = true
+					if len(claimScope) == 0 {
+						claimScope = registry.ClaimSessionScopeFor(name)
+					}
+					break
+				}
 			}
+		}
+		if !hasClaim {
 			continue
 		}
-		// Built-in plugins can declare the role only in their compiled
-		// registration. Resolve aliases exactly as server.claimsForPlugin does.
-		for _, name := range plugin.RegistryNames(process.Config()) {
-			if slices.Contains(registry.ClaimsFor(name), "bgp-peer-up-replay") {
-				return plugin.ProcessSender(binding.PluginName)
-			}
+		if !peerSettingsMatchesClaimScope(settings, peerAS, claimScope) {
+			continue
 		}
+		claimants = append(claimants, procName)
+	}
+	if len(claimants) > 1 {
+		peerLogger().Warn("multiple eligible bgp-peer-up-replay forwarders match this peer; selecting first in sorted order",
+			"peer", p.addrString,
+			"selected", claimants[0],
+			"candidates", claimants,
+			"code", pluginserver.CodeDoctorPluginDeliveryDisagreement)
+	}
+	if len(claimants) > 0 {
+		return plugin.ProcessSender(claimants[0])
 	}
 	return selfReplay
 }

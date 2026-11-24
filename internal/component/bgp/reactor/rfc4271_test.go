@@ -548,7 +548,7 @@ func rfc4271IBGPPeer(t *testing.T, addr string, routerID uint32, rrClient bool, 
 		RouteReflectorClient: rrClient,
 		// The route server's send grant: the RS fast path reaches no
 		// destination without it, as the cached rail does not.
-		ProcessBindings: []ProcessBinding{rsRelaySendBinding()},
+		Bus: rsRelaySendBinding(),
 	}
 	p := NewPeer(s)
 	p.state.Store(int32(PeerStateEstablished))
@@ -557,6 +557,7 @@ func rfc4271IBGPPeer(t *testing.T, addr string, routerID uint32, rrClient bool, 
 	})
 	p.sendCtx.Store(ctx)
 	p.sendCtxID = ctxID
+	setTestPeerBus(t, p, rsRelaySendBinding())
 	p.refreshForwardFacts()
 	return p
 }

@@ -116,8 +116,11 @@ func TestSelectedRefreshRequiresEnhancedNegotiation(t *testing.T) {
 func TestSelectedRefreshRequiresEffectiveSelectingOwner(t *testing.T) {
 	fixture, input := selectedRefreshFixture(t)
 	const otherProcess = "selected-refresh-other"
-	fixture.peer.settings.ProcessBindings = append(fixture.peer.settings.ProcessBindings,
-		ProcessBinding{PluginName: otherProcess, Explicit: true, Send: map[string]bool{"update": true}})
+	fixture.peer.settings.Bus = testBusBlockForGrants(
+		testPeerEndpointGrant{Name: selectedWriterProcess, Receive: []string{"state", "refresh", "update-sent"}, Send: []string{"update"}},
+		testPeerEndpointGrant{Name: otherProcess, Send: []string{"update"}},
+	)
+	originRevocationPublishGraph(t, fixture)
 	fixture.peer.refreshForwardFacts()
 	done := make(chan struct{})
 	t.Cleanup(func() { close(done) })
