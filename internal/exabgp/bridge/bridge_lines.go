@@ -19,16 +19,13 @@ import (
 // lines, the group buffer, the netting and the answers are ScriptLines.Batch,
 // once for every runner.
 type LineRunner interface {
-	// ExitRunner is Dispatch, which hands ze one command and answers its
-	// refusal, and Flush, which drains the forward pool of the peers a
-	// selector names, so what was dispatched for them is on the wire before
-	// the lines are answered.
-	ExitRunner
+	// Dispatch hands ze one command and answers its refusal.
+	Dispatch(ctx context.Context, command string) error
+	// Flush drains the forward pool of the peers a selector names, so what was
+	// dispatched for them is on the wire before the lines are answered.
+	Flush(ctx context.Context, selector string) error
 	// Status performs a `status` line: the reply ExaBGP writes and the outcome.
 	Status(ctx context.Context, asJSON bool) ([]byte, BatchAnswer)
-	// Dispatched records one route command ze accepted, with the selector its
-	// line addressed (the owner ledger an exit withdraws from).
-	Dispatched(selector string, command Command)
 }
 
 // ScriptLines is one script's command side for one batch: the translator for
@@ -177,11 +174,6 @@ func (s ScriptLines) dispatch(ctx context.Context, r LineRunner, batch []BatchLi
 				answers[part.Line] = BatchAnswer{Failed: true, Error: err.Error()}
 			}
 			continue
-		}
-		// Each route keeps its own owner entry, merged or not, so a later
-		// withdrawal of one of them clears that one.
-		for _, part := range set.parts {
-			r.Dispatched(batch[part.Line].Translation.Selector, part.Command)
 		}
 	}
 	// One per-peer flush for each selector the run reached, so the forward

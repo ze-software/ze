@@ -159,6 +159,13 @@ type Plugin struct {
 	// Read through BusCatalog. Populated before Stage 5 ready.
 	busCatalog []rpc.BusCatalogEntry
 
+	// participantFilter holds this participant's compiled bus filter delivered
+	// on the Stage-2 configure callback (rpc.ConfigureInput.ParticipantFilter)
+	// and updated on delivery-graph rebuilds (rpc.MethodParticipantFilter).
+	// Read through ParticipantFilter; guarded by mu.
+	participantFilter   *rpc.BusParticipantFilter
+	onParticipantFilter func(*rpc.BusParticipantFilter)
+
 	mu sync.Mutex
 }
 
@@ -241,6 +248,71 @@ func (p *Plugin) BusCatalog() []BusCatalogEntry {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 	return cloneBusCatalog(p.busCatalog)
+}
+
+// ParticipantFilter returns a deep copy of this participant's compiled bus
+// filter delivered at Stage 2 configure and updated on bus filter rebuilds.
+// Returns nil when no filter has been delivered. Safe for concurrent use.
+func (p *Plugin) ParticipantFilter() *rpc.BusParticipantFilter {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	return cloneBusParticipantFilter(p.participantFilter)
+}
+
+func cloneBusParticipantFilter(src *rpc.BusParticipantFilter) *rpc.BusParticipantFilter {
+	if src == nil {
+		return nil
+	}
+	out := &rpc.BusParticipantFilter{
+		ParticipantPath: src.ParticipantPath,
+		EndpointName:    src.EndpointName,
+		SendAll:         src.SendAll,
+		SendNone:        src.SendNone,
+		SendToAll:       src.SendToAll,
+		SendToNone:      src.SendToNone,
+		ReceiveAll:      src.ReceiveAll,
+		ReceiveNone:     src.ReceiveNone,
+		ReceiveFromAll:  src.ReceiveFromAll,
+		ReceiveFromNone: src.ReceiveFromNone,
+	}
+	if len(src.SendRules) > 0 {
+		out.SendRules = cloneBusFilterRules(src.SendRules)
+	}
+	if len(src.ReceiveRules) > 0 {
+		out.ReceiveRules = cloneBusFilterRules(src.ReceiveRules)
+	}
+	return out
+}
+
+func cloneBusFilterRules(src []rpc.BusFilterRule) []rpc.BusFilterRule {
+	out := make([]rpc.BusFilterRule, len(src))
+	for i := range src {
+		rule := rpc.BusFilterRule{
+			Message:    src[i].Message,
+			Allowed:    src[i].Allowed,
+			TargetAll:  src[i].TargetAll,
+			TargetNone: src[i].TargetNone,
+		}
+		if len(src[i].Targets) > 0 {
+			rule.Targets = make([]rpc.BusFilterTarget, len(src[i].Targets))
+			for j := range src[i].Targets {
+				rule.Targets[j] = rpc.BusFilterTarget{
+					Path:           src[i].Targets[j].Path,
+					EndpointName:   src[i].Targets[j].EndpointName,
+					Address:        src[i].Targets[j].Address,
+					SecondaryPaths: slices.Clone(src[i].Targets[j].SecondaryPaths),
+				}
+			}
+		}
+		if len(src[i].Tags) > 0 {
+			rule.Tags = make(map[string][]string, len(src[i].Tags))
+			for k, vals := range src[i].Tags {
+				rule.Tags[k] = slices.Clone(vals)
+			}
+		}
+		out[i] = rule
+	}
+	return out
 }
 
 func cloneBusCatalog(src []rpc.BusCatalogEntry) []rpc.BusCatalogEntry {

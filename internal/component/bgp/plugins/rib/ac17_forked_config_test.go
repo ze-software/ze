@@ -72,7 +72,7 @@ func TestAC17ForkedRIBPartialConfigCallbacksPreserveOtherRoot(t *testing.T) {
 	bgpOnly := rpc.ConfigSection{Root: "bgp", Data: `{"bgp":{"multipath":{"maximum-paths":"8","relax-as-path":"false"}}}`}
 	// The shared startup has completed with no sections. Send the same Stage-2
 	// configure RPC with actual data to exercise the registered installer.
-	require.NoError(t, connection.SendConfigure(ctx, baseline, nil, nil))
+	require.NoError(t, connection.SendConfigure(ctx, baseline, nil, nil, nil))
 	requireConfig := func(t *testing.T, maximum uint32, relax bool, static uint8) {
 		t.Helper()
 		require.Equal(t, maximum, r.maximumPaths.Load())
@@ -109,7 +109,7 @@ func TestAC17ForkedRIBPartialConfigCallbacksPreserveOtherRoot(t *testing.T) {
 		},
 	} {
 		t.Run(question.name, func(t *testing.T) {
-			require.NoError(t, connection.SendConfigure(ctx, baseline, nil, nil), "each callback question must be independent of an earlier failure")
+			require.NoError(t, connection.SendConfigure(ctx, baseline, nil, nil, nil), "each callback question must be independent of an earlier failure")
 			verified, err := connection.SendConfigVerify(ctx, []rpc.ConfigSection{question.section})
 			require.NoError(t, err)
 			require.Equal(t, rpc.StatusOK, verified.Status)

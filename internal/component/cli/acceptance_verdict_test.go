@@ -64,10 +64,10 @@ func TestValidateValueAtPathKeepsParserVerdicts(t *testing.T) {
 			kind:     configyang.ErrTypeRange,
 		},
 		{
-			name:     "process command length",
-			path:     []string{"exabgp", "bridge", "process", "p1", "run"},
-			accepted: []string{"x", strings.Repeat("x", 4096)},
-			refused:  []string{"", strings.Repeat("x", 4097)},
+			name:     "relay remote length",
+			path:     []string{"l2tp", "relay", "s1", "remote"},
+			accepted: []string{"x", strings.Repeat("x", 64)},
+			refused:  []string{"", strings.Repeat("x", 65)},
 			kind:     configyang.ErrTypeLength,
 		},
 		{
@@ -190,8 +190,8 @@ func TestModelHexKeyKeepsParserVerdicts(t *testing.T) {
 }
 
 // acceptanceCompleter keeps the extra shipped declarations local to this
-// test. The CLI unit composition does not import the bridge or L2TP YANG
-// packages; registering them globally would change every other test's model.
+// test. The CLI unit composition does not import the L2TP YANG packages;
+// registering them globally would change every other test's model.
 func acceptanceCompleter(t *testing.T) *Completer {
 	t.Helper()
 	loader := configyang.NewLoader()
@@ -204,7 +204,6 @@ func acceptanceCompleter(t *testing.T) *Completer {
 	for _, path := range []string{
 		"../l2tp/yang/ze-l2tp-conf.yang",
 		"../l2tp/plugins/shaper/yang/ze-l2tp-shaper-conf.yang",
-		"../../plugins/exabgp/bridgeplugin/yang/ze-exabgp-bridge-conf.yang",
 	} {
 		name := filepath.Base(path)
 		if slices.ContainsFunc(configyang.Modules(), func(module configyang.Module) bool { return module.Name == name }) {

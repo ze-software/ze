@@ -324,6 +324,10 @@ const MethodDeclareRegistration = "ze-plugin-engine:declare-registration"
 // the ordinary callback queue, never a typed bridge slot that bypasses the loop.
 const MethodRuntimeReady = "ze-plugin-callback:runtime-ready"
 
+// MethodParticipantFilter delivers an updated compiled bus filter to a running
+// plugin whenever the daemon rebuilds its compiled bus delivery graph.
+const MethodParticipantFilter = "ze-plugin-callback:participant-filter"
+
 // ProtocolVersion is the plugin protocol version this engine and this SDK
 // speak. Version 1 is the first versioned contract: a filter declares the
 // route fields it reads and sets, and its filter-update message carries those
@@ -527,10 +531,12 @@ type BusFilterTarget struct {
 // BusFilterRule describes one compiled send or receive message rule handed to
 // a participant in Stage 2 configure or on filter rebuild.
 type BusFilterRule struct {
-	Message string              `json:"message"`
-	Allowed bool                `json:"allowed"`
-	Targets []BusFilterTarget   `json:"targets,omitempty"`
-	Tags    map[string][]string `json:"tags,omitempty"`
+	Message    string              `json:"message"`
+	Allowed    bool                `json:"allowed"`
+	TargetAll  bool                `json:"target-all,omitempty"`
+	TargetNone bool                `json:"target-none,omitempty"`
+	Targets    []BusFilterTarget   `json:"targets,omitempty"`
+	Tags       map[string][]string `json:"tags,omitempty"`
 }
 
 // BusParticipantFilter carries one participant's own compiled bus filter,
@@ -540,10 +546,19 @@ type BusParticipantFilter struct {
 	EndpointName    string          `json:"endpoint-name,omitempty"`
 	SendAll         bool            `json:"send-all,omitempty"`
 	SendNone        bool            `json:"send-none,omitempty"`
+	SendToAll       bool            `json:"send-to-all,omitempty"`
+	SendToNone      bool            `json:"send-to-none,omitempty"`
 	SendRules       []BusFilterRule `json:"send-rules,omitempty"`
 	ReceiveAll      bool            `json:"receive-all,omitempty"`
 	ReceiveNone     bool            `json:"receive-none,omitempty"`
+	ReceiveFromAll  bool            `json:"receive-from-all,omitempty"`
+	ReceiveFromNone bool            `json:"receive-from-none,omitempty"`
 	ReceiveRules    []BusFilterRule `json:"receive-rules,omitempty"`
+}
+
+// ParticipantFilterInput is the input for MethodParticipantFilter.
+type ParticipantFilterInput struct {
+	Filter *BusParticipantFilter `json:"participant-filter,omitempty"`
 }
 
 // PipeDecl declares a pipe word for one of the plugin's own commands, the word

@@ -113,6 +113,17 @@ type Event struct {
 	// RouterID is THIS speaker's BGP Identifier for the session, empty when the
 	// event carries none.
 	RouterID string
+	// ConnectionID is the physical session identifier ze stamps at the `bgp`
+	// level (`connection-id`), empty when absent. Sessions uses (Peer,
+	// ConnectionID) to invalidate stale cached negotiated state on reconnect
+	// even when bgp:state is excluded from receive > allow (Q-E4).
+	ConnectionID string
+	// HasASN4 reports whether the event carried an explicit `asn4` boolean at
+	// the `bgp` level (stamped on UPDATE events by format.appendASN4JSON).
+	// ASN4 holds that negotiated 4-byte ASN width when HasASN4 is true so
+	// overlayASPath decodes AS_PATH without requiring bgp:negotiated (Q-E4).
+	HasASN4 bool
+	ASN4    bool
 	// RefreshSubtype is ExaBGP's word for a ROUTE-REFRESH's Message Subtype,
 	// `query`, `begin` or `end`, and empty for every other kind.
 	RefreshSubtype string
@@ -220,6 +231,13 @@ func ReadEvent(zebgp map[string]any) Event {
 			event.LocalASN, _ = local["as"].(float64)
 		}
 		event.RouterID, _ = peer["router-id"].(string)
+	}
+	if connID, ok := event.Payload["connection-id"].(string); ok {
+		event.ConnectionID = connID
+	}
+	if asn4, ok := event.Payload[negotiatedASN4].(bool); ok {
+		event.HasASN4 = true
+		event.ASN4 = asn4
 	}
 
 	// A state event carries its value as a string at the `bgp` level, so it has

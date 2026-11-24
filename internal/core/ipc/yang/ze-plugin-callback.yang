@@ -563,6 +563,127 @@ module ze-plugin-callback {
         }
     }
 
+    grouping bus-filter-rule {
+        description "Compiled send or receive message rule with its resolved target participants.";
+        leaf message {
+            type string { length "3..256"; }
+            mandatory true;
+            ze:help "Canonical message name";
+            description "Qualified bus message name (namespace:name or cli:<prefix>) governed by this rule.";
+        }
+        leaf allowed {
+            type boolean;
+            ze:help "Whether this message is permitted";
+            description "True when the participant allow-list admits this message.";
+        }
+        leaf target-all {
+            type boolean;
+            ze:help "Unscoped target set matching all participants";
+            description "True when the rule targets every eligible participant, including future dynamic participants.";
+        }
+        leaf target-none {
+            type boolean;
+            ze:help "Explicitly empty target set";
+            description "True when the rule explicitly suppresses all targets via none.";
+        }
+        list target {
+            key "path";
+            ze:help "Resolved target participants";
+            description "Concrete participants currently reachable under this rule, with their canonical paths and remote addresses.";
+            leaf path {
+                type string { length "1..512"; }
+                mandatory true;
+                ze:help "Canonical bus participant path";
+                description "Short canonical bus path of the resolved target participant.";
+            }
+            leaf endpoint-name {
+                type string { length "1..128"; }
+                ze:help "Target endpoint name";
+                description "Endpoint process name when the target participant is an endpoint.";
+            }
+            leaf address {
+                type string { length "1..128"; }
+                ze:help "Target remote IP address";
+                description "Concrete remote IP address of a protocol peer target when applicable.";
+            }
+            leaf-list secondary-paths {
+                type string { length "1..512"; }
+                ze:help "Secondary lookup paths";
+                description "Optional alias paths resolving to the same target participant.";
+            }
+        }
+    }
+
+    grouping bus-participant-filter {
+        description "Compiled bus filter for one participant, delivered at Stage 2 and on delivery-graph rebuilds.";
+        container participant-filter {
+            ze:help "Participant compiled bus filter";
+            description "Effective send and receive rules and resolved target sets compiled for this participant.";
+            leaf participant-path {
+                type string { length "1..512"; }
+                ze:help "Canonical path of this participant";
+                description "Canonical bus path assigned to the receiving participant.";
+            }
+            leaf endpoint-name {
+                type string { length "1..128"; }
+                ze:help "Endpoint process name";
+                description "Process or endpoint name of this participant.";
+            }
+            leaf send-all {
+                type boolean;
+                ze:help "All declared sends admitted";
+                description "True when no send allow-list narrows the participant's declared sends.";
+            }
+            leaf send-none {
+                type boolean;
+                ze:help "All sends suppressed";
+                description "True when the send allow-list is explicitly none.";
+            }
+            leaf send-to-all {
+                type boolean;
+                ze:help "Unscoped send destination set";
+                description "True when the participant's block-level send destination scope covers all eligible participants, including future dynamic peers.";
+            }
+            leaf send-to-none {
+                type boolean;
+                ze:help "Explicitly empty send destination set";
+                description "True when the participant's block-level send destination scope is explicitly none.";
+            }
+            list send {
+                key "message";
+                ze:help "Compiled send rules";
+                description "Per-message send rules and resolved destination targets for this participant.";
+                uses bus-filter-rule;
+            }
+            leaf receive-all {
+                type boolean;
+                ze:help "All declared receptions admitted";
+                description "True when no receive allow-list narrows the participant's declared receptions.";
+            }
+            leaf receive-none {
+                type boolean;
+                ze:help "All receptions suppressed";
+                description "True when the receive allow-list is explicitly none.";
+            }
+            leaf receive-from-all {
+                type boolean;
+                ze:help "Unscoped receive source set";
+                description "True when the participant's block-level receive source scope covers all eligible participants, including future dynamic peers.";
+            }
+            leaf receive-from-none {
+                type boolean;
+                ze:help "Explicitly empty receive source set";
+                description "True when the participant's block-level receive source scope is explicitly none.";
+            }
+            list receive {
+                key "message";
+                ze:help "Compiled receive rules";
+                description "Per-message receive rules and resolved source targets for this participant.";
+                uses bus-filter-rule;
+            }
+        }
+    }
+
     // Stage 2: Engine delivers configuration.
 
     rpc configure {
@@ -619,6 +740,18 @@ module ze-plugin-callback {
                     uses engine:message-tag;
                 }
             }
+            uses bus-participant-filter;
+        }
+    }
+
+    // Runtime: Live bus participant filter update.
+
+    rpc participant-filter {
+        ze:method "ze-plugin-callback:participant-filter";
+        description "Delivered asynchronously to running plugins whenever the daemon rebuilds its compiled bus delivery graph (for example after config reload or dynamic peer admission).";
+        ze:help "Engine pushes an updated compiled bus filter to the plugin.";
+        input {
+            uses bus-participant-filter;
         }
     }
 

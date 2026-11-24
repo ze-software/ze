@@ -13,11 +13,10 @@ import (
 	bgptypes "github.com/ze-software/ze/internal/component/bgp/types"
 	"github.com/ze-software/ze/internal/component/plugin"
 	pluginserver "github.com/ze-software/ze/internal/component/plugin/server"
+	bgpevents "github.com/ze-software/ze/internal/core/bgp/events"
 	"github.com/ze-software/ze/internal/core/bgp/nlri"
 	"github.com/ze-software/ze/internal/core/family"
 	"github.com/ze-software/ze/internal/core/selector"
-	"github.com/ze-software/ze/internal/core/slogutil"
-	"github.com/ze-software/ze/internal/exabgp/bridge"
 	"github.com/ze-software/ze/pkg/plugin/rpc"
 )
 
@@ -164,45 +163,62 @@ func TestOriginRuntimeRegistryTimerMatchesAcceptedLineage(t *testing.T) {
 	}
 }
 
-// The generated ExaBGP command must preserve restore-configured all the way
-// through the real parser/dispatcher, retire the selected child origin, and
-// give back its configured next hop while an independent origin stays useful.
-// MUTATION: preserving restore-configured during intake excludes the actual original withdrawal.
-func TestOriginRuntimeBridgeExitRetiresBeforeConfiguredRestore(t *testing.T) {
+// TestOriginRuntimeParticipantExitRetiresBeforeConfiguredRestore verifies that
+// EndOriginOwnerWithPolicy(ctx, owner, false) retires the exited participant's
+// selected origin and restores the peer's configured static route while leaving
+// an independent origin intact and replayable (E-2, E-6).
+//
+// VALIDATES: per-participant exit withdrawal restores configured static routes
+// without disturbing another participant's surviving origin.
+// PREVENTS: participant exit dropping a configured static route or replaying a
+// retired participant's origin on provider restart.
+func TestOriginRuntimeParticipantExitRetiresBeforeConfiguredRestore(t *testing.T) {
 	for _, typed := range []bool{false, true} {
 		t.Run(map[bool]string{false: "framed", true: "typed"}[typed], func(t *testing.T) {
 			f := newOriginRuntimeSDKFixture(t, typed)
+			addTestPeerBusGrant(f.writer.peer.settings, testPeerEndpointGrant{
+				Name: "child",
+				Send: []string{"update"},
+			})
+			deliveryPeers := []pluginserver.DeliveryPeer{
+				testDeliveryPeer("192.0.2.79", "", testBusSourceLease(f.name)),
+				testDeliveryPeer(f.writer.peer.addrString, "", f.writer.peer.settings.Bus),
+			}
+			require.NoError(t, f.host.UpdateDeliveryGraphWithEndpoints(
+				bgpevents.Namespace,
+				deliveryPeers,
+				buildTestEndpointInputsForPeers(deliveryPeers, f.host, []pluginserver.BusParticipantInput{
+					testBusEndpointAll(f.name),
+					testBusEndpointAll("child"),
+				}),
+			))
+			f.writer.peer.refreshForwardFacts()
+
 			proc := f.host.ProcessManager().GetProcess(f.name)
-			owner, err := proc.SelectedOwner()
+			providerOwner, err := proc.SelectedOwner()
 			require.NoError(t, err)
-			f.sender, f.batch.OriginOwner = owner.Sender(), owner
+			childOwner, stopChild := originOwnerFixture(t, "child")
+
 			peer := f.writer.peer
 			configured := staticRouteAt("198.18.7.0/24", "192.0.2.252")
 			peer.settings.StaticRoutes = []StaticRoute{configured}
 			installed := peer.sendStaticRoutes(peer.session, peer.settings.StaticRoutes, false, 4096, false)
 			require.Len(t, installed, 1)
 			peer.staticWire = staticWireSet{session: peer.session, routes: installed}
+
+			f.sender, f.batch.OriginOwner = childOwner.Sender(), childOwner
 			f.announce(t)
+
+			f.sender = providerOwner.Sender()
 			other := f.batch
+			other.OriginOwner = providerOwner
 			other.NLRIs = []nlri.NLRI{nlri.NewINET(family.IPv4Unicast, netip.MustParsePrefix("198.18.9.0/24"), 0, false)}
-			_, _ = originRegistryAnnounce(t, f, other, owner)
+			_, _ = originRegistryAnnounce(t, f, other, providerOwner)
+
 			before := len(updateBodies(t, f.writer.conn.written()))
-			translated, err := bridge.TranslateLine("peer * announce route 198.18.7.0/24 next-hop 192.0.2.254")
-			require.NoError(t, err)
-			require.Len(t, translated.Commands, 1)
-			ledger := bridge.NewOwnerLedger()
-			ledger.Note("child", "*", translated.Commands[0])
-			runner := &originRuntimeExitRunner{fixture: f}
-			ledger.Exited(f.ctx, slogutil.DiscardLogger(), "child", bridge.OnExitKeep, bridge.APIV6, runner)
-			require.Zero(t, runner.calls)
-			ledger.Exited(f.ctx, slogutil.DiscardLogger(), "child", bridge.OnExitWithdraw, bridge.APIV4, runner)
-			require.Equal(t, 1, runner.calls)
-			require.Equal(t, 1, runner.flushes)
-			require.Len(t, runner.commands, 1)
-			require.Contains(t, runner.commands[0], " update text restore-configured ")
-			require.Len(t, runner.responses, 1)
-			require.Equal(t, plugin.StatusDone, runner.responses[0].Status, runner.responses[0])
-			require.NoError(t, owner.Current(), "the child policy must not stop its long-lived bridge Process")
+			stopChild()
+			require.NoError(t, f.writer.api.EndOriginOwnerWithPolicy(f.ctx, childOwner, false))
+			require.NoError(t, providerOwner.Current(), "the child exit must not stop the RIB provider")
 			originRuntimeExpectCounts(t, f.writer.api.r.originReceipts, 1, 1, 0, 0)
 			bodies := updateBodies(t, f.writer.conn.written())
 			require.Len(t, bodies, before+2, "selected removal then one configured give-back must settle")
@@ -211,7 +227,8 @@ func TestOriginRuntimeBridgeExitRetiresBeforeConfiguredRestore(t *testing.T) {
 			hop, present := bodyPathAttr(t, bodies[before+1], 3)
 			require.True(t, present)
 			require.Equal(t, []byte{192, 0, 2, 252}, hop)
-			require.NoError(t, f.writer.api.EndOriginOwnerWithPolicy(f.ctx, owner, true))
+
+			require.NoError(t, f.writer.api.EndOriginOwnerWithPolicy(f.ctx, providerOwner, true))
 			require.NoError(t, originGenerationReady(f.ctx, f.host, proc))
 			var surviving rpc.OriginIntakeInput
 			select {

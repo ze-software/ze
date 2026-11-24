@@ -83,80 +83,10 @@ func serializeTreeIndent(tree *config.Tree, buf *textbuf.Buffer, indent string, 
 		}
 	}
 
-	// Write the exabgp bridge root. It is emitted BEFORE the plugin block that
-	// declares the bridge, so a reader meets the script the config runs before
-	// the plugin that runs it.
-	//
-	// The serializer walks named containers by hand rather than generically, so
-	// a container nothing emits is silently dropped however correctly the
-	// migration built it. That is what happened to every ExaBGP `process` block
-	// until 2026-09-05 (internal/exabgp/migration/migrate.go, migrateProcesses).
-	if exabgp := tree.GetContainer("exabgp"); exabgp != nil && isRoot {
-		if bridge := exabgp.GetContainer("bridge"); bridge != nil {
-			buf.WriteString(indent)
-			buf.WriteString("exabgp {\n")
-			buf.WriteString(indent)
-			buf.WriteString("\tbridge {\n")
-			serializeTreeIndent(bridge, buf, indent+"\t\t", false)
-			// The bridge's scripts are a NAMED LIST, and serializeTreeIndent
-			// writes simple values only, so the list needs its own emission for
-			// the reason the block above records: a container nothing emits is
-			// dropped however correctly the migration built it. That is what
-			// happened to `process` between the migration learning to write it
-			// and this line existing.
-			for _, process := range bridge.GetListOrdered("process") {
-				buf.WriteString(indent)
-				buf.WriteString("\t\tprocess ")
-				buf.WriteString(process.Key)
-				buf.WriteString(" {\n")
-				serializeTreeIndent(process.Value, buf, indent+"\t\t\t", false)
-				// The peers that feed a script are a NAMED LIST inside the
-				// process block, for the reason the block above records: a
-				// container nothing emits is dropped however correctly the
-				// migration built it.
-				for _, feed := range process.Value.GetListOrdered("feed") {
-					buf.WriteString(indent)
-					buf.WriteString("\t\t\tfeed ")
-					buf.WriteString(feed.Key)
-					buf.WriteString(" {\n")
-					serializeTreeIndent(feed.Value, buf, indent+"\t\t\t\t", false)
-					buf.WriteString(indent)
-					buf.WriteString("\t\t\t}\n")
-				}
-				buf.WriteString(indent)
-				buf.WriteString("\t\t}\n")
-			}
-			buf.WriteString(indent)
-			buf.WriteString("\t}\n")
-			buf.WriteString(indent)
-			buf.WriteString("}\n")
-		}
-	}
-
-	// Write plugin blocks - new syntax: plugin { internal|external NAME { ... } }.
-	// Built-in plugins (declared with `use <builtin>`) take the `internal` keyword;
-	// external processes (declared with `run <command>`) take `external`.
-	pluginList := tree.GetListOrdered("plugin")
-	if len(pluginList) > 0 {
-		buf.WriteString(indent)
-		buf.WriteString("plugin {\n")
-		for _, entry := range pluginList {
-			keyword := "external"
-			if _, ok := entry.Value.Get("use"); ok {
-				keyword = "internal"
-			}
-			buf.WriteString(indent)
-			buf.WriteString("\t")
-			buf.WriteString(keyword)
-			buf.WriteString(" ")
-			buf.WriteString(entry.Key)
-			buf.WriteString(" {\n")
-			serializeTreeIndent(entry.Value, buf, indent+"\t\t", false)
-			buf.WriteString(indent)
-			buf.WriteString("\t}\n")
-		}
-		buf.WriteString(indent)
-		buf.WriteString("}\n")
+	// Write the bus root (internal and external endpoints with their receive/send
+	// filters) before the bgp root so operators see declared endpoints first.
+	if bus := tree.GetContainer(busContainerKey); bus != nil && isRoot {
+		serializeBus(bus, buf, indent)
 	}
 
 	// Write group blocks - wrap in bgp {} at root level.
@@ -486,25 +416,6 @@ func serializeTreeIndent(tree *config.Tree, buf *textbuf.Buffer, indent string, 
 		buf.WriteString("}\n")
 	}
 
-	// Write process attachments. Ze-native syntax is `attach process <name>`,
-	// and the bindings live under the peer's attach container.
-	if attach := tree.GetContainer("attach"); attach != nil {
-		var tb textbuf.Buffer
-		bodyIndent := tb.Str(indent).Byte('\t').String()
-		for _, entry := range attach.GetListOrdered("process") {
-			buf.WriteString(indent)
-			buf.WriteString("attach process ")
-			buf.WriteString(entry.Key)
-			buf.WriteString(" {\n")
-			serializeTreeIndent(entry.Value, buf, bodyIndent, false)
-			buf.WriteString(indent)
-			buf.WriteString("}\n")
-		}
-	}
-
-	// send/receive are now bracket leaf-lists (e.g. "receive [ update ];")
-	// and are written by the generic value-writing code above.
-
 	// Write update blocks (converted from announce/static/flow).
 	for _, entry := range tree.GetListOrdered("update") {
 		buf.WriteString(indent)
@@ -596,4 +507,139 @@ func serializeAddPathLeaves(tree *config.Tree, buf *textbuf.Buffer, indent strin
 		buf.WriteString(value)
 		buf.WriteString("\n")
 	}
+}
+
+// serializeBus renders the top-level `bus { endpoint <name> { ... } }` block.
+func serializeBus(bus *config.Tree, buf *textbuf.Buffer, indent string) {
+	endpoints := bus.GetListOrdered(busEndpointListKey)
+	if len(endpoints) == 0 {
+		return
+	}
+	buf.Str(indent).Str(busContainerKey).Str(" {\n")
+	epIndent := indent + "\t"
+	for _, entry := range endpoints {
+		serializeBusEndpoint(entry.Key, entry.Value, buf, epIndent)
+	}
+	buf.Str(indent).Str("}\n")
+}
+
+func serializeBusEndpoint(name string, ep *config.Tree, buf *textbuf.Buffer, indent string) {
+	buf.Str(indent).Str(busEndpointListKey).Byte(' ').Str(name).Str(" {\n")
+	bodyIndent := indent + "\t"
+
+	if internalVal, ok := ep.Get(busInternalLeafKey); ok && internalVal != "" {
+		buf.Str(bodyIndent).Str(busInternalLeafKey).Byte(' ').Str(internalVal).Byte('\n')
+	}
+	if procMode, ok := ep.Get("process"); ok && procMode != "" {
+		buf.Str(bodyIndent).Str("process ").Str(procMode).Byte('\n')
+	}
+	if ext := ep.GetContainer(busExternalContainerKey); ext != nil {
+		serializeBusExternal(ext, buf, bodyIndent)
+	}
+	if enc, ok := ep.Get("encoding"); ok && enc != "" {
+		buf.Str(bodyIndent).Str("encoding ").Str(enc).Byte('\n')
+	}
+	if recv := ep.GetContainer(busReceiveContainerKey); recv != nil {
+		serializeBusDirection(busReceiveContainerKey, busFromLeafKey, recv, buf, bodyIndent)
+	}
+	if send := ep.GetContainer(busSendContainerKey); send != nil {
+		serializeBusDirection(busSendContainerKey, busToLeafKey, send, buf, bodyIndent)
+	}
+
+	buf.Str(indent).Str("}\n")
+}
+
+func serializeBusExternal(ext *config.Tree, buf *textbuf.Buffer, indent string) {
+	buf.Str(indent).Str(busExternalContainerKey).Str(" {\n")
+	leafIndent := indent + "\t"
+
+	// Emit leaves in canonical operator order: run, respawn, on-exit, timeout,
+	// then any remaining leaves sorted alphabetically.
+	preferred := []string{busRunLeafKey, busRespawnLeafKey, busOnExitLeafKey, "timeout"}
+	emitted := make(map[string]bool, len(preferred))
+	for _, key := range preferred {
+		v, ok := ext.Get(key)
+		if !ok {
+			continue
+		}
+		emitted[key] = true
+		writeBusLeaf(buf, leafIndent, key, v)
+	}
+	keys := ext.Values()
+	slices.Sort(keys)
+	for _, key := range keys {
+		if emitted[key] {
+			continue
+		}
+		v, ok := ext.Get(key)
+		if !ok {
+			continue
+		}
+		writeBusLeaf(buf, leafIndent, key, v)
+	}
+
+	buf.Str(indent).Str("}\n")
+}
+
+func serializeBusDirection(dirName, targetKey string, dir *config.Tree, buf *textbuf.Buffer, indent string) {
+	buf.Str(indent).Str(dirName).Str(" {\n")
+	bodyIndent := indent + "\t"
+
+	if targets := dir.GetSlice(targetKey); len(targets) > 0 {
+		serializeBusLeafList(buf, bodyIndent, targetKey, targets)
+	}
+	if allow := dir.GetSlice(busAllowLeafKey); len(allow) > 0 {
+		serializeBusLeafList(buf, bodyIndent, busAllowLeafKey, allow)
+	}
+	for _, msg := range dir.GetListOrdered(busMessageListKey) {
+		buf.Str(bodyIndent).Str(busMessageListKey).Byte(' ')
+		writeBusToken(buf, msg.Key)
+		buf.Str(" {\n")
+		msgIndent := bodyIndent + "\t"
+		if targets := msg.Value.GetSlice(targetKey); len(targets) > 0 {
+			serializeBusLeafList(buf, msgIndent, targetKey, targets)
+		}
+		for _, tag := range msg.Value.GetListOrdered(busTagListKey) {
+			buf.Str(msgIndent).Str(busTagListKey).Byte(' ')
+			writeBusToken(buf, tag.Key)
+			buf.Str(" {\n")
+			if vals := tag.Value.GetSlice(busValueLeafKey); len(vals) > 0 {
+				serializeBusLeafList(buf, msgIndent+"\t", busValueLeafKey, vals)
+			}
+			buf.Str(msgIndent).Str("}\n")
+		}
+		buf.Str(bodyIndent).Str("}\n")
+	}
+
+	buf.Str(indent).Str("}\n")
+}
+
+func serializeBusLeafList(buf *textbuf.Buffer, indent, key string, items []string) {
+	if len(items) == 1 && items[0] == busKeywordNone {
+		buf.Str(indent).Str(key).Byte(' ').Str(busKeywordNone).Byte('\n')
+		return
+	}
+	buf.Str(indent).Str(key).Str(" [ ")
+	for _, item := range items {
+		writeBusToken(buf, item)
+		buf.Byte(' ')
+	}
+	buf.Str("]\n")
+}
+
+func writeBusLeaf(buf *textbuf.Buffer, indent, key, v string) {
+	buf.Str(indent).Str(key)
+	if v != "" {
+		buf.Byte(' ')
+		writeBusToken(buf, v)
+	}
+	buf.Byte('\n')
+}
+
+func writeBusToken(buf *textbuf.Buffer, v string) {
+	if needsQuotedValue(v) {
+		writeQuotedValue(buf, v)
+		return
+	}
+	buf.Str(v)
 }

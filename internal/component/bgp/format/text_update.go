@@ -86,6 +86,19 @@ func appendSentDestinationJSON(buf []byte, session uint64, direction rpc.Message
 	return append(buf, '"')
 }
 
+// appendASN4JSON writes the session's negotiated 4-byte ASN width beside the
+// peer block on JSON UPDATE events so consumers such as the ExaBGP translator
+// can decode raw AS_PATH bytes without subscribing to bgp:negotiated.
+func appendASN4JSON(buf []byte, ctx *bgpctx.EncodingContext) []byte {
+	if ctx == nil {
+		return buf
+	}
+	if ctx.ASN4() {
+		return append(buf, `,"asn4":true`...)
+	}
+	return append(buf, `,"asn4":false`...)
+}
+
 // appendSourceReceiptText preserves the fixed header positions and adds the
 // original session identity before attributes, independently of route metadata.
 func appendSourceReceiptText(buf []byte, receipt uint64) []byte {
@@ -276,6 +289,9 @@ func appendEORUpdateJSON(buf []byte, peer *plugin.PeerInfo, msg bgptypes.RawMess
 	buf = appendSourcePolicyEpochJSON(buf, msg.SourcePolicyEpoch)
 	buf = appendSourceReceiptJSON(buf, msg.SourceReceipt)
 	buf = appendSentDestinationJSON(buf, peer.DestinationSession, direction)
+	if encCtx, known := msg.SourceEncodingContext(); known {
+		buf = appendASN4JSON(buf, encCtx)
+	}
 	buf = append(buf, `,"update":{"eor":{"family":"`...)
 	buf = fam.AppendTo(buf)
 	buf = append(buf, `"}}`...)
@@ -312,6 +328,9 @@ func appendEmptyUpdate(buf []byte, peer *plugin.PeerInfo, msg bgptypes.RawMessag
 		buf = appendSourcePolicyEpochJSON(buf, msg.SourcePolicyEpoch)
 		buf = appendSourceReceiptJSON(buf, msg.SourceReceipt)
 		buf = appendSentDestinationJSON(buf, peer.DestinationSession, direction)
+		if encCtx, known := msg.SourceEncodingContext(); known {
+			buf = appendASN4JSON(buf, encCtx)
+		}
 		buf = append(buf, `,"nlri":{}`...)
 		if content.Format == plugin.FormatFull || content.Format == plugin.FormatRaw || content.Format == plugin.FormatHex {
 			buf = append(buf, `,"raw":{"update":"`...)
@@ -389,7 +408,7 @@ func appendNonUpdate(buf []byte, peer *plugin.PeerInfo, msg bgptypes.RawMessage,
 func appendFromFilterResult(buf []byte, peer *plugin.PeerInfo, msg bgptypes.RawMessage, content bgptypes.ContentConfig, result bgpfilter.FilterResult, ctx *bgpctx.EncodingContext, direction rpc.MessageDirection, messageType string) []byte {
 	switch content.Format {
 	case plugin.FormatRaw, plugin.FormatHex:
-		return appendRawFromResult(buf, peer, msg, content, direction, messageType)
+		return appendRawFromResult(buf, peer, msg, content, ctx, direction, messageType)
 	case plugin.FormatFull:
 		return appendFullFromResult(buf, peer, msg, content, result, ctx, direction, messageType)
 	}
@@ -399,7 +418,7 @@ func appendFromFilterResult(buf []byte, peer *plugin.PeerInfo, msg bgptypes.RawM
 
 // appendRawFromResult appends raw hex (does not need FilterResult attributes) to buf.
 // ze-bgp JSON format: {"type":"bgp","bgp":{"message":{"type":"update",...},...}}.
-func appendRawFromResult(buf []byte, peer *plugin.PeerInfo, msg bgptypes.RawMessage, content bgptypes.ContentConfig, direction rpc.MessageDirection, messageType string) []byte {
+func appendRawFromResult(buf []byte, peer *plugin.PeerInfo, msg bgptypes.RawMessage, content bgptypes.ContentConfig, ctx *bgpctx.EncodingContext, direction rpc.MessageDirection, messageType string) []byte {
 	if content.Encoding == plugin.EncodingJSON {
 		buf = append(buf, `{"type":"bgp","bgp":{"message":{"type":"`...)
 		buf = append(buf, messageType...)
@@ -414,6 +433,7 @@ func appendRawFromResult(buf []byte, peer *plugin.PeerInfo, msg bgptypes.RawMess
 		buf = appendSourcePolicyEpochJSON(buf, msg.SourcePolicyEpoch)
 		buf = appendSourceReceiptJSON(buf, msg.SourceReceipt)
 		buf = appendSentDestinationJSON(buf, peer.DestinationSession, direction)
+		buf = appendASN4JSON(buf, ctx)
 		buf = append(buf, `,"raw":{"update":"`...)
 		buf = hex.AppendEncode(buf, msg.RawBytes)
 		buf = append(buf, `"}}}`...)
@@ -458,6 +478,7 @@ func appendParsedUpdateJSONDirect(buf []byte, peer *plugin.PeerInfo, msg bgptype
 	buf = appendSourcePolicyEpochJSON(buf, msg.SourcePolicyEpoch)
 	buf = appendSourceReceiptJSON(buf, msg.SourceReceipt)
 	buf = appendSentDestinationJSON(buf, peer.DestinationSession, direction)
+	buf = appendASN4JSON(buf, ctx)
 
 	buf = append(buf, `,"update":{`...)
 

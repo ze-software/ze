@@ -168,12 +168,11 @@ func TestNeighborTeardownWritesThePinsOctets(t *testing.T) {
 // METHOD: translate the api-peer-lifecycle line and compare the whole command
 // string, because a dropped parameter is invisible in a substring match.
 //
-// VALIDATES: peer-as becomes asn, local-address and router-id travel, each `api`
-// process attaches the bridge plugin that runs it, and the created address is
-// the selector.
-// PREVENTS: a parameter accepted and dropped, which would build a session with
-// the wrong AS or feed no plugin, and ack the script for it
-// (ai/rules/principles.md).
+// VALIDATES: peer-as becomes asn, local-address and router-id travel, `api`
+// process clauses are accepted as tolerated no-ops (no `attach` keyword is
+// emitted under the bus model), and the created address is the selector.
+// PREVENTS: a parameter accepted and dropped, or emitting a retired `attach`
+// keyword that `create bgp peer` no longer accepts (ai/rules/principles.md).
 func TestNeighborCreateWritesTheZeCreateCommand(t *testing.T) {
 	cases := []struct {
 		name string
@@ -183,7 +182,7 @@ func TestNeighborCreateWritesTheZeCreateCommand(t *testing.T) {
 		{
 			"api-peer-lifecycle",
 			"create neighbor 127.0.0.1 local-address 127.0.0.1 local-as 1 peer-as 1 router-id 1.2.3.4 api peer-lifecycle",
-			"create bgp peer 127.0.0.1 asn 1 local-as 1 local-address 127.0.0.1 router-id 1.2.3.4 accept false attach exabgp-bridge",
+			"create bgp peer 127.0.0.1 asn 1 local-as 1 local-address 127.0.0.1 router-id 1.2.3.4 accept false",
 		},
 		{
 			"the smallest line ExaBGP accepts",
@@ -196,9 +195,9 @@ func TestNeighborCreateWritesTheZeCreateCommand(t *testing.T) {
 			"create bgp peer 10.0.0.2 asn 65002 local-as 65001 local-address 10.0.0.1 accept false",
 		},
 		{
-			"two api processes attach the one bridge plugin once",
+			"two api processes are tolerated without emitting attach",
 			"create neighbor 10.0.0.2 local-address 10.0.0.1 local-as 65001 peer-as 65002 api proc1 api proc2",
-			"create bgp peer 10.0.0.2 asn 65002 local-as 65001 local-address 10.0.0.1 accept false attach exabgp-bridge",
+			"create bgp peer 10.0.0.2 asn 65002 local-as 65001 local-address 10.0.0.1 accept false",
 		},
 		{
 			"the family list changes separator and joiner",

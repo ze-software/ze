@@ -21,6 +21,7 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/ze-software/ze/internal/core/family"
 	"github.com/ze-software/ze/pkg/plugin/rpc"
 )
 
@@ -224,73 +225,112 @@ func EncodeAddPathHex(families []string, mode string) string {
 	return fmt.Sprintf("%x", result)
 }
 
-// parseFamilyToAFISAFI converts "ipv4/unicast" to AFI and SAFI values.
-// Returns (0, 0) for invalid/unsupported families.
-func parseFamilyToAFISAFI(family string) (afi, safi uint16) {
-	parts := strings.Split(family, "/")
-	if len(parts) != 2 {
+// parseFamilyToAFISAFI converts a family name (such as "ipv4/unicast" or
+// "ipv4/mpls-label") to IANA AFI and SAFI values. Returns (0, 0) for
+// invalid or unsupported families.
+//
+// It delegates to internal/core/family.LookupFamily first (after mapping
+// legacy ExaBGP SAFI aliases to Ze's canonical names) so every registered Ze
+// family works seamlessly with --family, and falls back to the static IANA
+// table so standalone/unit callers without linked NLRI plugins parse the same
+// families.
+func parseFamilyToAFISAFI(name string) (afi, safi uint16) {
+	lower := strings.ToLower(name)
+	if fam, ok := family.LookupFamily(lower); ok {
+		return uint16(fam.AFI), uint16(fam.SAFI)
+	}
+
+	afiName, safiName, ok := strings.Cut(lower, "/")
+	if !ok {
+		return 0, 0
+	}
+	if strings.Contains(safiName, "/") {
 		return 0, 0
 	}
 
-	afiStr := strings.ToLower(parts[0])
-	safiStr := strings.ToLower(parts[1])
+	canonicalSAFI := normalizeBridgeFamilySAFI(safiName)
+	if canonicalSAFI != safiName {
+		if fam, found := family.LookupFamily(afiName + "/" + canonicalSAFI); found {
+			return uint16(fam.AFI), uint16(fam.SAFI)
+		}
+	}
 
-	// AFI: ipv4=1, ipv6=2, l2vpn=25
-	switch afiStr {
+	return staticFamilyAFISAFI(afiName, canonicalSAFI)
+}
+
+// normalizeBridgeFamilySAFI maps legacy ExaBGP/CLI SAFI aliases to Ze's
+// canonical SAFI spelling.
+func normalizeBridgeFamilySAFI(safi string) string {
+	switch safi {
+	case "mpls", bridgeLabeledSAFI, "labeled-unicast":
+		return zeLabeledSAFI
+	case bridgeMVPNSAFI:
+		return zeMVPNSAFI
+	case "vpn":
+		return bridgeVPNSAFI
+	case "flowspec":
+		return bridgeFlowSAFI
+	case "flowspec-vpn":
+		return bridgeFlowVPNSAFI
+	default:
+		return safi
+	}
+}
+
+// staticFamilyAFISAFI resolves canonical Ze AFI/SAFI names using IANA numbers
+// when the corresponding NLRI plugin is not linked into the process.
+func staticFamilyAFISAFI(afiName, safiName string) (afi, safi uint16) {
+	switch afiName {
 	case bridgeAFIv4:
-		afi = 1
+		afi = uint16(family.AFIIPv4)
 	case bridgeAFIv6:
-		afi = 2
+		afi = uint16(family.AFIIPv6)
 	case "l2vpn":
-		afi = 25
+		switch safiName {
+		case "vpls":
+			return uint16(family.AFIL2VPN), uint16(family.SAFIVPLS)
+		case "evpn":
+			return uint16(family.AFIL2VPN), uint16(family.SAFIEVPN)
+		default:
+			return 0, 0
+		}
+	case "bgp-ls":
+		switch safiName {
+		case "bgp-ls":
+			return uint16(family.AFIBGPLS), uint16(family.SAFIBGPLinkState)
+		case "bgp-ls-vpn":
+			return uint16(family.AFIBGPLS), uint16(family.SAFIBGPLinkStateVPN)
+		default:
+			return 0, 0
+		}
 	default:
 		return 0, 0
 	}
 
-	// SAFI values per IANA BGP SAFI registry.
-	// L2VPN AFI (25) is only valid with EVPN SAFI (70) per RFC 7432.
-	switch safiStr {
-	case "unicast":
-		if afi == 25 {
-			return 0, 0 // L2VPN doesn't use unicast.
-		}
-		safi = 1
-	case "multicast":
-		if afi == 25 {
-			return 0, 0 // L2VPN doesn't use multicast.
-		}
-		safi = 2
-	case "mpls", "nlri-mpls", "labeled-unicast":
-		if afi == 25 {
-			return 0, 0 // L2VPN doesn't use labeled unicast.
-		}
-		safi = 4
-	case "evpn":
-		// RFC 7432: EVPN is only valid with L2VPN AFI.
-		if afi != 25 {
+	switch safiName {
+	case bridgeUnicastSAFI:
+		safi = uint16(family.SAFIUnicast)
+	case bridgeMulticastSAFI:
+		safi = uint16(family.SAFIMulticast)
+	case zeLabeledSAFI:
+		safi = uint16(family.SAFIMPLSLabel)
+	case zeMVPNSAFI:
+		safi = uint16(family.SAFIMVPN)
+	case "sr-policy":
+		safi = uint16(family.SAFISRPolicy)
+	case bridgeMUPSAFI:
+		safi = uint16(family.SAFIMUP)
+	case bridgeVPNSAFI:
+		safi = uint16(family.SAFIVPN)
+	case bridgeRTCSAFI:
+		if afi != uint16(family.AFIIPv4) {
 			return 0, 0
 		}
-		safi = 70
-	case "vpn", "mpls-vpn":
-		if afi == 25 {
-			return 0, 0 // L2VPN doesn't use MPLS VPN SAFI.
-		}
-		safi = 128
-	case "flow", "flowspec":
-		if afi == 25 {
-			return 0, 0 // L2VPN doesn't use flowspec.
-		}
-		safi = 133
-	case "flow-vpn", "flowspec-vpn":
-		if afi == 25 {
-			return 0, 0 // L2VPN doesn't use flowspec-vpn.
-		}
-		safi = 134
-	case "sr-policy":
-		if afi == 25 {
-			return 0, 0 // L2VPN doesn't use SR-Policy.
-		}
-		safi = 73
+		safi = uint16(family.SAFIRTC)
+	case bridgeFlowSAFI:
+		safi = uint16(family.SAFIFlowSpec)
+	case bridgeFlowVPNSAFI:
+		safi = uint16(family.SAFIFlowSpecVPN)
 	default:
 		return 0, 0
 	}
@@ -298,12 +338,28 @@ func parseFamilyToAFISAFI(family string) (afi, safi uint16) {
 	return afi, safi
 }
 
+// ParseFamilyAFISAFI converts a family name to its IANA AFI and SAFI values,
+// returning false when the family is unknown or invalid.
+func ParseFamilyAFISAFI(name string) (afi uint16, safi uint8, ok bool) {
+	a, s := parseFamilyToAFISAFI(name)
+	if a == 0 {
+		return 0, 0, false
+	}
+	if s == 0 {
+		return 0, 0, false
+	}
+	return a, uint8(s), true
+}
+
 // ValidateFamily checks if a family string is supported.
 // Uses parseFamilyToAFISAFI as single source of truth.
-func ValidateFamily(family string) error {
-	afi, safi := parseFamilyToAFISAFI(family)
-	if afi == 0 || safi == 0 {
-		return fmt.Errorf("unsupported address family: %s", family)
+func ValidateFamily(name string) error {
+	afi, safi := parseFamilyToAFISAFI(name)
+	if afi == 0 {
+		return fmt.Errorf("unsupported address family: %s", name)
+	}
+	if safi == 0 {
+		return fmt.Errorf("unsupported address family: %s", name)
 	}
 	return nil
 }
@@ -367,18 +423,15 @@ type Bridge struct {
 	ack AckMode
 
 	// apiSetting is `exabgp.api.version`, read at each Start, and api the
-	// version the script is held to (ScriptVersion). The standalone runner has
-	// no process block, so the script reads JSON: the encoder the SDK runner
-	// gives its script too. Held to API 4 it reads 4.0.1 JSON, else 6.0 JSON.
+	// version the script is held to (ScriptVersion). Encoder controls the
+	// script-side event encoding (default EncoderJSON in NewBridge; SetEncoder
+	// or setting Encoder before Start switches to EncoderText).
 	apiSetting atomic.Uint32
 	api        *ScriptVersion
+	Encoder    Encoder
 
 	// group is the script's `group start` buffer, emptied at each Start.
 	group Group
-
-	// owners is who announced each route last (OwnerLedger), so the child's
-	// exit withdraws the routes it owns (Bridge.exited).
-	owners *OwnerLedger
 
 	// Families to declare during startup (ZeBGP format: "ipv4/unicast")
 	Families []string
@@ -396,11 +449,21 @@ func NewBridge(pluginCmd []string) *Bridge {
 		pluginCmd: pluginCmd,
 		Families:  []string{defaultFamily},
 		ack:       NewAckMode(),
-		owners:    NewOwnerLedger(),
+		Encoder:   EncoderJSON,
 	}
 	b.apiSetting.Store(uint32(APIVersionAuto))
-	b.api = NewScriptVersion(pluginCmd[0], slog.Default(), EncoderJSON, &b.apiSetting)
+	b.api = NewScriptVersion(pluginCmd[0], slog.Default(), b.Encoder, &b.apiSetting)
 	return b
+}
+
+// SetEncoder configures the script-side event encoder (EncoderText or
+// EncoderJSON) for standalone runs.
+func (b *Bridge) SetEncoder(encoder Encoder) {
+	if encoder == EncoderUnspecified {
+		return
+	}
+	b.Encoder = encoder
+	b.api = NewScriptVersion(b.pluginCmd[0], slog.Default(), b.Encoder, &b.apiSetting)
 }
 
 // Start starts the plugin subprocess with the given context.
@@ -410,6 +473,9 @@ func (b *Bridge) Start(ctx context.Context) error {
 		return fmt.Errorf("exabgp-bridge: %w", err)
 	}
 	b.apiSetting.Store(uint32(setting))
+	if b.Encoder != EncoderUnspecified {
+		b.api = NewScriptVersion(b.pluginCmd[0], slog.Default(), b.Encoder, &b.apiSetting)
+	}
 	b.api.Reset()
 	b.group = Group{}
 
@@ -435,7 +501,9 @@ func (b *Bridge) Start(ctx context.Context) error {
 		return fmt.Errorf("start plugin: %w", err)
 	}
 
+	b.mu.Lock()
 	b.running = true
+	b.mu.Unlock()
 	return nil
 }
 
@@ -445,27 +513,37 @@ func (b *Bridge) Stop() {
 	b.running = false
 	b.mu.Unlock()
 
-	if b.cmd.Process != nil {
+	if b.cmd != nil && b.cmd.Process != nil && b.cmd.ProcessState == nil {
 		_ = b.cmd.Process.Kill()
 	}
 }
 
 // Run runs the bridge, translating between ZeBGP (stdin/stdout) and the plugin.
 // It first completes the 5-stage startup protocol (raw text), then switches to
-// MuxConn wire format for runtime I/O.
+// MuxConn wire format for runtime I/O. When the script exits, Run writes no
+// withdrawals and returns the script's exit error directly (E-6).
 func (b *Bridge) Run(ctx context.Context) error {
-	// Create a single scanner for os.Stdin - used for both startup and MuxConn events.
+	return b.runIO(ctx, os.Stdin, os.Stdout, os.Stderr)
+}
+
+// runIO is Run parameterized over its ZeBGP I/O streams so tests can drive the
+// standalone runner end-to-end without replacing process stdio.
+func (b *Bridge) runIO(ctx context.Context, zeIn io.Reader, zeOutWriter, zeErr io.Writer) error {
+	runCtx, cancelRun := context.WithCancel(ctx)
+	defer cancelRun()
+
+	// Create a single scanner for zeIn - used for both startup and MuxConn events.
 	// This prevents data loss from buffered reads.
 	//
 	// An answer line states its own width, so it is taken by that width rather
 	// than by searching for a newline: a record payload may hold a raw newline,
 	// and bufio.ScanLines would split the line on it and strip a trailing
 	// carriage return besides (rpc.ScanAnswerLines).
-	stdinScanner := bufio.NewScanner(os.Stdin)
+	stdinScanner := bufio.NewScanner(zeIn)
 	stdinScanner.Split(rpc.ScanAnswerLines)
 
 	// Stage 1-5: Complete startup protocol with ZeBGP (raw text, no MuxConn)
-	sp := newStartupProtocol(stdinScanner, os.Stdout)
+	sp := newStartupProtocol(stdinScanner, zeOutWriter)
 	sp.Families = b.Families
 	sp.RouteRefresh = b.RouteRefresh
 	sp.AddPathMode = b.AddPathMode
@@ -476,60 +554,55 @@ func (b *Bridge) Run(ctx context.Context) error {
 	// Stage 6: Running - start plugin and begin MuxConn translation.
 	// After stage 5, ze wraps the connection in MuxConn. All subsequent I/O
 	// uses #<id> verb [payload]\n framing.
-	if err := b.Start(ctx); err != nil {
+	if err := b.Start(runCtx); err != nil {
 		return err
 	}
 	defer b.Stop()
 
 	// Shared writer for ze stdout -- both goroutines write MuxConn lines.
-	zeOut := &syncWriter{w: os.Stdout}
+	zeOut := &syncWriter{w: zeOutWriter}
 
 	// Pending responses: command goroutine registers flush requests,
 	// event goroutine signals when responses arrive.
 	pending := newPendingResponses()
 
-	var wg sync.WaitGroup
-	wg.Add(2)
 	var commands sync.WaitGroup
-	commands.Add(1)
+	var stderrWG sync.WaitGroup
 
-	// ZeBGP stdin -> plugin stdin (parse MuxConn deliver-batch, translate events)
+	// ZeBGP stdin -> plugin stdin (parse MuxConn deliver-batch, translate events).
 	// Uses the SAME scanner that completed startup to avoid losing buffered data.
+	// Not awaited after b.cmd.Wait() returns: once the script has exited, the
+	// standalone runner mirrors its exit status immediately (E-6) rather than
+	// blocking on os.Stdin EOF. Closing b.stdin on EOF lets a running script see
+	// the upstream close.
 	go func() {
-		defer wg.Done()
-		b.zebgpToPluginWithScanner(ctx, stdinScanner, b.stdin, zeOut, pending)
+		b.zebgpToPluginWithScanner(runCtx, stdinScanner, b.stdin, zeOut, pending)
+		_ = b.stdin.Close() //nolint:errcheck // best-effort EOF to child stdin
 	}()
 
 	// Plugin stdout -> ZeBGP stdout (translate commands, wrap in MuxConn dispatch + flush)
-	go func() {
-		defer commands.Done()
-		b.pluginToZebgp(ctx, b.stdout, b.stdin, zeOut, pending)
-	}()
+	commands.Go(func() {
+		b.pluginToZebgp(runCtx, b.stdout, b.stdin, zeOut, pending)
+	})
 
 	// Plugin stderr -> ZeBGP stderr (pass through)
-	go func() {
-		defer wg.Done()
-		if _, err := io.Copy(os.Stderr, b.stderr); err != nil {
-			slog.Debug("stderr copy ended", "error", err)
+	stderrWG.Go(func() {
+		if _, err := io.Copy(zeErr, b.stderr); err != nil {
+			slog.Warn("stderr copy ended", "error", err)
 		}
-	}()
+	})
 
-	// Wait for the plugin to exit. Its stdout is read to EOF and its last
-	// batch dispatched first: Wait closes the pipe, and the exit settles the
-	// routes that batch announced. The ze reader is still running, so the
-	// exit's withdrawals are answered.
+	// Wait for the plugin's stdout and stderr pipes to reach EOF before Wait,
+	// as required by os/exec.Cmd.StdoutPipe/StderrPipe, then reap the process.
+	// Per E-6, standalone mode writes no withdrawals on script exit and returns
+	// the child's exit error (preserving *exec.ExitError) directly.
 	commands.Wait()
+	stderrWG.Wait()
 	err := b.cmd.Wait()
-	b.exited(ctx, muxRunner{b: b, zeOut: zeOut, pending: pending})
-	wg.Wait()
+	b.Stop()
+	cancelRun()
+	_ = b.stdin.Close() //nolint:errcheck // child already exited
 	return err
-}
-
-// exited settles the routes of the child that exited (OwnerLedger.Exited).
-// The standalone runner has no process block, so `on-exit` is unset and the
-// API version the child was held to decides.
-func (b *Bridge) exited(ctx context.Context, runner ExitRunner) {
-	b.owners.Exited(ctx, slog.Default(), b.pluginCmd[0], OnExitByVersion, b.api.Current(), runner)
 }
 
 // zebgpToPluginWithScanner reads MuxConn lines from ze, extracts deliver-batch events,
@@ -838,11 +911,6 @@ func (r muxRunner) Flush(ctx context.Context, selector string) error {
 func (r muxRunner) Status(context.Context, bool) ([]byte, BatchAnswer) {
 	slog.Warn("plugin->zebgp: line refused", "error", errStatusStandalone)
 	return nil, BatchAnswer{Failed: true, Error: errStatusStandalone.Error()}
-}
-
-// Dispatched makes the script the owner of the route command ze accepted.
-func (r muxRunner) Dispatched(selector string, command Command) {
-	r.b.owners.Note(r.b.pluginCmd[0], selector, command)
 }
 
 // truncate returns s truncated to maxLen runes with "..." suffix if needed.

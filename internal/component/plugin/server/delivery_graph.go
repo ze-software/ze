@@ -5,11 +5,17 @@
 package server
 
 import (
+	"context"
+	"errors"
+	"io"
 	"maps"
+	"net"
 	"slices"
 	"strings"
+	"time"
 
 	"github.com/ze-software/ze/internal/component/plugin"
+	plugipc "github.com/ze-software/ze/internal/component/plugin/ipc"
 	"github.com/ze-software/ze/internal/component/plugin/process"
 	"github.com/ze-software/ze/internal/component/plugin/registry"
 	"github.com/ze-software/ze/internal/core/events"
@@ -738,6 +744,14 @@ func (g *DeliveryGraph) Stage2FilterFor(endpointName string) *rpc.BusParticipant
 		if tf := g.compiled.Filter(targetPath); tf != nil {
 			t.EndpointName = tf.EndpointName
 			t.SecondaryPaths = slices.Clone(tf.SecondaryPaths)
+			if t.Address == "" {
+				for _, sp := range tf.SecondaryPaths {
+					if addr := g.pathToAddr[sp]; addr != "" {
+						t.Address = addr
+						break
+					}
+				}
+			}
 		}
 		return t
 	}
@@ -747,8 +761,12 @@ func (g *DeliveryGraph) Stage2FilterFor(endpointName string) *rpc.BusParticipant
 		EndpointName:    f.EndpointName,
 		SendAll:         f.SendAllowAllDeclared,
 		SendNone:        f.SendAllowNone,
+		SendToAll:       f.SendToAll,
+		SendToNone:      f.SendToNone,
 		ReceiveAll:      f.ReceiveAllowAllDeclared,
 		ReceiveNone:     f.ReceiveAllowNone,
+		ReceiveFromAll:  f.ReceiveFromAll,
+		ReceiveFromNone: f.ReceiveFromNone,
 	}
 
 	for _, msg := range slices.Sorted(maps.Keys(f.SendRules)) {
@@ -761,10 +779,12 @@ func (g *DeliveryGraph) Stage2FilterFor(endpointName string) *rpc.BusParticipant
 			targets = append(targets, buildTarget(tp))
 		}
 		out.SendRules = append(out.SendRules, rpc.BusFilterRule{
-			Message: r.Message,
-			Allowed: r.Allowed,
-			Targets: targets,
-			Tags:    cloneTagValueMap(r.OutboundTagMap),
+			Message:    r.Message,
+			Allowed:    r.Allowed,
+			TargetAll:  r.ToAll,
+			TargetNone: r.ToNone,
+			Targets:    targets,
+			Tags:       cloneTagValueMap(r.OutboundTagMap),
 		})
 	}
 
@@ -778,10 +798,12 @@ func (g *DeliveryGraph) Stage2FilterFor(endpointName string) *rpc.BusParticipant
 			targets = append(targets, buildTarget(tp))
 		}
 		out.ReceiveRules = append(out.ReceiveRules, rpc.BusFilterRule{
-			Message: r.Message,
-			Allowed: r.Allowed,
-			Targets: targets,
-			Tags:    cloneTagValueMap(r.InboundTagMap),
+			Message:    r.Message,
+			Allowed:    r.Allowed,
+			TargetAll:  r.FromAll,
+			TargetNone: r.FromNone,
+			Targets:    targets,
+			Tags:       cloneTagValueMap(r.InboundTagMap),
 		})
 	}
 
@@ -1206,6 +1228,10 @@ func (s *Server) RefreshDeliveryGraph() {
 	s.UpdateDeliveryGraph(cur.namespace, cur.disseminationPeers)
 }
 
+// participantFilterPushTimeout bounds each asynchronous participant-filter
+// rebuild delivery so one slow plugin cannot stall updates to other plugins.
+const participantFilterPushTimeout = 5 * time.Second
+
 // UpdateDeliveryGraphWithEndpoints compiles peers with explicit endpoint
 // participant inputs and atomically swaps the resulting DeliveryGraph into s.
 func (s *Server) UpdateDeliveryGraphWithEndpoints(
@@ -1223,7 +1249,196 @@ func (s *Server) UpdateDeliveryGraphWithEndpoints(
 	publishPluginProfileServer(s)
 	logger().Debug("delivery graph published", "namespace", namespace, "entries", g.Len())
 	s.reconcileDelivery(nil)
+	s.enqueueParticipantFilterPush(g)
 	return nil
+}
+
+// enqueueParticipantFilterPush schedules an asynchronous push of updated
+// participant filters from g to all running plugins. Never blocks callers:
+// rapid rebuilds coalesce onto the latest snapshot via pendingFilterGraph and
+// one long-lived worker per Server (stopped in Server.Stop).
+func (s *Server) enqueueParticipantFilterPush(g *DeliveryGraph) {
+	if g == nil {
+		return
+	}
+	if s.stopping.Load() {
+		return
+	}
+	pm := s.procManager.Load()
+	if pm == nil {
+		return
+	}
+	hasTarget := false
+	for _, proc := range pm.AllProcesses() {
+		if proc == nil {
+			continue
+		}
+		if !proc.Running() {
+			continue
+		}
+		if proc.Stage() != plugin.StageRunning {
+			continue
+		}
+		if proc.Conn() == nil {
+			continue
+		}
+		if g.Stage2FilterFor(proc.Name()) != nil {
+			hasTarget = true
+			break
+		}
+	}
+	if !hasTarget {
+		return
+	}
+
+	s.pendingFilterGraph.Store(g)
+
+	s.filterPushMu.Lock()
+	if s.filterPushStopped {
+		s.filterPushMu.Unlock()
+		return
+	}
+	if s.filterPushNotify == nil {
+		workerCtx, workerCancel := context.WithCancel(context.Background())
+		notify := make(chan struct{}, 1)
+		done := make(chan struct{})
+		s.filterPushNotify = notify
+		s.filterPushCancel = workerCancel
+		s.filterPushDone = done
+		go s.runParticipantFilterPushWorker(workerCtx, notify, done)
+	}
+	notify := s.filterPushNotify
+	s.filterPushMu.Unlock()
+
+	select {
+	case notify <- struct{}{}:
+	default:
+	}
+}
+
+func (s *Server) runParticipantFilterPushWorker(ctx context.Context, notify <-chan struct{}, done chan<- struct{}) {
+	defer close(done)
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case <-notify:
+			g := s.pendingFilterGraph.Swap(nil)
+			if g == nil {
+				continue
+			}
+			s.pushParticipantFilters(ctx, g)
+		}
+	}
+}
+
+func (s *Server) stopParticipantFilterPushWorker() {
+	s.filterPushMu.Lock()
+	if s.filterPushStopped {
+		s.filterPushMu.Unlock()
+		return
+	}
+	s.filterPushStopped = true
+	cancel := s.filterPushCancel
+	done := s.filterPushDone
+	s.filterPushMu.Unlock()
+
+	if cancel != nil {
+		cancel()
+	}
+	if done != nil {
+		<-done
+	}
+}
+
+func (s *Server) pushParticipantFilters(ctx context.Context, g *DeliveryGraph) {
+	pm := s.procManager.Load()
+	if pm == nil {
+		return
+	}
+	for _, proc := range pm.AllProcesses() {
+		if ctx.Err() != nil {
+			return
+		}
+		if s.stopping.Load() {
+			return
+		}
+		if proc == nil {
+			continue
+		}
+		if !proc.Running() {
+			continue
+		}
+		if proc.Stage() != plugin.StageRunning {
+			continue
+		}
+		conn := proc.Conn()
+		if conn == nil {
+			continue
+		}
+		filter := g.Stage2FilterFor(proc.Name())
+		if filter == nil {
+			continue
+		}
+		s.deliverParticipantFilter(ctx, conn, proc, filter)
+	}
+}
+
+func (s *Server) deliverParticipantFilter(
+	baseCtx context.Context,
+	conn *plugipc.PluginConn,
+	proc *process.Process,
+	filter *rpc.BusParticipantFilter,
+) {
+	ctx, cancel := context.WithTimeout(baseCtx, participantFilterPushTimeout)
+	defer cancel()
+	err := conn.SendParticipantFilter(ctx, filter)
+	if err == nil {
+		return
+	}
+	if s.stopping.Load() {
+		return
+	}
+	if baseCtx.Err() != nil {
+		return
+	}
+	if isIgnorableParticipantFilterError(err) {
+		return
+	}
+	logger().Warn("participant filter update delivery failed",
+		"plugin", proc.Name(), "error", err, "code", CodeDoctorPluginDeliveryDisagreement)
+}
+
+func isIgnorableParticipantFilterError(err error) bool {
+	if errors.Is(err, rpc.ErrMuxConnClosed) {
+		return true
+	}
+	if errors.Is(err, rpc.ErrBridgeClosed) {
+		return true
+	}
+	if errors.Is(err, io.EOF) {
+		return true
+	}
+	if errors.Is(err, io.ErrClosedPipe) {
+		return true
+	}
+	if errors.Is(err, net.ErrClosed) {
+		return true
+	}
+	if errors.Is(err, context.Canceled) {
+		return true
+	}
+	msg := err.Error()
+	if strings.Contains(msg, "not-understood") {
+		return true
+	}
+	if strings.Contains(msg, "unknown method") {
+		return true
+	}
+	if strings.Contains(msg, "use of closed network connection") {
+		return true
+	}
+	return strings.Contains(msg, "read/write on closed pipe")
 }
 
 // collectBusEndpointInputs collects BusParticipantInput entries for all active
@@ -1309,7 +1524,11 @@ func (s *Server) collectBusEndpointInputs(namespace string, busCfg plugin.BusCon
 	}
 
 	for _, epName := range slices.Sorted(maps.Keys(busCfg.Endpoints)) {
-		addEndpoint(epName, "", nil)
+		regName := ""
+		if registry.Lookup(epName) != nil {
+			regName = epName
+		}
+		addEndpoint(epName, regName, nil)
 	}
 
 	return out

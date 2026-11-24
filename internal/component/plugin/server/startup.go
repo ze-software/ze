@@ -1124,7 +1124,21 @@ func (s *Server) deliverConfigRPC(ctx context.Context, proc *process.Process) er
 	}
 
 	busCatalog := s.buildBusCatalog()
-	if err := conn.SendConfigureServing(ctx, sections, claims, busCatalog, func(req *rpc.Request) (bool, error) {
+	participantFilter := s.DeliveryGraph().Stage2FilterFor(proc.Name())
+	needsRefresh := participantFilter == nil
+	if !needsRefresh && reg != nil {
+		if len(reg.Sends) > 0 && len(participantFilter.SendRules) == 0 {
+			needsRefresh = true
+		}
+		if len(reg.Receives) > 0 && len(participantFilter.ReceiveRules) == 0 {
+			needsRefresh = true
+		}
+	}
+	if needsRefresh {
+		s.RefreshDeliveryGraph()
+		participantFilter = s.DeliveryGraph().Stage2FilterFor(proc.Name())
+	}
+	if err := conn.SendConfigureServing(ctx, sections, claims, busCatalog, participantFilter, func(req *rpc.Request) (bool, error) {
 		return s.serveConfigureEngineOp(ctx, proc, conn, req)
 	}); err != nil {
 		logger().Error("deliverConfigRPC failed", "plugin", proc.Name(), "error", err)

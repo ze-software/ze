@@ -1,5 +1,6 @@
 // Design: docs/architecture/core-design.md -- ExaBGP migration orchestration
 // Detail: env.go -- ExaBGP env file migration
+// Detail: migrate_bus.go -- bus endpoint emission and capability flags for ExaBGP processes
 // Detail: migrate_routes.go -- route conversion to Ze update blocks
 // Detail: migrate_family.go -- family and nexthop syntax conversion
 // Detail: migrate_serialize.go -- config tree serialization
@@ -54,13 +55,13 @@ type MigrateResult struct {
 // MigrateFromExaBGP converts an ExaBGP config tree to ZeBGP format.
 //
 // Transformations applied:
-//   - neighbor -> peer
-//   - process -> plugin (wrapped with ze exabgp plugin bridge)
-//   - process { processes [...] } -> attach process NAME { ... } inside peer
+//   - neighbor -> bgp { group <group> { peer <name> { ... } } }
+//   - process -> bus { endpoint <name> { external { run "ze exabgp plugin ..."; } } }
+//   - api { processes [...] } -> endpoint receive/send bus filters and --form / capability flags
 //   - capability { route-refresh; } -> capability { route-refresh enable; }
 //   - template { neighbor X { } } + inherit X -> expanded peer
 //   - Every migrated peer carries explicit import and export accept policies
-//   - If GR or route-refresh: inject RIB plugin
+//   - If GR, route-refresh, or API processes: declare bus > endpoint bgp-rib { internal bgp-rib; }
 func MigrateFromExaBGP(tree *config.Tree) (*MigrateResult, error) {
 	if tree == nil {
 		return nil, ErrNilTree
@@ -73,18 +74,18 @@ func MigrateFromExaBGP(tree *config.Tree) (*MigrateResult, error) {
 	// Collect templates for inheritance expansion.
 	templates := collectTemplates(tree)
 
-	// Check if we need to inject RIB plugin
-	needsRIB := needsRIBPlugin(tree)
-	if needsRIB {
+	// Check if we need the RIB endpoint.
+	if needsRIBPlugin(tree) {
 		result.RIBInjected = true
-		injectRIBPlugin(result.Tree)
+		ensureInternalEndpoint(result.Tree, "bgp-rib")
 	}
 
-	// Migrate processes -> plugins (wrapped with bridge)
-	processMap, bridgeNames := migrateProcesses(tree, result)
+	// Migrate ExaBGP process definitions -> external bus endpoint metadata.
+	processes, endpointNames := migrateProcesses(tree, result)
+	apiVersion4 := isExaBGPAPIVersion4(tree)
 
-	// Migrate neighbors -> peers (with template expansion)
-	if err := migrateNeighbors(tree, result, processMap, bridgeNames, needsRIB, templates); err != nil {
+	// Migrate neighbors -> peers (with template expansion) and emit script endpoints.
+	if err := migrateNeighbors(tree, result, processes, endpointNames, apiVersion4, templates); err != nil {
 		return nil, err
 	}
 
@@ -178,56 +179,27 @@ func neighborNeedsRIB(neighborTree *config.Tree) bool {
 	return len(neighborTree.GetList("process")) > 0
 }
 
-// injectRIBPlugin adds the RIB plugin to the tree.
-func injectRIBPlugin(tree *config.Tree) {
-	ribPlugin := config.NewTree()
-	ribPlugin.Set("use", "bgp-rib")
-	tree.AddListEntry("plugin", "bgp-rib", ribPlugin)
-}
-
-// bridgePluginName is the registry name of the in-process ExaBGP bridge, and it
-// is the plugin every migrated ExaBGP process binds to.
-const bridgePluginName = bridge.PluginName
-
-// migrateProcesses converts ExaBGP process definitions into the in-process
-// ExaBGP bridge.
-//
-// The bridge is the adapter between the two protocols: the script keeps writing
-// ExaBGP API text on its stdout, and the bridge reads each line and answers the
-// ze command that sends it (`TranslateLine`, internal/exabgp/bridge). So a
-// migrated config starts the operator's script and their announcements reach
-// the wire.
-//
-// This dropped every process until 2026-09-05, on the reasoning that "ExaBGP
-// processes cannot run as Ze plugins because the protocols are incompatible".
-// The bridge is what makes them compatible and it postdates that comment, so
-// the config was losing the half of itself that produces routes: the script was
-// collected into result.Processes, printed to stderr as `process:NAME:CMD`, and
-// read by nothing.
+// migrateProcesses extracts ExaBGP process definitions so each becomes an
+// external bus endpoint running `ze exabgp plugin` (E-1).
 //
 // Every leaf of the ExaBGP process block that changes what ze does is carried:
-// `run` (the program and all its arguments), `respawn`, `encoder` and `on-exit`. `encoder` was read by nothing until
-// 2026-09-06, so a config asking for the text event format was migrated into a
-// bridge that answered JSON, with no error and no log line.
+// `run` (the program and all its arguments), `respawn`, `encoder` and `on-exit`.
 //
-// It answers two maps keyed by the ExaBGP process name: the plugin a peer
-// binding attaches (always the bridge), and the name the process block carries
-// in the bridge, which bridgeProcessNames chooses and which differs from the
-// ExaBGP name only where the bridge cannot hold that name.
-func migrateProcesses(tree *config.Tree, result *MigrateResult) (processMap, bridgeNames map[string]string) {
-	processMap = make(map[string]string)
-	processes := make([]bridgeProcess, 0, 2)
+// It returns the ordered migrated processes and a map from each ExaBGP process
+// name to the sanitized bus endpoint name chosen by endpointProcessNames.
+func migrateProcesses(tree *config.Tree, result *MigrateResult) (processes []migratedProcess, endpointNames map[string]string) {
+	processes = make([]migratedProcess, 0, 2)
 	carried := make([]string, 0, 2)
 	for _, entry := range tree.GetListOrdered("process") {
 		if len(entry.Value.GetSlice("run")) > 0 {
 			carried = append(carried, entry.Key)
 		}
 	}
-	bridgeNames = bridgeProcessNames(carried)
+	endpointNames = endpointProcessNames(carried)
 	for _, entry := range tree.GetListOrdered("process") {
 		// ExaBGP runs the program with every word after it as its argv, with no
-		// shell; the bridge `run` leaf is one string, so the argv is written as
-		// a command line the bridge splits back into the same words.
+		// shell; the endpoint `run` leaf is a shell command line, so the argv
+		// is joined with bridge.JoinCommandLine to preserve every argument.
 		argv := entry.Value.GetSlice("run")
 		if len(argv) == 0 {
 			continue
@@ -241,37 +213,20 @@ func migrateProcesses(tree *config.Tree, result *MigrateResult) (processMap, bri
 		if err != nil {
 			result.Warnings = append(result.Warnings, fmt.Sprintf("process %s: %v", entry.Key, err))
 		}
-		bridgeName := bridgeNames[entry.Key]
-		if bridgeName != entry.Key {
-			result.Warnings = append(result.Warnings, renamedProcessWarning(entry.Key, bridgeName))
+		endpointName := endpointNames[entry.Key]
+		if endpointName != entry.Key {
+			result.Warnings = append(result.Warnings, renamedProcessWarning(entry.Key, endpointName))
 		}
-		processes = append(processes, bridgeProcess{
-			Name:    bridgeName,
-			RunCmd:  runCmd,
-			Respawn: exabgpRespawn(entry.Value),
-			Encoder: encoder,
-			OnExit:  exabgpOnExit(entry.Value),
+		processes = append(processes, migratedProcess{
+			OrigName:     entry.Key,
+			EndpointName: endpointName,
+			RunCmd:       runCmd,
+			Respawn:      exabgpRespawn(entry.Value),
+			Encoder:      encoder,
+			OnExit:       exabgpOnExit(entry.Value),
 		})
-		processMap[entry.Key] = bridgePluginName
 	}
-	if len(processes) == 0 {
-		return processMap, bridgeNames
-	}
-	injectBridgePlugin(result.Tree, processes)
-	return processMap, bridgeNames
-}
-
-// bridgeProcess is one ExaBGP process block, in the form the bridge declares.
-type bridgeProcess struct {
-	Name   string
-	RunCmd string
-	// Encoder is the format the block asked its script's events be written in.
-	Encoder bridge.Encoder
-	// Respawn is ExaBGP's own default, true, unless the block says otherwise.
-	Respawn bool
-	// OnExit is the block's `on-exit` word, `keep` or `withdraw`, or empty
-	// when the block left it unset and the script's API version decides.
-	OnExit string
+	return processes, endpointNames
 }
 
 // exabgpOnExit reads a process block's `on-exit` leaf as written. ExaBGP
@@ -287,13 +242,11 @@ func exabgpOnExit(process *config.Tree) string {
 
 // exabgpEncoder reads a process block's `encoder` leaf.
 //
-// An absent leaf answers EncoderUnspecified, and injectBridgePlugin then writes
-// no leaf, which leaves the ze default in place. ExaBGP's own leaf default is
-// `text` (src/exabgp/configuration/process/__init__.py), and ExaBGP 6 overrides
-// it to JSON for every process; ze declares the 6.0.0 envelope, so an ExaBGP
-// config that stated nothing migrates to the JSON ze already answered.
+// An absent leaf answers EncoderUnspecified, and the endpoint's `run` line
+// omits `--encoder`, leaving the `ze exabgp plugin` wrapper's default (`text`)
+// in place.
 //
-// A word that names neither format is REPORTED as a warning and the leaf is
+// A word that names neither format is reported as a warning and `--encoder` is
 // left unwritten, so the migrated config states no encoder rather than an
 // invented one.
 func exabgpEncoder(process *config.Tree) (bridge.Encoder, error) {
@@ -326,61 +279,21 @@ func exabgpBoolean(value string) bool {
 	return !slices.Contains(exabgpFalse, strings.ToLower(strings.Trim(value, `"';`)))
 }
 
-// injectBridgePlugin declares the bridge and the script it runs:
-//
-//	exabgp { bridge { process <name> { run "<command>"; respawn <v>; encoder <e>; on-exit <o> } } }
-//	plugin { internal exabgp-bridge { use exabgp-bridge } }
-//
-// The family leaf is left out on purpose. It refines the ADD-PATH capability
-// encoding the bridge negotiates for the script, and the neighbor already
-// declares the families this config asks for.
-//
-// dst is the RESULT tree. Writing to the source tree loses the block: the
-// source is read and discarded, and only result.Tree reaches the serializer.
-func injectBridgePlugin(dst *config.Tree, processes []bridgeProcess) {
-	block := config.NewTree()
-	for _, process := range processes {
-		entry := config.NewTree()
-		entry.Set("run", process.RunCmd)
-		// The leaf is written only to turn respawning OFF, because true is
-		// both ExaBGP's default and the ze YANG default.
-		if !process.Respawn {
-			entry.Set("respawn", "disable")
-		}
-		// The encoder is written only when the ExaBGP block stated one, so an
-		// absent leaf stays absent and the ze default decides.
-		if process.Encoder != bridge.EncoderUnspecified {
-			entry.Set("encoder", process.Encoder.String())
-		}
-		// Unset stays unset: the script's API version then decides, in ze as
-		// in ExaBGP.
-		if process.OnExit != "" {
-			entry.Set("on-exit", process.OnExit)
-		}
-		block.AddListEntry("process", process.Name, entry)
-	}
-	exabgp := config.NewTree()
-	exabgp.SetContainer("bridge", block)
-	dst.SetContainer("exabgp", exabgp)
-
-	plugin := config.NewTree()
-	plugin.Set("use", bridgePluginName)
-	dst.AddListEntry("plugin", bridgePluginName, plugin)
-}
-
 // migrateNeighbors converts ExaBGP neighbors to ZeBGP peers inside groups.
 // Peers are grouped by their ExaBGP template name. Peers without a template
 // go into a "default" group.
-func migrateNeighbors(tree *config.Tree, result *MigrateResult, processMap, bridgeNames map[string]string, needsRIB bool, templates map[string]*config.Tree) error {
+func migrateNeighbors(
+	tree *config.Tree,
+	result *MigrateResult,
+	processes []migratedProcess,
+	endpointNames map[string]string,
+	apiVersion4 bool,
+	templates map[string]*config.Tree,
+) error {
 	// Track which group each peer belongs to.
 	groups := make(map[string]*config.Tree) // group name -> group tree
 
-	// scriptFeeds is the relation each ExaBGP process block needs and no
-	// attachment can carry: the neighbors that named THIS process, and the
-	// events each of them granted it. Every process reaches ze as the one
-	// exabgp-bridge plugin, so the relation is written back into the process
-	// block rather than read off the attachment.
-	scriptFeeds := newScriptFeeds(bridgeNames)
+	endpoints := newScriptEndpointSet(processes)
 
 	// Counter for generating peer names when no description is available.
 	peerCounter := 0
@@ -424,30 +337,28 @@ func migrateNeighbors(tree *config.Tree, result *MigrateResult, processMap, brid
 		}
 		remoteContainer.Set("ip", addr)
 
-		// If RIB was injected, bind it to this peer.
-		if needsRIB {
-			bindRIBProcess(peer, expandedTree)
-		}
-
-		// A watchdog-controlled route needs bgp-watchdog fed this peer's state.
+		// A watchdog-controlled route needs the bgp-watchdog endpoint loaded.
 		if peerHasWatchdogRoute(peer) {
-			bindWatchdogProcess(result.Tree, peer)
+			ensureInternalEndpoint(result.Tree, watchdogPluginName)
 		}
 
-		// Migrate process bindings (old: process { processes [...] } -> new: attach process NAME { ... }).
-		bound, err := migrateProcessBindings(expandedTree, peer, processMap, result.Processes)
+		// Collect ExaBGP api / process bindings for bus endpoint filters and
+		// virtual session capability options.
+		bound, err := collectProcessBindings(expandedTree, endpointNames, result.Processes)
 		if err != nil {
 			return fmt.Errorf("neighbor %s: %w", addr, err)
 		}
-		scriptFeeds.record(addr, bound)
+		var pathBuf textbuf.Buffer
+		peerPath := pathBuf.Str("/bgp/group/").Str(groupName).Str("/peer/").Str(peerName).String()
+		if err := endpoints.record(peerPath, addr, extractNeighborCaps(expandedTree), bound); err != nil {
+			return err
+		}
 
 		// Any route an API process announces can name a watchdog
 		// (`announce route ... watchdog <name>`, ExaBGP c43f90f79), and the
-		// bridge hands such a route to bgp-watchdog, which sends it. A peer an
-		// API process serves therefore needs the plugin bound with the send
-		// permission, whether or not its config holds a watchdog route.
+		// translator hands such a route to bgp-watchdog, which sends it.
 		if len(bound) > 0 {
-			bindWatchdogProcess(result.Tree, peer)
+			ensureInternalEndpoint(result.Tree, watchdogPluginName)
 		}
 
 		// RFC 8955 Section 4 keeps FlowSpec MP_REACH next-hop length at 0 by
@@ -479,7 +390,7 @@ func migrateNeighbors(tree *config.Tree, result *MigrateResult, processMap, brid
 		result.Tree.AddListEntry("group", name, groups[name])
 	}
 
-	scriptFeeds.write(result.Tree)
+	endpoints.write(result.Tree, apiVersion4)
 	return nil
 }
 
@@ -491,106 +402,11 @@ func migrateNeighbors(tree *config.Tree, result *MigrateResult, processMap, brid
 // Selected true is a neighbor that feeds the script no event, which ExaBGP
 // writes as `api { processes [ p ]; }` with no direction block. An empty Events
 // with Selected false states nothing, and a script any such binding reaches
-// keeps the every-peer-every-event default.
+// omits its endpoint bus filters to keep the registered wiring.
 type processGrant struct {
 	Name     string
 	Events   []string
 	Selected bool
-}
-
-// scriptFeeds accumulates the (peer, process) -> events relation while the
-// neighbors are migrated, and writes it into the bridge root afterwards.
-//
-// It runs in two steps because the block it writes into was injected before the
-// neighbors by migrateProcesses, and the relation is not known until every
-// neighbor's api block has been read.
-type scriptFeeds struct {
-	// byProcess holds each process's peers, in the order the neighbors were
-	// migrated, so the written config is deterministic. It is keyed by the
-	// name the process block carries in the bridge, the key write reads.
-	byProcess map[string][]scriptFeed
-	// unscoped names the processes some binding stated no selection for. Such a
-	// process keeps the every-peer-every-event default rather than a feed list
-	// built from the bindings that did state one. Keyed as byProcess is.
-	unscoped map[string]bool
-	// bridgeNames maps the ExaBGP process name a grant carries to the name
-	// its block carries in the bridge (migrateProcesses).
-	bridgeNames map[string]string
-}
-
-// scriptFeed is one neighbor's grant to one process.
-type scriptFeed struct {
-	Peer   string
-	Events []string
-}
-
-func newScriptFeeds(bridgeNames map[string]string) *scriptFeeds {
-	return &scriptFeeds{
-		byProcess:   make(map[string][]scriptFeed),
-		unscoped:    make(map[string]bool),
-		bridgeNames: bridgeNames,
-	}
-}
-
-// record stores what one neighbor's bindings granted, under the bridge name
-// of each process the grant names.
-func (f *scriptFeeds) record(peer string, grants []processGrant) {
-	for _, grant := range grants {
-		bridgeName, carried := f.bridgeNames[grant.Name]
-		if !carried {
-			// migrateProcessBindings grants only a name processMap holds, and
-			// migrateProcesses names in bridgeNames every name it puts there.
-			panic("BUG: a process grant names a process the bridge does not carry")
-		}
-		if !grant.Selected {
-			f.unscoped[bridgeName] = true
-			continue
-		}
-		f.byProcess[bridgeName] = append(f.byProcess[bridgeName],
-			scriptFeed{Peer: peer, Events: grant.Events})
-	}
-}
-
-// write emits each script's feed blocks into `exabgp { bridge { process <name>
-// { feed <peer> { event [ ... ] } } } }`.
-//
-// A process no binding scoped gets no feed block, which the bridge reads as
-// every peer and every event. That is what a bridge whose config carries no
-// feed list has always meant, and it is what a hand-written ze config with one
-// script means.
-func (f *scriptFeeds) write(dst *config.Tree) {
-	exabgp := dst.GetContainer("exabgp")
-	if exabgp == nil {
-		return
-	}
-	block := exabgp.GetContainer("bridge")
-	if block == nil {
-		return
-	}
-
-	for _, process := range block.GetListOrdered("process") {
-		if f.unscoped[process.Key] {
-			continue
-		}
-		for _, feed := range f.byProcess[process.Key] {
-			entry := config.NewTree()
-			entry.Set("event", bracketList(feed.Events))
-			process.Value.AddListEntry("feed", feed.Peer, entry)
-		}
-	}
-}
-
-// bracketList renders a leaf-list the way the ze config file writes one,
-// `[ a b c ]`. The migration serializer writes plain values, so a leaf-list
-// reaches the file as one already-bracketed string (addProcessBinding writes
-// `receive [ * ]` the same way).
-func bracketList(values []string) string {
-	var tb textbuf.Buffer
-	tb.Str("[ ")
-	for _, value := range values {
-		tb.Str(value).Byte(' ')
-	}
-	return tb.Byte(']').String()
 }
 
 // derivePeerName generates a peer name from the neighbor's description field,
@@ -699,8 +515,8 @@ func expandInheritance(neighbor *config.Tree, templates map[string]*config.Tree)
 	// The api entries of the template and of the neighbor are both kept, which
 	// is what ExaBGP does with them: ParseAPI.flatten unions the processes and
 	// the per-direction flags of every api block a neighbor holds
-	// (src/exabgp/configuration/neighbor/api.py). A process named by both is
-	// attached once (addProcessBinding).
+	// (src/exabgp/configuration/neighbor/api.py). Duplicate peer references for
+	// the same process are merged in scriptEndpointSet.record.
 	listFields := []string{"process", "static", "api"}
 	for _, key := range listFields {
 		for _, entry := range neighbor.GetListOrdered(key) {
@@ -1156,33 +972,6 @@ func copyContainers(src, dst *config.Tree, result *MigrateResult) error {
 	return nil
 }
 
-// bindRIBProcess binds the RIB plugin to a peer.
-func bindRIBProcess(peer, src *config.Tree) {
-	ribProcess := config.NewTree()
-
-	// Send flags: what bgp-rib ORIGINATES toward the peer. UPDATEs always, and
-	// ROUTE-REFRESH when the peer negotiated the capability: answering a refresh
-	// request, bgp-rib dispatches the RFC 7313 BoRR and EoRR markers, which are
-	// ROUTE-REFRESH messages on the wire (rib.go, dispatchPeerAction).
-	sendFlags := "[ update"
-	if cap := src.GetContainer("capability"); cap != nil {
-		if _, ok := cap.GetFlex("route-refresh"); ok {
-			sendFlags += " refresh"
-		}
-	}
-	sendFlags += " ]"
-	ribProcess.Set("send", sendFlags)
-
-	// Receive flags: what bgp-rib DECLARES it consumes (register.go
-	// ribBusReceives -- update in both directions, state, refresh).
-	// Delivery is the overlap of the declaration and this grant
-	// (pluginserver.Server.PeerScopedProcs), so a narrower grant here silently
-	// costs the plugin the peer-up replay that `state` drives.
-	ribProcess.Set("receive", "[ update state refresh ]")
-
-	attachedProcesses(peer).AddListEntry("process", "bgp-rib", ribProcess)
-}
-
 // watchdogPluginName is the plugin that owns watchdog-controlled routes.
 const watchdogPluginName = "bgp-watchdog"
 
@@ -1197,60 +986,12 @@ func peerHasWatchdogRoute(peer *config.Tree) bool {
 	return false
 }
 
-// bindWatchdogProcess attaches bgp-watchdog to a peer whose migrated config
-// carries a watchdog-controlled route, or that an API process serves (whose
-// routes can name a watchdog), and declares the plugin once. A second call for
-// the same peer adds nothing.
-//
-// The plugin announces and withdraws those routes on the operator's command,
-// and it can only do that for a session it has been told about: it defers an
-// announce for a peer it has not seen come up (watchdog/server.go
-// handleStateUp). Delivery is per peer and per event type, so without this the
-// peer feeds it nothing, `request bgp watchdog announce` reports success, and
-// no UPDATE reaches the wire.
-func bindWatchdogProcess(tree, peer *config.Tree) {
-	attached := attachedProcesses(peer)
-	if attached.GetList("process")[watchdogPluginName] == nil {
-		wdProcess := config.NewTree()
-		wdProcess.Set("receive", "[ state ]")
-		// The send half is what makes the migrated config WORK. bgp-watchdog
-		// originates the peer's watchdog routes through update-route, and ze
-		// refuses a process the peer does not attach with `send [ update ]`
-		// (reactor/send_permission.go). Emitting the receive half alone
-		// converted a working ExaBGP config into a silent one.
-		wdProcess.Set("send", "[ update ]")
-		attached.AddListEntry("process", watchdogPluginName, wdProcess)
-	}
-	if tree.GetList("plugin")[watchdogPluginName] != nil {
-		return
-	}
-	wdPlugin := config.NewTree()
-	wdPlugin.Set("use", watchdogPluginName)
-	tree.AddListEntry("plugin", watchdogPluginName, wdPlugin)
-}
-
-// attachedProcesses returns the attach container of a ze-native peer tree,
-// creating it. Ze-native output writes `attach process <name> { ... }`, so
-// every binding this package emits lives one level down from the peer.
-func attachedProcesses(peer *config.Tree) *config.Tree {
-	return peer.GetOrCreateContainer("attach")
-}
-
-// migrateProcessBindings converts ExaBGP api block and process blocks to ze
-// named attachments, and answers the ExaBGP process names this neighbor named.
-// ExaBGP syntax: api { processes [ foo bar ]; } or api { processes-match [ ^foo ]; }.
-// Ze syntax: attach process foo-compat { send [ update ] }.
+// collectProcessBindings reads ExaBGP `api` blocks and ze-native `process`
+// blocks on one neighbor and returns the process grants they declare.
 //
 // declared is every ExaBGP process the config runs, which is what a
 // processes-match pattern selects from.
-//
-// The grants it answers are what the caller needs to write the RELATION back:
-// every ExaBGP process reaches ze as the one `exabgp-bridge` plugin, so the
-// attachment alone cannot say which SCRIPT this neighbor feeds, nor which
-// events it feeds it. The bridge needs both, because a script is fed by the
-// neighbors that named it, with the events each of them granted, and sends an
-// unaddressed command to those neighbors alone (bridgerun.ScriptFeed).
-func migrateProcessBindings(src, dst *config.Tree, processMap map[string]string, declared []ExternalProcess) ([]processGrant, error) {
+func collectProcessBindings(src *config.Tree, endpointNames map[string]string, declared []ExternalProcess) ([]processGrant, error) {
 	var bound []processGrant
 
 	// First, handle ExaBGP-style api blocks. A neighbor can name several, and
@@ -1277,12 +1018,10 @@ func migrateProcessBindings(src, dst *config.Tree, processMap map[string]string,
 
 		events := apiBlockEvents(entry.Value)
 		for _, name := range names {
-			newName, ok := processMap[name]
-			if !ok {
-				continue // No plugin created for this process -- skip binding.
+			if _, ok := endpointNames[name]; !ok {
+				continue // No endpoint created for this process -- skip binding.
 			}
 			bound = append(bound, processGrant{Name: name, Events: events, Selected: true})
-			addProcessBinding(dst, newName)
 		}
 	}
 
@@ -1295,23 +1034,17 @@ func migrateProcessBindings(src, dst *config.Tree, processMap map[string]string,
 		processNames := extractProcessList(procTree, "processes")
 
 		if len(processNames) > 0 {
-			// Old-style: convert to named bindings.
 			for _, name := range processNames {
-				newName, ok := processMap[name]
-				if !ok {
-					continue // No plugin created -- skip binding.
+				if _, ok := endpointNames[name]; !ok {
+					continue // No endpoint created -- skip binding.
 				}
 				bound = append(bound, processGrant{Name: name})
-				addProcessBinding(dst, newName)
 			}
 		} else if key != config.KeyDefault {
-			// New-style named binding - copy with name mapping.
-			newName, ok := processMap[key]
-			if !ok {
-				continue // No plugin created -- skip binding.
+			if _, ok := endpointNames[key]; !ok {
+				continue // No endpoint created -- skip binding.
 			}
 			bound = append(bound, processGrant{Name: key})
-			attachedProcesses(dst).AddListEntry("process", newName, procTree.Clone())
 		}
 	}
 
@@ -1336,29 +1069,6 @@ func extractProcessList(tree *config.Tree, field string) []string {
 	}
 
 	return nil
-}
-
-// addProcessBinding attaches one process.
-//
-// The bridge gets every event and every send type. An ExaBGP script with
-// `encoder json` is written against the full event stream, so a narrower
-// receive list would drop the messages it reports on, and it announces and
-// withdraws, so a narrower send list would refuse the routes it originates.
-func addProcessBinding(dst *config.Tree, name string) {
-	// Two api blocks can name the same process. AddListEntry keeps both under
-	// generated keys, so the peer would attach the plugin twice.
-	if attachedProcesses(dst).GetList("process")[name] != nil {
-		return
-	}
-
-	proc := config.NewTree()
-	if name == bridgePluginName {
-		proc.Set("receive", "[ * ]")
-		proc.Set("send", "[ * ]")
-	} else {
-		proc.Set("send", "[ update ]")
-	}
-	attachedProcesses(dst).AddListEntry("process", name, proc)
 }
 
 // checkUnsupported adds warnings for features that need manual migration.

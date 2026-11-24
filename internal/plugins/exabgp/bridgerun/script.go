@@ -1,9 +1,10 @@
-// Design: docs/architecture/exabgp-bridge.md -- the scripts the bridge runs
-// Overview: fleet.go -- the Fleet that owns every script
+// Design: docs/architecture/exabgp-bridge.md -- one ExaBGP script's process lifecycle.
+// Overview: fleet.go -- the Fleet that owns every script.
 //
-// One script is one ExaBGP `process` block: a child process, a queue of lines
-// bound for its stdin, a reader that turns its stdout into ze commands, and a
-// supervisor that decides whether a child that exited is started again.
+// One script is one child process, a bounded queue of lines bound for its
+// stdin, a stdout reader that translates its ExaBGP commands into Ze CLI
+// dispatches, and a single-run watcher that reports the script's exit code to
+// its Fleet so the wrapper exits with its script (E-6).
 
 package bridgerun
 
@@ -12,12 +13,13 @@ import (
 	"errors"
 	"io"
 	"log/slog"
+	"net/netip"
 	"os"
 	"os/exec"
+	"slices"
 	"strings"
 	"sync"
 	"sync/atomic"
-	"time"
 
 	"github.com/ze-software/ze/internal/core/textbuf"
 	"github.com/ze-software/ze/internal/exabgp/bridge"
@@ -25,90 +27,63 @@ import (
 
 // queueDepth bounds the lines held for one script's stdin.
 //
-// The bound is what keeps one script's failure to its own process. A child that
-// stops reading fills its pipe, and a direct write into that pipe blocks the
-// caller: the SDK event loop for an event, and with several scripts the fan-out
-// to every sibling as well. The queue and its writer goroutine put that stall
-// inside the one script, and the depth is where the stall becomes a drop.
-//
 // ExaBGP holds the same number for the same reason and calls it
 // WRITE_QUEUE_HIGH_WATER (src/exabgp/reactor/api/processes.py).
 const queueDepth = 1000
 
-// errRespawnTooFast is answered by start when the rate limit refuses it.
-var errRespawnTooFast = errors.New("respawned too fast")
+// negotiatedScope describes which peers grant `bgp:negotiated` to a script.
+type negotiatedScope uint8
+
+const (
+	negotiatedUnspecified negotiatedScope = iota
+	negotiatedAll
+	negotiatedNone
+	negotiatedPeers
+)
 
 // script is one running ExaBGP API process.
 //
-// It owns two goroutines for as long as the Fleet runs: a supervisor, which
-// reads the child's stdout and restarts the child, and a writer, which drains
-// the queue into the child's stdin. Both end when Fleet.Stop closes the queue.
+// It owns two goroutines for as long as the Fleet runs: runOnce, which reads
+// the child's stdout until EOF and reaps the child once, and writeLoop, which
+// drains the queue into the child's stdin.
 type script struct {
-	name    string
-	argv    []string
-	respawn bool
-	onExit  bridge.OnExit
-	log     *slog.Logger
+	name  string
+	argv  []string
+	log   *slog.Logger
+	forms FormSpecs
 
-	// owners is the Fleet's ledger of who announced each route last. batch
-	// notes every route command it dispatched, and exited withdraws this
-	// script's routes from it.
-	owners *bridge.OwnerLedger
-
-	// translator turns one ExaBGP line into ze commands. It carries the family
-	// list a bare `announce eor` expands over, and the peers a line that names
-	// no neighbor reaches.
+	// filterMu guards translator, negScope, and negPeers across concurrent
+	// ApplyFilter, Broadcast, and batch calls.
+	filterMu   sync.RWMutex
 	translator bridge.Translator
+	negScope   negotiatedScope
+	negPeers   map[netip.Addr]bool
 
-	// api is the API version this script is held to and the format its
-	// events are written in (bridge.ScriptVersion). Its encoder is the
-	// `encoder` leaf of the process block that declared the script, per
-	// script because ExaBGP declares it per process, so one bridge can feed a
-	// text script and a JSON script at once. Its setting is the Fleet's
-	// `exabgp.api.version`, shared by every script.
+	// api is the API version this script is held to and the format its events
+	// are written in (bridge.ScriptVersion).
 	api *bridge.ScriptVersion
 
-	// grants is the peer-and-event relation each neighbor's api block declared
-	// for this script: the events one peer feeds it, by peer address. A NIL map
-	// is every peer and every event, which is what a script no neighbor
-	// singles out is fed by.
-	grants map[string]map[string]struct{}
-
-	// ack answers this script after each dispatched command. An ExaBGP API
-	// client blocks on `done` before it sends the next line.
-	//
-	// It is per script, not per fleet, because the state moves: `disable-ack`
-	// and `enable-ack` are lines a script writes about ITSELF (bridge.AckMode).
-	// One AckMode shared by the fleet would let one script silence another's
-	// acks, and the silenced script would then block for two seconds on every
-	// line it sent.
+	// ack answers this script after each dispatched command.
 	ack bridge.AckMode
 
-	// group is the script's `group start` buffer (bridge.Group). It is per
-	// script for the reason ack is, and it is emptied when a new child
-	// starts: ExaBGP drops it when the process behind it is gone
-	// (clear_group).
+	// group is the script's `group start` buffer (bridge.Group).
 	group bridge.Group
 
-	// queue carries the lines bound for the child's stdin, from the event
-	// fan-out and from this script's own acks. One writer goroutine drains it,
-	// so no two writes into the pipe interleave.
+	// queue carries the lines bound for the child's stdin, from event delivery
+	// and from this script's own acks. One writer goroutine drains it, so no two
+	// writes into the pipe interleave.
 	queue chan []byte
 
-	// drained is closed by the writer goroutine once it has written its last
-	// queued line and closed the child's stdin (writeLoop), and reaped by the
-	// supervisor once it has reaped its last child and will start no other
-	// (supervise). Fleet.Start makes both when it starts the two goroutines,
-	// under mu; nil means Start never reached this script, so Fleet.Shutdown
-	// has nothing to wait for.
+	// drained is closed by writeLoop once it has written its last queued line
+	// and closed the child's stdin; reaped is closed by runOnce once the child
+	// has been reaped.
 	drained chan struct{}
 	reaped  chan struct{}
 
-	limiter respawnLimiter
 	dropped atomic.Uint64
 
-	// mu guards the child and its pipes across the supervisor, the writer and
-	// Stop. No write into a pipe is performed while it is held.
+	// mu guards the child and its pipes across runOnce, writeLoop, and Stop.
+	// No write into a pipe is performed while it is held.
 	mu     sync.Mutex
 	closed bool
 	child  *exec.Cmd
@@ -116,106 +91,71 @@ type script struct {
 	stdout io.ReadCloser
 }
 
-func newScript(log *slog.Logger, translator bridge.Translator, setting *atomic.Uint32, owners *bridge.OwnerLedger, s Script) *script {
+func newScript(log *slog.Logger, translator bridge.Translator, setting *atomic.Uint32, s Script) *script {
 	return &script{
 		api:        bridge.NewScriptVersion(s.Name, log, s.Encoder, setting),
 		name:       s.Name,
 		argv:       s.Argv,
-		respawn:    s.Respawn,
-		onExit:     s.OnExit,
-		owners:     owners,
 		log:        log,
+		forms:      s.Forms,
 		translator: translator,
-		grants:     grantSet(s.Feeds),
+		negScope:   negotiatedAll,
 		ack:        bridge.NewAckMode(),
 		queue:      make(chan []byte, queueDepth),
 	}
 }
 
-// grantSet builds the membership test the fan-out runs for every event. It is
-// built ONCE, at startup, because the fan-out runs for every UPDATE of every
-// peer.
-//
-// An empty feed list answers nil, which receives() reads as every peer and
-// every event.
-func grantSet(feeds []ScriptFeed) map[string]map[string]struct{} {
-	if len(feeds) == 0 {
-		return nil
-	}
-	grants := make(map[string]map[string]struct{}, len(feeds))
-	for _, feed := range feeds {
-		events, ok := grants[feed.Peer]
-		if !ok {
-			events = make(map[string]struct{}, len(feed.Events))
-			grants[feed.Peer] = events
-		}
-		for _, event := range feed.Events {
-			events[event] = struct{}{}
-		}
-	}
-	return grants
+// setFilter updates the script's send scope and negotiated-block grant set
+// atomically under filterMu.
+func (s *script) setFilter(peers []string, noPeers bool, negScope negotiatedScope, negPeers map[netip.Addr]bool) {
+	s.filterMu.Lock()
+	s.translator.Peers = slices.Clone(peers)
+	s.translator.NoPeers = noPeers
+	s.negScope = negScope
+	s.negPeers = negPeers
+	s.filterMu.Unlock()
 }
 
-// receives reports whether one peer feeds this script one event, named by the
-// key ExaBGP's api block grants it with (bridge.Event.APIKey).
-//
-// A script with no feed list receives every event of every peer. That is what a
-// config with one script means, and it is what the bridge did for every script
-// until 2026-09-06.
-func (s *script) receives(peer, apiKey string) bool {
-	if s.grants == nil {
+// snapshotTranslator returns a safe copy of the script's current Translator.
+func (s *script) snapshotTranslator() bridge.Translator {
+	s.filterMu.RLock()
+	tr := s.translator
+	s.filterMu.RUnlock()
+	return tr
+}
+
+// grantsNegotiated reports whether peer grants `bgp:negotiated` to this script.
+func (s *script) grantsNegotiated(peer string) bool {
+	s.filterMu.RLock()
+	scope := s.negScope
+	peers := s.negPeers
+	s.filterMu.RUnlock()
+
+	switch scope {
+	case negotiatedAll:
 		return true
-	}
-	events, ok := s.grants[peer]
-	if !ok {
+	case negotiatedNone:
 		return false
+	case negotiatedPeers:
+		addr, err := netip.ParseAddr(peer)
+		if err != nil {
+			return false
+		}
+		return peers[addr]
+	case negotiatedUnspecified:
+		panic("BUG: bridgerun: negotiated scope unspecified")
+	default:
+		panic("BUG: bridgerun: invalid negotiated scope")
 	}
-	_, ok = events[apiKey]
-	return ok
 }
 
-// forms answers the forms one peer's messages in one direction are written to
-// this script in, from the `parsed`, `packets` and `consolidate` words its api
-// block granted (bridge.FormsFor).
-//
-// A script with no feed list is written the decoded line, which is what it was
-// written before the forms existed: receives answers true for every key of such
-// a script, so asking it for the words would grant all three.
-func (s *script) forms(peer, direction string) bridge.Forms {
-	if s.grants == nil {
-		return bridge.FormParsed
-	}
-	return bridge.FormsFor(direction, func(apiKey string) bool { return s.receives(peer, apiKey) })
-}
-
-// feedPeers answers the addresses of the peers a script is fed by, which is the
-// set an ExaBGP line that names no neighbor is sent to.
-//
-// ExaBGP scopes a process's COMMANDS by peer alone: Reactor.peers(service)
-// reads `api['processes']` and never the per-message grants
-// (src/exabgp/reactor/loop.py). So a peer that feeds a script no event at all
-// still receives the routes that script announces.
-func feedPeers(feeds []ScriptFeed) []string {
-	if len(feeds) == 0 {
-		return nil
-	}
-	peers := make([]string, 0, len(feeds))
-	for _, feed := range feeds {
-		peers = append(peers, feed.Peer)
-	}
-	return peers
-}
-
-// start forks the child and records the fork against the respawn limit.
+// start forks the child process once.
 func (s *script) start(ctx context.Context) error {
 	if len(s.argv) == 0 {
 		return errors.New("no run command")
 	}
-	if !s.limiter.count(time.Now()) {
-		return errRespawnTooFast
-	}
 
-	//nolint:gosec // G204: the operator's own script command is what the bridge exists to run.
+	//nolint:gosec // G204: the operator's own script command is what the wrapper exists to run.
 	c := exec.CommandContext(ctx, s.argv[0], s.argv[1:]...)
 	sin, err := c.StdinPipe()
 	if err != nil {
@@ -241,10 +181,7 @@ func (s *script) start(ctx context.Context) error {
 	return nil
 }
 
-// logStartFailure tells the operator that the script could not be forked. The
-// error Fleet.Start answers goes back to the engine as the answer to a startup
-// callback, which no operator reads, so this ERROR line is where a `run`
-// command naming a program the daemon cannot find or execute is reported.
+// logStartFailure tells the operator that the script could not be forked.
 func (s *script) logStartFailure(err error) {
 	program := "the program"
 	if len(s.argv) > 0 {
@@ -255,58 +192,40 @@ func (s *script) logStartFailure(err error) {
 		"run", strings.Join(s.argv, " "),
 		"error", err,
 		"path", os.Getenv("PATH"),
-		"action", "give the full path of "+program+" in the process run command, or put the directory that holds "+program+" on ze's PATH, and make "+program+" executable")
+		"action", "give the full path of "+program+" in the endpoint external run command, or put the directory that holds "+program+" on ze's PATH, and make "+program+" executable")
 }
 
-// supervise is the script's own goroutine. It reads the child's stdout until
-// the pipe closes, reaps the child, and starts it again when the config asks
-// for a respawn and the rate limit allows one. It closes reaped when it
-// returns, which is after its last child is reaped.
-func (s *script) supervise(ctx context.Context, f *Fleet, d Dispatcher, reaped chan<- struct{}) {
+// runOnce is the script's single-run watcher goroutine. It reads the child's
+// stdout until EOF, reaps the child once without respawning it (E-6), and
+// notifies the Fleet with the script's exit status when the exit was not
+// caused by Shutdown/Stop or context cancellation.
+func (s *script) runOnce(ctx context.Context, f *Fleet, d Dispatcher, reaped chan<- struct{}) {
 	defer close(reaped)
 
-	for {
-		s.read(ctx, d)
-		s.reap()
+	s.read(ctx, d)
+	exitErr := s.reap()
 
-		if ctx.Err() != nil {
-			return
-		}
-		if f.stopped() {
-			return
-		}
-		// The exit is settled BEFORE the next child starts, so the withdrawals
-		// reach the wire ahead of anything the respawned child announces, as
-		// ExaBGP queues its exit marker ahead of the new child's commands.
-		s.exited(ctx, d)
-		if !s.respawn {
-			// api-no-respawn asserts exactly this: the one-shot script exits
-			// after its ack and is not started again, while its sibling keeps
-			// running.
-			s.log.Info("exabgp-bridge script exited", "script", s.name, "respawn", false)
-			return
-		}
-		if err := s.start(ctx); err != nil {
-			if errors.Is(err, errRespawnTooFast) {
-				s.log.Error("exabgp-bridge script restarted too often; it stays stopped",
-					"script", s.name, "starts", respawnMax, "window", respawnWindow)
-				return
-			}
-			s.logStartFailure(err)
-			return
-		}
-		s.log.Info("exabgp-bridge script restarted", "script", s.name)
+	if ctx.Err() != nil {
+		return
 	}
+	if f.stopped() {
+		return
+	}
+
+	exitCode := 0
+	if exitErr != nil {
+		if ee, ok := errors.AsType[*exec.ExitError](exitErr); ok {
+			exitCode = ee.ExitCode()
+		} else {
+			exitCode = 1
+		}
+	}
+	s.log.Info("exabgp-bridge script exited", "script", s.name, "exit_code", exitCode)
+	f.notifyScriptExit(exitCode)
 }
 
 // read consumes the child's stdout until the pipe closes, turning each read
 // into one batch of commands.
-//
-// One read is one batch, and this goroutine does NO wire work: it hands each
-// batch to the dispatcher below and returns to the pipe at once. A reader that
-// waited for the flush would let the script's NEXT write join the batch it was
-// still dispatching, and the netting would then cancel two commands the script
-// wrote in two separate writes (internal/exabgp/bridge/bridge_batch.go).
 func (s *script) read(ctx context.Context, d Dispatcher) {
 	s.mu.Lock()
 	sout := s.stdout
@@ -352,35 +271,32 @@ func (s *script) read(ctx context.Context, d Dispatcher) {
 	}
 }
 
-// batch translates, nets, dispatches, flushes and answers the lines of one
-// read, through the steps every runner shares (bridge.ScriptLines.Batch).
+// batch translates, nets, dispatches, flushes, and answers the lines of one
+// read through bridge.ScriptLines.Batch.
 func (s *script) batch(ctx context.Context, d Dispatcher, lines []string) {
 	bridge.ScriptLines{
 		Name:       s.name,
 		Log:        s.log,
-		Translator: s.translator,
+		Translator: s.snapshotTranslator(),
 		API:        s.api,
 		Ack:        &s.ack,
 		Group:      &s.group,
 	}.Batch(ctx, scriptRunner{s: s, d: d}, s.writer(), lines)
 }
 
-// scriptRunner is how this runner reaches ze for one script's batch: the
-// plugin dispatcher, and the fleet's owner ledger.
+// scriptRunner is how bridgerun reaches ze for one script's batch.
 type scriptRunner struct {
 	s *script
 	d Dispatcher
 }
 
-// Dispatch hands ze one command through the plugin dispatcher. A `warning`
-// is success, as ExaBGP answers it (bridge.terminatorResult explains why).
+// Dispatch hands ze one command through the plugin dispatcher.
 func (r scriptRunner) Dispatch(ctx context.Context, command string) error {
 	_, _, err := r.d.DispatchCommand(ctx, command)
 	return err
 }
 
-// Flush drains the forward pool of the peers selector names, and answers ze's
-// refusal: a flush that did not happen is a barrier that did not hold.
+// Flush drains the forward pool of the peers selector names.
 func (r scriptRunner) Flush(ctx context.Context, selector string) error {
 	return r.s.flush(ctx, r.d, selector)
 }
@@ -390,15 +306,7 @@ func (r scriptRunner) Status(ctx context.Context, asJSON bool) ([]byte, bridge.B
 	return r.s.status(ctx, r.d, asJSON)
 }
 
-// Dispatched makes the script the owner of the route command ze accepted.
-func (r scriptRunner) Dispatched(selector string, command bridge.Command) {
-	r.s.owners.Note(r.s.name, selector, command)
-}
-
-// flush drains the forward pool of the peers selector names, so what was
-// dispatched for them is on the wire before the caller goes on. It answers
-// ze's refusal unlogged: the bridge caller reports it, once, with the script
-// and the selector (bridge.LineRunner.Flush, bridge.ExitRunner.Flush).
+// flush drains the forward pool of the peers selector names.
 func (s *script) flush(ctx context.Context, d Dispatcher, selector string) error {
 	var tb textbuf.Buffer
 	flush := tb.Str("request peer ").Str(selector).Str(" flush").String()
@@ -406,21 +314,7 @@ func (s *script) flush(ctx context.Context, d Dispatcher, selector string) error
 	return err
 }
 
-// exited settles the routes of a child that has exited
-// (bridge.OwnerLedger.Exited): the `on-exit` leaf, or the API version the
-// child was held to, decides whether the routes this script owns are
-// withdrawn.
-//
-// It MUST run after the child's last batch is dispatched (script.read has
-// returned) and before the next child starts, while the version the child was
-// held to is still the script's.
-func (s *script) exited(ctx context.Context, d Dispatcher) {
-	s.owners.Exited(ctx, s.log, s.name, s.onExit, s.api.Current(), scriptRunner{s: s, d: d})
-}
-
-// status performs a `status` line: it reads every peer's state from ze and
-// answers ExaBGP's daemon status. A peer list ze did not give is never
-// written, so a failed read answers the line with an error.
+// status performs a `status` line from ze's peer list.
 func (s *script) status(ctx context.Context, d Dispatcher, asJSON bool) ([]byte, bridge.BatchAnswer) {
 	_, detail, err := d.DispatchCommand(ctx, bridge.StatusPeerCommand)
 	if err != nil {
@@ -435,23 +329,15 @@ func (s *script) status(ctx context.Context, d Dispatcher, asJSON bool) ([]byte,
 	return bridge.StatusReply(peers, asJSON), bridge.BatchAnswer{}
 }
 
-// reap waits for the exited child and forgets its pipes. It runs after read
-// has returned, because Wait closes the stdout pipe under any reader still on
-// it (os/exec, Cmd.StdoutPipe).
-//
-// The stdout pipe closing does not mean the child has gone: a script that
-// redirects its stdout and keeps reading its stdin is still owed every line,
-// the shutdown line included, and only its EOF ends it. So stdin stays the
-// writer's until Wait returns, and Wait closes it once the child has exited.
-func (s *script) reap() {
+// reap waits for the exited child, forgets its pipes, and returns Wait's error.
+func (s *script) reap() error {
 	s.mu.Lock()
 	c := s.child
 	s.mu.Unlock()
 
+	var exitErr error
 	if c != nil {
-		if err := c.Wait(); err != nil {
-			s.log.Debug("exabgp-bridge script exited", "script", s.name, "error", err)
-		}
+		exitErr = c.Wait()
 	}
 
 	s.mu.Lock()
@@ -459,12 +345,11 @@ func (s *script) reap() {
 	s.stdin = nil
 	s.stdout = nil
 	s.mu.Unlock()
+	return exitErr
 }
 
-// writeLoop drains the queue into the child's stdin. It is the one writer the
-// pipe has, so an event and an ack never interleave inside one line. It ends
-// when closeQueue closes the queue, and closes drained on its way out, after
-// the child's stdin is closed, which is what Fleet.Shutdown waits on.
+// writeLoop drains the queue into the child's stdin and closes drained after
+// closing the child's stdin.
 func (s *script) writeLoop(drained chan<- struct{}) {
 	defer close(drained)
 
@@ -473,8 +358,6 @@ func (s *script) writeLoop(drained chan<- struct{}) {
 		w := s.stdin
 		s.mu.Unlock()
 		if w == nil {
-			// The child is down. Its events are lost, as they are for ExaBGP:
-			// there is no process to read them.
 			s.dropped.Add(1)
 			continue
 		}
@@ -493,8 +376,7 @@ func (s *script) writeLoop(drained chan<- struct{}) {
 	}
 }
 
-// send queues one line for this script's stdin. The line is copied, because
-// every caller hands over a buffer it reuses.
+// send queues one line for this script's stdin.
 func (s *script) send(line []byte) {
 	held := make([]byte, len(line))
 	copy(held, line)
@@ -514,8 +396,7 @@ func (s *script) send(line []byte) {
 	}
 }
 
-// ended answers the channels the writer and the supervisor close when each
-// ends, both nil when Fleet.Start never started this script.
+// ended answers the channels the writer and watcher close when each ends.
 func (s *script) ended() (drained, reaped <-chan struct{}) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -533,16 +414,14 @@ func (s *script) closeQueue() {
 	close(s.queue)
 }
 
-// reportDrops states the lines this script never received, so a silent loss is
-// never the whole record of it.
+// reportDrops logs lines dropped when the script stopped reading stdin.
 func (s *script) reportDrops() {
 	if n := s.dropped.Load(); n > 0 {
 		s.log.Warn("exabgp-bridge script missed lines", "script", s.name, "lines", n)
 	}
 }
 
-// writer answers an io.Writer that queues what is written to it, for the ack
-// path, which formats into a buffer it reuses and writes it once.
+// writer answers an io.Writer that queues what is written to it.
 func (s *script) writer() io.Writer { return queueWriter{s: s} }
 
 type queueWriter struct{ s *script }

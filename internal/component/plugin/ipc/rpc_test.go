@@ -107,7 +107,7 @@ func TestRPCConfigure(t *testing.T) {
 	// Engine sends configure via engine conn (callback write side)
 	done := make(chan error, 1)
 	go func() {
-		done <- engineConn.SendConfigure(context.Background(), sections, nil, nil)
+		done <- engineConn.SendConfigure(context.Background(), sections, nil, nil, nil)
 	}()
 
 	// Plugin receives via engine conn (callback read side)
@@ -150,7 +150,13 @@ func TestRPCConfigureCarriesClaims(t *testing.T) {
 				Message:     "bgp:update",
 				SenderKinds: []string{"bgp"},
 				Tags:        []rpc.MessageTagDecl{{Name: "direction", Values: []string{"received", "sent"}}},
-			}})
+			}},
+			&rpc.BusParticipantFilter{
+				ParticipantPath: "/endpoint/test",
+				EndpointName:    "test",
+				SendToAll:       true,
+				ReceiveFromAll:  true,
+			})
 	}()
 
 	req, err := pluginConn.ReadRequest(context.Background())
@@ -163,6 +169,10 @@ func TestRPCConfigureCarriesClaims(t *testing.T) {
 		"the claim set must arrive with the Stage-2 configure callback")
 	assert.Len(t, input.BusCatalog, 1, "the bus catalog must arrive with the Stage-2 configure callback")
 	assert.Equal(t, "bgp:update", input.BusCatalog[0].Message)
+	require.NotNil(t, input.ParticipantFilter, "the participant filter must arrive with the Stage-2 configure callback")
+	assert.Equal(t, "/endpoint/test", input.ParticipantFilter.ParticipantPath)
+	assert.True(t, input.ParticipantFilter.SendToAll)
+	assert.True(t, input.ParticipantFilter.ReceiveFromAll)
 	assert.Equal(t, 1, len(input.Sections), "claims must not displace the config sections")
 
 	require.NoError(t, pluginConn.SendResult(context.Background(), req.ID, nil))
@@ -548,7 +558,7 @@ func TestRPCFullStartupCycle(t *testing.T) {
 	// Stage 2: engine sends configure
 	require.NoError(t, engineConn.SendConfigure(ctx, []rpc.ConfigSection{
 		{Root: "bgp", Data: `{"router-id":"1.2.3.4"}`},
-	}, nil, nil))
+	}, nil, nil, nil))
 
 	// Stage 3: engine reads declare-capabilities
 	req, err = engineConn.ReadRequest(ctx)

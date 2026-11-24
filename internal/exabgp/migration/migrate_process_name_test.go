@@ -1,62 +1,58 @@
-// GOAL: every ExaBGP process name migrates into a config ze loads, and every
-// reference to the process follows the name its bridge block carries.
+// Design: docs/exabgp/exabgp-migration.md -- endpoint name sanitization and Ze schema validation tests
+// Related: migrate_process_name.go -- endpointProcessNames and renamedProcessWarning
 //
-// METHOD: migrate processes named with an underscore, a dot, a leading dash,
-// one of exactly 64 characters, and two longer names that cut to that same
-// 64-character text, each bound to a neighbor by an api block. Check the
-// bridge block names (unchanged where the bridge holds them, cut and
-// disambiguated where it does not), that each feed sits under the renamed
-// block, that the peer attaches the bridge, that the migration notes each
-// rename, and that ze's parser, which judges every list key against its YANG
-// key leaf, accepts the output and refuses it with a long name left unmapped.
-//
-// PREVENTS: an ExaBGP process name over 64 characters migrating into
-// `exabgp { bridge { process <name> } }`, whose key holds 64 characters, so
-// `ze config validate` refused the migrated config. And it pins the reading
-// that an ExaBGP name is never written as `plugin external <name>`, the one
-// key the plugin name form (ipc.PluginNameForm) judges: every process binds
-// the in-process bridge.
+// VALIDATES: every ExaBGP process name sanitizes deterministically into a valid
+// bus endpoint name accepted by ipc.CheckPluginName and config.ParseTreeWithYANG,
+// with collision suffixes (-2, -3, ...) and migration warnings on every rename.
+// PREVENTS: an ExaBGP process name with '_', '.', leading '-', non-ASCII
+// characters, or >64 characters producing a `bus { endpoint <name> }` config
+// that Ze refuses at load.
 
 package migration
 
 import (
 	"strings"
 	"testing"
-	"unicode/utf8"
 
 	"github.com/ze-software/ze/internal/component/config"
+	"github.com/ze-software/ze/internal/component/plugin/ipc"
 )
 
-// TestBridgeProcessNamesCutAndDisambiguate guards bridgeProcessNames: a name
-// the bridge holds is kept, a longer one is cut to 64 characters at a
-// character, a cut already taken gets -2, then -3, and a kept name is
-// reserved before any cut, whatever the order.
-func TestBridgeProcessNamesCutAndDisambiguate(t *testing.T) {
-	exact := strings.Repeat("p", bridgeProcessNameMax)
+// TestEndpointProcessNamesSanitizeAndDisambiguate guards endpointProcessNames:
+// valid names are reserved unchanged, invalid characters become '-', leading
+// '-' is stripped (with "p" fallback), long names truncate to 64 characters,
+// collisions append -2/-3, and every result passes ipc.CheckPluginName.
+//
+// VALIDATES: Deterministic sanitization and uniqueness under ipc.CheckPluginName.
+// PREVENTS: Emitting invalid or colliding endpoint names in bus > endpoint.
+func TestEndpointProcessNamesSanitizeAndDisambiguate(t *testing.T) {
+	exact := strings.Repeat("p", endpointNameMax)
 	longOne := exact + "-one"
 	longTwo := exact + "-two"
-	wide := strings.Repeat("日", bridgeProcessNameMax) + "x"
-	got := bridgeProcessNames([]string{"watch_routes", longOne, "a.b", "-lead", longTwo, exact, wide})
+	wide := strings.Repeat("日", endpointNameMax) + "x"
+	got := endpointProcessNames([]string{"watch_routes", longOne, "a.b", "-lead", longTwo, exact, wide, "---", "___"})
 
 	want := map[string]string{
-		"watch_routes": "watch_routes",
-		"a.b":          "a.b",
-		"-lead":        "-lead",
+		"watch_routes": "watch-routes",
+		"a.b":          "a-b",
+		"-lead":        "lead",
 		exact:          exact,
-		longOne:        strings.Repeat("p", bridgeProcessNameMax-2) + "-2",
-		longTwo:        strings.Repeat("p", bridgeProcessNameMax-2) + "-3",
-		wide:           strings.Repeat("日", bridgeProcessNameMax),
+		longOne:        strings.Repeat("p", endpointNameMax-2) + "-2",
+		longTwo:        strings.Repeat("p", endpointNameMax-2) + "-3",
+		wide:           "x",
+		"---":          "p",
+		"___":          "p-2",
 	}
 	if len(got) != len(want) {
 		t.Fatalf("named %d processes, want %d: %q", len(got), len(want), got)
 	}
 	seen := map[string]string{}
-	for exabgp, bridgeName := range want {
-		if got[exabgp] != bridgeName {
-			t.Errorf("bridge name of %q = %q, want %q", exabgp, got[exabgp], bridgeName)
+	for exabgp, epName := range want {
+		if got[exabgp] != epName {
+			t.Errorf("endpoint name of %q = %q, want %q", exabgp, got[exabgp], epName)
 		}
-		if n := utf8.RuneCountInString(got[exabgp]); n > bridgeProcessNameMax {
-			t.Errorf("bridge name %q holds %d characters, bound is %d", got[exabgp], n, bridgeProcessNameMax)
+		if err := ipc.CheckPluginName(got[exabgp]); err != nil {
+			t.Errorf("endpoint name %q fails ipc.CheckPluginName: %v", got[exabgp], err)
 		}
 		if other, dup := seen[got[exabgp]]; dup {
 			t.Errorf("%q and %q both map to %q", exabgp, other, got[exabgp])
@@ -65,10 +61,16 @@ func TestBridgeProcessNamesCutAndDisambiguate(t *testing.T) {
 	}
 }
 
-// TestMigrateProcessNamesZeLoads migrates the names through the whole
-// migration and loads the result.
+// TestMigrateProcessNamesZeLoads migrates names requiring sanitization and
+// truncation through the full migration and validates the output with Ze's
+// YANG parser and bus validator.
+//
+// VALIDATES: Sanitized names emit rename warnings, parse under external-plugin-name,
+// and keep their receive/send filters on the renamed endpoints; unmapped invalid
+// names are refused by the parser (control).
+// PREVENTS: Silent name mismatches between bus > endpoint and neighbor api blocks.
 func TestMigrateProcessNamesZeLoads(t *testing.T) {
-	exact := strings.Repeat("p", bridgeProcessNameMax)
+	exact := strings.Repeat("p", endpointNameMax)
 	longOne := exact + "-one"
 	longTwo := exact + "-two"
 	names := []string{"watch_routes", "a.b", "-lead", exact, longOne, longTwo}
@@ -90,8 +92,11 @@ func TestMigrateProcessNamesZeLoads(t *testing.T) {
 	}
 
 	renamed := map[string]string{
-		longOne: strings.Repeat("p", bridgeProcessNameMax-2) + "-2",
-		longTwo: strings.Repeat("p", bridgeProcessNameMax-2) + "-3",
+		"watch_routes": "watch-routes",
+		"a.b":          "a-b",
+		"-lead":        "lead",
+		longOne:        strings.Repeat("p", endpointNameMax-2) + "-2",
+		longTwo:        strings.Repeat("p", endpointNameMax-2) + "-3",
 	}
 	// Only the rename notes are judged: the migration writes other warnings
 	// (the RFC 8212 policies, for one) that have nothing to do with names.
@@ -101,9 +106,9 @@ func TestMigrateProcessNamesZeLoads(t *testing.T) {
 			renames[warning]++
 		}
 	}
-	for exabgp, bridgeName := range renamed {
-		if renames[renamedProcessWarning(exabgp, bridgeName)] != 1 {
-			t.Errorf("want one warning noting %q renamed %q: %q", exabgp, bridgeName, result.Warnings)
+	for exabgp, epName := range renamed {
+		if renames[renamedProcessWarning(exabgp, epName)] != 1 {
+			t.Errorf("want one warning noting %q renamed %q: %q", exabgp, epName, result.Warnings)
 		}
 	}
 	if len(renames) != len(renamed) {
@@ -115,51 +120,52 @@ func TestMigrateProcessNamesZeLoads(t *testing.T) {
 		t.Fatalf("load ze schema: %v", err)
 	}
 	output := SerializeTree(result.Tree)
-	if strings.Contains(output, "external ") {
-		t.Errorf("an ExaBGP process became an external plugin:\n%s", output)
-	}
 	reparsed, err := config.NewParser(schema).Parse(output)
 	if err != nil {
 		t.Fatalf("ze refuses the migrated config: %v\n%s", err, output)
 	}
-	blocks := reparsed.GetContainer("exabgp").GetContainer("bridge").GetList("process")
-	if len(blocks) != len(names) {
-		t.Errorf("bridge carries %d process blocks, want %d:\n%s", len(blocks), len(names), output)
-	}
-	for _, name := range names {
-		bridgeName := name
-		if to, ok := renamed[name]; ok {
-			bridgeName = to
-		}
-		block := blocks[bridgeName]
-		if block == nil {
-			t.Errorf("no bridge process %q for ExaBGP process %q:\n%s", bridgeName, name, output)
-			continue
-		}
-		if len(block.GetList("feed")) != 1 {
-			t.Errorf("bridge process %q carries %d feeds, want the one neighbor:\n%s",
-				bridgeName, len(block.GetList("feed")), output)
-		}
-	}
-	if !strings.Contains(output, "process "+bridgePluginName+" {") {
-		t.Errorf("the peer does not attach %s:\n%s", bridgePluginName, output)
+	if err := config.ValidateBusConfig(reparsed); err != nil {
+		t.Fatalf("bus validator refuses the migrated config: %v\n%s", err, output)
 	}
 
-	// The parse above is the check that judges the name: the config parser
-	// validates every list key against its key leaf (parser_list.go,
-	// ValidateListKey), the bridge key's `length "1..64"` included. The full
-	// loader is not run here: this package's test binary links none of the
-	// plugins the migrated config names (bgp-rib, bgp-watchdog,
-	// exabgp-bridge), so config.ReadConfig refuses their `use` leaves first,
-	// and the plugin composition imports this package, so linking it here is
-	// an import cycle. Control: the same output with one long name left
-	// unmapped is refused, so the parse is a check that can go red.
-	unmapped := strings.Replace(output, "process "+renamed[longOne]+" {", "process "+longOne+" {", 1)
-	if unmapped == output {
-		t.Fatalf("control: no bridge process %q in the output:\n%s", renamed[longOne], output)
+	endpoints := reparsed.GetContainer("bus").GetList("endpoint")
+	for _, name := range names {
+		epName := name
+		if to, ok := renamed[name]; ok {
+			epName = to
+		}
+		ep := endpoints[epName]
+		if ep == nil {
+			t.Errorf("no bus endpoint %q for ExaBGP process %q:\n%s", epName, name, output)
+			continue
+		}
+		if recv := ep.GetContainer("receive"); recv == nil || len(recv.GetSlice("from")) != 1 {
+			t.Errorf("bus endpoint %q receive > from missing the one neighbor:\n%s", epName, output)
+		}
+		if send := ep.GetContainer("send"); send == nil || len(send.GetSlice("to")) != 1 {
+			t.Errorf("bus endpoint %q send > to missing the one neighbor:\n%s", epName, output)
+		}
 	}
-	if _, err := config.NewParser(schema).Parse(unmapped); err == nil {
-		t.Errorf("control: ze accepts a bridge process named with %d characters:\n%s",
-			utf8.RuneCountInString(longOne), unmapped)
+
+	// Control: leaving an invalid name unmapped (length > 64 or underscore)
+	// must be refused by Ze's YANG list-key validator (external-plugin-name).
+	for _, bad := range []struct {
+		sanitized string
+		raw       string
+	}{
+		{renamed[longOne], longOne},
+		{"watch-routes", "watch_routes"},
+	} {
+		unmapped := strings.Replace(output, "endpoint "+bad.sanitized+" {", "endpoint "+bad.raw+" {", 1)
+		if unmapped == output {
+			t.Fatalf("control: no bus endpoint %q in the output:\n%s", bad.sanitized, output)
+		}
+		parsedBad, parseErr := config.NewParser(schema).Parse(unmapped)
+		if parseErr == nil {
+			parseErr = config.ValidateBusConfig(parsedBad)
+		}
+		if parseErr == nil {
+			t.Errorf("control: ze accepted invalid endpoint name %q:\n%s", bad.raw, unmapped)
+		}
 	}
 }

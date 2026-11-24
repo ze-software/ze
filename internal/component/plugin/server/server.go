@@ -96,10 +96,21 @@ type Server struct {
 	subscriptions     *SubscriptionManager          // API-driven event subscriptions (plugin processes)
 	deliveryGraph     atomic.Pointer[DeliveryGraph] // compiled bus delivery index (delivery_graph.go)
 	prevDeliveryGraph atomic.Pointer[DeliveryGraph] // previous delivery graph retained for post-swap unbind delivery
-	engineSubscribers *engineEventSubscribers       // Engine-side stream subscribers (orchestrator etc.)
-	monitors          *MonitorManager               // CLI monitor subscriptions
-	quiescers         QuiescerRegistry              // Subsystem drains invoked by `request quiesce`
-	stopHooks         stopHooks                     // Work a command started that Stop ends (stop_hooks.go)
+	// Participant filter push worker (delivery_graph.go): one long-lived
+	// goroutine started lazily on the first rebuild that has running processes,
+	// notified via buffered-1 filterPushNotify with the latest snapshot in
+	// pendingFilterGraph, and stopped by canceling filterPushCancel in Stop.
+	pendingFilterGraph atomic.Pointer[DeliveryGraph]
+	filterPushMu       sync.Mutex
+	filterPushNotify   chan struct{}
+	filterPushCancel   context.CancelFunc
+	filterPushDone     chan struct{}
+	filterPushStopped  bool
+
+	engineSubscribers *engineEventSubscribers // Engine-side stream subscribers (orchestrator etc.)
+	monitors          *MonitorManager         // CLI monitor subscriptions
+	quiescers         QuiescerRegistry        // Subsystem drains invoked by `request quiesce`
+	stopHooks         stopHooks               // Work a command started that Stop ends (stop_hooks.go)
 
 	// Plugin registration protocol
 	coordinator       *plugin.StartupCoordinator             // Stage synchronization
@@ -475,11 +486,9 @@ func (s *Server) Context() context.Context {
 
 // UpdateProtocolConfig sets protocol-specific auto-load configuration after the
 // reactor has parsed settings. Called by the protocol plugin's RunEngine after
-// creating the reactor, so that family/event/send auto-load phases have the data.
-func (s *Server) UpdateProtocolConfig(families, customEvents, customSendTypes []string) {
+// creating the reactor, so that the family auto-load phase has the data.
+func (s *Server) UpdateProtocolConfig(families []string) {
 	s.config.ConfiguredFamilies = families
-	s.config.ConfiguredCustomEvents = customEvents
-	s.config.ConfiguredCustomSendTypes = customSendTypes
 }
 
 // ReactorAny returns the reactor as any, satisfying registry.PluginServerAccessor.
@@ -974,9 +983,7 @@ func (s *Server) StartWithContext(ctx context.Context) error {
 	// Phase 1: Explicit plugins
 	// Phase 2: Auto-load plugins for config paths (ConfigRoots matching)
 	// Phase 3: Auto-load plugins for unclaimed families
-	// Phase 4: Auto-load plugins for custom event types (e.g., update-rpki)
-	// Phase 5: Auto-load plugins for custom send types (e.g., enhanced-refresh)
-	if len(s.config.Plugins) > 0 || len(s.config.ConfiguredPaths) > 0 || len(s.config.ConfiguredFamilies) > 0 || len(s.config.ConfiguredCustomEvents) > 0 || len(s.config.ConfiguredCustomSendTypes) > 0 {
+	if s.hasStartupPlugins() {
 		s.wg.Add(1)
 		go s.runPluginStartup()
 		s.lifecycleMu.Unlock()
@@ -991,6 +998,16 @@ func (s *Server) StartWithContext(ctx context.Context) error {
 	s.signalStartupComplete()
 
 	return nil
+}
+
+func (s *Server) hasStartupPlugins() bool {
+	if len(s.config.Plugins) > 0 {
+		return true
+	}
+	if len(s.config.ConfiguredPaths) > 0 {
+		return true
+	}
+	return len(s.config.ConfiguredFamilies) > 0
 }
 
 // replyContext carries a RESPONSE to a request the engine has already run. It
@@ -1085,6 +1102,7 @@ func (s *Server) Stop() {
 	if s.cancel != nil {
 		s.cancel()
 	}
+	s.stopParticipantFilterPushWorker()
 	// Work a command started under the server ends with it, and Stop waits.
 	if err := s.stopHooks.run(); err != nil {
 		s.recordStopFailure(opererr.Wrap(err,

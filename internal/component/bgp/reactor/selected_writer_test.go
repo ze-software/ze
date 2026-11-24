@@ -54,7 +54,7 @@ func newSelectedWriterFixture(t *testing.T, addPath bool) *selectedWriterFixture
 			SourceReceive:      []string{"update-received", "state"},
 			DestinationReceive: []string{"state", "refresh", "update-sent"}, DestinationSend: []string{"update"}}},
 	}))
-	host, err := pluginserver.NewServer(&pluginserver.ServerConfig{Plugins: []plugin.PluginConfig{{Name: selectedWriterProcess, Run: selectedWriterProcess}}}, nil)
+	host, err := pluginserver.NewServer(&pluginserver.ServerConfig{Plugins: []plugin.PluginConfig{{Name: selectedWriterProcess, Internal: true}}}, nil)
 	require.NoError(t, err)
 	peer, conn := newGroupUpdatesPeer(t, "192.0.2.80", "absent")
 	peer.settings.LocalAddress = netip.MustParseAddr("192.0.2.254")

@@ -465,8 +465,8 @@ func TestAutoLoadReasonsTypedAndTokenLoadersDeleted(t *testing.T) {
 	})
 
 	// 1. Live Server loaders record typed reasons for config-path, dependency,
-	// config-need, data-plane, and family, and never auto-load absentSender via
-	// deprecated ConfiguredCustomEvents.
+	// config-need, data-plane, and family, and never auto-load absentSender
+	// (token auto-loading was removed under Q-11(c)).
 	treeMap := map[string]any{
 		"test-service": map[string]any{
 			"enrich": "true",
@@ -474,11 +474,10 @@ func TestAutoLoadReasonsTypedAndTokenLoadersDeleted(t *testing.T) {
 	}
 	s := &Server{
 		config: &ServerConfig{
-			ConfiguredPaths:        []string{"test-service"},
-			ConfiguredFamilies:     []string{"test-afi/test-safi"},
-			ConfiguredCustomEvents: []string{"custom-decorated"},
-			DataPlane:              "test-dp",
-			ConfigNeedHolds:        config.ConfigNeedHolds(treeMap),
+			ConfiguredPaths:    []string{"test-service"},
+			ConfiguredFamilies: []string{"test-afi/test-safi"},
+			DataPlane:          "test-dp",
+			ConfigNeedHolds:    config.ConfigNeedHolds(treeMap),
 		},
 		loadedPlugins: make(map[string]bool),
 	}

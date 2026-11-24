@@ -1,49 +1,33 @@
-// Design: docs/architecture/exabgp-bridge.md -- shared bus declarations for both bridge runners
-// Related: fleet.go -- script lifecycle shared by internal and SDK runners
+// Design: docs/architecture/exabgp-bridge.md -- bus declarations derived from the ExaBGP translator tables.
+// Related: fleet.go -- script lifecycle for the ExaBGP wrapper.
 
 package bridgerun
 
 import (
-	bgpevents "github.com/ze-software/ze/internal/core/bgp/events"
-	"github.com/ze-software/ze/internal/core/events"
+	"github.com/ze-software/ze/internal/exabgp/bridge"
 	"github.com/ze-software/ze/pkg/plugin/rpc"
 )
 
-// BridgeSends returns the CLI command prefixes the ExaBGP bridge translates
-// from script stdout and dispatches to the daemon.
+// BridgeSends returns the CLI command prefixes the ExaBGP wrapper translates
+// from script stdout and dispatches to the daemon, derived directly from the
+// translator's single command declaration table.
 func BridgeSends() []rpc.MessageSendDecl {
-	return []rpc.MessageSendDecl{
-		{Message: events.NamespaceCLI + ":send bgp"},
-		{Message: events.NamespaceCLI + ":request peer"},
-		{Message: events.NamespaceCLI + ":show bgp peer"},
-		{Message: events.NamespaceCLI + ":clear bgp rib in"},
-		{Message: events.NamespaceCLI + ":clear bgp rib advertised"},
-		{Message: events.NamespaceCLI + ":clear bgp rib out"},
-		{Message: events.NamespaceCLI + ":request bgp watchdog announce"},
-		{Message: events.NamespaceCLI + ":request bgp watchdog withdraw"},
-		{Message: events.NamespaceCLI + ":request bgp watchdog give"},
-		{Message: events.NamespaceCLI + ":request bgp watchdog forget"},
-		{Message: events.NamespaceCLI + ":create bgp peer"},
-		{Message: events.NamespaceCLI + ":delete bgp peer"},
-		{Message: events.NamespaceCLI + ":request shutdown"},
-		{Message: events.NamespaceCLI + ":help"},
+	prefixes := bridge.DeclaredCommandPrefixes()
+	decls := make([]rpc.MessageSendDecl, len(prefixes))
+	for i, prefix := range prefixes {
+		decls[i] = rpc.MessageSendDecl{Message: prefix}
 	}
+	return decls
 }
 
-// BridgeReceives returns the BGP bus messages the ExaBGP bridge subscribes to
-// and translates onto script stdin.
+// BridgeReceives returns the BGP bus messages the ExaBGP wrapper subscribes to
+// and translates onto script stdin, derived directly from the translator's
+// single event declaration table.
 func BridgeReceives() []rpc.MessageReceiveDecl {
-	return []rpc.MessageReceiveDecl{
-		{Message: bgpevents.Namespace + ":" + bgpevents.EventState},
-		{Message: bgpevents.Namespace + ":" + bgpevents.EventConnected},
-		{Message: bgpevents.Namespace + ":" + bgpevents.EventNegotiated},
-		{Message: bgpevents.Namespace + ":" + bgpevents.EventFSM},
-		{Message: bgpevents.Namespace + ":" + bgpevents.EventSignal},
-		{Message: bgpevents.Namespace + ":" + bgpevents.EventOpen},
-		{Message: bgpevents.Namespace + ":" + bgpevents.EventUpdate},
-		{Message: bgpevents.Namespace + ":" + bgpevents.EventNotification},
-		{Message: bgpevents.Namespace + ":" + bgpevents.EventKeepalive},
-		{Message: bgpevents.Namespace + ":" + bgpevents.EventRefresh},
-		{Message: bgpevents.Namespace + ":" + bgpevents.EventEOR},
+	messages := bridge.DeclaredEventMessages()
+	decls := make([]rpc.MessageReceiveDecl, len(messages))
+	for i, msg := range messages {
+		decls[i] = rpc.MessageReceiveDecl{Message: msg}
 	}
+	return decls
 }

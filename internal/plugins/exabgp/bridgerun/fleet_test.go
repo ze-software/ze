@@ -12,6 +12,7 @@ import (
 	"slices"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -19,18 +20,17 @@ import (
 	"github.com/ze-software/ze/internal/core/slogutil"
 	"github.com/ze-software/ze/internal/core/textbuf"
 	"github.com/ze-software/ze/internal/exabgp/bridge"
+	"github.com/ze-software/ze/pkg/plugin/rpc"
 )
 
-// VALIDATES: a Fleet runs EVERY script an ExaBGP config declares -- it forks one
-// child per script, fans each event out to all of them, reads commands from all
-// of them, and restarts only the ones whose respawn leaf asks for it.
-// PREVENTS: a config naming two processes running one of them in silence, which
-// is what the bridge did until 2026-09-06; a one-shot script being restarted
-// forever; a crashing script being restarted forever.
+// VALIDATES: a Fleet runs each script once, translates commands and events in
+// the script's encoder, applies BusParticipantFilter scope/negotiated grants,
+// flushes before acking, answers status from Ze's peer list, and reports a
+// script's exit code without respawning it (E-6).
+// PREVENTS: silent drop of commands/events, wrong peer scope, stale negotiated
+// blocks, or internal respawn loops after E-6.
 
-// testFamilies is the family set these tests declare. A bare `announce eor`
-// expands over it, so the tests carry one rather than the zero Translator that
-// refuses that line.
+// testFamilies is the family set these tests declare.
 var testFamilies = []string{"ipv4/unicast"}
 
 // recorder is the engine a test gives a Fleet. It answers every command with
@@ -40,16 +40,14 @@ type recorder struct {
 	commands []string
 
 	// flushGate holds a flush open until the test closes it, so a test can ask
-	// what the script has been told WHILE its route is still being flushed. A
-	// nil gate answers every command at once.
+	// what the script has been told WHILE its route is still being flushed.
 	flushGate chan struct{}
 
 	// answers is the payload a command is answered with, keyed by the exact
-	// command. A command it does not hold is answered with no payload.
+	// command.
 	answers map[string]json.RawMessage
 
-	// refused is the commands ze refuses, keyed by the exact command, each
-	// answered with its error. A command it does not hold succeeds.
+	// refused is the commands ze refuses, keyed by the exact command.
 	refused map[string]error
 }
 
@@ -89,8 +87,6 @@ func writeScript(t *testing.T, dir, name, body string) string {
 }
 
 // waitFor polls until ready answers true, and fails the test at the deadline.
-// The scripts under test fork and exit in milliseconds, so the deadline is a
-// bound on a hang rather than a wait anything normally reaches.
 func waitFor(t *testing.T, what string, ready func() bool) {
 	t.Helper()
 	deadline := time.Now().Add(15 * time.Second)
@@ -104,9 +100,7 @@ func waitFor(t *testing.T, what string, ready func() bool) {
 }
 
 // lines answers the number of complete lines in a file, and zero when it does
-// not exist. It counts newlines, not words: an answer such as `error: <why>`
-// is one line, and counting its words let a wait end before the last answers
-// were written.
+// not exist.
 func lines(t *testing.T, path string) int {
 	t.Helper()
 	data, err := os.ReadFile(path) //nolint:gosec // G304: a path this test wrote.
@@ -116,9 +110,19 @@ func lines(t *testing.T, path string) int {
 	return strings.Count(string(data), "\n")
 }
 
-// TestFleetRunsEveryScript is the defect this package exists to remove. Two
-// declared scripts each write one ExaBGP line, and BOTH lines have to reach the
-// engine. Running one of them and saying nothing is the failure.
+// readFile answers a file's whole content, and the empty string when it does
+// not exist yet.
+func readFile(t *testing.T, path string) string {
+	t.Helper()
+	data, err := os.ReadFile(path) //nolint:gosec // G304: a path this test wrote.
+	if err != nil {
+		return ""
+	}
+	return string(data)
+}
+
+// TestFleetRunsEveryScript checks that declared scripts run and dispatch their
+// ExaBGP commands to the engine.
 func TestFleetRunsEveryScript(t *testing.T) {
 	dir := t.TempDir()
 	first := writeScript(t, dir, "first.sh",
@@ -151,8 +155,8 @@ func TestFleetRunsEveryScript(t *testing.T) {
 	fleet.Stop()
 }
 
-// TestFleetFansEventsToEveryScript checks the other direction: one ze event
-// reaches every script's stdin, with the same bytes.
+// TestFleetFansEventsToEveryScript checks that one ze event reaches every
+// script's stdin with identical bytes.
 func TestFleetFansEventsToEveryScript(t *testing.T) {
 	dir := t.TempDir()
 	firstOut := filepath.Join(dir, "first.events")
@@ -171,10 +175,6 @@ func TestFleetFansEventsToEveryScript(t *testing.T) {
 		t.Fatalf("Start: %v", err)
 	}
 
-	// A ze event, in the shape docs/architecture/api/json-format.md declares.
-	// The ExaBGP-shaped object this line carried until 2026-09-06 is what the
-	// bridge WRITES, never what it reads, and it only reached a script because
-	// an unrecognizable envelope was named an UPDATE.
 	fleet.Broadcast(peerStateEvent("127.0.0.1"))
 	waitFor(t, "both scripts to receive the event", func() bool {
 		return lines(t, firstOut) > 0 && lines(t, secondOut) > 0
@@ -183,15 +183,9 @@ func TestFleetFansEventsToEveryScript(t *testing.T) {
 	cancel()
 	fleet.Stop()
 
-	got, err := os.ReadFile(firstOut) //nolint:gosec // G304: a path this test wrote.
-	if err != nil {
-		t.Fatalf("read %s: %v", firstOut, err)
-	}
-	want, err := os.ReadFile(secondOut) //nolint:gosec // G304: a path this test wrote.
-	if err != nil {
-		t.Fatalf("read %s: %v", secondOut, err)
-	}
-	if !bytes.Equal(got, want) {
+	got := readFile(t, firstOut)
+	want := readFile(t, secondOut)
+	if got != want {
 		t.Errorf("the two scripts received different events:\nfirst  = %q\nsecond = %q", got, want)
 	}
 	if len(got) == 0 {
@@ -199,79 +193,55 @@ func TestFleetFansEventsToEveryScript(t *testing.T) {
 	}
 }
 
-// TestFleetLeavesAOneShotScriptStopped is api-no-respawn's assertion: the
-// script whose block says `respawn false` exits after its work and is NOT
-// started again, while its sibling keeps being restarted.
+// TestFleetReportsScriptExitCodeWithoutRespawn verifies E-6: a script that
+// exits reports its exact exit status via SetOnExit and is never forked again.
 //
-// The sibling reaching the restart limit is what marks the passage of time, so
-// the test needs no sleep to know the one-shot had every chance to be restarted.
-func TestFleetLeavesAOneShotScriptStopped(t *testing.T) {
+// VALIDATES: E-6 single-run watcher reports exit status without respawning.
+// PREVENTS: internal respawn loops or lost child exit codes.
+func TestFleetReportsScriptExitCodeWithoutRespawn(t *testing.T) {
 	dir := t.TempDir()
-	oneShotCount := filepath.Join(dir, "one-shot.forks")
-	respawnCount := filepath.Join(dir, "respawn.forks")
-	oneShot := writeScript(t, dir, "one-shot.sh", "echo fork >> "+oneShotCount+"\n")
-	respawner := writeScript(t, dir, "respawn.sh", "echo fork >> "+respawnCount+"\n")
+	countFile := filepath.Join(dir, "forks")
+	scriptPath := writeScript(t, dir, "exit3.sh", "echo fork >> "+countFile+"\nexit 3\n")
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
+	var exitCalls atomic.Int32
+	exitCh := make(chan int, 2)
+
 	fleet := New(slogutil.DiscardLogger(), testFamilies, []Script{
-		{Name: "one-shot", Argv: []string{oneShot}, Encoder: bridge.EncoderJSON, Respawn: false},
-		{Name: "respawn", Argv: []string{respawner}, Encoder: bridge.EncoderJSON, Respawn: true},
+		{Name: "exiter", Argv: []string{scriptPath}, Encoder: bridge.EncoderText},
+	})
+	fleet.SetOnExit(func(code int) {
+		exitCalls.Add(1)
+		exitCh <- code
 	})
 	if err := fleet.Start(ctx, &recorder{}); err != nil {
 		t.Fatalf("Start: %v", err)
 	}
 
-	waitFor(t, "the respawning script to reach its restart limit", func() bool {
-		return lines(t, respawnCount) == respawnMax
-	})
+	select {
+	case code := <-exitCh:
+		if code != 3 {
+			t.Errorf("exit code = %d, want 3", code)
+		}
+	case <-time.After(10 * time.Second):
+		t.Fatal("timed out waiting for script exit callback")
+	}
 
 	cancel()
 	fleet.Stop()
 
-	if got := lines(t, oneShotCount); got != 1 {
-		t.Errorf("the one-shot script forked %d times, want 1", got)
+	if got := lines(t, countFile); got != 1 {
+		t.Errorf("script forked %d times, want 1", got)
 	}
-}
-
-// TestFleetRestartsARespawningScript checks the positive half: a script whose
-// block asks for a respawn is started again when it exits, up to ExaBGP's limit
-// of respawnMax forks inside one window, and then stays stopped.
-func TestFleetRestartsARespawningScript(t *testing.T) {
-	dir := t.TempDir()
-	count := filepath.Join(dir, "forks")
-	script := writeScript(t, dir, "respawn.sh", "echo fork >> "+count+"\n")
-
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
-
-	fleet := New(slogutil.DiscardLogger(), testFamilies, []Script{
-		{Name: "respawn", Argv: []string{script}, Encoder: bridge.EncoderJSON, Respawn: true},
-	})
-	if err := fleet.Start(ctx, &recorder{}); err != nil {
-		t.Fatalf("Start: %v", err)
-	}
-
-	waitFor(t, "the script to be restarted", func() bool {
-		return lines(t, count) > 1
-	})
-	waitFor(t, "the script to reach its restart limit", func() bool {
-		return lines(t, count) == respawnMax
-	})
-
-	cancel()
-	fleet.Stop()
-
-	// The limit holds after the supervisor gave up: a script that dies at once
-	// does not fork forever.
-	if got := lines(t, count); got != respawnMax {
-		t.Errorf("the script forked %d times, want %d", got, respawnMax)
+	if got := exitCalls.Load(); got != 1 {
+		t.Errorf("onExit invoked %d times, want 1", got)
 	}
 }
 
 // TestFleetStartNamesTheScriptItCannotFork refuses by name rather than starting
-// the rest and running a subset in silence.
+// a subset in silence.
 func TestFleetStartNamesTheScriptItCannotFork(t *testing.T) {
 	dir := t.TempDir()
 	good := writeScript(t, dir, "good.sh", "read line\n")
@@ -297,11 +267,7 @@ func TestFleetStartNamesTheScriptItCannotFork(t *testing.T) {
 
 // TestFleetLogsTheScriptItCannotStart proves that a script whose program is
 // not on PATH is reported at ERROR, with the run command, the exec error, why
-// it matters and what to do. Method: start a fleet whose one script names a
-// program no PATH holds, and read the line the fleet's logger received.
-// PREVENTS: a `run` command naming a program the daemon cannot find failing in
-// silence. Start answers the error to the engine's startup callback, which no
-// operator reads, so conf-watchdog's helper never ran and nothing said why.
+// it matters, and what to do.
 func TestFleetLogsTheScriptItCannotStart(t *testing.T) {
 	t.Setenv("PATH", t.TempDir())
 	var logged bytes.Buffer
@@ -337,11 +303,7 @@ func TestFleetLogsTheScriptItCannotStart(t *testing.T) {
 
 // TestFleetSendsABareEORForIPv4UnicastOnly proves a bare `announce eor`
 // reaches the engine as the IPv4 unicast End-of-RIB alone, even when the
-// bridge declared more families. ExaBGP at the pinned commit reads the bare
-// form as IPv4 unicast (b0b734ec2e made the bridge match it), so an IPv6
-// marker here would be a marker ExaBGP never sends.
-//
-// It also pins the ack: one line the script wrote is one answer.
+// bridge declared more families.
 func TestFleetSendsABareEORForIPv4UnicastOnly(t *testing.T) {
 	dir := t.TempDir()
 	acks := filepath.Join(dir, "acks")
@@ -370,8 +332,6 @@ func TestFleetSendsABareEORForIPv4UnicastOnly(t *testing.T) {
 	cancel()
 	fleet.Stop()
 
-	// The ack follows the dispatch of every command the line became, so an
-	// IPv6 marker would be held by now.
 	if rec.held(notV6) {
 		t.Errorf("a bare eor sent the IPv6 unicast End-of-RIB %q; ExaBGP sends IPv4 unicast only", notV6)
 	}
@@ -380,70 +340,8 @@ func TestFleetSendsABareEORForIPv4UnicastOnly(t *testing.T) {
 	}
 }
 
-// readFile answers a file's whole content, and the empty string when it does
-// not exist yet.
-func readFile(t *testing.T, path string) string {
-	t.Helper()
-	data, err := os.ReadFile(path) //nolint:gosec // G304: a path this test wrote.
-	if err != nil {
-		return ""
-	}
-	return string(data)
-}
-
-// TestFleetFeedsEachScriptOnlyItsOwnPeers is the second defect this package
-// exists to remove. An ExaBGP neighbor names the processes it feeds in
-// `api { processes [ ... ] }`, and until 2026-09-06 the bridge fanned every
-// event to every child, so a two-process config delivered each neighbor's
-// events to both scripts.
-//
-// test/exabgp-compat/api/api-multiple-api.ci is the same shape: two neighbors,
-// each naming one process, and the case fails when either script sees the
-// other's routes.
-func TestFleetFeedsEachScriptOnlyItsOwnPeers(t *testing.T) {
-	dir := t.TempDir()
-	publicOut := filepath.Join(dir, "public.events")
-	privateOut := filepath.Join(dir, "private.events")
-	publicScript := writeScript(t, dir, "public.sh", "cat > "+publicOut+"\n")
-	privateScript := writeScript(t, dir, "private.sh", "cat > "+privateOut+"\n")
-
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
-
-	fleet := New(slogutil.DiscardLogger(), testFamilies, []Script{
-		{Name: "public", Argv: []string{publicScript}, Encoder: bridge.EncoderJSON,
-			Feeds: []ScriptFeed{{Peer: "127.0.0.1", Events: []string{"neighbor-changes"}}}},
-		{Name: "private", Argv: []string{privateScript}, Encoder: bridge.EncoderJSON,
-			Feeds: []ScriptFeed{{Peer: "192.168.0.1", Events: []string{"neighbor-changes"}}}},
-	})
-	if err := fleet.Start(ctx, &recorder{}); err != nil {
-		t.Fatalf("Start: %v", err)
-	}
-
-	fleet.Broadcast(peerStateEvent("127.0.0.1"))
-	fleet.Broadcast(peerStateEvent("192.168.0.1"))
-
-	waitFor(t, "each script to receive its own peer's event", func() bool {
-		return strings.Contains(readFile(t, publicOut), "127.0.0.1") &&
-			strings.Contains(readFile(t, privateOut), "192.168.0.1")
-	})
-
-	cancel()
-	fleet.Stop()
-
-	if got := readFile(t, publicOut); strings.Contains(got, "192.168.0.1") {
-		t.Errorf("the public script received the private peer's event: %q", got)
-	}
-	if got := readFile(t, privateOut); strings.Contains(got, "127.0.0.1") {
-		t.Errorf("the private script received the public peer's event: %q", got)
-	}
-}
-
-// TestFleetSendsAnUnaddressedCommandToTheScriptsOwnPeers is the same relation
-// in the other direction. An ExaBGP line that names no neighbor reaches the
-// peers of the process that wrote it, which is what Reactor.peers(service)
-// answers, so a two-process config must not put one script's route on the
-// other's session.
+// TestFleetSendsAnUnaddressedCommandToTheScriptsOwnPeers proves ApplyFilter
+// narrows unaddressed ExaBGP commands to the peers permitted by `send > to`.
 func TestFleetSendsAnUnaddressedCommandToTheScriptsOwnPeers(t *testing.T) {
 	dir := t.TempDir()
 	script := writeScript(t, dir, "private.sh",
@@ -454,8 +352,16 @@ func TestFleetSendsAnUnaddressedCommandToTheScriptsOwnPeers(t *testing.T) {
 
 	rec := &recorder{}
 	fleet := New(slogutil.DiscardLogger(), testFamilies, []Script{
-		{Name: "private", Argv: []string{script}, Encoder: bridge.EncoderJSON,
-			Feeds: []ScriptFeed{{Peer: "192.168.0.1"}}},
+		{Name: "private", Argv: []string{script}, Encoder: bridge.EncoderJSON},
+	})
+	fleet.ApplyFilter(&rpc.BusParticipantFilter{
+		SendRules: []rpc.BusFilterRule{{
+			Message: "cli:send bgp",
+			Allowed: true,
+			Targets: []rpc.BusFilterTarget{{Path: "/bgp/peer/p1", Address: "192.168.0.1"}},
+		}},
+		ReceiveAll:     true,
+		ReceiveFromAll: true,
 	})
 	if err := fleet.Start(ctx, rec); err != nil {
 		t.Fatalf("Start: %v", err)
@@ -477,8 +383,6 @@ func TestFleetSendsAnUnaddressedCommandToTheScriptsOwnPeers(t *testing.T) {
 }
 
 // TestFleetWritesEachScriptInItsOwnEncoder proves the encoder is per script.
-// ExaBGP declares it inside the process block, so one bridge can feed a text
-// script and a JSON script from the same event.
 func TestFleetWritesEachScriptInItsOwnEncoder(t *testing.T) {
 	dir := t.TempDir()
 	textOut := filepath.Join(dir, "text.events")
@@ -517,9 +421,7 @@ func TestFleetWritesEachScriptInItsOwnEncoder(t *testing.T) {
 }
 
 // TestFleetRefusesAScriptWithNoEncoder checks the fan-out cannot reach a script
-// whose format nobody set. The zero Encoder names no format, so writing it in
-// whichever one the constant zero happens to select is the silently-wrong
-// answer `ai/rules/principles.md` bans.
+// whose format nobody set.
 func TestFleetRefusesAScriptWithNoEncoder(t *testing.T) {
 	dir := t.TempDir()
 	script := writeScript(t, dir, "quiet.sh", "read line\n")
@@ -583,89 +485,14 @@ func TestFleetRenderUnknownTextEvent(t *testing.T) {
 	}
 }
 
-// peerStateEvent is one ze state event for a named peer, in the shape
-// docs/architecture/api/json-format.md declares.
+// peerStateEvent is one ze state event for a named peer.
 func peerStateEvent(peer string) string {
 	var tb textbuf.Buffer
 	return tb.Str(`{"type":"bgp","bgp":{"message":{"type":"state"},"peer":{"remote":{"address":"`).
 		Str(peer).Str(`","as":65001}},"state":"up"}}`).String()
 }
 
-// TestFleetFeedsAScriptOnlyTheEventsItsNeighborGranted is the third half of
-// the same relation. An ExaBGP api block names the message kinds it feeds as
-// well as the processes, and a block naming `receive { update; }` alone must
-// not deliver the OPEN and the KEEPALIVE of the same session.
-//
-// test/exabgp-compat/etc/api-check.conf is that shape, and its script exits 1
-// on the first line that is not the announce it expects.
-func TestFleetFeedsAScriptOnlyTheEventsItsNeighborGranted(t *testing.T) {
-	dir := t.TempDir()
-	out := filepath.Join(dir, "watcher.events")
-	script := writeScript(t, dir, "watcher.sh", "cat > "+out+"\n")
-
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
-
-	fleet := New(slogutil.DiscardLogger(), testFamilies, []Script{
-		{Name: "watcher", Argv: []string{script}, Encoder: bridge.EncoderText,
-			Feeds: []ScriptFeed{{Peer: "127.0.0.1", Events: []string{"receive-update"}}}},
-	})
-	if err := fleet.Start(ctx, &recorder{}); err != nil {
-		t.Fatalf("Start: %v", err)
-	}
-
-	fleet.Broadcast(peerStateEvent("127.0.0.1"))
-	fleet.Broadcast(peerKeepaliveEvent("127.0.0.1"))
-	fleet.Broadcast(peerUpdateEvent("127.0.0.1"))
-
-	want := "neighbor 127.0.0.1 receive update announced 10.0.0.0/24 next-hop 10.0.0.1\n"
-	waitFor(t, "the granted event to reach the script", func() bool {
-		return strings.Contains(readFile(t, out), want)
-	})
-
-	cancel()
-	fleet.Stop()
-
-	got := readFile(t, out)
-	for _, ungranted := range []string{" up\n", " keepalive\n"} {
-		if strings.Contains(got, ungranted) {
-			t.Errorf("the script received %q, which its neighbor did not grant:\n%s", ungranted, got)
-		}
-	}
-}
-
-// peerKeepaliveEvent is one ze KEEPALIVE event for a named peer.
-func peerKeepaliveEvent(peer string) string {
-	var tb textbuf.Buffer
-	return tb.Str(`{"type":"bgp","bgp":{"message":{"type":"keepalive","direction":"received"},`).
-		Str(`"peer":{"remote":{"address":"`).Str(peer).Str(`","as":65001}},"keepalive":{}}}`).String()
-}
-
-// peerUpdateEvent is one ze UPDATE event for a named peer, announcing one
-// prefix with no path attributes.
-func peerUpdateEvent(peer string) string {
-	var tb textbuf.Buffer
-	return tb.Str(`{"type":"bgp","bgp":{"message":{"type":"update","direction":"received"},`).
-		Str(`"peer":{"remote":{"address":"`).Str(peer).Str(`","as":65001}},`).
-		Str(`"nlri":{"ipv4/unicast":[{"next-hop":"10.0.0.1","action":"add","nlri":["10.0.0.0/24"]}]}}}`).String()
-}
-
-// TestFleetAcksARouteOnlyAfterItsFlush pins the order of the two answers a
-// route command owes. `done` means the command is DONE, and a route is not
-// done until it is on the wire, so the per-peer flush comes first.
-//
-// ExaBGP orders them the same way: announce_route awaits every peer's flush
-// event and calls answer_done after it
-// (src/exabgp/reactor/api/command/announce.py).
-//
-// Acking first let a script send its next command while the previous route's
-// flush was still running. The two then reached the wire in whichever order
-// they finished, and api-ipv4, api-ipv6, api-mvpn and api-vpnv4 each caught it
-// by announcing and withdrawing one NLRI and reading the frames in order.
-//
-// The test HOLDS the flush open, because a flush that returns at once is
-// acked-then-flushed and flushed-then-acked in the same observable order. With
-// the flush held, the script is acked only if the ack does not wait for it.
+// TestFleetAcksARouteOnlyAfterItsFlush pins the order of flush before ack.
 func TestFleetAcksARouteOnlyAfterItsFlush(t *testing.T) {
 	dir := t.TempDir()
 	acked := filepath.Join(dir, "acked")
@@ -690,8 +517,6 @@ func TestFleetAcksARouteOnlyAfterItsFlush(t *testing.T) {
 		return rec.held("request peer * flush")
 	})
 
-	// The flush is held open here. An ack written before it would already be
-	// on the script's stdin, and the script writes what it read.
 	time.Sleep(50 * time.Millisecond)
 	if got := readFile(t, acked); got != "" {
 		t.Errorf("the script was acked with %q while its route was still being flushed", got)
@@ -707,13 +532,7 @@ func TestFleetAcksARouteOnlyAfterItsFlush(t *testing.T) {
 }
 
 // TestFleetAnswersARouteErrorWhenItsFlushIsRefused proves a refused flush
-// reaches the script. The route command itself is accepted; only the flush
-// that would put it on the wire is refused. `done` would tell the script a
-// barrier held that did not, so the route line is answered `error`.
-//
-// The flush refusal travels scriptRunner.Flush -> bridge.LineRunner.Flush ->
-// failSelectorLines. A Flush that dropped the error (logged it and answered
-// nothing) acks the line `done`, and this test goes red.
+// reaches the script as an error.
 func TestFleetAnswersARouteErrorWhenItsFlushIsRefused(t *testing.T) {
 	dir := t.TempDir()
 	acked := filepath.Join(dir, "acked")
@@ -751,10 +570,7 @@ func TestFleetAnswersARouteErrorWhenItsFlushIsRefused(t *testing.T) {
 }
 
 // TestFleetAnswersStatusFromZesPeerList proves a script's `status` line is
-// answered from the peers ze lists, through the plugin runner's dispatcher: the
-// peer key is ExaBGP's Neighbor.name() and the state is the fsm-state ze
-// reported, then the line is closed with done. A runner that answered from
-// anything but ze's peer list would not print this peer or this state.
+// answered from the peers ze lists.
 func TestFleetAnswersStatusFromZesPeerList(t *testing.T) {
 	dir := t.TempDir()
 	answered := filepath.Join(dir, "answered")
@@ -798,14 +614,12 @@ func TestFleetAnswersStatusFromZesPeerList(t *testing.T) {
 	fleet.Stop()
 }
 
-// TestFleetPutsTheNegotiatedBlockOnlyWhereGranted checks that, for an API 4
-// script, an UPDATE line carries the session's negotiated block when the peer
-// grants `negotiated`, and none when it does not: ExaBGP 5.0.1 hands such a
-// process None (src/exabgp/reactor/protocol.py, read_message).
+// TestFleetPutsTheNegotiatedBlockOnlyWhereGranted checks that an UPDATE line
+// carries the session's negotiated block when the participant filter grants
+// `bgp:negotiated`, and omits it when `bgp:negotiated` is not granted.
 //
-// VALIDATES: bridge.Sessions through the internal runner, per script grant.
-// PREVENTS: the block missing from a 5.0 helper's UPDATE, or reaching a
-// process whose api block never asked for it.
+// VALIDATES: bridge.Sessions + ApplyFilter negotiated grant per endpoint.
+// PREVENTS: the block missing when granted, or leaking when not granted.
 func TestFleetPutsTheNegotiatedBlockOnlyWhereGranted(t *testing.T) {
 	t.Setenv("exabgp.api.version", "4")
 	env.ResetCache()
@@ -819,21 +633,42 @@ func TestFleetPutsTheNegotiatedBlockOnlyWhereGranted(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	fleet := New(slogutil.DiscardLogger(), testFamilies, []Script{
-		{Name: "granted", Argv: []string{grantedScript}, Encoder: bridge.EncoderJSON,
-			Feeds: []ScriptFeed{{Peer: "127.0.0.1", Events: []string{"receive-update", "negotiated"}}}},
-		{Name: "plain", Argv: []string{plainScript}, Encoder: bridge.EncoderJSON,
-			Feeds: []ScriptFeed{{Peer: "127.0.0.1", Events: []string{"receive-update"}}}},
+	grantedFleet := New(slogutil.DiscardLogger(), testFamilies, []Script{
+		{Name: "granted", Argv: []string{grantedScript}, Encoder: bridge.EncoderJSON},
 	})
-	if err := fleet.Start(ctx, &recorder{}); err != nil {
-		t.Fatalf("Start: %v", err)
+	grantedFleet.ApplyFilter(&rpc.BusParticipantFilter{
+		ReceiveRules: []rpc.BusFilterRule{
+			{Message: "bgp:update", Allowed: true, Targets: []rpc.BusFilterTarget{{Address: "127.0.0.1"}}},
+			{Message: "bgp:negotiated", Allowed: true, Targets: []rpc.BusFilterTarget{{Address: "127.0.0.1"}}},
+		},
+	})
+
+	plainFleet := New(slogutil.DiscardLogger(), testFamilies, []Script{
+		{Name: "plain", Argv: []string{plainScript}, Encoder: bridge.EncoderJSON},
+	})
+	plainFleet.ApplyFilter(&rpc.BusParticipantFilter{
+		ReceiveRules: []rpc.BusFilterRule{
+			{Message: "bgp:update", Allowed: true, Targets: []rpc.BusFilterTarget{{Address: "127.0.0.1"}}},
+			{Message: "bgp:negotiated", Allowed: false},
+		},
+	})
+
+	if err := grantedFleet.Start(ctx, &recorder{}); err != nil {
+		t.Fatalf("granted Start: %v", err)
+	}
+	if err := plainFleet.Start(ctx, &recorder{}); err != nil {
+		t.Fatalf("plain Start: %v", err)
 	}
 
 	peer := `"peer":{"remote":{"address":"127.0.0.1","as":65001}}`
-	fleet.Broadcast(`{"type":"bgp","bgp":{"message":{"type":"negotiated"},` + peer +
-		`,"negotiated":{"timer":{"hold-time":90},"message-size":4096,"route-refresh":"normal","asn4":true,"families":["ipv6/unicast","ipv4/unicast"]}}}`)
-	fleet.Broadcast(`{"type":"bgp","bgp":{"message":{"type":"update","direction":"received"},` + peer +
-		`,"update":{"attr":{"origin":"igp"},"nlri":{"ipv4/unicast":[{"next-hop":"10.0.0.1","action":"add","nlri":["10.0.0.0/24"]}]}}}}`)
+	negEvent := `{"type":"bgp","bgp":{"message":{"type":"negotiated"},` + peer +
+		`,"negotiated":{"timer":{"hold-time":90},"message-size":4096,"route-refresh":"normal","asn4":true,"families":["ipv6/unicast","ipv4/unicast"]}}}`
+	updEvent := `{"type":"bgp","bgp":{"message":{"type":"update","direction":"received"},` + peer +
+		`,"update":{"attr":{"origin":"igp"},"nlri":{"ipv4/unicast":[{"next-hop":"10.0.0.1","action":"add","nlri":["10.0.0.0/24"]}]}}}}`
+
+	grantedFleet.Broadcast(negEvent)
+	grantedFleet.Broadcast(updEvent)
+	plainFleet.Broadcast(updEvent)
 
 	waitFor(t, "both scripts to receive the UPDATE", func() bool {
 		return strings.Contains(readFile(t, grantedOut), "10.0.0.0/24") &&
@@ -841,12 +676,10 @@ func TestFleetPutsTheNegotiatedBlockOnlyWhereGranted(t *testing.T) {
 	})
 
 	cancel()
-	fleet.Stop()
+	grantedFleet.Stop()
+	plainFleet.Stop()
 
 	block := negotiatedOfUpdate(t, readFile(t, grantedOut))
-	// The families keep the event's order, the peer's OPEN order, as ExaBGP
-	// lists them (negotiated.py, Negotiated.received); this test expected AFI
-	// then SAFI order while the bridge sorted, which ExaBGP never did.
 	want := map[string]any{
 		"add_path": map[string]any{"receive": []any{}, "send": []any{}},
 		"asn4":     true, "families": []any{"ipv6 unicast", "ipv4 unicast"},
@@ -861,15 +694,10 @@ func TestFleetPutsTheNegotiatedBlockOnlyWhereGranted(t *testing.T) {
 	}
 }
 
-// TestFleetGivesTheBlockOnlyWhereGranted checks, for an API 4 script and an
-// API 6 one, that a script the peer grants `negotiated` gets the block on
-// every UPDATE line, the empty session before the session's negotiated event
-// and the session's after it, and that a script it does not grant gets none,
-// even once the session is up: the pin f9bfb853b decides so for every API
-// version (Protocol._api_negotiated: "return self.negotiated if
-// self._api.get('negotiated', False) else Negotiated.UNSET").
+// TestFleetGivesTheBlockOnlyWhereGranted checks for API 4 and API 6 that
+// Event.ForGrant follows the compiled filter's `bgp:negotiated` grant.
 //
-// VALIDATES: Event.ForGrant through the internal runner, per script grant.
+// VALIDATES: Event.ForGrant through ApplyFilter for both API versions.
 // PREVENTS: the block gated on the API version rather than on the grant.
 func TestFleetGivesTheBlockOnlyWhereGranted(t *testing.T) {
 	for _, version := range []string{"4", "6"} {
@@ -889,34 +717,56 @@ func fleetGivesTheBlockOnlyWhereGranted(t *testing.T, version string) {
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
-	fleet := New(slogutil.DiscardLogger(), testFamilies, []Script{
-		{Name: "granted", Argv: []string{script}, Encoder: bridge.EncoderJSON,
-			Feeds: []ScriptFeed{{Peer: "127.0.0.1", Events: []string{"receive-update", "negotiated"}}}},
-		{Name: "plain", Argv: []string{plainScript}, Encoder: bridge.EncoderJSON,
-			Feeds: []ScriptFeed{{Peer: "127.0.0.1", Events: []string{"receive-update"}}}},
+
+	grantedFleet := New(slogutil.DiscardLogger(), testFamilies, []Script{
+		{Name: "granted", Argv: []string{script}, Encoder: bridge.EncoderJSON},
 	})
-	if err := fleet.Start(ctx, &recorder{}); err != nil {
-		t.Fatalf("Start: %v", err)
+	grantedFleet.ApplyFilter(&rpc.BusParticipantFilter{
+		ReceiveRules: []rpc.BusFilterRule{
+			{Message: "bgp:update", Allowed: true, Targets: []rpc.BusFilterTarget{{Address: "127.0.0.1"}}},
+			{Message: "bgp:negotiated", Allowed: true, Targets: []rpc.BusFilterTarget{{Address: "127.0.0.1"}}},
+		},
+	})
+
+	plainFleet := New(slogutil.DiscardLogger(), testFamilies, []Script{
+		{Name: "plain", Argv: []string{plainScript}, Encoder: bridge.EncoderJSON},
+	})
+	plainFleet.ApplyFilter(&rpc.BusParticipantFilter{
+		ReceiveRules: []rpc.BusFilterRule{
+			{Message: "bgp:update", Allowed: true, Targets: []rpc.BusFilterTarget{{Address: "127.0.0.1"}}},
+			{Message: "bgp:negotiated", Allowed: false},
+		},
+	})
+
+	if err := grantedFleet.Start(ctx, &recorder{}); err != nil {
+		t.Fatalf("granted Start: %v", err)
+	}
+	if err := plainFleet.Start(ctx, &recorder{}); err != nil {
+		t.Fatalf("plain Start: %v", err)
 	}
 
 	peer := `"peer":{"remote":{"address":"127.0.0.1","as":65001}}`
 	update := `{"type":"bgp","bgp":{"message":{"type":"update","direction":"received"},` + peer +
 		`,"update":{"attr":{"origin":"igp"},"nlri":{"ipv4/unicast":[{"next-hop":"10.0.0.1","action":"add","nlri":["10.0.0.0/24"]}]}}}}`
-	fleet.Broadcast(update)
+	grantedFleet.Broadcast(update)
 	waitFor(t, "the UPDATE before the session's negotiated event", func() bool {
 		return strings.Contains(readFile(t, out), "10.0.0.0/24")
 	})
 	unset := negotiatedOfUpdate(t, readFile(t, out))
 
-	fleet.Broadcast(`{"type":"bgp","bgp":{"message":{"type":"negotiated"},` + peer +
-		`,"negotiated":{"timer":{"hold-time":90},"message-size":4096,"route-refresh":"normal","asn4":true,"families":["ipv4/unicast"]}}}`)
-	fleet.Broadcast(strings.Replace(update, "10.0.0.0/24", "10.0.1.0/24", 1))
+	neg := `{"type":"bgp","bgp":{"message":{"type":"negotiated"},` + peer +
+		`,"negotiated":{"timer":{"hold-time":90},"message-size":4096,"route-refresh":"normal","asn4":true,"families":["ipv4/unicast"]}}}`
+	update2 := strings.Replace(update, "10.0.0.0/24", "10.0.1.0/24", 1)
+	grantedFleet.Broadcast(neg)
+	grantedFleet.Broadcast(update2)
+	plainFleet.Broadcast(update2)
 	waitFor(t, "the UPDATE after it", func() bool {
 		return strings.Contains(readFile(t, out), "10.0.1.0/24") &&
 			strings.Contains(readFile(t, plainOut), "10.0.1.0/24")
 	})
 	cancel()
-	fleet.Stop()
+	grantedFleet.Stop()
+	plainFleet.Stop()
 
 	if got := readFile(t, plainOut); strings.Contains(got, `"negotiated"`) {
 		t.Errorf("an API %s script not granted negotiated received the block: %q", version, got)

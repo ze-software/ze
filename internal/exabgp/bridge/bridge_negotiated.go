@@ -15,6 +15,14 @@ import (
 // which ends what Sessions keeps of it.
 const sessionStateDown = "down"
 
+// peerSession holds the cached negotiated block and attribute encoding context
+// for one peer's physical connection.
+type peerSession struct {
+	connID string
+	block  map[string]any
+	ctx    bgpctx.ContextID
+}
+
 // Sessions is what a runner keeps of each peer's session, so an event can be
 // rendered with what an earlier event of the same session said.
 //
@@ -32,19 +40,24 @@ const sessionStateDown = "down"
 // states the block once, in its own `negotiated` event, so the runner keeps it
 // per peer and hands it to each message of that peer.
 //
+// Each peer entry is tagged with its physical connection-id (Q-E4): when any
+// event arrives for the same peer with a different non-empty connection-id,
+// the stale entry is invalidated immediately even if bgp:state was excluded
+// from receive > allow.
+//
 // The zero value is ready to use. Safe for concurrent use. An entry lives from
-// the peer's `negotiated` event to its `down`, so there is at most one per
-// configured peer.
+// the peer's `negotiated` event to its `down` or reconnect, so there is at most
+// one per configured peer.
 type Sessions struct {
-	mu sync.Mutex
-	// negotiated is each peer's block, by remote address, in ExaBGP's form.
-	// A block is never changed once stored, so every line of the session
-	// shares it.
-	negotiated map[string]map[string]any
-	// contexts is each peer's attribute encoding context, by remote address,
-	// kept whether or not a script is granted the block: every UPDATE line
-	// reads its AS_PATH with it (Event.overlayWire).
-	contexts map[string]bgpctx.ContextID
+	mu    sync.Mutex
+	peers map[string]peerSession
+}
+
+// reconnectedSession reports whether current names a different physical
+// connection than cached. An empty identifier on either side does not trigger
+// invalidation so synthetic events without connection-id keep working.
+func reconnectedSession(cached, current string) bool {
+	return cached != "" && current != "" && cached != current
 }
 
 // Note reads one event into the sessions and gives the event what its
@@ -56,28 +69,45 @@ func (s *Sessions) Note(e *Event) {
 		block := convertNegotiated(e.negotiatedData())
 		contextID := sessionAttrContext(block)
 		s.mu.Lock()
-		if s.negotiated == nil {
-			s.negotiated = make(map[string]map[string]any)
-			s.contexts = make(map[string]bgpctx.ContextID)
+		if s.peers == nil {
+			s.peers = make(map[string]peerSession)
 		}
-		s.negotiated[e.Peer] = block
-		s.contexts[e.Peer] = contextID
+		s.peers[e.Peer] = peerSession{
+			connID: e.ConnectionID,
+			block:  block,
+			ctx:    contextID,
+		}
 		s.mu.Unlock()
 	case msgTypeState:
-		if state, _ := e.Payload["state"].(string); state == sessionStateDown {
-			s.mu.Lock()
-			delete(s.negotiated, e.Peer)
-			delete(s.contexts, e.Peer)
-			s.mu.Unlock()
+		state, _ := e.Payload["state"].(string)
+		s.mu.Lock()
+		if state == sessionStateDown {
+			delete(s.peers, e.Peer)
+		} else if entry, ok := s.peers[e.Peer]; ok && reconnectedSession(entry.connID, e.ConnectionID) {
+			delete(s.peers, e.Peer)
 		}
+		s.mu.Unlock()
 	case msgTypeUpdate, msgTypeOpen, msgTypeNotification, msgTypeKeepalive, msgTypeRefresh:
 		// An UPDATE line carries the block, and so does the packet line of
 		// every message (Response.JSON.packets); the other parsed lines do not
 		// write it. carriesNegotiated names the same kinds.
 		s.mu.Lock()
-		e.Negotiated = s.negotiated[e.Peer]
-		e.attrContext = s.contexts[e.Peer]
+		entry, ok := s.peers[e.Peer]
+		if ok && reconnectedSession(entry.connID, e.ConnectionID) {
+			delete(s.peers, e.Peer)
+			ok = false
+		}
+		if ok {
+			e.Negotiated = entry.block
+			e.attrContext = entry.ctx
+		}
 		s.mu.Unlock()
+		// Q-E4: when bgp:negotiated was excluded (or invalidated on reconnect),
+		// derive the AS_PATH attribute width directly from the UPDATE's own
+		// `asn4` stamp.
+		if e.Kind == msgTypeUpdate && e.attrContext == 0 && e.HasASN4 {
+			e.attrContext = attrContextForASN4(e.ASN4)
+		}
 	}
 }
 
@@ -90,6 +120,12 @@ func sessionAttrContext(block map[string]any) bgpctx.ContextID {
 	if !stated {
 		return 0
 	}
+	return attrContextForASN4(asn4)
+}
+
+// attrContextForASN4 registers and returns the encoding context ID for a
+// 4-byte or 2-byte ASN session width (RFC 6793 Section 4).
+func attrContextForASN4(asn4 bool) bgpctx.ContextID {
 	contextID, err := bgpctx.Registry.Register(bgpctx.EncodingContextForASN4(asn4))
 	if err != nil {
 		bridgeLog().Warn("exabgp-bridge: no encoding context for the session, so its UPDATE lines state the AS path as ze flattens it",

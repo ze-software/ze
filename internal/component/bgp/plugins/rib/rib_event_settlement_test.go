@@ -213,7 +213,7 @@ func quiesceRIBStartup(t *testing.T, ctx context.Context, connection *ipc.Plugin
 	var declaration rpc.DeclareRegistrationInput
 	require.NoError(t, json.Unmarshal(request.Params, &declaration))
 	require.NoError(t, connection.SendResult(ctx, request.ID, &rpc.DeclareRegistrationOutput{ProtocolVersion: rpc.ProtocolVersion}))
-	require.NoError(t, connection.SendConfigure(ctx, nil, nil, nil))
+	require.NoError(t, connection.SendConfigure(ctx, nil, nil, nil, nil))
 	request, err = connection.ReadRequest(ctx)
 	require.NoError(t, err)
 	require.Equal(t, "ze-plugin-engine:declare-capabilities", request.Method)

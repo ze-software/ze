@@ -5,10 +5,8 @@ package reactor
 import (
 	"context"
 	"encoding/hex"
-	"errors"
 	"net"
 	"net/netip"
-	"strings"
 	"sync"
 	"testing"
 	"time"
@@ -16,7 +14,6 @@ import (
 	"github.com/stretchr/testify/require"
 
 	bgp "github.com/ze-software/ze/internal/component/bgp"
-	bgpupdate "github.com/ze-software/ze/internal/component/bgp/plugins/cmd/update"
 	bgpserver "github.com/ze-software/ze/internal/component/bgp/server"
 	bgptypes "github.com/ze-software/ze/internal/component/bgp/types"
 	"github.com/ze-software/ze/internal/component/plugin"
@@ -27,8 +24,6 @@ import (
 	"github.com/ze-software/ze/internal/core/bgp/nlri"
 	"github.com/ze-software/ze/internal/core/family"
 	"github.com/ze-software/ze/internal/core/selector"
-	"github.com/ze-software/ze/internal/core/slogutil"
-	"github.com/ze-software/ze/internal/exabgp/bridge"
 	"github.com/ze-software/ze/pkg/plugin/rpc"
 	"github.com/ze-software/ze/pkg/plugin/sdk"
 )
@@ -256,89 +251,6 @@ func TestOriginRuntimeActualSDKProcessReplacement(t *testing.T) {
 			require.NotSame(t, old, replacement)
 			require.Error(t, oldOwner.Current())
 			originRuntimeExpectReoffer(t, f, first)
-		})
-	}
-}
-
-type originRuntimeExitRunner struct {
-	fixture   *originRuntimeSDKFixture
-	calls     int
-	flushes   int
-	commands  []string
-	responses []*plugin.Response
-}
-
-// Dispatch consumes the exact command OwnerLedger generated, retaining its
-// restore-configured flag, selector and all actual NLRI/attribute sections.
-func (r *originRuntimeExitRunner) Dispatch(ctx context.Context, command string) error {
-	r.calls++
-	r.commands = append(r.commands, command)
-	tail, found := strings.CutPrefix(command, "send bgp ")
-	if !found {
-		return errors.New("bridge exit did not send a BGP command")
-	}
-	peer, body, found := strings.Cut(tail, " update text ")
-	if !found {
-		return errors.New("bridge exit did not use the actual UPDATE text grammar")
-	}
-	parsed, err := bgpupdate.ParseUpdateText(strings.Fields(body))
-	if err != nil {
-		return err
-	}
-	process := r.fixture.host.ProcessManager().GetProcess(r.fixture.name)
-	response, err := bgpupdate.DispatchNLRIGroups(&pluginserver.CommandContext{
-		Server: r.fixture.host, Process: process, Sender: r.fixture.sender,
-		Peer: peer, RequestContext: ctx,
-	}, parsed.Groups)
-	r.responses = append(r.responses, response)
-	if err != nil {
-		return err
-	}
-	if response == nil {
-		return errors.New("bridge exit dispatcher returned no result")
-	}
-	if response.Status == plugin.StatusError {
-		return errors.New(response.Error)
-	}
-	return nil
-}
-func (r *originRuntimeExitRunner) Flush(context.Context, string) error {
-	// The actual synchronous selected batch already joined its socket flush.
-	r.flushes++
-	return nil
-}
-
-func TestOriginRuntimeBridgeChildExitKeepAndWithdraw(t *testing.T) {
-	for _, typed := range []bool{false, true} {
-		t.Run(map[bool]string{false: "framed", true: "typed"}[typed], func(t *testing.T) {
-			f := newOriginRuntimeSDKFixture(t, typed)
-			proc := f.host.ProcessManager().GetProcess(f.name)
-			owner, err := proc.SelectedOwner()
-			require.NoError(t, err)
-			f.sender = owner.Sender()
-			f.batch.OriginOwner = owner
-			f.announce(t)
-			translated, err := bridge.TranslateLine("peer * announce route 198.18.7.0/24 next-hop 192.0.2.254")
-			require.NoError(t, err)
-			require.Len(t, translated.Commands, 1)
-			ledger := bridge.NewOwnerLedger()
-			ledger.Note("kept-child", "*", translated.Commands[0])
-			runner := &originRuntimeExitRunner{fixture: f}
-			ledger.Exited(f.ctx, slogutil.DiscardLogger(), "kept-child", bridge.OnExitKeep, bridge.APIV6, runner)
-			require.Zero(t, runner.calls)
-			require.NoError(t, owner.Current(), "a child's keep policy does not end its long-lived bridge Process")
-			bodies := updateBodies(t, f.writer.conn.written())
-			require.Len(t, bodies, 1)
-			require.Equal(t, []netip.Prefix{netip.MustParsePrefix("198.18.7.0/24")}, updatePrefixes(t, bodies[0], false))
-			ledger.Note("withdrawn-child", "*", translated.Commands[0])
-			ledger.Exited(f.ctx, slogutil.DiscardLogger(), "withdrawn-child", bridge.OnExitWithdraw, bridge.APIV4, runner)
-			require.Equal(t, 1, runner.calls)
-			require.Equal(t, 1, runner.flushes)
-			require.NoError(t, owner.Current())
-			bodies = updateBodies(t, f.writer.conn.written())
-			require.Len(t, bodies, 2)
-			require.Equal(t, []netip.Prefix{netip.MustParsePrefix("198.18.7.0/24")}, updatePrefixes(t, bodies[1], true))
-			originRuntimeExpectCounts(t, f.writer.api.r.originReceipts, 0, 0, 0, 0)
 		})
 	}
 }

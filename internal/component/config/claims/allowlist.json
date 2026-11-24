@@ -1,5 +1,10 @@
 [
   {
+    "path": "bus",
+    "reason": "Message-bus endpoint, hub, and participant filter configuration is read before any plugin runs, so no plugin can claim it. The config loader turns this subtree into the endpoint list, hub listener config, and compiled bus filters that the plugin server starts and enforces.",
+    "owner": "internal/component/config/loader.go ExtractPluginsFromTree and internal/component/plugin/bus_parse.go ParseBusConfigFromMap"
+  },
+  {
     "path": "environment/api-server",
     "reason": "The hub reads the REST and gRPC listener settings directly and starts the API servers. No plugin is involved.",
     "owner": "internal/component/config/loader_extract.go ExtractAPIConfig"
@@ -88,11 +93,6 @@
     "path": "environment/web",
     "reason": "The hub reads the web listener settings directly and starts the web server. No plugin is involved.",
     "owner": "internal/component/config/loader_extract.go ExtractWebConfig"
-  },
-  {
-    "path": "plugin",
-    "reason": "Plugin load configuration is read before any plugin runs, so no plugin can claim it. The config loader turns this subtree into the plugin list that the server then starts.",
-    "owner": "internal/component/config/loader.go ExtractPluginsFromTree"
   },
   {
     "path": "storage",

@@ -292,18 +292,18 @@ neighbor 10.0.0.1 {
 	result, err := MigrateFromExaBGP(tree)
 	require.NoError(t, err, "migrate")
 
-	// Check RIB plugin injected
-	plugins := result.Tree.GetList("plugin")
-	_, ok := plugins["bgp-rib"]
-	assert.True(t, ok, "expected plugin bgp-rib to be injected for GR")
+	// Check RIB endpoint declared in bus (no plugin or attach process blocks).
+	bus := result.Tree.GetContainer("bus")
+	require.NotNil(t, bus, "expected bus container for bgp-rib")
+	ribEP := bus.GetList("endpoint")["bgp-rib"]
+	require.NotNil(t, ribEP, "expected bus > endpoint bgp-rib to be injected for GR")
+	internalVal, _ := ribEP.Get("internal")
+	assert.Equal(t, "bgp-rib", internalVal)
 
-	// Check the peer attaches the RIB process (peer is inside a group)
+	// Peer must not carry retired attach blocks.
 	peerTree := findPeerByRemoteIP(t, result.Tree, "10.0.0.1")
 	require.NotNil(t, peerTree, "expected peer 10.0.0.1 in a group")
-
-	processes := peerTree.GetContainer("attach").GetList("process")
-	_, ok = processes["bgp-rib"]
-	assert.True(t, ok, "expected process bgp-rib binding in peer")
+	assert.Nil(t, peerTree.GetContainer("attach"), "peer must not carry retired attach container")
 
 	// Check RIB injected should be in result.RIBInjected
 	assert.True(t, result.RIBInjected, "expected RIBInjected=true")
@@ -361,22 +361,18 @@ neighbor 10.0.0.1 {
 	result, err := MigrateFromExaBGP(tree)
 	require.NoError(t, err, "migrate")
 
-	// Check RIB plugin injected
-	plugins := result.Tree.GetList("plugin")
-	_, ok := plugins["bgp-rib"]
-	assert.True(t, ok, "expected plugin bgp-rib to be injected for route-refresh")
+	// Check RIB endpoint injected in bus (no plugin or attach process blocks).
+	bus := result.Tree.GetContainer("bus")
+	require.NotNil(t, bus, "expected bus container for bgp-rib")
+	ribEP := bus.GetList("endpoint")["bgp-rib"]
+	require.NotNil(t, ribEP, "expected bus > endpoint bgp-rib to be injected for route-refresh")
+	internalVal, _ := ribEP.Get("internal")
+	assert.Equal(t, "bgp-rib", internalVal)
 
-	// Check the attached process includes refresh (peer is inside a group)
+	// Peer must not carry retired attach blocks.
 	peerTree := findPeerByRemoteIP(t, result.Tree, "10.0.0.1")
 	require.NotNil(t, peerTree, "expected peer 10.0.0.1 in a group")
-	processes := peerTree.GetContainer("attach").GetList("process")
-	ribProcess := processes["bgp-rib"]
-	require.NotNil(t, ribProcess, "expected process bgp-rib binding")
-
-	// Verify send leaf-list includes refresh
-	sendValue, ok := ribProcess.Get("send")
-	require.True(t, ok, "expected send leaf-list in rib process")
-	assert.Contains(t, sendValue, "refresh")
+	assert.Nil(t, peerTree.GetContainer("attach"), "peer must not carry retired attach container")
 
 	// Check capability uses enable syntax
 	sessionBlock := peerTree.GetContainer("session")
@@ -414,16 +410,16 @@ neighbor 10.0.0.1 {
 	result, err := MigrateFromExaBGP(tree)
 	require.NoError(t, err, "migrate")
 
-	// The process becomes the in-process ExaBGP bridge, which is the adapter
-	// between the two protocols: the script keeps writing ExaBGP API text and
-	// the bridge answers the ze command that sends it. This asserted the
-	// opposite until 2026-09-05, when the migration stopped dropping the half of
-	// the config that produces routes.
+	// Each ExaBGP process becomes an external bus endpoint running the
+	// `ze exabgp plugin` wrapper, with no retired bridge/plugin/attach blocks.
 	rendered := SerializeTree(result.Tree)
-	assert.Contains(t, rendered, "exabgp {", "the bridge root declares the script")
-	assert.Contains(t, rendered, "run /path/to/plugin.py", "the script the bridge runs")
-	assert.Contains(t, rendered, "internal exabgp-bridge", "the bridge plugin is declared")
-	assert.Contains(t, rendered, "attach process exabgp-bridge", "the peer attaches the bridge")
+	assert.Contains(t, rendered, "bus {", "bus root declares endpoints")
+	assert.Contains(t, rendered, "endpoint my-plugin {", "the script endpoint is declared")
+	assert.Contains(t, rendered, `run "ze exabgp plugin --encoder json /path/to/plugin.py"`, "the wrapper run line")
+	assert.NotContains(t, rendered, "exabgp {", "retired exabgp bridge root must not be emitted")
+	assert.False(t, strings.HasPrefix(rendered, "plugin {"), "retired plugin root must not be emitted")
+	assert.NotContains(t, rendered, "\nplugin {", "retired plugin root must not be emitted")
+	assert.NotContains(t, rendered, "attach process", "retired attach process must not be emitted")
 
 	// The process is still reported, because `ze exabgp migrate` prints it for a
 	// reader and the wrapper reads it.
@@ -1186,13 +1182,13 @@ func validateMigrationResult(t *testing.T, testName, got string, result *Migrate
 		assert.Contains(t, got, "route-refresh enable")
 
 	case "process":
-		// The process becomes the ExaBGP bridge, which runs the script and
-		// translates its ExaBGP API text into ze commands. The input fixture's
-		// own comment has asked for this since it was written; the golden file
-		// disagreed with it until 2026-09-05.
+		// Each ExaBGP process becomes an external bus endpoint running the
+		// `ze exabgp plugin` wrapper with no retired bridge/plugin/attach syntax.
 		assert.Len(t, result.Processes, 1, "expected 1 external process")
-		assert.Contains(t, got, "internal exabgp-bridge", "the bridge plugin is declared")
-		assert.Contains(t, got, "attach process exabgp-bridge", "the peer attaches the bridge")
+		assert.Contains(t, got, "bus {", "bus root is emitted")
+		assert.Contains(t, got, "ze exabgp plugin", "wrapper run line is emitted")
+		assert.NotContains(t, got, "exabgp-bridge", "retired bridge must not appear")
+		assert.NotContains(t, got, "attach process", "retired attach process must not appear")
 
 	case "nexthop":
 		// Should have nexthop block inside capability.
@@ -1555,14 +1551,16 @@ neighbor 10.0.0.1 {
 	assert.Equal(t, "false", val, "update-groups must be false for migrated ExaBGP configs")
 }
 
-// TestExabgpConverterEmitsAttachProcess pins the converter's output keyword.
+// TestExabgpConverterEmitsBusEndpoints pins the converter's output keywords.
 // An ExaBGP config keeps its own `process` grammar on the way in; what ze
-// writes on the way out is the current ze-native spelling.
+// writes on the way out is `bus { endpoint <name> { ... } }` with none of the
+// retired `plugin`, `attach process`, `exabgp { bridge }`, or peer `process`
+// keywords.
 //
-// VALIDATES: phase 1 of spec-fixit-peer-process-event-filter — the converter
-// emits `attach process <name>`.
-// PREVENTS: a migrated config that the parser then refuses.
-func TestExabgpConverterEmitsAttachProcess(t *testing.T) {
+// VALIDATES: AC-12 / E-1 -- the converter emits `bus { endpoint ... }` and
+// never emits retired keywords.
+// PREVENTS: a migrated config that the parser refuses with retired-keyword errors.
+func TestExabgpConverterEmitsBusEndpoints(t *testing.T) {
 	input := `
 process my-plugin {
 	run /path/to/plugin.py
@@ -1588,19 +1586,25 @@ neighbor 10.0.0.1 {
 	require.NoError(t, err, "migrate")
 
 	output := SerializeTree(result.Tree)
-	assert.Contains(t, output, "attach process bgp-rib {",
-		"converter must emit the current keyword, got:\n%s", output)
+	assert.Contains(t, output, "endpoint bgp-rib {",
+		"converter must emit bus > endpoint bgp-rib, got:\n%s", output)
+	assert.Contains(t, output, "endpoint my-plugin {",
+		"converter must emit bus > endpoint my-plugin, got:\n%s", output)
+	assert.NotContains(t, output, "attach process",
+		"converter must not emit retired attach process, got:\n%s", output)
+	assert.False(t, strings.HasPrefix(output, "plugin {"),
+		"converter must not emit retired plugin root, got:\n%s", output)
+	assert.NotContains(t, output, "\nplugin {",
+		"converter must not emit retired plugin root, got:\n%s", output)
+	assert.NotContains(t, output, "exabgp {",
+		"converter must not emit retired exabgp bridge root, got:\n%s", output)
 	assert.NotContains(t, output, "\nprocess ",
 		"converter must not emit the retired keyword, got:\n%s", output)
 
-	// The retired keyword is a PEER-level `process <name> {`, so the check is
-	// on the peer body rather than on the whole file. The bridge root declares
-	// its scripts as `exabgp { bridge { process <name> { ... } } }`, which is a
-	// different list with the same word, and the file-wide check refused it.
 	_, peerBody, found := strings.Cut(output, "\nbgp {")
 	require.True(t, found, "converter emitted no bgp block, got:\n%s", output)
 	assert.NotContains(t, peerBody, "\t\t\tprocess ",
-		"converter must not emit the retired keyword, got:\n%s", output)
+		"converter must not emit the retired keyword in peers, got:\n%s", output)
 }
 
 // TestMigrateSoftwareVersionKeepsLegacyFraming verifies the migrated framing.

@@ -86,3 +86,60 @@ func TestFleetRefusesAnInvalidAPIVersionSetting(t *testing.T) {
 	}
 	fleet.Stop()
 }
+
+// TestAPIVersionLineMovesOnlyItsScript verifies E-5: each wrapper owns its own
+// Fleet and its own apiSetting, so an `api version <v>` line from script A
+// moves script A's Fleet alone and leaves script B's Fleet unaffected.
+//
+// VALIDATES: E-5 per-wrapper API version isolation across two independent Fleets.
+// PREVENTS: a global or shared API version setting letting one script move another.
+func TestAPIVersionLineMovesOnlyItsScript(t *testing.T) {
+	dir := t.TempDir()
+	answersA := filepath.Join(dir, "a.answers")
+	answersB := filepath.Join(dir, "b.answers")
+
+	scriptA := writeScript(t, dir, "a.sh", ""+
+		"echo 'api version 4'; read a; echo \"$a\" >> "+answersA+"; read a; echo \"$a\" >> "+answersA+"\n"+
+		"echo 'api version'; read a; echo \"$a\" >> "+answersA+"; read a; echo \"$a\" >> "+answersA+"\n"+
+		"read never\n")
+	scriptB := writeScript(t, dir, "b.sh", ""+
+		"echo 'system api version'; read a; echo \"$a\" >> "+answersB+"; read a; echo \"$a\" >> "+answersB+"\n"+
+		"read never\n")
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	fleetA := New(slogutil.DiscardLogger(), testFamilies, []Script{
+		{Name: "script-a", Argv: []string{scriptA}, Encoder: bridge.EncoderJSON},
+	})
+	if err := fleetA.Start(ctx, &recorder{}); err != nil {
+		t.Fatalf("fleetA Start: %v", err)
+	}
+	waitFor(t, "script A to change its API version", func() bool {
+		return lines(t, answersA) >= 4
+	})
+
+	fleetB := New(slogutil.DiscardLogger(), testFamilies, []Script{
+		{Name: "script-b", Argv: []string{scriptB}, Encoder: bridge.EncoderJSON},
+	})
+	if err := fleetB.Start(ctx, &recorder{}); err != nil {
+		t.Fatalf("fleetB Start: %v", err)
+	}
+	waitFor(t, "script B to answer its API version", func() bool {
+		return lines(t, answersB) >= 2
+	})
+
+	cancel()
+	fleetA.Stop()
+	fleetB.Stop()
+
+	gotA := strings.Split(strings.TrimSpace(readFile(t, answersA)), "\n")
+	if len(gotA) < 4 || gotA[2] != "API version: 4 (this helper: 4)" {
+		t.Errorf("script A api version answer = %q, want API version: 4 (this helper: 4)", gotA)
+	}
+	gotB := strings.Split(strings.TrimSpace(readFile(t, answersB)), "\n")
+	wantB := `{"api_version": "auto", "helper_api_version": "6"}`
+	if len(gotB) < 2 || gotB[0] != wantB {
+		t.Errorf("script B api version answer = %q, want %s", gotB, wantB)
+	}
+}

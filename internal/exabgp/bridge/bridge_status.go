@@ -85,9 +85,10 @@ type statusDetailRow struct {
 }
 
 // errStatusStandalone is the refusal of `status` by the standalone runner
-// (`ze exabgp plugin`), whose dispatch answer carries no payload. The plugin
-// runner (the exabgp-bridge plugin, bridgerun) answers it.
-var errStatusStandalone = errors.New("`status` needs the peer list, which only the exabgp-bridge plugin reads from ze; run the script under `exabgp { bridge { process ... } }` instead of `ze exabgp plugin`")
+// (`ze exabgp plugin` on stdin/stdout), whose dispatch answer carries no
+// payload. The endpoint wrapper (`bus { endpoint <name> { external { run "ze exabgp plugin ..."; } } }`)
+// answers it over the plugin bus.
+var errStatusStandalone = errors.New("`status` needs the peer list, which only the bus endpoint wrapper reads from ze; run the script under `bus { endpoint <name> { external { run \"ze exabgp plugin ...\"; } } }` instead of standalone stdin/stdout mode")
 
 // errStatusDetail names the answer StatusPeers could not read.
 var errStatusDetail = errors.New("the bridge cannot list the peers for `status`")

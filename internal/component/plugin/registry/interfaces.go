@@ -20,7 +20,7 @@ type PluginServerAccessor interface {
 	// ConfigurationFor returns the exact internal map owned by this connection's
 	// Configure lifetime. Missing scope, bridge or authority MUST be refused.
 	ConfigurationFor(conn net.Conn) (map[string]any, error)
-	UpdateProtocolConfig(families, customEvents, customSendTypes []string)
+	UpdateProtocolConfig(families []string)
 	SetMetricsRegistry(reg metrics.Registry)
 	SetCommitManager(cm any) // Set commit manager (type-asserted by handlers)
 	// Running answers false once the server's Stop has begun, which is the
@@ -218,7 +218,7 @@ func GetPacketDecoder() PacketDecoderFunc {
 // Provides reactor access without importing bgp/reactor (cycle avoidance).
 type BGPReactorHandle interface {
 	protocolReactorHandle
-	ConfiguredAutoLoad() (families, events, sendTypes []string)
+	ConfiguredAutoLoad() []string
 	SetRestartUntil(t time.Time)
 	ReactorLifecycleAdapter() any // Returns ReactorLifecycle (any to avoid importing plugin types)
 	StartPeers() error

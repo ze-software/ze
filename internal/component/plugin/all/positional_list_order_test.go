@@ -119,7 +119,7 @@ var positionalMeaningChangesReviewed = map[string]positionalMeaningChangeReview{
 			"68..16000), which refuses true (xfrm xfrm0 7 eth0 ipsec true 1400 " +
 			"xfrm7;); a line of three values or fewer reads the same",
 	},
-	"plugin/hub/server": {
+	"bus/hub/server": {
 		slots: "secret certificate last:port -> ip port secret certificate",
 		reason: "uses zt:listener is declared before secret and certificate, so ip and " +
 			"port take the first two values, where the old rule put the list's own " +

@@ -155,14 +155,6 @@ type Config struct {
 	// Used for deferred auto-loading of family plugins after explicit plugins register.
 	ConfiguredFamilies []string
 
-	// ConfiguredCustomEvents lists custom event types referenced in peer process receive config.
-	// Used for auto-loading plugins that produce these event types (e.g., "update-rpki" triggers bgp-rpki-decorator).
-	ConfiguredCustomEvents []string
-
-	// ConfiguredCustomSendTypes lists custom send types referenced in peer process send config.
-	// Used for auto-loading plugins that enable these send types (e.g., "enhanced-refresh" triggers bgp-route-refresh).
-	ConfiguredCustomSendTypes []string
-
 	// ConfiguredPaths lists top-level config sections present in the user's config.
 	// Used for config-driven auto-loading of plugins (e.g., "fib" triggers fib-kernel).
 	ConfiguredPaths []string
@@ -929,11 +921,11 @@ func (r *Reactor) logPeerHeldByRefusalLocked(peer *Peer) {
 	)
 }
 
-// ConfiguredAutoLoad returns the BGP-specific auto-load configuration
-// extracted from peer settings. Used by the hub to update the plugin server
-// so family/event/send auto-load phases have the data they need.
-func (r *Reactor) ConfiguredAutoLoad() (families, events, sendTypes []string) {
-	return r.config.ConfiguredFamilies, r.config.ConfiguredCustomEvents, r.config.ConfiguredCustomSendTypes
+// ConfiguredAutoLoad returns the BGP-specific auto-load families extracted
+// from peer settings. Used by the hub to update the plugin server so the
+// family auto-load phase has the data it needs.
+func (r *Reactor) ConfiguredAutoLoad() []string {
+	return r.config.ConfiguredFamilies
 }
 
 // ReactorLifecycleAdapter returns a ReactorLifecycle implementation that
@@ -1631,12 +1623,10 @@ func (r *Reactor) startAPIServer() error {
 		// ConfiguredPaths is deliberately empty: the reactor already owns BGP,
 		// so the plugin server must not auto-load it again via ConfigRoots.
 		apiConfig := &pluginserver.ServerConfig{
-			ConfigPath:                r.config.ConfigPath,
-			ConfiguredFamilies:        r.config.ConfiguredFamilies,
-			ConfiguredCustomEvents:    r.config.ConfiguredCustomEvents,
-			ConfiguredCustomSendTypes: r.config.ConfiguredCustomSendTypes,
-			// The families and custom types auto-load with their optional
-			// providers judged against this reactor's own config tree.
+			ConfigPath:         r.config.ConfigPath,
+			ConfiguredFamilies: r.config.ConfiguredFamilies,
+			// The families auto-load with their optional providers judged
+			// against this reactor's own config tree.
 			ConfigNeedHolds: config.ConfigNeedHolds(r.config.ConfigTree),
 			Hub:             r.config.Hub,
 			MetricsRegistry: r.metricsRegistry,

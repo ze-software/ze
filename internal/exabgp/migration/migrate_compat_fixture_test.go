@@ -52,8 +52,8 @@ func TestMigrateCompatFixtures(t *testing.T) {
 			// `api connection { ... }` inside a template, named.
 			fixture: "api-check",
 			want: []string{
-				"attach process exabgp-bridge",
-				"run ./run/api-check.run",
+				"endpoint check-and-announce {",
+				`run "ze exabgp plugin --family ipv4/unicast --family ipv6/unicast ./run/api-check.run"`,
 				"ipv4/unicast add 127.0.0.1/32",
 			},
 		},
@@ -61,8 +61,9 @@ func TestMigrateCompatFixtures(t *testing.T) {
 			// Two named api blocks, `api speaking` and `api listening`.
 			fixture: "api-api",
 			want: []string{
-				"attach process exabgp-bridge",
-				"run ./run/api-api.receive.run",
+				"endpoint expecting-a-keepalive {",
+				"./run/api-api.receive.run",
+				"endpoint expecting-no-data {",
 			},
 		},
 		{
@@ -70,15 +71,16 @@ func TestMigrateCompatFixtures(t *testing.T) {
 			fixture: "api-manual-eor",
 			want: []string{
 				"manual-eor true",
-				"attach process exabgp-bridge",
+				"endpoint announce-routes {",
+				"./run/api-manual-eor.run",
 			},
 		},
 		{
 			// `processes-match [ "^add" ]` in place of a literal process name.
 			fixture: "api-announce-processes-match",
 			want: []string{
-				"attach process exabgp-bridge",
-				"run ./run/api-announce.run",
+				"endpoint add-remove {",
+				`run "ze exabgp plugin --family ipv4/unicast --encoder json ./run/api-announce.run"`,
 			},
 		},
 		{

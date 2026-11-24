@@ -376,10 +376,12 @@ func (p *Plugin) handleConfigure(params json.RawMessage) error {
 		}
 	}
 
-	// Record the claim set and bus catalog BEFORE running the plugin's configure
-	// handler, so a handler that stands its own default behavior down or inspects
-	// registered bus messages can read them here -- at Stage 2, which completes
-	// before Stage 5 ready and therefore before any runtime event arrives.
+	// Record the claim set, bus catalog, and participant filter BEFORE running
+	// the plugin's configure handler, so a handler that stands its own default
+	// behavior down or inspects bus messages and targets can read them here --
+	// at Stage 2, which completes before Stage 5 ready and therefore before any
+	// runtime event arrives.
+	filterCopy := cloneBusParticipantFilter(input.ParticipantFilter)
 	p.mu.Lock()
 	if len(input.Claims) > 0 {
 		p.claims = make(map[string]bool, len(input.Claims))
@@ -390,7 +392,9 @@ func (p *Plugin) handleConfigure(params json.RawMessage) error {
 		p.claims = nil
 	}
 	p.busCatalog = cloneBusCatalog(input.BusCatalog)
+	p.participantFilter = filterCopy
 	fn := p.onConfigure
+	filterFn := p.onParticipantFilter
 	p.mu.Unlock()
 
 	// An error out of here is this plugin REFUSING the configuration it was
@@ -400,9 +404,32 @@ func (p *Plugin) handleConfigure(params json.RawMessage) error {
 	// produces no response at all (isConfigRefusal,
 	// internal/component/plugin/server/startup.go).
 	if fn != nil {
-		return fn(input.Sections)
+		if err := fn(input.Sections); err != nil {
+			return err
+		}
+	}
+	if filterCopy != nil && filterFn != nil {
+		filterFn(cloneBusParticipantFilter(filterCopy))
 	}
 
+	return nil
+}
+
+func (p *Plugin) handleParticipantFilter(params json.RawMessage) error {
+	var input rpc.ParticipantFilterInput
+	if params != nil {
+		if err := json.Unmarshal(params, &input); err != nil {
+			return fmt.Errorf("unmarshal participant-filter: %w", err)
+		}
+	}
+	stored := cloneBusParticipantFilter(input.Filter)
+	p.mu.Lock()
+	p.participantFilter = stored
+	fn := p.onParticipantFilter
+	p.mu.Unlock()
+	if fn != nil {
+		fn(cloneBusParticipantFilter(stored))
+	}
 	return nil
 }
 

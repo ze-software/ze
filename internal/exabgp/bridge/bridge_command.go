@@ -315,14 +315,19 @@ type Translator struct {
 	// became IPv4 unicast alone, as ExaBGP's api_eor reads it. The field and
 	// its writers (bridge.go, bridgerun.New) are owed a removal.
 	Families []string
-	// Peers are the addresses of the peers that attach the script this
-	// translator serves. An empty list is every peer.
+	// Peers are the addresses of the peers that this script's bus send filter
+	// permits (`send > to`). An empty list with NoPeers == false means every
+	// peer (unscoped).
 	//
 	// ExaBGP scopes a process's commands the same way: Reactor.peers(service)
 	// answers every peer when the service is empty, and otherwise the peers
 	// whose api block names that process
 	// (src/exabgp/reactor/loop.py, Reactor.peers).
 	Peers []string
+	// NoPeers is true when the script's bus send filter explicitly permits no
+	// peers (`send { to none; }`). Every peer-scoped command then fails with
+	// errSelectorMatchesNoPeer rather than falling back to the wildcard.
+	NoPeers bool
 }
 
 // errSelectorMatchesNoPeer refuses a line whose selector names no peer this
@@ -333,11 +338,21 @@ var errSelectorMatchesNoPeer = errors.New("the selector matches no peer")
 // servedSelector narrows a selector of addresses to the peers this script
 // feeds, as ExaBGP matches a selector against Reactor.peers(service) only
 // (match_neighbors, reactor/api/command/limit.py). unmatched is set when none
-// is left. A translator serving every peer, and the `*` selector, pass whole:
-// ze's own dispatcher refuses an address it holds no peer for
-// (route.ErrNoPeersMatch).
+// is left. When len(t.Peers) > 0, an explicit wildcard (`*`) narrows to
+// t.everyPeer() so commands address only permitted peers and avoid per-peer
+// bus refusal warnings (Q-E3). When t.NoPeers is set (`send { to none; }`),
+// every selector is unmatched.
 func (t Translator) servedSelector(selector string) (narrowed string, unmatched bool) {
-	if len(t.Peers) == 0 || selector == bridgeEveryPeer || selector == t.everyPeer() {
+	if t.NoPeers {
+		return "", true
+	}
+	if len(t.Peers) == 0 {
+		return selector, false
+	}
+	if selector == bridgeEveryPeer {
+		return t.everyPeer(), false
+	}
+	if selector == t.everyPeer() {
 		return selector, false
 	}
 	served := make(map[netip.Addr]bool, len(t.Peers))
@@ -395,6 +410,12 @@ func (t Translator) Line(line string) (Translation, error) {
 	// word reach one translation, and one refusal, which still quotes the line
 	// as the script wrote it.
 	collapsed := v4ControlSpelling(strings.Join(strings.Fields(line), " "))
+	// Peer-independent local control commands (`enable-ack`, `disable-ack`,
+	// `silence-ack`, `ping`, `status`) address no BGP peer, so a receive-only
+	// script with `NoPeers: true` (`send { to none; }`) can still issue them.
+	if translation, ok := convertLocalControl(collapsed); ok {
+		return translation, nil
+	}
 	selector, rest, unmatched := splitNeighborSelector(collapsed, t.everyPeer())
 	if !unmatched {
 		selector, unmatched = t.servedSelector(selector)
@@ -477,13 +498,15 @@ func (t Translator) Line(line string) (Translation, error) {
 // announce and withdraw verbs. convertRoute would refuse them anyway, because
 // `watchdog <name>` states no family, but a reader should not have to know that
 // to see which branch takes them.
-func convertControl(selector, rest string) (Translation, bool) {
+// convertLocalControl translates the peer-independent local control lines
+// (`enable-ack`, `disable-ack`, `silence-ack`, `ping`, `status`). These never
+// target a BGP peer and therefore remain usable when Translator.NoPeers is set.
+func convertLocalControl(rest string) (Translation, bool) {
 	fields := strings.Fields(strings.ToLower(rest))
 	if len(fields) == 0 {
 		return Translation{}, false
 	}
-	var tb textbuf.Buffer
-	// enumeration: exempt (these are ExaBGP's own API control words, not the CLI verb vocabulary)
+	// enumeration: exempt (ExaBGP API local control words, not the CLI verb vocabulary)
 	switch {
 	case len(fields) == 1 && fields[0] == enableAckWord:
 		return Translation{Local: LocalAckEnable}, true
@@ -495,6 +518,21 @@ func convertControl(selector, rest string) (Translation, bool) {
 		return Translation{Local: pingAction(fields)}, true
 	case fields[0] == statusWord:
 		return Translation{Local: LocalStatus}, true
+	}
+	return Translation{}, false
+}
+
+func convertControl(selector, rest string) (Translation, bool) {
+	if translation, ok := convertLocalControl(rest); ok {
+		return translation, true
+	}
+	fields := strings.Fields(strings.ToLower(rest))
+	if len(fields) == 0 {
+		return Translation{}, false
+	}
+	var tb textbuf.Buffer
+	// enumeration: exempt (these are ExaBGP's own API control words, not the CLI verb vocabulary)
+	switch {
 	case len(fields) == 1 && fields[0] == shutdownWord,
 		len(fields) == 2 && fields[0] == "request" && fields[1] == shutdownWord:
 		return Translation{Commands: textCommands("request shutdown"), Selector: selector}, true

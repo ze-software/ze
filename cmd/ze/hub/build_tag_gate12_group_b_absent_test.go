@@ -5,9 +5,9 @@
 package hub
 
 // VALIDATES: without the ze_tacacs / ze_exabgp build tags (the bare ze_core
-// lane) the TACACS+ and ExaBGP root commands are not registered, the
-// exabgp-bridge plugin is absent, and a tacacs / exabgp config block is
-// rejected as unknown -- while the rest of the registries stay populated.
+// lane) the TACACS+ and ExaBGP root commands are not registered and a tacacs
+// or retired exabgp config block is rejected as unknown -- while the rest of
+// the registries stay populated.
 // AAA fails closed by construction: the tacacs schema is gone, so a config
 // naming tacacs can never load and silently skip the missing method. The
 // binary symbol-drop proof is in build_tag_gate12_absent_test.go.
@@ -33,14 +33,11 @@ func TestBuildTag_Gate12GroupB_Absent(t *testing.T) {
 	if len(pluginreg.Names()) == 0 {
 		t.Fatal("plugin registry empty; cannot validate absence (all.go not linked)")
 	}
-	if pluginreg.Has("exabgp-bridge") {
-		t.Error("bare build: exabgp-bridge plugin unexpectedly registered (not compiled out)")
-	}
 }
 
 // TestBuildTag_Gate12GroupB_AbsentRejectsConfig proves both features' config
 // schemas are gone: the tacacs block under system/authentication and the
-// exabgp bridge root must be rejected as unknown fields.
+// retired exabgp config root must be rejected as unknown fields.
 func TestBuildTag_Gate12GroupB_AbsentRejectsConfig(t *testing.T) {
 	cases := map[string]string{
 		"tacacs": "system {\n\tauthentication {\n\t\ttacacs {\n\t\t\tserver 192.0.2.1 {\n\t\t\t\tport 49;\n\t\t\t}\n\t\t}\n\t}\n}\n",

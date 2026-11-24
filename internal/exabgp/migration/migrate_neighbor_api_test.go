@@ -52,8 +52,8 @@ neighbor 127.0.0.1 {
 	namedOutput, _ := migrateText(t, named)
 	anonymousOutput, _ := migrateText(t, anonymous)
 
-	if !strings.Contains(namedOutput, "attach process exabgp-bridge") {
-		t.Fatalf("named api block did not attach the bridge:\n%s", namedOutput)
+	if !strings.Contains(namedOutput, "endpoint announce-routes {") || !strings.Contains(namedOutput, "/bgp/group/default/peer/peer-1") {
+		t.Fatalf("named api block did not emit endpoint scope:\n%s", namedOutput)
 	}
 	if namedOutput != anonymousOutput {
 		t.Errorf("the name changed the migrated config:\nnamed:\n%s\nanonymous:\n%s", namedOutput, anonymousOutput)
@@ -64,7 +64,8 @@ neighbor 127.0.0.1 {
 // read, not just the first.
 //
 // VALIDATES: a second api block asking for `receive { update; }` is what
-// injects the RIB plugin, and a process named twice is attached once.
+// injects the RIB endpoint and updates the endpoint's receive allow-list, and a
+// process named twice produces one endpoint entry and one peer entry in send > to.
 // PREVENTS: the flatten ExaBGP performs over a neighbor's api blocks
 // (ParseAPI.flatten) being reduced here to "the first block wins", which
 // silently drops the settings of every other block.
@@ -94,8 +95,14 @@ neighbor 127.0.0.1 {
 	if !result.RIBInjected {
 		t.Errorf("the second api block asks for received updates, so the RIB plugin is owed:\n%s", output)
 	}
-	if got := strings.Count(output, "attach process exabgp-bridge"); got != 1 {
-		t.Errorf("the bridge is attached %d times, want once:\n%s", got, output)
+	if got := strings.Count(output, "endpoint announce-routes {"); got != 1 {
+		t.Errorf("endpoint announce-routes emitted %d times, want once:\n%s", got, output)
+	}
+	if !strings.Contains(output, "allow [ bgp:update ]") {
+		t.Errorf("second api block receive { update; } was dropped:\n%s", output)
+	}
+	if !strings.Contains(output, "to [ /bgp/group/default/peer/peer-1 ]") {
+		t.Errorf("send > to must list peer-1 once:\n%s", output)
 	}
 }
 
@@ -103,7 +110,7 @@ neighbor 127.0.0.1 {
 // template reaches the peer that inherits it.
 //
 // VALIDATES: the api entries of a template survive inheritance expansion.
-// PREVENTS: a migrated config that starts the operator's script and attaches it
+// PREVENTS: a migrated config that starts the operator's script and scopes it
 // to no peer, so no announcement reaches the wire.
 func TestMigrateTemplateAPIBlockInherited(t *testing.T) {
 	input := `
@@ -126,8 +133,8 @@ neighbor 127.0.0.1 {
 `
 	output, _ := migrateText(t, input)
 
-	if !strings.Contains(output, "attach process exabgp-bridge") {
-		t.Errorf("the inherited api block attached no process:\n%s", output)
+	if !strings.Contains(output, "endpoint check-and-announce {") || !strings.Contains(output, "/bgp/group/controler/peer/peer-1") {
+		t.Errorf("the inherited api block did not scope endpoint check-and-announce:\n%s", output)
 	}
 }
 
@@ -218,8 +225,8 @@ neighbor 127.0.0.1 {
 	matchedOutput, _ := migrateText(t, matched)
 	literalOutput, _ := migrateText(t, literal)
 
-	if !strings.Contains(matchedOutput, "attach process exabgp-bridge") {
-		t.Fatalf("the pattern attached no process:\n%s", matchedOutput)
+	if !strings.Contains(matchedOutput, "endpoint add-remove {") || !strings.Contains(matchedOutput, "/bgp/group/default/peer/peer-1") {
+		t.Fatalf("the pattern scoped no endpoint:\n%s", matchedOutput)
 	}
 	if matchedOutput != literalOutput {
 		t.Errorf("the pattern form and the literal form disagree:\nprocesses-match:\n%s\nprocesses:\n%s",

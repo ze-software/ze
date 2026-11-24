@@ -493,13 +493,7 @@ const (
 	zeKeywordFamily          = "family"
 	zeKeywordGracefulRestart = "graceful-restart"
 	zeKeywordGroupUpdates    = "group-updates"
-	zeKeywordAttach          = "attach"
 )
-
-// PluginName is the registry name of the ze plugin that runs every ExaBGP
-// script. A script is a child of that plugin and never a ze process of its own,
-// so a peer serves a script by attaching this plugin.
-const PluginName = "exabgp-bridge"
 
 // neighborParameter is one ExaBGP `create neighbor` parameter: the
 // `create bgp peer` keyword that carries it, and the conversion its value
@@ -541,7 +535,7 @@ var neighborCreateParameters = map[string]neighborParameter{
 var neighborCreateOrder = []string{
 	zeKeywordASN, zeKeywordLocalAS, zeKeywordLocalAddress, zeKeywordRouterID,
 	zeKeywordAccept, zeKeywordFamily, zeKeywordGracefulRestart,
-	zeKeywordGroupUpdates, zeKeywordAttach,
+	zeKeywordGroupUpdates,
 }
 
 // neighborCreateRequired is the set ExaBGP itself demands. The bridge demands
@@ -556,7 +550,7 @@ var neighborCreateRequired = []string{zeKeywordASN, zeKeywordLocalAS, zeKeywordL
 // and the rest are parameter pairs.
 //
 //	create neighbor 127.0.0.1 local-address 127.0.0.1 local-as 1 peer-as 1 api peer-lifecycle
-//	create bgp peer 127.0.0.1 asn 1 local-as 1 local-address 127.0.0.1 attach exabgp-bridge
+//	create bgp peer 127.0.0.1 asn 1 local-as 1 local-address 127.0.0.1 accept false
 //
 // The peer ze builds lives in the reactor alone, which is what ExaBGP's own
 // dynamic peer does: neither writes the configuration file.
@@ -567,7 +561,6 @@ func convertNeighborCreate(fields []string) (Translation, bool, error) {
 	address := fields[0]
 
 	values := make(map[string]string, len(fields)/2)
-	attached := false
 
 	for i := 1; i < len(fields); i++ {
 		name := strings.ToLower(fields[i])
@@ -577,11 +570,10 @@ func convertNeighborCreate(fields []string) (Translation, bool, error) {
 		value := fields[i+1]
 		i++
 
-		// `api` is the one repeating parameter: ExaBGP writes the keyword once
-		// per process. Every ExaBGP process is a script the bridge plugin
-		// runs, so whatever the names, the peer attaches that one plugin.
+		// `api <process>` is accepted as a tolerated no-op: under the bus
+		// model, runtime peers inherit bus wiring automatically and `create bgp
+		// peer` carries no `attach` keyword.
 		if name == "api" {
-			attached = true
 			continue
 		}
 
@@ -597,13 +589,6 @@ func convertNeighborCreate(fields []string) (Translation, bool, error) {
 			return Translation{}, true, err
 		}
 		values[parameter.keyword] = converted
-	}
-
-	// Attaching the plugin by the SCRIPT's name named a process ze does not
-	// run, so the created peer attached nothing and refused every route the
-	// script then sent it (api-peer-lifecycle).
-	if attached {
-		values[zeKeywordAttach] = PluginName
 	}
 
 	// The created neighbor DIALS and does not listen.

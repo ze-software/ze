@@ -1,153 +1,179 @@
-// Design: docs/architecture/exabgp-bridge.md -- external SDK/TLS runner
-// Overview: main.go -- exabgp CLI entry point and flag parsing
-// Related: bridgerun/fleet.go -- the scripts both runners share
+// Design: docs/architecture/exabgp-bridge.md -- external SDK/TLS runner for an ExaBGP bus endpoint.
+// Overview: main.go -- exabgp CLI entry point and flag parsing.
+// Related: bridgerun/fleet.go -- single-script lifecycle and bus filter wiring.
 //
-// When ze's process manager launches the exabgp bridge, it sets
-// ZE_PLUGIN_HUB_TOKEN (plus host/port). The bridge detects this and
-// connects back via TLS using the SDK instead of using stdin/stdout.
+// When ze's process manager launches `ze exabgp plugin`, it sets
+// ZE_PLUGIN_HUB_TOKEN (plus host/port/CA/name). The wrapper detects this and
+// connects back via TLS as an ordinary bus endpoint. When started with
+// ZE_PLUGIN_MODE=declare, sdk.RunOrDeclare emits the Stage 1 declaration JSON
+// line to stdout and exits 0 without connecting or starting the script.
 
 package exabgp
 
 import (
 	"context"
 	"fmt"
-	"os"
 	"path/filepath"
+	"slices"
+	"sync/atomic"
 
-	"github.com/ze-software/ze/internal/core/family"
+	"github.com/ze-software/ze/internal/core/env"
 	"github.com/ze-software/ze/internal/core/slogutil"
 	"github.com/ze-software/ze/internal/exabgp/bridge"
 	"github.com/ze-software/ze/internal/plugins/exabgp/bridgerun"
+	"github.com/ze-software/ze/pkg/plugin/rpc"
 	"github.com/ze-software/ze/pkg/plugin/sdk"
 )
 
-// runSDKMode runs the ExaBGP bridge as an external plugin via TLS connect-back.
-// The SDK handles the 5-stage startup protocol and event loop. The scripts are
-// run by a bridgerun.Fleet, the same one the internal runner uses, so the fan-out
-// to every script's stdin and the read of every script's stdout are written once
-// (internal/plugins/exabgp/bridgeplugin/internal.go).
-//
-// This entry point carries ONE script, the command line the CLI was given. The
-// config route carries the whole set an ExaBGP config declares, because that is
-// the route `ze exabgp migrate` writes.
-//
-// Returns exit code (0 = success, 1 = error).
-func runSDKMode(ctx context.Context, pluginCmd, families []string, routeRefresh bool, addPath string) int {
-	p, err := sdk.NewFromTLSEnv(bridge.PluginName)
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "error: TLS connect: %v\n", err)
-		return exitError
-	}
-	defer p.Close() //nolint:errcheck // best-effort cleanup
-
-	// Build family declarations for registration.
-	var familyDecls []sdk.FamilyDecl
+// buildRegistration constructs the pure Stage 1 sdk.Registration for an ExaBGP
+// wrapper endpoint from its validated --family list and translator tables.
+func buildRegistration(families []string) (sdk.Registration, error) {
+	familyDecls := make([]sdk.FamilyDecl, 0, len(families))
 	for _, f := range families {
-		fam, ok := family.LookupFamily(f)
+		afi, safi, ok := bridge.ParseFamilyAFISAFI(f)
 		if !ok {
-			fmt.Fprintf(os.Stderr, "error: unknown family: %s\n", f)
-			return exitError
+			return sdk.Registration{}, fmt.Errorf("unknown family: %s", f)
 		}
 		familyDecls = append(familyDecls, sdk.FamilyDecl{
 			Name: f,
 			Mode: "both",
-			AFI:  uint16(fam.AFI),
-			SAFI: uint8(fam.SAFI),
+			AFI:  afi,
+			SAFI: safi,
 		})
 	}
+	return sdk.Registration{
+		FailurePolicy: sdk.FailureRestart,
+		Families:      familyDecls,
+		WantsConfig:   []string{"bgp"},
+		Sends:         bridgerun.BridgeSends(),
+		Receives:      bridgerun.BridgeReceives(),
+	}, nil
+}
 
-	// Build capability declarations.
+// buildCapabilityDecls builds the Stage 3 virtual session capability
+// declarations for the wrapper's --route-refresh and --add-path options,
+// scoped to peers when `send > to` narrows the endpoint (Q-E9).
+func buildCapabilityDecls(families []string, routeRefresh bool, addPath string, peers []string) []sdk.CapabilityDecl {
 	var caps []sdk.CapabilityDecl
 	if routeRefresh {
 		// RFC 2918: route-refresh capability, code 2, zero-length value.
-		caps = append(caps, sdk.CapabilityDecl{Code: 2})
+		caps = append(caps, sdk.CapabilityDecl{
+			Code:  2,
+			Peers: slices.Clone(peers),
+		})
 	}
 	if addPath != "" {
 		hex := bridge.EncodeAddPathHex(families, addPath)
 		if hex != "" {
-			caps = append(caps, sdk.CapabilityDecl{Code: 69, Encoding: sdk.CapEncodingHex, Payload: hex})
+			caps = append(caps, sdk.CapabilityDecl{
+				Code:     69,
+				Encoding: sdk.CapEncodingHex,
+				Payload:  hex,
+				Peers:    slices.Clone(peers),
+			})
 		}
 	}
-	// The set comes from the command line, so no reload can change it: the
-	// extractor ignores the sections and every verify answer carries the same
-	// declaration.
-	p.DeclareCapabilitiesFrom(func([]sdk.ConfigSection) (sdk.CapabilityDeclaration, error) {
-		return sdk.CapabilityDeclaration{Capabilities: caps}, nil
+	return caps
+}
+
+// resolveEndpointName returns the endpoint identity from ZE_PLUGIN_NAME,
+// falling back to the script's basename when ZE_PLUGIN_NAME is unset.
+func resolveEndpointName(pluginCmd []string) string {
+	if name := env.Get("ze.plugin.name"); name != "" {
+		return name
+	}
+	return filepath.Base(pluginCmd[0])
+}
+
+// runSDKMode runs the ExaBGP wrapper in query mode (ZE_PLUGIN_MODE=declare) or
+// as an external bus endpoint over TLS connect-back.
+func runSDKMode(ctx context.Context, opts pluginOptions) int {
+	reg, err := buildRegistration(opts.Families)
+	if err != nil {
+		writeStderrError("", err)
+		return exitError
+	}
+
+	return sdk.RunOrDeclare(&reg, func() int {
+		endpointName := resolveEndpointName(opts.Cmd)
+		p, err := sdk.NewFromTLSEnv(endpointName)
+		if err != nil {
+			writeStderrError("TLS connect", err)
+			return exitError
+		}
+		defer p.Close() //nolint:errcheck // best-effort cleanup
+		return runSDKWithPlugin(ctx, p, endpointName, opts, &reg)
 	})
-	// Its config comes from the command line, so a reload of the bgp root it
-	// joins has nothing for it to apply.
+}
+
+// runSDKWithPlugin wires one ExaBGP script Fleet onto an initialized *sdk.Plugin,
+// runs the SDK event loop, and mirrors the script's exit code on exit (E-6).
+func runSDKWithPlugin(ctx context.Context, p *sdk.Plugin, endpointName string, opts pluginOptions, reg *sdk.Registration) int {
+	runCtx, cancelRun := context.WithCancel(ctx)
+	defer cancelRun()
+
+	scripts := []bridgerun.Script{{
+		Name:    endpointName,
+		Argv:    opts.Cmd,
+		Encoder: opts.Encoder,
+		Forms:   opts.Forms,
+	}}
+	fleet := bridgerun.New(slogutil.Logger("exabgp-bridge"), opts.Families, scripts)
+
+	var scriptExited atomic.Bool
+	var scriptExitCode atomic.Int32
+	fleet.SetOnExit(func(code int) {
+		scriptExitCode.Store(int32(code))
+		scriptExited.Store(true)
+		cancelRun()
+	})
+
+	// Set initial format before Stage 2; Stage 2 OnConfigure refines it from
+	// the participant's compiled bus filter.
+	p.SetEventFormat(bridgerun.EventFormat(nil, opts.Forms))
+
+	p.OnConfigure(func([]sdk.ConfigSection) error {
+		filter := p.ParticipantFilter()
+		fleet.ApplyFilter(filter)
+		p.SetEventFormat(bridgerun.EventFormat(filter, opts.Forms))
+		return nil
+	})
+	p.OnParticipantFilter(func(filter *rpc.BusParticipantFilter) {
+		fleet.ApplyFilter(filter)
+	})
+
+	// Stage 3 virtual session capabilities (E-4, Q-E9): scoped to the peers
+	// permitted by `send > to` when narrowed, or global when unscoped.
+	p.DeclareCapabilitiesFrom(func([]sdk.ConfigSection) (sdk.CapabilityDeclaration, error) {
+		peers := fleet.CapabilityPeers()
+		return sdk.CapabilityDeclaration{
+			Capabilities: buildCapabilityDecls(opts.Families, opts.RouteRefresh, opts.AddPath, peers),
+		}, nil
+	})
 	p.DeclareAppliesNothing("takes its config from the command line, not from the config tree")
 
-	// The one script this runner starts, from the command line: no feed list,
-	// so it is written every event of every peer as the decoded line.
-	scripts := []bridgerun.Script{{
-		Name:    filepath.Base(pluginCmd[0]),
-		Argv:    pluginCmd,
-		Encoder: bridge.EncoderJSON,
-		Respawn: true,
-	}}
-
-	// Request the event format the scripts' forms read (bridgerun.EventFormat):
-	// a script with no feed list receives every UPDATE, whose decoded line
-	// reads its AS_PATH and communities off the message's bytes
-	// (bridge.NeedsBytes), so this runner selects `full`.
-	p.SetEventFormat(bridgerun.EventFormat(scripts))
-
-	// The script is NOT started here: the OnAllPluginsReady registration below
-	// starts it, and says what an early start cost.
-	//
-	// The process manager gives no respawn setting to this entry point, so the
-	// script keeps ExaBGP's default: a script that exits is started again
-	// (bridgerun/respawn.go states the rate limit that bounds it).
-	// The process manager gives this entry point no encoder setting, so the
-	// script gets the format the 6.0.0 envelope names, which is the one this
-	// runner has always written. The config route carries the operator's own
-	// choice (internal/plugins/exabgp/bridgeplugin/config.go, parseEncoder).
-	//
-	// It gets no peer list either, so it is fed by every peer and its
-	// unaddressed commands reach every peer. One script and one command line
-	// name no relation to narrow.
-	fleet := bridgerun.New(slogutil.Logger("exabgp-bridge"), families, scripts)
-
-	// ze events -> ExaBGP JSON on the script's stdin.
 	p.OnEvent(func(event string) error {
 		fleet.Broadcast(event)
 		return nil
 	})
 
-	// The script starts once the engine has loaded every plugin in every
-	// startup phase and frozen the dispatcher registry.
-	//
-	// The script's first line is a command, and this runner dispatches it the
-	// moment it is read. Starting the script before p.Run therefore raced the
-	// 5-stage handshake: the engine sat at stage 5 waiting for `ready`, read a
-	// dispatch-command frame instead, and aborted the startup barrier, which
-	// took the bgp plugin and the daemon down with it. A script line can also
-	// address ANOTHER plugin -- `announce watchdog <name>` reaches bgp-watchdog
-	// -- so even OnStarted is too early, because a target in a later startup
-	// phase has not registered its command yet
-	// (pkg/plugin/sdk/sdk_callbacks.go, OnAllPluginsReady).
-	p.OnAllPluginsReady(func() error { return fleet.Start(ctx, p) })
+	p.OnAllPluginsReady(func() error { return fleet.Start(runCtx, p) })
 
-	// Run SDK event loop (blocks until bye or context cancel).
-	reg := sdk.Registration{
-		Families:    familyDecls,
-		WantsConfig: []string{"bgp"},
-		Sends:       bridgerun.BridgeSends(),
-		Receives:    bridgerun.BridgeReceives(),
-	}
-	if sdkErr := p.Run(ctx, &reg); sdkErr != nil {
-		if ctx.Err() == nil {
-			fmt.Fprintf(os.Stderr, "error: SDK run: %v\n", sdkErr)
+	sdkErr := p.Run(runCtx, reg)
+	if !scriptExited.Load() {
+		if sdkErr != nil && ctx.Err() == nil {
+			writeStderrError("SDK run", sdkErr)
 		}
+		fleet.Shutdown()
 	}
-
-	// The engine stops a plugin by closing its connection, with no `bye`
-	// (process.ProcessManager.Stop), so the end of Run is the daemon stopping.
-	// The script is told as ExaBGP tells it, before its stdin closes
-	// (bridgerun.Fleet.Shutdown).
-	fleet.Shutdown()
+	cancelRun()
 	fleet.Stop()
 
+	if scriptExited.Load() {
+		return int(scriptExitCode.Load())
+	}
+	if sdkErr != nil && ctx.Err() == nil {
+		return exitError
+	}
 	return exitOK
 }

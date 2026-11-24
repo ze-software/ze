@@ -177,6 +177,11 @@ func (p *Plugin) initCallbackDefaults() {
 		// The event loop starts only after OnStarted succeeds. A typed bridge
 		// slot MUST NOT answer this callback before that lifecycle boundary.
 		rpc.MethodRuntimeReady: func(json.RawMessage) (json.RawMessage, error) { return nil, nil },
+		// Live bus participant filter rebuild: store the latest filter and notify
+		// any registered handler, answering with an empty ok response.
+		rpc.MethodParticipantFilter: func(params json.RawMessage) (json.RawMessage, error) {
+			return nil, p.handleParticipantFilter(params)
+		},
 	}
 }
 
@@ -192,6 +197,15 @@ func (p *Plugin) OnConfigure(fn ConfigureHandler) {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 	p.onConfigure = fn
+}
+
+// OnParticipantFilter sets the handler invoked when the engine delivers this
+// participant's compiled bus filter at Stage 2 configure and on subsequent
+// delivery-graph rebuilds. Safe for concurrent use.
+func (p *Plugin) OnParticipantFilter(fn func(*rpc.BusParticipantFilter)) {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	p.onParticipantFilter = fn
 }
 
 // OnShareRegistry sets the handler for Stage 4 registry delivery.

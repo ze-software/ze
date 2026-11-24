@@ -263,13 +263,34 @@ func (pc *PluginConn) sendDeclareRegistration(ctx context.Context, input *rpc.De
 // claims is the union of exclusive runtime roles claimed by the plugins in this
 // daemon's startup set (rpc.ConfigureInput.Claims). busCatalog is the settled
 // catalog of messages registered on the daemon's bus (rpc.ConfigureInput.BusCatalog).
-// Both ride the configure callback rather than separate messages because Stage 2
-// is part of the sequential startup handshake: it completes before Stage 5 (ready)
-// and therefore before the reactor starts peers. Pass nil when the caller has no
-// claims or catalog to share (the hub subsystem sink).
-func (pc *PluginConn) SendConfigure(ctx context.Context, sections []rpc.ConfigSection, claims []string, busCatalog []rpc.BusCatalogEntry) error {
-	input := &rpc.ConfigureInput{Sections: sections, Claims: claims, BusCatalog: busCatalog}
+// participantFilter is this participant's compiled bus filter
+// (rpc.ConfigureInput.ParticipantFilter). All three ride the configure callback
+// rather than separate messages because Stage 2 is part of the sequential
+// startup handshake: it completes before Stage 5 (ready) and therefore before
+// the reactor starts peers. Pass nil when the caller has none to share (the hub
+// subsystem sink).
+func (pc *PluginConn) SendConfigure(
+	ctx context.Context,
+	sections []rpc.ConfigSection,
+	claims []string,
+	busCatalog []rpc.BusCatalogEntry,
+	participantFilter *rpc.BusParticipantFilter,
+) error {
+	input := &rpc.ConfigureInput{
+		Sections:          sections,
+		Claims:            claims,
+		BusCatalog:        busCatalog,
+		ParticipantFilter: participantFilter,
+	}
 	_, err := pc.CallRPC(ctx, "ze-plugin-callback:configure", input)
+	return err
+}
+
+// SendParticipantFilter delivers an updated compiled bus filter to a running
+// plugin after the daemon rebuilds its bus delivery graph.
+func (pc *PluginConn) SendParticipantFilter(ctx context.Context, filter *rpc.BusParticipantFilter) error {
+	input := &rpc.ParticipantFilterInput{Filter: filter}
+	_, err := pc.CallRPC(ctx, rpc.MethodParticipantFilter, input)
 	return err
 }
 

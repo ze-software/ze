@@ -1222,12 +1222,10 @@ func TestBootAutoLoadRefusesMissingHardDependency(t *testing.T) {
 	const needsBMP = "boot-needs-bmp"
 
 	cases := []struct {
-		name      string
-		paths     []string
-		families  []string
-		events    []string
-		sendTypes []string
-		trigger   func(*registry.Registration)
+		name     string
+		paths    []string
+		families []string
+		trigger  func(*registry.Registration)
 	}{
 		{
 			name:    "config path",
@@ -1279,8 +1277,6 @@ func TestBootAutoLoadRefusesMissingHardDependency(t *testing.T) {
 			s, _ := newLifecycleStartupServer(t)
 			s.config.ConfiguredPaths = tc.paths
 			s.config.ConfiguredFamilies = tc.families
-			s.config.ConfiguredCustomEvents = tc.events
-			s.config.ConfiguredCustomSendTypes = tc.sendTypes
 
 			s.wg.Add(1)
 			s.runPluginStartup()

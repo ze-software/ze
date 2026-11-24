@@ -40,8 +40,6 @@ func (r *groupRunner) Status(context.Context, bool) ([]byte, BatchAnswer) {
 	return nil, BatchAnswer{}
 }
 
-func (r *groupRunner) Dispatched(string, Command) {}
-
 // groupScript is one script's command side, fed one line per batch as a
 // script that waits for each answer writes them.
 type groupScript struct {

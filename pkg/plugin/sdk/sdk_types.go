@@ -75,6 +75,18 @@ type MessageReceiveDecl = rpc.MessageReceiveDecl
 // delivered at Stage 2 configure beside Claims.
 type BusCatalogEntry = rpc.BusCatalogEntry
 
+// BusFilterTarget identifies one resolved participant reachable through a
+// compiled bus filter rule.
+type BusFilterTarget = rpc.BusFilterTarget
+
+// BusFilterRule describes one compiled send or receive rule in a participant's
+// bus filter.
+type BusFilterRule = rpc.BusFilterRule
+
+// BusParticipantFilter carries one participant's own compiled bus filter,
+// delivered at Stage 2 configure and on delivery-graph rebuilds.
+type BusParticipantFilter = rpc.BusParticipantFilter
+
 // DeclareCapabilitiesInput is the input for declare-capabilities (Stage 3).
 type DeclareCapabilitiesInput = rpc.DeclareCapabilitiesInput
 
