@@ -93,15 +93,19 @@ func (EventIPRequest) isIPEvent() {}
 // ipResponseMsg carries the consumer's decision from
 // Driver.IPResponse into the exact request's answer channel.
 // Zero netip.Addr for Local / Peer / DNSPrimary / DNSSecondary means
-// "option absent"; for family=ipv4 Local and Peer MUST both be set
-// on accept. For family=ipv6 hasPeerInterface == true forces a
-// specific peer interface-id; false accepts the peer's choice.
+// "option absent"; for family=ipv4 Local MUST be set on accept, and
+// Peer MUST be set unless peerNegotiated is true (RFC 2865 Section 5.8,
+// Framed-IP-Address == 0xFFFFFFFF). For family=ipv6 hasPeerInterface ==
+// true forces a specific peer interface-id; false accepts the peer's choice.
 type ipResponseMsg struct {
 	accept           bool
 	family           AddressFamily
 	reason           string
 	local            netip.Addr
 	peer             netip.Addr
+	peerNegotiated   bool
+	admitPeerIPv4    func(netip.Addr) bool
+	releasePeerIPv4  func()
 	dnsPrimary       netip.Addr
 	dnsSecondary     netip.Addr
 	peerInterfaceID  [8]byte

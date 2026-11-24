@@ -72,15 +72,16 @@ type sessionPrefix struct {
 }
 
 type sessionAddr struct {
-	tunnelID     uint16
-	sessionID    uint16
-	addr         netip.Addr
-	fromPool     bool   // true when a current pool reserves this address
-	poolName     string // "" = default pool, non-empty = named pool
-	allocationID uint64
-	local        netip.Addr
-	dnsPrimary   netip.Addr
-	dnsSecondary netip.Addr
+	tunnelID       uint16
+	sessionID      uint16
+	addr           netip.Addr
+	fromPool       bool   // true when a current pool reserves this address
+	peerNegotiated bool   // true when selected by the peer via IPCP (RFC 2865 Section 5.8 0xFFFFFFFF)
+	poolName       string // "" = default pool, non-empty = named pool
+	allocationID   uint64
+	local          netip.Addr
+	dnsPrimary     netip.Addr
+	dnsSecondary   netip.Addr
 }
 
 const invalidIPv4RecordPanic = "BUG: pool IPv4 record is not a sessionAddr"
@@ -285,6 +286,10 @@ func (p *poolPlugin) handle(req ppp.EventIPRequest) ppp.IPResponseArgs {
 		if !ok {
 			panic(invalidIPv4RecordPanic)
 		}
+		if allocation.peerNegotiated {
+			return p.peerNegotiatedAnswer(key, allocation.tunnelID, allocation.sessionID,
+				allocation.local, allocation.dnsPrimary, allocation.dnsSecondary)
+		}
 		return allocation.answer()
 	}
 	// The counter never wraps into the identity of an earlier answer.
@@ -327,6 +332,18 @@ func (p *poolPlugin) handle(req ppp.EventIPRequest) ppp.IPResponseArgs {
 	// RFC 2548 Sections 2.7.6 and 2.7.7: the radius source is the
 	// Access-Accept's MS DNS servers, offered by the pool's dns-source list.
 	dns := selectSubscriberDNS(pool, meta, p.learned.Records(), time.Now(), logger())
+
+	// RFC 2865 Section 5.8: "The value 0xFFFFFFFF indicates that the NAS
+	// Should allow the user to select an address (e.g. Negotiated)."
+	// Bypass pool allocation; supply the selected pool's gateway and DNS so
+	// IPCP accepts only a peer-proposed IPv4 address outside configured pools
+	// and not already held by another live session.
+	if meta != nil && meta.FramedIPNegotiated {
+		logger().Info("l2tp-pool: allowing peer-negotiated address",
+			"tunnel", req.TunnelID, "session", req.SessionID)
+		return p.peerNegotiatedAnswer(key, req.TunnelID, req.SessionID,
+			pool.gateway, dns.primary, dns.secondary)
+	}
 
 	// RFC 2865 Section 5.8: Framed-IP-Address bypasses pool allocation.
 	// Uses the selected pool's gateway/DNS (named pool if Framed-Pool

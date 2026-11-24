@@ -32,6 +32,35 @@ existing supplied identity.
 <!-- source: internal/component/l2tp/plugins/pool/register.go -- handle, handlePrefix -->
 <!-- source: internal/plugins/cos/handler.go -- onSessionUp -->
 
+**Framed-IP-Address carries two special values alongside a static assignment.**
+RFC 2865 Section 5.8 gives `0xFFFFFFFE` (`255.255.255.254`) the meaning "the NAS
+should select an address for the user" and `0xFFFFFFFF` (`255.255.255.255`) the
+meaning "the NAS Should allow the user to select an address (e.g. Negotiated)".
+`extractAuthMetadata` leaves `AuthMetadata.FramedIP` unset for both so RFC 2866
+Section 4.1 accounting never reports a sentinel as the subscriber's address, and
+sets `AuthMetadata.FramedIPNegotiated` for `0xFFFFFFFF` alone. The pool handler
+allocates from the pool for `0xFFFFFFFE` or an absent attribute, pins the
+address for a unicast `FramedIP`, and for `FramedIPNegotiated` skips pool
+allocation while supplying the selected pool's gateway, DNS, and
+`AdmitPeerIPv4`/`ReleasePeerIPv4` callbacks with `PeerNegotiated: true`. IPCP
+then accepts a peer-proposed unicast IPv4 address only when it is distinct from
+the local gateway, falls outside every configured IPv4 pool (default and named),
+and is not already held by any other live session (pool-allocated, static
+RADIUS, or peer-negotiated). Admitted peer-negotiated addresses are recorded
+exclusively in `sessionAddrs` (`fromPool: false`), carried safely across pool
+reloads, and released on IPCP This-Layer-Down, LCP reset, or session teardown.
+Unusable, in-pool, or already-held proposals draw a Configure-Reject because Ze
+holds no pool address to Nak with; an omitted IP-Address option draws a
+Configure-Nak carrying `0.0.0.0` per RFC 1332 Section 3.3. The negotiated
+address is what programs `pppN` and reaches `EventSessionIPAssigned` and RADIUS
+accounting.
+
+<!-- source: internal/component/l2tp/plugins/authradius/extract.go -- extractAuthMetadata, framedIPUserSelects, framedIPNASSelects -->
+<!-- source: internal/component/l2tp/session_metadata.go -- AuthMetadata -->
+<!-- source: internal/component/l2tp/plugins/pool/register.go -- handle -->
+<!-- source: internal/component/l2tp/plugins/pool/radius.go -- peerNegotiatedAnswer, admitPeerAddress, releasePeerAddress, addressInAnyPoolLocked -->
+<!-- source: internal/component/l2tp/ppp/ncp.go -- requestIPCPAddresses, evalIPCPRequest, buildNakOrReject, copyRejectedIPCPOptions, isValidNegotiatedPeerIPv4 -->
+
 **Framed-MTU lowers the interface MTU, never the LCP MRU.** RFC 2865 Section
 5.12 gives the MTU "to be configured for the user, when it is not negotiated by
 some other means (such as PPP)". In PPP, LCP opens before authentication, so

@@ -7,6 +7,7 @@ package l2tppool
 import (
 	"net/netip"
 
+	"github.com/ze-software/ze/internal/component/l2tp/ppp"
 	"github.com/ze-software/ze/internal/core/opererr"
 	"github.com/ze-software/ze/internal/core/textbuf"
 )
@@ -88,4 +89,129 @@ func (p *poolPlugin) reserveRADIUSPrefixLocked(prefix netip.Prefix) (string, boo
 	}
 	name, inRange := p.carryPrefixLocked(prefix)
 	return name, inRange, nil
+}
+
+// peerNegotiatedAnswer builds an IPv4 IPResponseArgs that lets the peer
+// propose its own address (RFC 2865 Section 5.8, Framed-IP-Address ==
+// 0xFFFFFFFF) while holding admission to the pool plugin's range and
+// active-session exclusivity rules.
+func (p *poolPlugin) peerNegotiatedAnswer(
+	key string,
+	tunnelID, sessionID uint16,
+	local, dnsPrimary, dnsSecondary netip.Addr,
+) ppp.IPResponseArgs {
+	return ppp.IPResponseArgs{
+		Accept:         true,
+		Family:         ppp.AddressFamilyIPv4,
+		Local:          local,
+		PeerNegotiated: true,
+		AdmitPeerIPv4: func(addr netip.Addr) bool {
+			return p.admitPeerAddress(key, tunnelID, sessionID, local, dnsPrimary, dnsSecondary, addr)
+		},
+		ReleasePeerIPv4: func() {
+			p.releasePeerAddress(key)
+		},
+		DNSPrimary:   dnsPrimary,
+		DNSSecondary: dnsSecondary,
+	}
+}
+
+// addressInAnyPoolLocked reports whether addr falls within the configured
+// default IPv4 pool or any configured named IPv4 pool. Caller MUST hold mu.
+func (p *poolPlugin) addressInAnyPoolLocked(addr netip.Addr) bool {
+	if p.pool != nil {
+		if _, inRange := p.pool.addressIndex(addr); inRange {
+			return true
+		}
+	}
+	for _, pool := range p.namedPools {
+		if _, inRange := pool.addressIndex(addr); inRange {
+			return true
+		}
+	}
+	return false
+}
+
+// admitPeerAddress enforces pool-range and active-session exclusivity for a
+// peer-negotiated IPv4 address (RFC 2865 Section 5.8, 0xFFFFFFFF) and records
+// it exclusively in sessionAddrs under mu. Idempotent when the same subscriber
+// re-proposes the address it already holds; replaces a prior negotiated
+// address for the same subscriber on IPCP renegotiation. Safe for concurrent
+// use.
+func (p *poolPlugin) admitPeerAddress(
+	key string,
+	tunnelID, sessionID uint16,
+	local, dnsPrimary, dnsSecondary, addr netip.Addr,
+) bool {
+	if !addr.Is4() {
+		return false
+	}
+	p.mu.Lock()
+	defer p.mu.Unlock()
+
+	if p.addressInAnyPoolLocked(addr) {
+		logger().Info("l2tp-pool: refused peer-negotiated address inside configured pool",
+			"subscriber", key, "tunnel", tunnelID, "session", sessionID, "address", addr)
+		return false
+	}
+
+	var alreadySame bool
+	var heldByOther bool
+	p.sessionAddrs.Range(func(k, value any) bool {
+		owner, ok := k.(string)
+		if !ok {
+			panic("BUG: pool IPv4 owner is not a subscriber ID")
+		}
+		allocation, ok := value.(sessionAddr)
+		if !ok {
+			panic(invalidIPv4RecordPanic)
+		}
+		if owner == key {
+			if allocation.addr == addr {
+				alreadySame = true
+			}
+			return true
+		}
+		if allocation.addr == addr {
+			heldByOther = true
+			return false
+		}
+		return true
+	})
+	if heldByOther {
+		logger().Info("l2tp-pool: refused peer-negotiated address already in use",
+			"subscriber", key, "tunnel", tunnelID, "session", sessionID, "address", addr)
+		return false
+	}
+	if alreadySame {
+		return true
+	}
+	if p.nextAllocationID == ^uint64(0) {
+		return false
+	}
+
+	// On IPCP renegotiation to a different address, release the session's
+	// previous negotiated record before recording the new one.
+	p.releaseAddressLocked(key)
+	p.storeAddressLocked(key, sessionAddr{
+		addr:           addr,
+		tunnelID:       tunnelID,
+		sessionID:      sessionID,
+		fromPool:       false,
+		peerNegotiated: true,
+		local:          local,
+		dnsPrimary:     dnsPrimary,
+		dnsSecondary:   dnsSecondary,
+	})
+	logger().Info("l2tp-pool: admitted peer-negotiated address",
+		"subscriber", key, "tunnel", tunnelID, "session", sessionID, "address", addr)
+	return true
+}
+
+// releasePeerAddress releases any peer-negotiated IPv4 record held by key.
+// Idempotent and safe for concurrent use.
+func (p *poolPlugin) releasePeerAddress(key string) {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	p.releaseAddressLocked(key)
 }

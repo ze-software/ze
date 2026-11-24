@@ -322,12 +322,27 @@ func (s *pppSession) requestIPCPAddresses() bool {
 		s.fail(tb.Str("ipcp: handler rejected: ").Str(msg.reason).String())
 		return false
 	}
-	if !msg.local.Is4() || !msg.peer.Is4() {
+	if !msg.local.Is4() {
+		s.fail("ipcp: handler response missing IPv4 addresses")
+		return false
+	}
+	if !msg.peerNegotiated && !msg.peer.Is4() {
 		s.fail("ipcp: handler response missing IPv4 addresses")
 		return false
 	}
 	s.localIPv4 = msg.local
-	s.peerIPv4 = msg.peer
+	s.peerIPv4Selectable = msg.peerNegotiated
+	if msg.peerNegotiated {
+		// RFC 2865 Section 5.8: peer selects its own IPv4 address via IPCP;
+		// keep peerIPv4 unset until evalIPCPRequest accepts a valid proposal.
+		s.peerIPv4 = netip.Addr{}
+		s.admitPeerIPv4 = msg.admitPeerIPv4
+		s.releasePeerIPv4 = msg.releasePeerIPv4
+	} else {
+		s.peerIPv4 = msg.peer
+		s.admitPeerIPv4 = nil
+		s.releasePeerIPv4 = nil
+	}
 	s.dnsPrimary = msg.dnsPrimary
 	s.dnsSecondary = msg.dnsSecondary
 	return true
@@ -752,9 +767,11 @@ func ncpCodeRejectEvent(pkt LCPPacket) lCPEvent {
 
 // evalIPCPRequest judges the peer's IPCP Configure-Request.
 //
-// Ze in LNS role assigns peer's IP-Address. Peer's CONFREQ IP-Address
-// option carries peer's own requested IP. Accept only if equal to
-// s.peerIPv4; else Nak with s.peerIPv4.
+// In normal LNS role Ze assigns the peer's IP-Address, accepting only
+// s.peerIPv4 and Nak'ing anything else with s.peerIPv4. When RADIUS returned
+// Framed-IP-Address == 0xFFFFFFFF (s.peerIPv4Selectable), RFC 2865 Section 5.8
+// lets the peer select its own usable unicast IPv4 address distinct from
+// s.localIPv4.
 func (s *pppSession) evalIPCPRequest(pkt LCPPacket) ncpRequestVerdict {
 	switch scanNCPOptions(pkt.Data, isKnownIPCPOption) {
 	case ncpOptionsTruncated:
@@ -780,7 +797,19 @@ func (s *pppSession) evalIPCPRequest(pkt LCPPacket) ncpRequestVerdict {
 		// and Data."
 		return ncpRequestUnacceptable
 	}
-	if opts.HasIPAddress && opts.IPAddress != s.peerIPv4 {
+	if s.peerIPv4Selectable {
+		// RFC 2865 Section 5.8: "The value 0xFFFFFFFF indicates that the NAS
+		// Should allow the user to select an address (e.g. Negotiated)."
+		if !opts.HasIPAddress {
+			return ncpRequestUnacceptable
+		}
+		if !isValidNegotiatedPeerIPv4(opts.IPAddress, s.localIPv4) {
+			return ncpRequestUnacceptable
+		}
+		if s.admitPeerIPv4 != nil && !s.admitPeerIPv4(opts.IPAddress) {
+			return ncpRequestUnacceptable
+		}
+	} else if opts.HasIPAddress && opts.IPAddress != s.peerIPv4 {
 		return ncpRequestUnacceptable
 	}
 	// DNS options in peer's CR: peer is requesting DNS values. Accept
@@ -794,7 +823,43 @@ func (s *pppSession) evalIPCPRequest(pkt LCPPacket) ncpRequestVerdict {
 	if opts.HasSecondary && opts.SecondaryDNS != s.dnsSecondary {
 		return ncpRequestUnacceptable
 	}
+	if s.peerIPv4Selectable {
+		s.peerIPv4 = opts.IPAddress
+	}
 	return ncpRequestAcceptable
+}
+
+var limitedBroadcastIPv4 = netip.AddrFrom4([4]byte{255, 255, 255, 255})
+
+// isValidNegotiatedPeerIPv4 reports whether addr is a usable unicast IPv4
+// address distinct from local for a peer-negotiated IPCP session.
+func isValidNegotiatedPeerIPv4(addr, local netip.Addr) bool {
+	if !addr.IsValid() {
+		return false
+	}
+	if !addr.Is4() {
+		return false
+	}
+	if addr.IsUnspecified() {
+		return false
+	}
+	if addr.IsLoopback() {
+		return false
+	}
+	if addr.IsMulticast() {
+		return false
+	}
+	if addr.IsLinkLocalUnicast() {
+		return false
+	}
+	// RFC 919: 255.255.255.255 is limited broadcast.
+	if addr == limitedBroadcastIPv4 {
+		return false
+	}
+	if addr == local {
+		return false
+	}
+	return true
 }
 
 // absorbIPCPNak applies peer's Nak suggestions to per-session state so
@@ -987,6 +1052,12 @@ func (s *pppSession) performNCPAction(family AddressFamily, act LCPAction, curre
 		// RFC 1661 Section 4.4, This-Layer-Down: the transport learns the
 		// family left Opened only after the kernel stopped carrying it.
 		s.publishNCPRelease(family)
+		if family == AddressFamilyIPv4 && s.peerIPv4Selectable {
+			s.peerIPv4 = netip.Addr{}
+			if s.releasePeerIPv4 != nil {
+				s.releasePeerIPv4()
+			}
+		}
 		return true
 	case LCPActZRC:
 		s.ncpRestart(family).count = 0
@@ -1118,7 +1189,9 @@ func (s *pppSession) buildNakOrReject(family AddressFamily, req LCPPacket, buf [
 		// is provided." A DNS option Ze holds no server for has no value
 		// a Nak could carry, and a Nak that leaves it out answers
 		// nothing: the peer repeats the same Configure-Request until its
-		// retries run out. So it is refused instead.
+		// retries run out. So it is refused instead. The same holds for an
+		// unusable peer IP-Address when RADIUS authorized peer selection
+		// (RFC 2865 Section 5.8) and Ze holds no pool address to suggest.
 		//
 		// RFC 1661 Section 5.4: "If some Configuration Options received
 		// in a Configure-Request are not recognizable or are not
@@ -1127,9 +1200,9 @@ func (s *pppSession) buildNakOrReject(family AddressFamily, req LCPPacket, buf [
 		// Configure-Reject.  The Options field is filled with only the
 		// unacceptable Configuration Options from the
 		// Configure-Request." pppd's ipcp_reqci answers the same way
-		// (CONFREJ when ao->dnsaddr[d] is zero), and the Reject outranks
-		// any Nak the rest of the request would draw, as it does there.
-		if dataLen := copyUnknownOptions(req.Data, s.ipcpOptionServed, buf, off); dataLen > 0 {
+		// (CONFREJ when ao->dnsaddr[d] is zero or hisaddr is zero), and the
+		// Reject outranks any Nak the rest of the request would draw.
+		if dataLen := s.copyRejectedIPCPOptions(req.Data, buf, off); dataLen > 0 {
 			return LCPConfigureReject, dataLen
 		}
 		// RFC 1661 Section 6: "If a negotiable Configuration Option is
@@ -1146,6 +1219,22 @@ func (s *pppSession) buildNakOrReject(family AddressFamily, req LCPPacket, buf [
 			HasPrimary:   s.dnsPrimary.IsValid(),
 			SecondaryDNS: s.dnsSecondary,
 			HasSecondary: s.dnsSecondary.IsValid(),
+		}
+		if s.peerIPv4Selectable {
+			// RFC 1332 Section 3.3: "If negotiation about the remote
+			// IP-address is required, and the peer did not provide the
+			// option in its Configure-Request, the option SHOULD be
+			// appended to a Configure-Nak.  The value of the IP-address
+			// given must be acceptable as the remote IP-address, or
+			// indicate a request that the peer provide the information."
+			opts, err := ParseIPCPOptions(req.Data)
+			if err != nil || !opts.HasIPAddress {
+				nak.IPAddress = netip.IPv4Unspecified()
+				nak.HasIPAddress = true
+			} else {
+				nak.IPAddress = netip.Addr{}
+				nak.HasIPAddress = false
+			}
 		}
 		return LCPConfigureNak, WriteIPCPOptions(buf, off, nak)
 	case AddressFamilyIPv6:
@@ -1358,14 +1447,53 @@ func copyUnknownOptions(src []byte, known func(uint8) bool, buf []byte, off int)
 	return off - start
 }
 
-// ipcpOptionServed is the copyUnknownOptions predicate that picks the
-// DNS options of a peer's IPCP Configure-Request Ze holds no server for:
-// it answers false for Primary-DNS when the session has no primary
-// server and for Secondary-DNS when it has no secondary one, and true
-// for every other option, so the copy holds only the options
-// buildNakOrReject must Configure-Reject. The two DNS slots are judged
-// apart because RFC 1877 Section 1 negotiates them independently:
-// "Primary and secondary addresses are negotiated independently."
+// copyRejectedIPCPOptions walks src and copies each option Ze cannot negotiate
+// into buf at off for a Configure-Reject (RFC 1661 Section 5.4): unserved DNS
+// options (RFC 1877 Sections 1.1 and 1.3), and in peer-selected IPv4 mode
+// (RFC 2865 Section 5.8) any IP-Address option carrying an unusable address or
+// wrong length because Ze holds no pool address to offer in a Configure-Nak.
+func (s *pppSession) copyRejectedIPCPOptions(src, buf []byte, off int) int {
+	start := off
+	i := 0
+	for i < len(src) {
+		if len(src)-i < 2 {
+			break
+		}
+		l := int(src[i+1])
+		if l < 2 {
+			break
+		}
+		if i+l > len(src) {
+			break
+		}
+		optType := src[i]
+		reject := !s.ipcpOptionServed(optType)
+		if !reject && s.peerIPv4Selectable && optType == IPCPOptIPAddress {
+			addr, err := parseIPCPv4Option(l, src[i+2:i+l])
+			switch {
+			case err != nil:
+				reject = true
+			case !isValidNegotiatedPeerIPv4(addr, s.localIPv4):
+				reject = true
+			case s.admitPeerIPv4 != nil && !s.admitPeerIPv4(addr):
+				reject = true
+			}
+		}
+		if reject {
+			off += copy(buf[off:], src[i:i+l])
+		}
+		i += l
+	}
+	return off - start
+}
+
+// ipcpOptionServed is the predicate that picks the DNS options of a peer's
+// IPCP Configure-Request Ze holds no server for: it answers false for
+// Primary-DNS when the session has no primary server and for Secondary-DNS
+// when it has no secondary one, and true for every other option. The two DNS
+// slots are judged apart because RFC 1877 Section 1 negotiates them
+// independently: "Primary and secondary addresses are negotiated
+// independently."
 func (s *pppSession) ipcpOptionServed(t uint8) bool {
 	if t == IPCPOptPrimaryDNS {
 		return s.dnsPrimary.IsValid()
@@ -1441,6 +1569,10 @@ func (s *pppSession) onNCPOpened(family AddressFamily) bool {
 	switch family {
 	case AddressFamilyIPv4:
 		var tb textbuf.Buffer
+		if !s.peerIPv4.Is4() {
+			s.fail("ipcp: opened without a negotiated peer IPv4 address")
+			return false
+		}
 		local := netip.PrefixFrom(s.localIPv4, 32)
 		peer := netip.PrefixFrom(s.peerIPv4, 32)
 		// refuse-by-default: guards pppSession.handleNCPPacket -- false ends NCP after fail publishes the address-installation error; no IP assignment is published.
@@ -1694,6 +1826,7 @@ func (s *pppSession) resetNCP() bool {
 	s.authenticatedUsername = ""
 	s.authenticatedFramedRoutes = nil
 	s.authenticatedFramedMTU = 0
+	// refuse-by-default: guards pppSession.performAction -- false stops LCP TLD after fail publishes the NCP cleanup error before LCP restart.
 	if err := s.resetNetwork(); err != nil {
 		var tb textbuf.Buffer
 		s.fail(tb.Str("NCP cleanup before LCP restart: ").Err(err).String())
@@ -1703,8 +1836,14 @@ func (s *pppSession) resetNCP() bool {
 	s.ipv6cpState = LCPStateInitial
 	s.lastIPCPRequestSent = false
 	s.lastIPv6CPRequestSent = false
+	if s.peerIPv4Selectable && s.releasePeerIPv4 != nil {
+		s.releasePeerIPv4()
+	}
 	s.localIPv4 = netip.Addr{}
 	s.peerIPv4 = netip.Addr{}
+	s.peerIPv4Selectable = false
+	s.admitPeerIPv4 = nil
+	s.releasePeerIPv4 = nil
 	s.dnsPrimary = netip.Addr{}
 	s.dnsSecondary = netip.Addr{}
 	s.localInterfaceID = [8]byte{}

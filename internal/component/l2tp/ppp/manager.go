@@ -234,8 +234,11 @@ func (d *Driver) IPEventsOut() <-chan IPEvent {
 // as families grow new optional knobs (reverse DNS, hostname,
 // MS-specific NBNS options).
 //
-// On accept=true for family=ipv4, Local and Peer MUST both be
-// non-zero IPv4 addresses; DNSPrimary / DNSSecondary are optional.
+// On accept=true for family=ipv4, Local MUST be a non-zero IPv4 address.
+// Peer MUST be a non-zero IPv4 address unless PeerNegotiated is true
+// (RFC 2865 Section 5.8, Framed-IP-Address == 0xFFFFFFFF), in which case
+// Peer is zero and IPCP accepts a valid unicast IPv4 address proposed by
+// the peer. DNSPrimary / DNSSecondary are optional.
 //
 // On accept=true for family=ipv6, PeerInterfaceID is optional: a
 // non-zero value forces the peer to use that identifier, zero
@@ -248,9 +251,20 @@ type IPResponseArgs struct {
 	// MUST give each reservation a nonzero ID; a drain MUST return that ID
 	// through the subscriber event bus if IPResponse cannot deliver it.
 	// Zero means the answer owns no pool reservation. PPP does not interpret it.
-	AllocationID     uint64
-	Local            netip.Addr
-	Peer             netip.Addr
+	AllocationID   uint64
+	Local          netip.Addr
+	Peer           netip.Addr
+	PeerNegotiated bool
+	// AdmitPeerIPv4, when non-nil alongside PeerNegotiated, judges and
+	// exclusively reserves a peer-proposed IPv4 address (refusing addresses
+	// inside configured pools or already held by another live session). It
+	// MUST be idempotent for repeated proposals of the same address by the
+	// same session and safe for concurrent use.
+	AdmitPeerIPv4 func(netip.Addr) bool
+	// ReleasePeerIPv4, when non-nil alongside PeerNegotiated, releases any
+	// address reserved via AdmitPeerIPv4 when IPCP leaves Opened (TLD) or
+	// LCP resets. It MUST be idempotent and safe for concurrent use.
+	ReleasePeerIPv4  func()
 	DNSPrimary       netip.Addr
 	DNSSecondary     netip.Addr
 	PeerInterfaceID  [8]byte
@@ -276,6 +290,9 @@ func (d *Driver) IPResponse(request EventIPRequest, args IPResponseArgs) error {
 		reason:           args.Reason,
 		local:            args.Local,
 		peer:             args.Peer,
+		peerNegotiated:   args.PeerNegotiated,
+		admitPeerIPv4:    args.AdmitPeerIPv4,
+		releasePeerIPv4:  args.ReleasePeerIPv4,
 		dnsPrimary:       args.DNSPrimary,
 		dnsSecondary:     args.DNSSecondary,
 		peerInterfaceID:  args.PeerInterfaceID,

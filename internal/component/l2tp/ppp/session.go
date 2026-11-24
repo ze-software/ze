@@ -380,10 +380,20 @@ type pppSession struct {
 	lastIPv6CPRequestID   uint8
 	lastIPv6CPRequestSent bool
 
-	localIPv4    netip.Addr
-	peerIPv4     netip.Addr
-	dnsPrimary   netip.Addr
-	dnsSecondary netip.Addr
+	localIPv4 netip.Addr
+	peerIPv4  netip.Addr
+	// peerIPv4Selectable is true when the address handler returned
+	// PeerNegotiated (RFC 2865 Section 5.8, Framed-IP-Address == 0xFFFFFFFF).
+	// While true, peerIPv4 starts unset and is populated from the peer's
+	// IPCP Configure-Request once evalIPCPRequest accepts a valid unicast
+	// address distinct from localIPv4 (and admitted by admitPeerIPv4 when
+	// supplied). resetNCP MUST call releasePeerIPv4 and clear all three on
+	// LCP down.
+	peerIPv4Selectable bool
+	admitPeerIPv4      func(netip.Addr) bool
+	releasePeerIPv4    func()
+	dnsPrimary         netip.Addr
+	dnsSecondary       netip.Addr
 	// installedIPv4 owns the successful address installation independently
 	// of the proposal, which a Configure-Nak can change before TLD runs.
 	// Only confirmed withdrawal clears it; FSM state is not a resource receipt.

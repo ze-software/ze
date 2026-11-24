@@ -77,3 +77,23 @@ func TestClearSessionMetadata(t *testing.T) {
 		t.Error("expected nil after clear")
 	}
 }
+
+// TestStoreAndLoadSessionMetadataFramedIPNegotiated verifies that the
+// peer-negotiated Framed-IP-Address flag survives storage independently of a
+// pinned FramedIP address.
+func TestStoreAndLoadSessionMetadataFramedIPNegotiated(t *testing.T) {
+	id := subscriber.SessionID(subscriber.AccessL2TP, uint64(9), 10)
+	StoreSessionMetadata(id, &AuthMetadata{FramedIPNegotiated: true})
+	defer ClearSessionMetadata(id)
+
+	got := LoadSessionMetadata(id)
+	if got == nil {
+		t.Fatal("expected metadata, got nil")
+	}
+	if !got.FramedIPNegotiated {
+		t.Error("FramedIPNegotiated = false, want true")
+	}
+	if got.FramedIP.IsValid() {
+		t.Errorf("FramedIP = %v, want zero/invalid when peer-negotiated", got.FramedIP)
+	}
+}

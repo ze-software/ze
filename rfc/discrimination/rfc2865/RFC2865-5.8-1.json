@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC2865-5.8-1",
+    "polarity": "negative",
+    "unit": "internal/component/l2tp/plugins/authradius/rfc2865_framed_ip_negotiated_test.go::TestRFC2865FramedIPNASSelectsDoesNotMarkNegotiated",
+    "unit-sha": "85c2b792e48a90d4",
+    "claim-sha": "3e5af55d0c845dc5",
+    "route": "revert",
+    "producer": "internal/component/l2tp/plugins/authradius/extract.go::extractAuthMetadata",
+    "producer-sha": "012ea3b57e244f99",
+    "break": "body of extractAuthMetadata replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC2865-5.8-1",
+    "polarity": "positive",
+    "unit": "internal/component/l2tp/plugins/authradius/rfc2865_framed_ip_negotiated_test.go::TestRFC2865FramedIPUserSelectsMarksNegotiated",
+    "unit-sha": "5a879a513212a34d",
+    "claim-sha": "d9ca299f371641cc",
+    "route": "revert",
+    "producer": "internal/component/l2tp/plugins/authradius/extract.go::extractAuthMetadata",
+    "producer-sha": "012ea3b57e244f99",
+    "break": "body of extractAuthMetadata replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
+  }
+]

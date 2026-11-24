@@ -50,8 +50,14 @@ func TestExtractFramedIPRejectsBroadcast(t *testing.T) {
 		{Type: radius.AttrFramedIPAddress, Value: net.IPv4(255, 255, 255, 255).To4()},
 	}}
 	meta := extractAuthMetadata(resp, "")
-	if meta != nil {
-		t.Error("broadcast address should be rejected")
+	if meta == nil {
+		t.Fatal("0xFFFFFFFF (RFC 2865 Section 5.8) should produce metadata")
+	}
+	if meta.FramedIP.IsValid() {
+		t.Errorf("FramedIP = %v, want unset for 0xFFFFFFFF", meta.FramedIP)
+	}
+	if !meta.FramedIPNegotiated {
+		t.Error("FramedIPNegotiated = false, want true for 0xFFFFFFFF")
 	}
 }
 

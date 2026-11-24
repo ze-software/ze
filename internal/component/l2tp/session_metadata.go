@@ -34,7 +34,14 @@ type FramedRoute = l2tpevents.FramedRoute
 // RFC 2869 Section 5.16 (Acct-Interim-Interval).
 // Framed-Pool: RFC 2865 attribute type 88.
 type AuthMetadata struct {
-	FramedIP            netip.Addr
+	FramedIP netip.Addr
+	// FramedIPNegotiated is true when the RADIUS Access-Accept carried
+	// Framed-IP-Address == 0xFFFFFFFF (RFC 2865 Section 5.8), instructing
+	// the NAS to let the peer select its own IPv4 address via IPCP rather
+	// than allocating one from a pool. FramedIP stays unset so RFC 2866
+	// Section 4.1 accounting reports the actual IPCP-negotiated address,
+	// never 255.255.255.255.
+	FramedIPNegotiated  bool
 	FramedNetmask       net.IPMask
 	FramedPool          string
 	FramedIPv6Prefix    netip.Prefix // RFC 6911 attr 97
