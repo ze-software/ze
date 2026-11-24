@@ -3559,32 +3559,44 @@ for rather than the queue. The history is recorded in
 
 #### Reading the exec channel's answer frame
 
-The SSH exec channel puts the rendering on stdout and the answer FRAME on
-stderr. `ze cli` reads that frame and shows an operator the rendering. A test
-that drives `ze cli` therefore sees what the frame became, never the frame.
+The SSH exec channel puts the rendering on stdout and opts into the stderr
+answer frame only when the client sends `ZE_ANSWER_FRAME=1`. A plain `ssh`
+client leaves that variable unset and receives clean rendered output and JSON on
+stdout with zero answer frame lines on stderr. `ze cli` sets `ZE_ANSWER_FRAME=1`,
+consumes the frame, and shows an operator the rendering. A test that drives
+`ze cli` therefore sees what the frame became, never the raw frame bytes.
+<!-- source: internal/component/ssh/session.go -- execAnswerFramed -->
+<!-- source: internal/component/ssh/answer.go -- answerFrame, writeExecRecords, writeExecDocument -->
 
-To read the frame bytes, drive the daemon with OpenSSH instead:
+To check both plain and framed OpenSSH sessions, drive the daemon with OpenSSH
+instead:
 
 1. Generate an ed25519 key pair in the test.
 2. Put the public half in the user's `public-keys` block.
-3. Run `ssh -i ./testkey -p <port> <user>@127.0.0.1 "<command>"`. Keep stdout
-   and stderr apart.
-4. Add `-o LogLevel=ERROR`. Without it the client's own known-hosts notice
+3. Run `ssh -i ./testkey -p <port> <user>@127.0.0.1 "<command>"` without
+   `ZE_ANSWER_FRAME` to verify plain stdout and zero frame lines on stderr.
+4. Run the same command with `ZE_ANSWER_FRAME=1` in the client environment and
+   `-o SendEnv=ZE_ANSWER_FRAME`. Keep stdout and stderr apart.
+5. Add `-o LogLevel=ERROR`. Without it the client's own known-hosts notice
    lands on the same stream.
 
-`ssh` parses nothing and declares nothing. Its stderr is the daemon's frame,
-byte for byte.
+With `-o SendEnv=ZE_ANSWER_FRAME` and `ZE_ANSWER_FRAME=1`, `ssh` parses nothing
+and its stderr carries the daemon's byte-counted answer frame, byte for byte.
 
-`test/plugin/exec-answer-unconditional.ci` drives the native frame checker. It
-parses lengths as byte counts and rejects malformed document, stream, error,
+`test/plugin/exec-answer-unconditional.ci` drives the native driver and frame
+checker. It proves that plain `ssh` receives clean rendered output and JSON with
+zero frame lines on stderr, and that an opt-in `ZE_ANSWER_FRAME=1` session
+receives byte-counted frames while rejecting malformed document, stream, error,
 and unknown-command frames.
-<!-- source: internal/test/fixture/plugin_fixture_06.go -- fixture06FrameCheck -->
+<!-- source: internal/test/fixture/plugin_fixture_06_shell.go -- fixture06ExecAnswerDriver, fixture06CheckPlainResult, fixture06CheckFramedResult -->
+<!-- source: internal/test/fixture/plugin_fixture_06_decoder.go -- fixture06FrameCheck -->
 
 | Test | Proves |
 |------|--------|
-| `test/plugin/exec-answer-unconditional.ci` | a client that declares nothing is framed, with the kind at offset zero and every count a count of bytes |
+| `test/plugin/exec-answer-unconditional.ci` | plain `ssh` receives clean rendered output and JSON with zero answer frame lines on stderr, while a client sending `-o SendEnv=ZE_ANSWER_FRAME` with `ZE_ANSWER_FRAME=1` receives the daemon's byte-counted answer frame on stderr with the kind at offset zero and every count a count of bytes |
 
-<!-- source: internal/component/ssh/answer.go -- answerFrame, writeExecAnswer -->
+<!-- source: internal/component/ssh/session.go -- execAnswerFramed -->
+<!-- source: internal/component/ssh/answer.go -- answerFrame, writeExecRecords, writeExecDocument -->
 <!-- source: test/plugin/ssh-pubkey-auth.ci -- the key pair this reuses -->
 
 ### Pending BGP refusal delivery

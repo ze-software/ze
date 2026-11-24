@@ -1,46 +1,56 @@
-# Test: a stock SSH client receives the record answer frame, having asked for
-# nothing
+# Test: plain OpenSSH receives clean exec output with zero answer frame lines,
+# while an opt-in OpenSSH client sending ZE_ANSWER_FRAME=1 receives the exact
+# record answer frame on stderr.
+#
+# One question: on the real SSH exec channel driven by OpenSSH against a live
+# daemon, does a plain `ssh` session get clean rendered stdout (including pure
+# JSON) with zero frame lines on stderr, while `ssh -o SendEnv=ZE_ANSWER_FRAME`
+# with ZE_ANSWER_FRAME=1 receives matching stdout and the grammar-exact
+# top/end/nay frame on stderr?
+# Why a unit test cannot decide it: unit tests drive an in-process Go SSH client
+# against an answerServer stub; only OpenSSH against a running `ze` daemon
+# proves RFC 4254 Section 6.4 SendEnv propagation and real command dispatch
+# across document, JSON, streamed, unknown-command, and failed-command paths.
 #
 # Flow:
-# 1. Daemon starts with SSH and one configured BGP peer
+# 1. Daemon starts with SSH and one configured BGP peer.
 # 2. The native driver generates an ed25519 key pair and puts the public half
-#    in the daemon's user, so OpenSSH authenticates with no password prompt
-# 3. Four commands run over `ssh`, the ordinary client, and each one's RAW
-#    stderr is kept: that stream is the answer frame
-# 4. the compiled frame checker reads each frame by the GRAMMAR and asserts what it holds
+#    in the daemon's user, so OpenSSH authenticates with no password prompt.
+# 3. Five commands run twice over `ssh`:
+#    (a) Plain OpenSSH (no ZE_ANSWER_FRAME, -F /dev/null): asserts rendered
+#        stdout (valid JSON for `show version | json`, >256 JSON rows for
+#        `system command list | ndjson`, empty stdout on error) and ZERO
+#        top/end/wrn/nay frame lines on stderr (empty stderr on success; plain
+#        operator error line only on failure).
+#    (b) Opt-in OpenSSH (-F /dev/null -o SendEnv=ZE_ANSWER_FRAME with
+#        ZE_ANSWER_FRAME=1): asserts stdout matches the plain run and stderr
+#        carries the exact grammar-valid answer frame, verified by the compiled
+#        frame checker (fixture06FrameCheck).
 #
 # The driver is OpenSSH and not `ze cli`, and that is the whole point of this
-# test. `ze cli` is Ze's own client (ExecCommandStream, internal/component/ssh/
-# client/answer.go); it consumes the frame and shows an operator the rendering,
-# so a fixture driving it can only see what the frame was turned INTO. `ssh`
-# consumes nothing, declares nothing, and has no way to declare anything: it
-# does not know this protocol exists. Its stderr is the daemon's frame bytes,
-# unread and unrewritten, and it receives them because every peer does.
-#
-# That makes the unconditional claim a POSITIVE assertion rather than an absence
-# one. If the frame were gated on a declaration again -- on an environment
-# variable, a capability, a protocol name at Stage 3 -- a client that declares
-# nothing would receive an empty stderr, and every assertion below would fail
-# for want of a line to read.
-#
-# The four fixtures that already drive this channel (answer-single-record,
-# answer-unknown-command, answer-truncation-detected,
-# answer-first-bounds-long-walk) all read the rendering `ze cli` produced. None
-# of them reads a frame byte. This one reads only the frame.
+# test. `ze cli` is Ze's own client (ExecCommandStream, internal/component/cli/
+# sshclient/answer.go); it always opts in via ZE_ANSWER_FRAME=1 and consumes the
+# frame. Plain `ssh` consumes nothing and declares nothing, so its stderr must
+# stay clean of protocol frames (AC-25 / declared-format-contradicts-payload
+# 2026-10-10); when OpenSSH explicitly opts in via SendEnv=ZE_ANSWER_FRAME=1,
+# its raw stderr exposes the daemon's frame bytes unread and unrewritten.
 #
 # WHAT THE EXEC CHANNEL WRITES, and why `row` and `bad` are not here. The daemon
 # RENDERS on this channel, because the format an operator sees comes from
 # ze.cli.format and four of the six renderings run to several lines
 # (writeExecAnswer, internal/component/ssh/answer.go). So the records reach the
-# operator on stdout as rendered text, and stderr carries the frame around them:
-# a head, a terminator, and a not-understood line for a command text that named
-# no command. The record kinds belong to the multiplexed plugin connection,
-# where answer-unconditional.ci asserts them. A `row` or a `bad` on THIS channel
-# would be a rendering leaking into the frame, which is why the compiled checker
+# operator on stdout as rendered text, and stderr carries plain warnings/errors
+# plus (when ZE_ANSWER_FRAME=1 is set) the frame around them: a head, a
+# terminator, and a not-understood line for a command text that named no
+# command. The record kinds belong to the multiplexed plugin connection, where
+# answer-unconditional.ci asserts them. A `row` or a `bad` on THIS channel would
+# be a rendering leaking into the frame, which is why the compiled checker
 # refuses one.
 #
-# VALIDATES: AC-2 -- an SSH client that sets up nothing receives the head and
-# the terminator, and no environment variable is consulted to decide it.
+# VALIDATES: AC-25 (plan/journal/declared-format-contradicts-payload.md,
+# 2026-10-10) -- plain `ssh` without ZE_ANSWER_FRAME receives clean output
+# (including valid JSON alone) and zero answer frame lines on stderr; opting in
+# via ZE_ANSWER_FRAME=1 receives the head and terminator frame on stderr.
 # VALIDATES: AC-4 -- the kind token starts at offset zero. The exec channel
 # carries one answer, so no `#<id>` sits in front of it.
 # VALIDATES: AC-13 -- no line carries a key=value pair. Every field is a
@@ -53,8 +63,9 @@
 # VALIDATES: AC-17 -- an absent value is written `0:`, present and empty, so a
 # line's field count never varies.
 # VALIDATES: AC-20 -- a line ends at exactly one `\n`, and never at `\r\n`.
-# PREVENTS: the negotiation returning, which would leave a peer that declares
-# nothing with no way to tell a finished answer from half of one.
+# PREVENTS: plugin frame trailers (`top doc 0: 0:`, `end 1 0 0:`) leaking onto
+# stderr for plain `ssh <host> <command>` sessions, or opt-in framing breaking
+# for clients that declare ZE_ANSWER_FRAME=1.
 # PREVENTS: a count of CHARACTERS reaching the wire where a count of BYTES
 # belongs, which mis-slices every field after the first non-ASCII value.
 
@@ -66,7 +77,9 @@
 cmd=foreground:seq=1:exec=le test fixture plugin/exec-answer-unconditional:timeout=45s
 expect=exit:code=0
 expect=stderr:contains=OK: document -- a built payload is framed `top doc 0: 0:` and `end 1 0 0:`
+expect=stderr:contains=OK: json -- plain SSH emitted clean JSON and opt-in framed `top doc 0: 0:` and `end 1 0 0:`
 expect=stderr:pattern=OK: streamed -- a walk of [0-9]+ records is framed
 expect=stderr:contains=OK: unknown -- a command text naming no command is the whole answer
 expect=stderr:pattern=OK: failed -- a failed command states its message as 31 BYTES, not the 29 characters
-expect=stderr:contains=OK: a client that declares nothing read every frame by arithmetic
+expect=stderr:contains=OK: plain -- plain SSH received clean output with zero answer frame lines
+expect=stderr:contains=OK: opt-in -- a client sending ZE_ANSWER_FRAME=1 read every frame by arithmetic

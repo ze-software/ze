@@ -1,15 +1,37 @@
-# ze-reference-mcp - the ze_reference MCP tool returns the AI reference over HTTP.
-# Proves the tool appears in tools/list (wait-tool) and that tools/call returns
-# the reference JSON through a live daemon -- the MCP-side single source of truth
-# shared with `ze help ai --json` (internal/component/aihelp).
+# ze-reference-mcp - an MCP consumer discovers this daemon's capabilities via
+# server/discover and ze_reference, then invokes discovered commands over HTTP.
+#
+# One question: does a live daemon over MCP advertise ze_reference, return the
+# complete aihelp.Reference contract (commands, rpcs with wire-method,
+# dispatch-keys, plugins, families, services) without relying on any incidental
+# wire-method namespace prefix, and execute the discovered commands through both
+# ze_execute and an auto-generated tool?
+# Why a unit test cannot decide it: unit tests exercise aihelp.Build and
+# toolHandlers["ze_reference"] in isolation; only a live daemon over Streamable
+# HTTP proves server/discover -> tools/list -> tools/call(ze_reference) ->
+# tools/call(ze_execute and generated tool) work end to end against live
+# registrations and configured state.
+#
+# VALIDATES: AC-29 (plan/journal/test-against-broken-path.md, 2026-10-09) --
+# consumer discovery/invocation proof in the reference surface's scope, shared
+# with `ze help ai --json` (internal/component/aihelp).
+# PREVENTS: ze_reference disappearing from tools/list, dropping a top-level
+# reference section, or advertising dispatch keys that cannot be invoked over
+# the same MCP listener.
 
 stdin=mcp:terminator=EOF_MCP
 wait-tool ze_reference
+wait-tool ze_show_version
+probe server/discover
 @ze_reference {}
+wait-peers
+probe tools/call {"name":"ze_execute","arguments":{"command":"show bgp peer list"}}
+probe tools/call {"name":"ze_show_version","arguments":{}}
 EOF_MCP
 
-# Single peer so the daemon has a valid config; it need not connect. The
-# reference comes from registries populated at init(), not from a BGP session.
+# Single peer so the daemon has a valid config and a live BGP peer to query
+# after discovering "show bgp peer list" in dispatch-keys. The peer need not
+# connect.
 stdin=ze-bgp:terminator=EOF_CONF
 bgp {
 	peer peer1 {
@@ -39,6 +61,24 @@ EOF_CONF
 cmd=background:seq=1:exec=ze --mcp $PORT -:stdin=ze-bgp
 cmd=foreground:seq=2:exec=le test mcp --port $PORT:stdin=mcp:timeout=20s
 expect=exit:code=0
-expect=stdout:contains=dispatch-keys
-expect=stdout:contains=wire-method
-expect=stdout:contains=ze-bgp:show-
+# 1. server/discover directs consumers to ze_reference first.
+expect=stdout:pattern=probe status=200 code=ok result=.*Call the ze_reference tool first
+# 2. ze_reference returns the complete aihelp.Reference JSON contract.
+expect=stdout:contains="commands": [
+expect=stdout:contains="rpcs": [
+expect=stdout:contains="wire-method":
+expect=stdout:contains="dispatch-keys": {
+expect=stdout:contains="plugins": [
+expect=stdout:contains="families": [
+expect=stdout:contains="services": [
+# Derived dispatch keys (values, not an incidental wire-method namespace prefix),
+# non-empty plugin-registered address families, and runtime surface metadata
+# appear in the reference payload.
+expect=stdout:contains=": "show bgp peer list"
+expect=stdout:contains=": "show version"
+expect=stdout:pattern="families": \[\s*"[^"\n]+/[^"\n]+"
+expect=stdout:contains="name": "mcp"
+# 3. Invoking the discovered commands over the same MCP surface succeeds.
+expect=stdout:pattern=probe status=200 code=ok result=.*peer1
+expect=stdout:pattern=probe status=200 code=ok result=.*\\"version\\":\s*\\"ze [^\n]+ \(built [^\n]+\)\\"
+reject=stdout:contains="isError":true
