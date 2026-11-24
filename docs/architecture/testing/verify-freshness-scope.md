@@ -344,12 +344,14 @@ them nor treats a truncated message as evidence that nothing is owed.
 | not applicable | the commit closes no spec (`closedSpecStem`) | the commit does not change that unit (`changedTaggedUnits`) | - |
 | closed | the removed spec, read at the commit's parent, records its Review Gate, or its Status is design or skeleton (`answerClosed`) | - | - |
 | reviewed | a clean `tmp/review/<stem>-*.md` artifact covering the spec's change set, the closure commit's paths plus those of every commit reachable from it that carries `Spec-work: <stem>` (`specWorkPopulation`, the producer the closure gate uses), whose hashes match the blobs at the closure commit (`answerReviewed`) | - | - |
-| approved | - | an ordinary `RFC-approved:` on the obligation's own carrier, or a unique same-carrier `RFC-approved:` / `RFC-approved-for: <fullSHA> <unit>` pair targeting that exact change/unit; the target precedes the approval and both are in range | - |
+| approved | - | an ordinary `RFC-approved:` on the obligation's own carrier, or a unique same-carrier `RFC-approved:` / `RFC-approved-for: <fullSHA> <unit>` pair targeting that exact change/unit; the target precedes the approval and is either in range or an already-published ancestor carrying `RFC-approval-owed:` for that unit | - |
 | owner | an `Owner-attested:` trailer in range naming the commit's stable patch-id | the same | the same |
 
 Bindings with a missing or ambiguous verdict, a noncanonical SHA, a wrong unit,
-an out-of-range target or a target that does not precede the carrier refuse.
-Unbound approvals never clear another commit's debt, and a rebase requires a
+a target that does not precede the carrier, or an already-published target that
+carries no `RFC-approval-owed:` for that unit refuse.
+Unbound approvals never clear another commit's debt, an already-published target
+never answers an unpushed commit's debt, and a rebase requires a
 fresh approval of the new commit identity.
 
 The producers live in `internal/le/commit/owed_answers.go`. `tmp/review/` is NOT the durable record of a review: it is untracked and is emptied. The Review Gate is committed prose and closure removes the spec, so `git show <closure-sha>^:<spec-path>` recovers it for ever, which is where `closed` reads it. A missing Review Gate has two meanings and they never share a branch: on a `skeleton` or `design` spec there was nothing to review, and on an implemented one the review is missing. The removed spec's own Status at the parent separates them.

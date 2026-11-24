@@ -246,9 +246,12 @@ func approvalAnswerKey(commit, unit string) approvalIdentity {
 	return approvalIdentity{commit: commit, unit: unit}
 }
 
-// validateBindings judges identities over exactly the range parsePersonActs
-// read. A binding never borrows another carrier's verdict or an out-of-range
-// target, and never translates a rebased target through patch identity.
+// validateBindings judges identities over the range parsePersonActs read, and
+// also admits a historical binding whose target is an already-published
+// ancestor carrying RFC-approval-owed: for that exact unit. A binding never
+// borrows another carrier's verdict, never translates a rebased target through
+// patch identity, and an already-published target never answers an unpushed
+// commit's debt.
 func (acts *personActs) validateBindings(root string) {
 	paired := make(map[approvalIdentity]bool)
 	targets := make(map[approvalIdentity]bool)
@@ -276,10 +279,6 @@ func (acts *personActs) validateBindings(root string) {
 			continue
 		}
 		targets[targetKey] = true
-		if !acts.commits[binding.target] {
-			problem("the target is outside the published range")
-			continue
-		}
 		if binding.target == binding.carrier {
 			problem("the target must precede the approval carrier")
 			continue
@@ -297,8 +296,42 @@ func (acts *personActs) validateBindings(root string) {
 			problem(err.Error())
 			continue
 		}
+		if !acts.commits[binding.target] {
+			owed, err := commitOwesRFCApproval(root, binding.target, binding.unit)
+			if err != nil {
+				problem("cannot read published target trailers: " + err.Error())
+				continue
+			}
+			if !owed {
+				problem("the target is outside the published range and owes no approval for " + binding.unit)
+				continue
+			}
+			continue
+		}
 		acts.approved[targetKey] = true
 	}
+}
+
+// commitOwesRFCApproval reports whether commit sha carries a valid
+// RFC-approval-owed: trailer naming unit. Used when an RFC-approved-for:
+// binding targets an already-published ancestor outside the push range.
+func commitOwesRFCApproval(root, sha, unit string) (bool, error) {
+	body, err := gitOutput(root, "log", "-1", "--no-show-signature", "--format=%B", sha, "--")
+	if err != nil {
+		return false, err
+	}
+	for raw := range strings.SplitSeq(body, "\n") {
+		line := strings.TrimSuffix(raw, "\r")
+		value, ok := strings.CutPrefix(line, trailerRFCApprovalOwed)
+		if !ok {
+			continue
+		}
+		subject, _, valid := cutOwed(value)
+		if valid && subject == unit {
+			return true, nil
+		}
+	}
+	return false, nil
 }
 
 // cutOwed splits an owed trailer's value, `<subject>: <reason>`, and answers

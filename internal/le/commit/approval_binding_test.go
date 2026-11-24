@@ -63,18 +63,23 @@ func TestLateApprovalAnswersOnlyItsBoundChange(t *testing.T) {
 }
 
 // TestBoundApprovalRequiresASameCarrierPair proves that a binding cannot borrow
-// an ordinary trailer from a different commit, name the wrong unit, or point
-// outside the published range. Each malformed history must refuse derivation.
+// an ordinary trailer from a different commit, name the wrong unit, or point to
+// an already-published ancestor that owes no approval for that unit. Each
+// malformed history must refuse derivation.
 func TestBoundApprovalRequiresASameCarrierPair(t *testing.T) {
 	const unit = "pkg.TestIdentity"
-	for _, shape := range []string{"missing approval", "different carrier", "wrong unit", "outside range", "abbreviated target", "duplicate pairing"} {
+	for _, shape := range []string{"missing approval", "different carrier", "wrong unit", "outside range without owed", "abbreviated target", "duplicate pairing"} {
 		t.Run(shape, func(t *testing.T) {
 			root := newCommitRepository(t)
 			configureCommitAuthor(t, root)
 			const path = "pkg/identity_test.go"
 			base := commitOwed(t, root, "original carrier", map[string]string{path: "package pkg\n// RFC requirement: RFC2119-1-1 positive\nfunc TestIdentity(t *testing.T) {\n\tcheck(1)\n}\n"}, nil)
+			targetTrailers := []string{trailerRFCApprovalOwed + unit + ": pending judgement"}
+			if shape == "outside range without owed" {
+				targetTrailers = nil
+			}
 			target := commitOwed(t, root, "change needing approval", map[string]string{path: "package pkg\n// RFC requirement: RFC2119-1-1 positive\nfunc TestIdentity(t *testing.T) {\n\tcheck(2)\n}\n"}, nil,
-				trailerRFCApprovalOwed+unit+": pending judgement")
+				targetTrailers...)
 			binding := target
 			approved := unit
 			upstream := base
@@ -85,7 +90,7 @@ func TestBoundApprovalRequiresASameCarrierPair(t *testing.T) {
 			if shape == "wrong unit" {
 				approved = "pkg.TestOther"
 			}
-			if shape == "outside range" {
+			if shape == "outside range without owed" {
 				upstream = target
 			}
 			if shape == "abbreviated target" {
@@ -108,4 +113,60 @@ func TestBoundApprovalRequiresASameCarrierPair(t *testing.T) {
 			}
 		})
 	}
+}
+
+// TestHistoricalBoundApprovalTargetingPublishedOwedCommit proves that a late
+// bound approval targeting an already-published ancestor carrying
+// RFC-approval-owed: for that unit is admitted without refusing push debt, does
+// not clear a separate unpushed obligation on the same unit, and still refuses
+// an already-published target that owes approval only for another unit.
+func TestHistoricalBoundApprovalTargetingPublishedOwedCommit(t *testing.T) {
+	const path = "pkg/identity_test.go"
+	const unit = "pkg.TestIdentity"
+	const original = "package pkg\n// RFC requirement: RFC2119-1-1 positive\nfunc TestIdentity(t *testing.T) {\n\tcheck(1)\n}\n"
+	const changed = "package pkg\n// RFC requirement: RFC2119-1-1 positive\nfunc TestIdentity(t *testing.T) {\n\tcheck(2)\n}\n"
+	const changedAgain = "package pkg\n// RFC requirement: RFC2119-1-1 positive\nfunc TestIdentity(t *testing.T) {\n\tcheck(3)\n}\n"
+
+	t.Run("admitted for published owed target without clearing later unpushed owed", func(t *testing.T) {
+		root := newCommitRepository(t)
+		configureCommitAuthor(t, root)
+		commitOwed(t, root, "original carrier", map[string]string{path: original}, nil)
+		publishedOwed := commitOwed(t, root, "published change owing approval", map[string]string{path: changed}, nil,
+			trailerRFCApprovalOwed+unit+": pending judgement")
+		unpushedOwed := commitOwed(t, root, "unpushed change owing approval", map[string]string{path: changedAgain}, nil,
+			trailerRFCApprovalOwed+unit+": second judgement pending")
+		commitOwed(t, root, "publish historical judge approval", nil, nil,
+			rfc.ApprovalTrailerLine(unit, "judge: approved published change"),
+			"RFC-approved-for: "+publishedOwed+" "+unit)
+
+		debt := derivedDebt{Upstream: publishedOwed}
+		if err := debt.readPersonActs(root, revParse(t, root, "HEAD")); err != nil {
+			t.Fatal(err)
+		}
+		if len(debt.Refusals) != 0 {
+			t.Fatalf("valid historical approval was refused: %v", debt.Refusals)
+		}
+		if len(debt.Items) != 1 || debt.Items[0].Commit != unpushedOwed || debt.Items[0].Subject != unit {
+			t.Fatalf("want only unpushed commit %s still owed, got %+v", unpushedOwed, debt.Items)
+		}
+	})
+
+	t.Run("refused when published target owes only a different unit", func(t *testing.T) {
+		root := newCommitRepository(t)
+		configureCommitAuthor(t, root)
+		commitOwed(t, root, "original carrier", map[string]string{path: original}, nil)
+		publishedWrongOwed := commitOwed(t, root, "published change owing other unit", map[string]string{path: changed}, nil,
+			trailerRFCApprovalOwed+"pkg.TestOther: pending judgement")
+		commitOwed(t, root, "publish mismatched historical approval", nil, nil,
+			rfc.ApprovalTrailerLine(unit, "judge: approved"),
+			"RFC-approved-for: "+publishedWrongOwed+" "+unit)
+
+		debt := derivedDebt{Upstream: publishedWrongOwed}
+		if err := debt.readPersonActs(root, revParse(t, root, "HEAD")); err != nil {
+			t.Fatal(err)
+		}
+		if len(debt.Refusals) == 0 {
+			t.Fatalf("published target owing another unit did not refuse: items = %v", debt.Items)
+		}
+	})
 }
