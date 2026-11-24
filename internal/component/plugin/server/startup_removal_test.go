@@ -574,3 +574,288 @@ func TestReloadRemovalFailureRecoversCommittedService(t *testing.T) {
 		}
 	}
 }
+
+// TestFinalRemovalLeavesConfiguredSet verifies that a reload removal drops the
+// plugin's name from ProcessManager.ConfiguredNames only when the reload scope
+// is accepted, and keeps it when the scope is rejected.
+//
+// VALIDATES: spec-fib-dummy AC-17, A-8 -- finishRemovalScope(scope, true)
+// unconfigures each finalized removal; finishRemovalScope(scope, false) keeps
+// the name configured so recovery restores it.
+// PREVENTS: a committed reload leaving a removed plugin in ConfiguredNames, or
+// an uncommitted/rejected reload dropping a plugin before recovery runs.
+func TestFinalRemovalLeavesConfiguredSet(t *testing.T) {
+	for _, accepted := range []bool{true, false} {
+		label := "rejected"
+		if accepted {
+			label = "accepted"
+		}
+		t.Run(label, func(t *testing.T) {
+			snapshot := registry.Snapshot()
+			registry.Reset()
+			t.Cleanup(func() { registry.Restore(snapshot) })
+
+			const (
+				keptName    = "final-removal-kept"
+				removedName = "final-removal-target"
+				removedRoot = "final-removal-root"
+			)
+			registerSimple := func(name string, roots []string) {
+				require.NoError(t, registry.Register(registry.Registration{
+					Name:        name,
+					Description: "configured set removal test plugin",
+					ConfigRoots: roots,
+					CLIHandler:  func([]string) int { return 0 },
+					RunEngine: func(conn net.Conn) int {
+						p := sdk.NewWithConn(name, conn)
+						if err := p.Run(context.Background(), &sdk.Registration{}); err != nil {
+							return 1
+						}
+						return 0
+					},
+				}))
+			}
+			registerSimple(keptName, nil)
+			registerSimple(removedName, []string{removedRoot})
+
+			var s *Server
+			t.Cleanup(func() {
+				if s != nil {
+					s.wg.Wait()
+				}
+			})
+			s, spawner := newLifecycleStartupServer(t)
+			s.SetShutdownFunc(func() {})
+			committed := map[string]any{removedRoot: map[string]any{"enabled": true}}
+			s.reactor = &removalRecoveryReactor{tree: committed}
+
+			require.NoError(t, s.runPluginPhase([]plugin.PluginConfig{
+				{Name: keptName, Internal: true, Encoder: plugin.EncodingJSON},
+				{Name: removedName, Internal: true, Encoder: plugin.EncodingJSON},
+			}))
+			require.Equal(t, []string{keptName, removedName}, spawner.pm.ConfiguredNames())
+
+			reloadCtx, finish := s.DeferReloadAcceptance(t.Context())
+			defer finish(false) //nolint:errcheck // Cleanup; outcome is asserted below.
+			require.NoError(t, s.ReloadConfig(reloadCtx, map[string]any{}))
+
+			require.Nil(t, spawner.pm.GetProcess(removedName))
+			require.Contains(t, spawner.pm.ConfiguredNames(), removedName,
+				"a pending reload removal must keep the plugin configured until the scope settles")
+
+			require.NoError(t, finish(accepted))
+			if accepted {
+				require.Equal(t, []string{keptName}, spawner.pm.ConfiguredNames(),
+					"an accepted reload removal must drop the removed plugin from ConfiguredNames")
+				require.Nil(t, spawner.pm.GetProcess(removedName))
+				return
+			}
+
+			require.Eventually(t, func() bool {
+				proc := spawner.pm.GetProcess(removedName)
+				_, txDone := s.txLock.inFlight()
+				return proc != nil && proc.Running() && !s.removalPendingFor(removedName) && txDone == nil
+			}, 5*time.Second, time.Millisecond, "rejected reload did not restore the removed plugin")
+			require.Contains(t, spawner.pm.ConfiguredNames(), removedName,
+				"a rejected reload must keep the recovered plugin in ConfiguredNames")
+			require.Contains(t, spawner.pm.ConfiguredNames(), keptName)
+		})
+	}
+}
+
+// TestRolledBackStartLeavesConfiguredSet verifies that a plugin started by a
+// rejected reload leaves ConfiguredNames whether it stopped below StageRunning
+// (no removal scope) or at StageRunning (settled by rejection recovery), while
+// a boot startup failure keeps its configured name for doctor and restart.
+//
+// VALIDATES: spec-fib-dummy AC-17, A-8 -- rollbackStartupProcess drops a
+// rolled-back reload start below StageRunning, restoreRemovedPlugin drops one
+// stopped at StageRunning that the committed config does not hold, and a failed
+// boot start stays configured.
+// PREVENTS: a rejected reload leaving an auto-loaded candidate plugin
+// restartable through `request plugin restart`, or unconfiguring a committed
+// plugin whose boot start failed.
+func TestRolledBackStartLeavesConfiguredSet(t *testing.T) {
+	t.Run("reload-below-running", func(t *testing.T) {
+		snapshot := registry.Snapshot()
+		registry.Reset()
+		t.Cleanup(func() { registry.Restore(snapshot) })
+
+		const (
+			baselineName = "rollback-start-baseline"
+			addedName    = "rollback-start-below-running"
+			addedRoot    = "rollback-start-below-root"
+		)
+		require.NoError(t, registry.Register(registry.Registration{
+			Name:        baselineName,
+			Description: "committed baseline plugin",
+			CLIHandler:  func([]string) int { return 0 },
+			RunEngine: func(conn net.Conn) int {
+				p := sdk.NewWithConn(baselineName, conn)
+				if err := p.Run(context.Background(), &sdk.Registration{}); err != nil {
+					return 1
+				}
+				return 0
+			},
+		}))
+		require.NoError(t, registry.Register(registry.Registration{
+			Name:        addedName,
+			Description: "candidate plugin failing configure",
+			ConfigRoots: []string{addedRoot},
+			CLIHandler:  func([]string) int { return 0 },
+			RunEngine: func(conn net.Conn) int {
+				p := sdk.NewWithConn(addedName, conn)
+				p.OnConfigure(func([]sdk.ConfigSection) error {
+					return errors.New("candidate configure refused")
+				})
+				if err := p.Run(context.Background(), &sdk.Registration{}); err != nil {
+					return 1
+				}
+				return 0
+			},
+		}))
+
+		var s *Server
+		t.Cleanup(func() {
+			if s != nil {
+				s.wg.Wait()
+			}
+		})
+		s, spawner := newLifecycleStartupServer(t)
+		s.SetShutdownFunc(func() {})
+		s.reactor = &removalRecoveryReactor{tree: map[string]any{}}
+
+		require.NoError(t, s.runPluginPhase([]plugin.PluginConfig{
+			{Name: baselineName, Internal: true, Encoder: plugin.EncodingJSON},
+		}))
+		t.Cleanup(func() {
+			if spawner.pm != nil {
+				spawner.pm.ClearStopped(addedName)
+			}
+		})
+
+		err := s.ReloadConfig(t.Context(), map[string]any{addedRoot: map[string]any{"enabled": true}})
+		require.Error(t, err)
+		require.Nil(t, spawner.pm.GetProcess(addedName))
+		require.NotContains(t, spawner.pm.ConfiguredNames(), addedName,
+			"a rolled-back reload start below StageRunning must leave ConfiguredNames")
+		require.Contains(t, spawner.pm.ConfiguredNames(), baselineName)
+	})
+
+	t.Run("reload-at-running", func(t *testing.T) {
+		snapshot := registry.Snapshot()
+		registry.Reset()
+		t.Cleanup(func() { registry.Restore(snapshot) })
+
+		const (
+			counterName = "rollback-start-counter"
+			counterRoot = "rollback-start-counter-root"
+			addedName   = "rollback-start-at-running"
+			addedRoot   = "rollback-start-running-root"
+		)
+		require.NoError(t, registry.Register(registry.Registration{
+			Name:        counterName,
+			Description: "committed participant refusing reload verify",
+			CLIHandler:  func([]string) int { return 0 },
+			RunEngine: func(conn net.Conn) int {
+				p := sdk.NewWithConn(counterName, conn)
+				p.OnConfigVerify(func([]sdk.ConfigSection) error {
+					return errors.New("committed participant refuses candidate")
+				})
+				p.OnConfigApply(func([]sdk.ConfigDiffSection) error { return nil })
+				if err := p.Run(context.Background(), &sdk.Registration{WantsConfig: []string{counterRoot}}); err != nil {
+					return 1
+				}
+				return 0
+			},
+		}))
+		require.NoError(t, registry.Register(registry.Registration{
+			Name:        addedName,
+			Description: "candidate plugin reaching running before reload failure",
+			ConfigRoots: []string{addedRoot},
+			CLIHandler:  func([]string) int { return 0 },
+			RunEngine: func(conn net.Conn) int {
+				p := sdk.NewWithConn(addedName, conn)
+				if err := p.Run(context.Background(), &sdk.Registration{}); err != nil {
+					return 1
+				}
+				return 0
+			},
+		}))
+
+		var s *Server
+		t.Cleanup(func() {
+			if s != nil {
+				s.wg.Wait()
+			}
+		})
+		s, spawner := newLifecycleStartupServer(t)
+		s.SetShutdownFunc(func() {})
+		committed := map[string]any{counterRoot: map[string]any{"value": int64(1)}}
+		s.reactor = &removalRecoveryReactor{tree: committed}
+
+		require.NoError(t, s.runPluginPhase([]plugin.PluginConfig{
+			{Name: counterName, Internal: true, Encoder: plugin.EncodingJSON},
+		}))
+
+		candidate := map[string]any{
+			counterRoot: map[string]any{"value": int64(2)},
+			addedRoot:   map[string]any{"enabled": true},
+		}
+		require.Error(t, s.ReloadConfig(t.Context(), candidate))
+
+		require.Eventually(t, func() bool {
+			_, txDone := s.txLock.inFlight()
+			return !s.removalPendingFor(addedName) && txDone == nil
+		}, 5*time.Second, time.Millisecond, "rolled-back candidate start did not settle")
+
+		require.Nil(t, spawner.pm.GetProcess(addedName))
+		require.NotContains(t, spawner.pm.ConfiguredNames(), addedName,
+			"a rolled-back reload start stopped at StageRunning must leave ConfiguredNames once the scope settles")
+		require.Contains(t, spawner.pm.ConfiguredNames(), counterName)
+	})
+
+	t.Run("boot-failed-start-stays-configured", func(t *testing.T) {
+		snapshot := registry.Snapshot()
+		registry.Reset()
+		t.Cleanup(func() { registry.Restore(snapshot) })
+
+		const failedBootName = "rollback-start-boot-failed"
+		require.NoError(t, registry.Register(registry.Registration{
+			Name:        failedBootName,
+			Description: "boot plugin failing configure",
+			CLIHandler:  func([]string) int { return 0 },
+			RunEngine: func(conn net.Conn) int {
+				p := sdk.NewWithConn(failedBootName, conn)
+				p.OnConfigure(func([]sdk.ConfigSection) error {
+					return errors.New("boot configure refused")
+				})
+				if err := p.Run(context.Background(), &sdk.Registration{}); err != nil {
+					return 1
+				}
+				return 0
+			},
+		}))
+
+		var s *Server
+		t.Cleanup(func() {
+			if s != nil {
+				s.wg.Wait()
+			}
+		})
+		s, spawner := newLifecycleStartupServer(t)
+		s.SetShutdownFunc(func() {})
+		t.Cleanup(func() {
+			if spawner.pm != nil {
+				spawner.pm.ClearStopped(failedBootName)
+			}
+		})
+
+		err := s.runPluginPhase([]plugin.PluginConfig{
+			{Name: failedBootName, Internal: true, Encoder: plugin.EncodingJSON},
+		})
+		require.Error(t, err)
+		require.Contains(t, spawner.pm.ConfiguredNames(), failedBootName,
+			"a boot-configured plugin whose start failed must keep its configured name for doctor and restart")
+	})
+}

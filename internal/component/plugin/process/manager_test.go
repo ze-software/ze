@@ -448,3 +448,80 @@ func TestRespawnRefusedWhileDraining(t *testing.T) {
 	assert.Same(t, second, pm.GetProcess("test-respawn-draining"),
 		"a refused respawn must leave the exited process in place, so the plugin stays down")
 }
+
+// TestUnconfigureProcess removes a stopped plugin from the configured set while
+// leaving live processes and the order of remaining plugins intact.
+//
+// VALIDATES: spec-fib-dummy AC-17 -- UnconfigureProcess drops a removed plugin
+// from ConfiguredNames, clears its respawn/disable/stopped state, preserves the
+// order of remaining configured plugins, and is a no-op when a live process
+// still occupies the name.
+// PREVENTS: a final reload removal leaving a plugin restartable via Respawn, or
+// an outdated removal unconfiguring a replacement process started under the same
+// name.
+func TestUnconfigureProcess(t *testing.T) {
+	const (
+		alphaName = "test-unconfigure-alpha"
+		betaName  = "test-unconfigure-beta"
+		gammaName = "test-unconfigure-gamma"
+	)
+	for _, name := range []string{alphaName, betaName, gammaName} {
+		registerRunEngine(t, name, func(conn net.Conn) int {
+			drainUntilClosed(conn)
+			return 0
+		})
+	}
+
+	pm := NewProcessManager([]plugin.PluginConfig{
+		{Name: alphaName, Internal: true, Encoder: "json"},
+		{Name: betaName, Internal: true, Encoder: "json"},
+		{Name: gammaName, Internal: true, Encoder: "json"},
+	})
+	require.NoError(t, pm.Start())
+	t.Cleanup(pm.Stop)
+
+	require.Equal(t, []string{alphaName, betaName, gammaName}, pm.ConfiguredNames())
+
+	// A live process registered under the name protects its configured entry.
+	pm.UnconfigureProcess(betaName)
+	require.Equal(t, []string{alphaName, betaName, gammaName}, pm.ConfiguredNames(),
+		"UnconfigureProcess dropped a name that still has a live process")
+	require.NotNil(t, pm.GetProcess(betaName))
+
+	beta := pm.GetProcess(betaName)
+	pm.RemoveProcess(betaName)
+	beta.Stop()
+	joinCtx, cancel := context.WithTimeout(t.Context(), 5*time.Second)
+	defer cancel()
+	require.NoError(t, beta.Wait(joinCtx))
+
+	// RemoveProcess alone keeps the name configured until removal is final.
+	require.Equal(t, []string{alphaName, betaName, gammaName}, pm.ConfiguredNames())
+
+	pm.mu.Lock()
+	pm.disabled[betaName] = true
+	pm.respawnTimes[betaName] = []time.Time{time.Now()}
+	pm.totalRespawns[betaName] = 3
+	pm.mu.Unlock()
+	pm.RecordStopped(betaName, PluginStop{Cause: StopPolicyExit, Detail: "exited"})
+
+	pm.UnconfigureProcess(betaName)
+
+	require.Equal(t, []string{alphaName, gammaName}, pm.ConfiguredNames(),
+		"UnconfigureProcess must drop the name and preserve the order of remaining plugins")
+	assert.False(t, pm.Disabled(betaName))
+	_, down := pm.Stopped(betaName)
+	assert.False(t, down)
+	pm.mu.RLock()
+	assert.Empty(t, pm.respawnTimes[betaName])
+	assert.Zero(t, pm.totalRespawns[betaName])
+	pm.mu.RUnlock()
+
+	_, respawnErr := pm.Respawn(betaName)
+	require.ErrorIs(t, respawnErr, ErrProcessNotFound)
+
+	// Calling again on the same name or an unknown name is a safe no-op.
+	pm.UnconfigureProcess(betaName)
+	pm.UnconfigureProcess("test-unconfigure-absent")
+	require.Equal(t, []string{alphaName, gammaName}, pm.ConfiguredNames())
+}

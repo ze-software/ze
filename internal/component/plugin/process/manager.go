@@ -82,8 +82,8 @@ type pluginMetrics struct {
 // ProcessManager manages multiple external processes.
 type ProcessManager struct {
 	// configs holds exactly the plugins this manager is asked to run, one
-	// entry per name: StartMore replaces a name it already holds. Nothing
-	// drops an entry, so a plugin a reload removed stays listed. Protected by
+	// entry per name: StartMore replaces a name it already holds, and
+	// UnconfigureProcess drops a name once its removal is final. Protected by
 	// mu.
 	configs   []plugin.PluginConfig
 	processes map[string]*Process
@@ -637,9 +637,9 @@ func AmbiguousRegistration(registration string, blocks []string) error {
 
 // RemoveProcess unregisters a stopped process by name. The plugin stays
 // configured (ConfiguredNames, Respawn): a failed startup or restart handshake
-// removes its process this way and records it down. A reload's removal does
-// too, so a plugin the configuration no longer names stays configured: nothing
-// drops its name from the configured set.
+// removes its process this way and records it down, and a reload's removal
+// keeps it configured until the reload is accepted and UnconfigureProcess
+// drops it.
 //
 // A removed plugin is not down, so its stop record and its bus warning go
 // with it, and so do the warnings it raised itself (report-issue) and its
@@ -650,6 +650,27 @@ func (pm *ProcessManager) RemoveProcess(name string) {
 	delete(pm.processes, name)
 	pm.clearStoppedLocked(name)
 	report.ClearSource(name)
+}
+
+// UnconfigureProcess drops name from the manager's configured set once a
+// reload removal is final or a rolled-back reload start ends, along with its
+// respawn history, disable state, stop record, and status gauge label. It is a
+// no-op when a live process is currently registered under name (for example, a
+// replacement started under the same name). Safe for concurrent use.
+func (pm *ProcessManager) UnconfigureProcess(name string) {
+	pm.mu.Lock()
+	defer pm.mu.Unlock()
+	if pm.processes[name] != nil {
+		return
+	}
+	pm.configs = slices.DeleteFunc(pm.configs, func(cfg plugin.PluginConfig) bool {
+		return cfg.Name == name
+	})
+	delete(pm.disabled, name)
+	delete(pm.respawnTimes, name)
+	delete(pm.totalRespawns, name)
+	pm.clearStoppedLocked(name)
+	pm.deletePluginStatusLabel(name)
 }
 
 // AddProcess registers a process by name. Used by tests to inject mock processes.
@@ -716,8 +737,8 @@ func (pm *ProcessManager) isRunning(name string) bool {
 // run, once each, in the order it was first given them (NewProcessManager,
 // then each StartMore). A name stays configured after its process ends or is
 // disabled, which is what lets a reader tell a stopped plugin from an absent
-// one. Nothing removes a name, so a plugin a reload removed is still listed.
-// Safe for concurrent use.
+// one. UnconfigureProcess drops a name once a reload's removal is final or a
+// rolled-back reload start ends. Safe for concurrent use.
 func (pm *ProcessManager) ConfiguredNames() []string {
 	pm.mu.RLock()
 	defer pm.mu.RUnlock()

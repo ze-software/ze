@@ -129,12 +129,42 @@ type pluginRemoval struct {
 // rollbackStartupProcess keeps dependencies and registrations available until a
 // running plugin acknowledges cleanup. A timeout rejects removal; it does not
 // cancel the pending acknowledgement or pretend the plugin released its state.
+// A process below StageRunning never enters s.removals, so when it belongs to
+// a rolled-back reload start (or a direct stop outside a boot/recovery startup
+// phase), its stop is final here and its name leaves the configured set.
 func (s *Server) rollbackStartupProcess(proc *process.Process) error {
 	if proc.Stage() < plugin.StageRunning {
 		s.stopRemovedProcess(proc)
+		if s.unconfigureBelowRunning(proc) {
+			if pm := s.procManager.Load(); pm != nil {
+				pm.UnconfigureProcess(proc.Name())
+			}
+		}
 		return nil
 	}
 	return s.notifyPluginRemoval(proc)
+}
+
+// unconfigureBelowRunning reports whether a process stopped before StageRunning
+// should leave the configured set. A boot startup failure and a recovery
+// startup failure belong to a plugin the committed configuration still names,
+// so they keep their configured name for doctor and `request plugin restart`.
+// A rolled-back reload start (a non-recovery startup phase running under an
+// active reload acceptance scope) and a direct stop outside any startup phase
+// drop the name immediately because finishRemovalScope never sees them.
+func (s *Server) unconfigureBelowRunning(proc *process.Process) bool {
+	selected, scoped := s.pluginConfigureConfig(proc)
+	// refuse-by-default: guards rollbackStartupProcess -- a process outside any active Configure scope is a direct stop rather than a boot or recovery failure
+	if !scoped {
+		return true
+	}
+	if selected.recovering {
+		return false
+	}
+	s.txLock.mu.Lock()
+	inReload := s.txLock.acceptance != nil
+	s.txLock.mu.Unlock()
+	return inReload
 }
 
 func (s *Server) stopRemovedProcess(proc *process.Process) {
@@ -217,6 +247,9 @@ func (s *Server) notifyPluginRemoval(proc *process.Process) error {
 			s.removalMu.Lock()
 			delete(s.removals, proc)
 			s.removalMu.Unlock()
+			if pm := s.procManager.Load(); pm != nil {
+				pm.UnconfigureProcess(proc.Name())
+			}
 		}
 		return nil
 	case <-ctx.Done():
@@ -247,9 +280,11 @@ func (s *Server) finishFailedPluginRemoval(proc *process.Process, attempt *plugi
 }
 
 // finishRemovalScope is called before the outer reload releases its completion
-// barrier. Successful removals are final only if the whole reload was accepted.
+// barrier. Successful removals are final only if the whole reload was accepted;
+// each finalized removal's name leaves the process manager's configured set.
 func (s *Server) finishRemovalScope(scope *reloadAcceptance, accepted bool) {
 	s.removalMu.Lock()
+	var finalized []string
 	var rejected map[*process.Process]*pluginRemoval
 	for proc, attempt := range s.removals {
 		if attempt.scope != scope {
@@ -257,6 +292,7 @@ func (s *Server) finishRemovalScope(scope *reloadAcceptance, accepted bool) {
 		}
 		if accepted && attempt.stopped {
 			delete(s.removals, proc)
+			finalized = append(finalized, proc.Name())
 			continue
 		}
 		if rejected == nil {
@@ -265,6 +301,13 @@ func (s *Server) finishRemovalScope(scope *reloadAcceptance, accepted bool) {
 		rejected[proc] = attempt
 	}
 	s.removalMu.Unlock()
+	if len(finalized) > 0 {
+		if pm := s.procManager.Load(); pm != nil {
+			for _, name := range finalized {
+				pm.UnconfigureProcess(name)
+			}
+		}
+	}
 	for proc, attempt := range rejected {
 		s.recoverPluginRemoval(proc, attempt)
 	}
@@ -393,7 +436,10 @@ func (s *Server) restoreRemovedPlugin(ctx context.Context, proc *process.Process
 	}
 	if len(roots) == 0 && !s.hasConfiguredPlugin(proc.Name()) {
 		if pm := s.procManager.Load(); attempt.stopped && pm != nil {
-			return s.stopOrphanedDependencies(pm, map[string]bool{proc.Name(): true})
+			if err := s.stopOrphanedDependencies(pm, map[string]bool{proc.Name(): true}); err != nil {
+				return err
+			}
+			pm.UnconfigureProcess(proc.Name())
 		}
 		return nil
 	}
