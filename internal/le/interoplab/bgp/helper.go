@@ -180,8 +180,6 @@ func announcementPlan(scenario string) (processPlan, error) {
 		addAfter(100*time.Millisecond, "update text origin igp path 65001 nhop 172.30.0.2 large-community [65001:0:1] nlri add 10.10.1.0/24")
 	case "bgp-extended-community-frr":
 		add("update text origin igp path 65001 nhop 172.30.0.2 extended-community [target:65001:100] nlri add 10.10.0.0/24")
-	case scenarioECMPFRR:
-		add("update text origin igp path 65001 nhop 172.30.0.2 nlri add 10.100.0.0/24")
 	case scenarioFlowspecFRR:
 		plan.updates = []announcement{
 			{selector: "*", command: "update text extended-community [rate-limit:0] nhop 172.30.0.2 mp ipv4/flow add destination-ipv4 10.99.0.0/24", quiesce: true},

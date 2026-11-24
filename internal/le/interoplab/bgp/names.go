@@ -188,7 +188,7 @@ const (
 	zeOSPFv3IPv4InstanceID = `"instance-id": 64`
 )
 
-// nft(8) words. The GTSM scenario counts a rejected segment with them, the
+// nft command words. The GTSM scenario counts a rejected segment with them, the
 // flowspec scenario reads the ruleset ze lowered, and the BFD scenario drops
 // ze's BFD Control traffic.
 const (
@@ -434,7 +434,6 @@ const (
 	peerPrefixSecond    = "10.99.1.0/24"
 	flowspecMatchPrefix = "10.99.5.0/24"
 	flowspecOrOfAndRule = "[destination: 10.99.2.0/24][port: >80&<100 >443&<500]"
-	ecmpPrefix          = "10.100.0.0/24"
 	medPrefix           = "10.62.0.0/24"
 	ospf6NSSAPrefix     = "2001:db8:7e5::/48"
 )
@@ -598,7 +597,6 @@ const (
 	scenarioAS112OriginASFRR                 = "as112-origin-as-frr"
 	scenarioAddPathFRR                       = "bgp-addpath-frr"
 	scenarioAddPathZeroIDFRR                 = "addpath-zero-id-frr"
-	scenarioECMPFRR                          = "bgp-ecmp-frr"
 	scenarioEVPNFRR                          = "bgp-evpn-frr"
 	scenarioEVPNGoBGP                        = "bgp-evpn-gobgp"
 	scenarioFlowspecFRR                      = "bgp-flowspec-frr"
@@ -906,8 +904,8 @@ const (
 var srv6IneligibleReexport = []string{cmdVtysh, "-c", frrConfigureTerminal, "-c", "router bgp 65001", "-c", "address-family ipv6 unicast", "-c", "no export vpn", "-c", "export vpn"}
 
 // flowspecMatchSCTP and flowspecMatchSCTPJSON are the SCTP match the flowspec
-// scenario lowers, as nft(8) prints it in text and in JSON (`nft -j`). The lab
-// image's nft (Alpine 3.24.3, nftables 1.1.6, musl) prints the protocol as its
+// scenario lowers, as the nft tool prints it in text and in JSON (`nft -j`). The lab
+// image's nft binary (Alpine 3.24.3, nftables 1.1.6, musl) prints the protocol as its
 // number, 132 (SCTP), in both forms: `meta l4proto 132` and
 // `{"meta": {"key": "l4proto"}}, "right": 132}`. The word "sctp" appears in
 // neither, so an absence check on it passed whatever the ruleset held.

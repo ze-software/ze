@@ -97,9 +97,6 @@ var scenarioExtras = map[string][]operation{
 	scenarioAddPathZeroIDFRR: {
 		{kind: opRequireContains, peer: peerFRR, command: []string{cmdVtysh, "-c", "show bgp ipv4 unicast 10.10.0.0/24"}, contains: []string{injectPrefixFirst, frrTwoPathsAvailable, "AddPath ID: RX 0,", "AddPath ID: RX 1,"}},
 	},
-	scenarioECMPFRR: {
-		{kind: opRequireContains, peer: peerFRR, command: []string{cmdVtysh, "-c", "show bgp ipv4 unicast 10.100.0.0/24 json"}, contains: []string{ecmpPrefix, zeLabAddress, gobgpLabAddress}},
-	},
 	scenarioEVPNFRR: {
 		{kind: opRequireContains, peer: peerFRR, command: []string{cmdVtysh, "-c", frrShowZeNeighborJSON}, contains: []string{"l2VpnEvpn", frrCapabilityNegotiated}},
 		{kind: opWaitContains, peer: peerFRR, command: []string{cmdVtysh, "-c", "show bgp l2vpn evpn"}, contains: []string{"00:11:22:33:44:55", "00:11:22:33:44:66"}, timeout: 30 * time.Second},

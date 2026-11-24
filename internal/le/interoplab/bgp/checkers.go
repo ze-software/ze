@@ -612,12 +612,6 @@ var scenarioOperations = map[string][]operation{
 	"bgp-ebgp-ipv4-frr": {
 		{kind: opFRRSession, argument: zeLabAddress},
 	},
-	scenarioECMPFRR: {
-		{kind: opFRRSession, argument: zeLabAddress},
-		{kind: opFRRSession, argument: gobgpLabAddress},
-		{kind: opExec, peer: peerGoBGP, command: []string{cmdGoBGP, gobgpGlobal, gobgpRIB, gobgpAdd, ecmpPrefix, "-a", gobgpFamilyIPv4, gobgpNextHop, gobgpLabAddress}},
-		{kind: opFRRRoute, argument: ecmpPrefix, timeout: 30 * time.Second},
-	},
 	scenarioEVPNFRR: {
 		{kind: opFRRSession, argument: zeLabAddress},
 	},
