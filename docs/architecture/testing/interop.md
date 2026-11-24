@@ -709,6 +709,41 @@ reject the fifth UPDATE because an announcement escaped instead of a withdrawal.
 <!-- source: internal/le/interoplab/bgp/check_as_zero_wire.go -- checkASZeroRawFRR -->
 <!-- source: internal/le/interoplab/bgp/check_as_zero_wire_oracle.go -- judgeASZeroWire -->
 
+### Raw VPNv6 family admission observed before FRR
+
+This section describes the scenario's assertions. It reports no completed run.
+
+`bgp-raw-vpnv6-family-admission-frr` exercises operator `send bgp ... raw hex ...`
+commands in both body (`type update`) and full-packet forms against two FRR 10.7.1
+peers behind transparent wire relays (`speaker` at `.10` to `frr` at `.3`, and
+`speaker2` at `.11` to `frr-sink` at `.15`). `frr` negotiates both `ipv4/unicast`
+(AFI 1 / SAFI 1) and `ipv6/mpls-vpn` (AFI 2 / SAFI 128); `frr-sink` negotiates
+`ipv4/unicast` only. After both sessions reach Established and emit their initial
+End-of-RIB markers, Ze sends valid labeled VPNv6 raw UPDATEs (`2001:db8:4659::/48`
+in body form and `2001:db8:465a::/48` in full-packet form, RD `65001:100`, labels
+1000 and 1001, third-party global next hop `2001:db8:ffff::1`) and an IPv4 fence
+(`10.46.1.0/24`) to `frr`, which must decode both VPNv6 routes and the IPv4 fence
+verbatim. On `frr-sink`, Ze sends the same pure VPNv6 body and full-packet
+commands, a mixed raw UPDATE carrying both unnegotiated VPNv6 (`2001:db8:465b::/48`)
+and negotiated IPv4 (`10.46.2.0/24`), and a standalone IPv4 control/fence
+(`10.46.255.0/24`). The transparent capture on `speaker2` must show zero wire
+frames for the pure VPNv6 commands, the mixed UPDATE emitted with its VPNv6
+`MP_REACH_NLRI` stripped and only `10.46.2.0/24` retained, and `10.46.255.0/24`
+delivered cleanly with both sessions uninterrupted.
+
+In FRR 10.7.1, [`bgp_update_receive`](https://github.com/FRRouting/frr/blob/frr-10.7.1/bgpd/bgp_packet.c)
+skips `NLRI_MP_UPDATE` when `!peer->afc[afi][safi]` before calling `bgp_nlri_parse`,
+so checking `frr-sink`'s empty VPNv6 table alone cannot detect a leaked VPNv6 frame.
+On the negotiated session, `bgp_mp_reach_parse` (`bgpd/bgp_attr.c`) decodes the
+24-octet `BGP_ATTR_NHLEN_VPNV6_GLOBAL` next hop, `bgp_nlri_parse_vpn`
+(`bgpd/bgp_mplsvpn.c`) decodes the labeled VPNv6 NLRI, and `bgp_show_table_rd` /
+`route_vty_out_detail` (`bgpd/bgp_route.c`) expose the RD table, remote label,
+AS_PATH and next hop in JSON.
+<!-- source: internal/le/interoplab/bgp/register_raw_vpnv6_admission.go -- init -->
+<!-- source: internal/le/interoplab/bgp/check_raw_vpnv6_admission.go -- checkRawVPNv6FamilyAdmissionFRR -->
+<!-- source: internal/le/interoplab/bgp/check_raw_vpnv6_admission_oracle.go -- judgeRawVPNv6Wire, requireRawVPNv6FRRRoute -->
+<!-- source: test/interop/scenarios/bgp-raw-vpnv6-family-admission-frr/ze.conf -- frr-vpnv6, frr-v4only -->
+
 ## Prerequisites
 
 | Requirement | Used By | Notes |
@@ -801,7 +836,7 @@ these diagnostics do not replace the forwarding assertion or extend its deadline
 <!-- source: internal/le/test/deployment/vpp_srv6_probe_integration_linux_test.go -- vppSRv6CLIOutput, vppSRv6Diagnostics -->
 
 The external-VPP configuration activates the real `connected` producer and
-netlink interface monitor. A test-only SDK plugin waits for all plugins to be
+netlink link monitor. A test-only SDK plugin waits for all plugins to be
 ready, adds the Linux covering addresses through real netlink events, and queries
 `show rib` until both next-hop and SID covering prefixes have protocol `connected`.
 The BGP probe waits for that result before sending service announcements. After
@@ -1324,7 +1359,7 @@ docker run --rm --cap-add NET_ADMIN --cap-add SYS_ADMIN --network none \
 `internal/component/kernelcap` when no `subsystem` selector is passed, or only
 the exact/trailing-wildcard selectors requested (`kernelcap.ProbeSubsystems`),
 refusing any selector that matches no enrolled capability
-(`docs/architecture/doctor-and-health-checks.md`). `NET_ADMIN` lets the netlink
+(`docs/architecture/doctor-and-health-checks.md`). `NET_ADMIN` lets the netlink API
 probes ask, and `SYS_ADMIN` lets namespace probes unshare a network namespace.
 `TUNDeviceArguments` (`--device /dev/net/tun`, from
 `internal/le/interoplab/tundevice.go`) is added when probing all capabilities or
@@ -4385,7 +4420,7 @@ for every suite, so a directory with no declaration is an error.
 
 | Scenario | Nodes and links | What the checker proves |
 |----------|-----------------|-------------------------|
-| `ze-static-link-chain` | Ze nodes `ze-a`, `ze-b`, `ze-c` on links `a-b` (VLAN 181, `10.181.1.0/24`) and `b-c` (VLAN 182, `10.181.2.0/24`), B forwarding; `outside` on `eth0` alone, running only tcpdump on `ip net 10.181.1.0/24 or arp net 10.181.1.0/24`. A ping from `outside` to a link address proves nothing: Linux answers ARP for any local address on any interface (`arp_ignore` 0), so `ze-b` answers `10.181.1.3` from its own `eth0`. The checker flushes `ze-a`'s neighbours on the link so its ARP for `ze-b`, a tagged broadcast, reaches `outside`'s port. Each node's file carries `interface { backend netlink; }`: with no `interface` block the interface component loads no backend, and `show interface brief` answers `iface: no backend loaded` | each node answers `show interface brief` by name; A pings C through B; `outside`'s capture (`tcpdump -e`) holds a frame of link `a-b` with its 802.1Q tag, and none without it |
+| `ze-static-link-chain` | Ze nodes `ze-a`, `ze-b`, `ze-c` on links `a-b` (VLAN 181, `10.181.1.0/24`) and `b-c` (VLAN 182, `10.181.2.0/24`), B forwarding; `outside` on `eth0` alone, running only tcpdump on `ip net 10.181.1.0/24 or arp net 10.181.1.0/24`. A ping from `outside` to a link address proves nothing: Linux answers ARP for any local address on any interface (`arp_ignore` 0), so `ze-b` answers `10.181.1.3` from its own `eth0`. The checker flushes `ze-a`'s neighbours on the link so its ARP for `ze-b`, a tagged broadcast, reaches `outside`'s port. Each node's file carries `interface { backend kernel; }`: with no `interface` block the interface component loads no backend, and `show interface brief` answers `iface: no backend loaded` | each node answers `show interface brief` by name; A pings C through B; `outside`'s capture (`tcpdump -e`) holds a frame of link `a-b` with its 802.1Q tag, and none without it |
 | `two-ze-pppoe-link` | a Ze PPPoE client and a Ze PPPoE server on a link with no prefix; an observer on `eth0` alone | the client holds an address from the server's pool on a ppp device (assigned only once IPCP is Opened), the server's kernel PPPoE table holds the session on the link device, and the observer received no untagged PPPoE discovery frame. Its capture filter also matches the link's own tagged frames, because veth hands the tag to the packet socket out of band, so the checker reads the capture with `tcpdump -e` and counts only lines without an 802.1Q header |
 | `pppoe-mss-pmtu` | Ze CPE `ze-cpe` dialing accel-ppp `accel` on link `access` (VLAN 184, no prefix) with MTU 1492; `lan-host` behind Ze on link `lan` (VLAN 185, `10.185.1.0/24`); `server` beyond accel-ppp on link `core` (VLAN 186, `10.186.1.0/24`), capturing SYNs | Ze's `pppoe0` holds an IPCP address and reports MTU 1492, its table lists `tcp option maxseg size set rt mtu`, and the server captures the SYN lan-host offered with MSS 1460 as 1452 and the one offered with 1200 as 1200 |
 | `access-up` | the access chain (below): Ze CPE `ze-cpe`, running the home-CPE lab's converted configuration with one lab addition (subnet `10.77.0.0/24` on `br0`, with no `dns-server` and no `dns-source`, reserving `10.77.0.50` for `lan-res-c`), on link `access` (VLAN 191, no prefix) and on link `lan` (VLAN 197, no prefix) with `lan-client` and `lan-res-c` (dhcpcd), to Ze LAC `ze-lac`, which relays the empty Service-Name over link `core` (VLAN 192, `192.0.2.0/24`) to Ze LNS `ze-lns`, which checks CHAP with `freeradius` on the same link | the LAC's access capture holds a PADO with a zero-length Service-Name and a PADS with a non-zero session; the LAC holds one tunnel to the LNS with one session, the kernel PPPoE session on its access device, and no addressed PPP device; FreeRADIUS logged an Accept for `cpe@lab.example.net` with a CHAP-Password, no User-Password, NAS-Identifier `ze-lns` and NAS-IP-Address and source `192.0.2.3`; the LNS session names the user and holds `203.0.113.1`, its detail reports `mru` 1492 and `auth-method` `chap-md5`, its core capture holds its LCP Configure-Request with MRU 1492; the CPE's `pppoe0` holds `203.0.113.1` with MTU 1492, its `show interface pppoe-client` reports `pppoe0` up with `dns-servers` `192.0.2.53` then `192.0.2.54`, the two servers the LNS offered in IPCP, while its resolv.conf holds only the converted configuration's static `system name-server 192.0.2.53`, because a static server wins over every learned one; `lan-res-c` then binds `10.77.0.50` and its `dhcpcd --dumplease` holds `domain_name_servers` exactly `192.0.2.53 192.0.2.54`, the IPCP pair in order, which only the subnet default reaching its `received` class hands out (the host fallback alone gives `192.0.2.53`); the CPE's eth0 holds no address, its route to `100.64.0.1` leaves on `pppoe0`, it pings that address with no loss, and the LNS's PPP device toward the subscriber received at least the pings sent |
@@ -4731,8 +4766,8 @@ the peer and interface-label series.
 <!-- source: internal/le/interoplab/ipsec/checkers.go -- checkDataplaneMonitoring, requireLiveDataplaneHealth -->
 
 An unreadable observation is induced inside the Ze scenario container by
-temporarily setting only the daemon's soft `RLIMIT_NOFILE` to zero. The netlink
-package's default handle opens a socket for each XFRM dump. A Python helper
+temporarily setting only the daemon's soft `RLIMIT_NOFILE` to zero. The netlink library's
+default handle opens a socket for each XFRM dump. A Python helper
 finds the daemon as the one `ze` process whose parent pid in `/proc/<pid>/stat`
 is tini, because `/proc/<pid>/task/<tid>/children` exists only with
 `CONFIG_PROC_CHILDREN`, which Ze's runtime kernel does not set. The helper

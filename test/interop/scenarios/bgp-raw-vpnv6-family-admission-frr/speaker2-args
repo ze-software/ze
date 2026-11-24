@@ -1,0 +1,4 @@
+--relay-peer 172.30.0.15:179
+--relay-transparent
+--result /tmp/raw-vpnv6-v4only
+--duration 180
