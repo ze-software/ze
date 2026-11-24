@@ -2,8 +2,8 @@
   "note": "Forbidden: toward a Replace Old AS eBGP neighbor, appending anything other than the Local AS value, or omitting it. TestLocalASReplaceASSendsOnlyTheLocalAS asserts exact equality with [65010 65002], red on a missing 65010 or any extra ASN. Negative: the no-option destination's [65010 65000 65002].",
   "requirement_sha": "b4bdabac4c17815a",
   "tests": {
-    "internal/component/bgp/reactor/rfc7705_local_as_test.go::TestLocalASReplaceASSendsOnlyTheLocalAS": "7157b469ac24b883",
-    "internal/component/bgp/reactor/rfc7705_local_as_test.go::TestLocalASReplaceASSendsOnlyTheLocalAS#2": "7157b469ac24b883"
+    "internal/component/bgp/reactor/rfc7705_local_as_test.go::TestLocalASReplaceASSendsOnlyTheLocalAS": "77d5b2742f0b5185",
+    "internal/component/bgp/reactor/rfc7705_local_as_test.go::TestLocalASReplaceASSendsOnlyTheLocalAS#2": "77d5b2742f0b5185"
   },
   "units": {
     "internal/component/bgp/reactor/rfc7705_local_as_test.go::TestLocalASReplaceASSendsOnlyTheLocalAS": "3d1b9a340c5c4f1e",

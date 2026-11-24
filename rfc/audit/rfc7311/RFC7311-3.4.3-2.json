@@ -4,8 +4,8 @@
   "tests": {
     "internal/component/bgp/reactor/rfc7311_direct_link_test.go::TestRFC7311DirectLinkCostNeverWrapsOrDisappears": "0e8a71379f820aef",
     "internal/component/bgp/reactor/rfc7311_direct_link_test.go::TestRFC7311DirectLinkCostNeverWrapsOrDisappears#2": "0e8a71379f820aef",
-    "internal/component/bgp/reactor/rfc7311_processing_test.go::TestAIGPForwardedMetricsReachFinalWire": "0fa5917b7ab7e2d2",
-    "internal/component/bgp/reactor/rfc7311_processing_test.go::TestAIGPForwardedMetricsReachFinalWire#2": "0fa5917b7ab7e2d2",
+    "internal/component/bgp/reactor/rfc7311_processing_test.go::TestAIGPForwardedMetricsReachFinalWire": "db733f79b286423e",
+    "internal/component/bgp/reactor/rfc7311_processing_test.go::TestAIGPForwardedMetricsReachFinalWire#2": "db733f79b286423e",
     "internal/component/bgp/reactor/rfc7311_recursive_readvertise_test.go::TestRFC7311RecursiveAIGPChangeReachesWire": "f23d8af0c930cf85",
     "internal/component/bgp/reactor/rfc7311_recursive_readvertise_test.go::TestRFC7311RecursiveAIGPChangeReachesWire#2": "f23d8af0c930cf85",
     "internal/component/sysrib/rfc7311_metric_test.go::TestAIGPRecursiveDistanceUsesReceivedMetrics": "23e963e4106c6a6f",

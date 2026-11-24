@@ -3,9 +3,9 @@
   "requirement_sha": "4fbe1dd526068730",
   "tests": {
     "internal/component/ike/dataplane/rfc7296_ecn_kernel_state_linux_test.go::TestEcnKernelStoresTunnelSAWithoutNoECN": "c05d6045ccd9c578",
-    "internal/component/ike/dataplane/rfc7296_vpp_message_test.go::TestVPPInstallSACopiesECN": "f06970959430a120",
-    "internal/component/ike/dataplane/rfc7296_vpp_message_test.go::TestVPPInstallSAECNIsOnTheSAZeInstalls": "f06970959430a120",
-    "internal/component/ike/engine/rfc4301_espform_policy_integration_linux_test.go::TestRFC7296BareESPOnTemplatedSAKeepsTheOuterCE": "11e955c07821e222"
+    "internal/component/ike/dataplane/rfc7296_vpp_message_test.go::TestVPPInstallSACopiesECN": "792542cb2a25ff63",
+    "internal/component/ike/dataplane/rfc7296_vpp_message_test.go::TestVPPInstallSAECNIsOnTheSAZeInstalls": "792542cb2a25ff63",
+    "internal/component/ike/engine/rfc4301_espform_policy_integration_linux_test.go::TestRFC7296BareESPOnTemplatedSAKeepsTheOuterCE": "04a875666a6fa74e"
   },
   "units": {
     "internal/component/ike/dataplane/rfc7296_ecn_kernel_state_linux_test.go::TestEcnKernelStoresTunnelSAWithoutNoECN": "94c51caeb6c79e05",

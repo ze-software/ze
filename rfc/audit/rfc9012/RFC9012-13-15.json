@@ -2,8 +2,8 @@
   "note": "Missing and duplicate endpoint TLVs are now exercised through actual Session receipt and real received-route storage for every Section 6 AFI/SAFI, with a causal marked sibling, an independent control route, actual target withdrawal and same-session reinstall. Existing unicast raw/rebuilt forwarding assertions remain complementary. The prior missing-carrier and classification-only objections are closed.",
   "requirement_sha": "13bda2501ea68b8e",
   "tests": {
-    "internal/component/bgp/reactor/rfc9012_receive_storage_test.go::TestRFC9012ReceiveRemovesInstalledNativeRoutes": "a6036fce01122dce",
-    "internal/component/bgp/reactor/rfc9012_receive_storage_test.go::TestRFC9012ReceiveRemovesInstalledNativeRoutes#2": "a6036fce01122dce",
+    "internal/component/bgp/reactor/rfc9012_receive_storage_test.go::TestRFC9012ReceiveRemovesInstalledNativeRoutes": "230abd4a009f1333",
+    "internal/component/bgp/reactor/rfc9012_receive_storage_test.go::TestRFC9012ReceiveRemovesInstalledNativeRoutes#2": "230abd4a009f1333",
     "internal/component/bgp/reactor/rfc9830_tunnel_receive_test.go::TestRFC9012EndpointInvalidTLVsRemovedOnUnicast": "499ae9d00b04d7e5",
     "internal/component/bgp/reactor/rfc9830_tunnel_receive_test.go::TestRFC9012EndpointInvalidTLVsRemovedOnUnicast#2": "499ae9d00b04d7e5"
   },

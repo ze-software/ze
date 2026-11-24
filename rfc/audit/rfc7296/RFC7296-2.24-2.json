@@ -2,10 +2,10 @@
   "note": "Re-judged 2026-11-20 by an independent agent after the tag set moved (d5f71bb580, 2dd2252506): engine/rfc7296_ecn_test.go is gone and rfc7296_ecn_linux_test.go is untagged. RFC 7296 Section 2.24: \"MUST implement the tunnel encapsulation and decapsulation processing specified in [IPSECARCH] to prevent discarding of ECN congestion indications.\" TestRFC7296BareESPOnTemplatedSAKeepsTheOuterCE, on a Child SA from createFirstChildSA under the first-apply SPD, sends bare ESP with outer CE around an ECT(0) inner packet: whole, it must be rewritten once by the fast path and delivered with inner TOS 0x03; fragmented past the link MTU, it must move ReasmOKs, not touch the fast path and also arrive as 0x03. Its negative row sends the fragmented datagram with outer ECT(0) and requires inner 0x02, so the complete path copies the outer indication rather than marking every packet. The VPP units assert both COPY_ECN flags in the SAD message and no message for a refused SA. Each receive path that could drop CE is observed on the packet Ze delivers. Verdict stands.",
   "requirement_sha": "79a9734e767384bd",
   "tests": {
-    "internal/component/ike/dataplane/rfc7296_vpp_message_test.go::TestVPPInstallSACopiesECN": "f06970959430a120",
-    "internal/component/ike/dataplane/rfc7296_vpp_message_test.go::TestVPPInstallSAECNIsOnTheSAZeInstalls": "f06970959430a120",
-    "internal/component/ike/engine/rfc4301_espform_policy_integration_linux_test.go::TestRFC7296BareESPOnTemplatedSAKeepsTheOuterCE": "11e955c07821e222",
-    "internal/component/ike/engine/rfc4301_espform_policy_integration_linux_test.go::TestRFC7296BareESPOnTemplatedSAKeepsTheOuterCE#2": "11e955c07821e222"
+    "internal/component/ike/dataplane/rfc7296_vpp_message_test.go::TestVPPInstallSACopiesECN": "792542cb2a25ff63",
+    "internal/component/ike/dataplane/rfc7296_vpp_message_test.go::TestVPPInstallSAECNIsOnTheSAZeInstalls": "792542cb2a25ff63",
+    "internal/component/ike/engine/rfc4301_espform_policy_integration_linux_test.go::TestRFC7296BareESPOnTemplatedSAKeepsTheOuterCE": "04a875666a6fa74e",
+    "internal/component/ike/engine/rfc4301_espform_policy_integration_linux_test.go::TestRFC7296BareESPOnTemplatedSAKeepsTheOuterCE#2": "04a875666a6fa74e"
   },
   "units": {
     "internal/component/ike/dataplane/rfc7296_vpp_message_test.go::TestVPPInstallSACopiesECN": "d8446e54f00d264d",

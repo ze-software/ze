@@ -2,8 +2,8 @@
   "note": "Forbidden: appending the globally configured ASN toward a Replace Old AS eBGP neighbor. TestLocalASReplaceASSendsOnlyTheLocalAS asserts the replace-as destinations receive exactly [65010 65002] (assert.Equal), red if 65000 appears; TestLocalASOptionsProduceDifferentASPaths adds assert.NotContains 65000. Negative: the no-option destination receives [65010 65000 65002].",
   "requirement_sha": "fd8589f9d7dfdfe9",
   "tests": {
-    "internal/component/bgp/reactor/rfc7705_local_as_test.go::TestLocalASReplaceASSendsOnlyTheLocalAS": "7157b469ac24b883",
-    "internal/component/bgp/reactor/rfc7705_local_as_test.go::TestLocalASReplaceASSendsOnlyTheLocalAS#2": "7157b469ac24b883"
+    "internal/component/bgp/reactor/rfc7705_local_as_test.go::TestLocalASReplaceASSendsOnlyTheLocalAS": "77d5b2742f0b5185",
+    "internal/component/bgp/reactor/rfc7705_local_as_test.go::TestLocalASReplaceASSendsOnlyTheLocalAS#2": "77d5b2742f0b5185"
   },
   "units": {
     "internal/component/bgp/reactor/rfc7705_local_as_test.go::TestLocalASReplaceASSendsOnlyTheLocalAS": "3d1b9a340c5c4f1e",
