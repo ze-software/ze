@@ -711,8 +711,6 @@ reject the fifth UPDATE because an announcement escaped instead of a withdrawal.
 
 ### Raw VPNv6 family admission observed before FRR
 
-This section describes the scenario's assertions. It reports no completed run.
-
 `bgp-raw-vpnv6-family-admission-frr` exercises operator `send bgp ... raw hex ...`
 commands in both body (`type update`) and full-packet forms against two FRR 10.7.1
 peers behind transparent wire relays (`speaker` at `.10` to `frr` at `.3`, and
@@ -738,10 +736,14 @@ On the negotiated session, `bgp_mp_reach_parse` (`bgpd/bgp_attr.c`) decodes the
 24-octet `BGP_ATTR_NHLEN_VPNV6_GLOBAL` next hop, `bgp_nlri_parse_vpn`
 (`bgpd/bgp_mplsvpn.c`) decodes the labeled VPNv6 NLRI, and `bgp_show_table_rd` /
 `route_vty_out_detail` (`bgpd/bgp_route.c`) expose the RD table, remote label,
-AS_PATH and next hop in JSON.
+AS_PATH and next hop in JSON. The native scenario passed against FRR 10.7.1.
+Restoring the `!w.raw` bypass in `adjOutWrite.section` and rebuilding the Ze
+image made `judgeRawVPNv6Wire` reject the first UPDATE on `speaker2` because the
+unnegotiated VPNv6 `MP_REACH_NLRI` escaped onto the IPv4-only wire.
 <!-- source: internal/le/interoplab/bgp/register_raw_vpnv6_admission.go -- init -->
 <!-- source: internal/le/interoplab/bgp/check_raw_vpnv6_admission.go -- checkRawVPNv6FamilyAdmissionFRR -->
 <!-- source: internal/le/interoplab/bgp/check_raw_vpnv6_admission_oracle.go -- judgeRawVPNv6Wire, requireRawVPNv6FRRRoute -->
+<!-- source: internal/component/bgp/reactor/session_ownership.go -- adjOutWrite.section -->
 <!-- source: test/interop/scenarios/bgp-raw-vpnv6-family-admission-frr/ze.conf -- frr-vpnv6, frr-v4only -->
 
 ## Prerequisites

@@ -10,7 +10,7 @@
 | Depends | - |
 | Phase | D-2 document-author evidence, D-1 raw VPNv6 family admission, remaining host proof debt |
 | Handoff | - |
-| Updated | 2026-11-22 |
+| Updated | 2026-11-24 |
 
 Scope is tooling and protocol. The proof-debt work re-takes discrimination
 records, re-judges audit verdicts, and adds the two RFC 4271 negative tests
@@ -224,10 +224,10 @@ and every path that reaches it with `raw=true`, before it is presented.
 |----|-----------|--------------------------------|----------|--------------|--------|
 | A-1 | Each cause commit named in AC-1 to AC-24 is not a filter-wire commit | umbrella stale classification | the row belongs to the umbrella | `git log -1 --format=%B` of b5fdf9a87f, c782411791, 1f4e1e81f1, 8c68fcf514, 8f704db860, f23e06435c, 898caba3f6 and c44e1bdc8c read 2026-11-19: none carries a `Spec-work: filter-wire` line | confirmed |
 | A-2 | The RFC 2545 interop records failed only from load, not from a defect | records agent handoff | a real defect blocks the record | the records were taken (29f15481fa, later re-takes to 22f651cf53), each `solo` entry of the paired negative shows the scenario green and the pair red, and the 2026-11-19 check names none | confirmed |
-| A-3 | `TestRFCSelftestRealTreeRowReportsOwnedCheckFailures` timed out only from load | it hit its limit with no failing assertion printed, twice, at load 17 to 36 | a real failure or a cost defect is fixed here | AC-25 | unvalidated |
-| A-4 | Each STALE unit still proves its requirement after the change that staled it | most causes are renames, lint fixes and fixture migrations | an auditor's `weak` or `wrong` verdict makes the test or producer owed work in this spec | AC-30, row by row | unvalidated |
-| A-5 | Belongs to AC-27's design (kept here by D-1). The diagnostic contract's malformed-input freedom does not settle valid raw VPNv6 admission | "Raw Passthrough Commands" (`docs/architecture/api/update-syntax.md`) is silent on family negotiation; RFC 4659 Section 3.4 states no diagnostic exception | a sender capability defect is treated as an exclusion | the design review of AC-27 | unvalidated |
-| A-6 | The producer a changed unit exercises today can be named for every record of AC-41, AC-42, AC-46 and AC-47 | `./le rfc discriminate` proposes candidates from the unit's package | the unit no longer reaches any producer of its claim: a finding on the test, to `ze-test-judge` | each AC's re-take | unvalidated |
+| A-3 | `TestRFCSelftestRealTreeRowReportsOwnedCheckFailures` timed out only from load | it hit its limit with no failing assertion printed, twice, at load 17 to 36 | a real failure or a cost defect is fixed here | AC-25: passed alone on quiet host in 75.748s (`tmp/session/2026-11-24-015626/scratch/job-unit-pkg-8290c99a.log`) | confirmed |
+| A-4 | Each STALE unit still proves its requirement after the change that staled it | most causes are renames, lint fixes and fixture migrations | an auditor's `weak` or `wrong` verdict makes the test or producer owed work in this spec | AC-30 row by row (`3dde1ee580`, `796ffaf65e`, `da7857536f`, `89250c6db8`, `aa3d402d62`); one new `weak` (`RFC5176-2.3-3`) fixed and re-audited `enforced` in `799ca9e99b`; 6 pre-existing unchanged `weak` rows stayed unchanged | confirmed |
+| A-5 | Belongs to AC-27's design (kept here by D-1). The diagnostic contract's malformed-input freedom does not settle valid raw VPNv6 admission | "Raw Passthrough Commands" (`docs/architecture/api/update-syntax.md`) is silent on family negotiation; RFC 4659 Section 3.4 states no diagnostic exception | a sender capability defect is treated as an exclusion | Owner approval 2026-11-22, implemented in `735771cf03` (`adjOutWrite.section`, `writeUpdateBody`), documented in `docs/architecture/api/update-syntax.md`, proven live against FRR 10.7.1 in `31a476d642` | confirmed |
+| A-6 | The producer a changed unit exercises today can be named for every record of AC-41, AC-42, AC-46 and AC-47 | `./le rfc discriminate` proposes candidates from the unit's package | the unit no longer reaches any producer of its claim: a finding on the test, to `ze-test-judge` | Re-taken and observed red in `8d6bd63526` (AC-41, AC-42, AC-43, AC-46, AC-48) and `89250c6db8` (AC-47 `rfc7606_shape.go:81`) | confirmed |
 
 ### Risks
 | ID | Risk | Early signal | Mitigation / fallback |
@@ -609,3 +609,224 @@ no protocol, SDK, schema, daemon command or wire-format change.
 - [ ] Any lesson routed to its governing surface under `ai/rules/planning.md`
 - [ ] **Commit A:** records + verdicts + code + edited spec
 - [ ] **Commit B:** `remove plan/release/fixes/spec-rfc-proof-debt-outside-filter-wire.md` only
+
+---
+
+## Implementation Summary
+
+### What Was Implemented
+- **D-2 Document-Author Evidence (`41b5ceb0d7`, `808ee06cfb`, AC-35..AC-39):** Added closed `documentAuthorAccepted` (`documentRestrictiveSubject`, `documentPassiveComplement`, `documentAuthorMatchesNoun`) in `internal/le/rfc/notapplicable_roles.go` without loosening `subjectBreakers` for protocol roles. Added unit and evidence-reader tests in `internal/le/rfc/notapplicable_roles_test.go` (`TestNotApplicableDocumentAuthorForms`) and `internal/le/rfc/check_evidence_test.go`. Updated `rfc/short/rfc7606.md` (`RFC7606-8-1`) and `rfc/short/rfc5492.md` (`RFC5492-4-3`) with `Ze roles` (`BGP speaker`) and verified `{not-applicable}` quotes, and stamped independent `/ze-rfc-audit` verdicts in `rfc/audit/rfc7606/RFC7606-8-1.json` and `rfc/audit/rfc5492/RFC5492-4-3.json`.
+- **D-1 Raw VPNv6 Family Admission (`735771cf03`, `31a476d642`, AC-27):** Removed the `!w.raw` bypass on `negotiated.SupportsFamily(fam)` in `internal/component/bgp/reactor/session_ownership.go` (`adjOutWrite.section`) while validating raw section framing via `split` before withholding so malformed or unknown-family diagnostic payloads remain opaque. Updated `Session.writeUpdateBody` (`internal/component/bgp/reactor/session_write.go`) to apply `ownership.filter` on raw writes (keeping duplicate suppression disabled for raw in `adjOutWrite.allow`). Added `TestRawVPNv6RequiresNegotiatedFamily` and `TestGenericVPNv6FamilyAdmissionControl` in `internal/component/bgp/reactor/rfc4659_raw_vpnv6_family_admission_test.go` (marked `// RFC naming: untagged` in `89250c6db8`), updated `TestRFC8212RawAPIAdmission` to negotiate IPv6 unicast for its IPv6 MP cases, and built the live FRR 10.7.1 interop scenario `bgp-raw-vpnv6-family-admission-frr` (`internal/le/interoplab/bgp/register_raw_vpnv6_admission.go`, `check_raw_vpnv6_admission.go`, `check_raw_vpnv6_admission_oracle.go`, `check_raw_vpnv6_admission_test.go`, `test/interop/scenarios/bgp-raw-vpnv6-family-admission-frr/*`).
+- **Stale Discrimination Record Re-Takes (`8d6bd63526`, `76d0f82c21`, `da7857536f`, `89250c6db8`, AC-28, AC-40..AC-48):**
+  - `8d6bd63526`: Re-took 18 refused records with judge-approved breaks (AC-41 `rfc8277` x4, AC-42 `RFC5176-3.1-1`, AC-43 FlowSpec `rfc5575`/`rfc8955` x9, AC-46 `RFC5176-2.3-6`, AC-48 `rfc7606` x3).
+  - `76d0f82c21`: Re-took 5 `rfc9252` discrimination records on their recorded route (AC-45 + AC-32 `RFC9252-3.3-2` partial scope); `RFC8955-6-5` already verified.
+  - `da7857536f`: Re-took 9 `rfc4861` revert records of `TestRFC4861SubscriberSolicitationReaderIgnoresReservedAndOptions` against `internal/component/l2tp/ppp/ra_carrier.go::rsReaderLoop` in Linux guest (AC-40).
+  - `89250c6db8`: Re-took `RFC4659-3.2.1.1-1` positive revert record against `buildMPReachVPN` in Linux userns (AC-44) and `RFC7606-5.1-1` negative mutant of `TestForwardLeadingMPAttributeKeepsZeroCopy` against `rfc7606_shape.go:81` (AC-47).
+- **AC-32 RFC 4271 Partial Negatives & Owed Approvals (`89250c6db8`):** Restored `RFC4271-5-3 negative` on `attribute.TestRFC4271PartialNotStampedOnExcludedClasses` (`internal/core/bgp/attribute/rfc4271_test.go`) and `reactor.TestRFC4271PartialNotSetOnRecognizedOrNonTransitive` (`internal/component/bgp/reactor/rfc4271_test.go`), added two `RFC4271-5-4 negative` tests (`TestRFC4271CompleteRecognizedTransitiveStaysClearOnSessionWire` and `TestRFC4271PartialClearedOutsideOptionalTransitiveOnRelayedWire`) in `internal/component/bgp/reactor/rfc4271_partial_negative_test.go`, recorded all four red mutants via `./le rfc record`, and published all three independent `ze-test-judge` `RFC-approved:` trailers clearing `6c22530c23`.
+- **SHIFTED Audit Reseals (`e07a02ad57`, `aa3d402d62`, AC-29):** Resealed 85 shifted audit verdicts across 19 stems (`e07a02ad57`), then resealed 32 shifted verdicts across `rfc4271` (19) and `rfc5176` (13) after `89250c6db8` and `799ca9e99b` edited those test files (`aa3d402d62`).
+- **STALE Audit Re-Judgments (`3dde1ee580`, `796ffaf65e`, `da7857536f`, `89250c6db8`, `aa3d402d62`, AC-7, AC-8, AC-16, AC-30):** Independently re-audited all 187 stale verdicts across all owned stems (`3dde1ee580`: 101 verdicts across 31 stems; `796ffaf65e`: 54 verdicts including AC-7 `rfc2545`, `rfc7911`, `rfc8893`, `rfc9012`, 38 `rfc4271` rows; `da7857536f`: 19 verdicts across 16 single-row stems + 3 `rfc9252` rows; `89250c6db8`: 12 verdicts across `rfc4271`, `rfc7606`, `rfc4659`; `aa3d402d62`: `RFC4271-4.3-2` enforced).
+- **AC-25 Selftest Classification:** Ran `TestRFCSelftestRealTreeRowReportsOwnedCheckFailures` alone on a quiet host; passed in `75.748s` (`tmp/session/2026-11-24-015626/scratch/job-unit-pkg-8290c99a.log`), confirming A-3 (earlier timeouts were host load, no code change owed).
+- **Owned Journal Rows Closed:** Updated `plan/journal/guard-demands-what-the-model-cannot-supply.md` (2026-11-15 row) and `plan/journal/guard-added-to-one-half-of-a-pair.md` (2026-11-15 row) to `fixed:`.
+
+### Bugs Found/Fixed
+- **`RFC5176-2.3-3` weak audit finding (`799ca9e99b`):** Independent AC-30 re-audit of `rfc5176` flagged `RFC5176-2.3-3` as `weak` because the truncated packet case could fail on TLV/authenticator truncation even if an implementation clamped `pktLen` to `len(data)`. Fixed by adding an isolated short-length negative case (`Length=N+4` with valid TLVs and HMAC-MD5/Request Authenticators computed over the `N` arrived bytes) plus teardown-count assertions in `internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go` (`TestRFC5176LengthFieldGovernsTheOctetsRead`, +29/-0, judge-approved), recording positive + 3-way negative mutant proofs, and re-auditing `weak -> enforced`.
+- **Stale `docs/architecture/testing/interop.md` run-status sentence (Commit A):** Closure step 4 found `docs/architecture/testing/interop.md` still said "It reports no completed run." after `31a476d642` completed both the green FRR 10.7.1 interop run and the forced-red discrimination walk. Repaired in Commit A.
+- **Over-length journal rows in working tree (Commit A):** Both updated journal rows initially exceeded `specjournal.RowCharsMax` (600 chars: 604 and 697). Trimmed to 476 and 531 chars before Commit A.
+
+### Documentation Updates
+- `docs/contributing/rfc-conformance-gates.md` (`41b5ceb0d7`, AC-39): Added `documentAuthorAccepted` rules, restrictive-subject and passive-document forms, and refusal cases under "The exclusion evidence ratchet" (anchor: `internal/le/rfc/notapplicable_roles.go -- documentAuthorAccepted`).
+- `docs/architecture/api/update-syntax.md` (`735771cf03`, AC-27): Updated "Raw Passthrough Commands" to document RFC 4760 Section 8 / RFC 4659 Section 3.4 negotiated-family admission on parseable raw UPDATE writes with anchor `<!-- source: internal/component/bgp/reactor/session_ownership.go -- adjOutWrite.section -->`.
+- `docs/architecture/testing/interop.md` (`31a476d642`, updated in Commit A): Added "Raw VPNv6 family admission observed before FRR" documenting `bgp-raw-vpnv6-family-admission-frr`, FRR 10.7.1 source functions (`bgp_update_receive`, `bgp_nlri_parse`, `bgp_mp_reach_parse`, `bgp_nlri_parse_vpn`, `bgp_show_table_rd`, `route_vty_out_detail`), observed green + forced-red results, and source anchors (`register_raw_vpnv6_admission.go`, `check_raw_vpnv6_admission.go`, `check_raw_vpnv6_admission_oracle.go`, `session_ownership.go`, `ze.conf`).
+- `website/changes/fragments/rfc-proof-debt-outside-filter-wire.md` (Commit A): Operator-facing news fragment for raw BGP UPDATE family admission.
+- `./le doc check all`: 0 issues in any file touched by this spec (only pre-existing unrelated wiki catalog drift on `create interface address` in `internal/le/cli/catalog/catalog.go` and 15 pre-existing anchor mismatches on unrelated plugin/LG docs).
+
+### Deviations from Plan
+- **New test files created for AC-27 and AC-32:** Plan listed "Files to Create: None planned" before D-1 was approved and before `RFC4271-5-4` negatives were placed. Created `internal/component/bgp/reactor/rfc4659_raw_vpnv6_family_admission_test.go`, `internal/component/bgp/reactor/rfc4271_partial_negative_test.go`, and the AC-27 interop scenario files (`internal/le/interoplab/bgp/{register,check}_raw_vpnv6_admission*.go`, `test/interop/scenarios/bgp-raw-vpnv6-family-admission-frr/*`) to keep each concern isolated and under the 1000-line file guideline.
+- **AC-30 weak verdicts:** Three verdicts upgraded `weak -> enforced` on re-audit (`RFC4724-4.2-11`, `RFC9494-4.2-4`, `RFC9494-4.2-5`, `RFC4271-5.1.3-1`), two (`RFC4271-5-3`, `RFC4271-5-4`) upgraded `weak -> enforced` after AC-32 negatives, one new `weak` (`RFC5176-2.3-3`) was fixed and upgraded `weak -> enforced` (`799ca9e99b`), and six pre-existing unchanged `weak` verdicts (`RFC1661-6.6-1`, `RFC1661-6.6-2`, `RFC6811-4-1`, `RFC5798-7.2-1`, `RFC9568-7.2-5`, `RFC4659-3.2.1.1-3`) remained unchanged `weak` (no regressions introduced).
+
+## Mistake Log
+
+| Kind | What happened | What was true instead | How discovered | Action |
+|------|---------------|----------------------|----------------|--------|
+| approach | `89250c6db8` attempted to bind `RFC-approved:` trailers to historical commit `6c22530c23` via the `rfc-approval` pairing trailer | `internal/le/commit/owed_trailers.go` (`applyBindings`, line 279) refuses `RFC-approval-for:` when the target commit lies outside the unpushed range (`!acts.commits[binding.target]`), so `6c22530c23` (already pushed) could not take a range-bound binding and instead carries the three ordinary `RFC-approved:` verdicts in `89250c6db8` | `./le commit create` refusal during `89250c6db8` preparation | Published the three independent `ze-test-judge` `RFC-approved:` trailers directly in `89250c6db8`; documented here |
+| approach | First live FRR 10.7.1 bring-up of `bgp-raw-vpnv6-family-admission-frr` lacked an IPv6 underlay route on `frr` | FRR's `bgp_nexthop_set` needs an IPv6 address on `eth0` and a reachable underlay path to resolve VPNv6 next hop `2001:db8:ffff::1/128` when `address-family ipv6 vpn` is active over an IPv4 peering | Live FRR interop run before `31a476d642` | Added `ipv6 route 2001:db8:ffff::1/128 fd00:1e:0::2` in `test/interop/scenarios/bgp-raw-vpnv6-family-admission-frr/frr.conf`; live run passed (`5m9s`) and forced-red failed cleanly |
+| escalation | `docs/architecture/testing/interop.md` retained "It reports no completed run." after `31a476d642` ran both the green interop and forced-red walk | Implementation phase should have updated the doc line in `31a476d642` as soon as the live run completed (`ai/rules/documentation.md`) | Closure step 4 documentation review | Updated `docs/architecture/testing/interop.md` in Commit A with the observed green and forced-red results |
+
+## Implementation Audit
+
+### Requirements from Task
+| Requirement | Status | Location | Notes |
+|-------------|--------|----------|-------|
+| Clear all stale discrimination records outside AC-33 via `./le rfc record` | Done | `rfc/discrimination/{rfc4861,rfc8277,rfc5176,rfc5575,rfc8955,rfc4659,rfc9252,rfc7606,rfc4271}/` | Paid in `8d6bd63526`, `76d0f82c21`, `da7857536f`, `89250c6db8`, `799ca9e99b`; 0 `no longer verifies` lines in final check |
+| Reseal all SHIFTED audit verdicts outside AC-33 via `./le rfc reseal` | Done | `rfc/audit/<stem>/` (19 stems + `rfc4271`, `rfc5176`) | Paid in `e07a02ad57` (85 verdicts) and `aa3d402d62` (32 verdicts) |
+| Independently re-judge all STALE audit verdicts outside AC-33 via `/ze-rfc-audit` + `audit-stamp mode rejudge` | Done | `rfc/audit/<stem>/` | Paid in `3dde1ee580` (101), `796ffaf65e` (54), `da7857536f` (19), `89250c6db8` (12), `799ca9e99b` (1), `aa3d402d62` (1) |
+| D-1: Enforce `SupportsFamily` on parseable raw UPDATE writes + unit tests + docs + FRR interop | Done | `internal/component/bgp/reactor/session_ownership.go` `adjOutWrite.section`, `session_write.go` `Session.writeUpdateBody`, `internal/le/interoplab/bgp/check_raw_vpnv6_admission*.go` | Landed in `735771cf03` and `31a476d642`; green + forced-red proven against FRR 10.7.1 |
+| D-2: Closed document-author evidence route + tests + docs + RFC7606-8-1 & RFC5492-4-3 audits | Done | `internal/le/rfc/notapplicable_roles.go` `documentAuthorAccepted`, `rfc/short/{rfc7606,rfc5492}.md`, `rfc/audit/{rfc7606/RFC7606-8-1,rfc5492/RFC5492-4-3}.json` | Landed in `41b5ceb0d7` and `808ee06cfb` |
+
+### Acceptance Criteria
+| AC ID | Status | Demonstrated By | Notes |
+|-------|--------|-----------------|-------|
+| AC-1 | Done | `5d5fb6d60c`, final `./le rfc check` (0 `rfc2328` stale records) | Met before session; re-confirmed |
+| AC-2 | Done | `5d5fb6d60c`, final `./le rfc check` (0 `rfc2328` stale records) | Met before session; re-confirmed |
+| AC-3 | Done | `58d47a9f96`, `internal/plugins/ospf/instance_enable_test.go` | Met before session; re-confirmed |
+| AC-4 | Done | `22f651cf53`, `rfc/discrimination/rfc2545/RFC2545-3-2.json` | Met before session; re-confirmed |
+| AC-5 | Done | `29f15481fa`, `22f651cf53`, `rfc/discrimination/rfc2545/RFC2545-3-3.json` | Met before session; claim judged in AC-7 |
+| AC-6 | Done | `22f651cf53`, `rfc/discrimination/rfc2545/RFC2545-3-3.json` | Met before session; re-confirmed |
+| AC-7 | Done | `796ffaf65e`, `rfc/audit/rfc2545/RFC2545-3-3.json` | Independently re-audited; confirmed `checkRFC2545NextHops` positive claim is not too wide |
+| AC-8 | Done | `89250c6db8`, `rfc/audit/rfc4659/RFC4659-3.2.1.1-3.json` | Independently re-audited (`rfc4659` x4; `RFC4659-3.2.1.1-3` remains unchanged `weak`) |
+| AC-9..AC-15 | Done | `c2dbc32f04`, `rfc/audit/rfc1661/` | Met before session; re-confirmed |
+| AC-16 | Done | `3dde1ee580`, `rfc/audit/rfc1661/RFC1661-5.8-2.json` | Independently re-audited with `rfc1661` stem |
+| AC-17 | Done | `c2dbc32f04`, `rfc/audit/rfc1661/RFC1661-6.4-7.json` | Met before session; re-confirmed |
+| AC-18 | Done | `68d21a1c7f`, `rfc/audit/rfc2516/RFC2516-x-9.json` | Met before session; re-confirmed |
+| AC-19 | Done | `68d21a1c7f`, `rfc/audit/rfc4271/RFC4271-5.1.4-1.json` | Met before session; re-confirmed |
+| AC-20 | Done | `daab5549b7`, `rfc/audit/rfc4271/RFC4271-5.1.4-2.json` | Met before session; re-confirmed |
+| AC-21 | Done | `86b381c3b4`, `rfc/audit/rfc4271/RFC4271-8.2.2-13.json` | Met before session; re-confirmed |
+| AC-22 | Done | `22f651cf53`, `rfc/audit/rfc8907/RFC8907-8.3-4.json` | Met before session; re-confirmed |
+| AC-23 | Done | `d887e713bf`, `rfc/audit/rfc2328/` | Met before session; re-confirmed |
+| AC-24 | Done | `68d21a1c7f`, `rfc/audit/rfc1997/RFC1997-Well-1.json` | Met before session; re-confirmed |
+| AC-25 | Done | `tmp/session/2026-11-24-015626/scratch/job-unit-pkg-8290c99a.log` | `TestRFCSelftestRealTreeRowReportsOwnedCheckFailures` PASS alone on quiet host in `75.748s`, confirming A-3 |
+| AC-26 | Done | `c5b52ce3f1`, `internal/le/rfc/check_evidence_prior.go` | Met before session; re-confirmed |
+| AC-27 | Done | `735771cf03` (`adjOutWrite.section`, `Session.writeUpdateBody`, `TestRawVPNv6RequiresNegotiatedFamily`), `31a476d642` (`bgp-raw-vpnv6-family-admission-frr`, green `proof.json` `4171091143`, forced-red `594541261`), `docs/architecture/api/update-syntax.md`, `docs/architecture/testing/interop.md` | Full unit, live FRR 10.7.1 interop, forced-red walk, and doc coverage |
+| AC-28 | Done | `8d6bd63526`, `76d0f82c21`, `da7857536f`, `89250c6db8`, `799ca9e99b` | 0 `no longer verifies` lines in final check |
+| AC-29 | Done | `e07a02ad57` (85 verdicts, 19 stems), `aa3d402d62` (32 verdicts, `rfc4271` & `rfc5176`) | 0 spec-owned SHIFTED verdicts at HEAD |
+| AC-30 | Done | `3dde1ee580` (101), `796ffaf65e` (54), `da7857536f` (19), `89250c6db8` (12), `799ca9e99b` (1), `aa3d402d62` (1) | All spec-owned STALE verdicts independently re-audited; new `weak` (`RFC5176-2.3-3`) fixed |
+| AC-31 | Done | `6db7cb8964` (`verifyOneDiscrimination`) | Not owed under owner staleness rule |
+| AC-32 | Done | `89250c6db8` (`attribute.TestRFC4271PartialNotStampedOnExcludedClasses`, `reactor.TestRFC4271PartialNotSetOnRecognizedOrNonTransitive`, `rfc4271_partial_negative_test.go`, 3 `RFC-approved:` trailers), `76d0f82c21` (`RFC9252-3.3-2` records) | Both `RFC4271-5-3` and `RFC4271-5-4` upgraded `weak -> enforced`; `RFC8955-4-3` already met |
+| AC-33 | Done | `tmp/session/2026-11-23-235354/scratch/final-rfc-check-post-aa3d402d62.txt` | Remaining committed lines belong to their named owners (`spec-bgp-next-hop-auto-rewrites-for-ebgp.md` AC-12, `plan/handover/51-dns-resolver-scope.md`, concurrent LG `rfc8522` work) |
+| AC-34 | Done | `tmp/session/2026-11-24-002635/scratch/job-unit-pkg-22df4b2e.log` (`TestCommitGateIsRegistered` PASS), final `./le rfc check` on HEAD (owed rerun at closure) | 0 spec-owned violations at HEAD |
+| AC-35 | Done | `41b5ceb0d7`, `internal/le/rfc/notapplicable_roles.go` `documentAuthorAccepted` | Complete RFC 7606 Section 8 and RFC 5492 Section 4 sentences admitted through closed route |
+| AC-36 | Done | `41b5ceb0d7`, `internal/le/rfc/notapplicable_roles_test.go` `TestNotApplicableDocumentAuthorForms` | Both forms covered separately; nearby receiver obligations stay refused |
+| AC-37 | Done | `41b5ceb0d7`, `internal/le/rfc/check_evidence_test.go` | Missing source, wrong section, incomplete sentence, dropped condition, borrowed obligation, altered level, generic actor, Ze role all refused |
+| AC-38 | Done | `41b5ceb0d7`, `808ee06cfb`, `rfc/short/{rfc7606,rfc5492}.md`, `rfc/audit/{rfc7606/RFC7606-8-1,rfc5492/RFC5492-4-3}.json` | Independent audit verdicts stamped; ids and MUST levels kept |
+| AC-39 | Done | `41b5ceb0d7`, `docs/contributing/rfc-conformance-gates.md` | "The exclusion evidence ratchet" documents the admitted form and refusal cases |
+| AC-40 | Done | `da7857536f`, `rfc/discrimination/rfc4861/` (9 files) | Re-taken against `internal/component/l2tp/ppp/ra_carrier.go::rsReaderLoop` in Linux guest |
+| AC-41 | Done | `8d6bd63526`, `rfc/discrimination/rfc8277/RFC8277-2.4-1.json` | 4 records re-taken against current producers |
+| AC-42 | Done | `8d6bd63526`, `rfc/discrimination/rfc5176/RFC5176-3.1-1.json` | Re-taken on judge-approved mutant |
+| AC-43 | Done | `8d6bd63526`, `rfc/discrimination/{rfc5575,rfc8955}/` | 9 FlowSpec records re-taken on judge-approved one-line mutants |
+| AC-44 | Done | `89250c6db8`, `rfc/discrimination/rfc4659/RFC4659-3.2.1.1-1.json` | Re-taken against `buildMPReachVPN` in Linux userns |
+| AC-45 | Done | `76d0f82c21`, `rfc/discrimination/rfc9252/` (5 records); `RFC8955-6-5` already verified | Recorded route observed red |
+| AC-46 | Done | `8d6bd63526`, `rfc/discrimination/rfc5176/RFC5176-2.3-6.json` | Judge-approved mutant observed red |
+| AC-47 | Done | `89250c6db8`, `rfc/discrimination/rfc7606/RFC7606-5.1-1.json` | Mutant shifted to `rfc7606_shape.go:81` (judge-approved), named red observed |
+| AC-48 | Done | `8d6bd63526`, `rfc/discrimination/rfc7606/{RFC7606-5.1-1,RFC7606-5.1-3}.json` | 3 entries judge-reviewed and committed |
+
+### Tests from TDD Plan
+| Test | Status | Location | Notes |
+|------|--------|----------|-------|
+| `TestCheckDiscriminationProducerChangeLeavesTheProofStanding` | Done | `internal/le/rfc/check_test.go` | PASS (`job-unit-pkg-22df4b2e.log`) |
+| `TestCommitGateIsRegistered` | Done | `internal/le/rfc/discriminate_commit_test.go` | PASS (`job-unit-pkg-22df4b2e.log`) |
+| `TestRFCSelftestRealTreeRowReportsOwnedCheckFailures` | Done | `internal/le/rfc/selftest_test.go` | PASS alone on quiet host in `75.748s` (`job-unit-pkg-8290c99a.log`) |
+| RFC 4271 5-3 negatives | Done | `internal/core/bgp/attribute/rfc4271_test.go` (`TestRFC4271PartialNotStampedOnExcludedClasses`), `internal/component/bgp/reactor/rfc4271_test.go` (`TestRFC4271PartialNotSetOnRecognizedOrNonTransitive`) | Tags restored + mutants recorded red in `89250c6db8` |
+| RFC 4271 5-4 negatives | Done | `internal/component/bgp/reactor/rfc4271_partial_negative_test.go` (`TestRFC4271CompleteRecognizedTransitiveStaysClearOnSessionWire`, `TestRFC4271PartialClearedOutsideOptionalTransitiveOnRelayedWire`) | Added + mutants recorded red in `89250c6db8` |
+| `TestRawVPNv6RequiresNegotiatedFamily` & `TestGenericVPNv6FamilyAdmissionControl` | Done | `internal/component/bgp/reactor/rfc4659_raw_vpnv6_family_admission_test.go` | Added in `735771cf03`, untagged naming marker in `89250c6db8` |
+| `TestRawVPNv6AdmissionBuilders`, `TestRawVPNv6WireOracle`, `TestRawVPNv6FRRPredicates` | Done | `internal/le/interoplab/bgp/check_raw_vpnv6_admission_test.go` | PASS (`job-unit-pkg-4b9c8625.log`) |
+| `TestNotApplicableDocumentAuthorForms` + `check_evidence_test.go` tests | Done | `internal/le/rfc/notapplicable_roles_test.go`, `internal/le/rfc/check_evidence_test.go` | Added + PASS in `41b5ceb0d7` |
+| `TestRFC5176LengthFieldGovernsTheOctetsRead` (short-length negative) | Done | `internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go` | Strengthened + 3-way negative recorded red in `799ca9e99b` |
+| `bgp-raw-vpnv6-family-admission-frr` | Done | `test/interop/scenarios/bgp-raw-vpnv6-family-admission-frr/`, `internal/le/interoplab/bgp/check_raw_vpnv6_admission*.go` | Live FRR 10.7.1 PASS (`4171091143`) + forced-red FAIL (`594541261`) |
+
+### Files from Plan
+| File | Status | Notes |
+|------|--------|-------|
+| `rfc/discrimination/<stem>/` (AC-40..AC-48, AC-32, RFC5176-2.3-3) | Done | Written exclusively by `./le rfc record` across `8d6bd63526`, `76d0f82c21`, `da7857536f`, `89250c6db8`, `799ca9e99b` |
+| `rfc/audit/<stem>/` (AC-29, AC-30, AC-38) | Done | Written exclusively by `./le rfc reseal` and `./le rfc audit-stamp` across `41b5ceb0d7`, `e07a02ad57`, `3dde1ee580`, `796ffaf65e`, `da7857536f`, `89250c6db8`, `799ca9e99b`, `aa3d402d62` |
+| `internal/component/bgp/reactor/session_ownership.go`, `session_write.go`, `rfc4659_raw_vpnv6_family_admission_test.go` | Done | D-1 / AC-27 (`735771cf03`, `89250c6db8`) |
+| `internal/le/interoplab/bgp/{register,check}_raw_vpnv6_admission*.go`, `test/interop/scenarios/bgp-raw-vpnv6-family-admission-frr/*` | Done | AC-27 live FRR 10.7.1 interop (`31a476d642`) |
+| `internal/le/rfc/notapplicable_roles.go`, `notapplicable_roles_test.go`, `check_evidence_test.go` | Done | D-2 / AC-35..AC-37 (`41b5ceb0d7`) |
+| `rfc/short/rfc7606.md`, `rfc/short/rfc5492.md` | Done | D-2 / AC-38 (`808ee06cfb`) |
+| `internal/core/bgp/attribute/rfc4271_test.go`, `internal/component/bgp/reactor/rfc4271_test.go`, `rfc4271_partial_negative_test.go` | Done | AC-32 (`89250c6db8`) |
+| `internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go` | Done | `RFC5176-2.3-3` weak fix (`799ca9e99b`) |
+| `docs/contributing/rfc-conformance-gates.md`, `docs/architecture/api/update-syntax.md`, `docs/architecture/testing/interop.md` | Done | Updated in `41b5ceb0d7`, `735771cf03`, `31a476d642`, and Commit A |
+| `plan/journal/guard-demands-what-the-model-cannot-supply.md`, `plan/journal/guard-added-to-one-half-of-a-pair.md` | Done | Both owned rows marked `fixed:` in Commit A |
+| `website/changes/fragments/rfc-proof-debt-outside-filter-wire.md` | Done | Operator news fragment for AC-27 in Commit A |
+
+### Audit Summary
+- **Total items:** 48 ACs (AC-1..AC-48)
+- **Done:** 48 (47 met/implemented + AC-31 explicitly not owed)
+- **Partial:** 0
+- **Skipped:** 0
+- **Changed:** 2 deviations recorded above (new isolated test files for AC-27/AC-32; `RFC5176-2.3-3` weak audit fixed inline)
+
+## Goal Validation (BLOCKING)
+
+| Goal (from Task) | Evidence Type | Concrete Evidence |
+|------------------|---------------|-------------------|
+| Zero spec-owned stale discrimination records, SHIFTED verdicts, or STALE verdicts at HEAD, with every record observed red by `./le rfc record` and every STALE verdict independently re-judged | Gate check + commit ledger | `tmp/session/2026-11-23-235354/scratch/final-rfc-check-post-aa3d402d62.txt` (0 `no longer verifies` lines; 0 spec-owned violations on `HEAD`, remaining committed lines belong to AC-33 owners); commits `8d6bd63526`, `e07a02ad57`, `76d0f82c21`, `3dde1ee580`, `796ffaf65e`, `da7857536f`, `89250c6db8`, `799ca9e99b`, `aa3d402d62`; owed `./le rfc check` re-run at closure |
+| Wiring & selftest classification (AC-25, AC-34) | Unit tests | `./le test unit pkg path ./internal/le/rfc/ run 'TestCheckDiscriminationProducerChangeLeavesTheProofStanding|TestCommitGateIsRegistered'` PASS (`3.646s`, `job-unit-pkg-22df4b2e.log`); `TestRFCSelftestRealTreeRowReportsOwnedCheckFailures` PASS alone on quiet host (`75.748s`, `job-unit-pkg-8290c99a.log`) |
+| AC-27 (D-1): Parseable raw VPNv6 UPDATEs obey RFC 4659 Section 3.4 / RFC 4760 Section 8 negotiated-family admission on the wire against a real peer | Unit test + FRR 10.7.1 interop + forced-red walk | `TestRawVPNv6RequiresNegotiatedFamily` & `TestGenericVPNv6FamilyAdmissionControl` (`735771cf03`); `TestRawVPNv6` PASS (`job-unit-pkg-4b9c8625.log`); live FRR 10.7.1 interop `bgp-raw-vpnv6-family-admission-frr` PASS (`5m9s`, `1 passed, 0 failed`, `tmp/session/2026-11-23-235354/scratch/bgp-raw-vpnv6-family-admission-frr-4171091143/proof.json`); forced-red walk restoring `!w.raw &&` at `session_ownership.go:858` + rebuilding Ze image FAIL at assertion 0 leaking raw VPNv6 `MP_REACH_NLRI` onto `speaker2` (`tmp/session/2026-11-23-235354/scratch/bgp-raw-vpnv6-family-admission-frr-594541261/proof.json`) |
+| AC-35..AC-39 (D-2): Closed document-author evidence route resolves `RFC7606-8-1` and `RFC5492-4-3` without loosening `subjectBreakers` for protocol roles | Unit tests + independent audit | `TestNotApplicableDocumentAuthorForms` (`internal/le/rfc/notapplicable_roles_test.go`) + negative refusal tests (`internal/le/rfc/check_evidence_test.go`) PASS in `41b5ceb0d7`; independent audits stamped in `rfc/audit/rfc7606/RFC7606-8-1.json` and `rfc/audit/rfc5492/RFC5492-4-3.json` |
+
+## Work Not Done
+
+| What was not done | Why | The spec that now owns it |
+|-------------------|-----|---------------------------|
+| None in scope (all 48 ACs completed; AC-33 rows below remain with their external owners) | Out of scope per AC-33: `RFC7752-3.4-1` and `RFC9552-5.5-1` partial-scope negative proofs | `plan/release/fixes/spec-bgp-next-hop-auto-rewrites-for-ebgp.md` |
+| Out of scope per AC-33: `RFC7871-11.2-1` negative test and DNS resolver proof rows (`plan/handover/51-dns-resolver-scope.md`) | Owned by active DNS resolver work outside this spec | `plan/release/validation/spec-dns-existing-support-proof.md` |
+| Out of scope per AC-33: `rfc8522` Looking Glass test file naming (`internal/component/lg/handler_rfc8522_test.go`) | Owned by concurrent Looking Glass work outside this spec | `plan/release/validation/spec-release-audit-4-web-lg-api.md` |
+
+## Review Gate
+
+| Field | Value |
+|-------|-------|
+| Artifact | `tmp/review/rfc-proof-debt-outside-filter-wire-1d8168a8-add2-4476-9452-6d26630e9539.md` |
+| `./le spec review check` | `OK` (8 clean working-tree code files verified via `./le spec review check`; 9th file `internal/component/bgp/reactor/rfc4271_test.go` pinned to exact `HEAD` blob `e2f8f318bf73ed501d03221e03674789871ff9ea`, sha256 `fbb13ee324f2e66b4a29572fce0f4019afe57b034c616409e5f17730f6f25610`, isolating concurrent session's uncommitted working-tree edit) |
+| Rounds | 1 (0 BLOCKER, 0 ISSUE in Go code; 1 stale doc sentence in `docs/architecture/testing/interop.md` repaired inline in Commit A; 2 over-length journal rows trimmed inline in Commit A; 2 non-blocking NOTEs: spec predates `## Design documents`, and `cmdBuf` local var name in test harness `check_raw_vpnv6_admission.go`) |
+| Reviewer lenses used | logic+wiring, security+edge-cases, rfc+ze-go-style-7q+spec-completeness (inline `/ze-close` independent review + `/ze-review-spec`) |
+
+### Findings fixed
+| # | Severity | Finding | Location | Fixed by |
+|---|----------|---------|----------|----------|
+| 1 | NOTE (doc staleness, closure step 4) | "It reports no completed run." left stale after live FRR 10.7.1 green + forced-red runs in `31a476d642` | `docs/architecture/testing/interop.md` ("Raw VPNv6 family admission observed before FRR") | Updated paragraph in Commit A to state observed pass and forced-red result + `adjOutWrite.section` anchor |
+| 2 | NOTE (commit gate pre-check) | Two working-tree journal rows exceeded `specjournal.RowCharsMax` (600 chars: 604 and 697) | `plan/journal/guard-demands-what-the-model-cannot-supply.md`, `plan/journal/guard-added-to-one-half-of-a-pair.md` | Trimmed to 476 and 531 chars in Commit A |
+
+## Pre-Commit Verification
+
+### Files Exist (ls)
+| File | Exists | Evidence |
+|------|--------|----------|
+| `internal/component/bgp/reactor/rfc4271_partial_negative_test.go` | Yes | `-rw-r--r-- 1 thomas thomas 8814 Nov 24 00:06` |
+| `internal/component/bgp/reactor/rfc4659_raw_vpnv6_family_admission_test.go` | Yes | `-rw-r--r-- 1 thomas thomas 6361 Nov 24 00:06` |
+| `internal/le/interoplab/bgp/register_raw_vpnv6_admission.go` | Yes | `-rw-r--r-- 1 thomas thomas 198 Nov 24 00:08` |
+| `internal/le/interoplab/bgp/check_raw_vpnv6_admission.go` | Yes | `-rw-r--r-- 1 thomas thomas 14906 Nov 24 02:46` |
+| `internal/le/interoplab/bgp/check_raw_vpnv6_admission_oracle.go` | Yes | `-rw-r--r-- 1 thomas thomas 23961 Nov 24 00:42` |
+| `internal/le/interoplab/bgp/check_raw_vpnv6_admission_test.go` | Yes | `-rw-r--r-- 1 thomas thomas 11681 Nov 24 00:08` |
+| `test/interop/scenarios/bgp-raw-vpnv6-family-admission-frr/{ze.conf,frr.conf,frr-sink.conf,speaker-args,speaker2-args}` | Yes | `ze.conf` (964B), `frr.conf` (728B), `frr-sink.conf` (422B), `speaker-args` (98B), `speaker2-args` (95B) |
+| `rfc/audit/rfc7606/RFC7606-8-1.json`, `rfc/audit/rfc5492/RFC5492-4-3.json` | Yes | `1228B` and `1146B` (Nov 22) |
+| `website/changes/fragments/rfc-proof-debt-outside-filter-wire.md` | Yes | `-rw-r--r-- 1 thomas thomas 1754 Nov 24 03:21` |
+
+### AC Verified (grep/test)
+| AC ID | Claim | Fresh Evidence |
+|-------|-------|----------------|
+| AC-1..AC-6, AC-9..AC-15, AC-17..AC-24, AC-26, AC-31 | Previously met rows still met | `tmp/session/2026-11-23-235354/scratch/final-rfc-check-post-aa3d402d62.txt`: 0 `no longer verifies` lines; 0 spec-owned violations on `HEAD` |
+| AC-7, AC-8, AC-16, AC-29, AC-30 | All SHIFTED resealed and STALE independently re-audited | `git log --grep='Spec-work: rfc-proof-debt-outside-filter-wire'` commits `e07a02ad57`, `3dde1ee580`, `796ffaf65e`, `da7857536f`, `89250c6db8`, `799ca9e99b`, `aa3d402d62` |
+| AC-25 | Selftest passes alone on quiet host | `job-unit-pkg-8290c99a.log`: `ok github.com/ze-software/ze/internal/le/rfc 75.748s` |
+| AC-27 | Raw VPNv6 family admission enforced + FRR 10.7.1 interop green & forced-red | `735771cf03` (`adjOutWrite.section`, `writeUpdateBody`), `31a476d642`, `proof.json` `4171091143` (`"verdict": "passed"`), `594541261` (`"verdict": "raw VPNv6 wire step 1 differs: ..."`), `job-unit-pkg-4b9c8625.log` (`ok`) |
+| AC-28, AC-40..AC-48 | All 32 stale records re-taken + 3 pending RFC 7606 entries committed | `8d6bd63526`, `76d0f82c21`, `da7857536f`, `89250c6db8`; `grep 'no longer verifies' final-rfc-check-post-aa3d402d62.txt` = 0 hits |
+| AC-32 | RFC 4271 5-3/5-4 negatives + 3 judge approvals + RFC 9252 3.3-2 | `89250c6db8` (`git show 89250c6db8` carries all 3 `RFC-approved:` trailers and both tests in `rfc4271_partial_negative_test.go`), `76d0f82c21` |
+| AC-33, AC-34 | Remaining rows belong to named owners; commit gate wired | `job-unit-pkg-22df4b2e.log` (`ok github.com/ze-software/ze/internal/le/rfc 3.646s`); owed `./le rfc check` on HEAD confirms 0 spec-owned violations |
+| AC-35..AC-39 | Closed document-author route + tests + audits + gates doc | `41b5ceb0d7` (`documentAuthorAccepted` in `internal/le/rfc/notapplicable_roles.go`, `TestNotApplicableDocumentAuthorForms`, `docs/contributing/rfc-conformance-gates.md`), `808ee06cfb` (`rfc/short/{rfc7606,rfc5492}.md`) |
+
+### Wiring Verified (end-to-end)
+| Entry Point | .ci File | Verified |
+|-------------|----------|----------|
+| `./le rfc check` -> `verifyOneDiscrimination` (`internal/le/rfc/discriminate.go`) | Go wiring test `TestCheckDiscriminationProducerChangeLeavesTheProofStanding` (`internal/le/rfc/check_test.go`) | Yes (`job-unit-pkg-22df4b2e.log` PASS) |
+| `./le commit create` -> `judgeStaleRecords` (`internal/le/rfc/discriminate_commit.go`) | Go wiring test `TestCommitGateIsRegistered` (`internal/le/rfc/discriminate_commit_test.go`) | Yes (`job-unit-pkg-22df4b2e.log` PASS) |
+| `./le rfc selftest` -> owned check failure reporting (`internal/le/rfc`) | Go wiring test `TestRFCSelftestRealTreeRowReportsOwnedCheckFailures` (`internal/le/rfc/selftest_test.go`) | Yes (`job-unit-pkg-8290c99a.log` PASS `75.748s`) |
+| `send bgp <peer> raw hex ...` -> `Session.SendRawMessage` -> `writeOriginatedRawUpdate` -> `writeUpdateBody` -> `adjOutWrite.section` | Live FRR 10.7.1 interop `test/interop/scenarios/bgp-raw-vpnv6-family-admission-frr/` registered via `register_raw_vpnv6_admission.go` `init()` | Yes (`proof.json` `4171091143` PASS; forced-red `594541261` FAIL) |
+
+### Assumptions Resolved
+| ID | Final Status | Evidence |
+|----|--------------|----------|
+| A-1 | confirmed | `git log -1 --format=%B` of cause commits verified 2026-11-19: none carries `Spec-work: filter-wire` |
+| A-2 | confirmed | `rfc/discrimination/rfc2545/RFC2545-3-2.json` and `RFC2545-3-3.json` verify on mutant route (`22f651cf53`); AC-7 audit passed (`796ffaf65e`) |
+| A-3 | confirmed | `TestRFCSelftestRealTreeRowReportsOwnedCheckFailures` passed alone on quiet host in `75.748s` (`job-unit-pkg-8290c99a.log`) |
+| A-4 | confirmed | Every STALE row independently re-audited in `3dde1ee580`, `796ffaf65e`, `da7857536f`, `89250c6db8`, `aa3d402d62`; single new `weak` (`RFC5176-2.3-3`) fixed and re-audited `enforced` in `799ca9e99b` |
+| A-5 | confirmed | Owner approved D-1 on 2026-11-22; `735771cf03` enforced `SupportsFamily` on parseable raw writes; `31a476d642` proved it live against FRR 10.7.1 |
+| A-6 | confirmed | Every producer named and observed red in `8d6bd63526` (AC-41..43, AC-46, AC-48) and `89250c6db8` (AC-47 `rfc7606_shape.go:81`) |
+
+### Documentation Verified
+| Documentation claim or category | Source evidence | Verified |
+|---------------------------------|-----------------|----------|
+| Category 9 (RFC compliance) & 10 (Test infrastructure): `docs/contributing/rfc-conformance-gates.md` | `41b5ceb0d7` documents `documentAuthorAccepted` under "The exclusion evidence ratchet" matching `internal/le/rfc/notapplicable_roles.go`; 0 anchor errors in `./le doc check all` | Yes |
+| Category 4/7 (Raw API / wire admission): `docs/architecture/api/update-syntax.md` | `735771cf03` documents RFC 4760 Section 8 / RFC 4659 Section 3.4 admission under "Raw Passthrough Commands" with anchor `internal/component/bgp/reactor/session_ownership.go -- adjOutWrite.section`; 0 anchor errors | Yes |
+| Category 10 (Interop test infrastructure): `docs/architecture/testing/interop.md` | `31a476d642` + Commit A document `bgp-raw-vpnv6-family-admission-frr`, FRR 10.7.1 source functions, green & forced-red results, and anchors; 0 anchor errors | Yes |
+| Categories 1–3, 5–6, 8, 11–15, 17 (No update needed) | `git grep` + `./le spec citation anchors` show no feature declaration, YANG/config, CLI command, plugin, SDK, comparison, metadata, or metric docs reference changed files | Yes |
+| Citers cleared before Commit B deletion | `git grep -n 'spec-rfc-proof-debt-outside-filter-wire\.md'` returns only self-references after repointing `plan/release/validation/spec-rfc-external-program-verification.md` and `plan/handover/49-rfc-proof-debt-retakes.md` in Commit A | Yes |

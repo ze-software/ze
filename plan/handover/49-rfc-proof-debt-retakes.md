@@ -1,6 +1,6 @@
 # Handover 49: RFC proof debt, re-taking the stale records
 
-Spec: `plan/release/fixes/spec-rfc-proof-debt-outside-filter-wire.md` (ready,
+Spec: `spec-rfc-proof-debt-outside-filter-wire` (closed; originally ready,
 unclaimed: the WIP cap refused the claim, and the owner rule forbids raising
 it; the work was done unclaimed under the owner's order to continue).
 

@@ -195,7 +195,7 @@ This spec delivers four cohesive parts:
 |----------|--------|
 | What breaks if this is wrong? | `./le rfc check`, `./le rfc tree`, `./le site build`, `/quality/rfc-compliance/`, `/quality/rfc-map/`, `/quality/health/`, and UI fixtures (`le-help-rfc-tree-sections`, `le-rfc-derived-proof-render`); zero impact on shipped `ze` binary |
 | How is it reverted? | Single commit revert of tooling + site + pilot scenario; no config migration |
-| Who else touches this path? | Active RFC proof-debt and kernel-discrimination specs (`spec-rfc-proof-debt-outside-filter-wire.md`, `spec-rfc-kernel-patch-discrimination-route.md`) |
+| Who else touches this path? | Active RFC proof-debt and kernel-discrimination specs (`spec-rfc-proof-debt-outside-filter-wire` (closed), `spec-rfc-kernel-patch-discrimination-route.md`) |
 
 ## Wiring Test (MANDATORY -- NOT deferrable)
 
