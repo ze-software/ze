@@ -1372,3 +1372,13 @@ environment {
 	require.Len(t, cfg.Servers, 1)
 	assert.Equal(t, "8080", cfg.Servers[0].Port)
 }
+
+// VALIDATES: a declared device maps to a single raw store key segment.
+// PREVENTS: a nested or traversal-like name reaching the config or record writer.
+func TestExtractHubConfigRefusesUnsafeClientName(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "hub.conf")
+	for _, name := range []string{"site/edge", "edge..01", "."} {
+		_, err := LoadConfig(strings.Replace(hubLabelConfig(""), "edge-01", name, 1), path, nil)
+		require.ErrorContains(t, err, "store key segment")
+	}
+}

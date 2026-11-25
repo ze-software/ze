@@ -26,6 +26,8 @@ type Storage interface {
 	// history entry, then the object it names, with the SHA-256 verified.
 	// A missing entry or object keeps fs.ErrNotExist in the error chain.
 	ReadVersion(name, stamp string) ([]byte, error)
+	// SetWriteObserver installs one callback for durable writes and runtime-key
+	// removals. The guard has released its locks before the callback runs.
 	SetWriteObserver(func(string))
 	ReadKey(string) ([]byte, error)
 	WriteKey(string, []byte) error

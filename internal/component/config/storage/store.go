@@ -740,6 +740,11 @@ func (g *guard) Release() error {
 		for key := range g.pending {
 			observer(key)
 		}
+		for key := range g.removed {
+			if RuntimeKey(key) {
+				observer(key)
+			}
+		}
 	}
 	return nil
 }

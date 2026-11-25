@@ -19,6 +19,7 @@ import (
 	"github.com/ze-software/ze/internal/core/opererr"
 	"github.com/ze-software/ze/internal/core/slogutil"
 	"github.com/ze-software/ze/internal/core/textbuf"
+	"github.com/ze-software/ze/pkg/fleet"
 )
 
 var (
@@ -1116,6 +1117,9 @@ func readManagedClientLabels(hub *Tree) (map[string]map[string]string, error) {
 	var excessPath string
 	for _, block := range hub.GetListOrdered("server") {
 		for _, client := range block.Value.GetListOrdered("client") {
+			if !fleet.ValidDeviceKeyName(client.Key) {
+				return nil, opererr.New("invalid managed client name "+QuoteIfNeeded(client.Key), "the device name must fit one store key segment without / or ..", "delete "+managedClientConfigPath(block.Key, client.Key)+" and declare the client with a single-segment name")
+			}
 			values, err := readClientLabels(block.Key, client.Key, client.Value)
 			if err != nil {
 				return nil, err

@@ -187,7 +187,9 @@ serve it, because it answers only the immediate file children of a resolved
 name. In-process metadata records
 modification time and modifier identity on both encodings; it is not a durable
 audit log. Observers receive resolved keys after successful publication and lock
-release, so a callback may read the store again.
+release, so a callback may read the store again. A guard reports each key
+it wrote and each runtime-state key it removed. Removing a configuration
+key leaves the configuration write observer silent.
 
 An unguarded read does not wait for a guard. Three locks order the store
 (`store` in `store.go`): a guard holds the configuration lock (`writer`) or

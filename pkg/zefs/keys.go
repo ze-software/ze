@@ -144,3 +144,6 @@ var KeyManagedBaseVersion = MustRegister(KeyEntry{Pattern: "meta/managed/base-ve
 // managed client keeps the certificate authority its hub presents on the
 // first connection, and authenticates the hub against it from then on.
 const ManagedHubTrustFirstUse = "first-use"
+
+// KeyFleetDeviceRecord holds one managed device's durable hub-side history.
+var KeyFleetDeviceRecord = MustRegister(KeyEntry{Pattern: "meta/fleet/device/{name}/record", Description: "Managed device connection, fetch and acknowledgement history (JSON)"})
