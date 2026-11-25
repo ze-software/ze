@@ -998,6 +998,18 @@ when it cannot be recovered from that key. A label-only advertisement change
 sends, an identical repeat suppresses, and a forwarded replacement clears the
 local signature. Forwarded entries retain no attribute block.
 
+Peer-up replay and queued live forwarding can carry the same received UPDATE.
+The replay fence admits the initial write first. The writer keeps the source
+receipt, message ID, exact NLRI and a fixed-size digest of the path attributes
+for that replayed route. It suppresses a live copy when those fields match.
+The digest for an MP announcement covers its next hop and the route's other
+attributes. Sibling NLRI, withdrawals and MP length encoding do not contribute
+to that digest. The writer still considers other paths and withdrawals in the
+live UPDATE. A different source receipt, route revision or attribute change
+uses ordinary forwarding admission.
+<!-- source: internal/component/bgp/reactor/session_ownership.go -- holdsInitialRelay -->
+<!-- source: internal/component/bgp/reactor/session_ownership_walk.go -- readInitialRelayDigest, recordNLRI -->
+
 Explicit diagnostic raw injection uses the same writer and ownership inventory,
 but does not duplicate-suppress an admitted UPDATE. Both raw API forms obey the
 session's export final: absent EBGP policy rejects, while absent IBGP policy

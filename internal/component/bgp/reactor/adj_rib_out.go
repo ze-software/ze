@@ -408,15 +408,17 @@ func (a *adjRIBOut) releasePath(key *adjOutKey, entry *adjRIBOutRoute) {
 }
 
 // adjRIBOutRoute retains no forwarded attributes. Local advertisements share
-// one signature per body. Local and selected advertisements keep exact NLRI
-// only when the semantic key loses wire information (labels, framing, or
-// noncanonical prefix bits), allowing exact retirement without source lookup.
+// one signature per body. A source-bound initial relay shares a fixed-size
+// digest as evidence for a live copy of the same original UPDATE. Local,
+// selected and initial advertisements keep exact NLRI when the semantic key
+// loses wire information (labels, framing, or noncanonical prefix bits).
 type adjRIBOutRoute struct {
-	owner     adjOutPath
-	selection selectedOutput
-	revision  uint64
-	signature []byte
-	exactNLRI []byte
+	owner        adjOutPath
+	selection    selectedOutput
+	revision     uint64
+	signature    []byte
+	exactNLRI    []byte
+	initialRelay bool
 	// contested is sticky: some candidate other than this owner reached the
 	// writer for the key since the entry was installed (another source's
 	// announcement, an announcement meeting a record or a tombstone, or a

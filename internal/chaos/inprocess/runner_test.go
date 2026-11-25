@@ -466,6 +466,7 @@ func TestInProcessProperties(t *testing.T) {
 		Profiles:  profiles,
 		Seed:      42,
 		Duration:  5 * time.Second,
+		StepDelay: 200 * time.Millisecond,
 		LocalAS:   65000,
 		RouterID:  netip.MustParseAddr("10.0.0.1"),
 		LocalAddr: "127.0.0.1",
@@ -791,6 +792,7 @@ func TestInProcessShrinkCompat(t *testing.T) {
 		Profiles:  profiles,
 		Seed:      42,
 		Duration:  5 * time.Second,
+		StepDelay: 200 * time.Millisecond,
 		LocalAS:   65000,
 		RouterID:  netip.MustParseAddr("10.0.0.1"),
 		LocalAddr: "127.0.0.1",
@@ -801,14 +803,14 @@ func TestInProcessShrinkCompat(t *testing.T) {
 	// Run shrink on the events. For a passing scenario, shrink should
 	// report "no violation found" — proving events are format-compatible.
 	start := time.Now()
-	_, shrinkErr := shrink.Run(result.Events, shrink.Config{
+	minimized, shrinkErr := shrink.Run(result.Events, shrink.Config{
 		PeerCount: 2,
 		Deadline:  10 * time.Second,
 	})
 	elapsed := time.Since(start)
 
 	// Shrink should report no violation (correct scenario).
-	require.Error(t, shrinkErr, "shrink should report no violation for passing scenario")
+	require.Error(t, shrinkErr, "shrink should report no violation for passing scenario, got %+v", minimized)
 	assert.Contains(t, shrinkErr.Error(), "no violation", "error should indicate no violation found")
 
 	// Shrink should complete near-instantly for a passing scenario.

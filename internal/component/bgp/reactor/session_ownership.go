@@ -318,6 +318,10 @@ func (w *adjOutWrite) allow(fam family.Family, raw []byte, withdraw, multiprotoc
 			}
 			owner.message = item.sourceMessageID
 			if !withdraw {
+				if !w.raw && !item.initialUpdate && w.holdsInitialRelay(key, entry, owner, raw) {
+					w.suppressed++
+					return false, nil
+				}
 				if w.oweAnnouncement(fam, key, entry, owner, raw) {
 					return false, nil
 				}
@@ -533,6 +537,42 @@ func (w *adjOutWrite) allow(fam family.Family, raw []byte, withdraw, multiprotoc
 	}
 	w.owners[key] = owner
 	return true, nil
+}
+
+// holdsInitialRelay checks the final bytes only for a live copy of the exact
+// original UPDATE already sent by peer-UP replay. The replay fence puts that
+// write first. RFC 4271 Section 9.2 calls for suppressing the duplicate route;
+// another revision and each withdrawal retain their normal admission.
+func (w *adjOutWrite) holdsInitialRelay(key adjOutKey, entry *adjRIBOutRoute, owner adjOutPath, raw []byte) bool {
+	if entry == nil {
+		return false
+	}
+	if !entry.initialRelay {
+		return false
+	}
+	if !adjOutSameReceivedUpdate(entry.owner, owner) {
+		return false
+	}
+	if adjOutContests(entry, owner, w.table.owed[key] != nil, w.table.tombstoned(key)) {
+		return false
+	}
+	if _, withdrawn := w.withdrawn[key]; withdrawn {
+		return false
+	}
+	if _, moving := w.movers[key]; moving {
+		return false
+	}
+	if _, announced := w.owners[key]; announced {
+		return false
+	}
+	return adjOutExactNLRI(entry, key, raw) && bytes.Equal(entry.signature, w.walk.initialRelayDigest())
+}
+
+// adjOutSameReceivedUpdate compares exact ingress provenance after the
+// original replay's nonzero message and receipt established its evidence.
+func adjOutSameReceivedUpdate(a, b adjOutPath) bool {
+	return adjOutSameOwner(a, b) && a.message == b.message && a.sourceReceipt == b.sourceReceipt &&
+		a.policyEpoch == b.policyEpoch && a.connectionID == b.connectionID
 }
 
 // bindSourcePath uses the recipient's ingress index, never an evictable cache
@@ -834,7 +874,7 @@ func adjOutExactNLRI(entry *adjRIBOutRoute, key adjOutKey, raw []byte) bool {
 	return bytes.Equal(key.path.nlri[:key.path.length], raw)
 }
 
-func (w *adjOutWrite) section(dst, data []byte, fam family.Family, withdraw, multiprotocol bool, sig adjRIBOutSignature, readable bool) (int, error) {
+func (w *adjOutWrite) section(dst, data, attrs []byte, fam family.Family, withdraw, multiprotocol bool, sig adjRIBOutSignature, readable bool) (int, error) {
 	if len(data) == 0 {
 		return 0, nil
 	}
@@ -875,7 +915,7 @@ func (w *adjOutWrite) section(dst, data []byte, fam family.Family, withdraw, mul
 		return 0, errAdjOutProvenance
 	}
 	w.walk = adjOutSectionWalk{
-		dst: dst, family: fam, withdraw: withdraw, multiprotocol: multiprotocol,
+		dst: dst, attrs: attrs, sectionOctets: len(data), family: fam, withdraw: withdraw, multiprotocol: multiprotocol,
 		signature: sig, readable: readable,
 	}
 	_, err := split(data, w.encoding.AddPathFor(fam), w.allowVisit)
@@ -897,7 +937,7 @@ func (w *adjOutWrite) filter(dst, body []byte) (int, error) {
 		return 0, err
 	}
 	attrs := sec.Attrs(body)
-	n, err := w.section(adjOutSlice(dst, 2), sec.Withdrawn(body), family.IPv4Unicast, true, false, adjRIBOutSignature{}, false)
+	n, err := w.section(adjOutSlice(dst, 2), sec.Withdrawn(body), nil, family.IPv4Unicast, true, false, adjRIBOutSignature{}, false)
 	if err != nil {
 		return 0, err
 	}
@@ -918,7 +958,7 @@ func (w *adjOutWrite) filter(dst, body []byte) (int, error) {
 		if cause != nil {
 			return 0, cause
 		}
-		if _, cause = w.section(nil, value[off:], fam, true, true, adjRIBOutSignature{}, false); cause != nil {
+		if _, cause = w.section(nil, value[off:], nil, fam, true, true, adjRIBOutSignature{}, false); cause != nil {
 			return 0, cause
 		}
 	}
@@ -934,7 +974,7 @@ func (w *adjOutWrite) filter(dst, body []byte) (int, error) {
 		sig, readable = announceSignature(attrs, family.IPv4Unicast, len(sec.NLRI(body)))
 	}
 	legacyOffset := len(body) - len(sec.NLRI(body))
-	count, err := w.section(adjOutSlice(dst, legacyOffset), sec.NLRI(body), family.IPv4Unicast, false, false, sig, readable)
+	count, err := w.section(adjOutSlice(dst, legacyOffset), sec.NLRI(body), attrs, family.IPv4Unicast, false, false, sig, readable)
 	if err != nil {
 		return 0, err
 	}
@@ -968,7 +1008,7 @@ func (w *adjOutWrite) filter(dst, body []byte) (int, error) {
 		}
 		n += header + off
 		removed := w.removed
-		count, cause := w.section(adjOutSlice(dst, n), value[off:], fam, !reach, true, sig, readable)
+		count, cause := w.section(adjOutSlice(dst, n), value[off:], attrs, fam, !reach, true, sig, readable)
 		if cause != nil {
 			return 0, cause
 		}
@@ -1019,12 +1059,12 @@ func (w *adjOutWrite) record(body []byte) error {
 		return err
 	}
 	attrs := sec.Attrs(body)
-	if err := w.recordSection(sec.Withdrawn(body), attrs, family.IPv4Unicast, true); err != nil {
+	if err := w.recordSection(sec.Withdrawn(body), attrs, family.IPv4Unicast, true, false); err != nil {
 		return err
 	}
 	for _, reach := range []bool{false, true} {
 		if reach {
-			if err := w.recordSection(sec.NLRI(body), attrs, family.IPv4Unicast, false); err != nil {
+			if err := w.recordSection(sec.NLRI(body), attrs, family.IPv4Unicast, false, false); err != nil {
 				return err
 			}
 		}
@@ -1041,7 +1081,7 @@ func (w *adjOutWrite) record(body []byte) error {
 			if cause != nil {
 				return cause
 			}
-			if cause := w.recordSection(value[off:], attrs, fam, !reach); cause != nil {
+			if cause := w.recordSection(value[off:], attrs, fam, !reach, true); cause != nil {
 				return cause
 			}
 		}
@@ -1049,7 +1089,7 @@ func (w *adjOutWrite) record(body []byte) error {
 	return nil
 }
 
-func (w *adjOutWrite) recordSection(data, attrs []byte, fam family.Family, withdraw bool) error {
+func (w *adjOutWrite) recordSection(data, attrs []byte, fam family.Family, withdraw, multiprotocol bool) error {
 	if len(data) == 0 {
 		return nil
 	}
@@ -1060,7 +1100,7 @@ func (w *adjOutWrite) recordSection(data, attrs []byte, fam family.Family, withd
 	if split == nil {
 		return errAdjOutProvenance
 	}
-	w.walk = adjOutSectionWalk{family: fam, withdraw: withdraw, attrs: attrs, sectionOctets: len(data)}
+	w.walk = adjOutSectionWalk{family: fam, withdraw: withdraw, multiprotocol: multiprotocol, attrs: attrs, sectionOctets: len(data)}
 	_, err := split(data, w.encoding.AddPathFor(fam), w.recordVisit)
 	cause := w.walk.cause
 	w.walk = adjOutSectionWalk{}

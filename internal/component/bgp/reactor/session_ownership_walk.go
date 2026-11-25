@@ -4,7 +4,10 @@
 package reactor
 
 import (
+	"crypto/sha256"
+
 	"github.com/ze-software/ze/internal/component/bgp/wireu"
+	"github.com/ze-software/ze/internal/core/bgp/attribute"
 	"github.com/ze-software/ze/internal/core/bgp/nlri/nlrisplit"
 	"github.com/ze-software/ze/internal/core/bgp/ribevents"
 	"github.com/ze-software/ze/internal/core/family"
@@ -26,16 +29,94 @@ type adjOutSectionWalk struct {
 	stored []byte
 	// signature and readable are section's argument, or recordSection's
 	// signature read once per section (signatureRead).
-	signature     adjRIBOutSignature
-	family        family.Family
-	sectionOctets int
-	n             int
-	occurrence    int
-	cause         error
-	withdraw      bool
-	multiprotocol bool
-	readable      bool
-	signatureRead bool
+	signature         adjRIBOutSignature
+	family            family.Family
+	sectionOctets     int
+	n                 int
+	occurrence        int
+	cause             error
+	withdraw          bool
+	multiprotocol     bool
+	readable          bool
+	signatureRead     bool
+	replayDigest      [sha256.Size]byte
+	replayDigestRead  bool
+	replayDigestValid bool
+}
+
+// initialRelayDigest lazily fingerprints the normalized route attribute
+// bytes. The live scan reaches it only for a candidate original UPDATE, and
+// the record walk shares one digest across the initial body section.
+func (walk *adjOutSectionWalk) initialRelayDigest() []byte {
+	if !walk.replayDigestRead {
+		walk.replayDigestRead = true
+		walk.replayDigestValid = walk.readInitialRelayDigest()
+	}
+	if !walk.replayDigestValid {
+		return nil
+	}
+	return walk.replayDigest[:]
+}
+
+// readInitialRelayDigest retains one path's attributes, irrespective of what
+// else shares the body. RFC 4760 Sections 3 and 4 put a family's next hop in
+// MP_REACH, and its independent withdrawals in MP_UNREACH. RFC 4271 Section
+// 4.3 makes the length width a property of the whole attribute, including
+// its other NLRI. The digest keeps the next hop used by this path and writes
+// a canonical header for that reduced MP_REACH payload.
+func (walk *adjOutSectionWalk) readInitialRelayDigest() bool {
+	digest := sha256.New()
+	iter := attribute.NewAttrIterator(walk.attrs)
+	start := 0
+	reached := false
+	for code, flags, value, ok := iter.Next(); ok; code, flags, value, ok = iter.Next() {
+		end := iter.Offset()
+		encoded := walk.attrs[start:end]
+		start = end
+		switch code {
+		case attribute.AttrMPUnreachNLRI:
+			continue
+		case attribute.AttrNextHop:
+			// RFC 4760 Section 3 uses only the MP_REACH next hop for this
+			// path. NEXT_HOP belongs to an independent legacy sibling.
+			if walk.multiprotocol {
+				continue
+			}
+		case attribute.AttrMPReachNLRI:
+			if !walk.multiprotocol {
+				continue
+			}
+			fam, off, err := pathsLimitMP(value, true)
+			// refuse-by-default: guards initialRelayDigest -- malformed next-hop data cannot prove a duplicate.
+			if err != nil {
+				return false
+			}
+			if fam != walk.family {
+				continue
+			}
+			if reached {
+				return false
+			}
+			if len(value)-off != walk.sectionOctets {
+				return false
+			}
+			var header [4]byte
+			n := attribute.WriteHeaderTo(header[:], 0, flags&^attribute.FlagExtLength, code, uint16(off)) //nolint:gosec // G115: fixed bytes plus the eight-bit next-hop length.
+			_, _ = digest.Write(header[:n])
+			_, _ = digest.Write(value[:off])
+			reached = true
+			continue
+		}
+		_, _ = digest.Write(encoded)
+	}
+	if iter.Remaining() != 0 {
+		return false
+	}
+	if walk.multiprotocol != reached {
+		return false
+	}
+	digest.Sum(walk.replayDigest[:0])
+	return true
 }
 
 // allowNLRI is section's visitor: it admits one NLRI and copies it into dst.
@@ -164,7 +245,7 @@ func (w *adjOutWrite) recordNLRI(raw []byte) bool {
 	if item := w.session.sentForward; item != nil && item.authority == adjOutInitial {
 		entry.revision = item.expectedMessage
 	}
-	entry.signature, entry.exactNLRI = nil, nil
+	entry.signature, entry.exactNLRI, entry.initialRelay = nil, nil, false
 	if owner.source == nil && !walk.signatureRead {
 		walk.signature, walk.readable = announceSignature(walk.attrs, walk.family, walk.sectionOctets)
 		walk.signatureRead = true
@@ -175,11 +256,19 @@ func (w *adjOutWrite) recordNLRI(raw []byte) bool {
 		}
 		entry.signature = walk.stored
 	}
+	if item := w.session.sentForward; item != nil && item.authority == adjOutForwarded && item.initialUpdate && owner.message != 0 && owner.sourceReceipt != 0 {
+		if digest := walk.initialRelayDigest(); digest != nil {
+			if walk.stored == nil {
+				walk.stored = append([]byte(nil), digest...)
+			}
+			entry.signature, entry.initialRelay = walk.stored, true
+		}
+	}
 	// Selected and relayed retirement reconstruct the withdrawal from this
 	// current slot, without asking its source or re-reading a possibly replaced
 	// candidate. Retain framing the semantic key intentionally discards for
 	// these outputs as well as for local duplicate evidence.
-	keepNative := entry.selection.owner.Done() != nil
+	keepNative := entry.initialRelay || entry.selection.owner.Done() != nil
 	if owner.source == nil {
 		keepNative = walk.readable
 	} else if !keepNative {
