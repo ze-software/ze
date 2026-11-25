@@ -44,7 +44,7 @@ func TestRefreshSentFeedbackRetainsReplayOrigin(t *testing.T) {
 			}
 			return false
 		}
-		api := newSendPermissionReactor(peer)
+		api := newSendPermissionReactor(t, peer)
 		batch := refreshFeedbackBatch()
 		if err := api.AnnounceNLRIBatch(t.Context(), selector.All(), batch, plugin.OperatorSender()); err != nil {
 			t.Fatal(err)
@@ -72,7 +72,7 @@ func TestRFC2918RefreshRunsCurrentExportPolicy(t *testing.T) {
 	peer.runInitialSyncNow()
 	peer.settings.ExportPolicy = answerPolicy(t, routepolicy.FinalAccept, "refresh-policy")
 	peer.refreshForwardFacts()
-	api := newSendPermissionReactor(peer)
+	api := newSendPermissionReactor(t, peer)
 	accept, calls := true, 0
 	api.r.filterTransportSeam = &answerTransport{reads: []string{rpc.FilterFieldRaw}, answer: func(rpc.FilterUpdateInput) rpc.FilterUpdateOutput {
 		calls++

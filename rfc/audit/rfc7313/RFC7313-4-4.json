@@ -4,7 +4,7 @@
   "tests": {
     "internal/component/bgp/plugins/rib/rfc7313_borr_eorr_and_local_refresh_test.go::TestRFC7313BoRRMarksStaleAndEoRRPurgesRemainingStale": "ab39d7d6db657c0a",
     "internal/component/bgp/plugins/rib/rfc7313_borr_eorr_and_local_refresh_test.go::TestRFC7313BoRRMarksStaleAndEoRRPurgesRemainingStale#2": "ab39d7d6db657c0a",
-    "internal/component/bgp/reactor/rfc7313_gr_eor_gate_test.go::TestRFC7313RxNonEnhancedPeerReservedOctetNotBoRR": "8fbfb00deeab497e"
+    "internal/component/bgp/reactor/rfc7313_gr_eor_gate_test.go::TestRFC7313RxNonEnhancedPeerReservedOctetNotBoRR": "0785b9f1177ebf66"
   },
   "units": {
     "internal/component/bgp/plugins/rib/rfc7313_borr_eorr_and_local_refresh_test.go::TestRFC7313BoRRMarksStaleAndEoRRPurgesRemainingStale": "d1c66673e262a159",

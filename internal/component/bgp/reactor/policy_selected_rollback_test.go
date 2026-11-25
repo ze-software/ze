@@ -16,7 +16,6 @@ import (
 	pluginserver "github.com/ze-software/ze/internal/component/plugin/server"
 	"github.com/ze-software/ze/internal/core/bgp/attribute"
 	bgpctx "github.com/ze-software/ze/internal/core/bgp/context"
-	bgpevents "github.com/ze-software/ze/internal/core/bgp/events"
 	"github.com/ze-software/ze/internal/core/bgp/nlri"
 	"github.com/ze-software/ze/internal/core/family"
 	"github.com/ze-software/ze/internal/core/selector"
@@ -42,7 +41,7 @@ func TestPolicySelectedRemovalRollbackPreservesAPIOrigin(t *testing.T) {
 	rib := registry.Lookup(ribName)
 	require.NotNil(t, rib)
 	configured := DisseminationPeersFromSettings([]*PeerSettings{sourceSettings, destinationSettings})
-	graph := pluginserver.NewDisseminationGraph(bgpevents.Namespace, configured)
+	graph := buildTestDisseminationGraph(t, configured)
 	owner, err := graph.ResolveDisseminationOwner(configured[1].Addr, SelectedDisseminationRole,
 		[]pluginserver.DisseminationProcess{{Name: ribName, Claims: rib.Claims, Declarations: rib.Dissemination}})
 	require.NoError(t, err)

@@ -119,7 +119,7 @@ func TestRawOpaqueInjectionFlushesBeforeRetirement(t *testing.T) {
 				receipts++
 				return false
 			}
-			api := newSendPermissionReactor(peer)
+			api := newSendPermissionReactor(t, peer)
 			if err := api.SendRawMessage(peer.settings.Address, tc.kind, tc.payload, plugin.ProcessSender(railGranted)); err != nil {
 				t.Fatalf("accepted opaque injection returned a transport failure: %v", err)
 			}
@@ -189,7 +189,7 @@ func TestRawValidDuplicatesOwnTheLocalPath(t *testing.T) {
 				payload[0] = 0
 				binary.BigEndian.PutUint16(payload[16:18], message.HeaderLen)
 			}
-			api := newSendPermissionReactor(peer)
+			api := newSendPermissionReactor(t, peer)
 			for range 2 {
 				if err := api.SendRawMessage(peer.settings.Address, kind, payload, plugin.ProcessSender(railGranted)); err != nil {
 					t.Fatal(err)
@@ -341,7 +341,7 @@ func TestRawInjectionKeepsAIGPPolicy(t *testing.T) {
 					if packet {
 						kind, payload = 0, rawOwnershipPacket(body, msgtype.TypeUPDATE)
 					}
-					api := newSendPermissionReactor(peer)
+					api := newSendPermissionReactor(t, peer)
 					for range 2 {
 						if err := api.SendRawMessage(peer.settings.Address, kind, payload, plugin.ProcessSender(railGranted)); err != nil {
 							t.Fatal(err)
@@ -382,10 +382,10 @@ func TestRawControlInjectionKeepsOwnership(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			peer, conn := rawOwnershipPeer(t)
 			source, _ := newAnnouncePeer(t, "192.0.2.1")
-			if err := ownershipWriterForward(t, peer, source, syncOrderAnnounceBody, false); err != nil {
+			if err := ownershipWriterForward(t, peer, source, rawOwnershipAnnounceBody(), false); err != nil {
 				t.Fatal(err)
 			}
-			api := newSendPermissionReactor(peer)
+			api := newSendPermissionReactor(t, peer)
 			if err := api.SendRawMessage(peer.settings.Address, tc.kind, tc.payload, plugin.ProcessSender(railGranted)); err != nil {
 				t.Fatal(err)
 			}

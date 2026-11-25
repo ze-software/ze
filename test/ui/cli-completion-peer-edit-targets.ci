@@ -41,5 +41,5 @@ expect=stdout:contains=connection
 expect=stdout:contains=session
 expect=stdout:contains=behavior
 expect=stdout:contains=update
-expect=stdout:contains=attach
+expect=stdout:contains=bus
 expect=stdout:contains=rib

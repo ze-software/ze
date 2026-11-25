@@ -72,7 +72,7 @@ func TestRFC7313TxBoRRBlockedBeforeEoRWhenGRSupported(t *testing.T) {
 		// Clear initial sync queueing so SendBoRR writes directly onto the socket.
 		peer.session.sendingInitialRoutes.Store(0)
 
-		return peer, conn, newSendPermissionReactor(peer)
+		return peer, conn, newSendPermissionReactor(t, peer)
 	}
 
 	// Path 1: Unbound SendBoRR AND atomic SendRawMessage gate (closes TOCTOU on session replacement/drain).

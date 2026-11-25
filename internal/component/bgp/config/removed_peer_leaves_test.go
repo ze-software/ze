@@ -127,7 +127,7 @@ func TestRemovedPeerLeavesAreRefusedRatherThanAccepted(t *testing.T) {
 		// about the schema rather than about a loader that refuses nothing.
 		"a leaf no module ever declared":         {text: strings.Replace(peerWithConnectionLinkLocal, "link-local true", "frobnicate true", 1), word: "frobnicate"},
 		"connection > link-local":                {text: peerWithConnectionLinkLocal, word: "link-local"},
-		"attach > process > content > attribute": {text: peerWithProcessContentAttribute, word: "attribute"},
+		"attach > process > content > attribute": {text: peerWithProcessContentAttribute, word: "attach"},
 	} {
 		t.Run(name, func(t *testing.T) {
 			_, err := config.LoadConfig(tc.text, "test.conf", nil)

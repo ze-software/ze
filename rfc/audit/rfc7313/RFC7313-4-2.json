@@ -19,23 +19,23 @@
     "internal/component/bgp/reactor/rfc7313_refresh_order_test.go::answerRefresh": "1dd5ef91f2373a49",
     "internal/component/bgp/reactor/rfc7313_refresh_order_test.go::refreshWireLabels": "43926236814a47bc"
   },
-  "note": "Independent re-judgment against RFC 7313 Section 4 ('After the speaker completes the re-advertisement of the entire Adj-RIB-Out to the peer, it MUST send an EoRR message.') after RFC 7313 completion (443c6ef1d1) and diagnostic-code constant move (f4a0df7781). In handleRefreshStructured, subtype 0 still routes identically to queueSelectedRefresh; in queueSelectedRefresh and replayLegacyRefresh only the doctor diagnostic constant name moved; replayLegacyRefresh still sends BoRR -> sendRoutes -> EoRR in order. In reactorAPIAdapter.sendRouteRefreshContext, the added RFC 7313 Section 4 GR EoR gate (checkBoRRAllowed/checkBoRRAllowedHeld) guards only RouteRefreshBoRR and does not alter EoRR ordering or peer.sendRefreshMarker queueing. All six tagged test bindings across five units (TestRouteRefreshSubtypes, TestRFC7313BoRRRoutesEoRRInOneSequence, TestRFC7313RefreshBracketsReadvertisementWithBoRRAndEoRR, TestDispatchBGPPeerEoRR, TestRFC7313EoRRFollowsTheRoutesItCloses #1/#2) and peer_send/handleRefresh/sendRoutes/collectRibOutRoutes are byte-identical.",
+  "note": "Independent re-judgment against RFC 7313 Section 4 ('After the speaker completes the re-advertisement of the entire Adj-RIB-Out to the peer, it MUST send an EoRR message.'). In TestRFC7313EoRRFollowsTheRoutesItCloses (internal/component/bgp/reactor/rfc7313_refresh_order_test.go), only the test helper call changed from newSendPermissionReactor(peer) to newSendPermissionReactor(t, peer) so the test reactor publishes its compiled DeliveryGraph; all setup, inputs, and exact wire-order assertions are unchanged. Outside initial sync it proves exact wire sequence [eor, borr, route, eorr] with RefreshSent==2; during initial sync it proves no EoRR leaves while opQueue holds the route (RefreshSent==0) and drain preserves [borr, route, eorr, eor]. Alongside TestRouteRefreshSubtypes, TestRFC7313BoRRRoutesEoRRInOneSequence (JSON handleRefresh and DirectBridge handleRefreshStructured emitting BoRR, all IPv4 Adj-RIB-Out routes, then EoRR), TestRFC7313RefreshBracketsReadvertisementWithBoRRAndEoRR, and TestDispatchBGPPeerEoRR, both polarities enforce the requirement.",
   "requirement_sha": "6584db627c7f1be9",
   "tests": {
     "internal/component/bgp/message/routerefresh_test.go::TestRouteRefreshSubtypes": "30b8b3abfb09b975",
     "internal/component/bgp/plugins/rib/rfc7313_sequence_test.go::TestRFC7313BoRRRoutesEoRRInOneSequence": "c4733db4c061276f",
     "internal/component/bgp/plugins/rib/rfc7313_test.go::TestRFC7313RefreshBracketsReadvertisementWithBoRRAndEoRR": "15435ae000a9bf2f",
     "internal/component/bgp/plugins/route_refresh/handler/rfc7313_dispatch_test.go::TestDispatchBGPPeerEoRR": "bf7992ea6a608871",
-    "internal/component/bgp/reactor/rfc7313_refresh_order_test.go::TestRFC7313EoRRFollowsTheRoutesItCloses": "ed1dfac6abfaa85c",
-    "internal/component/bgp/reactor/rfc7313_refresh_order_test.go::TestRFC7313EoRRFollowsTheRoutesItCloses#2": "ed1dfac6abfaa85c"
+    "internal/component/bgp/reactor/rfc7313_refresh_order_test.go::TestRFC7313EoRRFollowsTheRoutesItCloses": "8059230de2e01de3",
+    "internal/component/bgp/reactor/rfc7313_refresh_order_test.go::TestRFC7313EoRRFollowsTheRoutesItCloses#2": "8059230de2e01de3"
   },
   "units": {
     "internal/component/bgp/message/routerefresh_test.go::TestRouteRefreshSubtypes": "e6ccc2c8b29f98ab",
     "internal/component/bgp/plugins/rib/rfc7313_sequence_test.go::TestRFC7313BoRRRoutesEoRRInOneSequence": "dd0109500dd02a1f",
     "internal/component/bgp/plugins/rib/rfc7313_test.go::TestRFC7313RefreshBracketsReadvertisementWithBoRRAndEoRR": "dcc59f1c4ef5444a",
     "internal/component/bgp/plugins/route_refresh/handler/rfc7313_dispatch_test.go::TestDispatchBGPPeerEoRR": "364103f5f9c61a8f",
-    "internal/component/bgp/reactor/rfc7313_refresh_order_test.go::TestRFC7313EoRRFollowsTheRoutesItCloses": "438d397af0ce18b9",
-    "internal/component/bgp/reactor/rfc7313_refresh_order_test.go::TestRFC7313EoRRFollowsTheRoutesItCloses#2": "438d397af0ce18b9"
+    "internal/component/bgp/reactor/rfc7313_refresh_order_test.go::TestRFC7313EoRRFollowsTheRoutesItCloses": "8296e44e921332e8",
+    "internal/component/bgp/reactor/rfc7313_refresh_order_test.go::TestRFC7313EoRRFollowsTheRoutesItCloses#2": "8296e44e921332e8"
   },
   "verdict": "enforced"
 }

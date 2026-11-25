@@ -98,8 +98,8 @@ func TestRFC8212SourcePolicyRSTransport(t *testing.T) {
 				return &rpc.CachedWriteOutput{Completed: true, DeadlineMS: input.DeadlineMS}, nil
 			})
 			for _, event := range []string{
-				"peer " + policySource + " remote as 65001 state up reason attached peer-owner 1 connection-id 101 destination-session 201 session-generation 3",
-				"peer " + policyOther + " remote as 65002 state up reason attached peer-owner 2 connection-id 102 destination-session 202 session-generation 3",
+				"peer " + policySource + " remote as 65001 state up reason attached peer-owner 1 connection-id 101 destination-session 201 session-generation 3 rs-client true",
+				"peer " + policyOther + " remote as 65002 state up reason attached peer-owner 2 connection-id 102 destination-session 202 session-generation 3 rs-client true",
 				rsTransportReceived(100, 5, receipt, "10.1.0.0/24"),
 				rsTransportReceived(101, 5, receipt, "10.2.0.0/24"),
 			} {

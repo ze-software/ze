@@ -17,7 +17,6 @@ import (
 	"github.com/ze-software/ze/internal/component/plugin/registry"
 	pluginserver "github.com/ze-software/ze/internal/component/plugin/server"
 	"github.com/ze-software/ze/internal/component/policy"
-	bgpevents "github.com/ze-software/ze/internal/core/bgp/events"
 	"github.com/ze-software/ze/internal/core/bgp/msgtype"
 	"github.com/ze-software/ze/internal/core/bgp/nlri/nlrisplit"
 	"github.com/ze-software/ze/internal/core/family"
@@ -191,7 +190,7 @@ func prepareScopedOriginOwners(t *testing.T, settings []*PeerSettings) {
 	rib := registry.Lookup(ribName)
 	require.NotNil(t, rib)
 	configured := DisseminationPeersFromSettings(settings)
-	graph := pluginserver.NewDisseminationGraph(bgpevents.Namespace, configured)
+	graph := buildTestDisseminationGraph(t, configured)
 	processes := []pluginserver.DisseminationProcess{{Name: ribName, Claims: rib.Claims, Declarations: rib.Dissemination}}
 	for i, peer := range settings {
 		owner, err := graph.ResolveDisseminationOwner(configured[i].Addr, SelectedDisseminationRole, processes)

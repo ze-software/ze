@@ -1,10 +1,10 @@
-# Test: plugin container renders its children
-# VALIDATES: plugin YANG schema is registered and renders in web view
-# PREVENTS: missing plugin schema registration, broken plugin container
+# Test: bus container renders its children
+# VALIDATES: bus YANG schema is registered and renders in web view
+# PREVENTS: missing bus schema registration, broken bus container
 
 option=env:var=ze.web.ui-mode:value=finder
 option=timeout:value=30s
 
-action=open:path=/show/plugin/
+action=open:path=/show/bus/
 expect=element:text=hub
-expect=element:text=external
+expect=element:text=endpoint

@@ -1,5 +1,5 @@
 # Test: ze config completion — peer partial keyword
-# VALIDATES: Partial keyword "at" inside peer filters to attach
+# VALIDATES: Partial keyword "bu" inside peer filters to bus
 
 tmpfs=test.conf:terminator=EOF_CONF
 bgp {
@@ -35,6 +35,6 @@ bgp {
 }
 EOF_CONF
 
-cmd=foreground:seq=1:exec=ze config completion --context bgp/peer/peer1 --input set+at test.conf
+cmd=foreground:seq=1:exec=ze config completion --context bgp/peer/peer1 --input set+bu test.conf
 expect=exit:code=0
-expect=stdout:contains=attach
+expect=stdout:contains=bus

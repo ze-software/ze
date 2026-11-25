@@ -45,7 +45,7 @@ expect=stdout:contains=timer
 expect=stdout:contains=description
 # Containers/lists
 expect=stdout:contains=update
-expect=stdout:contains=attach
+expect=stdout:contains=bus
 expect=stdout:contains=rib
 expect=stdout:contains=filter
 # Plugin augments

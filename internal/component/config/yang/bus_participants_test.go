@@ -98,11 +98,12 @@ func TestBusParticipantTargetsDeduplicatedAndSorted(t *testing.T) {
 
 	RegisterBusParticipantTarget("alpha/item/")
 	RegisterBusParticipantTarget("/alpha/bucket")
-	RegisterBusParticipantTarget("/alpha/item")
+	RegisterBusParticipantTarget("/alpha:alpha/alpha:item")
 	RegisterBusParticipantTarget("")
 	RegisterBusParticipantTarget("/alpha//bad")
+	RegisterBusParticipantTarget("/alpha/bad:")
 	SetBusParticipantTargetsProvider(func() []string {
-		return []string{"/alpha/extra", "/alpha/bucket", "alpha/bucket/item"}
+		return []string{"/alpha/extra", "/alpha/bucket", "/alpha:alpha/alpha:bucket/alpha:item"}
 	})
 
 	got := BusParticipantTargets()

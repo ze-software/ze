@@ -2,8 +2,8 @@
   "note": "RFC 7313 Section 4 requires a speaker that received the Graceful Restart Capability from its neighbor to ignore any BoRR for an <AFI, SAFI> before receiving the EoR for that <AFI, SAFI>. Session.processValidatedMessage (internal/component/bgp/reactor/session_read.go:618-643, also reached by session_coalesce.go) records per-family received EoR in Session.recordReceivedEOR and gates BoRR via Session.routeRefreshBoRRBeforeEOR (selected_refresh_eor.go:48-95) on PeerAdvertised(CodeGracefulRestart) and PeerAdvertised(CodeEnhancedRouteRefresh) before plugin delivery, logging codeDoctorBGPBoRRBeforeEOR. TestRFC7313RxBoRRIgnoredBeforeEoRFromGRPeer (rfc7313_gr_eor_gate_test.go) feeds real wire frames through Session.ReadAndProcess: positive proves IPv4 BoRR is ignored before IPv4 EoR even after IPv6 EoR (per-<AFI, SAFI> scoping), sends no NOTIFICATION, and keeps the session Established (without requiring local GR); negative proves IPv4 BoRR is delivered once IPv4 EoR arrives and is delivered immediately before EoR from a non-GR peer.",
   "requirement_sha": "76cc6fc4be43db99",
   "tests": {
-    "internal/component/bgp/reactor/rfc7313_gr_eor_gate_test.go::TestRFC7313RxBoRRIgnoredBeforeEoRFromGRPeer": "8fbfb00deeab497e",
-    "internal/component/bgp/reactor/rfc7313_gr_eor_gate_test.go::TestRFC7313RxBoRRIgnoredBeforeEoRFromGRPeer#2": "8fbfb00deeab497e"
+    "internal/component/bgp/reactor/rfc7313_gr_eor_gate_test.go::TestRFC7313RxBoRRIgnoredBeforeEoRFromGRPeer": "0785b9f1177ebf66",
+    "internal/component/bgp/reactor/rfc7313_gr_eor_gate_test.go::TestRFC7313RxBoRRIgnoredBeforeEoRFromGRPeer#2": "0785b9f1177ebf66"
   },
   "units": {
     "internal/component/bgp/reactor/rfc7313_gr_eor_gate_test.go::TestRFC7313RxBoRRIgnoredBeforeEoRFromGRPeer": "1a8988b8b9db0223",

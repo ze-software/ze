@@ -87,14 +87,19 @@ func TestSectionValidationErrorRendersRefusal(t *testing.T) {
 // TestValidateCustomSectionsEnumRefusal bypasses parsing to prove the actual
 // section validator finds an invalid stored enum, retains its typed chain and
 // renders the shipped schema's complete help. Both declared values still pass.
+//
+// VALIDATES: ValidateCustomSections walks shipped YANG enum leaves, retains
+// typed ValidationError and opererr.Error chains, and accepts declared values.
+// PREVENTS: section-walk enum refusals losing typed metadata or help lines.
 func TestValidateCustomSectionsEnumRefusal(t *testing.T) {
-	entry := NewTree()
-	entry.Set("run", "/bin/true")
-	entry.Set("encoder", "jsn")
-	plugin := NewTree()
-	plugin.AddListEntry("external", "p1", entry)
+	iface := NewTree()
+	iface.Set("circuit-type", "broadcst")
+	ifaces := NewTree()
+	ifaces.AddListEntry("interface", "eth0", iface)
+	isis := NewTree()
+	isis.SetContainer("interfaces", ifaces)
 	tree := NewTree()
-	tree.SetContainer("plugin", plugin)
+	tree.SetContainer("isis", isis)
 
 	found, err := ValidateCustomSections(tree)
 	if err != nil {
@@ -104,11 +109,11 @@ func TestValidateCustomSectionsEnumRefusal(t *testing.T) {
 		t.Fatalf("section validation returned %d refusals, want one: %v", len(found), found)
 	}
 	section := &found[0]
-	if section.Section != "plugin" {
-		t.Errorf("section %q, want plugin", section.Section)
+	if section.Section != "isis" {
+		t.Errorf("section %q, want isis", section.Section)
 	}
 	if section.Sensitive {
-		t.Fatal("shipped plugin encoder is unexpectedly sensitive")
+		t.Fatal("shipped isis circuit-type is unexpectedly sensitive")
 	}
 	var typed *configyang.ValidationError
 	if !errors.As(&section.Err, &typed) {
@@ -117,27 +122,27 @@ func TestValidateCustomSectionsEnumRefusal(t *testing.T) {
 	if typed.Type != configyang.ErrTypeEnum {
 		t.Errorf("error type %v, want enum", typed.Type)
 	}
-	if typed.Got != "jsn" {
-		t.Errorf("actual %q, want jsn", typed.Got)
+	if typed.Got != "broadcst" {
+		t.Errorf("actual %q, want broadcst", typed.Got)
 	}
-	if typed.Expected != "json, text" {
-		t.Errorf("expected values %q, want json, text in declared order", typed.Expected)
+	if typed.Expected != "broadcast, point-to-point" {
+		t.Errorf("expected values %q, want broadcast, point-to-point in declared order", typed.Expected)
 	}
-	if typed.Path != "plugin/external[p1]/encoder" {
-		t.Errorf("walk path %q, want plugin/external[p1]/encoder", typed.Path)
+	if typed.Path != "isis/interfaces/interface[eth0]/circuit-type" {
+		t.Errorf("walk path %q, want isis/interfaces/interface[eth0]/circuit-type", typed.Path)
 	}
-	if want := []string{"plugin", "external", "p1", "encoder"}; !slices.Equal(typed.Segments(), want) {
+	if want := []string{"isis", "interfaces", "interface", "eth0", "circuit-type"}; !slices.Equal(typed.Segments(), want) {
 		t.Errorf("operator path %q, want %q", typed.Segments(), want)
 	}
-	const body = "plugin external p1 encoder: \"jsn\" is not an accepted value (did you mean json?)\n" +
-		"encoder accepts only these values:\n" +
-		"  json  JSON encoding\n" +
-		"  text  Human-readable text encoding\n" +
-		"fix: set plugin external p1 encoder json"
+	const body = "isis interfaces interface eth0 circuit-type: \"broadcst\" is not an accepted value (did you mean broadcast?)\n" +
+		"circuit-type accepts only these values:\n" +
+		"  broadcast       LAN broadcast circuit (DIS election).\n" +
+		"  point-to-point  Point-to-point circuit.\n" +
+		"fix: set isis interfaces interface eth0 circuit-type broadcast"
 	if got := typed.Error(); got != body {
 		t.Errorf("typed walk error:\n%s\nwant:\n%s", got, body)
 	}
-	if got, want := section.Message(), "plugin: "+body; got != want {
+	if got, want := section.Message(), "isis: "+body; got != want {
 		t.Errorf("section message:\n%s\nwant:\n%s", got, want)
 	}
 	var operator *opererr.Error
@@ -147,14 +152,14 @@ func TestValidateCustomSectionsEnumRefusal(t *testing.T) {
 	if got := operator.Error(); got != body {
 		t.Errorf("operator error:\n%s\nwant:\n%s", got, body)
 	}
-	for _, accepted := range []string{"json", "text"} {
-		entry.Set("encoder", accepted)
+	for _, accepted := range []string{"broadcast", "point-to-point"} {
+		iface.Set("circuit-type", accepted)
 		acceptedFailures, err := ValidateCustomSections(tree)
 		if err != nil {
-			t.Fatalf("validate accepted encoder %q: %v", accepted, err)
+			t.Fatalf("validate accepted circuit-type %q: %v", accepted, err)
 		}
 		if len(acceptedFailures) != 0 {
-			t.Errorf("accepted encoder %q was refused: %v", accepted, acceptedFailures)
+			t.Errorf("accepted circuit-type %q was refused: %v", accepted, acceptedFailures)
 		}
 	}
 }

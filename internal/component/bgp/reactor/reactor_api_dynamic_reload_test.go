@@ -50,6 +50,7 @@ func dynamicReloadGroup(t testing.TB) *DynamicGroupConfig {
 	dg := newTestDynamicGroup("ix", []string{"185.1.69.0/24"}, 100)
 	dg.Settings.Connection = ConnectionPassive
 	dg.Settings.ImportPolicy = mustPolicy(t, []routepolicy.Ref{{Name: "policy:in-$remote_as"}}, routepolicy.FinalAccept)
+	dg.Settings.Bus = testBusNone()
 	return dg
 }
 
@@ -309,6 +310,7 @@ func TestSetDynamicGroupsIgnoresChangesThePeerDoesNotHold(t *testing.T) {
 	wider := newTestDynamicGroup("ix", []string{"185.1.0.0/16"}, 500)
 	wider.Settings.Connection = ConnectionPassive
 	wider.Settings.ImportPolicy = mustPolicy(t, []routepolicy.Ref{{Name: "policy:in-$remote_as"}}, routepolicy.FinalAccept)
+	wider.Settings.Bus = testBusNone()
 	reloadDynamicGroups(t, r, wider)
 
 	r.mu.RLock()
@@ -331,6 +333,7 @@ func TestSetDynamicGroupsRemovesThePeerWhenTheRangeNoLongerCoversIt(t *testing.T
 	narrowed := newTestDynamicGroup("ix", []string{"185.1.69.0/28"}, 100)
 	narrowed.Settings.Connection = ConnectionPassive
 	narrowed.Settings.ImportPolicy = mustPolicy(t, []routepolicy.Ref{{Name: "policy:in-$remote_as"}}, routepolicy.FinalAccept)
+	narrowed.Settings.Bus = testBusNone()
 	reloadDynamicGroups(t, r, narrowed)
 
 	r.mu.RLock()
