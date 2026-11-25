@@ -28,6 +28,7 @@ func (r *RIBManager) startRIBWorkers(parent context.Context) error {
 			"One plugin lifetime owns one set of background readers.", "ze request restart")
 	}
 	ctx, cancel := context.WithCancel(parent)
+	r.backgroundCtx = ctx
 	r.backgroundCancel = cancel
 	r.backgroundWG.Go(func() { runCompaction(ctx, pool.AllPools()) })
 	r.backgroundWG.Go(func() { r.runAIGPSelection(ctx) })
@@ -35,6 +36,92 @@ func (r *RIBManager) startRIBWorkers(parent context.Context) error {
 		r.backgroundWG.Go(func() { r.runMetricsLoop(ctx) })
 	}
 	return nil
+}
+
+// cancelPeerReplayLocked aborts any in-flight peer-up replay for peerOwner.
+// MUST hold peerMu.
+func (r *RIBManager) cancelPeerReplayLocked(peerOwner uint64) {
+	if h, ok := r.peerReplay[peerOwner]; ok {
+		h.cancel()
+		delete(r.peerReplay, peerOwner)
+	}
+}
+
+// launchPeerUpReplay runs peer-up Adj-RIB-Out and aggregate replay.
+//
+// In production (a live SDK plugin without synchronous test hooks), replay MUST
+// run off Process.deliveryLoop: on DirectBridge, each replayed update-route RPC
+// writes to the peer and notifies onMessageSent -> Process(bgp-rib).Deliver back
+// onto bgp-rib's own bounded eventChan (64 slots). Running replay inline on
+// deliveryLoop self-deadlocks after 64 UPDATEs and stalls deliverPeerState on
+// the peer's read loop.
+func (r *RIBManager) launchPeerUpReplay(peerOwner uint64, peerAddr string, cameUp bool, replayGroups []replayGroup, initialReplay uint64, replayAggregates bool) {
+	if !cameUp && !replayAggregates {
+		return
+	}
+	runSync := func() {
+		if cameUp {
+			r.replayRoutesWithCursor(peerAddr, replayGroups, initialReplay)
+		}
+		if replayAggregates {
+			r.replayAggregatesToPeer(peerAddr)
+		}
+	}
+	if r.plugin == nil {
+		runSync()
+		return
+	}
+	if r.updateHook != nil {
+		runSync()
+		return
+	}
+	if r.dispatchHook != nil {
+		runSync()
+		return
+	}
+	r.peerMu.Lock()
+	if r.stopping {
+		r.peerMu.Unlock()
+		return
+	}
+	if r.backgroundCtx == nil {
+		// Unit tests that construct RIBManager without startRIBWorkers expect
+		// synchronous replay and do not call shutdownReceivedSources to join
+		// backgroundWG.
+		r.peerMu.Unlock()
+		if cameUp {
+			r.replayRoutesWithCursor(peerAddr, replayGroups, initialReplay)
+		}
+		if replayAggregates {
+			r.replayAggregatesToPeer(peerAddr)
+		}
+		return
+	}
+	r.cancelPeerReplayLocked(peerOwner)
+	peerCtx, peerCancel := context.WithCancel(r.backgroundCtx)
+	r.peerReplayGen++
+	gen := r.peerReplayGen
+	if r.peerReplay == nil {
+		r.peerReplay = make(map[uint64]peerReplayHandle)
+	}
+	r.peerReplay[peerOwner] = peerReplayHandle{gen: gen, cancel: peerCancel}
+	r.backgroundWG.Go(func() {
+		defer func() {
+			peerCancel()
+			r.peerMu.Lock()
+			if cur, ok := r.peerReplay[peerOwner]; ok && cur.gen == gen {
+				delete(r.peerReplay, peerOwner)
+			}
+			r.peerMu.Unlock()
+		}()
+		if cameUp {
+			r.replayRoutesWithCursorContext(peerCtx, peerAddr, replayGroups, initialReplay)
+		}
+		if replayAggregates && peerCtx.Err() == nil {
+			r.replayAggregatesToPeer(peerAddr)
+		}
+	})
+	r.peerMu.Unlock()
 }
 
 // startGRExpiryLocked counts scheduled timers, including a replaced callback
@@ -74,6 +161,9 @@ func (r *RIBManager) shutdownReceivedSources() {
 		r.peerMu.Lock()
 		r.stopping = true
 		cancel := r.backgroundCancel
+		for owner := range r.peerReplay {
+			r.cancelPeerReplayLocked(owner)
+		}
 		for _, state := range r.grState {
 			r.stopGRExpiryLocked(state)
 		}

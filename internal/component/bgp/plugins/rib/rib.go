@@ -298,6 +298,11 @@ type peerGRState struct {
 	expiryOwned bool        // a scheduled callback owns one manager timer count
 }
 
+type peerReplayHandle struct {
+	gen    uint64
+	cancel context.CancelFunc
+}
+
 // RIBManager implements a BGP RIB plugin.
 // It tracks routes received from and sent to peers.
 type RIBManager struct {
@@ -305,9 +310,15 @@ type RIBManager struct {
 	// peerMu. SDK Run drains delivery before shutdown joins and releases them.
 	stopping         bool
 	shutdownOnce     sync.Once
+	backgroundCtx    context.Context //nolint:containedctx // lifecycle parent for background peer-up replay workers, canceled on shutdown
 	backgroundCancel context.CancelFunc
 	backgroundWG     sync.WaitGroup
 	grTimers         sync.WaitGroup
+	// peerReplay tracks the active async peer-up replay per peerOwner so a peer
+	// disconnect, reconnect, or RIB shutdown cancels any superseded replay.
+	// Protected by peerMu.
+	peerReplay    map[uint64]peerReplayHandle
+	peerReplayGen uint64
 	// plugin is the SDK plugin handle for engine RPCs (update-route, subscribe-events).
 	plugin           *sdk.Plugin
 	sourceLeases     *ribSourceLeases
@@ -958,12 +969,16 @@ func runRIBPlugin(conn net.Conn) int {
 
 // updateRoute clears the route-update cursor for matching peers via the engine.
 func (r *RIBManager) updateRoute(peerSelector string) {
+	r.updateRouteContext(context.Background(), peerSelector)
+}
+
+func (r *RIBManager) updateRouteContext(parent context.Context, peerSelector string) {
 	const command = "update cursor done"
 	if r.updateHook != nil {
 		r.updateHook(command, nil)
 		return
 	}
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	ctx, cancel := context.WithTimeout(parent, 10*time.Second)
 	defer cancel()
 	_, _, err := r.plugin.UpdateRoute(ctx, peerSelector, command)
 	if err != nil {
@@ -980,7 +995,11 @@ func (r *RIBManager) updateRouteWithMeta(peerSelector, command string, meta map[
 // updateRouteWithProvenance sends retained bytes with their original source
 // policy epoch. The caller MUST supply the epoch stored with those bytes.
 func (r *RIBManager) updateRouteWithProvenance(peerSelector, command string, meta map[string]any, sourcePolicyEpoch uint64) error {
-	return r.updateRouteRequest(context.Background(), rpc.UpdateRouteInput{
+	return r.updateRouteWithProvenanceContext(context.Background(), peerSelector, command, meta, sourcePolicyEpoch)
+}
+
+func (r *RIBManager) updateRouteWithProvenanceContext(parent context.Context, peerSelector, command string, meta map[string]any, sourcePolicyEpoch uint64) error {
+	return r.updateRouteRequest(parent, rpc.UpdateRouteInput{
 		PeerSelector: peerSelector, Command: command, Meta: meta, SourcePolicyEpoch: sourcePolicyEpoch,
 	})
 }
@@ -1582,6 +1601,7 @@ func (r *RIBManager) handleStructuredState(se *rpc.StructuredEvent) {
 			replayGroups = r.collectPeerUpReplay(peerOwner, seenBefore)
 		}
 	} else if departed {
+		r.cancelPeerReplayLocked(peerOwner)
 		delete(r.borrActive, peerOwner)
 		r.dropSourcePolicyLocked(peerOwner)
 		if r.retainedPeers[peerOwner] {
@@ -1615,12 +1635,7 @@ func (r *RIBManager) handleStructuredState(se *rpc.StructuredEvent) {
 	// Call on every peer-up, including with zero groups: replayRoutesWithCursor
 	// is what signals "plugin session ready", and an empty Adj-RIB-Out still has
 	// to say "nothing to replay, proceed".
-	if cameUp {
-		r.replayRoutesWithCursor(se.PeerAddress, replayGroups, se.InitialReplay)
-	}
-	if peerBecameUp && se.Reason != rpc.ReasonAttached {
-		r.replayAggregatesToPeer(se.PeerAddress)
-	}
+	r.launchPeerUpReplay(peerOwner, se.PeerAddress, cameUp, replayGroups, se.InitialReplay, peerBecameUp && se.Reason != rpc.ReasonAttached)
 }
 
 // handleState processes peer state changes.
@@ -1698,6 +1713,7 @@ func (r *RIBManager) handleState(event *Event) {
 			replayGroups = r.collectPeerUpReplay(peerOwner, seenBefore)
 		}
 	} else if departed {
+		r.cancelPeerReplayLocked(peerOwner)
 		delete(r.borrActive, peerOwner)
 		r.dropSourcePolicyLocked(peerOwner)
 		// Peer went down - clear Adj-RIB-In unless retained for GR.
@@ -1730,12 +1746,7 @@ func (r *RIBManager) handleState(event *Event) {
 
 	// I/O operations after releasing lock. Called on every peer-up, including
 	// with zero groups (see handleStructuredState).
-	if cameUp {
-		r.replayRoutesWithCursor(event.GetPeerAddress(), replayGroups, event.InitialReplay)
-	}
-	if peerBecameUp && event.Reason != rpc.ReasonAttached {
-		r.replayAggregatesToPeer(event.GetPeerAddress())
-	}
+	r.launchPeerUpReplay(peerOwner, event.GetPeerAddress(), cameUp, replayGroups, event.InitialReplay, peerBecameUp && event.Reason != rpc.ReasonAttached)
 }
 
 // updatePeerMetadata extracts and stores peer metadata from received events.

@@ -367,13 +367,17 @@ func asPathString(path []uint32) string {
 // signalReplayReady carries the same captured Session receipt as every initial
 // restore command, including the zero-route case where no writer is called.
 func (r *RIBManager) signalReplayReady(peerAddr string, initialReplay uint64) {
+	r.signalReplayReadyContext(context.Background(), peerAddr, initialReplay)
+}
+
+func (r *RIBManager) signalReplayReadyContext(parent context.Context, peerAddr string, initialReplay uint64) {
 	var tb textbuf.Buffer
 	command := tb.Str("request peer ").Str(peerAddr).Str(" plugin session ready session ").Uint(initialReplay).String()
 	if r.dispatchHook != nil {
 		r.dispatchHook(command)
 		return
 	}
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	ctx, cancel := context.WithTimeout(parent, 10*time.Second)
 	defer cancel()
 	status, _, err := r.plugin.DispatchCommand(ctx, command)
 	if err != nil || status == statusError {
@@ -383,8 +387,16 @@ func (r *RIBManager) signalReplayReady(peerAddr string, initialReplay uint64) {
 
 // replayRoutesWithCursor replays routes using cursor mode for efficiency.
 func (r *RIBManager) replayRoutesWithCursor(peerAddr string, groups []replayGroup, initialReplay uint64) {
+	r.replayRoutesWithCursorContext(context.Background(), peerAddr, groups, initialReplay)
+}
+
+// replayRoutesWithCursorContext replays routes under ctx so peer disconnects
+// and RIB shutdown cancel in-flight replay RPCs promptly.
+func (r *RIBManager) replayRoutesWithCursorContext(ctx context.Context, peerAddr string, groups []replayGroup, initialReplay uint64) {
 	if len(groups) == 0 {
-		r.signalReplayReady(peerAddr, initialReplay)
+		if ctx.Err() == nil {
+			r.signalReplayReadyContext(ctx, peerAddr, initialReplay)
+		}
 		return
 	}
 
@@ -393,13 +405,16 @@ func (r *RIBManager) replayRoutesWithCursor(peerAddr string, groups []replayGrou
 	// which is best-effort and only logged). Without this reset, the first
 	// group's full-attribute command merges against the stale cursor and
 	// announces phantom attributes the new route does not carry. (I4)
-	r.updateRoute(peerAddr)
+	r.updateRouteContext(ctx, peerAddr)
 
 	sortGroupsForMinimalDeltas(groups)
 
 	var prev *Route
 groups:
 	for i := range groups {
+		if ctx.Err() != nil {
+			return
+		}
 		g := &groups[i]
 		cmds := formatCursorCommands(g, prev)
 		meta := map[string]any{metaKeyReplay: true,
@@ -420,8 +435,14 @@ groups:
 			meta["stale"] = g.StaleLevel
 		}
 		for _, cmd := range cmds {
-			if err := r.updateRouteWithProvenance(peerAddr, cmd, meta, g.SourcePolicyEpoch); err != nil {
-				r.updateRoute(peerAddr)
+			if ctx.Err() != nil {
+				return
+			}
+			if err := r.updateRouteWithProvenanceContext(ctx, peerAddr, cmd, meta, g.SourcePolicyEpoch); err != nil {
+				if ctx.Err() != nil {
+					return
+				}
+				r.updateRouteContext(ctx, peerAddr)
 				// Rejected history is not delivered, but it must not strand
 				// the live-forward fence. Try the remaining independent groups
 				// with full attributes, then report this captured session done.
@@ -434,8 +455,11 @@ groups:
 		}
 	}
 
-	r.updateRoute(peerAddr)
-	r.signalReplayReady(peerAddr, initialReplay)
+	if ctx.Err() != nil {
+		return
+	}
+	r.updateRouteContext(ctx, peerAddr)
+	r.signalReplayReadyContext(ctx, peerAddr, initialReplay)
 }
 
 // resendRoutesWithCursor replays routes using cursor mode for manual resend.

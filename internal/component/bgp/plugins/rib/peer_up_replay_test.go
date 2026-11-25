@@ -5,15 +5,23 @@ package rib
 
 import (
 	"bytes"
+	"context"
+	"encoding/json"
+	"fmt"
 	"log/slog"
+	"net"
 	"net/netip"
 	"strings"
+	"sync/atomic"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
 	"github.com/ze-software/ze/internal/core/family"
+	"github.com/ze-software/ze/pkg/plugin/rpc"
+	"github.com/ze-software/ze/pkg/plugin/sdk"
 )
 
 // captureRIBLog installs a debug-level capturing logger for the test's duration.
@@ -155,4 +163,105 @@ func TestCollectPeerUpReplayGuard(t *testing.T) {
 				strings.Contains(buf.String(), "adj-rib-out replay skipped"))
 		})
 	}
+}
+
+// TestPeerUpReplayAsyncDoesNotDeadlockDirectBridge proves peer-up replay runs
+// off the event-delivery goroutine once background workers are started.
+//
+// VALIDATES: replaying more UPDATEs than a bounded delivery channel holds does
+// not self-deadlock when each replayed update-route synchronously produces a
+// sent event back into the plugin's own event queue (the DirectBridge path).
+// PREVENTS: Process(bgp-rib).deliveryLoop blocking on itself after 64 replayed
+// UPDATEs, which stalled deliverPeerState and bgp-rs replay on peer reconnect.
+func TestPeerUpReplayAsyncDoesNotDeadlockDirectBridge(t *testing.T) {
+	ctx, cancel := context.WithTimeout(t.Context(), 5*time.Second)
+	defer cancel()
+
+	bridge := rpc.NewDirectBridge()
+	pluginEnd, engineEnd := net.Pipe()
+	t.Cleanup(func() {
+		bridge.CloseCallbacks()
+		_ = pluginEnd.Close()
+		_ = engineEnd.Close()
+	})
+
+	// Tiny bounded queue mimicking Process.deliveryLoop's 64-slot eventChan.
+	// Every replayed update-route pushes back onto eventChan; if replay ran
+	// synchronously inside handleStructuredState on the delivery goroutine, the
+	// 5th RPC would deadlock forever because nothing is draining eventChan.
+	const replayGroups = 20
+	eventChan := make(chan int, 4)
+	var sentCount atomic.Int32
+
+	bridge.SetDispatchRPC(func(rpcCtx context.Context, method string, raw json.RawMessage) (json.RawMessage, error) {
+		if method == rpc.MethodUpdateRoute {
+			var input rpc.UpdateRouteInput
+			if err := json.Unmarshal(raw, &input); err != nil {
+				return nil, err
+			}
+			if strings.Contains(input.Command, " add ") {
+				select {
+				case eventChan <- int(sentCount.Add(1)):
+				case <-rpcCtx.Done():
+					return nil, rpcCtx.Err()
+				}
+			}
+			return json.Marshal(rpc.UpdateRouteOutput{Announced: 1})
+		}
+		return json.Marshal(rpc.DispatchCommandOutput{Status: "done"})
+	})
+	bridge.SetReady()
+
+	p := sdk.NewWithConn("rib-test", rpc.NewBridgedConn(pluginEnd, bridge))
+	t.Cleanup(func() { _ = p.Close() })
+	r := newRIBManager(p)
+	require.NoError(t, r.startRIBWorkers(ctx))
+	t.Cleanup(func() { r.shutdownReceivedSources() })
+
+	// Establish once then tear down so peer 1 is known and eligible for replay.
+	r.handleStructuredState(&rpc.StructuredEvent{
+		PeerAddress: replayTestPeer, PeerOwner: 1, DestinationSession: 11, State: rpc.SessionStateUp,
+	})
+	r.handleStructuredState(&rpc.StructuredEvent{
+		PeerAddress: replayTestPeer, PeerOwner: 1, DestinationSession: 11, State: rpc.SessionStateDown,
+	})
+
+	// Seed 20 distinct next-hop groups so replay emits 20 separate update-route RPCs.
+	routes := make(map[string]*Route, replayGroups)
+	for i := range replayGroups {
+		pfx := fmt.Sprintf("10.0.%d.0/24", i)
+		routes[pfx] = &Route{
+			MsgID:   uint64(100 + i),
+			Family:  family.IPv4Unicast,
+			Prefix:  pfx,
+			NextHop: fmt.Sprintf("1.1.1.%d", i+1),
+		}
+	}
+	r.peerMu.Lock()
+	r.peerMeta[1] = &peerMetadata{Address: netip.MustParseAddr(replayTestPeer)}
+	r.ribOut[1] = testRibOutFamilyMap(map[family.Family]map[string]*Route{
+		family.IPv4Unicast: routes,
+	})
+	for key, entry := range r.ribOut[1][family.IPv4Unicast] {
+		entry.LocalOrigin = true
+		r.ribOut[1][family.IPv4Unicast][key] = entry
+	}
+	r.peerMu.Unlock()
+
+	// Run handleStructuredState on the same goroutine that drains eventChan.
+	// Returning promptly proves replay was handed off to backgroundWG.
+	r.handleStructuredState(&rpc.StructuredEvent{
+		PeerAddress: replayTestPeer, PeerOwner: 1, DestinationSession: 12, State: rpc.SessionStateUp,
+	})
+
+	drained := 0
+	for drained < replayGroups {
+		select {
+		case <-eventChan:
+			drained++
+		case <-ctx.Done():
+			t.Fatalf("deadlocked or timed out after draining %d/%d replayed UPDATEs", drained, replayGroups)
+		}
+	}
+	assert.Equal(t, replayGroups, drained, "all replayed UPDATEs must complete without deadlocking deliveryLoop")
 }
