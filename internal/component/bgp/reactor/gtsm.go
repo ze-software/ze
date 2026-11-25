@@ -121,16 +121,21 @@ func (r *Reactor) gtsmPeers() []gtsm.Peer {
 
 // gtsmPeerOf is the one reading of a peer's settings as GTSM kernel state,
 // shared by the running reactor and by the configuration-only derivation
-// below. It answers false for a peer whose configuration derived neither
-// TTL value, which is a peer that asked for no GTSM.
+// below. RFC 5082 Section 3 fixes GTSM transmit TTL at 255, so a lower
+// outbound TTL (such as eBGP multihop `ttl { set 2; }` with no receive floor)
+// is not GTSM and must not install a GTSM host route or firewall rule.
 func gtsmPeerOf(s *PeerSettings, daemonPort int) (gtsm.Peer, bool) {
-	if s.OutTTL == 0 && s.MinTTL == 0 {
+	var hopLimit uint8
+	if s.OutTTL == 255 {
+		hopLimit = s.OutTTL
+	}
+	if hopLimit == 0 && s.MinTTL == 0 {
 		return gtsm.Peer{}, false
 	}
 	return gtsm.Peer{
 		Addr:     s.Address,
 		Port:     uint16(listenPortFor(s, daemonPort)), //nolint:gosec // listenPortFor answers a port, which is a uint16 everywhere it is parsed
-		HopLimit: s.OutTTL,
+		HopLimit: hopLimit,
 		Floor:    s.MinTTL,
 	}, true
 }

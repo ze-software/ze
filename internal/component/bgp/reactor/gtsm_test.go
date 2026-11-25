@@ -215,6 +215,28 @@ func TestReactorPublishesNoPeerWithoutGTSM(t *testing.T) {
 	assert.Empty(t, *published)
 }
 
+// TestReactorDoesNotPublishPlainMultihopAsGTSM proves that plain eBGP multihop
+// (`connection { ttl { set 2; } }`, OutTTL < 255 and MinTTL == 0) is not
+// published as a GTSM peer: RFC 5082 Section 3 fixes GTSM transmit TTL at 255,
+// so publishing a multihop peer would install a bogus /32 GTSM host route over
+// whatever default gateway the kernel happened to hold at startup.
+func TestReactorDoesNotPublishPlainMultihopAsGTSM(t *testing.T) {
+	published := captureGTSMSet(t)
+	r := New(&Config{Port: 179})
+
+	multihop := NewPeerSettings(mustParseAddr("10.255.0.3"), 65001, 65002, 0x01010101)
+	multihop.OutTTL = 2
+	require.NoError(t, r.AddPeer(multihop))
+
+	r.publishGTSMKernelState()
+
+	assert.Empty(t, published.peers, "plain eBGP multihop must not install GTSM kernel state")
+	assert.Contains(t, published.ranges, gtsm.Range{
+		Prefix: netip.MustParsePrefix("10.255.0.3/32"),
+		Port:   179,
+	}, "plain multihop peer keeps its zero-floor claim range")
+}
+
 // TestGTSMPeersFromResolvedTreeReadsTheConfigAlone is the `ze doctor` half of
 // the wiring: with no reactor running, the same derivation reads the resolved
 // bgp{} tree and answers the set a config apply would publish.

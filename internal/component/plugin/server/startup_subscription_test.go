@@ -332,26 +332,44 @@ func TestEnvelopeWithNilSignalPayload(t *testing.T) {
 	}
 }
 
-// AC-8 (Gap C): a "*" startup subscription expands into one subscription per
-// registered event type of the namespace and delivers, where today it is dead.
+// AC-8 (Gap C) / AC-35 (S5): a "*" startup subscription expands into one
+// subscription per registered event type of the namespace admitted by the
+// participant's compiled receive filter and delivers, while un-declared events
+// are never expanded.
 func TestStartupWildcardExpandsToNamespaceEvents(t *testing.T) {
 	events.Register[*saShape]("test-ns-wild", "sa-up")
 	events.Register[*saShape]("test-ns-wild", "sa-down")
 
 	s := newSubscriptionServer()
 	proc, batches := newDeliveryProbe(t, "wild-probe")
+	registered := events.AllEventTypes()["test-ns-wild"]
+	if len(registered) < 2 {
+		t.Fatalf("expected at least sa-up and sa-down registered, got %d", len(registered))
+	}
+	receives := make([]rpc.MessageReceiveDecl, 0, len(registered))
+	for _, et := range registered {
+		receives = append(receives, rpc.MessageReceiveDecl{Message: "test-ns-wild:" + et})
+	}
+	proc.SetRegistration(&plugin.PluginRegistration{Receives: receives})
 
 	s.registerSubscriptions(proc, &rpc.SubscribeEventsInput{
 		Namespace: "test-ns-wild",
 		Events:    []string{"*"},
 	})
 
-	want := len(events.AllEventTypes()["test-ns-wild"])
-	if want < 2 {
-		t.Fatalf("expected at least sa-up and sa-down registered, got %d", want)
-	}
+	want := len(registered)
 	if n := s.subscriptions.Count(proc); n != want {
-		t.Fatalf("wildcard expanded to %d subscriptions, want %d (one per event type)", n, want)
+		t.Fatalf("wildcard expanded to %d subscriptions, want %d (one per declared event type)", n, want)
+	}
+
+	// Undeclared participant must expand to 0 subscriptions under AC-35/S5.
+	undeclared, _ := newDeliveryProbe(t, "wild-undeclared")
+	s.registerSubscriptions(undeclared, &rpc.SubscribeEventsInput{
+		Namespace: "test-ns-wild",
+		Events:    []string{"*"},
+	})
+	if n := s.subscriptions.Count(undeclared); n != 0 {
+		t.Fatalf("undeclared wildcard expanded to %d subscriptions, want 0", n)
 	}
 
 	delivered, err := s.EmitEngineEvent("test-ns-wild", "sa-up", &saShape{PeerName: "peer-w"})
