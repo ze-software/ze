@@ -18,7 +18,7 @@ import (
 // fakeZePeer accepts a connection and performs Ze's side of the BGP handshake:
 // read OPEN, send OPEN, read KEEPALIVE, send KEEPALIVE, then read all messages
 // until the connection closes. Returns the count of UPDATE messages received.
-func fakeZePeer(t *testing.T, ln net.Listener, done chan<- int) {
+func fakeZePeer(t *testing.T, ln net.Listener, done chan<- int, families ...string) {
 	t.Helper()
 
 	conn, err := ln.Accept()
@@ -40,6 +40,7 @@ func fakeZePeer(t *testing.T, ln net.Listener, done chan<- int) {
 		ASN:      65000,
 		RouterID: netip.MustParseAddr("10.0.0.1"),
 		HoldTime: 90,
+		Families: families,
 	})
 	if buildErr != nil {
 		t.Logf("fakeZe: building OPEN: %v", buildErr)

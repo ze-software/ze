@@ -322,30 +322,13 @@ func RunSimulator(ctx context.Context, cfg SimulatorConfig) {
 		}
 
 		var writeErr error
+		var ipRoutesSent int
 		switch fam {
 		case familyIPv4Unicast:
-			for _, prefix := range routes {
-				if ctx.Err() != nil {
-					break
-				}
-				data := sender.BuildRoute(prefix)
-				if writeErr = sendRouteUpdate(conn, prefix, fam, data, emit); writeErr != nil {
-					break
-				}
-				totalSent++
-			}
+			ipRoutesSent, writeErr = sendInitialIPRoutes(ctx, conn, sender, family.IPv4Unicast, routes, emit)
 		case familyIPv6Unicast:
 			ipv6Routes := scenario.GenerateIPv6Routes(cfg.Seed, p.Index, p.RouteCount, p.TotalPeers)
-			for _, prefix := range ipv6Routes {
-				if ctx.Err() != nil {
-					break
-				}
-				data := senderV6.BuildRoute(prefix)
-				if writeErr = sendRouteUpdate(conn, prefix, fam, data, emit); writeErr != nil {
-					break
-				}
-				totalSent++
-			}
+			ipRoutesSent, writeErr = sendInitialIPRoutes(ctx, conn, senderV6, family.IPv6Unicast, ipv6Routes, emit)
 		case "ipv4/mpls-vpn":
 			vpnRoutes := scenario.GenerateVPNRoutes(cfg.Seed, p.Index, p.RouteCount/4, p.TotalPeers, false)
 			for _, r := range vpnRoutes {
@@ -423,29 +406,12 @@ func RunSimulator(ctx context.Context, cfg SimulatorConfig) {
 			}
 		case familyIPv4Multicast:
 			mcastRoutes := scenario.GenerateIPv4MulticastRoutes(cfg.Seed, p.Index, p.RouteCount/4, p.TotalPeers)
-			for _, prefix := range mcastRoutes {
-				if ctx.Err() != nil {
-					break
-				}
-				data := sender.buildMulticastRoute(prefix)
-				if writeErr = sendRouteUpdate(conn, prefix, fam, data, emit); writeErr != nil {
-					break
-				}
-				totalSent++
-			}
+			ipRoutesSent, writeErr = sendInitialIPRoutes(ctx, conn, sender, family.IPv4Multicast, mcastRoutes, emit)
 		case familyIPv6Multicast:
 			mcastRoutes := scenario.GenerateIPv6MulticastRoutes(cfg.Seed, p.Index, p.RouteCount/4, p.TotalPeers)
-			for _, prefix := range mcastRoutes {
-				if ctx.Err() != nil {
-					break
-				}
-				data := senderV6.buildMulticastRoute(prefix)
-				if writeErr = sendRouteUpdate(conn, prefix, fam, data, emit); writeErr != nil {
-					break
-				}
-				totalSent++
-			}
+			ipRoutesSent, writeErr = sendInitialIPRoutes(ctx, conn, senderV6, family.IPv6Multicast, mcastRoutes, emit)
 		}
+		totalSent += ipRoutesSent
 		if ctx.Err() != nil {
 			finishInitial(nil)
 			return

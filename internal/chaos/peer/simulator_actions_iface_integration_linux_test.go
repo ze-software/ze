@@ -128,7 +128,7 @@ func hasAddr(t *testing.T, name, cidr string) bool {
 // private netns and asserts the interface is flapped (down->up) and the action
 // reports the session as torn so the simulator's reconnect machinery recovers it.
 //
-// VALIDATES: AC-6 -- iface-link-flap performs the netlink down/up and signals
+// VALIDATES: AC-6 -- iface-link-flap performs the netlink link down/up and signals
 // Disconnected so BGP-session recovery is triggered.
 // PREVENTS: a link-flap that leaves the interface down, or one that fails to
 // signal the transport teardown that drives reconnection.
@@ -163,7 +163,7 @@ func TestChaosIfaceLinkFlap(t *testing.T) {
 // TestChaosIfaceAddrRemove drives the addr-remove action against a real veth in
 // a private netns and asserts the address is removed then restored.
 //
-// VALIDATES: AC-6 -- iface-addr-remove performs the netlink addr del/add cycle.
+// VALIDATES: AC-6 -- iface-addr-remove performs the netlink address del/add cycle.
 // PREVENTS: an addr-remove that leaves the interface without its address.
 func TestChaosIfaceAddrRemove(t *testing.T) {
 	if !userns.Enter(t) {

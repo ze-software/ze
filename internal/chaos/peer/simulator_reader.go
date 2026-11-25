@@ -26,19 +26,17 @@ import (
 // prevents Ze from sending to this peer. The value can be toggled at runtime
 // via the ActionSlowRead chaos action.
 func readLoop(ctx context.Context, conn net.Conn, peerIndex int, events chan<- Event, readDelayNs *atomic.Int64) {
-	// Child context so Drain goroutine stops when readLoop returns
-	// (e.g., connection closed before ctx is canceled).
-	drainCtx, drainCancel := context.WithCancel(ctx)
-
 	buf := newEventBuffer()
 	drainDone := make(chan struct{})
 	go func() {
 		defer close(drainDone)
-		buf.Drain(drainCtx, events)
+		// Run cancellation stops socket reads. Decoded observations still
+		// belong to this session and MUST reach the active consumer.
+		buf.Drain(context.WithoutCancel(ctx), events)
 	}()
 	defer func() {
-		drainCancel()
-		<-drainDone // Wait for Drain to finish before readLoop returns.
+		buf.finish()
+		<-drainDone
 	}()
 
 	for {

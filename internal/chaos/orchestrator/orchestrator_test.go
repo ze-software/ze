@@ -3,7 +3,10 @@
 package orchestrator
 
 import (
+	"context"
+	"net"
 	"net/netip"
+	"strconv"
 	"sync"
 	"testing"
 	"time"
@@ -207,4 +210,48 @@ func TestOrchestratorChaosCounters(t *testing.T) {
 
 	assert.Equal(t, 0, ep.Announced)
 	assert.Equal(t, 0, ep.Received)
+}
+
+// VALIDATES: allocatePortRange returns a contiguous range of N free TCP ports
+// and checkPortsFree detects a busy port anywhere inside [base, base+count).
+// PREVENTS: Multi-peer --port 0 runs or preflight checks missing occupied ports
+// past port+0.
+func TestAllocatePortRangeAndCheckPortsFree(t *testing.T) {
+	ctx := context.Background()
+	base, err := allocatePortRange(ctx, "127.0.0.1", 4)
+	require.NoError(t, err)
+	assert.GreaterOrEqual(t, base, 1024)
+	assert.LessOrEqual(t, base+3, 65535)
+	require.NoError(t, checkPortsFree("127.0.0.1", base, 4))
+
+	// Occupy the last port in the range and verify checkPortsFree catches it.
+	var lc net.ListenConfig
+	ln, err := lc.Listen(ctx, "tcp", net.JoinHostPort("127.0.0.1", strconv.Itoa(base+3)))
+	require.NoError(t, err)
+	defer func() { _ = ln.Close() }()
+
+	err = checkPortsFree("127.0.0.1", base, 4)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), strconv.Itoa(base+3))
+}
+
+// VALIDATES: schedulerStopTime reserves a settle window before bounded deadlines
+// while leaving unbounded runs unrestricted.
+// PREVENTS: Faults injected in the final seconds of --duration leaving peers mid-backoff
+// or withdrawals in flight at observation cutoff.
+func TestSchedulerStopTime(t *testing.T) {
+	start := time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC)
+
+	assert.True(t, schedulerStopTime(time.Time{}, false, start, 5*time.Second).IsZero(),
+		"unbounded runs must not stop scheduling")
+	assert.True(t, schedulerStopTime(start.Add(4*time.Second), true, start, 5*time.Second).IsZero(),
+		"runs shorter than warmup have no active window")
+
+	// 15s run with 5s warmup (10s active) reserves full 4s settle -> stops at +11s.
+	stop15 := schedulerStopTime(start.Add(15*time.Second), true, start, 5*time.Second)
+	assert.Equal(t, start.Add(11*time.Second), stop15)
+
+	// 9s run with 5s warmup (4s active) caps settle at active/2 (2s) -> stops at +7s.
+	stop9 := schedulerStopTime(start.Add(9*time.Second), true, start, 5*time.Second)
+	assert.Equal(t, start.Add(7*time.Second), stop9)
 }

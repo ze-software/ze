@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"net"
 	"os"
+	"strconv"
 	"strings"
 	"syscall"
 	"time"
@@ -150,6 +151,53 @@ func checkPortFree(addr string) error {
 	}
 
 	return fmt.Errorf("checking port %s: %w", addr, err)
+}
+
+// checkPortsFree verifies that nothing is listening on any port in [basePort, basePort+count).
+func checkPortsFree(addr string, basePort, count int) error {
+	for i := range max(count, 1) {
+		if err := checkPortFree(net.JoinHostPort(addr, strconv.Itoa(basePort+i))); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// allocatePortRange finds count consecutive free TCP ports on addr and returns
+// the base port. All count listeners are held open simultaneously before being
+// closed so every port in [base, base+count) is verified free together.
+func allocatePortRange(ctx context.Context, addr string, count int) (int, error) {
+	if count <= 1 {
+		return allocatePort(ctx, addr)
+	}
+	const maxAttempts = 64
+	var lc net.ListenConfig
+	for range maxAttempts {
+		base, err := allocatePort(ctx, addr)
+		if err != nil {
+			return 0, err
+		}
+		if base+count-1 > 65535 {
+			continue
+		}
+		listeners := make([]net.Listener, 0, count)
+		allFree := true
+		for i := range count {
+			ln, listenErr := lc.Listen(ctx, "tcp", net.JoinHostPort(addr, strconv.Itoa(base+i)))
+			if listenErr != nil {
+				allFree = false
+				break
+			}
+			listeners = append(listeners, ln)
+		}
+		for _, ln := range listeners {
+			_ = ln.Close()
+		}
+		if allFree {
+			return base, nil
+		}
+	}
+	return 0, fmt.Errorf("allocating %d consecutive free ports on %s after %d attempts", count, addr, maxAttempts)
 }
 
 // allocatePort binds a TCP listener on addr:0 and returns the kernel-assigned port.

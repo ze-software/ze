@@ -45,16 +45,16 @@ func Check(m *Model, t *Tracker) CheckResult {
 		extra := NewPrefixSet()
 
 		// Find missing: in expected but not in actual.
-		for _, prefix := range expected.All() {
-			if !actual.Contains(prefix) {
-				missing.Add(prefix)
+		for route := range expected.m {
+			if _, ok := actual.m[route]; !ok {
+				missing.m[route] = struct{}{}
 			}
 		}
 
 		// Find extra: in actual but not in expected.
-		for _, prefix := range actual.All() {
-			if !expected.Contains(prefix) {
-				extra.Add(prefix)
+		for route := range actual.m {
+			if _, ok := expected.m[route]; !ok {
+				extra.m[route] = struct{}{}
 			}
 		}
 

@@ -145,3 +145,43 @@ type countingDialer struct {
 func (d *countingDialer) DialContext(_ context.Context, _, _ string) (net.Conn, error) {
 	return d.onDial()
 }
+
+// TestExecuteReconnectStormCancelsOnContext verifies that executeReconnectStorm
+// unblocks promptly when ctx is canceled while waiting for the remote OPEN.
+//
+// VALIDATES: Context cancellation closes the storm connection and exits the loop.
+// PREVENTS: RunOrchestrator deadlocking at duration expiry when Ze stalls a storm handshake.
+func TestExecuteReconnectStormCancelsOnContext(t *testing.T) {
+	peerSide, zeSide := net.Pipe()
+	t.Cleanup(func() {
+		_ = peerSide.Close()
+		_ = zeSide.Close()
+	})
+	// Drain client OPEN without sending an OPEN back so readMsg blocks until closed.
+	go func() {
+		buf := make([]byte, 512)
+		_, _ = zeSide.Read(buf)
+	}()
+
+	ctx, cancel := context.WithCancel(context.Background())
+	mockDialer := &countingDialer{onDial: func() (net.Conn, error) {
+		go func() {
+			time.Sleep(50 * time.Millisecond)
+			cancel()
+		}()
+		return peerSide, nil
+	}}
+
+	p := SimProfile{ASN: 65000, RouterID: netip.MustParseAddr("10.0.0.2"), HoldTime: 90, Families: []string{"ipv4/unicast"}}
+	done := make(chan struct{})
+	go func() {
+		defer close(done)
+		executeReconnectStorm(ctx, "127.0.0.1:179", p, mockDialer, func(Event) {})
+	}()
+
+	select {
+	case <-done:
+	case <-time.After(2 * time.Second):
+		t.Fatal("executeReconnectStorm did not exit promptly after context cancellation")
+	}
+}

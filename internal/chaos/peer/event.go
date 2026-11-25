@@ -88,7 +88,7 @@ type Event struct {
 	Families []string
 
 	// BytesSent is the number of bytes written to the connection for this event (delta).
-	// Set on EventRouteSent, EventEORSent, and EventWithdrawalSent.
+	// Set on the first EventRouteSent per BGP message, EventEORSent, and EventWithdrawalSent.
 	BytesSent int64
 
 	// BytesRecv is the number of bytes read from the connection for this event (delta).
@@ -97,6 +97,6 @@ type Event struct {
 
 	// BGPMessage is the complete BGP wire bytes (marker + length + type + body)
 	// for message events (EventRouteSent, EventRouteReceived, EventWithdrawalSent).
-	// Nil for non-message events and when recording is not needed.
+	// Only the first prefix event of a message carries its bytes.
 	BGPMessage []byte
 }

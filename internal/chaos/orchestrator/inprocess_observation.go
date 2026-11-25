@@ -30,7 +30,8 @@ func observeInProcess(result *inprocess.RunResult, ep *validation.EventProcessor
 			return errors.Join(log.Close(), file.Close())
 		}
 	}
-	for _, event := range result.Events {
+	for i := range result.Events {
+		event := result.Events[i]
 		if event.PlannedShutdown {
 			continue
 		}

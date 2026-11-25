@@ -220,17 +220,20 @@ func withdrawalBatchSize(prefixes []netip.Prefix) int {
 	return len(prefixes)
 }
 
-// buildMalformedUpdate constructs a BGP UPDATE with an invalid ORIGIN attribute.
-// ORIGIN must be 0 (IGP), 1 (EGP), or 2 (INCOMPLETE); value 0xFF is invalid.
-// This tests RFC 7606 revised error handling (treat-as-withdraw).
+// buildMalformedUpdate constructs a BGP UPDATE with an invalid ORIGIN attribute
+// and a non-colliding IPv4 NLRI (10.255.255.0/24; 10/8 is excluded from seeded
+// route generation). ORIGIN must be 0 (IGP), 1 (EGP), or 2 (INCOMPLETE); value
+// 0xFF is invalid. Including a reachable NLRI exercises RFC 7606 treat-as-withdraw
+// instead of escalating to RFC 7606 Section 5.2 session-reset (attrs with no NLRI).
 func buildMalformedUpdate() []byte {
-	// UPDATE body: withdrawn=0, one attribute with invalid ORIGIN value.
+	// UPDATE body: withdrawn=0, invalid ORIGIN attribute (0xFF), NLRI=10.255.255.0/24.
 	body := []byte{
 		0x00, 0x00, // withdrawn routes length = 0
 		0x00, 0x04, // total path attribute length = 4
 		0x40, 0x01, // ORIGIN: flags=transitive, type code=1
-		0x01, // attribute length = 1
-		0xFF, // INVALID origin value (valid: 0, 1, 2)
+		0x01,                   // attribute length = 1
+		0xFF,                   // INVALID origin value (valid: 0, 1, 2)
+		0x18, 0x0a, 0xff, 0xff, // NLRI: 10.255.255.0/24 (non-colliding 10/8)
 	}
 
 	msgLen := message.HeaderLen + len(body)

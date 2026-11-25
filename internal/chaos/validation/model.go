@@ -5,63 +5,153 @@
 package validation
 
 import (
+	"maps"
 	"net/netip"
 	"slices"
+	"strings"
+
+	"github.com/ze-software/ze/internal/core/family"
+	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
-// PrefixSet is a set of IPv4/IPv6 prefixes.
+type routeKey struct {
+	family family.Family
+	prefix netip.Prefix
+}
+
+func makeRouteKey(prefix netip.Prefix, name string) routeKey {
+	if name != "" {
+		return routeKey{family: lookupRouteFamily(name), prefix: prefix}
+	}
+	return routeKey{family: unicastFamily(prefix), prefix: prefix}
+}
+
+// Chaos can observe VPN and FlowSpec from an external target even when its
+// own build did not register the corresponding plugins.
+const (
+	vpnFamilyName  = "mpls-vpn"
+	flowFamilyName = "flow"
+)
+
+func lookupRouteFamily(name string) family.Family {
+	if fam, ok := family.LookupFamily(name); ok {
+		return fam
+	}
+	afiName, safiName, _ := strings.Cut(name, "/")
+	afi, ok := family.LookupAFI(afiName)
+	// refuse-by-default: guards makeRouteKey -- unrecognized family names stay keyed under the zero family so announced and received rows compare symmetrically
+	if !ok {
+		return family.Family{}
+	}
+	switch safiName {
+	case vpnFamilyName:
+		return family.Family{AFI: afi, SAFI: family.SAFIVPN}
+	case flowFamilyName:
+		return family.Family{AFI: afi, SAFI: family.SAFIFlowSpec}
+	default:
+		return family.Family{}
+	}
+}
+
+func routeFamilyName(fam family.Family) string {
+	var name string
+	// The simulator uses these two names for optional families on every build.
+	//exhaustive:ignore
+	switch fam.SAFI {
+	case 0:
+		return ""
+	case family.SAFIVPN:
+		name = vpnFamilyName
+	case family.SAFIFlowSpec:
+		name = flowFamilyName
+	default:
+		return fam.String()
+	}
+	var b textbuf.Buffer
+	return b.Str(fam.AFI.String()).Byte('/').Str(name).String()
+}
+
+func unicastFamily(prefix netip.Prefix) family.Family {
+	if prefix.Addr().Is4() {
+		return family.IPv4Unicast
+	}
+	if prefix.Addr().Is6() {
+		return family.IPv6Unicast
+	}
+	return family.Family{}
+}
+
+func (r routeKey) label() string {
+	if r.family == unicastFamily(r.prefix) {
+		return r.prefix.String()
+	}
+	var b textbuf.Buffer
+	return b.Str(routeFamilyName(r.family)).Byte(' ').Str(r.prefix.String()).String()
+}
+
+// PrefixSet stores routes distinguished by address family and prefix.
 type PrefixSet struct {
-	m map[netip.Prefix]struct{}
+	m map[routeKey]struct{}
 }
 
 // NewPrefixSet creates an empty prefix set.
 func NewPrefixSet() *PrefixSet {
-	return &PrefixSet{m: make(map[netip.Prefix]struct{})}
+	return &PrefixSet{m: make(map[routeKey]struct{})}
 }
 
-// Add inserts a prefix into the set.
-func (s *PrefixSet) Add(p netip.Prefix) { s.m[p] = struct{}{} }
+// Add inserts a unicast prefix into the set.
+func (s *PrefixSet) Add(p netip.Prefix) { s.m[makeRouteKey(p, "")] = struct{}{} }
 
 func (s *PrefixSet) addAll(prefixes *PrefixSet) {
-	for prefix := range prefixes.m {
-		s.Add(prefix)
-	}
+	maps.Copy(s.m, prefixes.m)
 }
 
-// Remove deletes a prefix from the set.
-func (s *PrefixSet) Remove(p netip.Prefix) { delete(s.m, p) }
+// Remove deletes a unicast prefix from the set.
+func (s *PrefixSet) Remove(p netip.Prefix) { delete(s.m, makeRouteKey(p, "")) }
 
-// Contains returns true if the prefix is in the set.
+// Contains returns true if any family in the set contains the prefix.
 func (s *PrefixSet) Contains(p netip.Prefix) bool {
-	_, ok := s.m[p]
-	return ok
+	if _, ok := s.m[makeRouteKey(p, "")]; ok {
+		return true
+	}
+	for route := range s.m {
+		if route.prefix == p {
+			return true
+		}
+	}
+	return false
 }
 
 // Len returns the number of prefixes in the set.
 func (s *PrefixSet) Len() int { return len(s.m) }
 
-// All returns all prefixes in the set (unordered).
+// All returns the unordered prefixes, one per route family and prefix pair.
 func (s *PrefixSet) All() []netip.Prefix {
 	result := make([]netip.Prefix, 0, len(s.m))
-	for p := range s.m {
-		result = append(result, p)
+	for route := range s.m {
+		result = append(result, route.prefix)
 	}
 	return result
 }
 
-// SortedStrings returns all prefixes as sorted string representations.
-// Sorted by address first, then prefix length.
+// SortedStrings returns route descriptions sorted by prefix and family.
 func (s *PrefixSet) SortedStrings() []string {
-	prefixes := s.All()
-	slices.SortFunc(prefixes, func(a, b netip.Prefix) int {
-		if c := a.Addr().Compare(b.Addr()); c != 0 {
+	routes := slices.Collect(maps.Keys(s.m))
+	slices.SortFunc(routes, func(a, b routeKey) int {
+		if c := a.prefix.Addr().Compare(b.prefix.Addr()); c != 0 {
 			return c
 		}
-		return a.Bits() - b.Bits()
+		if c := a.prefix.Bits() - b.prefix.Bits(); c != 0 {
+			return c
+		}
+		if a.family.AFI != b.family.AFI {
+			return int(a.family.AFI) - int(b.family.AFI)
+		}
+		return int(a.family.SAFI) - int(b.family.SAFI)
 	})
-	result := make([]string, len(prefixes))
-	for i, p := range prefixes {
-		result[i] = p.String()
+	result := make([]string, len(routes))
+	for i, route := range routes {
+		result[i] = route.label()
 	}
 	return result
 }
@@ -85,7 +175,7 @@ type Model struct {
 	established []bool
 
 	// announced lists each source peer's prefixes by family.
-	announced []map[string]*PrefixSet
+	announced []map[family.Family]*PrefixSet
 
 	reachable Reachability
 }
@@ -97,9 +187,9 @@ func NewModel(n int) *Model {
 
 // NewModelWithReachability creates a validation model for the target's export policy.
 func NewModelWithReachability(n int, reachable Reachability) *Model {
-	announced := make([]map[string]*PrefixSet, n)
+	announced := make([]map[family.Family]*PrefixSet, n)
 	for i := range n {
-		announced[i] = make(map[string]*PrefixSet)
+		announced[i] = make(map[family.Family]*PrefixSet)
 	}
 	return &Model{
 		peerCount:   n,
@@ -128,26 +218,34 @@ func (m *Model) Announce(source int, prefix netip.Prefix) {
 }
 
 // AnnounceFamily records a route with its family so export eligibility can be checked.
-func (m *Model) AnnounceFamily(source int, prefix netip.Prefix, family string) {
+func (m *Model) AnnounceFamily(source int, prefix netip.Prefix, name string) {
+	m.announce(source, makeRouteKey(prefix, name))
+}
+
+func (m *Model) announce(source int, route routeKey) {
 	if source < 0 || source >= m.peerCount {
 		return
 	}
 	families := m.announced[source]
-	prefixes := families[family]
+	prefixes := families[route.family]
 	if prefixes == nil {
 		prefixes = NewPrefixSet()
-		families[family] = prefixes
+		families[route.family] = prefixes
 	}
-	prefixes.Add(prefix)
+	prefixes.m[route] = struct{}{}
 }
 
 // Withdraw forgets a route sent by the source. Routes from other sources remain.
 func (m *Model) Withdraw(source int, prefix netip.Prefix) {
+	m.withdraw(source, makeRouteKey(prefix, ""))
+}
+
+func (m *Model) withdraw(source int, route routeKey) {
 	if source < 0 || source >= m.peerCount {
 		return
 	}
-	for _, prefixes := range m.announced[source] {
-		prefixes.Remove(prefix)
+	if prefixes := m.announced[source][route.family]; prefixes != nil {
+		delete(prefixes.m, route)
 	}
 }
 
@@ -170,8 +268,8 @@ func (m *Model) Expected(peer int) *PrefixSet {
 		if !m.established[source] {
 			continue
 		}
-		for family, prefixes := range families {
-			if m.reachable.allows(source, peer, family) {
+		for fam, prefixes := range families {
+			if m.reachable.allows(source, peer, routeFamilyName(fam)) {
 				result.addAll(prefixes)
 			}
 		}

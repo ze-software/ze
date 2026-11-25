@@ -1,6 +1,7 @@
 package validation
 
 import (
+	"net/netip"
 	"sync"
 	"testing"
 	"time"
@@ -47,6 +48,33 @@ func TestConvergenceReceiveBeforeAnnounce(t *testing.T) {
 	stats := c.StatsByFamily()["ipv4/unicast"]
 	assert.Equal(t, 1, stats.Resolved)
 	assert.Equal(t, 2*time.Second, stats.Min)
+}
+
+// VALIDATES: All receipts from a packed UPDATE can arrive before send events.
+// PREVENTS: Losing delivery evidence when a single batch fans out to many peers.
+func TestConvergenceEarlyBatchFanout(t *testing.T) {
+	const destinations = 5
+	const routes = 900
+	c := NewConvergence(destinations+1, time.Second)
+	at := time.Now()
+	prefixes := make([]netip.Prefix, routes)
+	for i := range prefixes {
+		prefixes[i] = netip.PrefixFrom(netip.AddrFrom4([4]byte{10, byte(i >> 8), byte(i), 0}), 24)
+	}
+	for destination := 1; destination <= destinations; destination++ {
+		for _, prefix := range prefixes {
+			c.RecordReceive(destination, prefix, at.Add(time.Millisecond))
+		}
+	}
+	for _, prefix := range prefixes {
+		c.RecordAnnounce(0, prefix, at, "ipv4/unicast")
+	}
+
+	stats := c.Stats()
+	assert.Equal(t, destinations*routes, stats.Resolved)
+	assert.Zero(t, stats.Pending)
+	assert.Equal(t, time.Millisecond, stats.Max)
+	assert.Empty(t, c.CheckDeadline(at.Add(time.Second)))
 }
 
 // TestConvergenceStaleReceive checks that only an arrival after a send clears it.
@@ -370,6 +398,26 @@ func TestConvergenceDisconnect(t *testing.T) {
 	assert.Equal(t, []SlowRoute{
 		{Source: 0, Peer: 2, Prefix: first, Age: time.Second},
 	}, c.CheckDeadline(at.Add(time.Second)))
+}
+
+// VALIDATES: A real disconnect preserves delivery obligations already overdue.
+// PREVENTS: Removing missed deadlines when a source or destination session ends.
+func TestConvergenceOverdueDisconnect(t *testing.T) {
+	c := NewConvergence(3, time.Second)
+	at := time.Now()
+	toPeer := p("10.0.0.0/24")
+	fromPeer := p("10.0.1.0/24")
+	c.RecordAnnounce(0, toPeer, at)
+	c.RecordAnnounce(1, fromPeer, at)
+	c.RecordReceive(2, toPeer, at.Add(time.Millisecond))
+	c.disconnect(1, at.Add(2*time.Second))
+
+	assert.Zero(t, c.Stats().Pending)
+	assert.ElementsMatch(t, []SlowRoute{
+		{Source: 0, Peer: 1, Prefix: toPeer, Age: 2 * time.Second},
+		{Source: 1, Peer: 0, Prefix: fromPeer, Age: 2 * time.Second},
+		{Source: 1, Peer: 2, Prefix: fromPeer, Age: 2 * time.Second},
+	}, c.CheckDeadline(at.Add(3*time.Second)))
 }
 
 // TestConvergenceLateReceive validates the deadline after a route eventually arrives.

@@ -128,13 +128,17 @@ func Run(r io.Reader, w io.Writer) int {
 	}
 	reachable := validation.ScenarioReachability(hdr.IBGPPeers, hdr.PeerFamilies)
 	ep := validation.NewEventProcessor(hdr.Peers, deadline, reachable)
-	properties, err := validation.ScenarioProperties(hdr.Properties, hdr.Peers, deadline, reachable)
-	if err != nil {
-		writeErr(w, "error: reading event log properties: %v\n", err)
-		return 2
+	var properties *validation.PropertyEngine
+	if hdr.Properties != "" {
+		properties, err = validation.ScenarioProperties(hdr.Properties, hdr.Peers, deadline, reachable)
+		if err != nil {
+			writeErr(w, "error: reading event log properties: %v\n", err)
+			return 2
+		}
 	}
 
 	var observationEnd time.Time
+	var seq uint64
 	for scanner.Scan() {
 		if hdr.Version < 2 && len(scanner.Bytes()) >= bufio.MaxScanTokenSize {
 			writeErr(w, "error: reading event log: legacy record exceeds the line size limit\n")
@@ -148,7 +152,13 @@ func Run(r io.Reader, w io.Writer) int {
 			}
 			continue
 		}
-		if !observationEnd.IsZero() {
+		if hdr.Version >= 2 {
+			seq++
+			if record.Seq != seq {
+				writeErr(w, "error: event log sequence %d, expected %d\n", record.Seq, seq)
+				return 2
+			}
+		} else if !observationEnd.IsZero() {
 			continue
 		}
 		offset := time.Duration(record.TimeOffsetMS) * time.Millisecond
@@ -156,16 +166,31 @@ func Run(r io.Reader, w io.Writer) int {
 			offset = time.Duration(*record.TimeOffsetNS)
 		}
 		at := startTime.Add(offset)
-		if record.RecordType == "observation-end" {
+		switch record.RecordType {
+		case "observation-end":
+			if !observationEnd.IsZero() {
+				writeErr(w, "error: duplicate event log observation checkpoint at sequence %d\n", seq)
+				return 2
+			}
 			observationEnd = at
 			continue
-		}
-		if record.RecordType != "event" {
+		case "control":
+			continue
+		case "event":
+		default:
+			if hdr.Version >= 2 {
+				writeErr(w, "error: unknown event log record type %q at sequence %d\n", record.RecordType, seq)
+				return 2
+			}
 			continue
 		}
 
 		kind, ok := eventTypeFromString[record.EventType]
 		if !ok {
+			if hdr.Version >= 2 {
+				writeErr(w, "error: unknown event log event type %q at sequence %d\n", record.EventType, seq)
+				return 2
+			}
 			continue
 		}
 		switch {
@@ -180,6 +205,9 @@ func Run(r io.Reader, w io.Writer) int {
 				writeErr(w, "error: parsing event log prefix: %v\n", err)
 				return 2
 			}
+		}
+		if !observationEnd.IsZero() {
+			continue
 		}
 		event := peer.Event{
 			Type: kind, PeerIndex: record.PeerIndex, Time: at, Prefix: prefix, Family: record.Family,

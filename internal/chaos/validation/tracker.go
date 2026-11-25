@@ -25,19 +25,27 @@ func NewTracker(n int) *Tracker {
 
 // RecordReceive records that a peer received a route from the RR.
 func (t *Tracker) RecordReceive(peer int, prefix netip.Prefix) {
+	t.recordReceive(peer, makeRouteKey(prefix, ""))
+}
+
+func (t *Tracker) recordReceive(peer int, route routeKey) {
 	t.mu.Lock()
 	defer t.mu.Unlock()
 	if peer >= 0 && peer < len(t.peers) {
-		t.peers[peer].Add(prefix)
+		t.peers[peer].m[route] = struct{}{}
 	}
 }
 
 // RecordWithdraw records that a peer received a withdrawal from the RR.
 func (t *Tracker) RecordWithdraw(peer int, prefix netip.Prefix) {
+	t.recordWithdraw(peer, makeRouteKey(prefix, ""))
+}
+
+func (t *Tracker) recordWithdraw(peer int, route routeKey) {
 	t.mu.Lock()
 	defer t.mu.Unlock()
 	if peer >= 0 && peer < len(t.peers) {
-		t.peers[peer].Remove(prefix)
+		delete(t.peers[peer].m, route)
 	}
 }
 
@@ -60,8 +68,6 @@ func (t *Tracker) ActualRoutes(peer int) *PrefixSet {
 	}
 	// Return a copy to avoid holding the lock while caller iterates.
 	snapshot := NewPrefixSet()
-	for _, p := range t.peers[peer].All() {
-		snapshot.Add(p)
-	}
+	snapshot.addAll(t.peers[peer])
 	return snapshot
 }

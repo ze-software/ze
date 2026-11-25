@@ -27,6 +27,40 @@ func TestObservationRequiresReceiptsForReachableRoutes(t *testing.T) {
 	assert.False(t, observation.MissingAllReceipts())
 }
 
+// VALIDATES: A source and destination withdraw the same prefix in one family.
+// PREVENTS: A matching prefix in another family being silently removed.
+func TestObservationWithdrawalKeepsOtherFamily(t *testing.T) {
+	observation := NewEventProcessor(2, time.Second, nil)
+	at := time.Now()
+	prefix := netip.MustParsePrefix("239.1.2.0/24")
+	for index := range 2 {
+		observation.Process(peer.Event{Type: peer.EventEstablished, PeerIndex: index, Time: at})
+	}
+	for _, name := range []string{"ipv4/unicast", "ipv4/multicast"} {
+		observation.Process(peer.Event{
+			Type: peer.EventRouteSent, PeerIndex: 0, Prefix: prefix, Time: at, Family: name,
+		})
+		observation.Process(peer.Event{
+			Type: peer.EventRouteReceived, PeerIndex: 1, Prefix: prefix, Time: at, Family: name,
+		})
+	}
+	result := Check(observation.Model, observation.Tracker)
+	assert.True(t, result.Pass)
+	assert.Equal(t, 2, result.Peers[1].ExpectedCount)
+	assert.Equal(t, 2, observation.Convergence.Stats().Resolved)
+
+	observation.Process(peer.Event{
+		Type: peer.EventWithdrawalSent, PeerIndex: 0, Time: at, Family: "ipv4/multicast", WithdrawnPrefixes: []netip.Prefix{prefix},
+	})
+	observation.Process(peer.Event{
+		Type: peer.EventRouteWithdrawn, PeerIndex: 1, Time: at, Family: "ipv4/multicast", Prefix: prefix,
+	})
+	result = Check(observation.Model, observation.Tracker)
+	assert.True(t, result.Pass)
+	assert.Equal(t, []string{prefix.String()}, observation.Model.Expected(1).SortedStrings())
+	assert.Equal(t, []string{prefix.String()}, observation.Tracker.ActualRoutes(1).SortedStrings())
+}
+
 // VALIDATES: Only the affected peer can finish in a later planned outage.
 // PREVENTS: One chaos action waiving unrelated session and recovery failures.
 func TestObservationRequiresEvidenceOfRecovery(t *testing.T) {

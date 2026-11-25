@@ -71,9 +71,6 @@ func ScenarioReachability(ibgp []bool, families [][]string) Reachability {
 
 // ScenarioProperties resolves the properties selected through the CLI or an event log.
 func ScenarioProperties(selection string, peers int, deadline time.Duration, reachable Reachability) (*PropertyEngine, error) {
-	if selection == "" {
-		return nil, nil
-	}
 	all := AllPropertiesWithReachability(peers, deadline, reachable)
 	if selection == "all" {
 		return NewPropertyEngine(all), nil
@@ -101,7 +98,13 @@ func (ep *EventProcessor) UnsynchronizedPeers() []int {
 	var incomplete []int
 	for index, session := range ep.sessions {
 		up := ep.Model.Established(index)
-		if !(up && session.eor) && !(!up && session.recovered && session.recoveryPending) {
+		if up {
+			if !session.eor {
+				incomplete = append(incomplete, index)
+			}
+			continue
+		}
+		if !session.recovered || !session.recoveryPending {
 			incomplete = append(incomplete, index)
 		}
 	}
@@ -128,9 +131,10 @@ func (ep *EventProcessor) Process(ev peer.Event) {
 		ep.Model.SetEstablished(ev.PeerIndex, true)
 
 	case peer.EventRouteSent:
-		ep.Model.AnnounceFamily(ev.PeerIndex, ev.Prefix, ev.Family)
+		route := makeRouteKey(ev.Prefix, ev.Family)
+		ep.Model.announce(ev.PeerIndex, route)
 		if ev.Prefix.IsValid() {
-			ep.Convergence.RecordAnnounce(ev.PeerIndex, ev.Prefix, ev.Time, ev.Family)
+			ep.Convergence.recordAnnounce(ev.PeerIndex, route, ev.Time, ev.Family)
 		}
 		if sync != nil && !ep.expectsReceipts {
 			for destination := range ep.sessions {
@@ -143,17 +147,18 @@ func (ep *EventProcessor) Process(ev peer.Event) {
 		ep.Announced++
 
 	case peer.EventRouteReceived:
-		ep.Tracker.RecordReceive(ev.PeerIndex, ev.Prefix)
-		ep.Convergence.RecordReceive(ev.PeerIndex, ev.Prefix, ev.Time)
+		route := makeRouteKey(ev.Prefix, ev.Family)
+		ep.Tracker.recordReceive(ev.PeerIndex, route)
+		ep.Convergence.recordReceive(ev.PeerIndex, route, ev.Time)
 		ep.Received++
 
 	case peer.EventRouteWithdrawn:
-		ep.Tracker.RecordWithdraw(ev.PeerIndex, ev.Prefix)
+		ep.Tracker.recordWithdraw(ev.PeerIndex, makeRouteKey(ev.Prefix, ev.Family))
 
 	case peer.EventDisconnected:
 		ep.Model.Disconnect(ev.PeerIndex)
 		ep.Tracker.ClearPeer(ev.PeerIndex)
-		ep.Convergence.Disconnect(ev.PeerIndex)
+		ep.Convergence.disconnect(ev.PeerIndex, ev.Time)
 		if sync != nil {
 			sync.eor = false
 			sync.recoveryPending = sync.expectFault
@@ -183,8 +188,9 @@ func (ep *EventProcessor) Process(ev peer.Event) {
 
 	case peer.EventWithdrawalSent:
 		for _, prefix := range ev.WithdrawnPrefixes {
-			ep.Model.Withdraw(ev.PeerIndex, prefix)
-			ep.Convergence.RecordWithdraw(ev.PeerIndex, prefix)
+			route := makeRouteKey(prefix, ev.Family)
+			ep.Model.withdraw(ev.PeerIndex, route)
+			ep.Convergence.recordWithdraw(ev.PeerIndex, route, ev.Time)
 		}
 		ep.Withdrawn += ev.Count
 

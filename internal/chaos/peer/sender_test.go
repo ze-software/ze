@@ -180,6 +180,13 @@ func TestBuildMalformedUpdate(t *testing.T) {
 	// Total path attribute length > 0 (has the malformed attribute).
 	attrLen := int(data[21])<<8 | int(data[22])
 	assert.Greater(t, attrLen, 0, "should have path attributes")
+
+	// Trailing NLRI must be present so RFC 7606 Section 5.2 does not escalate to session-reset.
+	nlriOff := 23 + attrLen
+	require.Less(t, nlriOff, len(data), "malformed UPDATE must include an NLRI for treat-as-withdraw")
+	result := message.ValidateUpdateRFC7606(data[23:nlriOff], true, false, true)
+	require.NotNil(t, result)
+	assert.Equal(t, message.RFC7606ActionTreatAsWithdraw, result.Action)
 }
 
 // TestBuildVPNRoute verifies building a VPN UPDATE.

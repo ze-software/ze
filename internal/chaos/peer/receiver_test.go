@@ -1,12 +1,63 @@
 package peer
 
 import (
+	"context"
+	"net"
 	"net/netip"
+	"sync/atomic"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	"github.com/ze-software/ze/internal/component/bgp/message"
 )
+
+// VALIDATES: The reader hands off all decoded prefixes before it stops.
+// PREVENTS: Run cancellation silently removing received routes from validation.
+func TestReadLoopDrainsDecodedRoutesOnCancel(t *testing.T) {
+	const routeCount = 128
+	var nlri []byte
+	for i := range routeCount {
+		nlri = append(nlri, 24, 10, 0, byte(i))
+	}
+	frame := serializeMessage(&message.Update{NLRI: nlri})
+	client, server := net.Pipe()
+	t.Cleanup(func() { _ = client.Close(); _ = server.Close() })
+	ctx, cancel := context.WithCancel(t.Context())
+	defer cancel()
+	out := make(chan Event, 1)
+	var delay atomic.Int64
+	go func() {
+		defer close(out)
+		readLoop(ctx, client, 2, out, &delay)
+	}()
+
+	require.NoError(t, server.SetWriteDeadline(time.Now().Add(time.Second)))
+	written, err := server.Write(frame)
+	require.NoError(t, err)
+	require.Equal(t, len(frame), written)
+	cancel()
+	require.NoError(t, server.Close())
+
+	for i := range routeCount {
+		select {
+		case event, ok := <-out:
+			require.Truef(t, ok, "reader exited after %d of %d decoded routes", i, routeCount)
+			assert.Equal(t, EventRouteReceived, event.Type)
+			assert.Equal(t, netip.PrefixFrom(netip.AddrFrom4([4]byte{10, 0, byte(i), 0}), 24), event.Prefix)
+		case <-time.After(time.Second):
+			t.Fatalf("reader stalled after %d of %d decoded routes", i, routeCount)
+		}
+	}
+	select {
+	case _, ok := <-out:
+		require.False(t, ok, "reader emitted an extra route")
+	case <-time.After(time.Second):
+		t.Fatal("reader did not stop after draining")
+	}
+}
 
 // TestParseIPv4Prefix verifies wire-format IPv4 prefix parsing.
 //

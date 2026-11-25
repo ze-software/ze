@@ -47,13 +47,13 @@ func (p *ConvergenceDeadline) ProcessEvent(ev peer.Event) {
 			p.convergence.RecordAnnounce(ev.PeerIndex, ev.Prefix, ev.Time, ev.Family)
 		}
 	case peer.EventRouteReceived:
-		p.convergence.RecordReceive(ev.PeerIndex, ev.Prefix, ev.Time)
+		p.convergence.recordReceive(ev.PeerIndex, makeRouteKey(ev.Prefix, ev.Family), ev.Time)
 	case peer.EventWithdrawalSent:
 		for _, prefix := range ev.WithdrawnPrefixes {
-			p.convergence.RecordWithdraw(ev.PeerIndex, prefix)
+			p.convergence.recordWithdraw(ev.PeerIndex, makeRouteKey(prefix, ev.Family), ev.Time)
 		}
 	case peer.EventDisconnected:
-		p.convergence.Disconnect(ev.PeerIndex)
+		p.convergence.disconnect(ev.PeerIndex, ev.Time)
 	}
 }
 
@@ -62,7 +62,11 @@ func (p *ConvergenceDeadline) Violations() []Violation {
 	violations := make([]Violation, 0, len(slow))
 	for _, s := range slow {
 		var b textbuf.Buffer
-		b.Str("route ").Str(s.Prefix.String()).Str(" from peer ").Int(int64(s.Source))
+		b.Str("route ")
+		if s.Family.AFI != 0 {
+			b.Str(routeFamilyName(s.Family)).Byte(' ')
+		}
+		b.Str(s.Prefix.String()).Str(" from peer ").Int(int64(s.Source))
 		if s.Received {
 			b.Str(" received late by peer ")
 		} else {

@@ -194,9 +194,16 @@ docker run --rm -v ./bird.conf:/etc/bird.conf:ro \
 
 New event logs record the peer roles, address families, property selection,
 and convergence deadline. Live and in-process runs check the observations
-before shutdown clears peer state. Replay uses the same cutoff and refuses
-a new-format log that ends before it.
+before shutdown clears peer state. Replay uses the same cutoff and requires
+the checkpoint and a continuous record sequence in new-format logs.
+Timed runs (`--duration`) pause automatic fault and route-churn scheduling
+during a final settle window before the observation cutoff so disconnected
+peers can finish reconnecting and in-flight withdrawals can converge.
+Full-table heavy peers are opt-in (`--heavy-peers 10 --heavy-routes 1000000`;
+`--heavy-peers` defaults to `0`).
 <!-- source: internal/chaos/replay/replay.go -- Run -->
+<!-- source: internal/chaos/orchestrator/scheduler.go -- schedulerStopTime -->
+<!-- source: internal/chaos/orchestrator/cli.go -- heavy-peers default -->
 
 ### Property Validation
 
@@ -206,8 +213,10 @@ a new-format log that ends before it.
 ```
 
 Route consistency checks the routes each peer can receive under the scenario's
-roles and address families. The convergence deadline also counts deliveries
-that arrived after it elapsed. The property list shows the additional checks.
+roles and address families. The same prefix in different families counts as
+separate routes. The convergence check counts deliveries that arrived late
+and routes that were already overdue when withdrawn or disconnected. The
+property list shows the additional checks.
 <!-- source: internal/chaos/validation/property.go -- AllPropertiesWithReachability -->
 
 ### Simulated Network Topology

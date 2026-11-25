@@ -57,34 +57,33 @@ type Watchdog struct {
 	cfg Config
 	out io.Writer
 
-	disconnectedAt  map[int]time.Time
-	establishedAt   map[int]time.Time
-	routeState      map[int]*peerRouteState
-	routesSent      map[int]int
-	routesRecv      map[int]int
-	routesHWM       map[int]int // high-water mark for regression detection
-	propertyPass    map[string]bool
-	lastPrinted     map[rateLimitKey]time.Time
-	problems        []Problem
-	maxProblems     int
-	chaosWithdrawal map[int]bool
+	disconnectedAt     map[int]time.Time
+	establishedAt      map[int]time.Time
+	routeState         map[int]*peerRouteState
+	routesSent         map[int]int
+	routesRecv         map[int]int
+	routesHWM          map[int]int // high-water mark for regression detection
+	propertyPass       map[string]bool
+	lastPrinted        map[rateLimitKey]time.Time
+	problems           []Problem
+	maxProblems        int
+	withdrawalExpected bool
 }
 
 // New creates a Watchdog consumer writing to the given output.
 func New(out io.Writer, cfg Config) *Watchdog {
 	return &Watchdog{
-		cfg:             cfg,
-		out:             out,
-		disconnectedAt:  make(map[int]time.Time),
-		establishedAt:   make(map[int]time.Time),
-		routeState:      make(map[int]*peerRouteState),
-		routesSent:      make(map[int]int),
-		routesRecv:      make(map[int]int),
-		routesHWM:       make(map[int]int),
-		propertyPass:    make(map[string]bool),
-		lastPrinted:     make(map[rateLimitKey]time.Time),
-		maxProblems:     10000,
-		chaosWithdrawal: make(map[int]bool),
+		cfg:            cfg,
+		out:            out,
+		disconnectedAt: make(map[int]time.Time),
+		establishedAt:  make(map[int]time.Time),
+		routeState:     make(map[int]*peerRouteState),
+		routesSent:     make(map[int]int),
+		routesRecv:     make(map[int]int),
+		routesHWM:      make(map[int]int),
+		propertyPass:   make(map[string]bool),
+		lastPrinted:    make(map[rateLimitKey]time.Time),
+		maxProblems:    10000,
 	}
 }
 
@@ -100,11 +99,12 @@ func (w *Watchdog) ProcessEvent(ev peer.Event) {
 		w.routesSent[ev.PeerIndex] = 0
 		w.routesRecv[ev.PeerIndex] = 0
 		w.routesHWM[ev.PeerIndex] = 0
-		delete(w.chaosWithdrawal, ev.PeerIndex)
 
 	case peer.EventDisconnected:
 		w.disconnectedAt[ev.PeerIndex] = ev.Time
 		delete(w.establishedAt, ev.PeerIndex)
+		// Any peer disconnecting legitimately triggers route-server withdrawals to other peers.
+		w.withdrawalExpected = true
 
 	case peer.EventRouteSent:
 		w.routesSent[ev.PeerIndex]++
@@ -122,14 +122,15 @@ func (w *Watchdog) ProcessEvent(ev peer.Event) {
 			w.routesRecv[ev.PeerIndex]--
 		}
 		w.updateRouteState(ev.PeerIndex, ev.Time)
-		if !w.chaosWithdrawal[ev.PeerIndex] && w.routesRecv[ev.PeerIndex] < w.routesHWM[ev.PeerIndex] {
+		if !w.withdrawalExpected && w.routesRecv[ev.PeerIndex] < w.routesHWM[ev.PeerIndex] {
 			var bRegr textbuf.Buffer
 			w.emit(ev.Time, "route-regression", ev.PeerIndex,
 				bRegr.Reset().Str("PROBLEM: peer ").Int(int64(ev.PeerIndex)).Str(" lost routes (was ").Int(int64(w.routesHWM[ev.PeerIndex])).Str(", now ").Int(int64(w.routesRecv[ev.PeerIndex])).Str(") -- no withdrawal").String())
 		}
 
 	case peer.EventWithdrawalSent:
-		w.chaosWithdrawal[ev.PeerIndex] = true
+		// A withdrawal sent by any peer explains withdrawals received by other peers.
+		w.withdrawalExpected = true
 
 	case peer.EventError:
 		msg := "unknown error"

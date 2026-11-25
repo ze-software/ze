@@ -73,7 +73,7 @@ func CLIRun(args []string) int {
 
 	// Route flags
 	routes := fs.Int("routes", 1000, "Base routes per peer")
-	heavyPeersPct := fs.Float64("heavy-peers", 10, "Percentage of peers sending many routes (0-100)")
+	heavyPeersPct := fs.Float64("heavy-peers", 0, "Percentage of peers sending many routes (0-100, opt-in for full-table stress)")
 	heavyRoutes := fs.Int("heavy-routes", 1_000_000, "Routes for heavy peers (default: full table)")
 	churnRate := fs.Float64("churn-rate", 0.01, "Percentage of routes churning per second per peer")
 
@@ -157,7 +157,8 @@ func CLIRun(args []string) int {
 	pipe := fs.Bool("pipe", false, "Write config to stdout for piping (le chaos run --pipe | ze -)")
 
 	fs.Usage = func() {
-		fmt.Fprintf(os.Stderr, `le chaos run - Chaos monkey for Ze BGP route server testing
+		var b textbuf.Buffer
+		b.Str(`le chaos run - Chaos monkey for Ze BGP route server testing
 
 Usage:
   le chaos run [options]                        Run with forked ze (default)
@@ -174,9 +175,9 @@ Scenario:
 
 Routes:
   --routes <N>               Base routes per peer (default: 1000)
-  --heavy-peers <pct>        Percentage of peers sending many routes (default: 10%%)
+  --heavy-peers <pct>        Percentage of peers sending many routes (default: 0%, opt-in)
   --heavy-routes <N>         Routes for heavy peers (default: 1000000, full table)
-  --churn-rate <pct>         Percentage of routes churning/s/peer (default: 0.01%%)
+  --churn-rate <pct>         Percentage of routes churning/s/peer (default: 0.01%)
 
 Families:
   --families <list>          Only these families (comma-sep, default: all)
@@ -189,7 +190,7 @@ Backpressure:
 Chaos:
   --chaos-rate <float>       Per-peer probability of chaos per interval (default: 0.1)
   --chaos-interval <dur>     Time between chaos checks (default: 1s)
-  --chaos-actions <list>     Enable v2 actions (comma-sep: %s)
+  --chaos-actions <list>     Enable v2 actions (comma-sep: `).Str(v2List).Str(`)
 
 Route Dynamics:
   --route-rate <float>       Per-peer probability of route action per interval (default: 0, disabled)
@@ -243,7 +244,8 @@ Control:
   --in-process               Run reactor in-process (mock network, virtual clock)
   --config-only              Generate config and exit (no orchestrator)
   --pipe                     Write config to stdout for piping (le chaos run --pipe | ze -)
-`, v2List)
+`)
+		_, _ = fs.Output().Write(b.Bytes())
 	}
 
 	if err := fs.Parse(args); err != nil {
@@ -513,9 +515,14 @@ Control:
 		excludeList, _ = stringsx.SplitCount(*excludeFamilies, ",")
 	}
 
-	// Port auto-allocation: --port 0 asks the kernel for a free port.
+	// Port auto-allocation: --port 0 allocates a contiguous range of free ports
+	// sized to the daemon's listener count (1 for single-port daemons, N for Ze).
+	portCount := *peers
+	if target.SinglePort() {
+		portCount = 1
+	}
 	if *port == 0 {
-		allocated, allocErr := allocatePort(context.Background(), *localAddr)
+		allocated, allocErr := allocatePortRange(context.Background(), *localAddr, portCount)
 		if allocErr != nil {
 			fmt.Fprintf(os.Stderr, "error: %v\n", allocErr)
 			return 1
@@ -606,11 +613,11 @@ Control:
 	// Per-peer ports eliminate the need for loopback aliases.
 	// Each peer gets a unique Ze listen port on 127.0.0.1.
 
-	// Pre-flight: verify the base port is free before starting Ze.
+	// Pre-flight: verify every BGP listen port is free before starting Ze.
 	// Catches conflicts early instead of producing confusing BGP errors later.
 	zeAddr := fmt.Sprintf("%s:%d", *localAddr, *port)
 	if !*inProcess && *configOut == "" {
-		if err := checkPortFree(zeAddr); err != nil {
+		if err := checkPortsFree(*localAddr, *port, portCount); err != nil {
 			fmt.Fprintf(os.Stderr, "error: %v\n", err)
 			return 1
 		}
@@ -636,11 +643,15 @@ Control:
 		ibgp, families := replayPeerProfiles(&profileConfig)
 		reachable := validation.ScenarioReachability(ibgp, families)
 		ep := validation.NewEventProcessor(len(profiles), *convergenceDeadline, reachable)
-		props, selectionErr := validation.ScenarioProperties(*properties, len(profiles), *convergenceDeadline, reachable)
-		if selectionErr != nil {
-			var tb textbuf.Buffer
-			tb.Str("error: ").Err(selectionErr).Byte('\n').StdErr() //nolint:errcheck // CLI diagnostic
-			return 1
+		var props *validation.PropertyEngine
+		if *properties != "" {
+			var selectionErr error
+			props, selectionErr = validation.ScenarioProperties(*properties, len(profiles), *convergenceDeadline, reachable)
+			if selectionErr != nil {
+				var tb textbuf.Buffer
+				tb.Str("error: ").Err(selectionErr).Byte('\n').StdErr() //nolint:errcheck // CLI diagnostic
+				return 1
+			}
 		}
 
 		// When --web is set, start the web dashboard before the simulation
@@ -788,7 +799,7 @@ Control:
 			child, forkErr = forkDaemon(context.Background(), daemonConfig, *daemonBinary, target, *port, *localAddr, stdout)
 		}
 		if forkErr != nil {
-			fmt.Fprintf(os.Stderr, "error: %v\n", forkErr)
+			fmt.Fprintln(os.Stderr, opererr.New("cannot start target daemon for chaos run", forkErr.Error(), "pass --binary <path> or install the target daemon in PATH").Error())
 			return 1
 		}
 		defer child.Shutdown()

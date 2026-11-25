@@ -59,11 +59,15 @@ func RunOrchestrator(ctx context.Context, cfg *orchestratorConfig) int {
 	ibgp, families := replayPeerProfiles(cfg)
 	reachable := validation.ScenarioReachability(ibgp, families)
 	ep := validation.NewEventProcessor(n, cfg.ConvergenceDeadline, reachable)
-	propEngine, err := validation.ScenarioProperties(cfg.Properties, n, cfg.ConvergenceDeadline, reachable)
-	if err != nil {
-		var tb textbuf.Buffer
-		tb.Str("error: ").Err(err).Byte('\n').StdErr() //nolint:errcheck // CLI diagnostic
-		return 1
+	var propEngine *validation.PropertyEngine
+	if cfg.Properties != "" {
+		var err error
+		propEngine, err = validation.ScenarioProperties(cfg.Properties, n, cfg.ConvergenceDeadline, reachable)
+		if err != nil {
+			var tb textbuf.Buffer
+			tb.Str("error: ").Err(err).Byte('\n').StdErr() //nolint:errcheck // CLI diagnostic
+			return 1
+		}
 	}
 
 	rr, err := setupReporting(cfg, ep.Convergence, ibgp, families)
@@ -167,12 +171,16 @@ func RunOrchestrator(ctx context.Context, cfg *orchestratorConfig) int {
 		}(profiles[i])
 	}
 
+	observationEnd, hasDeadline := ctx.Deadline()
+	chaosStopAt := schedulerStopTime(observationEnd, hasDeadline, syncStart, cfg.ChaosCfg.Warmup)
+	routeStopAt := schedulerStopTime(observationEnd, hasDeadline, syncStart, cfg.RouteCfg.Warmup)
+
 	if chaosEnabled {
-		go runScheduler(ctx, cfg.ChaosCfg, cfg.Seed, n, established, guard, chaosChannels, rr.controlCh, cfg.Quiet)
+		go runScheduler(ctx, cfg.ChaosCfg, cfg.Seed, n, established, guard, chaosChannels, rr.controlCh, chaosStopAt, cfg.Quiet)
 	}
 
 	if routeEnabled {
-		go runRouteScheduler(ctx, cfg.RouteCfg, cfg.Seed, n, established, guard, routeChannels, rr.routeControlCh, cfg.Quiet)
+		go runRouteScheduler(ctx, cfg.RouteCfg, cfg.Seed, n, established, guard, routeChannels, rr.routeControlCh, routeStopAt, cfg.Quiet)
 	}
 
 	go func() {
@@ -181,7 +189,6 @@ func RunOrchestrator(ctx context.Context, cfg *orchestratorConfig) int {
 	}()
 
 	propUpdateCounter := 0
-	observationEnd, _ := ctx.Deadline()
 
 	for ev := range events {
 		if savedTermState != nil && isLifecycleEvent(ev.Type) {

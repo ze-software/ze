@@ -222,3 +222,26 @@ func TestWatchdogRouteRegression(t *testing.T) {
 	// In practice, the watchdog doesn't fire on withdrawal alone.
 	// This is by design: the spec says "recv decreased AND no chaos withdrawal pending."
 }
+
+// VALIDATES: Withdrawals delivered after another peer disconnects are not flagged
+// as unexpected route regressions.
+// PREVENTS: False-positive "lost routes -- no withdrawal" PROBLEM lines during chaos disconnects.
+func TestWatchdogPeerDisconnectExplainsWithdrawals(t *testing.T) {
+	var buf bytes.Buffer
+	w := New(&buf, cfg())
+	base := time.Now()
+
+	w.ProcessEvent(peer.Event{Type: peer.EventEstablished, PeerIndex: 0, Time: base})
+	w.ProcessEvent(peer.Event{Type: peer.EventEstablished, PeerIndex: 1, Time: base})
+	w.ProcessEvent(peer.Event{Type: peer.EventEORSent, PeerIndex: 0, Time: base})
+	w.ProcessEvent(peer.Event{Type: peer.EventEORSent, PeerIndex: 1, Time: base})
+	w.ProcessEvent(peer.Event{Type: peer.EventRouteReceived, PeerIndex: 1, Time: base.Add(10 * time.Millisecond)})
+	w.ProcessEvent(peer.Event{Type: peer.EventRouteReceived, PeerIndex: 1, Time: base.Add(20 * time.Millisecond)})
+
+	w.ProcessEvent(peer.Event{Type: peer.EventDisconnected, PeerIndex: 0, Time: base.Add(30 * time.Millisecond)})
+	w.ProcessEvent(peer.Event{Type: peer.EventRouteWithdrawn, PeerIndex: 1, Time: base.Add(40 * time.Millisecond)})
+
+	for _, p := range w.Problems() {
+		assert.NotEqual(t, "route-regression", p.Type, "peer disconnect explains subsequent withdrawals")
+	}
+}

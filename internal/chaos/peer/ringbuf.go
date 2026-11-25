@@ -16,9 +16,10 @@ import (
 // Push never blocks (TCP reads are never stalled), and a drain goroutine
 // feeds events to the output channel at the consumer's pace.
 type eventBuffer struct {
-	mu     sync.Mutex
-	items  []Event
-	signal chan struct{} // non-blocking signal to drain goroutine
+	mu       sync.Mutex
+	items    []Event
+	signal   chan struct{} // non-blocking signal to drain goroutine
+	finished bool
 
 	// pendingBytesRecv accumulates bytes from messages that don't emit events
 	// (e.g., KEEPALIVE). Flushed to the next pushed event's BytesRecv field.
@@ -75,15 +76,25 @@ func (b *eventBuffer) Push(ev Event) {
 	}
 }
 
-// Drain continuously moves events from the buffer to out.
-// Blocks on channel send (backpressure from consumer). Exits when ctx is canceled.
-// Intended to run as a goroutine: `go buf.Drain(ctx, events)`.
+// finish seals the buffer after the producer's final Push. The producer MUST
+// call it once before waiting for Drain to return, and MUST NOT push afterwards.
+func (b *eventBuffer) finish() {
+	b.mu.Lock()
+	b.finished = true
+	b.mu.Unlock()
+	close(b.signal)
+}
+
+// Drain moves events in order until finish seals the buffer and every event has
+// been handed off. The consumer MUST keep receiving through that point. Context
+// cancellation aborts the drain for a caller that can discard its observations.
 func (b *eventBuffer) Drain(ctx context.Context, out chan<- Event) {
 	for {
 		// Swap out the accumulated items under the lock.
 		b.mu.Lock()
 		batch := b.items
 		b.items = nil
+		finished := b.finished
 		b.mu.Unlock()
 
 		for i := range batch {
@@ -92,6 +103,9 @@ func (b *eventBuffer) Drain(ctx context.Context, out chan<- Event) {
 			case <-ctx.Done():
 				return
 			}
+		}
+		if finished {
+			return
 		}
 
 		// If we had no items, wait for a signal.

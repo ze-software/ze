@@ -16,7 +16,29 @@ import (
 	"github.com/ze-software/ze/internal/chaos/web"
 )
 
-const reconnectBackoff = 2 * time.Second
+const (
+	reconnectBackoff = 2 * time.Second
+	// desiredSettleWindow reserves time at the end of a bounded --duration run
+	// where automatic fault/churn injection pauses so disconnected peers finish
+	// reconnectBackoff, re-synchronize EOR, and let withdrawals/announcements
+	// converge before the observation cutoff.
+	desiredSettleWindow = 4 * time.Second
+)
+
+// schedulerStopTime computes when automatic chaos/route ticks pause before a
+// bounded run's deadline. Returns zero for unbounded runs (no deadline) or when
+// warmup already covers the run.
+func schedulerStopTime(deadline time.Time, hasDeadline bool, start time.Time, warmup time.Duration) time.Time {
+	if !hasDeadline {
+		return time.Time{}
+	}
+	active := deadline.Sub(start) - warmup
+	if active <= 0 {
+		return time.Time{}
+	}
+	settle := min(desiredSettleWindow, active/2)
+	return deadline.Add(-settle)
+}
 
 // runPeerLoop runs a peer simulator with reconnection after chaos disconnects.
 func runPeerLoop(ctx context.Context, cfg peer.SimulatorConfig, peerIndex int, events chan<- peer.Event) {
@@ -42,7 +64,7 @@ func runPeerLoop(ctx context.Context, cfg peer.SimulatorConfig, peerIndex int, e
 }
 
 // runScheduler runs the chaos scheduler goroutine.
-func runScheduler(ctx context.Context, cfg ChaosConfig, seed uint64, peerCount int, es *establishedState, guard *guard.Guard, channels []chan engine.ChaosAction, controlCh <-chan web.ControlCommand, quiet bool) {
+func runScheduler(ctx context.Context, cfg ChaosConfig, seed uint64, peerCount int, es *establishedState, guard *guard.Guard, channels []chan engine.ChaosAction, controlCh <-chan web.ControlCommand, stopTicksAt time.Time, quiet bool) {
 	sched := engine.NewScheduler(engine.SchedulerConfig{
 		Seed:           seed,
 		PeerCount:      peerCount,
@@ -127,6 +149,9 @@ func runScheduler(ctx context.Context, cfg ChaosConfig, seed uint64, peerCount i
 			if paused {
 				continue
 			}
+			if !stopTicksAt.IsZero() && !now.Before(stopTicksAt) {
+				continue
+			}
 			actions := sched.Tick(now, es.Snapshot())
 			for _, a := range actions {
 				dispatchAction(a)
@@ -190,7 +215,7 @@ func handleManualTrigger(t *web.ManualTrigger, peerCount int, es *establishedSta
 }
 
 // runRouteScheduler runs the route dynamics scheduler in a goroutine.
-func runRouteScheduler(ctx context.Context, cfg RouteConfig, seed uint64, peerCount int, es *establishedState, guard *guard.Guard, channels []chan route.Action, controlCh <-chan web.ControlCommand, quiet bool) {
+func runRouteScheduler(ctx context.Context, cfg RouteConfig, seed uint64, peerCount int, es *establishedState, guard *guard.Guard, channels []chan route.Action, controlCh <-chan web.ControlCommand, stopTicksAt time.Time, quiet bool) {
 	sched := route.NewScheduler(route.SchedulerConfig{
 		Seed:       seed + 1,
 		PeerCount:  peerCount,
@@ -237,6 +262,9 @@ func runRouteScheduler(ctx context.Context, cfg RouteConfig, seed uint64, peerCo
 			}
 		case now := <-ticker.C:
 			if paused {
+				continue
+			}
+			if !stopTicksAt.IsZero() && !now.Before(stopTicksAt) {
 				continue
 			}
 			actions := sched.Tick(now, es.Snapshot())

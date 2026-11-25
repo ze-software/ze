@@ -42,13 +42,13 @@ func (p *RouteConsistency) ProcessEvent(ev peer.Event) {
 	case peer.EventRouteSent:
 		p.model.AnnounceFamily(ev.PeerIndex, ev.Prefix, ev.Family)
 	case peer.EventRouteReceived:
-		p.tracker.RecordReceive(ev.PeerIndex, ev.Prefix)
+		p.tracker.recordReceive(ev.PeerIndex, makeRouteKey(ev.Prefix, ev.Family))
 	case peer.EventWithdrawalSent:
 		for _, prefix := range ev.WithdrawnPrefixes {
-			p.model.Withdraw(ev.PeerIndex, prefix)
+			p.model.withdraw(ev.PeerIndex, makeRouteKey(prefix, ev.Family))
 		}
 	case peer.EventRouteWithdrawn:
-		p.tracker.RecordWithdraw(ev.PeerIndex, ev.Prefix)
+		p.tracker.recordWithdraw(ev.PeerIndex, makeRouteKey(ev.Prefix, ev.Family))
 	case peer.EventDisconnected:
 		p.model.Disconnect(ev.PeerIndex)
 		p.tracker.ClearPeer(ev.PeerIndex)
@@ -62,24 +62,24 @@ func (p *RouteConsistency) Violations() []Violation {
 	}
 	var violations []Violation
 	for i, pr := range result.Peers {
-		for _, pfx := range pr.Missing.All() {
+		for route := range pr.Missing.m {
 			violations = append(violations, Violation{
 				Property: p.Name(),
 				RFC:      p.RFC(),
 				Message: func() string {
 					var b textbuf.Buffer
-					return b.Reset().Str("peer ").Int(int64(i)).Str(" missing route ").Str(pfx.String()).String()
+					return b.Reset().Str("peer ").Int(int64(i)).Str(" missing route ").Str(route.label()).String()
 				}(),
 				PeerIndex: i,
 			})
 		}
-		for _, pfx := range pr.Extra.All() {
+		for route := range pr.Extra.m {
 			violations = append(violations, Violation{
 				Property: p.Name(),
 				RFC:      p.RFC(),
 				Message: func() string {
 					var b textbuf.Buffer
-					return b.Reset().Str("peer ").Int(int64(i)).Str(" has unexpected route ").Str(pfx.String()).String()
+					return b.Reset().Str("peer ").Int(int64(i)).Str(" has unexpected route ").Str(route.label()).String()
 				}(),
 				PeerIndex: i,
 			})

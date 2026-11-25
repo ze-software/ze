@@ -7,31 +7,29 @@ import (
 	"slices"
 	"sync"
 	"time"
+
+	"github.com/ze-software/ze/internal/core/family"
 )
 
 // pendingKey identifies a specific route-to-peer expectation.
 type pendingKey struct {
-	peer   int
-	prefix netip.Prefix
+	peer  int
+	route routeKey
 }
 
 // pendingEntry records when a route was announced and which peer sourced it.
 type pendingEntry struct {
 	source       int
 	announceTime time.Time
-	family       string
+	reportFamily bool
 }
-
-// earlyReceiptLimit bounds unmatched receipts. A simulator can publish only
-// one announcement at a time, so the limit leaves room for every peer pair in
-// the largest CLI scenario as well as unrelated receipts.
-const earlyReceiptLimit = 4096
 
 // SlowRoute describes a route that exceeded the convergence deadline.
 type SlowRoute struct {
 	Source   int
 	Peer     int
 	Prefix   netip.Prefix
+	Family   family.Family // Zero denotes the default unicast family for the prefix.
 	Age      time.Duration
 	Received bool
 }
@@ -54,19 +52,20 @@ type Convergence struct {
 	deadline  time.Duration
 	reachable Reachability
 
-	// pending maps (peer, prefix) → announcement info for unresolved entries.
+	// pending maps (peer, family, prefix) to unresolved announcements.
 	pending map[pendingKey]pendingEntry
-	// earlyReceipts holds arrivals seen before their announcement was published.
+	// earlyReceipts holds one timestamp per unmatched destination and route.
+	// A batch can arrive at all destinations before the sends are published.
 	earlyReceipts map[pendingKey]time.Time
 
 	// latencies stores all resolved propagation durations.
 	latencies []time.Duration
 
-	// late retains completed deliveries that missed their deadline.
+	// late retains missed deadlines when a pending obligation ends.
 	late []SlowRoute
 
 	// familyLatencies stores per-family resolved latencies alongside aggregate.
-	familyLatencies map[string][]time.Duration
+	familyLatencies map[family.Family][]time.Duration
 }
 
 // NewConvergence creates a tracker with full reachability between distinct peers.
@@ -82,14 +81,22 @@ func NewConvergenceWithReachability(n int, deadline time.Duration, reachable Rea
 		reachable:       reachable,
 		pending:         make(map[pendingKey]pendingEntry),
 		earlyReceipts:   make(map[pendingKey]time.Time),
-		familyLatencies: make(map[string][]time.Duration),
+		familyLatencies: make(map[family.Family][]time.Duration),
 	}
 }
 
 // RecordAnnounce records that a peer announced a route at the given time.
 // Creates pending entries for peers eligible to receive it.
 // If family is provided, per-family latency is tracked when resolved.
-func (c *Convergence) RecordAnnounce(source int, prefix netip.Prefix, at time.Time, family ...string) {
+func (c *Convergence) RecordAnnounce(source int, prefix netip.Prefix, at time.Time, names ...string) {
+	name := ""
+	if len(names) > 0 {
+		name = names[0]
+	}
+	c.recordAnnounce(source, makeRouteKey(prefix, name), at, name)
+}
+
+func (c *Convergence) recordAnnounce(source int, route routeKey, at time.Time, name string) {
 	if source < 0 {
 		return
 	}
@@ -99,17 +106,12 @@ func (c *Convergence) RecordAnnounce(source int, prefix netip.Prefix, at time.Ti
 	c.mu.Lock()
 	defer c.mu.Unlock()
 
-	fam := ""
-	if len(family) > 0 {
-		fam = family[0]
-	}
-
 	for peer := range c.peerCount {
-		if !c.reachable.allows(source, peer, fam) {
+		if !c.reachable.allows(source, peer, name) {
 			continue
 		}
-		key := pendingKey{peer: peer, prefix: prefix}
-		entry := pendingEntry{source: source, announceTime: at, family: fam}
+		key := pendingKey{peer: peer, route: route}
+		entry := pendingEntry{source: source, announceTime: at, reportFamily: name != ""}
 		if receivedAt, found := c.earlyReceipts[key]; found {
 			delete(c.earlyReceipts, key)
 			if !receivedAt.Before(at) {
@@ -125,19 +127,23 @@ func (c *Convergence) RecordAnnounce(source int, prefix netip.Prefix, at time.Ti
 // The simulator can publish the source's announcement after the destination
 // receives it. Keep an unmatched arrival until its announcement arrives.
 func (c *Convergence) RecordReceive(peer int, prefix netip.Prefix, at time.Time) {
+	c.recordReceive(peer, makeRouteKey(prefix, ""), at)
+}
+
+func (c *Convergence) recordReceive(peer int, route routeKey, at time.Time) {
 	if peer < 0 {
 		return
 	}
 	if peer >= c.peerCount {
 		return
 	}
-	if !prefix.IsValid() {
+	if !route.prefix.IsValid() {
 		return
 	}
 	c.mu.Lock()
 	defer c.mu.Unlock()
 
-	key := pendingKey{peer: peer, prefix: prefix}
+	key := pendingKey{peer: peer, route: route}
 	entry, ok := c.pending[key]
 	if ok {
 		if at.Before(entry.announceTime) {
@@ -152,9 +158,6 @@ func (c *Convergence) RecordReceive(peer int, prefix netip.Prefix, at time.Time)
 		}
 		return
 	}
-	if len(c.earlyReceipts) >= earlyReceiptLimit {
-		clear(c.earlyReceipts)
-	}
 	c.earlyReceipts[key] = at
 }
 
@@ -162,42 +165,67 @@ func (c *Convergence) recordDelivery(key pendingKey, entry pendingEntry, at time
 	latency := at.Sub(entry.announceTime)
 	c.latencies = append(c.latencies, latency)
 	if latency >= c.deadline {
-		c.late = append(c.late, SlowRoute{
-			Source:   entry.source,
-			Peer:     key.peer,
-			Prefix:   key.prefix,
-			Age:      latency,
-			Received: true,
-		})
+		c.late = append(c.late, slowRoute(key, entry, latency, true))
 	}
-	if entry.family != "" {
-		c.familyLatencies[entry.family] = append(c.familyLatencies[entry.family], latency)
+	if entry.reportFamily {
+		fam := key.route.family
+		c.familyLatencies[fam] = append(c.familyLatencies[fam], latency)
+	}
+	delete(c.pending, key)
+}
+
+func slowRoute(key pendingKey, entry pendingEntry, age time.Duration, received bool) SlowRoute {
+	result := SlowRoute{Source: entry.source, Peer: key.peer, Prefix: key.route.prefix, Age: age, Received: received}
+	if key.route.family != unicastFamily(key.route.prefix) {
+		result.Family = key.route.family
+	}
+	return result
+}
+
+func (c *Convergence) cancelPending(key pendingKey, entry pendingEntry, at time.Time) {
+	if !at.IsZero() {
+		age := at.Sub(entry.announceTime)
+		if age >= c.deadline {
+			c.late = append(c.late, slowRoute(key, entry, age, false))
+		}
 	}
 	delete(c.pending, key)
 }
 
 // RecordWithdraw cancels pending delivery of a route withdrawn by its source.
 func (c *Convergence) RecordWithdraw(source int, prefix netip.Prefix) {
+	c.recordWithdraw(source, makeRouteKey(prefix, ""), time.Time{})
+}
+
+func (c *Convergence) recordWithdraw(source int, route routeKey, at time.Time) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 
 	for destination := range c.peerCount {
-		key := pendingKey{peer: destination, prefix: prefix}
+		key := pendingKey{peer: destination, route: route}
 		delete(c.earlyReceipts, key)
-		if entry, ok := c.pending[key]; ok && entry.source == source {
-			delete(c.pending, key)
+		entry, ok := c.pending[key]
+		if !ok {
+			continue
+		}
+		if entry.source == source {
+			c.cancelPending(key, entry, at)
 		}
 	}
 }
 
 // Disconnect cancels pending delivery to and from the ended session.
 func (c *Convergence) Disconnect(peer int) {
+	c.disconnect(peer, time.Time{})
+}
+
+func (c *Convergence) disconnect(peer int, at time.Time) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 
 	for key, entry := range c.pending {
 		if key.peer == peer || entry.source == peer {
-			delete(c.pending, key)
+			c.cancelPending(key, entry, at)
 		}
 	}
 	for key := range c.earlyReceipts {
@@ -216,12 +244,7 @@ func (c *Convergence) CheckDeadline(now time.Time) []SlowRoute {
 	for key, entry := range c.pending {
 		age := now.Sub(entry.announceTime)
 		if age >= c.deadline {
-			slow = append(slow, SlowRoute{
-				Source: entry.source,
-				Peer:   key.peer,
-				Prefix: key.prefix,
-				Age:    age,
-			})
+			slow = append(slow, slowRoute(key, entry, age, false))
 		}
 	}
 	return slow
@@ -242,7 +265,7 @@ func (c *Convergence) StatsByFamily() map[string]ConvergenceStats {
 
 	result := make(map[string]ConvergenceStats, len(c.familyLatencies))
 	for fam, lats := range c.familyLatencies {
-		result[fam] = computeStats(lats, 0)
+		result[routeFamilyName(fam)] = computeStats(lats, 0)
 	}
 	return result
 }

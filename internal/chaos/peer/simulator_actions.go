@@ -210,43 +210,65 @@ func executeReconnectStorm(ctx context.Context, addr string, p SimProfile, diale
 		dial = d.DialContext
 	}
 	for range stormCycles {
-		time.Sleep(stormDelay)
-
-		stormConn, err := dial(ctx, "tcp", addr)
-		if err != nil {
-			break
+		if !waitWithContext(ctx, stormDelay) {
+			return
 		}
-
-		// Minimal OPEN/KEEPALIVE handshake.
-		open, buildErr := BuildOpen(SessionConfig{ASN: p.ASN, RouterID: p.RouterID, HoldTime: p.HoldTime, Families: p.Families})
-		if buildErr != nil {
-			stormConn.Close() //nolint:errcheck,gosec // closing the connection the OPEN could not be built for
-			emit(Event{Type: EventError, Err: fmt.Errorf("storm OPEN: %w", buildErr)})
-			break
+		if err := runStormCycle(ctx, addr, p, dial, emit); err != nil {
+			return
 		}
-		if writeErr := writeMsg(stormConn, open); writeErr != nil {
-			stormConn.Close() //nolint:errcheck,gosec // closing failed connection
-			break
-		}
-		if readErr := readMsg(stormConn, msgtype.TypeOPEN); readErr != nil {
-			stormConn.Close() //nolint:errcheck,gosec // closing failed connection
-			break
-		}
-		if writeErr := writeMsg(stormConn, message.NewKeepalive()); writeErr != nil {
-			stormConn.Close() //nolint:errcheck,gosec // closing failed connection
-			break
-		}
-		if readErr := readMsg(stormConn, msgtype.TypeKEEPALIVE); readErr != nil {
-			stormConn.Close() //nolint:errcheck,gosec // closing failed connection
-			break
-		}
-
-		emit(Event{Type: EventEstablished})
-
-		time.Sleep(stormDelay)
-		stormConn.Close() //nolint:errcheck,gosec // intentional close for storm cycle
-		emit(Event{Type: EventDisconnected})
 	}
+}
+
+func runStormCycle(ctx context.Context, addr string, p SimProfile,
+	dial func(ctx context.Context, network, address string) (net.Conn, error), emit func(Event),
+) error {
+	stormConn, err := dial(ctx, "tcp", addr)
+	if err != nil {
+		return err
+	}
+	// Close the storm socket on context cancellation so handshake reads cannot
+	// block shutdown indefinitely if the remote peer stops replying.
+	stop := context.AfterFunc(ctx, func() {
+		stormConn.Close() //nolint:errcheck,gosec // best-effort close to unblock storm handshake
+	})
+	defer stop()
+	defer func() { _ = stormConn.Close() }()
+
+	if err := stormConn.SetReadDeadline(time.Now().Add(handshakeDeadline)); err != nil {
+		return err
+	}
+
+	// Minimal OPEN/KEEPALIVE handshake.
+	open, buildErr := BuildOpen(SessionConfig{ASN: p.ASN, RouterID: p.RouterID, HoldTime: p.HoldTime, Families: p.Families})
+	if buildErr != nil {
+		emit(Event{Type: EventError, Err: fmt.Errorf("storm OPEN: %w", buildErr)})
+		return buildErr
+	}
+	if writeErr := writeMsg(stormConn, open); writeErr != nil {
+		return writeErr
+	}
+	if readErr := readMsg(stormConn, msgtype.TypeOPEN); readErr != nil {
+		return readErr
+	}
+	if writeErr := writeMsg(stormConn, message.NewKeepalive()); writeErr != nil {
+		return writeErr
+	}
+	if readErr := readMsg(stormConn, msgtype.TypeKEEPALIVE); readErr != nil {
+		return readErr
+	}
+	if err := ctx.Err(); err != nil {
+		return err
+	}
+
+	emit(Event{Type: EventEstablished})
+
+	planned := !waitWithContext(ctx, stormDelay)
+	stormConn.Close() //nolint:errcheck,gosec // intentional close for storm cycle
+	emit(Event{Type: EventDisconnected, PlannedShutdown: planned})
+	if planned {
+		return ctx.Err()
+	}
+	return nil
 }
 
 // executeConnectionCollision opens a second TCP connection with the same
@@ -264,25 +286,36 @@ func executeConnectionCollision(ctx context.Context, addr string, p SimProfile, 
 	}
 	collisionConn, err := dial(ctx, "tcp", addr)
 	if err != nil {
-		emit(Event{Type: EventError, Err: fmt.Errorf("collision connection: %w", err)})
+		if ctx.Err() == nil {
+			emit(Event{Type: EventError, Err: fmt.Errorf("collision connection: %w", err)})
+		}
 		return
 	}
+	defer func() { _ = collisionConn.Close() }()
 
 	// Send OPEN with the same RouterID to trigger collision detection.
 	open, buildErr := BuildOpen(SessionConfig{ASN: p.ASN, RouterID: p.RouterID, HoldTime: p.HoldTime, Families: p.Families})
 	if buildErr != nil {
-		collisionConn.Close() //nolint:errcheck,gosec // closing the connection the OPEN could not be built for
 		emit(Event{Type: EventError, Err: fmt.Errorf("collision OPEN: %w", buildErr)})
 		return
 	}
 	if writeErr := writeMsg(collisionConn, open); writeErr != nil {
-		collisionConn.Close() //nolint:errcheck,gosec // closing failed connection
 		return
 	}
 
 	// Brief pause for Ze to detect the collision.
-	time.Sleep(500 * time.Millisecond)
-	collisionConn.Close() //nolint:errcheck,gosec // intentional close after collision test
+	waitWithContext(ctx, 500*time.Millisecond)
+}
+
+func waitWithContext(ctx context.Context, d time.Duration) bool {
+	timer := time.NewTimer(d)
+	defer timer.Stop()
+	select {
+	case <-timer.C:
+		return true
+	case <-ctx.Done():
+		return false
+	}
 }
 
 // sendWithdrawal writes standard IPv4 UPDATEs and emits each completed batch,
