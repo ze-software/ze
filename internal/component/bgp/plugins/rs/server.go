@@ -198,6 +198,13 @@ type withdrawalEntry struct {
 	sourcePolicyEpoch uint64
 }
 
+// withdrawalOwnerKey indexes per-source entry counts within an address bucket.
+type withdrawalOwnerKey struct {
+	address      string
+	owner        uint64
+	connectionID uint64
+}
+
 // routeServer implements a BGP Route Server API plugin.
 // It forwards all UPDATEs to all peers except the source (forward-all model).
 // UPDATEs are dispatched to per-source-peer workers for parallel processing
@@ -269,12 +276,16 @@ type routeServer struct {
 	// No concurrent access per key — each worker is single-goroutine.
 	batches sync.Map // workerKey → *forwardBatch
 
-	// withdrawalMu protects the withdrawals map.
+	// withdrawalMu protects the withdrawals map and its per-source count index.
 	withdrawalMu sync.Mutex
 	// withdrawals tracks announced routes per source peer for withdrawal on peer-down.
 	// Populated by processForward from NLRI parsing. Cleared by handleStateDown.
-	// sourcePeer → withdrawalKey → struct{}.
+	// sourcePeer → withdrawalKey → withdrawalEntry.
 	withdrawals map[string]map[withdrawalKey]withdrawalEntry
+	// withdrawalCounts and addressTracked keep releaseEmptySource O(1) without
+	// scanning unrelated owners or connections sharing an address bucket.
+	withdrawalCounts map[withdrawalOwnerKey]int
+	addressTracked   map[string]int
 
 	// updateRouteHook is called before each updateRoute RPC for test inspection.
 	// Nil in production (zero overhead).

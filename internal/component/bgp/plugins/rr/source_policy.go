@@ -353,7 +353,7 @@ func (rr *routeReflector) dropDeniedLocked(source string, actor peerIdentity, bo
 			continue
 		}
 		if info.SourcePolicyEpoch <= bound {
-			delete(routes, key)
+			rr.deleteWithdrawalLocked(source, key)
 		}
 	}
 }

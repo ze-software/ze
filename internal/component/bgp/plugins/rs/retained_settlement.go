@@ -6,10 +6,11 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"strings"
+
 	"github.com/ze-software/ze/internal/component/bgp/retention"
 	"github.com/ze-software/ze/internal/core/family"
 	"github.com/ze-software/ze/pkg/plugin/rpc"
-	"strings"
 )
 
 func cleanupMatches(scope retention.Cleanup, native withdrawalKey, entry withdrawalEntry) bool {
@@ -185,17 +186,15 @@ func (rs *routeServer) settleRetainedEvents(ctx context.Context) (result error) 
 		if actor == nil {
 			continue
 		}
-		entries := rs.withdrawals[key.address.String()]
+		addr := key.address.String()
+		entries := rs.withdrawals[addr]
 		for native, entry := range entries {
 			for _, scope := range actor.cleanup {
 				if cleanupMatches(scope, native, entry) {
-					delete(entries, native)
+					rs.deleteWithdrawalLocked(addr, native)
 					break
 				}
 			}
-		}
-		if len(entries) == 0 {
-			delete(rs.withdrawals, key.address.String())
 		}
 		actor.cleanup = nil
 	}

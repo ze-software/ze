@@ -262,10 +262,7 @@ func (rs *routeServer) takeWithdrawalEntriesLocked(source string, owner, connect
 			taken = make(map[withdrawalKey]withdrawalEntry)
 		}
 		taken[native] = entry
-		delete(entries, native)
-	}
-	if len(entries) == 0 {
-		delete(rs.withdrawals, source)
+		rs.deleteWithdrawalLocked(source, native)
 	}
 	return taken
 }

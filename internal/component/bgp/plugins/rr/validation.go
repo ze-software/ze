@@ -215,27 +215,13 @@ func (rr *routeReflector) fillValidationReceipt(route *rpc.StoredRoute) {
 	}
 	rr.withdrawalMu.Lock()
 	defer rr.withdrawalMu.Unlock()
-	for key, info := range rr.withdrawals[route.SourcePeer] {
-		if key.owner != route.SourceOwner {
-			continue
-		}
-		if key.connection != route.SourceConnectionID {
-			continue
-		}
-		if info.Family.String() != route.Family {
-			continue
-		}
-		if info.PathID != route.PathID {
-			continue
-		}
-		if info.NativeHex != route.NLRIHex {
-			continue
-		}
-		route.SourceReceipt = info.SourceReceipt
-		route.MsgID = info.MsgID
-		route.SourcePolicyEpoch = info.SourcePolicyEpoch
+	info, found := rr.lookupNativeLocked(route.SourcePeer, route.SourceOwner, route.SourceConnectionID, route.Family, route.PathID, route.NLRIHex, true)
+	if !found {
 		return
 	}
+	route.SourceReceipt = info.SourceReceipt
+	route.MsgID = info.MsgID
+	route.SourcePolicyEpoch = info.SourcePolicyEpoch
 }
 
 func (rr *routeReflector) replayFlowSpecs(parent context.Context, captured peerTarget) (int, error) {

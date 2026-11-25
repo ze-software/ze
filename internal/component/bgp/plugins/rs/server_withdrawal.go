@@ -71,8 +71,9 @@ func (rs *routeServer) processForward(key workerKey, item workItem) {
 	if item.msg != nil {
 		wireRecords, recordsErr = extractWireNLRIRecords(item.msg)
 		if wireRecords != nil {
-			wireRecords.msgID = item.msgID
-			wireRecords.noLLGR = wireNoLLGR(item.msg.AttrsWire)
+			if wireRecords.msgID == 0 {
+				wireRecords.msgID = item.msgID
+			}
 		}
 	}
 
@@ -97,14 +98,19 @@ func (rs *routeServer) processForward(key workerKey, item workItem) {
 			"error", recordsErr, "source-peer", item.sourcePeer, "message-id", item.msgID)
 		return
 	}
+	var textOps map[string][]FamilyOperation
+	var textAnnouncement withdrawalEntry
+	if wireRecords == nil {
+		textAnnouncement = withdrawalEntry{msgID: item.msgID, noLLGR: textNoLLGR(item.textPayload),
+			sourcePolicyEpoch: item.sourcePolicyEpoch, sourceReceipt: item.sourceReceipt,
+			owner: item.sourceOwner, connectionID: key.connectionID}
+		textOps = parseTextNLRIOps(item.textPayload)
+	}
 	rs.withdrawalMu.Lock()
 	if wireRecords != nil {
 		rs.applyNLRIRecords(item.sourcePeer, wireRecords)
 	} else {
-		announcement := withdrawalEntry{msgID: item.msgID, noLLGR: textNoLLGR(item.textPayload),
-			sourcePolicyEpoch: item.sourcePolicyEpoch, sourceReceipt: item.sourceReceipt,
-			owner: item.sourceOwner, connectionID: key.connectionID}
-		rs.updateWithdrawalMapText(item.sourcePeer, parseTextNLRIOps(item.textPayload), announcement)
+		rs.updateWithdrawalMapText(item.sourcePeer, textOps, textAnnouncement)
 	}
 	// Current source progress is recorded only after every parsed route mutation,
 	// including withdrawals. Another source's larger MessageID proves nothing.
@@ -153,31 +159,36 @@ func isUnicast(f family.Family) bool {
 }
 
 // updateWithdrawalMapText updates the withdrawal map from text-parsed NLRI operations.
-// Caller must hold rs.withdrawalMu.
+// RFC 4271 Section 4.3 applies withdrawals before announcements so a prefix named
+// in both sections stays announced. Caller must hold rs.withdrawalMu.
 func (rs *routeServer) updateWithdrawalMapText(sourcePeer string, ops map[string][]FamilyOperation, announcement withdrawalEntry) {
-	for famName, operations := range ops {
-		fam, known := family.LookupFamily(famName)
-		if !known {
-			continue
-		}
-		for _, operation := range operations {
-			for _, value := range operation.NLRIs {
-				text, ok := value.(string)
-				if !ok {
+	for _, action := range [2]string{actionDel, actionAdd} {
+		for famName, operations := range ops {
+			fam, known := family.LookupFamily(famName)
+			if !known {
+				continue
+			}
+			for _, operation := range operations {
+				if operation.Action != action {
 					continue
 				}
-				native, entry, err := textInventoryEntry(fam, text, operation.PathID, operation.AddPath, operation.Action == actionDel, announcement)
-				if err != nil {
-					rs.warnLifecycle("original text NLRI inventory refused", "code", lifecycleDoctorCode, "fix", lifecycleDoctorFix, "error", err)
-					continue
-				}
-				if operation.Action == actionAdd {
-					if rs.withdrawals[sourcePeer] == nil {
-						rs.withdrawals[sourcePeer] = make(map[withdrawalKey]withdrawalEntry)
+				for _, value := range operation.NLRIs {
+					text, ok := value.(string)
+					if !ok {
+						continue
 					}
-					rs.withdrawals[sourcePeer][native] = entry
-				} else if old, exists := rs.withdrawals[sourcePeer][native]; exists && old.connectionID == announcement.connectionID {
-					delete(rs.withdrawals[sourcePeer], native)
+					native, entry, err := textInventoryEntry(fam, text, operation.PathID, operation.AddPath, action == actionDel, announcement)
+					if err != nil {
+						rs.warnLifecycle("original text NLRI inventory refused", "code", lifecycleDoctorCode, "fix", lifecycleDoctorFix, "error", err)
+						continue
+					}
+					if action == actionAdd {
+						rs.setWithdrawalLocked(sourcePeer, native, entry)
+					} else if old, exists := rs.withdrawals[sourcePeer][native]; exists {
+						if old.connectionID == announcement.connectionID {
+							rs.deleteWithdrawalLocked(sourcePeer, native)
+						}
+					}
 				}
 			}
 		}

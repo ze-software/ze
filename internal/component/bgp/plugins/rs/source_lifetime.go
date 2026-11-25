@@ -6,8 +6,9 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"github.com/ze-software/ze/pkg/plugin/rpc"
 	"maps"
+
+	"github.com/ze-software/ze/pkg/plugin/rpc"
 )
 
 func (rs *routeServer) callSourceLease(ctx context.Context, key workerKey, receipt uint64, action rpc.SourceLeaseAction) error {
@@ -212,7 +213,8 @@ func (rs *routeServer) finishSourceDown(ctx context.Context, key workerKey) (map
 		delete(rs.sourcePolicy, key.owner)
 	}
 	selected := make(map[withdrawalKey]withdrawalEntry)
-	entries := rs.withdrawals[key.address.String()]
+	addr := key.address.String()
+	entries := rs.withdrawals[addr]
 	for native, entry := range entries {
 		if entry.owner != key.owner {
 			continue
@@ -227,10 +229,7 @@ func (rs *routeServer) finishSourceDown(ctx context.Context, key workerKey) (map
 		}
 		entry.generation = generation
 		selected[native] = entry
-		delete(entries, native)
-	}
-	if len(entries) == 0 {
-		delete(rs.withdrawals, key.address.String())
+		rs.deleteWithdrawalLocked(addr, native)
 	}
 	rs.withdrawalMu.Unlock()
 	rs.mu.Lock()
@@ -257,11 +256,9 @@ func (rs *routeServer) releaseEmptySource(ctx context.Context, key workerKey) er
 		rs.withdrawalMu.Unlock()
 		return nil
 	}
-	for _, entry := range rs.withdrawals[key.address.String()] {
-		if entry.owner == key.owner && entry.connectionID == key.connectionID {
-			rs.withdrawalMu.Unlock()
-			return nil
-		}
+	if rs.hasWithdrawalForSourceLocked(key) {
+		rs.withdrawalMu.Unlock()
+		return nil
 	}
 	rs.mu.Lock()
 	actor := rs.peers[key]

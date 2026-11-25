@@ -7,16 +7,16 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"errors"
-	"github.com/ze-software/ze/internal/core/bgp/nlri"
-	"github.com/ze-software/ze/internal/core/bgp/nlri/nlrisplit"
-	"github.com/ze-software/ze/internal/core/bgp/ribevents"
-	"github.com/ze-software/ze/internal/core/family"
 	"net/netip"
 	"strconv"
 	"strings"
 
 	"github.com/ze-software/ze/internal/component/bgp/textparse"
 	"github.com/ze-software/ze/internal/core/bgp/attribute"
+	"github.com/ze-software/ze/internal/core/bgp/nlri"
+	"github.com/ze-software/ze/internal/core/bgp/nlri/nlrisplit"
+	"github.com/ze-software/ze/internal/core/bgp/ribevents"
+	"github.com/ze-software/ze/internal/core/family"
 	"github.com/ze-software/ze/internal/core/textbuf"
 	"github.com/ze-software/ze/pkg/plugin/rpc"
 )
@@ -61,8 +61,112 @@ func textNoLLGR(text string) bool {
 	return false
 }
 
+func nativeKeyFor(address string, key withdrawalKey, info withdrawalInfo) (nativeLookupKey, bool) {
+	if info.NativeHex == "" {
+		return nativeLookupKey{}, false
+	}
+	return nativeLookupKey{
+		address:    address,
+		owner:      key.owner,
+		connection: key.connection,
+		fam:        info.Family,
+		pathID:     info.PathID,
+		nativeHex:  strings.ToLower(info.NativeHex),
+	}, true
+}
+
+func (rr *routeReflector) setWithdrawalEntryLocked(address string, key withdrawalKey, info withdrawalInfo) {
+	if rr.withdrawals == nil {
+		rr.withdrawals = make(map[string]map[withdrawalKey]withdrawalInfo)
+	}
+	entries := rr.withdrawals[address]
+	if entries == nil {
+		entries = make(map[withdrawalKey]withdrawalInfo)
+		rr.withdrawals[address] = entries
+	}
+	if rr.routeConn == nil {
+		rr.routeConn = make(map[ownerRouteKey]uint64)
+	}
+	if rr.nativeIndex == nil {
+		rr.nativeIndex = make(map[nativeLookupKey]withdrawalKey)
+	}
+	if rr.sourceCounts == nil {
+		rr.sourceCounts = make(map[peerIdentity]int)
+	}
+	if rr.addressTracked == nil {
+		rr.addressTracked = make(map[string]int)
+	}
+	if old, existed := entries[key]; existed {
+		if oldNK, ok := nativeKeyFor(address, key, old); ok {
+			if rr.nativeIndex[oldNK] == key {
+				delete(rr.nativeIndex, oldNK)
+			}
+		}
+	} else {
+		rr.addressTracked[address]++
+		if source, err := newPeerIdentity(address, key.owner, key.connection); err == nil {
+			rr.sourceCounts[source]++
+		}
+	}
+	entries[key] = info
+	rr.routeConn[ownerRouteKey{address: address, owner: key.owner, route: key.route}] = key.connection
+	if nk, ok := nativeKeyFor(address, key, info); ok {
+		rr.nativeIndex[nk] = key
+	}
+}
+
+func (rr *routeReflector) deleteWithdrawalLocked(address string, key withdrawalKey) {
+	entries := rr.withdrawals[address]
+	old, existed := entries[key]
+	if !existed {
+		return
+	}
+	delete(entries, key)
+	if rr.nativeIndex != nil {
+		if oldNK, ok := nativeKeyFor(address, key, old); ok {
+			if rr.nativeIndex[oldNK] == key {
+				delete(rr.nativeIndex, oldNK)
+			}
+		}
+	}
+	if rr.routeConn != nil {
+		ork := ownerRouteKey{address: address, owner: key.owner, route: key.route}
+		if rr.routeConn[ork] == key.connection {
+			delete(rr.routeConn, ork)
+		}
+	}
+	if rr.sourceCounts != nil {
+		if source, err := newPeerIdentity(address, key.owner, key.connection); err == nil {
+			if next := rr.sourceCounts[source] - 1; next > 0 {
+				rr.sourceCounts[source] = next
+			} else {
+				delete(rr.sourceCounts, source)
+			}
+		}
+	}
+	if rr.addressTracked != nil {
+		if next := rr.addressTracked[address] - 1; next > 0 {
+			rr.addressTracked[address] = next
+		} else {
+			delete(rr.addressTracked, address)
+		}
+	}
+	if len(entries) == 0 {
+		delete(rr.withdrawals, address)
+		delete(rr.addressTracked, address)
+	}
+}
+
 func (rr *routeReflector) sourceMemberLocked(source peerIdentity) bool {
-	for key := range rr.withdrawals[source.address.String()] {
+	addr := source.address.String()
+	entries := rr.withdrawals[addr]
+	if len(entries) == 0 {
+		return false
+	}
+	if rr.addressTracked[addr] == len(entries) {
+		return rr.sourceCounts[source] > 0
+	}
+	for key := range entries {
 		if key.owner != source.owner {
 			continue
 		}
@@ -71,6 +175,65 @@ func (rr *routeReflector) sourceMemberLocked(source peerIdentity) bool {
 		}
 	}
 	return false
+}
+
+func (rr *routeReflector) lookupNativeLocked(address string, owner, connection uint64, famName string, pathID uint32, nlriHex string, exactCase bool) (withdrawalInfo, bool) {
+	if nlriHex == "" {
+		return withdrawalInfo{}, false
+	}
+	entries := rr.withdrawals[address]
+	if len(entries) == 0 {
+		return withdrawalInfo{}, false
+	}
+	fam, known := family.LookupFamily(famName)
+	if !known {
+		return withdrawalInfo{}, false
+	}
+	if rr.addressTracked[address] == len(entries) {
+		key, ok := rr.nativeIndex[nativeLookupKey{
+			address:    address,
+			owner:      owner,
+			connection: connection,
+			fam:        fam,
+			pathID:     pathID,
+			nativeHex:  strings.ToLower(nlriHex),
+		}]
+		if !ok {
+			return withdrawalInfo{}, false
+		}
+		info, present := entries[key]
+		if !present {
+			return withdrawalInfo{}, false
+		}
+		if exactCase {
+			if info.NativeHex != nlriHex {
+				return withdrawalInfo{}, false
+			}
+		}
+		return info, true
+	}
+	for key, info := range entries {
+		if key.owner != owner {
+			continue
+		}
+		if key.connection != connection {
+			continue
+		}
+		if info.Family != fam {
+			continue
+		}
+		if info.PathID != pathID {
+			continue
+		}
+		if exactCase {
+			if info.NativeHex == nlriHex {
+				return info, true
+			}
+		} else if strings.EqualFold(info.NativeHex, nlriHex) {
+			return info, true
+		}
+	}
+	return withdrawalInfo{}, false
 }
 
 // storedMemberLocked requires exact route identity as well as its Session's
@@ -85,35 +248,17 @@ func (rr *routeReflector) storedMemberLocked(route rpc.StoredRoute) bool {
 	if route.SourceReceipt == 0 {
 		return false
 	}
-	for key, info := range rr.withdrawals[route.SourcePeer] {
-		if key.owner != route.SourceOwner {
-			continue
-		}
-		if key.connection != route.SourceConnectionID {
-			continue
-		}
-		if info.Closing {
-			continue
-		}
-		if info.SourceReceipt != route.SourceReceipt {
-			continue
-		}
-		if info.MsgID != route.MsgID {
-			continue
-		}
-		if info.PathID != route.PathID {
-			continue
-		}
-		if info.Family.String() != route.Family {
-			continue
-		}
-		if route.NLRIHex != "" {
-			if strings.EqualFold(info.NativeHex, route.NLRIHex) {
-				return true
-			}
-		}
+	info, found := rr.lookupNativeLocked(route.SourcePeer, route.SourceOwner, route.SourceConnectionID, route.Family, route.PathID, route.NLRIHex, false)
+	if !found {
+		return false
 	}
-	return false
+	if info.Closing {
+		return false
+	}
+	if info.SourceReceipt != route.SourceReceipt {
+		return false
+	}
+	return info.MsgID == route.MsgID
 }
 
 // putWithdrawalLocked orders only the same original owner's current path.
@@ -124,6 +269,31 @@ func (rr *routeReflector) putWithdrawalLocked(address string, key withdrawalKey,
 	if entries == nil {
 		entries = make(map[withdrawalKey]withdrawalInfo)
 		rr.withdrawals[address] = entries
+	}
+	if rr.addressTracked[address] == len(entries) {
+		ork := ownerRouteKey{address: address, owner: key.owner, route: key.route}
+		if priorConn, exists := rr.routeConn[ork]; exists {
+			prior := withdrawalKey{owner: key.owner, connection: priorConn, route: key.route}
+			if held, present := entries[prior]; present {
+				if priorConn > key.connection {
+					return
+				}
+				if priorConn == key.connection {
+					if held.Closing {
+						return
+					}
+					if held.MsgID > info.MsgID {
+						return
+					}
+					rr.setWithdrawalEntryLocked(address, key, info)
+					return
+				}
+				rr.deleteWithdrawalLocked(address, prior)
+				rr.enqueueSupersededLocked(address, key.owner, priorConn)
+			}
+		}
+		rr.setWithdrawalEntryLocked(address, key, info)
+		return
 	}
 	for prior, held := range entries {
 		if prior.owner != key.owner {
@@ -145,20 +315,24 @@ func (rr *routeReflector) putWithdrawalLocked(address string, key withdrawalKey,
 		}
 		delete(entries, prior)
 		if prior.connection < key.connection {
-			source, err := newPeerIdentity(address, prior.owner, prior.connection)
-			if err != nil {
-				rr.noteWorkFailure("superseded source inventory", err)
-				continue
-			}
-			rr.oweCleanupLocked(source)
-			// The existing departure lane owns prompt release of the last old row;
-			// this empty prune carries no new destination write and no history.
-			if !rr.enqueueDeparture(source, make(map[withdrawalKey]withdrawalInfo)) {
-				rr.noteWorkFailure("superseded source release", errors.New("departure worker stopped before old lease cleanup"))
-			}
+			rr.enqueueSupersededLocked(address, prior.owner, prior.connection)
 		}
 	}
 	entries[key] = info
+}
+
+func (rr *routeReflector) enqueueSupersededLocked(address string, owner, connection uint64) {
+	source, err := newPeerIdentity(address, owner, connection)
+	if err != nil {
+		rr.noteWorkFailure("superseded source inventory", err)
+		return
+	}
+	rr.oweCleanupLocked(source)
+	// The existing departure lane owns prompt release of the last old row;
+	// this empty prune carries no new destination write and no history.
+	if !rr.enqueueDeparture(source, make(map[withdrawalKey]withdrawalInfo)) {
+		rr.noteWorkFailure("superseded source release", errors.New("departure worker stopped before old lease cleanup"))
+	}
 }
 
 func (rr *routeReflector) removeWithdrawalLocked(address string, key withdrawalKey, msgID uint64) {
@@ -174,7 +348,7 @@ func (rr *routeReflector) removeWithdrawalLocked(address string, key withdrawalK
 			}
 		}
 	}
-	delete(entries, key)
+	rr.deleteWithdrawalLocked(address, key)
 }
 
 // currentStoredRoute asks the existing declared receive-store command even
@@ -258,25 +432,12 @@ func (rr *routeReflector) applyInventoryLocked(address string, record inventoryR
 		return
 	}
 	entries := rr.withdrawals[address]
-	for key, info := range entries {
-		if key.owner != record.key.owner {
-			continue
+	// A withdrawn labeled NLRI was normalized at parsing, so its semantic
+	// key matches the exact withdrawalKey directly without scanning.
+	if info, present := entries[record.key]; present {
+		if info.MsgID <= record.info.MsgID {
+			rr.deleteWithdrawalLocked(address, record.key)
 		}
-		if key.connection != record.key.connection {
-			continue
-		}
-		// A withdrawn labeled NLRI was normalized at parsing, so its semantic
-		// key can be compared directly without re-reading Compatibility as labels.
-		if key.route != record.key.route {
-			continue
-		}
-		if info.MsgID > record.info.MsgID {
-			continue
-		}
-		delete(entries, key)
-	}
-	if len(entries) == 0 {
-		delete(rr.withdrawals, address)
 	}
 }
 

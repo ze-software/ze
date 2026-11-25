@@ -36,23 +36,57 @@ func wireNoLLGR(attrs *attribute.AttributesWire) bool {
 	return false
 }
 
-// The complete text event renders the standard community as a comma list.
-// Only the community attribute token can supply this accepted property.
+// textNoLLGR examines only an actual COMMUNITY attribute value, never metadata,
+// another attribute's value, or an NLRI token.
 func textNoLLGR(text string) bool {
-	scanner := textparse.NewScanner(text)
+	scanner := textparse.NewScanner(strings.TrimRight(text, "\n"))
 	for range 8 {
-		scanner.Next()
+		if _, ok := scanner.Next(); !ok {
+			return false
+		}
 	}
 	for !scanner.Done() {
-		token, _ := scanner.Next()
-		if textparse.ResolveAlias(token) != textparse.KWCommunity {
-			continue
+		raw, ok := scanner.Next()
+		if !ok {
+			break
 		}
-		values, _ := scanner.Next()
-		for _, value := range strings.Split(values, ",") {
-			if value == "65535:7" || value == "no-llgr" {
-				return true
+		switch textparse.ResolveAlias(raw) {
+		case textparse.KWCommunity:
+			for !scanner.Done() {
+				next, ok := scanner.Peek()
+				if !ok {
+					break
+				}
+				if textparse.IsTopLevelKeyword(next) {
+					break
+				}
+				values, _ := scanner.Next()
+				trimmed := strings.Trim(values, "[]")
+				for value := range strings.SplitSeq(trimmed, ",") {
+					switch value {
+					case "no-llgr", "65535:7", "4294901767", "0xffff0007":
+						return true
+					}
+				}
 			}
+		case textparse.KWNLRI:
+			for !scanner.Done() {
+				next, ok := scanner.Peek()
+				if !ok {
+					break
+				}
+				if textparse.IsTopLevelKeyword(next) {
+					break
+				}
+				scanner.Next()
+			}
+		case textparse.KWSourcePolicyEpoch, textparse.KWSourceReceipt, textparse.KWPeerOwner, textparse.KWConnectionID,
+			textparse.KWNextHop, textparse.KWOrigin, textparse.KWMED, textparse.KWLocalPreference,
+			textparse.KWAggregator, textparse.KWOriginatorID, textparse.KWAIGP,
+			textparse.KWASPath, textparse.KWLargeCommunity, textparse.KWExtendedCommunity, textparse.KWClusterList:
+			scanner.Next()
+		case textparse.KWAtomicAggregate:
+			// Flag with no value token.
 		}
 	}
 	return false
@@ -86,16 +120,6 @@ func textInventoryEntry(fam family.Family, text string, pathID uint32, addPath, 
 		return withdrawalKey{}, entry, err
 	}
 	return withdrawalKey{owner: entry.owner, fam: fam, prefix: prefix.Masked(), pathID: pathID, addPath: addPath}, entry, nil
-}
-
-func sameNativeMembership(a, b withdrawalKey) bool {
-	if a.owner != b.owner || a.fam != b.fam || a.pathID != b.pathID {
-		return false
-	}
-	if a.prefix.IsValid() || b.prefix.IsValid() {
-		return a.prefix == b.prefix
-	}
-	return a.nlriStr == b.nlriStr
 }
 
 // storedKey uses registered native key and framing functions. source-wire is
@@ -164,6 +188,63 @@ func storedKey(route rpc.StoredRoute, addPath bool) (withdrawalKey, error) {
 
 }
 
+func probeStoredKeyLocked(entries map[withdrawalKey]withdrawalEntry, source workerKey, base withdrawalKey, matchEntryAddPath, wantEntryAddPath bool) (withdrawalKey, withdrawalEntry, bool) {
+	wireFormCount := 1
+	wireForms := [2]bool{base.wireForm, !base.wireForm}
+	if !base.prefix.IsValid() {
+		wireFormCount = 2
+	}
+	for i := range wireFormCount {
+		for _, keyAddPath := range [2]bool{false, true} {
+			candidate := base
+			candidate.wireForm = wireForms[i]
+			candidate.addPath = keyAddPath
+			entry, exists := entries[candidate]
+			if !exists {
+				continue
+			}
+			if entry.owner != source.owner {
+				continue
+			}
+			if entry.connectionID != source.connectionID {
+				continue
+			}
+			if matchEntryAddPath {
+				if entry.addPath != wantEntryAddPath {
+					continue
+				}
+			}
+			return candidate, entry, true
+		}
+	}
+	return withdrawalKey{}, withdrawalEntry{}, false
+}
+
+func lookupStoredMembershipLocked(entries map[withdrawalKey]withdrawalEntry, source workerKey, route rpc.StoredRoute) (withdrawalKey, withdrawalEntry, bool) {
+	if len(entries) == 0 {
+		return withdrawalKey{}, withdrawalEntry{}, false
+	}
+	if route.NLRIFraming == rpc.NLRIFramingPrefixOnly {
+		base, err := storedKey(route, false)
+		if err != nil {
+			return withdrawalKey{}, withdrawalEntry{}, false
+		}
+		return probeStoredKeyLocked(entries, source, base, false, false)
+	}
+	if route.NLRIFraming == rpc.NLRIFramingSourceWire {
+		for _, entryAddPath := range [2]bool{false, true} {
+			base, err := storedKey(route, entryAddPath)
+			if err != nil {
+				continue
+			}
+			if native, entry, found := probeStoredKeyLocked(entries, source, base, true, entryAddPath); found {
+				return native, entry, true
+			}
+		}
+	}
+	return withdrawalKey{}, withdrawalEntry{}, false
+}
+
 // currentStoredRouteLocked is called with withdrawalMu. A SourceReceipt proves
 // source facts only; the exact original physical route must still be current.
 // A retained A cannot authorize removed B from the same receipt.
@@ -189,40 +270,30 @@ func (rs *routeServer) currentStoredRouteLocked(route rpc.StoredRoute) bool {
 	scopes := actor.cleanup
 	up, pending, sourceRetained, keep := actor.Up, actor.downPending, actor.sourceRetained, actor.retainedFamilies
 	rs.mu.RUnlock()
-	entries := rs.withdrawals[source.address.String()]
-	for native, entry := range entries {
-		if entry.owner != source.owner || entry.connectionID != source.connectionID {
-			continue
-		}
-		key, err := storedKey(route, entry.addPath)
-		if err != nil {
-			continue
-		}
-		if !sameNativeMembership(native, key) {
-			continue
-		}
-		if !up && !entry.retained {
-			if !pending || !sourceRetained || !keep[native.fam] {
-				return false
-			}
-		}
-		if entry.sourceReceipt != route.SourceReceipt {
-			return false
-		}
-		if entry.sourcePolicyEpoch != route.SourcePolicyEpoch {
-			return false
-		}
-		if entry.msgID != route.MsgID {
-			return false
-		}
-		for _, scope := range scopes {
-			if cleanupMatches(scope, native, entry) {
-				return false
-			}
-		}
-		return true
+	native, entry, found := lookupStoredMembershipLocked(rs.withdrawals[source.address.String()], source, route)
+	if !found {
+		return false
 	}
-	return false
+	if !up && !entry.retained {
+		if !pending || !sourceRetained || !keep[native.fam] {
+			return false
+		}
+	}
+	if entry.sourceReceipt != route.SourceReceipt {
+		return false
+	}
+	if entry.sourcePolicyEpoch != route.SourcePolicyEpoch {
+		return false
+	}
+	if entry.msgID != route.MsgID {
+		return false
+	}
+	for _, scope := range scopes {
+		if cleanupMatches(scope, native, entry) {
+			return false
+		}
+	}
+	return true
 }
 
 // sourceReservation is one captured actor's pending cold admission. Only
@@ -536,10 +607,7 @@ func (rs *routeServer) adoptStoredRouteLocked(source workerKey, route rpc.Stored
 	binary.BigEndian.PutUint32(framed, route.PathID)
 	copy(framed[4:], raw)
 	entry := withdrawalEntry{owner: source.owner, connectionID: source.connectionID, sourceReceipt: route.SourceReceipt, sourcePolicyEpoch: route.SourcePolicyEpoch, msgID: route.MsgID, noLLGR: wireNoLLGR(attribute.NewAttributesWire(attrs, 0)), wire: hex.EncodeToString(framed), addPath: true}
-	if rs.withdrawals[source.address.String()] == nil {
-		rs.withdrawals[source.address.String()] = make(map[withdrawalKey]withdrawalEntry)
-	}
-	rs.withdrawals[source.address.String()][native] = entry
+	rs.setWithdrawalLocked(source.address.String(), native, entry)
 	return true
 }
 

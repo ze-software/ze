@@ -274,7 +274,7 @@ func (rs *routeServer) finalizeSourcePolicy(source string, input rpc.SourcePolic
 			continue
 		}
 		if entry.sourcePolicyEpoch <= bound {
-			delete(entries, key)
+			rs.deleteWithdrawalLocked(source, key)
 		}
 	}
 	txn.pins = nil

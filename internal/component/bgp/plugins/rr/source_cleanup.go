@@ -117,7 +117,7 @@ func (rr *routeReflector) settleEvents(ctx context.Context) error {
 					continue
 				}
 				if info.Closing {
-					delete(entries, key)
+					rr.deleteWithdrawalLocked(source.address.String(), key)
 				}
 			}
 			if len(entries) == 0 {

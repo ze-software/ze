@@ -118,6 +118,25 @@ type peerState struct {
 	Capabilities        map[string]bool
 }
 
+// ownerRouteKey indexes the active physical connection for one (address, owner,
+// route) triple so putWithdrawalLocked resolves prior connections in O(1).
+type ownerRouteKey struct {
+	address string
+	owner   uint64
+	route   string
+}
+
+// nativeLookupKey indexes a withdrawal entry by its native NLRI identity so
+// storedMemberLocked and fillValidationReceipt avoid scanning an address bucket.
+type nativeLookupKey struct {
+	address    string
+	owner      uint64
+	connection uint64
+	fam        family.Family
+	pathID     uint32
+	nativeHex  string
+}
+
 // routeReflector implements a BGP Route Reflector plugin (RFC 4456).
 // Subscribes to UPDATE events and forwards them to all peers via cache-forward.
 // The reactor handles RFC 4456 forwarding rules, ORIGINATOR_ID injection,
@@ -139,11 +158,17 @@ type routeReflector struct {
 	buf      textbuf.Buffer
 	stopping atomic.Bool
 
-	// withdrawalMu protects the withdrawals map.
+	// withdrawalMu protects the withdrawals map and its O(1) lookup indexes.
 	withdrawalMu sync.Mutex
 	// withdrawals tracks announced routes per source peer for withdrawal on peer-down.
 	// Observed address -> original owner, physical connection and native route key -> withdrawalInfo.
 	withdrawals map[string]map[withdrawalKey]withdrawalInfo
+	// routeConn, nativeIndex, sourceCounts and addressTracked index withdrawals
+	// under withdrawalMu so hot-path puts, withdraws and stored checks stay O(1).
+	routeConn      map[ownerRouteKey]uint64
+	nativeIndex    map[nativeLookupKey]withdrawalKey
+	sourceCounts   map[peerIdentity]int
+	addressTracked map[string]int
 	// sourcePolicy holds each source's open source-policy transaction
 	// (source_policy.go), keyed by original owner and guarded by withdrawalMu.
 	sourcePolicy map[uint64]*sourcePolicyTxn
@@ -643,7 +668,7 @@ func (rr *routeReflector) takeWithdrawalEntriesLocked(source string, owner, conn
 			taken = make(map[withdrawalKey]withdrawalInfo)
 		}
 		taken[key] = entry
-		delete(entries, key)
+		rr.deleteWithdrawalLocked(source, key)
 	}
 	if len(entries) == 0 {
 		delete(rr.withdrawals, source)

@@ -97,12 +97,12 @@ func extractWireNLRIRecords(msg *bgptypes.RawMessage) (*nlriRecords, error) {
 	sp.sourceReceipt = msg.SourceReceipt
 	sp.sourceConnection = msg.SourceConnectionID
 	sp.sourceOwner = msg.SourceOwner
-	sp.msgID = 0
-	sp.noLLGR = false
+	sp.msgID = msg.MessageID
+	sp.noLLGR = wireNoLLGR(msg.AttrsWire)
 
 	// Withdrawn records are appended BEFORE announced ones, and the order is
 	// load-bearing: every consumer walks this slice in order, and
-	// updateWithdrawalMapText applies each record to a prefix-keyed map. RFC 4271
+	// applyNLRIRecords applies each record to a prefix-keyed map. RFC 4271
 	// Section 4.3 says an UPDATE naming one prefix in both WITHDRAWN ROUTES and NLRI is
 	// treated as though WITHDRAWN did not name it, so the "add" has to land last
 	// (RFC4271-4.3-5, RFC4271-4.3-7). Appending adds first deleted that prefix from the
@@ -418,6 +418,94 @@ func recordEntry(rec *nlriRecord, entry withdrawalEntry) withdrawalEntry {
 	return entry
 }
 
+// setWithdrawalLocked inserts or replaces one withdrawal inventory entry and
+// keeps per-source counts synchronized. Caller MUST hold rs.withdrawalMu.
+func (rs *routeServer) setWithdrawalLocked(source string, key withdrawalKey, entry withdrawalEntry) {
+	if rs.withdrawals == nil {
+		rs.withdrawals = make(map[string]map[withdrawalKey]withdrawalEntry)
+	}
+	entries := rs.withdrawals[source]
+	if entries == nil {
+		entries = make(map[withdrawalKey]withdrawalEntry)
+		rs.withdrawals[source] = entries
+	}
+	if rs.withdrawalCounts == nil {
+		rs.withdrawalCounts = make(map[withdrawalOwnerKey]int)
+	}
+	if rs.addressTracked == nil {
+		rs.addressTracked = make(map[string]int)
+	}
+	if old, existed := entries[key]; existed {
+		oldKey := withdrawalOwnerKey{address: source, owner: old.owner, connectionID: old.connectionID}
+		if next := rs.withdrawalCounts[oldKey] - 1; next > 0 {
+			rs.withdrawalCounts[oldKey] = next
+		} else {
+			delete(rs.withdrawalCounts, oldKey)
+		}
+		if next := rs.addressTracked[source] - 1; next > 0 {
+			rs.addressTracked[source] = next
+		} else {
+			delete(rs.addressTracked, source)
+		}
+	}
+	entries[key] = entry
+	ownerKey := withdrawalOwnerKey{address: source, owner: entry.owner, connectionID: entry.connectionID}
+	rs.withdrawalCounts[ownerKey]++
+	rs.addressTracked[source]++
+}
+
+// deleteWithdrawalLocked removes one withdrawal inventory entry and updates
+// per-source counts. Caller MUST hold rs.withdrawalMu.
+func (rs *routeServer) deleteWithdrawalLocked(source string, key withdrawalKey) {
+	entries := rs.withdrawals[source]
+	old, existed := entries[key]
+	if !existed {
+		return
+	}
+	delete(entries, key)
+	if rs.withdrawalCounts != nil {
+		oldKey := withdrawalOwnerKey{address: source, owner: old.owner, connectionID: old.connectionID}
+		if next := rs.withdrawalCounts[oldKey] - 1; next > 0 {
+			rs.withdrawalCounts[oldKey] = next
+		} else {
+			delete(rs.withdrawalCounts, oldKey)
+		}
+	}
+	if rs.addressTracked != nil {
+		if next := rs.addressTracked[source] - 1; next > 0 {
+			rs.addressTracked[source] = next
+		} else {
+			delete(rs.addressTracked, source)
+		}
+	}
+	if len(entries) == 0 {
+		delete(rs.withdrawals, source)
+		delete(rs.addressTracked, source)
+	}
+}
+
+// hasWithdrawalForSourceLocked reports whether any withdrawal inventory entry
+// belongs to key. Caller MUST hold rs.withdrawalMu.
+func (rs *routeServer) hasWithdrawalForSourceLocked(key workerKey) bool {
+	addr := key.address.String()
+	entries := rs.withdrawals[addr]
+	if len(entries) == 0 {
+		return false
+	}
+	if rs.addressTracked[addr] == len(entries) {
+		return rs.withdrawalCounts[withdrawalOwnerKey{address: addr, owner: key.owner, connectionID: key.connectionID}] > 0
+	}
+	for _, entry := range entries {
+		if entry.owner != key.owner {
+			continue
+		}
+		if entry.connectionID == key.connectionID {
+			return true
+		}
+	}
+	return false
+}
+
 // applyNLRIRecords updates the withdrawal map from pre-extracted NLRI records.
 // Called AFTER forwarding, off the forward critical path.
 // Caller must hold rs.withdrawalMu.
@@ -427,16 +515,14 @@ func (rs *routeServer) applyNLRIRecords(sourcePeer string, records *nlriRecords)
 		sourceReceipt: records.sourceReceipt, sourcePolicyEpoch: records.sourcePolicyEpoch}
 	for i := range records.records {
 		rec := &records.records[i]
+		key := recordKey(rec, records.sourceOwner)
 		switch rec.action {
 		case actionAdd:
-			if rs.withdrawals[sourcePeer] == nil {
-				rs.withdrawals[sourcePeer] = make(map[withdrawalKey]withdrawalEntry)
-			}
-			rs.withdrawals[sourcePeer][recordKey(rec, records.sourceOwner)] = recordEntry(rec, announcement)
+			rs.setWithdrawalLocked(sourcePeer, key, recordEntry(rec, announcement))
 		case actionDel:
-			if rs.withdrawals[sourcePeer] != nil {
-				if entry := rs.withdrawals[sourcePeer][recordKey(rec, records.sourceOwner)]; entry.connectionID == records.sourceConnection {
-					delete(rs.withdrawals[sourcePeer], recordKey(rec, records.sourceOwner))
+			if entry, exists := rs.withdrawals[sourcePeer][key]; exists {
+				if entry.connectionID == records.sourceConnection {
+					rs.deleteWithdrawalLocked(sourcePeer, key)
 				}
 			}
 		}
