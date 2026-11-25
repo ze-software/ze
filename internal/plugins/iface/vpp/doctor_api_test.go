@@ -134,16 +134,16 @@ func TestCheckVPPAPISocketWarnsWhenTheConnectionWillNotClose(t *testing.T) {
 // opens for a config on another backend, for no config, or where VPP does not
 // run.
 //
-// VALIDATES: no diagnostic and no dial for a netlink backend, a nil tree, and a
+// VALIDATES: no diagnostic and no dial for a kernel backend, a nil tree, and a
 // nil probe.
 // PREVENTS: a VPP diagnostic on every box that never selected VPP.
 func TestCheckVPPAPISocketIsSilentOffTheBackend(t *testing.T) {
 	dialed := installAPISocketDial(t, func(string) (io.Closer, error) { return nil, errors.New("must not dial") })
 
 	netlinkTree := config.NewTree()
-	netlinkTree.GetOrCreateContainer("interface").Set("backend", "netlink")
+	netlinkTree.GetOrCreateContainer("interface").Set("backend", "kernel")
 	if diags := checkVPPAPISocket(diagnostic.DoctorCheckContext{Tree: netlinkTree}); len(diags) != 0 {
-		t.Fatalf("netlink backend: diagnostics = %d, want 0", len(diags))
+		t.Fatalf("kernel backend: diagnostics = %d, want 0", len(diags))
 	}
 	if diags := checkVPPAPISocket(diagnostic.DoctorCheckContext{}); len(diags) != 0 {
 		t.Fatalf("nil tree: diagnostics = %d, want 0", len(diags))

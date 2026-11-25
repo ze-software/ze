@@ -30,7 +30,7 @@ class-of-service {
 }
 
 interface {
-	backend netlink;
+	backend kernel;
 	dummy tcos0 {
 		class-of-service edge;
 		unit v100 {
@@ -53,7 +53,7 @@ class-of-service {
 }
 
 interface {
-	backend netlink;
+	backend kernel;
 	dummy tcos0 {
 		class-of-service edge;
 		unit v100 {

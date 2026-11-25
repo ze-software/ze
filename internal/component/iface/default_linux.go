@@ -5,4 +5,4 @@
 package iface
 
 // defaultBackendName is the backend used when the config does not specify one.
-const defaultBackendName = "netlink"
+const defaultBackendName = "kernel"

@@ -125,7 +125,7 @@ func (f *espFWRuleset) ruleData(c *nftables.Chain, handle uint64, data []byte, e
 	})
 }
 
-// The expression sequences below are the ones nft and Ze's lowering
+// The expression sequences below are the ones nftables and Ze's lowering
 // (internal/plugins/firewall/nft/lower_linux.go) put in the kernel.
 
 // espFWL4Proto is `meta l4proto <op> <proto>`: a Meta load into r1, then a Cmp.
@@ -144,7 +144,7 @@ func espFWIPProto(op expr.CmpOp, proto byte) []expr.Any {
 	}
 }
 
-// espFWNFProto is the `meta nfproto` guard Ze and nft put ahead of an address match in an inet table.
+// espFWNFProto is the `meta nfproto` guard Ze and nftables put ahead of an address match in an inet table.
 func espFWNFProto(nfproto byte) []expr.Any {
 	return []expr.Any{
 		&expr.Meta{Key: expr.MetaKeyNFPROTO, Register: 1},
@@ -192,7 +192,7 @@ func espFWIifname(name string) []expr.Any {
 }
 
 // espFWEtherType is `ether type <op> <type>`: link-layer octets 12-13, then a Cmp.
-// nft emits the 0x8100 form first for every `vlan` match.
+// nftables emits the 0x8100 form first for every `vlan` match.
 func espFWEtherType(op expr.CmpOp, ethertype uint16) []expr.Any {
 	data := make([]byte, 2)
 	binary.BigEndian.PutUint16(data, ethertype)
@@ -203,7 +203,7 @@ func espFWEtherType(op expr.CmpOp, ethertype uint16) []expr.Any {
 }
 
 // espFWMetaProtocol is `meta protocol <op> <type>`: the skb's protocol, two octets,
-// which nft emits ahead of an `ip protocol` match in a netdev or bridge table.
+// which nftables emits ahead of an `ip protocol` match in a netdev or bridge table.
 func espFWMetaProtocol(op expr.CmpOp, ethertype uint16) []expr.Any {
 	data := make([]byte, 2)
 	binary.BigEndian.PutUint16(data, ethertype)
@@ -297,7 +297,7 @@ func TestESPFormFirewallBlocks(t *testing.T) {
 			},
 		},
 		{
-			// nft's inet form of `ip protocol esp accept` puts the nfproto guard first,
+			// nftables's inet form of `ip protocol esp accept` puts the nfproto guard first,
 			// so the protocol pair is not the rule's first two expressions.
 			// MUTATION: look for the definite accept's pair past the first expression.
 			name: "ip protocol esp accept behind the nfproto ipv4 guard is no definite accept",
@@ -846,13 +846,13 @@ func TestESPFormFirewallBlocks(t *testing.T) {
 			name: "rules are walked in the order the kernel returns them, not by handle",
 			build: func(f *espFWRuleset) {
 				in := f.base(f.table(nftables.TableFamilyIPv4, "filter"), "input", espFWHookInput, nftables.ChainPolicyAccept)
-				// `nft insert` puts a new rule, with a higher handle, at the head.
+				// Inserting an nftables rule puts a new rule, with a higher handle, at the head.
 				f.rule(in, 9, "inserted-esp", espFWL4Proto(expr.CmpOpEq, unix.IPPROTO_ESP), espFWVerdict(expr.VerdictAccept))
 				f.rule(in, 1, "drop-all", espFWVerdict(expr.VerdictDrop))
 			},
 		},
 		{
-			name: "an nft comment in TLV user data is reported",
+			name: "an nftables comment in TLV user data is reported",
 			build: func(f *espFWRuleset) {
 				in := f.base(f.table(nftables.TableFamilyIPv4, "filter"), "input", espFWHookInput, nftables.ChainPolicyAccept)
 				f.ruleData(in, 8, userdata.AppendString(nil, userdata.TypeComment, "drop by hand"), espFWVerdict(expr.VerdictDrop))
@@ -923,7 +923,7 @@ func TestESPFormFirewallBlocks(t *testing.T) {
 			site:    espFormFirewallSite{Family: "netdev", Table: "edge", Chain: "ingress", Hook: "ingress", Rule: "handle 25", Reason: espFormReasonDrop},
 		},
 		{
-			// nft's netdev form of `ip protocol esp accept`. meta protocol narrows, so
+			// nftables's netdev form of `ip protocol esp accept`. meta protocol narrows, so
 			// this is no definite accept and the policy drop is reached.
 			// MUTATION: answer Guards for a meta protocol ip compare.
 			name: "meta protocol ip ahead of the esp match is no definite accept",
@@ -935,7 +935,7 @@ func TestESPFormFirewallBlocks(t *testing.T) {
 			site:    espFormFirewallSite{Family: "netdev", Table: "edge", Chain: "ingress", Hook: "ingress", Rule: "policy drop", Reason: espFormReasonPolicyDrop},
 		},
 		{
-			// nft's netdev form of `ip protocol tcp drop`: the meta protocol pair comes
+			// nftables's netdev form of `ip protocol tcp drop`: the meta protocol pair comes
 			// first, and the ip protocol load is not taken in a netdev table.
 			// MUTATION: look for the excluding pair past the first expression, and
 			// take the ip protocol load in every family.
@@ -1068,7 +1068,7 @@ func TestESPFormFirewallBlocks(t *testing.T) {
 		},
 		// gtsm has no row here: TestESPFormFirewallStockGTSMKeepsTheFastPathOn
 		// (espform_firewall_stock_linux_test.go) judges the rules gtsm.FilterTables
-		// yields after the nft backend lowered and committed them.
+		// yields after the kernel backend lowered and committed them.
 		{
 			// vrrp, acceptFilterTables (internal/plugins/vrrp/acceptfilter.go): the
 			// neighbor discovery carve-outs, then a drop per IPv6 virtual address.
@@ -1102,7 +1102,7 @@ func TestESPFormFirewallBlocks(t *testing.T) {
 		// ddos has no row here: TestESPFormFirewallStockDDoSNamedProtocolKeepsTheFastPathOn
 		// and TestESPFormFirewallStockDDoSUnnamedProtocolClosesTheFastPath
 		// (espform_firewall_stock_linux_test.go) judge the table local.MitigationTable
-		// yields after the nft backend lowered and committed it.
+		// yields after the kernel backend lowered and committed it.
 		{
 			// policyroute, buildPolicyMatch then buildActions
 			// (internal/plugins/policyroute/translate.go): a rule naming only a
@@ -1181,7 +1181,7 @@ func TestESPFormFirewallBlocks(t *testing.T) {
 // TestESPFormFirewallReaderError proves a ruleset the reader cannot read is an
 // error, never a verdict. Method: each read the walk makes fails in turn.
 func TestESPFormFirewallReaderError(t *testing.T) {
-	cause := errors.New("netlink: operation not permitted")
+	cause := errors.New("netlink error: operation not permitted")
 
 	f := newESPFWRuleset()
 	f.chainsErr = cause
@@ -1251,7 +1251,7 @@ func TestESPFormFirewallGenerationBracket(t *testing.T) {
 		t.Fatalf("moved generation, blocking read: blocked %v, site %v, want the error alone", blocked, site)
 	}
 
-	cause := errors.New("netlink: operation not permitted")
+	cause := errors.New("netlink error: operation not permitted")
 	f = safe()
 	f.generationErr = cause
 	if _, _, err := espFormFirewallBlocks(f); !errors.Is(err, cause) {

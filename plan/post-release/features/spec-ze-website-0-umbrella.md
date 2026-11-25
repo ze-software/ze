@@ -20,7 +20,7 @@ Build a static browser application from the Ze Go source with a new
 CLI semantics as SSH, store browser-local ZeFS profiles, and run a two-node lab
 with the real BGP and BFD engines.
 
-The website is a control-plane lab. It has no VPP, netlink, netfilter, kernel
+The website is a control-plane lab. It has no VPP, netlink socket, netfilter, kernel
 FIB, P4, host sockets, SSH listener, child plugin process, or operating-system
 signal dependency. It must not simulate command output or protocol state.
 Operational output must come from the running browser nodes.
@@ -35,7 +35,7 @@ in-memory protocol runtime.
 |----|---------|----------|-------------|-------|
 | F-1 | A bare `GOOS=js GOARCH=wasm` build of `cmd/ze` succeeds only when no Ze personality is selected | `cmd/ze/main.go`, `cmd/ze/dispatch.go` | A successful empty-personality build is not a usable Ze artifact | 2 |
 | F-2 | The `ze_core` WASM build fails in host, process, Bubble Tea, clipboard, and disk-stat paths before it reaches later platform blockers | `internal/component/host/platform_other.go`, `internal/component/plugin/process/sysproc_other.go`, vendored Bubble Tea and clipboard packages | The website must use a selected composition and browser platform files, not the daemon root | 1, 2 |
-| F-3 | VPP already compiles out through `ze_vpp`, but netlink, nftables, kernel FIB, and P4 packages remain in the untagged generated composition | `feature-gates.txt`, `internal/component/plugin/all/all.go` | Add general default-on backend gates. Do not add website-only no-op backends | 2 |
+| F-3 | VPP already compiles out through `ze_vpp`, but kernel interface, kernel traffic, nftables, kernel FIB, and P4 packages remain in the untagged generated composition | `feature-gates.txt`, `internal/component/plugin/all/all.go` | Add general default-on backend gates. Do not add website-only no-op backends | 2 |
 | F-4 | CLI command semantics are split between Bubble Tea's private `Model.dispatchCommand` path and the web terminal's private `executeTerminalCommand` path | `internal/component/cli/model_commands.go`, `internal/component/web/cli_terminal.go` | Extract one transport-independent `cli.Session` and migrate every frontend | 1 |
 | F-5 | The editor and commit pipeline already use `storage.Storage`, `storage.WriteGuard`, ZeFS candidate versions, schema validation, and candidate promotion | `internal/component/cli/editor.go`, `internal/component/cli/editor_commit.go`, `internal/component/config/storage/pointer.go` | Preserve this pipeline. Do not create a browser-only config model | 3, 4, 5 |
 | F-6 | The ZeFS implementation is concrete around `zefs.BlobStore`, and candidate promotion requires its lock and flush semantics | `internal/component/config/storage/blob.go`, `pkg/zefs/store.go`, `pkg/zefs/lock.go` | Put a persistence seam below `zefs.BlobStore`. A direct `localStorage` implementation of `storage.Storage` would duplicate and break commit semantics | 3 |
@@ -166,7 +166,7 @@ configuration packages, and the generated `plugin/all` root.
 
 `feature-gates.txt` already gates VPP, BGP, BFD, SSH, web, and other optional
 features. The untagged generated root still imports kernel FIB, P4 FIB,
-nftables, interface netlink, traffic netlink, kernel, static, and related YANG
+nftables, kernel interface, kernel traffic, kernel, static, and related YANG
 packages.
 
 The exact scoped probe `GOOS=js GOARCH=wasm CGO_ENABLED=0 go build -tags
@@ -220,6 +220,14 @@ started.
 - ZeFS can persist its complete encoded blob through a browser backing store.
 - The website starts two isolated nodes connected only through in-memory BGP and
   BFD transports.
+
+## Existing Mechanisms
+
+| Mechanism | Where (file + symbol, or page + section) | What it does today | This spec (extends, replaces, or does not apply, with the reason) |
+|-----------|------------------------------------------|--------------------|------------------------------------------------------------------|
+| Binary personality dispatch and feature-gate manifest | `cmd/ze/dispatch.go`, `feature-gates.txt`, `internal/component/plugin/all/all.go` | Composes `cmd/ze` personalities and generates build-tagged plugin registration roots | Extends: adds general default-on host backend gates and a `ze_website` personality for `js/wasm` |
+| CLI command dispatchers and ZeFS blob storage | `internal/component/cli/model_commands.go`, `internal/component/web/cli_terminal.go`, `pkg/zefs/store.go` (`BlobStore`) | Runs separate TUI and web CLI dispatchers over the shared editor and persists configs through `zefs.BlobStore` | Replaces the duplicated dispatchers with one `cli.Session`, and extends `zefs.BlobStore` with a browser persistence seam below the blob format |
+| Injectable BGP reactor and in-memory BFD transport | `internal/component/bgp/reactor/reactor.go`, `internal/component/bfd/transport/loopback.go` (`Loopback`) | Accepts injected BGP dialers/listeners and provides a channel-backed paired BFD `Loopback` transport | Extends: runs two real browser nodes using the production BGP reactor and existing BFD `Loopback` pair over in-memory transports |
 
 ## Data Flow (MANDATORY)
 
@@ -372,7 +380,7 @@ started.
 | AC ID | Input / Condition | Expected Behavior | Child |
 |-------|-------------------|-------------------|-------|
 | AC-1 | Run `./le site build` in a supported host environment | It produces a static bundle containing the Go WASM artifact, Go runtime support, HTML, CSS, and JavaScript, and the page reaches an explicit ready state in a real browser | 2, 6 |
-| AC-2 | Inspect the website artifact and dependency graph | It contains BGP, BFD, RIB, CLI, config, and ZeFS code and contains no VPP, netlink, netfilter, kernel FIB, P4, SSH server, child-process, host-signal, or host-socket implementation symbols | 2 |
+| AC-2 | Inspect the website artifact and dependency graph | It contains BGP, BFD, RIB, CLI, config, and ZeFS code and contains no VPP, netlink socket, netfilter, kernel FIB, P4, SSH server, child-process, host-signal, or host-socket implementation symbols | 2 |
 | AC-3 | Run the same shared command sequence through SSH/TUI, server web, and WASM | Parsing, mode and path transitions, completion items, pipe behavior, config mutations, structured status, text output, JSON output, and errors are semantically identical; only frontend rendering differs | 1, 4, 6 |
 | AC-4 | Build default native and appliance compositions after adding backend gates | Every existing default-on backend and its config schema remains present, and absent builds reject the omitted backend's config instead of accepting a no-op | 2 |
 | AC-5 | Create two browser profiles and configure different router IDs, ASNs, and prefixes | Each node keeps separate CLI, ZeFS, config, reactor, BFD, and RIB state with no cross-node leakage | 3, 5 |

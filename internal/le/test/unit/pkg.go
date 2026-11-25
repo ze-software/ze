@@ -132,7 +132,7 @@ func pkgParameters() []leaction.Parameter {
 	}
 }
 
-// pkgAction is the table row. tc is the toolchain the area resolved for this
+// pkgAction is the table row; its toolchain is what the area resolved for this
 // line; a metadata-only table passes the zero toolchain and never runs it.
 func pkgAction(tc gotoolchain.Toolchain) leaction.Action {
 	return leaction.Action{

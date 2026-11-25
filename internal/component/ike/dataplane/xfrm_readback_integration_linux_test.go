@@ -627,7 +627,7 @@ func TestXFRMReadbackSAAddressFamilies(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		// Ze's state selector API has no port fields; the netlink writer
+		// Ze's state selector API has no port fields; the netlink library writer
 		// supplies exact ports here to exercise the nested selector decoder.
 		state.Selector.SrcPort, state.Selector.DstPort = 4500, 500
 		if err := netlink.XfrmStateAdd(state); err != nil {

@@ -14,7 +14,7 @@
 // by the error's own source (spec-gtsm-related-icmp-quoted-destination AC-1).
 // So the only rule carrying the peer's address in dotted form is the listen
 // rule, which drops a SYN from the peer below the floor and reads the outer
-// source by design (checkGTSMRuleset). nft prints the quoted read as a raw transport payload compare
+// source by design (checkGTSMRuleset). nftables prints the quoted read as a raw transport payload compare
 // (`@th,192,32 0xc0000202`). quotedDestinationRead renders the same form from
 // the peer's address, for the poll and the .ci to assert on.
 
@@ -174,11 +174,11 @@ func hasTokenPair(tokens []string, first, second string) bool {
 	return false
 }
 
-// quotedDestinationRead renders the term nft prints for the quoted-destination
+// quotedDestinationRead renders the term nftables prints for the quoted-destination
 // match of a GTSM peer. The match reads the 4 octets at transport offset 24 of
 // an ICMPv4 error, which is the destination of the IPv4 header the error
 // quotes (lowerICMPErrorQuotedDestinationMatch,
-// internal/plugins/firewall/nft/lower_linux.go). nft has no name for a field
+// internal/plugins/firewall/nft/lower_linux.go). nftables has no name for a field
 // inside a quoted header. So it prints the raw payload read as
 // `@th,<bit offset>,<bit length>`, and the compared value as one big-endian
 // hexadecimal number with no zero padding (`0x6` for one octet of 0x06), so

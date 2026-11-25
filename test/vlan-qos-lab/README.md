@@ -66,7 +66,7 @@ pipeline. Each assertion reads the packet counter produced by the kernel path.
 
 - Linux with network namespace support
 - Root or equivalent `CAP_NET_ADMIN` and `CAP_NET_RAW` capabilities
-- `nft`
+- nftables (nft command)
 
 ## Limitations
 

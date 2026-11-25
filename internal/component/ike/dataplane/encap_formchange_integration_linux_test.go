@@ -23,7 +23,7 @@ import (
 // forms. It is necessary and not sufficient for AC-4, and it differs from this probe in
 // two ways that matter:
 //
-//	1. It installs its state with a netlink literal and re-presents the refused datagram
+//	1. It installs its state with a netlink library literal and re-presents the refused datagram
 //	   BY HAND. So it measures the mechanism and never the shipped code that drives it:
 //	   xfrmBackend.InstallSA, espFormReceiver.Watch and the espFormReceiver.run loop are
 //	   all absent from that path. Nothing in this package runs that loop against a real

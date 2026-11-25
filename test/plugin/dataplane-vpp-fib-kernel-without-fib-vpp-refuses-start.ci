@@ -1,0 +1,32 @@
+# Test: daemon start refuses fib kernel alone (without fib vpp) under interface backend vpp.
+# Question: does `ze start` on a file with `interface backend vpp` and
+#           `fib kernel` alone (no `fib vpp` block) exit 1 before any plugin
+#           starts, naming `fib kernel` and `set fib vpp`?
+#           A unit test exercises the verdict over synthetic registrations;
+#           only a real daemon start proves the composition-root `fib-kernel`
+#           and `fib-vpp` registrations refuse boot ahead of plugin start.
+# VALIDATES: spec-dataplane-compatibility-guard AC-14 (P-1b at start) --
+#            a host-side FIB writer of another plane alone under VPP leaves
+#            VPP's FIB with no route and is refused at daemon start.
+# PREVENTS: a VPP daemon booting with only `fib kernel` and forwarding traffic
+#           with an empty VPP FIB.
+
+option=needs-build-tag:value=ze_vpp:state=present
+
+stdin=ze-bgp:refused=config-plugin-verify:terminator=EOF_CONF
+interface {
+	backend vpp;
+}
+fib {
+	kernel {
+	}
+}
+EOF_CONF
+
+cmd=foreground:seq=1:exec=ze -:stdin=ze-bgp:timeout=30s
+expect=exit:code=1
+expect=stderr:contains=error: load config:
+expect=stderr:contains=fib kernel
+expect=stderr:contains=set fib vpp
+reject=stderr:contains=interface backend loaded
+reject=stderr:pattern=panic

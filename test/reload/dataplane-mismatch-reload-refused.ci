@@ -1,0 +1,148 @@
+# Test: SIGHUP reload changing only interface backend from kernel to vpp beside a kernel firewall is refused and keeps running config active.
+# Question: does a live SIGHUP reload on a running `kernel` daemon with a
+#           kernel `firewall` block that changes only `interface backend` to
+#           `vpp` get refused in `LoadConfig`, keep the running `kernel`
+#           configuration active, and accept a subsequent valid reload?
+#           A unit test calls `LoadConfig` directly; only a running daemon
+#           proves SIGHUP reload rejects the mismatch without disturbing the
+#           running kernel configuration.
+# VALIDATES: spec-dataplane-compatibility-guard AC-13 -- a data-plane
+#            mismatch on reload is refused naming `firewall` and `set firewall
+#            backend vpp`, keeping the running configuration active.
+# PREVENTS: switching `interface backend` to `vpp` via reload while leaving a
+#           kernel firewall active on the wrong data plane.
+
+option=needs-linux:caps=net-admin
+option=needs-build-tag:value=ze_vpp:state=present
+option=timeout:value=40s
+
+stdin=ze-bgp:terminator=EOF_CONF
+bus {
+	endpoint live-stages {
+		external {
+			run "le test fixture reload/live-stages stages.script";
+		}
+		encoding json;
+	}
+}
+interface {
+	backend kernel;
+}
+firewall {
+	backend kernel;
+	table wan {
+		family inet;
+		chain input {
+			type filter;
+			hook input;
+			priority 0;
+			policy accept;
+			term allow-ssh {
+				from {
+					protocol tcp;
+					destination-port 22;
+				}
+				then {
+					accept;
+				}
+			}
+		}
+	}
+}
+EOF_CONF
+
+tmpfs=config2.conf:refused=config-plugin-verify:terminator=EOF_CONF2
+bus {
+	endpoint live-stages {
+		external {
+			run "le test fixture reload/live-stages stages.script";
+		}
+		encoding json;
+	}
+}
+interface {
+	backend vpp;
+}
+firewall {
+	backend kernel;
+	table wan {
+		family inet;
+		chain input {
+			type filter;
+			hook input;
+			priority 0;
+			policy accept;
+			term allow-ssh {
+				from {
+					protocol tcp;
+					destination-port 22;
+				}
+				then {
+					accept;
+				}
+			}
+		}
+	}
+}
+EOF_CONF2
+
+tmpfs=config3.conf:terminator=EOF_CONF3
+bus {
+	endpoint live-stages {
+		external {
+			run "le test fixture reload/live-stages stages.script";
+		}
+		encoding json;
+	}
+}
+environment {
+	log {
+		level debug;
+	}
+}
+interface {
+	backend kernel;
+}
+firewall {
+	backend kernel;
+	table wan {
+		family inet;
+		chain input {
+			type filter;
+			hook input;
+			priority 0;
+			policy accept;
+			term allow-ssh {
+				from {
+					protocol tcp;
+					destination-port 22;
+				}
+				then {
+					accept;
+				}
+			}
+		}
+	}
+}
+EOF_CONF3
+
+tmpfs=stages.script:terminator=EOF_SCRIPT
+reload config2.conf
+has show reload-status => "last-outcome":"failed"
+has show config running => "backend":"kernel"
+lacks show config running => "backend":"vpp"
+say DATAPLANE-MISMATCH-RELOAD: refused reload kept running config
+reload config3.conf
+has show reload-status => "last-outcome":"applied"
+say DATAPLANE-MISMATCH-RELOAD: valid reload applied
+EOF_SCRIPT
+
+cmd=foreground:seq=1:exec=ze -:stdin=ze-bgp:timeout=40s
+expect=exit:code=0
+expect=stderr:contains=reload error:
+expect=stderr:contains=firewall backend
+expect=stderr:contains=set firewall backend vpp
+expect=stderr:contains=DATAPLANE-MISMATCH-RELOAD: refused reload kept running config
+expect=stderr:contains=DATAPLANE-MISMATCH-RELOAD: valid reload applied
+reject=stderr:pattern=LIVE-STAGES line
+reject=stderr:pattern=panic

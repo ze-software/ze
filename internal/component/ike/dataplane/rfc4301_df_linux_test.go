@@ -1,4 +1,4 @@
-// Design: docs/architecture/ike/ipsec-8-ikev2-child-xfrm.md -- XFRM netlink backend
+// Design: docs/architecture/ike/ipsec-8-ikev2-child-xfrm.md -- XFRM kernel backend
 // Related: outer_header.go -- DFTreatment; xfrm_linux.go -- xfrmNoPMTUDisc, the projection under test
 // RFC: rfc/short/rfc4301.md -- Section 8.1 DF bit
 

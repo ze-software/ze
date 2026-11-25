@@ -94,7 +94,7 @@ that original owner. The caller MUST stop admission and join its sessions before
 refuses later opens. Concurrent opens follow the provider's contract.
 <!-- source: internal/component/l2tp/pppoe/dataplane/access.go -- AccessOwner, Access, preparedAccess.Open, preparedAccess.Close -->
 
-Kernel preparation opens one independent `netlink` backend through the iface
+Kernel preparation opens one independent `kernel` backend through the iface
 registry and captures its original `UnitCreator` before discovery or transport
 allocation. Every child keeps that same backend for interface operations and
 ordered unit creation. Shared setup returns the original typed channel and unit;

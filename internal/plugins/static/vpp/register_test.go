@@ -3,11 +3,12 @@
 // PREVENTS: a Backend that ignores its table-id or leaks the GoVPP channel on Close.
 //
 // WIRING (2026-07-10): the parent static plugin selects this backend in
-// newStaticBackend() (`../backend_linux.go`) via newVPPStaticBackend()
-// (`../backend_vpp_linux.go`) when a VPP connector is active, translating each
-// staticRoute through toVPPRoute(). That selection + translation is tested in
-// the parent package's backend_vpp_linux_test.go; this file covers the backend
-// construction surface those callers use (NewBackend table-id wiring, Close).
+// newStaticBackendForDataPlane() (`../backend_linux.go`) via newVPPStaticBackend()
+// (`../backend_vpp_linux.go`) when the configured data plane is "vpp",
+// translating each staticRoute through toVPPRoute(). That selection +
+// translation is tested in the parent package's backend_select_test.go and
+// backend_vpp_linux_test.go; this file covers the backend construction surface
+// those callers use (NewBackend table-id wiring, Close).
 package staticvpp
 
 import (

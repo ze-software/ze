@@ -1,16 +1,16 @@
-# Test: ipv4 { dhcp { enabled true } } is accepted under the default netlink backend
+# Test: ipv4 { dhcp { enabled true } } is accepted under the default kernel backend
 # VALIDATES: the backend feature gate lets a DHCPv4 client through when the
-#            active backend is netlink. Regression guard paired with
+#            active backend is kernel. Regression guard paired with
 #            iface-vpp-rejects-dhcp.
 # PLATFORM: ipv4 is ze:os "linux" in the YANG; schema walker prunes it on
 #           non-linux. This test is linux-only (same as the existing
 #           dhcp-config-enabled.ci in this directory).
 # PREVENTS: accidentally annotating dhcp with the wrong backend name, which
-#           would silently reject valid netlink configs.
+#           would silently reject valid kernel configs.
 option=skip-os:value=darwin
 stdin=config:terminator=EOF_CONF
 interface {
-	backend netlink;
+	backend kernel;
 	ethernet eth0 {
 		mac {
 			address 02:00:00:00:00:99;

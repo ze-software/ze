@@ -3,7 +3,7 @@
 // Related: espform_firewall_kernel_linux.go -- the reader that dumps the kernel ruleset back
 //
 // These proofs judge the rules a stock Ze producer puts in the kernel, not rules
-// written by hand: the producer builds its tables, the nft firewall backend lowers
+// written by hand: the producer builds its tables, the kernel firewall backend lowers
 // and commits them, and the analyzer reads them back through espFormKernelReader,
 // exactly as the fast path's gate does. Each runs in a user and network namespace
 // of its own (userns.Enter), which holds CAP_NET_ADMIN, so it needs no privilege
@@ -26,7 +26,7 @@ import (
 	"github.com/ze-software/ze/internal/component/gtsm"
 	"github.com/ze-software/ze/internal/core/ddosevent"
 	ddoslocal "github.com/ze-software/ze/internal/plugins/ddos/local"
-	_ "github.com/ze-software/ze/internal/plugins/firewall/nft" // registers the nft firewall backend
+	_ "github.com/ze-software/ze/internal/plugins/firewall/nft" // registers the kernel firewall backend
 	"github.com/ze-software/ze/internal/test/userns"
 )
 
@@ -34,7 +34,7 @@ import (
 // IPv4 and an IPv6 peer, leaves the ESP form fast path on. Goal: every rule
 // gtsm.FilterTables yields reads as one bare IPv4 ESP never matches, so the
 // listen-port drop and the related-ICMP drops keep no Child SA off the fast path.
-// Method: the gtsm package builds its table, the nft backend lowers and commits it
+// Method: the gtsm package builds its table, the kernel backend lowers and commits it
 // in the test's own namespace, and the kernel's copy is read back and judged rule
 // by rule (espFormJudgeRule must answer excluded for each) and as a whole
 // ruleset (espFormFirewallBlocks must answer not blocked). The rule count is
@@ -99,7 +99,7 @@ func TestESPFormFirewallStockGTSMKeepsTheFastPathOn(t *testing.T) {
 // claim, whose source lowers to `meta nfproto ipv4` first, which IPv4 ESP matches,
 // passes on harmless selectors and its accept, and the IPv6 claim, which opens with
 // `meta nfproto ipv6`, is excluded. Method: gtsm.FilterTables builds the table from
-// the ranges, the nft backend lowers and commits it in the test's own namespace, and
+// the ranges, the kernel backend lowers and commits it in the test's own namespace, and
 // the kernel's copy is read back. Each kernel rule is paired with the producer term
 // whose name it carries, in order, and judged against the kind that term's name owes
 // (espFWStockGTSMKind: a listen-port drop or the IPv6 claim excluded, the IPv4 claim
@@ -194,25 +194,25 @@ func espFWStockGTSMKind(t *testing.T, name string) espFormRuleKind {
 	return espFormRuleUnspecified
 }
 
-// espFWApplyStock lowers and commits a producer's tables through the nft firewall
+// espFWApplyStock lowers and commits a producer's tables through the kernel firewall
 // backend, in the calling test's namespace, as the firewall registry's ApplyAll
 // would.
 func espFWApplyStock(t *testing.T, tables []firewall.Table) {
 	t.Helper()
-	if err := firewall.LoadBackend("nft"); err != nil {
-		t.Fatalf("load the nft firewall backend: %v", err)
+	if err := firewall.LoadBackend("kernel"); err != nil {
+		t.Fatalf("load the kernel firewall backend: %v", err)
 	}
 	t.Cleanup(func() {
 		if err := firewall.CloseBackend(); err != nil {
-			t.Errorf("close the nft firewall backend: %v", err)
+			t.Errorf("close the kernel firewall backend: %v", err)
 		}
 	})
 	backend := firewall.GetBackend()
 	if backend == nil {
-		t.Fatal("the nft firewall backend loaded, but no backend is active")
+		t.Fatal("the kernel firewall backend loaded, but no backend is active")
 	}
 	if err := backend.Apply(tables); err != nil {
-		t.Fatalf("apply the producer's tables through the nft backend: %v", err)
+		t.Fatalf("apply the producer's tables through the kernel backend: %v", err)
 	}
 }
 
@@ -245,7 +245,7 @@ var espFWStockVictim = netip.MustParsePrefix("192.0.2.1/32")
 // on-host DDoS mitigation for a vector whose protocol has a name leaves the ESP form
 // fast path on. Goal: the drop ddos-local installs reads as one bare IPv4 ESP never
 // matches. Method: local.MitigationTable builds the table applyMitigation installs
-// for a UDP flood on the input hook, the nft backend lowers and commits it in the
+// for a UDP flood on the input hook, the kernel backend lowers and commits it in the
 // test's own namespace, and the kernel's copy is read back and judged rule by rule
 // (excluded) and as a whole ruleset (not blocked), with the rule count checked
 // against the producer's term count.
@@ -368,7 +368,7 @@ func TestESPFormFirewallStockDDoSESPVectorClosesTheFastPath(t *testing.T) {
 	}
 }
 
-// espFWStockLowered commits one producer table through the nft backend and opens
+// espFWStockLowered commits one producer table through the kernel backend and opens
 // the analyzer's reader on the namespace that now holds it.
 func espFWStockLowered(t *testing.T, table firewall.Table) espFormNFTReader {
 	t.Helper()

@@ -1,4 +1,4 @@
-// Design: docs/architecture/policyroute/policy-routing.md -- netlink ip rule and route management
+// Design: docs/architecture/policyroute/policy-routing.md -- rtnetlink ip rule and route management
 // Related: iprule.go -- the rule types and table ranges
 
 package iprule
@@ -82,7 +82,7 @@ func (s Source) Rule() (*netlink.Rule, error) {
 	return rule, nil
 }
 
-// prefixIPNet converts a masked prefix to the net.IPNet the netlink encoder takes,
+// prefixIPNet converts a masked prefix to the net.IPNet the rtnetlink encoder takes,
 // in the prefix's own family width.
 func prefixIPNet(p netip.Prefix) *net.IPNet {
 	bits := p.Addr().BitLen()

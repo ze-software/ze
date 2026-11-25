@@ -8,7 +8,7 @@
 #           ApplyAll, so one kernel table carries two owners' chains.
 stdin=config:terminator=EOF_CONF
 firewall {
-	backend nft;
+	backend kernel;
 	table vrrp_owner_arp {
 		family arp;
 		chain output {

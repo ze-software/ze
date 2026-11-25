@@ -68,7 +68,7 @@ func TestIngressPolicerFilterRefusesUnrepresentableRate(t *testing.T) {
 }
 
 // TestIngressPolicerFilterRefusesBurstlessPolicer checks that a policer the
-// model would refuse never reaches the kernel. A zero burst is accepted by tc
+// model would refuse never reaches the kernel. A zero burst is accepted by traffic control
 // and drops every packet.
 func TestIngressPolicerFilterRefusesBurstlessPolicer(t *testing.T) {
 	if _, err := ingressPolicerFilter(traffic.Policer{RateBps: 1_000_000}, 1); err == nil {

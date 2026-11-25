@@ -19,7 +19,7 @@ import (
 // again: that is the mutation this test exists to catch.
 func TestLoadConfigRefusesTheUnimplementedVRFLeaf(t *testing.T) {
 	const src = `interface {
-	backend netlink;
+	backend kernel;
 	ethernet eth0 {
 		unit 0 {
 			vrf red;
@@ -56,7 +56,7 @@ func TestLoadConfigRefusesTheUnimplementedVRFLeaf(t *testing.T) {
 // leaf and not because the surrounding config is unacceptable.
 func TestLoadConfigAcceptsAUnitWithoutVRF(t *testing.T) {
 	const src = `interface {
-	backend netlink;
+	backend kernel;
 	ethernet eth0 {
 		unit 0 {
 			description "no vrf here";

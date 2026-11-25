@@ -1,12 +1,12 @@
-# Test: tunnel is accepted under the default netlink backend
+# Test: tunnel is accepted under the default kernel backend
 # VALIDATES: the backend feature gate lets tunnel through when the active
-#            backend is netlink. Regression guard paired with
+#            backend is kernel. Regression guard paired with
 #            iface-vpp-rejects-tunnel.
 # PREVENTS: accidentally annotating tunnel with the wrong backend name,
-#           which would silently reject valid netlink configs.
+#           which would silently reject valid kernel configs.
 stdin=config:terminator=EOF_CONF
 interface {
-	backend netlink;
+	backend kernel;
 	tunnel t0 {
 		encapsulation {
 			gre {

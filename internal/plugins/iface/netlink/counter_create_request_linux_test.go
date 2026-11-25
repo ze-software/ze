@@ -490,7 +490,7 @@ func counterCreateCall(t *testing.T, backend *netlinkBackend, request *nl.Netlin
 		CreateLinkCounterReader(*nl.NetlinkRequest) (netlink.Link, func() (*netlink.LinkStatistics, error), bool, error)
 	})
 	if !supported {
-		t.Fatal("netlink backend does not provide the creation-bound counter capability")
+		t.Fatal("kernel interface backend does not provide the creation-bound counter capability")
 	}
 	return creator.CreateLinkCounterReader(request)
 }

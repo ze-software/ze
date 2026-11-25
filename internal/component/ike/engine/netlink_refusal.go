@@ -61,7 +61,7 @@ var (
 	// built, and a kernel without IPv6 policy routing answers EAFNOSUPPORT.
 	sourceRuleRequest = netlinkRequest{family: "NETLINK_ROUTE", feature: "CONFIG_IPV6_MULTIPLE_TABLES", absent: []syscall.Errno{syscall.EAFNOSUPPORT}}
 	// nftRequest is the nf_tables batch that publishes the tunnel-source guard's table
-	// (firewall.ApplyAll, the nft backend, over NETLINK_NETFILTER). A kernel without
+	// (firewall.ApplyAll, the kernel backend, over NETLINK_NETFILTER). A kernel without
 	// nfnetlink refuses the socket EPROTONOSUPPORT, and one without nf_tables acks the
 	// batch EOPNOTSUPP.
 	nftRequest = netlinkRequest{family: "NETLINK_NETFILTER", feature: "CONFIG_NF_TABLES", absent: []syscall.Errno{syscall.EPROTONOSUPPORT, syscall.EOPNOTSUPP}}

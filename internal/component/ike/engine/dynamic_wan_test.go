@@ -395,7 +395,7 @@ func TestInterfaceDeletionStopsPeers(t *testing.T) {
 // not wrap iface.ErrInterfaceNotFound keeps the running peer and its address.
 //
 // RED if readInterfaceAddr took every error as absence, which would take every tunnel
-// down for a transient netlink fault.
+// down for a transient netlink error.
 func TestInterfaceReadFaultKeepsPeers(t *testing.T) {
 	state := applyTestState(t)
 	wan := &fakeInterface{addr: "127.0.0.1"}

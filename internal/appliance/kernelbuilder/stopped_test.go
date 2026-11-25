@@ -37,7 +37,7 @@ func stopCases() []stopCase {
 	}
 }
 
-// checkStopped fails t unless err names the stop as tc says, at stage, and
+// checkStopped fails t unless err names the stop as the case says, at stage, and
 // ends a deadline with next's last line, never with the step's own
 // "signal: killed".
 func checkStopped(t *testing.T, err error, tc stopCase, stage, next string) {

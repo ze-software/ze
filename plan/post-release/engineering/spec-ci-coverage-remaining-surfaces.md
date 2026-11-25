@@ -88,7 +88,7 @@ The PeeringDB producer is `internal/component/bgp/plugins/cmd/peer/prefix_update
 `.ci` needs either a local HTTP stub the command can be pointed at, or a
 recorded fixture. Decide which before writing the case: a test that dials the
 real API is a test whose verdict depends on somebody else's uptime.
-`set interface create` needs a Linux host with netlink, so it wants
+`set interface create` needs a Linux host with a netlink socket, so it wants
 `option=needs-linux` and the netns launch mode.
 
 ### Item 3: no-congestion-initial chaos `.ci`

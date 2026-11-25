@@ -11,6 +11,7 @@ import (
 	fwpkg "github.com/ze-software/ze/internal/component/firewall"
 	fwcmd "github.com/ze-software/ze/internal/component/firewall/cmd"
 	"github.com/ze-software/ze/internal/core/helpfmt"
+	"github.com/ze-software/ze/internal/core/opererr"
 )
 
 // Run executes the firewall subcommand. Returns exit code.
@@ -27,13 +28,19 @@ func Run(args []string) int {
 		return 0
 	}
 
-	if err := fwpkg.LoadBackend("nft"); err != nil {
-		fmt.Fprintf(os.Stderr, "error: load nft backend: %v\n", err)
+	if err := fwpkg.LoadBackend("kernel"); err != nil {
+		msg := opererr.New("load kernel firewall backend: "+err.Error(),
+			"The kernel firewall backend could not be loaded on this host.",
+			"ze doctor")
+		os.Stderr.WriteString("error: " + msg.Error() + "\n") //nolint:errcheck // CLI stderr output
 		return 1
 	}
 	defer func() {
 		if err := fwpkg.CloseBackend(); err != nil {
-			fmt.Fprintf(os.Stderr, "warning: close nft backend: %v\n", err)
+			msg := opererr.New("close kernel firewall backend: "+err.Error(),
+				"The kernel firewall backend handles may not have been released cleanly.",
+				"ze doctor")
+			os.Stderr.WriteString("warning: " + msg.Error() + "\n") //nolint:errcheck // CLI stderr output
 		}
 	}()
 

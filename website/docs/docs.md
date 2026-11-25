@@ -39,7 +39,7 @@ job you are trying to do, then follow the links inside that path.
             <a href="../guides/pppoe/">PPPoE and L2TP <span>access concentration paths</span></a>
             <a href="../guides/ipsec/">Native IPsec <span>configure IKEv2 initiator and responder tunnels</span></a>
             <a href="../guides/monitoring/">Monitoring and diagnostics <span>flow export, MRT, and production checks</span></a>
-            <a href="../guides/debugging-tools/">Debugging tools <span>trace netlink, capture packets, and inspect state</span></a>
+            <a href="../guides/debugging-tools/">Debugging tools <span>trace netlink events, capture packets, and inspect state</span></a>
             <a href="../guides/bgp-peering/">BGP peering <span>groups, families, capabilities, and verification</span></a>
             <a href="../guides/bgp-policy/">BGP policy <span>import, export, validation, and redistribution</span></a>
             <a href="../guides/bgp-resilience/">BGP resilience <span>refresh, GR, persistence, reflection, and multipath</span></a>

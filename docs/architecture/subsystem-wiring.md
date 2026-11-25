@@ -228,7 +228,7 @@ sequenceDiagram
     participant BUS as Bus
     participant BGP as BGPSubsystem (Consumer)
 
-    OS->>IF: netlink RTM_NEWADDR
+    OS->>IF: netlink address RTM_NEWADDR
     IF->>BUS: Publish("interface/addr/added", JSON, metadata)
     BUS->>BGP: Deliver([]Event)
     BGP->>BGP: match peer LocalAddress

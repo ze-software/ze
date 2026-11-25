@@ -1,5 +1,5 @@
-# Test: ze doctor --json reports Linux procfs and netlink readiness failures
-# VALIDATES: AC-11, AC-15, AC-16, and policy route netlink diagnostics are emitted.
+# Test: ze doctor --json reports Linux procfs and netlink socket readiness failures
+# VALIDATES: AC-11, AC-15, AC-16, and policy route netlink socket diagnostics are emitted.
 
 option=skip-os:value=aix,android,darwin,dragonfly,freebsd,illumos,ios,js,netbsd,openbsd,plan9,solaris,wasip1,windows
 option=env:var=ze.test.doctor.procfs-root:value=proc-missing

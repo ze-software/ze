@@ -61,7 +61,7 @@ func TestSAStateScopeOwnsSelectors(t *testing.T) {
 	}
 	value := stateScopeValue(t, state)
 	if !bytes.Equal(value, scopeWirePayload(1, scopeWireSelectors())) {
-		t.Fatalf("netlink state lost its exact scope or its flags: %x", value)
+		t.Fatalf("netlink attribute state lost its exact scope or its flags: %x", value)
 	}
 	if !state.AFUnspec {
 		t.Fatalf("mixed-inner-family flag lost: %+v", state)

@@ -65,7 +65,7 @@ const webGoldenConfig = `bgp {
     }
 }
 interface {
-    backend netlink;
+    backend kernel;
     ethernet eth0 {
         mac {
             address 00:11:22:33:44:55;
@@ -79,7 +79,7 @@ interface {
     }
 }
 firewall {
-    backend nft;
+    backend kernel;
     table golden {
         family inet;
         set blocked {

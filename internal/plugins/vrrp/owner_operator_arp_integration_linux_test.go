@@ -12,7 +12,7 @@ import (
 
 	"github.com/ze-software/ze/internal/component/firewall"
 	"github.com/ze-software/ze/internal/component/iface"
-	_ "github.com/ze-software/ze/internal/plugins/firewall/nft" // registers the nft firewall backend
+	_ "github.com/ze-software/ze/internal/plugins/firewall/nft" // registers the kernel firewall backend
 	"github.com/ze-software/ze/internal/plugins/vrrp/packet"
 	"github.com/ze-software/ze/internal/test/userns"
 )
@@ -35,8 +35,8 @@ func TestVRRPOwnerSurvivesOperatorARPTable(t *testing.T) {
 		return
 	}
 	w := newGatewayWire(t)
-	if err := firewall.LoadBackend("nft"); err != nil {
-		t.Skipf("nft firewall backend unavailable: %v", err)
+	if err := firewall.LoadBackend("kernel"); err != nil {
+		t.Skipf("kernel firewall backend unavailable: %v", err)
 	}
 	t.Cleanup(func() { _ = firewall.CloseBackend() })
 

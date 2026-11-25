@@ -433,7 +433,7 @@ MTU and address errors end the session through Cleanup and reconnect backoff.
 A failed route install logs the destination, gateway and device, keeps PPP up,
 and retries on the next complete result. Failed installs do not claim ownership.
 A failed old-route cleanup retries without blocking installation of the current
-desired gateway. Netlink replaces the fixed default-route prefix and metric slot,
+desired gateway. A netlink route replaces the fixed default-route prefix and metric slot,
 so the worker retains one cleanup request rather than a backlog of replaced gateways.
 An unchanged record makes no backend call when every field is already applied.
 It can retry a previously failed route install or removal.
@@ -568,13 +568,13 @@ Raw reads remain available for explicit wire assertions.
 The installed-state test loads operator configuration through `LoadConfig`.
 The plugin coordinator carries its tree to the production server, which selects
 the interface plugin from its registered config root and delivers its config.
-The registered runner starts the PPPoE reconciler, dialer and netlink backend.
+The registered runner starts the PPPoE reconciler, dialer and kernel backend.
 Both scenarios require exactly one parsed PPPoE entry and one active client,
 read from the first startup delivery through an integration-only observer.
 The test reads the kernel's
 local address, peer, default gateway, route metric, route protocol and MTU.
 It checks both authenticated epochs on the same PPP device. The route observer
-recognizes the explicit zero prefix returned by the netlink decoder.
+recognizes the explicit zero prefix returned by the netlink route decoder.
 <!-- source: internal/component/iface/pppoe_config_integration_linux_test.go -- startPPPoEConfig -->
 <!-- source: internal/component/iface/pppoe_startup_observation_integration_linux.go -- observePPPoEStartup -->
 <!-- source: internal/component/iface/pppoe_kernel_integration_linux_test.go -- TestPPPoEConfigRenegotiatesKernelState, pppoeKernelState -->
@@ -696,7 +696,7 @@ a replacement device.
 The explicit `NewDialer` factory captures a distinct successful backend owner per
 attempt before discovery; it preserves the same original creation, counter and
 native binding contracts. A factory refusal cleans its own partial allocation.
-The established zero Dialer uses the registered netlink factory. No mutable
+The established zero Dialer uses the registered kernel factory. No mutable
 current-backend lookup selects a session's native target.
 
 Native fault tests drive actual CPE Dial and iface workers with their same

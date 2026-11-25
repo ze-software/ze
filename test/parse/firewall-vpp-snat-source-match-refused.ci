@@ -1,0 +1,137 @@
+# Test: snat and masquerade terms with a source-address match are refused under firewall backend vpp.
+# Question: does `ze config validate` refuse `snat` and `masquerade` terms that
+#           carry `from { source-address ... }` under `firewall backend vpp`,
+#           naming table, chain, term and VPP NAT44 whole-interface behavior,
+#           while accepting the same `snat` without `source-address` on `vpp`
+#           and with `source-address` on `kernel`?
+#           A unit test cannot prove the VPP firewall verifier is reached
+#           through `ze config validate` over parsed YANG NAT chains.
+# VALIDATES: spec-dataplane-compatibility-guard AC-6 -- VPP NAT44 applies to
+#            the whole inside interface, so a source-address match on `snat` or
+#            `masquerade` is refused instead of silently ignored.
+# PREVENTS: operators writing a scoped `snat`/`masquerade` under VPP and having
+#           every source on the inside interface translated silently.
+stdin=vpp-snat-src:terminator=EOF_SNAT_SRC
+interface {
+	backend vpp;
+}
+firewall {
+	backend vpp;
+	table nat {
+		family ip;
+		chain postrouting {
+			type nat;
+			hook postrouting;
+			priority 100;
+			policy accept;
+			term lan-snat {
+				from {
+					source-address 10.0.0.0/24;
+				}
+				then {
+					snat {
+						to 198.51.100.1;
+					}
+				}
+			}
+		}
+	}
+}
+EOF_SNAT_SRC
+
+stdin=vpp-masq-src:terminator=EOF_MASQ_SRC
+interface {
+	backend vpp;
+}
+firewall {
+	backend vpp;
+	table nat {
+		family ip;
+		chain postrouting {
+			type nat;
+			hook postrouting;
+			priority 100;
+			policy accept;
+			term lan-masq {
+				from {
+					source-address 10.0.0.0/24;
+				}
+				then {
+					masquerade;
+				}
+			}
+		}
+	}
+}
+EOF_MASQ_SRC
+
+stdin=vpp-snat-ok:terminator=EOF_VPP_OK
+interface {
+	backend vpp;
+}
+firewall {
+	backend vpp;
+	table nat {
+		family ip;
+		chain postrouting {
+			type nat;
+			hook postrouting;
+			priority 100;
+			policy accept;
+			term all-snat {
+				then {
+					snat {
+						to 198.51.100.1;
+					}
+				}
+			}
+		}
+	}
+}
+EOF_VPP_OK
+
+stdin=kernel-snat-src:terminator=EOF_KERN_OK
+interface {
+	backend kernel;
+}
+firewall {
+	backend kernel;
+	table nat {
+		family ip;
+		chain postrouting {
+			type nat;
+			hook postrouting;
+			priority 100;
+			policy accept;
+			term lan-snat {
+				from {
+					source-address 10.0.0.0/24;
+				}
+				then {
+					snat {
+						to 198.51.100.1;
+					}
+				}
+			}
+		}
+	}
+}
+EOF_KERN_OK
+
+cmd=foreground:seq=1:exec=ze config validate -:stdin=vpp-snat-src
+expect=exit:code=1
+expect=stdout:contains=table "ze_nat" chain "postrouting" term "lan-snat"
+expect=stdout:contains=VPP NAT44 applies to the whole inside interface
+
+cmd=foreground:seq=2:exec=ze config validate -:stdin=vpp-masq-src
+expect=exit:code=1
+expect=stdout:contains=table "ze_nat" chain "postrouting" term "lan-masq"
+expect=stdout:contains=VPP NAT44 applies to the whole inside interface
+
+cmd=foreground:seq=3:exec=ze config validate -:stdin=vpp-snat-ok
+expect=exit:code=0
+expect=stdout:contains=configuration valid
+
+cmd=foreground:seq=4:exec=ze config validate -:stdin=kernel-snat-src
+expect=exit:code=0
+expect=stdout:contains=configuration valid

@@ -60,12 +60,11 @@ func startEphemeralDaemon(configPath, host, port string, extraArgs []string) (*o
 
 	daemonEnv := append(os.Environ(), "ZE_SSH_EPHEMERAL="+sshAddrFile, "ZE_CONFIG_DIR="+resolve.StoreDir(configPath))
 
-	argv := make([]string, 0, 1+len(extraArgs)+1)
-	argv = append(argv, exe, "start")
-	argv = append(argv, extraArgs...)
+	var regularConfigPath string
 	if info, err := os.Stat(configPath); err == nil && info.Mode().IsRegular() {
-		argv = append(argv, configPath)
+		regularConfigPath = configPath
 	}
+	argv := ephemeralDaemonArgv(exe, extraArgs, regularConfigPath)
 
 	proc, err := os.StartProcess(exe, argv, &os.ProcAttr{
 		Env:   daemonEnv,
@@ -100,6 +99,27 @@ func startEphemeralDaemon(configPath, host, port string, extraArgs []string) (*o
 	}
 	os.Remove(sshAddrFile) //nolint:errcheck // best-effort cleanup of temp file
 	return nil, "", fmt.Errorf("ephemeral daemon failed to start within %v", ephemeralPollTimeout)
+}
+
+// ephemeralDaemonArgv builds the argv for the background ze daemon that
+// startEphemeralDaemon spawns. The ephemeral daemon is a second process whose
+// dispatcher records only what its argv carries (AC-18), so each recorded
+// command-line plugin is forwarded as a global `--plugin <name>` pair in
+// record order before `start`. With an empty record, the argv is identical to
+// the plain `<exe> start [extraArgs...] [configPath]` form.
+func ephemeralDaemonArgv(exe string, extraArgs []string, configPath string) []string {
+	plugins := config.CommandLinePlugins()
+	argv := make([]string, 0, 2+2*len(plugins)+len(extraArgs)+1)
+	argv = append(argv, exe)
+	for _, pluginName := range plugins {
+		argv = append(argv, "--plugin", pluginName)
+	}
+	argv = append(argv, "start")
+	argv = append(argv, extraArgs...)
+	if configPath != "" {
+		argv = append(argv, configPath)
+	}
+	return argv
 }
 
 // probeAddr dials a host:port address to check reachability.

@@ -13,7 +13,7 @@ import (
 )
 
 const setFlagFirewall = `firewall {
-    backend nft;
+    backend kernel;
     table flags { family inet; chain input {
         type filter; hook input; priority 0; policy drop;
         term allow { from { protocol tcp; destination-port 179; } }

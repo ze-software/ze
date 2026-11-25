@@ -2,7 +2,7 @@
 
 // Design: docs/architecture/diagnostics/active-probes.md
 // Linux is Ze's IPv4 forwarding and ICMP-error producer. These tests enter an
-// isolated namespace, configure links through Ze's netlink backend, inject
+// isolated namespace, configure links through Ze's kernel backend, inject
 // Ethernet frames, and inspect both the return path and the forwarding path.
 package vrrp
 
@@ -58,7 +58,7 @@ func newGatewayWire(t *testing.T) gatewayWire {
 		_ = original.Close()
 		runtime.UnlockOSThread()
 	})
-	if err := iface.LoadBackend("netlink"); err != nil {
+	if err := iface.LoadBackend("kernel"); err != nil {
 		t.Fatal(err)
 	}
 	t.Cleanup(func() { _ = iface.CloseBackend() })

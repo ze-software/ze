@@ -80,7 +80,7 @@ addresses it backs:
 
 ```
 interface {
-    backend netlink;
+    backend kernel;
     ethernet eth0 {
         unit 0 {
             ipv4 {
@@ -476,7 +476,7 @@ and security surface. Apart from tracking, failover is driven by VRRP's own
 triggers: loss of the Active router's adverts, carrier loss on the VRRP
 interface, or a graceful stop.
 
-**Netlink backend only.** VRRP needs macvlan devices and raw sockets, which the
+**Kernel backend only.** VRRP needs macvlan devices and raw sockets, which the
 VPP backend does not provide. A VPP-backed config carrying a VRRP group is
 rejected at validation rather than started in a degraded state.
 
@@ -495,10 +495,9 @@ filters link-local multicast will break the election.
 | Code | Meaning |
 |------|---------|
 | `doctor-vrrp-config-invalid` | A cross-leaf rule was broken (for example `accept-mode` with `version 2`, or `track` on the address-owner group). |
-| `doctor-vrrp-backend-unusable` | The tree configures VRRP on a backend that cannot run it. |
 | `doctor-vrrp-raw-socket` | The raw socket VRRP needs cannot be opened, usually missing `CAP_NET_RAW`. On a host that is not Linux the transport cannot run at all, and the message names the host's OS. |
 
-Run `ze show diagnostic <code>` for the remediation.
+A VPP-backed tree carrying a VRRP group is reported under `doctor-dataplane-mismatch` by the config component's data-plane check. Run `ze show diagnostic <code>` for the remediation.
 
 <!-- source: internal/plugins/vrrp/yang/ze-vrrp-conf.yang -- config surface -->
 <!-- source: internal/plugins/vrrp/groups.go -- cross-leaf verifier and its messages -->

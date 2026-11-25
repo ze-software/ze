@@ -55,7 +55,7 @@ var (
 )
 
 // TestServerNativeIPv6CarrierFollowsOriginalUnit admits a subscriber through
-// the production discovery handlers over the real netlink access, then gives
+// the production discovery handlers over the real kernel access, then gives
 // the session's pppN name to a new dummy link.
 //
 // VALIDATES: the kernel session opens its RA and DHCPv6 sockets from the
@@ -195,7 +195,7 @@ func newServerV6Fixture(t *testing.T) *serverV6Fixture {
 func startServerV6Fixture(t *testing.T, config string, framedRoutes []l2tpevents.FramedRoute) *serverV6Fixture {
 	t.Helper()
 	serverV6Defaults(t)
-	if err := iface.LoadBackend("netlink"); err != nil {
+	if err := iface.LoadBackend("kernel"); err != nil {
 		t.Fatal(err)
 	}
 	t.Cleanup(func() {
@@ -218,7 +218,7 @@ func startServerV6Fixture(t *testing.T, config string, framedRoutes []l2tpevents
 	}
 	accesses, err := prepareAccessConfiguration(t.Context(), backend, p.Interfaces, nil)
 	if err != nil {
-		t.Fatalf("prepare the real netlink access: %v", err)
+		t.Fatalf("prepare the real kernel access: %v", err)
 	}
 	t.Cleanup(func() {
 		if err := closeAccessConfiguration(accesses.accesses, nil); err != nil {

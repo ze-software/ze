@@ -28,7 +28,7 @@ func reconcileForTest(dp dataplane.Dataplane, previous, next map[string]ipsec.SP
 
 // errSPDRemoveRefusedByTest is the dataplane's answer to a refused removal. It is none
 // of the answers policyGone reads as a policy already gone.
-var errSPDRemoveRefusedByTest = errors.New("netlink: operation not permitted")
+var errSPDRemoveRefusedByTest = errors.New("netlink error: operation not permitted")
 
 // outboundOf answers the outbound policy of entry.
 func outboundOf(t *testing.T, entry ipsec.SPDPolicy) dataplane.SPParams {

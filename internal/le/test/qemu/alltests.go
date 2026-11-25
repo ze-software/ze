@@ -18,7 +18,7 @@
 // include the //go:build linux files that never compile on a macOS dev box. The
 // installer tests are behind ze_installer, a personality tag no other phase's
 // tag set names, so nothing else in the tree compiles them. The integration
-// tests are the VM's whole reason for existing. They exercise netlink, nft, fib
+// tests are the VM's whole reason for existing. They exercise netlink sockets, nftables, fib
 // and procfs code paths that need a real kernel.
 //
 // THE SUITE LIST IS CHECKED AGAINST THE ONE THE REPOSITORY DECLARES. A run whose

@@ -1,7 +1,7 @@
 # Test: does the offline JSON CLI retain a missing-backend host refusal?
 # Why not a unit test: the shipped binary must link the interface verifier,
 # local-data registry and JSON renderer, preserving both verdict and exit code.
-# Linux has a default netlink backend, so this question applies to other hosts.
+# Linux has a default kernel backend, so this question applies to other hosts.
 
 option=skip-os:value=linux
 

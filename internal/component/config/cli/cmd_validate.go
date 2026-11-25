@@ -292,7 +292,7 @@ func cmdValidate(args []string) int {
 		p := helpfmt.Page{
 			Command:   "ze config validate",
 			ShortHelp: "Validate a ze configuration file",
-			Usage:     []string{"ze config validate [options] <config-file>"},
+			Usage:     []string{"ze [--plugin <name>]... config validate [options] <config-file>"},
 			Sections: []helpfmt.HelpSection{
 				{Title: helpSectionOptions, Entries: []helpfmt.HelpEntry{
 					{Name: "-v", Desc: "Verbose output"},
@@ -300,6 +300,9 @@ func cmdValidate(args []string) int {
 					{Name: "--pending", Desc: "Validate pending draft config"},
 					{Name: "--limit <section>", Desc: "Limit validation to section (environment)"},
 					accountOptionHelp(),
+				}},
+				{Title: "Global options", Entries: []helpfmt.HelpEntry{
+					{Name: "--plugin <name>", Desc: "Global option placed before config validate; honored when judging the config (repeatable)"},
 				}},
 				{Title: "Limit values", Entries: []helpfmt.HelpEntry{
 					{Name: "environment", Desc: "Validate environment variables only (no config file needed)"},
@@ -315,6 +318,7 @@ func cmdValidate(args []string) int {
 				"ze config validate -v config.conf       # verbose output",
 				"ze config validate -q config.conf       # quiet mode",
 				"ze config validate --limit environment  # validate env vars only",
+				"ze --plugin ze.flowspec-firewall config validate config.conf",
 			},
 		}
 		p.WriteErr()

@@ -129,7 +129,7 @@ func TestDoctorRAForwarding(t *testing.T) {
 	})
 
 	t.Run("silent on the vpp backend", func(t *testing.T) {
-		// The container is netlink-only, so a vpp tree carries no sender whose
+		// The container is kernel-only, so a vpp tree carries no sender whose
 		// forwarding state would matter.
 		got := runForwardingCheck(t, raTree(t, "ethernet", "eth0", true, "vpp"), map[string]bool{"eth0": false})
 		assert.Empty(t, got)

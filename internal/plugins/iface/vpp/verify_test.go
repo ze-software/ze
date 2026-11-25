@@ -26,14 +26,14 @@ func TestHandleVPPTraceStart_InvalidNodeName(t *testing.T) {
 
 // TestVPPCreateMacvlanRejects verifies AC-8: the VPP backend rejects
 // CreateMacvlanDevice fail-closed (exact-or-reject), naming the backend and the
-// device, and pointing the operator at the netlink backend -- never a silent
-// netlink-only approximation.
+// device, and pointing the operator at the kernel backend -- never a silent
+// kernel-only approximation.
 func TestVPPCreateMacvlanRejects(t *testing.T) {
 	b := &vppBackendImpl{names: newNameMap()}
 	err := b.CreateMacvlanDevice(iface.MacvlanSpec{Name: "zv4-2-10", Parent: "eth0", MAC: "00:00:5e:00:01:0a"})
 	require.Error(t, err)
 	require.Contains(t, err.Error(), "VPP backend")
-	require.Contains(t, err.Error(), "netlink backend")
+	require.Contains(t, err.Error(), "kernel backend")
 	require.Contains(t, err.Error(), "zv4-2-10")
 }
 
@@ -77,7 +77,7 @@ func TestSetupLCPPairCollision(t *testing.T) {
 }
 
 // TestSetupMirrorRejectsNoDirection verifies at-least-one-of ingress/egress,
-// matching the netlink backend's errIfaceMirrorAtLeastOneOf.
+// matching the kernel backend's errIfaceMirrorAtLeastOneOf.
 // VALIDATES: AC-4 -- no silent no-op mirror.
 func TestSetupMirrorRejectsNoDirection(t *testing.T) {
 	ch := &progChannel{}
@@ -197,7 +197,7 @@ func TestCreateTunnelLocalInterfaceRejected(t *testing.T) {
 // config verify refusal: a gre, gretap, ipip or vxlan spec whose remote is
 // 0.0.0.0 reaches CreateTunnel and is refused with the operator error
 // iface.TunnelSpec.CheckRemote builds, before any VPP request is sent.
-// VALIDATES: the VPP backend refuses what the netlink backend refuses.
+// VALIDATES: the VPP backend refuses what the kernel backend refuses.
 // PREVENTS: a VPP tunnel to the unspecified address when a spec bypasses verify.
 func TestCreateTunnelRefusesAnUnspecifiedRemote(t *testing.T) {
 	for _, kind := range []iface.TunnelKind{iface.TunnelKindGRE, iface.TunnelKindGRETap, iface.TunnelKindIPIP, iface.TunnelKindVxlan} {
@@ -228,9 +228,9 @@ func TestCreateTunnelUnsupportedKind(t *testing.T) {
 		kind iface.TunnelKind
 		want string
 	}{
-		{"unsupported", iface.TunnelKindSIT, "ifacevpp: CreateTunnel kind sit (netlink-only on this backend) not supported on VPP backend"},
-		{"unset", iface.TunnelKindUnknown, "ifacevpp: CreateTunnel kind unknown (netlink-only on this backend) not supported on VPP backend"},
-		{"unknown", iface.TunnelKind(99), "ifacevpp: CreateTunnel kind unknown (netlink-only on this backend) not supported on VPP backend"},
+		{"unsupported", iface.TunnelKindSIT, "ifacevpp: CreateTunnel kind sit (kernel-only on this backend) not supported on VPP backend"},
+		{"unset", iface.TunnelKindUnknown, "ifacevpp: CreateTunnel kind unknown (kernel-only on this backend) not supported on VPP backend"},
+		{"unknown", iface.TunnelKind(99), "ifacevpp: CreateTunnel kind unknown (kernel-only on this backend) not supported on VPP backend"},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			ch := &progChannel{}

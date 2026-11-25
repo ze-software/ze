@@ -384,7 +384,7 @@ func StagedZePath(root string, binaries []LabBinary) string {
 }
 
 // kernelProbeContainer is the probe container. It grants NET_ADMIN
-// for the netlink probes and SYS_ADMIN for the probes that unshare a network
+// for the netlink socket probes and SYS_ADMIN for the probes that unshare a network
 // namespace, gives the container its own network so nothing it creates
 // reaches the host's, and passes /dev/net/tun (TUNDeviceArguments) for the
 // SRv6 TUN behavioral probe. On a daemon applying AppArmor it runs under Ze's

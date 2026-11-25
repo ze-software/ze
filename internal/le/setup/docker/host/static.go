@@ -47,7 +47,7 @@ var safeFileName = regexp.MustCompile(`^[A-Za-z0-9][A-Za-z0-9._+-]*$`)
 // staticRecipe builds the guest's administration and networking tools as
 // fully static musl binaries in the pinned Alpine builder, a build tool only
 // (D-13, A-12). OpenSSH omits OpenSSL (A-7), sudo omits PAM, and iptables
-// retains the legacy backend (A-5, D-5). nft uses bundled mini-GMP and its
+// retains the legacy backend (A-5, D-5). The nft binary uses bundled mini-GMP and its
 // noninteractive text interface. libtool needs its own -all-static rather
 // than -static. The sources arrive sum-checked in /in, never fetched here.
 const staticRecipe = `set -eux

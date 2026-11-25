@@ -62,11 +62,11 @@ func TestNetlinkFaultOfClassifiesTheKernelAnswer(t *testing.T) {
 		{"rule EACCES", sourceRuleRequest, rule(syscall.EACCES), netlinkFaultSecurityModule},
 		{"rule EPROTONOSUPPORT", sourceRuleRequest, rule(syscall.EPROTONOSUPPORT), netlinkFaultUnknown},
 		{"rule EINVAL", sourceRuleRequest, rule(syscall.EINVAL), netlinkFaultUnknown},
-		{"nft EPERM", nftRequest, flush(syscall.EPERM), netlinkFaultCapability},
-		{"nft EPROTONOSUPPORT", nftRequest, fmt.Errorf("firewallnft: open netlink: %w", syscall.EPROTONOSUPPORT), netlinkFaultKernel},
-		{"nft EOPNOTSUPP", nftRequest, flush(syscall.EOPNOTSUPP), netlinkFaultKernel},
-		{"nft EACCES", nftRequest, flush(syscall.EACCES), netlinkFaultSecurityModule},
-		{"nft EINVAL", nftRequest, flush(syscall.EINVAL), netlinkFaultUnknown},
+		{"nftables EPERM", nftRequest, flush(syscall.EPERM), netlinkFaultCapability},
+		{"nftables EPROTONOSUPPORT", nftRequest, fmt.Errorf("firewallnft: open netlink socket: %w", syscall.EPROTONOSUPPORT), netlinkFaultKernel},
+		{"nftables EOPNOTSUPP", nftRequest, flush(syscall.EOPNOTSUPP), netlinkFaultKernel},
+		{"nftables EACCES", nftRequest, flush(syscall.EACCES), netlinkFaultSecurityModule},
+		{"nftables EINVAL", nftRequest, flush(syscall.EINVAL), netlinkFaultUnknown},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
@@ -250,7 +250,7 @@ func TestSPDSitesNameTheKernelAnswer(t *testing.T) {
 				t.Errorf("the text does not name the kernel option: %q", got.text)
 			}
 			if strings.Contains(got.text, "CAP_NET_ADMIN") {
-				t.Errorf("a kernel without XFRM netlink is sent after a capability: %q", got.text)
+				t.Errorf("a kernel without XFRM netlink protocol is sent after a capability: %q", got.text)
 			}
 			if got.fix != "" && got.fix != kernelFix {
 				t.Errorf("fix = %q, want %q", got.fix, kernelFix)
@@ -277,7 +277,7 @@ func TestSPDSitesNameTheKernelAnswer(t *testing.T) {
 
 // VALIDATES: the tunnel-source guard's two log lines name the cause of their own
 // producer: an IPv6 rule refused EAFNOSUPPORT names CONFIG_IPV6_MULTIPLE_TABLES, and
-// an nft publish acked EOPNOTSUPP names CONFIG_NF_TABLES, neither a capability.
+// an nftables publish acked EOPNOTSUPP names CONFIG_NF_TABLES, neither a capability.
 // METHOD: fail the recorder's rule install, then its publish, and read the log.
 // PREVENTS: "the daemon needs CAP_NET_ADMIN" logged for a kernel without the feature.
 func TestSourceGuardLogNamesTheKernelAnswer(t *testing.T) {

@@ -27,7 +27,7 @@ option=skip-os:value=darwin
 
 stdin=interval:terminator=EOF_INTERVAL
 interface {
-	backend netlink;
+	backend kernel;
 	ethernet eth0 {
 		unit 0 {
 			ipv6 {
@@ -44,7 +44,7 @@ EOF_INTERVAL
 
 stdin=lifetime:terminator=EOF_LIFETIME
 interface {
-	backend netlink;
+	backend kernel;
 	ethernet eth0 {
 		unit 0 {
 			ipv6 {
@@ -61,7 +61,7 @@ EOF_LIFETIME
 
 stdin=prefix-lifetime:terminator=EOF_PREFIX_LIFETIME
 interface {
-	backend netlink;
+	backend kernel;
 	ethernet eth0 {
 		unit 0 {
 			ipv6 {
@@ -80,7 +80,7 @@ EOF_PREFIX_LIFETIME
 
 stdin=link-local:terminator=EOF_LINK_LOCAL
 interface {
-	backend netlink;
+	backend kernel;
 	ethernet eth0 {
 		unit 0 {
 			ipv6 {

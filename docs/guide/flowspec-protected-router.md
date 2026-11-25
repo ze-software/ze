@@ -2,14 +2,14 @@
 
 Use this when a Ze router receives BGP FlowSpec rules and should turn them into nftables filters, while also protecting its own BGP control plane from connection floods.
 
-The example enables the nft firewall backend, starts the `flowspec-firewall` bridge plugin, accepts FlowSpec from an iBGP route reflector, and adds a conservative control-plane policing rule for TCP/179.
+The example enables the kernel firewall backend, starts the `flowspec-firewall` bridge plugin, accepts FlowSpec from an iBGP route reflector, and adds a conservative control-plane policing rule for TCP/179.
 
 <!-- source: internal/plugins/flowspec-firewall/register.go -- plugin name and firewall dependency -->
 <!-- source: internal/plugins/flowspec-firewall/engine.go -- FlowSpec event subscriptions and firewall apply -->
 <!-- source: internal/plugins/flowspec-firewall/state.go -- generated nft table and chain names -->
 <!-- source: internal/plugins/copp/yang/ze-copp-conf.yang -- control-plane-protection bgp -->
 <!-- source: internal/plugins/ddos/flowspec/yang/ze-ddos-flowspec-conf.yang -- ddos flowspec config -->
-<!-- source: docs/guide/firewall.md -- nft firewall backend -->
+<!-- source: docs/guide/firewall.md -- kernel firewall backend -->
 
 ## 1. Start from an installed Ze node
 
@@ -40,7 +40,7 @@ sudo /usr/local/bin/ze config cat edge-01.conf | /usr/local/bin/ze config migrat
 cat >>"$CONFIG_SET" <<'EOF'
 set bus endpoint flowspec-firewall internal flowspec-firewall
 
-set firewall backend nft
+set firewall backend kernel
 
 set control-plane-protection bgp rate 100/second
 set control-plane-protection bgp burst 20
@@ -93,7 +93,7 @@ What each block does:
 | Config | Purpose |
 | --- | --- |
 | `plugin internal flowspec-firewall` | Starts the bridge and subscribes to validated BGP RIB best-path changes. |
-| `firewall backend nft` | Uses Linux nftables as the firewall backend. |
+| `firewall backend kernel` | Uses Linux nftables as the firewall backend. |
 | `control-plane-protection bgp` | Accepts TCP to the protected BGP port from configured BGP neighbors only, drops every other source, and rate-limits new connections from the neighbors. |
 | `trusted-source` | Accepts a source that is not a configured BGP neighbor, such as a monitoring host, and never rate-limits it. |
 | `family ipv4/flow` | Negotiates IPv4 FlowSpec with the route reflector. |
@@ -215,7 +215,7 @@ A selected traffic-rate-packets community (`0x800c`) with value zero requests
 discard of every matching packet, not an absent limiter or normal forwarding.
 This is distinct from the zero byte-rate community (`0x8006`). The Linux
 test `TestSelectedFlowSpecZeroPacketRateKernel` enters at the selected-route
-callback and uses the real nft backend in its own user and network namespaces.
+callback and uses the real kernel firewall backend in its own user and network namespaces.
 It asserts four target UDP drops, an installed-rule counter of four
 packets and 116 bytes, delivery to an unaffected destination, and restored
 target delivery after positive-rate replacement. It then reinstalls zero,

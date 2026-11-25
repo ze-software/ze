@@ -24,7 +24,7 @@
 #   Backup, or ->Master action missing); or a removed group leaking its macvlan
 #   and VIP in the kernel (teardown path broken / apply-diff not deleting).
 #
-# option=needs-linux: macvlan creation, raw sockets and netlink VIP install do
+# option=needs-linux: macvlan creation, raw sockets and netlink address VIP install do
 # not exist on darwin. Runs as root in the QEMU Linux VM.
 # `le test fixture vrrp/vrrp-instance-up-setup` builds a throwaway veth parent so
 # the macvlan hangs off a real multicast-capable device and the VIP lands there
@@ -51,7 +51,7 @@ option=exclusive:group=iface-owned-macvlan
 
 stdin=ze-bgp:terminator=EOF_CONF
 interface {
-	backend netlink;
+	backend kernel;
 	ethernet zept0 {
 		unit 0 {
 			ipv4 {

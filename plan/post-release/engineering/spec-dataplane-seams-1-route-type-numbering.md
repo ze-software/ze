@@ -76,7 +76,7 @@ out-of-tree plugin authors who cannot be migrated.
 |----------|-----|----------|
 | sysrib ↔ in-process FIB plugin | Go typed payload | No |
 | sysrib ↔ external FIB plugin process | JSON `route-type` field | No |
-| fibkernel ↔ kernel | netlink `rtm_type` | No |
+| fibkernel ↔ kernel | netlink message `rtm_type` | No |
 
 ### Integration Points
 - `internal/component/sysrib/events` - where the type is declared

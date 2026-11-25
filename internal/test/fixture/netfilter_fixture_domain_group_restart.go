@@ -69,7 +69,7 @@ func domainGroupRestartConfig() string {
 	dns { resolv-conf-path ""; }
 }
 firewall {
-	backend nft;
+	backend kernel;
 	domain-group ` + domainGroupRestartLong + ` {
 		domain-names [ ` + domainGroupRestartLongName + ` ];
 		ttl-floor 3600;

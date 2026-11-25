@@ -129,18 +129,3 @@ func TestApplyConfigRollsBackIPv6RPF(t *testing.T) {
 	assert.Equal(t, []RPFCheck{{Interface: "dum0", Mode: RPFLoose}}, b.rpf6Calls[n-2])
 	assert.Equal(t, []RPFCheck{{Interface: "dum0", Mode: RPFStrict}}, b.rpf6Calls[n-1], "rollback restores the previous set")
 }
-
-// VALIDATES: the vpp backend refuses an ipv6 rpf-check at commit, naming the
-// leaf, and the netlink backend accepts it. VPP forwards outside netfilter,
-// and VPP's own uRPF drops every unicast packet from a link-local source, so
-// the vpp backend refuses the check rather than break neighbor discovery.
-// METHOD: the real schema's ze:backend gate over one config per backend.
-func TestBackendGateIPv6RPFCheck(t *testing.T) {
-	data := func(backend string) string {
-		return `{"interface":{"backend":"` + backend + `","ethernet":{"xe0":{"name":"xe0","unit":{"u0":{"name":"u0","ipv6":{"rpf-check":"strict"}}}}}}}`
-	}
-	err := validateBackendGate(gateSection(data("vpp")), "vpp")
-	require.Error(t, err, "vpp must refuse ipv6 rpf-check")
-	assert.Contains(t, err.Error(), "rpf-check")
-	assert.NoError(t, validateBackendGate(gateSection(data("netlink")), "netlink"))
-}

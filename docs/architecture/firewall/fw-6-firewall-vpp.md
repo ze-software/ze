@@ -1,12 +1,12 @@
 # VPP Firewall Backend
 
-A second firewall backend beside nft, registered as
+A second firewall backend beside kernel, registered as
 `firewall.RegisterBackend("vpp", ...)`, translating ze `Match` and `Action` types
 to VPP ACL rules.
 
 ## What VPP programs, everything else rejected at commit
 
-<!-- source: internal/plugins/firewall/vpp/verify.go -- Verify, verifyNATChain, verifyAction, verifyClassifyConstraints -->
+<!-- source: internal/plugins/firewall/vpp/verify.go -- Verify, verifyNATChain, verifyNATSourceMatches, verifyAction, verifyClassifyConstraints -->
 <!-- source: internal/component/firewall/backend.go -- Verifier, RegisterVerifier, RunVerifier -->
 
 A filter chain lowers to VPP's ACL plugin, which covers source and destination
@@ -19,8 +19,9 @@ Two things beyond the ACL plugin are accepted and programmed:
   `dnat` and `masquerade` are accepted there, IPv4 only. `snat` adds its
   address range to the NAT44 pool and marks every VPP interface as inside;
   `masquerade` marks every VPP interface as a NAT44 output interface. Both
-  apply to all traffic, so a term carrying either may match on source address
-  only, which is accepted and does not narrow anything. `dnat` becomes one
+  apply to the whole inside interface, so a term carrying either with a
+  source-address match is refused naming table, chain and term, with the fix to
+  delete the match or use `firewall backend kernel`. `dnat` becomes one
   static mapping and needs a protocol match and a destination port match to
   name it; destination and source address matches are accepted with it. A
   `masquerade` with a port mapping or flags, an IPv6 NAT address, a NAT chain
@@ -29,9 +30,11 @@ Two things beyond the ACL plugin are accepted and programmed:
   it belongs in.
 - **`set-mark` and `limit`, in a filter chain, through a VPP classify table.**
   `set-mark` sets the session's metadata and `limit` binds the session to a
-  policer. The classify key is an exact IPv4 header match, so a term carrying
-  either is refused when it has a port range rather than one port, or an IPv6
-  address match, and a term carrying both is refused.
+  policer. `mark-set` carries no `ze:backend` annotation, so operator firewall
+  rules reach the VPP verifier directly. The classify key is an exact IPv4
+  header match, so a term carrying either is refused when it has a port range
+  rather than one port, or an IPv6 address match, and a term carrying both is
+  refused.
 
 <!-- source: internal/plugins/firewall/vpp/nat_linux.go -- applyNATChain, applyMasquerade, applySNAT, buildDNATMapping -->
 <!-- source: internal/plugins/firewall/vpp/classify_linux.go -- applyClassifyActions, applyTermClassify -->
@@ -44,15 +47,21 @@ chains, jump, goto, return). This is exact-or-reject
 (`ai/rules/protocol.md`). A conntrack helper (`system conntrack module`, which
 lowers to `ct helper` objects and `ct helper set` assignments in the
 `ze_conntrack_helpers` tables) is refused too: VPP has no conntrack helper or
-ALG, so the helper would never see a connection.
+ALG, so the helper would never see a connection. `flow-offload` carries no
+`ze:backend` annotation of its own, yet stays refused on VPP because the action
+must name a flowtable its table declares and the `flowtable` list carries
+`ze:backend "kernel"`, which the commit-time walk refuses before the verifier
+runs.
 
 The `destination-local` match (`MatchDestinationLocal`, a destination address
 this router holds) is refused as well: a VPP ACL rule matches a fixed prefix
-and has no lookup of the router's own addresses. The refusal names the nft
+and has no lookup of the router's own addresses. The refusal names the kernel
 backend, or `destination-address` with the router's addresses written out.
 
 `MatchConnState` maps to `PERMIT_REFLECT` for established and related only.
-`ConnStateNew` and `ConnStateInvalid` have no VPP ACL equivalent and are
+`connection-state` carries no `ze:backend` annotation, so operator firewall
+rules reach `verifyConnState` directly: established and related are accepted,
+while `ConnStateNew` and `ConnStateInvalid` have no VPP ACL equivalent and are
 rejected.
 
 The firewall component gained the per-backend verifier for this, matching the
@@ -70,7 +79,7 @@ The VPP manager starts from `OnStarted`; putting both components in one tier
 would make firewall configuration wait for a connection whose manager cannot
 start until that configuration returns.
 
-This ordering does not load VPP for an nft-only configuration: the need holds
+This ordering does not load VPP for a kernel-only configuration: the need holds
 only when the backend leaf is `vpp`, and then dependency resolution pulls the
 VPP component even with no `vpp {}` block. A build without `ze_vpp` refuses
 `firewall backend vpp` at validate, commit and boot, naming the tag. Connection

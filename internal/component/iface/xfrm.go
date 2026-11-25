@@ -24,7 +24,7 @@ type XFRMPolicyInfo struct {
 }
 
 // XFRMInfo carries runtime information about an XFRM interface queried from
-// netlink. Used by show commands to display if_id and bound policies even
+// the netlink socket. Used by show commands to display if_id and bound policies even
 // for interfaces not managed by Ze's config. ParentDev is the resolved name
 // of the parent device (empty when unbound). Addresses are the IP addresses
 // assigned to the interface, used by ze init to emit a complete config block

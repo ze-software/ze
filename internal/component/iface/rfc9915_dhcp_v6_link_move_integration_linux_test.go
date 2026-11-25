@@ -39,8 +39,8 @@ var v6lmPrefix = &net.IPNet{IP: net.ParseIP("2001:db8:60::"), Mask: net.CIDRMask
 // TestRFC9915LinkMoveRebindsThroughTheMonitor flaps the carrier of the
 // client's veth while the lease holds a delegated prefix.
 //
-// VALIDATES: AC-28 through the real path: the kernel's RTM_NEWLINK, the netlink
-// monitor, the event bus, the resolver remapping the device to the logical
+// VALIDATES: AC-28 through the real path: the kernel's RTM_NEWLINK, the netlink monitor
+// event bus, the resolver remapping the device to the logical
 // name, iface.Subscribe, and the v6 worker. Down then up on the device starts a
 // Rebind, within CNF_MAX_DELAY plus slack, carrying the leased address and
 // the delegated prefix and no Server Identifier.

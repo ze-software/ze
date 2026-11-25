@@ -77,8 +77,8 @@ var espFirewallJudged = []espDirection{swanEncrypts, zeDecrypts}
 // Red proof: force the gate open, by making writeGateLocked
 // (internal/component/ike/dataplane/espform_fastpath_gate_linux.go) write
 // espFormFastPathGateOpen whatever it is given, and let the harness rebuild the Ze
-// image. The program then rewrites strongSwan's echo requests to ESP-in-UDP at tc
-// ingress, they pass the rule as UDP, Ze's inbound SA decrypts them, the pings are
+// image. The program then rewrites strongSwan's echo requests to ESP-in-UDP at
+// tc ingress, they pass the rule as UDP, Ze's inbound SA decrypts them, the pings are
 // answered, and the term's counter stays still.
 func checkESPFormFirewallDrop(ctx context.Context, lab *scenarioLab) error {
 	if err := establish(ctx, lab); err != nil {

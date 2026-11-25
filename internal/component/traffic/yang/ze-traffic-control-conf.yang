@@ -12,7 +12,7 @@ module ze-traffic-control-conf {
                  the same `traffic` parent.";
 
     revision 2026-10-27 {
-        description "Represent the classless tc TBF rate on the root qdisc.";
+        description "Represent the classless traffic control TBF rate on the root qdisc.";
     }
     revision 2026-10-12 {
         description "Make qdisc a presence container, so its mandatory type is
@@ -55,7 +55,7 @@ module ze-traffic-control-conf {
 
     typedef filter-type {
         type enumeration {
-            enum mark { ze:help "Match the packet mark, with the tc fw filter."; }
+            enum mark { ze:help "Match the packet mark, with the traffic control fw filter."; }
             enum dscp { ze:help "Match the DSCP value of the packet."; }
             enum protocol { ze:help "Match the protocol of the packet."; }
         }
@@ -76,8 +76,8 @@ names the program that applies the entries.";
 
             leaf backend {
                 type string;
-                default "tc";
-                description "The default backend is tc, the queueing disciplines of Linux iproute2.
+                default "kernel";
+                description "The default backend is kernel, the queueing disciplines of Linux iproute2.
 Another backend declares itself through traffic.RegisterBackend. The ze:backend YANG
 extension on a feature node declares which backend supports that feature. The
 commit-time gate reads that extension and rejects a config that names a qdisc or a
@@ -113,8 +113,8 @@ does not support.";
                     leaf rate {
                         when "../type = 'tbf'";
                         type rate-bps;
-                        ze:backend "tc";
-                        description "Root TBF rate. Required by backend tc for tbf, which
+                        ze:backend "kernel";
+                        description "Root TBF rate. Required by backend kernel for tbf, which
 has no configurable classes. The backend refuses a rate it cannot represent
 without truncation. VPP uses class policers instead and refuses this leaf.";
                         ze:help "Rate of the classless TBF root.";

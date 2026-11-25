@@ -3,7 +3,7 @@
 // Related: register.go -- the plugin-lifetime (mpls-fib, entry) subscription
 //
 // fib-vpp is the label writer of the vpp data plane, as fib-kernel is of the
-// netlink one. It consumes (mpls-fib, entry) with the same validation and the
+// kernel one. It consumes (mpls-fib, entry) with the same validation and the
 // same per-source ownership of incoming labels, and acknowledges every batch it
 // consumes, so a producer never advertises a label VPP does not forward.
 package fibvpp

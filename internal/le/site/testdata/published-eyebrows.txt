@@ -67,6 +67,7 @@ guides/command-reference/index.html	Guide
 guides/config-archive/index.html	Guide
 guides/config-editor/index.html	Guide
 guides/configuration-model/index.html	Guide
+guides/dataplane-features/index.html	Guide
 guides/ddos-mitigation/index.html	Guide
 guides/debugging-tools/index.html	Guide
 guides/docker/index.html	Guide

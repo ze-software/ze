@@ -3,7 +3,7 @@
 
 // Package msslab forwards a crafted TCP SYN through a real Linux router
 // namespace and reports the MSS option the next hop receives. It is the one
-// implementation behind the nft integration test of `tcp-mss-set` and the
+// implementation behind the nftables integration test of `tcp-mss-set` and the
 // policy-routing fixture of `tcp-mss`, so both proofs read the packet the
 // kernel forwarded, never the ruleset that was installed.
 package msslab

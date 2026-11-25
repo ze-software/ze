@@ -56,7 +56,7 @@ const (
 )
 
 // sourceGuardSpec is what one bound interface's guard must hold: the kernel device the
-// nft term names, the link its tunnel routes use, the if_id its Child SAs carry, and
+// nftables term names, the link its tunnel routes use, the if_id its Child SAs carry, and
 // the IPv6 addresses whose source BYPASS it guards.
 type sourceGuardSpec struct {
 	iface   string
@@ -291,7 +291,7 @@ func (g *sourceGuards) install(want map[string]sourceGuardSpec, log *slog.Logger
 }
 
 // prune removes every held source want no longer names and every interface it no longer
-// names: rules first, then routes, then the nft terms. The caller removed the source
+// names: rules first, then routes, then the nftables terms. The caller removed the source
 // BYPASS entries they guarded first.
 func (g *sourceGuards) prune(want map[string]sourceGuardSpec, log *slog.Logger) {
 	g.mu.Lock()

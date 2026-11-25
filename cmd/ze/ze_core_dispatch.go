@@ -23,6 +23,7 @@ import (
 	cli "github.com/ze-software/ze/internal/component/cli/client"
 	"github.com/ze-software/ze/internal/component/command"
 	"github.com/ze-software/ze/internal/component/command/registry"
+	"github.com/ze-software/ze/internal/component/config"
 	pluginserver "github.com/ze-software/ze/internal/component/plugin/server"
 	"github.com/ze-software/ze/internal/core/crashlog"
 	"github.com/ze-software/ze/internal/core/diagnostic"
@@ -296,6 +297,10 @@ func invokeRootLocalHandler(handler command.LocalHandler, args, remaining []stri
 }
 
 func zeDispatch(args []string) int {
+	// Record the parsed global --plugin selectors once before any verb runs or
+	// daemon starts so every door in this process judges with the same list.
+	config.RecordCommandLinePlugins(zeFlags.plugins)
+
 	pprofAddr := zeFlags.pprofAddr
 	if pprofAddr == "" {
 		pprofAddr = env.Get("ze.pprof")

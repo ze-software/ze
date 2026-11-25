@@ -200,7 +200,7 @@ func (backend *createdUnitLostReply) CreateLinkCounterReader(request *nl.Netlink
 
 func createdUnitFailedReply(t *testing.T, loseEcho, panicAfter bool) {
 	t.Helper()
-	backend, err := iface.OpenBackend("netlink")
+	backend, err := iface.OpenBackend("kernel")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -262,7 +262,7 @@ func createdUnitFailedReply(t *testing.T, loseEcho, panicAfter bool) {
 
 func createdUnitNative(t *testing.T, name string) (*pppkernel.CreatedUnit, iface.Backend, netlink.Link) {
 	t.Helper()
-	backend, err := iface.OpenBackend("netlink")
+	backend, err := iface.OpenBackend("kernel")
 	if err != nil {
 		t.Fatal(err)
 	}

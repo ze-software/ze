@@ -24,10 +24,10 @@ encapsulates. The interface subtree carries one `backend` selector for the whole
 daemon, so a reader also takes the leaf to work whichever dataplane carries the
 tunnel.
 
-**What Ze does instead.** On the netlink backend the leaf works:
+**What Ze does instead.** On the kernel backend the leaf works:
 `internal/plugins/iface/netlink/tunnel_linux.go` writes `link.Ttl = spec.TTL`
 for each of the three kinds. On the VPP backend it does not, and the refusal for
-that case has landed. Commit `d4a3b84f21` put `ze:backend "netlink"` on the three
+that case has landed. Commit `d4a3b84f21` put `ze:backend "kernel"` on the three
 leaves, so `validateBackendGate` (`internal/component/iface/register.go`) refuses
 a VPP-backed tunnel that names any `ttl` value, and names the leaf path, the
 active backend, and the backends that implement it. The accepted-and-ignored
@@ -45,7 +45,7 @@ that carries a `HopLimit` field is `tunnel_types.Tunnel`
 ipip message takes it.
 
 **What closing it means.** The refusal exists, so the two ends of the choice are
-not build-or-refuse. They are: publish the leaf as netlink-only and leave the
+not build-or-refuse. They are: publish the leaf as kernel-only and leave the
 refusal as the answer, or carry the outer TTL through the VPP binapi so one
 config works on both backends. Neither is obviously right, and the reason is
 that the second is not a change Ze can make alone. The vendored binapi is
@@ -68,7 +68,7 @@ pursued. `GreTunnelV2` and `IpipTunnel` carry no hop limit, only
 a VPP API change and a binapi regeneration that Ze does not control.
 
 The operator-facing half is already closed. `d4a3b84f21` annotates the three
-`ttl` leaves `ze:backend "netlink"`, so a commit that names a `ttl` on a
+`ttl` leaves `ze:backend "kernel"`, so a commit that names a `ttl` on a
 vpp-backed tunnel is refused rather than silently dropped, which is what
 `ValidateBackendFeatures` (`internal/component/config/backend_gate.go`) exists
 for. An operator now meets a message instead of a silent no-op.
@@ -128,10 +128,10 @@ no operator meets it as a bug; relocating it is the owner's re-reading to make
 2. `validateBackendGate` (`internal/component/iface/register.go`) runs
    `config.ValidateBackendFeaturesJSON` over the same section against the
    `ze:backend` annotation on the leaf. The three leaves carry
-   `ze:backend "netlink"` since `d4a3b84f21`, so a VPP-backed commit naming any
+   `ze:backend "kernel"` since `d4a3b84f21`, so a VPP-backed commit naming any
    `ttl` value is refused here, with the leaf path and the active backend. The
    spec's remaining work sits BEHIND this refusal.
-3. On the netlink backend the spec reaches
+3. On the kernel backend the spec reaches
    `internal/plugins/iface/netlink/tunnel_linux.go`, which writes
    `link.Ttl = spec.TTL` under `if spec.TTLSet` for each kind, and the value
    reaches the kernel link.
@@ -271,7 +271,7 @@ no operator meets it as a bug; relocating it is the owner's re-reading to make
 | Functional test for new RPC/API | | `test/plugin/*.ci` or `test/decode/*.ci` |
 | Pipe completeness | | Route output through `ApplyPipes`/`ProcessPipes` per `ai/rules/cli.md` |
 | Env var registration | | YANG leaves under `environment/` need a matching `ze.<name>.<leaf>` via `env.MustRegister()` |
-| Doctor check for runtime dependencies | | Any new file path, socket, service, kernel module, listen port, procfs/sysctl, netlink, binary, or certificate: owning-package check + `internal/core/diagnostic/codes.go` + unit and functional test (`ai/rules/repo-maintenance.md`) |
+| Doctor check for runtime dependencies | | Any new file path, socket, service, kernel module, listen port, procfs/sysctl, netlink socket, binary, or certificate: owning-package check + `internal/core/diagnostic/codes.go` + unit and functional test (`ai/rules/repo-maintenance.md`) |
 | Prometheus counters/metrics | | Observable state: define, register, and list the metric names and labels here |
 | BGP family surface (new SAFI / capability / attribute) | | The 12-section checklist in `ai/patterns/bgp-family.md` -- read it and record the answers there, not inline |
 

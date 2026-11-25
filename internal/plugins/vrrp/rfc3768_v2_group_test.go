@@ -51,7 +51,7 @@ func TestV2OwnerRunsAtPriority255(t *testing.T) {
 	if !owner.IsOwner {
 		t.Fatalf("a virtual address equal to a unit address must mark the owner: %+v", owner)
 	}
-	if err := validateGroups([]GroupSpec{owner}, backendNetlink); err != nil {
+	if err := validateGroups([]GroupSpec{owner}); err != nil {
 		t.Fatalf("the v2 owner group must validate: %v", err)
 	}
 	for _, decrement := range []uint16{0, 1, 119, 4064} {
@@ -102,7 +102,7 @@ func TestV2BoundaryPriority(t *testing.T) {
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
 			spec := v2GroupSpec(t, map[string]any{"virtual-address": vips("10.0.0.1"), "priority": tc.priority})
-			err := validateGroups([]GroupSpec{spec}, backendNetlink)
+			err := validateGroups([]GroupSpec{spec})
 			if !tc.wantErr {
 				if err != nil {
 					t.Fatalf("v2 priority %v must be accepted: %v", tc.priority, err)

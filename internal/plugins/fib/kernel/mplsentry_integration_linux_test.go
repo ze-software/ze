@@ -1,7 +1,7 @@
 //go:build linux
 
 // Design: docs/architecture/mpls/mpls-kernel.md -- live-kernel MPLS
-// dataplane verification. Exercises the real netlink backend (mplsentry_linux.go,
+// dataplane verification. Exercises the real kernel FIB backend (mplsentry_linux.go,
 // nexthop_linux.go) against the QEMU Alpine kernel: program push (IP route + label
 // encap), swap (AF_MPLS in->out via next-hop) and pop (AF_MPLS disposition), then
 // read the entries back from the kernel. The swap and pop proofs go one step
@@ -96,7 +96,7 @@ func mplsRoutes(t *testing.T, h *netlink.Handle) map[int]netlink.Route {
 // interface with net.mpls.conf.<iface>.input set leaves for next hop 10.0.0.2
 // labeled 200, and leaves for nobody while input is unset or once the entry is
 // withdrawn.
-// PREVENTS: the netlink AF_MPLS encoding silently failing on a real kernel, and
+// PREVENTS: the netlink message AF_MPLS encoding silently failing on a real kernel, and
 // a read-back reading green over a plane that forwards nothing.
 func TestMPLSIntegration_Swap(t *testing.T) {
 	if !userns.Enter(t) {

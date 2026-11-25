@@ -142,8 +142,8 @@ var doctorDiagnosticCodes = []diagnostic.CodeMeta{
 		Title: "A per-socket IPsec policy overrides the SPD",
 		Description: "Under vpn ipsec application-override deny, the kernel holds a per-socket IPsec " +
 			"policy that is not Ze's own. It was set before the guard attached, or while allow " +
-			"held, and it overrides the SPD for its socket until the socket closes: no netlink " +
-			"request removes it, and the kernel does not name the owning process. Restart the " +
+			"held, and it overrides the SPD for its socket until the socket closes: no netlink request " +
+			"removes it, and the kernel does not name the owning process. Restart the " +
 			"applications started before Ze. show vpn ipsec dataplane policy lists it with the " +
 			"role socket-override.",
 		Examples: []string{exampleDoctorJSON, "show vpn ipsec dataplane policy"},
@@ -389,7 +389,7 @@ var doctorDiagnosticCodes = []diagnostic.CodeMeta{
 			"only for the errno that means the kernel carries no XFRM protocol; a probe that could " +
 			"not ask reports doctor-ipsec-xfrm-unknown instead and does not refuse the start. " +
 			"Remedy: run a kernel built with CONFIG_XFRM_USER and CONFIG_INET_ESP. " +
-			"CONFIG_XFRM_USER alone gives the netlink interface and accepts every SA install while " +
+			"CONFIG_XFRM_USER alone gives the netlink socket interface and accepts every SA install while " +
 			"CONFIG_INET_ESP carries the packets, so a kernel with the first and not the second " +
 			"passes this probe and still encrypts nothing; only the appliance build requirement " +
 			"catches that (internal/appliance/kernelreq.go). An empty `vpn { ipsec { } }` block " +

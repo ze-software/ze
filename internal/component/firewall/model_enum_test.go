@@ -13,7 +13,7 @@ import (
 //
 // The Go side is kept rather than derived, and the reason is the same for all
 // six sets: each name here is paired with a value the model does not hold, a
-// typed constant the nft backend lowers to a netlink value (lowerFamily,
+// typed constant the kernel backend lowers to a netlink attribute value (lowerFamily,
 // lowerHook), the rp_filter value a source-validation word writes, or the
 // IANA number every backend programs for a protocol name. That makes the
 // model the copy, and this test is what keeps the copy honest in both

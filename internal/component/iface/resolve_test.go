@@ -46,12 +46,12 @@ func (b *emitBus) Subscribe(ns, et string, handler func(any)) func() {
 // VALIDATES: spec-iface-resolve-2-resolver AC-1..AC-7 -- the shared logical-name
 // resolver (Resolve / Addresses / Subscribe), os-name translation, scope-tagged
 // address classification, cache invalidation on link events, and value-only API.
-// PREVENTS: a stale cached ifindex surviving a device delete; a netlink type
+// PREVENTS: a stale cached ifindex surviving a device delete; a netlink library type
 // leaking through the resolver's public Binding/LinkEvent/AddrInfo.
 
 // resolveStubBackend is a minimal Backend that serves GetInterface/ListInterfaces
 // from an in-memory map so the resolver's translate + cache + Binding-build path
-// is host-testable without a netlink backend. The embedded Backend is nil; any
+// is host-testable without a kernel backend. The embedded Backend is nil; any
 // other method panics if a test reaches it (none should).
 type resolveStubBackend struct {
 	Backend
@@ -89,7 +89,7 @@ func (b *resolveStubBackend) ListInterfaces() ([]InterfaceInfo, error) {
 // errResolveAddressDump is the failure addressDumpFailingResolveBackend answers.
 var errResolveAddressDump = errors.New("address dump failed")
 
-// addressDumpFailingResolveBackend fails every address read, as the netlink
+// addressDumpFailingResolveBackend fails every address read, as the kernel
 // backend does when its RTM_GETADDR dump fails or churns past its retries:
 // GetInterface returns the error, while GetLink, which reads no address,
 // still answers.
@@ -300,7 +300,7 @@ func TestSubscribeNoLeak(t *testing.T) {
 }
 
 // TestNoNetlinkLeakInAPI verifies the resolver's public value types expose no
-// netlink / net.Interface fields, so consumers do not couple to the backend
+// netlink library or net.Interface fields, so consumers do not couple to the backend
 // (AC-6).
 func TestNoNetlinkLeakInAPI(t *testing.T) {
 	for _, typ := range []reflect.Type{

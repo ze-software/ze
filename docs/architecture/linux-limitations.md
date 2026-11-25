@@ -922,7 +922,7 @@ For a `library` entry, read the module in the module cache:
   `out := nl.NewRtAttr(nl.XFRMA_REPLAY_ESN_VAL, writeReplayEsn(state.ReplayWindow))`,
   while the reader's attribute switch handles only `case nl.XFRMA_REPLAY_VAL:`
   and has no `XFRMA_REPLAY_ESN_VAL` case. The full list of corrections is in
-  `docs/architecture/ike/ipsec-8-ikev2-child-xfrm.md`, "Vendored netlink patch".
+  `docs/architecture/ike/ipsec-8-ikev2-child-xfrm.md`, "Vendored netlink library patch".
 - **Re-check:** at a new module version, check each patch of the series
   `internal/le/vendorpatch/patches/netlink-xfrm-*.patch` against the
   module source; a patch the release already carries is deleted, and the

@@ -27,7 +27,7 @@ import (
 // device's addresses and MTU alone.
 const pppoeOperatorConfig = `
 interface {
-    backend netlink;
+    backend kernel;
     ethernet zec0 {
     }
     pppoe-client wan {

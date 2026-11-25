@@ -69,7 +69,7 @@ Config enabling PIM and IGMP/MLD per interface; received Hello, Join/Prune, Regi
 ### Boundaries Crossed
 | Boundary | How | Verified |
 |----------|-----|----------|
-| PIM plugin to the multicast FIB writer | a registered event type, never netlink from the protocol (`ai/doors/routing-protocols.md`) | No |
+| PIM plugin to the multicast FIB writer | a registered event type, never netlink calls from the protocol (`ai/doors/routing-protocols.md`) | No |
 | Kernel upcalls (NOCACHE, WRONGVIF, WHOLEPKT) to the plugin | the writer that owns the mroute socket forwards them | No |
 
 ### Integration Points

@@ -3,7 +3,7 @@
 // VALIDATES: a static route's nexthop interface is resolved through the shared
 // iface resolver (iface.Resolve), not the static backend's own netlink handle,
 // so a logical interface name maps to the right kernel device against the real
-// netlink backend. The os-name / mac-match remapping itself is proven centrally
+// kernel backend. The os-name / mac-match remapping itself is proven centrally
 // in the iface package (TestResolveRemapsLogicalNameToOSDevice,
 // TestResolveByMACBindsToDevice); this proves the static consumer is wired to it
 // and returns the correct ifindex (and a clean error for an absent interface).
@@ -25,7 +25,7 @@ import (
 	"github.com/vishvananda/netns"
 
 	"github.com/ze-software/ze/internal/component/iface"
-	_ "github.com/ze-software/ze/internal/plugins/iface/netlink" // register the netlink backend for iface.LoadBackend
+	_ "github.com/ze-software/ze/internal/plugins/iface/netlink" // register the kernel backend for iface.LoadBackend
 	"github.com/ze-software/ze/internal/test/userns"
 )
 
@@ -35,7 +35,7 @@ func TestResolveNexthopIndexUsesResolver(t *testing.T) {
 	}
 	withStaticNetNS(t, func() {
 		if iface.GetBackend() == nil {
-			if err := iface.LoadBackend("netlink"); err != nil {
+			if err := iface.LoadBackend("kernel"); err != nil {
 				t.Fatalf("load iface backend: %v", err)
 			}
 		}
@@ -126,9 +126,9 @@ func (b *followBus) Subscribe(namespace, eventType string, fn func(any)) func() 
 	return func() {}
 }
 
-// followDeviceRig is one namespace's real chain: the netlink iface backend,
+// followDeviceRig is one namespace's real chain: the kernel iface backend,
 // its monitor on a followBus, the resolver bound to that bus, and a route
-// manager writing named tables through static's netlink backend with the
+// manager writing named tables through static's kernel backend with the
 // production linkSource (ifaceLinks).
 type followDeviceRig struct {
 	h   *netlink.Handle
@@ -139,7 +139,7 @@ type followDeviceRig struct {
 // and the handle bind to the namespace of the calling thread.
 func newFollowDeviceRig(t *testing.T) *followDeviceRig {
 	t.Helper()
-	if err := iface.LoadBackend("netlink"); err != nil {
+	if err := iface.LoadBackend("kernel"); err != nil {
 		t.Fatalf("load iface backend: %v", err)
 	}
 	t.Cleanup(func() { _ = iface.CloseBackend() })
@@ -286,7 +286,7 @@ func throughBoth(gateway net.IP, index int) func([]netlink.Route) bool {
 // TestStaticInterfaceRouteFollowsDevice is AC-13, A-3 and A-7 against a real
 // kernel. Method, in a user and network namespace, through the real chain (the
 // netlink monitor, the bus, the bound resolver, static's link watch, static's
-// netlink backend): a named-table route through a declared on-demand name is
+// kernel backend): a named-table route through a declared on-demand name is
 // committed while its device is absent, then a dummy device under that name is
 // created and set up, deleted, and recreated; the named table is read back
 // after each step.

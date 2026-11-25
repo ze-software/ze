@@ -3,7 +3,7 @@
 // Design: docs/architecture/fib/fib-depth-4-srv6.md -- Kernel backend
 // Related: nexthop_linux.go -- addRichRoute, replaceRichRoute, wrapSEG6InstallError
 //
-// Unit tests proving that an EOPNOTSUPP refusal from netlink on an SRv6
+// Unit tests proving that an EOPNOTSUPP refusal from the netlink socket on an SRv6
 // Service SID route becomes an operator error naming CONFIG_IPV6_SEG6_LWTUNNEL,
 // the prefix, that the route was not installed, and ze doctor, while non-SEG6
 // routes (such as MPLS) and non-EOPNOTSUPP errnos pass through unchanged.
@@ -54,7 +54,7 @@ func (f *fakeSEG6NetlinkHandle) RouteListFiltered(_ int, _ *netlink.Route, _ uin
 	return f.listed, nil
 }
 
-// VALIDATES: AC-10. When netlink answers EOPNOTSUPP on addRichRoute or
+// VALIDATES: AC-10. When the netlink socket answers EOPNOTSUPP on addRichRoute or
 // replaceRichRoute for a route carrying SEG6 encapsulation, the backend wraps
 // the error as an opererr.Error naming CONFIG_IPV6_SEG6_LWTUNNEL, the prefix,
 // that the route was not installed, and ze doctor (Fix() == "ze doctor"), while

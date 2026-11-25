@@ -93,7 +93,7 @@ The starting proposal was `tmp/session/2026-10-29-105ec564-b63f-4d37-8f4c-872294
 - [ ] `internal/plugins/flowexport/conntrack_setup_appliance_linux.go` (loadConntrackModules) - `ze_appliance` build only; modprobe of `nf_conntrack`, `nf_conntrack_netlink`, failures at debug
 - [ ] `internal/plugins/firewall/nft/doctor_linux.go` - a doctor check that `nf_tables` is in `/proc/modules`; no kernelcap enrolment
 - [ ] `internal/plugins/traffic/netlink/policer_linux.go` - installs `act_police` on the shared ingress hook; no kernelcap enrolment
-- [ ] `internal/component/firewall/yang/ze-firewall-conf.yang` line 914 - `list flowtable`, nft backend only
+- [ ] `internal/component/firewall/yang/ze-firewall-conf.yang` line 914 - `list flowtable`, kernel backend only
 - [ ] `internal/le/interoplab/kernelcheck.go` (zeKernelReleaseSuffix) and its test `TestZeKernelReleaseSuffixIsTheRuntimeConfigs`
 - [ ] `internal/component/host/kernel_linux.go` (DetectKernel) - already reads `/proc/sys/kernel/osrelease` for the host inventory
 - [ ] `gokrazy/kernel/runtime.config`, `gokrazy/kernel/runtime.require`, `gokrazy/kernel/patches/0002-mpls-ip-mtu.patch`
@@ -112,6 +112,14 @@ The starting proposal was `tmp/session/2026-10-29-105ec564-b63f-4d37-8f4c-872294
 - The firewall flowtable, the traffic ingress policer, the traffic qdiscs and classifiers, `nf_tables`, flow sampling, mirroring, flow-export conntrack, the conntrack helpers and VPP's VFIO get enrolments.
 - The unit `ze install systemd` writes gains the root pre-step (Q-3).
 - `system conntrack module` stops offering `nfs` and `sqlnet`, which no Linux helper provides, and Ze's kernel builds in the helpers it still offers.
+
+## Existing Mechanisms
+
+| Mechanism | Where (file + symbol, or page + section) | What it does today | This spec (extends, replaces, or does not apply, with the reason) |
+|-----------|------------------------------------------|--------------------|------------------------------------------------------------------|
+| Kernel capability enrolment and four-caller verdict | `internal/component/kernelcap/kernelcap.go` (`Capability`, `MustRegister`, `Evaluate`, `ProbeAll`, `Refuse`), `modules_linux.go` (`LoadedModules`), `probe.go` (`ProcPath`); `docs/architecture/doctor-and-health-checks.md` ("Four callers, one verdict") | Enrolls per-subsystem kernel capabilities, reads `/proc/modules` and procfs probes, and drives doctor, daemon start (`cmd/ze/hub/main.go` `runYANGConfig`), reload (`cmd/ze/hub/main_reload.go` `runReloadContext`), and `ze config validate` without loading modules | Extends `Capability` with a module-source declaration and adds the vendor-kernel loader before `kernelcap.Refuse` in `runYANGConfig`, reusing `LoadedModules`, `ProcPath`, and refusal rendering rather than building a second registry |
+| Per-subsystem ad-hoc `modprobe` callers | `internal/component/config/system/conntrack_linux.go` (`LoadConntrackModules`), `internal/component/l2tp/kernel_linux.go` (`probeKernelModules`), `internal/component/vpp/dpdk_linux.go` (`loadModuleLinux`), `internal/plugins/flowexport/conntrack_setup_appliance_linux.go` (`loadConntrackModules`) | Four subsystems invoke `modprobe` directly with separate timeouts, error handling, and hardcoded module lists | Replaces all four ad-hoc `modprobe` paths (`ai/rules/no-layering.md`), moving their module lists onto each owner's `kernelcap.Capability` enrolment so one loader handles all of them |
+| Systemd unit generation and `-ze` release marker | `internal/plugins/systemd/unit.go` (`buildUnitFile`), `gokrazy/kernel/runtime.config` (`CONFIG_LOCALVERSION="-ze"`), `internal/le/interoplab/kernelcheck.go` (`zeKernelReleaseSuffix`) | `buildUnitFile` generates a hardened unprivileged unit (`User=ze`, no `CAP_SYS_MODULE`); the runtime kernel sets the `-ze` suffix checked only inside `internal/le/` | Extends `buildUnitFile` with a short-lived root `ExecStartPre=+` and `ExecReload` pre-step (`ze kernel-module load`) keeping daemon privileges unchanged, and moves the `-ze` suffix constant to a core package shared by `ze` and `le` |
 
 ## Data Flow (MANDATORY - see `ai/rules/architecture.md`)
 
@@ -256,7 +264,7 @@ The starting proposal was `tmp/session/2026-10-29-105ec564-b63f-4d37-8f4c-872294
 | `TestEnrolmentMustDeclareModuleSource` | `internal/component/kernelcap/kernelcap_test.go` | `MustRegister` panics on an unspecified source, on "modules" with an empty list, and on a list with an empty name | |
 | `TestDeclaredModulesAreZeKernelModuleNames` | `internal/component/kernelcap/modules_names_linux_test.go` | every declared name appears in the cached runtime kernel's `modules.builtin`; skips with the build command when no cache exists | |
 | `TestRefusalCarriesTheLoaderRecord` | `internal/component/kernelcap/kernelcap_test.go` | absent + record renders module lines and the fix command on its own line | |
-| `TestFlowtableInUse`, `TestIngressPolicerInUse` | owners' `kernelcap_linux_test.go` | predicates over config trees: true only when a flowtable is declared on the nft backend, or a policer is configured on an interface | |
+| `TestFlowtableInUse`, `TestIngressPolicerInUse` | owners' `kernelcap_linux_test.go` | predicates over config trees: true only when a flowtable is declared on the kernel backend, or a policer is configured on an interface | |
 | `TestUnitFileLoadsKernelModulesAsRootBeforeStart` | `internal/plugins/systemd/unit_test.go` | the two lines exist, carry the `+` prefix and the binary path, and the capability sets are unchanged | |
 
 ### Boundary Tests (numeric inputs)
@@ -378,7 +386,7 @@ N-A: no wire-visible behaviour changes.
 1. **Phase: Wiring** - core suffix package and identity; module-source field with `MustRegister` validation; empty loader called from `runYANGConfig`; the zetest fixture variables. Tests: `TestKernelIdentityFromRelease`, `TestEnrolmentMustDeclareModuleSource`, the two `.ci` load tests failing on the stub record.
 2. **Phase: Loader** - vendor family, preconditions, needed set, skip, exec, record, refusal text. Tests: the loader unit tests; `kernel-module-unprivileged-refuses.ci`.
 3. **Phase: Declarations** - every existing enrolment declares its source; the new enrolments (flowtable, policer, qdiscs, classifiers, sampling, mirroring, nftables, flow-export conntrack, helpers, VFIO). Tests: predicates, `TestDeclaredModulesAreZeKernelModuleNames`, AC-18 and AC-19 `.ci`.
-4. **Phase: Replace** - delete the four modprobe call sites and the nft module doctor check; conntrack enumeration and Ze kernel helpers. Test: AC-21 grep in a Go test over the tree (`TestNoModprobeOutsideTheLoader`); AC-22.
+4. **Phase: Replace** - delete the four modprobe call sites and the nftables module doctor check; conntrack enumeration and Ze kernel helpers. Test: AC-21 grep in a Go test over the tree (`TestNoModprobeOutsideTheLoader`); AC-22.
 5. **Phase: Unit and command** - `ze kernel-module load`; `buildUnitFile`; unit doctor read-back. Tests: AC-14, AC-15.
 6. **Phase: Doctor and reload** - doctor rows and codes; reload refusal text. Tests: `doctor-kernel-modules.ci`, `kernel-module-reload-refuses.ci`.
 7. **Phase: Vendor proof** - per Q-4.

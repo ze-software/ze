@@ -14,7 +14,7 @@ import (
 // unitStub holds a selected parent, its VLAN, and a decoy device carrying the
 // unit's literal logical name, so a resolver that passes the name through is
 // caught binding the decoy. Each VLAN names its parent in ParentIndex and wears
-// the parent's MAC, as the netlink backend reports a VLAN (isStackedDevice).
+// the parent's MAC, as the kernel backend reports a VLAN (isStackedDevice).
 func unitStub() *resolveStubBackend {
 	return macStub(
 		&InterfaceInfo{Name: "eth5", OsName: "eth5", Index: 5, MTU: 1500, State: "up", PermanentMAC: "aa:bb:cc:dd:ee:05"},

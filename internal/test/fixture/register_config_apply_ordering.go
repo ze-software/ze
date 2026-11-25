@@ -138,8 +138,8 @@ const fileSessionReturned = "session-returned.txt"
 // awaitSessionReturned holds the driver until phase 5 has happened, because the
 // next thing the driver does is signal the daemon.
 //
-// The driver reads the kernel, and phases 2 and 5 produce no netlink
-// notification, so the check peer is what observes them and the marker file is
+// The driver reads the kernel, and phases 2 and 5 produce no netlink notification,
+// so the check peer is what observes them and the marker file is
 // how it reports it. Until 2026-09-11 this driver sent SIGTERM as soon as `ip
 // addr` showed the addresses had moved, which is the end of phase 4. The signal
 // landed inside the reload, so reloadComplete() (cmd/ze/hub/main_reload.go)

@@ -1,4 +1,4 @@
-// Design: docs/architecture/static-routes.md -- Linux netlink backend with multipath
+// Design: docs/architecture/static-routes.md -- Linux kernel backend with multipath
 // Related: doctor.go -- pre-flight readiness check for interface-only next-hops
 
 //go:build linux
@@ -11,11 +11,11 @@ import (
 	"net"
 	"net/netip"
 
-	"github.com/ze-software/ze/internal/component/iface"
-	"github.com/ze-software/ze/internal/core/rtproto"
-
 	"github.com/vishvananda/netlink"
 	"golang.org/x/sys/unix"
+
+	"github.com/ze-software/ze/internal/component/iface"
+	"github.com/ze-software/ze/internal/core/rtproto"
 )
 
 const rtprotStatic = rtproto.Static
@@ -24,26 +24,31 @@ type netlinkStaticBackend struct {
 	handle *netlink.Handle
 }
 
-func newStaticBackend() routeBackend {
-	// In a VPP data-plane deployment (VPP component active) static routes are
-	// programmed into VPP's FIB; otherwise they go to the kernel via netlink.
-	if vb := newVPPStaticBackend(); vb != nil {
-		return vb
+// newStaticBackendForDataPlane creates the named-table routeBackend matching
+// dataPlane, which MUST come from the configured primary data-plane selector.
+// Under "kernel", it always uses the Linux kernel route backend regardless
+// of whether a VPP connector exists. Under "vpp", it opens the VPP backend and
+// returns an *opererr.Error naming doctorCodeVPPChannel if the channel cannot
+// be opened; it NEVER falls back to the Linux kernel backend.
+func newStaticBackendForDataPlane(dataPlane string) (routeBackend, error) {
+	switch dataPlane {
+	case dataPlaneKernel:
+		return newKernelStaticBackend()
+	case dataPlaneVPP:
+		return newVPPStaticBackend()
+	default:
+		return nil, unrecognizedDataPlaneError(dataPlane)
 	}
+}
+
+func newKernelStaticBackend() (routeBackend, error) {
 	h, err := netlink.NewHandle()
 	if err != nil {
 		logger().Error("static: netlink handle failed", "error", err)
-		return &failedStaticBackend{err: fmt.Errorf("netlink unavailable: %w", err)}
+		return nil, fmt.Errorf("netlink socket unavailable: %w", err)
 	}
-	return &netlinkStaticBackend{handle: h}
+	return &netlinkStaticBackend{handle: h}, nil
 }
-
-type failedStaticBackend struct{ err error }
-
-func (f *failedStaticBackend) applyRoute(_ staticRoute) error              { return f.err }
-func (f *failedStaticBackend) removeRoute(_ staticRoute) error             { return f.err }
-func (f *failedStaticBackend) listRoutes() ([]installedStaticRoute, error) { return nil, f.err }
-func (f *failedStaticBackend) close() error                                { return nil }
 
 func (b *netlinkStaticBackend) applyRoute(r staticRoute) error {
 	route, err := b.buildRoute(r)
@@ -128,7 +133,7 @@ func (b *netlinkStaticBackend) close() error {
 	return nil
 }
 
-// buildRoute translates a staticRoute into the netlink form.
+// buildRoute translates a staticRoute into the netlink route form.
 //
 // The Table and Metric bounds are not redundant with config validation:
 // netlink.Route.Table and .Priority are Go ints, and the encoder emits the

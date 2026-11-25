@@ -418,7 +418,7 @@ func protocolMatches(vals []uint64) ([]firewall.Match, error) {
 //
 // Port 0 is translated rather than refused. It is a legal value of the
 // two-octet port field (RFC 8955 Section 4.2.2.5), and both backends express
-// it: the nft backend lowers a single range to one equality comparison
+// it: the kernel backend lowers a single range to one equality comparison
 // (lowerPortMatch, internal/plugins/firewall/nft/lower_linux.go) and the VPP
 // backend to the range 0-0 (internal/plugins/firewall/vpp/translate.go).
 // Refusing a rule ze can enforce, or dropping the value and enforcing the rule

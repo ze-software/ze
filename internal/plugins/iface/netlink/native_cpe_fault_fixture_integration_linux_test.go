@@ -425,7 +425,7 @@ func newCPENativeFault(t *testing.T, fault cpeNativeFault, expectedPending, stan
 		// The dialer resolves its source interface through the process
 		// backend before it reaches h.backend; a registry run loads it from
 		// config. Registered first, it closes after the client stops.
-		if err := iface.LoadBackend("netlink"); err != nil {
+		if err := iface.LoadBackend("kernel"); err != nil {
 			t.Fatal(err)
 		}
 		t.Cleanup(func() {
@@ -607,7 +607,7 @@ func cpeFaultWaitInstalled(t *testing.T, h *cpeNativeFaultFixture) *pppoeac.Sess
 }
 
 // cpeFaultDefaultDestination reports the IPv4 default destination in either
-// form: netlink v1.3.1 decodes a route without RTA_DST as 0.0.0.0/0, as
+// form: netlink library v1.3.1 decodes a route without RTA_DST as 0.0.0.0/0, as
 // iproute2 does, so a dumped default route never has a nil Dst.
 func cpeFaultDefaultDestination(destination *net.IPNet) bool {
 	if destination == nil {

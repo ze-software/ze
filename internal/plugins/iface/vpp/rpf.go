@@ -29,7 +29,7 @@ const urpfPlugin = "urpf_plugin.so"
 // breaks neighbor discovery nor leaves the operator believing the check is on.
 var errIPv6RPFUnsupported = errors.New("ifacevpp: ipv6 rpf-check cannot be enforced on the vpp backend, " +
 	"because VPP's uRPF drops every unicast packet from a link-local source, which breaks neighbor discovery; " +
-	"remove `ipv6 rpf-check` from the unit, or run the interface on the netlink backend")
+	"remove `ipv6 rpf-check` from the unit, or run the interface on the kernel backend")
 
 // ReplaceIPv6RPF accepts the empty set, which is what every config without an
 // IPv6 rpf-check asks for, and refuses any check.

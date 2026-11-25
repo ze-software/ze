@@ -13,7 +13,7 @@ import (
 )
 
 // TunnelKind discriminates between the supported tunnel encapsulation kinds.
-// One TunnelKind value maps to exactly one Linux netlink interface kind.
+// One TunnelKind value maps to exactly one Linux rtnetlink interface kind.
 // IPIP6 is special: it shares the ip6tnl Go type with IP6TNL, distinguished
 // by the inner protocol (IPPROTO_IPIP for IPIP6, IPPROTO_IPV6 for IP6TNL).
 type TunnelKind int
@@ -39,7 +39,7 @@ const (
 	TunnelKindIPIP6
 	// TunnelKindVxlan is a VXLAN overlay (RFC 7348): L2 Ethernet frames
 	// carried over a UDP/IPv4 underlay, discriminated by a 24-bit VNI.
-	// Landed in both backends (netlink Vxlan link + VPP
+	// Landed in both backends (kernel Vxlan link + VPP
 	// VxlanAddDelTunnelV3); see tunnelKindNames and the vxlan YANG case.
 	TunnelKindVxlan
 )
@@ -209,7 +209,7 @@ type TunnelSpec struct {
 //
 // Config verify calls it for each tunnel (parseTunnelEntry), so `ze config
 // validate` and a commit refuse the config before any backend sees it. The
-// netlink and VPP backends call it again before they program a tunnel, as the
+// kernel and VPP backends call it again before they program a tunnel, as the
 // paired check of the same property on a second path.
 //
 // An empty RemoteAddress answers nil: that is the absent leaf, which the YANG

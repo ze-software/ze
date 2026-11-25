@@ -14,7 +14,7 @@ option=skip-os:value=darwin
 
 stdin=leaf:terminator=EOF_LEAF
 interface {
-    backend netlink;
+    backend kernel;
     ethernet eth0 {
         unit 0 {
             ipv4 {
@@ -34,7 +34,7 @@ EOF_LEAF
 
 stdin=profile:terminator=EOF_PROFILE
 interface {
-    backend netlink;
+    backend kernel;
     ethernet eth0 {
         unit 0 {
             sysctl-profile [ proxy ];
@@ -59,7 +59,7 @@ sysctl {
     }
 }
 interface {
-    backend netlink;
+    backend kernel;
     ethernet eth0 {
         unit 0 {
             ipv4 {

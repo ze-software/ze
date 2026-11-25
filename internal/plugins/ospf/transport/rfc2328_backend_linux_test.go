@@ -32,7 +32,7 @@ func TestResolveOSPFInterfaceUsesIfaceResolverOSName(t *testing.T) {
 	// resolveOSPFInterface loads the iface backend before resolving
 	// (backend_linux.go:47). No backend is registered in a unit-test binary, so
 	// without this seam the real iface.EnsureBackend fails with
-	// `unknown backend "netlink" (registered: [])` and the resolver stubs below
+	// `unknown backend "kernel" (registered: [])` and the resolver stubs below
 	// are never reached.
 	ensureIfaceBackend = func() error { return nil }
 

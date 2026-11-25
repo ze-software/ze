@@ -162,7 +162,7 @@ IPv6, and `MigrateTunnel` refuses a MOBIKE move to IPv6 endpoints
 (`ike/engine/child.go`) sets `AcceptBothESPForms` on every inbound state, and `newChildSA`
 (`ike/engine/create_child.go`) sets `UDPEncap` on port 4500 with or without a NAT. So the
 first IPv6 Child SA on port 4500 this spec negotiates hits that refusal, and the items
-below are owed in the same work. The IPv6 variant of the tc fast path already exists and
+below are owed in the same work. The IPv6 variant of the traffic control fast path already exists and
 is tested (`espFormFastPathIPv6`, `TestESPFormRewriteProgram`); nothing writes its map yet.
 
 | # | Owed | Evidence |

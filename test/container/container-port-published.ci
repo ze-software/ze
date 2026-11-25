@@ -66,10 +66,10 @@ environment {
 	}
 }
 interface {
-	backend netlink
+	backend kernel
 }
 firewall {
-	backend nft
+	backend kernel
 }
 container {
 	network lan {

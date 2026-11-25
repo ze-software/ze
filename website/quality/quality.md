@@ -24,7 +24,7 @@ Ze uses different tests for package logic, running daemons, and behavior that de
   <div class="quality-meter" aria-label="Quality layers">
     <div class="quality-meter-row"><strong class="concept-evidence">Local</strong><span>Go tests, race checks, coverage, generated-input tests, and gomu run before checks that need more time or resources.</span></div>
     <div class="quality-meter-row"><strong class="concept-evidence">Process</strong><span><code>.ci</code>, <code>.wb</code>, and <code>.et</code> files run Ze the way an operator, peer, browser, or editor would use it.</span></div>
-    <div class="quality-meter-row"><strong class="concept-evidence">Linux</strong><span>QEMU runs the same tests where netlink, nftables, eBPF, PPP, and namespaces exist.</span></div>
+    <div class="quality-meter-row"><strong class="concept-evidence">Linux</strong><span>QEMU runs the same tests where netlink sockets, nftables, eBPF, PPP, and namespaces exist.</span></div>
     <div class="quality-meter-row"><strong class="concept-evidence">Release</strong><span>Interop, deployment, performance, and chaos runs check behavior that package tests cannot establish.</span></div>
   </div>
 </div>

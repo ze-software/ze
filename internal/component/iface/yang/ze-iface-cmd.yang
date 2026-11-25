@@ -50,7 +50,7 @@ the interface is present. It fails when that name holds an interface of another 
                     config false;
                     ze:command "ze-iface:interface-create-dummy";
                     ze:rpc "ze-iface-api:interface-create-dummy";
-                    ze:backend "netlink";
+                    ze:backend "kernel";
                     ze:ensure-exists "ze-iface:interface-delete";
                     description "The command is idempotent. When a unit or address command under
 it fails, and this command created the interface, the interface is deleted again.";
@@ -67,7 +67,7 @@ interface of another type is refused, and the error names both types.";
                         config false;
                         ze:command "ze-iface:interface-unit-add";
                         ze:rpc "ze-iface-api:interface-unit-add";
-                        ze:backend "netlink";
+                        ze:backend "kernel";
                         description "The VLAN id is 1 to 4094, and the new interface is named
 <name>.<vid>. The dummy is created first when it is absent, and deleted again when this step
 fails.";
@@ -92,7 +92,7 @@ first when it is absent.";
                         config false;
                         ze:command "ze-iface:interface-addr-add";
                         ze:rpc "ze-iface-api:interface-addr-add";
-                        ze:backend "netlink";
+                        ze:backend "kernel";
                         description "The address is written in CIDR form, for example
 10.0.0.1/32. The dummy is created first when it is absent, and deleted again when this step
 fails.";
@@ -108,7 +108,7 @@ creates it first when it is absent.";
                             type ip-prefix;
                             mandatory true;
                             description "An IPv4 or IPv6 address with its prefix length, for
-example 10.0.0.1/32. Ze passes the string to the netlink backend.";
+example 10.0.0.1/32. Ze passes the string to the kernel backend.";
                             ze:help "Address in CIDR form";
                         }
                     }
@@ -125,7 +125,7 @@ form, so create the pair first, then add a unit or an address to either end.";
                     config false;
                     ze:command "ze-iface:interface-create-veth";
                     ze:rpc "ze-iface-api:interface-create-veth";
-                    ze:backend "netlink";
+                    ze:backend "kernel";
                     description "The peer name is the second value and is required. A second
 create of the same name changes nothing and reports that the pair is present.";
                     ze:help "Create a veth pair (two linked virtual Ethernet interfaces).";
@@ -155,7 +155,7 @@ the bridge is present. It fails when that name holds an interface of another typ
                 container name {
                     config false;
                     ze:command "ze-iface:interface-create-bridge";
-                    ze:backend "netlink";
+                    ze:backend "kernel";
                     ze:ensure-exists "ze-iface:interface-delete";
                     description "The command is idempotent. When a unit or address command under
 it fails, and this command created the bridge, the bridge is deleted again.";
@@ -172,7 +172,7 @@ interface of another type is refused, and the error names both types.";
                         config false;
                         ze:command "ze-iface:interface-unit-add";
                         ze:rpc "ze-iface-api:interface-unit-add";
-                        ze:backend "netlink";
+                        ze:backend "kernel";
                         description "The VLAN id is 1 to 4094, and the new interface is named
 <name>.<vid>. The bridge is created first when it is absent, and deleted again when this
 step fails.";
@@ -197,7 +197,7 @@ it first when it is absent.";
                         config false;
                         ze:command "ze-iface:interface-addr-add";
                         ze:rpc "ze-iface-api:interface-addr-add";
-                        ze:backend "netlink";
+                        ze:backend "kernel";
                         description "The address is written in CIDR form, for example
 10.0.0.1/32. The bridge is created first when it is absent, and deleted again when this step
 fails.";
@@ -213,7 +213,7 @@ creates it first when it is absent.";
                             type ip-prefix;
                             mandatory true;
                             description "An IPv4 or IPv6 address with its prefix length, for
-example 10.0.0.1/32. Ze passes the string to the netlink backend.";
+example 10.0.0.1/32. Ze passes the string to the kernel backend.";
                             ze:help "Address in CIDR form";
                         }
                     }
@@ -259,7 +259,7 @@ no interface, so the name must be present in the kernel before the command runs.
                     type ip-prefix;
                     mandatory true;
                     description "An IPv4 or IPv6 address with its prefix length, for example
-10.0.0.1/24. Ze passes the string to the netlink backend.";
+10.0.0.1/24. Ze passes the string to the kernel backend.";
                     ze:help "Address in CIDR form";
                 }
             }
@@ -331,7 +331,7 @@ stay.";
                         type ip-prefix;
                         mandatory true;
                         description "An IPv4 or IPv6 address with its prefix length. Ze passes
-the string to the netlink backend, so it must match the string the add used.";
+the string to the kernel backend, so it must match the string the add used.";
                         ze:help "Address in CIDR form";
                     }
                 }

@@ -131,7 +131,7 @@ func TestFirewallAuditClean(t *testing.T) {
 // firewall-drift and counts as a finding.
 // PREVENTS: the `continue` that skipped an absent table as "a different issue
 // (apply failure)". The apply that installed it returned long ago, so an
-// external `nft flush ruleset` removed it since, and nothing else looks: the
+// external nftables ruleset flush removed it since, and nothing else looks: the
 // stale-table branch only reports tables ze does NOT want. ze_vrrp carries the
 // RFC 9568 Section 6.4.3 accept filter, so the table vanishing means a
 // non-owner router accepts packets for the virtual address with no warning.

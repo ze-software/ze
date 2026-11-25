@@ -138,7 +138,7 @@ func TestRatesWithoutPluginNameTheFix(t *testing.T) {
 	}
 	want := "interface rates unavailable: the interface plugin, which measures interface rates, is not running. " +
 		"Ze starts it only when the configuration holds an interface section. " +
-		"To start it, add the section and commit: set interface backend netlink"
+		"To start it, add the section and commit: set interface backend kernel"
 	if resp.Status != plugin.StatusError || resp.Error != want {
 		t.Fatalf("got %q %q, want %q", resp.Status, resp.Error, want)
 	}

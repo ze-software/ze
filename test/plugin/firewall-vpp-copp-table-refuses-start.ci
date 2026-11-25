@@ -1,0 +1,36 @@
+# Test: daemon start refuses control-plane-protection (copp) under firewall backend vpp before any plugin starts.
+# Question: does `ze start` refuse a `control-plane-protection` block under
+#           `interface backend vpp` and `firewall backend vpp` via the
+#           `firewall-producer-tables` original-tree validator in `LoadConfig`,
+#           exiting 1 before any plugin starts?
+#           A unit test invokes `ValidateCustomSections` in isolation; only a
+#           real daemon start proves the refusal occurs ahead of plugin start.
+# VALIDATES: spec-dataplane-compatibility-guard AC-8 (copp at start) --
+#            `firewall-producer-tables` translates `ze_copp` and rejects its
+#            VPP-unsupported primitives in `LoadConfig` before startup begins.
+# PREVENTS: CoPP under VPP passing boot load and failing only later inside
+#           startup tier apply.
+
+option=needs-build-tag:value=ze_vpp:state=present
+
+stdin=ze-bgp:refused=config-validator-unavailable:terminator=EOF_CONF
+interface {
+	backend vpp;
+}
+firewall {
+	backend vpp;
+}
+control-plane-protection {
+	bgp {
+		rate 100/second;
+	}
+}
+EOF_CONF
+
+cmd=foreground:seq=1:exec=ze -:stdin=ze-bgp:timeout=30s
+expect=exit:code=1
+expect=stderr:contains=error: load config:
+expect=stderr:contains=ze_copp
+expect=stderr:contains=not supported by backend vpp
+reject=stderr:contains=interface backend loaded
+reject=stderr:pattern=panic

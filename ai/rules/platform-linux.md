@@ -20,7 +20,7 @@
 
 ## Linux-only functional (`.ci`) tests run via QEMU, never natively
 
-**A functional `.ci` test that boots a daemon, or runs `ze`, against a real Linux kernel feature MUST carry `option=needs-linux`.** Netlink interface, VLAN and veth creation, nftables, kernel sockets and the L2TP or PPPoE kernel paths are all such features. The test cannot pass natively on darwin, and the marker is what routes it to the QEMU Alpine VM instead. Which marker each test needs, and how `caps=` narrows it, is `docs/architecture/testing/ci-format.md`.
+**A functional `.ci` test that boots a daemon, or runs `ze`, against a real Linux kernel feature MUST carry `option=needs-linux`.** Interface, VLAN and veth creation over netlink, nftables, kernel sockets and the L2TP or PPPoE kernel paths are all such features. The test cannot pass natively on darwin, and the marker is what routes it to the QEMU Alpine VM instead. Which marker each test needs, and how `caps=` narrows it, is `docs/architecture/testing/ci-format.md`.
 
 **`option=skip-os:value=darwin` MUST NOT stand in for `option=needs-linux`, and it MUST NOT stand in for `caps=`.** `skip-os` says "do not run here", so it hides the test from macOS and therefore runs it, unprivileged, on the Linux CI runner, which is exactly where it cannot pass. `needs-linux` states the intent, keeps the test in the QEMU suite, and `caps=` declares the capability the host has to hold. When the reason a test cannot run on macOS is a capability, you MUST declare that capability.
 

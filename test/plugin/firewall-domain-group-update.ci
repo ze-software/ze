@@ -109,7 +109,7 @@ system {
 }
 
 firewall {
-	backend nft;
+	backend kernel;
 	domain-group web {
 		domain-names [ web.example.test ];
 		ttl-floor 60;

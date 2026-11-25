@@ -118,7 +118,7 @@ Phases are strictly ordered within dependencies. Independent specs (5, 7) can pr
 
 ### Architecture Docs
 - [ ] `docs/architecture/api/process-protocol.md` - the plugin communication protocol and process lifecycle
-- [ ] `docs/features/interfaces.md` - interface management through pure netlink, with no iproute2 shell-outs
+- [ ] `docs/features/interfaces.md` - interface management through the netlink socket, with no iproute2 shell-outs
 - [ ] `docs/architecture/core-design.md` -- overall architecture, reactor, plugin model
   --> Constraint: reactor is the central event loop; plugins connect via hub
 - [ ] `ai/rules/plugins.md` -- plugin registration, 5-stage protocol, proximity principle

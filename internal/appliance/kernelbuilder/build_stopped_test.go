@@ -44,7 +44,7 @@ func buildStopCases() []buildStopCase {
 	}
 }
 
-// checkStoppedPartWay fails t unless err is Build's backstop report for tc:
+// checkStoppedPartWay fails t unless err is Build's backstop report for the case:
 // the stop named, the raw step error kept inside it, and a deadline ending
 // with the backstop's own next step.
 func checkStoppedPartWay(t *testing.T, err error, tc buildStopCase, stepSaid string) {

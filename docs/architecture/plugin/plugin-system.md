@@ -38,7 +38,8 @@ returns an error wrapping `registry.ErrRegistrySealed` that names the plugin.
 `TestMainSealsBeforeDispatch` (`cmd/ze/main_seal_test.go`) holds the order.
 The other functions that only `init()` calls refuse after the seal the same
 way: `AddConfigRead` returns the sealed error naming the plugin and the root,
-and `RegisterBuiltinFamilies`, `AddRPCHandlers`, `RegisterSessionFact`,
+`RegisterDataPlaneFeature` returns the sealed error naming the feature and its
+config path, and `RegisterBuiltinFamilies`, `AddRPCHandlers`, `RegisterSessionFact`,
 `RegisterDoctorPlatforms`, `RecordSetup`, `RegisterReactorFactory`,
 `SetPacketDecoder`, `SetRIBDumpCallback`, `SetMRTMessageCallback`,
 `SetMRTPeerCallback` and `SetFilterDeclarationCheck`, which return nothing,
@@ -55,7 +56,8 @@ stores one: no slice or map of a returned registration, nested ones included,
 is shared with the registry, so a caller that writes into one changes nothing
 the next reader sees. Function values are shared, since a copy cannot change
 them. An accessor that hands out one field's slice (`registry.ClaimsFor`,
-`registry.ConfigRootsMap`, `registry.PluginDoctorChecks`) hands out a copy
+`registry.ConfigRootsMap`, `registry.PluginDoctorChecks`,
+`registry.StandaloneDataPlaneFeatures`) hands out a copy
 too. A per-event caller that needs one field reads it through an accessor
 that answers a value (`registry.StartOrderEdges`,
 `registry.RegisteredSessionReady`) rather than paying for the clone. Tests
@@ -70,6 +72,7 @@ must stop and join the runner before restoring. Restoration is one-shot and
 refuses to overwrite a later declaration change. This helper is for tests only.
 <!-- source: internal/component/plugin/registry/seal.go -- Seal, refuseSealedLocked, panicIfSealedLocked, ErrRegistrySealed -->
 <!-- source: internal/component/plugin/registry/registration_clone.go -- cloneRegistration, cloneDoctorCheck -->
+<!-- source: internal/component/plugin/registry/dataplane_decl.go -- RegisterDataPlaneFeature, StandaloneDataPlaneFeatures, DataPlaneSelector, DataPlaneFeature -->
 <!-- source: internal/component/plugin/registry/registry.go -- Lookup, All, ClaimsFor, ConfigRootsMap, StartOrderEdges, RegisteredSessionReady, Snapshot, Restore -->
 <!-- source: internal/component/plugin/registry/runner.go -- WrapRunnerForTest -->
 <!-- source: internal/component/plugin/registry/doctor.go -- PluginDoctorChecks -->
@@ -701,22 +704,55 @@ and local initialization as well as later configuration applies.
 <!-- source: internal/component/plugin/startup_budget.go -- DeclareConfigureBudget, ConfigureStall -->
 <!-- source: internal/component/plugin/server/startup_budget.go -- declaredConfigureBudget, startupStageStall, previousStartupBudget, restartStartupHandshakeBound -->
 
-The config-path phase also resolves the FIB writer. When a plugin it is about to
-load declares `NeedsDataPlane`, and no `ProgramsFIB` plugin is configured or
-running, the engine adds the plugin whose `DataPlane` matches the backend
-`interface { backend }` selects. The producers that declare it are `static`,
-`ospf`, `isis`, `ldp`, `rsvp-te` and BGP EPE (`internal/component/bgp/plugins/epe`):
-none of them names a FIB plugin in
+The config-path phase and config reload both resolve the FIB writer through the
+single judgement `registry.JudgeDataPlaneWriter`. When any plugin that will run
+declares `NeedsDataPlane`, and no `ProgramsFIB` plugin is chosen by the
+configuration (through a `ConfigRoots` block, a compiled-in `bus > endpoint`,
+or `--plugin`), the engine adds the plugin whose `DataPlane` matches the
+backend `interface { backend }` selects. The producers that declare it are
+`static`, `ospf`, `isis`, `ldp`, `rsvp-te` and BGP EPE
+(`internal/component/bgp/plugins/epe`): none of them names a FIB plugin in
 `Dependencies`, and `TestNoRegistrationDependsOnAFIBWriter`
 (`internal/component/plugin/all/all_test.go`) refuses a registration that does.
 So `static { route ... }` or `ldp { }` with no `fib { }` block loads
 `fib-kernel` on a Linux host and `fib-vpp` on a VPP deployment, while an
-explicit `fib { ... }` block wins because its own plugin is already in the set.
-The writer of a data plane owns all of its forwarding state, so the same
-declaration covers routes and MPLS label entries. A data plane no plugin programs adds nothing and logs a warning; the
-producer's own doctor check is what tells the operator.
+explicit `fib { ... }` block (including `fib { dummy { } }`), a compiled-in
+`ProgramsFIB` bus endpoint, or a `--plugin` FIB choice wins because it is
+already chosen. The writer of a data plane owns all of its forwarding state, so
+the same declaration covers routes and MPLS label entries. When no plugin
+programs the selected data plane (or its writer is compiled out),
+`JudgeDataPlaneWriter` refuses the load, and `ze doctor` reports the same
+refusal through `plugin-dataplane-writer`.
 
-<!-- source: internal/component/plugin/server/startup_autoload.go -- appendDataPlaneWriter -->
+On config reload, `judgeReloadWriters` evaluates the whole candidate (the
+producers that will run, the candidate's chosen `ProgramsFIB` plugins from the
+candidate tree and `LoadConfigResult.CandidateSelection`, and the candidate's
+data plane), including remove-only diffs:
+
+1. **Chosen FIB set and producer set unchanged** (and running processes match):
+   start nothing and stop nothing.
+2. **One or more chosen `ProgramsFIB` plugins**: start any chosen one not
+   already running (by endpoint name, compiled identity, and process mode) and
+   stop every running `ProgramsFIB` process not in the candidate's chosen set
+   (both displaced engine-added writers and changed or removed compiled-in
+   `ProgramsFIB` bus endpoints).
+3. **Zero chosen `ProgramsFIB` plugins and one or more producers will run**:
+   keep an already running engine-added writer (even if `interface { backend }`
+   changed); otherwise ask `registry.JudgeDataPlaneWriter` for the configured
+   data plane's writer and stop any displaced `ProgramsFIB` process.
+4. **Zero chosen `ProgramsFIB` plugins and zero producers will run**: stop
+   every running `ProgramsFIB` process. `stopOrderGraph` orders every stopping
+   `NeedsDataPlane` producer ahead of any stopping `ProgramsFIB` writer so the
+   producer withdraws its routes before the writer stops.
+
+After `stopCollectedProcesses` stops one or more `ProgramsFIB` processes, it
+emits `(mpls-fib, writer-stopped)` (`mplsfib.WriterStopped`) once so any
+remaining data-plane label writer triggers a targeted label replay once the
+displaced writer has unsubscribed.
+
+<!-- source: internal/component/plugin/registry/dataplane_writer.go -- JudgeDataPlaneWriter, DataPlaneWriter -->
+<!-- source: internal/component/plugin/server/startup_autoload.go -- appendDataPlaneWriterWithReason, stopCollectedProcesses -->
+<!-- source: internal/component/plugin/server/reload_dataplane_writer.go -- judgeReloadWriters, chosenFIBPlugins, stopOrderGraph -->
 
 | Callback | What belongs in it |
 |----------|--------------------|

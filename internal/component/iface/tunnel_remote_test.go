@@ -8,7 +8,14 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/ze-software/ze/internal/core/opererr"
+	"github.com/ze-software/ze/pkg/plugin/sdk"
 )
+
+// gateSection wraps interface config JSON as the single ConfigSection
+// verifyIfaceConfig receives.
+func gateSection(data string) []sdk.ConfigSection {
+	return []sdk.ConfigSection{{Root: configRootInterface, Data: data}}
+}
 
 // tunnelRemoteConfig builds an interface config with one tunnel t0 of the given
 // kind, a local endpoint of the kind's family and the given remote ip, under
@@ -50,12 +57,12 @@ var tunnelRemoteKinds = []struct {
 // VALIDATES: the refusal happens at verify, for every kind, before a backend
 // sees the config, so both backends and offline validation refuse alike.
 // PREVENTS: a config with remote ip 0.0.0.0 or :: committing and failing only
-// when the netlink backend applies it, or installing a tunnel that
+// when the kernel backend applies it, or installing a tunnel that
 // decapsulates from any source (RFC 4213 Section 3.6).
 func TestTunnelVerifyRefusesAnUnspecifiedRemote(t *testing.T) {
 	for _, tc := range tunnelRemoteKinds {
 		t.Run(tc.kind, func(t *testing.T) {
-			err := verifyIfaceConfig(gateSection(tunnelRemoteConfig("netlink", tc.kind, tc.local, tc.unspecified)))
+			err := verifyIfaceConfig(gateSection(tunnelRemoteConfig("kernel", tc.kind, tc.local, tc.unspecified)))
 			require.Error(t, err, "remote ip %s must be refused on a %s tunnel", tc.unspecified, tc.kind)
 			var oe *opererr.Error
 			require.True(t, errors.As(err, &oe), "refusal is not an operator error: %v", err)
@@ -74,16 +81,16 @@ func TestTunnelVerifyRefusesAnUnspecifiedRemote(t *testing.T) {
 func TestTunnelVerifyAcceptsASpecificRemote(t *testing.T) {
 	for _, tc := range tunnelRemoteKinds {
 		t.Run(tc.kind, func(t *testing.T) {
-			err := verifyIfaceConfig(gateSection(tunnelRemoteConfig("netlink", tc.kind, tc.local, tc.remote)))
+			err := verifyIfaceConfig(gateSection(tunnelRemoteConfig("kernel", tc.kind, tc.local, tc.remote)))
 			require.NoError(t, err)
 		})
 	}
 	t.Run("sit_0.0.0.1", func(t *testing.T) {
-		err := verifyIfaceConfig(gateSection(tunnelRemoteConfig("netlink", "sit", "192.0.2.1", "0.0.0.1")))
+		err := verifyIfaceConfig(gateSection(tunnelRemoteConfig("kernel", "sit", "192.0.2.1", "0.0.0.1")))
 		require.NoError(t, err)
 	})
 	t.Run("ip6tnl_::1", func(t *testing.T) {
-		err := verifyIfaceConfig(gateSection(tunnelRemoteConfig("netlink", "ip6tnl", "2001:db8::1", "::1")))
+		err := verifyIfaceConfig(gateSection(tunnelRemoteConfig("kernel", "ip6tnl", "2001:db8::1", "::1")))
 		require.NoError(t, err)
 	})
 }

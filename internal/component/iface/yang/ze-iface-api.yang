@@ -63,7 +63,7 @@ and the device that name resolves to is the one that goes.";
     rpc interface-addr-add {
         description "Write the address in CIDR form, for example 10.0.0.1/24. Ze
 resolves the interface name to its kernel device, then hands the prefix to the
-netlink backend. The answer carries a message key that names the prefix and
+kernel backend. The answer carries a message key that names the prefix and
 the interface.";
         ze:help "Add an IP address to an interface.";
         input {
@@ -78,14 +78,14 @@ the kernel before the call.";
                 type string;
                 mandatory true;
                 description "An IPv4 or IPv6 address with its prefix length. The string
-goes to the netlink backend unchanged.";
+goes to the kernel backend unchanged.";
                 ze:help "IP address in CIDR notation (e.g. 10.0.0.1/24)";
             }
         }
     }
     rpc interface-addr-del {
         description "Write the same CIDR form the add used, because Ze passes the
-string to the netlink backend unchanged. Only that one address goes, and the
+string to the kernel backend unchanged. Only that one address goes, and the
 other addresses on the interface stay.";
         ze:help "Remove an IP address from an interface.";
         input {

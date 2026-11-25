@@ -6,7 +6,7 @@
 # after the reload.
 #
 # Like the existing tx-iface-apply.ci, this validates the wiring
-# (parser, dispatch, backend method invocation). The actual netlink
+# (parser, dispatch, backend method invocation). The actual netlink call
 # create call may succeed or fail depending on test runner privileges
 # (CAP_NET_ADMIN); failures are logged at Debug level and do not
 # crash the daemon.

@@ -1,9 +1,9 @@
 // Design: docs/architecture/core-design.md -- Traffic control data model types
 // Related: backend.go -- Backend interface consuming these types
 
-// Package traffic defines the data model for ze-managed tc (traffic control)
+// Package traffic defines the data model for ze-managed traffic control
 // qdiscs, classes, and filters. The trafficnetlink backend translates these
-// types to vishvananda/netlink tc calls. The trafficvpp backend translates
+// types to vishvananda/netlink traffic control calls. The trafficvpp backend translates
 // them to VPP policer and scheduler APIs.
 package traffic
 
@@ -209,7 +209,7 @@ const millisecondsPerSecond = 1000
 //	bytes = rateBps / 8 * (burstWindowMs / 1000)
 //
 // The floor applies below roughly 160 kbit/s, where the window alone yields
-// less than one packet. This is the one declaration of that derivation; the tc
+// less than one packet. This is the one declaration of that derivation; the kernel
 // and VPP backends both consume it, so the two cannot drift.
 func PolicerBurstBytes(rateBps uint64) uint64 {
 	b := rateBps / (bitsPerByte * millisecondsPerSecond / burstWindowMs)
@@ -246,7 +246,7 @@ func (p Policer) Validate() error {
 }
 
 // Qdisc is the backend input for a root discipline. RateBps is the classless
-// TBF rate; Classes carries classful tc configuration or VPP class policers.
+// TBF rate; Classes carries classful traffic control configuration or VPP class policers.
 type Qdisc struct {
 	Type         QdiscType
 	RateBps      uint64 // root TBF rate in bits/s; zero means absent

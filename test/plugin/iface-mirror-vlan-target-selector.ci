@@ -17,20 +17,20 @@
 #
 # Question: does the kernel mirror point at <bound device>.<vlan-id>? A unit
 # test with the fake backend decides the name (TestMirrorToAVLANUnitFollowsItsParentsSelector);
-# only the kernel decides that the VLAN exists when tc resolves the destination.
+# only the kernel decides that the VLAN exists when tc filter setup resolves the destination.
 #
 # Method: the setup fixture builds the veth pair, with the selected MAC on
 # zvmt0, and the decoy before the daemon starts. The driver polls the egress
 # hook of zvms0 over netlink until the boot apply's filter is there, then
 # reads the destination ifindex of its mirred action.
 
-# needs-linux: tc, veth and VLAN devices exist only on Linux. caps=net-admin:
+# needs-linux: traffic control, veth and VLAN devices exist only on Linux. caps=net-admin:
 # the fixtures and the daemon create links and program tc filters.
 option=needs-linux:caps=net-admin
 
 stdin=ze-bgp:terminator=EOF_CONF
 interface {
-	backend netlink;
+	backend kernel;
 	ethernet zvms0 {
 		unit 0 {
 			mirror {

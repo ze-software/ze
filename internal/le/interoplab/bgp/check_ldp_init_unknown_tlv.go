@@ -37,7 +37,7 @@ const (
 	// 0x3f00: the U bit and the F bit clear and a type no RFC registers, the
 	// type TestLDPInitUnknownTLVUClearNotifies uses. The TLV keeps its length
 	// and its value, so the message differs from FRR's only by that type.
-	// nft recomputes the TCP checksum over the rewritten field. The counter
+	// nftables recomputes the TCP checksum over the rewritten field. The counter
 	// is the proof the rewrite ran, read before any verdict on ze.
 	ldpInitRewrite = "tcp sport " + ldpPort + " tcp doff 8 @th,336,16 0x0200 @th,544,16 0x8506 counter @th,544,16 set 0x3f00"
 	// ldpUnknownTLVStatus is the Status name FRR logs for Status Code

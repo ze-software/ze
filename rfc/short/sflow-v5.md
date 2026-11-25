@@ -441,9 +441,9 @@ the collector's shared datagram sequence.
 
 | if_counters field | Ze source |
 |-------------------|-----------|
-| ifIndex | Interface index from netlink / internal assignment |
+| ifIndex | Interface index via netlink or internal assignment |
 | ifType | IANA ifType (6=ethernetCsmacd, 131=tunnel, 53=propVirtual, etc.) |
-| ifSpeed | Link speed in bits/sec from netlink or config |
+| ifSpeed | Link speed in bits/sec via netlink or config |
 | ifDirection | 1=full-duplex (default for virtual interfaces) |
 | ifStatus | bit 0 = admin up, bit 1 = oper up |
 | ifInOctets | rx_bytes from kernel counters |

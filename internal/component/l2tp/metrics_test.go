@@ -203,7 +203,7 @@ func newInertMetricsTestSubsystem(t *testing.T, cqm bool) *Subsystem {
 	previousProbe, previousWorker := probeKernelModulesFn, newSubsystemKernelWorkerFn
 	probeKernelModulesFn = func() error { return nil }
 	newSubsystemKernelWorkerFn = func(chan<- kernelSetupFailed, chan<- kernelSetupSucceeded, *slog.Logger, kernelBackendPreparation) (*kernelWorker, error) {
-		return nil, nil //nolint:nilnil // inert root without privileged netlink
+		return nil, nil //nolint:nilnil // inert root without privileged netlink sockets
 	}
 	t.Cleanup(func() {
 		probeKernelModulesFn, newSubsystemKernelWorkerFn = previousProbe, previousWorker

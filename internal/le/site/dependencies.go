@@ -374,7 +374,7 @@ func dependenciesBody(decl credits.Declaration, versions map[string]string, ship
 	body.Str(pageHero("Dependencies", dependenciesLead("<code>go.mod</code>", curatedTotal(decl)),
 		categoryLabel(categoryPlatform), ` id="dependencies-title"`, heroClasses)).Byte('\n')
 	body.Str("                <input id=\"dep-search\" type=\"search\" ").
-		Str("placeholder=\"Filter dependencies (e.g. netlink, ssh, prometheus)...\" ").
+		Str("placeholder=\"Filter dependencies (e.g. nftables, ssh, prometheus)...\" ").
 		Str("aria-label=\"Filter dependencies\" />\n")
 	for _, category := range decl.Categories {
 		body.Str(dependencyGroupHTML(category, versions))

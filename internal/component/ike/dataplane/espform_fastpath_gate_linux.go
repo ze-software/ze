@@ -87,12 +87,12 @@ func espFormFirewallAccept(site espFormFirewallSite) (how, fix string) {
 	return (*owned)(site.Family, site.Table, site.Chain)
 }
 
-// espFormForeignTableAccept answers the nft insert that accepts ESP at the head of
+// espFormForeignTableAccept answers the nftables insert that accepts ESP at the head of
 // the base chain of a table Ze does not own; meta l4proto matches ESP in every family
 // the judgment walks (inet, ip, netdev, bridge), and the family is one of those words.
 // The command is one shell word in single quotes, so the shell expands nothing in
-// it, and the table and chain names are nft identifiers in double quotes, which nft
-// accepts for any name (nft(8), "Lexical conventions"). A name holding either quote
+// it, and the table and chain names are nftables identifiers in double quotes, which nftables
+// accepts for any name (nftables manual, "Lexical conventions"). A name holding either quote
 // or a control character cannot be carried that way, so no command is printed for
 // it: the message says so and the fix lists the ruleset.
 //
@@ -121,19 +121,19 @@ const espFormOwnerFlagNote = " A table created with the owner flag, which `nft l
 	"refuses that change from any other process: only the process that owns it can make it."
 
 // espFormForeignTableUnquotable answers espFormForeignTableAccept for a site whose table
-// or chain name cannot be written as a quoted nft identifier: no command to paste, and
+// or chain name cannot be written as a quoted nftables identifier: no command to paste, and
 // the ruleset listing as the fix.
 func espFormForeignTableUnquotable(site espFormFirewallSite) (how, fix string) {
 	var why textbuf.Buffer
 	why.Str("Table ").Str(strconv.Quote(site.Table)).Str(", which Ze does not own, or its chain ").
 		Str(strconv.Quote(site.Chain)).Str(", has a name holding a quote or a control character, " +
 		"so Ze prints no command to paste: insert a rule accepting meta l4proto esp at the head of " +
-		"that chain with nft. The command below lists the ruleset with the names as nft spells them.").
+		"that chain with the nft tool. The command below lists the ruleset with the names as the nft tool spells them.").
 		Str(espFormOwnerFlagNote)
 	return why.String(), "sudo nft list ruleset"
 }
 
-// espFormNFTQuotable answers whether name can be written as a double-quoted nft
+// espFormNFTQuotable answers whether name can be written as a double-quoted nftables
 // identifier inside a single-quoted shell word: it holds no quote of either kind and
 // no control character.
 func espFormNFTQuotable(name string) bool {

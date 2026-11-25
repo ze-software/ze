@@ -29,6 +29,6 @@ func TestCounterCreateCapability(t *testing.T) {
 			netlink.Link, func() (*netlink.LinkStatistics, error), bool, error,
 		)
 	}); !supported {
-		t.Fatal("netlink backend does not provide a creation-bound counter reader")
+		t.Fatal("kernel interface backend does not provide a creation-bound counter reader")
 	}
 }

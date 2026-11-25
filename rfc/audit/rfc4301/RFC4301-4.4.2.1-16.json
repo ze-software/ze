@@ -5,8 +5,8 @@
   "note": "First verdict 2026-11-20 by an independent agent. RFC 4301 Section 4.4.2.1: \"Bypass DSCP (T/F) or map to unprotected DSCP values (array) if needed to restrict bypass of DSCP values -- applicable to tunnel mode SAs.\" Tested: \"Bypass DSCP (T/F)\". Gap: \"map to unprotected DSCP values (array)\". Producer: internal/component/ike/dataplane/xfrm_linux.go::xfrmDSCPFlag. TestXFRMStateCarriesTheOuterDSCP asserts copy builds the outbound tunnel state without DontEncapDSCP and a mapping to 0 builds it with the flag (Linux then writes outer DSCP 0), so the state holds the bypass choice exactly. TestXFRMStateRefusesOuterDSCPItCannotWrite asserts a mapping on a transport-mode SA, outside the field's tunnel-mode applicability, is refused with ErrSAOptionRefused (its 46 and inbound cases serve other rows). The scoped assertions hold. The per-value array is honestly disclosed as unbuilt, and a fixed value other than 0 is refused on Linux XFRM by xfrmDSCPFlag (LL-XFRM-OUTER-DF-SET-DSCP), homed in plan/post-release/kernel/spec-xfrm-outer-df-set-dscp.md, which lists this row. No whole-requirement credit.",
   "requirement_sha": "107d95393867c9c2",
   "tests": {
-    "internal/component/ike/dataplane/rfc4301_dscp_linux_test.go::TestXFRMStateCarriesTheOuterDSCP": "a6168cf1ff56d0ba",
-    "internal/component/ike/dataplane/rfc4301_dscp_linux_test.go::TestXFRMStateRefusesOuterDSCPItCannotWrite": "a6168cf1ff56d0ba"
+    "internal/component/ike/dataplane/rfc4301_dscp_linux_test.go::TestXFRMStateCarriesTheOuterDSCP": "00fd8e52d0aeb7ed",
+    "internal/component/ike/dataplane/rfc4301_dscp_linux_test.go::TestXFRMStateRefusesOuterDSCPItCannotWrite": "00fd8e52d0aeb7ed"
   },
   "units": {
     "internal/component/ike/dataplane/rfc4301_dscp_linux_test.go::TestXFRMStateCarriesTheOuterDSCP": "c2d8e5d11e0c4398",

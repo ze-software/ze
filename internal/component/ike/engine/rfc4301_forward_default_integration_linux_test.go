@@ -61,7 +61,7 @@ func forwardDefaultSeed(t *testing.T, values [3]byte) {
 // TestRFC4301ForwardDefaultFollowsAndReleasesUnmatched tests the real install,
 // reload and release sequence. IN/OUT defaults belong to the pre-existing namespace
 // and MUST survive. A second apply MUST NOT replace the original FWD snapshot with
-// Ze's running value. No packet assertion is inferred from this netlink readback;
+// Ze's running value. No packet assertion is inferred from this netlink socket readback;
 // rfc4301_forward_icmp_integration_linux_test.go supplies actual forwarding proof.
 //
 //ze:guest-root

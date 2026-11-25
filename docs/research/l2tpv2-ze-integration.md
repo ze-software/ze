@@ -619,7 +619,7 @@ All payloads follow ze's JSON conventions:
 | BGP reactor | `l2tp` | `session-down` | Withdraw subscriber route |
 | sysrib | `l2tp` (via redistribute) | `best-change` | L2TP routes flow through sysrib to fibkernel |
 | fibkernel | `system-rib` | `best-change` | Programs subscriber routes into kernel FIB |
-| Interface monitor | (automatic) | `created`, `up`, `down` | Netlink detects pppN creation/destruction |
+| Interface monitor | (automatic) | `created`, `up`, `down` | Netlink link monitor detects pppN creation/destruction |
 
 ### 8.3 End-to-end flow: subscriber comes up
 
@@ -1214,11 +1214,14 @@ reactors never reread the global backend when a session arrives. A LAC bridge
 attaches only its original channel and requires no unused local unit creator. The
 subsystem closes this owner after workers, PPP drivers and their drains stop;
 changing the active backend to VPP cannot redirect a Linux `pppN` operation.
+Under `interface backend vpp`, commit, reload, `ze config validate`, and daemon
+start refuse an active L2TP listener (`environment l2tp server` with `l2tp
+enabled` not `false`) before L2TP starts, so no L2TP session runs beside VPP.
 <!-- source: internal/component/l2tp/subsystem.go -- Start, Stop, unwindLocked -->
 <!-- source: internal/component/l2tp/reactor_kernel.go -- handleKernelSuccess -->
 
 PPPoE binds session admission to the original prepared access through
-`AccessOwner.Open`. Kernel preparation opens one independent netlink backend
+`AccessOwner.Open`. Kernel preparation opens one independent kernel backend
 and captures its original unit creator before publication. Child interface
 operations, ordered creation and creation-bound counter readers retain that
 original backend. Typed channel and unit owners transfer through the original
@@ -1387,7 +1390,7 @@ The existing doctor registry carries three disjoint configured scopes:
 `l2tp-original-ppp-support` for enabled L2TP, with bridge7 when its relay or
 relay-realm role needs bridging; `pppoe-original-ppp-support` for an enabled
 access concentrator with access interfaces and the actual schema-backed
-`netlink` session backend; and `pppoe-client-original-ppp-support` for active
+`kernel` session backend; and `pppoe-client-original-ppp-support` for active
 CPE entries. A VPP-only access concentrator, disabled client, or unrelated
 configuration does not acquire a native PPP dependency. L2TP registers in its
 own package, so its check remains reachable without importing PPPoE or the
@@ -2027,7 +2030,7 @@ func FuzzParseControlMessage(f *testing.F) { ... }
 
 ### 17.4 Integration tests
 
-Require root (for kernel L2TP modules, /dev/ppp, netlink):
+Require root (for kernel L2TP modules, /dev/ppp, netlink sockets):
 - Kernel tunnel/session creation and deletion
 - PPPoL2TP socket lifecycle
 - pppN interface creation

@@ -25,15 +25,23 @@ const configRoot = "control-plane-protection"
 // CoPP stays opt-in.
 const bgpConfigRoot = "bgp"
 
+const firewallPluginName = "firewall"
+
 func init() {
 	reg := registry.Registration{
-		Name:                    "copp",
-		Description:             "Control-plane policing: rate-limit new TCP connections to BGP listen port",
-		Features:                "yang",
-		YANG:                    coppyang.ZeCoppConfYANG,
-		ConfigRoots:             []string{configRoot},
-		ConfigReads:             []string{bgpConfigRoot},
-		Dependencies:            []string{"firewall"},
+		Name:         "copp",
+		Description:  "Control-plane policing: rate-limit new TCP connections to BGP listen port",
+		Features:     "yang",
+		YANG:         coppyang.ZeCoppConfYANG,
+		ConfigRoots:  []string{configRoot},
+		ConfigReads:  []string{bgpConfigRoot},
+		Dependencies: []string{firewallPluginName},
+		DataPlaneFeatures: []registry.DataPlaneFeature{{
+			ConfigPath:      configRoot,
+			Why:             "control-plane protection registers firewall tables",
+			FollowsSelector: firewallPluginName,
+			InUseKind:       registry.DataPlaneInUseConfigRoot,
+		}},
 		InProcessConfigVerifier: verifyCoppConfig,
 		RunEngine:               runCoppPlugin,
 		ConfigureEngineLogger: func(loggerName string) {
@@ -43,7 +51,7 @@ func init() {
 			Name:         "copp-input-chain",
 			Phase:        rpc.DoctorPhasePostConfig,
 			Order:        720,
-			Dependencies: []string{"firewall"},
+			Dependencies: []string{firewallPluginName},
 			Platforms:    []string{"any"},
 			Codes:        []string{"doctor-copp-missing"},
 			Check:        checkCoppInputChain,

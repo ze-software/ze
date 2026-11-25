@@ -88,7 +88,7 @@ service {
     }
 }
 interface {
-    backend netlink
+    backend kernel
     veth zedhptw0 {
         peer zedhptw1
         unit 0 {
@@ -135,7 +135,7 @@ service {
     }
 }
 interface {
-    backend netlink
+    backend kernel
     veth zedhptw0 {
         peer zedhptw1
         unit 0 {
@@ -186,7 +186,7 @@ service {
     }
 }
 interface {
-    backend netlink
+    backend kernel
     veth zedhptw0 {
         peer zedhptw1
         unit 0 {

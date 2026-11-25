@@ -40,7 +40,7 @@
 # and a real nftables ruleset. None of them exists on darwin. Runs as root in the
 # QEMU Linux VM.
 # caps=net-admin because the setup fixture creates the veth parent and the daemon
-# programs netlink and nftables. Without the declaration an unprivileged Linux
+# programs the netlink socket and nftables. Without the declaration an unprivileged Linux
 # host does not skip: the calls are refused and the test fails for a capability
 # the host never had (internal/test/runner/record_parse.go, option=needs-linux).
 option=needs-linux:caps=net-admin
@@ -54,7 +54,7 @@ option=exclusive:group=iface-owned-macvlan
 
 stdin=ze-bgp:terminator=EOF_CONF
 interface {
-	backend netlink;
+	backend kernel;
 	ethernet zeptam0 {
 		unit 0 {
 			ipv4 {

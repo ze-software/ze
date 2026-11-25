@@ -9,7 +9,7 @@
 // under its fresh-start Interface ID.
 //
 // Linux only: interfaceIndex asks the iface backend, and the only interface backend is
-// netlink. On another host it answers 0 for every name, so the fresh-start ID this unit
+// kernel. On another host it answers 0 for every name, so the fresh-start ID this unit
 // compares against does not exist there.
 
 //go:build linux

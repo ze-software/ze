@@ -1,4 +1,4 @@
-// Pure-function coverage for the VXLAN netlink builder. buildTunnelLink with
+// Pure-function coverage for the VXLAN netlink link builder. buildTunnelLink with
 // no local-interface source touches no kernel state, so these run on any linux
 // host without CAP_NET_ADMIN (the round-trip-against-the-kernel path lives in
 // the integration-tagged tunnel_linux_test.go).
@@ -15,9 +15,9 @@ import (
 	"github.com/ze-software/ze/internal/component/iface"
 )
 
-// TestBuildVxlanLink verifies AC-3 (A-5): the netlink half of the new vxlan
+// TestBuildVxlanLink verifies AC-3 (A-5): the kernel half of the new vxlan
 // kind maps VNI, endpoints, and the default UDP port onto a netlink.Vxlan.
-// VALIDATES: AC-3 -- vxlan lands in the netlink backend too.
+// VALIDATES: AC-3 -- vxlan lands in the kernel interface backend too.
 // PREVENTS: vxlan silently becoming VPP-only, breaking the kind<->case<->backend uniformity.
 func TestBuildVxlanLink(t *testing.T) {
 	link, err := buildTunnelLink(iface.TunnelSpec{
@@ -75,7 +75,7 @@ func TestBuildVxlanCustomPort(t *testing.T) {
 
 // TestBuildVxlanRejectsBadVNI verifies the builder rejects an unset, zero, or
 // out-of-range VNI.
-// VALIDATES: AC-3 boundaries -- VNI 0 and >2^24-1 rejected in netlink too.
+// VALIDATES: AC-3 boundaries -- VNI 0 and >2^24-1 rejected in the kernel backend too.
 func TestBuildVxlanRejectsBadVNI(t *testing.T) {
 	cases := []struct {
 		name   string

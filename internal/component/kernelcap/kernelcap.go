@@ -133,7 +133,7 @@ type Capability struct {
 	// InUse reports whether the configuration uses the subsystem. A false answer
 	// ends the evaluation and nothing is probed.
 	InUse func(*config.Tree) bool
-	// Probe reads the host. It uses netlink, procfs or a syscall, and it MUST
+	// Probe reads the host. It uses the netlink socket, procfs or a syscall, and it MUST
 	// NOT execute an external binary: a second dependency that can be absent for
 	// its own reasons is the fault this enrolment removes, not a way to find it.
 	Probe func() Result

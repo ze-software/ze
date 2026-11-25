@@ -17,7 +17,7 @@ import (
 )
 
 // TestNetlinkTimeoutBounds covers the spec's mandatory boundary table for the
-// nft netlink deadline: range 1..60s, default 10s.
+// nftables netlink deadline: range 1..60s, default 10s.
 //
 // VALIDATES: fixit-firewall-concurrency-deadlock D-2 -- the deadline is always
 // bounded and can never be configured away.

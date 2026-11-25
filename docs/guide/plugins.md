@@ -722,6 +722,7 @@ address. A session whose events named it nothing is selected by no name.
 | `iface-ra` | IPv6 Router Advertisement sender (RFC 4861): advertises prefixes, flags, and RDNSS resolvers (RFC 8106) on a LAN unit. Hosts autoconfigure addresses, learn a default router, and learn resolvers. Linux and kernel backend only. [Guide](configuration.md#ipv6-router-advertisements) | -- (Config-driven, raw ICMPv6 socket per unit) |
 | `rib` | System RIB: resolves authoritative routes and publishes forwarding changes | Internal or external; no peer binding |
 | `fib-kernel` | FIB kernel: programs OS routes from system RIB via netlink | -- (Bus events, no peer binding) |
+| `fib-dummy` | FIB dummy: holds selected system RIB routes in memory and installs none. Refuses MPLS label batches so label protocols never advertise unforwarded labels. `show fib dummy`, `show fib dummy counters`, `ze_fibdummy_*` metrics. | -- (Bus events, no peer binding) |
 | `fib-p4` | FIB P4: programs P4 switch from system RIB via gRPC/P4Runtime (noop backend) | -- (Bus events, no peer binding) |
 | `fib-vpp` | FIB VPP: programs VPP FIB from system RIB via GoVPP. MPLS label push (IPRouteAddDel with LabelStack), swap/pop (MplsRouteAddDel), interface enable (SwInterfaceSetMplsEnable). | -- (Bus events, no peer binding) |
 | `firewall-vpp` | VPP ACL backend for firewall: translates ze Match/Action types to VPP ACL rules, read-merge-write bindings preserving foreign ACLs | -- (registered as firewall backend) |
@@ -751,6 +752,7 @@ address. A session whose events named it nothing is selected by no name.
 <!-- source: internal/component/sysrib/register.go -- rib plugin registration -->
 <!-- source: internal/plugins/fib/p4/register.go -- fib-p4 registration -->
 <!-- source: internal/plugins/fib/kernel/register.go -- fib-kernel registration -->
+<!-- source: internal/plugins/fib/dummy/register.go -- init, commandDecls -->
 <!-- source: internal/plugins/firewall/vpp/register.go -- firewall-vpp backend registration -->
 
 ### L2TP
@@ -1514,7 +1516,7 @@ Removing the hub settings selects automatic local transport when a plugin needs 
 
 External plugins communicate with Ze through the same newline-framed YANG RPC
 protocol as internal plugins: `#<id> <verb> [json]`. External processes connect
-to the plugin hub over TLS with the `ZE_PLUGIN_*` environment supplied by the
+to the bus hub over TLS with the `ZE_PLUGIN_*` environment supplied by the
 engine. That environment carries the hub address, a per-plugin token, and in
 `ZE_PLUGIN_CA_PEM` the certificate authority root that issued the hub's
 certificate. A plugin validates the hub's chain against that root and dials no

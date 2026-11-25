@@ -18,7 +18,7 @@ bgp {
   router-id 1.2.3.4;
 }
 interface {
-	backend netlink;
+	backend kernel;
 	ethernet eth9 {
 		unit 0 {
 			description lab;

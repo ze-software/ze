@@ -16,7 +16,7 @@
 # --- vrid is mandatory: the group name carries no protocol meaning. -----------
 stdin=no-vrid:terminator=EOF_NOVRID
 interface {
-    backend netlink;
+    backend kernel;
     ethernet eth0 {
         unit 0 {
             ipv4 {
@@ -38,7 +38,7 @@ expect=stdout:contains=vrid is required
 # --- vrid 0 is out of range (RFC 9568 Section 5.2.3: 1..255). -----------------
 stdin=vrid-zero:terminator=EOF_VZERO
 interface {
-    backend netlink;
+    backend kernel;
     ethernet eth0 {
         unit 0 {
             ipv4 {
@@ -61,7 +61,7 @@ expect=stdout:contains=vrid
 # --- vrid 256 is out of range. ------------------------------------------------
 stdin=vrid-256:terminator=EOF_V256
 interface {
-    backend netlink;
+    backend kernel;
     ethernet eth0 {
         unit 0 {
             ipv4 {
@@ -85,7 +85,7 @@ expect=stdout:contains=vrid
 # to every peer while ze ran two state machines (RFC 9568 Section 1.2).
 stdin=dup-vrid:terminator=EOF_DUPVRID
 interface {
-    backend netlink;
+    backend kernel;
     ethernet eth0 {
         unit 0 {
             ipv4 {
@@ -112,7 +112,7 @@ expect=stdout:contains=is also configured by group
 # --- priority 255 is the owner's, assigned by ze, never operator-set. ---------
 stdin=prio-255:terminator=EOF_P255
 interface {
-    backend netlink;
+    backend kernel;
     ethernet eth0 {
         unit 0 {
             ipv4 {
@@ -137,7 +137,7 @@ expect=stdout:contains=priority
 # the wire, so it is refused rather than rounded behind the operator's back.
 stdin=v3-granularity:terminator=EOF_GRAN
 interface {
-    backend netlink;
+    backend kernel;
     ethernet eth0 {
         unit 0 {
             ipv4 {
@@ -161,7 +161,7 @@ expect=stdout:contains=not a multiple of 10
 # --- VRRPv2 encodes whole seconds (RFC 3768 Section 5.3.7). -------------------
 stdin=v2-fraction:terminator=EOF_V2FRAC
 interface {
-    backend netlink;
+    backend kernel;
     ethernet eth0 {
         unit 0 {
             ipv4 {
@@ -186,7 +186,7 @@ expect=stdout:contains=whole number of seconds
 # --- accept-mode is a VRRPv3 feature; RFC 3768 has no such concept. -----------
 stdin=accept-v2:terminator=EOF_ACCV2
 interface {
-    backend netlink;
+    backend kernel;
     ethernet eth0 {
         unit 0 {
             ipv4 {
@@ -212,7 +212,7 @@ expect=stdout:contains=accept-mode
 # (RFC 9568 Section 5.2.9, erratum 8300), so it must be the link-local.
 stdin=v6-order:terminator=EOF_V6ORD
 interface {
-    backend netlink;
+    backend kernel;
     ethernet eth0 {
         unit 0 {
             ipv6 {
@@ -235,7 +235,7 @@ expect=stdout:contains=link-local
 # --- One virtual address belongs to exactly one group. ------------------------
 stdin=dup-vip:terminator=EOF_DUPVIP
 interface {
-    backend netlink;
+    backend kernel;
     ethernet eth0 {
         unit 0 {
             ipv4 {
@@ -259,7 +259,7 @@ cmd=foreground:seq=10:exec=ze config validate -:stdin=dup-vip:exit=1
 expect=exit:code=1
 expect=stdout:contains=virtual-address
 
-# --- VRRP needs macvlan devices and raw sockets: netlink only, fail closed. ---
+# --- VRRP needs macvlan devices and raw sockets: kernel only, fail closed. ---
 stdin=vpp-backend:terminator=EOF_VPP
 interface {
     backend vpp;
@@ -288,7 +288,7 @@ expect=stdout:contains=backend
 # operator as a failover that silently never happens.
 stdin=track-owner:terminator=EOF_TRKOWN
 interface {
-    backend netlink;
+    backend kernel;
     ethernet eth0 {
         unit 0 {
             ipv4 {
@@ -317,7 +317,7 @@ expect=stdout:contains=track cannot be combined with an address-owner group
 # --- priority-decrement 0 configures tracking that can never take effect. -----
 stdin=track-zero:terminator=EOF_TRKZERO
 interface {
-    backend netlink;
+    backend kernel;
     ethernet eth0 {
         unit 0 {
             ipv4 {
@@ -346,7 +346,7 @@ expect=stdout:contains=priority-decrement
 # covers a pseudo-header (RFC 3768 Section 5.3.7), so the leaf would do nothing.
 stdin=checksum-v2:terminator=EOF_CKV2
 interface {
-    backend netlink;
+    backend kernel;
     ethernet eth0 {
         unit 0 {
             ipv4 {
@@ -371,7 +371,7 @@ expect=stdout:contains=checksum rfc5798-compatible is a VRRPv3 setting
 # --- An unknown checksum form is refused, never defaulted. --------------------
 stdin=checksum-unknown:terminator=EOF_CKUNK
 interface {
-    backend netlink;
+    backend kernel;
     ethernet eth0 {
         unit 0 {
             ipv4 {

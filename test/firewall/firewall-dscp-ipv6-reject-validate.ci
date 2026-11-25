@@ -7,12 +7,12 @@
 # PREVENTS: a regression where the offline CLI validate path stops
 #           running ValidateTables for the firewall section.
 #
-# Offline test (no daemon, no netlink), the daemon-side equivalent is
+# Offline test (no daemon, no netlink socket), the daemon-side equivalent is
 # exercised implicitly: ValidateTables is called from OnConfigVerify.
 
 stdin=config:terminator=EOF_CONF
 firewall {
-	backend nft;
+	backend kernel;
 	table fw10_006 {
 		family ip6;
 		chain input {

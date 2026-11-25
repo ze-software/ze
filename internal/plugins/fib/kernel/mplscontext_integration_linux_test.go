@@ -1,7 +1,7 @@
 //go:build linux
 
 // Design: docs/architecture/mpls/mpls-kernel.md -- scoped push acceptance and cleanup.
-// These tests exercise Apply against a real netlink backend in an isolated netns.
+// These tests exercise Apply against a real kernel FIB backend in an isolated netns.
 // FIB lookups prove selection; the RSVP packet-path carrier owns on-wire proof.
 package fibkernel
 

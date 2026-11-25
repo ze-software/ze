@@ -8,10 +8,10 @@
 //     the WAN never transmits it.
 //   - kernel-chosen source (a route's preferred source picks the tunnel address after
 //     routing out of the WAN): no source rule is consulted, so the rule alone lets it
-//     leave; the nft postrouting drop stops it.
+//     leave; the nftables postrouting drop stops it.
 //
 // The instrument is the WAN device's transmit counter: a dummy device transmits every
-// packet routed to it without neighbor discovery, and nft postrouting runs before.
+// packet routed to it without neighbor discovery, and nftables postrouting runs before.
 // PREVENTS: the residual the IPv6 source BYPASS left, an IPv6 packet from a tunnel
 // address leaving another interface in the clear.
 
@@ -33,7 +33,7 @@ import (
 	"github.com/ze-software/ze/internal/component/firewall"
 	"github.com/ze-software/ze/internal/test/userns"
 
-	_ "github.com/ze-software/ze/internal/plugins/firewall/nft" // registers the nft firewall backend
+	_ "github.com/ze-software/ze/internal/plugins/firewall/nft" // registers the kernel firewall backend
 )
 
 const (
@@ -167,13 +167,13 @@ func TestTunnelSourceGuardInKernel(t *testing.T) {
 	}
 	// A-3: the rule alone does not see a source the kernel picked after routing.
 	if tx, _ := wanSend(t, nil, guardTestAutoDst); tx == 0 {
-		t.Error("with the rule alone a kernel-chosen-source send did not leave the WAN; the nft leg below would prove nothing")
+		t.Error("with the rule alone a kernel-chosen-source send did not leave the WAN; the nftables leg below would prove nothing")
 	}
 	ruleOnly.prune(nil, log)
 
 	// LEG 2, the whole guard through the firewall registry (AC-6).
-	if err := firewall.LoadBackend("nft"); err != nil {
-		t.Fatalf("load the nft firewall backend: %v", err)
+	if err := firewall.LoadBackend("kernel"); err != nil {
+		t.Fatalf("load the kernel firewall backend: %v", err)
 	}
 	whole := newSourceGuards(kernelGuard{})
 	whole.tunnelRoute(true, "peer", guardRouteKey{ifID: guardTestIfID, prefix: ts}, log)

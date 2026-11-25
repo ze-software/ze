@@ -46,7 +46,7 @@ works on a Mac. A defect found here is fixed here.
   → Decision: listing is not Linux-only any more; management still is
 
 **Key insights:**
-- The backend is still called "netlink" on macOS; the stub registers under that name, so `iface.LoadBackend("netlink")` succeeds there.
+- The backend is still called "kernel" on macOS; the stub registers under that name, so `iface.LoadBackend("kernel")` succeeds there.
 - The macOS listing reports no link kind. The loopback is typed by its flag; anything else with a hardware address is classified ethernet by `infoToZeType`.
 
 ## Current Behavior (MANDATORY)
@@ -59,7 +59,7 @@ works on a Mac. A defect found here is fixed here.
 - [ ] `internal/core/resolve/resolve.go` - `DefaultConfig`, the instance-name rule
 
 **Behavior to preserve:**
-- Linux behavior is untouched: the netlink backend and its tests are not in scope.
+- Linux behavior is untouched: the kernel backend and its tests are not in scope.
 - Every macOS management method keeps refusing with "interface management not supported on darwin".
 
 **Behavior to change:**
@@ -71,7 +71,7 @@ works on a Mac. A defect found here is fixed here.
 - `ze init` on macOS, answers on stdin: username, password, host, port, instance name.
 
 ### Transformation Path
-1. `iface.LoadBackend("netlink")` loads the stub backend.
+1. `iface.LoadBackend("kernel")` loads the stub backend.
 2. `iface.DiscoverInterfaces` calls the stub's `ListInterfaces`, which calls `net.Interfaces` and `Addrs`.
 3. `infoToZeType` classifies each interface; `iface.EmitConfig` writes the config text.
 4. init stores it at `file/active/<instance>.conf` in the new store.
@@ -137,7 +137,7 @@ works on a Mac. A defect found here is fixed here.
 | AC-3 | `ze init` on the Mac with instance name `edge` | prints `discovered N interface(s), wrote initial config`; the store holds `file/active/edge.conf` and no `file/active/ze.conf` |
 | AC-4 | bare `ze start` on that store | reads `edge.conf`: the log says `Starting ze with config: edge.conf` and no second config is bootstrapped |
 | AC-5 | `ze show interface` against the running Mac daemon | lists the host's interfaces with addresses; a create or address change is refused with "not supported on darwin" |
-| AC-6 | golangci-lint over the two netlink files with `GOOS=darwin` | no finding |
+| AC-6 | golangci-lint over the two `iface/netlink` files with `GOOS=darwin` | no finding |
 
 ## 🧪 TDD Test Plan
 

@@ -194,7 +194,7 @@ func (backend *typedSetupLostReply) CreateLinkCounterReader(request *nl.NetlinkR
 
 func typedSetupNative(t *testing.T, wrap func(iface.Backend) iface.Backend) (*pppkernel.UnitCreator, *os.File) {
 	t.Helper()
-	backend, err := iface.OpenBackend("netlink")
+	backend, err := iface.OpenBackend("kernel")
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -52,7 +52,7 @@ apart the same way (AC-8).
 | Mechanism | Where | What it does today | This spec |
 |-----------|-------|--------------------|-----------|
 | OSPF SR model and label computation | `internal/plugins/ospf/sr` (SRGB, Prefix-SID, actions), `sr_install.go`, `sr_fib.go` | Computes push, swap and pop from OSPF SPF and SR TLVs | Extends: the protocol-neutral part (SRGB arithmetic, label actions, mapping-server resolution) moves to an `internal/core/` leaf both IGPs import; the TLV codecs stay per protocol |
-| MPLS FIB events | `internal/core/mplsfib` `(mpls-fib, entry)` | The only path from a protocol to kernel labels | Reused: IS-IS emits label entries the same way; no netlink in `isis` |
+| MPLS FIB events | `internal/core/mplsfib` `(mpls-fib, entry)` | The only path from a protocol to kernel labels | Reused: IS-IS emits label entries the same way; no netlink calls in `isis` |
 | IS-IS SPF and Loc-RIB install | `internal/plugins/isis/spf` | Inserts IP routes | Extends: each SPF route gains its label actions |
 | IS-IS LSP TLV codecs | `internal/plugins/isis/packet` | Router Capability and reachability TLVs | Extends: Prefix-SID, Adj-SID, LAN-Adj-SID, SR-Capabilities, SR-Algorithm, SRLB, Binding TLV |
 | BGP-LS export of SIDs | `bgpls_export.go` | Exports SRv6 SIDs | Extends: exports SR-MPLS SIDs from the same decoded values (RFC 9085) |

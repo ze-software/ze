@@ -17,7 +17,7 @@ import (
 
 	"github.com/ze-software/ze/internal/component/firewall"
 	"github.com/ze-software/ze/internal/component/iface"
-	_ "github.com/ze-software/ze/internal/plugins/firewall/nft" // registers the nft firewall backend
+	_ "github.com/ze-software/ze/internal/plugins/firewall/nft" // registers the kernel firewall backend
 	"github.com/ze-software/ze/internal/plugins/vrrp/packet"
 	"github.com/ze-software/ze/internal/test/userns"
 )
@@ -64,8 +64,8 @@ func TestVRRPOwnerAnswersWithVirtualMACOnly(t *testing.T) {
 	// RFC requirement: RFC5798-8.2.2-8 positive -- with the owner filter applied, a LAN host's Neighbor Solicitation for the address owner's IPv6 virtual address is answered with Neighbor Advertisements whose Target Link-Layer Address option carries the virtual router MAC (ownerNDAdvertTerm ownerfilter.go).
 	// RFC requirement: RFC5798-8.2.2-8 negative -- control: without the filter the parent answers the same solicitation with its physical MAC (ownerFilterTables ownerfilter.go).
 	w := newGatewayWire(t)
-	if err := firewall.LoadBackend("nft"); err != nil {
-		t.Skipf("nft firewall backend unavailable: %v", err)
+	if err := firewall.LoadBackend("kernel"); err != nil {
+		t.Skipf("kernel firewall backend unavailable: %v", err)
 	}
 	t.Cleanup(func() { _ = firewall.CloseBackend() })
 

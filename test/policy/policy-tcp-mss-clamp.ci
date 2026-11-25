@@ -49,7 +49,7 @@ option=timeout:value=40s
 
 stdin=ze-bgp:terminator=EOF_CONF
 firewall {
-	backend nft;
+	backend kernel;
 }
 policy {
 	route mss-clamp {

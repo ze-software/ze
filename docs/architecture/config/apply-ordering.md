@@ -613,13 +613,13 @@ deleted, a swap carries one destroy and one create for each address with a singl
 edge between them, so there is no cycle to break and nothing relaxes one.
 `TopologicalSort` answers `ErrOperationCycle` for any graph it cannot order.
 
-The readiness event comes from the interface backend. The netlink backend's
+The readiness event comes from the interface backend. The kernel backend's
 monitor reports each kernel address change. VPP sends no notification for an
 interface address, so the VPP backend emits `addr-added` and `addr-removed`
 itself once the synchronous binary API reply reports success.
 <!-- source: internal/plugins/iface/vpp/monitor.go -- emitAddress -->
 
-An `add-interface` operation settles on `(interface, created)`. The netlink
+An `add-interface` operation settles on `(interface, created)`. The kernel
 backend's monitor reports each new kernel link. VPP sends no
 `sw_interface_event` for a create, so each VPP create path (loopback, VLAN
 sub-interface, gre, gretap, ipip, vxlan, wireguard) emits `created` itself,
@@ -627,7 +627,7 @@ after the last step of the create has succeeded. The payload carries the full
 interface name, the `sw_if_index` and the interface type, and omits the MTU
 that no create reply carries. Removal needs no VPP emit: no settlement rule
 waits on it, and VPP reports a deleted interface in a `sw_interface_event`,
-which the monitor turns into `down`, as the netlink backend does.
+which the monitor turns into `down`, as the kernel backend does.
 <!-- source: internal/plugins/iface/vpp/monitor.go -- emitCreated -->
 <!-- source: test/plugin/vpp-loopback-reload-create.ci -- the reload that creates a VPP interface -->
 

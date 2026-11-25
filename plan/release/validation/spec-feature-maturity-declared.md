@@ -100,6 +100,14 @@ phase (Decisions for Owner, D-5). This spec writes both routes so either can run
 - A level a feature cannot evidence is refused by a gate in `./le verify`.
 - The rows the audit found false or under-claimed are corrected after re-verification at the producer.
 
+## Existing Mechanisms
+
+| Mechanism | Where (file + symbol, or page + section) | What it does today | This spec (extends, replaces, or does not apply, with the reason) |
+|-----------|------------------------------------------|--------------------|------------------------------------------------------------------|
+| RFC conformance ledger, derived page registration, and verify stages | `internal/le/rfc/meta.go` (`ParseMeta`, `Meta`), `internal/le/rfc/render_ledger.go` (`renderStatusPage`), `internal/le/rfc/register.go`, `internal/le/derived/derived.go` (`derived.Register`), `internal/le/verify/engine/stages.go` | Parses per-RFC `## Meta` tables under `rfc/short/`, renders `docs/features/rfc-status.md` as an untracked derived artifact via `derived.Register`, and enforces ledger rules in `./le rfc check` | Extends this pattern to per-feature declarations under `features/<id>.md`, consumes `internal/le/rfc` directly for S3 without a second parser, registers generated `docs/features.md` via `derived.Register`, and adds a `feature check` verify stage |
+| Interop scenario discovery and spec journal reader | `internal/le/interoplab/discover.go` (`Discover`), `internal/le/spec/journal` | `interoplab.Discover` resolves named interop scenarios per suite, and `internal/le/spec/journal` parses journal rows | Extends both for mechanical S2 and S5 checks (adding per-suite `interoplab.RegisterCatalog` over `Discover` and `specjournal.HeadRows`) rather than maintaining hand-written scenario or defect lists |
+| Hand-authored feature status surfaces and duplicate vocabulary checks | `docs/features.md`, `website/data/features.json`, `internal/le/doc/yangcontract/drift.go` (`featureStatuses`, `checkFeaturesMD`), `internal/le/site/datapages.go` (`featureStatusLabels`, `shippedCards`), `internal/le/site/facts.go` (`factsFromSiteData`) | Declares feature maturity separately in `docs/features.md` and `website/data/features.json`, repeating the status vocabulary in `drift.go` and `datapages.go` | Replaces the hand-authored `docs/features.md` table, card `status` fields, `checkFeaturesMD`, and duplicate vocabulary maps with one declaration vocabulary in `internal/le/feature` that renders `docs/features.md` and derives site card state and counts |
+
 ## Data Flow (MANDATORY - see `ai/rules/architecture.md`)
 
 ### Entry Point
@@ -665,7 +673,7 @@ in Phase 3.
 | 14 | Environment Variables | Supported | Experimental | none |
 | 15 | Outbound source-address | Supported | Experimental | none |
 | 16 | CLI Default Output Format | Supported | Supported | none |
-| 17 | Interfaces | Experimental | Experimental | Privileged netlink evidence per link type |
+| 17 | Interfaces | Experimental | Experimental | Privileged netlink socket evidence per link type |
 | 18 | IPv6 Router Advertisements | Experimental | Experimental | none |
 | 19 | Plugins | Partial | Partial | none |
 | 20 | BMP Delivery | Supported | Experimental | producer not blocked while collector stalls |
@@ -773,7 +781,7 @@ in Phase 3.
 | 122 | RPKI ASPA policy | Supported | Stub-backed | real RTR v2 cache |
 | 123 | RPKI per-peer action | Supported | Experimental | none |
 | 124 | IRR import filtering | Supported | Stub-backed | none |
-| 125 | FlowSpec-to-firewall | Supported | Experimental | nft packet verification |
+| 125 | FlowSpec-to-firewall | Supported | Experimental | nftables packet verification |
 | 126 | IXP route server dynamic peers (audit judged at HEAD) | Supported | Experimental | per-peer community filter .ci |
 | 127 | Subscriber session model | Supported | Experimental | PPPoE/L2TP parity test |
 | 128 | Config Schema Stamp | Supported | Experimental | none |

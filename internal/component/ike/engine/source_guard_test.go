@@ -20,7 +20,7 @@ import (
 )
 
 // guardRecorder stands in for the guard's kernel side. It holds the rules, routes and
-// nft terms the kernel would hold, and stamps each operation with the fake backend's
+// nftables terms the kernel would hold, and stamps each operation with the fake backend's
 // install count, so a test can place it among the SPD installs.
 type guardRecorder struct {
 	dp           *catchAllDP
@@ -155,10 +155,10 @@ func assertGuarded(t *testing.T, r *guardRecorder, addr string) {
 		}
 	}
 	if !pass {
-		t.Errorf("no nft term passes %s through %s", from, device)
+		t.Errorf("no nftables term passes %s through %s", from, device)
 	}
 	if !drop {
-		t.Errorf("no nft term drops %s through another device", from)
+		t.Errorf("no nftables term drops %s through another device", from)
 	}
 }
 
@@ -342,7 +342,7 @@ func TestGuardRefusesTunnelAddressAsIKEEndpoint(t *testing.T) {
 }
 
 // VALIDATES: wiring row 3: an interface address event re-plans the guard: the rule and
-// nft terms follow vti0's IPv6 address when it moves, and the old address's rule goes.
+// nftables terms follow vti0's IPv6 address when it moves, and the old address's rule goes.
 // Method: apply discard, move the stubbed address, run the address worker.
 // PREVENTS: a guard left on an address the interface no longer holds, and a new address
 // with a source BYPASS and no guard.
@@ -475,7 +475,7 @@ func TestChildSAGuardsEveryNegotiatedIPv6Selector(t *testing.T) {
 // before the term that drops the address through any other device, so the inner
 // packet xfrm6_output runs through postrouting with the outer device (eth0) as its
 // output device reaches the Child SA.
-// Method: walk sourceGuardTerms in order as nft evaluates them, for a packet from the
+// Method: walk sourceGuardTerms in order as nftables evaluates them, for a packet from the
 // address whose output device is eth0 and whose route is an XFRM bundle, and for the
 // same packet with no bundle.
 // PREVENTS: the regression vti-unmatched-discard-interface-spd and

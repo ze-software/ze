@@ -180,7 +180,7 @@
       "quote": "The TTL of GTSM-enabled sessions MUST NOT be decremented.",
       "disposition": "mapped",
       "mapped-to": "RFC5082-3-3",
-      "reason": "The no-decrement obligation, addressed to an architecture that decrements the TTL of control-plane originated traffic in the forwarding plane. ze runs on Linux, which does not decrement a locally originated packet, and ze adds no forwarding-plane rule that would: no producer under internal/ writes an nftables, tc or XDP rule that touches TTL. The observable proof at the boundary ze owns is that a peer socket carrying IP_MINTTL=255 accepts a connection ze dialed with OutTTL=255, which is only reachable if the packet arrived still at 255."
+      "reason": "The no-decrement obligation, addressed to an architecture that decrements the TTL of control-plane originated traffic in the forwarding plane. ze runs on Linux, which does not decrement a locally originated packet, and ze adds no forwarding-plane rule that would: no producer under internal/ writes an nftables, traffic-control or XDP rule that touches TTL. The observable proof at the boundary ze owns is that a peer socket carrying IP_MINTTL=255 accepts a connection ze dialed with OutTTL=255, which is only reachable if the packet arrived still at 255."
     },
     {
       "id": "3:3",

@@ -258,8 +258,8 @@ first release with the rest of this spec. AC-14 is its criterion.
 | Boundary | How | Verified |
 |----------|-----|----------|
 | IKE engine ↔ dataplane | `dataplane.PortMatch` already carries a mask | No |
-| Ze ↔ vendored netlink | the public `XfrmPolicy` type, or a Ze-built netlink message | No |
-| Vendored netlink ↔ Linux kernel | `XFRM_MSG_NEWPOLICY` carrying `xfrm_selector` | No |
+| Ze ↔ vendored `vishvananda/netlink` | the public `XfrmPolicy` type, or a Ze-built netlink message | No |
+| Vendored `vishvananda/netlink` ↔ Linux kernel | `XFRM_MSG_NEWPOLICY` carrying `xfrm_selector` | No |
 | Ze ↔ upstream project | a patch offered to `github.com/vishvananda/netlink` | No |
 
 ### Integration Points
@@ -288,7 +288,7 @@ maintenance, not feasibility.
 | Route | What it is | Cost | Risk |
 |-------|-----------|------|------|
 | 1. Patch the vendored copy | Add the mask to `XfrmPolicy` and to `selFromPolicy` and `parseXfrmPolicy` inside `vendor/` | A re-apply script, an upstream patch file, and a marker test. The repository already runs this exact pattern | `go mod vendor` reverts it. A silent revert programs an any-port policy where an opaque-port policy was negotiated, which is the widening this whole spec exists to stop |
-| 2. Ze-side wrapper | Build `XFRM_MSG_NEWPOLICY` and `XFRM_MSG_DELPOLICY` in Ze, through the exported `nl` package | Reproduce `xfrmPolicyAddOrUpdate` and `xfrmPolicyGetOrDelete`: message header, policy info, template array, mark, if_id | Ze owns a second netlink encoder that must stay byte-compatible with the library one, forever. The install and the delete path must agree exactly, or a delete silently matches nothing |
+| 2. Ze-side wrapper | Build `XFRM_MSG_NEWPOLICY` and `XFRM_MSG_DELPOLICY` in Ze, through the exported `nl` package | Reproduce `xfrmPolicyAddOrUpdate` and `xfrmPolicyGetOrDelete`: message header, policy info, template array, mark, if_id | Ze owns a second netlink message encoder that must stay byte-compatible with the library one, forever. The install and the delete path must agree exactly, or a delete silently matches nothing |
 | 3. Upstream only | Send the patch, wait for a release, bump the dependency | Lowest long-term cost, and it helps every other user | MEASURED latency, not merely unbounded. Upstream `main` runs about fourteen months ahead of its newest tag. See the upstream section below |
 
 **These routes are not exclusive, and the owner's ruling already implies the combination.**
@@ -521,7 +521,7 @@ The package already carries `//go:build integration && linux` files, so these ar
 auto-enrolled in `ZE_QEMU_INTEGRATION_PKGS` (`internal/le/integration/gates.go`) and run under
 `./le test qemu run command "./le test qemu all"`. **No new make target is needed.** The VM installs
 `iproute2` (`internal/le/integration/gates.go`), so `ip xfrm policy show` is available as an
-independent oracle beside the netlink read-back.
+independent oracle beside reading back over netlink.
 
 **The read-back is necessary and not sufficient.** It proves the bytes reached the kernel.
 It does not prove the kernel USES them. `TestXFRMOpaquePortMatchesOnlyPortZero` carries the

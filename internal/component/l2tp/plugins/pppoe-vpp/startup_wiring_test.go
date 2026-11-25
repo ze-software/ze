@@ -87,7 +87,7 @@ func TestVPPPPPoEStartupKeepsPrerequisiteRepair(t *testing.T) {
 // and IPv6-control startup flag. A same-spelled value elsewhere cannot select
 // the data plane.
 func TestVPPPPPoEStartupSelectsOnlyAccessBackend(t *testing.T) {
-	for _, backend := range []string{"vpp", "netlink"} {
+	for _, backend := range []string{"vpp", "kernel"} {
 		t.Run(backend, func(t *testing.T) {
 			settings, err := vppcomp.ParseConfigSections([]sdk.ConfigSection{
 				{Root: "vpp", Data: `{"vpp":{"enabled":"true"}}`},

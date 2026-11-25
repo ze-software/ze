@@ -30,7 +30,7 @@ func checkFirewall(ctx registry.DoctorCheckContext) []rpc.DoctorCheckDiagnostic 
 	}
 	return []rpc.DoctorCheckDiagnostic{{
 		Code:     codeDoctorAnomalyShapeArmedNoFirewall,
-		Fix:      "set firewall backend nft",
+		Fix:      "set firewall backend kernel",
 		Severity: "warning",
 		Message:  "anomaly-shape is in armed mode but no firewall is configured; armed per-source rate-limits cannot be applied to the kernel",
 	}}

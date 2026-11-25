@@ -18,11 +18,11 @@ import (
 func TestErrNoBackendLoadedNamesCauseAndFix(t *testing.T) {
 	const want = "iface: no backend loaded\n" +
 		"Ze loads an interface backend only when the config has an interface section, so it cannot read or change an interface\n" +
-		"fix: set interface backend netlink"
+		"fix: set interface backend kernel"
 	if got := ErrNoBackendLoaded.Error(); got != want {
 		t.Errorf("ErrNoBackendLoaded reads\n%s\nwant\n%s", got, want)
 	}
-	if got := ErrNoBackendLoaded.Fix(); got != "set interface backend netlink" {
+	if got := ErrNoBackendLoaded.Fix(); got != "set interface backend kernel" {
 		t.Errorf("Fix() = %q", got)
 	}
 

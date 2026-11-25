@@ -13,7 +13,7 @@ sysctl {
     }
 }
 interface {
-    backend netlink
+    backend kernel
     ethernet eth0 {
         unit 0 {
             sysctl-profile [ my-edge ]

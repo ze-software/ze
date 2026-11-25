@@ -221,7 +221,7 @@ func TestPortAnySplitsTerms(t *testing.T) {
 //
 // VALIDATES: a type 3 value with no canonical name is refused at translation.
 // PREVENTS: a MatchProtocol carrying decimal digits. No backend resolves a
-// number, so the rule failed in the nft backend instead, and that failure
+// number, so the rule failed in the kernel firewall backend instead, and that failure
 // returns from Apply before Flush -- one such rule from one peer stopped every
 // other owner's ruleset from reaching the kernel.
 func TestComponentToMatchRejectsUnnamedProtocol(t *testing.T) {

@@ -51,12 +51,15 @@ func (c *fakeChannel) CheckCompatiblity(...api.Message) error { return nil }
 func (c *fakeChannel) Close()                                 { c.closed = true }
 
 func TestNewStaticBackendNoVPPUsesKernel(t *testing.T) {
-	// With no VPP connector active (the unit-test host), the backend must not be
-	// the VPP backend — it falls through to the kernel/netlink path.
-	b := newStaticBackend()
+	// With data plane "kernel", the backend must be the kernel backend and
+	// never the VPP backend.
+	b, err := newStaticBackendForDataPlane(dataPlaneKernel)
+	if err != nil {
+		t.Fatalf("newStaticBackendForDataPlane(kernel): %v", err)
+	}
 	t.Cleanup(func() { _ = b.close() })
 	if _, isVPP := b.(*vppStaticBackend); isVPP {
-		t.Fatal("selected VPP backend without an active VPP connector")
+		t.Fatal("selected VPP backend for kernel data plane")
 	}
 }
 

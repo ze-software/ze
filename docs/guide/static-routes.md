@@ -56,7 +56,7 @@ another protocol.
 <!-- source: internal/plugins/static/locrib.go -- inMainTable, applyProgrammed -->
 
 Reserved table IDs (0, 253-255) are rejected. A 32-bit build additionally
-rejects a table ID or route metric above 2147483647, because the netlink
+rejects a table ID or route metric above 2147483647, because the netlink library
 bindings carry both in a machine int and would otherwise install the route in
 the main table at the kernel's default metric without reporting anything.
 Ze's released targets are 64-bit, where the full uint32 range is available.
@@ -323,13 +323,25 @@ one octet, so a `weight` above 255 is capped at 255.
 **A main-table route needs a FIB plugin, and Ze loads one for you.** The system
 RIB selects the winner and a FIB plugin writes it. Write no `fib { ... }` block
 and Ze loads the plugin for the data plane your config already selects at
-`interface { backend }`: `fib-kernel` for `netlink`, which is the default, and
+`interface { backend }`: `fib-kernel` for `kernel`, which is the default, and
 `fib-vpp` for `vpp`.
 
 Write `fib { kernel { } }` or `fib { vpp { } }` when you want to set one of that
 plugin's own leaves, or to pick a plugin other than the one Ze would load. Your
-block always wins. A configuration whose static routes are all in named tables
-needs no FIB plugin at all, because static programs those routes itself.
+block always wins. Explicit `fib` blocks are checked against `interface backend`
+at `ze config validate`, commit, reload, and daemon start (and reported by
+`ze doctor` under `doctor-dataplane-mismatch`):
+
+- `fib vpp` under `interface backend kernel` is refused with `set interface backend vpp`.
+- `fib kernel` alone under `interface backend vpp` is refused with `set fib vpp`, because VPP's FIB would otherwise receive no routes. Writing `fib kernel` beside `fib vpp` is accepted so Linux keeps routes for the host's own traffic.
+
+A configuration whose static routes are all in named tables needs no FIB plugin
+at all, because static programs those routes itself. Named-table routes follow
+the data plane selected by `interface backend` (`kernel` or `vpp`) and never
+fall back to the kernel when `vpp` is selected. See
+[Features by Data Plane](dataplane-features.md).
+<!-- source: internal/plugins/static/backend_linux.go -- newStaticBackendForDataPlane -->
+<!-- source: internal/component/config/dataplane_verdict.go -- evaluateFIBWriters -->
 
 When your config selects a data plane no plugin programs, or one this build
 was compiled without, ze refuses to start or reload it, and `ze doctor` reports

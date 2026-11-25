@@ -22,12 +22,21 @@ import (
 var errPluginAutoNotYetImplemented = errors.New("plugin 'auto' not yet implemented")
 
 // LoadConfigResult holds the output of LoadConfig: a parsed config tree,
-// resolved plugin list, startup schema selectors, and derived config directory.
+// resolved plugin list, judged candidate plugin selection, startup schema
+// selectors, and derived config directory.
 type LoadConfigResult struct {
 	Tree       *Tree
 	Plugins    []plugin.PluginConfig
 	ConfigDir  string
 	CLIPlugins []string
+	// CandidateSelection is the exact candidate plugin selection loadConfig
+	// computed through candidatePluginSelection and handed to
+	// refuseDataPlaneMismatches: declared bus endpoints merged with the
+	// process-recorded and caller --plugin lists, with no dependencies
+	// expanded. HasCandidateSelection distinguishes an explicitly empty
+	// selection from a LoadConfigResult constructed without one.
+	CandidateSelection    []plugin.PluginConfig
+	HasCandidateSelection bool
 	// StampRelease is the release in the `# ze-schema:` stamp of the content
 	// LoadConfig parsed, empty when that content carries none. Schema evolution
 	// reads it, never the stamp of the bytes on disk afterwards: RecoverConfig
@@ -68,7 +77,17 @@ func LoadRunningConfig(running map[string]any, configPath string, cliPlugins []s
 	if err != nil {
 		return nil, fmt.Errorf("reconstruct running configuration: %w", err)
 	}
-	return finalizeConfigLoad(tree, configPath, cliPlugins)
+	selection, selErr := candidatePluginSelection(tree, cliPlugins)
+	if selErr != nil {
+		return nil, selErr
+	}
+	result, err := finalizeConfigLoad(tree, configPath, cliPlugins)
+	if err != nil {
+		return nil, err
+	}
+	result.CandidateSelection = selection
+	result.HasCandidateSelection = true
+	return result, nil
 }
 
 // loadConfig is the one body of LoadConfig and ReadConfig. publish is called
@@ -116,6 +135,16 @@ func loadConfig(input, configPath string, cliPlugins []string, publish func(*Tre
 	if err := refuseAbsentOptionalProviders(tree.ToPluginMap); err != nil {
 		return nil, err
 	}
+	// Check data-plane compatibility before publishing environment settings or
+	// hashing credentials, using the candidate plugin selection (declared
+	// plugin blocks merged with process-wide recorded and caller CLI plugins).
+	selection, selErr := candidatePluginSelection(tree, cliPlugins)
+	if selErr != nil {
+		return nil, selErr
+	}
+	if err := refuseDataPlaneMismatches(tree, schema, selection); err != nil {
+		return nil, err
+	}
 	// A redistribute rule that cannot act is refused here, before any plugin
 	// starts, by the same check the validate and commit doors run.
 	if err := RefuseRedistributeRules(tree); err != nil {
@@ -160,6 +189,8 @@ func loadConfig(input, configPath string, cliPlugins []string, publish func(*Tre
 	if err != nil {
 		return nil, err
 	}
+	result.CandidateSelection = selection
+	result.HasCandidateSelection = true
 	result.StampRelease = ScanStampRelease([]byte(input))
 	return result, nil
 }

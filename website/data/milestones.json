@@ -111,7 +111,7 @@
       "title": "Firewall and traffic control",
       "category": "secure",
       "blog": "2026-04-13",
-      "blurb": "nftables and tc-netlink backends sharing one YANG data model, with `show firewall` and `show traffic-control` commands."
+      "blurb": "nftables and traffic-control kernel backends sharing one YANG data model, with `show firewall` and `show traffic-control` commands."
     },
     {
       "date": "2026-05-04",

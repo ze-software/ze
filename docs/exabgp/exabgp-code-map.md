@@ -330,7 +330,7 @@
 | `pipe.py` | Pipe handling | `internal/component/command/pipe.go` |
 | `server.py` | Server mode | `cmd/ze/main.go`, `cmd/ze/hub/main.go` |
 | `flow.py` | Flow generator | N/A (separate tool) |
-| `netlink.py` | Netlink interface | `internal/plugins/fib/kernel/`, `internal/plugins/iface/netlink/`, `internal/core/routewatch/` |
+| `netlink.py` | Netlink API interface | `internal/plugins/fib/kernel/`, `internal/plugins/iface/netlink/`, `internal/core/routewatch/` |
 | `shortcuts.py` | CLI shortcuts | command registry and help metadata (`cmd/ze/internal/cmdregistry/`, `internal/component/cmd/`) |
 | `environ.py` | Environment | `internal/component/config/environment.go`, `internal/component/config/env/` |
 | `schema.py` | Schema command | `internal/component/bgp/cli/schema.go` |

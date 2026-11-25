@@ -249,7 +249,7 @@ var errProbeUpdateAccepted = errors.New("the kernel accepted an update of an SA 
 // classifyESPProbe reads the update's errno for the ESP capability. ESRCH comes
 // after the kernel built the ESP state, so it is presence. EPROTONOSUPPORT is
 // the kernel holding no ESP type for the family (xfrm_get_type), or no XFRM
-// netlink at all. Anything else, the probe's own AEAD missing included, did not
+// netlink socket at all. Anything else, the probe's own AEAD missing included, did not
 // reach the question.
 func classifyESPProbe(err error) kernelcap.Result {
 	if errors.Is(err, unix.ESRCH) {

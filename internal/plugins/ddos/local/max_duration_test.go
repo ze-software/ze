@@ -528,8 +528,8 @@ func TestLocalAdoptionTakesOwnershipFromTheOldResponder(t *testing.T) {
 // so the responder's own snapshot is the one witness that cannot see it. The
 // counts are atomic because the cap worker can be running beside the test.
 //
-// The reconcile count is separate from the other two because it is the netlink
-// round trip, which is the cost a test about doing something ONCE is really
+// The reconcile count is separate from the other two because it is the netlink round-trip,
+// which is the cost a test about doing something ONCE is really
 // about. Every path pairs a register with a reconcile today, so counting
 // registers alone would answer the same for now and stop answering the day one
 // path reconciles twice for one registration.

@@ -40,7 +40,7 @@ type strippedOptionalProviderBootVerdict struct {
 // config validate` (VerifyPluginConfigMapTransition) and daemon boot
 // (LoadConfig). A config that sets `traffic control backend vpp` needs the vpp
 // component, so each door must refuse it naming the leaf and the build tag,
-// and the same root with the tc backend must be accepted.
+// and the same root with the kernel backend must be accepted.
 func runZEStrippedOptionalProvider(ctx context.Context) error {
 	// 1. The validate door refuses the leaf that needs the absent provider.
 	refused, err := validateZEStrippedConfig(ctx, "traffic-vpp.conf")
@@ -61,7 +61,7 @@ func runZEStrippedOptionalProvider(ctx context.Context) error {
 		return err
 	}
 	if accepted.exitCode != 0 {
-		return fmt.Errorf("traffic control backend tc rejected by ze-stripped: rc=%d out=%q", accepted.exitCode, accepted.output)
+		return fmt.Errorf("traffic control backend kernel rejected by ze-stripped: rc=%d out=%q", accepted.exitCode, accepted.output)
 	}
 
 	// 3. The boot door refuses the same config before the daemon runs.

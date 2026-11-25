@@ -33,7 +33,7 @@ func TestRelayPreparationForwardsOriginalPair(t *testing.T) {
 			name = "prepared"
 		}
 		t.Run(name, func(t *testing.T) {
-			backend, err := iface.OpenBackend("netlink")
+			backend, err := iface.OpenBackend("kernel")
 			require.NoError(t, err)
 			t.Cleanup(func() { require.NoError(t, backend.Close()) })
 			creator, err := pppkernel.NewUnitCreator(backend)
@@ -113,7 +113,7 @@ func TestBridgeRollbackClosesOriginalPair(t *testing.T) {
 	if !userns.Enter(t) {
 		return
 	}
-	backend, err := iface.OpenBackend("netlink")
+	backend, err := iface.OpenBackend("kernel")
 	require.NoError(t, err)
 	t.Cleanup(func() { require.NoError(t, backend.Close()) })
 	creator, err := pppkernel.NewUnitCreator(backend)

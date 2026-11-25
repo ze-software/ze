@@ -1,4 +1,4 @@
-// Tunnel netlink integration tests. Each subtest creates a fresh netns,
+// Tunnel kernel integration tests. Each subtest creates a fresh netns,
 // calls CreateTunnel via the iface.Backend interface, then verifies the
 // resulting netdev with netlink.LinkByName so that field round-trips
 // (kind, local, remote, key) are checked against the kernel state.
@@ -24,7 +24,7 @@ import (
 	"github.com/ze-software/ze/internal/test/userns"
 )
 
-// withTunnelNetNS sets up a fresh named netns and runs fn with the netlink
+// withTunnelNetNS sets up a fresh named netns and runs fn with the kernel
 // backend loaded inside it. Every caller runs userns.Enter first, which grants
 // CAP_NET_ADMIN, so a refusal here fails the test.
 func withTunnelNetNS(t *testing.T, fn func(b iface.Backend)) {
@@ -52,8 +52,8 @@ func withTunnelNetNS(t *testing.T, fn func(b iface.Backend)) {
 		runtime.UnlockOSThread()
 	})
 
-	if err := iface.LoadBackend("netlink"); err != nil {
-		t.Fatalf("load netlink backend: %v", err)
+	if err := iface.LoadBackend("kernel"); err != nil {
+		t.Fatalf("load kernel backend: %v", err)
 	}
 	t.Cleanup(func() { _ = iface.CloseBackend() })
 
@@ -270,7 +270,7 @@ func TestCreateTunnelIPIP6Proto(t *testing.T) {
 }
 
 // TestCreateTunnelInvalidName verifies that an invalid interface name is
-// rejected before reaching netlink.
+// rejected before reaching the netlink socket.
 //
 // VALIDATES: AC-30 (free-form name still passes through ValidateIfaceName).
 func TestCreateTunnelInvalidName(t *testing.T) {
@@ -292,7 +292,7 @@ func TestCreateTunnelInvalidName(t *testing.T) {
 }
 
 // TestCreateTunnelV4OnV6Kind verifies that supplying an IPv4 address for a
-// v6-underlay kind is rejected before reaching netlink.
+// v6-underlay kind is rejected before reaching the netlink socket.
 //
 // VALIDATES: address-family-vs-kind sanity check in checkAddressFamily.
 // PREVENTS: Kernel returning a generic EINVAL with no clear error message.

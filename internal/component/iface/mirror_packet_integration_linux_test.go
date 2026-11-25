@@ -1,6 +1,6 @@
 //go:build linux
 
-// Design: docs/features/interfaces.md AC-6 -- prove the tc mirror copies
+// Design: docs/features/interfaces.md AC-6 -- prove the traffic-control mirror copies
 // traffic at the PACKET level, not just that the qdisc/filter installs. A frame
 // injected on a veth peer ingresses the mirror source and must appear, copied,
 // on the mirror destination captured via AF_PACKET. The test enters a user and
@@ -85,7 +85,7 @@ func TestIntegrationMirrorPacketLevel(t *testing.T) {
 			Halen:    6,
 			Addr:     [8]byte{0xff, 0xff, 0xff, 0xff, 0xff, 0xff},
 		}
-		// Inject several copies to absorb any startup race on the tc datapath.
+		// Inject several copies to absorb any startup race on the traffic-control datapath.
 		for range 10 {
 			if err := unix.Sendto(sendFd, frame, 0, sendAddr); err != nil {
 				t.Fatalf("sendto msrcp: %v", err)

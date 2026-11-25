@@ -74,10 +74,10 @@ func TestDocsManifestNamesEachSourceOnce(t *testing.T) {
 		}
 		seen[row.Source] = true
 	}
-	// 115 recovered rows, plus ai-development.md, the Docker deployment guide and
-	// the AI agent guide.
-	if len(docsManifest) != 118 {
-		t.Errorf("the manifest holds %d rows, want the 115 recovered rows plus ai-development.md, Docker and guide/ai-agent.md", len(docsManifest))
+	// 115 recovered rows, plus ai-development.md, the Docker deployment guide,
+	// the AI agent guide and the features-by-data-plane guide.
+	if len(docsManifest) != 119 {
+		t.Errorf("the manifest holds %d rows, want the 115 recovered rows plus ai-development.md, Docker, guide/ai-agent.md and guide/dataplane-features.md", len(docsManifest))
 	}
 }
 
@@ -96,9 +96,9 @@ func TestEveryDocsProducerSourceExists(t *testing.T) {
 	}
 	// 148 recovered pages, less project/roadmap/ and project/, which their
 	// dedicated producers own, plus legal/, project/ai-development/, Docker,
-	// guides/ai-agent/, and the 5 non-BGP use cases.
-	if len(pages) != 155 {
-		t.Errorf("the docs producer publishes %d pages, want the 146 recovered pages plus legal/, project/ai-development/, Docker, guides/ai-agent/, and the 5 non-BGP use cases", len(pages))
+	// guides/ai-agent/, the 5 non-BGP use cases, and guides/dataplane-features/.
+	if len(pages) != 156 {
+		t.Errorf("the docs producer publishes %d pages, want the 146 recovered pages plus legal/, project/ai-development/, Docker, guides/ai-agent/, the 5 non-BGP use cases, and guides/dataplane-features/", len(pages))
 	}
 	destinations := map[string]string{}
 	for _, page := range pages {
@@ -203,8 +203,8 @@ func publishedArtifactRoutes(t *testing.T) []string {
 	t.Helper()
 	content := readTestdata(t, "published-routes.txt")
 	routes := strings.Split(strings.TrimSpace(content), "\n")
-	if len(routes) != 722 {
-		t.Fatalf("the published route fixture holds %d routes, want the 712 at 2fa8fa2ad plus /legal/, /project/ai-development/, /guides/docker/, /guides/netlab/, /guides/ai-agent/, and the 5 non-BGP use-case routes", len(routes))
+	if len(routes) != 723 {
+		t.Fatalf("the published route fixture holds %d routes, want the 712 at 2fa8fa2ad plus /legal/, /project/ai-development/, /guides/docker/, /guides/netlab/, /guides/ai-agent/, the 5 non-BGP use-case routes, and /guides/dataplane-features/", len(routes))
 	}
 	return routes
 }

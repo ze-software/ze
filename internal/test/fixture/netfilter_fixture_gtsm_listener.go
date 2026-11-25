@@ -28,7 +28,7 @@ import (
 )
 
 // gtsmListenRuleIPv4 and gtsmListenRuleIPv6 are the rules the .ci configures,
-// each as the words one rendered nft rule carries for the listen port. nft
+// each as the words one rendered nft rule carries for the listen port. nftables
 // prints a rule on one line, so a rule is present when one line holds every
 // word as whole tokens.
 func gtsmListenRuleIPv4(port string) []string {
@@ -99,7 +99,7 @@ func gtsmListenerFloor(ctx context.Context, args []string) error {
 	}
 	if !Poll(ctx, 200, 50*time.Millisecond, func() bool {
 		table, err = netfilterCommandOutput(ctx, "nft", "list", "table", gtsmTableFamily, gtsmTableName)
-		// refuse-by-default: guards netfilterCommandOutput -- nft fails to list a table the kernel does not hold, which is the withdrawal this poll waits for
+		// refuse-by-default: guards netfilterCommandOutput -- nftables fails to list a table the kernel does not hold, which is the withdrawal this poll waits for
 		return err != nil
 	}) {
 		return fmt.Errorf("RELOADED: %s table still present after the last ttl block was removed", gtsmTableName)

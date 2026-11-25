@@ -14,7 +14,7 @@ import (
 //
 // VALIDATES: ProtocolNumber maps every supported L4 protocol name to its IANA
 // number and reports ok=false for unknown names.
-// PREVENTS: the nft, VPP-classify, and VPP-NAT backends keeping divergent
+// PREVENTS: the kernel, VPP-classify, and VPP-NAT backends keeping divergent
 // private copies of this table -- the NAT copy previously handled only tcp/udp
 // and silently programmed protocol 0 for every other protocol.
 func TestProtocolNumber(t *testing.T) {

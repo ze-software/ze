@@ -44,8 +44,8 @@ func TestXFRMCapabilityUnprivilegedReportsPresence(t *testing.T) {
 	}
 }
 
-// VALIDATES: absence is the errno that means the kernel carries no XFRM netlink
-// protocol, and a permission denial is NOT absence.
+// VALIDATES: absence is the errno that means the kernel carries no XFRM netlink protocol,
+// and a permission denial is NOT absence.
 // PREVENTS: an operator rebuilding a kernel for a capability the host already
 // has. A probe that conflates the two answers refuses a start for a privilege
 // fault, which no kernel rebuild fixes (A-2).

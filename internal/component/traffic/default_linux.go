@@ -5,5 +5,5 @@
 package traffic
 
 // defaultBackendName is the traffic backend used when the config does not
-// specify one. Linux ships with the tc (iproute2) backend.
-const defaultBackendName = "tc"
+// specify one. Linux ships with the kernel (iproute2) backend.
+const defaultBackendName = "kernel"

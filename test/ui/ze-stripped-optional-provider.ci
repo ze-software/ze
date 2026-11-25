@@ -12,7 +12,7 @@
 # because the traffic verifier passes an unregistered backend, and boot reached
 # apply, which failed with `traffic: unknown backend "vpp"` and named no tag.
 #
-# The tc step proves the refusal is about the leaf value, not the traffic
+# The kernel step proves the refusal is about the leaf value, not the traffic
 # root: without it, a binary that refused every traffic config would pass.
 
 tmpfs=traffic-vpp.conf:terminator=EOF_TRAFFIC_VPP
@@ -26,7 +26,7 @@ EOF_TRAFFIC_VPP
 tmpfs=traffic-tc.conf:terminator=EOF_TRAFFIC_TC
 traffic {
     control {
-        backend tc
+        backend kernel
     }
 }
 EOF_TRAFFIC_TC
@@ -48,7 +48,7 @@ EOF_INTERFACE_VPP
 
 tmpfs=interface-netlink.conf:terminator=EOF_INTERFACE_NETLINK
 interface {
-    backend netlink
+    backend kernel
 }
 EOF_INTERFACE_NETLINK
 
@@ -60,7 +60,7 @@ EOF_FIREWALL_VPP
 
 tmpfs=firewall-nft.conf:terminator=EOF_FIREWALL_NFT
 firewall {
-    backend nft
+    backend kernel
 }
 EOF_FIREWALL_NFT
 

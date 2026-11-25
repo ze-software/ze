@@ -25,12 +25,12 @@ import (
 const allNeighborSwIfIndex = interface_types.InterfaceIndex(^uint32(0))
 
 // Neighbor state names emitted in iface.NeighborInfo.State. The
-// vocabulary matches the netlink backend's neighStateString output so
+// vocabulary matches the kernel backend's neighStateString output so
 // operators see identical strings across backends. VPP exposes fewer
 // NUD-equivalent flags than Linux (only STATIC / NO_FIB_ENTRY); within
 // that constraint we emit statePermanent for STATIC entries,
 // stateIncomplete when the MAC has not yet resolved (all-zero MAC,
-// matches netlink's NUD_INCOMPLETE convention), and stateReachable for
+// matches the kernel backend's NUD_INCOMPLETE convention), and stateReachable for
 // everything else.
 const (
 	statePermanent  = "permanent"
@@ -165,7 +165,7 @@ func neighborAddrString(a ip_types.Address) (string, string) {
 }
 
 // neighborStateName translates the VPP IPNeighborFlags bitfield to the
-// same vocabulary the netlink backend emits (permanent / reachable /
+// same vocabulary the kernel backend emits (permanent / reachable /
 // stale / ...). VPP's flags carry far less information than Linux's
 // NUD_* states: only STATIC and NO_FIB_ENTRY are exposed, and dumped
 // entries are by definition cached (the dump excludes unresolved

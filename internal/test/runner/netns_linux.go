@@ -28,7 +28,7 @@ import (
 //
 // It mirrors internal/component/iface/integration_helpers_linux_test.go's
 // withNetNS, but returns an error instead of skipping so the runner can fail the
-// suite loudly (AC-4) rather than silently pass: a netlink suite that cannot get
+// suite loudly (AC-4) rather than silently pass: a kernel-networking suite that cannot get
 // its own namespace must never fall through and program the host firewall.
 //
 // The thread stays locked for the whole test lifetime: ze, ze-peer, and compiled
@@ -64,7 +64,7 @@ func enterTestNetns(name string) (restore func(), hostInode uint64, err error) {
 	if err != nil {
 		orig.Close() //nolint:errcheck // best-effort close on cleanup/error path
 		runtime.UnlockOSThread()
-		return nil, 0, fmt.Errorf("create per-test network namespace %q (needs CAP_SYS_ADMIN; run the netlink suites under sudo with ZE_TEST_NETNS=1): %w", name, err)
+		return nil, 0, fmt.Errorf("create per-test network namespace %q (needs CAP_SYS_ADMIN; run the kernel-networking suites under sudo with ZE_TEST_NETNS=1): %w", name, err)
 	}
 
 	// 127.0.0.1 is dead until loopback is up: ze binds its API/BGP listeners and
@@ -95,8 +95,8 @@ func enterTestNetns(name string) (restore func(), hostInode uint64, err error) {
 
 // provisionNetnsLinks creates each requested interface inside the current
 // thread's network namespace, assigns its address (when set), and brings it up.
-// It runs after enterTestNetns on the same locked OS thread, so the netlink
-// socket binds to the per-test namespace and nothing reaches the host. A link
+// It runs after enterTestNetns on the same locked OS thread, so the netlink socket
+// binds to the per-test namespace and nothing reaches the host. A link
 // that a policy-routing next-hop routes through must exist and carry a connected
 // subnet before ze applies config, or RouteAdd fails with "network is
 // unreachable" (that is exactly what left test/policy 005 red).

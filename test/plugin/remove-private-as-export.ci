@@ -3,7 +3,7 @@
 # VALIDATES: EBGP local-AS prepend uses the stripped AS_PATH as its base.
 # PREVENTS: export policy rewrite being lost by the EBGP wire cache.
 
-# Linux-only: static `next { interface lo { } }` resolves loopback `lo` via Linux netlink.
+# Linux-only: static `next { interface lo { } }` resolves loopback `lo` via the Linux netlink socket.
 option=needs-linux
 stdin=peer:terminator=EOF_PEER
 option=tcp_connections:value=2

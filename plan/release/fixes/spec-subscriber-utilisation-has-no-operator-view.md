@@ -36,6 +36,13 @@ The 2026-10-22 portfolio split changes planning ownership only. Status, existing
 
 Work assigned to `plan/post-release/features/spec-subscriber-traffic-additional-views.md` is not performed or closed by this spec. Implementation uses the original design constraints and evidence below only for this spec's owned behavior.
 
+## Existing Mechanisms
+
+| Mechanism | Where (file + symbol, or page + section) | What it does today | This spec (extends, replaces, or does not apply, with the reason) |
+|-----------|------------------------------------------|--------------------|------------------------------------------------------------------|
+| L2TP session CLI payload and traffic counter builder | `internal/component/l2tp/cmd/l2tp.go` (`sessionJSON`, `handleSessionTraffic`, `sessionTrafficAll`, `sessionTrafficRow`) and `internal/component/l2tp/cmd/yang/ze-l2tp-cmd.yang` | `sessionJSON` renders `show l2tp session id <id>` without byte or packet counters even though its YANG help promises traffic counters, while `sessionTrafficRow` in the same file already builds baseline-corrected counter rows for `show l2tp session traffic` | Extends `sessionJSON` to emit the baseline-corrected traffic counters promised by `ze-l2tp-cmd.yang`, reusing the existing counter and baseline source rather than creating a second calculation |
+| Interface statistics dispatch and subscriber session model | `internal/component/iface/dispatch.go` (`GetStats`), `internal/component/l2tp/subscriber/session.go` (`Session`), `docs/architecture/l2tp/subscriber-session-model.md` | `iface.GetStats` reads per-interface kernel statistics for the session's PPP interface, and `subscriber.Session` holds the shared session identity and baseline state used by CLI and accounting surfaces | Extends the `show l2tp session id` consumer over `iface.GetStats` and `Session` so unreadable counters are distinguished from zero and reported values agree with accounting |
+
 ## Files to Modify
 
 - `internal/component/l2tp/cmd/l2tp.go` - existing `sessionJSON` counters, unknown-versus-zero semantics and accounting agreement.
@@ -170,7 +177,7 @@ PPPoE subscribers is the dependency named above. This spec is the views.
 #### Assumptions
 | ID | Assumption | Basis (file/doc/user statement) | If wrong | Validated by | Status |
 |----|-----------|--------------------------------|----------|--------------|--------|
-| A-1 | Reading counters inside a show handler is cheap enough to do per session on a list command | `GetStats` is a netlink read per interface, and the existing traffic command already does it for every session | A list command on a concentrator with thousands of subscribers becomes slow or hammers netlink | Time `show l2tp session traffic` against a populated registry, and read whether `sessionTrafficAll` reads serially | unvalidated |
+| A-1 | Reading counters inside a show handler is cheap enough to do per session on a list command | `GetStats` is a netlink read per interface, and the existing traffic command already does it for every session | A list command on a concentrator with thousands of subscribers becomes slow or hammers the netlink socket | Time `show l2tp session traffic` against a populated registry, and read whether `sessionTrafficAll` reads serially | unvalidated |
 | A-2 | The counters an operator wants are the same baseline-corrected values accounting sends, not raw interface totals | `applyBaseline` exists precisely so a reused `pppN` does not inflate a session | The CLI and the RADIUS record disagree about one subscriber's usage, which is worse than showing nothing | Read `applyBaseline` and compare what `sessionTrafficRow` and `buildAcctPacket` each report for one session | unvalidated |
 | A-3 | The web session pages are reachable in a shipped build and not behind a feature gate that is off by default | `page_l2tp_off.go` exists beside `page_l2tp.go`, which suggests a build-tag pair | The web work lands in code nobody runs | Read the build tags on both files and the gate that selects them | unvalidated |
 | A-4 | gNMI has no subscriber or session path today, so this adds a first one rather than extending an existing tree | No l2tp path was found under the gnmi component | The work is an extension with an existing schema to respect | Read the gNMI path registration and list what it serves | unvalidated |
@@ -178,7 +185,7 @@ PPPoE subscribers is the dependency named above. This spec is the views.
 #### Risks
 | ID | Risk | Early signal | Mitigation / fallback |
 |----|------|--------------|----------------------|
-| R-1 | Adding a counter read to `show subscriber` makes the common case slow, because the command is now doing per-session netlink work it never did | The command takes visibly longer with many sessions | Counters are read once per command rather than once per session where the kernel allows it, and a large-registry test measures the cost before the shape is fixed |
+| R-1 | Adding a counter read to `show subscriber` makes the common case slow, because the command is now doing per-session netlink reads it never did | The command takes visibly longer with many sessions | Counters are read once per command rather than once per session where the kernel allows it, and a large-registry test measures the cost before the shape is fixed |
 | R-2 | The CLI and the RADIUS record report different numbers for the same subscriber, because one applies the baseline and the other does not | A functional test comparing the two disagrees | A-2 forces the comparison before implementation, and one test asserts the two surfaces agree for one session |
 | R-3 | Adding fields to `show subscriber`'s JSON breaks an operator's script that parses it positionally | Nothing signals this until a user reports it | Fields are ADDED, never renamed or reordered, and the JSON keys of existing fields are asserted unchanged by a golden test |
 | R-4 | A per-session traffic form duplicates `sessionTrafficRow` rather than reusing it, so the two drift | Two row builders appear in the same file | The new form calls the existing row builder; a review check names this |

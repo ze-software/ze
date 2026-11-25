@@ -276,8 +276,8 @@ func TestIntegration_RouteDelete(t *testing.T) {
 // returns; only the receive goroutine is owed to Wait.
 const receiveGoroutineFrame = "netlink.routeSubscribeAt.func2"
 
-// receiveGoroutinesAlive counts live goroutines whose stack holds the netlink
-// receive goroutine's frame.
+// receiveGoroutinesAlive counts live goroutines whose stack holds the netlink receive
+// goroutine's frame.
 func receiveGoroutinesAlive() int {
 	buf := make([]byte, 1<<20)
 	n := runtime.Stack(buf, true)

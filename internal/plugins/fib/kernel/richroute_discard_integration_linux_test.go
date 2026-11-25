@@ -1,8 +1,8 @@
 // VALIDATES: spec-bcp194-6-blackhole AC-2 and AC-8 -- a BLACKHOLE-honored best
 // path becomes a real RTN_BLACKHOLE route in the kernel, and its withdraw
-// removes it. Real netlink in an ephemeral namespace, so the kernel itself is
+// removes it. Real netlink sockets in an ephemeral namespace, so the kernel itself is
 // the judge, not the message this build assembles.
-// PREVENTS: the failure the shape test alone cannot see -- netlink returning
+// PREVENTS: the failure the shape test alone cannot see -- the netlink socket returning
 // EINVAL for a discard route that names a next-hop. Every path sysrib carries
 // resolves one. So the route type reached the backend, and the kernel
 // programmed nothing. It did so silently, on the only surface an operator can
@@ -16,14 +16,13 @@ import (
 	"net/netip"
 	"testing"
 
-	"github.com/ze-software/ze/internal/core/bgp/routeaction"
-
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/vishvananda/netlink"
 	"golang.org/x/sys/unix"
 
 	sysribevents "github.com/ze-software/ze/internal/component/sysrib/events"
+	"github.com/ze-software/ze/internal/core/bgp/routeaction"
 	"github.com/ze-software/ze/internal/test/userns"
 )
 
@@ -40,7 +39,7 @@ func TestNetlinkIntegration_BlackholeRouteWithNextHop(t *testing.T) {
 
 		backend := newTestBackend(h)
 		f := newFIBKernel(backend)
-		require.NotNil(t, f.asRichBackend(), "netlink backend must be a richRouteBackend")
+		require.NotNil(t, f.asRichBackend(), "kernel FIB backend must be a richRouteBackend")
 
 		const prefix = "192.0.2.1/32"
 

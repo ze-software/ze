@@ -91,27 +91,37 @@ a discard route the same way, which is how an operator originates an aggregate.
 
 **A main-table route needs a FIB plugin, and the operator does not have to ask
 for one.** The system RIB selects the winner and a FIB plugin writes it. Static
-declares `Registration.NeedsDataPlane`, so when a config has static routes and no
-`fib { ... }` block the engine loads the plugin whose `Registration.DataPlane`
-matches the backend `interface { backend }` selects: `fib-kernel` for `netlink`,
-`fib-vpp` for `vpp`. An explicit `fib { ... }` block always wins, because the
-block is a config path and its own plugin is already in the startup set.
+declares `Registration.NeedsDataPlane`, so when a config has static routes and
+no `ProgramsFIB` plugin is chosen (no `fib { ... }` block, compiled-in FIB bus
+endpoint, or `--plugin` FIB choice) the engine loads the plugin whose
+`Registration.DataPlane` matches the backend `interface { backend }` selects:
+`fib-kernel` for `kernel`, `fib-vpp` for `vpp`. An explicit `fib { ... }` block
+always wins, because its plugin is already chosen — including `fib { dummy { } }`,
+which is the operator's deliberate choice to hold routes in memory and reach no
+data plane (`NoDataPlaneChoice`).
 
 No package holds a list of FIB plugins. The writer declares the data plane it
-programs and the registry answers, so adding one needs no edit to static and none
-to the engine. `fib-p4` declares that it programs the FIB and names no data
-plane, so `fib { p4 { } }` is still the operator's choice and the plugin is never
-the ANSWER to a producer that needs one: its P4Runtime client is not written, so
-it would answer with silence.
+programs and the registry answers through one shared judgement,
+`registry.JudgeDataPlaneWriter`, called by boot, config reload, and doctor, so
+adding a writer needs no edit to static and none to the engine. `fib-dummy` and
+`fib-p4` declare `ProgramsFIB` with an empty `DataPlane`, so each is still the
+operator's choice when configured and neither is ever auto-loaded as the answer
+to a producer that needs a data plane.
 
-If no plugin programs the selected data plane, auto-loading refuses the whole
-selection before starting a route producer. Boot and reload both propagate the
-refusal. A configuration that needs no data-plane writer remains valid, and an
-explicit FIB plugin remains the operator's choice. `ze doctor` reports the same
-refusal before ze starts: the `plugin-dataplane-writer` check
-(`doctor-plugin-no-dataplane-writer`) asks `registry.DataPlaneWriter`, the
-judgement `appendDataPlaneWriter` makes, for every `NeedsDataPlane` producer the
-config selects, static and `bgp-epe` alike. It keys on the registration, so
+Config reload runs the same judgement over the whole candidate: adding
+`fib { dummy { } }` stops the engine-added writer, removing `fib { dummy { } }`
+while `static` remains starts the configured plane's writer again, and removing
+`static` when no other `NeedsDataPlane` producer remains withdraws the routes
+before stopping the engine-added writer.
+
+If no plugin programs the selected data plane, `JudgeDataPlaneWriter` refuses
+the whole selection before starting a route producer. Boot and reload both
+propagate the refusal. A configuration that needs no data-plane writer remains
+valid, and an explicit FIB plugin remains the operator's choice. `ze doctor`
+reports the same refusal before ze starts: the `plugin-dataplane-writer` check
+(`doctor-plugin-no-dataplane-writer`) calls `registry.JudgeDataPlaneWriter`,
+the same judgement boot and reload make, for every `NeedsDataPlane` producer
+the config selects, static and `bgp-epe` alike. It keys on the registration, so
 static holds no check of its own for it.
 
 The static plugin declares `rib` as a dependency, so the system RIB itself always
@@ -121,8 +131,9 @@ runs.
 <!-- source: internal/plugins/static/inject.go -- route apply, BFD integration, redistribute emit -->
 <!-- source: internal/plugins/static/events/events.go -- RouteChange event registration -->
 <!-- source: internal/plugins/static/doctor.go -- the route-skipped check -->
-<!-- source: internal/component/plugin/server/startup_autoload.go -- appendDataPlaneWriter, the writer resolution -->
-<!-- source: internal/component/plugin/registry/dataplane_writer.go -- DataPlaneWriter, the refusal boot, reload and doctor share -->
+<!-- source: internal/component/plugin/server/startup_autoload.go -- appendDataPlaneWriterWithReason, the writer resolution -->
+<!-- source: internal/component/plugin/server/reload_dataplane_writer.go -- judgeReloadWriters, reload writer judgement -->
+<!-- source: internal/component/plugin/registry/dataplane_writer.go -- JudgeDataPlaneWriter, DataPlaneWriter, the refusal boot, reload and doctor share -->
 <!-- source: internal/component/plugin/doctor/check_dataplane_writer.go -- checkDataPlaneWriter, dataPlaneWriterRows -->
 
 ## ECMP and BFD
@@ -162,7 +173,7 @@ A main-table route's weights reach the data plane through `nexthop.NextHop.Weigh
 on the Loc-RIB path and `ECMPPath.Weight` on the best-change event. Both are one
 octet, which is what the kernel's `rtnh_hops` and VPP's `fib_path` weight each
 carry, so `staticPath` caps a configured weight above 255 rather than letting the
-netlink encoder wrap it.
+netlink route encoder wrap it.
 
 A main-table route carries `RTPROT_ZE` (250), because fib-kernel writes it. A
 named-table route carries `RTPROT_STATIC` (251), because the static plugin writes
@@ -285,13 +296,15 @@ The VPP backend is a separate sub-package so that a build without VPP does not
 import govpp. It defines its own `Path` type with a `uint8` weight, which is the
 VPP limit, so a caller translating from the parent's `uint16` weight caps it.
 
-<!-- source: internal/plugins/static/backend_linux.go -- netlink multipath programming -->
-<!-- source: internal/plugins/static/backend_vpp_linux.go -- VPP backend selection -->
+<!-- source: internal/plugins/static/backend_linux.go -- newStaticBackendForDataPlane, kernel multipath programming -->
+<!-- source: internal/plugins/static/backend_vpp_linux.go -- newVPPStaticBackend, VPP backend selection -->
+<!-- source: internal/plugins/static/register.go -- candidateDataPlane -->
+<!-- source: internal/plugins/static/register_doctor_codes.go -- doctorCodeVPPChannel -->
 <!-- source: internal/plugins/static/vpp/backend.go -- VPP route programming, toFibPath -->
 <!-- source: internal/plugins/static/backend_other.go -- rejecting backend for non-Linux -->
 
 Both backends resolve an interface next hop through the same `iface.Resolve`.
-The netlink backend reads `Binding.Ifindex` as a kernel ifindex and the VPP
+The kernel backend reads `Binding.Ifindex` as a kernel ifindex and the VPP
 backend reads it as a VPP `sw_if_index`.
 
 A VPP path via a next-hop address alone names no interface, and carries
@@ -299,11 +312,18 @@ A VPP path via a next-hop address alone names no interface, and carries
 `fib_path_create` makes any path whose `sw_if_index` is not ~0 an attached
 next hop on that interface, so a 0 would never resolve the next hop.
 
-**The data plane and the iface backend are selected by two independent
-globals.** `vpp.GetActiveConnector()` selects the VPP static backend and
-`iface.LoadBackend` selects the iface backend. They can disagree, and a VPP
-static backend resolving against a netlink iface backend would program a kernel
-ifindex as a VPP `sw_if_index`: a silently wrong path. The VPP backend gates
+**Both the named-table route backend and the iface backend follow the
+configured data plane.** `candidateDataPlane` resolves the primary data-plane
+selector (`config.ResolvePrimaryDataPlane`) from the candidate `interface`
+section and schema default, never from whether `vpp.GetActiveConnector()` is
+published. Under `kernel`, named-table routes always use the Linux kernel route backend
+even if a VPP connector exists. Under `vpp`, named-table routes
+open a GoVPP channel on demand (`newVPPStaticBackend`) and never fall back to
+the Linux kernel: if no VPP connector is active or opening the channel fails,
+static returns an operator error naming `doctor-static-vpp-channel`, logs and
+raises that code on the report bus, and isolates the named-table route in
+`skipped` so it retries on the next apply while main-table routes keep their
+Loc-RIB path unaffected. As defense in depth, the VPP backend still gates
 interface-only resolution on `iface.ActiveBackendName() == "vpp"` and rejects a
 zero or invalid index. Any future VPP-aware consumer of `iface.Resolve` needs
 the same gate.

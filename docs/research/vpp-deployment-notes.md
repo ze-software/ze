@@ -42,7 +42,7 @@ Upgrade option: Supermicro SIS810 with Xeon E-2288G (8C/16T), dual PSU, 8x i210,
 
 - CPU isolation: `isolcpus=1,2,3,5,6,7` in GRUB (cores 0+4 for Linux, cores 1-3 for VPP workers)
 - Hugepages: 6 GB (3072 x 2MB)
-- Netlink buffer: 64 MB (`net.core.rmem_default=67108864`)
+- Netlink socket buffer: 64 MB (`net.core.rmem_default=67108864`)
 - startup.conf: 1536 MB main heap, 128K buffers, 1 GB stats segment
 - LCP plugins enabled, `exec /etc/vpp/bootstrap.vpp` for persistent config
 - Performance: ~660 clocks/packet at 1 Mpps; VPP gets more efficient under load (instruction/data cache reuse)
@@ -103,7 +103,7 @@ Seven-part series (2021-08 to 2021-09) developing the LCP plugin that mirrors VP
 
 **Part 3** - Auto-LIP creation for sub-interfaces (`lcp-auto-subint`). Added LACP BondEthernet support. MAC address bug: LIP must be created after bond members are added.
 
-**Part 4** - Netlink Listener plugin: Linux-to-VPP sync. Standard `ip` commands in Linux configure VPP dataplane. 64 MB netlink socket buffer. Known crash in multithreaded mode.
+**Part 4** - Netlink socket listener plugin: Linux-to-VPP sync. Standard `ip` commands in Linux configure VPP dataplane. 64 MB netlink socket buffer. Known crash in multithreaded mode.
 
 **Part 5** - IPv4/IPv6 route handling. Full DFZ demo: 870K IPv4 + 133K IPv6 prefixes loaded at ~175K routes/sec via Bird2. FIB source priority: `lcp-rt` (static) and `lcp-rt-dynamic` (routing protocols).
 
@@ -167,7 +167,7 @@ Four-part series (2023-05) adding MPLS support to VPP's Linux Control Plane.
 
 **Part 2** - Performance benchmarking on bare metal Supermicro routers. PHP (Implicit NULL) is fastest mode. MPLS supports RSS for linear multi-worker scaling (~27 Mpps with 3 workers).
 
-**Part 3** - LCP plugin MPLS support (with Adrian "vifino" Pistol): interface MPLS enable/disable, Netlink MPLS route parsing, dual EOS/non-EOS FIB entries. FRR LDP for dynamic LSPs.
+**Part 3** - LCP plugin MPLS support (with Adrian "vifino" Pistol): interface MPLS enable/disable, Netlink route MPLS parsing, dual EOS/non-EOS FIB entries. FRR LDP for dynamic LSPs.
 
 **Part 4** - Bug fix: MPLS packets from Linux TAP incorrectly subjected to VPP FIB lookup. New `linux-cp-xc-mpls` graph node bypasses FIB for TAP-originated MPLS.
 
@@ -222,7 +222,7 @@ Four-part series (2023-05) adding MPLS support to VPP's Linux Control Plane.
 
 Three-part series (2024-09 to 2025-02) developing an sFlow plugin for VPP, merged upstream in VPP 25.02.
 
-**Part 1** - Initial prototype by Neil McKee (inMon). Samples 1-in-N packets, sends via PSAMPLE Netlink. Performance issues with RPC-to-main spinlock.
+**Part 1** - Initial prototype by Neil McKee (inMon). Samples 1-in-N packets, sends via PSAMPLE Netlink messages. Performance issues with RPC-to-main spinlock.
 
 **Part 2** - Five iterations from RPC (v1, destructive regression) to custom lockless FIFO with quad-bucket-brigade (v5). Final: 11 CPU cycles/packet overhead, 36 Mpps bidirectional. Submitted as Gerrit 41680 (~2600 lines).
 
@@ -291,7 +291,7 @@ Three-part series (2024-09 to 2025-02) developing an sFlow plugin for VPP, merge
 | Gerrit | Feature |
 |--------|---------|
 | 38826 | MPLS interface state callbacks for LCP |
-| 38702 | Netlink MPLS route handling for LCP |
+| 38702 | Netlink route MPLS handling for LCP |
 | 40482 | ARP on unnumbered interfaces |
 | 41680 | sFlow plugin (~2600 LOC, merged in VPP 25.02) |
 | 43433 | Dynamic VxLAN endpoints (eVPN prototype) |

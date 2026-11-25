@@ -7,7 +7,7 @@ subsystem overview is in [the umbrella page](cp-survival-5-detect-0-umbrella.md)
 ## Why stage 2 exists
 
 The detector once emitted `AttackDetected` with an empty `Target.DstPrefix`. The
-`ddos-local` responder gates its nft drop on a valid prefix, so the whole chain
+`ddos-local` responder gates its nftables drop on a valid prefix, so the whole chain
 was wired and inert: no mitigation ever installed.
 
 ## Resolving the victim
@@ -58,7 +58,7 @@ Lock order is `emitMu` then `d.mu`. Never take `emitMu` while holding `d.mu`.
 
 The EventBus fan-out is synchronous and sequential on the emitting goroutine, and
 it reaches responders that reconcile the kernel inside the handler
-(`ddos-local onDetected` calls `firewall.ApplyAll` which calls netlink). Holding
+(`ddos-local onDetected` calls `firewall.ApplyAll` which calls the netlink API). Holding
 `d.mu` across that parks the detector's whole state behind a netlink round trip,
 because the rate tick, `Stop` and the baseline save all take `d.mu`.
 

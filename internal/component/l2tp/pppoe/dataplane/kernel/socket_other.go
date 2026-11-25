@@ -13,7 +13,7 @@ import (
 )
 
 func requirePlatform() error {
-	return errors.New("pppoe: netlink sessions require Linux")
+	return errors.New("pppoe: kernel sessions require Linux")
 }
 
 func openTransport(context.Context, dataplane.Request) (*pppoxTransport, error) {

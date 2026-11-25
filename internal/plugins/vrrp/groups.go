@@ -39,13 +39,6 @@ const (
 	familyIPv6 = "ipv6"
 )
 
-// Interface backends. VRRP needs macvlan devices and raw sockets, so it is
-// netlink-only until native VPP VRRP lands (spec-vrrp-7).
-const (
-	backendNetlink = "netlink"
-	backendVPP     = "vpp"
-)
-
 // Protocol versions.
 const (
 	versionV2 = 2
@@ -262,25 +255,6 @@ func (g GroupSpec) vipKey(vip netip.Addr) string {
 func (g GroupSpec) vridKey() string {
 	var tb textbuf.Buffer
 	return tb.Str(g.Interface).Byte('|').Str(g.Unit).Byte('|').Str(g.Family).Byte('|').Uint8(g.VRID).String()
-}
-
-// ifaceBackend reports the configured interface backend, defaulting to netlink
-// when the leaf is absent. The vrrp verifier reads it itself rather than
-// depending on the iface plugin having verified first (spec-vrrp-5 R-6).
-func ifaceBackend(sections []configSection) string {
-	for _, s := range sections {
-		if s.Root != configRoot {
-			continue
-		}
-		tree, err := sectionTree(s)
-		if err != nil {
-			continue
-		}
-		if b, ok := tree["backend"].(string); ok && b != "" {
-			return b
-		}
-	}
-	return backendNetlink
 }
 
 // sectionTree decodes a section's JSON payload and returns the `interface`
@@ -647,17 +621,10 @@ func parseChecksumMode(v any) (packet.ChecksumMode, error) {
 }
 
 // validateGroups applies every cross-leaf rule the YANG grammar cannot express.
-// It is pure: no side effects, safe to run at verify time.
-func validateGroups(specs []GroupSpec, backend string) error {
-	// A VPP-backed tree cannot host VRRP: the implementation needs macvlan
-	// devices and raw sockets that only the netlink backend provides. Fail
-	// closed rather than silently approximating (exact-or-reject).
-	if backend == backendVPP && len(specs) > 0 {
-		g := specs[0]
-		return fmt.Errorf("%s: VRRP requires the netlink interface backend, but /interface/backend is %q; remove the vrrp configuration or set the netlink backend (native VPP VRRP is not implemented)",
-			g.describe(), backend)
-	}
-
+// It is pure: no side effects, safe to run at verify time. Backend
+// compatibility is enforced by the config component's engine-owned ze:backend
+// walk against the vrrp containers' annotations.
+func validateGroups(specs []GroupSpec) error {
 	seenVIP := make(map[string]string)  // unit+family+VIP -> owning group name
 	seenVRID := make(map[string]string) // unit+family+vrid -> owning group name
 	for i := range specs {

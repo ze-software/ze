@@ -39,7 +39,7 @@ const (
 	// chain and the hook it sits on.
 	dfCounterFamily = "inet"
 	dfCounterHook   = "input"
-	// wordRule is the nft(8) object a counting rule is.
+	// wordRule is the nft command object a counting rule is.
 	wordRule = "rule"
 	// dfBitSet and dfBitClear name the two values of the DF bit, and clear is also
 	// the df-bit leaf value that writes it clear.

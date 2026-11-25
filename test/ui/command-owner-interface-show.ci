@@ -4,7 +4,7 @@
 # internal/component/iface/cli and is now dispatched through the command
 # registry. User-visible behavior (help text, unknown-subcommand rejection,
 # help inventory) is unchanged by the ownership move. Platform-independent:
-# these paths run before any netlink backend is loaded.
+# these paths run before any kernel backend is loaded.
 
 # Root help reaches the owner's usage via the registry root handler.
 cmd=foreground:seq=1:exec=ze interface help:exit=0

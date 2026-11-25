@@ -186,7 +186,7 @@ func pollOriginalPPPUnit(file *os.File) error {
 }
 
 // Append ONLY retainOriginalCreationRejection to created_unit_linux.go.
-// errors and netlink already belong to that existing Linux file's imports.
+// errors and the netlink library already belong to that existing Linux file's imports.
 func retainOriginalCreationRejection(link netlink.Link, attempted bool, cause error) nativeLinkCreationRejection {
 	if !attempted {
 		return nil

@@ -1,0 +1,60 @@
+# Test: SSH config upload on a daemon started with --plugin ze.flowspec-firewall refuses interface backend vpp at validation before publication.
+# Question: when a daemon runs with `--plugin ze.flowspec-firewall` on a
+#           `kernel` file and an authenticated SSH config upload sends
+#           `interface { backend vpp; }`, does `configMutationOwner.Upload`
+#           refuse at `ValidateContent` with `configuration upload failed
+#           validation` and `refused before publication` (not `configuration
+#           upload was not accepted`), carry `--plugin ze.flowspec-firewall` in
+#           its fix command, and leave the stored configuration unchanged?
+#           A unit test checks `uploadValidationFix` in isolation; only a real
+#           daemon proves the SSH subsystem upload path validates with the
+#           recorded command-line plugin before staging or reloading.
+# VALIDATES: spec-dataplane-compatibility-guard AC-18 (SSH upload door, A-16).
+# PREVENTS: SSH config upload ignoring the daemon's `--plugin` flags at
+#           validation or printing a fix command that omits `--plugin`.
+
+option=needs-linux:caps=net-admin
+option=exclusive:group=flowspec-nft
+option=needs-build-tag:value=ze_vpp:state=present
+option=storage:value=disk
+option=timeout:value=40s
+
+tmpfs=dataplane-door-upload.conf:terminator=EOF_CONF
+bus {
+	endpoint dataplane-door-upload {
+		external {
+			run "le test fixture plugin/dataplane-door-upload 127.0.0.1:$PORT2";
+		}
+		encoding json;
+	}
+}
+system {
+	authentication {
+		user admin {
+			password "$2a$04$UlwuiuH82Unfsq.XEMPGJeDkXwbm3KW.nvVaVXOd/JeFK8VjMjrQO"
+		}
+	}
+}
+environment {
+	ssh {
+		enabled true;
+		server main {
+			ip 127.0.0.1;
+			port $PORT2;
+		}
+	}
+}
+interface {
+	backend kernel;
+}
+EOF_CONF
+
+cmd=foreground:seq=1:exec=ze --plugin ze.flowspec-firewall start dataplane-door-upload.conf:timeout=40s
+expect=exit:code=0
+expect=stderr:contains=OK: SSH upload validation refused --plugin ze.flowspec-firewall before publication and kept running config unchanged
+reject=stderr:contains=reload error:
+expect=key:path=meta/config/dataplane-door-upload.conf/active:exists=true
+expect=key:path=meta/config/dataplane-door-upload.conf/candidate:absent=true
+expect=key:glob=object/*:count=1
+expect=key:glob=object/*:contains=backend kernel
+expect=key:glob=object/*:not-contains=backend vpp

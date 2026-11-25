@@ -13,10 +13,12 @@ const (
 	CodeDoctorIfaceOwnedDeviceCleanup = "doctor-iface-owned-device-cleanup"
 	// CodeDoctorIfaceOwnedDeviceReconcile is the doctor diagnostic code "doctor-iface-owned-device-reconcile".
 	CodeDoctorIfaceOwnedDeviceReconcile = "doctor-iface-owned-device-reconcile"
-	codeDoctorIfaceStateUnread          = "doctor-iface-state-unread"
-	exampleDoctorJSON                   = "ze doctor --json"
-	exampleShowDoctor                   = "ze show doctor"
-	exampleShowWarnings                 = "ze show warnings"
+	// CodeDoctorIfaceStateUnread is the doctor diagnostic code "doctor-iface-state-unread".
+	CodeDoctorIfaceStateUnread = "doctor-iface-state-unread"
+	codeDoctorIfaceStateUnread = CodeDoctorIfaceStateUnread
+	exampleDoctorJSON          = "ze doctor --json"
+	exampleShowDoctor          = "ze show doctor"
+	exampleShowWarnings        = "ze show warnings"
 )
 
 // The codes the check emits. internal/core/diagnostic/codes.go declares each

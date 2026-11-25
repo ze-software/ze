@@ -146,7 +146,7 @@ func TestReservationVerdict(t *testing.T) {
 	}
 }
 
-// TestDropCounter reads the default-drop term's counter from nft JSON and
+// TestDropCounter reads the default-drop term's counter from nftables JSON and
 // refuses a ruleset without that term or without its counter.
 func TestDropCounter(t *testing.T) {
 	ruleset := `{"nftables":[{"metainfo":{}},{"rule":{"expr":[{"counter":{"packets":7,"bytes":420}},` +

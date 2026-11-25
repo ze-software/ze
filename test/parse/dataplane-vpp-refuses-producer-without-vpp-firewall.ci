@@ -1,0 +1,28 @@
+# Test: interface backend vpp refuses a firewall table producer without firewall backend vpp.
+# Question: does `ze config validate` refuse `control-plane-protection` (copp)
+#           under `interface backend vpp` when no `firewall` block sets
+#           `firewall backend vpp`?
+#           A unit test cannot prove `ze config validate` activates the
+#           secondary `firewall` selector when a registered `FollowsSelector`
+#           producer (`copp`) is present without a `firewall` root.
+# VALIDATES: spec-dataplane-compatibility-guard AC-3 -- an active firewall
+#            table producer under `interface backend vpp` requires `firewall
+#            backend vpp`, refusing with `control-plane-protection` and
+#            `set firewall backend vpp`.
+# PREVENTS: CoPP silently programming kernel tables through the default
+#           firewall backend while VPP forwards the packets.
+stdin=config:terminator=EOF_CONF
+interface {
+	backend vpp;
+}
+control-plane-protection {
+	bgp {
+		rate 100/second;
+	}
+}
+EOF_CONF
+
+cmd=foreground:seq=1:exec=ze config validate -:stdin=config
+expect=exit:code=1
+expect=stdout:contains=control-plane-protection
+expect=stdout:contains=set firewall backend vpp

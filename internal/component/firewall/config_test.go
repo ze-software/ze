@@ -692,7 +692,7 @@ func firstAction(t *testing.T, tables []Table) Action {
 }
 
 // VALIDATES: spec-fw-8 AC-1 / AC-13 -- `icmp-type` accepts symbolic
-// nft-style names and numeric fallback, producing MatchICMPType.
+// nftables-style names and numeric fallback, producing MatchICMPType.
 // PREVENTS: LNS replacement blocked by missing ICMP type matching.
 func TestParseFromICMPType(t *testing.T) {
 	tests := []struct {

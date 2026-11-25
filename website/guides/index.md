@@ -51,7 +51,7 @@ To test Ze with an AI coding agent, start with [Use Ze with an AI agent](ai-agen
 - [System readiness](system-readiness/): run offline doctor checks and inspect runtime health.
 - [Production diagnostics](production-diagnostics/): start from symptoms and debug safely.
 - [Monitoring](monitoring/): configure flow export, MRT, and operational checks.
-- [Debugging tools](debugging-tools/): trace netlink, capture packets, and inspect state.
+- [Debugging tools](debugging-tools/): trace netlink events, capture packets, and inspect state.
 - [Logging](logging/) and [audit](audit/): inspect operational and security history.
 - Also in this section: [BMP](bmp/), [Flow export](flow-export/), [MRT analysis](mrt-analysis/), [Traffic usage](traffic-usage/), [Benchmarking](benchmarking/), and [Chaos testing](chaos-testing/).
 

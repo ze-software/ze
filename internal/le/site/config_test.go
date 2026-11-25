@@ -155,7 +155,12 @@ func TestTheConfigurationMirrorReadsAsThePublishedMirror(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	got := sectionsOf(t, readArtifact(t, paths.Output, configurationRoute+pageMirrorFile))
+	mirror := readArtifact(t, paths.Output, configurationRoute+pageMirrorFile)
+	if *updateRFCBars {
+		writeDependencyGolden(t, "published-configuration.md", mirror)
+		return
+	}
+	got := sectionsOf(t, mirror)
 	want := sectionsOf(t, readFixture(t, "published-configuration.md"))
 	if got == want {
 		return

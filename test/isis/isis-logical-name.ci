@@ -12,14 +12,14 @@
 #            (the selector was hidden/dormant before this unit), or IS-IS rejects
 #            an interface name that is not itself a kernel device name.
 #
-# PLATFORM: the `interface { backend netlink }` block is linux-only; skip on
+# PLATFORM: the `interface { backend kernel }` block is linux-only; skip on
 # darwin per rules/os-specific-tests.md.
 option=skip-os:value=darwin
 
 # --- Valid: logical name `uplink` -> kernel `eth0`, IS-IS on `uplink`. --------
 stdin=isis-logical:terminator=EOF_OK
 interface {
-	backend netlink
+	backend kernel
 	ethernet uplink {
 		os-name eth0
 	}

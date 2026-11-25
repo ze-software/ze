@@ -94,7 +94,7 @@ func flowSpecLegacySeed07(ctx context.Context, _ []string) error {
 	}
 	for _, args := range commands {
 		if output, err := exec.CommandContext(ctx, "nft", args...).CombinedOutput(); err != nil { //nolint:gosec // the fixture chooses the program and its arguments
-			return fmt.Errorf("nft %s: %w: %s", strings.Join(args, " "), err, output)
+			return fmt.Errorf("nft command %s: %w: %s", strings.Join(args, " "), err, output)
 		}
 	}
 	output, err := exec.CommandContext(ctx, "nft", "list", "table", "inet", "flowspec").Output()

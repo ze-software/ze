@@ -33,7 +33,7 @@ func TestConfigValidateWithoutCoSRefusesProfile(t *testing.T) {
 	}
 	path := filepath.Join(t.TempDir(), "profile.conf")
 	const input = `interface {
- backend netlink;
+ backend kernel;
  ethernet eth0 {
   class-of-service residential;
   unit v100 { vlan-id 100; }
@@ -59,7 +59,7 @@ func TestConfigValidateWithoutCoSAcceptsInlineMaps(t *testing.T) {
 	}
 	path := filepath.Join(t.TempDir(), "inline.conf")
 	const input = `interface {
- backend netlink;
+ backend kernel;
  ethernet eth0 {
   unit v100 {
    vlan-id 100;

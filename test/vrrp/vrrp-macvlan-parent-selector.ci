@@ -48,7 +48,7 @@ option=exclusive:group=iface-owned-macvlan
 
 stdin=ze-bgp:terminator=EOF_CONF
 interface {
-	backend netlink;
+	backend kernel;
 	# The operator names the interface, and pins it to a NIC by permanent MAC.
 	# No kernel device is called zevrwan except the decoy, which carries a
 	# different address and must never be selected.

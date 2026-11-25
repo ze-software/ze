@@ -68,7 +68,7 @@ func init() { //nolint:gochecknoinits // plugin registration
 		Description: "Packet filter and NAT rules (nftables on Linux)",
 		Features:    "yang",
 		YANG:        firewallyang.ZeFirewallConfYANG,
-		// `system conntrack` is the second root: its helpers lower to nft
+		// `system conntrack` is the second root: its helpers lower to nftables
 		// tables, so a config that lists one starts this engine with no
 		// `firewall {}` block, and the transaction verifies, applies and rolls
 		// back the helper tables with the firewall tables (engine.go).
@@ -79,6 +79,11 @@ func init() { //nolint:gochecknoinits // plugin registration
 			Value:     backendVPP,
 			Providers: []string{vppPlugin},
 		}},
+		DataPlaneSelector: &registry.DataPlaneSelector{
+			LeafPath:           backendLeafPath,
+			Roots:              []string{ConfigRoot, configRootConntrack},
+			RegisteredBackends: RegisteredBackends,
+		},
 		InProcessConfigVerifier: VerifyConfig,
 		Sends:                   firewallSends(),
 		RunEngine:               runEngine,

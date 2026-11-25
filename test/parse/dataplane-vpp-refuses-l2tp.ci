@@ -1,0 +1,31 @@
+# Test: interface backend vpp refuses an active L2TP listener.
+# Question: does `ze config validate` refuse an active `environment l2tp server`
+#           under `interface backend vpp`, naming `environment l2tp server` and
+#           `set interface backend kernel`?
+#           A unit test cannot prove the standalone `l2tp` data-plane feature
+#           registration reaches `ze config validate` through the real binary.
+# VALIDATES: spec-dataplane-compatibility-guard AC-5 (L2TP) -- an L2TP listener
+#            under VPP is refused because L2TP programs Linux PPP interfaces
+#            in the kernel only.
+# PREVENTS: an L2TP server starting kernel PPP workers on a VPP forwarding box.
+stdin=config:terminator=EOF_CONF
+interface {
+	backend vpp;
+}
+l2tp {
+	enabled true;
+}
+environment {
+	l2tp {
+		server main {
+			ip 127.0.0.1;
+			port 1701;
+		}
+	}
+}
+EOF_CONF
+
+cmd=foreground:seq=1:exec=ze config validate -:stdin=config
+expect=exit:code=1
+expect=stdout:contains=environment l2tp server
+expect=stdout:contains=set interface backend kernel

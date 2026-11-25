@@ -1,0 +1,24 @@
+# Test: interface backend kernel refuses traffic control backend vpp.
+# Question: does `ze config validate` refuse `traffic control backend vpp` when
+#           `interface backend` is `kernel` (by default), naming the leaf and
+#           both fixes (`set traffic control backend kernel` and `set interface
+#           backend vpp`)?
+#           A unit test cannot prove `ze config validate` evaluates the real
+#           registered traffic and interface selectors end to end.
+# VALIDATES: spec-dataplane-compatibility-guard AC-4 (traffic control) --
+#            mismatched `traffic control backend vpp` under kernel interfaces
+#            is refused with both operator fixes.
+# PREVENTS: VPP traffic policers being configured on a kernel-forwarding box.
+stdin=config:terminator=EOF_CONF
+traffic {
+	control {
+		backend vpp;
+	}
+}
+EOF_CONF
+
+cmd=foreground:seq=1:exec=ze config validate -:stdin=config
+expect=exit:code=1
+expect=stdout:contains=traffic control backend
+expect=stdout:contains=set traffic control backend kernel
+expect=stdout:contains=set interface backend vpp

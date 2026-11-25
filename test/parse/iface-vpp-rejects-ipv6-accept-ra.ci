@@ -2,7 +2,7 @@
 # VALIDATES: the commit-time feature gate rejects a unit that accepts Router
 #            Advertisements when the active backend is vpp. accept-ra and
 #            autoconf describe one behavior, so the leaf carries the same
-#            ze:backend "netlink" as its neighbor. The kernel accepts
+#            ze:backend "kernel" as its neighbor. The kernel accepts
 #            advertisements only on a device that receives them, and VPP
 #            delivers none to the Linux Control Plane tap.
 # PREVENTS: a config that gates autoconf but leaves accept-ra open, which
@@ -28,4 +28,4 @@ cmd=foreground:seq=1:exec=ze config validate -:stdin=config:exit=1
 expect=exit:code=1
 expect=stdout:contains=/interface/ethernet/eth0/unit/0/ipv6/accept-ra
 expect=stdout:contains="vpp"
-expect=stdout:contains=netlink
+expect=stdout:contains=kernel

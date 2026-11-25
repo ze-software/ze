@@ -1,0 +1,54 @@
+# Test: flow-offload with its declared flowtable is refused on VPP via flowtable's ze:backend annotation.
+# Question: does `ze config validate` refuse `flow-offload` with its declared
+#           `flowtable` under `firewall backend vpp`, naming the `flowtable`
+#           node (`ft0`) and backend `vpp` (supported `kernel`) and NOT naming
+#           `flow-offload`?
+#           A unit test cannot prove `ze config validate` loads the edited
+#           `ze-firewall-conf.yang` where `flow-offload`'s own annotation is
+#           removed while `list flowtable` keeps `ze:backend "kernel"`.
+# VALIDATES: spec-dataplane-compatibility-guard AC-17 (P-2) -- `flow-offload`
+#            stays refused on VPP solely through the `flowtable` list it must
+#            name, never via a second `ze:backend` annotation on `flow-offload`.
+# PREVENTS: either re-adding `ze:backend` to `flow-offload` or dropping
+#           `ze:backend "kernel"` from `list flowtable`.
+stdin=config:terminator=EOF_CONF
+interface {
+	backend vpp;
+}
+firewall {
+	backend vpp;
+	table wan {
+		family inet;
+		flowtable ft0 {
+			hook ingress;
+			priority 0;
+			device [ eth0 ];
+		}
+		chain forward {
+			type filter;
+			hook forward;
+			priority 0;
+			policy accept;
+			term offload-established {
+				from {
+					connection-state established;
+				}
+				then {
+					flow-offload {
+						flowtable ft0;
+					}
+					accept;
+				}
+			}
+		}
+	}
+}
+EOF_CONF
+
+cmd=foreground:seq=1:exec=ze config validate -:stdin=config
+expect=exit:code=1
+expect=stdout:contains=flowtable
+expect=stdout:contains=ft0
+expect=stdout:contains="vpp"
+expect=stdout:contains=kernel
+reject=stdout:contains=flow-offload

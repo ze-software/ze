@@ -31,7 +31,7 @@ var spdFamilies = []net.IP{net.IPv4zero, net.IPv6zero}
 // anyNetFor returns the wildcard prefix of the same address family as sample.
 //
 // A bypass has to be family-correct rather than family-agnostic: an XFRM selector
-// carries a family (vendor netlink xfrm_policy_linux.go, selFromPolicy derives it
+// carries a family (vendor netlink library xfrm_policy_linux.go, selFromPolicy derives it
 // from the destination prefix), so one wildcard cannot cover both.
 func anyNetFor(sample net.IP) *net.IPNet {
 	if sample.To4() != nil {

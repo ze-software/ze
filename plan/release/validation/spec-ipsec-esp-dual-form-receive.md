@@ -143,7 +143,7 @@ a current one. Answer route C by reading the 6.19.11 receive path, and record th
 - [ ] `docs/architecture/ike/ipsec-8-ikev2-child-xfrm.md` - ESP Child SA creation after IKE_AUTH, and the dataplane abstraction
 - [ ] `docs/architecture/ike/ipsec-9-ikev2-eap-nat.md` - EAP authentication and NAT traversal, for site-to-site and road-warrior peers
 - [ ] `ai/rules/architecture.md` - both dataplanes
-  → Constraint: a netlink-only capability creates drift. The VPP backend needs the
+  → Constraint: a kernel-only capability creates drift. The VPP backend needs the
     capability or an explicit refusal in the same work.
 - [ ] `ai/rules/platform-linux.md` - Linux-only code needs QEMU coverage
   → Constraint: the receive path is `//go:build linux`, so it needs a QEMU integration

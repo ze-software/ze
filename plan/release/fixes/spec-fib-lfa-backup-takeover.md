@@ -108,7 +108,7 @@ Skeleton: run `./le spec design documents spec plan/release/fixes/spec-fib-lfa-b
 ### Entry Point
 - OSPF SPF computes per-primary LFA / TI-LFA backups (`internal/plugins/ospf/spf/lfa.go`) and installs `locrib.Path` entries carrying `BackupNextHop`, `BackupInterface`, `BackupOnLink`, and `BackupRepairLabels` (`internal/plugins/ospf/spf/install.go`).
 - `sysrib` publishes `(system-rib, best-change)` carrying `BestChangeEntry.Backup`.
-- Failure triggers (if userspace takeover is selected under C-1): interface link-down (`ifaceevents.EventDown` or netlink `RTM_DELLINK`/`IFF_RUNNING` drop) and/or BFD `StateDown` transitions.
+- Failure triggers (if userspace takeover is selected under C-1): interface link-down (`ifaceevents.EventDown` or netlink message `RTM_DELLINK`/`IFF_RUNNING` drop) and/or BFD `StateDown` transitions.
 
 ### Transformation Path
 1. OSPF SPF attaches LFA/TI-LFA backups and inserts into Loc-RIB; `sysrib` resolves and emits `BestChangeEntry` with `Backup`.
@@ -123,7 +123,7 @@ Skeleton: run `./le spec design documents spec plan/release/fixes/spec-fib-lfa-b
 | OSPF → Loc-RIB → sysrib | `locrib.Path` / `route-install` RPC, `(system-rib, best-change)` EventBus typed handle | No |
 | sysrib → `fib-kernel` / `fib-vpp` | `(system-rib, best-change)` carrying `BestChangeEntry.Backup` | No |
 | `iface` / `bfd` → `fib-kernel` (if C-1a) | EventBus `iface` link-down events / BFD state notification (process boundary checked at design time) | No |
-| `fib-kernel` → Linux kernel | netlink `RTM_NEWROUTE` / `RTM_DELROUTE` (or patched kernel primitive if C-1b) | No |
+| `fib-kernel` → Linux kernel | netlink message `RTM_NEWROUTE` / `RTM_DELROUTE` (or patched kernel primitive if C-1b) | No |
 | `fib-vpp` → VPP | GoVPP `ip_route_add_del_v2` (if C-2a) | No |
 
 ### Changed-Wire Census

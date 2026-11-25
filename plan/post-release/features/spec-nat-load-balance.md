@@ -68,7 +68,7 @@ destination port) with an optional seed.
 | Boundary | How | Verified |
 |----------|-----|----------|
 | Config → firewall component | YANG tree | No |
-| Firewall component → nft backend | `Backend.Apply` | No |
+| Firewall component → kernel backend | `Backend.Apply` | No |
 
 ### Integration Points
 - `lowerNAT` and the action parse in `parseThenBlock`
@@ -84,7 +84,7 @@ destination port) with an optional seed.
 |-------|-------------------|-------------------|-----------------------------|
 | AC-1 | Three back ends, weights 1, 1, 2, random | Modulus is 4 (the sum), the map covers 0..3 with no gap, and a traffic test sees roughly 25/25/50 | - |
 | AC-2 | Weights summing to less than or more than 100 | Weights are shares of their sum: every hash value maps to a back end, no packet falls through the map (VyOS `938140bfe`: a fixed modulus of 100 left buckets with no back end, and commit only warned) | - |
-| AC-3 | Back ends with a translation port, or a port range | The port is part of every map element (address and port), and any NAT flags follow the map; the commit applies and port-forwarding works end to end (VyOS `a0ea6ec90`: the port placed before the hash expression made nft reject the rule) | - |
+| AC-3 | Back ends with a translation port, or a port range | The port is part of every map element (address and port), and any NAT flags follow the map; the commit applies and port-forwarding works end to end (VyOS `a0ea6ec90`: the port placed before the hash expression made nftables reject the rule) | - |
 | AC-4 | Hash over source address only | The same client always reaches the same back end across connections; the lowered hash names exactly the configured fields and seed | - |
 | AC-5 | A weight of 0, an empty back-end list, mixed address families, or a sum that overflows 32 bits | Refused at verify, naming the back end | - |
 | AC-6 | Back end set changed on reload | Existing flows keep their translation (conntrack), new flows use the new map; the reload replaces the rule atomically | - |
@@ -111,7 +111,7 @@ destination port) with an optional seed.
 ## Implementation Steps
 
 1. **Phase: Wiring** -- YANG, parse, failing `.ci`
-2. **Phase: nft lowering** -- AC-1 to AC-6
+2. **Phase: nftables lowering** -- AC-1 to AC-6
 3. **Phase: VPP** -- AC-7
 
 ## Files to Modify

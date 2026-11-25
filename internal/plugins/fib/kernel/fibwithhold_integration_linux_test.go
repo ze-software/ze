@@ -76,8 +76,8 @@ const withholdConfigText = `rib {
 //
 // Method: the real system-RIB engine runs in this process over an RPC pipe this
 // test drives as the daemon's engine drives it, configured with the section the
-// real config chain produces. The real FIB writer runs beside it on a netlink
-// handle bound to this test's network namespace. Two paths then enter the
+// real config chain produces. The real FIB writer runs beside it on a netlink handle
+// bound to this test's network namespace. Two paths then enter the
 // Loc-RIB the way a protocol producer enters them, and the assertions read the
 // kernel through netlink and the system RIB through the plugin's own command.
 //
@@ -149,7 +149,7 @@ func TestFIBWithholdLeavesNoKernelRoute(t *testing.T) {
 		})
 
 		// Assertion 3, and it comes first: the protocol nobody withheld reaches
-		// the kernel. It proves the chain from a Loc-RIB insert to netlink works
+		// the kernel. It proves the chain from a Loc-RIB insert to the netlink socket works
 		// in this environment, so the absence asserted next is the withhold
 		// rather than a chain that programmed nothing.
 		if !withholdProgrammed(t, handle, withholdPrefixOSPF) {

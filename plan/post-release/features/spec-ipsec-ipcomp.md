@@ -80,7 +80,7 @@ get harder, not easier. The tests written for them must assert over a real negot
   → Constraint: a backend that cannot apply the operator's compression config must fail at
     `ze config verify` with a clear error, never approximate it.
 - [ ] `ai/rules/architecture.md` - both dataplanes
-  → Constraint: a netlink-only feature creates drift. The VPP backend needs the feature or an
+  → Constraint: a kernel-only feature creates drift. The VPP backend needs the feature or an
     explicit refusal in the same work.
 - [ ] `ai/rules/platform-linux.md` - Linux-only code needs QEMU coverage
   → Constraint: the XFRM half is `//go:build linux`, so it needs a QEMU integration test.
@@ -200,7 +200,7 @@ get harder, not easier. The tests written for them must assert over a real negot
 | Config tree ↔ IKE engine | `ipsec.ESPGroup` fields | No |
 | IKE engine ↔ wire codec | `wire.PayloadNotify` with type 16387 | No |
 | IKE engine ↔ dataplane | `dataplane.SAParams` gains compression fields | No |
-| Dataplane ↔ Linux kernel | XFRM netlink IPComp state and template | No |
+| Dataplane ↔ Linux kernel | XFRM netlink message for IPComp state and template | No |
 | Dataplane ↔ VPP | binary API, or an explicit refusal | No |
 
 ### Integration Points
@@ -304,7 +304,7 @@ get harder, not easier. The tests written for them must assert over a real negot
 | `TestCompressionUsesOnlyTheAcceptedAlgorithm` | `internal/component/ike/engine/rfc7296_ipcomp_test.go` | AC-9 and AC-11. Tagged `RFC requirement: RFC7296-2.22-4 positive` | |
 | `TestChildSAReleasesCPIOnTeardown` | `internal/component/ike/engine/rfc7296_ipcomp_test.go` | AC-11 | |
 | `TestVPPBackendRefusesCompression` | `internal/component/ike/dataplane/vpp_test.go` | AC-10 | |
-| `TestXFRMInstallsCompressionState` | `internal/component/ike/dataplane/xfrm_linux_test.go` | The Linux backend builds the right netlink state | |
+| `TestXFRMInstallsCompressionState` | `internal/component/ike/dataplane/xfrm_linux_test.go` | The Linux backend builds the right `netlink.XfrmState` | |
 | `TestDoctorReportsMissingIPCompModule` | `internal/component/ike/engine/doctor_test.go` | AC-13 | |
 
 Each tagged test needs an anti-vacuity companion. An absence assertion carries a non-empty

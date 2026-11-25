@@ -10,6 +10,6 @@ import (
 
 func init() {
 	if err := dataplane.RegisterSessionDataplane(kernel.Name, kernel.Prepare); err != nil {
-		panic("BUG: cannot register netlink PPPoE session backend: " + err.Error())
+		panic("BUG: cannot register kernel PPPoE session backend: " + err.Error())
 	}
 }

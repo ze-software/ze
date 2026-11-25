@@ -4,8 +4,8 @@
   "tests": {
     "internal/plugins/vrrp/instance_test.go::TestInstanceOwnerStartupGoesMaster": "52298a1ed170e60a",
     "internal/plugins/vrrp/instance_test.go::TestInstanceStartupNonOwnerGoesBackup": "52298a1ed170e60a",
-    "internal/plugins/vrrp/rfc3768_v2_group_test.go::TestV2BackupHoldsNoVirtualAddress": "8b5d8c7a41e8e18e",
-    "internal/plugins/vrrp/rfc3768_v2_group_test.go::TestV2BackupHoldsNoVirtualAddress#2": "8b5d8c7a41e8e18e"
+    "internal/plugins/vrrp/rfc3768_v2_group_test.go::TestV2BackupHoldsNoVirtualAddress": "4f33fc505f21e0c7",
+    "internal/plugins/vrrp/rfc3768_v2_group_test.go::TestV2BackupHoldsNoVirtualAddress#2": "4f33fc505f21e0c7"
   },
   "units": {
     "internal/plugins/vrrp/instance_test.go::TestInstanceOwnerStartupGoesMaster": "e1a785d3aeb30340",

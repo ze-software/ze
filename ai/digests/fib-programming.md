@@ -18,10 +18,13 @@ the kernel, and they are easy to conflate:
    `Change`. `internal/component/sysrib` follows that selection through a local reader
    or the authenticated routing view, resolves the winner's next-hop recursively, folds
    in ECMP/backup, and publishes on `(system-rib, best-change)`.
-   `internal/plugins/fib/kernel` (or the alternate `fib/vpp`, `fib/p4` dataplane plugins)
-   subscribes to that and programs the OS FIB via netlink, tagging routes `RTPROT_ZE=250`.
+   `internal/plugins/fib/kernel` (or the alternate `fib/vpp`, `fib/p4`, or
+   `fib/dummy` plugins, where `fib-dummy` declares `ProgramsFIB` and
+   `NoDataPlaneChoice` with empty `DataPlane`, holds routes in memory, and
+   writes nowhere) subscribes to that and programs the OS FIB via netlink,
+   tagging routes `RTPROT_ZE=250`.
 2. **Named-table static routes** bypass sysrib entirely: `internal/plugins/static`
-   programs them through its own netlink backend (`RTPROT_STATIC=251`) on every config
+   programs them through its own kernel backend (`RTPROT_STATIC=251`) on every config
    apply (`applyProgrammed`, `internal/plugins/static/locrib.go`).
 3. **Connected routes** are never installed by ze: the OS creates them when an interface
    address is configured. `internal/plugins/connected` inserts each prefix into the
@@ -127,7 +130,7 @@ Route wins in a protocol, then gets programmed in the kernel:
    deletes `routes[key]` and `recomputeForwarding` with a nil winner emits
    `routeaction.Withdraw`, only where Ze has an install outstanding (`programmedByZe`).
    `fib-kernel.delChange` (`fibkernel.go`) calls `rb.delRichRoute` or
-   `backend.delRoute` → netlink `RouteDel` (`internal/plugins/fib/kernel/backend_linux.go`).
+   `backend.delRoute` → netlink route `RouteDel` (`internal/plugins/fib/kernel/backend_linux.go`).
    Both build the delete with `ownedRouteKey`: protocol 250, the table, and
    `RT_SCOPE_NOWHERE`, because an IPv4 device-only route is installed at link scope
    (`forwardingScope`, `nexthop_linux.go`) and `fib_table_delete` misses a scope it
@@ -158,7 +161,7 @@ Route wins in a protocol, then gets programmed in the kernel:
     (`internal/plugins/fib/kernel/monitor.go`) re-asserts (`backend.replaceRoute`) any
     ze-managed prefix that changed underneath it and publishes `(fib,
     external-change)` (`monitor.go`) for observability.
-12. **Parallel MPLS channel (bypasses sysrib).** RSVP-TE/LDP publish
+12. **Parallel MPLS channel (bypasses sysrib).** RSVP-TE/LDP/OSPF-SR/BGP-EPE publish
     `(mpls-fib, entry)` batches (`internal/core/mplsfib/events.go`, `Apply`) to the
     writer of the selected data plane; each declares `NeedsDataPlane` and names no
     writer. In fib-kernel `handleMPLSEntry` (`internal/plugins/fib/kernel/mplsentry.go`)
@@ -166,16 +169,22 @@ Route wins in a protocol, then gets programmed in the kernel:
     label-keyed, do not fit a prefix-keyed best-path table) through a dedicated
     `mplsBackend`. In fib-vpp `handleMPLSEntry` (`internal/plugins/fib/vpp/mplsentry.go`)
     programs two routes per swap/pop in VPP MPLS table 0. Both call
-    `mplsfib.ValidateEntry`. A writer that opens late emits `(mpls-fib, replay-request)`
-    and the producers re-apply through `mplsfib.ApplyReplay`, in a batch only that
-    writer consumes (`EntryBatch.Addresses`).
+    `mplsfib.ValidateEntry`. `fib-dummy` also subscribes (`internal/plugins/fib/dummy/labels.go`,
+    `handleMPLSEntry`) and consumes every addressed batch to refuse it so label
+    producers never advertise unforwarded labels. `fib-kernel`, `fib-vpp`, and
+    `fib-dummy` each emit a targeted `(mpls-fib, replay-request)` on open, and the
+    producers re-apply through `mplsfib.ApplyReplay` in a batch only that writer
+    consumes (`EntryBatch.Addresses`). After a reload stops any `ProgramsFIB`
+    process, `(mpls-fib, writer-stopped)` (`mplsfib.WriterStopped`) triggers one
+    more targeted replay request on each remaining data-plane writer (`fib-kernel`,
+    `fib-vpp`).
 13. **Static routes split by table.** `routeManager.applyRouteLocked`/
     `programRouteLocked` (`internal/plugins/static/inject.go`) call `applyProgrammed`
     (`internal/plugins/static/locrib.go`) on every `OnConfigure`/`OnConfigApply`
     (`internal/plugins/static/register.go`). A main-table route becomes a Loc-RIB `Path`
     (`insertPathLocked`, `staticPath`) and follows steps 2-8, so the FIB plugin is its
     single writer. A named-table route bypasses sysrib and Loc-RIB: `backend.applyRoute`/
-    `removeRoute` write netlink `RouteReplace`/`RouteDel` tagged `RTPROT_STATIC=251`
+    `removeRoute` write netlink route `RouteReplace`/`RouteDel` tagged `RTPROT_STATIC=251`
     (`internal/plugins/static/backend_linux.go`), the table resolved to a kernel table ID
     via `internal/core/routingtable.Registry.Resolve`
     (`internal/core/routingtable/registry.go`, called from
@@ -212,11 +221,12 @@ Route wins in a protocol, then gets programmed in the kernel:
 | `core/mplsfib/events.go` | `EntryBatch`/`Entry`: label-distribution-source (RSVP-TE/LDP) → data-plane writer (fib-kernel, fib-vpp) channel, bypasses sysrib; `ReplayRequest`, `ApplyReplay` |
 | `core/mplsfib/label.go` | `ValidateEntry`/`ValidateOutLabels`: the one label validation every writer applies |
 | `fib/kernel/fibkernel.go` | `fibKernel`: `processEvent` (best-change dispatch), pending/lag tracking, `startupSweep`/`sweepStale`/`flushRoutes` |
-| `fib/kernel/backend_linux.go` | Linux netlink backend: `addRoute`/`delRoute`/`replaceRoute`/`listZeRoutes`, `RTPROT_ZE` |
+| `fib/kernel/backend_linux.go` | Linux kernel backend: `addRoute`/`delRoute`/`replaceRoute`/`listZeRoutes`, `RTPROT_ZE` |
 | `fib/kernel/richroute.go` | `RichRoute`/`richRouteBackend`: labels/ECMP/SRv6/table-ID programming interface; `Backup` is carried for replay identity and not programmed |
 | `fib/kernel/mplsentry.go` | `handleMPLSEntry`: push (rich-route) vs swap/pop (AF_MPLS) dispatch for the RSVP-TE/LDP channel |
 | `fib/kernel/monitor.go`, `monitor_linux.go` | External route-change detection (routewatch) and re-assertion |
 | `fib/kernel/register.go` | Plugin registration, `Dependencies: [rib, sysctl]`, startup sweep sequencing |
+| `fib/dummy/register.go`, `fibdummy.go`, `labels.go`, `show.go`, `doctor.go` | No-plane FIB backend (`ProgramsFIB` + `NoDataPlaneChoice`, empty `DataPlane`): holds selected routes in memory, refuses addressed MPLS label batches, serves `show fib dummy` / `show fib dummy counters`, `doctor-fib-dummy-holds-routes` |
 | `plugins/isis/spf/install.go`, `plugins/ospf/spf/install.go` | Per-protocol Loc-RIB installers: one `Path` per equal-cost next-hop, `RouteSink` when forked |
 | `plugins/static/locrib.go`, `inject.go`, `backend_linux.go` | Main-table routes into Loc-RIB; named-table routes on static's OWN direct-to-kernel path |
 | `plugins/connected/locrib.go`, `connected.go` | Connected prefixes into Loc-RIB (OS-installed) and the redistevents emitter; no kernel install |
@@ -269,10 +279,15 @@ Route wins in a protocol, then gets programmed in the kernel:
   named-table static route is the one dynamic exception (its own backend), because the
   Loc-RIB is keyed by (family, prefix) and carries no table.
 - **Multiple dataplane backends subscribe the same event.** `fib/kernel`, `fib/vpp`,
-  `fib/p4` each independently `sysribevents.BestChange.Subscribe`, gated by whether their
-  own config root (`fib/kernel`, `fib/vpp`, `fib/p4`) is present, not by mutual exclusion in
-  code. Running more than one against the same kernel/dataplane simultaneously is an
-  operator misconfiguration, not something the code prevents.
+  `fib/p4`, and `fib/dummy` each independently subscribe to `sysribevents.BestChange`,
+  gated by whether their own config root (`fib/kernel`, `fib/vpp`, `fib/p4`,
+  `fib/dummy`) is present. `fib-dummy` declares `ProgramsFIB` and `NoDataPlaneChoice`
+  with an empty `DataPlane`, so the data-plane verdict refuses it beside any other
+  `ProgramsFIB` plugin (`internal/component/config/dataplane_verdict.go`,
+  `evaluateNoPlaneFIBChoice`). At boot and at reload, the writer judgement evaluates
+  the whole candidate selection to start the selected plane's writer when needed and
+  stop an engine-added or displaced FIB plugin when the candidate no longer chooses or
+  needs it.
 - **Startup ordering is replay-request-driven, not sequence-dependent.** Both sysrib (on
   `(system-rib, replay-request)`, `route_view_worker.go`, `HandleEvent`) and fib-kernel (emits it at boot,
   `fibkernel.go`) are written so either side can start first: fib-kernel always asks

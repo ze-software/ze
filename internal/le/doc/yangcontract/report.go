@@ -206,13 +206,20 @@ func (r ValidationResult) Text() string {
 	return tb.String()
 }
 
-// WriteReport is what the writing action answers: the file it rewrote.
+// WriteReport is what the writing action answers: the generated files it rewrote.
 type WriteReport struct {
-	Path string `json:"path"`
+	Path  string   `json:"path"`
+	Paths []string `json:"paths,omitempty"`
 }
 
-// Text renders the writing action the way the script printed it.
+// Text renders the writing action: one line per generated file written.
 func (w WriteReport) Text() string {
 	var tb textbuf.Buffer
-	return tb.Str("wrote ").Str(w.Path).Byte('\n').String()
+	if len(w.Paths) == 0 {
+		return tb.Str("wrote ").Str(w.Path).Byte('\n').String()
+	}
+	for _, p := range w.Paths {
+		tb.Str("wrote ").Str(p).Byte('\n')
+	}
+	return tb.String()
 }

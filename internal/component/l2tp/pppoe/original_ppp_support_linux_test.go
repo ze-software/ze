@@ -32,7 +32,7 @@ func TestPPPoEOriginalPPPSupportRegisteredScope(t *testing.T) {
 		{"inactive", "pppoe { enabled false; interface access0 {} }", 0},
 		{"no-access", "pppoe { enabled true }", 0},
 		{"default", "pppoe { enabled true; interface access0 {} }", pppkernel.OriginalPPPSupportRequirements(false)},
-		{"native", "interface { backend netlink } pppoe { enabled true; interface access0 {} }", pppkernel.OriginalPPPSupportRequirements(false)},
+		{"native", "interface { backend kernel } pppoe { enabled true; interface access0 {} }", pppkernel.OriginalPPPSupportRequirements(false)},
 		{"vpp", "interface { backend vpp } pppoe { enabled true; interface access0 {} }", 0},
 	} {
 		t.Run(test.name, func(t *testing.T) {

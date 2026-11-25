@@ -3,7 +3,7 @@
 #       families, and removing the block withdraws it.
 # VALIDATES: spec-bcp194-3-session AC-1, AC-2 -- the reactor publishes each
 #            GTSM peer to internal/component/gtsm, whose listen-port term the
-#            nft backend renders as `saddr <peer> ... dport <port> ... ttl <
+#            kernel backend renders as `saddr <peer> ... dport <port> ... ttl <
 #            255 ... drop` for IPv4 and `... hoplimit < 255 ... drop` for IPv6.
 #            <port> is Ze's listen port, the $PORT the runner assigns this
 #            test, which the fixture takes as its argument.

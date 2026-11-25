@@ -36,7 +36,7 @@ restore the address the card came with, not the one on it").
 **Source files read:**
 - [ ] `internal/component/iface/config_apply.go` `applyConfig` Phase 2 - calls `SetMACAddress` through `applyBackendStep` only when `e.MACAddress` is set. Its undo puts back the MAC read before the change. No phase acts when `MACAddress` is empty or the entry is gone
 - [ ] `internal/component/iface/iface.go` `InterfaceInfo.PermanentMAC` - the backend already reads IFLA_PERM_ADDRESS. The resolver uses it for `mac match`, and `show interface` prints it
-- [ ] `internal/component/iface/backend.go` `Backend.SetMACAddress` - the one write path, netlink and VPP
+- [ ] `internal/component/iface/backend.go` `Backend.SetMACAddress` - the one write path, kernel and VPP
 
 **Behavior to preserve:**
 - A set `mac address` is applied, and a failed commit puts the previous MAC back (`applyBackendStep` journal)
@@ -51,7 +51,7 @@ restore the address the card came with, not the one on it").
 | Permanent address read | `internal/component/iface/iface.go` `InterfaceInfo.PermanentMAC` | Carries IFLA_PERM_ADDRESS for every link the backend lists | extends: it is the value to restore |
 | Per-step rollback journal | `internal/component/iface/config_apply.go` `applyBackendStep` | Records an undo for each backend write in a commit | extends: the restore is one more journaled step, so a failed commit undoes it |
 | Previous-config binding | `internal/component/iface/config_apply.go` `bindDevices` over the previous config | Names the devices the replaced config was bound to | extends: names the device whose leaf or entry was removed |
-| MAC write | `internal/component/iface/backend.go` `Backend.SetMACAddress` | Sets a link's MAC on netlink and VPP | extends: no new backend call |
+| MAC write | `internal/component/iface/backend.go` `Backend.SetMACAddress` | Sets a link's MAC on kernel and VPP | extends: no new backend call |
 
 ## Acceptance Criteria
 

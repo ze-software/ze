@@ -1,13 +1,13 @@
-# Test: autoconf and accept-ra are accepted under backend netlink
-# VALIDATES: the netlink backend owns the device the kernel configures, so
-#            both leaves stay available there. The ze:backend "netlink"
-#            annotation names netlink, and the gate accepts a node whose
+# Test: autoconf and accept-ra are accepted under backend kernel
+# VALIDATES: the kernel backend owns the device the kernel configures, so
+#            both leaves stay available there. The ze:backend "kernel"
+#            annotation names kernel, and the gate accepts a node whose
 #            annotation lists the active backend.
 # PREVENTS: a gate that refuses the backend the feature works on, which is
 #           how an annotation with the wrong name reads as a working gate.
 stdin=config:terminator=EOF_CONF
 interface {
-	backend netlink;
+	backend kernel;
 	ethernet eth0 {
 		mac {
 			address 02:00:00:00:00:99;

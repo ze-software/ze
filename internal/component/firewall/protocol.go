@@ -19,7 +19,7 @@ var ianaProtocolNumbers = map[string]uint8{
 
 // ProtocolNumber returns the IANA protocol number for a MatchProtocol name and
 // true, or (0, false) when the name is not a recognized protocol. Backends use
-// the boolean to reject the rule (nft, VPP classify) or skip protocol matching
+// the boolean to reject the rule (kernel, VPP classify) or skip protocol matching
 // (VPP NAT) rather than silently programming protocol 0.
 func ProtocolNumber(name string) (uint8, bool) {
 	num, ok := ianaProtocolNumbers[name]

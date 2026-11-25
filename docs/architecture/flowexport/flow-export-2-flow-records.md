@@ -1,6 +1,6 @@
 # Flow Export: Packet Sampling, Conntrack and Flow Records
 
-Per-flow export: `tc` packet sampling read over psample, conntrack dumps, BGP
+Per-flow export: traffic-control packet sampling read over psample, conntrack dumps, BGP
 enrichment, and the per-protocol flow encoders. Cross-cutting decisions are in
 [the umbrella page](flow-export-0-umbrella.md).
 
@@ -33,7 +33,7 @@ packages. The `_other.go` stubs return an error and the worker degrades to a
 logged no-op.
 
 The result is that the whole `flowexport` package compiles and unit-tests on
-darwin, while the netlink paths run on Linux.
+darwin, while the kernel netlink API paths run on Linux.
 
 The Linux sampler installs `MatchAll` / `ETH_P_ALL` at ingress with a per-link
 sample action. `TestSampleFilterKernelLifecycle` installs the production filter

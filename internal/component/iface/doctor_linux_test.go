@@ -59,11 +59,11 @@ func sysClassNetLink(t *testing.T, from, to string) {
 	}
 }
 
-// ethernetTree returns a config tree holding one netlink-backed ethernet entry.
+// ethernetTree returns a config tree holding one kernel-backed ethernet entry.
 func ethernetTree(name string, leaves, mac map[string]string) *config.Tree {
 	tree := config.NewTree()
 	ifaceBlock := tree.GetOrCreateContainer(configRootInterface)
-	ifaceBlock.Set("backend", "netlink")
+	ifaceBlock.Set("backend", "kernel")
 	entry := config.NewTree()
 	for k, v := range leaves {
 		entry.Set(k, v)

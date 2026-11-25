@@ -126,7 +126,7 @@ A module reaches `Loader.Resolve`; a config value reaches `Validator.ValidateTre
 - Values compare by their string as the tree stores it, except integer kinds, which compare by number.
 
 ##### Risks
-- The traffic-control `default-class` leaf becomes a leafref (the shape of the RFC's own 9.9.6 example). A config naming an absent class, accepted before and silently ignored by the netlink backend, is now refused at validate and commit.
+- The traffic-control `default-class` leaf becomes a leafref (the shape of the RFC's own 9.9.6 example). A config naming an absent class, accepted before and silently ignored by the kernel backend, is now refused at validate and commit.
 - goyang reads one `base` per identityref; a second base is refused by goyang at parse. Recorded on RFC7950-9.10.2-1 as partial.
 
 #### Blast Radius

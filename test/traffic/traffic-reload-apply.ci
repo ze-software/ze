@@ -7,7 +7,7 @@
 #           leaves the reactor silent (verify/apply/journal never wired).
 #
 # Scope note: this test asserts the reactor's log line and runs unprivileged in
-# every environment. The real tc kernel-state check on reload (`tc qdisc show`
+# every environment. The real tc qdisc kernel-state check on reload (`tc qdisc show`
 # before/after) is now covered by the needs-linux companion
 # traffic-reload-qdisc-tc.ci, which runs as root in the QEMU VM via
 # semantic under test here is "remove the traffic-control section": a deletion
@@ -46,7 +46,7 @@ bgp {
 
 traffic {
 	control {
-		backend tc
+		backend kernel
 	}
 }
 EOF_CONF

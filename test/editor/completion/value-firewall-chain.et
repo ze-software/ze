@@ -5,7 +5,7 @@
 
 tmpfs=test.conf:terminator=EOF_CONF
 firewall {
-	backend nft
+	backend kernel
 	table wan {
 		family inet
 		chain input {

@@ -27,7 +27,7 @@ import (
 
 	"github.com/ze-software/ze/internal/component/iface"
 	"github.com/ze-software/ze/internal/core/clock"
-	_ "github.com/ze-software/ze/internal/plugins/iface/netlink" // register the netlink backend so iface.Resolve works
+	_ "github.com/ze-software/ze/internal/plugins/iface/netlink" // register the kernel interface backend so iface.Resolve works
 	"github.com/ze-software/ze/internal/test/userns"
 )
 
@@ -126,7 +126,7 @@ func TestDHCPv4SurvivesShortIPv4Payload(t *testing.T) {
 func sfSetupLab(t *testing.T) (string, *packet.Conn) {
 	t.Helper()
 
-	if err := iface.LoadBackend("netlink"); err != nil {
+	if err := iface.LoadBackend("kernel"); err != nil {
 		t.Fatalf("load iface backend: %v", err)
 	}
 	t.Cleanup(func() { _ = iface.CloseBackend() })

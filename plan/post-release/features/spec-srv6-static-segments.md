@@ -36,7 +36,7 @@ Implement local SRv6 steering config:
 - Add a global SRv6 encapsulation source-address setting applied to the encap.
 
 This requires multi-SID plumbing that even the BGP path lacks today, plus a new
-seg6-encap path in the static netlink backend. It must go through the full `/ze-spec`
+seg6-encap path in the static kernel backend. It must go through the full `/ze-spec`
 RESEARCH/DESIGN workflow. This skeleton tracks the gap; it is NOT ready to implement.
 
 ## Required Reading
@@ -44,7 +44,7 @@ RESEARCH/DESIGN workflow. This skeleton tracks the gap; it is NOT ready to imple
 ### Architecture Docs
 - [ ] `internal/plugins/fib/kernel/nexthop_linux.go` - how a single-SID seg6 encap is built today.
   → Constraint: the segment list must extend `buildSEG6Encap` to N segments, not fork a new encoder.
-- [ ] `internal/plugins/static/backend_linux.go` - the static netlink install path (no encap today).
+- [ ] `internal/plugins/static/backend_linux.go` - the static kernel install path (no encap today).
   → Constraint: static routes must gain a seg6-encap path parallel to the existing gateway/multipath install.
 - [ ] `ai/rules/platform-linux.md` - seg6 encap and forwarding are kernel behaviours; QEMU integration tests mandatory.
   → Constraint: never skip QEMU tests for "needs hardware".
@@ -87,7 +87,7 @@ RESEARCH/DESIGN workflow. This skeleton tracks the gap; it is NOT ready to imple
 | Boundary | How | Verified |
 |----------|-----|----------|
 | Config ↔ static model | segments list + encap source parsed into the route/settings | [ ] |
-| Static model ↔ netlink | multi-segment `SEG6Encap` attached to the route | [ ] |
+| Static model ↔ kernel | multi-segment `SEG6Encap` attached to the route | [ ] |
 | Static model ↔ VPP | equivalent SR policy install | [ ] |
 
 ### Integration Points

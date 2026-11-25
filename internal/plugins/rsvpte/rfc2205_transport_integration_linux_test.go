@@ -163,12 +163,12 @@ func rsvpWireNetlink(t *testing.T, ns netns.NsHandle) *netlink.Handle {
 	t.Helper()
 	h, err := netlink.NewHandleAt(ns, unix.NETLINK_ROUTE)
 	if err != nil {
-		t.Fatalf("configure netlink inside the user namespace: %v", err)
+		t.Fatalf("configure netlink links inside the user namespace: %v", err)
 	}
 	t.Cleanup(h.Close)
 	lo := rsvpWireFindLink(t, h, "lo")
 	if err := h.LinkSetUp(lo); err != nil {
-		t.Fatalf("configure netlink inside the user namespace: %v", err)
+		t.Fatalf("configure netlink links inside the user namespace: %v", err)
 	}
 	return h
 }

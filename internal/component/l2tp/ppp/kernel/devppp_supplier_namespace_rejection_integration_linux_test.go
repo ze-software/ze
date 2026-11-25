@@ -143,7 +143,7 @@ func TestOriginalPPPSupplierNamespaceNativeCloseFailureRevokesRejection(t *testi
 
 func supplierNamespaceNativeCreator(t *testing.T) (*UnitCreator, *CreatedUnit) {
 	t.Helper()
-	backend, err := iface.OpenBackend("netlink")
+	backend, err := iface.OpenBackend("kernel")
 	if err != nil {
 		t.Fatal(err)
 	}

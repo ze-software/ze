@@ -54,7 +54,7 @@ func TestPreparedKernelAccessSurvivesActiveBackendReplacement(t *testing.T) {
 		t.Fatal("active backend kind was not replaced")
 	}
 	if _, err := iface.RequireActiveBackend(Name); err == nil {
-		t.Fatal("replacement did not make a global netlink selection refuse")
+		t.Fatal("replacement did not make a global kernel selection refuse")
 	}
 	if _, err := active.GetInterface(f.access.ControlDevice()); !errors.Is(err, os.ErrClosed) {
 		t.Fatalf("replaced active backend did not close its original socket: %v", err)
@@ -195,7 +195,7 @@ func TestPreparedKernelAccessFinalCloseReleasesBackend(t *testing.T) {
 	}
 }
 
-// preparedNativeAccess owns an actual independent netlink backend and Access.
+// preparedNativeAccess owns an actual independent kernel backend and Access.
 // Each child cleanup is registered after the parent, so both child roles finish
 // before parent Close. Each root runs alone in userns.Enter's private process.
 // Not safe for concurrent use; acquisitions records synchronous preparation.

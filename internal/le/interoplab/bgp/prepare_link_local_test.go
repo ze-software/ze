@@ -258,7 +258,7 @@ func TestPrestartRunsBeforeTheDaemon(t *testing.T) {
 		}
 	}
 	if strings.Contains(scripts[peerFRR], "nft") {
-		t.Fatalf("FRR's wrapper carries the nft drop, which belongs to ze's sends alone:\n%s", scripts[peerFRR])
+		t.Fatalf("FRR's wrapper carries the nftables drop, which belongs to ze's sends alone:\n%s", scripts[peerFRR])
 	}
 
 	t.Run("owner without its placeholder", func(t *testing.T) {

@@ -207,7 +207,7 @@ address events, but wiring them to the IKE engine is deferred to a future spec.
 7. `reinstallChildSA`: remove old Child SA from dataplane, install with new addresses
 
 ### Entry Point: Initiator (detecting address change)
-- Netlink `AddrUpdate` event (RTM_NEWADDR on configured interface, or RTM_DELADDR on current interface)
+- Netlink event `AddrUpdate` (RTM_NEWADDR on configured interface, or RTM_DELADDR on current interface)
 - Or: config reconciliation changes peer's local-address
 
 ### Transformation Path (Initiator)
@@ -223,7 +223,7 @@ address events, but wiring them to the IKE engine is deferred to a future spec.
 |----------|-----|----------|
 | Wire -> Engine | Notify type dispatch in `handleInformational` | [ ] |
 | Engine -> Dataplane | `RemoveSA` + `InstallSA` calls | [ ] |
-| Netlink -> Engine | AddrSubscribe channel in engine goroutine | [ ] |
+| Netlink socket -> Engine | AddrSubscribe channel in engine goroutine | [ ] |
 | Engine -> Transport | Send INFORMATIONAL via `tr.Send` from new address | [ ] |
 
 ### Integration Points
@@ -438,7 +438,7 @@ The `Scenario.teardown()` must also clean up the mobility network.
 
 - `internal/component/ike/engine/mobike.go` -- MOBIKE protocol logic (handle/send UPDATE_SA_ADDRESSES, COOKIE2, reinstall)
 - `internal/component/ike/engine/mobike_test.go` -- unit tests
-- `internal/component/ike/engine/addrwatch_linux.go` -- netlink AddrSubscribe wrapper for IKE engine
+- `internal/component/ike/engine/addrwatch_linux.go` -- `netlink.AddrSubscribe` wrapper for IKE engine
 - `internal/component/ike/engine/addrwatch_other.go` -- stub for non-Linux (macOS build)
 - `internal/component/ike/engine/addrwatch_test.go` -- address watcher tests
 - `test/interop-ipsec/scenarios/mobike-responder/check.py` -- interop: Ze responder  <!-- doc-links: ignore (interop scenario this spec will create; the spec is `design` and the work is not implemented) -->
@@ -502,7 +502,7 @@ Each phase ends with a **Self-Critical Review**. Fix issues before proceeding.
    - Files: `engine/mobike.go`, `engine/established.go`
    - Verify: address change triggers INFORMATIONAL with UPDATE_SA_ADDRESSES
 
-7. **Phase: Address monitoring** -- netlink AddrSubscribe for IKE interface
+7. **Phase: Address monitoring** -- `netlink.AddrSubscribe` for IKE interface
    - Tests: `TestAddrWatch`
    - Files: `engine/addrwatch_linux.go`, `engine/addrwatch_other.go`, `engine/addrwatch_test.go`
    - Verify: address add/remove events detected on configured interface

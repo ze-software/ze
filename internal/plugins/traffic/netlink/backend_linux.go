@@ -1,5 +1,5 @@
-// Design: docs/architecture/core-design.md -- tc backend Linux implementation
-// Related: ops_linux.go -- tcOps seam for kernel tc operations
+// Design: docs/architecture/core-design.md -- kernel traffic control backend Linux implementation
+// Related: ops_linux.go -- tcOps seam for kernel traffic control operations
 // Related: snapshot_linux.go -- snapshot persistence and identity validation
 
 //go:build linux
@@ -28,10 +28,10 @@ var errNoRootQdiscFound = errors.New("no root qdisc found")
 // root qdisc would strand the original unrestorable across a crash/restart. The
 // backend refuses to snapshot-and-replace in that state, exactly as an unresolved
 // config directory did before persistence moved into the shared zefs store.
-var errSnapshotPersistUnavailable = errors.New("tc snapshot persistence unavailable: no state store registered")
+var errSnapshotPersistUnavailable = errors.New("traffic control snapshot persistence unavailable: no state store registered")
 
 // resolveOSName translates a logical interface name to its kernel device via the
-// shared iface resolver, so tc operations honor the os-name / mac-match
+// shared iface resolver, so traffic control operations honor the os-name / mac-match
 // selectors. Best-effort: if no backend is loaded or the device is absent, the
 // name passes through unchanged (identical to pre-resolver behavior). Resolving
 // at the backend's logic methods -- not inside the tcOps kernel adapter -- keeps
@@ -45,7 +45,7 @@ func resolveOSName(name string) string {
 	return name
 }
 
-// backend implements traffic.Backend using vishvananda/netlink tc API.
+// backend implements traffic.Backend using vishvananda/netlink traffic control API.
 type backend struct {
 	mu               sync.Mutex
 	ops              tcOps
@@ -75,13 +75,13 @@ func newBackendWithOps(ops tcOps, snapshotReadyErr error, bootID string, snapsho
 	return &backend{ops: ops, snapshotReadyErr: snapshotReadyErr, bootID: bootID, snapshots: snapshots}
 }
 
-// Apply programs tc configuration on each named interface: snapshot the original
+// Apply programs traffic control configuration on each named interface: snapshot the original
 // root qdisc, replace it, then rebuild classes and filters. Removing ownership
 // is explicit via RestoreOriginal or Close so callers that manage one dynamic
-// interface do not accidentally remove other tc-owned interfaces.
+// interface do not accidentally remove other traffic-control-owned interfaces.
 //
 // ctx is accepted for interface parity with other backends but is NOT honored:
-// vishvananda/netlink's tc operations are synchronous CGO-free syscalls with no
+// vishvananda/netlink's traffic control operations are synchronous CGO-free syscalls with no
 // ctx-aware variants. A SIGTERM mid-Apply will wait for the in-flight syscall
 // to return (all syscalls here are fast in practice). Do not drop the parameter
 // -- the interface would regress and tests rely on the signature.
@@ -226,14 +226,14 @@ func (b *backend) requireRestorableRoot(link netlink.Link, root netlink.Qdisc) e
 		return fmt.Errorf("list classes for qdisc %q: %w", root.Type(), err)
 	}
 	if len(classes) > 0 {
-		return fmt.Errorf("qdisc %q has %d class(es); backend tc cannot snapshot class state exactly", root.Type(), len(classes))
+		return fmt.Errorf("qdisc %q has %d class(es); backend kernel cannot snapshot class state exactly", root.Type(), len(classes))
 	}
 	filters, err := b.ops.filterList(link, root.Attrs().Handle)
 	if err != nil {
 		return fmt.Errorf("list filters for qdisc %q: %w", root.Type(), err)
 	}
 	if len(filters) > 0 {
-		return fmt.Errorf("qdisc %q has %d filter(s); backend tc cannot snapshot filter state exactly", root.Type(), len(filters))
+		return fmt.Errorf("qdisc %q has %d filter(s); backend kernel cannot snapshot filter state exactly", root.Type(), len(filters))
 	}
 	return nil
 }
@@ -266,7 +266,7 @@ func (b *backend) restoreOriginalLocked(ifaceName string) error {
 	// agree even when the caller passes a logical name. Idempotent when
 	// ifaceName is already an os device. If the device is gone, resolution
 	// fails and falls back to the logical name; the os-keyed snapshot is then
-	// not found and restore is a correct no-op -- a removed device has no tc
+	// not found and restore is a correct no-op -- a removed device has no traffic control
 	// state to restore, and ensureSnapshot re-validates (and replaces on a
 	// bootID change) any stale snapshot when the device returns.
 	ifaceName = resolveOSName(ifaceName)
@@ -292,8 +292,8 @@ func (b *backend) restoreOriginalLocked(ifaceName string) error {
 	}
 	if snap.Qdisc.restoredByDelete() {
 		// The original root was noqueue: the interface had no queueing discipline.
-		// Re-enter that state by deleting the root ze installed, which is what `tc
-		// qdisc del dev X root` does; the kernel then reports noqueue again. There
+		// Re-enter that state by deleting the root ze installed, which is what
+		// `tc qdisc del dev X root` does; the kernel then reports noqueue again. There
 		// is no qdisc object to replace with, and adding one named noqueue is not
 		// the inverse operation.
 		root := &netlink.GenericQdisc{
@@ -324,7 +324,7 @@ func (b *backend) saveSnapshots() error {
 	return saveTCSnapshots(b.snapshots)
 }
 
-// ListQdiscs returns current tc state for an interface.
+// ListQdiscs returns current traffic control state for an interface.
 func (b *backend) ListQdiscs(ifaceName string) (traffic.InterfaceQoS, error) {
 	link, err := b.ops.linkByName(resolveOSName(ifaceName))
 	if err != nil {

@@ -1,0 +1,26 @@
+# Test: fib kernel beside fib vpp validates under interface backend vpp.
+# Question: does `ze config validate` accept `fib kernel` alongside `fib vpp`
+#           under `interface backend vpp`?
+#           A unit test cannot prove `fib-kernel`'s `HostSideDataPlane` mark
+#           reaches `ze config validate` through the real composition root.
+# VALIDATES: spec-dataplane-compatibility-guard AC-14 (C-3a) -- `fib kernel`
+#            marks itself host-side (programming the Linux route table for the
+#            router's own traffic) and validates beside `fib vpp` under VPP.
+# PREVENTS: breaking the documented dual-FIB VPP deployment ("To run both,
+#           write both").
+stdin=config:terminator=EOF_CONF
+interface {
+	backend vpp;
+}
+fib {
+	kernel {
+	}
+	vpp {
+		enabled true;
+	}
+}
+EOF_CONF
+
+cmd=foreground:seq=1:exec=ze config validate -:stdin=config
+expect=exit:code=0
+expect=stdout:contains=configuration valid

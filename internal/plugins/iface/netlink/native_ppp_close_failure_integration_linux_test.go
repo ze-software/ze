@@ -58,7 +58,7 @@ func TestNativePPPProviderSocketCloseFailureRetainsCustody(t *testing.T) {
 	}
 	original, ok := originalAddress.(*unix.SockaddrNetlink)
 	if !ok {
-		t.Fatal("actual writer socket is not netlink")
+		t.Fatal("actual writer socket is not a netlink socket")
 	}
 	if original.Pid != writer.port {
 		t.Fatal("actual writer socket does not hold its captured port")

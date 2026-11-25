@@ -16,9 +16,7 @@ import (
 	"sync"
 	"sync/atomic"
 
-	"github.com/ze-software/ze/internal/component/config"
 	"github.com/ze-software/ze/internal/component/config/system"
-	"github.com/ze-software/ze/internal/component/config/yang"
 	ifaceyang "github.com/ze-software/ze/internal/component/iface/yang"
 	"github.com/ze-software/ze/internal/component/plugin/registry"
 	sysctlevents "github.com/ze-software/ze/internal/component/sysctl/events"
@@ -98,8 +96,8 @@ const configRootClassOfService = "class-of-service"
 // YANG root would not rename this and the two must not be shared.
 const componentNameInterface = "interface"
 
-// backendLeafPath is the YANG path shown to the user in backend-gate
-// error text so they know where to change the backend leaf.
+// backendLeafPath is the YANG path of this component's declared data-plane
+// selector leaf.
 const backendLeafPath = "/interface/backend"
 
 // vppPlugin is the registration name of the VPP component
@@ -108,65 +106,6 @@ const backendLeafPath = "/interface/backend"
 // refused in a build without ze_vpp at validate, commit and boot, before
 // LoadBackend would fail at apply.
 const vppPlugin = "vpp"
-
-// backendGateSchema caches the config schema used by validateBackendGate.
-// Built lazily on first commit/verify to avoid paying YANG load cost at
-// daemon startup. Schema is immutable after build -- safe for concurrent
-// reads from any goroutine.
-//
-// It is built once for the life of the process. That is correct because the
-// gate runs at a commit or a verify, after the process published the modules
-// of its external plugins. validateBackendGate records the schema with
-// yang.KeepsModuleSet on every use, so a publish that came after a use is
-// refused and the schema cannot answer from the set before the publish.
-var (
-	backendGateSchemaOnce sync.Once
-	backendGateSchema     *config.Schema
-	backendGateSchemaErr  error
-)
-
-// backendGateSchemaKeeper names backendGateSchema in the refusal of a publish
-// that comes too late (yang.PublishExternalModules).
-const backendGateSchemaKeeper = "the interface backend gate schema"
-
-// validateBackendGate runs the ze:backend commit-time feature check.
-// sections holds the raw config sections delivered by the SDK; activeBackend
-// is the already-parsed backend leaf value. On any mismatch or on schema
-// load failure, it returns a single joined error suitable for propagation
-// back to the SDK as the commit rejection.
-//
-// Runs cheaply on the happy path (no annotations trigger -> nil). The
-// schema is built once per daemon lifetime.
-func validateBackendGate(sections []sdk.ConfigSection, activeBackend string) error {
-	yang.KeepsModuleSet(backendGateSchemaKeeper)
-	backendGateSchemaOnce.Do(func() {
-		backendGateSchema, backendGateSchemaErr = config.YANGSchema()
-	})
-	if backendGateSchemaErr != nil {
-		return fmt.Errorf("interface backend gate: schema load: %w", backendGateSchemaErr)
-	}
-	for _, s := range sections {
-		if s.Root != configRootInterface {
-			continue
-		}
-		errs := config.ValidateBackendFeaturesJSON(
-			s.Data, backendGateSchema,
-			configRootInterface, activeBackend, backendLeafPath,
-		)
-		if len(errs) == 0 {
-			return nil
-		}
-		msgs := make([]string, 0, len(errs))
-		for _, e := range errs {
-			msgs = append(msgs, e.Error())
-		}
-		return &backendGateRefusal{
-			text:   fmt.Sprintf("interface commit rejected:\n  %s", textbuf.Join(msgs, "\n  ")),
-			causes: errs,
-		}
-	}
-	return nil
-}
 
 // loggerPtr is the package-level logger, disabled by default.
 // Stored as atomic.Pointer to avoid data races when tests start
@@ -250,6 +189,12 @@ func init() {
 			Value:     vppBackendName,
 			Providers: []string{vppPlugin},
 		}},
+		DataPlaneSelector: &registry.DataPlaneSelector{
+			LeafPath:           backendLeafPath,
+			Roots:              []string{configRootInterface},
+			SelectsDataPlane:   true,
+			RegisteredBackends: RegisteredBackends,
+		},
 		InProcessConfigVerifier: verifyIfaceConfig,
 		Commands:                commandDecls(),
 		Sends:                   ifaceSends(),
@@ -298,13 +243,6 @@ func carriesInterfaceSection(sections []sdk.ConfigSection) bool {
 }
 
 func parseAndVerifyIfaceSections(sections []sdk.ConfigSection) (*ifaceConfig, error) {
-	activeBackend, err := parseIfaceBackend(sections)
-	if err != nil {
-		return nil, fmt.Errorf("interface config: %w", err)
-	}
-	if err := validateBackendGate(sections, activeBackend); err != nil {
-		return nil, err
-	}
 	cfg, err := parseResolvedIfaceSections(sections)
 	if err != nil {
 		return nil, fmt.Errorf("interface config: %w", err)
@@ -331,7 +269,7 @@ func parseAndVerifyIfaceSections(sections []sdk.ConfigSection) (*ifaceConfig, er
 // none. It reads the parsed config tree rather than a delivered config
 // section, so a caller that has to answer "which data plane is this daemon
 // for" BEFORE any plugin handshake -- the engine resolving which FIB plugin
-// writes a route producer's routes -- gets the same answer parseIfaceBackend
+// writes a route producer's routes -- gets the same answer parseIfaceSections
 // gives the iface plugin later.
 //
 // The tree is the canonical map[string]any config, so every leaf under it is
@@ -346,28 +284,6 @@ func BackendNameFromTree(tree map[string]any) string {
 		return defaultBackendName
 	}
 	return name
-}
-
-func parseIfaceBackend(sections []sdk.ConfigSection) (string, error) {
-	backend := defaultBackendName
-	for _, s := range sections {
-		if s.Root != configRootInterface {
-			continue
-		}
-		var root map[string]any
-		if err := json.Unmarshal([]byte(s.Data), &root); err != nil {
-			return "", fmt.Errorf("backend: unmarshal: %w", err)
-		}
-		ifaceMap, ok := root[configRootInterface].(map[string]any)
-		if !ok {
-			return backend, nil
-		}
-		if b, ok := ifaceMap["backend"].(string); ok && b != "" {
-			backend = b
-		}
-		return backend, nil
-	}
-	return backend, nil
 }
 
 // setLogger sets the package-level logger.
@@ -439,7 +355,7 @@ func subscribeReconcileOnReady(bus ze.EventBus, connected, reconnected func()) [
 
 // runEngine is the engine-mode entry point for the interface plugin.
 // It uses the SDK 5-stage protocol to receive configuration, starts
-// the netlink interface monitor, and blocks until shutdown.
+// the kernel interface monitor, and blocks until shutdown.
 func runEngine(conn net.Conn) int {
 	log := loggerPtr.Load()
 	log.Debug("interface plugin starting")
@@ -631,7 +547,7 @@ func runEngine(conn net.Conn) int {
 	})
 
 	// The rate tracker already dumps the interface list every second, so the
-	// resync reads live carrier state at no extra netlink cost. The callback
+	// resync reads live carrier state at no extra netlink call cost. The callback
 	// runs on the tracker's ticker goroutine and MUST NOT take dhcpMu there: a
 	// config commit holds that lock for as long as it takes to stop and start
 	// DHCP clients, and blocking the ticker would stall rate collection for
@@ -651,10 +567,6 @@ func runEngine(conn net.Conn) int {
 
 		if cfg.Backend == "" {
 			return errInterfaceNoBackendConfiguredAndNo
-		}
-
-		if err := validateBackendGate(sections, cfg.Backend); err != nil {
-			return err
 		}
 
 		if err := LoadBackend(cfg.Backend); err != nil {
@@ -1224,7 +1136,7 @@ func runEngine(conn net.Conn) int {
 // corrective action that fits how this ze was started, and not just the
 // syscall text (ai/rules/user-facing-errors.md).
 //
-// Interface work is netlink RTM_NEWLINK/RTM_NEWADDR, which the kernel gates on
+// Interface work is rtnetlink RTM_NEWLINK/RTM_NEWADDR, which the kernel gates on
 // CAP_NET_ADMIN. An unprivileged ze therefore fails EVERY interface operation
 // and aborts startup, so the operator needs the capability named at the point
 // of failure: the generic capability inventory taken at start
@@ -1234,7 +1146,7 @@ func runEngine(conn net.Conn) int {
 const privilegeWhy = "interface configuration needs CAP_NET_ADMIN, which this ze process does not hold, so the kernel refused the change"
 
 // lacksPrivilege reports whether any apply error was the kernel refusing the
-// operation for want of privilege. netlink returns EPERM, and some paths EACCES;
+// operation for want of privilege. rtnetlink returns EPERM, and some paths EACCES;
 // syscall.Errno.Is maps both to os.ErrPermission, so this needs no build tag and
 // no errno spelling of its own.
 func lacksPrivilege(errs []error) bool {
@@ -1666,8 +1578,8 @@ func parseRouterEvent(data string) (RouterEventPayload, bool) {
 	return payload, true
 }
 
-// handleRouterDiscovered processes a router-discovered event from the netlink
-// monitor. It installs an IPv6 default route via the discovered router with
+// handleRouterDiscovered processes a router-discovered event from the netlink monitor.
+// It installs an IPv6 default route via the discovered router with
 // the route-priority metric the operator wrote for that interface.
 //
 // priorities is the map suppressRAForConfig published, so the interfaces ze

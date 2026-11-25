@@ -132,7 +132,7 @@ func TestExtractGroupSpecs(t *testing.T) {
 	// All four interface types x two families, plus unrelated keys that MUST be
 	// ignored (extract-only walk, umbrella R-6).
 	tree := map[string]any{
-		"backend":   "netlink",
+		"backend":   "kernel",
 		"dhcp-auto": false,
 		"ethernet": map[string]any{
 			"eth0": map[string]any{
@@ -268,7 +268,7 @@ func TestValidateIntervalVersion(t *testing.T) {
 			if err != nil {
 				t.Fatalf("extract: %v", err)
 			}
-			err = validateGroups(specs, "netlink")
+			err = validateGroups(specs)
 			if tc.wantErr && err == nil {
 				t.Fatalf("want rejection, got none")
 			}
@@ -304,7 +304,7 @@ func TestBoundaryVRID(t *testing.T) {
 			if err != nil {
 				t.Fatalf("vrid %s must be accepted: %v", tc.vrid, err)
 			}
-			if err := validateGroups(specs, backendNetlink); err != nil {
+			if err := validateGroups(specs); err != nil {
 				t.Fatalf("vrid %s must validate: %v", tc.vrid, err)
 			}
 		})
@@ -336,7 +336,7 @@ func TestBoundaryPriority(t *testing.T) {
 			if err != nil {
 				t.Fatalf("extract: %v", err)
 			}
-			err = validateGroups(specs, backendNetlink)
+			err = validateGroups(specs)
 			if tc.wantErr && err == nil {
 				t.Fatalf("priority %v must be rejected", tc.priority)
 			}
@@ -370,7 +370,7 @@ func TestBoundaryVIPCount(t *testing.T) {
 			if err != nil {
 				t.Fatalf("extract: %v", err)
 			}
-			err = validateGroups(specs, backendNetlink)
+			err = validateGroups(specs)
 			if tc.wantErr && err == nil {
 				t.Fatalf("%d VIPs must be rejected", tc.count)
 			}
@@ -539,7 +539,7 @@ func TestValidateAcceptModeVersion(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err := validateGroups(specs, "netlink"); err == nil {
+	if err := validateGroups(specs); err == nil {
 		t.Fatal("accept-mode true with version 2 must be rejected")
 	}
 }
@@ -556,13 +556,13 @@ func TestValidateIPv6LinkLocal(t *testing.T) {
 	// First VIP not link-local -> reject.
 	bad := oneGroup(familyIPv6, "5", map[string]any{"virtual-address": vips("2001:db8::1", "fe80::1")})
 	specs, _ := extractGroupSpecs([]configSection{mkSection(t, bad)})
-	if err := validateGroups(specs, "netlink"); err == nil {
+	if err := validateGroups(specs); err == nil {
 		t.Fatal("ipv6 group whose FIRST vip is not link-local must be rejected")
 	}
 	// First VIP link-local -> accept.
 	good := oneGroup(familyIPv6, "5", map[string]any{"virtual-address": vips("fe80::1", "2001:db8::1")})
 	specs, _ = extractGroupSpecs([]configSection{mkSection(t, good)})
-	if err := validateGroups(specs, "netlink"); err != nil {
+	if err := validateGroups(specs); err != nil {
 		t.Fatalf("link-local-first ipv6 group must validate: %v", err)
 	}
 }
@@ -599,7 +599,7 @@ func TestValidateVIPFamilyMatchesGroupFamily(t *testing.T) {
 			if err != nil {
 				t.Fatalf("extract: %v", err)
 			}
-			err = validateGroups(specs, backendNetlink)
+			err = validateGroups(specs)
 			if tc.wantErr == "" {
 				if err != nil {
 					t.Fatalf("%s: a same-family virtual-address list must be accepted: %v", tc.name, err)
@@ -633,7 +633,7 @@ func TestValidateDuplicateVIP(t *testing.T) {
 		},
 	}
 	specs, _ := extractGroupSpecs([]configSection{mkSection(t, tree)})
-	if err := validateGroups(specs, "netlink"); err == nil {
+	if err := validateGroups(specs); err == nil {
 		t.Fatal("duplicate VIP across two groups on one unit+family must be rejected")
 	}
 
@@ -656,7 +656,7 @@ func TestValidateDuplicateVIP(t *testing.T) {
 	if err != nil {
 		t.Fatalf("extract: %v", err)
 	}
-	if err := validateGroups(specs2, "netlink"); err != nil {
+	if err := validateGroups(specs2); err != nil {
 		t.Fatalf("same VIP on different units must be allowed: %v", err)
 	}
 }
@@ -686,7 +686,7 @@ func TestValidateDuplicateVRID(t *testing.T) {
 	if err != nil {
 		t.Fatalf("extract: %v", err)
 	}
-	err = validateGroups(specs, backendNetlink)
+	err = validateGroups(specs)
 	if err == nil {
 		t.Fatal("two groups with the same vrid on one unit+family must be rejected")
 	}
@@ -715,7 +715,7 @@ func TestValidateDuplicateVRID(t *testing.T) {
 	if err != nil {
 		t.Fatalf("extract: %v", err)
 	}
-	if err := validateGroups(specs2, backendNetlink); err != nil {
+	if err := validateGroups(specs2); err != nil {
 		t.Fatalf("the same vrid in different families must be allowed: %v", err)
 	}
 }
@@ -780,7 +780,7 @@ func TestUnitDeviceResolution(t *testing.T) {
 	}
 	// The same vrid on two DIFFERENT units of one interface is legal: they are
 	// different links, so different virtual routers.
-	if err := validateGroups(specs, backendNetlink); err != nil {
+	if err := validateGroups(specs); err != nil {
 		t.Fatalf("same vrid on different units must be allowed: %v", err)
 	}
 }
@@ -836,31 +836,6 @@ func TestOwnerAutoDetection(t *testing.T) {
 	}
 	if specs2[0].EffectivePriority(0) != 100 {
 		t.Errorf("non-owner effective priority must equal configured, got %d", specs2[0].EffectivePriority(0))
-	}
-}
-
-func TestVerifyRejectsVPPBackend(t *testing.T) {
-	group := oneGroup(familyIPv4, "5", map[string]any{"virtual-address": vips("10.0.0.1")})
-	specs, _ := extractGroupSpecs([]configSection{mkSection(t, group)})
-	err := validateGroups(specs, backendVPP)
-	if err == nil || !strings.Contains(err.Error(), "backend") {
-		t.Fatalf("vpp backend with a group must be rejected naming the backend: %v", err)
-	}
-	// vpp + zero groups -> ok (idle).
-	if err := validateGroups(nil, backendVPP); err != nil {
-		t.Fatalf("vpp backend with no groups must be accepted: %v", err)
-	}
-}
-
-func TestIfaceBackend(t *testing.T) {
-	s := mkSection(t, map[string]any{"backend": "vpp"})
-	if got := ifaceBackend([]configSection{s}); got != "vpp" {
-		t.Fatalf("want vpp, got %q", got)
-	}
-	// Default when absent.
-	s2 := mkSection(t, map[string]any{})
-	if got := ifaceBackend([]configSection{s2}); got != "netlink" {
-		t.Fatalf("want netlink default, got %q", got)
 	}
 }
 
@@ -1753,7 +1728,7 @@ func TestTrackedInterfaceRejectsAnUnusableDecrement(t *testing.T) {
 		if err != nil {
 			continue // rejected at extraction, which is also a refusal
 		}
-		if err := validateGroups(specs, backendNetlink); err == nil {
+		if err := validateGroups(specs); err == nil {
 			t.Errorf("priority-decrement %d must be refused; configure 1..254", decrement)
 		}
 	}
@@ -1770,7 +1745,7 @@ func TestTrackedInterfaceRejectsAnUnusableDecrement(t *testing.T) {
 	if err != nil {
 		t.Fatalf("extract: %v", err)
 	}
-	err = validateGroups(specs, backendNetlink)
+	err = validateGroups(specs)
 	if err == nil || !strings.Contains(err.Error(), strconv.Itoa(maxTrackedInterfaces)) {
 		t.Errorf("%d tracked interfaces must be refused naming the maximum %d, got %v", maxTrackedInterfaces+1, maxTrackedInterfaces, err)
 	}
@@ -1818,7 +1793,7 @@ func TestTrackOnOwnerGroupIsRejected(t *testing.T) {
 	if !specs[0].IsOwner {
 		t.Fatal("the test tree must produce an address-owner group")
 	}
-	err = validateGroups(specs, backendNetlink)
+	err = validateGroups(specs)
 	if err == nil {
 		t.Fatal("track on the address-owner group must be refused")
 	}
@@ -1836,7 +1811,7 @@ func TestTrackOnOwnerGroupIsRejected(t *testing.T) {
 	if err != nil {
 		t.Fatalf("extract: %v", err)
 	}
-	if err := validateGroups(specs, backendNetlink); err != nil {
+	if err := validateGroups(specs); err != nil {
 		t.Errorf("track on a non-owner group must be accepted, got %v", err)
 	}
 }
@@ -1854,7 +1829,7 @@ func TestValidateChecksumMode(t *testing.T) {
 	if err != nil {
 		t.Fatalf("extract v3: %v", err)
 	}
-	if err := validateGroups(specs, backendNetlink); err != nil {
+	if err := validateGroups(specs); err != nil {
 		t.Fatalf("v3 rfc5798-compatible: %v, want valid", err)
 	}
 
@@ -1868,7 +1843,7 @@ func TestValidateChecksumMode(t *testing.T) {
 	if err != nil {
 		t.Fatalf("extract v2: %v", err)
 	}
-	err = validateGroups(specs, backendNetlink)
+	err = validateGroups(specs)
 	if err == nil || !strings.Contains(err.Error(), "checksum rfc5798-compatible") {
 		t.Fatalf("v2 rfc5798-compatible: err = %v, want a refusal naming the checksum leaf", err)
 	}

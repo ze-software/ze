@@ -1,12 +1,12 @@
 # Test: multiple unsupported features under vpp produce one error per feature
 # VALIDATES: spec-backend-feature-gate AC-5 -- the walker aggregates every
 #            mismatch in a single pass so the user sees all three YANG paths
-#            (bridge, veth, and a netlink-only tunnel kind) at once instead of
+#            (bridge, veth, and a kernel-only tunnel kind) at once instead of
 #            fixing one, re-validating, and hitting the next one.
 # PREVENTS: first-error-wins UX that forces iterative fix-and-retest.
 # NOTE: gre/gretap/ipip/vxlan tunnels and wireguard are now accepted under vpp
 #       (spec-followup-vpp-iface), so this test uses bridge, veth, and the
-#       netlink-only sit tunnel kind, which remain rejected under vpp.
+#       kernel-only sit tunnel kind, which remain rejected under vpp.
 stdin=config:terminator=EOF_CONF
 interface {
 	backend vpp;

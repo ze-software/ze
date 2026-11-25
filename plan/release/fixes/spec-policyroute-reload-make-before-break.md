@@ -45,9 +45,9 @@ a new one gets the lowest free table).
 ## Current Behavior (MANDATORY)
 
 **Source files read:**
-- [ ] `internal/plugins/policyroute/register.go` - `applyPolicies` runs, in order: `alloc.reset()`; `alloc.translate(policies)`; `rm.removeAll(oldResult)`, which deletes every old `ip rule` and every old auto-table default route; `firewall.RegisterTables("policy-routes", ...)` and `firewall.ApplyAll()`, which replace the nft marking table; `rm.applyAll(result)`, which adds the new auto routes, then the new ip rules. Between the remove and the add, a packet the nft table marks finds no rule and is routed by the main table. On an `applyAll` failure it removes the new result and withdraws the nft table, so until the journal undo re-runs `applyPolicies` with the old set no policy is installed at all.
+- [ ] `internal/plugins/policyroute/register.go` - `applyPolicies` runs, in order: `alloc.reset()`; `alloc.translate(policies)`; `rm.removeAll(oldResult)`, which deletes every old `ip rule` and every old auto-table default route; `firewall.RegisterTables("policy-routes", ...)` and `firewall.ApplyAll()`, which replace the nftables marking table; `rm.applyAll(result)`, which adds the new auto routes, then the new ip rules. Between the remove and the add, a packet the nft table marks finds no rule and is routed by the main table. On an `applyAll` failure it removes the new result and withdraws the nft table, so until the journal undo re-runs `applyPolicies` with the old set no policy is installed at all.
 - [ ] `internal/plugins/policyroute/marks.go` - `allocator.reset` empties `markByKey` and `tableByNH` and restarts `nextMark` at `0x50000` and `nextTable` at the first auto table. A mark and an auto table are therefore a function of the policy's position in the candidate, not of its identity, and a removed key's value is never reused other than by the reset.
-- [ ] `internal/plugins/policyroute/translate.go` - `allocator.translate` starts `basePriority` at 100 and `buildActions` increments it per marking rule, so the `ip rule` priority is positional too. The nft action is `firewall.SetMark` (a per-packet mark at prerouting), so no conntrack state carries the mark: the harm is the window and the renumbering seen by packets in flight.
+- [ ] `internal/plugins/policyroute/translate.go` - `allocator.translate` starts `basePriority` at 100 and `buildActions` increments it per marking rule, so the `ip rule` priority is positional too. The nftables action is `firewall.SetMark` (a per-packet mark at prerouting), so no conntrack state carries the mark: the harm is the window and the renumbering seen by packets in flight.
 - [ ] `internal/plugins/policyroute/rules_linux.go` - `applyIPRules` adds with `RuleAdd`; `removeIPRules` deletes with `RuleDel` and drops the error; `applyAutoRoutes` adds with `RouteAdd` (protocol `rtproto.PolicyRoute`); `removeAutoRoutes` drops errors. Nothing reads the kernel back.
 - [ ] `internal/component/firewall/registry.go` - `RegisterTables` stores the owner's tables, `ApplyAll` hands the merged set to the backend in one apply.
 
@@ -85,7 +85,7 @@ a new one gets the lowest free table).
 ### Boundaries Crossed
 | Boundary | How | Verified |
 |----------|-----|----------|
-| Plugin to kernel | netlink `RuleAdd`/`RuleDel`, `RouteAdd`/`RouteDel` | No |
+| Plugin to kernel | netlink calls (`RuleAdd`/`RuleDel`, `RouteAdd`/`RouteDel`) | No |
 | Plugin to firewall component | `firewall.RegisterTables`, `firewall.ApplyAll` (process-local registry) | No |
 
 ### Changed-Wire Census
@@ -111,7 +111,7 @@ a new one gets the lowest free table).
 |-------|-------------------|-------------------|--------------------------------------------------|
 | AC-1 | Policies A and B applied; the operator edits only B's match and commits | A's `ip rule` (mark, table, priority) and A's auto route are present at every sample taken while the commit runs, and identical before and after | New `test/policy/policy-reload-make-before-break.ci` (needs-linux, net-admin) with a fixture that samples `ip rule` across the commit; red under today's remove-first order |
 | AC-2 | Policies A and B applied; a policy that sorts before both is added | A's and B's marks, auto tables and rule priorities are unchanged; the new policy gets values no live policy holds | Same `.ci`, second phase, comparing the dumped rules before and after; plus an `allocator` unit test across two `translate` calls |
-| AC-3 | A policy is removed | Its rule, auto route and nft term are deleted after the new set is installed; no other policy's state changes; its mark and table become free for reuse | Same `.ci`, third phase; plus an `allocator` unit test |
+| AC-3 | A policy is removed | Its rule, auto route and nftables term are deleted after the new set is installed; no other policy's state changes; its mark and table become free for reuse | Same `.ci`, third phase; plus an `allocator` unit test |
 | AC-4 | The new set fails to install (a rule add refused) | The old set is still installed and still steers traffic; the commit fails naming the cause | Unit test with a failing rule-manager seam, through `applyStagedPolicies` |
 | AC-5 | An `ip rule` identical in the old and new results | It is neither deleted nor re-added (no EEXIST, no gap) | Unit test over the diff of two results |
 | AC-6 | Shutdown | Unchanged: every rule, route and the table are removed | Existing shutdown coverage, rerun |

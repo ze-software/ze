@@ -1,0 +1,53 @@
+# Test: gNMI Set on a daemon started with --plugin ze.flowspec-firewall refuses interface backend vpp at validation.
+# Question: when a daemon runs with `--plugin ze.flowspec-firewall` on a
+#           `kernel` file and a gNMI Set updates `/interface/backend` to `vpp`,
+#           does `buildGNMISessionManager`'s validation hook refuse with
+#           `codes.Aborted` and `commit: commit validation:` (not `commit:
+#           commit runtime reload failed:`), naming `--plugin
+#           ze.flowspec-firewall` and `set firewall backend vpp`, and leaving
+#           the stored configuration unchanged?
+#           A unit test cannot prove the running daemon's recorded `--plugin`
+#           reaches the TLS gNMI listener's session validation hook.
+# VALIDATES: spec-dataplane-compatibility-guard AC-18 (gNMI Set door, A-16).
+# PREVENTS: gNMI Set commits bypassing the daemon's `--plugin` selection at
+#           validation or reaching runtime reload before refusing.
+
+option=needs-linux:caps=net-admin
+option=exclusive:group=flowspec-nft
+option=needs-build-tag:value=ze_vpp:state=present
+option=storage:value=disk
+option=timeout:value=30s
+
+tmpfs=dataplane-door-gnmi.conf:terminator=EOF_CONF
+bus {
+	endpoint dataplane-door-gnmi {
+		external {
+			run "le test fixture plugin/dataplane-door-gnmi 127.0.0.1:$PORT2 gnmi-door.pem";
+		}
+		encoding json;
+	}
+}
+environment {
+	gnmi {
+		enabled true;
+		token "secret";
+		tls { cert "gnmi-door.pem"; key "gnmi-door.key"; }
+		server main { ip 127.0.0.1; port $PORT2; }
+	}
+}
+interface {
+	backend kernel;
+}
+EOF_CONF
+
+cmd=foreground:seq=1:exec=le test fixture config-refusal/tls gnmi-door.pem gnmi-door.key
+expect=exit:code=0
+cmd=foreground:seq=2:exec=ze --plugin ze.flowspec-firewall start dataplane-door-gnmi.conf:timeout=30s
+expect=exit:code=0
+expect=stderr:contains=OK: gNMI Set validation refused --plugin ze.flowspec-firewall and kept running config unchanged
+reject=stderr:contains=reload error:
+expect=key:path=meta/config/dataplane-door-gnmi.conf/active:exists=true
+expect=key:path=meta/config/dataplane-door-gnmi.conf/candidate:absent=true
+expect=key:glob=object/*:count=1
+expect=key:glob=object/*:contains=backend kernel
+expect=key:glob=object/*:not-contains=backend vpp

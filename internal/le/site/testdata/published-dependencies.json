@@ -94,7 +94,7 @@
                 },
                 {
                     "module": "golang.zx2c4.com/wireguard/wgctrl",
-                    "why": "Creates and configures WireGuard interfaces and peers from the interface netlink backend.",
+                    "why": "Creates and configures WireGuard interfaces and peers from the interface kernel backend.",
                     "licence": "MIT",
                     "copyright": "Matt Layher",
                     "source": "https://github.com/WireGuard/wgctrl-go"

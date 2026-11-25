@@ -7,6 +7,8 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"maps"
+	"slices"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -32,7 +34,7 @@ const MaxBackendDeadline = 60 * time.Second
 // backend's package so an owner can react to it without importing a backend.
 //
 // It means the dataplane ACCEPTED the request and went quiet. A dataplane that
-// is absent (no netlink permission, VPP not running, a connect wait that ran
+// is absent (no netlink socket permission, VPP not running, a connect wait that ran
 // out) MUST NOT be reported with this error: the reconcile failed for a
 // different reason, with a different fix, and both consumers of this sentinel
 // would draw the wrong conclusion from it.
@@ -61,7 +63,7 @@ func Logger() *slog.Logger { return loggerPtr.Load() }
 // Backend defines the operations that a firewall management backend must
 // implement. The firewall component dispatches all kernel-specific work
 // through this interface. Implementations are registered via RegisterBackend
-// and selected by the "backend" config leaf (default: "nft").
+// and selected by the "backend" config leaf (default: "kernel").
 //
 // Apply receives the full desired state. The backend reconciles against the
 // kernel: create new ze_* tables, replace changed ones, delete owned orphans.
@@ -80,8 +82,8 @@ type Backend interface {
 	// that no two Apply calls overlap.
 	//
 	// Apply MUST NOT block indefinitely. Because reconcileMu is the outermost
-	// firewall lock and is held for the whole reconcile, a kernel or netlink
-	// round-trip that never returns would hold reconcileMu forever and stall
+	// firewall lock and is held for the whole reconcile, a kernel or netlink round-trip
+	// that never returns would hold reconcileMu forever and stall
 	// every firewall owner -- and any command handler that also needs a lock
 	// the calling plugin holds across ApplyAll. Bound every kernel call with a
 	// deadline and surface a timeout as an error rather than blocking.
@@ -169,6 +171,14 @@ func RegisterBackend(name string, factory func() (Backend, error)) error {
 	}
 	backends[name] = factory
 	return nil
+}
+
+// RegisteredBackends returns the sorted names of all currently registered
+// firewall backends. Safe for concurrent use.
+func RegisteredBackends() []string {
+	backendsMu.Lock()
+	defer backendsMu.Unlock()
+	return slices.Sorted(maps.Keys(backends))
 }
 
 // UnregisterBackendForTest removes a factory RegisterBackend added, so a test

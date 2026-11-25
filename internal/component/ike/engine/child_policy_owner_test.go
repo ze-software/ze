@@ -29,7 +29,7 @@ import (
 )
 
 // ownedKey is a policy's identity as the kernel computes it, mirroring the fields
-// xfrmPolicyFromParams writes into the netlink selector.
+// xfrmPolicyFromParams writes into the netlink library selector.
 //
 // The template is deliberately absent. Tunnel endpoints, reqid and priority do
 // not participate in that identity, so two peers whose templates differ still
@@ -109,9 +109,9 @@ func (d *ownedDP) InstallPolicy(p dataplane.SPParams) error {
 // RemovePolicy is the ownerless three-argument route, modeled on what it asks the
 // KERNEL for rather than on what it forgets in the registry.
 //
-// `xfrmBackend.RemovePolicy` (dataplane/xfrm_linux.go) builds a netlink policy from
+// `xfrmBackend.RemovePolicy` (dataplane/xfrm_linux.go) builds a netlink library policy from
 // the three arguments alone, so every other selector field is zero -- and the
-// vendored netlink attaches XFRMA_IF_ID only when if_id is non-zero
+// vendored netlink library attaches XFRMA_IF_ID only when if_id is non-zero
 // (vendor/github.com/vishvananda/netlink/xfrm_policy_linux.go, XfrmPolicyDel). The
 // kernel therefore looks up the policy whose if_id is 0, and a Child SA policy
 // bound to if_id 7 is NOT it. The delete succeeds against nothing and the policy
@@ -356,7 +356,7 @@ func TestSecondPeerCannotTakeOverAnotherPeersPolicySelector(t *testing.T) {
 //
 // It also pins the ROUTE. Swapping RemovePolicyParams for the three-argument
 // RemovePolicy reddens this test, because that route carries no if_id and the
-// vendored netlink omits XFRMA_IF_ID when if_id is zero, so the kernel is asked to
+// vendored netlink library omits XFRMA_IF_ID when if_id is zero, so the kernel is asked to
 // delete an if_id=0 policy while this Child SA's is bound to if_id 7. The delete
 // matches nothing and the refused peer's inbound policy is left behind.
 //

@@ -23,7 +23,7 @@ import (
 	"github.com/ze-software/ze/pkg/ze"
 )
 
-// sweepBackend models nft ownership at the backend boundary. The real registry
+// sweepBackend models nftables ownership at the backend boundary. The real registry
 // merges owners; this backend retains unclaimed state from a previous process.
 // Tests inspect the resulting tables, never a sequence of registry calls.
 // Safe for concurrent use by the engine and the test observer.

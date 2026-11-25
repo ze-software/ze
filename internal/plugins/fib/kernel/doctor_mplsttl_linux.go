@@ -40,7 +40,7 @@ var mplsTTLPropagateDoctorCheck = diagnostic.DoctorCheck{
 	Phase:        diagnostic.DoctorPhasePostConfig,
 	Order:        737,
 	Component:    pluginName,
-	Dependencies: []string{"kernel", "sysctl"},
+	Dependencies: []string{kernelPlaneName, "sysctl"},
 	Platforms:    []string{diagnostic.DoctorPlatformAny},
 	Codes: []string{
 		codeDoctorMPLSTTLPropagateOff,

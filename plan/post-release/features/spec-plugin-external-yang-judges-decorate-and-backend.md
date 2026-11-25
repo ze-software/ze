@@ -33,7 +33,7 @@ augments into `interface`. `ze start` joins the module and says nothing.
 | Extension | What follows a name Ze does not hold |
 |-----------|--------------------------------------|
 | `ze:decorate` | The web UI shows the value with no decoration and no message: `DecoratorRegistry.Get` answers no decorator for the name, and `resolveField` ignores the miss |
-| `ze:backend`, on a node under `interface`, `firewall` or `traffic control` | A config that uses the node is refused at commit with `feature not supported by backend "netlink" (supported: netlnk)`, so the operator reads a backend limit where the fault is a typo in a plugin's module; completion hides the node |
+| `ze:backend`, on a node under `interface`, `firewall` or `traffic control` | A config that uses the node is refused at commit with `feature not supported by backend "kernel" (supported: kernl)`, so the operator reads a backend limit where the fault is a typo in a plugin's module; completion hides the node |
 | `ze:backend`, on a node under any other root | Nothing reads it: no component's backend gate walks that root |
 
 A `ze:validate` or `ze:reference` name that Ze does not hold refuses the start
@@ -76,12 +76,12 @@ give, before the full parse.
 - [ ] `internal/component/config/yang/reference_source.go` - `RegisterReferenceSource`: the owner registers a name from `init()`, so `config` imports no component; `referenceSources` is written during `init()` and read-only after
 - [ ] `internal/component/web/decorator.go` - `DecoratorRegistry`: an instance, `Register` adds a `Decorator` by its `Name()`, `Get` answers nil for a name it does not hold
 - [ ] `cmd/ze/hub/service_web.go` - the web server start builds one `DecoratorRegistry`: `asn-name` only with the Team Cymru resolver, `reverse-dns` only with the DNS resolver, `community-name` always
-- [ ] `internal/component/iface/backend.go`, `internal/component/firewall/backend.go`, `internal/component/traffic/backend.go` - `RegisterBackend(name, factory)`, called from `init()` of each backend plugin: `netlink` and `vpp` for `iface`, `nft` and `vpp` for `firewall`, `tc` and `vpp` for `traffic`. The `vpp` backends are gated by `ze_vpp` (`feature-gates.txt`); `internal/component/web` is gated by `ze_web`
+- [ ] `internal/component/iface/backend.go`, `internal/component/firewall/backend.go`, `internal/component/traffic/backend.go` - `RegisterBackend(name, factory)`, called from `init()` of each backend plugin: `kernel` and `vpp` for `iface`, `kernel` and `vpp` for `firewall`, `kernel` and `vpp` for `traffic`. The `vpp` backends are gated by `ze_vpp` (`feature-gates.txt`); `internal/component/web` is gated by `ze_web`
 - [ ] `internal/component/config/backend_gate.go` - `validateBackendFeatures`: at commit, a node whose `ze:backend` list excludes the active backend is refused, unless a descendant's own list accepts it. Called by `iface`, `firewall` and `traffic` for their roots `interface`, `firewall` and `traffic/control`, over `config.YANGSchema()`, which holds the external modules once they are published
 - [ ] `internal/component/cli/completer.go` - `backendRoots`, `backendAllowed`: completion hides a node no active backend matches
 
 **Behavior to preserve:**
-- The compiled-in modules are not judged by the join: a shipped module may name `vpp` in a build without `ze_vpp` (`ze:backend "netlink vpp"` in the interface modules)
+- The compiled-in modules are not judged by the join: a shipped module may name `vpp` in a build without `ze_vpp` (`ze:backend "kernel vpp"` in the interface modules)
 - A start that declares no external plugin resolves nothing more (`Join` answers the compiled-in set itself)
 - The `ze:validate` and `ze:reference` judgments, and the form of their refusal
 
@@ -144,13 +144,13 @@ give, before the full parse.
 
 | # | Question | Recommendation |
 |---|----------|----------------|
-| D-1 | In a build compiled without the component that owns a name (no `ze_web`, so no decorator; no `ze_vpp`, so no `vpp` backend; a platform without the netlink backends), is an external module that names that decorator or backend refused or accepted at start? | Refuse, in both cases (the supervising session's recommendation) |
+| D-1 | In a build compiled without the component that owns a name (no `ze_web`, so no decorator; no `ze_vpp`, so no `vpp` backend; a platform without the kernel backends), is an external module that names that decorator or backend refused or accepted at start? | Refuse, in both cases (the supervising session's recommendation) |
 
 ### D-1: what each answer changes
 
 | Answer | What the author meets | What it changes in the build |
 |--------|-----------------------|------------------------------|
-| Refuse (recommended) | `ze start` refuses the module, naming the plugin, the module, the extension, the name and the path, as for an unknown `ze:validate`. A build without `ze_web` refuses every external module that names a decorator. A module that lists `ze:backend "netlink vpp"` is refused in a build without `ze_vpp`, although the node works with `netlink`. An author who targets several builds ships the module without the name, or one module per build | The check reads only what `init()` registered. No package has to know the names of a component that is not built |
+| Refuse (recommended) | `ze start` refuses the module, naming the plugin, the module, the extension, the name and the path, as for an unknown `ze:validate`. A build without `ze_web` refuses every external module that names a decorator. A module that lists `ze:backend "kernel vpp"` is refused in a build without `ze_vpp`, although the node works with `kernel`. An author who targets several builds ships the module without the name, or one module per build | The check reads only what `init()` registered. No package has to know the names of a component that is not built |
 | Accept | The module is joined, and the name has no effect in that build: with no web there is no page to decorate, and the gate never selects a backend the build lacks. Only a name that no build of Ze provides, such as a typo, is refused | The join needs every name any build can hold, declared in code every build compiles: either a central list of decorator and backend names beside their owners, which "everything registers" forbids (`ai/doors/system.md`), or each owner splits its names out of its gated package into one that stays in every build |
 
 Why refuse: it is the rule `ze:validate` and `ze:reference` already follow (a
@@ -202,7 +202,7 @@ design that is put to the owner:
 | AC ID | Input / Condition | Expected Behavior | Permitted Survivors and Why |
 |-------|-------------------|-------------------|-----------------------------|
 | AC-1 | `ze start` runs a real external plugin (a mode of the fixture `le test fixture plugin/external-yang`) whose module carries `ze:decorate` naming a decorator this build does not provide | The start is refused before the full parse, naming the plugin, the module, `ze:decorate`, the name and the schema path; `ze doctor` then reports `doctor-plugin-schema-refused` | A module naming a decorator the build provides (`asn-name`) is joined, also when its resolver is not configured (N-1) |
-| AC-2 | The same, with `ze:backend` on a node the module augments into `interface`, naming a backend no `iface` backend of this build registered | Refused the same way, naming `ze:backend` and the name | A module naming `netlink` on that node is joined in a build that registers `netlink` |
+| AC-2 | The same, with `ze:backend` on a node the module augments into `interface`, naming a backend no `iface` backend of this build registered | Refused the same way, naming `ze:backend` and the name | A module naming `kernel` on that node is joined in a build that registers `kernel` |
 | AC-3 | A build without the owning component (`ze_web` off, or `ze_vpp` off) and a module that names its decorator or backend | As D-1 decides. With the recommended answer, refused as in AC-1 and AC-2 | With the other answer, joined, and only a name no build provides is refused |
 | AC-4 | The compiled-in set alone, in any build, and a start that declares no external plugin | Loads as today: a shipped module that names a backend the build lacks still loads, and no more is resolved | Every compiled-in module: the join judges external modules only |
 | AC-5 | An author reads `docs/plugin-development/schema.md` | It states that each of the four extensions refuses the start when it names something Ze does not hold | None: the page describes the behavior this spec ships |

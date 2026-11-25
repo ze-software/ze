@@ -212,7 +212,7 @@ A TLS 1.3 `CertificateRequest` arriving at Ze's EAP-TLS client from charon, insi
 |----|------|--------------|----------------------|
 | R-1 | The RSA CA becomes permanent and its reason is forgotten, so a later reader "tidies" the scenario back to the shared PKI and reopens a red with no explanation | A diff that deletes `gen-pki.sh` without naming this spec | Both header comments already carry the reason; add this spec's path to them so the reader reaches the report |
 | R-2 | The lab's strongSwan version floats, because the Dockerfile installs the Alpine distribution package rather than a pinned version. A future base-image bump could fix or change the behavior silently | Scenario eap-tls13 starts passing with an EC CA, or starts failing differently | Pin the observed version in the scenario comment and re-measure when the base image moves |
-| R-3 | Filing is deferred indefinitely because it is not code | The spec sits at `skeleton` across several sessions with no report URL recorded | The report IS the deliverable. Record the URL in the learned summary, exactly as the netlink precedent requires |
+| R-3 | Filing is deferred indefinitely because it is not code | The spec sits at `skeleton` across several sessions with no report URL recorded | The report IS the deliverable. Record the URL in the learned summary, exactly as the `vishvananda/netlink` precedent requires |
 
 ## Blast Radius
 

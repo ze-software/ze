@@ -14,8 +14,8 @@ import (
 // lowerOnlyCanonicalBackend mirrors the one contract of the shipped backends
 // that this spec is about.
 //
-// nft's lowerProtoMatch resolves a MatchProtocol through firewall.ProtocolNumber
-// and returns an error for anything else, and nft's Apply returns that error
+// nftables' lowerProtoMatch resolves a MatchProtocol through firewall.ProtocolNumber
+// and returns an error for anything else, and nftables' Apply returns that error
 // from applyTable BEFORE its single conn.Flush. So a term nothing can lower does
 // not fail alone: nothing at all reaches the kernel, for any owner. flushed is
 // written only on the success path, which is what reproduces that.

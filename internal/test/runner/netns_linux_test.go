@@ -23,7 +23,7 @@ import (
 )
 
 // TestNetnsLaunchChildInheritsNamespace validates assumption A-5 of
-// spec-netlink-ci-harness: a child process exec'd after the calling goroutine
+// the netlink socket CI harness: a child process exec'd after the calling goroutine
 // locks its OS thread and switches into a fresh network namespace inherits that
 // namespace (fork+exec runs on the locked thread, and clone() copies the
 // thread's netns into the child). This is the linchpin of the netns launch mode

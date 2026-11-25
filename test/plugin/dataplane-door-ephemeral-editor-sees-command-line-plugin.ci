@@ -1,0 +1,27 @@
+# Test: ephemeral ze --plugin ze.flowspec-firewall config edit forwards --plugin to its ephemeral daemon and refuses interface backend vpp, while config edit without --plugin commits.
+# Question: when no daemon is running and an operator runs `ze --plugin
+#           ze.flowspec-firewall config edit <file>` on a `kernel` file, does
+#           `startEphemeralDaemon` forward `--plugin ze.flowspec-firewall` to
+#           the spawned daemon so committing `interface backend vpp` is blocked
+#           at validation with `commit blocked:` and `--plugin
+#           ze.flowspec-firewall` while leaving the stored config unchanged,
+#           and does the same session without `--plugin` commit cleanly?
+#           A unit test checks `ephemeralDaemonArgv` alone; only spawning the
+#           real CLI proves the parent process record, child argv, child
+#           dispatcher record, and ephemeral SSH editor validator compose end
+#           to end.
+# VALIDATES: spec-dataplane-compatibility-guard AC-18 (ephemeral editor door, A-16).
+# PREVENTS: `ze --plugin ... config edit` dropping `--plugin` when spawning its
+#           ephemeral daemon and committing a configuration that `ze --plugin
+#           ... start` would refuse.
+
+option=needs-linux:caps=net-admin
+option=exclusive:group=flowspec-nft
+option=needs-build-tag:value=ze_vpp:state=present
+option=timeout:value=60s
+
+cmd=foreground:seq=1:exec=le test fixture plugin/dataplane-door-ephemeral-editor $PORT2:timeout=60s
+expect=exit:code=0
+expect=stderr:contains=OK: ephemeral config edit with --plugin ze.flowspec-firewall refused commit and kept stored config unchanged
+expect=stderr:contains=OK: ephemeral config edit without --plugin committed interface backend vpp
+reject=stderr:pattern=panic

@@ -158,7 +158,7 @@ func installPolicy(t *testing.T, action PolicyAction) uint32 {
 }
 
 // routeLookup asks the kernel where a packet carrying the policy's fwmark would
-// go. RTM_F_LOOKUP_TABLE is set by the netlink helper, so the answer names the
+// go. RTM_F_LOOKUP_TABLE is set by the netlink route helper, so the answer names the
 // table the rule chain selected.
 func routeLookup(t *testing.T, mark uint32) []netlink.Route {
 	t.Helper()

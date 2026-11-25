@@ -104,7 +104,7 @@ func flapDefaultMetric08(ctx context.Context) (int, bool) {
 func netlinkDrops08() (int, error) {
 	data, err := os.ReadFile("/proc/net/netlink")
 	if err != nil {
-		return 0, fmt.Errorf("read netlink drops: %w", err)
+		return 0, fmt.Errorf("read netlink socket drops: %w", err)
 	}
 	return sumNetlinkDrops08(string(data))
 }
@@ -125,17 +125,17 @@ func sumNetlinkDrops08(table string) (int, error) {
 		}
 	}
 	if column < 0 {
-		return 0, fmt.Errorf("netlink drops: no Drops column in header %q", lines[0])
+		return 0, fmt.Errorf("netlink socket drops: no Drops column in header %q", lines[0])
 	}
 	total := 0
 	for _, line := range lines[1:] {
 		fields := strings.Fields(line)
 		if len(fields) <= column {
-			return 0, fmt.Errorf("netlink drops: row has no Drops field: %q", line)
+			return 0, fmt.Errorf("netlink socket drops: row has no Drops field: %q", line)
 		}
 		value, err := strconv.Atoi(fields[column])
 		if err != nil {
-			return 0, fmt.Errorf("netlink drops: row %q: %w", line, err)
+			return 0, fmt.Errorf("netlink socket drops: row %q: %w", line, err)
 		}
 		total += value
 	}

@@ -24,14 +24,14 @@ import (
 )
 
 // doctorNetlinkFailEnv forces the probe to fail, so a functional test reaches
-// the diagnostic on a host whose netlink is healthy. It keeps the doctor
+// the diagnostic on a host whose netlink socket is healthy. It keeps the doctor
 // spelling because the doctor tier's fixtures set it.
 const doctorNetlinkFailEnv = "ze.test.doctor.netlink-fail"
 
 var _ = env.MustRegister(env.EnvEntry{
 	Key:         doctorNetlinkFailEnv,
 	Type:        "bool",
-	Description: "Force route netlink doctor probe failure (test infrastructure)",
+	Description: "Force route netlink socket doctor probe failure (test infrastructure)",
 	Private:     true,
 })
 
@@ -86,7 +86,8 @@ func checkPolicyRouteNetlink(ctx diagnostic.DoctorCheckContext) []diagnostic.Dia
 		return []diagnostic.Diagnostic{{
 			Code:     codePolicyRouteNetlink,
 			Severity: diagnostic.SeverityWarning,
-			Message:  "policy route: route netlink unavailable: forced failure",
+			Message:  "policy route: route netlink socket unavailable: forced failure",
+			Fix:      "ze doctor kernel-capabilities",
 		}}
 	}
 	h, err := openRouteNetlink()
@@ -95,7 +96,8 @@ func checkPolicyRouteNetlink(ctx diagnostic.DoctorCheckContext) []diagnostic.Dia
 		return []diagnostic.Diagnostic{{
 			Code:     codePolicyRouteNetlink,
 			Severity: diagnostic.SeverityWarning,
-			Message:  tb.Str("policy route: route netlink unavailable: ").Err(err).String(),
+			Message:  tb.Str("policy route: route netlink socket unavailable: ").Err(err).String(),
+			Fix:      "ze doctor kernel-capabilities",
 		}}
 	}
 	if h != nil {

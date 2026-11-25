@@ -36,7 +36,7 @@ import (
 //
 // The interfaces are set members, so one rule serves every interface of a mode
 // and the per-packet cost does not grow with the interface count. The table is
-// rebuilt whole on every call, in one netlink batch, so the kernel never holds
+// rebuilt whole on every call, in one netlink message batch, so the kernel never holds
 // a half-built table and never keeps a member the config no longer names.
 //
 // The table is written here over netlink, not through firewall.RegisterTables,
@@ -97,7 +97,7 @@ func (b *netlinkBackend) ReplaceIPv4RPF(_ []iface.RPFCheck) error {
 
 // queueIPv6RPF queues the batch that replaces the table. Adding the table
 // before deleting it makes the delete succeed whether or not the table exists,
-// which is the nft idiom for "replace" without a separate read.
+// which is the nftables idiom for "replace" without a separate read.
 func queueIPv6RPF(conn *nftables.Conn, checks []iface.RPFCheck) error {
 	table := &nftables.Table{Family: nftables.TableFamilyIPv6, Name: rpfTableName}
 	conn.AddTable(table)

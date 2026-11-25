@@ -1,4 +1,4 @@
-// Design: docs/features/interfaces.md -- Netlink interface monitor
+// Design: docs/features/interfaces.md -- Kernel interface monitor
 // Related: monitor_linux.go -- the monitor that owns this subscription
 
 //go:build linux
@@ -99,7 +99,7 @@ func decodeNDUserOpt(body []byte) (ndUserOpt, error) {
 	return msg, nil
 }
 
-// nlAlign rounds n up to the 4-octet netlink alignment.
+// nlAlign rounds n up to the 4-octet netlink attribute alignment.
 func nlAlign(n int) int { return (n + 3) &^ 3 }
 
 // startNDUserOpts joins RTNLGRP_ND_USEROPT and starts the reader. stop

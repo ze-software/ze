@@ -86,7 +86,7 @@ bgp {
 
 traffic {
     control {
-        backend tc
+        backend kernel
     }
 }
 EOF_CONF
@@ -94,7 +94,7 @@ EOF_CONF
 # The CANDIDATE an operator tries to commit: the same BGP, and a traffic-control
 # section that switches to backend vpp. `backend vpp` is the marker the
 # rollback-snapshot assertions below read: the stored configuration must still
-# say `backend tc`, which proves it is the OLD file and not this one.
+# say `backend kernel`, which proves it is the OLD file and not this one.
 tmpfs=tx-vpp-hfsc.conf:terminator=EOF_BAD_CONF
 bgp {
     router-id 1.2.3.4
@@ -125,6 +125,10 @@ bgp {
             group-updates disable
         }
     }
+}
+
+interface {
+    backend vpp
 }
 
 traffic {
@@ -160,12 +164,12 @@ expect=stdout:contains=qdisc hfsc: not supported by backend vpp
 
 # Half two: the previously active configuration is STILL ACTIVE. The candidate
 # was cleared, no rollback pointer was left dangling, and the stored snapshot is
-# the OLD file: it still selects backend tc and carries none of the candidate.
+# the OLD file: it still selects backend kernel and carries none of the candidate.
 expect=key:path=meta/config/ze-bgp.conf/active:exists=true
 expect=key:path=meta/config/ze-bgp.conf/candidate:absent=true
 expect=key:path=meta/config/ze-bgp.conf/rollback:absent=true
 expect=key:glob=file/[0-9]*/ze-bgp.conf:count=1
 expect=key:glob=object/*:count=1
-expect=key:glob=object/*:contains=backend tc
+expect=key:glob=object/*:contains=backend kernel
 expect=key:glob=object/*:not-contains=backend vpp
 expect=key:glob=object/*:not-contains=hfsc

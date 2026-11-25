@@ -15,7 +15,7 @@ const conntrackSetupTimeout = "30s"
 // loading conntrack alone does not track packets. One atomic batch replaces
 // only this chain's rule, so repeated selected runs neither duplicate rules nor
 // flush any foreign table. Ze's runtime.require mandates built-in conntrack,
-// ctnetlink and nft support: a minimal guest needs no modprobe executable.
+// ctnetlink and nftables support: a minimal guest needs no modprobe executable.
 const guestConntrackSetup = `set -eu
 if [ "$(id -u)" != 0 ] || [ "$(readlink /proc/1/exe)" != /gokrazy/init ]; then
     echo "qemu: conntrack setup requires root inside Ze's system. Fix: invoke qemu all through the Ze-system guest command as root." >&2

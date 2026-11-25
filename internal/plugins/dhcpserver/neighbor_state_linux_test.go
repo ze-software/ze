@@ -14,7 +14,7 @@ import (
 // states ARP never learns, PERMANENT (an operator's) and NOARP (an
 // operator's, or the kernel's for a multicast or broadcast address and on a
 // device that does no ARP), and lets ze replace every state ARP or ze itself
-// produces. Method: ask neighborHeld for each NUD state netlink names.
+// produces. Method: ask neighborHeld for each NUD state the netlink socket names.
 // PREVENTS: a DHCP reply overwriting a nud noarp entry with ze's reachable
 // one.
 func TestOperatorHeldNeighborStates(t *testing.T) {

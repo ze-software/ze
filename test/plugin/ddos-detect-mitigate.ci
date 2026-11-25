@@ -13,7 +13,7 @@
 #   daemon.pid/daemon.ready handshake is KEPT (it is armed for a background `ze`
 #   -- runner_exec_util.go:125-130, runner_exec.go:702-705,777-791 -- and polled
 #   green today by test/vrrp/vrrp-instance-up.ci:123). The native fixture uses
-#   bounded Poll waits for daemon readiness and kernel state. The nft readback
+#   bounded Poll waits for daemon readiness and kernel state. The nftables readback
 #   remains in the root driver, which the runner keeps privileged
 #   (runner_exec.go:740-744).
 #   The static surface (config leaves, nft table name `ddos-local`, log strings)
@@ -34,7 +34,7 @@
 #     (internal/plugins/trafficusage/attach_linux.go:33,46). On the unprivileged
 #     GitHub runner the rlimit call failed with "need CAP_BPF/CAP_SYS_RESOURCE",
 #     eBPF accounting ran inert, and no incident was ever opened.
-#   - net-admin: AttachTCX programs the interface's tc hooks, a privileged
+#   - net-admin: AttachTCX programs the interface's traffic control hooks, a privileged
 #     network operation.
 # Declaring only one of the two would fail OPEN: a host holding just that one
 # passes the gate and the test fails exactly as it did with no marker at all

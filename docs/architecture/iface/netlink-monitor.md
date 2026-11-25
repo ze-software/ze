@@ -13,7 +13,7 @@ watch those events on the box.
 - The `vishvananda/netlink` subscribe API is used, not raw AF_NETLINK
   syscalls. The library is already vendored for routewatch, returns typed
   updates, and parses the netlink messages.
-- One output channel carries every netlink group. Each group has its own
+- One output channel carries every netlink multicast group. Each group has its own
   forwarder goroutine, and one writer goroutine encodes. Sharing a
   `json.Encoder` between goroutines is a data race.
 - The handler registers both a streaming handler and an RPC handler. The

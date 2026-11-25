@@ -1,4 +1,4 @@
-// Design: docs/architecture/core-design.md -- FIB Linux netlink backend
+// Design: docs/architecture/core-design.md -- FIB Linux kernel backend
 // Overview: fibkernel.go -- FIB kernel plugin
 // Related: backend.go -- backend abstraction and shared helpers
 // Related: backend_other.go -- noop backend for non-Linux
@@ -52,7 +52,7 @@ type netlinkHandle interface {
 
 var _ netlinkHandle = (*netlink.Handle)(nil)
 
-// netlinkBackend programs routes via Linux netlink.
+// netlinkBackend programs routes via the Linux netlink socket.
 type netlinkBackend struct {
 	handle   netlinkHandle
 	contexts mplsContextState
@@ -66,7 +66,7 @@ func newBackend() routeBackend {
 	h, err := netlink.NewHandle()
 	if err != nil {
 		logger().Error("fib-kernel: netlink handle failed, route programming disabled", "error", err)
-		return &failedBackend{err: fmt.Errorf("netlink unavailable: %w", err)}
+		return &failedBackend{err: fmt.Errorf("netlink socket unavailable: %w", err)}
 	}
 	backend := &netlinkBackend{handle: h}
 	for _, family := range []int{netlink.FAMILY_V4, netlink.FAMILY_V6} {
@@ -77,7 +77,7 @@ func newBackend() routeBackend {
 	return backend
 }
 
-// failedBackend returns errors for all operations when netlink init failed.
+// failedBackend returns errors for all operations when netlink handle init failed.
 type failedBackend struct{ err error }
 
 func (f *failedBackend) addRoute(_, _ string) error              { return f.err }

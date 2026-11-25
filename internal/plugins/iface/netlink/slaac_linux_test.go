@@ -79,8 +79,8 @@ func TestNormalizeLifetime(t *testing.T) {
 	}
 }
 
-// VALIDATES: AC-6 -- the monitor observes a kernel SLAAC address via a netlink
-// addr update and emits an addr-added event carrying Origin "slaac". Uses the
+// VALIDATES: AC-6 -- the monitor observes a kernel SLAAC address via a netlink address
+// update and emits an addr-added event carrying Origin "slaac". Uses the
 // handler seam directly (synthetic netlink.AddrUpdate), so it needs no
 // CAP_NET_ADMIN.
 func TestHandleAddrUpdate_SlaacOrigin(t *testing.T) {

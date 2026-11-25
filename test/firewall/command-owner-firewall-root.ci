@@ -2,7 +2,7 @@
 # VALIDATES: command-surface-ownership Phase 4 — the `firewall` root command
 # moved from the cmd/ze static switch to its owner package
 # internal/component/firewall/cli and is now dispatched through the command
-# registry. The help paths run before any nft backend is loaded, so these
+# registry. The help paths run before any kernel backend is loaded, so these
 # assertions are platform-independent (no CAP_NET_ADMIN, no Linux required).
 
 # Root help reaches the owner usage via the registry root handler.

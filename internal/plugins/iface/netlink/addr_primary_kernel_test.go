@@ -188,7 +188,7 @@ func TestSameSubnetRenumberKeepsNewAddress(t *testing.T) {
 }
 
 // TestSameSubnetRenumberWithUnflaggedSecondary is the fail-closed case: the
-// device's addresses arrive with NO IFA_F_SECONDARY flag (netlink fills Flags
+// device's addresses arrive with NO IFA_F_SECONDARY flag (the netlink socket fills Flags
 // only from the optional IFA_FLAGS attribute), so the sibling looks like a
 // primary. The kernel still cascades, so the guard must still fire.
 //

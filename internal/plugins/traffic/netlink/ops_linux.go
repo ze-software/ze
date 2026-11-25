@@ -1,5 +1,5 @@
-// Design: docs/architecture/traffic/tc-original-qdisc-restore.md -- tc original-qdisc restore
-// Related: backend_linux.go -- tc backend using this operation seam
+// Design: docs/architecture/traffic/tc-original-qdisc-restore.md -- traffic control original-qdisc restore
+// Related: backend_linux.go -- kernel traffic control backend using this operation seam
 
 //go:build linux
 

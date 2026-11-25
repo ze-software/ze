@@ -41,7 +41,7 @@ work, not the tests in this repository alone.
   `locrib.Path` values (`internal/plugins/ospf/spf/install.go` and
   `internal/plugins/isis/spf/install.go`, `Installer.insertPath`). sysrib
   selects and `fib-kernel` or `fib-vpp` programs. No file under `ospf`,
-  `isis` or `ldp` imports netlink. `rsvpte/transport_linux.go` uses netlink
+  `isis` or `ldp` imports the netlink library. `rsvpte/transport_linux.go` uses netlink sockets
   only to read routes and links.
 - **Label entries go through the bus.** LDP and RSVP-TE emit
   `(mpls-fib, entry)` events (`internal/core/mplsfib/events.go`, `Apply`), and

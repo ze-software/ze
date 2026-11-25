@@ -44,20 +44,20 @@ func prepareWithCreator(ctx context.Context, name string, acquireBackend func() 
 	resolve func(string) (iface.Binding, error),
 	newCreator func(pppkernel.InterfaceOperations) (*pppkernel.UnitCreator, error)) (access dataplane.Access, err error) {
 	if ctx == nil {
-		return nil, fmt.Errorf("pppoe: netlink access requires a context")
+		return nil, fmt.Errorf("pppoe: kernel access requires a context")
 	}
 	if err := ctx.Err(); err != nil {
 		return nil, err
 	}
 	if name == "" {
-		return nil, fmt.Errorf("pppoe: netlink access requires a logical interface name")
+		return nil, fmt.Errorf("pppoe: kernel access requires a logical interface name")
 	}
 	backend, err := acquireBackend()
 	if nilBackend(backend) {
 		if err != nil {
 			return nil, err
 		}
-		return nil, errors.New("pppoe: netlink access backend returned no owner")
+		return nil, errors.New("pppoe: kernel access backend returned no owner")
 	}
 	owner := &kernelAccessOwner{name: name, backend: backend}
 	defer func() {
@@ -86,7 +86,7 @@ func prepareWithCreator(ctx context.Context, name string, acquireBackend func() 
 		return nil, err
 	}
 	if owner.creator == nil {
-		return nil, errors.New("pppoe: netlink preparation returned no original unit creator")
+		return nil, errors.New("pppoe: kernel preparation returned no original unit creator")
 	}
 	binding, err := resolve(name)
 	if err != nil {
@@ -130,16 +130,16 @@ func (o *kernelAccessOwner) Open(ctx context.Context, request dataplane.Request)
 		return nil, err
 	}
 	if request.AccessName != o.name {
-		return nil, errors.New("pppoe: session logical access differs from its prepared netlink access")
+		return nil, errors.New("pppoe: session logical access differs from its prepared kernel access")
 	}
 	if request.Device != o.info.Device {
-		return nil, errors.New("pppoe: session device differs from its prepared netlink access")
+		return nil, errors.New("pppoe: session device differs from its prepared kernel access")
 	}
 	if request.ControlDevice != o.info.ControlDevice {
-		return nil, errors.New("pppoe: control device differs from its prepared netlink access")
+		return nil, errors.New("pppoe: control device differs from its prepared kernel access")
 	}
 	if request.Namespace != o.info.Namespace {
-		return nil, errors.New("pppoe: control namespace differs from its prepared netlink access")
+		return nil, errors.New("pppoe: control namespace differs from its prepared kernel access")
 	}
 	return openWithOps(ctx, request, preparedFactoryOps(o.backend, o.creator))
 }

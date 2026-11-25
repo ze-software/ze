@@ -20,7 +20,7 @@ import (
 // rule. The interface section is in validatedSections and its mac leaf binds a
 // custom validator, so the input goes through both windows, not around them.
 const validRunningConfig = `interface {
-	backend netlink;
+	backend kernel;
 	ethernet eth0 {
 		mtu 1500;
 		mac {
@@ -53,7 +53,7 @@ func TestRFC7950RunningDatastoreAcceptsAValidConfig(t *testing.T) {
 // RFC requirement: RFC7950-8.3-1 negative — a value outside its YANG range (mtu 20 against "68..16000") is refused in the parse window: LoadConfig returns no tree and the error names the range.
 func TestRFC7950RunningDatastoreRefusesAViolationAtParse(t *testing.T) {
 	const src = `interface {
-	backend netlink;
+	backend kernel;
 	ethernet eth0 {
 		mtu 20;
 	}

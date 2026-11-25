@@ -1,7 +1,7 @@
 # Test: CoPP trusted-source is accepted before the rate-limit term.
 # VALIDATES: spec-cp-survival-2-copp-port179 AC-3 -- trusted-source
 #            192.0.2.0/24 produces an accept term ordered before the
-#            limit term in the nft input chain.
+#            limit term in the nftables input chain.
 # PREVENTS: trusted peers rate-limited because term ordering is wrong.
 #
 # The limiter lives in the bgp-neighbor chain, built only when a BGP peer is
@@ -51,6 +51,6 @@ cmd=background:seq=1:exec=ze -:stdin=ze-bgp
 cmd=foreground:seq=2:exec=le test fixture firewall/copp-trusted:timeout=10s
 expect=exit:code=0
 expect=stderr:contains=ORDER_OK
-# The nfproto guard is what lets nft render the trusted source cooked.
+# The nfproto guard is what lets nftables render the trusted source cooked.
 expect=stdout:contains=ip saddr 192.0.2.0/24
 expect=stdout:contains=limit rate

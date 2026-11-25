@@ -115,7 +115,7 @@ func TestQEMURuntimeKernelLabsFillsModcacheBeforeL2TPProof(t *testing.T) {
 // VALIDATES: evidence-nightly.yml job integration loads `nf_nat_ftp` with
 // `sudo modprobe` before running `./le test integration firewall`.
 // PREVENTS: TestConntrackHelperFTPThroughMasquerade failing on the Ubuntu
-// runner kernel because `nft` auto-loads `nf_conntrack_ftp` but not `nf_nat_ftp`.
+// runner kernel because `nftables` auto-loads `nf_conntrack_ftp` but not `nf_nat_ftp`.
 func TestEvidenceNightlyIntegrationLoadsFTPNATHelper(t *testing.T) {
 	const name = "evidence-nightly.yml"
 	var body string

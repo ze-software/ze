@@ -61,7 +61,7 @@ expect=stdout:contains=table inet ze_copp
 # The chain accepts what its terms do not name. This is the lock-out guard.
 expect=stdout:pattern=policy accept
 reject=stdout:pattern=policy drop
-# The drop is on the limiter, and the limiter is inverted. nft spells the burst
+# The drop is on the limiter, and the limiter is inverted. nftables spells the burst
 # unit differently by version, so the rule is matched on the parts that carry
 # the meaning: the inversion, the rate, and the drop that follows them.
 expect=stdout:pattern=limit rate over 100/second.* drop

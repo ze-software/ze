@@ -1,4 +1,4 @@
-// Design: docs/features/interfaces.md -- Interface statistics from the netlink backend.
+// Design: docs/features/interfaces.md -- Interface statistics from the kernel interface backend.
 // Related: manage_linux.go -- GetStats refuses unavailable counters.
 
 //go:build linux
@@ -34,7 +34,7 @@ func TestNetlinkGetStatsMissingLink(t *testing.T) {
 		t.Fatalf("GetStats lost the lookup error: %v", err)
 	}
 	if _, ok := errors.AsType[netlink.LinkNotFoundError](err); !ok {
-		t.Fatalf("GetStats lost the netlink not-found type: %v", err)
+		t.Fatalf("GetStats lost the netlink error not-found type: %v", err)
 	}
 	if !strings.Contains(err.Error(), `"stats0"`) {
 		t.Fatalf("GetStats error does not name the interface: %v", err)
@@ -164,8 +164,8 @@ func stubStatsLookup(t *testing.T, link netlink.Link, lookupErr error) {
 	})
 }
 
-// statsLinkNotFound gives netlink's not-found type a printable outer error;
-// its embedded error field cannot be initialized outside the netlink package.
+// statsLinkNotFound gives the netlink library's not-found type a printable outer error;
+// its embedded error field cannot be initialized outside the netlink library package.
 type statsLinkNotFound struct{}
 
 func (statsLinkNotFound) Error() string { return "link not found" }

@@ -9,7 +9,7 @@
 #           ip-only.
 stdin=config:terminator=EOF_CONF
 firewall {
-	backend nft;
+	backend kernel;
 	table mixed {
 		family inet;
 		chain forward {

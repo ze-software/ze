@@ -40,14 +40,18 @@ func defaultRemovePushedConfig() error {
 // The full verdict (config.LoadConfig) is given here only when no external
 // plugin is declared: not by candidate, not by plugins (the command line), and
 // not by fallback, the config that boots when candidate is refused (nil when
-// there is none). A config that declares an external plugin is parsed against
-// that plugin's own schema, which the daemon holds only once the plugin has
-// run and declared it, inside boot; and a full parse here builds values that
-// keep the module set, after which boot could no longer publish a declared
-// plugin's module (yang.KeepsModuleSet). So with an external plugin declared
-// anywhere, this judges the plugin declarations alone (config.FirstPass) and
-// answers judgedAtBoot=true: the caller MUST then set hub.ConfigRefused to
-// undo what it does with candidate, because boot is what refuses it.
+// there is none). When no external plugin is declared, config.LoadConfig
+// receives plugins so the pushed candidate is parsed with the module text of
+// any command-line plugin and resolved and judged with the same command-line
+// plugin selection that boot uses. A config that declares an external plugin is
+// parsed against that plugin's own schema, which the daemon holds only once the
+// plugin has run and declared it, inside boot; and a full parse here builds
+// values that keep the module set, after which boot could no longer publish a
+// declared plugin's module (yang.KeepsModuleSet). So with an external plugin
+// declared anywhere, this judges the plugin declarations alone
+// (config.FirstPass) and answers judgedAtBoot=true: the caller MUST then set
+// hub.ConfigRefused to undo what it does with candidate, because boot is what
+// refuses it.
 func judgeConfigBeforeBoot(candidate, fallback []byte, plugins []string) (judgedAtBoot bool, err error) {
 	firstPass, err := config.FirstPass(string(candidate), "", plugins)
 	if err != nil {
@@ -61,7 +65,7 @@ func judgeConfigBeforeBoot(candidate, fallback []byte, plugins []string) (judged
 			return true, nil
 		}
 	}
-	_, err = config.LoadConfig(string(candidate), "", nil)
+	_, err = config.LoadConfig(string(candidate), "", plugins)
 	return false, err
 }
 

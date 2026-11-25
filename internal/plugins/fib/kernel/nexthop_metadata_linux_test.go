@@ -15,7 +15,7 @@ import (
 )
 
 // Different protocols can supply equal-cost paths with different label stacks.
-// Netlink must encode each stack on its own member, leaving a plain member plain.
+// The netlink message must encode each stack on its own member, leaving a plain member plain.
 func TestKernelECMPRetainsMemberLabels(t *testing.T) {
 	route, err := buildRichRoute(RichRoute{
 		Prefix:  netip.MustParsePrefix("198.51.100.0/24"),

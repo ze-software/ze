@@ -5,7 +5,7 @@
 // Related: device_owner_integration_linux_test.go -- the owned macvlan sibling
 //
 // This drives the owned-bridge request and its reconcile against the live
-// netlink backend in a throwaway network namespace. The test enters a user and
+// kernel backend in a throwaway network namespace. The test enters a user and
 // network namespace of its own with userns.Enter, so it needs no host
 // privilege, and a refused kernel operation fails it.
 

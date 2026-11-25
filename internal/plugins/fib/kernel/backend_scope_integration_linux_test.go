@@ -155,7 +155,7 @@ func withScopeBackend(t *testing.T, fn func(*netlinkBackend, *netlink.Handle, [2
 				}
 			}
 		}
-		if err := iface.LoadBackend("netlink"); err != nil {
+		if err := iface.LoadBackend("kernel"); err != nil {
 			t.Fatalf("load interface-name resolver: %v", err)
 		}
 		defer func() {

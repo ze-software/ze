@@ -139,7 +139,7 @@ func TestJudgeDFPhaseJudgesTheWireWhenTheReadbackFails(t *testing.T) {
 }
 
 // outerDFListing is an `nft list chain inet ze_outer_df input` answer in the shape
-// nft prints it, with the counts the parser must read.
+// nftables prints it, with the counts the parser must read.
 const outerDFListing = `table inet ze_outer_df {
 	chain input {
 		type filter hook input priority filter; policy accept;

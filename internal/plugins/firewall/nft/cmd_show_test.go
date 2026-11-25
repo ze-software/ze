@@ -1,4 +1,4 @@
-// Design: docs/architecture/firewall/backend-command-dispatch.md -- nft firewall show handler tests
+// Design: docs/architecture/firewall/backend-command-dispatch.md -- kernel nftables firewall show handler tests
 
 package firewallnft
 

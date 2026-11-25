@@ -29,9 +29,10 @@ DHCP/link-failover/IPv6-RA handlers in this same package.
    (`config.go`) → `parseIfaceConfig` (`config.go`), decoding the wrapped
    `{"interface": {...}}` JSON into an `*ifaceConfig` (ethernet/dummy/veth/bridge/tunnel/
    wireguard/xfrm/pppoe-client/loopback lists). `OnConfigVerify` additionally runs
-   `parseAndVerifyIfaceSections` (`iface/register.go`) → `validateBackendGate` (`iface/register.go`)
-   + `validateUniqueMatchMAC` (`config.go`) + `validateVPPQoSMaps` (`config.go`), and
-   stashes the result as `pendingCfg` (`iface/register.go`) for the next `OnConfigApply`.
+   `parseAndVerifyIfaceSections` (`iface/register.go`) → `validateUniqueMatchMAC` (`config.go`)
+   + `verifyDelegatedPrefixes` + `validateVPPQoSMaps` (`config.go`), and
+   stashes the result as `pendingCfg` (`iface/register.go`) for the next `OnConfigApply` (the
+   YANG `ze:backend` walk runs earlier in `config/backend_gate.go` `walkBackendFeaturesTree`).
 3. **First apply (`OnConfigure`).** `LoadBackend(cfg.Backend)` (`iface/register.go`,
    `backend.go`) activates the named backend via the `backends` factory map
    (`backend.go`). `applyConfig(cfg, nil, b)` (`iface/register.go`, `config_apply.go`)
@@ -69,7 +70,7 @@ DHCP/link-failover/IPv6-RA handlers in this same package.
    `ErrBackendNotReady` the whole pass defers and `applyConfig` falls back to
    `addDesiredAddresses` (`752`, `1044`) -- additive only, no prune -- until a later vpp-ready
    event re-runs the full reconcile.
-7. **Netlink backend execution.** Every `Backend` call above dispatches to
+7. **Kernel backend execution.** Every `Backend` call above dispatches to
    `internal/plugins/iface/netlink`'s `netlinkBackend` (`backend_linux.go`), which wraps
    `github.com/vishvananda/netlink`: `CreateDummy`/`CreateVeth`/`CreateBridge`/`CreateVLAN` issue
    `netlink.LinkAdd` + `LinkSetUp` with delete-on-failure rollback (`manage_linux.go`);
@@ -152,7 +153,7 @@ DHCP/link-failover/IPv6-RA handlers in this same package.
 | `discover.go` | `DiscoverInterfaces`, Ze type name constants, kernel tunnel-kind mapping |
 | `operation.go` | Fine-grained `tx.ConfigOperation` decomposition for the transaction coordinator |
 | `iface.go` | Shared value types (`InterfaceInfo`, `Binding`, `AddrInfo`, event payloads) |
-| `netlink/backend_linux.go` | `netlinkBackend` struct, `RegisterBackend("netlink", ...)` |
+| `netlink/backend_linux.go` | `netlinkBackend` struct, `RegisterBackend("kernel", ...)` |
 | `netlink/manage_linux.go` | Link/address/route/MTU/MAC netlink calls |
 | `netlink/wireguard_linux.go` | WireGuard netdev create + wgctrl genetlink configure |
 | `netlink/monitor_linux.go` | `netlink.LinkSubscribe`/`AddrSubscribe`/`NeighSubscribe` → `EventBus` |
@@ -180,7 +181,7 @@ DHCP/link-failover/IPv6-RA handlers in this same package.
 - **Backend-not-ready is a first-class deferral, not an error.** `ErrBackendNotReady`
   (`backend.go`) from the vpp backend's `ListInterfaces`/`StartMonitor` short-circuits
   `reconcileOnReadyWithJournal` to `(nil, true)` rather than recording a failure; only the vpp
-  backend ever returns it (netlink never does).
+  backend ever returns it (the kernel backend never does).
 - **PPPoE and DHCP reconcile after, not during, the interface journal.** Both run only once
   `applyConfig`/the reload journal have committed (`iface/register.go`), so a rolled-
   back interface config never leaves a PPPoE session or DHCP client running against a spec that

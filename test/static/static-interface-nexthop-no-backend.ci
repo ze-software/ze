@@ -14,7 +14,7 @@
 # that branch (internal/plugins/static/backend_linux.go:106) is guarded by
 # `iface.GetBackend() == nil`, and on Linux omitting the `interface { backend }`
 # stanza does NOT leave the backend unset -- parseIfaceBackend defaults to
-# defaultBackendName, which is "netlink" (internal/component/iface/default_linux.go:8).
+# defaultBackendName, which is "kernel" (internal/component/iface/default_linux.go:8).
 # So the branch is unreachable on Linux, and on darwin the daemon never reaches
 # static at all. The old expectation could therefore pass on no platform; it was
 # a permanently-red test. The C-2 message itself is covered deterministically by

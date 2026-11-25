@@ -136,7 +136,7 @@ no bridge VLAN filtering or QinQ model"). The anycast gateway case of
 ## Implementation Steps
 
 1. **Phase: Wiring** - leaves, parse, failing `.ci`.
-2. **Phase: Netlink** - filtering switch, per-port entries, self entries.
+2. **Phase: Kernel** - filtering switch, per-port entries, self entries.
 
 Proof: `./le test unit plugins`, `./le test functional plugin` for the named `.ci` file, `./le test qemu all`.
 

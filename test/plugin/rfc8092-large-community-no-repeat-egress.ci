@@ -11,7 +11,7 @@
 # expectation: 60 octets of values, not 36. The handler writes the attribute in Extended
 # Length form (0xD0), which the writer keeps.
 
-# Linux-only: static `next { interface lo { } }` resolves loopback `lo` via Linux netlink.
+# Linux-only: static `next { interface lo { } }` resolves loopback `lo` via the Linux netlink socket.
 option=needs-linux
 stdin=peer:terminator=EOF_PEER
 option=tcp_connections:value=2

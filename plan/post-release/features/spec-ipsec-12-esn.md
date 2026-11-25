@@ -78,7 +78,7 @@ Section 3.3.2). This is a deliberate, documented limitation (see Known Limitatio
      `dataplane.SAParams`, not via a backend-specific side channel.
   -> Constraint: route-based (XFRM interface, if_id bound) tunnel mode only. ESN applies to
      the Child/ESP SA, which is always tunnel mode here.
-- [ ] `docs/architecture/ike/ipsec-8-ikev2-child-xfrm.md` -- XFRM netlink backend
+- [ ] `docs/architecture/ike/ipsec-8-ikev2-child-xfrm.md` -- XFRM kernel backend
   -> Constraint: Child SA install builds `netlink.XfrmState`; anti-replay set via
      `state.ReplayWindow`. ESN requires `state.ESN = true`, and the kernel then expects the
      ESN replay structure (XFRMA_REPLAY_ESN_VAL) rather than the legacy replay value.
@@ -148,7 +148,7 @@ Section 3.3.2). This is a deliberate, documented limitation (see Known Limitatio
   -> Constraint: add `ESN bool` to `SAParams`; no interface signature change needed.
 - [ ] `internal/component/ike/dataplane/xfrm_linux.go` -- `InstallSA` (21-66) sets
   `state.ReplayWindow` when `ReplayWin > 0`; no ESN.
-  -> Constraint: vendored `netlink` v1.1.0 `XfrmState` has `ESN bool` (xfrm_state.go);
+  -> Constraint: vendored `vishvananda/netlink` v1.1.0 `XfrmState` has `ESN bool` (xfrm_state.go);
      set `state.ESN = p.ESN`.
 - [ ] `internal/component/ike/dataplane/vpp.go` -- `InstallSA` (34-68); `ipsecSAEntry`
   (155-169) has NO `Flags` field; current code sets `Salt:0, UDPSrcPort:0, UDPDstPort:0`.
@@ -241,7 +241,7 @@ mechanisms this spec's Current Behavior already names. It adds no design.
 ### Assumptions
 | ID | Assumption | Basis (file/doc/user statement) | If wrong | Validated by | Status |
 |----|-----------|--------------------------------|----------|--------------|--------|
-| A-1 | `netlink` v1.1.0 sets the kernel ESN replay structure (XFRMA_REPLAY_ESN_VAL) when `XfrmState.ESN=true` and `ReplayWindow>0` | xfrm_state.go has `ESN bool`; kernel requires ESN replay attr | XFRM SA add fails or anti-replay misbehaves | QEMU: `ip xfrm state` shows `flag esn` + replay-window; SA add returns nil | unvalidated |
+| A-1 | `vishvananda/netlink` v1.1.0 sets the kernel ESN replay structure (XFRMA_REPLAY_ESN_VAL) when `XfrmState.ESN=true` and `ReplayWindow>0` | xfrm_state.go has `ESN bool`; kernel requires ESN replay attr | XFRM SA add fails or anti-replay misbehaves | QEMU: `ip xfrm state` shows `flag esn` + replay-window; SA add returns nil | unvalidated |
 | A-2 | VPP `USE_ESN` flag = bit 0x01 and `flags` field position in `vl_api_ipsec_sad_entry_t` is known | VPP IPsec API `ipsec_sad_flags` | wrong offset corrupts ALL VPP SA installs | govpp binding / VPP `.api.json`; VPP interop SA add retval==0 | unvalidated |
 | A-3 | Child SA ESN intent can be taken from `espGroup.Proposals[0].ESN` (no real per-proposal ESP negotiation) | child.go, rekey.go; `NegotiateESP` dead | multi-proposal ESN policies misbehave | code read confirmed; documented as Known Limitation | confirmed |
 | A-4 | strongSwan (interop peer) includes an ESN transform and selects exactly one | RFC 7296 Section 3.3.2 | `optional` negotiation ambiguous | strongSwan interop: tunnel up with `esn=yes` both ends | unvalidated |

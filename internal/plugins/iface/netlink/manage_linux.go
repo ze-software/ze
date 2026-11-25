@@ -1,7 +1,7 @@
 // Design: docs/features/interfaces.md -- Interface management via netlink
 // Overview: ifacenetlink.go -- package hub
 // Related: addr_primary.go -- IPv4 primary/secondary policy applied before AddrDel
-// Related: addr_primary_linux.go -- the netlink remover RemoveAddress drives
+// Related: addr_primary_linux.go -- the kernel address remover RemoveAddress drives
 
 //go:build linux
 

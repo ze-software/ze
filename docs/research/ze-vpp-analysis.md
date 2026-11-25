@@ -17,7 +17,7 @@ Both IPng's production network and VyOS's implementation arrive at the same arch
 1. **VPP owns the NICs** via DPDK (or RDMA). The kernel no longer sees the physical interfaces.
 2. **LCP plugin creates TAP mirrors** in Linux with the same interface names. The kernel sees TAP devices that behave identically to the original NICs.
 3. **Routing daemons run in Linux** (Bird2 or FRR), manage TAPs normally, write routes to the kernel routing table.
-4. **VPP's netlink plugin** consumes kernel route changes and programs VPP's FIB.
+4. **VPP's netlink route plugin** consumes kernel route changes and programs VPP's FIB.
 5. **Configuration** is declarative: vppcfg (YAML + DAG path planner) at IPng, XML + Python conf_mode at VyOS.
 
 This means: the control plane does not know VPP exists. It talks to Linux. VPP is invisible infrastructure underneath.
@@ -43,7 +43,7 @@ This means: the control plane does not know VPP exists. It talks to Linux. VPP i
 - No BGP, OSPF, IS-IS, or any routing protocol (by design)
 - No firewall (nftables/iptables bypass). VPP ACLs are basic.
 - No QoS (VPP policers are flat rate limiters, not hierarchical schedulers)
-- No kernel features on the fast path (tc, XDP, conntrack)
+- No kernel features on the fast path (traffic control, XDP, conntrack)
 - DPDK/RDMA NIC drivers only (not all hardware supported)
 - Minimum 4 physical CPU cores, 8 GB RAM
 
@@ -53,7 +53,7 @@ This means: the control plane does not know VPP exists. It talks to Linux. VPP i
 
 ### Ze's current position
 
-Ze is **control-plane only**. It runs BGP, programs the kernel FIB via `fib-kernel` plugin (netlink), and manages interfaces via the `iface` component with a pluggable backend (currently netlink-only). Ze does not forward packets.
+Ze is **control-plane only**. It runs BGP, programs the kernel FIB via `fib-kernel` plugin (via netlink), and manages interfaces via the `iface` component with a pluggable backend (currently kernel-only). Ze does not forward packets.
 
 ### The opportunity
 
@@ -62,7 +62,7 @@ Ze already has the right abstractions to add VPP as an **alternative forwarding 
 | Ze abstraction | Current impl | VPP impl would be |
 |---------------|-------------|-------------------|
 | `iface.Backend` interface | `ifacenetlink` (30 methods) | `ifacevpp` via GoVPP binary API |
-| `fibkernel.routeBackend` | netlink `RTM_NEWROUTE` | VPP FIB API (or keep kernel, let LCP sync) |
+| `fibkernel.routeBackend` | netlink route `RTM_NEWROUTE` | VPP FIB API (or keep kernel, let LCP sync) |
 | YANG config | `ze-iface-conf.yang` | Add `vpp {}` container with settings |
 | Plugin registration | `init()` + `RegisterBackend()` | Same pattern |
 
@@ -73,7 +73,7 @@ Ze already has the right abstractions to add VPP as an **alternative forwarding 
 Do what IPng does: let VPP + LCP run underneath, ze talks to Linux TAPs without knowing VPP exists.
 
 - Ze configures interfaces via netlink (as today). VPP's LCP plugin mirrors everything.
-- Ze's `fib-kernel` programs kernel routes. VPP's netlink plugin syncs them.
+- Ze's `fib-kernel` programs kernel routes. VPP's netlink route plugin syncs them.
 - Ze manages VPP lifecycle (startup.conf generation, DPDK binding, systemd unit) as a new component.
 - No changes to BGP, interface, or FIB code paths.
 
@@ -103,13 +103,13 @@ Add a `ifacevpp` backend that talks to VPP's binary API via GoVPP, bypassing the
 Replace `fib-kernel` with `fib-vpp` that programs VPP's FIB directly via binary API, bypassing the kernel routing table entirely.
 
 - Ze's BGP RIB decisions go straight to VPP FIB
-- No netlink intermediary, no kernel route table
+- No netlink route intermediary, no kernel route table
 - Enables VPP-specific FIB features: MPLS label push/swap/pop, SRv6 policy, per-prefix counters
 - LCP still needed for control-plane connectivity (BGP TCP sessions)
 
 **What ze adds:** Direct FIB programming eliminates the kernel-as-intermediary. IPng loads ~175K routes/sec via netlink; direct API could be significantly faster. MPLS label operations become first-class.
 
-**What users get:** Fastest possible convergence (no netlink batching delay), native MPLS/SRv6 support, per-prefix statistics from VPP.
+**What users get:** Fastest possible convergence (no netlink message batching delay), native MPLS/SRv6 support, per-prefix statistics from VPP.
 
 **Effort:** New FIB backend, MPLS/SRv6 YANG extensions, GoVPP integration for FIB/MPLS/SRv6 APIs, ~6000-10000 LOC Go. Requires careful design of the RIB-to-VPP interface.
 
@@ -142,7 +142,7 @@ Strategy 3 is where ze could differentiate from VyOS and IPng's vppcfg: direct F
 |---------|------|-------------|
 | BGP implementation | FRR (external) | Ze's own (internal, zero-copy wire format) |
 | Config model | XML + Python scripts | YANG-native, same model for CLI/web/API |
-| FIB programming | Kernel netlink (indirect) | Could do direct VPP API (Strategy 3) |
+| FIB programming | Kernel netlink routes (indirect) | Could do direct VPP API (Strategy 3) |
 | Plugin extensibility | Monolithic | Plugin registry, EventBus pub/sub |
 | L2VPN config | Manual VPP CLI / vppcfg | Integrated YANG config with validation |
 | Wire encoding | N/A (FRR handles it) | Buffer-first, zero-copy, pool dedup |

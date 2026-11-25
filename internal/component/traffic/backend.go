@@ -7,6 +7,8 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
+	"maps"
+	"slices"
 	"sync"
 	"sync/atomic"
 
@@ -26,7 +28,7 @@ func init() { //nolint:gochecknoinits // logger bootstrap only
 // Backend defines the operations that a traffic control backend must
 // implement. The traffic component dispatches all kernel-specific work
 // through this interface. Implementations are registered via RegisterBackend
-// and selected by the "backend" config leaf (default: "tc").
+// and selected by the "backend" config leaf (default: "kernel").
 //
 // Apply programs the desired state keyed by interface name. Backends that own
 // durable external objects must either reconcile removals inside Apply or
@@ -43,7 +45,7 @@ type Backend interface {
 	// ctx MUST NOT be nil. Callers pass context.Background() as the floor.
 	Apply(ctx context.Context, desired map[string]InterfaceQoS) error
 
-	// ListQdiscs returns current tc state for an interface. For CLI show.
+	// ListQdiscs returns current traffic control state for an interface. For CLI show.
 	ListQdiscs(ifaceName string) (InterfaceQoS, error)
 
 	// Close releases resources held by the backend.
@@ -104,6 +106,14 @@ func RegisterBackend(name string, factory func() (Backend, error)) error {
 	}
 	backends[name] = factory
 	return nil
+}
+
+// RegisteredBackends returns the sorted names of all currently registered
+// traffic control backends. Safe for concurrent use.
+func RegisteredBackends() []string {
+	backendsMu.Lock()
+	defer backendsMu.Unlock()
+	return slices.Sorted(maps.Keys(backends))
 }
 
 // RegisterVerifier registers an optional commit-time verifier for a backend.

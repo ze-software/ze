@@ -31,7 +31,7 @@ func newUnknownNetlinkGroupError() error {
 	return errors.New(tb.String())
 }
 
-// netlinkGroupFromArgs parses and validates the requested netlink group.
+// netlinkGroupFromArgs parses and validates the requested netlink multicast group.
 // No argument selects the "all" group.
 func netlinkGroupFromArgs(args []string) (string, error) {
 	group := netlinkGroupAll

@@ -1,7 +1,7 @@
 # QEMU Integration Testing
 
 Ze runs on Linux (gokrazy appliances, Debian/Ubuntu servers). Code that uses
-Linux-only syscalls (termios, netlink, nftables, sysctl) needs a Linux guest on
+Linux-only syscalls (termios, netlink sockets, nftables, sysctl) needs a Linux guest on
 macOS and Docker Desktop. Platform proof requires **Ze's own kernel and system**.
 The legacy `test qemu run` route described below still boots Alpine userland;
 even with Ze's kernel, it does not establish own-system proof. The existing
@@ -1496,8 +1496,8 @@ answers SKIP. The functional wrappers are
 |-----------|----------|
 | `//go:build linux` source file | A matching `*_integration_linux_test.go` |
 | termios / serial port code | A PTY-pair test (`creack/pty`, vendored) |
-| netlink / interface code | A network namespace plus veth or dummy test |
-| nftables / firewall code | A network namespace plus nft test |
+| netlink API / interface code | A network namespace plus veth or dummy test |
+| nftables / firewall code | A network namespace plus nftables test |
 | sysctl / kernel tuning | A procfs read test (a write may need `t.Skip`) |
 | Any new Linux-only package | An entry in `integrationPackages`, `internal/le/test/qemu/alltests.go` |
 | A Docker interop lab needing host-kernel features | A native `./le test qemu <feature>` action beside the Docker action |
@@ -1614,7 +1614,7 @@ Never require physical hardware. Use kernel virtual devices:
 | Serial port (`/dev/ttyS*`) | PTY pair | `pty.Open()` from `github.com/creack/pty` (vendored) |
 | Network interface | dummy or veth | `ip link add ze0 type dummy` in a network namespace |
 | Firewall table | nftables in netns | `nft add table ip ze_test` in an isolated namespace |
-| Kernel routes | netlink in netns | `route.Add(...)` inside `netns.NewNamed(...)` |
+| Kernel routes | netlink routes in netns | `route.Add(...)` inside `netns.NewNamed(...)` |
 | Block device | loop device on a tmpfs file | `ext4fixture.Mount` (Go ioctls; Ze's image has no `losetup`) |
 
 A focused VM run that needs an extra Alpine package, such as `strace` or
@@ -1965,7 +1965,7 @@ config, because the discard count is only visible through the CLI.
 | What | File |
 |------|------|
 | Network namespace helper | `internal/component/iface/integration_helpers_linux_test.go` |
-| Netlink integration test | `internal/plugins/traffic/netlink/integration_linux_test.go` |
+| Kernel integration test | `internal/plugins/traffic/netlink/integration_linux_test.go` |
 | nftables integration test | `internal/plugins/firewall/nft/integration_linux_test.go` |
 | Kernel test in a namespace of its own (`linux` tag, `userns.Enter`) | `internal/core/routewatch/integration_linux_test.go` |
 | PTY/termios integration | `internal/component/config/system/console_integration_linux_test.go` |
@@ -2009,7 +2009,7 @@ package that is not in the tree. Read the Go list rather than a copy of it.
 The PPPoE VPP provider is included for its control-link namespace readback
 proof. That test creates an owned Linux namespace and dummy device; it does
 not start VPP. The integration phase supplies the real Linux namespace and
-netlink privileges, so this proof belongs in the guest alongside the kernel
+netlink socket privileges, so this proof belongs in the guest alongside the kernel
 provider.
 <!-- source: internal/component/l2tp/pppoe/dataplane/vpp/prepare_integration_linux_test.go -- TestNativeVPPAccessControlReadbackKeepsCallerNamespace -->
 

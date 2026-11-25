@@ -16,7 +16,7 @@ import (
 // enumeration an operator writes each value into.
 //
 // The Go side is kept rather than derived: each name is paired with a typed
-// constant the netlink and VPP backends lower to a kernel qdisc kind or a
+// constant the kernel and VPP backends lower to a kernel qdisc kind or a
 // filter shape, which the model does not hold. That makes the model the copy,
 // and this test keeps it honest in both directions. clsact and ingress are
 // names the backend reads off an interface and no operator can ask for, so

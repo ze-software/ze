@@ -31,7 +31,7 @@ Recovery after compaction: `.claude/rules/post-compaction.md`.
 ## Task
 
 RFC 9915 Section 18.2.10.1: "The client MUST perform duplicate address
-detection as per Section 5.4 of [RFC4862]". On netlink the kernel performs it
+detection as per Section 5.4 of [RFC4862]". On the kernel backend the kernel performs it
 and Ze reads the outcome (`IFA_F_TENTATIVE`, `IFA_F_DADFAILED`). On VPP nothing
 does: Ze runs no DAD and reads no outcome. Since
 `spec-refuse-instead-of-defaulting`, VPP's address read leaves
@@ -227,7 +227,7 @@ Evidence gathered (2026-10-23, the refuse-by-default spec's F4 phase):
 | Functional test for new RPC/API | | `test/plugin/*.ci` or `test/decode/*.ci` |
 | Pipe completeness | | Route output through `ApplyPipes`/`ProcessPipes` per `ai/rules/cli.md` |
 | Env var registration | | YANG leaves under `environment/` need a matching `ze.<name>.<leaf>` via `env.MustRegister()` |
-| Doctor check for runtime dependencies | | Any new file path, socket, service, kernel module, listen port, procfs/sysctl, netlink, binary, or certificate: owning-package check + `internal/core/diagnostic/codes.go` + unit and functional test (`ai/rules/repo-maintenance.md`) |
+| Doctor check for runtime dependencies | | Any new file path, socket, service, kernel module, listen port, procfs/sysctl, netlink socket, binary, or certificate: owning-package check + `internal/core/diagnostic/codes.go` + unit and functional test (`ai/rules/repo-maintenance.md`) |
 | Prometheus counters/metrics | | Observable state: define, register, and list the metric names and labels here |
 | BGP family surface (new SAFI / capability / attribute) | | The 12-section checklist in `ai/patterns/bgp-family.md` -- read it and record the answers there, not inline |
 

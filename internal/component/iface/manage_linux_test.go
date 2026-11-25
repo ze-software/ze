@@ -6,7 +6,7 @@ import (
 
 func TestValidateInterfaceName(t *testing.T) {
 	// VALIDATES: Interface name validation rejects empty, too-long, and accepts valid names.
-	// PREVENTS: Invalid names passed to netlink causing kernel errors.
+	// PREVENTS: Invalid names passed to the netlink socket causing kernel errors.
 	tests := []struct {
 		name    string
 		input   string
@@ -39,7 +39,7 @@ func TestValidateInterfaceName(t *testing.T) {
 
 func TestValidateVLANID(t *testing.T) {
 	// VALIDATES: VLAN ID validation enforces 802.1Q range [1, 4094].
-	// PREVENTS: Reserved VLAN IDs 0 and 4095 reaching netlink.
+	// PREVENTS: Reserved VLAN IDs 0 and 4095 reaching the netlink socket.
 	tests := []struct {
 		name    string
 		id      int
@@ -66,7 +66,7 @@ func TestValidateVLANID(t *testing.T) {
 
 func TestSetAdminUpInvalidName(t *testing.T) {
 	// VALIDATES: SetAdminUp rejects invalid interface names.
-	// PREVENTS: Invalid names passed to netlink.
+	// PREVENTS: Invalid names passed to the netlink socket.
 	if err := SetAdminUp(""); err == nil {
 		t.Error("expected error for empty name, got nil")
 	}
@@ -77,7 +77,7 @@ func TestSetAdminUpInvalidName(t *testing.T) {
 
 func TestSetAdminDownInvalidName(t *testing.T) {
 	// VALIDATES: SetAdminDown rejects invalid interface names.
-	// PREVENTS: Invalid names passed to netlink.
+	// PREVENTS: Invalid names passed to the netlink socket.
 	if err := SetAdminDown(""); err == nil {
 		t.Error("expected error for empty name, got nil")
 	}
@@ -88,7 +88,7 @@ func TestSetAdminDownInvalidName(t *testing.T) {
 
 func TestSetMACAddressValidation(t *testing.T) {
 	// VALIDATES: SetMACAddress rejects invalid names and bad MAC formats.
-	// PREVENTS: Invalid MAC addresses reaching netlink.
+	// PREVENTS: Invalid MAC addresses reaching the netlink socket.
 	tests := []struct {
 		name    string
 		iface   string
@@ -114,7 +114,7 @@ func TestSetMACAddressValidation(t *testing.T) {
 
 func TestGetMACAddressInvalidName(t *testing.T) {
 	// VALIDATES: GetMACAddress rejects invalid interface names.
-	// PREVENTS: Invalid names passed to netlink.
+	// PREVENTS: Invalid names passed to the netlink socket.
 	if _, err := GetMACAddress(""); err == nil {
 		t.Error("expected error for empty name, got nil")
 	}
@@ -122,7 +122,7 @@ func TestGetMACAddressInvalidName(t *testing.T) {
 
 func TestGetStatsInvalidName(t *testing.T) {
 	// VALIDATES: GetStats rejects invalid interface names.
-	// PREVENTS: Invalid names passed to netlink.
+	// PREVENTS: Invalid names passed to the netlink socket.
 	if _, err := GetStats(""); err == nil {
 		t.Error("expected error for empty name, got nil")
 	}
@@ -130,7 +130,7 @@ func TestGetStatsInvalidName(t *testing.T) {
 
 func TestBridgeAddPortInvalidNames(t *testing.T) {
 	// VALIDATES: BridgeAddPort rejects invalid bridge and port names.
-	// PREVENTS: Invalid names reaching netlink.
+	// PREVENTS: Invalid names reaching the netlink socket.
 	if err := BridgeAddPort("", "eth0"); err == nil {
 		t.Error("expected error for empty bridge name, got nil")
 	}
@@ -141,7 +141,7 @@ func TestBridgeAddPortInvalidNames(t *testing.T) {
 
 func TestBridgeDelPortInvalidName(t *testing.T) {
 	// VALIDATES: BridgeDelPort rejects invalid port names.
-	// PREVENTS: Invalid names reaching netlink.
+	// PREVENTS: Invalid names reaching the netlink socket.
 	if err := BridgeDelPort(""); err == nil {
 		t.Error("expected error for empty name, got nil")
 	}

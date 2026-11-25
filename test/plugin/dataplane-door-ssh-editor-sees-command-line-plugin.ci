@@ -1,0 +1,65 @@
+# Test: SSH config editor on a daemon started with --plugin ze.flowspec-firewall refuses committing interface backend vpp at validation.
+# Question: when a daemon runs with `--plugin ze.flowspec-firewall` on a
+#           `kernel` file and an SSH editor session sets `interface backend
+#           vpp` and commits, does the editor's own validation block the commit
+#           with `commit blocked:` (not a reload failure), name `--plugin
+#           ze.flowspec-firewall` and `set firewall backend vpp`, and leave the
+#           stored configuration unchanged?
+#           A unit test cannot prove the running daemon's recorded `--plugin`
+#           reaches the SSH session editor's `ConfigValidator` -> `verifyTree`
+#           over a real SSH session.
+# VALIDATES: spec-dataplane-compatibility-guard AC-18 (SSH editor door, A-16).
+# PREVENTS: the SSH editor accepting a candidate that only the daemon's
+#           `--plugin` flag makes a data-plane mismatch, or deferring refusal
+#           until runtime reload.
+
+option=needs-linux:caps=net-admin
+option=exclusive:group=flowspec-nft
+option=needs-build-tag:value=ze_vpp:state=present
+option=storage:value=disk
+option=timeout:value=60s
+
+tmpfs=dataplane-door-ssh.conf:terminator=EOF_CONF
+system {
+	authentication {
+		user admin {
+			password "$2a$04$UlwuiuH82Unfsq.XEMPGJeDkXwbm3KW.nvVaVXOd/JeFK8VjMjrQO"
+		}
+	}
+}
+
+environment {
+	ssh {
+		enabled true
+		server main {
+			ip 127.0.0.1;
+			port $PORT2;
+		}
+	}
+}
+
+interface {
+	backend kernel;
+}
+EOF_CONF
+
+tmpfs=dataplane-door-ssh.script:terminator=EOF_SCRIPT
+send set interface backend vpp
+send commit now
+wait commit blocked:
+send show | errors
+wait --plugin ze.flowspec-firewall
+wait set firewall backend vpp
+kill
+EOF_SCRIPT
+
+cmd=foreground:seq=1:exec=ze --plugin ze.flowspec-firewall start dataplane-door-ssh.conf:timeout=60s
+cmd=foreground:seq=2:exec=le test fixture plugin/session-editor $PORT2 dataplane-door-ssh.conf dataplane-door-ssh.script:timeout=60s
+expect=exit:code=0
+reject=stderr:contains=commit failed: reload:
+reject=stderr:contains=reload error:
+expect=file:path=dataplane-door-ssh.conf:contains=backend kernel
+expect=file:path=dataplane-door-ssh.conf:not-contains=backend vpp
+expect=key:path=meta/config/dataplane-door-ssh.conf/active:exists=true
+expect=key:path=meta/config/dataplane-door-ssh.conf/candidate:absent=true
+expect=key:glob=object/*:not-contains=backend vpp

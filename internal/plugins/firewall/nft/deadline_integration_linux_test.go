@@ -14,8 +14,8 @@ import (
 	"github.com/ze-software/ze/internal/component/firewall"
 )
 
-// TestNftApplyDeadlineSurfacesError proves the deadline reaches a real netlink
-// socket: a connection carrying the SockOption returns a deadline error from a
+// TestNftApplyDeadlineSurfacesError proves the deadline reaches a real netlink socket:
+// a connection carrying the SockOption returns a deadline error from a
 // blocking receive instead of hanging.
 //
 // VALIDATES: fixit-firewall-concurrency-deadlock AC-10 -- a kernel that never
@@ -27,7 +27,7 @@ import (
 func TestNftApplyDeadlineSurfacesError(t *testing.T) {
 	conn, err := netlink.Dial(unix.NETLINK_NETFILTER, nil)
 	if err != nil {
-		t.Skipf("netlink unavailable in this environment: %v", err)
+		t.Skipf("netlink socket unavailable in this environment: %v", err)
 	}
 	t.Cleanup(func() { _ = conn.Close() })
 

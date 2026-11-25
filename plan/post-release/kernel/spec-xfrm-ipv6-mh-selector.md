@@ -95,7 +95,7 @@ The existing peer traffic-selector config and IKE Traffic Selector payloads.
 
 ### Transformation Path
 Typed port/protocol meaning, negotiation, Child policy/state projection,
-netlink installation, Linux receive-flow extraction and exact Type match.
+installation over netlink, Linux receive-flow extraction and exact Type match.
 
 ### Boundaries Crossed
 | Boundary | How | Verified |

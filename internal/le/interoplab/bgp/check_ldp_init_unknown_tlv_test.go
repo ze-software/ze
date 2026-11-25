@@ -4,7 +4,7 @@ import "testing"
 
 // VALIDATES: the ldp-init-unknown-tlv-frr checker counts only RECEIVED Unknown
 // TLV Notifications in FRR's log, and reads the rewrite rule's counter out of
-// an nft listing without reading a missing counter as a count.
+// an nftables listing without reading a missing counter as a count.
 // PREVENTS: a Notification FRR sent, or a rule that never matched, passing the
 // scenario.
 func TestUnknownTLVNotificationsLogged(t *testing.T) {

@@ -86,7 +86,7 @@ func AuditTables() (int, error) {
 		if !exists {
 			// A table ze applied and the kernel no longer has is drift, not an
 			// apply failure: the apply that installed it returned long ago, so
-			// an external `nft flush ruleset` or another tool removed it since.
+			// an external nft ruleset flush or another tool removed it since.
 			// Nothing else sees it -- the stale-table branch above looks only
 			// for tables ze does NOT want. ze_vrrp carries the RFC 9568
 			// Section 6.4.3 accept filter, so a vanished table is a non-owner

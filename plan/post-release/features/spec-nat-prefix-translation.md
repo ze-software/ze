@@ -68,7 +68,7 @@ means the prefix form plus IPv6 address ranges, which are refused today.
 | Boundary | How | Verified |
 |----------|-----|----------|
 | Config → firewall component | YANG tree | No |
-| Firewall component → nft backend | `Backend.Apply` | No |
+| Firewall component → kernel backend | `Backend.Apply` | No |
 
 ### Integration Points
 - `parseNATSpec`, `lowerNAT`, `validateAction`
@@ -125,7 +125,7 @@ means the prefix form plus IPv6 address ranges, which are refused today.
 
 ## VyOS reference
 
-T9475, `385cafdcb` "keep translation port when translating to a prefix": nft has
+T9475, `385cafdcb` "keep translation port when translating to a prefix": nftables has
 no syntax for a prefix plus a port range, so VyOS dropped the port range without
 a warning; its fix uses a map keyed on 0.0.0.0/0. VyOS NAT66 arrived in PR #5236
 (`e238afbd6`) and its table rebuild fix is `c01cf1021`.

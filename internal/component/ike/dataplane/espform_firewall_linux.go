@@ -66,7 +66,7 @@ const (
 	espFormHookBridgeInput      = 1
 )
 
-// The hook names a site reports, in nft's spelling.
+// The hook names a site reports, in nftables spelling.
 const (
 	espFormHookNameIngress    = "ingress"
 	espFormHookNamePrerouting = "prerouting"
@@ -150,7 +150,7 @@ func (s espFormFirewallSite) String() string {
 // chain of family inet, ip, netdev and bridge on hook ingress, prerouting or input,
 // in the order the kernel lists them, and each chain's rules in the order the kernel
 // returns them, which is the order it evaluates them. A rule's handle says nothing
-// about its place: `nft insert` puts a rule with a new, higher handle at the head.
+// about its place: inserting with the nft tool puts a rule with a new, higher handle at the head.
 //
 // A ruleset it cannot read is an error, never a verdict: the caller keeps the fast
 // path off and names the cause.
@@ -319,7 +319,7 @@ func espFormBaseOf(c *nftables.Chain, key espFormTableKey, family string) (espFo
 }
 
 // espFormFamilyName names the families whose base chains bare IPv4 ESP crosses
-// before local delivery, in nft's spelling, and refuses every other.
+// before local delivery, in nftables spelling, and refuses every other.
 func espFormFamilyName(family nftables.TableFamily) (string, bool) {
 	// Only the families bare IPv4 ESP crosses are named: ip6 sees only IPv6, arp
 	// sees only ARP, and an unspecified family holds no table.
@@ -428,7 +428,7 @@ func espFormRuleSite(site espFormFirewallSite, r *nftables.Rule, reason string) 
 	return site
 }
 
-// espFormRuleComment reads a rule's comment from its user data. nft writes a TLV
+// espFormRuleComment reads a rule's comment from its user data. nftables writes a TLV
 // list whose comment is type NFTNL_UDATA_RULE_COMMENT; Ze writes the term name as
 // the raw bytes (internal/plugins/firewall/nft/backend_linux.go, addChainRules). A
 // TLV comment wins; otherwise printable text is taken as Ze's name; anything else
@@ -726,7 +726,7 @@ func espFormExcludesESP(family nftables.TableFamily, exprs []expr.Any) bool {
 // load as its first expression, a compare of that register for equality with 50
 // as its second, at most a counter, then accept, and nothing else. Ze's lowering
 // emits it for a term that matches protocol esp and accepts (lowerProtoMatch, with
-// the counter withCounter puts at the match/action boundary), and nft for `meta
+// the counter withCounter puts at the match/action boundary), and nftables for `meta
 // l4proto esp accept`, or `ip protocol esp accept` in an ip table.
 func espFormAcceptsESP(family nftables.TableFamily, exprs []expr.Any) bool {
 	if len(exprs) < 3 {

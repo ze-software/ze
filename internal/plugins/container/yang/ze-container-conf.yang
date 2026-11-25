@@ -200,7 +200,7 @@ module ze-container-conf {
 
         list network {
             key "name";
-            ze:backend "netlink";
+            ze:backend "kernel";
             description "One entry is one container network: a bridge device named zcn- plus
                          the name, holding the gateway address of each prefix. Each attached
                          container has one link whose host end is a member of the bridge.";

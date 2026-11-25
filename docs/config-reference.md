@@ -874,12 +874,12 @@ Route-based IPsec. The `if-id` must match the IPsec SA's interface ID.
 ### IPv6 Router Advertisements
 
 Ze sends Router Advertisements (RFC 4861) on an interface unit, which is the
-role radvd fills on other systems. The container is Linux and netlink only. A
+role radvd fills on other systems. The container is Linux and kernel backend only. A
 `backend vpp` tree that carries it is rejected at config verify.
 
 ```
 interface {
-    backend netlink;
+    backend kernel;
     ethernet eth0 {
         unit 0 {
             ipv6 {

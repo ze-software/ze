@@ -13,7 +13,7 @@ import (
 	"github.com/ze-software/ze/internal/component/firewall"
 )
 
-// VALIDATES: MatchIPsecTransform lowers to nft `rt ipsec exists`: the rt expression
+// VALIDATES: MatchIPsecTransform lowers to nftables `rt ipsec exists`: the rt expression
 // with key NFT_RT_XFRM (4) into register 1, compared equal to the one byte 1.
 // Method: lower the match and compare the exact expression sequence.
 // PREVENTS: a guard term that names the transform but lowers to another rt key (the

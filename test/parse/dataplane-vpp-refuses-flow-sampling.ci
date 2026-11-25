@@ -1,0 +1,34 @@
+# Test: interface backend vpp refuses flow-export packet sampling.
+# Question: does `ze config validate` refuse `flow-export sampling` under
+#           `interface backend vpp`, naming `flow-export sampling` and
+#           `set interface backend kernel`?
+#           A unit test cannot prove the `flow-export` plugin's sampling
+#           in-use predicate runs end to end in `ze config validate`.
+# VALIDATES: spec-dataplane-compatibility-guard AC-5 (flow sampling) -- packet
+#            sampling installs a Linux traffic-control sample filter and is
+#            refused under VPP.
+# PREVENTS: operators configuring sFlow packet sampling under VPP where kernel
+#           sampling sees none of the VPP-forwarded packets.
+stdin=config:terminator=EOF_CONF
+interface {
+	backend vpp;
+}
+flow-export {
+	collector sflow1 {
+		address 10.0.0.50;
+		port 6343;
+		protocol sflow;
+		agent-address 127.0.0.1;
+	}
+	sampling {
+		interface eth0 {
+			rate 1000;
+		}
+	}
+}
+EOF_CONF
+
+cmd=foreground:seq=1:exec=ze config validate -:stdin=config
+expect=exit:code=1
+expect=stdout:contains=flow-export sampling
+expect=stdout:contains=set interface backend kernel

@@ -1,0 +1,31 @@
+# Test: a firewall irr interface binding under firewall backend vpp is refused at validate/commit.
+# Question: does `ze config validate` refuse `firewall irr interface` under
+#           `interface backend vpp` and `firewall backend vpp` even with no
+#           stored IRR prefix cache, through `firewall-producer-tables` and
+#           `firewall-irr`'s shape table builder?
+#           A unit test cannot prove `firewall-irr`'s registered config table
+#           builder runs inside `ze config validate` with a cold cache.
+# VALIDATES: spec-dataplane-compatibility-guard AC-8 (K) -- IRR interface
+#            bindings emit their ingress-chain and named-set shape for
+#            verification regardless of stored prefix contents, so VPP refuses
+#            them at commit rather than failing on the first IRR refresh.
+# PREVENTS: an IRR interface binding committing silently on VPP when no IRR
+#           prefixes are cached yet.
+stdin=config:terminator=EOF_CONF
+interface {
+	backend vpp;
+}
+firewall {
+	backend vpp;
+	irr {
+		interface eth1 {
+			source-as-set AS-TEST;
+		}
+	}
+}
+EOF_CONF
+
+cmd=foreground:seq=1:exec=ze config validate -:stdin=config
+expect=exit:code=1
+expect=stdout:contains=ze_irr_iface
+expect=stdout:contains=not supported by backend vpp

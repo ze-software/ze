@@ -54,7 +54,7 @@ The seven RFC 792 rows escaped on 2026-10-29, all on
 
 The two negative rows assert that the control datagram (TTL two, or the
 otherwise identical Record Route option with a valid pointer) forwards out
-`gw1` over the route Ze's netlink backend installs (`netlinkBackend.AddRoute`).
+`gw1` over the route Ze's kernel backend installs (`netlinkBackend.AddRoute`).
 That route is the control the claim holds constant, never the operand of the
 TTL or option decision, so breaking it does not falsify the claim: an
 independent judge refused both route breaks on 2026-10-29. Each row takes the
@@ -916,7 +916,7 @@ locked-thread namespace. Existing family wrappers elsewhere do not provide the
 new distinct assertion/prerequisite/control receipt contract.
 
 The proposed minimum keeps every namespace-sensitive create, enter, socket,
-netlink, proc, send, read and cleanup operation on the existing parent fixture
+netlink socket, proc, send, read and cleanup operation on the existing parent fixture
 owner, in its original action order. That owner collects immutable observations;
 sequential nonparallel child leaves only assert those values, with no I/O and
 no new per-child fixture. One assertion operand remains sufficient only when

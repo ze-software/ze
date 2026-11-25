@@ -206,6 +206,7 @@ recorded nothing is listed as `unknown`.
 | `kernel` | Kernel route redistribution |
 | `policy-routes` | Policy-based routing with nftables marks and ip rules |
 | `fib-kernel` | FIB route installation via netlink |
+| `fib-dummy` | Holds selected system RIB routes in memory and installs none |
 | `fib-p4` | FIB route installation via P4 backend |
 | `fib-vpp` | FIB route installation via VPP binary API |
 | `firewall` | Firewall management via nftables |
@@ -213,7 +214,7 @@ recorded nothing is listed as `unknown`.
 | `flow-export` | sFlow, NetFlow v9, and IPFIX export |
 | `traffic-usage` | eBPF TCX per-port/protocol (and opt-in per-IP) byte accounting |
 | `traffic` | Traffic control (TC qdisc/class) |
-| `interface` | Interface management via netlink or VPP |
+| `interface` | Interface management via kernel or VPP |
 | `iface-dhcp` | DHCP client for interface address assignment |
 | `iface-ra` | IPv6 Router Advertisement sender for a LAN interface unit (RFC 4861) |
 | `bfd` | BFD session management (RFC 5880, RFC 5881, RFC 5883) |

@@ -81,15 +81,15 @@ func flavorMatrix(featureTags []string) []Flavor {
 		},
 		{
 			Name: "linux-amd64", GOOS: goosLinux, GOARCH: "amd64",
-			Why: "the amd64 filename-selected netlink implementations, which the base Linux pass covers only on an amd64 host",
+			Why: "the amd64 filename-selected netlink socket implementations, which the base Linux pass covers only on an amd64 host",
 		},
 		{
 			Name: "linux-arm64", GOOS: goosLinux, GOARCH: "arm64",
-			Why: "the arm64 filename-selected netlink implementations shipped by the appliance",
+			Why: "the arm64 filename-selected netlink socket implementations shipped by the appliance",
 		},
 		{
 			Name: "linux-other-arch", GOOS: goosLinux, GOARCH: "riscv64",
-			Why: "the linux && !amd64 && !arm64 netlink fallback",
+			Why: "the linux && !amd64 && !arm64 netlink socket fallback",
 		},
 		{
 			Name: "capability", GOOS: goosLinux,

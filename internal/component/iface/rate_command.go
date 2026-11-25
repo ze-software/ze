@@ -44,7 +44,7 @@ var errRateTrackerNotRunning = errors.New("rate tracker not running: the interfa
 // drift from the section that actually starts the plugin.
 var ErrRatePluginAbsent = errors.New("the interface plugin, which measures interface rates, is not running. " +
 	"Ze starts it only when the configuration holds an " + configRootInterface + " section. " +
-	"To start it, add the section and commit: set " + configRootInterface + " backend netlink")
+	"To start it, add the section and commit: set " + configRootInterface + " backend kernel")
 
 // commandDecls names the commands the iface plugin serves.
 //

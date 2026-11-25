@@ -208,7 +208,7 @@ func installedStateDiagnostics(peers []Peer, ranges []Range) []diagnostic.Diagno
 }
 
 // kernelFilterTermNames answers the names of the terms the kernel's ze_gtsm
-// table carries, in the family it is published in. The nft read-back keeps a
+// table carries, in the family it is published in. The nftables read-back keeps a
 // term's name (its rule user data) and not its body, so a name is what a
 // check can compare. A kernel without the table answers an empty set, which
 // reports every term missing.

@@ -21,7 +21,7 @@ Recovery after compaction: `.claude/rules/post-compaction.md`.
 `anomaly-shape { mode armed }` is meant to throttle each anomalous source to a
 configured rate. Its default action, `limit`, builds the term
 `ip saddr X counter limit rate R` and nothing else (`buildActions`,
-`internal/plugins/anomaly/shape/match.go`). The nft lowering emits the limit as
+`internal/plugins/anomaly/shape/match.go`). The nftables lowering emits the limit as
 a condition only (`lowerLimit`, `internal/plugins/firewall/nft/lower_linux.go`):
 `Over` is false and the term carries no verdict. A packet under the rate
 matches and continues, a packet over it does not match and continues, and both
@@ -68,14 +68,14 @@ and the default `action limit`.
 The incident reaches the responder (`internal/plugins/anomaly/shape/responder.go`),
 which builds the term set (`buildTables`, `buildSourceTerm`, `buildActions`),
 registers it (`firewall.RegisterTables`) and reconciles (`firewall.ApplyAll`);
-the nft backend lowers each action and the kernel holds the rule.
+the kernel backend lowers each action and the kernel holds the rule.
 
 ### Boundaries Crossed
 
 | Boundary | How |
 |----------|-----|
 | anomaly-shape plugin to the firewall component | `firewall.RegisterTables` and `firewall.ApplyAll`, in process |
-| firewall component to the kernel | the nft backend's netlink batch |
+| firewall component to the kernel | the kernel backend's netlink message batch |
 
 ### Integration Points
 

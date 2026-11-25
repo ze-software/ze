@@ -172,7 +172,7 @@ show static
 ## Current limits
 
 - **Experimental status:** Ze's native IPsec engine is currently marked Experimental / Pre-Alpha.
-- **Linux netlink only for XFRM:** `interface { xfrm }` requires Linux with `backend netlink`. Establishing an IKE and Child SA does not install routes automatically; add a static route or run a routing protocol over the XFRM interface.
+- **Linux kernel backend only for XFRM:** `interface { xfrm }` requires Linux with `backend kernel`. Establishing an IKE and Child SA does not install routes automatically; add a static route or run a routing protocol over the XFRM interface.
 - **MOBIKE kernel requirement:** MOBIKE address migration requires Linux 7.2's `XFRM_MSG_MIGRATE_STATE` API (`CONFIG_XFRM_MIGRATE`).
 - **WireGuard constraints:** `endpoint.ip` accepts a numeric IP address only (no DNS resolution). `$9$` values in configuration files are reversible obfuscation rather than encryption. VPP WireGuard device creation is not wired, and interface-only static next-hops (`next { interface wg0 {} }`) do not support BFD.
 

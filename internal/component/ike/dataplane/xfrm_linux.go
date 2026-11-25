@@ -1,4 +1,4 @@
-// Design: docs/architecture/ike/ipsec-8-ikev2-child-xfrm.md -- XFRM netlink backend
+// Design: docs/architecture/ike/ipsec-8-ikev2-child-xfrm.md -- XFRM kernel backend
 // RFC: rfc/short/rfc4303.md -- ESP SA parameters
 // Related: policy_owner.go -- who owns a policy selector, since the kernel cannot say
 
@@ -163,7 +163,7 @@ func (b *xfrmBackend) InstallSA(p SAParams) error {
 	return nil
 }
 
-// xfrmStateFromParams maps one Child SA description onto the netlink state this backend
+// xfrmStateFromParams maps one Child SA description onto the netlink library state this backend
 // hands the kernel. It is the whole of what ze controls about an installed SA, so it is
 // also the whole of what ze could use to change the kernel's ECN behavior.
 //
@@ -309,7 +309,7 @@ func xfrmStateFromParams(p SAParams) (*netlink.XfrmState, error) {
 
 	// RFC 4302 (AH) vs RFC 4303 (ESP): AH sets an integrity transform only, ESP
 	// sets encryption + integrity, and a combined-mode algorithm sets a single
-	// AEAD transform. planStateAlgos isolates that decision from netlink so it is
+	// AEAD transform. planStateAlgos isolates that decision from the netlink library so it is
 	// unit-testable on any platform.
 	plan := planStateAlgos(p)
 	if plan.AEAD {
@@ -746,7 +746,7 @@ func (b *xfrmBackend) RemovePolicyParams(p SPParams) error {
 	return nil
 }
 
-// xfrmPolicyFromParams builds the netlink policy shared by install and delete so
+// xfrmPolicyFromParams builds the netlink library policy shared by install and delete so
 // the delete selector (Src, Dst, Dir, upper-layer Proto, Ifid) matches the
 // installed policy exactly; the kernel identifies a policy by its whole selector.
 // It rejects an unknown mode, because the template mode must agree with the mode
@@ -764,7 +764,7 @@ func xfrmPolicyFromParams(p SPParams) (*netlink.XfrmPolicy, error) {
 	// them here would reject a correct bypass for lacking fields it must not carry.
 	//
 	// XFRM_POLICY_ALLOW plus an empty Tmpls IS the SPD "BYPASS" disposition of RFC
-	// 4301 Section 4.4.1. netlink omits the XFRMA_TMPL attribute entirely when Tmpls
+	// 4301 Section 4.4.1. The netlink library omits the XFRMA_TMPL attribute entirely when Tmpls
 	// is empty (vendor xfrm_policy_linux.go, xfrmPolicyAddOrUpdate), which is what
 	// makes it a bypass rather than a protect policy with an empty template list.
 	//
@@ -984,7 +984,7 @@ func (b *xfrmBackend) ListSAs(ifID uint32) ([]SAInfo, error) {
 
 // saInfoFromState maps one kernel SAD record onto SAInfo.
 //
-// Every field below comes from the DUMP. netlink fills Statistics, Limits, Mode,
+// Every field below comes from the DUMP. The netlink library fills Statistics, Limits, Mode,
 // Reqid and ReplayWindow from the base message or its extended replay attribute,
 // so no per-SA XFRM_MSG_GETSA round trip is needed.
 //
@@ -1050,7 +1050,7 @@ func saDirFromKernel(d netlink.SADir) SADir {
 // for the state, the inverse of the projection in xfrmState (xfrmDFFlag,
 // xfrmDSCPFlag, the ICMP arm). The dump carries all three: the base message's flags
 // hold XFRM_STATE_NOPMTUDISC and XFRM_STATE_ICMP, and XFRMA_SA_EXTRA_FLAGS holds
-// XFRM_SA_XFLAG_DONT_ENCAP_DSCP (netlink parseXfrmState).
+// XFRM_SA_XFLAG_DONT_ENCAP_DSCP (netlink library parseXfrmState).
 //
 // RFC 4301 Section 8.1: "This means that it MUST be possible to configure the
 // implementation's treatment of the DF bit (set, clear, copy from inner header) for
@@ -1146,7 +1146,7 @@ func (b *xfrmBackend) policyInfoFromKernel(p *netlink.XfrmPolicy) PolicyInfo {
 		// XFRM_POLICY_ICMP, the flag xfrmPolicyFromParams sets for
 		// SPParams.ICMPErrorReturn on a protect policy and on the catch-all's inbound
 		// discard (catchAllYieldsToICMPErrorCheck), and for SPParams.ICMPErrorPayload on
-		// the FWD gate or FWD decision of an operator bypass; netlink parseXfrmPolicy
+		// the FWD gate or FWD decision of an operator bypass; the netlink library parseXfrmPolicy
 		// reads it into ICMP. The kernel reads it as the return mapping on a policy with
 		// a template, as the reverse check's pass on a BLOCK policy and as the payload
 		// check on a template-free FWD allow, so each field takes it on its own kind of
@@ -1193,7 +1193,7 @@ func (b *xfrmBackend) policyInfoFromKernel(p *netlink.XfrmPolicy) PolicyInfo {
 
 // policyDirFromKernel maps the dump's direction. The kernel lists a per-socket
 // policy with its direction offset by XFRM_POLICY_MAX (xfrm_sk_policy_link calls
-// __xfrm_policy_link with XFRM_POLICY_MAX + dir), which the netlink package names
+// __xfrm_policy_link with XFRM_POLICY_MAX + dir), which the netlink library package names
 // XFRM_SOCKET_IN, XFRM_SOCKET_OUT and XFRM_SOCKET_FWD. A value outside the six maps
 // to the zero SADir, which the listing renders as unknown, never to a direction it
 // does not carry.

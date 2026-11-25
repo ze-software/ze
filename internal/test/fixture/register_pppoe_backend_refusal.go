@@ -39,10 +39,10 @@ func pppoeBackendRefusal(ctx context.Context, args []string) error {
 		}
 		interfaces, ok := before["interface"].(map[string]any)
 		if !ok {
-			return fmt.Errorf("initial interface backend is not netlink: %v", before["interface"])
+			return fmt.Errorf("initial interface backend is not kernel: %v", before["interface"])
 		}
-		if interfaces["backend"] != "netlink" {
-			return fmt.Errorf("initial interface backend is not netlink: %v", before["interface"])
+		if interfaces["backend"] != "kernel" {
+			return fmt.Errorf("initial interface backend is not kernel: %v", before["interface"])
 		}
 		if err := pppoeBackendCommit(ctx, args[0], args[1]); err != nil {
 			return err
@@ -130,12 +130,12 @@ func pppoeBackendCommit(ctx context.Context, address, certificate string) error 
 		return err
 	}
 	finding := strings.Join(findingLines, "\n")
-	for _, want := range []string{pppoeBackendPath, `backend "vpp"`, "supported: netlink", "no PPPoE session data plane"} {
+	for _, want := range []string{pppoeBackendPath, `backend "vpp"`, "supported: kernel", "no PPPoE session data plane"} {
 		if !strings.Contains(finding, want) {
 			return fmt.Errorf("PPPoE commit refusal lacks %q: %s", want, text)
 		}
 	}
-	if strings.TrimSpace(findingLines[len(findingLines)-1]) != "fix: set interface backend netlink" {
+	if strings.TrimSpace(findingLines[len(findingLines)-1]) != "fix: set interface backend kernel" {
 		return fmt.Errorf("PPPoE commit refusal does not end with its repair command: %s", text)
 	}
 	_, err = client.DiscardSession(ctx, &zepb.SessionRequest{SessionId: id})

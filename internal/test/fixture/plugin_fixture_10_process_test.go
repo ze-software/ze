@@ -21,7 +21,7 @@ import (
 //	makes) answers the fixture daemon's host and SSH port, the user
 //	admin and the password the daemon's config hashes.
 //
-// PREVENTS: a fixture that pays for `ze init` (netlink interface discovery and
+// PREVENTS: a fixture that pays for `ze init` (netlink link discovery and
 //
 //	a bcrypt hash) inside its 15-second process bound for a store
 //	whose every value the environment already supplies; that bound

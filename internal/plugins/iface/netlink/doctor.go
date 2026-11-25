@@ -4,7 +4,7 @@
 // Related: doctor_other.go -- non-Linux probe stub
 // Related: register.go -- registers this check via diagnostic.RegisterDoctorCheck
 //
-// The netlink interface backend depends on kernel macvlan support (CONFIG_MACVLAN)
+// The kernel interface backend depends on kernel macvlan support (CONFIG_MACVLAN)
 // for the generic owned-device mechanism (plugin-owned macvlan devices). This
 // doctor check surfaces a missing capability or a privilege gap via `ze doctor`
 // before a plugin's device create fails at apply. The capability is iface-owned
@@ -54,7 +54,7 @@ var macvlanDoctorCheck = diagnostic.DoctorCheck{
 // checkIfaceMacvlan probes kernel macvlan capability and reports a diagnostic
 // when it is missing or the probe lacked privilege. It is a no-op when the
 // interface component is unconfigured, or when the configured backend is vpp
-// (VPP rejects macvlan explicitly, so the netlink capability is irrelevant).
+// (VPP rejects macvlan explicitly, so the kernel capability is irrelevant).
 func checkIfaceMacvlan(ctx diagnostic.DoctorCheckContext) []diagnostic.Diagnostic {
 	tree, ok := ctx.Tree.(*config.Tree)
 	if !ok || tree == nil {

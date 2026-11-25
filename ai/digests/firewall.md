@@ -15,7 +15,7 @@ active `Backend`. The only production backend that implements `Apply` is nftable
 (`internal/plugins/firewall/vpp`) exists but is not traced here. Three other producers feed the
 same registry: the firewall engine itself (config `firewall/table/...`), `flowspec-firewall`
 (BGP FlowSpec NLRI → nftables drop/rate-limit/mark rules), `policyroute` (packet marking +
-netlink `ip rule`/`ip route` for policy-based routing), and `firewall/plugins/irr` (IRR/PeeringDB
+netlink route `ip rule`/`ip route` for policy-based routing), and `firewall/plugins/irr` (IRR/PeeringDB
 resolved prefixes → dynamic nftables interval sets, i.e. "address groups").
 
 ## Flow
@@ -36,11 +36,10 @@ resolved prefixes → dynamic nftables interval sets, i.e. "address groups").
    `irr_v6_*` (`expandProvidedTermV6`, `firewall/config.go`, hooked at `firewall/config.go`), the operator
    writes one term, gets two.
 5. **Verify-time checks.** `parseAndVerifyFirewallSections` (`firewall/engine.go`) runs, in order:
-   `ExtractGlobalOptions` (`firewall/config.go`, `firewall/engine.go`), the YANG `ze:backend` commit-time
-   gate `validateBackendGate` (`firewall/engine.go`, `firewall/engine.go`), structural/cross-reference
+   `ExtractGlobalOptions` (`firewall/config.go`, `firewall/engine.go`), structural/cross-reference
    checks `ValidateTables` (`validate.go`, `firewall/engine.go`: term non-emptiness, Jump/Goto
    target chains, FlowOffload flowtable refs, `MatchInSet` field/family compatibility via
-   `validateSetFieldMatch` `validate.go`). With backend `nft`, the same table walk
+   `validateSetFieldMatch` `validate.go`). With backend `kernel`, the same table walk
    checks NAT chain declarations, target families and action placement. A regular
    chain's action is checked against every base chain that reaches it through
    `jump` or `goto`. Verification then calls the optional per-backend `RunVerifier`
@@ -52,7 +51,7 @@ resolved prefixes → dynamic nftables interval sets, i.e. "address groups").
    previous batch so removed options actually revert.
 7. **Backend load + apply.** `LoadBackend(cfg.Backend)` (`firewall/engine.go`, also `firewall/engine.go` →
    `backend.go`) instantiates the registered factory for the config's `backend` leaf (default
-   `"nft"` on Linux, `default_linux.go`; empty/reject on non-Linux, `default_other.go`).
+   `"kernel"` on Linux, `default_linux.go`; empty/reject on non-Linux, `default_other.go`).
    `RegisterTables("firewall", cfg.Tables)` (`firewall/engine.go` → `registry.go`) stores this
    owner's desired tables; `ApplyAll()` (`firewall/engine.go` → `registry.go`) merges tables from
    **every** registered owner by `(Name, Family)` via `mergeSameNameTables`
@@ -112,7 +111,7 @@ resolved prefixes → dynamic nftables interval sets, i.e. "address groups").
     `"flowspec"` with `flowspec-fwd` (hook forward) / `flowspec-in` (hook input) chains,
     priority -1, policy accept. `applyRules` (`internal/plugins/flowspec-firewall/engine.go`)
     calls `firewall.RegisterTables("flowspec", tables)` + `firewall.ApplyAll()`
-    (`internal/plugins/flowspec-firewall/engine.go`), the same shared nft apply path.
+    (`internal/plugins/flowspec-firewall/engine.go`), the same shared kernel firewall apply path.
     Plugin shutdown clears the owner (`RegisterTables("flowspec", nil)`,
     `internal/plugins/flowspec-firewall/engine.go`).
 13. **policyroute: policy-based routing.** Registered with `Dependencies: ["firewall"]`
@@ -135,7 +134,7 @@ resolved prefixes → dynamic nftables interval sets, i.e. "address groups").
     shared registry; `rm.applyAll` (`internal/plugins/policyroute/register.go` →
     `internal/plugins/policyroute/rules_linux.go`) then programs the **ip-rule/ip-route side
     directly via `vishvananda/netlink`** (`RuleAdd`, `rules_linux.go`; `RouteAdd`,
-    `rules_linux.go`): nftables marks the packet, netlink's `ip rule` selects the table by
+    `rules_linux.go`): nftables marks the packet, the netlink API's `ip rule` selects the table by
     that mark. A partial-apply failure re-clears both sides
     (`internal/plugins/policyroute/register.go`); rollback and shutdown reverse both
     (`internal/plugins/policyroute/register.go`,
@@ -165,11 +164,11 @@ resolved prefixes → dynamic nftables interval sets, i.e. "address groups").
     owner is the only path that removes prefixes.
 15. **Readback, show, audit.** CLI text formatting: `FormatTables`
     (`internal/component/firewall/cmd/show.go`). The live `show firewall ruleset
-    <name>`/`show firewall group <name>` RPCs are served by the nft backend itself
+    <name>`/`show firewall group <name>` RPCs are served by the kernel firewall backend itself
     (`internal/plugins/firewall/nft/cmd_show.go`, `nft/cmd_show.go`), reading
     `firewall.LastApplied()` (`accessor.go`) for structure and `backend.GetCounters`
     (`internal/plugins/firewall/nft/backend_linux.go`) for live per-term packet/byte counts
-    (matched via `Rule.UserData`, `backend_linux.go`); only the `"nft"` backend is supported
+    (matched via `Rule.UserData`, `backend_linux.go`); only the `"kernel"` backend is supported
     for ruleset readback (`nft/cmd_show.go`). Kernel readback:
     `backend.ListTables()` (`backend_linux.go`) → `readTables`
     (`internal/plugins/firewall/nft/readback_linux.go`) reconstructs Table/Chain/Set/
@@ -191,7 +190,7 @@ resolved prefixes → dynamic nftables interval sets, i.e. "address groups").
 | `registry.go` | Multi-owner table registry + `ApplyAll` (merge by Name+Family, dispatch to backend) |
 | `accessor.go` | `LastApplied` deep-copied snapshot + `ActiveBackendName` |
 | `audit.go` | `AuditTables` drift/stale-table detection (feeds health check) |
-| `protocol.go` | Shared IANA protocol-number table (nft L4PROTO, VPP classify/NAT) |
+| `protocol.go` | Shared IANA protocol-number table (nftables L4PROTO, VPP classify/NAT) |
 | `internal/component/firewall/cmd/show.go` | CLI text formatting for Table/Chain/Term (`FormatTables`/`FormatCounters`) |
 | `plugins/irr/irr.go` | IRR/PeeringDB refresh loop + config lifecycle for dynamic address groups |
 | `plugins/irr/sets.go` | Prefix list → nftables interval `Set` (`buildSets`, `buildIRRTables`, `buildIfaceTables`); no accept term means no table |
@@ -205,10 +204,10 @@ resolved prefixes → dynamic nftables interval sets, i.e. "address groups").
 | `internal/plugins/flowspec-firewall/translate.go` | RFC 8955 component/action → `firewall.Term` translation |
 | `internal/plugins/flowspec-firewall/state.go` | Per-peer `ruleMap` + `ze_flowspec` table builder |
 | `internal/plugins/flowspec-firewall/selected.go` | `handleSelected`: install or withdraw the RIB-selected rule |
-| `internal/plugins/policyroute/register.go` | SDK lifecycle; dual apply (nftables marks + netlink rules/routes) |
+| `internal/plugins/policyroute/register.go` | SDK lifecycle; dual apply (nftables marks + netlink route rules) |
 | `internal/plugins/policyroute/translate.go` | Policy → `firewall.Term` (`SetMark`) + `ipRuleSpec`/`autoRouteSpec` |
 | `internal/plugins/policyroute/marks.go` | fwmark (`0x50000-0x5FFFF`) / auto-table (`2000-2999`) allocators |
-| `internal/plugins/policyroute/rules_linux.go` | netlink `ip rule`/`ip route` programming (`vishvananda/netlink`) |
+| `internal/plugins/policyroute/rules_linux.go` | netlink route `ip rule`/`ip route` programming (`vishvananda/netlink`) |
 
 ## Invariants & gotchas
 - **Multi-owner merge, full re-apply.** `firewall` (config), `flowspec` (BGP FlowSpec),
@@ -241,13 +240,14 @@ resolved prefixes → dynamic nftables interval sets, i.e. "address groups").
   (`expandProvidedTermV6`, `firewall/config.go`, hooked in `parseChain` at `firewall/config.go`), one
   term written, two applied.
 - **Policy routing double-applies across two mechanisms.** nftables marks the packet
-  (`RegisterTables`+`ApplyAll`) and netlink separately selects the routing table by that mark
+  (`RegisterTables`+`ApplyAll`) and the netlink API separately selects the routing table by that mark
   (`rm.applyAll`); a failure between the two apply calls leaves marks active with no matching
   `ip rule`, `applyPolicies`'s error path re-clears both sides
   (`internal/plugins/policyroute/register.go`).
-- **Backend gate is YANG-schema-driven.** `validateBackendGate` (`firewall/engine.go`) loads the
-  compiled YANG schema and checks `ze:backend "nft"`-annotated leaves against the **active**
-  backend name, independent of, and in addition to, `ValidateTables`'s structural checks.
+- **Backend gate is engine-owned.** The config component's whole-tree `ze:backend` walk
+  (`config/backend_gate.go`, `walkBackendFeaturesTree`) checks `ze:backend "kernel"`-annotated leaves
+  against the active firewall backend at `LoadConfig`, `verifyTree`, and `ze doctor`, independent of,
+  and in addition to, `ValidateTables`'s structural checks.
 - **Global-options are defaults, not enforcement.** `emitGlobalOptionsSysctlDefaults`
   (`firewall/engine.go`) emits at the sysctl "default" layer so an explicit sysctl config leaf always
   wins; on reload it first clears the previous batch via an EventBus "clear source defaults"
@@ -255,7 +255,7 @@ resolved prefixes → dynamic nftables interval sets, i.e. "address groups").
 - **VPP is a second, untraced backend.** `internal/plugins/firewall/vpp/` implements the same
   `Backend` interface with its own `Verifier` gating unsupported expression types
   (`RegisterVerifier`, `backend.go`); `show firewall ruleset` explicitly rejects any backend
-  other than `"nft"` (`nft/cmd_show.go`).
+  other than `"kernel"` (`nft/cmd_show.go`).
 
 ## See also
 - `docs/architecture/core-design.md`, firewall plugin engine (SDK 5-stage), backend abstraction

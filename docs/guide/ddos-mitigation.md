@@ -359,7 +359,7 @@ duration is not a factor.
 
 | Parameter | Default | Range | Description |
 |-----------|---------|-------|-------------|
-| `response-level` | `alert` | alert, enforce | `alert` logs only; `enforce` installs nft drop rules |
+| `response-level` | `alert` | alert, enforce | `alert` logs only; `enforce` installs nftables drop rules |
 | `max-mitigation-duration` | `3600` | 0-86400 s | Remove the on-host drop after this many seconds. Checked once a second; `0` means no cap. The clock starts when the rule goes in, and a narrowing of the same rule does not restart it |
 | `confidence-min` | `0` | 0-100 | Minimum incident confidence to mitigate from a characterized attack (`0` = no gate). Note: the coarse drop on the fast `AttackDetected` carries no confidence, so this only gates the in-place narrowing on the characterized path |
 | `forward-mitigation` | `false` | bool | Also drop a remote (transit) victim's traffic on the netfilter FORWARD hook to protect a downstream host. Default guards only local (box-owned) victims on INPUT and leaves remote victims to flowspec (see [Direction](#direction-local-vs-remote)) |
@@ -475,7 +475,7 @@ arriving flood even while it is dropped. The attack is "over" only when RxPps
 actually falls below threshold.
 
 **Caveat:** an XDP drop backend would break this (XDP_DROP precedes the RX
-counter). Local mode is nft-only for v1.
+counter). Local mode is nftables-only for v1.
 
 **When the clear never comes.** A detector that is reconfigured or stopped
 mid-attack emits no `AttackCleared`, and an attack that never falls below the
@@ -517,7 +517,7 @@ Reload uses the verify/apply callbacks and does not repeat this sweep.
 <!-- source: internal/component/plugin/server/startup.go -- runPluginPhase -->
 <!-- source: internal/component/firewall/engine.go -- runEngine -->
 
-On nft, the sweep first claims the name to reach a table this backend instance
+On the kernel backend, the sweep first claims the name to reach a table this backend instance
 did not install, then withdraws the empty table. Other owners keep their desired
 rules. Cleanup is best-effort: a failure logs
 `could not clear a drop rule left by a previous process`, with the failed stage
@@ -715,7 +715,7 @@ one, and the doctor run reports a store it could not open on its own
 
 ### VPP dataplane
 
-Detection works on both the Linux netlink dataplane and the VPP DPDK dataplane.
+Detection works on both the Linux kernel dataplane and the VPP DPDK dataplane.
 The VPP iface backend populates `InterfaceInfo.Stats` from VPP's stats segment,
 so `rate.go` computes RxPps/RxBps identically for both dataplanes. No
 VPP-specific detector code is needed.
@@ -736,14 +736,14 @@ holds the data, so a subcommand appears only while its plugin is loaded:
   detection named, so it closes that incident as soon as the attack ends; only
   an incident whose clear never comes waits for `stale-incident-timeout`.
   <!-- source: internal/plugins/ddos/detect/detector.go -- emitCleared -->
-- `show ddos local` (`ddos-local`): whether an on-host nft drop is installed and
+- `show ddos local` (`ddos-local`): whether an on-host nftables drop is installed and
   the target vector it covers.
 - `show ddos flowspec` (`ddos-flowspec`): whether an upstream FlowSpec rule is
   announced, its target vector, and whether the leak-probe is running.
 
 `show ddos local` and `show ddos flowspec` read an immutable snapshot that the
-writer publishes under its own lock, so neither command waits on a netlink
-reconcile or on an RPC round trip to the BGP engine. A status command answers
+writer publishes under its own lock, so neither command waits on a netlink operation
+to reconcile or on an RPC round trip to the BGP engine. A status command answers
 while mitigation is being applied.
 
 <!-- source: internal/plugins/ddos/observe/show.go -- handleShowDdos, handleShowDdosIncidents -->

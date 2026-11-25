@@ -29,7 +29,7 @@ import (
 	"github.com/vishvananda/netns"
 
 	"github.com/ze-software/ze/internal/component/iface"
-	_ "github.com/ze-software/ze/internal/plugins/iface/netlink" // register the netlink iface backend so iface.Resolve works
+	_ "github.com/ze-software/ze/internal/plugins/iface/netlink" // register the kernel iface backend so iface.Resolve works
 	"github.com/ze-software/ze/internal/test/userns"
 )
 
@@ -111,9 +111,9 @@ func withVethPair(t *testing.T, fn func()) {
 	}
 
 	// OpenCircuit now resolves the interface through the iface resolver, which
-	// needs the netlink backend loaded (as it always is in production). Load it
+	// needs the kernel backend loaded (as it always is in production). Load it
 	// inside the netns so iface.Resolve finds the veths created above.
-	if err := iface.LoadBackend("netlink"); err != nil {
+	if err := iface.LoadBackend("kernel"); err != nil {
 		t.Fatalf("load iface backend: %v", err)
 	}
 

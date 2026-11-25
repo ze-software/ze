@@ -822,8 +822,11 @@ func bootstrapConfigFromTemplate(store storage.Storage, configName string) bool 
 	}
 
 	var merged []byte
-	if loadErr := iface.LoadBackend("netlink"); loadErr != nil {
-		fmt.Fprintf(os.Stderr, "bootstrap: netlink backend unavailable: %v\n", loadErr)
+	if loadErr := iface.LoadBackend("kernel"); loadErr != nil {
+		msg := opererr.New("bootstrap: kernel interface backend unavailable: "+loadErr.Error(),
+			"Interface auto-discovery was skipped and the template configuration will be used unchanged.",
+			"ze doctor")
+		fmt.Fprintf(os.Stderr, "%s\n", msg.Error())
 		merged = tmpl
 	} else {
 		discovered, discErr := iface.DiscoverInterfaces()
@@ -852,7 +855,8 @@ func bootstrapConfigFromTemplate(store storage.Storage, configName string) bool 
 // bootstrapFromDiscovery generates a minimal config from interface discovery
 // when no config and no template exist.
 func bootstrapFromDiscovery(store storage.Storage, configName string) bool {
-	if loadErr := iface.LoadBackend("netlink"); loadErr != nil {
+	// refuse-by-default: guards cmdStart -- false tells the startup bootstrap switch no config was created so cmdStart exits 1
+	if loadErr := iface.LoadBackend("kernel"); loadErr != nil {
 		return false
 	}
 	discovered, discErr := iface.DiscoverInterfaces()

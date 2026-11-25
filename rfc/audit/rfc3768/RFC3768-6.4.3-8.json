@@ -4,8 +4,8 @@
   "tests": {
     "internal/plugins/vrrp/fsm/fsm_test.go::TestFSMTransitionMatrix": "52489f84876bdb6f",
     "internal/plugins/vrrp/fsm/fsm_test.go::TestFSMTransitionMatrix#2": "52489f84876bdb6f",
-    "internal/plugins/vrrp/rfc3768_v2_group_test.go::TestV2MasterYieldsToAHigherPriority": "8b5d8c7a41e8e18e",
-    "internal/plugins/vrrp/rfc3768_v2_group_test.go::TestV2MasterYieldsToAHigherPriority#2": "8b5d8c7a41e8e18e",
+    "internal/plugins/vrrp/rfc3768_v2_group_test.go::TestV2MasterYieldsToAHigherPriority": "4f33fc505f21e0c7",
+    "internal/plugins/vrrp/rfc3768_v2_group_test.go::TestV2MasterYieldsToAHigherPriority#2": "4f33fc505f21e0c7",
     "internal/plugins/vrrp/tiebreak_test.go::TestInstanceTieBreakComparesTheAdvertisementSource": "a878e0cdb3eac07e",
     "internal/plugins/vrrp/tiebreak_test.go::TestInstanceTieBreakComparesTheAdvertisementSource#2": "a878e0cdb3eac07e",
     "internal/plugins/vrrp/tiebreak_test.go::TestInstanceV2TieBreakDemotionRestartsTheTimers": "a878e0cdb3eac07e"

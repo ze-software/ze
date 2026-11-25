@@ -5,7 +5,7 @@
 | Status | ready |
 | Scope | plugin |
 | Priority | P1 |
-| Release reason | 35 errors in interface config, the DHCP client, router advertisements, the netlink and VPP monitors and sysctl are caught and logged only below WARN: a DHCP lease address or route that fails to be removed stays in the kernel, a sysctl apply event is lost, each with no trace at the default level |
+| Release reason | 35 errors in interface config, the DHCP client, router advertisements, the netlink monitor and VPP monitor and sysctl are caught and logged only below WARN: a DHCP lease address or route that fails to be removed stays in the kernel, a sysctl apply event is lost, each with no trace at the default level |
 | RFC gaps | - |
 | Depends | - |
 | Phase | - |
@@ -24,7 +24,7 @@ Population: every `error-dropped-below-warn` finding of
 (`internal/component/{iface,sysrib,vpp,firewall,traffic,trafficfeature,sysctl,mtu}`,
 `internal/plugins/{iface,fib,firewall,traffic,policyroute}`). At HEAD on
 2026-11-02: **35 instances in 13 files** (DHCP client 15, sysctl 9, iface
-component 6, netlink and VPP monitors 4, RA sender 1).
+component 6, netlink monitor and VPP monitor 4, RA sender 1).
 
 Each instance is resolved by exactly one answer, judged in this order
 (umbrella, Key Design Decisions):
@@ -78,7 +78,7 @@ Each instance is resolved by exactly one answer, judged in this order
 ## Data Flow (MANDATORY - see `ai/rules/architecture.md`)
 
 ### Entry Point
-- A failed netlink, VPP or `/proc` call, or a failed EventBus emit, inside the forwarding components and plugins.
+- A failed netlink call, VPP call or `/proc` call, or a failed EventBus emit, inside the forwarding components and plugins.
 
 ### Transformation Path
 1. The branch catches the error.
@@ -87,7 +87,7 @@ Each instance is resolved by exactly one answer, judged in this order
 ### Boundaries Crossed
 | Boundary | How | Verified |
 |----------|-----|----------|
-| Ze ↔ kernel or VPP | netlink, GoVPP | No |
+| Ze ↔ kernel or VPP | netlink sockets, GoVPP | No |
 | Component ↔ subscribers | EventBus emit | No |
 | Ze ↔ operator | Log at WARN, `show warnings` | No |
 
@@ -110,7 +110,7 @@ Each instance is resolved by exactly one answer, judged in this order
 | ID | Assumption | Basis (file/doc/user statement) | If wrong | Validated by | Status |
 |----|-----------|--------------------------------|----------|--------------|--------|
 | A-1 | The 35 are still the population | Report of 2026-11-02 | Work from the fresh report | Report filtered to this child's paths before the first edit | unvalidated |
-| A-2 | A failed DHCP removal leaves the object in the kernel | Netlink delete error | An ENOENT (already gone) is answer 3 | Each removal branch distinguishes "already gone" from a real failure | unvalidated |
+| A-2 | A failed DHCP removal leaves the object in the kernel | Netlink error on delete | An ENOENT (already gone) is answer 3 | Each removal branch distinguishes "already gone" from a real failure | unvalidated |
 
 ### Risks
 | ID | Risk | Early signal | Mitigation / fallback |

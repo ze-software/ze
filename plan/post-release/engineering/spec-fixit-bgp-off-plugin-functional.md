@@ -88,6 +88,14 @@ Preserve compile-out, existing full-binary coverage and graceful source absence.
 MRT data production is not required without a BGP source. Flow export must run
 without BGP AS enrichment. FIB must install a static route via the Loc-RIB.
 
+## Existing Mechanisms
+
+| Mechanism | Where (file + symbol, or page + section) | What it does today | This spec (extends, replaces, or does not apply, with the reason) |
+|-----------|------------------------------------------|--------------------|------------------------------------------------------------------|
+| Feature-gate manifest and generated plugin composition | `feature-gates.txt`, `internal/component/plugin/all/` | Declares compile-out build tags (`ze_bgp`, `ze_mrt`, `ze_flowexport`, `ze_vpp`) and generates per-tag plugin registration files | Extends: builds the BGP-absent test composition by selecting the existing independent tags rather than introducing a new gate |
+| Stripped BGP-absent functional fixture | `internal/test/fixture/ui_fixture_ze_stripped_no_bgp.go` (`runZEStrippedNoBGP`), `test/ui/ze-stripped-no-bgp.ci` | Validates a kernel-FIB config on a BGP-absent binary and requires BGP config rejection | Extends: keeps this schema/rejection carrier and adds the missing boot, source-absence and Linux kernel route-readback fixtures |
+| Protocol-neutral FIB, MRT and flow-export runtime hooks | `internal/plugins/fib/kernel/fibkernel.go`, `internal/plugins/mrt/component.go` (`Component`), `internal/plugins/flowexport/enrichbgp.go` (`bgpEnrichBuilder`) | Consumes `sysrib` best-change events in `fib-kernel`, writes MRT dumps with an optional `ribDumper`, and enriches flow records from BGP best-change events | Extends: verifies their runtime behavior without BGP present rather than adding alternate non-BGP code paths |
+
 ## Data Flow (MANDATORY)
 
 ### Entry Point
@@ -149,7 +157,7 @@ selection mechanism.
 |-------------|--------------|------------------|
 | BGP-absent composition with the tested features enabled | Generated imports and plugin registry | Existing build-tag tests, extended only for a missing composition proof |
 | Config validation and daemon boot | Plugin schemas and startup | Planned `bgp-off-schema-stripped.ci` and `bgp-off-boot-stripped.ci` |
-| Static route on Linux | sysrib -> fib-kernel -> netlink | Planned `bgp-off-fib-install.ci` |
+| Static route on Linux | sysrib -> fib-kernel -> netlink socket | Planned `bgp-off-fib-install.ci` |
 
 The historical fixture names above remain proposed names. They do not imply
 that today's stock `ze-stripped` includes MRT, flow export or VPP.

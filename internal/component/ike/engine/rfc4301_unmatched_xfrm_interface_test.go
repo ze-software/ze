@@ -205,7 +205,7 @@ func TestXFRMExemptionsFollowApplyAddressAndRelease(t *testing.T) {
 		t.Fatalf("after the address moved:\n got %q\nwant %q", got, want)
 	}
 
-	stub.err["vti0"] = errors.New("transient netlink fault")
+	stub.err["vti0"] = errors.New("transient netlink error")
 	state.followAddress()
 	if got := liveExemptions(dp); !slices.Equal(got, want) {
 		t.Fatalf("a failed read changed the exemptions:\n got %q\nwant %q", got, want)
@@ -403,7 +403,7 @@ func TestInterfaceSPDCatchAllRefusesIfIDZero(t *testing.T) {
 // `unmatched discard` reaches planXFRMInterfaceEntries and leaves vti0's SPD holding its
 // own DISCARD catch-all, beside the if_id 0 exemptions and the DISCARD node catch-all,
 // and vti0's IPv6 address under its tunnel-source guard: its rule, its table's
-// unreachable default and the nft pass and drop terms naming vti0.
+// unreachable default and the nftables pass and drop terms naming vti0.
 // Method: applyConfig over the fake backend with a stubbed vti0, then read the live set.
 // PREVENTS: an interface SPD with no final entry.
 func TestApplyInstallsInterfaceSPDCatchAllAndGuard(t *testing.T) {
@@ -597,7 +597,7 @@ func (d *failInterfaceCatchAllRemovalDP) RemovePolicyParams(p dataplane.SPParams
 // VALIDATES: AC-8 for the interface SPD: releaseSPD removes the interface catch-all
 // with the exemptions, before the node catch-all; when that removal fails, the SPD
 // ledger holds the entry and the node catch-all stays beneath it. The clean leg also
-// proves the tunnel-source guard leaves: no rule, no route and no nft term remain.
+// proves the tunnel-source guard leaves: no rule, no route and no nftables term remain.
 // Method: apply discard, release over a backend that removes cleanly, then apply and
 // release again over one that refuses the interface catch-all removal.
 // PREVENTS: an interface catch-all that outlives the daemon unreported.
@@ -620,7 +620,7 @@ func TestReleaseRemovesInterfaceSPDAndGuard(t *testing.T) {
 			t.Errorf("releaseSPD left tunnel-source table routes: %v", stub.guard.routes)
 		}
 		if len(stub.guard.terms) != 0 {
-			t.Errorf("releaseSPD left the nft guard terms: %d", len(stub.guard.terms))
+			t.Errorf("releaseSPD left the nftables guard terms: %d", len(stub.guard.terms))
 		}
 		if got := liveInterfaceCatchAll(t, dp); len(got) != 0 {
 			t.Errorf("releaseSPD left the interface catch-all installed: %q", got)

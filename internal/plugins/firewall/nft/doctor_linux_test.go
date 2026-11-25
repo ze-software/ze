@@ -1,6 +1,6 @@
 //go:build linux
 
-// Design: docs/architecture/core-design.md -- the readiness check the nft backend owns
+// Design: docs/architecture/core-design.md -- the readiness check the kernel firewall backend owns
 // Detail: doctor_linux.go -- checkFirewallNftables and its registration
 
 package firewallnft
@@ -44,7 +44,7 @@ func firewallTree(backend string) *config.Tree {
 func TestCheckFirewallNftablesWarnsWithoutTheModule(t *testing.T) {
 	withLoadedModules(t)
 
-	for _, backend := range []string{"", "nft"} {
+	for _, backend := range []string{"", "kernel"} {
 		diags := checkFirewallNftables(diagnostic.DoctorCheckContext{Tree: firewallTree(backend)})
 		if len(diags) != 1 {
 			t.Fatalf("backend %q: diagnostics = %d, want 1: %+v", backend, len(diags), diags)

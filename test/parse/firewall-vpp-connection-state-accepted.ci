@@ -1,0 +1,41 @@
+# Test: firewall backend vpp accepts connection-state established,related.
+# Question: does `ze config validate` accept `connection-state established,related`
+#           under `interface backend vpp` and `firewall backend vpp` now that
+#           its `ze:backend` annotation has been removed and `verifyConnState`
+#           accepts `established`/`related` (PERMIT_REFLECT)?
+#           A unit test cannot prove both the YANG schema walk and the VPP
+#           firewall verifier agree inside `ze config validate`.
+# VALIDATES: spec-dataplane-compatibility-guard AC-17 (C-2b) -- `connection-state`
+#            is judged by the VPP verifier rather than blocked wholesale by a
+#            `ze:backend` annotation, and `established,related` validates.
+# PREVENTS: restoring a `ze:backend "kernel"` annotation on `connection-state`
+#           that blocks VPP's PERMIT_REFLECT stateful rules.
+stdin=config:terminator=EOF_CONF
+interface {
+	backend vpp;
+}
+firewall {
+	backend vpp;
+	table wan {
+		family inet;
+		chain input {
+			type filter;
+			hook input;
+			priority 0;
+			policy drop;
+			term allow-return {
+				from {
+					connection-state established,related;
+				}
+				then {
+					accept;
+				}
+			}
+		}
+	}
+}
+EOF_CONF
+
+cmd=foreground:seq=1:exec=ze config validate -:stdin=config
+expect=exit:code=0
+expect=stdout:contains=configuration valid

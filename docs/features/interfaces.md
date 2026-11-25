@@ -1,6 +1,6 @@
 # Interface Management
 
-Ze manages Linux network interfaces via pure netlink (no iproute2 shell-outs).
+Ze manages Linux network interfaces via pure netlink sockets (no iproute2 shell-outs).
 JunOS-style two-layer model: physical interfaces with named logical units.
 
 <!-- source: internal/component/iface/yang/ze-iface-conf.yang — interface container -->
@@ -26,7 +26,7 @@ and reconciles its DHCP, PPPoE and Router Advertisement workers.
 | | Class-of-service named profiles (802.1p, interface-level inheritance) | have | |
 | | Loopback | have | |
 | | Bonding / LACP | missing | high |
-| | VXLAN (a `tunnel` encapsulation, netlink and VPP) | have | <!-- source: internal/plugins/iface/netlink/tunnel_linux.go -- buildVxlan --> |
+| | VXLAN (a `tunnel` encapsulation, kernel and VPP) | have | <!-- source: internal/plugins/iface/netlink/tunnel_linux.go -- buildVxlan --> |
 | | GRE / GRETAP / IPIP / SIT tunnels | have | |
 | | IP6GRE / IP6GRETAP / IP6TNL / IPIP6 tunnels | have | |
 | | ERSPAN | missing | lower |
@@ -56,7 +56,7 @@ and reconciles its DHCP, PPPoE and Router Advertisement workers.
 | **DHCP** | DHCPv4 (RFC 2131, full DORA) | have | |
 | | DHCPv6 (SARR, IA_NA, IA_PD) | have | |
 | | Concurrent v4+v6 | have | |
-| | Direct netlink install | have | |
+| | Direct netlink link install | have | |
 | | DHCPv4 address lifetime equals the lease, refreshed by every renewal; an infinite lease (0xffffffff) installs as infinite and is not renewed | have | <!-- source: internal/plugins/iface/dhcp/dhcp_v4_linux.go -- v4AddressLifetime, installV4Lease, holdV4 --> |
 | | DHCPv4 lease kept for as long as a server answers: RENEW unicast to the leasing server at every T1, REBIND broadcast to any server at T2, both retransmitted on the RFC 2131 Section 4.4.5 schedule (half the time left, at least 60 s); the address goes only when the lease expires. Deadlines count from the instant the REQUEST was sent | have | <!-- source: internal/plugins/iface/dhcp/dhcp_v4_linux.go -- holdV4, extendV4, v4NextAttempt, v4LeaseFromAck --> |
 | | DHCPv4 T1 and T2 from the server (options 58 and 59) when T1 < T2 < lease, otherwise the defaults (half and seven eighths of the lease) | have | <!-- source: internal/plugins/iface/dhcp/dhcp_v4_linux.go -- v4LeaseTimers --> |
@@ -90,12 +90,12 @@ and reconciles its DHCP, PPPoE and Router Advertisement workers.
 | | Persistent counter tracking | missing | medium |
 | **Per-Interface Tuning** | IPv4 forwarding | have | |
 | | ARP filter / ARP accept | have | |
-| | IPv6 autoconf (SLAAC), netlink backend only | have | |
-| | IPv6 accept-ra (0/1/2), netlink backend only | have | |
+| | IPv6 autoconf (SLAAC), kernel backend only | have | |
+| | IPv6 accept-ra (0/1/2), kernel backend only | have | |
 | | IPv6 forwarding | have | |
 | | Proxy ARP | have | |
 | | ARP announce / ARP ignore | have | |
-| | RPF / source validation (IPv4 `rp_filter` sysctl, plus VPP uRPF on backend vpp; IPv6 nftables fib lookup in `ip6 ze_iface_rpf`, netlink backend only) | have | See "Reverse-path check" |
+| | RPF / source validation (IPv4 `rp_filter` sysctl, plus VPP uRPF on backend vpp; IPv6 nftables fib lookup in `ip6 ze_iface_rpf`, kernel backend only) | have | See "Reverse-path check" |
 | | TCP MSS clamping (v4+v6) | missing | medium |
 | | Directed broadcast | missing | lower |
 | **IPv6 Extended** | EUI-64 address generation | missing | medium |
@@ -150,7 +150,7 @@ and reconciles its DHCP, PPPoE and Router Advertisement workers.
 | **Configuration** | YANG model (all types + units) | have | |
 | | Input validation (name, VLAN, MTU) | have | A `pppoe-client` key is the kernel device name, so it is 1 to 15 octets (IFNAMSIZ), starts with a letter, holds only letters, digits, `_`, `.` and `-`, and may not repeat the key of any other configured interface of any kind |
 | **Platform** | Pluggable backend interface | have | |
-| | Linux netlink backend (default) | have | |
+| | Linux kernel backend (default) | have | |
 | | YANG `backend` leaf (config-driven selection) | have | `backend vpp` starts the VPP component with the interface plugin. A build without `ze_vpp` refuses it when the config is validated, committed or booted, naming the leaf and the tag, rather than at apply |
 | | VPP backend (ifacevpp, via GoVPP) | have | ResetCounters via sw_interface_clear_stats; ListKernelRoutes via ip_route_v2_dump; RouteLookup via IPRouteLookupV2 (VPP FIB is authoritative); ListNeighbors via ip_neighbor_dump; VXLAN/GRE/IPIP/LCP/stats-socket/mirror/STP pending third-party vendoring |
 | | macOS / Darwin | missing | lower |
@@ -178,7 +178,7 @@ consumer MUST close its owner after its dependent resources stop. L2TP uses this
 for Linux PPP interfaces even when the interface configuration selects VPP.
 <!-- source: internal/component/iface/backend.go -- OpenBackend -->
 
-Kernel PPPoE preparation also owns an independent netlink backend. Each prepared
+Kernel PPPoE preparation also owns an independent kernel backend. Each prepared
 access opens its sessions through `AccessOwner.Open` and shares that backend
 across them. The caller MUST stop admission and join its sessions. It MUST then
 close the access and its backend.
@@ -189,11 +189,11 @@ close the access and its backend.
 <!-- source: internal/component/iface/migrate_linux.go — MigrateInterface 5-phase protocol -->
 <!-- source: internal/plugins/iface/netlink/manage_linux.go — CreateDummy, CreateVeth, CreateBridge, etc. -->
 <!-- source: internal/plugins/iface/netlink/tunnel_linux.go — CreateTunnel for 8 tunnel kinds via Gretun/Gretap/Iptun/Sittun/Ip6tnl -->
-<!-- source: internal/plugins/iface/netlink/wireguard_linux.go — CreateWireguardDevice (netlink), ConfigureWireguardDevice and GetWireguardDevice (wgctrl) -->
+<!-- source: internal/plugins/iface/netlink/wireguard_linux.go — CreateWireguardDevice (via netlink), ConfigureWireguardDevice and GetWireguardDevice (wgctrl) -->
 <!-- source: internal/plugins/iface/netlink/monitor_linux.go — netlink multicast subscription -->
 <!-- source: internal/plugins/iface/netlink/bridge_linux.go — bridge ports, STP over rtnetlink (IFLA_BR_STP_STATE) -->
 <!-- source: internal/component/sysctl/backend_linux.go -- per-interface sysctl writes -->
-<!-- source: internal/plugins/iface/netlink/mirror_linux.go — traffic mirroring via tc -->
+<!-- source: internal/plugins/iface/netlink/mirror_linux.go — traffic mirroring via traffic control -->
 <!-- source: internal/plugins/iface/vpp/ifacevpp.go — VPP Backend implementation (lazy GoVPP channel) -->
 <!-- source: internal/plugins/iface/vpp/query.go — ListInterfaces/GetInterface/Get/SetMACAddress via SwInterfaceDump, IPAddressDump and SwInterfaceSetMacAddress -->
 <!-- source: internal/plugins/iface/vpp/monitor.go — StartMonitor via WantInterfaceEvents + SubscribeNotification -->
@@ -239,7 +239,7 @@ nothing.
 | Bridge member | `GetLink` of the bridge and the port | the port is already a member of that bridge |
 | VLAN QoS maps | `GetLink` of the VLAN | the VLAN holds maps that program the same translation (an entry at 0 equals an absent one) |
 | `dhcp-auto` interface up | `GetLink` | the interface is administratively up |
-| WireGuard keys and peers | `GetWireguardDevice` (wgctrl on netlink), when the device existed before the apply | the device holds the private key and fwmark, the listen port when the leaf is set, and exactly the enabled peers, each with the configured preshared key, endpoint, keepalive and allowed-IP set and nothing else (the write replaces the peer set, so an extra peer, a learned endpoint or a disabled peer still present is a difference; allowed IPs compare as masked prefixes in any order) |
+| WireGuard keys and peers | `GetWireguardDevice` (wgctrl on kernel), when the device existed before the apply | the device holds the private key and fwmark, the listen port when the leaf is set, and exactly the enabled peers, each with the configured preshared key, endpoint, keepalive and allowed-IP set and nothing else (the write replaces the peer set, so an extra peer, a learned endpoint or a disabled peer still present is a difference; allowed IPs compare as masked prefixes in any order) |
 
 A state that cannot be read is written, never taken for one that matches, and
 a backend that does not report a setting (the VPP backend reports no STP state,
@@ -315,7 +315,7 @@ left the config is absent from the set, so the backend removes it, and the
 apply journal restores the previous set when a later step fails.
 
 nftables refuses even the removal of `ip6 ze_iface_rpf` to a process without
-CAP_NET_ADMIN. When the config asks for no IPv6 check, the netlink backend
+CAP_NET_ADMIN. When the config asks for no IPv6 check, the kernel backend
 therefore accepts that refusal with a warning, so an unprivileged ze still
 applies its interfaces. A config that asks for an IPv6 check still fails
 without the capability.
@@ -326,10 +326,10 @@ owner `iface-rpf`, because the firewall backend and the reverse-path check
 would each delete and recreate the shared table.
 <!-- source: internal/plugins/iface/netlink/register_tables.go -- rpfTableName, rpfTableOwner -->
 
-| Family | netlink backend | vpp backend |
+| Family | kernel backend | vpp backend |
 |--------|-----------------|-------------|
 | IPv4 | `net.ipv4.conf.<dev>.rp_filter`, written by the sysctl phase; `ReplaceIPv4RPF` installs nothing more | `urpf_update` on the receive path of the VPP interface (strict or loose), read back with `urpf_interface_dump` so a check no longer configured is turned off. The sysctl still reaches the Linux Control Plane tap, which judges only what VPP punts to the host |
-| IPv6 | nftables table `ip6 ze_iface_rpf` | refused at commit (`ze:backend "netlink"`) and by the backend |
+| IPv6 | nftables table `ip6 ze_iface_rpf` | refused at commit (`ze:backend "kernel"`) and by the backend |
 
 VPP's uRPF (`urpf_plugin.so`, always enabled in the startup.conf ze writes)
 passes a packet to a multicast destination or to 255.255.255.255, so DHCP from
@@ -361,7 +361,7 @@ Backend interface (backend.go) -- 45 methods: lifecycle, address, route, bridge,
   v
 +------------------+--------------------+
 |                  |                    |
-netlink backend    DHCP plugin          (future: networkd, FreeBSD)
+kernel backend     DHCP plugin          (future: networkd, FreeBSD)
 (ifacenetlink/)    (ifacedhcp/)
 |                  |
 netlink calls      lease negotiation
@@ -378,8 +378,8 @@ Subscribers -- BGP reactor (starts/stops listeners on address changes)
 During `ze init`, Ze discovers OS network interfaces and generates initial configuration
 entries, written after the SSH listener the CLI reaches the daemon through. The
 `DiscoverInterfaces` function enumerates interfaces via `ListInterfaces`
-(netlink on Linux, stdlib on other platforms) and classifies each by Ze type: ethernet,
-bridge, veth, dummy, or loopback. On Linux, the netlink `device` type maps to ethernet
+(netlink sockets on Linux, stdlib on other platforms) and classifies each by Ze type: ethernet,
+bridge, veth, dummy, or loopback. On Linux, the netlink link `device` type maps to ethernet
 (except `lo`, which maps to loopback). Results are sorted by type then name.
 
 A managed client (`ze init --managed`) and an appliance seed (`ze init --seed`) skip
@@ -510,9 +510,9 @@ device appears, and a config is validated on machines that will never run it.
   separates the logical identity (name) from the physical identity (MAC).
 - **Pluggable backends.** The iface component defines a `Backend` interface (34 methods).
   OS-specific operations live in backend plugins (`ifacenetlink` for Linux). The YANG
-  `backend` leaf selects the backend (default: `netlink`). DHCP is a separate plugin
+  `backend` leaf selects the backend (default: `kernel`). DHCP is a separate plugin
   (`ifacedhcp`) that uses the backend for address operations.
-- **Pure netlink, no shell-outs.** The netlink backend uses `github.com/vishvananda/netlink`.
+- **Pure netlink API, no shell-outs.** The kernel backend uses `github.com/vishvananda/netlink`.
 - **Event-driven.** Monitor publishes to bus; consumers subscribe and react. No polling.
 - **Per-family addresses.** Addresses live inside `ipv4 { address [...]; }` and
   `ipv6 { address [...]; }` containers within each unit, following the Junos/Nokia model.
@@ -630,7 +630,7 @@ one `dhcp-expired` for each, and solicits again.
 - **Same-subnet renumbers keep working.** Because the new address is added first, a renumber
   inside one subnet (`10.0.0.1/24` -> `10.0.0.2/24`) briefly leaves the new address as a Linux
   IPv4 *secondary* of the old one, and Linux deletes every secondary of a subnet along with its
-  primary. Before such a removal the netlink backend enables
+  primary. Before such a removal the kernel backend enables
   `net.ipv4.conf.<device>.promote_secondaries` so the kernel promotes a secondary instead of
   flushing the subnet, logging `enabled promote_secondaries` when it changes the knob. If the
   knob cannot be set the removal fails, naming the addresses that would have been destroyed,
@@ -652,7 +652,7 @@ one `dhcp-expired` for each, and solicits again.
   monitor checks `IFF_UP` flag as fallback.
 - **Tunnel encapsulation as YANG choice/case.** The `tunnel` list at the iface level
   is one container with an `encapsulation` choice that branches into one case per
-  Linux netlink kind (gre, gretap, ip6gre, ip6gretap, ipip, sit, ip6tnl, ipip6).
+  Linux netlink link kind (gre, gretap, ip6gre, ip6gretap, ipip, sit, ip6tnl, ipip6).
   Per-case leaf sets are constrained by the schema: `key` only appears in GRE-family
   cases, `hoplimit`/`tclass`/`encaplimit` only in v6-underlay cases. Local and
   remote endpoints use the same `local { ip ... } remote { ip ... }` shape as the
@@ -664,7 +664,7 @@ one `dhcp-expired` for each, and solicits again.
   tunnel <name> encapsulation <kind> remote ip <address>` command that fixes it.
   The decapsulator matches the outer source address against the remote, and an
   unspecified remote accepts packets from any source (RFC 4213 Section 3.6
-  requires the decapsulator to verify the tunnel source). The netlink and VPP
+  requires the decapsulator to verify the tunnel source). The kernel and VPP
   backends run the same check again before they program a tunnel.
 <!-- source: internal/component/iface/tunnel.go -- TunnelSpec.CheckRemote -->
 <!-- source: internal/component/iface/config.go -- parseTunnelEntry -->
@@ -756,9 +756,9 @@ interface {
 }
 ```
 
-The nine supported encapsulation kinds map to Linux netlink kinds:
+The nine supported encapsulation kinds map to Linux netlink link kinds:
 
-| Kind | Linux netlink | Underlay | Layer | Notes |
+| Kind | Linux netlink link | Underlay | Layer | Notes |
 |------|--------------|----------|-------|-------|
 | `gre` | gre | IPv4 | L3 | RFC 2784, RFC 2890 key |
 | `gretap` | gretap | IPv4 | L2 (bridgeable) | Ethernet over GRE |
@@ -794,23 +794,23 @@ Each default is declared once, in the YANG leaf, and the parse materializes it i
 the tunnel spec before the backend reads the leaves. No Go constant repeats it, so
 the schema, the CLI completion, the config diff and the device cannot disagree.
 
-The defaults reach netlink-backed tunnels. The VPP tunnel calls carry no outer-TTL
-field, so the `ttl` leaf is declared `ze:backend "netlink"` and a commit that names
+The defaults reach kernel-backed tunnels. The VPP tunnel calls carry no outer-TTL
+field, so the `ttl` leaf is declared `ze:backend "kernel"` and a commit that names
 one on the vpp backend is refused by path:
 
 ```
-/interface/tunnel/t0/encapsulation/gre/ttl: feature not supported by backend "vpp" (supported: netlink)
+/interface/tunnel/t0/encapsulation/gre/ttl: feature not supported by backend "vpp" (supported: kernel)
 ```
 
 A vpp-backed tunnel that names no `ttl` still commits, because the gate reads what
 the operator wrote and the schema default is materialized after it. `sit` and the
-other netlink-only kinds are refused at the kind rather than at this leaf.
+other kernel-only kinds are refused at the kind rather than at this leaf.
 
 <!-- source: internal/component/iface/yang/ze-iface-conf.yang -- the ttl and hoplimit leaves and their defaults -->
 <!-- source: internal/component/iface/tunnel.go -- tunnelSchema, loadTunnelSchema, applyDefaults -->
 <!-- source: internal/plugins/iface/vpp/tunnel.go -- createGRETunnel and createIPIPTunnel, which carry no TTL field -->
 <!-- source: test/plugin/tunnel-ttl-default.ci -- the outer TTL read back from each device -->
-<!-- source: internal/component/iface/register.go -- validateBackendGate, run before parseIfaceSections -->
+<!-- source: internal/component/config/backend_gate.go -- walkBackendFeaturesTree, judges the tree as written before schema defaults materialize -->
 
 
 ERSPAN, GRE keepalives, VRF underlay/overlay leaves, and `ignore-df` on gretap are
@@ -957,7 +957,7 @@ spec with `wgtypes.Config{ReplacePeers: true}`, which makes the kernel
 remove every current peer before it adds the configured ones
 (`WGDEVICE_F_REPLACE_PEERS`): each peer starts again with no session and
 no learned endpoint until its next handshake. New wireguard entries get a
-`CreateWireguardDevice` (netlink) before the Configure call, and a device
+`CreateWireguardDevice` (via netlink) before the Configure call, and a device
 the apply has just created is written without a read. Wireguard list
 entries removed from config are deleted by Phase 4 reconciliation, same as
 tunnels.
@@ -1005,7 +1005,7 @@ autoconfiguration (SLAAC), learn a default router, and learn DNS resolvers. The
 Solicitations (RFC 4861).
 
 The `router-advertisement` container sits inside the per-unit `ipv6` container.
-It carries `ze:os "linux"` and `ze:backend "netlink"`. The schema walker prunes
+It carries `ze:os "linux"` and `ze:backend "kernel"`. The schema walker prunes
 it on another platform, and a tree with `backend vpp` rejects it at config verify
 with `feature not supported by backend "vpp"`.
 
@@ -1033,18 +1033,18 @@ not 1).
 
 <!-- source: internal/plugins/iface/ra/doctor.go -- checkRAForwarding, doctor-iface-ra-forwarding -->
 
-### Receiving advertisements needs the netlink backend
+### Receiving advertisements needs the kernel backend
 
 The `autoconf` and `accept-ra` leaves of the per-unit `ipv6` container each carry
-`ze:backend "netlink"`. The kernel builds a SLAAC address only when Router
-Advertisements reach the device it owns. On the netlink backend that device is
+`ze:backend "kernel"`. The kernel builds a SLAAC address only when Router
+Advertisements reach the device it owns. On the kernel backend that device is
 the NIC. On the vpp backend VPP owns the NIC, the kernel sees the Linux Control
 Plane tap, and no advertisement reaches it. Ze writes
 `net.ipv6.conf.<device>.autoconf` and `net.ipv6.conf.<device>.accept_ra` on the
 tap, the kernel waits, and no address appears.
 
 A tree that sets either leaf with `backend vpp` is rejected at config verify with
-`feature not supported by backend "vpp" (supported: netlink)`, and the message
+`feature not supported by backend "vpp" (supported: kernel)`, and the message
 names the unit. This matches the refusal the `dhcp`, `dhcpv6` and
 `router-advertisement` containers already carry.
 
@@ -1162,7 +1162,7 @@ router:
 
 ```
 interface {
-    backend netlink;
+    backend kernel;
     ethernet eth0 {
         unit 0 {
             ipv6 {
@@ -1303,7 +1303,7 @@ own device, and a marked device of any other kind, is never touched. Macvlans ar
 in the Phase 4 prune set (`zeManageable`) -- they are alias-guarded, not
 YANG-managed. A registered device whose parent is absent is retried when the
 parent appears (monitor `interface/created` / `interface/up` re-triggers the
-pass). Non-netlink backends (VPP, non-Linux) reject `CreateMacvlanDevice`
+pass). Non-kernel backends (VPP, non-Linux) reject `CreateMacvlanDevice`
 fail-closed (exact-or-reject).
 
 A `ze doctor` check (`doctor-iface-macvlan`) probes kernel macvlan capability
@@ -1352,7 +1352,7 @@ number. iface opens `/proc/<pid>/ns/net` once, refuses the request when the
 opened descriptor's inode differs, and creates the link through that
 descriptor. The host end is named with `ComposeOwnedDeviceName` from the
 plugin's first granted prefix, the bridge's interface index and a slot. The
-netlink backend creates the pair in one message, with the peer end directly
+kernel backend creates the pair in one message, with the peer end directly
 inside the namespace under its final name, hardware address and MTU, so the
 peer is never visible on the host. It then marks the host end, joins it to the
 bridge and sets it up, and configures the peer through a netlink socket opened
@@ -1383,8 +1383,8 @@ lies inside a prefix a plugin granted itself is refused when the config is
 parsed, naming the plugin and the prefix. The grants are made from `init()`,
 so every process of the ze binary holds the same prefixes.
 
-**Backends.** Only the netlink backend on Linux creates owned bridges and
-links. The VPP backend refuses both, naming `set interface backend netlink`,
+**Backends.** Only the kernel backend on Linux creates owned bridges and
+links. The VPP backend refuses both, naming `set interface backend kernel`,
 and the backend of a build for another system refuses both as unsupported. The gauge
 `ze_iface_owned_devices{owner}` counts an owner's bridges and links with its
 macvlans.
@@ -1433,7 +1433,7 @@ cover each prefix, not a count of events.
 The dump request goes to the kernel by unicast, while the subscribed socket
 keeps receiving multicast address changes. Sending the request to those groups
 would require `CAP_NET_ADMIN`, preventing a read-only daemon from starting.
-The vendored netlink patch keeps the two addresses separate, and a Linux test
+The vendored netlink library patch keeps the two addresses separate, and a Linux test
 reads the existing loopback address with that capability removed.
 <!-- source: vendor/github.com/vishvananda/netlink/nl/nl_linux.go -- Send -->
 <!-- source: internal/le/vendorpatch/netlink_subscribe_linux_test.go -- TestAddressSubscriptionDumpsWithoutNetAdmin -->
@@ -1482,7 +1482,7 @@ carries that router's link-local (RFC 2545 Section 3) in the advertisements
 made after the router's entry changes, with or without an `interface` block.
 
 The watch loads the default backend when none is loaded, as the reader does.
-The netlink backend watches with its own netlink subscription to neighbor
+The kernel backend watches with its own netlink subscription to neighbor
 changes, which starts with a dump of the table, so an entry that existed
 before the watch started is known and its deletion signals. If the kernel
 flags that dump as interrupted, a deletion of an entry the watch never saw
@@ -1510,14 +1510,14 @@ watched.
 
 BGP does not read `interface/addr-added` or `interface/addr-removed` either,
 for the same reason: it needs address changes with or without an `interface`
-block. The netlink backend package registers a watcher of the kernel address
+block. The kernel backend package registers a watcher of the kernel address
 table in `internal/core/network` (`network.RegisterAddressWatcher`) at init,
 whichever backend is active, with its own netlink subscription to address
 changes. The BGP reactor opens the watch when it starts, re-reads the table on
 each signal, starts a listener for a passive peer's local address that
 appeared, on the port that peer listens on, stops it when the address goes
 away, and re-settles RFC 2545 Section 3's
-common-subnet condition. On a platform with no netlink backend the watch
+common-subnet condition. On a platform with no kernel backend the watch
 cannot start, and BGP logs a warning that names the cause. Other consumers
 (OSPF, the unnumbered donor, the connected-route plugin) still read the bus
 topics.
@@ -1589,7 +1589,7 @@ error. `err` means the method is implemented as a stub that rejects every
 call with a descriptive error. `real` means the method drives the
 underlying mechanism. Cells with a footnote carry a caveat.
 
-| Category | Method | netlink (Linux) | VPP | stub (non-Linux) |
+| Category | Method | kernel (Linux) | VPP | stub (non-Linux) |
 |---|---|---|---|---|
 | **Lifecycle** | `CreateDummy` | real | real (CreateLoopback) | err |
 | | `CreateVeth` | real | err (VPP uses memif/TAP) | err |
@@ -1599,8 +1599,8 @@ underlying mechanism. Cells with a footnote carry a caveat.
 | | `CreateWireguardDevice` | real (rtnetlink) | err (requires VPP wg plugin) | err |
 | | `ConfigureWireguardDevice` | real (wgctrl) | err (requires VPP wg plugin) | err |
 | | `GetWireguardDevice` | real (wgctrl) | err (requires VPP wg plugin) | err |
-| | `CreateXFRM` | real (rtnetlink) | err (XFRM is Linux netlink only) | err |
-| | `GetXFRMInfo` | real (rtnetlink+xfrm) | err (XFRM is Linux netlink only) | err |
+| | `CreateXFRM` | real (rtnetlink) | err (XFRM is Linux kernel only) | err |
+| | `GetXFRMInfo` | real (rtnetlink+xfrm) | err (XFRM is Linux kernel only) | err |
 | | `DeleteInterface` | real | real (DeleteLoopback/DeleteSubif) | err |
 | **Address** | `AddAddress` | real | real (SwInterfaceAddDelAddress) | err |
 | | `RemoveAddress` | real | real (SwInterfaceAddDelAddress) | err |
@@ -1610,7 +1610,7 @@ underlying mechanism. Cells with a footnote carry a caveat.
 | **Route** | `AddRoute` | real | err (use fib-vpp plugin) | err |
 | | `RemoveRoute` | real | err (use fib-vpp plugin) | err |
 | | `ListRoutes` | real | err (use fib-vpp plugin) | err |
-| | `RouteLookup` | real (netlink RouteGet) | real (IPRouteLookupV2 LPM) | err |
+| | `RouteLookup` | real (netlink route RouteGet) | real (IPRouteLookupV2 LPM) | err |
 | | `ListKernelRoutes` | real | err [3] | err |
 | **Link state** | `SetAdminUp` | real | real (SwInterfaceSetFlags) | err |
 | | `SetAdminDown` | real | real (SwInterfaceSetFlags) | err |
@@ -1641,13 +1641,13 @@ ipip6.
 the `validLft`/`preferredLft` arguments and installs the address without
 an expiry, matching the exact-or-reject rule only when the operator does
 not actually need DHCP lease-aware behaviour on VPP. DHCP runs against
-the netlink backend today.
+the kernel backend today.
 
 [3] On VPP the kernel FIB is not authoritative; the VPP backend rejects
 `ListKernelRoutes` rather than return misleading data. A VPP FIB dump via
 `ip_route_v2_dump` is the correct replacement and is not yet wired.
 
-[4] Linux netlink has no generic counter-reset syscall. The netlink
+[4] Linux netlink API has no generic counter-reset syscall. The kernel
 backend returns `iface.ErrCountersNotResettable` and the dispatch layer
 falls back to a per-interface baseline-delta model: the current values
 become a baseline and `GetStats` / `ListInterfaces` / `GetInterface`
@@ -1773,9 +1773,9 @@ new counters exceed the previous sample before the next read cannot be inferred
 from these values; the token does not claim to detect it.
 <!-- source: internal/plugins/iface/netlink/counter_linux.go -- counterStatsDecreased -->
 
-### Netlink (Linux, default)
+### Kernel (Linux, default)
 
-Pure netlink via `vishvananda/netlink`, with WireGuard peer/key
+Pure netlink API via `vishvananda/netlink`, with WireGuard peer/key
 operations via `golang.zx2c4.com/wireguard/wgctrl`. Every method is
 implemented; the only caveats are `CreateTunnel` rejecting unknown kinds
 and `ResetCounters` using baseline-delta (both noted above). No
@@ -1786,7 +1786,7 @@ stub backend described below.
 <!-- source: internal/plugins/iface/netlink/tunnel_linux.go -- CreateTunnel switch over 8 kinds -->
 <!-- source: internal/plugins/iface/netlink/wireguard_linux.go -- CreateWireguardDevice/ConfigureWireguardDevice/GetWireguardDevice -->
 <!-- source: internal/plugins/iface/netlink/bridge_linux.go -- BridgeAddPort/BridgeDelPort/BridgeSetSTP -->
-<!-- source: internal/plugins/iface/netlink/mirror_linux.go -- SetupMirror/RemoveMirror via tc -->
+<!-- source: internal/plugins/iface/netlink/mirror_linux.go -- SetupMirror/RemoveMirror via traffic control -->
 <!-- source: internal/plugins/iface/netlink/route_linux.go -- AddRoute/RemoveRoute/ListRoutes/ListKernelRoutes -->
 <!-- source: internal/plugins/iface/netlink/neighbor_linux.go -- ListNeighbors, ResetCounters returning ErrCountersNotResettable -->
 <!-- source: internal/plugins/iface/netlink/show_linux.go -- ListInterfaces/GetInterface/GetStats -->
@@ -1860,7 +1860,7 @@ describes.
 <!-- source: internal/plugins/iface/vpp/ifacevpp.go -- CreateVLAN -->
 <!-- source: internal/component/vpp/startupconf.go -- GenerateStartupConf -->
 
-Use the VPP backend when VPP owns the dataplane. Use netlink elsewhere.
+Use the VPP backend when VPP owns the dataplane. Use kernel elsewhere.
 Routes, stats, counter reset, neighbour table, mirrors, and STP are the
 main gaps against feature parity.
 
@@ -1871,7 +1871,7 @@ main gaps against feature parity.
 
 ### Stub (non-Linux)
 
-On darwin, macOS, BSD, and Windows the netlink backend package compiles
+On darwin, macOS, BSD, and Windows the kernel backend package compiles
 to a stub whose constructor succeeds. `ListInterfaces`, `GetInterface` and
 `GetLink` read the host's interfaces through the Go standard library, so `ze init`
 discovers them and writes an initial config: the loopback is typed by its

@@ -56,7 +56,7 @@ the patch".
 
 A VPP or P4 FIB backend is never judged on the kernel's AF_MPLS table. The
 requirement belongs to fib-kernel, the plugin that programs kernel labels.
-LDP and RSVP-TE load it under `interface { backend netlink; }` with no
+LDP and RSVP-TE load it under `interface { backend kernel; }` with no
 `fib { }` block, and a `fib { kernel { } }` block loads it too.
 
 On `interface { backend vpp; }`, fib-vpp programs the same LDP and RSVP-TE
@@ -80,7 +80,7 @@ Each row reports the incoming label (`in-label`) or destination prefix (`fec`),
 the `operation` (`push`, `swap`, or `pop`), any outgoing `out-labels`, the
 `next-hop`, and the egress `device`. `show mpls forwarding` reads from the
 selected data plane's registered reader: the kernel AF_MPLS table and labeled IP
-routes under `netlink`, or VPP MPLS table 0 and VPP's labeled IP routes under
+routes under `kernel`, or VPP MPLS table 0 and VPP's labeled IP routes under
 `vpp`.
 <!-- source: internal/component/mpls/show_forwarding.go -- handleShowMPLSForwarding, selectedForwardingReader -->
 <!-- source: internal/core/mplsfib/forwarding.go -- RegisterForwardingReader, ForwardingReaderFor -->
@@ -172,7 +172,7 @@ and the reason.
 Inspect LDP state with `show ldp neighbor` (session state, transport address)
 and `show ldp binding` (FEC-to-label bindings). A label binding learned from a
 neighbor programs an ingress push entry toward that neighbor, in the kernel MPLS
-FIB under `interface { backend netlink; }` and in VPP under `backend vpp`.
+FIB under `interface { backend kernel; }` and in VPP under `backend vpp`.
 `show mpls forwarding` reads the data plane the backend selects: under
 `backend vpp` it lists the labels in VPP MPLS table 0 and VPP's labeled IP
 routes, in the same row format as the kernel table. When VPP does not answer,

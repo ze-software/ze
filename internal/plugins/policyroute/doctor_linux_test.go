@@ -52,10 +52,10 @@ func policyRouteTree() *config.Tree {
 //
 // VALIDATES: doctor-policyroute-netlink at warning severity, carrying the
 // refusal.
-// PREVENTS: policy route netlink dependency gaps being missed during readiness
+// PREVENTS: policy route netlink socket dependency gaps being missed during readiness
 // checks.
 func TestCheckPolicyRouteNetlinkReportsAnUnopenableHandle(t *testing.T) {
-	withRouteNetlink(t, errors.New("netlink unavailable"))
+	withRouteNetlink(t, errors.New("netlink socket unavailable"))
 
 	diags := checkPolicyRouteNetlink(diagnostic.DoctorCheckContext{Tree: policyRouteTree()})
 	if len(diags) != 1 {
@@ -64,7 +64,7 @@ func TestCheckPolicyRouteNetlinkReportsAnUnopenableHandle(t *testing.T) {
 	if diags[0].Code != codePolicyRouteNetlink || diags[0].Severity != diagnostic.SeverityWarning {
 		t.Fatalf("diagnostic = %s/%s, want %s at warning", diags[0].Code, diags[0].Severity, codePolicyRouteNetlink)
 	}
-	if !strings.Contains(diags[0].Message, "netlink unavailable") {
+	if !strings.Contains(diags[0].Message, "netlink socket unavailable") {
 		t.Fatalf("message = %q, want the refusal carried", diags[0].Message)
 	}
 }
@@ -89,7 +89,7 @@ func TestCheckPolicyRouteNetlinkClosesTheHandleItOpened(t *testing.T) {
 // policy block, an empty one, and no config each open no handle.
 //
 // VALIDATES: no diagnostic and no probe in each case.
-// PREVENTS: a netlink probe on every box that never configured a policy route.
+// PREVENTS: a netlink socket probe on every box that never configured a policy route.
 func TestCheckPolicyRouteNetlinkIsSilentWithoutRoutes(t *testing.T) {
 	opened := false
 	previous := openRouteNetlink

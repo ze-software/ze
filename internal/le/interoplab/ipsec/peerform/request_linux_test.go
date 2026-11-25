@@ -27,7 +27,7 @@ func TestStateDumpRequestHasNoFixedQueryBody(t *testing.T) {
 	}
 }
 
-// TestMigrationRequestKeepsFixedHeaderBeforeENCAP catches netlink Data/RawData reordering.
+// TestMigrationRequestKeepsFixedHeaderBeforeENCAP catches netlink attribute Data/RawData reordering.
 func TestMigrationRequestKeepsFixedHeaderBeforeENCAP(t *testing.T) {
 	for _, encap := range []encapsulation{{form: formBare}, {form: formUDP, sourcePort: 4500, targetPort: 4501}} {
 		request, err := migrationRequest(fixtureState(), encap)

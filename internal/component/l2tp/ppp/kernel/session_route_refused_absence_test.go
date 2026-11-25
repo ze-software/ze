@@ -14,7 +14,7 @@ import (
 )
 
 // routeOwnershipNACK models the native writer's terminal matched NACK
-// (nativePPPRejected in the netlink backend): an errno the kernel answered,
+// (nativePPPRejected in the kernel backend): an errno the kernel answered,
 // carrying the NativePPPWriteRejected marker.
 type routeOwnershipNACK struct{ errno unix.Errno }
 

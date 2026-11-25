@@ -366,10 +366,10 @@ are kebab-case. Address families are `"afi/safi"` strings (`"ipv4/unicast"`,
 | `firewall` | Firewall management via nftables |
 | `firewall-domain` | nftables address sets filled from DNS names, re-resolved on each answer TTL |
 | `flowspec-firewall` | Translate BGP FlowSpec routes into nftables firewall rules |
-| `traffic` | Traffic control (TC qdisc/class) via netlink or VPP backend |
+| `traffic` | Traffic control (TC qdisc/class) via kernel or VPP backend |
 | `cos` | 802.1p class-of-service profile definitions |
 | `crashes` | Crash capture: kernel crash record harvest at daemon start, `show crashes` |
-| `interface` | Interface management via netlink or VPP backend |
+| `interface` | Interface management via kernel or VPP backend |
 | `iface-dhcp` | DHCP client for interface address assignment |
 | `iface-ra` | IPv6 Router Advertisement sender for a LAN interface unit (RFC 4861) |
 | `routing-table` | Named routing table registry for kernel table IDs |

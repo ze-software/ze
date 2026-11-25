@@ -12,11 +12,11 @@ import (
 )
 
 // TestIfaceYANGDHCPBackendAnnotation verifies that the unit-level dhcp and
-// dhcpv6 containers carry ze:backend "netlink" so the commit-time feature
+// dhcpv6 containers carry ze:backend "kernel" so the commit-time feature
 // gate rejects `dhcp { enabled true }` (and the IPv6 counterpart) when the
-// active backend is anything other than netlink -- VPP cannot honor
-// address lifetimes (netlink RTM_NEWADDR valid_lft / preferred_lft are
-// netlink-only).
+// active backend is anything other than kernel -- VPP cannot honor
+// address lifetimes (netlink address RTM_NEWADDR valid_lft / preferred_lft are
+// kernel-only).
 //
 // The ipv4/ipv6 containers are present on every OS (interface addressing is
 // OS-portable config, edited anywhere and applied on the Linux target), so the
@@ -66,7 +66,7 @@ func TestIfaceYANGDHCPBackendAnnotation(t *testing.T) {
 		require.NotNilf(t, node, "interface.ethernet.unit.%s.%s missing from schema", tc.family, tc.child)
 		cn, ok := node.(*config.ContainerNode)
 		require.Truef(t, ok, "interface.ethernet.unit.%s.%s must be a container", tc.family, tc.child)
-		assert.Equalf(t, []string{"netlink"}, cn.Backend,
-			"interface.ethernet.unit.%s.%s must carry ze:backend \"netlink\"", tc.family, tc.child)
+		assert.Equalf(t, []string{"kernel"}, cn.Backend,
+			"interface.ethernet.unit.%s.%s must carry ze:backend \"kernel\"", tc.family, tc.child)
 	}
 }

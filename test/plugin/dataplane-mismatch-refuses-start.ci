@@ -1,0 +1,48 @@
+# Test: daemon start refuses a kernel firewall under interface backend vpp.
+# Question: does `ze start` on a file with `interface backend vpp` and a
+#           `firewall` block on the default `kernel` backend (with no IPsec)
+#           exit 1 in `LoadConfig` before any plugin starts, with the same
+#           words `ze config validate` gives?
+#           A unit test calls `LoadConfig` directly; only a real daemon launch
+#           proves `ze start` refuses the file before any plugin starts.
+# VALIDATES: spec-dataplane-compatibility-guard AC-3, AC-16 -- a data-plane
+#            mismatch refuses daemon start naming `firewall` and the fix
+#            `set firewall backend vpp`.
+# PREVENTS: a VPP daemon booting and installing firewall rules onto the Linux
+#           kernel where VPP-forwarded packets never pass.
+
+option=needs-build-tag:value=ze_vpp:state=present
+
+stdin=ze-bgp:refused=config-plugin-verify:terminator=EOF_CONF
+interface {
+	backend vpp;
+}
+firewall {
+	table wan {
+		family inet;
+		chain input {
+			type filter;
+			hook input;
+			priority 0;
+			policy drop;
+			term allow-ssh {
+				from {
+					protocol tcp;
+					destination-port 22;
+				}
+				then {
+					accept;
+				}
+			}
+		}
+	}
+}
+EOF_CONF
+
+cmd=foreground:seq=1:exec=ze -:stdin=ze-bgp:timeout=30s
+expect=exit:code=1
+expect=stderr:contains=error: load config:
+expect=stderr:contains=firewall
+expect=stderr:contains=set firewall backend vpp
+reject=stderr:contains=interface backend loaded
+reject=stderr:pattern=panic

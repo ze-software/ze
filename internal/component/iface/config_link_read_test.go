@@ -10,7 +10,7 @@ import (
 // errAddressDump is the address dump failure addressDumpFailingBackend answers.
 var errAddressDump = errors.New("address dump failed")
 
-// addressDumpFailingBackend fails every address read, as the netlink backend
+// addressDumpFailingBackend fails every address read, as the kernel backend
 // does when its RTM_GETADDR dump fails: GetInterface and ListInterfaces
 // return the error, while GetLink, which reads no address, still answers.
 type addressDumpFailingBackend struct {

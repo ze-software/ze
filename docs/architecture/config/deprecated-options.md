@@ -23,7 +23,7 @@ binary can parse.
 | Case | What Ze does |
 |------|--------------|
 | Current config | `ze config validate <file>` checks it directly. |
-| Older pre-release Ze syntax | The parse fails, naming the line and the unknown keyword. Edit the file to the current syntax. |
+| Older pre-release Ze syntax | An unknown keyword fails the parse, naming the line and the unknown keyword; a renamed value of a string leaf parses and is refused by the commit check that judges it, naming the leaf and the fix line. Edit the file to the current syntax. |
 | ExaBGP syntax | `ze exabgp migrate` converts the shapes it supports and warns about the extensions it does not translate. |
 | Newer schema stamp after downgrade | Startup tries rollback files newest-first and writes back the first one this binary can parse. |
 

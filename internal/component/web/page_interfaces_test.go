@@ -110,7 +110,7 @@ func TestInterfaceTableData_FilterByType(t *testing.T) {
 }
 
 // TestInterfaceTableData_FilterEthernetMatchesKernelDevice verifies Linux
-// netlink physical links are classified as Ethernet for display and filtering.
+// netlink link physical devices are classified as Ethernet for display and filtering.
 // VALIDATES: an interface with kernel type "device" appears on the Ethernet page.
 // PREVENTS: physical appliance NICs disappearing from /show/iface/?type=ethernet.
 func TestInterfaceTableData_FilterEthernetMatchesKernelDevice(t *testing.T) {
@@ -421,7 +421,7 @@ func TestInterfaceDetailReadErrorIsNotConfiguredState(t *testing.T) {
 		assert.Equal(t, "configured", info.State)
 	}
 
-	errDump := errors.New("netlink: address dump interrupted")
+	errDump := errors.New("netlink error: address dump interrupted")
 	info, err = interfaceDetailInfo("dum0", nil, errDump, tree)
 	require.ErrorIs(t, err, errDump, "a failed live read MUST NOT show the configured entry")
 	assert.Nil(t, info)
@@ -447,7 +447,7 @@ func TestInterfaceListReadErrorIsNotConfiguredState(t *testing.T) {
 	require.NoError(t, err, "no backend loaded is no live state, not a failure")
 	assert.Empty(t, infos)
 
-	errDump := errors.New("netlink: link dump interrupted")
+	errDump := errors.New("netlink error: link dump interrupted")
 	infos, err = interfaceListInfos(nil, errDump)
 	require.ErrorIs(t, err, errDump, "a failed live read MUST NOT show the configured entries as the list")
 	assert.Nil(t, infos)
@@ -473,7 +473,7 @@ func TestInterfaceCountersReadErrorIsNotUnavailable(t *testing.T) {
 		assert.Nil(t, stats)
 	}
 
-	errRead := errors.New("netlink: link dump interrupted")
+	errRead := errors.New("netlink error: link dump interrupted")
 	stats, err = interfaceCounterStats("dum0", nil, errRead)
 	require.ErrorIs(t, err, errRead, "a failed counter read MUST NOT render as counters not available")
 	assert.Nil(t, stats)

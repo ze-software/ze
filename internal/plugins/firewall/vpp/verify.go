@@ -8,6 +8,7 @@ import (
 	"net/netip"
 
 	"github.com/ze-software/ze/internal/component/firewall"
+	"github.com/ze-software/ze/internal/core/opererr"
 	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
@@ -56,7 +57,7 @@ func verifyTable(tbl *firewall.Table) error {
 		errs = append(errs, fmt.Errorf("table %q: flowtables not supported by backend vpp", tbl.Name))
 	}
 	if len(tbl.CtHelpers) > 0 {
-		errs = append(errs, fmt.Errorf("table %q: conntrack helpers (system conntrack module) not supported by backend vpp (VPP has no conntrack helper or ALG); remove system conntrack module, or use firewall backend nft", tbl.Name))
+		errs = append(errs, fmt.Errorf("table %q: conntrack helpers (system conntrack module) not supported by backend vpp (VPP has no conntrack helper or ALG); remove system conntrack module, or use firewall backend kernel", tbl.Name))
 	}
 	for i := range tbl.Chains {
 		if err := verifyChain(tbl, &tbl.Chains[i]); err != nil {
@@ -92,12 +93,12 @@ func verifyChain(tbl *firewall.Table, ch *firewall.Chain) error {
 // compatibility. NAT chains use VPP's NAT44-ED plugin instead of ACLs.
 //
 // Accepted NAT actions: SNAT, DNAT, Masquerade.
-// Accepted matches in NAT terms: protocol, destination port, destination
-// address (these map to static mapping fields). Source address matches
-// are accepted but ignored (VPP NAT44 is interface-level, not per-source).
+// Accepted matches in DNAT terms: protocol, destination port, destination
+// address, and source address (these map to static mapping fields).
 //
-// SNAT and Masquerade only accept terms with no match constraints or
-// source-only matches (VPP NAT44 applies to all traffic on the interface).
+// SNAT and Masquerade only accept terms with no match constraints: VPP NAT44
+// applies to the whole inside interface, so a source address match would not
+// narrow translation and is refused.
 func verifyNATChain(tbl *firewall.Table, ch *firewall.Chain) error {
 	var errs []error
 	for i := range ch.Terms {
@@ -169,7 +170,11 @@ func verifyNATSourceMatches(prefix string, term *firewall.Term) error {
 	for _, m := range term.Matches {
 		switch m.(type) {
 		case firewall.MatchSourceAddress:
-			// Accepted but informational: VPP NAT44 is interface-level.
+			return opererr.New(
+				prefix+": source-address match is not supported with snat/masquerade by backend vpp",
+				"VPP NAT44 applies to the whole inside interface and does not narrow translation by source address",
+				"delete the source-address match from this term, or set firewall backend kernel",
+			)
 		case firewall.MatchDestinationPort, firewall.MatchDestinationAddress,
 			firewall.MatchProtocol:
 			return fmt.Errorf("%s: destination/protocol match not supported with snat/masquerade by backend vpp (VPP NAT44 applies to all traffic on inside interfaces)", prefix)
@@ -191,7 +196,7 @@ func verifyNATDestMatches(prefix string, term *firewall.Term) error {
 		case firewall.MatchDestinationAddress, firewall.MatchSourceAddress:
 			// Accepted: destination/source address narrow the mapping scope.
 		case firewall.MatchDestinationLocal:
-			return fmt.Errorf("%s: destination-local match not supported with dnat by backend vpp (a VPP NAT44 static mapping names a fixed external address and has no lookup of the router's own addresses); use backend nft, or name the router's address with destination-address", prefix)
+			return fmt.Errorf("%s: destination-local match not supported with dnat by backend vpp (a VPP NAT44 static mapping names a fixed external address and has no lookup of the router's own addresses); use backend kernel, or name the router's address with destination-address", prefix)
 		default:
 			return fmt.Errorf("%s: match %T not supported with dnat by backend vpp (only protocol, destination port/address, source address)", prefix, m)
 		}
@@ -311,11 +316,11 @@ func verifyMatch(prefix string, m firewall.Match) error {
 	case firewall.MatchInputInterface:
 		return fmt.Errorf("%s: input-interface match not supported by backend vpp (VPP ACL is bound per-interface, not matched per-rule)", prefix)
 	case firewall.MatchUnicast:
-		return fmt.Errorf("%s: link-layer unicast match not supported by backend vpp (VPP ACL has no host packet-type metadata); use backend nft", prefix)
+		return fmt.Errorf("%s: link-layer unicast match not supported by backend vpp (VPP ACL has no host packet-type metadata); use backend kernel", prefix)
 	case firewall.MatchDestinationLocal:
-		return fmt.Errorf("%s: destination-local match not supported by backend vpp (VPP ACL matches a fixed prefix and has no lookup of the router's own addresses); use backend nft, or name the router's addresses with destination-address", prefix)
+		return fmt.Errorf("%s: destination-local match not supported by backend vpp (VPP ACL matches a fixed prefix and has no lookup of the router's own addresses); use backend kernel, or name the router's addresses with destination-address", prefix)
 	case firewall.MatchIPsecTransform:
-		return fmt.Errorf("%s: IPsec transform match not supported by backend vpp (VPP ACL has no route or XFRM metadata); use backend nft", prefix)
+		return fmt.Errorf("%s: IPsec transform match not supported by backend vpp (VPP ACL has no route or XFRM metadata); use backend kernel", prefix)
 	case firewall.MatchOutputInterface:
 		return fmt.Errorf("%s: output-interface match not supported by backend vpp (VPP ACL is bound per-interface, not matched per-rule)", prefix)
 	case firewall.MatchConnMark:
@@ -365,7 +370,7 @@ func verifyAction(prefix string, a firewall.Action) error {
 	case firewall.SetTCPMSS:
 		return fmt.Errorf("%s: tcp-mss-set action not supported by backend vpp", prefix)
 	case firewall.ClampTCPMSSToPMTU:
-		return fmt.Errorf("%s: tcp-mss-clamp-to-pmtu action not supported by backend vpp (VPP ACL cannot rewrite TCP options); use backend nft", prefix)
+		return fmt.Errorf("%s: tcp-mss-clamp-to-pmtu action not supported by backend vpp (VPP ACL cannot rewrite TCP options); use backend kernel", prefix)
 	case firewall.Counter:
 		return fmt.Errorf("%s: counter action not supported by backend vpp (VPP ACL has implicit per-ACL counters, not per-rule named counters)", prefix)
 	case firewall.Log:

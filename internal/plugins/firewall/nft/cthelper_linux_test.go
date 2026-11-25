@@ -13,7 +13,7 @@ import (
 )
 
 // TestLowerCtHelperObject proves a ct helper object and its assignment lower
-// to the expressions nft itself writes for `ct helper "x" { type "ftp"
+// to the expressions nftables itself writes for `ct helper "x" { type "ftp"
 // protocol tcp; }` and `ct helper set "x"`.
 //
 // VALIDATES: the object carries the kernel helper name and the transport's IP

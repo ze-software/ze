@@ -120,6 +120,10 @@ vpp {
 	enabled false;
 }
 
+interface {
+	backend vpp;
+}
+
 fib {
 %s	vpp {
 		enabled true;

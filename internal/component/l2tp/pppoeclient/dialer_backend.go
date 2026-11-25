@@ -16,7 +16,7 @@ import (
 // ownership of every successful backend and retains it until actual original
 // cleanup completes.
 // No allocation or discovery happens here. A nil factory is refused. The
-// established zero Dialer still opens the registered netlink backend.
+// established zero Dialer still opens the registered kernel backend.
 func NewDialer(factory func() (iface.Backend, error)) (*Dialer, error) {
 	if factory == nil {
 		return nil, errors.New("pppoe-client: independent backend factory is absent")

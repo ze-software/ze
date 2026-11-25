@@ -7,7 +7,7 @@ found-by: rfc-check
 ## Before
 
 A tunnel with remote `0.0.0.0` or `::` passed `ze config validate` and a
-commit. The netlink backend then refused it when applying, with no fix named,
+commit. The kernel backend then refused it when applying, with no fix named,
 and the VPP backend programmed it.
 
 <!-- source: internal/component/iface/config.go -- parseTunnelEntry -->
@@ -31,7 +31,7 @@ none
 ## Exposure
 
 Only tunnels on the VPP backend were programmed with an unspecified remote.
-Operators on the netlink backend met the refusal only after the commit. A
+Operators on the kernel backend met the refusal only after the commit. A
 tunnel with a specific remote address was never exposed.
 
 ## Upstream

@@ -6,14 +6,14 @@
 #            its qdisc, naming the leaf and the classes that exist
 #            (Validator.ValidateReferences through config.ValidateCustomSections),
 #            and accepts one naming a configured class.
-# PREVENTS: a dangling default-class passing validation, which the netlink
+# PREVENTS: a dangling default-class passing validation, which the kernel
 #           backend then ignored in silence, so unclassified traffic went to
 #           no class the operator chose.
 
 stdin=missing:terminator=EOF_MISSING
 traffic {
 	control {
-		backend tc
+		backend kernel
 		interface eth0 {
 			qdisc {
 				type htb
@@ -37,7 +37,7 @@ EOF_MISSING
 stdin=present:terminator=EOF_PRESENT
 traffic {
 	control {
-		backend tc
+		backend kernel
 		interface eth0 {
 			qdisc {
 				type htb

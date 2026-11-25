@@ -1,5 +1,5 @@
 // Design: docs/features/interfaces.md -- Interface management via netlink
-// Detail: addr_primary_linux.go -- netlink adapter that feeds this policy
+// Detail: addr_primary_linux.go -- netlink socket adapter that feeds this policy
 // Related: manage_linux.go -- RemoveAddress applies this policy before AddrDel
 
 package ifacenetlink
@@ -45,15 +45,15 @@ import (
 // path showed the defect first. The ADD waits on the settlement rule
 // iface-add-address-settles-addr-added, and the executor rolls the whole
 // transaction back when that times out
-// (internal/component/config/transaction/executor.go). Until the netlink
-// monitor seeded its link-index cache (seedLinkNames, monitor_linux.go), the
+// (internal/component/config/transaction/executor.go). Until the
+// netlink monitor seeded its link-index cache (seedLinkNames, monitor_linux.go), the
 // addr-added event never arrived, so the transaction path rolled back rather
 // than reaching the REMOVE at all. The reconcile path has no settlement gate,
 // which is why the defect surfaced as
 // TestIntegrationApplyConfigVLANUnitAddressReconcile.
 //
 // Backend.RemoveAddress promises to remove ONE address. The functions below
-// make the netlink implementation keep that promise: before deleting a primary
+// make the kernel implementation keep that promise: before deleting a primary
 // IPv4 address that has same-subnet secondaries, enable promote_secondaries on
 // the device so the kernel promotes instead of flushing. The knob is left
 // enabled afterwards on purpose -- restoring it would re-arm the same hazard
@@ -116,7 +116,7 @@ type deviceAddress struct {
 // secondary never touches anything else, and IPv6 has no such rule.
 //
 // It deliberately does NOT require a sibling to be flagged secondary, even
-// though the kernel does. Secondary is derived from netlink's IFA_FLAGS
+// though the kernel does. Secondary is derived from the netlink library's IFA_FLAGS
 // ATTRIBUTE (vendor/github.com/vishvananda/netlink/addr_linux.go:264); the
 // parser never reads the ifa_flags header byte where IFA_F_SECONDARY also
 // lives, so an address whose flags did not arrive reads as Secondary=false. If

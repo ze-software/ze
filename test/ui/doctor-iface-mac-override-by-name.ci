@@ -17,7 +17,7 @@ option=needs-linux
 
 tmpfs=mac-override-by-name.conf:terminator=EOF_OVERRIDE
 interface {
-    backend netlink;
+    backend kernel;
     ethernet eth0 {
         mac {
             address 02:00:00:00:00:01;

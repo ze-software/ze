@@ -16,12 +16,12 @@ names the link-local address of another router on a shared subnet.
 `interface/addr-added` and `interface/addr-removed` topics come from the
 interface monitor, which runs only when an `interface` block configures a
 backend. A BGP-only config has none, so BGP once heard no address change at
-all. The netlink interface backend package registers an address watcher in
+all. The kernel interface backend package registers an address watcher in
 `internal/core/network` (`network.RegisterAddressWatcher`) whichever backend
 is active, because the kernel table is what BGP binds to and what
 `network.InterfacePrefixes` reads. The reactor opens the watch when it starts,
 before its listeners, and reads the table once to record it. On a platform
-with no netlink backend the watch cannot start: the reactor logs a warning
+with no kernel backend the watch cannot start: the reactor logs a warning
 naming the cause and tries again after a delay that doubles from one second to
 one minute, as it does when a running watch ends.
 

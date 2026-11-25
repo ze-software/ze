@@ -40,7 +40,7 @@ func TestESPFormLinkSelection(t *testing.T) {
 		{"veth or dummy, which are Ethernet", "veth0", unix.ARPHRD_ETHER, "ether", 0, espFormLinkEthernet},
 		{"TUN device in IFF_TUN mode", "tun0", unix.ARPHRD_NONE, "none", net.FlagUp | net.FlagPointToPoint, espFormLinkL3},
 		{"PPP link", "ppp0", unix.ARPHRD_PPP, "ppp", net.FlagUp | net.FlagPointToPoint, espFormLinkL3},
-		{"raw-IP link, which netlink cannot name", "rmnet_data0", unix.ARPHRD_RAWIP, "unknown519", net.FlagUp, espFormLinkL3},
+		{"raw-IP link, which the netlink library cannot name", "rmnet_data0", unix.ARPHRD_RAWIP, "unknown519", net.FlagUp, espFormLinkL3},
 		{"lo", "lo", unix.ARPHRD_LOOPBACK, "loopback", net.FlagUp | net.FlagLoopback, espFormLinkSkipped},
 		{"a loopback type without the loopback flag", "lo1", unix.ARPHRD_LOOPBACK, "loopback", net.FlagUp, espFormLinkSkipped},
 		{"the loopback flag on an Ethernet type", "lo2", unix.ARPHRD_ETHER, "ether", net.FlagLoopback, espFormLinkSkipped},

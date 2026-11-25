@@ -14,7 +14,7 @@ cmd=foreground:seq=1:exec=ze config validate -:stdin=config
 expect=exit:code=1
 expect=stdout:contains=/pppoe/interface/access0
 expect=stdout:contains=backend "vpp"
-expect=stdout:contains=supported: netlink
+expect=stdout:contains=supported: kernel
 expect=stdout:contains=no PPPoE session data plane
-expect=stdout:contains=fix: set interface backend netlink
+expect=stdout:contains=fix: set interface backend kernel
 expect=stdout:contains=ze_vpp

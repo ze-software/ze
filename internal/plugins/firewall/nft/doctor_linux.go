@@ -1,6 +1,6 @@
 //go:build linux
 
-// Design: docs/architecture/core-design.md -- the readiness check the nft backend owns
+// Design: docs/architecture/core-design.md -- the readiness check the kernel firewall backend owns
 // Related: register_linux.go -- the init() that installs the registration below
 // Related: backend_linux.go -- the nftables programming that needs the module
 //
@@ -36,7 +36,7 @@ var nftDoctorCheck = diagnostic.DoctorCheck{
 	Name:         "firewall-nftables",
 	Phase:        diagnostic.DoctorPhasePostConfig,
 	Order:        160,
-	Component:    "firewall-nft",
+	Component:    "firewall-nftables",
 	Dependencies: []string{"kernel"},
 	Platforms:    []string{diagnostic.DoctorPlatformAny},
 	Codes:        []string{codeFirewallNftables},
@@ -59,7 +59,7 @@ func checkFirewallNftables(ctx diagnostic.DoctorCheckContext) []diagnostic.Diagn
 		return nil
 	}
 	backend, _ := firewall.Get("backend")
-	if backend != "" && backend != "nft" {
+	if backend != "" && backend != backendName {
 		return nil
 	}
 	if nftLoadedModules()[nftModule] {

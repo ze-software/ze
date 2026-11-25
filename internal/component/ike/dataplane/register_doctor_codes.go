@@ -56,7 +56,7 @@ var doctorDiagnosticCodes = []diagnostic.CodeMeta{
 		Title: "IPsec ESP unavailable for an address family",
 		Description: "The configuration installs an IPsec Security Association and the kernel holds " +
 			"no ESP transform type for IPv4 (CONFIG_INET_ESP) or IPv6 (CONFIG_INET6_ESP), which the " +
-			"message names. XFRM netlink alone accepts the request and the kernel then has nothing " +
+			"message names. The XFRM netlink socket alone accepts the request and the kernel then has nothing " +
 			"to encrypt with, so a Child SA of that family fails to install. This is a WARNING and " +
 			"it does not refuse a start, because the other family may still work. The probe asks " +
 			"the kernel to replace an SA on a reserved SPI that cannot exist, so it installs " +
@@ -103,7 +103,7 @@ var doctorDiagnosticCodes = []diagnostic.CodeMeta{
 		Title: "IPsec bare ESP is not rewritten in the kernel",
 		Description: "A Child SA on UDP port 4500 receives bare ESP as well as ESP-in-UDP (RFC 7296 " +
 			"Section 2.23). Ze normally turns bare ESP into the form the SA's kernel state carries with " +
-			"a tc-ingress BPF program on each link, the fast path. The fast path did not load, or it " +
+			"a tc ingress BPF program on each link, the fast path. The fast path did not load, or it " +
 			"stopped following new links, so that bare ESP goes through ze-espform instead, the " +
 			"complete path: at a bounded rate, above which every datagram is dropped, and a " +
 			"firewall rule keyed on the input " +

@@ -181,8 +181,8 @@ ze_bfd     internal/component/bfd/cmd
 # per-plugin VPP backend (fib, firewall, iface, traffic, static, pppoe-vpp and
 # its l2tp/pppoe/dataplane/vpp implementation) plus the IKE IPsec vpp backend
 # (source-tagged files in ike/dataplane and plugins/static; registry fallbacks
-# keep netlink/kernel/xfrm behavior identical). Dropping the tag unlinks
-# vendored govpp (~46k LOC) for netlink-only deployments. Without it the
+# keep kernel/xfrm behavior identical). Dropping the tag unlinks
+# vendored govpp (~46k LOC) for kernel-only deployments. Without it the
 # `vpp {}` component root fails at parse, and `backend vpp` under
 # `traffic control`, `interface` or `firewall` is refused at validate, commit
 # and boot, naming ze_vpp: each of those owners declares a config need on its

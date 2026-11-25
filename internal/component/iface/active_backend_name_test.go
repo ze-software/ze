@@ -2,7 +2,7 @@
 // LoadBackend, and cleared by CloseBackend -- the seam the VPP static backend
 // uses to confirm the active iface backend is vpp before trusting a resolved
 // sw_if_index (spec-fixit-static-interface-nexthops C-4/R-7).
-// PREVENTS: a resolved index being trusted as VPP when a netlink backend is
+// PREVENTS: a resolved index being trusted as VPP when a kernel backend is
 // actually active (a kernel ifindex mis-programmed as a VPP sw_if_index).
 
 package iface

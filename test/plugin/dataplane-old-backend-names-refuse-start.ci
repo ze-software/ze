@@ -1,0 +1,46 @@
+# Test: daemon start refuses retired selector values (netlink, nft, tc) before any plugin starts, and ze doctor reports them.
+# Question: does `ze start` on a file holding `interface backend netlink`,
+#           `firewall backend nft`, and `traffic control backend tc` exit 1
+#           before any plugin starts with all three joined refusals and
+#           `set <selector> kernel` fixes, and does `ze doctor` report them
+#           under `doctor-dataplane-mismatch`?
+#           A unit test checks `LoadConfig` and doctor separately; only the
+#           real daemon start and doctor CLI prove both surfaces refuse all
+#           three retired values end to end.
+# VALIDATES: spec-dataplane-compatibility-guard AC-19 (N-1, F-4 proof) --
+#            retired backend names refuse daemon start before any plugin
+#            starts and appear under `doctor-dataplane-mismatch` in `ze doctor`.
+# PREVENTS: any residual alias allowing `netlink`, `nft`, or `tc` to boot or
+#           escaping `ze doctor`.
+
+tmpfs=retired.conf:refused=config-plugin-verify:terminator=EOF_CONF
+interface {
+	backend netlink;
+}
+firewall {
+	backend nft;
+}
+traffic {
+	control {
+		backend tc;
+	}
+}
+EOF_CONF
+
+cmd=foreground:seq=1:exec=ze start retired.conf:timeout=30s
+expect=exit:code=1
+expect=stderr:contains=error: load config:
+expect=stderr:contains=interface backend "netlink"
+expect=stderr:contains=set interface backend kernel
+expect=stderr:contains=firewall backend "nft"
+expect=stderr:contains=set firewall backend kernel
+expect=stderr:contains=traffic control backend "tc"
+expect=stderr:contains=set traffic control backend kernel
+reject=stderr:contains=interface backend loaded
+reject=stderr:pattern=panic
+
+cmd=foreground:seq=2:exec=ze doctor --json config retired.conf:exit=1:timeout=20s
+expect=stdout:contains=doctor-dataplane-mismatch
+expect=stdout:contains=interface backend \"netlink\"
+expect=stdout:contains=firewall backend \"nft\"
+expect=stdout:contains=traffic control backend \"tc\"

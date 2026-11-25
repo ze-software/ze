@@ -36,7 +36,7 @@ func (d *refusingSPDDP) InstallPolicy(p dataplane.SPParams) error {
 
 // errSPDRefusedByTest is the dataplane's answer to a refused install. It is none of
 // the answers isXFRMUnsupported reads as a platform with no XFRM.
-var errSPDRefusedByTest = errors.New("netlink: no buffer space available")
+var errSPDRefusedByTest = errors.New("netlink error: no buffer space available")
 
 // spdDiscardEntry is the lifecycle bypass entry for 192.0.2.0/24 turned into a
 // discard entry named "drop", the name and prefix every caller asserts on.

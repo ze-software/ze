@@ -410,7 +410,7 @@ func TestWebNativeCapabilityAdmission(t *testing.T) {
 // TestWebNativeRunnableDiscoverySnapshot replaces or removes a runnable authored
 // file after discovery, then drives the real callback with owned executables.
 // Its action, passing expectation and final verdict must come from the snapshot.
-// MUTATION: Reread test.Path instead of passing tc to RunWBCase in zeTestRunWebTest.
+// MUTATION: Reread test.Path instead of passing the case to RunWBCase in zeTestRunWebTest.
 func TestWebNativeRunnableDiscoverySnapshot(t *testing.T) {
 	for _, mode := range []string{"replace", "remove"} {
 		t.Run(mode, func(t *testing.T) {

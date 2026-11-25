@@ -189,7 +189,7 @@ func (b *linkTestIfaceBackend) GetLink(name string) (*iface.InterfaceInfo, error
 	return b.GetInterface(name)
 }
 
-// linkTestIfaceBackendName is not "netlink" or "vpp": other test files of this
+// linkTestIfaceBackendName is not "kernel" or "vpp": other test files of this
 // binary register those.
 const linkTestIfaceBackendName = "static-link-test"
 

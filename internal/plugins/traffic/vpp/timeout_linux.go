@@ -35,7 +35,7 @@ const (
 	// one, so the number is matched on purpose rather than inherited.
 	//
 	// It is stated here rather than taken from firewall.MaxBackendDeadline.
-	// That constant exists so THREE firewall things agree: the nft clamp, the
+	// That constant exists so THREE firewall things agree: the kernel clamp, the
 	// vpp clamp, and the last finite bucket of the apply-latency histogram
 	// (internal/component/firewall/metrics.go). Traffic has none of the three,
 	// so the import would buy coupling and no agreement.

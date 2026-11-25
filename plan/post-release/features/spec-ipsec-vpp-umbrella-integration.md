@@ -21,7 +21,7 @@ This ownership split preserves the original obligations and evidence. Migration 
 
 | AC ID | Input / Condition | Expected Behavior |
 |---|---|---|
-| AC-12 | VPP backend active | XFRM SAs installed via VPP API instead of kernel netlink; traffic encrypted/decrypted by VPP |
+| AC-12 | VPP backend active | XFRM SAs installed via VPP API instead of the netlink socket; traffic encrypted/decrypted by VPP |
 
 ## Implementation Ownership
 

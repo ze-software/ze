@@ -29,7 +29,7 @@ const (
 // is the definitive list. Any value not in this map is rendered as its
 // decimal string so operators still see the disambiguating tag.
 //
-// Names are deliberately aligned with the netlink backend's protocol column
+// Names are deliberately aligned with the kernel backend's protocol column
 // (bgp, static, dhcp, ra, ...) so an operator inspecting `show route`
 // sees the same vocabulary on either backend.
 // enumeration: exempt (these are VPP FIB source names, aligned with the netlink protocol column, not plugin names)
@@ -205,7 +205,7 @@ func hostPrefix(dest netip.Addr) ip_types.Prefix {
 // AddressIsLocal reports whether dest is an address this box terminates: a VPP FIB
 // entry for the address with a local path (FIB_API_PATH_TYPE_LOCAL). A forwarded
 // destination resolves via a non-local path; no route reports not-local (remote is
-// the fail-safe). Mirrors the netlink RTN_LOCAL classification for direction routing.
+// the fail-safe). Mirrors the netlink route RTN_LOCAL classification for direction routing.
 func (b *vppBackendImpl) AddressIsLocal(dest netip.Addr) (bool, error) {
 	if err := b.ensureChannel(); err != nil {
 		return false, err
@@ -244,7 +244,7 @@ func routeV2ToKernelRoute(r *ip.IPRouteV2, lookupName func(uint32) (string, bool
 	if len(r.Paths) > 0 {
 		// Preferred path = lowest Preference value (VPP convention: 0 is
 		// preferred, higher numbers are back-ups). For display purposes we
-		// surface the first path -- matches how netlink surfaces the
+		// surface the first path -- matches how the kernel backend surfaces the
 		// primary gateway for ECMP routes.
 		p := &r.Paths[0]
 		if nh := fibNhString(&p.Nh, p.Proto); nh != "" {
@@ -282,7 +282,7 @@ func prefixToString(p ip_types.Prefix) (string, string) {
 
 // fibNhString renders the next-hop address stored in a FibPathNh's union
 // according to the path's protocol. Connected/directly-attached paths have
-// an all-zero next-hop and produce an empty string (netlink backend uses
+// an all-zero next-hop and produce an empty string (the kernel backend uses
 // the same convention). Uses AddressUnion.GetIP4 / GetIP6 so the codec's
 // versioned decode runs (mirrors neighbor.go); reading XXX_UnionData
 // directly would silently misbehave if GoVPP grew a length prefix or

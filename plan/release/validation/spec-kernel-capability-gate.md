@@ -114,7 +114,7 @@ feature nobody asked for is not a fault.
 |---|----------|
 | 1 | Shared gate. MPLS and XFRM enrol now. VPP LCP keeps `spec-fixit-vpp-lcp-reachability` and adopts the registry afterwards |
 | 2 | NO operator override. Refusal is absolute. A NOS that half-works on a kernel missing a required feature is the hazard this removes, and an override is what an operator reaches for under pressure |
-| 3 | Probing is native. Netlink, procfs, or a syscall. Never an external binary |
+| 3 | Probing is native. Netlink sockets, procfs, or a syscall. Never an external binary |
 | 4 | `CONFIG_MPLS_ROUTING` and `CONFIG_MPLS_IPTUNNEL` are ADDED to the appliance kernel, and MPLS enrols at `SeverityError`. Ze ships LDP, RSVP-TE and labeled-unicast, so an appliance that advertises label forwarding must be able to do it |
 | 5 | Ze WRITES `net.mpls.platform_labels` when MPLS is in use. The gate then only checks the sysctl exists. A label space of 0 is a dead config ze can fix rather than report |
 | 6 | ONE shared `ipsecInUse` predicate, used by the gate, `checkKernelModules`, and `extractIPsecListeners`. Over-reporting is the same defect in all three |
@@ -136,7 +136,7 @@ two CALLERS and a severity. It does not add a mechanism
 | Three XFRM probes exist with two behaviors: `xfrmAvailable` (ospf), `openXFRMNetlink` (doctor), `probeXFRM` (ike) | The gate must be ONE probe (`ai/rules/no-layering.md`), and only `openXFRMNetlink` discriminates |
 | `net.mpls.platform_labels` is never written by ze | Decision 5 |
 
-**Probing is native.** The capability is read with netlink, procfs, or a
+**Probing is native.** The capability is read with netlink sockets, procfs, or a
 syscall. Ze MUST NOT shell out to `ip`, `mpls`, or any external binary to learn
 what the kernel supports. An external binary is a second dependency that can be
 absent for its own reasons, which is the defect this spec removes rather than a
@@ -263,7 +263,7 @@ Three, all reading one enrolment: `ze doctor` (`internal/component/doctor/doctor
 | Boundary | How | Verified |
 |----------|-----|----------|
 | Config ↔ capability registry | `inUse(tree)` predicate reads the parsed `config.Tree` | No |
-| Ze ↔ kernel | netlink, procfs, or syscall probe. Never an external binary | No |
+| Ze ↔ kernel | netlink sockets, procfs, or syscall probe. Never an external binary | No |
 | Doctor ↔ startup | the same registry answers both, so a refusal and a report cannot disagree | No |
 
 ### Integration Points
@@ -501,7 +501,7 @@ when the predicate is stubbed to return false.
 | Check | What to verify for this spec |
 |-------|------------------------------|
 | Fail closed, and say so | A capability that cannot be determined never reads as present, and never silently refuses either (`ai/rules/evidence.md`) |
-| No external binary | The probe uses netlink, procfs, or a syscall. Nothing execs `ip`, `mpls`, or any binary |
+| No external binary | The probe uses netlink sockets, procfs, or a syscall. Nothing execs `ip`, `mpls`, or any binary |
 | Predicate symmetry | Every enrolled subsystem has BOTH a positive and a negative predicate test (R-2, R-3) |
 | One mechanism | The registry is the only capability gate. `checkMPLSSupport` joins it rather than sitting beside it (`ai/rules/no-layering.md`) |
 | No override | No config leaf, env var, or flag starts ze past a refusal (owner decision) |
@@ -599,7 +599,7 @@ command that runs them is `./le test qemu run command "./le test qemu all"`.
 
 | Limitation | Why it is accepted |
 |------------|-------------------|
-| ESP has no unprivileged runtime probe | `CONFIG_XFRM_USER` gives the netlink interface and `CONFIG_INET_ESP` carries the packets. A kernel with the first and not the second accepts every SA install and drops every ESP packet (`internal/appliance/kernelreq.go`). Only the build-time requirement catches it, so a non-appliance kernel can still pass the gate and fail to encrypt |
+| ESP has no unprivileged runtime probe | `CONFIG_XFRM_USER` gives the netlink API and `CONFIG_INET_ESP` carries the packets. A kernel with the first and not the second accepts every SA install and drops every ESP packet (`internal/appliance/kernelreq.go`). Only the build-time requirement catches it, so a non-appliance kernel can still pass the gate and fail to encrypt |
 | The gate judges the LOCAL host | `ze config validate` run on a workstation, for a config destined elsewhere, answers about the workstation. This is why the gate is not in `LoadConfig`, but validate still carries it (AC-4), so the limitation is real and must be documented |
 | Only MPLS and XFRM enrol | L2TP, PPPoE, nftables, policy routing, traffic shaping, eBPF/TCX and several interface kinds all need kernel features that can be absent, and all are module-gated or unprobed today. Each joins the enrolment later. The registry's shape must not assume two subsystems |
 | `mpls_iptunnel` is deliberately not gated | The kernel autoloads it on the first encap route (A-4). Gating it would be a false refusal on every modular kernel |

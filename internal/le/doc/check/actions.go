@@ -2,7 +2,7 @@
 // Detail: links.go -- path, citation, suppression, and baseline checks.
 // Detail: register.go -- root registration and answer shape.
 //
-// Package doccheck owns the four documentation actions that the verifier runs
+// Package doccheck owns the documentation actions that the verifier runs
 // directly. The links action owns its scan. All and templ-output call the Go
 // packages that already own those compositions. The dispatch, the listing, the
 // help page and the refusals live in internal/le/le/action.
@@ -51,6 +51,14 @@ var actions = []leaction.Action{
 		Why: "no tracked line names a form the subject-first rename retired, " +
 			"or cites an le command le does not hold: its area, namespace and first verb",
 		Answer: atRoot(runRetiredCheck),
+	},
+	{
+		Verb:    "retired-selector-values",
+		Does:    doesCheck,
+		Summary: "refuse a line naming a retired data-plane selector value",
+		Why: "no tracked file names a retired data-plane selector value " +
+			"outside the declared class and line exceptions",
+		Answer: atRoot(runRetiredSelectorCheck),
 	},
 }
 

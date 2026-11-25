@@ -384,7 +384,7 @@ func TestPortEncodingFollowsSection3131(t *testing.T) {
 	// caller. A PortOpaque selector therefore encodes as 65535/0 wherever one appears.
 	//
 	// Ze never WISHES to indicate OPAQUE. That refusal is Ze's conformant behavior and
-	// not a hole. Ze maps an opaque port onto no kernel selector yet: the carried netlink
+	// not a hole. Ze maps an opaque port onto no kernel selector yet: the carried netlink library
 	// patch can write exactly port 0 (selFromPolicy takes an explicit mask), but which
 	// selector carries "a port not visible in the packet" is the work of
 	// plan/post-release/features/spec-ipsec-opaque-selector-port-mask.md, and a guess

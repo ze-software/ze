@@ -1,0 +1,41 @@
+# Test: a firewall table term naming source-as-set stays refused under firewall backend vpp.
+# Question: does `ze config validate` refuse a firewall table term matching
+#           `source-as-set` under `firewall backend vpp` via the firewall's
+#           own verifier (`MatchInSet`), without needing a separate builder?
+#           A unit test cannot prove the full firewall parser + verifier path
+#           in `ze config validate` preserves this refusal.
+# VALIDATES: spec-dataplane-compatibility-guard Behavior to preserve -- a term
+#            referencing an IRR AS-SET expands to `MatchInSet` (`irr_v4_*`) and
+#            is refused at commit by `firewallvpp.Verify`.
+# PREVENTS: a regression in IRR term expansion or firewall verifier wiring
+#           allowing `source-as-set` terms through under VPP.
+stdin=config:terminator=EOF_CONF
+interface {
+	backend vpp;
+}
+firewall {
+	backend vpp;
+	table wan {
+		family inet;
+		chain input {
+			type filter;
+			hook input;
+			priority 0;
+			policy accept;
+			term allow-irr {
+				from {
+					source-as-set AS-TEST;
+				}
+				then {
+					accept;
+				}
+			}
+		}
+	}
+}
+EOF_CONF
+
+cmd=foreground:seq=1:exec=ze config validate -:stdin=config
+expect=exit:code=1
+expect=stdout:contains=irr_v4_AS-TEST
+expect=stdout:contains=not supported by backend vpp

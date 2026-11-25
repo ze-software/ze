@@ -107,7 +107,7 @@ func writeLLMSProductSnapshot(out *textbuf.Buffer, lookup *factLookup) {
 		Str("reference, server-rendered web workbench, looking glass, telemetry, gNMI, gRPC, MCP, ").
 		Str("JSON/YAML/NDJSON/table output, and shell-like output pipes derived from the schema where ").
 		Str("possible.\n")
-	out.Str("- Dataplane: Linux netlink, nftables, eBPF, AF_PACKET, psample, optional VPP ").
+	out.Str("- Dataplane: Linux netlink sockets, nftables, eBPF, AF_PACKET, psample, optional VPP ").
 		Str("integrations, and namespace-aware testing.\n")
 	out.Str("- Release state: pre-release, main-branch builds, no tagged stable release yet.\n")
 	out.Str("- License and repos: AGPLv3. Canonical repository: ").Str(repositoryURL).Str(". Discord: ").
@@ -151,7 +151,7 @@ func writeLLMSQualityModel(out *textbuf.Buffer, inputs *llmsInputs) {
 		Str("structurally, not shown as raw hex only.\n")
 	out.Str("- Browser `.wb` transcripts: drive the rendered web UI through real browser flows.\n")
 	out.Str("- Editor `.et` transcripts: drive the headless interactive editor.\n")
-	out.Str("- QEMU: runs Linux-only behavior from macOS or CI where netlink, nftables, eBPF, ").
+	out.Str("- QEMU: runs Linux-only behavior from macOS or CI where netlink sockets, nftables, eBPF, ").
 		Str("PPP, network namespaces, and kernel modules exist.\n")
 	out.Str("- Interop: ").Int(int64(inputs.Facts.Interop.Scenarios)).Str(" scenarios across ").
 		Int(int64(inputs.Facts.Interop.SuiteCount)).Str(" lab suites. The main recorded set has ").

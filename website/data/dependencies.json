@@ -108,7 +108,7 @@
                 },
                 {
                     "module": "golang.zx2c4.com/wireguard/wgctrl",
-                    "why": "Creates and configures WireGuard interfaces and peers from the interface netlink backend.",
+                    "why": "Creates and configures WireGuard interfaces and peers from the interface kernel backend.",
                     "licence": "MIT",
                     "copyright": "Matt Layher",
                     "source": "https://github.com/WireGuard/wgctrl-go"
@@ -149,7 +149,7 @@
                 },
                 {
                     "module": "github.com/vishvananda/netns",
-                    "why": "Linux network-namespace handles, used alongside netlink for namespace-scoped route watching.",
+                    "why": "Linux network-namespace handles, used alongside netlink sockets for namespace-scoped route watching.",
                     "licence": "Apache-2.0",
                     "copyright": "Vishvananda Ishaya, Docker, Inc.",
                     "source": "https://github.com/vishvananda/netns"

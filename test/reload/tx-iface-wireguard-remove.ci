@@ -1,7 +1,7 @@
 # Test: WireGuard interface removed via SIGHUP-applied transaction
 # Initial config has BGP + wireguard wgrm0 with one peer. Updated config
 # drops the wireguard block entirely; Phase 4 reconciliation in
-# applyConfig must delete wgrm0 via DeleteInterface because the netlink
+# applyConfig must delete wgrm0 via DeleteInterface because the kernel
 # link type "wireguard" was added to zeManageable in Phase 9. The BGP
 # peer connection must hold through the reload.
 #

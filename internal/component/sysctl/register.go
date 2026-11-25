@@ -67,11 +67,22 @@ func init() {
 	)
 
 	reg := registry.Registration{
-		Name:                    "sysctl",
-		Description:             "Kernel tunable management: three-layer precedence, restore on stop",
-		Features:                "yang",
-		YANG:                    sysctlyang.ZeSysctlConfYANG,
-		ConfigRoots:             []string{configRoot},
+		Name:        "sysctl",
+		Description: "Kernel tunable management: three-layer precedence, restore on stop",
+		Features:    "yang",
+		YANG:        sysctlyang.ZeSysctlConfYANG,
+		ConfigRoots: []string{configRoot},
+		// sysctl acts on the Linux host itself, beside the selected data plane:
+		// its keys apply to the Linux kernel on any plane (forwarding keys such
+		// as rp_filter act only on packets that reach Linux, not packets VPP
+		// forwards).
+		DataPlaneFeatures: []registry.DataPlaneFeature{{
+			ConfigPath: configRoot,
+			Why:        "sysctl sets the Linux kernel's own tunables",
+			Planes:     []string{"kernel"},
+			InUseKind:  registry.DataPlaneInUseConfigRoot,
+		}},
+		HostSideDataPlane:       true,
 		InProcessConfigVerifier: verifySysctlConfig,
 		Sends:                   sysctlSends(),
 		RunEngine:               runSysctlPlugin,

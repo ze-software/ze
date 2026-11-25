@@ -3,7 +3,7 @@
 
 // Package trafficvpp implements the ze traffic-control Backend interface on
 // top of VPP's binary API via GoVPP. It is registered under the name "vpp"
-// alongside the netlink backend.
+// alongside the kernel backend.
 //
 // Current scope: HTB and TBF qdiscs translate to a single VPP policer per
 // interface bound to interface egress via PolicerOutput. Multi-class

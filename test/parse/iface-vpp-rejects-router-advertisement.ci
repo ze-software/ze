@@ -2,7 +2,7 @@
 #       under backend vpp
 # VALIDATES: the commit-time feature gate rejects a unit that sends Router
 #            Advertisements when the active backend is vpp. The container
-#            carries ze:backend "netlink" in ze-iface-conf.yang, because the
+#            carries ze:backend "kernel" in ze-iface-conf.yang, because the
 #            sender runs on a raw ICMPv6 socket over the kernel interface and
 #            reads the link-local source address the kernel owns. VPP holds
 #            the interface instead, so none of that exists on the vpp path.
@@ -38,4 +38,4 @@ cmd=foreground:seq=1:exec=ze config validate -:stdin=config:exit=1
 expect=exit:code=1
 expect=stdout:contains=/interface/ethernet/eth0/unit/0/ipv6/router-advertisement
 expect=stdout:contains="vpp"
-expect=stdout:contains=netlink
+expect=stdout:contains=kernel

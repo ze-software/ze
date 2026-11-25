@@ -3,7 +3,7 @@
 # VALIDATES: the full kernel-legal uint32 range remains accepted for a policy
 #            route `then table`, a named routing-table id, and a static route
 #            `metric`, on the 64-bit targets Ze builds.
-# PREVENTS: the netlink-encodability bound added for CodeQL alert 170
+# PREVENTS: the netlink field encodability bound added for CodeQL alert 170
 #           (go/incorrect-integer-conversion) being tightened to a hardcoded
 #           32-bit constant. That bound exists because netlink.Rule.Table,
 #           netlink.Route.Table and netlink.Route.Priority are Go ints whose

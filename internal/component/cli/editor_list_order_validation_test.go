@@ -17,7 +17,7 @@ func TestListOrderModelCommitClearsDirty(t *testing.T) {
 			name = "session"
 		}
 		t.Run(name, func(t *testing.T) {
-			content := strings.Replace(editorListOrderConfig, "interface {", "interface {\n  backend netlink;", 1)
+			content := strings.Replace(editorListOrderConfig, "interface {", "interface {\n  backend kernel;", 1)
 			ed, path := newListOrderEditor(t, session, content)
 			model, err := NewModel(ed, FilesystemAuthorityOperatorLocal)
 			if err != nil {

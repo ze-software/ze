@@ -56,7 +56,7 @@ func TestShowInterfaceOneProducer(t *testing.T) {
 	if err := ifacepkg.RegisterBackend(name, func() (ifacepkg.Backend, error) { return backend, nil }); err != nil {
 		t.Fatal(err)
 	}
-	// The package's init loads the netlink backend, and the parallel tests
+	// The package's init loads the kernel backend, and the parallel tests
 	// (TestCmdShowSuccess) run after this serial one and read it: put it back.
 	previous := ifacepkg.ActiveBackendName()
 	if err := ifacepkg.LoadBackend(name); err != nil {

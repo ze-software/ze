@@ -221,7 +221,7 @@ func TestTranslateFilterProtocolRejectsOutOfRange(t *testing.T) {
 }
 
 // VALIDATES: every filter translateFilter emits carries the priority dedicated
-// to its protocol, so no two protocols ever share a tc priority on one parent.
+// to its protocol, so no two protocols ever share a traffic control priority on one parent.
 // The kernel keeps one tcf_proto per (parent, priority) holding a single
 // protocol: tcf_chain_tp_find (net/sched/cls_api.c) returns ERR_PTR(-EINVAL)
 // when "tp->prio == prio" and "tp->protocol != protocol && protocol".

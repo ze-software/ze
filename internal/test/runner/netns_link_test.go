@@ -102,7 +102,7 @@ func TestNetnsLinkWithoutPeerIsDummy(t *testing.T) {
 
 // VALIDATES: a vlan tag outside 1..4094 and a peer equal to the name are both
 // rejected at parse time, on every platform.
-// PREVENTS: the fail-open shape this option already had once -- a value netlink
+// PREVENTS: the fail-open shape this option already had once -- a value the netlink socket
 // rejects at run time only, on Linux, inside a QEMU VM, where the diagnosis is a
 // suite-wide setup error rather than the one .ci line that caused it.
 func TestNetnsLinkRejectsBadPeerAndVLAN(t *testing.T) {

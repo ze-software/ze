@@ -41,7 +41,7 @@
 #     listener -- it binds separately from OnConfigure -- so this one could not
 #     be deleted, only pointed at the right signal.
 #   firewall-set-element-timeout: the post-apply settle became a poll on the set's
-#     ELEMENTS, not on the set existing; nft prints an empty `elements = { }`
+#     ELEMENTS, not on the set existing; nftables prints an empty `elements = { }`
 #     body for a declared-but-unpopulated set, which an existence check would
 #     have accepted while both assertions still failed.
 #   ddos-local-withdraw: three already-bounded polls moved into the helpers,

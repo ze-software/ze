@@ -23,7 +23,7 @@ import (
 var ErrNoBackendLoaded = opererr.New(
 	"iface: no backend loaded",
 	"Ze loads an interface backend only when the config has an interface section, so it cannot read or change an interface",
-	"set interface backend netlink",
+	"set interface backend kernel",
 )
 
 // backendOrErr returns the active backend or an error if none is loaded.
@@ -245,7 +245,7 @@ func ListKernelRoutes(filterPrefix string, limit int) ([]KernelRoute, error) {
 
 // ResetCounters zeros RX/TX counters for the named interface (or every
 // managed interface when name == "") via the active backend. Backends
-// that cannot physically clear counters in the kernel (Linux netlink)
+// that cannot physically clear counters in the kernel (Linux rtnetlink)
 // trigger a baseline-delta fallback: the current values become a
 // per-interface baseline and GetStats/ListInterfaces/GetInterface
 // subtract that baseline before returning. Wrap detection (raw < baseline)

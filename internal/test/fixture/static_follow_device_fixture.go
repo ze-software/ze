@@ -195,7 +195,7 @@ func staticPPPoEAbsent(ctx context.Context, plugin *sdk.Plugin) error {
 // reload: the client under the interface section, and the default route
 // through it at the head of the main table.
 const (
-	followBootInterface = "\tbackend netlink\n"
+	followBootInterface = "\tbackend kernel\n"
 	followAddClient     = followBootInterface +
 		"\tpppoe-client " + followDevice + " {\n" +
 		"\t\tsource-interface " + kernelLink + "\n" +

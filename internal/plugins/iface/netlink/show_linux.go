@@ -30,7 +30,7 @@ const linkListRetries = 3
 // NLM_F_DUMP_INTR (netlink.ErrDumpInterrupted, "results may be incomplete or
 // inconsistent") is not a failure: it means the link table CHANGED while the
 // kernel was walking it, so the snapshot may be torn. The correct response is to
-// dump again -- the vendored netlink even keeps EINTR compatibility for it
+// dump again -- the vendored netlink library even keeps EINTR compatibility for it
 // (vendor/github.com/vishvananda/netlink/nl/nl_linux.go:48-66).
 //
 // Treating it as fatal was operator-visible: the caller in

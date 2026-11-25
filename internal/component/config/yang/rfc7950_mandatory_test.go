@@ -153,7 +153,7 @@ func TestMandatoryChoiceSatisfiedByACaseNode(t *testing.T) {
 	loader := NewLoader()
 	module := `module ze-test-choice-conf {
 	namespace "urn:ze:test:choice";
-	prefix tc;
+	prefix tch;
 	container wrap {
 		choice kind {
 			mandatory true;

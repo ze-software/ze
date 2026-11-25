@@ -8,7 +8,7 @@ Use Ze as a single-box Linux CPE on a PPPoE fiber circuit: terminate PPPoE on th
 ISP / BNG (accel-ppp)
        │ PPPoE + IPv6CP + DHCPv6-PD (/56 or /60)
        ▼ eth1 -> pppoe0 (MTU 1492)
-   Ze CPE (Linux, netlink backend)
+   Ze CPE (Linux, kernel backend)
        │ lan0 / br0 (192.168.50.1/24 + delegated /64)
        ▼
   LAN hosts (DHCPv4 + IPv6 SLAAC + local caching DNS)
@@ -78,7 +78,7 @@ static {
 }
 
 firewall {
-    backend nft;
+    backend kernel;
     table wan-mss {
         family ip;
         chain mss {
@@ -227,7 +227,7 @@ ze doctor
 
 - **WAN client is PPPoE only:** Ze has `interface { pppoe-client }` for CPE WANs. Ze's L2TP implementation is an RFC 2661 BNG LNS/LAC rather than a CPE L2TP client.
 - **DHCPv4 server only:** `service { dhcp-server }` serves IPv4 leases; LAN IPv6 hosts autoconfigure via SLAAC and Router Advertisements. There is no `show dhcp` lease table command yet.
-- **Linux netlink backend required:** `pppoe-client` and `router-advertisement` require Linux with `backend netlink`, and Router Advertisements require `ipv6 { forwarding true; }`.
+- **Linux kernel backend required:** `pppoe-client` and `router-advertisement` require Linux with `backend kernel`, and Router Advertisements require `ipv6 { forwarding true; }`.
 - **Forwarding DNS resolver:** `service { dns-resolver }` operates in forwarding mode over plain UDP/TCP only (no full root recursion, DNSSEC validation, DoT/DoH, or wildcard `0.0.0.0`/`::` listeners).
 
 ## Related guides

@@ -1,4 +1,4 @@
-// Design: docs/architecture/ddos/cp-survival-5-detect-0-umbrella.md -- on-host nft drop responder
+// Design: docs/architecture/ddos/cp-survival-5-detect-0-umbrella.md -- on-host nftables drop responder
 
 package local
 
@@ -270,7 +270,7 @@ func (r *responder) onCharacterized(e *ddosevent.AttackCharacterized) {
 	r.applyMitigation(e.Target, e.Family, e.Direction, e.SuppressMitigation, "characterized")
 }
 
-// applyMitigation (re)installs the nft drop for target. Caller holds r.mu. Used
+// applyMitigation (re)installs the nftables drop for target. Caller holds r.mu. Used
 // by both the coarse (onDetected) and narrowed (onCharacterized) paths so the
 // table is re-registered identically; the only difference is how surgical the
 // term is.
@@ -374,7 +374,7 @@ func (r *responder) applyMitigation(target ddosevent.VectorTuple, family ddoseve
 // It is exported so a test outside this package can judge the table this plugin
 // installs without a copy of its shape: the IKE ESP form fast path's analyzer test
 // (internal/component/ike/dataplane, espform_firewall_stock_linux_test.go) lowers it
-// through the nft backend and reads it back from the kernel.
+// through the kernel firewall backend and reads it back from the kernel.
 //
 // Caller MUST pass a target with a valid DstPrefix: familyFromPrefix answers ip6 for
 // the zero prefix, and buildDropTerm emits no match for a zero vector.

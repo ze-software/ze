@@ -7,7 +7,7 @@ module ze-static-conf {
 
     description
         "Static route configuration for Ze.
-         Routes are programmed directly to the kernel (netlink) or VPP
+         Routes are programmed directly to the kernel (rtnetlink) or VPP
          dataplane. Multiple next-hops produce ECMP with optional
          per-next-hop weights. BFD profiles enable fast failover.
          Routes are grouped under named tables (resolved via the
@@ -144,7 +144,7 @@ module ze-static-conf {
                                     type string;
                                     ze:validate "ipv4-address|ipv6-address";
                                     description "The address is the list key, so it names the entry. Ze sets
-                                        it as the netlink gateway, and the kernel selects the outgoing
+                                        it as the rtnetlink gateway, and the kernel selects the outgoing
                                         interface unless the interface leaf names one. IPv4 and IPv6 are
                                         both accepted.";
                                     ze:help "Gateway address.";

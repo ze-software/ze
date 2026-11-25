@@ -60,8 +60,8 @@ var actions = []leaction.Action{
 	},
 	{
 		Verb:    "update",
-		Summary: "regenerate the published pipe operator table",
-		Why:     "regenerate the published pipe operator table from the operator catalog",
+		Summary: "regenerate generated doc references from live catalogs",
+		Why:     "regenerate the published pipe operator table and data-plane feature reference from live declarations",
 		Writes:  true,
 		Answer:  runWriteGenerated,
 	},

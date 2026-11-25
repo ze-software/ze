@@ -206,22 +206,22 @@ module ze-iface-conf {
                      writes, which it emits on the event bus for the sysctl plugin to perform.";
 
         leaf autoconf {
-            ze:backend "netlink";
+            ze:backend "kernel";
             type boolean;
             description "The kernel learns an address only when a Router Advertisement reaches
-                         the device it owns, so this leaf needs the netlink backend. On the vpp
+                         the device it owns, so this leaf needs the kernel backend. On the vpp
                          backend, the NIC belongs to VPP, and no advertisement reaches the Linux
                          Control Plane tap.";
             ze:help "Enable IPv6 stateless autoconfiguration.";
         }
 
         leaf accept-ra {
-            ze:backend "netlink";
+            ze:backend "kernel";
             type uint8 {
                 range "0..2";
             }
             default 0;
-            description "This leaf needs the netlink backend, for the same reason as autoconf:
+            description "This leaf needs the kernel backend, for the same reason as autoconf:
                          the two leaves describe one behavior. Above 0 it also makes the
                          device's RDNSS options (RFC 8106) an ra record of the router's
                          received DNS servers, on a unit and on a pppoe-client session alike.";
@@ -236,7 +236,7 @@ module ze-iface-conf {
         }
 
         container dhcpv6 {
-            ze:backend "netlink";
+            ze:backend "kernel";
             description "The client requests addresses, delegated prefixes, or both, from a
                          DHCPv6 server. It runs alongside SLAAC when autoconf is also enabled.";
             ze:help "DHCPv6 stateful client (RFC 8415).";
@@ -547,7 +547,7 @@ Ze sends a priority with no entry as PCP 0.";
                 }
 
                 container dhcp {
-                    ze:backend "netlink";
+                    ze:backend "kernel";
                     description "Ze runs its own DHCPv4 client, so no dhclient process and no udhcpc
                                  process is needed. The client installs the leased address, the
                                  default route and the resolvers that the server sends.";
@@ -602,7 +602,7 @@ Ze sends a priority with no entry as PCP 0.";
                 uses ipv6-host;
 
                 list delegated-prefix {
-                    ze:backend "netlink";
+                    ze:backend "kernel";
                     key "source";
                     description "Ze takes one /64 for this unit out of the prefix the named pppoe-client
                                  leases through DHCPv6 prefix delegation (RFC 7084 L-2): the delegated
@@ -654,13 +654,13 @@ Ze sends a priority with no entry as PCP 0.";
                     description "strict drops a packet whose source address would not be routed back
                                  through this interface. loose drops a packet whose source address has
                                  no route at all. disable performs no source address validation.";
-                    ze:backend "netlink";
+                    ze:backend "kernel";
                     ze:help "Reverse path filtering mode, enforced by an nftables fib lookup.";
                 }
 
                 container router-advertisement {
                     ze:os "linux";
-                    ze:backend "netlink";
+                    ze:backend "kernel";
                     description "Ze advertises prefixes, flags and resolvers on this link, so that a
                                  host autoconfigures. That is the role radvd fills on another system.
                                  Sending is separate from accepting: set forwarding true on an
@@ -860,8 +860,8 @@ Ze sends a priority with no entry as PCP 0.";
 
             container mirror {
                 ze:os "linux";
-                ze:backend "netlink vpp";
-                description "The netlink backend mirrors through tc mirred. The vpp backend programs
+                ze:backend "kernel vpp";
+                description "The kernel backend mirrors through tc mirred. The vpp backend programs
                              SPAN, through sw_interface_span_enable_disable, and it maps the ingress
                              direction and the egress direction onto the RX SPAN state and the TX SPAN
                              state, as a device-level port mirror.";
@@ -923,7 +923,7 @@ Ze sends a priority with no entry as PCP 0.";
 
             leaf ip {
                 type zt:ipv4-address;
-                description "Ze writes the address into the netlink Local field, so it becomes the
+                description "Ze writes the address into the rtnetlink Local field, so it becomes the
                              source address of the outer IPv4 header. Use interface instead where the
                              underlay address is learned by DHCP and can change.";
                 ze:help "Local IPv4 endpoint";
@@ -936,7 +936,7 @@ Ze sends a priority with no entry as PCP 0.";
                              written <interface>.<vlan-id>, and the commit refuses any other name.
                              Ze resolves it through the selector map, so an uplink bound by mac/match
                              or aliased by os-name gives its own device, and passes that device's
-                             kernel index as the netlink parent field, so the kernel takes the source
+                             kernel index as the rtnetlink parent field, so the kernel takes the source
                              address from it. A declared name whose selector finds no device fails
                              the apply, naming the entry, because the tunnel has no underlay. The
                              vxlan case refuses this leaf and needs a local ip.";
@@ -952,7 +952,7 @@ Ze sends a priority with no entry as PCP 0.";
             leaf ip {
                 type zt:ipv4-address;
                 mandatory true;
-                description "Ze writes the address into the netlink Remote field, so it becomes the
+                description "Ze writes the address into the rtnetlink Remote field, so it becomes the
                              destination address of the outer IPv4 header. For a vxlan tunnel this
                              address is the remote VTEP.";
                 ze:help "Remote IPv4 endpoint";
@@ -971,7 +971,7 @@ Ze sends a priority with no entry as PCP 0.";
 
             leaf ip {
                 type zt:ipv6-address;
-                description "Ze writes the address into the netlink Local field, so it becomes the
+                description "Ze writes the address into the rtnetlink Local field, so it becomes the
                              source address of the outer IPv6 header. Use interface instead where the
                              underlay address is learned by a Router Advertisement and can change.";
                 ze:help "Local IPv6 endpoint";
@@ -984,7 +984,7 @@ Ze sends a priority with no entry as PCP 0.";
                              written <interface>.<vlan-id>, and the commit refuses any other name.
                              Ze resolves it through the selector map, so an uplink bound by mac/match
                              or aliased by os-name gives its own device, and passes that device's
-                             kernel index as the netlink parent field, so the kernel takes the source
+                             kernel index as the rtnetlink parent field, so the kernel takes the source
                              address from it. A declared name whose selector finds no device fails
                              the apply, naming the entry, because the tunnel has no underlay.";
                 ze:help "Local interface to take the source address from";
@@ -999,7 +999,7 @@ Ze sends a priority with no entry as PCP 0.";
             leaf ip {
                 type zt:ipv6-address;
                 mandatory true;
-                description "Ze writes the address into the netlink Remote field, so it becomes the
+                description "Ze writes the address into the rtnetlink Remote field, so it becomes the
                              destination address of the outer IPv6 header.";
                 ze:help "Remote IPv6 endpoint";
             }
@@ -1016,12 +1016,12 @@ Ze sends a priority with no entry as PCP 0.";
 
         leaf backend {
             type string;
-            default "netlink";
+            default "kernel";
             description "Ze loads the backend this name selects, and it refuses an unknown name with
-                         'unknown backend' and the list of registered names. netlink drives the Linux
+                         'unknown backend' and the list of registered names. kernel drives the Linux
                          kernel through rtnetlink. vpp drives the VPP data plane, and it is linked in
                          only under the ze_vpp build tag.";
-            ze:help "Interface management backend: netlink or vpp.";
+            ze:help "Interface management backend: kernel or vpp.";
         }
 
         leaf dhcp-auto {
@@ -1077,7 +1077,7 @@ Ze sends a priority with no entry as PCP 0.";
         list veth {
             key "name";
             unique "mac/address";
-            ze:backend "netlink";
+            ze:backend "kernel";
             description "A veth is a pair of connected devices, and a packet that enters one end
                          leaves the other. Ze creates both ends in one netlink call and sets both up.
                          The pair exists only while ze manages it, so ze deletes it when the entry
@@ -1087,7 +1087,7 @@ Ze sends a priority with no entry as PCP 0.";
             leaf name {
                 type string;
                 description "This name is the end ze manages: it carries the addresses, the units and
-                             the MTU. Ze creates the pair with one netlink LinkAdd call, then it sets
+                             the MTU. Ze creates the pair with one rtnetlink LinkAdd call, then it sets
                              the link state of both ends to up.";
                 ze:help "Veth interface name (e.g., veth0). Ze creates the pair at apply time.";
             }
@@ -1107,7 +1107,7 @@ Ze sends a priority with no entry as PCP 0.";
         list bridge {
             key "name";
             unique "mac/address";
-            ze:backend "netlink";
+            ze:backend "kernel";
             description "Ze creates the bridge when it does not exist. Ze enslaves the member interfaces
                          at apply time.";
             ze:help "Linux bridge interface, which forwards Ethernet frames between member ports at L2.";
@@ -1152,7 +1152,7 @@ Ze sends a priority with no entry as PCP 0.";
 
         list tunnel {
             key "name";
-            ze:backend "netlink";
+            ze:backend "kernel";
             description "The choice below selects the encapsulation kind, and each case carries only the
                          leaves that are valid for that kind. The local endpoint and remote endpoint
                          pattern matches bgp peer connection { local { ip ... } remote { ip ... } }.";
@@ -1185,8 +1185,8 @@ Ze sends a priority with no entry as PCP 0.";
                                      the optional Key field, and the key leaf below sets it.";
                         ze:help "GRE over IPv4 (RFC 2784, key extension RFC 2890). L3.";
                         container gre {
-                            ze:backend "netlink vpp";
-                            description "Ze builds a netlink Gretun link over IPv4 endpoints. The kind
+                            ze:backend "kernel vpp";
+                            description "Ze builds an rtnetlink Gretun link over IPv4 endpoints. The kind
                                          is L3, so a unit that carries a vlan-id on this tunnel is
                                          refused. Use the gretap kind where the tunnel must carry
                                          Ethernet frames.";
@@ -1195,8 +1195,8 @@ Ze sends a priority with no entry as PCP 0.";
 
                             leaf key {
                                 type uint32;
-                                description "Ze writes the value into the netlink IKey field and the
-                                             netlink OKey field, so one key covers the input direction
+                                description "Ze writes the value into the rtnetlink IKey field and the
+                                             rtnetlink OKey field, so one key covers the input direction
                                              and the output direction. The value 0 cannot be set,
                                              because the netlink library reads 0 as no key and leaves
                                              the GRE Key flag clear.";
@@ -1205,13 +1205,13 @@ Ze sends a priority with no entry as PCP 0.";
                             }
 
                             leaf ttl {
-                                // netlink only: GreTunnelV2 and IpipTunnel
+                                // kernel only: GreTunnelV2 and IpipTunnel
                                 // (vendor/go.fd.io/govpp/binapi) carry no hop-limit value, and only
                                 // tunnel_types.Tunnel does, which the gre and ipip APIs do not take.
                                 // Inherit alone would be reachable through the encap flag
                                 // TUNNEL_API_ENCAP_DECAP_FLAG_ENCAP_COPY_HOP_LIMIT, which ze does
-                                // not set. So netlink implements this leaf and vpp does not.
-                                ze:backend "netlink";
+                                // not set. So kernel implements this leaf and vpp does not.
+                                ze:backend "kernel";
                                 type uint8;
                                 default 64;
                                 description "Ze writes the value into the outer IPv4 TTL field,
@@ -1221,7 +1221,7 @@ Ze sends a priority with no entry as PCP 0.";
                                              kinds. 0 makes the kernel take the value from the inner
                                              packet instead, which drops the packet early when the
                                              inner TTL is small or the underlay is more than one hop.
-                                             Only the netlink backend implements the leaf. The vpp
+                                             Only the kernel backend implements the leaf. The vpp
                                              tunnel API carries no outer TTL, so a commit that names
                                              a ttl on the vpp backend is refused by path.";
                                 ze:help "Outer-header TTL. 0 = inherit from the inner packet";
@@ -1256,8 +1256,8 @@ Ze sends a priority with no entry as PCP 0.";
                                      case carries its own mac container.";
                         ze:help "GRE over IPv4, L2 (Ethernet over GRE, bridgeable). RFC 2784.";
                         container gretap {
-                            ze:backend "netlink vpp";
-                            description "Ze builds a netlink Gretap link over IPv4 endpoints. The
+                            ze:backend "kernel vpp";
+                            description "Ze builds an rtnetlink Gretap link over IPv4 endpoints. The
                                          kernel selects the GRE protocol type 0x6558, Transparent
                                          Ethernet Bridging, from the link kind alone, so no leaf sets
                                          it.";
@@ -1266,8 +1266,8 @@ Ze sends a priority with no entry as PCP 0.";
 
                             leaf key {
                                 type uint32;
-                                description "Ze writes the value into the netlink IKey field and the
-                                             netlink OKey field, so one key covers the input direction
+                                description "Ze writes the value into the rtnetlink IKey field and the
+                                             rtnetlink OKey field, so one key covers the input direction
                                              and the output direction. The value 0 cannot be set,
                                              because the netlink library reads 0 as no key and leaves
                                              the GRE Key flag clear.";
@@ -1275,13 +1275,13 @@ Ze sends a priority with no entry as PCP 0.";
                             }
 
                             leaf ttl {
-                                // netlink only: GreTunnelV2 and IpipTunnel
+                                // kernel only: GreTunnelV2 and IpipTunnel
                                 // (vendor/go.fd.io/govpp/binapi) carry no hop-limit value, and only
                                 // tunnel_types.Tunnel does, which the gre and ipip APIs do not take.
                                 // Inherit alone would be reachable through the encap flag
                                 // TUNNEL_API_ENCAP_DECAP_FLAG_ENCAP_COPY_HOP_LIMIT, which ze does
-                                // not set. So netlink implements this leaf and vpp does not.
-                                ze:backend "netlink";
+                                // not set. So kernel implements this leaf and vpp does not.
+                                ze:backend "kernel";
                                 type uint8;
                                 default 64;
                                 description "Ze writes the value into the outer IPv4 TTL field,
@@ -1291,7 +1291,7 @@ Ze sends a priority with no entry as PCP 0.";
                                              kinds. 0 makes the kernel take the value from the inner
                                              packet instead, which drops the packet early when the
                                              inner TTL is small or the underlay is more than one hop.
-                                             Only the netlink backend implements the leaf. The vpp
+                                             Only the kernel backend implements the leaf. The vpp
                                              tunnel API carries no outer TTL, so a commit that names
                                              a ttl on the vpp backend is refused by path.";
                                 ze:help "Outer-header TTL. 0 = inherit from the inner packet";
@@ -1340,7 +1340,7 @@ Ze sends a priority with no entry as PCP 0.";
 
                     case ip6gre {
                         description "The case selects the Linux ip6gre kind, which puts the GRE header
-                                     in an outer IPv6 header. Ze builds it from the same netlink
+                                     in an outer IPv6 header. Ze builds it from the same rtnetlink
                                      Gretun type as gre, and the endpoint family selects the kernel
                                      kind.";
                         ze:help "GRE over IPv6 (RFC 2784, key extension RFC 2890). L3.";
@@ -1354,8 +1354,8 @@ Ze sends a priority with no entry as PCP 0.";
 
                             leaf key {
                                 type uint32;
-                                description "Ze writes the value into the netlink IKey field and the
-                                             netlink OKey field, so one key covers the input direction
+                                description "Ze writes the value into the rtnetlink IKey field and the
+                                             rtnetlink OKey field, so one key covers the input direction
                                              and the output direction. The value 0 cannot be set,
                                              because the netlink library reads 0 as no key and leaves
                                              the GRE Key flag clear.";
@@ -1390,7 +1390,7 @@ Ze sends a priority with no entry as PCP 0.";
                                      second of the two kinds ze counts as bridgeable.";
                         ze:help "GRE over IPv6, L2 (Ethernet over GRE bridgeable). RFC 2784.";
                         container ip6gretap {
-                            description "Ze builds a netlink Gretap link over IPv6 endpoints. The
+                            description "Ze builds an rtnetlink Gretap link over IPv6 endpoints. The
                                          endpoints are IPv6, so the container carries hoplimit and
                                          tclass where the gretap case carries ttl and tos.";
                             ze:help "GRETAP-over-IPv6 parameters";
@@ -1398,8 +1398,8 @@ Ze sends a priority with no entry as PCP 0.";
 
                             leaf key {
                                 type uint32;
-                                description "Ze writes the value into the netlink IKey field and the
-                                             netlink OKey field, so one key covers the input direction
+                                description "Ze writes the value into the rtnetlink IKey field and the
+                                             rtnetlink OKey field, so one key covers the input direction
                                              and the output direction. The value 0 cannot be set,
                                              because the netlink library reads 0 as no key and leaves
                                              the GRE Key flag clear.";
@@ -1454,21 +1454,21 @@ Ze sends a priority with no entry as PCP 0.";
                                      endpoint pair.";
                         ze:help "IPv4 in IPv4 (RFC 2003). No GRE header, no key. L3.";
                         container ipip {
-                            ze:backend "netlink vpp";
-                            description "Ze builds a netlink Iptun link and sets Proto to
+                            ze:backend "kernel vpp";
+                            description "Ze builds an rtnetlink Iptun link and sets Proto to
                                          IPPROTO_IPIP. The kind is L3, so a unit that carries a
                                          vlan-id on this tunnel is refused at parse time.";
                             ze:help "IPv4-in-IPv4 tunnel parameters (RFC 2003). Minimal overhead, no key support.";
                             uses tunnel-v4-endpoints;
 
                             leaf ttl {
-                                // netlink only: GreTunnelV2 and IpipTunnel
+                                // kernel only: GreTunnelV2 and IpipTunnel
                                 // (vendor/go.fd.io/govpp/binapi) carry no hop-limit value, and only
                                 // tunnel_types.Tunnel does, which the gre and ipip APIs do not take.
                                 // Inherit alone would be reachable through the encap flag
                                 // TUNNEL_API_ENCAP_DECAP_FLAG_ENCAP_COPY_HOP_LIMIT, which ze does
-                                // not set. So netlink implements this leaf and vpp does not.
-                                ze:backend "netlink";
+                                // not set. So kernel implements this leaf and vpp does not.
+                                ze:backend "kernel";
                                 type uint8;
                                 default 64;
                                 description "Ze writes the value into the outer IPv4 TTL field,
@@ -1478,7 +1478,7 @@ Ze sends a priority with no entry as PCP 0.";
                                              kinds. 0 makes the kernel take the value from the inner
                                              packet instead, which drops the packet early when the
                                              inner TTL is small or the underlay is more than one hop.
-                                             Only the netlink backend implements the leaf. The vpp
+                                             Only the kernel backend implements the leaf. The vpp
                                              tunnel API carries no outer TTL, so a commit that names
                                              a ttl on the vpp backend is refused by path.";
                                 ze:help "Outer-header TTL. 0 = inherit from the inner packet";
@@ -1513,7 +1513,7 @@ Ze sends a priority with no entry as PCP 0.";
                                      an IPv4-only underlay.";
                         ze:help "IPv6 in IPv4 (6in4, RFC 4213 Section 3). L3.";
                         container sit {
-                            description "Ze builds a netlink Sittun link. The endpoints are IPv4 and
+                            description "Ze builds an rtnetlink Sittun link. The endpoints are IPv4 and
                                          the payload is IPv6, so the container carries no key leaf.
                                          The kind is L3, so a unit that carries a vlan-id on this
                                          tunnel is refused.";
@@ -1556,13 +1556,13 @@ Ze sends a priority with no entry as PCP 0.";
                     }
 
                     case ip6tnl {
-                        description "The case selects the Linux ip6tnl kind, and ze sets the netlink
-                                     field Proto to IPPROTO_IPV6, which is 41. The same kernel kind
+                        description "The case selects the Linux ip6tnl kind, and ze sets the netlink field
+                                     Proto to IPPROTO_IPV6, which is 41. The same kernel kind
                                      serves the ipip6 case, and the inner protocol number is the only
                                      thing that separates the two.";
                         ze:help "IPv6 in IPv6 (RFC 2473). Also covers ip6ip6. L3.";
                         container ip6tnl {
-                            description "Ze builds a netlink Ip6tnl link over IPv6 endpoints. A
+                            description "Ze builds an rtnetlink Ip6tnl link over IPv6 endpoints. A
                                          read-back of an existing device reports the kind as ip6tnl
                                          for this case and for ipip6, because the kernel drops the
                                          inner protocol number. Ze therefore cannot separate the two
@@ -1607,7 +1607,7 @@ Ze sends a priority with no entry as PCP 0.";
                                      Proto=IPPROTO_IPIP.";
                         ze:help "IPv4 in IPv6 (RFC 2473 with Next Header = 4). L3.";
                         container ipip6 {
-                            description "Ze builds the same netlink Ip6tnl link as the ip6tnl case,
+                            description "Ze builds the same rtnetlink Ip6tnl link as the ip6tnl case,
                                          and it sets Proto to IPPROTO_IPIP, which is 4. The endpoints
                                          are IPv6 and the payload is IPv4. The kernel reports the
                                          device kind as ip6tnl either way.";
@@ -1647,12 +1647,12 @@ Ze sends a priority with no entry as PCP 0.";
                     }
 
                     case vxlan {
-                        description "The case is implemented in the netlink backend and in the VPP
+                        description "The case is implemented in the kernel backend and in the VPP
                                      backend.";
                         ze:help "VXLAN overlay: L2 Ethernet frames over a UDP/IPv4 underlay, keyed by a 24-bit VNI.";
                         container vxlan {
-                            ze:backend "netlink vpp";
-                            description "Ze builds a netlink Vxlan link, and it refuses a local
+                            ze:backend "kernel vpp";
+                            description "Ze builds an rtnetlink Vxlan link, and it refuses a local
                                          interface source, so the local endpoint must be an ip. The
                                          VPP backend implements the same kind through
                                          VxlanAddDelTunnelV3. A unit that carries a vlan-id on this
@@ -1671,7 +1671,7 @@ Ze sends a priority with no entry as PCP 0.";
                                 description "The VNI separates overlays that share one underlay, so
                                              two VXLAN tunnels between the same endpoints need
                                              different values. Ze refuses 0 and any value more
-                                             than 16777215, in the netlink backend and in the VPP
+                                             than 16777215, in the kernel backend and in the VPP
                                              backend.";
                                 ze:help "VXLAN Network Identifier (24-bit, 1..16777215)";
                             }
@@ -1680,7 +1680,7 @@ Ze sends a priority with no entry as PCP 0.";
                                 type zt:port;
                                 default 4789;
                                 description "4789 is the port IANA assigns to VXLAN. Ze sends the
-                                             value as the netlink destination port, and 0 selects
+                                             value as the rtnetlink destination port, and 0 selects
                                              4789. Change it only where an underlay device or a
                                              firewall expects another port.";
                                 ze:help "UDP destination port (IANA-assigned default 4789)";
@@ -1697,7 +1697,7 @@ Ze sends a priority with no entry as PCP 0.";
         list wireguard {
             key "name";
             ze:listener;
-            ze:backend "netlink vpp";
+            ze:backend "kernel vpp";
             description "The interface level carries listen-port, fwmark and private-key, and a nested
                          peer list. Each peer carries public-key, endpoint, allowed-ips, preshared-key
                          and persistent-keepalive. WireGuard is an L3 kind with no MAC address, so it
@@ -1836,7 +1836,7 @@ Ze sends a priority with no entry as PCP 0.";
         list xfrm {
             key "name";
             ze:os "linux";
-            ze:backend "netlink";
+            ze:backend "kernel";
             description "The kernel XFRM subsystem encrypts and decrypts the traffic that is routed into
                          this interface. The if-id binds security associations to the interface. XFRM is
                          an L3 kind with no MAC address.";
@@ -1875,7 +1875,7 @@ Ze sends a priority with no entry as PCP 0.";
         list pppoe-client {
             key "name";
             ze:os "linux";
-            ze:backend "netlink";
+            ze:backend "kernel";
             description "The client dials an access concentrator over a physical Ethernet interface,
                          negotiates LCP, authentication, IPCP and, when ipv6 is enabled, IPv6CP, and
                          presents the PPP session as a routable interface with server-assigned

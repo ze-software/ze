@@ -105,7 +105,7 @@ func (r *l2tpReactor) runSessionTimeout(tunnel *L2TPTunnel, sess *L2TPSession, t
 // the idle timeout duration, the session is torn down.
 //
 // Traffic detection uses kernel interface RX byte counters via
-// readIfaceRXBytes (netlink on Linux, zero on other platforms).
+// readIfaceRXBytes (rtnetlink on Linux, zero on other platforms).
 // When counters are unavailable (non-Linux, interface gone), the
 // timer fires unconditionally after the idle period.
 func (r *l2tpReactor) runIdleTimeout(tunnel *L2TPTunnel, sess *L2TPSession, idleTimeout time.Duration, iface string, ctx context.Context) {

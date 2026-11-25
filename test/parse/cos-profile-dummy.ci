@@ -14,7 +14,7 @@ class-of-service {
 }
 
 interface {
-	backend netlink;
+	backend kernel;
 	dummy lo0 {
 		class-of-service residential;
 		unit v100 {

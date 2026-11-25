@@ -13,7 +13,7 @@ expect=element:id=terminal-input
 
 # This web-only server validates and stores configuration without applying an
 # OS dataplane. Select the target backend explicitly instead of a host default.
-action=fill:id=terminal-input:value=set interface backend netlink
+action=fill:id=terminal-input:value=set interface backend kernel
 action=press:id=terminal-input:key=Enter
 action=wait
 
@@ -34,7 +34,7 @@ action=open:path=/config/diff
 expect=element:text=Review changes (0)
 action=open:path=/show/interface/
 expect=element:id=input-interface-sbackend
-expect=html:contains=value="netlink"
+expect=html:contains=value="kernel"
 action=open:path=/show/interface/ethernet/
 expect=element:text=iface-test
 action=open:path=/cli

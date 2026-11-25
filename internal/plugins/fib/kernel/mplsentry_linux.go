@@ -1,6 +1,6 @@
 //go:build linux
 
-// Design: docs/architecture/rsvpte/mpls-rsvp-te.md -- netlink AF_MPLS swap/pop programming
+// Design: docs/architecture/rsvpte/mpls-rsvp-te.md -- Linux kernel AF_MPLS swap/pop programming
 // Related: mplsentry.go -- mplsBackend interface and dispatch
 // Related: nexthop_linux.go -- sibling rich-route (push) programming
 //
@@ -16,10 +16,10 @@ import (
 	"net/netip"
 	"strconv"
 
-	"github.com/ze-software/ze/internal/component/kernelcap"
-
 	"github.com/vishvananda/netlink"
 	"golang.org/x/sys/unix"
+
+	"github.com/ze-software/ze/internal/component/kernelcap"
 )
 
 func (n *netlinkBackend) addMPLSSwap(inLabel uint32, outLabels []uint32, nextHop netip.Addr, pathMTU uint32, replace bool) error {
@@ -29,7 +29,7 @@ func (n *netlinkBackend) addMPLSSwap(inLabel uint32, outLabels []uint32, nextHop
 		return errors.New("mpls label: backend closed")
 	}
 	if uint64(pathMTU) > maxNetlinkInt {
-		return fmt.Errorf("mpls path MTU %d exceeds the netlink integer range", pathMTU)
+		return fmt.Errorf("mpls path MTU %d exceeds the netlink attribute integer range", pathMTU)
 	}
 	// An AF_MPLS route is keyed by the incoming label, and the kernel indexes it
 	// into a table whose size defaults to 0. Repair that before the entry goes
@@ -185,7 +185,7 @@ func (n *netlinkBackend) resolveMPLSNextHop(nextHop netip.Addr) (int, error) {
 }
 
 // probeMPLSTransitMTU asks the kernel whether an AF_MPLS route may carry a path
-// MTU, and a var so a unit test fakes the netlink answer. It asks in this
+// MTU, and a var so a unit test fakes the netlink reply. It asks in this
 // process's own namespace, whose label space ensureLabelSpace has sized,
 // because the daemon holds CAP_NET_ADMIN but not the CAP_SYS_ADMIN the
 // enrolled probe (kernelcap.MPLSIPMTU) needs for its throwaway namespace.

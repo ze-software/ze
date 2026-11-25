@@ -2,14 +2,14 @@
 
 | Field | Value |
 |-------|-------|
-| Status | design |
+| Status | ready |
 | Priority | P1 |
 | Release reason | Honor the explicit owner requirement to reconcile next hops after interface condition changes. |
 | Scope | protocol |
 | Depends | plan/release/fixes/spec-bgp-link-local-only-next-hop.md (its AC-17 designs the per-peer re-advertise this spec reuses) |
-| Phase | research |
+| Phase | ready |
 | Handoff | - |
-| Updated | 2026-11-16 |
+| Updated | 2026-11-22 |
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.
 
@@ -126,11 +126,23 @@ kernel reads.
 | Coalescing and scheduling | Select the per-peer interval and behavior for changes during a pass, with burst, slow-peer and shutdown controls |
 | Runtime failure reporting | Select an applicable existing doctor code or register a runtime check for absent store, timeout and failed refeed. No code/name is invented here |
 
-Design admission remains **not approved**. The strongest concern is a patch
-that makes the simple second-send assertions pass but replays stale state
-after a live withdrawal or loses API/config origin semantics. Complete those
-decisions and the source/metadata consumer census before implementation.
-The main thread owns the research/design gates and every runtime command.
+Design admission remains **not approved** until the independent `ze-design-judge` verdict and Thomas's terminal approval (`./le spec design approve`) land.
+
+### Resolved design decisions (2026-11-22)
+
+Thomas resolved the open design choices on 2026-11-22 (`"flap dampening should be an option and off by default as since the RFC it was found to not help. 1A is fine. 2A. 3A."`, followed by `"One coalescing goroutine/timer per peer"` when reviewing the single-worker head-of-line delay), and source censuses completed the producer/consumer trace for every rail:
+
+| Area | Decision | Source-verified mechanism |
+|------|----------|---------------------------|
+| Worker model | One long-lived coalescing goroutine and cooldown timer per `Peer` (`p.readvertiseWorker()` in `reactor_readvertise.go`), started in `Peer.StartWithContext` beside `go p.run()`, reading a capacity-one wake channel (`p.readvertiseWake`) and per-peer `p.clock` timer, cancelled on `p.ctx`, joined on `p.wg`, and skipping new passes once `p.stopping` or `r.stopping` is set | Owner decision (2026-11-22: `"One coalescing goroutine/timer per peer"`). Eliminates cross-peer head-of-line blocking when one peer hits the 2 s drain/applied-event budget while strictly obeying `ai/rules/goroutine-lifecycle.md` (long-lived per-peer channel worker, never goroutine-per-event) |
+| Burst coalescing (1A) | Run the first effective change for an idle peer immediately (0 ms settle delay); enforce a per-peer cooldown (default 1 s, clock-injectable) after a pass with at most one queued trailing re-pass. Explicitly local burst coalescing, not RFC 2439 BGP route flap dampening; no new config leaf | Resolves Issue 3 without adding first-flip latency or an unasked config option; recorded in `docs/architecture/bgp/interface-event-reactions.md` `## Design decisions` |
+| Effective-change predicate | Queue a peer from `refreshPeerLinkScopes` only when its effective RFC 2545 / RFC 4659 / third-party Link-Local answer changes: `peerOnLink` changes, own `nhMode`/`nhGlobalLL`/`nhVPNLinkLocal` changes, or any third-party global's `thirdPartyAnswer` changes (including gain, loss, or Link-Local move) | Ignores table reorder, unrelated neighbor entries, and watch-status-only changes |
+| Learned-route rails (B1) | For ordinary selected destinations (`p.ordinarySelectedExport()`), add family-scoped `reofferSelectedFamily(peer, session, fam)` in `bgp-rib` (`rib_selected_policy.go`, `rib_selected_dispatch.go`), invoked via hidden internal command `request bgp rib reoffer-selected <peer> <session> <family>`, filtering `d.current` and `d.scoped` strictly to `key.family == fam` so `SelectRoutes` re-evaluates IPv6 next-hop scope without re-advertising unrelated families (such as `ipv4/unicast`). For explicit-role / forwarded destinations (`bgp-rs`, `bgp-rr`, unheld-role `bgp-adj-rib-in`), raise `beginPolicyReplay(session)` before taking per-source `receiveCut()`, run `drainResendSources` (skipping `errReceivePublicationFailed` and `errReceivePublicationStopped` at Debug), await `DrainEventsApplied` under one shared 2 s budget with no peer/reactor/writer lock held, relay via `RelayReplay` (`request bgp adj-rib-in replay-routes`) under `policyReplayOwner()`, and `flushPolicyReplay` before `endPolicyReplay()` | Prevents stale replay overtaking a live withdrawal on both general and native RS rails (B1), avoids IPv4 churn on ordinary selected peers, and covers ordinary selected peers where `bgp-adj-rib-in` is not loaded |
+| Family selector (3A) | Extend `request bgp adj-rib-in replay-routes` (`replay_page.go`) and `ribevents.RelayReplay` with an additive optional trailing `family <afi/safi>` selector (validated via `family.LookupFamily`). When supplied, filter `walkReplayRoutes` to that family, sort by ascending `MsgID` (tie-breaking on sequence), and refuse on a forked manager (`!r.ingestTracked`) with an `opererr` naming in-process `bgp-adj-rib-in` as the fix | Keeps existing `bgp-rs`, `bgp-rr`, and `policy_reload` callers unchanged; avoids churning IPv4 tables on an IPv6 link-local flip |
+| Direct API `self` intent & unbracketed refeed | Carry `NextHopSelf bool` as a typed scalar per send from `reactor_api_batch.go` / `peer_initial_sync.go` through `fwdItem` / `wireu.SentOrigin` -> `types.RawMessage.NextHopSelf` (no `sentMeta` map created or cloned in `reactor_notify.go`), read directly from `*types.RawMessage` in `rib_structured.go` on DirectBridge and formatted directly from `msg` at the JSON `format=full` boundary in `format/text_update.go` as `"route-meta":{"next-hop-self":true}` (skipped in the `msg.Meta` loop so policy cannot spoof it) -> `ribOutEntry.NextHopSelf` (separate bool so `show bgp rib sent` stays unchanged). Add internal unbracketed `request bgp rib refeed-local <peer> <family>` in `bgp-rib` that iterates `ribOut` entries with `LocalOrigin && !ConfigStatic` for both ordinary and legacy up peers (no BoRR/EoRR, so RFC 7313 §4 never purges forwarded/config routes) and updates `bgp.FormatAnnounceCommand` (`internal/component/bgp/format.go`) to emit `nhop set self` when `route.NextHop == "self"` (`parseWireNhopSection` in `update_wire.go` already parses it). On a refeed `self` announce whose `resolveNextHop` fails, withdraw the route if `adjOut` holds it | Obeys `docs/architecture/wire/messages.md` (`Internal sent-origin receipt`, zero map allocation on internal forwards), closes the gap where `outboundResend` skips ordinary destinations and emits BoRR/EoRR brackets, and fixes `FormatAnnounceCommand` dropping `"self"` on `update hex` |
+| `sendingConfigStatic` race (Issue 5) | Delete `Peer.sendingConfigStatic` (`peer.go`) and its read in `reactor_notify.go`. Carry `configStatic bool` as a typed scalar per send into `session_write.go` (`s.sentConfigStatic` guarded by `s.writeMu` in `sendUpdateCounted`/`sendUpdateHeld`) -> `wireu.SentOrigin.ConfigStatic` -> `types.RawMessage.ConfigStatic` (zero map allocation in `reactor_notify.go`), read directly from `*types.RawMessage` in `rib_structured.go` and formatted directly from `msg` as `"config-static": true` in `format/text_update.go` (skipped in the `msg.Meta` loop). Re-send config static and default-originate routes per family under `staticMu` using resolved-next-hop tracking so a route that loses its next hop is withdrawn cleanly | Eliminates both concurrent-writer contamination and the permanent-stuck-`true` `Swap`/`Store` race between `sendInitialRoutes` and `deliverStaticRouteDelta` while honoring the zero-map internal receipt invariant |
+| Failure diagnostics | Register one reactor-owned runtime doctor check `bgp-next-hop-readvertise` (`Phase: diagnostic.DoctorPhaseRuntime`) and code `doctor-bgp-next-hop-readvertise` (`diagnostic.Register` + `diagnostic.RegisterEventCode` + `diagnostic.RegisterDoctorCheck`), raising/clearing via `report.RaiseWarningFix`/`report.ClearWarning` and coded `Warn` logs with `"code"` and `"fix"`. Covers absent store, forked `bgp-adj-rib-in`, drain/barrier timeout, and failed refeed; clears on subsequent pass success or session reset | Satisfies `ai/rules/user-facing-errors.md` and `docs/architecture/doctor-and-health-checks.md` without colliding with `doctor-bgp-neighbor-table` or plugin-owned codes |
+| Daemon `.ci` & interop (2A) | Keep `bgp-rfc2545-neighbor-condition-flip-frr` (real-kernel neighbor flip + FRR 10.7.1 RIB/FIB installation, AC-4) and add one fast Linux `.ci` daemon test `test/plugin/rfc2545-condition-flip-readvertise.ci` (`option=needs-linux:caps=net-admin`, pattern of `scoped-peer-prefix-refresh.ci`) proving real netlink address prefix loss and restoration (AC-1/AC-2) on a surviving TCP session | Satisfies B2 across both trigger classes (neighbor watch via FRR interop, address watch via fast `.ci`) |
 
 ### Test investigation (2026-11-15)
 
@@ -287,7 +299,7 @@ startup subscriptions include sent updates before API-ready, so the first
 subject send is not intentionally outside its subscription window.
 
 No interface configuration block is required for this topology's watcher.
-The shipped composition includes `iface` and its Linux netlink backend;
+The shipped composition includes `iface` and its Linux kernel backend;
 `iface/register.go` installs the neighbor reader and watcher, which both
 load the default backend when needed. Reactor startup starts the neighbor
 watch independently of the interface monitor. The netlink subscription
@@ -585,196 +597,372 @@ are outside this repair. A clean diff is not a permanent file-ownership claim.
 
 ## Existing Mechanisms
 
-| Mechanism | Producer | Proposed use |
-|-----------|----------|--------------|
-| Shared table refresh | `reactor_iface.go::refreshPeerLinkScopes` | Extend with effective-answer comparison and nonblocking scheduling after facts publication |
-| Live replay hold and flush | `policy_reload.go::beginPolicyReplay`, `flushPolicyReplay`, `endPolicyReplay` | Extract/reuse; hold before cuts/drains and flush before release |
-| Source publication barrier | `receive_publication.go::Peer.receiveCut`, `receivePublicationCut.state`, `receivePublicationCut.wait` | Capture and drain each relevant source, skipping ended/failed publications explicitly |
-| Applied-event barrier | `internal/component/plugin/process/delivery.go::Process.DrainEventsApplied` | Await after source publication, under the shared budget and without peer/table/writer locks |
-| Bounded owner-relayed pages | `internal/core/bgp/ribevents/replay.go::RelayReplay`, `adj_rib_in/replay_page.go::buildReplayPage` | Extend family scope while preserving cursor/page bounds and actual caller grants |
-| Normal retained-route writer | `reactor_api_relay.go::RelayStoredRoute` | Reuse policy, next-hop normalization, provenance and final admission |
-| Local sent-route replay | `rib/rib_commands.go::outboundResend`, `rib/rib_replay.go::collectGroupedRibOutRoutesFiltered` | Extend a separate local-origin-only refeed; preserve original `self` versus explicit intent and omit refresh markers |
-| Configured/default writers | `peer_static_wire.go::deliverStaticRouteDelta` and restoration calls in `policy_reload.go` | Reuse ordinary writers; make config-static attribution send-scoped or serialize every reader |
+| Mechanism | Where (file + symbol, or page + section) | What it does today | This spec (extends, replaces, or does not apply, with the reason) |
+|-----------|------------------------------------------|--------------------|-------------------------------------------------------------------|
+| Shared table refresh | `internal/component/bgp/reactor/reactor_iface.go` `(*Reactor).refreshPeerLinkScopes`, `(*Peer).refreshForwardFactsIfLiveFrom` | Reads `readAddressTable` and one neighbor view, updates each live peer's immutable link-scope and forwarding facts snapshot, and schedules no replay | Extends: compares old and new effective RFC 2545 / RFC 4659 / third-party Link-Local answers and signals each affected live peer's coalescing worker (`p.scheduleReadvertise`) without blocking either watch goroutine |
+| Ordinary selected export reconciliation | `internal/component/bgp/reactor/policy_final_kinds.go` `ordinarySelectedExport`, `reconcileSelectedExport`; `internal/component/bgp/plugins/rib/rib_selected_policy.go` `reofferExportPolicy`; `internal/component/bgp/plugins/rib/rib_selected_dispatch.go` `selectedDispatch.run`; `internal/component/bgp/reactor/reactor_api_selected.go` `SelectRoutes` | Re-offers `bgp-rib`'s selected learned and origin routes to an ordinary destination peer across all families, re-running `resolveNextHop` and `announceFactsFor` (`linkLocalNextHopFor`) | Extends: adds family-scoped `reofferSelectedFamily(peer, session, fam)` in `bgp-rib` (invoked via hidden `request bgp rib reoffer-selected <peer> <session> <family>`), filtering `d.current` and `d.scoped` strictly to `key.family == fam` so IPv6 condition flips do not re-advertise `ipv4/unicast` routes on ordinary selected peers |
+| Live replay hold and flush | `internal/component/bgp/reactor/policy_reload.go` `beginPolicyReplay`, `flushPolicyReplay`, `endPolicyReplay`, `policyReplayOwner` | Holds live forwards to a destination behind a counted `policyReplayHolds` gate and flushes queued live writes when the replay finishes | Extends: extracts the hold-before-cut / flush-before-release sequence so the readvertise pass holds live forwards before capturing per-source receive cuts and draining stores |
+| Source publication barrier | `internal/component/bgp/reactor/receive_publication.go` `(*Peer).receiveCut`, `receivePublicationCut.state`, `receivePublicationCut.wait` | Captures a source session's latest received UPDATE message ID and waits until its publication finishes or fails/stops | Extends/reuses: captures cuts from all relevant sources after the destination hold is raised and drains them via `drainResendSources`, skipping ended or failed publications explicitly |
+| Applied-event barrier | `internal/component/plugin/process/delivery.go` `(*Process).DrainEventsApplied` | Waits until a plugin process has applied all events queued before the barrier call | Reuses: called on the `bgp-adj-rib-in` process after `drainResendSources`, sharing one 2 s budget with no peer, reactor or writer lock held |
+| Bounded owner-relayed Adj-RIB-In pages | `internal/core/bgp/ribevents/replay.go` `RelayReplay`; `internal/component/bgp/plugins/adj_rib_in/replay_page.go` `replayRoutesCommand`, `buildReplayPage` | Replays stored Adj-RIB-In pages to a destination through `RelayStoredRoute` using `<target> <from-index> [<max-msg-id>]` | Extends: adds additive optional trailing `family <afi/safi>` selector (validated via `family.LookupFamily`), filters `walkReplayRoutes` to that family in ascending `MsgID` order, and refuses on forked `bgp-adj-rib-in` (`!r.ingestTracked`) with an `opererr` naming in-process `bgp-adj-rib-in` |
+| Normal retained-route writer | `internal/component/bgp/reactor/reactor_api_relay.go` `RelayStoredRoute` | Replays stored raw wire bytes through egress policy, `applyFactsNextHop`, pair trimming and final admission | Reuses: unchanged writer for forwarded routes on explicit-role destinations (`bgp-rs`, `bgp-rr`, unheld-role `bgp-adj-rib-in`) |
+| Local sent-route storage and wire formatting | `internal/component/bgp/plugins/rib/ribout_entry.go` `ribOutEntry`, `rib_replay.go` `formatCursorCommands`, `internal/component/bgp/format.go` `FormatAnnounceCommand`, `internal/component/bgp/plugins/cmd/update/update_wire.go` `parseWireNhopSection` | Tracks sent routes in `ribOut` with `LocalOrigin`/`ConfigStatic`; `outboundResend` skips ordinary destinations and brackets legacy ones with BoRR/EoRR; `FormatAnnounceCommand` drops non-IP `"self"` on the `update hex` branch while `parseWireNhopSection` already accepts `nhop set self` | Extends: records `NextHopSelf bool` on `ribOutEntry` via send-scoped metadata, emits `nhop set self` in `FormatAnnounceCommand`, and adds hidden unbracketed `request bgp rib refeed-local` for `LocalOrigin && !ConfigStatic` across both ordinary and legacy destinations |
+| Send-scoped wire write path | `internal/component/bgp/reactor/session_write.go` `sendUpdateCounted`, `sendUpdateHeld`, `writeUpdateBody`; `reactor_notify.go` `notifyMessageReceiver`; `peer_static_wire.go` `deliverStaticRouteDelta` | Serializes wire writes under `s.writeMu` and records typed `wireu.SentOrigin` scalars (copied onto `types.RawMessage` with no metadata map), while `Peer.sendingConfigStatic` is a racy peer-wide atomic read asynchronously in `notifyMessageReceiver` | Replaces `Peer.sendingConfigStatic` with typed scalar `ConfigStatic` and `NextHopSelf` fields carried under `s.writeMu` into `wireu.SentOrigin` -> `types.RawMessage` (formatted into JSON `route-meta` only at the `format/text_update.go` external boundary), and adds a per-family static/default-originate re-send helper under `staticMu` |
+| Reactor runtime doctor check | `internal/component/bgp/reactor/source_session_diagnostic.go` (`bgp-source-receipt-issuer`, `Phase: diagnostic.DoctorPhaseRuntime`, `report.RaiseErrorFix`); `internal/core/report/report.go` (`report.RaiseWarningFix`, `report.ClearWarning`) | Registers a reactor-owned runtime doctor check and diagnostic code, and `internal/core/report` provides warning raise/clear helpers | Extends by pattern: adds `bgp-next-hop-readvertise` (`doctor-bgp-next-hop-readvertise`, `DoctorPhaseRuntime`) using `report.RaiseWarningFix` / `report.ClearWarning` for absent store, forked `bgp-adj-rib-in`, drain/barrier timeout and failed refeed |
+
+## Design documents
+
+| Document | Section | Derived from | Binding statement | Verdict | How this design stands against it |
+|----------|---------|--------------|-------------------|---------|-----------------------------------|
+| `ai/doors/system.md` | A plugin can run in another process | the door every change reads | "Every plugin, ours included, runs either internal (a goroutine in the daemon) or external (a forked subprocess that talks only over TLS and RPC)." | agrees | Reactor reaches `bgp-adj-rib-in` and `bgp-rib` only via registered commands and DirectBridge/JSON events; `NextHopSelf` travels over both DirectBridge and JSON `route-meta`; forked `bgp-adj-rib-in` refuses explicitly with a fix |
+| `ai/doors/bgp-engine.md` | Boundaries | the door covering reactor, wireu, types, format, ribevents | "Never name a plugin package from the reactor." | agrees | `reactor_readvertise.go` dispatches `ribevents.RelayReplay`, `request bgp rib reoffer-selected`, and `request bgp rib refeed-local` through registered command dispatch, importing zero plugin packages |
+| `ai/doors/bgp-plugins.md` | Boundaries | the door covering `adj_rib_in` and `rib` | "A plugin never imports another plugin's implementation" | agrees | `adj_rib_in` and `rib` remain isolated; `request bgp rib refeed-local` and `request bgp rib reoffer-selected` are declared in both `registry.Registration.Commands` and `sdk.Registration.Commands` via `commandDecls()` |
+| `ai/doors/le-tooling.md` | Boundaries | the door covering interoplab and `test/` | "A compiled Go fixture returns an error when an assertion fails" | agrees | `check_rfc2545_neighbor_flip.go` returns explicit errors on assertion failure, and `test/plugin/rfc2545-condition-flip-readvertise.ci` carries `option=needs-linux:caps=net-admin` |
+| `docs/architecture/bgp/interface-event-reactions.md` | The decisions | `// Design:` of `reactor_iface.go`, `rfc2545_neighbor_transition_test.go`, modified by spec | "**A neighbor change sets the form of the advertisements made after it, and re-advertises nothing.** A route already sent with the global address alone is not sent again when the table later names the link-local. That re-advertisement is not built." | departs | Owner rulings (B-16 2026-08-08, AC-2 2026-10-12, 2026-11-22) require in-place re-advertisement on address and neighbor condition flips; this spec builds it and updates this section in the same change |
+| `docs/architecture/bgp/interface-event-reactions.md` | Design decisions | decision of 2026-11-22 | "Interface and neighbor change re-advertisement runs the first flip immediately, then coalesces bursts behind a per-peer cooldown with at most one queued trailing re-pass; BGP route flap dampening (RFC 2439) is a separate concept and, if ever implemented, must be an option off by default ("flap dampening should be an option and off by default as since the RFC it was found to not help. 1A is fine.")" | agrees | `reactor_readvertise.go` implements immediate first-flip execution (0 ms settle delay), per-peer 1 s clock-injectable cooldown, and at most one queued trailing re-pass, adding no RFC 2439 dampening |
+| `docs/architecture/api/commands.md` | Design decisions | decision of 2026-08-21 | "The pipe wins: a command path names the subject and stops; scope, presentation and format are pipe operations after it, selector words included" | agrees | Both `request bgp adj-rib-in replay-routes` and `request bgp rib refeed-local` are hidden internal engine-to-plugin `request` RPCs, not operator `show` commands taking scope or presentation arguments |
+| `docs/architecture/api/commands.md` | Design decisions | decision of 2026-11-20 | "A command may override any generic pipe operation that acts on its data, as long as the answer keeps the generic's data format: every data operator of the catalog is overridable, each held to its generic's answer shape; a format, paging, `save` and `log` are the data format or its display, and stay the generic's. In Thomas's words: "I believe it should be possible to overwrite more command as long as their data format is not changed."" | agrees | Neither hidden internal RPC overrides any pipe operator or changes any existing command's data format |
+| `docs/architecture/api/commands.md` | Dispatch keys are YANG paths | anchored to reactor, `adj_rib_in`, `rib`, modified by spec | "A dispatch key has one holder." | agrees | `request bgp rib refeed-local` registers a unique hidden command key owned solely by `bgp-rib`, and `request bgp adj-rib-in replay-routes` remains owned solely by `bgp-adj-rib-in` |
+| `docs/architecture/api/architecture.md` | RIB Ownership | `// Design:` of `ribevents/replay.go`, `adj_rib_in/replay_page.go` | "The engine is a minimal BGP speaker." | agrees | The reactor owns no second route table or RIB copy; it asks `bgp-rib` and `bgp-adj-rib-in` via registered commands to re-offer/replay stored routes |
+| `docs/architecture/api/json-format.md` | Field naming | `// Design:` of `format/text_update.go`, modified by spec | "JSON keys are lowercase kebab-case, never camelCase and never snake_case." | agrees | The additive sent UPDATE `route-meta` key is lowercase kebab-case `"next-hop-self"`, matching `"config-static"` |
+| `docs/architecture/api/process-protocol.md` | Overview | anchored to reactor, `rawmessage.go`, `ribevents`, `adj_rib_in`, `rib` | "The protocol is the same for all invocation modes (internal goroutine, external subprocess)." | agrees | `refeed-local`, `replay-routes ... family <afi/safi>`, and `"next-hop-self"` work over both DirectBridge and JSON RPC, and forked `bgp-adj-rib-in` refuses explicitly where MsgID tracking is unavailable |
+| `docs/architecture/api/update-syntax.md` | Next-Hop (required for announce) | anchored to reactor files | "the `nhop set` form belongs to the hex and b64 encodings." | agrees | `FormatAnnounceCommand` emits `nhop set self` on its `update hex` branch, matching `parseWireNhopSection` which already parses `nhop set self` |
+| `docs/architecture/behavior/peer-lifecycle.md` | TL;DR | anchored to reactor files | "Events carry `connection-id` from the exact captured Session through OPEN, UP, UPDATE/EOR and DOWN; a delayed callback never borrows a replacement connection's identity." | agrees | Every readvertise pass captures the live `*Session` and discards stale work for retired or replaced sessions |
+| `docs/architecture/bgp/egress-attribute-rules.md` | How provenance is established | anchored to `reactor_notify.go` | "Both forward rails relay an UPDATE another speaker sent, after import policy has had a chance to rewrite it." | agrees | Forwarded re-advertisements enter `RelayStoredRoute` so egress attribute rules and pair trimming re-run against current link-scope facts |
+| `docs/architecture/bgp/on-demand-origination.md` | The decisions | anchored to `peer_initial_sync.go` | "Every other rail that reaches a peer works the same way." | agrees | Re-advertised API, static, and default-originate routes pass through the ordinary egress build and export policy gates, and `"next-hop-self"` stays outside the `tag.` prefix |
+| `docs/architecture/bgp/replay-cursor.md` | What it buys | `// Design:` of `rib_replay.go`, modified by spec | "Config-static advertisements are retained in Adj-RIB-Out with their origin flag." | agrees | Send-scoped `configStatic` keeps `ConfigStatic` accurate under concurrent sends, and `refeed-local` selects `LocalOrigin && !ConfigStatic` while static routes re-send under `staticMu` |
+| `docs/architecture/bgp/structural-forwarding.md` | Forwarded routes and next-hop self | `// Design:` of `rfc2545_neighbor_late_discovery_test.go`, anchored to reactor | "Another router's Global receives that router's Link-Local from the captured neighbor table under the same condition. If the table cannot identify a usable Link-Local, Ze sends the Global alone and warns." | agrees | Condition-flip re-advertisement re-runs the exact same `linkScope.thirdPartyLinkLocal` and `applyEgressNextHopScope` decision against the refreshed snapshot |
+| `docs/architecture/core-design.md` | 6. Plugin API Communication | `// Design:` of reactor files and `rawmessage.go` | "Engine is stateless for routes. It forwards wire bytes to plugins and caches for zero-copy forwarding." | agrees | Preserves `WireUpdate` transport, attribute pools, registration-based dispatch, zero engine-owned route store, and zero plugin imports from reactor |
+| `docs/architecture/doctor-and-health-checks.md` | The runtime phase: checks only the daemon runs | anchored to `rib.go`, modified by spec | "Each check runs once per answer, through one route." | agrees | `bgp-next-hop-readvertise` (`doctor-bgp-next-hop-readvertise`) registers once in the reactor at `DoctorPhaseRuntime`, reading live reactor state without applying mutations |
+| `docs/architecture/forward-congestion-pool.md` | The replay fence | anchored to reactor files | "The fence belongs to one peer. Other destinations read their own fence, so a replay on one peer never delays forwarding to another." | agrees | `beginPolicyReplay` holds live forwards only for the single peer undergoing a condition-flip pass, never stalling unrelated peers |
+| `docs/architecture/memory/lifetime-contracts.md` | A. WireUpdate — eager copy | anchored to `reactor_notify.go`, `wire_update.go`, `rawmessage.go` | "A release path that both walks a payload and returns its buffer must walk first" | agrees | Adding two value booleans (`ConfigStatic`, `NextHopSelf`) on `SentOrigin`/`RawMessage` borrows no payload bytes and preserves all buffer lifetime boundaries |
+| `docs/architecture/plugin/plugin-system.md` | Registration fields | anchored to reactor files | "Registration happens only during package initialization." | agrees | `bgp-next-hop-readvertise` registers in reactor `init()`, and `request bgp rib refeed-local` registers through `bgp-rib`'s `commandDecls()` at `init()` and Stage 1 |
+| `docs/architecture/plugin/rib-storage-design.md` | Received source-policy provenance | `// Design:` of `format.go`, `adj_rib_in/rib.go`, `rib/*.go`, modified by spec | "Capturing a receipt transports identity; it does not itself acquire engine authorization to send the route." | agrees | `NextHopSelf` is stored on `ribOutEntry` inside `bgp-rib` and family-filtered replay runs inside `bgp-adj-rib-in` under ordinary engine admission; the engine holds no RIB |
+| `docs/architecture/pool-architecture.md` | Data Flow | `// Design:` of `ribout_entry.go` | "Wire bytes flow from engine to API" | agrees | `ribOutEntry.NextHopSelf` is a plain boolean beside existing `LocalOrigin`/`ConfigStatic` flags and does not alter `attrpool.Handle` pooling or compaction |
+| `docs/architecture/rib-transition.md` | Ordinary selected-route advertisement | anchored to `reactor.go`, `rib.go` | "Explicit route-server and reflector destinations retain their role writer. Ordinary refresh reoffers the current selected snapshot and completes after final writer receipts" | agrees | Ordinary selected destinations use family-scoped `request bgp rib reoffer-selected` (`reofferSelectedFamily`) to re-offer selected IPv6 routes without IPv4 churn, while explicit RS/RR destinations use `RelayReplay` through `RelayStoredRoute` |
+| `docs/architecture/route-selection.md` | Received NEXT_HOP | anchored to reactor and `rib` | "The receive path uses an immutable interface snapshot captured at connection setup and replaced on interface address events. It performs no kernel lookup per UPDATE." | agrees | `refreshPeerLinkScopes` continues to publish one immutable snapshot per watch event and performs zero per-UPDATE kernel lookups |
+| `docs/architecture/testing/ci-format.md` | An unparseable test file fails; it never hides or vanishes | anchored to `peer.go` | "It is never dropped, and it never aborts the rest of the directory." | agrees | New `test/plugin/rfc2545-condition-flip-readvertise.ci` follows standard `.ci` directives with `option=needs-linux:caps=net-admin` |
+| `docs/architecture/testing/interop.md` | The suites, one per protocol area | `// Design:` of `check_rfc2545_neighbor_flip.go`, anchored to `session_write.go` | "A scenario directory is NAMED and carries no numeric prefix." | agrees | Reuses the existing named scenario `bgp-rfc2545-neighbor-condition-flip-frr` and its Go checker without moving assertions into declarative files |
+| `docs/architecture/update-building.md` | Path 2: Forward Path (Route Reflection) | anchored to reactor, `wire_update.go`, `rib`, modified by spec | "Peers with identical negotiated capabilities share one ContextID, so route reflection between same-capability clients builds once and sends the result N times." | agrees | Condition-flip re-advertisement reuses `RelayStoredRoute` and ordinary build writers without changing `ContextID` sharing or UPDATE packing |
+| `docs/architecture/api/capability-contract.md` | Architecture | anchored to `reactor.go`, `peer.go` | "" | silent | Covers OPEN capability negotiation and cache/GR/refresh contracts; this spec changes no capability negotiation or cache control commands |
+| `docs/architecture/api/ipc_protocol.md` | Overview | anchored to `reactor.go`, `peer.go` | "" | silent | Covers low-level IPC line framing and RPC transport envelopes; additive optional arguments and JSON `route-meta` keys leave IPC framing untouched |
+| `docs/architecture/api/text-coverage.md` | Message Type Coverage | anchored to `format/text_update.go` | "" | silent | Covers text-format event parser coverage; `"next-hop-self"` is added only to JSON `format=full` `route-meta` and DirectBridge `RawMessage` |
+| `docs/architecture/api/text-parser.md` | Current Parser | anchored to `format/text_update.go` | "" | silent | Covers the text-format event scanner and parser; no text-format event grammar changes |
+| `docs/architecture/behavior/fsm-established.md` | TL;DR | anchored to `session_write.go`, `rib.go` | "" | silent | Covers Established-state HoldTimer, keepalive, and prefix-limit handling; in-place re-advertisement adds no FSM event or state transition |
+| `docs/architecture/behavior/fsm-open-sent.md` | TL;DR | anchored to `peer.go` | "" | silent | Covers OpenSent validation and timers; this spec runs only on Established sessions |
+| `docs/architecture/behavior/fsm.md` | TL;DR (Read This First) | anchored to reactor files | "" | silent | Covers BGP FSM states and transitions; in-place re-advertisement never resets or transitions the FSM |
+| `docs/architecture/behavior/signals.md` | Supported Signals | anchored to `reactor.go` | "" | silent | Covers OS signal handling (`SIGTERM`, `SIGHUP`, `SIGALRM`, `SIGUSR1`); worker shutdown uses reactor context cancellation |
+| `docs/architecture/buffer-architecture.md` | Executive Summary | anchored to `session_write.go`, `wire_update.go`, `text_update.go` | "" | silent | Covers zero-copy message buffers and attribute iterators; no buffer layout or iterator changes |
+| `docs/architecture/config/apply-ordering.md` | The requirement | anchored to `reactor_iface.go`, `reactor.go` | "" | silent | Covers startup/reload binding order between interface addresses and BGP listeners; established-session route re-advertisement does not change listener ordering |
+| `docs/architecture/config/environment.md` | Overview | anchored to `reactor.go` | "" | silent | Covers `ze.*` environment variables; this spec registers no environment variable |
+| `docs/architecture/config/syntax.md` | Overview | anchored to `reactor.go`, `peer.go` | "" | silent | Covers YANG configuration syntax; this spec adds no config keyword or leaf |
+| `docs/architecture/congestion-industry.md` | Universal Rule | anchored to `reactor.go`, `session_write.go` | "" | silent | Covers socket options, keepalive write priority, and RFC 9687 send hold timers; unchanged |
+| `docs/architecture/decisions/001-pull-model-metrics.md` | Decision | anchored to `rib.go` | "" | silent | Covers pull-model Prometheus metrics; this spec adds no metrics |
+| `docs/architecture/edge-cases/extended-message.md` | TL;DR | anchored to `session_write.go` | "" | silent | Covers RFC 8654 65535-octet message sizing; unchanged |
+| `docs/architecture/encoding-context.md` | Overview | anchored to `peer.go`, `wire_update.go` | "" | silent | Covers per-peer `EncodingContext` and `ContextRegistry`; unchanged |
+| `docs/architecture/exabgp-bridge.md` | The bridge translates in two directions | `// Design:` of `peer_static_restore.go` | "" | silent | Covers ExaBGP script translation; `peer_static_restore.go` only switches its internal config-static attribution carrier, leaving ExaBGP translation untouched |
+| `docs/architecture/meta/role.md` | Keys Set | anchored to `reactor_notify.go`, `peer.go` | "" | silent | Covers RFC 9234 BGP role route metadata keys; unaffected by `"next-hop-self"` or `"config-static"` |
+| `docs/architecture/mrt.md` | Packages | anchored to `reactor_notify.go` | "" | silent | Covers MRT dump streams and wire encoding/decoding; unchanged |
+| `docs/architecture/overview.md` | 1. What is Ze? | anchored to `reactor.go` | "" | silent | High-level system overview; component placement and responsibilities are unchanged |
+| `docs/architecture/rib/forward-handle.md` | The decisions | anchored to `rib.go`, `rib_structured.go` | "" | silent | Covers the RIB forward-handle fast path for received routes; unaffected by `ribOutEntry.NextHopSelf` or `refeed-local` |
+| `docs/architecture/wire/capabilities.md` | TL;DR (Read This First) | anchored to reactor files | "" | silent | Covers OPEN capability TLV byte layout; unchanged |
+| `docs/architecture/wire/messages.md` | Internal sent-origin receipt | `// Design:` of `wire_update.go`, anchored to `session_write.go`, modified by spec | "Internal forwarding creates no generic metadata map for this receipt; external event serializers format the typed fields only at their boundary." | agrees | `ConfigStatic` and `NextHopSelf` are added as plain scalar booleans on `wireu.SentOrigin` and `types.RawMessage`, with zero `sentMeta` map creation in `reactor_notify.go`, formatted into JSON `route-meta` only at the `format/text_update.go` serializer boundary |
+| `docs/architecture/wire/mp-nlri-ordering.md` | Key Insight | anchored to `session_write.go`, `wire_update.go` | "" | silent | Covers MP_REACH_NLRI attribute ordering on the wire; re-advertised routes use existing encoders |
+| `docs/architecture/wire/nlri-bgpls.md` | Wire Format Overview | anchored to `session_write.go` | "" | silent | Covers BGP-LS SAFI 71/72 NLRI TLVs; unaffected |
+| `docs/architecture/wire/rfc7606-relay-shape.md` | The requirement | anchored to `reactor_api_batch.go` | "" | silent | Covers RFC 7606 malformed-UPDATE relay shaping; unchanged |
 
 ## Data Flow (MANDATORY - see `ai/rules/architecture.md`)
 
 ### Entry Point
-- an interface address added or removed event, delivered to the reactor
-- Both address and neighbor watches call `refreshPeerLinkScopes`; the new worker is a proposed extension, not an existing trigger.
+- An interface address added/removed/prefix-changed event (`addressWatchWorker` in `reactor_address_watch.go`) or a neighbor table change (`neighborWatchWorker` in `reactor_iface.go`), delivered to `(*Reactor).refreshPeerLinkScopes`.
+- Both watch workers deliver kernel table refresh notifications without holding `r.mu`.
 
 ### Transformation Path
-1. Refresh immutable facts from the actual watched tables, once for all peers.
-2. Compare old/new effective answers and queue only affected live peers. A table reorder, unrelated neighbor or diagnostic-state change alone is not a next-hop change.
-3. A bounded worker captures the destination session and raises the existing replay hold before any source cut or retained-page read.
-4. Capture relevant sources' receive cuts, await publication, then await the store's applied-event barrier. Both waits share the recorded two-second budget. Skip ended/failed publications and propagate other failures.
-5. Relay the relevant family in ascending replay sequence under the actual owner's grant through `RelayStoredRoute`. Recompute the next hop from current facts. Add no synthetic EOR.
-6. Refeed API-originated, configured and default routes through ordinary writers with original next-hop intent and correct send attribution.
-7. Flush replay, release the hold and resume live forwards. A later actual withdrawal/replacement must remain the final socket state.
-8. Cancel worker/pass contexts on reactor stop, join through its wait group and discard work for retired sessions.
+1. `refreshPeerLinkScopes` reads `readAddressTable` and one neighbor view once for all peers, updates each live peer's immutable link-scope and forwarding facts snapshot, and compares old vs. new effective RFC 2545 / RFC 4659 / third-party Link-Local answers.
+2. Only peers whose effective answer changed (`peerOnLink`, own `nhMode`/`nhGlobalLL`/`nhVPNLinkLocal`, or any tracked third-party global's `thirdPartyAnswer` gain/loss/move) signal their own per-peer coalescing worker (`p.scheduleReadvertise(session)` via nonblocking send on `p.readvertiseWake` in `reactor_readvertise.go`). Table reorder, unrelated neighbors, and watch-status-only changes enqueue nothing.
+3. Burst coalescing (1A) per peer: each `Peer` runs one long-lived `p.readvertiseWorker()` goroutine started in `Peer.StartWithContext` (joined on `p.wg`, cancelled on `p.ctx`). If the peer is idle and outside its per-peer cooldown (default 1 s, via `p.clock`), the worker runs its pass immediately (0 ms settle delay). Changes arriving during an active pass or while the peer's cooldown timer is armed set a single trailing flag so at most one trailing re-pass runs once that peer's timer fires. A slow peer hitting the 2 s barrier budget never delays any other peer.
+4. The per-peer worker captures the destination's live session (discarding work for retired sessions or once `p.stopping` / `r.stopping` is set) and runs the family-scoped pass for IPv6 families (`ipv6/unicast`, `ipv6/mpls-vpn` as negotiated):
+   - **Ordinary selected destinations (`p.ordinarySelectedExport()`):** invokes hidden `request bgp rib reoffer-selected <peer> <session> <family>` (`reofferSelectedFamily` in `rib_selected_policy.go` / `rib_selected_dispatch.go`), which verifies the exact captured destination session token and queues only keys with `key.family == fam` from `d.current` and `d.scoped` through `SelectRoutes`, re-evaluating IPv6 next-hop scope natively with zero `ipv4/unicast` churn.
+   - **Explicit-role / forwarded destinations (`!p.ordinarySelectedExport()`):** raises `beginPolicyReplay(session)` first, captures each relevant source peer's `receiveCut()`, runs `drainResendSources` (skipping `errReceivePublicationFailed` and `errReceivePublicationStopped` at Debug), awaits `DrainEventsApplied` on the `bgp-adj-rib-in` process under one shared 2 s budget with no peer/reactor/writer lock held, relays the family via `ribevents.RelayReplay` (`request bgp adj-rib-in replay-routes ... family <afi/safi>`) under `policyReplayOwner()`, and calls `flushPolicyReplay` before `endPolicyReplay()`.
+   - **Direct API routes (`LocalOrigin && !ConfigStatic`):** invokes `request bgp rib refeed-local <peer> <family>` (unbracketed, no BoRR/EoRR, no EoR), replaying `NextHopSelf` entries as `nhop set self` (withdrawing if `resolveNextHop` now fails while `adjOut` holds the route) and explicit next hops as themselves.
+   - **Configured static and default-originate routes:** re-sends affected families under `staticMu` using send-scoped `configStatic: true` and resolved-next-hop tracking (withdrawing a previously sent static route if its next hop is no longer resolvable).
+5. On absent store, forked `bgp-adj-rib-in`, drain/barrier timeout, or failed refeed, the worker raises a runtime warning on `bgp-next-hop-readvertise` (`doctor-bgp-next-hop-readvertise`) and logs a coded `Warn` with `"code"` and `"fix"`; a subsequent clean pass or session reset clears the warning.
+6. Peer stop or reactor shutdown cancels `p.ctx`, skips any new pass once `p.stopping` or `r.stopping` is set, stops the per-peer timer, and joins the worker on `p.wg`.
 
 ### Boundaries Crossed
 | Boundary | How | Verified |
 |----------|-----|----------|
-| iface component ↔ BGP reactor | registered address/neighbor readers and watchers, through actual table callbacks | Existing callbacks and refreshed facts observed; replay not implemented |
-| reactor ↔ route sources | the re-advertise `spec-bgp-link-local-only-next-hop` designs: the forward rail over adj-rib-in's stored routes (`RelayStoredRoute`), under its one per-peer re-send hold, its cut from the sources' `receiveCut`, and its publication and applied-event waits (round-10 B1, round-11 B1), RIB `outboundResend` for `LocalOrigin` entries that are not `ConfigStatic` with `self` replayed as `self` (round-10 I2), and the config-route re-send under `staticMu`; each re-runs the egress next-hop decision | No |
+| `iface` kernel backend ↔ BGP reactor | Registered `network.InterfacePrefixes`, `network.WatchAddresses`, `network.ReadNeighborTable`, `network.WatchNeighbors` callbacks into `refreshPeerLinkScopes` | Existing watch callbacks and fact refresh observed; readvertise worker scheduling owed |
+| Reactor ↔ `bgp-adj-rib-in` (in-process or forked) | Text command `request bgp adj-rib-in replay-routes <target> <from-index> [<max-msg-id>] [family <afi/safi>]` via `ribevents.RelayReplay`; `Process.DrainEventsApplied` on the plugin process | Additive family selector and forked-manager refusal owed |
+| Reactor ↔ `bgp-rib` (in-process or forked) | DirectBridge `StructuredEvent` (`types.RawMessage.NextHopSelf`, `types.RawMessage.ConfigStatic`, zero `Meta` map allocation) and JSON `format=full` `route-meta` (`"next-hop-self": true`, `"config-static": true`) formatted at `format/text_update.go`; hidden internal commands `request bgp rib reoffer-selected <peer> <session> <family>` and `request bgp rib refeed-local <peer> <family>`; `bgp.FormatAnnounceCommand` emitting `update hex ... nhop set self` parsed by `update_wire.go` `parseWireNhopSection` | Typed scalar propagation, `reoffer-selected` / `refeed-local` handlers, and `update hex` `nhop set self` branch owed |
+| Reactor ↔ operator diagnostics | Runtime doctor check `bgp-next-hop-readvertise` (`doctor-bgp-next-hop-readvertise`, `DoctorPhaseRuntime`), `report.RaiseWarningFix` / `report.ClearWarning`, coded `Warn` logs | New registration and failure-path tests owed |
+
+### Changed-Wire Census
+
+BGP protocol wire format (RFC 4271 / RFC 2545 / RFC 4659 / RFC 7313) does **not** change: emitted UPDATEs use the existing 16-octet global-only and 32-octet global+link-local `MP_REACH_NLRI` next-hop encodings, with no new attributes or refresh markers. Five internal RPC / plugin-event text/JSON wire surfaces are extended additively; zero `pkg/` Go types change.
+
+**Search evidence:** Searched `internal/`, `pkg/`, `cmd/`, `test/`, and `docs/` for `"replay-routes"`, `RelayReplay`, `replayRoutesCommand`, `sendingConfigStatic`, `config-static`, `RouteMeta`, `route-meta`, `nhop set`, `FormatAnnounceCommand`, `parseWireNhopSection`, `outboundResend`, `refeed-local`, and `reoffer-selected`. Positive controls verified: `internal/component/bgp/plugins/rs/server_handlers.go` (`RelayReplay`), `internal/component/bgp/plugins/rr/rr.go` (`RelayReplay`), `internal/component/bgp/reactor/policy_reload.go` (`RelayReplay`), `internal/component/bgp/format/text_update.go` (`"config-static"` and `"source-local"` JSON writers), `internal/component/bgp/plugins/rib/rib.go` (`"config-static"` JSON reader), `internal/component/bgp/plugins/rib/rib_structured.go` (`msg.SourceLocal` DirectBridge reader), `internal/component/bgp/plugins/cmd/update/update_wire.go` (`parseWireNhopSection` already accepting `"self"`). Zero Python, shell, or third-party script callers invoke `replay-routes`, `reoffer-selected`, or `refeed-local`.
+
+| Wire | Role (writer / reader) | Carrier (file + producer/consumer symbol or script entry) | Source evidence | Migration or preservation disposition |
+|------|------------------------|-----------------------------------------------------------|-----------------|----------------------------------------|
+| Internal command `request bgp adj-rib-in replay-routes` | writer | `internal/core/bgp/ribevents/replay.go` `RelayReplay` (called by `rs/server_handlers.go`, `rr/rr.go`, `reactor/policy_reload.go`, and new `reactor/reactor_readvertise.go`) | Grep found all 3 existing callers (`rs:637,833`, `rr:1043,1054`, `policy_reload:157`), zero shell/Python callers | Additive optional trailing `family <afi/safi>` argument; existing callers pass empty family and emit the exact legacy token sequence |
+| Internal command `request bgp adj-rib-in replay-routes` | reader | `internal/component/bgp/plugins/adj_rib_in/replay_page.go` `replayRoutesCommand`; declared in `adj_rib_in/rib.go` `commandDecls` | `replay_page.go:27-55` currently parses `args[0..2]` and ignores `args[3:]`; forked plugins set `ingestTracked=false` at `rib.go:434` | Change: parse optional trailing `family <afi/safi>` validated via `family.LookupFamily`, filter `walkReplayRoutes` in ascending `MsgID` order, refuse `!r.ingestTracked` with `opererr` naming in-process `bgp-adj-rib-in` |
+| Internal command `request bgp rib reoffer-selected` | writer | `internal/component/bgp/reactor/reactor_readvertise.go` `reofferSelectedFamily` | New hidden internal command; grep confirmed zero prior occurrences of `reoffer-selected` | New additive hidden RPC (`<peer> <session> <family>`); scopes ordinary selected reoffer to one family so IPv4 is never churned on IPv6 flips |
+| Internal command `request bgp rib reoffer-selected` | reader | `internal/component/bgp/plugins/rib/rib_commands.go` `reofferSelectedCommand` -> `rib_selected_policy.go` `reofferSelectedFamily`; declared `Hidden: true, Shape: shapeMap` in `rib/rib.go` `commandDecls` | Follows exact hidden-RPC pattern of `request bgp rib recovery` (`rib.go:1871`); filters `d.current` and `d.scoped` by `key.family == fam` for the exact captured `session` | Change: re-offers only the requested family for the exact captured ordinary destination session and awaits settlement |
+| Internal command `request bgp rib refeed-local` | writer | `internal/component/bgp/reactor/reactor_readvertise.go` `refeedLocalOrigin` | New hidden internal command; grep confirmed zero prior occurrences of `refeed-local` | New additive hidden RPC (`<peer> <family>`); no external caller affected |
+| Internal command `request bgp rib refeed-local` | reader | `internal/component/bgp/plugins/rib/rib_commands.go` `refeedLocalCommand`; declared `Hidden: true, Shape: shapeMap` in `rib/rib.go` `commandDecls` | Follows exact hidden-RPC pattern of `request bgp rib recovery` (`rib.go:1871`) and `request bgp rib flowspec-gate` (`rib.go:1874`) | Change: replay `ribOut` entries with `LocalOrigin && !ConfigStatic` for ordinary and legacy up peers, unbracketed (no BoRR/EoRR, no EoR), preserving `NextHopSelf` |
+| Sent UPDATE event receipt (`types.RawMessage` & JSON `format=full` `route-meta`) | writer | `internal/component/bgp/reactor/session_write.go` `writeUpdateBody` (`wireu.SentOrigin`), `reactor_notify.go` `notifyMessageReceiver` (`types.RawMessage` scalars only, zero `Meta` map allocation), `internal/component/bgp/format/text_update.go` `FormatSentUpdate` / `writeRouteMeta` | `wire_update.go:348` (`SentOrigin`), `reactor_notify.go:657` (`SourceLocal` scalar copy), `text_update.go:880-944` formats `"source-local"` directly from `msg` at the JSON boundary and skips reserved keys in `msg.Meta` | Additive scalar booleans `ConfigStatic` and `NextHopSelf` on `wireu.SentOrigin` & `types.RawMessage`; `format/text_update.go` formats `"config-static":true` and `"next-hop-self":true` directly from `msg` (omitted when false, skipped in `msg.Meta` loop so policy cannot spoof them) |
+| Sent UPDATE event receipt (`types.RawMessage` & JSON `format=full` `route-meta`) | reader | `internal/component/bgp/plugins/rib/rib_structured.go` `handleSentStructured` (in-process DirectBridge reads `msg.ConfigStatic` and `msg.NextHopSelf` directly from `*types.RawMessage`), `rib/rib.go` `handleSentUpdate` (JSON/forked reads `event.RouteMeta`), and any third-party plugin reading `route-meta` JSON | `rib_structured.go:545+` reads `*types.RawMessage` directly; `rib.go:1120+` reads `event.RouteMeta["config-static"]`; third-party plugins ignore unknown JSON keys in `route-meta` | Change `bgp-rib` readers to populate `ribOutEntry.ConfigStatic` and `ribOutEntry.NextHopSelf` directly from `msg` (DirectBridge) and `event.RouteMeta` (JSON); `show bgp rib sent` stays unchanged; third-party readers preserved via additive optional key |
+| Internal command `send bgp ... update hex` `nhop set` clause | writer | `internal/component/bgp/format.go` `FormatAnnounceCommand` (called by `rib/rib_replay.go` `formatRawGroupCommands`) | `format.go:27-29` currently emits `nhop set <hex>` only when `netip.ParseAddr(route.NextHop)` succeeds, silently dropping `"self"` | Change: emit `nhop set self` when `route.NextHop == "self"` on the `update hex` branch; explicit IP hex unchanged |
+| Internal command `send bgp ... update hex` `nhop set` clause | reader | `internal/component/bgp/plugins/cmd/update/update_wire.go` `parseWireNhopSection` | `update_wire.go:212-215` ALREADY handles `nhop set self` and sets `NextHopSelf = true` | Preserve unchanged; verified by existing parser and new round-trip unit test |
 
 ### Integration Points
-- `peer.refreshForwardFactsIfLiveFrom` (`peer_forward_facts.go`), also the settings-apply path
-- the existing replay hold, publication and applied-event barriers, registered pages and ordinary relay/origin writers in Existing Mechanisms
+- `peer.refreshForwardFactsIfLiveFrom` (`peer_forward_facts.go`) and `refreshPeerLinkScopes` (`reactor_iface.go`)
+- `reofferSelectedFamily` (`rib_selected_policy.go`, `rib_selected_dispatch.go`) via hidden `request bgp rib reoffer-selected <peer> <session> <family>` for ordinary selected destinations (`p.ordinarySelectedExport()`)
+- `beginPolicyReplay`, `flushPolicyReplay`, `endPolicyReplay`, `policyReplayOwner` (`policy_reload.go`) and `receiveCut`/`wait` (`receive_publication.go`) and `DrainEventsApplied` (`plugin/process/delivery.go`) for explicit-role destinations
+- `sendUpdateCounted` / `sendUpdateHeld` / `writeUpdateBody` (`session_write.go`) for send-scoped `configStatic` and `nextHopSelf` attribution
+- `diagnostic.Register`, `diagnostic.RegisterEventCode`, `diagnostic.RegisterDoctorCheck` (`readvertise_diagnostic.go`) for `bgp-next-hop-readvertise` (`doctor-bgp-next-hop-readvertise`)
 
 ### Architectural Verification
 | Check | Holds? | Evidence |
 |-------|--------|----------|
-| No bypassed layers (data flows through the intended path) | Unapproved | Proposal uses normal relay and origin writers; implementation proof owed |
-| No unintended coupling (components stay isolated) | Unapproved | Resolve actual registered command owners and grants; no RIB implementation import |
-| No duplicated functionality (extends existing, does not recreate) | Unapproved | Extract policy replay mechanisms rather than a second route inventory |
-| Zero-copy preserved where applicable (refs, not copies) | Unapproved | Preserve cached source bytes; measure approved implementation's allocations |
-| Registration over hardcoding | Unapproved | Family selector and runtime diagnostics require their normal declarations |
+| No bypassed layers (data flows through the intended path) | Yes (design) | Re-advertisements flow through `request bgp rib reoffer-selected` (`SelectRoutes`), `RelayReplay` -> `RelayStoredRoute`, `request bgp rib refeed-local` -> `send bgp ... update hex`, and `staticMu` static/default writers; never raw socket writes |
+| No unintended coupling (components stay isolated) | Yes (design) | Reactor reaches `bgp-adj-rib-in` and `bgp-rib` strictly via registered commands (`ribevents.RelayReplay`, `request bgp rib reoffer-selected`, `request bgp rib refeed-local`) and DirectBridge/JSON events; no plugin package is imported by reactor |
+| No duplicated functionality (extends existing, does not recreate) | Yes (design) | Reuses `policyReplayHolds`, `receiveCut`, `DrainEventsApplied`, `selectedDispatch`, `RelayReplay`, `FormatAnnounceCommand`, and `parseWireNhopSection`; adds no second route store |
+| Zero-copy preserved where applicable (refs, not copies) | Yes (design) | Forwarded routes reuse cached/retained wire bytes through `RelayStoredRoute`; no per-UPDATE kernel reads or hot-path heap allocations added (`SentOrigin` booleans are value fields) |
+| Registration over hardcoding, outbound: new commands, views, families, and handlers register, and the core discovers them. No per-feature field, switch case, or factory is added to a core/shared package (`ai/rules/plugins.md`) | Yes (design) | `request bgp rib refeed-local` registers in `bgp-rib`'s `commandDecls()` and dispatch table; `bgp-next-hop-readvertise` registers via `diagnostic.Register` / `RegisterEventCode` / `RegisterDoctorCheck` in reactor `init()`; family validation uses `family.LookupFamily` |
+| Registration over hardcoding, inbound: no existing switch, seed map, validator, parser, runner, help string, or completion table has to learn this feature's name. Evidence names every list that was searched for the names this feature introduces, and the registry each one now derives from (`ai/rules/principles.md`) | Yes (design) | Searched `internal/component/command/`, `internal/component/plugin/`, `internal/component/bgp/plugins/rib/protocol_test.go`, `internal/core/diagnostic/`: hidden `request bgp rib refeed-local` and `bgp-next-hop-readvertise` derive from `commandDecls()` and the `diagnostic` registry with zero central switch/list edits |
 
 ## Risks & Assumptions
 
 ### Assumptions
 | ID | Assumption | Basis (file/doc/user statement) | If wrong | Validated by | Status |
 |----|-----------|--------------------------------|----------|--------------|--------|
-| A-1 | Existing replay hold/flush machinery can be extracted without changing restoration | `policy_reload.go` has the required hold/flush/end producers | Policy reload or live forwarding regresses | Existing policy-final restoration tests and hold-before-cut ordering probe | Unvalidated for extraction |
-| A-2 | Original API next-hop intent can be retained with current ownership | Sent-route grouping records local origin but replays output addresses | `self` becomes a stale explicit address | Complete origin/sent/group/replay census and preserve both useful self/explicit controls | Open design choice |
-| A-3 | One bounded worker can serve affected peers | Event-driven shared-worker proposal above | A slow peer delays unrelated peers | Controlled burst, slow-peer and shutdown tests | Open scheduling choice |
+| A-1 | Existing `policyReplayHolds` / `beginPolicyReplay` / `flushPolicyReplay` / `endPolicyReplay` machinery can be reused with hold-before-cut ordering without regressing policy reload | `policy_reload.go:231-242` uses a counted hold (`policyReplayHolds`) and flushes queued writes before release | Policy reload or live forwarding regresses | Existing `policy_reload` tests plus `TestRFC2545WatchReplayConcurrentWithdrawalEndsWithdrawn` under `-race` | Validated by source read; runtime test owed |
+| A-2 | Carrying `NextHopSelf` via `wireu.SentOrigin` -> `types.RawMessage` / JSON `route-meta` -> `ribOutEntry.NextHopSelf` preserves `self` intent on both internal and forked `bgp-rib` without altering `pkg/` or `show bgp rib sent` | `pkg/plugin/rpc/bridge.go:1154-1155` already carries `RawMessage` and `Meta`; `rib_structured.go:545+` and `rib.go:1120+` read both; `parseWireNhopSection` (`update_wire.go:212-215`) already accepts `nhop set self` | API `self` routes replay stale explicit IP or break forked RIB | Unit tests on both internal DirectBridge and JSON `format=full` paths plus `show bgp rib sent` assertion | Validated by source read; runtime test owed |
+| A-3 | One long-lived coalescing goroutine and cooldown timer per `Peer` (immediate first pass + 1 s per-peer cooldown via `p.clock` + max 1 trailing re-pass, joined on `p.wg`) bounds bursts per peer and prevents a slow peer from delaying other peers | Thomas's 2026-11-22 rulings (`"1A is fine"` and `"One coalescing goroutine/timer per peer"`), `ai/rules/goroutine-lifecycle.md` | Flapping link storms wire, leaks a timer/goroutine on peer removal, or blocks shutdown | Controlled fake-clock burst, active-pass flap, independent-peer slow-barrier, and peer-stop/shutdown tests | Validated by owner decision; runtime test owed |
 
 ### Risks
 | ID | Risk | Early signal | Mitigation / fallback |
 |----|------|--------------|----------------------|
-| R-1 | A refeed fires an update storm on a burst or active-pass flap | Repeated passes for one final answer | Effective-answer comparison plus an approved coalescing/active-pass bound. A capacity-one wake alone does not settle this risk |
-| R-2 | A per-peer refeed changes sharing or replays an unaffected family | Wrong-peer/family output or unnecessary materialization | Preserve ordinary per-destination writers and prove scoped-family/unaffected-peer controls |
-| R-3 | Replay overtakes a live withdrawal/replacement | Final socket contains a resurrected route | Hold before source cuts, publication/applied drains and retained reads; flush before release and complete the existing callback concurrency probe |
-| R-4 | Config-static attribution contaminates another writer | Plugin/forwarded route is marked config-static | Send-scoped attribution or complete serialization; retain the earlier initial-sync/plugin-send race proof |
-| R-5 | Ended source or retired destination leaves work pending | Unreachable cut or an old session reaches a writer | Source publication-state handling, captured destination identity and cancellation/join on shutdown |
-| R-6 | New selector/intent metadata breaks existing or forked callers | Parser failure, wrong field, silent empty replay | Additive command design and full Go/SDK/JSON/forked consumer census before approval |
-| R-7 | Missing store or failed pass is presented as success | Retained subject stays stale after completion is reported | Select applicable runtime diagnostics and prove actual failure handling; no invented diagnostic code |
-| R-8 | Absence tests pass after useful output is dropped | Known/fresh controls stop appearing | Preserve real socket, selecting/store retention, useful routes and unchanged sessions in existing probes |
+| R-1 | A refeed fires an update storm on a burst or active-pass flap | Repeated passes for one final answer or unbounded queue growth | Effective-answer comparison plus 1A burst coalescing (immediate first pass, 1 s per-peer cooldown, at most 1 queued trailing re-pass) |
+| R-2 | A per-peer refeed changes sharing or replays an unaffected family | IPv4 churn on an IPv6 link-local flip or wrong-peer output | Family-scoped `replay-routes ... family <afi/safi>`, `reoffer-selected`, `refeed-local <peer> <family>`, and per-family static resend; unaffected-family/peer unit tests |
+| R-3 | Replay overtakes a live withdrawal/replacement (B1) | Final socket contains a resurrected route | Raise `beginPolicyReplay` before `receiveCut`, `drainResendSources`, and `DrainEventsApplied`; `flushPolicyReplay` before `endPolicyReplay`; proven by `TestRFC2545WatchReplayConcurrentWithdrawalEndsWithdrawn` |
+| R-4 | Config-static attribution contaminates another writer or sticks permanently `true` (Issue 5) | Plugin/forwarded route is tagged `config-static` and dropped from `ribOut` | Delete `Peer.sendingConfigStatic` and carry `configStatic` per send under `s.writeMu`; proven by `-race -count=20` overlap test of initial sync, readvertise static resend, and concurrent API/forwarded send |
+| R-5 | Ended source or retired destination leaves work pending or writes to wrong session | Unreachable cut, leaked timer/goroutine, or stale session reaches a writer | Skip `errReceivePublicationFailed`/`errReceivePublicationStopped` in `drainResendSources`; bind pass to captured live `*Session`; stop per-peer timer, cancel on `p.ctx`, and join on `p.wg` |
+| R-6 | New selector or `route-meta` key breaks existing or forked callers | Parser error on legacy `replay-routes` or silent empty replay on forked `bgp-adj-rib-in` | Additive optional trailing `family <afi/safi>` (zero change to 2- and 3-arg callers); explicit `opererr` refusal on `!r.ingestTracked` naming in-process `bgp-adj-rib-in` |
+| R-7 | Missing store, forked store, or timeout fails silently | Retained route stays stale with no operator signal | Raise runtime doctor check `bgp-next-hop-readvertise` (`doctor-bgp-next-hop-readvertise`) + coded `Warn` with `"code"` and `"fix"`; clear on recovery or session reset |
+| R-8 | Absence tests pass after useful output is dropped | Known/fresh controls stop appearing | Preserve all 14 existing transition/concurrency probes, known-neighbor controls, and FRR interop assertions 1–12 |
 
 ## Blast Radius
 
 | Question | Answer |
 |----------|--------|
-| What breaks if this is wrong? | routes are re-announced to peers that did not need them, or the next hop stays wrong |
-| How is it reverted? | No code exists to undo from this proposal. Implementation must permit disabling its scheduler while preserving the existing watched-facts and ordinary-writer behavior; source reversals follow the repository's owner-controlled Git rules |
-| Who else touches this path? | `spec-bgp-link-local-only-next-hop`, `spec-connected-static-reach-the-locrib` |
+| What breaks if this is wrong? | Unneeded IPv6 route re-announcements on unrelated events, stale or unresolvable IPv6 next hops after condition flips, or mis-attributed `config-static` / `next-hop-self` sent metadata |
+| How is it reverted? | Disabling enqueue in `refreshPeerLinkScopes` disables watch-triggered re-advertisement cleanly while preserving watched-facts refresh, send-scoped attribution, and additive RPCs; full revert follows owner-controlled Git rules |
+| Who else touches this path? | `spec-bgp-link-local-only-next-hop`, `spec-connected-static-reach-the-locrib`, `policy_reload.go`, `bgp-rib`, `bgp-adj-rib-in` |
 
 ## Wiring Test (MANDATORY -- NOT deferrable)
 
 | Entry Point | → | Feature Code | Test |
 |-------------|---|--------------|------|
-| Actual address watch removes the shared-subnet condition | → | `refreshPeerLinkScopes` → proposed worker → normal relay | `TestRFC2545SharedSubnetLossReadvertisesGlobalOnly` |
-| Actual neighbor watch discovers/replaces an identity | → | Refreshed facts → proposed worker → retained replay | `TestRFC2545LateNeighborDiscoveryReadvertisesRetainedRoute`, `TestRFC2545KnownNeighborReplacementReadvertisesRetainedRoute` |
-| Source withdraws while callback replay is queued | → | Actual watch → destination hold/worker → source/store removal → socket | `TestRFC2545WatchReplayConcurrentWithdrawalEndsWithdrawn` |
-| Real kernel changes ambiguous neighbor to unique | → | Daemon watch → local API-originated subject → FRR | `bgp-rfc2545-neighbor-condition-flip-frr` |
+| Actual address watch removes the shared-subnet condition | → | `refreshPeerLinkScopes` → `readvertiseWorker` → ordered refeed | `TestRFC2545SharedSubnetLossReadvertisesGlobalOnly` |
+| Actual neighbor watch discovers/replaces an identity | → | `refreshPeerLinkScopes` → `readvertiseWorker` → retained replay | `TestRFC2545LateNeighborDiscoveryReadvertisesRetainedRoute`, `TestRFC2545KnownNeighborReplacementReadvertisesRetainedRoute` |
+| Source withdraws while callback replay is queued | → | `refreshPeerLinkScopes` → `beginPolicyReplay` / `receiveCut` / `drainResendSources` / `DrainEventsApplied` / `flushPolicyReplay` | `TestRFC2545WatchReplayConcurrentWithdrawalEndsWithdrawn` |
+| Real kernel netlink socket adds/removes shared IPv6 prefix on live daemon | → | Netlink address watch → `refreshPeerLinkScopes` → `readvertiseWorker` → wire UPDATE on surviving TCP session | `test/plugin/rfc2545-condition-flip-readvertise.ci` |
+| Real kernel changes ambiguous neighbor to unique on live daemon | → | Netlink neighbor watch → `refreshPeerLinkScopes` → `readvertiseWorker` → `request bgp rib refeed-local` → FRR 10.7.1 | `bgp-rfc2545-neighbor-condition-flip-frr` |
 
 ## Acceptance Criteria
 
-| AC ID | Input / Condition | Expected Behavior |
-|-------|-------------------|-------------------|
-| AC-1 | the shared-subnet condition goes from true to false | the prefixes it governs are re-advertised in place, with no session reset, with a next hop the peer can resolve, through `spec-bgp-link-local-only-next-hop`'s re-advertise path (its Key Design Decisions, "Re-advertise", option B of its round-12 owner decision) |
-| AC-2 | the condition goes from false to true | the prefixes it governs are re-advertised in place in one pass, with no session reset, with the link-local appended after the global, through the same path as AC-1 (RFC 4271 Section 9.2; amended 2026-10-12 to agree with `spec-bgp-link-local-only-next-hop` AC-17, which re-advertises on every change of Ze's own next hop). The link-local is the egress's answer on the re-send, never a recorded one: the forward rail's pair trimming decides it for a forwarded route, `linkLocalNextHopFor` for an API route replayed as `self` or as its explicit global, and the same call for a config route; a replay of a recorded address with `nhop set` is not the path (re-checked after round-9 B1, N4) |
-| AC-3 | an interface burst delivers several address events with one resulting table | one re-advertisement, not one per event |
-| AC-4 (`RFC2545-3-6`, gap half; from spec-bgp-unowned-rfc-rows AC-5) | a route went out with a third-party global next hop alone, because the neighbor table named no Link-Local for that router, and the table later names one (or names a different one) | the affected prefixes are re-advertised in place through the same path as AC-1, with the router's Link-Local after its global in a 32-octet field; a table change for an address no advertised next hop uses re-advertises nothing. Then the row in `rfc/short/rfc2545.md` loses `{partial}`, its new tagged units carry a discrimination record (`./le rfc record`), and the `bgp-rfc2545-third-party-linklocal-frr` scenario is extended to show FRR resolving the next hop after the change |
+| AC ID | Input / Condition | Expected Behavior | Permitted Survivors and Why |
+|-------|-------------------|-------------------|-----------------------------|
+| AC-1 | The RFC 2545 Section 3 shared-subnet condition goes from true to false for an Established IPv6 peer | Affected IPv6 prefixes are re-advertised in place with no session reset, carrying a 16-octet global next hop the peer can resolve, across ordinary selected, forwarded (`bgp-adj-rib-in`), direct API (`refeed-local`), and configured/default rails | Non-IPv6 families (for example `ipv4/unicast`) and peers whose effective answer did not change emit zero re-advertisements because the RFC 2545 condition does not govern them |
+| AC-2 | The shared-subnet condition goes from false to true for an Established IPv6 peer | Affected IPv6 prefixes are re-advertised in place in one pass with no session reset, carrying a 32-octet global + link-local next hop computed fresh by egress (`applyFactsNextHop`/pair trimming for forwarded routes, `linkLocalNextHopFor` for API `self` and explicit routes, and static/default writers) rather than replaying a recorded address | Direct API routes originated with an explicit third-party global next hop still evaluate `thirdPartyLinkLocal` rather than local link-local, because their original explicit intent is preserved |
+| AC-3 | A burst of address or neighbor watch events arrives for a peer (including during an active pass or cooldown) | The first effective change for an idle peer runs immediately (0 ms settle delay); subsequent changes during the active pass or per-peer cooldown (default 1 s, clock-injectable) coalesce into at most one trailing re-pass once cooldown expires; unrelated neighbors, table reorders, and watch-status-only changes trigger zero passes | At most one trailing re-pass after an active pass or cooldown window is permitted when an effective change arrived mid-pass, so the final kernel state is never lost |
+| AC-4 (`RFC2545-3-6`, gap half) | A route was sent with a third-party global next hop alone and the neighbor table later names a unique Link-Local (or replaces it with a moved Link-Local) | Affected IPv6 prefixes are re-advertised in place with the 32-octet global + third-party Link-Local pair; `bgp-rfc2545-neighbor-condition-flip-frr` passes assertions 1–12 including FRR installation via the Link-Local; `rfc/short/rfc2545.md` loses `{partial}` after discrimination record (`./le rfc record`) | Neighbor changes for addresses not used by any cached third-party next hop emit zero re-advertisements because no advertised next hop changed |
+| AC-5 (B1 hold-before-cut ordering) | A live source withdraws or replaces a route while a watch-triggered replay pass is running for an explicit-role destination | The pass raises `beginPolicyReplay` before taking per-source `receiveCut()`, completes `drainResendSources` (skipping ended/failed sources) and `DrainEventsApplied` within the shared 2 s budget, relays the family in ascending `MsgID` order, and calls `flushPolicyReplay` before `endPolicyReplay`, so the live withdrawal or replacement is always the final wire message | Without ADD-PATH, if multiple sources concurrently announce the same prefix, ascending `MsgID` order guarantees each source's latest stored route rather than cross-source concurrent-arrival arbitration (documented in Known Limitations) |
+| AC-6 (API `self` intent & family-scoped replay) | A direct API route announced with `next-hop self` and another with an explicit global next hop are stored in `ribOut`, and a condition flip triggers `request bgp rib refeed-local <peer> <family>` (and `request bgp adj-rib-in replay-routes ... family <afi/safi>` on explicit-role peers) | `ribOutEntry.NextHopSelf` preserves `self` intent across both DirectBridge and JSON `format=full` transports without changing `show bgp rib sent` display; `refeed-local` emits unbracketed updates (no BoRR/EoRR, no EoR) with `nhop set self` re-evaluating current link-local scope (or withdrawing if unresolvable), while explicit next hops replay their explicit global; `replay-routes` filters to the named family and preserves legacy 2/3-arg callers | Forked `bgp-adj-rib-in` (`!r.ingestTracked`) stores `MsgID == 0` and refuses family-scoped replay explicitly with an `opererr` naming in-process `bgp-adj-rib-in` as the fix, because cross-source ordering cannot be proven without ingested message IDs |
+| AC-7 (Issue 5 send-scoped attribution) | A readvertise config-static/default resend overlaps initial sync and a concurrent API or forwarded send to the same peer under `go test -race -count=20` | Zero data races; only configured static writes carry `"config-static": true`, never contaminating concurrent API or forwarded writes and never leaving static attribution stuck enabled after overlap | None; `Peer.sendingConfigStatic` is deleted completely so no peer-wide attribution flag survives |
+| AC-8 (Runtime diagnostics & B2 daemon `.ci`) | (a) A readvertise pass encounters an absent store, forked `bgp-adj-rib-in`, barrier timeout, or failed refeed; (b) a real Linux daemon loses and regains a shared IPv6 prefix via netlink | (a) Reactor raises runtime doctor check `bgp-next-hop-readvertise` (`doctor-bgp-next-hop-readvertise`, `DoctorPhaseRuntime`) and logs a coded `Warn` with `"code"` and `"fix"`, clearing on subsequent pass success or session reset; (b) `test/plugin/rfc2545-condition-flip-readvertise.ci` (`option=needs-linux:caps=net-admin`) observes both global-only and global+link-local re-advertisements on the surviving TCP session | None on the happy path; runtime warnings survive only while the degraded condition persists until cleared by a successful pass or session reset |
 
 ## End-to-End User Stories
 
 | # | User does | Path through system | Test proving it works |
 |---|-----------|--------------------|-----------------------|
-| 1 | Removes the shared subnet while the route and session remain useful | Actual watch recomputes facts, then proposed ordered refeed emits the global-only form | `TestRFC2545SharedSubnetLossReadvertisesGlobalOnly`; currently red |
+| 1 | Removes or restores a shared IPv6 subnet prefix on an interface while a BGP session remains Established | Netlink address watch → `refreshPeerLinkScopes` → `readvertiseWorker` → ordered family refeed → wire UPDATE on surviving TCP session | `TestRFC2545SharedSubnetLossReadvertisesGlobalOnly`, `test/plugin/rfc2545-condition-flip-readvertise.ci` |
+| 2 | Third-party router on shared subnet transitions from ambiguous/missing neighbor entry to a unique Link-Local (or moves Link-Local) | Netlink neighbor watch → `refreshPeerLinkScopes` → `readvertiseWorker` → `request bgp rib refeed-local` / `request bgp rib reoffer-selected` / `RelayReplay` → FRR installs route via Link-Local | `TestRFC2545LateNeighborDiscoveryReadvertisesRetainedRoute`, `TestRFC2545KnownNeighborReplacementReadvertisesRetainedRoute`, `bgp-rfc2545-neighbor-condition-flip-frr` |
+| 3 | Runs a forked `bgp-adj-rib-in` or suffers a store timeout during a condition flip | `readvertiseWorker` surfaces refusal/timeout → `bgp-next-hop-readvertise` runtime warning + coded `Warn` log with fix → visible in `ze show doctor` and `ze show warnings` | `TestRFC2545ReadvertiseDiagnosticRaiseAndClear` |
 
 ## 🧪 TDD Test Plan
 
 ### Unit Tests
 | Test | File | Validates | Status |
 |------|------|-----------|--------|
-| `TestRFC2545NeighborWatchUsesAddressSnapshot` | `rfc2545_neighbor_late_discovery_test.go` | Existing deterministic snapshot prerequisite | Observed pass; preserve |
-| `TestRFC2545NeighborKnownAtReceiptReachesSocket` | Same file | Known-neighbor useful output on both rails | Observed pass; preserve |
-| `TestRFC2545LateNeighborDiscoveryReadvertisesRetainedRoute` | Same file | Eight actual watch transitions without new ingress or a test-requested relay | Eight observed trigger reds |
-| `TestRFC2545RefreshedFactsReachStoredReplaySocket`, `TestRFC2545QueuedNeighborReplayEndsWithdrawn` | Same file | Existing explicit writer and queued-withdrawal controls | Observed pass; not callback proof |
-| `TestRFC2545KnownNeighborReplacementReadvertisesRetainedRoute` | `rfc2545_neighbor_transition_test.go` | Useful retained route acquires the moved identity on both rails | Two observed trigger reds |
-| `TestRFC2545SharedSubnetLossReadvertisesGlobalOnly` | Same file | Useful global-only route after actual subnet loss | Two observed trigger reds |
-| `TestRFC2545WatchReplayConcurrentWithdrawalEndsWithdrawn` | Same file | Actual callback replay, then real store removal and exactly one final withdrawal | Two reds before replay dispatch; later assertions unreached |
-| Approved design's missing invariants only | Existing test area | Burst/active-pass bound, shutdown, family-selector compatibility, original self/explicit intent and config attribution overlap | Design/seams still open; do not duplicate the fourteen cases |
+| `TestRFC2545NeighborWatchUsesAddressSnapshot` | `internal/component/bgp/reactor/rfc2545_neighbor_late_discovery_test.go` | Deterministic address-snapshot seam prerequisite | Passing; preserve |
+| `TestRFC2545NeighborKnownAtReceiptReachesSocket` | Same file | Known-neighbor 32-octet pair on both general and native RS rails | Passing; preserve |
+| `TestRFC2545LateNeighborDiscoveryReadvertisesRetainedRoute` | Same file | Eight watch-triggered late-discovery transitions without new ingress | Red (target) |
+| `TestRFC2545RefreshedFactsReachStoredReplaySocket`, `TestRFC2545QueuedNeighborReplayEndsWithdrawn` | Same file | Explicit relay and queued-withdrawal controls | Passing; preserve |
+| `TestRFC2545KnownNeighborReplacementReadvertisesRetainedRoute` | `internal/component/bgp/reactor/rfc2545_neighbor_transition_test.go` | Moved third-party Link-Local re-advertised on both rails | Red (target) |
+| `TestRFC2545SharedSubnetLossReadvertisesGlobalOnly` | Same file | Shared-subnet loss flips 32-octet pair back to 16-octet global on both rails | Red (target) |
+| `TestRFC2545WatchReplayConcurrentWithdrawalEndsWithdrawn` | Same file | B1 hold-before-cut ordering: watch-triggered replay + concurrent source withdrawal ends withdrawn once | Red (target) |
+| `TestRFC2545ReadvertiseBurstCoalescing` | `internal/component/bgp/reactor/reactor_readvertise_test.go` | 1A: immediate first pass (0 ms), per-peer cooldown, at most 1 trailing re-pass, unrelated-neighbor/reorder no-op, clean shutdown/retired-session discard | New |
+| `TestRFC2545ConfigStaticAttributionOverlap` | `internal/component/bgp/reactor/reactor_readvertise_test.go` | Issue 5: `-race -count=20` overlap of initial sync, readvertise config-static resend, and concurrent API/forwarded send; zero cross-contamination | New |
+| `TestRFC2545ReadvertiseDiagnosticRaiseAndClear` | `internal/component/bgp/reactor/reactor_readvertise_test.go` | AC-8: `bgp-next-hop-readvertise` (`doctor-bgp-next-hop-readvertise`) raises on forked/absent store or timeout and clears on recovery or session reset | New |
+| `TestAdjRIBInReplayRoutesFamilySelector` | `internal/component/bgp/plugins/adj_rib_in/replay_page_test.go` | 3A: family filter, ascending `MsgID` order, legacy 2/3-arg compatibility, unknown family rejection, forked `!ingestTracked` `opererr` refusal | New |
+| `TestRIBRefeedLocalNextHopSelfAndExplicit` | `internal/component/bgp/plugins/rib/rib_refeed_local_test.go` | AC-6: `NextHopSelf` preserved on both DirectBridge and JSON `format=full` `route-meta`, `show bgp rib sent` unchanged, unbracketed `refeed-local` (no BoRR/EoRR) on both ordinary and legacy peers, `update hex nhop set self` round-trip, withdrawal when `resolveNextHop` fails | New |
 
 ### Functional Tests
 | Test | Location | End-User Scenario | Status |
 |------|----------|-------------------|--------|
-| Earlier B2 `.ci` obligation | Existing functional harness | Determine the distinct daemon carrier needed alongside the real-kernel FRR scenario | Remains owed unless the owner explicitly changes the earlier contract; no silent removal or duplicate scenario authoring |
+| `rfc2545-condition-flip-readvertise` | `test/plugin/rfc2545-condition-flip-readvertise.ci` | B2 (2A): real Linux daemon (`option=needs-linux:caps=net-admin`) loses and regains a shared IPv6 prefix via netlink on a surviving TCP session and re-advertises 16-octet then 32-octet next hop | New |
 
 ### Interop Tests (Scope: protocol)
 | Scenario | Directory | Peer Daemon | What It Proves | Status |
 |----------|-----------|-------------|----------------|--------|
-| `bgp-rfc2545-neighbor-condition-flip-frr` | `test/interop/scenarios/` | FRR 10.7.1 | The daemon's actual neighbor watch must update the once-announced API-originated subject after its neighbor becomes unique | Observed assertion 9 failure with passing kernel, sent-retention, fresh-pair and same-session controls; successful installation at assertion 12 remains unreached |
+| `bgp-rfc2545-neighbor-condition-flip-frr` | `test/interop/scenarios/bgp-rfc2545-neighbor-condition-flip-frr/` | FRR 10.7.1 | AC-4 & B2: daemon's neighbor watch updates once-announced API-originated subject after ambiguous-to-unique kernel neighbor transition and FRR installs route via the Link-Local (assertions 1–12) | Existing; assertions 1–8 pass, 9 & 12 target |
 
 ## Files to Modify
-- `internal/component/bgp/reactor/reactor_iface.go` - effective-answer change detection and nonblocking scheduling after publication.
-- `internal/component/bgp/reactor/reactor.go` - worker start/stop/state. Its current foreign protocol-capture hunks require owner coordination and scoped landing.
-- `internal/component/bgp/reactor/policy_reload.go` - shared hold/cut/drain/flush extraction, preserving policy restoration.
-- `internal/core/bgp/ribevents/replay.go` and `internal/component/bgp/plugins/adj_rib_in/replay_page.go` - proposed additive family-scoped page contract and compatibility.
-- `internal/component/bgp/plugins/rib/rib_commands.go`, `rib_replay.go` and sent producers in `rib.go` - local-origin-only refeed and original intent; complete consumer census before selecting fields.
-- `internal/component/bgp/reactor/peer_static_wire.go` and configured/default callers - normal writers and send attribution, with the exact caller census still a design prerequisite.
-- The existing two neighbor test files and checker/scenario above - preserve current probes and add only approved missing invariant coverage.
-- `docs/architecture/bgp/interface-event-reactions.md`, `docs/architecture/update-building.md`, `docs/architecture/bgp/structural-forwarding.md`, `docs/architecture/api/commands.md` - update the trigger, refeed and command contracts with their implementation.
-- `rfc/short/rfc2545.md` - retain partial scope until native transition, ordering and peer-installation proof. No support increase from this investigation.
+- `internal/component/bgp/reactor/reactor_iface.go` - effective-answer comparison in `refreshPeerLinkScopes` and nonblocking `p.scheduleReadvertise(session)` signal after facts publication.
+- `internal/component/bgp/reactor/reactor.go` - default readvertise cooldown setting (test-injectable) and runtime doctor cleanup on reactor stop.
+- `internal/component/bgp/reactor/policy_reload.go` - extract/reuse hold-before-cut replay ordering helpers, preserve `reconcileExportFinal` and `reconcileSelectedExport`, remove `sendingConfigStatic` swap.
+- `internal/component/bgp/reactor/session_write.go` - send-scoped `configStatic` and `nextHopSelf` fields under `s.writeMu` into `wireu.SentOrigin`.
+- `internal/component/bgp/reactor/reactor_notify.go` - remove `Peer.sendingConfigStatic.Load()` read and its `sentMeta` map injection; copy `SentOrigin.ConfigStatic` and `SentOrigin.NextHopSelf` directly onto `types.RawMessage` scalars (zero map allocation, matching `SourceLocal`).
+- `internal/component/bgp/reactor/reactor_api_batch.go` - carry `NextHopSelf` intent from `resolveNextHop`/`initBatchOwner` onto `fwdItem`/`peerOp`/write path.
+- `internal/component/bgp/reactor/peer.go` - delete `Peer.sendingConfigStatic` atomic field; add per-peer readvertise wake channel/state and start `p.readvertiseWorker()` on `p.wg` in `Peer.StartWithContext`.
+- `internal/component/bgp/reactor/peer_initial_sync.go` - pass send-scoped `configStatic: true` for configured static routes instead of toggling `sendingConfigStatic`; align `sendPluginRoutesVia` attribution.
+- `internal/component/bgp/reactor/peer_static_wire.go` - send-scoped `configStatic: true` in `deliverStaticRouteDelta` and per-family static/default-originate re-send helper under `staticMu` with resolved-next-hop withdrawal tracking.
+- `internal/component/bgp/reactor/peer_static_restore.go` - replace `sendingConfigStatic.Swap` with send-scoped `configStatic: true`.
+- `internal/component/bgp/wireu/wire_update.go` - add `ConfigStatic` and `NextHopSelf` scalar booleans to `wireu.SentOrigin`.
+- `internal/component/bgp/types/rawmessage.go` - add `NextHopSelf` and `ConfigStatic` scalar booleans on `types.RawMessage`.
+- `internal/component/bgp/format/text_update.go` - format `"config-static": true` and `"next-hop-self": true` directly from `msg` at the JSON `format=full` `route-meta` boundary (skipping both keys in the `msg.Meta` loop so policy cannot spoof them).
+- `internal/component/bgp/format.go` - emit `nhop set self` on the `update hex` branch of `FormatAnnounceCommand` when `route.NextHop == "self"`.
+- `internal/core/bgp/ribevents/replay.go` - add optional `family` argument to `RelayReplay` (`family <afi/safi>`).
+- `internal/component/bgp/plugins/adj_rib_in/replay_page.go` - parse optional trailing `family <afi/safi>`, filter `walkReplayRoutes` in ascending `MsgID` order, refuse `!r.ingestTracked` with `opererr` naming in-process `bgp-adj-rib-in`.
+- `internal/component/bgp/plugins/adj_rib_in/replay_page_test.go` - add unit tests for family-scoped `replay-routes`, ascending `MsgID` order, legacy compatibility, and forked-store refusal (3A).
+- `internal/component/bgp/plugins/adj_rib_in/rib.go` - update `request bgp adj-rib-in replay-routes` help/declaration in `commandDecls()`.
+- `internal/component/bgp/plugins/rib/rib.go` - declare hidden `request bgp rib refeed-local` and `request bgp rib reoffer-selected` in `commandDecls()` and populate `NextHopSelf` from JSON `route-meta`.
+- `internal/component/bgp/plugins/rib/rib_commands.go` - implement `refeedLocalCommand` (`request bgp rib refeed-local <peer> <family>`) and `reofferSelectedCommand` (`request bgp rib reoffer-selected <peer> <session> <family>`).
+- `internal/component/bgp/plugins/rib/rib_selected_policy.go` and `internal/component/bgp/plugins/rib/rib_selected_dispatch.go` - add family-scoped `reofferSelectedFamily(peer, session, fam)` filtering `d.current` and `d.scoped` strictly to `key.family == fam` so IPv6 condition flips emit zero `ipv4/unicast` re-advertisements on ordinary selected peers.
+- `internal/component/bgp/plugins/rib/rib_replay.go` - replay `LocalOrigin && !ConfigStatic` entries unbracketed across ordinary and legacy up peers, mapping `entry.NextHopSelf` to `"self"` for `FormatAnnounceCommand`.
+- `internal/component/bgp/plugins/rib/ribout_entry.go` - add `NextHopSelf bool` field on `ribOutEntry`.
+- `internal/component/bgp/plugins/rib/rib_structured.go` - populate `ribOutEntry.ConfigStatic` and `ribOutEntry.NextHopSelf` directly from DirectBridge `*types.RawMessage` scalars (not `se.Meta`).
+- `internal/component/bgp/reactor/rfc2545_neighbor_late_discovery_test.go` and `rfc2545_neighbor_transition_test.go` - preserve all 14 existing trigger/control probes.
+- `internal/le/interoplab/bgp/check_rfc2545_neighbor_flip.go` - verify assertions 1–12 pass end-to-end against FRR 10.7.1.
+- `docs/architecture/bgp/interface-event-reactions.md` - update `The decisions` section (departs row) to document watch-triggered re-advertisement and 1A burst coalescing.
+- `docs/architecture/update-building.md` - document send-scoped `config-static` / `next-hop-self` attribution and in-place re-advertisement on condition flips.
+- `docs/architecture/wire/messages.md` - update `Internal sent-origin receipt` to mention the `ConfigStatic` and `NextHopSelf` scalar fields on `wireu.SentOrigin`.
+- `docs/architecture/api/commands.md` - document optional `family <afi/safi>` on `request bgp adj-rib-in replay-routes` and hidden internal `request bgp rib refeed-local` / `request bgp rib reoffer-selected`.
+- `docs/architecture/api/json-format.md` - document additive `"next-hop-self": true` key in sent UPDATE `route-meta`.
+- `docs/architecture/plugin/rib-storage-design.md` - document `ribOutEntry.NextHopSelf`, `reofferSelectedFamily`, and `FormatAnnounceCommand` `nhop set self` on `update hex`.
+- `docs/architecture/bgp/replay-cursor.md` - document family-scoped replay ordering (`MsgID` ascending) and forked `bgp-adj-rib-in` refusal.
+- `docs/architecture/doctor-and-health-checks.md` - document runtime check `bgp-next-hop-readvertise` (`doctor-bgp-next-hop-readvertise`).
+- `rfc/short/rfc2545.md` - update `RFC2545-3-6` once native tests, FRR interop, and `./le rfc record` discrimination pass.
 
 ## Files to Create
-- Proposed `internal/component/bgp/reactor/reactor_readvertise.go` - bounded coalescing worker and shared ordered refeed. This is not permission to restore the removed attempt.
+- `internal/component/bgp/reactor/reactor_readvertise.go` - per-peer long-lived coalescing worker and cooldown timer (`p.readvertiseWorker`, `p.scheduleReadvertise`) with 1A burst coalescing (immediate first pass, clock-injectable 1 s cooldown via `p.clock`, max 1 trailing re-pass), effective-answer predicate, and shared hold-before-cut ordered refeed across all route rails.
+- `internal/component/bgp/reactor/readvertise_diagnostic.go` - reactor-owned runtime doctor check `bgp-next-hop-readvertise` and code `doctor-bgp-next-hop-readvertise` (`diagnostic.DoctorPhaseRuntime`).
+- `internal/component/bgp/reactor/reactor_readvertise_test.go` - unit tests for per-peer burst coalescing (1A), slow-peer independence (one stalled peer does not delay another), `-race -count=20` config-static overlap (Issue 5), runtime doctor raise/clear (AC-8), and peer-stop/shutdown/retired-session safety.
+- `internal/component/bgp/plugins/rib/rib_refeed_local_test.go` - unit tests for `NextHopSelf` preservation (DirectBridge + JSON), `show bgp rib sent` stability, unbracketed `refeed-local`, family-scoped `reoffer-selected` (verifying zero `ipv4/unicast` re-advertisement), and `update hex nhop set self` round-trip.
+- `test/plugin/rfc2545-condition-flip-readvertise.ci` - B2 fast Linux `.ci` daemon test (`option=needs-linux:caps=net-admin`) proving real netlink address prefix loss and restoration re-advertises on a surviving TCP session.
 
 ### Integration Checklist
 | Integration Point | Applies? | File / reason |
 |-------------------|----------|---------------|
-| YANG schema | Yes, conditional | A new replay-family selector must update its registered command declaration; exact schema/argument form is an open design choice |
-| YANG validation constraints | Yes, conditional | Validate the selector against registered families and preserve old cursor/cut calls |
-| Custom config validators | N-A | No new config leaf is proposed |
-| CLI commands/flags | Yes, conditional | Additive replay-selector contract; no new public verb is selected |
-| CLI grammar | Yes | Resolve keyword/value grammar and old-call compatibility before implementation |
-| Editor autocomplete | N-A | No new config editor value is proposed |
-| Functional API proof | Yes | Existing real-kernel daemon/FRR carrier plus explicit disposition of the earlier B2 `.ci` obligation |
-| Pipe completeness | N-A | No new output renderer is proposed |
-| Env registration | N-A | No environment variable is proposed |
-| Doctor check for runtime dependencies | No new dependency | Reuse registered watchers, store and existing transports |
-| Doctor code per failure class | Yes, unresolved | Absent store, timeout and failed refeed need an applicable existing code or registered runtime check; select names and phase before approval |
-| Prometheus counters/metrics | No new metric proposed | Observe scheduling invariants directly in tests; a metric cannot replace the burst or shutdown proof |
-| BGP family surface | N-A | No new family, capability, attribute or NLRI format |
+| YANG schema (new RPCs/config) | No | No new config leaf or operator-facing YANG RPC (`replay-routes` has no YANG module in `bgp-adj-rib-in`, and `request bgp rib refeed-local` is a hidden internal RPC declared in `rib/rib.go` `commandDecls()` matching `request bgp rib recovery` and `request bgp rib flowspec-gate`) |
+| YANG validation constraints | N-A | No new YANG nodes; `family <afi/safi>` is validated dynamically against registered families via `family.LookupFamily` |
+| YANG custom validators | N-A | No new config leaves |
+| CLI commands/flags | No | No operator-facing CLI command or flag added; both `replay-routes` and `refeed-local` are hidden internal RPCs |
+| CLI grammar (keyword before value) | Yes | Trailing `family <afi/safi>` on `replay-routes` follows keyword-before-value while keeping legacy 2- and 3-arg callers unchanged |
+| Editor autocomplete | N-A | No new config editor leaves |
+| Functional test for new RPC/API | Yes | `test/plugin/rfc2545-condition-flip-readvertise.ci` (B2 Linux kernel `.ci`) plus `bgp-rfc2545-neighbor-condition-flip-frr` (real-kernel FRR interop) |
+| Pipe completeness | N-A | Hidden internal RPCs return `shapeMap` status envelopes; no new `show` renderer |
+| Env var registration | N-A | No environment variable added (1 s cooldown is a code default with a test-only clock seam) |
+| Doctor check for runtime dependencies | No | Reuses existing netlink address/neighbor watchers and plugin transports; no new host dependency |
+| Doctor code per problem class | Yes | Reactor-owned runtime check `bgp-next-hop-readvertise`, code `doctor-bgp-next-hop-readvertise`, `Phase: diagnostic.DoctorPhaseRuntime` (`internal/component/bgp/reactor/readvertise_diagnostic.go`) covering absent store, forked `bgp-adj-rib-in`, barrier timeout, and failed refeed |
+| Prometheus counters/metrics | No | Scheduling and failure invariants are directly tested and reported via `bgp-next-hop-readvertise`; no new Prometheus counter |
+| BGP family surface (new SAFI / capability / attribute) | N-A | No new SAFI, capability, attribute, or wire NLRI format |
 
 ### Documentation Update Checklist (BLOCKING)
 | # | Question | Applies? | File to update |
 |---|----------|----------|---------------|
-| 1 | Feature scope/evidence changed? | Yes | Find the existing BGP feature row and current level before implementation; no evidence increase from this research |
-| 2 | Config syntax changed? | No | No new config option proposed |
-| 3 | CLI command changed? | Yes, conditional | `docs/guide/command-reference.md` if the replay selector changes |
-| 4 | API/RPC changed? | Yes | `docs/architecture/api/commands.md` for selector, ordering and refusal contracts |
-| 5 | Plugin behavior changed? | Yes, conditional | `docs/guide/plugins.md` if replay caller/declaration semantics change |
-| 6 | User guide required? | Yes | Existing next-hop guidance must explain unsolicited refresh and runtime failure diagnostics |
-| 7 | Wire format changed? | No new format | Existing native forms remain; update timing/refresh behavior in `docs/architecture/update-building.md` |
-| 8 | SDK/protocol changed? | Yes, conditional | Complete original-intent producer/consumer census and update `docs/architecture/api/process-protocol.md` if fields change |
-| 9 | RFC behavior newly proven? | Yes, after proof | `rfc/short/rfc2545.md`; generated status comes only through native tools and passing evidence |
-| 10 | Test infrastructure changed? | No | Reuse current functional/interop harnesses |
-| 11 | Daemon comparison changed? | No new claim | Preserve dated, qualified BIRD/FRR source reading above |
-| 12 | Architecture changed? | Yes | Interface-event, update-building and structural-forwarding pages named above |
-| 13 | Route metadata changed? | Yes, conditional | Document any approved original-intent/attribution keys and all consumers before implementation |
-| 14 | Metrics changed? | No | No new metric proposed |
-| 15 | Registration/inventory changed? | Yes, conditional | Replay command declaration and published inventory if its selector changes |
-| 16 | Existing source anchors affected? | Yes | Main owes the native scoped citation inventory before implementation; named `// Design:` pages travel with the code |
-| 17 | Existing examples affected? | Yes | Check replay examples against the approved parser and retain old syntax unless compatibility is explicitly changed |
+| 1 | New user-facing feature, or a feature's scope, evidence or level changed? | Yes | Check `features/bgp-protocol.md` after implementation and interop proof; no maturity claim changes before passing evidence |
+| 2 | Config syntax changed? | No | No new config option or leaf added |
+| 3 | CLI command added/changed? | No | Both `request bgp adj-rib-in replay-routes` and `request bgp rib refeed-local` are hidden internal engine-to-plugin RPCs, not operator CLI commands |
+| 4 | API/RPC added/changed? | Yes | `docs/architecture/api/commands.md` (optional trailing `family <afi/safi>` on `replay-routes` and hidden `request bgp rib refeed-local`) and `docs/architecture/api/json-format.md` (`"next-hop-self": true` in sent `route-meta`) |
+| 5 | Plugin added/changed? | Yes | `docs/architecture/plugin/rib-storage-design.md` (`ribOutEntry.NextHopSelf`, `FormatAnnounceCommand` `nhop set self`) and `docs/architecture/bgp/replay-cursor.md` (family-scoped ascending `MsgID` replay and forked `bgp-adj-rib-in` refusal) |
+| 6 | Has a user guide page? | Yes | Check `docs/guide/route-reflection.md` and `docs/guide/route-injection.md` for unsolicited refresh behavior and `doctor-bgp-next-hop-readvertise` troubleshooting |
+| 7 | Wire format changed? | No | BGP wire format is unchanged; timing/refresh and send-scoped attribution move into `docs/architecture/update-building.md` |
+| 8 | Plugin SDK/protocol changed? | No | Zero `pkg/` Go types change; additive JSON `route-meta` key `"next-hop-self"` is documented in `docs/architecture/api/json-format.md` |
+| 9 | RFC behavior implemented, changed, or newly proven? | Yes | `rfc/short/rfc2545.md` (`RFC2545-3-6` loses `{partial}` after passing tests, FRR interop, and `./le rfc record`) |
+| 10 | Test infrastructure changed? | No | Reuses existing `.ci` runner (`option=needs-linux:caps=net-admin`) and Docker FRR interop harness |
+| 11 | Affects daemon comparison? | No | Existing dated BIRD/FRR source reading stays valid; both references are knowingly exceeded |
+| 12 | Internal architecture changed? | Yes | `docs/architecture/bgp/interface-event-reactions.md` (departs row update), `docs/architecture/update-building.md`, `docs/architecture/doctor-and-health-checks.md` (`bgp-next-hop-readvertise`) |
+| 13 | Route metadata keys added/changed? | Yes | `docs/architecture/api/json-format.md` (`"next-hop-self": true` in sent UPDATE `route-meta`, matching `"config-static": true`) |
+| 14 | Prometheus counters added/changed? | No | No new Prometheus counter |
+| 15 | Registered plugin, event type, send type, command, capability, or inventory changed? | Yes | Hidden `request bgp rib refeed-local` in `bgp-rib` `commandDecls()` and runtime doctor check `bgp-next-hop-readvertise` (`doctor-bgp-next-hop-readvertise`) in reactor `init()` |
+| 16 | Any changed source file referenced by existing doc source anchors? | Yes | Verified via `./le spec citation anchors`. Declared `// Design:` docs modified: `docs/architecture/bgp/interface-event-reactions.md`, `docs/architecture/api/json-format.md`, `docs/architecture/plugin/rib-storage-design.md`, `docs/architecture/bgp/replay-cursor.md`, `docs/architecture/wire/messages.md`. Declared `// Design:` docs unaffected: `docs/architecture/api/architecture.md` (engine/RIB ownership split unchanged), `docs/architecture/core-design.md` (core architecture and component isolation unchanged), `docs/architecture/exabgp-bridge.md` (`peer_static_restore.go` only changes internal config-static send attribution, not ExaBGP translation), `docs/architecture/pool-architecture.md` (`ribOutEntry.NextHopSelf` is a plain bool, leaving `attrpool` dedup/compaction unchanged), `docs/architecture/testing/interop.md` (reuses existing named scenario `bgp-rfc2545-neighbor-condition-flip-frr` without harness changes), `docs/architecture/bgp/structural-forwarding.md` (already accurately documents `linkScope.thirdPartyLinkLocal` on fresh and relayed sends) |
+| 17 | Existing docs show config/CLI/API examples for this area? | Yes | Checked `request bgp adj-rib-in replay-routes` callers and docs: legacy 2- and 3-arg syntax remains valid, and no example breaks |
 
-The discovery surface is the existing BGP next-hop/interface-event material
-in `ai/INDEX.md`, the registered watcher and replay command. Extend those
-surfaces with implementation. Do not create a second route-source inventory.
-The changed-wire census is incomplete until the proposed selector and API
-intent/attribution fields have traced Go, SDK, JSON and forked consumers.
-This prevents design approval; no source-read checklist claims completeness.
+## Design presentation
+
+### What changes
+
+When a Linux address event flips RFC 2545 Section 3's shared-subnet condition (either true-to-false or false-to-true) or a neighbor-table event discovers, changes, or clears a third-party router's Link-Local on a shared subnet, Ze re-advertises the affected peer's IPv6 routes in place without resetting the BGP session. Each `Peer` runs one long-lived coalescing goroutine and cooldown timer (`p.readvertiseWorker()` in `reactor_readvertise.go`, joined on `p.wg` and cancelled on `p.ctx`) so a slow or stalled peer hitting the 2 s barrier budget never delays any other peer. The pass handles all four route sources (ordinary selected routes via family-scoped `request bgp rib reoffer-selected` so IPv4 is never churned, forwarded routes via hold-before-cut `bgp-adj-rib-in` family-scoped replay, direct API routes via unbracketed `request bgp rib refeed-local` preserving `next-hop self` intent via zero-map typed `SentOrigin`/`RawMessage` scalars, and configured static/default routes via send-scoped `config-static` attribution). The first effective flip for an idle peer runs immediately (0 ms settle delay); subsequent bursts or active-pass flaps coalesce behind that peer's 1 s cooldown timer with at most one queued trailing re-pass. If a pass cannot complete because a store is absent, `bgp-adj-rib-in` is forked, a barrier times out, or refeed fails, Ze raises a runtime doctor warning (`bgp-next-hop-readvertise`, code `doctor-bgp-next-hop-readvertise`) with the exact fix and clears it once a later pass succeeds or the session resets.
+
+### Before and after
+
+1. **Shared IPv6 subnet lost or restored on a live session (AC-1, AC-2):**
+   - **Before:** `refreshPeerLinkScopes` updates the peer's link-scope snapshot and schedules nothing. Already-advertised routes keep a stale 32-octet global+link-local next hop after subnet loss (which the peer can no longer resolve on-link) or a 16-octet global-only next hop after subnet gain until a new incoming UPDATE happens to arrive.
+   - **After:** `refreshPeerLinkScopes` detects the effective-answer change and enqueues the peer. The readvertise worker immediately re-advertises the peer's IPv6 routes in place with no session reset: 16-octet global-only after subnet loss, 32-octet global+link-local computed fresh after subnet gain.
+2. **Third-party router's Link-Local discovered or moved in the kernel neighbor table (AC-4 / `RFC2545-3-6`):**
+   - **Before:** A route sent while the third-party neighbor was unknown or ambiguous stays global-only forever; `bgp-rfc2545-neighbor-condition-flip-frr` fails at assertion 9 after 31 global-only observations.
+   - **After:** The neighbor watch triggers the worker, which re-advertises the affected IPv6 routes with the 32-octet global + third-party Link-Local pair; FRR installs the route via the Link-Local (assertions 1–12 pass), and unrelated neighbor changes trigger zero passes.
+3. **Burst of address/neighbor events or active-pass flap (AC-3 / Issue 3):**
+   - **Before:** The removed attempt re-sent the peer's whole table on every flap that arrived during an active pass, with no per-peer cooldown.
+   - **After:** The first effective change runs immediately (0 ms), and any burst during the pass or the 1 s per-peer cooldown collapses into at most one trailing re-pass once cooldown expires.
+4. **Live withdrawal racing a condition-flip replay (AC-5 / B1):**
+   - **Before:** The removed attempt called `resendAdvertised` without holding live forwards first or draining per-source receive cuts, allowing a stale replay to overtake a live withdrawal.
+   - **After:** The worker raises `beginPolicyReplay` before taking per-source `receiveCut()`, completes `drainResendSources` and `DrainEventsApplied` within one 2 s budget, relays the family in ascending `MsgID` order, and calls `flushPolicyReplay` before `endPolicyReplay`, so the live withdrawal is always the final wire message.
+5. **Concurrent config-static resend overlapping initial sync or API/forwarded sends (AC-7 / Issue 5):**
+   - **Before:** `Peer.sendingConfigStatic` was a peer-wide atomic flag that `sendInitialRoutes` and `deliverStaticRouteDelta` could interleave into a permanently stuck `true` state, tagging concurrent API/forwarded writes as `"config-static": true`.
+   - **After:** `Peer.sendingConfigStatic` is removed; `configStatic` and `nextHopSelf` travel per send under `s.writeMu` into `wireu.SentOrigin`, `types.RawMessage`, and JSON `route-meta`.
+6. **Degraded pass (absent store, forked `bgp-adj-rib-in`, timeout, or refeed failure) (AC-8):**
+   - **Before:** No runtime doctor check existed for readvertise failures; a forked `bgp-adj-rib-in` lacked family-scoped replay refusal.
+   - **After:** Forked `bgp-adj-rib-in` refuses family-scoped replay with an `opererr` naming in-process `bgp-adj-rib-in`, and the reactor raises runtime doctor check `bgp-next-hop-readvertise` (`doctor-bgp-next-hop-readvertise`) plus a coded `Warn` log with `"code"` and `"fix"`, clearing automatically on recovery or session reset.
+
+### Alternatives set aside
+
+| Alternative | Why set aside |
+|-------------|---------------|
+| Single reactor-owned pending-peer worker | One slow or stalled peer hitting the 2 s drain/applied-event barrier budget delays unrelated peers' condition flips; Thomas selected one coalescing goroutine/timer per peer (2026-11-22) |
+| Unconditional settle delay (e.g. 500 ms) before every first pass | Adds latency to the common single-flip case when 1A (immediate first flip + 1 s per-peer cooldown + max 1 trailing re-pass) gives 0 ms first-flip latency and still bounds bursts |
+| RFC 2439 BGP route flap dampening enabled by default | Explicitly rejected by Thomas on 2026-11-22 ("flap dampening should be an option and off by default as since the RFC it was found to not help"); this mechanism is local event burst coalescing, not RFC 2439 route dampening |
+| Reusing `clear bgp rib out` (`outboundResend`) for direct API refeed | `outboundResend` skips ordinary destinations (`meta.refreshOrdinary`) and brackets legacy destinations with BoRR/EoRR, which under RFC 7313 §4 would make an ERR-capable peer purge all forwarded and config routes |
+| Storing `"self"` directly in `ribOutEntry.NextHop` | Would change `show bgp rib sent` display output from the actual emitted IP to `"self"`; keeping a separate `ribOutEntry.NextHopSelf` bool preserves operator visibility |
+| Session reset (Cease subcode 6) on condition flip | Rejected by Thomas's 2026-10-12 round-12 decision in `spec-bgp-link-local-only-next-hop` ("we do not want the peering to bounce") |
+
+### Documents departed from
+
+- `docs/architecture/bgp/interface-event-reactions.md`, section **The decisions**:
+  - **Current statement:** "A neighbor change sets the form of the advertisements made after it, and re-advertises nothing. A route already sent with the global address alone is not sent again when the table later names the link-local. That re-advertisement is not built."
+  - **After this work:** Updated in the same change to document that both address-table and neighbor-table events that change a peer's effective RFC 2545 / RFC 4659 / third-party Link-Local answer signal that peer's coalescing readvertise worker (`p.readvertiseWorker()` in `reactor_readvertise.go`), which runs the first flip immediately, coalesces bursts behind a 1 s per-peer cooldown timer with at most one trailing re-pass, and re-advertises affected IPv6 routes in place without resetting the session.
+
+### Choices for Thomas
+
+| # | Choice | Options | Decision |
+|---|--------|---------|----------|
+| C-1 | Burst coalescing on active-pass flaps (Issue 3) | (a) Immediate first flip (0 ms) + 1 s per-peer cooldown + max 1 trailing re-pass, no new config option (1A); (b) Unconditional settle delay (e.g. 500 ms) before every pass | Thomas (2026-11-22): "flap dampening should be an option and off by default as since the RFC it was found to not help. 1A is fine." |
+| C-2 | Daemon-level test coverage alongside FRR interop (B2) | (a) Keep real-kernel `bgp-rfc2545-neighbor-condition-flip-frr` AND add fast Linux `.ci` daemon test `test/plugin/rfc2545-condition-flip-readvertise.ci` (`option=needs-linux:caps=net-admin`) for address-prefix flips (2A); (b) Rely on Docker FRR interop alone | Thomas (2026-11-22): "2A." |
+| C-3 | Family selector on `request bgp adj-rib-in replay-routes` | (a) Additive optional trailing `family <afi/safi>`, preserving legacy 2/3-arg callers and refusing forked `!r.ingestTracked` with `opererr` naming in-process `bgp-adj-rib-in` (3A); (b) New separate RPC | Thomas (2026-11-22): "3A." |
+| C-4 | Readvertise worker model | (a) One long-lived coalescing goroutine/timer per `Peer` (joined on `p.wg`, cancelled on `p.ctx`, zero cross-peer blocking); (b) Single reactor-owned pending-peer worker | Thomas (2026-11-22): "One coalescing goroutine/timer per peer" |
 
 ## Implementation Steps
 
-1. **Research/design gate, still open:** finish selector, intent/consumer census, attribution, diagnostics and coalescing choices. Preserve existing owner decisions and dependency ownership.
-2. **Shared primitive:** extract and prove hold-before-source-cut/publication/applied-drain/relay/flush ordering through normal writers before wiring the watch.
-3. **Wiring:** add the bounded cancellable worker and effective-answer scheduling. Reuse all fourteen trigger cases and known/explicit controls.
-4. **Origin coverage:** complete API/config/default refeed, original intent and send attribution. Prove approved burst, shutdown, compatibility and overlap invariants.
-5. **Main-thread protocol proof:** rerun the named daemon/FRR carrier and require assertion 9 and assertion 12. Obtain independent producing-code discrimination and current RFC audit bindings.
-6. **Independent review/closure:** review all implementation and docs. Keep this spec open until AC-1 through AC-4 and earlier B1/B2/ISSUE 3/ISSUE 5 obligations are satisfied.
+1. **Send-scoped attribution & API `self` intent (Issue 5 & AC-6 foundation):** delete `Peer.sendingConfigStatic`, add `ConfigStatic` and `NextHopSelf` to `wireu.SentOrigin` and `types.RawMessage`, serialize `"next-hop-self": true` in `format/text_update.go`, plumb per-send flags through `session_write.go`, `reactor_notify.go`, `reactor_api_batch.go`, `peer_initial_sync.go`, `peer_static_wire.go`, and `peer_static_restore.go`, update `FormatAnnounceCommand` to emit `nhop set self` on `update hex`, add `ribOutEntry.NextHopSelf`, and add hidden unbracketed `request bgp rib refeed-local <peer> <family>`. Prove with `TestRFC2545ConfigStaticAttributionOverlap` (`-race -count=20`) and `TestRIBRefeedLocalNextHopSelfAndExplicit`.
+2. **Family-scoped `bgp-adj-rib-in` replay (3A):** extend `ribevents.RelayReplay` and `adj_rib_in/replay_page.go` with optional trailing `family <afi/safi>` (validated via `family.LookupFamily`, ascending `MsgID` sort, `!r.ingestTracked` `opererr` refusal). Prove with `TestAdjRIBInReplayRoutesFamilySelector`.
+3. **Runtime doctor check & per-peer hold-before-cut worker (B1, AC-3, AC-8):** create `readvertise_diagnostic.go` (`bgp-next-hop-readvertise`, `doctor-bgp-next-hop-readvertise`, `DoctorPhaseRuntime`) and `reactor_readvertise.go` (per-peer long-lived coalescing worker + `p.clock` cooldown timer with 1A burst coalescing, family-scoped `request bgp rib reoffer-selected` for ordinary selected peers, `beginPolicyReplay` -> `receiveCut` -> `drainResendSources` -> `DrainEventsApplied` -> `RelayReplay` -> `flushPolicyReplay` -> `endPolicyReplay` for explicit-role peers, `refeed-local` for direct API routes, `staticMu` per-family resend for static/default routes). Wire into `peer.go` (`StartWithContext` / `p.wg`), `reactor.go`, and `reactor_iface.go` (`refreshPeerLinkScopes` effective-answer comparison).
+4. **Unit & functional proof (AC-1..AC-8, B2):** verify all 14 existing trigger tests in `rfc2545_neighbor_late_discovery_test.go` and `rfc2545_neighbor_transition_test.go` turn green under `-race`, add `reactor_readvertise_test.go` (`TestRFC2545ReadvertiseBurstCoalescing`, `TestRFC2545ReadvertiseDiagnosticRaiseAndClear`), and create and run `test/plugin/rfc2545-condition-flip-readvertise.ci` (`option=needs-linux:caps=net-admin`).
+5. **Real-kernel FRR interop, RFC discrimination & docs:** run `bgp-rfc2545-neighbor-condition-flip-frr` through assertions 1–12, record discrimination (`./le rfc record`) and update `rfc/short/rfc2545.md` (`RFC2545-3-6` loses `{partial}`), update the architecture docs listed in `Files to Modify`, and run the Review Gate before closure.
 
 ## RFC Documentation (Scope: protocol)
 
@@ -792,9 +980,9 @@ obligation, so the comment must say which document each line answers to.
 | Deliverable | Verification method |
 |-------------|---------------------|
 | Watch-triggered retained-route refeed | Existing fourteen transition/concurrency cases become green with useful-route and same-session controls preserved |
-| Ordered/shared replay and origin semantics | Main-thread scoped race tests, actual callback final-withdrawal proof and approved missing-invariant probes |
-| Foreign receiver outcome | Existing daemon/FRR carrier reaches successful subject transition and installed Link-Local path |
-| Current RFC/docs evidence | Native discrimination and audit binding where actual tagged claims change; no support credit before that |
+| Ordered/shared replay and origin semantics | Main-thread scoped race tests (`-race -count=20` Issue 5, B1 withdrawal ordering, 1A burst coalescing, 3A family replay, AC-6 `refeed-local`, AC-8 doctor raise/clear) |
+| Daemon `.ci` & foreign receiver outcome | `test/plugin/rfc2545-condition-flip-readvertise.ci` passes on Linux via the netlink socket and `bgp-rfc2545-neighbor-condition-flip-frr` passes assertions 1–12 |
+| Current RFC/docs evidence | Native discrimination (`./le rfc record`), `rfc/short/rfc2545.md` updated, and all modified architecture docs pass `./le doc check all` |
 
 ### Failure Routing
 | Failure | Route To |
@@ -803,12 +991,9 @@ obligation, so the comment must say which document each line answers to.
 
 ## Known Limitations
 
-These are prior design limitations, not observations of a completed repair.
-The family selector, original-intent, diagnostics and scheduling choices above
-are still unresolved. This record is not ready for implementation.
 - A pass is not incremental on the wire, as in
   `spec-bgp-link-local-only-next-hop` Known Limitations: it re-sends every
-  stored route of the family from every source and every locally
+  stored route of the affected IPv6 family from every source and every locally
   originated entry for a peer whose condition flipped; without ADD-PATH a
   prefix several sources hold is written once per source in ascending
   message-ID order, which matches the live rail's last write only for
@@ -816,13 +1001,16 @@ are still unresolved. This record is not ready for implementation.
   concurrently; and live forwards to that peer wait behind the pass, up to
   the 2 s publication and applied-event budget plus the relay, for all its
   families under one hold (round-10 I1, B1; round-11 I1, N1).
-- A forked `bgp-adj-rib-in` stores MsgID 0, so the family replay refuses
-  there and forwarded routes are not re-sent; the worker logs a Warn naming
-  in-process `bgp-adj-rib-in` as the fix (that spec's R-9, round-11 I2).
-- Where `bgp-adj-rib-in` is not loaded, or the destination's `send update`
-  attachment does not name it, forwarded routes are not re-sent
-  (`filterPermittedPeers`; that spec's R-8, round-10 N1).
-- The current family-selector and original-intent consumer census must be completed before choosing command or metadata fields.
+- A forked `bgp-adj-rib-in` stores MsgID 0, so family-scoped `replay-routes`
+  refuses there with an `opererr` naming in-process `bgp-adj-rib-in`;
+  forwarded routes are not re-sent on that deployment, and the worker raises
+  `bgp-next-hop-readvertise` (`doctor-bgp-next-hop-readvertise`) and logs a
+  coded `Warn` naming the fix (round-11 I2).
+- Where `bgp-adj-rib-in` is not loaded on an explicit-role peer, or the
+  destination's `send update` attachment does not name it, forwarded routes
+  are not re-sent (`filterPermittedPeers`; round-10 N1); ordinary selected
+  peers (`p.ordinarySelectedExport()`) do not require `bgp-adj-rib-in`
+  because family-scoped `request bgp rib reoffer-selected` (`reofferSelectedFamily`) re-offers selected routes from `bgp-rib`.
 
 ## Review Gate
 

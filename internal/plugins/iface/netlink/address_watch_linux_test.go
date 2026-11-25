@@ -99,8 +99,8 @@ func awaitAddressSignal(t *testing.T, changes <-chan struct{}, why string) {
 }
 
 // newTestAddressWatch builds a watch with no kernel subscription. A stand-in
-// for the subscription closes updates once stop is closed, as the netlink
-// library does when release closes its socket.
+// for the subscription closes updates once stop is closed, as the netlink library
+// does when release closes its socket.
 func newTestAddressWatch(t *testing.T) *addressWatch {
 	t.Helper()
 	w := newAddressWatch()

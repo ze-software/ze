@@ -80,11 +80,11 @@
     "rid": "RFC4301-4.4.1-3",
     "polarity": "positive",
     "unit": "internal/component/ike/engine/rfc4301_unmatched_xfrm_interface_test.go::TestReleaseRemovesInterfaceSPDAndGuard",
-    "unit-sha": "2be7e0730a6e6ff2",
+    "unit-sha": "411821eff8888bca",
     "claim-sha": "21e1bc1eb32dab92",
     "route": "mutant",
     "producer": "internal/component/ike/engine/apply.go::releaseSPD",
-    "producer-sha": "91930ec52616e8dd",
-    "break": "line 784: \"warnSPDLeft(dp, log)\" -\u003e \"warnSPDLeft(dp, log) \u0026\u0026 false\""
+    "producer-sha": "bc25c58957720449",
+    "break": "line 1088: \"warnSPDLeft(dp, log)\" -\u003e \"warnSPDLeft(dp, log) \u0026\u0026 false\""
   }
 ]

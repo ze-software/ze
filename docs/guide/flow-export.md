@@ -118,6 +118,13 @@ flow-export {
 Packet sampling uses the Linux `tc sample` action plus the kernel `psample`
 module and exports sampled packet headers as sFlow flow samples.
 
+Because packet sampling installs a Linux kernel traffic-control filter,
+configuring `flow-export sampling` under `interface backend vpp` is refused at
+`ze config validate`, commit, reload, and daemon start (and reported by
+`ze doctor` under `doctor-dataplane-mismatch`), with the fix
+`set interface backend kernel`.
+<!-- source: internal/plugins/flowexport/register.go -- samplingDataPlaneInUse -->
+
 | Field | Default | Description |
 |-------|---------|-------------|
 | `name` | - | Interface to sample (list key) |
@@ -142,6 +149,16 @@ flow-export {
 Conntrack-based per-flow records are exported via NetFlow v9 and IPFIX. The
 exporter walks the conntrack table on a fixed interval and emits one record per
 tracked flow.
+
+The Linux kernel conntrack table sees none of the flows VPP forwards. Setting
+`flow-export conntrack enabled true` under `interface backend vpp` is refused at
+`ze config validate`, commit, reload, and daemon start (and reported by
+`ze doctor` under `doctor-dataplane-mismatch`), with the fix
+`set interface backend kernel` or turning conntrack export off. Counter-only
+flow export (with neither sampling nor conntrack records enabled) commits on
+both `kernel` and `vpp`. See [Features by Data Plane](dataplane-features.md).
+<!-- source: internal/plugins/flowexport/register.go -- conntrackDataPlaneInUse -->
+<!-- source: internal/component/config/dataplane_verdict.go -- evaluateDataPlaneVerdict -->
 
 | Field | Default | Description |
 |-------|---------|-------------|
@@ -283,7 +300,7 @@ The component registers the following metrics:
   <!-- source: internal/plugins/flowexport/ipfix/data.go -- writeCounterRecord -->
 - **Conntrack export combines periodic dumps with destroy events.** Records
   are emitted on each table dump (`active-timeout`), and a
-  `NFNLGRP_CONNTRACK_DESTROY` netlink listener exports each torn-down flow's
+  `NFNLGRP_CONNTRACK_DESTROY` netlink multicast listener exports each torn-down flow's
   residual counters immediately, so flows that begin and end between two dumps
   are not lost. The destroy listener needs `CAP_NET_ADMIN` and the
   `nf_conntrack_netlink` module; without them the worker logs that it is

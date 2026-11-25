@@ -1,4 +1,4 @@
-// VALIDATES: `ze traffic` routes its closed member set (`control`) to the tc/VPP
+// VALIDATES: `ze traffic` routes its closed member set (`control`) to the kernel/VPP
 // tool, is discoverable with no args (R-6), and rejects unknown members with a
 // hint instead of falling through to Run (ai/rules/cli.md closed set).
 // PREVENTS: the split reintroducing a hyphenated `traffic-control` root, or an
@@ -28,7 +28,7 @@ func TestTrafficSubDispatch(t *testing.T) {
 		t.Errorf("traffic usage must enumerate members, got %q", buf.String())
 	}
 
-	// `control` delegates to Run: Run's help path returns 0 without loading the tc
+	// `control` delegates to Run: Run's help path returns 0 without loading the kernel
 	// backend, so a 0 here proves the token routed into Run.
 	if code := dispatchTraffic(nil, []string{"control", "--help"}); code != 0 {
 		t.Errorf("`traffic control --help` = %d, want 0 (delegates to Run)", code)

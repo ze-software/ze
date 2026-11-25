@@ -154,7 +154,7 @@ Moved verbatim from `spec-fib-depth` with AC-9 (2026-10-09):
 ## Files to Modify
 - `test/bgp/fib-vrf-table.ci` -- functional test (moved from `spec-fib-depth` with AC-9)
 - `internal/plugins/fib/kernel/nexthop_linux.go` -- Linux nexthop object management (moved verbatim from `spec-fib-depth` Files to Create, 2026-10-09)
-- `internal/plugins/fib/kernel/backend_linux.go` -- netlink nexthop objects, table, metric (split from `spec-fib-depth`, which keeps route types and MPLS)
+- `internal/plugins/fib/kernel/backend_linux.go` -- kernel nexthop objects via netlink, table, metric (split from `spec-fib-depth`, which keeps route types and MPLS)
 - `internal/plugins/fib/vpp/backend.go` -- table override (split from `spec-fib-depth`, which keeps multi-path FibPath)
 - `internal/plugins/fib/kernel/fibkernel_test.go`, `internal/plugins/fib/vpp/fibvpp_test.go` -- `TestKernelMetric`, `TestKernelTable`, `TestKernelNexhopGroup`, `TestVPPTable`
 - [rest written at design time]

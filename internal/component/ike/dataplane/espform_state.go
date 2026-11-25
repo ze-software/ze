@@ -19,7 +19,7 @@ import (
 const ESPFormCompletePathRate = espFormRate
 
 // ESPFormFastPathStatus is the state of the dual-form receiver's fast path, the
-// tc-ingress program that turns bare ESP for a watched SPI into the ESP-in-UDP form
+// tc ingress program that turns bare ESP for a watched SPI into the ESP-in-UDP form
 // its inbound state carries.
 //
 // No status leaves bare ESP unserved, but the complete path is bounded. A link the

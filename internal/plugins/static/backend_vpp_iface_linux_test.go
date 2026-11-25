@@ -64,7 +64,7 @@ func (b *fakeIfaceBackend) GetLink(name string) (*iface.InterfaceInfo, error) {
 }
 
 // fakeKernelBackendName names the fake non-vpp iface backend. It is not
-// "netlink": resolve_integration_linux_test.go links the real netlink backend
+// "kernel": resolve_integration_linux_test.go links the real kernel backend
 // into this test binary, and its init() already holds that name. Every non-vpp
 // name meets the same gate in iface.ResolveVPPIndex (backend != "vpp").
 const fakeKernelBackendName = "static-vpp-test-kernel"

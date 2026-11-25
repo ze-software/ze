@@ -7,7 +7,7 @@
 ## What it is
 Ze's own pure-Go IKEv2 daemon runs as the `ike` plugin: one `PeerSession` goroutine per
 configured peer drives a per-peer `SA` state machine (RFC 7296 IKE_SA_INIT + IKE_AUTH),
-derives Child SA (ESP) keys, and installs them into the Linux kernel via XFRM netlink
+derives Child SA (ESP) keys, and installs them into the Linux kernel via XFRM netlink messages
 (the VPP backend uses generated GoVPP binapi, but the IKE policy path still lacks
 the VPP interface that `vppPolicyInterface` requires). Two UDP listeners (port
 500 and NAT-T port 4500) demultiplex inbound packets to SAs through one shared
@@ -221,7 +221,7 @@ install/read-back therefore does not establish an operator-usable VPP tunnel.
 | `crypto/proposal.go` | `NegotiateIKE`/`NegotiateESP`: first-acceptable-match selection |
 | `crypto/cipher.go` | AES-GCM (AEAD) / AES-CBC+HMAC framing, PRF-based integrity |
 | `dataplane/dataplane.go` | `Dataplane` interface, `SAParams`/`SPParams`, backend registry |
-| `dataplane/xfrm_linux.go` | netlink `XfrmState`/`XfrmPolicy` install/remove (Linux backend) |
+| `dataplane/xfrm_linux.go` | netlink API `XfrmState`/`XfrmPolicy` install/remove (Linux backend) |
 | `dataplane/register.go` | registers the `"xfrm"` and `"vpp"` backend factories |
 | `eap/peer.go` | initiator-side EAP dispatcher (MSCHAPv2, TLS) |
 | `transport/udp.go` | `UDPTransport`: UDP socket (port 500 or 4500), `Recv()` channel |

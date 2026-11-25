@@ -1,5 +1,5 @@
 // Design: docs/architecture/testing/interop.md -- change encapsulation without rebuilding an SA.
-// Related: migration.go -- fixed-header contract; vendor netlink owns socket framing.
+// Related: migration.go -- fixed-header contract; the vendored netlink library owns socket framing.
 package main
 
 import (

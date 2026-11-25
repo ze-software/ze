@@ -1,4 +1,4 @@
-// Design: docs/guide/traffic-control.md -- tc rate admission before kernel mutation
+// Design: docs/guide/traffic-control.md -- kernel traffic control rate admission before kernel mutation
 
 //go:build linux
 

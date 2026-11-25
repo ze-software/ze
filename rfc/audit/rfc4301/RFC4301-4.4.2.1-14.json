@@ -2,8 +2,8 @@
   "note": "First verdict 2026-11-20 by an independent agent. RFC 4301 Section 4.4.2.1: \"Bypass DF bit (T/F) -- applicable to tunnel mode SAs where both inner and outer headers are IPv4.\" The row is a SAD field, so the boundary Ze owns is the XFRM state it builds. TestXFRMStateCarriesTheDFTreatment builds an outbound IPv4 tunnel-mode SA for copy and for clear and asserts NoPMTUDisc false and true exactly (xfrmStateFromParams); Linux xfrm4 tunnel encap writes the outer DF from the inner bit only when XFRM_STATE_NOPMTUDISC is clear, so the state holds the T/F choice. TestXFRMStateRefusesDFItCannotExpress takes the cases the field does not apply to (transport mode, IPv6 outer, and inbound) and asserts ErrSAOptionRefused, not ErrNotSupported, and a nil state. The pair is two distinct assertions on opposite sides of the clause's applicability. Unit-level only: the wire behaviour is proven by TestXFRMOuterHeaderCarriesTheDFTreatment under RFC4301-8.1-1/-2, not tagged here. Question 2 rests on the discrimination records the main thread is taking for these tags.",
   "requirement_sha": "bca2d4234a4c6af1",
   "tests": {
-    "internal/component/ike/dataplane/rfc4301_df_linux_test.go::TestXFRMStateCarriesTheDFTreatment": "e9bff2500068f524",
-    "internal/component/ike/dataplane/rfc4301_df_linux_test.go::TestXFRMStateRefusesDFItCannotExpress": "e9bff2500068f524"
+    "internal/component/ike/dataplane/rfc4301_df_linux_test.go::TestXFRMStateCarriesTheDFTreatment": "45c45b7195768ade",
+    "internal/component/ike/dataplane/rfc4301_df_linux_test.go::TestXFRMStateRefusesDFItCannotExpress": "45c45b7195768ade"
   },
   "units": {
     "internal/component/ike/dataplane/rfc4301_df_linux_test.go::TestXFRMStateCarriesTheDFTreatment": "e39d6280e6e8dc57",

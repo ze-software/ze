@@ -1,0 +1,28 @@
+# Test: interface backend vpp accepts flowspec-firewall when firewall backend vpp is set.
+# Question: does `ze config validate` accept `flowspec-firewall` selected by a
+#           `bus endpoint` block when both `interface backend` and `firewall
+#           backend` are `vpp`?
+#           A unit test cannot prove the full `ze config validate` pipeline
+#           keeps this AC-3 survivor valid end to end.
+# VALIDATES: spec-dataplane-compatibility-guard AC-3 survivor -- selecting
+#            `flowspec-firewall` under VPP validates when `firewall backend vpp`
+#            matches the interface data plane.
+# PREVENTS: an over-broad refusal blocking FlowSpec-to-firewall under VPP even
+#           when the firewall backend matches.
+stdin=config:terminator=EOF_CONF
+interface {
+	backend vpp;
+}
+firewall {
+	backend vpp;
+}
+bus {
+	endpoint flowspec-firewall {
+		internal flowspec-firewall;
+	}
+}
+EOF_CONF
+
+cmd=foreground:seq=1:exec=ze config validate -:stdin=config
+expect=exit:code=0
+expect=stdout:contains=configuration valid

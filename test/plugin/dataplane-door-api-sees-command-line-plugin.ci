@@ -1,0 +1,51 @@
+# Test: REST config session commit on a daemon started with --plugin ze.flowspec-firewall refuses interface backend vpp at validation.
+# Question: when a daemon runs with `--plugin ze.flowspec-firewall` on a
+#           `kernel` file and a REST API config session sets `interface.backend`
+#           to `vpp` and commits, does `configValidationHook` refuse with HTTP
+#           400 `commit validation:` (not `commit runtime reload failed:`),
+#           naming `--plugin ze.flowspec-firewall` and `set firewall backend
+#           vpp`, and leaving the stored configuration unchanged?
+#           A unit test cannot prove the running daemon's recorded `--plugin`
+#           reaches the REST listener's `configValidationHook` -> `verifyTree`.
+# VALIDATES: spec-dataplane-compatibility-guard AC-18 (REST API door, A-16).
+# PREVENTS: REST session commits bypassing the daemon's `--plugin` selection
+#           at validation or reaching runtime reload before refusing.
+
+option=needs-linux:caps=net-admin
+option=exclusive:group=flowspec-nft
+option=needs-build-tag:value=ze_vpp:state=present
+option=storage:value=disk
+option=timeout:value=30s
+
+tmpfs=dataplane-door-api.conf:terminator=EOF_CONF
+bus {
+	endpoint dataplane-door-api {
+		external {
+			run "le test fixture plugin/dataplane-door-api http://127.0.0.1:$PORT2";
+		}
+		encoding json;
+	}
+}
+environment {
+	api-server {
+		token "secret";
+		rest {
+			enabled true;
+			server main { ip 127.0.0.1; port $PORT2; }
+		}
+	}
+}
+interface {
+	backend kernel;
+}
+EOF_CONF
+
+cmd=foreground:seq=1:exec=ze --plugin ze.flowspec-firewall start dataplane-door-api.conf:timeout=30s
+expect=exit:code=0
+expect=stderr:contains=OK: REST commit validation refused --plugin ze.flowspec-firewall and kept running config unchanged
+reject=stderr:contains=reload error:
+expect=key:path=meta/config/dataplane-door-api.conf/active:exists=true
+expect=key:path=meta/config/dataplane-door-api.conf/candidate:absent=true
+expect=key:glob=object/*:count=1
+expect=key:glob=object/*:contains=backend kernel
+expect=key:glob=object/*:not-contains=backend vpp

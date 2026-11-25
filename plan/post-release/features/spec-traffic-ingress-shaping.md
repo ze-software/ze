@@ -50,7 +50,7 @@ it is removed.
 - [ ] `docs/guide/traffic-control.md` - the operator page for `traffic control`
   → Constraint: `clsact` and `ingress` are refused as `qdisc type` values because the ingress hook belongs to mirroring and sampling, which install `clsact` at `ffff:0` themselves. Ingress shaping MUST NOT reopen that enumeration: Ze adds its redirect as one more priority-owned filter on the shared hook
   → Constraint: the VPP backend refuses by name what it cannot express, at `ze config commit`, in the form `<thing>: not supported by backend vpp`. Ingress shaping on VPP follows the same pattern
-  → Constraint: the tc backend snapshots the original root qdisc before replacing it and restores it on removal; `noqueue` (every virtual device, so also an IFB) is restored by deleting the root
+  → Constraint: the kernel backend snapshots the original root qdisc before replacing it and restores it on removal; `noqueue` (every virtual device, so also an IFB) is restored by deleting the root
 - [ ] `docs/architecture/traffic/tc-original-qdisc-restore.md` - persisted snapshot of the original root
   → Constraint: snapshots are keyed by device identity (boot id, name, ifindex, MAC) in the statestore. An IFB Ze creates needs NO snapshot: its original state is "absent", restored by deleting the device
 - [ ] `docs/guide/command-reference.md` "show traffic control", "ze show warnings", "Login banner integration"
@@ -59,19 +59,19 @@ it is removed.
 - [ ] `docs/architecture/traffic/cos-plugin.md` - shared registry pattern in `internal/core/cos`
   → Decision: a cross-component fact (here: login notices) lives in a small `internal/core/` registry the producer registers into, which is the pattern cos uses
 - [ ] `plan/post-release/features/spec-bsd-traffic-shaping.md` - BSD shaping backend (skeleton)
-  → Constraint: no overlap. That spec adds a backend off Linux; this one adds a direction on Linux tc and a refusal on VPP. A BSD backend will meet the new ingress field and must refuse it by name or implement it, which its own design phase decides
+  → Constraint: no overlap. That spec adds a backend off Linux; this one adds a direction on the Linux kernel backend and a refusal on VPP. A BSD backend will meet the new ingress field and must refuse it by name or implement it, which its own design phase decides
 - [ ] VyOS `python/vyos/ifconfig/interface.py`, `Interface.set_mirror_redirect` (vyos-1x, `current` branch, read 2026-10-15)
   → Constraint: VyOS installs `tc qdisc add dev <src> handle ffff: ingress` and a `prio 10 u32 match u32 0 0 ... action mirred egress redirect dev <ifb>` filter, and it starts every update with `tc qdisc del dev <src> ingress`. Deleting the whole ingress qdisc is exactly the defect Ze fixed in `fixit-mirror-clsact-ownership` (journal row 2026-08-14): it erases every other owner's filters. Ze MUST NOT copy that lifecycle
   → Constraint: VyOS has no dedicated teardown; cleanup happens when the function runs again. Ze needs an explicit teardown
 
 ### RFC Summaries (Scope: protocol)
-- N-A: tc shaping is a local queueing policy, with no protocol and no RFC obligation.
+- N-A: traffic control shaping is a local queueing policy, with no protocol and no RFC obligation.
 
 **Key insights:**
-- The `traffic.InterfaceQoS` model already carries an ingress direction: `Ingress Policer`, set only by the L2TP shaper (not reachable from `traffic control` YANG), installed by tc as matchall+police at clsact priority 200, refused by VPP.
+- The `traffic.InterfaceQoS` model already carries an ingress direction: `Ingress Policer`, set only by the L2TP shaper (not reachable from `traffic control` YANG), installed by the kernel backend as matchall+police at clsact priority 200, refused by VPP.
 - The clsact ingress hook has three priority owners today: mirror 1, flow sampling 100, L2TP policer 200. The redirect becomes a fourth.
 - `show traffic control` today reads back only the root qdisc TYPE; its `class-count` is always 0, a silently wrong value.
-- The tc backend fails an interface entry that has no `qdisc` block, although the YANG says such an entry attaches nothing. A download-only entry hits it.
+- The kernel backend fails an interface entry that has no `qdisc` block, although the YANG says such an entry attaches nothing. A download-only entry hits it.
 - The SSH login banner is wired only on the BGP startup path; a CPE without `bgp { }` gets no banner at all.
 - The appliance kernel lacks `CONFIG_IFB`.
 
@@ -127,9 +127,9 @@ it is removed.
 - `ParseRateBps` keeps refusing overflow and keeps its existing units.
 
 **Behavior to change:**
-- `traffic control interface X` gains an `ingress { qdisc { ... } }` block shaping received traffic through a Ze-owned IFB (tc backend), refused by name on VPP.
+- `traffic control interface X` gains an `ingress { qdisc { ... } }` block shaping received traffic through a Ze-owned IFB (kernel backend), refused by name on VPP.
 - `rate`/`ceil` accept `tbit`/`tbps` and an integer percentage of the shaped interface's link speed.
-- An interface entry with no `qdisc` block programs no root on the tc backend (today it fails).
+- An interface entry with no `qdisc` block programs no root on the kernel backend (today it fails).
 - `show traffic control` reports both directions, each class's rate and ceil read back from the kernel, the IFB device, and for percentages the configured share and the speed used.
 - The login banner shows a traffic-shaping notice derived from the applied config, on every SSH startup path.
 
@@ -156,9 +156,9 @@ Added 2026-11-08 when the VyOS T6393 lessons were folded in (see "VyOS reference
 
 ### Transformation Path
 1. `parseInterfaceQoS` reads `qdisc` into `Qdisc` and `ingress/qdisc` into a new ingress-qdisc field of `InterfaceQoS` (name settled in Phase 1); rates parse as either an absolute bps value or a link share.
-2. `OnConfigVerify`: YANG validation, then `RunVerifier(backend)`. tc verifier: refuses `ingress` together with an ingress policer on one interface. VPP verifier: refuses `ingress` and any percentage rate.
+2. `OnConfigVerify`: YANG validation, then `RunVerifier(backend)`. Kernel verifier: refuses `ingress` together with an ingress policer on one interface. VPP verifier: refuses `ingress` and any percentage rate.
 3. `OnConfigApply`: the component resolves every link share to bps with `iface.LinkSpeedDuplex(name)`. An unresolved share leaves that direction of that interface unprogrammed, raises a report-bus warning naming the interface and the fix, and is retried on `LinkUp`. The backend receives bps only.
-4. tc backend `Apply` per interface: root qdisc only when configured, restored when it was removed; then ingress: compose the IFB name, create the IFB with alias `ze:owned:traffic` when absent and set it up, build the IFB root from the same translation, ensure clsact on the source (add, tolerate EEXIST), install the priority-150 matchall + mirred egress redirect filter to the IFB. Order: IFB qdisc first, redirect last, so no packet is redirected to an unshaped IFB.
+4. Kernel backend `Apply` per interface: root qdisc only when configured, restored when it was removed; then ingress: compose the IFB name, create the IFB with alias `ze:owned:traffic` when absent and set it up, build the IFB root from the same translation, ensure clsact on the source (add, tolerate EEXIST), install the priority-150 matchall + mirred egress redirect filter to the IFB. Order: IFB qdisc first, redirect last, so no packet is redirected to an unshaped IFB.
 5. Teardown (entry or `ingress` removed): delete the priority-150 filter first, then delete the IFB (its qdiscs go with it), leave the clsact qdisc. Orphan scan: any `ifb` link with alias `ze:owned:traffic` that no desired entry names is deleted (crash and reboot leftovers).
 6. `ListQdiscs` reads the root and its classes (rate, ceil) and, when the priority-150 redirect is present, the IFB name and the IFB's root and classes.
 7. The traffic component registers a login-notice provider that reads the APPLIED config (`activeCfg`), so the notice exists exactly when Ze has shaping installed from config.
@@ -168,12 +168,12 @@ Added 2026-11-08 when the VyOS T6393 lessons were folded in (see "VyOS reference
 |----------|-----|----------|
 | Config → traffic plugin | SDK config section, `map[string]any` | No |
 | traffic component → backend | `Backend.Apply(map[string]InterfaceQoS)` with resolved bps | No |
-| tc backend → kernel | rtnetlink: `LinkAdd` kind `ifb`, `LinkSetAlias`, `LinkSetUp`, `QdiscAdd/Replace`, `ClassAdd`, `FilterAdd/Del` (matchall + mirred), `LinkDel` | No |
+| kernel backend → Linux kernel | rtnetlink: `LinkAdd` kind `ifb`, `LinkSetAlias`, `LinkSetUp`, `QdiscAdd/Replace`, `ClassAdd`, `FilterAdd/Del` (matchall + mirred), `LinkDel` | No |
 | traffic → iface | `iface.LinkSpeedDuplex`, `iface.Subscribe`, `iface.ComposeOwnedDeviceName` | No |
 | traffic, bgp → SSH banner | `internal/core/loginnotice` registry, read by `cmd/ze/hub` on each login | No |
 
 ### Integration Points
-- `traffic.RegisterVerifier` (tc and vpp verifiers) - new refusals.
+- `traffic.RegisterVerifier` (kernel and vpp verifiers) - new refusals.
 - `kernelcap.MustRegister` - new `traffic-ingress` capability probing the `ifb` link kind.
 - `report.Raise`/`Clear` - the unresolved-share warning.
 - `iface.Subscribe` - re-resolution on `LinkUp`.
@@ -209,7 +209,7 @@ Added 2026-11-08 when the VyOS T6393 lessons were folded in (see "VyOS reference
 | R-4 | IFB name collision with an operator's device | `LinkAdd` returns EEXIST on a device without Ze's alias | Refuse naming the device and the fix; never adopt or delete a device without the alias |
 | R-5 | A percentage on a down link at boot fails the whole traffic apply, leaving the CPE unshaped | Apply error at boot | An unresolved share leaves only that interface direction unprogrammed, raises `traffic / rate-unresolved` on the report bus, re-applies on `LinkUp` |
 | R-6 | A share resolved against 0 becomes a zero rate (HTB at 0 drops all traffic) | Download stalls | The share type has no zero meaning; resolution refuses speed 0; `TestResolveShareRefusesUnknownSpeed` |
-| R-7 | Ingress shaping plus the L2TP ingress policer on one interface: the policer never sees redirected packets, so its limit silently stops working | Policer counters flat | The tc verifier refuses the combination by name |
+| R-7 | Ingress shaping plus the L2TP ingress policer on one interface: the policer never sees redirected packets, so its limit silently stops working | Policer counters flat | The kernel verifier refuses the combination by name |
 | R-8 | `tbit` widens what RADIUS Filter-Id can carry; a large value overflows | Boundary test | The overflow guard covers the new multipliers; boundary rows below |
 | R-9 | Appliance kernel without `CONFIG_IFB` makes `LinkAdd` fail at apply with an opaque errno | Apply error on the CPE | `CONFIG_IFB=y` in the image; kernelcap capability gives `ze doctor` and the startup refusal a named diagnostic |
 | R-10 | The banner refactor changes BGP banner text or drops a path | Existing banner tests | Existing BGP banner tests unchanged and green; new standalone-path wiring test |
@@ -221,14 +221,14 @@ Added 2026-11-08 when the VyOS T6393 lessons were folded in (see "VyOS reference
 |----------|--------|
 | What breaks if this is wrong? | Download traffic on the shaped WAN interface (stalls if the IFB path is wrong); mirror/sampling on that interface if the clsact protocol is broken; the SSH banner for everyone if the registry refactor is wrong |
 | How is it reverted? | Single commit revert; no persisted format changes (IFBs are runtime state, the snapshot blob is untouched) |
-| Who else touches this path? | Mirror (iface netlink), flow-export sampling, L2TP shaper (ingress policer), anomaly/shape (per-source rate limits through traffic), BGP config loader (banner) |
+| Who else touches this path? | Mirror (iface/netlink), flow-export sampling, L2TP shaper (ingress policer), anomaly/shape (per-source rate limits through traffic), BGP config loader (banner) |
 
 ## Wiring Test (MANDATORY -- NOT deferrable)
 
 | Entry Point | → | Feature Code | Test |
 |-------------|---|--------------|------|
-| Config `traffic control interface X ingress qdisc` at boot | → | `parseInterfaceQoS` → tc `Apply` → IFB + redirect | `test/traffic/traffic-ingress-shaping-boot.ci` |
-| Config reload removing the `ingress` block | → | tc `Apply` teardown of redirect and IFB | `test/traffic/traffic-ingress-shaping-remove.ci` |
+| Config `traffic control interface X ingress qdisc` at boot | → | `parseInterfaceQoS` → kernel `Apply` → IFB + redirect | `test/traffic/traffic-ingress-shaping-boot.ci` |
+| Config reload removing the `ingress` block | → | kernel `Apply` teardown of redirect and IFB | `test/traffic/traffic-ingress-shaping-remove.ci` |
 | `show traffic control eth0` | → | `handleShowTraffic` → `ListQdiscs` reading both directions | `test/traffic/traffic-ingress-shaping-show.ci` |
 | SSH login with shaping configured, no `bgp { }` section | → | `loginnotice.Collect` → traffic provider | `TestLoginBannerShowsTrafficShaping` (`cmd/ze/hub/session_factory_test.go`) and `test/traffic/traffic-ingress-shaping-banner.ci` |
 | `ze config commit` with `backend vpp` and `ingress` | → | VPP verifier refusal | `test/traffic/traffic-vpp-refuse-ingress-shaping.ci` |
@@ -240,7 +240,7 @@ Added 2026-11-08 when the VyOS T6393 lessons were folded in (see "VyOS reference
 |-------|-------------------|-------------------|
 | AC-1 | `rate 500mbit`, `rate 2tbit`, `rate 1tbps`, `rate 100bps`, `rate 50%` | Each accepted; `2tbit` = 2,000,000,000,000 bps; `1tbps` = 8,000,000,000,000 bps; `50%` held as a share of link speed |
 | AC-2 | `rate 0%`, `rate 101%`, `rate 50.5%`, `rate 5pbit` | Refused at validation, naming the leaf and the accepted forms |
-| AC-3 | `ingress { qdisc { type htb; default-class default; class default { rate 500mbit; ceil 500mbit } } }` on eth0, tc backend | An IFB device carrying alias `ze:owned:traffic` exists and is up; its root is HTB with that class; eth0's clsact ingress hook carries a priority-150 matchall filter redirecting to that IFB |
+| AC-3 | `ingress { qdisc { type htb; default-class default; class default { rate 500mbit; ceil 500mbit } } }` on eth0, kernel backend | An IFB device carrying alias `ze:owned:traffic` exists and is up; its root is HTB with that class; eth0's clsact ingress hook carries a priority-150 matchall filter redirecting to that IFB |
 | AC-4 | Same config, then a TCP download into the shaped interface | Measured goodput is between 85% and 100% of the cap over a 5 s window (A-6, owner decision Q-3) |
 | AC-5 | The same entry without the `ingress` block, then the same TCP download | Goodput exceeds the cap by at least 2x (proves AC-4 is not vacuous) |
 | AC-6 | Entry with `ingress` and no `qdisc` block | Applies; eth0 root unchanged from its original; ingress shaped |
@@ -249,7 +249,7 @@ Added 2026-11-08 when the VyOS T6393 lessons were folded in (see "VyOS reference
 | AC-9 | Remove the whole `traffic` section | eth0 root restored to its snapshot, no priority-150 filter, no Ze-owned IFB. The clsact qdisc is left in place (Key Design Decisions), carrying no Ze filter |
 | AC-10 | A mirror (priority 1) and an ingress shaping config on the same interface | Both work: the mirror destination receives the received frames, download is capped; removing shaping leaves the mirror filter in place |
 | AC-11 | `ingress` plus an L2TP ingress policer on one interface | Refused at verify: names the interface, says the redirect would bypass the policer, and how to fix |
-| AC-12 | `backend vpp` with `ingress` | Refused at `ze config commit`: `ingress shaping: not supported by backend vpp`, with why and the fix (`backend tc`) |
+| AC-12 | `backend vpp` with `ingress` | Refused at `ze config commit`: `ingress shaping: not supported by backend vpp`, with why and the fix (`backend kernel`) |
 | AC-13 | `backend vpp` with a percentage rate | Refused at commit naming the leaf: VPP interfaces report no link speed; give an absolute rate |
 | AC-14 | Percentage rate, shaped interface link down at apply | Other interfaces apply; this direction is left unprogrammed; `show warnings` carries `traffic / rate-unresolved` naming the interface and the fix; on link up the share resolves, shaping installs, the warning clears |
 | AC-15 | Percentage rate, link speed 1000 Mbit/s, `rate 50%` | Kernel class rate is 500 Mbit/s; `show traffic control` reports `50%` and the 1000 Mbit/s speed used |
@@ -269,7 +269,7 @@ Added 2026-11-08 when the VyOS T6393 lessons were folded in (see "VyOS reference
 
 | # | User does | Path through system | Test proving it works |
 |---|-----------|--------------------|-----------------------|
-| 1 | Caps upload and download of a WAN port at 500 Mbit/s | config → traffic verify → apply → tc root + IFB + redirect | `traffic-ingress-shaping-boot.ci`, `TestIngressShapingLimitsDownloadThroughput` |
+| 1 | Caps upload and download of a WAN port at 500 Mbit/s | config → traffic verify → apply → traffic control root + IFB + redirect | `traffic-ingress-shaping-boot.ci`, `TestIngressShapingLimitsDownloadThroughput` |
 | 2 | Checks what is applied | `show traffic control` → `ListQdiscs` → kernel read-back | `traffic-ingress-shaping-show.ci` |
 | 3 | Logs in and is told shaping is applied | SSH session factory → `loginnotice.Collect` → traffic provider | `traffic-ingress-shaping-banner.ci` |
 | 4 | Removes the cap | reload → `Apply` teardown / `RestoreOriginal` → orphan scan | `traffic-ingress-shaping-remove.ci`, `TestNetlinkIntegration_IngressShapingTeardownRestoresInterface` |
@@ -308,7 +308,7 @@ Added 2026-11-08 when the VyOS T6393 lessons were folded in (see "VyOS reference
 ### Functional Tests
 | Test | Location | End-User Scenario | Status |
 |------|----------|-------------------|--------|
-| `traffic-ingress-shaping-boot` | `test/traffic/traffic-ingress-shaping-boot.ci` | Boot with egress and ingress caps; `tc` shows the IFB root and the priority-150 redirect (`option=needs-linux`) | |
+| `traffic-ingress-shaping-boot` | `test/traffic/traffic-ingress-shaping-boot.ci` | Boot with egress and ingress caps; the tc command shows the IFB root and the priority-150 redirect (`option=needs-linux`) | |
 | `traffic-ingress-shaping-remove` | `test/traffic/traffic-ingress-shaping-remove.ci` | Reload without `ingress`; IFB and redirect gone, root untouched | |
 | `traffic-ingress-shaping-show` | `test/traffic/traffic-ingress-shaping-show.ci` | `show traffic control eth0` reports both directions and rates | |
 | `traffic-ingress-shaping-banner` | `test/traffic/traffic-ingress-shaping-banner.ci` | SSH login without bgp shows the notice and the command | |
@@ -337,7 +337,7 @@ N-A: no protocol peer and no wire-visible protocol change. Goal validation is th
 - `internal/plugins/traffic-cmd/yang/ze-traffic-cmd.yang` - description of the answer
 - `internal/plugins/traffic/netlink/backend_linux.go` - skip an absent root; ingress apply and teardown; orphan scan; `ListQdiscs` class and ingress read-back
 - `internal/plugins/traffic/netlink/ops_linux.go` - link add, delete, alias, up; class list and filter list on the ops seam
-- `internal/plugins/traffic/netlink/register.go` - tc verifier registration (AC-11)
+- `internal/plugins/traffic/netlink/register.go` - kernel verifier registration (AC-11)
 - `internal/plugins/traffic/netlink/policer_linux.go` - header comment: four hook owners
 - `internal/plugins/traffic/vpp/verify.go` - AC-12, AC-13 refusals
 - `internal/component/bgp/config/loader.go`, `internal/component/bgp/config/loader_create.go` - register `collectPrefixWarnings` as a login-notice provider
@@ -352,7 +352,7 @@ N-A: no protocol peer and no wire-visible protocol change. Goal validation is th
 - `internal/component/traffic/share.go` - link-share resolution with `iface.LinkSpeedDuplex`
 - `internal/component/traffic/notice.go` - login-notice provider derived from `activeCfg`
 - `internal/plugins/traffic/netlink/ingress_linux.go` - IFB lifecycle, redirect filter at priority 150, orphan scan
-- `internal/plugins/traffic/netlink/verify.go` - tc verifier
+- `internal/plugins/traffic/netlink/verify.go` - kernel verifier
 - `internal/plugins/traffic/netlink/register_kernelcap_linux.go` - `traffic-ingress` capability
 - `docs/architecture/traffic/ingress-shaping.md` - IFB ownership, hook priorities, apply and teardown order, orphan scan
 - The tests and `.ci` files named in the test plan
@@ -401,8 +401,8 @@ N-A: no protocol peer and no wire-visible protocol change. Goal validation is th
    - Verify: the BGP banner tests stay green (AC-23); the new wiring tests fail because nothing programs ingress yet
 2. **Phase: Rates** -- `tbit`/`tbps`, link-share type, resolution, `rate-unresolved` warning, `LinkUp` re-apply
    - Tests: `TestParseRateTbit`, `TestParseRateShare`, `TestParseRateBpsRefusesShare`, `TestResolveShareRefusesUnknownSpeed`, `TestResolveShareRoundsAndBounds`, `TestTrafficIngressShareFollowsLinkUp`
-3. **Phase: tc ingress** -- absent-root fix, IFB lifecycle, redirect at 150, teardown, orphan scan, tc verifier, kernelcap capability, `CONFIG_IFB`
-   - Tests: the backend unit tests, the netlink integration tests, `TestTrafficIngressCapabilityAbsent`
+3. **Phase: kernel ingress** -- absent-root fix, IFB lifecycle, redirect at 150, teardown, orphan scan, kernel verifier, kernelcap capability, `CONFIG_IFB`
+   - Tests: the backend unit tests, the traffic/netlink integration tests, `TestTrafficIngressCapabilityAbsent`
 4. **Phase: VPP refusals** -- AC-12, AC-13 and their `.ci`
 5. **Phase: Show** -- kernel read-back of both directions, handle-to-name mapping
 6. **Phase: Notice and goal** -- traffic login-notice provider; throughput test forced red, then green. Each doc page lands in the phase whose code makes it wrong (`ai/rules/documentation.md`)

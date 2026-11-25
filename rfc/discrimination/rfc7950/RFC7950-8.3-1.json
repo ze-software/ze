@@ -47,7 +47,7 @@
     "rid": "RFC7950-8.3-1",
     "polarity": "negative",
     "unit": "internal/component/config/rfc7950_datastore_test.go::TestRFC7950RunningDatastoreRefusesAViolationAtParse",
-    "unit-sha": "e1bc117faab9dad4",
+    "unit-sha": "545408926ea9f13f",
     "claim-sha": "adc8a9c3f02c7631",
     "route": "revert",
     "producer": "internal/component/config/loader.go::parseTreeWithYANG",

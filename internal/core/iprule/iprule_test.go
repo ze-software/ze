@@ -1,4 +1,4 @@
-// Design: docs/architecture/policyroute/policy-routing.md -- netlink ip rule and route management
+// Design: docs/architecture/policyroute/policy-routing.md -- netlink route and ip rule management
 
 package iprule
 

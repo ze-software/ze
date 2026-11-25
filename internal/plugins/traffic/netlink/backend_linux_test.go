@@ -1,4 +1,4 @@
-// Design: docs/architecture/traffic/tc-original-qdisc-restore.md -- tc original-qdisc restore regressions
+// Design: docs/architecture/traffic/tc-original-qdisc-restore.md -- traffic control original-qdisc restore regressions
 
 //go:build linux
 
@@ -147,7 +147,7 @@ func (f *fakeTCOps) filterList(link netlink.Link, _ uint32) ([]netlink.Filter, e
 // protocol differs from the protocol already bound to that priority fails with
 // EINVAL. Producer: tcf_chain_tp_find in net/sched/cls_api.c returns
 // ERR_PTR(-EINVAL) when "tp->prio == prio" and "tp->protocol != protocol &&
-// protocol"; tc_new_tfilter surfaces it as the netlink errno.
+// protocol"; tc_new_tfilter surfaces it as the netlink error.
 //
 // A filter reusing a priority with the SAME protocol is accepted (the kernel
 // appends it to the existing tcf_proto), which is why the map stores the
@@ -308,7 +308,7 @@ func TestApplyInstallsBothAddressFamiliesOfADSCPMatch(t *testing.T) {
 		t.Fatal("no IPv6 (ETH_P_IPV6) filter reached the kernel")
 	}
 	if v4Prio == v6Prio {
-		t.Fatalf("IPv4 and IPv6 filters share tc priority %d; the kernel binds one protocol per priority and rejects the second with EINVAL", v4Prio)
+		t.Fatalf("IPv4 and IPv6 filters share traffic control priority %d; the kernel binds one protocol per priority and rejects the second with EINVAL", v4Prio)
 	}
 }
 
@@ -362,7 +362,7 @@ func TestApplyMixedFilterTypesRespectKernelPriorityRule(t *testing.T) {
 }
 
 // VALIDATES: two classes each carrying a DSCP match apply cleanly. This is the
-// first case where a tc priority is REUSED (both classes' IPv4 halves), which
+// first case where a traffic control priority is REUSED (both classes' IPv4 halves), which
 // the kernel allows precisely because they carry the same protocol -- it
 // appends the second to the existing tcf_proto.
 // PREVENTS: a fix that avoids the protocol collision by making every filter's
@@ -774,7 +774,7 @@ func TestApplyRefusesWithoutPersistence(t *testing.T) {
 	}
 }
 
-// VALIDATES: a corrupt or version-mismatched blob under the tc-snapshot key is
+// VALIDATES: a corrupt or version-mismatched blob under the traffic-control snapshot key is
 // rejected by loadTCSnapshots, so backend startup surfaces the error instead of
 // silently discarding restore state.
 // PREVENTS: a garbled snapshot value being read as an empty snapshot set,
@@ -786,7 +786,7 @@ func TestLoadTCSnapshotsRejectsCorruptAndVersion(t *testing.T) {
 		t.Fatalf("seed corrupt blob: %v", err)
 	}
 	if _, err := loadTCSnapshots(); err == nil {
-		t.Error("expected error for corrupt tc snapshot blob")
+		t.Error("expected error for corrupt traffic-control snapshot blob")
 	}
 
 	if _, err := statestore.Put(zefs.KeyTrafficTCSnapshot.Pattern,
@@ -794,7 +794,7 @@ func TestLoadTCSnapshotsRejectsCorruptAndVersion(t *testing.T) {
 		t.Fatalf("seed version-mismatch blob: %v", err)
 	}
 	if _, err := loadTCSnapshots(); err == nil {
-		t.Error("expected error for unsupported tc snapshot version")
+		t.Error("expected error for unsupported traffic-control snapshot version")
 	}
 }
 
@@ -828,7 +828,7 @@ func TestSaveTCSnapshotsAbsentStoreIsNoOp(t *testing.T) {
 	}
 }
 
-// TestApplyAcceptsNoqueueOriginalRoot proves the tc backend can configure an
+// TestApplyAcceptsNoqueueOriginalRoot proves the kernel traffic backend can configure an
 // interface that has no queueing discipline yet.
 //
 // VALIDATES: an interface whose root qdisc is noqueue is snapshotted and
@@ -838,7 +838,7 @@ func TestSaveTCSnapshotsAbsentStoreIsNoOp(t *testing.T) {
 // PREVENTS:  the QEMU integration failure `Apply: trafficnetlink: interface
 //
 //	"ze_cs0": snapshot original qdisc: qdisc "noqueue" cannot be
-//	snapshotted exactly by backend tc`. noqueue is the DEFAULT root on
+//	snapshotted exactly by backend kernel`. noqueue is the DEFAULT root on
 //	every veth, dummy and bridge, so rejecting it meant ze could not
 //	apply traffic control in any container or VM deployment -- the
 //	environments it targets.

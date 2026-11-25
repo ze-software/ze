@@ -8,11 +8,11 @@
 #           wipes the network's other firewall (lachesis, nftables-
 #           administered by hand, etc.).
 #
-# Requires CAP_NET_ADMIN (for `nft add table`).
+# Requires CAP_NET_ADMIN (for nftables table setup).
 #
 # Sequencing: the `surfprotect` table is created by a foreground
 # pre-setup script BEFORE ze launches in the background. Otherwise ze
-# could complete its Apply+scan before the driver's `nft add` runs, and
+# could complete its Apply+scan before the driver's nftables add runs, and
 # the assertion "ze didn't touch surfprotect" would degrade to "ze
 # didn't retroactively touch surfprotect" -- weaker than the AC.
 
@@ -20,7 +20,7 @@ option=needs-linux:caps=net-admin
 
 stdin=ze-bgp:terminator=EOF_CONF
 firewall {
-	backend nft;
+	backend kernel;
 	table fw10_003 {
 		family inet;
 		chain input {

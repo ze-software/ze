@@ -12,7 +12,7 @@
 #
 # VALIDATES: spec-vpp-fib-query AC-1 -- VPP FIB lookup returns VPP data
 #            spec-vpp-fib-query AC-5 -- response JSON keys match schema
-# PREVENTS:  RouteLookup bypassing Backend (old netlink hardcode)
+# PREVENTS:  RouteLookup bypassing Backend (old kernel hardcode)
 
 tmpfs=peer-script:terminator=EOF_PEER
 option=tcp_connections:value=1

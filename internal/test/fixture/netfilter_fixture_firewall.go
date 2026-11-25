@@ -48,7 +48,7 @@ func coppTrusted(ctx context.Context, _ []string) error {
 	// The limiter lives in the regular bgp-neighbor chain, reached only through
 	// the input chain's jump, so "trusted before the limiter" is the trusted
 	// accept ordered before that jump, with the limiter inside the jump target.
-	// Line order across the whole listing says nothing: nft prints the chains
+	// Line order across the whole listing says nothing: nftables prints the chains
 	// in its own order.
 	input, err := nftChainLines(out, "input")
 	if err != nil {
@@ -173,7 +173,7 @@ func nftChainLines(out, chain string) ([]string, error) {
 		}
 		lines = append(lines, trimmed)
 	}
-	return nil, fmt.Errorf("nft listing holds no complete chain %q", chain)
+	return nil, fmt.Errorf("nftables listing holds no complete chain %q", chain)
 }
 
 // nftLineIndex answers the index of the first line holding every part, or -1.
@@ -326,7 +326,7 @@ func firewallCoexistenceSetup(ctx context.Context, _ []string) error {
 	}
 	for _, args := range commands {
 		if _, err := netfilterCommandOutput(ctx, "nft", args...); err != nil {
-			return fmt.Errorf("nft %s: %w", strings.Join(args, " "), err)
+			return fmt.Errorf("nft command %s: %w", strings.Join(args, " "), err)
 		}
 	}
 	return nil
@@ -364,7 +364,7 @@ func firewallLegacySeed(ctx context.Context, _ []string) error {
 	}
 	for _, args := range commands {
 		if _, err := netfilterCommandOutput(ctx, "nft", args...); err != nil {
-			return fmt.Errorf("nft %s: %w", strings.Join(args, " "), err)
+			return fmt.Errorf("nft command %s: %w", strings.Join(args, " "), err)
 		}
 	}
 	out, err := netfilterCommandOutput(ctx, "nft", "list", "ruleset")
@@ -403,7 +403,7 @@ func firewallLegacySweep(ctx context.Context, _ []string) error {
 
 // reloadRule22 and reloadRule443 match the one rule each firewall-reload.ci
 // config programs. ze places an anonymous counter at the term's match/action
-// boundary (withCounter, internal/plugins/firewall/nft/lower_linux.go), so nft
+// boundary (withCounter, internal/plugins/firewall/nft/lower_linux.go), so nftables
 // prints it between the port match and the verdict.
 var (
 	reloadRule22  = regexp.MustCompile(`dport 22 counter packets \d+ bytes \d+ accept`)

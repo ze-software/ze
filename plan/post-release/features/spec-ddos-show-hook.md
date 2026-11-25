@@ -34,7 +34,7 @@ The points to complete:
 | 1 | Add a `hook` field to the `show ddos local` response | The value should be the operator-facing chain name (`ingress` / `forward`), which `hookChainName` (`responder.go`) already produces for the log line. Do not invent a second spelling |
 | 2 | Persist the chosen hook in responder state | **The hook is NOT stored today.** The `responder` struct (`responder.go`) holds `mu`, `cfg`, `bus`, `active`, `target` and no hook. It is computed transiently at `:111` and discarded. This is the real work; the show-handler edit is the easy half |
 | 3 | Decide the field's shape when no mitigation is active | Today `active: false` omits `target` entirely (`show.go`). `hook` presumably follows the same rule. A design choice, not a given |
-| 4 | Update the command's YANG description | `internal/plugins/ddos/local/cmd/yang/ze-ddos-local-cmd.yang` currently promises only "whether an nft drop rule is currently installed and the target vector (prefix / proto / port) it covers" |
+| 4 | Update the command's YANG description | `internal/plugins/ddos/local/cmd/yang/ze-ddos-local-cmd.yang` currently promises only "whether an nftables drop rule is currently installed and the target vector (prefix / proto / port) it covers" |
 | 5 | Cover it with a test | `show_test.go` exists (`internal/plugins/ddos/local/show_test.go`). `TestLocalHookByDirection` (`responder_test.go`) already covers hook SELECTION exhaustively and must stay untouched: this spec is about REPORTING the selection, not making it |
 
 **Why an operator wants this (the justification of record):**
@@ -69,11 +69,11 @@ the hook: that is `hookForDirection`'s job and `forward-mitigation`'s config sur
 | The test rework it was rejected from is SETTLED and is NOT reopened by this spec | `plan/spec-fixit-ddos-test-infra.md` D-1 is APPROVED: keep the `driver.py` + `daemon.ready` pattern, migrate its hand-rolled sleep loops to `ze_api.wait_until`. Option (a) (port to the in-daemon probe) and option (b) (keep driver.py unchanged) are both REJECTED |
 
 -> Constraint (BLOCKING): **this spec must not be cited as a reason to change
-`plan/spec-fixit-ddos-test-infra.md`'s approach.** That spec's tests read nft state from a
+`plan/spec-fixit-ddos-test-infra.md`'s approach.** That spec's tests read nftables state from a
 root `driver.py`, deliberately, because the runner keeps `driver.py` privileged for exactly
 that purpose (`internal/test/runner/runner_exec.go`) while dropping the daemon's
 privileges. Its AC-2 is struck and replaced by AC-2a; its D-1 is answered. If this spec
-ships, that test's nft readback **stays** as the primary assertion: nft is kernel state, a
+ships, that test's nftables readback **stays** as the primary assertion: nftables is kernel state, a
 `hook` field is the responder's self-report, and `ai/rules/completion.md`
 plus that spec's own AC-3 forbid weakening a kernel-state assertion to a self-report.
 
@@ -197,7 +197,7 @@ NOT a substitute for the DESIGN-phase research):
 |----------|-----|----------|
 | Operator to plugin | `show ddos local` -> registered RPC `ze-show:ddos-local` -> `handleShowDdosLocal` | [ ] |
 | Show handler to responder state | `activeResponder.Load()` + `status()` (process-global, in-process plugin) | [ ] |
-| Responder to kernel | `firewall.RegisterTables` / `ApplyAll` -> nft (`responder.go`) | [ ] |
+| Responder to kernel | `firewall.RegisterTables` / `ApplyAll` -> nftables (`responder.go`) | [ ] |
 
 ### Integration Points
 
@@ -206,7 +206,7 @@ NOT a substitute for the DESIGN-phase research):
 
 ### Architectural Verification
 
-- [ ] No bypassed layers (the show handler keeps reading responder state, not nft)
+- [ ] No bypassed layers (the show handler keeps reading responder state, not nftables)
 - [ ] No unintended coupling (no test-driven seam; see the standing-rejection constraints)
 - [ ] No duplicated functionality (reuse `hookChainName`, do not add a second name mapping)
 - [ ] Zero-copy preserved where applicable (value types across the boundary)
@@ -232,8 +232,8 @@ NOT a substitute for the DESIGN-phase research):
 
 | ID | Risk | Early signal | Mitigation / fallback |
 |----|------|--------------|----------------------|
-| R-1 | **The backdoor risk. The main risk of this spec's existence.** It is used to reopen or weaken `plan/spec-fixit-ddos-test-infra.md`'s settled design (D-1: keep driver.py, migrate to `ze_api.wait_until`), turning a rejected product-change-to-pass-a-test into a shipped one by the back door | A diff or spec edit cites THIS spec as a reason to drop that spec's nft readback, or to revive its struck AC-2 / its D-1 option (a) or (c) | The rejection STANDS (see "Origin and the standing rejection"). nft readback is kernel state and stays primary; a `hook` field is a self-report and can only ever CORROBORATE, exactly as the responder log does in that spec's D-4. Neither spec depends on the other: `Depends` is `-` deliberately, and must stay `-` |
-| R-2 | The field reports the responder's intent while the kernel disagrees, and an operator trusts the field | A drop is reported on a hook that nft does not show | Be explicit in the YANG description that this is the responder's installed-state self-report. Never let it be read as a kernel readback. This is the same intent-vs-kernel distinction the test-infra spec's D-4 draws for the log |
+| R-1 | **The backdoor risk. The main risk of this spec's existence.** It is used to reopen or weaken `plan/spec-fixit-ddos-test-infra.md`'s settled design (D-1: keep driver.py, migrate to `ze_api.wait_until`), turning a rejected product-change-to-pass-a-test into a shipped one by the back door | A diff or spec edit cites THIS spec as a reason to drop that spec's nftables readback, or to revive its struck AC-2 / its D-1 option (a) or (c) | The rejection STANDS (see "Origin and the standing rejection"). nftables readback is kernel state and stays primary; a `hook` field is a self-report and can only ever CORROBORATE, exactly as the responder log does in that spec's D-4. Neither spec depends on the other: `Depends` is `-` deliberately, and must stay `-` |
+| R-2 | The field reports the responder's intent while the kernel disagrees, and an operator trusts the field | A drop is reported on a hook that nftables does not show | Be explicit in the YANG description that this is the responder's installed-state self-report. Never let it be read as a kernel readback. This is the same intent-vs-kernel distinction the test-infra spec's D-4 draws for the log |
 | R-3 | Hook selection gets "improved" while reporting it | `hookForDirection` (`responder.go`) appears in the diff | Out of scope. This spec reports the choice; it does not make it. `TestLocalHookByDirection` must stay green and untouched |
 | R-4 | The stale state question is missed: a mitigation is cleared but the hook lingers | `show ddos local` reports a hook while `active: false` | Task point 3. Decide the omission rule at DESIGN and pin it with a test that clears a mitigation and re-reads the surface |
 
@@ -257,13 +257,13 @@ NOT a substitute for the DESIGN-phase research):
 | AC-4 | `TestLocalHookByDirection` (`responder_test.go`) | Still passes, untouched. Hook SELECTION is unchanged by this spec |
 | AC-5 | Existing consumers of `show ddos local` | Unaffected: `enabled`, `active` and `target` keep their shape and omission rules (A-5) |
 | AC-6 | The command's YANG description | Names the hook field. The described surface matches the returned surface (`cmd/yang/ze-ddos-local-cmd.yang`) |
-| AC-7 | `plan/spec-fixit-ddos-test-infra.md`'s tests | Unchanged by this spec. Their nft readback remains the primary kernel-state assertion (R-1) |
+| AC-7 | `plan/spec-fixit-ddos-test-infra.md`'s tests | Unchanged by this spec. Their nftables readback remains the primary kernel-state assertion (R-1) |
 
 ## End-to-End User Stories
 
 | # | User does | Path through system | Test proving it works |
 |---|-----------|--------------------|-----------------------|
-| 1 | Asks "is the box mitigating, and is it protecting itself or a downstream host?" via `show ddos local`, without root and without reading nft | dispatch -> `ze-show:ddos-local` -> `handleShowDdosLocal` -> `status()` -> persisted hook | (fill during design) |
+| 1 | Asks "is the box mitigating, and is it protecting itself or a downstream host?" via `show ddos local`, without root and without reading nftables | dispatch -> `ze-show:ddos-local` -> `handleShowDdosLocal` -> `status()` -> persisted hook | (fill during design) |
 
 ## 🧪 TDD Test Plan
 
@@ -363,7 +363,7 @@ None deferred yet. Scope is set at DESIGN.
 | Completeness | Every AC-N has implementation with file:line |
 | Correctness | The reported hook is the one actually installed, including after a re-apply narrows the rule in place (`responder.go`) |
 | Naming | The field reuses `hookChainName`'s spelling (`responder.go`); no second mapping |
-| Data flow | The show handler reads responder state, never nft |
+| Data flow | The show handler reads responder state, never nftables |
 | Scope | `hookForDirection` (`responder.go`) is NOT modified; `TestLocalHookByDirection` is untouched |
 | Registration over hardcoding | The field ships inside the plugin-owned command + registered handler; nothing added to a core/shared package (`ai/rules/plugins.md`) |
 | Cross-spec | No change to `plan/spec-fixit-ddos-test-infra.md`'s design or tests (R-1) |
@@ -388,7 +388,7 @@ None deferred yet. Scope is set at DESIGN.
 |---------|----------|
 | A consumer breaks on the new field (A-5) | DESIGN: reconsider the response shape. Do not delete the consumer's assertion |
 | The change starts touching `hookForDirection` | STOP. Out of scope (R-3) |
-| It becomes tempting to weaken the test-infra spec's nft readback | STOP. R-1. The rejection stands |
+| It becomes tempting to weaken the test-infra spec's nftables readback | STOP. R-1. The rejection stands |
 | 3 fix attempts fail | STOP. Report all 3 approaches. Ask user |
 
 ## Mistake Log
@@ -419,7 +419,7 @@ None deferred yet. Scope is set at DESIGN.
 ## Known Limitations
 
 - The field is the responder's self-report of what it installed, not a kernel readback. It
-  cannot detect a rule removed behind ze's back. nft remains the source of truth for kernel
+  cannot detect a rule removed behind ze's back. nftables remains the source of truth for kernel
   state (R-2).
 - This spec does not touch hook selection, the detection path, or the mitigation logic.
 

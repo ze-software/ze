@@ -150,7 +150,7 @@ subscriber. An external CoS process has no
 interface backend wiring and refuses the operation; it cannot acknowledge maps
 it did not install.
 
-The netlink backend reports both VLAN maps in `GetLink`, including an empty map
+The kernel backend reports both VLAN maps in `GetLink`, including an empty map
 when none is installed. VPP's `detailsToInfo` reports link identity and VLAN
 attributes but does not report the maps. Its `UpdateVLANQoSMap` can program
 identity ingress and egress marking, but the atomic CoA path refuses prepare

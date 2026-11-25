@@ -4,7 +4,7 @@
 // So buildRichRoute must drop the forwarding attributes for those three types,
 // or the kernel programs nothing at all.
 // PREVENTS: an RFC 7999 BLACKHOLE route that is honored, stamped, carried down
-// both rails, and then refused by netlink with EINVAL where no test looks.
+// both rails, and then refused by the netlink socket with EINVAL where no test looks.
 
 //go:build linux
 
@@ -14,9 +14,9 @@ import (
 	"net/netip"
 	"testing"
 
-	sysribevents "github.com/ze-software/ze/internal/component/sysrib/events"
-
 	"golang.org/x/sys/unix"
+
+	sysribevents "github.com/ze-software/ze/internal/component/sysrib/events"
 )
 
 func TestBuildRichRouteDiscardCarriesNoNextHop(t *testing.T) {

@@ -68,7 +68,7 @@ func checkRAForwarding(ctx diagnostic.DoctorCheckContext) []diagnostic.Diagnosti
 	if ifaceBlock == nil {
 		return nil
 	}
-	// The router-advertisement container is netlink-only, so a vpp tree holds
+	// The router-advertisement container is kernel-only, so a vpp tree holds
 	// no sender whose forwarding state would matter.
 	if backend, _ := ifaceBlock.Get("backend"); backend == "vpp" {
 		return nil

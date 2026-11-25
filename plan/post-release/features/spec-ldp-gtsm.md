@@ -58,7 +58,7 @@ flag in `send_hello` from `F_LDPD_AF_NO_GTSM` and negotiates it in
 | Mechanism | Where | What it does today | This spec |
 |-----------|-------|--------------------|-----------|
 | Socket TTL and minimum TTL | `internal/core/network` `SetIPTTL`, `SetIPMinTTL` | Set TTL 255 and `IP_MINTTL` / `IPV6_MINHOPCOUNT` on BGP sockets | Reused on the LDP session socket and its listener |
-| GTSM kernel state | `internal/component/gtsm` `SetPeers` | Host routes with RTAX_HOPLIMIT and nft input rules per peer for related ICMP and pre-accept SYNs | Extends: the peer set must take contributions from more than one protocol. Today a second caller would overwrite BGP's set, so the design adds per-owner sets merged inside the package, and states how a forked LDP plugin reaches it (the package is in-process) |
+| GTSM kernel state | `internal/component/gtsm` `SetPeers` | Host routes with RTAX_HOPLIMIT and nftables input rules per peer for related ICMP and pre-accept SYNs | Extends: the peer set must take contributions from more than one protocol. Today a second caller would overwrite BGP's set, so the design adds per-owner sets merged inside the package, and states how a forked LDP plugin reaches it (the package is in-process) |
 | LDP Hello codec | `wire.go` `HelloMessage` | T and R flags | Extends: the G flag, encoded and decoded |
 | LDP adjacency to session | `register.go` `sessionConfigForAdj` | Builds session parameters from the Hello | Extends: carries "both sent G=1" into the session, which then enforces GTSM |
 

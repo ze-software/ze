@@ -1,0 +1,35 @@
+# Test: a sysctl block (including rp_filter) validates under interface backend vpp.
+# Question: does `ze config validate` accept a `sysctl` block (including a
+#           packet-forwarding key such as `net.ipv4.conf.all.rp_filter`) under
+#           `interface backend vpp` with matching firewall and traffic backends?
+#           A unit test cannot prove `sysctl`'s `HostSideDataPlane` mark
+#           reaches `ze config validate` through the real composition root.
+# VALIDATES: spec-dataplane-compatibility-guard AC-5 (Q-1b) -- `sysctl` sets
+#            `HostSideDataPlane`, so Linux kernel tunables remain accepted
+#            under VPP.
+# PREVENTS: the data-plane guard refusing `sysctl` blocks on VPP routers.
+stdin=config:terminator=EOF_CONF
+interface {
+	backend vpp;
+}
+firewall {
+	backend vpp;
+}
+traffic {
+	control {
+		backend vpp;
+	}
+}
+sysctl {
+	setting net.ipv4.conf.all.rp_filter {
+		value 1;
+	}
+	setting net.core.somaxconn {
+		value 4096;
+	}
+}
+EOF_CONF
+
+cmd=foreground:seq=1:exec=ze config validate -:stdin=config
+expect=exit:code=0
+expect=stdout:contains=configuration valid

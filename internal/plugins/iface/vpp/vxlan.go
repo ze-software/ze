@@ -3,7 +3,7 @@
 //
 // VXLAN is a new tunnel kind landed in both backends: L2 Ethernet frames over
 // a UDP/IPv4 underlay, discriminated by a 24-bit VNI. The VPP half programs
-// vxlan_add_del_tunnel_v3; the netlink half builds a netlink.Vxlan link (see
+// vxlan_add_del_tunnel_v3; the kernel half builds a netlink.Vxlan link (see
 // internal/plugins/iface/netlink/tunnel_linux.go).
 
 package ifacevpp

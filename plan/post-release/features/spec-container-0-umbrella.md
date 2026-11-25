@@ -264,7 +264,7 @@ specs of "Child specs" above.
 | Plugin to firewall component | A declared contribution of firewall state in tables Ze owns. The firewall's table registry is process-local today, so a plugin that can run forked needs a request, not a direct registration | No |
 | Daemon to container init | The upstream library's startup protocol over inherited descriptors, inside one binary | No |
 | Ze to registry | The registry pull protocol over HTTPS | No |
-| Ze to kernel | Namespaces, cgroup files, mounts, the system-call filter, netlink | No |
+| Ze to kernel | Namespaces, cgroup files, mounts, the system-call filter, netlink sockets | No |
 
 ### Changed-Wire Census
 

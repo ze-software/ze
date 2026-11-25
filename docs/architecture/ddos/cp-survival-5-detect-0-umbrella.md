@@ -2,7 +2,7 @@
 
 Ze had mitigation levers (FlowSpec origination, firewall) and no automatic
 decision of when to pull them. This subsystem ports the Flowtriq ftagent decision
-logic onto ze primitives: a two-stage detector, a local nft responder, a
+logic onto ze primitives: a two-stage detector, a local nftables responder, a
 FlowSpec/RTBH upstream responder with a leak probe, and an incident store.
 
 Related pages: [characterization and the responder split](cp-survival-5-detect-5-characterization.md),
@@ -16,7 +16,7 @@ Related pages: [characterization and the responder split](cp-survival-5-detect-5
 |---------|------|
 | `internal/core/ddosevent` | the shared event contract, a core leaf |
 | `internal/plugins/ddos/detect` | the two-stage detector |
-| `internal/plugins/ddos/local` | the on-host nft responder |
+| `internal/plugins/ddos/local` | the on-host nftables responder |
 | `internal/plugins/ddos/flowspec` | the FlowSpec and RTBH upstream responder |
 | `internal/plugins/ddos/observe` | the incident store |
 | `internal/plugins/ddos/flowtriq` | the Flowtriq report client |

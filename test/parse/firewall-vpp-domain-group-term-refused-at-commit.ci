@@ -1,0 +1,44 @@
+# Test: a firewall table term naming source-domain-group stays refused under firewall backend vpp.
+# Question: does `ze config validate` refuse a firewall table term matching
+#           `source-domain-group` under `firewall backend vpp` via the
+#           firewall's own verifier (`MatchInSet`)?
+#           A unit test cannot prove the full firewall parser + verifier path
+#           in `ze config validate` preserves this refusal.
+# VALIDATES: spec-dataplane-compatibility-guard Behavior to preserve -- a term
+#            referencing a domain group expands to `MatchInSet` (`domain_v4_*`)
+#            and is refused at commit by `firewallvpp.Verify`.
+# PREVENTS: a regression in domain-group term expansion or firewall verifier
+#           wiring allowing `source-domain-group` terms through under VPP.
+stdin=config:terminator=EOF_CONF
+interface {
+	backend vpp;
+}
+firewall {
+	backend vpp;
+	domain-group web {
+		domain-names [ web.example.test ];
+	}
+	table wan {
+		family inet;
+		chain input {
+			type filter;
+			hook input;
+			priority 0;
+			policy accept;
+			term allow-web {
+				from {
+					source-domain-group web;
+				}
+				then {
+					accept;
+				}
+			}
+		}
+	}
+}
+EOF_CONF
+
+cmd=foreground:seq=1:exec=ze config validate -:stdin=config
+expect=exit:code=1
+expect=stdout:contains=domain_v4_web
+expect=stdout:contains=not supported by backend vpp

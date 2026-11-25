@@ -778,7 +778,7 @@ func ownedApplyRefusal(owner, subject string, cause error) error {
 	return opererr.Wrap(cause,
 		"The kernel refused the owned "+subject+" of plugin "+owner,
 		"The steps already made were undone, so the plugin's devices are as they were before the request",
-		"Run ze show interface to see the devices, and ze doctor to find what the kernel lacks; set interface backend netlink when another backend is active",
+		"Run ze show interface to see the devices, and ze doctor to find what the kernel lacks; set interface backend kernel when another backend is active",
 	)
 }
 

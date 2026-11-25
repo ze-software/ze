@@ -169,7 +169,7 @@ func infoToZeType(info *InterfaceInfo) string {
 	if info.Type == zeTypeLoopback {
 		return zeTypeLoopback
 	}
-	// Linux: loopback is netlink type "device" with name "lo".
+	// Linux: loopback is rtnetlink type "device" with name "lo".
 	if info.Type == "device" && info.Name == "lo" {
 		return zeTypeLoopback
 	}

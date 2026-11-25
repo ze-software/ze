@@ -5,7 +5,7 @@
 // The address watch is how BGP learns that the host's interface addresses
 // moved without importing the interface component and without waiting for its
 // monitor, which runs only when an interface block configures a backend. The
-// netlink interface backend registers the watcher at init(); InterfacePrefixes
+// kernel interface backend registers the watcher at init(); InterfacePrefixes
 // stays the read. With no watcher linked, WatchAddresses answers
 // ErrAddressWatchNotRegistered, never a watch that stays silent
 // (ai/rules/principles.md).
@@ -36,7 +36,7 @@ type AddressWatcher func(ctx context.Context) (<-chan struct{}, error)
 // ErrAddressWatchNotRegistered is the answer of WatchAddresses in a build where
 // no package registered an address watcher, which is distinct from a watch
 // that saw no change.
-var ErrAddressWatchNotRegistered = errors.New("no interface address watcher is registered: this build or platform has no netlink interface backend")
+var ErrAddressWatchNotRegistered = errors.New("no interface address watcher is registered: this build or platform has no kernel interface backend")
 
 var addressWatch struct {
 	sync.Mutex
@@ -44,7 +44,7 @@ var addressWatch struct {
 }
 
 // RegisterAddressWatcher installs the one watcher of the kernel address table.
-// The netlink interface backend calls it from its init(), so this package
+// The kernel interface backend calls it from its init(), so this package
 // imports no plugin. A second registration, or a nil watcher, is a build
 // defect.
 func RegisterAddressWatcher(watch AddressWatcher) {

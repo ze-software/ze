@@ -235,10 +235,10 @@ func TestMergeListNodePreservesBackend(t *testing.T) {
 		Field("bridge", List(TypeString, Field("name", Leaf(TypeString)))),
 	)
 
-	// Canonical container (like ze-iface-conf): bridge list WITH the netlink
+	// Canonical container (like ze-iface-conf): bridge list WITH the kernel
 	// backend matrix.
 	canonicalBridge := List(TypeString, Field("name", Leaf(TypeString)))
-	canonicalBridge.Backend = []string{"netlink"}
+	canonicalBridge.Backend = []string{"kernel"}
 	canonical := Container(Field("bridge", canonicalBridge))
 
 	schema := NewSchema()
@@ -249,8 +249,8 @@ func TestMergeListNodePreservesBackend(t *testing.T) {
 	require.True(t, ok, "expected interface ContainerNode")
 	bridge, ok := iface.Get("bridge").(*ListNode)
 	require.True(t, ok, "expected bridge ListNode")
-	require.Equal(t, []string{"netlink"}, bridge.Backend,
-		"merged bridge must keep the netlink backend annotation from the canonical module")
+	require.Equal(t, []string{"kernel"}, bridge.Backend,
+		"merged bridge must keep the kernel backend annotation from the canonical module")
 }
 
 // TestMergeListNodeDoesNotWidenBackend verifies that when dst already carries a
@@ -262,7 +262,7 @@ func TestMergeListNodePreservesBackend(t *testing.T) {
 // PREVENTS: an overlay module accidentally widening or clearing a feature gate.
 func TestMergeListNodeDoesNotWidenBackend(t *testing.T) {
 	canonicalBridge := List(TypeString, Field("name", Leaf(TypeString)))
-	canonicalBridge.Backend = []string{"netlink"}
+	canonicalBridge.Backend = []string{"kernel"}
 	canonical := Container(Field("bridge", canonicalBridge))
 
 	overlay := Container(
@@ -270,14 +270,14 @@ func TestMergeListNodeDoesNotWidenBackend(t *testing.T) {
 	)
 
 	schema := NewSchema()
-	schema.Define("interface", canonical) // visited first -> dst has [netlink]
+	schema.Define("interface", canonical) // visited first -> dst has [kernel]
 	schema.Define("interface", overlay)   // src has no annotation
 
 	iface, ok := schema.Get("interface").(*ContainerNode)
 	require.True(t, ok, "expected interface ContainerNode")
 	bridge, ok := iface.Get("bridge").(*ListNode)
 	require.True(t, ok, "expected bridge ListNode")
-	require.Equal(t, []string{"netlink"}, bridge.Backend,
+	require.Equal(t, []string{"kernel"}, bridge.Backend,
 		"populated dst backend must survive an annotation-free overlay merge")
 }
 

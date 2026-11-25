@@ -1,0 +1,42 @@
+# Test: firewall backend vpp refuses connection-state new via verifyConnState.
+# Question: does `ze config validate` refuse `connection-state new` under
+#           `firewall backend vpp` with `verifyConnState`'s message naming
+#           `new/invalid` and `PERMIT_REFLECT`?
+#           A unit test cannot prove `ze config validate` reaches
+#           `firewallvpp.Verify` (`verifyConnState`) now that `connection-state`
+#           has no `ze:backend` annotation.
+# VALIDATES: spec-dataplane-compatibility-guard AC-17 (C-2b) -- removing the
+#            YANG annotation delegates `connection-state` to `verifyConnState`,
+#            which still refuses `new` and `invalid`.
+# PREVENTS: removing the YANG annotation accidentally permitting `new` or
+#           `invalid` connection-state matches on VPP.
+stdin=config:terminator=EOF_CONF
+interface {
+	backend vpp;
+}
+firewall {
+	backend vpp;
+	table wan {
+		family inet;
+		chain input {
+			type filter;
+			hook input;
+			priority 0;
+			policy drop;
+			term allow-new {
+				from {
+					connection-state new;
+				}
+				then {
+					accept;
+				}
+			}
+		}
+	}
+}
+EOF_CONF
+
+cmd=foreground:seq=1:exec=ze config validate -:stdin=config
+expect=exit:code=1
+expect=stdout:contains=new/invalid not supported by backend vpp
+expect=stdout:contains=PERMIT_REFLECT

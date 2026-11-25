@@ -94,7 +94,7 @@ func kernelVLAN(t *testing.T, name string) *netlink.Vlan {
 }
 
 // TestVLANQoSMapIntegration creates a VLAN sub-interface with both 802.1p QoS
-// maps through the real netlink backend and reads the link back from the
+// maps through the real kernel interface backend and reads the link back from the
 // kernel to assert the maps were applied at creation time.
 //
 // VALIDATES: spec-vlan-qos-map AC-3 and assumption A-2 -- the kernel accepts

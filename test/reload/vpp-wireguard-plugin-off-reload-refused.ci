@@ -1,0 +1,116 @@
+# Test: SIGHUP reload that changes only vpp plugins wireguard from true to false is refused and keeps running config active.
+# Question: does a live SIGHUP reload changing ONLY `vpp plugins wireguard`
+#           from `true` to `false` on a running daemon with a VPP WireGuard
+#           interface get refused by `iface-vpp-wireguard-plugin` over the
+#           whole candidate tree, keeping the running config active and
+#           accepting a subsequent valid reload?
+#           A unit test calls the validator directly; only a running daemon
+#           proves `LoadConfig` hands the whole candidate tree to the original-
+#           tree validator during reload even though `interface` did not change.
+# VALIDATES: spec-dataplane-compatibility-guard AC-2 (reload, A-12) --
+#            `iface-vpp-wireguard-plugin` refuses turning off `vpp plugins
+#            wireguard` on reload, keeps `wireguard true` running, and leaves
+#            the daemon healthy for a later valid reload.
+# PREVENTS: a reload modifying only the `vpp` root bypassing WireGuard plugin
+#           validation or taking the daemon down.
+
+option=needs-build-tag:value=ze_vpp:state=present
+option=timeout:value=40s
+
+stdin=ze-bgp:terminator=EOF_CONF
+bus {
+	endpoint live-stages {
+		external {
+			run "le test fixture reload/live-stages stages.script";
+		}
+		encoding json;
+	}
+}
+vpp {
+	enabled false;
+	plugins {
+		wireguard true;
+	}
+}
+interface {
+	backend vpp;
+	wireguard wg0 {
+		listen-port 51820;
+		private-key "aHZkc2ZqaHZra2hkZnZoamtkc2Zoa2RoaGRma2poZmg=";
+	}
+}
+EOF_CONF
+
+tmpfs=config2.conf:refused=config-validator-unavailable:terminator=EOF_CONF2
+bus {
+	endpoint live-stages {
+		external {
+			run "le test fixture reload/live-stages stages.script";
+		}
+		encoding json;
+	}
+}
+vpp {
+	enabled false;
+	plugins {
+		wireguard false;
+	}
+}
+interface {
+	backend vpp;
+	wireguard wg0 {
+		listen-port 51820;
+		private-key "aHZkc2ZqaHZra2hkZnZoamtkc2Zoa2RoaGRma2poZmg=";
+	}
+}
+EOF_CONF2
+
+tmpfs=config3.conf:terminator=EOF_CONF3
+bus {
+	endpoint live-stages {
+		external {
+			run "le test fixture reload/live-stages stages.script";
+		}
+		encoding json;
+	}
+}
+environment {
+	log {
+		level debug;
+	}
+}
+vpp {
+	enabled false;
+	plugins {
+		wireguard true;
+	}
+}
+interface {
+	backend vpp;
+	wireguard wg0 {
+		listen-port 51820;
+		private-key "aHZkc2ZqaHZra2hkZnZoamtkc2Zoa2RoaGRma2poZmg=";
+	}
+}
+EOF_CONF3
+
+tmpfs=stages.script:terminator=EOF_SCRIPT
+reload config2.conf
+has show reload-status => "last-outcome":"failed"
+has show config running => "wireguard":"true"
+lacks show config running => "wireguard":"false"
+say VPP-WIREGUARD-RELOAD: refused reload kept running config
+reload config3.conf
+has show reload-status => "last-outcome":"applied"
+say VPP-WIREGUARD-RELOAD: valid reload applied
+EOF_SCRIPT
+
+cmd=foreground:seq=1:exec=ze -:stdin=ze-bgp:timeout=40s
+expect=exit:code=0
+expect=stderr:contains=reload error:
+expect=stderr:contains=wg0
+expect=stderr:contains=set vpp plugins wireguard true
+expect=stderr:contains=VPP-WIREGUARD-RELOAD: refused reload kept running config
+expect=stderr:contains=VPP-WIREGUARD-RELOAD: valid reload applied
+reject=stderr:pattern=LIVE-STAGES line
+reject=stderr:pattern=panic

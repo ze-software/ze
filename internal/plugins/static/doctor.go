@@ -22,8 +22,15 @@ const doctorCodeInterfaceNexthopNoBackend = "doctor-static-interface-nexthop-no-
 // doctorCodeRouteSkipped is emitted when the running static plugin has skipped
 // one or more routes the backend could not program (per-route isolation,
 // spec-fixit-static-per-route-isolation). Registered in
-// internal/core/diagnostic/codes.go so `ze show diagnostic` can describe it.
+// register_doctor_codes.go so `ze show diagnostic` can describe it.
 const doctorCodeRouteSkipped = "doctor-static-route-skipped"
+
+// doctorCodeVPPChannel is emitted when the configured data plane is "vpp" and
+// the static plugin cannot open a GoVPP API channel to program a named-table
+// route. Static refuses to fall back to the Linux kernel under VPP. Registered
+// in register_doctor_codes.go so `ze show diagnostic` and the report bus can
+// describe it.
+const doctorCodeVPPChannel = "doctor-static-vpp-channel"
 
 // staticDoctorChecks declares the static plugin's doctor readiness checks. The
 // interface-only next-hop check is the config-time backstop for the runtime

@@ -243,7 +243,7 @@ func TestAdjacencyInterfaceNoRace(t *testing.T) {
 
 // TestWaitForInterfaceFound moved to resolve_integration_linux_test.go
 // (TestWaitForInterfaceFoundResolves). waitForInterface now resolves through the
-// shared iface resolver, which needs the netlink backend (Linux-only), so the
+// shared iface resolver, which needs the kernel backend (Linux-only), so the
 // "interface found" path is no longer host-testable; the integration test
 // replaces that coverage against a real device. The cancellation and warn-once
 // paths below stay host tests: an absent interface fails to resolve whether or

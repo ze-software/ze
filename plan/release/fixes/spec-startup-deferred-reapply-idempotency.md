@@ -131,7 +131,7 @@ depend on receiving sibling sections; narrowing the coordinator is a larger spec
 | Config tree -> coordinator | diff map keyed by config root | [ ] |
 | Coordinator -> plugin | `ApplyEvent` JSON over the plugin event gateway | [ ] |
 | Plugin -> subsystem worker | in-process handler call (`startWorker`, `applyRoutes`) | [ ] |
-| Plugin -> dataplane | netlink / nft object creation, where restart collisions live | [ ] |
+| Plugin -> dataplane | netlink socket / nftables object creation, where restart collisions live | [ ] |
 
 ### Integration Points
 - `filterDiffs` / `runApply` (`orchestrator.go`) - the delivery producer; read-only for this spec

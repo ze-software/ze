@@ -1,0 +1,27 @@
+# Test: managed pushed config doors (pre-boot and live push) see --plugin ze.flowspec-firewall and refuse interface backend vpp.
+# Question: when `ze --plugin ze.flowspec-firewall start` runs in managed mode,
+#           (1) does `judgeConfigBeforeBoot` refuse a hub-served candidate
+#           setting `interface backend vpp` before caching or booting it, and
+#           (2) on a running managed daemon booted on `backend kernel`, does
+#           `managed.Handler.Validate` refuse the same pushed candidate with
+#           `ConfigAck.Error` starting with `validate config:` (not a reload
+#           error), keeping the running configuration unchanged?
+#           Unit tests invoke `judgeConfigBeforeBoot` and `Validate` in
+#           isolation; only real managed `ze --plugin ... start` processes
+#           prove the dispatcher's recorded `--plugin` reaches both doors.
+# VALIDATES: spec-dataplane-compatibility-guard AC-18 (managed pushed config
+#            door, Q-2, C-5, A-16).
+# PREVENTS: pre-boot or live managed config pushes ignoring `--plugin` flags
+#           and caching or applying a data-plane mismatch.
+
+option=needs-linux:caps=net-admin
+option=exclusive:group=flowspec-nft
+option=needs-build-tag:value=ze_vpp:state=present
+option=timeout:value=90s
+
+cmd=foreground:seq=1:exec=le test fixture managed/dataplane-door-pushed-config -hub-port $PORT -plugin-port $PORT2:timeout=90s
+expect=exit:code=0
+expect=stderr:contains=OK: managed pre-boot judgeConfigBeforeBoot refused --plugin ze.flowspec-firewall before caching
+expect=stderr:contains=OK: managed live push handler refused --plugin ze.flowspec-firewall and kept running config unchanged
+expect=stderr:contains=OK: managed pre-boot and live pushed config doors both refused --plugin ze.flowspec-firewall
+reject=stderr:pattern=panic

@@ -14,7 +14,7 @@ import (
 )
 
 // TestP2PPrimaryRemovalPreservesNewLocal checks the kernel's same-peer subnet
-// rule through the actual netlink-address conversion and deletion policy.
+// rule through the actual netlink address conversion and deletion policy.
 func TestP2PPrimaryRemovalPreservesNewLocal(t *testing.T) {
 	convert := func(local string) deviceAddress {
 		t.Helper()

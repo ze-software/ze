@@ -36,7 +36,7 @@ type firewallIRRRefusalProbe07 struct {
 }
 
 // runFirewallIRRRefusalProbe07 drives the real observer with its reload marker
-// already present. The SDK bridge supplies the daemon command answer; a fake nft
+// already present. The SDK bridge supplies the daemon command answer; a fake nft binary
 // supplies the independent kernel inventory and records the query it received.
 // No daemon, kernel privileges, fixed port or timing assertion is involved.
 func runFirewallIRRRefusalProbe07(t *testing.T, probe firewallIRRRefusalProbe07) (string, error) {
@@ -188,7 +188,7 @@ func TestFirewallIRRRefusedCommitWaitsForReloadRefusal(t *testing.T) {
 			select {
 			case <-entered:
 			case err := <-result:
-				t.Fatalf("observer completed before reading the reload refusal: error=%v nft=%q", err, query())
+				t.Fatalf("observer completed before reading the reload refusal: error=%v nftables=%q", err, query())
 			case <-ctx.Done():
 				t.Fatal(ctx.Err())
 			}
@@ -206,7 +206,7 @@ func TestFirewallIRRRefusedCommitWaitsForReloadRefusal(t *testing.T) {
 }
 
 // TestFirewallIRRRefusedCommitRejectsUnprovenReloadRefusal supplies one bad
-// answer, then holds the next command. Reaching that retry without an nft query
+// answer, then holds the next command. Reaching that retry without an nftables query
 // proves the bad answer did not open the barrier. Cancellation then bounds and
 // joins the refusal path without relying on elapsed time as success evidence.
 func TestFirewallIRRRefusedCommitRejectsUnprovenReloadRefusal(t *testing.T) {

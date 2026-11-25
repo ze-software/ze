@@ -16,14 +16,14 @@ import (
 	ifaceevents "github.com/ze-software/ze/internal/core/iface/events"
 )
 
-// ensureBackendForIntegration loads the netlink backend if not already loaded.
+// ensureBackendForIntegration loads the kernel backend if not already loaded.
 func ensureBackendForIntegration(t *testing.T) {
 	t.Helper()
 	if GetBackend() != nil {
 		return
 	}
-	if err := LoadBackend("netlink"); err != nil {
-		t.Fatalf("load netlink backend: %v", err)
+	if err := LoadBackend("kernel"); err != nil {
+		t.Fatalf("load kernel backend: %v", err)
 	}
 	t.Cleanup(func() { _ = CloseBackend() })
 }

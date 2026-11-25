@@ -9,7 +9,7 @@
 option=skip-os:value=darwin
 stdin=lowok:terminator=EOF_LOWOK
 interface {
-    backend netlink
+    backend kernel
     ethernet eth2 {
     }
     pppoe-client pppoe0 {
@@ -32,7 +32,7 @@ EOF_LOWOK
 
 stdin=highok:terminator=EOF_HIGHOK
 interface {
-    backend netlink
+    backend kernel
     ethernet eth2 {
     }
     pppoe-client pppoe0 {
@@ -55,7 +55,7 @@ EOF_HIGHOK
 
 stdin=ivzero:terminator=EOF_IVZERO
 interface {
-    backend netlink
+    backend kernel
     ethernet eth2 {
     }
     pppoe-client pppoe0 {
@@ -76,7 +76,7 @@ EOF_IVZERO
 
 stdin=ivhigh:terminator=EOF_IVHIGH
 interface {
-    backend netlink
+    backend kernel
     ethernet eth2 {
     }
     pppoe-client pppoe0 {
@@ -97,7 +97,7 @@ EOF_IVHIGH
 
 stdin=fzero:terminator=EOF_FZERO
 interface {
-    backend netlink
+    backend kernel
     ethernet eth2 {
     }
     pppoe-client pppoe0 {
@@ -118,7 +118,7 @@ EOF_FZERO
 
 stdin=fhigh:terminator=EOF_FHIGH
 interface {
-    backend netlink
+    backend kernel
     ethernet eth2 {
     }
     pppoe-client pppoe0 {
@@ -139,7 +139,7 @@ EOF_FHIGH
 
 stdin=dminzero:terminator=EOF_DMINZERO
 interface {
-    backend netlink
+    backend kernel
     ethernet eth2 {
     }
     pppoe-client pppoe0 {
@@ -160,7 +160,7 @@ EOF_DMINZERO
 
 stdin=dminhigh:terminator=EOF_DMINHIGH
 interface {
-    backend netlink
+    backend kernel
     ethernet eth2 {
     }
     pppoe-client pppoe0 {
@@ -181,7 +181,7 @@ EOF_DMINHIGH
 
 stdin=dmaxzero:terminator=EOF_DMAXZERO
 interface {
-    backend netlink
+    backend kernel
     ethernet eth2 {
     }
     pppoe-client pppoe0 {
@@ -202,7 +202,7 @@ EOF_DMAXZERO
 
 stdin=dmaxhigh:terminator=EOF_DMAXHIGH
 interface {
-    backend netlink
+    backend kernel
     ethernet eth2 {
     }
     pppoe-client pppoe0 {
@@ -223,7 +223,7 @@ EOF_DMAXHIGH
 
 stdin=maxbelow:terminator=EOF_MAXBELOW
 interface {
-    backend netlink
+    backend kernel
     ethernet eth2 {
     }
     pppoe-client pppoe0 {

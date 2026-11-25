@@ -1,5 +1,5 @@
 // Package fakeddos is a test-only plugin that drives the ddos-local responder
-// end-to-end against a REAL nft backend. On configure it emits a synthetic
+// end-to-end against a REAL kernel backend. On configure it emits a synthetic
 // ddosevent.AttackDetected (which makes ddos-local install the ze_ddos-local drop
 // table) and, once the test driver creates a trigger file, emits AttackCleared
 // (which makes ddos-local withdraw it).

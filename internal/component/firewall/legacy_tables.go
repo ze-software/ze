@@ -40,7 +40,7 @@ const legacyChainIngress = "ingress"
 // (ze_irr_iface) and the firewall engine (tableNamePrefix).
 //
 // A router upgraded from such a build still holds the old table, and renaming
-// the producer does not reach it. The nft backend's sweep deletes each entry
+// the producer does not reach it. The kernel backend's sweep deletes each entry
 // once, on the first reconcile of the process, so the upgrade strands nothing
 // and a table written later under one of these names is left alone. See
 // legacySweepPending below.

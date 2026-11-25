@@ -116,7 +116,7 @@ Discovery runs only when `enabled` is true and the block lists at least one
 `interface`. A `pppoe` block with no `interface` entry answers no PADI.
 
 Named access interfaces use the session provider registered for `interface
-backend`. The default `netlink` provider uses kernel PPP sessions. A build
+backend`. The default `kernel` provider uses kernel PPP sessions. A build
 without the selected provider refuses the access-interface paths before apply;
 the VPP provider requires the `ze_vpp` build tag. With that provider installed,
 VPP access also requires `vpp enabled true` and `vpp lcp enabled true` so the

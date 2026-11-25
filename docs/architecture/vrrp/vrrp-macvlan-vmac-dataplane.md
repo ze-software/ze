@@ -76,7 +76,7 @@ under the owner `vrrp-backup`:
 
 A private macvlan receives a unicast frame only when the destination MAC is its
 own. The discard combines the exact input interface with `MatchUnicast`, lowered
-to nft `meta pkttype host`. Broadcast and multicast, including VRRP and IPv6 ND,
+to nftables `meta pkttype host`. Broadcast and multicast, including VRRP and IPv6 ND,
 do not match. Multicast advertisement receive and transmit sockets bind to the
 macvlan, while a companion unicast-only receive socket binds to the parent so
 unicast advertisements addressed to the parent's physical MAC and IP (for
@@ -96,7 +96,7 @@ macvlan and consumes the parent's copy. VRRP peers share the same virtual source
 MAC, so this is the normal election path, not reflected local traffic.
 `macvlan_broadcast_one` preserves its multicast packet type. For unicast, the
 same handler selects the macvlan by destination MAC and sets `PACKET_HOST`.
-The nft `meta pkttype` getter reads that classification unchanged for these
+The nftables `meta pkttype` getter reads that classification unchanged for these
 packets.
 
 This explains the tracked-priority split brain: keepalived received Ze's
@@ -142,7 +142,7 @@ VIP up the parent answers for its own address again.
 
 The arp table needs `CONFIG_NF_TABLES_ARP`, which `gokrazy/kernel/kernel.config`
 builds in. The arp family numbers its hooks in its own space (output is 1, not
-the inet 3), which `lowerHook` in the nft backend handles.
+the inet 3), which `lowerHook` in the kernel firewall backend handles.
 
 A /128 owner VIP on the macvlan and the same address on the parent both pass
 DAD. The macvlan runs none (`accept_dad=0`), and a parent re-running DAD does not
@@ -280,7 +280,7 @@ appears, the old one goes, and the group of `fe80::1`, held by both sets, is
 never missing. With the old membership closed before the new one opens, that
 check failed 20 of 20 runs. After a demotion the group is absent again. A
 second promotion then plays the
-reconcile with the product's netlink backend: once the address is usable, the
+reconcile with the product's kernel backend: once the address is usable, the
 host sends one solicitation with no retry, and the answer must carry the
 virtual MAC. On Linux 7.2.9, without the join the test failed 20 of 20 runs,
 and without the `RTM_NEWLINK` it failed 20 of 20 at the parent check; with
@@ -377,7 +377,7 @@ macvlans with distinct VIPs and virtual MACs on one parent, and captures the
 forwarded packets and redirects on the peer. Its physical-MAC control expects
 the parent's real source address. The test runs under `linux` and re-executes
 in private user/network namespaces against the running kernel; it exercises
-the product's netlink backend, `vipCIDRs`, and the apply/reassert sysctl path.
+the product's kernel backend, `vipCIDRs`, and the apply/reassert sysctl path.
 
 IPv6 needs no knob. `net/ipv6/ndisc.c::ndisc_send_redirect` always takes the
 redirect's source from a link-local address of the device the packet arrived

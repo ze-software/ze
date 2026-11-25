@@ -94,7 +94,7 @@ func TestLoadConfigAcceptsALoopbackDelegationSource(t *testing.T) {
 // ze:validate binding, so this input goes through the new walk, not around it.
 func TestLoadConfigAcceptsAValidConfigUnchanged(t *testing.T) {
 	const src = `interface {
-	backend netlink;
+	backend kernel;
 	ethernet eth0 {
 		mac {
 			address 02:00:00:00:00:02;

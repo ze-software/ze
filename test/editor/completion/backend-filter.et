@@ -1,5 +1,5 @@
 # Test: Backend-aware completion filtering
-# VALIDATES: AC-1 — netlink-only children hidden when backend is vpp
+# VALIDATES: AC-1 — kernel-only children hidden when backend is vpp
 # VALIDATES: AC-3 — unannotated children shown regardless of backend
 # PREVENTS: Backend-specific config shown for wrong backend
 
@@ -18,7 +18,7 @@ input=enter
 expect=context:path=interface
 expect=error:none
 
-# "set " should NOT show "tunnel" (ze:backend "netlink")
+# "set " should NOT show "tunnel" (ze:backend "kernel")
 input=type:text=set
 input=space
 expect=completion:excludes=tunnel

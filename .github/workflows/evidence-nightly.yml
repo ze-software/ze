@@ -125,7 +125,7 @@ jobs:
 
       # TestConntrackHelperFTPThroughMasquerade proves active FTP PORT/EPRT
       # rewriting behind masquerade. Ze's runtime kernel builds CONFIG_NF_NAT_FTP
-      # in, whereas the hosted kernel ships it as a module that nft does not
+      # in, whereas the hosted kernel ships it as a module that nftables does not
       # auto-load when attaching nf_conntrack_ftp; without it nf_nat_ftp_hook is
       # nil and the command reaches the server unrewritten.
       - name: Load the FTP NAT conntrack helper module

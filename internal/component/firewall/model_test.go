@@ -140,7 +140,7 @@ func TestPolicy(t *testing.T) {
 
 // Phase 2: Expression interface and concrete types.
 
-// VALIDATES: every reachable Action type (parsed by config, lowered by the nft
+// VALIDATES: every reachable Action type (parsed by config, lowered by the kernel
 // backend, or both) implements the Action interface via actionMarker.
 // PREVENTS: a new Action type added to the data model without the marker, which
 // would compile but silently fail the a.(Action) assertion.

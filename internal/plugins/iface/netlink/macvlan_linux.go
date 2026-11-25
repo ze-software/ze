@@ -28,7 +28,7 @@ import (
 // The device derives no IPv6 link-local of its own: its IPv6 address
 // generation mode is set to none before it comes up (setMacvlanAddrGenNone).
 //
-// Sequence: LinkAdd, LinkSetAlias, addr_gen_mode, LinkSetUp. The vendored netlink lib does
+// Sequence: LinkAdd, LinkSetAlias, addr_gen_mode, LinkSetUp. The vendored netlink library does
 // serialize IFLA_IFALIAS inside LinkAdd's RTM_NEWLINK, but the kernel does NOT
 // apply it on create (Linux limitation LL-RTNL-NEWLINK-NO-ALIAS,
 // docs/architecture/linux-limitations.md) -- QEMU readback proved the alias comes back empty (spec
@@ -129,7 +129,7 @@ func buildMacvlanLink(spec iface.MacvlanSpec, parentIndex, mtu int) (*netlink.Ma
 	return &netlink.Macvlan{LinkAttrs: attrs, Mode: macvlanMode(spec.Mode)}, nil
 }
 
-// macvlanMode maps the iface delivery mode to the netlink constant. Bridge is
+// macvlanMode maps the iface delivery mode to the netlink library constant. Bridge is
 // the zero value / default.
 func macvlanMode(mode iface.MacvlanMode) netlink.MacvlanMode {
 	if mode == iface.MacvlanModePrivate {

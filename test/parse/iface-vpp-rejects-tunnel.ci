@@ -1,7 +1,7 @@
-# Test: a netlink-only tunnel kind is rejected under backend vpp
+# Test: a kernel-only tunnel kind is rejected under backend vpp
 # VALIDATES: spec-followup-vpp-iface AC-2/R-2 -- after per-kind ze:backend
 #            widening (gre/gretap/ipip/vxlan gained "vpp"), the kinds with no
-#            proven VPP mapping (sit, ip6tnl, ...) stay netlink-only and are
+#            proven VPP mapping (sit, ip6tnl, ...) stay kernel-only and are
 #            still rejected at commit under the vpp backend, naming the
 #            /interface/tunnel YANG path.
 # PREVENTS: a list-wide widening that would let vpp receive an Apply call for

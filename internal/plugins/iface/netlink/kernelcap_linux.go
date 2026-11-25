@@ -79,7 +79,7 @@ func ifaceKernelCapabilities() []kernelcap.Capability {
 
 // interfaceKindInUse answers whether the configuration asks THIS backend for at
 // least one interface of the list kind. A vpp backend creates its interfaces in
-// VPP, so the kernel is not asked; the backend leaf defaults to netlink
+// VPP, so the kernel is not asked; the backend leaf defaults to kernel
 // (ze-iface-conf.yang).
 func interfaceKindInUse(kind string) func(*config.Tree) bool {
 	return func(tree *config.Tree) bool {

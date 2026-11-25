@@ -6,6 +6,9 @@
 #           or a leaf disappears silently. fib-kernel and fib-vpp can
 #           coexist under the same fib container.
 stdin=config:terminator=EOF_CONF
+interface {
+	backend vpp;
+}
 fib {
 	kernel {
 	}

@@ -13,7 +13,7 @@ Day-to-day changes use the tests that exercise the affected behavior. When that 
 
 ## When QEMU is required
 
-On a non-Linux host, QEMU provides the environment for tests that depend on Linux behavior. That includes netlink, nftables, network namespaces, veth pairs, PPP, L2TP, eBPF, kernel route state, raw sockets, Linux-only build tags, and tests marked `option=needs-linux`.
+On a non-Linux host, QEMU provides the environment for tests that depend on Linux behavior. That includes netlink sockets, nftables, network namespaces, veth pairs, PPP, L2TP, eBPF, kernel route state, raw sockets, Linux-only build tags, and tests marked `option=needs-linux`.
 
 <table>
 <thead><tr><th>Need</th><th>Command</th></tr></thead>

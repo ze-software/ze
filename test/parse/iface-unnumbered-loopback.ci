@@ -4,7 +4,7 @@
 #           to a tree that drops the donor or the source choice.
 stdin=config:terminator=EOF_CONF
 interface {
-	backend netlink;
+	backend kernel;
 	loopback {
 		unit 0 {
 			ipv4 {

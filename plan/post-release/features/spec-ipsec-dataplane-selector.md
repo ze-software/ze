@@ -41,7 +41,7 @@ feature, and the release ships XFRM only. The default stays `xfrm`, the producti
 path. The `vpp` backend sits behind the `ze_vpp` build tag
 (`register_vpp.go`), which the default daemon build carries
 (`feature-gates.txt`, the `ze_vpp` comment: dropping the tag unlinks GoVPP for
-netlink-only deployments). The earlier post-release text said a default build does
+kernel-only deployments). The earlier post-release text said a default build does
 not carry it; that was wrong and was corrected on the move into release scope.
 
 ## Required Reading

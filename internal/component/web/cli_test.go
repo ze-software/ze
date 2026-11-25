@@ -815,7 +815,7 @@ const terminalScopedConfig = `bgp {
     }
 }
 interface {
-    backend netlink;
+    backend kernel;
     ethernet eth0 {
         mac {
             address 00:11:22:33:44:55;

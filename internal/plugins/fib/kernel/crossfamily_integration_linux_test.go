@@ -33,7 +33,7 @@ import (
 // to a weighted group using the same gateway address on distinct interfaces.
 // Kernel FIB lookups must select both scoped targets, including in a mixed
 // IPv4/IPv6 gateway group. Every route passes through the running system RIB
-// and the actual FIB writer, with no direct invocation of the netlink builder.
+// and the actual FIB writer, with no direct invocation of the netlink route builder.
 func TestFIBRecursiveIPv4ViaIPv6(t *testing.T) {
 	if !userns.Enter(t) {
 		return
@@ -70,7 +70,7 @@ func TestFIBRecursiveIPv4ViaIPv6(t *testing.T) {
 		require.NoError(t, err)
 		globalAddress.Flags = unix.IFA_F_NODAD
 		require.NoError(t, h.AddrAdd(firstLink, globalAddress))
-		require.NoError(t, iface.LoadBackend("netlink"))
+		require.NoError(t, iface.LoadBackend("kernel"))
 		t.Cleanup(func() { require.NoError(t, iface.CloseBackend()) })
 
 		ctx, cancel := context.WithTimeout(context.Background(), withholdWait)

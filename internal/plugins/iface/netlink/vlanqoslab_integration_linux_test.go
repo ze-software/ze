@@ -3,7 +3,7 @@
 // Each test runs userns.Enter first, which re-runs it as root over a user and
 // network namespace of its own, so it needs no host privilege and a refused
 // operation fails it. The file keeps the integration tag because it runs the
-// nft binary, and a test skips when nft is absent.
+// nft binary, and a test skips when the nft binary is absent.
 
 //go:build integration && linux
 
@@ -256,7 +256,7 @@ func nftExec(t *testing.T, script string) {
 	cmd.Stdin = strings.NewReader(script)
 	out, err := cmd.CombinedOutput()
 	if err != nil {
-		t.Fatalf("nft: %v\n%s", err, out)
+		t.Fatalf("nft command: %v\n%s", err, out)
 	}
 }
 
@@ -316,7 +316,7 @@ func TestVLANQoSEgressPCPOnWire(t *testing.T) {
 		return
 	}
 	if _, err := exec.LookPath("nft"); err != nil {
-		t.Skip("nft not available")
+		t.Skip("nft binary not available")
 	}
 
 	withLabNetNS(t, func() {
@@ -382,7 +382,7 @@ func TestVLANQoSIngressClassification(t *testing.T) {
 		return
 	}
 	if _, err := exec.LookPath("nft"); err != nil {
-		t.Skip("nft not available")
+		t.Skip("nft binary not available")
 	}
 
 	withLabNetNS(t, func() {
@@ -452,7 +452,7 @@ func TestVLANQoSDSCPFullChain(t *testing.T) {
 		return
 	}
 	if _, err := exec.LookPath("nft"); err != nil {
-		t.Skip("nft not available")
+		t.Skip("nft binary not available")
 	}
 
 	withLabNetNS(t, func() {

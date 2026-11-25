@@ -7,7 +7,7 @@
 option=skip-os:value=darwin
 stdin=above:terminator=EOF_ABOVE
 interface {
-    backend netlink
+    backend kernel
     ethernet eth2 {
     }
     ethernet eth3 {
@@ -40,7 +40,7 @@ EOF_ABOVE
 
 stdin=duplicate:terminator=EOF_DUPLICATE
 interface {
-    backend netlink
+    backend kernel
     ethernet eth2 {
     }
     ethernet eth3 {
@@ -82,7 +82,7 @@ EOF_DUPLICATE
 
 stdin=valid:terminator=EOF_VALID
 interface {
-    backend netlink
+    backend kernel
     ethernet eth2 {
     }
     ethernet eth3 {

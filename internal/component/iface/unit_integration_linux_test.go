@@ -20,7 +20,7 @@ func TestIntegrationApplyConfigCreateVLANUnit(t *testing.T) {
 		createDummyForTest(t, "parent0")
 
 		cfg := &ifaceConfig{
-			Backend: "netlink",
+			Backend: "kernel",
 			Dummy: []ifaceEntry{{
 				Name: "parent0",
 				Units: []unitEntry{
@@ -58,7 +58,7 @@ func TestIntegrationApplyConfigDeleteVLANUnit(t *testing.T) {
 		createDummyForTest(t, "parent0")
 
 		previous := &ifaceConfig{
-			Backend: "netlink",
+			Backend: "kernel",
 			Dummy: []ifaceEntry{{
 				Name: "parent0",
 				Units: []unitEntry{
@@ -77,7 +77,7 @@ func TestIntegrationApplyConfigDeleteVLANUnit(t *testing.T) {
 		}
 
 		current := &ifaceConfig{
-			Backend: "netlink",
+			Backend: "kernel",
 			Dummy: []ifaceEntry{{
 				Name: "parent0",
 				Units: []unitEntry{
@@ -109,7 +109,7 @@ func TestIntegrationApplyConfigVLANUnitAddressReconcile(t *testing.T) {
 		createDummyForTest(t, "parent0")
 
 		previous := &ifaceConfig{
-			Backend: "netlink",
+			Backend: "kernel",
 			Dummy: []ifaceEntry{{
 				Name: "parent0",
 				Units: []unitEntry{
@@ -125,7 +125,7 @@ func TestIntegrationApplyConfigVLANUnitAddressReconcile(t *testing.T) {
 		requireAddress(t, "parent0.200", "10.60.200.1/24")
 
 		current := &ifaceConfig{
-			Backend: "netlink",
+			Backend: "kernel",
 			Dummy: []ifaceEntry{{
 				Name: "parent0",
 				Units: []unitEntry{

@@ -22,8 +22,8 @@ import (
 	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
-// maxNetlinkInt is the largest value this build can carry in one of the netlink
-// bindings' int-typed route fields (netlink.Route.Table, .Priority). On a
+// maxNetlinkInt is the largest value this build can carry in one of the
+// netlink library int-typed route fields (netlink.Route.Table, .Priority). On a
 // 32-bit build a uint32 above MaxInt32 turns negative there and the encoder
 // drops the attribute silently; the bound turns that into an error. On the
 // 64-bit targets Ze ships it is above every uint32 and never bites.
@@ -65,8 +65,8 @@ func (n *netlinkBackend) replaceRichRoute(r RichRoute) error {
 }
 
 // routeHasSEG6Encap reports whether route or any of its multipath members
-// carries a Linux seg6 lwtunnel encapsulation. Checking the built netlink
-// route ensures routes that dropped Encap (such as discard routes) are never
+// carries a Linux seg6 lwtunnel encapsulation. Checking the built
+// netlink route ensures routes that dropped Encap (such as discard routes) are never
 // misclassified as SEG6 installs.
 func routeHasSEG6Encap(route *netlink.Route) bool {
 	if route == nil {
@@ -127,7 +127,7 @@ func needsLabelSpace(r RichRoute) bool {
 	return false
 }
 
-// buildRichRoute translates a RichRoute into the netlink form.
+// buildRichRoute translates a RichRoute into the netlink route form.
 //
 // Metric and TableID are bounded before conversion because netlink.Route
 // carries both in a Go int and the encoder emits RTA_PRIORITY / RTA_TABLE only
@@ -144,7 +144,7 @@ func buildRichRoute(r RichRoute) (*netlink.Route, error) {
 		return nil, fmt.Errorf("table %d exceeds %d, the largest this build can program through netlink", r.TableID, maxNetlinkInt)
 	}
 	if uint64(r.PathMTU) > maxNetlinkInt {
-		return nil, fmt.Errorf("path MTU %d exceeds the netlink integer range", r.PathMTU)
+		return nil, fmt.Errorf("path MTU %d exceeds the netlink attribute integer range", r.PathMTU)
 	}
 
 	_, cidr, err := net.ParseCIDR(r.Prefix.String())

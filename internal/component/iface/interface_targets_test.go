@@ -24,7 +24,7 @@ func TestBridgeMemberVLANUnitFollowsItsParentsSelector(t *testing.T) {
 	b := selectorBackend()
 	b.ifaces["wan.100"] = fakeIface{name: "wan.100", linkType: "device", index: 9, mtu: 1500, state: "down"}
 	cfg := &ifaceConfig{
-		Backend:  "netlink",
+		Backend:  "kernel",
 		Ethernet: []ifaceEntry{{Name: "wan", MatchMAC: selectedPermMAC, Units: []unitEntry{{Label: "100", VLANID: 100}}}},
 		Bridge:   []bridgeEntry{{Name: "br0", Members: []string{"wan.100"}}},
 	}
@@ -49,7 +49,7 @@ func TestBridgeMemberVLANUnitFollowsItsParentsSelector(t *testing.T) {
 func TestBridgeMemberVLANUnitWaitsForTheVLAN(t *testing.T) {
 	b := &fakeBackend{ifaces: map[string]fakeIface{}}
 	cfg := &ifaceConfig{
-		Backend: "netlink",
+		Backend: "kernel",
 		Dummy:   []ifaceEntry{{Name: "d0", Units: []unitEntry{{Label: "100", VLANID: 100}}}},
 		Bridge:  []bridgeEntry{{Name: "br0", Members: []string{"d0.100"}}},
 	}
@@ -65,7 +65,7 @@ func TestBridgeMemberVLANUnitWaitsForTheVLAN(t *testing.T) {
 // "wan", bound to hardware by MAC.
 func selectedTunnelConfig() *ifaceConfig {
 	return &ifaceConfig{
-		Backend:  "netlink",
+		Backend:  "kernel",
 		Ethernet: []ifaceEntry{{Name: "wan", MatchMAC: selectedPermMAC}},
 		Tunnel: []tunnelEntry{{
 			Name: "gre0",

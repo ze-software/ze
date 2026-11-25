@@ -42,6 +42,13 @@ The 2026-10-22 portfolio split changes planning ownership only. Status, existing
 
 Work assigned to `plan/release/fixes/spec-firewall-dynamic-set-config-fidelity.md` is not performed or closed by this spec. Implementation uses the original design constraints and evidence below only for this spec's owned behavior.
 
+## Existing Mechanisms
+
+| Mechanism | Where (file + symbol, or page + section) | What it does today | This spec (extends, replaces, or does not apply, with the reason) |
+|-----------|------------------------------------------|--------------------|------------------------------------------------------------------|
+| Firewall rule action model and nftables lowering | `internal/component/firewall/model.go`, `internal/plugins/firewall/nft/lower_linux.go` (`lowerAction`) | Models rule actions and lowers each `firewall.Action` case into nftables rule expressions | Extends: adds a new add-to-group `Action` case in `lowerAction` that emits `expr.Dynset` for source or destination addresses |
+| Firewall named-set schema and kernel apply | `internal/component/firewall/yang/ze-firewall-conf.yang` (`list set`), `internal/plugins/firewall/nft/backend_linux.go` (`applySet`) | Declares named sets with `flags-dynamic`/`flags-timeout` containers and applies kernel `nftables.Set` definitions | Extends: validates dynamic/family compatibility against existing named sets (shared flag lowering fidelity is owned separately by `plan/release/fixes/spec-firewall-dynamic-set-config-fidelity.md`) |
+
 ## Historical Combined Specification
 
 The complete pre-split body follows, with headings nested one level. It preserves the former mixed Task, criteria, phases, decisions and evidence. It does not override the active ownership above.
@@ -74,7 +81,7 @@ target set actually holds runtime entries with expiry.
 
 #### Architecture Docs
 - [ ] `docs/architecture/core-design.md` - the canonical architecture reference: the design principles all new code follows
-- [ ] `ai/rules/plugins.md` - firewall lowering is self-contained in the nft backend.
+- [ ] `ai/rules/plugins.md` - firewall lowering is self-contained in the kernel backend.
   → Constraint: the new action registers as another `firewall.Action` case in `lowerAction`; no core change.
 - [ ] `ai/rules/config.md`, `ai/rules/config.md` - the new rule-action leaf.
   → Constraint: the action names an existing `set`; validation must reject an unknown target set.
@@ -117,7 +124,7 @@ target set actually holds runtime entries with expiry.
 | Boundary | How | Verified |
 |----------|-----|----------|
 | Config ↔ firewall model | new action → `firewall.Action` with set + selector | [ ] |
-| Model ↔ nft backend | `lowerAction` emits `expr.Dynset` | [ ] |
+| Model ↔ kernel backend | `lowerAction` emits `expr.Dynset` | [ ] |
 | Backend ↔ kernel | `applySet` sets `Dynamic`/`HasTimeout` on `nftables.Set` | [ ] |
 
 #### Integration Points
@@ -129,7 +136,7 @@ target set actually holds runtime entries with expiry.
 - `internal/plugins/firewall/nft/backend_linux.go` - wire `Dynamic`/`HasTimeout`/`Constant` in `applySet`.
 
 #### Architectural Verification
-- [ ] No bypassed layers (runtime insertion goes through the nft backend like every other action)
+- [ ] No bypassed layers (runtime insertion goes through the kernel backend like every other action)
 - [ ] No unintended coupling (the action names a set by string; no cross-package pointer)
 - [ ] No duplicated functionality (reuse the existing set model and matching)
 - [ ] Registration over hardcoding - the new action is another `firewall.Action` case in `lowerAction`; no per-feature field added to a core/shared package.

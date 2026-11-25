@@ -228,7 +228,7 @@ func TestSPDPolicyRefusesAMixedAddressFamilyPair(t *testing.T) {
 }
 
 // VALIDATES: an entry missing either mandatory prefix is refused.
-// PREVENTS: a nil prefix reaching the backend. netlink derives a selector family from
+// PREVENTS: a nil prefix reaching the backend. The netlink library derives a selector family from
 // the destination prefix, so a nil one installs a rule over the wildcard of a family
 // nobody chose.
 func TestSPDPolicyNeedsBothPrefixes(t *testing.T) {

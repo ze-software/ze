@@ -57,7 +57,7 @@ const (
 func vrrpZeOwnerConfig(names vrrpNames, passwordHash string) []byte {
 	var tb textbuf.Buffer
 	return tb.Str("interface {\n").
-		Str("    backend netlink;\n").
+		Str("    backend kernel;\n").
 		Str("    ethernet ").Str(names.zeVeth).Str(" {\n").
 		Str("        unit 0 {\n").
 		Str("            ipv4 {\n").

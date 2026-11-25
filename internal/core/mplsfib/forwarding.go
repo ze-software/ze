@@ -4,7 +4,7 @@
 // `show mpls forwarding` answers from the data plane the config selects, not
 // from the kernel alone. The code that owns a data plane's table registers
 // its reader here, under the name `interface { backend }` gives that data
-// plane ("netlink", "vpp"), which is also the name its writer declares in
+// plane ("kernel", "vpp"), which is also the name its writer declares in
 // Registration.DataPlane. The command looks the reader up by that name, so it
 // names no FIB plugin and no backend, and a data plane added later needs no
 // edit to the command.
@@ -18,6 +18,8 @@ package mplsfib
 
 import (
 	"errors"
+	"maps"
+	"slices"
 	"sync"
 )
 
@@ -86,6 +88,14 @@ func ForwardingReaderFor(dataPlane string) (ForwardingReader, bool) {
 	defer forwardingMu.RUnlock()
 	reader, ok := forwardingReaders[dataPlane]
 	return reader, ok
+}
+
+// ForwardingReaderNames returns the sorted data-plane names that currently
+// have a registered MPLS forwarding reader. Safe for concurrent use.
+func ForwardingReaderNames() []string {
+	forwardingMu.RLock()
+	defer forwardingMu.RUnlock()
+	return slices.Sorted(maps.Keys(forwardingReaders))
 }
 
 // LabelOperation names what a swap or pop entry does with its in-label, from

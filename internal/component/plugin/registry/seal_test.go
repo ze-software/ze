@@ -126,6 +126,24 @@ func sealedCalls() map[string]sealedCall {
 			unchanged:    func() bool { return !slices.Contains(Lookup("seal-reader").ConfigReads, "seal-root") },
 			returnsError: true,
 		},
+		"RegisterDataPlaneFeature": {
+			call: func() error {
+				return RegisterDataPlaneFeature(DataPlaneFeature{
+					Name:       "seal-reader",
+					ConfigPath: "seal-root",
+					Why:        "seal test feature",
+					Planes:     []string{"kernel"},
+					InUseKind:  DataPlaneInUsePredicate,
+					InUse:      func(map[string]any) DataPlaneFeatureUse { return DataPlaneFeatureUse{} },
+				})
+			},
+			unchanged: func() bool {
+				return !slices.ContainsFunc(StandaloneDataPlaneFeatures(), func(f DataPlaneFeature) bool {
+					return f.Name == "seal-reader" && f.ConfigPath == "seal-root"
+				})
+			},
+			returnsError: true,
+		},
 		"RegisterBuiltinFamilies": {
 			call:      noError(func() { RegisterBuiltinFamilies("seal-source", []string{"ipv4/seal-builtin"}) }),
 			unchanged: func() bool { _, found := AllFamilies()["ipv4/seal-builtin"]; return !found },

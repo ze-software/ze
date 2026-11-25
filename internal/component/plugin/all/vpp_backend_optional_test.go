@@ -18,7 +18,7 @@ import (
 // when their backend leaf carries vpp. With vpp selected on its own account
 // (a `vpp {}` root) and the default backend, each owner is still ordered
 // after vpp, which keeps the order firewall's former StartAfter gave.
-// PREVENTS: traffic pulling vpp for every tc config, as its bare optional
+// PREVENTS: traffic pulling vpp for every kernel config, as its bare optional
 // edge did, and a backend need that never pulls vpp for a config selecting it.
 // METHOD: config.ConfigNeedHolds over the lowered tree each case describes,
 // handed to registry.ResolveDependencies exactly as config.ExpandDependencies
@@ -33,9 +33,9 @@ func TestVPPBackendNeedPullsVPPOnlyWhenSelected(t *testing.T) {
 		containers []string
 		defaultsTo string
 	}{
-		{owner: "traffic", containers: []string{"traffic", "control"}, defaultsTo: "tc"},
-		{owner: "interface", containers: []string{"interface"}, defaultsTo: "netlink"},
-		{owner: "firewall", containers: []string{"firewall"}, defaultsTo: "nft"},
+		{owner: "traffic", containers: []string{"traffic", "control"}, defaultsTo: "kernel"},
+		{owner: "interface", containers: []string{"interface"}, defaultsTo: "kernel"},
+		{owner: "firewall", containers: []string{"firewall"}, defaultsTo: "kernel"},
 	}
 	for _, o := range owners {
 		t.Run(o.owner, func(t *testing.T) {

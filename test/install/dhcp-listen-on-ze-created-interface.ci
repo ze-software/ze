@@ -22,7 +22,7 @@ option=timeout:value=30s
 
 stdin=ze-dhcp:terminator=EOF_CONF
 interface {
-    backend netlink
+    backend kernel
     dummy zedhcpord0 {
         unit 0 {
             ipv4 {

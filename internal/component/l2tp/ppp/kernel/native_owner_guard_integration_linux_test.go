@@ -586,7 +586,7 @@ func nativeOwnerSend(socket int, request *nl.NetlinkRequest) error {
 		}
 		address, ok := from.(*unix.SockaddrNetlink)
 		if !ok {
-			return errors.New("native guard ACK sender is not netlink")
+			return errors.New("native guard ACK sender is not a netlink socket")
 		}
 		if address.Pid != 0 {
 			return fmt.Errorf("native guard ACK sender pid=%d, want kernel", address.Pid)

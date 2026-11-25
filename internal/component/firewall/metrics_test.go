@@ -185,7 +185,7 @@ func (p *panicBackend) Close() error                                { return nil
 // bucket at least as large as firewall.MaxBackendDeadline.
 //
 // PREVENTS: a max-deadline timeout landing in +Inf. The three places that must
-// agree (this bucket list, the nft clamp, the vpp clamp) were three independent
+// agree (this bucket list, the kernel clamp, the vpp clamp) were three independent
 // literals; raising a backend clamp alone then made every timeout at the new
 // ceiling indistinguishable from any other overrun, with no test to notice.
 // Asserting on the REGISTERED buckets rather than on the package variable is

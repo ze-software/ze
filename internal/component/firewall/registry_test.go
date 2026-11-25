@@ -24,7 +24,7 @@ func TestApplyAllAutoLoadsDefaultBackend(t *testing.T) {
 	loaded := 0
 	applied := 0
 	var lastApplied []Table
-	if err := RegisterBackend("auto-nft", func() (Backend, error) {
+	if err := RegisterBackend("auto-kernel", func() (Backend, error) {
 		loaded++
 		return &countingBackend{onApply: func(d []Table) { applied++; lastApplied = d }}, nil
 	}); err != nil {
@@ -33,7 +33,7 @@ func TestApplyAllAutoLoadsDefaultBackend(t *testing.T) {
 
 	// Simulate the Linux OS default without depending on the host platform.
 	prev := defaultBackendForAutoload
-	defaultBackendForAutoload = "auto-nft"
+	defaultBackendForAutoload = "auto-kernel"
 	t.Cleanup(func() { defaultBackendForAutoload = prev })
 
 	// A plugin registers a table; no firewall {} section ever ran LoadBackend.
@@ -75,7 +75,7 @@ func TestApplyAllNoBackendNoTablesIsNoOp(t *testing.T) {
 	})
 
 	prev := defaultBackendForAutoload
-	defaultBackendForAutoload = "auto-nft" // registered? no -- must not be reached
+	defaultBackendForAutoload = "auto-kernel" // registered? no -- must not be reached
 	t.Cleanup(func() { defaultBackendForAutoload = prev })
 
 	if err := ApplyAll(); err != nil {
@@ -89,7 +89,7 @@ func TestApplyAllNoBackendNoTablesIsNoOp(t *testing.T) {
 // VALIDATES: when tables are pending, no backend is loaded, and there is no OS
 // default (non-Linux), ApplyAll still surfaces errFirewallBackendNotLoaded
 // rather than silently dropping the tables.
-// PREVENTS: masking a genuinely missing backend on platforms without nft.
+// PREVENTS: masking a genuinely missing backend on platforms without nftables.
 func TestApplyAllNoDefaultKeepsNotLoadedError(t *testing.T) {
 	resetBackends()
 	resetTables()
@@ -221,13 +221,13 @@ func TestApplyAllWaitsForAProvidedSet(t *testing.T) {
 
 	applies := 0
 	var lastApplied []Table
-	if err := RegisterBackend("provided-set-nft", func() (Backend, error) {
+	if err := RegisterBackend("provided-set-kernel", func() (Backend, error) {
 		return &countingBackend{onApply: func(d []Table) { applies++; lastApplied = d }}, nil
 	}); err != nil {
 		t.Fatalf("RegisterBackend: %v", err)
 	}
 	prev := defaultBackendForAutoload
-	defaultBackendForAutoload = "provided-set-nft"
+	defaultBackendForAutoload = "provided-set-kernel"
 	t.Cleanup(func() { defaultBackendForAutoload = prev })
 
 	_ = RegisterTables("firewall", []Table{{
@@ -296,13 +296,13 @@ func TestApplyAllDoesNotWaitForADeclaredSet(t *testing.T) {
 	})
 
 	applies := 0
-	if err := RegisterBackend("declared-set-nft", func() (Backend, error) {
+	if err := RegisterBackend("declared-set-kernel", func() (Backend, error) {
 		return &countingBackend{onApply: func([]Table) { applies++ }}, nil
 	}); err != nil {
 		t.Fatalf("RegisterBackend: %v", err)
 	}
 	prev := defaultBackendForAutoload
-	defaultBackendForAutoload = "declared-set-nft"
+	defaultBackendForAutoload = "declared-set-kernel"
 	t.Cleanup(func() { defaultBackendForAutoload = prev })
 
 	_ = RegisterTables("firewall", []Table{{
@@ -521,7 +521,7 @@ func TestApplyAllNoBackendLeavesTheSnapshot(t *testing.T) {
 
 // VALIDATES: a table name that carries no ownership prefix is refused at
 // registration, so it never reaches a backend and never reaches the kernel.
-// PREVENTS: the FlowSpec defect returning under another owner's name. The nft
+// PREVENTS: the FlowSpec defect returning under another owner's name. The kernel
 // backend decides which kernel tables ze owns by the prefix, so a table
 // registered without it was never swept: a withdraw left it installed and every
 // reconcile appended a second copy of each rule.

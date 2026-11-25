@@ -10,7 +10,7 @@
 #           and wondering why matching traffic is never classified.
 stdin=config:terminator=EOF_CONF
 firewall {
-	backend nft;
+	backend kernel;
 	table v6 {
 		family ip6;
 		chain input {

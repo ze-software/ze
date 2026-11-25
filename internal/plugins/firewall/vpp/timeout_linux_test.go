@@ -17,7 +17,7 @@ import (
 )
 
 // TestVppReplyTimeoutBounds covers the boundary table for the VPP reply
-// deadline: range 1..60s, default 10s, mirroring the nft backend.
+// deadline: range 1..60s, default 10s, mirroring the kernel firewall backend.
 //
 // VALIDATES: fixit-firewall-concurrency-deadlock D-2 for the second backend --
 // the deadline is always bounded and cannot be configured away.
@@ -106,9 +106,9 @@ func TestNewGovppOpsBindsReplyTimeout(t *testing.T) {
 //
 // VALIDATES: a vpp reconcile that fails because VPP did not answer surfaces
 // firewall.ErrKernelTimeout, so ze_firewall_apply_timeout_total counts it and
-// ddos-local skips its rollback reconcile, exactly as under nft.
+// ddos-local skips its rollback reconcile, exactly as under kernel.
 //
-// PREVENTS: the honesty gap where the counter could only ever move under nft.
+// PREVENTS: the honesty gap where the counter could only ever move under kernel.
 // Before this, a wedged VPP filled the latency histogram and left the timeout
 // counter at 0, which an operator reads as "no timeouts" rather than "not
 // instrumented".

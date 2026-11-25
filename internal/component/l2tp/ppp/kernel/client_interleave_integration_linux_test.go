@@ -25,7 +25,7 @@ import (
 func clientNativeInterleaveInputs(t *testing.T, name string, sid uint16) (*ClientSession,
 	*CreatedUnit, *CreatedChannel, *UnitCreator, netlink.Link) {
 	t.Helper()
-	backend, err := iface.OpenBackend("netlink")
+	backend, err := iface.OpenBackend("kernel")
 	if err != nil {
 		t.Fatal(err)
 	}

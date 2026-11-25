@@ -26,7 +26,7 @@ option=skip-os:value=darwin
 
 stdin=absent:terminator=EOF_ABSENT
 interface {
-    backend netlink;
+    backend kernel;
     ethernet eth0 {
         unit 0 {
             ipv4 {
@@ -44,7 +44,7 @@ EOF_ABSENT
 
 stdin=empty:terminator=EOF_EMPTY
 interface {
-    backend netlink;
+    backend kernel;
     ethernet eth0 {
         unit 0 {
             ipv4 {

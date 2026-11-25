@@ -33,7 +33,7 @@ func TestVPPVerifierRefusesLocalDestination(t *testing.T) {
 	if err == nil {
 		t.Fatal("a term with destination-local was accepted by the vpp verifier")
 	}
-	for _, want := range []string{"destination-local", "backend vpp", "use backend nft"} {
+	for _, want := range []string{"destination-local", "backend vpp", "use backend kernel"} {
 		if !strings.Contains(err.Error(), want) {
 			t.Errorf("refusal %q does not say %q", err.Error(), want)
 		}

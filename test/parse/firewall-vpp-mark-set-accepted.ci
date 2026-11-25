@@ -1,0 +1,44 @@
+# Test: firewall backend vpp accepts mark-set in a filter chain.
+# Question: does `ze config validate` accept `mark-set` in a filter chain
+#           under `interface backend vpp` and `firewall backend vpp` now that
+#           its `ze:backend` annotation has been removed and `firewallvpp.Verify`
+#           permits `SetMark` within classify constraints?
+#           A unit test cannot prove both the YANG schema walk and the VPP
+#           firewall verifier accept `mark-set` end to end in `ze config validate`.
+# VALIDATES: spec-dataplane-compatibility-guard AC-17 (C-2b) -- `mark-set` in
+#            a filter chain validates on VPP.
+# PREVENTS: restoring a `ze:backend "kernel"` annotation on `mark-set` that
+#           blocks VPP classify marking.
+stdin=config:terminator=EOF_CONF
+interface {
+	backend vpp;
+}
+firewall {
+	backend vpp;
+	table wan {
+		family inet;
+		chain input {
+			type filter;
+			hook input;
+			priority 0;
+			policy accept;
+			term mark-http {
+				from {
+					protocol tcp;
+					destination-port 80;
+				}
+				then {
+					mark-set {
+						value 1;
+					}
+					accept;
+				}
+			}
+		}
+	}
+}
+EOF_CONF
+
+cmd=foreground:seq=1:exec=ze config validate -:stdin=config
+expect=exit:code=0
+expect=stdout:contains=configuration valid

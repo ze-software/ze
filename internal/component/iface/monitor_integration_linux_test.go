@@ -85,7 +85,7 @@ func TestIntegrationMonitorLinkCreated(t *testing.T) {
 		bus := &collectingBus{}
 		startTestMonitor(t, bus)
 
-		// Give the monitor time to subscribe to netlink.
+		// Give the monitor time to subscribe to the netlink socket.
 		time.Sleep(200 * time.Millisecond)
 
 		createDummyForTest(t, "test0")

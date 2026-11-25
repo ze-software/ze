@@ -1,0 +1,71 @@
+# Test: matched VPP backends and unused defaults validate under interface backend vpp.
+# Question: does `ze config validate` accept a matched VPP configuration
+#           (`interface backend vpp`, `firewall backend vpp`, `traffic control
+#           backend vpp`, `fib vpp`) AND a VPP configuration with no firewall,
+#           traffic, or producer blocks (unused defaults)?
+#           A unit test cannot prove the real `ze config validate` binary
+#           accepts both VPP survivor shapes across all registered selectors.
+# VALIDATES: spec-dataplane-compatibility-guard AC-1, AC-3, AC-4 survivors --
+#            matched `vpp` selectors validate, and unused secondary defaults
+#            (`firewall`, `traffic control`) select nothing and are not refused.
+# PREVENTS: the data-plane guard falsely rejecting valid VPP configurations or
+#           treating absent secondary blocks as kernel mismatches.
+stdin=matched:terminator=EOF_MATCHED
+interface {
+	backend vpp;
+}
+firewall {
+	backend vpp;
+	table wan {
+		family inet;
+		chain input {
+			type filter;
+			hook input;
+			priority 0;
+			policy drop;
+			term allow-ssh {
+				from {
+					protocol tcp;
+					destination-port 22;
+				}
+				then {
+					accept;
+				}
+			}
+		}
+	}
+}
+traffic {
+	control {
+		backend vpp;
+		interface eth0 {
+			qdisc {
+				type htb;
+				class control {
+					rate 10mbit;
+					ceil 100mbit;
+				}
+			}
+		}
+	}
+}
+fib {
+	vpp {
+		enabled true;
+	}
+}
+EOF_MATCHED
+
+stdin=unused-defaults:terminator=EOF_UNUSED
+interface {
+	backend vpp;
+}
+EOF_UNUSED
+
+cmd=foreground:seq=1:exec=ze config validate -:stdin=matched
+expect=exit:code=0
+expect=stdout:contains=configuration valid
+
+cmd=foreground:seq=2:exec=ze config validate -:stdin=unused-defaults
+expect=exit:code=0
+expect=stdout:contains=configuration valid

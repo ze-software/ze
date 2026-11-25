@@ -2,15 +2,15 @@
 // Overview: ifacevpp.go -- vppBackendImpl, mirrors tracking map
 //
 // VPP SPAN (Switched Port ANalyzer) is programmed via
-// sw_interface_span_enable_disable. The netlink backend (mirror_linux.go)
+// sw_interface_span_enable_disable. The kernel backend (mirror_linux.go)
 // mirrors via tc mirred on the source device; the VPP half maps the same
 // (src, dst, ingress, egress) Backend.SetupMirror signature onto SPAN's
 // (from, to, state, is_l2) fields.
 //
 // A-6 mapping: ingress -> RX, egress -> TX, both -> RX_TX; is_l2 is false
-// (device SPAN) to match netlink's device-level port mirror. VPP additionally
+// (device SPAN) to match the kernel backend's device-level port mirror. VPP additionally
 // supports L2 bridge-domain SPAN (is_l2=true); that variant is intentionally
-// not exposed here because the netlink parity target is a device port mirror.
+// not exposed here because the kernel parity target is a device port mirror.
 
 package ifacevpp
 
@@ -27,7 +27,7 @@ import (
 )
 
 // SetupMirror programs a VPP SPAN entry copying traffic from srcIface to
-// dstIface. At least one of ingress/egress must be set (matching the netlink
+// dstIface. At least one of ingress/egress must be set (matching the kernel
 // backend's errIfaceMirrorAtLeastOneOf). The installed (dst, is_l2) entry is
 // recorded so RemoveMirror can disable it.
 func (b *vppBackendImpl) SetupMirror(srcIface, dstIface string, ingress, egress bool) error {
@@ -42,7 +42,7 @@ func (b *vppBackendImpl) SetupMirror(srcIface, dstIface string, ingress, egress 
 	if err != nil {
 		return fmt.Errorf("ifacevpp: mirror dst %q: %w", dstIface, err)
 	}
-	const isL2 = false // device SPAN: netlink parity (A-6)
+	const isL2 = false // device SPAN: kernel parity (A-6)
 	if err := b.spanEnableDisable(fromIdx, toIdx, spanState(ingress, egress), isL2); err != nil {
 		return fmt.Errorf("ifacevpp: SetupMirror %q->%q: %w", srcIface, dstIface, err)
 	}
@@ -51,7 +51,7 @@ func (b *vppBackendImpl) SetupMirror(srcIface, dstIface string, ingress, egress 
 }
 
 // RemoveMirror disables every SPAN entry recorded for srcIface. It is
-// idempotent: with no recorded entry it is a no-op, matching the netlink
+// idempotent: with no recorded entry it is a no-op, matching the kernel
 // backend's tolerance of an already-absent qdisc.
 //
 // Every recorded destination is attempted, and the failures are joined. One

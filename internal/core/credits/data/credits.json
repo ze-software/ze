@@ -1,6 +1,6 @@
 {
   "generated-by": "./le deps credits update",
-  "declaration-sha256": "8807f58d477193a7c734cc572b3adbbe5872511e581c09bdf479ef932fb36997",
+  "declaration-sha256": "a9dd81204684295677d478c1f7c757f1a7604421c9fc52be33df4cf35a25d0d3",
   "groups": [
     "Terminal, Web & SSH Interfaces",
     "Networking & Protocols",
@@ -1530,7 +1530,7 @@
       "group": "Linux Kernel Interfaces",
       "licence": "Apache-2.0",
       "copyright": "Vishvananda Ishaya, Docker, Inc.",
-      "why": "Linux network-namespace handles, used alongside netlink for namespace-scoped route watching.",
+      "why": "Linux network-namespace handles, used alongside netlink sockets for namespace-scoped route watching.",
       "source": "https://github.com/vishvananda/netns",
       "files": [
         {
@@ -1770,7 +1770,7 @@
       "group": "Networking & Protocols",
       "licence": "MIT",
       "copyright": "Matt Layher",
-      "why": "Creates and configures WireGuard interfaces and peers from the interface netlink backend.",
+      "why": "Creates and configures WireGuard interfaces and peers from the interface kernel backend.",
       "source": "https://github.com/WireGuard/wgctrl-go",
       "files": [
         {

@@ -773,7 +773,7 @@ the latest image installed.
 - An **isolated** provisioning network: no second DHCP server on the L2
   segment, or a foreign lease can leave the target with no route to `ze.server`
 - Root privileges (DHCP, TFTP, and HTTP bind to privileged ports;
-  interface auto-configuration uses netlink)
+  interface auto-configuration uses netlink sockets)
 - Disk image at the path specified by `--image`
 - Installer kernel and initrd: pass `--kernel` and `--initrd` on first run,
   or pre-stage files in `build/pxe/boot/`
@@ -817,7 +817,7 @@ after the first boot imports it into `/perm/ze/database/`.
   by the initrd.
 - Bootstrap mode is only intended for trusted/provisioning networks.
   SSH is enabled on all interfaces.
-- If no ethernet interfaces are found (or the netlink backend is not
+- If no ethernet interfaces are found (or the kernel backend is not
   available), bootstrap mode does not activate and ze falls through to
   the next startup path (error; use `--web-only` for standalone web UI).
 
@@ -976,7 +976,7 @@ shell nor strand an unattended box at a prompt nobody can answer.
 ### Running Tests
 
 The installer logic has Go unit tests alongside each source file in
-`internal/install/disk` (cmdline parsing, disk detection, the netlink lease
+`internal/install/disk` (cmdline parsing, disk detection, the netlink address lease
 apply, the stall-timeout download, the partition-node wait, and the recovery
 console / fatal policy):
 

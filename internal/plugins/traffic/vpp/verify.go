@@ -24,27 +24,27 @@ var (
 	errFilterMarkNotSupportedByBackend = errors.New("filter mark: not supported by backend vpp (Linux SKB fwmark has no faithful VPP equivalent; classify SET_METADATA stores opaque graph-node metadata, not a persistent packet mark -- validated on VPP v25.10, see plan/spec-followup-vpp-traffic.md AC-3)")
 	// errQdiscPrioNotSupportedByBackend names AC-4's rejection-retained
 	// resolution (USER decision 2026-07-10): `qdisc prio` is a priority
-	// SCHEDULER in netlink, but VPP exposes no prio scheduler API -- only
+	// SCHEDULER in the kernel backend, but VPP exposes no prio scheduler API -- only
 	// classify + policer shaping. Mapping prio to a DSCP egress-map would be a
 	// silent semantic substitution that exact-or-reject forbids, so prio stays
 	// rejected with this actionable error. Rationale:
 	// docs/architecture/traffic/followup-vpp-traffic.md (AC-4).
 	// errIngressPolicerNotSupportedByBackend names the ingress half of the QoS
-	// model. The tc backend polices ingress with a matchall+police filter on the
+	// model. The kernel backend polices ingress with a matchall+police filter on the
 	// clsact hook; VPP's equivalent is a policer on the interface's input
 	// feature arc, which this backend does not build: it binds policers to the
 	// egress output arc and to the ingress policer-classify pipeline for
 	// FILTERED classes only. Accepting the field and programming the egress
 	// half alone would leave the upload rate stored, shown and unenforced,
 	// which is the exact defect spec-l2tp-shaper-upload-rate-is-not-enforced
-	// closed on the tc side. Rejecting is the exact-or-reject posture the rest of
+	// closed on the kernel side. Rejecting is the exact-or-reject posture the rest of
 	// file takes.
 	errIngressPolicerNotSupportedByBackend = errors.New("ingress policer: not supported by backend vpp (tc polices ingress with a clsact matchall+police filter; the vpp backend binds policers to the egress output arc and to the ingress classify pipeline for filtered classes only, so an interface-wide upload rate has no faithful translation here)")
 	errQdiscPrioNotSupportedByBackend      = errors.New("qdisc prio: not supported by backend vpp (prio is a priority scheduler; VPP has no prio scheduler API, only classify+policer shaping -- use htb/tbf with per-class protocol/dscp filters instead, see plan/spec-followup-vpp-traffic.md AC-4)")
 )
 
 // maxProtocol is the largest IP protocol / IPv6 next-header value that fits in
-// the single classify byte the protocol filter matches (matches the netlink
+// the single classify byte the protocol filter matches (matches the kernel
 // backend's bound).
 const maxProtocol = 255
 
@@ -75,7 +75,7 @@ const nameSeparator = "/"
 // A multi-class config with an unfiltered class is rejected because that
 // class would fall back to the egress policer-output arc and stack IN
 // SERIES with the others (effective rate = min(rates)), diverging
-// silently from the netlink per-class shaping.
+// silently from the kernel per-class shaping.
 //
 // Protocol and dscp filters are ACCEPTED (they steer matching traffic to
 // the class policer via the classify pipeline). Mark filters and the prio
@@ -132,7 +132,7 @@ func verifyInterface(ifaceName string, iqos traffic.InterfaceQoS) error {
 	// class may be unfiltered (bound to egress policer-output) -- that is the
 	// interface-wide rate limit. But two unfiltered classes would both bind to
 	// the egress output arc and stack IN SERIES (effective rate = min(rates)),
-	// diverging silently from the netlink per-class shaping. With a steering
+	// diverging silently from the kernel per-class shaping. With a steering
 	// filter each class steers its own traffic to its own policer via the
 	// ingress classify pipeline, so per-class shaping is faithful.
 	if len(classes) > 1 {
@@ -143,7 +143,7 @@ func verifyInterface(ifaceName string, iqos traffic.InterfaceQoS) error {
 			}
 		}
 	}
-	// DefaultClass (if set) must name a configured class. Netlink honors
+	// DefaultClass (if set) must name a configured class. The kernel backend honors
 	// DefaultClass as a routing hint; silently ignoring a dangling reference
 	// under vpp would diverge from that behavior.
 	if iqos.Qdisc.DefaultClass != "" && !classNamePresent(classes, iqos.Qdisc.DefaultClass) {

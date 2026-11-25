@@ -1,0 +1,30 @@
+# Test: control-plane-protection (copp) under firewall backend vpp is refused at validate/commit.
+# Question: does `ze config validate` refuse a `control-plane-protection` block
+#           under `interface backend vpp` and `firewall backend vpp` with the
+#           VPP firewall verifier's message through `firewall-producer-tables`?
+#           A unit test cannot prove `copp`'s registered table builder is
+#           invoked by `ValidateCustomSections` inside `ze config validate`.
+# VALIDATES: spec-dataplane-compatibility-guard AC-8 (copp) -- the
+#            `firewall-producer-tables` original-tree validator translates the
+#            `ze_copp` table and rejects its VPP-unsupported primitives at
+#            validate and commit time.
+# PREVENTS: a CoPP config passing commit under VPP and failing only during
+#           daemon startup when `ApplyAll` rejects `ze_copp`.
+stdin=config:terminator=EOF_CONF
+interface {
+	backend vpp;
+}
+firewall {
+	backend vpp;
+}
+control-plane-protection {
+	bgp {
+		rate 100/second;
+	}
+}
+EOF_CONF
+
+cmd=foreground:seq=1:exec=ze config validate -:stdin=config
+expect=exit:code=1
+expect=stdout:contains=ze_copp
+expect=stdout:contains=not supported by backend vpp

@@ -10,7 +10,7 @@ import (
 
 func TestWebTerminalSetPresenceFlagCommits(t *testing.T) {
 	const baseline = `bgp { router-id 10.0.0.9; session { asn local 65000; } }
-firewall { backend nft; table flags { family inet; chain input {
+firewall { backend kernel; table flags { family inet; chain input {
     type filter; hook input; priority 0; policy drop;
     term allow { from { protocol tcp; destination-port 179; } }
 } } }`

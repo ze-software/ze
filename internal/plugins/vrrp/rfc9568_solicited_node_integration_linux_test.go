@@ -50,7 +50,7 @@ import (
 // test then demotes the router: the registration and the membership go with it, and
 // since no reconcile ran, the group leaves the macvlan at once. A second
 // promotion plays the reconcile: the test adds the addresses through the
-// product's netlink backend, waits until the address is usable, and the host
+// product's kernel backend, waits until the address is usable, and the host
 // sends one multicast solicitation with no retry, whose answer MUST carry the
 // Virtual Router MAC. The kernel's own membership for an address it removes
 // is dropped later, on its own schedule, so the test never asserts on it.

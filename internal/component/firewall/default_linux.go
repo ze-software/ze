@@ -8,7 +8,7 @@ package firewall
 // `firewall/backend` leaf on Linux. nftables is the only backend that
 // implements Apply today; the backend leaf remains mandatory in the
 // YANG once more backends exist.
-const defaultBackendName = "nft"
+const defaultBackendName = "kernel"
 
 // DefaultBackendName exposes defaultBackendName so the offline
 // `ze config validate` CLI (cmd/ze/config) can surface the same

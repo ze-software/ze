@@ -47,7 +47,7 @@ allocation. This is ISP infrastructure for IPv4 address conservation (RFC 6888, 
 The feature must provide:
 1. CGNAT configuration under the firewall component (inside prefix, outside pool, ports-per-user, exclusions)
 2. VPP backend implementation using the already-vendored nat44_ed binapi (address ranges, interface features, session limits, identity mappings for exclusions)
-3. nftables backend implementation using nft NAT chains with address/port-range mapping
+3. Kernel (nftables) backend implementation using nftables NAT chains with address/port-range mapping
 4. NAT session visibility: CLI commands and web UI to show active NAT users, sessions, and port allocations
 5. NAT session logging: integration with the flowexport component for IPFIX/NetFlow NAT event export (RFC 8158 NAT logging)
 
@@ -119,8 +119,8 @@ basic SNAT/DNAT/masquerade wired. CGNAT extends this to carrier scale with alloc
 ### Transformation Path
 1. YANG config parsed into CGNAT model types (inside prefixes, outside pool, ports-per-user, exclusions, inside/outside interfaces)
 2. Verifier checks backend compatibility and parameter validity (pool size vs subscriber count vs ports-per-user)
-3. Backend Apply: VPP path calls nat44 enable, address range, interface features, session limits, identity mappings for exclusions; nft path creates NAT chains with address-mapped SNAT rules
-4. Session dump: CLI/web handler calls VPP Nat44UserDump + Nat44UserSessionV3Dump (VPP) or reads conntrack (nft) to enumerate active translations
+3. Backend Apply: VPP path calls nat44 enable, address range, interface features, session limits, identity mappings for exclusions; kernel path creates nftables NAT chains with address-mapped SNAT rules
+4. Session dump: CLI/web handler calls VPP Nat44UserDump + Nat44UserSessionV3Dump (VPP) or reads conntrack (kernel) to enumerate active translations
 5. Logging: NAT session create/delete events exported as IPFIX records using RFC 8158 information elements
 
 ### Boundaries Crossed
@@ -128,7 +128,7 @@ basic SNAT/DNAT/masquerade wired. CGNAT extends this to carrier scale with alloc
 |----------|-----|----------|
 | Config -> CGNAT model | YANG parse -> Go structs | [ ] |
 | CGNAT model -> VPP | vppOps interface calls | [ ] |
-| CGNAT model -> nftables | nft NAT chain lowering | [ ] |
+| CGNAT model -> nftables | nftables NAT chain lowering | [ ] |
 | VPP session table -> CLI | Nat44UserSessionV3Dump via govpp | [ ] |
 | NAT events -> flowexport | event feed into IPFIX encoder | [ ] |
 
@@ -151,7 +151,7 @@ basic SNAT/DNAT/masquerade wired. CGNAT extends this to carrier scale with alloc
 |-------------|---|--------------|------|
 | YANG cgnat config | -> | CGNAT model parse + verify | TestCGNATConfigParse |
 | firewall Apply with CGNAT | -> | VPP nat44 address range + interface + session limit | TestCGNATApplyVPP |
-| firewall Apply with CGNAT | -> | nft NAT chain generation | TestCGNATApplyNFT |
+| firewall Apply with CGNAT | -> | nftables NAT chain generation | TestCGNATApplyNFT |
 | CLI `show nat cgnat users` | -> | VPP Nat44UserDump via ops | TestCGNATShowUsers |
 | CLI `show nat cgnat sessions` | -> | VPP Nat44UserSessionV3Dump via ops | TestCGNATShowSessions |
 | NAT event feed | -> | flowexport IPFIX NAT event records | TestCGNATFlowExport |
@@ -162,10 +162,10 @@ basic SNAT/DNAT/masquerade wired. CGNAT extends this to carrier scale with alloc
 |-------|-------------------|-------------------|
 | AC-1 | YANG config with cgnat section (inside prefix 100.64.0.0/10, outside pool 203.0.113.0-203.0.113.15, ports-per-user 1024) | Config parses and verifies successfully; pool arithmetic validated (pool size * ports-per-user >= subscriber capacity) |
 | AC-2 | CGNAT config applied with VPP backend | VPP nat44 enabled, address range programmed, inside/outside interfaces marked, session limit set matching ports-per-user |
-| AC-3 | CGNAT config with exclusion list (e.g., 100.64.0.1/32 bypass NAT) | Excluded addresses programmed as identity mappings (VPP) or return rules (nft), traffic bypasses NAT |
+| AC-3 | CGNAT config with exclusion list (e.g., 100.64.0.1/32 bypass NAT) | Excluded addresses programmed as identity mappings (VPP) or return rules (kernel), traffic bypasses NAT |
 | AC-4 | CLI `show nat cgnat users` | Lists all inside addresses with active sessions, session count, static session count |
 | AC-5 | CLI `show nat cgnat sessions <inside-ip>` | Lists per-session detail: inside ip:port, outside ip:port, protocol, external host, bytes/packets, last heard, timed-out flag |
-| AC-6 | CGNAT config applied with nft backend | nftables NAT chain created with SNAT rules mapping inside prefix to outside pool |
+| AC-6 | CGNAT config applied with kernel backend | nftables NAT chain created with SNAT rules mapping inside prefix to outside pool |
 | AC-7 | NAT event logging enabled in config | NAT session create/delete events exported as IPFIX records with RFC 8158 information elements (natEvent, timestamps, addresses, ports) |
 | AC-8 | Pool exhaustion: more subscribers than port capacity | Config verify rejects with clear error message showing arithmetic (N subscribers * M ports > pool capacity) |
 | AC-9 | Show command when no CGNAT configured | Clean "CGNAT not configured" message, not an error |
@@ -193,7 +193,7 @@ path owes from the start.
 | TestCGNATShowUsers | `internal/plugins/firewall/vpp/cgnat_show_test.go` | fakeOps returns user list, formatted for CLI | |
 | TestCGNATShowSessions | `internal/plugins/firewall/vpp/cgnat_show_test.go` | fakeOps returns session list for a user, formatted for CLI | |
 | TestCGNATExclusion | `internal/plugins/firewall/vpp/cgnat_test.go` | Identity mapping programmed for excluded addresses | |
-| TestCGNATApplyNFT | `internal/plugins/firewall/nft/cgnat_test.go` | Correct nft NAT chain generated | |
+| TestCGNATApplyNFT | `internal/plugins/firewall/nft/cgnat_test.go` | Correct nftables NAT chain generated | |
 
 ### Boundary Tests (MANDATORY for numeric inputs)
 | Field | Range | Last Valid | Invalid Below | Invalid Above |
@@ -209,7 +209,7 @@ path owes from the start.
 | cgnat-show-users | `test/plugin/cgnat-show-users.ci` | show nat cgnat users returns formatted table | |
 | cgnat-show-sessions | `test/plugin/cgnat-show-sessions.ci` | show nat cgnat sessions <ip> returns per-session detail | |
 | cgnat-exclusion | `test/plugin/cgnat-exclusion.ci` | Excluded address bypasses NAT | |
-| cgnat-nft-basic | `test/plugin/cgnat-nft-basic.ci` | Configure CGNAT with nft backend, verify NAT chain created | |
+| cgnat-kernel-basic | `test/plugin/cgnat-kernel-basic.ci` | Configure CGNAT with kernel backend, verify NAT chain created | |
 
 ### Interop Tests (MANDATORY for protocol features)
 N/A. CGNAT is a local dataplane feature, not a wire protocol. The IPFIX export is covered by existing flowexport interop infrastructure.
@@ -236,7 +236,7 @@ N/A. CGNAT is a local dataplane feature, not a wire protocol. The IPFIX export i
 | Functional test for new RPC/API | [x] | `test/plugin/cgnat-*.ci` |
 | Pipe completeness | [x] | show nat cgnat output routed through ApplyPipes |
 | Env var registration | [ ] | N/A unless environment/ leaves added |
-| Doctor check for runtime dependencies | [x] | VPP running check (already exists), nft availability (already exists) |
+| Doctor check for runtime dependencies | [x] | VPP running check (already exists), nftables availability (already exists) |
 | Prometheus counters/metrics | [x] | `ze_cgnat_active_users`, `ze_cgnat_active_sessions`, `ze_cgnat_pool_utilization` |
 
 ### Documentation Update Checklist (BLOCKING)
@@ -276,7 +276,7 @@ N/A. CGNAT is a local dataplane feature, not a wire protocol. The IPFIX export i
 - `test/plugin/cgnat-show-users.ci` - functional test
 - `test/plugin/cgnat-show-sessions.ci` - functional test
 - `test/plugin/cgnat-exclusion.ci` - functional test
-- `test/plugin/cgnat-nft-basic.ci` - functional test
+- `test/plugin/cgnat-kernel-basic.ci` - functional test
 - `docs/guide/cgnat.md` - user guide
 
 ## Implementation Steps
@@ -318,10 +318,10 @@ Each phase ends with a **Self-Critical Review**. Fix issues before proceeding.
    - Files: vpp/cgnat_show_linux.go, firewall/cmd/show_cgnat.go
    - Verify: fakeOps returns user/session data; CLI formatting matches expected output
 
-4. **Phase: nft Backend CGNAT** - Generate nft NAT chains for CGNAT config
+4. **Phase: Kernel Backend CGNAT** - Generate nftables NAT chains for CGNAT config
    - Tests: TestCGNATApplyNFT
    - Files: nft/cgnat_linux.go (or equivalent)
-   - Verify: correct nft NAT chain structure generated for inside-prefix to outside-pool mapping
+   - Verify: correct nftables NAT chain structure generated for inside-prefix to outside-pool mapping
 
 5. **Phase: NAT Event Logging (flowexport integration)** - Export NAT session events as IPFIX
    - Tests: TestCGNATFlowExport
@@ -346,7 +346,7 @@ Each phase ends with a **Self-Critical Review**. Fix issues before proceeding.
 | Naming | YANG leaves use kebab-case (inside-prefix, outside-pool, ports-per-user); Go types use CamelCase |
 | Data flow | Config -> model -> backend Apply; show -> ops dump -> format; no direct VPP calls outside ops seam |
 | CLI grammar | `show nat cgnat` follows action-before-identifier per cli.md |
-| Doctor checks | VPP running check covers CGNAT (existing); no new runtime deps beyond VPP/nft |
+| Doctor checks | VPP running check covers CGNAT (existing); no new runtime deps beyond VPP/nftables |
 | YANG validation | Every numeric leaf has range constraint; pool addresses validated as IPv4 |
 | Prometheus counters | cgnat_active_users, cgnat_active_sessions, cgnat_pool_utilization registered |
 | Rule: no-layering | No duplicate NAT config path; CGNAT extends existing firewall NAT, does not replace it |
@@ -413,7 +413,7 @@ Each phase ends with a **Self-Critical Review**. Fix issues before proceeding.
 - No deterministic (det44) port-block allocation: nat44_ed uses dynamic allocation; an operator cannot pre-compute which subscriber gets which port range. Session dump provides after-the-fact visibility instead.
 - IPv4 only: CGNAT is an IPv4 address conservation mechanism. NAT64 is a separate feature.
 - No per-subscriber QoS integration: port-block limits are enforced by VPP session limits, not by subscriber-aware traffic shaping.
-- nft backend CGNAT will have limited session visibility compared to VPP (relies on conntrack, not structured dump).
+- Kernel backend CGNAT will have limited session visibility compared to VPP (relies on conntrack, not structured dump).
 
 ## RFC Documentation
 

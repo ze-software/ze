@@ -63,21 +63,22 @@ func VerifyPluginConfig(tree *Tree) []error {
 	return verifyTree(nil, tree)
 }
 
-// verifyTree runs the dependency refusal over candidate, then the map door.
-// The refusal reads the tree rather than a lowered map because the producers
-// boot uses read the tree: ExtractPluginsFromTree for the `bus { }` block and
-// CollectContainerPaths for the roots that auto-load a plugin.
+// verifyTree runs the map door, merges the candidate's plugin selection once
+// (ExtractPluginsFromTree plus recorded command-line plugins via
+// candidatePluginSelection), and checks both unresolvable dependencies and
+// data-plane compatibility over that merged selection.
 //
-// An extraction failure is reported here, once, as a *PluginExtractionError,
-// and the dependency refusal is then not asked: the set of plugins boot would
-// start is unknown, so it cannot answer, and the extraction failure already
-// refuses the config, as LoadConfig refuses it. A failure ExtractPluginsFromTree
-// produced in the `bus { }` block carries no Section. Doors whose own check
-// of a section reports that section's failure skip the relayed copy by its
-// Section; every other door reports it from here.
+// An extraction or command-line plugin resolution failure is reported here,
+// once, as a *PluginExtractionError, and the dependency and data-plane checks
+// are then not asked: the set of plugins boot would start is unknown, so they
+// cannot answer, and the failure already refuses the config, as LoadConfig
+// refuses it. A failure ExtractPluginsFromTree produced in the `bus { }`
+// block carries no Section. Doors whose own check of a section reports that
+// section's failure skip the relayed copy by its Section; every other door
+// reports it from here.
 func verifyTree(previous map[string]any, candidate *Tree) []error {
 	errs := VerifyPluginConfigMapTransition(previous, candidate.ToPluginMap())
-	declared, err := ExtractPluginsFromTree(candidate)
+	selected, err := candidatePluginSelection(candidate, nil)
 	if err != nil {
 		var extractErr *PluginExtractionError
 		if !errors.As(err, &extractErr) {
@@ -85,7 +86,13 @@ func verifyTree(previous map[string]any, candidate *Tree) []error {
 		}
 		return append([]error{extractErr}, errs...)
 	}
-	if err := refuseUnresolvableDependencies(candidate, declared); err != nil {
+	if err := refuseUnresolvableDependencies(candidate, selected); err != nil {
+		errs = append([]error{err}, errs...)
+	}
+	schema, schemaErr := YANGSchema()
+	if schemaErr != nil {
+		errs = append([]error{fmt.Errorf("YANG schema: %w", schemaErr)}, errs...)
+	} else if err := refuseDataPlaneMismatches(candidate, schema, selected); err != nil {
 		errs = append([]error{err}, errs...)
 	}
 	return errs
@@ -95,9 +102,10 @@ func verifyTree(previous map[string]any, candidate *Tree) []error {
 // start in this build, with the error boot refuses it with.
 //
 // It asks registry.ResolveDependencies for the set boot starts: the plugins
-// declared, which verifyTree extracted with ExtractPluginsFromTree from the
-// `plugin { }` block and the registered extractors (dependencyRequest, as
-// ExpandDependencies asks at LoadConfig) and the plugins the config's roots select
+// selected, which verifyTree built with candidatePluginSelection from the
+// `bus { }` block, the registered extractors, and any recorded command-line
+// `--plugin` arguments (dependencyRequest, as ExpandDependencies asks at
+// LoadConfig) and the plugins the config's roots select
 // (registry.PluginsForConfigPaths, as boot auto-load asks in plugin/server
 // getConfigPathPlugins), less the declared ones, which boot also skips. A hard
 // dependency this build lacks answers *registry.MissingDependencyError, naming

@@ -41,7 +41,7 @@ func TestParseKdigReadsStatusFlagsAndRRset(t *testing.T) {
 		t.Fatalf("flags %v, want qr rd ra", got.flags)
 	}
 	if err := truncatedVerdict(got); err == nil {
-		t.Fatal("a reply without tc passed the truncation verdict")
+		t.Fatal("a reply without TC passed the truncation verdict")
 	}
 	tc, err := parseKdig(strings.Replace(kdigReply, "qr rd ra", "qr tc rd ra", 1))
 	if err != nil {

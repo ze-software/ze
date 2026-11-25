@@ -11,21 +11,21 @@ the operator chooses one via the `backend` leaf.
 
 | Backend | Platform | Default | Mechanism |
 |---------|----------|---------|-----------|
-| `tc` | Linux | yes | vishvananda/netlink tc calls (HTB, HFSC, FQ, TBF, netem, ...) |
+| `kernel` | Linux | yes | vishvananda/netlink traffic-control calls (HTB, HFSC, FQ, TBF, netem, ...) |
 | `vpp` | Linux with VPP | no | GoVPP binary API (policers, QoS egress maps, classifier sessions) |
 
-Selection:
+Selection (matching the default `interface backend kernel`):
 
 ```
 traffic {
     control {
-        backend tc       // or: vpp
+        backend kernel;
         interface eth0 {
             qdisc {
-                type htb
+                type htb;
                 class fast {
-                    rate 10mbit
-                    ceil 20mbit
+                    rate 10mbit;
+                    ceil 20mbit;
                 }
             }
         }
@@ -33,9 +33,43 @@ traffic {
 }
 ```
 
+With VPP, pair `traffic control backend vpp` with `interface backend vpp`:
+
+```
+interface {
+    backend vpp;
+}
+traffic {
+    control {
+        backend vpp;
+        interface eth0 {
+            qdisc {
+                type htb;
+                class fast {
+                    rate 10mbit;
+                    ceil 20mbit;
+                }
+            }
+        }
+    }
+}
+```
+
+`traffic control backend` must match `interface backend` whenever a
+`traffic control` block is configured or `backend` is set explicitly. Under
+`interface backend vpp`, leaving `traffic control backend` at `kernel` is
+refused at `ze config validate`, commit, reload, and daemon start with
+`set traffic control backend vpp` as the fix. Under `interface backend kernel`,
+setting `traffic control backend vpp` is refused with
+`set traffic control backend kernel` or `set interface backend vpp` as the fix.
+`ze doctor` reports these mismatches under `doctor-dataplane-mismatch`. See
+[Features by Data Plane](dataplane-features.md) for the full generated matrix.
+
+<!-- source: internal/component/config/dataplane_verdict.go -- evaluateDataPlaneVerdict -->
+
 `backend vpp` needs the VPP component, which only a build with the `ze_vpp`
 tag carries. Selecting it starts that component with the traffic plugin and
-orders traffic after it; `backend tc` does not start it. In a build without
+orders traffic after it; `backend kernel` does not start it. In a build without
 `ze_vpp`, `ze config validate`, a commit and daemon boot all refuse the config
 before anything is applied:
 
@@ -60,12 +94,12 @@ must name a class of the same qdisc: the leaf is a YANG leafref to
 `../class/name`, so a config naming a class that is not configured is refused
 when it is validated or committed, with a message naming the missing class and
 the classes that exist. A `default-class` naming no class used to be accepted,
-and the netlink backend then ignored it in silence.
+and the kernel backend then ignored it in silence.
 
 <!-- source: internal/component/traffic/yang/ze-traffic-control-conf.yang -- YANG schema -->
 <!-- source: internal/component/traffic/config.go -- parseInterfaceQoS -->
 
-## tc Backend: TBF Root Rate
+## Kernel Backend: TBF Root Rate
 
 TBF is classless on Linux. Its rate belongs to the root qdisc, not to an
 invented class:
@@ -73,7 +107,7 @@ invented class:
 ```
 traffic {
     control {
-        backend tc
+        backend kernel
         interface eth0 {
             qdisc {
                 type tbf
@@ -84,11 +118,11 @@ traffic {
 }
 ```
 
-For `backend tc`, a TBF root requires `rate` and refuses `class` and
+For `backend kernel`, a TBF root requires `rate` and refuses `class` and
 `default-class`. There is no fallback rate. A root `rate` on another qdisc type
 is refused. HTB retains its class `rate` and `ceil`.
 
-Rates in the model and readback are bits per second. Linux tc takes bytes per
+Rates in the model and readback are bits per second. Linux traffic control takes bytes per
 second, so the backend divides by eight on installation and multiplies by eight
 on TBF readback. Both TBF and HTB, and the ingress policer, refuse zero and
 fractional-byte rates rather than truncate them. `show traffic control` reports the
@@ -113,9 +147,9 @@ class rate.
 <!-- source: internal/component/traffic/cmd/traffic.go -- handleShowTraffic -->
 
 
-## tc Backend: Original Qdisc Snapshot
+## Kernel Backend: Original Qdisc Snapshot
 
-Before installing its own root qdisc, the tc backend snapshots the interface's existing one so the interface can be restored exactly. A qdisc whose parameters this backend cannot reproduce is refused rather than approximated, and the apply fails naming it (`protocol.md`).
+Before installing its own root qdisc, the kernel backend snapshots the interface's existing one so the interface can be restored exactly. A qdisc whose parameters this backend cannot reproduce is refused rather than approximated, and the apply fails naming it (`protocol.md`).
 
 `noqueue` is snapshotted and restored. It is the default root on every virtual interface (veth, dummy, bridge, and anything else the kernel gives no real queue), so it is the state a QoS config is most often applied *from*. It carries no reconstructable parameters, but it is the *absence* of a discipline, so it is exactly restorable: the restore deletes whatever root Ze installed rather than replacing it, which returns the interface to `noqueue`. Adding a qdisc named `noqueue` is not the inverse operation, and a snapshot restored by deletion fails closed if a caller routes it down the replace path.
 
@@ -126,7 +160,7 @@ Other `GenericQdisc` types (`mq`, `clsact`, ...) stay rejected: those carry stat
 <!-- source: internal/component/traffic/yang/ze-traffic-control-conf.yang -- qdisc-type -->
 <!-- source: internal/plugins/iface/netlink/mirror_linux.go -- clsactQdisc -->
 
-## tc Backend: Filter Priorities
+## Kernel Backend: Filter Priorities
 
 The kernel keeps exactly one `tcf_proto` per (parent, priority), and that instance carries a single link-layer protocol (`tcf_chain_tp_find`, `net/sched/cls_api.c`). A second filter at the same priority with a different protocol is rejected with `EINVAL`.
 
@@ -146,7 +180,7 @@ learn about incompatibilities before the config lands rather than after Apply.
 | `tbf` with exactly 1 class | accepted | One policer: CIR = EIR = Rate kbps (1R2C), bound to interface egress via `PolicerOutput` |
 | `htb` / `tbf` with more than 1 class | accepted when EVERY class carries a `protocol` or `dscp` steering filter | Each class steers its own traffic to its own policer through the classify pipeline. Two classes may not carry the same filter type and value: their classify sessions would collide on one match key and VPP would keep the last, silently killing a class's policing |
 | `htb` / `tbf` with more than 1 class, any class unfiltered | rejected | Two unfiltered classes both bind to the egress output arc and stack IN SERIES: the effective rate becomes `min(class_rates)` rather than per-class shaping |
-| `htb` / `tbf` with 0 classes | rejected | No class policer rate to program; a root `rate` is tc-only and is refused, not ignored |
+| `htb` / `tbf` with 0 classes | rejected | No class policer rate to program; a root `rate` is kernel-only and is refused, not ignored |
 | `prio` | rejected | The class-index to DSCP-value mapping needs an explicit design (deferred) |
 | `hfsc` | rejected | Service-curve semantics have no VPP equivalent |
 | `fq` / `sfq` / `fq_codel` | rejected | Fair-queue disciplines not available in VPP |
@@ -231,7 +265,7 @@ default and range.
 
 | Symptom | Likely cause | Resolution |
 |--------|-------------|------------|
-| Commit fails with `<type>: not supported by backend vpp` | Config uses a qdisc/filter rejected by the vpp backend | Change the qdisc/filter to one from the accepted list, or switch to `backend tc` |
+| Commit fails with `<type>: not supported by backend vpp` | Config uses a qdisc/filter rejected by the vpp backend | Change the qdisc/filter to one from the accepted list, or switch to `backend kernel` |
 | Commit fails with `vpp not connected after 5s` | VPP daemon not running or unreachable | Start VPP, wait for its API socket to be ready, retry commit |
 | Commit fails with `interface "<name>" not present in vpp` | Interface declared in traffic-control config is unknown to VPP | Create the interface in VPP first (via the `interface` component or manually), then retry |
 | Commit fails with a GoVPP reply-timeout error | VPP accepted the connection and then stopped answering, so one binary-API round trip hit `ze.traffic.vpp.reply-timeout` | Check VPP's health. Before the bound existed the apply hung instead, so a timeout here is the guard working rather than a new fault |

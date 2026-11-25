@@ -39,7 +39,7 @@ import (
 	"github.com/ze-software/ze/internal/test/userns"
 
 	// The sender resolves its interface through iface.Resolve, which needs an
-	// active backend. This import registers the netlink one.
+	// active backend. This import registers the kernel one.
 	_ "github.com/ze-software/ze/internal/plugins/iface/netlink"
 )
 
@@ -57,7 +57,7 @@ func raNSName(testName string) string {
 // withRAVeth runs fn in a fresh network namespace holding one veth pair.
 // router is the advertising end, host is the receiving end. Both ends are up,
 // both have a Duplicate Address Detection-free link-local address, and the
-// netlink backend is loaded.
+// kernel interface backend is loaded.
 //
 // Each test passes its OWN device names. The iface resolver caches a binding
 // per logical name and only a monitor event drops it, so two namespaces that
@@ -211,7 +211,7 @@ func waitLinkLocal(t *testing.T, dev string, timeout time.Duration) {
 }
 
 // ifaFlagTentative is the kernel IFA_F_TENTATIVE bit. Declared here so the test
-// reads the flag without depending on the netlink backend's private copy.
+// reads the flag without depending on the kernel interface backend's private copy.
 const ifaFlagTentative = 0x40
 
 // waitFor polls cond until it returns true or the timeout runs out.

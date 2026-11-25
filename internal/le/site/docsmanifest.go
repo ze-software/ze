@@ -146,6 +146,7 @@ var docsManifest = []docsManifestRow{
 	{Source: "guide/terminal-demonstrations.md", Category: categoryObserve},
 	{Source: "guide/vrrp.md", Category: categoryRouting},
 	{Source: "guide/vpp.md", Category: categoryServices},
+	{Source: "guide/dataplane-features.md", Category: categoryServices},
 	{Source: "guide/appliance.md", Category: categoryPlatform},
 	{Source: "guide/ze-install.md", Category: categoryPlatform},
 	{Source: "guide/ubuntu-build-install.md", Category: categoryPlatform},

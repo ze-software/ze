@@ -12,8 +12,8 @@ import (
 	"strings"
 )
 
-// domainGroupTableAbsent asks nft(8) for the kernel's table inventory in its
-// text form. It does not ask for JSON: the QEMU guest's nft is built
+// domainGroupTableAbsent asks nftables(8) for the kernel's table inventory in its
+// text form. It does not ask for JSON: the QEMU guest's nft binary is built
 // --without-json (internal/le/setup/docker/host/static.go), so `nft --json`
 // exits 1 there with "JSON support not compiled-in" and no inventory. A failed
 // query leaves absence unknown, so callers MUST check the error before using

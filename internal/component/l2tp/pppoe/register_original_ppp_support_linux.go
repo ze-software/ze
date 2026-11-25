@@ -47,7 +47,7 @@ func pppoeOriginalPPPSupportScope(ctx diagnostic.DoctorCheckContext) (uint32, er
 	if err != nil {
 		return 0, err
 	}
-	if backend != "netlink" {
+	if backend != "kernel" {
 		return 0, nil
 	}
 	return pppkernel.OriginalPPPSupportRequirements(false), nil

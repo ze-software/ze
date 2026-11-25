@@ -41,8 +41,14 @@ func init() { //nolint:gochecknoinits // plugin registration
 		Name:         "flowspec-firewall",
 		Description:  "Translates BGP FlowSpec routes into nftables firewall rules",
 		Dependencies: []string{"firewall", "bgp-rib"},
-		Sends:        flowspecFirewallSends(),
-		RunEngine:    runEngine,
+		DataPlaneFeatures: []registry.DataPlaneFeature{{
+			ConfigPath:      "flowspec-firewall",
+			Why:             "flowspec-firewall registers firewall tables",
+			FollowsSelector: "firewall",
+			InUseKind:       registry.DataPlaneInUseSelectedPlugin,
+		}},
+		Sends:     flowspecFirewallSends(),
+		RunEngine: runEngine,
 		ConfigureEngineLogger: func(loggerName string) {
 			setLogger(slogutil.Logger(loggerName))
 		},

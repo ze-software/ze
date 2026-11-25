@@ -264,7 +264,7 @@ func formatMasquerade(m firewall.Masquerade) string {
 // matches and the two readings are opposites. `limit rate 100/second` matches
 // while the bucket has credit; `limit rate over 100/second` matches once it is
 // empty. Rendering both the same way would show an operator a rule that accepts
-// the traffic it drops. nft spells the inversion `over`, and so does this.
+// the traffic it drops. nftables spells the inversion `over`, and so does this.
 func formatLimit(l firewall.Limit) string {
 	var b textbuf.Buffer
 	b.Str("limit rate ")
@@ -400,7 +400,7 @@ func formatFlowtable(b *textbuf.Buffer, ft *firewall.Flowtable) {
 	b.Str("  }\n")
 }
 
-// formatCtHelper prints a ct helper object in nft's own syntax.
+// formatCtHelper prints a ct helper object in nftables syntax.
 func formatCtHelper(b *textbuf.Buffer, h *firewall.CtHelper) {
 	b.Str("  ct helper ").Str(h.Name).Str(" {\n")
 	b.Str("    type \"").Str(h.Helper).Str("\" protocol ").Str(h.Protocol).Str(";\n")

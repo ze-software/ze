@@ -14,7 +14,7 @@
 # --- Full agreed shape: v3 IPv4 + v3 IPv6 on one unit. ------------------------
 stdin=vrrp-valid:terminator=EOF_VALID
 interface {
-    backend netlink;
+    backend kernel;
     ethernet eth0 {
         unit 0 {
             ipv4 {
@@ -50,7 +50,7 @@ expect=stdout:contains=configuration valid
 # --- Defaults: a group needs only a name, a vrid, and one address. ------------
 stdin=vrrp-minimal:terminator=EOF_MIN
 interface {
-    backend netlink;
+    backend kernel;
     ethernet eth0 {
         unit 0 {
             ipv4 {
@@ -74,7 +74,7 @@ expect=stdout:contains=configuration valid
 # --- VRRPv2 opt-in (IPv4 only), whole-second interval. ------------------------
 stdin=vrrp-v2:terminator=EOF_V2
 interface {
-    backend netlink;
+    backend kernel;
     ethernet eth0 {
         unit 0 {
             ipv4 {
@@ -101,7 +101,7 @@ expect=stdout:contains=configuration valid
 # RFC 9568 Section 5.2.4: the owner runs at priority 255, assigned by ze.
 stdin=vrrp-owner:terminator=EOF_OWNER
 interface {
-    backend netlink;
+    backend kernel;
     ethernet eth0 {
         unit 0 {
             ipv4 {
@@ -125,7 +125,7 @@ expect=stdout:contains=configuration valid
 # --- VLAN unit: the group lives on the sub-interface, not the parent. ---------
 stdin=vrrp-vlan:terminator=EOF_VLAN
 interface {
-    backend netlink;
+    backend kernel;
     ethernet eth0 {
         unit 100 {
             vlan-id 100;
@@ -150,7 +150,7 @@ expect=stdout:contains=configuration valid
 # --- Two groups on one unit: distinct vrids and distinct addresses. -----------
 stdin=vrrp-two-groups:terminator=EOF_TWO
 interface {
-    backend netlink;
+    backend kernel;
     ethernet eth0 {
         unit 0 {
             ipv4 {
@@ -181,7 +181,7 @@ expect=stdout:contains=configuration valid
 # pseudo-header checksum keepalived requires; rfc9568 is the default, spelled.
 stdin=vrrp-checksum:terminator=EOF_CKSUM
 interface {
-    backend netlink;
+    backend kernel;
     ethernet eth0 {
         unit 0 {
             ipv4 {

@@ -9,10 +9,14 @@ import (
 	"crypto/sha256"
 	"errors"
 	"fmt"
+	"net"
 	"os"
+	"strings"
 	"testing"
 
+	"github.com/ze-software/ze/internal/component/config"
 	"github.com/ze-software/ze/internal/component/config/storage"
+	"github.com/ze-software/ze/internal/component/plugin/registry"
 	"github.com/ze-software/ze/pkg/zefs"
 )
 
@@ -167,5 +171,82 @@ func TestCheckPushedConfigRemoveError(t *testing.T) {
 	got, _ := store.ReadFile(zefs.KeyFileActive.Key("ze.conf"))
 	if !bytes.Equal(got, seedData) {
 		t.Errorf("active config should be seed even when remove fails")
+	}
+}
+
+const pushedOptionalYANG = `module ze-pushed-optional-conf {
+    namespace "urn:ze:pushed-optional:conf";
+    prefix pushed-optional;
+
+    container pushed-optional {
+        presence "Enable the test-only optional plugin for pushed config.";
+        description "Configuration root of a test-only optional plugin.";
+    }
+}`
+
+// TestJudgeConfigBeforeBootHandsLoadConfigThePlugins proves judgeConfigBeforeBoot
+// forwards its command-line plugins parameter to config.LoadConfig instead of
+// passing nil.
+//
+// VALIDATES: AC-18: (1) a candidate using an optional plugin's YANG root parses
+// before boot when that plugin is in plugins and fails without it; (2) a
+// candidate whose command-line plugin has an unresolvable hard dependency is
+// refused before boot by LoadConfig's dependency expansion (which FirstPass
+// does not run), and accepted when plugins is nil.
+// PREVENTS: judgeConfigBeforeBoot passing nil to LoadConfig, which dropped
+// command-line plugins from pre-boot schema loading and plugin resolution.
+func TestJudgeConfigBeforeBootHandsLoadConfigThePlugins(t *testing.T) {
+	savedPlugins := config.CommandLinePlugins()
+	config.RecordCommandLinePlugins(nil)
+	t.Cleanup(func() { config.RecordCommandLinePlugins(savedPlugins) })
+
+	snap := registry.Snapshot()
+	t.Cleanup(func() { registry.Restore(snap) })
+
+	if err := registry.Register(registry.Registration{
+		Name:        "pushed-optional",
+		Description: "test-only optional plugin with YANG schema",
+		YANG:        pushedOptionalYANG,
+		ConfigRoots: []string{"pushed-optional"},
+		RunEngine:   func(net.Conn) int { return 0 },
+		CLIHandler:  func([]string) int { return 0 },
+	}); err != nil {
+		t.Fatalf("register pushed-optional: %v", err)
+	}
+	if err := registry.Register(registry.Registration{
+		Name:         "pushed-needs-missing",
+		Description:  "test-only plugin with an absent hard dependency",
+		Dependencies: []string{"pushed-absent-dependency"},
+		RunEngine:    func(net.Conn) int { return 0 },
+		CLIHandler:   func([]string) int { return 0 },
+	}); err != nil {
+		t.Fatalf("register pushed-needs-missing: %v", err)
+	}
+
+	optionalCandidate := []byte("pushed-optional { }\n")
+	if _, err := judgeConfigBeforeBoot(optionalCandidate, nil, nil); err == nil {
+		t.Fatal("candidate with optional plugin root must fail when plugins is nil")
+	}
+	judgedAtBoot, err := judgeConfigBeforeBoot(optionalCandidate, nil, []string{"ze.pushed-optional"})
+	if err != nil {
+		t.Fatalf("judgeConfigBeforeBoot with optional plugin failed: %v", err)
+	}
+	if judgedAtBoot {
+		t.Error("judgedAtBoot = true, want false for internal command-line plugin")
+	}
+
+	minimalCandidate := []byte("set environment log level info\n")
+	if judgedAtBoot, err := judgeConfigBeforeBoot(minimalCandidate, nil, nil); err != nil || judgedAtBoot {
+		t.Fatalf("minimal candidate without plugins = (judgedAtBoot=%v, err=%v), want (false, nil)", judgedAtBoot, err)
+	}
+	judgedAtBoot, err = judgeConfigBeforeBoot(minimalCandidate, nil, []string{"ze.pushed-needs-missing"})
+	if err == nil {
+		t.Fatal("judgeConfigBeforeBoot must refuse a command-line plugin with a missing dependency")
+	}
+	if judgedAtBoot {
+		t.Error("judgedAtBoot = true, want false for internal plugin refusal")
+	}
+	if !strings.Contains(err.Error(), "pushed-absent-dependency") {
+		t.Errorf("refusal %q does not name missing dependency pushed-absent-dependency", err.Error())
 	}
 }

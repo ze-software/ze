@@ -114,7 +114,7 @@ func TestDummyCreateStillNotReadyStaysOwed(t *testing.T) {
 // commit as applied when its dummy can never be made.
 func TestDummyCreateFailureStillFailsTheApply(t *testing.T) {
 	clearOwedApply(t)
-	realErr := errors.New("netlink: rtnetlink receive: permission denied")
+	realErr := errors.New("netlink error: rtnetlink receive: permission denied")
 	fb := setupFakeBackendForTest(t)
 	fb.createDummyErr = map[string]error{"dum0": realErr}
 
@@ -245,7 +245,7 @@ func TestOwedApplyThatFailsStaysOwed(t *testing.T) {
 // mirror teardown reports one error per source.
 func twoMirrorCfg() *ifaceConfig {
 	return &ifaceConfig{
-		Backend: "netlink",
+		Backend: "kernel",
 		Dummy: []ifaceEntry{
 			{Name: "mir0", Units: []unitEntry{{MirrorIngress: "cap0"}}},
 			{Name: "mir1", Units: []unitEntry{{MirrorIngress: "cap0"}}},
@@ -264,9 +264,9 @@ func twoMirrorCfg() *ifaceConfig {
 // which would report the commit as waiting while the kernel keeps copying
 // traffic the config no longer asks for.
 func TestMirrorStepDefersOnlyWhenEveryErrorIsNotReady(t *testing.T) {
-	realErr := errors.New("netlink refused")
+	realErr := errors.New("netlink error: refused")
 	current := &ifaceConfig{
-		Backend: "netlink",
+		Backend: "kernel",
 		Dummy: []ifaceEntry{
 			{Name: "mir0", Units: []unitEntry{{}}},
 			{Name: "mir1", Units: []unitEntry{{}}},

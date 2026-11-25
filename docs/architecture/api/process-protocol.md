@@ -4918,6 +4918,37 @@ its roots and the restart that applies the change at startup:
 | `removed` | `string` | JSON-encoded removed config |
 | `changed` | `string` | JSON-encoded changed config |
 
+**Writer judgement and FIB process transitions on reload:**
+
+Every reload carries the candidate plugin selection judged by `LoadConfig`
+(`LoadConfigResult.CandidateSelection`) beside the candidate tree into
+`Server.ReloadConfigWithSelection`. Even when a diff only removes config
+sections, `reloadConfig` runs `judgeReloadWriters` over the whole candidate:
+
+- Adding a chosen `ProgramsFIB` plugin (via a `fib` config root or a
+  compiled-in `bus > endpoint`) starts it before apply and stops any displaced
+  engine-added writer or removed/changed `ProgramsFIB` bus endpoint during
+  post-apply removal. Same-name endpoint replacement (changing `internal` or
+  `process` on the same endpoint key) defers the replacement start until
+  `stopCollectedProcesses` frees the process slot.
+- Removing the last chosen `ProgramsFIB` plugin while a `NeedsDataPlane`
+  producer remains starts the configured data plane's writer (via
+  `registry.JudgeDataPlaneWriter`) before apply and stops the removed FIB
+  plugin afterwards.
+- Removing the last `NeedsDataPlane` producer with no chosen `ProgramsFIB`
+  plugin stops both the producer and the engine-added writer; `stopOrderGraph`
+  orders every stopping producer ahead of every stopping `ProgramsFIB` writer
+  so routes are withdrawn while the writer is still live.
+- Whenever `stopCollectedProcesses` finishes stopping one or more `ProgramsFIB`
+  processes without error, it emits `(mpls-fib, writer-stopped)`
+  (`mplsfib.WriterStopped`) once so surviving data-plane writers trigger a
+  targeted label replay after the displaced writer has unsubscribed.
+
+<!-- source: internal/component/plugin/server/reload.go -- ReloadConfigWithSelection, reloadConfig -->
+<!-- source: internal/component/plugin/server/reload_dataplane_writer.go -- judgeReloadWriters, autoLoadForReload, stopOrderGraph -->
+<!-- source: internal/component/plugin/server/startup_autoload.go -- stopCollectedProcesses -->
+<!-- source: internal/core/mplsfib/events.go -- WriterStopped -->
+
 ---
 
 ## OPEN Validation

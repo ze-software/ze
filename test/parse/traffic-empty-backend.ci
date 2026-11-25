@@ -3,7 +3,7 @@
 # VALIDATES: spec-fw-9 AC-4 -- the offline CLI runs the backend feature gate
 #            on traffic-control and falls back to trafficDefaultBackend()
 #            when the user omits the `backend` leaf. On Linux that helper
-#            returns "tc" so validation succeeds; on non-Linux it returns
+#            returns "kernel" so validation succeeds; on non-Linux it returns
 #            "" and the walker's empty-backend guard fires -- mirroring
 #            the daemon's reload-time diagnostic. This .ci exercises the
 #            Linux branch end-to-end.

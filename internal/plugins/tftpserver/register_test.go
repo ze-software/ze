@@ -4,8 +4,8 @@ import "testing"
 
 // TestBindDeviceForFallsBackToName pins the install/provision fix: when no
 // iface backend is loaded (GetBackend()==nil, as in the `ze-setup install
-// remote` scenario where provision configures the interface directly via
-// netlink), bindDeviceFor returns the configured interface name verbatim so the
+// remote` scenario where provision configures the interface directly
+// via netlink), bindDeviceFor returns the configured interface name verbatim so the
 // listener still binds. The previous code treated the resolve error as fatal
 // and dropped the interface, leaving the TFTP server with zero listeners.
 func TestBindDeviceForFallsBackToName(t *testing.T) {

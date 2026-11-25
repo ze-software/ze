@@ -172,7 +172,7 @@ func vrrpInstanceDriver(ctx context.Context, _ []string) error {
 	}
 	fmt.Println("VIPS-INSTALLED 192.0.2.1,192.0.2.2")
 
-	const emptyConfig = "interface {\n\tbackend netlink;\n\tethernet zept0 {\n\t\tunit 0 {\n\t\t\tipv4 {\n\t\t\t\taddress [ 192.0.2.251/24 ];\n\t\t\t}\n\t\t}\n\t}\n}\n"
+	const emptyConfig = "interface {\n\tbackend kernel;\n\tethernet zept0 {\n\t\tunit 0 {\n\t\t\tipv4 {\n\t\t\t\taddress [ 192.0.2.251/24 ];\n\t\t\t}\n\t\t}\n\t}\n}\n"
 	if err := os.WriteFile("ze-bgp.conf", []byte(emptyConfig), 0o600); err != nil {
 		return fmt.Errorf("rewrite config: %w", err)
 	}

@@ -20,8 +20,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/ze-software/ze/internal/test/fixture"
-
 	"github.com/vishvananda/netlink"
 	"golang.org/x/sys/unix"
 
@@ -31,6 +29,7 @@ import (
 	pppkernel "github.com/ze-software/ze/internal/component/l2tp/ppp/kernel"
 	"github.com/ze-software/ze/internal/component/l2tp/pppoe"
 	_ "github.com/ze-software/ze/internal/plugins/iface/netlink"
+	"github.com/ze-software/ze/internal/test/fixture"
 	"github.com/ze-software/ze/internal/test/pppoeac"
 	"github.com/ze-software/ze/internal/test/userns"
 )
@@ -83,7 +82,7 @@ func newRealmBridgeRig(t *testing.T) *realmBridgeRig {
 	var subscriberMAC [pppoe.EthALen]byte
 	copy(subscriberMAC[:], subscriberLink.Attrs().HardwareAddr)
 
-	backend, err := iface.OpenBackend("netlink")
+	backend, err := iface.OpenBackend("kernel")
 	if err != nil {
 		t.Fatal(err)
 	}

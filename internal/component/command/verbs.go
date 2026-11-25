@@ -71,7 +71,7 @@ var Verbs = map[string]verbRole{
 	VerbUpdate:  RoleAction,
 	VerbCache:   RoleAction,
 	// Runtime resource lifecycle. create/delete manipulate live kernel resources
-	// (e.g. netlink interfaces) immediately; this is distinct from config-tree
+	// (e.g. kernel interfaces) immediately; this is distinct from config-tree
 	// mutation (which is set/delete on a config path). delete is the RoleMutation
 	// above and serves both the config-tree and runtime-resource senses.
 	VerbCreate: RoleAction,

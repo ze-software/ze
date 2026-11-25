@@ -2,7 +2,7 @@
 // Related: counter_linux.go -- Shared link continuity decoder
 // Upstream: github.com/vishvananda/netlink v1.3.1, NetlinkSocket Receive:
 // https://github.com/vishvananda/netlink/blob/v1.3.1/nl/nl_linux.go
-// Upstream: Linux v7.3, netlink ACK/ECHO and rtnetlink link replies:
+// Upstream: Linux v7.3, netlink reply ACK/ECHO and rtnetlink link replies:
 // https://github.com/torvalds/linux/blob/v7.3/net/netlink/af_netlink.c
 // https://github.com/torvalds/linux/blob/v7.3/net/core/rtnetlink.c
 

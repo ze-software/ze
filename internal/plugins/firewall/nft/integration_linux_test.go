@@ -184,7 +184,7 @@ func requireNftChainAbsent(t *testing.T, tableName, chainName string) {
 	}
 }
 
-// VALIDATES: P0-8 -- nft apply deletes same-process owned tables only.
+// VALIDATES: P0-8 -- nftables apply deletes same-process owned tables only.
 // PREVENTS: dropping an unknown ze_* table when reconciling a changed config.
 func TestNftIntegration_ApplyDeletesOnlySameInstanceOwnedTables(t *testing.T) {
 	if !userns.Enter(t) {
@@ -428,7 +428,7 @@ func TestTheLegacyRemovalRunsOnceInTheProcess(t *testing.T) {
 
 		addNftIntegrationTableWithChain(t, "flowspec", "flowspec-fwd")
 
-		if err := firewall.LoadBackend("nft"); err != nil {
+		if err := firewall.LoadBackend("kernel"); err != nil {
 			t.Fatalf("LoadBackend: %v", err)
 		}
 		t.Cleanup(func() { _ = firewall.CloseBackend() })

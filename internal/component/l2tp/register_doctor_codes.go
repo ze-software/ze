@@ -16,7 +16,7 @@ const (
 var doctorDiagnosticCodes = []diagnostic.CodeMeta{
 	{
 		Code:  codeDoctorL2TPUnavailable,
-		Title: "L2TP control netlink unavailable",
+		Title: "L2TP control netlink socket unavailable",
 		Description: "The configuration uses the l2tp subsystem and the kernel does not provide the l2tp generic netlink family (CONFIG_L2TP). " +
 			"The probe asks the generic netlink controller for the family, which loads l2tp_netlink on a modular kernel and changes nothing. This is an ERROR: the daemon refuses to start, and a Docker host that runs " +
 			"Ze's labs is refused on it too. Remedy: run a kernel built with CONFIG_L2TP, such as Ze's own runtime kernel.",
@@ -25,7 +25,7 @@ var doctorDiagnosticCodes = []diagnostic.CodeMeta{
 	},
 	{
 		Code:  codeDoctorL2TPUnknown,
-		Title: "L2TP control netlink support could not be determined",
+		Title: "L2TP control netlink socket support could not be determined",
 		Description: "The configuration uses the l2tp subsystem and the probe for the l2tp generic netlink family (CONFIG_L2TP) gave no verdict, " +
 			"usually because the process lacks a privilege the probe needs. This is a WARNING for the " +
 			"daemon and a refusal for a Docker host that runs Ze's labs. The message carries the reason.",

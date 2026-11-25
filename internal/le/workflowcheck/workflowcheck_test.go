@@ -1070,7 +1070,7 @@ func TestVulnerabilityWorkflowRemainsScheduledAndUsesSharedAction(t *testing.T) 
 // TestDependabotBranchesGetTheVendorPatches pins the repair of a Dependabot Go
 // update. Dependabot runs a plain `go mod vendor`, which returns every
 // vendored file to upstream and drops Ze's vendor patches
-// (internal/le/vendorpatch/patches): PR #38 lost the netlink SrcPortMask
+// (internal/le/vendorpatch/patches): PR #38 lost the netlink library SrcPortMask
 // patch, and every verify shard failed to build le. VALIDATES: a workflow
 // runs on Dependabot's go_modules branches, applies every patch of the
 // directory (never a list of its own) with the already-applied probe

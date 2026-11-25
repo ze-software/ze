@@ -91,11 +91,11 @@ func TestZeInitDefaultWritesSSHListener(t *testing.T) {
 // TestZeInitDefaultKeepsDiscoveredInterfaces: the listener is written beside
 // the discovered interfaces, not in place of them.
 //
-// Method: on Linux netlink discovery always finds the loopback, so the config
+// Method: on Linux netlink link discovery always finds the loopback, so the config
 // after the listener block MUST hold the interface block with its loopback.
 func TestZeInitDefaultKeepsDiscoveredInterfaces(t *testing.T) {
 	if runtime.GOOS != "linux" {
-		t.Skip("netlink discovery, which always finds the loopback, runs on Linux only")
+		t.Skip("netlink link discovery, which always finds the loopback, runs on Linux only")
 	}
 	dir := t.TempDir()
 	if code := runWithReader(strings.NewReader("admin\nsecret123\n\n\nedge\n"), dir, false); code != 0 {

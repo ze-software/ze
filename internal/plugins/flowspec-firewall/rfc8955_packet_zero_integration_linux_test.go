@@ -52,7 +52,7 @@ func TestSelectedFlowSpecZeroPacketRateKernel(t *testing.T) {
 			t.Errorf("remove FlowSpec tables: %v", err)
 		}
 		if err := firewall.CloseBackend(); err != nil {
-			t.Errorf("close nft backend: %v", err)
+			t.Errorf("close kernel firewall backend: %v", err)
 		}
 		if err := netns.Set(original); err != nil {
 			t.Errorf("restore namespace: %v", err)
@@ -72,7 +72,7 @@ func TestSelectedFlowSpecZeroPacketRateKernel(t *testing.T) {
 	if err := netlink.LinkSetUp(lo); err != nil {
 		t.Fatal(err)
 	}
-	if err := firewall.LoadBackend("nft"); err != nil {
+	if err := firewall.LoadBackend("kernel"); err != nil {
 		t.Fatal(err)
 	}
 	family.RegisterTestFamilies()
@@ -133,7 +133,7 @@ func TestSelectedFlowSpecZeroPacketRateKernel(t *testing.T) {
 		NLRI:                []byte{13, 1, 32, 127, 0, 0, 1, 3, 0x81, 17, 5, 0x91, byte(port >> 8), byte(port)},
 		ExtendedCommunities: []byte{0x80, 0x0c, 0, 0, 0, 0, 0, 0},
 	}
-	// RFC 8955 Section 7.2: only this selected packet-rate action programs nft.
+	// RFC 8955 Section 7.2: only this selected packet-rate action programs nftables.
 	b.handleSelected(&change)
 	for range 4 {
 		send(target, 3)

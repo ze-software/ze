@@ -16,7 +16,7 @@ Recovery after compaction: `.claude/rules/post-compaction.md`.
 ## Task
 
 The owner asked for macOS, FreeBSD and OpenBSD support "as much as possible". Today
-Ze builds on those systems but manages nothing on them: the iface `netlink` package
+Ze builds on those systems but manages nothing on them: the `internal/plugins/iface/netlink/` package
 compiles a stub on every non-Linux GOOS whose only working methods are the two
 listing calls, `fib-kernel` rejects every route, and OSPF, IS-IS and single-hop BFD
 fail closed. This spec designs one shared BSD-family backend built on the routing
@@ -51,7 +51,7 @@ shaping (`plan/post-release/features/spec-bsd-traffic-shaping.md`), VRRP against
 
 ### Architecture Docs
 - [ ] `docs/features/interfaces.md` - the Platform rows and the "Stub (non-Linux)" section describe today's non-Linux behavior
-  → Constraint: the Platform table rows "macOS / Darwin" and "FreeBSD / OpenBSD" read `missing`; each phase that lands moves its row, and the per-method coverage table (columns netlink / VPP / stub) gains a BSD column, in the same commit as the code
+  → Constraint: the Platform table rows "macOS / Darwin" and "FreeBSD / OpenBSD" read `missing`; each phase that lands moves its row, and the per-method coverage table (columns kernel / VPP / stub) gains a BSD column, in the same commit as the code
   → Constraint: the stub section promises that config-driven reconciliation which creates, addresses or changes an interface "sees the explicit error and rejects under exact-or-reject"; every method P1 does not implement keeps that promise with a named error
 - [ ] `docs/architecture/iface/netlink-monitor.md` - how the Linux monitor feeds the event bus
   → Constraint: the BSD monitor publishes the same event types on the same bus (`StartMonitor(eb ze.EventBus)`), so consumers stay platform-blind
@@ -97,10 +97,10 @@ shaping (`plan/post-release/features/spec-bsd-traffic-shaping.md`), VRRP against
 **Source files read:**
 - [ ] `internal/component/iface/backend.go` - `Backend` interface, 43 methods, `RegisterBackend`, `LoadBackend`, `DefaultBackendName()`, `ErrCountersNotResettable`
 - [ ] `internal/component/iface/default_other.go` - `//go:build !linux`, `defaultBackendName = ""`: no backend by default on any non-Linux OS
-- [ ] `internal/component/iface/default_linux.go` - `defaultBackendName = "netlink"`
+- [ ] `internal/component/iface/default_linux.go` - `defaultBackendName = "kernel"`
 - [ ] `internal/component/iface/register.go` - falls back to `defaultBackendName` when the config names no backend
-- [ ] `internal/component/iface/yang/ze-iface-conf.yang` - `leaf backend` with `type string` and `default "netlink"`
-- [ ] `internal/plugins/iface/netlink/register.go` - registers the name `netlink` on every GOOS, including the non-Linux stub
+- [ ] `internal/component/iface/yang/ze-iface-conf.yang` - `leaf backend` with `type string` and `default "kernel"`
+- [ ] `internal/plugins/iface/netlink/register.go` - registers the name `kernel` on every GOOS, including the non-Linux stub
 - [ ] `internal/plugins/iface/netlink/backend_other.go` - `//go:build !linux`, `stubBackend`, every method but listing returns `interface management not supported on <GOOS>`
 - [ ] `internal/plugins/iface/netlink/show_other.go` - `ListInterfaces`/`GetInterface` through `net.Interfaces`
 - [ ] `internal/plugins/fib/kernel/backend_other.go` - `//go:build !linux`, `unsupportedBackend`, every method returns `fib-kernel: unsupported platform <GOOS>`; `monitor_other.go` likewise
@@ -113,7 +113,7 @@ shaping (`plan/post-release/features/spec-bsd-traffic-shaping.md`), VRRP against
 - [ ] `.github/workflows/*.yml` - every job `runs-on: ubuntu-latest`, no macOS or BSD runner
 
 **Behavior to preserve:**
-- Linux behavior is untouched: `netlink` stays the Linux default and every Linux test stays green.
+- Linux behavior is untouched: `kernel` stays the Linux default and every Linux test stays green.
 - The listing that `ze init` relies on keeps working on every non-Linux OS (today through `show_other.go`).
 - A non-Linux OS this spec does not cover (Windows, NetBSD, DragonFly) keeps today's stub and its error text.
 - Exact-or-reject: a config that asks for something the backend cannot do is rejected with a named error, never silently skipped.
@@ -121,9 +121,17 @@ shaping (`plan/post-release/features/spec-bsd-traffic-shaping.md`), VRRP against
 
 **Behavior to change:**
 - darwin, freebsd and openbsd get a real backend (`routesock`) and it is their default.
-- The netlink stub stops compiling on those three GOOS values (no-layering: replaced, not kept beside).
+- The `internal/plugins/iface/netlink/` stub stops compiling on those three GOOS values (no-layering: replaced, not kept beside).
 - `fib-kernel` installs, replaces, deletes and lists routes on those three.
 - P3/P4 as in the Task table.
+
+## Existing Mechanisms
+
+| Mechanism | Where (file + symbol, or page + section) | What it does today | This spec (extends, replaces, or does not apply, with the reason) |
+|-----------|------------------------------------------|--------------------|------------------------------------------------------------------|
+| Interface backend registry and per-OS defaults | `internal/component/iface/backend.go` (`Backend`, `RegisterBackend`, `LoadBackend`), `internal/component/iface/default_other.go` | Discovers registered interface backends by name and selects the per-OS default backend (`kernel` on Linux, empty on non-Linux) | Extends: registers the `routesock` backend and sets it as the default on darwin, freebsd and openbsd |
+| Non-Linux interface stub backend | `internal/plugins/iface/netlink/backend_other.go` (`stubBackend`), `internal/plugins/iface/netlink/show_other.go` | Provides standard-library interface listing on `!linux` and rejects all mutating operations with unsupported-platform errors | Replaces: narrows the stub off darwin, freebsd and openbsd once `routesock` takes over those platforms |
+| Build-tagged `fib-kernel` backend selection | `internal/plugins/fib/kernel/backend.go`, `internal/plugins/fib/kernel/backend_other.go` (`newBackend`) | Chooses the OS FIB backend at build time, returning an unsupported backend on non-Linux GOOS | Extends: adds a BSD routing-socket backend file behind `darwin \|\| freebsd \|\| openbsd` using the shared encoder |
 
 ## Data Flow (MANDATORY - see `ai/rules/architecture.md`)
 
@@ -162,7 +170,7 @@ shaping (`plan/post-release/features/spec-bsd-traffic-shaping.md`), VRRP against
 | No duplicated functionality (extends existing, does not recreate) | Yes | One encoder for iface routes, `fib-kernel` and P4 tables; listing reuses `x/net/route` parsing rather than a second parser |
 | Zero-copy preserved where applicable (refs, not copies) | Yes | Messages are encoded into pooled buffers with `WriteTo(buf, off) int`; decode walks the read buffer in place |
 | Registration over hardcoding, outbound | Yes | `routesock` registers through `iface.RegisterBackend` in its own `register.go`; the per-OS default is a build-tagged constant, the existing pattern |
-| Registration over hardcoding, inbound | No | The YANG `backend` leaf carries `default "netlink"` and its description names `netlink` and `vpp` by hand; `register.go` falls back to `defaultBackendName`. Resolved in P1 by removing the YANG default so the per-OS Go default applies, and by making the description and `ze:help` name the registry rather than a list (A-2) |
+| Registration over hardcoding, inbound | No | The YANG `backend` leaf carries `default "kernel"` and its description names `kernel` and `vpp` by hand; `register.go` falls back to `defaultBackendName`. Resolved in P1 by removing the YANG default so the per-OS Go default applies, and by making the description and `ze:help` name the registry rather than a list (A-2) |
 
 ## Risks & Assumptions
 
@@ -170,7 +178,7 @@ shaping (`plan/post-release/features/spec-bsd-traffic-shaping.md`), VRRP against
 | ID | Assumption | Basis (file/doc/user statement) | If wrong | Validated by | Status |
 |----|-----------|--------------------------------|----------|--------------|--------|
 | A-1 | Phase 0 (freebsd/openbsd compile fixes, openbsd `vet-platforms`) lands before P1 starts | Main-thread brief, 2026-10-12; `internal/le/go/vetplatforms/` exists | P1 starts on a tree that does not build for the target and absorbs compile fixes it does not own | `GOOS=freebsd` and `GOOS=openbsd` `go vet ./...` clean at P1 start | unvalidated |
-| A-2 | Removing the YANG `default "netlink"` lets `register.go` apply the per-OS default without changing Linux behavior | `ze-iface-conf.yang` leaf `backend`; the `defaultBackendName` fallback in `register.go` | Linux configs without a `backend` leaf could resolve differently | Unit test over a tree without the leaf on linux and on darwin | unvalidated |
+| A-2 | Removing the YANG `default "kernel"` lets `register.go` apply the per-OS default without changing Linux behavior | `ze-iface-conf.yang` leaf `backend`; the `defaultBackendName` fallback in `register.go` | Linux configs without a `backend` leaf could resolve differently | Unit test over a tree without the leaf on linux and on darwin | unvalidated |
 | A-3 | `golang.org/x/net/route` parses `NET_RT_IFLIST` and `NET_RT_DUMP` correctly on all three OS at the minimum versions | Widely used parser; not yet vendored | Ze needs its own decoder for listing too | Golden-byte decode tests over captured sysctl output from each OS | unvalidated |
 | A-4 | Struct layouts (`rt_msghdr`, `if_msghdr`, `ifa_msghdr`, `in6_aliasreq`) are stable across the minimum versions in Q4 | FRR and BIRD compile one layout per OS | Per-version layouts, more golden files | Golden-byte tests on each guest at the minimum and current release | unvalidated |
 | A-5 | GitHub macOS runners allow `sudo` for routing-socket writes on a `lo0` alias | Main-thread research | macOS runtime tests limited to read-only paths | One CI job that adds and removes a route on `lo0` | unvalidated |
@@ -214,8 +222,8 @@ shaping (`plan/post-release/features/spec-bsd-traffic-shaping.md`), VRRP against
 | AC ID | Input / Condition | Expected Behavior |
 |-------|-------------------|-------------------|
 | AC-1 | P1: config with no `backend` leaf, built for darwin, freebsd or openbsd | Active backend is `routesock`; `show interface` lists every kernel interface with index, name, flags, MTU, MAC |
-| AC-2 | P1: config `backend netlink` on darwin/freebsd/openbsd | Config rejected with `unknown backend "netlink"` and the registered names, because the netlink package no longer registers there |
-| AC-3 | P1: Linux config with no `backend` leaf | Active backend stays `netlink` (A-2) |
+| AC-2 | P1: config `backend kernel` on darwin/freebsd/openbsd | Config rejected with `unknown backend "kernel"` and the registered names, because `internal/plugins/iface/netlink/` no longer registers there (re-evaluate at design whether BSD registers as `kernel` or keeps `routesock` now that Linux uses `kernel`) |
+| AC-3 | P1: Linux config with no `backend` leaf | Active backend stays `kernel` (A-2) |
 | AC-4 | P1: add then remove an IPv4 address | Address appears in `NET_RT_IFLIST` and in `show interface`, then disappears; no other address on the interface changes |
 | AC-5 | P1: add then remove an IPv6 address, with and without lifetimes | Address appears with the requested valid/preferred lifetimes, then disappears |
 | AC-6 | P1: admin down then up; set MTU 1400; set MAC | Each change reads back from the kernel; a refused change (MTU above the driver limit) surfaces the errno with the interface name |
@@ -308,7 +316,7 @@ Each scenario owes the revert-and-red walk of `ai/rules/interop-and-goal-validat
 
 ## Files to Modify
 - `internal/component/iface/default_other.go` - narrow to `!linux && !darwin && !freebsd && !openbsd`
-- `internal/component/iface/yang/ze-iface-conf.yang` - drop `default "netlink"`; description and `ze:help` stop listing backends by hand
+- `internal/component/iface/yang/ze-iface-conf.yang` - drop `default "kernel"`; description and `ze:help` stop listing backends by hand
 - `internal/plugins/iface/netlink/backend_other.go`, `show_other.go`, `doctor_other.go`, `register.go` - stub narrowed to the GOOS values this spec does not cover
 - `internal/plugins/fib/kernel/backend_other.go`, `monitor_other.go` - narrowed likewise
 - `internal/plugins/ospf/transport/backend_other.go`, `internal/plugins/isis/transport/backend_other.go`, `internal/component/bfd/transport/udp_other.go` - P3 narrows each
@@ -375,7 +383,7 @@ Each scenario owes the revert-and-red walk of `ai/rules/interop-and-goal-validat
 
 ## Implementation Steps
 
-1. **Phase P1a: Wiring** -- vendor `x/net/route`; create `internal/core/routesock` skeleton and `internal/plugins/iface/routesock` registering `routesock`; per-OS defaults; narrow the netlink stub; remove the YANG default
+1. **Phase P1a: Wiring** -- vendor `x/net/route`; create `internal/core/routesock` skeleton and `internal/plugins/iface/routesock` registering `routesock`; per-OS defaults; narrow the `internal/plugins/iface/netlink/` stub; remove the YANG default
    - Tests: `TestDefaultBackendIsRoutesockOnBSD`, `TestRoutesockUnsupportedNamesPhase`
    - Files: `register.go`, `default_*.go`, `backend_other.go` build lines, YANG
    - Verify: wiring tests fail on the stub, then pass
@@ -411,7 +419,7 @@ Each scenario owes the revert-and-red walk of `ai/rules/interop-and-goal-validat
 | Correctness | Sweeps delete only routes in the ownership record; every refusal names method, GOOS and phase |
 | Naming | Backend name `routesock` in YANG description, docs and errors alike |
 | Data flow | Encoder used by both iface and `fib-kernel`; no second encoder |
-| Rule: no-layering | The netlink stub no longer builds on darwin/freebsd/openbsd |
+| Rule: no-layering | The `internal/plugins/iface/netlink/` stub no longer builds on darwin/freebsd/openbsd |
 | Rule: performance | Encoding into pooled buffers, `WriteTo(buf, off) int`; no per-message allocation on the monitor path |
 | Rule: goroutine-lifecycle | One monitor reader per socket, stopped by `StopMonitor` |
 
@@ -452,7 +460,7 @@ Each scenario owes the revert-and-red walk of `ai/rules/interop-and-goal-validat
 | Decision | Alternatives Considered | Rationale |
 |----------|------------------------|-----------|
 | One shared `routesock` backend for all three OS with per-GOOS constant files | One backend per OS | The message format, ioctls and sysctl MIBs are one family; FRR and BIRD each keep one BSD implementation with per-OS conditionals |
-| New backend name `routesock` | Keep the name `netlink` on BSD | `netlink` names a Linux mechanism; a BSD config that says `netlink` should be refused, not silently mean something else |
+| New backend name `routesock` | Keep the Linux backend name on BSD | Originally chosen when Linux named its backend after the netlink socket; re-evaluate at design now that Linux uses the plane name `kernel`, or keep `routesock` and refuse `kernel` on BSD |
 | Own encoder, `x/net/route` for parsing only | `x/net/route` for both | Encoding must be buffer-first into pools and cover every `RTM_CHANGE` slot |
 | `ErrCountersNotResettable` on BSD | Baseline offset to fake a reset | A faked reset reports numbers the kernel does not hold; the error already exists and the CLI names it |
 

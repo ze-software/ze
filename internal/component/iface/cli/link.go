@@ -25,7 +25,7 @@ const maxIfaceNameLen = 15
 
 // validateIfaceName enforces the IFNAMSIZ bound. Empty names are
 // rejected; length > 15 is rejected with a message naming the limit.
-// Deeper character-set checks are left to the netlink backend, which
+// Deeper character-set checks are left to the kernel backend, which
 // surfaces the kernel's own reject reason.
 func validateIfaceName(name string) error {
 	if name == "" {

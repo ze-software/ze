@@ -20,7 +20,7 @@ option=needs-linux
 
 tmpfs=vrrp-ok.conf:terminator=EOF_OK
 interface {
-    backend netlink;
+    backend kernel;
     ethernet eth0 {
         unit 0 {
             ipv4 {
@@ -49,5 +49,5 @@ EOF_OK
 cmd=foreground:seq=1:exec=ze doctor --json config vrrp-ok.conf:timeout=60s
 expect=stdout:contains=schema-version
 reject=stdout:pattern=doctor-vrrp-config-invalid
-reject=stdout:pattern=doctor-vrrp-backend-unusable
+reject=stdout:pattern=doctor-dataplane-mismatch
 reject=stdout:pattern=doctor-vrrp-raw-socket

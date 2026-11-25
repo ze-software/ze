@@ -140,7 +140,7 @@ func vppSRv6StopDaemon(t *testing.T, v *VPP, container string, daemon *running, 
 }
 
 const vppSRv6Config = `connected {}
-interface { backend netlink; }
+interface { backend kernel; }
 bus {
     endpoint srv6-connected {
         external {
@@ -167,7 +167,10 @@ bgp {
         behavior { group-updates disable; }
     }
 }
-` + vppExternalConfig + `fib {
+` + vppExternalConfig + `interface {
+    backend vpp;
+}
+fib {
     vpp { enabled true; }
 }
 `

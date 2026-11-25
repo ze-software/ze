@@ -60,7 +60,7 @@ func installBackend(t *testing.T, name string, b Backend) {
 // VALIDATES: D-1 / AC-4 -- the registry never lets two owners be inside
 // Backend.Apply at the same time (reconcileMu serializes the whole reconcile).
 // Without reconcileMu the overlap counter reaches 2 (RED); with it, it stays 1.
-// PREVENTS: concurrent Backend.Apply corrupting the nft reconcile (Finding 1:
+// PREVENTS: concurrent Backend.Apply corrupting the nftables reconcile (Finding 1:
 // shared command batch drained by a foreign Flush, raced applied-tables map).
 func TestApplyAllSerialisesBackendApply(t *testing.T) {
 	be := &overlapBackend{}

@@ -11,7 +11,7 @@ import (
 // reserved for the iface backend, which writes it over netlink without ever
 // registering it: the firewall engine's registration of the name, which is
 // what an operator table `iface_rpf` becomes, is refused naming the owner.
-// PREVENTS: the firewall nft backend and ReplaceIPv6RPF sharing one kernel
+// PREVENTS: the kernel firewall backend and ReplaceIPv6RPF sharing one kernel
 // table, each deleting the other's chains and sets on its next apply.
 func TestRPFTableIsReserved(t *testing.T) {
 	err := firewall.RegisterTables("firewall", []firewall.Table{{Name: rpfTableName, Family: firewall.FamilyIP6}})

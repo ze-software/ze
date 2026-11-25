@@ -25,7 +25,7 @@ import (
 func keepaliveConfig(blocks string) string {
 	return `
 interface {
-    backend netlink;
+    backend kernel;
     ethernet zec0 {
     }
     pppoe-client wan {

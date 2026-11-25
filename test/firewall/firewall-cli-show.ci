@@ -10,7 +10,7 @@
 # declares a super-admin user + an SSH server; the driver provisions matching
 # client credentials with `ze init` into a sandbox config dir, then runs `ze cli`
 # against that dir with ze.ssh.password. The SSH port is fixed (per-test netns
-# isolates it) so no log-scrape is needed. Requires CAP_NET_ADMIN (nft) + SSH,
+# isolates it) so no log-scrape is needed. Requires CAP_NET_ADMIN (nftables) + SSH,
 # in ze_core.
 #
 # // this rewrite replaces the previous no-SSH-setup version (which
@@ -23,7 +23,7 @@ option=needs-linux:caps=net-admin
 
 stdin=ze-bgp:terminator=EOF_CONF
 firewall {
-	backend nft;
+	backend kernel;
 	table fw10_004 {
 		family inet;
 		chain input {

@@ -180,7 +180,7 @@ The owner answered every row on 2026-10-13. The Answer column below holds each a
 | ipsec | `internal/component/ike/engine/redistribute.go` `ipsecProtocolID` (the tunnel routes `established.go` adds at SA establishment go out through `emitRouteAdd` under this protocol, round 2 N-3) | none: tunnel routes end with the SA; carried by the BGP drain when redistributed |
 | l2tp | `internal/component/l2tp/events/events.go` `ProtocolID` | none: subscriber routes; carried by the BGP drain when redistributed |
 
-Outside the registry but installing forwarding state (found by grepping netlink `RouteAdd`/`RouteReplace` and the MPLS installers; each is named in the drain doc page with its disposition, and none gets a drain of its own here). Each row's "What it installs" was read at its producer in design review round 2 (N-2, N-3, N-4):
+Outside the registry but installing forwarding state (found by grepping `netlink.RouteAdd`/`netlink.RouteReplace` and the MPLS installers; each is named in the drain doc page with its disposition, and none gets a drain of its own here). Each row's "What it installs" was read at its producer in design review round 2 (N-2, N-3, N-4):
 
 | Installer | What it installs | Disposition |
 |-----------|------------------|-------------|
@@ -209,6 +209,14 @@ Outside the registry but installing forwarding state (found by grepping netlink 
 - `eng.Stop` gets its own context, created after `apiServer.Stop()` returns.
 - External plugin subprocesses start in their own process group; unit gains `TimeoutStopSec` and `KillMode=mixed`.
 - OSPF `drain-on-shutdown`, new BGP and IS-IS waits originate their drain, and drain state is an input to every later origination until stop.
+
+## Existing Mechanisms
+
+| Mechanism | Where (file + symbol, or page + section) | What it does today | This spec (extends, replaces, or does not apply, with the reason) |
+|-----------|------------------------------------------|--------------------|------------------------------------------------------------------|
+| Hub stop sequence and config reload fence | `cmd/ze/hub/main.go` (`run`), `cmd/ze/hub/main_reload.go` (`reloadGate`, `awaitReloadWorker`), `internal/component/plugin/server/system.go` (`handleDaemonShutdown`, `handleDaemonQuit`) | Fences config reloads with `commitReloads.close()` and then tears down listeners, plugins (`apiServer.Stop()`), and the engine with no drain phase; `handleDaemonShutdown`, `handleDaemonQuit`, and SSH `stop` call `r.Stop()` (sending BGP Cease) before hub teardown begins | Extends the hub stop path by inserting the daemon-wide drain phase between `commitReloads.close()` and `gnmiSrv.Stop()`, and routes daemon shutdown entry points through the hub so BGP drains before Cease |
+| Plugin SDK callback dispatch and Stage 1 validation | `pkg/plugin/sdk/sdk_callbacks.go` (`OnBye`, `OnDoctorCheck`), `pkg/plugin/sdk/sdk_dispatch.go` (`eventLoop`, `bridgeEventLoop`), `internal/component/plugin/server/startup.go` (`validateDoctorCheckDecls`) | Delivers engine-to-plugin RPC callbacks serially on one per-connection loop and validates Stage 1 plugin declarations at startup | Extends Stage 1 declarations and the SDK with `DrainBudget` and `OnDrain`, running the drain handler on a dedicated long-lived per-connection worker so `show` commands stay responsive during drain |
+| Route-source registry, BGP `ribOut` replay, and IGP origination | `internal/core/redistevents/registry.go` (`RegisterProtocol`), `internal/component/bgp/plugins/rib/rib.go` (`ribOut`), `internal/component/bgp/reactor/session_write.go` (`Session.writeUpdateBody`), `internal/plugins/ospf/instance.go`, `internal/plugins/isis/lsdb_wiring.go` | `RegisterProtocol` lists route sources without drain dispositions; `bgp-rib` keeps per-peer Adj-RIB-Out state (`ribOut`); `Session.writeUpdateBody` is the single BGP wire writer; OSPF and IS-IS read static stub/overload config on each LSA/LSP origination | Extends `RegisterProtocol` with explicit drain dispositions, reuses `ribOut` replay and `Session.writeUpdateBody` for RFC 8326 GRACEFUL_SHUTDOWN tagging, and feeds drain state into OSPF MaxLinkMetric and IS-IS overload origination |
 
 ## Data Flow (MANDATORY - see `ai/rules/architecture.md`)
 

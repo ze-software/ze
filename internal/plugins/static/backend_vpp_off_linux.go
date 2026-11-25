@@ -1,12 +1,17 @@
-// Design: ai/rules/plugins.md -- ze_vpp-off static backend stub
+// Design: ai/rules/plugins.md -- ze_vpp-off static backend refusal
 
 //go:build linux && !ze_vpp
 
 package static
 
+import "errors"
+
+var errStaticVPPNotBuilt = errors.New("this build was compiled without VPP support (missing ze_vpp build tag)")
+
 // newVPPStaticBackend is the ze_vpp-off counterpart of the GoVPP-backed
-// constructor in backend_vpp_linux.go. Returning nil is the existing "fall
-// back to kernel" signal newStaticBackend already handles for a missing VPP
-// connector, so a vpp-less build routes static routes to the kernel FIB
-// exactly like a vpp-enabled build without an active VPP connection.
-func newVPPStaticBackend() routeBackend { return nil }
+// constructor in backend_vpp_linux.go. When the configured data plane is "vpp"
+// in a build without ze_vpp, it refuses with doctorCodeVPPChannel and NEVER
+// falls back to the Linux kernel backend.
+func newVPPStaticBackend() (routeBackend, error) {
+	return nil, staticVPPChannelError(errStaticVPPNotBuilt)
+}

@@ -35,9 +35,9 @@ module ze-rib-conf {
         uses policy:rib-import-filter;
         description "The system RIB takes the best route each protocol offers and
                      selects one system best for each prefix. The FIB plugins program
-                     that winner into the kernel with netlink, into VPP, or into a P4
+                     that winner into the kernel through the netlink socket, into VPP, or into a P4
                      switch. The kernel FIB carries no administrative distance field, so
-                     the ranking happens here and only the winner reaches netlink. The
+                     the ranking happens here and only the winner reaches the netlink socket. The
                      distance container below is the one declaration of every protocol's
                      administrative distance. The fib-withhold leaf-list beside it names
                      the protocols whose winners are not programmed. Routes reach the

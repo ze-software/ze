@@ -7,7 +7,7 @@ import (
 
 // TestRouteEventCarriesOutputDevice checks that the output interface index a
 // route event carries reaches a registered handler unchanged. Method: deliver
-// one event through the same path the netlink loop uses and read it back.
+// one event through the same path the netlink socket loop uses and read it back.
 func TestRouteEventCarriesOutputDevice(t *testing.T) {
 	w := New()
 	var got []RouteEvent

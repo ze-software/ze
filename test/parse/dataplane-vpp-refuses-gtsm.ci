@@ -1,0 +1,36 @@
+# Test: interface backend vpp refuses a BGP peer with GTSM (ttl max 1).
+# Question: does `ze config validate` refuse a BGP peer configuring `connection
+#           { ttl { max 1; } }` under `interface backend vpp`, naming the peer's
+#           `ttl` leaf and both fixes (`set interface backend kernel` and
+#           `delete` of the peer's `ttl` leaf)?
+#           A unit test cannot prove `gtsm`'s standalone data-plane registration
+#           reaches `ze config validate` through the real binary.
+# VALIDATES: spec-dataplane-compatibility-guard AC-5 (J) -- RFC 5082 GTSM
+#            programs kernel host routes and a kernel drop table only, so a
+#            nonzero BGP `ttl` leaf is refused under VPP.
+# PREVENTS: operators enabling GTSM under VPP where VPP forwards BGP packets
+#           with neither the kernel hop-limit route nor the kernel drop table.
+stdin=config:terminator=EOF_CONF
+interface {
+	backend vpp;
+}
+bgp {
+	router-id 203.0.113.1;
+	peer peer1 {
+		connection {
+			remote { ip 127.0.0.1; }
+			local { ip 127.0.0.1; }
+			ttl { max 1; }
+		}
+		session {
+			asn { local 65533; remote 65534; }
+		}
+	}
+}
+EOF_CONF
+
+cmd=foreground:seq=1:exec=ze config validate -:stdin=config
+expect=exit:code=1
+expect=stdout:contains=bgp peer peer1 connection ttl max
+expect=stdout:contains=set interface backend kernel
+expect=stdout:contains=delete bgp peer peer1 connection ttl max

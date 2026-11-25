@@ -96,6 +96,7 @@ Use labels for runtime dimensions. Never encode variable data in metric names.
 | `bgp-adj-rib-in` | `adjribin` | `bgp` prefix redundant; hyphens stripped |
 | `bgp-gr` | `gr` | Established |
 | `fib-kernel` | `fibkernel` | Hyphen stripped |
+| `fib-dummy` | `fibdummy` | Hyphen stripped |
 | `rib` (sysrib) | `systemrib` | Registration name is `rib` but `ze_rib_` is taken by bgp-rib; `systemrib` reads naturally |
 | `bgp-watchdog` | `watchdog` | `bgp` prefix redundant |
 | `bgp-rpki` | `rpki` | `bgp` prefix redundant |
@@ -137,6 +138,11 @@ Use labels for runtime dimensions. Never encode variable data in metric names.
 | `ze_fibkernel_route_updates_total` | Counter | | fib-kernel |
 | `ze_fibkernel_route_removals_total` | Counter | | fib-kernel |
 | `ze_fibkernel_errors_total` | CounterVec | operation | fib-kernel |
+| `ze_fibdummy_routes_held` | Gauge | | fib-dummy <!-- source: internal/plugins/fib/dummy/register.go -- SetMetricsRegistry, fibDummyMetrics --> |
+| `ze_fibdummy_route_installs_total` | Counter | | fib-dummy |
+| `ze_fibdummy_route_replaces_total` | Counter | | fib-dummy |
+| `ze_fibdummy_route_removals_total` | Counter | | fib-dummy |
+| `ze_fibdummy_label_entries_refused_total` | Counter | | fib-dummy <!-- source: internal/plugins/fib/dummy/labels.go -- handleMPLSEntry --> |
 | `ze_systemrib_routes_best` | Gauge | | rib (sysrib) |
 | `ze_systemrib_route_changes_total` | CounterVec | action | rib (sysrib) |
 | `ze_systemrib_events_received_total` | Counter | | rib (sysrib) |

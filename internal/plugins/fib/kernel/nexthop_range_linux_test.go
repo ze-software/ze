@@ -7,7 +7,7 @@
 // (vendor/github.com/vishvananda/netlink/route_linux.go:1058,1069), so on a
 // 32-bit build a uint32 above MaxInt32 turns negative and the attribute is
 // dropped without an error: a redistributed route silently lands in
-// RT_TABLE_MAIN at the kernel default metric. Linux-only (netlink); runs under
+// RT_TABLE_MAIN at the kernel default metric. Linux-only (rtnetlink); runs under
 // QEMU per ai/rules/platform-linux.md.
 
 //go:build linux

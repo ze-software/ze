@@ -129,7 +129,7 @@ interface {
 	}
 }
 firewall {
-	backend nft;
+	backend kernel;
 	table refs {
 		family inet;
 		chain input {

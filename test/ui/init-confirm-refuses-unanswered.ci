@@ -3,7 +3,7 @@
 # writing a store?
 #
 # VALIDATES: the --confirm flag reaches the question path through the shipped
-# binary: its flag parsing, the netlink backend the composition root links, and
+# binary: its flag parsing, the kernel backend the composition root links, and
 # discovery of the host's devices. Linux always has the loopback, which
 # --confirm asks about, so at least one question is asked on every Linux host.
 # Given only the five credential lines, the input ends before that question is
@@ -20,7 +20,7 @@
 # written) is host-dependent in count and is proven by the unit tests in
 # internal/plugins/init/confirm_internal_test.go.
 #
-# needs-linux: discovery runs through the netlink backend, which exists on
+# needs-linux: discovery runs through the kernel backend, which exists on
 # Linux only. No daemon starts and nothing is applied, so no capability is
 # needed.
 

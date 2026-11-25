@@ -32,7 +32,7 @@ var universalKernelRequirements = []string{
 // set the ze-qemu evidence tests boot on.
 //
 // The ESP entries carry the IPsec dataplane. gokrazy/kernel/kernel.config sets
-// CONFIG_XFRM_USER, which gives the kernel the netlink interface ze installs
+// CONFIG_XFRM_USER, which gives the kernel the netlink socket interface ze installs
 // through; without CONFIG_INET_ESP the same kernel accepts the install and drops
 // every ESP packet. The image ships two ze binaries and gokrazy randomd and
 // heartbeat, so there is no iproute2 and no busybox to diagnose that with: the
@@ -40,7 +40,7 @@ var universalKernelRequirements = []string{
 // counters `show vpn ipsec sa` reports.
 //
 // The rest of the VPN set follows the same reasoning. CONFIG_XFRM_USER is the
-// netlink interface every SA install goes through, CONFIG_XFRM_INTERFACE the
+// netlink socket interface every SA install goes through, CONFIG_XFRM_INTERFACE the
 // device a route-based peer binds to, AH the protocol OSPFv3 authentication
 // installs, and CONFIG_WIREGUARD the link kind Ze creates. The CRYPTO entries
 // are the kernel symbols of the transforms Ze's XFRM tables name

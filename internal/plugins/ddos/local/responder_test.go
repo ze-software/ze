@@ -148,7 +148,7 @@ func TestLocalNarrowsInPlace(t *testing.T) {
 }
 
 func TestLocalApplyFailureRollsBack(t *testing.T) {
-	// VALIDATES: on a failed nft apply the responder rolls the registry back to
+	// VALIDATES: on a failed nftables apply the responder rolls the registry back to
 	// nil and clears active AND the published snapshot, rather than leaving a
 	// phantom active mitigation with the registry empty while the kernel keeps
 	// the last rule (review Run-4 NOTE).
@@ -159,7 +159,7 @@ func TestLocalApplyFailureRollsBack(t *testing.T) {
 	registerTables = func(_ string, tables []firewall.Table) error { lastTables = tables; return nil }
 	applyAll = func() error {
 		if fail {
-			return errors.New("nft apply failed")
+			return errors.New("nftables apply failed")
 		}
 		return nil
 	}

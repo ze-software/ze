@@ -70,9 +70,9 @@ func wireguardHostBackend() *fakeBackend {
 // TestApplyOverMatchingWireguardDeviceWritesNothing proves the first apply
 // after start issues no WireGuard write for a device that already holds the
 // configured keys and peers. Method: every write fails with EPERM, so any
-// write the apply issues fails it. On the netlink backend the read of a
+// write the apply issues fails it. On the kernel backend the read of a
 // WireGuard device needs CAP_NET_ADMIN as well (the kernel's GET_DEVICE is
-// admin-only), so an unprivileged netlink ze still cannot apply such a config:
+// admin-only), so an unprivileged kernel ze still cannot apply such a config:
 // TestApplyWireguardUnreadWithoutPrivilegeStillRefused covers that case.
 //
 // VALIDATES: a device that holds the config gets no ConfigureWireguardDevice,
@@ -215,7 +215,7 @@ func TestApplyWritesAWireguardDeviceItCannotRead(t *testing.T) {
 	assert.Empty(t, stateUnreadWarnings(), "a read that answers clears the warning")
 }
 
-// TestApplyWireguardUnreadWithoutPrivilegeStillRefused proves the netlink
+// TestApplyWireguardUnreadWithoutPrivilegeStillRefused proves the kernel
 // case without CAP_NET_ADMIN: the read is refused as the write is, so the
 // write follows and its refusal fails the apply with the capability named.
 //

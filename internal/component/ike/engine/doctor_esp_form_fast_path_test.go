@@ -411,7 +411,7 @@ func TestDoctorESPFormFirewallReading(t *testing.T) {
 			// each commit.
 			// MUTATION: drop the ESPFormFirewallMoving case from espFormFirewallFindings:
 			// the reading falls to the unknown-reading warning, whose message names a Ze
-			// defect and whose fix is the log listing, not sudo nft monitor.
+			// defect and whose fix is the log listing, not sudo nftables monitor.
 			// MUTATION: drop ", and that read finds no rule that can drop ESP" from the
 			// message: it promises the fast path back once the commits pause, which a
 			// stream that ends on a blocking rule does not keep.
@@ -879,7 +879,7 @@ func TestDoctorESPFormSharedSPIPeerRacesNoMOBIKEMove(t *testing.T) {
 // add the accept-esp term to its chain and commit it, and a sentence saying the editor
 // appends the term and has no command that moves it ahead of another; a reserved table
 // is answered with the control its producer declared (the plugin, what decides its
-// rules, and the command that shows that state), never with editor lines or an nft
+// rules, and the command that shows that state), never with editor lines or an nftables
 // command; a ze_ table or chain name the config cannot hold, and the table named ze_
 // alone, are answered with the ruleset listing.
 // PREVENTS: the doctor handing the operator editor lines for a table a producer rewrites,
@@ -1347,7 +1347,7 @@ func TestEngineDoctorCheckDispatch(t *testing.T) {
 	}
 
 	ps := &PeerSession{peerName: "site-b"}
-	ps.childRefused.Store(&childRefusal{err: errors.New("netlink: operation not supported"), at: time.Now()})
+	ps.childRefused.Store(&childRefusal{err: errors.New("netlink error: operation not supported"), at: time.Now()})
 	state.peers["site-b"] = ps
 	diags, err = state.answerDoctorCheck(childInstallCheckName)
 	if err != nil {

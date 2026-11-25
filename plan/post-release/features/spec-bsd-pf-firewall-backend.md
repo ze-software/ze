@@ -15,7 +15,7 @@ Recovery after compaction: `.claude/rules/post-compaction.md`.
 
 ## Task
 
-Ze's firewall has two backends, `nft` (`internal/plugins/firewall/nft/`) and `vpp`
+Ze's firewall has two backends, `kernel` (`internal/plugins/firewall/nft/`) and `vpp`
 (`internal/plugins/firewall/vpp/`). Off Linux `internal/component/firewall/default_other.go`
 sets an empty default, so any firewall section rejects at verify. This spec adds a
 firewall backend for pf on FreeBSD and OpenBSD (and possibly macOS pf), lowering
@@ -25,7 +25,7 @@ Open design points, from the BSD research:
 
 | Point | Notes |
 |-------|-------|
-| pf ABI differs per OS | FreeBSD pf (with its own `DIOC*` ioctls and, on recent releases, a netlink interface) and OpenBSD pf diverged long ago; macOS pf is an old OpenBSD fork. One backend per OS or a shared core with per-OS lowering |
+| pf ABI differs per OS | FreeBSD pf (with its own `DIOC*` ioctls and, on recent releases, a netlink API) and OpenBSD pf diverged long ago; macOS pf is an old OpenBSD fork. One backend per OS or a shared core with per-OS lowering |
 | ioctl versus `pfctl` | The repository bans shelling out where a kernel interface exists (`ai/rules/go-standards.md`, external commands); the ioctl route needs hand-defined structs per OS |
 | Anchors | Ze owns one pf anchor so the operator's own ruleset stays untouched, as Ze owns its nft tables on Linux |
 | ipfw (FreeBSD) | Alternative to pf on FreeBSD; recommendation: pf only |
@@ -49,7 +49,7 @@ Open design points, from the BSD research:
 - [ ] `internal/component/firewall/backend.go` - backend interface and registry
 
 **Behavior to preserve:**
-- Linux `nft` and `vpp` backends unchanged; off-Linux rejection stays until a pf backend registers.
+- Linux `kernel` and `vpp` backends unchanged; off-Linux rejection stays until a pf backend registers.
 
 **Behavior to change:**
 - FreeBSD and OpenBSD (macOS if the owner chooses) default to a `pf` backend.

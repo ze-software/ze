@@ -49,7 +49,7 @@ mapping that already exists.
   → Constraint: pool addresses carry no tag, so ownership is the set Ze applied, never "every pooled address"
 
 **Key insights:**
-- The nft backend lowers overlapping snat ranges in separate rules without conflict; the overlap refusal belongs to the VPP verifier only.
+- The kernel backend lowers overlapping snat ranges in separate rules without conflict; the overlap refusal belongs to the VPP verifier only.
 
 ## Current Behavior (MANDATORY)
 

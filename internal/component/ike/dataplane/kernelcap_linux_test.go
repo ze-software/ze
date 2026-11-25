@@ -118,7 +118,7 @@ func TestXFRMKernelProbeClassification(t *testing.T) {
 			{"handler-ran", unix.ESRCH, kernelcap.StatePresent},
 			{"before-7.2", unix.EINVAL, kernelcap.StateAbsent},
 			{"no-xfrm-migrate", unix.ENOPROTOOPT, kernelcap.StateAbsent},
-			{"no-xfrm-netlink", unix.EPROTONOSUPPORT, kernelcap.StateAbsent},
+			{"no-xfrm-socket", unix.EPROTONOSUPPORT, kernelcap.StateAbsent},
 			{"unprivileged", unix.EPERM, kernelcap.StateUnknown},
 			{"accepted", nil, kernelcap.StateUnknown},
 		})

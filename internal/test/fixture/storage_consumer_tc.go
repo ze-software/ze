@@ -39,7 +39,7 @@ func storageTCRestart(ctx context.Context, dir string) error {
 		return err
 	}
 	// The qdisc is programmed and read through netlink, as the traffic plugin's
-	// own adapter does: Ze's guest ships busybox tc, which cannot replace a
+	// own adapter does: Ze's guest ships busybox tc binary, which cannot replace a
 	// root qdisc and has no JSON output.
 	link, err := netlink.LinkByName(name)
 	if err != nil {
@@ -89,7 +89,7 @@ func storageTCRestart(ctx context.Context, dir string) error {
 	if original.Kind != "fq_codel" || original.Handle != custom.Handle || original.Limit != 321 || original.Quantum != 777 {
 		return fmt.Errorf("custom original qdisc absent: %+v", original)
 	}
-	config := resolveRIRConfig("") + fmt.Sprintf(`traffic { control { backend tc; interface %s { qdisc { type htb; default-class default; class default { rate 10mbit; ceil 10mbit; priority 1; } } } } }`, name)
+	config := resolveRIRConfig("") + `traffic { control { backend kernel; interface ` + name + ` { qdisc { type htb; default-class default; class default { rate 10mbit; ceil 10mbit; priority 1; } } } } }`
 	first, _, err := storageConsumerDaemon(ctx, dir, config, "first.log")
 	if err != nil {
 		return fmt.Errorf("first TC daemon startup: %w", err)

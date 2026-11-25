@@ -11,7 +11,7 @@ import (
 )
 
 // The table names carry the "ze_" ownership prefix, as every other firewall
-// owner does. The nft backend sweeps a table before it re-adds it only when the
+// owner does. The kernel firewall backend sweeps a table before it re-adds it only when the
 // name carries that prefix, so without it an auto-reverted rule kept enforcing
 // and every reinstall appended a second copy of each rule. The owner key stays
 // "anomaly-shape" and so does the name an operator reads: the CLI and the web

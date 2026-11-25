@@ -44,11 +44,11 @@ const (
 	authHoldExchangeType = "@th,240,8"
 	// ikeExchangeIKEAuth is Exchange Type IKE_AUTH (RFC 7296 Section 3.1).
 	ikeExchangeIKEAuth = "35"
-	// wordDelete is the verb ip-xfrm(8) and nft(8) both take to remove an object, and
+	// wordDelete is the verb ip-xfrm(8) and the nft tool both take to remove an object, and
 	// xfrmWordDir the ip-xfrm(8) keyword naming a policy's direction.
 	wordDelete  = "delete"
 	xfrmWordDir = "dir"
-	// wordSport, wordList and wordCounter are the nft(8) and ip-xfrm(8) words for a
+	// wordSport, wordList and wordCounter are the nft tool and ip-xfrm(8) words for a
 	// source port, a listing and a counter.
 	wordSport   = "sport"
 	wordList    = "list"

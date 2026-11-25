@@ -1302,7 +1302,7 @@ func validateVPPQoSMaps(cfg *ifaceConfig) error {
 				if pcp != prio {
 					return fmt.Errorf(
 						"%s unit %q: VPP ingress QoS maps must be identity (pcp == priority); got pcp %d -> priority %d. "+
-							"VPP qos-record copies PCP verbatim; use the netlink backend for remapped ingress",
+							"VPP qos-record copies PCP verbatim; use the kernel backend for remapped ingress",
 						iface, units[i].Label, pcp, prio,
 					)
 				}
@@ -1337,7 +1337,7 @@ func validateVPPQoSMaps(cfg *ifaceConfig) error {
 // list key (PCP for ingress, priority for egress) arrives as the JSON object
 // key; valueLeaf names the single value leaf inside each entry. Both sides
 // are 3-bit 802.1p values (0-7). Returns nil when the list is absent OR
-// present but empty, so the backend never emits an empty netlink mapping
+// present but empty, so the backend never emits an empty rtnetlink mapping
 // attribute (the vendor lib serializes any non-nil map).
 func parseQoSMap(um map[string]any, listName, valueLeaf string) (map[uint32]uint32, error) {
 	listMap, ok := um[listName].(map[string]any)

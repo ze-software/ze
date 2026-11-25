@@ -59,6 +59,17 @@ enabled. Set `enabled false` to disable explicitly. Listener endpoints
 use the standard `zt:listener` grouping (`ip`, `port`) with port
 conflict detection via `ze:listener`.
 
+L2TP programs Linux kernel L2TP/PPP devices only. When an active listener
+(`environment l2tp server`) is configured and `l2tp enabled` is not `false`,
+`ze config validate`, commit, reload, and daemon start refuse the configuration
+under `interface backend vpp` (and `ze doctor` reports
+`doctor-dataplane-mismatch`), with the fix `set interface backend kernel`. An
+`l2tp` block that holds shared subscriber authentication or address-pool
+settings for PPPoE with no L2TP listener stays accepted under `vpp`. See
+[Features by Data Plane](dataplane-features.md).
+<!-- source: internal/component/l2tp/register.go -- l2tpDataPlaneInUse -->
+<!-- source: internal/component/config/dataplane_verdict.go -- evaluateDataPlaneVerdict -->
+
 A session that ended keeps its place under `max-sessions` until Ze has
 confirmed that its PPP and kernel resources are released, and a tunnel that
 closed with such sessions keeps its place under `max-tunnels`. A failed
@@ -1550,7 +1561,7 @@ different mechanism.
 The upload direction uses a policer because the ingress hook holds no queue. A
 queueing discipline shapes by delaying a packet, and there is nothing to delay
 into on that hook, so the enforcement available is to drop what exceeds the
-rate. The policer attaches at tc priority 200 on the shared `clsact` qdisc, so
+rate. The policer attaches at traffic-control priority 200 on the shared `clsact` qdisc, so
 interface mirroring (priority 1) and flow-export sampling (priority 100) keep
 working on the same interface.
 
@@ -1561,7 +1572,7 @@ rate. A `10mbit` download therefore programs 1,250,000 bytes/s, not
 10,000,000 bytes/s. The TBF burst is encoded in scheduler ticks, not bytes.
 Invalid or unrepresentable rates are refused before replacing the root, so a
 bad rate cannot install a download qdisc and then abort before upload policing.
-See [TBF root rates and bounds](traffic-control.md#tc-backend-tbf-root-rate).
+See [TBF root rates and bounds](traffic-control.md#kernel-backend-tbf-root-rate).
 
 A PPPoE subscriber gets the same pair of mechanisms. Both access types
 terminate on a `pppN`, so one implementation serves them both.

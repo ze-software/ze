@@ -576,7 +576,7 @@ func (r *Runner) runOrchestrated(ctx context.Context, rec *Record, opts *RunOpti
 	// before spawning any child. ze, ze-peer, and compiled fixture helpers
 	// fork-inherit it (A-5), so they share one throwaway namespace, reach each
 	// other over 127.0.0.1, and
-	// the nft firewall the daemon programs stays in that netns -- the host
+	// the nftables firewall the daemon programs stays in that netns -- the host
 	// firewall is untouched. The whole orchestration below (syslog socket, HTTP
 	// checks) runs on this locked thread so it too reaches the daemon inside the
 	// netns. All of it is gated on netnsMode, so the default path is unchanged.
@@ -601,7 +601,7 @@ func (r *Runner) runOrchestrated(ctx context.Context, rec *Record, opts *RunOpti
 		restore, hostInode, nsErr := enterTestNetns(testNetnsName(rec.Nick, rec.Port))
 		if nsErr != nil {
 			// AC-4: fail loudly rather than fall through and program the host
-			// firewall. A netlink suite that cannot get its own namespace is a
+			// firewall. A kernel-networking suite that cannot get its own namespace is a
 			// setup error (missing CAP_SYS_ADMIN / not under sudo), not a pass.
 			rec.Error = nsErr
 			rec.FailureType = stateUnknown
@@ -942,7 +942,7 @@ func (r *Runner) runOrchestrated(ctx context.Context, rec *Record, opts *RunOpti
 			)
 		}
 		// Fix B (R-2 gate): tell ze which netns inode is the HOST so it refuses to
-		// program nft if it somehow ended up there (netns isolation silently
+		// program nftables if it somehow ended up there (netns isolation silently
 		// failed). Only ze needs it -- it owns the firewall Apply chokepoint.
 		if netnsMode && binName == binNameZe {
 			proc.Env = append(proc.Env,
@@ -1029,8 +1029,8 @@ func (r *Runner) runOrchestrated(ctx context.Context, rec *Record, opts *RunOpti
 		// Fix B: drop the ze daemon to a normal user so its readiness handshake
 		// works (A-4: the readiness file is written after dropPrivileges, so a
 		// root ze never writes it). The setcap'd binary keeps ambient CAP_NET_ADMIN
-		// for nft. Peer and fixture helpers stay privileged (root under sudo) so
-		// they can read nft state and signal the daemon. The credential is set
+		// for nftables. Peer and fixture helpers stay privileged (root under sudo) so
+		// they can read nftables state and signal the daemon. The credential is set
 		// beside whatever attributes the command already carries, never in
 		// place of them; startWithETXTBSYRetry then lays the process group and
 		// the death signal over it.

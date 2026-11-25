@@ -319,7 +319,7 @@ func removeUnusedIngressQdisc(link netlink.Link) error {
 }
 
 // ingressSideQdisc returns the qdisc installed at handle ffff:, clsact or the
-// older ingress kind, or nil when the link has none. netlink spells the parent
+// older ingress kind, or nil when the link has none. The netlink library spells the parent
 // of both as HANDLE_CLSACT, which is HANDLE_INGRESS.
 func ingressSideQdisc(link netlink.Link) netlink.Qdisc {
 	qdiscs, err := netlink.QdiscList(link)

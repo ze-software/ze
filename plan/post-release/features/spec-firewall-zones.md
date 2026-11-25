@@ -67,7 +67,7 @@ chains, terms and jumps; it adds no second firewall engine.
 | Boundary | How | Verified |
 |----------|-----|----------|
 | Config → firewall component | YANG tree | No |
-| Firewall component → nft backend | `Backend.Apply` | No |
+| Firewall component → kernel backend | `Backend.Apply` | No |
 
 ### Integration Points
 - `ParseFirewallConfig`, `ValidateTables`, `RegisterTables`

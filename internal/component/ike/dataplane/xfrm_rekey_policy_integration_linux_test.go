@@ -11,7 +11,7 @@
 //
 // PREVENTS: reasoning about the kernel's exclusivity rule instead of measuring it,
 // in EITHER direction. The exclusivity test would go quiet if it were routed through
-// the backend that stopped using NEWPOLICY, so it calls netlink directly; the
+// the backend that stopped using NEWPOLICY, so it calls the netlink library directly; the
 // idempotence test goes red the moment the backend reverts to NEWPOLICY.
 
 //go:build linux
@@ -52,7 +52,7 @@ func rekeySPParams() SPParams {
 // EEXIST. Nothing about the kernel changed; what changed is that ze no longer sends
 // that message, for the reason the next test records.
 //
-// It calls netlink directly rather than through the backend, because the backend is
+// It calls the netlink library directly rather than through the backend, because the backend is
 // precisely what stopped using NEWPOLICY. Measuring a kernel rule through a caller
 // that no longer exercises it would measure nothing.
 func TestXFRMNewPolicyIsExclusive(t *testing.T) {

@@ -1,0 +1,23 @@
+# Test: interface backend kernel refuses firewall backend vpp.
+# Question: does `ze config validate` refuse `firewall backend vpp` when
+#           `interface backend` is `kernel` (by default), naming the leaf and
+#           both fixes (`set firewall backend kernel` and `set interface
+#           backend vpp`)?
+#           A unit test cannot prove `ze config validate` evaluates the real
+#           registered selectors against the loaded YANG schema.
+# VALIDATES: spec-dataplane-compatibility-guard AC-4 (firewall) -- mismatched
+#            `firewall backend vpp` under kernel interfaces is refused with
+#            both operator fixes.
+# PREVENTS: VPP ACLs being configured on a kernel-forwarding router where no
+#           VPP interfaces carry the traffic.
+stdin=config:terminator=EOF_CONF
+firewall {
+	backend vpp;
+}
+EOF_CONF
+
+cmd=foreground:seq=1:exec=ze config validate -:stdin=config
+expect=exit:code=1
+expect=stdout:contains=firewall backend
+expect=stdout:contains=set firewall backend kernel
+expect=stdout:contains=set interface backend vpp

@@ -13,7 +13,7 @@ import (
 )
 
 // exactRemovalFixture feeds the production lookup and guarded removal with a
-// kernel-shaped dump. Delete records the exact resolved address sent to netlink.
+// kernel-shaped dump. Delete records the exact resolved address sent to the netlink socket.
 type exactRemovalFixture struct {
 	request   *netlink.Addr
 	installed []netlink.Addr

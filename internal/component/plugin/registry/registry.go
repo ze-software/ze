@@ -116,17 +116,19 @@ type Registration struct {
 	// take precedence over ordinary owners only at eligible destinations.
 	Dissemination []rpc.DisseminationDecl
 
-	// ProgramsFIB declares that this plugin writes the routes the system RIB
-	// selects into a forwarding path. It IS the operator's data-plane choice,
-	// so a config that names such a plugin has already chosen and the engine
-	// adds none of its own.
+	// ProgramsFIB declares that this plugin is an operator's FIB choice, so a
+	// config that names it has already chosen and the engine adds no data-plane
+	// writer of its own. Most FIB plugins write the routes the system RIB
+	// selects into a forwarding path; a plugin that also sets
+	// NoDataPlaneChoice makes the choice to program no data plane.
 	//
 	// It is separate from DataPlane because a FIB plugin can be the operator's
-	// choice and still reach nothing: fib-p4 declares this and no data plane.
+	// choice without claiming a forwarding plane (either because its client is
+	// unimplemented, as with fib-p4, or because it carries NoDataPlaneChoice).
 	ProgramsFIB bool
 
 	// DataPlane names the data plane a ProgramsFIB plugin reaches, spelled the
-	// way `interface { backend }` names it: "netlink" for the Linux kernel,
+	// way `interface { backend }` names it: "kernel" for the Linux kernel,
 	// "vpp" for VPP. It is a DECLARATION, so the engine can load the writer a
 	// route producer needs without any package holding a list of FIB plugins.
 	//
@@ -135,9 +137,9 @@ type Registration struct {
 	// deployment" is never a choice made at run time.
 	//
 	// A FIB plugin that reaches no data plane leaves this empty and is never
-	// RESOLVED as a producer's writer. fib-p4 is that case: its P4Runtime
-	// client is not written, so answering a producer's need with it would be
-	// answering with silence.
+	// RESOLVED as a producer's writer: with NoDataPlaneChoice it is the
+	// operator's choice to program none, and without it (fib-p4) its client is
+	// not written.
 	DataPlane string
 
 	// NeedsDataPlane declares that this plugin's routes reach the forwarding
@@ -149,6 +151,25 @@ type Registration struct {
 	// config path and its own plugin is already in the startup set before this
 	// resolution runs.
 	NeedsDataPlane bool
+
+	// DataPlaneSelector declares the backend selector leaf this component owns
+	// and the config roots that selection governs (dataplane_decl.go).
+	DataPlaneSelector *DataPlaneSelector
+
+	// DataPlaneFeatures declares forwarding-plane requirements for features
+	// this plugin owns (dataplane_decl.go).
+	DataPlaneFeatures []DataPlaneFeature
+
+	// HostSideDataPlane marks that this declaration acts on the Linux host
+	// itself, beside the selected data plane. Requires DataPlane != "" or at
+	// least one DataPlaneFeatures entry.
+	HostSideDataPlane bool
+
+	// NoDataPlaneChoice marks a ProgramsFIB plugin that is the operator's
+	// explicit choice to program no data plane. Requires ProgramsFIB == true,
+	// DataPlane == "", and HostSideDataPlane == false. The config verdict
+	// refuses it beside any other ProgramsFIB plugin in use.
+	NoDataPlaneChoice bool
 
 	// RunsInProcessOnly declares that this plugin works only as an internal
 	// plugin, a goroutine in the daemon: it reaches daemon state a forked
@@ -654,7 +675,7 @@ func Register(reg Registration) error { //nolint:gocritic // hugeParam: Registra
 		}
 	}
 	// A data plane has one writer. Two plugins claiming the same name would
-	// make "which plugin programs netlink" a map-order answer, and the loser
+	// make "which plugin programs kernel" a map-order answer, and the loser
 	// would be a FIB plugin the engine silently never loads.
 	if reg.DataPlane != "" {
 		if !reg.ProgramsFIB {
@@ -689,8 +710,13 @@ func Register(reg Registration) error { //nolint:gocritic // hugeParam: Registra
 			return err
 		}
 	}
+	if err := validateDataPlaneDecl(&reg); err != nil {
+		return err
+	}
 
-	plugins[reg.Name] = cloneRegistration(&reg)
+	stored := cloneRegistration(&reg)
+	fillDataPlaneFeatureNames(stored)
+	plugins[reg.Name] = stored
 	for _, ft := range reg.FilterTypes {
 		filterTypes[ft] = reg.Name
 	}
@@ -1615,6 +1641,7 @@ func Reset() {
 	plugins = make(map[string]*Registration)
 	familyIndex = make(map[string]*Registration)
 	filterTypes = make(map[string]string)
+	standaloneDataPlaneFeatures = nil
 	rpcHandlers = make(map[string]func(json.RawMessage) (any, error))
 	metricsRegistry = nil
 	// Cleared with the registry they belong to: a deferred hook or a
@@ -1643,17 +1670,18 @@ func Reset() {
 
 // RegistrySnapshot holds a complete copy of the registry state for test save/restore.
 type RegistrySnapshot struct {
-	plugins              map[string]*Registration
-	setupResults         map[string]SetupResult
-	rpcHandlers          map[string]func(json.RawMessage) (any, error)
-	eventBusInstance     ze.EventBus
-	ntpSyncProvider      NTPSyncProvider
-	runtimeSessionReady  *sessionReadyLookup
-	runtimeReplayFence   *replayFenceLookup
-	runtimeRegistryNames *registryNamesLookup
-	runtimeDeclared      *filterDeclaredLookup
-	runtimeInsertions    *filterInsertionsLookup
-	runtimeLoaded        *loadedPluginsLookup
+	plugins                     map[string]*Registration
+	standaloneDataPlaneFeatures []DataPlaneFeature
+	setupResults                map[string]SetupResult
+	rpcHandlers                 map[string]func(json.RawMessage) (any, error)
+	eventBusInstance            ze.EventBus
+	ntpSyncProvider             NTPSyncProvider
+	runtimeSessionReady         *sessionReadyLookup
+	runtimeReplayFence          *replayFenceLookup
+	runtimeRegistryNames        *registryNamesLookup
+	runtimeDeclared             *filterDeclaredLookup
+	runtimeInsertions           *filterInsertionsLookup
+	runtimeLoaded               *loadedPluginsLookup
 	// sealed is the seal state the snapshot was taken under, so a test that
 	// seals and restores leaves the registry open to the next test.
 	sealed bool
@@ -1667,6 +1695,7 @@ func Snapshot() RegistrySnapshot {
 
 	ps := make(map[string]*Registration, len(plugins))
 	maps.Copy(ps, plugins)
+	dpf := cloneStandaloneDataPlaneFeatures(standaloneDataPlaneFeatures)
 	sr := make(map[string]SetupResult, len(setupResults))
 	maps.Copy(sr, setupResults)
 	rh := make(map[string]func(json.RawMessage) (any, error), len(rpcHandlers))
@@ -1677,7 +1706,7 @@ func Snapshot() RegistrySnapshot {
 	loaded := filterDeclarations.loaded
 	filterDeclarations.mu.RUnlock()
 	return RegistrySnapshot{
-		plugins: ps, setupResults: sr, rpcHandlers: rh,
+		plugins: ps, standaloneDataPlaneFeatures: dpf, setupResults: sr, rpcHandlers: rh,
 		eventBusInstance: eventBusInstance, ntpSyncProvider: ntpSyncProvider,
 		runtimeSessionReady: runtimeSessionReady, runtimeReplayFence: runtimeReplayFence,
 		runtimeRegistryNames: runtimeRegistryNames,
@@ -1691,6 +1720,7 @@ func Restore(snap RegistrySnapshot) {
 	mu.Lock()
 	defer mu.Unlock()
 	plugins = snap.plugins
+	standaloneDataPlaneFeatures = cloneStandaloneDataPlaneFeatures(snap.standaloneDataPlaneFeatures)
 	setupResults = snap.setupResults
 	rpcHandlers = snap.rpcHandlers
 	eventBusInstance = snap.eventBusInstance

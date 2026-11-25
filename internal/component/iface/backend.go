@@ -8,7 +8,9 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"maps"
 	"net/netip"
+	"slices"
 	"sync"
 
 	"github.com/ze-software/ze/internal/component/plugin/registry"
@@ -22,7 +24,7 @@ import (
 // with errors.Is and retry when the transport becomes ready.
 //
 // Produced by ifacevpp.ensureChannel when the vpp component has not yet
-// completed its GoVPP handshake. The netlink backend never returns it.
+// completed its GoVPP handshake. The kernel backend never returns it.
 var ErrBackendNotReady = errors.New("iface: backend not ready")
 
 // ErrInterfaceExists signals that a create step found the name already bound
@@ -31,7 +33,7 @@ var ErrBackendNotReady = errors.New("iface: backend not ready")
 // keep its undo from deleting a device an earlier apply made.
 //
 // A backend that cannot answer "does this name exist" without a create is not
-// required to produce it: the netlink backend returns the kernel's EEXIST and
+// required to produce it: the kernel backend returns the kernel's EEXIST and
 // applyConfig falls back to Backend.GetInterface for that case. Produced by
 // ifacevpp.CreateDummy, whose create message (create_loopback) carries no name
 // and allocates a fresh interface on every call.
@@ -78,7 +80,7 @@ type VLANSpec struct {
 // Backend defines the operations that an interface management backend must
 // implement. The iface component dispatches all OS-specific work through
 // this interface. Implementations are registered via RegisterBackend and
-// selected by the "backend" config leaf (default: "netlink").
+// selected by the "backend" config leaf (default: "kernel").
 //
 // All methods that take an interface name MUST validate it before use.
 // Implementations on unsupported platforms MUST return descriptive errors.
@@ -106,7 +108,7 @@ type Backend interface {
 	// Only the netdev is created here; the private key, listen port, fwmark,
 	// and peer set are configured by ConfigureWireguardDevice via wgctrl
 	// because rtnetlink does not expose those fields. On kernels without
-	// the wireguard module the netlink layer returns an error.
+	// the wireguard module the netlink socket layer returns an error.
 	CreateWireguardDevice(name string) error
 	// ConfigureWireguardDevice applies the given spec as the complete
 	// desired state of the named wireguard netdev: private key, listen
@@ -128,7 +130,7 @@ type Backend interface {
 	// atomically in the create (rtnetlink RTM_NEWLINK), so there is no
 	// create-then-mark window. Deletion uses the existing DeleteInterface;
 	// listing rides ListInterfaces (InterfaceInfo.Alias carries the marker).
-	// Non-netlink backends (VPP, non-Linux) reject under exact-or-reject.
+	// Non-kernel backends (VPP, non-Linux) reject under exact-or-reject.
 	CreateMacvlanDevice(spec MacvlanSpec) error
 	// CreateOwnedBridge creates a bridge named spec.Name with MTU spec.MTU,
 	// marks it with the owned-device alias spec.Alias and brings it admin-up.
@@ -149,7 +151,7 @@ type Backend interface {
 	// CreateXFRM creates an XFRM interface netdev with the given spec.
 	// The IfID binds the interface to XFRM security associations; the
 	// optional PhysicalDev constrains the underlay device. On kernels
-	// without XFRM interface support (< 4.19) netlink returns an error.
+	// without XFRM interface support (< 4.19) rtnetlink returns an error.
 	CreateXFRM(spec XFRMSpec) error
 	// GetXFRMInfo reads the if_id from the kernel for the named XFRM
 	// netdev and queries XFRM policies bound to that if_id. Used by
@@ -268,7 +270,7 @@ type Backend interface {
 	ListKernelRoutes(filterPrefix string, limit int) ([]KernelRoute, error)
 
 	// ResetCounters zeros RX/TX counters for the named interface, or for
-	// every managed interface when name == "". Linux netlink has no
+	// every managed interface when name == "". Linux rtnetlink has no
 	// generic counter-reset syscall and MUST reject under exact-or-reject;
 	// VPP implements this via sw_interface_clear_stats (pending wiring).
 	ResetCounters(name string) error
@@ -328,7 +330,7 @@ type Backend interface {
 	// SetupLCPPair creates a Linux Control Plane pair for a VPP interface: a
 	// Linux TAP that shadows the named VPP interface so kernel networking (the
 	// ze BGP listener, ssh, ...) can bind on it. hostName is the desired Linux
-	// TAP name. This is a VPP-only concept -- the netlink and non-Linux
+	// TAP name. This is a VPP-only concept -- the kernel and non-Linux
 	// backends reject it; the vpp backend consumes the configured lcp netns and
 	// no-ops when LCP is disabled. RemoveLCPPair tears the pair down.
 	SetupLCPPair(vppIface, hostName string) error
@@ -364,7 +366,7 @@ var backends = map[string]func() (Backend, error){}
 var activeBackend Backend
 
 // activeBackendName is the registered name of the currently loaded backend
-// (e.g. "netlink" or "vpp"). Set by LoadBackend alongside activeBackend and
+// (e.g. "kernel" or "vpp"). Set by LoadBackend alongside activeBackend and
 // cleared by CloseBackend. Empty when no backend is loaded. Exposed via
 // ActiveBackendName so a consumer that resolves logical names for a specific
 // data plane (e.g. the VPP static backend) can confirm the active iface
@@ -388,6 +390,14 @@ func RegisterBackend(name string, factory func() (Backend, error)) error {
 	}
 	backends[name] = factory
 	return nil
+}
+
+// RegisteredBackends returns the sorted names of all currently registered
+// interface backends. Safe for concurrent use.
+func RegisteredBackends() []string {
+	backendsMu.Lock()
+	defer backendsMu.Unlock()
+	return slices.Sorted(maps.Keys(backends))
 }
 
 // LoadBackend creates and activates the named backend. Called by the iface
@@ -528,10 +538,10 @@ func EnsureBackend() error {
 }
 
 // ActiveBackendName returns the registered name of the active iface backend
-// (e.g. "netlink" or "vpp"), or "" when no backend is loaded. It lets a
+// (e.g. "kernel" or "vpp"), or "" when no backend is loaded. It lets a
 // data-plane-specific consumer confirm the active iface backend matches its
 // data plane before trusting a resolved index: resolving a logical name
-// against a netlink backend yields a KERNEL ifindex, which must never be
+// against a kernel backend yields a KERNEL ifindex, which must never be
 // programmed into VPP as a sw_if_index. Companion to DefaultBackendName (the
 // build-time fallback); this reports what is actually loaded now.
 func ActiveBackendName() string {

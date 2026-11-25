@@ -424,7 +424,7 @@ func TestDynamicChildrenAndValueHintsCombined(t *testing.T) {
 	}
 }
 
-// VALIDATES: AC-6 — node with Backend ["netlink"] excluded when active is "vpp".
+// VALIDATES: AC-6 — node with Backend ["kernel"] excluded when active is "vpp".
 // PREVENTS: backend-specific commands shown for wrong backend.
 func TestCommandCompleterBackendFilter(t *testing.T) {
 	tree := &Node{
@@ -438,16 +438,16 @@ func TestCommandCompleterBackendFilter(t *testing.T) {
 				Name:      "general",
 				ShortHelp: "General operations",
 			},
-			"netlink-only": {
-				Name:      "netlink-only",
-				ShortHelp: "Netlink operations",
-				Backend:   []string{"netlink"},
+			"kernel-only": {
+				Name:      "kernel-only",
+				ShortHelp: "Kernel operations",
+				Backend:   []string{"kernel"},
 			},
 		},
 	}
 
 	cc := NewTreeCompleter(tree)
-	cc.SetActiveBackends(map[string]string{"interface": "netlink"})
+	cc.SetActiveBackends(map[string]string{"interface": "kernel"})
 
 	comps := cc.Complete("")
 	names := make([]string, len(comps))
@@ -456,10 +456,10 @@ func TestCommandCompleterBackendFilter(t *testing.T) {
 	}
 
 	if len(comps) != 2 {
-		t.Fatalf("expected 2 completions (general + netlink-only), got %d: %v", len(comps), names)
+		t.Fatalf("expected 2 completions (general + kernel-only), got %d: %v", len(comps), names)
 	}
-	// Sorted: general, netlink-only
-	want := []string{"general", "netlink-only"}
+	// Sorted: general, kernel-only
+	want := []string{"general", "kernel-only"}
 	for i, w := range want {
 		if comps[i].Text != w {
 			t.Errorf("completion[%d] = %q, want %q", i, comps[i].Text, w)

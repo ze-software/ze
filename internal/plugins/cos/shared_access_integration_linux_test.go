@@ -38,7 +38,7 @@ func newNativeCoSSharedFixture(t *testing.T) *nativeCoSSharedFixture {
 	if iface.GetBackend() != nil {
 		t.Fatal("isolated shared CoS namespace has an unrelated backend")
 	}
-	if err := iface.LoadBackend("netlink"); err != nil {
+	if err := iface.LoadBackend("kernel"); err != nil {
 		t.Fatal(err)
 	}
 	t.Cleanup(func() {

@@ -219,7 +219,7 @@ func validTunnelEndpoint(ip net.IP) bool {
 // and returns the pair to write into the template. Transport mode returns no pair.
 //
 // The guard fails closed. A tunnel-mode policy with no endpoints reaches the kernel
-// as tmpl src 0.0.0.0 dst 0.0.0.0. Netlink derives the template family from a nil
+// as tmpl src 0.0.0.0 dst 0.0.0.0. The netlink library derives the template family from a nil
 // address and writes zeros. The kernel then resolves the policy to no state, and
 // the tunnel forwards nothing. No error reports the fault, so a zero address must
 // never be a valid answer here.
@@ -250,7 +250,7 @@ func tunnelEndpoints(p SPParams) (net.IP, net.IP, error) {
 }
 
 // xfrmAlgoPlan describes which XfrmState algorithm slots an SA install must set.
-// It isolates the AEAD-vs-crypt+auth-vs-auth-only decision from the netlink-only
+// It isolates the AEAD-vs-crypt+auth-vs-auth-only decision from the kernel-only
 // backend so the choice is unit-testable on any platform.
 type xfrmAlgoPlan struct {
 	AEAD  bool // single combined-mode (AEAD) transform, e.g. AES-GCM
@@ -866,7 +866,7 @@ type CatchAllInstaller interface {
 var ErrTunnelMigrationLost = errors.New("dataplane: tunnel lost during migration")
 
 // Dataplane abstracts the ESP SA/SP installation backend.
-// Implementations: XFRM (Linux netlink), VPP (binary API).
+// Implementations: XFRM (Linux netlink socket), VPP (binary API).
 type Dataplane interface {
 	// RequiresForwardPolicy declares whether tunnel-mode reception needs a separate
 	// SADirFwd PROTECT policy. Without it, SADirIn MUST cover local and transit traffic.

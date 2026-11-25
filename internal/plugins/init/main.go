@@ -815,18 +815,18 @@ func writeSSHListener(config *textbuf.Buffer, host, port string) {
 var discoverHostInterfaces = discoverInterfaces
 
 // discoverInterfaces answers this host's interfaces. LoadBackend activates the
-// netlink backend registered via a blank import; without it
+// kernel backend registered via a blank import; without it
 // DiscoverInterfaces answers "no backend loaded". A backend that does not
 // load (a platform with only the stub) and a discovery that fails are both
 // returned as the error.
 func discoverInterfaces() ([]iface.DiscoveredInterface, error) {
-	if err := iface.LoadBackend("netlink"); err != nil {
-		return nil, fmt.Errorf("load netlink backend: %w", err)
+	if err := iface.LoadBackend("kernel"); err != nil {
+		return nil, fmt.Errorf("load kernel backend: %w", err)
 	}
 	discovered, discErr := iface.DiscoverInterfaces()
 	if closeErr := iface.CloseBackend(); closeErr != nil {
 		var warning textbuf.Buffer
-		warning.Str("warning: close netlink backend: ").Err(closeErr).Byte('\n').StdErr() //nolint:errcheck // command diagnostic
+		warning.Str("warning: close kernel backend: ").Err(closeErr).Byte('\n').StdErr() //nolint:errcheck // command diagnostic
 	}
 	if discErr != nil {
 		return nil, discErr

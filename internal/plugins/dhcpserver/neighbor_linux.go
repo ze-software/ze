@@ -77,8 +77,8 @@ func readNeighbor(iface string, addr netip.Addr) (neighborEntry, error) {
 // readDeviceAddrs answers the IPv4 addresses the interface named iface holds:
 // its primary addresses first, then its secondary ones, each in the order the
 // kernel lists them. The first is the device's primary address, which decides
-// the home subnet of a segment (resolveSegment). It uses the same netlink
-// package calls as the neighbor reads above, no second client. Safe for
+// the home subnet of a segment (resolveSegment). It uses the same netlink library
+// calls as the neighbor reads above, no second client. Safe for
 // concurrent use: each call is one netlink dump.
 func readDeviceAddrs(iface string) ([]netip.Addr, error) {
 	link, err := netlink.LinkByName(iface)

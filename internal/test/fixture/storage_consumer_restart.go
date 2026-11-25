@@ -21,7 +21,7 @@ import (
 
 func init() {
 	Register("storage/consumer-restart", storageConsumerRestart)
-	// The tc consumer creates a kernel link, so it is its own fixture name:
+	// The traffic-control consumer creates a kernel link, so it is its own fixture name:
 	// the net-admin gate its callers declare (TestNativeIPRouteFixturesDeclareNetAdmin)
 	// then stays off the four consumers that touch no kernel networking.
 	Register("storage/consumer-restart-tc", storageConsumerRestartTC)
@@ -41,16 +41,16 @@ func storageConsumerRestart(ctx context.Context, args []string) error {
 	}
 	run, ok := consumers[args[0]]
 	if !ok {
-		return fmt.Errorf("unknown consumer %q (the tc consumer is the storage/consumer-restart-tc fixture)", args[0])
+		return fmt.Errorf("unknown consumer %q (the traffic-control consumer is the storage/consumer-restart-tc fixture)", args[0])
 	}
 	return storageConsumerRestartArm(ctx, args[0], run)
 }
 
-// storageConsumerRestartTC is the tc consumer: it creates a kernel link, so its
+// storageConsumerRestartTC is the traffic-control consumer: it creates a kernel link, so its
 // .ci callers declare option=needs-linux:caps=net-admin.
 func storageConsumerRestartTC(ctx context.Context, args []string) error {
 	if len(args) != 0 {
-		return fmt.Errorf("consumer-restart-tc takes no argument")
+		return fmt.Errorf("storage/consumer-restart-tc takes no argument")
 	}
 	return storageConsumerRestartArm(ctx, "tc", storageTCRestart)
 }

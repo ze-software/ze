@@ -41,7 +41,7 @@ shape different enough that parity is not automatic.
 | Tag | What ze needs |
 |-----|---------------|
 | nl | netlink read / write |
-| nft | nftables backend (already shipped) |
+| nftables | nftables backend (already shipped) |
 | vpp-if | GoVPP `sw_interface_*` (already shipped) |
 | vpp-fib | GoVPP `ip_route_v2_dump` / `ip_route_add_del` |
 | vpp-nbr | GoVPP `ip_neighbor_dump` |
@@ -195,7 +195,7 @@ Interface state, counters, addressing, type-specific details.
 | Filter by type | `show interfaces ethernet` / `bridge` / `vxlan` / ... | `show interfaces terse \| match <type>` | ~ | `show interfaces type ...` | - | `show interface type <type>` | shipped | nl+vpp-if | |
 | Filter by error counters | `show interfaces counters error` (dup below) | `show interfaces extensive \| match errors` | - | - | - | `show interface errors` | shipped | nl+vpp-if | |
 | Interface counters | `show interfaces counters` | inside extensive | `show port statistics` | `show interfaces counters` | `show interface counters` | part of `show interface` | shipped | nl+vpp-if | |
-| Counter reset | `clear interfaces counters [name]` | `clear interfaces statistics [name]` | `clear router statistics` | `clear counters [name]` | `clear counters [name]` | `clear interface [<name>] counters` | shipped | nl+vpp-if | Linux netlink has no generic reset -- baseline-delta fallback stored in iface component; VPP real reset pending sw_interface_clear_stats |
+| Counter reset | `clear interfaces counters [name]` | `clear interfaces statistics [name]` | `clear router statistics` | `clear counters [name]` | `clear counters [name]` | `clear interface [<name>] counters` | shipped | nl+vpp-if | Linux netlink API has no generic reset -- baseline-delta fallback stored in iface component; VPP real reset pending sw_interface_clear_stats |
 | Interface IP addresses | `show interfaces ethernet <name> address` | shown in terse | `show router interface <name> address` | `show ip interface` | `show ip interface` | `show interface <name>` | shipped | nl+vpp-if | |
 | Interface MAC table (bridge) | `show bridge <br>` | `show ethernet-switching table` | `show service fdb` | `show mac address-table` | `show bridge` | | planned | nl+vpp-if | Requires bridge FDB dump |
 | Interface errors only | `show interfaces counters error` | `show interfaces extensive \| match errors` | `show port statistics error` | `show interfaces counters errors` | `show interface errors` | | planned | nl+vpp-if | Filter existing counters |
@@ -233,16 +233,16 @@ Stateful filter and ACL visibility.
 
 | Command (generic) | VyOS | Junos | Nokia | Arista | FRR | Ze command | Ze status | Backend | Notes |
 |-------------------|------|-------|-------|--------|-----|---------|-----------|---------|-------|
-| Show firewall ruleset | `show firewall name <n>` | `show firewall filter <n>` | `show filter ip-filter <n>` | `show ip access-lists <n>` | - | `show firewall ruleset <n>` | shipped | nft (shipped) / vpp-acl (planned) | Joins applied desired state with per-rule counters from kernel; every rule auto-carries an anonymous counter + term name via `Rule.UserData`. VPP-active rejects under exact-or-reject. |
-| Show firewall counters | `show firewall statistics` | `show firewall counter <c>` | `show filter ip-filter <n> counters` | `show ip access-lists <n>` | - | part of `show firewall ruleset <n>` | shipped | nft | Counters returned inline per-term in the ruleset response |
+| Show firewall ruleset | `show firewall name <n>` | `show firewall filter <n>` | `show filter ip-filter <n>` | `show ip access-lists <n>` | - | `show firewall ruleset <n>` | shipped | nftables (shipped) / vpp-acl (planned) | Joins applied desired state with per-rule counters from kernel; every rule auto-carries an anonymous counter + term name via `Rule.UserData`. VPP-active rejects under exact-or-reject. |
+| Show firewall counters | `show firewall statistics` | `show firewall counter <c>` | `show filter ip-filter <n> counters` | `show ip access-lists <n>` | - | part of `show firewall ruleset <n>` | shipped | nftables | Counters returned inline per-term in the ruleset response |
 | Show firewall groups (address / network / port) | `show firewall group <g>` | `show security address-book <g>` | `show service l3-vprn <svc> interface prefix-list` | - | - | `show firewall group [<g>]` | shipped | config | Reads from applied `firewall.Set` snapshot; bare form lists known group names, named form returns members. Group typing still derives from `SetType` (ipv4, ipv6, inet-service, ifname, ...); purpose-specific address-/network-/port-group YANG is a future refinement. |
 | Active conntrack / flow table | `show conntrack` / `show conntrack table` | `show security flow session` | `show filter ip-filter <n> session` | `show flow-tracker hardware` | - | | planned | nl(conntrack) / vpp-stats | |
-| NAT rules view | `show nat source rules` / `destination rules` | `show security nat source rule all` | `show service nat` | `show ip nat translations` | - | | planned | nft / vpp-acl | |
-| NAT translations / pool | `show nat source translations` | `show security nat source pool all` | `show service nat pool` | `show ip nat translations` | - | | planned | nft / vpp-acl | |
+| NAT rules view | `show nat source rules` / `destination rules` | `show security nat source rule all` | `show service nat` | `show ip nat translations` | - | | planned | nftables / vpp-acl | |
+| NAT translations / pool | `show nat source translations` | `show security nat source pool all` | `show service nat pool` | `show ip nat translations` | - | | planned | nftables / vpp-acl | |
 | Drop a conntrack entry | `reset conntrack-sync entry` | `clear security flow session` | - | `clear flow` | - | | planned | nl(conntrack) | |
 | Firewall ruleset resequence | `generate firewall rule-resequence <n>` | ~ | ~ | ~ | - | | scope | - | Config management convenience |
-| Policy-based routing view | `show policy route-map <name>` | `show policy <name>` | `show router policy-options` | `show route-map <name>` | `show route-map <name>` | `show policy routes` | shipped | config+nft | Returns JSON with policy routes, interfaces, rules, actions |
-| QoS / traffic-control view | `show queueing interface <i>` | `show class-of-service interface <i>` | `show qos egress-queue-scheduler <i>` | `show qos interfaces <i>` | - | | planned | nl(tc) / vpp-stats | `tc`/VPP policer |
+| Policy-based routing view | `show policy route-map <name>` | `show policy <name>` | `show router policy-options` | `show route-map <name>` | `show route-map <name>` | `show policy routes` | shipped | config+nftables | Returns JSON with policy routes, interfaces, rules, actions |
+| QoS / traffic-control view | `show queueing interface <i>` | `show class-of-service interface <i>` | `show qos egress-queue-scheduler <i>` | `show qos interfaces <i>` | - | | planned | nl(qdisc) / vpp-stats | `kernel`/VPP policer |
 
 ## 6. VPN / Tunnel / Services
 
@@ -383,8 +383,8 @@ focused spec and reference this catalogue's rows by name.
 | VPP firewall backend (ACL/classifier plugin) lands | §5 (all `partial` → `shipped` on VPP) |
 | VPP FIB dump (`ip_route_v2_dump`) lands | §2 (IPv4/IPv6/VRF routing table) |
 | VPP neighbor dump (`ip_neighbor_dump`) lands | §4 (ARP/ND) |
-| conntrack netlink reader | §5 conntrack rows |
-| Linux `tc` stats reader | §5 QoS row |
+| conntrack netlink message reader | §5 conntrack rows |
+| Linux traffic-control stats reader | §5 QoS row |
 | VPP stat segment reader | §5 QoS, §10 bandwidth monitor |
 | OSPF subsystem (future) | §7 OSPF rows |
 | IS-IS subsystem (future) | §7 IS-IS rows |

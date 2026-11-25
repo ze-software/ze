@@ -40,7 +40,13 @@ func init() {
 		YANG:         shapeyang.ZeAnomalyShapeConfYANG,
 		ConfigRoots:  []string{configRoot},
 		Dependencies: []string{"firewall"},
-		RunEngine:    runEngine,
+		DataPlaneFeatures: []registry.DataPlaneFeature{{
+			ConfigPath:      configRoot,
+			Why:             "anomaly shaping registers firewall tables",
+			FollowsSelector: "firewall",
+			InUseKind:       registry.DataPlaneInUseConfigRoot,
+		}},
+		RunEngine: runEngine,
 		ConfigureEngineLogger: func(loggerName string) {
 			setLogger(slogutil.Logger(loggerName))
 		},

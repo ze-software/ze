@@ -25,13 +25,13 @@ const (
 	// here: firewall.ApplyAll holds the process-wide reconcileMu across
 	// Backend.Apply, so one unanswered reply stalls EVERY firewall owner
 	// (copp, policy-routes, ddos-local, the firewall engine) for as long as
-	// VPP stays silent. Matches the nft backend's netlink deadline.
+	// VPP stays silent. Matches the kernel backend's netlink deadline.
 	defaultReplyTimeout = 10 * time.Second
 	// minReplyTimeout is the floor. Zero is deliberately NOT accepted: it is
 	// govpp's spelling of "no deadline", the defect this removes.
 	minReplyTimeout = 1 * time.Second
 	// maxReplyTimeout is the shared contract ceiling, not a local choice: see
-	// the same clamp in the nft backend and the histogram's last finite bucket,
+	// the same clamp in the kernel backend and the histogram's last finite bucket,
 	// all derived from firewall.MaxBackendDeadline.
 	maxReplyTimeout = firewall.MaxBackendDeadline
 )

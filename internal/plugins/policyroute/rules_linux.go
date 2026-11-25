@@ -1,15 +1,15 @@
-// Design: docs/architecture/policyroute/policy-routing.md -- netlink ip rule and route management
+// Design: docs/architecture/policyroute/policy-routing.md -- netlink route and ip rule management
 
 package policyroute
 
 import (
 	"fmt"
 
-	"github.com/ze-software/ze/internal/core/iprule"
-	"github.com/ze-software/ze/internal/core/rtproto"
-
 	"github.com/vishvananda/netlink"
 	"golang.org/x/sys/unix"
+
+	"github.com/ze-software/ze/internal/core/iprule"
+	"github.com/ze-software/ze/internal/core/rtproto"
 )
 
 type linuxRuleManager struct {

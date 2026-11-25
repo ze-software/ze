@@ -78,6 +78,7 @@
 /guides/config-archive/
 /guides/config-editor/
 /guides/configuration-model/
+/guides/dataplane-features/
 /guides/ddos-mitigation/
 /guides/debugging-tools/
 /guides/docker/

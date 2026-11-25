@@ -24,7 +24,7 @@
 #   AS_PATH: 40020602010000FDE9 (AS_SEQ [65001])
 #   NEXT_HOP: 40030401010101 (1.1.1.1)
 #   NLRI: 180A0001 180A0002 18C0A801 (10.0.1.0/24 10.0.2.0/24 192.168.1.0/24)
-# Linux-only: static `next { interface lo { } }` resolves loopback `lo` via Linux netlink.
+# Linux-only: static `next { interface lo { } }` resolves loopback `lo` via the Linux netlink socket.
 option=needs-linux
 stdin=source:terminator=EOF_SOURCE
 option=tcp_connections:value=1

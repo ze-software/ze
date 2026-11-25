@@ -38,7 +38,7 @@ func TestPPPoEOriginalPPPSupportNativeRunner(t *testing.T) {
 	if !found {
 		t.Fatal("AC check not discovered")
 	}
-	tree := pppoeBackendTree(t, "interface { backend netlink } pppoe { enabled true; interface access0 {} }")
+	tree := pppoeBackendTree(t, "interface { backend kernel } pppoe { enabled true; interface access0 {} }")
 	for _, row := range doctor.RunRuntimeChecks(tree, nil) {
 		if row.Code == "doctor-ppp-original-unit-attachment" {
 			t.Fatalf("actual query42 support prerequisite: %v", row)

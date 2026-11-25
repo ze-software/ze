@@ -99,7 +99,7 @@ func TestCheckVPPDPDKIsSilentWhenTheHostIsReady(t *testing.T) {
 // TestCheckVPPDPDKIsSilentWithoutDPDKInterfaces is the negative half: no DPDK
 // interface, another backend, or no config at all names no dependency.
 //
-// VALIDATES: no diagnostic for an empty dpdk block, a netlink backend, and a
+// VALIDATES: no diagnostic for an empty dpdk block, a kernel backend, and a
 // nil tree, on a host that has nothing.
 // PREVENTS: VFIO errors on a box whose VPP binds no NIC through DPDK.
 func TestCheckVPPDPDKIsSilentWithoutDPDKInterfaces(t *testing.T) {

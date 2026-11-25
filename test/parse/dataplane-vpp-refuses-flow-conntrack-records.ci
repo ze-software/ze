@@ -1,0 +1,33 @@
+# Test: interface backend vpp refuses flow-export conntrack enabled true.
+# Question: does `ze config validate` refuse `flow-export conntrack enabled
+#           true` (with sampling absent) under `interface backend vpp`, naming
+#           `flow-export conntrack` and both fixes (`set interface backend
+#           kernel` and `set flow-export conntrack enabled false`)?
+#           A unit test cannot prove `flow-export`'s second in-use predicate
+#           (`conntrackDataPlaneInUse`) runs end to end in `ze config validate`.
+# VALIDATES: spec-dataplane-compatibility-guard AC-15 (C-4a) -- kernel
+#            conntrack sees none of the flows VPP forwards, so enabling
+#            conntrack flow records under VPP is refused.
+# PREVENTS: operators enabling conntrack flow export on a VPP box and getting
+#           silently empty flow exports for forwarded traffic.
+stdin=config:terminator=EOF_CONF
+interface {
+	backend vpp;
+}
+flow-export {
+	collector ipfix1 {
+		address 10.0.0.50;
+		port 4739;
+		protocol ipfix;
+	}
+	conntrack {
+		enabled true;
+	}
+}
+EOF_CONF
+
+cmd=foreground:seq=1:exec=ze config validate -:stdin=config
+expect=exit:code=1
+expect=stdout:contains=flow-export conntrack
+expect=stdout:contains=set interface backend kernel
+expect=stdout:contains=set flow-export conntrack enabled false

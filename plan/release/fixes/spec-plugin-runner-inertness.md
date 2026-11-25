@@ -102,7 +102,7 @@ N-A. No wire protocol and no RFC obligation.
 ### Boundaries Crossed
 | Boundary | How | Verified |
 |----------|-----|----------|
-| runner body -> host state | nftables, XFRM, netlink, setrlimit | [ ] |
+| runner body -> host state | nftables, XFRM, netlink sockets, setrlimit | [ ] |
 | runner body -> process state | process globals, goroutines, the default Loc-RIB | [ ] |
 
 ### Integration Points

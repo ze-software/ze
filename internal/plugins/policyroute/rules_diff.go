@@ -1,6 +1,6 @@
 // Design: docs/architecture/policyroute/policy-routing.md -- a reinstall moves ip rules by difference
 // Related: register.go -- applyPolicies, the only caller
-// Related: rules_linux.go -- linuxRuleManager, the netlink implementation of ruleInstaller
+// Related: rules_linux.go -- linuxRuleManager, the kernel implementation of ruleInstaller
 
 package policyroute
 
@@ -12,7 +12,7 @@ import (
 )
 
 // ruleInstaller is the part of the rule manager replaceRules drives. The
-// netlink manager implements it (rules_linux.go); a test records the calls.
+// kernel manager implements it (rules_linux.go); a test records the calls.
 type ruleInstaller interface {
 	applyAutoRoutes(routes []autoRouteSpec) error
 	applyIPRules(rules []iprule.Mark) error

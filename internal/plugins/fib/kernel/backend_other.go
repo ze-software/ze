@@ -1,7 +1,7 @@
 // Design: docs/architecture/core-design.md -- FIB noop backend
 // Overview: fibkernel.go -- FIB kernel plugin
 // Related: backend.go -- backend abstraction
-// Related: backend_linux.go -- Linux netlink backend
+// Related: backend_linux.go -- Linux kernel backend
 //
 // Rejecting backend for non-Linux platforms. Route operations return errors
 // so callers know the OS routing table is not being programmed.

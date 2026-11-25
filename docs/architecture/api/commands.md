@@ -90,6 +90,7 @@ produce continuously-updating output.
 | Withdraw | route, flow, vpls, watchdog |
 | RIB | routes, best, status, clear |
 | System RIB | show rib, show rib candidates, show nexthop-table, show ecmp-groups |
+| FIB Dummy | show fib dummy (table: table, prefix, protocol, route-type, next-hop, interface, paths, programmed=no), show fib dummy counters (document: forwarding=none, routes-held, installs, replaces, removals, invalid-changes, label-entries-refused, since) |
 | Log | levels, set (runtime log levels) |
 | Metrics | values, list (Prometheus metrics) |
 | Group | start, end (batching) |
@@ -99,6 +100,8 @@ produce continuously-updating output.
 | Reports | show warnings, show errors (cross-subsystem operational report bus) |
 <!-- source: internal/component/plugin/server/command.go -- AllBuiltinRPCs -->
 <!-- source: internal/component/sysrib/register.go -- commandDecls, routeViewCommandHandler -->
+<!-- source: internal/plugins/fib/dummy/register.go -- commandDecls -->
+<!-- source: internal/plugins/fib/dummy/show.go -- routeRow, countersSnapshot -->
 <!-- source: internal/plugins/ospf/register.go -- sdk.CommandDecl show ospf commands -->
 
 ### Dispatch keys are YANG paths

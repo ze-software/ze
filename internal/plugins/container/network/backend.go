@@ -4,50 +4,26 @@
 package network
 
 import (
-	"sync"
-
 	"github.com/ze-software/ze/internal/component/config"
-	"github.com/ze-software/ze/internal/component/config/yang"
 	"github.com/ze-software/ze/internal/core/opererr"
-	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
-const (
-	// interfaceBackendDefault and firewallBackendDefault are the defaults of
-	// the two backend leaves, as their schemas state them.
-	interfaceBackendDefault = "netlink"
-	firewallBackendDefault  = "nft"
-	// interfaceBackendLeafPath names the leaf the gate's refusal tells the
-	// operator to change.
-	interfaceBackendLeafPath = "/interface/backend"
-	// translationBackend is the only firewall backend that carries the
-	// translation tables: the VPP firewall verifier refuses every regular
-	// chain, and each network's outbound chain is one.
-	translationBackend = "nft"
-)
+// translationBackend is the only firewall backend that carries the
+// translation tables: the VPP firewall verifier refuses every regular
+// chain, and each network's outbound chain is one.
+const translationBackend = "kernel"
 
-// backendGateSchemaKeeper names the gate's schema in the refusal of a module
-// publish that comes too late (yang.PublishExternalModules).
-const backendGateSchemaKeeper = "the container network backend gate schema"
-
-// The gate's schema is loaded once per process, on the first config that
-// holds a network.
-var (
-	backendGateSchemaOnce sync.Once
-	backendGateSchema     *config.Schema
-	backendGateSchemaErr  error
-)
-
-// checkBackends is rule V-19. The container network list carries
-// `ze:backend "netlink"`, so the commit-time gate refuses a network when the
-// interface backend cannot create a bridge and a link; and a network that
-// translates needs the firewall backend that carries the tables.
+// checkBackends is rule V-19's semantic firewall check. The engine-owned
+// ze:backend walk already judges the container network list against the
+// interface data-plane selector; this check keeps the semantic rules for
+// outbound masquerade and published ports, reading the firewall backend
+// through the config component's selector resolution so no schema default is
+// hardcoded here.
 func checkBackends(read delivery, cfg Config) error {
-	interfaceBackend := backendLeaf(read.interfaces, interfaceBackendDefault)
-	if err := runBackendGate(read.containerData, interfaceBackend); err != nil {
+	firewallBackend, err := resolveFirewallBackend(read.firewall)
+	if err != nil {
 		return err
 	}
-	firewallBackend := backendLeaf(read.firewall, firewallBackendDefault)
 	if firewallBackend == translationBackend {
 		return nil
 	}
@@ -55,8 +31,8 @@ func checkBackends(read delivery, cfg Config) error {
 		if network.Masquerade {
 			return opererr.New(
 				"container network "+network.Name+" needs a backend this configuration does not select: firewall backend "+firewallBackend+" cannot carry its translation tables",
-				"outbound translation is a table of a regular chain per network, and only the nft backend carries one",
-				"set firewall backend nft, or set container network "+network.Name+" masquerade false",
+				"outbound translation is a table of a regular chain per network, and only the kernel backend carries one",
+				"set firewall backend kernel, or set container network "+network.Name+" masquerade false",
 			)
 		}
 	}
@@ -64,52 +40,37 @@ func checkBackends(read delivery, cfg Config) error {
 		if len(instance.Ports) > 0 {
 			return opererr.New(
 				"container "+instance.Name+" publishes a port and firewall backend "+firewallBackend+" cannot carry its translation",
-				"a published port is a destination translation that matches destination-local, and only the nft backend carries that match",
-				"set firewall backend nft, or delete container instance "+instance.Name+" port "+instance.Ports[0].Name,
+				"a published port is a destination translation that matches destination-local, and only the kernel backend carries that match",
+				"set firewall backend kernel, or delete container instance "+instance.Name+" port "+instance.Ports[0].Name,
 			)
 		}
 	}
 	return nil
 }
 
-// backendLeaf answers the backend leaf of a component's section, or the
-// schema's default when the leaf is absent.
-func backendLeaf(body map[string]any, fallback string) string {
-	if word, isWord := body[leafBackend].(string); isWord {
-		return word
-	}
-	return fallback
-}
-
-// runBackendGate walks the container section with the interface backend, as
-// the interface and firewall components walk their own sections.
-func runBackendGate(containerData, interfaceBackend string) error {
-	yang.KeepsModuleSet(backendGateSchemaKeeper)
-	backendGateSchemaOnce.Do(func() {
-		backendGateSchema, backendGateSchemaErr = config.YANGSchema()
-	})
-	if backendGateSchemaErr != nil {
-		return opererr.Wrap(backendGateSchemaErr,
+// resolveFirewallBackend resolves the firewall backend through the config
+// component's declared selector resolution, reading the written leaf from
+// firewallSection or falling back to its YANG schema default.
+func resolveFirewallBackend(firewallSection map[string]any) (string, error) {
+	schema, err := config.YANGSchema()
+	if err != nil {
+		return "", opererr.Wrap(err,
 			"the container network backend check could not load the config schema",
-			"ze refuses a container network it cannot judge against the interface backend",
-			"ze show doctor",
+			"ze refuses a container network it cannot judge against the firewall backend",
+			"ze config validate",
 		)
 	}
-	refusals := config.ValidateBackendFeaturesJSON(containerData, backendGateSchema, containerRoot, interfaceBackend, interfaceBackendLeafPath)
-	if len(refusals) == 0 {
-		return nil
+	tree := config.NewTree()
+	if word, isWord := firewallSection[leafBackend].(string); isWord && word != "" {
+		tree.GetOrCreateContainer(firewallRoot).Set(leafBackend, word)
 	}
-	var problem textbuf.Buffer
-	problem.Str("a container network needs a backend this configuration does not select: ")
-	for index, refusal := range refusals {
-		if index > 0 {
-			problem.Str("; ")
-		}
-		problem.Str(refusal.Error())
+	backend, _, err := config.ResolveDataPlaneSelector(tree, schema, firewallRoot)
+	if err != nil {
+		return "", opererr.Wrap(err,
+			"the container network backend check could not resolve the firewall backend",
+			"ze refuses a container network it cannot judge against the firewall backend",
+			"ze config validate",
+		)
 	}
-	return opererr.New(
-		problem.String(),
-		"the interface backend "+interfaceBackend+" cannot create the network's bridge and its containers' links",
-		"set interface backend netlink",
-	)
+	return backend, nil
 }

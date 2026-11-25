@@ -45,7 +45,7 @@ func (d *rollbackDP) RemovePolicyParams(_ dataplane.SPParams) error {
 // from beneath it at exit.
 func TestChildInstallRollbackFailureIsRecordedInTheSPDLedger(t *testing.T) {
 	resetSPDLeft(t)
-	dp := &rollbackDP{refused: errors.New("netlink: operation not permitted")}
+	dp := &rollbackDP{refused: errors.New("netlink error: operation not permitted")}
 
 	var logged bytes.Buffer
 	log := slog.New(slog.NewTextHandler(&logged, nil))
@@ -150,7 +150,7 @@ func TestVPPExitLeavesNoFalseSPDLeftovers(t *testing.T) {
 // which command removes which entry.
 func TestSPDLeftoverNamesTheExactRemovalCommand(t *testing.T) {
 	resetSPDLeft(t)
-	refused := errors.New("netlink: operation not permitted")
+	refused := errors.New("netlink error: operation not permitted")
 	_, host1, _ := net.ParseCIDR("192.0.2.1/32")
 	_, host2, _ := net.ParseCIDR("192.0.2.2/32")
 	_, net6, _ := net.ParseCIDR("2001:db8::/64")

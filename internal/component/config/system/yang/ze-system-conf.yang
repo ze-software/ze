@@ -425,7 +425,7 @@ module ze-system-conf {
                     enum netbios-ns { ze:help "NetBIOS-NS helper (nf_conntrack_netbios_ns)."; }
                     enum snmp { ze:help "SNMP helper (nf_conntrack_snmp)."; }
                 }
-                description "Each listed helper gets an nft ct helper object, and new
+                description "Each listed helper gets an nftables ct helper object, and new
                              connections to its ports are assigned to it, in prerouting
                              and output at priority -5. A helper the kernel registers
                              for IPv4 only is assigned in IPv4 alone. The list is empty

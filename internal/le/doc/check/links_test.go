@@ -19,6 +19,7 @@ func TestDocumentActionsCoverNativeOperations(t *testing.T) {
 		{Verb: "all", Why: actions[1].Why},
 		{Verb: "templ-output", Why: actions[2].Why},
 		{Verb: "retired-commands", Why: actions[3].Why},
+		{Verb: "retired-selector-values", Why: actions[4].Why},
 	}
 	got := Actions().Actions
 	if len(got) != len(want) {

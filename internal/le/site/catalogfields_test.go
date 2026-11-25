@@ -28,7 +28,7 @@ const enrichedCommandCatalog = `[{
  "description": "Each row is one entry of the test table, in the order the table holds them.",
  "mode": "read-only",
  "wire-method": "ze-test:rows",
- "backend": ["netlink", "vpp"],
+ "backend": ["kernel", "vpp"],
  "task-support": "required",
  "args": [
   {"name": "family", "type": "enum", "values": ["ipv4", "ipv6"], "mandatory": true,
@@ -101,8 +101,8 @@ var catalogFieldRenderings = map[string]catalogFieldRendering{
 	},
 	"backend": {
 		Reason:    "the backends say which data plane implements the command.",
-		Reference: []string{"netlink"},
-		Detail:    []string{"netlink"},
+		Reference: []string{"kernel"},
+		Detail:    []string{"kernel"},
 	},
 	"task-support": {
 		Reason:    "task support says whether the MCP server answers this command with a task handle.",

@@ -210,7 +210,7 @@ func parseOptionSkipOs(r *Record, _ string, kv map[string]string) error {
 
 // parseOptionNeedsLinux reads option=needs-linux.
 func parseOptionNeedsLinux(r *Record, ciFile string, kv map[string]string) error {
-	// Marks a .ci test that requires a real Linux kernel (netlink interface
+	// Marks a .ci test that requires a real Linux kernel (netlink socket interface
 	// management, nftables, kernel sockets, ...) and therefore cannot pass
 	// natively on a non-Linux host. On such a host the test is SKIPPED with
 	// a reason naming the host command that runs it in Ze's QEMU guest
@@ -238,7 +238,7 @@ func parseOptionNeedsLinux(r *Record, ciFile string, kv map[string]string) error
 	// everywhere: validating after the return would silently accept
 	// `caps=net-admn` on macOS, leaving the author who wrote it with no
 	// feedback and the gate quietly disabled until someone ran on Linux.
-	// caps is a comma-separated LIST: a test that both programs netlink and
+	// caps is a comma-separated LIST: a test that both programs netlink sockets and
 	// loads eBPF declares `caps=net-admin,bpf` and is gated on BOTH.
 	// Declaring only one of a pair a test really needs makes the gate fail
 	// OPEN -- a host holding just that one passes a check it cannot satisfy,
@@ -486,7 +486,7 @@ func parseOptionNetnsLink(r *Record, _ string, kv map[string]string) error {
 	if raw := kv["vlan"]; raw != "" {
 		// 1..4094: 0 means "no tag" and would be indistinguishable from an absent
 		// vlan=, and 4095 is reserved by 802.1Q. Rejecting both ends here keeps an
-		// unusable tag from reaching netlink as a run-time error on Linux only.
+		// unusable tag from reaching the netlink socket as a run-time error on Linux only.
 		tag, tagErr := strconv.ParseUint(raw, 10, 16)
 		if tagErr != nil || tag < 1 || tag > 4094 {
 			return fmt.Errorf("option=netns-link: invalid vlan %q (want 1..4094)", raw)

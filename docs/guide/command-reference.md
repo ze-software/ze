@@ -244,7 +244,7 @@ validates on the host it is written for:
 |------|------|
 | `config-kernel-capability` | The config uses a subsystem this kernel cannot carry |
 | `config-node-other-os` | The config uses a node the schema holds only on another operating system (`interface xfrm`, `interface pppoe-client` and `mirror` exist only on Linux). The message names the node and its OS, and says to validate on that OS |
-| `config-host-backend` | A subsystem names no backend and this OS has no default (interface, firewall and traffic-control default to netlink, nft and tc on Linux only), or a hardware inventory a verifier reads (the CPU list for VPP) is absent here |
+| `config-host-backend` | A subsystem names no backend and this OS has no default (interface, firewall and traffic-control default to kernel on Linux only), or a hardware inventory a verifier reads (the CPU list for VPP) is absent here |
 
 `ze show diagnostic <code>` explains each one.
 <!-- source: internal/component/config/os_restricted.go -- NodeOfAnotherOSError -->
@@ -1709,9 +1709,9 @@ for compact diffing across snapshots.
 
 ### show traffic control
 
-Traffic control (TC) state. Queries the active TC backend for qdisc, class,
+Traffic control (TC) state. Queries the active traffic-control backend for qdisc, class,
 and filter state per interface. Returns "traffic control not available on
-this platform" when no TC backend is loaded (e.g. on macOS).
+this platform" when no traffic-control backend is loaded (e.g. on macOS).
 
 ```
 ze show traffic control            # Summary of all interfaces with qdiscs
@@ -1849,7 +1849,7 @@ value is `text`. The full pipe operator set applies. See the
 ### show route / show neighbor
 
 Kernel routing and neighbor tables. These commands are object-rooted (no
-`ip` namespace); they dispatch through the iface backend; on the netlink
+`ip` namespace); they dispatch through the iface backend; on the kernel
 backend they read the live kernel state, on VPP they reject under
 exact-or-reject since the kernel FIB/ARP table is not the authoritative
 forwarding source there.
@@ -1963,7 +1963,7 @@ Each entry reports the incoming label (`in-label`), the `operation`
 applied (`swap` when an outgoing label stack is programmed, `pop` for
 disposition / implicit-null), any `out-labels`, the `next-hop`, and the
 egress `device`. The table is the one used by the data plane that
-`interface { backend }` selects: the kernel MPLS FIB under `netlink`, and
+`interface { backend }` selects: the kernel MPLS FIB under `kernel`, and
 VPP MPLS table 0 plus VPP's labeled IP routes under `vpp`. The rows have the
 same format on both. When the table cannot be read, the command fails and
 says why. That happens on a non-Linux host (the error names the OS), when VPP
@@ -2153,14 +2153,14 @@ ze show firewall group <name>           # Elements of a named group
 ```
 
 **`show firewall ruleset`** joins the applied desired state (chains +
-terms) with kernel counters read back via the nft backend's `GetCounters`
+terms) with kernel counters read back via the kernel firewall backend's `GetCounters`
 call. Every rule is auto-instrumented with an anonymous counter
 expression when applied. The expression sits after the term's matches
 and ahead of its actions, so the row reports the packets that term
 matched and not the packets the chain saw. The term name is stored in
 nftables' `Rule.UserData` and recovered on readback so the join is
 explicit (not index-based). Rejects when no firewall backend is loaded or when the
-active backend is not `nft`.
+active backend is not `kernel`.
 
 **`show firewall group`** reads from the applied-state snapshot, not
 the kernel -- groups (nftables named sets) are part of the desired
@@ -3042,7 +3042,7 @@ line rather than silently defaulting to "all".
 The `clear` verb resets runtime/operational state without touching
 configuration. Backends that expose a real counter-reset syscall
 (VPP's `sw_interface_clear_stats`, once wired) zero the kernel
-counters directly. Linux netlink has no generic counter-reset, so ze
+counters directly. Linux netlink API has no generic counter-reset, so ze
 falls back to a per-interface baseline: the current raw counter
 values are captured, and every subsequent `show interface [counters]`
 read subtracts the baseline before returning so the operator sees
@@ -3951,7 +3951,7 @@ holds it. The hub does not reload. The write pushes `config-changed` to the
 client, which fetches the config and applies it through its own reload. The
 source selection is the same, with `client-<name>.conf` in place of the
 device's name. A daemon that serves no managed client refuses, and so does a
-hub with no `client <name>` entry under `plugin hub server`. The answer also
+hub with no `client <name>` entry under `bus hub server`. The answer also
 carries `client`.
 <!-- source: internal/component/config/storage/cli/main.go -- Run, openStore, cmdWrite, cmdImport -->
 <!-- source: internal/component/config/storage/cli/cmd_restore.go -- cmdRestore, parseRestoreArgs -->
@@ -4509,6 +4509,21 @@ authority returns an error, rather than an empty candidate table.
 <!-- source: internal/component/sysrib/route_view_worker_operations.go -- candidates, enqueue, stoppedError -->
 <!-- source: internal/component/sysrib/route_view.go -- open -->
 
+### FIB Dummy Commands
+
+| Command | Access | Purpose |
+|---------|--------|---------|
+| `show fib dummy` | read-only | Table of selected system RIB routes held in memory by `fib-dummy` and written nowhere. Columns: `table`, `prefix`, `protocol`, `route-type` (omitted for ordinary routes, otherwise `blackhole`, `unreachable`, or `prohibit`), `next-hop` (omitted when none), `interface` (omitted when none), `paths`, and `programmed` (always `no`). |
+| `show fib dummy counters` | read-only | Document reporting `forwarding` (always `none`), `routes-held`, `installs`, `replaces`, `removals`, `invalid-changes`, `label-entries-refused`, and `since`. |
+
+Both commands are declared once by `fib-dummy` and support generic pipes such as
+`| count`, `| json`, and `| match` on every command surface. Named-table static
+routes, policy routing, IPsec tunnel-source guards, and interface addresses are
+outside the system RIB and do not appear in `show fib dummy`.
+
+<!-- source: internal/plugins/fib/dummy/register.go -- commandDecls -->
+<!-- source: internal/plugins/fib/dummy/show.go -- routeRow, countersSnapshot, routeRows, counters -->
+
 ### IRR Filter Commands
 
 | Command | Access | Purpose |
@@ -4596,7 +4611,7 @@ Batch operations: `send bgp <selector> cached <id1>,<id2>`.
 |---------|--------|---------|
 | `show static` | read-only | Show all configured static routes in JSON: prefix, action, next-hops with address/weight/BFD status, metric, tag |
 
-The static route plugin programs routes directly to the kernel (netlink multipath) or VPP. It auto-loads when the config contains a `static { }` section. See [Static Routes Guide](static-routes.md).
+The static route plugin programs routes directly to the kernel (netlink route multipath) or VPP. It auto-loads when the config contains a `static { }` section. See [Static Routes Guide](static-routes.md).
 <!-- source: internal/plugins/static/cmd_show.go -- ForwardToPlugin proxy -->
 
 ### Sysctl (Kernel Tunables)

@@ -814,9 +814,9 @@ func TestESPFormFastPathDumpFailureJudgedAgain(t *testing.T) {
 }
 
 // TestESPFormFastPathAcceptFixNamesTheChain: a blocking site carries, in the state, the
-// fix and the sentence for its table: for a table Ze does not own, the nft insert at
+// fix and the sentence for its table: for a table Ze does not own, the nft command insert at
 // the head of the base chain, one single-quoted shell word whose table and chain are
-// double-quoted nft identifiers, whatever spaces or shell characters the names hold,
+// double-quoted nftables identifiers, whatever spaces or shell characters the names hold,
 // beside the owner-flag caveat; no command for a table or chain name holding a quote
 // of either kind, a control character or DEL; for a ze_
 // table, what the registered ESPFormOwnedTableAccept answers, given the site's family,
@@ -845,7 +845,7 @@ func TestESPFormFastPathAcceptFixNamesTheChain(t *testing.T) {
 			howHas: []string{"Table filter is not Ze's", "chain input", ownerFlag},
 		},
 		{
-			name:   "names a shell would expand or nft would split",
+			name:   "names a shell would expand or nftables would split",
 			site:   espFormFirewallSite{Family: "ip", Table: "my $(rm -rf) table", Chain: "in;put *", Hook: "input", Rule: "handle 9", Reason: "drop"},
 			want:   `sudo nft 'insert rule ip "my $(rm -rf) table" "in;put *" meta l4proto esp accept'`,
 			howHas: []string{ownerFlag},
@@ -859,7 +859,7 @@ func TestESPFormFastPathAcceptFixNamesTheChain(t *testing.T) {
 		},
 		{
 			// MUTATION: delete the chain guard in espFormForeignTableAccept, or the
-			// double-quote guard in espFormNFTQuotable, and the nft insert is printed.
+			// double-quote guard in espFormNFTQuotable, and the nftables insert is printed.
 			name:    "a chain name holding a double quote",
 			site:    espFormFirewallSite{Family: "inet", Table: "filter", Chain: `in"put`, Hook: "input", Rule: "policy drop", Reason: "drop"},
 			want:    "sudo nft list ruleset",
@@ -867,7 +867,7 @@ func TestESPFormFastPathAcceptFixNamesTheChain(t *testing.T) {
 			howLack: "insert rule inet",
 		},
 		{
-			// MUTATION: delete the r < ' ' guard in espFormNFTQuotable, and the nft
+			// MUTATION: delete the r < ' ' guard in espFormNFTQuotable, and the nftables
 			// insert is printed with a tab inside the quoted table name.
 			name:    "a table name holding a control character",
 			site:    espFormFirewallSite{Family: "inet", Table: "fil\tter", Chain: "input", Hook: "input", Rule: "policy drop", Reason: "drop"},
@@ -876,7 +876,7 @@ func TestESPFormFastPathAcceptFixNamesTheChain(t *testing.T) {
 			howLack: "insert rule inet",
 		},
 		{
-			// MUTATION: delete the r == 0x7f guard in espFormNFTQuotable, and the nft
+			// MUTATION: delete the r == 0x7f guard in espFormNFTQuotable, and the nftables
 			// insert is printed with DEL inside the quoted chain name.
 			name:    "a chain name holding DEL",
 			site:    espFormFirewallSite{Family: "inet", Table: "filter", Chain: "input\x7f", Hook: "input", Rule: "policy drop", Reason: "drop"},

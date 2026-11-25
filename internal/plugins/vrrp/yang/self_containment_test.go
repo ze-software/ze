@@ -31,16 +31,16 @@ func TestVRRPCmdSchemaOwnsShowVRRP(t *testing.T) {
 }
 
 // TestVRRPConfSchemaGatesNetlinkBackend proves the config schema carries the
-// `ze:backend "netlink"` annotation on its vrrp containers, so the iface backend
+// `ze:backend "kernel"` annotation on its vrrp containers, so the iface backend
 // gate rejects a vrrp group configured under a VPP-backed interface at schema
 // level -- the belt to the plugin verifier's braces (spec-vrrp-5 A-4 / AC-5).
 //
-// VALIDATES: spec-vrrp-5 A-4 -- the merged schema gates vrrp to netlink.
+// VALIDATES: spec-vrrp-5 A-4 -- the merged schema gates vrrp to kernel.
 // PREVENTS: the annotation being dropped, which would let a VPP tree carrying a
 // vrrp group reach the engine instead of being rejected at validation.
 func TestVRRPConfSchemaGatesNetlinkBackend(t *testing.T) {
 	// One annotation for the ipv4 vrrp container, one for ipv6.
-	if n := strings.Count(ZeVrrpConfYANG, `ze:backend "netlink"`); n < 2 {
-		t.Errorf("ze-vrrp-conf.yang has %d `ze:backend \"netlink\"` annotations, want >= 2 (ipv4 + ipv6 vrrp containers)", n)
+	if n := strings.Count(ZeVrrpConfYANG, `ze:backend "kernel"`); n < 2 {
+		t.Errorf("ze-vrrp-conf.yang has %d `ze:backend \"kernel\"` annotations, want >= 2 (ipv4 + ipv6 vrrp containers)", n)
 	}
 }

@@ -1,0 +1,52 @@
+# Test: ze doctor reports doctor-dataplane-mismatch on a kernel firewall under interface backend vpp.
+# Question: does `ze doctor --json config <file>` on a stored file with
+#           `interface backend vpp` and a kernel `firewall` block report
+#           `doctor-dataplane-mismatch` at error severity with the fix
+#           `set firewall backend vpp`, even with no daemon running?
+#           A unit test calls the check function directly; only the real CLI
+#           proves doctor runs in `DoctorPhaseParsedConfig` ahead of
+#           `ReadConfig` refusal and renders `doctor-dataplane-mismatch`.
+# VALIDATES: spec-dataplane-compatibility-guard AC-9 -- `ze doctor` reports
+#            data-plane mismatches under `doctor-dataplane-mismatch` from the
+#            same verdict function as commit and start, and `ze show
+#            diagnostic doctor-dataplane-mismatch` documents the code.
+# PREVENTS: `ReadConfig` refusal hiding the data-plane mismatch from
+#           `ze doctor`, or doctor drifting from the config-door verdict.
+
+option=needs-build-tag:value=ze_vpp:state=present
+
+tmpfs=mismatch.conf:refused=config-plugin-verify:terminator=EOF_CONF
+interface {
+	backend vpp;
+}
+firewall {
+	table wan {
+		family inet;
+		chain input {
+			type filter;
+			hook input;
+			priority 0;
+			policy drop;
+			term allow-ssh {
+				from {
+					protocol tcp;
+					destination-port 22;
+				}
+				then {
+					accept;
+				}
+			}
+		}
+	}
+}
+EOF_CONF
+
+cmd=foreground:seq=1:exec=ze doctor --json config mismatch.conf:timeout=20s
+expect=exit:code=1
+expect=stdout:contains=doctor-dataplane-mismatch
+expect=stdout:contains=firewall
+expect=stdout:contains=set firewall backend vpp
+
+cmd=foreground:seq=2:exec=ze show diagnostic doctor-dataplane-mismatch:timeout=20s
+expect=exit:code=0
+expect=stdout:contains=doctor-dataplane-mismatch

@@ -31,7 +31,7 @@ func newBackend() (firewall.Backend, error) {
 	// wedged kernel stall every firewall owner. See withNetlinkDeadline.
 	conn, err := nftables.New(withNetlinkDeadline(netlinkTimeout()))
 	if err != nil {
-		return nil, fmt.Errorf("firewallnft: open netlink: %w", err)
+		return nil, fmt.Errorf("firewallnft: open netlink socket: %w", err)
 	}
 	return &backend{conn: conn, applied: make(map[string]struct{})}, nil
 }

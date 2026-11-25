@@ -42,7 +42,7 @@ var kernelNexthopDoctorCheck = diagnostic.DoctorCheck{
 	Phase:        diagnostic.DoctorPhasePostConfig,
 	Order:        170,
 	Component:    pluginName,
-	Dependencies: []string{"kernel"},
+	Dependencies: []string{kernelPlaneName},
 	Platforms:    []string{diagnostic.DoctorPlatformAny},
 	Codes:        []string{codeKernelNexthop},
 	Check:        checkKernelNexthop,

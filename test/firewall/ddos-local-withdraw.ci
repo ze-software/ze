@@ -8,10 +8,10 @@
 # PREVENTS: an orphaned ze_ddos-local nft table left behind after an attack clears.
 #
 # Requires CAP_NET_ADMIN. Runs on Linux under the netns/QEMU firewall harness
-# (real nft); skipped on darwin. The synthetic attack is injected in-process by the
+# (real nftables); skipped on darwin. The synthetic attack is injected in-process by the
 # fakeddos test plugin (zetest build): it emits AttackDetected on configure
 # (installing the table), then AttackCleared once the driver drops a trigger file
-# (withdrawing it), exercising the real detect->responder->nft path the responder's
+# (withdrawing it), exercising the real detect->responder->nftables path the responder's
 # unit tests can only mock.
 
 option=needs-linux:caps=net-admin

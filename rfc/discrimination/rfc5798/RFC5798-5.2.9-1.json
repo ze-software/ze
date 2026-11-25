@@ -3,23 +3,23 @@
     "rid": "RFC5798-5.2.9-1",
     "polarity": "positive",
     "unit": "internal/plugins/vrrp/groups_test.go::TestValidateIPv6LinkLocal",
-    "unit-sha": "d823347a7ceb0a45",
+    "unit-sha": "87cf25eae1f17903",
     "claim-sha": "56ec6c523e1b7cea",
     "route": "revert",
     "producer": "internal/plugins/vrrp/groups.go::validateGroup",
     "producer-sha": "21cf349636cd79ec",
-    "break": "body of validateGroup replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    "break": "body of validateGroup replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   },
   {
     "rid": "RFC5798-5.2.9-1",
     "polarity": "negative",
     "unit": "internal/plugins/vrrp/groups_test.go::TestValidateIPv6LinkLocal",
-    "unit-sha": "d823347a7ceb0a45",
+    "unit-sha": "87cf25eae1f17903",
     "claim-sha": "ed0d32b29431a2bb",
     "route": "revert",
     "producer": "internal/plugins/vrrp/groups.go::validateGroup",
     "producer-sha": "21cf349636cd79ec",
-    "break": "body of validateGroup replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    "break": "body of validateGroup replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   },
   {
     "rid": "RFC5798-5.2.9-1",

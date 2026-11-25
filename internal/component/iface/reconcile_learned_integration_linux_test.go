@@ -54,7 +54,7 @@ func TestIntegrationReconcileKeepsLearnedAddresses(t *testing.T) {
 		t.Cleanup(func() { UnregisterLeasedAddresses(owner) })
 		b := GetBackend()
 		previous := &ifaceConfig{
-			Backend: "netlink",
+			Backend: "kernel",
 			Veth: []vethEntry{{
 				Name:  dev,
 				Units: []unitEntry{{Addresses: []string{static, dropped}}},
@@ -97,7 +97,7 @@ func TestIntegrationReconcileKeepsLearnedAddresses(t *testing.T) {
 
 		// The unrelated change: a second dummy, and the static address dropped.
 		current := &ifaceConfig{
-			Backend: "netlink",
+			Backend: "kernel",
 			Veth: []vethEntry{{
 				Name:  dev,
 				Units: []unitEntry{{Addresses: []string{static}}},

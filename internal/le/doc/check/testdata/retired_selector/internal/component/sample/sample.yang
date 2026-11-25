@@ -1,0 +1,5 @@
+module ze-sample-conf {
+    ze:backend "netlink vpp";
+    leaf backend { type string; default "tc"; }
+    description "The nft backend lowers rules.";
+}

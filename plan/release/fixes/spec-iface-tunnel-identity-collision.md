@@ -89,7 +89,7 @@ creates, so the design reads the kernel lookup of each one.
 
 | ID | Assumption | Basis | If wrong | Validated by | Status |
 |----|-----------|-------|----------|--------------|--------|
-| A-1 | Ze always sets a remote, so the zero-key special case of 4bdf9c3a6 never arises | the YANG `container remote` is mandatory, and the netlink backend's `parseTunnelRemote` refuses an unspecified remote at apply | the identity must model the any-remote case | design reads the parser and the YANG | unvalidated |
+| A-1 | Ze always sets a remote, so the zero-key special case of 4bdf9c3a6 never arises | the YANG `container remote` is mandatory, and the kernel backend's `parseTunnelRemote` refuses an unspecified remote at apply | the identity must model the any-remote case | design reads the parser and the YANG | unvalidated |
 | A-2 | The VPP backend refuses the same pairs | not read | VPP may need its own rule | design reads the VPP tunnel create | unvalidated |
 | A-3 | A tunnel with `LocalInterface` has the link index as part of its identity, and no local address | `buildGretun` sets `Link` | identity wrong for a local-interface tunnel | kernel source read at design | unvalidated |
 

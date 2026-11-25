@@ -25,7 +25,7 @@ import (
 // keeps forwarding. Linux holds no standby member in RTA_MULTIPATH and refuses
 // RTNH_F_LINKDOWN from userspace with EINVAL (fib_get_nhs), which refused the
 // whole route, primary included.
-// Method: drive the daemon's own path (fibKernel.processEvent over the netlink
+// Method: drive the daemon's own path (fibKernel.processEvent over the kernel
 // backend) with one best-change entry whose primary is an on-link gateway on
 // ze-scope0 and whose backup is an on-link gateway on ze-scope1 with labels
 // 17001/17002, the shape observed failing in Ze's guest. Then read the route

@@ -343,7 +343,7 @@ func newMirrorBackend(ch *progChannel) *vppBackendImpl {
 
 // TestSetupMirrorSpanIngressEgress verifies AC-4: mirror with both ingress and
 // egress issues a sw_interface_span_enable_disable with state RX_TX, the
-// resolved from/to indices, and device-level SPAN (is_l2=false, netlink parity).
+// resolved from/to indices, and device-level SPAN (is_l2=false, kernel parity).
 // VALIDATES: AC-4 -- SPAN programmed with the RX_TX state per A-6.
 // PREVENTS: regression to the errNotSupported stub.
 func TestSetupMirrorSpanIngressEgress(t *testing.T) {
@@ -367,7 +367,7 @@ func TestSetupMirrorSpanIngressEgress(t *testing.T) {
 		t.Errorf("State: got %v, want RX_TX", req.State)
 	}
 	if req.IsL2 {
-		t.Error("IsL2: got true, want false (device SPAN, netlink parity per A-6)")
+		t.Error("IsL2: got true, want false (device SPAN, kernel parity per A-6)")
 	}
 }
 
@@ -429,7 +429,7 @@ func TestRemoveMirrorSpan(t *testing.T) {
 }
 
 // TestRemoveMirrorNoRecordIsNoop verifies RemoveMirror is idempotent when no
-// SPAN was recorded (mirrors netlink's isNotFound tolerance).
+// SPAN was recorded (mirrors the kernel backend's isNotFound tolerance).
 func TestRemoveMirrorNoRecordIsNoop(t *testing.T) {
 	ch := &progChannel{}
 	b := newMirrorBackend(ch)
@@ -1525,7 +1525,7 @@ func TestListKernelRoutesLimitCaps(t *testing.T) {
 }
 
 // TestListKernelRoutesFilterPrefixExact restricts output to a single CIDR.
-// VALIDATES: filterPrefix exact-match semantics mirror the netlink backend.
+// VALIDATES: filterPrefix exact-match semantics mirror the kernel backend.
 // PREVENTS: unexpectedly returning sibling routes sharing a prefix substring.
 func TestListKernelRoutesFilterPrefixExact(t *testing.T) {
 	ch := &routeChannel{

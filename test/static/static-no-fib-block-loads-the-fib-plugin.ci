@@ -11,8 +11,8 @@
 #           125979ea99 relocated the main-table write.
 #
 # The plugin is resolved, not named: static declares NeedsDataPlane, fib-kernel
-# declares it programs the netlink data plane, and `interface { backend }`
-# defaults to netlink on Linux. No package holds a list of FIB plugins.
+# declares it programs the kernel data plane, and `interface { backend }`
+# defaults to kernel on Linux. No package holds a list of FIB plugins.
 #
 # Requires Linux (a static daemon cannot boot on darwin -- the interface
 # component has no OS-default backend there). It needs no CAP_NET_ADMIN: what it

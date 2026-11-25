@@ -2,7 +2,7 @@ package ifacenetlink
 
 import "testing"
 
-// VALIDATES: AC-27 -- the netlink backend accepts any MPLS input set and
+// VALIDATES: AC-27 -- the kernel interface backend accepts any MPLS input set and
 // programs nothing, because net.mpls.conf.<dev>.input carries the leaf.
 // Method: a backend with no netlink handle; a call that reached the kernel
 // would need one.

@@ -37,7 +37,7 @@ const (
 	macvlanModeNamePrivate = "private"
 )
 
-// String is the canonical mode name, matching what the netlink backend reads
+// String is the canonical mode name, matching what the kernel backend reads
 // back from the kernel (show_linux.go) so the reconcile drift check can compare
 // a live device's mode against the desired one.
 func (m MacvlanMode) String() string {
@@ -146,7 +146,7 @@ func macEqual(a, b string) bool {
 // each boot (see the spec's Key Design Decisions). A candidate that would
 // exceed the 15-char limit is REJECTED naming the limit and the candidate --
 // never truncated (ai/rules/protocol.md). parentIfindex must be
-// positive (0 = "no parent" in netlink) and id non-negative.
+// positive (0 = "no parent" in rtnetlink) and id non-negative.
 func ComposeOwnedDeviceName(prefix string, parentIfindex, id int) (string, error) {
 	if prefix == "" {
 		return "", fmt.Errorf("iface: owned device name prefix is empty")

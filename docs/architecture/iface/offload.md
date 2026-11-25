@@ -29,7 +29,7 @@ hw-tc-offload has no legacy ioctl, so it pays for the variable-length
 string-set machinery. The other five do not, and use the simpler call.
 
 The offloads bypass the `Backend` interface deliberately. `Backend` dispatches
-between netlink and VPP. An ethtool ioctl (`SIOCETHTOOL`) is a separate kernel
+between kernel and VPP. An ethtool ioctl (`SIOCETHTOOL`) is a separate kernel
 interface, the same one the ring-buffer tuning code in
 `internal/component/host` already uses, and the VPP data plane has its own
 offload mechanism that would need its own implementation.

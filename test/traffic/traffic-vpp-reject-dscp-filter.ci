@@ -50,6 +50,10 @@ bgp {
 	}
 }
 
+interface {
+	backend vpp
+}
+
 traffic {
 	control {
 		backend vpp

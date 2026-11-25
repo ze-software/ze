@@ -21,7 +21,7 @@ func init() {
 }
 
 // tunnelOuterTTL08 reads the outer-header TTL the kernel stores on one tunnel
-// netdev. Each tunnel kind carries the value in its own netlink Go type, and
+// netdev. Each tunnel kind carries the value in its own netlink library Go type, and
 // the IPv6-underlay kinds keep their hop limit in that same field, so one
 // reader serves every row of the table below.
 //

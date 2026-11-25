@@ -44,7 +44,7 @@ var restartMembershipCases = []struct {
 }
 
 // assertRestartRoutes checks that text carries the route for the membership of
-// case tc on an indented line of its own, the appliance route on the line
+// test case on an indented line of its own, the appliance route on the line
 // after it, nothing the case's absent list names, no `ze signal restart`, and
 // no bare `reboot`.
 func assertRestartRoutes(t *testing.T, text string, tc int) {

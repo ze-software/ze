@@ -1,4 +1,4 @@
-// Design: docs/guide/firewall.md -- nft NAT placement at configuration verify
+// Design: docs/guide/firewall.md -- nftables NAT placement at configuration verify
 
 package firewall_test
 
@@ -29,7 +29,7 @@ func TestVerifyConfigNftNATPlacement(t *testing.T) {
 				return
 			}
 			var refusal *opererr.Error
-			require.ErrorAs(t, err, &refusal, "VerifyConfig must refuse this nft placement")
+			require.ErrorAs(t, err, &refusal, "VerifyConfig must refuse this nftables placement")
 			require.Contains(t, refusal.Problem(), `table "placement"`)
 			for _, fragment := range test.want {
 				require.Contains(t, strings.ToLower(refusal.Error()), fragment)
@@ -122,7 +122,7 @@ func nftNATPlacementCases() []nftNATPlacementCase {
 }
 
 func natPlacementData(family, chains string) string {
-	return fmt.Sprintf(`{"firewall":{"backend":"nft","table":{"placement":{"family":%q,"chain":{%s}}}}}`, family, chains)
+	return fmt.Sprintf(`{"firewall":{"backend":"kernel","table":{"placement":{"family":%q,"chain":{%s}}}}}`, family, chains)
 }
 
 func natPlacementBase(name, kind, hook, priority, terms string) string {

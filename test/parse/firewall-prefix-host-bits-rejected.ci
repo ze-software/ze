@@ -7,7 +7,7 @@
 
 stdin=source-v4:refused=config-plugin-verify:terminator=EOF_SOURCE_V4
 firewall {
-    backend nft;
+    backend kernel;
     table wan {
         family inet;
         chain input {
@@ -22,7 +22,7 @@ EOF_SOURCE_V4
 
 stdin=destination-v4:refused=config-plugin-verify:terminator=EOF_DESTINATION_V4
 firewall {
-    backend nft;
+    backend kernel;
     table wan {
         family inet;
         chain input {
@@ -37,7 +37,7 @@ EOF_DESTINATION_V4
 
 stdin=source-v6:refused=config-plugin-verify:terminator=EOF_SOURCE_V6
 firewall {
-    backend nft;
+    backend kernel;
     table wan {
         family inet;
         chain input {
@@ -52,7 +52,7 @@ EOF_SOURCE_V6
 
 stdin=destination-v6:refused=config-plugin-verify:terminator=EOF_DESTINATION_V6
 firewall {
-    backend nft;
+    backend kernel;
     table wan {
         family inet;
         chain input {

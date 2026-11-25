@@ -195,7 +195,7 @@ kernel's. The new command answer is a new JSON shape.
 ## Files to Modify
 - `internal/component/iface/yang/ze-iface-interface-cmd.yang` - the command node
 - `internal/component/iface/backend.go` - the reset method
-- `internal/plugins/iface/netlink/wireguard_linux.go` - netlink implementation
+- `internal/plugins/iface/netlink/wireguard_linux.go` - kernel implementation
 - `internal/plugins/iface/vpp/wireguard.go` - VPP implementation or refusal
 - `docs/guide/command-reference.md` - the command
 

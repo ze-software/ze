@@ -37,7 +37,7 @@ This ownership split preserves the original obligations and evidence. Migration 
 | AC-17 | Traffic through a family arp input chain with one counted term per address leaf: sender 192.0.2.1, target 192.0.2.2, sender hardware 02:00:5e:00:01:01, target hardware 02:00:5e:00:01:02, the first also carrying `arp-operation reply` and `output-interface` or `input-interface` | For each term, a frame carrying the named value is counted and a frame differing only in that field is not; a non-Ethernet/IPv4 frame is counted by none |
 | AC-18 | Traffic through a family ip6 input chain whose counted term names only `nd-target-address 2001:db8::1` | A Neighbor Advertisement for 2001:db8::1 is counted; an ICMPv6 echo request whose octets 8 to 23 equal 2001:db8::1 is not |
 | AC-19 | `show firewall` and the web firewall page with an operator table holding all six leaves | Both print "arp operation reply", "arp sender address 192.0.2.1", "arp target address 192.0.2.2", "arp sender hardware address 02:00:5e:00:01:01", "arp target hardware address 02:00:5e:00:01:02", "nd target address 2001:db8::1"; the web page prints no Go type name |
-| AC-20 | Any of the six leaves under `backend vpp` | Refused at commit by `ze:backend`, naming the nft backend |
+| AC-20 | Any of the six leaves under `backend vpp` | Refused at commit by `ze:backend`, naming the kernel backend |
 | AC-21 | Every new leaf and the `arp-operation` enum values | Carry `ze:help` and `description` that `./le doc yang-contract help-shape` accepts |
 
 ## Implementation Ownership
@@ -63,14 +63,14 @@ Each row is a mechanism the historical Current Behavior below already names, rea
 | `from` block parsing | `internal/component/firewall/config.go`, `parseFromBlock` | Maps each `from` leaf, read by string key, to one Match | Extends: six key reads beside `icmpv6-type`, no second parser |
 | `from-block` grouping and the `arp` family | `internal/component/firewall/yang/ze-firewall-conf.yang`, grouping `from-block`, typedef `table-family` | Offers `family arp` for a table and no ARP or ND leaf | Extends: six leaves in the existing grouping; no new family or container |
 | Match validation | `internal/component/firewall/validate.go`, `validateMatch`, `ipHeaderMatchLeaf` | Refuses the existing ARP and ND types outside their families and validates their addresses; refuses IP-header matches in family arp | Extends: cases for the three new types and the ND type rule (AC-11); the arp-family refusal is reused unchanged |
-| nft ARP and ND lowering | `internal/plugins/firewall/nft/lower_linux.go`, `lowerARPOperationMatch`, `lowerARPSenderAddressMatch`, `arpEthernetIPv4`, `lowerNDTargetAddressMatch` | Lowers the opcode at offset 6, the sender address behind the Ethernet/IPv4 layout compare, and the ND target with no ICMPv6 type restriction | Extends: three new lowerings reuse `arpEthernetIPv4` and the sender's guard shape; `lowerNDTargetAddressMatch` gains the 135-to-136 restriction (D-2) |
+| nftables ARP and ND lowering | `internal/plugins/firewall/nft/lower_linux.go`, `lowerARPOperationMatch`, `lowerARPSenderAddressMatch`, `arpEthernetIPv4`, `lowerNDTargetAddressMatch` | Lowers the opcode at offset 6, the sender address behind the Ethernet/IPv4 layout compare, and the ND target with no ICMPv6 type restriction | Extends: three new lowerings reuse `arpEthernetIPv4` and the sender's guard shape; `lowerNDTargetAddressMatch` gains the 135-to-136 restriction (D-2) |
 | arp hook mapping and readback | `internal/plugins/firewall/nft/lower_linux.go`, `lowerARPHook`; `internal/plugins/firewall/nft/readback_linux.go`, `raiseHook` | Maps arp input and output hooks to `NF_ARP_IN` and `NF_ARP_OUT` and back | Does not apply: reused unchanged |
 | Match display | `internal/component/firewall/cmd/show.go`, `formatMatch`, `matchTypeName`; `internal/component/web/page_firewall.go`, `matchSummary` | `show firewall` prints the three existing matches in words; the web page has no ARP or ND case and prints the Go type name | Extends both switches with the six matches (AC-19) |
-| Kernel capability enrolment | `internal/component/kernelcap/kernelcap.go`, `Capability`, `MustRegister` | One enrolment from the owning package feeds start, reload, `ze config validate` and doctor | Extends: the nft backend package enrolls CONFIG_NF_TABLES_ARP (AC-14) |
-| nf_tables doctor check | `internal/plugins/firewall/nft/doctor_linux.go`, `checkFirewallNftables` | Warns when nf_tables is not loaded for an nft-backend firewall | Does not apply: the arp-family need goes through `kernelcap.MustRegister`, not a second hand-written check |
+| Kernel capability enrolment | `internal/component/kernelcap/kernelcap.go`, `Capability`, `MustRegister` | One enrolment from the owning package feeds start, reload, `ze config validate` and doctor | Extends: the kernel backend package enrolls CONFIG_NF_TABLES_ARP (AC-14) |
+| nf_tables doctor check | `internal/plugins/firewall/nft/doctor_linux.go`, `checkFirewallNftables` | Warns when nf_tables is not loaded for a kernel-backend firewall | Does not apply: the arp-family need goes through `kernelcap.MustRegister`, not a second hand-written check |
 | Table registry | `internal/component/firewall/registry.go`, `RegisterTables`, `ApplyAll`, `mergeSameNameTables` | Requires the `ze_` prefix, refuses a name another owner reserved, merges same-name tables of different owners | Does not apply: the name reservation (AC-15, AC-22) landed with `spec-firewall-existing-family-and-owner-correctness`; this spec relies on it unchanged |
 | VRRP owner filter | `internal/plugins/vrrp/ownerfilter.go`, `ownerARPReplyTerm` | The one producer of the existing ARP and ND matches today | Does not apply: its tables and terms are preserved (R-6) |
-| vpp firewall verifier | `internal/plugins/firewall/vpp/verify.go`, `Verify` | Refuses matches it has no lowering for | Does not apply: `ze:backend "nft"` refuses the leaves at commit; the daemon-side refusal stays with `plan/release/fixes/spec-vrrp-owner-arp-rfc-defects.md` D2 |
+| vpp firewall verifier | `internal/plugins/firewall/vpp/verify.go`, `Verify` | Refuses matches it has no lowering for | Does not apply: `ze:backend "kernel"` refuses the leaves at commit; the daemon-side refusal stays with `plan/release/fixes/spec-vrrp-owner-arp-rfc-defects.md` D2 |
 | Table snapshot fixture | `internal/test/fixture/netfilter_fixture.go`, `registerTableSnapshot` | Registers an `nft list table` snapshot for a `.ci` to assert against | Extends: two registrations for the new functional tests |
 
 ## Historical planning record
@@ -97,12 +97,12 @@ nftables ARP header expression and the ND target read, in a
 
 | Leaf | Field | Model type | Exists today |
 |------|-------|------------|--------------|
-| `arp-operation` | ARP opcode (ar$op), nft `arp operation` | `MatchARPOperation` | yes |
-| `arp-sender-address` | ARP sender protocol address (ar$spa), nft `arp saddr ip` | `MatchARPSenderAddress` | yes |
-| `arp-target-address` | ARP target protocol address (ar$tpa), nft `arp daddr ip` | `MatchARPTargetAddress` | no, new |
-| `arp-sender-hardware-address` | ARP sender hardware address (ar$sha), nft `arp saddr ether` | `MatchARPSenderHardwareAddress` | no, new |
-| `arp-target-hardware-address` | ARP target hardware address (ar$tha), nft `arp daddr ether` | `MatchARPTargetHardwareAddress` | no, new |
-| `nd-target-address` | ICMPv6 ND Target Address, nft `icmpv6 taddr` | `MatchNDTargetAddress` | yes |
+| `arp-operation` | ARP opcode (ar$op), nftables `arp operation` | `MatchARPOperation` | yes |
+| `arp-sender-address` | ARP sender protocol address (ar$spa), nftables `arp saddr ip` | `MatchARPSenderAddress` | yes |
+| `arp-target-address` | ARP target protocol address (ar$tpa), nftables `arp daddr ip` | `MatchARPTargetAddress` | no, new |
+| `arp-sender-hardware-address` | ARP sender hardware address (ar$sha), nftables `arp saddr ether` | `MatchARPSenderHardwareAddress` | no, new |
+| `arp-target-hardware-address` | ARP target hardware address (ar$tha), nftables `arp daddr ether` | `MatchARPTargetHardwareAddress` | no, new |
+| `nd-target-address` | ICMPv6 ND Target Address, nftables `icmpv6 taddr` | `MatchNDTargetAddress` | yes |
 
 Ze refuses each leaf in a family where it would read the wrong bytes, lowers
 each to nftables (the three new ones through new lowering built the way the
@@ -127,10 +127,10 @@ them (the rows are in `plan/journal/`):
 - [ ] `docs/architecture/firewall/table-ownership-and-shutdown-flush.md` - producer list and Rule 2 (`ze_` prefix)
   → Constraint: the producer table omits `ze_vrrp`, `ze_vrrp_owner_arp` and `ze_vrrp_owner_nd`; the page is wrong today and is repaired in the phase that adds the name reservation (phase 5), and it names the reservation registry as the source of the list
 - [ ] `docs/architecture/doctor-and-health-checks.md` - "Kernel capabilities: one enrolment, three callers"
-  → Constraint: a kernel feature need is enrolled with `kernelcap.MustRegister` from the owning package; `Probe` reads netlink or procfs and MUST NOT execute a binary; Absent refuses start, reload and `ze config validate`, Unknown only warns
-  → Decision: the arp-family need is enrolled by the nft backend package (`internal/plugins/firewall/nft/`), because that package is the one that programs `NFPROTO_ARP`
+  → Constraint: a kernel feature need is enrolled with `kernelcap.MustRegister` from the owning package; `Probe` reads the netlink socket or procfs and MUST NOT execute a binary; Absent refuses start, reload and `ze config validate`, Unknown only warns
+  → Decision: the arp-family need is enrolled by the kernel backend package (`internal/plugins/firewall/nft/`), because that package is the one that programs `NFPROTO_ARP`
 - [ ] `docs/architecture/config/yang-config-design.md` - `ze:backend` extension row
-  → Constraint: `ze:backend "nft"` restricts a node to the nft backend, commit validates it and completion filters on it; the vpp backend has no ARP or ND lowering (`plan/release/fixes/spec-vrrp-owner-arp-rfc-defects.md` D2), so each of the six leaves carries `ze:backend "nft"`
+  → Constraint: `ze:backend "kernel"` restricts a node to the kernel backend, commit validates it and completion filters on it; the vpp backend has no ARP or ND lowering (`plan/release/fixes/spec-vrrp-owner-arp-rfc-defects.md` D2), so each of the six leaves carries `ze:backend "kernel"`
 - [ ] `ai/patterns/config-option.md` - YANG leaf definition and naming across layers
   → Constraint: leaf names are spelled in full; no env var applies (a match is per-term data, not a tunable)
 - [ ] `ai/rules/config.md` - help text contract
@@ -140,7 +140,7 @@ them (the rows are in `plan/journal/`):
 - [ ] nftables manual, ARP HEADER EXPRESSION and ICMPV6 HEADER EXPRESSION (netfilter.org manpage, read 2026-09-28)
   → Decision: nftables spells the fields `arp htype`, `arp ptype`, `arp hlen`, `arp plen`, `arp operation` (request, reply), `arp saddr ether`, `arp saddr ip`, `arp daddr ether`, `arp daddr ip`, and `icmpv6 taddr` for the ND target; the arp family has only the input and output hooks
   → Decision: htype, ptype, hlen and plen are not exposed as leaves. Ze reads them only as the layout guard every address match carries, and a term that wants "only Ethernet/IPv4 ARP" gets it from any address leaf
-  → Constraint: whether nft adds its own layout dependency to `arp saddr ip` is not known and not relied on; Ze's guard is Ze's own compare
+  → Constraint: whether nftables adds its own layout dependency to `arp saddr ip` is not known and not relied on; Ze's guard is Ze's own compare
 - [ ] VyOS firewall documentation, bridge section (read 2026-09-28)
   → Constraint: VyOS offers only `ethernet-type arp` and no ARP field match, so there is no VyOS spelling to follow
 - [ ] Junos firewall filters (from memory, unverified): `family inet6` filters match `icmp-type neighbor-solicit` but no ND target; ARP is policed, not field-matched
@@ -155,7 +155,7 @@ them (the rows are in `plan/journal/`):
   → Constraint: the Target Address sits at ICMPv6 octet 8 in both Neighbor Solicitation (135) and Neighbor Advertisement (136) and nowhere else, so any other ICMPv6 type puts different bytes at that offset
 
 **Key insights:**
-- Model, validation, nft lowering and `show` formatting of three matches already exist and are exercised by VRRP. This spec adds the config surface for those three, adds three new match types end to end (model, validation, lowering, show, web), closes the family gaps that exposure opens, enrolls the kernel need, and reserves producer table names.
+- Model, validation, nftables lowering and `show` formatting of three matches already exist and are exercised by VRRP. This spec adds the config surface for those three, adds three new match types end to end (model, validation, lowering, show, web), closes the family gaps that exposure opens, enrolls the kernel need, and reserves producer table names.
 - `family arp` is already a YANG enum value and a model family (`FamilyARP`), with hooks mapped to `NF_ARP_IN` and `NF_ARP_OUT` by `lowerARPHook`. No new family is needed.
 - `MatchNDTargetAddress` does not restrict the ICMPv6 type today; D-2 moves the 135-or-136 restriction into its lowering.
 - `mergeSameNameTables` is load-bearing: the IRR and domain plugins register sets into `ze_<operator table>` names and rely on the merge. The reservation (D-3) covers only names a producer owns outright, so the merge stays for contributions.
@@ -203,10 +203,10 @@ them (the rows are in `plan/journal/`):
 - YANG-validated tree, delivered to the firewall component as `map[string]any` with every leaf value a string
 
 ##### Transformation Path
-1. YANG parse and native validation: enum for `arp-operation`; `zt:ipv4-address` for the two ARP protocol-address leaves; `zt:ipv6-address` for `nd-target-address`; the MAC pattern plus `ze:validate "mac-address"` for the two hardware-address leaves; `ze:backend "nft"` refuses every one of the six on another backend
+1. YANG parse and native validation: enum for `arp-operation`; `zt:ipv4-address` for the two ARP protocol-address leaves; `zt:ipv6-address` for `nd-target-address`; the MAC pattern plus `ze:validate "mac-address"` for the two hardware-address leaves; `ze:backend "kernel"` refuses every one of the six on another backend
 2. `parseFromBlock` (`internal/component/firewall/config.go`) turns each leaf into its Match
 3. `ValidateTables` and `validateMatch` (`validate.go`) check family admissibility for every match in the term, address validity, and the ND term's ICMPv6 type; the table-level check refuses a reserved kernel name
-4. `RegisterTables` under the firewall engine owner refuses a name another owner reserved, then `ApplyAll` merges with other owners and calls the nft backend
+4. `RegisterTables` under the firewall engine owner refuses a name another owner reserved, then `ApplyAll` merges with other owners and calls the kernel backend
 5. `lowerMatch` (`internal/plugins/firewall/nft/lower_linux.go`) emits the expressions: existing lowering for the ARP opcode and sender address, new lowering for the three new types, the ND target lowering with its own type restriction
 6. Kernel: nftables table `ze_<name>` in family arp, ip6 or inet
 7. `show firewall` reads the last applied model and prints through `formatMatch`; the web page prints through `matchSummary`
@@ -215,8 +215,8 @@ them (the rows are in `plan/journal/`):
 | Boundary | How | Verified |
 |----------|-----|----------|
 | Config file to firewall component | YANG tree to `map[string]any`, string leaf values | No |
-| Firewall component to nft backend | `[]firewall.Table` through the table registry and `Backend.Apply` | No |
-| nft backend to kernel | nftables netlink batch, family `NFPROTO_ARP`, `NFPROTO_IPV6` or `NFPROTO_INET` | No |
+| Firewall component to kernel backend | `[]firewall.Table` through the table registry and `Backend.Apply` | No |
+| kernel backend to kernel | nftables netlink message batch, family `NFPROTO_ARP`, `NFPROTO_IPV6` or `NFPROTO_INET` | No |
 | Kernel capability to startup gate | `kernelcap.Evaluate` and `Refuse` from `cmd/ze/hub` and `ze config validate` | No |
 | Producer package to firewall registry | name reservation from each producer's `init` | No |
 
@@ -225,7 +225,7 @@ them (the rows are in `plan/journal/`):
 - `validateMatch` - cases for the three new types; arp-family refusals for the IP, transport and conntrack match types; the ND type check reads the term's `MatchICMPv6Type`
 - `lowerMatch` - three new cases; `lowerNDTargetAddressMatch` gains the type restriction
 - `formatMatch`, `matchTypeName` (`internal/component/firewall/cmd/show.go`) and `matchSummary` (`internal/component/web/page_firewall.go`) - cases for the new types, and for the existing three on the web page
-- `kernelcap.MustRegister` - new enrolment in the nft backend package
+- `kernelcap.MustRegister` - new enrolment in the kernel backend package
 - Table registry - a name reservation beside `RegisterTables`, read by `ValidateTables` and by `RegisterTables`
 
 ##### Architectural Verification
@@ -235,7 +235,7 @@ them (the rows are in `plan/journal/`):
 | No unintended coupling (components stay isolated) | Yes (planned) | The firewall component learns nothing about VRRP or any other producer; each producer reserves its own names from its own package |
 | No duplicated functionality (extends existing, does not recreate) | Yes (planned) | Reuses the three existing types; the new address lowerings reuse `arpEthernetIPv4` and the guard shape of `lowerARPSenderAddressMatch` |
 | Zero-copy preserved where applicable (refs, not copies) | N-A | Config-time path, no wire encoding |
-| Registration over hardcoding, outbound | Yes (planned) | The kernel need registers through `kernelcap.MustRegister` from the nft package; each producer reserves its table names through the firewall registry from its own `init`, using the constant it already declares |
+| Registration over hardcoding, outbound | Yes (planned) | The kernel need registers through `kernelcap.MustRegister` from the `internal/plugins/firewall/nft/` package; each producer reserves its table names through the firewall registry from its own `init`, using the constant it already declares |
 | Registration over hardcoding, inbound | Partly (planned) | `parseFromBlock`, `validateMatch`, `lowerMatch`, `formatMatch`, `matchTypeName` and `matchSummary` are per-match-type switches today and every existing match is added there; searched on 2026-09-28 with a grep for `MatchARPSenderAddress` and `MatchICMPv6Type`. `TestParsedNamesMatchTheModel` gates the name tables; the ARP opcode names get one value-to-name map in `model.go` read through `nameIndex`, the way `familyNames` is. The firewall registry holds no producer name: the reservation list is whatever producers registered |
 
 #### Risks & Assumptions
@@ -245,9 +245,9 @@ them (the rows are in `plan/journal/`):
 |----|-----------|--------------------------------|----------|--------------|--------|
 | A-1 | `meta iifname`, `meta oifname` and `meta mark` evaluate normally in an nftables arp chain | `ownerARPReplyTerm` uses `MatchOutputInterface` in an arp table and the QEMU test passes | input-interface, output-interface or mark must also be refused in arp | Integration test AC-17 with `output-interface` beside `arp-operation` | unvalidated |
 | A-2 | In an arp chain, a transport-header payload read and `meta l4proto` never match (no L4 info), and `ct state` reads the packet as untracked or invalid rather than breaking | Reading of kernel `nft_payload_eval` and `nft_ct_get_eval` from memory | The refusal list in AC-12 is still right (refusing is safe either way); only its wording changes | Unit refusal tests do not depend on it; recorded so the message does not claim a kernel behavior | unvalidated |
-| A-3 | A netlink probe can tell a kernel without `CONFIG_NF_TABLES_ARP` from one with it, without executing a binary and without committing state, by sending an nftables batch that declares an arp table and a filter base chain and omits the batch end, so the kernel validates then aborts | nft's own check mode works this way; `github.com/google/nftables` exposes a raw batch path (unverified) | The probe falls back to `/proc/config.gz` where present and reports Unknown otherwise, which warns and never refuses | `TestARPFamilyProbeClassifiesEachErrno` plus the QEMU run of AC-14 on a kernel built without the option | unvalidated |
+| A-3 | A netlink message probe can tell a kernel without `CONFIG_NF_TABLES_ARP` from one with it, without executing a binary and without committing state, by sending an nftables batch that declares an arp table and a filter base chain and omits the batch end, so the kernel validates then aborts | nftables' own check mode works this way; `github.com/google/nftables` exposes a raw batch path (unverified) | The probe falls back to `/proc/config.gz` where present and reports Unknown otherwise, which warns and never refuses | `TestARPFamilyProbeClassifiesEachErrno` plus the QEMU run of AC-14 on a kernel built without the option | unvalidated |
 | A-4 | Without CAP_NET_ADMIN the probe gets EPERM and must answer Unknown | nfnetlink requires CAP_NET_ADMIN for every nftables message | A non-root `ze config validate` would refuse wrongly | `TestARPFamilyProbeEPERMIsUnknown` | unvalidated |
-| A-5 | nft 1.0.x renders the lowered compares as `arp operation`, `arp saddr ip`, `arp daddr ip`, `arp saddr ether`, `arp daddr ether`, `icmpv6 type` and `icmpv6 taddr` in `nft list table` | nftables manual lists every field | The `.ci` assertions use a pattern that also accepts the raw `@nh,<bit>,<len>` and `@th,<bit>,<len>` forms | First run of the functional tests | unvalidated |
+| A-5 | nftables 1.0.x renders the lowered compares as `arp operation`, `arp saddr ip`, `arp daddr ip`, `arp saddr ether`, `arp daddr ether`, `icmpv6 type` and `icmpv6 taddr` in `nft list table` | nftables manual lists every field | The `.ci` assertions use a pattern that also accepts the raw `@nh,<bit>,<len>` and `@th,<bit>,<len>` forms | First run of the functional tests | unvalidated |
 | A-6 | The functional test runner's kernel carries `CONFIG_NF_TABLES_ARP` | The VRRP QEMU runtime kernel does; the Docker runner kernel is the host's | The arp functional test needs the QEMU runner instead of `needs-linux` | First run of `test/firewall/firewall-arp-match.ci` | unvalidated |
 | A-7 | Two base chains of the same name inside one merged table either fail the whole reconcile or lose one owner's chain | `mergeSameNameTables` concatenates chains without a name check | No design change: D-3 refuses the colliding table before the merge, so the kernel outcome is no longer load-bearing. Recorded so no page claims an outcome nobody measured | Not measured by this spec; the ownership page states the refusal, not a kernel outcome | unvalidated (not load-bearing after D-3) |
 | A-8 | Apart from IRR and domain set contributions into operator tables, every producer registers only tables it alone owns, so reserving each producer's own names refuses no legitimate registration | Grep of `RegisterTables` callers and their table-name constants, 2026-09-28 (Current Behavior) | A producer that contributes into another producer's table is refused by `RegisterTables`; the reservation then admits named contributors, which is a design change back to DESIGN | `TestRegisterTablesRefusesAnotherOwnersReservedName` plus the existing functional tests of every producer (copp, flowspec, policy-routes, ddos-local, gtsm, IRR, domain, VRRP) staying green | unvalidated |
@@ -262,7 +262,7 @@ them (the rows are in `plan/journal/`):
 | R-4 | Operator table name equal to a producer's table name merges into it | Journal row `two-owners-share-one-name.md` | D-3: verify refuses it naming the owner; `RegisterTables` refuses it on any path that bypassed verify |
 | R-5 | The kernelcap probe refuses a working router | Absent reported on a kernel that has the family | Unknown on every error the probe cannot classify; only the specific "family not supported" errno answers Absent |
 | R-6 | The ND type restriction added to `lowerNDTargetAddressMatch` changes the VRRP owner's kernel rule | QEMU test red | The added restriction admits 136, the only type the VRRP term names; `TestVRRPOwnerAnswersWithVirtualMACOnly` reruns |
-| R-7 | The vpp backend accepts a leaf and then refuses the match with a generic error | Parse test on `backend vpp` | `ze:backend "nft"` on each leaf refuses at commit with the backend named |
+| R-7 | The vpp backend accepts a leaf and then refuses the match with a generic error | Parse test on `backend vpp` | `ze:backend "kernel"` on each leaf refuses at commit with the backend named |
 | R-8 | An operator config that already names a table `copp`, `pr`, `flowspec`, `gtsm`, `vrrp`, `vrrp_owner_arp`, `vrrp_owner_nd`, `ddos-local` or `irr_iface` stops validating | `ze config validate` over `test/` fixtures | Ze is pre-release; the error names the owner so the operator renames the table. Each such config merged into a producer's table today, so none worked as written |
 | R-9 | A new ARP address match lowered without the layout guard matches a non-Ethernet/IPv4 packet on the wrong bytes | Unit test of the expression list | Each of the four address lowerings starts with the `arpEthernetIPv4` compare; `TestLowerARPAddressMatchesCarryTheLayoutGuard` asserts it per type |
 
@@ -283,7 +283,7 @@ them (the rows are in `plan/journal/`):
 | Config `from { nd-target-address 2001:db8::1; }` and `from { icmpv6-type nd-neighbor-advert; nd-target-address 2001:db8::2; }` in a family ip6 table | → | `parseFromBlock` to `lowerNDTargetAddressMatch` | `test/firewall/firewall-nd-target-match.ci` |
 | `ze config validate` on an arp-family misuse | → | `validateMatch` | `test/parse/firewall-arp-source-address-rejected.ci` |
 | `ze config validate` on an operator table named `vrrp_owner_nd` | → | the table check reading the name reservations | `test/parse/firewall-table-name-reserved-rejected.ci` |
-| `ze doctor` and daemon start with a family arp table | → | the nft package's kernelcap enrolment | `TestFirewallARPFamilyCapabilityInUse` and `test/parse/firewall-arp-kernelcap-absent.ci` |
+| `ze doctor` and daemon start with a family arp table | → | the `internal/plugins/firewall/nft/` package's kernelcap enrolment | `TestFirewallARPFamilyCapabilityInUse` and `test/parse/firewall-arp-kernelcap-absent.ci` |
 
 #### Acceptance Criteria
 
@@ -308,7 +308,7 @@ them (the rows are in `plan/journal/`):
 | AC-17 | Traffic through a family arp input chain with one counted term per address leaf: sender 192.0.2.1, target 192.0.2.2, sender hardware 02:00:5e:00:01:01, target hardware 02:00:5e:00:01:02, the first also carrying `arp-operation reply` and `output-interface` or `input-interface` | For each term, a frame carrying the named value is counted and a frame differing only in that field is not; a non-Ethernet/IPv4 frame is counted by none |
 | AC-18 | Traffic through a family ip6 input chain whose counted term names only `nd-target-address 2001:db8::1` | A Neighbor Advertisement for 2001:db8::1 is counted; an ICMPv6 echo request whose octets 8 to 23 equal 2001:db8::1 is not |
 | AC-19 | `show firewall` and the web firewall page with an operator table holding all six leaves | Both print "arp operation reply", "arp sender address 192.0.2.1", "arp target address 192.0.2.2", "arp sender hardware address 02:00:5e:00:01:01", "arp target hardware address 02:00:5e:00:01:02", "nd target address 2001:db8::1"; the web page prints no Go type name |
-| AC-20 | Any of the six leaves under `backend vpp` | Refused at commit by `ze:backend`, naming the nft backend |
+| AC-20 | Any of the six leaves under `backend vpp` | Refused at commit by `ze:backend`, naming the kernel backend |
 | AC-21 | Every new leaf and the `arp-operation` enum values | Carry `ze:help` and `description` that `./le doc yang-contract help-shape` accepts |
 | AC-22 | Any owner calls `RegisterTables` with a table name another owner reserved | Refused with an error naming both owners; the registry keeps the reserving owner's tables unchanged. IRR and domain registering sets into an operator table's name stay accepted |
 
@@ -340,7 +340,7 @@ them (the rows are in `plan/journal/`):
 | `TestLowerNDTargetAddressRestrictsType` | `internal/plugins/firewall/nft/lower_linux_test.go` | the expression list carries the ICMPv6 type restriction to 135 through 136 before the target compare, in ip6 and inet (AC-9) | |
 | `TestLowerARPAddressMatchesCarryTheLayoutGuard` | `internal/plugins/firewall/nft/lower_linux_test.go` | each of the four ARP address lowerings starts with the `arpEthernetIPv4` compare and reads its offset and length (8/6, 14/4, 18/6, 24/4) (AC-3 to AC-6, R-9) | |
 | `TestLowerARPAddressMatchesFailClosed` | `internal/plugins/firewall/nft/lower_linux_test.go` | an unspecified or non-IPv4 protocol address passed around validation is refused by the lowering | |
-| `TestFirewallARPFamilyCapabilityInUse` | `internal/plugins/firewall/nft/kernelcap_linux_test.go` | InUse true only for a tree with a family arp table under backend nft (AC-14) | |
+| `TestFirewallARPFamilyCapabilityInUse` | `internal/plugins/firewall/nft/kernelcap_linux_test.go` | InUse true only for a tree with a family arp table under backend kernel (AC-14) | |
 | `TestARPFamilyProbeClassifiesEachErrno`, `TestARPFamilyProbeEPERMIsUnknown` | `internal/plugins/firewall/nft/kernelcap_linux_test.go` | Present, Absent and Unknown classification (A-3, A-4) | |
 | `TestVerifyRefusesAReservedTableName` | `internal/component/firewall/validate_test.go` | for every name in the reservation registry (read from it, never a hand list), an operator table taking it in any family is refused with the owner named; an unreserved name passes (AC-15) | |
 | `TestRegisterTablesRefusesAnotherOwnersReservedName` | `internal/component/firewall/registry_test.go` | AC-22 refusal, the reserving owner's tables unchanged, and an IRR-style set contribution into an operator table name still accepted and merged | |
@@ -380,7 +380,7 @@ them (the rows are in `plan/journal/`):
 | N-A | - | - | A local packet filter with no protocol peer; the Linux kernel is the only other party, and AC-17, AC-18 and the QEMU test exercise it with real frames | |
 
 #### Files to Modify
-- `internal/component/firewall/yang/ze-firewall-conf.yang` - six leaves in `from-block`, each `ze:backend "nft"`; `family` leaf description names what arp admits
+- `internal/component/firewall/yang/ze-firewall-conf.yang` - six leaves in `from-block`, each `ze:backend "kernel"`; `family` leaf description names what arp admits
 - `internal/component/firewall/config.go` - `parseFromBlock` reads the six leaves; ARP opcode parse through a name index; MAC text to 6 octets
 - `internal/component/firewall/model.go` - three new match types (below); ARP opcode value-to-name map; remove "Daemon-only" sentences from the three existing match comments; `MatchNDTargetAddress` comment says the lowering restricts the type; new types added to the `matchMarker` list
 - `internal/component/firewall/validate.go` - cases for the three new types; arp-family refusals (AC-12); ND type rule (AC-11); reserved-name table check (AC-15); comment on `validateSetFamilyCompat` no longer calls the literal gap untracked
@@ -417,7 +417,7 @@ New model types (all family arp only, lowered with the Ethernet/IPv4 layout guar
 | YANG custom validators | Yes | the existing `ze:validate "mac-address"` on the two hardware-address leaves; family admissibility needs the table's family, which `validateMatch` already has, so no new validator |
 | CLI commands/flags | No | No command added; `show firewall` output gains three match strings |
 | CLI grammar (keyword before value) | N-A | No command added |
-| Editor autocomplete | Yes | Automatic from the enum; the `mac-address` complete function serves the hardware leaves; `ze:backend "nft"` filters the leaves off under vpp |
+| Editor autocomplete | Yes | Automatic from the enum; the `mac-address` complete function serves the hardware leaves; `ze:backend "kernel"` filters the leaves off under vpp |
 | Functional test for new RPC/API | Yes | `test/firewall/*.ci` and `test/parse/*.ci` listed above |
 | Pipe completeness | N-A | No command output added |
 | Env var registration | N-A | Per-term match data, not a tunable |
@@ -432,7 +432,7 @@ New model types (all family arp only, lowered with the Ethernet/IPv4 layout guar
 | 2 | Config syntax changed? | Yes | `docs/guide/firewall.md` match table, families and reserved table names; `docs/guide/configuration.md` only if it lists `from` leaves (check) |
 | 3 | CLI command added/changed? | No | `show firewall` output unchanged in shape |
 | 4 | API/RPC added/changed? | No | No RPC |
-| 5 | Plugin added/changed? | No | Producers gain a reservation call and the nft backend an enrolment, not a plugin surface |
+| 5 | Plugin added/changed? | No | Producers gain a reservation call and the kernel backend an enrolment, not a plugin surface |
 | 6 | Has a user guide page? | Yes | `docs/guide/firewall.md`, wiki `firewall.md`, `docs/guide/vrrp.md` (operator table beside the owner tables) |
 | 7 | Wire format changed? | No | No Ze wire format |
 | 8 | Plugin SDK/protocol changed? | No | - |
@@ -443,7 +443,7 @@ New model types (all family arp only, lowered with the Ethernet/IPv4 layout guar
 | 13 | Route metadata keys added/changed? | No | - |
 | 14 | Prometheus counters added/changed? | No | - |
 | 15 | Registered plugin, event type, send type, command, capability, or inventory changed? | Yes | kernel capability inventory in `docs/architecture/doctor-and-health-checks.md` |
-| 16 | Any changed source file referenced by existing doc source anchors? | Yes | Declared by `// Design:` headers of files this spec changes: `docs/architecture/core-design.md` (declared by `internal/component/firewall/config.go`, `model.go`, `registry.go` and the nft package) is unaffected, because it describes registration and composition in general and the reservation follows that pattern without changing it; `docs/architecture/vrrp/vrrp-macvlan-vmac-dataplane.md` (declared by `internal/plugins/vrrp/ownerfilter.go`) is updated in phase 5 with the operator-table interaction and the reservation; `docs/features/ai-first.md` (declared by `internal/core/diagnostic/codes.go`) is unaffected, because it describes `ze show diagnostic` generically and lists no individual code; `docs/architecture/web-workbench-pages.md` (declared by `internal/component/web/page_firewall.go`) is updated in phase 4, because its `matchSummary` paragraph counts 15 match types and this change makes that more wrong than it already is. Producer packages gaining a reservation call (copp, flowspec-firewall, policyroute, ddos local, gtsm, irr, vrrp acceptfilter) and `internal/component/web/page_firewall.go` are listed by the anchor command at implementation; each doc it names is judged there. Advisory mentions: `docs/architecture/firewall/firewall-irr.md` (mentions `registry.go`, `config.go`, `model.go`, `validate.go`) is re-read in phase 5, because the IRR sets rely on the same-name merge the reservation must leave working; `docs/architecture/ddos/cp-survival-5-detect-5-characterization.md`, `docs/architecture/traffic/cp-survival-2-copp-port179.md`, `docs/architecture/bgp/as112-coordination.md`, `docs/guide/redistribution.md` and `docs/guide/vpp.md` mention the changed files for matches, codes and parsing this spec does not alter. Re-run `./le spec citation anchors spec plan/post-release/features/spec-firewall-arp-nd-matches.md` at implementation and name each doc it lists |
+| 16 | Any changed source file referenced by existing doc source anchors? | Yes | Declared by `// Design:` headers of files this spec changes: `docs/architecture/core-design.md` (declared by `internal/component/firewall/config.go`, `model.go`, `registry.go` and the `internal/plugins/firewall/nft/` package) is unaffected, because it describes registration and composition in general and the reservation follows that pattern without changing it; `docs/architecture/vrrp/vrrp-macvlan-vmac-dataplane.md` (declared by `internal/plugins/vrrp/ownerfilter.go`) is updated in phase 5 with the operator-table interaction and the reservation; `docs/features/ai-first.md` (declared by `internal/core/diagnostic/codes.go`) is unaffected, because it describes `ze show diagnostic` generically and lists no individual code; `docs/architecture/web-workbench-pages.md` (declared by `internal/component/web/page_firewall.go`) is updated in phase 4, because its `matchSummary` paragraph counts 15 match types and this change makes that more wrong than it already is. Producer packages gaining a reservation call (copp, flowspec-firewall, policyroute, ddos local, gtsm, irr, vrrp acceptfilter) and `internal/component/web/page_firewall.go` are listed by the anchor command at implementation; each doc it names is judged there. Advisory mentions: `docs/architecture/firewall/firewall-irr.md` (mentions `registry.go`, `config.go`, `model.go`, `validate.go`) is re-read in phase 5, because the IRR sets rely on the same-name merge the reservation must leave working; `docs/architecture/ddos/cp-survival-5-detect-5-characterization.md`, `docs/architecture/traffic/cp-survival-2-copp-port179.md`, `docs/architecture/bgp/as112-coordination.md`, `docs/guide/redistribution.md` and `docs/guide/vpp.md` mention the changed files for matches, codes and parsing this spec does not alter. Re-run `./le spec citation anchors spec plan/post-release/features/spec-firewall-arp-nd-matches.md` at implementation and name each doc it lists |
 | 17 | Existing docs show config/CLI/API examples for this area? | Yes | guide and wiki firewall examples; verify against YANG after the change |
 
 #### Implementation Steps
@@ -460,7 +460,7 @@ New model types (all family arp only, lowered with the Ethernet/IPv4 layout guar
 | Check | What to verify for this spec |
 |-------|------------------------------|
 | Completeness | Every AC-N has an implementation at file:line |
-| Correctness | No `from` leaf reaches the nft lowering in an arp table unless it reads the ARP header or packet meta |
+| Correctness | No `from` leaf reaches the nftables lowering in an arp table unless it reads the ARP header or packet meta |
 | Correctness | Every ARP address compare is preceded by the Ethernet/IPv4 layout compare in the same rule |
 | Correctness | An ND target compare never reaches the kernel without the 135-to-136 restriction in the same rule |
 | Correctness | The reservation refuses on name alone, in every family; IRR and domain set contributions into operator tables still merge |
@@ -506,7 +506,7 @@ New model types (all family arp only, lowered with the Ethernet/IPv4 layout guar
 
 | Decision | Alternatives Considered | Rationale |
 |----------|------------------------|-----------|
-| Leaf names `arp-operation`, `arp-sender-address`, `arp-target-address`, `arp-sender-hardware-address`, `arp-target-hardware-address`, `nd-target-address` | nft spellings `arp-saddr-ip`, `arp-daddr-ether`, `icmpv6-taddr`; `source`/`destination` instead of `sender`/`target`; `mac` instead of `hardware-address` | No vendor has an ARP field match to copy; Ze's `from` leaves spell words in full and end in `-address`; sender and target are RFC 826's words and the ones `show firewall` and `validateMatch` already use; the `arp-` prefix names the family the leaf needs |
+| Leaf names `arp-operation`, `arp-sender-address`, `arp-target-address`, `arp-sender-hardware-address`, `arp-target-hardware-address`, `nd-target-address` | nftables spellings `arp-saddr-ip`, `arp-daddr-ether`, `icmpv6-taddr`; `source`/`destination` instead of `sender`/`target`; `mac` instead of `hardware-address` | No vendor has an ARP field match to copy; Ze's `from` leaves spell words in full and end in `-address`; sender and target are RFC 826's words and the ones `show firewall` and `validateMatch` already use; the `arp-` prefix names the family the leaf needs |
 | Reuse `family arp`, no new family | A dedicated `arp { }` container | The family exists in YANG, model and lowering; a second surface would declare the same fact twice |
 | Bare address, not a prefix, for every address leaf | Prefix like `source-address` | The model holds one address and the VRRP use needs one; nftables' arp expression compares a value; a prefix is new model work nobody asked for |
 | Hardware address held as a fixed 6-octet array | `net.HardwareAddr` slice | A fixed length makes a wrong-length value unrepresentable, so validation needs only the family check and the lowering needs no length check |
@@ -524,14 +524,14 @@ All three were decided by Thomas on 2026-09-28. None remains open.
 
 | ID | Question | Decision | Date | Owner |
 |----|----------|----------|------|-------|
-| D-1 | Which ARP and ND fields to expose | Expose everything the firewall can match for ARP and ND: ARP operation, sender IP address, target IP address, sender hardware address, target hardware address, and ND target address. The three new ones get new model match types (model, validation, show formatting) and new nft lowering built the way the existing three are | 2026-09-28 | Thomas |
+| D-1 | Which ARP and ND fields to expose | Expose everything the firewall can match for ARP and ND: ARP operation, sender IP address, target IP address, sender hardware address, target hardware address, and ND target address. The three new ones get new model match types (model, validation, show formatting) and new nftables lowering built the way the existing three are | 2026-09-28 | Thomas |
 | D-2 | Where the ND type restriction lives | `lowerNDTargetAddressMatch` adds the ICMPv6 type compare (135 or 136) itself. A term naming `nd-target-address` with an `icmpv6-type` other than 135 or 136 is refused because it can never match | 2026-09-28 | Thomas |
 | D-3 | Operator table name collides with a producer's table | Fixed in this spec: each producer registers the table names it owns, and verify refuses an operator table whose kernel name another owner holds, naming that owner. The VRRP owner tables keep their terms (AC-15) | 2026-09-28 | Thomas |
 
 #### Known Limitations
 
 - VRRP's own need for the arp family (the owner ARP table) is not enrolled with kernelcap by this spec: its InUse depends on runtime addresses, not config. The appliance kernel carries the option (`gokrazy/kernel/kernel.require`).
-- The vpp backend gains no ARP or ND lowering; `ze:backend "nft"` refuses the leaves there, and the daemon-side refusal stays with `plan/release/fixes/spec-vrrp-owner-arp-rfc-defects.md` D2.
+- The vpp backend gains no ARP or ND lowering; `ze:backend "kernel"` refuses the leaves there, and the daemon-side refusal stays with `plan/release/fixes/spec-vrrp-owner-arp-rfc-defects.md` D2.
 
 #### Checklist
 

@@ -17,7 +17,7 @@ import (
 	"golang.org/x/sys/unix"
 )
 
-// The fast path is a tc-ingress program that turns bare ESP for a watched SPI into
+// The fast path is a tc ingress program that turns bare ESP for a watched SPI into
 // the ESP-in-UDP form its inbound XFRM state carries, in place, before the IP layer
 // sees it. The kernel then receives the state's own form on the link it arrived on,
 // where the inbound policy check runs. An IPv4 datagram the program cannot rewrite (a
@@ -520,8 +520,8 @@ func espFormFastPathIPv4(l2 int32) asm.Instructions {
 		asm.JNE.Imm(asm.R0, unix.IPPROTO_ESP, espFormFastPathLabelNext),
 
 		// A fragment carries no SPI unless it is the first, and no first fragment can
-		// carry the UDP length of the whole datagram: IP reassembly runs after tc
-		// ingress, so fragments go to the complete path, which reads the reassembled
+		// carry the UDP length of the whole datagram: IP reassembly runs after tc ingress,
+		// so fragments go to the complete path, which reads the reassembled
 		// datagram.
 		asm.LoadMem(asm.R0, asm.RFP, espFormFastPathBuf+espFormFastPathV4FragOff, asm.Half),
 		asm.HostTo(asm.BE, asm.R0, asm.Half),

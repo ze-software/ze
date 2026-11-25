@@ -20,7 +20,7 @@ import (
 	"github.com/ze-software/ze/pkg/plugin/rpc"
 )
 
-// VALIDATES: a refused tunnel-source rule and a refused publish of the guard's nft
+// VALIDATES: a refused tunnel-source rule and a refused publish of the guard's nftables
 // table each make ipsec-source-guard report one error under
 // doctor-ipsec-source-guard-missing, naming the interface, the address, the refused
 // step and the cause, with the fix the log line names (the same classifier); the log

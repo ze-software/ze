@@ -20,7 +20,7 @@ type mirrorSpec struct {
 // mirrorSpecFor returns the mirror one unit asks for, with both destinations
 // resolved through the apply's selector map. A mirror names two interfaces and
 // the destination is as selectable as the source, so a capture port bound by
-// mac/match or aliased by os-name has to be translated here too: tc installs
+// mac/match or aliased by os-name has to be translated here too: traffic control installs
 // the filter toward a device, and the logical name reaches whatever else
 // carries it.
 func mirrorSpecFor(u *unitEntry, targets interfaceTargets) mirrorSpec {
@@ -55,7 +55,7 @@ func mirrorDestination(targets interfaceTargets, name string) string {
 // disabling one is a way of asking for no mirror.
 //
 // devices is bindDevices' answer for cfg, so a mirror on an interface selected
-// by mac/match or aliased by os-name is keyed by the kernel device tc installs
+// by mac/match or aliased by os-name is keyed by the kernel device traffic control installs
 // the filter on, and points at the kernel device the capture port resolves to.
 // An entry whose binding is unbound contributes nothing: there is no device to
 // mirror, and keying it by the logical name would install the filter on
@@ -92,7 +92,7 @@ func indexMirrorSpecs(cfg *ifaceConfig, devices map[string]string) map[string]mi
 // followed by an install.
 //
 // A mirror on a device that is gone needs no teardown: the kernel dropped the
-// tc state with the device, and the backend would fail to resolve the name.
+// traffic control state with the device, and the backend would fail to resolve the name.
 // That skip is decided by whether the backend can read the device, which cannot
 // tell a deleted device from a device it failed to read, so the skip is logged.
 // A read that failed for another reason leaves the mirror installed, and the
@@ -341,7 +341,7 @@ func setupMirrorSpec(b Backend, osName string, m mirrorSpec) error {
 // selector has no answer yet is dropped with a warning rather than installed
 // toward its logical name, exactly as an unbound source is skipped.
 //
-// The caller MUST call it only once every VLAN the apply creates exists. tc
+// The caller MUST call it only once every VLAN the apply creates exists. Traffic control
 // resolves the destination device when the filter is installed, and a
 // destination may be a VLAN unit of an entry the apply reaches after this one.
 // Returns one error per mirror operation that failed.

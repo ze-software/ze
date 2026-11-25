@@ -321,13 +321,13 @@ func (b *vppBackendImpl) CreateBridge(name string) error {
 }
 
 // CreateMacvlanDevice is rejected on the VPP backend: plugin-owned macvlan
-// devices are a netlink-backend mechanism, and VPP has its own dataplane model
+// devices are a kernel-backend mechanism, and VPP has its own dataplane model
 // for owned devices that is not yet wired. Per ai/rules/protocol.md this
 // fails closed with an actionable error rather than silently approximating the
-// device on netlink. (VPP-native support for this mechanism is tracked
+// device on the kernel backend. (VPP-native support for this mechanism is tracked
 // separately, out of this pass.)
 func (b *vppBackendImpl) CreateMacvlanDevice(spec iface.MacvlanSpec) error {
-	return fmt.Errorf("ifacevpp: CreateMacvlanDevice(%q) not supported on VPP backend (owned macvlan devices require the netlink backend; VPP-native support is tracked separately)", spec.Name)
+	return fmt.Errorf("ifacevpp: CreateMacvlanDevice(%q) not supported on VPP backend (owned macvlan devices require the kernel backend; VPP-native support is tracked separately)", spec.Name)
 }
 
 // CreateOwnedBridge is refused on the VPP backend: an owned bridge is a kernel
@@ -347,7 +347,7 @@ func (b *vppBackendImpl) CreateOwnedLink(spec iface.OwnedLinkSpec) error {
 // errOwnedDeviceRefused names the owned device the VPP backend cannot make,
 // why, and the backend leaf that makes it possible.
 func errOwnedDeviceRefused(kind, name, why string) error {
-	return fmt.Errorf("ifacevpp: owned %s %q not supported on VPP backend: %s; set interface backend netlink to use owned %ss", kind, name, why, kind)
+	return fmt.Errorf("ifacevpp: owned %s %q not supported on VPP backend: %s; set interface backend kernel to use owned %ss", kind, name, why, kind)
 }
 
 func (b *vppBackendImpl) CreateVLAN(spec iface.VLANSpec) error {
@@ -571,11 +571,11 @@ func (b *vppBackendImpl) enableVLANQoS(subIdx interface_types.InterfaceIndex, sp
 }
 
 func (b *vppBackendImpl) CreateXFRM(_ iface.XFRMSpec) error {
-	return errNotSupported("CreateXFRM (XFRM interfaces are Linux netlink only)")
+	return errNotSupported("CreateXFRM (XFRM interfaces are Linux kernel only)")
 }
 
 func (b *vppBackendImpl) GetXFRMInfo(_ string) (iface.XFRMInfo, error) {
-	return iface.XFRMInfo{}, errNotSupported("GetXFRMInfo (XFRM interfaces are Linux netlink only)")
+	return iface.XFRMInfo{}, errNotSupported("GetXFRMInfo (XFRM interfaces are Linux kernel only)")
 }
 
 // CreateWireguardDevice, ConfigureWireguardDevice, and GetWireguardDevice are
@@ -688,7 +688,7 @@ func (b *vppBackendImpl) ReplaceAddressWithLifetime(ifaceName, cidr string, _, _
 }
 
 // AddAddressP2P is not yet implemented on the VPP backend: PPP NCPs
-// currently run only against netlink. A real VPP implementation would
+// currently run only against the kernel backend. A real VPP implementation would
 // need an ip_address_add with the peer field populated.
 func (b *vppBackendImpl) AddAddressP2P(_, _, _ string) error {
 	return errNotSupported("AddAddressP2P (PPP NCP not supported on VPP backend yet)")
@@ -771,7 +771,7 @@ func (b *vppBackendImpl) GetStats(name string) (*iface.InterfaceStats, error) {
 // ResetCounters on VPP is wired to sw_interface_clear_stats. When name is
 // empty every interface is cleared in one call (VPP semantics: sw_if_index
 // == ~0 means "clear all"). When a name is supplied only that interface's
-// counters are zeroed. Unlike netlink (which returns
+// counters are zeroed. Unlike the kernel backend (which returns
 // iface.ErrCountersNotResettable and falls back to baseline-delta), VPP
 // truly clears the counters, so we return nil on success and the dispatch
 // layer skips the baseline path.

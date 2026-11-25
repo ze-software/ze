@@ -1,0 +1,101 @@
+# Test: omitted backend selectors default to kernel and accept kernel-only features.
+# Question: do `interface`, `firewall`, and `traffic control` blocks without a
+#           `backend` leaf resolve to `kernel` and validate `ze:backend "kernel"`
+#           features (`bridge`, `connection-mark`, TBF `rate`), while changing
+#           only `interface backend` to `vpp` refuses naming the `bridge` node?
+#           A unit test cannot prove all three live YANG modules default to
+#           `kernel` and match every `ze:backend "kernel"` annotation in
+#           `ze config validate`.
+# VALIDATES: spec-dataplane-compatibility-guard AC-19 (N-1) -- omitting the
+#            selector leaf defaults to `kernel` across all three families, and
+#            the `ze:backend` walk matches `kernel` annotations against it.
+# PREVENTS: a stale YANG default or mismatched `ze:backend` annotation breaking
+#           configs that omit explicit `backend` leaves.
+stdin=defaults:terminator=EOF_DEFAULTS
+interface {
+	bridge br0 {
+		mac {
+			address 02:00:00:00:00:01;
+		}
+	}
+}
+firewall {
+	table wan {
+		family inet;
+		chain input {
+			type filter;
+			hook input;
+			priority 0;
+			policy accept;
+			term match-cm {
+				from {
+					connection-mark 0x1;
+				}
+				then {
+					accept;
+				}
+			}
+		}
+	}
+}
+traffic {
+	control {
+		interface eth0 {
+			qdisc {
+				type tbf;
+				rate 10mbit;
+			}
+		}
+	}
+}
+EOF_DEFAULTS
+
+stdin=vpp-bridge:terminator=EOF_VPP_BRIDGE
+interface {
+	backend vpp;
+	bridge br0 {
+		mac {
+			address 02:00:00:00:00:01;
+		}
+	}
+}
+firewall {
+	table wan {
+		family inet;
+		chain input {
+			type filter;
+			hook input;
+			priority 0;
+			policy accept;
+			term match-cm {
+				from {
+					connection-mark 0x1;
+				}
+				then {
+					accept;
+				}
+			}
+		}
+	}
+}
+traffic {
+	control {
+		interface eth0 {
+			qdisc {
+				type tbf;
+				rate 10mbit;
+			}
+		}
+	}
+}
+EOF_VPP_BRIDGE
+
+cmd=foreground:seq=1:exec=ze config validate -:stdin=defaults
+expect=exit:code=0
+expect=stdout:contains=configuration valid
+
+cmd=foreground:seq=2:exec=ze config validate -:stdin=vpp-bridge
+expect=exit:code=1
+expect=stdout:contains=/interface/bridge/br0
+expect=stdout:contains="vpp"
+expect=stdout:contains=kernel

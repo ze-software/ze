@@ -17,7 +17,7 @@
 # the point: `send none` and an egress `community { strip }` must converge on the
 # same wire. That file passes today and is the working spelling this one copies.
 
-# Linux-only: static `next { interface lo { } }` resolves loopback `lo` via Linux netlink.
+# Linux-only: static `next { interface lo { } }` resolves loopback `lo` via the Linux netlink socket.
 option=needs-linux
 option=env:var=ze.log.bgp.filter.community:value=info
 

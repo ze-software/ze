@@ -3,7 +3,7 @@
 # verify with the table, chain, term, hook and fix named.
 # VALIDATES: spec-home-cpe-9 wiring row 2 and AC-4. The daemon parses the empty
 #            leaf (parseThenBlock) to firewall.ClampTCPMSSToPMTU, verify accepts
-#            it in a forward base chain (validateClampTCPMSSToPMTU), and the nft
+#            it in a forward base chain (validateClampTCPMSSToPMTU), and the kernel
 #            backend installs rt tcpmss, a byteorder hton and the two-byte
 #            exthdr write (lowerClampTCPMSSToPMTU), which nft lists as
 #            `tcp option maxseg size set rt mtu`. Offline, `ze config validate`
@@ -12,7 +12,7 @@
 #            postrouting (nft_rt_validate, net/netfilter/nft_rt.c).
 # PREVENTS: the leaf parsing to nothing, a lowering the kernel does not list as
 #           the route clamp, and a jump from prerouting slipping past verify
-#           into a netlink refusal of the whole commit.
+#           into a netlink error refusing the whole commit.
 #
 # Requires CAP_NET_ADMIN for the daemon half. The fixture waits for the table
 # (registerTableSnapshot) under the 15 s timeout.
@@ -21,7 +21,7 @@ option=needs-linux:caps=net-admin
 
 stdin=refused:terminator=EOF_REFUSED
 firewall {
-	backend nft;
+	backend kernel;
 	table mss_pre {
 		family inet;
 		chain prerouting {
@@ -51,7 +51,7 @@ expect=stdout:contains=move the term to a chain reached only from hook forward o
 
 stdin=ze-bgp:terminator=EOF_CONF
 firewall {
-	backend nft;
+	backend kernel;
 	table mss_pmtu {
 		family inet;
 		chain forward {

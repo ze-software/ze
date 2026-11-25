@@ -4,7 +4,7 @@
 // Overview: probe.go -- the shared /proc root and the test override
 //
 // The loaded-module list, read once for each doctor check that asks about a
-// MODULE by name: the nf_tables module the nft firewall backend needs, the vfio
+// MODULE by name: the nf_tables module the kernel firewall backend needs, the vfio
 // modules a DPDK-bound NIC needs, the l2tp and pppoe modules. It is not a
 // capability probe. A capability enrolled here (probe_linux.go) is asked whether
 // it EXISTS, because a built-in feature appears in no module row; a check that

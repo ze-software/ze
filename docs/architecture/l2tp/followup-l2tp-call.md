@@ -39,7 +39,7 @@ interfaces before discovery starts. Local termination and the realm relay both r
 the PPP driver. With no driver, a subscriber no Service-Name binding relays
 gets a PADS with AC-System-Error and SESSION_ID 0 (RFC 2516 Section 5.4), and
 a WARN names the missing interface backend and the
-`set interface backend netlink` that fixes it.
+`set interface backend kernel` that fixes it.
 
 <!-- source: internal/component/l2tp/pppoe/server.go -- handlePADR, relayToL2TP, sendPADS -->
 <!-- source: internal/component/l2tp/relay_preparation.go -- prepareAndSetupPPP -->

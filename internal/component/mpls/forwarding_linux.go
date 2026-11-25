@@ -2,7 +2,7 @@
 
 // Design: docs/architecture/mpls/mpls-kernel.md -- kernel AF_MPLS table reader
 // Related: show_forwarding.go -- the handler that picks a reader by data plane
-// Related: register.go -- registers this reader for the "netlink" data plane
+// Related: register.go -- registers this reader for the "kernel" data plane
 //
 // dumpMPLSRoutes reads the kernel's AF_MPLS routing table via netlink. Each
 // AF_MPLS route is keyed by an incoming label (MPLSDst); NewDst carries the

@@ -34,7 +34,7 @@ The spec ranks the candidates first, then writes the tests in that order.
 One OS-met family joined on 2026-11-15:
 ICMP error translation through NAT, on both firewall backends. No `.ci`,
 integration or lab check sends a fragmentation-needed, port-unreachable or
-time-exceeded error through a NAT Ze installed. On nft the translation is
+time-exceeded error through a NAT Ze installed. On the kernel backend the translation is
 nf_conntrack's, on the rules `lowerMasquerade`, `lowerSNAT` and `lowerDNAT`
 install (`internal/plugins/firewall/nft/lower_linux.go`); on vpp it is VPP
 NAT44-ED's, on what `applyMasquerade`, `applySNAT` and `applyDNAT` program

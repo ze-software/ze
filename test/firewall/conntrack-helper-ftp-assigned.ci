@@ -1,7 +1,7 @@
 # Test: `system conntrack module ftp` installs the ftp ct helper and assigns it.
 # VALIDATES: spec-home-cpe-3 AC-1 -- a config with no firewall {} block
 #            starts the firewall engine on its system/conntrack root, which
-#            lowers the listed helper (ConntrackHelperTables), the nft
+#            lowers the listed helper (ConntrackHelperTables), the kernel
 #            backend installs the inet table ze_conntrack_helpers, and
 #            `nft list table` shows the ct helper object ftp-tcp (kernel
 #            helper "ftp", protocol tcp) and a rule assigning it to tcp 21 in

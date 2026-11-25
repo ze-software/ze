@@ -4,7 +4,7 @@
 # PREVENTS: out-of-range PCP reaching the kernel netlink attribute.
 stdin=config:terminator=EOF_CONF
 interface {
-	backend netlink;
+	backend kernel;
 	ethernet eth0 {
 		unit v100 {
 			vlan-id 100;

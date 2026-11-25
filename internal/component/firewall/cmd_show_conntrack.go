@@ -37,7 +37,7 @@ func handleShowSystemConntrack(_ *pluginserver.CommandContext, _ command.Validat
 
 	data["modules"] = system.LoadedConntrackModules()
 
-	// The helpers Ze assigned through nft, one row per kernel helper and
+	// The helpers Ze assigned through nftables, one row per kernel helper and
 	// transport, read from what the backend last applied. A loaded module
 	// alone assigns nothing on Linux 6.0 and later.
 	data["helpers"] = assignedConntrackHelpers()

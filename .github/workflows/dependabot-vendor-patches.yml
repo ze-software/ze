@@ -7,7 +7,7 @@ name: dependabot vendor patches
 # applies the patches (applyVendorPatches, internal/le/setup/install.go).
 # Dependabot runs a plain `go mod vendor`, which returns every vendored file to
 # upstream, so each of its Go updates dropped every patch, whatever module it
-# moved: PR #38 (locafero) lost the netlink SrcPortMask fields and no verify
+# moved: PR #38 (locafero) lost the vishvananda/netlink SrcPortMask fields and no verify
 # shard could build le. le cannot repair the branch, because le is built from
 # that tree, so this job applies the patches with the same git probes
 # applyVendorPatches uses and pushes the result to Dependabot's branch.

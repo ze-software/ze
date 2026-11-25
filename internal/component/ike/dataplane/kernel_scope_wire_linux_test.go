@@ -288,7 +288,7 @@ func TestXFRMStateScopeWireBounds(t *testing.T) {
 	}
 }
 
-// FuzzXFRMStateScopeReadback checks that arbitrary netlink scope payloads return
+// FuzzXFRMStateScopeReadback checks that arbitrary netlink attribute scope payloads return
 // errors safely, including truncated selector records and attacker-controlled counts,
 // and that a payload the reader accepts round-trips: the scope it answers writes the
 // same bytes back, so the reader keeps every field and accepts no form the writer

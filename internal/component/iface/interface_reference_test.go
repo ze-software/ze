@@ -18,7 +18,7 @@ import (
 func TestConfiguredInterfaceReferenceNames(t *testing.T) {
 	root := map[string]any{
 		"interface": map[string]any{
-			"backend": "netlink",
+			"backend": "kernel",
 			"ethernet": map[string]any{
 				"eth0": map[string]any{
 					"unit": map[string]any{

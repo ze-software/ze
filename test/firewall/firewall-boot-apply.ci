@@ -1,13 +1,13 @@
 # Test: Firewall component reactor programs an ze_* table in the kernel at boot.
 # VALIDATES: spec-fw-10 AC-21 -- ze boots with a firewall config; the
 #            reactor in internal/component/firewall/engine.go loads the
-#            nft backend, Apply() flushes the ze_fw10_001 table into the
+#            kernel backend, Apply() flushes the ze_fw10_001 table into the
 #            kernel, and `nft list table` reports the programmed rule.
 # PREVENTS: a regression where the firewall section parses but
 #           never reaches the backend (pre-wiring state -- config
 #           accepted, nothing programmed in the kernel).
 #
-# Requires CAP_NET_ADMIN on the test host. Without it, the nft backend
+# Requires CAP_NET_ADMIN on the test host. Without it, the kernel backend
 # Apply() fails with EPERM and the "firewall config applied" log line
 # never appears, so the expect on stderr fails too.
 
@@ -15,7 +15,7 @@ option=needs-linux:caps=net-admin
 
 stdin=ze-bgp:terminator=EOF_CONF
 firewall {
-	backend nft;
+	backend kernel;
 	table fw10_001 {
 		family inet;
 		chain input {
@@ -43,10 +43,10 @@ expect=stderr:contains=firewall config applied
 cmd=foreground:seq=2:exec=le test fixture firewall/firewall-boot-apply:timeout=10s
 expect=exit:code=0
 expect=stdout:contains=table inet ze_fw10_001
-# nft renders an unqualified L4 dport match as `tcp dport` or the generic
+# nftables renders an unqualified L4 dport match as `tcp dport` or the generic
 # `th dport` depending on version; accept either (the programmed rule matches
-# destination port 22 the same way regardless of how nft prints it).
+# destination port 22 the same way regardless of how nftables prints it).
 # ze places an anonymous counter at the term's match/action boundary
-# (withCounter, internal/plugins/firewall/nft/lower_linux.go), so nft prints it
+# (withCounter, internal/plugins/firewall/nft/lower_linux.go), so nftables prints it
 # between the match and the verdict.
 expect=stdout:pattern=(tcp|th) dport 22 counter packets [0-9]+ bytes [0-9]+ accept

@@ -13,12 +13,12 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/ze-software/ze/internal/component/command"
+	"github.com/ze-software/ze/internal/component/command/commandtest"
+	"github.com/ze-software/ze/internal/component/config"
 	"github.com/ze-software/ze/internal/component/plugin/registry"
 	"github.com/ze-software/ze/internal/core/diagnostic"
 	"github.com/ze-software/ze/pkg/plugin/rpc"
-
-	"github.com/ze-software/ze/internal/component/command"
-	"github.com/ze-software/ze/internal/component/command/commandtest"
 )
 
 // validConfig is a minimal valid BGP configuration for testing.
@@ -656,4 +656,85 @@ func TestValidateNamesParseLineOnce(t *testing.T) {
 		assert.NotContains(t, d.Message, "line ", "%s: message names a line", tt.name)
 		assert.NotContains(t, d.Message, "parse config", "%s: the loader's context is daemon start's, not validate's", tt.name)
 	}
+}
+
+// TestValidateReadsCommandLinePlugins proves AC-3 (Q-2): with the global
+// --plugin list recorded, `ze config validate`, `runValidation`, and
+// `ValidateContent` each refuse a file whose only selection of
+// flowspec-firewall is that record, and accept the same file when the record
+// is empty.
+//
+// VALIDATES: cmdValidate, runValidation, and ValidateContent honor
+// config.CommandLinePlugins via VerifyPluginConfig.
+// PREVENTS: offline validation and commit doors dropping global --plugin
+// selections and accepting a data-plane mismatch that boot refuses.
+func TestValidateReadsCommandLinePlugins(t *testing.T) {
+	t.Cleanup(config.ResetDeclaredSchemasForTest())
+	snap := registry.Snapshot()
+	registry.Reset()
+	t.Cleanup(func() { registry.Restore(snap) })
+
+	require.NoError(t, registry.Register(registry.Registration{
+		Name:        "interface",
+		Description: "test interface selector",
+		ConfigRoots: []string{"interface"},
+		RunEngine:   func(net.Conn) int { return 0 },
+		CLIHandler:  func([]string) int { return 0 },
+		DataPlaneSelector: &registry.DataPlaneSelector{
+			LeafPath:           "/interface/backend",
+			Roots:              []string{"interface"},
+			SelectsDataPlane:   true,
+			RegisteredBackends: func() []string { return []string{"kernel", "vpp"} },
+		},
+	}))
+	require.NoError(t, registry.Register(registry.Registration{
+		Name:        "firewall",
+		Description: "test firewall selector",
+		ConfigRoots: []string{"firewall", "system/conntrack"},
+		RunEngine:   func(net.Conn) int { return 0 },
+		CLIHandler:  func([]string) int { return 0 },
+		DataPlaneSelector: &registry.DataPlaneSelector{
+			LeafPath:           "/firewall/backend",
+			Roots:              []string{"firewall", "system/conntrack"},
+			RegisteredBackends: func() []string { return []string{"kernel", "vpp"} },
+		},
+	}))
+	require.NoError(t, registry.Register(registry.Registration{
+		Name:        "flowspec-firewall",
+		Description: "test flowspec firewall producer",
+		RunEngine:   func(net.Conn) int { return 0 },
+		CLIHandler:  func([]string) int { return 0 },
+		DataPlaneFeatures: []registry.DataPlaneFeature{{
+			ConfigPath:      "flowspec-firewall",
+			Why:             "flowspec-firewall registers firewall tables",
+			FollowsSelector: "firewall",
+			InUseKind:       registry.DataPlaneInUseSelectedPlugin,
+		}},
+	}))
+
+	const content = "interface {\n  backend vpp;\n}\n"
+	configPath := t.TempDir() + "/site.conf"
+	require.NoError(t, os.WriteFile(configPath, []byte(content), 0o600))
+
+	// With --plugin ze.flowspec-firewall recorded: all three entries refuse.
+	config.RecordCommandLinePlugins([]string{"ze.flowspec-firewall"})
+	assert.Equal(t, 1, cmdValidate([]string{"-q", configPath}), "cmdValidate must refuse mismatch from recorded --plugin")
+
+	res := runValidation(content, configPath)
+	assert.False(t, res.Valid, "runValidation must refuse mismatch from recorded --plugin")
+	require.NotEmpty(t, res.Diagnostics)
+	assert.Contains(t, res.Diagnostics[0].Message, "--plugin ze.flowspec-firewall")
+	assert.Contains(t, res.Diagnostics[0].Message, "set firewall backend vpp")
+
+	err := ValidateContent(content, configPath)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "--plugin ze.flowspec-firewall")
+	assert.Contains(t, err.Error(), "set firewall backend vpp")
+
+	// With an empty record: the same file is valid at all three entries.
+	config.RecordCommandLinePlugins(nil)
+	assert.Equal(t, 0, cmdValidate([]string{"-q", configPath}), "cmdValidate must accept file with empty --plugin record")
+	res = runValidation(content, configPath)
+	assert.True(t, res.Valid, "runValidation must accept file with empty --plugin record: %+v", res.Diagnostics)
+	require.NoError(t, ValidateContent(content, configPath))
 }

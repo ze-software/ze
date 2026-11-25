@@ -266,7 +266,7 @@ calling the owner outside that lock, then rechecks the original row's receipts.
 
 PPPoE session admission belongs to the prepared access. Its required
 `AccessOwner.Open` supplies the original provider's session factory. Kernel
-preparation owns one independent netlink backend shared by that access's
+preparation owns one independent kernel backend shared by that access's
 sessions. VPP admission borrows the exact original preparation and its captured
 API connection generation. The caller MUST stop admission and join all dependent
 sessions. It MUST then close the access.

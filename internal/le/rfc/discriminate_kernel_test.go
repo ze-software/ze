@@ -41,7 +41,7 @@ const (
 )
 
 // kernelImportingFiles answers kernelFixtureFiles with the tagged unit
-// importing Ze's netlink backend and a test-machinery package, the way the
+// importing Ze's kernel interface backend and a test-machinery package, the way the
 // RFC 792 gateway tests do.
 func kernelImportingFiles() map[string]string {
 	files := kernelFixtureFiles()
@@ -197,7 +197,7 @@ func TestKernelProducerEscape(t *testing.T) {
 // VALIDATES: a kernel-producer escape over a unit that imports a Ze package is
 // accepted only when each such package is named by an exclusion whose producer
 // this tree holds, and test machinery under internal/test/ needs none.
-// METHOD: the RFC 792 gateway shape: the unit imports Ze's netlink backend and
+// METHOD: the RFC 792 gateway shape: the unit imports Ze's kernel interface backend and
 // internal/test/userns. Without an exclusion the escape is refused; with the
 // AddRoute exclusion it is accepted; an exclusion naming code the unit does not
 // import, or code the tree does not hold, is refused.

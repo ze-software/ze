@@ -129,7 +129,7 @@ func nativePPPAddressRequest(kind, index int, local, peer netip.Prefix) *nl.Netl
 	}
 	header := nl.NewIfAddrmsg(family)
 	header.Index = uint32(index)
-	// Existing netlink AddrAdd(Peer != nil) uses the peer's mask in ifaddrmsg.
+	// Existing netlink library AddrAdd(Peer != nil) uses the peer's mask in ifaddrmsg.
 	header.Prefixlen = uint8(peer.Bits())
 	request.AddData(header)
 	request.AddData(nl.NewRtAttr(unix.IFA_LOCAL, local.Addr().AsSlice()))

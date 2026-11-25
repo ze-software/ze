@@ -90,11 +90,11 @@ func TestDoctorWireguardPluginEnabled(t *testing.T) {
 }
 
 // TestDoctorWireguardNetlinkBackend verifies the check is scoped to the vpp
-// backend: a wireguard interface under netlink does not warn.
+// backend: a wireguard interface under kernel does not warn.
 func TestDoctorWireguardNetlinkBackend(t *testing.T) {
-	diags := checkVPPWireguardPlugin(diagnostic.DoctorCheckContext{Tree: vppWireguardTree("netlink", false)})
+	diags := checkVPPWireguardPlugin(diagnostic.DoctorCheckContext{Tree: vppWireguardTree("kernel", false)})
 	if len(diags) != 0 {
-		t.Errorf("expected 0 diagnostics under netlink backend, got %d", len(diags))
+		t.Errorf("expected 0 diagnostics under kernel backend, got %d", len(diags))
 	}
 }
 

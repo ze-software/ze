@@ -464,7 +464,7 @@ func devicesWithMAC(infos []InterfaceInfo, want string) []int {
 
 // isStackedDevice reports whether info describes a device built on top of
 // another one, whose hardware address is therefore its parent's rather than its
-// own. The netlink backend sets ParentIndex for the two kinds that inherit an
+// own. The kernel backend sets ParentIndex for the two kinds that inherit an
 // address, vlan and macvlan (show_linux.go linkToInfo); the VPP backend reports
 // SupSwIfIndex for every interface, and a top-level one names itself, which is
 // why self-parenthood does not count.
@@ -956,7 +956,7 @@ func applyConfigPass(cfg, previous *ifaceConfig, b Backend) (errs []error, defer
 		}
 		// On the vpp backend, shadow the loopback into Linux with an LCP pair
 		// so kernel networking (the ze BGP listener) can bind on it.
-		// SetupLCPPair no-ops when LCP is disabled; the netlink backend never
+		// SetupLCPPair no-ops when LCP is disabled; the kernel backend never
 		// reaches here because this is gated on the vpp backend.
 		if cfg.Backend == vppBackendName {
 			name := e.Name
@@ -1174,7 +1174,7 @@ func applyConfigPass(cfg, previous *ifaceConfig, b Backend) (errs []error, defer
 		// A device that already holds the configured keys and peers gets no
 		// write, so an unchanged device keeps its peers, and no undo is
 		// recorded for a step that changed nothing. The write needs
-		// CAP_NET_ADMIN, and on the netlink backend the read does too, so
+		// CAP_NET_ADMIN, and on the kernel backend the read does too, so
 		// an unprivileged read fails and the write follows
 		// (wireguardNeedsWrite).
 		if present {
@@ -1588,7 +1588,7 @@ func applyConfigPass(cfg, previous *ifaceConfig, b Backend) (errs []error, defer
 
 	// Phase 2 mirrors: install each mirror once the loop above has created
 	// every VLAN. A destination may be a VLAN unit of an entry the loop reaches
-	// after the mirroring one, and tc resolves the destination device when the
+	// after the mirroring one, and traffic control resolves the destination device when the
 	// filter is installed, so a mirror installed inside the loop was refused
 	// toward a VLAN that was about to be made. The filters match the loop's:
 	// a disabled entry or unit asks for no mirror.
@@ -2432,9 +2432,9 @@ func reconcileOnVPPEvent(activeCfg *atomic.Pointer[ifaceConfig], reloadBackend b
 		return
 	}
 	// Guard against firing against a non-vpp backend. A reload that flipped
-	// the backend from vpp to netlink would otherwise call netlink's
+	// the backend from vpp to kernel would otherwise call the kernel backend's
 	// StartMonitor on every EventConnected / EventReconnected, leaking a
-	// fresh monitor goroutine per event (netlink's StartMonitor is not
+	// fresh monitor goroutine per event (the kernel backend's StartMonitor is not
 	// idempotent -- see internal/plugins/iface/netlink/monitor_linux.go).
 	if cfg.Backend != vppBackendName {
 		return

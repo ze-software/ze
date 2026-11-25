@@ -1,5 +1,5 @@
-// Design: docs/architecture/ike/ipsec-8-ikev2-child-xfrm.md -- XFRM netlink backend
-// Related: rfc7296_ecn_linux_test.go -- the same tunnel-mode fixture, checked before netlink serializes it
+// Design: docs/architecture/ike/ipsec-8-ikev2-child-xfrm.md -- XFRM kernel backend
+// Related: rfc7296_ecn_linux_test.go -- the same tunnel-mode fixture, checked before the netlink library serializes it
 
 //go:build linux
 

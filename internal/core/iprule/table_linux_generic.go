@@ -1,4 +1,4 @@
-// Design: docs/architecture/policyroute/netlink-int-field-truncation.md -- netlink int width
+// Design: docs/architecture/policyroute/netlink-int-field-truncation.md -- rtnetlink int width
 
 //go:build linux && !amd64 && !arm64
 

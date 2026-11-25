@@ -11,7 +11,7 @@ import (
 )
 
 // TableControl names, for an operator, what decides the rules of a reserved
-// table. A producer rewrites its table whenever that state changes, so an nft
+// table. A producer rewrites its table whenever that state changes, so an nftables
 // rule an operator adds there, or a term of the firewall config, does not last:
 // a message about one of the table's rules names this instead. Every field is
 // required.
@@ -50,7 +50,7 @@ var tableReservations = struct {
 // table. ApplyAll merges same-name tables of different owners into one kernel
 // table, so a name two registry owners use gives one table two owners' chains,
 // and a producer that writes its table outside the registry (the iface
-// backend's ze_iface_rpf) and the nft backend each delete and recreate the
+// backend's ze_iface_rpf) and the kernel backend each delete and recreate the
 // shared table, wiping the other's chains. A reserved name is refused to every
 // other owner by RegisterTables, and to the operator's firewall config at
 // verify.

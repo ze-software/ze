@@ -150,7 +150,7 @@ var authJoinRefusedCases = []authJoinCase{
 	{name: "different meticulous flag", first: "secure", second: "secure", firstAuth: true, flipMeticulous: true},
 }
 
-// authJoinSecondRequest builds the second client's request for tc. A case
+// authJoinSecondRequest builds the second client's request for the test case. A case
 // that names a profile asks for it, as a protocol client does. A
 // flipMeticulous case resolves tc.second, inverts only the Meticulous flag of
 // its authentication, and sends that request under no profile, which

@@ -1,12 +1,12 @@
-# Test: wireguard is accepted under the default netlink backend
+# Test: wireguard is accepted under the default kernel backend
 # VALIDATES: the backend feature gate lets wireguard through when the
-#            active backend is netlink. Regression guard paired with
+#            active backend is kernel. Regression guard paired with
 #            iface-vpp-accepts-wireguard.
 # PREVENTS: accidentally annotating wireguard with the wrong backend
-#           name, which would silently reject valid netlink configs.
+#           name, which would silently reject valid kernel configs.
 stdin=config:terminator=EOF_CONF
 interface {
-	backend netlink;
+	backend kernel;
 	wireguard wg0 {
 		listen-port 51820;
 		private-key "aHZkc2ZqaHZra2hkZnZoamtkc2Zoa2RoaGRma2poZmg=";

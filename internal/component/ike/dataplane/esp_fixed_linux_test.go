@@ -6,7 +6,7 @@ import (
 	"testing"
 )
 
-// TestESPFixedXFRMState checks the actual netlink state producer, including the
+// TestESPFixedXFRMState checks the actual netlink message state producer, including the
 // ChaCha salt/tag and the separate 3DES/SHA1 key and truncation fields.
 func TestESPFixedXFRMState(t *testing.T) {
 	for _, aead := range []bool{false, true} {

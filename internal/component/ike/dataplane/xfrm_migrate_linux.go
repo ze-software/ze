@@ -98,7 +98,7 @@ var errMigrationAccepted = errors.New("the kernel accepted a state migration nam
 // classifyXFRMMigration reads the probe's errno. ESRCH is the handler running
 // its lookup, so it is presence. EINVAL is a kernel before 7.2, which refuses the
 // message type above XFRM_MSG_MAX; ENOPROTOOPT is the handler built without
-// CONFIG_XFRM_MIGRATE; EPROTONOSUPPORT is no XFRM netlink at all. Those three
+// CONFIG_XFRM_MIGRATE; EPROTONOSUPPORT is no XFRM netlink socket at all. Those three
 // are absence. Every other errno, EPERM included, did not reach the question.
 //
 // EINVAL is absence and not an unread answer because a 7.2 handler cannot
@@ -258,7 +258,7 @@ func (b *xfrmMobikeBackend) MigrateTunnel(m TunnelMigration) error {
 	for _, p := range policies {
 		rollback = errors.Join(rollback, xfrmMigrationPolicyUpdate(p))
 	}
-	// A kernel failure after retiring an SA, or a lost netlink acknowledgement,
+	// A kernel failure after retiring an SA, or a lost netlink reply acknowledgement,
 	// must not be reported as an intact old tunnel.
 	for i := range moves {
 		state, stateErr := xfrmMigrationStateGet(xfrmMigrationIdentity(&moves[i].before))

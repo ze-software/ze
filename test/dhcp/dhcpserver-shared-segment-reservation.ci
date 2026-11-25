@@ -5,7 +5,7 @@
 #       subnet's pool when that one is full.
 # VALIDATES: spec-home-cpe-2 AC-1, AC-2, AC-3, AC-4 -- config -> dhcpserver
 #            bindListeners -> serveRequests -> resolveSegment (the receiving
-#            device's addresses, read from netlink) -> segment.discover
+#            device's addresses, read via netlink) -> segment.discover
 #            (internal/plugins/dhcpserver/segment.go): reservation first, then
 #            the home subnet's pool, then the segment's other pools; option 54
 #            from segment.serverID, the device's address in the subnet the

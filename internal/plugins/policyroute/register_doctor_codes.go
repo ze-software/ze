@@ -13,7 +13,7 @@ const codePolicyRouteNetlink = "doctor-policyroute-netlink"
 var doctorDiagnosticCodes = []diagnostic.CodeMeta{
 	{
 		Code:        codePolicyRouteNetlink,
-		Title:       "Policy route netlink unavailable",
+		Title:       "Policy route netlink socket unavailable",
 		Description: "Policy routing is configured but a route netlink handle could not be opened.",
 		Examples:    []string{"ze doctor --json", "ze show diagnostic doctor-policyroute-netlink"},
 	},

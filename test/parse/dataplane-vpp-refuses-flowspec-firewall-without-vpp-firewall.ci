@@ -1,0 +1,29 @@
+# Test: interface backend vpp refuses flowspec-firewall without firewall backend vpp.
+# Question: does `ze config validate` refuse `interface backend vpp` when a
+#           `bus endpoint` block selects `flowspec-firewall` (even under a
+#           custom endpoint key) and `firewall backend` stays on `kernel`?
+#           A unit test cannot prove `ze config validate` extracts `bus`
+#           endpoints and evaluates `DataPlaneInUseSelectedPlugin` through the
+#           composition-root registry.
+# VALIDATES: spec-dataplane-compatibility-guard AC-3 -- `flowspec-firewall` is
+#            judged by its `internal` value, refused when firewall stays on
+#            `kernel`, and names the bus endpoint plus both fixes (`set
+#            firewall backend vpp` and `delete bus endpoint <key>`).
+# PREVENTS: FlowSpec firewall rules being written to kernel tables while VPP
+#           forwards the packets.
+stdin=config:terminator=EOF_CONF
+interface {
+	backend vpp;
+}
+bus {
+	endpoint fs-fw {
+		internal flowspec-firewall;
+	}
+}
+EOF_CONF
+
+cmd=foreground:seq=1:exec=ze config validate -:stdin=config
+expect=exit:code=1
+expect=stdout:contains=bus endpoint fs-fw
+expect=stdout:contains=set firewall backend vpp
+expect=stdout:contains=delete bus endpoint fs-fw

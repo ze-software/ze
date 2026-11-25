@@ -110,7 +110,7 @@ func ContentOptions(content string, headroom int) ([]Option, error) {
 	return tc.Options, nil
 }
 
-// testBudget answers how long tc may run: its declared option=timeout, or
+// testBudget answers how long the test case may run: its declared option=timeout, or
 // defaultTestTimeout when it declares none, multiplied by headroom. A timeout
 // that does not parse is an error, never the default, so a typo cannot hand
 // the test a budget nobody wrote.

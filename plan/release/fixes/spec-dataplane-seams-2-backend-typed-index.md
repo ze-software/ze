@@ -15,7 +15,7 @@ Recovery after compaction: `.claude/rules/post-compaction.md`.
 ## Task
 
 `iface.Resolve` returns a `Binding` whose `Ifindex` field is an `int`. When the
-netlink backend is active that int is a Linux kernel interface index. When the
+kernel backend is active that int is a Linux kernel interface index. When the
 VPP backend is active the same field carries a VPP `sw_if_index`. The two are
 not interchangeable, and programming one where the other is expected is a bug.
 
@@ -59,7 +59,7 @@ before the design gate (`ai/rules/evidence.md`).**
 | `internal/plugins/iface/ra/sender_linux.go` | kernel ifindex (passed to `net.Interface` and an IPv6 control message) | No | Unverified |
 | `internal/plugins/trafficusage/monitor.go` | kernel ifindex | Rejects non-positive only | Unverified |
 | `internal/plugins/flowexport/sampling_worker.go` | kernel ifindex (index to name map) | No | Unverified |
-| `internal/plugins/flowexport/sampling/tc_linux.go` | kernel ifindex (tc) | No | Unverified |
+| `internal/plugins/flowexport/sampling/tc_linux.go` | kernel ifindex (Linux traffic control) | No | Unverified |
 | `internal/plugins/ospf/transport/backend_linux.go` | kernel ifindex | No | Unverified |
 | `internal/plugins/ospf/v3/transport/backend_linux.go` | kernel ifindex | No | Unverified |
 | `internal/plugins/isis/transport/backend_linux.go` | kernel ifindex | No | Unverified |
@@ -132,7 +132,7 @@ evidence rather than assuming it.
 |----------|-----|----------|
 | caller ↔ iface component | `iface.Resolve`, returning a value type | No |
 | iface component ↔ active backend | `iface.Backend`, one implementation at a time | No |
-| caller ↔ kernel | raw socket bind, netlink, tc, XFRM, all expecting a kernel index | No |
+| caller ↔ kernel | raw socket bind, netlink sockets, Linux traffic control, XFRM, all expecting a kernel index | No |
 | caller ↔ VPP | binary API, expecting a `sw_if_index` | No |
 
 ### Integration Points
@@ -178,13 +178,13 @@ evidence rather than assuming it.
 | Entry Point | → | Feature Code | Test |
 |-------------|---|--------------|------|
 | (fill at design) a static route with an interface-only next-hop, VPP backend active | → | (fill at design) the VPP accessor | (fill at design) |
-| (fill at design) the same config with the netlink backend active | → | (fill at design) the kernel accessor | (fill at design) |
+| (fill at design) the same config with the kernel backend active | → | (fill at design) the kernel accessor | (fill at design) |
 
 ## Acceptance Criteria
 
 | AC ID | Input / Condition | Expected Behavior |
 |-------|-------------------|-------------------|
-| AC-1 | A caller asks a resolved binding for a VPP index while the netlink backend is active | It receives an error naming the mismatch, and no index it could use by accident |
+| AC-1 | A caller asks a resolved binding for a VPP index while the kernel backend is active | It receives an error naming the mismatch, and no index it could use by accident |
 | AC-2 | A caller asks for a kernel index while the VPP backend is active | It receives an error naming the mismatch |
 | AC-3 | The resolved index is zero or negative | The accessor errors regardless of which dataplane was asked for. Index 0 is VPP `local0` |
 | AC-4 | The repository is searched for direct reads of the bare index field outside the iface component | None remain, or each remaining one is listed here with a reason |
@@ -195,7 +195,7 @@ evidence rather than assuming it.
 | # | User does | Path through system | Test proving it works |
 |---|-----------|--------------------|-----------------------|
 | 1 | Configures a static route whose next-hop names an interface, on a VPP dataplane | config → static → `iface.Resolve` → VPP accessor → VPP binary API | (fill at design) |
-| 2 | Does the same on a kernel dataplane | config → static → `iface.Resolve` → kernel accessor → netlink | (fill at design) |
+| 2 | Does the same on a kernel dataplane | config → static → `iface.Resolve` → kernel accessor → netlink socket | (fill at design) |
 
 ## 🧪 TDD Test Plan
 

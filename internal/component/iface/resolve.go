@@ -100,7 +100,7 @@ func ResolveIndex(name string) (int, error) {
 //
 // It is gated on the ACTIVE iface backend being vpp, and that gate is the point
 // of the function. Resolve answers from whichever backend is loaded, and a
-// netlink backend answers with a KERNEL ifindex. Programming that number as a
+// kernel backend answers with a KERNEL ifindex. Programming that number as a
 // sw_if_index installs a path to a different interface, and nothing reports it.
 // The two globals are independent (vpp.GetActiveConnector selects the data
 // plane, LoadBackend selects the resolver), so they CAN disagree.
@@ -471,8 +471,8 @@ func (r *resolver) onLinkEvent(kernelName string, kind LinkEventKind, index int)
 // keep: the audit that said this drop was safe counted five subscribers when
 // the tree held six.
 //
-// No channel operation here blocks, because the caller runs on the netlink
-// monitor's read loop. The receive is non-blocking because a consumer can empty
+// No channel operation here blocks, because the caller runs on the netlink monitor's
+// read loop. The receive is non-blocking because a consumer can empty
 // c between the send above it and it. The second send is non-blocking so a
 // second sender, added later, cannot stall that loop either; today the caller
 // holds r.mu and there is none, so it always succeeds.

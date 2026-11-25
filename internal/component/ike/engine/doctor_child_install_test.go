@@ -56,7 +56,7 @@ func TestRecordChildRefusedClearsOnInstall(t *testing.T) {
 	ps := &PeerSession{peerName: "site-b"}
 	now := time.Now()
 	ps.childCreate.start(now)
-	cause := errors.New("netlink: operation not supported")
+	cause := errors.New("netlink error: operation not supported")
 	ps.recordChildRefused(cause, now)
 
 	refusal := ps.childRefused.Load()
@@ -102,7 +102,7 @@ func TestChildInstallFindings(t *testing.T) {
 	}
 	tun := fmt.Errorf("%w: %w", errChildInstall, dciTUNRefusal())
 	encap := fmt.Errorf("%w: peer site-c has no authenticated IKE endpoint yet", errChildEncapPort)
-	install := fmt.Errorf("%w: netlink: operation not supported", errChildInstall)
+	install := fmt.Errorf("%w: netlink error: operation not supported", errChildInstall)
 	peers := map[string]*PeerSession{
 		"site-z": refused("site-z", install, time.Time{}),
 		"site-a": refused("site-a", tun, retry),

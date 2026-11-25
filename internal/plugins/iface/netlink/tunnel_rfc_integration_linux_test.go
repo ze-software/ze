@@ -4,7 +4,7 @@
 //
 // Whole-stack proofs for two tunnel obligations Ze meets through the kernel
 // datapath it configures (ai/rules/rfc-compliance.md). Each test installs the
-// tunnel through the netlink backend Ze runs, reads back what Ze installed,
+// tunnel through the kernel interface backend Ze runs, reads back what Ze installed,
 // and drives a packet through the kernel to observe the RFC outcome.
 //
 // VALIDATES: RFC 2473 Section 4.1.1 (c): a packet entering an ip6tnl tunnel

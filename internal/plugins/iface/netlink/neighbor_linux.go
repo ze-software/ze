@@ -74,7 +74,7 @@ func (b *netlinkBackend) ListNeighbors(family int) ([]iface.NeighborInfo, error)
 // neighStateString maps a NUD_* bitfield to a single name. NUD flags are
 // in theory a bitmask but the kernel typically sets exactly one state bit
 // at a time; higher-priority bits win.
-// ResetCounters signals that netlink cannot physically zero counters
+// ResetCounters signals that the netlink API cannot physically zero counters
 // in the kernel. Returning iface.ErrCountersNotResettable tells the
 // dispatch layer to fall back to a baseline-delta model: capture the
 // current values and subtract them from every subsequent read so the

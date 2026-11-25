@@ -1,0 +1,26 @@
+# Test: fib kernel alone (without fib vpp) is refused under interface backend vpp.
+# Question: does `ze config validate` refuse `fib kernel` with no `fib vpp`
+#           block under `interface backend vpp`, naming `fib kernel` and the
+#           fix `set fib vpp`?
+#           A unit test cannot prove `fib-kernel`'s `HostSideDataPlane` and
+#           `fib-vpp`'s `ProgramsFIB` registrations combine inside `ze config
+#           validate` to derive `set fib vpp` from the registry.
+# VALIDATES: spec-dataplane-compatibility-guard AC-14 (P-1b) -- a host-side
+#            FIB writer of another plane alone under VPP leaves VPP's FIB with
+#            no route, so it is refused with `set fib vpp`.
+# PREVENTS: a VPP router with only `fib kernel` committing silently and leaving
+#           VPP's forwarding table empty.
+stdin=config:terminator=EOF_CONF
+interface {
+	backend vpp;
+}
+fib {
+	kernel {
+	}
+}
+EOF_CONF
+
+cmd=foreground:seq=1:exec=ze config validate -:stdin=config
+expect=exit:code=1
+expect=stdout:contains=fib kernel
+expect=stdout:contains=set fib vpp

@@ -50,7 +50,7 @@ lifecycle callbacks, transport enrollment and config validation.
 - **The engine's interface address and mask come from the iface component.**
   `interfaceNetworkMask` and `interfaceIPv4Address` read the live addresses
   when the interface runtime starts, and the receive check above reads that same
-  pair. Kernel-address integration tests run on `lo` with the netlink backend
+  pair. Kernel-address integration tests run on `lo` with the kernel backend
   blank-imported. Host-independent engine tests install an isolated iface backend
   through the same registry, not a test-only engine field.
   <!-- source: internal/plugins/ospf/interface_addr.go -- interfaceNetworkMask, interfaceIPv4Address -->
@@ -117,8 +117,8 @@ lifecycle callbacks, transport enrollment and config validation.
 - **The link speed is read on each origination pass, not cached.** A link
   renegotiates while OSPF runs, and a cached speed needs an invalidation path
   from the iface component into the plugin that nothing else in the plugin
-  needs. Re-reading costs two sysfs reads per interface, beside the netlink
-  address dumps `lsdbTopology` already performs on the same pass.
+  needs. Re-reading costs two sysfs reads per interface, beside the
+  netlink address dumps `lsdbTopology` already performs on the same pass.
   <!-- source: internal/plugins/ospf/interface_cost.go -- interfaceLinkSpeedMbps -->
 - **Every recover in the engine goes through the engine's taskguard, so no panic
   is silent.** A registered consumer's callback (opaque consumer, Router

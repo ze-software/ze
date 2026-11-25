@@ -28,7 +28,7 @@ VPP's nat64 plugin.
 
 | Decision | What Thomas decided | What it fixes in this spec |
 |----------|---------------------|----------------------------|
-| D1: which layer translates | Both data planes translate: Jool, carried in Ze's kernel, on the kernel (nft) backend, and VPP's nat64 plugin on the VPP backend. A userspace TUN translator is not built | Two backend design sections below, each with its own ACs. Neither backend refuses NAT64 for want of a translator |
+| D1: which layer translates | Both data planes translate: Jool, carried in Ze's kernel, on the kernel backend, and VPP's nat64 plugin on the VPP backend. A userspace TUN translator is not built | Two backend design sections below, each with its own ACs. Neither backend refuses NAT64 for want of a translator |
 | D2: govpp `binapi/nat64` | No approval needed: every module already in `go.mod` may be used in full, except experimental crypto modules such as Cloudflare's `circl`, and `go.fd.io/govpp` is already required | The vendored govpp tree gains `binapi/nat64` (today it carries `nat44_ed` and `nat_types` only). It is a new package of an already-required module, so `go mod vendor` adds it in the same commit as the code that first imports it |
 | D3: RFC enrolment | RFC 6146 (stateful NAT64), RFC 6052 (address format) and RFC 7915 (SIIT) are not enrolled in any profile and get no `rfc/short/` summary: RFC validation scope does not grow, and RFCs no profile lists wait until after the first release | The feature ships with no conformance figure, ledger rows or discrimination records; code still quotes the RFC sentences it implements |
 
@@ -61,8 +61,8 @@ VPP's nat64 plugin.
 
 | Mechanism | Where (file + symbol, or page + section) | What it does today | This spec (extends, replaces, or does not apply, with the reason) |
 |-----------|------------------------------------------|--------------------|-------------------------------------------------------------------|
-| Firewall backend registry | `internal/component/firewall/backend.go` `Backend`, `RegisterBackend` | nft and VPP backends program NAT44/NAT66 | Extends: the NAT64 model is handed to the selected backend, which verifies and applies it |
-| nft firewall backend | `internal/plugins/firewall/nft/` | Lowers NAT44 and NAT66 into `ze_` nft tables | Does not translate: nftables has no NAT64 expression. Its NAT64 apply drives Jool instead (kernel design below) |
+| Firewall backend registry | `internal/component/firewall/backend.go` `Backend`, `RegisterBackend` | kernel and VPP backends program NAT44/NAT66 | Extends: the NAT64 model is handed to the selected backend, which verifies and applies it |
+| kernel firewall backend | `internal/plugins/firewall/nft/` | Lowers NAT44 and NAT66 into `ze_` nft tables | Does not translate: nftables has no NAT64 expression. Its NAT64 apply drives Jool instead (kernel design below) |
 | VPP NAT44-ED integration | `internal/plugins/firewall/vpp/nat_linux.go` `applyNATChains`, `ops.go` `vppOps` | Address ranges and static mappings behind a test seam | Extends (D1, D2): new ops for VPP's nat64 plugin behind the same `vppOps` seam, so the unit tests keep a fake |
 | VPP firewall verifier | `internal/plugins/firewall/vpp/verify.go` `verifyNATChain` | Refuses what VPP cannot apply exactly | Extends: refuses a NAT64 shape VPP's nat64 plugin cannot express, never approximates |
 | Ze's kernel build | `gokrazy/kernel/` (`kernel.config`, `runtime.config`, `patches/`), `docs/architecture/appliance/kernel-profiles.md` | Ze builds and boots its own kernel from config fragments and a patch series | Extends (D1): Jool's kernel module is carried in Ze's kernel by the same route, in both the hardware and the runtime profile |
@@ -96,7 +96,7 @@ VPP's nat64 plugin.
 | Boundary | How | Verified |
 |----------|-----|----------|
 | Config → firewall component | YANG tree | No |
-| nft backend → Jool | Generic Netlink to the Jool module in Ze's kernel | No |
+| kernel backend → Jool | Generic Netlink to the Jool module in Ze's kernel | No |
 | VPP backend → nat64 plugin | govpp `binapi/nat64` | No |
 
 ### Integration Points
@@ -127,7 +127,7 @@ VPP's nat64 plugin.
 | Test | File | Validates | Status |
 |------|------|-----------|--------|
 | `TestNAT64Verify` | firewall component | AC-2, AC-3 | |
-| `TestNAT64JoolMessages` | nft backend | Generic Netlink messages for the instance, pool4 and pool6, and their removal (AC-4) | |
+| `TestNAT64JoolMessages` | kernel backend | Generic Netlink messages for the instance, pool4 and pool6, and their removal (AC-4) | |
 | `TestNAT64VPPOps` | `internal/plugins/firewall/vpp/` | nat64 ops through the `vppOps` fake, and removal (AC-4) | |
 | `TestNAT64VPPVerify` | `internal/plugins/firewall/vpp/verify_test.go` | AC-5 on VPP | |
 

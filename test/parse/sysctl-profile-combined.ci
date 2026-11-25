@@ -3,7 +3,7 @@
 option=skip-os:value=darwin
 stdin=config:terminator=EOF_CONF
 interface {
-    backend netlink
+    backend kernel
     ethernet eth0 {
         unit 0 {
             sysctl-profile [ dsr hardened ]

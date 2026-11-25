@@ -15,7 +15,7 @@ Recovery after compaction: `.claude/rules/post-compaction.md`.
 
 ## Task
 
-Ze's traffic component lowers its QoS model into Linux `tc` (default backend `tc`)
+Ze's traffic component lowers its QoS model into Linux traffic control (default backend `kernel`)
 or VPP. Off Linux `internal/component/traffic/default_other.go` sets no default, so
 traffic config rejects. This spec adds a BSD shaping backend:
 
@@ -40,7 +40,7 @@ traffic config rejects. This spec adds a BSD shaping backend:
 - [ ] `internal/component/traffic/default_other.go` - empty default backend off Linux
 
 **Behavior to preserve:**
-- Linux `tc` and VPP backends unchanged.
+- Linux `kernel` and VPP backends unchanged.
 
 **Behavior to change:**
 - FreeBSD and OpenBSD gain a shaping backend.

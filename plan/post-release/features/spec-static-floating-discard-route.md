@@ -62,7 +62,7 @@ arbitration exists there today.
 | Loc-RIB arbitration | `internal/core/rib/locrib`; sysrib `effectivePriority` | Picks the best path per prefix across protocols by distance | Extends: two static paths for one prefix coexist under distinct instances and are ranked by their own distance |
 | Static next-hop liveness (BFD, link, resolvability) | static plugin link tracking, `checkNextHopResolvable` | Withdraws a forward route whose next hops are all down | Reused: the withdrawn forward path is what lets the discard path win |
 | Group shape | `spec-static-routes-take-the-bgp-group-shape.md` | Proposes groups; keeps `choice action` on the member | Does not apply directly. It found that an entry holding both `next` and `blackhole` silently becomes a blackhole; this spec must not reintroduce that merge |
-| Kernel route priority | leaf `metric` | Sets the netlink priority | Does not decide main-table ranking; the named-table design says whether metric or distance separates the two kernel routes |
+| Kernel route priority | leaf `metric` | Sets the netlink route priority | Does not decide main-table ranking; the named-table design says whether metric or distance separates the two kernel routes |
 
 ## Design questions owed
 

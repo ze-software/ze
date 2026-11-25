@@ -1,4 +1,4 @@
-// VALIDATES: that an ICMP type and code selector ze builds reaches the netlink policy
+// VALIDATES: that an ICMP type and code selector ze builds reaches the netlink message policy
 // with its masks, and that the real kernel then drops exactly the ICMP messages the
 // selector names and passes the others.
 // PREVENTS: an ICMP selector of type 0 or a code block installed with a mask derived
@@ -20,7 +20,7 @@ import (
 )
 
 // VALIDATES: xfrmPolicyFromParams carries the type and code values and their masks.
-// PREVENTS: the explicit masks dropped on the way to netlink, which installs type 0
+// PREVENTS: the explicit masks dropped on the way to the netlink socket, which installs type 0
 // and a code block as any.
 func TestICMPSelectorReachesTheBackend(t *testing.T) {
 	_, loopback, _ := net.ParseCIDR("127.0.0.0/8")
@@ -33,7 +33,7 @@ func TestICMPSelectorReachesTheBackend(t *testing.T) {
 		t.Fatalf("project: %v", err)
 	}
 	if np.SrcPort != 0 || np.SrcPortMask != 0xffff || np.DstPort != 4 || np.DstPortMask != 0xfffc {
-		t.Fatalf("netlink selector sport %d/%#04x dport %d/%#04x, want 0/0xffff and 4/0xfffc",
+		t.Fatalf("netlink attribute selector sport %d/%#04x dport %d/%#04x, want 0/0xffff and 4/0xfffc",
 			np.SrcPort, np.SrcPortMask, np.DstPort, np.DstPortMask)
 	}
 	if _, err := xfrmPolicyFromParams(SPParams{
@@ -47,7 +47,7 @@ func TestICMPSelectorReachesTheBackend(t *testing.T) {
 
 // VALIDATES: xfrmStateFromParams carries an ICMP type 0 selector of a transport-mode
 // state (SAParams.Sel, RFC 4301 Section 4.4.2) with its masks.
-// PREVENTS: the state selector's masks dropped on the way to netlink. The kernel then
+// PREVENTS: the state selector's masks dropped on the way to the netlink socket. The kernel then
 // reads type 0 as any and admits every ICMP message decrypted on that SA, where the
 // negotiated selector names echo reply alone (XfrmInStateMismatch is never raised).
 func TestICMPStateSelectorReachesTheBackend(t *testing.T) {
@@ -67,10 +67,10 @@ func TestICMPStateSelectorReachesTheBackend(t *testing.T) {
 	}
 	sel := state.Selector
 	if sel == nil {
-		t.Fatal("a transport-mode state with a negotiated selector carries no netlink selector")
+		t.Fatal("a transport-mode state with a negotiated selector carries no netlink attribute selector")
 	}
 	if uint8(sel.Proto) != UpperProtoICMP || sel.SrcPort != 0 || sel.SrcPortMask != 0xffff || sel.DstPort != 4 || sel.DstPortMask != 0xfffc {
-		t.Fatalf("netlink state selector proto %d sport %d/%#04x dport %d/%#04x, want %d 0/0xffff and 4/0xfffc",
+		t.Fatalf("netlink attribute state selector proto %d sport %d/%#04x dport %d/%#04x, want %d 0/0xffff and 4/0xfffc",
 			sel.Proto, sel.SrcPort, sel.SrcPortMask, sel.DstPort, sel.DstPortMask, UpperProtoICMP)
 	}
 }

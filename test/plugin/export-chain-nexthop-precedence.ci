@@ -16,7 +16,7 @@
 # local address on the unmatched route is not evidence of a valid production
 # NEXT_HOP or acceptance by another router.
 
-# Linux-only: static `next { interface lo { } }` resolves loopback `lo` via Linux netlink.
+# Linux-only: static `next { interface lo { } }` resolves loopback `lo` via the Linux netlink socket.
 option=needs-linux
 option=env:var=ze.log.bgp.rs:value=info
 

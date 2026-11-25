@@ -3,7 +3,7 @@
 // Design: docs/features/interfaces.md AC-6 -- SLAAC address lifecycle
 // tracking. ze observes kernel-autoconfigured addresses and classifies them.
 //
-// This test exercises the classifier against the REAL kernel netlink stack in
+// This test exercises the classifier against the REAL kernel netlink socket in
 // an ephemeral network namespace, inside the user and network namespace
 // userns.Enter gives it, so it needs no host privilege.
 // A kernel-timed IPv6 address (finite valid/preferred lifetime, non-permanent)

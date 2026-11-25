@@ -31,7 +31,7 @@ RFC9915-21.23-1, -5, -6, -7, RFC9915-21.25-2, -3, -4.
 
 ### Architecture Docs
 - [ ] `docs/features/interfaces.md` - DHCPv6 paragraph and the `dhcpv6` YANG description
-  → Constraint: `dhcpv6` carries `ze:backend "netlink"`; the new leaf inherits it
+  → Constraint: `dhcpv6` carries `ze:backend "kernel"`; the new leaf inherits it
   → Constraint: resolvers reach the host through `setV6Resolvers` (`internal/plugins/iface/dhcp/resolv_linux.go`); stateless mode feeds the same call
 - [ ] `ai/patterns/config-option.md`, `ai/rules/config.md` - YANG leaf rules
   → Constraint: a new leaf takes the strongest native validation and a description naming its effect; the refusal of `stateless` beside `pd` says what is wrong and how to fix it (`ai/rules/user-facing-errors.md`)
@@ -66,6 +66,14 @@ RFC9915-21.23-1, -5, -6, -7, RFC9915-21.25-2, -3, -4.
 **Behavior to change:**
 - the ORO is chosen per message kind: Solicit, Request, Renew and Rebind keep DNS and SOL_MAX_RT; Information-request carries DNS, INF_MAX_RT and Information Refresh Time
 - INF_MAX_RT in an Advertise or Reply is recorded in both modes
+
+## Existing Mechanisms
+
+| Mechanism | Where (file + symbol, or page + section) | What it does today | This spec (extends, replaces, or does not apply, with the reason) |
+|-----------|------------------------------------------|--------------------|------------------------------------------------------------------|
+| DHCPv6 YANG config and parser | `internal/component/iface/yang/ze-iface-conf.yang` (`container dhcpv6`), `internal/component/iface/config.go`, `internal/plugins/iface/dhcp/dhcp_linux.go` (`dHCPConfig`) | Models and parses `enabled`, `pd`, and `duid` into the interface DHCP client configuration | Extends: adds the `stateless` leaf (refused beside `pd`) and threads it into `dHCPConfig` |
+| DHCPv6 worker and exchange engine | `internal/plugins/iface/dhcp/dhcp_v6_linux.go` (`v6Worker`, `runV6`), `internal/plugins/iface/dhcp/dhcp_v6_exchange_linux.go` (`runExchange`, `requestOptions`, `v6SolMaxRTOption`) | Drives stateful Solicit/Request/Renew/Rebind exchanges, builds shared ORO options, and applies SOL_MAX_RT bounds | Extends: adds the stateless Information-request loop, per-message-kind ORO selection, and INF_MAX_RT/refresh-time handling |
+| DHCPv6 link-move handler and host resolver writer | `internal/plugins/iface/dhcp/dhcp_v6_attach_linux.go` (`noteMove`), `internal/plugins/iface/dhcp/resolv_linux.go` (`setV6Resolvers`) | Rate-limits link-move re-checks and installs or clears DHCPv6-learned DNS resolvers on the host | Extends: triggers an Information-request on link move and applies or clears stateless Reply DNS servers through `setV6Resolvers` |
 
 ## Data Flow (MANDATORY - see `ai/rules/architecture.md`)
 

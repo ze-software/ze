@@ -195,11 +195,11 @@ func TestXFRMSinglePortSelectorReachesTheKernel(t *testing.T) {
 }
 
 // TestXFRMExactPortZeroIsInstalledExactly pins the exact-or-reject boundary for the one
-// port value whose mask upstream netlink cannot carry: exactly port 0, PortMatch{Port: 0,
+// port value whose mask upstream netlink library cannot carry: exactly port 0, PortMatch{Port: 0,
 // Mask: 0xffff}. Upstream derives the selector mask from the port, so port 0 would reach
 // the kernel with mask 0 and match EVERY port, protecting more traffic than was asked for
 // (docs/architecture/linux-limitations.md, LL-NETLINK-XFRM-PORT-MASK). The backend used to
-// refuse the install for that reason. The vendored netlink now sends the mask as given
+// refuse the install for that reason. The vendored netlink library now sends the mask as given
 // (selFromPolicy, internal/le/vendorpatch/patches/netlink-xfrm-06-selector-port-masks.patch), so the policy
 // installs, and this test reads the kernel's own selector back to prove the mask arrived:
 // port 0 under mask 0xffff, never mask 0. The RFC 7296 Section 3.13.1 OPAQUE form never

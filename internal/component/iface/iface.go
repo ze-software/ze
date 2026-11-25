@@ -10,7 +10,7 @@
 // Package iface implements the interface monitoring and management plugin.
 //
 // It manages OS network interfaces through a pluggable backend architecture.
-// The Backend interface defines all OS-specific operations. The netlink backend
+// The Backend interface defines all OS-specific operations. The kernel backend
 // (internal/plugins/iface/netlink) handles Linux. DHCP is a separate plugin
 // (internal/plugins/iface/dhcp). All interface types use a JunOS-style
 // two-layer model: physical interface + logical units.
@@ -306,7 +306,7 @@ type AddrInfo struct {
 // Binding is the value snapshot the resolver returns from Resolve. It is a
 // pure value type -- it carries NO netlink.Link or *net.Interface -- so a
 // consumer that holds a logical interface name (IS-IS, PPPoE, ...) gets the
-// ifindex/MAC/MTU it needs without coupling to the netlink backend
+// ifindex/MAC/MTU it needs without coupling to the kernel backend
 // (rules/plugin-design.md cross-boundary value types). It carries exactly
 // what the old per-consumer ioctl wrappers produced (Ifindex, OperMAC, MTU)
 // plus the os-name / permanent-MAC / state the resolver now owns.
@@ -364,7 +364,7 @@ type RouteInfo struct {
 
 // NeighborInfo describes a kernel neighbor-table entry (IPv4 ARP or
 // IPv6 ND). Backends produce this shape from their respective neighbor
-// sources (netlink NeighList on Linux; GoVPP ip_neighbor_dump on VPP;
+// sources (rtnetlink NeighList on Linux; GoVPP ip_neighbor_dump on VPP;
 // unsupported elsewhere). See Backend.ListNeighbors.
 type NeighborInfo struct {
 	Address string `json:"address"`               // IP address

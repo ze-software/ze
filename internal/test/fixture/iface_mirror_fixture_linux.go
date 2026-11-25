@@ -36,7 +36,7 @@ const (
 // the target together, which is the order the refusal asks for.
 const (
 	mirrorDeleteConfigBoot = `interface {
-	backend netlink;
+	backend kernel;
 	ethernet zmtsrc0 {
 		unit 0 {
 			mirror {
@@ -49,7 +49,7 @@ const (
 }
 `
 	mirrorDeleteConfigRefused = `interface {
-	backend netlink;
+	backend kernel;
 	ethernet zmtsrc0 {
 		unit 0 {
 			mirror {
@@ -60,7 +60,7 @@ const (
 }
 `
 	mirrorDeleteConfigAccepted = `interface {
-	backend netlink;
+	backend kernel;
 	ethernet zmtsrc0 {
 		unit 0 {
 		}
@@ -81,7 +81,7 @@ const (
 const mirrorPollDelay = 100 * time.Millisecond
 
 // ifaceMirrorTargetDeleteRefused proves, on a real kernel, that a reload which
-// deletes a live mirror target is refused and leaves the tc mirror installed,
+// deletes a live mirror target is refused and leaves the traffic-control mirror installed,
 // and that the reload removing the mirror and the target together retires it.
 //
 // Method: the driver creates a veth pair and starts its own daemon, because it
@@ -98,7 +98,7 @@ func ifaceMirrorTargetDeleteRefused(ctx context.Context, args []string) (retErr 
 		return err
 	}
 	defer func() {
-		// Deleting one end deletes the pair, and the kernel drops its tc
+		// Deleting one end deletes the pair, and the kernel drops its traffic-control
 		// state with it.
 		err := deleteMirrorLink(mirrorDeleteSource)
 		if retErr == nil {
@@ -179,7 +179,7 @@ func ifaceMirrorTargetDeleteRefused(ctx context.Context, args []string) (retErr 
 			return err
 		}
 		if hook.filters != 0 {
-			return fmt.Errorf("the reload that removed the mirror left tc state on %s: hook %x holds %s", mirrorDeleteSource, parent, hook)
+			return fmt.Errorf("the reload that removed the mirror left traffic-control state on %s: hook %x holds %s", mirrorDeleteSource, parent, hook)
 		}
 	}
 	return mirrorReport("MIRROR-RETIRED " + mirrorDeleteSource)

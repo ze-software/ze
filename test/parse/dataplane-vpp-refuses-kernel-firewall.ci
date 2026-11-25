@@ -1,0 +1,55 @@
+# Test: interface backend vpp refuses a firewall block on kernel (default or explicit).
+# Question: does `ze config validate` refuse `interface backend vpp` beside a
+#           `firewall` block whose backend is omitted (defaults to `kernel`) or
+#           explicitly `kernel`, naming `set firewall backend vpp`?
+#           A unit test cannot prove `ze config validate` resolves the schema
+#           default and enforces the data-plane verdict over real YANG modules.
+# VALIDATES: spec-dataplane-compatibility-guard AC-3 (firewall) -- a kernel
+#            firewall block under `interface backend vpp` is refused before
+#            rules are programmed on the wrong data plane.
+# PREVENTS: an operator switching `interface backend` to `vpp` while silently
+#           leaving firewall rules on the Linux kernel.
+stdin=default-fw:terminator=EOF_DEFAULT
+interface {
+	backend vpp;
+}
+firewall {
+	table wan {
+		family inet;
+		chain input {
+			type filter;
+			hook input;
+			priority 0;
+			policy drop;
+			term allow-ssh {
+				from {
+					protocol tcp;
+					destination-port 22;
+				}
+				then {
+					accept;
+				}
+			}
+		}
+	}
+}
+EOF_DEFAULT
+
+stdin=explicit-fw:terminator=EOF_EXPLICIT
+interface {
+	backend vpp;
+}
+firewall {
+	backend kernel;
+}
+EOF_EXPLICIT
+
+cmd=foreground:seq=1:exec=ze config validate -:stdin=default-fw
+expect=exit:code=1
+expect=stdout:contains=firewall
+expect=stdout:contains=set firewall backend vpp
+
+cmd=foreground:seq=2:exec=ze config validate -:stdin=explicit-fw
+expect=exit:code=1
+expect=stdout:contains=firewall backend
+expect=stdout:contains=set firewall backend vpp

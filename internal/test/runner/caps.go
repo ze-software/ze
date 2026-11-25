@@ -25,7 +25,7 @@ const goosLinux = "linux"
 // feedback until someone runs on Linux.
 const (
 	capNetBindService = 10 // CAP_NET_BIND_SERVICE: bind a port below 1024 (the DNS stub on 53)
-	capNetAdmin       = 12 // CAP_NET_ADMIN: interfaces, netlink, nftables
+	capNetAdmin       = 12 // CAP_NET_ADMIN: interfaces, netlink sockets, nftables
 	capNetRaw         = 13 // CAP_NET_RAW: raw and packet sockets (ICMP ping, traceroute)
 	capSysAdmin       = 21 // CAP_SYS_ADMIN: namespaces, mounts, control groups (containers)
 	capSysResource    = 24 // CAP_SYS_RESOURCE: raise rlimits (RLIMIT_MEMLOCK for eBPF)
@@ -38,7 +38,7 @@ const (
 // the daemon MUST NOT hold (applyLacksCapsGate, record_parse_option.go).
 //
 //   - net-admin: privileged network configuration -- creating interfaces,
-//     bringing links up, programming netlink and nftables.
+//     bringing links up, programming netlink sockets and nftables.
 //
 //   - bpf: loading eBPF programs and creating maps. CAP_BPF alone, deliberately
 //     NOT CAP_SYS_RESOURCE. rlimit.RemoveMemlock
@@ -71,7 +71,7 @@ const (
 //     on port 53, because `system name-server` is declared `type zt:ip-address`
 //     (internal/component/config/system/yang/ze-system-conf.yang) and carries
 //     no port, so a daemon pointed at the stub reaches it there or nowhere.
-//     CAP_NET_BIND_SERVICE alone: nothing on this path programs netlink, and
+//     CAP_NET_BIND_SERVICE alone: nothing on this path programs netlink sockets, and
 //     declaring net-admin instead would name one capability while needing
 //     another -- a guard that cannot evaluate what it claims
 //     (ai/rules/evidence.md) -- as well as skipping a host that can bind port 53

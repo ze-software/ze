@@ -135,7 +135,7 @@ const (
 // RFC 7296 Section 2.23: "all devices MUST be able to receive and process both
 // UDP-encapsulated ESP and non-UDP-encapsulated ESP packets at any time."
 //
-// A Child SA on UDP port 4500 meets that through two paths: the tc-ingress fast path
+// A Child SA on UDP port 4500 meets that through two paths: the tc ingress fast path
 // rewrites bare ESP in the kernel on the link it arrived on, and the complete path
 // re-presents what the fast path left through ze-espform, rate-bounded. The complete
 // path drops what arrives above its bound, so each finding says what it costs while it
@@ -664,7 +664,7 @@ func espFormFirewallFindings(state *dataplane.ESPFormFastPathState) []rpc.Doctor
 // tc ingress, before netfilter, so it would hand that rule ESP-in-UDP instead and the
 // rule would not see the ESP it was written for. how and fix are what the dataplane
 // chose for the site's table (dataplane.ESPFormFastPathState.FirewallAcceptHow and
-// FirewallAcceptFix): the nft insert for a table Ze does not own, the editor lines for
+// FirewallAcceptFix): the nftables insert for a table Ze does not own, the editor lines for
 // a table of Ze's firewall config, the state a plugin's table follows
 // (espFormOwnedTableAccept). A blocking site with no command is a Ze defect, so the
 // fix then lists the dataplane's warnings, which name the site, rather than a guessed
@@ -744,8 +744,8 @@ func espFormOwnedTableAccept(_, table, chain string) (how, fix string) {
 	lines.Str("commit now")
 	var why textbuf.Buffer
 	why.Str("Table ").Str(table).Str(" is the table ").Str(name).
-		Str(" of Ze's firewall configuration, and Ze rewrites it at each firewall commit, so an nft " +
-			"rule there would be gone after the next one. Paste the lines below into ze config edit: " +
+		Str(" of Ze's firewall configuration, and Ze rewrites it at each firewall commit, so an nft rule " +
+			"there would be gone after the next one. Paste the lines below into ze config edit: " +
 			"they add the term ").Str(espFormAcceptTerm).Str(", which accepts ESP, to chain ").Str(chain).
 		Str(" and commit it. The editor adds a new term after the chain's existing terms and has no " +
 			"command that moves a term ahead of another, so the term accepts ESP only where no earlier " +

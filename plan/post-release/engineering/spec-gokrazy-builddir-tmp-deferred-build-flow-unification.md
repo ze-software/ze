@@ -354,7 +354,7 @@ deferral shard:
 | Functional test for new RPC/API | [ ] | `test/plugin/*.ci` or `test/decode/*.ci` |
 | Pipe completeness | [ ] | If command produces output: route through `ApplyPipes`/`ProcessPipes`, support all pipe operators per `ai/rules/cli.md` |
 | Env var registration | [ ] | If YANG config leaves added under `environment/`: matching `ze.<name>.<leaf>` env var via `env.MustRegister()`. Read `ai/rules/config.md` before adding env-only settings |
-| Doctor check for runtime dependencies | [ ] | If any file path, socket, external service, kernel module, listen port, procfs/sysctl, netlink, external binary, or certificate material is introduced: owning package doctor check, `internal/core/diagnostic/codes.go`, unit test, functional test (see `ai/rules/repo-maintenance.md`) |
+| Doctor check for runtime dependencies | [ ] | If any file path, socket, external service, kernel module, listen port, procfs/sysctl, netlink socket, external binary, or certificate material is introduced: owning package doctor check, `internal/core/diagnostic/codes.go`, unit test, functional test (see `ai/rules/repo-maintenance.md`) |
 | Prometheus counters/metrics | [ ] | If feature has observable state: define counters, register in telemetry, list metric names and labels in this spec |
 
 ### Documentation Update Checklist (BLOCKING)

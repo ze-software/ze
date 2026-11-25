@@ -90,8 +90,8 @@ Three filter categories:
 
 | Plugin | Description |
 |--------|-------------|
-| interface | OS network interface monitoring and management via netlink or VPP. Publishes interface and address events to the bus. |
-| iface-ra | IPv6 Router Advertisement sender (RFC 4861) for a LAN interface unit: prefixes for SLAAC, the M and O flags, and RDNSS resolvers (RFC 8106). Linux and netlink only. |
+| interface | OS network interface monitoring and management via kernel or VPP. Publishes interface and address events to the bus. |
+| iface-ra | IPv6 Router Advertisement sender (RFC 4861) for a LAN interface unit: prefixes for SLAAC, the M and O flags, and RDNSS resolvers (RFC 8106). Linux and kernel backend only. |
 | static | Config-driven static routes with ECMP. A main-table route is a Loc-RIB path that `rib { distance { static } }` ranks against other protocols, and the FIB plugin programs the winner; a named-table route is programmed directly into its table. |
 | connected | Redistributes directly connected interface prefixes, and inserts each one into the Loc-RIB at `rib { distance { connected } }`. It registers that the OS installs its routes, so a connected winner withdraws Ze's route rather than adding one. |
 | kernel | Redistributes externally-installed kernel routes. |

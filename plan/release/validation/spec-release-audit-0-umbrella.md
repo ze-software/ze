@@ -127,6 +127,13 @@ belong in separate future fix work approved after the audit finding is filed.
 - Every confirmed issue must document suggested fix direction and verification expected from the future fix.
 - Release blockers must be visible in one audit table until separate fix work provides verification.
 
+## Existing Mechanisms
+
+| Mechanism | Where (file + symbol, or page + section) | What it does today | This spec (extends, replaces, or does not apply, with the reason) |
+|-----------|------------------------------------------|--------------------|------------------------------------------------------------------|
+| Verification runner and non-default test suites | `docs/functional-tests.md`, `docs/architecture/testing/interop.md`, `test/interop/scenarios/`, `test/exabgp-compat/encoding/` | Runs fast unit/functional/ExaBGP checks and separate heavyweight suites (Docker interop, QEMU, chaos, fuzz, perf) without an umbrella release-surface audit tracking coverage gaps and findings across every user-visible surface | Extends release validation by organizing surface-by-surface child audit specs that record findings and requested evidence against these existing suites without modifying product code or duplicating `plan/release/validation/spec-release-evidence-gate.md` |
+| Component, plugin, and YANG registration inventories | `internal/component/`, `internal/plugins/`, `internal/**/register.go`, `internal/**/*.yang`; `docs/architecture/core-design.md`, `docs/architecture/config/yang-config-design.md` | Components, plugins, commands, and YANG schemas self-register at startup so the daemon discovers every surface from its registries rather than static lists | Does not replace or modify registration; child audit `spec-release-audit-1-surface-inventory.md` derives its release-surface matrix directly from these existing registrations and YANG schemas |
+
 ## Data Flow (MANDATORY)
 
 ### Entry Point
@@ -153,7 +160,7 @@ belong in separate future fix work approved after the audit finding is filed.
 | Web/API/MCP -> auth -> command/config backend | HTTP/gRPC/MCP handlers, auth middleware, API engine | Child audit `release-audit-4-web-lg-api` plus `spec-rbac-audit.md` |
 | BGP wire -> FSM/reactor -> plugin event stream | session, capability negotiation, wire parsing, EventDispatcher | Child audit `release-audit-2-bgp-protocol` |
 | Plugin registration -> startup -> process/DirectBridge | plugin registry, startup tiers, handshake | Child audit `release-audit-5-plugins-rib` |
-| Config/plugin -> Linux kernel/VPP/netlink | iface, FIB, firewall, traffic, VPP, QEMU tests | Child audit `release-audit-6-system-linux` |
+| Config/plugin -> Linux kernel/VPP (netlink socket) | iface, FIB, firewall, traffic, VPP, QEMU tests | Child audit `release-audit-6-system-linux` |
 | Documentation -> first user workflow | install docs, config examples, command reference | Child audit `release-audit-8-docs-onboarding` |
 
 ### Integration Points
@@ -413,7 +420,7 @@ Despite the template heading, these are audit documentation steps only. They do 
 | Secret leakage | Config, logs, API, web, and docs exposing tokens, keys, passwords, or PSKs |
 | Resource exhaustion | Unbounded maps, goroutines, buffers, queues, SSE streams, plugin event paths |
 | Protocol hardening | Malformed BGP messages, capability mismatch, error handling, NOTIFICATION behavior |
-| System safety | Kernel/VPP/netlink/firewall changes apply/undo correctly and reject unsupported states |
+| System safety | Kernel/VPP/firewall (and netlink socket) changes apply/undo correctly and reject unsupported states |
 
 ### Failure Routing
 

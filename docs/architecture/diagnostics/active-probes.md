@@ -30,7 +30,7 @@ that forgot would fragment silently while reporting a measured path.
 
 The Linux data plane also implements ICMP for traffic Ze forwards and for
 packets addressed to the router. Ze enables forwarding through the interface
-sysctls and installs routes through its netlink backend. Linux `ip_forward`
+sysctls and installs routes through its kernel backend. Linux `ip_forward`
 discards packets whose TTL is exhausted or whose DF bit prevents fragmentation
 at the outgoing MTU; `ip_rcv_core` and `ip_options_compile` reject unprocessable
 headers. Linux generates the resulting ICMP errors.
@@ -77,7 +77,7 @@ with the bit silently clear (`TestProbeCapabilityAbsentOffLinux`).
 ## The error queue
 
 A DF probe is refused in one of two places, and Linux hands both to the
-socket's error queue (`ai/rules/rfc-compliance.md` counts the kernel's RFC
+socket's error queue (`ai/rules/rfc-conformance.md` counts the kernel's RFC
 1191 and RFC 8201 state machines as Ze's, so Ze reads the queue rather than
 parsing the ICMP error itself).
 

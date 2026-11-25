@@ -45,7 +45,7 @@ Europe and US. VPP replaces Linux kernel routing, achieving 8-35x forwarding per
 | plugins | plugin dpdk_plugin.so { enable } | (line) | Enabled by default. Explicit `vpp.plugins.dpdk false` omits it and is refused with configured DPDK interfaces. <!-- source: internal/component/vpp/managed_startup.go -- VPPSettings.managedStartupPlugins --> |
 | plugins | plugin af_packet_plugin.so { enable } | (line) | Emitted only for explicit `vpp.plugins.af-packet true`; default false. <!-- source: internal/component/vpp/startupconf.go -- GenerateStartupConf --> |
 | plugins | plugin linux_cp_plugin.so { enable } | (line) | LCP. Enable when control-plane connectivity needed. |
-| plugins | plugin linux_nl_plugin.so { enable } | (line) | Netlink listener. Enable with LCP. |
+| plugins | plugin linux_nl_plugin.so { enable } | (line) | Netlink socket listener. Enable with LCP. |
 | linux-cp | lcp-sync | (flag) | VPP state changes propagate to Linux TAP mirrors. |
 | linux-cp | lcp-auto-subint | (flag) | Auto-create sub-TAPs for dot1q/QinQ sub-interfaces. |
 | linux-cp | default netns | dataplane | LCP TAPs created in `dataplane` netns. Routing daemons run there. |
@@ -84,7 +84,7 @@ page-size value. Ze does not emit that key or set the main heap's page size.
 VPP's main heap therefore retains the upstream OS-page default.
 
 The buffer directive has a space in `default data-size`; `default-data-size`
-is rejected. The Linux netlink directive requires the `nl-` prefix;
+is rejected. The Linux netlink socket directive requires the `nl-` prefix;
 `rx-buffer-size` is rejected. Unit contracts pin the corrected sections, but
 source matching does not establish native startup. A native run must still
 prove the installed plugin set, memory allocation, CPU affinity, device access,
@@ -222,7 +222,7 @@ is an error.
 | Hugepages | 3072 x 2MB (6GB) | `echo 3072 > /sys/kernel/mm/hugepages/hugepages-2048kB/nr_hugepages` |
 | IOMMU | Enabled | BIOS: enable VT-d/AMD-Vi. Kernel: `intel_iommu=on iommu=pt` |
 | CPU isolation | Worker cores | `isolcpus=<worker-cores>` kernel param (prevents Linux scheduler interference) |
-| Netlink buffer | 64MB | `sysctl net.core.rmem_default=67108864` |
+| Netlink socket buffer | 64MB | `sysctl net.core.rmem_default=67108864` |
 | Min hardware | 4 cores, 8GB RAM | 1 main + N workers + hugepage memory |
 
 ### Hugepage Sizing
@@ -341,7 +341,7 @@ this section is background for a future deployment path.
 ### Architecture
 
 LCP creates TAP mirrors in Linux for every VPP interface. Routing daemons (ze's BGP) run in
-Linux and see TAP devices. VPP's netlink plugin syncs kernel route changes to VPP's FIB.
+Linux and see TAP devices. VPP's netlink route plugin syncs kernel route changes to VPP's FIB.
 
 ```
 VPP interface (TenGigabitEthernet3/0/0) <---> Linux TAP (in dataplane netns)
@@ -515,7 +515,7 @@ Stats socket default: `/run/vpp/stats.sock`
 | L2 cross-connect | >14.88 Mpps/thread | Same | IPng VLL benchmark |
 | VXLAN (IPv4 underlay) | ~14 Mpps/thread | Same | IPng VLL benchmark |
 | Clocks/packet (1 Mpps) | ~660 | Same | IPng monitoring |
-| Route loading (netlink) | ~175K routes/sec | Same | IPng LCP Part 5 |
+| Route loading (via netlink) | ~175K routes/sec | Same | IPng LCP Part 5 |
 | Route loading (binary API) | ~250K calls/sec | GoVPP estimated | Benchmark needed |
 | sFlow overhead | 11 CPU cycles/packet | VPP 25.02 | IPng sFlow Part 2 |
 | Power consumption | ~45W fully loaded | Supermicro SYS-5018D-FN8T | IPng hardware review |
@@ -540,7 +540,7 @@ at a time), 256 = saturated (processing full vectors). Production typically 4-16
 - No routing protocols (BGP, OSPF, IS-IS). Ze's job.
 - No firewall (nftables/iptables bypassed). VPP ACLs are basic match/action.
 - No hierarchical QoS. VPP policers are flat token buckets, not HTB/HFSC.
-- No kernel features on fast path (tc, XDP, conntrack, eBPF).
+- No kernel features on fast path (traffic control, XDP, conntrack, eBPF).
 - DPDK/RDMA NIC drivers only (not all hardware supported).
 - Minimum 4 physical CPU cores, 8 GB RAM.
 

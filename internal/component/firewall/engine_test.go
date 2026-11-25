@@ -1,109 +1,16 @@
 // Design: docs/architecture/core-design.md -- Firewall plugin engine (SDK 5-stage)
-// Related: engine.go -- validateBackendGate under test
+// Related: engine.go -- firewall section verification and IRR table merge tests
 
 package firewall
 
 import (
-	"strings"
-	"sync"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/ze-software/ze/internal/component/config"
 	"github.com/ze-software/ze/pkg/plugin/sdk"
 )
-
-// swapBackendGateSchema replaces the cached gate schema with the supplied
-// Schema. The sync.Once guarding the lazy YANG load is reset and then marked
-// Done so validateBackendGate bypasses the real load and uses the override.
-// t.Cleanup clears the cache so subsequent tests re-load the real YANG.
-//
-// NOT safe for t.Parallel(): mutates package-level state (backendGateSchema,
-// backendGateSchemaErr, backendGateSchemaOnce).
-func swapBackendGateSchema(t *testing.T, s *config.Schema) {
-	t.Helper()
-	backendGateSchema = s
-	backendGateSchemaErr = nil
-	backendGateSchemaOnce = sync.Once{}
-	backendGateSchemaOnce.Do(func() {})
-	t.Cleanup(func() {
-		backendGateSchema = nil
-		backendGateSchemaErr = nil
-		backendGateSchemaOnce = sync.Once{}
-	})
-}
-
-// VALIDATES: validateBackendGate rejects a firewall section when the active
-// backend is "" (the non-Linux default). The walker's empty-backend guard
-// fires regardless of YANG annotations and the rejection names the backend
-// leaf path so operators know where to set it.
-//
-// PREVENTS: A non-Linux deployment silently accepting a firewall config that
-// could never be programmed, with the Apply-time failure surfacing only after
-// commit.
-func TestFirewallBackendGateRejects_EmptyBackend(t *testing.T) {
-	data := `{"firewall":{"table":{"t1":{"name":"t1","family":"ip"}}}}`
-	sections := []sdk.ConfigSection{{Root: ConfigRoot, Data: data}}
-
-	err := validateBackendGate(sections, "")
-	require.Error(t, err, "empty backend must be rejected")
-	assert.Contains(t, err.Error(), backendLeafPath,
-		"rejection must name /firewall/backend so operators know where to set it")
-}
-
-// VALIDATES: validateBackendGate aggregates diagnostics for every YANG node
-// whose ze:backend annotation excludes the active backend. Synthetic schema
-// annotates the `table` list `ze:backend "nft"` and the active backend is
-// "vpp", so the walker emits a diagnostic naming the path and backends.
-//
-// PREVENTS: Wiring regression that disables the feature gate. If the walker
-// were bypassed or the annotation stopped flowing onto the schema node, the
-// annotated node would no longer produce a diagnostic and this test would
-// catch it.
-func TestFirewallBackendGateRejects_Synthetic(t *testing.T) {
-	list := config.List(config.TypeString,
-		config.Field("name", config.Leaf(config.TypeString)),
-	)
-	list.KeyName = "name"
-	list.Backend = []string{"nft"}
-
-	synthetic := config.NewSchema()
-	synthetic.Define(ConfigRoot, config.Container(
-		config.Field("backend", config.Leaf(config.TypeString)),
-		config.Field("table", list),
-	))
-
-	swapBackendGateSchema(t, synthetic)
-
-	data := `{"firewall":{"backend":"vpp","table":{"t1":{"name":"t1"}}}}`
-	sections := []sdk.ConfigSection{{Root: ConfigRoot, Data: data}}
-
-	err := validateBackendGate(sections, "vpp")
-	require.Error(t, err, "synthetic schema must reject vpp backend on nft-annotated list")
-	msg := err.Error()
-	assert.True(t, strings.Contains(msg, "/firewall/table"),
-		"rejection must name the /firewall/table YANG path, got: %s", msg)
-	assert.Contains(t, msg, `"vpp"`, "rejection must name the active backend")
-	assert.Contains(t, msg, "nft", "rejection must list supporting backends")
-}
-
-// VALIDATES: validateBackendGate accepts a firewall section when the active
-// backend matches every ze:backend annotation on the real schema. Today all
-// seven annotations are `ze:backend "nft"`, so backend="nft" with a minimal
-// firewall payload must return nil.
-//
-// PREVENTS: False positives if the walker ever learns to reject a config on
-// an annotation that names the active backend (the "narrowest wins" and
-// "absent annotation = unrestricted" rules must keep holding).
-func TestFirewallBackendGateAccepts_NftBackend(t *testing.T) {
-	data := `{"firewall":{"table":{"t1":{"name":"t1","family":"ip"}}}}`
-	sections := []sdk.ConfigSection{{Root: ConfigRoot, Data: data}}
-
-	err := validateBackendGate(sections, "nft")
-	require.NoError(t, err, "nft backend must satisfy every ze:backend \"nft\" annotation")
-}
 
 // VALIDATES: extractFlushOnShutdown parses the `flush-on-shutdown` leaf. Absent
 // leaf, empty data, and no firewall section all yield the fail-safe default
@@ -121,7 +28,7 @@ func TestExtractFlushOnShutdown(t *testing.T) {
 	}{
 		{name: "empty data defaults true", data: "", want: true},
 		{name: "no firewall section defaults true", data: `{"other":{}}`, want: true},
-		{name: "absent leaf defaults true", data: `{"firewall":{"backend":"nft"}}`, want: true},
+		{name: "absent leaf defaults true", data: `{"firewall":{"backend":"kernel"}}`, want: true},
 		{name: "json bool true", data: `{"firewall":{"flush-on-shutdown":true}}`, want: true},
 		{name: "json bool false", data: `{"firewall":{"flush-on-shutdown":false}}`, want: false},
 		{name: "string true", data: `{"firewall":{"flush-on-shutdown":"true"}}`, want: true},
@@ -160,7 +67,7 @@ func TestConfigureAcceptsIRRTableTerm(t *testing.T) {
 		resetTables()
 	})
 
-	data := `{"firewall":{"backend":"nft","table":{"wan":{"family":"inet","chain":{"input":{"type":"filter","hook":"input","priority":"0","policy":"drop","term":{"from-cloudflare":{"from":{"source-asn":"13335"},"then":{"accept":""}}}}}}}}}`
+	data := `{"firewall":{"backend":"kernel","table":{"wan":{"family":"inet","chain":{"input":{"type":"filter","hook":"input","priority":"0","policy":"drop","term":{"from-cloudflare":{"from":{"source-asn":"13335"},"then":{"accept":""}}}}}}}}}`
 	sections := []sdk.ConfigSection{{Root: ConfigRoot, Data: data}}
 
 	cfg, err := parseAndVerifyFirewallSections(sections, nil)
@@ -168,11 +75,11 @@ func TestConfigureAcceptsIRRTableTerm(t *testing.T) {
 	require.Len(t, cfg.Tables, 1)
 
 	var applied []Table
-	require.NoError(t, RegisterBackend("irr-merge-nft", func() (Backend, error) {
+	require.NoError(t, RegisterBackend("irr-merge-kernel", func() (Backend, error) {
 		return &countingBackend{onApply: func(d []Table) { applied = d }}, nil
 	}))
 	prev := defaultBackendForAutoload
-	defaultBackendForAutoload = "irr-merge-nft"
+	defaultBackendForAutoload = "irr-merge-kernel"
 	t.Cleanup(func() { defaultBackendForAutoload = prev })
 
 	_ = RegisterTables("firewall", cfg.Tables)
@@ -228,18 +135,18 @@ func TestConfigureAcceptsIRRTableTermWithOneFamily(t *testing.T) {
 		resetTables()
 	})
 
-	data := `{"firewall":{"backend":"nft","table":{"wan":{"family":"inet","chain":{"input":{"type":"filter","hook":"input","priority":"0","policy":"drop","term":{"from-cloudflare":{"from":{"source-asn":"13335"},"then":{"accept":""}}}}}}}}}`
+	data := `{"firewall":{"backend":"kernel","table":{"wan":{"family":"inet","chain":{"input":{"type":"filter","hook":"input","priority":"0","policy":"drop","term":{"from-cloudflare":{"from":{"source-asn":"13335"},"then":{"accept":""}}}}}}}}}`
 	sections := []sdk.ConfigSection{{Root: ConfigRoot, Data: data}}
 
 	cfg, err := parseAndVerifyFirewallSections(sections, nil)
 	require.NoError(t, err, "an IRR table term must pass the verify path")
 
 	var applied []Table
-	require.NoError(t, RegisterBackend("irr-one-family-nft", func() (Backend, error) {
+	require.NoError(t, RegisterBackend("irr-one-family-kernel", func() (Backend, error) {
 		return &countingBackend{onApply: func(d []Table) { applied = d }}, nil
 	}))
 	prev := defaultBackendForAutoload
-	defaultBackendForAutoload = "irr-one-family-nft"
+	defaultBackendForAutoload = "irr-one-family-kernel"
 	t.Cleanup(func() { defaultBackendForAutoload = prev })
 
 	_ = RegisterTables("firewall", cfg.Tables)

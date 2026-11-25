@@ -17,7 +17,7 @@ import (
 )
 
 // TestLowerLocalDestination reads the exact expression sequence of the
-// destination-local match: the nft form of `fib daddr type local`, a fib
+// destination-local match: the nftables form of `fib daddr type local`, a fib
 // lookup keyed on the destination address that stores the route type, then a
 // comparison with RTN_LOCAL in host byte order, the order nft_fib_eval stores.
 // A lookup keyed on the source, or one that stores the output interface,

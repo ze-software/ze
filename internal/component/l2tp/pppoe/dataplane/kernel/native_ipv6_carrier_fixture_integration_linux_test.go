@@ -292,7 +292,7 @@ func (f *nativeV6Fixture) requireAddress(t *testing.T, link netlink.Link) {
 			if !address.Peer.IP.Equal(peer) {
 				continue
 			}
-			// Netlink decodes IFA_LOCAL as a host prefix; the request's
+			// The netlink library decodes IFA_LOCAL as a host prefix; the request's
 			// /64 is retained on IFA_ADDRESS, exposed as the peer prefix.
 			localBits, localWidth := address.Mask.Size()
 			if localBits != 128 {

@@ -56,7 +56,7 @@ from the kernel: VyOS shipped a release where it did not (T9268).
 
 | Mechanism | Where (file + symbol, or page + section) | What it does today | This spec (extends, replaces, or does not apply, with the reason) |
 |-----------|------------------------------------------|--------------------|-------------------------------------------------------------------|
-| Neighbor readback | `Backend.ListNeighbors`, netlink `neighbor_linux.go`, VPP `neighbor.go` | Reads the table for show and consumers | Extends: add and delete beside it on the same backend interface |
+| Neighbor readback | `Backend.ListNeighbors`, kernel `neighbor_linux.go`, VPP `neighbor.go` | Reads the table for show and consumers | Extends: add and delete beside it on the same backend interface |
 | DHCP server reply neighbor write | `internal/plugins/dhcpserver` (logical-name-resolution page, "The DHCP server binds the same way") | Writes a neighbor entry for a reply on the answering device | Does not apply as the owner; its entries must survive this spec's reconcile |
 | Route ownership by protocol | `internal/core/rtproto`, forwarding door | Ze owns routes by `rtm_protocol` | Extends the idea: a static entry carries a Ze owner tag (NDA_PROTOCOL, A-1), and reconcile touches only tagged entries |
 | Selector binding | `config_apply.go` `deviceFor` | Resolves the device once per apply | Extends: entries land on the resolved device or unit device |
@@ -104,7 +104,7 @@ from the kernel: VyOS shipped a release where it did not (T9268).
 | ID | Assumption | Basis (file/doc/user statement) | If wrong | Validated by | Status |
 |----|-----------|--------------------------------|----------|--------------|--------|
 | A-1 | The Ze kernel keeps NDA_PROTOCOL on a neighbor entry and returns it on dump, so ownership is readable from the kernel after a restart | Linux 5.x added NDA_PROTOCOL | Ownership needs a persisted list in the state store instead | Integration test: add with protocol, dump, compare | unvalidated |
-| A-2 | The vendored netlink `Neigh` carries a protocol field, or Ze encodes the attribute itself | to check in `vendor/github.com/vishvananda/netlink` | Own encoder, or a module patch kept as a diff | Read the vendored type | unvalidated |
+| A-2 | The vendored `vishvananda/netlink` `Neigh` carries a protocol field, or Ze encodes the attribute itself | to check in `vendor/github.com/vishvananda/netlink` | Own encoder, or a module patch kept as a diff | Read the vendored type | unvalidated |
 | A-3 | VPP STATIC neighbors cannot carry an owner tag | `vpp/neighbor.go` maps only STATIC and NO_FIB_ENTRY | VPP reconcile must use a persisted list | Read the VPP API | unvalidated |
 
 ### Risks
@@ -175,7 +175,7 @@ N-A: no numeric input.
 ## Implementation Steps
 
 1. **Phase: Wiring** - YANG, parse, failing `.ci`.
-2. **Phase: Netlink** - tagged replace, owned-only reconcile.
+2. **Phase: Kernel** - tagged replace, owned-only reconcile.
 3. **Phase: VPP** - STATIC add and delete, or refusal.
 
 Proof: `./le test unit plugins`, `./le test functional plugin` for the named `.ci` file, `./le test qemu all`.

@@ -9,7 +9,7 @@ import (
 // given mirror destinations on its untagged unit.
 func mirrorCfg(ingressDst, egressDst string) *ifaceConfig {
 	return &ifaceConfig{
-		Backend: "netlink",
+		Backend: "kernel",
 		Dummy: []ifaceEntry{{
 			Name:  "mir0",
 			Units: []unitEntry{{MirrorIngress: ingressDst, MirrorEgress: egressDst}},
@@ -65,7 +65,7 @@ func TestApplyConfigRemovesMirrorDroppedFromConfig(t *testing.T) {
 	b.mirrorCalls = nil
 
 	current := &ifaceConfig{
-		Backend: "netlink",
+		Backend: "kernel",
 		Dummy:   []ifaceEntry{{Name: "mir0", Units: []unitEntry{{}}}},
 	}
 	if errs := applyConfig(current, previous, b); len(errs) > 0 {
@@ -78,7 +78,7 @@ func TestApplyConfigRemovesMirrorDroppedFromConfig(t *testing.T) {
 func TestApplyConfigRetiresChangedMirrorBeforeSetup(t *testing.T) {
 	// VALIDATES: AC-6 -- a changed destination is retired before the new one
 	// is installed.
-	// PREVENTS: both destinations receiving mirrored traffic, because tc
+	// PREVENTS: both destinations receiving mirrored traffic, because traffic control
 	// filters are additive and a second SetupMirror never retires the first.
 	b := &fakeBackend{}
 	previous := mirrorCfg("cap0", "")
@@ -150,7 +150,7 @@ func TestApplyConfigRemovesMirrorOnVLANUnit(t *testing.T) {
 	// device mirroring.
 	b := &fakeBackend{}
 	previous := &ifaceConfig{
-		Backend: "netlink",
+		Backend: "kernel",
 		Dummy: []ifaceEntry{{
 			Name:  "mir0",
 			Units: []unitEntry{{VLANID: 42, MirrorIngress: "cap0"}},
@@ -162,7 +162,7 @@ func TestApplyConfigRemovesMirrorOnVLANUnit(t *testing.T) {
 	b.mirrorCalls = nil
 
 	current := &ifaceConfig{
-		Backend: "netlink",
+		Backend: "kernel",
 		Dummy: []ifaceEntry{{
 			Name:  "mir0",
 			Units: []unitEntry{{VLANID: 42}},
@@ -187,7 +187,7 @@ func TestApplyConfigRemovesMirrorWhenUnitIsDisabled(t *testing.T) {
 	b.mirrorCalls = nil
 
 	current := &ifaceConfig{
-		Backend: "netlink",
+		Backend: "kernel",
 		Dummy: []ifaceEntry{{
 			Name:  "mir0",
 			Units: []unitEntry{{Disable: true, MirrorIngress: "cap0"}},
@@ -206,13 +206,13 @@ func TestApplyConfigSkipsMirrorTeardownForAbsentInterface(t *testing.T) {
 	// the operator removed along with its mirror.
 	b := &fakeBackend{}
 	previous := &ifaceConfig{
-		Backend: "netlink",
+		Backend: "kernel",
 		Ethernet: []ifaceEntry{{
 			Name:  "eth9",
 			Units: []unitEntry{{MirrorIngress: "cap0"}},
 		}},
 	}
-	current := &ifaceConfig{Backend: "netlink"}
+	current := &ifaceConfig{Backend: "kernel"}
 
 	if errs := applyConfig(current, previous, b); len(errs) > 0 {
 		t.Fatalf("apply current config: %v", errs)
@@ -230,10 +230,10 @@ func TestApplyConfigReportsMirrorTeardownFailure(t *testing.T) {
 		t.Fatalf("apply previous config: %v", errs)
 	}
 	b.mirrorCalls = nil
-	b.removeMirrorErr = map[string]error{"mir0": errors.New("netlink refused")}
+	b.removeMirrorErr = map[string]error{"mir0": errors.New("netlink error: refused")}
 
 	current := &ifaceConfig{
-		Backend: "netlink",
+		Backend: "kernel",
 		Dummy:   []ifaceEntry{{Name: "mir0", Units: []unitEntry{{}}}},
 	}
 	errs := applyConfig(current, previous, b)
@@ -253,7 +253,7 @@ func TestApplyConfigRetiresAMirrorNoConfigAsksFor(t *testing.T) {
 	b.seedMirror("mir0", "cap0", "")
 
 	current := &ifaceConfig{
-		Backend: "netlink",
+		Backend: "kernel",
 		Dummy:   []ifaceEntry{{Name: "mir0", Units: []unitEntry{{}}}},
 	}
 	if errs := applyConfig(current, nil, b); len(errs) > 0 {
@@ -273,7 +273,7 @@ func TestApplyConfigRetiresAMirrorAnEarlierTeardownSkipped(t *testing.T) {
 	b.seedMirror("mir0", "cap0", "")
 
 	settled := &ifaceConfig{
-		Backend: "netlink",
+		Backend: "kernel",
 		Dummy:   []ifaceEntry{{Name: "mir0", Units: []unitEntry{{}}}},
 	}
 	if errs := applyConfig(settled, settled, b); len(errs) > 0 {
@@ -310,10 +310,10 @@ func TestApplyConfigRemovesNoMirrorWhenTheDataplaneCannotBeRead(t *testing.T) {
 	// the error and acting on nothing is the only answer that claims neither.
 	b := &fakeBackend{}
 	b.seedMirror("mir0", "cap0", "")
-	b.listMirrorsErr = errors.New("netlink refused the filter dump")
+	b.listMirrorsErr = errors.New("netlink error: refused the filter dump")
 
 	current := &ifaceConfig{
-		Backend: "netlink",
+		Backend: "kernel",
 		Dummy:   []ifaceEntry{{Name: "mir0", Units: []unitEntry{{}}}},
 	}
 	if errs := applyConfig(current, nil, b); len(errs) > 0 {
@@ -338,7 +338,7 @@ func TestApplyConfigLeavesAMirrorOnAnInterfaceItDoesNotConfigure(t *testing.T) {
 	b.seedMirror("other0", "tap0", "")
 
 	current := &ifaceConfig{
-		Backend: "netlink",
+		Backend: "kernel",
 		Dummy:   []ifaceEntry{{Name: "mir0", Units: []unitEntry{{}}}},
 	}
 	if errs := applyConfig(current, nil, b); len(errs) > 0 {
@@ -410,7 +410,7 @@ func TestIndexMirrorSpecsCoversEveryInterfaceFamily(t *testing.T) {
 // the wrong port, which is worse than no copy at all.
 func TestMirrorDestinationFollowsItsSelector(t *testing.T) {
 	cfg := &ifaceConfig{
-		Backend: "netlink",
+		Backend: "kernel",
 		Ethernet: []ifaceEntry{
 			{Name: "wan", MatchMAC: selectedPermMAC, Units: []unitEntry{{Label: "0", MirrorIngress: "capture"}}},
 			{Name: "capture", OSName: "enp9s0"},
@@ -436,7 +436,7 @@ func TestMirrorDestinationFollowsItsSelector(t *testing.T) {
 // port's entry name.
 func TestMirrorDefersWhenItsDestinationIsAbsent(t *testing.T) {
 	cfg := &ifaceConfig{
-		Backend: "netlink",
+		Backend: "kernel",
 		Ethernet: []ifaceEntry{
 			{Name: "wan", MatchMAC: selectedPermMAC, Units: []unitEntry{{Label: "0", MirrorIngress: "capture"}}},
 			{Name: "capture", OSName: "enp9s0"}, // enp9s0 has not appeared
@@ -458,7 +458,7 @@ func TestMirrorDefersWhenItsDestinationIsAbsent(t *testing.T) {
 // capture.100; its kernel device is enp9s0.100.
 func vlanTargetConfig() *ifaceConfig {
 	return &ifaceConfig{
-		Backend: "netlink",
+		Backend: "kernel",
 		Ethernet: []ifaceEntry{
 			{Name: "wan", MatchMAC: selectedPermMAC, Units: []unitEntry{{Label: "0", MirrorEgress: "capture.100"}}},
 			{Name: "capture", OSName: "enp9s0", Units: []unitEntry{{Label: "100", VLANID: 100}}},
@@ -522,7 +522,7 @@ func TestMirrorToAVLANUnitDefersWhenItsParentIsUnbound(t *testing.T) {
 func TestMirrorTowardALaterEntrysVLANWaitsForTheVLAN(t *testing.T) {
 	b := &fakeBackend{mirrorNeedsDestination: true}
 	cfg := &ifaceConfig{
-		Backend: "netlink",
+		Backend: "kernel",
 		Dummy: []ifaceEntry{
 			{Name: "mir0", Units: []unitEntry{{MirrorEgress: "mir1.100"}}},
 			{Name: "mir1", Units: []unitEntry{{Label: "100", VLANID: 100}}},
@@ -560,7 +560,7 @@ func TestReconcileRetiresTheMirrorOnADisabledInterfacesDevice(t *testing.T) {
 	b.seedMirror("uplink", "tap0", "")
 
 	cfg := &ifaceConfig{
-		Backend:  "netlink",
+		Backend:  "kernel",
 		Ethernet: []ifaceEntry{{Name: "uplink", OSName: "eth3", Disable: true}},
 	}
 	if errs := applyConfig(cfg, nil, b); len(errs) > 0 {

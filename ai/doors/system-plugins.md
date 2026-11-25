@@ -111,7 +111,7 @@ Sysctl is not here: it is
   `listen-interface` only and dropped the rest without a log line
   (`plan/journal/multi-valued-leaf-read-as-single-valued.md`, 2026-09-08).
 - **One backend fixed, its sibling not.** The vpp firewall verifier refuses the
-  ARP and ND matches the nft backend lowers
+  ARP and ND matches the kernel firewall backend lowers
   (`plan/journal/guard-added-to-one-half-of-a-pair.md`, 2026-09-27).
 - **Backend registrations that tests never remove** fail a second
   `go test -count=2` pass (`plan/journal/registry-contamination.md`, 2026-10-17).

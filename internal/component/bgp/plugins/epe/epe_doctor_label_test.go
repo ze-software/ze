@@ -62,7 +62,7 @@ func publish(source *Source) error {
 // peer 192.0.2.1's label 16001; the session then goes down while the writer
 // refuses the removal, then accepts it.
 func TestEPELabelDoctorReportsRefusedLabels(t *testing.T) {
-	writer := &refusingEPEWriter{refusal: errors.New("netlink: in-label 16001 owned by source 2")}
+	writer := &refusingEPEWriter{refusal: errors.New("netlink error: in-label 16001 owned by source 2")}
 	source, peer := newRefusalSource(t, writer)
 
 	if got := source.labelDoctorFindings(); len(got) != 0 {
@@ -93,7 +93,7 @@ func TestEPELabelDoctorReportsRefusedLabels(t *testing.T) {
 	}
 
 	delete(source.sessions, peer)
-	writer.refusal = errors.New("netlink: no such device")
+	writer.refusal = errors.New("netlink error: no such device")
 	if err := publish(source); err == nil {
 		t.Fatal("a refused removal is an error of the publish")
 	}

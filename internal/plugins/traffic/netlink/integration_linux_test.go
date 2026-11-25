@@ -306,8 +306,8 @@ func ingressFilterPresent(t *testing.T, ifaceName string, priority uint16) bool 
 // Goal: prove the ingress policer is really installed, not merely translated.
 // Method: apply an InterfaceQoS carrying an Ingress policer to a veth in a
 // throwaway namespace, then read the police action back out of the kernel by
-// listing the ingress hook. A unit test over the translator proves the netlink
-// message is well formed; only this proves the kernel accepted it.
+// listing the ingress hook. A unit test over the translator proves the netlink message
+// is well formed; only this proves the kernel accepted it.
 //
 // PREVENTS: a return to the state where upload-rate was stored, reported by
 // `show l2tp shaper`, and enforced by nothing.

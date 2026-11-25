@@ -141,7 +141,7 @@ func requireUnroutable(t *testing.T, h *netlink.Handle, dest string) {
 	require.ErrorIs(t, err, unix.ENETUNREACH, "kernel still forwards %s through %+v", dest, route)
 }
 
-// newTestBackend creates a netlink backend using a pre-existing handle.
+// newTestBackend creates a kernel FIB backend using a pre-existing handle.
 // Allows injection of a namespace-scoped handle for integration testing.
 func newTestBackend(h *netlink.Handle) routeBackend {
 	return &netlinkBackend{handle: h}
@@ -215,7 +215,7 @@ func withdrawChange(prefix string) incomingChange {
 
 // VALIDATES: AC-8 -- sysrib/best-change with action "add" installs route via netlink.
 // VALIDATES: AC-16 -- fib-kernel routes use their producer-specific rtm_protocol ID.
-// PREVENTS: netlink backend silently failing to program real kernel routes.
+// PREVENTS: kernel FIB backend silently failing to program real kernel routes.
 // PREVENTS: a route the kernel holds but never selects (discarding type, wrong
 // table, unresolvable next-hop) passing as installed.
 func TestNetlinkIntegration_AddRoute(t *testing.T) {
@@ -532,7 +532,7 @@ func TestNetlinkIntegration_FlushRoutes(t *testing.T) {
 }
 
 // VALIDATES: a metric-carrying Add takes the richRouteBackend path
-// (addRichRoute -> netlink RTA_PRIORITY) and the matching Withdraw still removes
+// (addRichRoute -> netlink attribute RTA_PRIORITY) and the matching Withdraw still removes
 // the route from the kernel, even though delRichRoute sends no RTA_PRIORITY and
 // no gateway.
 // VALIDATES: the metric the backend writes is the one the kernel ranks by. A
@@ -562,7 +562,7 @@ func TestNetlinkIntegration_RemoveRichRouteWithMetric(t *testing.T) {
 
 		backend := newTestBackend(h)
 		f := newFIBKernel(backend)
-		require.NotNil(t, f.asRichBackend(), "netlink backend must be a richRouteBackend")
+		require.NotNil(t, f.asRichBackend(), "kernel FIB backend must be a richRouteBackend")
 
 		const prefix = "10.99.7.0/24"
 		const dest = "10.99.7.1"

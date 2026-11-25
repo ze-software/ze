@@ -1,6 +1,6 @@
 //go:build linux
 
-// Design: docs/architecture/core-design.md -- the Linux-only registrations of the nft backend
+// Design: docs/architecture/core-design.md -- the Linux-only registrations of the kernel firewall backend
 // Related: register.go -- the backend registration this init() runs beside
 // Related: doctor_linux.go -- checkFirewallNftables, the check registered here
 //

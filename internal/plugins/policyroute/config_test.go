@@ -426,7 +426,7 @@ func policyConfigWithProtocol(proto string) string {
 // VALIDATES: a protocol spelling outside the canonical firewall table is
 // refused at parse time, and the error names the leaf and the accepted values.
 // PREVENTS: an operator committing a protocol that only fails hours later, at
-// reconcile time, inside the nft backend -- where the failure is not local to
+// reconcile time, inside the kernel firewall backend -- where the failure is not local to
 // the offending rule, because Apply returns before its single Flush and leaves
 // every firewall owner's ruleset unapplied.
 func TestPolicyRouteProtocolRejectsUnknownName(t *testing.T) {

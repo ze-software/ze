@@ -179,7 +179,7 @@ interface and which address it concerns.
 | AC-2 | The same configuration on a driver that can apply it | Accepted and applied, exactly as today |
 | AC-3 | The dataplane refuses the request despite the verify-time verdict | The error names the interface and the address, and no bare number is the whole message |
 | AC-4 | A refused commit | The interface set is left as it was before the commit, and the operator can commit a corrected config immediately |
-| AC-5 | Any interface on the netlink backend | Unchanged behavior, and no new verify-time refusal |
+| AC-5 | Any interface on the kernel backend | Unchanged behavior, and no new verify-time refusal |
 
 ## End-to-End User Stories
 

@@ -847,7 +847,7 @@ func TestStopFencesCharacterization(t *testing.T) {
 
 // TestEmitDetectedDoesNotHoldDetectorMuAcrossFanout proves the detector does not
 // hold d.mu across the (synchronous, sequential) event fan-out. Detected reaches
-// ddos-local's onDetected, which reconciles nft inside the handler, so holding
+// ddos-local's onDetected, which reconciles nftables inside the handler, so holding
 // d.mu there parked the detector's own state behind a netlink round trip.
 // VALIDATES: spec-fixit-firewall-concurrency-deadlock, the L7 instance of the
 // lock-held-across-a-slow-call class.
@@ -859,7 +859,7 @@ func TestEmitDetectedDoesNotHoldDetectorMuAcrossFanout(t *testing.T) {
 	bus := newDTestBus()
 	ddosevent.Detected.Subscribe(bus, func(_ *ddosevent.AttackDetected) {
 		close(entered)
-		<-release // stands in for ddos-local's blocked nft reconcile
+		<-release // stands in for ddos-local's blocked nftables reconcile
 	})
 
 	d := newDetector(floodConfig(), bus, nil)
@@ -965,7 +965,7 @@ func TestClearedNeverOvertakesDetectedFanout(t *testing.T) {
 // remove), fans out, and only then records the flag. A clear landing inside that
 // fan-out advances attackGen and clears the flag under d.mu; recording the flag
 // afterwards without re-checking the generation puts it back to true for an
-// attack that no longer exists. The window is as wide as ddos-local's netlink
+// attack that no longer exists. The window is as wide as ddos-local's netlink socket
 // reconcile.
 //
 // VALIDATES: the flag is set under the same d.mu critical section that re-checks

@@ -18,7 +18,7 @@
 # attribute 241 carries Partial 0xE0 (RFC 4271 Section 5). On both, the low nibble 0x0F is cleared.
 # A writer that copies the flags verbatim fails both expectations octet for octet.
 
-# Linux-only: static `next { interface lo { } }` resolves loopback `lo` via Linux netlink.
+# Linux-only: static `next { interface lo { } }` resolves loopback `lo` via the Linux netlink socket.
 option=needs-linux
 stdin=peer:terminator=EOF_PEER
 option=tcp_connections:value=3

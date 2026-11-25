@@ -45,7 +45,7 @@ import (
 	"github.com/ze-software/ze/internal/core/rtproto"
 	"github.com/ze-software/ze/internal/test/userns"
 
-	// The nft backend registers itself, which is what lets firewall.ApplyAll
+	// The kernel backend registers itself, which is what lets firewall.ApplyAll
 	// reach the kernel from this test binary. The receive proofs assert what
 	// the KERNEL does with the rules ze publishes, so the real backend is the
 	// point rather than an implementation detail.

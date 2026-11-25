@@ -32,7 +32,7 @@ import (
 // ipsec_spd_entry_v2 carries no mode at all. In the VPP model the mode lives on the
 // SAD entry, as IPSEC_API_SAD_FLAG_IS_TUNNEL. A transport-mode policy and a
 // tunnel-mode policy would therefore reach VPP as the same request. That is the
-// silent-wrong-mode failure the netlink guard was written to stop (kernelXFRMMode,
+// silent-wrong-mode failure the netlink library guard was written to stop (kernelXFRMMode,
 // dataplane.go). Reading p.Mode here is what keeps the two apart.
 //
 // It is reachable independently of IKE. internal/plugins/ospf/ipsec_install.go asks

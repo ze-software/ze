@@ -133,7 +133,7 @@ func TestTBFInvalidInputLeavesKernelUntouched(t *testing.T) {
 			ops := newFakeTCOps()
 			b := newBackendWithOps(ops, nil, "boot-1", nil)
 			desired := map[string]traffic.InterfaceQoS{"ppp0": {Qdisc: c.qdisc, Ingress: c.ingress}}
-			if err := traffic.RunVerifier("tc", desired); err == nil {
+			if err := traffic.RunVerifier("kernel", desired); err == nil {
 				t.Fatal("config verifier accepted invalid input")
 			}
 			if err := b.Apply(context.Background(), desired); err == nil {

@@ -6,7 +6,7 @@
 // The installer translates the RFC 4552 manual-SA config into kernel transport-mode
 // SAs and proto-89 policies via the shared internal/component/ike/dataplane seam, keyed
 // to the OSPFv3 IPv6-family interface lifecycle. It owns the install/remove/reconcile
-// lifecycle and the ze_ospfv3_ipsec_* metrics; the dataplane owns the netlink mechanics.
+// lifecycle and the ze_ospfv3_ipsec_* metrics; the dataplane owns the netlink calls.
 //
 // Selector model (RFC 4552 §6/§7, transport mode only):
 //   - ONE SA PER OSPF DESTINATION, because the kernel resolves a transport-mode state by

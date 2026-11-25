@@ -20,7 +20,7 @@
 #
 # Method: the test store gives a container whose name starts with
 # "networked" the probe's run-networked mode (storeseam_zetest.go). Its first
-# act, before it writes anything else, is to record its links (netlink, which
+# act, before it writes anything else, is to record its links (via netlink, which
 # the default filter admits), its IPv4 default route (/proc/net/route) and one
 # TCP connection attempt to that route's gateway on port 9. Nothing needs to
 # listen: the gateway is a local address of the host, so a closed port
@@ -67,10 +67,10 @@ environment {
 # bridge and the link, and a firewall section, whose backend installs the
 # outbound table.
 interface {
-	backend netlink
+	backend kernel
 }
 firewall {
-	backend nft
+	backend kernel
 }
 container {
 	network lan {

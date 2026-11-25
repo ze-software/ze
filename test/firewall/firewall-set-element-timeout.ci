@@ -13,7 +13,7 @@
 #
 # EXCLUDED from the internal/le/test/qemu/netns_linux.go host-safe subset, so this
 #
-# The old reason -- "nft set-element-timeout ops CRASH the Alpine QEMU minimal
+# The old reason -- "nftables set-element-timeout ops CRASH the Alpine QEMU minimal
 # kernel" -- is FALSE. Measured on 2026-08-24 on stock 6.12.13-0-virt: the set
 # and the element are both accepted, the element reads back
 # `1.2.3.4 timeout 5s expires 4s990ms`, and the whole firewall suite runs 24/24
@@ -29,7 +29,7 @@ option=needs-linux:caps=net-admin
 
 stdin=ze-bgp:terminator=EOF_CONF
 firewall {
-	backend nft;
+	backend kernel;
 	table fw10_009 {
 		family inet;
 		set transient {

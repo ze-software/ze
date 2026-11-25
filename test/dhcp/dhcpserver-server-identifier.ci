@@ -7,7 +7,7 @@
 #            parseServerIdentifier (internal/plugins/dhcpserver/config.go) at
 #            commit; serveRequests -> segment.serverID and segment.withheld
 #            (segment.go) at reply time, over the device addresses read from
-#            netlink for each request.
+#            the netlink socket for each request.
 #            RFC 2131 Section 4.1: "To accommodate potentially incomplete
 #            network connectivity, a server MUST choose an address as a
 #            'server identifier' that, to the best of the server's knowledge,

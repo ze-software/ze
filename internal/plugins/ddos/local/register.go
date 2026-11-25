@@ -40,12 +40,18 @@ func loadBus() (ze.EventBus, error) {
 func init() {
 	reg := registry.Registration{
 		Name:         Name,
-		Description:  "DDoS local responder: on-host nft drop on attack detection",
+		Description:  "DDoS local responder: on-host nftables drop on attack detection",
 		Features:     "yang",
 		YANG:         localyang.ZeDdosLocalConfYANG,
 		ConfigRoots:  []string{configRoot},
 		Dependencies: []string{"firewall"},
-		RunEngine:    runEngine,
+		DataPlaneFeatures: []registry.DataPlaneFeature{{
+			ConfigPath:      configRoot,
+			Why:             "local DDoS mitigation registers firewall tables",
+			FollowsSelector: "firewall",
+			InUseKind:       registry.DataPlaneInUseConfigRoot,
+		}},
+		RunEngine: runEngine,
 		ConfigureEngineLogger: func(loggerName string) {
 			setLogger(slogutil.Logger(loggerName))
 		},
@@ -244,7 +250,7 @@ func (p *pendingConfig) rollback(string) error {
 // The exit-path withdrawal is best-effort at a daemon stop (stopResponder).
 // A crash runs no exit path, and flush-on-shutdown can leave tables installed.
 //
-// The nft backend refuses to delete a ze_ table it did not apply itself.
+// The kernel firewall backend refuses to delete a ze_ table it did not apply itself.
 // shouldDeleteTable (internal/plugins/firewall/nft/backend_linux.go) sweeps a ze_
 // name only when it is in the desired set or in THIS backend instance's applied
 // map, and a fresh process's map is empty.

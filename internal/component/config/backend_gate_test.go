@@ -18,18 +18,18 @@ import (
 // PREVENTS: False positives on a supported combination.
 func TestValidateBackendFeatures_SupportedAccepts(t *testing.T) {
 	schema := buildSyntheticIfaceSchema(map[string][]string{
-		"bridge": {"netlink"},
+		"bridge": {"kernel"},
 	})
 	tree := map[string]any{
 		"interface": map[string]any{
-			"backend": "netlink",
+			"backend": "kernel",
 			"bridge": map[string]any{
 				"br0": map[string]any{"name": "br0"},
 			},
 		},
 	}
-	errs := validateBackendFeatures(tree, schema, "interface", "netlink", "/interface/backend")
-	assert.Empty(t, errs, "netlink backend should accept bridge")
+	errs := validateBackendFeatures(tree, schema, "interface", "kernel", "/interface/backend")
+	assert.Empty(t, errs, "kernel backend should accept bridge")
 }
 
 // VALIDATES: validateBackendFeatures emits one error per YANG path whose
@@ -39,7 +39,7 @@ func TestValidateBackendFeatures_SupportedAccepts(t *testing.T) {
 // PREVENTS: Silent acceptance of an unsupported feature reaching Apply.
 func TestValidateBackendFeatures_UnsupportedRejects(t *testing.T) {
 	schema := buildSyntheticIfaceSchema(map[string][]string{
-		"bridge": {"netlink"},
+		"bridge": {"kernel"},
 	})
 	tree := map[string]any{
 		"interface": map[string]any{
@@ -54,7 +54,7 @@ func TestValidateBackendFeatures_UnsupportedRejects(t *testing.T) {
 	msg := errs[0].Error()
 	assert.Contains(t, msg, "/interface/bridge", "error must name the YANG path")
 	assert.Contains(t, msg, `"vpp"`, "error must name the active backend")
-	assert.Contains(t, msg, "netlink", "error must list supporting backends")
+	assert.Contains(t, msg, "kernel", "error must list supporting backends")
 }
 
 // VALIDATES: Walker aggregates all unsupported features in a single pass.
@@ -63,9 +63,9 @@ func TestValidateBackendFeatures_UnsupportedRejects(t *testing.T) {
 //	one at a time).
 func TestValidateBackendFeatures_AggregatesMultiple(t *testing.T) {
 	schema := buildSyntheticIfaceSchema(map[string][]string{
-		"bridge":    {"netlink"},
-		"tunnel":    {"netlink"},
-		"wireguard": {"netlink"},
+		"bridge":    {"kernel"},
+		"tunnel":    {"kernel"},
+		"wireguard": {"kernel"},
 	})
 	tree := map[string]any{
 		"interface": map[string]any{
@@ -126,8 +126,8 @@ func TestValidateBackendFeatures_ChoiceCaseOverride(t *testing.T) {
 		Field("tunnel", &ListNode{
 			KeyType:  TypeString,
 			KeyName:  "name",
-			Backend:  []string{"netlink"},
-			children: map[string]Node{"name": Leaf(TypeString), "vxlan": &ContainerNode{children: map[string]Node{"id": Leaf(TypeUint32)}, order: []string{"id"}, Backend: []string{"netlink", "vpp"}}},
+			Backend:  []string{"kernel"},
+			children: map[string]Node{"name": Leaf(TypeString), "vxlan": &ContainerNode{children: map[string]Node{"id": Leaf(TypeUint32)}, order: []string{"id"}, Backend: []string{"kernel", "vpp"}}},
 			order:    []string{"name", "vxlan"},
 		}),
 	)
@@ -150,7 +150,7 @@ func TestValidateBackendFeatures_ChoiceCaseOverride(t *testing.T) {
 // VALIDATES: An empty active backend produces a single clear error.
 // PREVENTS: Silent acceptance when the user forgot to configure a backend.
 func TestValidateBackendFeatures_EmptyActiveBackend(t *testing.T) {
-	schema := buildSyntheticIfaceSchema(map[string][]string{"bridge": {"netlink"}})
+	schema := buildSyntheticIfaceSchema(map[string][]string{"bridge": {"kernel"}})
 	tree := map[string]any{
 		"interface": map[string]any{
 			"bridge": map[string]any{"br0": map[string]any{"name": "br0"}},
@@ -164,7 +164,7 @@ func TestValidateBackendFeatures_EmptyActiveBackend(t *testing.T) {
 // VALIDATES: When componentRoot is absent from the tree, walker returns nil.
 // PREVENTS: Spurious errors when the user has no config for a given component.
 func TestValidateBackendFeatures_AbsentComponentRoot(t *testing.T) {
-	schema := buildSyntheticIfaceSchema(map[string][]string{"bridge": {"netlink"}})
+	schema := buildSyntheticIfaceSchema(map[string][]string{"bridge": {"kernel"}})
 	tree := map[string]any{
 		"bgp": map[string]any{},
 	}
@@ -183,7 +183,7 @@ func TestGetBackendExtension_Deduplicates(t *testing.T) {
 	list := &ListNode{
 		KeyType:  TypeString,
 		KeyName:  "name",
-		Backend:  []string{"netlink"}, // dedup already applied at build
+		Backend:  []string{"kernel"}, // dedup already applied at build
 		children: map[string]Node{"name": Leaf(TypeString)},
 		order:    []string{"name"},
 	}
@@ -200,29 +200,7 @@ func TestGetBackendExtension_Deduplicates(t *testing.T) {
 	}
 	errs := validateBackendFeatures(tree, schema, "interface", "vpp", "/interface/backend")
 	require.Len(t, errs, 1)
-	assert.Contains(t, errs[0].Error(), "supported: netlink")
-}
-
-// VALIDATES: ValidateBackendFeaturesJSON parses a raw JSON string then
-//
-//	delegates to the core walker.
-//
-// PREVENTS: Duplicate JSON-parse logic at every component call site.
-func TestValidateBackendFeaturesJSON(t *testing.T) {
-	schema := buildSyntheticIfaceSchema(map[string][]string{"bridge": {"netlink"}})
-	data := `{"interface":{"backend":"vpp","bridge":{"br0":{"name":"br0"}}}}`
-	errs := ValidateBackendFeaturesJSON(data, schema, "interface", "vpp", "/interface/backend")
-	require.Len(t, errs, 1)
-	assert.Contains(t, errs[0].Error(), "/interface/bridge")
-}
-
-// VALIDATES: Malformed JSON produces one parse error, not a crash.
-// PREVENTS: Caller panics on bad section data.
-func TestValidateBackendFeaturesJSON_BadJSON(t *testing.T) {
-	schema := buildSyntheticIfaceSchema(map[string][]string{"bridge": {"netlink"}})
-	errs := ValidateBackendFeaturesJSON("{{not-json}", schema, "interface", "netlink", "/interface/backend")
-	require.Len(t, errs, 1)
-	assert.Contains(t, errs[0].Error(), "parse")
+	assert.Contains(t, errs[0].Error(), "supported: kernel")
 }
 
 // VALIDATES: Walker evaluates list entries independently. A per-case
@@ -235,20 +213,20 @@ func TestValidateBackendFeaturesJSON_BadJSON(t *testing.T) {
 //	one accepting entry masked unsupported features in sibling
 //	entries.
 func TestValidateBackendFeatures_PerEntryIndependence(t *testing.T) {
-	// Tunnel list annotated netlink-only. The `vxlan` case accepts both
-	// netlink and vpp; other cases (here: a plain container without
+	// Tunnel list annotated kernel-only. The `vxlan` case accepts both
+	// kernel and vpp; other cases (here: a plain container without
 	// override) carry no override.
 	schema := NewSchema()
 	tunnel := &ListNode{
 		KeyType: TypeString,
 		KeyName: "name",
-		Backend: []string{"netlink"},
+		Backend: []string{"kernel"},
 		children: map[string]Node{
 			"name": Leaf(TypeString),
 			"vxlan": &ContainerNode{
 				children: map[string]Node{"id": Leaf(TypeUint32)},
 				order:    []string{"id"},
-				Backend:  []string{"netlink", "vpp"},
+				Backend:  []string{"kernel", "vpp"},
 			},
 			"gre": &ContainerNode{
 				children: map[string]Node{"key": Leaf(TypeUint32)},
@@ -293,13 +271,13 @@ func TestValidateBackendFeatures_NestedRejectsDoNotDoubleEmit(t *testing.T) {
 		Field("bridge", &ListNode{
 			KeyType: TypeString,
 			KeyName: "name",
-			Backend: []string{"netlink"},
+			Backend: []string{"kernel"},
 			children: map[string]Node{
 				"name": Leaf(TypeString),
 				"stp": &ContainerNode{
 					children: map[string]Node{"enabled": Leaf(TypeBool)},
 					order:    []string{"enabled"},
-					Backend:  []string{"netlink"}, // nested reject
+					Backend:  []string{"kernel"}, // nested reject
 				},
 			},
 			order: []string{"name", "stp"},
@@ -333,7 +311,7 @@ func TestValidateBackendFeatures_InlineListNodeAnnotation(t *testing.T) {
 	inline := InlineList(TypePrefix,
 		Field("next-hop", Leaf(TypeIP)),
 	)
-	inline.Backend = []string{"netlink"}
+	inline.Backend = []string{"kernel"}
 
 	schema := NewSchema()
 	schema.Define("interface", Container(
@@ -352,7 +330,7 @@ func TestValidateBackendFeatures_InlineListNodeAnnotation(t *testing.T) {
 	errs := validateBackendFeatures(tree, schema, "interface", "vpp", "/interface/backend")
 	require.Len(t, errs, 1, "inline-list with rejecting annotation must emit per-entry error")
 	assert.Contains(t, errs[0].Error(), "/interface/route/10.0.0.0/8")
-	assert.Contains(t, errs[0].Error(), "netlink")
+	assert.Contains(t, errs[0].Error(), "kernel")
 }
 
 // VALIDATES: FlexNode carries ze:backend through schema build and the
@@ -367,7 +345,7 @@ func TestValidateBackendFeatures_FlexNodeAnnotation(t *testing.T) {
 	flex := Flex(
 		Field("enabled", Leaf(TypeBool)),
 	)
-	flex.Backend = []string{"netlink"}
+	flex.Backend = []string{"kernel"}
 
 	schema := NewSchema()
 	schema.Define("interface", Container(
@@ -384,7 +362,7 @@ func TestValidateBackendFeatures_FlexNodeAnnotation(t *testing.T) {
 	errs := validateBackendFeatures(tree, schema, "interface", "vpp", "/interface/backend")
 	require.Len(t, errs, 1, "flex with rejecting annotation must emit at its own path")
 	assert.Contains(t, errs[0].Error(), "/interface/feature")
-	assert.Contains(t, errs[0].Error(), "netlink")
+	assert.Contains(t, errs[0].Error(), "kernel")
 }
 
 // VALIDATES: Multiple ze:backend statements on the same YANG entry are
@@ -397,19 +375,19 @@ func TestValidateBackendFeatures_FlexNodeAnnotation(t *testing.T) {
 func TestGetBackendExtension_MergesMultipleStatements(t *testing.T) {
 	entry := &gyang.Entry{
 		Exts: []*gyang.Statement{
-			{Keyword: "ze:backend", Argument: "netlink"},
-			{Keyword: "ze:backend", Argument: "vpp netlink"},
+			{Keyword: "ze:backend", Argument: "kernel"},
+			{Keyword: "ze:backend", Argument: "vpp kernel"},
 		},
 	}
 	got := getBackendExtension(entry)
-	assert.Equal(t, []string{"netlink", "vpp"}, got,
+	assert.Equal(t, []string{"kernel", "vpp"}, got,
 		"multiple ze:backend statements must merge with dedup in first-seen order")
 }
 
 // TestBackendExtensionNames_AllAnnotationsNameKnownBackends walks every
 // loaded YANG entry, collects every ze:backend argument, and asserts each
 // name is one of the backends registered by the components that ship in
-// ze today. Catches typos (e.g. "netfilter" instead of "nft") at test
+// ze today. Catches typos (e.g. "netfilter" instead of "kernel") at test
 // time rather than at commit time when a user hits a silently-unreachable
 // annotation. Also catches an annotation left over after a backend name
 // is renamed.
@@ -426,12 +404,10 @@ func TestBackendExtensionNames_AllAnnotationsNameKnownBackends(t *testing.T) {
 	require.NoError(t, err)
 
 	// Known backends today. Update this when a new backend is registered.
-	// iface: netlink, vpp ; firewall: nft ; traffic: tc.
+	// iface, firewall, traffic: kernel, vpp.
 	knownBackends := map[string]bool{
-		"netlink": true,
-		"vpp":     true,
-		"nft":     true,
-		"tc":      true,
+		"kernel": true,
+		"vpp":    true,
 	}
 
 	seen := map[string][]string{} // name -> paths carrying it
@@ -555,13 +531,13 @@ func TestBackendGateIPv6Autoconf(t *testing.T) {
 			rejected: "/interface/ethernet/eth0/unit/0/ipv6/accept-ra",
 		},
 		{
-			name:    "autoconf under netlink is accepted",
-			backend: "netlink",
+			name:    "autoconf under kernel is accepted",
+			backend: "kernel",
 			ipv6:    map[string]any{"autoconf": true},
 		},
 		{
-			name:    "accept-ra under netlink is accepted",
-			backend: "netlink",
+			name:    "accept-ra under kernel is accepted",
+			backend: "kernel",
 			ipv6:    map[string]any{"accept-ra": float64(2)},
 		},
 		{
@@ -582,7 +558,7 @@ func TestBackendGateIPv6Autoconf(t *testing.T) {
 			require.Len(t, errs, 1)
 			assert.Contains(t, errs[0].Error(), tc.rejected)
 			assert.Contains(t, errs[0].Error(), `backend "`+tc.backend+`"`)
-			assert.Contains(t, errs[0].Error(), "supported: netlink")
+			assert.Contains(t, errs[0].Error(), "supported: kernel")
 		})
 	}
 }
@@ -607,7 +583,7 @@ func TestBackendGateIPv6AcceptRADefaultIsNotMaterialized(t *testing.T) {
 	leaf, ok := node.(*LeafNode)
 	require.True(t, ok, "accept-ra must resolve to a LeafNode")
 	require.Equal(t, "0", leaf.Default, "the default this test is about must still exist")
-	require.Equal(t, []string{"netlink"}, leaf.Backend)
+	require.Equal(t, []string{"kernel"}, leaf.Backend)
 
 	tree := ifaceUnitIPv6Tree("vpp", map[string]any{"address": []any{"fd00::1/64"}})
 	errs := validateBackendFeatures(tree, schema, "interface", "vpp", "/interface/backend")

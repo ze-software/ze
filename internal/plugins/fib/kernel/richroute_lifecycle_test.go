@@ -1,8 +1,8 @@
 // Design: docs/architecture/core-design.md -- FIB Kernel (section 16): rich route programming
 // Related: richroute.go -- RichRoute and the richRouteBackend interface
-// Related: nexthop_linux.go -- the netlink backend that implements it
+// Related: nexthop_linux.go -- the kernel FIB backend that implements it
 //
-// The rich path is what Linux actually runs: the netlink backend implements
+// The rich path is what Linux actually runs: the kernel FIB backend implements
 // richRouteBackend, so any change carrying rich fields (a metric is enough)
 // programs the kernel through addRichRoute/delRichRoute. Before this file the
 // richMockBackend in fibkernel_test.go was only ever asserted on richAdded --

@@ -56,7 +56,7 @@ repeat them.
 | Firewall match model and lowering | `internal/component/firewall/model.go` `Match`; `lower_linux.go` `lowerMatch` | Typed matches lowered to nft expressions | Extends: one time match type, one lowering case |
 | Policy routing on firewall terms | `internal/plugins/policyroute/translate.go` `translate` | Turns policy rules into firewall terms | Extends: a policy rule's `from` block gains the same time leaves, reusing the firewall match |
 | Firewall apply and readback | `firewall.ApplyAll`, `docs/architecture/firewall/table-ownership-and-shutdown-flush.md` | Reconciles Ze-owned tables on commit | Extends: the UTC-offset refresh (AC-5) re-applies through the same path, and must keep set contents and counters |
-| Backend capability gate | `ze:backend`, `config.validateBackendFeatures` | Refuses a node a backend cannot program | Extends: `time` carries `ze:backend "nft"` unless the VPP backend can program it exactly |
+| Backend capability gate | `ze:backend`, `config.validateBackendFeatures` | Refuses a node a backend cannot program | Extends: `time` carries `ze:backend "kernel"` unless the VPP backend can program it exactly |
 
 ## Data Flow (MANDATORY - see `ai/rules/architecture.md`)
 
@@ -73,7 +73,7 @@ repeat them.
 | Boundary | How | Verified |
 |----------|-----|----------|
 | Config → firewall component | YANG tree | No |
-| Firewall component → nft backend | `Backend.Apply` | No |
+| Firewall component → kernel backend | `Backend.Apply` | No |
 
 ### Integration Points
 - `lowerMatch` and `validateMatch` - one case each

@@ -37,7 +37,7 @@ channel and unit to a kernel session handle before handing borrowed frames to PP
    against an existing `StateDiscovery` session (`pppoe/server.go`), allocates a session ID
    (`AllocSID`, `pppoe/session.go`), creates a `Session{State: StateDiscovery}`
    (`pppoe/server.go`), and calls the selected `dataplane.Backend.Open` factory.
-   Its request carries the resolved device, SID and peer MAC. The netlink provider
+   Its request carries the resolved device, SID and peer MAC. The kernel provider
    (`pppoe/dataplane/kernel`) creates PPPoX and the channel/unit lease, then returns
    one validated `dataplane.OpenedSession`. The session table publishes that owner
    with `setOpened`. **Only after the factory succeeds** does the server send PADS;

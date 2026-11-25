@@ -14,7 +14,16 @@ var errUnsupportedPlatform = errStaticRoutesNotSupportedOnThis
 
 type unsupportedStaticBackend struct{}
 
-func newStaticBackend() routeBackend { return &unsupportedStaticBackend{} }
+func newStaticBackendForDataPlane(dataPlane string) (routeBackend, error) {
+	switch dataPlane {
+	case dataPlaneKernel:
+		return &unsupportedStaticBackend{}, nil
+	case dataPlaneVPP:
+		return nil, staticVPPChannelError(errUnsupportedPlatform)
+	default:
+		return nil, unrecognizedDataPlaneError(dataPlane)
+	}
+}
 
 func (n *unsupportedStaticBackend) applyRoute(_ staticRoute) error  { return errUnsupportedPlatform }
 func (n *unsupportedStaticBackend) removeRoute(_ staticRoute) error { return errUnsupportedPlatform }

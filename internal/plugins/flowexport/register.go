@@ -9,6 +9,7 @@ import (
 
 	"github.com/ze-software/ze/internal/component/iface"
 	"github.com/ze-software/ze/internal/component/plugin/registry"
+	"github.com/ze-software/ze/internal/core/configvalue"
 	"github.com/ze-software/ze/internal/core/ddosevent"
 	"github.com/ze-software/ze/internal/core/metrics"
 	"github.com/ze-software/ze/internal/core/slogutil"
@@ -84,6 +85,22 @@ func init() {
 			Value:     "true",
 			Providers: []string{bgpRIBPlugin},
 		}},
+		DataPlaneFeatures: []registry.DataPlaneFeature{
+			{
+				ConfigPath: "flow-export sampling",
+				Why:        "flow export sampling installs a kernel traffic-control filter",
+				Planes:     []string{"kernel"},
+				InUseKind:  registry.DataPlaneInUsePredicate,
+				InUse:      samplingDataPlaneInUse,
+			},
+			{
+				ConfigPath: "flow-export conntrack",
+				Why:        "the kernel conntrack table sees none of the flows VPP forwards",
+				Planes:     []string{"kernel"},
+				InUseKind:  registry.DataPlaneInUsePredicate,
+				InUse:      conntrackDataPlaneInUse,
+			},
+		},
 		RunEngine: runEngine,
 		ConfigureEngineLogger: func(loggerName string) {
 			setLogger(slogutil.Logger(loggerName))
@@ -112,6 +129,34 @@ func init() {
 	}
 
 	RegisterHealthCheck()
+}
+
+// samplingDataPlaneInUse reports whether tree configures the flow-export
+// sampling container, which installs a kernel traffic-control sample filter.
+func samplingDataPlaneInUse(tree map[string]any) registry.DataPlaneFeatureUse {
+	if configvalue.Section("flow-export/sampling", tree) == nil {
+		return registry.DataPlaneFeatureUse{}
+	}
+	return registry.DataPlaneFeatureUse{InUse: true}
+}
+
+// conntrackDataPlaneInUse reports whether tree enables conntrack flow records
+// (`flow-export conntrack enabled true`), which read only the Linux kernel
+// conntrack table. An absent `enabled` leaf keeps its YANG default (`false`).
+func conntrackDataPlaneInUse(tree map[string]any) registry.DataPlaneFeatureUse {
+	ct := configvalue.Section("flow-export/conntrack", tree)
+	if ct == nil {
+		return registry.DataPlaneFeatureUse{}
+	}
+	if enabled, ok := configvalue.Bool(ct["enabled"]); ok {
+		if enabled {
+			return registry.DataPlaneFeatureUse{
+				InUse:     true,
+				SecondFix: "set flow-export conntrack enabled false",
+			}
+		}
+	}
+	return registry.DataPlaneFeatureUse{}
 }
 
 func runEngine(conn net.Conn) int {

@@ -43,6 +43,9 @@ const configRoot = "fib/kernel"
 // of a sysctl default, and enrolls its kernel capability with.
 const pluginName = "fib-kernel"
 
+// kernelPlaneName is the data-plane name and kernel dependency name this plugin registers under.
+const kernelPlaneName = "kernel"
+
 type fibConfig struct {
 	FlushOnStop bool
 	SweepDelay  time.Duration
@@ -215,7 +218,7 @@ func init() {
 		// programs the Linux route table for the router's own traffic when paired
 		// with fib-vpp (fib-kernel alone under VPP is refused by the verdict).
 		ProgramsFIB:              true,
-		DataPlane:                "kernel",
+		DataPlane:                kernelPlaneName,
 		HostSideDataPlane:        true,
 		PreservesForwardingState: preservesForwardingState,
 		InProcessConfigVerifier:  verifyFIBConfig,

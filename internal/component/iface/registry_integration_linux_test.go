@@ -3,7 +3,7 @@
 // Design: docs/architecture/core-design.md -- Interface Management (section 14): generic
 // plugin-to-iface address-ownership registry, real-kernel proof
 // Related: config_apply_test.go's TestReconcileOnRegistryChange_AppliesAddressToBackend
-// -- the same scenario against a fake backend; this file is the real-netlink
+// -- the same scenario against a fake backend; this file is the real-kernel
 // counterpart that spec-as112-1 deferred to "the first spec with a real plugin
 // consumer" and that consumer (spec-as112-2) never built.
 

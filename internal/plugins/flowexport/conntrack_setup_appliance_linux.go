@@ -49,7 +49,7 @@ func setupConntrackTracking(log *slog.Logger) {
 	log.Info("flow-export: conntrack tracking enabled (appliance nf_conntrack init)")
 }
 
-// loadConntrackModules best-effort loads the base + netlink conntrack modules.
+// loadConntrackModules best-effort loads the base + ctnetlink conntrack modules.
 // On gokrazy these are built into the kernel and modprobe is absent, so a LookPath
 // miss (or a modprobe error on a built-in module) is expected and only logged at
 // debug -- the tracking hook below still registers against the built-in module.
@@ -87,7 +87,7 @@ func enableConntrackAccounting(log *slog.Logger) {
 // rule references `ct state`. Referencing ct in any base chain makes nftables call
 // nf_ct_netns_get, which registers the conntrack tracking hooks for the whole
 // netns -- the module alone tracks nothing. Installed over netlink via
-// google/nftables (no `nft` binary exists on gokrazy). Idempotent by construction
+// google/nftables (no nft binary exists on gokrazy). Idempotent by construction
 // (guarded by conntrackSetupOnce); a fresh Flush replaces the table if present.
 func registerConntrackHook() error {
 	conn, err := nftables.New()

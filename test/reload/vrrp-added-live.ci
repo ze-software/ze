@@ -20,7 +20,7 @@
 # Before the commit `show vrrp` answers an empty list, so the lacks step
 # proves the group is absent until the commit.
 #
-# PLATFORM: needs Linux with CAP_NET_ADMIN (macvlan, raw sockets, netlink VIP
+# PLATFORM: needs Linux with CAP_NET_ADMIN (macvlan, raw sockets, netlink address VIP
 # install), as test/vrrp/vrrp-track.ci, whose setup fixture builds the parent
 # zeptrk0 and the tracked zetrk1 veths. A user and network namespace
 # (`unshare -rn`, loopback up) is enough. The tracking demotion itself is
@@ -57,7 +57,7 @@ environment {
 }
 
 interface {
-    backend netlink;
+    backend kernel;
     ethernet zeptrk0 {
         unit 0 {
             ipv4 {

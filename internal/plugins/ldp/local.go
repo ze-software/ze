@@ -132,7 +132,7 @@ var errIfaceBackendUnavailable = errors.New("no interface backend could be loade
 
 // ifaceBackendFix is the next step when no iface backend loads: this build
 // has no default backend, or the default one failed to start.
-const ifaceBackendFix = "configure an interface backend: interface { backend netlink; }"
+const ifaceBackendFix = "configure an interface backend: interface { backend kernel; }"
 
 // ifaceReadFix returns the operator's next step for an interface read that
 // failed with err: the backend config when no backend loaded, otherwise a

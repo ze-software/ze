@@ -77,7 +77,7 @@ design remain required before this skeleton is ready to implement.
 ## Current Behavior (MANDATORY)
 
 **Source files read:**
-- [ ] `internal/plugins/iface/netlink/bridge_linux.go` - `LinkSetMaster` is used only for bridge ports (bridge_linux.go), never for VRF; there is no `netlink.Vrf` device creation anywhere in the netlink backend.
+- [ ] `internal/plugins/iface/netlink/bridge_linux.go` - `LinkSetMaster` is used only for bridge ports (bridge_linux.go), never for VRF; there is no `netlink.Vrf` device creation anywhere in the kernel backend.
 - [ ] `internal/component/iface/yang/ze-iface-conf.yang` - per-unit `leaf vrf` is a string with `ze:validate "unimplemented-vrf"`. The refusal must stay until VRF device and membership behavior is implemented; then replace it with real name and membership validation.
   -> Decision: the leaf is REFUSED rather than deleted. Nothing in the config walk emits `ErrTypeUnknown` (`internal/component/config/validate_sections.go`), so deleting the leaf would leave `vrf red` skipped in silence, which is the defect again with a different spelling.
 - [ ] `internal/plugins/policyroute/rules_linux.go` - the only ip-rule/fwmark machinery, with its own independent mark range; no VRF or table linkage.
@@ -94,11 +94,11 @@ design remain required before this skeleton is ready to implement.
 
 ### Entry Point
 - Config: a top-level `vrf` definition (name → routing table id) plus the existing per-unit `vrf <name>` membership leaf in `ze-iface-conf.yang`.
-- Applied via the iface netlink backend at config apply.
+- Applied via the iface kernel backend at config apply.
 
 ### Transformation Path
 1. Config parsed: VRF definitions (name, table) and per-interface membership.
-2. Netlink creates a VRF master device per VRF, bound to its table id.
+2. The kernel backend creates a VRF master device per VRF, bound to its table id.
 3. Member interfaces are enslaved to the VRF master (`LinkSetMaster` to the VRF, analogous to bridge ports).
 4. Routing/ip-rules direct traffic on member interfaces to the VRF table; tunnel interfaces (e.g. WireGuard fwmark) resolve to the correct table.
 5. VRF-aware services bind within the VRF where configured.
@@ -106,7 +106,7 @@ design remain required before this skeleton is ready to implement.
 ### Boundaries Crossed
 | Boundary | How | Verified |
 |----------|-----|----------|
-| Config ↔ iface netlink | VRF defs + membership → device creation/enslavement | [ ] |
+| Config ↔ iface kernel backend | VRF defs + membership → device creation/enslavement | [ ] |
 | iface ↔ routing/sysrib | per-VRF table id, routes installed into the right table | [ ] |
 | iface ↔ policyroute | fwmark/table rules coordinated, no mark-range collision | [ ] |
 
@@ -126,7 +126,7 @@ design remain required before this skeleton is ready to implement.
 ### Assumptions
 | ID | Assumption | Basis (file/doc/user statement) | If wrong | Validated by | Status |
 |----|-----------|--------------------------------|----------|--------------|--------|
-| A-1 | The netlink backend can create l3mdev VRF devices and enslave members | `LinkSetMaster` already used for bridges | needs new netlink plumbing | spike with the netlink library | unvalidated |
+| A-1 | The kernel backend can create l3mdev VRF devices and enslave members | `LinkSetMaster` already used for bridges | needs new netlink message plumbing | spike with the netlink library | unvalidated |
 | A-2 | policyroute's fwmark range can coexist with VRF table selection | policyroute uses a fixed mark range | collision requires coordination | read policyroute marks during RESEARCH | unvalidated |
 | A-3 | sysrib can install routes into per-VRF tables | routing table model | routing rework needed | read sysrib during RESEARCH | unvalidated |
 
@@ -140,7 +140,7 @@ design remain required before this skeleton is ready to implement.
 
 | Entry Point | → | Feature Code | Test |
 |-------------|---|--------------|------|
-| `set interfaces ... vrf red` + VRF def | → | netlink creates VRF master, enslaves the unit | `test/qemu/vrf-enslave.ci` |
+| `set interfaces ... vrf red` + VRF def | → | kernel backend creates VRF master, enslaves the unit | `test/qemu/vrf-enslave.ci` |
 
 ## Acceptance Criteria
 
@@ -207,7 +207,7 @@ design remain required before this skeleton is ready to implement.
 | 1. Read spec | This file (skeleton — run `/ze-spec` RESEARCH/DESIGN first) |
 
 ### Implementation Phases
-1. **Child RESEARCH/DESIGN (not started):** use the umbrella's agreed architecture for netlink VRF plumbing, the sysrib table model, policyroute coordination and QEMU test design. This child is not implementable as-is.
+1. **Child RESEARCH/DESIGN (not started):** use the umbrella's agreed architecture for kernel VRF plumbing, the sysrib table model, policyroute coordination and QEMU test design. This child is not implementable as-is.
 
 ## Mistake Log
 ### Wrong Assumptions

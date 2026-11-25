@@ -1,5 +1,5 @@
 # Test: basic firewall config with chain, term, set, and anonymous port list
-# parses and validates under the default nft backend.
+# parses and validates under the default kernel backend.
 # VALIDATES: firewall component reactor is wired (fw-8 Gap 4); YANG schema
 #            loads; parser accepts comma-list ports, icmp-type, NAT exclude,
 #            named sets with static elements; cross-reference checks resolve.
@@ -7,7 +7,7 @@
 #           engine, or a schema change leaves valid operator input rejected.
 stdin=config:terminator=EOF_CONF
 firewall {
-	backend nft;
+	backend kernel;
 	table wan {
 		family inet;
 		chain input {

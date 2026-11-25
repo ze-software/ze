@@ -19,15 +19,20 @@ func TestVPPDoctorCodesRegistered(t *testing.T) {
 	diagnostic.RegisterBuiltinCodes()
 
 	checks, codes := 0, 0
-	for _, check := range diagnostic.DoctorChecksForPhase(diagnostic.DoctorPhasePostConfig) {
-		if check.Component != backendVPP {
-			continue
-		}
-		checks++
-		for _, code := range check.Codes {
-			codes++
-			if diagnostic.Lookup(code) == nil {
-				t.Errorf("doctor check %q declares code %q, which the code registry does not hold", check.Name, code)
+	for _, phase := range []diagnostic.DoctorCheckPhase{
+		diagnostic.DoctorPhaseParsedConfig,
+		diagnostic.DoctorPhasePostConfig,
+	} {
+		for _, check := range diagnostic.DoctorChecksForPhase(phase) {
+			if check.Component != backendVPP {
+				continue
+			}
+			checks++
+			for _, code := range check.Codes {
+				codes++
+				if diagnostic.Lookup(code) == nil {
+					t.Errorf("doctor check %q declares code %q, which the code registry does not hold", check.Name, code)
+				}
 			}
 		}
 	}

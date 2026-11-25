@@ -110,10 +110,10 @@ environment {
 	}
 }
 interface {
-	backend netlink
+	backend kernel
 }
 firewall {
-	backend nft
+	backend kernel
 }
 container {
 	registry docker.io {
@@ -144,10 +144,10 @@ environment {
 	}
 }
 interface {
-	backend netlink
+	backend kernel
 }
 firewall {
-	backend nft
+	backend kernel
 	table wan {
 		family inet
 		chain forward {
@@ -217,10 +217,10 @@ environment {
 	}
 }
 interface {
-	backend netlink
+	backend kernel
 }
 firewall {
-	backend nft
+	backend kernel
 	table wan {
 		family inet
 		chain forward {

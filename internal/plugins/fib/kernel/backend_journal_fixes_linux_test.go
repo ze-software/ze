@@ -1,6 +1,6 @@
 //go:build linux
 
-// Design: docs/architecture/core-design.md -- Linux netlink backend ownership, ESRCH, and partial-apply tests
+// Design: docs/architecture/core-design.md -- Linux kernel FIB backend ownership, ESRCH, and partial-apply tests
 // Related: backend_linux.go -- delOwnedRoute, replaceOwnedRoute
 // Related: nexthop_linux.go -- delRichRoute, replaceRichRoute, wrapSEG6InstallError
 

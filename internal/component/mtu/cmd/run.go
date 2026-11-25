@@ -215,7 +215,7 @@ func openLiveProber(ctx context.Context, target netip.Addr, df probe.DFMode) (ta
 }
 
 // routeInterfaceOf answers the interface the route to target leaves by, from
-// the iface component's lookup (the netlink backend fills "interface" from
+// the iface component's lookup (the kernel backend fills "interface" from
 // the route's link, internal/plugins/iface/netlink/route_linux.go RouteLookup).
 func routeInterfaceOf(target netip.Addr) (string, error) {
 	// A daemon whose config carries no interface block has loaded no backend
@@ -239,7 +239,7 @@ func routeInterfaceOf(target netip.Addr) (string, error) {
 }
 
 // listXFRMInterfaces answers every XFRM interface with its if_id, read from
-// the iface component: ListInterfaces for the type (the netlink backend
+// the iface component: ListInterfaces for the type (the kernel backend
 // reports link.Type(), "xfrm" for an XFRM interface) and GetXFRMInfo for the
 // id. The list is bounded by the interfaces the box holds.
 func listXFRMInterfaces() ([]xfrmInterface, error) {

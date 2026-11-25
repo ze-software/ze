@@ -185,7 +185,7 @@ cannot run it, and says so with `doctor-runtime-not-checked`.
   counted.
 - **Monitoring only.** The eBPF programs only read headers and update counters.
   They never drop, redirect, or modify traffic, and they never end the
-  interface's tc hook: the filters after them still run.
+  interface's tc filter hook: the filters after them still run.
 - **Per-IP requires `track-ip`.** The `ze_traffic_usage_ingress_bytes_total` and
   `ze_traffic_usage_egress_bytes_total` series are only produced when `track-ip`
   is enabled. Per-port accounting is always on.

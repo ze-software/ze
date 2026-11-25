@@ -5,7 +5,7 @@
 // selector keeps that selector's family and carries no flag.
 // Auto-enrolled in the QEMU integration run via the derived `integration && linux`
 // package list.
-// PREVENTS: a regression in the netlink XFRM state enumeration surfacing only on
+// PREVENTS: a regression in the netlink library XFRM state enumeration surfacing only on
 // a live appliance running IKE, and a tunnel-mode Child SA the kernel narrows to
 // its outer family, which carries no inner packet of the other family.
 // METHOD: userns.Enter runs it as root over a user and network namespace of its

@@ -16,14 +16,14 @@ const rpfTableName = "ze_iface_rpf"
 const rpfTableOwner = "iface-rpf"
 
 // init reserves the reverse-path table's name, so no operator firewall table
-// and no other owner can share it. The firewall nft backend would otherwise
+// and no other owner can share it. The kernel firewall backend would otherwise
 // delete and recreate the shared table on its apply, wiping the reverse-path
 // chain and sets, and ReplaceIPv6RPF would wipe the operator's rules in turn.
 //
 //nolint:gochecknoinits // registration: a reservation is declared from init, before any RegisterTables
 func init() {
 	firewall.MustReserveTableNames(rpfTableOwner, firewall.TableControl{
-		Plugin:  "iface netlink backend",
+		Plugin:  "iface kernel backend",
 		Decides: "the rpf-check setting of each interface in the configuration",
 		Command: "show interface",
 	}, rpfTableName)

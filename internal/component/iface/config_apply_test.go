@@ -294,14 +294,14 @@ func TestApplyLoopbackLCPPairOnVPP(t *testing.T) {
 	t.Run("netlink_backend_no_pair", func(t *testing.T) {
 		b := &fakeBackend{}
 		cfg := &ifaceConfig{
-			Backend: "netlink",
+			Backend: "kernel",
 			Dummy:   []ifaceEntry{{Name: "loop0"}},
 		}
 		if errs := applyConfig(cfg, nil, b); len(errs) > 0 {
 			t.Fatalf("applyConfig: %v", errs)
 		}
 		if _, ok := b.lcpPairs["loop0"]; ok {
-			t.Error("netlink backend must not create an LCP pair")
+			t.Error("kernel backend must not create an LCP pair")
 		}
 	})
 	// The deferred vpp-ready / post-crash recreate path must also re-establish
@@ -873,7 +873,7 @@ func TestIfaceApplyUpdatesQoSMapOfExistingVLAN(t *testing.T) {
 // no error; the failed read answers an error that names the device and the
 // command, never "absent", which made the apply create a present device again.
 func TestInterfaceExistsReadErrorIsNotAbsence(t *testing.T) {
-	errRead := errors.New("netlink: no buffer space available")
+	errRead := errors.New("netlink error: no buffer space available")
 	b := &fakeBackend{
 		ifaces:     map[string]fakeIface{"held0": {name: "held0", linkType: "dummy"}},
 		getLinkErr: map[string]error{"unread0": errRead},

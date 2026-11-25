@@ -120,7 +120,7 @@ func TestCounterDumpInterrupted(t *testing.T) {
 }
 
 // TestCounterDumpRejectsMalformedMessages prevents a truncated kernel response
-// from becoming a successful snapshot or reaching the unsafe netlink decoder.
+// from becoming a successful snapshot or reaching the unsafe netlink message decoder.
 func TestCounterDumpRejectsMalformedMessages(t *testing.T) {
 	for _, kind := range []uint16{unix.RTM_NEWLINK, unix.RTM_DELLINK, unix.NLMSG_ERROR, unix.NLMSG_DONE} {
 		var source counterSource

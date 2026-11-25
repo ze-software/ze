@@ -77,7 +77,7 @@ JSON and the address event stream with no new surface.
 <!-- source: internal/component/iface/iface.go -- AddrInfo -->
 
 `InterfaceInfo.DADReported` says whether a flagless IPv6 address completed
-DAD: it is true from the netlink backend, and false from a backend that reads
+DAD: it is true from the kernel backend, and false from a backend that reads
 addresses but no DAD outcome (VPP) and wherever `AddressesRead` is false. A
 reader MUST NOT take a flagless address as unique where it is false. A nil
 `Stats` means the counters were not read, never zero counters.
@@ -113,7 +113,7 @@ consumer yet.
 
 The event bus dispatches a subscriber synchronously on the emitter's goroutine,
 and for a link event that goroutine is the netlink monitor's own read loop. A
-subscriber that does netlink work there stops the loop, and the kernel-side
+subscriber that does netlink API work there stops the loop, and the kernel-side
 subscription queue overflows behind it. So the `up`, `down`, `router-discovered`
 and `router-lost` subscribers do no work at all: each pushes onto a queue, and
 one worker goroutine does every route call.

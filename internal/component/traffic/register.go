@@ -12,16 +12,12 @@ import (
 	"log/slog"
 	"net"
 	"strings"
-	"sync"
 	"sync/atomic"
 
-	"github.com/ze-software/ze/internal/component/config"
-	"github.com/ze-software/ze/internal/component/config/yang"
 	"github.com/ze-software/ze/internal/component/plugin/registry"
 	trafficyang "github.com/ze-software/ze/internal/component/traffic/yang"
 	"github.com/ze-software/ze/internal/core/diagnostic"
 	"github.com/ze-software/ze/internal/core/slogutil"
-	"github.com/ze-software/ze/internal/core/textbuf"
 	"github.com/ze-software/ze/pkg/plugin/sdk"
 )
 
@@ -36,8 +32,8 @@ var (
 // ConfigRoots/WantsConfig entries, and the YANG container path MUST match.
 const configRootTraffic = "traffic/control"
 
-// backendLeafPath is the YANG path surfaced in backend-gate error text so
-// operators know where to change the backend leaf.
+// backendLeafPath is the YANG path of this component's declared data-plane
+// selector leaf.
 const backendLeafPath = "/traffic/control/backend"
 
 // vppPlugin is the registration name of the VPP component
@@ -52,57 +48,6 @@ const (
 	vppPlugin  = "vpp"
 	backendVPP = "vpp"
 )
-
-// backendGateSchema caches the config schema used by validateBackendGate.
-// Built lazily on first commit/verify to avoid paying YANG load cost at
-// daemon startup. Schema is immutable after build -- safe for concurrent
-// reads from any goroutine.
-//
-// It is built once for the life of the process. That is correct because the
-// gate runs at a commit or a verify, after the process published the modules
-// of its external plugins. validateBackendGate records the schema with
-// yang.KeepsModuleSet on every use, so a publish that came after a use is
-// refused and the schema cannot answer from the set before the publish.
-var (
-	backendGateSchemaOnce sync.Once
-	backendGateSchema     *config.Schema
-	backendGateSchemaErr  error
-)
-
-// backendGateSchemaKeeper names backendGateSchema in the refusal of a publish
-// that comes too late (yang.PublishExternalModules).
-const backendGateSchemaKeeper = "the traffic backend gate schema"
-
-// validateBackendGate runs the ze:backend commit-time feature check for the
-// traffic-control section. Mirrors the iface plugin's gate so daemon commit
-// and offline `ze config validate` emit the same diagnostics.
-func validateBackendGate(sections []sdk.ConfigSection, activeBackend string) error {
-	yang.KeepsModuleSet(backendGateSchemaKeeper)
-	backendGateSchemaOnce.Do(func() {
-		backendGateSchema, backendGateSchemaErr = config.YANGSchema()
-	})
-	if backendGateSchemaErr != nil {
-		return fmt.Errorf("traffic backend gate: schema load: %w", backendGateSchemaErr)
-	}
-	for _, s := range sections {
-		if s.Root != configRootTraffic {
-			continue
-		}
-		errs := config.ValidateBackendFeaturesJSON(
-			s.Data, backendGateSchema,
-			configRootTraffic, activeBackend, backendLeafPath,
-		)
-		if len(errs) == 0 {
-			return nil
-		}
-		msgs := make([]string, 0, len(errs))
-		for _, e := range errs {
-			msgs = append(msgs, e.Error())
-		}
-		return fmt.Errorf("traffic-control commit rejected:\n  %s", textbuf.Join(msgs, "\n  "))
-	}
-	return nil
-}
 
 // trafficConfig is the parsed, in-memory view of the traffic-control section.
 // Held between OnConfigVerify and OnConfigApply.
@@ -166,7 +111,7 @@ func setLogger(l *slog.Logger) {
 func init() {
 	reg := registry.Registration{
 		Name:                 "traffic",
-		Description:          "Traffic control (tc) qdisc, class, and filter management",
+		Description:          "Traffic control qdisc, class, and filter management",
 		Features:             "yang",
 		YANG:                 trafficyang.ZeTrafficControlConfYANG,
 		ConfigRoots:          []string{configRootTraffic},
@@ -176,6 +121,11 @@ func init() {
 			Value:     backendVPP,
 			Providers: []string{vppPlugin},
 		}},
+		DataPlaneSelector: &registry.DataPlaneSelector{
+			LeafPath:           backendLeafPath,
+			Roots:              []string{configRootTraffic},
+			RegisteredBackends: RegisteredBackends,
+		},
 		InProcessConfigVerifier: verifyTrafficConfig,
 		RunEngine:               runEngine,
 		ConfigureEngineLogger: func(loggerName string) {
@@ -208,9 +158,6 @@ func parseAndVerifyTrafficSections(sections []sdk.ConfigSection) (*trafficConfig
 	}
 	if cfg.Backend == "" {
 		return nil, errTrafficControlNoBackendConfiguredAnd
-	}
-	if err := validateBackendGate(sections, cfg.Backend); err != nil {
-		return nil, err
 	}
 	if err := RunVerifier(cfg.Backend, cfg.Interfaces); err != nil {
 		return nil, fmt.Errorf("traffic-control backend %q: %w", cfg.Backend, err)
@@ -284,10 +231,6 @@ func runEngine(conn net.Conn) int {
 
 		if cfg.Backend == "" {
 			return errTrafficControlNoBackendConfiguredAnd
-		}
-
-		if err := validateBackendGate(sections, cfg.Backend); err != nil {
-			return err
 		}
 
 		if err := LoadBackend(cfg.Backend); err != nil {

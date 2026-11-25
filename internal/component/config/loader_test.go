@@ -5,6 +5,7 @@
 package config
 
 import (
+	"net"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -13,6 +14,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"golang.org/x/crypto/bcrypt"
 
+	"github.com/ze-software/ze/internal/component/plugin/registry"
 	"github.com/ze-software/ze/internal/core/slogutil"
 )
 
@@ -314,4 +316,67 @@ func TestLoadConfigRefusesAbsentProvider(t *testing.T) {
 
 	_, err = LoadConfig("system { dns { dnssec-validation off; } }\n", configPath, nil)
 	require.NoError(t, err, "the need does not hold at another value, so the config loads")
+}
+
+// TestLoadConfigResultCarriesJudgedSelection proves LoadConfig keeps the exact
+// candidatePluginSelection slice its data-plane verdict judged, with bus
+// endpoints and recorded/caller --plugin entries and no dependencies expanded,
+// while leaving CLIPlugins as the caller's raw list.
+//
+// VALIDATES: spec-fib-dummy Data Flow step 2 -- LoadConfigResult carries
+// CandidateSelection and HasCandidateSelection from loadConfig's verdict step.
+// PREVENTS: reload recomputing a different selection from s.config.Plugins or
+// reading expanded dependencies as operator-chosen plugins.
+func TestLoadConfigResultCarriesJudgedSelection(t *testing.T) {
+	isolateRegistry(t)
+
+	prevRecorded := CommandLinePlugins()
+	t.Cleanup(func() { RecordCommandLinePlugins(prevRecorded) })
+
+	run := func(_ net.Conn) int { return 0 }
+	cli := func([]string) int { return 0 }
+	require.NoError(t, registry.Register(registry.Registration{
+		Name: "sel-dep-fixture", Description: "test dep", RunEngine: run, CLIHandler: cli,
+	}))
+	require.NoError(t, registry.Register(registry.Registration{
+		Name: "sel-endpoint-fixture", Description: "test endpoint", RunEngine: run, CLIHandler: cli,
+		Dependencies: []string{"sel-dep-fixture"},
+	}))
+	require.NoError(t, registry.Register(registry.Registration{
+		Name: "sel-recorded-fixture", Description: "test recorded", RunEngine: run, CLIHandler: cli,
+	}))
+	require.NoError(t, registry.Register(registry.Registration{
+		Name: "sel-caller-fixture", Description: "test caller", RunEngine: run, CLIHandler: cli,
+	}))
+
+	RecordCommandLinePlugins([]string{"ze.sel-recorded-fixture"})
+
+	input := "bus { endpoint ep-a { internal sel-endpoint-fixture; } }\n"
+	configPath := filepath.Join(t.TempDir(), "selection.conf")
+	result, err := LoadConfig(input, configPath, []string{"ze.sel-caller-fixture"})
+	require.NoError(t, err)
+
+	require.True(t, result.HasCandidateSelection, "LoadConfig must mark CandidateSelection as populated")
+	assert.Equal(t, []string{"ze.sel-caller-fixture"}, result.CLIPlugins,
+		"CLIPlugins must remain the caller's raw --plugin slice")
+
+	selectedNames := make(map[string]string, len(result.CandidateSelection))
+	for _, pc := range result.CandidateSelection {
+		selectedNames[pc.Name] = pc.CompiledIdentity()
+	}
+	assert.Equal(t, "sel-endpoint-fixture", selectedNames["ep-a"],
+		"CandidateSelection must carry the declared bus endpoint under its endpoint name")
+	assert.Equal(t, "sel-recorded-fixture", selectedNames["sel-recorded-fixture"],
+		"CandidateSelection must carry the process-recorded --plugin entry")
+	assert.Equal(t, "sel-caller-fixture", selectedNames["sel-caller-fixture"],
+		"CandidateSelection must carry the caller --plugin entry")
+	assert.NotContains(t, selectedNames, "sel-dep-fixture",
+		"CandidateSelection must NOT expand dependencies")
+
+	pluginNames := make(map[string]bool, len(result.Plugins))
+	for _, pc := range result.Plugins {
+		pluginNames[pc.Name] = true
+	}
+	assert.True(t, pluginNames["sel-dep-fixture"],
+		"Plugins must still carry expanded dependencies")
 }

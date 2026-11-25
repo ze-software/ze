@@ -85,7 +85,7 @@ VRRPv3 runs on the access-facing interface and decrements priority by `150` if u
 
 ```text
 interface {
-    backend netlink;
+    backend kernel;
     ethernet eth0 {
         unit 0 {
             ipv4 {
@@ -201,7 +201,7 @@ show vrrp statistics
 
 - **BFD is not wired to IS-IS yet:** Ze wires BFD session notifications to BGP, OSPF, and static routes; IS-IS does not yet consume BFD events.
 - **Experimental status:** OSPF and VRRP are currently marked Experimental.
-- **VRRP interoperability details:** VRRP requires Linux `backend netlink` (not VPP), `CAP_NET_RAW`, `CAP_NET_ADMIN`, and `net.ipv4.ip_forward=1`. Against keepalived on IPv4 VRRPv3, set `checksum rfc5798-compatible` in Ze and `version 3` in keepalived. `accept-mode` defaults to `false` (RFC 9568), so non-owner Active routers drop pings to the VIP unless `accept-mode true` is configured. `track` monitors interface operational state only (route and script tracking are not implemented).
+- **VRRP interoperability details:** VRRP requires Linux `backend kernel` (not VPP), `CAP_NET_RAW`, `CAP_NET_ADMIN`, and `net.ipv4.ip_forward=1`. Against keepalived on IPv4 VRRPv3, set `checksum rfc5798-compatible` in Ze and `version 3` in keepalived. `accept-mode` defaults to `false` (RFC 9568), so non-owner Active routers drop pings to the VIP unless `accept-mode true` is configured. `track` monitors interface operational state only (route and script tracking are not implemented).
 
 ## Related guides
 

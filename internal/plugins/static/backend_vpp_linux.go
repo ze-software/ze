@@ -5,6 +5,7 @@
 package static
 
 import (
+	"errors"
 	"fmt"
 
 	"go.fd.io/govpp/api"
@@ -14,10 +15,9 @@ import (
 	staticvpp "github.com/ze-software/ze/internal/plugins/static/vpp"
 )
 
-// vppStaticBackend programs static routes into the VPP data plane through the
-// static/vpp GoVPP backend. It is selected by newStaticBackend when the VPP
-// component is active (a connector is available), so that in a VPP data-plane
-// deployment static routes land in VPP's FIB rather than the kernel.
+// vppStaticBackend programs named-table static routes into the VPP data plane
+// through the static/vpp GoVPP backend. It is selected by
+// newStaticBackendForDataPlane when the configured data plane is "vpp".
 //
 // The per-route table id is honored by constructing a lightweight
 // staticvpp.Backend per operation over the shared channel (NewBackend only
@@ -26,20 +26,36 @@ type vppStaticBackend struct {
 	ch api.Channel
 }
 
-// newVPPStaticBackend returns a VPP-backed routeBackend when a VPP connector is
-// active and a channel can be opened, or nil to signal "fall back to kernel".
-func newVPPStaticBackend() routeBackend {
+// vppChannelOpener opens a GoVPP API channel for named-table static routes.
+// Replaced only in tests to inject a live or failing VPP channel without
+// opening real VPP sockets.
+var vppChannelOpener = openActiveVPPChannel
+
+var errNoActiveVPPConnector = errors.New("no active VPP connector")
+
+func openActiveVPPChannel() (api.Channel, error) {
 	connector := vppcomp.GetActiveConnector()
 	if connector == nil {
-		return nil
+		return nil, errNoActiveVPPConnector
 	}
 	ch, err := connector.NewChannel()
 	if err != nil {
-		logger().Warn("static: VPP connector present but channel open failed, using kernel backend", "error", err)
-		return nil
+		return nil, err
 	}
-	logger().Info("static: VPP data plane active, programming routes into VPP")
-	return &vppStaticBackend{ch: ch}
+	return ch, nil
+}
+
+// newVPPStaticBackend returns a VPP-backed routeBackend when a GoVPP API
+// channel can be opened. When no VPP connector is active or opening the
+// channel fails, it returns an *opererr.Error naming doctorCodeVPPChannel and
+// NEVER falls back to the Linux kernel backend.
+func newVPPStaticBackend() (routeBackend, error) {
+	ch, err := vppChannelOpener()
+	if err != nil {
+		return nil, staticVPPChannelError(err)
+	}
+	logger().Info("static: VPP data plane active, programming named-table routes into VPP")
+	return &vppStaticBackend{ch: ch}, nil
 }
 
 func (v *vppStaticBackend) applyRoute(r staticRoute) error {
@@ -69,13 +85,13 @@ func (v *vppStaticBackend) close() error {
 
 // toVPPRoute translates a parent staticRoute into the static/vpp Route type.
 // An interface-only next-hop (no gateway address) is resolved to a VPP
-// sw_if_index through the SAME shared iface.Resolve the netlink backend uses:
+// sw_if_index through the SAME shared iface.Resolve the kernel backend uses:
 // the VPP iface backend publishes its sw_if_index through iface.Resolve's
 // Binding.Ifindex (query.go detailsToInfo -> resolve.go bindingFromInfo), so no
 // second resolver is needed (spec-fixit-static-interface-nexthops C-3, A-3a).
 //
 // Resolution is gated on the active iface backend being vpp (C-4/R-7):
-// iface.Resolve reports whatever backend is loaded, and a netlink backend would
+// iface.Resolve reports whatever backend is loaded, and a kernel backend would
 // return a KERNEL ifindex, which must never be programmed as a VPP sw_if_index.
 // An unresolved or invalid index is rejected rather than emitting index 0
 // (the wrong-path trap the original rejection guarded).

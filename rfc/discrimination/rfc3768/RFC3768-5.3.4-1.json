@@ -25,22 +25,22 @@
     "rid": "RFC3768-5.3.4-1",
     "polarity": "positive",
     "unit": "internal/plugins/vrrp/rfc3768_v2_group_test.go::TestV2OwnerRunsAtPriority255",
-    "unit-sha": "d355922cb09f901d",
+    "unit-sha": "ef091dddb24100af",
     "claim-sha": "fb5fd9b287835a67",
     "route": "revert",
     "producer": "internal/plugins/vrrp/groups.go::EffectivePriority",
     "producer-sha": "6cbc3832c7c5ed6c",
-    "break": "body of EffectivePriority replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    "break": "body of EffectivePriority replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   },
   {
     "rid": "RFC3768-5.3.4-1",
     "polarity": "negative",
     "unit": "internal/plugins/vrrp/rfc3768_v2_group_test.go::TestV2OwnerRunsAtPriority255",
-    "unit-sha": "d355922cb09f901d",
+    "unit-sha": "ef091dddb24100af",
     "claim-sha": "583b1dcd7158e5f1",
     "route": "revert",
     "producer": "internal/plugins/vrrp/groups.go::EffectivePriority",
     "producer-sha": "6cbc3832c7c5ed6c",
-    "break": "body of EffectivePriority replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    "break": "body of EffectivePriority replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   }
 ]

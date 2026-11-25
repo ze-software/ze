@@ -1,5 +1,5 @@
 // Design: docs/architecture/testing/interop.md -- concurrent state validation.
-// Related: check_special.go -- specialCheckers registry entry, BFD failover nft precedent.
+// Related: check_special.go -- specialCheckers registry entry, BFD failover nftables precedent.
 package bgp
 
 import (
@@ -25,7 +25,7 @@ const (
 	ldpLabChainSpec = "{ type filter hook output priority -300; policy accept; }"
 	// ldpLabZeroWindow rewrites the receive window of every segment ze sends on
 	// the LDP session (ze is the active LSR, so it dials FRR's port 646) to
-	// zero. nft fixes the TCP checksum for the rewritten field; nft joins its
+	// zero. nftables fixes the TCP checksum for the rewritten field; the nft tool joins its
 	// arguments into one rule.
 	ldpLabZeroWindow    = "tcp dport " + ldpPort + " tcp window set 0"
 	ldpStateOperational = "OPERATIONAL"

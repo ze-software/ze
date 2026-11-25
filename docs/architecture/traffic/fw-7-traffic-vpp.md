@@ -1,8 +1,8 @@
 # VPP Traffic-Control Backend
 
-A second traffic-control backend beside netlink, registered as
+A second traffic-control backend beside kernel, registered as
 `traffic.RegisterBackend("vpp", ...)`, programming VPP policers from the same
-`traffic-control { }` config the netlink backend consumes.
+`traffic-control { }` config the kernel backend consumes.
 
 The test seam and the context plumbing are in
 [backend hardening](fw-7b-backend-hardening.md). DSCP policing and multi-class
@@ -42,7 +42,7 @@ system acts on. For a backend talking to an external system, the test must
 exercise that system or the reviewer must read its semantics.
 
 **The ingress policer is rejected under this rule.** `InterfaceQoS.Ingress`
-carries a per-interface upload rate that the tc backend installs as a
+carries a per-interface upload rate that the kernel backend installs as a
 `matchall` filter with a `police` action on the `clsact` ingress hook. VPP binds
 policers to the egress output arc, and to the ingress classify pipeline for
 classes that carry a steering filter, so there is no faithful translation of an

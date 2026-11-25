@@ -31,7 +31,7 @@ environment {
 }
 traffic {
 	control {
-		backend tc
+		backend kernel
 		interface eth0 {
 			qdisc {
 				type htb

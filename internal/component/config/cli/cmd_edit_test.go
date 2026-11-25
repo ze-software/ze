@@ -5,11 +5,13 @@ import (
 	"net"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"testing"
 	"time"
 
 	"github.com/ze-software/ze/internal/component/cli/sshclient"
+	"github.com/ze-software/ze/internal/component/config"
 	"github.com/ze-software/ze/internal/component/config/storage"
 	"github.com/ze-software/ze/internal/core/resolve"
 )
@@ -563,5 +565,71 @@ func TestEditorExecutorAsksForTheDispatcherJSON(t *testing.T) {
 	}
 	if len(sent) != 1 || sent[0] != "show version | raw" {
 		t.Errorf("editor executor sent %v, want [\"show version | raw\"]", sent)
+	}
+}
+
+// TestEphemeralDaemonArgvCarriesCommandLinePlugins proves ephemeralDaemonArgv
+// forwards every recorded global --plugin selector before `start` in record
+// order, and builds today's exact argv when no command-line plugin is recorded.
+//
+// VALIDATES: AC-18: with recorded plugins, ephemeralDaemonArgv emits one
+// `--plugin <name>` pair per entry before `start`, followed by extraArgs and
+// optional configPath; with an empty record, it emits `<exe> start ...`.
+// PREVENTS: `ze --plugin <name> config edit` spawning an ephemeral daemon whose
+// dispatcher records no plugins, causing its SSH editor to judge without them.
+func TestEphemeralDaemonArgvCarriesCommandLinePlugins(t *testing.T) {
+	saved := config.CommandLinePlugins()
+	t.Cleanup(func() { config.RecordCommandLinePlugins(saved) })
+
+	cases := []struct {
+		name       string
+		plugins    []string
+		exe        string
+		extraArgs  []string
+		configPath string
+		want       []string
+	}{
+		{
+			name:       "single plugin with web flags and config path",
+			plugins:    []string{"ze.flowspec-firewall"},
+			exe:        "/usr/bin/ze",
+			extraArgs:  []string{"--web", "3443", "--insecure-web"},
+			configPath: "/etc/ze/router.conf",
+			want:       []string{"/usr/bin/ze", "--plugin", "ze.flowspec-firewall", "start", "--web", "3443", "--insecure-web", "/etc/ze/router.conf"},
+		},
+		{
+			name:       "multiple plugins preserved in record order before start",
+			plugins:    []string{"ze.flowspec-firewall", "ze.hostname"},
+			exe:        "/usr/bin/ze",
+			extraArgs:  nil,
+			configPath: "/etc/ze/router.conf",
+			want:       []string{"/usr/bin/ze", "--plugin", "ze.flowspec-firewall", "--plugin", "ze.hostname", "start", "/etc/ze/router.conf"},
+		},
+		{
+			name:       "empty record matches plain argv with extraArgs and path",
+			plugins:    nil,
+			exe:        "/usr/bin/ze",
+			extraArgs:  []string{"--web", "3443"},
+			configPath: "/etc/ze/router.conf",
+			want:       []string{"/usr/bin/ze", "start", "--web", "3443", "/etc/ze/router.conf"},
+		},
+		{
+			name:       "empty record and empty config path omits path",
+			plugins:    nil,
+			exe:        "/usr/bin/ze",
+			extraArgs:  nil,
+			configPath: "",
+			want:       []string{"/usr/bin/ze", "start"},
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			config.RecordCommandLinePlugins(tc.plugins)
+			got := ephemeralDaemonArgv(tc.exe, tc.extraArgs, tc.configPath)
+			if !slices.Equal(got, tc.want) {
+				t.Errorf("ephemeralDaemonArgv = %v, want %v", got, tc.want)
+			}
+		})
 	}
 }

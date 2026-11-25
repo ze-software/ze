@@ -54,7 +54,7 @@ whatever chain the term sits in, and which never disturbs packet marks.
 | Firewall match model and lowering | `model.go` `Match`; `lower_linux.go` `lowerMatch` | Typed matches lowered to nft expressions | Extends: one fragment match |
 | Chain priority | `ze-firewall-conf.yang` `chain priority`, `model.go` `ChainPriorityMin` | Operator sets the chain priority | Extends: a term in a chain at or before conntrack defrag priority reads the header directly (IPv4 fragment offset and MF flag, IPv6 fragment extension header) with no mark |
 | Packet marks | `SetMark`, `MatchMark`, `policyroute` `allocateMark`, `iprule.Mark` | Firewall and policy routing write and match marks | Extends only if design picks the mark route: one reserved bit, masked by every writer, matcher and ip rule |
-| Backend capability gate | `ze:backend` | Refuses a node a backend cannot program | Extends: `ze:backend "nft"` unless VPP can match fragments exactly |
+| Backend capability gate | `ze:backend` | Refuses a node a backend cannot program | Extends: `ze:backend "kernel"` unless VPP can match fragments exactly |
 
 ## Data Flow (MANDATORY - see `ai/rules/architecture.md`)
 
@@ -69,7 +69,7 @@ whatever chain the term sits in, and which never disturbs packet marks.
 | Boundary | How | Verified |
 |----------|-----|----------|
 | Config → firewall component | YANG tree | No |
-| Firewall component → nft backend | `Backend.Apply` | No |
+| Firewall component → kernel backend | `Backend.Apply` | No |
 
 ### Integration Points
 - `lowerMatch`, `validateMatch`; the mark writers and `iprule.Mark` if a mark bit is reserved

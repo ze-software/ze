@@ -1,4 +1,4 @@
-// Design: docs/features/interfaces.md -- Netlink backend Linux implementation
+// Design: docs/features/interfaces.md -- Kernel interface backend Linux implementation
 // Overview: ifacenetlink.go -- package hub
 // Related: tunnel_linux.go -- CreateTunnel implementation for all 8 tunnel kinds
 
@@ -12,7 +12,7 @@ import (
 	"github.com/ze-software/ze/internal/component/iface"
 )
 
-// netlinkBackend implements iface.Backend using Linux netlink. Its owner MUST
+// netlinkBackend implements iface.Backend using Linux netlink sockets. Its owner MUST
 // call Close before discarding it to release monitoring, neighbor watch and
 // counter sockets.
 type netlinkBackend struct {

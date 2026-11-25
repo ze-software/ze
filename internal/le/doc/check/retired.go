@@ -1,5 +1,6 @@
 // Design: docs/architecture/core-design.md -- native documentation verifier actions
 // Related: repository.go -- the tracked-file walk this sweep shares with links
+// Related: retired_selector.go -- the retired selector value sweep sharing retiredRecords
 // Related: ../../le/retired/retired.go -- the rename map the sweep reads
 //
 // The retired-name sweep finds every tracked line that still names a form le
@@ -8,14 +9,22 @@
 // reads to refuse a typed old spelling, and holds no list of its own. The same
 // walk judges every le command a line cites against what le holds
 // (commandcitation.go, AC-25 of spec-le-cli-usability), so a citation of a
-// command le never had, or lost without a rename row, is refused too. It is a
-// gate: a line that names an old form, or cites a command le does not hold,
-// outside the declared records and exceptions makes it exit 1, and it runs as
-// a stage of the full verify (internal/le/verify/engine/stages.go).
+// command le never had, or lost without a rename row, is refused too. The
+// declared historical records in retiredRecords (files, directories, and
+// snapshot manifests) are shared with retired_selector.go so both sweeps skip
+// the same history from one declaration. It is a gate: a line that names an old
+// form, or cites a command le does not hold, outside the declared records and
+// exceptions makes it exit 1, and it runs as a stage of the full verify
+// (internal/le/verify/engine/stages.go).
 
 package doccheck
 
 import (
+	"encoding/json"
+	"errors"
+	"fmt"
+	"os"
+	"path"
 	"regexp"
 	"slices"
 	"strings"
@@ -39,13 +48,19 @@ var retiredDeclarations = [...]string{
 	"internal/le/le/root/retired_dispatch_test.go",
 }
 
-// retiredRecord is one path the sweep skips because it records history: what
-// a command was called on the day the record was written (owner decision,
-// 2026-09-24). A path that ends in a slash is a directory and takes every file
-// under it.
+// retiredRecord is one source of history the sweeps skip because it records
+// what was true on the day the record was written (owner decision,
+// 2026-09-24). A record takes one of three forms:
+//   - a file: path without a trailing slash,
+//   - a directory: path ending in a slash, covering every file under it, or
+//   - a snapshot manifest: manifest naming a JSON manifest whose pinned files
+//     the record covers (each entry's asset whose sha256 is set and its
+//     base_asset whose base_sha256 is set, each relative to the manifest's
+//     directory).
 type retiredRecord struct {
-	path string
-	why  string
+	path     string
+	manifest string
+	why      string
 }
 
 // retiredRecords are the historical records AC-16 declares. A record states
@@ -65,10 +80,7 @@ var retiredRecords = [...]retiredRecord{
 	{path: "rfc/discrimination/", why: "discrimination records carry the break the recorder applied on the day it ran, the halt text naming the command of that day included"},
 	{path: "plan/records/", why: "historical records retain the commands and paths of their day"},
 	{path: "plan/post-release/engineering/tooling-one-off-evidence.md", why: "recovered historical diagnostics explicitly retain original producers, not rerun instructions"},
-	{path: "plan/post-release/engineering/tooling-one-off-reboot-assets/base/internal/le/perf/bench_test.go.txt", why: retiredRebootSnapshotWhy},
-	{path: "plan/post-release/engineering/tooling-one-off-reboot-assets/unfinished/internal/le/perf/bench_test.go.txt", why: retiredRebootSnapshotWhy},
-	{path: "plan/post-release/engineering/tooling-one-off-reboot-assets/base/internal/le/site/terminaldemo/terminaldemo_test.go.txt", why: retiredRebootSnapshotWhy},
-	{path: "plan/post-release/engineering/tooling-one-off-reboot-assets/unfinished/internal/le/site/terminaldemo/terminaldemo_test.go.txt", why: retiredRebootSnapshotWhy},
+	{manifest: "plan/post-release/engineering/tooling-one-off-reboot-assets/manifest.json", why: retiredRebootSnapshotWhy},
 	{
 		path: "internal/le/doc/check/testdata/doc_citation_baseline.txt",
 		why:  "the link gate's baseline lists the dead paths that historical records already carried",
@@ -95,8 +107,9 @@ var retiredRecords = [...]retiredRecord{
 	},
 }
 
-// The README and manifest beside these four snapshots identify their original
-// commits and digests. Those live instructions are still swept.
+// The manifest pins each snapshot by its original commit and digest. The record
+// covers exactly the files it pins; the README, the manifest itself and any
+// file under base/ or unfinished/ it does not pin are still swept.
 const retiredRebootSnapshotWhy = "an inert source snapshot identified by original commit and digest, not an installed caller"
 
 // retiredException is one declared use of an old spelling that names
@@ -548,28 +561,151 @@ func retiredMasked(line string) string {
 	return line
 }
 
-// retiredExcluded reports whether a tracked file is outside the sweep: the
-// vendored tree, which Ze does not write, the declarations themselves, and the
-// historical records.
-func retiredExcluded(rel string) bool {
-	if strings.HasPrefix(rel, "vendor/") {
-		return true
-	}
-	if slices.Contains(retiredDeclarations[:], rel) {
-		return true
-	}
+// snapshotManifest holds the file pin entries read from a snapshot manifest
+// record in retiredRecords.
+type snapshotManifest struct {
+	Files []snapshotManifestEntry `json:"files"`
+}
+
+// snapshotManifestEntry is one file record inside a snapshot manifest. A path
+// is pinned only when its matching digest is set (non-null and non-blank).
+type snapshotManifestEntry struct {
+	Asset      string  `json:"asset"`
+	SHA256     *string `json:"sha256"`
+	BaseAsset  string  `json:"base_asset"`
+	BaseSHA256 *string `json:"base_sha256"`
+}
+
+// newRetiredRecordMatcher reads any snapshot manifest records once from root
+// and returns a predicate reporting whether a tracked relative path is covered
+// by retiredRecords. An absent manifest pins nothing; an unreadable or invalid
+// manifest, a set digest with an empty path, or a pinned path escaping the
+// manifest's directory returns an error naming the manifest.
+func newRetiredRecordMatcher(root string) (func(string) bool, error) {
+	exact := make(map[string]bool)
+	var dirs []string
 	for _, record := range &retiredRecords {
-		if strings.HasSuffix(record.path, "/") {
-			if strings.HasPrefix(rel, record.path) {
-				return true
+		if record.manifest != "" {
+			if record.path != "" {
+				panic("BUG: doccheck: retiredRecord sets both path and manifest")
+			}
+			pins, err := loadManifestPins(root, record.manifest)
+			if err != nil {
+				return nil, err
+			}
+			for _, pin := range pins {
+				exact[pin] = true
 			}
 			continue
 		}
-		if rel == record.path {
+		if record.path == "" {
+			panic("BUG: doccheck: retiredRecord sets neither path nor manifest")
+		}
+		if strings.HasSuffix(record.path, "/") {
+			dirs = append(dirs, record.path)
+			continue
+		}
+		exact[record.path] = true
+	}
+	return func(rel string) bool {
+		if exact[rel] {
 			return true
 		}
+		for _, dir := range dirs {
+			if strings.HasPrefix(rel, dir) {
+				return true
+			}
+		}
+		return false
+	}, nil
+}
+
+// loadManifestPins reads one snapshot manifest from root and returns every
+// repository-relative path pinned by a set sha256 or base_sha256 digest.
+func loadManifestPins(root, manifest string) ([]string, error) {
+	raw, err := readRepositoryFile(root, manifest)
+	if errors.Is(err, os.ErrNotExist) {
+		return nil, nil
 	}
-	return false
+	if err != nil {
+		return nil, fmt.Errorf("unreadable snapshot manifest %s: %w", manifest, err)
+	}
+	var parsed snapshotManifest
+	if err := json.Unmarshal(raw, &parsed); err != nil {
+		return nil, fmt.Errorf("unreadable snapshot manifest %s: %w", manifest, err)
+	}
+	manifestDir := path.Dir(manifest)
+	var pins []string
+	for _, entry := range parsed.Files {
+		if entry.SHA256 != nil {
+			if strings.TrimSpace(*entry.SHA256) != "" {
+				pinned, pinErr := resolveManifestPin(manifest, manifestDir, entry.Asset)
+				if pinErr != nil {
+					return nil, pinErr
+				}
+				pins = append(pins, pinned)
+			}
+		}
+		if entry.BaseSHA256 != nil {
+			if strings.TrimSpace(*entry.BaseSHA256) != "" {
+				pinned, pinErr := resolveManifestPin(manifest, manifestDir, entry.BaseAsset)
+				if pinErr != nil {
+					return nil, pinErr
+				}
+				pins = append(pins, pinned)
+			}
+		}
+	}
+	return pins, nil
+}
+
+const manifestEscapeFmt = "unreadable snapshot manifest %s: pinned path %q leaves manifest directory"
+
+// resolveManifestPin resolves asset relative to manifestDir and refuses empty
+// paths or paths that escape manifestDir.
+func resolveManifestPin(manifest, manifestDir, asset string) (string, error) {
+	if strings.TrimSpace(asset) == "" {
+		return "", fmt.Errorf("unreadable snapshot manifest %s: set digest names no asset path", manifest)
+	}
+	if strings.HasPrefix(asset, "/") {
+		return "", fmt.Errorf(manifestEscapeFmt, manifest, asset)
+	}
+	if strings.Contains(asset, "\\") {
+		return "", fmt.Errorf(manifestEscapeFmt, manifest, asset)
+	}
+	cleaned := path.Clean(asset)
+	if cleaned == "." {
+		return "", fmt.Errorf(manifestEscapeFmt, manifest, asset)
+	}
+	if cleaned == ".." {
+		return "", fmt.Errorf(manifestEscapeFmt, manifest, asset)
+	}
+	if strings.HasPrefix(cleaned, "../") {
+		return "", fmt.Errorf(manifestEscapeFmt, manifest, asset)
+	}
+	if manifestDir == "." {
+		return cleaned, nil
+	}
+	joined := path.Join(manifestDir, cleaned)
+	if !strings.HasPrefix(joined, manifestDir+"/") {
+		return "", fmt.Errorf(manifestEscapeFmt, manifest, asset)
+	}
+	return joined, nil
+}
+
+// retiredExcluded builds the exclusion predicate for sweepRetired: the vendored
+// tree, which Ze does not write, the declarations themselves, and the
+// historical records matched by recordMatch.
+func retiredExcluded(recordMatch func(string) bool) func(string) bool {
+	return func(rel string) bool {
+		if strings.HasPrefix(rel, "vendor/") {
+			return true
+		}
+		if slices.Contains(retiredDeclarations[:], rel) {
+			return true
+		}
+		return recordMatch(rel)
+	}
 }
 
 // retiredOwnsRows reports whether a tracked file is a spec under plan/, the
@@ -745,7 +881,7 @@ func commandPattern(row leretired.Rename) retiredPattern {
 	tb.Reset()
 
 	return retiredPattern{
-		kind:        "command",
+		kind:        retiredKindCommand,
 		old:         tb.Str("le ").Join(old, " ").String(),
 		replacement: strings.Join(append([]string{"le"}, row.New()...), " "),
 		needle:      normalizeRetired(longest),
@@ -905,6 +1041,10 @@ func (r retiredReport) Text() string {
 // hold. Both read the same lines, so the history records, the owned journal
 // rows and the reseal notes skip a citation exactly as they skip an old form.
 func sweepRetired(root string) (retiredReport, error) {
+	recordMatch, err := newRetiredRecordMatcher(root)
+	if err != nil {
+		return retiredReport{}, err
+	}
 	files, err := trackedFiles(root)
 	if err != nil {
 		return retiredReport{}, err
@@ -919,7 +1059,7 @@ func sweepRetired(root string) (retiredReport, error) {
 	}
 
 	candidates := make([]int, 0, len(patterns))
-	unreadable, err := walkTracked(root, files, retiredExcluded, func(rel string, raw []byte) error {
+	unreadable, err := walkTracked(root, files, retiredExcluded(recordMatch), func(rel string, raw []byte) error {
 		if slices.Contains(raw, 0) {
 			return nil
 		}

@@ -513,8 +513,8 @@ loads on demand:
 | `l2tp` | `CONFIG_L2TP` | an `l2tp` block whose `enabled` is not false | generic netlink `CTRL_CMD_GETFAMILY` for `l2tp`: `ENOENT` is no family after the controller's module request |
 | `l2tp-ppp` | `CONFIG_PPPOL2TP` | the same | open and close an `AF_PPPOX` `PX_PROTO_OL2TP` socket: `EAFNOSUPPORT` or `EPROTONOSUPPORT` is absent |
 | `pppoe` | `CONFIG_PPPOE` | `pppoe { enabled true }` | the same socket with `PX_PROTO_OE` |
-| `wireguard` | `CONFIG_WIREGUARD` | a `wireguard` interface under the netlink backend | generic netlink family `wireguard` |
-| `xfrm-interface` | `CONFIG_XFRM_INTERFACE` | an `xfrm` interface under the netlink backend | `RTM_NEWLINK` with `NLM_F_CREATE` for kind `xfrm` and interface id 0, inside a throwaway network namespace: `EINVAL` is `xfrmi_newlink` refusing id 0 after the kind resolved, `EOPNOTSUPP` is "Unknown device type" |
+| `wireguard` | `CONFIG_WIREGUARD` | a `wireguard` interface under the kernel backend | generic netlink family `wireguard` |
+| `xfrm-interface` | `CONFIG_XFRM_INTERFACE` | an `xfrm` interface under the kernel backend | `RTM_NEWLINK` with `NLM_F_CREATE` for kind `xfrm` and interface id 0, inside a throwaway network namespace: `EINVAL` is `xfrmi_newlink` refusing id 0 after the kind resolved, `EOPNOTSUPP` is "Unknown device type" |
 
 The `container` plugin enrols `container-cpu-limit`
 (`CONFIG_CFS_BANDWIDTH`), in use when the configuration holds a container
@@ -652,7 +652,7 @@ working deployment into a dead one. A probe that returns no verdict at all is
 reported the same way: the zero `State` is `Unspecified`, and it is never read as
 a pass.
 
-The probes read netlink or procfs. Neither executes an external binary: a second
+The probes read netlink sockets or procfs. Neither executes an external binary: a second
 dependency that can be absent for its own reasons is the fault this enrolment
 removes, not a way to detect it. `TestCapabilityProbeExecsNoBinary` holds the
 rule over the package's source.
@@ -1722,9 +1722,11 @@ raised through `report-issue` (`report.ClearSource` of its name), because only
 the plugin could clear them. A warning reserved by a retained daemon resource
 remains owned by that original resource until its recovery is confirmed.
 <!-- source: internal/component/plugin/process/stopped.go -- RecordStopped, ClearStopped, StoppedMessage, RestartCommand, ExitStatus -->
-<!-- source: internal/component/plugin/process/manager.go -- RemoveProcess, StartMore, ConfiguredNames -->
+<!-- source: internal/component/plugin/process/manager.go -- RemoveProcess, StartMore, ConfiguredNames, UnconfigureProcess -->
 <!-- source: internal/component/plugin/server/failure_policy.go -- superviseProcess, applyFailurePolicy -->
 <!-- source: internal/component/plugin/server/startup_autoload.go -- collectProcessesForRemovedConfigPaths, stopCollectedProcesses -->
+<!-- source: internal/component/plugin/server/startup_removal.go -- finishRemovalScope, rollbackStartupProcess -->
+<!-- source: internal/component/plugin/server/reload_dataplane_writer.go -- judgeReloadWriters -->
 <!-- source: internal/component/plugin/server/restart.go -- lateCleanupRecord -->
 <!-- source: internal/component/plugin/doctor/checks_runtime.go -- pluginStoppedRow -->
 
@@ -1740,7 +1742,7 @@ remains owned by that original resource until its recovery is confirmed.
 | `plugin-fatal-stop` | pre-config | `doctor-plugin-stop-cleanup-late` (warning) | each `stop-cleanup-late` entry of the last-stop record: the stop went on before that plugin finished its cleanup, so state it installs may remain | `journalctl -u ze --until <time> \| grep <plugin>` |
 | `plugin-autoload` | post-config | `doctor-plugin-autoload-unresolved` (error) | the config's auto-load set that `registry.ResolveDependencies` refuses, with the boot refusal's text | the fix the refusal names |
 | `plugin-setup` | pre-config | `doctor-plugin-setup-failed` (error for hard, warning for soft) | each `registry.SetupResults` failure, with the recorded reason | the remedy after the reason's last `; `, else `ze show plugin list` |
-| `plugin-dataplane-writer` | post-config | `doctor-plugin-no-dataplane-writer` (error) | the config's auto-load set holds a `NeedsDataPlane` producer, no `ProgramsFIB` plugin is selected or configured, and `registry.DataPlaneWriter` refuses the data plane the config selects: the boot and reload refusal of `appendDataPlaneWriter`, in its words | the fix the refusal names |
+| `plugin-dataplane-writer` | post-config | `doctor-plugin-no-dataplane-writer` (error) | the config's auto-load set holds a `NeedsDataPlane` producer, no `ProgramsFIB` plugin is selected or configured, and `registry.JudgeDataPlaneWriter` refuses the data plane the config selects: the boot and reload refusal of `appendDataPlaneWriterWithReason` / `judgeReloadWriters`, in its words | the fix the refusal names |
 | `plugin-removal-recovery` | runtime | `doctor-plugin-removal-unrecovered` (error) | each `pluginRemoval` whose restore after a refused reload failed (`recoveryErr`), with plugin and cause | `ze request reload`, which retries the restore first |
 | `plugin-capability-restore` | runtime | `doctor-plugin-capabilities-not-restored` (error) | the latest failed `restoreCapabilities` after a refused reload, kept until a reload commits | `ze request reload` |
 | `audit-record` | runtime | `doctor-audit-record-failed` (error) | the published audit log's last failed write (`audit.PublishedWriteFailure`): file, error, time, count, last surface; cleared by a write that lands | `ls -ld <dir> && df -h <dir>`, then make it writable |
@@ -1997,7 +1999,7 @@ host read failure and offers `ze show interface brief` as the next inspection.
 | Embedded certificate material | Parse the certificate and check its validity window |
 | External binary (plugin, helper) | `exec.LookPath` or `os.Stat` check |
 | Procfs or sysctl dependency | Read and write probe for the exact `/proc` path |
-| Netlink dependency | Open the specific netlink family or handle |
+| Netlink socket dependency | Open the specific netlink family or handle |
 
 ## Where each owner registers its check
 
@@ -2010,7 +2012,7 @@ host read failure and offers `ze show interface brief` as the next inspection.
 | Web, MCP, looking-glass, or other listener component | `diagnostic.RegisterDoctorCheck()` from the owning component's `init()` |
 | SSH host-key dependency | `diagnostic.RegisterDoctorCheck()` from the SSH component |
 | Interface backend | `diagnostic.RegisterDoctorCheck()` from the backend owner |
-| Kernel module, procfs, sysctl, netlink, VPP, or platform-specific backend | `diagnostic.RegisterDoctorCheck()` from the owning backend or component, with build-tagged files where needed |
+| Kernel module, procfs, sysctl, netlink sockets, VPP, or platform-specific backend | `diagnostic.RegisterDoctorCheck()` from the owning backend or component, with build-tagged files where needed |
 | Blob storage, platform detection, generic runner state, or a dependency with no narrower owner | `internal/component/doctor`, with a comment or test name making the absent owner explicit |
 
 ## The two tests a new check carries

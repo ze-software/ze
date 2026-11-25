@@ -9,7 +9,7 @@
 // internal/component/vpp, the nexthop probe to internal/plugins/fib/kernel,
 // nf_tables to internal/plugins/firewall/nft, /proc/stat to
 // internal/component/telemetry/exporter, conntrack to
-// internal/component/config/system, route netlink to
+// internal/component/config/system, route rtnetlink to
 // internal/plugins/policyroute, CAP_SYS_TIME to internal/plugins/ntp and SMART
 // to internal/component/storage.
 
@@ -59,7 +59,7 @@ var _ = env.MustRegister(env.EnvEntry{
 
 // loadedKernelModules is the module-list reader checkKernelModules runs. It is
 // a variable so a test can stand in a module list; nothing else assigns it.
-// kernelcap holds the reader because the nft firewall backend and the VPP
+// kernelcap holds the reader because the kernel firewall backend and the VPP
 // component ask the same question of the same file.
 var loadedKernelModules = kernelcap.LoadedModules
 var statPath = os.Stat

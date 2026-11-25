@@ -202,7 +202,7 @@ func TestPreparedKernelOwnerRejectsForeignAccessRequest(t *testing.T) {
 			if err == nil {
 				t.Fatal("foreign access was accepted")
 			}
-			if !strings.Contains(err.Error(), name+" differs from its prepared netlink access") {
+			if !strings.Contains(err.Error(), name+" differs from its prepared kernel access") {
 				t.Fatalf("foreign coordinate reached another refusal: %v", err)
 			}
 		})

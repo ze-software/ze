@@ -87,7 +87,7 @@ func fixture10Environment(overrides map[string]string) []string {
 //
 // The document-too-wide fixture used to build that store with `ze init` inside
 // the 15-second fixture10ProcessTimeout. Init without --seed or --managed also
-// runs netlink interface discovery: a link dump on a socket subscribed to link
+// runs netlink link discovery: a link dump on a socket subscribed to link
 // events, repeated up to three times when a link change interrupts it, each
 // attempt bounded by its own 5-second deadline, then one address dump per link. On a loaded host with many links
 // changing that overran the bound (exit 124, "initialize isolated CLI state",

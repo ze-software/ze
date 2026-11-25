@@ -1,4 +1,4 @@
-// Design: docs/architecture/core-design.md -- tc backend stub for non-Linux
+// Design: docs/architecture/core-design.md -- kernel traffic control backend stub for non-Linux
 
 //go:build !linux
 

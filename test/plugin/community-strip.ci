@@ -3,7 +3,7 @@
 # PREVENTS: egress community stripping being configured but not applied on the wire
 
 # Source peer (ASN 65001) on 127.0.0.1
-# Linux-only: static `next { interface lo { } }` resolves loopback `lo` via Linux netlink.
+# Linux-only: static `next { interface lo { } }` resolves loopback `lo` via the Linux netlink socket.
 option=needs-linux
 option=env:var=ze.log.bgp.filter.community:value=info
 # bgp.adj.rib.in: the plugin registers as "bgp-adj-rib-in" (adj_rib_in/register.go)

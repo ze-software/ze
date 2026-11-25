@@ -221,13 +221,13 @@ func rateToKbps(bps uint64) (uint32, error) {
 
 // minBurstBytes is the floor traffic.PolicerBurstBytes applies, restated here
 // only so this package's tests can name it. The value itself is declared once,
-// in internal/component/traffic, because the tc backend applies the same floor
+// in internal/component/traffic, because the kernel backend applies the same floor
 // for the same reason and two copies would drift.
 const minBurstBytes = 2048
 
 // burstBytes returns a committed-burst value in bytes for a rate given in
 // kbps. The derivation and the floor live in traffic.PolicerBurstBytes, which
-// the tc backend's ingress policer uses as well: a policer's burst is one fact
+// the kernel backend's ingress policer uses as well: a policer's burst is one fact
 // about a rate, not one fact about a backend.
 func burstBytes(kbps uint32) uint64 {
 	return traffic.PolicerBurstBytes(uint64(kbps) * kbpsPerBps)

@@ -15,7 +15,7 @@ import (
 // presence flag followed by a child edit, without publishing an active alias.
 func TestSessionPresenceMixedActivationSurvivesCommit(t *testing.T) {
 	seed := validBGPConfig + `
-firewall { backend nft; table flags { family inet; chain postrouting {
+firewall { backend kernel; table flags { family inet; chain postrouting {
         type nat; hook postrouting; priority 100; policy accept;
         term rewrite { then { counter; } }
     } } }`

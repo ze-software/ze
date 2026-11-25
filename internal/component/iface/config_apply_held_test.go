@@ -80,7 +80,7 @@ func hostBridgeConfig() *ifaceConfig {
 // matches the config applies cleanly. Method: every write the backend is
 // asked for fails with EPERM, so any write the apply issues fails it; the
 // bridge holds STP off, the MTU, the MAC, admin up, and its port. That an
-// admin-up bridge with no carrier reads as up is the netlink backend's part
+// admin-up bridge with no carrier reads as up is the kernel backend's part
 // (TestLinkToInfoAdminStateIsNotOperState).
 //
 // VALIDATES: a setting the kernel already holds gets no write: STP, MTU, MAC,

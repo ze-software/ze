@@ -86,7 +86,7 @@ func TestConntrackSectionRemovedWithdrawsHelpers(t *testing.T) {
 // edit withdrawing every firewall table.
 func TestConntrackSectionUndeliveredKeepsRunningValue(t *testing.T) {
 	running := &firewallConfig{
-		Backend:    "nft",
+		Backend:    "kernel",
 		Configured: true,
 		Tables:     []Table{makeTable(FamilyInet)},
 	}
@@ -104,7 +104,7 @@ func TestConntrackSectionUndeliveredKeepsRunningValue(t *testing.T) {
 	}
 
 	firewallOnly, err := parseConfigSections([]sdk.ConfigSection{
-		{Root: ConfigRoot, Data: `{"firewall":{"backend":"nft"}}`},
+		{Root: ConfigRoot, Data: `{"firewall":{"backend":"kernel"}}`},
 	}, withHelpers)
 	if err != nil {
 		t.Fatal(err)
@@ -198,7 +198,7 @@ func TestHelperTablesInstallWithdrawAndShow(t *testing.T) {
 // helpers and the two fix commands, after the backend's own error.
 func TestHelperApplyFailureNamesTheFix(t *testing.T) {
 	b, _ := helperBackend(t, "helper-refuses")
-	b.applyErr = errors.New("netlink: no such file or directory")
+	b.applyErr = errors.New("netlink error: no such file or directory")
 	cfg, err := parseConfigSections([]sdk.ConfigSection{
 		conntrackSection(`{"system":{"conntrack":{"module":["netbios-ns"]}}}`),
 	}, nil)

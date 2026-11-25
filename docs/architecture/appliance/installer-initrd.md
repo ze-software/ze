@@ -10,7 +10,7 @@ PID 1. There is no busybox, no `/bin/sh`, and no shell script. It replaced a
 <!-- source: internal/appliance/cmd_initrd.go -- defaultInitrdMakeBuild and writeInitrdPack, the cpio packer -->
 
 Everything a shell would have given you must therefore exist in Go: mount,
-console fan-out, block-device and loop ioctls, DHCP, and netlink. Each one has
+console fan-out, block-device and loop ioctls, DHCP, and netlink sockets. Each one has
 its own file under `internal/install/disk`.
 
 <!-- source: internal/install/disk/mount_linux.go -- mount and umount through unix syscalls -->
@@ -23,7 +23,7 @@ its own file under `internal/install/disk`.
 ## Detect state through procfs and sysfs
 
 The initrd reads kernel state out of `/proc` and `/sys` and programs it through
-netlink. It runs no external tool, and `internal/install/disk` and
+netlink sockets. It runs no external tool, and `internal/install/disk` and
 `cmd/ze-installer` contain no `exec.Command` of an external binary.
 
 | Need | Source | Producer |

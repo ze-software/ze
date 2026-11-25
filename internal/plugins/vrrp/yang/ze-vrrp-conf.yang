@@ -11,7 +11,7 @@ module ze-vrrp-conf {
          RFC 9568 (VRRPv3, default) and RFC 3768 (VRRPv2, opt-in for IPv4).
          Attaches under an interface unit's ipv4/ipv6 container as
          `vrrp { group <vrid> { ... } }`. The vrrp container carries
-         ze:backend \"netlink\" so the iface backend gate rejects it under a
+         ze:backend \"kernel\" so the iface backend gate rejects it under a
          VPP-backed interface tree until native VPP VRRP lands (spec-vrrp-7).
          VRID namespaces are independent per family (RFC 9568 separate virtual
          routers). Cross-leaf constraints (interval-vs-version, IPv6 first-VIP
@@ -26,13 +26,13 @@ module ze-vrrp-conf {
         description "VRRP groups on an IPv4 interface unit (RFC 9568 / RFC 3768).";
 
         container vrrp {
-            ze:backend "netlink";
+            ze:backend "kernel";
             description "Ze runs each group as its own state machine, on a macvlan
                          device that carries the group's virtual MAC. The device name
                          starts with zv4 and takes the parent ifindex and the VRID,
                          inside the 15-character kernel limit. The container carries
-                         ze:backend netlink, so a tree with interface backend vpp is
-                         refused at verify with \"VRRP requires the netlink interface
+                         ze:backend kernel, so a tree with interface backend vpp is
+                         refused at verify with \"VRRP requires the kernel interface
                          backend\". A VRID is unique for one unit and one family, so
                          the same VRID CAN run on the IPv6 unit beside it.";
             ze:help "VRRP virtual routers hosted on this IPv4 unit.";
@@ -238,15 +238,15 @@ module ze-vrrp-conf {
         description "VRRP groups on an IPv6 interface unit (RFC 9568 only).";
 
         container vrrp {
-            ze:backend "netlink";
+            ze:backend "kernel";
             description "Ze runs each group as its own state machine, on a macvlan
                          device that carries the group's virtual MAC. The device name
                          starts with zv6 and takes the parent ifindex and the VRID,
                          inside the 15-character kernel limit. Every group here is
                          VRRPv3, because VRRPv2 is IPv4 only, so this tree carries no
-                         version leaf. The container carries ze:backend netlink, so a
+                         version leaf. The container carries ze:backend kernel, so a
                          tree with interface backend vpp is refused at verify with
-                         \"VRRP requires the netlink interface backend\".";
+                         \"VRRP requires the kernel interface backend\".";
             ze:help "VRRP virtual routers hosted on this IPv6 unit.";
 
             list group {

@@ -73,7 +73,7 @@ func TestDoctorIfaceMacvlanProbe(t *testing.T) {
 	}
 }
 
-// TestDoctorIfaceMacvlanCheckRegistered proves the netlink backend registers
+// TestDoctorIfaceMacvlanCheckRegistered proves the kernel interface backend registers
 // the check via diagnostic.RegisterDoctorCheck (removing the package removes it).
 func TestDoctorIfaceMacvlanCheckRegistered(t *testing.T) {
 	if !slices.Contains(diagnostic.DoctorCheckNames(), "iface-macvlan") {

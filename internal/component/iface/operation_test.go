@@ -560,7 +560,7 @@ func TestIfaceOperationDecomposerRefusesAnEthernetMoveItCannotBind(t *testing.T)
 		backend Backend
 	}{
 		{name: "no backend loaded", backend: nil},
-		{name: "listing fails", backend: &fakeBackend{listErr: errors.New("netlink: rtnetlink receive: permission denied")}},
+		{name: "listing fails", backend: &fakeBackend{listErr: errors.New("netlink error: rtnetlink receive: permission denied")}},
 	}
 	for _, tc := range blind {
 		t.Run(tc.name, func(t *testing.T) {

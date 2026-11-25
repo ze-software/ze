@@ -1,4 +1,4 @@
-// Design: docs/architecture/core-design.md -- tc type translation
+// Design: docs/architecture/core-design.md -- traffic control type translation
 
 //go:build linux
 
@@ -45,7 +45,7 @@ const (
 	prioIPv6 uint16 = 3 // ETH_P_IPV6 -- u32 IPv6 header matches
 )
 
-// filterPriority returns the dedicated tc priority for a filter protocol.
+// filterPriority returns the dedicated tc filter priority for a filter protocol.
 //
 // Fail-closed by design: an unmapped protocol yields ok=false rather than a
 // default or zero priority. Falling back to a shared number would collide with
@@ -79,14 +79,14 @@ func newFilterAttrs(linkIdx int, parentHandle uint32, protocol uint16) (netlink.
 	}, nil
 }
 
-// rootQdiscMajor is the major number of every tc handle this backend programs.
+// rootQdiscMajor is the major number of every tc qdisc handle this backend programs.
 // Ze attaches exactly one root qdisc per link, at 1:0, and hangs every class off
 // it as 1:<minor>, so the major is an invariant of the backend and not a
 // parameter: no caller passes anything else, and one that did would be
 // programming a qdisc tree this backend cannot reconcile.
 const rootQdiscMajor = 1
 
-// tcHandle builds the tc handle 1:<minor> under the root qdisc major.
+// tcHandle builds the tc qdisc handle 1:<minor> under the root qdisc major.
 //
 // NOT named makeHandle or classHandle: the vendored
 // netlink.MakeHandle(major, minor)
@@ -100,7 +100,7 @@ func tcHandle(minor uint32) uint32 {
 	return (rootQdiscMajor << 16) | minor
 }
 
-// translateQdisc converts a ze Qdisc to a netlink Qdisc.
+// translateQdisc converts a ze Qdisc to a netlink.Qdisc.
 func translateQdisc(q traffic.Qdisc, linkIdx int) (netlink.Qdisc, error) {
 	if q.Type != traffic.QdiscTBF && q.RateBps != 0 {
 		return nil, fmt.Errorf("root rate is only supported for tbf, got %s", q.Type)
@@ -177,7 +177,7 @@ func translateQdisc(q traffic.Qdisc, linkIdx int) (netlink.Qdisc, error) {
 // configured bit rate. Both the scheduler and the police action use bytes/s.
 func rateBytesPerSecond(bps uint64) (uint64, error) {
 	if bps == 0 || bps%8 != 0 {
-		return 0, fmt.Errorf("rate %d bps must be positive and divisible by 8 for backend tc", bps)
+		return 0, fmt.Errorf("rate %d bps must be positive and divisible by 8 for backend kernel", bps)
 	}
 	return bps / 8, nil
 }
@@ -210,7 +210,7 @@ func findDefaultClassMinor(q traffic.Qdisc) uint32 {
 	return 0
 }
 
-// translateClass converts a ze TrafficClass to a netlink Class.
+// translateClass converts a ze TrafficClass to a netlink.Class.
 func translateClass(qt traffic.QdiscType, tc traffic.TrafficClass, linkIdx int, parentHandle, minor uint32) (netlink.Class, error) {
 	attrs := netlink.ClassAttrs{
 		LinkIndex: linkIdx,
@@ -272,7 +272,7 @@ func ceilOrRate(tc traffic.TrafficClass) uint64 {
 	return tc.Rate
 }
 
-// translateFilter converts a ze TrafficFilter to netlink Filters.
+// translateFilter converts a ze TrafficFilter to netlink.Filter entries.
 // DSCP and protocol filters produce two u32 filters (IPv4 + IPv6).
 func translateFilter(f traffic.TrafficFilter, linkIdx int, parentHandle, classHandle uint32) ([]netlink.Filter, error) {
 	switch f.Type {
@@ -337,8 +337,8 @@ func protocolFilters(proto uint32, linkIdx int, parentHandle, classHandle uint32
 }
 
 // u32FilterPair builds the IPv4 and IPv6 halves of one match. The two halves
-// carry different link-layer protocols, so they MUST land on different tc
-// priorities: sharing one is what the kernel rejects with EINVAL (see the
+// carry different link-layer protocols, so they MUST land on different
+// tc filter priorities: sharing one is what the kernel rejects with EINVAL (see the
 // filterPriority doc). filterPriority guarantees that here.
 func u32FilterPair(v4Key, v6Key nl.TcU32Key, linkIdx int, parentHandle, classHandle uint32) ([]netlink.Filter, error) {
 	v4Attrs, err := newFilterAttrs(linkIdx, parentHandle, ethPIP)
@@ -371,7 +371,7 @@ func u32FilterPair(v4Key, v6Key nl.TcU32Key, linkIdx int, parentHandle, classHan
 	}, nil
 }
 
-// raiseQdiscType maps a netlink Qdisc to a ze QdiscType.
+// raiseQdiscType maps a netlink.Qdisc to a ze QdiscType.
 func raiseQdiscType(q netlink.Qdisc) traffic.QdiscType {
 	switch q.(type) {
 	case *netlink.Htb:

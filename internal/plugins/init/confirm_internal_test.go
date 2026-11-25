@@ -439,7 +439,7 @@ func TestReadAnswer(t *testing.T) {
 // VALIDATES: when discovery fails, --confirm asks nothing, warns as the
 // default does, and still writes the listener.
 func TestZeInitConfirmDiscoveryFailure(t *testing.T) {
-	fixedDiscovery(t, nil, errors.New("netlink: permission denied"))
+	fixedDiscovery(t, nil, errors.New("netlink error: permission denied"))
 	dir := t.TempDir()
 	var prompts bytes.Buffer
 	if code, _ := runConfirm(t, strings.NewReader(credentials), &prompts, dir); code != 0 {

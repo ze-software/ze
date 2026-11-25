@@ -1,6 +1,6 @@
 // Design: docs/features/interfaces.md -- passive PPP transport retirement
 // These are NON-NATIVE state models. Their owners do not certify a Linux unit.
-// A task-owned pipe tests socket-file Close only; no modeled fd reaches netlink.
+// A task-owned pipe tests socket-file Close only; no modeled fd reaches the netlink socket.
 
 //go:build linux
 

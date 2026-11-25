@@ -38,7 +38,7 @@
 #   ORIGIN 40010100 (IGP), AS_PATH 4002.., NEXT_HOP 40030401010101 (1.1.1.1),
 #   COMMUNITY C00804FDE90064 (65001:100) or C00804FDE9029A (65001:666), NLRI.
 
-# Linux-only: static `next { interface lo { } }` resolves loopback `lo` via Linux netlink.
+# Linux-only: static `next { interface lo { } }` resolves loopback `lo` via the Linux netlink socket.
 option=needs-linux
 option=env:var=ze.log.bgp.filter.prefix:value=info
 option=env:var=ze.log.bgp.filter.aspath:value=info

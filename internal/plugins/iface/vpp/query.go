@@ -389,7 +389,7 @@ func detailsToInfo(d *interfaces.SwInterfaceDetails) iface.InterfaceInfo {
 		// empty made every Resolve on this backend answer with an empty device,
 		// so the by-name dispatch ops fell back to the logical name and an
 		// os-name or mac/match selector steered nothing at all on VPP. The
-		// netlink backend has always set it (show_linux.go).
+		// kernel backend has always set it (show_linux.go).
 		OsName:      name,
 		Index:       int(d.SwIfIndex),
 		Type:        d.Type.String(),

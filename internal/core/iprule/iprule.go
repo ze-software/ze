@@ -1,5 +1,5 @@
-// Design: docs/architecture/policyroute/policy-routing.md -- netlink ip rule and route management
-// Related: iprule_linux.go -- the netlink encoding of Mark and Source
+// Design: docs/architecture/policyroute/policy-routing.md -- rtnetlink ip rule and route management
+// Related: iprule_linux.go -- the rtnetlink encoding of Mark and Source
 //
 // Package iprule builds Linux fib rules (`ip rule`) for every Ze producer that
 // steers traffic into a routing table of its own, and declares the table ranges

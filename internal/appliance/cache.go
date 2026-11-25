@@ -338,7 +338,7 @@ func cacheFileHash(root string, paths []string) (string, error) {
 // binary is compiled from: `go build ./cmd/ze-installer` (tag ze_installer)
 // pulls in all of internal/install/disk. The cache variant hashes EVERY non-test
 // .go file under these dirs, not a hand-picked subset, so any installer source
-// edit (DHCP, netlink, download, ...) invalidates the cached initrd instead of
+// edit (DHCP, rtnetlink, download, ...) invalidates the cached initrd instead of
 // silently serving a stale binary. Regression that motivated this: a
 // dhcp_linux.go fix was masked because the old 4-file hash omitted it.
 var initrdSourceDirs = []string{

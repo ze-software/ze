@@ -2,7 +2,7 @@
 
 // Package firewallvpp implements the ze firewall Backend interface on
 // top of VPP's binary API via GoVPP. It is registered under the name
-// "vpp" alongside the nft backend.
+// "vpp" alongside the kernel backend.
 //
 // It programs three VPP features. A filter chain becomes ACL rules
 // (src/dst prefix, port range, protocol, ICMP type/code, TCP flags,

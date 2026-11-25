@@ -7,23 +7,23 @@
 ## What it is
 Two independent MPLS label-signaling protocols run as plugin engines (one process each,
 driven by `pkg/plugin/sdk`) and push everything they learn into the kernel through one
-shared, dedicated event topic rather than touching netlink themselves. `rsvpte/engine.go`
+shared, dedicated event topic rather than touching netlink sockets themselves. `rsvpte/engine.go`
 runs RSVP-TE (RFC 3209/2205): explicit-route LSP setup with PATH/RESV soft-state,
 bandwidth admission, and RFC 4090 facility-backup Fast Reroute. `ldp/register.go` +
 `ldp/session.go` run LDP (RFC 5036): UDP Hello discovery, a per-peer TCP session FSM, and
 downstream-unsolicited FEC-to-label distribution. Both translate their decisions into
 `(mpls-fib, entry)` events (`internal/core/mplsfib/events.go`) on the shared EventBus;
 the writer of the data plane `interface { backend }` selects consumes them:
-`fib-kernel` (`internal/plugins/fib/kernel/mplsentry.go`) on netlink, the only code that
-calls netlink for these entries, and `fib-vpp` (`internal/plugins/fib/vpp/mplsentry.go`)
+`fib-kernel` (`internal/plugins/fib/kernel/mplsentry.go`) on `kernel`, the only code that
+calls netlink APIs for these entries, and `fib-vpp` (`internal/plugins/fib/vpp/mplsentry.go`)
 on VPP. Neither producer names a writer: both declare `NeedsDataPlane`, and the
 writer unifies push/swap/pop programming, stale-sweep and metrics regardless of which
 protocol produced the entry.
 `internal/component/mpls` is a separate, read-only path: `show mpls forwarding`
 looks up the forwarding reader registered for the configured data plane in
-`internal/core/mplsfib/forwarding.go` (`ForwardingReaderFor`): on `netlink`,
+`internal/core/mplsfib/forwarding.go` (`ForwardingReaderFor`): on `kernel`,
 `dumpMPLSRoutes` (`mpls/forwarding_linux.go`) dumps the kernel AF_MPLS table
-plus ze-owned IP-encap routes from netlink; on `vpp`, `readMPLSForwarding`
+plus ze-owned IP-encap routes via netlink; on `vpp`, `readMPLSForwarding`
 (`internal/plugins/fib/vpp/mplsforwarding.go`) dumps VPP MPLS table 0 and
 VPP's labeled IP routes over GoVPP, independent of either engine's in-memory
 state.
@@ -200,7 +200,7 @@ state.
 18. **Observing the result.** `ze-mpls:show-forwarding` (`mpls/show_forwarding.go`,
     `handleShowMPLSForwarding`) resolves the active data plane from `interface { backend }`
     and looks up its registered `mplsfib.ForwardingReader` (`internal/core/mplsfib/forwarding.go`,
-    `ForwardingReaderFor`). Under `netlink`, `dumpMPLSRoutes` (`mpls/forwarding_linux.go`,
+    `ForwardingReaderFor`). Under `kernel`, `dumpMPLSRoutes` (`mpls/forwarding_linux.go`,
     registered in `mpls/register.go`) lists `netlink.FAMILY_MPLS` routes (swap/pop, keyed by
     `MPLSDst`) plus ze-owned (`rtprotZE`) IPv4/IPv6 routes carrying an `MPLSEncap` (push,
     `pushEntryFromRoute`). Under `vpp`, `readMPLSForwarding` (`internal/plugins/fib/vpp/mplsforwarding.go`,
@@ -236,15 +236,15 @@ state.
 | `internal/core/mplsfib/forwarding.go` | Data-plane forwarding reader registry (`RegisterForwardingReader`, `ForwardingReaderFor`), shared `ForwardingEntry` shape and `LabelOperation` |
 | `internal/plugins/fib/kernel/mplsentry.go` | Kernel consumer: programs push via rich-route IP+encap, swap/pop via `AF_MPLS`, on both add and remove |
 | `internal/plugins/fib/vpp/mplsforwarding.go` | Read-only VPP reader (`readMPLSForwarding`: MPLS table 0 + labeled IP routes) registered for `"vpp"` in `register_mpls_forwarding.go` |
-| `internal/component/mpls/forwarding_linux.go` | Read-only kernel-table dump (`netlink.FAMILY_MPLS` + ze-owned encap IP routes) registered for `"netlink"` in `register.go` |
+| `internal/component/mpls/forwarding_linux.go` | Read-only kernel-table dump (`netlink.FAMILY_MPLS` + ze-owned encap IP routes) registered for `"kernel"` in `register.go` |
 | `internal/component/mpls/show_forwarding.go` | `ze-mpls:show-forwarding` RPC handler, data-plane reader dispatch, limit/truncation |
 
 ## Invariants & gotchas
 - **fib-kernel is the single kernel programmer for MPLS, fib-vpp the VPP one.**
-  Neither `ldp/fib.go` nor `rsvpte/fib.go` calls netlink; both only emit
+  Neither `ldp/fib.go` nor `rsvpte/fib.go` calls netlink APIs; both only emit
   `(mpls-fib, entry)`. `show mpls forwarding` reads from the selected data plane's
   registered reader (`internal/core/mplsfib/forwarding.go`): the kernel AF_MPLS
-  table and labeled IP routes on `netlink`, or VPP MPLS table 0 and VPP's labeled
+  table and labeled IP routes on `kernel`, or VPP MPLS table 0 and VPP's labeled
   IP routes via `fib-vpp` (`internal/plugins/fib/vpp/mplsforwarding.go`) on `vpp`.
   This keeps stale-sweep, `RouteAdd`-vs-`RouteReplace` foreign-route safety, and
   the `ze_fibkernel_mpls_*` metrics unified across producers
@@ -298,7 +298,7 @@ state.
 - **`internal/component/mpls` is read-only and protocol-agnostic.** It has no
   dependency on `ldp`, `rsvpte`, or any FIB plugin and no knowledge of which
   protocol installed an entry; it looks up the selected data plane's reader via
-  `internal/core/mplsfib/forwarding.go`, and its netlink reader distinguishes push
+  `internal/core/mplsfib/forwarding.go`, and its kernel reader distinguishes push
   (ze-owned IP route with `MPLSEncap`, `rtprotZE` = `rtproto.FIBKernel`) from
   swap/pop (`AF_MPLS` route) purely from kernel route shape
   (`mpls/forwarding_linux.go`).

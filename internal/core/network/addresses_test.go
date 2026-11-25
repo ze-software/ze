@@ -10,7 +10,7 @@ import (
 // nothing registered WatchAddresses answers ErrAddressWatchNotRegistered,
 // never a channel that stays silent; once registered it calls the watcher; a
 // second registration and a nil watcher are build defects. The slot is saved
-// and restored around the test, because the netlink backend fills it at
+// and restored around the test, because the kernel backend fills it at
 // init() in a binary that links it.
 func TestAddressWatchRegistry(t *testing.T) {
 	addressWatch.Lock()

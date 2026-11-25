@@ -63,16 +63,16 @@ func TestFirewallHealthReportsATableTheKernelLost(t *testing.T) {
 	stub := &auditStubBackend{tables: []firewall.Table{
 		{Name: "ze_filter", Family: firewall.FamilyInet},
 	}}
-	require.NoError(t, firewall.RegisterBackend("nft-health-missing", func() (firewall.Backend, error) { return stub, nil }))
+	require.NoError(t, firewall.RegisterBackend("kernel-health-missing", func() (firewall.Backend, error) { return stub, nil }))
 	// A cleanup runs after the deferred CloseBackend below, so the backend is
 	// no longer active when it is unregistered, and a -count rerun registers
 	// it again.
 	t.Cleanup(func() {
-		if err := firewall.UnregisterBackendForTest("nft-health-missing"); err != nil {
+		if err := firewall.UnregisterBackendForTest("kernel-health-missing"); err != nil {
 			t.Errorf("UnregisterBackendForTest: %v", err)
 		}
 	})
-	require.NoError(t, firewall.LoadBackend("nft-health-missing"))
+	require.NoError(t, firewall.LoadBackend("kernel-health-missing"))
 	defer func() { _ = firewall.CloseBackend() }()
 
 	firewall.StoreLastApplied([]firewall.Table{

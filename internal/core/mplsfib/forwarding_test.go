@@ -27,7 +27,7 @@ func withForwardingReaders(t *testing.T) {
 // unregistered name answers false rather than a reader that reads nothing.
 //
 // Method: register a reader for "vpp", look it up, register again, look up
-// "netlink".
+// "kernel".
 func TestForwardingReaderRegistry(t *testing.T) {
 	withForwardingReaders(t)
 	want := []ForwardingEntry{{InLabel: 100, Operation: "pop"}}
@@ -49,7 +49,7 @@ func TestForwardingReaderRegistry(t *testing.T) {
 	if !errors.Is(err, errForwardingDuplicate) {
 		t.Fatalf("second reader for one data plane: got %v, want errForwardingDuplicate", err)
 	}
-	if _, ok := ForwardingReaderFor("netlink"); ok {
+	if _, ok := ForwardingReaderFor("kernel"); ok {
 		t.Fatal("an unregistered data plane answered a reader")
 	}
 }

@@ -56,10 +56,10 @@ header: X-Ze-Version: <VERSION>
   	bridge br0 {
   		mac address 02:00:00:00:00:03
   	}
-  	backend netlink
+  	backend kernel
   }
   firewall {
-  	backend nft
+  	backend kernel
   	table golden {
   		family inet
   		chain input {

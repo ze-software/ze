@@ -181,7 +181,7 @@ module ze-firewall-conf {
                 address added after the commit matches too. A packet routed through the router to another
                 host does not match. A destination translation that carries this match captures only traffic
                 addressed to the router, never transit traffic to the same port. Ze reads the leaf as a
-                presence flag, so it takes no value. The nft backend lowers it to fib daddr type local.
+                presence flag, so it takes no value. The kernel backend lowers it to fib daddr type local.
                 It is valid in a table of family ip or ip6. Verify refuses it in a table of family inet,
                 arp, bridge or netdev, and the vpp backend refuses it.";
             ze:help "Match a destination address this router holds";
@@ -223,14 +223,13 @@ module ze-firewall-conf {
         }
         leaf connection-state {
             type connection-state;
-            ze:backend "nft";
-            description "Connection tracking state(s). The match is conntrack-driven, and it requires a backend that
-                integrates with the kernel nf_conntrack module.";
+            description "Connection tracking state(s). The kernel backend uses nf_conntrack for all four states; the
+                vpp backend maps established and related to PERMIT_REFLECT and refuses new and invalid.";
             ze:help "Connection tracking state(s) the rule matches.";
         }
         leaf connection-mark {
             type mark-value;
-            ze:backend "nft";
+            ze:backend "kernel";
             description "The mark lives on the conntrack entry, so every packet of one flow reads the same value
                 in both directions. The mark leaf beside it reads the per-packet mark instead, which
                 starts at 0 for each packet. The match is conntrack-driven, and it needs a backend that
@@ -418,7 +417,7 @@ module ze-firewall-conf {
         }
         container notrack {
             presence "Disable connection tracking";
-            ze:backend "nft";
+            ze:backend "kernel";
             description "The packet skips conntrack, so the kernel opens no entry for its flow. A
                 connection-state or a connection-mark match in a later term cannot see that packet. NAT
                 needs a conntrack entry, so a NAT term cannot translate it either.";
@@ -426,9 +425,9 @@ module ze-firewall-conf {
         }
         container flow-offload {
             presence "Hardware flow offload";
-            ze:backend "nft";
-            description "Hardware or software flow offload through an nftables flowtable. The VPP dataplane is itself the
-                fast path, and it does not expose a flowtable surface.";
+            description "Hardware or software flow offload through an nftables flowtable. The action must name a
+                flowtable declared in the same table, and the flowtable list carries ze:backend kernel, so
+                flow-offload is refused on VPP through the flowtable it names.";
             ze:help "Hardware or software flow offload through an nftables flowtable.";
             leaf flowtable {
                 type string;
@@ -441,10 +440,10 @@ module ze-firewall-conf {
         }
         container mark-set {
             presence "Set packet mark";
-            ze:backend "nft";
-            description "Write the kernel skb mark. Different backends carry per-packet metadata differently. The VPP
-                classifier's equivalent uses opaque keys through ClassifyAddDelSession.";
-            ze:help "Write the kernel skb mark.";
+            description "Set the per-packet mark. On the kernel backend this writes the kernel skb mark; on the vpp
+                backend this programs a classify session in a filter chain through ClassifyAddDelSession (refused in a
+                NAT chain or with IPv6 addresses, port ranges, or limit in the same term).";
+            ze:help "Set the per-packet mark.";
             leaf value {
                 type mark-value;
                 mandatory true;
@@ -457,10 +456,10 @@ module ze-firewall-conf {
         }
         container connection-mark-set {
             presence "Set connection mark";
-            ze:backend "nft";
+            ze:backend "kernel";
             description "The mark lives on the conntrack entry, so it survives for the whole flow and both
                 directions read it. The mark-set action writes the per-packet mark instead, and that
-                mark starts at 0 on each packet. The nft backend is required.";
+                mark starts at 0 on each packet. The kernel backend is required.";
             ze:help "Write the conntrack mark of the packet's flow.";
             leaf value {
                 type mark-value;
@@ -493,7 +492,7 @@ module ze-firewall-conf {
         }
         leaf tcp-mss-clamp-to-pmtu {
             type empty;
-            ze:backend "nft";
+            ze:backend "kernel";
             description "Ze clamps the TCP MSS option to the MTU of the route the packet takes, less the fixed
                 IP and TCP headers: 40 bytes for IPv4 and 60 for IPv6, so a 1492-byte PPPoE route gives
                 1452 or 1432. The kernel also takes the MTU of the route back to the source when it is
@@ -572,12 +571,12 @@ module ze-firewall-conf {
 
         leaf backend {
             type string;
-            default "nft";
-            description "Firewall backend implementation. The default is nft, which is nftables through libnftnl. A future
+            default "kernel";
+            description "Firewall backend implementation. The default is kernel, which is nftables through libnftnl. A future
                 backend can declare itself through firewall.RegisterBackend. The ze:backend YANG extension on
                 feature nodes declares per-feature backend support, so the commit-time gate rejects a config that
                 uses an unsupported primitive.";
-            ze:help "Firewall backend implementation, nft by default.";
+            ze:help "Firewall backend implementation, kernel by default.";
         }
 
         leaf flush-on-shutdown {
@@ -902,8 +901,8 @@ module ze-firewall-conf {
 
                 container flags-timeout {
                     presence "Enable per-element timeouts";
-                    description "The flag MUST be set for a per-element timeout to reach the kernel. The netlink
-                        library writes the element timeout attribute only when the parent set carries
+                    description "The flag MUST be set for a per-element timeout to reach the kernel. The netlink library
+                        writes the element timeout attribute only when the parent set carries
                         the flag, so a timeout under a set without it is dropped on the way down.";
                     ze:help "Enable per-element timeouts";
                 }
@@ -951,7 +950,7 @@ module ze-firewall-conf {
 
             list flowtable {
                 key "name";
-                ze:backend "nft";
+                ze:backend "kernel";
                 description "Hardware offload flowtable. The flowtable is nftables-specific. The VPP dataplane is itself the fast
                     path, and it does not expose a flowtable surface.";
                 ze:help "Hardware offload flowtable, which is nftables-specific.";

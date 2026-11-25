@@ -24,7 +24,7 @@ AS_PATH carries a defect: it reads `options.as_path` instead of the resolved
 variable. An operator who needs per-state communities defines separate watchdog
 groups.
 
-**Labels were dropped from ip-setup.** Ze uses netlink and tracks its addresses
+**Labels were dropped from ip-setup.** Ze uses netlink sockets and tracks its addresses
 internally. It does not shell out to `ip`.
 
 **Disable is a config reload, not a polled file.** `ze config set ... disable

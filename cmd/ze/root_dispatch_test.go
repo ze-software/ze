@@ -3,11 +3,13 @@
 package main
 
 import (
+	"slices"
 	"testing"
 
 	"github.com/ze-software/ze/internal/component/aihelp"
 	"github.com/ze-software/ze/internal/component/command"
 	"github.com/ze-software/ze/internal/component/command/registry"
+	"github.com/ze-software/ze/internal/component/config"
 )
 
 // These tests register sentinel root names rather than calling
@@ -185,5 +187,85 @@ func TestHelpAIPublishesTheRegistryRole(t *testing.T) {
 	}
 	if mode := published[command.VerbResolve]; mode != "read-only" {
 		t.Errorf("resolve published as %q, want \"read-only\": command.Verbs gives it RoleRead", mode)
+	}
+}
+
+// TestDispatcherRecordsTheCommandLinePlugins proves zeDispatch records the
+// parsed global --plugin list in the config process record before any verb
+// runs, matching the slice handed to cmdStart, and records an empty list when
+// no --plugin is given.
+//
+// VALIDATES: AC-18, R-9: after global flags are parsed, zeDispatch populates
+// config.CommandLinePlugins before dispatching a root verb, holding the exact
+// slice handed to cmdStart via RuntimeContext.Plugins, and holds none when no
+// --plugin was passed.
+// PREVENTS: Offline commands or commit doors judging with an empty or stale
+// command-line plugin selection because dispatch failed to record it first.
+func TestDispatcherRecordsTheCommandLinePlugins(t *testing.T) {
+	savedFlags := zeFlags
+	savedPlugins := config.CommandLinePlugins()
+	t.Cleanup(func() {
+		zeFlags = savedFlags
+		config.RecordCommandLinePlugins(savedPlugins)
+	})
+
+	const sentinelRoot = "ztest-record-cli-plugins"
+	var gotRecorded []string
+	var gotRuntimePlugins []string
+	called := false
+	registry.MustRegisterRootHandler(sentinelRoot, func(rctx *registry.RuntimeContext, _ []string) int {
+		called = true
+		gotRecorded = config.CommandLinePlugins()
+		gotRuntimePlugins = slices.Clone(rctx.Plugins)
+		return 0
+	}, registry.Meta{ShortHelp: "sentinel root probing recorded command-line plugins", Mode: "offline"})
+
+	want := []string{"ze.flowspec-firewall", "ze.hostname"}
+	zeFlags = zeGlobalFlags{}
+	rest, code := zeParseGlobalFlags([]string{"--plugin", "ze.flowspec-firewall", "--plugin", "ze.hostname", sentinelRoot})
+	if code != 0 {
+		t.Fatalf("zeParseGlobalFlags exit code = %d, want 0", code)
+	}
+	if !slices.Equal(rest, []string{sentinelRoot}) {
+		t.Fatalf("remaining args = %v, want [%s]", rest, sentinelRoot)
+	}
+	if dispatchCode := zeDispatch(rest); dispatchCode != 0 {
+		t.Fatalf("zeDispatch exit code = %d, want 0", dispatchCode)
+	}
+	if !called {
+		t.Fatal("sentinel root handler was not invoked")
+	}
+	if !slices.Equal(gotRecorded, want) {
+		t.Errorf("recorded plugins before verb ran = %v, want %v", gotRecorded, want)
+	}
+	if !slices.Equal(gotRuntimePlugins, gotRecorded) {
+		t.Errorf("RuntimeContext.Plugins = %v does not match recorded plugins %v", gotRuntimePlugins, gotRecorded)
+	}
+	if !slices.Equal(config.CommandLinePlugins(), want) {
+		t.Errorf("CommandLinePlugins after dispatch = %v, want %v", config.CommandLinePlugins(), want)
+	}
+
+	called = false
+	gotRecorded = nil
+	gotRuntimePlugins = nil
+	zeFlags = zeGlobalFlags{}
+	rest, code = zeParseGlobalFlags([]string{sentinelRoot})
+	if code != 0 {
+		t.Fatalf("zeParseGlobalFlags (no --plugin) exit code = %d, want 0", code)
+	}
+	if dispatchCode := zeDispatch(rest); dispatchCode != 0 {
+		t.Fatalf("zeDispatch (no --plugin) exit code = %d, want 0", dispatchCode)
+	}
+	if !called {
+		t.Fatal("sentinel root handler was not invoked without --plugin")
+	}
+	if len(gotRecorded) != 0 {
+		t.Errorf("recorded plugins without --plugin = %v, want empty", gotRecorded)
+	}
+	if len(gotRuntimePlugins) != 0 {
+		t.Errorf("RuntimeContext.Plugins without --plugin = %v, want empty", gotRuntimePlugins)
+	}
+	if len(config.CommandLinePlugins()) != 0 {
+		t.Errorf("CommandLinePlugins after no-plugin dispatch = %v, want empty", config.CommandLinePlugins())
 	}
 }

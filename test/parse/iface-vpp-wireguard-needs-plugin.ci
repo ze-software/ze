@@ -1,0 +1,46 @@
+# Test: a WireGuard interface under interface backend vpp requires vpp plugins wireguard true.
+# Question: does `ze config validate` refuse a WireGuard interface under
+#           `interface backend vpp` when `vpp plugins wireguard` is absent or
+#           `false`, naming the interface and `set vpp plugins wireguard true`?
+#           A unit test cannot prove `ze config validate` invokes the
+#           `iface-vpp-wireguard-plugin` original-tree validator across both
+#           the `interface` and `vpp` roots.
+# VALIDATES: spec-dataplane-compatibility-guard AC-2 -- `iface-vpp-wireguard-plugin`
+#            runs over the whole candidate tree and refuses missing/disabled
+#            VPP WireGuard plugin enablement before apply.
+# PREVENTS: a WireGuard interface under VPP passing validation and failing only
+#           when VPP rejects `wireguard_interface_create`.
+stdin=absent:terminator=EOF_ABSENT
+interface {
+	backend vpp;
+	wireguard wg0 {
+		listen-port 51820;
+		private-key "aHZkc2ZqaHZra2hkZnZoamtkc2Zoa2RoaGRma2poZmg=";
+	}
+}
+EOF_ABSENT
+
+stdin=disabled:terminator=EOF_DISABLED
+vpp {
+	plugins {
+		wireguard false;
+	}
+}
+interface {
+	backend vpp;
+	wireguard wg1 {
+		listen-port 51821;
+		private-key "aHZkc2ZqaHZra2hkZnZoamtkc2Zoa2RoaGRma2poZmg=";
+	}
+}
+EOF_DISABLED
+
+cmd=foreground:seq=1:exec=ze config validate -:stdin=absent
+expect=exit:code=1
+expect=stdout:contains=wg0
+expect=stdout:contains=set vpp plugins wireguard true
+
+cmd=foreground:seq=2:exec=ze config validate -:stdin=disabled
+expect=exit:code=1
+expect=stdout:contains=wg1
+expect=stdout:contains=set vpp plugins wireguard true

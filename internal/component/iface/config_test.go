@@ -87,8 +87,8 @@ func TestReconcileOnVPPReady_NoOpWhenActiveCfgNil(t *testing.T) {
 // TestReconcileOnVPPReady_NoOpForNonVPPBackend guards against mutating
 // non-vpp backend state when a vpp lifecycle event fires under a
 // non-vpp-backed iface config. Scenario: vpp.enabled=true is paired with
-// interface.backend=netlink (vpp for FIB, netlink for interface mgmt).
-// Netlink's StartMonitor is not idempotent, so retrying it on every
+// interface.backend=kernel (vpp for FIB, kernel for interface mgmt).
+// The kernel backend's StartMonitor is not idempotent, so retrying it on every
 // EventConnected / EventReconnected would leak a fresh monitor goroutine
 // each time.
 //
@@ -99,14 +99,14 @@ func TestReconcileOnVPPReady_NoOpForNonVPPBackend(t *testing.T) {
 	fb.ifaces["orphan-dum"] = fakeIface{name: "orphan-dum", linkType: TypeDummy}
 
 	cfg := testConfigWithAddresses()
-	cfg.Backend = "netlink"
+	cfg.Backend = "kernel"
 	var activeCfg atomic.Pointer[ifaceConfig]
 	activeCfg.Store(cfg)
 
 	reconcileOnVPPReady(&activeCfg)
 
 	// Reconcile MUST NOT have pruned the orphan: for non-vpp backends the
-	// handler is a no-op because vpp-ready carries no meaning for netlink.
+	// handler is a no-op because vpp-ready carries no meaning for the kernel backend.
 	require.False(t, fb.deleted["orphan-dum"], "non-vpp backend must not trigger reconcile on vpp event")
 	// No addresses should have been applied either.
 	require.Empty(t, fb.addrs["dum0"], "non-vpp backend must not add addresses on vpp event")
@@ -444,7 +444,7 @@ func TestReconcileOnReady_DefersOnSentinel(t *testing.T) {
 // VALIDATES: AC-8 -- non-sentinel errors still surface.
 // PREVENTS: silent swallowing of real backend failures.
 func TestReconcileOnReady_RecordsNonSentinelError(t *testing.T) {
-	realErr := errors.New("netlink: rtnetlink receive: permission denied")
+	realErr := errors.New("netlink error: rtnetlink receive: permission denied")
 	fb := &fakeBackend{
 		ifaces:  map[string]fakeIface{},
 		listErr: realErr,
@@ -2184,7 +2184,7 @@ type fakeBackend struct {
 	setupMirrorErr   map[string]error       // per-source-interface SetupMirror error injection
 	removeMirrorErr  map[string]error       // per-source-interface RemoveMirror error injection
 	// mirrorNeedsDestination makes SetupMirror refuse a destination the fake
-	// holds no device for, as the kernel does: the netlink backend resolves
+	// holds no device for, as the kernel does: the kernel backend resolves
 	// the destination by name when it installs the filter. Off by default,
 	// because most mirror tests name a capture port they never create.
 	mirrorNeedsDestination bool
@@ -2468,7 +2468,7 @@ func (b *fakeBackend) CreateMacvlanDevice(spec MacvlanSpec) error {
 	b.callOrder = append(b.callOrder, "create-macvlan:"+spec.Name)
 	b.created[spec.Name] = true
 	b.macvlans[spec.Name] = spec
-	// Faithful to the netlink backend: MAC + alias set atomically at create,
+	// Faithful to the kernel backend: MAC + alias set atomically at create,
 	// parent index + MTU inherited from the parent (mirrored here from the
 	// parent fakeIface, so a re-run sees a spec-equal device -- no false drift).
 	p := b.ifaces[spec.Parent]
@@ -2484,7 +2484,7 @@ func (b *fakeBackend) CreateMacvlanDevice(spec MacvlanSpec) error {
 }
 func (b *fakeBackend) GetXFRMInfo(_ string) (XFRMInfo, error) { return XFRMInfo{}, nil }
 
-// CreateOwnedBridge is faithful to the netlink backend: the bridge carries its
+// CreateOwnedBridge is faithful to the kernel backend: the bridge carries its
 // own kernel index, the requested MTU and the ownership alias, and is up. Its
 // addresses arrive through AddAddress, as the reconcile adds them.
 func (b *fakeBackend) CreateOwnedBridge(spec OwnedBridgeSpec) error {
@@ -2513,7 +2513,7 @@ func (b *fakeBackend) CreateOwnedLink(spec OwnedLinkSpec) error {
 }
 
 // SetAdminUp, SetAdminDown, SetMTU and AddAddress all refuse a device that is
-// not present, which is what the netlink backend does: each starts with
+// not present, which is what the kernel backend does: each starts with
 // netlink.LinkByName and answers "not found" when it fails (manage_linux.go).
 // A fake that accepted any name could not tell an apply that reached the
 // operator's hardware from one that named a device which does not exist.
@@ -2549,7 +2549,7 @@ func (b *fakeBackend) SetMTU(name string, mtu int) error {
 	return nil
 }
 func (b *fakeBackend) SetMACAddress(name, mac string) error {
-	// Faithful to the netlink backend: setting a MAC on an interface whose link
+	// Faithful to the kernel backend: setting a MAC on an interface whose link
 	// is absent fails with a not-found error (manage_linux.go SetMACAddress).
 	if _, ok := b.ifaces[name]; !ok {
 		return fmt.Errorf("iface: set mac on %q: not found: link not found", name)
@@ -2653,7 +2653,7 @@ func (b *fakeBackend) ListInterfaces() ([]InterfaceInfo, error) {
 	}
 	var result []InterfaceInfo
 	for _, f := range b.ifaces {
-		// OsName carries the kernel device name, as the netlink backend sets it
+		// OsName carries the kernel device name, as the kernel backend sets it
 		// (show_linux.go). The resolver reads it back as the device a logical
 		// name resolved to, so a fake that left it empty made every Resolve in
 		// a unit test answer with no device.
@@ -2707,7 +2707,7 @@ func (b *fakeBackend) GetLink(name string) (*InterfaceInfo, error) {
 // state follows state: "up" and "down" are read states, and a device seeded
 // or created with no state reports none, as a backend that cannot read it
 // does, so the apply writes it. A VLAN reports the maps the fake holds for it,
-// read like the netlink backend's (a VLAN with none holds none).
+// read like the kernel backend's (a VLAN with none holds none).
 func (b *fakeBackend) linkInfo(f fakeIface) InterfaceInfo {
 	info := InterfaceInfo{Name: f.name, OsName: f.name, Type: f.linkType, MAC: f.mac, PermanentMAC: f.permMAC,
 		Alias: f.alias, ParentIndex: f.parentIndex, MasterIndex: f.masterIndex, MTU: f.mtu, Index: f.index, State: f.state,
@@ -4384,7 +4384,7 @@ func TestParseUnitQoSMapInvalid(t *testing.T) {
 // the backend inside the VLANSpec, and that units without maps pass nil.
 //
 // VALIDATES: spec-vlan-qos-map AC-3, AC-6 -- config to backend wiring.
-// PREVENTS: maps parsed but dropped before reaching netlink.
+// PREVENTS: maps parsed but dropped before reaching the netlink socket.
 func TestApplyVLANQoSMap(t *testing.T) {
 	cfg := &ifaceConfig{
 		Ethernet: []ifaceEntry{{
@@ -4416,7 +4416,7 @@ func TestApplyVLANQoSMap(t *testing.T) {
 
 // TestParseUnitQoSMapEmpty verifies a VLAN unit without QoS maps parses with
 // nil maps, preserving the pre-feature behavior (no netlink attributes sent).
-// A present-but-empty list also yields nil: the vendor netlink lib serializes
+// A present-but-empty list also yields nil: the vendor netlink library serializes
 // any non-nil map, and an empty IFLA_VLAN_*_QOS attribute must never be sent.
 //
 // VALIDATES: spec-vlan-qos-map AC-6 -- backward compatibility.

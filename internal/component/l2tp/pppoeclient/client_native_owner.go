@@ -35,7 +35,7 @@ type clientNativeOwner struct {
 const clientNativeWait = 5 * time.Second
 
 func prepareClientDial() (*clientDialPreparation, error) {
-	return prepareClientDialFrom(func() (iface.Backend, error) { return iface.OpenBackend("netlink") })
+	return prepareClientDialFrom(func() (iface.Backend, error) { return iface.OpenBackend("kernel") })
 }
 
 // prepareClientDialFrom captures one independent original backend before

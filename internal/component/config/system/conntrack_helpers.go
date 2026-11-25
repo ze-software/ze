@@ -56,7 +56,7 @@ const (
 
 // conntrackHelpers is the single declaration of what each helper module
 // assigns. The YANG enumeration at system/conntrack/module is checked against
-// it (TestHelperTableMatchesModel), and the nft lowering, the guide and
+// it (TestHelperTableMatchesModel), and the nftables lowering, the guide and
 // `show system conntrack` read it.
 //
 // Kernel helper names, families and transports are read from Linux v7.3,

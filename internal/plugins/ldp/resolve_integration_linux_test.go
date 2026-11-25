@@ -2,9 +2,9 @@
 
 // VALIDATES: waitForInterface resolves a logical interface name through the
 // shared iface resolver and returns the real *net.Interface the multicast
-// discovery socket needs, against the real netlink backend. Replaces the host
+// discovery socket needs, against the real kernel backend. Replaces the host
 // TestWaitForInterfaceFound, which could no longer run after the migration
-// (iface resolution needs the Linux-only netlink backend). The os-name /
+// (iface resolution needs the Linux-only kernel backend). The os-name /
 // mac-match remapping itself is proven centrally in the iface package.
 // PREVENTS: a regression to net.InterfaceByName(name), which would fail for a
 // logical name aliased via os-name/mac-match, and a hang when no backend loaded.
@@ -23,7 +23,7 @@ import (
 
 	"github.com/ze-software/ze/internal/component/iface"
 	"github.com/ze-software/ze/internal/core/slogutil"
-	_ "github.com/ze-software/ze/internal/plugins/iface/netlink" // register the netlink backend for iface.LoadBackend
+	_ "github.com/ze-software/ze/internal/plugins/iface/netlink" // register the kernel backend for iface.LoadBackend
 	"github.com/ze-software/ze/internal/test/userns"
 )
 
@@ -33,7 +33,7 @@ func TestWaitForInterfaceFoundResolves(t *testing.T) {
 	}
 	withLDPNetNS(t, func() {
 		if iface.GetBackend() == nil {
-			if err := iface.LoadBackend("netlink"); err != nil {
+			if err := iface.LoadBackend("kernel"); err != nil {
 				t.Fatalf("load iface backend: %v", err)
 			}
 		}

@@ -666,7 +666,7 @@ func TestVPPRefusesClampToPMTU(t *testing.T) {
 	if err == nil {
 		t.Fatal("tcp-mss-clamp-to-pmtu must be refused by backend vpp")
 	}
-	for _, want := range []string{"tcp-mss-clamp-to-pmtu", "backend vpp", "use backend nft"} {
+	for _, want := range []string{"tcp-mss-clamp-to-pmtu", "backend vpp", "use backend kernel"} {
 		if !strings.Contains(err.Error(), want) {
 			t.Errorf("want %q in message, got %v", want, err)
 		}

@@ -9,12 +9,17 @@ import (
 	"errors"
 	"sync/atomic"
 
+	"github.com/ze-software/ze/internal/component/command"
+	zeconfig "github.com/ze-software/ze/internal/component/config"
 	zeconfigcmd "github.com/ze-software/ze/internal/component/config/cli"
 	"github.com/ze-software/ze/internal/component/config/confirm"
 	"github.com/ze-software/ze/internal/component/config/storage"
 	"github.com/ze-software/ze/internal/core/configupload"
 	"github.com/ze-software/ze/internal/core/opererr"
+	"github.com/ze-software/ze/internal/core/textbuf"
 )
+
+const uploadValidateFixBase = "ze config validate <file>"
 
 // configMutationOwner owns one daemon generation's commit and reload lifetime.
 // Its zero value is a starting daemon: every operation refuses until bind.
@@ -103,10 +108,10 @@ func (o *configMutationOwner) Upload(ctx context.Context, content []byte) error 
 		return errConfigRuntimeStarting
 	}
 	if len(content) == 0 {
-		return opererr.New("configuration upload is empty", "No replacement was applied", "ze config validate <file>")
+		return opererr.New("configuration upload is empty", "No replacement was applied", uploadValidateFixBase)
 	}
 	if len(content) > configupload.MaxBytes {
-		return opererr.New("configuration upload exceeds four MiB", "No replacement was applied", "ze config validate <file>")
+		return opererr.New("configuration upload exceeds four MiB", "No replacement was applied", uploadValidateFixBase)
 	}
 	if err := ctx.Err(); err != nil {
 		return err
@@ -114,7 +119,7 @@ func (o *configMutationOwner) Upload(ctx context.Context, content []byte) error 
 	if err := zeconfigcmd.ValidateContent(string(content), runtime.path); err != nil {
 		// Parser errors can contain the input line, including secrets. Keep them
 		// on the operator's local validation path, never in the SSH receipt.
-		return opererr.New("configuration upload failed validation", "The configuration was refused before publication; validate the source locally to inspect its errors", "ze config validate <file>")
+		return opererr.New("configuration upload failed validation", "The configuration was refused before publication; validate the source locally to inspect its errors", uploadValidationFix())
 	}
 	if runtime.store == nil {
 		return opererr.New("configuration upload requires persistent storage", "This daemon cannot retain a replacement configuration", "ze start --help")
@@ -149,3 +154,23 @@ func (r *configMutationRuntime) commit(ctx context.Context, expected, content []
 }
 
 func (o *configMutationOwner) close() { o.gate.close() }
+
+// uploadValidationFix builds the local validation command for the SSH upload
+// validation receipt. It carries the daemon's recorded --plugin arguments
+// before `config validate` so local validation judges with the same plugin
+// selection the upload met, and stays `ze config validate <file>` when none
+// was recorded.
+func uploadValidationFix() string {
+	plugins := zeconfig.CommandLinePlugins()
+	if len(plugins) == 0 {
+		return uploadValidateFixBase
+	}
+	var fix textbuf.Buffer
+	fix.Str("ze")
+	for _, pluginName := range plugins {
+		fix.Str(" --plugin ")
+		command.WriteInvocationValue(&fix, pluginName)
+	}
+	fix.Str(" config validate <file>")
+	return fix.String()
+}

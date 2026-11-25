@@ -133,7 +133,7 @@ func (d *detector) characterizeAndEmit(gen uint64, ifaceName string, peakPps, pe
 //
 // What emitMu guarantees, exactly: DELIVERY ORDER, not a frozen generation. The
 // generation CAN advance between the check and the emit, because genCurrent
-// releases d.mu before returning -- the fan-out reaches ddos-local's netlink
+// releases d.mu before returning -- the fan-out reaches ddos-local's netlink socket
 // reconcile, and holding d.mu across it froze the detector's rate loop. So this
 // can publish a Detected for an attack that cleared mid-emit. That is benign,
 // and only because the rate tick advances attackGen under d.mu but publishes the

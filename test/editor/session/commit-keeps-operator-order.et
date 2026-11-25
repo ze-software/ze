@@ -4,7 +4,7 @@
 
 tmpfs=test.conf:terminator=EOF_CONF
 interface {
-  backend netlink;
+  backend kernel;
   dummy existing { description baseline; }
 }
 EOF_CONF

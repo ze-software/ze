@@ -1,5 +1,5 @@
-// Design: docs/architecture/traffic/tc-original-qdisc-restore.md -- tc original-qdisc restore
-// Related: ops_linux.go -- tc operation seam used by snapshot checks
+// Design: docs/architecture/traffic/tc-original-qdisc-restore.md -- traffic control original-qdisc restore
+// Related: ops_linux.go -- traffic control operation seam used by snapshot checks
 // Related: ai/rules/architecture.md -- the original-qdisc snapshot persists in
 // the managed store (database/) via internal/core/statestore, not a loose
 // file, so appliance state lives inside the managed, backed-up store.
@@ -76,10 +76,10 @@ func loadTCSnapshots() (map[string]tcInterfaceSnapshot, error) {
 	}
 	var store tcSnapshotStore
 	if err := json.Unmarshal(data, &store); err != nil {
-		return nil, fmt.Errorf("parse tc snapshot store: %w", err)
+		return nil, fmt.Errorf("parse traffic control snapshot store: %w", err)
 	}
 	if store.Version != tcSnapshotVersion {
-		return nil, fmt.Errorf("tc snapshot store: unsupported version %d", store.Version)
+		return nil, fmt.Errorf("traffic control snapshot store: unsupported version %d", store.Version)
 	}
 	if store.Interfaces == nil {
 		store.Interfaces = map[string]tcInterfaceSnapshot{}
@@ -101,10 +101,10 @@ func saveTCSnapshots(snapshots map[string]tcInterfaceSnapshot) error {
 	store := tcSnapshotStore{Version: tcSnapshotVersion, Interfaces: snapshots}
 	data, err := json.Marshal(store)
 	if err != nil {
-		return fmt.Errorf("marshal tc snapshot store: %w", err)
+		return fmt.Errorf("marshal traffic control snapshot store: %w", err)
 	}
 	if _, err := statestore.Put(zefs.KeyTrafficTCSnapshot.Pattern, data); err != nil {
-		return fmt.Errorf("persist tc snapshot store: %w", err)
+		return fmt.Errorf("persist traffic control snapshot store: %w", err)
 	}
 	return nil
 }
@@ -159,12 +159,12 @@ func newQdiscSnapshot(qdisc netlink.Qdisc) (tcQdiscSnapshot, error) {
 		// root we installed returns the interface to it (restoreOriginalLocked).
 		// Rejecting it meant ze refused to apply any traffic control to a veth,
 		// dummy or bridge -- `qdisc "noqueue" cannot be snapshotted exactly by
-		// backend tc` -- which is every container and VM deployment.
+		// backend kernel` -- which is every container and VM deployment.
 		//
 		// Other GenericQdisc types (mq, clsact, ...) stay rejected: those DO carry
 		// state, and this backend cannot reproduce it (ai/rules/protocol.md).
 		if generic.Type() != qdiscTypeNoqueue {
-			return tcQdiscSnapshot{}, fmt.Errorf("qdisc %q cannot be snapshotted exactly by backend tc", qdisc.Type())
+			return tcQdiscSnapshot{}, fmt.Errorf("qdisc %q cannot be snapshotted exactly by backend kernel", qdisc.Type())
 		}
 		return tcQdiscSnapshot{Type: qdiscTypeNoqueue, Attrs: snapshotAttrs(qdisc.Attrs())}, nil
 	}
@@ -177,7 +177,7 @@ func newQdiscSnapshot(qdisc netlink.Qdisc) (tcQdiscSnapshot, error) {
 		}
 		return tcQdiscSnapshot{Type: qdisc.Type(), Attrs: snapshotAttrs(qdisc.Attrs()), Data: b}, nil
 	default:
-		return tcQdiscSnapshot{}, fmt.Errorf("qdisc %q cannot be restored exactly by backend tc", qdisc.Type())
+		return tcQdiscSnapshot{}, fmt.Errorf("qdisc %q cannot be restored exactly by backend kernel", qdisc.Type())
 	}
 }
 
@@ -238,7 +238,7 @@ func (s tcQdiscSnapshot) toNetlink(linkIndex int) (netlink.Qdisc, error) {
 		var q netlink.Sfq
 		return finishSnapshotQdisc(&q, s, linkIndex)
 	default:
-		return nil, fmt.Errorf("qdisc %q cannot be restored exactly by backend tc", s.Type)
+		return nil, fmt.Errorf("qdisc %q cannot be restored exactly by backend kernel", s.Type)
 	}
 }
 

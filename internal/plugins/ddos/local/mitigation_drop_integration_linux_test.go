@@ -27,7 +27,7 @@ import (
 	"github.com/ze-software/ze/internal/core/ddosevent"
 	"github.com/ze-software/ze/internal/test/userns"
 
-	// The nft backend registers itself, which is what lets firewall.ApplyAll
+	// The kernel firewall backend registers itself, which is what lets firewall.ApplyAll
 	// load it on demand for the responder's table.
 	_ "github.com/ze-software/ze/internal/plugins/firewall/nft"
 )
@@ -39,7 +39,7 @@ const dropProofWait = 3 * time.Second
 // TestLocalMitigationDropsTheVectorAndNothingElse proves that the on-host drop
 // for a UDP flood vector drops the vector's datagrams to the victim and leaves
 // the victim's other traffic alone. Goal: the rule applyMitigation installs,
-// lowered by the nft backend into the kernel, still drops what the vector names
+// lowered by the kernel firewall backend into the kernel, still drops what the vector names
 // whatever the order of its matches. Method: the victim address is put on lo
 // with a socket on the vector's port and one on another port; both receive a
 // datagram before the mitigation, the responder then installs the drop through

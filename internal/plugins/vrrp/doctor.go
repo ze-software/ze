@@ -3,7 +3,7 @@
 // The codes live here, not in internal/core/diagnostic's builtin list, so that
 // deleting this plugin removes its diagnostics with it
 // (ai/rules/repo-maintenance.md, ai/rules/plugins.md). The
-// transport owns doctor-vrrp-raw-socket; the iface netlink backend owns
+// transport owns doctor-vrrp-raw-socket; the iface kernel backend owns
 // doctor-iface-macvlan. This file owns only what the CONFIG can be wrong about.
 //
 // The check re-runs the plugin's own verifier rather than re-implementing the
@@ -17,10 +17,7 @@ import (
 	"github.com/ze-software/ze/internal/core/diagnostic"
 )
 
-const (
-	codeVRRPConfigInvalid   = "doctor-vrrp-config-invalid"
-	codeVRRPBackendUnusable = "doctor-vrrp-backend-unusable"
-)
+const codeVRRPConfigInvalid = "doctor-vrrp-config-invalid"
 
 // vrrpDiagnosticCodes is the explanation metadata for the codes this plugin
 // owns. Registered from register.go (init-time registration is confined to
@@ -31,12 +28,6 @@ var vrrpDiagnosticCodes = []diagnostic.CodeMeta{
 		Title:       "VRRP configuration is not usable",
 		Description: "A VRRP group fails a cross-leaf rule that per-leaf YANG constraints cannot express: an advertise interval the configured version cannot encode on the wire, accept-mode combined with version 2, an IPv6 group whose first virtual-address is not link-local, one virtual address claimed by two groups on the same unit, or track configured on the group that owns its virtual address, whose priority is fixed at 255. The affected group does not run; correct the reported group.",
 		Examples:    []string{"ze doctor --json", "ze show diagnostic doctor-vrrp-config-invalid"},
-	},
-	{
-		Code:        codeVRRPBackendUnusable,
-		Title:       "VRRP configured on a VPP-backed interface tree",
-		Description: "VRRP needs macvlan devices and raw sockets, which only the netlink interface backend provides, but the interface backend is set to vpp. No virtual router runs. Remove the vrrp configuration or use the netlink backend; native VPP VRRP is not implemented.",
-		Examples:    []string{"ze doctor --json", "ze show diagnostic doctor-vrrp-backend-unusable"},
 	},
 }
 
@@ -75,20 +66,14 @@ func diagnoseSections(sections []configSection) []diagnostic.Diagnostic {
 		return nil
 	}
 
-	backend := ifaceBackend(sections)
-	verr := validateGroups(specs, backend)
+	verr := validateGroups(specs)
 	if verr == nil {
 		return nil
 	}
-	code := codeVRRPConfigInvalid
-	if backend == backendVPP {
-		// Different remediation (change the backend, or drop the config), so a
-		// different code: an operator greps the code, not the prose.
-		code = codeVRRPBackendUnusable
-	}
 	return []diagnostic.Diagnostic{{
-		Code:     code,
+		Code:     codeVRRPConfigInvalid,
 		Severity: diagnostic.SeverityError,
 		Message:  verr.Error(),
+		Fix:      "ze config validate",
 	}}
 }

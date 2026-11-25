@@ -7,7 +7,7 @@ option=skip-os:value=darwin
 
 stdin=low:terminator=END_LOW
 interface {
-    backend netlink
+    backend kernel
     ethernet eth2 {
     }
     pppoe-client pppoe0 {
@@ -20,7 +20,7 @@ END_LOW
 
 stdin=high:terminator=END_HIGH
 interface {
-    backend netlink
+    backend kernel
     ethernet eth2 {
     }
     pppoe-client pppoe0 {
@@ -33,7 +33,7 @@ END_HIGH
 
 stdin=toolow:terminator=END_TOOLOW
 interface {
-    backend netlink
+    backend kernel
     ethernet eth2 {
     }
     pppoe-client pppoe0 {
@@ -46,7 +46,7 @@ END_TOOLOW
 
 stdin=toohigh:terminator=END_TOOHIGH
 interface {
-    backend netlink
+    backend kernel
     ethernet eth2 {
     }
     pppoe-client pppoe0 {

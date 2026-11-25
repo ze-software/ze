@@ -21,9 +21,9 @@
 
 FROM alpine:3.24.3
 
-# nftables supplies the `nft` CLI. Ze programs the kernel over netlink and needs
+# nftables supplies the nft command. Ze programs the kernel over netlink and needs
 # no binary, but a scenario that asserts what reached the KERNEL has no other
-# instrument: `show firewall` renders the registry's own record, and the nft
+# instrument: `show firewall` renders the registry's own record, and the nftables
 # readback skips every table outside the ze_ ownership prefix
 # (internal/plugins/firewall/nft/readback_linux.go).
 # iproute2 supplies `ip xfrm` for the same reason: the ospf-ipsec scenarios read

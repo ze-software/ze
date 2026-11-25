@@ -286,23 +286,23 @@ func Table() []Action {
 			Does:    doesRun,
 			Argv:    goTest("120s", "./internal/plugins/fib/kernel/..."),
 			Summary: "test the kernel FIB backend",
-			Why: "the kernel FIB backend: what a route looks like once netlink has it, and" +
+			Why: "the kernel FIB backend: what a route looks like once the kernel has it, and" +
 				" which route the kernel selects for a destination. Needs CAP_NET_ADMIN",
 		},
 		{
 			Verb:    "firewall",
 			Does:    doesRun,
 			Argv:    goTest("120s", "./internal/component/firewall", "./internal/plugins/firewall/nft/...", "./internal/plugins/copp/..."),
-			Summary: "test the nft firewall backend and CoPP",
-			Why: "the nft firewall backend against a real nftables ruleset, and the CoPP" +
+			Summary: "test the kernel firewall backend and CoPP",
+			Why: "the kernel firewall backend against a real nftables ruleset, and the CoPP" +
 				" chain policing a SYN flood through it. Needs CAP_NET_ADMIN",
 		},
 		{
 			Verb:    "traffic",
 			Does:    doesRun,
 			Argv:    goTest("120s", "./internal/plugins/traffic/netlink/..."),
-			Summary: "test the traffic-control netlink backend",
-			Why: "the traffic-control netlink backend: qdisc and filter programming." +
+			Summary: "test the kernel traffic-control backend",
+			Why: "the kernel traffic-control backend: qdisc and filter programming." +
 				" Needs CAP_NET_ADMIN",
 		},
 		{

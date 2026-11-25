@@ -987,7 +987,7 @@ var byteRateMultiplier = map[string]uint64{
 
 // rateUnitSeconds holds the seconds each rate time unit stands for. It is the
 // one declaration of the units a rate spec accepts, and of what each one means:
-// the membership test below reads it, the nft backend turns the seconds into an
+// the membership test below reads it, the kernel backend turns the seconds into an
 // nftables LimitTime, and the VPP backend divides by them to reach a per-second
 // policer rate.
 //
@@ -1265,7 +1265,7 @@ func parseInterfaceSpec(v string) (string, bool) {
 	return v, false
 }
 
-// icmp4Types maps nft-compatible symbolic ICMPv4 type names to their
+// icmp4Types maps nftables-compatible symbolic ICMPv4 type names to their
 // numeric codes (IANA assignments, RFC 792). Unknown symbolic names
 // fall through to numeric parsing so configs can use `icmp-type 42`
 // for any value the kernel accepts.
@@ -1287,7 +1287,7 @@ var icmp4Types = map[string]uint8{
 	"address-mask-reply":      18,
 }
 
-// icmp6Types maps nft-compatible symbolic ICMPv6 type names to numeric
+// icmp6Types maps nftables-compatible symbolic ICMPv6 type names to numeric
 // codes (IANA assignments, RFC 4443 and neighbor-discovery extensions).
 var icmp6Types = map[string]uint8{
 	"destination-unreachable": 1,

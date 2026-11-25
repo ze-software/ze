@@ -64,7 +64,7 @@ replaced card, and the doctor names the edit that rebinds it.
 | Shared resolver and selectors | `internal/component/iface/resolve.go`, `config_apply.go` `bindDevices`; logical-name-resolution page | Binds a logical name by `os-name` or `mac match`, defers when absent, refuses ambiguity | Extends with a third selector. No second resolver |
 | Doctor selector check | `doctor_linux.go` `checkEthernetInterfaces`, `doctor_selector.go` `SelectedNetDevice` | Reports unmatched and ambiguous selectors from the config tree and sysfs | Extends: PCI selector verdicts, and the replaced-card verdict |
 | Host NIC inventory | `internal/component/host/nic_linux.go` | Reads PCI vendor and device ids, decides physical NICs | Extends or shares: the PCI address read (`device` symlink target) belongs beside it |
-| VPP DPDK interface by PCI address | `docs/guide/vpp.md`, `vpp dpdk interface <pci-address>` | VPP already binds NICs by slot | Does not apply to the netlink backend; the design states how a PCI selector on a VPP-backed entry relates to it (likely refused as redundant, or mapped) |
+| VPP DPDK interface by PCI address | `docs/guide/vpp.md`, `vpp dpdk interface <pci-address>` | VPP already binds NICs by slot | Does not apply to the kernel backend; the design states how a PCI selector on a VPP-backed entry relates to it (likely refused as redundant, or mapped) |
 | Runtime state store | `statestore`, `pkg/zefs/keys.go` (system door) | Persists daemon runtime state | Extends: the "card last seen in slot" record is runtime state and goes there, never a raw file |
 | Late NIC re-apply | the fix spec named in Depends | A NIC that appears after boot gets its entry applied | Depends on it: a replacement card hot-plugged at runtime must bind without a restart |
 

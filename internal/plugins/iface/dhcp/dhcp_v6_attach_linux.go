@@ -445,8 +445,8 @@ var errDADNotReported = errors.New("the iface backend reports interface addresse
 func (w *v6Worker) dadUnreported(err error) {
 	if !w.unreportedWarned {
 		w.unreportedWarned = true
-		loggerPtr.Load().Warn("iface dhcp v6: the iface backend does not report the duplicate address detection outcome of the leased addresses, so ze cannot tell a duplicate from a unique address and declines none of them; run the DHCPv6 client on an interface of the kernel (netlink) iface backend to have duplicates declined",
-			"iface", w.c.ifaceName, "addresses", w.dadPending, "err", err)
+		loggerPtr.Load().Warn("iface dhcp v6: the iface backend does not report the duplicate address detection outcome of the leased addresses, so ze cannot tell a duplicate from a unique address and declines none of them; run the DHCPv6 client on an interface of the kernel iface backend to have duplicates declined",
+			"iface", w.c.ifaceName, "addresses", w.dadPending, "err", err, "code", iface.CodeDoctorIfaceStateUnread)
 	}
 	w.dadPending = w.dadPending[:0]
 }

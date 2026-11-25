@@ -376,7 +376,7 @@ func TestXFRMPolicyOwnerRefusesTakeoverAndItsRollback(t *testing.T) {
 // (__xfrm_policy_match), which no unmarked flow can satisfy against a non-zero value.
 // Nothing in ze marks a flow, so a marked policy would forward nothing.
 //
-// The policies here are built by hand from netlink rather than through SPParams,
+// The policies here are built by hand via netlink rather than through SPParams,
 // because this probe exists to show why SPParams has no Mark field. Adding one to
 // production code to test the case would be the change the measurement argues against.
 //

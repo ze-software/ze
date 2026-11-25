@@ -1,6 +1,6 @@
 // Design: docs/architecture/core-design.md -- Traffic control CLI entry point
 
-// Package tc provides the ze traffic control subcommand for viewing
+// Package cli provides the ze traffic control subcommand for viewing
 // tc qdisc, class, and filter state on network interfaces.
 package cli
 
@@ -11,6 +11,7 @@ import (
 	tcpkg "github.com/ze-software/ze/internal/component/traffic"
 	tccmd "github.com/ze-software/ze/internal/component/traffic/cmd"
 	"github.com/ze-software/ze/internal/core/helpfmt"
+	"github.com/ze-software/ze/internal/core/opererr"
 )
 
 // Run executes the traffic control subcommand. Returns exit code.
@@ -27,13 +28,19 @@ func Run(args []string) int {
 		return 0
 	}
 
-	if err := tcpkg.LoadBackend("tc"); err != nil {
-		fmt.Fprintf(os.Stderr, "error: load tc backend: %v\n", err)
+	if err := tcpkg.LoadBackend("kernel"); err != nil {
+		msg := opererr.New("load kernel traffic control backend: "+err.Error(),
+			"The kernel traffic control backend could not be loaded on this host.",
+			"ze doctor")
+		os.Stderr.WriteString("error: " + msg.Error() + "\n") //nolint:errcheck // CLI stderr output
 		return 1
 	}
 	defer func() {
 		if err := tcpkg.CloseBackend(); err != nil {
-			fmt.Fprintf(os.Stderr, "warning: close tc backend: %v\n", err)
+			msg := opererr.New("close kernel traffic control backend: "+err.Error(),
+				"The kernel traffic control backend handles may not have been released cleanly.",
+				"ze doctor")
+			os.Stderr.WriteString("warning: " + msg.Error() + "\n") //nolint:errcheck // CLI stderr output
 		}
 	}()
 
@@ -85,7 +92,7 @@ func usage() {
 		Sections: []helpfmt.HelpSection{{
 			Title: "Commands",
 			Entries: []helpfmt.HelpEntry{
-				{Name: "show interface <name>", Desc: "Show tc state for a specific interface"},
+				{Name: "show interface <name>", Desc: "Show traffic control state for a specific interface"},
 			},
 		}},
 	}

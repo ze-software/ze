@@ -142,7 +142,7 @@
         {
           "title": "Interfaces",
           "slug": "configuration-interfaces",
-          "summary": "Ze manages Linux network interfaces through the iface component, backed by pure netlink."
+          "summary": "Ze manages Linux network interfaces through the iface component, backed by pure netlink sockets."
         },
         {
           "title": "VRRP",
@@ -702,7 +702,7 @@
         {
           "title": "iface-netlink",
           "slug": "iface-netlink",
-          "summary": "Netlink backend for the iface component."
+          "summary": "Kernel backend for the iface component."
         },
         {
           "title": "sysrib",

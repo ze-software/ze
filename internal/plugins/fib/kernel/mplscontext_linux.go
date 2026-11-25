@@ -173,7 +173,7 @@ func mplsMarkRule(family, priority int, mark, mask uint32) *netlink.Rule {
 }
 
 // sameMPLSRule compares the selectors and ownership returned by RuleList. The
-// netlink binding does not decode the rule action; deletes also supply the action
+// netlink library does not decode the rule action; deletes also supply the action
 // originally installed, so an action changed by another writer cannot be deleted.
 func sameMPLSRule(current, owned *netlink.Rule) bool {
 	if current.Mask == nil || owned.Mask == nil {

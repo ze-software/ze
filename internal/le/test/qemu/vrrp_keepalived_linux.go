@@ -133,7 +133,7 @@ func vrrpMasterDown(priority int) float64 { return 3 + vrrpSkew(priority) }
 func vrrpZeConfig(names vrrpNames) []byte {
 	var tb textbuf.Buffer
 	return tb.Str("interface {\n").
-		Str("    backend netlink;\n").
+		Str("    backend kernel;\n").
 		Str("    ethernet ").Str(names.zeVeth).Str(" {\n").
 		Str("        unit 0 {\n").
 		Str("            ipv4 {\n").
@@ -162,7 +162,7 @@ func vrrpZeConfig(names vrrpNames) []byte {
 func vrrpZeTrackConfig(names vrrpNames) []byte {
 	var tb textbuf.Buffer
 	return tb.Str("interface {\n").
-		Str("    backend netlink;\n").
+		Str("    backend kernel;\n").
 		Str("    ethernet ").Str(names.zeVeth).Str(" {\n").
 		Str("        unit 0 {\n").
 		Str("            ipv4 {\n").

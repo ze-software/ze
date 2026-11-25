@@ -28,7 +28,7 @@ func TestBackendNameFromTreeFallsBackToTheBuildDefault(t *testing.T) {
 		"no interface block":  {},
 		"no backend leaf":     {"interface": map[string]any{"dhcp-auto": "true"}},
 		"empty backend leaf":  {"interface": map[string]any{"backend": ""}},
-		"interface not a map": {"interface": "netlink"},
+		"interface not a map": {"interface": "kernel"},
 	}
 	for name, tree := range cases {
 		t.Run(name, func(t *testing.T) {

@@ -8,7 +8,7 @@
 // makes this LSR an ingress that imposes that label on traffic to FEC and
 // forwards it to the advertising peer; a local binding is an egress pop. The
 // writer stays the single owner of its data plane's forwarding state; LDP
-// never touches netlink or VPP directly -- the same model RSVP-TE uses. LDP
+// never touches netlink sockets or VPP directly -- the same model RSVP-TE uses. LDP
 // names no writer: its registration declares NeedsDataPlane.
 //
 // NOTE (next-hop resolution): this phase programs the push toward the peer that
@@ -262,7 +262,7 @@ func (f *ldpFIB) replay(req *replay.Request) {
 // lock across the emit is deadlock-free.
 //
 // Trade-off: because mpls-fib emits dispatch synchronously into fib-kernel's
-// netlink programming, this makes LDP label installation single-threaded across
+// netlink calls, this makes LDP label installation single-threaded across
 // sessions. That is an accepted choice for the control plane (correctness over
 // install parallelism; netlink writes serialize anyway). Callers must keep each
 // locked section to a bounded amount of work -- e.g. one FEC -- so the lock is

@@ -411,8 +411,8 @@ func (t *Transport) SendAdvert(key InstanceKey) error {
 
 // v6SourceWarmer is implemented by the Linux handle so the orchestrator can
 // resolve and cache the macvlan link-local ON THE ENGINE'S GOROUTINE before the
-// announcer worker (which only does socket I/O) uses it. Resolution is a netlink
-// query and netlink sockets land in the calling THREAD's network namespace, so
+// announcer worker (which only does socket I/O) uses it. Resolution is a netlink call
+// and netlink sockets land in the calling THREAD's network namespace, so
 // doing it at the entry point also keeps netns-scoped tests (and any future
 // multi-netns embedding) correct.
 // The method is unexported because the only implementation is in this package.

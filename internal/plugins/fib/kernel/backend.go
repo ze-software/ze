@@ -1,6 +1,6 @@
 // Design: docs/architecture/core-design.md -- FIB backend abstraction
 // Overview: fibkernel.go -- FIB kernel plugin
-// Related: backend_linux.go -- Linux netlink backend
+// Related: backend_linux.go -- Linux kernel backend
 // Related: backend_other.go -- noop backend for non-Linux platforms
 // Related: monitor.go -- external route change handling
 //

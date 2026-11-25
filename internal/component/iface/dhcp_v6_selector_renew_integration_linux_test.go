@@ -166,7 +166,7 @@ func v6sbSetupLab(t *testing.T) (string, *v6sbServer) {
 func v6sbSetupLabNS(t *testing.T) (string, string, netns.NsHandle, *v6sbServer) {
 	t.Helper()
 	if iface.GetBackend() == nil {
-		if err := iface.LoadBackend("netlink"); err != nil {
+		if err := iface.LoadBackend("kernel"); err != nil {
 			t.Fatalf("load iface backend: %v", err)
 		}
 		t.Cleanup(func() { _ = iface.CloseBackend() })

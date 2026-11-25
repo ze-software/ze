@@ -15,13 +15,13 @@
 1. This spec file
 2. `.claude/rules/planning.md`
 3. `internal/component/iface/yang/ze-iface-conf.yang` - bridge `member` schema
-4. `internal/plugins/iface/netlink/bridge_linux.go` - bridge netlink backend
+4. `internal/plugins/iface/netlink/bridge_linux.go` - bridge kernel backend
 5. `internal/component/iface/config.go` - `bridgeEntry` / `Members`
 
 ## Task
 
 Ze cannot disable MAC address learning on an individual bridge member port. There
-is no config leaf and no netlink code that toggles per-port learning (the Linux
+is no config leaf and no kernel backend code that toggles per-port learning (the Linux
 `IFLA_BRPORT_LEARNING` attribute / `/sys/class/net/<ifname>/brport/learning`).
 Disabling learning on a port is needed for setups that program forwarding entries
 externally (EVPN, controller-driven L2), where dynamic learning must be off.
@@ -57,6 +57,13 @@ today `member` is a flat leaf-list with nowhere to attach a per-member option.
 **Behavior to change:**
 - `member` gains a per-member container carrying a `disable-learning` option; the backend sets the port learning flag accordingly.
 
+## Existing Mechanisms
+
+| Mechanism | Where (file + symbol, or page + section) | What it does today | This spec (extends, replaces, or does not apply, with the reason) |
+|-----------|------------------------------------------|--------------------|------------------------------------------------------------------|
+| Bridge YANG schema and config parser | `internal/component/iface/yang/ze-iface-conf.yang` (`list bridge`), `internal/component/iface/config.go` (`bridgeEntry`) | Models bridge `name`, `stp`, and a flat `leaf-list member` of interface names | Extends: restructures `member` into a per-member container carrying `disable-learning` while preserving existing membership semantics |
+| Linux kernel bridge backend | `internal/plugins/iface/netlink/bridge_linux.go` (`BridgeAddPort`, `BridgeDelPort`, `BridgeSetSTP`) | Enslaves and releases bridge member ports and configures bridge STP state over rtnetlink | Extends: adds `BridgeSetPortLearning` alongside `BridgeSetSTP` to program the per-port learning flag after enslavement |
+
 ## Data Flow (MANDATORY)
 
 ### Entry Point
@@ -72,7 +79,7 @@ today `member` is a flat leaf-list with nowhere to attach a per-member option.
 | Boundary | How | Verified |
 |----------|-----|----------|
 | Config ↔ iface model | per-member container → `Members` with learning flag | [ ] |
-| Model ↔ netlink backend | new `BridgeSetPortLearning` sets the port flag | [ ] |
+| Model ↔ kernel backend | new `BridgeSetPortLearning` sets the port flag | [ ] |
 | Backend ↔ kernel | `IFLA_BRPORT_LEARNING` / sysfs brport/learning | [ ] |
 
 ### Integration Points
@@ -81,7 +88,7 @@ today `member` is a flat leaf-list with nowhere to attach a per-member option.
 - `internal/plugins/iface/netlink/bridge_linux.go` - new `BridgeSetPortLearning` alongside `BridgeSetSTP`.
 
 ### Architectural Verification
-- [ ] No bypassed layers (learning set through the netlink backend, like STP)
+- [ ] No bypassed layers (learning set through the kernel backend, like STP)
 - [ ] No unintended coupling (per-port state keyed by member name)
 - [ ] No duplicated functionality (mirror the STP setter pattern)
 - [ ] Registration over hardcoding — bridge member handling stays in the iface component/backend; no central change.
@@ -91,7 +98,7 @@ today `member` is a flat leaf-list with nowhere to attach a per-member option.
 ### Assumptions
 | ID | Assumption | Basis (file/doc/user statement) | If wrong | Validated by | Status |
 |----|-----------|--------------------------------|----------|--------------|--------|
-| A-1 | The netlink library exposes `IFLA_BRPORT_LEARNING` (else sysfs fallback) | `vishvananda/netlink` used for bridges | use sysfs `brport/learning` like STP | check the netlink lib API during audit | unvalidated |
+| A-1 | The netlink library exposes `IFLA_BRPORT_LEARNING` (else sysfs fallback) | `vishvananda/netlink` used for bridges | use sysfs `brport/learning` like STP | check the netlink library API during audit | unvalidated |
 | A-2 | Restructuring `member` to a container preserves existing configs via migration | schema change | existing configs break | write a config migration + test | unvalidated |
 
 ### Risks
@@ -273,8 +280,8 @@ today `member` is a flat leaf-list with nowhere to attach a per-member option.
 
 Core evidence re-verified current after the followup-vpp-iface wave; no design change, but the member restructure now lands in a file set with NEW guard tests:
 
-- Verified-current evidence: `bridgeEntry` at `internal/component/iface/config.go` with `Members` at :178 (the spec's :174-178 range still holds); YANG `list bridge` at `internal/component/iface/yang/ze-iface-conf.yang` with `leaf-list member` at :608 (the spec's :586-614 range still holds). The bridge list remains `ze:backend "netlink"` (ze-iface-conf.yang), untouched by the wave's VPP gate widening, so this spec stays netlink-only.
+- Verified-current evidence: `bridgeEntry` at `internal/component/iface/config.go` with `Members` at :178 (the spec's :174-178 range still holds); YANG `list bridge` at `internal/component/iface/yang/ze-iface-conf.yang` with `leaf-list member` at :608 (the spec's :586-614 range still holds). The bridge list remains `ze:backend "kernel"` (ze-iface-conf.yang), untouched by the wave's VPP gate widening, so this spec stays kernel-only.
 - NEW constraints from the wave the implementation must satisfy:
   - The iface YANG schema snapshot test widened during the wave; restructuring `member` from a leaf-list to a per-member container changes the schema and must update/pass `internal/component/iface/schema_test.go`.
-  - The VPP backend gate test `internal/component/iface/backend_gate_vpp_test.go` asserts which iface features are permitted per backend; the new per-member `disable-learning` leaf must be classified there (netlink-only) so a vpp-backend config is rejected cleanly rather than silently ignored.
+  - The VPP backend gate test `internal/component/iface/backend_gate_vpp_test.go` asserts which iface features are permitted per backend; the new per-member `disable-learning` leaf must be classified there (kernel-only) so a vpp-backend config is rejected cleanly rather than silently ignored.
   - The wave added migration tests in `internal/component/iface/migrate_linux_test.go`; the planned flat-leaf-list-to-container migration (A-2/R-1) must coexist with those and follow the same test pattern.

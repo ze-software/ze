@@ -19,7 +19,7 @@ func init() {
 	})
 }
 
-// handleShowDdosLocal reports whether an on-host nft drop is currently installed
+// handleShowDdosLocal reports whether an on-host nftables drop is currently installed
 // and, if so, the target vector (prefix / proto / port) it covers.
 func handleShowDdosLocal(_ *pluginserver.CommandContext, _ command.ValidatedArgs) (*plugin.Response, error) {
 	r := activeResponder.Load()

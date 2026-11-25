@@ -2,9 +2,9 @@
 // Overview: ifacevpp.go -- vppBackendImpl, recordDeleter, naming
 //
 // CreateTunnel programs GRE (L3), GRETAP (L2/TEB), IPIP, and VXLAN tunnels on
-// the VPP dataplane via the GoVPP binary API. The netlink backend's
+// the VPP dataplane via the GoVPP binary API. The kernel backend's
 // tunnel_linux.go is the parity reference. The other tunnel kinds (ip6gre*,
-// sit, ip6tnl, ipip6) remain netlink-only; the ze:backend commit gate rejects
+// sit, ip6tnl, ipip6) remain kernel-only; the ze:backend commit gate rejects
 // them under the vpp backend before they reach this method, and the
 // exact-or-reject default below is defense in depth.
 
@@ -46,12 +46,12 @@ func (b *vppBackendImpl) CreateTunnel(spec iface.TunnelSpec) error {
 		// Backend callers can bypass config validation; reject unknown kinds.
 	}
 	var tb textbuf.Buffer
-	return errNotSupported(tb.Str("CreateTunnel kind ").Str(spec.Kind.String()).Str(" (netlink-only on this backend)").String())
+	return errNotSupported(tb.Str("CreateTunnel kind ").Str(spec.Kind.String()).Str(" (kernel-only on this backend)").String())
 }
 
 // tunnelEndpoints resolves the local/remote endpoint addresses shared by the
 // gre and ipip families. VPP terminates tunnels on an address, not on a
-// parent ifindex, so a local-interface source (valid on netlink) is rejected
+// parent ifindex, so a local-interface source (valid on kernel) is rejected
 // with a clear error rather than silently ignored.
 func (b *vppBackendImpl) tunnelEndpoints(spec iface.TunnelSpec) (src, dst ip_types.Address, err error) {
 	if spec.LocalInterface != "" {
@@ -66,7 +66,7 @@ func (b *vppBackendImpl) tunnelEndpoints(spec iface.TunnelSpec) (src, dst ip_typ
 	}
 	// RFC 4213 Section 3.6. Config verify already refused an unparsable or
 	// unspecified remote through the same check; this is its pair on the
-	// backend path, as the netlink backend's parseTunnelRemote does.
+	// backend path, as the kernel backend's parseTunnelRemote does.
 	if err = spec.CheckRemote(); err != nil {
 		return src, dst, fmt.Errorf("ifacevpp: tunnel %q: %w", spec.Name, err)
 	}

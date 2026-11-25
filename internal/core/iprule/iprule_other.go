@@ -1,4 +1,4 @@
-// Design: docs/architecture/policyroute/policy-routing.md -- netlink ip rule and route management
+// Design: docs/architecture/policyroute/policy-routing.md -- rtnetlink ip rule and route management
 // Related: iprule_linux.go -- the Linux implementation
 
 //go:build !linux

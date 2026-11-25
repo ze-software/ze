@@ -71,6 +71,7 @@
 | [IPsec VPN](ipsec.md) | Site-to-site and remote-access VPN | Native IKEv2 initiator and responder, XFRM, EAP, NAT-T |
 | [Zero-Touch Provisioning](ze-install.md) | PXE bare-metal provisioning | DHCP+TFTP+HTTP image server |
 | [VPP Data Plane](vpp.md) | High-throughput forwarding | Ze manages VPP lifecycle and programs its FIB directly via GoVPP |
+| [Features by Data Plane](dataplane-features.md) | Choose between the kernel and VPP | Each forwarding feature, on the Linux kernel and on VPP, with its limits |
 
 ## Operations
 

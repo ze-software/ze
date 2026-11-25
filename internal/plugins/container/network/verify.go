@@ -121,12 +121,11 @@ func (c *Config) network(name string) (Network, bool) {
 
 // delivery is what one parse reads from the delivered sections.
 type delivery struct {
-	container     map[string]any
-	containerData string
-	interfaces    map[string]any
-	firewall      map[string]any
-	hasInterface  bool
-	hasFirewall   bool
+	container    map[string]any
+	interfaces   map[string]any
+	firewall     map[string]any
+	hasInterface bool
+	hasFirewall  bool
 }
 
 // parseSections reads and judges the network part of the delivered config:
@@ -188,7 +187,6 @@ func readDelivery(sections []sdk.ConfigSection) (delivery, error) {
 				return delivery{}, err
 			}
 			read.container = body
-			read.containerData = section.Data
 		case interfaceRoot:
 			body, present, err := unwrapSection(section)
 			if err != nil {
@@ -469,14 +467,14 @@ func checkComponents(read delivery) error {
 		return opererr.New(
 			"a container network is configured and the config has no interface section",
 			"ze asks the interface component for each network's bridge and each container's link, and that component runs only when the config holds an interface section",
-			"set interface backend netlink",
+			"set interface backend kernel",
 		)
 	}
 	if !read.hasFirewall {
 		return opererr.New(
 			"a container network is configured and the config has no firewall section",
 			"ze asks the firewall component for each network's translation tables, and that component runs only when the config holds a firewall section",
-			"set firewall backend nft",
+			"set firewall backend kernel",
 		)
 	}
 	return nil

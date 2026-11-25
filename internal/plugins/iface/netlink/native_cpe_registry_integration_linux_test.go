@@ -30,7 +30,7 @@ import (
 func cpeRegistryConfig(name string) string {
 	// Only the two fixed test keys reach this operator-config boundary.
 	return `interface {
-  backend netlink;
+  backend kernel;
   ethernet zcf0 { }
   pppoe-client ` + name + ` {
     source-interface zcf0;

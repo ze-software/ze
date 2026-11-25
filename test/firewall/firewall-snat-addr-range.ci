@@ -14,7 +14,7 @@ option=needs-linux:caps=net-admin
 
 stdin=ze-bgp:terminator=EOF_CONF
 firewall {
-	backend nft;
+	backend kernel;
 	table fw10_011 {
 		family ip;
 		chain postrouting {

@@ -121,7 +121,7 @@ func validateTerm(tbl *Table, ch *Chain, term *Term, chains map[string]bool, set
 
 func validateMatch(tbl *Table, ch *Chain, term *Term, m Match, sets map[string]SetType) error {
 	// An arp table hands a rule the ARP header where the other families hand
-	// it the IP header, and the nft lowering of these matches reads fixed IP
+	// it the IP header, and the nftables lowering of these matches reads fixed IP
 	// offsets (lowerAddrMatch, internal/plugins/firewall/nft/lower_linux.go).
 	// In arp those offsets land inside the ARP header, so the rule compares
 	// the wrong bytes and fires on packets the operator never named.
@@ -151,7 +151,7 @@ func validateMatch(tbl *Table, ch *Chain, term *Term, m Match, sets map[string]S
 			return err
 		}
 	case MatchDestinationLocal:
-		// The nft lowering is a fib lookup of the destination address
+		// The nftables lowering is a fib lookup of the destination address
 		// (lowerMatch, internal/plugins/firewall/nft/lower_linux.go). The
 		// kernel provides that lookup per family, and Ze's kernel is built
 		// with the ip and ip6 ones only: in an inet table the kernel refuses
@@ -506,7 +506,7 @@ func validateAction(tbl *Table, ch *Chain, term *Term, a Action, chains, flowtab
 }
 
 // validateClampTCPMSSToPMTU refuses every placement the kernel would refuse,
-// so a commit never fails at netlink with an error the operator cannot map to
+// so a commit never fails at the netlink socket with an error the operator cannot map to
 // a term. nft_rt_validate (net/netfilter/nft_rt.c) accepts the route MSS only
 // in the ip, ip6 and inet families, and only in a chain whose hooks are all
 // forward, output or postrouting; for a regular chain the kernel checks the

@@ -28,7 +28,7 @@ Three properties follow, and each is a real constraint on anything built later.
 |----------|----------|----------|
 | No receive path anywhere carries a VLAN tag. `PACKET_AUXDATA`, `TP_STATUS_VLAN` and `VlanTCI` appear nowhere in the tree, so the kernel strips the tag and ze never sees it. VLAN is expressed only by binding to a sub-interface | tree-wide search, 2026-08-07 | Read |
 | DHCP learns neither its source nor its ingress interface. `serveMulti` discards the address returned by `ReadFromUDP`, then tries each handler in content order until one replies | `serveMulti` in `internal/plugins/dhcpserver/register.go` | Read |
-| There is no ARP receive path at all. Only a gratuitous-ARP send. Neighbor state comes from netlink, which means from the kernel having already resolved it | `sendGARPLocked` in `internal/plugins/vrrp/transport/garp_linux.go`; `internal/component/iface/netlink/neighbor_linux.go` | Unverified |
+| There is no ARP receive path at all. Only a gratuitous-ARP send. Neighbor state comes from the netlink socket, which means from the kernel having already resolved it | `sendGARPLocked` in `internal/plugins/vrrp/transport/garp_linux.go`; `internal/component/iface/netlink/neighbor_linux.go` | Unverified |
 
 ### The receive paths as they stand
 

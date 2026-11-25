@@ -18,7 +18,7 @@ doctor checks are not built yet.
 
 | Node | Under | What the package does with it |
 |------|-------|-------------------------------|
-| `network NAME` | `container` | A bridge named `zcn-` plus the name. The name holds 1 to 11 lowercase letters, digits and interior hyphens, and a longer one is refused, never shortened. The list carries `ze:backend "netlink"` |
+| `network NAME` | `container` | A bridge named `zcn-` plus the name. The name holds 1 to 11 lowercase letters, digits and interior hyphens, and a longer one is refused, never shortened. The list carries `ze:backend "kernel"` |
 | `prefix` | `container network` | One per family, masked. IPv4 1 to 30, IPv6 1 to 126. Two networks must not overlap |
 | `gateway` | `container network` | One per prefix, a host address of it. Absent: the network address plus one. It is on the bridge and is each container's default route |
 | `mtu` | `container network` | 68 to 16000, default 1500, at least 1280 with an IPv6 prefix. Set on the bridge and on both ends of every link |
@@ -42,13 +42,17 @@ section, or no `firewall` section, is refused naming the section to add,
 because the bridge, link and table requests are refused while the component
 is not loaded, and its section is what loads it.
 
-V-19 runs the commit-time backend gate (`config.ValidateBackendFeaturesJSON`)
-over the container section with the interface backend the `interface` root
-selects, so the `ze:backend "netlink"` annotation is the one statement of what
-the bridge needs. A translating network also needs the `nft` firewall backend:
-each network's outbound chain is a regular chain, which the VPP firewall
-verifier refuses. A published port needs it too, because its terms match
-`destination-local`, which the VPP verifier refuses.
+For V-19, the config component's engine-owned `ze:backend` walk judges the
+container network list's `ze:backend "kernel"` annotation against the primary
+data-plane selector (`interface backend`), so the annotation is the one
+statement of what the bridge needs and a network under `interface backend vpp`
+is refused naming the network path and `set interface backend kernel`. The
+container plugin keeps only its semantic firewall rules in `checkBackends`,
+reading the firewall backend through the config component's selector resolution:
+a translating network needs the `kernel` firewall backend because each network's
+outbound chain is a regular chain, which the VPP firewall verifier refuses, and
+a published port needs it too because its terms match `destination-local`, which
+the VPP verifier refuses.
 
 The port rules are V-6 and V-18. A port on an instance with no `network` entry
 is refused (V-18). Two ranges of different lengths, a range that runs
@@ -174,7 +178,7 @@ sources and keeps it on until both withdrew.
 <!-- source: internal/plugins/container/network/register.go -- init, registered -->
 <!-- source: internal/plugins/container/network/register_tables.go -- init -->
 <!-- source: internal/plugins/container/network/verify.go -- parseSections, Config, Network, Instance, Attachment, checkComponents, checkInterfaceConfig, checkNetworkAttachments -->
-<!-- source: internal/plugins/container/network/backend.go -- checkBackends, runBackendGate -->
+<!-- source: internal/plugins/container/network/backend.go -- checkBackends, resolveFirewallBackend -->
 <!-- source: internal/plugins/container/network/address.go -- assign, lowestFree, addressRecord, decodeRecord -->
 <!-- source: internal/plugins/container/network/name.go -- bridgeName, derivedHardwareAddress, containerLinkName -->
 <!-- source: internal/plugins/container/network/apply.go -- manager, apply, assignAll, bridgeSet, planLinks -->

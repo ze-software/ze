@@ -1,9 +1,12 @@
 # Firewall Table Ownership and Shutdown Flush
 
-Seven producers register nft tables with one shared registry: the firewall
-engine, copp, policy-routes, ddos-local, firewall-irr, the FlowSpec bridge and
-the anomaly-shape responder. All of them run in process. This document holds
-the three rules that keep their tables visible, reconciled and removed, the
+Producers across components and plugins register firewall tables or sets with
+one shared registry: the firewall engine (including conntrack helpers), copp,
+policy-routes, ddos-local, firewall-irr, firewall-domain, the FlowSpec bridge,
+the anomaly-shape responder, GTSM, the IKE tunnel-source guard, and the VRRP
+accept, owner and backup filters (with `iface-rpf` reserving its table name
+without registering tables). All of them run in process. This document holds
+the rules that keep their tables verified, visible, reconciled and removed, the
 traps a test plugin met while proving the last one, and the one-time removal
 that clears what a build before Rule 2 was enforced left in the kernel.
 
@@ -13,7 +16,7 @@ that clears what a build before Rule 2 was enforced left in the kernel.
 ## Rule 1: the backend loads on demand
 
 A config with `control-plane-protection` and no `firewall {}` block never loaded
-the nft backend, so `ApplyAll` returned "backend not loaded" and copp's apply
+the kernel firewall backend, so `ApplyAll` returned "backend not loaded" and copp's apply
 failed. `ApplyAll` now loads the OS-default backend when a producer registers
 tables and no firewall section loaded one. `LoadBackend` was split so `ApplyAll`
 can load atomically while it holds the backend mutex. The fix sits at the shared
@@ -21,18 +24,39 @@ altitude, so every registry consumer gets it.
 
 ### Backend capability checks apply to every producer
 
-Config verification alone cannot protect plugin-owned tables: VRRP, CoPP and
-other producers register tables without passing through the firewall config
-parser. `ApplyAll` must run the selected backend's registered verifier against
-the merged desired tables before calling `Backend.Apply`. A refusal must leave
-the applied snapshot unchanged and must not program a partial interpretation.
-For example, VPP cannot represent VRRP's host packet-type predicate; silently
-omitting it would turn a unicast-only discard into a broader drop.
+Config verification of the `firewall` block alone cannot protect plugin-owned
+tables: CoPP, IRR interface bindings, VRRP, DDoS responders and other producers
+register tables without passing through the firewall config parser. Two
+mechanisms cover every producer:
+
+- **Config-time producer verification (`firewall-producer-tables`).** Producers
+  whose table shape is determined by the candidate configuration (CoPP and
+  `firewall-irr` interface bindings) register a `ConfigTableBuilder` with
+  `firewall.RegisterConfigTableBuilder` from `init()`. The firewall component
+  registers the `firewall-producer-tables` original-tree validator, which
+  resolves the candidate's firewall backend (the written leaf or the YANG
+  schema default), runs every registered builder over the candidate tree, and
+  runs that backend's verifier over the resulting tables, joining every
+  refusal. Because `ValidateCustomSections` runs original-tree validators in
+  `LoadConfig` (at boot and reload), in `ze config validate`, and at editor
+  commit, incompatible producer tables are refused before any plugin starts.
+- **Apply-time verification in `ApplyAll`.** Producers that build tables only
+  at runtime (such as `ddos-local`, `flowspec`, and `anomaly-shape`) are judged
+  when `ApplyAll` runs the selected backend's registered verifier against the
+  merged desired tables before calling `Backend.Apply`. A refusal leaves the
+  applied snapshot unchanged and must not program a partial interpretation. For
+  example, VPP cannot represent VRRP's host packet-type predicate; silently
+  omitting it would turn a unicast-only discard into a broader drop.
+
+<!-- source: internal/component/firewall/producer_verify.go -- ConfigTableBuilder, RegisterConfigTableBuilder, verifyProducerTables -->
+<!-- source: internal/component/firewall/register_producer_verify.go -- init -->
+<!-- source: internal/plugins/copp/register_table_builder.go -- buildCoppTablesFromTree -->
+<!-- source: internal/component/firewall/plugins/irr/irr.go -- buildIfaceBindingShapeTables -->
 
 
 ## Rule 2: a producer's table name carries the `ze_` prefix
 
-The nft backend uses `firewall.Table.Name` verbatim and adds nothing. It
+The kernel firewall backend uses `firewall.Table.Name` verbatim and adds nothing. It
 reconciles and deletes only kernel tables whose name starts with `ze_`. A table
 registered under a bare name is therefore outside every sweep: a withdraw leaves
 it installed, and the next reconcile adds a second copy of each rule to it
@@ -76,8 +100,8 @@ rules quietly.
 <!-- source: internal/plugins/iface/netlink/rpf_linux.go -- ReplaceIPv6RPF -->
 
 The IPv6 reverse-path check is the one producer outside the registry: the
-iface netlink backend writes its ip6 table directly over netlink
-(`ReplaceIPv6RPF`) and never calls `RegisterTables`, so the nft backend never
+iface kernel backend writes its ip6 table directly over netlink
+(`ReplaceIPv6RPF`) and never calls `RegisterTables`, so the kernel firewall backend never
 reconciles it. Its owner exists only to reserve the name (Rule 2b).
 
 Four producers shipped bare names: copp, ddos-local, the FlowSpec bridge and
@@ -96,7 +120,7 @@ merged into the VRRP owner table, giving one kernel table two owners' base
 chains. Each producer above except firewall-domain therefore reserves its own
 names with `firewall.MustReserveTableNames(owner, control, names...)`, called
 from the `init()` of its own `register_tables.go` (the firewall engine reserves
-the conntrack-helper tables from `register.go`, and the iface netlink backend
+the conntrack-helper tables from `register.go`, and the iface kernel backend
 reserves `ze_iface_rpf`, which it writes without the registry). The firewall
 component holds no list of producers: a producer that is compiled out reserves
 nothing, and it then installs no table for an operator table of that name to
@@ -185,7 +209,7 @@ before `CloseBackend`, so there is no race. copp's own withdraw was removed.
 Removing the config while the daemon runs still withdraws through
 `OnConfigApply`.
 
-**The default behavior changed.** An orderly stop now removes every ze-owned nft
+**The default behavior changed.** An orderly stop now removes every ze-owned nftables
 table. Set `firewall { flush-on-shutdown false; }` to use ze as a one-shot
 provisioner that programs rules and exits. This is process lifecycle only and is
 unrelated to BGP graceful restart, which never restarts the daemon.
@@ -235,7 +259,7 @@ firewall config arrives. Reload uses verify/apply and does not repeat the sweep.
 <!-- source: internal/component/firewall/engine.go -- runEngine -->
 <!-- source: internal/plugins/ddos/local/register.go -- runEngine -->
 
-On nft, the sweep does two reconciles:
+On the kernel backend, the sweep does two reconciles:
 
 1. Register a table carrying the name and no chains, then reconcile. The backend
    deletes whatever it finds under that name, and creates the empty table.
@@ -265,7 +289,7 @@ for in-place updates. `bindAllACLs` removes stale and duplicate owned indexes
 from every live interface while preserving foreign input and output ACLs;
 `reconcileRemovals` then deletes only the detached objects. Discovery, binding
 and deletion failures fail the apply rather than declaring cleanup successful.
-The nft ownership explanation above does not establish that a VPP drop survives
+The nftables ownership explanation above does not establish that a VPP drop survives
 an incorrectly ordered ddos-local sweep.
 <!-- source: internal/plugins/firewall/vpp/backend_linux.go -- reconcileWithOps, discoverACLs, bindAllACLs, reconcileRemovals -->
 

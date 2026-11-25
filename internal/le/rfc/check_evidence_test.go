@@ -306,7 +306,7 @@ func TestGoListLinkedListsTheShippedBinary(t *testing.T) {
 	if !linked.standard["net/netip"] || linked.standard["net/rpc/jsonrpc"] {
 		t.Errorf("net/netip linked %v, net/rpc/jsonrpc linked %v; want true, false", linked.standard["net/netip"], linked.standard["net/rpc/jsonrpc"])
 	}
-	// golang.org/x/sys is vendored and the shipped ze links it (netlink, unix);
+	// golang.org/x/sys is vendored and the shipped ze links it (netlink sockets, unix);
 	// golangci-lint is vendored only for the lint tool, and no flavor links it.
 	if !linked.modules["golang.org/x/sys"] || linked.modules["github.com/golangci/golangci-lint/v2"] {
 		t.Errorf("golang.org/x/sys linked %v, golangci-lint linked %v; want true, false",

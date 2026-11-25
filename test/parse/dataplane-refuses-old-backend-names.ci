@@ -1,0 +1,52 @@
+# Test: retired selector values (netlink, nft, tc) are refused with joined fixes; kernel validates.
+# Question: does `ze config validate` refuse `interface backend netlink`,
+#           `firewall backend nft`, and `traffic control backend tc` in one
+#           joined refusal naming each selector, old value, and `set <selector>
+#           kernel`, while accepting the same file with `kernel` in each?
+#           A unit test cannot prove the real YANG defaults and all three
+#           registered backend selectors produce the joined refusal end to end.
+# VALIDATES: spec-dataplane-compatibility-guard AC-19 (N-1, F-4 proof) --
+#            retired backend names have no alias or fallback and are refused by
+#            the generic unknown-backend rule with schema-derived `kernel` fixes.
+# PREVENTS: any residual alias accepting `netlink`, `nft`, or `tc` as selector
+#           values, or dropping one of the joined refusals.
+stdin=retired:terminator=EOF_RETIRED
+interface {
+	backend netlink;
+}
+firewall {
+	backend nft;
+}
+traffic {
+	control {
+		backend tc;
+	}
+}
+EOF_RETIRED
+
+stdin=kernel:terminator=EOF_KERNEL
+interface {
+	backend kernel;
+}
+firewall {
+	backend kernel;
+}
+traffic {
+	control {
+		backend kernel;
+	}
+}
+EOF_KERNEL
+
+cmd=foreground:seq=1:exec=ze config validate -:stdin=retired
+expect=exit:code=1
+expect=stdout:contains=interface backend "netlink"
+expect=stdout:contains=set interface backend kernel
+expect=stdout:contains=firewall backend "nft"
+expect=stdout:contains=set firewall backend kernel
+expect=stdout:contains=traffic control backend "tc"
+expect=stdout:contains=set traffic control backend kernel
+
+cmd=foreground:seq=2:exec=ze config validate -:stdin=kernel
+expect=exit:code=0
+expect=stdout:contains=configuration valid

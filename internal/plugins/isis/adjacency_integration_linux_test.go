@@ -26,7 +26,7 @@ import (
 	"github.com/vishvananda/netns"
 
 	"github.com/ze-software/ze/internal/component/iface"
-	_ "github.com/ze-software/ze/internal/plugins/iface/netlink" // register the netlink iface backend so iface.Resolve works
+	_ "github.com/ze-software/ze/internal/plugins/iface/netlink" // register the kernel iface backend so iface.Resolve works
 	"github.com/ze-software/ze/internal/plugins/isis/transport"
 	"github.com/ze-software/ze/internal/test/userns"
 )
@@ -98,9 +98,9 @@ func withVethPair(t *testing.T, fn func()) {
 func startRealEngine(t *testing.T, ifaceName, jsonCfg string) *engine {
 	t.Helper()
 	// IS-IS now resolves its interfaces through the iface resolver, which needs
-	// the netlink backend loaded (as it always is in production). Load it so
+	// the kernel backend loaded (as it always is in production). Load it so
 	// OpenCircuit -> iface.Resolve finds the real device.
-	if err := iface.LoadBackend("netlink"); err != nil {
+	if err := iface.LoadBackend("kernel"); err != nil {
 		t.Fatalf("load iface backend: %v", err)
 	}
 	cfg, err := parseISISConfig(sec(jsonCfg))

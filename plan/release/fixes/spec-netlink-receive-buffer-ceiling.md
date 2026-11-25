@@ -88,7 +88,7 @@ requested size before VPP is (re)started, keeps a higher value, and makes
 
 | Mechanism | Where (file + symbol, or page + section) | What it does today | This spec (extends, replaces, or does not apply, with the reason) |
 |-----------|------------------------------------------|--------------------|-------------------------------------------------------------------|
-| Plugin sysctl defaults over the EventBus | `internal/component/sysctl/events` `EventDefault`, used by `internal/plugins/fib/kernel/fibkernel.go` and `internal/component/iface/config_sysctl.go` | A plugin registers a required default; the sysctl component writes it | Extends: the VPP component and the iface netlink plugin contribute the `net.core.rmem_max` they need through it |
+| Plugin sysctl defaults over the EventBus | `internal/component/sysctl/events` `EventDefault`, used by `internal/plugins/fib/kernel/fibkernel.go` and `internal/component/iface/config_sysctl.go` | A plugin registers a required default; the sysctl component writes it | Extends: the VPP component and the iface kernel plugin contribute the `net.core.rmem_max` they need through it |
 | Sysctl default precedence | `internal/component/sysctl/sysctl.go` `store.setDefault` | Last default wins between sources, config overrides all | Extends: two sources asking for a ceiling need the larger of the two to win, not the last; the design names how a floor is expressed without a per-key case in the store |
 | Applied notification | `internal/component/sysctl/events` `EventApplied` | Tells subscribers a value reached the kernel | Extends: the VPP component waits for it before `runOnce` execs VPP, so the order holds across a process boundary |
 | VPP startup sequence | `internal/component/vpp/vpp.go` `VPPManager.Run`, `runOnce` | Writes `startup.conf`, binds DPDK, execs VPP | Extends: the floor is requested and applied before the exec, and again before each restart |
@@ -97,7 +97,7 @@ requested size before VPP is (re)started, keeps a higher value, and makes
 ## Data Flow (MANDATORY - see `ai/rules/architecture.md`)
 
 ### Entry Point
-- The `vpp` config block (VPP enabled), and the iface netlink plugin start.
+- The `vpp` config block (VPP enabled), and the iface kernel plugin start.
 
 ### Transformation Path
 1. The consumer emits a sysctl default for `net.core.rmem_max` carrying its required size.
@@ -138,7 +138,7 @@ requested size before VPP is (re)started, keeps a higher value, and makes
 | AC-2 | The size in `startup.conf` and the floor | Both come from one declaration, so changing one changes the other. Test: a unit test reads both from the startup.conf builder and the floor request | None |
 | AC-3 | Operator config sets `net.core.rmem_max` below the floor while VPP is enabled | The commit is refused at verify, naming the key, the floor, and the fix. Test: a `.ci` refusal case | None |
 | AC-4 | Host `rmem_max` already above the floor | Ze leaves it unchanged. Test: a unit test over the sysctl store with a higher original value | None |
-| AC-5 | iface netlink plugin start on a host whose `rmem_max` is 212992 | `rmem_max` is at least 1 MiB before the monitor subscribes, and the monitor's sockets report 1 MiB granted. Test: a Linux integration test under `./le test integration iface` | None |
+| AC-5 | iface kernel plugin start on a host whose `rmem_max` is 212992 | `rmem_max` is at least 1 MiB before the monitor subscribes, and the monitor's sockets report 1 MiB granted. Test: a Linux integration test under `./le test integration iface` | None |
 | AC-6 | VPP removed from config | The sysctl component releases the VPP default, and the key returns to the next layer's value. Test: a functional test removes the `vpp` block and reads the sysctl | None |
 
 ## 🧪 TDD Test Plan

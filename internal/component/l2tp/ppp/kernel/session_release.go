@@ -88,7 +88,7 @@ func (s *session) BindNativeReleaseSeal(seal ppp.NativeReleaseSeal) error {
 }
 
 // Linux include/uapi/linux/if.h sets IFALIASZ to 256; netif_set_alias
-// rejects lengths at or above that limit. Netlink strings also reserve NUL.
+// rejects lengths at or above that limit. Netlink attributes also reserve NUL.
 const maxNativeBirthTagLength = 255
 
 func nativeBirthTag(seal ppp.NativeReleaseSeal) (tag string, err error) {

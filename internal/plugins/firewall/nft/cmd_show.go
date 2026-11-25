@@ -1,4 +1,4 @@
-// Design: docs/architecture/firewall/backend-command-dispatch.md -- nft firewall show handlers
+// Design: docs/architecture/firewall/backend-command-dispatch.md -- kernel firewall show handlers
 
 package firewallnft
 
@@ -52,10 +52,10 @@ func handleShowFirewallRuleset(_ *pluginserver.CommandContext, validated command
 			Error:  "firewall: no backend configured; firewall section absent from config",
 		}, nil
 	}
-	backendName := firewall.ActiveBackendName()
-	if backendName != "" && backendName != "nft" {
+	activeBackend := firewall.ActiveBackendName()
+	if activeBackend != "" && activeBackend != backendName {
 		var buf textbuf.Buffer
-		buf.Str("firewall: backend \"").Str(backendName).Str("\" does not support ruleset readback; only nft is supported")
+		buf.Str("firewall: backend \"").Str(activeBackend).Str("\" does not support ruleset readback; only ").Str(backendName).Str(" is supported")
 		return &plugin.Response{
 			Status: plugin.StatusError,
 			Error:  buf.String(),
@@ -146,7 +146,7 @@ func handleShowFirewallRuleset(_ *pluginserver.CommandContext, validated command
 		}
 		setRows = append(setRows, map[string]any{
 			keyName: set.Name,
-			// The nft-native token (ipv4_addr, inet_service), never the
+			// The nftables-native token (ipv4_addr, inet_service), never the
 			// numeric SetType. An operator reads this payload, and every
 			// other typed field beside it renders through String() too.
 			"type":     set.Type.String(),

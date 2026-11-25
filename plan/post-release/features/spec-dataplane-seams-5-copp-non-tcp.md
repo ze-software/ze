@@ -90,7 +90,7 @@ and saying so in the docs.
 **Source files to read before design:**
 - [ ] `internal/plugins/copp/model.go`, `config.go`, `register.go`, `doctor.go` - the policy type, its YANG parsing, and the apply path
 - [ ] `internal/plugins/copp/yang/ze-copp-conf.yang` - the config surface the new blocks extend
-- [ ] `internal/component/firewall/` - which match kinds exist, and whether a non-`inet` family is supported by the nft backend at all
+- [ ] `internal/component/firewall/` - which match kinds exist, and whether a non-`inet` family is supported by the kernel backend at all
 
 **Behavior to preserve:**
 - The BGP protection exactly as it stands, proven by `test/firewall/copp-bgp.ci`, `copp-trusted.ci`, `copp-withdraw.ci`.
@@ -112,7 +112,7 @@ and saying so in the docs.
 1. `config.go` parses the YANG into the policy type.
 2. `translatePolicy` converts the policy into a firewall table.
 3. `register.go` installs it via `RegisterTables` and `ApplyAll`.
-4. The nft backend renders the table, and the kernel enforces the limit expression.
+4. The kernel backend renders the table, and the kernel enforces the limit expression.
 
 ### Boundaries Crossed
 | Boundary | How | Verified |
@@ -142,7 +142,7 @@ and saying so in the docs.
 | ID | Assumption | Basis (file/doc/user statement) | If wrong | Validated by | Status |
 |----|-----------|--------------------------------|----------|--------------|--------|
 | A-1 | The firewall component already has the match kinds needed for IP-protocol and UDP terms | It has protocol, destination-port, source-address, conn-state and limit today | The spec grows to include firewall work | Read the firewall match vocabulary | unvalidated |
-| A-2 | The nft backend can render a table in a family other than `inet` | Not established | The non-IP half needs a different mechanism entirely, such as tc ingress | Read the nft backend's family handling | unvalidated |
+| A-2 | The kernel backend can render a table in a family other than `inet` | Not established | The non-IP half needs a different mechanism entirely, such as tc ingress | Read the kernel backend's family handling | unvalidated |
 | A-3 | Rate-limiting ND and DHCP is safe with careful defaults | Not established. Over-policing breaks address resolution for a whole segment | The feature ships a foot-gun | A functional test that floods at just under and just over the limit, checking a legitimate client still resolves | unvalidated |
 | A-4 | `spec-cp-survival-0-umbrella` has no live claim on this work | It is in-progress and awaiting closure verification | Two specs edit copp at once | Read that umbrella's closure record first | unvalidated |
 
@@ -184,7 +184,7 @@ and saying so in the docs.
 
 | # | User does | Path through system | Test proving it works |
 |---|-----------|--------------------|-----------------------|
-| 1 | Configures policing for DHCP and floods the server | config → copp → firewall → nft → kernel limit | (fill at design) |
+| 1 | Configures policing for DHCP and floods the server | config → copp → firewall → nftables → kernel limit | (fill at design) |
 | 2 | Configures policing for a protocol ze cannot reach | config → copp config validation | (fill at design) |
 
 ## 🧪 TDD Test Plan

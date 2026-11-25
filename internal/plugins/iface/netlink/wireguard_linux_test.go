@@ -1,4 +1,4 @@
-// WireGuard netlink integration tests. Each subtest creates a fresh netns,
+// WireGuard kernel integration tests. Each subtest creates a fresh netns,
 // calls CreateWireguardDevice via the iface.Backend interface, and verifies
 // the resulting netdev with netlink.LinkByName so the kind and admin state
 // are checked against kernel state.
@@ -39,7 +39,7 @@ func wireguardModuleAvailable() bool {
 // TestCreateWireguardDevice verifies that a wireguard netdev is created
 // with the expected name, kind, and admin state.
 //
-// VALIDATES: Phase 6 -- netlink backend creates a wireguard netdev.
+// VALIDATES: Phase 6 -- kernel interface backend creates a wireguard netdev.
 // PREVENTS: silent regression if netlink.Wireguard{} is replaced or the
 // LinkAdd call path is refactored without preserving kind semantics.
 func TestCreateWireguardDevice(t *testing.T) {

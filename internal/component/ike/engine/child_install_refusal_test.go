@@ -477,7 +477,7 @@ func TestChildInstallRefusedFix(t *testing.T) {
 	if got := childInstallRefusedFix(withOperatorError); got != cirTUNFix {
 		t.Errorf("fix for an operator error cause = %q, want %q", got, cirTUNFix)
 	}
-	plain := fmt.Errorf("%w: %w", errChildInstall, errors.New("netlink: operation not supported"))
+	plain := fmt.Errorf("%w: %w", errChildInstall, errors.New("netlink error: operation not supported"))
 	if got := childInstallRefusedFix(plain); got != childResponseFixInstall {
 		t.Errorf("fix for a plain install refusal = %q, want childResponseFixInstall", got)
 	}

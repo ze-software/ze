@@ -337,7 +337,7 @@ func runNetnsGuest(ctx context.Context, suites []string) (guestLabReport, error)
 		lab = labPPPoENetns
 	}
 	report := guestLabReport{Lab: lab, Selected: append([]string(nil), suites...), Verdict: VerdictUnspecified}
-	// Selection and file existence are checked before setcap, chmod, nft, or any
+	// Selection and file existence are checked before setcap, chmod, the nft binary, or any
 	// suite process. A bad closed name can therefore produce no partial effects.
 	if err := validateNetnsSelection(suites); err != nil {
 		return report, err

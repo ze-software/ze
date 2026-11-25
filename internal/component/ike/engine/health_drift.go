@@ -13,7 +13,7 @@ import (
 )
 
 // driftSAD reads the kernel SAD for the drift comparison. A variable so a test
-// can supply a fixture: the comparison is the thing under test, not netlink.
+// can supply a fixture: the comparison is the thing under test, not the netlink socket.
 var driftSAD = func() ([]dataplane.SAInfo, error) {
 	dp := dataplane.Get()
 	if dp == nil {
@@ -76,7 +76,7 @@ type DataplaneSnapshot struct {
 }
 
 // ObserveDataplane reads belief and kernel state without blocking an installation
-// on netlink readback. Any publication or backend write across the read invalidates
+// on netlink read operations. Any publication or backend write across the read invalidates
 // the observation, even if the replacement reuses the previous SPI.
 func ObserveDataplane() (DataplaneSnapshot, error) {
 	generation, idle := dataplaneGeneration()

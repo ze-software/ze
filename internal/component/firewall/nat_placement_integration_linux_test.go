@@ -1,6 +1,6 @@
 //go:build linux && integration
 
-// Design: docs/guide/firewall.md -- nft NAT placement at configuration verify
+// Design: docs/guide/firewall.md -- nftables NAT placement at configuration verify
 // Related: nat_placement_test.go -- the same configured input is judged offline
 //
 // The integration gate judges the matrix against the nftables kernel in Ze's
@@ -63,7 +63,7 @@ func TestNftNATPlacementIntegration(t *testing.T) {
 			require.Len(t, configured, 1)
 			require.Equal(t, "ze_placement", configured[0].Name)
 			const owner = "nat-placement-integration"
-			require.NoError(t, firewall.LoadBackend("nft"))
+			require.NoError(t, firewall.LoadBackend("kernel"))
 			t.Cleanup(func() {
 				require.NoError(t, errors.Join(
 					firewall.RegisterTables(owner, nil),

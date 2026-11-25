@@ -81,7 +81,7 @@ func TestAcceptValidTableID(t *testing.T) {
 }
 
 // tableIDFitsInInt reports whether id survives the conversion to Go int that
-// the netlink bindings perform. On the 64-bit targets Ze builds it is always
+// the netlink library bindings perform. On the 64-bit targets Ze builds it is always
 // true; it is false on a 32-bit build for ids above MaxInt32.
 func tableIDFitsInInt(id uint32) bool { return uint64(id) <= uint64(math.MaxInt) }
 
@@ -89,7 +89,7 @@ func tableIDFitsInInt(id uint32) bool { return uint64(id) <= uint64(math.MaxInt)
 // int-typed netlink.Rule.Table / netlink.Route.Table fields, and every accepted
 // ID survives that conversion unchanged.
 // PREVENTS: an out-of-range table ID silently losing its table selection. The
-// netlink rule encoder emits FRA_TABLE only when Table >= 256 and the compat
+// netlink library rule encoder emits FRA_TABLE only when Table >= 256 and the compat
 // byte only when 0 <= Table < 256 (vendor/github.com/vishvananda/netlink/
 // rule_linux.go:57,126), so a negative Table produces a rule with
 // RT_TABLE_UNSPEC; the route encoder guards on Table > 0 (route_linux.go:1058)
@@ -134,7 +134,7 @@ func TestRejectUnencodableTableID(t *testing.T) {
 }
 
 // VALIDATES: the bound ValidateTableID applies is this build's own int limit,
-// so every ID it accepts survives the netlink int conversion unchanged.
+// so every ID it accepts survives the netlink library int conversion unchanged.
 // PREVENTS: the exported entry point drifting from the tested inner bound, for
 // example by being wired to a hardcoded 32-bit constant that would reject
 // kernel-legal table IDs on the 64-bit targets Ze ships.

@@ -100,7 +100,7 @@ func sameAnswerVerdict(ze, unbound kdigAnswer) error {
 // truncatedVerdict holds a reply to carrying TC and no answer.
 func truncatedVerdict(got kdigAnswer) error {
 	if !slices.Contains(got.flags, "tc") {
-		return errors.New("UDP reply flags [" + strings.Join(got.flags, " ") + "] carry no tc")
+		return errors.New("UDP reply flags [" + strings.Join(got.flags, " ") + "] carry no TC flag")
 	}
 	return nil
 }

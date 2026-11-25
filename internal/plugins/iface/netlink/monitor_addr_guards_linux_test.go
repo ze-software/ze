@@ -1,6 +1,6 @@
 //go:build linux
 
-// Design: docs/features/interfaces.md -- Netlink interface monitor
+// Design: docs/features/interfaces.md -- Netlink monitor for interfaces
 // Related: monitor_linux.go -- handleAddrUpdate input guards.
 
 package ifacenetlink

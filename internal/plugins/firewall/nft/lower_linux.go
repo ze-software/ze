@@ -129,7 +129,7 @@ const (
 // 1 when the packet's dst is an XFRM bundle (`rt ipsec exists`).
 const nftRtXFRM expr.RtKey = 4
 
-// lowerDestinationLocalMatch lowers firewall.MatchDestinationLocal to nft
+// lowerDestinationLocalMatch lowers firewall.MatchDestinationLocal to nftables
 // `fib daddr type local`: a fib lookup of the destination address that stores
 // its route type, compared with RTN_LOCAL. nft_fib_eval stores the type as a
 // host-order u32, so the comparison data is host order too. No interface flag
@@ -331,10 +331,10 @@ func (c *lowerCtx) tableFamily() nftables.TableFamily {
 // (IPv6 src spans bytes 8..23), so without this guard an IPv4 rule matches
 // IPv6 traffic the operator never named.
 //
-// nft's own compiler emits this same pair ahead of every address match in
+// nftables' own compiler emits this same pair ahead of every address match in
 // an inet table, and emits none in an ip or ip6 table, where nfproto is
 // constant for the whole ruleset. Following it exactly is also what lets
-// nft render the cooked `ip daddr 10.1.0.0/24` in place of the raw
+// nftables render the cooked `ip daddr 10.1.0.0/24` in place of the raw
 // `@nh,128,32 & 0xffffff00 == 0xa010000`.
 //
 // nfproto is unix.NFPROTO_IPV4 or unix.NFPROTO_IPV6. NFPROTO_UNSPEC (0)
@@ -702,7 +702,7 @@ func lowerAction(a firewall.Action, nfproto byte) ([]expr.Any, error) {
 // --- Lowering helpers ---
 
 // lowerSetCtHelper assigns the connection to a named ct helper object: the
-// rule `ct helper set "<name>"`, which nft encodes as an objref expression of
+// rule `ct helper set "<name>"`, which nftables encodes as an objref expression of
 // type NFT_OBJECT_CT_HELPER. The kernel resolves the name when it adds the
 // rule (nft_objref_init calls nft_obj_lookup on the rule's table), so
 // applyTable adds every object before any rule.
@@ -959,7 +959,7 @@ func lowerIfaceMatch(key expr.MetaKey, name string, wildcard bool) ([]expr.Any, 
 //
 // The dependency is `meta l4proto` rather than `meta nfproto`, because what
 // separates the two type spaces is the L4 protocol number (1 against 58), and
-// meta l4proto reads it past any IPv6 extension header. nft emits an nfproto
+// meta l4proto reads it past any IPv6 extension header. nftables emits an nfproto
 // guard beside it, which additionally refuses an IPv6 packet whose next header
 // is 1; that packet does carry an ICMPv4 header, so reading its type byte as
 // an ICMPv4 type is not the misread this guard exists to stop.
@@ -1424,8 +1424,8 @@ func setDSCPv4(dscp uint8) []expr.Any {
 // this function replaced: an IPv4 fixup at network-header offset 10 lands
 // inside the IPv6 source address.
 //
-// The expressions match what `nft add rule ip6 ... ip6 dscp set <n>` compiles
-// to, byte for byte, checked against nft v1.0.9 `--debug=netlink`.
+// The expressions match what nftables compiles `ip6 dscp set <n>` to,
+// byte for byte, checked against nftables v1.0.9 netlink dump output.
 func setDSCPv6(dscp uint8) []expr.Any {
 	return []expr.Any{
 		&expr.Payload{
@@ -1529,7 +1529,7 @@ func lowerSetTCPMSS(mss uint16) ([]expr.Any, error) {
 // IPv6). It stores the value in host byte order (nft_reg_store16), while the
 // two-byte TCP option write reads the register as the option's network-order
 // bytes (nft_exthdr_tcp_set_eval, nft_reg_load16 into a __be16), so a
-// byteorder hton sits between them, as nft itself emits. Without it a
+// byteorder hton sits between them, as nftables itself emits. Without it a
 // little-endian host would compare a byte-swapped value, the kernel guard
 // would skip the write, and no SYN would ever be clamped.
 //

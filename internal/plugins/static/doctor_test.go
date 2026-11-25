@@ -54,7 +54,7 @@ func TestCheckInterfaceNexthopBackendMissing(t *testing.T) {
 }
 
 func TestCheckInterfaceNexthopBackendPresent(t *testing.T) {
-	diags := checkInterfaceNexthopBackend(registry.DoctorCheckContext{Tree: treeWithInterfaceNexthop("netlink")})
+	diags := checkInterfaceNexthopBackend(registry.DoctorCheckContext{Tree: treeWithInterfaceNexthop("kernel")})
 	if len(diags) != 0 {
 		t.Errorf("diags: got %d, want 0 (a backend is configured)", len(diags))
 	}

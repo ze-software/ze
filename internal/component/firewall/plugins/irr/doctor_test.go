@@ -61,7 +61,7 @@ func TestDoctorReportsStaleIRRData(t *testing.T) {
 }
 
 func TestDoctorSilentWithoutIRRReferences(t *testing.T) {
-	tree, err := config.ParseTreeForValidation("firewall {\n\tbackend nft;\n}\n")
+	tree, err := config.ParseTreeForValidation("firewall {\n\tbackend kernel;\n}\n")
 	if err != nil {
 		t.Fatalf("parse config: %v", err)
 	}

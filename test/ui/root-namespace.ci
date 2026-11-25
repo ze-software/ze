@@ -11,7 +11,7 @@
 # TestTrafficSubDispatch / TestISISSubDispatch / TestOSPFSubDispatch. Real decode/serve
 # behavior: test/isis-wire/, test/ospf-wire/, test/ui/update-serve.ci.
 
-# traffic control routes to the tc/VPP tool (usage line is unique to `traffic control`)
+# traffic control routes to the kernel/VPP tool (usage line is unique to `traffic control`)
 cmd=foreground:seq=1:exec=ze traffic control --help:exit=0
 expect=stderr:contains=ze traffic control <command>
 

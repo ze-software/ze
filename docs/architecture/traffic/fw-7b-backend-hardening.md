@@ -15,7 +15,7 @@ reload blocked for the full five seconds when VPP was unreachable.
 The context is the FIRST parameter, across the interface and both backends. An
 optional setter would leave every context-less call site valid forever.
 
-The netlink backend accepts the context and cannot honor it, because
+The kernel backend accepts the context and cannot honor it, because
 `vishvananda/netlink` has no context-aware syscall. Its doc block is the template
 for an "accept but cannot honor" case. The VPP backend honors it in
 `WaitConnected`.
@@ -113,7 +113,7 @@ those numbers under "Firewall reconcile concurrency" for the two FIREWALL
 backends. This backend is not in that table: it matches the numbers on purpose,
 so an operator meets one pair of bounds across every ze dataplane, and states
 them locally rather than importing `firewall.MaxBackendDeadline`. That constant
-exists so three firewall things agree, the nft clamp, the vpp clamp and the last
+exists so three firewall things agree, the kernel firewall clamp, the vpp clamp and the last
 finite bucket of the apply-latency histogram. Traffic has none of the three, so
 the import would buy coupling and no agreement.
 

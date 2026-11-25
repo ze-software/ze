@@ -13,7 +13,7 @@ import (
 // write to the one table that says what each unit means.
 //
 // The Go side is the declaration here: firewall.RateUnitSeconds pairs each unit
-// with the seconds it stands for, which is what the nft backend hands the
+// with the seconds it stands for, which is what the kernel backend hands the
 // kernel as an nftables LimitTime and what the VPP backend divides by. The
 // schema cannot hold that pairing, so the pattern in the rate-spec typedef is
 // the copy, and this test is what keeps it honest.

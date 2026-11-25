@@ -22,7 +22,7 @@ import (
 // TestWaitDevicePresentExisting: a device that already exists returns nil
 // promptly. Loopback is present on every platform this test runs on (including
 // the darwin dev machine), so it is a stable stand-in for an already-created
-// macvlan without needing root or netlink.
+// macvlan without needing root or a netlink socket.
 func TestWaitDevicePresentExisting(t *testing.T) {
 	lo := loopbackName(t)
 

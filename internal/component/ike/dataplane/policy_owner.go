@@ -1,4 +1,4 @@
-// Design: docs/architecture/ike/ipsec-8-ikev2-child-xfrm.md -- XFRM netlink backend
+// Design: docs/architecture/ike/ipsec-8-ikev2-child-xfrm.md -- XFRM kernel backend
 // RFC: rfc/short/rfc4301.md -- SPD entries are keyed by their selector
 // Related: xfrm_linux.go -- the backend that claims and releases through this registry
 
@@ -15,7 +15,7 @@ import (
 
 // policySelectorKey is everything the kernel uses to tell one policy from another.
 //
-// It mirrors the fields xfrmPolicyFromParams writes into the netlink selector, because
+// It mirrors the fields xfrmPolicyFromParams writes into the netlink attribute selector, because
 // the kernel identifies a policy by its whole selector and by nothing else
 // (net/xfrm/xfrm_policy.c, xfrm_policy_bysel_ctx). Two SPParams that agree on every
 // field below describe ONE kernel policy, whoever installed them.

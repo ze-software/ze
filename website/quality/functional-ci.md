@@ -70,7 +70,7 @@ Prefer the narrowest expectation that expresses the contract. For BGP, assert th
 
 ## Linux behavior
 
-A `.ci` file that needs netlink, nftables, eBPF, PPP, L2TP, namespaces, kernel routing, or Linux-only sockets should say so directly:
+A `.ci` file that needs netlink sockets, nftables, eBPF, PPP, L2TP, namespaces, kernel routing, or Linux-only sockets should say so directly:
 
 ```text
 option=needs-linux

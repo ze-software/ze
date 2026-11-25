@@ -19,14 +19,14 @@ Measure whether a VPP-owned NIC delivers IPv6 Router Advertisements to the Linux
 Control Plane tap, and record the answer.
 
 The closed spec `spec-fixit-vpp-slaac-no-dataplane-path` gated the `autoconf`
-and `accept-ra` leaves to the netlink backend on 2026-08-24. The annotation it
+and `accept-ra` leaves to the kernel backend on 2026-08-24. The annotation it
 wrote is in `internal/component/iface/yang/ze-iface-conf.yang`, and the five
 `.ci` fixtures that pin the refusal are in `test/parse/`. It landed that gate
 WITHOUT this measurement, on an owner ruling, because the measurement needs a
 QEMU harness that does not exist and the spec was stalling behind it.
 
 **This spec's outcome can REVERSE that gate.** If an address appears on the tap,
-the two leaves work on the vpp backend, the `ze:backend "netlink"` annotation
+the two leaves work on the vpp backend, the `ze:backend "kernel"` annotation
 comes off both of them, and the five `.ci` fixtures that pin the refusal are
 rewritten to pin acceptance. That is a legitimate outcome, not a failure of this
 spec.
@@ -96,7 +96,7 @@ design phase to answer.
 - [ ] `internal/component/vpp/startupconf.go` - `GenerateStartupConf` writes
   `lcp-auto-subint`
 - [ ] `internal/component/iface/yang/ze-iface-conf.yang` - the
-  `ze:backend "netlink"` annotation this spec can remove
+  `ze:backend "kernel"` annotation this spec can remove
 - [ ] `internal/le/qemu/hugepages.go` - the closest existing
   QEMU driver: host build, appliance init, image build, boot, CLI over SSH
 - [ ] `test/appliance/vpp-hugepages-qemu.ci` - how such a driver is wrapped as a
@@ -109,7 +109,7 @@ design phase to answer.
 
 **Behavior to change:**
 - Nothing, unless the measurement says the tap DOES receive the advertisements.
-  In that case: remove `ze:backend "netlink"` from `autoconf` and `accept-ra` in
+  In that case: remove `ze:backend "kernel"` from `autoconf` and `accept-ra` in
   `internal/component/iface/yang/ze-iface-conf.yang`, and rewrite the five `.ci`
   fixtures the parent spec created.
 
@@ -156,7 +156,7 @@ design phase to answer.
 |----|-----------|--------------------------------|----------|--------------|--------|
 | A-1 | A QEMU guest can be given a NIC that VPP takes over, with a second endpoint on the same link to send advertisements | the existing appliance QEMU drivers boot a gokrazy image with VPP present, and `internal/le/qemu/netns_linux.go` isolates namespaces | the measurement needs different infrastructure, and the spec must say what | build the topology and confirm VPP owns the NIC and the tap exists | unvalidated |
 | A-2 | A negative result is trustworthy: no address appeared because the packets never arrived, not because the sender was silent or the sysctl never landed | the run can assert both independently | a negative result proves nothing, and the landed gate stays unevidenced | assert the sender transmitted and the two sysctl keys read back on the tap, before reading the address | unvalidated |
-| A-3 | The tap's kernel behavior under `accept-ra` is the same as any other device's | RFC 4861 and the kernel treat the tap as an ordinary interface | the measurement answers a question about taps rather than about VPP | run the same assertions on the netlink backend as a control | unvalidated |
+| A-3 | The tap's kernel behavior under `accept-ra` is the same as any other device's | RFC 4861 and the kernel treat the tap as an ordinary interface | the measurement answers a question about taps rather than about VPP | run the same assertions on the kernel backend as a control | unvalidated |
 | A-4 | The result generalizes from the parent NIC to a VLAN sub-interface | `lcp-auto-subint` creates the sub-interface tap, and the sub-interface is a `unit` entry reaching the same leaf | the two disagree and each needs its own verdict | run the scenario a second time on a VLAN sub-interface | unvalidated |
 
 ### Risks
@@ -188,9 +188,9 @@ design phase to answer.
 |-------|-------------------|-------------------|
 | AC-1 | A run with `autoconf true` on a VPP-owned NIC and an advertisement sender on the link | The run records whether an address appears on the tap, and that record is the evidence the parent spec's gate lacks |
 | AC-2 | The same run, before the address is read | The run asserts independently that the sender transmitted and that both sysctl keys read back on the tap, so a negative result is not a false negative |
-| AC-3 | The same configuration under `backend netlink` in the same topology | An address appears. This is the control: without it a negative result says nothing about VPP |
+| AC-3 | The same configuration under `backend kernel` in the same topology | An address appears. This is the control: without it a negative result says nothing about VPP |
 | AC-4 | The same configuration on a VLAN sub-interface of the VPP-owned NIC | The run records the sub-interface verdict beside the parent's |
-| AC-5 | The run shows an address DOES appear on the tap | `ze:backend "netlink"` is removed from both leaves, the five `.ci` fixtures the parent spec created are rewritten to pin acceptance, and `docs/features/interfaces.md` loses the section that says otherwise |
+| AC-5 | The run shows an address DOES appear on the tap | `ze:backend "kernel"` is removed from both leaves, the five `.ci` fixtures the parent spec created are rewritten to pin acceptance, and `docs/features/interfaces.md` loses the section that says otherwise |
 | AC-6 | The run shows no address appears | The gate stays, and this spec's recorded output is cited from the parent spec's Known Limitations, which currently says the premise is unmeasured |
 | AC-7 | A host with no QEMU, no KVM, or no toolchain | The run skips with a stated reason and exits 0, matching the existing QEMU drivers. A SKIP is not an answer to AC-1 |
 
@@ -263,7 +263,7 @@ and the de-numbering that landed in `9aaa03e3d`).
 | 3 | CLI command added/changed? | No | |
 | 4 | API/RPC added/changed? | No | |
 | 5 | Plugin added/changed? | | decide during design |
-| 6 | Has a user guide page? | Yes | `docs/features/interfaces.md`, the section "Receiving advertisements needs the netlink backend" |
+| 6 | Has a user guide page? | Yes | `docs/features/interfaces.md`, the section "Receiving advertisements needs the kernel backend" |
 | 7 | Wire format changed? | No | |
 | 8 | Plugin SDK/protocol changed? | No | |
 | 9 | RFC behavior implemented, changed, or newly proven? | | RFC 4862 host behavior is newly PROVEN or newly disproven on the vpp backend; decide during design whether a `rfc/short/` row moves |
@@ -289,7 +289,7 @@ and the de-numbering that landed in `9aaa03e3d`).
    - Tests: the AC-2 assertions and the AC-3 control
    - Files: the driver
    - Verify: the sender transmitted, both sysctl keys read back on the tap, and
-     the netlink control learns an address in the same topology
+     the kernel control learns an address in the same topology
 3. **Phase: Record the answer** -- and act on it
    - Tests: `vpp-slaac-tap` on the parent NIC and on a VLAN sub-interface
    - Files: under AC-5, the YANG annotation, three `.ci` fixtures and

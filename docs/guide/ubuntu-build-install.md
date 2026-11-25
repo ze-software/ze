@@ -297,7 +297,7 @@ There are two kinds of feature work.
 | Feature type | What you change | Example |
 | --- | --- | --- |
 | Compiled service | Explicit Go build tags | `ze_lg` compiles the looking glass server |
-| Runtime feature | Config lines and plugin declarations | `environment looking-glass`, `plugin internal bgp-rr`, `firewall backend nft` |
+| Runtime feature | Config lines and plugin declarations | `environment looking-glass`, `plugin internal bgp-rr`, `firewall backend kernel` |
 
 For normal installs, keep the default binary and add runtime features to the
 stored config. The example below exports the current entry, renders and validates
@@ -332,7 +332,7 @@ Use the pages below as feature-specific starting points:
 | --- | --- |
 | [Operator access with SSH and RBAC](operator-access-rbac.md) | Local users, profiles, public keys, TACACS+ pointers |
 | [FlowSpec route reflector](flowspec-route-reflector.md) | `bgp-rr`, iBGP FlowSpec clients, route-reflector-client flags |
-| [FlowSpec protected router](flowspec-protected-router.md) | nft firewall backend, control-plane policing, FlowSpec firewall bridge |
+| [FlowSpec protected router](flowspec-protected-router.md) | kernel firewall backend, control-plane policing, FlowSpec firewall bridge |
 | [Looking glass](looking-glass-howto.md) | public read-only HTTP looking glass and birdwatcher-compatible API |
 
 ## 9. Stop or roll back

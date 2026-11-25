@@ -251,9 +251,9 @@ func TestKernelCounterCreatorEchoPrimitive(t *testing.T) {
 
 func kernelCounterNativeBackend(t *testing.T) iface.Backend {
 	t.Helper()
-	backend, err := iface.OpenBackend("netlink")
+	backend, err := iface.OpenBackend("kernel")
 	if err != nil {
-		t.Fatalf("open real netlink counter backend: %v", err)
+		t.Fatalf("open real kernel counter backend: %v", err)
 	}
 	t.Cleanup(func() {
 		if err := backend.Close(); err != nil {

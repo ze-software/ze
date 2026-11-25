@@ -310,8 +310,17 @@ func init() {
 		// The IPv6 tunnel-source guard fills the firewall (kernelGuard.publish), as copp
 		// does. firewall is ungated, so every build with ike carries it: a hard edge.
 		Dependencies: []string{"firewall"},
-		Sends:        ikeSends(),
-		RunEngine:    runEngine,
+		// IPsec tunnels are installed into Linux XFRM only (via the vpn config root;
+		// pki alone and OSPF's XFRM use do not write vpn). No start exception applies:
+		// a data-plane mismatch refuses commit, validate, reload, and daemon start.
+		DataPlaneFeatures: []registry.DataPlaneFeature{{
+			ConfigPath: "vpn ipsec",
+			Why:        "IPsec programs kernel XFRM only, and VPP forwards the packets, so the tunnels would carry no traffic",
+			Planes:     []string{"kernel"},
+			InUseKind:  registry.DataPlaneInUseConfigRoot,
+		}},
+		Sends:     ikeSends(),
+		RunEngine: runEngine,
 		// The SAME chain the runtime OnConfigVerify below runs, reached OFFLINE by
 		// ze config validate and by the web and hub commit paths
 		// (config.VerifyPluginConfig, internal/component/config/plugin_verify.go).

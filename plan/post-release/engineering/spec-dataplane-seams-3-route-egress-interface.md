@@ -26,7 +26,7 @@ gap depends on a fact this spec has not established.
 
 `internal/plugins/static` does not import `sysrib`. It declares its own
 `routeBackend` interface in `internal/plugins/static/backend.go` with two
-implementations, netlink and VPP, and it programs the dataplane through them
+implementations, kernel and VPP, and it programs the dataplane through them
 directly. Separately, `internal/plugins/static/inject.go` emits `redistevents`
 route changes, which is how sysrib and BGP redistribution learn about static
 routes.

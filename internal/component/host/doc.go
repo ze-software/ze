@@ -1,7 +1,7 @@
 // Design: docs/architecture/host/inventory.md -- hardware inventory detection
 //
 // Package host reads the physical hardware inventory from sysfs, procfs,
-// and netlink. It is read-only and stateless: every Detect call returns
+// and the netlink socket. It is read-only and stateless: every Detect call returns
 // a fresh Inventory value. No pools, no caches, no globals. Safe for
 // concurrent use.
 //

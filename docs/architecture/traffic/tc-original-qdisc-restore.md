@@ -1,6 +1,6 @@
 # Restoring an Interface's Original tc Qdisc
 
-The netlink traffic backend replaces an interface's root qdisc when it applies a
+The kernel traffic backend replaces an interface's root qdisc when it applies a
 `traffic-control { }` config. On withdrawal it must put back what was there
 before, and "before" survives a daemon restart. That needs a persisted snapshot.
 
@@ -53,8 +53,8 @@ something that looks right.
 <!-- source: internal/plugins/traffic/netlink/snapshot_linux.go -- snapshot and restore error paths -->
 
 Both the snapshot side and the restore side fail with
-`qdisc %q cannot be snapshotted exactly by backend tc` and
-`qdisc %q cannot be restored exactly by backend tc`. This is exact-or-reject
+`qdisc %q cannot be snapshotted exactly by backend kernel` and
+`qdisc %q cannot be restored exactly by backend kernel`. This is exact-or-reject
 (`ai/rules/protocol.md`) applied to the restore path: an approximate restore is
 an operator config silently rewritten.
 

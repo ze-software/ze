@@ -3,7 +3,7 @@
 # PREVENTS: offload container restricted to ethernet only
 stdin=config:terminator=EOF_CONF
 interface {
-	backend netlink;
+	backend kernel;
 	bridge br0 {
 		mac {
 			address 02:00:00:00:00:03;

@@ -86,8 +86,8 @@ the VLAN's kernel device is named after the device the parent resolved to, so
 `ethernet capture { mac { match ... } unit 100 { vlan-id 100 } }` makes
 `capture.100` the device `<selected device>.100`, and the unit is unbound, and
 the mirror deferred, when the parent is. Passing the unit name through
-unchanged pointed tc at whatever device carried the logical name, or at none.
-The mirrors are installed after the loop that creates every VLAN, because tc
+unchanged pointed traffic control at whatever device carried the logical name, or at none.
+The mirrors are installed after the loop that creates every VLAN, because traffic control
 resolves the destination when it installs the filter, and the destination may
 be a VLAN of an entry the loop reaches after the mirroring one.
 
@@ -224,7 +224,7 @@ for `connect(AF_PPPOX)`.
 <!-- source: internal/component/l2tp/pppoeclient/dialer.go -- Dialer.Dial -->
 
 Access concentrators prepare `pppoe interface` through the selected data-plane
-backend. The netlink backend uses `iface.ResolveForBackend` to capture the
+backend. The kernel backend uses `iface.ResolveForBackend` to capture the
 kernel device, ifindex, MAC and MTU. `newInterfaceServer` keeps that prepared
 access for discovery and session setup, beside the configured name used in
 reports. Its `openSession` calls that access's `Open` with the prepared devices
@@ -233,7 +233,7 @@ and namespace, so the netlink socket connects with the resolved device name.
 <!-- source: internal/component/l2tp/pppoe/subsystem_reload.go -- newInterfaceServer -->
 <!-- source: internal/component/l2tp/pppoe/dataplane/kernel/socket_linux.go -- openTransportWithOps -->
 
-Kernel preparation owns an independent netlink backend shared by its sessions.
+Kernel preparation owns an independent kernel backend shared by its sessions.
 It captures that backend's original unit creator before publishing the access,
 and each child opens through the same original prepared owner even if the active
 backend changes. Creation-bound counters do not resolve the child's current name.
@@ -406,7 +406,7 @@ accepted infrastructure dependency.
 
 Once a consumer calls `iface.Resolve` or `iface.Addresses`, its Linux
 integration tests fail at open with "no backend loaded" unless they call
-`iface.LoadBackend("netlink")` inside the netns before the first resolve.
+`iface.LoadBackend("kernel")` inside the netns before the first resolve.
 
 Production loads a backend only when the config has an `interface { }` block.
 A consumer that can run without one (an OSPF-only, IS-IS-only or LDP-only

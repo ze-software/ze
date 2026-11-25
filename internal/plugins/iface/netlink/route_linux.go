@@ -55,7 +55,7 @@ var rtProtoNames = map[int]string{
 }
 
 // ListKernelRoutes returns up to `limit` routes from the kernel's main
-// table (netlink RTM_GETROUTE across all families). filterPrefix (when
+// table (netlink route RTM_GETROUTE across all families). filterPrefix (when
 // non-empty) restricts the output to the single CIDR match on the
 // Destination field -- use "default" to match the 0.0.0.0/0 / ::/0
 // entries. An empty filter returns every route. limit == 0 means

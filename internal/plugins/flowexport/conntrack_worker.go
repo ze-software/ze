@@ -1,5 +1,5 @@
 // Design: docs/architecture/flowexport/flow-export-2-flow-records.md -- conntrack flow-record lifecycle
-// Related: conntrack/reader_linux.go -- netlink conntrack dump
+// Related: conntrack/reader_linux.go -- netlink dump of conntrack entries
 // Related: conntrack/delta.go -- per-flow delta tracking between dumps
 
 package flowexport

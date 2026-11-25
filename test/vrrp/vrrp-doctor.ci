@@ -28,9 +28,9 @@ cmd=foreground:seq=1:exec=ze show diagnostic doctor-vrrp-config-invalid:timeout=
 expect=stdout:contains=doctor-vrrp-config-invalid
 expect=stdout:contains=accept-mode
 
-cmd=foreground:seq=2:exec=ze show diagnostic doctor-vrrp-backend-unusable:exit=0
-expect=stdout:contains=doctor-vrrp-backend-unusable
-expect=stdout:contains=netlink
+cmd=foreground:seq=2:exec=ze show diagnostic doctor-dataplane-mismatch:exit=0
+expect=stdout:contains=doctor-dataplane-mismatch
+expect=stdout:contains=ze:backend
 
 cmd=foreground:seq=3:exec=ze show diagnostic doctor-vrrp-raw-socket:exit=0
 expect=exit:code=0

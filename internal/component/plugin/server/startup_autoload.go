@@ -12,7 +12,6 @@ import (
 	"slices"
 
 	"github.com/ze-software/ze/internal/component/config"
-	"github.com/ze-software/ze/internal/component/iface"
 	plugin "github.com/ze-software/ze/internal/component/plugin"
 	"github.com/ze-software/ze/internal/component/plugin/process"
 	"github.com/ze-software/ze/internal/component/plugin/registry"
@@ -266,12 +265,22 @@ func (s *Server) appendDataPlaneWriterWithReason(needed []string, dataPlane stri
 	return append(needed, writer), nil
 }
 
-// ConfigDataPlane answers the data plane a config tree selects at
-// `interface { backend }`, read as reload reads it. The doctor check of a
-// missing data-plane writer reads it here, so the plugin infrastructure keeps
-// its one import of iface in this package.
+// ConfigDataPlane answers the data plane a config tree selects through the
+// declared primary DataPlaneSelector (and its YANG schema default when
+// omitted), read as reload reads it. It returns "" when no primary selector or
+// schema default can be read.
 func ConfigDataPlane(tree map[string]any) string {
-	return iface.BackendNameFromTree(tree)
+	schema, err := config.YANGSchema()
+	// refuse-by-default: guards DataPlaneWriter -- an unavailable schema yields empty plane, which DataPlaneWriter refuses
+	if err != nil {
+		return ""
+	}
+	plane, err := config.ResolvePrimaryDataPlaneFromMap(tree, schema)
+	// refuse-by-default: guards DataPlaneWriter -- an unresolved selector yields empty plane, which DataPlaneWriter refuses
+	if err != nil {
+		return ""
+	}
+	return plane
 }
 
 // fibPluginChosen reports whether a plugin that programs the FIB is configured,

@@ -3,7 +3,7 @@
 // Design: rate.go -- per-interface rate tracker (collect loop, ListRates/GetRate)
 //
 // Integration coverage for the exact pipeline ddos-detect consumes: the rate
-// tracker's collect() goroutine reads raw kernel counters via the netlink backend
+// tracker's collect() goroutine reads raw kernel counters via the kernel backend
 // and derives per-second rates. The ddos functional tests could never observe this
 // in QEMU (the .ci runner truncates daemon logs), so this test drives it directly
 // on a real kernel with full Go-test visibility: flood lo and assert the tracker
@@ -29,8 +29,8 @@ import (
 )
 
 func TestRateTracker_LoopbackFloodProducesNonZeroRate(t *testing.T) {
-	if err := LoadBackend("netlink"); err != nil {
-		t.Fatalf("load netlink backend: %v", err)
+	if err := LoadBackend("kernel"); err != nil {
+		t.Fatalf("load kernel backend: %v", err)
 	}
 	t.Cleanup(func() { _ = CloseBackend() })
 

@@ -22,7 +22,7 @@ func TestVPPBackendRefusesOwnedLink(t *testing.T) {
 	if err == nil {
 		t.Fatalf("the VPP backend accepted an owned link")
 	}
-	for _, want := range []string{"zfo-7-1", "network namespace", "interface backend netlink"} {
+	for _, want := range []string{"zfo-7-1", "network namespace", "interface backend kernel"} {
 		if !strings.Contains(err.Error(), want) {
 			t.Errorf("the owned link refusal does not say %q: %v", want, err)
 		}
@@ -32,7 +32,7 @@ func TestVPPBackendRefusesOwnedLink(t *testing.T) {
 	if err == nil {
 		t.Fatalf("the VPP backend accepted an owned bridge")
 	}
-	for _, want := range []string{"zfo-wire", "interface backend netlink"} {
+	for _, want := range []string{"zfo-wire", "interface backend kernel"} {
 		if !strings.Contains(err.Error(), want) {
 			t.Errorf("the owned bridge refusal does not say %q: %v", want, err)
 		}

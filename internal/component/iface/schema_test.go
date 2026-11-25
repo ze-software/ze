@@ -94,8 +94,8 @@ func TestWireguardYANGStructure(t *testing.T) {
 }
 
 // TestIfaceYANGBackendAnnotations verifies that the iface YANG annotates
-// the netlink-only feature lists (bridge, tunnel, wireguard, veth, mirror)
-// with ze:backend "netlink" so the commit-time feature gate rejects
+// the kernel-only feature lists (bridge, tunnel, wireguard, veth, mirror)
+// with ze:backend "kernel" so the commit-time feature gate rejects
 // configs that try to use those features under a backend (e.g. vpp) that
 // has not implemented them.
 //
@@ -114,28 +114,28 @@ func TestIfaceYANGBackendAnnotations(t *testing.T) {
 	ifaceCN, ok := iface.(*config.ContainerNode)
 	require.True(t, ok, "interface must be a container")
 
-	// bridge, tunnel (list-level), and veth remain netlink-only. The tunnel
-	// list stays "netlink"; per-kind encapsulation cases (gre/gretap/ipip/
-	// vxlan) are widened to "netlink vpp" one level down (see the tunnel
+	// bridge, tunnel (list-level), and veth remain kernel-only. The tunnel
+	// list stays "kernel"; per-kind encapsulation cases (gre/gretap/ipip/
+	// vxlan) are widened to "kernel vpp" one level down (see the tunnel
 	// backend-gate tests), not on the list node itself.
 	for _, name := range []string{"bridge", "tunnel", "veth"} {
 		node := ifaceCN.Get(name)
 		require.NotNilf(t, node, "interface.%s missing from schema", name)
 		list, ok := node.(*config.ListNode)
 		require.Truef(t, ok, "interface.%s must be a list", name)
-		assert.Equalf(t, []string{"netlink"}, list.Backend,
-			"interface.%s must carry ze:backend \"netlink\"", name)
+		assert.Equalf(t, []string{"kernel"}, list.Backend,
+			"interface.%s must carry ze:backend \"kernel\"", name)
 	}
 
 	// wireguard is implemented on BOTH backends (spec-followup-vpp-iface
 	// Phase 5: wireguard plugin binary API), so its list carries
-	// ze:backend "netlink vpp".
+	// ze:backend "kernel vpp".
 	wgNode := ifaceCN.Get("wireguard")
 	require.NotNil(t, wgNode, "interface.wireguard missing from schema")
 	wgList, ok := wgNode.(*config.ListNode)
 	require.True(t, ok, "interface.wireguard must be a list")
-	assert.Equal(t, []string{"netlink", "vpp"}, wgList.Backend,
-		"interface.wireguard must carry ze:backend \"netlink vpp\"")
+	assert.Equal(t, []string{"kernel", "vpp"}, wgList.Backend,
+		"interface.wireguard must carry ze:backend \"kernel vpp\"")
 
 	// ethernet, dummy, loopback should remain UNRESTRICTED (nil Backend).
 	for _, name := range []string{"ethernet", "dummy"} {

@@ -457,7 +457,7 @@ func TestTranslateTermAllProtocols(t *testing.T) {
 //
 // VALIDATES: every name firewall.ProtocolNames returns translates to a VPP ACL
 // rule without error.
-// PREVENTS: this backend knowing a different set of protocol names from nft and
+// PREVENTS: this backend knowing a different set of protocol names from the kernel backend and
 // from the YANG enum. It kept a private name -> IPProto table until this spec;
 // the FlowSpec bridge kept another, and that one knew five of the ten.
 func TestTranslateTermEveryCanonicalProtocol(t *testing.T) {

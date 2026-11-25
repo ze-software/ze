@@ -40,9 +40,9 @@ below it.
 | Routing | `ospf.md` | OSPFv2/v3: Hello/adjacency, LSDB, SPF, route install |
 | Routing | `isis.md` | IS-IS: IIH adjacency, LSP/LSDB (L1/L2), SPF, route install |
 | Routing | `mpls-signaling.md` | MPLS label signaling (LDP + RSVP-TE) and the label FIB |
-| Forwarding | `fib-programming.md` | RIB to FIB to kernel: redistribute, sysrib, netlink program |
+| Forwarding | `fib-programming.md` | RIB to FIB to kernel: redistribute, sysrib, netlink route programming |
 | Forwarding | `vpp-dataplane.md` | VPP dataplane: process lifecycle, route/interface programming |
-| Interfaces/services | `iface.md` | Interface management: YANG to netlink, WireGuard, PPPoE, address ownership |
+| Interfaces/services | `iface.md` | Interface management: YANG to netlink links, WireGuard, PPPoE, address ownership |
 | Interfaces/services | `firewall.md` | Firewall/nftables: ruleset apply, NAT, FlowSpec, policy routing |
 | Interfaces/services | `ipsec-ike.md` | IPsec/IKEv2: SA negotiation, child SA, XFRM install |
 | Interfaces/services | `subscriber.md` | Subscriber sessions: PPPoE/L2TP access concentrator, PPP, RADIUS |

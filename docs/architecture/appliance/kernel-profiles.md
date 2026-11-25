@@ -427,7 +427,7 @@ or falling back to a weaker selector.
 <!-- source: gokrazy/kernel/patches/0011c-ppp-exact-address-pair-delete.patch -- inet_rtm_deladdr, __inet_del_ifa, inet6_addr_del -->
 
 Go producers must retain their strong original unit/channel owners through the
-actual short syscall or netlink send, without holding a descriptor borrow over
+actual short syscall or netlink write, without holding a descriptor borrow over
 an ACK wait. The shared setup supplier must replace PPPIOCGCHAN followed by
 PPPIOCATTCHAN with atomic capture; the relay must retain both original channel
 files through unbridge; the CPE CONNECT caller must supply the creator file.
@@ -642,7 +642,7 @@ The runtime manifest and compiled floor require both symbols.
 <!-- source: internal/appliance/kernelreq.go -- runtimeKernelRequirements -->
 
 IPsec and WireGuard require their kernel support built in: `CONFIG_XFRM_USER`
-(the netlink interface every SA install goes through), `CONFIG_XFRM_INTERFACE`,
+(the netlink API every SA install goes through), `CONFIG_XFRM_INTERFACE`,
 `CONFIG_INET_ESP`, `CONFIG_INET6_ESP`, `CONFIG_INET_AH`, `CONFIG_INET6_AH`,
 `CONFIG_WIREGUARD`, and one CRYPTO symbol for each kernel transform Ze's XFRM
 algorithm tables can install: `CBC`, `DES`, `NULL`, `GCM`, `CHACHA20POLY1305`,
@@ -858,8 +858,8 @@ interface exists when the pass ends. That reading of `do_init_module`
 (`drivers/base/dd.c`) is not verified against the 7.3 source in this
 repository; the QEMU trial with an `e1000` module settles it. A driver that
 defers its probe, waits for firmware, or sits on a bus that enumerates later
-(USB) can register its interface after `ze start` lists the NICs. The netlink
-monitor announces that interface, but the iface apply skips an `ethernet` entry
+(USB) can register its interface after `ze start` lists the NICs. The
+netlink monitor announces that interface, but the iface apply skips an `ethernet` entry
 whose device is absent ("configured interface not present, skipping"), and only
 the next commit applies it. The pass has no hotplug listener: a device that
 appears after the pass gets no module from it.

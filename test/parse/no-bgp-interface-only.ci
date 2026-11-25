@@ -2,7 +2,7 @@
 # AC-2: Config with only interface {} loads cleanly.
 stdin=config:terminator=EOF_CONF
 interface {
-    backend netlink
+    backend kernel
 }
 EOF_CONF
 

@@ -11,15 +11,17 @@ programs Ze does not control, so most mistakes here are about ownership.
 - **Components with a pluggable backend.** `iface`, `firewall` and `traffic`
   each declare a `Backend` interface and a `RegisterBackend`/`LoadBackend` pair
   (`internal/component/{iface,firewall,traffic}/backend.go`). The backend
-  plugins live under `internal/plugins/{iface,firewall,traffic}/`: netlink or
-  nft for Linux, `vpp` for VPP. The YANG `backend` leaf selects one
+  plugins live under `internal/plugins/{iface,firewall,traffic}/`: the kernel
+  backends (`iface/netlink`, `firewall/nft`, `traffic/netlink`) for Linux, and `vpp` for VPP. The YANG `backend` leaf selects one
   (`docs/architecture/core-design.md`, sections 14 and 14b).
 - **The route path.** Protocols insert paths into the shared Loc-RIB, which
   applies import policy and selects the system route. `sysrib` follows that
   selection through local reads or its authenticated routing view and publishes
   `(system-rib, best-change)`.
-  One FIB plugin writes it: `fib-kernel` for netlink, `fib-vpp` for VPP,
-  `fib-p4` with no data plane yet (`ai/digests/fib-programming.md`,
+  One FIB plugin writes it: `fib-kernel` for `kernel`, `fib-vpp` for `vpp`,
+  `fib-p4` with no data plane yet, or `fib-dummy`, which declares
+  `ProgramsFIB` and `NoDataPlaneChoice` with an empty `DataPlane` to hold
+  selected routes in memory and program none (`ai/digests/fib-programming.md`,
   `docs/architecture/forked-route-install.md`). `rib { fib-withhold }` keeps a
   protocol out of the FIB and does not change selection
   (`internal/component/sysrib/fibimport.go`).
@@ -33,8 +35,8 @@ programs Ze does not control, so most mistakes here are about ownership.
   registers firewall tables and programs `ip rule` routes
   (`docs/architecture/policyroute/policy-routing.md`).
 - **Compile-out.** `ze_vpp` removes `component/vpp` and every `vpp` backend,
-  `ze_policyroute` removes policy routing (`feature-gates.txt`). The netlink
-  and nft paths are always on.
+  `ze_policyroute` removes policy routing (`feature-gates.txt`). The kernel
+  paths are always on.
 
 ## Who depends on it from outside
 
@@ -49,11 +51,18 @@ programs Ze does not control, so most mistakes here are about ownership.
 ## Boundaries
 
 - **One writer per data plane.** A FIB plugin declares `ProgramsFIB` and the
-  `DataPlane` it reaches. A route producer declares `NeedsDataPlane`
+  `DataPlane` it reaches. A plugin that declares `ProgramsFIB` and
+  `NoDataPlaneChoice` with an empty `DataPlane` (`fib-dummy`) is the operator's
+  explicit choice to program no data plane and is refused beside any other
+  `ProgramsFIB` plugin (`internal/component/config/dataplane_verdict.go`,
+  `evaluateNoPlaneFIBChoice`). A route producer declares `NeedsDataPlane`
   (`internal/component/plugin/registry/registry.go`, `Registration`).
-  `Register` refuses a second claim on one data plane. The engine loads
-  the writer for the configured backend, unless a `fib { }` block already chose
-  one (`internal/component/plugin/server/startup_autoload.go`,
+  `Register` refuses a second claim on one data plane. At boot and at reload,
+  the engine judges the writer over the whole candidate selection: it loads the
+  writer for the configured backend when a producer needs one and no FIB plugin
+  is chosen, and stops an engine-added or displaced FIB plugin when the
+  candidate no longer chooses or needs it
+  (`internal/component/plugin/server/startup_autoload.go`,
   `appendDataPlaneWriter`). Never add a list of FIB plugin names anywhere.
 - **Protocols never write the kernel.** They insert `locrib.Path` values. A
   forked plugin ships them over the route-install RPC because `locrib.Default()`
@@ -63,15 +72,22 @@ programs Ze does not control, so most mistakes here are about ownership.
   writes its own tables (3000 to 3999, `rtproto.IPsecSourceGuard`) and their
   `ip rule` entries through `internal/core/iprule`: they steer traffic from a
   tunnel address, not forwarded routes (`docs/architecture/ike/ipsec-8-ikev2-child-xfrm.md`). MPLS label entries reach a data plane
-  only as `(mpls-fib, entry)` events that its writer consumes, `fib-kernel` for
-  the kernel and `fib-vpp` for VPP MPLS table 0
-  (`internal/core/mplsfib/events.go`, `internal/plugins/fib/vpp/mplsentry.go`).
+  only as `(mpls-fib, entry)` events that its writer consumes: `fib-kernel` for
+  the kernel, `fib-vpp` for VPP MPLS table 0, and `fib-dummy`, which subscribes
+  and consumes addressed batches to refuse them so label producers never
+  advertise unforwarded labels (`internal/core/mplsfib/events.go`,
+  `internal/plugins/fib/vpp/mplsentry.go`, `internal/plugins/fib/dummy/labels.go`).
+  `fib-kernel`, `fib-vpp`, and `fib-dummy` each emit a targeted
+  `(mpls-fib, replay-request)` on open, and after a reload stops any
+  `ProgramsFIB` process, `(mpls-fib, writer-stopped)` (`mplsfib.WriterStopped`)
+  triggers one more targeted replay request on each remaining data-plane writer
+  (`fib-kernel`, `fib-vpp`) to clear reload-window refusals.
 - **Exact or refuse, at verify.** Feature support is declared with `ze:backend`
-  in YANG and checked by `config.validateBackendFeatures` from `OnConfigure` and
-  `OnConfigVerify` (`core-design.md`, section 14a). A semantic limit the
-  annotation cannot express goes in a backend verifier
-  (`internal/component/traffic/backend.go`, `RegisterVerifier`). A runtime
-  `errNotSupported` is defence in depth, not the gate.
+  in YANG and judged by one whole-tree walk the config component runs at its
+  two doors (`LoadConfig` and `verifyTree`) and in `ze doctor` (`core-design.md`,
+  section 14a). A semantic limit the annotation cannot express goes in a backend
+  verifier (`internal/component/traffic/backend.go`, `RegisterVerifier`). A
+  runtime `errNotSupported` is defence in depth, not the gate.
 - **Interface names go through the shared resolver**, never straight to the
   kernel (`docs/architecture/iface/logical-name-resolution.md`). Interface
   events reach consumers on the EventBus. BGP and `iface` do not import each
@@ -132,7 +148,7 @@ programs Ze does not control, so most mistakes here are about ownership.
 | Command | What it judges |
 |---------|----------------|
 | `./le test unit plugins`, `./le test unit core` | Race-instrumented unit groups |
-| `./le test integration iface`, `fib`, `firewall`, `traffic` | The netlink, nft and tc backends against a real kernel. It needs `CAP_NET_ADMIN` |
+| `./le test integration iface`, `fib`, `firewall`, `traffic` | The kernel iface, firewall and traffic backends against a real kernel. It needs `CAP_NET_ADMIN` |
 | `./le test qemu all` | Every Linux integration package inside Ze's kernel |
 | `./le test vpp`, `./le test firewall`, `./le test traffic`, `./le test policy`, `./le test static` | Functional `.ci` suites |
 | `./le arch iface-resolution` | No code resolves an interface name against the kernel directly |

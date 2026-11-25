@@ -1,0 +1,28 @@
+# Test: interface backend vpp accepts flow-export counter export without sampling or conntrack.
+# Question: does `ze config validate` accept `flow-export` under `interface
+#           backend vpp` when `sampling` is absent and `conntrack enabled` is
+#           absent/false?
+#           A unit test cannot prove both `flow-export` predicates leave plain
+#           counter export accepted in `ze config validate`.
+# VALIDATES: spec-dataplane-compatibility-guard AC-5 survivor -- counter-only
+#            flow export declares no kernel-only forwarding requirement and
+#            validates under VPP.
+# PREVENTS: refusing the whole `flow-export` root under VPP instead of only
+#           its kernel-only `sampling` and `conntrack` subtrees.
+stdin=config:terminator=EOF_CONF
+interface {
+	backend vpp;
+}
+flow-export {
+	collector sflow1 {
+		address 10.0.0.50;
+		port 6343;
+		protocol sflow;
+		agent-address 127.0.0.1;
+	}
+}
+EOF_CONF
+
+cmd=foreground:seq=1:exec=ze config validate -:stdin=config
+expect=exit:code=0
+expect=stdout:contains=configuration valid

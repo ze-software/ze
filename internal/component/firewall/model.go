@@ -3,7 +3,7 @@
 
 // Package firewall defines the abstract data model for ze-managed nftables
 // firewall tables. Types model firewall concepts (MatchSourceAddress, Accept,
-// SetMark), not nftables register operations. The nft backend lowers abstract
+// SetMark), not nftables register operations. The kernel backend lowers abstract
 // types to nftables expressions internally. The VPP backend maps them directly
 // to ACL rules and policers.
 package firewall
@@ -349,7 +349,7 @@ type MatchInputInterface struct {
 type MatchUnicast struct{}
 
 // MatchIPsecTransform matches a packet whose route hands it to an IPsec transform:
-// its dst is an XFRM bundle, so the packet leaves encrypted (nft `rt ipsec exists`,
+// its dst is an XFRM bundle, so the packet leaves encrypted (nftables `rt ipsec exists`,
 // NFT_RT_XFRM). Its zero value is the complete predicate. Daemon-only: the IKE
 // tunnel-source guard passes the inner packet that xfrm6_output runs through
 // postrouting, whose output device there is the outer path's, not the XFRM
@@ -789,7 +789,7 @@ const (
 	SetTypeIfname                         // ifname
 )
 
-// String returns the nft-native name for the set type (ipv4_addr,
+// String returns the nftables-native name for the set type (ipv4_addr,
 // inet_service, etc.) so verify-time error messages render the same
 // token operators wrote in the config rather than a bare integer.
 func (s SetType) String() string {

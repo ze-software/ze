@@ -59,7 +59,7 @@ func configureBFDInterfaceSelector(t *testing.T) {
 	ack("ze-plugin-engine:declare-registration")
 	raw, err := mux.CallRPC(ctx, "ze-plugin-callback:configure", rpc.ConfigureInput{Sections: []rpc.ConfigSection{{
 		Root: "interface",
-		Data: `{"interface":{"backend":"netlink","ethernet":{"bfd-real-lo":{"name":"bfd-real-lo","os-name":"lo"},"bfd-unbound":{"name":"bfd-unbound","os-name":"bfd-absent"}}}}`,
+		Data: `{"interface":{"backend":"kernel","ethernet":{"bfd-real-lo":{"name":"bfd-real-lo","os-name":"lo"},"bfd-unbound":{"name":"bfd-unbound","os-name":"bfd-absent"}}}}`,
 	}}})
 	require.NoError(t, err)
 	if len(raw) != 0 {

@@ -12,7 +12,7 @@
 
 stdin=undeclared:terminator=EOF_UNDECLARED
 firewall {
-	backend nft;
+	backend kernel;
 	table edge {
 		family inet;
 		set other {
@@ -38,7 +38,7 @@ EOF_UNDECLARED
 
 stdin=declared:terminator=EOF_DECLARED
 firewall {
-	backend nft;
+	backend kernel;
 	table edge {
 		family inet;
 		set bypass {
@@ -64,7 +64,7 @@ EOF_DECLARED
 
 stdin=ambiguous:terminator=EOF_AMBIGUOUS
 firewall {
-	backend nft;
+	backend kernel;
 	table core {
 		family inet;
 		set bypass {
@@ -97,7 +97,7 @@ EOF_AMBIGUOUS
 
 stdin=porttype:terminator=EOF_PORTTYPE
 firewall {
-	backend nft;
+	backend kernel;
 	table edge {
 		family inet;
 		set bypass {
@@ -123,7 +123,7 @@ EOF_PORTTYPE
 
 stdin=portset:terminator=EOF_PORTSET
 firewall {
-	backend nft;
+	backend kernel;
 	table edge {
 		family inet;
 		set web {

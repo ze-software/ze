@@ -3,7 +3,7 @@
 // Design: docs/architecture/mpls/mpls-kernel.md -- Path MTU and label overhead
 // Related: mplsentry_linux.go -- addMPLSSwap, transitRouteMTU
 //
-// The transit route's MTU follows the kernel's answer, with the netlink probe
+// The transit route's MTU follows the kernel's answer, with the netlink route probe
 // faked so both answers run on any host. The live install on a stock kernel is
 // TestMPLSIntegration_TransitPathMTUFollowsTheProbe.
 

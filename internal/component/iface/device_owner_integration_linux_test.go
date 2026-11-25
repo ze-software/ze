@@ -5,7 +5,7 @@
 // Related: config_apply.go -- reconcileOwnedDevices (the pass under test)
 //
 // These drive the real reconcile device pass (reconcileOnReady) against a live
-// netlink backend in a throwaway network namespace, exercising
+// kernel backend in a throwaway network namespace, exercising
 // create-before-address ordering, VIP install via the address registry,
 // delete-on-unregister, retry when the parent appears late, and alias-scoped
 // orphan cleanup. Each test enters a user and network namespace of its own with

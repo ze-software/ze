@@ -414,8 +414,8 @@ func (s *InterfaceServer) handlePADR(pkt *Packet) {
 	if s.pppDriver == nil {
 		s.logger.Warn("pppoe: PADR refused: no PPP driver, so this subscriber can be neither terminated locally nor relayed by realm. "+
 			"The PPP driver needs an interface backend, and none is loaded. "+
-			"Fix: set interface backend netlink, or bind the subscriber's Service-Name to an L2TP relay",
-			"src", net.HardwareAddr(pkt.SrcMAC[:]), "service", pkt.ServiceNameString())
+			"Fix: set interface backend kernel, or bind the subscriber's Service-Name to an L2TP relay",
+			"src", net.HardwareAddr(pkt.SrcMAC[:]), "service", pkt.ServiceNameString(), "code", codeDoctorPPPoEUnavailable)
 		s.closeAdmitted(sess)
 		refusal := BuildPADSError(buf[:], s.hwAddr, pkt, s.acName, TagACSystemError)
 		if refusal != nil {

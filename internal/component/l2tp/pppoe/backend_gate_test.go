@@ -20,14 +20,14 @@ func TestPPPoEVerifyRefusesVPPBackend(t *testing.T) {
 		t.Fatal("validation accepted a PPPoE access interface on VPP")
 	}
 	for _, want := range []string{
-		"/pppoe/interface/access0", `backend "vpp"`, "supported: netlink",
-		"no PPPoE session data plane", "set interface backend netlink",
+		"/pppoe/interface/access0", `backend "vpp"`, "supported: kernel",
+		"no PPPoE session data plane", "set interface backend kernel",
 	} {
 		if !strings.Contains(err.Error(), want) {
 			t.Fatalf("backend refusal lacks %q: %v", want, err)
 		}
 	}
-	if !strings.HasSuffix(err.Error(), "set interface backend netlink") {
+	if !strings.HasSuffix(err.Error(), "set interface backend kernel") {
 		t.Fatalf("backend refusal does not end with its repair command: %v", err)
 	}
 }
@@ -47,8 +47,8 @@ func TestPPPoEVerifyAcceptsDefaultBackend(t *testing.T) {
 	if !ok {
 		t.Fatal("interface/backend is not a schema leaf")
 	}
-	if leaf.Default != "netlink" {
-		t.Fatalf("interface/backend default = %q, want netlink", leaf.Default)
+	if leaf.Default != "kernel" {
+		t.Fatalf("interface/backend default = %q, want kernel", leaf.Default)
 	}
 	tree := pppoeBackendTree(t, "interface { ethernet access0 {} } pppoe { interface access0 {} }")
 	if _, err := config.ValidateCustomSections(tree); err != nil {
@@ -70,7 +70,7 @@ func TestPPPoEVerifyAllowsNoAccessInterface(t *testing.T) {
 func TestPPPoEVerifyReadsTheBackendPath(t *testing.T) {
 	tree := pppoeBackendTree(t, `
 interface {
-    backend netlink
+    backend kernel
     ethernet access0 {
     }
 }

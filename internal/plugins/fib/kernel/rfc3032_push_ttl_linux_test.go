@@ -6,7 +6,7 @@
 // carries a backup) is an MPLS lwtunnel whose encoded attributes are the label stack
 // (MPLS_IPTUNNEL_DST) alone, with no MPLS_IPTUNNEL_TTL. Method: build each
 // route with buildRichRoute, encode every Encap the route carries exactly as
-// netlink sends it, and walk the attributes.
+// the netlink socket sends it, and walk the attributes.
 // PREVENTS: a fixed TTL on the push. Linux mpls_xmit (net/mpls/mpls_iptunnel.c)
 // writes a tunnel's own TTL into the label it imposes when the tunnel carries
 // one, so the label would no longer carry the IP TTL (RFC 3032 Section 2.4.3).
@@ -29,7 +29,7 @@ import (
 	sysribevents "github.com/ze-software/ze/internal/component/sysrib/events"
 )
 
-// pushAttributes encodes one route encap as netlink sends it and returns the
+// pushAttributes encodes one route encap as the netlink socket sends it and returns the
 // type of each attribute, with the label values of the MPLS_IPTUNNEL_DST one.
 func pushAttributes(t *testing.T, encap netlink.Encap) (types []uint16, labels []uint32) {
 	t.Helper()

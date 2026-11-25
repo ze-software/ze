@@ -13,7 +13,7 @@ import (
 
 // TestRefuseHostNetnsFirewall covers the R-2 host-safety gate: when the
 // functional-test netns launch mode is active (ZE_TEST_NETNS_HOST set) ze must
-// refuse to program nft unless it can positively prove it is in an isolated
+// refuse to program nftables unless it can positively prove it is in an isolated
 // namespace, so a run whose netns isolation silently failed can never reprogram
 // the operator's host firewall. Needs /proc/self/ns/net (linux; exercised in QEMU).
 func TestRefuseHostNetnsFirewall(t *testing.T) {

@@ -91,7 +91,7 @@ func vrrpAcceptModeSetup(context.Context, []string) error {
 // asked. group false drops the vrrp block entirely, which is the teardown case.
 func vrrpAcceptConfig(group, acceptMode bool) string {
 	var tb textbuf.Buffer
-	tb.Str("interface {\n\tbackend netlink;\n\tethernet ").Str(vrrpAcceptParent).
+	tb.Str("interface {\n\tbackend kernel;\n\tethernet ").Str(vrrpAcceptParent).
 		Str(" {\n\t\tunit 0 {\n\t\t\tipv4 {\n\t\t\t\taddress [ ").Str(vrrpAcceptRealCIDR).Str(" ];\n")
 	if group {
 		accept := valueFalse

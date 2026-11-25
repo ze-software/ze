@@ -86,7 +86,7 @@ func TestCoSOriginalTargetNativeCleanupRestoresOriginalKernelMaps(t *testing.T) 
 }
 
 // Goal: the old baseline cannot reach an externally replaced kernel device.
-// This deliberately bypasses Ze's delete guard to simulate external netlink
+// This deliberately bypasses Ze's delete guard to simulate external netlink link
 // replacement. The retained native lease checks its original creator resource.
 func TestCoSOriginalTargetNativeReplacementRetainsUnknown(t *testing.T) {
 	if !userns.Enter(t) {

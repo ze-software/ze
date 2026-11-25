@@ -121,7 +121,7 @@ func TestSelectedForwardingReaderRefusesWithoutConfig(t *testing.T) {
 }
 
 // TestReaderForDataPlane proves this package's kernel reader serves the
-// "netlink" data plane, and a data plane no reader serves is refused by name
+// "kernel" data plane, and a data plane no reader serves is refused by name
 // rather than answered with the kernel's table.
 func TestReaderForDataPlane(t *testing.T) {
 	reader, refusal := readerForDataPlane(kernelDataPlane)

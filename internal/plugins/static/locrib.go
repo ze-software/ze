@@ -65,7 +65,11 @@ func (r staticRoute) inMainTable() bool { return r.Table == 0 }
 // straight to the data plane, unchanged.
 func (rm *routeManager) applyProgrammed(r staticRoute) error {
 	if !r.inMainTable() {
-		return rm.backend.applyRoute(r)
+		be, err := rm.ensureBackendLocked()
+		if err != nil {
+			return err
+		}
+		return be.applyRoute(r)
 	}
 	return rm.insertPathLocked(r)
 }
@@ -73,7 +77,11 @@ func (rm *routeManager) applyProgrammed(r staticRoute) error {
 // withdrawProgrammed removes one route from wherever applyProgrammed put it.
 func (rm *routeManager) withdrawProgrammed(r staticRoute) error {
 	if !r.inMainTable() {
-		return rm.backend.removeRoute(r)
+		be, err := rm.ensureBackendLocked()
+		if err != nil {
+			return err
+		}
+		return be.removeRoute(r)
 	}
 	rm.removePathLocked(r)
 	return nil
@@ -222,7 +230,7 @@ func checkNextHopResolvable(nh nextHop) error {
 // capNextHopWeight narrows the configured uint16 weight to what a data plane can
 // express. The kernel carries a share in rtnh_hops, one octet, and VPP carries it
 // in fib_path.Weight, also one octet, so 255 is the ceiling on both. A larger
-// configured value used to wrap inside the netlink encoder and give the next-hop
+// configured value used to wrap inside the netlink message encoder and give the next-hop
 // a smaller share than any other member of the group.
 func capNextHopWeight(w uint16) uint8 {
 	if w > 255 {

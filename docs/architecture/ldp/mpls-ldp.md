@@ -264,7 +264,7 @@ stops sending Hellos retries nothing.
 LDP's label entries reach forwarding through the writer of the data plane
 `interface { backend }` selects, so its registration declares
 `NeedsDataPlane` and its `Dependencies` hold only `sysctl`. The engine loads
-`fib-kernel` on netlink and `fib-vpp` on VPP. Naming `fib-kernel` instead loaded
+`fib-kernel` on `kernel` and `fib-vpp` on `vpp`. Naming `fib-kernel` instead loaded
 the kernel writer on a VPP deployment, where no label LDP advertised was
 forwarded.
 
@@ -376,7 +376,7 @@ explicit `interface { backend ... }` still wins. OSPF and IS-IS read their
 interfaces the same way.
 
 When a read still fails, the warning carries a `fix` attribute. If no backend
-could be loaded, it names `interface { backend netlink; }`. Otherwise it names
+could be loaded, it names `interface { backend kernel; }`. Otherwise it names
 `ip link show <interface>`, to check that the device exists.
 
 <!-- source: internal/plugins/ldp/local.go -- ensureIfaceBackend, interfacePrefixes, ifaceReadFix -->

@@ -42,7 +42,7 @@ func TestCommandExtension(t *testing.T) {
 	yangText := `
 module test-cmd {
     namespace "urn:test:cmd";
-    prefix tc;
+    prefix tcmd;
 
     import ze-extensions { prefix ze; }
 
@@ -766,7 +766,7 @@ func TestGetBackendExtension_Absent(t *testing.T) {
 
 // TestGetBackendExtension_Single verifies single backend name extraction.
 //
-// VALIDATES: AC-9 — ["netlink"] for ze:backend "netlink".
+// VALIDATES: AC-9 — ["kernel"] for ze:backend "kernel".
 // PREVENTS: backend annotation silently ignored.
 func TestGetBackendExtension_Single(t *testing.T) {
 	loader := NewLoader()
@@ -781,7 +781,7 @@ module test-backend {
 
     container tunnel {
         config false;
-        ze:backend "netlink";
+        ze:backend "kernel";
         ze:command "ze-test:tunnel";
         ze:help "Tunnel operations";
     }
@@ -797,12 +797,12 @@ module test-backend {
 
 	tunnel := entry.Dir["tunnel"]
 	require.NotNil(t, tunnel)
-	assert.Equal(t, []string{"netlink"}, GetBackendExtension(tunnel))
+	assert.Equal(t, []string{"kernel"}, GetBackendExtension(tunnel))
 }
 
 // TestGetBackendExtension_Multi verifies multi-backend and deduplication.
 //
-// VALIDATES: AC-10 — ["netlink","vpp"] for ze:backend "netlink vpp", deduplicated.
+// VALIDATES: AC-10 — ["kernel","vpp"] for ze:backend "kernel vpp", deduplicated.
 // PREVENTS: duplicate backend entries or dropped backends.
 func TestGetBackendExtension_Multi(t *testing.T) {
 	loader := NewLoader()
@@ -817,14 +817,14 @@ module test-backend-multi {
 
     container shared {
         config false;
-        ze:backend "netlink vpp";
+        ze:backend "kernel vpp";
         ze:command "ze-test:shared";
         ze:help "Shared across backends";
     }
 
     container duped {
         config false;
-        ze:backend "netlink netlink vpp";
+        ze:backend "kernel kernel vpp";
         ze:command "ze-test:duped";
         ze:help "Has duplicates";
     }
@@ -840,11 +840,11 @@ module test-backend-multi {
 
 	shared := entry.Dir["shared"]
 	require.NotNil(t, shared)
-	assert.Equal(t, []string{"netlink", "vpp"}, GetBackendExtension(shared))
+	assert.Equal(t, []string{"kernel", "vpp"}, GetBackendExtension(shared))
 
 	duped := entry.Dir["duped"]
 	require.NotNil(t, duped)
-	assert.Equal(t, []string{"netlink", "vpp"}, GetBackendExtension(duped))
+	assert.Equal(t, []string{"kernel", "vpp"}, GetBackendExtension(duped))
 }
 
 // TestBuildCommandTreeBackend verifies mergeYANGEntry stores Backend from ze:backend.
@@ -1444,17 +1444,17 @@ func TestBuildCommandTreeEnsureExists(t *testing.T) {
 	assert.Empty(t, vethName.EnsureExists, "veth has no ensure-exists")
 
 	// Nested compound commands inherit backend restriction from parent
-	assert.Equal(t, []string{"netlink"}, dummyUnit.Backend, "dummy > name > unit must have netlink backend")
+	assert.Equal(t, []string{"kernel"}, dummyUnit.Backend, "dummy > name > unit must have kernel backend")
 	dummyAddr := dummyName.Children["address"]
 	require.NotNil(t, dummyAddr, "dummy > name > address must exist")
-	assert.Equal(t, []string{"netlink"}, dummyAddr.Backend, "dummy > name > address must have netlink backend")
+	assert.Equal(t, []string{"kernel"}, dummyAddr.Backend, "dummy > name > address must have kernel backend")
 
 	bridgeUnit := bridgeName.Children["unit"]
 	require.NotNil(t, bridgeUnit, "bridge > name > unit must exist")
-	assert.Equal(t, []string{"netlink"}, bridgeUnit.Backend, "bridge > name > unit must have netlink backend")
+	assert.Equal(t, []string{"kernel"}, bridgeUnit.Backend, "bridge > name > unit must have kernel backend")
 	bridgeAddr := bridgeName.Children["address"]
 	require.NotNil(t, bridgeAddr, "bridge > name > address must exist")
-	assert.Equal(t, []string{"netlink"}, bridgeAddr.Backend, "bridge > name > address must have netlink backend")
+	assert.Equal(t, []string{"kernel"}, bridgeAddr.Backend, "bridge > name > address must have kernel backend")
 }
 
 func TestValidateCommandTreeWarnsMissingDescription(t *testing.T) {

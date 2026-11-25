@@ -43,8 +43,8 @@ Neither extension is an RFC: GBP is `draft-smith-vxlan-group-policy`, GPE is
 ## Current Behavior (MANDATORY)
 
 **Source files read:**
-- [ ] `internal/component/iface/yang/ze-iface-conf.yang` - `container vxlan` (`ze:backend "netlink vpp"`): local and remote ip, `vni` 1..16777215, `port` default 4789; no gbp, gpe or external leaf; a unit with a vlan-id on it is refused
-- [ ] `internal/component/iface/tunnel.go` - `TunnelKindVxlan` "landed in both backends (netlink Vxlan link + VPP VxlanAddDelTunnelV3)"
+- [ ] `internal/component/iface/yang/ze-iface-conf.yang` - `container vxlan` (`ze:backend "kernel vpp"`): local and remote ip, `vni` 1..16777215, `port` default 4789; no gbp, gpe or external leaf; a unit with a vlan-id on it is refused
+- [ ] `internal/component/iface/tunnel.go` - `TunnelKindVxlan` "landed in both backends (kernel Vxlan link + VPP VxlanAddDelTunnelV3)"
 - [ ] `internal/plugins/iface/netlink/tunnel_linux.go` - `buildVxlan` sets `VxlanId`, `SrcAddr`, `Group`, `Port`; refuses a local-interface source; validates the VNI
 - [ ] `internal/component/iface/backend.go` - `CreateTunnel(TunnelSpec)`
 
@@ -52,7 +52,7 @@ Neither extension is an RFC: GBP is `draft-smith-vxlan-group-policy`, GPE is
 - Every plain VXLAN tunnel on both backends.
 
 **Behavior to change:**
-- `gbp` and `gpe` (with the flow-based mode GPE needs) on the netlink backend; refused on VPP unless A-3 finds an exact mechanism.
+- `gbp` and `gpe` (with the flow-based mode GPE needs) on the kernel backend; refused on VPP unless A-3 finds an exact mechanism.
 
 ## Existing Mechanisms (MANDATORY)
 
@@ -60,7 +60,7 @@ Neither extension is an RFC: GBP is `draft-smith-vxlan-group-policy`, GPE is
 |-----------|------------------------------------------|--------------------|-------------------------------------------------------------------|
 | VXLAN tunnel kind | `tunnel.go` `TunnelKindVxlan`, `tunnel_linux.go` `buildVxlan`, YANG `container vxlan` | Builds a unicast VXLAN link | Extends with two flags; no second VXLAN kind |
 | Tunnel re-create on change | the iface apply's tunnel path | Re-creates a tunnel whose immutable parameters changed | Extends: GBP and GPE are immutable on a live link (VyOS re-creates too) |
-| Backend capability gate | `ze:backend`, `validateBackendGate` | Refuses unsupported nodes at commit | Extends: the new leaves carry `ze:backend "netlink"` unless A-3 holds |
+| Backend capability gate | `ze:backend`, `validateBackendGate` | Refuses unsupported nodes at commit | Extends: the new leaves carry `ze:backend "kernel"` unless A-3 holds |
 
 ## Data Flow (MANDATORY - see `ai/rules/architecture.md`)
 

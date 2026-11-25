@@ -32,7 +32,7 @@ import (
 //   - ip6tnl                    -> netlink.Ip6tnl with Proto=IPPROTO_IPV6 (41)
 //   - ipip6                     -> netlink.Ip6tnl with Proto=IPPROTO_IPIP (4)
 //
-// GRE key (RFC 2890): the vendored netlink lib auto-sets the GRE_KEY flag bit
+// GRE key (RFC 2890): the vendored netlink library auto-sets the GRE_KEY flag bit
 // in IFlags/OFlags when IKey/OKey are non-zero, so we set both fields to the
 // same uint32 to obtain symmetric key behavior. Key value 0 cannot be set
 // because the lib treats 0 as "no key" -- documented in the YANG leaf and the
@@ -127,7 +127,7 @@ var ipBuilders = map[iface.TunnelKind]tunnelBuilder{
 
 // buildGretun constructs a Gretun (gre or ip6gre) link.
 // RFC 2784 Section 2.1: GRE header structure.
-// RFC 2890 Section 2.1: Key field; vendored netlink auto-sets the GRE_KEY
+// RFC 2890 Section 2.1: Key field; the vendored netlink library auto-sets the GRE_KEY
 // flag bit in IFlags/OFlags when IKey/OKey are non-zero.
 func buildGretun(spec iface.TunnelSpec, name string, local, remote net.IP, parentIndex uint32) netlink.Link {
 	link := &netlink.Gretun{
@@ -357,9 +357,9 @@ func checkAddressFamily(kind iface.TunnelKind, ip net.IP, leafName string) error
 
 // resolveLocalInterface looks up the parent interface index when the spec
 // uses a local interface instead of a local ip. Returns 0 when the spec
-// has no local interface set (ifindex 0 = no parent in netlink). The
+// has no local interface set (ifindex 0 = no parent in netlink messages). The
 // kernel uses uint32 for ifindex; the upper-bound check defends against
-// any future change that would let the netlink lib return values too
+// any future change that would let the netlink library return values too
 // large to fit.
 func resolveLocalInterface(name string) (uint32, error) {
 	if name == "" {

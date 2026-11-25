@@ -127,9 +127,9 @@ func showOne(name string, jsonOut bool) int {
 }
 
 // formatInterfaceDetail renders the human-readable detail block for an
-// interface (everything except the netlink-backed XFRM and statistics
+// interface (everything except the kernel-backed XFRM and statistics
 // sections). Split out from showOne so the rendering -- including the OS-name
-// and permanent-MAC lines -- is unit-testable without a netlink backend.
+// and permanent-MAC lines -- is unit-testable without a kernel backend.
 func formatInterfaceDetail(info *ifacepkg.InterfaceInfo) string {
 	var b textbuf.Buffer
 	b.Str("Name:       ").Str(info.Name).Byte('\n')

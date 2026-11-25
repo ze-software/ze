@@ -1,4 +1,4 @@
-// Design: docs/guide/firewall.md -- nft NAT placement at configuration verify
+// Design: docs/guide/firewall.md -- nftables NAT placement at configuration verify
 
 package firewall
 
@@ -90,7 +90,7 @@ func validateNftNATPlacement(tbl *Table, ch *Chain, term *Term, action string, t
 			fmt.Sprintf("Family %s does not provide NAT actions. Move the term to a table of family ip, ip6 or inet.", tbl.Family), editTerm)
 	}
 	// nft_nat_init: "if (ctx->family != NFPROTO_INET && ctx->family != family)".
-	// nft lowerNAT chooses the target family with Addr.Is4().
+	// nftables lowerNAT chooses the target family with Addr.Is4().
 	if target.IsValid() && tbl.Family != FamilyInet && target.Is4() != (tbl.Family == FamilyIP) {
 		return opererr.New(problem,
 			fmt.Sprintf("Target %s does not match table family %s. Choose a target of that family or move the term to an inet table.", target, tbl.Family), editTerm)

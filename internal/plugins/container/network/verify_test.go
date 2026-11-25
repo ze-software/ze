@@ -194,9 +194,10 @@ func TestVerifyRefusesNetworkWithoutComponents(t *testing.T) {
 	}
 }
 
-// TestVerifyRefusesUnsupportedBackend: rule V-19, through the schema's
-// ze:backend gate for the interface backend, and the firewall backend that
-// cannot carry the tables.
+// TestVerifyRefusesUnsupportedBackend: rule V-19's semantic firewall check.
+// The interface backend ze:backend walk is enforced by the config component
+// (dataplane_walk_test.go); this check keeps the firewall-backend refusal for
+// translating networks and published ports.
 func TestVerifyRefusesUnsupportedBackend(t *testing.T) {
 	parse := func(interfaces, firewall string) error {
 		_, err := parseSections([]sdk.ConfigSection{
@@ -206,13 +207,13 @@ func TestVerifyRefusesUnsupportedBackend(t *testing.T) {
 		})
 		return err
 	}
-	if err := parse(`{"backend":"vpp"}`, `{}`); err == nil || !strings.Contains(err.Error(), "set interface backend netlink") {
-		t.Fatalf("a network on the vpp interface backend: %v", err)
-	}
 	if err := parse(`{}`, `{"backend":"vpp"}`); err == nil || !strings.Contains(err.Error(), "firewall backend vpp") {
 		t.Fatalf("a translating network on the vpp firewall backend: %v", err)
 	}
-	if err := parse(`{"backend":"netlink"}`, `{"backend":"nft"}`); err != nil {
-		t.Fatalf("a network on netlink and nft was refused: %v", err)
+	if err := parse(`{"backend":"kernel"}`, `{"backend":"kernel"}`); err != nil {
+		t.Fatalf("a network on kernel interface and firewall backends was refused: %v", err)
+	}
+	if err := parse(`{}`, `{}`); err != nil {
+		t.Fatalf("a network with schema-default firewall backend was refused: %v", err)
 	}
 }

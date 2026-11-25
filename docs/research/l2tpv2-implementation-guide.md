@@ -1680,7 +1680,7 @@ Userspace: L2TP control protocol (this implementation)
     | PPPoL2TP socket (PPP frame delivery)
     |
 Kernel:    l2tp_core (tunnel/session state)
-           l2tp_netlink (netlink command handlers)
+           l2tp_netlink (netlink message command handlers)
            l2tp_ppp (PPP pseudowire, creates pppN interfaces)
            ppp_generic (PPP protocol engine)
 ```
@@ -2273,7 +2273,7 @@ Recommended for ze:
 - Session state is managed within the tunnel state machine (sessions share
   the tunnel's control channel).
 
-### 26.5 Netlink
+### 26.5 Netlink API
 
 Use a Go netlink library (e.g., `vishvananda/netlink` or raw `syscall` with
 `NETLINK_GENERIC`) for kernel tunnel/session management.
@@ -2338,7 +2338,7 @@ const (
 3. Authentication failure: send StopCCN(Result=4) and tear down.
 4. Retransmission exhausted: tear down tunnel and all sessions.
 5. Resource exhaustion: send StopCCN/CDN(Result=2, Error=4) and reject.
-6. Kernel errors (netlink, socket): log, send CDN/StopCCN, clean up.
+6. Kernel errors (netlink socket): log, send CDN/StopCCN, clean up.
 
 ### 26.10 Configuration Parameters
 

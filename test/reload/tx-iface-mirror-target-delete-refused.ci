@@ -3,7 +3,7 @@
 # VALIDATES: AC-2 on a real kernel. The running config mirrors the ingress of
 #            zmtsrc0 to zmtdst0, a veth pair the driver creates. A SIGHUP whose
 #            config deletes the zmtdst0 entry while the mirror still names it is
-#            refused, naming the mirror leaf and the deleted name, and the tc
+#            refused, naming the mirror leaf and the deleted name, and the traffic control
 #            mirred filter on zmtsrc0 still copies to zmtdst0 afterwards. A
 #            second SIGHUP that removes the mirror and the target together
 #            completes, and zmtsrc0 then holds no tc filter on either clsact
@@ -15,7 +15,7 @@
 # Question: is the deletion of a target the live kernel mirror uses refused
 # while that mirror survives, and does removing both retire it? A unit test
 # cannot decide it: the refusal is the daemon's reload validation, and the
-# evidence is the tc state the netlink backend installed.
+# evidence is the tc filter state the kernel backend installed.
 #
 # Method: one foreground driver (internal/test/fixture/iface_mirror_fixture_linux.go)
 # creates the veth pair and starts its own daemon, because it must read each
@@ -23,7 +23,7 @@
 # clsact hooks over netlink after each outcome line, so no step waits on a
 # timer, and it deletes the pair at the end.
 
-# needs-linux: tc and veth exist only on Linux. caps=net-admin: the driver and
+# needs-linux: traffic control and veth exist only on Linux. caps=net-admin: the driver and
 # the daemon create links and program tc filters.
 option=needs-linux:caps=net-admin
 

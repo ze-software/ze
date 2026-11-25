@@ -1,0 +1,51 @@
+# Test: interface backend vpp refuses a traffic control block on kernel (default or explicit).
+# Question: does `ze config validate` refuse `interface backend vpp` beside a
+#           `traffic control` block whose backend defaults to `kernel` or is
+#           explicitly `kernel`, naming `set traffic control backend vpp`?
+#           A unit test cannot prove `ze config validate` reads the schema
+#           default for `/traffic/control/backend` and enforces the verdict end
+#           to end.
+# VALIDATES: spec-dataplane-compatibility-guard AC-3 (traffic control) -- a
+#            kernel traffic-control block under `interface backend vpp` is
+#            refused with the exact fix.
+# PREVENTS: shaping policies going to Linux kernel queueing disciplines while
+#           VPP forwards the packets.
+stdin=default-traffic:terminator=EOF_DEFAULT
+interface {
+	backend vpp;
+}
+traffic {
+	control {
+		interface eth0 {
+			qdisc {
+				type htb;
+				class control {
+					rate 10mbit;
+					ceil 100mbit;
+				}
+			}
+		}
+	}
+}
+EOF_DEFAULT
+
+stdin=explicit-traffic:terminator=EOF_EXPLICIT
+interface {
+	backend vpp;
+}
+traffic {
+	control {
+		backend kernel;
+	}
+}
+EOF_EXPLICIT
+
+cmd=foreground:seq=1:exec=ze config validate -:stdin=default-traffic
+expect=exit:code=1
+expect=stdout:contains=traffic control backend
+expect=stdout:contains=set traffic control backend vpp
+
+cmd=foreground:seq=2:exec=ze config validate -:stdin=explicit-traffic
+expect=exit:code=1
+expect=stdout:contains=traffic control backend
+expect=stdout:contains=set traffic control backend vpp

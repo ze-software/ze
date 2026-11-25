@@ -210,6 +210,11 @@ func fullStages() []Stage {
 		// so a line naming one again is a regression (AC-16 of
 		// spec-le-subject-first-command-tree).
 		stage("doc check", "retired-commands"),
+		// Every occurrence of a retired data-plane selector value outside its
+		// declared class and line exceptions is converted to kernel, so a line
+		// naming one again is a regression (AC-20 of
+		// spec-dataplane-compatibility-guard).
+		stage("doc check", "retired-selector-values"),
 		stage("repo", "check", "tree"),
 		stage("plugin imports", "check"),
 		// The gated-plugin table is generated from the same manifest and the

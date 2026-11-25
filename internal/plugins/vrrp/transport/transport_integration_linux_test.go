@@ -32,7 +32,7 @@ import (
 	"golang.org/x/sys/unix"
 
 	"github.com/ze-software/ze/internal/component/iface"
-	_ "github.com/ze-software/ze/internal/plugins/iface/netlink" // register netlink backend so iface.Resolve works
+	_ "github.com/ze-software/ze/internal/plugins/iface/netlink" // register kernel backend so iface.Resolve works
 	"github.com/ze-software/ze/internal/plugins/vrrp/packet"
 	"github.com/ze-software/ze/internal/test/userns"
 )
@@ -86,7 +86,7 @@ func requireRaw(t *testing.T) {
 func setupLab(t *testing.T, family uint8) vrrpLab {
 	t.Helper()
 	requireRaw(t)
-	if err := iface.LoadBackend("netlink"); err != nil {
+	if err := iface.LoadBackend("kernel"); err != nil {
 		t.Fatalf("load iface backend: %v", err)
 	}
 	t.Cleanup(func() { _ = iface.CloseBackend() })

@@ -632,12 +632,12 @@ func getOSExtension(entry *gyang.Entry) string {
 // (meaning unrestricted -- every registered backend is accepted).
 //
 // Whitespace tokenisation mirrors a YANG author writing
-// `ze:backend "netlink vpp";`, where both names are valid. Tokens empty
+// `ze:backend "kernel vpp";`, where both names are valid. Tokens empty
 // after trimming contribute nothing: `ze:backend "";` is identical to
 // not writing the statement at all, and CANNOT reset or widen a sibling
 // statement -- the union always grows (or is a no-op), never shrinks.
 //
-// Merging multiple statements (`ze:backend "netlink"; ze:backend "vpp";`)
+// Merging multiple statements (`ze:backend "kernel"; ze:backend "vpp";`)
 // lets grouping authors add annotations without stomping a caller's existing
 // one, and makes the merge rule explicit rather than "first statement wins"
 // which surprises schema authors.

@@ -28,7 +28,7 @@
 #    `routes-held: 2`, and `installs: 2`.
 
 # Linux-only: static `next { interface lo { } }` resolves loopback `lo` via
-# Linux netlink and `127.0.0.2` loopback binding works natively on Linux.
+# Linux netlink socket and `127.0.0.2` loopback binding works natively on Linux.
 option=needs-linux
 option=timeout:value=90s
 option=env:var=ZE_CONFIG_DIR:value=.

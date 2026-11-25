@@ -2,7 +2,7 @@
 #
 # VALIDATES: spec-flow-export-2 AC-1 -- a `sampling { interface lo { rate 1; } }`
 #            block is parsed and drives startFlowSubsystems -> samplingWorker.Start,
-#            which attempts tc-sample setup and a psample reader. The config path
+#            which attempts tc sample setup and a psample reader. The config path
 #            is wired end to end (the worker runs, not just parses).
 # PREVENTS:  regression where the sampling sub-tree parses but never reaches the
 #            worker (the pre-flow-export-2 state: config accepted, nothing
@@ -15,8 +15,8 @@
 # those capabilities: it logs either "packet sampling enabled" (setup
 # succeeded) or "psample reader unavailable; sampling idle" (degraded). This
 # test asserts one of those two log lines appears, proving the wiring, exactly
-# as traffic/traffic-boot-apply.ci asserts the reactor log line rather than tc
-# qdisc state. The netlink Apply path itself is covered by the Linux unit tests
+# as traffic/traffic-boot-apply.ci asserts the reactor log line rather than traffic control
+# qdisc state. The kernel Apply path itself is covered by the Linux unit tests
 # in internal/plugins/flowexport/sampling/*_linux_test.go.
 
 stdin=ze-conf:terminator=EOF_CONF

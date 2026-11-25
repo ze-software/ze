@@ -74,7 +74,7 @@ func TestNativeCPEFinalCounterOutcomeUsesOriginal(t *testing.T) {
 			name = "closed original refused"
 		}
 		t.Run(name, func(t *testing.T) {
-			backend, err := iface.OpenBackend("netlink")
+			backend, err := iface.OpenBackend("kernel")
 			if err != nil {
 				t.Fatal(err)
 			}

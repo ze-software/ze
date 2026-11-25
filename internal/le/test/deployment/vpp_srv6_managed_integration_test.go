@@ -118,5 +118,6 @@ vpp {
     memory { main-heap 64M; buffers 1024; hugepage-size 2M; }
     stats { segment-size 16M; socket-path /run/vpp/stats.sock; }
 }
+interface { backend vpp; }
 fib { vpp { enabled true; } }
 `

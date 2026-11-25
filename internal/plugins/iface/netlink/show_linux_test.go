@@ -47,7 +47,7 @@ func TestGetInterface(t *testing.T) {
 	assert.Greater(t, info.Index, 0)
 	assert.Greater(t, info.MTU, 0)
 	assert.NotEmpty(t, info.Addresses, "loopback should have at least 127.0.0.1")
-	assert.True(t, info.AddressesRead, "the netlink backend reads the addresses")
+	assert.True(t, info.AddressesRead, "the kernel interface backend reads the addresses")
 	assert.NotNil(t, info.Stats)
 }
 

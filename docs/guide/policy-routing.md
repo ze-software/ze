@@ -9,6 +9,14 @@ Under the hood, ze uses nftables packet marking with kernel ip rules.
 Each matching packet gets an fwmark; a kernel ip rule maps that mark to
 the target routing table.
 
+Because policy routing programs Linux kernel `ip rule` entries and nftables
+marks only, configuring `policy route` under `interface backend vpp` is refused
+at `ze config validate`, commit, reload, and daemon start (and reported by
+`ze doctor` under `doctor-dataplane-mismatch`), with the fix
+`set interface backend kernel`. See
+[Features by Data Plane](dataplane-features.md).
+<!-- source: internal/component/config/dataplane_verdict.go -- evaluateDataPlaneVerdict -->
+
 ## Configuration
 
 Policy routing lives in the `route` list of the top-level `policy` block.
@@ -180,7 +188,7 @@ several, where N is the interface's position in the list, counted from
 and each row names the rule the traffic can take, rather than one merged
 row for the whole policy.
 
-The packet and byte counts in those rows are per interface. The nft
+The packet and byte counts in those rows are per interface. The kernel firewall
 backend puts the counter after the rule's matches, so each row counts
 the packets that arrived on the interface the row names. An interface
 that carries nothing reads zero while its siblings climb.
@@ -288,7 +296,7 @@ User-specified table IDs in the 1000-2999 range are rejected at config
 validation time, as are 0 and the kernel tables 253-255.
 
 The upper bound is the kernel's own: table IDs run to 4294967295. A 32-bit
-build cannot program an ID above 2147483647 (the netlink bindings carry a
+build cannot program an ID above 2147483647 (the netlink library bindings carry a
 table ID in a machine int), and rejects it at config validation rather than
 installing a rule that would silently select no table. Ze's released targets
 are 64-bit, where the whole range is available.
@@ -323,7 +331,7 @@ neither policy routing nor the firewall.
 <!-- source: internal/component/config/tree.go -- collectPaths -->
 
 The policy-routes plugin depends on the firewall plugin. Both must be
-available for policy routing to function. The firewall backend (nft) is
+available for policy routing to function. The kernel firewall backend is
 loaded by the firewall plugin; policy routing registers its tables with
 the shared firewall table registry.
 

@@ -20,7 +20,7 @@ import (
 	"golang.org/x/sys/unix"
 
 	"github.com/ze-software/ze/internal/component/iface"
-	_ "github.com/ze-software/ze/internal/plugins/iface/netlink" // register netlink backend so iface.Resolve works
+	_ "github.com/ze-software/ze/internal/plugins/iface/netlink" // register kernel backend so iface.Resolve works
 	"github.com/ze-software/ze/internal/test/userns"
 )
 
@@ -153,7 +153,7 @@ func TestOSPFTransportAllDRoutersReceive(t *testing.T) {
 
 func loadIfaceBackend(t *testing.T) {
 	t.Helper()
-	if err := iface.LoadBackend("netlink"); err != nil {
+	if err := iface.LoadBackend("kernel"); err != nil {
 		t.Fatalf("load iface backend: %v", err)
 	}
 	t.Cleanup(func() { _ = iface.CloseBackend() })
@@ -275,13 +275,13 @@ func runInNS(t *testing.T, target netns.NsHandle, fn func()) {
 		if err := netns.Set(orig); err != nil {
 			t.Fatalf("restore namespace: %v", err)
 		}
-		if err := iface.LoadBackend("netlink"); err != nil {
+		if err := iface.LoadBackend("kernel"); err != nil {
 			t.Fatalf("restore namespace's iface backend: %v", err)
 		}
 	}()
 	// The real backend's counter socket belongs to the namespace in which
 	// it first resolves an interface. A thread namespace switch cannot move it.
-	if err := iface.LoadBackend("netlink"); err != nil {
+	if err := iface.LoadBackend("kernel"); err != nil {
 		t.Fatalf("load peer namespace's iface backend: %v", err)
 	}
 	fn()

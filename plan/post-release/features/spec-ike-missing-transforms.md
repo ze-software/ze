@@ -57,6 +57,14 @@ Transform-dependent documentation updates belong here only when implementation a
 |------------|------|-----------------|
 | `commit-needs-an-uncommitted-symbol.md` | 2026-10-26 | e1467639d8 tests use `ENCR_CHACHA20_POLY1305`/`ENCR_3DES` only the working tree defines |
 
+## Existing Mechanisms
+
+| Mechanism | Where (file + symbol, or page + section) | What it does today | This spec (extends, replaces, or does not apply, with the reason) |
+|-----------|------------------------------------------|--------------------|------------------------------------------------------------------|
+| IKEv2 transform registry and parse-time support gate | `internal/component/ike/crypto/transform.go` (`encryptionRegistry`, `dhGroupRegistry`), `internal/component/ike/ipsec/algorithm_support.go` (`EncryptionImplemented`, `DHGroupImplemented`) | Maps IANA transform IDs and config names for implemented ciphers and DH groups (14, 19, 20) and refuses unimplemented YANG enum values at config parse | Extends: adds `ENCR_CHACHA20_POLY1305` and DH groups 15, 16, 18, 21 to the registry so the existing parse gate admits them automatically |
+| IKEv2 AEAD cipher table and DH exchange dispatcher | `internal/component/ike/crypto/aead.go` (`aeadTransforms`, `SealIKEAEAD`, `OpenIKEAEAD`), `internal/component/ike/crypto/dh.go` (`DHExchange`, `NewDHExchange`, `SharedSecret`) | Defines AEAD salt/ICV/mode properties and runs MODP 2048 and ECP 256/384 key exchange and public-key validation | Extends: generalizes `aeadTransform` for non-AES fixed-key ChaCha20-Poly1305 and consolidates MODP/ECP groups into one DH table |
+| ESP dataplane ChaCha20 mapping | `internal/component/ike/dataplane/xfrm_linux.go` (`xfrmAEADNames`), `internal/component/ike/dataplane/vpp.go` (`vppCryptoAlg`) | Already maps `chacha20poly1305` to Linux XFRM `rfc7539esp(chacha20,poly1305)` and VPP `IPSEC_API_CRYPTO_ALG_CHACHA20_POLY1305` | Extends: feeds 36-octet Child SA KEYMAT into the existing dataplane mappings rather than adding a new dataplane path |
+
 ## Historical planning record
 
 The following is the complete pre-migration planning body. Its old Task, criteria, implementation steps and bucket statements are retained as history, not a second current implementation contract. The current sections above assign every obligation; original owner decisions, constraints, evidence and pauses remain authoritative. Heading levels alone are demoted for that distinction.
@@ -206,7 +214,7 @@ The DH group is declared in seven places today:
 |----------|-----|----------|
 | Config to engine | typed `ipsec.IKEProposal` / `ESPProposal` | No |
 | Engine to peer | IKEv2 SA / KE payloads, Encrypted payload | No |
-| Engine to kernel | XFRM netlink `xfrm_algo_aead` name, key, ICV length | No |
+| Engine to kernel | XFRM netlink attribute `xfrm_algo_aead` (name, key, ICV length) | No |
 | Engine to VPP | `ipsec_sad_entry_v3` crypto alg, key, salt | No |
 
 ##### Integration Points

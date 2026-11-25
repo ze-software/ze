@@ -52,8 +52,8 @@ func runSwapOperations(t *testing.T, active, candidate, changed string) []tx.Con
 // PREVENTS: a silent return to make-before-break, which the requirement does not ask for.
 func TestIfaceSameSubnetSwapOrdersRemoveBeforeAdd(t *testing.T) {
 	sorted := runSwapOperations(t,
-		`{"interface":{"backend":"netlink","dummy":{"zdiag0":{"unit":{"0":{"ipv4":{"address":"10.77.0.1/24"}}}}}}}`,
-		`{"interface":{"backend":"netlink","dummy":{"zdiag0":{"unit":{"0":{"ipv4":{"address":"10.77.0.2/24"}}}}}}}`,
+		`{"interface":{"backend":"kernel","dummy":{"zdiag0":{"unit":{"0":{"ipv4":{"address":"10.77.0.1/24"}}}}}}}`,
+		`{"interface":{"backend":"kernel","dummy":{"zdiag0":{"unit":{"0":{"ipv4":{"address":"10.77.0.2/24"}}}}}}}`,
 		`{"interface/dummy/zdiag0/unit/0/ipv4/address/0":{"old":"10.77.0.1/24","new":"10.77.0.2/24"}}`,
 	)
 
@@ -76,8 +76,8 @@ func TestIfaceSameSubnetSwapOrdersRemoveBeforeAdd(t *testing.T) {
 // PREVENTS: a decomposition or ordering change dropping the new address on reload.
 func TestIfaceSameSubnetSwapAppliesNewAddress(t *testing.T) {
 	sorted := runSwapOperations(t,
-		`{"interface":{"backend":"netlink","dummy":{"zdiag0":{"unit":{"0":{"ipv4":{"address":"10.77.0.1/24"}}}}}}}`,
-		`{"interface":{"backend":"netlink","dummy":{"zdiag0":{"unit":{"0":{"ipv4":{"address":"10.77.0.2/24"}}}}}}}`,
+		`{"interface":{"backend":"kernel","dummy":{"zdiag0":{"unit":{"0":{"ipv4":{"address":"10.77.0.1/24"}}}}}}}`,
+		`{"interface":{"backend":"kernel","dummy":{"zdiag0":{"unit":{"0":{"ipv4":{"address":"10.77.0.2/24"}}}}}}}`,
 		`{"interface/dummy/zdiag0/unit/0/ipv4/address/0":{"old":"10.77.0.1/24","new":"10.77.0.2/24"}}`,
 	)
 

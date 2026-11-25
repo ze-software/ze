@@ -124,7 +124,7 @@ func (r *netlinkAddrRemover) Delete(dev string, target deviceAddress) error {
 // POSITIVE signal (see flushedByDelete). Two reasons it cannot be trusted as a
 // negative one:
 //
-//   - netlink fills Flags only from the IFA_FLAGS attribute, never from the
+//   - the netlink library fills Flags only from the IFA_FLAGS attribute, never from the
 //     ifa_flags header byte, so an address whose attribute did not arrive reads
 //     as not-secondary.
 //   - IFA_F_SECONDARY and IFA_F_TEMPORARY are the SAME bit (0x1,

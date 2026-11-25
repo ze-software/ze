@@ -23,7 +23,7 @@ Ze uses 42 direct Go dependencies. The list and versions come from `go.mod`, and
 | `github.com/miekg/dns` | `v1.1.72` | `BSD-3-Clause` | The Go Authors, Miek Gieben | DNS message parsing and serving underneath Ze's DNS server engine, the AS112 blackhole plugin, and GeoDNS. It's the library underpinning CoreDNS. |
 | `github.com/insomniacslk/dhcp` | `v0.0.0-20260719225207-c76316d4aa82` | `BSD-3-Clause` | Andrea Barberio | DHCPv4/DHCPv6 client used for interface lease handling and the installer's disk-provisioning DHCP client. |
 | `github.com/beevik/ntp` | `v1.5.0` | `BSD-2-Clause` | Brett Vickers | NTP client queries used by the ntp plugin. |
-| `golang.zx2c4.com/wireguard/wgctrl` | `v0.0.0-20241231184526-a9ab2273dd10` | `MIT` | Matt Layher | Creates and configures WireGuard interfaces and peers from the interface netlink backend. |
+| `golang.zx2c4.com/wireguard/wgctrl` | `v0.0.0-20241231184526-a9ab2273dd10` | `MIT` | Matt Layher | Creates and configures WireGuard interfaces and peers from the interface kernel backend. |
 | `github.com/mdlayher/packet` | `v1.1.2` | `MIT` | Matt Layher | Raw AF_PACKET sockets behind the `diag capture` CLI command. |
 | `github.com/packetcap/go-pcap` | `v0.0.0-20251215121130-f2cf9f991e7c` | `Apache-2.0` | No copyright holder stated | Only its filter subpackage: parses tcpdump/BPF-style filter expressions for `diag capture`. Packet capture itself goes through mdlayher/packet instead. |
 

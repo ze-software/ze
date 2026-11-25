@@ -30,7 +30,7 @@ Verified 2026-07-16:
 | `buildDropTerm` matches destination/proto/ports/flags only | `internal/plugins/ddos/local/match.go`: appends `MatchDestinationAddress`, `MatchProtocol`, `MatchDestinationPort`, `MatchSourcePort`, `MatchTCPFlags`. No source-address match. Its whole input is `(name string, v ddosevent.VectorTuple)` |
 | The firewall primitive already exists | `internal/component/firewall/model.go`: `type MatchSourceAddress struct{ Prefix netip.Prefix }`, with its `matchMarker()` at `:379` |
 | ddos never uses it | `grep -rn MatchSourceAddress internal/plugins/ddos/` returns nothing |
-| **No firewall-side work is needed** | The backends already lower it: nft at `internal/plugins/firewall/nft/lower_linux.go`, VPP at `internal/plugins/firewall/vpp/translate.go` and `vpp/verify.go`. Config already parses it (`internal/component/firewall/config.go`) |
+| **No firewall-side work is needed** | The backends already lower it: kernel at `internal/plugins/firewall/nft/lower_linux.go`, VPP at `internal/plugins/firewall/vpp/translate.go` and `vpp/verify.go`. Config already parses it (`internal/component/firewall/config.go`) |
 
 So the building block is present, already lowered by every backend, and simply unwired for
 ddos. The cost of this spec is not in the firewall layer.
@@ -136,7 +136,7 @@ The firewall model's term ordering decides this; do not assume the match-list ap
 **Key insights:**
 - 1110's core decision (evaluate policy once, encode the outcome on the event) means a per-source carve-out needs the SOURCE SET carried on the event, not just a boolean. That is the main design cost.
 - `TopSources` is the only source data crossing the detector/responder boundary today, and it is the wrong shape twice over: bare `netip.Addr` rather than `netip.Prefix`, and "top" (an observability ranking) rather than "exempt" (a policy outcome). Reusing it would smuggle a policy decision into a diagnostic field.
-- The term shape is an open choice with a rule-ordering consequence: an nft accept term ordered ahead of the drop, or a negated source match inside the drop. The firewall model's ordering semantics decide it; do not assume the match-list approach.
+- The term shape is an open choice with a rule-ordering consequence: an nftables accept term ordered ahead of the drop, or a negated source match inside the drop. The firewall model's ordering semantics decide it; do not assume the match-list approach.
 
 ## Current Behavior (MANDATORY)
 
@@ -180,7 +180,7 @@ Stage 2 is where the source set is currently collapsed to a boolean, and stage 4
 ### Integration Points
 - `internal/core/ddosevent/event.go` - would need to carry the exempted source set, not just a bool. This is the blast radius (see "The keystone gap").
 - `internal/plugins/ddos/local/match.go` - `buildDropTerm` is the single term builder; there is no second construction path to keep in sync.
-- `internal/component/firewall.MatchSourceAddress` (`model.go`) - the unused primitive to wire. **No firewall-side work is needed**: nft (`internal/plugins/firewall/nft/lower_linux.go`) and VPP (`vpp/translate.go`, `vpp/verify.go`) already lower it.
+- `internal/component/firewall.MatchSourceAddress` (`model.go`) - the unused primitive to wire. **No firewall-side work is needed**: kernel (`internal/plugins/firewall/nft/lower_linux.go`) and VPP (`vpp/translate.go`, `vpp/verify.go`) already lower it.
 - `internal/plugins/ddos/local/responder.go` - term application and hook selection; `applyMitigation` calls `buildDropTerm` and honors `SuppressMitigation` wholesale at `:99-109`.
 - `ddos/detect`'s policy evaluation - where the exempt set is known, and per 1110 the only place allowed to resolve it.
 
@@ -211,7 +211,7 @@ Stage 2 is where the source set is currently collapsed to a boolean, and stage 4
 |-------------|---|--------------|------|
 | An attack with a source-exempt policy rule | → | `buildDropTerm` emitting a source-carved term | `TestBuildDropTermCarvesExemptSource` |
 | Characterized event carrying an exempt source set | → | responder installs the carved term | `TestLocalResponderInstallsCarvedTerm` |
-| End-to-end flood with an exempted source | → | detection → policy → term → nft | `test/plugin/ddos-source-carve.ci` |
+| End-to-end flood with an exempted source | → | detection → policy → term → nftables | `test/plugin/ddos-source-carve.ci` |
 
 ## Acceptance Criteria
 
@@ -226,7 +226,7 @@ Stage 2 is where the source set is currently collapsed to a boolean, and stage 4
 
 | # | User does | Path through system | Test proving it works |
 |---|-----------|--------------------|-----------------------|
-| 1 | Operator exempts a monitoring source, then a flood hits the victim | policy → detection → event → buildDropTerm → nft term | `test/plugin/ddos-source-carve.ci` |
+| 1 | Operator exempts a monitoring source, then a flood hits the victim | policy → detection → event → buildDropTerm → nftables term | `test/plugin/ddos-source-carve.ci` |
 
 ## 🧪 TDD Test Plan
 
@@ -250,7 +250,7 @@ Stage 2 is where the source set is currently collapsed to a boolean, and stage 4
 | `ddos-source-carve` | `test/plugin/ddos-source-carve.ci` | flood with one exempted source: attack dropped, exempt source still passes | |
 
 Note: ddos flood `.ci` tests must run serially and need a UDP sink bound on the victim, and
-the nft backend deadlock the parent recorded as a gotcha applies. Read
+the kernel backend deadlock the parent recorded as a gotcha applies. Read
 `plan/spec-fixit-ddos-test-infra.md` before authoring a flood `.ci`.
 
 ### Future (if deferring any tests)

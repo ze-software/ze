@@ -8,7 +8,7 @@ package ifacenetlink
 import "fmt"
 
 // SetupLCPPair and RemoveLCPPair are VPP-only: an LCP pair mirrors a VPP
-// dataplane interface into a Linux TAP. The netlink backend owns real Linux
+// dataplane interface into a Linux TAP. The kernel backend owns real Linux
 // interfaces directly, so there is nothing to shadow; it rejects the request
 // rather than silently no-op. The ze:backend commit gate normally prevents LCP
 // config from reaching a non-vpp backend, so these are defense in depth.

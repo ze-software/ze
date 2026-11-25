@@ -51,7 +51,7 @@ func FlushAllTables() error {
 // defaultBackendForAutoload is the backend ApplyAll loads on demand when a
 // plugin (copp, policy-routes, ddos-local) registers tables but the operator
 // wrote no firewall {} block, so no firewall config section ever loaded a
-// backend. It mirrors defaultBackendName ("nft" on Linux, "" elsewhere) but is
+// backend. It mirrors defaultBackendName ("kernel" on Linux, "" elsewhere) but is
 // a var so host tests can inject a fake backend name where the OS default is
 // empty (darwin).
 var defaultBackendForAutoload = defaultBackendName

@@ -91,7 +91,7 @@ func TestSSHComparePendingEmpty(t *testing.T) {
 // whereas changing its payload or reordering a user-ordered list stays visible.
 func TestSSHComparePendingPlainListReorderEmpty(t *testing.T) {
 	seed := `interface {
-    backend netlink;
+    backend kernel;
     dummy zulu { description first; }
     dummy alpha { description second; }
 }
@@ -160,7 +160,7 @@ firewall {
 // (for example after an order-only plain-list recreate or on an unchanged config).
 func TestSSHComparePendingEmptyClearsPriorViewport(t *testing.T) {
 	seed := `interface {
-    backend netlink;
+    backend kernel;
     dummy zulu { description first; }
     dummy alpha { description second; }
 }`

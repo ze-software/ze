@@ -210,7 +210,7 @@ func newSetupFaultFixture(t *testing.T, restore bool) *setupFaultFixture {
 }
 func newSetupFaultFixtureWith(t *testing.T, restore, denyChannel bool) *setupFaultFixture {
 	t.Helper()
-	raw, err := iface.OpenBackend("netlink")
+	raw, err := iface.OpenBackend("kernel")
 	if err != nil {
 		t.Fatal(err)
 	}

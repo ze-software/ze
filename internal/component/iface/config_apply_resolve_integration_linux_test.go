@@ -6,7 +6,7 @@
 // ethernet entry whose logical name differs from its kernel device gets its
 // address, MTU, admin state and VLAN on the device its selector names, and the
 // device that merely carries the logical name is left untouched. The host unit
-// tests prove the same through a fake backend; this proves it against netlink,
+// tests prove the same through a fake backend; this proves it against the netlink socket,
 // which is where the composed VLAN name and the not-found errors are real.
 // PREVENTS: the apply path keying by the logical name again -- which either
 // failed the whole commit (no such device) or configured a stranger's port (a
@@ -126,7 +126,7 @@ func TestApplyKeysByOSNameAliasOnKernel(t *testing.T) {
 	})
 }
 
-// TestApplyDefersAbsentSelectorOnKernel proves AC-4 against netlink: a selector
+// TestApplyDefersAbsentSelectorOnKernel proves AC-4 against the netlink socket: a selector
 // no device answers to leaves the commit succeeding and touches nothing, rather
 // than failing at the address add as it did before.
 func TestApplyDefersAbsentSelectorOnKernel(t *testing.T) {

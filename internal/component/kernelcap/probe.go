@@ -1,6 +1,6 @@
 // Design: docs/architecture/doctor-and-health-checks.md -- the kernel capability tier
 // Overview: kernelcap.go -- the enrolment these probes answer for
-// Detail: probe_linux.go -- the native netlink and procfs reads
+// Detail: probe_linux.go -- the native netlink socket and procfs reads
 // Detail: probe_srv6_linux.go -- the throwaway-namespace SRv6 TUN probe
 // Detail: probe_other.go -- the answer off Linux, where neither capability exists
 // Detail: probe_force_zetest.go -- the forced-answer variable, zetest builds only

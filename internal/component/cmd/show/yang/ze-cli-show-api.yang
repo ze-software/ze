@@ -61,7 +61,7 @@ given.";
     ze:help "ICMP ping from the router to a destination IP.";
   }
   rpc route-lookup {
-    description "Ze asks the kernel FIB through the netlink backend, so the answer
+    description "Ze asks the kernel FIB through the netlink socket, so the answer
 is the route the kernel picks and not the BGP RIB entry. Give one IP address.
 An address it cannot parse fails with 'invalid destination'.";
     ze:help "Longest-prefix-match route lookup for a destination IP.";

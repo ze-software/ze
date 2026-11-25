@@ -26,7 +26,7 @@ option=skip-os:value=darwin
 
 stdin=ra-radius:terminator=EOF_RA_RADIUS
 interface {
-	backend netlink;
+	backend kernel;
 	ethernet eth0 {
 		unit 0 {
 			ipv6 {
@@ -48,7 +48,7 @@ EOF_RA_RADIUS
 
 stdin=ra-no-mode:terminator=EOF_RA_NO_MODE
 interface {
-	backend netlink;
+	backend kernel;
 	ethernet eth0 {
 		unit 0 {
 			ipv6 {

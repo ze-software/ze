@@ -19,6 +19,9 @@ single-Service-SID encapsulation policy before installing prefix steering.
 <!-- source: internal/plugins/iface/vpp/register.go -- iface.RegisterBackend -->
 <!-- source: internal/plugins/fib/vpp/srv6.go -- acquirePolicy, addSRv6Steer -->
 
+[Features by data plane](dataplane-features.md) lists each forwarding feature
+and says whether it works on the Linux kernel, on VPP, or on both.
+
 ## Why VPP is in Ze
 
 Ze is a BGP daemon. BGP produces forwarding decisions; something else has
@@ -67,13 +70,24 @@ interface (GoVPP over a Unix socket).
 └──────────────────────────────────────────────────────────┘
 ```
 
-Ze keeps two FIB backends and runs them side by side. `fib-kernel`
-still programs the Linux route table so local services (SSH, the web
-UI, BGP TCP sessions) keep working. `fib-vpp` pushes the same best
-routes into VPP's FIB via the GoVPP binary API, so transit packets
-are forwarded by VPP at DPDK speed. Both plugins subscribe to the
-`(system-rib, best-change)` event on the EventBus and react
-independently.
+Ze has two FIB writers, and each one runs only when it is loaded. With
+no `fib` block, Ze loads the one writer for the data plane that
+`interface backend` selects: `fib-vpp` on a VPP deployment, and
+`fib-kernel` is then not loaded. To run both, write both `fib kernel`
+and `fib vpp` blocks. A `fib kernel` block with no `fib vpp` block is
+refused under `interface backend vpp`, with `set fib vpp` as the fix,
+because VPP's FIB would otherwise receive no routes. `fib-kernel` then
+programs the Linux route table for local services (SSH, the web UI, BGP
+TCP sessions), and `fib-vpp` pushes the same best routes into VPP's FIB
+via the GoVPP binary API, so transit packets are forwarded by VPP at
+DPDK speed. Each loaded writer subscribes to the
+`(system-rib, best-change)` event on the EventBus and reacts
+independently. A `sysctl` block is accepted under `interface backend
+vpp` as well and its keys are applied to the Linux kernel whatever the
+data plane, so a setting about kernel behavior works the same on a VPP
+box, while a key about packet forwarding, such as `rp_filter`, acts
+only on the packets that reach Linux, not on the packets VPP forwards.
+<!-- source: internal/component/plugin/server/startup_autoload.go -- appendDataPlaneWriter, fibPluginChosen -->
 <!-- source: internal/plugins/fib/vpp/register.go -- Dependencies: ["rib", "vpp"] -->
 <!-- source: internal/plugins/fib/vpp/fibvpp.go -- Subscribe to BestChangeBatch -->
 <!-- source: internal/plugins/fib/kernel/fibkernel.go -- parallel backend for the kernel -->
@@ -511,7 +525,7 @@ Before enabling a DPDK profile with hugepages:
 | Hugepages (approximately 6 GB for production 10G, 2 GB for lab) | Appliance: `image.hugepages { page-size, count }` in `appliance.json`. Non-appliance host: `echo 3072 > /sys/kernel/mm/hugepages/hugepages-2048kB/nr_hugepages` or via `/etc/sysctl.d/`. <!-- source: internal/appliance/kernelargs.go -- hugepageKernelArgs --> |
 | IOMMU enabled | BIOS: enable VT-d / AMD-Vi. Kernel cmdline: `intel_iommu=on iommu=pt` |
 | CPU isolation for VPP workers | Appliance: `image.isolated-cpus` in `appliance.json`, which writes `isolcpus`, `nohz_full` and `rcu_nocbs` for those cores. Non-appliance host: the same three kernel cmdline arguments. Ze then draws its worker cores from that set, and `ze doctor` reports `doctor-vpp-cpu-isolation` when it cannot. <!-- source: internal/appliance/kernelargs.go -- isolatedCPUKernelArgs --> |
-| Netlink buffer for route injection | `sysctl net.core.rmem_default=67108864` |
+| Netlink socket buffer for route injection | `sysctl net.core.rmem_default=67108864` |
 | Minimum hardware | 4 CPU cores, 8 GB RAM, a DPDK-compatible NIC <!-- source: docs/research/vpp-deployment-reference.md -- system prerequisites table --> |
 
 Supported NICs through DPDK include Intel i210/i350, X520/X540, X710/XL710
@@ -562,7 +576,7 @@ The implementation status differs by subsystem:
 
 The three-strategy framing in
 [`docs/research/ze-vpp-analysis.md`](../research/ze-vpp-analysis.md)
-explains the bigger picture: strategy 1 (IPng / VyOS style, netlink
+explains the bigger picture: strategy 1 (IPng / VyOS style, netlink route
 intermediary) is the safe default, strategy 3 (direct FIB programming,
 what ze does) is where ze differentiates by skipping the kernel entirely
 and converging sub-second on a full table.

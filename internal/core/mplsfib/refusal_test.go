@@ -27,7 +27,7 @@ func TestRefusalsReportsAndClears(t *testing.T) {
 	swap := Entry{Action: ActionRemove, Op: OpSwap, InLabel: 16005}
 	refusals.Record(&push, errors.New("vpp: mpls table 0 missing"))
 	refusals.Record(&pop, errors.New("in-label owned by source 2"))
-	refusals.Record(&swap, errors.New("netlink: no such device"))
+	refusals.Record(&swap, errors.New("netlink error: no such device"))
 
 	findings := refusals.Findings("ospf-sr", "fix it")
 	if len(findings) != 3 {

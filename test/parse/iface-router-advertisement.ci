@@ -1,7 +1,7 @@
 # Test: a full ipv6 { router-advertisement } unit is accepted, and every leaf
 #       reaches the parsed tree with the value the operator wrote
 # VALIDATES: the router-advertisement container of ze-iface-conf.yang parses
-#            under the netlink backend, and the cross-leaf checks in
+#            under the kernel backend, and the cross-leaf checks in
 #            internal/component/iface/config_ra.go accept a conformant
 #            configuration. seq=1 and seq=2 cover the flags, the four timers,
 #            two prefix entries (one with all four leaves set, one bare so the
@@ -23,7 +23,7 @@ option=skip-os:value=darwin
 
 stdin=full:terminator=EOF_FULL
 interface {
-	backend netlink;
+	backend kernel;
 	ethernet eth0 {
 		mac {
 			address 02:00:00:00:00:99;
@@ -70,7 +70,7 @@ bgp {
 }
 
 interface {
-	backend netlink;
+	backend kernel;
 	ethernet eth0 {
 		mac {
 			address 02:00:00:00:00:99;
@@ -112,7 +112,7 @@ EOF_FULL_DUMP
 # exempt from the "at least maximum-interval" rule of RFC 4861 Section 6.2.1.
 stdin=zero:terminator=EOF_ZERO
 interface {
-	backend netlink;
+	backend kernel;
 	ethernet eth0 {
 		unit 0 {
 			ipv6 {
@@ -140,7 +140,7 @@ bgp {
 }
 
 interface {
-	backend netlink;
+	backend kernel;
 	ethernet eth0 {
 		unit 0 {
 			ipv6 {

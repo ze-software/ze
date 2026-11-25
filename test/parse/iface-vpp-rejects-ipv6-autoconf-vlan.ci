@@ -25,4 +25,4 @@ cmd=foreground:seq=1:exec=ze config validate -:stdin=config:exit=1
 expect=exit:code=1
 expect=stdout:contains=/interface/ethernet/eth0/unit/100/ipv6/autoconf
 expect=stdout:contains="vpp"
-expect=stdout:contains=netlink
+expect=stdout:contains=kernel

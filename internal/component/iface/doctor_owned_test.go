@@ -94,7 +94,7 @@ func TestWithdrawFailureIsReportedUntilACleanPass(t *testing.T) {
 // TestHalfMadeDeviceWarningClearsOnlyOnceTheDeviceIsGone proves a warning
 // about one device by name survives a clean pass whose listing still holds
 // that device, and clears on the first clean pass after it is gone.
-// Method: raise the warning the netlink rollback raises, keep an unmarked
+// Method: raise the warning the kernel backend rollback raises, keep an unmarked
 // device of that name in the scripted backend for one pass, then remove it.
 func TestHalfMadeDeviceWarningClearsOnlyOnceTheDeviceIsGone(t *testing.T) {
 	resetOwnedReport(t)

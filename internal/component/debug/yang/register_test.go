@@ -45,7 +45,7 @@ func TestMultipleModules(t *testing.T) {
 	defer ResetForTest()
 
 	RegisterModule(Module{Name: "ze-bgp-debug.yang", Prefix: "bgp", Flags: []string{"open"}})
-	RegisterModule(Module{Name: "ze-iface-debug.yang", Prefix: "iface", Flags: []string{"netlink"}})
+	RegisterModule(Module{Name: "ze-iface-debug.yang", Prefix: "iface", Flags: []string{"events"}})
 
 	if !HasModule("bgp") {
 		t.Error("expected bgp module")

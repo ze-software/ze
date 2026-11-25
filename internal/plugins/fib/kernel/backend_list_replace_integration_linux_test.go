@@ -1,6 +1,6 @@
 //go:build integration && linux
 
-// Design: docs/architecture/core-design.md -- FIB Linux netlink backend
+// Design: docs/architecture/core-design.md -- FIB Linux kernel backend
 // Related: backend_linux.go -- listZeRoutes, replaceRoute, replaceOwnedRoute
 
 package fibkernel

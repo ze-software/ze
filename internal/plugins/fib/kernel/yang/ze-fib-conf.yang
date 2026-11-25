@@ -14,17 +14,18 @@ module ze-fib-conf {
     }
 
     container fib {
-        description "The FIB is where Ze writes the best routes the system RIB chose.
-                     Each container under it is one backend: kernel programs the OS with
-                     netlink, and vpp programs VPP with the GoVPP binary API. A backend
-                     runs only while its plugin is loaded. Admin distance is not here,
-                     because it belongs to the rib container.";
+        description "The FIB is where Ze sends the best routes the system RIB chose.
+                     Each container under it is one FIB backend that augments /fib:fib,
+                     including data-plane writers such as kernel and vpp and the no-plane
+                     dummy backend that holds selected routes in memory and programs none.
+                     A backend runs only while its plugin is loaded. Admin distance is not
+                     here, because it belongs to the rib container.";
         ze:help
             "Forwarding Information Base configuration.";
 
         container kernel {
             description "Ze writes each best route from the system RIB into the OS with
-                         netlink, and it stamps rtm_protocol 250 on every route it
+                         the netlink socket, and it stamps rtm_protocol 250 on every route it
                          writes. That number separates a ze route from a route another
                          daemon owns, so `ip route show proto 250` lists them. The plugin
                          also watches the kernel, and it writes its route again where

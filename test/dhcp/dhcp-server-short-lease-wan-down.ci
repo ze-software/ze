@@ -106,7 +106,7 @@ service {
 }
 
 interface {
-    backend netlink
+    backend kernel
 
     veth zedhslw0 {
         peer zedhslw1

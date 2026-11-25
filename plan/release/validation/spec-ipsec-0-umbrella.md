@@ -154,7 +154,7 @@ On Linux this maps to: **strongSwan/charon** for IKEv2 negotiation,
 | IPsec CLI | `show vpn ipsec sa`, `show vpn ipsec status`, `clear vpn ipsec sa`, `monitor vpn ipsec` |
 | Bus events | Tunnel up/down/rekeyed events on the event bus |
 | Diagnostics | Health checks, SA expiry monitoring, connection state, Prometheus metrics |
-| VPP dataplane | SA/SP installer abstraction with two backends: kernel XFRM (netlink) and VPP (VPP API). IKEv2 engine is backend-agnostic |
+| VPP dataplane | SA/SP installer abstraction with two backends: kernel XFRM (netlink socket) and VPP (VPP API). IKEv2 engine is backend-agnostic |
 
 **Out of Scope:**
 
@@ -210,7 +210,7 @@ for edge cases, state transitions, and protocol details. Key reference areas:
 | Phase | Spec | Scope | Depends |
 |-------|------|-------|---------|
 | 1 | `spec-ipsec-1-pki-store.md` | YANG `pki {}` config, certificate parser, in-memory store, `$9$` for private keys, `show pki certificates` CLI, certificate validation (chain, expiry). Shared infrastructure for IPsec, TLS, and future mutual-auth features | - |
-| 2 | `spec-ipsec-2-xfrm.md` | XFRM interface type in iface component. Backend methods (CreateXFRM, GetXFRMInfo). YANG schema for `xfrm` list. Netlink wiring via xfrm_interface. Reconciliation. Discovery of unmanaged XFRM interfaces | ipsec-1 (soft) |
+| 2 | `spec-ipsec-2-xfrm.md` | XFRM interface type in iface component. Backend methods (CreateXFRM, GetXFRMInfo). YANG schema for `xfrm` list. Netlink API wiring via xfrm_interface. Reconciliation. Discovery of unmanaged XFRM interfaces | ipsec-1 (soft) |
 | 3 | `spec-ipsec-3-data-model.md` | ~~DONE~~ YANG `vpn ipsec {}`. IKE groups, ESP groups, interface binding. Config parser producing typed Go structs. Design record: `docs/architecture/ike/ipsec-3-data-model.md` | - |
 | 4 | `spec-ipsec-4-data-model-eap.md` | Extend ipsec-3 data model with EAP authentication config (eap-tls, eap-mschapv2), remote-access peer type, virtual IP pool config, EAP credentials | ipsec-3 |
 | 5 | `spec-ipsec-5-ikev2-wire.md` | IKEv2 packet codec: header, all payload types (SA, KE, Nonce, ID, AUTH, CERT, CERTREQ, TSi, TSr, Notify, Delete, Vendor, EAP, CP). Encode/decode roundtrip. No state machine, no network I/O | - |
@@ -241,7 +241,7 @@ ipsec-1 (PKI)   ipsec-3 (Data Model) [DONE]
 
 Specs 5 and 6 are parallelizable (no interdependency). Spec 7 is the core
 engine that depends on both. Spec 8 adds child SA management and the dataplane
-abstraction (XFRM netlink + VPP API). Spec 9 extends the engine with EAP
+abstraction (XFRM netlink API + VPP API). Spec 9 extends the engine with EAP
 authentication and NAT traversal. Spec 10 is presentation.
 
 Spec 2 (XFRM interfaces) is in progress and independent of the IKEv2 engine.
@@ -268,7 +268,7 @@ Spec 3 is done. Spec 3b extends the data model for EAP/remote-access config.
 |----------|----------|-----------|
 | Native IKEv2 vs. strongSwan? | Native Go | Consistent with BGP (native, not wrapping BIRD). Eliminates external daemon dependency for gokrazy appliances. Ze owns the protocol end-to-end. strongSwan source is a reference for edge cases |
 | VTI vs. XFRM interfaces? | XFRM only | VTI is legacy (XFRM marks). XFRM interfaces (Linux 4.19+, if_id) are the kernel-maintainer-recommended replacement. No value carrying both |
-| XFRM netlink vs. VPP API? | Both, behind abstraction | SA/SP installer interface with two backends. IKEv2 engine is dataplane-agnostic. Kernel XFRM via netlink for Linux, VPP API for VPP deployments |
+| XFRM netlink API vs. VPP API? | Both, behind abstraction | SA/SP installer interface with two backends. IKEv2 engine is dataplane-agnostic. Kernel XFRM via netlink for Linux, VPP API for VPP deployments |
 | PKI in IPsec component vs. shared? | Shared `pki` component | Certificates are used by web TLS, SSH host keys, managed device auth. PKI is infrastructure |
 | EAP methods? | EAP-TLS + EAP-MSCHAPv2 | EAP-TLS is certificate-based (strongest). EAP-MSCHAPv2 is password-based (Windows built-in VPN default). Together they cover all major OS built-in clients |
 | EAP credential storage? | Local config | EAP credentials stored in Ze's YANG tree (password uses $9$ encoding). No external RADIUS backend for v1 |
@@ -355,7 +355,7 @@ Spec 3 is done. Spec 3b extends the data model for EAP/remote-access config.
 3. Config parser reads `vpn ipsec {}` tree, produces typed Go structs (IKEGroup, ESPGroup, SiteToSitePeer)
 4. IKE engine receives config, opens UDP sockets, starts per-peer goroutines
 5. For initiator peers: sends IKE_SA_INIT, negotiates crypto, authenticates (X.509/PSK/EAP)
-6. On successful IKE_AUTH: installs XFRM SA/SP in kernel via dataplane backend (netlink or VPP API)
+6. On successful IKE_AUTH: installs XFRM SA/SP in kernel via dataplane backend (netlink API or VPP API)
 7. Kernel routes traffic through XFRM interface, encrypted/decrypted by XFRM SA
 8. IKE engine handles DPD, rekeying, and error recovery; publishes bus events on state changes
 9. For road warrior clients: EAP exchange inside IKE_AUTH, virtual IP assigned via Configuration Payload
@@ -377,7 +377,7 @@ Spec 3 is done. Spec 3b extends the data model for EAP/remote-access config.
 - `events.EventBus` -- IPsec SA up/down/rekeyed events
 - `health.Registry` -- IPsec tunnel health checks
 - `config/transaction` -- IPsec config participates in transactional reload
-- Dataplane interface -- SA/SP installer abstraction (XFRM netlink backend, VPP API backend)
+- Dataplane interface -- SA/SP installer abstraction (XFRM kernel backend, VPP API backend)
 
 ##### Architectural Verification
 - [ ] No bypassed layers (XFRM interfaces created via Backend, XFRM SAs via dataplane abstraction)
@@ -402,7 +402,7 @@ These are the top-level outcomes. Each child spec has its own detailed ACs.
 | AC-9 | Windows client connects with EAP-MSCHAPv2 | IKE_AUTH exchange includes EAP, client authenticates with username/password, virtual IP assigned |
 | AC-10 | Client connects with EAP-TLS | IKE_AUTH exchange includes EAP-TLS, client authenticates with certificate, tunnel established |
 | AC-11 | Peer behind NAT | NAT-T detected in IKE_SA_INIT, ESP switched to UDP encapsulation on port 4500 |
-| AC-12 | VPP backend active | XFRM SAs installed via VPP API instead of kernel netlink; traffic encrypted/decrypted by VPP |
+| AC-12 | VPP backend active | XFRM SAs installed via VPP API instead of the kernel netlink API; traffic encrypted/decrypted by VPP |
 
 #### Wiring Test (MANDATORY -- NOT deferrable)
 
@@ -465,10 +465,10 @@ These are the top-level outcomes. Each child spec has its own detailed ACs.
 - `internal/component/ike/crypto/` -- DH, PRF, encryption, integrity, SKEYSEED, proposal negotiation
 - `internal/component/ike/engine/` -- FSM, exchanges, authentication, retransmission, DPD, rekeying
 - `internal/core/eap/` -- EAP framework, EAP-TLS, EAP-MSCHAPv2
-- `internal/component/ike/dataplane/` -- SA/SP installer interface + XFRM netlink backend + VPP backend
+- `internal/component/ike/dataplane/` -- SA/SP installer interface + XFRM kernel backend + VPP backend
 - `internal/component/ike/transport/` -- UDP socket management, NAT-T, port 500/4500
 - `internal/component/iface/xfrm.go` -- XFRMSpec, XFRMInfo types
-- `internal/plugins/iface/netlink/xfrm_linux.go` -- XFRM interface netlink creation (`CreateXFRM`, package `ifacenetlink`)
+- `internal/plugins/iface/netlink/xfrm_linux.go` -- XFRM interface creation via netlink (`CreateXFRM`, package `ifacenetlink`)
 - `rfc/short/rfc3748.md`, `rfc5216.md`, `rfc2759.md`, `rfc7427.md` -- RFC summaries (EAP, signature auth)
 
 #### Implementation Steps
@@ -482,9 +482,9 @@ Each phase corresponds to a child spec. Phases are ordered by dependency.
    - Files: `internal/component/pki/`, `show pki` CLI
    - Verify: certificates parsed from config, chain validated, shown via CLI
 
-2. **Phase: XFRM Interfaces (ipsec-2)** -- new interface type, Backend extension, netlink
+2. **Phase: XFRM Interfaces (ipsec-2)** -- new interface type, Backend extension, kernel backend
    - Tests: `TestParseXFRMEntry`, `iface-xfrm-create.ci`
-   - Files: `internal/component/iface/xfrm.go`, backend, netlink
+   - Files: `internal/component/iface/xfrm.go`, backend, `internal/plugins/iface/netlink/`
    - Verify: XFRM netdevs created, addresses assigned, reconciled on reload
 
 3. **Phase: IPsec Data Model (ipsec-3)** -- ~~DONE~~ YANG vpn ipsec {}, config parser, validation
@@ -512,7 +512,7 @@ Each phase corresponds to a child spec. Phases are ordered by dependency.
    - Files: `internal/component/ike/engine/`, `internal/component/ike/transport/`
    - Verify: IKE SA established between two Ze instances, authenticated with X.509 and PSK
 
-8. **Phase: Child SA + Dataplane (ipsec-8)** -- CREATE_CHILD_SA, XFRM SA/SP netlink, VPP API, rekeying, DPD
+8. **Phase: Child SA + Dataplane (ipsec-8)** -- CREATE_CHILD_SA, XFRM SA/SP netlink API, VPP API, rekeying, DPD
    - Tests: `TestXFRMSAInstall`, `TestDataplaneVPP`, `ipsec-sa-installed.ci`
    - Files: `internal/component/ike/dataplane/`, `internal/component/ike/engine/` (extend)
    - Verify: Child SA created, XFRM SA/SP in kernel, rekeying works, DPD detects failure

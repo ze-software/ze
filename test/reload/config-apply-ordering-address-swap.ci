@@ -23,7 +23,7 @@
 #           Params.AllowDual and the constraint rule
 #           iface-add-address-before-remove-same-interface) is deleted.
 #
-# The observable points of phases 3 and 4 are the kernel's own netlink
+# The observable points of phases 3 and 4 are the kernel's own netlink socket
 # notifications, so the driver reads them through `ip monitor` and replays them
 # over the known initial state (configApplyOrderingSwapDriver,
 # internal/test/fixture/register_config_apply_ordering.go). A poll of `ip addr`

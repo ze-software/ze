@@ -1,6 +1,7 @@
 package doccheck
 
 import (
+	"path"
 	"slices"
 	"strconv"
 	"strings"
@@ -130,17 +131,36 @@ func TestRetiredCommandSweepSkipsHistoricalRecords(t *testing.T) {
 		"plan/post-release/engineering/tooling-one-off-reboot-assets/base/internal/le/perf/live.go": line,
 	}
 	var skipped []string
-	for _, path := range retiredDeclarations {
-		files[path] = line
-		skipped = append(skipped, path)
+	var sweptManifests []string
+	for _, decl := range retiredDeclarations {
+		files[decl] = line
+		skipped = append(skipped, decl)
 	}
 	for _, record := range retiredRecords {
-		path := record.path
-		if strings.HasSuffix(path, "/") {
-			path += "nested/record.md"
+		if record.manifest != "" {
+			dir := path.Dir(record.manifest)
+			basePinned := dir + "/base/pinned.go.txt"
+			unfinishedPinned := dir + "/unfinished/pinned.go.txt"
+			files[record.manifest] = strings.Join([]string{
+				`{`,
+				`  "status": "./le test-unit all",`,
+				`  "files": [`,
+				`    {"asset": "unfinished/pinned.go.txt", "sha256": "aaa", "base_asset": "base/pinned.go.txt", "base_sha256": "bbb"}`,
+				`  ]`,
+				`}`,
+			}, "\n") + "\n"
+			files[basePinned] = line
+			files[unfinishedPinned] = line
+			skipped = append(skipped, basePinned, unfinishedPinned)
+			sweptManifests = append(sweptManifests, record.manifest)
+			continue
 		}
-		files[path] = line
-		skipped = append(skipped, path)
+		target := record.path
+		if strings.HasSuffix(target, "/") {
+			target += "nested/record.md"
+		}
+		files[target] = line
+		skipped = append(skipped, target)
 	}
 	root := fixtureRepository(t, files)
 
@@ -149,19 +169,24 @@ func TestRetiredCommandSweepSkipsHistoricalRecords(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	for _, path := range []string{
+	for _, target := range []string{
 		"plan/post-release/engineering/spec-other.md",
 		"internal/le/le/root/retired_extra.go",
 		"plan/post-release/engineering/tooling-one-off-reboot-assets/README.md",
 		"plan/post-release/engineering/tooling-one-off-reboot-assets/base/internal/le/perf/live.go",
 	} {
-		if !retiredFound(report, "le test-unit", path, 1) {
-			t.Errorf("%s:1 is not listed; the file matched %v", path, retiredLinesOf(report, path))
+		if !retiredFound(report, "le test-unit", target, 1) {
+			t.Errorf("%s:1 is not listed; the file matched %v", target, retiredLinesOf(report, target))
 		}
 	}
-	for _, path := range skipped {
-		if lines := retiredLinesOf(report, path); len(lines) != 0 {
-			t.Errorf("%s is excluded, and the report lists it at %v", path, lines)
+	for _, manifest := range sweptManifests {
+		if !retiredFound(report, "le test-unit", manifest, 2) {
+			t.Errorf("%s:2 is the manifest itself and must stay swept; matched %v", manifest, retiredLinesOf(report, manifest))
+		}
+	}
+	for _, target := range skipped {
+		if lines := retiredLinesOf(report, target); len(lines) != 0 {
+			t.Errorf("%s is excluded, and the report lists it at %v", target, lines)
 		}
 	}
 }
@@ -730,4 +755,131 @@ func TestRetiredCommandSweepSkipsTheRenameMapsOwnTest(t *testing.T) {
 			t.Errorf("%s:1 is a live caller and is not listed; the file matched %v", path, retiredLinesOf(report, path))
 		}
 	}
+}
+
+func TestRetiredRecordsCoverExactlyTheManifestPins(t *testing.T) {
+	// VALIDATES: AC-20, F-1 -- the snapshot manifest record in retiredRecords
+	// covers exactly the files pinned by a set sha256 or base_sha256 digest for
+	// both retired-commands and retired-selector-values, while an unpinned file
+	// beside a null base_sha256, an unlisted file under base/, README.md, and
+	// the manifest itself are refused by both sweeps; a malformed, empty-path,
+	// or escaping manifest makes both sweeps exit 2 naming the manifest, and an
+	// absent manifest pins nothing.
+	// PREVENTS: duplicating 202 snapshot paths in retiredRecords, skipping
+	// entire snapshot directories and hiding live files, or silently ignoring a
+	// broken manifest.
+	const (
+		manifestDir  = "plan/post-release/engineering/tooling-one-off-reboot-assets"
+		manifestPath = manifestDir + "/manifest.json"
+		bothBody     = "./le test-unit all\nbackend nft\n"
+	)
+
+	t.Run("pins exactly set digests", func(t *testing.T) {
+		root := fixtureRepository(t, map[string]string{
+			manifestPath: strings.Join([]string{
+				`{`,
+				`  "status": "./le test-unit all and backend nft",`,
+				`  "files": [`,
+				`    {"asset": "unfinished/a.go.txt", "sha256": "aaa", "base_asset": "base/a.go.txt", "base_sha256": "bbb"},`,
+				`    {"asset": "unfinished/b.go.txt", "sha256": "ccc", "base_asset": "base/b.go.txt", "base_sha256": null}`,
+				`  ]`,
+				`}`,
+			}, "\n") + "\n",
+			manifestDir + "/base/a.go.txt":        bothBody,
+			manifestDir + "/unfinished/a.go.txt":  bothBody,
+			manifestDir + "/base/b.go.txt":        bothBody,
+			manifestDir + "/base/unlisted.go.txt": bothBody,
+			manifestDir + "/README.md":            bothBody,
+		})
+
+		cmdReport, err := sweepRetired(root)
+		if err != nil {
+			t.Fatal(err)
+		}
+		selReport, err := sweepRetiredSelectors(root)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		for _, skipped := range []string{
+			manifestDir + "/base/a.go.txt",
+			manifestDir + "/unfinished/a.go.txt",
+		} {
+			if got := retiredLinesOf(cmdReport, skipped); len(got) != 0 {
+				t.Errorf("retired-commands did not skip pinned %s: %v", skipped, got)
+			}
+			if got := selectorMatchesOf(selReport, skipped); len(got) != 0 {
+				t.Errorf("retired-selector-values did not skip pinned %s: %v", skipped, got)
+			}
+		}
+
+		for _, refused := range []string{
+			manifestDir + "/base/b.go.txt",
+			manifestDir + "/base/unlisted.go.txt",
+			manifestDir + "/README.md",
+			manifestPath,
+		} {
+			if got := retiredLinesOf(cmdReport, refused); len(got) == 0 {
+				t.Errorf("retired-commands missed unpinned %s", refused)
+			}
+			if got := selectorMatchesOf(selReport, refused); len(got) == 0 {
+				t.Errorf("retired-selector-values missed unpinned %s", refused)
+			}
+		}
+	})
+
+	brokenCases := []struct {
+		name string
+		body string
+	}{
+		{"invalid JSON", "{not-json\n"},
+		{"set sha256 with empty asset", `{"files":[{"asset":"","sha256":"aaa"}]}` + "\n"},
+		{"set base_sha256 with empty base_asset", `{"files":[{"asset":"unfinished/a.go.txt","sha256":"aaa","base_asset":"","base_sha256":"bbb"}]}` + "\n"},
+		{"escaping asset path", `{"files":[{"asset":"../escape.go.txt","sha256":"aaa"}]}` + "\n"},
+		{"escaping base_asset path", `{"files":[{"asset":"unfinished/a.go.txt","sha256":"aaa","base_asset":"../escape.go.txt","base_sha256":"bbb"}]}` + "\n"},
+	}
+	for _, tc := range brokenCases {
+		t.Run(tc.name, func(t *testing.T) {
+			root := fixtureRepository(t, map[string]string{
+				manifestPath: tc.body,
+			})
+			cmdAnswer, cmdCode := runRetiredCheck(root)
+			if cmdCode != 2 {
+				t.Errorf("runRetiredCheck exited %d, want 2 (answer=%v)", cmdCode, cmdAnswer)
+			}
+			if cmdErr, ok := cmdAnswer.(errorReport); !ok || !strings.Contains(cmdErr.Error, manifestPath) {
+				t.Errorf("runRetiredCheck answer %#v does not name %s", cmdAnswer, manifestPath)
+			}
+
+			selAnswer, selCode := runRetiredSelectorCheck(root)
+			if selCode != 2 {
+				t.Errorf("runRetiredSelectorCheck exited %d, want 2 (answer=%v)", selCode, selAnswer)
+			}
+			if selErr, ok := selAnswer.(errorReport); !ok || !strings.Contains(selErr.Error, manifestPath) {
+				t.Errorf("runRetiredSelectorCheck answer %#v does not name %s", selAnswer, manifestPath)
+			}
+		})
+	}
+
+	t.Run("absent manifest pins nothing", func(t *testing.T) {
+		dirty := fixtureRepository(t, map[string]string{
+			"docs/live.md": bothBody,
+		})
+		if _, code := runRetiredCheck(dirty); code != 1 {
+			t.Errorf("runRetiredCheck without manifest exited %d, want 1", code)
+		}
+		if _, code := runRetiredSelectorCheck(dirty); code != 1 {
+			t.Errorf("runRetiredSelectorCheck without manifest exited %d, want 1", code)
+		}
+
+		clean := fixtureRepository(t, map[string]string{
+			"docs/live.md": "backend kernel\n",
+		})
+		if _, code := runRetiredCheck(clean); code != 0 {
+			t.Errorf("runRetiredCheck on clean tree without manifest exited %d, want 0", code)
+		}
+		if _, code := runRetiredSelectorCheck(clean); code != 0 {
+			t.Errorf("runRetiredSelectorCheck on clean tree without manifest exited %d, want 0", code)
+		}
+	})
 }

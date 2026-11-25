@@ -33,7 +33,7 @@ const (
 	mirrorTestNoSuchIfindex = 999999
 )
 
-// withMirrorNetNS runs fn inside a fresh named network namespace so tc state
+// withMirrorNetNS runs fn inside a fresh named network namespace so traffic control state
 // cannot collide with host links. Every caller runs userns.Enter first, which
 // grants CAP_NET_ADMIN, so a refusal here fails the test rather than skipping it.
 func withMirrorNetNS(t *testing.T, fn func()) {
@@ -231,7 +231,7 @@ func TestIntegrationMirrorSetupRollbackRemovesTheQdiscItCreated(t *testing.T) {
 		return
 	}
 	// VALIDATES: AC-5 -- a failed setup that created the qdisc removes it, so
-	// a failed apply leaves no tc state behind.
+	// a failed apply leaves no traffic control state behind.
 	// PREVENTS: trading the qdisc-deletion defect for a qdisc leak.
 	withMirrorNetNS(t, func() {
 		src := addMirrorTestDummy(t, "msrc0")

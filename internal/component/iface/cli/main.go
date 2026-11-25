@@ -12,6 +12,7 @@ import (
 	"github.com/ze-software/ze/internal/component/command"
 	ifacepkg "github.com/ze-software/ze/internal/component/iface"
 	"github.com/ze-software/ze/internal/core/helpfmt"
+	"github.com/ze-software/ze/internal/core/opererr"
 	"github.com/ze-software/ze/internal/core/suggest"
 )
 
@@ -20,7 +21,7 @@ import (
 // does not have.
 //
 // show, create, delete and clear are the canonical CLI verbs, so their spelling
-// comes from the verb registry: create and delete on a live netlink interface
+// comes from the verb registry: create and delete on a live kernel interface
 // are the runtime-resource sense internal/component/command/verbs.go names this
 // CLI for. The rest are nouns this tool owns.
 const (
@@ -68,8 +69,8 @@ const (
 // handleShowInterfaceScan), so the two spellings answer under one name.
 const cmdPathShowInterfaceScan = "show interface scan"
 
-// backendNetlink is the interface backend every subcommand here runs against.
-const backendNetlink = "netlink"
+// backendKernel is the interface backend every subcommand here runs against.
+const backendKernel = "kernel"
 
 // ifaceCommands lists the user-facing subcommand names, kept in sync
 // with the switch cases in Run below. Used by the known-subcommand gate,
@@ -114,13 +115,19 @@ func Run(args []string) int {
 		return 1
 	}
 
-	if err := ifacepkg.LoadBackend(backendNetlink); err != nil {
-		fmt.Fprintf(os.Stderr, "error: load netlink backend: %v\n", err)
+	if err := ifacepkg.LoadBackend(backendKernel); err != nil {
+		msg := opererr.New("load kernel interface backend: "+err.Error(),
+			"The kernel interface backend could not be loaded on this host.",
+			"ze doctor")
+		os.Stderr.WriteString("error: " + msg.Error() + "\n") //nolint:errcheck // CLI stderr output
 		return 1
 	}
 	defer func() {
 		if err := ifacepkg.CloseBackend(); err != nil {
-			fmt.Fprintf(os.Stderr, "warning: close netlink backend: %v\n", err)
+			msg := opererr.New("close kernel interface backend: "+err.Error(),
+				"The kernel interface backend handles may not have been released cleanly.",
+				"ze doctor")
+			os.Stderr.WriteString("warning: " + msg.Error() + "\n") //nolint:errcheck // CLI stderr output
 		}
 	}()
 

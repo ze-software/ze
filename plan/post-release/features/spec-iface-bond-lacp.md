@@ -56,7 +56,7 @@ aggregation at all.
 - `mac match` keeps excluding aggregators and stacked devices.
 
 **Behavior to change:**
-- A new bond kind with members, modes and LACP parameters, on the netlink backend, and on VPP when A-2 holds.
+- A new bond kind with members, modes and LACP parameters, on the kernel backend, and on VPP when A-2 holds.
 
 ## Existing Mechanisms (MANDATORY)
 
@@ -198,7 +198,7 @@ aggregation at all.
 
 1. **Phase: Wiring** - YANG kind, parse, failing `.ci`.
 2. **Phase: Verify** - member option refusals, one aggregator per member.
-3. **Phase: Netlink apply** - create, enslave, release, MTU and MAC rules.
+3. **Phase: Kernel apply** - create, enslave, release, MTU and MAC rules.
 4. **Phase: Show, doctor, VPP** - LACP state, member checks, VPP or refusal.
 
 Proof: `./le test unit plugins`, `./le test functional plugin` for the named `.ci` files, `./le test qemu all` for the Linux integration tests.

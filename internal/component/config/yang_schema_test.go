@@ -1251,33 +1251,33 @@ func TestGetBackendExtension_AbsentReturnsEmpty(t *testing.T) {
 }
 
 func TestGetBackendExtension_SingleArgument(t *testing.T) {
-	// VALIDATES: ze:backend "netlink" yields ["netlink"].
+	// VALIDATES: ze:backend "kernel" yields ["kernel"].
 	// PREVENTS: Single-name annotation being dropped.
 	entry := &gyang.Entry{
-		Exts: []*gyang.Statement{{Keyword: "ze:backend", Argument: "netlink"}},
+		Exts: []*gyang.Statement{{Keyword: "ze:backend", Argument: "kernel"}},
 	}
 	got := getBackendExtension(entry)
-	assert.Equal(t, []string{"netlink"}, got)
+	assert.Equal(t, []string{"kernel"}, got)
 }
 
 func TestGetBackendExtension_SpaceSeparatedList(t *testing.T) {
-	// VALIDATES: ze:backend "netlink vpp" yields ["netlink","vpp"] in order.
+	// VALIDATES: ze:backend "kernel vpp" yields ["kernel","vpp"] in order.
 	// PREVENTS: Multiple-name annotations being collapsed to the first.
 	entry := &gyang.Entry{
-		Exts: []*gyang.Statement{{Keyword: "ze:backend", Argument: "netlink vpp"}},
+		Exts: []*gyang.Statement{{Keyword: "ze:backend", Argument: "kernel vpp"}},
 	}
 	got := getBackendExtension(entry)
-	assert.Equal(t, []string{"netlink", "vpp"}, got)
+	assert.Equal(t, []string{"kernel", "vpp"}, got)
 }
 
 func TestGetBackendExtension_DedupsRepeats(t *testing.T) {
 	// VALIDATES: Duplicate names in ze:backend arg are de-duplicated.
 	// PREVENTS: Noisy error text listing the same backend twice.
 	entry := &gyang.Entry{
-		Exts: []*gyang.Statement{{Keyword: "ze:backend", Argument: "netlink netlink"}},
+		Exts: []*gyang.Statement{{Keyword: "ze:backend", Argument: "kernel kernel"}},
 	}
 	got := getBackendExtension(entry)
-	assert.Equal(t, []string{"netlink"}, got)
+	assert.Equal(t, []string{"kernel"}, got)
 }
 
 func TestGetBackendExtension_SuffixMatch(t *testing.T) {
@@ -1285,10 +1285,10 @@ func TestGetBackendExtension_SuffixMatch(t *testing.T) {
 	// is still matched by the suffix-based fallback.
 	// PREVENTS: Prefix renames silently breaking the reader.
 	entry := &gyang.Entry{
-		Exts: []*gyang.Statement{{Keyword: "iface:backend", Argument: "netlink"}},
+		Exts: []*gyang.Statement{{Keyword: "iface:backend", Argument: "kernel"}},
 	}
 	got := getBackendExtension(entry)
-	assert.Equal(t, []string{"netlink"}, got)
+	assert.Equal(t, []string{"kernel"}, got)
 }
 
 func TestGetBackendExtension_EmptyArgumentReturnsNil(t *testing.T) {

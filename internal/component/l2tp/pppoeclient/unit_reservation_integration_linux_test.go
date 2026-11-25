@@ -38,8 +38,8 @@ func TestPADTRetainsUnitUntilOwnerCleanup(t *testing.T) {
 		return
 	}
 	if iface.GetBackend() == nil {
-		if err := iface.LoadBackend("netlink"); err != nil {
-			t.Fatalf("load netlink backend: %v", err)
+		if err := iface.LoadBackend("kernel"); err != nil {
+			t.Fatalf("load kernel backend: %v", err)
 		}
 		t.Cleanup(func() { _ = iface.CloseBackend() })
 	}

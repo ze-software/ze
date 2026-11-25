@@ -2,7 +2,7 @@
 // Related: gr_preserve.go -- captureInterfaceIDs, capturePrefixLSIDs, restorePrefixLSIDs, restoreInterfaceIDs.
 // Related: gr_restarter.go -- prepareRestart persists the maps, resumeFromNVS restores them.
 // Related: rfc5187_preserve_restart_linux_test.go -- the Section 3.2 unit, which needs the
-// kernel ifindex only the netlink interface backend reads.
+// kernel ifindex only the kernel interface backend reads.
 //
 // VALIDATES: RFC 5187 Section 3.1, "the restarting router MUST preserve the LSA ID to prefix
 // correspondence across graceful restarts", and Section 3.2, "the OSPFv3 Interface ID ...

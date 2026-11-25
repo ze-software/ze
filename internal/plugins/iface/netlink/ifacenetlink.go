@@ -1,9 +1,9 @@
-// Design: docs/features/interfaces.md -- Netlink interface backend
+// Design: docs/features/interfaces.md -- Kernel interface backend
 // Detail: backend_linux.go -- the netlinkBackend type every method hangs off
 
-// Package ifacenetlink implements the netlink-based interface management
-// backend for Linux. It registers itself with the iface component as the
-// "netlink" backend via iface.RegisterBackend.
+// Package ifacenetlink implements the kernel interface management backend for
+// Linux over netlink sockets. It registers itself with the iface component as
+// the "kernel" backend via iface.RegisterBackend.
 //
 // On non-Linux platforms, stub implementations return "not supported" errors.
 package ifacenetlink

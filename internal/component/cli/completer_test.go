@@ -684,29 +684,29 @@ func TestCompleterValidatePipedUnion(t *testing.T) {
 
 // TestCompleterBackendFiltersChildren verifies ze:backend filtering in matchChildren.
 //
-// VALIDATES: AC-1 — netlink-only children excluded when backend is vpp.
+// VALIDATES: AC-1 — kernel-only children excluded when backend is vpp.
 // PREVENTS: backend-specific config shown for wrong backend.
 func TestCompleterBackendFiltersChildren(t *testing.T) {
 	c := newTestCompleter(t)
 	require.NotNil(t, c.schema)
 
-	// "set " in interface context — "tunnel" has ze:backend "netlink", should be excluded
+	// "set " in interface context — "tunnel" has ze:backend "kernel", should be excluded
 	completions := c.Complete(interfaceBackendTree("vpp"), "set ", []string{"interface"})
 	texts := completionTexts(completions)
-	assert.NotContains(t, texts, "tunnel", "tunnel (ze:backend netlink) should be hidden with vpp backend")
+	assert.NotContains(t, texts, "tunnel", "tunnel (ze:backend kernel) should be hidden with vpp backend")
 }
 
 // TestCompleterBackendIncludesMatching verifies matching backend is included.
 //
-// VALIDATES: AC-2 — netlink-only children included when backend is netlink.
+// VALIDATES: AC-2 — kernel-only children included when backend is kernel.
 // PREVENTS: false filtering of matching backends.
 func TestCompleterBackendIncludesMatching(t *testing.T) {
 	c := newTestCompleter(t)
 	require.NotNil(t, c.schema)
 
-	completions := c.Complete(interfaceBackendTree("netlink"), "set ", []string{"interface"})
+	completions := c.Complete(interfaceBackendTree("kernel"), "set ", []string{"interface"})
 	texts := completionTexts(completions)
-	assert.Contains(t, texts, "tunnel", "tunnel (ze:backend netlink) should be shown with netlink backend")
+	assert.Contains(t, texts, "tunnel", "tunnel (ze:backend kernel) should be shown with kernel backend")
 }
 
 // TestCompleterBackendUnrestricted verifies unannotated children always shown.
@@ -732,7 +732,7 @@ func TestCompleterBackendFiltersSetShortcut(t *testing.T) {
 	require.NotNil(t, c.schema)
 
 	// Typing "tun" in interface context triggers shortcut suggestions.
-	// "tunnel" has ze:backend "netlink", should not appear.
+	// "tunnel" has ze:backend "kernel", should not appear.
 	completions := c.Complete(interfaceBackendTree("vpp"), "tun", []string{"interface"})
 	texts := completionTexts(completions)
 	for _, text := range texts {
@@ -756,17 +756,17 @@ func TestCompleterBackendFiltersEditTargets(t *testing.T) {
 
 // TestCompleterBackendMulti verifies multi-backend annotation includes matching.
 //
-// VALIDATES: AC-4 — child with ze:backend "netlink vpp" shown for both backends.
+// VALIDATES: AC-4 — child with ze:backend "kernel vpp" shown for both backends.
 // PREVENTS: multi-backend annotations only matching first entry.
 func TestCompleterBackendMulti(t *testing.T) {
 	c := newTestCompleter(t)
 	require.NotNil(t, c.schema)
 
-	// Find a child annotated with ze:backend "netlink" and verify it works.
-	// Then test with vpp — tunnel should be excluded since it's netlink-only.
-	completions := c.Complete(interfaceBackendTree("netlink"), "set ", []string{"interface"})
+	// Find a child annotated with ze:backend "kernel" and verify it works.
+	// Then test with vpp — tunnel should be excluded since it's kernel-only.
+	completions := c.Complete(interfaceBackendTree("kernel"), "set ", []string{"interface"})
 	texts := completionTexts(completions)
-	assert.Contains(t, texts, "tunnel", "tunnel shown for netlink")
+	assert.Contains(t, texts, "tunnel", "tunnel shown for kernel")
 
 	// With vpp, tunnel excluded
 	completions = c.Complete(interfaceBackendTree("vpp"), "set ", []string{"interface"})

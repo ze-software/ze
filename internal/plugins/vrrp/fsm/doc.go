@@ -18,7 +18,7 @@
 //     StartMasterDownTimer, StartAdvertTimer, StartPreemptDelayTimer,
 //     StopPreemptDelayTimer, StopTimers, EmitStateChange). Action order is part
 //     of the contract.
-//   - The FSM performs NO I/O: no sockets, no netlink, no direct wall-clock
+//   - The FSM performs NO I/O: no sockets, no netlink calls, no direct wall-clock
 //     scheduling, no goroutines, no locks. Every side effect is an action value
 //     the engine (spec-vrrp-5) executes.
 //   - It reads clock.Now() only, for state-entry timestamps and last-advert

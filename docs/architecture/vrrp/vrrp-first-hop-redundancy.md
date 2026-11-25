@@ -28,7 +28,7 @@ bug became a negative test.
 |-------|---------|---------|
 | Packet codec | `internal/plugins/vrrp/packet` | value-type `Advertisement`, `WriteTo(buf, off) int` plus `FillChecksum`, IHL-aware `StripIPv4Header`, a 13-row ordered receive-validation ladder, typed `Err*` mapped by `Reason(err)` to the `ze_vrrp_packet_errors_total{reason}` labels, zero-allocation decode on the happy path, a fuzz target. No sockets. The BFD packet package was the in-repo shape model |
 | FSM | `internal/plugins/vrrp/fsm` | pure, single-threaded, actions-as-values over a closed set of 11 actions. It emits ordered action slices. Injected `clock.Clock`, `sim.FakeClock` in tests. Timer generations reject a stale fire |
-| Dataplane | `internal/plugins/vrrp/dataplane_linux.go` | the macvlan ARP-ownership recipe. iface holds a generic owned-macvlan registry (`RegisterOwnedMacvlan`, `MacvlanSpec`) parallel to its address-owner registry, and the netlink backend creates the device |
+| Dataplane | `internal/plugins/vrrp/dataplane_linux.go` | the macvlan ARP-ownership recipe. iface holds a generic owned-macvlan registry (`RegisterOwnedMacvlan`, `MacvlanSpec`) parallel to its address-owner registry, and the kernel backend creates the device |
 | Transport | `internal/plugins/vrrp/transport` | per-instance raw proto-112 sockets, plus the gratuitous ARP and unsolicited NA announcers that move traffic on promotion. Owns `doctor-vrrp-raw-socket` and five `ze_vrrp_*` wire-counter series |
 | Plugin | `internal/plugins/vrrp` | registration, YANG augments, extract-only config walk with a cross-leaf verifier, instance manager, show and clear, engine-owned state telemetry, events, `doctor-vrrp-config-invalid` |
 
@@ -232,13 +232,14 @@ address-registry call.
 
 ### VPP-backed trees fail closed
 
-<!-- source: internal/plugins/vrrp/register.go -- backend gate on interface.backend -->
+<!-- source: internal/plugins/vrrp/yang/ze-vrrp-conf.yang -- vrrp containers carrying ze:backend "kernel" -->
+<!-- source: internal/component/config/backend_gate.go -- walkBackendFeaturesTree -->
 
-Until a native VPP VRRP dataplane exists, a VPP-backed tree is rejected at verify.
-Two mechanisms enforce it: a plugin verify check that reads `interface.backend`,
-and a `ze:backend "netlink"` annotation on the vrrp containers that iface's
-generic gate enforces. The schema-level gate survives a regression in the plugin
-check.
+Until a native VPP VRRP dataplane exists, a VPP-backed tree carrying a VRRP
+group is rejected at commit, reload, start, and `ze config validate`, and
+reported by `ze doctor` under `doctor-dataplane-mismatch`. One mechanism
+enforces it: the `ze:backend "kernel"` annotation on the `vrrp` containers,
+judged by the config component's engine-owned walk against `interface backend`.
 
 ### Priority tracking reads one state, and dispatches only on a change
 
@@ -409,7 +410,7 @@ state; a tracked route and a health-check script are not implemented.
   advertisement and every readiness pass, and hands a change to the FSM as
   `SourceAddressChanged`. No known source is a named state: the transport sends
   nothing, and the FSM yields every tie.
-- A netlink query binds to the CALLING thread's netns. Resolving the link-local
+- A netlink request binds to the CALLING thread's netns. Resolving the link-local
   lazily on the announcer goroutine made the device invisible in a netns test.
   Warm the source cache on the engine's goroutine and leave the worker socket I/O
   only. For the same reason, `/proc/net/igmp` reports the thread-group leader's

@@ -2,7 +2,7 @@
 // Overview: ifacevpp.go -- vppBackendImpl, wgPeers tracking map
 //
 // WireGuard on VPP is programmed through the wireguard plugin binary API. The
-// netlink backend (wireguard_linux.go) creates the netdev via rtnetlink and
+// kernel backend (wireguard_linux.go) creates the netdev via rtnetlink and
 // then configures keys/port/peers via the wgctrl genetlink protocol. VPP's API
 // is shaped differently and forces three design choices:
 //

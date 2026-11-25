@@ -3,7 +3,7 @@
 // policy check reads its ports, and in no other direction.
 // PREVENTS: shipping the Section 7.4 verdict on a reading of the kernel alone. The
 // unit test asserts the direction of the SPParams ze BUILDS. Only the kernel can say
-// which direction the policy was actually stored in, and a netlink direction
+// which direction the policy was actually stored in, and a netlink library direction
 // conversion is one off-by-one away from putting a port-scoped exemption on the
 // forward path, where a non-initial fragment IS classified with unreadable ports.
 
@@ -69,7 +69,7 @@ func fragBypassPair() []SPParams {
 // So on stock Linux a port-scoped bypass on FWD is the forged-fragment hole of Section
 // 7.4 and Appendix D.4, and this test reads the kernel's own answer about where the
 // in and out halves ze installs were put.
-// PREVENTS: the netlink direction conversion (netlink.Dir(p.Dir - 1)) drifting. Ze
+// PREVENTS: the netlink library direction conversion (netlink.Dir(p.Dir - 1)) drifting. Ze
 // counts SADir from 1 and the kernel counts from 0, and an off-by-one there moves an
 // exemption onto the forward path with every unit test still green.
 // RFC requirement: RFC4301-7.4-2 positive -- the kernel stores the in and out halves of

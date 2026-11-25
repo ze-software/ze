@@ -1,4 +1,4 @@
-// Design: docs/features/interfaces.md -- Netlink interface monitor
+// Design: docs/features/interfaces.md -- Netlink monitor for interfaces
 // Related: nduseropt_linux.go -- decodeNDUserOpt and the nd-user-option emit
 
 //go:build linux

@@ -57,6 +57,7 @@ func (c *checker) run(ctx context.Context) []Issue {
 	issues = append(issues, c.checkFunctionalTestsMD(releaseGateSuites)...)
 	issues = append(issues, c.checkForbiddenDocClaims()...)
 	issues = append(issues, c.checkPipeOperatorReference()...)
+	issues = append(issues, c.checkDataPlaneFeatureReference()...)
 	issues = append(issues, c.checkPublishedCommandSurfaces(ctx, "")...)
 	issues = append(issues, c.unreadable...)
 
@@ -615,9 +616,28 @@ func (c *checker) checkPipeOperatorReference() []Issue {
 // writeGenerated rewrites the generated documentation the drift gate checks, so
 // the writer and the checker are one program and cannot render differently.
 func writeGenerated(root string) (WriteReport, error) {
-	path := filepath.Join(root, pipeOperatorReferencePath)
-	if err := os.WriteFile(path, []byte(command.RenderOperatorReference()), 0o644); err != nil { //nolint:gosec // generated documentation
+	pipePath := filepath.Join(root, pipeOperatorReferencePath)
+	if err := os.MkdirAll(filepath.Dir(pipePath), 0o750); err != nil {
 		return WriteReport{}, err
 	}
-	return WriteReport{Path: pipeOperatorReferencePath}, nil
+	if err := os.WriteFile(pipePath, []byte(command.RenderOperatorReference()), 0o644); err != nil { //nolint:gosec // generated documentation
+		return WriteReport{}, err
+	}
+
+	dataPlaneContent, err := RenderDataPlanePage()
+	if err != nil {
+		return WriteReport{}, err
+	}
+	dataPlanePath := filepath.Join(root, dataPlaneFeatureReferencePath)
+	if err := os.MkdirAll(filepath.Dir(dataPlanePath), 0o750); err != nil {
+		return WriteReport{}, err
+	}
+	if err := os.WriteFile(dataPlanePath, []byte(dataPlaneContent), 0o644); err != nil { //nolint:gosec // generated documentation
+		return WriteReport{}, err
+	}
+
+	return WriteReport{
+		Path:  pipeOperatorReferencePath,
+		Paths: []string{pipeOperatorReferencePath, dataPlaneFeatureReferencePath},
+	}, nil
 }

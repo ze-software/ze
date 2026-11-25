@@ -36,7 +36,7 @@ var (
 //
 // Order 2070 reproduces the sequence the doctor runner printed before the check
 // moved onto the registry: after the sysctl check (2040,
-// internal/component/sysctl/doctor.go) and before the policy-route netlink
+// internal/component/sysctl/doctor.go) and before the policy-route netlink socket
 // check (2080, internal/plugins/policyroute).
 var conntrackDoctorCheck = diagnostic.DoctorCheck{
 	Name:         "conntrack-procfs",

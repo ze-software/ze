@@ -1,7 +1,7 @@
 // Design: docs/architecture/l2tp/bng-5-pppoe.md -- registered kernel session factory
 // Related: socket_linux.go -- native PPPoX allocation; transport.go -- transport owner
 
-// Package kernel implements the netlink PPPoE session data plane. Its PPPoX
+// Package kernel implements the kernel PPPoE session data plane. Its PPPoX
 // transport owner is separate from the shared kernel PPP channel/unit owner.
 package kernel
 
@@ -23,7 +23,7 @@ type sessionBackend interface {
 }
 
 // Name is the exact registry and interface-backend identity for this provider.
-const Name = "netlink"
+const Name = "kernel"
 
 type factoryOps struct {
 	backend       func() (sessionBackend, error)
@@ -163,10 +163,10 @@ func closeFactoryOwner(closeOwner func() error) (err error) {
 
 func validateRequest(request dataplane.Request) error {
 	if request.AccessName == "" {
-		return errors.New("pppoe: netlink session requires an access name")
+		return errors.New("pppoe: kernel session requires an access name")
 	}
 	if request.Device == "" {
-		return errors.New("pppoe: netlink session requires a resolved kernel device")
+		return errors.New("pppoe: kernel session requires a resolved kernel device")
 	}
 	const deviceNameMax = 15 // Linux IFNAMSIZ includes its terminating NUL.
 	if len(request.Device) > deviceNameMax {
@@ -176,19 +176,19 @@ func validateRequest(request dataplane.Request) error {
 		return errors.New("pppoe: kernel device name contains a NUL byte")
 	}
 	if request.Namespace != "" {
-		return fmt.Errorf("pppoe: netlink session cannot open namespace %q; use an access interface in the daemon's namespace", request.Namespace)
+		return fmt.Errorf("pppoe: kernel session cannot open namespace %q; use an access interface in the daemon's namespace", request.Namespace)
 	}
 	if request.SessionID == 0 {
-		return errors.New("pppoe: netlink session requires a nonzero session ID")
+		return errors.New("pppoe: kernel session requires a nonzero session ID")
 	}
 	if request.SessionID == 0xffff {
-		return errors.New("pppoe: netlink session ID 65535 is reserved")
+		return errors.New("pppoe: kernel session ID 65535 is reserved")
 	}
 	if request.PeerMAC == [6]byte{} {
-		return errors.New("pppoe: netlink session requires a peer MAC address")
+		return errors.New("pppoe: kernel session requires a peer MAC address")
 	}
 	if request.PeerMAC[0]&1 != 0 {
-		return errors.New("pppoe: netlink session requires a unicast peer MAC address")
+		return errors.New("pppoe: kernel session requires a unicast peer MAC address")
 	}
 	return nil
 }
@@ -196,7 +196,7 @@ func validateRequest(request dataplane.Request) error {
 func activeBackend() (sessionBackend, error) {
 	backend, err := iface.RequireActiveBackend(Name)
 	if err != nil {
-		return nil, fmt.Errorf("pppoe: netlink session requires the netlink interface backend; configure interface backend netlink: %w", err)
+		return nil, fmt.Errorf("pppoe: kernel session requires the kernel interface backend; configure interface backend kernel: %w", err)
 	}
 	return backend, nil
 }

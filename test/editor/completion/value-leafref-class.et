@@ -8,7 +8,7 @@
 tmpfs=test.conf:terminator=EOF_CONF
 traffic {
 	control {
-		backend tc
+		backend kernel
 		interface eth0 {
 			qdisc {
 				type htb

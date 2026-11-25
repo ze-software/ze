@@ -41,7 +41,7 @@ anycast gateways with one MAC on different bridge VLANs failed to commit with
 
 **Source files read:**
 - [ ] `internal/component/iface/macvlan.go` - `MacvlanSpec{Name, Parent, MAC, Mode, Alias}`, modes bridge and private only, `validate` refuses a zero or multicast MAC; used by plugin-owned devices
-- [ ] `internal/component/iface/backend.go` - `CreateMacvlanDevice(spec)`: the netlink backend creates with alias `ze:owned:<owner>` and the MAC atomically; non-netlink backends refuse
+- [ ] `internal/component/iface/backend.go` - `CreateMacvlanDevice(spec)`: the kernel backend creates with alias `ze:owned:<owner>` and the MAC atomically; non-kernel backends refuse
 - [ ] `internal/component/iface/yang/ze-iface-conf.yang` - no operator macvlan or pseudo-ethernet kind
 - [ ] `internal/component/iface/config.go` - interface kinds parsed into typed entries (`ifaceEntry`, `vethEntry`, `bridgeEntry`)
 

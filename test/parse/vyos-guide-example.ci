@@ -25,7 +25,7 @@
 option=skip-os:value=darwin
 stdin=config:terminator=EOF_CONF
 interface {
-	backend netlink
+	backend kernel
 	ethernet eth0 {
 		mac {
 			match 02:00:5e:10:00:01
@@ -107,7 +107,7 @@ sysctl {
 }
 
 firewall {
-	backend nft
+	backend kernel
 	global-options {
 		all-ping enable
 		syn-cookies enable

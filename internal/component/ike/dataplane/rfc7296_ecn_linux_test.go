@@ -1,10 +1,10 @@
-// Design: docs/architecture/ike/ipsec-8-ikev2-child-xfrm.md -- XFRM netlink backend
+// Design: docs/architecture/ike/ipsec-8-ikev2-child-xfrm.md -- XFRM kernel backend
 
 //go:build linux
 
 package dataplane
 
-// RFC naming: untagged -- proves the netlink state xfrmStateFromParams builds is the one Ze asked for, not ECN handling; the RFC7296-2.24 tags sit on TestEcnKernelStoresTunnelSAWithoutNoECN and engine's TestRFC7296BareESPOnTemplatedSAKeepsTheOuterCE.
+// RFC naming: untagged -- proves the netlink library state xfrmStateFromParams builds is the one Ze asked for, not ECN handling; the RFC7296-2.24 tags sit on TestEcnKernelStoresTunnelSAWithoutNoECN and engine's TestRFC7296BareESPOnTemplatedSAKeepsTheOuterCE.
 
 import (
 	"net"
@@ -28,7 +28,7 @@ func ecnTunnelParams() SAParams {
 	}
 }
 
-// VALIDATES: the netlink state xfrmStateFromParams builds for the ECN fixture carries the
+// VALIDATES: the netlink library state xfrmStateFromParams builds for the ECN fixture carries the
 // SPI and endpoints Ze asked for, maps tunnel and transport to different kernel modes, and
 // refuses a mode it cannot express rather than emitting a default.
 //
@@ -56,7 +56,7 @@ func TestEcnXfrmStateIsTheOneZeAskedFor(t *testing.T) {
 		t.Fatalf("xfrmStateFromParams(transport): %v", err)
 	}
 	if tState.Mode == state.Mode {
-		t.Error("tunnel and transport map to one netlink mode, so no state can be identified as tunnel mode")
+		t.Error("tunnel and transport map to one netlink library mode, so no state can be identified as tunnel mode")
 	}
 
 	bad := p

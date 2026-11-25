@@ -2,7 +2,7 @@
 
 Ze manages nftables packet filter and NAT rules from a single `firewall { }` YANG
 section. The abstract data model describes matches (from) and actions (then);
-the nft backend lowers them to nftables kernel expressions.
+the kernel firewall backend lowers them to nftables kernel expressions.
 
 <!-- source: internal/component/firewall/model.go -- Match and Action type definitions -->
 <!-- source: internal/component/firewall/config.go -- parseFromBlock, parseThenBlock -->
@@ -13,18 +13,18 @@ the nft backend lowers them to nftables kernel expressions.
 
 | Backend | Platform | Default | Mechanism |
 |---------|----------|---------|-----------|
-| `nft` | Linux | yes | google/nftables netlink library |
-| `vpp` | Linux with VPP | no | GoVPP ACL classify pipeline and NAT44-ED <!-- source: internal/plugins/firewall/nft/register.go -- RegisterBackend("nft") --> <!-- source: internal/plugins/firewall/vpp/register.go -- RegisterBackend("vpp") --> |
+| `kernel` | Linux | yes | google/nftables netlink library |
+| `vpp` | Linux with VPP | no | GoVPP ACL classify pipeline and NAT44-ED <!-- source: internal/plugins/firewall/nft/register.go -- RegisterBackend("kernel") --> <!-- source: internal/plugins/firewall/vpp/register.go -- RegisterBackend("vpp") --> |
 
 ```
 firewall {
-    backend nft;
+    backend kernel;
 }
 ```
 
 `backend vpp` needs the VPP component, which only a build with the `ze_vpp`
 tag carries. Selecting it starts that component with the firewall and orders
-the firewall after it; `backend nft` does not start it, though the firewall
+the firewall after it; `backend kernel` does not start it, though the firewall
 still starts after VPP when a `vpp {}` block runs it. In a build without
 `ze_vpp`, `ze config validate`, a commit and daemon boot all refuse
 `firewall backend vpp` before anything is applied, naming the leaf and the
@@ -32,6 +32,35 @@ still starts after VPP when a `vpp {}` block runs it. In a build without
 
 <!-- source: internal/component/firewall/register.go -- vppPlugin, backendVPP, ConfigNeeds -->
 <!-- source: internal/component/config/optional_provider.go -- refuseAbsentOptionalProviders -->
+
+`firewall backend` must match `interface backend` whenever a `firewall` block is
+configured, `firewall backend` is set explicitly, or a firewall table producer
+(`control-plane-protection`, `ddos-local`, `anomaly-shape`, or
+`flowspec-firewall`, including via `--plugin`) is active:
+
+- Under `interface backend vpp`, leaving `firewall backend` at `kernel` is
+  refused at `ze config validate`, commit, reload, and daemon start, with
+  `set firewall backend vpp` as the fix (or deleting the `plugin` block /
+  dropping `--plugin` for `flowspec-firewall`).
+- Under `interface backend kernel`, setting `firewall backend vpp` is refused
+  with `set firewall backend kernel` or `set interface backend vpp` as the fix.
+- `ze doctor` reports these mismatches under `doctor-dataplane-mismatch`.
+
+A VPP firewall configuration pairs matching selectors:
+
+```
+interface {
+    backend vpp;
+}
+firewall {
+    backend vpp;
+}
+```
+
+See [Features by Data Plane](dataplane-features.md) for the full generated
+matrix of selectors, features, and `ze:backend` gates.
+
+<!-- source: internal/component/config/dataplane_verdict.go -- evaluateDataPlaneVerdict -->
 
 ### Clean-shutdown teardown
 
@@ -49,7 +78,7 @@ down when `ze` quits.
 
 ```
 firewall {
-    backend nft;
+    backend kernel;
     flush-on-shutdown false;   # one-shot: program the rules, exit, leave them running
 }
 ```
@@ -77,7 +106,7 @@ the latency histogram's last finite bucket is also derived from.
 
 | Backend | Bounds | Environment variable | Default | Range |
 |---------|--------|----------------------|---------|-------|
-| `nft` | One nftables netlink round-trip | `ze.firewall.nft.netlink-timeout` | 10s | 1s to 60s |
+| `kernel` | One nftables netlink round-trip | `ze.firewall.nft.netlink-timeout` | 10s | 1s to 60s |
 | `vpp` | One VPP binary-API round-trip | `ze.firewall.vpp.reply-timeout` | 10s | 1s to 60s |
 
 The VPP backend previously ran with no bound at all. govpp's default reply timeout
@@ -126,7 +155,7 @@ more chains; a base chain has a type, hook, priority, and default policy.
 
 ```
 firewall {
-    backend nft;
+    backend kernel;
     table wan {
         family inet;
         chain input {
@@ -192,7 +221,7 @@ ranges are the same prefix.
 <!-- source: internal/component/gtsm/gtsm.go -- claimTerm, narrowestFirst -->
 <!-- source: internal/component/bgp/reactor/gtsm.go -- gtsmRanges -->
 
-Every term carries a packet counter (the nft backend adds one to each rule),
+Every term carries a packet counter (the kernel firewall backend adds one to each rule),
 so `show firewall ruleset gtsm` shows how many below-floor SYNs each
 `dangerous-...-listen` term dropped.
 <!-- source: internal/plugins/firewall/nft/backend_linux.go -- addChainRules -->
@@ -274,7 +303,7 @@ the router without capturing transit traffic to the same port:
 
 ```
 firewall {
-    backend nft;
+    backend kernel;
     table publish {
         family ip;
         chain prerouting {
@@ -297,7 +326,7 @@ firewall {
 }
 ```
 
-The nft backend lowers it to `fib daddr type local`. It is valid in a table of
+The kernel firewall backend lowers it to `fib daddr type local`. It is valid in a table of
 family `ip` or `ip6`, and verify refuses it in `inet`, `arp`, `bridge` and
 `netdev`. The kernel provides the lookup per family, and Ze's kernel is built
 with the `ip` and `ip6` ones, so a dual-stack port is published by one term in
@@ -468,7 +497,7 @@ IPv6:
 
 ```
 firewall {
-    backend nft;
+    backend kernel;
     table cpe {
         family inet;
         chain forward {
@@ -493,7 +522,7 @@ firewall {
 
 ### NAT rule placement in nftables
 
-`ze config validate` checks NAT placement before the nft backend installs the
+`ze config validate` checks NAT placement before the kernel firewall backend installs the
 rules. NAT base chains use family `ip`, `ip6` or `inet`, a priority greater
 than `-200` so connection tracking runs first, and one of the hooks below.
 
@@ -522,7 +551,7 @@ pattern.
 
 ```
 firewall {
-    backend nft;
+    backend kernel;
     table nat-rules {
         family ip;
         chain prerouting {
@@ -565,7 +594,7 @@ then {
 
 ```
 firewall {
-    backend nft;
+    backend kernel;
     table wan {
         family inet;
         set blocked {
@@ -646,7 +675,7 @@ global-options (three-layer priority: config > transient > default).
 
 ```
 firewall {
-    backend nft;
+    backend kernel;
     global-options {
         all-ping enable;
         syn-cookies enable;
@@ -692,7 +721,7 @@ without asking the IRR server again.
 
 ```
 firewall {
-    backend nft;
+    backend kernel;
     table wan {
         family inet;
         chain input {
@@ -877,7 +906,7 @@ of its own: it sets the EDNS0 DO bit and trusts an upstream validating resolver.
 
 ```
 firewall {
-    backend nft;
+    backend kernel;
     domain-group cdn {
         domain-names [ api.example.com cdn.example.com ];
         ttl-floor 300;
@@ -1026,6 +1055,30 @@ refresh changed the addresses, and `ze_firewall_domain_group_data_age_seconds`.
 <!-- source: internal/component/firewall/plugins/domain/changelog.go -- the bounded JSON-lines change log -->
 <!-- source: internal/component/firewall/plugins/domain/doctor.go -- checkDomainGroupData -->
 <!-- source: internal/component/firewall/plugins/domain/doctor.go -- unsavedAnswerFindings -->
+
+## VPP Backend: Compatibility and Limits
+
+With `firewall backend vpp` (paired with `interface backend vpp`), Ze translates
+filter chains to VPP ACL rules and NAT chains to VPP NAT44-ED. Any rule or
+producer table that VPP cannot represent faithfully is refused at commit,
+`ze config validate`, reload, and daemon start, naming the table, chain, and
+term.
+
+| Feature | `kernel` | `vpp` | Limits on VPP |
+|---------|----------|-------|---------------|
+| `source-address`, `destination-address`, `protocol`, `icmp-type`, `icmpv6-type`, `tcp-flags`, `accept`, `drop` | Yes | Yes | |
+| `source-port`, `destination-port` | Yes | Yes | One port range per term. |
+| `connection-state` | Yes | `established`, `related` | Programmed as `PERMIT_REFLECT`; `new` and `invalid` are refused by `verifyConnState`. |
+| `mark-set` | Yes | Filter chains only | Within classify limits (IPv4 addresses, exact port, no `limit-rate` in the same term); refused in NAT chains. |
+| `limit-rate` | Yes | Yes | IPv4 addresses and exact ports only; cannot combine with `mark-set` in one term. |
+| `snat`, `masquerade` | Yes | IPv4 only | Source-address match is refused at commit naming the table, chain, and term because VPP NAT44 applies to the whole inside interface (fix: delete the source-address match or `set firewall backend kernel`). No destination or protocol match, no port mapping, and no flags on `masquerade`. |
+| `dnat` | Yes | IPv4 only | Requires both a `protocol` match and a `destination-port` match. |
+| `connection-mark`, `notrack`, `connection-mark-set`, `tcp-mss-clamp-to-pmtu`, `flowtable` (`flow-offload`) | Yes | Refused | Refused by `ze:backend "kernel"` at commit, validate, reload, and start (`flow-offload` requires a declared `flowtable`, so refusal names the `flowtable` node). |
+| `reject`, `redirect`, `counter`, `log`, `jump`, `goto`, `return`, non-base chains, named sets, `input-interface`, `output-interface`, `destination-local`, `dscp`, `dscp-set`, `tcp-mss-set` | Yes | Refused | Refused by the VPP verifier. |
+| `control-plane-protection`, `firewall irr interface` bindings | Yes | Refused | Verified ahead of plugin start by the `firewall-producer-tables` tree validator at commit, validate, reload, and start. |
+
+<!-- source: internal/plugins/firewall/vpp/verify.go -- Verify, verifyNATSourceMatches, verifyConnState, verifyClassifyConstraints -->
+<!-- source: internal/component/firewall/producer_verify.go -- verifyProducerTables -->
 
 ## CLI
 

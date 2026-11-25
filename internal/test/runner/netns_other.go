@@ -14,7 +14,7 @@ import (
 // errNetnsUnsupported is returned by enterTestNetns on non-Linux platforms.
 // The runner only calls enterTestNetns when runtime.GOOS == "linux", so this is
 // a compile-time stub, not a runtime path; network namespaces and nftables do
-// not exist on darwin/BSD, where the netlink suites carry option=skip-os anyway.
+// not exist on darwin/BSD, where the kernel-networking suites carry option=skip-os anyway.
 var errNetnsUnsupported = errors.New("per-test network namespace mode requires linux")
 
 // enterTestNetns is unsupported off Linux; see the linux build for the contract.

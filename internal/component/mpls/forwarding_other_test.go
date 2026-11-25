@@ -24,7 +24,7 @@ import (
 // PREVENTS: dumpMPLSRoutes returning nil, nil off Linux.
 //
 // Method: select the reader this package registers for the kernel data plane,
-// the one a config naming 'interface { backend netlink; }' selects, and call
+// the one a config naming 'interface { backend kernel; }' selects, and call
 // the handler over it.
 func TestShowMPLSForwardingOffLinuxIsAnError(t *testing.T) {
 	reader, refusal := readerForDataPlane(kernelDataPlane)

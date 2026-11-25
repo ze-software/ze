@@ -19,7 +19,7 @@
 
 ## Task
 
-Bring VRRP to VPP-backed interfaces. The kernel/netlink implementation
+Bring VRRP to VPP-backed interfaces. The kernel implementation
 (spec-vrrp-1..6) uses macvlan devices and raw sockets, neither of which exists
 on the VPP dataplane. VPP ships its own native VRRP plugin; the expected design
 is to translate ze vrrp group config into VPP VRRP binapi calls, mirroring how
@@ -60,7 +60,7 @@ Open research questions for the design phase (all currently unverified):
   → Constraint: if VPP VRRP lacks v2, `version 2` on a VPP interface is a verify-time rejection
 
 **Key insights:**
-- The netlink design (macvlan + raw sockets) is intentionally NOT portable to
+- The kernel design (macvlan + raw sockets) is intentionally NOT portable to
   VPP; this child is a translate-to-native-VPP effort, not a port.
 
 ## Current Behavior (MANDATORY)
@@ -435,4 +435,4 @@ enforcement (e.g. parity validators).
 
 Deferred by spec-vrrp-6-interop.
 
-VRRP on the VPP data plane (macvlan + raw sockets are netlink-only; a VPP-backed tree is rejected at validation rather than run degraded)
+VRRP on the VPP data plane (macvlan + raw sockets are kernel-only; a VPP-backed tree is rejected at validation rather than run degraded)

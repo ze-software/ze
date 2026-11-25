@@ -9,7 +9,7 @@
 #           fires on packets the operator never named.
 stdin=config:terminator=EOF_CONF
 firewall {
-	backend nft;
+	backend kernel;
 	table lan-arp {
 		family arp;
 		chain output {

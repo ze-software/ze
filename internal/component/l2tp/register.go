@@ -4,6 +4,8 @@ package l2tp
 // `ze-l2tp-conf.yang` with the config/yang module registry.
 import (
 	"github.com/ze-software/ze/internal/component/config"
+	"github.com/ze-software/ze/internal/component/plugin/registry"
+	"github.com/ze-software/ze/internal/core/configvalue"
 	"github.com/ze-software/ze/internal/core/health"
 
 	_ "github.com/ze-software/ze/internal/component/l2tp/yang"
@@ -23,9 +25,46 @@ func init() {
 	if err := config.RegisterTreeValidator("l2tp-parameters", validateParameters); err != nil {
 		panic("BUG: registering l2tp parameters: " + err.Error())
 	}
+	if err := registry.RegisterDataPlaneFeature(registry.DataPlaneFeature{
+		Name:       SubsystemName,
+		ConfigPath: "environment l2tp server",
+		Why:        "L2TP programs Linux PPP interfaces in the kernel only",
+		Planes:     []string{"kernel"},
+		InUseKind:  registry.DataPlaneInUsePredicate,
+		InUse:      l2tpDataPlaneInUse,
+	}); err != nil {
+		panic("BUG: l2tp: data-plane feature registration failed: " + err.Error())
+	}
 	health.Register("l2tp", checkHealth)
 	// Register the redistribute source at init so `import l2tp` resolves during
 	// `ze config validate`, which imports plugins but does not start their engines.
 	// Subsystem.Start also calls this; sync.Once makes the second call a no-op.
 	registerL2TPSources()
+}
+
+// l2tpDataPlaneInUse reports whether tree configures an active L2TP listener.
+//
+// L2TP programs Linux PPP interfaces only when a listener starts a kernel
+// worker (subsystem.go, prepareKernelBackend). The `l2tp` block alone also
+// holds the subscriber authentication and address pool that PPPoE shares on
+// VPP, so L2TP is in use only when at least one `environment l2tp server`
+// entry exists and `l2tp enabled` is not false.
+func l2tpDataPlaneInUse(tree map[string]any) registry.DataPlaneFeatureUse {
+	l2tpEnv := configvalue.Section("environment/l2tp", tree)
+	if l2tpEnv == nil {
+		return registry.DataPlaneFeatureUse{}
+	}
+	if len(configvalue.ListEntries(l2tpEnv["server"])) == 0 {
+		return registry.DataPlaneFeatureUse{}
+	}
+	if l2tpRoot := configvalue.Section("l2tp", tree); l2tpRoot != nil {
+		if raw, present := l2tpRoot["enabled"]; present {
+			if enabled, ok := configvalue.Bool(raw); ok {
+				if !enabled {
+					return registry.DataPlaneFeatureUse{}
+				}
+			}
+		}
+	}
+	return registry.DataPlaneFeatureUse{InUse: true}
 }

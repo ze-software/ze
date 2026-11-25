@@ -7,7 +7,7 @@
 
 stdin=refused:refused=config-plugin-verify:terminator=EOF_REFUSED
 firewall {
-	backend nft;
+	backend kernel;
 	table nat_placement {
 		family ip;
 		chain incoming {
@@ -39,7 +39,7 @@ expect=stdout:contains=edit firewall table nat_placement chain translate term to
 
 stdin=accepted:terminator=EOF_ACCEPTED
 firewall {
-	backend nft;
+	backend kernel;
 	table nat_placement {
 		family ip;
 		chain incoming {

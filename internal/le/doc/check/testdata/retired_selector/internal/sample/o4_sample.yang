@@ -1,0 +1,9 @@
+module ze-o4-sample {
+    prefix tc;
+    import ze-traffic-control-conf { prefix tc; }
+    namespace "urn:ze:traffic-control"; prefix tc;
+    description "old prefix tc; dropped";
+    description "the prefix tc names";
+    ze:backend "tc";
+    description "backend tc: rate";
+}

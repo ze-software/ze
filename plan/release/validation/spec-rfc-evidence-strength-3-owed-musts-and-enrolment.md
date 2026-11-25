@@ -97,6 +97,13 @@ has no summary, so no reader can follow it.
 - a summary declared enrolled whose kind is out of count is never "enrollable"; the page names it "out of count (third-party)" or "out of count (foundation)"
 - the header sentence that counts un-enrolled MUSTs splits "not enrolled" from "out of count"
 
+## Existing Mechanisms
+
+| Mechanism | Where (file + symbol, or page + section) | What it does today | This spec (extends, replaces, or does not apply, with the reason) |
+|-----------|------------------------------------------|--------------------|------------------------------------------------------------------|
+| RFC ledger rollup renderer and enrolment classification | `internal/le/rfc/sections.go` (`renderRollup`), `internal/le/rfc/meta.go` (`Meta.Enrolled`, `implementationCounts`, `dispositionsFrom`), `internal/le/rfc/render.go` (`RenderInput`) | `Meta.Enrolled` combines declared `Enrolment` with `implementationCounts` (which admits only `ze` and `mixed`), while `renderRollup` lists every `!Enrolled` summary with zero outstanding rows as "Enrollable now" and groups out-of-count `third-party`/`foundation` MUSTs with un-enrolled summaries | Extends `RenderInput` and `renderRollup` to distinguish declared out-of-count summaries (`third-party`, `foundation`) from un-enrolled summaries by reading `implementationCounts` directly rather than adding a second stem list |
+| RFC summary annotations and coverage/freshness gates | `rfc/short/rfc2003.md`, `rfc/short/rfc3031.md`, `rfc/short/rfc7627.md` (and the other seven listed summaries); `docs/contributing/rfc-conformance-gates.md` ("Who implements the document", "The superseded marker") | Records per-requirement polarity tags and annotations (`{not-applicable}`, superseded markers) and enforces coverage and freshness via `./le rfc update` and `./le rfc check` | Extends the ten listed summaries with boundary tests at Ze's own producers (`internal/plugins/iface/netlink/tunnel_linux.go`, `internal/core/eap/eap_tls.go`, MPLS swap) and resolves the missing RFC 9846 target so out-of-count and third-party rows satisfy `ai/rules/rfc-compliance.md` |
+
 ## Data Flow (MANDATORY - see `ai/rules/architecture.md`)
 
 ### Entry Point
@@ -119,7 +126,7 @@ has no summary, so no reader can follow it.
 | Check | Holds? | Evidence |
 |-------|--------|----------|
 | No bypassed layers (data flows through the intended path) | Yes | the page stays generated |
-| No unintended coupling (components stay isolated) | Yes | `internal/le/rfc` only, plus tests at Ze's netlink boundary |
+| No unintended coupling (components stay isolated) | Yes | `internal/le/rfc` only, plus tests at Ze's netlink socket boundary |
 | No duplicated functionality (extends existing, does not recreate) | Yes | reads `implementationCounts`, the one declaration of the division |
 | Zero-copy preserved where applicable (refs, not copies) | N-A | tooling |
 | Registration over hardcoding, outbound | N-A | none |

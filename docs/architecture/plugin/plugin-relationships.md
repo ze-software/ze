@@ -166,6 +166,34 @@ the BFD engine.
 
 ---
 
+### fib-dummy
+
+| Field | Value |
+|-------|-------|
+| Location | `internal/plugins/fib/dummy/register.go` |
+| Description | Holds selected system RIB routes in memory and programs no forwarding table |
+| ConfigRoots | `fib/dummy` |
+| WantsConfig | `fib/dummy` |
+| Dependencies | `rib` |
+| Commands | `show fib dummy`, `show fib dummy counters` |
+| Transaction | Verify (accept), Apply (no-op journal, reacts to bus events), Rollback (no-op) |
+| VerifyBudget | 1s |
+| ApplyBudget | 1s |
+
+**Bus publishes:**
+
+| Topic | When |
+|-------|------|
+| `system-rib/replay-request` | Requests system RIB replay on startup |
+| `mpls-fib/replay-request` | Requests targeted MPLS label replay on startup so active label sources learn that `fib-dummy` refuses labels |
+
+**Bus subscribes:** `system-rib/best-change` (holds selected routes in memory and programs none) and `mpls-fib/entry` (refuses every addressed label batch so label protocols never advertise unforwarded labels).
+
+<!-- source: internal/plugins/fib/dummy/register.go -- init, fibDummySends, fibDummyReceives, commandDecls -->
+<!-- source: internal/plugins/fib/dummy/labels.go -- handleMPLSEntry, subscribeAndRequestLabels -->
+
+---
+
 ### iface-dhcp
 
 | Field | Value |
@@ -198,11 +226,11 @@ interface units, and calls the factory from `reconcileDHCP()` on startup and rel
 | Field | Value |
 |-------|-------|
 | Location | `internal/plugins/iface/netlink/register.go` |
-| Description | Netlink backend for interface plugin (Linux) |
+| Description | Kernel backend for interface plugin (Linux) |
 | ConfigRoots | - |
 | Dependencies | - |
 
-Not a full plugin. Registers a backend factory with `iface.RegisterBackend("netlink", ...)`.
+Not a full plugin. Registers a backend factory with `iface.RegisterBackend("kernel", ...)`.
 The interface plugin delegates OS operations to this backend.
 
 ---
@@ -300,6 +328,7 @@ Tier 1 (depends on tier 0):
   iface-dhcp (-> interface)
   fib-kernel (-> rib)
   fib-p4 (-> rib)
+  fib-dummy (-> rib)
   bgp-gr (-> bgp, bgp-rib)
   bgp-route-refresh (-> bgp)
   bgp-role (-> bgp)
@@ -325,6 +354,7 @@ Wire -> BGP reactor -> bgp-rib (Loc-RIB)
   |                                                    |
   |                                                    +-> system-rib/best-change -> fib-kernel (OS routes)
   |                                                    +-> system-rib/best-change -> fib-p4 (P4 entries)
+  |                                                    +-> system-rib/best-change -> fib-dummy (held in memory, not programmed)
   |
   +-> bgp-adj-rib-in (raw storage)
   |     |
@@ -354,6 +384,7 @@ OS kernel -> iface-netlink (monitor)
 | `rib` | rib | - | |
 | `fib.kernel` | fib-kernel | - | |
 | `fib.p4` | fib-p4 | - | |
+| `fib/dummy` | fib-dummy | - | Holds selected routes in memory and programs none |
 
 Several plugins read a root another plugin owns, either through the SDK
 `Registration.WantsConfig` or through the registry's `ConfigReads`, and each
@@ -394,8 +425,13 @@ rib/
   replay-request           rib -> (protocol RIBs)
 
 system-rib/
-  best-change              rib -> fib-kernel, fib-p4
-  replay-request           fib-kernel, fib-p4 -> rib
+  best-change              rib -> fib-kernel, fib-p4, fib-dummy
+  replay-request           fib-kernel, fib-p4, fib-dummy -> rib
+
+mpls-fib/
+  entry                    ldp, rsvp-te, ospf, bgp-epe -> fib-kernel, fib-vpp, fib-dummy (refuses)
+  replay-request           fib-kernel, fib-vpp, fib-dummy -> ldp, rsvp-te, ospf, bgp-epe
+  writer-stopped           plugin server -> fib-kernel, fib-vpp
 
 fib/
   external-change          fib-kernel -> (monitoring)
@@ -426,6 +462,8 @@ startup dependencies in the `Dependencies` field.
 | rib | `rib/best-change/` | bgp-rib | Selects system best routes from protocol RIBs |
 | fib-kernel | `system-rib/best-change` | rib | Programs OS routing table |
 | fib-p4 | `system-rib/best-change` | rib | Programs P4 switch entries |
+| fib-dummy | `system-rib/best-change` | rib | Holds selected routes in memory and programs none |
+| fib-dummy | `mpls-fib/entry` | ldp, rsvp-te, ospf, bgp-epe | Refuses every addressed label batch so label protocols never advertise unforwarded labels |
 | bgp-rr, bgp-rs | `bgp-gr/retention` | bgp-gr | Records retained families only for an owned state lifetime opened by UP; every DOWN consumes its verdict and closes admission. Global verdicts for unrelated or already-down peers create no record. gr emits before answering DOWN and receives state events before rr/rs (reverse dependency order), so FIFO delivery puts the verdict ahead of its owning DOWN on both transports |
 
 <!-- source: internal/component/bgp/retention/retention.go -- Namespace, EventType, Ledger -->

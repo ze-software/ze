@@ -67,8 +67,8 @@ var (
 // Order is the barrier. The RA to the dropped interface goes first, and the
 // fixture waits until the kernel installed that RA's prefix route, so the
 // kernel has accepted it. Only then is the kept interface advertised, and the
-// fixture waits until resolv.conf lists exactly the kept server. Ze's netlink
-// monitor reads the RDNSS options in the order the kernel sent them, so when
+// fixture waits until resolv.conf lists exactly the kept server. Ze's netlink monitor
+// reads the RDNSS options in the order the kernel sent them, so when
 // the kept record is in the file the dropped one has already been offered:
 // a filter that is ignored lists both, and this wait fails. The lookup must
 // then answer the kept stub's record, which an ignored filter, asking the

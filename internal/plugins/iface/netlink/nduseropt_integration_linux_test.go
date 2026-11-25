@@ -1,6 +1,6 @@
 //go:build integration && linux
 
-// Design: docs/features/interfaces.md -- Netlink interface monitor
+// Design: docs/features/interfaces.md -- Netlink monitor for interfaces
 // Related: nduseropt_linux.go -- the RTNLGRP_ND_USEROPT subscription under test
 
 package ifacenetlink

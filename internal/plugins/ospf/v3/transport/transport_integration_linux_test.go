@@ -28,7 +28,7 @@ import (
 	"github.com/vishvananda/netns"
 
 	"github.com/ze-software/ze/internal/component/iface"
-	_ "github.com/ze-software/ze/internal/plugins/iface/netlink" // register netlink backend so iface.Resolve works
+	_ "github.com/ze-software/ze/internal/plugins/iface/netlink" // register kernel backend so iface.Resolve works
 	"github.com/ze-software/ze/internal/plugins/ospf/v3/packet"
 	"github.com/ze-software/ze/internal/test/userns"
 )
@@ -175,7 +175,7 @@ func openWithRetry(t *testing.T, backend Backend, name, _ string) InterfaceHandl
 
 func loadIfaceBackend(t *testing.T) {
 	t.Helper()
-	if err := iface.LoadBackend("netlink"); err != nil {
+	if err := iface.LoadBackend("kernel"); err != nil {
 		t.Fatalf("load iface backend: %v", err)
 	}
 	t.Cleanup(func() { _ = iface.CloseBackend() })
@@ -183,7 +183,7 @@ func loadIfaceBackend(t *testing.T) {
 
 // openPeerEnd opens the veth end that lives in the peer namespace.
 //
-// The netlink iface backend reads links over one netlink socket, opened in the
+// The kernel iface backend reads links over one netlink socket, opened in the
 // network namespace of its first read and kept there (counterSource in
 // internal/plugins/iface/netlink/counter_linux.go). The backend that resolved
 // the near end therefore cannot see the peer end, which a namespace switch of

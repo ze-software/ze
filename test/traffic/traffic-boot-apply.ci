@@ -10,7 +10,7 @@
 # register.go and runs unprivileged in every environment. The real tc qdisc
 # kernel-state check (`tc qdisc show`) is now covered by the needs-linux
 # companion traffic-boot-qdisc-tc.ci, which runs as root in the QEMU VM via
-# trafficnetlink backend's netlink Apply also has direct Go coverage in
+# trafficnetlink backend's kernel Apply also has direct Go coverage in
 # internal/plugins/trafficnetlink/*_linux_test.go.
 
 stdin=ze-bgp:terminator=EOF_CONF
@@ -46,7 +46,7 @@ bgp {
 
 traffic {
 	control {
-		backend tc
+		backend kernel
 	}
 }
 EOF_CONF

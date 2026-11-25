@@ -110,7 +110,7 @@ func TestScenario_InterfaceCreateWithUnit(t *testing.T) {
 
 	// The commit runs the SSH editor's validation, which refuses a config
 	// naming no backend where the platform has no default (darwin).
-	require.NoError(t, mgr.SetValue("alice", []string{"interface"}, "backend", "netlink"))
+	require.NoError(t, mgr.SetValue("alice", []string{"interface"}, "backend", "kernel"))
 
 	req := postConfigRequest(t, "/config/commit/", url.Values{}, "alice")
 	rec := httptest.NewRecorder()
@@ -179,7 +179,7 @@ func TestScenario_FirewallChainAndMatchLeaves(t *testing.T) {
 
 	// The commit runs the SSH editor's validation, which refuses a config
 	// naming no backend where the platform has no default (darwin).
-	require.NoError(t, mgr.SetValue("alice", []string{"firewall"}, "backend", "nft"))
+	require.NoError(t, mgr.SetValue("alice", []string{"firewall"}, "backend", "kernel"))
 
 	req := postConfigRequest(t, "/config/commit/", url.Values{}, "alice")
 	rec := httptest.NewRecorder()
@@ -235,7 +235,7 @@ func TestScenario_NATChainWithSourceLeaf(t *testing.T) {
 
 	// The commit runs the SSH editor's validation, which refuses a config
 	// naming no backend where the platform has no default (darwin).
-	require.NoError(t, mgr.SetValue("alice", []string{"firewall"}, "backend", "nft"))
+	require.NoError(t, mgr.SetValue("alice", []string{"firewall"}, "backend", "kernel"))
 
 	req := postConfigRequest(t, "/config/commit/", url.Values{}, "alice")
 	rec := httptest.NewRecorder()
@@ -317,8 +317,8 @@ func TestScenario_FullRouterSetup(t *testing.T) {
 
 	// The commit runs the SSH editor's validation, which refuses a config
 	// naming no backend where the platform has no default (darwin).
-	require.NoError(t, mgr.SetValue("alice", []string{"interface"}, "backend", "netlink"))
-	require.NoError(t, mgr.SetValue("alice", []string{"firewall"}, "backend", "nft"))
+	require.NoError(t, mgr.SetValue("alice", []string{"interface"}, "backend", "kernel"))
+	require.NoError(t, mgr.SetValue("alice", []string{"firewall"}, "backend", "kernel"))
 
 	req := postConfigRequest(t, "/config/commit/", url.Values{}, "alice")
 	rec := httptest.NewRecorder()

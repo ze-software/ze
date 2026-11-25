@@ -32,7 +32,7 @@ const addressQueueDepth = 1
 
 // watchAddressTableFn starts the watch of the kernel address table the worker keeps open.
 // It is network.WatchAddresses; a test replaces it and restores it in t.Cleanup, because
-// the watcher registry is a one-shot slot the netlink backend's init() fills.
+// the watcher registry is a one-shot slot the kernel backend's init() fills.
 var watchAddressTableFn = network.WatchAddresses
 
 // addressWatchRetry is the wait before the worker starts the address table watch again
@@ -259,8 +259,8 @@ func (w *addressWorker) watchAddresses(ctx context.Context, s *ikeEngineState, r
 	changes, err := watchAddressTableFn(ctx)
 	if errors.Is(err, network.ErrAddressWatchNotRegistered) {
 		s.log.Warn("ike: the kernel interface address table is not watched, so a `vpn ipsec interface` address that appears or changes is followed only through the interface monitor",
-			"interface", interfaceName(s), "error", err,
-			"fix", "run ze on Linux, where the netlink interface backend watches the table; elsewhere configure the WAN under `interface` so its monitor reports the address")
+			"interface", interfaceName(s), "error", err, "code", codeDoctorIPsecIface,
+			"fix", "run ze on Linux, where the kernel interface backend watches the table; elsewhere configure the WAN under `interface` so its monitor reports the address")
 		return nil
 	}
 	// refuse-by-default: guards run -- a nil channel is the watch that is not running, which run's select never picks until the retry armed here starts it again

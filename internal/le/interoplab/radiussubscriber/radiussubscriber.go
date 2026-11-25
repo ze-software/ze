@@ -53,8 +53,8 @@ const (
 	labDirectory = "test/interop-radius-subscriber"
 
 	// netAdminCapability is what ze's kernel L2TP and the LAC's pppd need
-	// beyond Docker's default grants besides the PPP device: the L2TP Generic
-	// Netlink tunnels and sessions, and PPPIOCNEWUNIT.
+	// beyond Docker's default grants besides the PPP device: the L2TP
+	// Generic Netlink tunnels and sessions, and PPPIOCNEWUNIT.
 	netAdminCapability = "NET_ADMIN"
 
 	zeConfigTarget = "/etc/ze/ze.conf"

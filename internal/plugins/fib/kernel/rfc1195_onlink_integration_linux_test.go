@@ -4,7 +4,7 @@
 // Related: ../../../component/sysrib/sysrib.go -- direct adjacency and ECMP resolution
 // Related: nexthop_linux.go -- RTNH_F_ONLINK and RTN_UNREACHABLE programming
 //
-// These are kernel forwarding decisions, not netlink message-shape assertions.
+// These are kernel forwarding decisions, not netlink message shape assertions.
 // Paths enter the real Loc-RIB, pass through the running system RIB and its JSON
 // event contract, and reach the real FIB writer. The input is the learned-route
 // shape; this test does not stand in for IS-IS adjacency or SPF tests.
@@ -58,7 +58,7 @@ func TestFIBOnLinkAdjacencyAndUnsupportedPrefix(t *testing.T) {
 		actual, err := h.LinkByName(device)
 		require.NoError(t, err)
 		ifindex := actual.Attrs().Index
-		require.NoError(t, iface.LoadBackend("netlink"))
+		require.NoError(t, iface.LoadBackend("kernel"))
 		t.Cleanup(func() { require.NoError(t, iface.CloseBackend()) })
 
 		isis := redistevents.RegisterProtocol("isis")
@@ -80,7 +80,7 @@ func TestFIBOnLinkAdjacencyAndUnsupportedPrefix(t *testing.T) {
 		startSysRIB(ctx, t, bus, rpc.ConfigSection{Root: sysribRoot, Data: "{}"})
 
 		// The event queue is transport only. Run the actual writer on this
-		// namespace-locked thread: iface's netlink name lookup uses its caller's
+		// namespace-locked thread: iface's netlink link name lookup uses its caller's
 		// namespace, whereas the system-RIB worker runs on another thread.
 		apply := func(prefix netip.Prefix, action routeaction.Action) {
 			t.Helper()

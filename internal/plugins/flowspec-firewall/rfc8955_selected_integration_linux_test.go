@@ -29,6 +29,8 @@ import (
 // RFC requirement: RFC8955-5.1-2 negative -- inserting the covering discard first cannot shadow the more-specific terminal rule (§5.1).
 // RFC requirement: RFC8955-7.3-2 positive -- T-set applies a first rule's DSCP marking and a later rule's sampling action to the same received packet, while T-clear stops the later action (§7.3).
 // RFC requirement: RFC8955-7.3-2 negative -- a continuing marking action cannot change the header used by a later DSCP predicate (§7.3).
+//
+//ze:guest-root
 func TestSelectedFlowSpecKernelPacketSemantics(t *testing.T) {
 	runtime.LockOSThread()
 	original, err := netns.Get()
@@ -55,7 +57,7 @@ func TestSelectedFlowSpecKernelPacketSemantics(t *testing.T) {
 	lo, err := netlink.LinkByName("lo")
 	require.NoError(t, err)
 	require.NoError(t, netlink.LinkSetUp(lo))
-	require.NoError(t, firewall.LoadBackend("nft"))
+	require.NoError(t, firewall.LoadBackend("kernel"))
 	family.RegisterTestFamilies()
 
 	receiver, err := net.ListenUDP("udp4", &net.UDPAddr{IP: net.IPv4(127, 0, 0, 1)})
@@ -208,7 +210,7 @@ func TestSelectedFlowSpecKernelPacketSemantics(t *testing.T) {
 	install(narrow, drop)
 	probe(false, 0)
 	require.NoError(t, firewall.CloseBackend())
-	require.NoError(t, firewall.LoadBackend("nft"))
+	require.NoError(t, firewall.LoadBackend("kernel"))
 	probe(false, 0)
 	require.NoError(t, clearStaleRules())
 	probe(true, 0)

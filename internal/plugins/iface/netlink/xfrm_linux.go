@@ -1,4 +1,4 @@
-// Design: docs/features/interfaces.md -- XFRM interface netlink backend
+// Design: docs/features/interfaces.md -- XFRM interface kernel backend
 // Related: tunnel_linux.go -- CreateTunnel follows the same LinkAdd pattern
 
 //go:build linux

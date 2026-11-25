@@ -14,7 +14,7 @@ var doctorDiagnosticCodes = []diagnostic.CodeMeta{
 	{
 		Code:        codeFirewallNftables,
 		Title:       "nftables kernel support unavailable",
-		Description: "The firewall is configured with the nft backend but nf_tables kernel support is not loaded.",
+		Description: "The firewall is configured with the kernel backend but nf_tables kernel support is not loaded.",
 		Examples:    []string{"ze doctor --json", "ze show diagnostic doctor-firewall-nftables"},
 	},
 }

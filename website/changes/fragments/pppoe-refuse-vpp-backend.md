@@ -19,9 +19,9 @@ access-interface configuration when the running build has no registered PPPoE
 session provider for the selected `interface backend`. The refusal names each
 affected `/pppoe/interface/<name>` path, the selected backend, the providers
 available in the build, the `ze_vpp` build tag needed for VPP PPPoE, and the
-exact repair command (`set interface backend netlink`). A refused commit or
+exact repair command (`set interface backend kernel`). A refused commit or
 reload leaves the running configuration unchanged. Global `pppoe` settings with
-no named access interface remain accepted under any backend, and `netlink`
+no named access interface remain accepted under any backend, and `kernel`
 access configurations remain unchanged.
 
 ## Corrects

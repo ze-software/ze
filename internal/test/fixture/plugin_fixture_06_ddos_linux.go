@@ -252,8 +252,8 @@ const fixture06LocalMaxDurationVictim = "127.0.0.9"
 // which the .ci puts at 100. The cap worker is therefore the only thing that can
 // remove the rule, which is what makes the second wait discriminate.
 //
-// Both halves are read twice, from the kernel and from the daemon: the nft
-// ruleset says what the box is really doing, and `show ddos local` says what the
+// Both halves are read twice, from the kernel and from the daemon: the nft ruleset
+// says what the box is really doing, and `show ddos local` says what the
 // responder published. AC-6 promises both.
 func fixture06DDOSLocalMaxDuration(ctx context.Context, args []string) error {
 	return p05Observe(ctx, args, "ddos-local-max-duration-probe", func(ctx context.Context, plugin *sdk.Plugin) error {

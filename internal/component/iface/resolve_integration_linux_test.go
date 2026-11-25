@@ -3,7 +3,7 @@
 // Design: docs/architecture/iface/logical-name-resolution.md -- resolver os-name remapping.
 //
 // VALIDATES: spec-iface-resolve-2 AC-1/AC-2/AC-3 end-to-end against the real
-// netlink backend: the os-name selector resolves a LOGICAL interface name to a
+// kernel backend: the os-name selector resolves a LOGICAL interface name to a
 // DIFFERENT real kernel device (iface.Resolve), the Binding carries the real
 // ifindex/MAC/MTU the IS-IS/PPPoE ioctl wrappers produced, and Addresses()
 // classifies v4 / v6-link-local / v6-global on a real interface. This is the
@@ -120,7 +120,7 @@ func TestAddressesRemapAndClassify(t *testing.T) {
 
 // TestResolveByMACBindsToDevice proves iface.Resolve binds a logical name to a
 // real kernel device selected by its hardware MAC, not by name, against the
-// real netlink backend. Virtual devices report no permanent MAC (confirmed via
+// real kernel backend. Virtual devices report no permanent MAC (confirmed via
 // `ethtool -P` on dummy/veth/eth0 in CI), so this exercises the current-MAC
 // fallback end-to-end; the permanent-MAC preference itself is unit-tested with
 // a stub backend (TestResolveByPermMACPrefersPermanentOverCurrent) because CI

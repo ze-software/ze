@@ -1,4 +1,4 @@
-// Design: docs/features/interfaces.md -- Netlink interface monitor
+// Design: docs/features/interfaces.md -- Kernel interface monitor
 // Overview: ifacenetlink.go -- package hub
 
 //go:build linux
@@ -28,7 +28,7 @@ import (
 
 var (
 	errIfaceMonitorAlreadyStarted = errors.New("iface monitor: already started")
-	errIfaceNetlinkEventBusIsNil  = errors.New("iface-netlink: event bus is nil")
+	errIfaceNetlinkEventBusIsNil  = errors.New("ifacenetlink: event bus is nil")
 )
 
 // monitor watches OS interface changes via netlink multicast and emits

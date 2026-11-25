@@ -714,7 +714,7 @@ silence:
 | The `cli/client` YANG state (`loadYANGState`) and the headless harness's command tree (`headlessCommandTree`) | Keyed on the `Resolved`: `ze` builds the first one to route its own command line, before the daemon publishes |
 | The command argument definitions (`SeedCommandArgDefs`, `commandArgDefs`) | Built again by the publish, because any route that judges arguments may have built them first |
 | The completer's value schema (`Completer.valueSchema`) | Built from the `Resolved` the completer took at `NewCompleter`, so a completer always judges with the set it completes from |
-| The plugin server's command maps (`pluginserver.NewServer`), the gNMI server's config schema and model list (`gnmi.NewServer`), the three backend gate schemas (`validateBackendGate` in `iface`, `firewall` and `traffic`), the reserved interface names (`iface.ValidateIfaceName`) | Built once for the life of the process, after the publish. Each records itself with `yang.KeepsModuleSet` before it reads the set, and a publish that would change the set after one of them is refused, naming it |
+| The plugin server's command maps (`pluginserver.NewServer`), the gNMI server's config schema and model list (`gnmi.NewServer`), the reserved interface names (`iface.ValidateIfaceName`) | Built once for the life of the process, after the publish. Each records itself with `yang.KeepsModuleSet` before it reads the set, and a publish that would change the set after one of them is refused, naming it |
 | The hub's command metadata (`commandMetaSource`) | Built once, from a plugin server, so it exists only after `NewServer` |
 
 The process therefore publishes before it parses the full config and before it

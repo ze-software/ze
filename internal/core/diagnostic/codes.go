@@ -153,7 +153,7 @@ var builtinCodes = append([]CodeMeta{
 	{
 		Code:        CodeConfigHostBackend,
 		Title:       "No backend this host can provide",
-		Description: "A plugin verifier refused the configuration for a reason that belongs to the host running the command: a subsystem that names no backend has no default on this operating system (interface, firewall and traffic-control default to netlink, nft and tc on Linux only), or a hardware inventory the verifier reads (the CPU list for VPP) is not present here. The same file validates on a host that has it. Remedy: validate the config on the host it is written for, or name a backend this host provides.",
+		Description: "A plugin verifier refused the configuration for a reason that belongs to the host running the command: a subsystem that names no backend has no default on this operating system (interface, firewall and traffic-control default to kernel on Linux only), or a hardware inventory the verifier reads (the CPU list for VPP) is not present here. The same file validates on a host that has it. Remedy: validate the config on the host it is written for, or name a backend this host provides.",
 		Examples:    []string{exampleConfigValidate, "ze show diagnostic config-host-backend"},
 		HostVerdict: true,
 	},

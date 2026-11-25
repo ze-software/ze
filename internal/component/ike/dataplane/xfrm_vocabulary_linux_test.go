@@ -1,4 +1,4 @@
-// Design: docs/architecture/ike/ipsec-8-ikev2-child-xfrm.md -- XFRM netlink backend
+// Design: docs/architecture/ike/ipsec-8-ikev2-child-xfrm.md -- XFRM kernel backend
 // Related: xfrm_linux.go -- the three kernel-name tables this test reads
 // Related: vpp_vocabulary_test.go -- the same proof for the VPP backend
 //

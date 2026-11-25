@@ -20,7 +20,7 @@ expect=element:id=terminal-input
 
 # The web-only server commits configuration through the real validator but
 # applies no kernel rules. Name the target backend instead of a host default.
-action=fill:id=terminal-input:value=set firewall backend nft
+action=fill:id=terminal-input:value=set firewall backend kernel
 action=press:id=terminal-input:key=Enter
 action=wait
 
@@ -95,6 +95,6 @@ action=open:path=/config/diff
 expect=element:text=Review changes (0)
 action=open:path=/show/firewall/
 expect=element:id=input-firewall-sbackend
-expect=html:contains=value="nft"
+expect=html:contains=value="kernel"
 action=open:path=/show/firewall/table/
 expect=element:text=filter

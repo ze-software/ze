@@ -10,7 +10,7 @@ option=needs-linux
 
 tmpfs=mac-override-matched.conf:terminator=EOF_MATCHED
 interface {
-    backend netlink;
+    backend kernel;
     ethernet eth0 {
         mac {
             match 02:00:00:00:00:02;

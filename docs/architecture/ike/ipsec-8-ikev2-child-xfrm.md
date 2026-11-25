@@ -6,7 +6,7 @@ expiry. The dataplane is an interface so the same engine drives Linux XFRM and
 VPP.
 
 <!-- source: internal/component/ike/dataplane/dataplane.go -- Dataplane, SAParams, SPParams, SASelector -->
-<!-- source: internal/component/ike/dataplane/xfrm_linux.go -- XFRM netlink backend -->
+<!-- source: internal/component/ike/dataplane/xfrm_linux.go -- XFRM netlink API backend -->
 <!-- source: internal/component/ike/dataplane/vpp.go -- VPP backend -->
 <!-- source: internal/component/ike/engine/child.go -- createFirstChildSA, installChildSA, removeChildSA -->
 <!-- source: internal/component/ike/engine/established.go -- maintainSA, cleanupChild -->
@@ -164,7 +164,7 @@ engine wiring.
 <!-- source: internal/component/ike/engine/child.go -- installChildDataplane, tunnelStateSelectorSupported -->
 
 **Carried kernel scope ABI.** The state-scope patch extends
-ordinary XFRM netlink construction with `XFRMA_STATE_SCOPE` (42). Its payload
+ordinary XFRM netlink message construction with `XFRMA_STATE_SCOPE` (42). Its payload
 is native-endian `u32 flags`, `u32 count`, then 1 through 64 existing
 `xfrm_selector` records. Each record describes one directional inner flow;
 the set is an OR, not a covering selector. Flag bit 0 records negotiated
@@ -231,8 +231,8 @@ The general scope boundary still requires the remaining validation below.
 <!-- source: gokrazy/kernel/patches/0003-xfrm-state-scope.patch -- xfrm_get_default, xfrm_state_scope_hold_guard, xfrm_policy_hold_fragment_guard, xfrm_state_gc_destroy, xfrm_policy_destroy_rcu -->
 <!-- source: gokrazy/kernel/patches/0005-xfrm-fragment-guard.patch -- XFRM_ZE_CAP_FRAGMENT_GUARD, xfrm_fragment_guard_ready, xfrm_fragment_init -->
 
-Ze's dataplane owns both attributes and their wire form. The vendored netlink
-library knows neither: a state request carries the scope as an opaque
+Ze's dataplane owns both attributes and their wire form. The vendored
+netlink library knows neither: a state request carries the scope as an opaque
 attribute in `XfrmState.ExtraAttrs`, which the library sends unchanged directly
 after `xfrm_usersa_info`, and a state dump returns it there. The dataplane's
 writer validates the flags, the count and every record before it writes into
@@ -1025,7 +1025,7 @@ SAD-ID allocation uses `IpsecSaV3Dump`. Public SAD and SPD inspection still retu
 <!-- source: internal/component/ike/dataplane/vpp.go -- firstFreeSadID, ListSAs -->
 <!-- source: internal/component/ike/dataplane/vpp_policy.go -- ListPolicies -->
 
-## Vendored netlink patch
+## Vendored netlink library patch
 
 The pinned `github.com/vishvananda/netlink` release lacks these XFRM
 corrections (Linux limitation `LL-NETLINK-XFRM-DECODE`,
@@ -1263,7 +1263,7 @@ forwarded ICMPv6 error takes the same path. The kernel advertises the path as
 K1 feature bit 6 (`XFRM_ZE_CAP_ICMP_FORWARD_MAP`), and Ze requires it as it
 requires bit 5 (`checkXFRMStateScopeCapabilities`): a kernel without it installs
 no Child SA. The stock-kernel route Ze carried before the ruling (out ALLOW
-entries above the catch-all and an nft drop table, `516671704b`) is removed, not
+entries above the catch-all and an nftables drop table, `516671704b`) is removed, not
 kept beside it, so Ze installs nothing of its own for this mapping. An out lookup
 that answers untransformed is unchanged: a bypass that covers the error, an
 operator's or the out transit gate of an `in` or `both` ICMP bypass
@@ -1328,7 +1328,10 @@ configuration that holds a conflict a commit would refuse is kept, and so is an
 SPD entry that fails to install at boot: Ze installs what it can, logs each
 problem at Error, and `ze doctor` reports the conflict and the command that
 fixes it. The door's trap records why: an earlier start-time refusal left a box
-with no tunnels at all.
+with no tunnels at all. The one exception is a data-plane mismatch (for example,
+`vpn ipsec` under `interface backend vpp`): the data-plane compatibility verdict
+in `LoadConfig` refuses daemon start with the same refusal commit, reload, and
+`ze config validate` give.
 
 <!-- source: internal/component/ike/engine/icmp_overlap.go -- refuseICMPErrorBypass, verifyICMPOverlap, warnICMPOverlapAtStart -->
 <!-- source: internal/component/ike/engine/config.go -- validateIPsecSections -->
@@ -1572,7 +1575,7 @@ entry only for an address `sourceGuards.install` answers as guarded. The guard
 is three kernel objects: the nft table `ze_ipsec_source_guard` (registered with
 `firewall.RegisterTables`, one postrouting chain, per address a pass term for
 its own device, a pass term for a packet entering an IPsec transform
-(`firewall.MatchIPsecTransform`, nft `rt ipsec exists`) and a drop term for any
+(`firewall.MatchIPsecTransform`, nftables `rt ipsec exists`) and a drop term for any
 other device), one `iprule.Source` rule per
 address at `iprule.IPsecSourceGuardPriority`, and one table per interface from
 `iprule.IPsecSourceGuardTables` holding `unreachable ::/0` and a device route
@@ -1585,14 +1588,14 @@ after the exemptions and before the interface catch-alls, so no source BYPASS
 is ever live without its guard. The rule steers a packet whose socket chose the
 tunnel source (`ip6_dst_lookup_tail` looks the route up with the source set);
 when the kernel picks the source it keeps the route found with none, and the
-nft drop stops it. A packet routed into the interface meets postrouting a second
+An nftables drop stops it. A packet routed into the interface meets postrouting a second
 time in `xfrm6_output`, on its way into the Child SA, with the bundle's outer
 device (`eth0`) as its output device; the transform term passes it, because it
 leaves encrypted. Without that term the drop took every IPv6 packet from the
 tunnel address into the tunnel: `vti0` counted a transmit error with no carrier
 error and the outbound SA encrypted nothing. A guard address that is also a peer's IKE local address is
 skipped with a warning, and the same configuration is refused at verify
-(`refuseTunnelAddressAsIKEEndpoint`). A source rule or an nft publish the kernel
+(`refuseTunnelAddressAsIKEEndpoint`). A source rule or an nftables publish the kernel
 refuses is logged at Error and kept in the guard's own record
 (`sourceGuards.ruleRefused` per interface and address, `publishRefused` for
 the table), because the source BYPASS it holds back never reaches the
@@ -2358,7 +2361,7 @@ source match keeps its own `nfproto` guard directly ahead of its address load
 (`lowerAddrMatch`). The on-host DDoS drop (`buildDropTerm`) opens with the
 vector's protocol ahead of the victim address, and keeps the fast path off only
 for a vector whose protocol is ESP or has no canonical name, where the drop can
-match ESP to the victim. The proofs judge what the nft backend committed to a
+match ESP to the victim. The proofs judge what the kernel firewall backend committed to a
 kernel from the producers' own builders, `gtsm.FilterTables` and
 `local.MitigationTable` (the table `applyMitigation` installs), never rules
 written by hand.
@@ -2375,7 +2378,7 @@ The definite accept (`espFormAcceptsESP`) has the same opening: a protocol
 load, a compare of that register for equality with 50, then at most a counter
 and an accept, and nothing else. It accepts every ESP packet that reaches it and
 ends the chain's walk as safe. Ze's lowering of a term that matches `protocol
-esp` and accepts takes that shape, and so does nft's `meta l4proto esp accept`.
+esp` and accepts takes that shape, and so does nftables' `meta l4proto esp accept`.
 
 Every other rule can match ESP. It lets the walk go on to the next rule only
 when every expression in it is on a short closed list (`espFormHarmless`) and
@@ -2436,7 +2439,7 @@ table, chain or rule message flagged `NLM_F_DUMP_INTR` (the ruleset changed
 while it was read, so what was read is two rulesets spliced) fails the dump,
 and the gate stays shut until the judgment the commit's `NFT_MSG_NEWGEN` asks
 for. That flag misses a commit between two dumps, which the generation
-bracket above refuses. The reader dials the kernel's nftables netlink from the namespace the fast
+bracket above refuses. The reader dials the kernel's nftables netlink socket from the namespace the fast
 path started in, and the watch joins the nftables multicast group there.
 
 <!-- source: internal/component/ike/dataplane/espform_firewall_linux.go -- espFormFirewallBlocks, errESPFormRulesetChanged, espFormFirewallWalk, espFormBaseChains, espFormBaseBlocks, espFormJudgeRule, espFormJudgeVerdict, espFormFirstLoad, espFormESPValue, espFormExcludesESP, espFormAcceptsESP, espFormHarmless, espFormLookup, espFormObjref, espFormUnsafe, espFormFirewallSite -->
@@ -2471,8 +2474,8 @@ receive loop, where the datagram arrives untagged.
 <!-- test: internal/component/ike/engine/rfc4301_espform_policy_integration_linux_test.go TestRFC4301BareESPFirewallDropKeepsTheFastPathOff -->
 
 What the walk cannot see, it cannot gate on. The cases below are the ones known
-today. They are not a proof that nothing else on a host decides on ESP after tc
-ingress: anything outside the nftables ruleset that matches the IP protocol
+today. They are not a proof that nothing else on a host decides on ESP after
+tc ingress: anything outside the nftables ruleset that matches the IP protocol
 meets the same limit.
 
 - Rules loaded with iptables-legacy sit in x_tables, which no nftables dump
@@ -2813,7 +2816,7 @@ the retry then removed, deleting the new Child SA's live policy (the XFRM owner
 check passes for the same owner, and the VPP backend checks none), and two
 retries could both remove one policy, the second taking the policy another peer
 had just installed on the freed selector. What the lock spans is bounded: one
-netlink or VPP API request per stranded policy.
+netlink request or VPP API request per stranded policy.
 <!-- source: internal/component/ike/dataplane/policy_owner.go -- policyOwners.claim, selectorsOverlap, PolicySelectorsOverlap, TransportSelectorConflictError -->
 <!-- source: internal/component/ike/engine/inner_selectors.go -- innerSelectorRegistry, retryStranded, claim, policyDeleteCommand, adoptStrandedLocked, innerSelectorStrandedConflict, conflictLocked, bothTransport, innerSelectorTransportConflict -->
 <!-- source: internal/component/ike/dataplane/policy_command.go -- PolicyDeleteCommander, XFRMPolicyDeleteCommand -->
@@ -2875,7 +2878,7 @@ installing the next when the first is deleted (`kernel_netlink_ipsec.c`,
 <!-- source: internal/component/ike/dataplane/xfrm_linux.go -- InstallPolicy, RemovePolicyParams -->
 
 Installation and readback use the same ownership key. A nil selector becomes the
-wildcard for the family the netlink writer selects: the destination prefix's
+wildcard for the family the netlink API writer selects: the destination prefix's
 family, or IPv4 when the destination is nil. Explicit full-tunnel prefixes compare
 equal to that wildcard, while IPv4 and IPv6 remain separate policies. Readback
 retains the kernel prefixes and port masks; a foreign partial-mask policy cannot

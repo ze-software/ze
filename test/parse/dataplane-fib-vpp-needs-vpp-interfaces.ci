@@ -1,0 +1,38 @@
+# Test: fib vpp is refused when interface backend is kernel (default or explicit).
+# Question: does `ze config validate` refuse `fib vpp` when `interface backend`
+#           is `kernel`, naming `fib vpp` and the fix `set interface backend vpp`?
+#           A unit test cannot prove `ze config validate` reaches the registered
+#           composition-root FIB and interface selector declarations end to end.
+# VALIDATES: spec-dataplane-compatibility-guard AC-1 -- an unmarked FIB writer
+#            for another data plane is refused at validate, commit, start and
+#            reload with the fix that moves the data plane selector to match.
+# PREVENTS: `fib vpp` committing under `interface backend kernel`, where every
+#           interface-bound route fails at install time.
+stdin=default-kernel:terminator=EOF_DEFAULT
+fib {
+	vpp {
+		enabled true;
+	}
+}
+EOF_DEFAULT
+
+stdin=explicit-kernel:terminator=EOF_EXPLICIT
+interface {
+	backend kernel;
+}
+fib {
+	vpp {
+		enabled true;
+	}
+}
+EOF_EXPLICIT
+
+cmd=foreground:seq=1:exec=ze config validate -:stdin=default-kernel
+expect=exit:code=1
+expect=stdout:contains=fib vpp
+expect=stdout:contains=set interface backend vpp
+
+cmd=foreground:seq=2:exec=ze config validate -:stdin=explicit-kernel
+expect=exit:code=1
+expect=stdout:contains=fib vpp
+expect=stdout:contains=set interface backend vpp

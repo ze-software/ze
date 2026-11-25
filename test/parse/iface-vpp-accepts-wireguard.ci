@@ -2,16 +2,22 @@
 # // spec-followup-vpp-iface Phase 5 IMPLEMENTS wireguard on the
 #   vpp backend (wireguard_interface_create + wireguard_peer_add via the
 #   wireguard plugin binary API), so the ze:backend annotation widened from
-#   "netlink" to "netlink vpp". The old assertion (reject wireguard under vpp)
+#   "kernel" to "kernel vpp". The old assertion (reject wireguard under vpp)
 #   tested a now-removed limitation; this is replaced coverage. The file was
 #   named iface-vpp-rejects-wireguard until 2026-10-07, which stated the
 #   opposite of what it asserts.
-# VALIDATES: spec-followup-vpp-iface AC-5 -- the commit-time feature gate
-#            accepts a wireguard list entry under the vpp backend after the
-#            widening. Plugin load is via vpp.plugins.wireguard; a doctor check
-#            flags the plugin's runtime absence.
+# VALIDATES: spec-followup-vpp-iface AC-5 and spec-dataplane-compatibility-guard
+#            AC-2 -- the commit-time feature gate accepts a wireguard list entry
+#            under the vpp backend when vpp.plugins.wireguard is true. Without
+#            that leaf set to true, AC-2 refuses the configuration at commit,
+#            start, reload and validate (see iface-vpp-wireguard-needs-plugin.ci).
 # PREVENTS: a regression that reverts the widening.
 stdin=config:terminator=EOF_CONF
+vpp {
+	plugins {
+		wireguard true;
+	}
+}
 interface {
 	backend vpp;
 	wireguard wg0 {

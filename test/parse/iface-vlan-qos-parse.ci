@@ -5,7 +5,7 @@
 # PREVENTS: YANG schema and Go parser drifting apart on the QoS map syntax.
 stdin=config:terminator=EOF_CONF
 interface {
-	backend netlink;
+	backend kernel;
 	ethernet eth0 {
 		unit v100 {
 			vlan-id 100;

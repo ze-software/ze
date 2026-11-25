@@ -706,7 +706,7 @@ the context check, so an unfinished frame cannot prevent teardown.
 | Only validates config (`ze config validate -`), parses, or runs an offline `ze show` / `ze env`, and does not assert acceptance of a Linux-only host default | Nothing. It runs natively on every OS |
 | Validates acceptance with an omitted backend whose host default exists only on Linux | `option=needs-linux`, without `caps=` |
 | Boots a daemon that APPLIES Linux-only config (interface, VLAN, firewall, L2TP kernel) | `option=needs-linux` |
-| The same, and needs privileged network configuration (creates interfaces, brings links up, programs netlink) | `option=needs-linux:caps=net-admin` |
+| The same, and needs privileged network configuration (creates interfaces, brings links up, programs netlink routes) | `option=needs-linux:caps=net-admin` |
 | The same, and opens a raw or packet socket (`resolve ping`, traceroute) | `option=needs-linux:caps=net-raw` |
 | The same, and loads eBPF | `option=needs-linux:caps=bpf` |
 | The same, and sets the system clock (the NTP plugin restoring persisted time) | `option=needs-linux:caps=sys-time` |
@@ -718,7 +718,7 @@ the context check, so an unfinished frame cannot prevent teardown.
 <!-- source: internal/test/runner/record_parse_option.go -- parseOptionNeedsLinux, parseOptionSkipOs, parseOptionNeedsArch, parseOptionNeedsPath -->
 
 Offline validation judges the current host. For example, the interface backend
-defaults to netlink on Linux and has no default on other hosts. A test that
+defaults to `kernel` on Linux and has no default on other hosts. A test that
 asserts acceptance with that backend omitted uses `needs-linux` to name where
 its question applies. It requires no capability because it changes no kernel
 state. A workstation SKIP proves no acceptance: run the exact draft or live
@@ -728,7 +728,7 @@ test in Ze's Linux guest and require an executed PASS.
 <!-- source: internal/test/runner/parsing.go -- ciFileParser.parseNeedsLinux -->
 <!-- source: internal/test/runner/record_parse_option.go -- parseOptionNeedsLinux -->
 
-`caps=` takes a comma-separated list, so a test that programs netlink and loads
+`caps=` takes a comma-separated list, so a test that programs netlink sockets and loads
 eBPF declares `caps=net-admin,bpf` and is gated on both. An unknown token is a
 parse error on every host, macOS included, so a typo cannot silently disable the
 gate.
@@ -2322,7 +2322,7 @@ The kinds are a closed set, and each one owes a different reason:
 | `poll-interval` | The real condition the enclosing loop breaks or returns on. This is already a deterministic wait; the sleep is only its granularity |
 | `timer` | The delay itself IS the behavior under test, and the mechanism plus where its period is set |
 | `timeout-under-test` | The fixed internal timeout the sleep waits out, which the test asserts on |
-| `needs-linux` | A dataplane effect (tc, qdisc, nft, kernel FIB) with no readback in the driver, convertible only after a QEMU run |
+| `needs-linux` | A dataplane effect (traffic control, qdisc, nftables, kernel FIB) with no readback in the driver, convertible only after a QEMU run |
 | `no-signal` | The awaited effect exposes no queryable state to this driver, and what is held until instead |
 
 A free-text `// settle` comment is insufficient: it names no mechanism a reader

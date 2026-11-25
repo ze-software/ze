@@ -119,7 +119,7 @@ func applyLease(ops *netlinkOps, lease *dhcpLease) error {
 	var tb textbuf.Buffer
 	cidr := tb.Str(lease.IP.String()).Byte('/').Int(int64(ones)).String()
 
-	slog.Info("netlink: applying lease", "iface", lease.Iface, "cidr", cidr, "router", lease.Router)
+	slog.Info("netlink socket: applying lease", "iface", lease.Iface, "cidr", cidr, "router", lease.Router)
 	if err := ops.addrReplace(lease.Iface, cidr); err != nil {
 		return fmt.Errorf("addr replace %s on %s: %w", cidr, lease.Iface, err)
 	}
@@ -133,7 +133,7 @@ func applyLease(ops *netlinkOps, lease *dhcpLease) error {
 }
 
 func sysFlushIface(ops *netlinkOps, ifName string) error {
-	slog.Info("netlink: flushing interface", "iface", ifName)
+	slog.Info("netlink socket: flushing interface", "iface", ifName)
 	if err := ops.addrFlush(ifName); err != nil {
 		return fmt.Errorf("flush addr %s: %w", ifName, err)
 	}

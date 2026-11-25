@@ -58,7 +58,7 @@ negated.
 |-----------|------------------------------------------|--------------------|-------------------------------------------------------------------|
 | iface RPF lowering | `internal/plugins/iface/netlink/rpf_linux.go` `rpfDropExprs` | Builds an `expr.Fib` saddr/OIF lookup for strict and loose RPF | Reference only: same expression type, different result (`ResultADDRTYPE`). The firewall lowering is a separate producer in a separate plugin, with no import between them |
 | Firewall match model and lowering | `internal/component/firewall/model.go` `Match`; `internal/plugins/firewall/nft/lower_linux.go` `lowerMatch` | Typed matches lowered to nft expressions | Extends: one new `Match` type and one lowering case |
-| Backend capability gate | `ze:backend` in `ze-firewall-conf.yang`, `config.validateBackendFeatures` | Refuses at commit a node the selected backend cannot program | Extends: the `fib` node carries `ze:backend "nft"`, so a VPP commit is refused with the YANG path |
+| Backend capability gate | `ze:backend` in `ze-firewall-conf.yang`, `config.validateBackendFeatures` | Refuses at commit a node the selected backend cannot program | Extends: the `fib` node carries `ze:backend "kernel"`, so a VPP commit is refused with the YANG path |
 | `global-options source-validation` | `ze-firewall-conf.yang` `global-options` | Sets the kernel `rp_filter` sysctl | Does not apply: a sysctl, not a per-term match; both remain |
 
 ## Data Flow (MANDATORY - see `ai/rules/architecture.md`)
@@ -69,13 +69,13 @@ negated.
 ### Transformation Path
 1. YANG parse and `parseFromBlock` build a new FIB match value.
 2. `validateMatch` refuses illegal combinations (hook, family, empty container).
-3. nft lowering emits `expr.Fib` with the lookup flag and `ResultADDRTYPE`, then a compare against the kernel `RTN_*` value, `!=` for negation.
+3. nftables lowering emits `expr.Fib` with the lookup flag and `ResultADDRTYPE`, then a compare against the kernel `RTN_*` value, `!=` for negation.
 
 ### Boundaries Crossed
 | Boundary | How | Verified |
 |----------|-----|----------|
 | Config → firewall component | YANG tree, `ParseFirewallConfig` | No |
-| Firewall component → nft backend | `Backend.Apply` with the typed model | No |
+| Firewall component → kernel backend | `Backend.Apply` with the typed model | No |
 
 ### Integration Points
 - `lowerMatch` in `internal/plugins/firewall/nft/lower_linux.go` - one new case
@@ -84,7 +84,7 @@ negated.
 ## Wiring Test (MANDATORY -- NOT deferrable)
 | Entry Point | → | Feature Code | Test |
 |-------------|---|--------------|------|
-| `from fib` in config | → | nft lowering of the FIB match | `test/firewall/fib-type-local.ci` (proposed) |
+| `from fib` in config | → | nftables lowering of the FIB match | `test/firewall/fib-type-local.ci` (proposed) |
 
 ## Acceptance Criteria
 
@@ -97,7 +97,7 @@ negated.
 | AC-5 | Both source-address and destination-address requested in one term | Ze emits two separate FIB lookups ANDed in one rule, never one concatenated `saddr . daddr` lookup (the form VyOS renders). If the kernel refuses saddr and daddr in one expression (A-1), the two-expression form is what avoids it | - |
 | AC-6 | `fib` container present with no lookup or no type | Commit refused naming the missing leaf; VyOS added `fib` and `fib match` to its empty-node check for the same reason | - |
 | AC-7 | `fib` in a chain whose hook the kernel's FIB validation refuses, or in a `bridge`, `arp` or `netdev` table | Refused at verify with the hook or family named, never at apply | - |
-| AC-8 | `firewall backend vpp` with a `fib` term | Commit refused by `ze:backend "nft"` with the YANG path | - |
+| AC-8 | `firewall backend vpp` with a `fib` term | Commit refused by `ze:backend "kernel"` with the YANG path | - |
 
 ## Risks & Assumptions
 
@@ -129,7 +129,7 @@ negated.
 - `internal/component/firewall/model.go` - FIB match type
 - `internal/component/firewall/config.go` - parse
 - `internal/component/firewall/validate.go` - verify rules of AC-6 and AC-7
-- `internal/component/firewall/yang/ze-firewall-conf.yang` - `fib` container in `from-block`, `ze:backend "nft"`
+- `internal/component/firewall/yang/ze-firewall-conf.yang` - `fib` container in `from-block`, `ze:backend "kernel"`
 - `internal/plugins/firewall/nft/lower_linux.go` - lowering
 - `docs/guide/firewall.md` - the new match
 

@@ -1,4 +1,4 @@
-// Design: docs/features/interfaces.md -- Netlink interface monitor
+// Design: docs/features/interfaces.md -- Kernel interface monitor
 // Related: monitor_linux.go -- resolveAddrLink, the producer of this report.
 // Related: register_monitor_linux.go -- the code's registration.
 

@@ -184,7 +184,7 @@ func overlapMarkSocket(t *testing.T, pc net.PacketConn, mark uint32) {
 
 // overlapPinTemplateSPI rewrites the installed policy so its template names ONE SPI.
 //
-// It goes to netlink rather than through the backend because SPParams has no field for
+// It goes to the netlink socket rather than through the backend because SPParams has no field for
 // it: xfrmPolicyFromParams leaves the template's Spi at zero, which is what lets the
 // kernel choose among every state at the request id. The policy is otherwise byte for
 // byte the one InstallPolicy wrote, and XFRM_MSG_UPDPOLICY replaces it in place
@@ -202,7 +202,7 @@ func overlapPinTemplateSPI(t *testing.T, spi uint32) {
 }
 
 // overlapMarkedState builds one state of the pair with a mark on it. SAParams carries no
-// mark, so this is the netlink state xfrmStateFromParams produces with the mark added.
+// mark, so this is the netlink library state xfrmStateFromParams produces with the mark added.
 func overlapMarkedState(t *testing.T, spi, mark uint32) *netlink.XfrmState {
 	t.Helper()
 	state, err := xfrmStateFromParams(reqidSAParams(spi))

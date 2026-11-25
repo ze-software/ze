@@ -9,7 +9,7 @@ import (
 )
 
 func init() {
-	_ = zeIface.LoadBackend("netlink")
+	_ = zeIface.LoadBackend("kernel")
 }
 
 func TestRun(t *testing.T) {
@@ -72,8 +72,8 @@ func TestCmdShowSuccess(t *testing.T) {
 
 	t.Run("list all interfaces", func(t *testing.T) {
 		t.Parallel()
-		// cmdShow(nil) with the netlink backend loaded lists all interfaces.
-		// This is a read-only netlink RTM_GETLINK call, no privileges needed.
+		// cmdShow(nil) with the kernel backend loaded lists all interfaces.
+		// This is a read-only netlink message (RTM_GETLINK), no privileges needed.
 		if got := cmdShow(nil); got != 0 {
 			t.Errorf("cmdShow(nil) = %d, want 0", got)
 		}

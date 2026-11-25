@@ -38,7 +38,7 @@ func TestIfaceKernelCapabilitiesAreEnrolled(t *testing.T) {
 }
 
 // TestInterfaceKindInUse checks the predicate: an interface of the kind under
-// the netlink backend uses the kernel, under vpp it does not. Method: one tree
+// the kernel interface backend uses the kernel, under vpp it does not. Method: one tree
 // per shape.
 func TestInterfaceKindInUse(t *testing.T) {
 	inUse := interfaceKindInUse("wireguard")

@@ -32,8 +32,14 @@ func init() {
 		// verifier and the transaction need the firewall section beside the
 		// policies, and a firewall edit that changes the set reaches this
 		// plugin to re-copy it (sets.go, parsePolicySections).
-		ConfigReads:             []string{firewall.ConfigRoot},
-		Dependencies:            []string{"firewall"},
+		ConfigReads:  []string{firewall.ConfigRoot},
+		Dependencies: []string{"firewall"},
+		DataPlaneFeatures: []registry.DataPlaneFeature{{
+			ConfigPath: "policy route",
+			Why:        "policy routing programs Linux kernel ip rule entries and nftables marks",
+			Planes:     []string{"kernel"},
+			InUseKind:  registry.DataPlaneInUseConfigRoot,
+		}},
 		InProcessConfigVerifier: verifyPolicyConfig,
 		RunEngine:               runPolicyRoutePlugin,
 		Commands:                commandDecls(),

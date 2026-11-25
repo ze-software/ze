@@ -61,7 +61,7 @@ func ifacePluginList[T any](ctx *pluginserver.CommandContext, forward func(*plug
 		var tb textbuf.Buffer
 		return nil, errors.New(tb.Str(subject).Str(" unavailable: the interface plugin, ").Str(owner).Str(", is not running. ").
 			Str("Ze starts it only when the configuration holds an interface section. ").
-			Str("To start it, add the section and commit: set interface backend netlink").String())
+			Str("To start it, add the section and commit: set interface backend kernel").String())
 	}
 	if err != nil {
 		var tb textbuf.Buffer

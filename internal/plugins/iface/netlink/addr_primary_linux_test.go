@@ -10,7 +10,7 @@ import (
 	"golang.org/x/sys/unix"
 )
 
-// TestToDeviceAddressCarriesSecondaryFlag verifies the netlink adapter passes
+// TestToDeviceAddressCarriesSecondaryFlag verifies the netlink address adapter passes
 // the kernel's IFA_F_SECONDARY classification through to the policy, which
 // needs it to tell a cascading delete from an isolated one.
 //

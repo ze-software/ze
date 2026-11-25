@@ -46,7 +46,7 @@ func TestNativePPPProviderUsefulRenamedOriginal(t *testing.T) {
 	})
 	provider, ok := any(backend).(iface.NativePPPBackend)
 	if !ok {
-		t.Fatal("netlink backend does not provide original PPP writers")
+		t.Fatal("kernel interface backend does not provide original PPP writers")
 	}
 	writer, err := provider.BindNativePPPUnit(fixture, fixture.link.Attrs().Index, fixture.unit)
 	if err != nil {

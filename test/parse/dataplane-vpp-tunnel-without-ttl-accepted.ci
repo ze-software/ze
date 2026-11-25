@@ -1,0 +1,49 @@
+# Test: a VPP tunnel without an explicit ttl leaf validates, while explicit ttl is refused.
+# Question: does `ze config validate` accept a VPP `gre` tunnel that omits the
+#           `ttl` leaf (whose YANG node has `ze:backend "kernel"` and a default
+#           of 64) and refuse the same tunnel when `ttl 64;` is written?
+#           A unit test cannot prove the `ze config validate` tree walk judges
+#           the parsed tree as written before schema defaults are materialized.
+# VALIDATES: spec-dataplane-compatibility-guard AC-10 survivor -- the
+#            `ze:backend` walk reads only operator-written nodes, so an omitted
+#            kernel-only leaf with a YANG default does not block a VPP tunnel.
+# PREVENTS: default materialization breaking valid VPP tunnel configs or
+#           dropping the refusal when `ttl` is explicitly configured.
+stdin=without-ttl:terminator=EOF_OK
+interface {
+	backend vpp;
+	tunnel t0 {
+		encapsulation {
+			gre {
+				local { ip 192.0.2.1; }
+				remote { ip 198.51.100.1; }
+			}
+		}
+	}
+}
+EOF_OK
+
+stdin=with-ttl:terminator=EOF_BAD
+interface {
+	backend vpp;
+	tunnel t0 {
+		encapsulation {
+			gre {
+				local { ip 192.0.2.1; }
+				remote { ip 198.51.100.1; }
+				ttl 64;
+			}
+		}
+	}
+}
+EOF_BAD
+
+cmd=foreground:seq=1:exec=ze config validate -:stdin=without-ttl
+expect=exit:code=0
+expect=stdout:contains=configuration valid
+
+cmd=foreground:seq=2:exec=ze config validate -:stdin=with-ttl
+expect=exit:code=1
+expect=stdout:contains=/interface/tunnel/t0/encapsulation/gre/ttl
+expect=stdout:contains="vpp"
+expect=stdout:contains=kernel

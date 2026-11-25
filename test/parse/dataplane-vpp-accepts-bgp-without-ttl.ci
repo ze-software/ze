@@ -1,0 +1,30 @@
+# Test: interface backend vpp accepts a BGP peer with no nonzero ttl leaf.
+# Question: does `ze config validate` accept a BGP configuration under
+#           `interface backend vpp` when no peer or group sets a nonzero `ttl`?
+#           A unit test cannot prove the GTSM predicate leaves normal BGP
+#           peers valid in `ze config validate` under VPP.
+# VALIDATES: spec-dataplane-compatibility-guard AC-5 survivor -- BGP without
+#            GTSM (`ttl`) declares no kernel forwarding requirement and
+#            validates under VPP.
+# PREVENTS: the GTSM guard falsely refusing all BGP peers under VPP.
+stdin=config:terminator=EOF_CONF
+interface {
+	backend vpp;
+}
+bgp {
+	router-id 203.0.113.1;
+	peer peer1 {
+		connection {
+			remote { ip 127.0.0.1; }
+			local { ip 127.0.0.1; }
+		}
+		session {
+			asn { local 65533; remote 65534; }
+		}
+	}
+}
+EOF_CONF
+
+cmd=foreground:seq=1:exec=ze config validate -:stdin=config
+expect=exit:code=0
+expect=stdout:contains=configuration valid

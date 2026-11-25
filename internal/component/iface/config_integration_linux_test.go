@@ -18,7 +18,7 @@ func TestIntegrationApplyConfigFirstApplyPreservesUnmanagedDummy(t *testing.T) {
 		createDummyForTest(t, "keep0")
 		b := GetBackend()
 		cfg := &ifaceConfig{
-			Backend: "netlink",
+			Backend: "kernel",
 			Dummy: []ifaceEntry{{
 				Name:  "ze0",
 				Units: []unitEntry{{Addresses: []string{"10.90.0.1/24"}}},
@@ -50,7 +50,7 @@ func TestIntegrationApplyConfigReloadDeletesOnlyPreviouslyManaged(t *testing.T) 
 		createDummyForTest(t, "keep0")
 		b := GetBackend()
 		previous := &ifaceConfig{
-			Backend: "netlink",
+			Backend: "kernel",
 			Dummy: []ifaceEntry{
 				{Name: "old0"},
 				{Name: "stay0"},
@@ -67,7 +67,7 @@ func TestIntegrationApplyConfigReloadDeletesOnlyPreviouslyManaged(t *testing.T) 
 		}
 
 		current := &ifaceConfig{
-			Backend: "netlink",
+			Backend: "kernel",
 			Dummy:   []ifaceEntry{{Name: "stay0"}},
 		}
 		if errs := applyConfig(current, previous, b); len(errs) > 0 {
@@ -93,7 +93,7 @@ func TestIntegrationApplyConfigFailureRollsBackCreatedLinks(t *testing.T) {
 	withNetNS(t, func() {
 		b := GetBackend()
 		cfg := &ifaceConfig{
-			Backend: "netlink",
+			Backend: "kernel",
 			Dummy:   []ifaceEntry{{Name: "made0"}},
 			Bridge: []bridgeEntry{{
 				Name:    "br0",

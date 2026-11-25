@@ -4,7 +4,7 @@
 // for the backup gateway. Linux has no standby multipath member and refuses
 // RTNH_F_LINKDOWN from userspace (net/ipv4/fib_semantics.c, fib_get_nhs), so a
 // link-down backup member would make the kernel refuse the whole route.
-// Linux-only (netlink); runs under QEMU per ai/rules/platform-linux.md.
+// Linux-only (rtnetlink); runs under QEMU per ai/rules/platform-linux.md.
 // PREVENTS: the backup costing the protected prefix its kernel route, or the
 // backup load-sharing as an ordinary multipath member.
 
@@ -17,9 +17,9 @@ import (
 	"net/netip"
 	"testing"
 
-	sysribevents "github.com/ze-software/ze/internal/component/sysrib/events"
-
 	"golang.org/x/sys/unix"
+
+	sysribevents "github.com/ze-software/ze/internal/component/sysrib/events"
 )
 
 func TestBuildRichRouteBackupLinkDown(t *testing.T) {

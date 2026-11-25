@@ -350,7 +350,7 @@ var _ v6SourceWarmer = (*linuxInstance)(nil)
 
 // warmV6Source resolves and caches the macvlan link-local on the caller's
 // goroutine (v6SourceWarmer). The orchestrator calls it at AnnounceMaster so the
-// announcer worker never performs the netlink resolution itself: netlink sockets
+// announcer worker never performs the netlink call itself: netlink sockets
 // are created in the calling thread's network namespace, and the worker thread's
 // namespace is not guaranteed to be the instance's (QEMU netns tests; Mistake
 // Log). A still-tentative or absent link-local stays unresolved; the send path

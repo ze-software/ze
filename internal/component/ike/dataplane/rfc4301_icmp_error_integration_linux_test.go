@@ -2,7 +2,7 @@
 // ESP SA with outer headers no inbound policy of the SA accepts is delivered when the
 // header it embeds, reversed, matches the SA's inbound policy, and dropped when it does
 // not, exactly when the state carries the flag Ze projects for icmp-error-check.
-// PREVENTS: trusting the projection test alone. That test reads the netlink struct Ze
+// PREVENTS: trusting the projection test alone. That test reads the netlink library struct Ze
 // builds; only the kernel can say that XFRM_STATE_ICMP on that state makes icmp_rcv
 // read the payload, and that the SPD Ze installs (a selector-pair protect entry above
 // a discard catch-all) is what the reversed lookup meets.

@@ -1,0 +1,33 @@
+# Test: daemon start refuses a WireGuard interface under interface backend vpp without vpp plugins wireguard true.
+# Question: does `ze start` refuse a WireGuard interface under `interface
+#           backend vpp` when `vpp plugins wireguard` is absent, exiting 1
+#           before any plugin starts and printing the fix `set vpp plugins
+#           wireguard true`?
+#           A unit test reaches the tree validator directly; only the real
+#           daemon start proves `LoadConfig` runs `iface-vpp-wireguard-plugin`
+#           via `ValidateCustomSections` ahead of plugin startup.
+# VALIDATES: spec-dataplane-compatibility-guard AC-2 (daemon start) --
+#            `iface-vpp-wireguard-plugin` refuses missing VPP WireGuard plugin
+#            enablement at boot before any plugin starts.
+# PREVENTS: a daemon booting with a WireGuard interface under VPP and failing
+#           only when interface apply attempts `wireguard_interface_create`.
+
+option=needs-build-tag:value=ze_vpp:state=present
+
+stdin=ze-bgp:refused=config-validator-unavailable:terminator=EOF_CONF
+interface {
+	backend vpp;
+	wireguard wg0 {
+		listen-port 51820;
+		private-key "aHZkc2ZqaHZra2hkZnZoamtkc2Zoa2RoaGRma2poZmg=";
+	}
+}
+EOF_CONF
+
+cmd=foreground:seq=1:exec=ze -:stdin=ze-bgp:timeout=30s
+expect=exit:code=1
+expect=stderr:contains=error: load config:
+expect=stderr:contains=wg0
+expect=stderr:contains=set vpp plugins wireguard true
+reject=stderr:contains=interface backend loaded
+reject=stderr:pattern=panic

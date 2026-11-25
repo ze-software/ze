@@ -1,5 +1,5 @@
 // Design: docs/architecture/core-design.md -- le's composition, one import per tool
-// Overview: actions.go -- the four documentation verifier actions.
+// Overview: actions.go -- the documentation verifier actions.
 
 package doccheck
 

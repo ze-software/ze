@@ -157,5 +157,5 @@ work.
 
 ## Related
 
-Table IDs and route metrics reaching netlink go through the bound described in
-[netlink int field truncation](netlink-int-field-truncation.md).
+Table IDs and route metrics reaching the netlink library go through the bound described in
+[netlink library int field truncation](netlink-int-field-truncation.md).

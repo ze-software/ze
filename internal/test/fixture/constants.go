@@ -259,7 +259,7 @@ const (
 	shapeTab                 = "tab"
 )
 
-// Command words and whole commands, for ze, ip, nft and the shell.
+// Command words and whole commands, for ze, ip, nftables and the shell.
 const (
 	argAdd                       = "add"
 	argCommand                   = "command" // The command keyword.

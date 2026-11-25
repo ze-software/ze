@@ -53,8 +53,8 @@ func netlinkTimeout() time.Duration {
 	return min(max(d, minNetlinkTimeout), maxNetlinkTimeout)
 }
 
-// withNetlinkDeadline builds the ConnOption that bounds every netlink
-// round-trip.
+// withNetlinkDeadline builds the ConnOption that bounds every
+// netlink round-trip.
 //
 // The deadline is per-DIAL, not per-Conn: ze's nftables.Conn is not lasting
 // (AsLasting is never passed), so dialNetlink opens a fresh netlink socket for

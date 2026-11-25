@@ -10,7 +10,7 @@
 
 stdin=jump:terminator=EOF_JUMP
 firewall {
-	backend nft
+	backend kernel
 	table wan {
 		family inet
 		chain input {
@@ -40,7 +40,7 @@ EOF_JUMP
 
 stdin=goto:terminator=EOF_GOTO
 firewall {
-	backend nft
+	backend kernel
 	table wan {
 		family inet
 		chain input {
@@ -62,7 +62,7 @@ EOF_GOTO
 
 stdin=present:terminator=EOF_PRESENT
 firewall {
-	backend nft
+	backend kernel
 	table wan {
 		family inet
 		chain input {

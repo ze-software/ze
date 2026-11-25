@@ -1,6 +1,6 @@
 # Test: unit with ipv6 { rpf-check strict } is rejected under backend vpp
 # VALIDATES: the commit-time feature gate rejects an IPv6 rpf-check when the
-#            active backend is vpp. The netlink backend enforces it with an
+#            active backend is vpp. The kernel backend enforces it with an
 #            nftables fib lookup; VPP forwards outside netfilter, and VPP's
 #            own uRPF drops every unicast packet from a link-local source,
 #            so it cannot carry the check without breaking neighbor discovery.
@@ -26,4 +26,4 @@ cmd=foreground:seq=1:exec=ze config validate -:stdin=config:exit=1
 expect=exit:code=1
 expect=stdout:contains=/interface/ethernet/eth0/unit/0/ipv6/rpf-check
 expect=stdout:contains="vpp"
-expect=stdout:contains=netlink
+expect=stdout:contains=kernel

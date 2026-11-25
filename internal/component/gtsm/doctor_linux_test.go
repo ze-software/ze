@@ -211,10 +211,10 @@ func TestGTSMDoctorNamesMissingListenTerm(t *testing.T) {
 func TestGTSMDoctorReportsAnUnreadableFirewallOnce(t *testing.T) {
 	p := gtsmPeer()
 	publishedInThisProcess(t, p)
-	standInKernel(t, &kernelStandIn{routes: []netlink.Route{installedRoute(p, 255)}, tablesErr: errors.New("netlink refused")})
+	standInKernel(t, &kernelStandIn{routes: []netlink.Route{installedRoute(p, 255)}, tablesErr: errors.New("netlink error: refused")})
 
 	diags := registeredKernelStateCheck(t).Check(diagnostic.DoctorCheckContext{Tree: bgpTree()})
-	if len(diags) != 1 || !strings.Contains(diags[0].Message, "netlink refused") {
+	if len(diags) != 1 || !strings.Contains(diags[0].Message, "netlink error: refused") {
 		t.Fatalf("diagnostics = %+v, want one naming the read failure", diags)
 	}
 }

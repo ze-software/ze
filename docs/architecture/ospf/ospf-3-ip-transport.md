@@ -98,7 +98,7 @@ the OSPF multicast groups and carries datagrams to and from the engine.
   datagram at the peer. The AllDRouters test first receives on that link, then
   leaves the group and proves that subsequent group traffic is not delivered.
   The single-process fixture reloads the real interface backend on each
-  namespace transition: its persistent netlink counter socket does not move
+  namespace transition: its persistent netlink socket for counters does not move
   when the calling thread changes namespace.
 - **Loose reverse-path filtering still needs a route.** The unnumbered wire
   fixture enters a fresh user/network namespace, with no ambient default route.

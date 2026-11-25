@@ -85,7 +85,7 @@ func TestShowInterfaceDelegatedPrefixPluginAbsent(t *testing.T) {
 	if resp.Status != plugin.StatusError {
 		t.Fatalf("status %q, want error", resp.Status)
 	}
-	for _, want := range []string{"delegated prefix status unavailable", "is not running", "set interface backend netlink"} {
+	for _, want := range []string{"delegated prefix status unavailable", "is not running", "set interface backend kernel"} {
 		if !strings.Contains(resp.Error, want) {
 			t.Errorf("refusal %q lacks %q", resp.Error, want)
 		}
@@ -106,7 +106,7 @@ func TestShowInterfacePPPoEClientRefusalUnchanged(t *testing.T) {
 	}
 	want := "PPPoE client status unavailable: the interface plugin, which runs the PPPoE clients, is not running. " +
 		"Ze starts it only when the configuration holds an interface section. " +
-		"To start it, add the section and commit: set interface backend netlink"
+		"To start it, add the section and commit: set interface backend kernel"
 	if resp.Error != want {
 		t.Errorf("refusal %q, want %q", resp.Error, want)
 	}

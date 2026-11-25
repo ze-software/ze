@@ -551,7 +551,7 @@ func TestShowMTUUnderlayAdvice(t *testing.T) {
 				t.Errorf("no note names the underlay: %v", noteTexts(t, doc))
 			}
 			if underlay[fieldKind] != "ethernet" {
-				t.Errorf("underlay kind %v, want ethernet for a netlink device: %v", underlay[fieldKind], underlay)
+				t.Errorf("underlay kind %v, want ethernet for a kernel device: %v", underlay[fieldKind], underlay)
 			}
 		})
 	}
@@ -619,7 +619,7 @@ func TestShowMTUUnderlayCommandNamesTheLinkKind(t *testing.T) {
 func TestShowMTUCacheReadFailureIsNoted(t *testing.T) {
 	f := newFakeDeps()
 	f.paths[peerA] = clampedAt(1400)
-	f.cacheErr = errors.New("netlink: route dump refused")
+	f.cacheErr = errors.New("netlink error: route dump refused")
 	f.install(t)
 
 	doc := showMTU(t, argHost, peerA.String())

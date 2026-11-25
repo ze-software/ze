@@ -12,14 +12,14 @@
 #            interface (the leaf parsed by nothing), or the MAC pattern/validator
 #            is not wired so a malformed address is silently accepted.
 #
-# PLATFORM: the `interface { backend netlink }` block is linux-only; skip on
+# PLATFORM: the `interface { backend kernel }` block is linux-only; skip on
 # darwin per rules/os-specific-tests.md.
 option=skip-os:value=darwin
 
 # --- Valid: bind `uplink` by MAC; override `wan`'s operational MAC. ------------
 stdin=mac-match:terminator=EOF_OK
 interface {
-	backend netlink
+	backend kernel
 	ethernet uplink {
 		mac {
 			match aa:bb:cc:dd:ee:ff
@@ -40,7 +40,7 @@ expect=stdout:contains=configuration valid
 # --- Invalid: a malformed match MAC is rejected by the pattern/validator. ------
 stdin=mac-bad:terminator=EOF_BAD
 interface {
-	backend netlink
+	backend kernel
 	ethernet uplink {
 		mac {
 			match not-a-mac
@@ -55,7 +55,7 @@ expect=exit:code=1
 # --- Invalid: two interfaces selecting the same MAC is an ambiguous binding. ---
 stdin=mac-dup:terminator=EOF_DUP
 interface {
-	backend netlink
+	backend kernel
 	ethernet uplink {
 		mac {
 			match aa:bb:cc:dd:ee:ff

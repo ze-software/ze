@@ -40,7 +40,7 @@ do without, so a host on a Ze link autoconfigures today.
 
 - RFC 4191 route information and router preference.
 - Unicast RAs to an individual host.
-- The VPP backend. The YANG container is `ze:backend "netlink"`, and a VPP path
+- The VPP backend. The YANG container is `ze:backend "kernel"`, and a VPP path
   would drive VPP's own ip6-ra feature, which is a different design.
 - Deriving the advertised prefixes from the unit's configured addresses.
 - RA state in `show interface`.

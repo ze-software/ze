@@ -226,7 +226,7 @@ func TestAFailedMetricMoveLeavesTheRouteRecoverable(t *testing.T) {
 	t.Run("a failed deprioritize is repaired by the up event", func(t *testing.T) {
 		fb, active, key := newEntry(t, routeMetricBase)
 
-		fb.addRouteErr = errors.New("netlink: operation not permitted")
+		fb.addRouteErr = errors.New("netlink error: operation not permitted")
 		handleLinkDown("eth0", active, slog.Default())
 		require.Equal(t, routeCall{"eth0", "0.0.0.0/0", "192.0.2.1", base, rtproto.Iface}, fb.routeRemoves[0],
 			"the base-metric route was taken away before the add failed")
@@ -243,7 +243,7 @@ func TestAFailedMetricMoveLeavesTheRouteRecoverable(t *testing.T) {
 	t.Run("a failed restore is repaired by the down event", func(t *testing.T) {
 		fb, active, key := newEntry(t, routeMetricDeprioritized)
 
-		fb.addRouteErr = errors.New("netlink: operation not permitted")
+		fb.addRouteErr = errors.New("netlink error: operation not permitted")
 		handleLinkUp("eth0", active, slog.Default())
 		require.Equal(t, routeCall{"eth0", "0.0.0.0/0", "192.0.2.1", down, rtproto.Iface}, fb.routeRemoves[0])
 		assert.Equal(t, routeMetricUnknown, active[key].metricState)
@@ -274,7 +274,7 @@ func TestAFailedIPv6MetricMoveLeavesTheRouteRecoverable(t *testing.T) {
 		fb := setupFakeBackendForTest(t)
 		routers := map[routerKey]routerEntry{key: {metric: base, metricState: routeMetricBase}}
 
-		fb.addRouteErr = errors.New("netlink: network is down")
+		fb.addRouteErr = errors.New("netlink error: network is down")
 		handleLinkDownIPv6("eth0", routers, slog.Default())
 		require.Equal(t, routeCall{"eth0", "::/0", "fe80::1", base, rtproto.Iface}, fb.routeRemoves[0])
 		assert.Equal(t, routeMetricUnknown, routers[key].metricState)
@@ -290,7 +290,7 @@ func TestAFailedIPv6MetricMoveLeavesTheRouteRecoverable(t *testing.T) {
 		fb := setupFakeBackendForTest(t)
 		routers := map[routerKey]routerEntry{key: {metric: base, metricState: routeMetricDeprioritized}}
 
-		fb.addRouteErr = errors.New("netlink: network is down")
+		fb.addRouteErr = errors.New("netlink error: network is down")
 		handleLinkUpIPv6("eth0", routers, slog.Default())
 		require.Equal(t, routeCall{"eth0", "::/0", "fe80::1", down, rtproto.Iface}, fb.routeRemoves[0])
 		assert.Equal(t, routeMetricUnknown, routers[key].metricState)
@@ -553,7 +553,7 @@ func pppoeClientJSON(t *testing.T, extra string) *ifaceConfig {
 // VALIDATES: the parser accepts the whole range its YANG leaf declares and
 // refuses everything outside it, so a metric that reaches the kernel is one the
 // netlink attribute can carry after the link-down 1024 is added to it.
-// PREVENTS: a metric accepted here and truncated at the netlink boundary, where
+// PREVENTS: a metric accepted here and truncated at the netlink socket boundary, where
 // the route lands at the kernel's default instead of where the operator put it.
 func TestPPPoERoutePriorityBounds(t *testing.T) {
 	accepted := []struct {

@@ -3,9 +3,9 @@
 # VALIDATES: `ze doctor --json` reports exactly what a commit would reject, with
 # the code whose remediation fits: a cross-leaf violation gets
 # doctor-vrrp-config-invalid, while a VPP-backed tree gets
-# doctor-vrrp-backend-unusable (different fix: change the backend or drop the
-# config). Both exit 1, because a fired SeverityError diagnostic makes
-# `ze doctor` exit non-zero.
+# doctor-dataplane-mismatch (from the engine-owned ze:backend walk, AC-9). Both
+# exit 1, because a fired SeverityError diagnostic makes `ze doctor` exit
+# non-zero.
 # PREVENTS: a doctor check that drifts from the verifier -- it re-runs the
 # verifier, so `ze doctor` and a commit can never disagree -- and a single
 # catch-all code that tells an operator nothing about which fix to apply.
@@ -18,7 +18,7 @@
 # VRRPv3 feature (RFC 9568 Section 6.1) and cannot be combined with version 2.
 tmpfs=vrrp-bad.conf:terminator=EOF_BAD
 interface {
-    backend netlink;
+    backend kernel;
     ethernet eth0 {
         unit 0 {
             ipv4 {
@@ -42,7 +42,7 @@ expect=stdout:contains=doctor-vrrp-config-invalid
 expect=stdout:contains=accept-mode
 
 # --- A VPP-backed tree: VRRP needs macvlan devices and raw sockets, which only -
-# the netlink backend provides. Fail closed with the backend-specific code.
+# the kernel backend provides. Fail closed with the backend-specific code.
 tmpfs=vrrp-vpp.conf:terminator=EOF_VPP
 interface {
     backend vpp;
@@ -63,14 +63,14 @@ EOF_VPP
 
 cmd=foreground:seq=2:exec=ze doctor --json config vrrp-vpp.conf:exit=1
 expect=exit:code=1
-expect=stdout:contains=doctor-vrrp-backend-unusable
+expect=stdout:contains=doctor-dataplane-mismatch
 
 # --- track on the group that owns its virtual address. The verifier refuses ---
 # it, and the doctor check re-runs that verifier rather than re-implementing
 # the rule, so `ze doctor` reports exactly what a commit would reject.
 tmpfs=vrrp-track-owner.conf:terminator=EOF_TRKOWN
 interface {
-    backend netlink;
+    backend kernel;
     ethernet eth0 {
         unit 0 {
             ipv4 {

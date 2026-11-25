@@ -1,0 +1,45 @@
+# Test: web config editor on a daemon started with --plugin ze.flowspec-firewall refuses committing interface backend vpp at validation.
+# Question: when a daemon runs with `--plugin ze.flowspec-firewall` and `--web`
+#           on a `kernel` file and the web editor sets `interface backend vpp`
+#           and posts `/config/commit/`, does `validateTransition` block the
+#           commit with `commit blocked:` (not a runtime reload error), naming
+#           `--plugin ze.flowspec-firewall` and `set firewall backend vpp`,
+#           and leaving the stored configuration unchanged?
+#           A unit test cannot prove the daemon's recorded `--plugin` reaches
+#           the live HTTP `/config/commit/` -> `validateTransition` ->
+#           `verifyTree` path.
+# VALIDATES: spec-dataplane-compatibility-guard AC-18 (web editor door, A-16).
+# PREVENTS: the web editor ignoring the daemon's `--plugin` arguments at
+#           validation or staging a mismatched candidate for reload.
+
+option=needs-linux:caps=net-admin
+option=exclusive:group=flowspec-nft
+option=needs-build-tag:value=ze_vpp:state=present
+option=env:var=ze.config.dir:value=.
+option=storage:value=disk
+option=timeout:value=30s
+
+tmpfs=dataplane-door-web.conf:terminator=EOF_CONF
+interface {
+	backend kernel;
+}
+EOF_CONF
+
+tmpfs=set-backend-vpp.form:final-newline=false:terminator=EOF_SET
+leaf=backend&value=vpp
+EOF_SET
+
+cmd=foreground:seq=1:exec=ze --plugin ze.flowspec-firewall start --web $PORT2 --insecure-web dataplane-door-web.conf:timeout=30s
+
+http=wait:seq=1:url=https://127.0.0.1:$PORT2/config/edit/:status=200:insecure-tls=true:timeout=15s:contains=interface
+http=post:seq=2:url=https://127.0.0.1:$PORT2/config/set/interface/:status=200:sendfile=set-backend-vpp.form:content-type=application/x-www-form-urlencoded:insecure-tls=true
+http=post:seq=3:url=https://127.0.0.1:$PORT2/config/commit/:status=500:insecure-tls=true:contains=commit blocked:
+http=post:seq=4:url=https://127.0.0.1:$PORT2/config/commit/:status=500:insecure-tls=true:contains=--plugin ze.flowspec-firewall
+http=post:seq=5:url=https://127.0.0.1:$PORT2/config/commit/:status=500:insecure-tls=true:contains=set firewall backend vpp
+
+reject=stderr:contains=reload error:
+expect=file:path=dataplane-door-web.conf:contains=backend kernel
+expect=file:path=dataplane-door-web.conf:not-contains=backend vpp
+expect=key:path=meta/config/dataplane-door-web.conf/active:exists=true
+expect=key:path=meta/config/dataplane-door-web.conf/candidate:absent=true
+expect=key:glob=object/*:not-contains=backend vpp

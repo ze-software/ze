@@ -232,7 +232,7 @@ func TestListPoliciesSurfacesDumpError(t *testing.T) {
 }
 
 // TestPolicyDirectionIsOffsetFromKernel pins the second inversion that is not a
-// copy. netlink numbers IN/OUT/FWD from 0 and ze numbers them from 1, so a
+// copy. The netlink library numbers IN/OUT/FWD from 0 and ze numbers them from 1, so a
 // missing offset silently reports every outbound policy as inbound.
 func TestPolicyDirectionIsOffsetFromKernel(t *testing.T) {
 	for _, tc := range []struct {

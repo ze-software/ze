@@ -116,7 +116,7 @@ func TestVerifyRefusesPortFamilyWithoutAddress(t *testing.T) {
 }
 
 // TestVerifyRefusesPortOnFirewallWithoutTranslation is the published port half
-// of rule V-19: a port needs the nft firewall backend, even when no network
+// of rule V-19: a port needs the kernel firewall backend, even when no network
 // masquerades.
 func TestVerifyRefusesPortOnFirewallWithoutTranslation(t *testing.T) {
 	container := `{"network":{"lan":{"prefix":["10.88.0.0/24"],"masquerade":"false"}},` +

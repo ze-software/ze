@@ -4,23 +4,31 @@ A DDoS aimed at the router's own address, a TCP/179 connection flood, can
 saturate the CPU, starve BGP keepalive processing, and stop the router from
 sending the FlowSpec and RTBH signals that would clear it. The firewall component
 had the parts (input-hook chains, the `Limit` action, a destination-port match,
-the nft backend) and no construct that protects host-bound BGP traffic.
+the kernel firewall backend) and no construct that protects host-bound BGP traffic.
 
-The `copp` plugin generates a managed nft input chain.
+The `copp` plugin generates a managed nftables input chain.
 
 ## Decisions
 
 ### A system plugin, not a firewall extension
 
 <!-- source: internal/plugins/copp/register.go -- plugin registration, lifecycle -->
+<!-- source: internal/plugins/copp/register_table_builder.go -- buildCoppTablesFromTree -->
 
 CoPP is domain policy over the firewall datapath. Removing the plugin directory
 must remove all of CoPP, which is what plugin self-containment requires.
 
-It mirrors the `policyroute` pattern, `RegisterTables` plus `ApplyAll`, rather
-than adding a firewall API. The existing registry already handles several owners
-coexisting on one table set. The rules that keep those owners' tables visible and
-reconciled are in
+At apply time it mirrors the `policyroute` pattern, `RegisterTables` plus
+`ApplyAll`: the shared firewall registry handles several owners coexisting on
+one table set. It also registers `buildCoppTablesFromTree` (which parses the
+candidate tree and calls `translatePolicy`) as a config table builder with the
+firewall component from `init()`. The firewall component's
+`firewall-producer-tables` original-tree validator runs every registered
+builder over the candidate tree under the candidate's firewall backend and runs
+that backend's verifier over the result at commit, at `ze config validate`, and
+in `LoadConfig` at start and reload, so an unsupported CoPP table under VPP is
+refused with the verifier's message before any plugin starts. The rules that
+keep those owners' tables visible, verified and reconciled are in
 [firewall table ownership](../firewall/table-ownership-and-shutdown-flush.md).
 
 ### The neighbors come from the bgp root copp reads

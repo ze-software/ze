@@ -1,0 +1,38 @@
+# Test: interface backend vpp refuses policy routing.
+# Question: does `ze config validate` refuse `policy route` under `interface
+#           backend vpp` (even when `firewall backend vpp` matches), naming
+#           `policy route` and `set interface backend kernel`?
+#           A unit test cannot prove `policy-routes`'s registration reaches
+#           `ze config validate` through the composition root.
+# VALIDATES: spec-dataplane-compatibility-guard AC-5 (policy routing) -- policy
+#            routing programs Linux kernel ip rules and nftables marks, so it
+#            is refused under VPP.
+# PREVENTS: policy-based routing rules going into Linux kernel tables while VPP
+#           forwards packets.
+stdin=config:terminator=EOF_CONF
+interface {
+	backend vpp;
+}
+firewall {
+	backend vpp;
+}
+policy {
+	route R {
+		interface "eth*";
+		rule block-quic {
+			from {
+				destination-port 443;
+				protocol udp;
+			}
+			then {
+				drop;
+			}
+		}
+	}
+}
+EOF_CONF
+
+cmd=foreground:seq=1:exec=ze config validate -:stdin=config
+expect=exit:code=1
+expect=stdout:contains=policy route
+expect=stdout:contains=set interface backend kernel

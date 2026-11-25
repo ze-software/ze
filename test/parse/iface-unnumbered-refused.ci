@@ -3,7 +3,7 @@
 # PREVENTS: an unnumbered link that borrows nothing and sources OSPF from no address.
 stdin=config:terminator=EOF_CONF
 interface {
-	backend netlink;
+	backend kernel;
 	dummy dummy0 {
 		unit 0 {
 		}

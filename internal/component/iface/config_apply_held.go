@@ -144,7 +144,7 @@ func heldVLANQoS(held *InterfaceInfo) (qos unitQoS, read bool) {
 
 // qosMapsAgree reports whether two 802.1p maps program the same translation.
 // An entry at 0 is the kernel's default, which the kernel keeps without
-// dumping it, so it agrees with an absent key (qosReplaceMaps in the netlink
+// dumping it, so it agrees with an absent key (qosReplaceMaps in the kernel
 // backend relies on the same equivalence).
 func qosMapsAgree(a, b map[uint32]uint32) bool {
 	return qosMapCovered(a, b) && qosMapCovered(b, a)

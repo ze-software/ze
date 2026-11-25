@@ -359,7 +359,7 @@ func TestXFRMStateRefusesUnknownAlgorithm(t *testing.T) {
 // to the outer family: tunnel mode with no selector. Transport mode, and any state
 // that hands an explicit selector (the OSPF RFC 4552 installer, a transport-mode
 // IKE Child SA), keep the selector they give and carry no flag.
-// METHOD: build the netlink state for each mode and selector combination and read
+// METHOD: build the netlink library state for each mode and selector combination and read
 // the field the vendored writer turns into xfrm_usersa_info.flags. The kernel side
 // is TestXFRMTunnelStateIsInstalledAFUnspec.
 func TestXFRMStateFlagsForTunnelWithoutSelector(t *testing.T) {

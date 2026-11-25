@@ -21,7 +21,7 @@ import (
 // addrs is its members.
 func bracketMemberConfig(addrs string) string {
 	return "bgp {\n    router-id 1.2.3.4;\n    session {\n        asn {\n            local 65001;\n        }\n    }\n}\n" +
-		"interface {\n    backend netlink;\n    ethernet eth0 {\n        unit 0 {\n            description lab;\n" +
+		"interface {\n    backend kernel;\n    ethernet eth0 {\n        unit 0 {\n            description lab;\n" +
 		"            ipv4 {\n                address [ " + addrs + " ];\n            }\n        }\n    }\n}\n"
 }
 

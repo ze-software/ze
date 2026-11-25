@@ -151,7 +151,7 @@ type nativeRetirementProjection struct {
 
 func newNativeRetirementProjection(t *testing.T, name string) *nativeRetirementProjection {
 	t.Helper()
-	backend, err := iface.OpenBackend("netlink")
+	backend, err := iface.OpenBackend("kernel")
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -15,14 +15,10 @@ import (
 	"net"
 	"slices"
 	"strings"
-	"sync"
 	"sync/atomic"
 
-	"github.com/ze-software/ze/internal/component/config"
-	"github.com/ze-software/ze/internal/component/config/yang"
 	sysctlevents "github.com/ze-software/ze/internal/component/sysctl/events"
 	"github.com/ze-software/ze/internal/core/diagnostic"
-	"github.com/ze-software/ze/internal/core/textbuf"
 	"github.com/ze-software/ze/pkg/plugin/sdk"
 	"github.com/ze-software/ze/pkg/ze"
 )
@@ -38,63 +34,9 @@ var (
 // The YANG container name and this constant MUST match.
 const ConfigRoot = "firewall"
 
-// backendLeafPath is surfaced in backend-gate error text so operators
-// know where to change the backend leaf.
+// backendLeafPath is the YANG path of this component's declared data-plane
+// selector leaf.
 const backendLeafPath = "/firewall/backend"
-
-// backendGateSchema caches the config schema used by validateBackendGate.
-// Built lazily on first commit/verify -- YANG load is paid only when a
-// gate-enforcing RPC fires.
-//
-// It is built once for the life of the process. That is correct because the
-// gate runs at a commit or a verify, after the process published the modules
-// of its external plugins. validateBackendGate records the schema with
-// yang.KeepsModuleSet on every use, so a publish that came after a use is
-// refused and the schema cannot answer from the set before the publish.
-var (
-	backendGateSchemaOnce sync.Once
-	backendGateSchema     *config.Schema
-	backendGateSchemaErr  error
-)
-
-// backendGateSchemaKeeper names backendGateSchema in the refusal of a publish
-// that comes too late (yang.PublishExternalModules).
-const backendGateSchemaKeeper = "the firewall backend gate schema"
-
-// validateBackendGate runs the ze:backend commit-time feature check.
-// Mirrors iface and traffic so the daemon commit path and offline
-// `ze config validate` emit the same diagnostics. The firewall YANG
-// currently carries seven `ze:backend "nft"` annotations (connection-
-// state / connection-mark matches and five action/modifier fields), so
-// the gate actively rejects non-nft backends that attempt to configure
-// those features -- it is not a placeholder.
-func validateBackendGate(sections []sdk.ConfigSection, activeBackend string) error {
-	yang.KeepsModuleSet(backendGateSchemaKeeper)
-	backendGateSchemaOnce.Do(func() {
-		backendGateSchema, backendGateSchemaErr = config.YANGSchema()
-	})
-	if backendGateSchemaErr != nil {
-		return fmt.Errorf("firewall backend gate: schema load: %w", backendGateSchemaErr)
-	}
-	for _, s := range sections {
-		if s.Root != ConfigRoot {
-			continue
-		}
-		errs := config.ValidateBackendFeaturesJSON(
-			s.Data, backendGateSchema,
-			ConfigRoot, activeBackend, backendLeafPath,
-		)
-		if len(errs) == 0 {
-			return nil
-		}
-		msgs := make([]string, 0, len(errs))
-		for _, e := range errs {
-			msgs = append(msgs, e.Error())
-		}
-		return fmt.Errorf("firewall commit rejected:\n  %s", textbuf.Join(msgs, "\n  "))
-	}
-	return nil
-}
 
 // firewallConfig carries parsed firewall state from OnConfigVerify into
 // OnConfigApply. Backend is the selected backend name; Tables is the
@@ -316,9 +258,6 @@ func parseAndVerifyFirewallSections(sections []sdk.ConfigSection, base *firewall
 		if _, err := ExtractGlobalOptions(cfg.RawData); err != nil {
 			return nil, err
 		}
-		if err := validateBackendGate(sections, cfg.Backend); err != nil {
-			return nil, err
-		}
 	}
 	if len(cfg.Tables) == 0 && len(cfg.HelperTables) == 0 {
 		return cfg, nil
@@ -339,7 +278,7 @@ func validateConfiguredFirewallTables(cfg *firewallConfig) error {
 	if err := refuseReservedTableNames(cfg.Tables); err != nil {
 		return err
 	}
-	if err := validateTables(cfg.Tables, cfg.Backend == "nft"); err != nil {
+	if err := validateTables(cfg.Tables, cfg.Backend == "kernel"); err != nil {
 		return err
 	}
 	if err := ValidateTables(cfg.HelperTables); err != nil {
@@ -441,11 +380,6 @@ func runEngine(conn net.Conn) int {
 		}
 		setFlushOnShutdown(cfg.FlushOnShutdown)
 
-		if cfg.Configured {
-			if err := validateBackendGate(sections, cfg.Backend); err != nil {
-				return err
-			}
-		}
 		if err := validateConfiguredFirewallTables(cfg); err != nil {
 			return err
 		}

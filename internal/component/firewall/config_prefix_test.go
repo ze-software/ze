@@ -219,5 +219,5 @@ func TestVerifyConfigRejectsPrefixHostBits(t *testing.T) {
 // prefixConfigInput returns a minimal valid table around one literal leaf.
 // Its arguments are fixed test inputs, not operator-supplied JSON fragments.
 func prefixConfigInput(leaf, value string) string {
-	return fmt.Sprintf(`{"firewall":{"backend":"nft","table":{"wan":{"family":"inet","chain":{"input":{"term":{"allow-service":{"from":{%q:%q},"then":{"accept":""}}}}}}}}}`, leaf, value)
+	return fmt.Sprintf(`{"firewall":{"backend":"kernel","table":{"wan":{"family":"inet","chain":{"input":{"term":{"allow-service":{"from":{%q:%q},"then":{"accept":""}}}}}}}}}`, leaf, value)
 }

@@ -338,15 +338,20 @@ not hold fails itself when it runs, and a refusal or completion test hands le
 an unknown word on purpose; and the specs under `plan/`, which design commands
 le does not hold yet. The retired-name half still reads both. This scope is a
 reading of AC-25 the owner may overturn. It exits 1 on any such line and runs
-as a stage of the full verify.
+as a stage of the full verify. `le doc check retired-selector-values` shares
+the same tracked-file walk and historical records, declares the retired
+data-plane selector values once, and refuses every whole-word occurrence of a
+retired value in a tracked file outside its declared class and line exceptions,
+running beside `retired-commands` as a stage of the full verify.
 <!-- source: internal/le/le/retired/retired.go -- Renames, Match -->
 <!-- source: internal/le/le/root/citation.go -- JudgeCitation -->
 <!-- source: internal/le/le/action/leaction.go -- AtVerb -->
 <!-- source: internal/le/le/action/parameter.go -- OpensWith -->
 <!-- source: internal/le/doc/check/commandcitation.go -- citationsOf, citationExceptions, citationUnjudgedRules -->
 <!-- source: internal/le/le/root/dispatch.go -- refuseRetired -->
-<!-- source: internal/le/doc/check/retired.go -- sweepRetired -->
+<!-- source: internal/le/doc/check/retired.go -- sweepRetired, newRetiredRecordMatcher -->
 <!-- source: internal/le/doc/check/retired.go -- retiredOwnedRowsAfter -->
+<!-- source: internal/le/doc/check/retired_selector.go -- sweepRetiredSelectors -->
 
 Registration also states which of six groups the area belongs to, and help
 prints it as the line's purpose tag (`[workflow]`, `[gate]`, `[generate]`,
@@ -2600,8 +2605,8 @@ a pluggable backend architecture. It is cross-cutting infrastructure, not BGP-sp
 | Concept | Description |
 |---------|-------------|
 | **Backend interface** | `Backend` (33 methods) in `backend.go`: lifecycle, address, sysctl, mirror, monitor |
-| **Backend selection** | YANG `backend` leaf (default: `netlink`). `RegisterBackend`/`LoadBackend` in `backend.go` |
-| **Netlink backend** | `internal/plugins/iface/netlink/`: all Linux operations via `github.com/vishvananda/netlink` |
+| **Backend selection** | YANG `backend` leaf (default: `kernel`). `RegisterBackend`/`LoadBackend` in `backend.go` |
+| **Kernel backend** | `internal/plugins/iface/netlink/`: all Linux operations via `github.com/vishvananda/netlink` |
 | **DHCP plugin** | `internal/plugins/iface/dhcp/`: DHCPv4/v6 client lifecycle, separate from backend |
 | **Dispatch layer** | `dispatch.go`: package-level functions delegating to active backend |
 | **Events** | `interface/created`, `interface/deleted`, `interface/up`, `interface/down`, `interface/addr/*`, `interface/dhcp/*` |
@@ -2634,27 +2639,26 @@ in the diagnostic.
 |---------|-------------|
 | **YANG extension** | `ze:backend "<names>"` on a YANG node declares which backends implement it. Absent annotation = unrestricted. Declared in `ze-extensions.yang` alongside `ze:os`, `ze:listener`, etc. |
 | **Schema reader** | `getBackendExtension` in `yang_schema.go` mirrors `getOSExtension`; stores the de-duplicated name list on the schema `Node` (`LeafNode.Backend`, `ContainerNode.Backend`, `ListNode.Backend`). |
-| **Walker** | `config.validateBackendFeatures(tree, schema, root, activeBackend, backendLeafPath)` descends the parsed JSON tree alongside the schema and emits one error per YANG path where the node's annotation excludes the active backend. |
+| **Walker** | `config.walkBackendFeaturesTree` (wrapping `walkBackendNode` in `backend_gate.go`) walks the whole candidate tree as written alongside the schema and emits one error per YANG path where the node's annotation excludes the active backend of the selector governing that subtree (or the primary data-plane selector for nodes outside every declared selector root). |
 | **Narrowest wins** | A descendant annotation that accepts the active backend suppresses an outer annotation that rejects it, so per-case overrides work. |
-| **No backend on this host** | An empty active backend means the config names none and this OS has no default (netlink, nft and tc are the Linux defaults). The walker's refusal, and each component's "no backend configured and no OS default available", is marked `diagnostic.HostVerdict`, so `ze config validate` reports it under the host-verdict code `config-host-backend` rather than as a config defect. |
-| **Wiring** | iface, firewall, and traffic call the gate from `OnConfigure` (startup) and from the parse their `OnConfigVerify` (reload) and their `InProcessConfigVerifier` share. The container plugin calls it too, from its network rule, with the interface backend. `ze config validate` has no gate call of its own: it reaches the same helper through `config.VerifyPluginConfig`, which runs each registration's `InProcessConfigVerifier`, so offline validation matches daemon commit. Runtime `errNotSupported` returns in `ifacevpp` stay as defence-in-depth. |
-| **Initial coverage** | iface: `bridge`, `tunnel`, `wireguard`, `veth`, `mirror` annotated `ze:backend "netlink"`. firewall: seven `ze:backend "nft"` annotations on conntrack-driven matches (`connection-state`, `connection-mark`) and nft-only action/modifier leaves. traffic: carries a `leaf backend` default (`tc`); per-feature annotations land with `spec-fw-7-traffic-vpp`. |
+| **No backend on this host** | An empty active backend means the config names none and this OS has no default (`kernel` is the Linux default of all three selectors). The walker's refusal, and each component's "no backend configured and no OS default available", is marked `diagnostic.HostVerdict`, so `ze config validate` reports it under the host-verdict code `config-host-backend` rather than as a config defect. |
+| **Wiring** | The config component runs one walk over the whole config tree as written (before any schema default is materialized) at its two config doors (`LoadConfig` and `verifyTree`) and in `ze doctor` (`doctor-dataplane-mismatch`), driven by every declared `DataPlaneSelector`. Nodes outside every declared selector root (such as `container network`) are judged against the primary data-plane selector (`interface backend`). No component or plugin calls the gate itself. Runtime `errNotSupported` returns in `ifacevpp` stay as defence-in-depth. |
+| **Initial coverage** | iface: `bridge`, `tunnel`, `veth`, and `vrrp` containers annotated `ze:backend "kernel"` (`wireguard`, `mirror`, and selected tunnel encapsulations carry `ze:backend "kernel vpp"`). firewall: `ze:backend "kernel"` annotations on `connection-mark`, `notrack`, `connection-mark-set`, `tcp-mss-clamp-to-pmtu`, and the `flowtable` list. traffic: carries a `leaf backend` default (`kernel`); per-feature annotations declare kernel-only leaves. container: `container network` carries `ze:backend "kernel"`. |
 
 <!-- source: internal/component/config/yang/modules/ze-extensions.yang -- extension backend -->
 <!-- source: internal/component/config/yang_schema.go -- getBackendExtension, Backend population on LeafNode/ContainerNode/ListNode -->
-<!-- source: internal/component/config/backend_gate.go -- validateBackendFeatures, walkBackendNode, walkBackendListEntry -->
-<!-- source: internal/component/iface/register.go -- validateBackendGate, called from OnConfigure and OnConfigVerify -->
-<!-- source: internal/component/firewall/engine.go -- validateBackendGate, called from OnConfigure and OnConfigVerify -->
-<!-- source: internal/component/traffic/register.go -- validateBackendGate, called from OnConfigure and OnConfigVerify -->
-<!-- source: internal/component/config/plugin_verify.go -- VerifyPluginConfig, VerifyPluginConfigMapTransition, the in-process verifiers ze config validate runs -->
-<!-- source: internal/plugins/container/network/backend.go -- checkBackends, runBackendGate -->
+<!-- source: internal/component/config/backend_gate.go -- walkBackendFeaturesTree, validateBackendFeatures, walkBackendNode, walkBackendListEntry -->
+<!-- source: internal/component/config/dataplane_verdict.go -- evaluateDataPlaneVerdict, evaluateBackendFeatureWalk -->
+<!-- source: internal/component/config/loader.go -- loadConfig, refuseDataPlaneMismatches -->
+<!-- source: internal/component/config/plugin_verify.go -- VerifyPluginConfig, VerifyPluginConfigMapTransition, verifyTree -->
+<!-- source: internal/plugins/container/network/backend.go -- checkBackends, resolveFirewallBackend -->
 <!-- source: internal/core/diagnostic/host_verdict.go -- HostVerdict, IsHostVerdict -->
 
 ---
 
 ## 14b. Firewall and Traffic Control
 
-Ze manages nftables firewall tables and tc traffic control through the same pluggable
+Ze manages nftables firewall tables and Linux traffic control through the same pluggable
 backend pattern as interfaces. Two independent components, each with its own backend
 interface and data model.
 
@@ -2665,7 +2669,7 @@ interface and data model.
 
 The firewall data model uses 45 abstract expression types (24 match, 13 action, 8 modifier)
 that model firewall concepts (MatchSourceAddress, Accept, SetMark), not nftables register
-operations. The nft backend lowers abstract types to nftables expressions internally. The
+operations. The kernel firewall backend lowers abstract types to nftables expressions internally. The
 VPP backend maps them directly to ACL rules and policers.
 
 The firewall configuration parser refuses a literal `source-address` or
@@ -2679,7 +2683,7 @@ or backend lowering.
 <!-- source: internal/component/firewall/engine.go -- VerifyConfig, parseConfigSections, runEngine -->
 
 A table may also carry conntrack helper objects (`Table.CtHelpers`), which a
-`SetCtHelper` action assigns. The nft backend adds them as `ct helper` objects
+`SetCtHelper` action assigns. The kernel firewall backend adds them as `ct helper` objects
 before any rule, because the kernel resolves an objref by name when it adds the
 rule; the VPP verifier refuses both, since VPP has no conntrack helper. Their
 one producer is `system conntrack module`. The firewall engine owns it as a
@@ -2729,7 +2733,7 @@ carry it, and each had to be given it: the library default in each case is "wait
 
 | Backend | Bound | Knob |
 |---------|-------|------|
-| nft | per-dial netlink deadline, re-applied on every dial because ze's `nftables.Conn` is not lasting, so each operation gets a full deadline rather than sharing one absolute instant | `ze.firewall.nft.netlink-timeout` |
+| kernel (nftables) | per-dial netlink deadline, re-applied on every dial because ze's `nftables.Conn` is not lasting, so each operation gets a full deadline rather than sharing one absolute instant | `ze.firewall.nft.netlink-timeout` |
 | vpp | per-request binary-API reply deadline, bound to the channel when the ops facade is constructed. govpp's `DefaultReplyTimeout` is 0, which it documents as disabling the timeout | `ze.firewall.vpp.reply-timeout` |
 
 Both default to 10s and clamp to 1..60s. Zero is refused rather than honored: it is each
@@ -2778,19 +2782,20 @@ across every reconcile its process commits. The full contract is in
 <!-- source: internal/component/ike/engine/register_firewall_observer.go -- holdESPFormFastPathForCommit -->
 
 The traffic component also has its own reactor (`internal/component/traffic/register.go`, spec-fw-9):
-`init()` calls `registry.Register(Name="traffic", ConfigRoots=["traffic/control"])`, and `runEngine`
-uses the SDK 5-stage protocol (`OnConfigure`, `OnConfigVerify`, `OnConfigApply`, `OnConfigRollback`)
-to drive the active backend's `Apply` on boot and on every SIGHUP reload, with `sdk.Journal` recording
-a rollback Apply when the reload fails. The backend feature gate (`config.ValidateBackendFeaturesJSON`)
-runs in both `OnConfigure` and `OnConfigVerify`, so tc-only feature annotations land as a one-line
-declaration once `spec-fw-7-traffic-vpp` introduces a second backend. Firewall will follow the same
-pattern in `spec-fw-8`.
+`init()` calls `registry.Register(Name="traffic", ConfigRoots=["traffic/control"])`, declaring its
+`DataPlaneSelector` for `traffic control backend`, and `runEngine` uses the SDK 5-stage protocol
+(`OnConfigure`, `OnConfigVerify`, `OnConfigApply`, `OnConfigRollback`) to drive the active
+backend's `Apply` on boot and on every SIGHUP reload, with `sdk.Journal` recording a rollback Apply
+when the reload fails. Neither traffic nor firewall calls a backend feature gate of its own: the
+config component runs one whole-tree `ze:backend` walk at `LoadConfig` and `verifyTree` against
+each declared selector, so a kernel-only annotation (`ze:backend "kernel"`) remains a one-line YANG
+declaration.
 
 `InterfaceQoS` carries both directions. `Qdisc` programs egress, which is the direction a
 queueing discipline can shape by delaying a packet. `Ingress` is a `Policer`, a token bucket
 that drops what arrives above its rate, because the ingress hook holds no queue to delay into.
 The `trafficnetlink` backend installs it as a `matchall` filter with a `police` action on the
-shared `clsact` qdisc at tc priority 200, behind interface mirroring (priority 1) and
+shared `clsact` qdisc at traffic-control priority 200, behind interface mirroring (priority 1) and
 flow-export sampling (priority 100), and removes only that priority on teardown so neither
 other owner loses its filters. The `trafficvpp` backend rejects a set `Ingress` at verify and
 at apply: it binds policers to the egress output arc and to the ingress classify pipeline for
@@ -2800,7 +2805,7 @@ interface for both L2TP and PPPoE sessions.
 
 `Qdisc.RateBps` holds a classless TBF root rate in bits per second. Linux TBF
 refuses classes and a default-class; HTB still uses `TrafficClass.Rate` and
-`Ceil`. The tc backend translates both to bytes per second and encodes TBF's
+`Ceil`. The kernel traffic backend translates both to bytes per second and encodes TBF's
 burst as scheduler ticks, while its queue limit remains bytes. A semantic
 verifier refuses missing, fractional-byte and overflowing rates before kernel
 mutation. TBF readback converts the kernel byte rate back to `RateBps`.
@@ -2811,7 +2816,7 @@ rate field at verify and apply rather than ignoring it.
 component's plugin lifetime. The `trafficvpp` backend honors the caller's ctx for its
 `conn.WaitConnected` call so a SIGTERM mid-reload does not block for the full VPP-reach timeout
 when VPP is unreachable. The `trafficnetlink` backend accepts but does not use the ctx because
-vishvananda/netlink's tc syscalls have no ctx-aware variant. For unit-testing, `trafficvpp` uses a
+vishvananda/netlink's traffic-control syscalls have no ctx-aware variant. For unit-testing, `trafficvpp` uses a
 narrow unexported `vppOps` interface (dump/policerAddDel/policerDel/policerOutput) that the
 `govppOps` adapter implements on top of `api.Channel`; tests substitute a scripted `fakeOps` to
 exercise the create/update/undo/reconcile/orphan branches without a running VPP daemon.
@@ -2828,7 +2833,7 @@ exercise the create/update/undo/reconcile/orphan branches without a running VPP 
 <!-- source: internal/component/firewall/backend.go -- Backend interface, RegisterBackend -->
 <!-- source: internal/component/traffic/model.go -- InterfaceQoS, Qdisc, TrafficClass, Policer types -->
 <!-- source: internal/component/traffic/backend.go -- Backend interface, RegisterBackend -->
-<!-- source: internal/component/traffic/register.go -- runEngine, OnConfigure, OnConfigApply, validateBackendGate -->
+<!-- source: internal/component/traffic/register.go -- runEngine, OnConfigure, OnConfigApply -->
 
 ---
 
@@ -2919,7 +2924,7 @@ Daemon Loc-RIB          ──>  System RIB (rib plugin)
 <!-- source: internal/core/rib/locrib/entry.go -- selectBest -->
 <!-- source: internal/component/sysrib/route_view_forwarding.go -- applySelectedBatch -->
 <!-- source: internal/component/sysrib/route_view_worker_output.go -- publish -->
-<!-- source: internal/plugins/fib/kernel/fibkernel.go -- fibKernel, netlink backend, stale sweep -->
+<!-- source: internal/plugins/fib/kernel/fibkernel.go -- fibKernel, kernel backend, stale sweep -->
 <!-- source: internal/plugins/fib/kernel/monitor_linux.go -- kernel route change monitor -->
 
 ### BGP RIB Best-Path Tracking
@@ -3282,8 +3287,8 @@ watcher then reports through the error callback that route monitoring has stoppe
 report names the lost behavior and it names `CAP_NET_ADMIN`. `fib-kernel` logs it at
 Warn.
 
-After `Stop` then `Wait`, no error callback and no event runs, and the netlink
-library's receive goroutine has exited. On stop the watcher closes the subscription
+After `Stop` then `Wait`, no error callback and no event runs, and the
+netlink library's receive goroutine has exited. On stop the watcher closes the subscription
 and drains its update channel until the library closes it. The library's closer
 goroutine can still be returning when `Wait` returns. The receive error that closing
 the socket causes is the watcher's own shutdown, and it is not reported. The error
@@ -3357,7 +3362,7 @@ with IPv4 gateways remain unsupported by this kernel backend.
 <!-- source: internal/plugins/fib/kernel/fibkernel.go -- routeBackend, startupSweep, sweepStale -->
 <!-- source: internal/plugins/fib/kernel/richroute.go -- RichRoute, richRouteBackend interface -->
 <!-- source: internal/plugins/fib/kernel/nexthop_linux.go -- buildRichRoute, routeTypeToLinux, buildMultiPath -->
-<!-- source: internal/plugins/fib/kernel/backend_linux.go -- netlink backend, rtprotZE -->
+<!-- source: internal/plugins/fib/kernel/backend_linux.go -- kernel backend, rtprotZE -->
 <!-- source: internal/plugins/fib/kernel/monitor_linux.go -- routewatch consumer for external change detection -->
 <!-- source: internal/plugins/fib/kernel/register.go -- fib-kernel plugin registration -->
 

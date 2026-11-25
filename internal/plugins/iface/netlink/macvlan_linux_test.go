@@ -55,7 +55,7 @@ func TestBuildMacvlanLink(t *testing.T) {
 
 // TestBuildMacvlanLinkMode verifies the delivery mode is carried from the spec:
 // the zero value stays bridge (back-compat), and MacvlanModePrivate maps to the
-// netlink private constant -- VRRP requires private so the virtual-MAC device is
+// rtnetlink private constant -- VRRP requires private so the virtual-MAC device is
 // the sole ARP/ND responder for the VIP (spec-vrrp-6).
 func TestBuildMacvlanLinkMode(t *testing.T) {
 	base := iface.MacvlanSpec{Name: "zv4-42-10", Parent: "eth0", MAC: "00:00:5e:00:01:0a"}

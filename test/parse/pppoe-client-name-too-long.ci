@@ -16,7 +16,7 @@ option=skip-os:value=darwin
 
 stdin=atlimit:terminator=EOF_LIMIT
 interface {
-    backend netlink
+    backend kernel
     ethernet eth2 {
         mac {
             address 60:be:b4:20:70:6e
@@ -34,7 +34,7 @@ EOF_LIMIT
 
 stdin=toolong:terminator=EOF_LONG
 interface {
-    backend netlink
+    backend kernel
     ethernet eth2 {
         mac {
             address 60:be:b4:20:70:6e
@@ -52,7 +52,7 @@ EOF_LONG
 
 stdin=slash:terminator=EOF_SLASH
 interface {
-    backend netlink
+    backend kernel
     ethernet eth2 {
         mac {
             address 60:be:b4:20:70:6e

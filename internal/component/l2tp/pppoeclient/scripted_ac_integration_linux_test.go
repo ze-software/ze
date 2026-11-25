@@ -32,7 +32,7 @@ func TestScriptedACRenegotiatesDial(t *testing.T) {
 	if !userns.Enter(t) {
 		return
 	}
-	if err := iface.LoadBackend("netlink"); err != nil {
+	if err := iface.LoadBackend("kernel"); err != nil {
 		t.Fatal(err)
 	}
 	t.Cleanup(func() {

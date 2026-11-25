@@ -4,7 +4,7 @@
 // route its closed set of members. `traffic` is a real object namespace — the
 // YANG container `traffic { control { ... } }`
 // (internal/component/traffic/yang/ze-traffic-control-conf.yang) — so the
-// offline tc/VPP policer tool is the member `control`, reached as
+// offline kernel/VPP policer tool is the member `control`, reached as
 // `ze traffic control`, not a hyphenated `traffic-control` compound (R9,
 // ai/rules/cli.md). This is the owner package: the tool lives with
 // internal/component/traffic, not under cmd/ze.
@@ -28,7 +28,7 @@ import (
 
 func init() {
 	registry.MustRegisterRootHandler("traffic", dispatchTraffic, registry.Meta{
-		ShortHelp: "Linux tc / VPP policer helpers",
+		ShortHelp: "Linux kernel / VPP policer helpers",
 		Mode:      "offline",
 		Section:   registry.SectionConfiguration,
 		Subs:      "control",
@@ -59,14 +59,14 @@ func dispatchTraffic(_ *registry.RuntimeContext, args []string) int {
 		trafficUsage(os.Stderr)
 		return 1
 	}
-	// control is the only member: the tc/VPP policer tool.
+	// control is the only member: the kernel/VPP policer tool.
 	return Run(args[1:])
 }
 
 func isTrafficHelpArg(a string) bool { return a == "-h" || a == "--help" || a == "help" }
 
 func trafficUsage(w io.Writer) {
-	fmt.Fprintln(w, "usage: ze traffic <command>")                //nolint:errcheck // CLI usage output
-	fmt.Fprintln(w, "commands:")                                  //nolint:errcheck // CLI usage output
-	fmt.Fprintln(w, "  control   Linux tc / VPP policer helpers") //nolint:errcheck // CLI usage output
+	fmt.Fprintln(w, "usage: ze traffic <command>")                    //nolint:errcheck // CLI usage output
+	fmt.Fprintln(w, "commands:")                                      //nolint:errcheck // CLI usage output
+	fmt.Fprintln(w, "  control   Linux kernel / VPP policer helpers") //nolint:errcheck // CLI usage output
 }

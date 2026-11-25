@@ -181,7 +181,7 @@ func TestSSHCommitSurfacesPrintFixLine(t *testing.T) {
 	// The model validates the whole config before it commits, and an
 	// interface section needs its backend for that.
 	withBackend := func(addrs string) string {
-		return validBGPConfig + strings.Replace(bracketIfaceWithInactive(addrs, ""), "interface {\n", "interface {\n\tbackend netlink;\n", 1)
+		return validBGPConfig + strings.Replace(bracketIfaceWithInactive(addrs, ""), "interface {\n", "interface {\n\tbackend kernel;\n", 1)
 	}
 	for _, confirmed := range []bool{false, true} {
 		ed, _, configPath := newLoadSessionEditor(t, withBackend("192.0.2.1/24 192.0.2.2/30"))

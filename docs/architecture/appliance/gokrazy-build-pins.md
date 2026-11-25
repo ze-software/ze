@@ -184,7 +184,7 @@ manifest rather than the real dependency graph.
 ### Binding the appliance to vendored product sources
 
 Host builds use the root `vendor/` tree, which carries product patches such as
-the netlink XFRM readback fixes and the text-input cursor correction. Resolving
+the netlink library XFRM readback fixes and the text-input cursor correction. Resolving
 the same upstream version from a module cache loses those patches.
 
 `bindVendoredModules` reads `vendor/modules.txt` through Ze's absolute

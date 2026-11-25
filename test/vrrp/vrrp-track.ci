@@ -34,7 +34,7 @@
 # proto-112 socket and an AF_PACKET capture. None of them exists on darwin.
 # Runs as root in the QEMU Linux VM.
 # caps=net-admin because the setup fixture creates the two veth pairs, the
-# driver takes one down and up again, and the daemon programs netlink. Without
+# driver takes one down and up again, and the daemon programs the netlink socket. Without
 # the declaration an unprivileged Linux host does not skip: the calls are
 # refused and the test fails for a capability the host never had
 # (internal/test/runner/record_parse.go, option=needs-linux).
@@ -49,7 +49,7 @@ option=exclusive:group=iface-owned-macvlan
 
 stdin=ze-bgp:terminator=EOF_CONF
 interface {
-	backend netlink;
+	backend kernel;
 	ethernet zeptrk0 {
 		unit 0 {
 			ipv4 {

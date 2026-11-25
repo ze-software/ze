@@ -12,7 +12,7 @@ option=needs-linux:caps=net-admin
 
 stdin=ze-bgp:terminator=EOF_CONF
 firewall {
-	backend nft;
+	backend kernel;
 	table fw10_002 {
 		family inet;
 		chain input {
@@ -31,7 +31,7 @@ EOF_CONF
 
 tmpfs=config2.conf:terminator=EOF_CONF2
 firewall {
-	backend nft;
+	backend kernel;
 	table fw10_002 {
 		family inet;
 		chain input {

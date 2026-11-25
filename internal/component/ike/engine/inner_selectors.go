@@ -578,7 +578,7 @@ func (r *innerSelectorRegistry) strand(child *ChildSA, s *strandedPolicies) {
 // (beginInstall/finishInstall). Without it two retries both removed one policy, and a peer that claimed the
 // freed selector between the first removal and the second lost its fresh policy to the
 // second. What retryMu spans is bounded: one dataplane removal per stranded policy,
-// each a netlink or VPP API request. The dataplane is called with r.mu released.
+// each a netlink request or VPP API request. The dataplane is called with r.mu released.
 func (r *innerSelectorRegistry) retryStranded() {
 	r.retryMu.Lock()
 	defer r.retryMu.Unlock()

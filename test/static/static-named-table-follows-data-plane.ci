@@ -1,0 +1,70 @@
+# Test: named-table static routes follow the configured data plane and never fall back to the Linux kernel under interface backend vpp.
+# Question: when a daemon runs with `interface backend vpp` and no VPP
+#           connector active, does the static plugin choose the VPP named-table
+#           backend from the declared selector, raise `doctor-static-vpp-channel`
+#           in `show doctor` and `show static`, keep main-table static routes
+#           on the Loc-RIB path, and install nothing into kernel table 171?
+#           A unit test injects a mock opener; only a real daemon proves the
+#           static plugin resolves the configured data plane from delivered
+#           `interface` sections and never silently falls back to Linux routes.
+# VALIDATES: spec-dataplane-compatibility-guard AC-7 (G) -- static named-table
+#            backend selection follows the configured primary data-plane
+#            selector; under `vpp`, an unavailable VPP channel raises
+#            `doctor-static-vpp-channel` with zero kernel fallback while
+#            main-table routes keep their Loc-RIB path.
+# PREVENTS: named-table static routes silently falling back to kernel routing
+#           tables when `interface backend vpp` is configured and VPP is down.
+
+option=needs-linux
+option=needs-build-tag:value=ze_vpp:state=present
+
+stdin=ze-bgp:terminator=EOF_CONF
+bus {
+	endpoint static-dataplane-observer {
+		external {
+			run "le test fixture static/named-table-follows-data-plane";
+		}
+		encoding json;
+	}
+	endpoint rib {
+		internal rib;
+	}
+}
+
+vpp {
+	enabled false;
+}
+
+interface {
+	backend vpp;
+}
+
+routing-table {
+	table blue {
+		id 171
+	}
+}
+
+static {
+	table default {
+		route 198.18.72.0/24 {
+			next { hop 192.0.2.1 { } }
+		}
+	}
+	table blue {
+		route 198.18.71.0/24 {
+			next { hop 192.0.2.1 { } }
+		}
+	}
+}
+EOF_CONF
+
+option=env:var=ze.log.static:value=info
+option=env:var=ze.log.routing.table:value=info
+
+cmd=foreground:seq=1:exec=ze -:stdin=ze-bgp:timeout=30s
+expect=exit:code=0
+expect=stderr:contains=doctor-static-vpp-channel
+expect=stderr:contains=OK: named-table static route followed interface backend vpp, raised doctor-static-vpp-channel, and never fell back to kernel table 171
+reject=stderr:pattern=panic
+reject=stderr:pattern=fatal error

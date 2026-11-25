@@ -14,7 +14,7 @@ import (
 
 func init() {
 	leroot.Register(area, leroot.GroupGenerate, Answer, registry.Meta{
-		Description: "The documentation gates: the YANG command contract, the doc drift check, and the generated operator table.",
+		Description: "The documentation gates: the YANG command contract, the doc drift check, and the generated reference docs.",
 		ShortHelp:   "check the YANG command and doc contracts",
 		Mode:        "offline",
 		// SectionTest is where ze files a tool rather than a product command;

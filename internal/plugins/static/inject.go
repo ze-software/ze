@@ -5,14 +5,18 @@ package static
 
 import (
 	"cmp"
+	"errors"
 	"net/netip"
 	"slices"
 	"sync"
 	"sync/atomic"
 
 	bfdapi "github.com/ze-software/ze/internal/component/bfd/api"
+	"github.com/ze-software/ze/internal/component/plugin/issuequeue"
 	"github.com/ze-software/ze/internal/component/plugin/registry"
+	"github.com/ze-software/ze/internal/core/opererr"
 	"github.com/ze-software/ze/internal/core/redistevents"
+	"github.com/ze-software/ze/internal/core/report"
 	"github.com/ze-software/ze/internal/core/rib/locrib"
 	staticevents "github.com/ze-software/ze/internal/plugins/static/events"
 )
@@ -87,11 +91,15 @@ type skippedRoute struct {
 }
 
 type routeManager struct {
-	mu      sync.Mutex
-	backend routeBackend
-	routes  map[routeKey]*routeState
-	skipped map[routeKey]skippedRoute
-	bfd     bfdapi.Service
+	mu           sync.Mutex
+	backend      routeBackend
+	dataPlane    string
+	backendPlane string
+	openBackend  func(dataPlane string) (routeBackend, error)
+	issues       *issuequeue.Queue
+	routes       map[routeKey]*routeState
+	skipped      map[routeKey]skippedRoute
+	bfd          bfdapi.Service
 
 	// loc and remote are where a MAIN-table route is installed: the shared
 	// Loc-RIB in-process, or the engine over RPC when static runs forked. The
@@ -118,6 +126,37 @@ func newRouteManager(backend routeBackend) *routeManager {
 	}
 }
 
+// setBackendOpener configures the factory that opens named-table route
+// backends for the configured data plane. MUST be called before routes are
+// applied.
+func (rm *routeManager) setBackendOpener(open func(dataPlane string) (routeBackend, error)) {
+	rm.mu.Lock()
+	defer rm.mu.Unlock()
+	rm.openBackend = open
+}
+
+// setIssueQueue configures the SDK report queue used to raise VPP channel
+// errors on the daemon's report bus. MUST be called before routes are applied.
+func (rm *routeManager) setIssueQueue(q *issuequeue.Queue) {
+	rm.mu.Lock()
+	defer rm.mu.Unlock()
+	rm.issues = q
+}
+
+// closeBackend closes the currently open named-table route backend, if any.
+// MUST be called after shutdown.
+func (rm *routeManager) closeBackend() error {
+	rm.mu.Lock()
+	defer rm.mu.Unlock()
+	if rm.backend == nil {
+		return nil
+	}
+	err := rm.backend.close()
+	rm.backend = nil
+	rm.backendPlane = ""
+	return err
+}
+
 // activeRouteManager points at the running static plugin's route manager, set in
 // runStaticPlugin. The doctor check reads it to report routes the backend
 // skipped at runtime. It is nil in the offline `ze doctor config <file>` path (no
@@ -142,6 +181,113 @@ func (rm *routeManager) setBFD(svc bfdapi.Service) {
 func (rm *routeManager) applyRoutes(routes []staticRoute) error {
 	rm.mu.Lock()
 	defer rm.mu.Unlock()
+	return rm.applyRoutesLocked(routes)
+}
+
+// applyRoutesForDataPlane switches the named-table route backend to dataPlane
+// when it changed, then applies routes. Main-table routes go through the
+// Loc-RIB on every data plane and stay unaffected by backend selection.
+func (rm *routeManager) applyRoutesForDataPlane(routes []staticRoute, dataPlane string) error {
+	rm.mu.Lock()
+	defer rm.mu.Unlock()
+	rm.switchDataPlaneLocked(dataPlane)
+	return rm.applyRoutesLocked(routes)
+}
+
+// switchDataPlaneLocked updates the configured data plane for named-table
+// routes. When the plane changes after routes were already applied, named-table
+// routes programmed on the previous plane are withdrawn, the old backend is
+// closed, and named-table routes are cleared from the diff baseline so they
+// reprogram on the new plane. Main-table routes remain in the Loc-RIB.
+//
+// REQUIRES: the caller holds rm.mu.
+func (rm *routeManager) switchDataPlaneLocked(newPlane string) {
+	if rm.openBackend == nil {
+		return
+	}
+	if newPlane == "" {
+		return
+	}
+	if rm.dataPlane == newPlane {
+		return
+	}
+	if rm.dataPlane != "" {
+		for key, rs := range rm.routes {
+			if rs.route.inMainTable() {
+				continue
+			}
+			if err := rm.removeRouteLocked(rs); err != nil {
+				logger().Warn("static: route withdrawal failed during data-plane switch",
+					"code", doctorCodeRouteSkipped, "prefix", rs.route.Prefix, "table", rs.route.Table, "error", err)
+			}
+			delete(rm.routes, key)
+		}
+		for key, sk := range rm.skipped {
+			if !sk.route.inMainTable() {
+				delete(rm.skipped, key)
+			}
+		}
+		if rm.backend != nil {
+			_ = rm.backend.close() //nolint:errcheck // best-effort cleanup when switching data planes
+			rm.backend = nil
+			rm.backendPlane = ""
+		}
+	}
+	rm.dataPlane = newPlane
+}
+
+// ensureBackendLocked returns the routeBackend for named-table routes, opening
+// one for rm.dataPlane via rm.openBackend on demand. When a test injects a
+// fixed backend (rm.openBackend == nil), that backend is returned directly.
+// Under "vpp", a channel open failure logs and reports doctorCodeVPPChannel
+// and returns the error without falling back to the kernel backend.
+//
+// REQUIRES: the caller holds rm.mu.
+func (rm *routeManager) ensureBackendLocked() (routeBackend, error) {
+	if rm.openBackend == nil {
+		if rm.backend == nil {
+			return nil, opererr.New(
+				"static named-table route has no route backend",
+				"no route backend or backend opener is available for named-table routes",
+				staticVPPChannelFix,
+			)
+		}
+		return rm.backend, nil
+	}
+	if rm.backend != nil && rm.backendPlane == rm.dataPlane {
+		return rm.backend, nil
+	}
+	be, err := rm.openBackend(rm.dataPlane)
+	if err != nil {
+		if opErr, ok := errors.AsType[*opererr.Error](err); ok && rm.dataPlane == dataPlaneVPP {
+			rm.reportVPPChannelFailure(opErr)
+		}
+		return nil, err
+	}
+	rm.backend = be
+	rm.backendPlane = rm.dataPlane
+	return be, nil
+}
+
+// reportVPPChannelFailure logs and raises doctorCodeVPPChannel on the daemon
+// report bus when a named-table route under VPP cannot open a GoVPP channel.
+func (rm *routeManager) reportVPPChannelFailure(opErr *opererr.Error) {
+	msg := report.FitMessage(opErr.Problem() + ": " + opErr.Why())
+	failed := func(err error) {
+		logger().Warn("static: daemon did not accept VPP channel failure report",
+			"code", doctorCodeVPPChannel, "error", err, "fix", opErr.Fix())
+	}
+	queueErr := rm.issues.RaiseError(doctorCodeVPPChannel, "vpp-channel", msg, opErr.Fix(), failed)
+	logger().Error(opErr.Problem(),
+		"code", doctorCodeVPPChannel,
+		"why", opErr.Why(),
+		"fix", opErr.Fix(),
+		"error", opErr.Unwrap(),
+		issuequeue.Outcome(queueErr),
+	)
+}
+
+func (rm *routeManager) applyRoutesLocked(routes []staticRoute) error {
 
 	newMap := make(map[routeKey]staticRoute, len(routes))
 	for _, r := range routes {

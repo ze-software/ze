@@ -2268,6 +2268,72 @@ on a link whose connected route no plugin inserted is on-link all the same.
 <!-- source: internal/component/sysrib/fibimport.go -- recordWithheldWinner, applyFIBImport, fibStateChange -->
 <!-- source: internal/component/sysrib/sysrib.go -- recomputeForwarding, cascadeRecompute, replayChanges, fibEntry, fibInstall -->
 
+### Dummy FIB Backend (`fib dummy`)
+
+Use `fib dummy` when Ze must select routes in the system RIB and write none of
+them to any forwarding table:
+
+```
+fib {
+    dummy { }
+}
+```
+
+The `fib-dummy` plugin subscribes to `system-rib/best-change` and holds each selected route in memory.
+It counts installs, replaces, removals, and invalid changes, and writes nowhere.
+Because `fib dummy` is the operator's FIB choice, Ze adds no data-plane writer beside it.
+Ze commits it under `interface backend kernel` or `interface backend vpp`, and keeps the BGP Graceful Restart Forwarding State bit clear.
+The container carries no leaf.
+
+<!-- source: internal/plugins/fib/dummy/yang/ze-fib-dummy-conf.yang -- dummy container -->
+<!-- source: internal/plugins/fib/dummy/register.go -- init, commandDecls -->
+<!-- source: internal/plugins/fib/dummy/fibdummy.go -- dummyFIB, applyBatch -->
+
+Choose between `fib dummy` and `rib { fib-withhold [ ... ] }` by whether any
+protocol needs a forwarding table on the box:
+
+- Use `fib dummy` on a control-plane-only node (such as a route reflector or route server) where no selected route belongs in the kernel or VPP.
+  Use it also to test and benchmark the route path (BGP, protocol RIB, system RIB, and best-change consumer) without kernel programming cost.
+- Use `rib { fib-withhold [ bgp ] }` when the box needs some protocols (such as IGP routes) in the forwarding table and you want to keep BGP routes out.
+
+Ze refuses `fib dummy` at commit, reload, startup, and `ze config validate` beside any other FIB plugin.
+That check covers config blocks (`fib kernel`, `fib vpp`, `fib p4`), `bus { endpoint ... { internal ...; } }` declarations, and `--plugin`.
+The refusal and `ze doctor` report `doctor-dataplane-mismatch` with the line that fixes the conflict.
+
+<!-- source: internal/component/config/dataplane_verdict.go -- evaluateNoPlaneFIBChoice, noPlaneFIBChoiceFinding -->
+
+**Scope of `fib dummy`.** `fib dummy` covers routes selected by the system RIB only.
+Features that write forwarding state by their own paths stay untouched: named-table static routes, policy routing, the IPsec tunnel-source guard, and interface addresses with their connected routes.
+`fib-dummy` refuses MPLS label entries from LDP, RSVP-TE, OSPF Segment Routing, and BGP EPE so those protocols never advertise unforwarded labels (`doctor-fib-mpls-no-writer`).
+`ze doctor` reports `doctor-fib-dummy-holds-routes` as a warning when any `NeedsDataPlane` producer is selected, and as info otherwise.
+
+<!-- source: internal/plugins/fib/dummy/labels.go -- handleMPLSEntry -->
+<!-- source: internal/plugins/fib/dummy/doctor.go -- checkFIBDummyHoldsRoutes -->
+
+**Converting a running box from `fib kernel`.** `fib-kernel` leaves its
+installed routes in the Linux kernel when it stops if `flush-on-stop` is `false`
+(the default). To switch a running router to `fib dummy` and clear its
+Ze-installed kernel routes without a restart:
+
+1. Set `fib kernel flush-on-stop true` and commit so the running `fib-kernel`
+   removes its owned routes when stopped.
+2. Replace `fib kernel` with `fib dummy` (or add `fib dummy` when the engine
+   added `fib-kernel` automatically) and commit.
+
+If routes from an earlier `fib-kernel` run stay in the kernel because
+`flush-on-stop` was `false`, flush them with
+`ip route flush proto 250 table all` and
+`ip -6 route flush proto 250 table all`.
+
+<!-- source: internal/plugins/fib/kernel/yang/ze-fib-conf.yang -- flush-on-stop leaf -->
+<!-- source: internal/plugins/fib/kernel/fibkernel.go -- flushRoutes -->
+
+Inspect held routes with `show fib dummy` (every row carries `programmed` set to
+`no`) and cumulative totals with `show fib dummy counters` (`forwarding` is
+always `none`).
+
+<!-- source: internal/plugins/fib/dummy/show.go -- routeRows, counters -->
+
 ## Static Routes
 
 Routes can be configured directly per peer:

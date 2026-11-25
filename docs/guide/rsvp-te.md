@@ -5,7 +5,7 @@ tunnels with bandwidth reservation. It runs directly over IP as protocol 46 and
 requires `CAP_NET_RAW`.
 
 > **Status: experimental.** The engine emits push/swap/pop entries on the
-> `mpls-fib` event bus. Under `interface { backend netlink; }` `fib-kernel`
+> `mpls-fib` event bus. Under `interface { backend kernel; }` `fib-kernel`
 > installs IP routes with labels for push and AF_MPLS routes for swap/pop; under
 > `backend vpp` `fib-vpp` installs them in VPP, which has no form for a
 > facility-backup push. The native Linux carrier exercises these paths

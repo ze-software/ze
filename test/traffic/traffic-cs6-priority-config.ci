@@ -1,6 +1,6 @@
 # Test: CS6 priority class with named DSCP value parses correctly.
 # VALIDATES: spec-cp-survival-3 AC-6 -- config "match dscp cs6" (named)
-#            is parsed to DSCP value 48 and accepted by the tc backend.
+#            is parsed to DSCP value 48 and accepted by the kernel backend.
 # PREVENTS: regression where named DSCP values are rejected by the parser.
 
 stdin=ze-bgp:terminator=EOF_CONF
@@ -36,7 +36,7 @@ bgp {
 
 traffic {
 	control {
-		backend tc
+		backend kernel
 		interface eth0 {
 			qdisc {
 				type htb

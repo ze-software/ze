@@ -4,14 +4,17 @@ package static
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"net"
 	"sync"
 
 	bfdapi "github.com/ze-software/ze/internal/component/bfd/api"
+	"github.com/ze-software/ze/internal/component/config"
 	"github.com/ze-software/ze/internal/component/config/redistribute"
 	"github.com/ze-software/ze/internal/component/iface"
 	"github.com/ze-software/ze/internal/component/plugin/cli"
+	"github.com/ze-software/ze/internal/component/plugin/issuequeue"
 	"github.com/ze-software/ze/internal/component/plugin/registry"
 	"github.com/ze-software/ze/internal/component/policy"
 	sysribevents "github.com/ze-software/ze/internal/component/sysrib/events"
@@ -55,6 +58,7 @@ var sourcesOnce sync.Once
 type pendingSection struct {
 	mu        sync.Mutex
 	routes    []staticRoute
+	dataPlane string
 	delivered bool
 }
 
@@ -64,9 +68,16 @@ type pendingSection struct {
 // before set, so its delivery belongs to that transaction. Startup MUST use a
 // separate, initially empty pendingSection and consume it with take at all-ready.
 func (p *pendingSection) set(routes []staticRoute) {
+	p.setWithDataPlane(routes, "")
+}
+
+// setWithDataPlane records the parsed routes together with the configured data
+// plane resolved from the same delivery.
+func (p *pendingSection) setWithDataPlane(routes []staticRoute, dataPlane string) {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 	p.routes = routes
+	p.dataPlane = dataPlane
 	p.delivered = true
 }
 
@@ -84,7 +95,7 @@ func (p *pendingSection) set(routes []staticRoute) {
 func (p *pendingSection) reset() {
 	p.mu.Lock()
 	defer p.mu.Unlock()
-	p.routes, p.delivered = nil, false
+	p.routes, p.dataPlane, p.delivered = nil, "", false
 }
 
 // take returns the parsed routes and reports whether a section was delivered.
@@ -92,11 +103,18 @@ func (p *pendingSection) reset() {
 // transaction. Startup MUST consume its separate delivery at all-ready. It clears
 // the state, so a second apply reports false rather than replaying the section.
 func (p *pendingSection) take() ([]staticRoute, bool) {
+	routes, _, delivered := p.takeWithDataPlane()
+	return routes, delivered
+}
+
+// takeWithDataPlane returns the parsed routes, the configured data plane, and
+// whether a section was delivered, clearing the pending state.
+func (p *pendingSection) takeWithDataPlane() ([]staticRoute, string, bool) {
 	p.mu.Lock()
 	defer p.mu.Unlock()
-	routes, delivered := p.routes, p.delivered
-	p.routes, p.delivered = nil, false
-	return routes, delivered
+	routes, dataPlane, delivered := p.routes, p.dataPlane, p.delivered
+	p.routes, p.dataPlane, p.delivered = nil, "", false
+	return routes, dataPlane, delivered
 }
 
 // registerStaticSources registers "static" as a redistribute source so
@@ -138,7 +156,10 @@ func init() {
 		// A route's table names an entry under the routing-table root, so
 		// commit hands static the candidate routing-table section too
 		// (candidateTables): a table and a route in it then commit together.
-		ConfigReads: []string{bfdapi.ConfigRoot, routingtable.ConfigRoot},
+		// The interface root supplies both declared dynamic interface names
+		// (candidateDeclaredNames) and the configured data-plane selector
+		// (candidateDataPlane) for named-table route backends.
+		ConfigReads: []string{bfdapi.ConfigRoot, routingtable.ConfigRoot, iface.ConfigRoot},
 		// The system RIB is where a main-table static route is arbitrated against
 		// every other protocol offering the same prefix, so static cannot run
 		// without it. It is not a data-plane choice: sysrib seeds every
@@ -199,8 +220,59 @@ func init() {
 }
 
 func verifyStaticConfig(sections []sdk.ConfigSection) error {
-	_, _, err := verifyCandidateStatic(sections)
+	_, _, _, err := verifyCandidateStaticWithDataPlane(sections)
 	return err
+}
+
+// verifyCandidateStaticWithDataPlane verifies the candidate static section and
+// resolves the configured primary data plane from the same delivery.
+func verifyCandidateStaticWithDataPlane(sections []sdk.ConfigSection) ([]staticRoute, string, bool, error) {
+	routes, found, err := verifyCandidateStatic(sections)
+	if err != nil {
+		return nil, "", true, err
+	}
+	if !found {
+		return nil, "", false, nil
+	}
+	dataPlane, err := candidateDataPlane(sections)
+	if err != nil {
+		return nil, "", true, err
+	}
+	return routes, dataPlane, true, nil
+}
+
+// candidateDataPlane resolves the configured data plane from the delivered
+// candidate sections through the declared primary DataPlaneSelector and the
+// YANG schema default, never from runtime VPP connector presence.
+func candidateDataPlane(sections []sdk.ConfigSection) (string, error) {
+	tree := config.NewTree()
+	for _, section := range sections {
+		if section.Root != iface.ConfigRoot {
+			continue
+		}
+		if section.Data == "" {
+			continue
+		}
+		var raw map[string]any
+		if err := json.Unmarshal([]byte(section.Data), &raw); err != nil {
+			return "", fmt.Errorf("static: reading candidate %s section: %w", iface.ConfigRoot, err)
+		}
+		rebuilt, err := config.TreeFromPluginMap(raw)
+		if err != nil {
+			return "", fmt.Errorf("static: rebuilding candidate %s section: %w", iface.ConfigRoot, err)
+		}
+		tree = rebuilt
+		break
+	}
+	schema, err := config.YANGSchema()
+	if err != nil {
+		return "", fmt.Errorf("static: load YANG schema for data plane: %w", err)
+	}
+	plane, err := config.ResolvePrimaryDataPlane(tree, schema)
+	if err != nil {
+		return "", fmt.Errorf("static: resolve configured data plane: %w", err)
+	}
+	return plane, nil
 }
 
 // verifyCandidateStatic verifies the static section against the routing
@@ -376,8 +448,11 @@ func runStaticPlugin(conn net.Conn) int {
 	warnIfExternal(p.IsInternal())
 	defer func() { _ = p.Close() }()
 
-	backend := newStaticBackend()
-	rm := newRouteManager(backend)
+	rm := newRouteManager(nil)
+	rm.setBackendOpener(newStaticBackendForDataPlane)
+	issues := issuequeue.Start(p)
+	defer issues.Stop()
+	rm.setIssueQueue(issues)
 	// Main-table routes are installed as Loc-RIB Paths. In-process that is the
 	// shared Loc-RIB; forked, locrib.Default() answers nil and the operations
 	// travel to the engine over the route-install RPC, which rebuilds the Path in
@@ -441,7 +516,7 @@ func runStaticPlugin(conn net.Conn) int {
 
 	rm.shutdown()
 
-	if err := backend.close(); err != nil {
+	if err := rm.closeBackend(); err != nil {
 		logger().Warn("static: backend close failed", "error", err)
 	}
 
@@ -453,15 +528,17 @@ func runStaticPlugin(conn net.Conn) int {
 func registerStaticCallbacks(p *sdk.Plugin, rm *routeManager) {
 	var mu sync.Mutex
 	var currentRoutes []staticRoute
+	var currentPlane string
 	var pending pendingSection
 	var startup pendingSection
 
-	applyConfigured := func(routes []staticRoute) error {
-		if err := rm.applyRoutes(routes); err != nil {
+	applyConfigured := func(routes []staticRoute, dataPlane string) error {
+		if err := rm.applyRoutesForDataPlane(routes, dataPlane); err != nil {
 			return fmt.Errorf("static routes: %w", err)
 		}
 		mu.Lock()
 		currentRoutes = routes
+		currentPlane = dataPlane
 		mu.Unlock()
 		logger().Info("static routes loaded", "count", len(routes))
 		return nil
@@ -472,12 +549,12 @@ func registerStaticCallbacks(p *sdk.Plugin, rm *routeManager) {
 		// transaction that later aborted cannot be applied by a reload that
 		// carries no static section of its own.
 		pending.reset()
-		routes, found, err := verifyCandidateStatic(sections)
+		routes, dataPlane, found, err := verifyCandidateStaticWithDataPlane(sections)
 		if err != nil {
 			return err
 		}
 		if found {
-			pending.set(routes)
+			pending.setWithDataPlane(routes, dataPlane)
 		}
 		return nil
 	})
@@ -489,12 +566,12 @@ func registerStaticCallbacks(p *sdk.Plugin, rm *routeManager) {
 		// profile therefore cannot boot, rather than boot and then have every
 		// later commit that reaches static refused for a profile the commit
 		// never touched.
-		routes, found, err := verifyCandidateStatic(sections)
+		routes, dataPlane, found, err := verifyCandidateStaticWithDataPlane(sections)
 		if err != nil {
 			return err
 		}
 		if found {
-			startup.set(routes)
+			startup.setWithDataPlane(routes, dataPlane)
 		}
 		return nil
 	})
@@ -503,8 +580,8 @@ func registerStaticCallbacks(p *sdk.Plugin, rm *routeManager) {
 	// subscribers in later startup phases. Configuration MUST only retain the
 	// validated set above; all-ready MUST consume it after OnStarted binds BFD.
 	p.OnAllPluginsReady(func() error {
-		if routes, delivered := startup.take(); delivered {
-			if err := applyConfigured(routes); err != nil {
+		if routes, dataPlane, delivered := startup.takeWithDataPlane(); delivered {
+			if err := applyConfigured(routes, dataPlane); err != nil {
 				return err
 			}
 		}
@@ -512,19 +589,19 @@ func registerStaticCallbacks(p *sdk.Plugin, rm *routeManager) {
 		// operation. Replace its staging callback rather than retaining a
 		// second readiness flag beside the SDK's lifecycle.
 		p.OnConfigure(func(sections []sdk.ConfigSection) error {
-			routes, found, err := verifyCandidateStatic(sections)
+			routes, dataPlane, found, err := verifyCandidateStaticWithDataPlane(sections)
 			if err != nil {
 				return err
 			}
 			if found {
-				return applyConfigured(routes)
+				return applyConfigured(routes, dataPlane)
 			}
 			return nil
 		})
 		return nil
 	})
 
-	tx := staticTx{pending: &pending, rm: rm, mu: &mu, current: &currentRoutes}
+	tx := staticTx{pending: &pending, rm: rm, mu: &mu, current: &currentRoutes, currentPlane: &currentPlane}
 	p.OnConfigApply(func(_ []sdk.ConfigDiffSection) error { return tx.apply() })
 	p.OnConfigRollback(func(_ string) error { return tx.rollback() })
 
@@ -550,15 +627,19 @@ func registerStaticCallbacks(p *sdk.Plugin, rm *routeManager) {
 // from a committed transaction would restore the state from before it. A
 // section that arrived empty IS delivered, and falls through so applyRoutes
 // withdraws the routes it no longer finds in the config.
-func applyStaticSection(pending *pendingSection, rm *routeManager, mu *sync.Mutex, current *[]staticRoute) (*sdk.Journal, error) {
-	newRoutes, delivered := pending.take()
+func applyStaticSection(pending *pendingSection, rm *routeManager, mu *sync.Mutex, current *[]staticRoute, currentPlane *string) (*sdk.Journal, error) {
+	newRoutes, newPlane, delivered := pending.takeWithDataPlane()
 	if !delivered {
 		return sdk.NewJournal(), nil
 	}
 	mu.Lock()
 	oldRoutes := *current
+	var oldPlane string
+	if currentPlane != nil {
+		oldPlane = *currentPlane
+	}
 	mu.Unlock()
-	return applyRouteSet(rm, mu, current, oldRoutes, newRoutes)
+	return applyRouteSetForDataPlane(rm, mu, current, currentPlane, oldRoutes, oldPlane, newRoutes, newPlane)
 }
 
 // staticTx holds the undo set the open transaction's apply owns, between
@@ -568,16 +649,17 @@ func applyStaticSection(pending *pendingSection, rm *routeManager, mu *sync.Mute
 // committed transaction. Not safe for concurrent use: the SDK delivers apply
 // and rollback one at a time.
 type staticTx struct {
-	pending *pendingSection
-	rm      *routeManager
-	mu      *sync.Mutex
-	current *[]staticRoute
-	active  *sdk.Journal
+	pending      *pendingSection
+	rm           *routeManager
+	mu           *sync.Mutex
+	current      *[]staticRoute
+	currentPlane *string
+	active       *sdk.Journal
 }
 
 // apply applies this transaction's section and keeps the undo set it owns.
 func (t *staticTx) apply() error {
-	j, err := applyStaticSection(t.pending, t.rm, t.mu, t.current)
+	j, err := applyStaticSection(t.pending, t.rm, t.mu, t.current, t.currentPlane)
 	if err != nil {
 		return err
 	}
@@ -613,24 +695,34 @@ func (t *staticTx) rollback() error {
 // stores no undo for it, so the error returns with no journal and nothing here
 // undoes a partly applied set.
 func applyRouteSet(rm *routeManager, mu *sync.Mutex, current *[]staticRoute, oldRoutes, newRoutes []staticRoute) (*sdk.Journal, error) {
+	return applyRouteSetForDataPlane(rm, mu, current, nil, oldRoutes, "", newRoutes, "")
+}
+
+func applyRouteSetForDataPlane(rm *routeManager, mu *sync.Mutex, current *[]staticRoute, currentPlane *string, oldRoutes []staticRoute, oldPlane string, newRoutes []staticRoute, newPlane string) (*sdk.Journal, error) {
 	j := sdk.NewJournal()
 	err := j.Record(
 		func() error {
-			if applyErr := rm.applyRoutes(newRoutes); applyErr != nil {
+			if applyErr := rm.applyRoutesForDataPlane(newRoutes, newPlane); applyErr != nil {
 				return fmt.Errorf("static routes apply: %w", applyErr)
 			}
 			mu.Lock()
 			*current = newRoutes
+			if currentPlane != nil {
+				*currentPlane = newPlane
+			}
 			mu.Unlock()
 			logger().Info("static routes reloaded")
 			return nil
 		},
 		func() error {
-			if applyErr := rm.applyRoutes(oldRoutes); applyErr != nil {
+			if applyErr := rm.applyRoutesForDataPlane(oldRoutes, oldPlane); applyErr != nil {
 				return fmt.Errorf("static routes rollback: %w", applyErr)
 			}
 			mu.Lock()
 			*current = oldRoutes
+			if currentPlane != nil {
+				*currentPlane = oldPlane
+			}
 			mu.Unlock()
 			logger().Info("static routes rolled back")
 			return nil

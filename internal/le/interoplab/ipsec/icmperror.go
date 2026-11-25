@@ -39,7 +39,7 @@ const (
 	// ipWordVia the one that names a gateway.
 	ipWordTable = "table"
 	ipWordVia   = "via"
-	// wordAdd is the verb ip-xfrm(8) and nft(8) both take to add an object.
+	// wordAdd is the verb ip-xfrm(8) and the nft tool both take to add an object.
 	wordAdd = "add"
 )
 

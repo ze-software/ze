@@ -1,6 +1,6 @@
 # Test: does Linux offline validation accept PPPoE with the default interface backend?
 # Why not a unit test: the shipped command must link both schema modules and
-# validate an omitted backend using the Linux host's default netlink backend.
+# validate an omitted backend using the Linux host's default kernel backend.
 # Other hosts have no interface backend default. Run this question in Ze's guest.
 
 option=needs-linux

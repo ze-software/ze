@@ -1,7 +1,7 @@
 // Design: docs/architecture/vrrp/vrrp-first-hop-redundancy.md -- doctor config-sanity tests
 //
-// VALIDATES: AC-10 -- `ze doctor` reports exactly what a commit would reject,
-// including the VPP-backend rejection, and stays silent on a healthy config.
+// VALIDATES: AC-10 -- `ze doctor` reports exactly what a commit would reject
+// for VRRP cross-leaf rules, and stays silent on a healthy config.
 // PREVENTS: a doctor check that drifts from the verifier (two rule sets, two
 // answers) and a check that fires when no vrrp is configured at all.
 
@@ -25,7 +25,7 @@ func TestDoctorSilentWithoutVRRP(t *testing.T) {
 			},
 		},
 	}
-	if diags := vrrpConfigDiagnostics(t, tree, backendNetlink); len(diags) != 0 {
+	if diags := vrrpConfigDiagnostics(t, tree); len(diags) != 0 {
 		t.Fatalf("no vrrp configured must produce no diagnostics, got %+v", diags)
 	}
 }
@@ -33,7 +33,7 @@ func TestDoctorSilentWithoutVRRP(t *testing.T) {
 // TestDoctorSilentOnHealthyConfig proves a valid group produces no findings.
 func TestDoctorSilentOnHealthyConfig(t *testing.T) {
 	tree := oneGroup(familyIPv4, "10", map[string]any{"virtual-address": vips("192.0.2.1")})
-	if diags := vrrpConfigDiagnostics(t, tree, backendNetlink); len(diags) != 0 {
+	if diags := vrrpConfigDiagnostics(t, tree); len(diags) != 0 {
 		t.Fatalf("healthy config must produce no diagnostics, got %+v", diags)
 	}
 }
@@ -47,7 +47,7 @@ func TestDoctorReportsInvalidConfig(t *testing.T) {
 		"version":         "2",
 		"accept-mode":     true,
 	})
-	diags := vrrpConfigDiagnostics(t, tree, backendNetlink)
+	diags := vrrpConfigDiagnostics(t, tree)
 	if len(diags) != 1 {
 		t.Fatalf("diagnostics = %d, want 1", len(diags))
 	}
@@ -59,28 +59,11 @@ func TestDoctorReportsInvalidConfig(t *testing.T) {
 	}
 }
 
-// TestDoctorReportsVPPBackend proves vrrp on a VPP-backed tree reports the
-// backend code, not the generic one: the fix is different (change the backend or
-// drop the config), so the code must be too.
-func TestDoctorReportsVPPBackend(t *testing.T) {
-	tree := oneGroup(familyIPv4, "10", map[string]any{"virtual-address": vips("192.0.2.1")})
-	diags := vrrpConfigDiagnostics(t, tree, backendVPP)
-	if len(diags) != 1 {
-		t.Fatalf("diagnostics = %d, want 1", len(diags))
-	}
-	if diags[0].Code != codeVRRPBackendUnusable {
-		t.Errorf("code = %q, want %q", diags[0].Code, codeVRRPBackendUnusable)
-	}
-	if !strings.Contains(diags[0].Message, "backend") {
-		t.Errorf("message must name the backend, got %q", diags[0].Message)
-	}
-}
-
 // TestDoctorCodesAreExplainable proves every code this plugin can emit is
 // registered with metadata, so `ze show diagnostic <code>` resolves it.
 func TestDoctorCodesAreExplainable(t *testing.T) {
 	registerVRRPDiagnosticCodes()
-	for _, code := range []string{codeVRRPConfigInvalid, codeVRRPBackendUnusable} {
+	for _, code := range []string{codeVRRPConfigInvalid} {
 		meta := diagnostic.Lookup(code)
 		if meta == nil {
 			t.Errorf("code %q is not registered; `ze show diagnostic %s` would fail", code, code)
@@ -95,11 +78,8 @@ func TestDoctorCodesAreExplainable(t *testing.T) {
 // vrrpConfigDiagnostics runs the check's rule path over a tree, bypassing the
 // config.Tree wrapper the runner supplies (the wrapper is exercised by the .ci
 // functional test through `ze doctor` itself).
-func vrrpConfigDiagnostics(t *testing.T, ifaceTree map[string]any, backend string) []diagnostic.Diagnostic {
+func vrrpConfigDiagnostics(t *testing.T, ifaceTree map[string]any) []diagnostic.Diagnostic {
 	t.Helper()
-	if backend != "" {
-		ifaceTree["backend"] = backend
-	}
 	sections := []configSection{mkSection(t, ifaceTree)}
 	return diagnoseSections(sections)
 }

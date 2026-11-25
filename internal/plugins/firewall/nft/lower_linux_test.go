@@ -70,7 +70,7 @@ func TestShouldDeleteTableScopesToDesiredOrApplied(t *testing.T) {
 // as far as reading chains. These three returns happen BEFORE that, and the nil
 // guard is the one that would turn a defensive check into a panic inside the
 // sweep loop if it were dropped. The receiver carries a nil conn on purpose: a
-// case that reached netlink would panic here rather than pass quietly.
+// case that reached the netlink socket would panic here rather than pass quietly.
 func TestIsLegacyTableRefusesBeforeItReadsTheKernel(t *testing.T) {
 	b := &backend{}
 
@@ -1454,7 +1454,7 @@ func TestLowerProtoMatchAcceptsEveryCanonicalName(t *testing.T) {
 // match reads the network header raw. Without a leading `meta nfproto`
 // guard the IPv4 destination offset (16) lands inside the IPv6 SOURCE
 // address (IPv6 src spans bytes 8..23), so an IPv4 rule matches IPv6
-// traffic the operator never named. nft's own compiler emits the guard for
+// traffic the operator never named. nftables' own compiler emits the guard for
 // an inet table and omits it for ip / ip6, where nfproto is constant.
 
 // VALIDATES: a literal address match in an inet table emits
@@ -1720,7 +1720,7 @@ func TestLowerTermInetDSCPSetSplitsPerFamily(t *testing.T) {
 			wantCsumAt: 10,
 		},
 		{
-			// nft v1.0.9 compiles `ip6 dscp set 46` to exactly this:
+			// nftables v1.0.9 compiles `ip6 dscp set 46` to exactly this:
 			// payload load 2b @ nh+0, bitwise & 0x3ff0 ^ 0x800b (little
 			// endian: mask f0 3f, xor 0b 80), payload write 2b @ nh+0
 			// csum_type 0.

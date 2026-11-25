@@ -116,7 +116,7 @@ func TestVerifyPluginConfigTransitionSendsEmptyDeletedRoot(t *testing.T) {
 		t.Fatalf("register verifier: %v", err)
 	}
 
-	previous := map[string]any{"interface": map[string]any{"backend": "netlink"}}
+	previous := map[string]any{"interface": map[string]any{"backend": "kernel"}}
 	candidate := map[string]any{"bgp": map[string]any{"router-id": "1.2.3.4"}}
 	if errs := VerifyPluginConfigMapTransition(previous, candidate); len(errs) != 0 {
 		t.Fatalf("errors = %v, want none", errs)
@@ -294,5 +294,66 @@ func TestVerifyPluginConfigRefusesMissingHardDependency(t *testing.T) {
 	registerProvider(t, "bgp")
 	if errs := VerifyPluginConfig(mustParsePluginVerifyConfig(t, config)); len(errs) != 0 {
 		t.Errorf("with bgp in the build the config is valid: errors = %v, want none", errs)
+	}
+}
+
+// TestVerifyTreeRefusesCommandLinePluginWithMissingDependency proves AC-18:
+// verifyTree passes the merged candidatePluginSelection (including recorded
+// command-line plugins) to refuseUnresolvableDependencies, so a recorded
+// plugin whose hard dependency this build lacks is refused with the same
+// *registry.MissingDependencyError boot's finalizeConfigLoad produces.
+//
+// VALIDATES: verifyTree merges CommandLinePlugins into
+// refuseUnresolvableDependencies.
+// PREVENTS: ze config validate accepting a --plugin whose hard dependency is
+// compiled out of this binary.
+func TestVerifyTreeRefusesCommandLinePluginWithMissingDependency(t *testing.T) {
+	t.Cleanup(ResetDeclaredSchemasForTest())
+	isolateRegistry(t)
+
+	if err := registry.Register(registry.Registration{
+		Name:         "cli-dep-owner",
+		Description:  "test plugin selected only via --plugin",
+		Dependencies: []string{"bgp"},
+		RunEngine:    func(net.Conn) int { return 0 },
+		CLIHandler:   func([]string) int { return 0 },
+	}); err != nil {
+		t.Fatalf("register cli-dep-owner: %v", err)
+	}
+
+	const cfg = "environment {\n}\n"
+	tree := mustParsePluginVerifyConfig(t, cfg)
+
+	// Without the recorded --plugin, the config is valid.
+	RecordCommandLinePlugins(nil)
+	if errs := VerifyPluginConfig(tree); len(errs) != 0 {
+		t.Fatalf("without recorded plugin: errors = %v, want none", errs)
+	}
+
+	// With the recorded --plugin whose hard dependency is absent, verifyTree refuses.
+	RecordCommandLinePlugins([]string{"ze.cli-dep-owner"})
+	errs := VerifyPluginConfig(tree)
+	if len(errs) != 1 {
+		t.Fatalf("with recorded plugin missing dep: errors = %v, want 1", errs)
+	}
+	missing, ok := errors.AsType[*registry.MissingDependencyError](errs[0])
+	if !ok {
+		t.Fatalf("error = %T (%v), want *registry.MissingDependencyError", errs[0], errs[0])
+	}
+	if missing.Plugin != "cli-dep-owner" || missing.Dependency != "bgp" {
+		t.Errorf("missing = (%q, %q), want (cli-dep-owner, bgp)", missing.Plugin, missing.Dependency)
+	}
+	_, boot := registry.ResolveDependencies([]string{"cli-dep-owner"}, nil, func(string, registry.ConfigNeed) bool { return false })
+	if boot == nil || errs[0].Error() != boot.Error() {
+		t.Errorf("door message differs from boot's:\ndoor: %v\nboot: %v", errs[0], boot)
+	}
+	if !strings.Contains(errs[0].Error(), "ze_bgp") {
+		t.Errorf("refusal does not name ze_bgp:\n%s", errs[0])
+	}
+
+	// Registering the missing dependency clears the refusal.
+	registerProvider(t, "bgp")
+	if errs := VerifyPluginConfig(tree); len(errs) != 0 {
+		t.Errorf("with bgp registered: errors = %v, want none", errs)
 	}
 }

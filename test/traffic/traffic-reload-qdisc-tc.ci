@@ -45,7 +45,7 @@ bgp {
 
 traffic {
 	control {
-		backend tc
+		backend kernel
 		interface eth0 {
 			qdisc {
 				type htb
@@ -99,7 +99,7 @@ traffic {
 EOF_CONF2
 
 option=env:var=ze.log.traffic:value=debug
-# See traffic-boot-qdisc-tc.ci: the tc backend refuses to replace a root qdisc with no
+# See traffic-boot-qdisc-tc.ci: the kernel backend refuses to replace a root qdisc with no
 # runtime-state store registered (errSnapshotPersistUnavailable), and ze only opens
 # the database/ tree under the config dir. Pin it at the per-test tmpfs dir so
 # the store is private to this test.

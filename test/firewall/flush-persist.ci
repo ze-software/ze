@@ -13,7 +13,7 @@ option=needs-linux:caps=net-admin
 
 stdin=ze-bgp:terminator=EOF_CONF
 firewall {
-	backend nft;
+	backend kernel;
 	flush-on-shutdown false;
 	table fwpersist {
 		family inet;

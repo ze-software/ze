@@ -20,7 +20,7 @@ import (
 )
 
 // OwnedDeviceReportSource is the report-bus source of every owned-device
-// warning. The netlink backend raises under it too, for a half-made device it
+// warning. The kernel backend raises under it too, for a half-made device it
 // could not delete, so the one check reads them all.
 const OwnedDeviceReportSource = "iface-owned-device"
 

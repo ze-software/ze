@@ -31,7 +31,7 @@ type Capability struct {
 // platform. TestDaemonCapabilityBitsAreTheKernels (capabilities_linux_test.go)
 // compares each one with the unix constant of its name.
 //
-// CAP_BPF is there for the eBPF programs Ze loads: the IPsec ESP form tc fast
+// CAP_BPF is there for the eBPF programs Ze loads: the IPsec ESP form traffic control fast
 // path (SchedCLS programs, hash and per-CPU array maps), the IPsec application
 // override guard (a CGroupSockopt program and a per-CPU array) and
 // traffic-usage (SchedCLS programs and LRU hash maps). Read in Linux v7.0
@@ -53,7 +53,7 @@ type Capability struct {
 // include/linux/bpf.h, v7.0). The unit capability tests prove each program
 // passes those rules.
 var daemonCapabilities = [...]Capability{
-	{Name: "CAP_NET_ADMIN", Bit: 12, Use: "FIB, interfaces, eBPF tc and cgroup programs"},
+	{Name: "CAP_NET_ADMIN", Bit: 12, Use: "FIB, interfaces, eBPF traffic control and cgroup programs"},
 	{Name: "CAP_NET_RAW", Bit: 13, Use: "ping, traceroute"},
 	{Name: "CAP_NET_BIND_SERVICE", Bit: 10, Use: "port 179"},
 	{Name: "CAP_BPF", Bit: 39, Use: "eBPF: IPsec ESP form fast path, IPsec override guard, traffic-usage"},

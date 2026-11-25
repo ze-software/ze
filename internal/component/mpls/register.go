@@ -12,7 +12,7 @@ import (
 // kernelDataPlane is the name `interface { backend }` gives the Linux kernel,
 // the data plane whose AF_MPLS table this package reads. fib-kernel declares
 // the same name as its Registration.DataPlane.
-const kernelDataPlane = "netlink"
+const kernelDataPlane = "kernel"
 
 func init() {
 	pluginserver.RegisterRPCs(

@@ -12,7 +12,7 @@ import (
 )
 
 // maxEncodableTableID is the largest table ID this build can program into the
-// kernel. The netlink bindings carry a table ID in a Go int
+// kernel. The netlink library bindings carry a table ID in a Go int
 // (netlink.Rule.Table, netlink.Route.Table) and emit the attribute only for
 // non-negative values, so on a 32-bit build an ID above MaxInt32 turns
 // negative and the table selection is dropped without an error: the rule ends

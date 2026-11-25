@@ -1302,7 +1302,7 @@ func (e *engine) onInterfaceDown(ifindex int, name string) {
 func (e *engine) onInterfaceUp(ifindex int, name string) {
 	// RFC 4552 R-1/AC-7: install the kernel policy+SA BEFORE starting the interface FSM
 	// (below) so the first Hello is already protected. Runs outside e.mu (the installer
-	// has its own lock and calls netlink).
+	// has its own lock and uses netlink sockets).
 	if e.ipsec != nil {
 		e.ipsec.onInterfaceUp(ifindex, name)
 	}

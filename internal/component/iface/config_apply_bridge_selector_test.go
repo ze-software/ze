@@ -216,7 +216,7 @@ func TestListingFailureIsReportedAtTheLevelOfWhatItCosts(t *testing.T) {
 	}{
 		{
 			name:     "a backend that cannot answer at all",
-			listErr:  errors.New("netlink: rtnetlink receive: permission denied"),
+			listErr:  errors.New("netlink error: rtnetlink receive: permission denied"),
 			warnings: []string{"iface config: interface listing unavailable, every ethernet binding deferred"},
 		},
 		{

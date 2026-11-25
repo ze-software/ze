@@ -1,6 +1,6 @@
-# Netlink `int` Fields Truncate uint32 Config on a 32-bit Build
+# Netlink Library `int` Fields Truncate uint32 Config on a 32-bit Build
 
-The vendored netlink bindings type several u32 WIRE fields as a Go `int`:
+The vendored netlink library bindings type several u32 WIRE fields as a Go `int`:
 `netlink.Rule.Table`, `netlink.Route.Table`, `netlink.Route.Priority`. Their
 encoders emit the attribute only for a non-negative value.
 

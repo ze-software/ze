@@ -235,7 +235,7 @@ func TestRFC4301FinalEntryIsUnderEveryZeSPDEntry(t *testing.T) {
 // PREVENTS: the release removing the catch-all after a failed removal it logged at
 // Debug, which left a Ze entry in force with no final entry beneath it after exit.
 func TestReleaseSPDKeepsTheCatchAllWhenARemovalFails(t *testing.T) {
-	refused := errors.New("netlink: operation not permitted")
+	refused := errors.New("netlink error: operation not permitted")
 	for _, tc := range []struct {
 		name string
 		pick func(cfg *ipsec.IPsecConfig, child *ChildSA) dataplane.SPParams

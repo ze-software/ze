@@ -22,7 +22,7 @@ func (s *Subsystem) prepareKernelBackend() error {
 	backend, err := s.openKernelBackend(iface.DefaultBackendName())
 	if err != nil {
 		return opererr.Wrap(err, "L2TP cannot open its kernel interface backend",
-			"Linux PPP interfaces require the registered OS backend even when VPP handles other traffic.", "ze doctor")
+			"Linux PPP interfaces require the registered kernel interface backend.", "ze doctor")
 	}
 	if nilKernelBackend(backend) {
 		return opererr.Wrap(errors.New("the interface factory returned no owner"),

@@ -36,7 +36,7 @@ const (
 	// This tracks the build's own int, exactly like its two siblings
 	// (internal/core/routingtable/registry.go maxEncodableTableID,
 	// internal/plugins/static/config.go maxNetlinkInt), which bound the same
-	// netlink int-typed fields.
+	// netlink library int-typed fields.
 	//
 	// Do NOT narrow this to a literal math.MaxInt32 to quiet CodeQL's
 	// go/incorrect-integer-conversion. That was tried (alert 171) and it costs
@@ -175,7 +175,7 @@ func parsePolicyRule(name string, m map[string]any) (PolicyRule, error) {
 // parsePolicyMatch reads the "from" block. It refuses a protocol the firewall
 // backends cannot lower, so the operator learns at commit rather than at the
 // next reconcile -- where the failure is not local to this rule, because the
-// nft backend returns a lowering error before its single Flush and leaves
+// kernel firewall backend returns a lowering error before its single Flush and leaves
 // every firewall owner's ruleset unapplied in the kernel.
 func parsePolicyMatch(m map[string]any) (PolicyMatch, error) {
 	var pm PolicyMatch

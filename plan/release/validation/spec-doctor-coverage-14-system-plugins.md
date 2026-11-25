@@ -146,7 +146,7 @@ No row of this area is owned by child 2 (`spec-doctor-coverage-2-home-cpe-batch.
 - `./le arch doctor-coverage check` and `report` for the line codes
 
 ### Transformation Path
-1. Local checks (`post-config`) read the config tree plus host state (files, sysfs, procfs, tc, nft, netlink reads); they apply nothing
+1. Local checks (`post-config`) read the config tree plus host state (files, sysfs, procfs, traffic control, nftables, netlink reads); they apply nothing
 2. Runtime checks read the owner's live state and run only on the daemon route: every plugin, in-process-only or forkable, through its own `OnDoctorCheck` answer to a Stage 1 declaration at `runtime` (the registry refuses a `runtime` `DoctorCheckDef`); a component that is not a plugin (`internal/component/firewall`, AC-11) through `diagnostic.RegisterDoctorCheck` at `runtime`
 3. A transient class raises on the report bus under its doctor code, from the daemon process or through child 12's plugin-protocol route; `recent-events` shows it with subject, count and time
 4. Each diagnostic carries code, severity, message and `fix`; `show doctor` returns it on every surface
@@ -300,7 +300,7 @@ Every row below holds for every check it names: the message states the cause in 
 | AC-37 | The conntrack reader or destroy listener did not open | `doctor-flowexport-conntrack-reader` (error, runtime) naming which reader and its error; the Info line moves to Warn with the code | none |
 | AC-38 | Conntrack dump or destroy reads keep failing | the worker keeps consecutive errors and the last error per reader; `doctor-flowexport-conntrack-read-errors` (warning, runtime) | none |
 | AC-39 | A collector's sends fail inside the recent window (AC-41) | `doctor-flowexport-collector-send-failed` (warning, runtime) naming each collector, its error count in the window and the last error | a collector with errors only before the window reads healthy |
-| AC-40 | tc `sample` not installed on a configured sampling interface | `doctor-flowexport-sampling-setup` (error): local from the tc filters, runtime from `samplingWorker.idxToName` | none |
+| AC-40 | traffic control `sample` not installed on a configured sampling interface | `doctor-flowexport-sampling-setup` (error): local from the tc filters, runtime from `samplingWorker.idxToName` | none |
 | AC-41 | One send fails, then sends succeed for the window | the `flow-export` health row returns to healthy; the sender keeps the last error time beside the cumulative count; journal row `ephemeral-record-stored-permanently` 2026-11-10 closes `fixed:` | the cumulative count stays in the flow-export show output |
 | AC-42 | A collector config misses a protocol SHOULD | `doctor-flowexport-collector-advice` (warning, local) through `adviseProtocolCollectors`; the advisor line carries it (AC-4) | none |
 | AC-43 | Selected FlowSpec rules are not in the kernel (`RegisterTables` or `ApplyAll` failed) | `doctor-flowspec-rules-not-applied` (error, runtime) naming the rule count behind | a whole table gone is child 10's `doctor-firewall-drift` |

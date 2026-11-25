@@ -21,7 +21,7 @@ var (
 )
 
 // maxNetlinkInt is the largest value this build can carry in one of the
-// netlink bindings' int-typed route fields (netlink.Route.Table, .Priority).
+// netlink library int-typed route fields (netlink.Route.Table, .Priority).
 // The encoder emits RTA_TABLE only when Table > 0 and RTA_PRIORITY only when
 // Priority > 0 (vendor/github.com/vishvananda/netlink/route_linux.go:1058,1069),
 // so on a 32-bit build a uint32 above MaxInt32 turns negative and the attribute

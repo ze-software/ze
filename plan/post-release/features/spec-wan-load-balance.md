@@ -43,7 +43,7 @@ counts.
 - [ ] `internal/plugins/policyroute/translate.go` `translate` - one prerouting filter chain, priority -150, in table `ze_pr`; each rule's mark and ip rule.
 - [ ] `internal/plugins/policyroute/marks.go` `allocator` - marks and tables allocated in sequence; `reset` restarts both counters.
 - [ ] `internal/plugins/policyroute/register.go` `applyPolicies` - on every apply: `alloc.reset()`, translate, remove ALL old ip rules and auto routes, register the new tables, then install the new rules. Marks are renumbered from config order on every reload, and between the removal and the install no policy route exists.
-- [ ] `internal/plugins/policyroute/rules_linux.go` `applyIPRules`, `applyAutoRoutes` - netlink ip rules and routes with `rtproto.PolicyRoute`.
+- [ ] `internal/plugins/policyroute/rules_linux.go` `applyIPRules`, `applyAutoRoutes` - kernel ip rules and routes over netlink with `rtproto.PolicyRoute`.
 - [ ] `internal/plugins/policyroute/yang/ze-policyroute-conf.yang` - `then` has accept, drop, table, next-hop, tcp-mss; no weighted choice, no health.
 
 **Behavior to preserve:** every existing policy-routing rule.
@@ -69,14 +69,14 @@ counts.
 1. New connection at prerouting: if the conntrack mark is zero, choose an uplink by weight among the healthy ones, write the mark to the packet and the conntrack entry; later packets restore it.
 2. ip rule on the mark selects the uplink's table, whose default route points at that uplink.
 3. Postrouting masquerades by output interface.
-4. A health worker probes each uplink; a state change rewrites only the weighted map and the affected routes, in one nft transaction.
+4. A health worker probes each uplink; a state change rewrites only the weighted map and the affected routes, in one nftables transaction.
 
 ### Boundaries Crossed
 | Boundary | How | Verified |
 |----------|-----|----------|
 | Config → plugin | YANG, `OnConfigApply` | No |
 | Plugin → firewall registry | `firewall.RegisterTables` (process-local; an RPC if the plugin can run forked) | No |
-| Plugin → kernel routing | `internal/core/iprule`, netlink | No |
+| Plugin → kernel routing | `internal/core/iprule`, netlink socket | No |
 
 ### Integration Points
 - `policyroute` translate and apply; the firewall table registry; a shared health FSM

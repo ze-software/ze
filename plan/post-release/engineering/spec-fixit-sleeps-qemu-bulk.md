@@ -171,7 +171,7 @@ or asserting a reload result.
 |----------|-----|----------|
 | `.ci` runner to native fixture | `le test fixture` | source read only |
 | fixture to daemon | readiness and reload completion | current inventory and runtime proof owed |
-| fixture to Linux kernel | tc/nft readback | current inventory and runtime proof owed |
+| fixture to Linux kernel | traffic control and nftables readback | current inventory and runtime proof owed |
 | host to Linux/QEMU | a route that includes each consumer without skipping it | runtime proof owed |
 
 ### Integration Points
@@ -191,7 +191,7 @@ or asserting a reload result.
 |-------------|----|--------------|------|
 | backgrounded ze reaches OnConfigure | -> | readiness signal pollable by the driver (runner-level or marker-based) | `test/traffic/traffic-boot-qdisc-tc.ci` (QEMU) |
 | driver sends SIGHUP for reload | -> | reload-completion signal the driver can poll | `test/traffic/traffic-reload-qdisc-tc.ci`, `test/policy/policy-reload.ci` (QEMU) |
-| tc qdisc programmed by OnConfigure | -> | tc readback poll replacing the blind hold | `test/traffic/traffic-boot-qdisc-tc.ci` (QEMU) |
+| tc qdisc programmed by OnConfigure | -> | traffic control readback poll replacing the blind hold | `test/traffic/traffic-boot-qdisc-tc.ci` (QEMU) |
 | dhcp/tftp zero-listener path | -> | deterministic wait on the asserted listener state | `test/install/dhcp-zero-listener.ci`, `test/install/tftp-zero-listener.ci` (QEMU) |
 | ddos characterize pipeline | -> | deterministic wait on the characterization result | `test/plugin/ddos-detect-characterize.ci` (QEMU) |
 | a counted embedded sleep is removed from a `.ci` | -> | the existing sleep ratchet | lower `test/.ci-sleep-baseline` by the removed count; native timer removal alone earns no delta |
@@ -218,7 +218,7 @@ or asserting a reload result.
 | A-1 | The originals currently pass under QEMU | they are committed and gated, not quarantined (no skip/xfail marker found) | AC-1 fails first and this becomes a test-repair spec, not a conversion spec | run `./le test qemu run command "./le test qemu all"` before touching anything | unvalidated |
 | A-2 | A backgrounded ze can be given a pollable readiness signal | the annotation says the ZE_READY_FILE marker is absent for backgrounded ze, not that readiness is unobservable; the asserted OnConfigure log line already exists as a signal | AC-2 collapses to "wait on the log line" only, or needs a production readiness surface (scope grows) | read the ZE_READY_FILE producer and the runner's background-spawn path | unvalidated |
 | A-3 | SIGHUP reload completion is observable without new production code | the tests already assert a post-reload log line | AC-3 needs a new reload-processed signal, overlapping `plan/spec-fixit-reject-fence-observability.md` | read the SIGHUP handler and its emitted events | unvalidated | <!-- doc-links: ignore (spec closed and removed) -->
-| A-4 | Group B tests are correctly gated with `skip-os` rather than `needs-linux` | they are linux-only in substance (nft/tc/kernel) | adding `option=needs-linux` is a cheap fix bringing 12 blind sleeps into the fast QEMU loop | compare a group A and a group B test's requirements | unvalidated |
+| A-4 | Group B tests are correctly gated with `skip-os` rather than `needs-linux` | they are linux-only in substance (nftables/traffic control/kernel) | adding `option=needs-linux` is a cheap fix bringing 12 blind sleeps into the fast QEMU loop | compare a group A and a group B test's requirements | unvalidated |
 | A-5 | Converting a blind hold to a log-line wait is not vacuous | the log line is already the asserted effect | the wait passes before the effect lands, giving a false green | assert the effect (kernel readback), not only the log line, where possible | unvalidated |
 
 ### Risks
@@ -254,8 +254,8 @@ assertions. Unit tests apply only if research adds runner/production infrastruct
 | Test | Location | Scenario | Status |
 |------|----------|----------|--------|
 | `traffic-boot-qdisc-tc.ci` | `test/traffic/` | tc qdisc programmed at boot; blind hold -> deterministic wait | pending (QEMU) |
-| `traffic-reload-qdisc-tc.ci` | `test/traffic/` | SIGHUP reload re-applies tc; settle + hold converted | pending (QEMU) |
-| `policy-reload.ci` | `test/policy/` | SIGHUP reload re-applies nft policy routes | pending (QEMU, group B) |
+| `traffic-reload-qdisc-tc.ci` | `test/traffic/` | SIGHUP reload re-applies traffic control; settle + hold converted | pending (QEMU) |
+| `policy-reload.ci` | `test/policy/` | SIGHUP reload re-applies nftables policy routes | pending (QEMU, group B) |
 | `dhcp-zero-listener.ci`, `tftp-zero-listener.ci` | `test/install/` | zero-listener path | pending (QEMU) |
 | `ddos-detect-characterize.ci` | `test/plugin/` | ddos characterization | pending (QEMU) |
 | `traffic-vpp-not-connected.ci`, `traffic-vpp-accept-multiclass.ci` | `test/traffic/` | deliberate 5s `WaitConnected` timer: unchanged, kept as control that AC-6 was honored | keep |

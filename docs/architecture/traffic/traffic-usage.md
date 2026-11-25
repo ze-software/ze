@@ -222,7 +222,7 @@ These cost days if rediscovered:
   v7.2). Returning 0, the value of `TC_ACT_OK` and `TCX_PASS`, therefore turned
   off every clsact filter on a link traffic-usage counted: the traffic-control
   ingress policer, the flow-export sFlow sampler and the interface mirror, which
-  are legacy tc, not TCX. Every path of both programs returns `TCX_NEXT` now.
+  are legacy tc filters, not TCX. Every path of both programs returns `TCX_NEXT` now.
   <!-- source: internal/plugins/trafficusage/program_linux.go -- tcxNext, directionInsns -->
   <!-- source: internal/plugins/trafficusage/tcx_next_integration_linux_test.go -- TestProgram_ReturnsTCXNext, TestProgram_LetsAClsactFilterRun -->
 

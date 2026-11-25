@@ -1,7 +1,7 @@
 # Test: unit with ipv6 { autoconf true } is rejected under backend vpp
 # VALIDATES: the commit-time feature gate rejects a unit that enables IPv6
 #            stateless autoconfiguration when the active backend is vpp. The
-#            leaf carries ze:backend "netlink" in ze-iface-conf.yang, because
+#            leaf carries ze:backend "kernel" in ze-iface-conf.yang, because
 #            the kernel learns a SLAAC address only when Router Advertisements
 #            reach the device it owns. VPP owns the NIC on the vpp backend and
 #            delivers no advertisements to the Linux Control Plane tap, so the
@@ -30,4 +30,4 @@ cmd=foreground:seq=1:exec=ze config validate -:stdin=config:exit=1
 expect=exit:code=1
 expect=stdout:contains=/interface/ethernet/eth0/unit/0/ipv6/autoconf
 expect=stdout:contains="vpp"
-expect=stdout:contains=netlink
+expect=stdout:contains=kernel

@@ -43,7 +43,7 @@ type classifyBinding struct {
 
 // classifySteer is one (family, field-match) -> policer steering requirement,
 // expanded from a class's filters. A single `filter protocol`/`filter dscp`
-// produces one steer per address family (netlink parity: each filter selects in
+// produces one steer per address family (kernel parity: each filter selects in
 // both IPv4 and IPv6).
 type classifySteer struct {
 	fam        classifyFamily

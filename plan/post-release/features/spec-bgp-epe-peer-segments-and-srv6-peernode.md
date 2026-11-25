@@ -143,7 +143,7 @@ features, End.X installation or interop qualification are implemented.
 |----------|-----|----------|
 | EPE plugin to FIB (MPLS) | `mplsfib` label actions, source 5, as today | Yes (`epe_source.go`) |
 | EPE plugin to FIB (SRv6) | `srv6localsid` End.X entries on the event bus, acknowledged by fib-kernel | No (new contract) |
-| fib-kernel to Linux | netlink `RTM_NEWROUTE` with `LWTUNNEL_ENCAP_SEG6_LOCAL`, End.X, `nh6`, `oif`; a PeerSet adds `RTA_MULTIPATH` with `RTA_GATEWAY` per nexthop (A-2); the MPLS PeerSet label an `AF_MPLS` `RTA_MULTIPATH` route | No |
+| fib-kernel to Linux | netlink message `RTM_NEWROUTE` with `LWTUNNEL_ENCAP_SEG6_LOCAL`, End.X, `nh6`, `oif`; a PeerSet adds `RTA_MULTIPATH` with `RTA_GATEWAY` per nexthop (A-2); the MPLS PeerSet label an `AF_MPLS` `RTA_MULTIPATH` route | No |
 | fib-vpp | consumes no `srv6localsid` entry; a `srv6-sid` with `fib { vpp { } }` is refused at commit | No |
 | EPE plugin to BGP-LS export | SID state per peer, adjacency, set | No |
 | BGP-LS export to peers | egress filtered per recipient | No |
@@ -237,7 +237,7 @@ were AC-12 and AC-13, and AC-4 is the parent's ledger AC-11 for the `rfc9086` an
 | `TestMPLSPeerSetMultipathKernelState` | `internal/plugins/fib/kernel/` (`needs-linux:caps=net-admin`) | AC-1b forwarding: a two-member PeerSet label reads back as one route with two `RTA_MULTIPATH` nexthops, each with its `via`; one member down leaves one nexthop; the last down removes the label; an RSVP-TE single-next-hop entry still reads back as a plain `RTA_VIA` route | |
 | `TestEPESRv6SIDRefusedOnIPv4Peer` | `internal/component/bgp/plugins/epe/` | AC-1c, round-2 I3: `srv6-sid` on an IPv4 peer, and on a `peer-set` with an IPv4 member, refused naming the leaf, the reason and the fix; on an IPv6 peer accepted | |
 | `TestSRv6PeerSetOffLinkMemberOmitted` | `internal/plugins/fib/kernel/` (`needs-linux:caps=net-admin`) | AC-5, round-2 I1: a member whose address is not on-link is absent from the multipath route with one Warn; with no on-link member, no route and no advertised SID | |
-| `TestSRv6LocalSIDEndXKernelState` | `internal/plugins/fib/kernel/` (`needs-linux:caps=net-admin`) | AC-5: route read back by netlink, single and multipath (A-2), removed on withdraw | |
+| `TestSRv6LocalSIDEndXKernelState` | `internal/plugins/fib/kernel/` (`needs-linux:caps=net-admin`) | AC-5: route read back via netlink, single and multipath (A-2), removed on withdraw | |
 | `TestSRv6EndXCapabilityRefusal`, `TestEPESRv6RefusedOnVPP` | `internal/component/kernelcap/`, `internal/component/bgp/plugins/epe/` | AC-6, AC-7 | |
 
 ### Boundary Tests (numeric inputs)
@@ -392,7 +392,7 @@ None open.
 |----------|------------------------|-----------|
 | A new spec, not an existing BGP-LS spec | Fold into `spec-bgp-ls-origination-and-the-scheduled-marker` | That spec owns RFC 9552 node keys and a ledger marker, not the EPE plugin or RFC 9086/9514 |
 | SRv6 EPE SIDs installed as End.X and advertised only while installed | Advertise without installing | RFC 9514 §7.2 realises the SIDs "using SIDs with END.X behavior"; an uninstalled SID forwards nothing (R-7) |
-| A new `srv6localsid` leaf event contract, consumed by fib-kernel | Extend `mplsfib.Entry` with an IPv6 SID; let the EPE plugin call netlink itself | `mplsfib` is label-keyed and its consumers (LDP, RSVP-TE, OSPF SR) would all see a field they never use; a plugin calling netlink would make two programmers of kernel forwarding state, which `mplsfib/doc.go` exists to prevent |
+| A new `srv6localsid` leaf event contract, consumed by fib-kernel | Extend `mplsfib.Entry` with an IPv6 SID; let the EPE plugin call the netlink socket itself | `mplsfib` is label-keyed and its consumers (LDP, RSVP-TE, OSPF SR) would all see a field they never use; a plugin calling the netlink socket would make two programmers of kernel forwarding state, which `mplsfib/doc.go` exists to prevent |
 | PeerSet End.X as one multipath route with a `seg6local` End.X per nexthop | One End.X toward one member | Linux End.X holds one `nh6` (`seg6_local.c`), and RFC 9086 §5.3 says PeerSet "load-balance across any connected interface to any peer in the associated peer set"; A-2 validates it first |
 | PeerAdj next hop is a configured `neighbor-address` | Derive it from ND or ARP on the interface | RFC 9086 §5.2 "Next-Hop: the interface peer address"; a multihop session over several links carries no per-link peer address, and a neighbour-table guess can change under the operator; Link Remote Identifier defaults to 0 as §5.2 permits |
 | `advertise-to` is a recipient filter on the BGP-LS export | A per-SID policy language | RFC 9086 §7 continues: "This is not different from what is required by a BGP speaker in terms of information origination and advertisement." The exporter already sends per peer (`export_state.go`), so the filter sits in that loop as an egress filter, and RFC 9086 §7 asks for control of "which information is advertised to which internal or external peer" while the SID itself is the same for every recipient, so no per-recipient SID state is kept (merged with the former duplicate row, round-2 N2) |

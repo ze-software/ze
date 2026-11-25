@@ -1,4 +1,4 @@
-// Design: docs/architecture/firewall/backend-command-dispatch.md -- nft firewall health check
+// Design: docs/architecture/firewall/backend-command-dispatch.md -- kernel firewall health check
 
 package firewallnft
 

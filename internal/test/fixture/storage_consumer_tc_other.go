@@ -10,7 +10,7 @@ import (
 	"errors"
 )
 
-// storageTCRestart refuses off Linux: the tc consumer programs a root qdisc
+// storageTCRestart refuses off Linux: the traffic-control consumer programs a root qdisc
 // through netlink, which only Linux has. test/traffic/storage-tc-restart.ci
 // declares needs-linux, so the runner skips it before this answers.
 func storageTCRestart(context.Context, string) error {

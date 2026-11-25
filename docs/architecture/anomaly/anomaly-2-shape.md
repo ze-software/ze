@@ -21,7 +21,7 @@ the lock hold time is not on any hot path.
 
 Every change re-registers the owner `anomaly-shape` from the FULL armed map:
 `registerTables(owner, buildTables(...))`. Add and remove are a whole-set replace,
-never a partial diff. IPv4 and IPv6 entities go into two tables, because nft
+never a partial diff. IPv4 and IPv6 entities go into two tables, because nftables
 cannot mix families in one table.
 
 ## Auto-revert uses a responder-level generation

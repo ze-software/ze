@@ -75,7 +75,7 @@ var vppDoctorChecks = []diagnostic.DoctorCheck{
 	},
 	{
 		Name:         "vpp-wireguard-plugin",
-		Phase:        diagnostic.DoctorPhasePostConfig,
+		Phase:        diagnostic.DoctorPhaseParsedConfig,
 		Order:        740,
 		Component:    backendVPP,
 		Dependencies: []string{"vpp-wireguard-plugin"},
@@ -119,41 +119,38 @@ func registerDoctorChecks() error {
 // checkVPPWireguardPlugin warns when a wireguard interface is configured under
 // the vpp backend but vpp.plugins.wireguard is not enabled: without the toggle
 // startup.conf leaves wireguard_plugin.so disabled and the interface fails to
-// program at apply.
+// program at apply. It delegates to checkWireguardPluginTree so `ze doctor`
+// and the original-tree validator report the exact same condition and fix.
 func checkVPPWireguardPlugin(ctx diagnostic.DoctorCheckContext) []diagnostic.Diagnostic {
 	tree, ok := ctx.Tree.(*config.Tree)
-	if !ok || tree == nil {
+	// refuse-by-default: guards vppDoctorChecks -- a context holding a non-*Tree is rejected by the doctor runner
+	if !ok {
 		return nil
 	}
-	ifaceTree := tree.GetContainer("interface")
-	if ifaceTree == nil {
+	// refuse-by-default: guards vppDoctorChecks -- missing-config phase supplies a nil tree
+	if tree == nil {
 		return nil
 	}
-	if backend, _ := ifaceTree.Get("backend"); backend != backendVPP {
+	ifaces, err := checkWireguardPluginTree(tree)
+	if err != nil {
+		return []diagnostic.Diagnostic{{
+			Code:     codeDoctorVPPWireguard,
+			Fix:      "ze config validate",
+			Severity: diagnostic.SeverityError,
+			Message:  err.Error(),
+		}}
+	}
+	if len(ifaces) == 0 {
 		return nil
 	}
-	if len(ifaceTree.GetList("wireguard")) == 0 {
-		return nil
-	}
-	if wireguardPluginEnabled(tree) {
-		return nil
-	}
+	var tb textbuf.Buffer
 	return []diagnostic.Diagnostic{{
 		Code:     codeDoctorVPPWireguard,
-		Fix:      "set vpp plugins wireguard true",
+		Fix:      fixEnableVPPWireguardPlugin,
 		Severity: diagnostic.SeverityError,
-		Message:  "wireguard interface configured under backend vpp but vpp.plugins.wireguard is not enabled; wireguard_plugin.so will not load and the interface will fail at apply",
+		Message: tb.Str(wireguardPluginMissingProblem(ifaces)).
+			Str("; wireguard_plugin.so will not load and the interface will fail at apply").String(),
 	}}
-}
-
-// wireguardPluginEnabled reports whether vpp.plugins.wireguard is set true.
-func wireguardPluginEnabled(tree *config.Tree) bool {
-	plugins := tree.GetContainerPath("vpp/plugins")
-	if plugins == nil {
-		return false
-	}
-	v, _ := plugins.Get("wireguard")
-	return v == "true"
 }
 
 // checkVPPLCPNetns warns when the LCP TAPs will not land where ze can use them.

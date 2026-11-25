@@ -90,7 +90,7 @@ const conntrackMasqueradeConfig = `{"firewall":{"table":{"nat":{"family":"inet",
 	`"term":{"masq":{"from":{"output-interface":"zfts"},"then":{"masquerade":""}}}}}}}}}`
 
 // VALIDATES: spec-home-cpe-3 AC-2, AC-3, AC-4, AC-11, AC-12. Every helper the
-// model accepts is listed, its tables are installed through the nft backend,
+// model accepts is listed, its tables are installed through the kernel firewall backend,
 // and one connection per row, transport, port and family is opened. Each
 // connection's conntrack entry, read over ctnetlink, carries the row's kernel
 // helper in every family the row names, and an IPv4-only row's IPv6
@@ -983,7 +983,7 @@ func expectationHelpers(t *testing.T, client netip.AddrPort) []string {
 }
 
 // ctnetlinkDump dumps one ctnetlink subsystem of the thread's namespace, every
-// family, and answers each message after its netlink header.
+// family, and answers each message after its netlink message header.
 func ctnetlinkDump(t *testing.T, subsystem int) [][]byte {
 	t.Helper()
 	req := nl.NewNetlinkRequest(subsystem<<8|ctnlGet, unix.NLM_F_DUMP)

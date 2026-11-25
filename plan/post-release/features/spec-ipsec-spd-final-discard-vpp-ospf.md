@@ -112,7 +112,7 @@ paths the `{gap}` on `RFC4301-5.2-1` and `RFC4301-5.2-9` names.
 |----------|-----|----------|
 | OSPF plugin to `ike/dataplane` | Go call into the ungated seam (`ai/doors/access-security.md`); in-process only today | No |
 | Dataplane to VPP | GoVPP binary API (`ipsec_spd_entry_add_del_v2`) | No |
-| Dataplane to kernel | XFRM netlink | No |
+| Dataplane to kernel | XFRM netlink socket | No |
 
 ### Integration Points
 - `vppBackend.ensureSPD` (VPP final entry); `ipsecInstaller` (OSPF final entry); `verifyUnmatchedEnforceable` (VPP refusal).

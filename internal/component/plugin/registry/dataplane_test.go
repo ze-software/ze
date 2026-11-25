@@ -30,7 +30,7 @@ func TestPluginForDataPlaneResolvesTheDeclaredWriter(t *testing.T) {
 	Reset()
 
 	for _, r := range []Registration{
-		writerReg("writer-netlink", "netlink"),
+		writerReg("writer-kernel", "kernel"),
 		writerReg("writer-vpp", "vpp"),
 		validReg("producer"),
 	} {
@@ -39,9 +39,9 @@ func TestPluginForDataPlaneResolvesTheDeclaredWriter(t *testing.T) {
 		}
 	}
 
-	name, ok := PluginForDataPlane("netlink")
-	if !ok || name != "writer-netlink" {
-		t.Fatalf("PluginForDataPlane(netlink) = %q, %v; want writer-netlink, true", name, ok)
+	name, ok := PluginForDataPlane("kernel")
+	if !ok || name != "writer-kernel" {
+		t.Fatalf("PluginForDataPlane(kernel) = %q, %v; want writer-kernel, true", name, ok)
 	}
 	name, ok = PluginForDataPlane("vpp")
 	if !ok || name != "writer-vpp" {
@@ -56,7 +56,7 @@ func TestPluginForDataPlaneReportsAnUnresolvedDataPlane(t *testing.T) {
 	t.Cleanup(func() { Reset() })
 	Reset()
 
-	if err := Register(writerReg("writer-netlink", "netlink")); err != nil {
+	if err := Register(writerReg("writer-kernel", "kernel")); err != nil {
 		t.Fatal(err)
 	}
 
@@ -74,13 +74,13 @@ func TestRegisterRefusesASecondWriterForOneDataPlane(t *testing.T) {
 	t.Cleanup(func() { Reset() })
 	Reset()
 
-	if err := Register(writerReg("writer-netlink", "netlink")); err != nil {
+	if err := Register(writerReg("writer-kernel", "kernel")); err != nil {
 		t.Fatal(err)
 	}
 
-	err := Register(writerReg("writer-netlink-again", "netlink"))
+	err := Register(writerReg("writer-kernel-again", "kernel"))
 	if err == nil {
-		t.Fatal("second writer for the netlink data plane was accepted")
+		t.Fatal("second writer for the kernel data plane was accepted")
 	}
 	if !errors.Is(err, ErrDuplicateDataPlane) {
 		t.Fatalf("error = %v; want ErrDuplicateDataPlane", err)
@@ -95,7 +95,7 @@ func TestRegisterRefusesADataPlaneWithoutTheFIBRole(t *testing.T) {
 	Reset()
 
 	reg := validReg("half-declared")
-	reg.DataPlane = "netlink"
+	reg.DataPlane = "kernel"
 
 	err := Register(reg)
 	if err == nil {

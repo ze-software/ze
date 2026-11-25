@@ -40,7 +40,7 @@ options. It also carries the PXE options the provisioning path needs.
   segment (`resolveSegment` in `segment.go`): with `giaddr` set, the shared
   network holding a subnet that contains the relay's address; with `giaddr`
   zero, every shared network holding a subnet that contains an address of the
-  receiving device. The device's IPv4 addresses are read from netlink
+  receiving device. The device's IPv4 addresses are read over netlink
   (`readDeviceAddrs`, beside the neighbor reads) for each request, relayed or
   not, because they also choose the server identifier, so an address added to
   the listen interface is served from the next request on, with no reload. A device that holds no address in any
@@ -107,7 +107,7 @@ options. It also carries the PXE options the provisioning path needs.
   yiaddr. The client does not hold yiaddr yet, so it would never answer the ARP
   request a plain unicast triggers. Before that unicast the server writes the
   yiaddr to chaddr neighbor entry on the interface the request arrived on, over
-  netlink, in the NUD_REACHABLE state dnsmasq's ARP-cache injection also
+  netlink neighbors, in the NUD_REACHABLE state dnsmasq's ARP-cache injection also
   produces. The write needs CAP_NET_ADMIN, which the daemon's systemd unit
   grants. When it fails (no capability, an interface gone, a chaddr the link
   layer cannot hold, or a non-Linux build), the reply is broadcast instead and

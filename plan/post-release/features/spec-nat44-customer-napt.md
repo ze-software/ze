@@ -61,7 +61,7 @@ summary exists to name.
 
 | # | Question | Evidence | What each answer changes | Recommendation |
 |---|----------|----------|--------------------------|----------------|
-| Q1 | How does the nft backend get Endpoint-Independent Mapping: a Ze-authored netfilter patch carried in `gokrazy/kernel/patches/`, or VPP only? | Mainline Linux has no EIM mode (`nf_nat_core.c`, row 1 of the Task table). The one public nftables full-cone module, `fullcone-nat-nftables/nft-fullcone`, is archived (GitHub API: `"archived": true`, last push 2023-05-17) and declares no licence, so it is not a dependency. Ze already carries kernel patches (`gokrazy/kernel/patches/series`: `0001-nct6683.patch`, `0002-mpls-ip-mtu.patch`) | Patch: Ze owns C in netfilter (mapping reservation keyed on the external tuple, an inbound lookup for filtering and hairpin) and rebases it at every kernel bump; the default backend becomes conformant. VPP only: the default `nft` backend refuses a `nat44` block and fttx-edge requires VPP; no kernel C. Claiming a Linux limit is not open, because Ze builds the kernel | Patch. Without it the default backend of the release profile cannot meet a MUST |
+| Q1 | How does the kernel backend get Endpoint-Independent Mapping: a Ze-authored netfilter patch carried in `gokrazy/kernel/patches/`, or VPP only? | Mainline Linux has no EIM mode (`nf_nat_core.c`, row 1 of the Task table). The one public nftables full-cone module, `fullcone-nat-nftables/nft-fullcone`, is archived (GitHub API: `"archived": true`, last push 2023-05-17) and declares no licence, so it is not a dependency. Ze already carries kernel patches (`gokrazy/kernel/patches/series`: `0001-nct6683.patch`, `0002-mpls-ip-mtu.patch`) | Patch: Ze owns C in netfilter (mapping reservation keyed on the external tuple, an inbound lookup for filtering and hairpin) and rebases it at every kernel bump; the default backend becomes conformant. VPP only: the default `kernel` backend refuses a `nat44` block and fttx-edge requires VPP; no kernel C. Claiming a Linux limit is not open, because Ze builds the kernel | Patch. Without it the default backend of the release profile cannot meet a MUST |
 | Q2 | Default filtering behaviour | RFC 4787 Section 12 REQ-8 and RFC 5382 Section 8 REQ-3 recommend Endpoint-Independent Filtering "if application transparency is most important" and Address-Dependent Filtering "if a more stringent filtering behavior is most important", and let it be configurable. Linux conntrack natively gives address and port-dependent filtering, which neither recommends | EIF default: maximum application transparency, any external host can reach a live mapping. ADF default: needs a per-mapping record of contacted addresses in the kernel patch. APDF default: no extra kernel code, meets every MUST, misses a RECOMMENDED | Configurable `filtering` leaf offering `endpoint-independent` and `address-and-port-dependent` in this spec, default `endpoint-independent` for an FTTx customer edge; `address-dependent` is a SHOULD-level follow-up |
 | Q3 | Which branch of RFC 4787 REQ-7 Ze takes | "A NAT device whose external IP interface can be configured dynamically MUST either (1) Automatically ensure that its internal network uses IP addresses that do not conflict with its external network, or (2) Be able to translate and forward traffic between all internal nodes and all external nodes whose IP addresses numerically conflict with the internal network." The fttx-edge WAN can be a PPPoE or DHCP client (`test/interop-pppoe/`, Ze as client). Ze is the LAN's DHCP server in the same profile (roots `rfc2131`, `rfc2132`) | (1): when the learned WAN prefix overlaps an inside prefix, Ze stops leasing the overlapping range and reports it; customers already holding such a lease keep it until renew, so (1) is "ensure" only over a lease period. (2): twice-NAT of the conflicting external range, a second translation table | (1), with the overlap reported by `ze doctor` and a log line, because (2) is a second NAT design for a case an ISP uplink rarely produces |
 | Q4 | Does this spec carry the VPP backend (NAT44-EI), or does VPP refuse `nat44` here with a later spec owning it? | Ze vendors only `nat44_ed` binapi (`vendor/go.fd.io/govpp/binapi/`: `nat44_ed`, `nat_types`). NAT44-ED is APDM by its own documentation. VPP ships a separate `nat44-ei` plugin (`src/plugins/nat/nat44-ei/`). `plan/proposals/spec-cgnat.md` (unapproved) already plans CGNAT on NAT44-ED | In this spec: vendor `nat44_ei` binapi, a VPP lowering, a VPP integration proof; the existing VPP masquerade path keeps NAT44-ED, and running both plugins at once is assumption A-7. Separate spec: VPP refuses a `nat44` block with an error naming the backend and the fix | Separate spec, written in the same commit as this one's implementation start, so this spec stays one dataplane |
@@ -70,7 +70,7 @@ summary exists to name.
 
 ### Architecture Docs
 - [ ] `docs/guide/firewall.md` - the operator surface for tables, chains, `snat`, `dnat`, `masquerade`, `exclude`, backends
-  → Constraint: `nft` is the default backend on Linux, `vpp` is opt-in (Backend table). A `nat44` block must work on the default backend, or the profile has no conformant NAT out of the box
+  → Constraint: `kernel` is the default backend on Linux, `vpp` is opt-in (Backend table). A `nat44` block must work on the default backend, or the profile has no conformant NAT out of the box
   → Constraint: `masquerade` already accepts `port-range`, `random`, `random full` and `persistent`, mutually exclusive with `port-range`. The `nat44` design must not change what those leaves mean
 - [ ] `docs/architecture/firewall/table-ownership-and-shutdown-flush.md` - seven in-process producers register nft tables through `firewall.RegisterTables`
   → Decision: the NAPT44 producer registers its own table `ze_nat44` through `firewall.RegisterTables("nat44", ...)` and reconciles through `firewall.ApplyAll`, exactly as copp does in `applyCoppPolicy` (`internal/plugins/copp/register.go`). It never writes the operator's `firewall` tables
@@ -113,7 +113,7 @@ summary exists to name.
 **Key insights:**
 - Ze already ships the translation primitives; what is absent is BEHAVE conformance: EIM, hairpin, RFC timers, unsolicited-SYN silence, WAN-overlap handling
 - Mainline Linux cannot do EIM or EIM-based hairpin; Ze's own kernel can carry the patch (Q1)
-- Timers are scoped to NAT flows with an nft `ct timeout` object, which needs `CONFIG_NF_CONNTRACK_TIMEOUT=y` (currently "is not set" in the runtime kernel config)
+- Timers are scoped to NAT flows with an nftables `ct timeout` object, which needs `CONFIG_NF_CONNTRACK_TIMEOUT=y` (currently "is not set" in the runtime kernel config)
 - The feature is a firewall-table producer (`ze_nat44`), like copp, not a change to the operator's `firewall` tables
 
 ## Current Behavior (MANDATORY)
@@ -149,7 +149,7 @@ summary exists to name.
 ### Transformation Path
 1. Config tree to the `nat44` plugin's `OnConfigure` / `OnConfigApply`, parsed into a typed translation (inside prefixes, outside interface or address range, port range, filtering, timers)
 2. The plugin builds one `firewall.Table` named `ze_nat44` (family `ip`): a ct timeout policy object per protocol, a prerouting nat chain (inbound EIM lookup per filtering mode, hairpin), a postrouting nat chain (EIM source translation for inside sources, including hairpinned flows), an input filter chain dropping unsolicited TCP SYN to the external address's NAT port range
-3. `firewall.RegisterTables("nat44", ...)` then `firewall.ApplyAll()`; the nft backend lowers the new model pieces (ct timeout object, ct timeout assignment, EIM mapping flag, inbound lookup) to netlink
+3. `firewall.RegisterTables("nat44", ...)` then `firewall.ApplyAll()`; the kernel backend lowers the new model pieces (ct timeout object, ct timeout assignment, EIM mapping flag, inbound lookup) to netlink messages
 4. In the kernel: Ze's netfilter patch reserves each external `(proto, X', x')` for one internal `(X, x)` while any conntrack of that internal endpoint lives, and answers the inbound lookup from that reservation
 5. WAN address change (iface event bus) triggers the REQ-7 overlap check (Q3) and a reapply when the outside address is the masquerade source
 
@@ -158,7 +158,7 @@ summary exists to name.
 |----------|-----|----------|
 | Config to plugin | YANG section delivered through the 5-stage protocol, `OnConfigure` | No |
 | Plugin to firewall component | in-process `firewall.RegisterTables` / `ApplyAll`, same as copp | No |
-| Firewall backend to kernel | nftables netlink through the vendored `google/nftables`, plus a diff for the EIM attribute (Q1) | No |
+| Firewall backend to kernel | nftables netlink socket through the vendored `google/nftables`, plus a diff for the EIM attribute (Q1) | No |
 | iface events to plugin | event bus subscription for address add and delete on the outside interface | No |
 
 ### Integration Points
@@ -170,7 +170,7 @@ summary exists to name.
 ### Architectural Verification
 | Check | Holds? | Evidence |
 |-------|--------|----------|
-| No bypassed layers (data flows through the intended path) | Yes (design) | the plugin produces a `firewall.Table`; only the nft backend talks netlink |
+| No bypassed layers (data flows through the intended path) | Yes (design) | the plugin produces a `firewall.Table`; only the kernel backend uses the netlink socket |
 | No unintended coupling (components stay isolated) | Yes (design) | same in-process producer contract copp uses; no import of the operator firewall engine |
 | No duplicated functionality (extends existing, does not recreate) | Yes (design) | reuses the masquerade/SNAT lowering, adds one named field and one object type |
 | Zero-copy preserved where applicable (refs, not copies) | N-A | control-plane config path, no per-packet Go code |
@@ -215,7 +215,7 @@ summary exists to name.
 
 | Entry Point | → | Feature Code | Test |
 |-------------|---|--------------|------|
-| `nat44` config block at boot | → | nat44 plugin `OnConfigure`, `RegisterTables("nat44")`, nft lowering | `test/firewall/nat44-apply.ci` |
+| `nat44` config block at boot | → | nat44 plugin `OnConfigure`, `RegisterTables("nat44")`, nftables lowering | `test/firewall/nat44-apply.ci` |
 | `nat44` block removed on reload | → | withdraw, `ApplyAll` deletes `ze_nat44` | `test/firewall/nat44-withdraw.ci` |
 | config with a timer below the RFC floor | → | YANG range refusal | `test/firewall/nat44-timer-below-floor.ci` |
 | customer UDP and TCP through Ze's kernel | → | `ze_nat44` table plus the EIM patch | `TestNAT44EndpointIndependentMapping` (`internal/plugins/nat44/nat44_integration_linux_test.go`) |
@@ -242,14 +242,14 @@ summary exists to name.
 | AC-15 | Port pool exhausted by reservations | A new mapping fails, `ze_nat44_mapping_failures_total` increments, and no existing mapping changes behaviour (REQ-11) |
 | AC-16 | WAN address learned by DHCP or PPPoE overlaps an inside prefix | Behaviour per Q3, reported by `ze doctor` and a log line naming the prefix, the WAN address and the fix |
 | AC-17 | Running kernel lacks the EIM attribute or ct timeout support | Commit of a `nat44` block is refused with an error naming the missing kernel feature, and `ze doctor` reports it; nothing is installed half-way |
-| AC-18 | `nat44` block on the `vpp` backend | Per Q4: either NAT44-EI lowering meeting AC-2..AC-15, or a refusal naming the backend and the `nft` backend as the fix |
+| AC-18 | `nat44` block on the `vpp` backend | Per Q4: either NAT44-EI lowering meeting AC-2..AC-15, or a refusal naming the backend and the `kernel` backend as the fix |
 | AC-19 | `nat44` block removed | `ze_nat44` disappears from the kernel; existing `masquerade` terms are unaffected |
 
 ## End-to-End User Stories
 
 | # | User does | Path through system | Test proving it works |
 |---|-----------|--------------------|-----------------------|
-| 1 | Operator configures NAT for subscriber pool | config → nat44 plugin → `ze_nat44` → nft backend → kernel | `test/firewall/nat44-apply.ci` |
+| 1 | Operator configures NAT for subscriber pool | config → nat44 plugin → `ze_nat44` → kernel backend → kernel | `test/firewall/nat44-apply.ci` |
 | 2 | Subscriber's STUN client classifies the NAT | inside client → Ze kernel NAT → two-address STUN server | `nat44-behavior-stuntman` |
 | 3 | Two subscribers reach each other by public address (hairpin) | X1 → prerouting lookup → postrouting SNAT → X2 | `TestNAT44Hairpin` |
 | 4 | Operator inspects NAT timers | `show system conntrack` | `test/firewall/nat44-show-conntrack.ci` |
@@ -357,7 +357,7 @@ the red classification.
 ## Implementation Steps
 
 1. **Phase: Wiring** - plugin skeleton, YANG, `RegisterTables("nat44")` with an empty table; `nat44-apply.ci` and `nat44-withdraw.ci` fail on missing chains
-2. **Phase: Timers** - kernel config `NF_CONNTRACK_TIMEOUT`, ct timeout object and binding in model and nft lowering, YANG floors; AC-6, AC-7, AC-8
+2. **Phase: Timers** - kernel config `NF_CONNTRACK_TIMEOUT`, ct timeout object and binding in model and nftables lowering, YANG floors; AC-6, AC-7, AC-8
 3. **Phase: Kernel EIM patch** - reservation keyed on the external tuple, inbound lookup, uapi attribute; patch QEMU test against a bare nft ruleset first
 4. **Phase: Mapping, filtering, hairpin** - lowering of the EIM field and lookup, postrouting hairpin SNAT; AC-2..AC-5, AC-11, AC-15
 5. **Phase: Unsolicited SYN, ICMP, fragments** - input drop with listener exclusion; AC-9, AC-10, AC-12..AC-14
@@ -373,7 +373,7 @@ the red classification.
 | Correctness | hairpinned packets carry the external source pair, never the internal one |
 | Correctness | no fallback to APDM under exhaustion (REQ-11) |
 | Naming | YANG leaves kebab-case; metric names `ze_nat44_*` |
-| Data flow | the plugin never edits operator `firewall` tables; only the nft backend speaks netlink |
+| Data flow | the plugin never edits operator `firewall` tables; only the kernel backend uses the netlink socket |
 | Rule: rfc-compliance | each enforcing rule-builder carries the byte-exact quote |
 
 ### Deliverables Checklist
@@ -417,7 +417,7 @@ the red classification.
 |----------|------------------------|-----------|
 | A dedicated `nat44` producer with its own `ze_nat44` table | New leaves on the firewall `masquerade` action | timers, the SYN drop, hairpin and the overlap check span several chains and hooks; an operator term cannot express them, and existing terms keep their meaning |
 | EIM in Ze's kernel (Q1) | Userspace pinning from ctnetlink events into nft maps | events arrive after the kernel picked the port, so a fast second flow gets another port and another internal endpoint can take the port meanwhile: not deterministic (REQ-11) |
-| Timers as an nft ct timeout policy bound to NAT flows | Global `nf_conntrack_*` sysctls through the sysctl default layer | global timers change every flow the box tracks, and an operator `sysctl` override would silently break conformance; a scoped policy is checkable by doctor |
+| Timers as an nftables ct timeout policy bound to NAT flows | Global `nf_conntrack_*` sysctls through the sysctl default layer | global timers change every flow the box tracks, and an operator `sysctl` override would silently break conformance; a scoped policy is checkable by doctor |
 | Timer floors as YANG `range` minimums | Runtime validator | the RFC floor becomes the schema; no value below it can be committed |
 | Silent drop of unsolicited SYN | ICMP Port Unreachable after 6 s | dropping satisfies both MUSTs of RFC 5382 REQ-4; the ICMP is a SHOULD with a timer state machine per SYN |
 

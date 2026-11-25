@@ -53,6 +53,9 @@ The IPsec stack is split across several packages:
 
 IPsec is configured under `vpn { ipsec { } }`. Named `ike-group` and `esp-group` blocks hold the IKE and ESP proposals and lifetimes. Each `site-to-site` peer references a group pair, sets its authentication, and binds to an XFRM interface for route-based forwarding. A peer's and `remote-access`'s `ike-group` and `esp-group` are leafrefs: commit, a SIGHUP reload and `ze config validate` refuse a name no group declares, naming the groups that exist, and the editor completes the names.
 
+IPsec programs Linux kernel XFRM states and policies only. Under `interface backend vpp`, any configuration holding `vpn ipsec` is refused at `ze config validate`, commit, reload, and daemon start (and reported by `ze doctor` under `doctor-dataplane-mismatch`), naming `vpn ipsec` with the fix `set interface backend kernel`. See [Features by Data Plane](dataplane-features.md).
+<!-- source: internal/component/config/dataplane_verdict.go -- evaluateDataPlaneVerdict -->
+
 ```text
 pki {
     ca my-ca {
@@ -1955,7 +1958,7 @@ also needs the commit again.
 | Kernel answer | Cause | Fix |
 |---------------|-------|-----|
 | `EPERM` | Ze runs without `CAP_NET_ADMIN`, which the kernel asks of the request | under ze.service `sudo systemctl stop ze && sudo ze install systemd --force --start`; otherwise restart ze as root or holding `CAP_NET_ADMIN` |
-| `EPROTONOSUPPORT` (XFRM, nft), `EOPNOTSUPP` (nft), `EAFNOSUPPORT` (IPv6 rule) | the kernel is built without `CONFIG_XFRM_USER`, `CONFIG_NF_TABLES` or `CONFIG_IPV6_MULTIPLE_TABLES` | boot a kernel built with it (Ze's own kernel carries all three), then restart Ze |
+| `EPROTONOSUPPORT` (XFRM, nftables), `EOPNOTSUPP` (nftables), `EAFNOSUPPORT` (IPv6 rule) | the kernel is built without `CONFIG_XFRM_USER`, `CONFIG_NF_TABLES` or `CONFIG_IPV6_MULTIPLE_TABLES` | boot a kernel built with it (Ze's own kernel carries all three), then restart Ze |
 | `EACCES` | SELinux or AppArmor refused the netlink request; no capability changes that | find the denial with `sudo journalctl -b --grep 'avc:\|apparmor="DENIED"'`, allow Ze those netlink requests in that policy, then restart Ze |
 | Ze's own SPD record refused the entry | the kernel was not asked: another entry holds that selector, as the error says | remove that cause, then restart Ze |
 | anything else | Ze does not classify the answer, so the error is the only account of the cause | remove that cause, then restart Ze |
@@ -2084,7 +2087,7 @@ What the guard cannot do, and what `ze doctor` reports instead:
 | Limit | Why | Doctor |
 |---|---|---|
 | A socket policy set before the guard attached, or while `allow` held, stays until its socket closes | The kernel offers no way to delete a socket policy, and its dump names no owning process | `doctor-ipsec-socket-policy`, a warning per policy that is not Ze's, under `deny` |
-| A `CAP_NET_ADMIN` holder can still write the SPD itself over netlink | cgroup BPF has no hook on a netlink send, and Linux treats that holder as an administrator | `doctor-ipsec-spd-writer`, a warning naming each such process and its command; `doctor-ipsec-spd-writer-unknown` when `/proc` hides processes from Ze (not mounted, `hidepid`, no ptrace access), so it cannot tell |
+| A `CAP_NET_ADMIN` holder can still write the SPD itself over netlink | cgroup BPF has no hook on a netlink write, and Linux treats that holder as an administrator | `doctor-ipsec-spd-writer`, a warning naming each such process and its command; `doctor-ipsec-spd-writer-unknown` when `/proc` hides processes from Ze (not mounted, `hidepid`, no ptrace access), so it cannot tell |
 | A process holding `CAP_SYS_ADMIN` or `CAP_BPF` can detach the program | It is an ordinary cgroup link | `doctor-ipsec-override-guard`, an error when the guard is not attached under `deny` |
 
 `show vpn ipsec dataplane policy` lists every socket policy with SPD `socket`,
@@ -3333,8 +3336,8 @@ An interface that is deleted, as `ppp0` is when a PPPoE session ends, holds no
 address: its peers stop and wait exactly as when the address leaves, and start
 again when the interface returns with an address. Ze logs one warning when the
 interface goes missing, not one for every address change while it stays
-missing. A read of the interface that fails for another reason (a netlink
-error) is not taken as absence: the running peers are kept, and Ze logs a
+missing. A read of the interface that fails for another reason (a
+netlink error) is not taken as absence: the running peers are kept, and Ze logs a
 warning.
 
 A reload whose interface has no IPv4 address is still refused: an address that

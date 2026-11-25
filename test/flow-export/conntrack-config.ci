@@ -2,7 +2,7 @@
 #
 # VALIDATES: spec-flow-export-2 -- a `conntrack { enabled true; }` block is
 #            parsed and drives startFlowSubsystems -> conntrackWorker.Start,
-#            which opens the netlink table reader and the
+#            which opens the netlink socket table reader and the
 #            NFNLGRP_CONNTRACK_DESTROY event listener. The destroy listener
 #            exports each torn-down flow's residual counters immediately, so
 #            short flows that begin and end between two periodic dumps are not

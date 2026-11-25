@@ -1,4 +1,4 @@
-// VALIDATES: the live conntrack netlink paths — NewReader/Dump/Close and
+// VALIDATES: the live conntrack netlink socket paths — NewReader/Dump/Close and
 // NewDestroyListener/Close — construct against the real kernel and return
 // well-typed results without panicking in their own user/network namespaces.
 // PREVENTS: a regression in the netlink handle lifecycle or the destroy-listener

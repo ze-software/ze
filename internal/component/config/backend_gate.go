@@ -1,40 +1,228 @@
 // Design: docs/architecture/core-design.md — ze:backend commit-time feature gate
+// Related: dataplane_verdict.go — evaluateDataPlaneVerdict invokes the whole-tree walk at both config doors and ze doctor
 // Related: schema.go — Backend field on LeafNode/ContainerNode/ListNode
 // Related: yang_schema.go — getBackendExtension reader and schema population
 //
 // Package config — backend feature gate.
 //
-// The gate walks a parsed JSON config tree alongside the schema and rejects
-// configs that exercise features the active backend does not implement. A
-// feature's support matrix is declared via `ze:backend "<names>"` on the
-// relevant YANG node. Absent annotation means unrestricted (every registered
-// backend is accepted).
+// The gate walks a parsed config tree as written (before any schema default is
+// materialized) alongside the schema and rejects configs that exercise features
+// the active backend does not implement. A feature's support matrix is declared
+// via `ze:backend "<names>"` on the relevant YANG node. Absent annotation means
+// unrestricted (every registered backend is accepted).
 //
-// The gate is called by component plugins (iface today; fw-3 / fw-5 later)
-// before Apply runs. A failure propagates back to the user as the commit
-// rejection message. `ze config validate` (offline CLI) uses the same helper
-// so validation matches daemon commit.
+// The config component runs one whole-tree walk at its two config doors
+// (LoadConfig and verifyTree) and in ze doctor (doctor-dataplane-mismatch),
+// judging each root against the declared DataPlaneSelector whose roots claim
+// that subtree, or against the primary data-plane selector for nodes outside
+// every declared selector root. No component calls the gate on its own.
 
 package config
 
 import (
-	"encoding/json"
 	"fmt"
 	"slices"
 	"strings"
 
-	"github.com/ze-software/ze/internal/core/textbuf"
-
 	"github.com/ze-software/ze/internal/core/diagnostic"
+	"github.com/ze-software/ze/internal/core/textbuf"
 )
+
+// backendMismatch is one ze:backend exclusion emitted by the walker.
+type backendMismatch struct {
+	path       string
+	active     string
+	supporting []string
+}
+
+// backendWalkSelector describes one declared selector that governs a set of
+// config subtrees during the engine-owned ze:backend walk.
+type backendWalkSelector struct {
+	leafPath   string
+	display    string
+	roots      []string
+	active     string
+	defaultVal string
+	valid      bool
+}
+
+// backendWalkFinding is one mismatch or empty-backend host verdict produced by
+// walkBackendFeaturesTree for rendering by evaluateDataPlaneVerdict.
+type backendWalkFinding struct {
+	selector    backendWalkSelector
+	mismatch    backendMismatch
+	hostVerdict bool
+}
+
+// walkBackendFeaturesTree walks every root present in treeMap against schema,
+// judging each subtree against the declared selector whose Roots claim that
+// path, or against primary for nodes outside every declared selector root (for
+// example container networks). treeMap MUST be lowered from the tree as written
+// (Tree.ToPluginMap), before any schema default is materialized.
+//
+// Subtrees governed by a selector with valid == false are skipped because the
+// verdict has already refused or deferred that selector.
+func walkBackendFeaturesTree(
+	treeMap map[string]any,
+	schema *Schema,
+	primary backendWalkSelector,
+	secondaries []backendWalkSelector,
+) []backendWalkFinding {
+	if schema == nil {
+		return nil
+	}
+	if len(treeMap) == 0 {
+		return nil
+	}
+
+	selectorByPath := make(map[string]backendWalkSelector)
+	hasNestedPrefix := make(map[string]bool)
+	registerWalkSelector := func(sel backendWalkSelector) {
+		for _, root := range sel.roots {
+			clean := strings.TrimPrefix(root, PathSep)
+			if clean == "" {
+				continue
+			}
+			selectorByPath[clean] = sel
+			parts := SplitPath(clean)
+			for i := 1; i < len(parts); i++ {
+				hasNestedPrefix[textbuf.Join(parts[:i], PathSep)] = true
+			}
+		}
+	}
+	registerWalkSelector(primary)
+	for _, sec := range secondaries {
+		registerWalkSelector(sec)
+	}
+
+	emittedHostVerdict := make(map[string]bool)
+	var findings []backendWalkFinding
+	for _, key := range sortedKeysAny(treeMap) {
+		rootNode, err := schema.Lookup(key)
+		if err != nil {
+			continue
+		}
+		if rootNode == nil {
+			continue
+		}
+		walkSubtreeWithSelectors(
+			rootNode,
+			treeMap[key],
+			key,
+			primary,
+			selectorByPath,
+			hasNestedPrefix,
+			emittedHostVerdict,
+			&findings,
+		)
+	}
+	return findings
+}
+
+// walkSubtreeWithSelectors dispatches relPath to the selector claiming it,
+// descends container children when a nested selector claims a descendant of
+// relPath (such as "traffic/control" or "system/conntrack"), or falls back to
+// primary when no selector claims relPath or any descendant.
+func walkSubtreeWithSelectors(
+	node Node,
+	data any,
+	relPath string,
+	primary backendWalkSelector,
+	selectorByPath map[string]backendWalkSelector,
+	hasNestedPrefix, emittedHostVerdict map[string]bool,
+	findings *[]backendWalkFinding,
+) {
+	if data == nil {
+		return
+	}
+	if sel, claimed := selectorByPath[relPath]; claimed {
+		walkSubtreeUnderSelector(node, data, relPath, sel, emittedHostVerdict, findings)
+		return
+	}
+	if hasNestedPrefix[relPath] {
+		m, ok := data.(map[string]any)
+		if !ok {
+			walkSubtreeUnderSelector(node, data, relPath, primary, emittedHostVerdict, findings)
+			return
+		}
+		var pb textbuf.Buffer
+		for _, key := range sortedKeysAny(m) {
+			childNode := childSchemaNode(node, key)
+			if childNode == nil {
+				continue
+			}
+			childRel := pb.Reset().Str(relPath).Str(PathSep).Str(key).String()
+			walkSubtreeWithSelectors(
+				childNode,
+				m[key],
+				childRel,
+				primary,
+				selectorByPath,
+				hasNestedPrefix,
+				emittedHostVerdict,
+				findings,
+			)
+		}
+		return
+	}
+	walkSubtreeUnderSelector(node, data, relPath, primary, emittedHostVerdict, findings)
+}
+
+// childSchemaNode returns the named child schema node of a container or flex
+// node, or nil for other node kinds.
+func childSchemaNode(node Node, key string) Node {
+	switch n := node.(type) {
+	case *ContainerNode:
+		return n.Get(key)
+	case *FlexNode:
+		return n.Get(key)
+	default:
+		return nil
+	}
+}
+
+// walkSubtreeUnderSelector runs walkBackendNode on one subtree under sel and
+// appends every resulting finding.
+func walkSubtreeUnderSelector(
+	node Node,
+	data any,
+	relPath string,
+	sel backendWalkSelector,
+	emittedHostVerdict map[string]bool,
+	findings *[]backendWalkFinding,
+) {
+	if !sel.valid {
+		return
+	}
+	if sel.active == "" {
+		if emittedHostVerdict[sel.leafPath] {
+			return
+		}
+		emittedHostVerdict[sel.leafPath] = true
+		*findings = append(*findings, backendWalkFinding{
+			selector:    sel,
+			hostVerdict: true,
+		})
+		return
+	}
+	var pb textbuf.Buffer
+	pb.Byte('/').Str(relPath)
+	var mismatches []backendMismatch
+	walkBackendNode(node, data, pb.String(), sel.active, &mismatches)
+	for _, m := range mismatches {
+		*findings = append(*findings, backendWalkFinding{
+			selector: sel,
+			mismatch: m,
+		})
+	}
+}
 
 // validateBackendFeatures walks the parsed JSON config tree under
 // componentRoot against the schema and returns one error per node whose
 // `ze:backend` annotation excludes activeBackend, unless a descendant with
 // its own annotation accepts activeBackend (narrowest-annotation-wins).
 //
-// tree MUST be the JSON root delivered to the plugin (e.g.
-// unmarshalled sdk.ConfigSection.Data). The walker descends into
+// tree MUST be the parsed config map. The walker descends into
 // tree[componentRoot] only; other roots are ignored.
 //
 // activeBackend is the backend name selected at backendLeafPath (included
@@ -62,24 +250,39 @@ func validateBackendFeatures(
 		// an empty one means this host has no default: a host verdict.
 		return []error{diagnostic.HostVerdict(fmt.Errorf("backend feature gate: no backend configured at %s", backendLeafPath))}
 	}
-	if schema == nil || tree == nil {
+	if schema == nil {
+		return nil
+	}
+	if tree == nil {
 		return nil
 	}
 	// componentRoot may be a nested PathSep path (e.g. "traffic/control");
 	// resolve both the schema node and the JSON subtree by walking each segment.
 	rootNode, err := schema.Lookup(componentRoot)
-	if err != nil || rootNode == nil {
+	// refuse-by-default: guards walkBackendNode -- an unknown root carries no ze:backend annotation to evaluate
+	if err != nil {
+		return nil
+	}
+	if rootNode == nil {
 		return nil
 	}
 	subtree, ok := treeAtPath(tree, componentRoot)
+	// refuse-by-default: guards walkBackendNode -- an absent component subtree carries no feature to reject
 	if !ok {
 		return nil
 	}
 
 	var pb textbuf.Buffer
 	pb.Byte('/').Str(componentRoot)
-	var errs []error
-	walkBackendNode(rootNode, subtree, pb.String(), activeBackend, &errs)
+	var mismatches []backendMismatch
+	walkBackendNode(rootNode, subtree, pb.String(), activeBackend, &mismatches)
+	if len(mismatches) == 0 {
+		return nil
+	}
+	errs := make([]error, len(mismatches))
+	for i, m := range mismatches {
+		errs[i] = formatBackendError(m.path, m.active, m.supporting)
+	}
 	return errs
 }
 
@@ -114,7 +317,7 @@ func treeAtPath(tree map[string]any, path string) (map[string]any, bool) {
 // Lists are evaluated per-entry: if the list has a rejecting annotation,
 // each entry is independently checked; an override inside entry A cannot
 // mask a missing override inside entry B.
-func walkBackendNode(node Node, data any, path, active string, errs *[]error) (spoke, accepts bool) {
+func walkBackendNode(node Node, data any, path, active string, mismatches *[]backendMismatch) (spoke, accepts bool) {
 	var tb textbuf.Buffer
 	if data == nil {
 		return false, false
@@ -136,15 +339,15 @@ func walkBackendNode(node Node, data any, path, active string, errs *[]error) (s
 					continue
 				}
 				childPath := tb.Reset().Str(path).Byte('/').Str(key).String()
-				cs, ca := walkBackendNode(childNode, m[key], childPath, active, errs)
+				cs, ca := walkBackendNode(childNode, m[key], childPath, active, mismatches)
 				descSpoke = descSpoke || cs
 				descAccepts = descAccepts || ca
 			}
 		}
 	case *ListNode:
-		descSpoke, descAccepts, emittedAtList = walkBackendListMap(n, hasOwn, ownAccepts, ownAnnotation, data, path, active, errs)
+		descSpoke, descAccepts, emittedAtList = walkBackendListMap(n, hasOwn, ownAccepts, ownAnnotation, data, path, active, mismatches)
 	case *InlineListNode:
-		descSpoke, descAccepts, emittedAtList = walkBackendInlineList(n, hasOwn, ownAccepts, ownAnnotation, data, path, active, errs)
+		descSpoke, descAccepts, emittedAtList = walkBackendInlineList(n, hasOwn, ownAccepts, ownAnnotation, data, path, active, mismatches)
 	case *FlexNode:
 		if m, ok := data.(map[string]any); ok {
 			for _, key := range sortedKeysAny(m) {
@@ -153,7 +356,7 @@ func walkBackendNode(node Node, data any, path, active string, errs *[]error) (s
 					continue
 				}
 				childPath := tb.Reset().Str(path).Byte('/').Str(key).String()
-				cs, ca := walkBackendNode(childNode, m[key], childPath, active, errs)
+				cs, ca := walkBackendNode(childNode, m[key], childPath, active, mismatches)
 				descSpoke = descSpoke || cs
 				descAccepts = descAccepts || ca
 			}
@@ -167,7 +370,11 @@ func walkBackendNode(node Node, data any, path, active string, errs *[]error) (s
 	// accounted for via emittedAtList to avoid double-emitting from the
 	// list helpers.
 	if !emittedAtList && hasOwn && !ownAccepts && !descSpoke {
-		*errs = append(*errs, formatBackendError(path, active, ownAnnotation))
+		*mismatches = append(*mismatches, backendMismatch{
+			path:       path,
+			active:     active,
+			supporting: ownAnnotation,
+		})
 	}
 
 	return hasOwn || descSpoke, ownAccepts || descAccepts
@@ -193,21 +400,21 @@ func walkBackendListMap(
 	listAnnotation []string,
 	data any,
 	path, active string,
-	errs *[]error,
+	mismatches *[]backendMismatch,
 ) (descSpoke, descAccepts, emittedAtList bool) {
 	var tb textbuf.Buffer
 	switch v := data.(type) {
 	case map[string]any:
 		for _, key := range sortedKeysAny(v) {
 			entryPath := tb.Reset().Str(path).Byte('/').Str(key).String()
-			entrySpoke, entryAccepts := walkBackendListEntry(list, v[key], entryPath, active, errs)
+			entrySpoke, entryAccepts := walkBackendListEntry(list, v[key], entryPath, active, mismatches)
 			if entrySpoke {
 				descSpoke = true
 			}
 			if entryAccepts {
 				descAccepts = true
 			}
-			if emitListEntryError(listHasOwn, listOwnAccepts, listAnnotation, entryPath, active, entrySpoke, errs) {
+			if emitListEntryError(listHasOwn, listOwnAccepts, listAnnotation, entryPath, active, entrySpoke, mismatches) {
 				emittedAtList = true
 			}
 		}
@@ -215,14 +422,14 @@ func walkBackendListMap(
 		for i, item := range v {
 			var bp textbuf.Buffer
 			entryPath := bp.Reset().Str(path).Byte('[').Int(int64(i)).Byte(']').String()
-			entrySpoke, entryAccepts := walkBackendListEntry(list, item, entryPath, active, errs)
+			entrySpoke, entryAccepts := walkBackendListEntry(list, item, entryPath, active, mismatches)
 			if entrySpoke {
 				descSpoke = true
 			}
 			if entryAccepts {
 				descAccepts = true
 			}
-			if emitListEntryError(listHasOwn, listOwnAccepts, listAnnotation, entryPath, active, entrySpoke, errs) {
+			if emitListEntryError(listHasOwn, listOwnAccepts, listAnnotation, entryPath, active, entrySpoke, mismatches) {
 				emittedAtList = true
 			}
 		}
@@ -241,7 +448,7 @@ func walkBackendInlineList(
 	listAnnotation []string,
 	data any,
 	path, active string,
-	errs *[]error,
+	mismatches *[]backendMismatch,
 ) (descSpoke, descAccepts, emittedAtList bool) {
 	var tb textbuf.Buffer
 	m, ok := data.(map[string]any)
@@ -254,14 +461,14 @@ func walkBackendInlineList(
 		if !ok {
 			continue
 		}
-		entrySpoke, entryAccepts := walkInlineListEntryFields(list, entry, entryPath, active, errs)
+		entrySpoke, entryAccepts := walkInlineListEntryFields(list, entry, entryPath, active, mismatches)
 		if entrySpoke {
 			descSpoke = true
 		}
 		if entryAccepts {
 			descAccepts = true
 		}
-		if emitListEntryError(listHasOwn, listOwnAccepts, listAnnotation, entryPath, active, entrySpoke, errs) {
+		if emitListEntryError(listHasOwn, listOwnAccepts, listAnnotation, entryPath, active, entrySpoke, mismatches) {
 			emittedAtList = true
 		}
 	}
@@ -272,7 +479,7 @@ func walkBackendInlineList(
 // the entry's leaves and sub-containers). The entry's schema is the
 // ListNode's child map, treated as an implicit ContainerNode for walking
 // purposes. Returns (spoke, accepts) -- see walkBackendNode godoc.
-func walkBackendListEntry(list *ListNode, entry any, path, active string, errs *[]error) (spoke, accepts bool) {
+func walkBackendListEntry(list *ListNode, entry any, path, active string, mismatches *[]backendMismatch) (spoke, accepts bool) {
 	var tb textbuf.Buffer
 	m, ok := entry.(map[string]any)
 	if !ok {
@@ -284,7 +491,7 @@ func walkBackendListEntry(list *ListNode, entry any, path, active string, errs *
 			continue
 		}
 		childPath := tb.Reset().Str(path).Byte('/').Str(key).String()
-		cs, ca := walkBackendNode(childNode, m[key], childPath, active, errs)
+		cs, ca := walkBackendNode(childNode, m[key], childPath, active, mismatches)
 		if cs {
 			spoke = true
 		}
@@ -299,13 +506,15 @@ func walkBackendListEntry(list *ListNode, entry any, path, active string, errs *
 // walkBackendListEntry: iterates the entry's field data, dispatching each
 // field to walkBackendNode against the inline list's child schema.
 // Extracted so walkBackendInlineList stays symmetric with walkBackendListMap.
-func walkInlineListEntryFields(list *InlineListNode, entry map[string]any, path, active string, errs *[]error) (spoke, accepts bool) {
+func walkInlineListEntryFields(list *InlineListNode, entry map[string]any, path, active string, mismatches *[]backendMismatch) (spoke, accepts bool) {
+	var tb textbuf.Buffer
 	for _, key := range sortedKeysAny(entry) {
 		childNode := list.Get(key)
 		if childNode == nil {
 			continue
 		}
-		cs, ca := walkBackendNode(childNode, entry[key], path+"/"+key, active, errs)
+		childPath := tb.Reset().Str(path).Byte('/').Str(key).String()
+		cs, ca := walkBackendNode(childNode, entry[key], childPath, active, mismatches)
 		if cs {
 			spoke = true
 		}
@@ -326,12 +535,22 @@ func emitListEntryError(
 	listAnnotation []string,
 	entryPath, active string,
 	entrySpoke bool,
-	errs *[]error,
+	mismatches *[]backendMismatch,
 ) bool {
-	if entrySpoke || !listHasOwn || listOwnAccepts {
+	if entrySpoke {
 		return false
 	}
-	*errs = append(*errs, formatBackendError(entryPath, active, listAnnotation))
+	if !listHasOwn {
+		return false
+	}
+	if listOwnAccepts {
+		return false
+	}
+	*mismatches = append(*mismatches, backendMismatch{
+		path:       entryPath,
+		active:     active,
+		supporting: listAnnotation,
+	})
 	return true
 }
 
@@ -387,27 +606,4 @@ func sortedKeysAny(m map[string]any) []string {
 	}
 	slices.Sort(out)
 	return out
-}
-
-// ValidateBackendFeaturesJSON is a convenience wrapper that accepts the raw
-// JSON string delivered in sdk.ConfigSection.Data. Components that already
-// have a parsed map[string]any should call validateBackendFeatures directly.
-//
-// Returns a single error when the JSON fails to parse; otherwise delegates
-// to validateBackendFeatures.
-func ValidateBackendFeaturesJSON(
-	data string,
-	schema *Schema,
-	componentRoot string,
-	activeBackend string,
-	backendLeafPath string,
-) []error {
-	if strings.TrimSpace(data) == "" {
-		return nil
-	}
-	var root map[string]any
-	if err := json.Unmarshal([]byte(data), &root); err != nil {
-		return []error{fmt.Errorf("backend feature gate: parse config JSON: %w", err)}
-	}
-	return validateBackendFeatures(root, schema, componentRoot, activeBackend, backendLeafPath)
 }

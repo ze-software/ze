@@ -12,7 +12,7 @@
 #           BNG configuration story.
 stdin=config:terminator=EOF_CONF
 interface {
-	backend netlink;
+	backend kernel;
 	ethernet eth0 {
 		unit v100 {
 			vlan-id 100;
@@ -30,7 +30,7 @@ interface {
 }
 
 firewall {
-	backend nft;
+	backend kernel;
 	table cos {
 		family inet;
 		chain forward {
@@ -53,7 +53,7 @@ firewall {
 
 traffic {
 	control {
-		backend tc
+		backend kernel
 		interface eth0.100 {
 			qdisc {
 				type htb;

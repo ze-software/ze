@@ -367,7 +367,7 @@ module ze-extensions {
     // Extension: backend
     // Declares which interface/firewall/traffic backends implement this node.
     // The argument is a space-separated list of backend names (e.g.,
-    // "netlink", "netlink vpp"). An absent `ze:backend` statement means the
+    // "kernel", "kernel vpp"). An absent `ze:backend` statement means the
     // node is supported by every registered backend for its component
     // (unrestricted). When the active backend is not in the list, the
     // commit-time feature gate rejects the config with a YANG-path diagnostic
@@ -379,7 +379,7 @@ module ze-extensions {
         argument names;
         description "Declares which backends implement this node. Argument is
                      a space-separated list of backend names (e.g.,
-                     \"netlink\", \"netlink vpp\"). Absent = unrestricted.";
+                     \"kernel\", \"kernel vpp\"). Absent = unrestricted.";
     }
 
     // Extension: os

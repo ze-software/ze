@@ -404,9 +404,9 @@
   cat /proc/net/vlan/eth0.100      # shows INGRESS/EGRESS priority mappings
   ip -d link show eth0.100         # also displays current maps
 
-  tc Integration
+  Traffic Control Integration
 
-  tc can set skb->priority before the egress map applies, composing the two mechanisms:
+  tc filters can set skb->priority before the egress map applies, composing the two mechanisms:
 
   tc qdisc add dev eth0.100 root handle 1: prio
   tc filter add dev eth0.100 parent 1: protocol ip u32 \

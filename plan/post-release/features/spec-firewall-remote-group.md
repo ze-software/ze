@@ -229,6 +229,14 @@ through nftables `dynset`, and owns finishing the inert `flags-dynamic` and
   interval.
 - The element cap becomes one exported bound, read by both sources.
 
+## Existing Mechanisms
+
+| Mechanism | Where (file + symbol, or page + section) | What it does today | This spec (extends, replaces, or does not apply, with the reason) |
+|-----------|------------------------------------------|--------------------|------------------------------------------------------------------|
+| Firewall named-set schema and transparent YANG choice flattening | `internal/component/firewall/yang/ze-firewall-conf.yang` (`list set`), `internal/component/config/yang_schema.go` (`flattenChoiceCases`) | Defines named sets with literal `list element` members and flattens YANG `choice`/`case` nodes transparently at the data layer | Extends: wraps literal elements and external sources in a `choice` on `list set` so literal configs stay unchanged |
+| Domain-sourced firewall set plugin and command surface | `internal/component/firewall/plugins/domain/command.go` (`domainPlugin.handleCommand`, `showDomainGroup`, `updateDomainGroup`, `clearDomainGroup`) | Resolves domain-based firewall sets and exposes show, update, and clear operator commands | Extends: adds the URL source, shared disk cache, conditional refresh/retry, and dynamic name completion inside one sourced-set plugin |
+| Firewall table registry and family-split set builder | `internal/component/firewall/registry.go` (`RegisterTables`, `ApplyAll`), `internal/component/firewall/plugins/irr/sets.go` (`maxPrefixesPerFamily`, `buildSets`) | Registers per-owner nftables sets for merged apply and splits multi-family prefix lists into bounded per-family sets | Extends: programs URL-sourced sets through `RegisterTables`/`ApplyAll` and shares one exported element cap |
+
 ## Data Flow (MANDATORY - see `ai/rules/architecture.md`)
 
 ### Entry Point
@@ -383,7 +391,7 @@ Three, differing in kind:
      before proceeding. Delete this section when Scope is tooling or docs. -->
 | # | User does | Path through system | Test proving it works |
 |---|-----------|--------------------|-----------------------|
-| 1 | Points a set at a published blocklist and commits a rule dropping it | `update firewall group` -> fetch -> parse -> cache -> commit -> verify passes -> `RegisterTables` -> `ApplyAll` -> nft | `test/plugin/firewall-sourced-group-update.ci` |
+| 1 | Points a set at a published blocklist and commits a rule dropping it | `update firewall group` -> fetch -> parse -> cache -> commit -> verify passes -> `RegisterTables` -> `ApplyAll` -> nftables | `test/plugin/firewall-sourced-group-update.ci` |
 | 2 | Commits a rule naming a set never fetched | commit -> `OnConfigVerify` -> cache miss -> commit refused naming the fetch command | `TestSourcedSetVerifyRefusesUnfetchedSource` |
 | 3 | Reads which sets are sourced, from where, and how fresh | `show firewall group` -> `show.Enrich` -> `enrich-show` -> source and last-fetch attached | `test/firewall/firewall-cli-sourced-group-show.ci` |
 | 4 | Keeps filtering while the publisher is down | refresh fails -> previous contents kept -> retry timer armed | `TestSourcedSetFailureArmsRetryInterval` |
@@ -446,7 +454,7 @@ Three, differing in kind:
 | Functional test for new RPC/API | | `test/plugin/*.ci` or `test/decode/*.ci` |
 | Pipe completeness | | Route output through `ApplyPipes`/`ProcessPipes` per `ai/rules/cli.md` |
 | Env var registration | | YANG leaves under `environment/` need a matching `ze.<name>.<leaf>` via `env.MustRegister()` |
-| Doctor check for runtime dependencies | | Any new file path, socket, service, kernel module, listen port, procfs/sysctl, netlink, binary, or certificate: owning-package check + `internal/core/diagnostic/codes.go` + unit and functional test (`ai/rules/repo-maintenance.md`) |
+| Doctor check for runtime dependencies | | Any new file path, socket, service, kernel module, listen port, procfs/sysctl, netlink socket, binary, or certificate: owning-package check + `internal/core/diagnostic/codes.go` + unit and functional test (`ai/rules/repo-maintenance.md`) |
 | Prometheus counters/metrics | | Observable state: define, register, and list the metric names and labels here |
 | BGP family surface (new SAFI / capability / attribute) | | The 12-section checklist in `ai/patterns/bgp-family.md` -- read it and record the answers there, not inline |
 

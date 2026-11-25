@@ -27,7 +27,7 @@ AF_PPPOX plus `/dev/ppp` ioctls and rtnetlink, which run only under QEMU:
 is an integration-tier tag in the existing harness:
 `internal/component/l2tp/pppoeclient/dialer_integration_linux_test.go` drives the
 client and `internal/le/test/qemu/pppoe_accel_linux.go` boots the AC, so the test
-reads from netlink after PADS the AC's `ppp<N>` device and the client's device under
+reads from the netlink socket after PADS the AC's `ppp<N>` device and the client's device under
 its configured name, and asserts each is absent before PADI. One record per polarity
 through `./le rfc record`.
 

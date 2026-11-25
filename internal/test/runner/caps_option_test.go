@@ -251,7 +251,7 @@ func TestCapsNetBindGateBothPolarities(t *testing.T) {
 		t.Errorf("capsRequired[%q] = %v, missing CAP_NET_BIND_SERVICE (bit %d)", capsNetBind, bits, capNetBindService)
 	}
 	if slices.Contains(bits, capNetAdmin) {
-		t.Errorf("capsRequired[%q] = %v also requires CAP_NET_ADMIN (bit %d): binding a port programs no netlink, "+
+		t.Errorf("capsRequired[%q] = %v also requires CAP_NET_ADMIN (bit %d): binding a port programs no netlink sockets, "+
 			"so the gate would skip a host that could run the test", capsNetBind, bits, capNetAdmin)
 	}
 

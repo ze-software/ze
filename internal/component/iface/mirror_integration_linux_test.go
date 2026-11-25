@@ -137,7 +137,7 @@ func TestIntegrationMirrorIngress(t *testing.T) {
 	}
 	// VALIDATES: SetupMirror with ingress=true installs a filter on the
 	// ingress hook of the clsact qdisc.
-	// PREVENTS: Ingress mirroring silently fails to configure tc.
+	// PREVENTS: Ingress mirroring silently fails to configure traffic control.
 	// The qdisc is clsact, not the older ingress kind: clsact carries both
 	// hooks, so one qdisc serves an ingress-only mirror, an egress-only
 	// mirror, and a mirror with a different destination per direction. The
@@ -166,7 +166,7 @@ func TestIntegrationMirrorEgress(t *testing.T) {
 	}
 	// VALIDATES: SetupMirror with egress=true installs a filter on the EGRESS
 	// hook, and leaves the ingress hook alone.
-	// PREVENTS: egress mirroring silently failing to configure tc. Asserting the
+	// PREVENTS: egress mirroring silently failing to configure traffic control. Asserting the
 	// qdisc alone stopped proving that once every mirror began creating clsact
 	// in ensureClsactQdisc before either hook is touched: the qdisc appears even
 	// if the egress branch of setupClsactMirror does nothing.
@@ -414,11 +414,11 @@ func TestIntegrationMirrorSetupOnExistingClsact(t *testing.T) {
 	})
 }
 
-// AC-5's rollback test lives in the netlink package, as
+// AC-5's rollback test lives in the iface/netlink package, as
 // TestIntegrationMirrorSetupRollbackKeepsForeignFilter. It needs a mirror setup
 // that fails after its first filter lands, and from this package the only lever is
 // a pre-existing ingress qdisc: sch_ingress's ingress_find accepts any minor
-// handle, so the egress filter add succeeds instead of failing. The netlink
+// handle, so the egress filter add succeeds instead of failing. The iface/netlink
 // package can pass an unresolvable destination ifindex to setupClsactMirror, which
 // the kernel refuses with ENODEV.
 
@@ -514,7 +514,7 @@ func TestIntegrationApplyConfigMirrorRemovedOnConfigDelete(t *testing.T) {
 	withNetNS(t, func() {
 		b := GetBackend()
 		previous := &ifaceConfig{
-			Backend: "netlink",
+			Backend: "kernel",
 			Dummy: []ifaceEntry{
 				{Name: "mir0", Units: []unitEntry{{MirrorIngress: "cap0", MirrorEgress: "cap0"}}},
 				{Name: "cap0"},
@@ -531,7 +531,7 @@ func TestIntegrationApplyConfigMirrorRemovedOnConfigDelete(t *testing.T) {
 		}
 
 		current := &ifaceConfig{
-			Backend: "netlink",
+			Backend: "kernel",
 			Dummy: []ifaceEntry{
 				{Name: "mir0", Units: []unitEntry{{}}},
 				{Name: "cap0"},
@@ -567,7 +567,7 @@ func TestIntegrationApplyConfigMirrorKeepsForeignFilterOnConfigDelete(t *testing
 	withNetNS(t, func() {
 		b := GetBackend()
 		previous := &ifaceConfig{
-			Backend: "netlink",
+			Backend: "kernel",
 			Dummy: []ifaceEntry{
 				{Name: "mir0", Units: []unitEntry{{MirrorIngress: "cap0"}}},
 				{Name: "cap0"},
@@ -584,7 +584,7 @@ func TestIntegrationApplyConfigMirrorKeepsForeignFilterOnConfigDelete(t *testing
 		addForeignFilter(t, "mir0")
 
 		current := &ifaceConfig{
-			Backend: "netlink",
+			Backend: "kernel",
 			Dummy: []ifaceEntry{
 				{Name: "mir0", Units: []unitEntry{{}}},
 				{Name: "cap0"},
@@ -608,7 +608,7 @@ func TestIntegrationListMirrorsReportsTheLiveMirror(t *testing.T) {
 	if !userns.Enter(t) {
 		return
 	}
-	// VALIDATES: the netlink backend reads its own mirror back out of the
+	// VALIDATES: the kernel backend reads its own mirror back out of the
 	// kernel, naming the source and the destination DEVICE in each direction.
 	// PREVENTS: a reconcile deciding from a read that answers "no mirror" for
 	// an interface the kernel is copying every packet from. The reconcile then
@@ -686,7 +686,7 @@ func TestIntegrationApplyConfigRetiresAMirrorNoConfigAsksFor(t *testing.T) {
 		return
 	}
 	// VALIDATES: the restart hole, against a real kernel -- a mirror installed
-	// in tc and absent from the configuration is torn down by an apply that has
+	// in traffic control and absent from the configuration is torn down by an apply that has
 	// NO previous config to derive it from.
 	// PREVENTS: a mirror the operator deleted while ze was down surviving every
 	// boot, copying each packet to a destination that no longer exists in the
@@ -712,7 +712,7 @@ func TestIntegrationApplyConfigRetiresAMirrorNoConfigAsksFor(t *testing.T) {
 		}
 
 		current := &ifaceConfig{
-			Backend: "netlink",
+			Backend: "kernel",
 			Dummy: []ifaceEntry{
 				{Name: "mir0", Units: []unitEntry{{}}},
 				{Name: "cap0"},
@@ -755,7 +755,7 @@ func TestIntegrationApplyConfigKeepsAForeignFilterWhileRetiringAStrandedMirror(t
 		}
 
 		current := &ifaceConfig{
-			Backend: "netlink",
+			Backend: "kernel",
 			Dummy: []ifaceEntry{
 				{Name: "mir0", Units: []unitEntry{{}}},
 				{Name: "cap0"},
@@ -810,7 +810,7 @@ func TestIntegrationApplyConfigLeavesAMirrorOnAnInterfaceItDoesNotConfigure(t *t
 		}
 
 		current := &ifaceConfig{
-			Backend: "netlink",
+			Backend: "kernel",
 			Dummy: []ifaceEntry{
 				{Name: "mir0", Units: []unitEntry{{}}},
 				{Name: "cap0"},
