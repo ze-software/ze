@@ -1,0 +1,7 @@
+# QUESTION: Does the registry show a device as diverged only while the hub holds its local edit?
+# WHY NOT A UNIT TEST: A real managed client uploads a held configuration, then follows after the hub serves those exact bytes.
+# VALIDATES: fleet-1 AC-13.
+option=timeout:value=180s
+cmd=foreground:seq=1:exec=le test fixture managed/fleet-devices-diverged $PORT $PORT2 $PORT3:timeout=180s
+expect=exit:code=0
+expect=stdout:contains=OK: fleet device showed the hold until the configurations matched

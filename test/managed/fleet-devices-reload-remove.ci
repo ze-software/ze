@@ -1,0 +1,10 @@
+# QUESTION: Does a live reload removing a connected managed client close its
+# session promptly, keep its stored history marked removed, and refuse its
+# reconnect under doctor-managed-client-rejected?
+# WHY NOT A UNIT TEST: exercises the live hub reload transaction closing an
+# active TLS session and the real device daemon's reconnect refusal in doctor.
+# VALIDATES: fleet-1 AC-9.
+option=timeout:value=240s
+cmd=foreground:seq=1:exec=le test fixture managed/fleet-devices-reload-remove $PORT $PORT2 $PORT3:timeout=240s
+expect=exit:code=0
+expect=stdout:contains=OK: reload removed connected managed client, kept history and refused reconnect

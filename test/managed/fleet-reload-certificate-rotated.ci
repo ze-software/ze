@@ -1,0 +1,10 @@
+# QUESTION: When a reload changes bus hub server central certificate to
+# fleet-hub on a serving hub, does a verifying client anchored on fleet-hub's
+# CA connect while an already-connected client stays up with connected-since unchanged?
+# WHY NOT A UNIT TEST: proves non-vacuous live TLS certificate rotation across
+# three real daemons (hub plus two verifying clients with distinct CAs).
+# VALIDATES: fleet-1 AC-38, A-12.
+option=timeout:value=240s
+cmd=foreground:seq=1:exec=le test fixture managed/fleet-reload-certificate-rotated $PORT $PORT2 $PORT3:timeout=240s
+expect=exit:code=0
+expect=stdout:contains=OK: reload rotated managed certificate for new handshakes while keeping existing session

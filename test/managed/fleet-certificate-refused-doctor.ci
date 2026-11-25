@@ -1,0 +1,10 @@
+# QUESTION: When a hub rotates by reload to a certificate a verifying device
+# does not trust and that device leaves and rejoins the fleet, do both
+# `show doctor` reports name the refusal and clear once the hub reverts?
+# WHY NOT A UNIT TEST: proves end-to-end real TLS alert propagation and both
+# runtime doctor checks across live hub and device daemons without restarting either.
+# VALIDATES: fleet-1 AC-48, A-15.
+option=timeout:value=300s
+cmd=foreground:seq=1:exec=le test fixture managed/fleet-certificate-refused-doctor $PORT $PORT2 $PORT3:timeout=300s
+expect=exit:code=0
+expect=stdout:contains=OK: certificate refusal reported on both client and hub doctor and cleared after repair

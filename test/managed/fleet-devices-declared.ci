@@ -1,0 +1,7 @@
+# QUESTION: Does a never-connected declaration show its labels and current hash after a live config write?
+# WHY NOT A UNIT TEST: The operator writes through the running hub and reads its registry over SSH, before a device ever connects.
+# VALIDATES: fleet-1 AC-7 and AC-25.
+option=timeout:value=180s
+cmd=foreground:seq=1:exec=le test fixture managed/fleet-devices-declared $PORT $PORT2 $PORT3:timeout=180s
+expect=exit:code=0
+expect=stdout:contains=OK: declared device listed its current config before its first connection

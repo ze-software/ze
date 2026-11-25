@@ -1,0 +1,7 @@
+# QUESTION: Does filtering by site return exactly the declared devices in that site?
+# WHY NOT A UNIT TEST: The hub parses both client declarations and the SSH dispatcher carries the label operation.
+# VALIDATES: fleet-1 AC-10 and AC-34.
+option=timeout:value=180s
+cmd=foreground:seq=1:exec=le test fixture managed/fleet-devices-label $PORT $PORT2 $PORT3:timeout=180s
+expect=exit:code=0
+expect=stdout:contains=OK: fleet labels selected exactly the declared devices

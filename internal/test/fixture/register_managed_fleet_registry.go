@@ -10,4 +10,9 @@ func init() {
 	Register("managed/fleet-devices-label", managedFleetDevicesLabelDriver)
 	Register("managed/fleet-devices-declared", managedFleetDevicesDeclaredDriver)
 	Register("managed/fleet-devices-diverged", managedFleetDevicesDivergedDriver)
+	Register("managed/fleet-devices-reload-add", managedFleetDevicesReloadAddDriver)
+	Register("managed/fleet-devices-reload-remove", managedFleetDevicesReloadRemoveDriver)
+	Register("managed/fleet-reload-listener-verified", managedFleetReloadListenerVerifiedDriver)
+	Register("managed/fleet-reload-certificate-rotated", managedFleetReloadCertificateRotatedDriver)
+	Register("managed/fleet-certificate-refused-doctor", managedFleetCertificateRefusedDoctorDriver)
 }

@@ -1,0 +1,10 @@
+# QUESTION: Does a live reload adding a managed client entry make the hub
+# list it immediately (never connected) and admit it when it connects?
+# WHY NOT A UNIT TEST: exercises the full hub reload transaction through
+# `ze data import` beside a running hub, live listener bind, and a real managed
+# client daemon connecting over TLS.
+# VALIDATES: fleet-1 AC-8, AC-26.
+option=timeout:value=240s
+cmd=foreground:seq=1:exec=le test fixture managed/fleet-devices-reload-add $PORT $PORT2 $PORT3:timeout=240s
+expect=exit:code=0
+expect=stdout:contains=OK: reload added managed client and listed it connected

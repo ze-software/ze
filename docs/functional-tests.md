@@ -1222,7 +1222,7 @@ native integration actions supply the required build tags:
 | Command | Test | Tag | What it drives |
 |---------|------|-----|----------------|
 | `./le test integration stress-web` | `TestWebConcurrentEditStress` | `stress` | Concurrent editor sessions mutate and commit one config under the race detector |
-| `./le test integration stress-fleet` | `TestFleetManyClientsPerf` | `fleetperf` | 128 managed clients authenticate and synchronize against the real listener |
+| `./le test integration stress-fleet` | `TestFleetManyClientsPerf` | `fleetperf` | 2,000 managed clients authenticate, synchronize, and hold simultaneous sessions against the real listener |
 <!-- source: internal/le/test/integration/gates.go -- Table -->
 
 The BGP route stress harness is a native integration action. It creates two

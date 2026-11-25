@@ -1,0 +1,9 @@
+# QUESTION: Does a restarted hub show its previously connected device offline
+# with the original timestamps and source address?
+# WHY NOT A UNIT TEST: the device uses the real TLS listener, then both the
+# original and restarted daemon answer over the operator's SSH command path.
+# VALIDATES: fleet-1 AC-6. The device stays stopped across the hub restart.
+option=timeout:value=180s
+cmd=foreground:seq=1:exec=le test fixture managed/fleet-devices-restart $PORT $PORT2 $PORT3:timeout=180s
+expect=exit:code=0
+expect=stdout:contains=OK: hub restart restored the offline device and its recorded history

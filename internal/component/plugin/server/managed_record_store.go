@@ -217,7 +217,8 @@ func (s *ManagedServer) recordWriter() {
 		case <-s.ctx.Done():
 			return
 		case <-s.recordIO.wake:
-			s.drainDeviceRecords()
+			for s.ctx.Err() == nil && s.drainOneDeviceRecord() {
+			}
 		}
 	}
 }
@@ -252,19 +253,23 @@ func (s *ManagedServer) drainDeviceRecords() {
 	if s.recordIO == nil {
 		return
 	}
-	for {
-		s.mu.Lock()
-		var name string
-		for queued := range s.recordIO.pending {
-			name = queued
-			break
-		}
-		s.mu.Unlock()
-		if name == "" {
-			return
-		}
-		s.syncDeviceRecord(name)
+	for s.drainOneDeviceRecord() {
 	}
+}
+
+func (s *ManagedServer) drainOneDeviceRecord() bool {
+	s.mu.Lock()
+	var name string
+	for queued := range s.recordIO.pending {
+		name = queued
+		break
+	}
+	s.mu.Unlock()
+	if name == "" {
+		return false
+	}
+	s.syncDeviceRecord(name)
+	return true
 }
 
 // syncDeviceRecord consumes the pending work under the runtime key lock.

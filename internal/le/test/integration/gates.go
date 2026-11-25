@@ -252,8 +252,8 @@ func Table() []Action {
 			Argv: fixed(goTool, "test", "-tags", "ze_core fleetperf", "-count=1",
 				"-timeout", "300s", "./cmd/ze/hub/",
 				"-run", "TestFleetManyClientsPerf", "-v"),
-			Summary: "stress a hub with 128 managed clients",
-			Why: "128 managed clients against a real hub listener. Evidence tier: the" +
+			Summary: "stress a hub with 2,000 managed clients",
+			Why: "2,000 managed clients holding simultaneous sessions against a real hub listener. Evidence tier: the" +
 				" `fleetperf` build tag keeps it out of ze-precommit-verify (R-6)",
 		},
 		// ── Live ─────────────────────────────────────────────────────────

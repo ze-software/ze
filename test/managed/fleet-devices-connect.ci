@@ -1,0 +1,10 @@
+# QUESTION: Does the hub list its managed device as connected after it
+# fetches and acknowledges its configuration, then offline after it leaves?
+# WHY NOT A UNIT TEST: the session and its end are observed over the managed
+# connection, and the operator reads the hub registry through its SSH CLI.
+# VALIDATES: fleet-1 AC-1, AC-2, AC-4, AC-5. The fixture waits for the
+# connected device's applied version, stops it, and checks its offline row.
+option=timeout:value=180s
+cmd=foreground:seq=1:exec=le test fixture managed/fleet-devices-connect $PORT $PORT2 $PORT3:timeout=180s
+expect=exit:code=0
+expect=stdout:contains=OK: fleet device listed connected and offline

@@ -1,0 +1,10 @@
+# QUESTION: Does the hub report the session, fetch and applied version for
+# the device an operator names, and refuse an unknown name?
+# WHY NOT A UNIT TEST: the facts originate on the managed TLS session and
+# must reach the operator through the hub's SSH command dispatcher.
+# VALIDATES: fleet-1 AC-11 and AC-12. The fixture reads the detail document
+# while its device is still connected.
+option=timeout:value=180s
+cmd=foreground:seq=1:exec=le test fixture managed/fleet-device-detail $PORT $PORT2 $PORT3:timeout=180s
+expect=exit:code=0
+expect=stdout:contains=OK: fleet device detail reported the named session

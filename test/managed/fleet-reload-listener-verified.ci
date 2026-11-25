@@ -1,0 +1,10 @@
+# QUESTION: When a hub with no managed client gains by reload a serving block
+# on 127.0.0.2 with no certificate name, does the issued leaf cover 127.0.0.2
+# so a verifying client anchored on the hub root connects?
+# WHY NOT A UNIT TEST: exercises real hub local-CA issuance on reload, root
+# export via `show pki local-ca pem`, and a real verifying client TLS handshake.
+# VALIDATES: fleet-1 AC-35, A-10.
+option=timeout:value=240s
+cmd=foreground:seq=1:exec=le test fixture managed/fleet-reload-listener-verified $PORT $PORT2 $PORT3:timeout=240s
+expect=exit:code=0
+expect=stdout:contains=OK: reload issued leaf covering 127.0.0.2 and verifying client connected

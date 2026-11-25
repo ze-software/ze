@@ -108,7 +108,7 @@ func (s *ManagedServer) authRefused(remote, listenerAddr string, err error, look
 	refusal, named := errors.AsType[*pluginipc.AuthRefusal](err)
 	if !named {
 		host := remoteHostOf(remote)
-		now := s.now()
+		now := s.currentTime()
 		if isCertRejectionAlert(err) {
 			s.doctor.recordCertRefused(host, listenerAddr, err.Error(), now)
 			managedLogger().Warn("managed connection refused hub certificate",
@@ -267,6 +267,15 @@ func RecordManagedStartupFailure(failure *opererr.Error) {
 	managedStartupFailure.Store(failure)
 }
 
+// currentTime returns the server's clock time, falling back to time.Now for
+// zero-valued servers constructed directly in tests.
+func (s *ManagedServer) currentTime() time.Time {
+	if s.now != nil {
+		return s.now()
+	}
+	return time.Now()
+}
+
 // ManagedRuntimeHealth supplies the current findings even when a startup error
 // prevented publication. The boolean distinguishes a running, healthy server
 // from a process without a server.
@@ -275,7 +284,7 @@ func ManagedRuntimeHealth() (ManagedDoctorRecord, bool) {
 	if s == nil {
 		return ManagedDoctorRecord{StartupFailure: managedStartupFailure.Load()}, false
 	}
-	record := s.doctor.snapshotAt(s.now())
+	record := s.doctor.snapshotAt(s.currentTime())
 	s.appendDeviceRecordFailures(&record)
 	s.appendCertificateAndAddressDevices(&record)
 	return record, true
