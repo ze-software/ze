@@ -566,12 +566,6 @@ func (p *Plugin) EmitEvent(ctx context.Context, namespace, eventType, direction,
 	return out.Delivered, nil
 }
 
-// SubscribeEvents requests event delivery from the engine.
-func (p *Plugin) SubscribeEvents(ctx context.Context, events, peers []string, format string) error {
-	input := &rpc.SubscribeEventsInput{Events: events, Peers: peers, Format: format}
-	return p.callEngine(ctx, rpc.MethodSubscribeEvents, input)
-}
-
 // UnsubscribeEvents stops event delivery from the engine.
 func (p *Plugin) UnsubscribeEvents(ctx context.Context) error {
 	return p.callEngine(ctx, rpc.MethodUnsubscribeEvents, nil)

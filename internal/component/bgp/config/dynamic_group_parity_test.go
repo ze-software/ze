@@ -166,15 +166,16 @@ func TestDynamicGroupTemplateMatchesAStaticPeer(t *testing.T) {
 
 	// What the two cannot agree on, and why. Everything else must match.
 	diverge := map[string]string{
-		"Name":         "the group's name against the peer's name",
-		"GroupName":    "each belongs to the group it was declared in",
-		"BusPath":      "the group's canonical bus path against the peer's canonical bus path",
-		"BusGroupPath": "a dynamic group is its own root container while a static peer belongs to a parent group",
-		"BusSource":    "the config source location carries the group's or peer's canonical bus path",
-		"Address":      "the group states `ip dynamic`; a member's address arrives with its connection",
-		"PeerAS":       "RFC 4271 Section 4.2: a dynamic member's AS arrives in its OPEN",
-		"IsDynamic":    "the flag that separates the two populations",
-		"Connection":   "a dynamic group only ever accepts; the static peer's mode is its own",
+		"Name":           "the group's name against the peer's name",
+		"GroupName":      "each belongs to the group it was declared in",
+		"BusPath":        "the group's canonical bus path against the peer's canonical bus path",
+		"BusGroupPath":   "a dynamic group is its own root container while a static peer belongs to a parent group",
+		"BusSource":      "the config source location carries the group's or peer's canonical bus path",
+		"GroupBusSource": "the inherited group bus source carries each group's canonical bus path",
+		"Address":        "the group states `ip dynamic`; a member's address arrives with its connection",
+		"PeerAS":         "RFC 4271 Section 4.2: a dynamic member's AS arrives in its OPEN",
+		"IsDynamic":      "the flag that separates the two populations",
+		"Connection":     "a dynamic group only ever accepts; the static peer's mode is its own",
 	}
 
 	dv, sv := reflect.ValueOf(*dyn), reflect.ValueOf(*static)

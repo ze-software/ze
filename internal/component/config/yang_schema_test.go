@@ -405,7 +405,7 @@ func TestYANGLeafListDefaultIsValueOrArray(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	// Navigate to bgp -> peer -> attach -> process -> receive (a leaf-list)
+	// Navigate to bgp -> peer -> bus -> receive -> allow/from (leaf-lists)
 	bgpNode := schema.Get("bgp")
 	require.NotNil(t, bgpNode)
 	bgp, ok := bgpNode.(*ContainerNode)
@@ -414,26 +414,26 @@ func TestYANGLeafListDefaultIsValueOrArray(t *testing.T) {
 	require.NotNil(t, peerNode)
 	peer, ok := peerNode.(*ListNode)
 	require.True(t, ok)
-	attachNode := peer.Get("attach")
-	require.NotNil(t, attachNode)
-	attach, ok := attachNode.(*ContainerNode)
+	busNode := peer.Get("bus")
+	require.NotNil(t, busNode)
+	bus, ok := busNode.(*ContainerNode)
 	require.True(t, ok)
-	processNode := attach.Get("process")
-	require.NotNil(t, processNode)
-	process, ok := processNode.(*ListNode)
+	receiveNode := bus.Get("receive")
+	require.NotNil(t, receiveNode)
+	receive, ok := receiveNode.(*ContainerNode)
 	require.True(t, ok)
 
-	// 'receive' is a leaf-list -- should be ValueOrArrayNode
-	receiveNode := process.Get("receive")
-	require.NotNil(t, receiveNode, "receive node should exist")
-	_, ok = receiveNode.(*ValueOrArrayNode)
-	assert.True(t, ok, "leaf-list 'receive' should be ValueOrArrayNode, got %T", receiveNode)
+	// 'allow' is a leaf-list -- should be ValueOrArrayNode
+	allowNode := receive.Get("allow")
+	require.NotNil(t, allowNode, "allow node should exist")
+	_, ok = allowNode.(*ValueOrArrayNode)
+	assert.True(t, ok, "leaf-list 'allow' should be ValueOrArrayNode, got %T", allowNode)
 
-	// 'send' is also a leaf-list -- should be ValueOrArrayNode
-	sendNode := process.Get("send")
-	require.NotNil(t, sendNode, "send node should exist")
-	_, ok = sendNode.(*ValueOrArrayNode)
-	assert.True(t, ok, "leaf-list 'send' should be ValueOrArrayNode, got %T", sendNode)
+	// 'from' is also a leaf-list -- should be ValueOrArrayNode
+	fromNode := receive.Get("from")
+	require.NotNil(t, fromNode, "from node should exist")
+	_, ok = fromNode.(*ValueOrArrayNode)
+	assert.True(t, ok, "leaf-list 'from' should be ValueOrArrayNode, got %T", fromNode)
 }
 
 // TestYANGPresenceContainerDetected verifies that a YANG container with
