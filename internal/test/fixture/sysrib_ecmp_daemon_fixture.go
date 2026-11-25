@@ -106,6 +106,18 @@ func sysribECMPDriver(ctx context.Context, args []string) error {
 		if err := sysribECMPState(ctx, capture, true, 0); err != nil {
 			return err
 		}
+		// AC-14: losing one ECMP cover updates the surviving group in place
+		// rather than emitting a full withdrawal before the replacement.
+		capture.mu.Lock()
+		plainWithdrawals := capture.withdrawals[sysribECMPPlain]
+		labelsWithdrawals := capture.withdrawals[sysribECMPLabels]
+		capture.mu.Unlock()
+		if plainWithdrawals != 0 {
+			return fmt.Errorf("coverA removal withdrew %s %d times; want 0 (in-place ECMP group update)", sysribECMPPlain, plainWithdrawals)
+		}
+		if labelsWithdrawals != 0 {
+			return fmt.Errorf("coverA removal withdrew %s %d times; want 0 (in-place ECMP group update)", sysribECMPLabels, labelsWithdrawals)
+		}
 		if err := sysribRemove(ctx, p, sidCover); err != nil {
 			return err
 		}
