@@ -159,8 +159,9 @@ harness it runs under:
   another key, and covers no row of the worktree's spec. A door row is covered
   by the whole-read record the door gate keeps, and any other row by a record
   of its section's current text.
-- **Antigravity (`agy`):** when `ZE_AGENT_ID` and `CLAUDE_CODE_SESSION_ID` are
-  unset and `ANTIGRAVITY_CONVERSATION_ID` is set, the judge identifies itself
+- **Antigravity (`agy`):** when `ZE_AGENT_ID` is unset and
+  `ANTIGRAVITY_CONVERSATION_ID` is set (even if an outer shell inherited
+  `CLAUDE_CODE_SESSION_ID`), the judge identifies itself
   as `antigravity+<conversation-id>` and reads its own conversation transcript
   under `$ANTIGRAVITY_APP_DATA_DIR/brain/<conversation-id>/.system_generated/logs/`
   (`transcript_full.jsonl`, falling back to `transcript.jsonl` when absent). It

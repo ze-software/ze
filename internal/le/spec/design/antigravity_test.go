@@ -462,3 +462,56 @@ func TestAntigravityJudgeStitchesPartialByteOffsetAndContiguousLineReads(t *test
 		requireAbsent(t, root, judgedRecord)
 	})
 }
+
+// TestAntigravityJudgeResolvesWithInheritedClaudeSession proves that an
+// Antigravity agent whose shell inherited CLAUDE_CODE_SESSION_ID (without
+// ZE_AGENT_ID) still resolves its Antigravity conversation transcript and keeps
+// the self-edit refusal intact.
+func TestAntigravityJudgeResolvesWithInheritedClaudeSession(t *testing.T) {
+	root := widgetRoot(t)
+	writeTree(t, root, map[string]string{widgetSpec: completeSpecText})
+
+	doorText, err := os.ReadFile(filepath.Join(root, filepath.FromSlash(widgetDoor)))
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	t.Run("approves when independent conversation read every row", func(t *testing.T) {
+		appData := t.TempDir()
+		useAntigravity(t, appData, agyConvID)
+		t.Setenv("CLAUDE_CODE_SESSION_ID", "inherited-claude-session")
+		writeAgyTranscript(t, appData, "transcript_full.jsonl", []agyTestCall{
+			{name: "read_file", path: filepath.Join(root, filepath.FromSlash(widgetDoor)), content: agyFormatWhole(string(doorText))},
+			{name: "read_file", path: filepath.Join(root, filepath.FromSlash(widgetPage)), content: agyFormatWhole(widgetPageText)},
+		}, false)
+
+		text, code := runJudge(t, "approve", "every verdict holds against its section")
+		if code != 0 {
+			t.Fatalf("judge with inherited CLAUDE_CODE_SESSION_ID answered %d, want 0:\n%s", code, text)
+		}
+		body, err := os.ReadFile(filepath.Join(root, filepath.FromSlash(judgedRecord)))
+		if err != nil {
+			t.Fatalf("read judge record: %v", err)
+		}
+		requireContains(t, "judge fingerprint", string(body), "Judge: antigravity+"+agyConvID)
+	})
+
+	t.Run("still refuses self-edited spec with inherited CLAUDE_CODE_SESSION_ID", func(t *testing.T) {
+		_ = os.Remove(filepath.Join(root, filepath.FromSlash(judgedRecord)))
+		appData := t.TempDir()
+		useAntigravity(t, appData, agyConvID)
+		t.Setenv("CLAUDE_CODE_SESSION_ID", "inherited-claude-session")
+		writeAgyTranscript(t, appData, "transcript_full.jsonl", []agyTestCall{
+			{name: "read_file", path: filepath.Join(root, filepath.FromSlash(widgetDoor)), content: agyFormatWhole(string(doorText))},
+			{name: "read_file", path: filepath.Join(root, filepath.FromSlash(widgetPage)), content: agyFormatWhole(widgetPageText)},
+			{name: "edit_file", path: filepath.Join(root, filepath.FromSlash(widgetSpec)), content: "edited"},
+		}, false)
+
+		text, code := runJudge(t, "approve", "every verdict holds")
+		if code != 2 {
+			t.Fatalf("self-edited spec answered %d, want 2:\n%s", code, text)
+		}
+		requireContains(t, "self-edit refusal", text, "edited "+widgetSpec)
+		requireAbsent(t, root, judgedRecord)
+	})
+}

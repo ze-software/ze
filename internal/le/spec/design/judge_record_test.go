@@ -22,11 +22,15 @@ import (
 // judgeSession is the harness session every judge test runs under.
 const judgeSession = "judge-session"
 
-// useJudge selects agent as the identity of this le process.
+// useJudge selects agent as the identity of this le process under Claude Code,
+// clearing Antigravity identity variables so tests stay isolated when run from
+// an Antigravity shell.
 func useJudge(t *testing.T, agent string) {
 	t.Helper()
 	t.Setenv("CLAUDE_CODE_SESSION_ID", judgeSession)
 	t.Setenv("ZE_AGENT_ID", agent)
+	t.Setenv("ANTIGRAVITY_CONVERSATION_ID", "")
+	t.Setenv("ANTIGRAVITY_APP_DATA_DIR", "")
 	env.ResetCache()
 }
 

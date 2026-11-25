@@ -305,10 +305,10 @@ func (a judgeAnswer) Text() string {
 }
 
 // resolveJudgeCaller identifies the agent running the judge action. An
-// explicit ZE_AGENT_ID selects Claude Code subagent identity; a set
-// CLAUDE_CODE_SESSION_ID without ZE_AGENT_ID is Claude Code's main thread and
-// is refused; otherwise an Antigravity conversation is resolved from
-// ANTIGRAVITY_CONVERSATION_ID and ANTIGRAVITY_APP_DATA_DIR.
+// explicit ZE_AGENT_ID selects Claude Code subagent identity; otherwise an
+// Antigravity conversation is resolved from ANTIGRAVITY_CONVERSATION_ID and
+// ANTIGRAVITY_APP_DATA_DIR (even when an outer shell inherited
+// CLAUDE_CODE_SESSION_ID); a process with neither is refused.
 func resolveJudgeCaller(root string) (judgeCaller, []string) {
 	agent, err := lepath.Agent()
 	if err != nil {
@@ -328,10 +328,8 @@ func resolveJudgeCaller(root string) (judgeCaller, []string) {
 		}
 		return judgeCaller{harness: judgeHarnessClaude, fingerprint: fingerprint}, nil
 	}
-	if os.Getenv("CLAUDE_CODE_SESSION_ID") == "" {
-		if caller, refusal, isAgy := resolveAntigravityCaller(); isAgy {
-			return caller, refusal
-		}
+	if caller, refusal, isAgy := resolveAntigravityCaller(); isAgy {
+		return caller, refusal
 	}
 	return judgeCaller{}, []string{
 		"refused: this process has no agent identity, so no judge's read records can be named",
