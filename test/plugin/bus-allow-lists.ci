@@ -1,0 +1,699 @@
+# Test: send and receive allow-lists (absent, partial, empty) and combined send allow + to govern delivery, refusal messages, counters, and commit validation.
+# QUESTION: (S7) for an external endpoint `sender` declaring `bgp:update` and `bgp:refresh`,
+# do absent, partial (`allow [ bgp:update ]`), and empty (`allow none`) send allow-lists
+# produce 0, 1, and 2 refusals on `ze_bus_send_refused_total` with the exact allow-list
+# refusal message and fix line, while an undeclared `allow [ bgp:raw ]` is refused at
+# validate listing what `sender` declared; (S8) for `collector` with absent, partial
+# (`allow [ bgp:state ]`), and empty (`allow none`) receive allow-lists, does `collector`
+# record both, `bgp:state` only, and nothing while Loc-RIB keeps `edge1`'s route in all
+# three; and (S9) with `send { allow [ bgp:update ]; to [ /bgp/group/transit ]; }`, does an
+# unscoped update reach `t1` and `t2` only (not `edge1` or `lab`), is `bgp:refresh` refused
+# by the allow-list (not `send > to`), and is adding `message bgp:refresh { to ... }`
+# refused at validate naming both lines? A unit test cannot decide this because it spans
+# live BGP sessions, wire UPDATE/refresh delivery, Prometheus counters, and live Loc-RIB.
+#
+# VALIDATES: spec-explicit-plugin-and-attach-config S7, S8, S9 / AC-5, AC-6.
+# PREVENTS: allow-lists failing to enforce absent/partial/empty modes, miscounting
+# refusals, starving sibling receivers on `receive > allow`, or combining `send > allow`
+# with `send > to` incorrectly.
+
+option=timeout:value=180s
+option=env:var=ZE_CONFIG_DIR:value=.
+option=env:var=XDG_DATA_HOME:value=.
+option=env:var=ze.ssh.password:value=testpass
+
+stdin=init-answers:terminator=EOF_INIT
+admin
+testpass
+127.0.0.1
+$PORT2
+EOF_INIT
+
+# --- S7 peer scripts (edge1) ---
+stdin=edge1-s7-1:terminator=EOF_E_S7_1
+option=tcp_connections:value=1
+option=timeout:value=60s
+option=asn:value=65001
+option=open:value=router-id:id=127.0.0.2
+option=open:value=add-capability:code=2:hex=
+option=open:value=add-capability:code=70:hex=
+option=linger:value=true
+option=established-file:path=edge1-s7-1.up
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
+expect=bgp:conn=1:seq=1:announced=18CB0071
+EOF_E_S7_1
+
+stdin=edge1-s7-2:terminator=EOF_E_S7_2
+option=tcp_connections:value=1
+option=timeout:value=60s
+option=asn:value=65001
+option=open:value=router-id:id=127.0.0.2
+option=open:value=add-capability:code=2:hex=
+option=open:value=add-capability:code=70:hex=
+option=linger:value=true
+option=established-file:path=edge1-s7-2.up
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
+expect=bgp:conn=1:seq=1:announced=18CB0071
+EOF_E_S7_2
+
+stdin=edge1-s7-3:terminator=EOF_E_S7_3
+option=tcp_connections:value=1
+option=timeout:value=60s
+option=asn:value=65001
+option=open:value=router-id:id=127.0.0.2
+option=open:value=add-capability:code=2:hex=
+option=open:value=add-capability:code=70:hex=
+option=linger:value=true
+option=established-file:path=edge1-s7-3.up
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
+reject=bgp:conn=1:scope=announced:pattern=18CB0071
+EOF_E_S7_3
+
+# --- S8 peer scripts (edge1) ---
+stdin=edge1-s8-1:terminator=EOF_E_S8_1
+option=tcp_connections:value=1
+option=timeout:value=60s
+option=asn:value=65001
+option=open:value=router-id:id=127.0.0.2
+option=linger:value=true
+option=established-file:path=edge1-s8-1.up
+option=update:value=send-route:prefix=203.0.113.0/24:next-hop=192.0.2.1
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
+EOF_E_S8_1
+
+stdin=edge1-s8-2:terminator=EOF_E_S8_2
+option=tcp_connections:value=1
+option=timeout:value=60s
+option=asn:value=65001
+option=open:value=router-id:id=127.0.0.2
+option=linger:value=true
+option=established-file:path=edge1-s8-2.up
+option=update:value=send-route:prefix=203.0.113.0/24:next-hop=192.0.2.1
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
+EOF_E_S8_2
+
+stdin=edge1-s8-3:terminator=EOF_E_S8_3
+option=tcp_connections:value=1
+option=timeout:value=60s
+option=asn:value=65001
+option=open:value=router-id:id=127.0.0.2
+option=linger:value=true
+option=established-file:path=edge1-s8-3.up
+option=update:value=send-route:prefix=203.0.113.0/24:next-hop=192.0.2.1
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
+EOF_E_S8_3
+
+# --- S9 peer scripts (t1, t2 in transit; edge1, lab standalone) ---
+stdin=t1-s9:terminator=EOF_T1_S9
+option=tcp_connections:value=1
+option=timeout:value=60s
+option=asn:value=65001
+option=open:value=router-id:id=127.0.0.2
+option=linger:value=true
+option=established-file:path=t1-s9.up
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
+expect=bgp:conn=1:seq=1:announced=180A0001
+EOF_T1_S9
+
+stdin=t2-s9:terminator=EOF_T2_S9
+option=tcp_connections:value=1
+option=timeout:value=60s
+option=asn:value=65002
+option=open:value=router-id:id=127.0.0.3
+option=linger:value=true
+option=established-file:path=t2-s9.up
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
+expect=bgp:conn=1:seq=1:announced=180A0001
+EOF_T2_S9
+
+stdin=edge1-s9:terminator=EOF_EDGE1_S9
+option=tcp_connections:value=1
+option=timeout:value=60s
+option=asn:value=65003
+option=open:value=router-id:id=127.0.0.4
+option=linger:value=true
+option=established-file:path=edge1-s9.up
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
+reject=bgp:conn=1:scope=announced:pattern=180A0001
+EOF_EDGE1_S9
+
+stdin=lab-s9:terminator=EOF_LAB_S9
+option=tcp_connections:value=1
+option=timeout:value=60s
+option=asn:value=65004
+option=open:value=router-id:id=127.0.0.5
+option=linger:value=true
+option=established-file:path=lab-s9.up
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
+reject=bgp:conn=1:scope=announced:pattern=180A0001
+EOF_LAB_S9
+
+# --- S7 configs ---
+tmpfs=s7-none.conf:terminator=EOF_S7_1
+telemetry {
+	prometheus {
+		enabled true
+		server main { ip 127.0.0.1; port $PORT3; }
+	}
+}
+bus {
+	endpoint sender {
+		external {
+			run "le test fixture plugin/bus-bgp-sender update-and-refresh s7-1.go 127.0.0.2 203.0.113.0/24 ok ok s7-1.done";
+		}
+		encoding json;
+	}
+}
+bgp {
+	router-id 192.0.2.254;
+	filter {
+		import { final accept; }
+		export { final accept; }
+	}
+	peer edge1 {
+		connection {
+			remote { ip 127.0.0.2; }
+			local { ip 127.0.0.1; accept false; }
+		}
+		session {
+			asn { local 65000; remote 65001; }
+			family { ipv4/unicast { prefix { maximum 10000; } } }
+			capability {
+				route-refresh enable;
+				graceful-restart disable;
+			}
+		}
+		behavior { group-updates disable; }
+	}
+}
+EOF_S7_1
+
+tmpfs=s7-partial.conf:terminator=EOF_S7_2
+telemetry {
+	prometheus {
+		enabled true
+		server main { ip 127.0.0.1; port $PORT3; }
+	}
+}
+bus {
+	endpoint sender {
+		external {
+			run "le test fixture plugin/bus-bgp-sender update-and-refresh s7-2.go 127.0.0.2 203.0.113.0/24 ok allow-refused s7-2.done";
+		}
+		encoding json;
+		send {
+			allow [ bgp:update ];
+		}
+	}
+}
+bgp {
+	router-id 192.0.2.254;
+	filter {
+		import { final accept; }
+		export { final accept; }
+	}
+	peer edge1 {
+		connection {
+			remote { ip 127.0.0.2; }
+			local { ip 127.0.0.1; accept false; }
+		}
+		session {
+			asn { local 65000; remote 65001; }
+			family { ipv4/unicast { prefix { maximum 10000; } } }
+			capability {
+				route-refresh enable;
+				graceful-restart disable;
+			}
+		}
+		behavior { group-updates disable; }
+	}
+}
+EOF_S7_2
+
+tmpfs=s7-empty.conf:terminator=EOF_S7_3
+telemetry {
+	prometheus {
+		enabled true
+		server main { ip 127.0.0.1; port $PORT3; }
+	}
+}
+bus {
+	endpoint sender {
+		external {
+			run "le test fixture plugin/bus-bgp-sender update-and-refresh s7-3.go 127.0.0.2 203.0.113.0/24 allow-refused allow-refused s7-3.done";
+		}
+		encoding json;
+		send {
+			allow none;
+		}
+	}
+}
+bgp {
+	router-id 192.0.2.254;
+	filter {
+		import { final accept; }
+		export { final accept; }
+	}
+	peer edge1 {
+		connection {
+			remote { ip 127.0.0.2; }
+			local { ip 127.0.0.1; accept false; }
+		}
+		session {
+			asn { local 65000; remote 65001; }
+			family { ipv4/unicast { prefix { maximum 10000; } } }
+			capability {
+				route-refresh enable;
+				graceful-restart disable;
+			}
+		}
+		behavior { group-updates disable; }
+	}
+}
+EOF_S7_3
+
+tmpfs=s7-undeclared.conf:terminator=EOF_S7_BAD
+bus {
+	endpoint sender {
+		external {
+			run "le test fixture plugin/bus-bgp-sender update-and-refresh unused.go 127.0.0.2 203.0.113.0/24 ok ok unused.done";
+		}
+		encoding json;
+		send {
+			allow [ bgp:raw ];
+		}
+	}
+}
+bgp {
+	router-id 192.0.2.254;
+	peer edge1 {
+		connection {
+			remote { ip 127.0.0.2; }
+			local { ip 127.0.0.1; accept false; }
+		}
+		session {
+			asn { local 65000; remote 65001; }
+			family { ipv4/unicast { prefix { maximum 10000; } } }
+		}
+	}
+}
+EOF_S7_BAD
+
+# --- S8 configs ---
+tmpfs=s8-all.conf:terminator=EOF_S8_1
+system {
+	authentication {
+		user admin {
+			password "$2a$04$UlwuiuH82Unfsq.XEMPGJeDkXwbm3KW.nvVaVXOd/JeFK8VjMjrQO"
+		}
+	}
+}
+environment {
+	ssh {
+		enabled true
+		server main { ip 127.0.0.1; port $PORT2; }
+	}
+}
+bus {
+	endpoint collector {
+		external {
+			run "le test fixture plugin/bus-bgp-collector s8-all.log";
+		}
+		encoding json;
+	}
+}
+bgp {
+	router-id 192.0.2.254;
+	filter {
+		import { final accept; }
+		export { final accept; }
+	}
+	peer edge1 {
+		connection {
+			remote { ip 127.0.0.2; }
+			local { ip 127.0.0.1; accept false; }
+		}
+		session {
+			asn { local 65000; remote 65001; }
+			family { ipv4/unicast { prefix { maximum 10000; } } }
+			capability { graceful-restart disable; }
+		}
+		behavior { group-updates disable; }
+	}
+}
+EOF_S8_1
+
+tmpfs=s8-state.conf:terminator=EOF_S8_2
+system {
+	authentication {
+		user admin {
+			password "$2a$04$UlwuiuH82Unfsq.XEMPGJeDkXwbm3KW.nvVaVXOd/JeFK8VjMjrQO"
+		}
+	}
+}
+environment {
+	ssh {
+		enabled true
+		server main { ip 127.0.0.1; port $PORT2; }
+	}
+}
+bus {
+	endpoint collector {
+		external {
+			run "le test fixture plugin/bus-bgp-collector s8-state.log";
+		}
+		encoding json;
+		receive {
+			allow [ bgp:state ];
+		}
+	}
+}
+bgp {
+	router-id 192.0.2.254;
+	filter {
+		import { final accept; }
+		export { final accept; }
+	}
+	peer edge1 {
+		connection {
+			remote { ip 127.0.0.2; }
+			local { ip 127.0.0.1; accept false; }
+		}
+		session {
+			asn { local 65000; remote 65001; }
+			family { ipv4/unicast { prefix { maximum 10000; } } }
+			capability { graceful-restart disable; }
+		}
+		behavior { group-updates disable; }
+	}
+}
+EOF_S8_2
+
+tmpfs=s8-none.conf:terminator=EOF_S8_3
+system {
+	authentication {
+		user admin {
+			password "$2a$04$UlwuiuH82Unfsq.XEMPGJeDkXwbm3KW.nvVaVXOd/JeFK8VjMjrQO"
+		}
+	}
+}
+environment {
+	ssh {
+		enabled true
+		server main { ip 127.0.0.1; port $PORT2; }
+	}
+}
+bus {
+	endpoint collector {
+		external {
+			run "le test fixture plugin/bus-bgp-collector s8-none.log";
+		}
+		encoding json;
+		receive {
+			allow none;
+		}
+	}
+}
+bgp {
+	router-id 192.0.2.254;
+	filter {
+		import { final accept; }
+		export { final accept; }
+	}
+	peer edge1 {
+		connection {
+			remote { ip 127.0.0.2; }
+			local { ip 127.0.0.1; accept false; }
+		}
+		session {
+			asn { local 65000; remote 65001; }
+			family { ipv4/unicast { prefix { maximum 10000; } } }
+			capability { graceful-restart disable; }
+		}
+		behavior { group-updates disable; }
+	}
+}
+EOF_S8_3
+
+# --- S9 configs ---
+tmpfs=s9-combined.conf:terminator=EOF_S9_1
+system {
+	authentication {
+		user admin {
+			password "$2a$04$UlwuiuH82Unfsq.XEMPGJeDkXwbm3KW.nvVaVXOd/JeFK8VjMjrQO"
+		}
+	}
+}
+environment {
+	ssh {
+		enabled true
+		server main { ip 127.0.0.1; port $PORT2; }
+	}
+}
+telemetry {
+	prometheus {
+		enabled true
+		server main { ip 127.0.0.1; port $PORT3; }
+	}
+}
+bus {
+	endpoint sender {
+		external {
+			run "le test fixture plugin/bus-bgp-sender update-and-refresh s9.go '*' 10.0.1.0/24 ok allow-refused s9.done";
+		}
+		encoding json;
+		send {
+			allow [ bgp:update ];
+			to [ /bgp/group/transit ];
+		}
+	}
+}
+bgp {
+	router-id 192.0.2.254;
+	filter {
+		import { final accept; }
+		export { final accept; }
+	}
+	group transit {
+		peer t1 {
+			connection {
+				remote { ip 127.0.0.2; }
+				local { ip 127.0.0.1; accept false; }
+			}
+			session {
+				asn { local 65000; remote 65001; }
+				family { ipv4/unicast { prefix { maximum 10000; } } }
+				capability { graceful-restart disable; }
+			}
+			behavior { group-updates disable; }
+		}
+		peer t2 {
+			connection {
+				remote { ip 127.0.0.3; }
+				local { ip 127.0.0.1; accept false; }
+			}
+			session {
+				asn { local 65000; remote 65002; }
+				family { ipv4/unicast { prefix { maximum 10000; } } }
+				capability { graceful-restart disable; }
+			}
+			behavior { group-updates disable; }
+		}
+	}
+	peer edge1 {
+		connection {
+			remote { ip 127.0.0.4; }
+			local { ip 127.0.0.1; accept false; }
+		}
+		session {
+			asn { local 65000; remote 65003; }
+			family { ipv4/unicast { prefix { maximum 10000; } } }
+			capability { graceful-restart disable; }
+		}
+		behavior { group-updates disable; }
+	}
+	peer lab {
+		connection {
+			remote { ip 127.0.0.5; }
+			local { ip 127.0.0.1; accept false; }
+		}
+		session {
+			asn { local 65000; remote 65004; }
+			family { ipv4/unicast { prefix { maximum 10000; } } }
+			capability { graceful-restart disable; }
+		}
+		behavior { group-updates disable; }
+	}
+}
+EOF_S9_1
+
+tmpfs=s9-contradictory.conf:terminator=EOF_S9_BAD
+bus {
+	endpoint sender {
+		external {
+			run "le test fixture plugin/bus-bgp-sender update-and-refresh unused.go '*' 10.0.1.0/24 ok allow-refused unused.done";
+		}
+		encoding json;
+		send {
+			allow [ bgp:update ];
+			to [ /bgp/group/transit ];
+			message bgp:refresh {
+				to [ /bgp/peer/edge1 ];
+			}
+		}
+	}
+}
+bgp {
+	router-id 192.0.2.254;
+	group transit {
+		peer t1 {
+			connection {
+				remote { ip 127.0.0.2; }
+				local { ip 127.0.0.1; accept false; }
+			}
+			session {
+				asn { local 65000; remote 65001; }
+				family { ipv4/unicast { prefix { maximum 10000; } } }
+			}
+		}
+	}
+	peer edge1 {
+		connection {
+			remote { ip 127.0.0.4; }
+			local { ip 127.0.0.1; accept false; }
+		}
+		session {
+			asn { local 65000; remote 65003; }
+			family { ipv4/unicast { prefix { maximum 10000; } } }
+		}
+	}
+}
+EOF_S9_BAD
+
+cmd=foreground:seq=1:exec=ze init:stdin=init-answers:exit=0
+
+# --- S7 Run 1: no send allow-list -> update & refresh succeed, counter = 0 ---
+cmd=background:seq=2:name=e-s7-1:exec=le test peer --bind 127.0.0.2 --port $PORT:stdin=edge1-s7-1
+cmd=background:seq=3:name=d-s7-1:exec=ze start s7-none.conf:ready=Ze running.
+reject=stderr:pattern=ZE-OBSERVER-FAIL
+reject=stderr:pattern=panic
+
+cmd=foreground:seq=4:exec=le test fixture plugin/bus-wait-file edge1-s7-1.up:exit=0
+cmd=foreground:seq=5:exec=le test fixture plugin/bus-touch-file s7-1.go:exit=0
+cmd=foreground:seq=6:exec=le test fixture plugin/bus-wait-file s7-1.done:exit=0
+cmd=foreground:seq=7:exec=le test fixture plugin/bus-assert-refused-count $PORT3 /bus/endpoint/sender 0:exit=0
+
+cmd=stop:seq=8:name=d-s7-1:signal=term
+cmd=stop:seq=9:name=e-s7-1
+
+# --- S7 Run 2: send { allow [ bgp:update ]; } -> update succeeds, refresh refused, counter = 1 ---
+cmd=background:seq=10:name=e-s7-2:exec=le test peer --bind 127.0.0.2 --port $PORT:stdin=edge1-s7-2
+cmd=background:seq=11:name=d-s7-2:exec=ze start s7-partial.conf:ready=Ze running.
+reject=stderr:pattern=ZE-OBSERVER-FAIL
+reject=stderr:pattern=panic
+
+cmd=foreground:seq=12:exec=le test fixture plugin/bus-wait-file edge1-s7-2.up:exit=0
+cmd=foreground:seq=13:exec=le test fixture plugin/bus-touch-file s7-2.go:exit=0
+cmd=foreground:seq=14:exec=le test fixture plugin/bus-wait-file s7-2.done:exit=0
+cmd=foreground:seq=15:exec=le test fixture plugin/bus-assert-refused-series $PORT3 /bus/endpoint/sender bgp:refresh 1:exit=0
+cmd=foreground:seq=16:exec=le test fixture plugin/bus-assert-refused-count $PORT3 /bus/endpoint/sender 1:exit=0
+
+cmd=stop:seq=17:name=d-s7-2:signal=term
+cmd=stop:seq=18:name=e-s7-2
+
+# --- S7 Run 3: send { allow none; } -> both refused, counter = 2 ---
+cmd=background:seq=19:name=e-s7-3:exec=le test peer --bind 127.0.0.2 --port $PORT:stdin=edge1-s7-3
+cmd=background:seq=20:name=d-s7-3:exec=ze start s7-empty.conf:ready=Ze running.
+reject=stderr:pattern=ZE-OBSERVER-FAIL
+reject=stderr:pattern=panic
+
+cmd=foreground:seq=21:exec=le test fixture plugin/bus-wait-file edge1-s7-3.up:exit=0
+cmd=foreground:seq=22:exec=le test fixture plugin/bus-touch-file s7-3.go:exit=0
+cmd=foreground:seq=23:exec=le test fixture plugin/bus-wait-file s7-3.done:exit=0
+cmd=foreground:seq=24:exec=le test fixture plugin/bus-assert-refused-count $PORT3 /bus/endpoint/sender 2:exit=0
+
+cmd=stop:seq=25:name=d-s7-3:signal=term
+cmd=stop:seq=26:name=e-s7-3
+
+# S7 commit refusal: undeclared bgp:raw lists declared bgp:update and bgp:refresh.
+cmd=foreground:seq=27:exec=ze config validate s7-undeclared.conf:exit=1
+expect=stdout:contains=bgp:raw
+expect=stdout:contains=bgp:update
+expect=stdout:contains=bgp:refresh
+
+# --- S8 Run 4: no receive allow-list -> collector records state and update; Loc-RIB holds route ---
+cmd=background:seq=28:name=e-s8-1:exec=le test peer --bind 127.0.0.2 --port $PORT:stdin=edge1-s8-1
+cmd=background:seq=29:name=d-s8-1:exec=ze start s8-all.conf:ready=Ze running.
+reject=stderr:pattern=ZE-OBSERVER-FAIL
+reject=stderr:pattern=panic
+
+cmd=foreground:seq=30:exec=le test fixture daemon/await-answer-all "show bgp rib" 203.0.113.0/24:exit=0
+cmd=foreground:seq=31:exec=le test fixture plugin/bus-assert-implied poll-file-contains s8-all.log '"state":"up"':exit=0
+cmd=foreground:seq=32:exec=le test fixture plugin/bus-assert-implied poll-file-contains s8-all.log 203.0.113.0/24:exit=0
+
+cmd=stop:seq=33:name=d-s8-1:signal=term
+cmd=stop:seq=34:name=e-s8-1
+
+# --- S8 Run 5: receive { allow [ bgp:state ]; } -> state only; Loc-RIB holds route ---
+cmd=background:seq=35:name=e-s8-2:exec=le test peer --bind 127.0.0.2 --port $PORT:stdin=edge1-s8-2
+cmd=background:seq=36:name=d-s8-2:exec=ze start s8-state.conf:ready=Ze running.
+reject=stderr:pattern=ZE-OBSERVER-FAIL
+reject=stderr:pattern=panic
+
+cmd=foreground:seq=37:exec=le test fixture daemon/await-answer-all "show bgp rib" 203.0.113.0/24:exit=0
+cmd=foreground:seq=38:exec=le test fixture plugin/bus-assert-implied poll-file-contains s8-state.log '"state":"up"':exit=0
+cmd=foreground:seq=39:exec=le test fixture plugin/bus-assert-implied file-not-contains s8-state.log 203.0.113.0/24:exit=0
+cmd=foreground:seq=40:exec=le test fixture plugin/bus-assert-implied file-not-contains s8-state.log '"type":"update"':exit=0
+
+cmd=stop:seq=41:name=d-s8-2:signal=term
+cmd=stop:seq=42:name=e-s8-2
+
+# --- S8 Run 6: receive { allow none; } -> nothing recorded; Loc-RIB holds route ---
+cmd=background:seq=43:name=e-s8-3:exec=le test peer --bind 127.0.0.2 --port $PORT:stdin=edge1-s8-3
+cmd=background:seq=44:name=d-s8-3:exec=ze start s8-none.conf:ready=Ze running.
+reject=stderr:pattern=ZE-OBSERVER-FAIL
+reject=stderr:pattern=panic
+
+cmd=foreground:seq=45:exec=le test fixture daemon/await-answer-all "show bgp rib" 203.0.113.0/24:exit=0
+cmd=foreground:seq=46:exec=le test fixture plugin/bus-assert-implied file-not-contains s8-none.log 127.0.0.2:exit=0
+cmd=foreground:seq=47:exec=le test fixture plugin/bus-assert-implied file-not-contains s8-none.log 203.0.113.0/24:exit=0
+
+cmd=stop:seq=48:name=d-s8-3:signal=term
+cmd=stop:seq=49:name=e-s8-3
+
+# --- S9 Run 7: send { allow [ bgp:update ]; to [ /bgp/group/transit ]; } ---
+cmd=background:seq=50:name=t1-s9:exec=le test peer --bind 127.0.0.2 --port $PORT:stdin=t1-s9
+cmd=background:seq=51:name=t2-s9:exec=le test peer --bind 127.0.0.3 --port $PORT:stdin=t2-s9
+cmd=background:seq=52:name=edge1-s9:exec=le test peer --bind 127.0.0.4 --port $PORT:stdin=edge1-s9
+cmd=background:seq=53:name=lab-s9:exec=le test peer --bind 127.0.0.5 --port $PORT:stdin=lab-s9
+cmd=background:seq=54:name=d-s9:exec=ze start s9-combined.conf:ready=Ze running.
+reject=stderr:pattern=ZE-OBSERVER-FAIL
+reject=stderr:pattern=panic
+
+cmd=foreground:seq=55:exec=le test fixture plugin/bus-wait-file t1-s9.up:exit=0
+cmd=foreground:seq=56:exec=le test fixture plugin/bus-wait-file t2-s9.up:exit=0
+cmd=foreground:seq=57:exec=le test fixture plugin/bus-wait-file edge1-s9.up:exit=0
+cmd=foreground:seq=58:exec=le test fixture plugin/bus-wait-file lab-s9.up:exit=0
+cmd=foreground:seq=59:exec=le test fixture plugin/bus-touch-file s9.go:exit=0
+cmd=foreground:seq=60:exec=le test fixture plugin/bus-wait-file s9.done:exit=0
+
+# t1 and t2 received the update (EOR + 10.0.1.0/24 = 2 updates-sent); edge1 and lab stayed at EOR only (1).
+cmd=foreground:seq=61:exec=le test fixture daemon/await-answer-all "show bgp peer t1 detail | json" '"updates-sent": 2':exit=0
+cmd=foreground:seq=62:exec=le test fixture daemon/await-answer-all "show bgp peer t2 detail | json" '"updates-sent": 2':exit=0
+cmd=foreground:seq=63:exec=ze cli -c "show bgp peer edge1 detail | json":exit=0
+expect=stdout:contains="updates-sent": 1
+cmd=foreground:seq=64:exec=ze cli -c "show bgp peer lab detail | json":exit=0
+expect=stdout:contains="updates-sent": 1
+# Refresh was refused by the send allow-list (counter = 1 for bgp:refresh).
+cmd=foreground:seq=65:exec=le test fixture plugin/bus-assert-refused-series $PORT3 /bus/endpoint/sender bgp:refresh 1:exit=0
+
+cmd=stop:seq=66:name=d-s9:signal=term
+cmd=stop:seq=67:name=t1-s9
+cmd=stop:seq=68:name=t2-s9
+cmd=stop:seq=69:name=edge1-s9
+cmd=stop:seq=70:name=lab-s9
+
+# S9 commit refusal: per-message bgp:refresh contradicts send > allow [ bgp:update ].
+cmd=foreground:seq=71:exec=ze config validate s9-contradictory.conf:exit=1
+expect=stdout:contains=send > allow
+expect=stdout:contains=bgp:refresh

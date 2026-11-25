@@ -1,0 +1,386 @@
+# Test: `ze exabgp plugin` exits with its script's exit status so ProcessManager respawns a new wrapper PID (re-accepting Stage 3 capabilities), respects `external { respawn false; }`, and respects `external { on-exit keep; }`.
+# QUESTION: with `bus { endpoint s1 { external { run "ze exabgp plugin --route-refresh ./s1.sh"; } } }`
+# where the script announces `203.0.113.0/24` toward `edge1` and exits with status 3 once a
+# marker file appears: (1) under default respawn, does the wrapper exit 3, withdraw
+# `203.0.113.0/24` on `edge1`, get respawned by ProcessManager with a NEW wrapper PID, have
+# its Stage 3 `--route-refresh` declaration accepted again, and re-announce `203.0.113.0/24`;
+# (2) with `external { respawn false; }`, is `203.0.113.0/24` withdrawn and `s1` NOT
+# restarted; and (3) with `external { on-exit keep; respawn false; }`, does `edge1` keep
+# `203.0.113.0/24` after `s1` exits 3?
+# A unit test cannot decide this because the path spans live subprocess exit propagation
+# through `ze exabgp plugin`, real ProcessManager respawn with a distinct OS PID, Stage 3
+# `CapabilityInjector` re-declaration on restart, `originReceiptStore` exit policy, and live
+# BGP wire UPDATEs/withdrawals.
+#
+# VALIDATES: spec-explicit-plugin-and-attach-config S42 (part 1) / AC-45.
+# PREVENTS: wrapper internal supervision hiding script exits from ProcessManager (keeping
+# the same wrapper PID), Stage 3 rejecting re-declared capabilities on respawn, `respawn false`
+# restarting anyway, or `on-exit keep` withdrawing routes.
+
+option=timeout:value=150s
+option=env:var=ZE_CONFIG_DIR:value=.
+option=env:var=XDG_DATA_HOME:value=.
+option=env:var=ze.ssh.password:value=testpass
+
+stdin=init-answers:terminator=EOF_INIT
+admin
+testpass
+127.0.0.1
+$PORT2
+EOF_INIT
+
+# Run 1 peer: EOR (seq=1) -> announce 203.0.113.0/24 (seq=2) -> withdraw (seq=3) -> re-announce (seq=4).
+stdin=edge1-r1:terminator=EOF_PEER1
+option=tcp_connections:value=1
+option=asn:value=65002
+option=open:value=router-id:id=192.0.2.1
+option=open:value=add-capability:code=2:hex=
+option=linger:value=true
+option=established-file:path=edge1-r1.up
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
+expect=bgp:conn=1:seq=2:announced=18CB0071
+expect=bgp:conn=1:seq=3:withdrawn=18CB0071
+expect=bgp:conn=1:seq=4:announced=18CB0071
+EOF_PEER1
+
+# Run 2 peer (respawn false): EOR (seq=1) -> announce (seq=2) -> withdraw (seq=3).
+stdin=edge1-r2:terminator=EOF_PEER2
+option=tcp_connections:value=1
+option=asn:value=65002
+option=open:value=router-id:id=192.0.2.1
+option=open:value=add-capability:code=2:hex=
+option=linger:value=true
+option=established-file:path=edge1-r2.up
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
+expect=bgp:conn=1:seq=2:announced=18CB0071
+expect=bgp:conn=1:seq=3:withdrawn=18CB0071
+EOF_PEER2
+
+# Run 3 peer (on-exit keep): EOR (seq=1) -> announce 203.0.113.0/24 (seq=2) ->
+# retained origin receipt rebind replay of 203.0.113.0/24 on s1 exit (seq=3, no withdrawal) ->
+# sentinel 192.0.2.0/24 after s1 stops (seq=4, causal wire fence); rejects withdrawal of 203.0.113.0/24.
+stdin=edge1-r3:terminator=EOF_PEER3
+option=tcp_connections:value=1
+option=asn:value=65002
+option=open:value=router-id:id=192.0.2.1
+option=open:value=add-capability:code=2:hex=
+option=linger:value=true
+option=established-file:path=edge1-r3.up
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
+expect=bgp:conn=1:seq=2:announced=18CB0071
+expect=bgp:conn=1:seq=3:announced=18CB0071
+expect=bgp:conn=1:seq=4:announced=18C00002
+reject=bgp:conn=1:scope=withdrawn:pattern=18CB0071
+EOF_PEER3
+
+# Script for Run 1 (default respawn): records wrapper $PPID, announces 203.0.113.0/24,
+# exits 3 on first generation when exit1.go appears, stays alive on second generation.
+tmpfs=s1-respawn.sh:mode=755:terminator=EOF_S1_R1
+#!/bin/sh
+set -eu
+printf '%s\n' "$PPID" >> respawn.pids
+le test fixture plugin/bus-wait-file edge1-r1.up >/dev/null
+printf 'announce route 203.0.113.0/24 next-hop 192.0.2.10\n'
+IFS= read -r _
+if [ ! -f r1.gen1 ]; then
+	le test fixture plugin/bus-touch-file r1.gen1 >/dev/null
+	le test fixture plugin/bus-wait-file exit1.go >/dev/null
+	exit 3
+fi
+le test fixture plugin/bus-touch-file r1.gen2 >/dev/null
+while IFS= read -r _; do
+	:
+done
+EOF_S1_R1
+
+# Script for Run 2 (respawn false): records wrapper $PPID, announces, exits 3 once.
+tmpfs=s1-norespawn.sh:mode=755:terminator=EOF_S1_R2
+#!/bin/sh
+set -eu
+printf '%s\n' "$PPID" >> norespawn.pids
+le test fixture plugin/bus-wait-file edge1-r2.up >/dev/null
+printf 'announce route 203.0.113.0/24 next-hop 192.0.2.10\n'
+IFS= read -r _
+le test fixture plugin/bus-touch-file r2.gen1 >/dev/null
+le test fixture plugin/bus-wait-file exit2.go >/dev/null
+exit 3
+EOF_S1_R2
+
+# Script for Run 3 (on-exit keep): announces 203.0.113.0/24, exits 3 once.
+tmpfs=s1-keep.sh:mode=755:terminator=EOF_S1_R3
+#!/bin/sh
+set -eu
+le test fixture plugin/bus-wait-file edge1-r3.up >/dev/null
+printf 'announce route 203.0.113.0/24 next-hop 192.0.2.10\n'
+IFS= read -r _
+le test fixture plugin/bus-touch-file r3.gen1 >/dev/null
+le test fixture plugin/bus-wait-file exit3.go >/dev/null
+exit 3
+EOF_S1_R3
+
+# Causal fence script for Run 3: announces sentinel 192.0.2.0/24 after s1 has stopped.
+tmpfs=fence-r3.sh:mode=755:terminator=EOF_FENCE3
+#!/bin/sh
+set -eu
+le test fixture plugin/bus-wait-file fence3.go >/dev/null
+printf 'announce route 192.0.2.0/24 next-hop 192.0.2.20\n'
+IFS= read -r _
+le test fixture plugin/bus-touch-file fence3.done >/dev/null
+while IFS= read -r _; do
+	:
+done
+EOF_FENCE3
+
+tmpfs=verify-pids.py:mode=755:terminator=EOF_PIDS
+#!/usr/bin/env python3
+import sys
+
+mode, path = sys.argv[1], sys.argv[2]
+with open(path, encoding="utf-8") as fh:
+    pids = [ln.strip() for ln in fh if ln.strip()]
+
+if mode == "two-distinct":
+    if len(pids) != 2:
+        raise SystemExit(f"{path}: expected 2 wrapper PIDs, got {len(pids)}: {pids}")
+    if pids[0] == pids[1]:
+        raise SystemExit(f"{path}: wrapper PID did not change across script exit (same PID {pids[0]})")
+    print(f"OK: wrapper respawned with new PID ({pids[0]} -> {pids[1]})")
+elif mode == "exactly-one":
+    if len(pids) != 1:
+        raise SystemExit(f"{path}: expected exactly 1 wrapper PID with respawn false, got {len(pids)}: {pids}")
+    print(f"OK: respawn false kept single wrapper PID ({pids[0]}) with no restart")
+else:
+    raise SystemExit(f"unknown mode {mode}")
+EOF_PIDS
+
+tmpfs=run1-respawn.conf:terminator=EOF_CONF1
+system {
+	authentication {
+		# bcrypt cost-4 hash of "testpass".
+		user admin {
+			password "$2a$04$UlwuiuH82Unfsq.XEMPGJeDkXwbm3KW.nvVaVXOd/JeFK8VjMjrQO"
+		}
+	}
+}
+environment {
+	ssh {
+		enabled true
+		server main { ip 127.0.0.1; port $PORT2; }
+	}
+}
+bus {
+	endpoint bgp-rib { internal bgp-rib; }
+	endpoint s1 {
+		external {
+			run "ze exabgp plugin --route-refresh ./s1-respawn.sh";
+		}
+		encoding json;
+		receive { from none; }
+		send { to [ /bgp/peer/edge1 ]; }
+	}
+}
+bgp {
+	router-id 192.0.2.254;
+	filter {
+		import { final accept; }
+		export { final accept; }
+	}
+	peer edge1 {
+		connection {
+			remote { ip 127.0.0.2; }
+			local { ip 127.0.0.1; accept false; }
+		}
+		session {
+			asn { local 65001; remote 65002; }
+			family { ipv4/unicast { prefix { maximum 10000; } } }
+			capability { graceful-restart disable; route-refresh enable; }
+		}
+		behavior { group-updates disable; }
+	}
+}
+EOF_CONF1
+
+tmpfs=run2-norespawn.conf:terminator=EOF_CONF2
+system {
+	authentication {
+		user admin {
+			password "$2a$04$UlwuiuH82Unfsq.XEMPGJeDkXwbm3KW.nvVaVXOd/JeFK8VjMjrQO"
+		}
+	}
+}
+environment {
+	ssh {
+		enabled true
+		server main { ip 127.0.0.1; port $PORT2; }
+	}
+}
+bus {
+	endpoint bgp-rib { internal bgp-rib; }
+	endpoint s1 {
+		external {
+			run "ze exabgp plugin --route-refresh ./s1-norespawn.sh";
+			respawn false;
+		}
+		encoding json;
+		receive { from none; }
+		send { to [ /bgp/peer/edge1 ]; }
+	}
+}
+bgp {
+	router-id 192.0.2.254;
+	filter {
+		import { final accept; }
+		export { final accept; }
+	}
+	peer edge1 {
+		connection {
+			remote { ip 127.0.0.2; }
+			local { ip 127.0.0.1; accept false; }
+		}
+		session {
+			asn { local 65001; remote 65002; }
+			family { ipv4/unicast { prefix { maximum 10000; } } }
+			capability { graceful-restart disable; route-refresh enable; }
+		}
+		behavior { group-updates disable; }
+	}
+}
+EOF_CONF2
+
+tmpfs=run3-keep.conf:terminator=EOF_CONF3
+system {
+	authentication {
+		user admin {
+			password "$2a$04$UlwuiuH82Unfsq.XEMPGJeDkXwbm3KW.nvVaVXOd/JeFK8VjMjrQO"
+		}
+	}
+}
+environment {
+	ssh {
+		enabled true
+		server main { ip 127.0.0.1; port $PORT2; }
+	}
+}
+bus {
+	endpoint bgp-rib { internal bgp-rib; }
+	endpoint s1 {
+		external {
+			run "ze exabgp plugin --route-refresh ./s1-keep.sh";
+			on-exit keep;
+			respawn false;
+		}
+		encoding json;
+		receive { from none; }
+		send { to [ /bgp/peer/edge1 ]; }
+	}
+	endpoint fence {
+		external {
+			run "ze exabgp plugin ./fence-r3.sh";
+		}
+		encoding json;
+		receive { from none; }
+		send { to [ /bgp/peer/edge1 ]; }
+	}
+}
+bgp {
+	router-id 192.0.2.254;
+	filter {
+		import { final accept; }
+		export { final accept; }
+	}
+	peer edge1 {
+		connection {
+			remote { ip 127.0.0.2; }
+			local { ip 127.0.0.1; accept false; }
+		}
+		session {
+			asn { local 65001; remote 65002; }
+			family { ipv4/unicast { prefix { maximum 10000; } } }
+			capability { graceful-restart disable; route-refresh enable; }
+		}
+		behavior { group-updates disable; }
+	}
+}
+EOF_CONF3
+
+cmd=foreground:seq=1:exec=ze init:stdin=init-answers:exit=0
+
+# --- Run 1: default respawn ---
+cmd=background:seq=2:name=peer1:exec=le test peer --bind 127.0.0.2 --port $PORT:stdin=edge1-r1
+cmd=background:seq=3:name=daemon1:exec=ze start run1-respawn.conf:ready=Ze running.
+reject=stderr:pattern=capability conflict
+reject=stderr:pattern=panic
+
+cmd=foreground:seq=4:exec=le test fixture plugin/bus-wait-file r1.gen1:exit=0
+expect=stdout:contains=OK: marker file r1.gen1 appeared
+cmd=foreground:seq=5:exec=le test fixture daemon/await-answer-all "show bgp rib" 203.0.113.0/24:exit=0
+expect=stdout:contains=OK:
+
+# Trigger exit 3 -> withdraw -> ProcessManager respawns wrapper with NEW PID -> Stage 3 accepted -> re-announce.
+cmd=foreground:seq=6:exec=le test fixture plugin/bus-touch-file exit1.go:exit=0
+expect=stdout:contains=OK: wrote marker file exit1.go
+
+cmd=foreground:seq=7:exec=le test fixture plugin/bus-wait-file r1.gen2:exit=0
+expect=stdout:contains=OK: marker file r1.gen2 appeared
+
+cmd=foreground:seq=8:exec=le test fixture daemon/await-answer-all "show bgp peer edge1 detail | json" '"updates-sent": 4':exit=0
+expect=stdout:contains=OK:
+cmd=foreground:seq=9:exec=le test fixture daemon/await-answer-all "show bgp rib" 203.0.113.0/24:exit=0
+expect=stdout:contains=OK:
+cmd=foreground:seq=10:exec=python3 verify-pids.py two-distinct respawn.pids:exit=0
+expect=stdout:contains=OK: wrapper respawned with new PID
+
+cmd=stop:seq=11:name=daemon1:signal=term
+cmd=stop:seq=12:name=peer1
+
+# --- Run 2: external { respawn false; } ---
+cmd=background:seq=13:name=peer2:exec=le test peer --bind 127.0.0.2 --port $PORT:stdin=edge1-r2
+cmd=background:seq=14:name=daemon2:exec=ze start run2-norespawn.conf:ready=Ze running.
+reject=stderr:pattern=panic
+
+cmd=foreground:seq=15:exec=le test fixture plugin/bus-wait-file r2.gen1:exit=0
+expect=stdout:contains=OK: marker file r2.gen1 appeared
+cmd=foreground:seq=16:exec=le test fixture daemon/await-answer-all "show bgp rib" 203.0.113.0/24:exit=0
+expect=stdout:contains=OK:
+
+cmd=foreground:seq=17:exec=le test fixture plugin/bus-touch-file exit2.go:exit=0
+expect=stdout:contains=OK: wrote marker file exit2.go
+
+cmd=foreground:seq=18:exec=le test fixture daemon/await-answer-all "show warnings | json" doctor-plugin-stopped:exit=0
+expect=stdout:contains=OK:
+cmd=foreground:seq=19:exec=le test fixture daemon/await-answer-all "show bgp peer edge1 detail | json" '"updates-sent": 3':exit=0
+expect=stdout:contains=OK:
+cmd=foreground:seq=20:exec=ze cli -c "show bgp rib":exit=0
+reject=stdout:contains=203.0.113.0/24
+cmd=foreground:seq=21:exec=python3 verify-pids.py exactly-one norespawn.pids:exit=0
+expect=stdout:contains=OK: respawn false kept single wrapper PID
+
+cmd=stop:seq=22:name=daemon2:signal=term
+cmd=stop:seq=23:name=peer2
+
+# --- Run 3: external { on-exit keep; respawn false; } ---
+cmd=background:seq=24:name=peer3:exec=le test peer --bind 127.0.0.2 --port $PORT:stdin=edge1-r3
+cmd=background:seq=25:name=daemon3:exec=ze start run3-keep.conf:ready=Ze running.
+reject=stderr:pattern=panic
+
+cmd=foreground:seq=26:exec=le test fixture plugin/bus-wait-file r3.gen1:exit=0
+expect=stdout:contains=OK: marker file r3.gen1 appeared
+cmd=foreground:seq=27:exec=le test fixture daemon/await-answer-all "show bgp rib" 203.0.113.0/24:exit=0
+expect=stdout:contains=OK:
+
+cmd=foreground:seq=28:exec=le test fixture plugin/bus-touch-file exit3.go:exit=0
+expect=stdout:contains=OK: wrote marker file exit3.go
+
+cmd=foreground:seq=29:exec=le test fixture daemon/await-answer-all "show warnings | json" doctor-plugin-stopped:exit=0
+expect=stdout:contains=OK:
+
+cmd=foreground:seq=30:exec=le test fixture plugin/bus-touch-file fence3.go:exit=0
+expect=stdout:contains=OK: wrote marker file fence3.go
+cmd=foreground:seq=31:exec=le test fixture plugin/bus-wait-file fence3.done:exit=0
+expect=stdout:contains=OK: marker file fence3.done appeared
+
+cmd=foreground:seq=32:exec=le test fixture daemon/await-answer-all "show bgp rib" 203.0.113.0/24 192.0.2.0/24:exit=0
+expect=stdout:contains=OK:
+
+cmd=stop:seq=33:name=daemon3:signal=term
+cmd=stop:seq=34:name=peer3

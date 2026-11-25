@@ -1,0 +1,430 @@
+# Test: `bus { participant <path> }` compiles identically to a participant's own `bus` section, merges identical declarations naming both origins, and refuses disagreements at validate, reload, and start.
+# QUESTION: when group `transit` (holding peers `t1` and `t2`) is limited four ways:
+# (a) `bgp { group transit { bus { receive { from [ /bus/endpoint/collector ]; } } } }`,
+# (b) `bus { participant /bgp/group/transit { receive { from [ /bus/endpoint/collector ]; } } }`,
+# (c) both identical, and (d) both disagreeing (section names `/bus/endpoint/collector`,
+# central names `/bgp/peer/edge1`): do (a), (b), and (c) validate and load via live reload
+# with identical effective `receive` rules for `t1` and `t2` in `| implied | json` (except
+# origin/source, with (c) naming both places), and is (d) refused at `ze config validate`,
+# SIGHUP reload, and `ze start` naming both lines and saying to keep one?
+# A unit test cannot decide this because it proves offline validation, live SIGHUP reload,
+# daemon startup refusal, and `show config running | implied | json` parity end to end.
+#
+# VALIDATES: spec-explicit-plugin-and-attach-config S39 / AC-42.
+# PREVENTS: central `bus > participant` blocks diverging from own-section `bus` blocks,
+# silently overwriting disagreeing rules instead of refusing, or failing to attribute both
+# origins when written identically in both places.
+
+option=timeout:value=120s
+option=env:var=ZE_CONFIG_DIR:value=.
+option=env:var=XDG_DATA_HOME:value=.
+option=env:var=ze.ssh.password:value=testpass
+
+stdin=init-answers:terminator=EOF_INIT
+admin
+testpass
+127.0.0.1
+$PORT2
+EOF_INIT
+
+tmpfs=collector.sh:mode=755:terminator=EOF_COL
+#!/bin/sh
+while IFS= read -r _; do
+	:
+done
+EOF_COL
+
+# (a) Own section only.
+tmpfs=cfg-a.conf:terminator=EOF_CFGA
+system {
+	authentication {
+		# bcrypt cost-4 hash of "testpass".
+		user admin {
+			password "$2a$04$UlwuiuH82Unfsq.XEMPGJeDkXwbm3KW.nvVaVXOd/JeFK8VjMjrQO"
+		}
+	}
+}
+environment {
+	ssh {
+		enabled true
+		server main { ip 127.0.0.1; port $PORT2; }
+	}
+}
+bus {
+	endpoint collector {
+		external {
+			run "ze exabgp plugin ./collector.sh";
+		}
+		encoding json;
+	}
+}
+bgp {
+	router-id 192.0.2.254;
+	session { asn { local 65000; } }
+	peer edge1 {
+		connection {
+			remote { ip 127.0.0.2; connect false; }
+			local { ip 127.0.0.1; port $PORT; accept true; }
+		}
+		session {
+			asn { remote 65001; }
+			family { ipv4/unicast { prefix { maximum 10000; } } }
+			capability { graceful-restart disable; }
+		}
+	}
+	group transit {
+		bus {
+			receive {
+				from [ /bus/endpoint/collector ];
+			}
+		}
+		peer t1 {
+			connection {
+				remote { ip 127.0.0.3; connect false; }
+				local { ip 127.0.0.1; port $PORT; accept true; }
+			}
+			session {
+				asn { remote 65002; }
+				family { ipv4/unicast { prefix { maximum 10000; } } }
+				capability { graceful-restart disable; }
+			}
+		}
+		peer t2 {
+			connection {
+				remote { ip 127.0.0.4; connect false; }
+				local { ip 127.0.0.1; port $PORT; accept true; }
+			}
+			session {
+				asn { remote 65003; }
+				family { ipv4/unicast { prefix { maximum 10000; } } }
+				capability { graceful-restart disable; }
+			}
+		}
+	}
+}
+EOF_CFGA
+
+# (b) Central bus > participant only.
+tmpfs=cfg-b.conf:terminator=EOF_CFGB
+system {
+	authentication {
+		user admin {
+			password "$2a$04$UlwuiuH82Unfsq.XEMPGJeDkXwbm3KW.nvVaVXOd/JeFK8VjMjrQO"
+		}
+	}
+}
+environment {
+	ssh {
+		enabled true
+		server main { ip 127.0.0.1; port $PORT2; }
+	}
+}
+bus {
+	endpoint collector {
+		external {
+			run "ze exabgp plugin ./collector.sh";
+		}
+		encoding json;
+	}
+	participant /bgp/group/transit {
+		receive {
+			from [ /bus/endpoint/collector ];
+		}
+	}
+}
+bgp {
+	router-id 192.0.2.254;
+	session { asn { local 65000; } }
+	peer edge1 {
+		connection {
+			remote { ip 127.0.0.2; connect false; }
+			local { ip 127.0.0.1; port $PORT; accept true; }
+		}
+		session {
+			asn { remote 65001; }
+			family { ipv4/unicast { prefix { maximum 10000; } } }
+			capability { graceful-restart disable; }
+		}
+	}
+	group transit {
+		peer t1 {
+			connection {
+				remote { ip 127.0.0.3; connect false; }
+				local { ip 127.0.0.1; port $PORT; accept true; }
+			}
+			session {
+				asn { remote 65002; }
+				family { ipv4/unicast { prefix { maximum 10000; } } }
+				capability { graceful-restart disable; }
+			}
+		}
+		peer t2 {
+			connection {
+				remote { ip 127.0.0.4; connect false; }
+				local { ip 127.0.0.1; port $PORT; accept true; }
+			}
+			session {
+				asn { remote 65003; }
+				family { ipv4/unicast { prefix { maximum 10000; } } }
+				capability { graceful-restart disable; }
+			}
+		}
+	}
+}
+EOF_CFGB
+
+# (c) Both identical.
+tmpfs=cfg-c.conf:terminator=EOF_CFGC
+system {
+	authentication {
+		user admin {
+			password "$2a$04$UlwuiuH82Unfsq.XEMPGJeDkXwbm3KW.nvVaVXOd/JeFK8VjMjrQO"
+		}
+	}
+}
+environment {
+	ssh {
+		enabled true
+		server main { ip 127.0.0.1; port $PORT2; }
+	}
+}
+bus {
+	endpoint collector {
+		external {
+			run "ze exabgp plugin ./collector.sh";
+		}
+		encoding json;
+	}
+	participant /bgp/group/transit {
+		receive {
+			from [ /bus/endpoint/collector ];
+		}
+	}
+}
+bgp {
+	router-id 192.0.2.254;
+	session { asn { local 65000; } }
+	peer edge1 {
+		connection {
+			remote { ip 127.0.0.2; connect false; }
+			local { ip 127.0.0.1; port $PORT; accept true; }
+		}
+		session {
+			asn { remote 65001; }
+			family { ipv4/unicast { prefix { maximum 10000; } } }
+			capability { graceful-restart disable; }
+		}
+	}
+	group transit {
+		bus {
+			receive {
+				from [ /bus/endpoint/collector ];
+			}
+		}
+		peer t1 {
+			connection {
+				remote { ip 127.0.0.3; connect false; }
+				local { ip 127.0.0.1; port $PORT; accept true; }
+			}
+			session {
+				asn { remote 65002; }
+				family { ipv4/unicast { prefix { maximum 10000; } } }
+				capability { graceful-restart disable; }
+			}
+		}
+		peer t2 {
+			connection {
+				remote { ip 127.0.0.4; connect false; }
+				local { ip 127.0.0.1; port $PORT; accept true; }
+			}
+			session {
+				asn { remote 65003; }
+				family { ipv4/unicast { prefix { maximum 10000; } } }
+				capability { graceful-restart disable; }
+			}
+		}
+	}
+}
+EOF_CFGC
+
+# (d) Disagreeing central vs own-section receive > from lists -> refused (Refusal 6).
+tmpfs=cfg-d.conf:refused=config-parse:terminator=EOF_CFGD
+system {
+	authentication {
+		user admin {
+			password "$2a$04$UlwuiuH82Unfsq.XEMPGJeDkXwbm3KW.nvVaVXOd/JeFK8VjMjrQO"
+		}
+	}
+}
+environment {
+	ssh {
+		enabled true
+		server main { ip 127.0.0.1; port $PORT2; }
+	}
+}
+bus {
+	endpoint collector {
+		external {
+			run "ze exabgp plugin ./collector.sh";
+		}
+		encoding json;
+	}
+	participant /bgp/group/transit {
+		receive {
+			from [ /bgp/peer/edge1 ];
+		}
+	}
+}
+bgp {
+	router-id 192.0.2.254;
+	session { asn { local 65000; } }
+	peer edge1 {
+		connection {
+			remote { ip 127.0.0.2; connect false; }
+			local { ip 127.0.0.1; port $PORT; accept true; }
+		}
+		session {
+			asn { remote 65001; }
+			family { ipv4/unicast { prefix { maximum 10000; } } }
+			capability { graceful-restart disable; }
+		}
+	}
+	group transit {
+		bus {
+			receive {
+				from [ /bus/endpoint/collector ];
+			}
+		}
+		peer t1 {
+			connection {
+				remote { ip 127.0.0.3; connect false; }
+				local { ip 127.0.0.1; port $PORT; accept true; }
+			}
+			session {
+				asn { remote 65002; }
+				family { ipv4/unicast { prefix { maximum 10000; } } }
+				capability { graceful-restart disable; }
+			}
+		}
+		peer t2 {
+			connection {
+				remote { ip 127.0.0.4; connect false; }
+				local { ip 127.0.0.1; port $PORT; accept true; }
+			}
+			session {
+				asn { remote 65003; }
+				family { ipv4/unicast { prefix { maximum 10000; } } }
+				capability { graceful-restart disable; }
+			}
+		}
+	}
+}
+EOF_CFGD
+
+tmpfs=capture-compare-s39.py:mode=755:terminator=EOF_CMP
+#!/usr/bin/env python3
+import json
+import subprocess
+import sys
+
+
+def strip_origins(participants):
+    out = {}
+    for p in participants:
+        path = p.get("path", "")
+        if path not in ("/bgp/group/transit/peer/t1", "/bgp/group/transit/peer/t2", "/bgp/peer/t1", "/bgp/peer/t2"):
+            continue
+        recvs = []
+        for r in p.get("receive", []):
+            recvs.append((
+                r.get("message", ""),
+                bool(r.get("allowed", True)),
+                bool(r.get("dormant", False)),
+                sorted(r.get("targets", [])),
+            ))
+        recvs.sort()
+        out[path] = recvs
+    return out
+
+
+mode = sys.argv[1]
+if mode == "capture":
+    raw = subprocess.check_output(
+        ["ze", "cli", "-c", "show config running | implied | json"],
+        text=True,
+    )
+    doc = json.loads(raw)
+    with open(sys.argv[2], "w", encoding="utf-8") as fh:
+        json.dump(doc, fh)
+    print(f"OK: captured {sys.argv[2]}")
+elif mode == "compare":
+    docs = {}
+    for label in ("a", "b", "c"):
+        with open(f"implied-{label}.json", encoding="utf-8") as fh:
+            docs[label] = json.load(fh)
+    norm_a = strip_origins(docs["a"].get("implied", {}).get("participants", []))
+    norm_b = strip_origins(docs["b"].get("implied", {}).get("participants", []))
+    norm_c = strip_origins(docs["c"].get("implied", {}).get("participants", []))
+    if not norm_a:
+        raise SystemExit(f"no transit peer entries found in implied-a.json: {docs['a']}")
+    if norm_a != norm_b or norm_a != norm_c:
+        raise SystemExit(f"compiled receive filters differ across a/b/c:\n  a={norm_a}\n  b={norm_b}\n  c={norm_c}")
+
+    # Verify (c) attributes both places in origin/source for transit/t1/t2.
+    c_text = json.dumps(docs["c"].get("implied", {}).get("participants", []))
+    if "/bus/endpoint/collector" not in c_text:
+        raise SystemExit(f"expected /bus/endpoint/collector in (c) implied output:\n{c_text}")
+    if "participant /bgp/group/transit" not in c_text and "transit" not in c_text:
+        raise SystemExit(f"expected transit origin attribution in (c) implied output:\n{c_text}")
+    print("OK: (a), (b), and (c) produce equal compiled receive filters for t1 and t2")
+else:
+    raise SystemExit(f"unknown mode {mode}")
+EOF_CMP
+
+# Step 1: offline validation of (a), (b), (c) succeeds and (d) is refused naming both lines.
+cmd=foreground:seq=1:exec=ze config validate cfg-a.conf:exit=0
+cmd=foreground:seq=2:exec=ze config validate cfg-b.conf:exit=0
+cmd=foreground:seq=3:exec=ze config validate cfg-c.conf:exit=0
+
+cmd=foreground:seq=4:exec=ze config validate cfg-d.conf:exit=1
+expect=stdout:contains=conflicting bus rules for the same participant
+expect=stdout:contains=/bgp/group/transit > bus > receive > from
+expect=stdout:contains=bus > participant /bgp/group/transit > receive > from
+expect=stdout:contains=keep one
+
+# Step 2: live daemon starts on (a), reloads to (b) and (c), captures | implied | json for each,
+# and refuses reload to (d).
+cmd=foreground:seq=5:exec=ze init:stdin=init-answers:exit=0
+cmd=foreground:seq=6:exec=cp cfg-a.conf running.conf:exit=0
+
+cmd=background:seq=7:name=daemon:exec=ze start running.conf:ready=Ze running.
+reject=stderr:pattern=panic
+
+cmd=foreground:seq=8:exec=python3 capture-compare-s39.py capture implied-a.json:exit=0
+expect=stdout:contains=OK: captured implied-a.json
+
+cmd=foreground:seq=9:exec=le test fixture plugin/bus-sighup-reload cfg-b.conf running.conf r-b.applied:exit=0
+expect=stdout:contains=OK: SIGHUP reload cfg-b.conf applied
+cmd=foreground:seq=10:exec=python3 capture-compare-s39.py capture implied-b.json:exit=0
+expect=stdout:contains=OK: captured implied-b.json
+
+cmd=foreground:seq=11:exec=le test fixture plugin/bus-sighup-reload cfg-c.conf running.conf r-c.applied:exit=0
+expect=stdout:contains=OK: SIGHUP reload cfg-c.conf applied
+cmd=foreground:seq=12:exec=python3 capture-compare-s39.py capture implied-c.json:exit=0
+expect=stdout:contains=OK: captured implied-c.json
+
+cmd=foreground:seq=13:exec=python3 capture-compare-s39.py compare:exit=0
+expect=stdout:contains=OK: (a), (b), and (c) produce equal compiled receive filters for t1 and t2
+
+# Reloading (d) is refused.
+cmd=foreground:seq=14:exec=le test fixture plugin/bus-sighup-reload-refused cfg-d.conf running.conf r-d.refused:exit=0
+expect=stdout:contains=OK: SIGHUP reload cfg-d.conf failed
+
+cmd=stop:seq=15:name=daemon:signal=term
+
+# Step 3: starting (d) directly is also refused naming both lines.
+cmd=foreground:seq=16:exec=ze start cfg-d.conf:timeout=15s
+expect=exit:code=1
+expect=stderr:contains=conflicting bus rules for the same participant
+expect=stderr:contains=/bgp/group/transit > bus > receive > from
+expect=stderr:contains=bus > participant /bgp/group/transit > receive > from

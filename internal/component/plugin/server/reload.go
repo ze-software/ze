@@ -526,9 +526,15 @@ func (s *Server) reloadConfig(ctx context.Context, newTree map[string]any, candi
 	if len(affected) == 0 {
 		recordReloadCompensation(ctx, running, newTree, nil, created)
 		prevBusCfg := s.BusConfig()
+		var prevBusTree map[string]any
+		if p := s.busConfigTree.Load(); p != nil {
+			prevBusTree = *p
+		}
 		s.SetBusConfig(busCfg)
+		s.SetBusConfigTree(newTree)
 		if err := s.reactor.ApplyConfigDiff(newTree); err != nil {
 			s.SetBusConfig(prevBusCfg)
+			s.SetBusConfigTree(prevBusTree)
 			return errors.Join(fmt.Errorf("reactor config apply: %w", err), s.compensateReload(ctx))
 		}
 		// No plugins care about these changes. Recompute orphan ownership after
@@ -536,11 +542,13 @@ func (s *Server) reloadConfig(ctx context.Context, newTree map[string]any, candi
 		// any same-name FIB endpoint replacements, then update the running config.
 		logger().Info("config reload: no affected plugins, updating config")
 		if err := s.stopCollectedProcesses(s.collectReloadStopProcesses(running, newTree, addedKeys, removedKeys, candidateSelection, hasSelection)); err != nil {
+			s.SetBusConfigTree(prevBusTree)
 			return errors.Join(err, s.compensateReload(ctx))
 		}
 		if len(deferredAutoLoad) > 0 {
 			s.recordAutoLoadReasons(deferredAutoLoad)
 			if _, err := s.startAutoLoaded(ctx, autoLoadedConfigs(deferredAutoLoad), newTree, false); err != nil {
+				s.SetBusConfigTree(prevBusTree)
 				return errors.Join(err, s.compensateReload(ctx))
 			}
 		}
@@ -603,9 +611,15 @@ func (s *Server) reloadConfig(ctx context.Context, newTree map[string]any, candi
 	}
 
 	prevBusCfg := s.BusConfig()
+	var prevBusTree map[string]any
+	if p := s.busConfigTree.Load(); p != nil {
+		prevBusTree = *p
+	}
 	s.SetBusConfig(busCfg)
+	s.SetBusConfigTree(newTree)
 	if err := s.reactor.ApplyConfigDiff(newTree); err != nil {
 		s.SetBusConfig(prevBusCfg)
+		s.SetBusConfigTree(prevBusTree)
 		return errors.Join(fmt.Errorf("reactor config apply: %w", err), s.compensateReload(ctx))
 	}
 	// Update running config tree after the orchestrator commits. Plugins

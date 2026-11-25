@@ -47,6 +47,11 @@ type DoctorSnapshot struct {
 	// a peer's `bus` delivery filter and a plugin's declared events that do
 	// not meet, so the event is never delivered.
 	DeliveryDisagreements []DeliveryDisagreement
+	// DormantReceptions is every declared bus reception in the compiled
+	// delivery graph that currently produces no active edge (for example
+	// because no sender of the message is configured or because a runtime
+	// tag filter shares no value with the effective filter).
+	DormantReceptions []BusDormantReception
 	// UnbackedClaims is every exclusive role advertised with no claimant
 	// running (unbackedClaims), with the plugins that claimed it.
 	UnbackedClaims []UnbackedClaim
@@ -196,6 +201,15 @@ func (s *Server) doctorSnapshot() (DoctorSnapshot, error) {
 		snapshot.DeliveryDisagreements = append(snapshot.DeliveryDisagreements, DeliveryDisagreement{
 			Peer: d.peer, Process: d.process, Reason: d.reason, Granted: d.granted, Declared: d.declared,
 		})
+	}
+	if compiled := s.DeliveryGraph().Compiled(); compiled != nil {
+		for _, path := range compiled.Participants() {
+			filter := compiled.Filter(path)
+			if filter == nil {
+				continue
+			}
+			snapshot.DormantReceptions = append(snapshot.DormantReceptions, filter.DormantReceptions...)
+		}
 	}
 	if roles := s.unbackedClaims(); len(roles) != 0 {
 		claimants := s.advertisedClaimants()

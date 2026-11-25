@@ -4,7 +4,7 @@
 tmpfs=test.conf:terminator=EOF_CONF
 bus {
 	endpoint my-watcher {
-		internal bgp-rib
+		internal bgp-adj-rib-in
 		receive {
 			allow [ bgp:update ]
 		}

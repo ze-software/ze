@@ -1,0 +1,244 @@
+# Test: an endpoint receiving an event with no configured sender starts dormant, refuses adding the sender on reload, activates after restart, and still refuses an unknown written sender path.
+# QUESTION: when an external endpoint `collector` registers reception of `acme:alert`
+# with no sender configured, does the daemon start cleanly with `show doctor | json`,
+# `show config running | implied | json`, and `show event delivery | json` reporting the
+# reception as dormant (missing sender); is attempting to add the external sender `alerter`
+# by SIGHUP reload refused by `RefuseChangedDeclarations` naming `restart ze`; after
+# restarting with `alerter` configured, is `acme:alert` delivered to `collector` with
+# `show event delivery | json` showing the edge as `registered`; and as a negative control,
+# is an explicitly written `receive { from [ /bus/endpoint/nosuch ]; }` refused at
+# validate/start rather than treated as dormant?
+# A unit test cannot decide this because it spans live daemon startup with an external
+# endpoint, live `show doctor` / `| implied` / `show event delivery` inspection, live
+# SIGHUP `RefuseChangedDeclarations`, a full daemon restart, cross-endpoint event delivery,
+# and commit-time validation refusal.
+#
+# VALIDATES: spec-explicit-plugin-and-attach-config S21 / AC-8, AC-25.
+# PREVENTS: missing senders failing startup instead of starting dormant, reloads
+# bypassing `RefuseChangedDeclarations`, dormant edges failing to activate after restart,
+# or unknown written paths silently becoming dormant instead of refusing commit.
+
+option=timeout:value=120s
+option=env:var=ZE_CONFIG_DIR:value=.
+option=env:var=XDG_DATA_HOME:value=.
+option=env:var=ze.ssh.password:value=testpass
+
+stdin=init-answers:terminator=EOF_INIT
+admin
+testpass
+127.0.0.1
+$PORT2
+EOF_INIT
+
+# Phase 1 config: collector receives acme:alert, no sender configured (dormant).
+tmpfs=running.conf:terminator=EOF_DORMANT
+system {
+	authentication {
+		# bcrypt cost-4 hash of "testpass".
+		user admin {
+			password "$2a$04$UlwuiuH82Unfsq.XEMPGJeDkXwbm3KW.nvVaVXOd/JeFK8VjMjrQO"
+		}
+	}
+}
+environment {
+	ssh {
+		enabled true
+		server main {
+			ip 127.0.0.1;
+			port $PORT2;
+		}
+	}
+}
+bus {
+	endpoint collector {
+		external {
+			run "le test fixture plugin/bus-event-collector acme:alert collector.log authentic-from-a collector.done";
+		}
+		encoding json;
+	}
+}
+EOF_DORMANT
+
+# Phase 2 config: adds external sender endpoint `alerter` declaring acme:alert.
+tmpfs=with-sender.conf:terminator=EOF_SENDER
+system {
+	authentication {
+		# bcrypt cost-4 hash of "testpass".
+		user admin {
+			password "$2a$04$UlwuiuH82Unfsq.XEMPGJeDkXwbm3KW.nvVaVXOd/JeFK8VjMjrQO"
+		}
+	}
+}
+environment {
+	ssh {
+		enabled true
+		server main {
+			ip 127.0.0.1;
+			port $PORT2;
+		}
+	}
+}
+bus {
+	endpoint alerter {
+		external {
+			run "le test fixture plugin/bus-sender-stamp a emit.go alerter.done";
+		}
+		encoding json;
+	}
+	endpoint collector {
+		external {
+			run "le test fixture plugin/bus-event-collector acme:alert collector.log authentic-from-a collector.done";
+		}
+		encoding json;
+	}
+}
+EOF_SENDER
+
+tmpfs=noop-collector.sh:mode=755:terminator=EOF_NOOP
+#!/bin/sh
+while IFS= read -r _; do
+	:
+done
+EOF_NOOP
+
+# Negative control: written receive > from naming nonexistent endpoint must be refused, NOT dormant.
+# Uses a non-observer external wrapper so startup refusal closing the early schema-discovery
+# connection does not emit the test.observer ZE-OBSERVER-FAIL sentinel.
+tmpfs=bad-nosuch.conf:refused=config-parse:terminator=EOF_NOSUCH
+bus {
+	endpoint collector {
+		external {
+			run "ze exabgp plugin ./noop-collector.sh";
+		}
+		encoding json;
+		receive {
+			from [ /bus/endpoint/nosuch ];
+		}
+	}
+}
+EOF_NOSUCH
+
+tmpfs=check-dormant.py:mode=755:terminator=EOF_CHECK
+#!/usr/bin/env python3
+import json
+import subprocess
+import sys
+
+mode = sys.argv[1]
+
+
+def cli_json(cmd):
+    out = subprocess.check_output(["ze", "cli", "-c", cmd], text=True)
+    return json.loads(out)
+
+
+if mode == "before":
+    imp = cli_json("show config running | implied | json")
+    found_rule = False
+    for p in imp.get("implied", {}).get("participants", []):
+        if p.get("path") == "/bus/endpoint/collector":
+            for r in p.get("receive", []):
+                if r.get("message") == "acme:alert":
+                    if not r.get("dormant"):
+                        raise SystemExit(f"collector acme:alert rule not dormant: {r}")
+                    if not r.get("dormant-reason"):
+                        raise SystemExit(f"collector acme:alert missing dormant-reason: {r}")
+                    found_rule = True
+    if not found_rule:
+        raise SystemExit(f"collector acme:alert rule missing from implied.participants: {imp}")
+
+    deliv = cli_json("show event delivery | json")
+    found_edge = any(
+        e.get("receiver-path") == "/bus/endpoint/collector"
+        and e.get("message") == "acme:alert"
+        and e.get("origin") == "dormant"
+        for e in deliv.get("edges", [])
+    )
+    if not found_edge:
+        raise SystemExit(f"show event delivery missing dormant edge for collector acme:alert: {deliv}")
+
+    doc = cli_json("show doctor | json")
+    doc_text = json.dumps(doc).lower()
+    if "dormant" not in doc_text or "acme:alert" not in doc_text:
+        raise SystemExit(f"show doctor did not report dormant acme:alert reception: {doc}")
+    print("OK: implied, delivery, and doctor all report collector acme:alert as dormant")
+
+elif mode == "after":
+    deliv = cli_json("show event delivery | json")
+    matched = [
+        e
+        for e in deliv.get("edges", [])
+        if e.get("sender-path") == "/bus/endpoint/alerter"
+        and e.get("receiver-path") == "/bus/endpoint/collector"
+        and e.get("message") == "acme:alert"
+    ]
+    if not matched:
+        raise SystemExit(f"show event delivery missing alerter -> collector acme:alert edge: {deliv}")
+    if any(e.get("origin") != "registered" for e in matched):
+        raise SystemExit(f"expected registered origin on alerter -> collector edge, got: {matched}")
+    if any(
+        e.get("receiver-path") == "/bus/endpoint/collector"
+        and e.get("message") == "acme:alert"
+        and e.get("origin") == "dormant"
+        for e in deliv.get("edges", [])
+    ):
+        raise SystemExit(f"stale dormant edge remained after adding sender: {deliv}")
+    print("OK: show event delivery reports alerter -> collector acme:alert as registered")
+else:
+    raise SystemExit(f"unknown mode {mode}")
+EOF_CHECK
+
+cmd=foreground:seq=1:exec=ze init:stdin=init-answers:exit=0
+
+# --- Phase 1: start with dormant reception (no sender of acme:alert) ---
+cmd=background:seq=2:name=daemon1:exec=ze start running.conf:ready=Ze running.
+expect=stderr:contains=alerter
+expect=stderr:contains=restart ze
+reject=stderr:pattern=ZE-OBSERVER-FAIL
+reject=stderr:pattern=panic
+
+cmd=foreground:seq=3:exec=python3 check-dormant.py before:exit=0
+expect=stdout:contains=OK: implied, delivery, and doctor all report collector acme:alert as dormant
+
+# Attempt to add external sender by SIGHUP reload -> refused by RefuseChangedDeclarations naming `restart ze`.
+cmd=foreground:seq=4:exec=le test fixture plugin/bus-sighup-reload-refused with-sender.conf running.conf reload.refused:exit=0
+expect=stdout:contains=OK: SIGHUP reload with-sender.conf failed
+
+cmd=foreground:seq=5:exec=ze cli -c "show reload-status | json":exit=0
+expect=stdout:contains="last-outcome": "failed"
+
+cmd=stop:seq=6:name=daemon1:signal=term
+
+# --- Phase 2: restart with external sender configured -> alert delivered and edge registered ---
+cmd=background:seq=7:name=daemon2:exec=ze start with-sender.conf:ready=Ze running.
+expect=stderr:contains=OK: role a authentic emit delivered (delivered=1)
+reject=stderr:pattern=ZE-OBSERVER-FAIL
+reject=stderr:pattern=panic
+
+cmd=foreground:seq=8:exec=le test fixture plugin/bus-touch-file emit.go:exit=0
+expect=stdout:contains=OK: wrote marker file emit.go
+
+cmd=foreground:seq=9:exec=le test fixture plugin/bus-wait-file alerter.done:exit=0
+expect=stdout:contains=OK: marker file alerter.done appeared
+
+cmd=foreground:seq=10:exec=le test fixture plugin/bus-wait-file collector.done:exit=0
+expect=stdout:contains=OK: marker file collector.done appeared
+
+cmd=foreground:seq=11:exec=le test fixture plugin/bus-assert-collector collector.log /bus/endpoint/alerter authentic-from-a:exit=0
+expect=stdout:contains=OK: collector recorded sender=/bus/endpoint/alerter detail=authentic-from-a (1 event)
+
+cmd=foreground:seq=12:exec=python3 check-dormant.py after:exit=0
+expect=stdout:contains=OK: show event delivery reports alerter -> collector acme:alert as registered
+
+cmd=stop:seq=13:name=daemon2:signal=term
+
+# --- Negative control: written receive > from naming unknown endpoint is refused, not dormant ---
+cmd=foreground:seq=14:exec=ze config validate bad-nosuch.conf
+expect=exit:code=1
+expect=stdout:contains=/bus/endpoint/nosuch
+expect=stdout:contains=names no configured bus participant
+
+cmd=foreground:seq=15:exec=ze start bad-nosuch.conf:timeout=15s
+expect=exit:code=1
+expect=stderr:contains=/bus/endpoint/nosuch
+expect=stderr:contains=names no configured bus participant

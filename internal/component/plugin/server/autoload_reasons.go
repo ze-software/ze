@@ -1318,7 +1318,7 @@ func CompileOfflineBusFromTree(tree *config.Tree, impliedEndpoints []config.Impl
 	// 5. Apply central bus > participant overrides and ensure parent containers exist.
 	parentContainers := make(map[string]bool)
 	for _, p := range byPath {
-		applyCentralOverrideToInput(p, busCfg)
+		applyCentralOverrideToInput(p, busCfg, false)
 		if p.ParentPath != "" {
 			parentContainers[p.ParentPath] = true
 		}

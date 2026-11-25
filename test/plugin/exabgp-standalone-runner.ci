@@ -1,0 +1,132 @@
+# Test: standalone `ze exabgp plugin <script>` (no hub token) writes no withdrawals on script exit and mirrors the script's exact exit status.
+# QUESTION: when `ze exabgp plugin ./exit3.sh` is invoked directly with no
+# `ZE_PLUGIN_HUB_TOKEN` (standalone MuxConn stdin/stdout mode), and `./exit3.sh`
+# announces `203.0.113.0/24`, reads its ack, and exits with status 3 while stdin
+# stays open: does `ze exabgp plugin` dispatch `nlri add 203.0.113.0/24`, write
+# NO withdrawals (`nlri del` / `restore-configured`) to stdout when the script exits,
+# exit promptly without waiting for stdin EOF, and return exact exit status 3 (while
+# a control script exiting 0 returns exit status 0)?
+# A unit test cannot decide this because it proves the shipped `ze exabgp plugin` CLI
+# entry point, standalone-vs-SDK mode dispatch (`cmdPlugin`), OS process exit code
+# propagation, and stdout wire framing across a real subprocess boundary.
+#
+# VALIDATES: spec-explicit-plugin-and-attach-config S42 (part 2) / AC-45 / E-6.
+# PREVENTS: standalone `ze exabgp plugin` emitting retired OwnerLedger withdrawals on
+# script exit, swallowing non-zero script exit codes, or hanging on open stdin.
+
+option=timeout:value=60s
+
+tmpfs=exit3.sh:mode=755:terminator=EOF_EXIT3
+#!/bin/sh
+set -eu
+printf 'announce route 203.0.113.0/24 next-hop 192.0.2.10\n'
+IFS= read -r _
+exit 3
+EOF_EXIT3
+
+tmpfs=exit0.sh:mode=755:terminator=EOF_EXIT0
+#!/bin/sh
+set -eu
+printf 'announce route 203.0.113.0/24 next-hop 192.0.2.10\n'
+IFS= read -r _
+exit 0
+EOF_EXIT0
+
+tmpfs=drive-standalone.py:mode=755:terminator=EOF_DRIVER
+#!/usr/bin/env python3
+import os
+import re
+import subprocess
+import sys
+import threading
+
+script_path = sys.argv[1]
+want_code = int(sys.argv[2])
+
+env = dict(os.environ)
+for k in list(env):
+    if k.upper().startswith("ZE_PLUGIN_HUB") or k.upper() == "ZE_PLUGIN_MODE":
+        env.pop(k, None)
+
+proc = subprocess.Popen(
+    ["ze", "exabgp", "plugin", script_path],
+    stdin=subprocess.PIPE,
+    stdout=subprocess.PIPE,
+    stderr=subprocess.PIPE,
+    text=True,
+    bufsize=1,
+    env=env,
+)
+
+captured_stdout = []
+mux_re = re.compile(r"^#(\d+)\s+(\S+)")
+
+
+def pump():
+    assert proc.stdout is not None and proc.stdin is not None
+    for raw in proc.stdout:
+        line = raw.rstrip("\r\n")
+        captured_stdout.append(line)
+        if line == "declare done":
+            proc.stdin.write("config done\n")
+            proc.stdin.flush()
+        elif line == "capability done":
+            proc.stdin.write("registry done\n")
+            proc.stdin.flush()
+        elif line.startswith("#"):
+            m = mux_re.match(line)
+            if not m:
+                continue
+            req_id, verb = m.group(1), m.group(2)
+            if verb == "ze-plugin-engine:dispatch-command":
+                proc.stdin.write(f"#{req_id} ok\n")
+                proc.stdin.flush()
+            elif verb == "ze-bgp:peer-flush":
+                proc.stdin.write(f"#{req_id} ok\n")
+                proc.stdin.flush()
+
+
+reader = threading.Thread(target=pump, daemon=True)
+reader.start()
+
+# Deliberately leave proc.stdin open until proc exits to prove standalone mode
+# does not block waiting for stdin EOF once the script exits.
+try:
+    exit_code = proc.wait(timeout=15)
+except subprocess.TimeoutExpired:
+    proc.kill()
+    raise SystemExit("standalone ze exabgp plugin hung waiting for stdin EOF after script exited")
+
+if proc.stdin:
+    proc.stdin.close()
+reader.join(timeout=5)
+stderr_text = proc.stderr.read() if proc.stderr else ""
+stdout_text = "\n".join(captured_stdout)
+
+if exit_code != want_code:
+    raise SystemExit(
+        f"ze exabgp plugin {script_path} exited {exit_code}, want {want_code}\n"
+        f"stdout:\n{stdout_text}\nstderr:\n{stderr_text}"
+    )
+
+if "nlri add 203.0.113.0/24" not in stdout_text:
+    raise SystemExit(
+        f"standalone stdout missing script's announce 'nlri add 203.0.113.0/24':\n{stdout_text}"
+    )
+
+for forbidden in ("nlri del", "restore-configured"):
+    if forbidden in stdout_text:
+        raise SystemExit(
+            f"standalone stdout unexpectedly wrote withdrawal token {forbidden!r}:\n{stdout_text}"
+        )
+
+print(f"OK: standalone {script_path} dispatched announce, wrote zero withdrawals, and exited {exit_code}")
+EOF_DRIVER
+
+# Positive case: script announces route then exits 3 -> standalone runner exits 3 with zero withdrawals.
+cmd=foreground:seq=1:exec=python3 drive-standalone.py ./exit3.sh 3:exit=0
+expect=stdout:contains=OK: standalone ./exit3.sh dispatched announce, wrote zero withdrawals, and exited 3
+
+# Negative/control case: script announces route then exits 0 -> standalone runner exits 0 with zero withdrawals.
+cmd=foreground:seq=2:exec=python3 drive-standalone.py ./exit0.sh 0:exit=0
+expect=stdout:contains=OK: standalone ./exit0.sh dispatched announce, wrote zero withdrawals, and exited 0

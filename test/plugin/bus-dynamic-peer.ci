@@ -1,0 +1,287 @@
+# Test: dynamic groups feed group-scoped and IP-scoped bus receivers, imply their family plugins, and refuse /bgp/ip/<addr> targets outside every dynamic range.
+# QUESTION: with dynamic groups `dyn1` (`127.0.0.0/30`, carrying `ipv4/flow` to imply
+# `bgp-nlri-flowspec`) and `dyn2` (`127.0.0.4/30`), `collector` configured with
+# `receive { from [ /bgp/group/dyn1 ]; }`, and `watcher` configured with
+# `receive { from [ /bgp/ip/127.0.0.2 ]; }`: before any peer connects, does `| implied | json`
+# show `bgp-nlri-flowspec` implied by `dyn1` and `watcher`'s reception as dormant; once
+# dynamic peers connect from `127.0.0.2` (`dyn1`), `127.0.0.3` (`dyn1`), and `127.0.0.5` (`dyn2`),
+# does `collector` record both `dyn1` peers and not `127.0.0.5` while `watcher` records ONLY
+# `127.0.0.2` (not `127.0.0.3` or `127.0.0.5`); and is `/bgp/ip/203.0.113.7` outside every
+# dynamic range refused at validate/start listing both accepted ranges?
+# A unit test cannot decide this because the path spans live dynamic-group acceptance on a
+# shared listener, dynamic peer bus registration, live `| implied` inspection, compiled
+# per-group and per-IP delivery, and commit-time secondary IP range validation.
+#
+# VALIDATES: spec-explicit-plugin-and-attach-config S22 / AC-21, AC-36.
+# PREVENTS: dynamic-group features failing to auto-load implied plugins, `/bgp/group/<dyn>`
+# leaking across dynamic groups, `/bgp/ip/<addr>` failing to wake up on dynamic connect or
+# leaking to sibling peers in the same range, or out-of-range `/bgp/ip/` committing silently.
+#
+# Linux-only: relies on Linux loopback 127.0.0.0/8 selecting source address equal to the
+# dialed 127.0.0.x destination so three distinct dynamic peers connect from 127.0.0.2,
+# 127.0.0.3, and 127.0.0.5 through `le test peer --dial`.
+option=needs-linux
+option=timeout:value=120s
+option=env:var=ZE_CONFIG_DIR:value=.
+option=env:var=XDG_DATA_HOME:value=.
+option=env:var=ze.ssh.password:value=testpass
+
+stdin=init-answers:terminator=EOF_INIT
+admin
+testpass
+127.0.0.1
+$PORT2
+EOF_INIT
+
+stdin=peer-d1x:terminator=EOF_D1X
+option=tcp_connections:value=1
+option=asn:value=65101
+option=open:value=router-id:id=127.0.0.2
+option=linger:value=true
+option=established-file:path=d1x.up
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
+EOF_D1X
+
+stdin=peer-d1y:terminator=EOF_D1Y
+option=tcp_connections:value=1
+option=asn:value=65102
+option=open:value=router-id:id=127.0.0.3
+option=linger:value=true
+option=established-file:path=d1y.up
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
+EOF_D1Y
+
+stdin=peer-d2:terminator=EOF_D2
+option=tcp_connections:value=1
+option=asn:value=65201
+option=open:value=router-id:id=127.0.0.5
+option=linger:value=true
+option=established-file:path=d2.up
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
+EOF_D2
+
+tmpfs=running.conf:terminator=EOF_CONF
+system {
+	authentication {
+		# bcrypt cost-4 hash of "testpass".
+		user admin {
+			password "$2a$04$UlwuiuH82Unfsq.XEMPGJeDkXwbm3KW.nvVaVXOd/JeFK8VjMjrQO"
+		}
+	}
+}
+environment {
+	ssh {
+		enabled true
+		server main {
+			ip 127.0.0.1;
+			port $PORT2;
+		}
+	}
+}
+bus {
+	endpoint collector {
+		external {
+			run "le test fixture plugin/bus-event-collector bgp:state collector.log";
+		}
+		encoding json;
+		receive {
+			from [ /bgp/group/dyn1 ];
+		}
+	}
+	endpoint watcher {
+		external {
+			run "le test fixture plugin/bus-event-collector bgp:state watcher.log";
+		}
+		encoding json;
+		receive {
+			from [ /bgp/ip/127.0.0.2 ];
+		}
+	}
+}
+bgp {
+	filter {
+		import { final accept; }
+		export { final accept; }
+	}
+	router-id 192.0.2.254;
+	session {
+		asn { local 65000; }
+	}
+	group dyn1 {
+		connection {
+			remote {
+				ip dynamic;
+				connect false;
+				range 127.0.0.0/30;
+			}
+			local {
+				ip 0.0.0.0;
+				port $PORT;
+				accept true;
+			}
+		}
+		session {
+			asn { local 65000; }
+			router-id 192.0.2.254;
+			family {
+				ipv4/unicast {
+					mode enable;
+					prefix { maximum 10000; }
+				}
+				ipv4/flow {
+					mode enable;
+					prefix { maximum 10000; }
+				}
+			}
+			capability { graceful-restart disable; }
+		}
+		behavior { group-updates disable; }
+	}
+	group dyn2 {
+		connection {
+			remote {
+				ip dynamic;
+				connect false;
+				range 127.0.0.4/30;
+			}
+			local {
+				ip 0.0.0.0;
+				port $PORT;
+				accept true;
+			}
+		}
+		session {
+			asn { local 65000; }
+			router-id 192.0.2.254;
+			family {
+				ipv4/unicast {
+					mode enable;
+					prefix { maximum 10000; }
+				}
+			}
+			capability { graceful-restart disable; }
+		}
+		behavior { group-updates disable; }
+	}
+}
+EOF_CONF
+
+# Negative check: /bgp/ip/203.0.113.7 outside every dynamic group range is refused listing both ranges.
+tmpfs=bad-outside-range.conf:refused=config-parse:terminator=EOF_BAD
+bus {
+	endpoint watcher {
+		external {
+			run "le test fixture plugin/bus-event-collector bgp:state unused.log";
+		}
+		encoding json;
+		receive {
+			from [ /bgp/ip/203.0.113.7 ];
+		}
+	}
+}
+bgp {
+	router-id 192.0.2.254;
+	session {
+		asn { local 65000; }
+	}
+	group dyn1 {
+		connection {
+			remote { ip dynamic; connect false; range 127.0.0.0/30; }
+			local { ip 0.0.0.0; port $PORT; accept true; }
+		}
+		session {
+			asn { local 65000; }
+			family { ipv4/unicast { prefix { maximum 10000; } } }
+		}
+	}
+	group dyn2 {
+		connection {
+			remote { ip dynamic; connect false; range 127.0.0.4/30; }
+			local { ip 0.0.0.0; port $PORT; accept true; }
+		}
+		session {
+			asn { local 65000; }
+			family { ipv4/unicast { prefix { maximum 10000; } } }
+		}
+	}
+}
+EOF_BAD
+
+tmpfs=check-pre-connect.py:mode=755:terminator=EOF_PRE
+#!/usr/bin/env python3
+import json
+import subprocess
+
+out = subprocess.check_output(
+    ["ze", "cli", "-c", "show config running | implied | json"],
+    text=True,
+)
+doc = json.loads(out)
+implied = doc.get("implied", {})
+
+endpoints = implied.get("endpoints", [])
+if not any(ep.get("name") == "bgp-nlri-flowspec" or ep.get("compiled-plugin") == "bgp-nlri-flowspec" for ep in endpoints):
+    raise SystemExit(f"bgp-nlri-flowspec missing from implied.endpoints (dynamic group ipv4/flow): {endpoints}")
+
+watcher_dormant = False
+for p in implied.get("participants", []):
+    if p.get("path") == "/bus/endpoint/watcher":
+        for r in p.get("receive", []):
+            if r.get("message") == "bgp:state" and r.get("dormant"):
+                watcher_dormant = True
+if not watcher_dormant:
+    raise SystemExit(f"watcher bgp:state rule must be dormant before 127.0.0.2 connects: {implied.get('participants')}")
+
+print("OK: pre-connect implied view shows bgp-nlri-flowspec auto-loaded and watcher dormant")
+EOF_PRE
+
+cmd=foreground:seq=1:exec=ze init:stdin=init-answers:exit=0
+cmd=background:seq=2:name=daemon:exec=ze start running.conf:ready=Ze running.
+reject=stderr:pattern=ZE-OBSERVER-FAIL
+reject=stderr:pattern=panic
+
+# Before any dynamic peer connects: verify implied bgp-nlri-flowspec and dormant watcher.
+cmd=foreground:seq=3:exec=python3 check-pre-connect.py:exit=0
+expect=stdout:contains=OK: pre-connect implied view shows bgp-nlri-flowspec auto-loaded and watcher dormant
+
+# Connect dyn2 peer first (127.0.0.5), then dyn1 peers (127.0.0.3 and 127.0.0.2).
+# Connecting dyn2 and 127.0.0.3 before 127.0.0.2 provides a causal fence once
+# 127.0.0.2's state arrives at both collector and watcher.
+cmd=background:seq=4:name=peer-d2:exec=le test peer --bind 127.0.0.5 --dial 127.0.0.1:$PORT:stdin=peer-d2
+cmd=foreground:seq=5:exec=le test fixture plugin/bus-wait-file d2.up:exit=0
+expect=stdout:contains=OK: marker file d2.up appeared
+
+cmd=background:seq=6:name=peer-d1y:exec=le test peer --bind 127.0.0.3 --dial 127.0.0.1:$PORT:stdin=peer-d1y
+cmd=foreground:seq=7:exec=le test fixture plugin/bus-wait-file d1y.up:exit=0
+expect=stdout:contains=OK: marker file d1y.up appeared
+
+cmd=background:seq=8:name=peer-d1x:exec=le test peer --bind 127.0.0.2 --dial 127.0.0.1:$PORT:stdin=peer-d1x
+cmd=foreground:seq=9:exec=le test fixture plugin/bus-wait-file d1x.up:exit=0
+expect=stdout:contains=OK: marker file d1x.up appeared
+
+# Poll until collector sees both dyn1 peers and watcher sees 127.0.0.2.
+cmd=foreground:seq=10:exec=le test fixture plugin/bus-assert-implied poll-file-contains collector.log 127.0.0.2:exit=0
+expect=stdout:contains=OK: file collector.log contains 127.0.0.2
+cmd=foreground:seq=11:exec=le test fixture plugin/bus-assert-implied poll-file-contains collector.log 127.0.0.3:exit=0
+expect=stdout:contains=OK: file collector.log contains 127.0.0.3
+cmd=foreground:seq=12:exec=le test fixture plugin/bus-assert-implied poll-file-contains watcher.log 127.0.0.2:exit=0
+expect=stdout:contains=OK: file watcher.log contains 127.0.0.2
+
+# Negative delivery assertions: collector never saw dyn2 (127.0.0.5); watcher never saw 127.0.0.3 or 127.0.0.5.
+cmd=foreground:seq=13:exec=le test fixture plugin/bus-assert-implied file-not-contains collector.log 127.0.0.5:exit=0
+expect=stdout:contains=OK: file collector.log does not contain 127.0.0.5
+cmd=foreground:seq=14:exec=le test fixture plugin/bus-assert-implied file-not-contains watcher.log 127.0.0.3:exit=0
+expect=stdout:contains=OK: file watcher.log does not contain 127.0.0.3
+cmd=foreground:seq=15:exec=le test fixture plugin/bus-assert-implied file-not-contains watcher.log 127.0.0.5:exit=0
+expect=stdout:contains=OK: file watcher.log does not contain 127.0.0.5
+
+cmd=stop:seq=16:name=daemon:signal=term
+cmd=stop:seq=17:name=peer-d1x
+cmd=stop:seq=18:name=peer-d1y
+cmd=stop:seq=19:name=peer-d2
+
+# Negative commit check: /bgp/ip/203.0.113.7 outside every dynamic range is refused listing both ranges.
+cmd=foreground:seq=20:exec=ze config validate bad-outside-range.conf:exit=1
+expect=stdout:contains=/bgp/ip/203.0.113.7
+expect=stdout:contains=127.0.0.0/30 (group dyn1)
+expect=stdout:contains=127.0.0.4/30 (group dyn2)

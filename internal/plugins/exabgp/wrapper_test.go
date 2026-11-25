@@ -44,10 +44,13 @@ func TestWrapperDeclaresWhatItsTranslatorEmits(t *testing.T) {
 	assert.Equal(t, []string{"bgp"}, reg.WantsConfig)
 
 	require.Len(t, reg.Families, 2)
-	assert.Equal(t, sdk.FamilyDecl{Name: "ipv4/unicast", Mode: "both", AFI: 1, SAFI: 1}, reg.Families[0])
-	assert.Equal(t, sdk.FamilyDecl{Name: "ipv4/mpls-label", Mode: "both", AFI: 1, SAFI: 4}, reg.Families[1])
+	assert.Equal(t, sdk.FamilyDecl{Name: "ipv4/unicast", Mode: "encode", AFI: 1, SAFI: 1}, reg.Families[0])
+	assert.Equal(t, sdk.FamilyDecl{Name: "ipv4/mpls-label", Mode: "encode", AFI: 1, SAFI: 4}, reg.Families[1])
 
-	wantSends := bridge.DeclaredCommandPrefixes()
+	wantSends := append(
+		append([]string(nil), bridge.DeclaredCommandPrefixes()...),
+		"bgp:update", "bgp:refresh", "bgp:raw", "bgp:enhanced-refresh",
+	)
 	gotSends := make([]string, len(reg.Sends))
 	for i, s := range reg.Sends {
 		gotSends[i] = s.Message

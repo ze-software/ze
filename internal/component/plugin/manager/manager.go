@@ -170,6 +170,9 @@ func (m *Manager) SpawnMore(configs []parent.PluginConfig) error {
 		return errNotStarted
 	}
 	if len(configs) == 0 {
+		if m.hubConfig != nil && len(m.hubConfig.Servers) > 0 {
+			return m.ensureAcceptor(nil)
+		}
 		return nil
 	}
 
@@ -181,6 +184,9 @@ func (m *Manager) SpawnMore(configs []parent.PluginConfig) error {
 		return err
 	}
 	if len(configs) == 0 {
+		if m.hubConfig != nil && len(m.hubConfig.Servers) > 0 {
+			return m.ensureAcceptor(nil)
+		}
 		return nil
 	}
 

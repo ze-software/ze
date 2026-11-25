@@ -1,0 +1,318 @@
+# Test: an aliased separate-process compiled-in plugin keeps its compiled state grants, doctor identity, and implied wiring, while a foreign external endpoint sharing the registration name gets none of them.
+# QUESTION: when compiled-in `ddos-flowspec` runs as `bus { endpoint my-ddos { internal ddos-flowspec; process separate; } }`,
+# does it start cleanly over TLS connect-back, report healthy in `show doctor | json`
+# with no orphan/stopped findings, cause `ze data rm meta/ddos-flowspec/announcement`
+# to be refused while running (naming alias `my-ddos` and its restart fix), and display
+# identical registered bus wiring in `show config running | implied | json` as an
+# in-daemon run — while in a negative run with `bus { endpoint ddos-flowspec { external { run ...; } } }`,
+# is a state write to `meta/ddos-flowspec/announcement` refused and does `show doctor | json`
+# report the compiled `ddos-flowspec` plugin as not running?
+# A unit test cannot decide this because the path spans live separate-process forking
+# of `ze plugin ddos-flowspec`, TLS connect-back identity binding, live disk statestore
+# RPC grants, `ze data rm` daemon-routed ownership refusal, `show doctor`, and `| implied`.
+#
+# VALIDATES: spec-explicit-plugin-and-attach-config S15 / AC-13.
+# PREVENTS: state grants, `ze data rm` ownership guards, or `show doctor` matching on
+# operator endpoint alias instead of compiled registration identity, or letting a foreign
+# external endpoint impersonate a compiled plugin by choosing its name.
+
+option=storage:value=disk
+option=timeout:value=120s
+option=env:var=ZE_CONFIG_DIR:value=.
+option=env:var=XDG_DATA_HOME:value=.
+option=env:var=ze.ssh.username:value=admin
+option=env:var=ze.ssh.password:value=testpass
+option=env:var=ze.ssh.port:value=$PORT2
+
+tmpfs=record.json:terminator=EOF_RECORD
+{"victim":"203.0.113.9/32"}
+EOF_RECORD
+
+# Baseline config: compiled ddos-flowspec running in-daemon under its own name.
+tmpfs=in-daemon.conf:terminator=EOF_INDAEMON
+system {
+	authentication {
+		# bcrypt cost-4 hash of "testpass".
+		user admin {
+			password "$2a$04$UlwuiuH82Unfsq.XEMPGJeDkXwbm3KW.nvVaVXOd/JeFK8VjMjrQO"
+		}
+	}
+}
+environment {
+	ssh {
+		enabled true
+		server main {
+			ip 127.0.0.1;
+			port $PORT2;
+		}
+	}
+}
+bus {
+	endpoint ddos-flowspec {
+		internal ddos-flowspec;
+	}
+}
+ddos {
+	flowspec {
+		response-level enforce;
+		action discard;
+		hold-down 3600;
+	}
+}
+bgp {
+	router-id 192.0.2.254;
+	session {
+		asn { local 65000; }
+	}
+	peer edge1 {
+		filter {
+			import { final accept; }
+			export { final accept; }
+		}
+		connection {
+			remote { ip 127.0.0.2; connect false; }
+			local { ip 127.0.0.1; port $PORT; accept true; }
+		}
+		session {
+			asn { remote 65001; }
+			family {
+				ipv4/unicast { prefix { maximum 10000; } }
+				ipv4/flow { prefix { maximum 10000; } }
+			}
+			capability { graceful-restart disable; }
+		}
+	}
+}
+EOF_INDAEMON
+
+# Positive case: compiled ddos-flowspec aliased as my-ddos in a separate process.
+tmpfs=aliased-separate.conf:terminator=EOF_ALIASED
+system {
+	authentication {
+		# bcrypt cost-4 hash of "testpass".
+		user admin {
+			password "$2a$04$UlwuiuH82Unfsq.XEMPGJeDkXwbm3KW.nvVaVXOd/JeFK8VjMjrQO"
+		}
+	}
+}
+environment {
+	ssh {
+		enabled true
+		server main {
+			ip 127.0.0.1;
+			port $PORT2;
+		}
+	}
+}
+bus {
+	endpoint my-ddos {
+		internal ddos-flowspec;
+		process separate;
+	}
+}
+ddos {
+	flowspec {
+		response-level enforce;
+		action discard;
+		hold-down 3600;
+	}
+}
+bgp {
+	router-id 192.0.2.254;
+	session {
+		asn { local 65000; }
+	}
+	peer edge1 {
+		filter {
+			import { final accept; }
+			export { final accept; }
+		}
+		connection {
+			remote { ip 127.0.0.2; connect false; }
+			local { ip 127.0.0.1; port $PORT; accept true; }
+		}
+		session {
+			asn { remote 65001; }
+			family {
+				ipv4/unicast { prefix { maximum 10000; } }
+				ipv4/flow { prefix { maximum 10000; } }
+			}
+			capability { graceful-restart disable; }
+		}
+	}
+}
+EOF_ALIASED
+
+# Negative case: foreign external endpoint claiming the name ddos-flowspec.
+tmpfs=foreign-spoof.conf:terminator=EOF_SPOOF
+system {
+	authentication {
+		# bcrypt cost-4 hash of "testpass".
+		user admin {
+			password "$2a$04$UlwuiuH82Unfsq.XEMPGJeDkXwbm3KW.nvVaVXOd/JeFK8VjMjrQO"
+		}
+	}
+}
+environment {
+	ssh {
+		enabled true
+		server main {
+			ip 127.0.0.1;
+			port $PORT2;
+		}
+	}
+}
+bus {
+	endpoint ddos-flowspec {
+		external {
+			run "le test fixture plugin/bus-state-spoof-probe meta/ddos-flowspec/announcement spoof.done";
+		}
+		encoding json;
+	}
+}
+ddos {
+	flowspec {
+		response-level enforce;
+		action discard;
+		hold-down 3600;
+	}
+}
+bgp {
+	router-id 192.0.2.254;
+	session {
+		asn { local 65000; }
+	}
+	peer edge1 {
+		filter {
+			import { final accept; }
+			export { final accept; }
+		}
+		connection {
+			remote { ip 127.0.0.2; connect false; }
+			local { ip 127.0.0.1; port $PORT; accept true; }
+		}
+		session {
+			asn { remote 65001; }
+			family {
+				ipv4/unicast { prefix { maximum 10000; } }
+				ipv4/flow { prefix { maximum 10000; } }
+			}
+			capability { graceful-restart disable; }
+		}
+	}
+}
+EOF_SPOOF
+
+tmpfs=compare-implied-wiring.py:mode=755:terminator=EOF_COMPARE
+#!/usr/bin/env python3
+import json
+import subprocess
+import sys
+
+
+def run_implied(cfg):
+    out = subprocess.check_output(
+        ["ze", "cli", "-c", "show config running | implied | json"],
+        text=True,
+    )
+    return json.loads(out)
+
+
+def extract_wiring(doc, endpoint_path):
+    for p in doc.get("implied", {}).get("participants", []):
+        if p.get("path") == endpoint_path:
+            sends = sorted(
+                [r.get("message", ""), r.get("origin", ""), sorted(r.get("targets", []))]
+                for r in p.get("send", [])
+            )
+            recvs = sorted(
+                [r.get("message", ""), r.get("origin", ""), sorted(r.get("targets", []))]
+                for r in p.get("receive", [])
+            )
+            return sends, recvs
+    raise SystemExit(f"participant {endpoint_path} not found in implied.participants")
+
+
+mode = sys.argv[1]
+if mode == "capture":
+    doc = run_implied(None)
+    sends, recvs = extract_wiring(doc, sys.argv[2])
+    with open(sys.argv[3], "w", encoding="utf-8") as fh:
+        json.dump({"send": sends, "receive": recvs}, fh)
+    print(f"OK: captured implied wiring for {sys.argv[2]}: sends={len(sends)} recvs={len(recvs)}")
+elif mode == "compare":
+    with open(sys.argv[3], encoding="utf-8") as fh:
+        baseline = json.load(fh)
+    doc = run_implied(None)
+    sends, recvs = extract_wiring(doc, sys.argv[2])
+    if sends != baseline["send"] or recvs != baseline["receive"]:
+        raise SystemExit(
+            f"aliased separate wiring mismatch:\n  got:      send={sends} recv={recvs}\n"
+            f"  baseline: send={baseline['send']} recv={baseline['receive']}"
+        )
+    if not any(msg == "bgp:update" for msg, _, _ in sends):
+        raise SystemExit(f"expected registered bgp:update send wiring, got {sends}")
+    print(f"OK: {sys.argv[2]} implied wiring matches in-daemon baseline")
+else:
+    raise SystemExit(f"unknown mode {mode}")
+EOF_COMPARE
+
+# --- Baseline: in-daemon ddos-flowspec ---
+cmd=background:seq=1:name=base-daemon:exec=ze start in-daemon.conf:ready=Ze running.
+reject=stderr:pattern=panic
+cmd=foreground:seq=2:exec=python3 compare-implied-wiring.py capture /bus/endpoint/ddos-flowspec baseline.json:exit=0
+expect=stdout:contains=OK: captured implied wiring for /bus/endpoint/ddos-flowspec
+cmd=stop:seq=3:name=base-daemon:signal=term
+
+# --- Positive case: aliased separate-process my-ddos (internal ddos-flowspec; process separate) ---
+cmd=foreground:seq=4:exec=ze config import --yes --name ze.conf aliased-separate.conf:exit=0
+cmd=background:seq=5:name=alias-daemon:exec=ze start aliased-separate.conf:ready=Ze running.
+reject=stderr:pattern=panic
+reject=stderr:pattern=ZE-OBSERVER-FAIL
+
+# Show doctor reports healthy (no orphan or stopped diagnostic for ddos-flowspec / my-ddos).
+cmd=foreground:seq=6:exec=ze cli -c "show doctor | json":exit=0
+reject=stdout:contains=doctor-ddos-flowspec-orphan-announcement
+reject=stdout:contains=doctor-plugin-stopped
+
+# Runtime event delivery identifies aliased /bus/endpoint/my-ddos alongside compiled registration ddos-flowspec.
+cmd=foreground:seq=7:exec=ze cli -c "show event delivery | json":exit=0
+expect=stdout:contains=my-ddos
+
+# Implied wiring matches the in-daemon baseline.
+cmd=foreground:seq=8:exec=python3 compare-implied-wiring.py compare /bus/endpoint/my-ddos baseline.json:exit=0
+expect=stdout:contains=OK: /bus/endpoint/my-ddos implied wiring matches in-daemon baseline
+
+# ze data rm of ddos-flowspec's state key is refused while aliased my-ddos runs,
+# naming alias my-ddos and its restart command.
+cmd=foreground:seq=9:exec=ze data rm meta/ddos-flowspec/announcement:exit=2
+expect=stderr:contains=my-ddos
+expect=stderr:contains=meta/ddos-flowspec/announcement
+expect=stderr:contains=ze request plugin restart my-ddos
+
+cmd=stop:seq=10:name=alias-daemon:signal=term
+
+# --- Negative case: foreign external endpoint named ddos-flowspec ---
+# Plant a recorded announcement between runs; import foreign-spoof.conf as active config.
+cmd=foreground:seq=11:exec=ze data write meta/ddos-flowspec/announcement record.json:exit=0
+cmd=foreground:seq=12:exec=ze config import --yes --name ze.conf foreign-spoof.conf:exit=0
+
+cmd=background:seq=13:name=spoof-daemon:exec=ze start foreign-spoof.conf:ready=Ze running.
+expect=stderr:contains=OK: foreign external state write to meta/ddos-flowspec/announcement was refused
+reject=stderr:pattern=ZE-OBSERVER-FAIL
+reject=stderr:pattern=panic
+
+cmd=foreground:seq=14:exec=le test fixture plugin/bus-wait-file spoof.done:exit=0
+expect=stdout:contains=OK: marker file spoof.done appeared
+
+# Doctor treats foreign external ddos-flowspec as NOT the compiled plugin, so the
+# planted record is reported under doctor-ddos-flowspec-orphan-announcement.
+cmd=foreground:seq=15:exec=le test fixture daemon/await-answer-all "show doctor | json" doctor-ddos-flowspec-orphan-announcement 203.0.113.9/32:exit=0
+expect=stdout:contains=OK:
+
+cmd=foreground:seq=16:exec=ze cli -c "show doctor | json":exit=0
+expect=stdout:contains="code": "doctor-ddos-flowspec-orphan-announcement"
+expect=stdout:contains=203.0.113.9/32
+reject=stdout:contains=no running responder holds that rule
+
+cmd=stop:seq=17:name=spoof-daemon:signal=term

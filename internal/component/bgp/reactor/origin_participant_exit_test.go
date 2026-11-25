@@ -643,3 +643,266 @@ func TestOriginParticipantExitDirectPath(t *testing.T) {
 		require.Len(t, updateBodies(t, conn.written()), 3, "sourceGenerationCleanup must honor OnExitKeep")
 	})
 }
+
+// TestParticipantRoutesWithdrawnWhenItGoes proves the S38 / AC-41 route
+// ownership contract on participant exit across both selected-RIB (bgp-rib)
+// and direct-peer paths:
+//  1. When participants a and b both announce 203.0.113.0/24 and a exits under
+//     the default withdraw policy, the peer still holds 203.0.113.0/24 from b
+//     with no withdrawal sent.
+//  2. When participant a alone announces 198.51.100.0/24 and exits under the
+//     default withdraw policy, 198.51.100.0/24 is withdrawn from the peer.
+//  3. When participant a alone announces 198.51.100.0/24 and exits with
+//     on-exit keep enabled, 198.51.100.0/24 stays advertised with no withdrawal.
+//
+// VALIDATES: S38, AC-41 (per-participant route withdrawal and on-exit keep).
+// PREVENTS: Leaked routes on participant exit, withdrawing a surviving
+// participant's shared prefix, or dropping routes under on-exit keep.
+func TestParticipantRoutesWithdrawnWhenItGoes(t *testing.T) {
+	const (
+		sharedPrefixStr = "203.0.113.0/24"
+		solePrefixStr   = "198.51.100.0/24"
+		nextHopA        = "192.0.2.10"
+		nextHopB        = "192.0.2.20"
+		epA             = "endpoint-a"
+		epB             = "endpoint-b"
+		epAKeep         = "endpoint-a-keep"
+	)
+	sharedPrefix := netip.MustParsePrefix(sharedPrefixStr)
+	solePrefix := netip.MustParsePrefix(solePrefixStr)
+
+	t.Run("selected-rib-path", func(t *testing.T) {
+		f := newMultiProducerRIBFixture(t, "s38-rib-provider")
+		f.grantProducer(epA)
+		f.grantProducer(epB)
+		f.grantProducer(epAKeep)
+
+		ownerA, stopA := originOwnerFixture(t, epA)
+		ownerB, stopB := originOwnerFixture(t, epB)
+		ownerKeep, stopKeep := originOwnerFixture(t, epAKeep)
+
+		// a and b both announce 203.0.113.0/24; a also alone announces 198.51.100.0/24.
+		_, err := f.writer.api.AnnounceNLRIBatchResult(
+			f.ctx, selector.ParseDefault(f.writer.peer.addrString),
+			participantBatch(sharedPrefixStr, nextHopA, ownerA), ownerA.Sender(),
+		)
+		require.NoError(t, err)
+		_, err = f.writer.api.AnnounceNLRIBatchResult(
+			f.ctx, selector.ParseDefault(f.writer.peer.addrString),
+			participantBatch(sharedPrefixStr, nextHopB, ownerB), ownerB.Sender(),
+		)
+		require.NoError(t, err)
+		_, err = f.writer.api.AnnounceNLRIBatchResult(
+			f.ctx, selector.ParseDefault(f.writer.peer.addrString),
+			participantBatch(solePrefixStr, nextHopA, ownerA), ownerA.Sender(),
+		)
+		require.NoError(t, err)
+
+		// Stopping a withdraws a's sole route 198.51.100.0/24 while 203.0.113.0/24
+		// remains advertised from surviving participant b.
+		beforeAExit := len(updateBodies(t, f.writer.conn.written()))
+		stopA()
+		require.NoError(t, f.writer.api.EndOriginOwner(f.ctx, ownerA))
+
+		bodiesAfterA := updateBodies(t, f.writer.conn.written())[beforeAExit:]
+		var withdrawn []netip.Prefix
+		var reannouncedB bool
+		for _, body := range bodiesAfterA {
+			withdrawn = append(withdrawn, updatePrefixes(t, body, true)...)
+			if slices.Equal(updatePrefixes(t, body, false), []netip.Prefix{sharedPrefix}) {
+				if hop, ok := bodyPathAttr(t, body, 3); ok && slices.Equal(hop, []byte{192, 0, 2, 20}) {
+					reannouncedB = true
+				}
+			}
+		}
+		require.Equal(t, []netip.Prefix{solePrefix}, withdrawn, "a's sole prefix must be withdrawn and shared prefix must not")
+		require.True(t, reannouncedB, "surviving participant b must hold shared prefix on the peer")
+
+		// Stopping b now withdraws 203.0.113.0/24.
+		beforeBExit := len(updateBodies(t, f.writer.conn.written()))
+		stopB()
+		require.NoError(t, f.writer.api.EndOriginOwner(f.ctx, ownerB))
+		bodiesAfterB := updateBodies(t, f.writer.conn.written())[beforeBExit:]
+		require.NotEmpty(t, bodiesAfterB)
+		require.Equal(t, []netip.Prefix{sharedPrefix}, updatePrefixes(t, bodiesAfterB[len(bodiesAfterB)-1], true))
+
+		// With on-exit keep, stopping endpoint-a-keep leaves 198.51.100.0/24 advertised.
+		_, err = f.writer.api.AnnounceNLRIBatchResult(
+			f.ctx, selector.ParseDefault(f.writer.peer.addrString),
+			participantBatch(solePrefixStr, nextHopA, ownerKeep), ownerKeep.Sender(),
+		)
+		require.NoError(t, err)
+		beforeKeepExit := len(updateBodies(t, f.writer.conn.written()))
+		stopKeep()
+		require.NoError(t, f.writer.api.EndOriginOwnerWithPolicy(f.ctx, ownerKeep, true))
+		for _, body := range updateBodies(t, f.writer.conn.written())[beforeKeepExit:] {
+			require.Empty(t, updatePrefixes(t, body, true), "on-exit keep must not withdraw the route")
+		}
+	})
+
+	t.Run("direct-peer-path", func(t *testing.T) {
+		api, peer, conn := newDirectOriginPeerFixture(t, epA, epB, epAKeep)
+		ownerA, stopA := originOwnerFixture(t, epA)
+		ownerB, stopB := originOwnerFixture(t, epB)
+		ownerKeep, stopKeep := originOwnerFixture(t, epAKeep)
+
+		// b announces shared prefix first, then a announces shared prefix and sole prefix.
+		require.NoError(t, api.AnnounceNLRIBatch(
+			t.Context(), selector.ParseDefault(peer.addrString),
+			participantBatch(sharedPrefixStr, nextHopB, ownerB), ownerB.Sender(),
+		))
+		require.NoError(t, api.AnnounceNLRIBatch(
+			t.Context(), selector.ParseDefault(peer.addrString),
+			participantBatch(sharedPrefixStr, nextHopA, ownerA), ownerA.Sender(),
+		))
+		require.NoError(t, api.AnnounceNLRIBatch(
+			t.Context(), selector.ParseDefault(peer.addrString),
+			participantBatch(solePrefixStr, nextHopA, ownerA), ownerA.Sender(),
+		))
+
+		beforeAExit := len(updateBodies(t, conn.written()))
+		stopA()
+		require.NoError(t, api.EndOriginOwner(t.Context(), ownerA))
+
+		bodiesAfterA := updateBodies(t, conn.written())[beforeAExit:]
+		var withdrawn []netip.Prefix
+		var reannouncedB bool
+		for _, body := range bodiesAfterA {
+			withdrawn = append(withdrawn, updatePrefixes(t, body, true)...)
+			if slices.Equal(updatePrefixes(t, body, false), []netip.Prefix{sharedPrefix}) {
+				if hop, ok := bodyPathAttr(t, body, 3); ok && slices.Equal(hop, []byte{192, 0, 2, 20}) {
+					reannouncedB = true
+				}
+			}
+		}
+		require.Equal(t, []netip.Prefix{solePrefix}, withdrawn, "a's sole prefix must be withdrawn and shared prefix must not")
+		require.True(t, reannouncedB, "surviving participant b must be re-announced for shared prefix")
+
+		beforeBExit := len(updateBodies(t, conn.written()))
+		stopB()
+		require.NoError(t, api.EndOriginOwner(t.Context(), ownerB))
+		bodiesAfterB := updateBodies(t, conn.written())[beforeBExit:]
+		require.NotEmpty(t, bodiesAfterB)
+		require.Equal(t, []netip.Prefix{sharedPrefix}, updatePrefixes(t, bodiesAfterB[len(bodiesAfterB)-1], true))
+
+		// With on-exit keep, sole prefix stays advertised without withdrawal.
+		require.NoError(t, api.AnnounceNLRIBatch(
+			t.Context(), selector.ParseDefault(peer.addrString),
+			participantBatch(solePrefixStr, nextHopA, ownerKeep), ownerKeep.Sender(),
+		))
+		beforeKeepExit := len(updateBodies(t, conn.written()))
+		stopKeep()
+		require.NoError(t, api.EndOriginOwnerWithPolicy(t.Context(), ownerKeep, true))
+		require.Len(t, updateBodies(t, conn.written()), beforeKeepExit, "on-exit keep must not send a withdrawal")
+	})
+}
+
+// TestCommandContextOriginIdentityWithdrawnOnProcessExit verifies the end-to-end
+// daemon wiring from CommandContext.OriginContext() (used by `send bgp ... update
+// text` without a pre-populated batch.OriginOwner and with nil Wire attributes)
+// through a *plugin.Coordinator-backed Server and sourceGenerationCleanup on
+// process exit (S38).
+//
+// VALIDATES: CommandContext.OriginContext -> AnnounceNLRIBatchResult ->
+// Coordinator.FullReactor -> sourceGenerationCleanup -> EndOriginOwnerWithPolicy
+// for both default withdraw and on-exit keep.
+// PREVENTS: routes dispatched via CommandContext losing process incarnation
+// ownership or failing to withdraw when the Server wraps its reactor in a Coordinator.
+func TestCommandContextOriginIdentityWithdrawnOnProcessExit(t *testing.T) {
+	f := newMultiProducerRIBFixture(t, "s38-cmdctx-rib")
+	for _, epName := range []string{"a", "b", "a-keep"} {
+		name := epName
+		f.grantProducer(name)
+		require.NoError(t, registry.Register(registry.Registration{
+			Name:       name,
+			CLIHandler: func([]string) int { return 0 },
+			RunEngine: func(conn net.Conn) int {
+				<-t.Context().Done()
+				_ = conn.Close()
+				return 0
+			},
+		}))
+	}
+
+	f.writer.api.SetConfigTree(map[string]any{})
+	coord := plugin.NewCoordinator(map[string]any{})
+	require.NoError(t, coord.AttachReactor(f.writer.api))
+	srv, err := pluginserver.NewServer(&pluginserver.ServerConfig{}, coord)
+	require.NoError(t, err)
+
+	startProc := func(name, onExit string) *process.Process {
+		t.Helper()
+		proc := process.NewProcess(plugin.PluginConfig{Name: name, Internal: true, OnExit: onExit})
+		require.NoError(t, proc.StartWithContext(t.Context()))
+		require.NoError(t, proc.InitConns())
+		proc.StartDelivery(t.Context())
+		t.Cleanup(func() { proc.Stop() })
+		return proc
+	}
+
+	announceViaCommandContext := func(proc *process.Process, prefixStr, nextHopStr string) {
+		t.Helper()
+		cmdCtx := &pluginserver.CommandContext{
+			Server:         srv,
+			Process:        proc,
+			RequestContext: f.ctx,
+			Sender:         plugin.ProcessSender(proc.Name()),
+		}
+		originCtx := cmdCtx.OriginContext()
+		p := netip.MustParsePrefix(prefixStr)
+		// Match `send bgp <peer> update text nhop <ip> nlri add <prefix>`:
+		// OriginOwner is intentionally left unset on the batch so reactor reads
+		// it from originCtx, and Wire is nil (no explicit path attributes).
+		batch := bgptypes.NLRIBatch{
+			Family:  family.IPv4Unicast,
+			NLRIs:   []nlri.NLRI{nlri.NewINET(family.IPv4Unicast, p, 0, false)},
+			NextHop: bgptypes.NewNextHopExplicit(netip.MustParseAddr(nextHopStr)),
+		}
+		_, err := f.writer.api.AnnounceNLRIBatchResult(originCtx, selector.ParseDefault(f.writer.peer.addrString), batch, cmdCtx.Sender)
+		require.NoError(t, err)
+	}
+
+	procA := startProc("a", "")
+	procB := startProc("b", "")
+	procKeep := startProc("a-keep", plugin.OnExitKeep)
+
+	sharedPrefix := netip.MustParsePrefix("203.0.113.0/24")
+	solePrefix := netip.MustParsePrefix("198.51.100.0/24")
+
+	// Exact S38 Run 1 sequence: a announces 203.0.113.0/24 and 198.51.100.0/24,
+	// then b announces 203.0.113.0/24 with a distinct next-hop.
+	announceViaCommandContext(procA, "203.0.113.0/24", "192.0.2.10")
+	announceViaCommandContext(procA, "198.51.100.0/24", "192.0.2.10")
+	announceViaCommandContext(procB, "203.0.113.0/24", "192.0.2.20")
+
+	// Exit a through sourceGenerationCleanup on the Coordinator-backed Server:
+	// two wire UPDATEs follow -- b's re-announcement of 203.0.113.0/24 with
+	// next-hop 192.0.2.20 and the withdrawal of 198.51.100.0/24.
+	beforeExit := len(updateBodies(t, f.writer.conn.written()))
+	procA.Stop()
+	sourceGenerationCleanup(srv, procA)
+
+	bodiesAfterA := updateBodies(t, f.writer.conn.written())[beforeExit:]
+	require.Len(t, bodiesAfterA, 2, "exiting a produces one failover re-announce for b and one withdrawal for a's sole prefix")
+	var withdrawn []netip.Prefix
+	var reannouncedB bool
+	for _, body := range bodiesAfterA {
+		withdrawn = append(withdrawn, updatePrefixes(t, body, true)...)
+		if slices.Equal(updatePrefixes(t, body, false), []netip.Prefix{sharedPrefix}) {
+			if hop, ok := bodyPathAttr(t, body, 3); ok && slices.Equal(hop, []byte{192, 0, 2, 20}) {
+				reannouncedB = true
+			}
+		}
+	}
+	require.Equal(t, []netip.Prefix{solePrefix}, withdrawn)
+	require.True(t, reannouncedB)
+
+	// S38 Run 2: on-exit keep retains 198.51.100.0/24 across sourceGenerationCleanup.
+	announceViaCommandContext(procKeep, "198.51.100.0/24", "192.0.2.10")
+	beforeKeepExit := len(updateBodies(t, f.writer.conn.written()))
+	procKeep.Stop()
+	sourceGenerationCleanup(srv, procKeep)
+	for _, body := range updateBodies(t, f.writer.conn.written())[beforeKeepExit:] {
+		require.Empty(t, updatePrefixes(t, body, true), "on-exit keep must not withdraw originated route")
+	}
+}

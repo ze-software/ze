@@ -1,0 +1,143 @@
+# Test: per-message bus tag filters deliver matching tagged events, drop non-matching ones, keep unfiltered receivers passing all events, and refuse undeclared tags or invalid tag values at validate time.
+# QUESTION: with an external sender emitting two `bgp:route-change` events (`source=static`
+# and `source=bgp`), an endpoint `collector` configured with
+# `receive { message bgp:route-change { tag source { value [ bgp ]; } } }`, and a negative
+# control endpoint `unfiltered` with no `tag` filter: does `collector` record ONLY the
+# `source=bgp` event and drop `source=static` while `unfiltered` records both; and does
+# `ze config validate` refuse `tag nosuch { value [ x ]; }` (Refusal 9, listing declared
+# tag `source`) and `tag source { value [ nosuch ]; }` (Refusal 10, listing valid values
+# `bgp` and `static`)?
+# A unit test cannot decide this because it spans Stage 1 external tag-schema declaration
+# over TLS, live `emit-event` tag extraction and matching in the delivery pipeline, JSON
+# delivery to two live external receivers, and offline `ze config validate` query-mode
+# tag schema validation.
+#
+# VALIDATES: spec-explicit-plugin-and-attach-config S41 / AC-44, AC-6.
+# PREVENTS: live bus delivery ignoring non-direction per-message tag filters, dropping
+# events on unfiltered receivers, or committing undeclared tags / invalid tag values.
+
+option=timeout:value=90s
+
+tmpfs=running.conf:terminator=EOF_CONF
+bus {
+	endpoint rc-sender {
+		external {
+			run "le test fixture plugin/bus-tag-sender sender.done";
+		}
+		encoding json;
+	}
+	endpoint collector {
+		external {
+			run "le test fixture plugin/bus-event-collector bgp:route-change filtered.log from-bgp filtered.done";
+		}
+		encoding json;
+		receive {
+			message bgp:route-change {
+				tag source {
+					value [ bgp ];
+				}
+			}
+		}
+	}
+	endpoint unfiltered {
+		external {
+			run "le test fixture plugin/bus-event-collector bgp:route-change unfiltered.log from-bgp unfiltered.done";
+		}
+		encoding json;
+	}
+}
+EOF_CONF
+
+# Refusal 9: undeclared tag name on bgp:route-change.
+tmpfs=bad-tag.conf:refused=config-parse:terminator=EOF_BADTAG
+bus {
+	endpoint rc-sender {
+		external {
+			run "le test fixture plugin/bus-tag-sender unused.done";
+		}
+		encoding json;
+	}
+	endpoint collector {
+		external {
+			run "le test fixture plugin/bus-event-collector bgp:route-change unused.log";
+		}
+		encoding json;
+		receive {
+			message bgp:route-change {
+				tag nosuch {
+					value [ x ];
+				}
+			}
+		}
+	}
+}
+EOF_BADTAG
+
+# Refusal 10: invalid value for declared tag `source` on bgp:route-change.
+tmpfs=bad-val.conf:refused=config-parse:terminator=EOF_BADVAL
+bus {
+	endpoint rc-sender {
+		external {
+			run "le test fixture plugin/bus-tag-sender unused.done";
+		}
+		encoding json;
+	}
+	endpoint collector {
+		external {
+			run "le test fixture plugin/bus-event-collector bgp:route-change unused.log";
+		}
+		encoding json;
+		receive {
+			message bgp:route-change {
+				tag source {
+					value [ nosuch ];
+				}
+			}
+		}
+	}
+}
+EOF_BADVAL
+
+# Step 1: live runtime tag filtering (positive filtered collector + negative unfiltered control).
+cmd=background:seq=1:name=daemon:exec=ze start running.conf:ready=Ze running.
+expect=stderr:contains=OK: emitted static and bgp route-change events
+reject=stderr:pattern=ZE-OBSERVER-FAIL
+reject=stderr:pattern=panic
+
+cmd=foreground:seq=2:exec=le test fixture plugin/bus-wait-file sender.done:exit=0
+expect=stdout:contains=OK: marker file sender.done appeared
+
+cmd=foreground:seq=3:exec=le test fixture plugin/bus-wait-file filtered.done:exit=0
+expect=stdout:contains=OK: marker file filtered.done appeared
+
+cmd=foreground:seq=4:exec=le test fixture plugin/bus-wait-file unfiltered.done:exit=0
+expect=stdout:contains=OK: marker file unfiltered.done appeared
+
+# Filtered collector recorded from-bgp and dropped from-static.
+cmd=foreground:seq=5:exec=le test fixture plugin/bus-assert-implied file-contains filtered.log from-bgp:exit=0
+expect=stdout:contains=OK: file filtered.log contains from-bgp
+cmd=foreground:seq=6:exec=le test fixture plugin/bus-assert-implied file-not-contains filtered.log from-static:exit=0
+expect=stdout:contains=OK: file filtered.log does not contain from-static
+
+# Negative control: unfiltered receiver recorded BOTH from-static and from-bgp.
+cmd=foreground:seq=7:exec=le test fixture plugin/bus-assert-implied file-contains unfiltered.log from-static:exit=0
+expect=stdout:contains=OK: file unfiltered.log contains from-static
+cmd=foreground:seq=8:exec=le test fixture plugin/bus-assert-implied file-contains unfiltered.log from-bgp:exit=0
+expect=stdout:contains=OK: file unfiltered.log contains from-bgp
+
+cmd=stop:seq=9:name=daemon:signal=term
+
+# Step 2: Refusal 9 (unknown tag name lists declared tag `source`).
+cmd=foreground:seq=10:exec=ze config validate bad-tag.conf
+expect=exit:code=1
+expect=stdout:contains=nosuch
+expect=stdout:contains=bgp:route-change
+expect=stdout:contains=source
+
+# Step 3: Refusal 10 (invalid tag value lists valid values `bgp` and `static`).
+cmd=foreground:seq=11:exec=ze config validate bad-val.conf
+expect=exit:code=1
+expect=stdout:contains=nosuch
+expect=stdout:contains=source
+expect=stdout:contains=bgp
+expect=stdout:contains=static

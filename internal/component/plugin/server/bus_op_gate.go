@@ -703,27 +703,41 @@ func stampSenderInJSON(eventJSON, stampedSender string) string {
 
 // filterReceiversByCompiledSender filters candidate subscriber processes
 // against compiled.Receivers(stampedSender, ...) when both sender and receiver
-// are represented in the compiled bus (enforcing receive > from and send > to
-// on emitted events, AC-35 / S25).
+// are represented in the compiled bus (enforcing receive > from, send > to,
+// and non-direction per-message tag filters on emitted events, AC-35 / S25 /
+// AC-44 / S41). Tag extraction runs ONLY when at least one receiver on the
+// (sender, message, direction) edge carries a runtime tag filter.
 func filterReceiversByCompiledSender(
 	compiled *CompiledBus,
 	stampedSender string,
 	nsID events.NamespaceID,
 	etID events.EventTypeID,
 	dirID events.Direction,
+	payload any,
 	procs []*process.Process,
 ) []*process.Process {
 	if compiled == nil {
 		return procs
 	}
-	if compiled.Filter(stampedSender) == nil {
+	if len(procs) == 0 {
 		return procs
 	}
-	admitted := compiled.Receivers(stampedSender, nsID, etID, dirID, nil, nil)
+	if compiled.Filter(stampedSender) == nil {
+		return filterReceiversByInboundTags(compiled, nsID, etID, payload, procs)
+	}
+	filterTags := compiled.deliveryFilterTags(stampedSender, nsID, etID, dirID)
+	var admitted []string
+	if len(filterTags) == 0 {
+		admitted = compiled.Receivers(stampedSender, nsID, etID, dirID, nil, nil)
+	} else {
+		var tagBuf [busTagStackCap]BusTagValue
+		msgTags := extractEventBusTags(compiled.Interner(), filterTags, payload, tagBuf[:0])
+		var recvBuf [busTagStackCap]string
+		admitted = compiled.Receivers(stampedSender, nsID, etID, dirID, msgTags, recvBuf[:0])
+	}
 	kept := procs[:0]
 	for _, p := range procs {
-		epPath := plugin.EndpointPath(p.Name())
-		if compiled.Filter(epPath) == nil {
+		if !compiled.hasEndpoint(p.Name()) {
 			kept = append(kept, p)
 			continue
 		}

@@ -1,0 +1,240 @@
+# Test: two ExaBGP script endpoints declaring identical virtual session capabilities deduplicate on the wire, while conflicting ADD-PATH modes toward the same peer are refused at startup.
+# QUESTION: when an ExaBGP config with two processes `s1` and `s2` on neighbor `edge1`
+# declaring `family { ipv4 unicast; ipv6 unicast; }` and `capability { route-refresh; }`
+# is migrated with `ze exabgp migrate`, do both `run` lines carry
+# `--family ipv4/unicast --family ipv6/unicast --route-refresh` (and omit `--route-refresh`
+# when removed from ExaBGP config); does starting the migrated config unedited succeed with
+# both endpoints declaring route-refresh (code 2) at Stage 3 without conflict, deduplicating
+# code 2 on the OPEN sent to `edge1`, and reporting `"route-refresh": true` in
+# `show bgp peer edge1 detail | json`; and in the negative case, do two endpoints declaring
+# conflicting ADD-PATH modes (`--add-path send` vs `--add-path receive`) toward `edge1`
+# fail startup naming both endpoints, capability code 69, both values, and the fix?
+# A unit test cannot decide this because the path spans `ze exabgp migrate`, unedited daemon
+# startup with two real `ze exabgp plugin` subprocesses, Stage 3 `CapabilityInjector`
+# deduplication vs conflict refusal, real BGP OPEN negotiation, and `show bgp peer`.
+#
+# VALIDATES: spec-explicit-plugin-and-attach-config S40 / AC-43.
+# PREVENTS: duplicate identical capability declarations from sibling ExaBGP scripts failing
+# startup, duplicate capability code 2 bytes on the wire, or silent override when two
+# endpoints declare conflicting ADD-PATH modes toward the same peer.
+
+option=timeout:value=120s
+option=env:var=ZE_CONFIG_DIR:value=.
+option=env:var=XDG_DATA_HOME:value=.
+option=env:var=ze.ssh.password:value=testpass
+
+stdin=init-answers:terminator=EOF_INIT
+admin
+testpass
+127.0.0.1
+$PORT2
+EOF_INIT
+
+tmpfs=s1.sh:mode=755:terminator=EOF_S1
+#!/bin/sh
+while IFS= read -r _; do
+	:
+done
+EOF_S1
+
+tmpfs=s2.sh:mode=755:terminator=EOF_S2
+#!/bin/sh
+while IFS= read -r _; do
+	:
+done
+EOF_S2
+
+tmpfs=exabgp-s40.conf:terminator=EOF_EXA40
+process s1 {
+	run ./s1.sh;
+}
+process s2 {
+	run ./s2.sh;
+}
+neighbor 127.0.0.2 {
+	description "edge1";
+	router-id 1.1.1.1;
+	local-address 127.0.0.1;
+	local-as 65001;
+	peer-as 65002;
+	family {
+		ipv4 unicast;
+		ipv6 unicast;
+	}
+	capability {
+		route-refresh;
+	}
+	api {
+		processes [ s1 s2 ];
+	}
+}
+EOF_EXA40
+
+tmpfs=exabgp-s40-no-rr.conf:terminator=EOF_EXA40_NORR
+process s1 {
+	run ./s1.sh;
+}
+process s2 {
+	run ./s2.sh;
+}
+neighbor 127.0.0.2 {
+	description "edge1";
+	router-id 1.1.1.1;
+	local-address 127.0.0.1;
+	local-as 65001;
+	peer-as 65002;
+	family {
+		ipv4 unicast;
+		ipv6 unicast;
+	}
+	api {
+		processes [ s1 s2 ];
+	}
+}
+EOF_EXA40_NORR
+
+tmpfs=ssh-snippet.conf:terminator=EOF_SSH
+system {
+	authentication {
+		# bcrypt cost-4 hash of "testpass".
+		user admin {
+			password "$2a$04$UlwuiuH82Unfsq.XEMPGJeDkXwbm3KW.nvVaVXOd/JeFK8VjMjrQO"
+		}
+	}
+}
+environment {
+	ssh {
+		enabled true
+		server main { ip 127.0.0.1; port $PORT2; }
+	}
+}
+EOF_SSH
+
+# Negative case: two endpoints declaring conflicting ADD-PATH modes (send vs receive) toward edge1.
+tmpfs=conflict-addpath.conf:terminator=EOF_CONFLICT
+bus {
+	endpoint bgp-rib { internal bgp-rib; }
+	endpoint s1 {
+		external {
+			run "ze exabgp plugin --family ipv4/unicast --add-path send ./s1.sh";
+		}
+		encoding json;
+		receive { from none; }
+		send { to [ /bgp/peer/edge1 ]; }
+	}
+	endpoint s2 {
+		external {
+			run "ze exabgp plugin --family ipv4/unicast --add-path receive ./s2.sh";
+		}
+		encoding json;
+		receive { from none; }
+		send { to [ /bgp/peer/edge1 ]; }
+	}
+}
+bgp {
+	router-id 192.0.2.254;
+	filter {
+		import { final accept; }
+		export { final accept; }
+	}
+	peer edge1 {
+		connection {
+			remote { ip 127.0.0.2; }
+			local { ip 127.0.0.1; accept false; }
+		}
+		session {
+			asn { local 65001; remote 65002; }
+			family { ipv4/unicast { prefix { maximum 10000; } } }
+			capability { graceful-restart disable; }
+		}
+	}
+}
+EOF_CONFLICT
+
+tmpfs=verify-migrate-s40.py:mode=755:terminator=EOF_MIG40
+#!/usr/bin/env python3
+import subprocess
+
+out = subprocess.check_output(["ze", "exabgp", "migrate", "exabgp-s40.conf"], text=True)
+with open("migrated.conf", "w", encoding="utf-8") as fh:
+    fh.write(out)
+
+for expected in (
+    'run "ze exabgp plugin --family ipv4/unicast --family ipv6/unicast --route-refresh ./s1.sh"',
+    'run "ze exabgp plugin --family ipv4/unicast --family ipv6/unicast --route-refresh ./s2.sh"',
+):
+    if expected not in out:
+        raise SystemExit(f"migrated.conf missing {expected!r}:\n{out}")
+
+subprocess.check_call(["ze", "config", "validate", "migrated.conf"])
+
+no_rr = subprocess.check_output(["ze", "exabgp", "migrate", "exabgp-s40-no-rr.conf"], text=True)
+if "--route-refresh" in no_rr:
+    raise SystemExit(f"migrated config without route-refresh must omit --route-refresh:\n{no_rr}")
+
+print("OK: migrate emitted --family and --route-refresh on both s1 and s2, and omitted --route-refresh without capability")
+EOF_MIG40
+
+# Peer edge1 offering route-refresh (code 2) and ipv4/unicast + ipv6/unicast.
+stdin=edge1-unedited:terminator=EOF_PEER1
+option=tcp_connections:value=1
+option=asn:value=65002
+option=open:value=router-id:id=192.0.2.1
+option=open:value=add-capability:code=2:hex=
+option=linger:value=true
+option=established-file:path=edge1-unedited.up
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
+EOF_PEER1
+
+stdin=edge1-cli:terminator=EOF_PEER2
+option=tcp_connections:value=1
+option=asn:value=65002
+option=open:value=router-id:id=192.0.2.1
+option=open:value=add-capability:code=2:hex=
+option=linger:value=true
+option=established-file:path=edge1-cli.up
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
+EOF_PEER2
+
+# Step 1: migrate and verify exact flags (positive + negative no-route-refresh control).
+cmd=foreground:seq=1:exec=python3 verify-migrate-s40.py:exit=0
+expect=stdout:contains=OK: migrate emitted --family and --route-refresh on both s1 and s2, and omitted --route-refresh without capability
+
+# Step 2: run migrated.conf UNEDITED; both s1 and s2 declare route-refresh at Stage 3 without conflict.
+cmd=background:seq=2:name=peer1:exec=le test peer --bind 127.0.0.2 --port $PORT:stdin=edge1-unedited
+cmd=background:seq=3:name=daemon1:exec=ze start migrated.conf:ready=Ze running.
+reject=stderr:pattern=panic
+
+cmd=foreground:seq=4:exec=le test fixture plugin/bus-wait-file edge1-unedited.up:exit=0
+expect=stdout:contains=OK: marker file edge1-unedited.up appeared
+
+cmd=stop:seq=5:name=daemon1:signal=term
+cmd=stop:seq=6:name=peer1
+
+# Step 3: inspect `show bgp peer edge1 detail | json` confirming route-refresh negotiated.
+cmd=foreground:seq=7:exec=ze init:stdin=init-answers:exit=0
+cmd=foreground:seq=8:exec=le test fixture plugin/bus-assert-implied merge-config migrated.conf ssh-snippet.conf migrated-ssh.conf:exit=0
+expect=stdout:contains=OK: merged migrated.conf + ssh-snippet.conf -> migrated-ssh.conf
+
+cmd=background:seq=9:name=peer2:exec=le test peer --bind 127.0.0.2 --port $PORT:stdin=edge1-cli
+cmd=background:seq=10:name=daemon2:exec=ze start migrated-ssh.conf:ready=Ze running.
+reject=stderr:pattern=panic
+
+cmd=foreground:seq=11:exec=le test fixture plugin/bus-wait-file edge1-cli.up:exit=0
+expect=stdout:contains=OK: marker file edge1-cli.up appeared
+
+cmd=foreground:seq=12:exec=le test fixture daemon/await-answer-all "show bgp peer edge1 detail | json" '"route-refresh": true':exit=0
+expect=stdout:contains=OK:
+
+cmd=stop:seq=13:name=daemon2:signal=term
+cmd=stop:seq=14:name=peer2
+
+# Step 4 (negative case): conflicting ADD-PATH modes (send=00010102 vs receive=00010101) toward edge1 refused at start.
+cmd=foreground:seq=15:exec=ze start conflict-addpath.conf:timeout=20s
+expect=exit:code=1
+expect=stderr:contains=capability conflict: code 69
+expect=stderr:contains=s1
+expect=stderr:contains=s2
+expect=stderr:contains=00010102
+expect=stderr:contains=00010101
+expect=stderr:contains=align the capability declaration across endpoints

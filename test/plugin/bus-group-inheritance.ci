@@ -1,0 +1,256 @@
+# Test: group bus rules inherit per item; a member's `send > to` replaces the group's `send > to` whole while keeping the group's inherited `receive > from`.
+# QUESTION: when group `transit` defines `send { to [ /bus/endpoint/bgp-rib ]; }` and
+# `receive { from [ /bus/endpoint/bgp-rib ]; }`, member `t1` overrides only
+# `send { to [ /bus/endpoint/collector ]; }`, and member `t2` writes no `bus` block,
+# does `t2`'s route go to Loc-RIB only, does `t1`'s route go to `collector` only, is
+# external endpoint `sender`'s update addressed to `t1` refused because `t1` inherited
+# `transit`'s `receive > from` (and does `show config running | implied` show `t1`'s
+# inherited `receive > from` from `transit`), and when `t1` adds
+# `receive { from [ /bus/endpoint/sender ]; }`, is `sender`'s update delivered to `t1`
+# on the wire? A unit test cannot decide this because it spans schema-driven replace-whole
+# inheritance in `ResolveBGPTree`, live delivery graph compilation, `| implied` origin
+# attribution, and live BGP wire enforcement of `receive > from`.
+#
+# VALIDATES: spec-explicit-plugin-and-attach-config S6 / AC-2, AC-23.
+# PREVENTS: a member's `send > to` clobbering inherited `receive > from`, or a group's
+# `send > to` merging with rather than being replaced by a member's `send > to`.
+
+option=timeout:value=120s
+option=env:var=ZE_CONFIG_DIR:value=.
+option=env:var=XDG_DATA_HOME:value=.
+option=env:var=ze.ssh.password:value=testpass
+
+stdin=init-answers:terminator=EOF_INIT
+admin
+testpass
+127.0.0.1
+$PORT2
+EOF_INIT
+
+# Peer scripts for Run 1 (t1 inherits transit's receive > from [ /bus/endpoint/bgp-rib ]).
+stdin=t1-run1:terminator=EOF_T1_R1
+option=tcp_connections:value=1
+option=timeout:value=60s
+option=asn:value=65001
+option=open:value=router-id:id=127.0.0.2
+option=linger:value=true
+option=established-file:path=t1-r1.up
+option=update:value=send-route:prefix=203.0.113.0/24:next-hop=192.0.2.1
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
+reject=bgp:conn=1:scope=announced:pattern=180A0001
+EOF_T1_R1
+
+stdin=t2-run1:terminator=EOF_T2_R1
+option=tcp_connections:value=1
+option=timeout:value=60s
+option=asn:value=65002
+option=open:value=router-id:id=127.0.0.3
+option=linger:value=true
+option=established-file:path=t2-r1.up
+option=update:value=send-route:prefix=198.51.100.0/24:next-hop=192.0.2.2
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
+EOF_T2_R1
+
+# Peer script for Run 2 (t1 overrides receive > from [ /bus/endpoint/sender ] and receives 10.0.1.0/24 = 180A0001).
+stdin=t1-run2:terminator=EOF_T1_R2
+option=tcp_connections:value=1
+option=timeout:value=60s
+option=asn:value=65001
+option=open:value=router-id:id=127.0.0.2
+option=linger:value=true
+option=established-file:path=t1-r2.up
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
+expect=bgp:conn=1:seq=1:announced=180A0001
+EOF_T1_R2
+
+tmpfs=s6-inherit.conf:terminator=EOF_S6_1
+system {
+	authentication {
+		user admin {
+			password "$2a$04$UlwuiuH82Unfsq.XEMPGJeDkXwbm3KW.nvVaVXOd/JeFK8VjMjrQO"
+		}
+	}
+}
+environment {
+	ssh {
+		enabled true
+		server main { ip 127.0.0.1; port $PORT2; }
+	}
+}
+bus {
+	endpoint collector {
+		external {
+			run "le test fixture plugin/bus-bgp-collector s6-collector.log";
+		}
+		encoding json;
+	}
+	endpoint sender {
+		external {
+			run "le test fixture plugin/bus-bgp-sender update sender1.go 127.0.0.2 10.0.1.0/24 expect-refused sender1.done";
+		}
+		encoding json;
+	}
+}
+bgp {
+	router-id 192.0.2.254;
+	filter {
+		import { final accept; }
+		export { final accept; }
+	}
+	group transit {
+		bus {
+			send {
+				to [ /bus/endpoint/bgp-rib ];
+			}
+			receive {
+				from [ /bus/endpoint/bgp-rib ];
+			}
+		}
+		peer t1 {
+			connection {
+				remote { ip 127.0.0.2; }
+				local { ip 127.0.0.1; accept false; }
+			}
+			session {
+				asn { local 65000; remote 65001; }
+				family { ipv4/unicast { prefix { maximum 10000; } } }
+				capability { graceful-restart disable; }
+			}
+			behavior { group-updates disable; }
+			bus {
+				send {
+					to [ /bus/endpoint/collector ];
+				}
+			}
+		}
+		peer t2 {
+			connection {
+				remote { ip 127.0.0.3; }
+				local { ip 127.0.0.1; accept false; }
+			}
+			session {
+				asn { local 65000; remote 65002; }
+				family { ipv4/unicast { prefix { maximum 10000; } } }
+				capability { graceful-restart disable; }
+			}
+			behavior { group-updates disable; }
+		}
+	}
+}
+EOF_S6_1
+
+tmpfs=s6-override-receive.conf:terminator=EOF_S6_2
+system {
+	authentication {
+		user admin {
+			password "$2a$04$UlwuiuH82Unfsq.XEMPGJeDkXwbm3KW.nvVaVXOd/JeFK8VjMjrQO"
+		}
+	}
+}
+environment {
+	ssh {
+		enabled true
+		server main { ip 127.0.0.1; port $PORT2; }
+	}
+}
+bus {
+	endpoint collector {
+		external {
+			run "le test fixture plugin/bus-bgp-collector s6-collector2.log";
+		}
+		encoding json;
+	}
+	endpoint sender {
+		external {
+			run "le test fixture plugin/bus-bgp-sender update sender2.go 127.0.0.2 10.0.1.0/24 expect-ok sender2.done";
+		}
+		encoding json;
+	}
+}
+bgp {
+	router-id 192.0.2.254;
+	filter {
+		import { final accept; }
+		export { final accept; }
+	}
+	group transit {
+		bus {
+			send {
+				to [ /bus/endpoint/bgp-rib ];
+			}
+			receive {
+				from [ /bus/endpoint/bgp-rib ];
+			}
+		}
+		peer t1 {
+			connection {
+				remote { ip 127.0.0.2; }
+				local { ip 127.0.0.1; accept false; }
+			}
+			session {
+				asn { local 65000; remote 65001; }
+				family { ipv4/unicast { prefix { maximum 10000; } } }
+				capability { graceful-restart disable; }
+			}
+			behavior { group-updates disable; }
+			bus {
+				send {
+					to [ /bus/endpoint/collector ];
+				}
+				receive {
+					from [ /bus/endpoint/sender ];
+				}
+			}
+		}
+	}
+}
+EOF_S6_2
+
+cmd=foreground:seq=1:exec=ze init:stdin=init-answers:exit=0
+
+# --- Run 1: t2 inherits both, t1 overrides send > to only and inherits receive > from ---
+cmd=background:seq=2:name=t1-r1:exec=le test peer --bind 127.0.0.2 --port $PORT:stdin=t1-run1
+cmd=background:seq=3:name=t2-r1:exec=le test peer --bind 127.0.0.3 --port $PORT:stdin=t2-run1
+cmd=background:seq=4:name=daemon1:exec=ze start s6-inherit.conf:ready=Ze running.
+reject=stderr:pattern=ZE-OBSERVER-FAIL
+reject=stderr:pattern=panic
+
+cmd=foreground:seq=5:exec=le test fixture plugin/bus-wait-file t1-r1.up:exit=0
+cmd=foreground:seq=6:exec=le test fixture plugin/bus-wait-file t2-r1.up:exit=0
+cmd=foreground:seq=7:exec=le test fixture plugin/bus-assert-implied poll-file-contains s6-collector.log 203.0.113.0/24:exit=0
+cmd=foreground:seq=8:exec=le test fixture daemon/await-answer-all "show bgp rib" 198.51.100.0/24:exit=0
+
+# t1 went to collector only; t2 went to Loc-RIB only.
+cmd=foreground:seq=9:exec=le test fixture plugin/bus-assert-implied file-not-contains s6-collector.log 198.51.100.0/24:exit=0
+cmd=foreground:seq=10:exec=le test fixture plugin/bus-assert-implied file-not-contains s6-collector.log 127.0.0.3:exit=0
+cmd=foreground:seq=11:exec=ze cli -c "show bgp rib":exit=0
+expect=stdout:contains=198.51.100.0/24
+reject=stdout:contains=203.0.113.0/24
+
+# | implied shows inherited receive > from on t1 citing transit.
+cmd=foreground:seq=12:exec=le test fixture plugin/bus-assert-implied rule /bgp/group/transit/peer/t1 receive bgp:update inherited /bus/endpoint/bgp-rib --source-contains transit:exit=0
+expect=stdout:contains=OK:
+
+# sender's update addressed to t1 is refused by t1's inherited receive > from.
+cmd=foreground:seq=13:exec=le test fixture plugin/bus-touch-file sender1.go:exit=0
+cmd=foreground:seq=14:exec=le test fixture plugin/bus-wait-file sender1.done:exit=0
+
+cmd=stop:seq=15:name=daemon1:signal=term
+cmd=stop:seq=16:name=t1-r1
+cmd=stop:seq=17:name=t2-r1
+
+# --- Run 2 (negative): t1 overrides receive > from [ /bus/endpoint/sender ], so sender delivers 10.0.1.0/24 ---
+cmd=background:seq=18:name=t1-r2:exec=le test peer --bind 127.0.0.2 --port $PORT:stdin=t1-run2
+cmd=background:seq=19:name=daemon2:exec=ze start s6-override-receive.conf:ready=Ze running.
+reject=stderr:pattern=ZE-OBSERVER-FAIL
+reject=stderr:pattern=panic
+
+cmd=foreground:seq=20:exec=le test fixture plugin/bus-wait-file t1-r2.up:exit=0
+cmd=foreground:seq=21:exec=le test fixture plugin/bus-touch-file sender2.go:exit=0
+cmd=foreground:seq=22:exec=le test fixture plugin/bus-wait-file sender2.done:exit=0
+cmd=foreground:seq=23:exec=le test fixture daemon/await-answer-all "show bgp peer t1 detail | json" '"updates-sent": 2':exit=0
+cmd=foreground:seq=24:exec=le test fixture plugin/bus-assert-implied rule /bgp/group/transit/peer/t1 receive bgp:update written /bus/endpoint/sender:exit=0
+expect=stdout:contains=OK:
+
+cmd=stop:seq=25:name=daemon2:signal=term
+cmd=stop:seq=26:name=t1-r2

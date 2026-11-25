@@ -1,3 +1,7 @@
+// Design: docs/architecture/ddos/cp-survival-5-detect-0-umbrella.md -- ddos-flowspec plugin registration and lifecycle
+// Related: responder.go -- FlowSpec responder and state persistence
+// Related: doctor.go -- orphan announcement doctor checks
+
 package flowspec
 
 import (
@@ -5,10 +9,14 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"maps"
 	"net"
+	"slices"
+	"sync"
 	"sync/atomic"
 	"time"
 
+	"github.com/ze-software/ze/internal/component/plugin/cli"
 	"github.com/ze-software/ze/internal/component/plugin/process"
 	"github.com/ze-software/ze/internal/component/plugin/registry"
 	bgpevents "github.com/ze-software/ze/internal/core/bgp/events"
@@ -16,6 +24,7 @@ import (
 	"github.com/ze-software/ze/internal/core/diagnostic"
 	"github.com/ze-software/ze/internal/core/slogutil"
 	"github.com/ze-software/ze/internal/core/statestore"
+	"github.com/ze-software/ze/internal/core/textbuf"
 	flowspecyang "github.com/ze-software/ze/internal/plugins/ddos/flowspec/yang"
 	"github.com/ze-software/ze/pkg/plugin/rpc"
 	"github.com/ze-software/ze/pkg/plugin/sdk"
@@ -44,12 +53,99 @@ var announcementKey = zefs.MustRegister(zefs.KeyEntry{
 	Description: "DDoS FlowSpec rule announced to the BGP peers and not yet withdrawn (JSON)",
 })
 
-func loadBus() (ze.EventBus, error) {
-	p := eventBusPtr.Load()
-	if p == nil {
-		return nil, fmt.Errorf("ddos-flowspec: event bus not configured")
+// localEventBus is the process-local ze.EventBus used when ddos-flowspec runs
+// as a separate OS process (`process separate;`), where the daemon never
+// invokes ConfigureEventBus. Keeping a local bus lets OnConfigure, OnStarted,
+// OnConfigApply, OnBye, and OnDoctorCheck run with the same subscription
+// lifecycle instead of failing startup on a nil eventBusPtr.
+//
+// Safe for concurrent use.
+type localEventBus struct {
+	mu   sync.Mutex
+	next uint64
+	subs map[string]map[uint64]func(any)
+}
+
+var _ ze.EventBus = (*localEventBus)(nil)
+
+func newLocalEventBus() *localEventBus {
+	return &localEventBus{subs: make(map[string]map[uint64]func(any))}
+}
+
+func localBusKey(namespace, eventType string) string {
+	var tb textbuf.Buffer
+	return tb.Str(namespace).Byte('/').Str(eventType).String()
+}
+
+// Emit delivers payload synchronously to local subscribers of (namespace,
+// eventType) in subscription order. Returns 0 because a process-local bus has
+// no external plugin-process subscribers.
+func (b *localEventBus) Emit(namespace, eventType string, payload any) (int, error) {
+	key := localBusKey(namespace, eventType)
+	b.mu.Lock()
+	bucket := b.subs[key]
+	if len(bucket) == 0 {
+		b.mu.Unlock()
+		return 0, nil
 	}
-	return *p, nil
+	ids := slices.Sorted(maps.Keys(bucket))
+	handlers := make([]func(any), 0, len(ids))
+	for _, id := range ids {
+		handlers = append(handlers, bucket[id])
+	}
+	b.mu.Unlock()
+	for _, h := range handlers {
+		h(payload)
+	}
+	return 0, nil
+}
+
+// Subscribe registers handler for (namespace, eventType) and returns an
+// idempotent unsubscribe function. A nil handler registers nothing.
+func (b *localEventBus) Subscribe(namespace, eventType string, handler func(any)) func() {
+	if handler == nil {
+		return func() {}
+	}
+	key := localBusKey(namespace, eventType)
+	b.mu.Lock()
+	b.next++
+	id := b.next
+	bucket := b.subs[key]
+	if bucket == nil {
+		bucket = make(map[uint64]func(any))
+		b.subs[key] = bucket
+	}
+	bucket[id] = handler
+	b.mu.Unlock()
+
+	return func() {
+		b.mu.Lock()
+		if cur := b.subs[key]; cur != nil {
+			delete(cur, id)
+			if len(cur) == 0 {
+				delete(b.subs, key)
+			}
+		}
+		b.mu.Unlock()
+	}
+}
+
+// loadBus returns the daemon event bus installed by ConfigureEventBus. When
+// running in a separate process (`!isInternal`), ConfigureEventBus is never
+// called by the daemon, so loadBus returns *fallback (initializing a
+// process-local bus once). An in-process run without a configured bus still
+// refuses so missing daemon wiring fails loudly.
+func loadBus(isInternal bool, fallback *ze.EventBus) (ze.EventBus, error) {
+	if p := eventBusPtr.Load(); p != nil {
+		return *p, nil
+	}
+	if isInternal {
+		return nil, errors.New("ddos-flowspec: event bus not configured")
+	}
+	if *fallback == nil {
+		*fallback = newLocalEventBus()
+	}
+	return *fallback, nil
 }
 
 func ddosFlowspecSends() []rpc.MessageSendDecl {
@@ -93,7 +189,14 @@ func init() {
 			eventBusPtr.Store(&eb)
 		},
 	}
-	reg.CLIHandler = func(_ []string) int { return 1 }
+	reg.CLIHandler = func(args []string) int {
+		cfg := cli.BaseConfig(&reg)
+		cfg.GetYANG = func() string { return reg.YANG }
+		cfg.ConfigLogger = func(level string) {
+			setLogger(slogutil.PluginLogger(reg.Name, level))
+		}
+		return cli.RunPlugin(cfg, args)
+	}
 	if err := registry.Register(reg); err != nil {
 		panic("BUG: ddos-flowspec: registration failed: " + err.Error())
 	}
@@ -593,10 +696,13 @@ func runEngine(conn net.Conn) int {
 	var (
 		pending pendingConfig
 		// bus is the event bus OnConfigure loaded, for OnStarted to subscribe the
-		// responder on. started says OnStarted has run, so a configure delivered
-		// after it (a runtime redelivery) subscribes its responder itself.
-		// Both are touched only on the goroutine the SDK runs callbacks on.
+		// responder on. fallbackBus holds the process-local bus allocated once
+		// when running as a separate OS process without ConfigureEventBus.
+		// started says OnStarted has run, so a configure delivered after it
+		// (a runtime redelivery) subscribes its responder itself.
+		// All are touched only on the goroutine the SDK runs callbacks on.
 		bus                ze.EventBus
+		fallbackBus        ze.EventBus
 		started            bool
 		unsubDetect        func()
 		unsubCharacterized func()
@@ -637,7 +743,7 @@ func runEngine(conn net.Conn) int {
 		if err != nil {
 			return err
 		}
-		loaded, err := loadBus()
+		loaded, err := loadBus(p.IsInternal(), &fallbackBus)
 		if err != nil {
 			return err
 		}
@@ -724,7 +830,7 @@ func runEngine(conn net.Conn) int {
 			return errApplyWithoutVerify
 		}
 		unsubscribe()
-		loaded, err := loadBus()
+		loaded, err := loadBus(p.IsInternal(), &fallbackBus)
 		if err != nil {
 			return err
 		}

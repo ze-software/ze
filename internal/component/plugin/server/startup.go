@@ -212,6 +212,18 @@ func (s *Server) runPluginStartup() {
 		}
 	}
 
+	// An explicitly configured bus > hub > server listener must bind even when
+	// no plugin phase spawned a process (for example a standalone hub with no
+	// external endpoints or protocol plugins configured).
+	if s.spawner != nil && s.config != nil && s.config.Hub != nil && len(s.config.Hub.Servers) > 0 {
+		if err := s.spawner.SpawnMore(nil); err != nil {
+			logger().Error("bus hub acceptor startup failed", "error", err, "code", diagnostic.CodeDoctorPluginStopped)
+			s.recordStartupFailure(fmt.Errorf("bus hub acceptor startup failed: %w", err))
+			s.signalStartupComplete()
+			return
+		}
+	}
+
 	// Signal that all plugin phases are complete
 	s.signalStartupComplete()
 }

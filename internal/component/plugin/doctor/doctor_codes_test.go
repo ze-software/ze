@@ -43,6 +43,7 @@ func TestPluginInfraDoctorCodesDescribed(t *testing.T) {
 		codeDoctorPluginSetupFailed,
 		codeDoctorPluginAutoloadUnresolved,
 		codeDoctorPluginNoDataPlaneWriter,
+		codeDoctorBusDormantReception,
 
 		// Owned by plugin/ipc (registered in plugin/server to avoid an import cycle).
 		ipc.ConnectBackRefusedCode,

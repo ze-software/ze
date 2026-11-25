@@ -1,0 +1,288 @@
+# Test: bus commit refusals (S7, S9, S23, S41, AC-6) reject invalid bus blocks and retired keywords with exact diagnostics.
+# QUESTION: does `ze config validate` refuse (1) S7 undeclared message in `send allow`
+# listing declared sends, (2) S9 per-message `send > message <m> > to` excluded by
+# `send > allow`, (3) S23 all four retired syntaxes (`plugin { }`, `attach`, `bgp { process }`,
+# `exabgp { bridge }`) at parse naming `bus`, (4) S41 unknown tag name and unknown tag
+# value on `bgp:update` listing declared tags/values, and (5) AC-6 combining `none` with
+# another path (`to [ none /bus/endpoint/... ]`) and unknown target `/bgp/peer/nosuch`,
+# while accepting the valid control configuration? A unit test cannot decide this because
+# it proves the real `ze config validate` CLI entry point, YANG schema parsing, retired-
+# keyword parser hints, and `ValidateBusConfig` exit codes and stdout rendering end-to-end.
+#
+# VALIDATES: spec-explicit-plugin-and-attach-config S7, S9, S23, S41 / AC-5, AC-6, AC-10, AC-44.
+# PREVENTS: undeclared messages, excluded per-message rules, retired keywords, bad tag
+# filters, mixed `none` lists, or unknown bus targets passing `ze config validate` or
+# failing without actionable diagnostics naming the offending line and valid values.
+
+option=env:var=ZE_CONFIG_DIR:value=.
+option=env:var=XDG_DATA_HOME:value=.
+
+# --- Case 1 (S7 / Refusal 4): undeclared message in send > allow ---
+stdin=s7-undeclared:terminator=EOF_S7
+bus {
+	endpoint bgp-rib {
+		internal bgp-rib;
+		send {
+			allow [ bgp:raw ];
+		}
+	}
+}
+bgp {
+	router-id 192.0.2.254;
+	session { asn { local 65000; } }
+	peer edge1 {
+		connection { remote { ip 192.0.2.1; } local { ip auto; } }
+		session { asn { remote 65001; } }
+	}
+}
+EOF_S7
+
+cmd=foreground:seq=1:exec=ze config validate -:stdin=s7-undeclared
+expect=exit:code=1
+expect=stdout:contains=bus > endpoint bgp-rib > send > allow: participant "/bus/endpoint/bgp-rib" (kind "bgp-rib") did not declare sending "bgp:raw"
+expect=stdout:contains=bgp:update
+expect=stdout:contains=bgp:refresh
+expect=stdout:contains=fix: replace bgp:raw in bus > endpoint bgp-rib > send > allow
+
+# --- Case 2 (S9 / Refusal 5): send > message <m> > to excluded by send > allow ---
+stdin=s9-excluded:terminator=EOF_S9
+bus {
+	endpoint bgp-rib {
+		internal bgp-rib;
+		send {
+			allow [ bgp:update ];
+			to [ /bgp/peer/edge1 ];
+			message bgp:refresh {
+				to [ /bgp/peer/edge1 ];
+			}
+		}
+	}
+}
+bgp {
+	router-id 192.0.2.254;
+	session { asn { local 65000; } }
+	peer edge1 {
+		connection { remote { ip 192.0.2.1; } local { ip auto; } }
+		session { asn { remote 65001; } }
+	}
+}
+EOF_S9
+
+cmd=foreground:seq=2:exec=ze config validate -:stdin=s9-excluded
+expect=exit:code=1
+expect=stdout:contains=bus > endpoint bgp-rib > send > message bgp:refresh > to configures to for "bgp:refresh", which bus > endpoint bgp-rib > send > allow excludes
+expect=stdout:contains=fix: add bgp:refresh to bus > endpoint bgp-rib > send > allow or remove bus > endpoint bgp-rib > send > message bgp:refresh > to
+
+# --- Case 3a (S23 / AC-10): retired top-level `plugin { }` ---
+stdin=s23-plugin:terminator=EOF_S23_PLUGIN
+plugin {
+	internal bgp-rib {
+		use bgp-rib;
+	}
+}
+EOF_S23_PLUGIN
+
+cmd=foreground:seq=3:exec=ze config validate -:stdin=s23-plugin
+expect=exit:code=1
+expect=stdout:contains=plugin is retired: write bus { endpoint
+
+# --- Case 3b (S23 / AC-10): retired `attach` under peer ---
+stdin=s23-attach:terminator=EOF_S23_ATTACH
+bgp {
+	router-id 192.0.2.254;
+	session { asn { local 65000; } }
+	peer edge1 {
+		connection { remote { ip 192.0.2.1; } local { ip auto; } }
+		session { asn { remote 65001; } }
+		attach {
+			process bgp-rib;
+		}
+	}
+}
+EOF_S23_ATTACH
+
+cmd=foreground:seq=4:exec=ze config validate -:stdin=s23-attach
+expect=exit:code=1
+expect=stdout:contains=attach is retired: write a participant's bus { send
+
+# --- Case 3c (S23 / AC-10): retired `process` under `bgp { }` ---
+stdin=s23-process:terminator=EOF_S23_PROCESS
+bgp {
+	router-id 192.0.2.254;
+	session { asn { local 65000; } }
+	process bgp-rib {
+		encoder json;
+	}
+}
+EOF_S23_PROCESS
+
+cmd=foreground:seq=5:exec=ze config validate -:stdin=s23-process
+expect=exit:code=1
+expect=stdout:contains=process is retired: write bus { endpoint
+
+# --- Case 3d (S23 / AC-10): retired `exabgp { bridge }` ---
+stdin=s23-exabgp:terminator=EOF_S23_EXABGP
+exabgp {
+	bridge {
+		enabled true;
+	}
+}
+EOF_S23_EXABGP
+
+cmd=foreground:seq=6:exec=ze config validate -:stdin=s23-exabgp
+expect=exit:code=1
+expect=stdout:contains=exabgp is retired: write bus { endpoint
+
+# --- Case 4a (S41 / Refusal 9): unknown tag name on message ---
+stdin=s41-bad-tag:terminator=EOF_S41_TAG
+bus {
+	endpoint bgp-rib {
+		internal bgp-rib;
+		receive {
+			message bgp:update {
+				tag nosuch {
+					value [ x ];
+				}
+			}
+		}
+	}
+}
+bgp {
+	router-id 192.0.2.254;
+	session { asn { local 65000; } }
+	peer edge1 {
+		connection { remote { ip 192.0.2.1; } local { ip auto; } }
+		session { asn { remote 65001; } }
+	}
+}
+EOF_S41_TAG
+
+cmd=foreground:seq=7:exec=ze config validate -:stdin=s41-bad-tag
+expect=exit:code=1
+expect=stdout:contains=bus > endpoint bgp-rib > receive > message bgp:update > tag nosuch: tag "nosuch" is not declared on message "bgp:update"
+expect=stdout:contains=declared tags for "bgp:update": [ direction ]
+expect=stdout:contains=fix: use a declared tag such as direction
+
+# --- Case 4b (S41 / Refusal 10): unknown tag value outside closed set ---
+stdin=s41-bad-value:terminator=EOF_S41_VAL
+bus {
+	endpoint bgp-rib {
+		internal bgp-rib;
+		receive {
+			message bgp:update {
+				tag direction {
+					value [ nosuch ];
+				}
+			}
+		}
+	}
+}
+bgp {
+	router-id 192.0.2.254;
+	session { asn { local 65000; } }
+	peer edge1 {
+		connection { remote { ip 192.0.2.1; } local { ip auto; } }
+		session { asn { remote 65001; } }
+	}
+}
+EOF_S41_VAL
+
+cmd=foreground:seq=8:exec=ze config validate -:stdin=s41-bad-value
+expect=exit:code=1
+expect=stdout:contains=bus > endpoint bgp-rib > receive > message bgp:update > tag direction: value "nosuch" is not valid for tag "direction"
+expect=stdout:contains=valid values for tag "direction" on "bgp:update": [ received, sent ]
+expect=stdout:contains=fix: set bus > endpoint bgp-rib > receive > message bgp:update > tag direction value to one of [ received sent ]
+
+# --- Case 5a (AC-6 / Q-1): combining `none` with another path in `to` ---
+stdin=ac6-none-mixed:terminator=EOF_AC6_NONE
+bus {
+	endpoint bgp-rib {
+		internal bgp-rib;
+	}
+}
+bgp {
+	router-id 192.0.2.254;
+	session { asn { local 65000; } }
+	peer edge1 {
+		connection { remote { ip 192.0.2.1; } local { ip auto; } }
+		session { asn { remote 65001; } }
+		bus {
+			send {
+				to [ none /bus/endpoint/bgp-rib ];
+			}
+		}
+	}
+}
+EOF_AC6_NONE
+
+cmd=foreground:seq=9:exec=ze config validate -:stdin=ac6-none-mixed
+expect=exit:code=1
+expect=stdout:contains=/bgp/peer/edge1 > bus > send > to: cannot combine "none" with other entries
+expect=stdout:contains=fix: write either /bgp/peer/edge1 > bus > send > to [ none ] alone
+
+# --- Case 5b (AC-6 / Refusal 1): unknown target `/bgp/peer/nosuch` ---
+stdin=ac6-unknown-peer:terminator=EOF_AC6_UNKNOWN
+bus {
+	endpoint bgp-rib {
+		internal bgp-rib;
+		receive {
+			from [ /bgp/peer/nosuch ];
+		}
+	}
+}
+bgp {
+	router-id 192.0.2.254;
+	session { asn { local 65000; } }
+	peer edge1 {
+		connection { remote { ip 192.0.2.1; } local { ip auto; } }
+		session { asn { remote 65001; } }
+	}
+}
+EOF_AC6_UNKNOWN
+
+cmd=foreground:seq=10:exec=ze config validate -:stdin=ac6-unknown-peer
+expect=exit:code=1
+expect=stdout:contains=bus > endpoint bgp-rib > receive > from: "/bgp/peer/nosuch" names no configured bus participant
+expect=stdout:contains=/bgp/peer/edge1
+expect=stdout:contains=fix: update bus > endpoint bgp-rib > receive > from
+
+# --- Positive control: corrected valid bus block passes ---
+stdin=valid-control:terminator=EOF_VALID
+bus {
+	endpoint bgp-rib {
+		internal bgp-rib;
+	}
+	endpoint bgp-adj-rib-in {
+		internal bgp-adj-rib-in;
+		send {
+			allow [ bgp:update ];
+			to [ /bgp/peer/edge1 ];
+		}
+		receive {
+			from [ /bgp/peer/edge1 ];
+			message bgp:update {
+				tag direction {
+					value [ received ];
+				}
+			}
+		}
+	}
+}
+bgp {
+	router-id 192.0.2.254;
+	session { asn { local 65000; } }
+	peer edge1 {
+		connection { remote { ip 192.0.2.1; } local { ip auto; } }
+		session { asn { remote 65001; } }
+		bus {
+			send {
+				to [ /bus/endpoint/bgp-rib /bus/endpoint/bgp-adj-rib-in ];
+			}
+		}
+	}
+}
+EOF_VALID
+
+cmd=foreground:seq=11:exec=ze config validate -:stdin=valid-control
+expect=exit:code=0
+expect=stdout:contains=configuration valid

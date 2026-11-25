@@ -97,7 +97,7 @@ bgp {
 }
 EOF_CONF
 
-tmpfs=invalid-validator.conf:refused=config-yang-type:terminator=EOF_INVALID
+tmpfs=invalid-validator.conf:refused=config-plugin-extract:terminator=EOF_INVALID
 bus {
 	endpoint p1 {
 		internal no-such-plugin-exists;

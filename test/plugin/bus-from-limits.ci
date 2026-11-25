@@ -1,0 +1,468 @@
+# Test: `receive > from` narrows one receiver without affecting sibling receivers, and per-message `send > message <name> > to` overrides the block-level `send > to`.
+# QUESTION: across three configs on `collector` (no `receive > from`,
+# `receive { from [ /bgp/peer/edge1 ]; }`, and `receive { from none; }`), does `collector`
+# record both `edge1` and `lab`, `edge1` only (while Loc-RIB still holds `lab`'s route),
+# and neither peer respectively; and with per-message override
+# `bgp { peer lab { bus { send { to [ /bus/endpoint/bgp-rib ]; message bgp:state { to [ /bus/endpoint/bgp-rib /bus/endpoint/collector ]; } } } } }`,
+# does `collector` record `bgp:state` for `lab` and NO `bgp:update` while Loc-RIB holds
+# `lab`'s route (and removing the per-message entry stops `collector` recording anything
+# for `lab`)? A unit test cannot decide this because it spans live BGP sessions, compiled
+# per-message and receiver-side filtering in `DeliveryGraph`, and live Loc-RIB storage.
+#
+# VALIDATES: spec-explicit-plugin-and-attach-config S4, S5 / AC-3, AC-4.
+# PREVENTS: `receive > from` on one receiver starving sibling receivers like `bgp-rib`,
+# `from none` leaking events, or per-message `to` failing to override block-level `to`.
+
+option=timeout:value=150s
+option=env:var=ZE_CONFIG_DIR:value=.
+option=env:var=XDG_DATA_HOME:value=.
+option=env:var=ze.ssh.password:value=testpass
+
+stdin=init-answers:terminator=EOF_INIT
+admin
+testpass
+127.0.0.1
+$PORT2
+EOF_INIT
+
+# Peer scripts for S4 Run A (no receive > from).
+stdin=edge1-a:terminator=EOF_EDGE1_A
+option=tcp_connections:value=1
+option=timeout:value=60s
+option=asn:value=65001
+option=open:value=router-id:id=127.0.0.2
+option=linger:value=true
+option=established-file:path=edge1-a.up
+option=update:value=send-route:prefix=203.0.113.0/24:next-hop=192.0.2.1
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
+EOF_EDGE1_A
+
+stdin=lab-a:terminator=EOF_LAB_A
+option=tcp_connections:value=1
+option=timeout:value=60s
+option=asn:value=65002
+option=open:value=router-id:id=127.0.0.3
+option=linger:value=true
+option=established-file:path=lab-a.up
+option=update:value=send-route:prefix=198.51.100.0/24:next-hop=192.0.2.2
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
+EOF_LAB_A
+
+# Peer scripts for S4 Run B (receive > from [ /bgp/peer/edge1 ]).
+stdin=edge1-b:terminator=EOF_EDGE1_B
+option=tcp_connections:value=1
+option=timeout:value=60s
+option=asn:value=65001
+option=open:value=router-id:id=127.0.0.2
+option=linger:value=true
+option=established-file:path=edge1-b.up
+option=update:value=send-route:prefix=203.0.113.0/24:next-hop=192.0.2.1
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
+EOF_EDGE1_B
+
+stdin=lab-b:terminator=EOF_LAB_B
+option=tcp_connections:value=1
+option=timeout:value=60s
+option=asn:value=65002
+option=open:value=router-id:id=127.0.0.3
+option=linger:value=true
+option=established-file:path=lab-b.up
+option=update:value=send-route:prefix=198.51.100.0/24:next-hop=192.0.2.2
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
+EOF_LAB_B
+
+# Peer scripts for S4 Run C (receive > from none).
+stdin=edge1-c:terminator=EOF_EDGE1_C
+option=tcp_connections:value=1
+option=timeout:value=60s
+option=asn:value=65001
+option=open:value=router-id:id=127.0.0.2
+option=linger:value=true
+option=established-file:path=edge1-c.up
+option=update:value=send-route:prefix=203.0.113.0/24:next-hop=192.0.2.1
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
+EOF_EDGE1_C
+
+stdin=lab-c:terminator=EOF_LAB_C
+option=tcp_connections:value=1
+option=timeout:value=60s
+option=asn:value=65002
+option=open:value=router-id:id=127.0.0.3
+option=linger:value=true
+option=established-file:path=lab-c.up
+option=update:value=send-route:prefix=198.51.100.0/24:next-hop=192.0.2.2
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
+EOF_LAB_C
+
+# Peer scripts for S5 Run D (per-message override on lab).
+stdin=lab-d:terminator=EOF_LAB_D
+option=tcp_connections:value=1
+option=timeout:value=60s
+option=asn:value=65002
+option=open:value=router-id:id=127.0.0.3
+option=linger:value=true
+option=established-file:path=lab-d.up
+option=update:value=send-route:prefix=198.51.100.0/24:next-hop=192.0.2.2
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
+EOF_LAB_D
+
+# Peer scripts for S5 Run E (negative: without message bgp:state override on lab).
+stdin=lab-e:terminator=EOF_LAB_E
+option=tcp_connections:value=1
+option=timeout:value=60s
+option=asn:value=65002
+option=open:value=router-id:id=127.0.0.3
+option=linger:value=true
+option=established-file:path=lab-e.up
+option=update:value=send-route:prefix=198.51.100.0/24:next-hop=192.0.2.2
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
+EOF_LAB_E
+
+tmpfs=s4-all.conf:terminator=EOF_S4_ALL
+system {
+	authentication {
+		user admin {
+			password "$2a$04$UlwuiuH82Unfsq.XEMPGJeDkXwbm3KW.nvVaVXOd/JeFK8VjMjrQO"
+		}
+	}
+}
+environment {
+	ssh {
+		enabled true
+		server main { ip 127.0.0.1; port $PORT2; }
+	}
+}
+bus {
+	endpoint collector {
+		external {
+			run "le test fixture plugin/bus-bgp-collector col-a.log";
+		}
+		encoding json;
+	}
+}
+bgp {
+	router-id 192.0.2.254;
+	filter {
+		import { final accept; }
+		export { final accept; }
+	}
+	peer edge1 {
+		connection {
+			remote { ip 127.0.0.2; }
+			local { ip 127.0.0.1; accept false; }
+		}
+		session {
+			asn { local 65000; remote 65001; }
+			family { ipv4/unicast { prefix { maximum 10000; } } }
+			capability { graceful-restart disable; }
+		}
+		behavior { group-updates disable; }
+	}
+	peer lab {
+		connection {
+			remote { ip 127.0.0.3; }
+			local { ip 127.0.0.1; accept false; }
+		}
+		session {
+			asn { local 65000; remote 65002; }
+			family { ipv4/unicast { prefix { maximum 10000; } } }
+			capability { graceful-restart disable; }
+		}
+		behavior { group-updates disable; }
+	}
+}
+EOF_S4_ALL
+
+tmpfs=s4-edge1.conf:terminator=EOF_S4_EDGE1
+system {
+	authentication {
+		user admin {
+			password "$2a$04$UlwuiuH82Unfsq.XEMPGJeDkXwbm3KW.nvVaVXOd/JeFK8VjMjrQO"
+		}
+	}
+}
+environment {
+	ssh {
+		enabled true
+		server main { ip 127.0.0.1; port $PORT2; }
+	}
+}
+bus {
+	endpoint collector {
+		external {
+			run "le test fixture plugin/bus-bgp-collector col-b.log";
+		}
+		encoding json;
+		receive {
+			from [ /bgp/peer/edge1 ];
+		}
+	}
+}
+bgp {
+	router-id 192.0.2.254;
+	filter {
+		import { final accept; }
+		export { final accept; }
+	}
+	peer edge1 {
+		connection {
+			remote { ip 127.0.0.2; }
+			local { ip 127.0.0.1; accept false; }
+		}
+		session {
+			asn { local 65000; remote 65001; }
+			family { ipv4/unicast { prefix { maximum 10000; } } }
+			capability { graceful-restart disable; }
+		}
+		behavior { group-updates disable; }
+	}
+	peer lab {
+		connection {
+			remote { ip 127.0.0.3; }
+			local { ip 127.0.0.1; accept false; }
+		}
+		session {
+			asn { local 65000; remote 65002; }
+			family { ipv4/unicast { prefix { maximum 10000; } } }
+			capability { graceful-restart disable; }
+		}
+		behavior { group-updates disable; }
+	}
+}
+EOF_S4_EDGE1
+
+tmpfs=s4-none.conf:terminator=EOF_S4_NONE
+system {
+	authentication {
+		user admin {
+			password "$2a$04$UlwuiuH82Unfsq.XEMPGJeDkXwbm3KW.nvVaVXOd/JeFK8VjMjrQO"
+		}
+	}
+}
+environment {
+	ssh {
+		enabled true
+		server main { ip 127.0.0.1; port $PORT2; }
+	}
+}
+bus {
+	endpoint collector {
+		external {
+			run "le test fixture plugin/bus-bgp-collector col-c.log";
+		}
+		encoding json;
+		receive {
+			from none;
+		}
+	}
+}
+bgp {
+	router-id 192.0.2.254;
+	filter {
+		import { final accept; }
+		export { final accept; }
+	}
+	peer edge1 {
+		connection {
+			remote { ip 127.0.0.2; }
+			local { ip 127.0.0.1; accept false; }
+		}
+		session {
+			asn { local 65000; remote 65001; }
+			family { ipv4/unicast { prefix { maximum 10000; } } }
+			capability { graceful-restart disable; }
+		}
+		behavior { group-updates disable; }
+	}
+	peer lab {
+		connection {
+			remote { ip 127.0.0.3; }
+			local { ip 127.0.0.1; accept false; }
+		}
+		session {
+			asn { local 65000; remote 65002; }
+			family { ipv4/unicast { prefix { maximum 10000; } } }
+			capability { graceful-restart disable; }
+		}
+		behavior { group-updates disable; }
+	}
+}
+EOF_S4_NONE
+
+tmpfs=s5-per-msg.conf:terminator=EOF_S5_MSG
+system {
+	authentication {
+		user admin {
+			password "$2a$04$UlwuiuH82Unfsq.XEMPGJeDkXwbm3KW.nvVaVXOd/JeFK8VjMjrQO"
+		}
+	}
+}
+environment {
+	ssh {
+		enabled true
+		server main { ip 127.0.0.1; port $PORT2; }
+	}
+}
+bus {
+	endpoint collector {
+		external {
+			run "le test fixture plugin/bus-bgp-collector col-d.log";
+		}
+		encoding json;
+	}
+}
+bgp {
+	router-id 192.0.2.254;
+	filter {
+		import { final accept; }
+		export { final accept; }
+	}
+	peer lab {
+		connection {
+			remote { ip 127.0.0.3; }
+			local { ip 127.0.0.1; accept false; }
+		}
+		session {
+			asn { local 65000; remote 65002; }
+			family { ipv4/unicast { prefix { maximum 10000; } } }
+			capability { graceful-restart disable; }
+		}
+		behavior { group-updates disable; }
+		bus {
+			send {
+				to [ /bus/endpoint/bgp-rib ];
+				message bgp:state {
+					to [ /bus/endpoint/bgp-rib /bus/endpoint/collector ];
+				}
+			}
+		}
+	}
+}
+EOF_S5_MSG
+
+tmpfs=s5-no-override.conf:terminator=EOF_S5_NO_OVR
+system {
+	authentication {
+		user admin {
+			password "$2a$04$UlwuiuH82Unfsq.XEMPGJeDkXwbm3KW.nvVaVXOd/JeFK8VjMjrQO"
+		}
+	}
+}
+environment {
+	ssh {
+		enabled true
+		server main { ip 127.0.0.1; port $PORT2; }
+	}
+}
+bus {
+	endpoint collector {
+		external {
+			run "le test fixture plugin/bus-bgp-collector col-e.log";
+		}
+		encoding json;
+	}
+}
+bgp {
+	router-id 192.0.2.254;
+	filter {
+		import { final accept; }
+		export { final accept; }
+	}
+	peer lab {
+		connection {
+			remote { ip 127.0.0.3; }
+			local { ip 127.0.0.1; accept false; }
+		}
+		session {
+			asn { local 65000; remote 65002; }
+			family { ipv4/unicast { prefix { maximum 10000; } } }
+			capability { graceful-restart disable; }
+		}
+		behavior { group-updates disable; }
+		bus {
+			send {
+				to [ /bus/endpoint/bgp-rib ];
+			}
+		}
+	}
+}
+EOF_S5_NO_OVR
+
+cmd=foreground:seq=1:exec=ze init:stdin=init-answers:exit=0
+
+# --- S4 Run A: no receive > from -> collector records both edge1 and lab ---
+cmd=background:seq=2:name=edge1-a:exec=le test peer --bind 127.0.0.2 --port $PORT:stdin=edge1-a
+cmd=background:seq=3:name=lab-a:exec=le test peer --bind 127.0.0.3 --port $PORT:stdin=lab-a
+cmd=background:seq=4:name=daemon-a:exec=ze start s4-all.conf:ready=Ze running.
+reject=stderr:pattern=ZE-OBSERVER-FAIL
+reject=stderr:pattern=panic
+
+cmd=foreground:seq=5:exec=le test fixture plugin/bus-assert-implied poll-file-contains col-a.log 203.0.113.0/24:exit=0
+cmd=foreground:seq=6:exec=le test fixture plugin/bus-assert-implied poll-file-contains col-a.log 198.51.100.0/24:exit=0
+cmd=foreground:seq=7:exec=le test fixture plugin/bus-assert-implied file-contains col-a.log 127.0.0.2:exit=0
+cmd=foreground:seq=8:exec=le test fixture plugin/bus-assert-implied file-contains col-a.log 127.0.0.3:exit=0
+
+cmd=stop:seq=9:name=daemon-a:signal=term
+cmd=stop:seq=10:name=edge1-a
+cmd=stop:seq=11:name=lab-a
+
+# --- S4 Run B: receive > from [ /bgp/peer/edge1 ] -> collector gets edge1 only; Loc-RIB keeps lab ---
+cmd=background:seq=12:name=edge1-b:exec=le test peer --bind 127.0.0.2 --port $PORT:stdin=edge1-b
+cmd=background:seq=13:name=lab-b:exec=le test peer --bind 127.0.0.3 --port $PORT:stdin=lab-b
+cmd=background:seq=14:name=daemon-b:exec=ze start s4-edge1.conf:ready=Ze running.
+reject=stderr:pattern=ZE-OBSERVER-FAIL
+reject=stderr:pattern=panic
+
+# Positive fence & S4 negative check: Loc-RIB receives BOTH routes, and collector receives edge1's route.
+cmd=foreground:seq=15:exec=le test fixture daemon/await-answer-all "show bgp rib" 203.0.113.0/24 198.51.100.0/24:exit=0
+cmd=foreground:seq=16:exec=le test fixture plugin/bus-assert-implied poll-file-contains col-b.log 203.0.113.0/24:exit=0
+cmd=foreground:seq=17:exec=le test fixture plugin/bus-assert-implied file-contains col-b.log 127.0.0.2:exit=0
+cmd=foreground:seq=18:exec=le test fixture plugin/bus-assert-implied file-not-contains col-b.log 127.0.0.3:exit=0
+cmd=foreground:seq=19:exec=le test fixture plugin/bus-assert-implied file-not-contains col-b.log 198.51.100.0/24:exit=0
+
+cmd=stop:seq=20:name=daemon-b:signal=term
+cmd=stop:seq=21:name=edge1-b
+cmd=stop:seq=22:name=lab-b
+
+# --- S4 Run C: receive > from none -> collector records neither peer; Loc-RIB keeps both ---
+cmd=background:seq=23:name=edge1-c:exec=le test peer --bind 127.0.0.2 --port $PORT:stdin=edge1-c
+cmd=background:seq=24:name=lab-c:exec=le test peer --bind 127.0.0.3 --port $PORT:stdin=lab-c
+cmd=background:seq=25:name=daemon-c:exec=ze start s4-none.conf:ready=Ze running.
+reject=stderr:pattern=ZE-OBSERVER-FAIL
+reject=stderr:pattern=panic
+
+cmd=foreground:seq=26:exec=le test fixture daemon/await-answer-all "show bgp rib" 203.0.113.0/24 198.51.100.0/24:exit=0
+cmd=foreground:seq=27:exec=le test fixture plugin/bus-assert-implied file-not-contains col-c.log 127.0.0.2:exit=0
+cmd=foreground:seq=28:exec=le test fixture plugin/bus-assert-implied file-not-contains col-c.log 127.0.0.3:exit=0
+
+cmd=stop:seq=29:name=daemon-c:signal=term
+cmd=stop:seq=30:name=edge1-c
+cmd=stop:seq=31:name=lab-c
+
+# --- S5 Run D: per-message send > message bgp:state > to [ /bus/endpoint/collector ] ---
+cmd=background:seq=32:name=lab-d:exec=le test peer --bind 127.0.0.3 --port $PORT:stdin=lab-d
+cmd=background:seq=33:name=daemon-d:exec=ze start s5-per-msg.conf:ready=Ze running.
+reject=stderr:pattern=ZE-OBSERVER-FAIL
+reject=stderr:pattern=panic
+
+# Loc-RIB holds lab's route (block-level send > to), collector records lab's bgp:state and NO bgp:update.
+cmd=foreground:seq=34:exec=le test fixture daemon/await-answer-all "show bgp rib" 198.51.100.0/24:exit=0
+cmd=foreground:seq=35:exec=le test fixture plugin/bus-assert-implied poll-file-contains col-d.log '"state":"up"':exit=0
+cmd=foreground:seq=36:exec=le test fixture plugin/bus-assert-implied file-contains col-d.log 127.0.0.3:exit=0
+cmd=foreground:seq=37:exec=le test fixture plugin/bus-assert-implied file-not-contains col-d.log 198.51.100.0/24:exit=0
+cmd=foreground:seq=38:exec=le test fixture plugin/bus-assert-implied file-not-contains col-d.log '"type":"update"':exit=0
+
+cmd=stop:seq=39:name=daemon-d:signal=term
+cmd=stop:seq=40:name=lab-d
+
+# --- S5 Run E (negative): removing message bgp:state entry leaves collector with nothing for lab ---
+cmd=background:seq=41:name=lab-e:exec=le test peer --bind 127.0.0.3 --port $PORT:stdin=lab-e
+cmd=background:seq=42:name=daemon-e:exec=ze start s5-no-override.conf:ready=Ze running.
+reject=stderr:pattern=ZE-OBSERVER-FAIL
+reject=stderr:pattern=panic
+
+cmd=foreground:seq=43:exec=le test fixture daemon/await-answer-all "show bgp rib" 198.51.100.0/24:exit=0
+cmd=foreground:seq=44:exec=le test fixture plugin/bus-assert-implied file-not-contains col-e.log 127.0.0.3:exit=0
+
+cmd=stop:seq=45:name=daemon-e:signal=term
+cmd=stop:seq=46:name=lab-e

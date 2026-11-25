@@ -429,7 +429,9 @@ func (s *Server) deliverEventCaptured(ctx context.Context, emitter *process.Proc
 			return 0, eventAppliedSelfRefusal()
 		}
 		if stampedSender != "" {
-			procs = filterReceiversByCompiledSender(s.DeliveryGraph().Compiled(), stampedSender, nsID, etID, dirID, procs)
+			procs = filterReceiversByCompiledSender(s.DeliveryGraph().Compiled(), stampedSender, nsID, etID, dirID, payload, procs)
+		} else {
+			procs = filterReceiversByInboundTags(s.DeliveryGraph().Compiled(), nsID, etID, payload, procs)
 		}
 	} else if g := s.DeliveryGraph(); stampedSender != "" && g.Compiled() != nil && g.Compiled().Filter(stampedSender) != nil && !g.PeerDeclaresSend(peerAddress, nsID, etID) {
 		// Endpoint-emitted peer-scoped events (such as bgp:rpki from bgp-rpki
@@ -440,9 +442,10 @@ func (s *Server) deliverEventCaptured(ctx context.Context, emitter *process.Proc
 		if capture != nil && slices.Contains(procs, emitter) {
 			return 0, eventAppliedSelfRefusal()
 		}
-		procs = filterReceiversByCompiledSender(g.Compiled(), stampedSender, nsID, etID, dirID, procs)
+		procs = filterReceiversByCompiledSender(g.Compiled(), stampedSender, nsID, etID, dirID, payload, procs)
 	} else {
 		procs = s.PeerScopedProcs(nsID, etID, dirID, peerAddress, "")
+		procs = filterReceiversByInboundTags(s.DeliveryGraph().Compiled(), nsID, etID, payload, procs)
 	}
 	if capture != nil {
 		// A self subscriber is required work, not a subscriber silently omitted to

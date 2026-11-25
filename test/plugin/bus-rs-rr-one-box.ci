@@ -1,0 +1,188 @@
+# Test: bgp-rs and bgp-rr loaded together on one box with no bus overrides each scope to their own session type with zero duplicate relays or double peer-up replays.
+# QUESTION: with `bgp-rs` and `bgp-rr` both loaded in `bus { }` (nothing else written),
+# RS-clients `c1` and `c2` (`rs-client true;`) and iBGP peers `i1` (`route-reflector-client true;`)
+# and `i2` established over live TCP, when `c1` announces 203.0.113.0/24 and `i1` announces
+# 198.51.100.0/24, does `c2` receive `c1`'s route EXACTLY ONCE (and NOT `i1`'s route), does
+# `i2` receive `i1`'s route EXACTLY ONCE (and `c1`'s eBGP route once via RFC 4456 Section 6),
+# and does every peer in strict check mode receive zero duplicate UPDATEs or double replays?
+# A unit test cannot decide this because it spans live co-resident `bgp-rs`, `bgp-rr`,
+# `bgp-adj-rib-in`, and `bgp-rib`, session-type claim scoping, and real wire UPDATE counts.
+#
+# VALIDATES: spec-explicit-plugin-and-attach-config S13 (part 2) / AC-19.
+# PREVENTS: co-resident `bgp-rs` and `bgp-rr` double-replaying at peer-up, duplicating
+# live forwards, or `bgp-rs` forwarding internal `i1` routes to RS-client `c2`.
+
+option=timeout:value=90s
+option=env:var=ZE_CONFIG_DIR:value=.
+option=env:var=XDG_DATA_HOME:value=.
+option=env:var=ze.ssh.password:value=testpass
+
+stdin=init-answers:terminator=EOF_INIT
+admin
+testpass
+127.0.0.1
+$PORT2
+EOF_INIT
+
+# RS-client c1 (eBGP AS 65001): waits until c2 and i2 are up, then announces 203.0.113.0/24 (18CB0071).
+stdin=peer-c1:terminator=EOF_C1
+option=tcp_connections:value=1
+option=timeout:value=60s
+option=asn:value=65001
+option=open:value=router-id:id=127.0.0.2
+option=linger:value=true
+option=await-file:path=c2.up
+option=update:value=send-route:prefix=203.0.113.0/24:next-hop=192.0.2.1
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
+reject=bgp:conn=1:scope=announced:pattern=18C63364
+reject=bgp:conn=1:scope=announced:pattern=18CB0071
+EOF_C1
+
+# RS-client c2 (eBGP AS 65002): must receive 203.0.113.0/24 (18CB0071) ONCE and NEVER 198.51.100.0/24 (18C63364).
+# Check mode fails automatically if a second copy of 18CB0071 arrives.
+stdin=peer-c2:terminator=EOF_C2
+option=tcp_connections:value=1
+option=timeout:value=60s
+option=asn:value=65002
+option=open:value=router-id:id=127.0.0.3
+option=linger:value=true
+option=established-file:path=c2.up
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
+expect=bgp:conn=1:seq=1:announced=18CB0071
+reject=bgp:conn=1:scope=announced:pattern=18C63364
+EOF_C2
+
+# iBGP RR-client i1 (AS 65000): waits until i2 is up, then announces 198.51.100.0/24 (18C63364).
+# Receives eBGP c1's route (18CB0071) once via RFC 4456 Section 6, never its own route back.
+stdin=peer-i1:terminator=EOF_I1
+option=tcp_connections:value=1
+option=timeout:value=60s
+option=asn:value=65000
+option=open:value=router-id:id=127.0.0.4
+option=linger:value=true
+option=await-file:path=i2.up
+option=update:value=send-route:prefix=198.51.100.0/24:next-hop=192.0.2.2
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
+expect=bgp:conn=1:seq=1:announced=18CB0071
+reject=bgp:conn=1:scope=announced:pattern=18C63364
+EOF_I1
+
+# iBGP peer i2 (AS 65000): must receive i1's route (18C63364) ONCE and eBGP c1's route (18CB0071) ONCE.
+# Check mode fails automatically on any duplicate copy.
+stdin=peer-i2:terminator=EOF_I2
+option=tcp_connections:value=1
+option=timeout:value=60s
+option=asn:value=65000
+option=open:value=router-id:id=127.0.0.5
+option=linger:value=true
+option=established-file:path=i2.up
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
+expect=bgp:conn=1:seq=1:announced=18C63364
+expect=bgp:conn=1:seq=1:announced=18CB0071
+EOF_I2
+
+tmpfs=running.conf:terminator=EOF_CONF
+system {
+	authentication {
+		user admin {
+			password "$2a$04$UlwuiuH82Unfsq.XEMPGJeDkXwbm3KW.nvVaVXOd/JeFK8VjMjrQO"
+		}
+	}
+}
+environment {
+	ssh {
+		enabled true
+		server main { ip 127.0.0.1; port $PORT2; }
+	}
+}
+bus {
+	endpoint bgp-rs {
+		internal bgp-rs;
+	}
+	endpoint bgp-rr {
+		internal bgp-rr;
+	}
+}
+bgp {
+	router-id 192.0.2.254;
+	filter {
+		import { final accept; }
+		export { final accept; }
+	}
+	peer c1 {
+		connection {
+			remote { ip 127.0.0.2; }
+			local { ip 127.0.0.1; accept false; }
+		}
+		session {
+			asn { local 65000; remote 65001; }
+			rs-client true;
+			family { ipv4/unicast { prefix { maximum 10000; } } }
+			capability { graceful-restart disable; }
+		}
+		behavior { group-updates disable; }
+	}
+	peer c2 {
+		connection {
+			remote { ip 127.0.0.3; }
+			local { ip 127.0.0.1; accept false; }
+		}
+		session {
+			asn { local 65000; remote 65002; }
+			rs-client true;
+			family { ipv4/unicast { prefix { maximum 10000; } } }
+			capability { graceful-restart disable; }
+		}
+		behavior { group-updates disable; }
+	}
+	peer i1 {
+		connection {
+			remote { ip 127.0.0.4; }
+			local { ip 127.0.0.1; accept false; }
+		}
+		session {
+			asn { local 65000; remote 65000; }
+			route-reflector-client true;
+			cluster-id 10.0.0.1;
+			family { ipv4/unicast { prefix { maximum 10000; } } }
+			capability { graceful-restart disable; }
+		}
+		behavior { group-updates disable; }
+	}
+	peer i2 {
+		connection {
+			remote { ip 127.0.0.5; }
+			local { ip 127.0.0.1; accept false; }
+		}
+		session {
+			asn { local 65000; remote 65000; }
+			family { ipv4/unicast { prefix { maximum 10000; } } }
+			capability { graceful-restart disable; }
+		}
+		behavior { group-updates disable; }
+	}
+}
+EOF_CONF
+
+cmd=foreground:seq=1:exec=ze init:stdin=init-answers:exit=0
+cmd=background:seq=2:name=peer-c1:exec=le test peer --bind 127.0.0.2 --port $PORT:stdin=peer-c1
+cmd=background:seq=3:name=peer-c2:exec=le test peer --bind 127.0.0.3 --port $PORT:stdin=peer-c2
+cmd=background:seq=4:name=peer-i1:exec=le test peer --bind 127.0.0.4 --port $PORT:stdin=peer-i1
+cmd=background:seq=5:name=peer-i2:exec=le test peer --bind 127.0.0.5 --port $PORT:stdin=peer-i2
+cmd=background:seq=6:name=daemon:exec=ze start running.conf:ready=Ze running.
+reject=stderr:pattern=ZE-OBSERVER-FAIL
+reject=stderr:pattern=panic
+
+# Wait for both relays to complete and verify exact single-copy UPDATE counts (EOR + expected routes, zero duplicates).
+cmd=foreground:seq=7:exec=le test fixture daemon/await-answer-all "show bgp peer c2 detail | json" '"updates-sent": 2' '"eor-sent": 1':exit=0
+cmd=foreground:seq=8:exec=le test fixture daemon/await-answer-all "show bgp peer i2 detail | json" '"updates-sent": 3' '"eor-sent": 1':exit=0
+cmd=foreground:seq=9:exec=le test fixture daemon/await-answer-all "show bgp peer i1 detail | json" '"updates-sent": 2' '"eor-sent": 1':exit=0
+cmd=foreground:seq=10:exec=ze cli -c "show bgp peer c1 detail | json":exit=0
+expect=stdout:contains="updates-sent": 1
+expect=stdout:contains="eor-sent": 1
+
+cmd=stop:seq=11:name=daemon:signal=term
+cmd=stop:seq=12:name=peer-c1
+cmd=stop:seq=13:name=peer-c2
+cmd=stop:seq=14:name=peer-i1
+cmd=stop:seq=15:name=peer-i2

@@ -93,10 +93,11 @@ type Server struct {
 	procManager       atomic.Pointer[process.ProcessManager]
 	adHocProcs        sync.Map // ad-hoc SSH plugin protocol sessions (name -> *process.Process)
 	busConfig         atomic.Pointer[plugin.BusConfig]
-	spawner           plugin.ProcessSpawner         // PluginManager for process lifecycle
-	subscriptions     *SubscriptionManager          // API-driven event subscriptions (plugin processes)
-	deliveryGraph     atomic.Pointer[DeliveryGraph] // compiled bus delivery index (delivery_graph.go)
-	prevDeliveryGraph atomic.Pointer[DeliveryGraph] // previous delivery graph retained for post-swap unbind delivery
+	busConfigTree     atomic.Pointer[map[string]any] // in-flight reload tree while ApplyConfigDiff runs (delivery_graph.go)
+	spawner           plugin.ProcessSpawner          // PluginManager for process lifecycle
+	subscriptions     *SubscriptionManager           // API-driven event subscriptions (plugin processes)
+	deliveryGraph     atomic.Pointer[DeliveryGraph]  // compiled bus delivery index (delivery_graph.go)
+	prevDeliveryGraph atomic.Pointer[DeliveryGraph]  // previous delivery graph retained for post-swap unbind delivery
 	// Participant filter push worker (delivery_graph.go): one long-lived
 	// goroutine started lazily on the first rebuild that has running processes,
 	// notified via buffered-1 filterPushNotify with the latest snapshot in

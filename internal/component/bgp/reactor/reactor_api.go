@@ -488,6 +488,9 @@ func (a *reactorAPIAdapter) SoftClearPeer(sel *selector.Selector, sender plugin.
 
 // GetConfigTree returns the immutable running map; public sections MUST project it to active data.
 func (a *reactorAPIAdapter) GetConfigTree() map[string]any {
+	if snap := a.r.configTreeSnap.Load(); snap != nil {
+		return *snap
+	}
 	a.r.mu.RLock()
 	defer a.r.mu.RUnlock()
 	return a.r.configTree
@@ -523,6 +526,12 @@ func (a *reactorAPIAdapter) SetConfigTree(tree map[string]any) {
 	defer a.r.mu.Unlock()
 	if len(a.r.createdPeers) == 0 {
 		a.r.configTree = tree
+		if tree == nil {
+			a.r.configTreeSnap.Store(nil)
+		} else {
+			t := tree
+			a.r.configTreeSnap.Store(&t)
+		}
 		return
 	}
 	_, _, declared := copyToPeerList(tree)
@@ -535,7 +544,9 @@ func (a *reactorAPIAdapter) SetConfigTree(tree map[string]any) {
 		}
 		carried = append(carried, name)
 	}
-	a.r.configTree = withPeerEntries(tree, running, carried)
+	merged := withPeerEntries(tree, running, carried)
+	a.r.configTree = merged
+	a.r.configTreeSnap.Store(&merged)
 }
 
 // ReloadRunning answers the running configuration a reload compares candidate
@@ -771,6 +782,7 @@ func (r *Reactor) recordCreatedPeerLocked(addr netip.Addr, name string, peerTree
 	peers[name] = peerTree
 	writePeerList(bgp, peers, order)
 	r.configTree = root
+	r.configTreeSnap.Store(&root)
 }
 
 // dropPeerConfig takes one peer's configuration out of the running
@@ -788,6 +800,7 @@ func (a *reactorAPIAdapter) dropPeerConfig(name string) {
 	delete(peers, name)
 	writePeerList(bgp, peers, order)
 	a.r.configTree = root
+	a.r.configTreeSnap.Store(&root)
 }
 
 // peerConfigName answers the name the running configuration declares a peer
@@ -1621,6 +1634,12 @@ func peerSettingsEqual(a, b *PeerSettings) bool {
 	if !plugin.BusBlockEqual(a.Bus, b.Bus) {
 		return false
 	}
+	if !plugin.BusBlockEqual(a.OwnBus, b.OwnBus) {
+		return false
+	}
+	if !plugin.BusBlockEqual(a.GroupBus, b.GroupBus) {
+		return false
+	}
 
 	// Compare every remaining field structurally. Copy so the exclusions below do
 	// not mutate the caller's settings. PeerSettings holds no locks, funcs, or
@@ -1631,6 +1650,8 @@ func peerSettingsEqual(a, b *PeerSettings) bool {
 	// Excluded: compared semantically above.
 	ac.Capabilities, bc.Capabilities = nil, nil
 	ac.Bus, bc.Bus = plugin.BusBlock{}, plugin.BusBlock{}
+	ac.OwnBus, bc.OwnBus = plugin.BusBlock{}, plugin.BusBlock{}
+	ac.GroupBus, bc.GroupBus = plugin.BusBlock{}, plugin.BusBlock{}
 
 	// PrefixUpdated is NOT excluded. It holds the per-family ISO dates the prefix
 	// maximums were last refreshed from PeeringDB (peer_settings.go), and it drives

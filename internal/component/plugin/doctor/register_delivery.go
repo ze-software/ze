@@ -25,6 +25,7 @@ const (
 	pluginDeliveryCheckName      = "plugin-delivery"
 	pluginEnricherCheckName      = "plugin-enrichers"
 	pluginConfigCommitCheckName  = "plugin-config-commit"
+	pluginBusDormantCheckName    = "plugin-bus-dormant-receptions"
 	pluginDeliveryOrderFirst     = 730
 	pluginStateDependency        = "plugin-state"
 )
@@ -93,6 +94,13 @@ func init() {
 			Platforms: []string{diagnostic.DoctorPlatformAny},
 			Codes:     []string{server.CodeDoctorPluginConfigUnapplied},
 			Check:     snapshotCheck(server.CodeDoctorPluginConfigUnapplied, configUnappliedRows),
+		},
+		{
+			Name: pluginBusDormantCheckName, Phase: diagnostic.DoctorPhaseRuntime, Order: pluginDeliveryOrderFirst + 9,
+			Component: componentPlugin, Dependencies: []string{pluginStateDependency},
+			Platforms: []string{diagnostic.DoctorPlatformAny},
+			Codes:     []string{codeDoctorBusDormantReception},
+			Check:     snapshotCheck(codeDoctorBusDormantReception, dormantReceptionRows),
 		},
 	}
 	for i := range checks {

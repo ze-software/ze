@@ -1,0 +1,128 @@
+# Test: interactive editor sets, validates, refuses, fixes, and commits participant `bus` blocks cleanly.
+# QUESTION: in the interactive config editor, does setting valid `bus { endpoint bgp-rib ... }`
+# and `bgp { peer edge1 { bus { send { to [ /bus/endpoint/bgp-rib ]; } } } }` commit cleanly,
+# do subsequent invalid bus edits (`receive { from [ /bgp/peer/nosuch ]; }` and
+# `send { allow [ bgp:nosuch ]; }`) block `commit now` with `show | errors` naming the bad
+# bus path/message while leaving the active file unchanged, and does fixing each edit let
+# `commit now` succeed and persist the corrected bus block? A unit test cannot decide this
+# because it drives real interactive editor keystrokes, candidate validation, commit blocking,
+# error viewport rendering, and disk persistence together.
+#
+# VALIDATES: spec-explicit-plugin-and-attach-config AC-6, AC-20.
+# PREVENTS: editor commits accepting invalid bus targets or undeclared messages, failing to
+# surface `ValidateBusConfig` diagnostics in `show | errors`, or corrupting active config on
+# a refused bus commit.
+
+tmpfs=test.conf:terminator=EOF_CONF
+bgp {
+	router-id 192.0.2.254;
+	session {
+		asn { local 65000; }
+	}
+	peer edge1 {
+		connection {
+			remote { ip 192.0.2.1; }
+			local { ip auto; }
+		}
+		session {
+			asn { remote 65001; }
+		}
+	}
+}
+EOF_CONF
+
+option=file:path=test.conf
+option=timeout:value=20s
+
+# Clean initial state.
+expect=errors:count=0
+expect=dirty:false
+
+# 1. Configure valid bus endpoint and peer bus block, then commit cleanly.
+input=type:text=set bus endpoint bgp-rib internal bgp-rib
+input=enter
+expect=error:none
+expect=dirty:true
+
+input=type:text=set bus endpoint bgp-rib receive from /bgp/peer/edge1
+input=enter
+expect=error:none
+
+input=type:text=set bgp peer edge1 bus send to /bus/endpoint/bgp-rib
+input=enter
+expect=error:none
+
+input=type:text=commit now
+input=enter
+expect=status:contains=committed
+expect=dirty:false
+expect=error:none
+expect=key:path=file/active/test.conf:contains=/bgp/peer/edge1
+expect=key:path=file/active/test.conf:contains=/bus/endpoint/bgp-rib
+
+# 2. Invalid edit (Refusal 1): unknown participant path /bgp/peer/nosuch blocks commit.
+input=type:text=set bus endpoint bgp-rib receive from /bgp/peer/nosuch
+input=enter
+expect=error:none
+expect=dirty:true
+
+input=type:text=commit now
+input=enter
+expect=status:contains=blocked
+expect=dirty:true
+expect=key:path=file/active/test.conf:not-contains=/bgp/peer/nosuch
+
+input=type:text=show | errors
+input=enter
+expect=viewport:contains=bus > endpoint bgp-rib > receive > from
+expect=viewport:contains=/bgp/peer/nosuch
+expect=viewport:contains=names no configured bus participant
+
+# Fix unknown participant path and commit cleanly.
+input=type:text=delete bus endpoint bgp-rib receive from /bgp/peer/nosuch
+input=enter
+expect=error:none
+
+input=type:text=commit now
+input=enter
+expect=status:contains=committed
+expect=dirty:false
+expect=error:none
+expect=key:path=file/active/test.conf:contains=/bgp/peer/edge1
+expect=key:path=file/active/test.conf:not-contains=/bgp/peer/nosuch
+
+# 3. Invalid edit (Refusal 4): undeclared message bgp:nosuch in send allow blocks commit.
+input=type:text=set bus endpoint bgp-rib send allow bgp:nosuch
+input=enter
+expect=error:none
+expect=dirty:true
+
+input=type:text=commit now
+input=enter
+expect=status:contains=blocked
+expect=dirty:true
+expect=key:path=file/active/test.conf:not-contains=nosuch
+
+input=type:text=show | errors
+input=enter
+expect=viewport:contains=bus > endpoint bgp-rib > send > allow
+expect=viewport:contains=bgp:nosuch
+expect=viewport:contains=did not declare sending
+
+# Fix undeclared message to bgp:update and commit cleanly.
+input=type:text=delete bus endpoint bgp-rib send allow
+input=enter
+expect=error:none
+
+input=type:text=set bus endpoint bgp-rib send allow bgp:update
+input=enter
+expect=error:none
+
+input=type:text=commit now
+input=enter
+expect=status:contains=committed
+expect=dirty:false
+expect=error:none
+expect=key:path=file/active/test.conf:contains=allow
+expect=key:path=file/active/test.conf:contains=update
+expect=key:path=file/active/test.conf:not-contains=nosuch

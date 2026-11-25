@@ -49,7 +49,7 @@ bus {
 }
 EOF_LEGACY_ENV
 
-tmpfs=shapes/unknown_internal.conf:refused=config-yang-type:terminator=EOF_UNKNOWN_INTERNAL
+tmpfs=shapes/unknown_internal.conf:refused=config-plugin-extract:terminator=EOF_UNKNOWN_INTERNAL
 bus {
 	endpoint bogus {
 		internal no-such-plugin;

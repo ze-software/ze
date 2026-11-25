@@ -1,0 +1,116 @@
+# Test: offline `ze config validate` queries external endpoints in declare mode without starting their run loop (S16).
+# QUESTION: with no daemon running, when a config declares an external endpoint `acme`
+# built on `sdk.RunOrDeclare` (`le test fixture plugin/bus-implied-probe acme.started`),
+# does `ze config validate` (a) pass on a valid `receive { from [ /bgp/peer/edge1 ]; }`
+# config reporting `queried external plugins: acme`, (b) refuse
+# `receive { allow [ bgp:nosuch ]; }` listing `acme`'s declared receptions (`bgp:state`,
+# `bgp:update`), (c) fail on `run "./missing"` naming `acme`, `./missing`, `not found`,
+# and `ze show plugin conformance run "./missing"`, and (d) never start `acme`'s run
+# loop (proving `acme.started` was never written across all three validate runs)? A unit
+# test cannot decide this because it proves real `ze config validate` subprocess query-mode
+# execution, exit-code propagation, and run-loop non-activation on disk.
+#
+# VALIDATES: spec-explicit-plugin-and-attach-config S16 / AC-18, AC-11, AC-24.
+# PREVENTS: offline `ze config validate` executing external endpoint run loops, ignoring
+# declared receptions in Refusal 4 checks, or omitting the conformance command on missing
+# external binaries.
+
+option=env:var=ZE_CONFIG_DIR:value=.
+option=env:var=XDG_DATA_HOME:value=.
+
+# (a) Valid config: acme declares receives bgp:state and bgp:update via sdk.RunOrDeclare.
+tmpfs=valid.conf:terminator=EOF_VALID
+bus {
+	endpoint acme {
+		external {
+			run "le test fixture plugin/bus-implied-probe acme.started";
+		}
+		encoding json;
+		receive {
+			from [ /bgp/peer/edge1 ];
+		}
+	}
+}
+bgp {
+	router-id 192.0.2.254;
+	session { asn { local 65000; } }
+	peer edge1 {
+		connection { remote { ip 192.0.2.1; } local { ip auto; } }
+		session { asn { remote 65001; } }
+	}
+}
+EOF_VALID
+
+# (b) Invalid receive allow-list: bgp:nosuch is not in acme's declared receptions.
+tmpfs=bad-recv.conf:terminator=EOF_BAD_RECV
+bus {
+	endpoint acme {
+		external {
+			run "le test fixture plugin/bus-implied-probe acme.started";
+		}
+		encoding json;
+		receive {
+			from [ /bgp/peer/edge1 ];
+			allow [ bgp:nosuch ];
+		}
+	}
+}
+bgp {
+	router-id 192.0.2.254;
+	session { asn { local 65000; } }
+	peer edge1 {
+		connection { remote { ip 192.0.2.1; } local { ip auto; } }
+		session { asn { remote 65001; } }
+	}
+}
+EOF_BAD_RECV
+
+# (c) Missing binary: ./missing fails closed naming endpoint, binary, not found, and conformance command.
+tmpfs=missing.conf:terminator=EOF_MISSING
+bus {
+	endpoint acme {
+		external {
+			run "./missing";
+		}
+		encoding json;
+		receive {
+			from [ /bgp/peer/edge1 ];
+		}
+	}
+}
+bgp {
+	router-id 192.0.2.254;
+	session { asn { local 65000; } }
+	peer edge1 {
+		connection { remote { ip 192.0.2.1; } local { ip auto; } }
+		session { asn { remote 65001; } }
+	}
+}
+EOF_MISSING
+
+# Step (a): valid config passes offline via query mode.
+cmd=foreground:seq=1:exec=ze config validate valid.conf
+expect=exit:code=0
+expect=stdout:contains=configuration valid: valid.conf
+expect=stdout:contains=queried external plugins: acme
+
+# Step (b): undeclared reception refused, listing acme's declared receptions.
+cmd=foreground:seq=2:exec=ze config validate bad-recv.conf
+expect=exit:code=1
+expect=stdout:contains=bus > endpoint acme > receive > allow: participant "/bus/endpoint/acme" (kind "acme") did not declare receiving "bgp:nosuch"
+expect=stdout:contains=bgp:state
+expect=stdout:contains=bgp:update
+expect=stdout:contains=fix: replace bgp:nosuch in bus > endpoint acme > receive > allow
+
+# Step (c): nonexistent binary fails closed naming endpoint, ./missing, not found, and conformance command.
+cmd=foreground:seq=3:exec=ze config validate missing.conf
+expect=exit:code=1
+expect=stdout:contains=bus endpoint "acme"
+expect=stdout:contains=./missing
+expect=stdout:contains=not found
+expect=stdout:contains=ze show plugin conformance run "./missing"
+
+# Step (d) negative control: acme's run-loop marker was NEVER created by any of the three validate runs.
+cmd=foreground:seq=4:exec=le test fixture plugin/bus-assert-implied file-not-contains acme.started run-loop-started
+expect=exit:code=0
+expect=stdout:contains=OK: file acme.started absent

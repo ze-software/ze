@@ -2,12 +2,16 @@
 
 package doctor
 
-import "github.com/ze-software/ze/internal/core/diagnostic"
+import (
+	"github.com/ze-software/ze/internal/component/plugin/server"
+	"github.com/ze-software/ze/internal/core/diagnostic"
+)
 
 const (
 	codeDoctorPluginSetupFailed        = "doctor-plugin-setup-failed"
 	codeDoctorPluginAutoloadUnresolved = "doctor-plugin-autoload-unresolved"
 	codeDoctorPluginNoDataPlaneWriter  = "doctor-plugin-no-dataplane-writer"
+	codeDoctorBusDormantReception      = "doctor-bus-dormant-reception"
 	exampleDoctorJSON                  = "ze doctor --json"
 )
 
@@ -52,6 +56,16 @@ var doctorDiagnosticCodes = []diagnostic.CodeMeta{
 		Description: "A configured plugin produces routes for a data plane, and no plugin in the configuration programs that data plane, or its writer is compiled out of this build. " +
 			"The daemon refuses to start or reload with this configuration. The row names the producer and the data plane: add a fib block, or configure the writer for that data plane.",
 		Examples: []string{exampleDoctorJSON, "ze show diagnostic doctor-plugin-no-dataplane-writer"},
+	},
+	{
+		Code:  codeDoctorBusDormantReception,
+		Title: "Bus reception is dormant",
+		Description: "A configured bus participant declared that it receives a message, " +
+			"and no active sender currently produces a delivery edge for it (either no sender of that message is configured, " +
+			"or a runtime filter leaves no matching sender). " +
+			"A dormant reception is valid and does not stop ze from starting; delivery begins once a matching sender is configured and running.",
+		Examples:     []string{exampleDoctorJSON, "ze show event delivery", "ze show diagnostic doctor-bus-dormant-reception"},
+		RelatedCodes: []string{server.CodeDoctorPluginDeliveryDisagreement},
 	},
 }
 

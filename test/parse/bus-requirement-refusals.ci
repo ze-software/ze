@@ -1,0 +1,428 @@
+# Test: BGP feature requirement refusals (S18, S33, S34, S35) reject narrowed bus rules and accept positive controls.
+# QUESTION: does `ze config validate` refuse (1) S18 redistribution importing from BGP
+# when `peer edge1 { bus { send { to [ /bus/endpoint/collector ]; } } }` cuts `bgp-rib`
+# (and accept when `/bus/endpoint/bgp-rib` is included or redistribution is absent),
+# (2) S33 redistribution exporting into BGP when `redistribute-orchestrator` omits
+# `bgp:update` via partial `send { allow [ redistribute:replay-request ]; }` or
+# `send { allow none; }` (and accept when redistribution is absent), (3) S34 FlowSpec
+# family on `edge1` when `bgp-rib` is cut (and accept without FlowSpec), and (4) S35
+# explicit `aigp` on iBGP peer `i1` when `bgp-rib` is cut (and accept without explicit
+# `aigp`, confirming S26) plus external filter owner `acme` with
+# `receive { allow [ bgp:update ]; }` missing `bgp:state` (and accept without the filter
+# member)? A unit test cannot decide this because it proves the full `ze config validate`
+# pipeline including external query-mode declarations and all registered BGP requirement
+# validators end-to-end.
+#
+# VALIDATES: spec-explicit-plugin-and-attach-config S18, S33, S34, S35 / AC-14, AC-15.
+# PREVENTS: narrowed bus rules silently breaking redistribution, FlowSpec, explicit AIGP,
+# or filter-owner state delivery, or refusing valid configurations where those features
+# are absent.
+#
+# Note on S33 partial allow-list: `redistribute-orchestrator` declares sending
+# `redistribute:replay-request` and `bgp:update` (internal/plugins/redistribute/register.go),
+# not `bgp:refresh`. Writing `send { allow [ redistribute:replay-request ]; }` passes
+# Refusal 4 and exercises Refusal 7 (S33 requirement refusal) for a non-empty allow-list
+# omitting `bgp:update`, alongside `send { allow none; }`.
+
+option=env:var=ZE_CONFIG_DIR:value=.
+option=env:var=XDG_DATA_HOME:value=.
+
+# --- S18: redistribution importing from BGP with bgp-rib cut on edge1 ---
+stdin=s18-refused:terminator=EOF_S18_REFUSED
+bus {
+	endpoint collector {
+		external {
+			run "le test fixture plugin/bus-implied-probe col.started";
+		}
+		encoding json;
+	}
+}
+bgp {
+	router-id 192.0.2.254;
+	session { asn { local 65000; } }
+	peer edge1 {
+		connection { remote { ip 192.0.2.1; } local { ip auto; } }
+		session { asn { remote 65001; } }
+		bus {
+			send {
+				to [ /bus/endpoint/collector ];
+			}
+		}
+	}
+}
+ospf {
+	router-id 192.0.2.254;
+	areas { area 0.0.0.0 {} }
+}
+redistribute {
+	destination ospf {
+		import bgp;
+	}
+}
+EOF_S18_REFUSED
+
+cmd=foreground:seq=1:exec=ze config validate -:stdin=s18-refused
+expect=exit:code=1
+expect=stdout:contains=feature redistribution (source bgp): peer "edge1" (/bgp/peer/edge1) does not deliver
+expect=stdout:contains=/bus/endpoint/bgp-rib
+expect=stdout:contains=/bgp/peer/edge1 > bus > send > to
+expect=stdout:contains=fix: add /bus/endpoint/bgp-rib to /bgp/peer/edge1 > bus > send > to
+
+# S18 positive control 1: adding /bus/endpoint/bgp-rib to send > to passes.
+stdin=s18-fixed:terminator=EOF_S18_FIXED
+bus {
+	endpoint collector {
+		external {
+			run "le test fixture plugin/bus-implied-probe col.started";
+		}
+		encoding json;
+	}
+}
+bgp {
+	router-id 192.0.2.254;
+	session { asn { local 65000; } }
+	peer edge1 {
+		connection { remote { ip 192.0.2.1; } local { ip auto; } }
+		session { asn { remote 65001; } }
+		bus {
+			send {
+				to [ /bus/endpoint/collector /bus/endpoint/bgp-rib ];
+			}
+		}
+	}
+}
+ospf {
+	router-id 192.0.2.254;
+	areas { area 0.0.0.0 {} }
+}
+redistribute {
+	destination ospf {
+		import bgp;
+	}
+}
+EOF_S18_FIXED
+
+cmd=foreground:seq=2:exec=ze config validate -:stdin=s18-fixed
+expect=exit:code=0
+expect=stdout:contains=configuration valid
+
+# S18 positive control 2: same send > to without redistribution loads cleanly.
+stdin=s18-no-redist:terminator=EOF_S18_NO_REDIST
+bus {
+	endpoint collector {
+		external {
+			run "le test fixture plugin/bus-implied-probe col.started";
+		}
+		encoding json;
+	}
+}
+bgp {
+	router-id 192.0.2.254;
+	session { asn { local 65000; } }
+	peer edge1 {
+		connection { remote { ip 192.0.2.1; } local { ip auto; } }
+		session { asn { remote 65001; } }
+		bus {
+			send {
+				to [ /bus/endpoint/collector ];
+			}
+		}
+	}
+}
+EOF_S18_NO_REDIST
+
+cmd=foreground:seq=3:exec=ze config validate -:stdin=s18-no-redist
+expect=exit:code=0
+expect=stdout:contains=configuration valid
+
+# --- S33: redistribution exporting into BGP with orchestrator missing bgp:update ---
+stdin=s33-partial:terminator=EOF_S33_PARTIAL
+bus {
+	endpoint redistribute-orchestrator {
+		internal redistribute-orchestrator;
+		send {
+			allow [ redistribute:replay-request ];
+		}
+	}
+}
+bgp {
+	router-id 192.0.2.254;
+	session { asn { local 65000; } }
+	peer edge1 {
+		connection { remote { ip 192.0.2.1; } local { ip auto; } }
+		session { asn { remote 65001; } }
+	}
+}
+isis {
+	net 49.0001.0000.0000.0001.00;
+}
+redistribute {
+	destination bgp {
+		import isis;
+	}
+}
+EOF_S33_PARTIAL
+
+cmd=foreground:seq=4:exec=ze config validate -:stdin=s33-partial
+expect=exit:code=1
+expect=stdout:contains=feature redistribution (destination bgp): endpoint "redistribute-orchestrator" (/bus/endpoint/redistribute-orchestrator) is not permitted to send bgp:update to /bgp/peer/edge1
+expect=stdout:contains=narrowed by bus > endpoint redistribute-orchestrator
+expect=stdout:contains=fix: set bus endpoint redistribute-orchestrator send allow bgp:update
+
+# S33 refused case 2: send { allow none; } on redistribute-orchestrator.
+stdin=s33-none:terminator=EOF_S33_NONE
+bus {
+	endpoint redistribute-orchestrator {
+		internal redistribute-orchestrator;
+		send {
+			allow none;
+		}
+	}
+}
+bgp {
+	router-id 192.0.2.254;
+	session { asn { local 65000; } }
+	peer edge1 {
+		connection { remote { ip 192.0.2.1; } local { ip auto; } }
+		session { asn { remote 65001; } }
+	}
+}
+isis {
+	net 49.0001.0000.0000.0001.00;
+}
+redistribute {
+	destination bgp {
+		import isis;
+	}
+}
+EOF_S33_NONE
+
+cmd=foreground:seq=5:exec=ze config validate -:stdin=s33-none
+expect=exit:code=1
+expect=stdout:contains=feature redistribution (destination bgp): endpoint "redistribute-orchestrator" (/bus/endpoint/redistribute-orchestrator) is not permitted to send bgp:update to /bgp/peer/edge1
+expect=stdout:contains=fix: set bus endpoint redistribute-orchestrator send allow bgp:update
+
+# S33 positive control: same allow none on redistribute-orchestrator with no redistribution loads.
+stdin=s33-no-redist:terminator=EOF_S33_NO_REDIST
+bus {
+	endpoint redistribute-orchestrator {
+		internal redistribute-orchestrator;
+		send {
+			allow none;
+		}
+	}
+}
+bgp {
+	router-id 192.0.2.254;
+	session { asn { local 65000; } }
+	peer edge1 {
+		connection { remote { ip 192.0.2.1; } local { ip auto; } }
+		session { asn { remote 65001; } }
+	}
+}
+EOF_S33_NO_REDIST
+
+cmd=foreground:seq=6:exec=ze config validate -:stdin=s33-no-redist
+expect=exit:code=0
+expect=stdout:contains=configuration valid
+
+# --- S34: FlowSpec family on edge1 with bgp-rib cut ---
+stdin=s34-flowspec:terminator=EOF_S34_FS
+bus {
+	endpoint collector {
+		external {
+			run "le test fixture plugin/bus-implied-probe col.started";
+		}
+		encoding json;
+	}
+}
+bgp {
+	router-id 192.0.2.254;
+	session { asn { local 65000; } }
+	peer edge1 {
+		connection { remote { ip 192.0.2.1; } local { ip auto; } }
+		session {
+			asn { remote 65001; }
+			family { ipv4/flow { prefix { maximum 1000; } } }
+		}
+		bus {
+			send {
+				to [ /bus/endpoint/collector ];
+			}
+		}
+	}
+}
+EOF_S34_FS
+
+cmd=foreground:seq=7:exec=ze config validate -:stdin=s34-flowspec
+expect=exit:code=1
+expect=stdout:contains=feature FlowSpec authorization: peer "edge1" (/bgp/peer/edge1) does not deliver
+expect=stdout:contains=/bus/endpoint/bgp-rib
+expect=stdout:contains=fix: add /bus/endpoint/bgp-rib to /bgp/peer/edge1 > bus > send > to
+
+# S34 positive control: without FlowSpec family, the same send > to loads.
+stdin=s34-no-flowspec:terminator=EOF_S34_NO_FS
+bus {
+	endpoint collector {
+		external {
+			run "le test fixture plugin/bus-implied-probe col.started";
+		}
+		encoding json;
+	}
+}
+bgp {
+	router-id 192.0.2.254;
+	session { asn { local 65000; } }
+	peer edge1 {
+		connection { remote { ip 192.0.2.1; } local { ip auto; } }
+		session {
+			asn { remote 65001; }
+			family { ipv4/unicast { prefix { maximum 1000; } } }
+		}
+		bus {
+			send {
+				to [ /bus/endpoint/collector ];
+			}
+		}
+	}
+}
+EOF_S34_NO_FS
+
+cmd=foreground:seq=8:exec=ze config validate -:stdin=s34-no-flowspec
+expect=exit:code=0
+expect=stdout:contains=configuration valid
+
+# --- S35a: explicit aigp on iBGP peer i1 with bgp-rib cut ---
+stdin=s35-aigp:terminator=EOF_S35_AIGP
+bus {
+	endpoint collector {
+		external {
+			run "le test fixture plugin/bus-implied-probe col.started";
+		}
+		encoding json;
+	}
+}
+bgp {
+	router-id 192.0.2.254;
+	session { asn { local 65000; } }
+	peer i1 {
+		connection { remote { ip 192.0.2.11; } local { ip auto; } }
+		session {
+			asn { local 65000; remote 65000; }
+			aigp { enabled true; }
+		}
+		bus {
+			send {
+				to [ /bus/endpoint/collector ];
+			}
+		}
+	}
+}
+EOF_S35_AIGP
+
+cmd=foreground:seq=9:exec=ze config validate -:stdin=s35-aigp
+expect=exit:code=1
+expect=stdout:contains=feature AIGP selection: peer "i1" (/bgp/peer/i1) does not deliver
+expect=stdout:contains=/bus/endpoint/bgp-rib
+expect=stdout:contains=fix: add /bus/endpoint/bgp-rib to /bgp/peer/i1 > bus > send > to
+
+# S35a positive control (also S26 / AC-15): iBGP peer i1 without explicit aigp loads.
+stdin=s35-no-aigp:terminator=EOF_S35_NO_AIGP
+bus {
+	endpoint collector {
+		external {
+			run "le test fixture plugin/bus-implied-probe col.started";
+		}
+		encoding json;
+	}
+}
+bgp {
+	router-id 192.0.2.254;
+	session { asn { local 65000; } }
+	peer i1 {
+		connection { remote { ip 192.0.2.11; } local { ip auto; } }
+		session {
+			asn { local 65000; remote 65000; }
+		}
+		bus {
+			send {
+				to [ /bus/endpoint/collector ];
+			}
+		}
+	}
+}
+EOF_S35_NO_AIGP
+
+cmd=foreground:seq=10:exec=ze config validate -:stdin=s35-no-aigp
+expect=exit:code=0
+expect=stdout:contains=configuration valid
+
+# --- S35b: external filter owner acme with receive > allow omitting bgp:state ---
+stdin=s35-filter-owner:terminator=EOF_S35_FILTER
+bus {
+	endpoint acme {
+		external {
+			run "le test fixture plugin/bus-implied-probe acme.started";
+		}
+		encoding json;
+		receive {
+			allow [ bgp:update ];
+		}
+	}
+}
+bgp {
+	router-id 192.0.2.254;
+	session { asn { local 65000; } }
+	peer edge1 {
+		connection { remote { ip 192.0.2.1; } local { ip auto; } }
+		session { asn { remote 65001; } }
+		filter {
+			export {
+				filters [ acme:check ];
+				final accept;
+			}
+		}
+	}
+}
+EOF_S35_FILTER
+
+cmd=foreground:seq=11:exec=ze config validate -:stdin=s35-filter-owner
+expect=exit:code=1
+expect=stdout:contains=feature filter owner state requirement: peer "edge1" (/bgp/peer/edge1) does not deliver [ bgp:state ] to /bus/endpoint/acme
+expect=stdout:contains=narrowed by bus > endpoint acme
+expect=stdout:contains=fix: set bus endpoint acme receive allow bgp:state
+
+# S35b positive control: removing the acme:check filter member lets the same config pass.
+stdin=s35-no-filter:terminator=EOF_S35_NO_FILTER
+bus {
+	endpoint acme {
+		external {
+			run "le test fixture plugin/bus-implied-probe acme.started";
+		}
+		encoding json;
+		receive {
+			allow [ bgp:update ];
+		}
+	}
+}
+bgp {
+	router-id 192.0.2.254;
+	session { asn { local 65000; } }
+	peer edge1 {
+		connection { remote { ip 192.0.2.1; } local { ip auto; } }
+		session { asn { remote 65001; } }
+	}
+}
+EOF_S35_NO_FILTER
+
+cmd=foreground:seq=12:exec=ze config validate -:stdin=s35-no-filter
+expect=exit:code=0
+expect=stdout:contains=configuration valid
+
+# Negative control: offline query mode never started collector or acme run loops.
+cmd=foreground:seq=13:exec=le test fixture plugin/bus-assert-implied file-not-contains col.started run-loop-started
+expect=exit:code=0
+expect=stdout:contains=OK: file col.started absent
+cmd=foreground:seq=14:exec=le test fixture plugin/bus-assert-implied file-not-contains acme.started run-loop-started
+expect=exit:code=0
+expect=stdout:contains=OK: file acme.started absent

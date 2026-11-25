@@ -1,0 +1,452 @@
+# Test: live SIGHUP reloads of `receive > from` narrow, switch, and clear delivery without resetting BGP sessions, and refuse dangling peer deletion until updated together (S19).
+# QUESTION: on a running daemon with external `collector` (`bus-event-collector bgp:update`)
+# and established check-mode peers `edge1` and `lab`, does (1) Reload 1 adding
+# `receive { from [ /bgp/peer/edge1 ]; }` deliver only `edge1`'s UPDATE to `collector`,
+# (2) Reload 2 changing it to `/bgp/peer/lab` deliver only `lab`'s UPDATE, (3) Reload 3
+# removing `from` deliver both peers' UPDATEs — all with ZERO BGP session resets or
+# NOTIFICATIONs (`option=tcp_connections:value=1`, `connections-dropped: 0`) — (4) Reload 4
+# deleting peer `lab` while `from [ /bgp/peer/lab ]` still names it fail refusal naming the
+# `from` line and `lab`, and (5) Reload 5 deleting `lab` and updating `from` in the same
+# commit apply cleanly? A unit test cannot decide this because it spans live BGP TCP
+# sessions, real SIGHUP delivery-graph recompilation, live ROUTE-REFRESH updates, and
+# transactional reload refusal/commit semantics.
+#
+# VALIDATES: spec-explicit-plugin-and-attach-config S19 / AC-31, AC-20.
+# PREVENTS: `receive > from` reloads restarting BGP sessions, leaving stale compiled bus
+# filters active after SIGHUP, or allowing a reload that leaves a dangling peer reference.
+
+option=timeout:value=120s
+option=env:var=ZE_CONFIG_DIR:value=.
+option=env:var=XDG_DATA_HOME:value=.
+option=env:var=ze.ssh.password:value=testpass
+
+stdin=init-answers:terminator=EOF_INIT
+admin
+testpass
+127.0.0.1
+$PORT2
+EOF_INIT
+
+# Check-mode peer edge1 (127.0.0.2, AS 65001): stays on ONE TCP connection across reloads 1-3.
+# Distinct /24 prefixes per phase: 10.1.0.0/24 (init), 10.2.0.0/24 (R1), 10.3.0.0/24 (R2), 10.4.0.0/24 (R3).
+stdin=peer-edge1:terminator=EOF_PEER_EDGE1
+option=tcp_connections:value=1
+option=timeout:value=100s
+option=asn:value=65001
+option=open:value=router-id:id=127.0.0.2
+option=linger:value=true
+option=established-file:path=edge1.up
+action=send:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF002F02000000144001010040020602010000FDE94003040A000001180A0100
+expect=bgp:conn=1:seq=2:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
+expect=bgp:conn=1:seq=3:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170500010001
+action=send:conn=1:seq=4:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF002F02000000144001010040020602010000FDE94003040A000001180A0200
+expect=bgp:conn=1:seq=5:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170500010001
+action=send:conn=1:seq=6:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF002F02000000144001010040020602010000FDE94003040A000001180A0300
+expect=bgp:conn=1:seq=7:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170500010001
+action=send:conn=1:seq=8:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF002F02000000144001010040020602010000FDE94003040A000001180A0400
+EOF_PEER_EDGE1
+
+# Check-mode peer lab (127.0.0.3, AS 65002): stays on ONE TCP connection across reloads 1-3.
+# Distinct /24 prefixes per phase: 10.11.0.0/24 (init), 10.12.0.0/24 (R1), 10.13.0.0/24 (R2), 10.14.0.0/24 (R3).
+stdin=peer-lab:terminator=EOF_PEER_LAB
+option=tcp_connections:value=1
+option=timeout:value=100s
+option=asn:value=65002
+option=open:value=router-id:id=127.0.0.3
+option=linger:value=true
+option=established-file:path=lab.up
+action=send:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF002F02000000144001010040020602010000FDEA4003040A000002180A0B00
+expect=bgp:conn=1:seq=2:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
+expect=bgp:conn=1:seq=3:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170500010001
+action=send:conn=1:seq=4:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF002F02000000144001010040020602010000FDEA4003040A000002180A0C00
+expect=bgp:conn=1:seq=5:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170500010001
+action=send:conn=1:seq=6:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF002F02000000144001010040020602010000FDEA4003040A000002180A0D00
+expect=bgp:conn=1:seq=7:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170500010001
+action=send:conn=1:seq=8:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF002F02000000144001010040020602010000FDEA4003040A000002180A0E00
+EOF_PEER_LAB
+
+# Phase 0 config: no receive > from on collector.
+tmpfs=running.conf:terminator=EOF_CONF0
+system {
+	authentication {
+		# bcrypt cost-4 hash of "testpass".
+		user admin {
+			password "$2a$04$UlwuiuH82Unfsq.XEMPGJeDkXwbm3KW.nvVaVXOd/JeFK8VjMjrQO"
+		}
+	}
+}
+environment {
+	ssh {
+		enabled true
+		server main { ip 127.0.0.1; port $PORT2; }
+	}
+}
+bus {
+	endpoint collector {
+		external {
+			run "le test fixture plugin/bus-event-collector bgp:update col.log";
+		}
+		encoding json;
+	}
+}
+bgp {
+	router-id 192.0.2.254;
+	filter {
+		import { final accept; }
+		export { final reject; }
+	}
+	peer edge1 {
+		connection {
+			remote { ip 127.0.0.2; port $PORT; }
+			local { ip 127.0.0.1; accept false; }
+		}
+		session {
+			asn { local 65000; remote 65001; }
+			family { ipv4/unicast { prefix { maximum 10000; } } }
+			capability { route-refresh enable; graceful-restart disable; }
+		}
+		behavior { group-updates disable; }
+	}
+	peer lab {
+		connection {
+			remote { ip 127.0.0.3; port $PORT; }
+			local { ip 127.0.0.1; accept false; }
+		}
+		session {
+			asn { local 65000; remote 65002; }
+			family { ipv4/unicast { prefix { maximum 10000; } } }
+			capability { route-refresh enable; graceful-restart disable; }
+		}
+		behavior { group-updates disable; }
+	}
+}
+EOF_CONF0
+
+# Reload 1: narrow collector to receive { from [ /bgp/peer/edge1 ]; }.
+tmpfs=reload1-edge1.conf:terminator=EOF_CONF1
+system {
+	authentication {
+		user admin {
+			password "$2a$04$UlwuiuH82Unfsq.XEMPGJeDkXwbm3KW.nvVaVXOd/JeFK8VjMjrQO"
+		}
+	}
+}
+environment {
+	ssh {
+		enabled true
+		server main { ip 127.0.0.1; port $PORT2; }
+	}
+}
+bus {
+	endpoint collector {
+		external {
+			run "le test fixture plugin/bus-event-collector bgp:update col.log";
+		}
+		encoding json;
+		receive {
+			from [ /bgp/peer/edge1 ];
+		}
+	}
+}
+bgp {
+	router-id 192.0.2.254;
+	filter {
+		import { final accept; }
+		export { final reject; }
+	}
+	peer edge1 {
+		connection {
+			remote { ip 127.0.0.2; port $PORT; }
+			local { ip 127.0.0.1; accept false; }
+		}
+		session {
+			asn { local 65000; remote 65001; }
+			family { ipv4/unicast { prefix { maximum 10000; } } }
+			capability { route-refresh enable; graceful-restart disable; }
+		}
+		behavior { group-updates disable; }
+	}
+	peer lab {
+		connection {
+			remote { ip 127.0.0.3; port $PORT; }
+			local { ip 127.0.0.1; accept false; }
+		}
+		session {
+			asn { local 65000; remote 65002; }
+			family { ipv4/unicast { prefix { maximum 10000; } } }
+			capability { route-refresh enable; graceful-restart disable; }
+		}
+		behavior { group-updates disable; }
+	}
+}
+EOF_CONF1
+
+# Reload 2: switch collector to receive { from [ /bgp/peer/lab ]; }.
+tmpfs=reload2-lab.conf:terminator=EOF_CONF2
+system {
+	authentication {
+		user admin {
+			password "$2a$04$UlwuiuH82Unfsq.XEMPGJeDkXwbm3KW.nvVaVXOd/JeFK8VjMjrQO"
+		}
+	}
+}
+environment {
+	ssh {
+		enabled true
+		server main { ip 127.0.0.1; port $PORT2; }
+	}
+}
+bus {
+	endpoint collector {
+		external {
+			run "le test fixture plugin/bus-event-collector bgp:update col.log";
+		}
+		encoding json;
+		receive {
+			from [ /bgp/peer/lab ];
+		}
+	}
+}
+bgp {
+	router-id 192.0.2.254;
+	filter {
+		import { final accept; }
+		export { final reject; }
+	}
+	peer edge1 {
+		connection {
+			remote { ip 127.0.0.2; port $PORT; }
+			local { ip 127.0.0.1; accept false; }
+		}
+		session {
+			asn { local 65000; remote 65001; }
+			family { ipv4/unicast { prefix { maximum 10000; } } }
+			capability { route-refresh enable; graceful-restart disable; }
+		}
+		behavior { group-updates disable; }
+	}
+	peer lab {
+		connection {
+			remote { ip 127.0.0.3; port $PORT; }
+			local { ip 127.0.0.1; accept false; }
+		}
+		session {
+			asn { local 65000; remote 65002; }
+			family { ipv4/unicast { prefix { maximum 10000; } } }
+			capability { route-refresh enable; graceful-restart disable; }
+		}
+		behavior { group-updates disable; }
+	}
+}
+EOF_CONF2
+
+# Reload 3: remove receive > from on collector -> both peers delivered again.
+tmpfs=reload3-all.conf:terminator=EOF_CONF3
+system {
+	authentication {
+		user admin {
+			password "$2a$04$UlwuiuH82Unfsq.XEMPGJeDkXwbm3KW.nvVaVXOd/JeFK8VjMjrQO"
+		}
+	}
+}
+environment {
+	ssh {
+		enabled true
+		server main { ip 127.0.0.1; port $PORT2; }
+	}
+}
+bus {
+	endpoint collector {
+		external {
+			run "le test fixture plugin/bus-event-collector bgp:update col.log";
+		}
+		encoding json;
+	}
+}
+bgp {
+	router-id 192.0.2.254;
+	filter {
+		import { final accept; }
+		export { final reject; }
+	}
+	peer edge1 {
+		connection {
+			remote { ip 127.0.0.2; port $PORT; }
+			local { ip 127.0.0.1; accept false; }
+		}
+		session {
+			asn { local 65000; remote 65001; }
+			family { ipv4/unicast { prefix { maximum 10000; } } }
+			capability { route-refresh enable; graceful-restart disable; }
+		}
+		behavior { group-updates disable; }
+	}
+	peer lab {
+		connection {
+			remote { ip 127.0.0.3; port $PORT; }
+			local { ip 127.0.0.1; accept false; }
+		}
+		session {
+			asn { local 65000; remote 65002; }
+			family { ipv4/unicast { prefix { maximum 10000; } } }
+			capability { route-refresh enable; graceful-restart disable; }
+		}
+		behavior { group-updates disable; }
+	}
+}
+EOF_CONF3
+
+# Reload 4 (refused): deletes peer lab while collector's receive > from still names /bgp/peer/lab.
+tmpfs=reload4-dangling-lab.conf:terminator=EOF_CONF4
+system {
+	authentication {
+		user admin {
+			password "$2a$04$UlwuiuH82Unfsq.XEMPGJeDkXwbm3KW.nvVaVXOd/JeFK8VjMjrQO"
+		}
+	}
+}
+environment {
+	ssh {
+		enabled true
+		server main { ip 127.0.0.1; port $PORT2; }
+	}
+}
+bus {
+	endpoint collector {
+		external {
+			run "le test fixture plugin/bus-event-collector bgp:update col.log";
+		}
+		encoding json;
+		receive {
+			from [ /bgp/peer/lab ];
+		}
+	}
+}
+bgp {
+	router-id 192.0.2.254;
+	filter {
+		import { final accept; }
+		export { final reject; }
+	}
+	peer edge1 {
+		connection {
+			remote { ip 127.0.0.2; port $PORT; }
+			local { ip 127.0.0.1; accept false; }
+		}
+		session {
+			asn { local 65000; remote 65001; }
+			family { ipv4/unicast { prefix { maximum 10000; } } }
+			capability { route-refresh enable; graceful-restart disable; }
+		}
+		behavior { group-updates disable; }
+	}
+}
+EOF_CONF4
+
+# Reload 5 (accepted): deletes peer lab and updates receive > from to /bgp/peer/edge1 in one commit.
+tmpfs=reload5-clean-delete.conf:terminator=EOF_CONF5
+system {
+	authentication {
+		user admin {
+			password "$2a$04$UlwuiuH82Unfsq.XEMPGJeDkXwbm3KW.nvVaVXOd/JeFK8VjMjrQO"
+		}
+	}
+}
+environment {
+	ssh {
+		enabled true
+		server main { ip 127.0.0.1; port $PORT2; }
+	}
+}
+bus {
+	endpoint collector {
+		external {
+			run "le test fixture plugin/bus-event-collector bgp:update col.log";
+		}
+		encoding json;
+		receive {
+			from [ /bgp/peer/edge1 ];
+		}
+	}
+}
+bgp {
+	router-id 192.0.2.254;
+	filter {
+		import { final accept; }
+		export { final reject; }
+	}
+	peer edge1 {
+		connection {
+			remote { ip 127.0.0.2; port $PORT; }
+			local { ip 127.0.0.1; accept false; }
+		}
+		session {
+			asn { local 65000; remote 65001; }
+			family { ipv4/unicast { prefix { maximum 10000; } } }
+			capability { route-refresh enable; graceful-restart disable; }
+		}
+		behavior { group-updates disable; }
+	}
+}
+EOF_CONF5
+
+cmd=foreground:seq=1:exec=ze init:stdin=init-answers:exit=0
+cmd=background:seq=2:name=peer-edge1:exec=le test peer --bind 127.0.0.2 --port $PORT:stdin=peer-edge1
+cmd=background:seq=3:name=peer-lab:exec=le test peer --bind 127.0.0.3 --port $PORT:stdin=peer-lab
+cmd=background:seq=4:name=daemon:exec=ze start running.conf:ready=Ze running.
+expect=stderr:contains=/bgp/peer/lab
+reject=stderr:pattern=ZE-OBSERVER-FAIL
+reject=stderr:pattern=panic
+reject=stderr:pattern=peer restart required
+
+# Phase 0: wait for both sessions up and both initial routes recorded in collector.
+cmd=foreground:seq=5:exec=le test fixture plugin/bus-wait-file edge1.up:exit=0
+cmd=foreground:seq=6:exec=le test fixture plugin/bus-wait-file lab.up:exit=0
+cmd=foreground:seq=7:exec=le test fixture plugin/bus-assert-implied poll-file-contains col.log 10.1.0.0/24:exit=0
+cmd=foreground:seq=8:exec=le test fixture plugin/bus-assert-implied poll-file-contains col.log 10.11.0.0/24:exit=0
+
+# Reload 1: narrow collector to edge1 only -> 10.2.0.0/24 recorded, 10.12.0.0/24 filtered out (causal fence: RIB holds both).
+cmd=foreground:seq=9:exec=le test fixture plugin/bus-sighup-reload reload1-edge1.conf running.conf r1.applied:exit=0
+expect=stdout:contains=OK: SIGHUP reload reload1-edge1.conf applied
+cmd=foreground:seq=10:exec=ze cli -c "request peer * refresh ipv4/unicast":exit=0
+cmd=foreground:seq=11:exec=le test fixture daemon/await-answer-all "show bgp rib" 10.2.0.0/24 10.12.0.0/24:exit=0
+cmd=foreground:seq=12:exec=le test fixture plugin/bus-assert-implied poll-file-contains col.log 10.2.0.0/24:exit=0
+cmd=foreground:seq=13:exec=le test fixture plugin/bus-assert-implied file-not-contains col.log 10.12.0.0/24:exit=0
+
+# Reload 2: switch collector to lab only -> 10.13.0.0/24 recorded, 10.3.0.0/24 filtered out (causal fence: RIB holds both).
+cmd=foreground:seq=14:exec=le test fixture plugin/bus-sighup-reload reload2-lab.conf running.conf r2.applied:exit=0
+expect=stdout:contains=OK: SIGHUP reload reload2-lab.conf applied
+cmd=foreground:seq=15:exec=ze cli -c "request peer * refresh ipv4/unicast":exit=0
+cmd=foreground:seq=16:exec=le test fixture daemon/await-answer-all "show bgp rib" 10.3.0.0/24 10.13.0.0/24:exit=0
+cmd=foreground:seq=17:exec=le test fixture plugin/bus-assert-implied poll-file-contains col.log 10.13.0.0/24:exit=0
+cmd=foreground:seq=18:exec=le test fixture plugin/bus-assert-implied file-not-contains col.log 10.3.0.0/24:exit=0
+
+# Reload 3: remove receive > from -> both 10.4.0.0/24 and 10.14.0.0/24 recorded.
+cmd=foreground:seq=19:exec=le test fixture plugin/bus-sighup-reload reload3-all.conf running.conf r3.applied:exit=0
+expect=stdout:contains=OK: SIGHUP reload reload3-all.conf applied
+cmd=foreground:seq=20:exec=ze cli -c "request peer * refresh ipv4/unicast":exit=0
+cmd=foreground:seq=21:exec=le test fixture plugin/bus-assert-implied poll-file-contains col.log 10.4.0.0/24:exit=0
+cmd=foreground:seq=22:exec=le test fixture plugin/bus-assert-implied poll-file-contains col.log 10.14.0.0/24:exit=0
+
+# Confirm zero session resets across Reloads 1-3 on both peers.
+cmd=foreground:seq=23:exec=ze cli -c "show bgp peer detail edge1 | json":exit=0
+expect=stdout:pattern="connections-dropped":\s*0
+cmd=foreground:seq=24:exec=ze cli -c "show bgp peer detail lab | json":exit=0
+expect=stdout:pattern="connections-dropped":\s*0
+
+# Reload 4 (refused): deleting lab while receive > from still names /bgp/peer/lab fails.
+cmd=foreground:seq=25:exec=ze config validate reload4-dangling-lab.conf:exit=1
+expect=stdout:contains=bus > endpoint collector > receive > from: "/bgp/peer/lab" names no configured bus participant
+cmd=foreground:seq=26:exec=le test fixture plugin/bus-sighup-reload-refused reload4-dangling-lab.conf running.conf r4.refused:exit=0
+expect=stdout:contains=OK: SIGHUP reload reload4-dangling-lab.conf failed
+
+# Reload 5 (accepted): deleting lab and updating receive > from in one commit passes.
+cmd=foreground:seq=27:exec=le test fixture plugin/bus-sighup-reload reload5-clean-delete.conf running.conf r5.applied:exit=0
+expect=stdout:contains=OK: SIGHUP reload reload5-clean-delete.conf applied
+cmd=foreground:seq=28:exec=ze cli -c "show bgp peer list":exit=0
+expect=stdout:contains=edge1
+reject=stdout:contains=lab
+
+cmd=stop:seq=29:name=daemon:signal=term
+cmd=stop:seq=30:name=peer-edge1
+cmd=stop:seq=31:name=peer-lab

@@ -1,0 +1,208 @@
+# Test: central endpoint allow-lists (`send { allow none; }` and `receive { allow [ bgp:state ]; }`) restrict a third-party external endpoint from the bus side while the unrestricted control delivers and sends normally.
+# QUESTION: when `bus { endpoint acme { external { run ...; } send { allow none; } receive { allow [ bgp:state ]; } } }`
+# runs an external program declaring `Sends: [bgp:update]` and `Receives: [bgp:state, bgp:update(direction=received)]`,
+# does `acme` record `bgp:state` only (no `bgp:update` when `edge1` announces 203.0.113.0/24),
+# is `acme`'s `UpdateRoute` refused with the send allow-list message and counter 1, and does
+# `show config running | implied` show both lists as written and what they removed; and in
+# the negative control with those two allow lines deleted, does `acme` record both `bgp:state`
+# and `bgp:update` and deliver its announced route (10.0.1.0/24) to `edge1` with counter 0?
+# A unit test cannot decide this because it spans live TLS external endpoint enforcement on
+# both receive and send paths, live BGP TCP delivery, Prometheus metrics, and `| implied`.
+#
+# VALIDATES: spec-explicit-plugin-and-attach-config S11 / AC-5, AC-23.
+# PREVENTS: central bus-side endpoint allow-lists failing to block declared sends or
+# receives, or `| implied` hiding what written allow-lists removed.
+
+option=timeout:value=120s
+option=env:var=ZE_CONFIG_DIR:value=.
+option=env:var=XDG_DATA_HOME:value=.
+option=env:var=ze.ssh.password:value=testpass
+
+stdin=init-answers:terminator=EOF_INIT
+admin
+testpass
+127.0.0.1
+$PORT2
+EOF_INIT
+
+# Peer script for Run 1 (centrally limited: rejects 10.0.1.0/24 = 180A0001).
+stdin=edge1-limited:terminator=EOF_EDGE1_LIM
+option=tcp_connections:value=1
+option=timeout:value=60s
+option=asn:value=65001
+option=open:value=router-id:id=127.0.0.2
+option=linger:value=true
+option=established-file:path=edge1-lim.up
+option=update:value=send-route:prefix=203.0.113.0/24:next-hop=192.0.2.1
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
+reject=bgp:conn=1:scope=announced:pattern=180A0001
+EOF_EDGE1_LIM
+
+# Peer script for Run 2 (control: expects 10.0.1.0/24 = 180A0001).
+stdin=edge1-control:terminator=EOF_EDGE1_CTL
+option=tcp_connections:value=1
+option=timeout:value=60s
+option=asn:value=65001
+option=open:value=router-id:id=127.0.0.2
+option=linger:value=true
+option=established-file:path=edge1-ctl.up
+option=update:value=send-route:prefix=203.0.113.0/24:next-hop=192.0.2.1
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
+expect=bgp:conn=1:seq=1:announced=180A0001
+EOF_EDGE1_CTL
+
+tmpfs=s11-limited.conf:terminator=EOF_S11_LIM
+system {
+	authentication {
+		user admin {
+			password "$2a$04$UlwuiuH82Unfsq.XEMPGJeDkXwbm3KW.nvVaVXOd/JeFK8VjMjrQO"
+		}
+	}
+}
+environment {
+	ssh {
+		enabled true
+		server main { ip 127.0.0.1; port $PORT2; }
+	}
+}
+telemetry {
+	prometheus {
+		enabled true
+		server main { ip 127.0.0.1; port $PORT3; }
+	}
+}
+bus {
+	endpoint acme {
+		external {
+			run "le test fixture plugin/bus-acme-agent acme-lim.log send-lim.go 127.0.0.2 10.0.1.0/24 expect-allow-refused send-lim.done";
+		}
+		encoding json;
+		send {
+			allow none;
+		}
+		receive {
+			allow [ bgp:state ];
+		}
+	}
+}
+bgp {
+	router-id 192.0.2.254;
+	filter {
+		import { final accept; }
+		export { final accept; }
+	}
+	peer edge1 {
+		connection {
+			remote { ip 127.0.0.2; }
+			local { ip 127.0.0.1; accept false; }
+		}
+		session {
+			asn { local 65000; remote 65001; }
+			family { ipv4/unicast { prefix { maximum 10000; } } }
+			capability { graceful-restart disable; }
+		}
+		behavior { group-updates disable; }
+	}
+}
+EOF_S11_LIM
+
+tmpfs=s11-control.conf:terminator=EOF_S11_CTL
+system {
+	authentication {
+		user admin {
+			password "$2a$04$UlwuiuH82Unfsq.XEMPGJeDkXwbm3KW.nvVaVXOd/JeFK8VjMjrQO"
+		}
+	}
+}
+environment {
+	ssh {
+		enabled true
+		server main { ip 127.0.0.1; port $PORT2; }
+	}
+}
+telemetry {
+	prometheus {
+		enabled true
+		server main { ip 127.0.0.1; port $PORT3; }
+	}
+}
+bus {
+	endpoint acme {
+		external {
+			run "le test fixture plugin/bus-acme-agent acme-ctl.log send-ctl.go 127.0.0.2 10.0.1.0/24 expect-ok send-ctl.done";
+		}
+		encoding json;
+	}
+}
+bgp {
+	router-id 192.0.2.254;
+	filter {
+		import { final accept; }
+		export { final accept; }
+	}
+	peer edge1 {
+		connection {
+			remote { ip 127.0.0.2; }
+			local { ip 127.0.0.1; accept false; }
+		}
+		session {
+			asn { local 65000; remote 65001; }
+			family { ipv4/unicast { prefix { maximum 10000; } } }
+			capability { graceful-restart disable; }
+		}
+		behavior { group-updates disable; }
+	}
+}
+EOF_S11_CTL
+
+cmd=foreground:seq=1:exec=ze init:stdin=init-answers:exit=0
+
+# --- Run 1: centrally limited acme ---
+cmd=background:seq=2:name=edge1-lim:exec=le test peer --bind 127.0.0.2 --port $PORT:stdin=edge1-limited
+cmd=background:seq=3:name=daemon1:exec=ze start s11-limited.conf:ready=Ze running.
+reject=stderr:pattern=ZE-OBSERVER-FAIL
+reject=stderr:pattern=panic
+
+cmd=foreground:seq=4:exec=le test fixture plugin/bus-wait-file edge1-lim.up:exit=0
+# Causal fence: edge1's UPDATE reached Loc-RIB.
+cmd=foreground:seq=5:exec=le test fixture daemon/await-answer-all "show bgp rib" 203.0.113.0/24:exit=0
+
+# acme records bgp:state only, NO bgp:update.
+cmd=foreground:seq=6:exec=le test fixture plugin/bus-assert-implied poll-file-contains acme-lim.log '"state":"up"':exit=0
+cmd=foreground:seq=7:exec=le test fixture plugin/bus-assert-implied file-contains acme-lim.log 127.0.0.2:exit=0
+cmd=foreground:seq=8:exec=le test fixture plugin/bus-assert-implied file-not-contains acme-lim.log 203.0.113.0/24:exit=0
+cmd=foreground:seq=9:exec=le test fixture plugin/bus-assert-implied file-not-contains acme-lim.log '"type":"update"':exit=0
+
+# acme's update is refused by send > allow none with counter = 1.
+cmd=foreground:seq=10:exec=le test fixture plugin/bus-touch-file send-lim.go:exit=0
+cmd=foreground:seq=11:exec=le test fixture plugin/bus-wait-file send-lim.done:exit=0
+cmd=foreground:seq=12:exec=le test fixture plugin/bus-assert-refused-series $PORT3 /bus/endpoint/acme bgp:update 1:exit=0
+
+# | implied shows both written allow-lists and the disallowed bgp:update rules.
+cmd=foreground:seq=13:exec=ze cli -c "show config running | implied":exit=0
+expect=stdout:contains=allow none
+expect=stdout:contains=bgp:state
+cmd=foreground:seq=14:exec=le test fixture plugin/bus-assert-implied rule /bus/endpoint/acme send bgp:update written --allowed false:exit=0
+cmd=foreground:seq=15:exec=le test fixture plugin/bus-assert-implied rule /bus/endpoint/acme receive bgp:update written --allowed false:exit=0
+cmd=foreground:seq=16:exec=le test fixture plugin/bus-assert-implied rule /bus/endpoint/acme receive bgp:state written --allowed true:exit=0
+
+cmd=stop:seq=17:name=daemon1:signal=term
+cmd=stop:seq=18:name=edge1-lim
+
+# --- Run 2 (negative control): without the allow lines, acme receives both and sends 10.0.1.0/24 ---
+cmd=background:seq=19:name=edge1-ctl:exec=le test peer --bind 127.0.0.2 --port $PORT:stdin=edge1-control
+cmd=background:seq=20:name=daemon2:exec=ze start s11-control.conf:ready=Ze running.
+reject=stderr:pattern=ZE-OBSERVER-FAIL
+reject=stderr:pattern=panic
+
+cmd=foreground:seq=21:exec=le test fixture plugin/bus-wait-file edge1-ctl.up:exit=0
+cmd=foreground:seq=22:exec=le test fixture plugin/bus-assert-implied poll-file-contains acme-ctl.log '"state":"up"':exit=0
+cmd=foreground:seq=23:exec=le test fixture plugin/bus-assert-implied poll-file-contains acme-ctl.log 203.0.113.0/24:exit=0
+
+cmd=foreground:seq=24:exec=le test fixture plugin/bus-touch-file send-ctl.go:exit=0
+cmd=foreground:seq=25:exec=le test fixture plugin/bus-wait-file send-ctl.done:exit=0
+cmd=foreground:seq=26:exec=le test fixture daemon/await-answer-all "show bgp peer edge1 detail | json" '"updates-sent": 2':exit=0
+cmd=foreground:seq=27:exec=le test fixture plugin/bus-assert-refused-count $PORT3 /bus/endpoint/acme 0:exit=0
+
+cmd=stop:seq=28:name=daemon2:signal=term
+cmd=stop:seq=29:name=edge1-ctl

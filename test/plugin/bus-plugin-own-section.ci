@@ -1,0 +1,449 @@
+# Test: narrowing `bgp-rs` via its own section (`bgp { route-server { bus { send { to [ /bgp/group/ix ]; } } } }`) and `bgp-rr` via `bus { endpoint bgp-rr { send { to [ /bgp/group/core ]; } } }` limits forwarding to the listed groups only.
+# QUESTION: (1) with `bgp { route-server { bus { send { to [ /bgp/group/ix ]; } } } }` and
+# RS-client groups `ix` (`ix1`, `ix2-peer`) and `ix2` (`ix2a`, `ix2b`), does the route
+# server forward routes to `ix` peers only and NOT `ix2` peers, with `| implied` showing
+# `send > to` written at `/bgp/route-server`, while removing that line lets `ix2` receive
+# them; and (2) with `bus { endpoint bgp-rr { internal bgp-rr; send { to [ /bgp/group/core ]; } } }`
+# and iBGP groups `core` (`core1`, `core2`) and `edge` (`edge1`, `edge2`), does `bgp-rr`
+# reflect routes to `core` peers only and NOT `edge` peers, with `| implied` showing
+# `send > to` written at `/bus/endpoint/bgp-rr`, while removing that line lets `edge`
+# receive them? A unit test cannot decide this because it spans live RS/RR forwarding over
+# TCP, own-section vs bus-endpoint filter compilation, and `| implied` reporting.
+#
+# VALIDATES: spec-explicit-plugin-and-attach-config S14 / AC-2, AC-7.
+# PREVENTS: `bgp { route-server { bus { send > to } } }` or `bus { endpoint bgp-rr { send > to } }`
+# failing to restrict live route forwarding to the named group.
+
+option=timeout:value=150s
+option=env:var=ZE_CONFIG_DIR:value=.
+option=env:var=XDG_DATA_HOME:value=.
+option=env:var=ze.ssh.password:value=testpass
+
+stdin=init-answers:terminator=EOF_INIT
+admin
+testpass
+127.0.0.1
+$PORT2
+EOF_INIT
+
+# --- Part 1 (RS restricted): ix1 sends 10.0.1.0/24 (180A0001), ix2a sends 10.0.2.0/24 (180A0002) ---
+stdin=rs-ix1-lim:terminator=EOF_RS_IX1_L
+option=tcp_connections:value=1
+option=timeout:value=60s
+option=asn:value=65001
+option=open:value=router-id:id=127.0.0.2
+option=linger:value=true
+option=await-file:path=rs-ixb-lim.up
+option=update:value=send-route:prefix=10.0.1.0/24:next-hop=192.0.2.1
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
+expect=bgp:conn=1:seq=1:announced=180A0002
+EOF_RS_IX1_L
+
+stdin=rs-ixb-lim:terminator=EOF_RS_IXB_L
+option=tcp_connections:value=1
+option=timeout:value=60s
+option=asn:value=65002
+option=open:value=router-id:id=127.0.0.3
+option=linger:value=true
+option=established-file:path=rs-ixb-lim.up
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
+expect=bgp:conn=1:seq=1:announced=180A0001
+expect=bgp:conn=1:seq=1:announced=180A0002
+EOF_RS_IXB_L
+
+stdin=rs-ix2a-lim:terminator=EOF_RS_IX2A_L
+option=tcp_connections:value=1
+option=timeout:value=60s
+option=asn:value=65003
+option=open:value=router-id:id=127.0.0.4
+option=linger:value=true
+option=await-file:path=rs-ix2b-lim.up
+option=update:value=send-route:prefix=10.0.2.0/24:next-hop=192.0.2.2
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
+reject=bgp:conn=1:scope=announced:pattern=180A0001
+EOF_RS_IX2A_L
+
+stdin=rs-ix2b-lim:terminator=EOF_RS_IX2B_L
+option=tcp_connections:value=1
+option=timeout:value=60s
+option=asn:value=65004
+option=open:value=router-id:id=127.0.0.5
+option=linger:value=true
+option=established-file:path=rs-ix2b-lim.up
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
+reject=bgp:conn=1:scope=announced:pattern=180A0001
+reject=bgp:conn=1:scope=announced:pattern=180A0002
+EOF_RS_IX2B_L
+
+# --- Part 1 control (RS unrestricted): ix2b receives 10.0.1.0/24 (180A0001) ---
+stdin=rs-ix1-ctl:terminator=EOF_RS_IX1_C
+option=tcp_connections:value=1
+option=timeout:value=60s
+option=asn:value=65001
+option=open:value=router-id:id=127.0.0.2
+option=linger:value=true
+option=await-file:path=rs-ix2b-ctl.up
+option=update:value=send-route:prefix=10.0.1.0/24:next-hop=192.0.2.1
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
+EOF_RS_IX1_C
+
+stdin=rs-ix2b-ctl:terminator=EOF_RS_IX2B_C
+option=tcp_connections:value=1
+option=timeout:value=60s
+option=asn:value=65004
+option=open:value=router-id:id=127.0.0.5
+option=linger:value=true
+option=established-file:path=rs-ix2b-ctl.up
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
+expect=bgp:conn=1:seq=1:announced=180A0001
+EOF_RS_IX2B_C
+
+# --- Part 2 (RR restricted): core1 sends 10.0.3.0/24 (180A0003), edge1 sends 10.0.4.0/24 (180A0004) ---
+stdin=rr-core1-lim:terminator=EOF_RR_C1_L
+option=tcp_connections:value=1
+option=timeout:value=60s
+option=asn:value=65000
+option=open:value=router-id:id=127.0.0.2
+option=linger:value=true
+option=await-file:path=rr-core2-lim.up
+option=update:value=send-route:prefix=10.0.3.0/24:next-hop=192.0.2.3
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
+expect=bgp:conn=1:seq=1:announced=180A0004
+EOF_RR_C1_L
+
+stdin=rr-core2-lim:terminator=EOF_RR_C2_L
+option=tcp_connections:value=1
+option=timeout:value=60s
+option=asn:value=65000
+option=open:value=router-id:id=127.0.0.3
+option=linger:value=true
+option=established-file:path=rr-core2-lim.up
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
+expect=bgp:conn=1:seq=1:announced=180A0003
+expect=bgp:conn=1:seq=1:announced=180A0004
+EOF_RR_C2_L
+
+stdin=rr-edge1-lim:terminator=EOF_RR_E1_L
+option=tcp_connections:value=1
+option=timeout:value=60s
+option=asn:value=65000
+option=open:value=router-id:id=127.0.0.4
+option=linger:value=true
+option=await-file:path=rr-edge2-lim.up
+option=update:value=send-route:prefix=10.0.4.0/24:next-hop=192.0.2.4
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
+reject=bgp:conn=1:scope=announced:pattern=180A0003
+EOF_RR_E1_L
+
+stdin=rr-edge2-lim:terminator=EOF_RR_E2_L
+option=tcp_connections:value=1
+option=timeout:value=60s
+option=asn:value=65000
+option=open:value=router-id:id=127.0.0.5
+option=linger:value=true
+option=established-file:path=rr-edge2-lim.up
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
+reject=bgp:conn=1:scope=announced:pattern=180A0003
+reject=bgp:conn=1:scope=announced:pattern=180A0004
+EOF_RR_E2_L
+
+# --- Part 2 control (RR unrestricted): edge2 receives 10.0.3.0/24 (180A0003) ---
+stdin=rr-core1-ctl:terminator=EOF_RR_C1_C
+option=tcp_connections:value=1
+option=timeout:value=60s
+option=asn:value=65000
+option=open:value=router-id:id=127.0.0.2
+option=linger:value=true
+option=await-file:path=rr-edge2-ctl.up
+option=update:value=send-route:prefix=10.0.3.0/24:next-hop=192.0.2.3
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
+EOF_RR_C1_C
+
+stdin=rr-edge2-ctl:terminator=EOF_RR_E2_C
+option=tcp_connections:value=1
+option=timeout:value=60s
+option=asn:value=65000
+option=open:value=router-id:id=127.0.0.5
+option=linger:value=true
+option=established-file:path=rr-edge2-ctl.up
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
+expect=bgp:conn=1:seq=1:announced=180A0003
+EOF_RR_E2_C
+
+# Config 1: RS limited via own section bgp { route-server { bus { send { to [ /bgp/group/ix ]; } } } }.
+tmpfs=s14-rs-lim.conf:terminator=EOF_C_RS_L
+system {
+	authentication {
+		user admin {
+			password "$2a$04$UlwuiuH82Unfsq.XEMPGJeDkXwbm3KW.nvVaVXOd/JeFK8VjMjrQO"
+		}
+	}
+}
+environment {
+	ssh {
+		enabled true
+		server main { ip 127.0.0.1; port $PORT2; }
+	}
+}
+bus {
+	endpoint bgp-rs { internal bgp-rs; }
+}
+bgp {
+	router-id 192.0.2.254;
+	filter {
+		import { final accept; }
+		export { final accept; }
+	}
+	route-server {
+		bus {
+			send {
+				to [ /bgp/group/ix ];
+			}
+		}
+	}
+	group ix {
+		peer ix1 {
+			connection { remote { ip 127.0.0.2; } local { ip 127.0.0.1; accept false; } }
+			session { asn { local 65000; remote 65001; } rs-client true; family { ipv4/unicast { prefix { maximum 10000; } } } capability { graceful-restart disable; } }
+			behavior { group-updates disable; }
+		}
+		peer ixb {
+			connection { remote { ip 127.0.0.3; } local { ip 127.0.0.1; accept false; } }
+			session { asn { local 65000; remote 65002; } rs-client true; family { ipv4/unicast { prefix { maximum 10000; } } } capability { graceful-restart disable; } }
+			behavior { group-updates disable; }
+		}
+	}
+	group ix2 {
+		peer ix2a {
+			connection { remote { ip 127.0.0.4; } local { ip 127.0.0.1; accept false; } }
+			session { asn { local 65000; remote 65003; } rs-client true; family { ipv4/unicast { prefix { maximum 10000; } } } capability { graceful-restart disable; } }
+			behavior { group-updates disable; }
+		}
+		peer ix2b {
+			connection { remote { ip 127.0.0.5; } local { ip 127.0.0.1; accept false; } }
+			session { asn { local 65000; remote 65004; } rs-client true; family { ipv4/unicast { prefix { maximum 10000; } } } capability { graceful-restart disable; } }
+			behavior { group-updates disable; }
+		}
+	}
+}
+EOF_C_RS_L
+
+# Config 2: RS control without send > to.
+tmpfs=s14-rs-ctl.conf:terminator=EOF_C_RS_C
+system {
+	authentication {
+		user admin {
+			password "$2a$04$UlwuiuH82Unfsq.XEMPGJeDkXwbm3KW.nvVaVXOd/JeFK8VjMjrQO"
+		}
+	}
+}
+environment {
+	ssh {
+		enabled true
+		server main { ip 127.0.0.1; port $PORT2; }
+	}
+}
+bus {
+	endpoint bgp-rs { internal bgp-rs; }
+}
+bgp {
+	router-id 192.0.2.254;
+	filter {
+		import { final accept; }
+		export { final accept; }
+	}
+	group ix {
+		peer ix1 {
+			connection { remote { ip 127.0.0.2; } local { ip 127.0.0.1; accept false; } }
+			session { asn { local 65000; remote 65001; } rs-client true; family { ipv4/unicast { prefix { maximum 10000; } } } capability { graceful-restart disable; } }
+			behavior { group-updates disable; }
+		}
+	}
+	group ix2 {
+		peer ix2b {
+			connection { remote { ip 127.0.0.5; } local { ip 127.0.0.1; accept false; } }
+			session { asn { local 65000; remote 65004; } rs-client true; family { ipv4/unicast { prefix { maximum 10000; } } } capability { graceful-restart disable; } }
+			behavior { group-updates disable; }
+		}
+	}
+}
+EOF_C_RS_C
+
+# Config 3: RR limited via bus { endpoint bgp-rr { internal bgp-rr; send { to [ /bgp/group/core ]; } } }.
+tmpfs=s14-rr-lim.conf:terminator=EOF_C_RR_L
+system {
+	authentication {
+		user admin {
+			password "$2a$04$UlwuiuH82Unfsq.XEMPGJeDkXwbm3KW.nvVaVXOd/JeFK8VjMjrQO"
+		}
+	}
+}
+environment {
+	ssh {
+		enabled true
+		server main { ip 127.0.0.1; port $PORT2; }
+	}
+}
+bus {
+	endpoint bgp-rr {
+		internal bgp-rr;
+		send {
+			to [ /bgp/group/core ];
+		}
+	}
+}
+bgp {
+	router-id 192.0.2.254;
+	filter {
+		import { final accept; }
+		export { final accept; }
+	}
+	group core {
+		peer core1 {
+			connection { remote { ip 127.0.0.2; } local { ip 127.0.0.1; accept false; } }
+			session { asn { local 65000; remote 65000; } route-reflector-client true; cluster-id 10.0.0.1; family { ipv4/unicast { prefix { maximum 10000; } } } capability { graceful-restart disable; } }
+			behavior { group-updates disable; }
+		}
+		peer core2 {
+			connection { remote { ip 127.0.0.3; } local { ip 127.0.0.1; accept false; } }
+			session { asn { local 65000; remote 65000; } route-reflector-client true; cluster-id 10.0.0.1; family { ipv4/unicast { prefix { maximum 10000; } } } capability { graceful-restart disable; } }
+			behavior { group-updates disable; }
+		}
+	}
+	group edge {
+		peer edge1 {
+			connection { remote { ip 127.0.0.4; } local { ip 127.0.0.1; accept false; } }
+			session { asn { local 65000; remote 65000; } route-reflector-client true; cluster-id 10.0.0.1; family { ipv4/unicast { prefix { maximum 10000; } } } capability { graceful-restart disable; } }
+			behavior { group-updates disable; }
+		}
+		peer edge2 {
+			connection { remote { ip 127.0.0.5; } local { ip 127.0.0.1; accept false; } }
+			session { asn { local 65000; remote 65000; } route-reflector-client true; cluster-id 10.0.0.1; family { ipv4/unicast { prefix { maximum 10000; } } } capability { graceful-restart disable; } }
+			behavior { group-updates disable; }
+		}
+	}
+}
+EOF_C_RR_L
+
+# Config 4: RR control without send > to.
+tmpfs=s14-rr-ctl.conf:terminator=EOF_C_RR_C
+system {
+	authentication {
+		user admin {
+			password "$2a$04$UlwuiuH82Unfsq.XEMPGJeDkXwbm3KW.nvVaVXOd/JeFK8VjMjrQO"
+		}
+	}
+}
+environment {
+	ssh {
+		enabled true
+		server main { ip 127.0.0.1; port $PORT2; }
+	}
+}
+bus {
+	endpoint bgp-rr {
+		internal bgp-rr;
+	}
+}
+bgp {
+	router-id 192.0.2.254;
+	filter {
+		import { final accept; }
+		export { final accept; }
+	}
+	group core {
+		peer core1 {
+			connection { remote { ip 127.0.0.2; } local { ip 127.0.0.1; accept false; } }
+			session { asn { local 65000; remote 65000; } route-reflector-client true; cluster-id 10.0.0.1; family { ipv4/unicast { prefix { maximum 10000; } } } capability { graceful-restart disable; } }
+			behavior { group-updates disable; }
+		}
+	}
+	group edge {
+		peer edge2 {
+			connection { remote { ip 127.0.0.5; } local { ip 127.0.0.1; accept false; } }
+			session { asn { local 65000; remote 65000; } route-reflector-client true; cluster-id 10.0.0.1; family { ipv4/unicast { prefix { maximum 10000; } } } capability { graceful-restart disable; } }
+			behavior { group-updates disable; }
+		}
+	}
+}
+EOF_C_RR_C
+
+cmd=foreground:seq=1:exec=ze init:stdin=init-answers:exit=0
+
+# --- Run 1: bgp-rs limited to /bgp/group/ix ---
+cmd=background:seq=2:name=rs-ix1-l:exec=le test peer --bind 127.0.0.2 --port $PORT:stdin=rs-ix1-lim
+cmd=background:seq=3:name=rs-ixb-l:exec=le test peer --bind 127.0.0.3 --port $PORT:stdin=rs-ixb-lim
+cmd=background:seq=4:name=rs-ix2a-l:exec=le test peer --bind 127.0.0.4 --port $PORT:stdin=rs-ix2a-lim
+cmd=background:seq=5:name=rs-ix2b-l:exec=le test peer --bind 127.0.0.5 --port $PORT:stdin=rs-ix2b-lim
+cmd=background:seq=6:name=d-rs-l:exec=ze start s14-rs-lim.conf:ready=Ze running.
+reject=stderr:pattern=ZE-OBSERVER-FAIL
+reject=stderr:pattern=panic
+
+cmd=foreground:seq=7:exec=le test fixture daemon/await-answer-all "show bgp peer ixb detail | json" '"updates-sent": 3' '"eor-sent": 1':exit=0
+cmd=foreground:seq=8:exec=le test fixture daemon/await-answer-all "show bgp peer ix1 detail | json" '"updates-sent": 2' '"eor-sent": 1':exit=0
+cmd=foreground:seq=9:exec=ze cli -c "show bgp peer ix2b detail | json":exit=0
+expect=stdout:contains="updates-sent": 1
+cmd=foreground:seq=10:exec=ze cli -c "show bgp peer ix2a detail | json":exit=0
+expect=stdout:contains="updates-sent": 1
+
+# | implied shows route-server send > to written at its own place (/bgp/route-server).
+cmd=foreground:seq=11:exec=le test fixture plugin/bus-assert-implied rule /bgp/route-server send bgp:update written /bgp/group/ix --source-contains route-server:exit=0
+expect=stdout:contains=OK:
+
+cmd=stop:seq=12:name=d-rs-l:signal=term
+cmd=stop:seq=13:name=rs-ix1-l
+cmd=stop:seq=14:name=rs-ixb-l
+cmd=stop:seq=15:name=rs-ix2a-l
+cmd=stop:seq=16:name=rs-ix2b-l
+
+# --- Run 2 (RS negative control): without route-server > bus, ix2b receives ix1's route ---
+cmd=background:seq=17:name=rs-ix1-c:exec=le test peer --bind 127.0.0.2 --port $PORT:stdin=rs-ix1-ctl
+cmd=background:seq=18:name=rs-ix2b-c:exec=le test peer --bind 127.0.0.5 --port $PORT:stdin=rs-ix2b-ctl
+cmd=background:seq=19:name=d-rs-c:exec=ze start s14-rs-ctl.conf:ready=Ze running.
+reject=stderr:pattern=ZE-OBSERVER-FAIL
+reject=stderr:pattern=panic
+
+cmd=foreground:seq=20:exec=le test fixture daemon/await-answer-all "show bgp peer ix2b detail | json" '"updates-sent": 2' '"eor-sent": 1':exit=0
+
+cmd=stop:seq=21:name=d-rs-c:signal=term
+cmd=stop:seq=22:name=rs-ix1-c
+cmd=stop:seq=23:name=rs-ix2b-c
+
+# --- Run 3: bgp-rr limited to /bgp/group/core ---
+cmd=background:seq=24:name=rr-c1-l:exec=le test peer --bind 127.0.0.2 --port $PORT:stdin=rr-core1-lim
+cmd=background:seq=25:name=rr-c2-l:exec=le test peer --bind 127.0.0.3 --port $PORT:stdin=rr-core2-lim
+cmd=background:seq=26:name=rr-e1-l:exec=le test peer --bind 127.0.0.4 --port $PORT:stdin=rr-edge1-lim
+cmd=background:seq=27:name=rr-e2-l:exec=le test peer --bind 127.0.0.5 --port $PORT:stdin=rr-edge2-lim
+cmd=background:seq=28:name=d-rr-l:exec=ze start s14-rr-lim.conf:ready=Ze running.
+reject=stderr:pattern=ZE-OBSERVER-FAIL
+reject=stderr:pattern=panic
+
+cmd=foreground:seq=29:exec=le test fixture daemon/await-answer-all "show bgp peer core2 detail | json" '"updates-sent": 3' '"eor-sent": 1':exit=0
+cmd=foreground:seq=30:exec=le test fixture daemon/await-answer-all "show bgp peer core1 detail | json" '"updates-sent": 2' '"eor-sent": 1':exit=0
+cmd=foreground:seq=31:exec=ze cli -c "show bgp peer edge2 detail | json":exit=0
+expect=stdout:contains="updates-sent": 1
+cmd=foreground:seq=32:exec=ze cli -c "show bgp peer edge1 detail | json":exit=0
+expect=stdout:contains="updates-sent": 1
+
+# | implied shows bgp-rr send > to written at its own place (/bus/endpoint/bgp-rr).
+cmd=foreground:seq=33:exec=le test fixture plugin/bus-assert-implied rule /bus/endpoint/bgp-rr send bgp:update written /bgp/group/core --source-contains bgp-rr:exit=0
+expect=stdout:contains=OK:
+
+cmd=stop:seq=34:name=d-rr-l:signal=term
+cmd=stop:seq=35:name=rr-c1-l
+cmd=stop:seq=36:name=rr-c2-l
+cmd=stop:seq=37:name=rr-e1-l
+cmd=stop:seq=38:name=rr-e2-l
+
+# --- Run 4 (RR negative control): without bgp-rr > send, edge2 receives core1's route ---
+cmd=background:seq=39:name=rr-c1-c:exec=le test peer --bind 127.0.0.2 --port $PORT:stdin=rr-core1-ctl
+cmd=background:seq=40:name=rr-e2-c:exec=le test peer --bind 127.0.0.5 --port $PORT:stdin=rr-edge2-ctl
+cmd=background:seq=41:name=d-rr-c:exec=ze start s14-rr-ctl.conf:ready=Ze running.
+reject=stderr:pattern=ZE-OBSERVER-FAIL
+reject=stderr:pattern=panic
+
+cmd=foreground:seq=42:exec=le test fixture daemon/await-answer-all "show bgp peer edge2 detail | json" '"updates-sent": 2' '"eor-sent": 1':exit=0
+
+cmd=stop:seq=43:name=d-rr-c:signal=term
+cmd=stop:seq=44:name=rr-c1-c
+cmd=stop:seq=45:name=rr-e2-c

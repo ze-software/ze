@@ -1,0 +1,223 @@
+# Test: `ze exabgp migrate` emits bus script endpoints that run unedited with per-peer receive/send scoping and zero send refusals.
+# QUESTION: when an ExaBGP config with `process p1` (`encoder json`, neighbor A `receive { update; }`)
+# and `process p2` (neighbor B, no direction block) is migrated with `ze exabgp migrate`,
+# does the output emit `bus { endpoint p1 ... endpoint p2 ... }` with no `exabgp` root,
+# `attach process`, or `exabgp-bridge`, and when started unedited against live peers A and B:
+# does A's 4-byte AS_PATH UPDATE reach `p1` as one JSON line with segmented AS_PATH while `p2`
+# receives nothing, and do bare announcements (no neighbor selector) from `p1` and `p2` reach
+# only A and only B respectively with zero send refusals?
+# A unit test cannot decide this because the path spans `ze exabgp migrate` CLI serialization,
+# unedited daemon startup of the migrated file, two real `ze exabgp plugin` subprocesses,
+# live BGP UPDATE parsing and JSON rendering with AS4 segmentation, and per-endpoint bus
+# `receive` / `send` filtering on the wire.
+#
+# VALIDATES: spec-explicit-plugin-and-attach-config S17 / AC-12, AC-33.
+# PREVENTS: migration emitting retired `exabgp` / `attach process` syntax, cross-peer route
+# leakage from bare ExaBGP announcements, or `p2` receiving unrequested peer events.
+
+option=timeout:value=90s
+
+tmpfs=exabgp.conf:terminator=EOF_EXABGP
+process p1 {
+	run ./p1.sh;
+	encoder json;
+}
+process p2 {
+	run ./p2.sh;
+}
+neighbor 127.0.0.2 {
+	description "peerA";
+	router-id 1.1.1.1;
+	local-address 127.0.0.1;
+	local-as 65001;
+	peer-as 65002;
+	api {
+		processes [ p1 ];
+		receive {
+			update;
+		}
+	}
+}
+neighbor 127.0.0.3 {
+	description "peerB";
+	router-id 1.1.1.1;
+	local-address 127.0.0.1;
+	local-as 65001;
+	peer-as 65003;
+	api {
+		processes [ p2 ];
+	}
+}
+EOF_EXABGP
+
+# p1: blocks waiting for peerA's UPDATE JSON line on stdin, records it,
+# announces 203.0.113.0/24 with NO neighbor selector, reads ack, writes p1.done,
+# then records any further stdin lines until EOF.
+tmpfs=p1.sh:mode=755:terminator=EOF_P1
+#!/bin/sh
+set -eu
+IFS= read -r first_event
+printf '%s\n' "$first_event" > p1.events
+printf 'announce route 203.0.113.0/24 next-hop 192.0.2.10\n'
+IFS= read -r ack
+printf '%s\n' "$ack" > p1.ack
+le test fixture plugin/bus-touch-file p1.done >/dev/null
+while IFS= read -r extra; do
+	printf '%s\n' "$extra" >> p1.extra
+done
+EOF_P1
+
+# p2: waits until peerB is established and p1 completed (causal barrier so any
+# stray peer events for A or B would already be buffered on stdin), announces
+# 198.51.100.0/24 with NO neighbor selector, reads ack (failing if any event
+# line preceded `done`), writes p2.done, and logs any further lines.
+tmpfs=p2.sh:mode=755:terminator=EOF_P2
+#!/bin/sh
+set -eu
+le test fixture plugin/bus-wait-file peerB.up >/dev/null
+le test fixture plugin/bus-wait-file p1.done >/dev/null
+printf 'announce route 198.51.100.0/24 next-hop 192.0.2.20\n'
+IFS= read -r ack
+printf '%s\n' "$ack" > p2.ack
+le test fixture plugin/bus-touch-file p2.done >/dev/null
+while IFS= read -r extra; do
+	printf '%s\n' "$extra" >> p2.extra
+done
+EOF_P2
+
+tmpfs=verify-migrate.py:mode=755:terminator=EOF_MIGRATE
+#!/usr/bin/env python3
+import subprocess
+import sys
+
+out = subprocess.check_output(["ze", "exabgp", "migrate", "exabgp.conf"], text=True)
+with open("migrated.conf", "w", encoding="utf-8") as fh:
+    fh.write(out)
+
+for forbidden in ("exabgp {", "attach process", "exabgp-bridge", "plugin {"):
+    if forbidden in out:
+        raise SystemExit(f"migrated.conf contains forbidden syntax {forbidden!r}:\n{out}")
+
+for required in (
+    "bus {",
+    "endpoint p1 {",
+    'run "ze exabgp plugin --encoder json ./p1.sh"',
+    "from [ /bgp/group/default/peer/peerA ]",
+    "allow [ bgp:update ]",
+    "message bgp:update {",
+    "tag direction {",
+    "value [ received ]",
+    "to [ /bgp/group/default/peer/peerA ]",
+    "endpoint p2 {",
+    'run "ze exabgp plugin ./p2.sh"',
+    "from none",
+    "to [ /bgp/group/default/peer/peerB ]",
+):
+    if required not in out:
+        raise SystemExit(f"migrated.conf missing required clause {required!r}:\n{out}")
+
+subprocess.check_call(["ze", "config", "validate", "migrated.conf"])
+print("OK: migrated.conf matches S17 bus endpoint structure and validates cleanly")
+EOF_MIGRATE
+
+tmpfs=verify-events.py:mode=755:terminator=EOF_EVENTS
+#!/usr/bin/env python3
+import json
+import os
+
+with open("p1.events", encoding="utf-8") as fh:
+    lines = [ln.strip() for ln in fh if ln.strip()]
+if len(lines) != 1:
+    raise SystemExit(f"p1.events has {len(lines)} lines, want 1: {lines}")
+
+ev = json.loads(lines[0])
+if ev.get("type") != "update":
+    raise SystemExit(f"p1 event type = {ev.get('type')!r}, want 'update': {ev}")
+
+msg = ev.get("neighbor", {}).get("message", {}).get("update", {})
+attrs = msg.get("attribute", {})
+as_path = attrs.get("as-path")
+seg0 = as_path.get("0") if isinstance(as_path, dict) else None
+if (
+    not isinstance(seg0, dict)
+    or seg0.get("element") != "as-sequence"
+    or seg0.get("value") != [65002, 65100]
+):
+    raise SystemExit(f"p1 event missing segmented as-path [65002, 65100]: {ev}")
+
+raw_text = lines[0]
+if "10.10.0.0/24" not in raw_text:
+    raise SystemExit(f"p1 event missing prefix 10.10.0.0/24: {raw_text}")
+
+with open("p1.ack", encoding="utf-8") as fh:
+    p1_ack = fh.read().strip()
+if p1_ack != "done":
+    raise SystemExit(f"p1 announce ack = {p1_ack!r}, want 'done'")
+
+with open("p2.ack", encoding="utf-8") as fh:
+    p2_ack = fh.read().strip()
+if p2_ack != "done":
+    raise SystemExit(f"p2 received unexpected stdin before done ack: {p2_ack!r}")
+
+if os.path.exists("p2.extra"):
+    with open("p2.extra", encoding="utf-8") as fh:
+        extra = [ln.strip() for ln in fh if ln.strip() and ln.strip() != "shutdown"]
+    extra = [ln for ln in extra if not ln.startswith("shutdown ")]
+    if extra:
+        raise SystemExit(f"p2 received unexpected events: {extra}")
+
+print("OK: p1 received peerA UPDATE JSON with segmented AS_PATH; p2 received no events; both acks done")
+EOF_EVENTS
+
+# Peer A (127.0.0.2, AS 65002): sends 10.10.0.0/24 with 4-byte AS_PATH [65002, 65100],
+# expects p1's 203.0.113.0/24 (18CB0071), rejects p2's 198.51.100.0/24 (18C63364).
+stdin=peerA:terminator=EOF_PEERA
+option=tcp_connections:value=1
+option=asn:value=65002
+option=open:value=router-id:id=192.0.2.1
+option=linger:value=true
+option=established-file:path=peerA.up
+# ORIGIN=IGP, 4-byte AS_PATH=[65002, 65100], NEXT_HOP=192.0.2.1, NLRI=10.10.0.0/24.
+action=send:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF003302000000184001010040020A02020000FDEA0000FE4C400304C0000201180A0A00
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
+expect=bgp:conn=1:seq=2:announced=18CB0071
+reject=bgp:conn=1:scope=announced:pattern=18C63364
+EOF_PEERA
+
+# Peer B (127.0.0.3, AS 65003): expects p2's 198.51.100.0/24 (18C63364),
+# rejects p1's 203.0.113.0/24 (18CB0071) and peerA's 10.10.0.0/24 (180A0A00).
+stdin=peerB:terminator=EOF_PEERB
+option=tcp_connections:value=1
+option=asn:value=65003
+option=open:value=router-id:id=192.0.2.2
+option=linger:value=true
+option=established-file:path=peerB.up
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
+expect=bgp:conn=1:seq=2:announced=18C63364
+reject=bgp:conn=1:scope=announced:pattern=18CB0071
+EOF_PEERB
+
+# Step 1: migrate exabgp.conf and verify exact bus output.
+cmd=foreground:seq=1:exec=python3 verify-migrate.py:exit=0
+expect=stdout:contains=OK: migrated.conf matches S17 bus endpoint structure and validates cleanly
+
+# Step 2: start peers and run migrated.conf UNEDITED.
+cmd=background:seq=2:name=peerA:exec=le test peer --bind 127.0.0.2 --port $PORT:stdin=peerA
+cmd=background:seq=3:name=peerB:exec=le test peer --bind 127.0.0.3 --port $PORT:stdin=peerB
+cmd=background:seq=4:name=daemon:exec=ze start migrated.conf:ready=Ze running.
+reject=stderr:pattern=doctor-plugin-request-refused
+reject=stderr:pattern=registration does not declare
+reject=stderr:pattern=send allow-list
+reject=stderr:pattern=panic
+
+cmd=foreground:seq=5:exec=le test fixture plugin/bus-wait-file p1.done:exit=0
+expect=stdout:contains=OK: marker file p1.done appeared
+cmd=foreground:seq=6:exec=le test fixture plugin/bus-wait-file p2.done:exit=0
+expect=stdout:contains=OK: marker file p2.done appeared
+
+cmd=stop:seq=7:name=daemon:signal=term
+cmd=stop:seq=8:name=peerA
+cmd=stop:seq=9:name=peerB
+
+cmd=foreground:seq=10:exec=python3 verify-events.py:exit=0
+expect=stdout:contains=OK: p1 received peerA UPDATE JSON with segmented AS_PATH; p2 received no events; both acks done

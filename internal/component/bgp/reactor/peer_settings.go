@@ -534,6 +534,14 @@ type PeerSettings struct {
 	BusOrigin pluginserver.BusEdgeOrigin
 	// BusSource is the human-readable configuration location of Bus.
 	BusSource string
+	// OwnBus holds the bus block written directly on this peer (excluding group
+	// inheritance), so delivery-graph compilation attributes peer vs group rules
+	// accurately.
+	OwnBus plugin.BusBlock
+	// GroupBus holds the bus block written on this peer's parent group, if any.
+	GroupBus plugin.BusBlock
+	// GroupBusSource is the human-readable configuration location of GroupBus.
+	GroupBusSource string
 	// BusPath is the canonical short bus path for this peer, e.g. "/bgp/peer/c1",
 	// "/bgp/group/ixp/peer/c1", or "/bgp/ip/192.0.2.1".
 	BusPath string

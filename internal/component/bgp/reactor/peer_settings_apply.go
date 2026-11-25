@@ -36,6 +36,9 @@ type peerSettingsSwap struct {
 	// alone (resolveOperationCandidate): its ImportPolicy is not the peer's
 	// effective import policy, so importDecisionFalls refuses to judge it.
 	policyUnresolved bool
+	// effBusDiff carries effective delivery-edge changes produced by central
+	// bus > endpoint edits during a reload (nil when unchanged or not a reload).
+	effBusDiff *effectivePeerBusDiff
 }
 
 // hotSwappableSettings copies from src to dst every PeerSettings field a RUNNING
@@ -121,6 +124,9 @@ func hotSwappableSettings(dst, src *PeerSettings) {
 		dst.Bus = src.Bus.Clone()
 		dst.BusOrigin = src.BusOrigin
 		dst.BusSource = src.BusSource
+		dst.OwnBus = src.OwnBus.Clone()
+		dst.GroupBus = src.GroupBus.Clone()
+		dst.GroupBusSource = src.GroupBusSource
 	}
 	if !bfdOptInStrict(dst.BFD) && !bfdOptInStrict(src.BFD) {
 		dst.BFD = src.BFD
@@ -145,6 +151,16 @@ func peerSettingsRestartRequired(current, next *PeerSettings, s *Session) bool {
 func peerSettingsRestartReason(current, next *PeerSettings, s *Session) string {
 	_, reason := peerSettingsSwapPlan(current, next, s)
 	return reason
+}
+
+func busBlocksEqual(a, b *PeerSettings) bool {
+	if !plugin.BusBlockEqual(a.Bus, b.Bus) {
+		return false
+	}
+	if !plugin.BusBlockEqual(a.OwnBus, b.OwnBus) {
+		return false
+	}
+	return plugin.BusBlockEqual(a.GroupBus, b.GroupBus)
 }
 
 // peerSettingsSwapPlan answers swap-or-restart for one peer, and on a swap also
@@ -191,6 +207,9 @@ func peerSettingsSwapPlan(current, next *PeerSettings, s *Session) (settingsCopi
 		c.Bus = current.Bus
 		c.BusOrigin = current.BusOrigin
 		c.BusSource = current.BusSource
+		c.OwnBus = current.OwnBus
+		c.GroupBus = current.GroupBus
+		c.GroupBusSource = current.GroupBusSource
 	}
 	// A plugin capability the running OPEN carried is judged apart from the
 	// settings, because a plugin changes it in the injector store and no
@@ -228,7 +247,7 @@ func peerSettingsSwapPlan(current, next *PeerSettings, s *Session) (settingsCopi
 	if !capabilitiesEqual(c.Capabilities, n.Capabilities) {
 		changed = append(changed, "Capabilities")
 	}
-	if !plugin.BusBlockEqual(c.Bus, n.Bus) {
+	if !busBlocksEqual(&c, &n) {
 		changed = append(changed, "Bus")
 	}
 	if !pluginKept {
@@ -236,6 +255,8 @@ func peerSettingsSwapPlan(current, next *PeerSettings, s *Session) (settingsCopi
 	}
 	c.Capabilities, n.Capabilities = nil, nil
 	c.Bus, n.Bus = plugin.BusBlock{}, plugin.BusBlock{}
+	c.OwnBus, n.OwnBus = plugin.BusBlock{}, plugin.BusBlock{}
+	c.GroupBus, n.GroupBus = plugin.BusBlock{}, plugin.BusBlock{}
 
 	cv, nv := reflect.ValueOf(c), reflect.ValueOf(n)
 	structType := cv.Type()
@@ -280,7 +301,7 @@ func (a *reactorAPIAdapter) swapPeerSettingsJournaled(swaps []peerSettingsSwap, 
 			continue
 		}
 
-		if err := a.swapPeerJournaled(peer, swap.next, swap.apply, swap.policyUnresolved, j); err != nil {
+		if err := a.swapPeerJournaledWithGraphDiff(peer, swap.next, swap.apply, swap.policyUnresolved, swap.effBusDiff, j); err != nil {
 			return fmt.Errorf("swap peer settings %s: %w", swap.key, err)
 		}
 	}
@@ -294,6 +315,10 @@ func (a *reactorAPIAdapter) swapPeerSettingsJournaled(swaps []peerSettingsSwap, 
 // D-1 transition (swapImportRising), and anything else publishes and restores
 // the hot-swappable fields alone. The undo value is read before the apply.
 func (a *reactorAPIAdapter) swapPeerJournaled(peer *Peer, next *PeerSettings, apply settingsCopier, unresolved bool, j configJournal) error {
+	return a.swapPeerJournaledWithGraphDiff(peer, next, apply, unresolved, nil, j)
+}
+
+func (a *reactorAPIAdapter) swapPeerJournaledWithGraphDiff(peer *Peer, next *PeerSettings, apply settingsCopier, unresolved bool, effDiff *effectivePeerBusDiff, j configJournal) error {
 	previous := peer.hotSwappableSnapshot(apply)
 	// RFC 8212 Section 3
 	falls, err := peer.importDecisionFalls(next, apply, unresolved)
@@ -313,7 +338,7 @@ func (a *reactorAPIAdapter) swapPeerJournaled(peer *Peer, next *PeerSettings, ap
 	}
 	return j.Record(
 		func() error {
-			if err := peer.applyHotSwappableSettings(next, apply); err != nil {
+			if err := peer.applyHotSwappableSettingsWithGraphDiff(next, apply, effDiff); err != nil {
 				// A failed apply is not journaled, so undo this attempted
 				// transition before returning the failure to the transaction.
 				return errors.Join(err, peer.restoreHotSwappableSettings(previous, apply))
@@ -391,6 +416,9 @@ func (p *Peer) hotSwappableSnapshot(copy settingsCopier) *PeerSettings {
 	previous.Bus = p.settings.Bus.Clone()
 	previous.BusOrigin = p.settings.BusOrigin
 	previous.BusSource = p.settings.BusSource
+	previous.OwnBus = p.settings.OwnBus.Clone()
+	previous.GroupBus = p.settings.GroupBus.Clone()
+	previous.GroupBusSource = p.settings.GroupBusSource
 	copy(previous, p.settings)
 	if p.settings.IsDynamic {
 		previous.ImportPolicy = p.dynImportPolicy
@@ -440,6 +468,10 @@ func (p *Peer) hotSwappableSnapshot(copy settingsCopier) *PeerSettings {
 // ones caught up (Peer.catchUpBoundProcesses), each step with the locks
 // released, because each can block on a plugin or on the peer's socket.
 func (p *Peer) applyHotSwappableSettings(next *PeerSettings, copy settingsCopier) error {
+	return p.applyHotSwappableSettingsWithGraphDiff(next, copy, nil)
+}
+
+func (p *Peer) applyHotSwappableSettingsWithGraphDiff(next *PeerSettings, copy settingsCopier, effDiff *effectivePeerBusDiff) error {
 	// Step 1, no write yet: the session the delivery is judged against, whether
 	// it is up, and which processes the copy attaches and detaches. The copy runs
 	// onto a probe holding the running bindings, so it decides exactly as it
@@ -457,8 +489,13 @@ func (p *Peer) applyHotSwappableSettings(next *PeerSettings, copy settingsCopier
 	busBefore := p.settings.Bus.Clone()
 	busOriginBefore := p.settings.BusOrigin
 	busSourceBefore := p.settings.BusSource
+	ownBusBefore := p.settings.OwnBus.Clone()
+	groupBusBefore := p.settings.GroupBus.Clone()
+	groupBusSourceBefore := p.settings.GroupBusSource
 	settingsBefore := *p.settings
 	settingsBefore.Bus = busBefore
+	settingsBefore.OwnBus = ownBusBefore
+	settingsBefore.GroupBus = groupBusBefore
 	shutdownBefore := p.settings.AdminShutdown
 	// RFC 8212 Section 3: a dynamic candidate can still carry an unresolved AS.
 	// The captured live session's classification governs this hot policy swap.
@@ -479,13 +516,20 @@ func (p *Peer) applyHotSwappableSettings(next *PeerSettings, copy settingsCopier
 	}
 	established := stateUp && announced == sessionUpDelivered
 	probe := PeerSettings{
-		Bus:       busBefore.Clone(),
-		BusOrigin: busOriginBefore,
-		BusSource: busSourceBefore,
+		Bus:            busBefore.Clone(),
+		BusOrigin:      busOriginBefore,
+		BusSource:      busSourceBefore,
+		OwnBus:         ownBusBefore.Clone(),
+		GroupBus:       groupBusBefore.Clone(),
+		GroupBusSource: groupBusSourceBefore,
 	}
 	copy(&probe, next)
 	busAfter := probe.Bus
 	gained, lost := busFeedChange(busBefore, busAfter)
+	if effDiff != nil && effDiff.changed {
+		gained = mergeSortedNames(gained, effDiff.gained)
+		lost = mergeSortedNames(lost, effDiff.lost)
+	}
 	var rebound, detached []string
 	for _, name := range lost {
 		if slices.Contains(gained, name) {
@@ -510,7 +554,7 @@ func (p *Peer) applyHotSwappableSettings(next *PeerSettings, copy settingsCopier
 		}
 		// Step 2: every attached process acknowledges its up while the graph
 		// still lacks its edge.
-		p.bindProcesses(r, session, busAfter, gained)
+		p.bindProcesses(r, session, busAfter, gained, effDiff)
 	}
 
 	// Step 3: the write. r.mu is held across it because Bus is one of the
@@ -550,7 +594,7 @@ func (p *Peer) applyHotSwappableSettings(next *PeerSettings, copy settingsCopier
 	bfd.after, bfd.requestAfter = p.settings.BFD, bfdRequestFor(p.settings)
 	p.mu.Unlock()
 	if r != nil {
-		if (!plugin.BusBlockEqual(busBefore, busAfter) || len(gained) > 0 || len(lost) > 0) && r.deliveryPublished {
+		if (!plugin.BusBlockEqual(busBefore, busAfter) || len(gained) > 0 || len(lost) > 0 || (effDiff != nil && effDiff.changed)) && r.deliveryPublished {
 			r.publishDeliveryGraphLocked()
 		}
 		r.mu.Unlock()
@@ -603,7 +647,7 @@ func (p *Peer) applyHotSwappableSettings(next *PeerSettings, copy settingsCopier
 	case restart:
 		p.restartForBinding(current, gained, "session changed while processes were bound to it: restarting the session")
 	case established && p.State() == PeerStateEstablished:
-		p.catchUpBoundProcesses(busAfter, gained)
+		p.catchUpBoundProcesses(busAfter, gained, effDiff)
 	}
 
 	p.refreshForwardFactsIfLive()

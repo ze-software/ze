@@ -1,0 +1,366 @@
+# Test: route ownership withdraws routes of an exited endpoint unless another endpoint still announces the prefix or `external { on-exit keep; }` is set, and `ze exabgp migrate` emits `on-exit`/`respawn` in `external {}`.
+# QUESTION: when two external endpoints `a` and `b` both announce `203.0.113.0/24` toward
+# `edge1` and `a` alone announces `198.51.100.0/24`, after `a` exits (default `on-exit withdraw`),
+# does `edge1` keep `203.0.113.0/24` from `b` while receiving a wire withdrawal for
+# `198.51.100.0/24`; when `a` runs with `external { on-exit keep; }` and exits, does `edge1`
+# keep `198.51.100.0/24` with no withdrawal; and does `ze exabgp migrate` write `on-exit keep;`
+# / `respawn false;` inside `external {}` (with API v4 defaulting unset `on-exit` to `keep`)
+# and never emit `--on-exit` or `--respawn` flags in `run`?
+# A unit test cannot decide this because the path spans live external process exit,
+# `originReceiptStore.endOwnerWithPolicy`, live Loc-RIB re-evaluation across two owners,
+# real BGP UPDATE withdrawal / retention on the wire, and `ze exabgp migrate` CLI output.
+#
+# VALIDATES: spec-explicit-plugin-and-attach-config S38 / AC-41.
+# PREVENTS: exited endpoint routes lingering as orphans under default `on-exit withdraw`,
+# withdrawing a prefix still owned by a surviving endpoint, breaking `external { on-exit keep; }`,
+# or migration leaking retired `--on-exit`/`--respawn` flags onto wrapper `run` lines.
+
+option=timeout:value=120s
+option=env:var=ZE_CONFIG_DIR:value=.
+option=env:var=XDG_DATA_HOME:value=.
+option=env:var=ze.ssh.password:value=testpass
+
+stdin=init-answers:terminator=EOF_INIT
+admin
+testpass
+127.0.0.1
+$PORT2
+EOF_INIT
+
+# Run 1 peer: receives EOR (seq=1), both announcements 203.0.113.0/24 and 198.51.100.0/24 (seq=2),
+# then withdrawal of 198.51.100.0/24 ONLY (seq=3); rejects any withdrawal of 203.0.113.0/24.
+stdin=edge1-withdraw:terminator=EOF_PEER1
+option=tcp_connections:value=1
+option=asn:value=65002
+option=open:value=router-id:id=192.0.2.1
+option=linger:value=true
+option=established-file:path=edge1-r1.up
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
+expect=bgp:conn=1:seq=2:announced=18CB0071
+expect=bgp:conn=1:seq=2:announced=18C63364
+expect=bgp:conn=1:seq=3:announced=18CB0071
+expect=bgp:conn=1:seq=3:withdrawn=18C63364
+reject=bgp:conn=1:scope=withdrawn:pattern=18CB0071
+EOF_PEER1
+
+# Run 2 peer (on-exit keep): receives EOR (seq=1), 198.51.100.0/24 (seq=2),
+# rebind announce of 198.51.100.0/24 when a2 exits under on-exit keep (seq=3),
+# then sentinel 192.0.2.0/24 announced by b2 after a2 exits (seq=4, causal wire fence);
+# rejects any withdrawal of 198.51.100.0/24.
+stdin=edge1-keep:terminator=EOF_PEER2
+option=tcp_connections:value=1
+option=asn:value=65002
+option=open:value=router-id:id=192.0.2.1
+option=linger:value=true
+option=established-file:path=edge1-r2.up
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
+expect=bgp:conn=1:seq=2:announced=18C63364
+expect=bgp:conn=1:seq=3:announced=18C63364
+expect=bgp:conn=1:seq=4:announced=18C00002
+reject=bgp:conn=1:scope=withdrawn:pattern=18C63364
+EOF_PEER2
+
+tmpfs=ep-a1.sh:mode=755:terminator=EOF_A1
+#!/bin/sh
+set -eu
+le test fixture plugin/bus-wait-file edge1-r1.up >/dev/null
+printf 'announce route 203.0.113.0/24 next-hop 192.0.2.10\n'
+IFS= read -r _
+printf 'announce route 198.51.100.0/24 next-hop 192.0.2.10\n'
+IFS= read -r _
+le test fixture plugin/bus-touch-file a1.ready >/dev/null
+le test fixture plugin/bus-wait-file a1.exit >/dev/null
+exit 0
+EOF_A1
+
+tmpfs=ep-b1.sh:mode=755:terminator=EOF_B1
+#!/bin/sh
+set -eu
+le test fixture plugin/bus-wait-file a1.ready >/dev/null
+printf 'announce route 203.0.113.0/24 next-hop 192.0.2.20\n'
+IFS= read -r _
+le test fixture plugin/bus-touch-file b1.ready >/dev/null
+while IFS= read -r _; do
+	:
+done
+EOF_B1
+
+tmpfs=ep-a2.sh:mode=755:terminator=EOF_A2
+#!/bin/sh
+set -eu
+le test fixture plugin/bus-wait-file edge1-r2.up >/dev/null
+printf 'announce route 198.51.100.0/24 next-hop 192.0.2.10\n'
+IFS= read -r _
+le test fixture plugin/bus-touch-file a2.ready >/dev/null
+le test fixture plugin/bus-wait-file a2.exit >/dev/null
+exit 0
+EOF_A2
+
+tmpfs=ep-b2.sh:mode=755:terminator=EOF_B2
+#!/bin/sh
+set -eu
+le test fixture plugin/bus-wait-file b2.go >/dev/null
+printf 'announce route 192.0.2.0/24 next-hop 192.0.2.20\n'
+IFS= read -r _
+le test fixture plugin/bus-touch-file b2.done >/dev/null
+while IFS= read -r _; do
+	:
+done
+EOF_B2
+
+# Run 1 config: default on-exit withdraw, respawn false on a so a stays stopped after exit.
+tmpfs=run1-withdraw.conf:terminator=EOF_CONF1
+system {
+	authentication {
+		# bcrypt cost-4 hash of "testpass".
+		user admin {
+			password "$2a$04$UlwuiuH82Unfsq.XEMPGJeDkXwbm3KW.nvVaVXOd/JeFK8VjMjrQO"
+		}
+	}
+}
+environment {
+	ssh {
+		enabled true
+		server main { ip 127.0.0.1; port $PORT2; }
+	}
+}
+bus {
+	endpoint bgp-rib { internal bgp-rib; }
+	endpoint a {
+		external {
+			run "ze exabgp plugin ./ep-a1.sh";
+			respawn false;
+		}
+		encoding json;
+		receive { from none; }
+		send { to [ /bgp/peer/edge1 ]; }
+	}
+	endpoint b {
+		external {
+			run "ze exabgp plugin ./ep-b1.sh";
+		}
+		encoding json;
+		receive { from none; }
+		send { to [ /bgp/peer/edge1 ]; }
+	}
+}
+bgp {
+	router-id 192.0.2.254;
+	filter {
+		import { final accept; }
+		export { final accept; }
+	}
+	peer edge1 {
+		connection {
+			remote { ip 127.0.0.2; }
+			local { ip 127.0.0.1; accept false; }
+		}
+		session {
+			asn { local 65001; remote 65002; }
+			family { ipv4/unicast { prefix { maximum 10000; } } }
+			capability { graceful-restart disable; }
+		}
+		behavior { group-updates disable; }
+	}
+}
+EOF_CONF1
+
+# Run 2 config: a runs with external { on-exit keep; respawn false; }.
+tmpfs=run2-keep.conf:terminator=EOF_CONF2
+system {
+	authentication {
+		# bcrypt cost-4 hash of "testpass".
+		user admin {
+			password "$2a$04$UlwuiuH82Unfsq.XEMPGJeDkXwbm3KW.nvVaVXOd/JeFK8VjMjrQO"
+		}
+	}
+}
+environment {
+	ssh {
+		enabled true
+		server main { ip 127.0.0.1; port $PORT2; }
+	}
+}
+bus {
+	endpoint bgp-rib { internal bgp-rib; }
+	endpoint a {
+		external {
+			run "ze exabgp plugin ./ep-a2.sh";
+			on-exit keep;
+			respawn false;
+		}
+		encoding json;
+		receive { from none; }
+		send { to [ /bgp/peer/edge1 ]; }
+	}
+	endpoint b2 {
+		external {
+			run "ze exabgp plugin ./ep-b2.sh";
+		}
+		encoding json;
+		receive { from none; }
+		send { to [ /bgp/peer/edge1 ]; }
+	}
+}
+bgp {
+	router-id 192.0.2.254;
+	filter {
+		import { final accept; }
+		export { final accept; }
+	}
+	peer edge1 {
+		connection {
+			remote { ip 127.0.0.2; }
+			local { ip 127.0.0.1; accept false; }
+		}
+		session {
+			asn { local 65001; remote 65002; }
+			family { ipv4/unicast { prefix { maximum 10000; } } }
+			capability { graceful-restart disable; }
+		}
+		behavior { group-updates disable; }
+	}
+}
+EOF_CONF2
+
+# ExaBGP config for S38 migration verification.
+tmpfs=exabgp-s38.conf:terminator=EOF_EXABGP_S38
+process k {
+	run ./k.py;
+	on-exit keep;
+}
+process w {
+	run ./w.py;
+	on-exit withdraw;
+}
+process v4 {
+	run ./v4.py;
+}
+process r {
+	run ./r.py;
+	respawn false;
+}
+neighbor 192.0.2.1 {
+	router-id 1.1.1.1;
+	local-as 65001;
+	peer-as 65002;
+	api {
+		processes [ k w v4 r ];
+	}
+}
+EOF_EXABGP_S38
+
+tmpfs=verify-migrate-s38.py:mode=755:terminator=EOF_MIG_S38
+#!/usr/bin/env python3
+import os
+import re
+import subprocess
+
+
+def endpoint_block(text, name):
+    m = re.search(rf"endpoint {re.escape(name)} \{{(.*?)\n\t\}}", text, re.S)
+    if not m:
+        raise SystemExit(f"endpoint {name} not found in:\n{text}")
+    return m.group(1)
+
+
+def run_migrate(extra_env=None):
+    env = dict(os.environ)
+    env.pop("exabgp_api_version", None)
+    env.pop("EXABGP_API_VERSION", None)
+    if extra_env:
+        env.update(extra_env)
+    out = subprocess.check_output(["ze", "exabgp", "migrate", "exabgp-s38.conf"], text=True, env=env)
+    for forbidden in ("--on-exit", "--respawn", "exabgp {", "attach process"):
+        if forbidden in out:
+            raise SystemExit(f"forbidden token {forbidden!r} in migrated output:\n{out}")
+    return out
+
+
+default_out = run_migrate()
+if "on-exit keep" not in endpoint_block(default_out, "k"):
+    raise SystemExit(f"default: endpoint k missing on-exit keep:\n{default_out}")
+if "on-exit" in endpoint_block(default_out, "w"):
+    raise SystemExit(f"default: endpoint w should omit default on-exit withdraw:\n{default_out}")
+if "on-exit" in endpoint_block(default_out, "v4"):
+    raise SystemExit(f"default: endpoint v4 should omit on-exit under default API version:\n{default_out}")
+if "respawn false" not in endpoint_block(default_out, "r"):
+    raise SystemExit(f"default: endpoint r missing respawn false:\n{default_out}")
+
+v4_out = run_migrate({"exabgp_api_version": "4"})
+if "on-exit keep" not in endpoint_block(v4_out, "k"):
+    raise SystemExit(f"v4: endpoint k missing on-exit keep:\n{v4_out}")
+if "on-exit keep" not in endpoint_block(v4_out, "v4"):
+    raise SystemExit(f"v4: endpoint v4 missing on-exit keep under API v4:\n{v4_out}")
+if "on-exit" in endpoint_block(v4_out, "w"):
+    raise SystemExit(f"v4: endpoint w should omit explicit on-exit withdraw:\n{v4_out}")
+if "respawn false" not in endpoint_block(v4_out, "r"):
+    raise SystemExit(f"v4: endpoint r missing respawn false:\n{v4_out}")
+
+print("OK: ze exabgp migrate writes external { on-exit keep; } and respawn false; with no CLI flags")
+EOF_MIG_S38
+
+cmd=foreground:seq=1:exec=ze init:stdin=init-answers:exit=0
+
+# --- Run 1: default on-exit withdraw ---
+cmd=background:seq=2:name=peer1:exec=le test peer --bind 127.0.0.2 --port $PORT:stdin=edge1-withdraw
+cmd=background:seq=3:name=daemon1:exec=ze start run1-withdraw.conf:ready=Ze running.
+reject=stderr:pattern=panic
+
+cmd=foreground:seq=4:exec=le test fixture plugin/bus-wait-file b1.ready:exit=0
+expect=stdout:contains=OK: marker file b1.ready appeared
+
+cmd=foreground:seq=5:exec=le test fixture daemon/await-answer-all "show bgp rib" 203.0.113.0/24 198.51.100.0/24:exit=0
+expect=stdout:contains=OK:
+
+# Stop a -> 198.51.100.0/24 is withdrawn while 203.0.113.0/24 stays from b.
+cmd=foreground:seq=6:exec=le test fixture plugin/bus-touch-file a1.exit:exit=0
+expect=stdout:contains=OK: wrote marker file a1.exit
+
+cmd=foreground:seq=7:exec=le test fixture daemon/await-answer-all "show warnings | json" doctor-plugin-stopped:exit=0
+expect=stdout:contains=OK:
+
+# Wait until edge1 has received the failover + withdrawal (updates-sent == 5: EOR + 2 announces + b failover + 1 withdraw).
+cmd=foreground:seq=8:exec=le test fixture daemon/await-answer-all "show bgp peer edge1 detail | json" '"updates-sent": 5':exit=0
+expect=stdout:contains=OK:
+
+cmd=foreground:seq=9:exec=ze cli -c "show bgp rib":exit=0
+expect=stdout:contains=203.0.113.0/24
+reject=stdout:contains=198.51.100.0/24
+
+cmd=stop:seq=10:name=daemon1:signal=term
+cmd=stop:seq=11:name=peer1
+
+# --- Run 2: external { on-exit keep; } ---
+cmd=background:seq=12:name=peer2:exec=le test peer --bind 127.0.0.2 --port $PORT:stdin=edge1-keep
+cmd=background:seq=13:name=daemon2:exec=ze start run2-keep.conf:ready=Ze running.
+reject=stderr:pattern=panic
+
+cmd=foreground:seq=14:exec=le test fixture plugin/bus-wait-file a2.ready:exit=0
+expect=stdout:contains=OK: marker file a2.ready appeared
+
+cmd=foreground:seq=15:exec=le test fixture daemon/await-answer-all "show bgp rib" 198.51.100.0/24:exit=0
+expect=stdout:contains=OK:
+
+cmd=foreground:seq=16:exec=le test fixture plugin/bus-touch-file a2.exit:exit=0
+expect=stdout:contains=OK: wrote marker file a2.exit
+
+cmd=foreground:seq=17:exec=le test fixture daemon/await-answer-all "show warnings | json" doctor-plugin-stopped:exit=0
+expect=stdout:contains=OK:
+
+# Causal fence: b2 announces sentinel 192.0.2.0/24 after a2 stopped.
+cmd=foreground:seq=18:exec=le test fixture plugin/bus-touch-file b2.go:exit=0
+expect=stdout:contains=OK: wrote marker file b2.go
+
+cmd=foreground:seq=19:exec=le test fixture plugin/bus-wait-file b2.done:exit=0
+expect=stdout:contains=OK: marker file b2.done appeared
+
+cmd=foreground:seq=20:exec=le test fixture daemon/await-answer-all "show bgp rib" 198.51.100.0/24 192.0.2.0/24:exit=0
+expect=stdout:contains=OK:
+
+cmd=stop:seq=21:name=daemon2:signal=term
+cmd=stop:seq=22:name=peer2
+
+# --- Step 3: ze exabgp migrate output for on-exit / respawn / API v4 ---
+cmd=foreground:seq=23:exec=python3 verify-migrate-s38.py:exit=0
+expect=stdout:contains=OK: ze exabgp migrate writes external { on-exit keep; } and respawn false; with no CLI flags

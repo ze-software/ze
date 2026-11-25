@@ -17,6 +17,7 @@ import (
 	"github.com/ze-software/ze/internal/component/bgp/reactor/loopdetect"
 	bgptypes "github.com/ze-software/ze/internal/component/bgp/types"
 	"github.com/ze-software/ze/internal/component/config"
+	"github.com/ze-software/ze/internal/component/plugin"
 	"github.com/ze-software/ze/internal/component/plugin/registry"
 	pluginserver "github.com/ze-software/ze/internal/component/plugin/server"
 	"github.com/ze-software/ze/internal/component/policy"
@@ -153,15 +154,29 @@ func buildPeerPopulationsWithResolved(tree *config.Tree) ([]*reactor.PeerSetting
 	// the group's routes and stops there.
 	for _, groupEntry := range bgpContainer.GetListOrdered("group") {
 		groupTree := groupEntry.Value
-		hasGroupBus := groupTree.GetContainer("bus") != nil
+		groupBusTree := groupTree.GetContainer("bus")
+		hasGroupBus := groupBusTree != nil
+		groupBusSource := "/bgp/group/" + groupEntry.Key + " > bus"
+		var groupBus plugin.BusBlock
+		if hasGroupBus {
+			parsed, err := plugin.ParseBusBlockFromMap(groupBusTree.ToMap(), groupBusSource)
+			if err != nil {
+				return nil, nil, nil, err
+			}
+			groupBus = parsed
+		}
 
 		if ds, ok := dynByGroup[groupEntry.Key]; ok {
 			if err := patchRoutes(ds, groupEntry.Key, groupTree); err != nil {
 				return nil, nil, nil, err
 			}
+			if !groupBus.IsEmpty() {
+				ds.GroupBus = groupBus.Clone()
+				ds.GroupBusSource = groupBusSource
+			}
 			if !ds.Bus.IsEmpty() && hasGroupBus {
 				ds.BusOrigin = pluginserver.BusOriginInherited
-				ds.BusSource = "/bgp/group/" + groupEntry.Key + " > bus"
+				ds.BusSource = groupBusSource
 			}
 		}
 
@@ -174,9 +189,23 @@ func buildPeerPopulationsWithResolved(tree *config.Tree) ([]*reactor.PeerSetting
 				continue
 			}
 
-			if !ps.Bus.IsEmpty() && hasGroupBus && peerTree.GetContainer("bus") == nil {
+			if !groupBus.IsEmpty() {
+				ps.GroupBus = groupBus.Clone()
+				ps.GroupBusSource = groupBusSource
+			}
+			peerBusTree := peerTree.GetContainer("bus")
+			if peerBusTree != nil {
+				ownSource := "/bgp/group/" + groupEntry.Key + "/peer/" + peerEntry.Key + " > bus"
+				parsed, err := plugin.ParseBusBlockFromMap(peerBusTree.ToMap(), ownSource)
+				if err != nil {
+					return nil, nil, nil, err
+				}
+				ps.OwnBus = parsed
+			}
+
+			if !ps.Bus.IsEmpty() && hasGroupBus && peerBusTree == nil {
 				ps.BusOrigin = pluginserver.BusOriginInherited
-				ps.BusSource = "/bgp/group/" + groupEntry.Key + " > bus"
+				ps.BusSource = groupBusSource
 			}
 
 			// Layer 1: Routes from group defaults.

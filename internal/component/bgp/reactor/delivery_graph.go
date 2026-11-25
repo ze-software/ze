@@ -149,16 +149,19 @@ func deliveryPeerFromSettingsWithAS(s *PeerSettings, remoteAS uint32) pluginserv
 		source = pPath + " > bus"
 	}
 	return pluginserver.DeliveryPeer{
-		Addr:           addr,
-		Name:           s.Name,
-		Path:           pPath,
-		ParentPath:     parentPath,
-		SecondaryPaths: secondary,
-		Bus:            s.Bus.Clone(),
-		BusOrigin:      s.BusOrigin,
-		BusSource:      source,
-		Dynamic:        s.IsDynamic,
-		SessionFacts:   deliveryPeerSessionFacts(s, remoteAS),
+		Addr:            addr,
+		Name:            s.Name,
+		Path:            pPath,
+		ParentPath:      parentPath,
+		SecondaryPaths:  secondary,
+		Bus:             s.Bus.Clone(),
+		BusOrigin:       s.BusOrigin,
+		BusSource:       source,
+		OwnBus:          s.OwnBus.Clone(),
+		ParentBus:       s.GroupBus.Clone(),
+		ParentBusSource: s.GroupBusSource,
+		Dynamic:         s.IsDynamic,
+		SessionFacts:    deliveryPeerSessionFacts(s, remoteAS),
 	}
 }
 

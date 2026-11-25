@@ -1,0 +1,214 @@
+# Test: default bus wiring delivers bgp:state and bgp:update (direction=received) to an external collector for all peers including reloaded peers, and refuses undeclared sends.
+# QUESTION: with `bus { endpoint collector { external { run ...; } } }` and a pure
+# `bgp { }` block (zero `bus` blocks under `bgp`, `bgp-rib` auto-loaded), does `collector`
+# receive `bgp:state` and `bgp:update` (direction=received) when `edge1` establishes and
+# sends 203.0.113.0/24, then receive `bgp:state` when a SIGHUP reload adds `new1` and
+# `new1` establishes, does `show config running | implied` report `collector`'s two
+# receptions with origin `registered`, and is an undeclared `bgp:update` send from
+# `collector` refused naming `/bus/endpoint/collector` and `bgp:update` with
+# `ze_bus_send_refused_total` = 1? A unit test cannot decide this because the path spans
+# live TLS external-plugin Stage 1 registration, auto-loaded `bgp-rib`, live BGP sessions
+# over TCP, SIGHUP reload adding a peer, `| implied` rendering, and live Prometheus metrics.
+#
+# VALIDATES: spec-explicit-plugin-and-attach-config S1 / AC-1.
+# PREVENTS: external endpoints missing default BGP event wiring, reloaded peers failing
+# to wire automatically into registered receivers, or undeclared `bgp:update` sends
+# bypassing the bus send gate.
+
+option=timeout:value=90s
+option=env:var=ZE_CONFIG_DIR:value=.
+option=env:var=XDG_DATA_HOME:value=.
+option=env:var=ze.ssh.password:value=testpass
+
+stdin=init-answers:terminator=EOF_INIT
+admin
+testpass
+127.0.0.1
+$PORT2
+EOF_INIT
+
+stdin=peer-edge1:terminator=EOF_EDGE1
+option=tcp_connections:value=1
+option=timeout:value=60s
+option=asn:value=65001
+option=open:value=router-id:id=127.0.0.2
+option=linger:value=true
+option=established-file:path=edge1.up
+option=update:value=send-route:prefix=203.0.113.0/24:next-hop=192.0.2.1
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
+EOF_EDGE1
+
+stdin=peer-new1:terminator=EOF_NEW1
+option=tcp_connections:value=1
+option=timeout:value=60s
+option=asn:value=65002
+option=open:value=router-id:id=127.0.0.3
+option=linger:value=true
+option=established-file:path=new1.up
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
+EOF_NEW1
+
+tmpfs=running.conf:terminator=EOF_CONF0
+system {
+	authentication {
+		# bcrypt cost-4 hash of "testpass".
+		user admin {
+			password "$2a$04$UlwuiuH82Unfsq.XEMPGJeDkXwbm3KW.nvVaVXOd/JeFK8VjMjrQO"
+		}
+	}
+}
+environment {
+	ssh {
+		enabled true
+		server main {
+			ip 127.0.0.1;
+			port $PORT2;
+		}
+	}
+}
+telemetry {
+	prometheus {
+		enabled true
+		server main {
+			ip 127.0.0.1;
+			port $PORT3;
+		}
+	}
+}
+bus {
+	endpoint collector {
+		external {
+			run "le test fixture plugin/bus-bgp-collector collector.log --undeclared-update send-bad.go 127.0.0.2 send-bad.done";
+		}
+		encoding json;
+	}
+}
+bgp {
+	router-id 192.0.2.254;
+	filter {
+		import { final accept; }
+		export { final accept; }
+	}
+	peer edge1 {
+		connection {
+			remote { ip 127.0.0.2; }
+			local { ip 127.0.0.1; accept false; }
+		}
+		session {
+			asn { local 65000; remote 65001; }
+			family { ipv4/unicast { prefix { maximum 10000; } } }
+			capability { graceful-restart disable; }
+		}
+		behavior { group-updates disable; }
+	}
+}
+EOF_CONF0
+
+tmpfs=reload-add-new1.conf:terminator=EOF_CONF1
+system {
+	authentication {
+		# bcrypt cost-4 hash of "testpass".
+		user admin {
+			password "$2a$04$UlwuiuH82Unfsq.XEMPGJeDkXwbm3KW.nvVaVXOd/JeFK8VjMjrQO"
+		}
+	}
+}
+environment {
+	ssh {
+		enabled true
+		server main {
+			ip 127.0.0.1;
+			port $PORT2;
+		}
+	}
+}
+telemetry {
+	prometheus {
+		enabled true
+		server main {
+			ip 127.0.0.1;
+			port $PORT3;
+		}
+	}
+}
+bus {
+	endpoint collector {
+		external {
+			run "le test fixture plugin/bus-bgp-collector collector.log --undeclared-update send-bad.go 127.0.0.2 send-bad.done";
+		}
+		encoding json;
+	}
+}
+bgp {
+	router-id 192.0.2.254;
+	filter {
+		import { final accept; }
+		export { final accept; }
+	}
+	peer edge1 {
+		connection {
+			remote { ip 127.0.0.2; }
+			local { ip 127.0.0.1; accept false; }
+		}
+		session {
+			asn { local 65000; remote 65001; }
+			family { ipv4/unicast { prefix { maximum 10000; } } }
+			capability { graceful-restart disable; }
+		}
+		behavior { group-updates disable; }
+	}
+	peer new1 {
+		connection {
+			remote { ip 127.0.0.3; }
+			local { ip 127.0.0.1; accept false; }
+		}
+		session {
+			asn { local 65000; remote 65002; }
+			family { ipv4/unicast { prefix { maximum 10000; } } }
+			capability { graceful-restart disable; }
+		}
+		behavior { group-updates disable; }
+	}
+}
+EOF_CONF1
+
+cmd=foreground:seq=1:exec=ze init:stdin=init-answers:exit=0
+cmd=background:seq=2:name=peer-edge1:exec=le test peer --bind 127.0.0.2 --port $PORT:stdin=peer-edge1
+cmd=background:seq=3:name=peer-new1:exec=le test peer --bind 127.0.0.3 --port $PORT:stdin=peer-new1
+cmd=background:seq=4:name=daemon:exec=ze start running.conf:ready=Ze running.
+reject=stderr:pattern=ZE-OBSERVER-FAIL
+reject=stderr:pattern=panic
+
+# Step 1: edge1 establishes and sends 203.0.113.0/24; collector records bgp:state and bgp:update, and Loc-RIB holds the route.
+cmd=foreground:seq=5:exec=le test fixture plugin/bus-wait-file edge1.up:exit=0
+cmd=foreground:seq=6:exec=le test fixture plugin/bus-assert-implied poll-file-contains collector.log '"state":"up"':exit=0
+cmd=foreground:seq=7:exec=le test fixture plugin/bus-assert-implied poll-file-contains collector.log 203.0.113.0/24:exit=0
+cmd=foreground:seq=8:exec=le test fixture plugin/bus-assert-implied file-contains collector.log 127.0.0.2:exit=0
+cmd=foreground:seq=9:exec=le test fixture daemon/await-answer-all "show bgp rib" 203.0.113.0/24:exit=0
+
+# Step 2: SIGHUP reload adds new1; new1 establishes and collector records bgp:state for new1 automatically.
+cmd=foreground:seq=10:exec=le test fixture plugin/bus-sighup-reload reload-add-new1.conf running.conf r1.applied:exit=0
+expect=stdout:contains=OK: SIGHUP reload reload-add-new1.conf applied
+cmd=foreground:seq=11:exec=le test fixture plugin/bus-wait-file new1.up:exit=0
+cmd=foreground:seq=12:exec=le test fixture plugin/bus-assert-implied poll-file-contains collector.log 127.0.0.3:exit=0
+
+# Step 3: show config running | implied shows collector's two receptions as registered.
+cmd=foreground:seq=13:exec=ze cli -c "show config running | implied":exit=0
+expect=stdout:contains=# implied by: registration of collector
+cmd=foreground:seq=14:exec=le test fixture plugin/bus-assert-implied rule /bus/endpoint/collector receive bgp:state registered:exit=0
+expect=stdout:contains=OK:
+cmd=foreground:seq=15:exec=le test fixture plugin/bus-assert-implied rule /bus/endpoint/collector receive bgp:update registered:exit=0
+expect=stdout:contains=OK:
+
+# Step 4 (negative): undeclared bgp:update send from collector is refused naming collector and bgp:update, counter = 1.
+cmd=foreground:seq=16:exec=le test fixture plugin/bus-touch-file send-bad.go:exit=0
+cmd=foreground:seq=17:exec=le test fixture plugin/bus-wait-file send-bad.done:exit=0
+cmd=foreground:seq=18:exec=le test fixture plugin/bus-assert-refused-series $PORT3 /bus/endpoint/collector bgp:update 1:exit=0
+expect=stdout:contains=OK: ze_bus_send_refused_total{participant="/bus/endpoint/collector",message="bgp:update"} = 1
+cmd=foreground:seq=19:exec=ze cli -c "show doctor | json":exit=0
+expect=stdout:contains="code": "doctor-plugin-request-refused"
+expect=stdout:contains=/bus/endpoint/collector
+
+cmd=stop:seq=20:name=daemon:signal=term
+cmd=stop:seq=21:name=peer-edge1
+cmd=stop:seq=22:name=peer-new1

@@ -287,9 +287,26 @@ type compiledReceiver struct {
 	Origin       BusEdgeOrigin
 }
 
+type busFilterTag struct {
+	name string
+	id   TagID
+}
+
+type busMessageKey struct {
+	ns events.NamespaceID
+	et events.EventTypeID
+}
+
+type busEndpointMsgKey struct {
+	endpoint string
+	ns       events.NamespaceID
+	et       events.EventTypeID
+}
+
 type busDeliveryEntry struct {
 	receivers    []compiledReceiver
-	endpointOnly []string // non-nil when no receiver carries a runtime TagFilter
+	endpointOnly []string       // non-nil when no receiver carries a runtime TagFilter
+	filterTags   []busFilterTag // deduplicated tags tested by receivers when endpointOnly == nil
 }
 
 type busSendKey struct {
@@ -316,14 +333,17 @@ type compiledCLISend struct {
 // pre-resolved zero-alloc delivery tables, send permission tables, and
 // inspection edges. Safe for concurrent use after CompileBus returns.
 type CompiledBus struct {
-	interner      *TagInterner
-	pathToIdx     map[string]uint32
-	order         []string
-	filters       []*CompiledParticipantFilter
-	deliveryIndex map[busDeliveryKey]busDeliveryEntry
-	sendIndex     map[busSendKey]*compiledSendEntry
-	cliSends      map[uint32][]compiledCLISend
-	edges         []BusCompiledEdge
+	interner           *TagInterner
+	pathToIdx          map[string]uint32
+	endpointToIdx      map[string]uint32
+	order              []string
+	filters            []*CompiledParticipantFilter
+	deliveryIndex      map[busDeliveryKey]busDeliveryEntry
+	inboundTagIndex    map[busMessageKey][]busFilterTag
+	inboundTagMatchers map[busEndpointMsgKey]*BusTagMatcher
+	sendIndex          map[busSendKey]*compiledSendEntry
+	cliSends           map[uint32][]compiledCLISend
+	edges              []BusCompiledEdge
 }
 
 // CompileBus compiles every participant's registration declarations, own bus
@@ -336,6 +356,7 @@ func CompileBus(interner *TagInterner, participants []BusParticipantInput) (*Com
 	bus := &CompiledBus{
 		interner:      interner,
 		pathToIdx:     make(map[string]uint32, len(participants)*2),
+		endpointToIdx: make(map[string]uint32, len(participants)),
 		order:         make([]string, 0, len(participants)),
 		filters:       make([]*CompiledParticipantFilter, len(participants)),
 		deliveryIndex: make(map[busDeliveryKey]busDeliveryEntry),
@@ -368,6 +389,11 @@ func CompileBus(interner *TagInterner, participants []BusParticipantInput) (*Com
 		idx := uint32(i)
 		bus.pathToIdx[p.Path] = idx
 		bus.order = append(bus.order, p.Path)
+		if p.EndpointName != "" {
+			bus.endpointToIdx[p.EndpointName] = idx
+		} else if epName, isEP := strings.CutPrefix(p.Path, plugin.BusEndpointPathPrefix); isEP && epName != "" {
+			bus.endpointToIdx[epName] = idx
+		}
 
 		for _, sp := range p.SecondaryPaths {
 			if err := plugin.ValidateBusPathSyntax(sp); err != nil {
@@ -2016,7 +2042,8 @@ func compileDeliveryAndSendIndices(
 	}
 
 	// Finalize fast-path endpointOnly slices for delivery entries where no
-	// receiver carries a runtime TagFilter.
+	// receiver carries a runtime TagFilter, and precompute the distinct tag
+	// names and IDs tested by receivers that do carry a runtime TagFilter.
 	for k, entry := range bus.deliveryIndex {
 		hasFilter := false
 		for i := range entry.receivers {
@@ -2036,8 +2063,12 @@ func compileDeliveryAndSendIndices(
 			}
 			entry.endpointOnly = names
 			bus.deliveryIndex[k] = entry
+			continue
 		}
+		entry.filterTags = collectDeliveryFilterTags(bus.interner, entry.receivers)
+		bus.deliveryIndex[k] = entry
 	}
+	compileInboundTagIndex(bus)
 
 	// Collect dormant receptions (missing sender, empty runtime tag overlap,
 	// or explicit from path with no matching active sender).

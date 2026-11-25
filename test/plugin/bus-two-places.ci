@@ -1,0 +1,344 @@
+# Test: writing a plugin's bus filter under `bus { endpoint ... }`, under its own section (`bgp { route-server { bus ... } }`), or identically in both produces one equal compiled filter, while disagreeing lists are refused.
+# QUESTION: for `bgp-rs` configured four ways — (a) `bus { endpoint bgp-rs { internal bgp-rs; send { to [ /bgp/group/transit ]; } } }`,
+# (b) `bgp { route-server { bus { send { to [ /bgp/group/transit ]; } } } }`,
+# (c) both identically, and (d) both with disagreeing `send > to` lists (`/bgp/group/transit`
+# vs `/bgp/peer/edge1`) — do (a), (b), and (c) each validate and load with structurally
+# identical `implied` rules for `/bgp/route-server` in `show config running | implied | json`
+# (differing only in origin/source citing the respective line(s)), and is (d) refused at
+# `ze config validate`, SIGHUP reload, and `ze start` naming both lines and advising to
+# keep one? A unit test cannot decide this because it spans full YANG schema joining,
+# `ze config validate`, live daemon startup and SIGHUP reload, and live `| implied | json`.
+#
+# VALIDATES: spec-explicit-plugin-and-attach-config S10 / AC-7, AC-6, AC-23.
+# PREVENTS: two-place bus configuration compiling divergent filters for the same plugin
+# or silently picking last-wins when both places disagree.
+
+option=timeout:value=90s
+option=env:var=ZE_CONFIG_DIR:value=.
+option=env:var=XDG_DATA_HOME:value=.
+option=env:var=ze.ssh.password:value=testpass
+
+stdin=init-answers:terminator=EOF_INIT
+admin
+testpass
+127.0.0.1
+$PORT2
+EOF_INIT
+
+# (a) endpoint side only.
+tmpfs=running.conf:terminator=EOF_A
+system {
+	authentication {
+		user admin {
+			password "$2a$04$UlwuiuH82Unfsq.XEMPGJeDkXwbm3KW.nvVaVXOd/JeFK8VjMjrQO"
+		}
+	}
+}
+environment {
+	ssh {
+		enabled true
+		server main { ip 127.0.0.1; port $PORT2; }
+	}
+}
+bus {
+	endpoint bgp-rs {
+		internal bgp-rs;
+		send {
+			to [ /bgp/group/transit ];
+		}
+	}
+}
+bgp {
+	router-id 192.0.2.254;
+	group transit {
+		peer t1 {
+			connection {
+				remote { ip 127.0.0.2; connect false; }
+				local { ip 127.0.0.1; port $PORT; accept true; }
+			}
+			session {
+				asn { local 65000; remote 65001; }
+				rs-client true;
+				family { ipv4/unicast { prefix { maximum 10000; } } }
+			}
+		}
+		peer t2 {
+			connection {
+				remote { ip 127.0.0.3; connect false; }
+				local { ip 127.0.0.1; port $PORT; accept true; }
+			}
+			session {
+				asn { local 65000; remote 65002; }
+				rs-client true;
+				family { ipv4/unicast { prefix { maximum 10000; } } }
+			}
+		}
+	}
+	peer edge1 {
+		connection {
+			remote { ip 127.0.0.4; connect false; }
+			local { ip 127.0.0.1; port $PORT; accept true; }
+		}
+		session {
+			asn { local 65000; remote 65003; }
+			rs-client true;
+			family { ipv4/unicast { prefix { maximum 10000; } } }
+		}
+	}
+}
+EOF_A
+
+# (b) own section side only (`bgp { route-server { bus { ... } } }`).
+tmpfs=s10-b.conf:terminator=EOF_B
+system {
+	authentication {
+		user admin {
+			password "$2a$04$UlwuiuH82Unfsq.XEMPGJeDkXwbm3KW.nvVaVXOd/JeFK8VjMjrQO"
+		}
+	}
+}
+environment {
+	ssh {
+		enabled true
+		server main { ip 127.0.0.1; port $PORT2; }
+	}
+}
+bus {
+	endpoint bgp-rs {
+		internal bgp-rs;
+	}
+}
+bgp {
+	router-id 192.0.2.254;
+	route-server {
+		bus {
+			send {
+				to [ /bgp/group/transit ];
+			}
+		}
+	}
+	group transit {
+		peer t1 {
+			connection {
+				remote { ip 127.0.0.2; connect false; }
+				local { ip 127.0.0.1; port $PORT; accept true; }
+			}
+			session {
+				asn { local 65000; remote 65001; }
+				rs-client true;
+				family { ipv4/unicast { prefix { maximum 10000; } } }
+			}
+		}
+		peer t2 {
+			connection {
+				remote { ip 127.0.0.3; connect false; }
+				local { ip 127.0.0.1; port $PORT; accept true; }
+			}
+			session {
+				asn { local 65000; remote 65002; }
+				rs-client true;
+				family { ipv4/unicast { prefix { maximum 10000; } } }
+			}
+		}
+	}
+	peer edge1 {
+		connection {
+			remote { ip 127.0.0.4; connect false; }
+			local { ip 127.0.0.1; port $PORT; accept true; }
+		}
+		session {
+			asn { local 65000; remote 65003; }
+			rs-client true;
+			family { ipv4/unicast { prefix { maximum 10000; } } }
+		}
+	}
+}
+EOF_B
+
+# (c) both places with identical list.
+tmpfs=s10-c.conf:terminator=EOF_C
+system {
+	authentication {
+		user admin {
+			password "$2a$04$UlwuiuH82Unfsq.XEMPGJeDkXwbm3KW.nvVaVXOd/JeFK8VjMjrQO"
+		}
+	}
+}
+environment {
+	ssh {
+		enabled true
+		server main { ip 127.0.0.1; port $PORT2; }
+	}
+}
+bus {
+	endpoint bgp-rs {
+		internal bgp-rs;
+		send {
+			to [ /bgp/group/transit ];
+		}
+	}
+}
+bgp {
+	router-id 192.0.2.254;
+	route-server {
+		bus {
+			send {
+				to [ /bgp/group/transit ];
+			}
+		}
+	}
+	group transit {
+		peer t1 {
+			connection {
+				remote { ip 127.0.0.2; connect false; }
+				local { ip 127.0.0.1; port $PORT; accept true; }
+			}
+			session {
+				asn { local 65000; remote 65001; }
+				rs-client true;
+				family { ipv4/unicast { prefix { maximum 10000; } } }
+			}
+		}
+		peer t2 {
+			connection {
+				remote { ip 127.0.0.3; connect false; }
+				local { ip 127.0.0.1; port $PORT; accept true; }
+			}
+			session {
+				asn { local 65000; remote 65002; }
+				rs-client true;
+				family { ipv4/unicast { prefix { maximum 10000; } } }
+			}
+		}
+	}
+	peer edge1 {
+		connection {
+			remote { ip 127.0.0.4; connect false; }
+			local { ip 127.0.0.1; port $PORT; accept true; }
+		}
+		session {
+			asn { local 65000; remote 65003; }
+			rs-client true;
+			family { ipv4/unicast { prefix { maximum 10000; } } }
+		}
+	}
+}
+EOF_C
+
+# (d) both places disagreeing: /bgp/group/transit vs /bgp/peer/edge1.
+tmpfs=s10-d-conflict.conf:terminator=EOF_D
+system {
+	authentication {
+		user admin {
+			password "$2a$04$UlwuiuH82Unfsq.XEMPGJeDkXwbm3KW.nvVaVXOd/JeFK8VjMjrQO"
+		}
+	}
+}
+environment {
+	ssh {
+		enabled true
+		server main { ip 127.0.0.1; port $PORT2; }
+	}
+}
+bus {
+	endpoint bgp-rs {
+		internal bgp-rs;
+		send {
+			to [ /bgp/group/transit ];
+		}
+	}
+}
+bgp {
+	router-id 192.0.2.254;
+	route-server {
+		bus {
+			send {
+				to [ /bgp/peer/edge1 ];
+			}
+		}
+	}
+	group transit {
+		peer t1 {
+			connection {
+				remote { ip 127.0.0.2; connect false; }
+				local { ip 127.0.0.1; port $PORT; accept true; }
+			}
+			session {
+				asn { local 65000; remote 65001; }
+				rs-client true;
+				family { ipv4/unicast { prefix { maximum 10000; } } }
+			}
+		}
+		peer t2 {
+			connection {
+				remote { ip 127.0.0.3; connect false; }
+				local { ip 127.0.0.1; port $PORT; accept true; }
+			}
+			session {
+				asn { local 65000; remote 65002; }
+				rs-client true;
+				family { ipv4/unicast { prefix { maximum 10000; } } }
+			}
+		}
+	}
+	peer edge1 {
+		connection {
+			remote { ip 127.0.0.4; connect false; }
+			local { ip 127.0.0.1; port $PORT; accept true; }
+		}
+		session {
+			asn { local 65000; remote 65003; }
+			rs-client true;
+			family { ipv4/unicast { prefix { maximum 10000; } } }
+		}
+	}
+}
+EOF_D
+
+cmd=foreground:seq=1:exec=ze init:stdin=init-answers:exit=0
+
+# Step 1: validate (a), (b), (c) pass; validate (d) refuses naming both lines and keep one.
+cmd=foreground:seq=2:exec=ze config validate running.conf:exit=0
+cmd=foreground:seq=3:exec=ze config validate s10-b.conf:exit=0
+cmd=foreground:seq=4:exec=ze config validate s10-c.conf:exit=0
+cmd=foreground:seq=5:exec=ze config validate s10-d-conflict.conf:exit=1
+expect=stdout:contains=conflicting bus rules
+expect=stdout:contains=bgp-rs
+expect=stdout:contains=route-server
+expect=stdout:contains=keep one
+
+# Step 2: live daemon loads (a), reloads to (b), reloads to (c), capturing | implied | json for each.
+cmd=background:seq=6:name=daemon:exec=ze start running.conf:ready=Ze running.
+reject=stderr:pattern=ZE-OBSERVER-FAIL
+reject=stderr:pattern=panic
+
+cmd=foreground:seq=7:exec=le test fixture plugin/bus-assert-implied snapshot-implied implied-a.json:exit=0
+cmd=foreground:seq=8:exec=le test fixture plugin/bus-assert-implied rule /bgp/route-server send bgp:update written /bgp/group/transit --source-contains bgp-rs:exit=0
+
+cmd=foreground:seq=9:exec=le test fixture plugin/bus-sighup-reload s10-b.conf running.conf r1.applied:exit=0
+expect=stdout:contains=OK: SIGHUP reload s10-b.conf applied
+cmd=foreground:seq=10:exec=le test fixture plugin/bus-assert-implied snapshot-implied implied-b.json:exit=0
+cmd=foreground:seq=11:exec=le test fixture plugin/bus-assert-implied rule /bgp/route-server send bgp:update written /bgp/group/transit --source-contains route-server:exit=0
+
+cmd=foreground:seq=12:exec=le test fixture plugin/bus-sighup-reload s10-c.conf running.conf r2.applied:exit=0
+expect=stdout:contains=OK: SIGHUP reload s10-c.conf applied
+cmd=foreground:seq=13:exec=le test fixture plugin/bus-assert-implied snapshot-implied implied-c.json:exit=0
+cmd=foreground:seq=14:exec=le test fixture plugin/bus-assert-implied rule /bgp/route-server send bgp:update written /bgp/group/transit --source-contains bgp-rs --source-contains route-server:exit=0
+
+# Structural equality: (a), (b), and (c) have identical effective implied rules except for origin/source.
+cmd=foreground:seq=15:exec=le test fixture plugin/bus-assert-implied compare-implied-ignore-origin implied-a.json implied-b.json implied-c.json /bgp/route-server:exit=0
+expect=stdout:contains=OK:
+
+# Live reload of conflicting (d) is refused cleanly.
+cmd=foreground:seq=16:exec=le test fixture plugin/bus-sighup-reload-refused s10-d-conflict.conf running.conf r3.refused:exit=0
+expect=stdout:contains=OK: SIGHUP reload s10-d-conflict.conf failed
+
+cmd=stop:seq=17:name=daemon:signal=term
+
+# Step 3: ze start on (d) also refuses naming both lines and keep one.
+cmd=foreground:seq=18:exec=ze start s10-d-conflict.conf
+expect=exit:code=1
+expect=stderr:contains=conflicting bus rules
+expect=stderr:contains=bgp-rs
+expect=stderr:contains=route-server
+expect=stderr:contains=keep one

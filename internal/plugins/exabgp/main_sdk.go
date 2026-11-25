@@ -36,7 +36,7 @@ func buildRegistration(families []string) (sdk.Registration, error) {
 		}
 		familyDecls = append(familyDecls, sdk.FamilyDecl{
 			Name: f,
-			Mode: "both",
+			Mode: "encode",
 			AFI:  afi,
 			SAFI: safi,
 		})

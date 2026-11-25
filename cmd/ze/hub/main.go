@@ -1073,6 +1073,7 @@ func runYANGConfig(store storage.Storage, configPath string, data []byte, plugin
 		return 1
 	}
 	apiServer.SetBusConfig(busCfg)
+	apiServer.SetBusConfigTree(configTree)
 	// Every exit owns built transports and the server's stop hooks, including
 	// infrastructure acquired before a later startup failure. OnceFunc joins
 	// concurrent stops; stopHooks.run alone can return during another drain.

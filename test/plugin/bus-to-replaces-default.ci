@@ -1,0 +1,378 @@
+# Test: writing `send { to [ ... ]; }` or `send { to none; }` on a peer replaces all registered destinations (including bgp-rib), while peers without it keep default wiring.
+# QUESTION: when `lab` carries `bus { send { to [ /bus/endpoint/collector ]; } }` while
+# `edge1` has no `bus` block, do both peers' updates reach `collector` while Loc-RIB
+# holds `edge1`'s route (203.0.113.0/24) and NOT `lab`'s (198.51.100.0/24), does
+# `show config running | implied` show `lab`'s `send > to` as written and list
+# `/bus/endpoint/bgp-rib` among replaced defaults (while removing the line puts `lab`'s
+# route in Loc-RIB), and when `lab` carries `bus { send { to none; } }`, do neither
+# `collector` nor Loc-RIB receive anything from `lab` while `edge1`'s route still arrives,
+# `show config running` prints `to none`, and combining `to [ none /bus/endpoint/collector ]`
+# is refused at validate? A unit test cannot decide this because it spans live BGP peer
+# UPDATE intake, compiled delivery graph dispatch to auto-loaded `bgp-rib` and external
+# `collector`, live `show bgp rib`, and `| implied` rendering.
+#
+# VALIDATES: spec-explicit-plugin-and-attach-config S2, S3 / AC-2, AC-23.
+# PREVENTS: `send > to` merging with rather than replacing registered defaults, `to none`
+# leaking events to registered receivers, or `show config` dropping `to none`.
+
+option=timeout:value=120s
+option=env:var=ZE_CONFIG_DIR:value=.
+option=env:var=XDG_DATA_HOME:value=.
+option=env:var=ze.ssh.password:value=testpass
+
+stdin=init-answers:terminator=EOF_INIT
+admin
+testpass
+127.0.0.1
+$PORT2
+EOF_INIT
+
+# Peer scripts for Run 1 (S2: lab send > to [ /bus/endpoint/collector ]).
+stdin=edge1-s2:terminator=EOF_EDGE1_S2
+option=tcp_connections:value=1
+option=timeout:value=60s
+option=asn:value=65001
+option=open:value=router-id:id=127.0.0.2
+option=linger:value=true
+option=established-file:path=edge1-s2.up
+option=update:value=send-route:prefix=203.0.113.0/24:next-hop=192.0.2.1
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
+EOF_EDGE1_S2
+
+stdin=lab-s2:terminator=EOF_LAB_S2
+option=tcp_connections:value=1
+option=timeout:value=60s
+option=asn:value=65002
+option=open:value=router-id:id=127.0.0.3
+option=linger:value=true
+option=established-file:path=lab-s2.up
+option=update:value=send-route:prefix=198.51.100.0/24:next-hop=192.0.2.2
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
+EOF_LAB_S2
+
+# Peer scripts for Run 2 (S2 control: lab without send > to line).
+stdin=edge1-ctl:terminator=EOF_EDGE1_CTL
+option=tcp_connections:value=1
+option=timeout:value=60s
+option=asn:value=65001
+option=open:value=router-id:id=127.0.0.2
+option=linger:value=true
+option=established-file:path=edge1-ctl.up
+option=update:value=send-route:prefix=203.0.113.0/24:next-hop=192.0.2.1
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
+EOF_EDGE1_CTL
+
+stdin=lab-ctl:terminator=EOF_LAB_CTL
+option=tcp_connections:value=1
+option=timeout:value=60s
+option=asn:value=65002
+option=open:value=router-id:id=127.0.0.3
+option=linger:value=true
+option=established-file:path=lab-ctl.up
+option=update:value=send-route:prefix=198.51.100.0/24:next-hop=192.0.2.2
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
+EOF_LAB_CTL
+
+# Peer scripts for Run 3 (S3: lab send > to none).
+stdin=edge1-s3:terminator=EOF_EDGE1_S3
+option=tcp_connections:value=1
+option=timeout:value=60s
+option=asn:value=65001
+option=open:value=router-id:id=127.0.0.2
+option=linger:value=true
+option=established-file:path=edge1-s3.up
+option=update:value=send-route:prefix=203.0.113.0/24:next-hop=192.0.2.1
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
+EOF_EDGE1_S3
+
+stdin=lab-s3:terminator=EOF_LAB_S3
+option=tcp_connections:value=1
+option=timeout:value=60s
+option=asn:value=65002
+option=open:value=router-id:id=127.0.0.3
+option=linger:value=true
+option=established-file:path=lab-s3.up
+option=update:value=send-route:prefix=198.51.100.0/24:next-hop=192.0.2.2
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
+EOF_LAB_S3
+
+tmpfs=s2.conf:terminator=EOF_S2
+system {
+	authentication {
+		user admin {
+			password "$2a$04$UlwuiuH82Unfsq.XEMPGJeDkXwbm3KW.nvVaVXOd/JeFK8VjMjrQO"
+		}
+	}
+}
+environment {
+	ssh {
+		enabled true
+		server main { ip 127.0.0.1; port $PORT2; }
+	}
+}
+bus {
+	endpoint collector {
+		external {
+			run "le test fixture plugin/bus-bgp-collector s2-collector.log";
+		}
+		encoding json;
+	}
+}
+bgp {
+	router-id 192.0.2.254;
+	filter {
+		import { final accept; }
+		export { final accept; }
+	}
+	peer edge1 {
+		connection {
+			remote { ip 127.0.0.2; }
+			local { ip 127.0.0.1; accept false; }
+		}
+		session {
+			asn { local 65000; remote 65001; }
+			family { ipv4/unicast { prefix { maximum 10000; } } }
+			capability { graceful-restart disable; }
+		}
+		behavior { group-updates disable; }
+	}
+	peer lab {
+		connection {
+			remote { ip 127.0.0.3; }
+			local { ip 127.0.0.1; accept false; }
+		}
+		session {
+			asn { local 65000; remote 65002; }
+			family { ipv4/unicast { prefix { maximum 10000; } } }
+			capability { graceful-restart disable; }
+		}
+		behavior { group-updates disable; }
+		bus {
+			send {
+				to [ /bus/endpoint/collector ];
+			}
+		}
+	}
+}
+EOF_S2
+
+tmpfs=s2-control.conf:terminator=EOF_S2_CTL
+system {
+	authentication {
+		user admin {
+			password "$2a$04$UlwuiuH82Unfsq.XEMPGJeDkXwbm3KW.nvVaVXOd/JeFK8VjMjrQO"
+		}
+	}
+}
+environment {
+	ssh {
+		enabled true
+		server main { ip 127.0.0.1; port $PORT2; }
+	}
+}
+bus {
+	endpoint collector {
+		external {
+			run "le test fixture plugin/bus-bgp-collector s2-ctl-collector.log";
+		}
+		encoding json;
+	}
+}
+bgp {
+	router-id 192.0.2.254;
+	filter {
+		import { final accept; }
+		export { final accept; }
+	}
+	peer edge1 {
+		connection {
+			remote { ip 127.0.0.2; }
+			local { ip 127.0.0.1; accept false; }
+		}
+		session {
+			asn { local 65000; remote 65001; }
+			family { ipv4/unicast { prefix { maximum 10000; } } }
+			capability { graceful-restart disable; }
+		}
+		behavior { group-updates disable; }
+	}
+	peer lab {
+		connection {
+			remote { ip 127.0.0.3; }
+			local { ip 127.0.0.1; accept false; }
+		}
+		session {
+			asn { local 65000; remote 65002; }
+			family { ipv4/unicast { prefix { maximum 10000; } } }
+			capability { graceful-restart disable; }
+		}
+		behavior { group-updates disable; }
+	}
+}
+EOF_S2_CTL
+
+tmpfs=s3.conf:terminator=EOF_S3
+system {
+	authentication {
+		user admin {
+			password "$2a$04$UlwuiuH82Unfsq.XEMPGJeDkXwbm3KW.nvVaVXOd/JeFK8VjMjrQO"
+		}
+	}
+}
+environment {
+	ssh {
+		enabled true
+		server main { ip 127.0.0.1; port $PORT2; }
+	}
+}
+bus {
+	endpoint collector {
+		external {
+			run "le test fixture plugin/bus-bgp-collector s3-collector.log";
+		}
+		encoding json;
+	}
+}
+bgp {
+	router-id 192.0.2.254;
+	filter {
+		import { final accept; }
+		export { final accept; }
+	}
+	peer edge1 {
+		connection {
+			remote { ip 127.0.0.2; }
+			local { ip 127.0.0.1; accept false; }
+		}
+		session {
+			asn { local 65000; remote 65001; }
+			family { ipv4/unicast { prefix { maximum 10000; } } }
+			capability { graceful-restart disable; }
+		}
+		behavior { group-updates disable; }
+	}
+	peer lab {
+		connection {
+			remote { ip 127.0.0.3; }
+			local { ip 127.0.0.1; accept false; }
+		}
+		session {
+			asn { local 65000; remote 65002; }
+			family { ipv4/unicast { prefix { maximum 10000; } } }
+			capability { graceful-restart disable; }
+		}
+		behavior { group-updates disable; }
+		bus {
+			send {
+				to none;
+			}
+		}
+	}
+}
+EOF_S3
+
+tmpfs=s3-invalid-none.conf:terminator=EOF_S3_BAD
+bus {
+	endpoint collector {
+		external {
+			run "le test fixture plugin/bus-bgp-collector unused.log";
+		}
+		encoding json;
+	}
+}
+bgp {
+	router-id 192.0.2.254;
+	peer lab {
+		connection {
+			remote { ip 127.0.0.3; }
+			local { ip 127.0.0.1; accept false; }
+		}
+		session {
+			asn { local 65000; remote 65002; }
+			family { ipv4/unicast { prefix { maximum 10000; } } }
+		}
+		bus {
+			send {
+				to [ none /bus/endpoint/collector ];
+			}
+		}
+	}
+}
+EOF_S3_BAD
+
+cmd=foreground:seq=1:exec=ze init:stdin=init-answers:exit=0
+
+# --- Run 1 (S2): lab send > to [ /bus/endpoint/collector ] replaces bgp-rib default ---
+cmd=background:seq=2:name=edge1-s2:exec=le test peer --bind 127.0.0.2 --port $PORT:stdin=edge1-s2
+cmd=background:seq=3:name=lab-s2:exec=le test peer --bind 127.0.0.3 --port $PORT:stdin=lab-s2
+cmd=background:seq=4:name=daemon1:exec=ze start s2.conf:ready=Ze running.
+reject=stderr:pattern=ZE-OBSERVER-FAIL
+reject=stderr:pattern=panic
+
+cmd=foreground:seq=5:exec=le test fixture plugin/bus-wait-file edge1-s2.up:exit=0
+cmd=foreground:seq=6:exec=le test fixture plugin/bus-wait-file lab-s2.up:exit=0
+cmd=foreground:seq=7:exec=le test fixture plugin/bus-assert-implied poll-file-contains s2-collector.log 203.0.113.0/24:exit=0
+cmd=foreground:seq=8:exec=le test fixture plugin/bus-assert-implied poll-file-contains s2-collector.log 198.51.100.0/24:exit=0
+cmd=foreground:seq=9:exec=le test fixture daemon/await-answer-all "show bgp rib" 203.0.113.0/24:exit=0
+
+# Loc-RIB must hold edge1's route and NOT lab's route.
+cmd=foreground:seq=10:exec=ze cli -c "show bgp rib":exit=0
+expect=stdout:contains=203.0.113.0/24
+reject=stdout:contains=198.51.100.0/24
+
+# | implied shows lab's send > to as written and lists bgp-rib among replaced defaults.
+cmd=foreground:seq=11:exec=ze cli -c "show config running | implied":exit=0
+expect=stdout:contains=replaced registered default(s)
+expect=stdout:contains=/bus/endpoint/bgp-rib
+cmd=foreground:seq=12:exec=le test fixture plugin/bus-assert-implied rule /bgp/peer/lab send bgp:update written /bus/endpoint/collector --replaced /bus/endpoint/bgp-rib:exit=0
+expect=stdout:contains=OK:
+
+cmd=stop:seq=13:name=daemon1:signal=term
+cmd=stop:seq=14:name=edge1-s2
+cmd=stop:seq=15:name=lab-s2
+
+# --- Run 2 (S2 negative control): without the line, Loc-RIB holds lab's route ---
+cmd=background:seq=16:name=edge1-ctl:exec=le test peer --bind 127.0.0.2 --port $PORT:stdin=edge1-ctl
+cmd=background:seq=17:name=lab-ctl:exec=le test peer --bind 127.0.0.3 --port $PORT:stdin=lab-ctl
+cmd=background:seq=18:name=daemon2:exec=ze start s2-control.conf:ready=Ze running.
+reject=stderr:pattern=ZE-OBSERVER-FAIL
+reject=stderr:pattern=panic
+
+cmd=foreground:seq=19:exec=le test fixture daemon/await-answer-all "show bgp rib" 203.0.113.0/24 198.51.100.0/24:exit=0
+
+cmd=stop:seq=20:name=daemon2:signal=term
+cmd=stop:seq=21:name=edge1-ctl
+cmd=stop:seq=22:name=lab-ctl
+
+# --- Run 3 (S3): lab send > to none delivers nothing for lab while edge1 still arrives ---
+cmd=background:seq=23:name=edge1-s3:exec=le test peer --bind 127.0.0.2 --port $PORT:stdin=edge1-s3
+cmd=background:seq=24:name=lab-s3:exec=le test peer --bind 127.0.0.3 --port $PORT:stdin=lab-s3
+cmd=background:seq=25:name=daemon3:exec=ze start s3.conf:ready=Ze running.
+reject=stderr:pattern=ZE-OBSERVER-FAIL
+reject=stderr:pattern=panic
+
+cmd=foreground:seq=26:exec=le test fixture plugin/bus-wait-file edge1-s3.up:exit=0
+cmd=foreground:seq=27:exec=le test fixture plugin/bus-wait-file lab-s3.up:exit=0
+# Causal fences: Ze received lab's UPDATE on the wire, and edge1's route reached both collector and Loc-RIB.
+cmd=foreground:seq=28:exec=le test fixture daemon/await-answer-all "show bgp peer lab detail | json" '"updates-received": 1':exit=0
+cmd=foreground:seq=29:exec=le test fixture plugin/bus-assert-implied poll-file-contains s3-collector.log 203.0.113.0/24:exit=0
+cmd=foreground:seq=30:exec=le test fixture daemon/await-answer-all "show bgp rib" 203.0.113.0/24:exit=0
+
+# Neither collector nor Loc-RIB holds anything from lab.
+cmd=foreground:seq=31:exec=le test fixture plugin/bus-assert-implied file-not-contains s3-collector.log 127.0.0.3:exit=0
+cmd=foreground:seq=32:exec=le test fixture plugin/bus-assert-implied file-not-contains s3-collector.log 198.51.100.0/24:exit=0
+cmd=foreground:seq=33:exec=ze cli -c "show bgp rib":exit=0
+expect=stdout:contains=203.0.113.0/24
+reject=stdout:contains=198.51.100.0/24
+
+# show config prints `to none`.
+cmd=foreground:seq=34:exec=ze cli -c "show config running | implied":exit=0
+expect=stdout:contains=to none
+
+cmd=stop:seq=35:name=daemon3:signal=term
+cmd=stop:seq=36:name=edge1-s3
+cmd=stop:seq=37:name=lab-s3
+
+# S3 negative: combining `none` with a destination path is refused at validate.
+cmd=foreground:seq=38:exec=ze config validate s3-invalid-none.conf:exit=1
+expect=stdout:contains=none

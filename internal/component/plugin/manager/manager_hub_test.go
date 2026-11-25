@@ -84,3 +84,31 @@ func TestEnsureAcceptorSkippedWithoutConfigOrExternals(t *testing.T) {
 		t.Fatal("no hub config and no externals: acceptor must stay nil (auto-config is external-only)")
 	}
 }
+
+func TestSpawnMoreEmptyOpensExplicitHubAcceptor(t *testing.T) {
+	m := NewManager()
+	m.SetHubAuthority(newTestAuthority(t))
+	m.SetHubConfig(&parent.HubConfig{
+		Servers: []parent.HubServerConfig{{
+			Name:   "local",
+			Host:   "127.0.0.1",
+			Port:   0,
+			Secret: "explicit-hub-empty-spawn-secret",
+		}},
+	})
+	if err := m.StartAll(t.Context(), nil, nil); err != nil {
+		t.Fatalf("StartAll: %v", err)
+	}
+	t.Cleanup(func() {
+		if m.acceptor != nil {
+			m.acceptor.Stop()
+		}
+		_ = m.StopAll(t.Context())
+	})
+	if err := m.SpawnMore(nil); err != nil {
+		t.Fatalf("SpawnMore(nil): %v", err)
+	}
+	if m.acceptor == nil || m.acceptor.Addr() == nil {
+		t.Fatal("SpawnMore(nil) with explicit hub server must bind the hub acceptor")
+	}
+}

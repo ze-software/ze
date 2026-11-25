@@ -371,6 +371,10 @@ type Reactor struct {
 
 	// Immutable running authority, including private inactive member intent.
 	configTree map[string]any
+	// Lock-free mirror of configTree updated alongside every configTree write
+	// under mu, so GetConfigTree can answer without taking mu (including when
+	// called back from publishDeliveryGraphLocked while mu is held).
+	configTreeSnap atomic.Pointer[map[string]any]
 
 	// createdPeers names the peers `create bgp peer` built that no candidate
 	// configuration has declared yet, by address, each with the name its entry
@@ -622,6 +626,11 @@ func New(config *Config) *Reactor {
 		// Config.Standalone selects self-hosting. Derived once here rather than
 		// inferred from r.api at startup.
 		externalServer: !config.Standalone,
+	}
+
+	if config.ConfigTree != nil {
+		t := config.ConfigTree
+		r.configTreeSnap.Store(&t)
 	}
 
 	// Create shared overflow MixedBufMux for forward dispatch.

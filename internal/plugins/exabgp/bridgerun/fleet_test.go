@@ -816,3 +816,127 @@ func negotiatedOfUpdate(t *testing.T, lines string) any {
 	t.Fatalf("no UPDATE line in %q", lines)
 	return nil
 }
+
+// TestDeriveSendScopePreservesTargetsWhenSendBGPDisallowed checks that narrowing
+// `send > allow` to omit `cli:send bgp` preserves peer target scope instead of
+// setting NoPeers, so commands still reach the daemon bus send gate and count
+// against `ze_bus_send_refused_total`.
+//
+// VALIDATES: deriveSendScope preserves target peers when cli:send bgp Allowed is false.
+// PREVENTS: local NoPeers short-circuit bypassing daemon bus_op_gate refusal accounting.
+func TestDeriveSendScopePreservesTargetsWhenSendBGPDisallowed(t *testing.T) {
+	cases := []struct {
+		name        string
+		filter      *rpc.BusParticipantFilter
+		wantPeers   []string
+		wantNoPeers bool
+	}{
+		{
+			name: "disallowed with explicit peer targets",
+			filter: &rpc.BusParticipantFilter{
+				SendRules: []rpc.BusFilterRule{
+					{
+						Message: busCmdSendBGP,
+						Allowed: false,
+						Targets: []rpc.BusFilterTarget{{Path: "/bgp/peer/edge1", Address: "127.0.0.2"}},
+					},
+					{
+						Message: "cli:show bgp",
+						Allowed: true,
+						Targets: []rpc.BusFilterTarget{{Path: "/bgp/peer/edge1", Address: "127.0.0.2"}},
+					},
+				},
+			},
+			wantPeers:   []string{"127.0.0.2"},
+			wantNoPeers: false,
+		},
+		{
+			name: "disallowed with TargetAll",
+			filter: &rpc.BusParticipantFilter{
+				SendRules: []rpc.BusFilterRule{
+					{Message: busCmdSendBGP, Allowed: false, TargetAll: true},
+				},
+			},
+			wantPeers:   nil,
+			wantNoPeers: false,
+		},
+		{
+			name: "disallowed with empty targets falls back to remaining rules",
+			filter: &rpc.BusParticipantFilter{
+				SendRules: []rpc.BusFilterRule{
+					{Message: busCmdSendBGP, Allowed: false},
+					{
+						Message: "cli:show bgp",
+						Allowed: true,
+						Targets: []rpc.BusFilterTarget{{Path: "/bgp/peer/edge1", Address: "127.0.0.2"}},
+					},
+				},
+			},
+			wantPeers:   []string{"127.0.0.2"},
+			wantNoPeers: false,
+		},
+		{
+			name: "disallowed with empty targets falls back to SendToAll",
+			filter: &rpc.BusParticipantFilter{
+				SendToAll: true,
+				SendRules: []rpc.BusFilterRule{
+					{Message: busCmdSendBGP, Allowed: false},
+				},
+			},
+			wantPeers:   nil,
+			wantNoPeers: false,
+		},
+		{
+			name: "disallowed with TargetNone keeps NoPeers",
+			filter: &rpc.BusParticipantFilter{
+				SendRules: []rpc.BusFilterRule{
+					{Message: busCmdSendBGP, Allowed: false, TargetNone: true},
+				},
+			},
+			wantPeers:   nil,
+			wantNoPeers: true,
+		},
+		{
+			name: "SendNone keeps NoPeers",
+			filter: &rpc.BusParticipantFilter{
+				SendNone: true,
+				SendRules: []rpc.BusFilterRule{
+					{
+						Message: busCmdSendBGP,
+						Allowed: false,
+						Targets: []rpc.BusFilterTarget{{Path: "/bgp/peer/edge1", Address: "127.0.0.2"}},
+					},
+				},
+			},
+			wantPeers:   nil,
+			wantNoPeers: true,
+		},
+		{
+			name: "SendToNone keeps NoPeers",
+			filter: &rpc.BusParticipantFilter{
+				SendToNone: true,
+				SendRules: []rpc.BusFilterRule{
+					{
+						Message: busCmdSendBGP,
+						Allowed: false,
+						Targets: []rpc.BusFilterTarget{{Path: "/bgp/peer/edge1", Address: "127.0.0.2"}},
+					},
+				},
+			},
+			wantPeers:   nil,
+			wantNoPeers: true,
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			peers, noPeers := deriveSendScope(tc.filter)
+			if noPeers != tc.wantNoPeers {
+				t.Fatalf("noPeers = %v, want %v (peers=%v)", noPeers, tc.wantNoPeers, peers)
+			}
+			if !reflect.DeepEqual(peers, tc.wantPeers) {
+				t.Fatalf("peers = %v, want %v", peers, tc.wantPeers)
+			}
+		})
+	}
+}

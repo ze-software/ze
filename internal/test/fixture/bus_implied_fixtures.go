@@ -24,23 +24,32 @@ import (
 )
 
 const (
-	impliedModeS43Running        = "s43-running"
-	impliedModeS43NoRole         = "s43-no-role"
-	impliedModeOfflineOK         = "offline-ok"
-	impliedModeOfflineRefusal    = "offline-refusal"
-	impliedModeConfigShowNotice  = "config-show-notice"
-	impliedModeRoundTripExtract  = "round-trip-extract"
-	impliedModeRoundTripVerify   = "round-trip-verify"
-	impliedModeRSDisplay         = "rs-display"
-	impliedModeDeliveryOrigins   = "delivery-origins"
-	impliedModeLifecycleDelivery = "lifecycle-delivery"
-	impliedModeFileContains      = "file-contains"
-	impliedModePollFileContains  = "poll-file-contains"
-	impliedModeFileNotContains   = "file-not-contains"
-	impliedModeSnapshotFile      = "snapshot-file"
-	impliedModePollFileGrew      = "poll-file-grew-needle"
-	impliedModeFileUnchanged     = "file-unchanged"
-	impliedModeMergeConfig       = "merge-config"
+	impliedModeS43Running          = "s43-running"
+	impliedModeS43NoRole           = "s43-no-role"
+	impliedModeOfflineOK           = "offline-ok"
+	impliedModeOfflineRefusal      = "offline-refusal"
+	impliedModeConfigShowNotice    = "config-show-notice"
+	impliedModeRoundTripExtract    = "round-trip-extract"
+	impliedModeRoundTripVerify     = "round-trip-verify"
+	impliedModeRSDisplay           = "rs-display"
+	impliedModeDeliveryOrigins     = "delivery-origins"
+	impliedModeLifecycleDelivery   = "lifecycle-delivery"
+	impliedModeFileContains        = "file-contains"
+	impliedModePollFileContains    = "poll-file-contains"
+	impliedModeFileNotContains     = "file-not-contains"
+	impliedModeSnapshotFile        = "snapshot-file"
+	impliedModePollFileGrew        = "poll-file-grew-needle"
+	impliedModeFileUnchanged       = "file-unchanged"
+	impliedModeMergeConfig         = "merge-config"
+	impliedModeRule                = "rule"
+	impliedModeSnapshotImplied     = "snapshot-implied"
+	impliedModeCompareIgnoreOrigin = "compare-implied-ignore-origin"
+
+	impliedDirSend            = "send"
+	impliedDirReceive         = "receive"
+	impliedFlagSourceContains = "--source-contains"
+	impliedFlagReplaced       = "--replaced"
+	impliedFlagAllowed        = "--allowed"
 
 	impliedPeerEdge1 = "/bgp/peer/edge1"
 	impliedPeerLab   = "/bgp/peer/lab"
@@ -89,6 +98,18 @@ type busDeliveryEdgeView struct {
 type busDeliveryResponseView struct {
 	Edges []busDeliveryEdgeView `json:"edges"`
 	Count int                   `json:"count"`
+}
+
+type impliedRuleQuery struct {
+	participantPath string
+	direction       string
+	message         string
+	wantOrigin      string
+	wantTargets     []string
+	wantSources     []string
+	wantReplaced    []string
+	checkAllowed    bool
+	wantAllowed     bool
 }
 
 // busImpliedProbeDriver implements an external endpoint used by AC-24 offline
@@ -222,6 +243,12 @@ func busAssertImpliedDriver(ctx context.Context, args []string) error {
 		return busAssertFileUnchanged(rest)
 	case impliedModeMergeConfig:
 		return busMergeConfigFiles(rest)
+	case impliedModeRule:
+		return busAssertImpliedRule(ctx, rest)
+	case impliedModeSnapshotImplied:
+		return busSnapshotImpliedJSON(ctx, rest)
+	case impliedModeCompareIgnoreOrigin:
+		return busCompareImpliedIgnoreOrigin(rest)
 	default:
 		return fmt.Errorf("unknown bus-assert-implied mode %q", mode)
 	}
@@ -1210,4 +1237,299 @@ func busMergeConfigFiles(args []string) error {
 	}
 	var tb textbuf.Buffer
 	return tb.Str("OK: merged ").Str(args[0]).Str(" + ").Str(args[1]).Str(" -> ").Str(args[2]).Byte('\n').StdOut()
+}
+
+func parseImpliedRuleQuery(args []string) (impliedRuleQuery, error) {
+	if len(args) < 4 {
+		return impliedRuleQuery{}, errors.New("usage: plugin/bus-assert-implied rule <participant> <send|receive> <message> <origin> [<target>...] [--source-contains <s>] [--replaced <p>] [--allowed <true|false>]")
+	}
+	dir := args[1]
+	if dir != impliedDirSend {
+		if dir != impliedDirReceive {
+			return impliedRuleQuery{}, fmt.Errorf("rule direction %q must be %s or %s", dir, impliedDirSend, impliedDirReceive)
+		}
+	}
+	q := impliedRuleQuery{
+		participantPath: args[0],
+		direction:       dir,
+		message:         args[2],
+		wantOrigin:      args[3],
+	}
+	for i := 4; i < len(args); {
+		tok := args[i]
+		switch tok {
+		case impliedFlagSourceContains:
+			if i+1 >= len(args) {
+				return impliedRuleQuery{}, fmt.Errorf("rule flag %s requires a value", impliedFlagSourceContains)
+			}
+			q.wantSources = append(q.wantSources, args[i+1])
+			i += 2
+		case impliedFlagReplaced:
+			if i+1 >= len(args) {
+				return impliedRuleQuery{}, fmt.Errorf("rule flag %s requires a value", impliedFlagReplaced)
+			}
+			q.wantReplaced = append(q.wantReplaced, args[i+1])
+			i += 2
+		case impliedFlagAllowed:
+			if i+1 >= len(args) {
+				return impliedRuleQuery{}, fmt.Errorf("rule flag %s requires true or false", impliedFlagAllowed)
+			}
+			switch args[i+1] {
+			case "true":
+				q.checkAllowed = true
+				q.wantAllowed = true
+			case "false":
+				q.checkAllowed = true
+				q.wantAllowed = false
+			default:
+				return impliedRuleQuery{}, fmt.Errorf("rule flag %s value %q must be true or false", impliedFlagAllowed, args[i+1])
+			}
+			i += 2
+		default:
+			if strings.HasPrefix(tok, "--") {
+				return impliedRuleQuery{}, fmt.Errorf("unknown rule flag %q", tok)
+			}
+			q.wantTargets = append(q.wantTargets, tok)
+			i++
+		}
+	}
+	return q, nil
+}
+
+func impliedTargetMatches(actual, want string) bool {
+	if actual == want {
+		return true
+	}
+	return strings.HasPrefix(actual, want+"/")
+}
+
+func assertImpliedRuleTargets(label string, actual, wantTargets []string) error {
+	if len(wantTargets) == 0 {
+		return nil
+	}
+	for _, want := range wantTargets {
+		found := false
+		for _, target := range actual {
+			if impliedTargetMatches(target, want) {
+				found = true
+				break
+			}
+		}
+		if !found {
+			return fmt.Errorf("%s targets %v missing expected target %q", label, actual, want)
+		}
+	}
+	for _, target := range actual {
+		covered := false
+		for _, want := range wantTargets {
+			if impliedTargetMatches(target, want) {
+				covered = true
+				break
+			}
+		}
+		if !covered {
+			return fmt.Errorf("%s targets %v include unexpected target %q outside %v", label, actual, target, wantTargets)
+		}
+	}
+	return nil
+}
+
+func findImpliedParticipant(participants []config.ImpliedParticipant, path string) (*config.ImpliedParticipant, error) {
+	var seen []string
+	for i := range participants {
+		if participants[i].Path == path {
+			return &participants[i], nil
+		}
+		seen = append(seen, participants[i].Path)
+	}
+	return nil, fmt.Errorf("participant %q not found in implied.participants (have: %v)", path, seen)
+}
+
+func findImpliedDirectionRule(p *config.ImpliedParticipant, dir, message string) (*config.ImpliedDirectionRule, error) {
+	rules := p.Receive
+	if dir == impliedDirSend {
+		rules = p.Send
+	}
+	var seen []string
+	for i := range rules {
+		if rules[i].Message == message {
+			return &rules[i], nil
+		}
+		seen = append(seen, rules[i].Message)
+	}
+	return nil, fmt.Errorf("participant %s %s rule %q not found (have: %v)", p.Path, dir, message, seen)
+}
+
+func busAssertImpliedRule(ctx context.Context, args []string) error {
+	q, err := parseImpliedRuleQuery(args)
+	if err != nil {
+		return err
+	}
+	code, jsonOut, stderr, err := runZeCLICaptured(ctx, cliCmdShowRunningImpliedJSON)
+	if err != nil {
+		return fmt.Errorf("run %s: %w", cliCmdShowRunningImpliedJSON, err)
+	}
+	if code != 0 {
+		return fmt.Errorf("%s exited %d: %s", cliCmdShowRunningImpliedJSON, code, strings.TrimSpace(stderr))
+	}
+	if err := assertNoHumanNotice(cliCmdShowRunningImpliedJSON, jsonOut); err != nil {
+		return err
+	}
+	var envPayload config.ImpliedEnvelope
+	if err := json.Unmarshal([]byte(jsonOut), &envPayload); err != nil {
+		return fmt.Errorf("decode ImpliedEnvelope JSON: %w\n%s", err, jsonOut)
+	}
+	participant, err := findImpliedParticipant(envPayload.Implied.Participants, q.participantPath)
+	if err != nil {
+		return err
+	}
+	rule, err := findImpliedDirectionRule(participant, q.direction, q.message)
+	if err != nil {
+		return err
+	}
+	var labelBuf textbuf.Buffer
+	label := labelBuf.Str(q.participantPath).Byte(' ').Str(q.direction).Byte(' ').Str(q.message).String()
+	if rule.Origin != q.wantOrigin {
+		return fmt.Errorf("%s origin = %q, want %q (rule=%+v)", label, rule.Origin, q.wantOrigin, *rule)
+	}
+	if q.checkAllowed {
+		if rule.Allowed != q.wantAllowed {
+			return fmt.Errorf("%s allowed = %t, want %t (rule=%+v)", label, rule.Allowed, q.wantAllowed, *rule)
+		}
+	}
+	if err := assertImpliedRuleTargets(label, rule.Targets, q.wantTargets); err != nil {
+		return err
+	}
+	for _, sub := range q.wantSources {
+		if !strings.Contains(rule.Source, sub) {
+			return fmt.Errorf("%s source %q missing %q", label, rule.Source, sub)
+		}
+	}
+	for _, rep := range q.wantReplaced {
+		if !slices.Contains(rule.ReplacedDefaults, rep) {
+			return fmt.Errorf("%s replaced-defaults %v missing %q", label, rule.ReplacedDefaults, rep)
+		}
+	}
+	var tb textbuf.Buffer
+	return tb.Str("OK: rule ").Str(label).Str(" origin=").Str(rule.Origin).Byte('\n').StdOut()
+}
+
+func busSnapshotImpliedJSON(ctx context.Context, args []string) error {
+	if len(args) != 1 {
+		return errors.New("usage: plugin/bus-assert-implied snapshot-implied <out-json-file>")
+	}
+	outFile := args[0]
+	code, jsonOut, stderr, err := runZeCLICaptured(ctx, cliCmdShowRunningImpliedJSON)
+	if err != nil {
+		return fmt.Errorf("run %s: %w", cliCmdShowRunningImpliedJSON, err)
+	}
+	if code != 0 {
+		return fmt.Errorf("%s exited %d: %s", cliCmdShowRunningImpliedJSON, code, strings.TrimSpace(stderr))
+	}
+	if err := assertNoHumanNotice(cliCmdShowRunningImpliedJSON, jsonOut); err != nil {
+		return err
+	}
+	var envPayload config.ImpliedEnvelope
+	if err := json.Unmarshal([]byte(jsonOut), &envPayload); err != nil {
+		return fmt.Errorf("decode ImpliedEnvelope JSON: %w\n%s", err, jsonOut)
+	}
+	if err := busWriteAtomicFile(outFile, jsonOut); err != nil {
+		return err
+	}
+	var tb textbuf.Buffer
+	return tb.Str("OK: snapshotted running implied JSON -> ").Str(outFile).Byte('\n').StdOut()
+}
+
+func normalizeParticipantIgnoreOrigin(src *config.ImpliedParticipant) config.ImpliedParticipant {
+	out := *src
+	out.SendAllow = slices.Clone(src.SendAllow)
+	slices.Sort(out.SendAllow)
+	out.SendAllowOrigin = ""
+	out.SendAllowSource = ""
+	out.ReceiveAllow = slices.Clone(src.ReceiveAllow)
+	slices.Sort(out.ReceiveAllow)
+	out.ReceiveAllowOrigin = ""
+	out.ReceiveAllowSource = ""
+	out.Send = normalizeRulesIgnoreOrigin(src.Send)
+	out.Receive = normalizeRulesIgnoreOrigin(src.Receive)
+	return out
+}
+
+func normalizeRulesIgnoreOrigin(src []config.ImpliedDirectionRule) []config.ImpliedDirectionRule {
+	if len(src) == 0 {
+		return nil
+	}
+	out := make([]config.ImpliedDirectionRule, len(src))
+	for i := range src {
+		r := src[i]
+		r.Origin = ""
+		r.Source = ""
+		r.Targets = slices.Clone(r.Targets)
+		slices.Sort(r.Targets)
+		r.ReplacedDefaults = slices.Clone(r.ReplacedDefaults)
+		slices.Sort(r.ReplacedDefaults)
+		if len(r.Tags) > 0 {
+			tags := make(map[string][]string, len(r.Tags))
+			for k, vals := range r.Tags {
+				cp := slices.Clone(vals)
+				slices.Sort(cp)
+				tags[k] = cp
+			}
+			r.Tags = tags
+		}
+		out[i] = r
+	}
+	slices.SortFunc(out, func(a, b config.ImpliedDirectionRule) int {
+		return strings.Compare(a.Message, b.Message)
+	})
+	return out
+}
+
+func loadNormalizedParticipantSnapshot(filePath, participantPath string) (string, error) {
+	raw, err := os.ReadFile(filePath) //nolint:gosec // test scratch file in runner workdir
+	if err != nil {
+		return "", fmt.Errorf("read snapshot %s: %w", filePath, err)
+	}
+	var envPayload config.ImpliedEnvelope
+	if err := json.Unmarshal(raw, &envPayload); err != nil {
+		return "", fmt.Errorf("decode snapshot %s: %w", filePath, err)
+	}
+	participant, err := findImpliedParticipant(envPayload.Implied.Participants, participantPath)
+	if err != nil {
+		return "", fmt.Errorf("snapshot %s: %w", filePath, err)
+	}
+	normalized := normalizeParticipantIgnoreOrigin(participant)
+	encoded, err := json.Marshal(normalized)
+	if err != nil {
+		return "", fmt.Errorf("marshal normalized snapshot %s: %w", filePath, err)
+	}
+	return string(encoded), nil
+}
+
+func busCompareImpliedIgnoreOrigin(args []string) error {
+	if len(args) < 3 {
+		return errors.New("usage: plugin/bus-assert-implied compare-implied-ignore-origin <file1> <file2> [<file3>...] <participant-path>")
+	}
+	participantPath := args[len(args)-1]
+	if !strings.HasPrefix(participantPath, "/") {
+		return fmt.Errorf("compare-implied-ignore-origin participant path %q must start with '/'", participantPath)
+	}
+	files := args[:len(args)-1]
+	baseline, err := loadNormalizedParticipantSnapshot(files[0], participantPath)
+	if err != nil {
+		return err
+	}
+	for i := 1; i < len(files); i++ {
+		got, err := loadNormalizedParticipantSnapshot(files[i], participantPath)
+		if err != nil {
+			return err
+		}
+		if got != baseline {
+			return fmt.Errorf("implied rules for %s differ between %s and %s:\n  %s: %s\n  %s: %s",
+				participantPath, files[0], files[i], files[0], baseline, files[i], got)
+		}
+	}
+	var tb textbuf.Buffer
+	return tb.Str("OK: compare-implied-ignore-origin verified ").Int(int64(len(files))).
+		Str(" snapshots match for ").Str(participantPath).Byte('\n').StdOut()
 }

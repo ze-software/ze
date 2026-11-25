@@ -555,3 +555,258 @@ func TestAutoLoadReasonsTypedAndTokenLoadersDeleted(t *testing.T) {
 	assert.Contains(t, recvRule.DormantReason, absentSender)
 	assert.Contains(t, recvRule.DormantReason, "bus { endpoint "+absentSender+" { internal "+absentSender+"; } }")
 }
+
+// TestLiveSingletonOwnBusAttributionAndTwoPlaces checks that Server's live
+// DeliveryGraph compilation reads a singleton participant's own `bus` block
+// from the running config tree (e.g. bgp > route-server > bus), merges it with
+// bus > endpoint when both agree, and refuses when they disagree (S10).
+//
+// VALIDATES: Server.collectBusEndpointInputs + extractSingletonBusBlock + BuildImpliedParticipants.
+// PREVENTS: live | implied reporting Origin "registered" when only the singleton's own bus block is written.
+func TestLiveSingletonOwnBusAttributionAndTwoPlaces(t *testing.T) {
+	snap := registry.Snapshot()
+	registry.Reset()
+	t.Cleanup(func() { registry.Restore(snap) })
+
+	msgUpdate := graphMsg(graphUpdate)
+	rsPath := "/" + graphNS + "/route-server"
+	groupTransit := "/" + graphNS + "/group/transit"
+	peerT1 := groupTransit + "/peer/t1"
+	peerT2 := groupTransit + "/peer/t2"
+	peerEdge := "/" + graphNS + "/peer/edge1"
+
+	require.NoError(t, registry.Register(registry.Registration{
+		Name:             "test-rs",
+		Description:      "singleton route-server test plugin",
+		ParticipantNodes: []rpc.ParticipantNodeDecl{{SchemaPath: rsPath}},
+		Sends:            []rpc.MessageSendDecl{{Message: msgUpdate}},
+		Receives:         []rpc.MessageReceiveDecl{{Message: msgUpdate}},
+		RunEngine:        func(net.Conn) int { return 0 },
+		CLIHandler:       func([]string) int { return 0 },
+	}))
+
+	peers := []DeliveryPeer{
+		{Addr: "127.0.0.2", Name: "t1", Path: peerT1, ParentPath: groupTransit},
+		{Addr: "127.0.0.3", Name: "t2", Path: peerT2, ParentPath: groupTransit},
+		{Addr: "127.0.0.4", Name: "edge1", Path: peerEdge},
+	}
+
+	makeServer := func(tree map[string]any, busCfg plugin.BusConfig) *Server {
+		pm := process.NewProcessManager(nil)
+		proc := process.NewProcess(plugin.PluginConfig{Name: "test-rs", CompiledPlugin: "test-rs"})
+		proc.SetRegistration(&plugin.PluginRegistration{
+			Sends:    []rpc.MessageSendDecl{{Message: msgUpdate}},
+			Receives: []rpc.MessageReceiveDecl{{Message: msgUpdate}},
+			Done:     true,
+		})
+		require.NoError(t, pm.AddProcess("test-rs", proc))
+		s := &Server{reactor: &mockReloadReactor{tree: tree}}
+		s.procManager.Store(pm)
+		s.SetBusConfig(busCfg)
+		s.SetBusConfigTree(tree)
+		return s
+	}
+
+	findSendRule := func(t *testing.T, compiled *CompiledBus) config.ImpliedDirectionRule {
+		t.Helper()
+		for _, p := range BuildImpliedParticipants(compiled) {
+			if p.Path != rsPath {
+				continue
+			}
+			for _, r := range p.Send {
+				if r.Message == msgUpdate {
+					return r
+				}
+			}
+		}
+		t.Fatalf("missing %s send rule on %s", msgUpdate, rsPath)
+		return config.ImpliedDirectionRule{}
+	}
+
+	busSideTransit := plugin.BusConfig{
+		Endpoints: map[string]plugin.BusBlock{
+			"test-rs": {
+				Send: plugin.BusDirectionBlock{
+					TargetsPresent: true,
+					Targets:        []string{groupTransit},
+				},
+			},
+		},
+	}
+	ownTreeTransit := map[string]any{
+		graphNS: map[string]any{
+			"route-server": map[string]any{
+				"bus": map[string]any{
+					"send": map[string]any{
+						"to": []any{groupTransit},
+					},
+				},
+			},
+		},
+	}
+	ownTreeEdge := map[string]any{
+		graphNS: map[string]any{
+			"route-server": map[string]any{
+				"bus": map[string]any{
+					"send": map[string]any{
+						"to": []any{peerEdge},
+					},
+				},
+			},
+		},
+	}
+
+	// (a) bus > endpoint test-rs only.
+	sA := makeServer(nil, busSideTransit)
+	require.NoError(t, sA.SetDeliveryGraph(graphNS, peers))
+	ruleA := findSendRule(t, sA.DeliveryGraph().Compiled())
+	assert.Equal(t, config.ImpliedOriginWritten, ruleA.Origin)
+	assert.Contains(t, ruleA.Source, "test-rs")
+	assert.Equal(t, []string{peerT1, peerT2}, ruleA.Targets)
+
+	// (b) own section (bgp > route-server > bus) only.
+	sB := makeServer(ownTreeTransit, plugin.BusConfig{})
+	require.NoError(t, sB.SetDeliveryGraph(graphNS, peers))
+	ruleB := findSendRule(t, sB.DeliveryGraph().Compiled())
+	assert.Equal(t, config.ImpliedOriginWritten, ruleB.Origin)
+	assert.Contains(t, ruleB.Source, "route-server")
+	assert.Equal(t, []string{peerT1, peerT2}, ruleB.Targets)
+
+	// (c) both places agreeing: source names both.
+	sC := makeServer(ownTreeTransit, busSideTransit)
+	require.NoError(t, sC.SetDeliveryGraph(graphNS, peers))
+	ruleC := findSendRule(t, sC.DeliveryGraph().Compiled())
+	assert.Equal(t, config.ImpliedOriginWritten, ruleC.Origin)
+	assert.Contains(t, ruleC.Source, "test-rs")
+	assert.Contains(t, ruleC.Source, "route-server")
+	assert.Equal(t, []string{peerT1, peerT2}, ruleC.Targets)
+
+	// (d) both places disagreeing: refused naming both.
+	sD := makeServer(ownTreeEdge, busSideTransit)
+	err := sD.SetDeliveryGraph(graphNS, peers)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "test-rs")
+	assert.Contains(t, err.Error(), "route-server")
+}
+
+// TestDeliveryGraphGroupInheritanceAttribution verifies that a grouped peer
+// which writes its own `send > to` while inheriting `receive > from` from its
+// parent group attributes the inherited receive rule as Origin "inherited"
+// naming the group, and attributes the overridden receive rule as "written"
+// once the peer writes its own receive rule (S8).
+//
+// VALIDATES: BuildDeliveryGraph parent container OwnBus inheritance + BuildImpliedParticipants.
+// PREVENTS: flattened ResolveBGPTree bus blocks stamping inherited group rules as "written" on the peer.
+func TestDeliveryGraphGroupInheritanceAttribution(t *testing.T) {
+	msgUpdate := graphMsg(graphUpdate)
+	groupPath := "/" + graphNS + "/group/transit"
+	peerPath := groupPath + "/peer/t1"
+	epRIB := plugin.EndpointPath("rib")
+	epCollector := plugin.EndpointPath("collector")
+	epSender := plugin.EndpointPath("sender")
+
+	endpoints := []BusParticipantInput{
+		{
+			Path:         epRIB,
+			EndpointName: "rib",
+			Sends:        []rpc.MessageSendDecl{{Message: msgUpdate}},
+			Receives:     []rpc.MessageReceiveDecl{{Message: msgUpdate}},
+		},
+		{
+			Path:         epCollector,
+			EndpointName: "collector",
+			Receives:     []rpc.MessageReceiveDecl{{Message: msgUpdate}},
+		},
+		{
+			Path:         epSender,
+			EndpointName: "sender",
+			Sends:        []rpc.MessageSendDecl{{Message: msgUpdate}},
+		},
+	}
+
+	groupBlock := plugin.BusBlock{
+		Send: plugin.BusDirectionBlock{
+			TargetsPresent: true,
+			Targets:        []string{epRIB},
+		},
+		Receive: plugin.BusDirectionBlock{
+			TargetsPresent: true,
+			Targets:        []string{epRIB},
+		},
+	}
+
+	peerOwnSendOnly := plugin.BusBlock{
+		Send: plugin.BusDirectionBlock{
+			TargetsPresent: true,
+			Targets:        []string{epCollector},
+		},
+	}
+
+	// Run 1: peer overrides send > to, inherits receive > from from group transit.
+	g1, err := BuildDeliveryGraph(graphNS, []DeliveryPeer{{
+		Addr:            "127.0.0.2",
+		Name:            "t1",
+		Path:            peerPath,
+		ParentPath:      groupPath,
+		OwnBus:          peerOwnSendOnly,
+		ParentBus:       groupBlock,
+		ParentBusSource: groupPath + " > bus",
+	}}, plugin.BusConfig{}, endpoints)
+	require.NoError(t, err)
+
+	var recvRule1, sendRule1 config.ImpliedDirectionRule
+	for _, p := range BuildImpliedParticipants(g1.Compiled()) {
+		if p.Path != peerPath {
+			continue
+		}
+		for _, r := range p.Receive {
+			if r.Message == msgUpdate {
+				recvRule1 = r
+			}
+		}
+		for _, r := range p.Send {
+			if r.Message == msgUpdate {
+				sendRule1 = r
+			}
+		}
+	}
+	assert.Equal(t, config.ImpliedOriginInherited, recvRule1.Origin)
+	assert.Contains(t, recvRule1.Source, "transit")
+	assert.Equal(t, []string{epRIB}, recvRule1.Targets)
+
+	assert.Equal(t, config.ImpliedOriginWritten, sendRule1.Origin)
+	assert.Contains(t, sendRule1.Source, peerPath)
+	assert.Equal(t, []string{epCollector}, sendRule1.Targets)
+
+	// Run 2: peer also overrides receive > from to sender -> Origin becomes "written".
+	peerOwnBoth := peerOwnSendOnly.Clone()
+	peerOwnBoth.Receive = plugin.BusDirectionBlock{
+		TargetsPresent: true,
+		Targets:        []string{epSender},
+	}
+	g2, err := BuildDeliveryGraph(graphNS, []DeliveryPeer{{
+		Addr:            "127.0.0.2",
+		Name:            "t1",
+		Path:            peerPath,
+		ParentPath:      groupPath,
+		OwnBus:          peerOwnBoth,
+		ParentBus:       groupBlock,
+		ParentBusSource: groupPath + " > bus",
+	}}, plugin.BusConfig{}, endpoints)
+	require.NoError(t, err)
+
+	var recvRule2 config.ImpliedDirectionRule
+	for _, p := range BuildImpliedParticipants(g2.Compiled()) {
+		if p.Path != peerPath {
+			continue
+		}
+		for _, r := range p.Receive {
+			if r.Message == msgUpdate {
+				recvRule2 = r
+			}
+		}
+	}
+	assert.Equal(t, config.ImpliedOriginWritten, recvRule2.Origin)
+	assert.Contains(t, recvRule2.Source, peerPath)
+	assert.Equal(t, []string{epSender}, recvRule2.Targets)
+}

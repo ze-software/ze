@@ -180,6 +180,8 @@ func (r *Reactor) buildDynamicPeerSettings(dg *DynamicGroupConfig, remoteAddr ne
 	ps.Connection = ConnectionPassive // `ip dynamic` requires `connect false`
 	ps.IsDynamic = true
 	ps.Bus = tmpl.Bus.Clone()
+	ps.OwnBus = tmpl.OwnBus.Clone()
+	ps.GroupBus = tmpl.GroupBus.Clone()
 	ps.BusGroupPath = "/bgp/group/" + dg.GroupName
 	ps.BusPath = ps.BusGroupPath + "/peer/" + ps.Name
 
@@ -426,6 +428,19 @@ func (r *Reactor) planDynamicGroupsLocked(groups []*DynamicGroupConfig, label st
 			apply, reason = peerSettingsSwapPlan(oldBuilt, nextBuilt, peer.currentSession())
 		}
 		if reason != "" {
+			if !r.peersStarted {
+				// Before StartPeers, no dynamic peer has started a session yet;
+				// update its pre-start settings in place so a held inbound
+				// connection survives post-startup declaration resolution.
+				swaps = append(swaps, dynamicSwap{
+					peer: peer,
+					next: nextBuilt,
+					apply: func(dst, src *PeerSettings) {
+						*dst = *src
+					},
+				})
+				continue
+			}
 			reactorLogger().Info("dynamic peer restart required", "phase", label,
 				"peer", settings.Address, "group", settings.GroupName, "changed", reason)
 			restarted = append(restarted, peer)

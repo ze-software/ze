@@ -1,0 +1,490 @@
+# Test: narrowing an ExaBGP script endpoint's `send > allow` via live reload refuses `announce route` in API v6 JSON and API v4 text error forms without restarting the endpoint, while `send > to` scopes peer selectors.
+# QUESTION: with `bus { endpoint s1 { external { run "ze exabgp plugin ..."; } send { to [ /bgp/peer/edge1 ]; } } }`
+# against peers `edge1` and `lab`, run twice (API v6 and API v4): before reload, does
+# `neighbor <lab> announce ...` fail with `error` (outside `send > to`, refusal counter 0),
+# does `peer * announce ...` narrow to `edge1` only, and does bare `announce route 203.0.113.0/24 ...`
+# answer `done` and reach `edge1`; then after a live SIGHUP reload adds `send { allow [ ... ]; }`
+# omitting `"cli:send bgp"`, does `announce route 198.51.100.0/24 ...` answer
+# `{"error": ...}\nerror` in API v6 and `error: ...\nerror` in API v4, send NO UPDATE to
+# `edge1`, increment `ze_bus_send_refused_total` for `/bus/endpoint/s1` to 1, and keep `s1`
+# alive across the reload with the same PID?
+# A unit test cannot decide this because the path spans live `ze exabgp plugin` subprocesses,
+# `Translator.servedSelector` peer scoping, live SIGHUP reload of `send > allow`,
+# `AckMode.WriteError` across API v6 and v4, Prometheus refusal metrics, and real BGP UPDATEs.
+#
+# VALIDATES: spec-explicit-plugin-and-attach-config S44 / AC-33.
+# PREVENTS: `send > to` failing to scope ExaBGP peer selectors, reload failing to enforce
+# narrowed `send > allow` on `"cli:send bgp"`, wrong API v6/v4 error framing, or endpoint
+# restart on bus filter reload.
+
+option=timeout:value=150s
+option=env:var=ZE_CONFIG_DIR:value=.
+option=env:var=XDG_DATA_HOME:value=.
+option=env:var=ze.ssh.password:value=testpass
+
+stdin=init-answers:terminator=EOF_INIT
+admin
+testpass
+127.0.0.1
+$PORT2
+EOF_INIT
+
+# --- Peers for Run 1 (API v6) ---
+# edge1 receives 203.0.113.0/24 (peer *) and 203.0.113.128/25 (bare), rejects 198.51.100.0/24 and 192.0.2.0/24.
+stdin=edge1-v6:terminator=EOF_EDGE1_V6
+option=tcp_connections:value=1
+option=asn:value=65002
+option=open:value=router-id:id=192.0.2.1
+option=linger:value=true
+option=established-file:path=edge1-v6.up
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
+expect=bgp:conn=1:seq=2:announced=18CB0071
+expect=bgp:conn=1:seq=3:announced=19CB007180
+reject=bgp:conn=1:scope=announced:pattern=18C63364
+reject=bgp:conn=1:scope=announced:pattern=18C00002
+EOF_EDGE1_V6
+
+# lab is outside `send { to [ /bgp/peer/edge1 ]; }` and receives NO announcements at all.
+stdin=lab-v6:terminator=EOF_LAB_V6
+option=tcp_connections:value=1
+option=asn:value=65003
+option=open:value=router-id:id=192.0.2.9
+option=linger:value=true
+option=established-file:path=lab-v6.up
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
+reject=bgp:conn=1:scope=announced:pattern=18CB0071
+reject=bgp:conn=1:scope=announced:pattern=19CB007180
+reject=bgp:conn=1:scope=announced:pattern=18C63364
+reject=bgp:conn=1:scope=announced:pattern=18C00002
+EOF_LAB_V6
+
+# --- Peers for Run 2 (API v4) ---
+stdin=edge1-v4:terminator=EOF_EDGE1_V4
+option=tcp_connections:value=1
+option=asn:value=65002
+option=open:value=router-id:id=192.0.2.1
+option=linger:value=true
+option=established-file:path=edge1-v4.up
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
+expect=bgp:conn=1:seq=2:announced=18CB0071
+reject=bgp:conn=1:scope=announced:pattern=18C63364
+EOF_EDGE1_V4
+
+# Script for Run 1 (API v6): exercises neighbor-out-of-scope, peer *, bare announce, then post-reload refusal.
+tmpfs=s1-v6.sh:mode=755:terminator=EOF_S1_V6
+#!/bin/sh
+set -eu
+printf '%s\n' "$PPID" > v6-p0.pid
+le test fixture plugin/bus-wait-file edge1-v6.up >/dev/null
+le test fixture plugin/bus-wait-file lab-v6.up >/dev/null
+
+# 1. Explicit `peer *` (API v6 form -> auto-locks helper to API v6) narrows to edge1 only.
+printf 'peer * announce route 203.0.113.0/24 next-hop 192.0.2.10\n'
+IFS= read -r star_ack
+printf '%s\n' "$star_ack" > v6.star
+
+# 2. Explicit peer naming lab (127.0.0.3), outside send > to [ /bgp/peer/edge1 ]: answered JSON error + error.
+printf 'peer 127.0.0.3 announce route 192.0.2.0/24 next-hop 192.0.2.10\n'
+IFS= read -r oob1
+IFS= read -r oob2
+printf '%s\n%s\n' "$oob1" "$oob2" > v6.oob
+
+# 3. Second `peer *` announcement narrows to edge1 only and answers done.
+printf 'peer * announce route 203.0.113.128/25 next-hop 192.0.2.10\n'
+IFS= read -r bare_ack
+printf '%s\n' "$bare_ack" > v6.bare
+
+le test fixture plugin/bus-touch-file v6.p0.done >/dev/null
+
+# Wait for live reload omitting "cli:send bgp" from send > allow.
+le test fixture plugin/bus-wait-file v6.reloaded >/dev/null
+printf '%s\n' "$PPID" > v6-p1.pid
+
+printf 'peer * announce route 198.51.100.0/24 next-hop 192.0.2.10\n'
+IFS= read -r ref1
+IFS= read -r ref2
+printf '%s\n%s\n' "$ref1" "$ref2" > v6.refused
+
+le test fixture plugin/bus-touch-file v6.p1.done >/dev/null
+while IFS= read -r _; do
+	:
+done
+EOF_S1_V6
+
+# Script for Run 2 (API v4): announces 203.0.113.0/24, then after reload gets v4 text error.
+tmpfs=s1-v4.sh:mode=755:terminator=EOF_S1_V4
+#!/bin/sh
+set -eu
+printf '%s\n' "$PPID" > v4-p0.pid
+le test fixture plugin/bus-wait-file edge1-v4.up >/dev/null
+
+printf 'api version 4\n'
+IFS= read -r ver_msg
+IFS= read -r ver_ack
+printf '%s\n%s\n' "$ver_msg" "$ver_ack" > v4.ver
+
+printf 'announce route 203.0.113.0/24 next-hop 192.0.2.10\n'
+IFS= read -r bare_ack
+printf '%s\n' "$bare_ack" > v4.bare
+
+le test fixture plugin/bus-touch-file v4.p0.done >/dev/null
+
+le test fixture plugin/bus-wait-file v4.reloaded >/dev/null
+printf '%s\n' "$PPID" > v4-p1.pid
+
+printf 'announce route 198.51.100.0/24 next-hop 192.0.2.10\n'
+IFS= read -r ref1
+IFS= read -r ref2
+printf '%s\n%s\n' "$ref1" "$ref2" > v4.refused
+
+le test fixture plugin/bus-touch-file v4.p1.done >/dev/null
+while IFS= read -r _; do
+	:
+done
+EOF_S1_V4
+
+tmpfs=verify-acks.py:mode=755:terminator=EOF_ACKS
+#!/usr/bin/env python3
+import json
+import sys
+
+mode = sys.argv[1]
+
+
+def read_lines(path):
+    with open(path, encoding="utf-8") as fh:
+        return [ln.rstrip("\r\n") for ln in fh]
+
+
+if mode == "v6":
+    if read_lines("v6.star") != ["done"]:
+        raise SystemExit(f"v6 peer * ack != done: {read_lines('v6.star')}")
+    if read_lines("v6.bare") != ["done"]:
+        raise SystemExit(f"v6 bare ack != done: {read_lines('v6.bare')}")
+    oob = read_lines("v6.oob")
+    if len(oob) != 2 or oob[1] != "error":
+        raise SystemExit(f"v6 out-of-scope neighbor expected JSON error + error, got: {oob}")
+    oob_obj = json.loads(oob[0])
+    if "error" not in oob_obj or not oob_obj["error"]:
+        raise SystemExit(f"v6 out-of-scope JSON missing error field: {oob_obj}")
+
+    ref = read_lines("v6.refused")
+    if len(ref) != 2 or ref[1] != "error":
+        raise SystemExit(f"v6 allow-list refusal expected JSON error + error, got: {ref}")
+    ref_obj = json.loads(ref[0])
+    if "error" not in ref_obj or not ref_obj["error"]:
+        raise SystemExit(f"v6 refusal JSON missing error field: {ref_obj}")
+    print(f"OK: API v6 verified out-of-scope error, peer */bare done, and JSON allow-list refusal ({ref_obj['error']})")
+
+elif mode == "v4":
+    if read_lines("v4.bare") != ["done"]:
+        raise SystemExit(f"v4 bare ack != done: {read_lines('v4.bare')}")
+    ref = read_lines("v4.refused")
+    if len(ref) != 2 or not ref[0].startswith("error: ") or ref[1] != "error":
+        raise SystemExit(f"v4 allow-list refusal expected 'error: <why>' + 'error', got: {ref}")
+    if ref[0].startswith("{"):
+        raise SystemExit(f"v4 refusal must use text 'error: ...' framing, not JSON: {ref}")
+    print(f"OK: API v4 verified bare done and text allow-list refusal ({ref[0]})")
+else:
+    raise SystemExit(f"unknown mode {mode}")
+EOF_ACKS
+
+# --- Run 1 configs (API v6) ---
+tmpfs=v6-initial.conf:terminator=EOF_V6_0
+system {
+	authentication {
+		# bcrypt cost-4 hash of "testpass".
+		user admin {
+			password "$2a$04$UlwuiuH82Unfsq.XEMPGJeDkXwbm3KW.nvVaVXOd/JeFK8VjMjrQO"
+		}
+	}
+}
+environment {
+	ssh {
+		enabled true
+		server main { ip 127.0.0.1; port $PORT2; }
+	}
+}
+telemetry {
+	prometheus {
+		enabled true
+		server main { ip 127.0.0.1; port $PORT3; }
+	}
+}
+bus {
+	endpoint bgp-rib { internal bgp-rib; }
+	endpoint s1 {
+		external {
+			run "ze exabgp plugin ./s1-v6.sh";
+		}
+		encoding json;
+		receive { from none; }
+		send {
+			to [ /bgp/peer/edge1 ];
+		}
+	}
+}
+bgp {
+	router-id 192.0.2.254;
+	filter {
+		import { final accept; }
+		export { final accept; }
+	}
+	peer edge1 {
+		connection {
+			remote { ip 127.0.0.2; }
+			local { ip 127.0.0.1; accept false; }
+		}
+		session {
+			asn { local 65001; remote 65002; }
+			family { ipv4/unicast { prefix { maximum 10000; } } }
+			capability { graceful-restart disable; }
+		}
+		behavior { group-updates disable; }
+	}
+	peer lab {
+		connection {
+			remote { ip 127.0.0.3; }
+			local { ip 127.0.0.1; accept false; }
+		}
+		session {
+			asn { local 65001; remote 65003; }
+			family { ipv4/unicast { prefix { maximum 10000; } } }
+			capability { graceful-restart disable; }
+		}
+		behavior { group-updates disable; }
+	}
+}
+EOF_V6_0
+
+tmpfs=v6-narrowed.conf:terminator=EOF_V6_1
+system {
+	authentication {
+		user admin {
+			password "$2a$04$UlwuiuH82Unfsq.XEMPGJeDkXwbm3KW.nvVaVXOd/JeFK8VjMjrQO"
+		}
+	}
+}
+environment {
+	ssh {
+		enabled true
+		server main { ip 127.0.0.1; port $PORT2; }
+	}
+}
+telemetry {
+	prometheus {
+		enabled true
+		server main { ip 127.0.0.1; port $PORT3; }
+	}
+}
+bus {
+	endpoint bgp-rib { internal bgp-rib; }
+	endpoint s1 {
+		external {
+			run "ze exabgp plugin ./s1-v6.sh";
+		}
+		encoding json;
+		receive { from none; }
+		send {
+			to [ /bgp/peer/edge1 ];
+			allow [ "cli:request peer" "cli:show bgp peer" "cli:clear bgp rib in" "cli:clear bgp rib advertised" "cli:clear bgp rib out" "cli:request bgp watchdog announce" "cli:request bgp watchdog withdraw" "cli:request bgp watchdog give" "cli:create bgp peer" "cli:delete bgp peer" "cli:request shutdown" "cli:help" bgp:update bgp:refresh bgp:raw bgp:enhanced-refresh ];
+		}
+	}
+}
+bgp {
+	router-id 192.0.2.254;
+	filter {
+		import { final accept; }
+		export { final accept; }
+	}
+	peer edge1 {
+		connection {
+			remote { ip 127.0.0.2; }
+			local { ip 127.0.0.1; accept false; }
+		}
+		session {
+			asn { local 65001; remote 65002; }
+			family { ipv4/unicast { prefix { maximum 10000; } } }
+			capability { graceful-restart disable; }
+		}
+		behavior { group-updates disable; }
+	}
+	peer lab {
+		connection {
+			remote { ip 127.0.0.3; }
+			local { ip 127.0.0.1; accept false; }
+		}
+		session {
+			asn { local 65001; remote 65003; }
+			family { ipv4/unicast { prefix { maximum 10000; } } }
+			capability { graceful-restart disable; }
+		}
+		behavior { group-updates disable; }
+	}
+}
+EOF_V6_1
+
+# --- Run 2 configs (API v4) ---
+tmpfs=v4-initial.conf:terminator=EOF_V4_0
+system {
+	authentication {
+		user admin {
+			password "$2a$04$UlwuiuH82Unfsq.XEMPGJeDkXwbm3KW.nvVaVXOd/JeFK8VjMjrQO"
+		}
+	}
+}
+environment {
+	ssh {
+		enabled true
+		server main { ip 127.0.0.1; port $PORT2; }
+	}
+}
+telemetry {
+	prometheus {
+		enabled true
+		server main { ip 127.0.0.1; port $PORT3; }
+	}
+}
+bus {
+	endpoint bgp-rib { internal bgp-rib; }
+	endpoint s1 {
+		external {
+			run "ze exabgp plugin ./s1-v4.sh";
+		}
+		encoding json;
+		receive { from none; }
+		send {
+			to [ /bgp/peer/edge1 ];
+		}
+	}
+}
+bgp {
+	router-id 192.0.2.254;
+	filter {
+		import { final accept; }
+		export { final accept; }
+	}
+	peer edge1 {
+		connection {
+			remote { ip 127.0.0.2; }
+			local { ip 127.0.0.1; accept false; }
+		}
+		session {
+			asn { local 65001; remote 65002; }
+			family { ipv4/unicast { prefix { maximum 10000; } } }
+			capability { graceful-restart disable; }
+		}
+		behavior { group-updates disable; }
+	}
+}
+EOF_V4_0
+
+tmpfs=v4-narrowed.conf:terminator=EOF_V4_1
+system {
+	authentication {
+		user admin {
+			password "$2a$04$UlwuiuH82Unfsq.XEMPGJeDkXwbm3KW.nvVaVXOd/JeFK8VjMjrQO"
+		}
+	}
+}
+environment {
+	ssh {
+		enabled true
+		server main { ip 127.0.0.1; port $PORT2; }
+	}
+}
+telemetry {
+	prometheus {
+		enabled true
+		server main { ip 127.0.0.1; port $PORT3; }
+	}
+}
+bus {
+	endpoint bgp-rib { internal bgp-rib; }
+	endpoint s1 {
+		external {
+			run "ze exabgp plugin ./s1-v4.sh";
+		}
+		encoding json;
+		receive { from none; }
+		send {
+			to [ /bgp/peer/edge1 ];
+			allow [ "cli:request peer" "cli:show bgp peer" "cli:clear bgp rib in" "cli:clear bgp rib advertised" "cli:clear bgp rib out" "cli:request bgp watchdog announce" "cli:request bgp watchdog withdraw" "cli:request bgp watchdog give" "cli:create bgp peer" "cli:delete bgp peer" "cli:request shutdown" "cli:help" bgp:update bgp:refresh bgp:raw bgp:enhanced-refresh ];
+		}
+	}
+}
+bgp {
+	router-id 192.0.2.254;
+	filter {
+		import { final accept; }
+		export { final accept; }
+	}
+	peer edge1 {
+		connection {
+			remote { ip 127.0.0.2; }
+			local { ip 127.0.0.1; accept false; }
+		}
+		session {
+			asn { local 65001; remote 65002; }
+			family { ipv4/unicast { prefix { maximum 10000; } } }
+			capability { graceful-restart disable; }
+		}
+		behavior { group-updates disable; }
+	}
+}
+EOF_V4_1
+
+cmd=foreground:seq=1:exec=ze init:stdin=init-answers:exit=0
+
+# --- Run 1: API v6 ---
+cmd=foreground:seq=2:exec=cp v6-initial.conf running.conf:exit=0
+cmd=background:seq=3:name=edge1-v6:exec=le test peer --bind 127.0.0.2 --port $PORT:stdin=edge1-v6
+cmd=background:seq=4:name=lab-v6:exec=le test peer --bind 127.0.0.3 --port $PORT:stdin=lab-v6
+cmd=background:seq=5:name=daemon1:exec=ze start running.conf:ready=Ze running.
+reject=stderr:pattern=panic
+
+cmd=foreground:seq=6:exec=le test fixture plugin/bus-wait-file v6.p0.done:exit=0
+expect=stdout:contains=OK: marker file v6.p0.done appeared
+cmd=foreground:seq=7:exec=le test fixture plugin/bus-assert-refused-count $PORT3 /bus/endpoint/s1 0:exit=0
+expect=stdout:contains=OK: ze_bus_send_refused_total for /bus/endpoint/s1 = 0
+
+# Reload omitting "cli:send bgp" -> trigger post-reload announce -> refusal counter = 1, same wrapper PID.
+cmd=foreground:seq=8:exec=le test fixture plugin/bus-sighup-reload v6-narrowed.conf running.conf v6.reloaded:exit=0
+expect=stdout:contains=OK: SIGHUP reload v6-narrowed.conf applied
+cmd=foreground:seq=9:exec=le test fixture plugin/bus-wait-file v6.p1.done:exit=0
+expect=stdout:contains=OK: marker file v6.p1.done appeared
+cmd=foreground:seq=10:exec=le test fixture plugin/bus-assert-refused-count $PORT3 /bus/endpoint/s1 1:exit=0
+expect=stdout:contains=OK: ze_bus_send_refused_total for /bus/endpoint/s1 = 1
+cmd=foreground:seq=11:exec=le test fixture plugin/bus-assert-same-pid v6-p0.pid v6-p1.pid:exit=0
+expect=stdout:contains=OK: endpoint kept same PID
+cmd=foreground:seq=12:exec=python3 verify-acks.py v6:exit=0
+expect=stdout:contains=OK: API v6 verified
+
+cmd=stop:seq=13:name=daemon1:signal=term
+cmd=stop:seq=14:name=edge1-v6
+cmd=stop:seq=15:name=lab-v6
+
+# --- Run 2: API v4 ---
+cmd=foreground:seq=16:exec=cp v4-initial.conf running.conf:exit=0
+cmd=background:seq=17:name=edge1-v4:exec=le test peer --bind 127.0.0.2 --port $PORT:stdin=edge1-v4
+cmd=background:seq=18:name=daemon2:exec=ze start running.conf:ready=Ze running.
+reject=stderr:pattern=panic
+
+cmd=foreground:seq=19:exec=le test fixture plugin/bus-wait-file v4.p0.done:exit=0
+expect=stdout:contains=OK: marker file v4.p0.done appeared
+cmd=foreground:seq=20:exec=le test fixture plugin/bus-assert-refused-count $PORT3 /bus/endpoint/s1 0:exit=0
+expect=stdout:contains=OK: ze_bus_send_refused_total for /bus/endpoint/s1 = 0
+
+cmd=foreground:seq=21:exec=le test fixture plugin/bus-sighup-reload v4-narrowed.conf running.conf v4.reloaded:exit=0
+expect=stdout:contains=OK: SIGHUP reload v4-narrowed.conf applied
+cmd=foreground:seq=22:exec=le test fixture plugin/bus-wait-file v4.p1.done:exit=0
+expect=stdout:contains=OK: marker file v4.p1.done appeared
+cmd=foreground:seq=23:exec=le test fixture plugin/bus-assert-refused-count $PORT3 /bus/endpoint/s1 1:exit=0
+expect=stdout:contains=OK: ze_bus_send_refused_total for /bus/endpoint/s1 = 1
+cmd=foreground:seq=24:exec=le test fixture plugin/bus-assert-same-pid v4-p0.pid v4-p1.pid:exit=0
+expect=stdout:contains=OK: endpoint kept same PID
+cmd=foreground:seq=25:exec=python3 verify-acks.py v4:exit=0
+expect=stdout:contains=OK: API v4 verified
+
+cmd=stop:seq=26:name=daemon2:signal=term
+cmd=stop:seq=27:name=edge1-v4

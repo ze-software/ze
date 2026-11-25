@@ -1,0 +1,127 @@
+# Test: `bus { hub { server ...; } }` binds its listener, surfaces `bus-hub` in config graph and listener checks, and never emits `plugin-hub` (S23).
+# QUESTION: when a daemon is configured with `bus { hub { server local { ip 127.0.0.1; port $PORT; secret ...; } } }`,
+# does (1) `ze config validate` accept it cleanly, (2) `ze config graph` emit node
+# `listener/bus-hub local` linked from `section/bus` via `listens-on` with zero `plugin-hub`,
+# (3) listener conflict validation name `bus-hub local` (never `plugin-hub`) when another
+# service shares `$PORT`, and (4) `ze start` bind the `bus-hub` listener on `$PORT`
+# (`show system sockets port $PORT` reports `LISTEN`, `show doctor | json` passes with zero
+# `plugin-hub`)? A unit test cannot decide this because it proves live daemon startup binding
+# the `bus > hub > server` listener, SSH CLI inspection (`show system sockets`, `show doctor`),
+# and `ze config graph` / `ze config validate` CLI output end-to-end.
+#
+# Note on CLI surface: Ze has no `show listeners` CLI command (checked `ze-cli-show-cmd.yang`,
+# `ze-config-cli-cmd.yang`, and `ze-managed-cmd.yang`). Listener service naming (`bus-hub` vs
+# retired `plugin-hub`) is proved through `ze config graph` and `ze config validate` listener
+# discovery, and live listener binding/health is proved through `show system sockets` and
+# `show doctor | json`.
+#
+# VALIDATES: spec-explicit-plugin-and-attach-config S23 / AC-9, AC-10.
+# PREVENTS: `bus > hub > server` failing to bind or still reporting the retired `plugin-hub`
+# service name in config graph, listener discovery, or doctor diagnostics.
+
+option=skip-os:value=aix,android,darwin,dragonfly,freebsd,illumos,ios,js,netbsd,openbsd,plan9,solaris,wasip1,windows
+option=timeout:value=90s
+option=env:var=ZE_CONFIG_DIR:value=.
+option=env:var=XDG_DATA_HOME:value=.
+option=env:var=ze.ssh.password:value=testpass
+
+stdin=init-answers:terminator=EOF_INIT
+admin
+testpass
+127.0.0.1
+$PORT2
+EOF_INIT
+
+tmpfs=hub.conf:terminator=EOF_HUB
+system {
+	authentication {
+		# bcrypt cost-4 hash of "testpass".
+		user admin {
+			password "$2a$04$UlwuiuH82Unfsq.XEMPGJeDkXwbm3KW.nvVaVXOd/JeFK8VjMjrQO"
+		}
+	}
+}
+environment {
+	ssh {
+		enabled true
+		server main {
+			ip 127.0.0.1;
+			port $PORT2;
+		}
+	}
+}
+bus {
+	hub {
+		server local {
+			ip 127.0.0.1;
+			port $PORT;
+			secret "0123456789abcdef0123456789abcdef";
+		}
+	}
+}
+EOF_HUB
+
+# Conflict config: shares $PORT between bus > hub > server local and ssh server main
+# so listener discovery surfaces the service name (`bus-hub local`, never `plugin-hub`).
+tmpfs=conflict.conf:terminator=EOF_CONFLICT
+system {
+	authentication {
+		user admin {
+			password "$2a$04$UlwuiuH82Unfsq.XEMPGJeDkXwbm3KW.nvVaVXOd/JeFK8VjMjrQO"
+		}
+	}
+}
+environment {
+	ssh {
+		enabled true
+		server main {
+			ip 127.0.0.1;
+			port $PORT;
+		}
+	}
+}
+bus {
+	hub {
+		server local {
+			ip 127.0.0.1;
+			port $PORT;
+			secret "0123456789abcdef0123456789abcdef";
+		}
+	}
+}
+EOF_CONFLICT
+
+# 1. Valid bus > hub > server validates cleanly with no plugin-hub anywhere.
+cmd=foreground:seq=1:exec=ze config validate hub.conf:exit=0
+expect=stdout:contains=configuration valid: hub.conf
+reject=stdout:contains=plugin-hub
+
+# 2. Config graph emits listener/bus-hub local linked from section/bus via listens-on.
+cmd=foreground:seq=2:exec=ze config graph hub.conf:exit=0
+expect=stdout:contains=listener/bus-hub local
+expect=stdout:contains=section/bus
+expect=stdout:contains=listens-on
+reject=stdout:contains=plugin-hub
+
+# 3. Listener discovery conflict names bus-hub local and never plugin-hub.
+cmd=foreground:seq=3:exec=ze config validate conflict.conf:exit=1
+expect=stdout:contains=listener conflict:
+expect=stdout:contains=bus-hub local
+reject=stdout:contains=plugin-hub
+
+# 4. Start daemon and verify bus-hub listener is bound and doctor reports cleanly without plugin-hub.
+cmd=foreground:seq=4:exec=ze init:stdin=init-answers:exit=0
+cmd=background:seq=5:name=daemon:exec=ze start hub.conf:ready=Ze running.
+reject=stderr:pattern=ZE-OBSERVER-FAIL
+reject=stderr:pattern=panic
+reject=stderr:contains=plugin-hub
+
+cmd=foreground:seq=6:exec=ze cli -c "show system sockets port $PORT":exit=0
+expect=stdout:contains=LISTEN
+reject=stdout:contains=plugin-hub
+
+cmd=foreground:seq=7:exec=ze cli -c "show doctor | json":exit=0
+reject=stdout:contains=plugin-hub
+reject=stdout:contains=doctor-managed-listener-unbound
+
+cmd=stop:seq=8:name=daemon:signal=term

@@ -1,0 +1,112 @@
+# Test: multiple endpoints receiving the same message and dispatching commands run concurrently with zero arbitration or refusal.
+# QUESTION: when two external endpoints `det1` and `det2` both register reception of
+# `bgp:update` (direction=received) and send of `cli:show bgp peer`, and `edge1` announces
+# 203.0.113.0/24 over a live BGP session, do BOTH `det1` and `det2` record the received
+# UPDATE and BOTH successfully dispatch `show bgp peer list` with zero send refusals on
+# Prometheus (`ze_bus_send_refused_total` = 0 for both) and zero `doctor-plugin-request-refused`
+# entries in `show doctor`? A unit test cannot decide this because it spans two concurrent
+# TLS external plugin connections, live BGP event fan-out from `DeliveryGraph`, and
+# concurrent CLI command dispatch through the live daemon dispatcher.
+#
+# VALIDATES: spec-explicit-plugin-and-attach-config S13 (part 1) / AC-19.
+# PREVENTS: bus delivery or command dispatch imposing single-consumer arbitration or
+# spurious conflicts when multiple endpoints share a message and command.
+
+option=timeout:value=90s
+option=env:var=ZE_CONFIG_DIR:value=.
+option=env:var=XDG_DATA_HOME:value=.
+option=env:var=ze.ssh.password:value=testpass
+
+stdin=init-answers:terminator=EOF_INIT
+admin
+testpass
+127.0.0.1
+$PORT2
+EOF_INIT
+
+stdin=peer-edge1:terminator=EOF_EDGE1
+option=tcp_connections:value=1
+option=timeout:value=60s
+option=asn:value=65001
+option=open:value=router-id:id=127.0.0.2
+option=linger:value=true
+option=established-file:path=edge1.up
+option=update:value=send-route:prefix=203.0.113.0/24:next-hop=192.0.2.1
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
+EOF_EDGE1
+
+tmpfs=running.conf:terminator=EOF_CONF
+system {
+	authentication {
+		user admin {
+			password "$2a$04$UlwuiuH82Unfsq.XEMPGJeDkXwbm3KW.nvVaVXOd/JeFK8VjMjrQO"
+		}
+	}
+}
+environment {
+	ssh {
+		enabled true
+		server main { ip 127.0.0.1; port $PORT2; }
+	}
+}
+telemetry {
+	prometheus {
+		enabled true
+		server main { ip 127.0.0.1; port $PORT3; }
+	}
+}
+bus {
+	endpoint det1 {
+		external {
+			run "le test fixture plugin/bus-detector det1.log 203.0.113.0/24 det1.done";
+		}
+		encoding json;
+	}
+	endpoint det2 {
+		external {
+			run "le test fixture plugin/bus-detector det2.log 203.0.113.0/24 det2.done";
+		}
+		encoding json;
+	}
+}
+bgp {
+	router-id 192.0.2.254;
+	filter {
+		import { final accept; }
+		export { final accept; }
+	}
+	peer edge1 {
+		connection {
+			remote { ip 127.0.0.2; }
+			local { ip 127.0.0.1; accept false; }
+		}
+		session {
+			asn { local 65000; remote 65001; }
+			family { ipv4/unicast { prefix { maximum 10000; } } }
+			capability { graceful-restart disable; }
+		}
+		behavior { group-updates disable; }
+	}
+}
+EOF_CONF
+
+cmd=foreground:seq=1:exec=ze init:stdin=init-answers:exit=0
+cmd=background:seq=2:name=edge1:exec=le test peer --bind 127.0.0.2 --port $PORT:stdin=peer-edge1
+cmd=background:seq=3:name=daemon:exec=ze start running.conf:ready=Ze running.
+reject=stderr:pattern=ZE-OBSERVER-FAIL
+reject=stderr:pattern=panic
+
+# Wait for both detectors to record 203.0.113.0/24 AND complete their `show bgp peer list` dispatch.
+cmd=foreground:seq=4:exec=le test fixture plugin/bus-wait-file det1.done:exit=0
+cmd=foreground:seq=5:exec=le test fixture plugin/bus-wait-file det2.done:exit=0
+cmd=foreground:seq=6:exec=le test fixture plugin/bus-assert-implied file-contains det1.log 203.0.113.0/24:exit=0
+cmd=foreground:seq=7:exec=le test fixture plugin/bus-assert-implied file-contains det2.log 203.0.113.0/24:exit=0
+
+# Zero refusals on both endpoints and zero doctor refusal diagnostics.
+cmd=foreground:seq=8:exec=le test fixture plugin/bus-assert-refused-count $PORT3 /bus/endpoint/det1 0:exit=0
+cmd=foreground:seq=9:exec=le test fixture plugin/bus-assert-refused-count $PORT3 /bus/endpoint/det2 0:exit=0
+cmd=foreground:seq=10:exec=ze cli -c "show doctor | json":exit=0
+reject=stdout:contains=doctor-plugin-request-refused
+
+cmd=stop:seq=11:name=daemon:signal=term
+cmd=stop:seq=12:name=edge1

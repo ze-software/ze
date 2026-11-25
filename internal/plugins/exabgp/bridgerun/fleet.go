@@ -356,12 +356,13 @@ func deriveSendScope(filter *rpc.BusParticipantFilter) (peers []string, noPeers 
 
 	// Prefer the explicit `cli:send bgp` rule when present, since route
 	// announcements and withdrawals dispatch under that prefix (Q-T5).
+	// When `cli:send bgp` is disallowed by `send > allow` (Allowed == false)
+	// while target peers remain in scope, preserve those peer addresses so the
+	// translator still dispatches `send bgp ...` to the daemon, where the bus
+	// send gate refuses it and increments `ze_bus_send_refused_total`.
 	for _, rule := range filter.SendRules {
 		if rule.Message != busCmdSendBGP {
 			continue
-		}
-		if !rule.Allowed {
-			return nil, true
 		}
 		if rule.TargetNone {
 			return nil, true
@@ -370,10 +371,15 @@ func deriveSendScope(filter *rpc.BusParticipantFilter) (peers []string, noPeers 
 			return nil, false
 		}
 		addrs := collectTargetAddresses(rule.Targets)
-		if len(addrs) == 0 {
+		if len(addrs) > 0 {
+			return addrs, false
+		}
+		if rule.Allowed {
 			return nil, true
 		}
-		return addrs, false
+		// Disallowed rule with empty Targets: fall through to filter.SendToAll
+		// and remaining send rules' targets so daemon-side send gating still runs.
+		break
 	}
 
 	if filter.SendToAll {

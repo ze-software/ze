@@ -1,0 +1,545 @@
+# Test: all five bus participant path forms (`/bgp/group/transit`, `/bgp/group/transit/peer/t1`, `/bgp/ip/<addr>`, `/bgp/peer/edge1`, `/bgp`) select exact peer sets, print as written, and reject unknown peer paths.
+# QUESTION: with standalone peers `edge1` (127.0.0.2) and `lab` (127.0.0.3) and group
+# `transit` containing `t1` (127.0.0.4) and `t2` (127.0.0.5), when `collector` is configured
+# with each of `/bgp/group/transit`, `/bgp/group/transit/peer/t1`, `/bgp/ip/127.0.0.2`,
+# `/bgp/peer/edge1`, and `/bgp` in `receive > from`, does `collector` receive events from
+# exact peer sets (`{t1,t2}`, `{t1}`, `{edge1}`, `{edge1}`, `{edge1,lab,t1,t2}`), does
+# `show config running` print each path verbatim as written, and is
+# `receive { from [ /bgp/peer/nosuch ]; }` refused at `ze config validate` listing the
+# configured peers? A unit test cannot decide this because it spans live BGP peer
+# resolution in `DeliveryGraph`, config round-trip serialization in `show config running`,
+# and full `ze config validate` diagnostics.
+#
+# VALIDATES: spec-explicit-plugin-and-attach-config S12 / AC-22, AC-6.
+# PREVENTS: path-form resolution mismatches across group, grouped peer, IP alias,
+# standalone peer, and `/bgp` root, or canonicalization rewriting the operator's written path.
+
+option=timeout:value=180s
+option=env:var=ZE_CONFIG_DIR:value=.
+option=env:var=XDG_DATA_HOME:value=.
+option=env:var=ze.ssh.password:value=testpass
+
+stdin=init-answers:terminator=EOF_INIT
+admin
+testpass
+127.0.0.1
+$PORT2
+EOF_INIT
+
+# Reusable peer scripts (one set per run so established-file markers stay distinct).
+stdin=p-edge1-1:terminator=EOF_PE1_1
+option=tcp_connections:value=1
+option=timeout:value=60s
+option=asn:value=65001
+option=open:value=router-id:id=127.0.0.2
+option=linger:value=true
+option=established-file:path=e1-1.up
+option=update:value=send-route:prefix=10.0.1.0/24:next-hop=192.0.2.1
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
+EOF_PE1_1
+
+stdin=p-lab-1:terminator=EOF_PL1_1
+option=tcp_connections:value=1
+option=timeout:value=60s
+option=asn:value=65002
+option=open:value=router-id:id=127.0.0.3
+option=linger:value=true
+option=established-file:path=lab-1.up
+option=update:value=send-route:prefix=10.0.2.0/24:next-hop=192.0.2.2
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
+EOF_PL1_1
+
+stdin=p-t1-1:terminator=EOF_PT1_1
+option=tcp_connections:value=1
+option=timeout:value=60s
+option=asn:value=65003
+option=open:value=router-id:id=127.0.0.4
+option=linger:value=true
+option=established-file:path=t1-1.up
+option=update:value=send-route:prefix=10.0.3.0/24:next-hop=192.0.2.3
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
+EOF_PT1_1
+
+stdin=p-t2-1:terminator=EOF_PT2_1
+option=tcp_connections:value=1
+option=timeout:value=60s
+option=asn:value=65004
+option=open:value=router-id:id=127.0.0.5
+option=linger:value=true
+option=established-file:path=t2-1.up
+option=update:value=send-route:prefix=10.0.4.0/24:next-hop=192.0.2.4
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
+EOF_PT2_1
+
+stdin=p-edge1-2:terminator=EOF_PE1_2
+option=tcp_connections:value=1
+option=timeout:value=60s
+option=asn:value=65001
+option=open:value=router-id:id=127.0.0.2
+option=linger:value=true
+option=update:value=send-route:prefix=10.0.1.0/24:next-hop=192.0.2.1
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
+EOF_PE1_2
+
+stdin=p-lab-2:terminator=EOF_PL1_2
+option=tcp_connections:value=1
+option=timeout:value=60s
+option=asn:value=65002
+option=open:value=router-id:id=127.0.0.3
+option=linger:value=true
+option=update:value=send-route:prefix=10.0.2.0/24:next-hop=192.0.2.2
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
+EOF_PL1_2
+
+stdin=p-t1-2:terminator=EOF_PT1_2
+option=tcp_connections:value=1
+option=timeout:value=60s
+option=asn:value=65003
+option=open:value=router-id:id=127.0.0.4
+option=linger:value=true
+option=update:value=send-route:prefix=10.0.3.0/24:next-hop=192.0.2.3
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
+EOF_PT1_2
+
+stdin=p-t2-2:terminator=EOF_PT2_2
+option=tcp_connections:value=1
+option=timeout:value=60s
+option=asn:value=65004
+option=open:value=router-id:id=127.0.0.5
+option=linger:value=true
+option=update:value=send-route:prefix=10.0.4.0/24:next-hop=192.0.2.4
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
+EOF_PT2_2
+
+# Form 1: /bgp/group/transit
+tmpfs=f1-group.conf:terminator=EOF_F1
+system {
+	authentication {
+		user admin {
+			password "$2a$04$UlwuiuH82Unfsq.XEMPGJeDkXwbm3KW.nvVaVXOd/JeFK8VjMjrQO"
+		}
+	}
+}
+environment {
+	ssh {
+		enabled true
+		server main { ip 127.0.0.1; port $PORT2; }
+	}
+}
+bus {
+	endpoint collector {
+		external {
+			run "le test fixture plugin/bus-bgp-collector f1.log";
+		}
+		encoding json;
+		receive {
+			from [ /bgp/group/transit ];
+		}
+	}
+}
+bgp {
+	router-id 192.0.2.254;
+	filter {
+		import { final accept; }
+		export { final accept; }
+	}
+	peer edge1 {
+		connection { remote { ip 127.0.0.2; } local { ip 127.0.0.1; accept false; } }
+		session { asn { local 65000; remote 65001; } family { ipv4/unicast { prefix { maximum 10000; } } } capability { graceful-restart disable; } }
+		behavior { group-updates disable; }
+	}
+	peer lab {
+		connection { remote { ip 127.0.0.3; } local { ip 127.0.0.1; accept false; } }
+		session { asn { local 65000; remote 65002; } family { ipv4/unicast { prefix { maximum 10000; } } } capability { graceful-restart disable; } }
+		behavior { group-updates disable; }
+	}
+	group transit {
+		peer t1 {
+			connection { remote { ip 127.0.0.4; } local { ip 127.0.0.1; accept false; } }
+			session { asn { local 65000; remote 65003; } family { ipv4/unicast { prefix { maximum 10000; } } } capability { graceful-restart disable; } }
+			behavior { group-updates disable; }
+		}
+		peer t2 {
+			connection { remote { ip 127.0.0.5; } local { ip 127.0.0.1; accept false; } }
+			session { asn { local 65000; remote 65004; } family { ipv4/unicast { prefix { maximum 10000; } } } capability { graceful-restart disable; } }
+			behavior { group-updates disable; }
+		}
+	}
+}
+EOF_F1
+
+# Form 2: /bgp/group/transit/peer/t1
+tmpfs=f2-grouped-peer.conf:terminator=EOF_F2
+system {
+	authentication {
+		user admin {
+			password "$2a$04$UlwuiuH82Unfsq.XEMPGJeDkXwbm3KW.nvVaVXOd/JeFK8VjMjrQO"
+		}
+	}
+}
+environment {
+	ssh {
+		enabled true
+		server main { ip 127.0.0.1; port $PORT2; }
+	}
+}
+bus {
+	endpoint collector {
+		external {
+			run "le test fixture plugin/bus-bgp-collector f2.log";
+		}
+		encoding json;
+		receive {
+			from [ /bgp/group/transit/peer/t1 ];
+		}
+	}
+}
+bgp {
+	router-id 192.0.2.254;
+	filter {
+		import { final accept; }
+		export { final accept; }
+	}
+	peer edge1 {
+		connection { remote { ip 127.0.0.2; } local { ip 127.0.0.1; accept false; } }
+		session { asn { local 65000; remote 65001; } family { ipv4/unicast { prefix { maximum 10000; } } } capability { graceful-restart disable; } }
+		behavior { group-updates disable; }
+	}
+	peer lab {
+		connection { remote { ip 127.0.0.3; } local { ip 127.0.0.1; accept false; } }
+		session { asn { local 65000; remote 65002; } family { ipv4/unicast { prefix { maximum 10000; } } } capability { graceful-restart disable; } }
+		behavior { group-updates disable; }
+	}
+	group transit {
+		peer t1 {
+			connection { remote { ip 127.0.0.4; } local { ip 127.0.0.1; accept false; } }
+			session { asn { local 65000; remote 65003; } family { ipv4/unicast { prefix { maximum 10000; } } } capability { graceful-restart disable; } }
+			behavior { group-updates disable; }
+		}
+		peer t2 {
+			connection { remote { ip 127.0.0.5; } local { ip 127.0.0.1; accept false; } }
+			session { asn { local 65000; remote 65004; } family { ipv4/unicast { prefix { maximum 10000; } } } capability { graceful-restart disable; } }
+			behavior { group-updates disable; }
+		}
+	}
+}
+EOF_F2
+
+# Form 3: /bgp/ip/127.0.0.2
+tmpfs=f3-ip.conf:terminator=EOF_F3
+system {
+	authentication {
+		user admin {
+			password "$2a$04$UlwuiuH82Unfsq.XEMPGJeDkXwbm3KW.nvVaVXOd/JeFK8VjMjrQO"
+		}
+	}
+}
+environment {
+	ssh {
+		enabled true
+		server main { ip 127.0.0.1; port $PORT2; }
+	}
+}
+bus {
+	endpoint collector {
+		external {
+			run "le test fixture plugin/bus-bgp-collector f3.log";
+		}
+		encoding json;
+		receive {
+			from [ /bgp/ip/127.0.0.2 ];
+		}
+	}
+}
+bgp {
+	router-id 192.0.2.254;
+	filter {
+		import { final accept; }
+		export { final accept; }
+	}
+	peer edge1 {
+		connection { remote { ip 127.0.0.2; } local { ip 127.0.0.1; accept false; } }
+		session { asn { local 65000; remote 65001; } family { ipv4/unicast { prefix { maximum 10000; } } } capability { graceful-restart disable; } }
+		behavior { group-updates disable; }
+	}
+	peer lab {
+		connection { remote { ip 127.0.0.3; } local { ip 127.0.0.1; accept false; } }
+		session { asn { local 65000; remote 65002; } family { ipv4/unicast { prefix { maximum 10000; } } } capability { graceful-restart disable; } }
+		behavior { group-updates disable; }
+	}
+	group transit {
+		peer t1 {
+			connection { remote { ip 127.0.0.4; } local { ip 127.0.0.1; accept false; } }
+			session { asn { local 65000; remote 65003; } family { ipv4/unicast { prefix { maximum 10000; } } } capability { graceful-restart disable; } }
+			behavior { group-updates disable; }
+		}
+		peer t2 {
+			connection { remote { ip 127.0.0.5; } local { ip 127.0.0.1; accept false; } }
+			session { asn { local 65000; remote 65004; } family { ipv4/unicast { prefix { maximum 10000; } } } capability { graceful-restart disable; } }
+			behavior { group-updates disable; }
+		}
+	}
+}
+EOF_F3
+
+# Form 4: /bgp/peer/edge1
+tmpfs=f4-peer.conf:terminator=EOF_F4
+system {
+	authentication {
+		user admin {
+			password "$2a$04$UlwuiuH82Unfsq.XEMPGJeDkXwbm3KW.nvVaVXOd/JeFK8VjMjrQO"
+		}
+	}
+}
+environment {
+	ssh {
+		enabled true
+		server main { ip 127.0.0.1; port $PORT2; }
+	}
+}
+bus {
+	endpoint collector {
+		external {
+			run "le test fixture plugin/bus-bgp-collector f4.log";
+		}
+		encoding json;
+		receive {
+			from [ /bgp/peer/edge1 ];
+		}
+	}
+}
+bgp {
+	router-id 192.0.2.254;
+	filter {
+		import { final accept; }
+		export { final accept; }
+	}
+	peer edge1 {
+		connection { remote { ip 127.0.0.2; } local { ip 127.0.0.1; accept false; } }
+		session { asn { local 65000; remote 65001; } family { ipv4/unicast { prefix { maximum 10000; } } } capability { graceful-restart disable; } }
+		behavior { group-updates disable; }
+	}
+	peer lab {
+		connection { remote { ip 127.0.0.3; } local { ip 127.0.0.1; accept false; } }
+		session { asn { local 65000; remote 65002; } family { ipv4/unicast { prefix { maximum 10000; } } } capability { graceful-restart disable; } }
+		behavior { group-updates disable; }
+	}
+	group transit {
+		peer t1 {
+			connection { remote { ip 127.0.0.4; } local { ip 127.0.0.1; accept false; } }
+			session { asn { local 65000; remote 65003; } family { ipv4/unicast { prefix { maximum 10000; } } } capability { graceful-restart disable; } }
+			behavior { group-updates disable; }
+		}
+		peer t2 {
+			connection { remote { ip 127.0.0.5; } local { ip 127.0.0.1; accept false; } }
+			session { asn { local 65000; remote 65004; } family { ipv4/unicast { prefix { maximum 10000; } } } capability { graceful-restart disable; } }
+			behavior { group-updates disable; }
+		}
+	}
+}
+EOF_F4
+
+# Form 5: /bgp
+tmpfs=f5-root.conf:terminator=EOF_F5
+system {
+	authentication {
+		user admin {
+			password "$2a$04$UlwuiuH82Unfsq.XEMPGJeDkXwbm3KW.nvVaVXOd/JeFK8VjMjrQO"
+		}
+	}
+}
+environment {
+	ssh {
+		enabled true
+		server main { ip 127.0.0.1; port $PORT2; }
+	}
+}
+bus {
+	endpoint collector {
+		external {
+			run "le test fixture plugin/bus-bgp-collector f5.log";
+		}
+		encoding json;
+		receive {
+			from [ /bgp ];
+		}
+	}
+}
+bgp {
+	router-id 192.0.2.254;
+	filter {
+		import { final accept; }
+		export { final accept; }
+	}
+	peer edge1 {
+		connection { remote { ip 127.0.0.2; } local { ip 127.0.0.1; accept false; } }
+		session { asn { local 65000; remote 65001; } family { ipv4/unicast { prefix { maximum 10000; } } } capability { graceful-restart disable; } }
+		behavior { group-updates disable; }
+	}
+	peer lab {
+		connection { remote { ip 127.0.0.3; } local { ip 127.0.0.1; accept false; } }
+		session { asn { local 65000; remote 65002; } family { ipv4/unicast { prefix { maximum 10000; } } } capability { graceful-restart disable; } }
+		behavior { group-updates disable; }
+	}
+	group transit {
+		peer t1 {
+			connection { remote { ip 127.0.0.4; } local { ip 127.0.0.1; accept false; } }
+			session { asn { local 65000; remote 65003; } family { ipv4/unicast { prefix { maximum 10000; } } } capability { graceful-restart disable; } }
+			behavior { group-updates disable; }
+		}
+		peer t2 {
+			connection { remote { ip 127.0.0.5; } local { ip 127.0.0.1; accept false; } }
+			session { asn { local 65000; remote 65004; } family { ipv4/unicast { prefix { maximum 10000; } } } capability { graceful-restart disable; } }
+			behavior { group-updates disable; }
+		}
+	}
+}
+EOF_F5
+
+# Negative: unknown peer path /bgp/peer/nosuch.
+tmpfs=f6-unknown.conf:terminator=EOF_F6
+bus {
+	endpoint collector {
+		external {
+			run "le test fixture plugin/bus-bgp-collector unused.log";
+		}
+		encoding json;
+		receive {
+			from [ /bgp/peer/nosuch ];
+		}
+	}
+}
+bgp {
+	router-id 192.0.2.254;
+	peer edge1 {
+		connection { remote { ip 127.0.0.2; } local { ip 127.0.0.1; accept false; } }
+		session { asn { local 65000; remote 65001; } family { ipv4/unicast { prefix { maximum 10000; } } } }
+	}
+	peer lab {
+		connection { remote { ip 127.0.0.3; } local { ip 127.0.0.1; accept false; } }
+		session { asn { local 65000; remote 65002; } family { ipv4/unicast { prefix { maximum 10000; } } } }
+	}
+}
+EOF_F6
+
+cmd=foreground:seq=1:exec=ze init:stdin=init-answers:exit=0
+
+# --- Form 1: /bgp/group/transit -> t1 and t2 only ---
+cmd=background:seq=2:name=e1-1:exec=le test peer --bind 127.0.0.2 --port $PORT:stdin=p-edge1-1
+cmd=background:seq=3:name=lab-1:exec=le test peer --bind 127.0.0.3 --port $PORT:stdin=p-lab-1
+cmd=background:seq=4:name=t1-1:exec=le test peer --bind 127.0.0.4 --port $PORT:stdin=p-t1-1
+cmd=background:seq=5:name=t2-1:exec=le test peer --bind 127.0.0.5 --port $PORT:stdin=p-t2-1
+cmd=background:seq=6:name=d1:exec=ze start f1-group.conf:ready=Ze running.
+reject=stderr:pattern=ZE-OBSERVER-FAIL
+reject=stderr:pattern=panic
+
+cmd=foreground:seq=7:exec=le test fixture daemon/await-answer-all "show bgp rib" 10.0.1.0/24 10.0.2.0/24 10.0.3.0/24 10.0.4.0/24:exit=0
+cmd=foreground:seq=8:exec=le test fixture plugin/bus-assert-implied poll-file-contains f1.log 10.0.3.0/24:exit=0
+cmd=foreground:seq=9:exec=le test fixture plugin/bus-assert-implied poll-file-contains f1.log 10.0.4.0/24:exit=0
+cmd=foreground:seq=10:exec=le test fixture plugin/bus-assert-implied file-not-contains f1.log 127.0.0.2:exit=0
+cmd=foreground:seq=11:exec=le test fixture plugin/bus-assert-implied file-not-contains f1.log 127.0.0.3:exit=0
+cmd=foreground:seq=12:exec=ze cli -c "show config running | implied":exit=0
+expect=stdout:contains=from /bgp/group/transit
+
+cmd=stop:seq=13:name=d1:signal=term
+cmd=stop:seq=14:name=e1-1
+cmd=stop:seq=15:name=lab-1
+cmd=stop:seq=16:name=t1-1
+cmd=stop:seq=17:name=t2-1
+
+# --- Form 2: /bgp/group/transit/peer/t1 -> t1 only ---
+cmd=background:seq=18:name=e1-2:exec=le test peer --bind 127.0.0.2 --port $PORT:stdin=p-edge1-2
+cmd=background:seq=19:name=lab-2:exec=le test peer --bind 127.0.0.3 --port $PORT:stdin=p-lab-2
+cmd=background:seq=20:name=t1-2:exec=le test peer --bind 127.0.0.4 --port $PORT:stdin=p-t1-2
+cmd=background:seq=21:name=t2-2:exec=le test peer --bind 127.0.0.5 --port $PORT:stdin=p-t2-2
+cmd=background:seq=22:name=d2:exec=ze start f2-grouped-peer.conf:ready=Ze running.
+reject=stderr:pattern=ZE-OBSERVER-FAIL
+reject=stderr:pattern=panic
+
+cmd=foreground:seq=23:exec=le test fixture daemon/await-answer-all "show bgp rib" 10.0.1.0/24 10.0.2.0/24 10.0.3.0/24 10.0.4.0/24:exit=0
+cmd=foreground:seq=24:exec=le test fixture plugin/bus-assert-implied poll-file-contains f2.log 10.0.3.0/24:exit=0
+cmd=foreground:seq=25:exec=le test fixture plugin/bus-assert-implied file-not-contains f2.log 127.0.0.2:exit=0
+cmd=foreground:seq=26:exec=le test fixture plugin/bus-assert-implied file-not-contains f2.log 127.0.0.3:exit=0
+cmd=foreground:seq=27:exec=le test fixture plugin/bus-assert-implied file-not-contains f2.log 127.0.0.5:exit=0
+cmd=foreground:seq=28:exec=ze cli -c "show config running | implied":exit=0
+expect=stdout:contains=from /bgp/group/transit/peer/t1
+
+cmd=stop:seq=29:name=d2:signal=term
+cmd=stop:seq=30:name=e1-2
+cmd=stop:seq=31:name=lab-2
+cmd=stop:seq=32:name=t1-2
+cmd=stop:seq=33:name=t2-2
+
+# --- Form 3: /bgp/ip/127.0.0.2 -> edge1 only ---
+cmd=background:seq=34:name=e1-3:exec=le test peer --bind 127.0.0.2 --port $PORT:stdin=p-edge1-2
+cmd=background:seq=35:name=lab-3:exec=le test peer --bind 127.0.0.3 --port $PORT:stdin=p-lab-2
+cmd=background:seq=36:name=t1-3:exec=le test peer --bind 127.0.0.4 --port $PORT:stdin=p-t1-2
+cmd=background:seq=37:name=t2-3:exec=le test peer --bind 127.0.0.5 --port $PORT:stdin=p-t2-2
+cmd=background:seq=38:name=d3:exec=ze start f3-ip.conf:ready=Ze running.
+reject=stderr:pattern=ZE-OBSERVER-FAIL
+reject=stderr:pattern=panic
+
+cmd=foreground:seq=39:exec=le test fixture daemon/await-answer-all "show bgp rib" 10.0.1.0/24 10.0.2.0/24 10.0.3.0/24 10.0.4.0/24:exit=0
+cmd=foreground:seq=40:exec=le test fixture plugin/bus-assert-implied poll-file-contains f3.log 10.0.1.0/24:exit=0
+cmd=foreground:seq=41:exec=le test fixture plugin/bus-assert-implied file-not-contains f3.log 127.0.0.3:exit=0
+cmd=foreground:seq=42:exec=le test fixture plugin/bus-assert-implied file-not-contains f3.log 127.0.0.4:exit=0
+cmd=foreground:seq=43:exec=le test fixture plugin/bus-assert-implied file-not-contains f3.log 127.0.0.5:exit=0
+cmd=foreground:seq=44:exec=ze cli -c "show config running | implied":exit=0
+expect=stdout:contains=from /bgp/ip/127.0.0.2
+
+cmd=stop:seq=45:name=d3:signal=term
+cmd=stop:seq=46:name=e1-3
+cmd=stop:seq=47:name=lab-3
+cmd=stop:seq=48:name=t1-3
+cmd=stop:seq=49:name=t2-3
+
+# --- Form 4: /bgp/peer/edge1 -> edge1 only ---
+cmd=background:seq=50:name=e1-4:exec=le test peer --bind 127.0.0.2 --port $PORT:stdin=p-edge1-2
+cmd=background:seq=51:name=lab-4:exec=le test peer --bind 127.0.0.3 --port $PORT:stdin=p-lab-2
+cmd=background:seq=52:name=t1-4:exec=le test peer --bind 127.0.0.4 --port $PORT:stdin=p-t1-2
+cmd=background:seq=53:name=t2-4:exec=le test peer --bind 127.0.0.5 --port $PORT:stdin=p-t2-2
+cmd=background:seq=54:name=d4:exec=ze start f4-peer.conf:ready=Ze running.
+reject=stderr:pattern=ZE-OBSERVER-FAIL
+reject=stderr:pattern=panic
+
+cmd=foreground:seq=55:exec=le test fixture daemon/await-answer-all "show bgp rib" 10.0.1.0/24 10.0.2.0/24 10.0.3.0/24 10.0.4.0/24:exit=0
+cmd=foreground:seq=56:exec=le test fixture plugin/bus-assert-implied poll-file-contains f4.log 10.0.1.0/24:exit=0
+cmd=foreground:seq=57:exec=le test fixture plugin/bus-assert-implied file-not-contains f4.log 127.0.0.3:exit=0
+cmd=foreground:seq=58:exec=le test fixture plugin/bus-assert-implied file-not-contains f4.log 127.0.0.4:exit=0
+cmd=foreground:seq=59:exec=le test fixture plugin/bus-assert-implied file-not-contains f4.log 127.0.0.5:exit=0
+cmd=foreground:seq=60:exec=ze cli -c "show config running | implied":exit=0
+expect=stdout:contains=from /bgp/peer/edge1
+
+cmd=stop:seq=61:name=d4:signal=term
+cmd=stop:seq=62:name=e1-4
+cmd=stop:seq=63:name=lab-4
+cmd=stop:seq=64:name=t1-4
+cmd=stop:seq=65:name=t2-4
+
+# --- Form 5: /bgp -> all four peers ---
+cmd=background:seq=66:name=e1-5:exec=le test peer --bind 127.0.0.2 --port $PORT:stdin=p-edge1-2
+cmd=background:seq=67:name=lab-5:exec=le test peer --bind 127.0.0.3 --port $PORT:stdin=p-lab-2
+cmd=background:seq=68:name=t1-5:exec=le test peer --bind 127.0.0.4 --port $PORT:stdin=p-t1-2
+cmd=background:seq=69:name=t2-5:exec=le test peer --bind 127.0.0.5 --port $PORT:stdin=p-t2-2
+cmd=background:seq=70:name=d5:exec=ze start f5-root.conf:ready=Ze running.
+reject=stderr:pattern=ZE-OBSERVER-FAIL
+reject=stderr:pattern=panic
+
+cmd=foreground:seq=71:exec=le test fixture plugin/bus-assert-implied poll-file-contains f5.log 10.0.1.0/24:exit=0
+cmd=foreground:seq=72:exec=le test fixture plugin/bus-assert-implied poll-file-contains f5.log 10.0.2.0/24:exit=0
+cmd=foreground:seq=73:exec=le test fixture plugin/bus-assert-implied poll-file-contains f5.log 10.0.3.0/24:exit=0
+cmd=foreground:seq=74:exec=le test fixture plugin/bus-assert-implied poll-file-contains f5.log 10.0.4.0/24:exit=0
+cmd=foreground:seq=75:exec=ze cli -c "show config running | implied":exit=0
+expect=stdout:contains=from /bgp
+
+cmd=stop:seq=76:name=d5:signal=term
+cmd=stop:seq=77:name=e1-5
+cmd=stop:seq=78:name=lab-5
+cmd=stop:seq=79:name=t1-5
+cmd=stop:seq=80:name=t2-5
+
+# Negative: unknown peer path refused at validate listing configured peers.
+cmd=foreground:seq=81:exec=ze config validate f6-unknown.conf:exit=1
+expect=stdout:contains=/bgp/peer/nosuch
+expect=stdout:contains=edge1
+expect=stdout:contains=lab

@@ -46,6 +46,14 @@ type DeliveryPeer struct {
 	BusOrigin BusEdgeOrigin
 	// BusSource is the human-readable configuration location of Bus.
 	BusSource string
+	// OwnBus optionally holds the participant's unmerged own BusBlock when
+	// ParentBus carries the parent container's own BusBlock separately.
+	OwnBus plugin.BusBlock
+	// ParentBus optionally holds the parent container's own BusBlock so
+	// CompileBus attributes inherited items to ParentPath.
+	ParentBus plugin.BusBlock
+	// ParentBusSource is the human-readable configuration location of ParentBus.
+	ParentBusSource string
 	// Dynamic reports whether this participant was admitted dynamically under
 	// ParentPath rather than statically configured.
 	Dynamic bool
@@ -157,7 +165,12 @@ func BuildDeliveryGraph(
 	defaultSends, defaultReceives := defaultNamespaceDeclarations(namespace)
 	inputs := make([]BusParticipantInput, 0, len(peers)+len(extraEndpoints))
 	seenPaths := make(map[string]bool, len(peers)+len(extraEndpoints))
+	type parentBusSpec struct {
+		block  plugin.BusBlock
+		source string
+	}
 	parentContainers := make(map[string]bool)
+	parentOwnBus := make(map[string]parentBusSpec)
 
 	for i := range peers {
 		p := &peers[i]
@@ -173,17 +186,43 @@ func BuildDeliveryGraph(
 		}
 		seenPaths[pPath] = true
 
+		hasParentBus := p.ParentPath != "" && !p.ParentBus.IsEmpty()
+		var ownBlock plugin.BusBlock
+		var ownOrigin BusEdgeOrigin
+		var ownSource string
+		if hasParentBus {
+			ownBlock = p.OwnBus.Clone()
+			if !ownBlock.IsEmpty() {
+				ownOrigin = BusOriginWritten
+				ownSource = pPath + " > bus"
+			}
+			if _, exists := parentOwnBus[p.ParentPath]; !exists {
+				src := p.ParentBusSource
+				if src == "" {
+					src = p.ParentPath + " > bus"
+				}
+				parentOwnBus[p.ParentPath] = parentBusSpec{
+					block:  p.ParentBus.Clone(),
+					source: src,
+				}
+			}
+		} else {
+			ownBlock = p.Bus.Clone()
+			ownOrigin = p.BusOrigin
+			ownSource = p.BusSource
+		}
+
 		input := BusParticipantInput{
 			Path:           pPath,
 			SecondaryPaths: slices.Clone(p.SecondaryPaths),
 			ParentPath:     p.ParentPath,
 			Sends:          defaultSends,
 			Receives:       defaultReceives,
-			OwnBlock:       p.Bus.Clone(),
-			OwnOrigin:      p.BusOrigin,
-			OwnSource:      p.BusSource,
+			OwnBlock:       ownBlock,
+			OwnOrigin:      ownOrigin,
+			OwnSource:      ownSource,
 		}
-		applyCentralOverrideToInput(&input, busCfg)
+		applyCentralOverrideToInput(&input, busCfg, !hasParentBus)
 		inputs = append(inputs, input)
 
 		if p.ParentPath != "" {
@@ -208,13 +247,21 @@ func BuildDeliveryGraph(
 	}
 
 	// Ensure referenced parent container paths exist as container participants
-	// so parent bus > participant overrides inherit and prefix paths resolve.
+	// so parent own bus blocks and bus > participant overrides inherit and
+	// prefix paths resolve.
 	for _, parentPath := range slices.Sorted(maps.Keys(parentContainers)) {
 		if seenPaths[parentPath] {
 			continue
 		}
 		seenPaths[parentPath] = true
 		cInput := BusParticipantInput{Path: parentPath, PureContainer: true}
+		if spec, ok := parentOwnBus[parentPath]; ok {
+			if !spec.block.IsEmpty() {
+				cInput.OwnBlock = spec.block.Clone()
+				cInput.OwnOrigin = BusOriginWritten
+				cInput.OwnSource = spec.source
+			}
+		}
 		if ov, ok := busCfg.Participants[parentPath]; ok {
 			cInput.BusSideBlock = ov.Block.Clone()
 			cInput.BusSideSource = ov.Source
@@ -460,16 +507,19 @@ func cloneDeliveryPeers(peers []DeliveryPeer) []DeliveryPeer {
 	out := make([]DeliveryPeer, len(peers))
 	for i := range peers {
 		out[i] = DeliveryPeer{
-			Addr:           peers[i].Addr,
-			Name:           peers[i].Name,
-			Path:           peers[i].Path,
-			ParentPath:     peers[i].ParentPath,
-			SecondaryPaths: slices.Clone(peers[i].SecondaryPaths),
-			Bus:            peers[i].Bus.Clone(),
-			BusOrigin:      peers[i].BusOrigin,
-			BusSource:      peers[i].BusSource,
-			Dynamic:        peers[i].Dynamic,
-			SessionFacts:   maps.Clone(peers[i].SessionFacts),
+			Addr:            peers[i].Addr,
+			Name:            peers[i].Name,
+			Path:            peers[i].Path,
+			ParentPath:      peers[i].ParentPath,
+			SecondaryPaths:  slices.Clone(peers[i].SecondaryPaths),
+			Bus:             peers[i].Bus.Clone(),
+			BusOrigin:       peers[i].BusOrigin,
+			BusSource:       peers[i].BusSource,
+			OwnBus:          peers[i].OwnBus.Clone(),
+			ParentBus:       peers[i].ParentBus.Clone(),
+			ParentBusSource: peers[i].ParentBusSource,
+			Dynamic:         peers[i].Dynamic,
+			SessionFacts:    maps.Clone(peers[i].SessionFacts),
 		}
 	}
 	return out
@@ -548,7 +598,7 @@ func defaultNamespaceDeclarations(namespace string) ([]rpc.MessageSendDecl, []rp
 	return sends, receives
 }
 
-func applyCentralOverrideToInput(input *BusParticipantInput, busCfg plugin.BusConfig) {
+func applyCentralOverrideToInput(input *BusParticipantInput, busCfg plugin.BusConfig, includeParentOverride bool) {
 	if len(busCfg.Participants) == 0 {
 		return
 	}
@@ -563,6 +613,9 @@ func applyCentralOverrideToInput(input *BusParticipantInput, busCfg plugin.BusCo
 				break
 			}
 		}
+	}
+	if !includeParentOverride {
+		return
 	}
 	if input.ParentPath != "" {
 		if ov, ok := busCfg.Participants[input.ParentPath]; ok {
@@ -1190,6 +1243,31 @@ func (s *Server) SetBusConfig(cfg plugin.BusConfig) {
 	s.busConfig.Store(&cloned)
 }
 
+// SetBusConfigTree publishes the active (or in-flight reload) config tree for
+// delivery-graph singleton-participant bus block extraction. Keeping a lock-free
+// atomic snapshot on Server avoids calling back into s.reactor.GetConfigTree()
+// while the reactor holds r.mu during publishDeliveryGraphLocked.
+func (s *Server) SetBusConfigTree(tree map[string]any) {
+	if tree == nil {
+		s.busConfigTree.Store(nil)
+		return
+	}
+	t := tree
+	s.busConfigTree.Store(&t)
+}
+
+// currentBusConfigTree returns the atomic config-tree snapshot governing
+// delivery-graph singleton-participant bus block extraction, or nil when none
+// has been published via SetBusConfigTree. It never calls back into
+// s.reactor.GetConfigTree() so delivery-graph rebuilds during startup, reload,
+// and reactor callbacks stay lock-order independent.
+func (s *Server) currentBusConfigTree() map[string]any {
+	if p := s.busConfigTree.Load(); p != nil {
+		return *p
+	}
+	return nil
+}
+
 // BusConfig returns the stored central bus configuration (empty if unset).
 // Safe for concurrent use.
 func (s *Server) BusConfig() plugin.BusConfig {
@@ -1493,6 +1571,7 @@ func isIgnorableParticipantFilterError(err error) bool {
 func (s *Server) collectBusEndpointInputs(namespace string, busCfg plugin.BusConfig) []BusParticipantInput {
 	seen := make(map[string]bool)
 	var out []BusParticipantInput
+	cfgTree := s.currentBusConfigTree()
 
 	addEndpoint := func(epName, regName string, liveReg *plugin.PluginRegistration) {
 		if epName == "" {
@@ -1544,9 +1623,18 @@ func (s *Server) collectBusEndpointInputs(namespace string, busCfg plugin.BusCon
 		epPath := plugin.EndpointPath(epName)
 		canonicalPath := epPath
 		var secondary []string
-		if singletonPath != "" && singletonPath != epPath {
-			canonicalPath = singletonPath
-			secondary = []string{epPath}
+		var ownBlock plugin.BusBlock
+		var ownOrigin BusEdgeOrigin
+		var ownSource string
+		if singletonPath != "" {
+			if singletonPath != epPath {
+				canonicalPath = singletonPath
+				secondary = []string{epPath}
+			}
+			ownBlock, ownSource = extractSingletonBusBlock(cfgTree, singletonPath)
+			if !ownBlock.IsEmpty() {
+				ownOrigin = BusOriginWritten
+			}
 		}
 
 		out = append(out, BusParticipantInput{
@@ -1555,6 +1643,9 @@ func (s *Server) collectBusEndpointInputs(namespace string, busCfg plugin.BusCon
 			SecondaryPaths: secondary,
 			Sends:          sends,
 			Receives:       receives,
+			OwnBlock:       ownBlock,
+			OwnOrigin:      ownOrigin,
+			OwnSource:      ownSource,
 		})
 	}
 
@@ -1608,6 +1699,45 @@ func singletonParticipantPath(nodes []rpc.ParticipantNodeDecl) string {
 		return ""
 	}
 	return "/" + textbuf.Join(segs, "/")
+}
+
+// extractSingletonBusBlock reads the optional `bus` container nested under a
+// singleton participant's canonical config path (e.g. "/bgp/route-server" ->
+// bgp > route-server > bus) from cfgTree.
+func extractSingletonBusBlock(cfgTree map[string]any, singletonPath string) (plugin.BusBlock, string) {
+	if len(cfgTree) == 0 {
+		return plugin.BusBlock{}, ""
+	}
+	if singletonPath == "" {
+		return plugin.BusBlock{}, ""
+	}
+	trimmed := strings.TrimPrefix(singletonPath, "/")
+	if trimmed == "" {
+		return plugin.BusBlock{}, ""
+	}
+	cur := cfgTree
+	for _, seg := range strings.Split(trimmed, "/") {
+		if seg == "" {
+			continue
+		}
+		next, ok := cur[seg].(map[string]any)
+		if !ok {
+			return plugin.BusBlock{}, ""
+		}
+		cur = next
+	}
+	busMap, ok := cur[configSectionBus].(map[string]any)
+	if !ok {
+		return plugin.BusBlock{}, ""
+	}
+	source := singletonPath + " > bus"
+	parsed, err := plugin.ParseBusBlockFromMap(busMap, source)
+	if err != nil {
+		logger().Warn("failed to parse singleton participant bus block",
+			"path", singletonPath, "err", err, "code", CodeDoctorPluginDeliveryDisagreement)
+		return plugin.BusBlock{}, ""
+	}
+	return parsed, source
 }
 
 // DiscardRuntimeSubscriptions drops every live `subscribe` override.

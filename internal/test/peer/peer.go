@@ -462,6 +462,11 @@ func (p *Peer) Ready() <-chan struct{} {
 func (p *Peer) dialTarget(ctx context.Context) (net.Conn, error) {
 	p.printf("dialing %s...\n", p.config.Dial)
 	dialer := &net.Dialer{Timeout: 5 * time.Second}
+	if p.config.BindAddr != "" {
+		if ip := net.ParseIP(p.config.BindAddr); ip != nil {
+			dialer.LocalAddr = &net.TCPAddr{IP: ip}
+		}
+	}
 	deadline := time.Now().Add(30 * time.Second)
 	for {
 		conn, err := dialer.DialContext(ctx, "tcp", p.config.Dial)
