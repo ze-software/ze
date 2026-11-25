@@ -239,13 +239,19 @@ func runsZe(duts []string) bool {
 // the probe container, whose own bound is the interoplab probe timeout.
 const dockerKernelTimeout = 3 * time.Minute
 
-// dockerKernel is the production kernelStep: the check every Docker run that
-// runs Ze makes (interoplab.DockerKernel), against the daemon in hand.
+// perfKernelCapabilities declares the Docker host kernel capabilities required
+// by the BGP perf benchmark. Like the BGP interop suite (interoplab/bgp), the
+// perf DUT runs plain TCP BGP sessions and needs no special kernel features
+// (plan/records/ruling-interop-scoped-kernel-capabilities.md).
+var perfKernelCapabilities = interoplab.KernelCapabilitiesNone()
+
+// dockerKernel is the production kernelStep: the scoped kernel preflight for
+// the BGP perf lab (interoplab.DockerKernelFor over perfKernelCapabilities).
 func dockerKernel(ctx context.Context, zePath string) error {
 	ctx, cancel := context.WithTimeout(ctx, dockerKernelTimeout)
 	defer cancel()
 
-	return interoplab.DockerKernel(zePath)(ctx, interoplab.NewDocker())
+	return interoplab.DockerKernelFor(zePath, perfKernelCapabilities)(ctx, interoplab.NewDocker())
 }
 
 // stageZeTimeout bounds staging the ze DUT's binary: the daemon architecture

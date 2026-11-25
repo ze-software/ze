@@ -669,3 +669,19 @@ func TestOverlayResultIsRefusedByRecord(t *testing.T) {
 		}
 	})
 }
+
+// VALIDATES: the BGP perf benchmark scopes its Docker host kernel check to
+// interoplab.KernelCapabilitiesNone() (plan/records/ruling-interop-scoped-kernel-capabilities.md),
+// so unrelated SRv6/IPsec/MPLS kernel probes do not refuse a pure-BGP perf run.
+// METHOD: assert perfKernelCapabilities.IsNone() and invoke dockerKernel with a
+// nonexistent staged ze path, confirming it skips the probe cleanly.
+// PREVENTS: dockerKernel regressing to interoplab.DockerKernel (all capabilities)
+// and blocking `./le perf run dut ze` on a kernel lacking SRv6 forward patches.
+func TestPerfKernelCapabilitiesScopedNone(t *testing.T) {
+	if !perfKernelCapabilities.IsNone() {
+		t.Fatalf("perfKernelCapabilities = %+v, want KernelCapabilitiesNone", perfKernelCapabilities)
+	}
+	if err := dockerKernel(t.Context(), filepath.Join(t.TempDir(), "missing-ze")); err != nil {
+		t.Fatalf("dockerKernel with KernelCapabilitiesNone failed: %v", err)
+	}
+}
