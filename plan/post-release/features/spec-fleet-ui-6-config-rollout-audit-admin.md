@@ -10,7 +10,7 @@
 | Depends | spec-fleet-ui-2-estate-tree-and-device-tables.md, plan/release/features/spec-fleet-ui-5-alarm-list.md, spec-fleet-ui-9-tasks-notifications-and-alarm-pages.md, spec-fleet-2-config-templates.md, spec-fleet-3-audit-trail.md, spec-fleet-5-staged-rollout.md, spec-fleet-7-config-reconnect-resolution |
 | Phase | 6/9 of plan/post-release/features/spec-fleet-ui-0-umbrella.md |
 | Handoff | - |
-| Updated | 2026-11-23 |
+| Updated | 2026-11-25 |
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.
 
@@ -32,9 +32,10 @@ behind it exists.
 
 ### Device Config tab (needs `fleet-6`, `fleet-7`; templates need `fleet-2`)
 
-The hub holds each managed device's configuration and is its single writer
-while the device is connected. The Config tab is where an operator reads it,
-changes it and resolves a divergence.
+The hub holds the desired configuration of every client it declares. The Config
+tab lets an authorized operator edit that copy before the first connection,
+during a session, or while a device is offline. A device that has a local edit
+holds it on reconnect until the difference is resolved.
 
 | Section | Content |
 |---------|---------|
@@ -42,7 +43,7 @@ changes it and resolves a divergence.
 | Source | Whether the device's configuration comes from a template and its group, or is its own; a link to the template |
 | Configuration | The configuration as the hub holds it, in the YANG editor's tree, read-only for an operator who may not edit. Editing uses the existing per-user candidate and commit bar |
 | History | A table of versions the hub has held for this device: time, actor, summary, result on the device. A row's side panel shows the diff against the version before it, in the existing diff view. Row action: Roll back to this version, which stages it as a candidate |
-| Offline device | The hub cannot change a disconnected device's configuration. The editor is read-only and a banner says why, naming when the device was last seen |
+| Offline or newly declared device | Authorized operators can stage, review and commit the hub's configuration. The page shows the last contact time or Never fetched. A committed hub version awaits contact until the device supplies a result. |
 
 Divergence, when the device is Diverged:
 
@@ -88,7 +89,7 @@ the device's Tasks tab.
 | Table | Time, actor, event, device or target, result, summary. Newest first |
 | Filter | The umbrella's query bar with fields `actor`, `event`, `device`, `result`, and a time range picker writing `after` and `before` terms |
 | Side panel | The full entry, the task it belongs to, and the diff when the event changed a configuration |
-| Export | The filtered entries as CSV or JSON, bounded to a stated maximum |
+| Export | The filtered entries as CSV or JSON, bounded by the existing auditExportMax of 1,000 entries |
 | Read-only | No page control edits or removes an entry |
 
 ### Templates page (needs `fleet-2`)
@@ -124,7 +125,7 @@ candidate, pending change bar, diff and commit. Nothing is applied on save.
 |----------|--------|
 | The hub's copy is edited with the existing editor | A device's configuration on the hub is a configuration tree like any other. No second editor is built |
 | Divergence is resolved only after the diff is seen | The control that discards the device's edit is offered only once the difference has been opened, so nothing is overwritten unseen |
-| A rollout shows what it will skip | The hub cannot change an offline device, so the form states how many devices are left out before it starts |
+| A rollout shows what it will skip | A staged batch needs an acknowledgement, so the form counts offline devices separately before starting. The operator can still edit a declared offline client's desired configuration. |
 | Administration changes are configuration changes | Reviewable, committed and audited like every other change |
 | Each page family lands with its back-end | The four families do not wait for each other |
 
@@ -132,20 +133,20 @@ candidate, pending change bar, diff and commit. Nothing is applied on save.
 
 | Page family | Depends on | State |
 |-------------|-----------|-------|
-| Device Config tab, history | `fleet-1`, `fleet-6` | Missing; `fleet-6` is a release fix and lands first |
-| Divergence resolution | `fleet-7` | Missing |
+| Device Config tab, history | `fleet-1`, `fleet-6` | The baseline and hold are implemented. This page needs the registry and the real config and history sources. |
+| Divergence resolution | `fleet-7` | The hub's divergence commands exist. This spec supplies their page binding. |
 | Rollouts | `fleet-5` | Missing |
 | Audit | `fleet-3` | Missing |
 | Templates | `fleet-2` | Missing |
 | Administration of devices, labels, tree views, access, settings | `fleet-1`, `fleet-ui-2`; the settings page reads the alarm settings of `fleet-ui-5` and the task and stream settings of `fleet-ui-9` | Missing |
 | The editor, candidate, diff and commit bar | Available | |
 
-### Draft acceptance criteria
+## Acceptance Criteria
 
 | AC ID | Input / Condition | Expected Behavior | Permitted Survivors and Why |
 |-------|-------------------|-------------------|-----------------------------|
 | AC-1 | A connected device's Config tab | The operator reads the hub's copy, edits it, reviews the diff, commits, and sees the device's result as a task | An operator without the right sees it read-only |
-| AC-2 | An offline device's Config tab | The configuration is read-only with the reason and the last-seen time | The history and its diffs stay readable, because the hub holds them |
+| AC-2 | An authorized operator opens the Config tab for a declared offline client, including one that has never connected | The operator can edit the desired config, review the diff and commit. The tab shows the committed hub version and last-seen time or Never fetched. After a clean reconnect it displays the device's actual result. A returning device with local edits holds and exposes its divergence. | A reader without write access sees the hub copy and history read-only. Until a device reports, its applied version cannot be inferred from the hub commit. |
 | AC-3 | A diverged device | The banner, the diff with the hub on the left and the device on the right, and the two resolutions; the destructive one only after the diff was opened | None |
 | AC-4 | A new rollout over a target with offline devices | The form states the connected count it will change and the offline count it will skip, and previews the batches | None |
 | AC-5 | A rollout that pauses | Its page states why and which devices caused it, and offers Resume and Abort | None |
@@ -191,6 +192,30 @@ with the alarm pages.
 **Source files read:**
 - [ ] `internal/component/web/fleetui/source.go` - `Source` is the union of six interfaces, `ConfigSource` among them; `fleet-ui-2` splits `ConfigSource` into the device config, config history, divergence, rollout, template, access and settings parts.
 
+## Existing Mechanisms
+
+| Mechanism | Source | Use in this design |
+|-----------|--------|--------------------|
+| Fleet Config page and admin actions | `internal/component/web/fleetui/handler_config.go`, `configTextFragment`, `offlineBanner`, `manageActionAnswer` | The prototype disables edit when a client is away and returns a toast for a mutation. Bind the real page to the named configuration editor and show the time of last contact independently of edit rights. |
+| Declared-client write guard | `cmd/ze/hub/session_factory.go`, `undeclaredClientSessionRefusal` | A named editor session requires a declared client. Opening its desired configuration is allowed while it is offline. |
+| Rollout and audit sources | `internal/component/web/fleetui/source_config.go`, `ConfigSource`; `handler_audit.go`, `auditExport.ServeHTTP` | Show the backend's structured rollout state and audit records. Export the filtered rows within the existing `auditExportMax` bound. |
+| Divergence resolution | `docs/architecture/fleet-config.md`, “The hub's copy of a hold” | Read the held version and diff through the existing command and use the guarded adopt or revert operation. |
+
+## Design documents
+
+| Document | Section | Derived from | Binding statement | Verdict | How this design stands against it |
+|----------|---------|--------------|-------------------|---------|-----------------------------------|
+| `ai/doors/system.md` | One schema, one command registry, every interface | the door every change reads | "A command is declared once and reaches every interface." | agrees | The backend owns the command and structured result across command surfaces. The web UI consumes its result with the same user rights. |
+| `docs/architecture/fleet-interface.md` | A source answers facts, the package derives | the // Design: page of internal/component/web/fleetui/handler_config.go | "A source answers facts only" | agrees | Authorization, desired and applied versions, rollout results and audit entries come from the hub. The page formats those facts. |
+| `ai/doors/api-surfaces.md` | Boundaries | the door covering internal/component/web/fleetui/handler_config.go | "The adapter reaches it through the dispatcher." | agrees | Fleet pages submit commands to their owner and show a refusal from that owner to the operator. |
+| `docs/architecture/web-interface.md` | Per-User Editor | anchored to internal/component/web/fleetui/handler_audit.go | "The `EditorManager` creates independent `cli.Editor` instances per authenticated user." | agrees | Open the named configuration in the caller’s candidate. Reviewing or committing another user’s candidate would violate the write boundary. |
+| `ai/doors/le-tooling.md` | Where it sits | The door covering test/web | "A shipped `ze` never links an `internal/le` package." | agrees | The browser runner drives the shipped page through HTTP. The page imports no test tooling. |
+| `docs/architecture/fleet-interface.md` | Design decisions | Fleet interface contract | "The proposed alarm defaults apply together. A missing relay grant stays visible while the device is offline. A measured alarm uses its existing threshold duration after reconnect. Causes match within one device. Thomas selected “Use all three defaults”." | agrees | Configuration and administration pages use the hub’s alarm state if a grant or resource problem affects an action. |
+| `docs/architecture/fleet-interface.md` | Design decisions | Fleet interface contract | "Thomas chose the following rule for Resource high at reconnect. “End the old occurrence. Show a new alarm only if fresh samples qualify.”" | agrees | Historical resource alarms retain the occurrence boundary used by the hub. |
+| `docs/architecture/fleet-interface.md` | Design decisions | Fleet interface contract | "When a critical alarm becomes visible again after its cause clears, show its toast to an authorized viewer of the affected device. Thomas selected “Show the critical toast”." | agrees | The task and alarm notification provider owns delivery after checking access to the device. |
+| `docs/architecture/fleet-interface.md` | Design decisions | Fleet interface contract | "For Force complete on a staged rollout, Thomas chose “Leave unstarted devices on their prior version”." | agrees | The confirmation tells the operator that unstarted devices keep their previous version. |
+| `docs/architecture/fleet-interface.md` | Design decisions | Fleet interface contract | "Thomas chose “Add the device Alarms tab”. The post-release device page offers the same authorized alarm rows as the device filter on the estate or group Alarms tab." | agrees | Configuration and rollout administration use the shared navigation, including the device Alarms tab. |
+
 ## Data Flow (MANDATORY)
 
 ### Entry Point
@@ -206,28 +231,64 @@ with the alarm pages.
 | Web to daemon | `web.RouteDeps.Dispatch`; the existing editor for changes | No |
 
 ### Integration Points
-- [pending design]
+- `ConfigSource` supplies the structured facts for each page. Fleet-ui-2 supplies its optional part registrations.
+- Open the existing configuration session on the named client's stored configuration. Reuse its per-user candidate and declared-client check, including for a first configuration.
+- Route live actions through their owner's authorized commands. A successful hub commit records a desired version. Only a device response may supply its apply result.
 
 ## Wiring Test (MANDATORY -- NOT deferrable)
 
 | Entry Point | → | Feature Code | Test |
 |-------------|---|--------------|------|
-| A diverged device's Config tab on a real build | → | the divergence part over `show fleet divergence name <name>` | [pending design: a `.wb` test] |
+| A diverged device's Config tab on a real build | → | the divergence part over `show fleet divergence name <name>` | `test/web/fleet-config-divergence-live.wb` |
+| A newly declared or previously connected offline device's Config tab | → | the named config session, commit and stored version history | `test/web/fleet-config-offline-edit.wb` |
 
 ## 🧪 TDD Test Plan
 
 ### Unit Tests
 | Test | File | Validates | Status |
 |------|------|-----------|--------|
-| `TestDivergencePartReadsDivergenceCommand` | [pending design] | AC-9 | |
+| `TestDivergencePartReadsDivergenceCommand` | Fleet Config page's divergence provider | AC-9, including refusal from the dispatcher | |
 
 ## Files to Modify
-- [pending design]
+- `internal/component/web/fleetui/handler_config.go` -- replace the prototype action and offline edit refusal with the named configuration session and its permission checks
+- `internal/component/web/fleetui/handler_rollouts.go` -- preview connected targets and show the orchestrator's result
+- `internal/component/web/fleetui/handler_audit.go` -- render and export the scoped, authorized audit result
+- `internal/component/web/fleetui/handler_admin.go` -- wire the existing administration and template controls to the candidate or per-user preferences
+- `docs/architecture/fleet-interface.md` -- record which management actions use real data and which require a device connection
+
+## Files to Create
+- `test/web/fleet-config-divergence-live.wb` -- compare the banner and diff with the device's recorded hold
+- `test/web/fleet-config-offline-edit.wb` -- edit and commit on the hub, observe a later apply or hold, and preserve read-only access
+
+## Design presentation
+
+### What changes
+
+The existing Config, Rollouts, Audit and Administration pages gain their real sources and actions as each backend lands. Config changes use the authenticated user's candidate. Rollouts count connected targets, and audit export uses the same authorized, filtered records shown by the page.
+
+### Before and after
+
+The prototype disables Edit for a declared client that has never connected. Its real Config tab lets a writer stage and commit the client's first configuration and shows Never fetched until contact. A subsequent offline edit likewise creates a hub version. The page shows the actual acknowledgement, refusal or hold when the device reports. A rollout preview separately lists how many members it can reach and how many it will skip.
+
+### Alternatives set aside
+
+Making edit depend on a live device would prevent first provisioning. Sending a page's edits through a live device command would bypass the hub's configuration history and existing hold resolution. The named hub editor already checks declaration and access and provides a candidate, diff and commit.
+
+### Documents departed from
+
+None. The prototype action is explicitly a demonstration. The functional page follows the hub's declared-client write rule.
+
+### Choices for Thomas
+
+Offline configuration editing and connected-only rollout targets were settled in the fleet umbrella on 2026-11-19. The Force complete dialog states that unstarted devices keep their prior version, per the 2026-11-25 fleet-5 decision. It identifies the rollout and how many targets have yet to start before the operator confirms.
 
 ## Implementation Steps
 
-1. **Phase: Wiring** - [pending design]
+1. **Phase: Wiring** - bind the Config tab to a declared client's named editor session and prove that an authorized operator can commit the first configuration before the client connects.
    - Verify: `./le test functional web` runs the fleet browser cases of this spec
+2. Connect the config, history and divergence parts. Show pending delivery and hold resolution from the hub's answers.
+3. Bind rollout controls and previews to fleet-5, including its distinct Aborted state. Confirm destructive actions against the selected rollout.
+4. Bind audit and template pages to their providers. Apply the caller's authorization to both the table and export. Bind administration writes through the configuration candidate or per-user preference store identified in the administration table.
 
 ## Checklist
 

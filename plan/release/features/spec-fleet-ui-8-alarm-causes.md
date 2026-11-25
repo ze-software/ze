@@ -50,8 +50,7 @@ alarm is still open, is still derived from what the hub holds, and is still in
 the history. It has no row of its own: it is listed under its cause. When the
 cause clears and the condition is still true, the alarm is shown.
 
-Hiding is not silencing. No operator hides an alarm, nothing records that one
-was hidden, and nothing has to be undone: whether an alarm is hidden is
+Hiding is not silencing. No operator hides an alarm, no separate record marks an alarm hidden, and nothing has to be undone: whether an alarm is hidden is
 computed, for each answer, from the set of open alarms and the registered
 causes.
 
@@ -59,7 +58,7 @@ What a kind's registration adds:
 
 | Part | Meaning |
 |------|---------|
-| Causes | The names of the kinds that can cause this one. None for most kinds. The kinds that cause a cause are causes too, so the declarations form a tree read from the leaf up |
+| Causes | The names of the kinds that can cause this one. None for most kinds. The kinds that cause a cause are causes too, so the declarations form an acyclic graph read from the affected kind toward its causes |
 | Settles | Whether the kind's figure needs time to become true again after a cause clears. Set by kinds that read a measured figure |
 
 | Rule | Detail |
@@ -67,6 +66,7 @@ What a kind's registration adds:
 | The kind that is hidden declares it | A kind names its own causes in its own registration. No list of causes exists anywhere else, so a later feature adds a kind and its causes without an edit to this spec's code |
 | A declaration is a value | Names and one boolean. It holds no function, so it reads the same when a kind is declared by a plugin that runs in another process |
 | Match | A cause matches when an alarm of that kind is open on the alarm's device. An alarm of the hub itself names no device, so a kind of the hub declares no cause |
+| Several open causes | Follow cause declarations breadth first on the same device. Of the open alarms at the minimum distance, select the smallest stable alarm identifier in byte order. Recompute on a change to any cause: if the nearest clears and a more distant cause is still open, the row stays hidden behind the new nearest cause, with its original opening time. |
 | Refused at start | A cause name that no kind registered, a kind that is its own cause through any chain, and a cause less severe than the kind it would hide. Each is a defect of the build's composition and is reported with both kind names, as the other registries of the interface report theirs. A misspelt cause would otherwise hide nothing and say nothing, and a warning must never hide a critical alarm |
 | Bound | A hidden alarm counts toward the bound on open alarms (`AlarmsMax`), because it is open |
 | Kinds registered before this spec | This spec writes the Causes and Settles parts into the registration of each `fleet-ui-5` kind below that names a cause, in that kind's own registration file. A kind another spec registers after this one writes its own |
@@ -83,7 +83,7 @@ The causes among the kinds `fleet-ui-5` lists, and the kinds other specs add:
 Configuration diverged, Configuration rejected and Software behind name no
 cause: the hub holds those facts itself, and they stay true and stay the
 operator's to fix while the device is offline. History full is the hub's own.
-Relay not granted is decision O-1.
+When the relay capability exists, Relay not granted also stays shown because the grant is independent of connectivity (O-1).
 
 How an alarm moves between its three conditions. What the pages and the
 toasts do at each move is `fleet-ui-9`'s, in "Alarm causes on the pages".
@@ -94,7 +94,7 @@ toasts do at each move is `fleet-ui-9`'s, in "Alarm causes on the pages".
 | Not open | The condition becomes true, a cause is open on the device | Hidden | Listed with `hidden-behind`; the history holds its opening, marked hidden |
 | Shown | A cause opens on the device | Hidden | Gains `hidden-behind`. The history holds no clearing, because nothing cleared |
 | Hidden | The cause clears, the condition is still true, the kind does not settle | Shown | Loses `hidden-behind`. `Since` stays the time the condition became true |
-| Hidden | The cause clears and the kind settles | Hidden until the settle rule below is met, then Shown if the condition is true | As above, when shown |
+| Hidden | The cause clears and the kind settles | Not open | Close the old occurrence at reconnect. A fresh qualifying interval opens a new occurrence with its own identifier and opening time |
 | Hidden | The condition stops being true | Not open | Leaves `show fleet alarm`; its history row remains, marked hidden |
 | Shown | The condition stops being true | Not open | Leaves `show fleet alarm`; the history holds its clearing |
 
@@ -110,7 +110,7 @@ alarm with its own `Since`, which is where it explains the failure.
 is back. A kind that settles counts its configured time again from the moment
 its cause cleared: Resource high is shown only when the figure has stayed above
 the threshold for the configured time, in samples received after the device
-came back. No second timer and no new setting are added (decision O-2).
+came back. The prior occurrence ends at reconnect and stays in history. During qualification the open and hidden lists have no resource row. If fresh samples qualify, the new occurrence opens at qualification and has its own identifier and opening time (decision O-2).
 
 Where a hidden alarm appears in the commands. Where it appears on the pages
 (the Alarms tab, the `has:cause` table, the tree badge, the Alarms card, the
@@ -140,7 +140,7 @@ pages (the `has:cause` term of the Alarms tab filter, the Alarms card line) are
 | Statement | Effect |
 |-----------|--------|
 | "Nothing is acknowledged or silenced", "No acknowledgement" | Kept. Hiding is computed from the open alarms and holds no state an operator set |
-| "Alarms are derived, not stored events" | Kept, and it decides two points: an alarm shown first is hidden when its cause opens later, and there is no "raise again" step when a cause clears, because the alarm never stopped being open |
+| "Alarms are derived, not stored events" | Kept, and it decides two points: an alarm shown first is hidden when its cause opens later, and there is no "raise again" step when a cause clears, because an unmeasured condition that still holds never stopped being open; a measured kind qualifies afresh under O-2 |
 | "Every condition that needs attention is listed once" | Kept. A hidden alarm is listed once, under its cause |
 | AC-4, the alarm "opens in `show fleet alarm`" | Narrowed by AC-10 of this spec: a hidden alarm is listed there with `hidden-behind` |
 | `Alarm` names one device and no other target | The cause match is by device only. A match on an interface or on either end of a tunnel has no alarm kind to serve today (decision O-3) |
@@ -219,7 +219,7 @@ stay here are unchanged.
 |-----------|------------------------------------------|--------------------|-------------------------------------------------------------------|
 | The alarm-kind registry of `fleet-ui-5` | `plan/release/features/spec-fleet-ui-5-alarm-list.md`, "Alarms": a registered entry with its condition, severity and sentence | Planned, not built. Makes the list of kinds open | Extends: two more parts on the same entry, Causes and Settles. No second registry |
 | The alarm tab registry | `internal/component/web/fleetui/handler_alarms.go` `mustRegisterAlarmTab`, filled by `register_activity_pages.go` `registerAlarmTabs` | Maps a kind's name to the device tab where it is examined. Keyed by kind name, panics on a kind registered twice | Does not apply: it answers a page question for a kind and stays the page's. The causes belong to the hub's kind entry, because `show fleet alarm` answers them with no page |
-| `ActivitySource`, `Alarm`, `AlarmEvent` | `internal/component/web/fleetui/source_activity.go`; the same methods as `ActivityPart` in `plan/release/features/spec-fleet-1-device-registry.md` | `Alarms` answers the open alarms, at most `AlarmsMax`. `Alarm` holds one device and no cause | Does not apply here: carrying the hidden-behind fact to the pages is `fleet-ui-9`'s (its "Existing Mechanisms"). This spec makes the hub answer the fact in `show fleet alarm` |
+| `ActivitySource`, `Alarm`, `AlarmEvent` | `internal/component/web/fleetui/source_activity.go`; the same methods as `ActivityPart` in `plan/post-release/features/spec-fleet-ui-2-estate-tree-and-device-tables.md` | `Alarms` answers the open alarms, at most `AlarmsMax`. `Alarm` holds one device and no cause | Does not apply here: carrying the hidden-behind fact to the pages is `fleet-ui-9`'s (its "Existing Mechanisms"). This spec makes the hub answer the fact in `show fleet alarm` |
 | The display state precedence | `internal/component/web/fleetui/state.go` `DeviceDisplayState` | One state per device, by precedence: offline, diverged, down, degraded. An offline device already shows as offline whatever its last health report says | Does not apply, and agrees with it: the alarm list will say what the state mark already says. The precedence is a fixed order of one device's states. The causes are declared per kind, because the kinds are an open set |
 | The sample alarms | `internal/component/web/fleetui/sample/activity.go` `alarmRows`, `alarmsAt` | Twelve open alarms and a script in which a device goes offline and comes back | Does not apply here: the sample answering the hidden-behind fact for the prototype is `fleet-ui-9`'s |
 | The report bus | `internal/core/report/report.go` `RaiseWarning`, `ClearWarning` | One active warning per (source, code, subject) on a device; raising again refreshes it. Codes are free strings with no registry | Does not apply: the hub's alarms keep the same identity shape, a kind and its target. The bus gets no causes: it has no registered kind to declare one on, and its readers are one device's own commands |
@@ -234,6 +234,19 @@ stay here are unchanged.
 | `ai/doors/system.md` | The core knows nothing, and everything registers | System door | "A feature registers from `init()` in its own `register.go` and is discovered" | agrees | Each kind declares its causes in its own registration; no list of causes exists anywhere else (AC-8) |
 | `ai/doors/system.md` | A plugin can run in another process | System door | "A declaration is a pure value." | agrees | A cause declaration is names and one boolean, so it reads the same from a plugin in another process |
 | `ai/doors/le-tooling.md` | Where it sits | The door covering `test/managed/alarm-hidden-behind-offline.ci` | "Functional `.ci` files live under `test/<suite>/` and run through" | agrees | `alarm-hidden-behind-offline` lives under `test/managed/` and runs through `./le test managed` |
+| `docs/architecture/fleet-interface.md` | Design decisions | Fleet alarm visibility | "The proposed alarm defaults apply together. A missing relay grant stays visible while the device is offline. A measured alarm uses its existing threshold duration after reconnect. Causes match within one device. Thomas selected “Use all three defaults”." | agrees | The hub matches kinds within one device, keeps the relay grant independent of connectivity and reuses the resource threshold duration. |
+| `docs/architecture/fleet-interface.md` | Design decisions | Fleet alarm visibility | "Thomas chose the following rule for Resource high at reconnect. “End the old occurrence. Show a new alarm only if fresh samples qualify.”" | agrees | AC-5 closes the old occurrence at reconnect and evaluates fresh samples before opening another. |
+| `docs/architecture/fleet-interface.md` | Design decisions | Fleet alarm visibility | "When a critical alarm becomes visible again after its cause clears, show its toast to an authorized viewer of the affected device. Thomas selected “Show the critical toast”." | agrees | The command supplies the visibility transition. The dependent web spec owns toast delivery. |
+| `docs/architecture/fleet-interface.md` | Design decisions | Fleet interface contract | "For Force complete on a staged rollout, Thomas chose “Leave unstarted devices on their prior version”." | agrees | Alarm cause evaluation does not admit versions to rollout batches. |
+| `docs/architecture/fleet-interface.md` | Design decisions | Fleet interface contract | "Thomas chose “Add the device Alarms tab”. The post-release device page offers the same authorized alarm rows as the device filter on the estate or group Alarms tab." | agrees | Expose each device’s alarm and cause as command data for the post-release tab. |
+| `docs/architecture/api/commands.md` | Transport Request Metadata | anchored to internal/component/managed/yang/ze-managed-cmd.yang | "Caller identity is injected only by trusted transport wiring." | agrees | Only authenticated command context determines which device alarms the caller can inspect. |
+| `docs/architecture/fleet-config.md` | RPCs | anchored to internal/component/managed/yang/ze-managed-cmd.yang | "All RPCs are scoped to that name implicitly." | agrees | Cause matching uses the device bound to the session. |
+| `ai/doors/hub-engine.md` | Boundaries | the door covering internal/component/managed/yang/ze-managed-cmd.yang | "No always-on file imports a gated package." | agrees | The hub can derive causes and answer the command while the web feature is compiled out. |
+| `ai/doors/plugin-infra.md` | Boundaries | the door covering internal/component/plugin/yang/ze-plugin-conf.yang | "The SDK stays generic." | agrees | Alarm kinds declare names and a settling flag, keeping fleet-specific policy with the hub. |
+| `docs/architecture/api/commands.md` | Design decisions | Decision of 2026-08-21 | "The pipe wins: a command path names the subject and stops; scope, presentation and format are pipe operations after it, selector words included" | agrees | The hidden selector operates on the alarm answer as a registered pipe. |
+| `docs/architecture/api/commands.md` | Design decisions | Decision of 2026-11-20 | "A command may override any generic pipe operation that acts on its data, as long as the answer keeps the generic's data format: every data operator of the catalog is overridable, each held to its generic's answer shape; a format, paging, `save` and `log` are the data format or its display, and stay the generic's. In Thomas's words: "I believe it should be possible to overwrite more command as long as their data format is not changed."" | agrees | The registered hidden filter keeps the generic answer shape. |
+| `docs/architecture/api/commands.md` | Design decisions | Decision of 2026-11-23 | "A pipe operation works on the answer of the command before it. It may narrow the answer, extend it, transform it, or deliver it somewhere, such as saving it to a file. It never changes what the command does" | agrees | Filtering never mutates the alarm or acknowledges it. |
+| `docs/architecture/fleet-config.md` | Design decisions | Decision of 2026-11-23 | "A reload that changes the certificate a serving hub's managed listener presents installs it on the running listener at that reload: the next handshake presents the certificate the configuration names, the listener keeps its socket and no session is closed, as the web and looking glass listeners do. The certificate stays in the configuration's `pki` block. In Thomas's words (voice-transcribed): "Keep the certificate in the configuration." and "In that case on commit we can perform the certificate change on the listener."" | agrees | The ordinary certificate reload keeps established sessions, so that operation alone cannot open Device offline. |
 
 ## Data Flow (MANDATORY - see `ai/rules/architecture.md`)
 
@@ -244,7 +257,7 @@ stay here are unchanged.
 ### Transformation Path
 1. The hub derives the open alarms from what it holds, as `fleet-ui-5` does.
 2. For each open alarm, the hub reads its kind's registered causes and finds the nearest open alarm of a cause kind on the same device; that alarm's identifier is `hidden-behind`.
-3. A kind that settles stays hidden after its cause clears until its configured time has passed in samples received after the clear.
+3. On reconnect a measured kind closes its old occurrence. A new occurrence opens only after qualifying fresh samples span its configured duration.
 4. `show fleet alarm` answers the alarms with the hidden-behind fact, and the alarm history marks the rows of the time a cause was open. The pages of `fleet-ui-9` read the same fact and derive their counts from it.
 
 ### Boundaries Crossed
@@ -280,7 +293,7 @@ stay here are unchanged.
 ### Assumptions
 | ID | Assumption | Basis (file/doc/user statement) | If wrong | Validated by | Status |
 |----|-----------|--------------------------------|----------|--------------|--------|
-| A-1 | The hub keeps the last health report and the last sample of a device that is offline | Neither `plan/release/features/spec-fleet-4-inventory-health.md` nor `plan/release/features/spec-fleet-8-metric-history.md` says so today | If either drops them when the device disconnects, the alarms read from them clear at that moment and the matching cause row has nothing to hide | Settled with `fleet-4` and `fleet-8` at their design; a unit test in each that a disconnect keeps the last report and sample | unvalidated |
+| A-1 | The hub keeps the last health report and the last sample of a device that is offline | Fleet-4 retains the timestamped health report and Fleet-8 retains the latest observation separately from missing time-series buckets | If either drops them when the device disconnects, the alarms read from them clear at that moment and the matching cause row has nothing to hide | Settled with `fleet-4` and `fleet-8` at their design; a unit test in each that a disconnect keeps the last report and sample | unvalidated |
 | A-2 | `fleet-ui-5` builds the alarm kinds as registered entries, as it plans | `plan/release/features/spec-fleet-ui-5-alarm-list.md`, "Alarms": "an alarm kind is a registered entry" | Causes have no entry to live on | `fleet-ui-5`'s implementation, read before this spec's design | unvalidated |
 
 ### Risks
@@ -318,12 +331,13 @@ part moved ("Moved to fleet-ui-9").
 | AC-2 | The device of AC-1 comes back and its report still names the component down | `show fleet alarm` lists Component down with no `hidden-behind`, with the `Since` of the moment the component went down | None |
 | AC-3 | A component alarm opens and its condition stops while the device is offline | `show fleet alarm` lists the alarm only with `hidden-behind` while it is open. Its history row exists and is marked hidden | None |
 | AC-4 | Resource high is shown, then its device goes offline | `show fleet alarm` lists it with `hidden-behind` naming Device offline and its own `Since`, and the alarm history holds no clearing for it | None |
-| AC-5 | A device comes back and its first samples are above the resource threshold | Resource high stays hidden until the figure has stayed above the threshold for the configured time in samples received after the device came back, then is shown | A figure that falls below the threshold in that time opens nothing |
-| AC-6 | A device is offline and its configuration is diverged or rejected, or its software is behind | Those alarms are shown beside Device offline | They name no cause, because the hub holds the fact and the operator can act on it |
+| AC-5 | A device comes back and its first samples are above the resource threshold | At reconnect, history shows the old Resource high occurrence cleared. Both open and hidden lists omit it. Fresh samples above the threshold spanning the configured duration open a new occurrence with a new identifier and opening time | A figure that falls below the threshold in that time opens nothing |
+| AC-6 | A device is offline and its configuration is diverged or rejected, or its software is behind, or the installed relay reports an absent grant | Those alarms are shown beside Device offline | They name no cause, because the hub holds the fact and the operator can act on it |
 | AC-7 | A kind registered with a cause name no kind holds, with a chain of causes that returns to itself, or with a cause less severe than itself | The hub refuses to start its alarms and names both kinds and the defect | None |
 | AC-8 | A later feature registers a kind that names Device offline as its cause | Its alarms are hidden behind Device offline with no edit to a file of this spec | None |
 | AC-10 | A condition in `fleet-ui-5`'s alarm table becomes true while a cause is open on its device, then false | `show fleet alarm` lists it with `hidden-behind` while it is open and no longer lists it once the condition is false. This narrows `fleet-ui-5` AC-4 for a hidden alarm | Its history row remains, marked hidden, because the history is the record that it happened |
-| AC-11 | `show fleet alarm` on any command surface, with and without the filter `hidden` | Unfiltered, every open alarm is listed and each hidden one carries `hidden-behind` with the identifier of the nearest open cause alarm; the filter selects the hidden set or the shown set | A shown alarm carries no `hidden-behind`, because it is hidden behind nothing |
+| AC-11 | `show fleet alarm` on any command surface, with and without the filter `hidden` | Unfiltered, every open alarm is listed and each hidden one carries `hidden-behind` with the identifier of the nearest open cause alarm, selected by the stable rule in Alarm causes; the filter selects the hidden set or the shown set | A shown alarm carries no `hidden-behind`, because it is hidden behind nothing |
+| AC-13 | Two registered open causes are equally near on one device. A third open cause is one level farther away. | The selected identifier is the same across insertion orders and command surfaces. Clearing the two nearest causes in succession exposes the remaining nearest one and then the more distant cause. The affected alarm stays hidden with the same `Since` throughout. | A cause on another device cannot explain this occurrence. |
 
 ## End-to-End User Stories
 
@@ -343,17 +357,17 @@ moved to `fleet-ui-9`.
 
 | Test | File | Validates | Status |
 |------|------|-----------|--------|
-| `TestAlarmHiddenBehindOpenCause` | [pending design: the hub alarm model package], over the function that computes hiding from the open alarms and the registry | AC-1, AC-4, AC-6: table cases of open sets and the alarms each one shows and hides, with the nearest open cause named | |
-| `TestAlarmShownWhenCauseClears` | [pending design] | AC-2, AC-3: `Since` is kept, and an alarm that clears while hidden was never shown | |
-| `TestAlarmSettlesAfterCauseClears` | [pending design] | AC-5: hidden until the configured time has passed in samples after the clear, at the boundary one sample short and one sample past | |
-| `TestAlarmKindRegistryRefusesBadCauses` | [pending design] | AC-7: an unknown cause, a cycle of two and of three kinds, a warning that would hide a critical | |
-| `TestAlarmKindRegisteredElsewhereIsHidden` | [pending design], with a kind registered from the test | AC-8 | |
-| `TestAlarmShowHiddenFilter` | [pending design: the `show fleet alarm` handler package] | AC-10, AC-11: the `hidden` filter and the `hidden-behind` field on hidden and shown alarms | |
+| `TestAlarmHiddenBehindOpenCause` | `internal/component/plugin/server/managed_alarm_causes_test.go`, over the function that computes hiding from the open alarms and the registry | AC-1, AC-4, AC-6 and AC-13: table cases of open sets and the alarms each one shows and hides, including an offline target with an absent relay grant that remains shown, with the nearest open cause named | |
+| `TestAlarmShownWhenCauseClears` | `internal/component/plugin/server/managed_alarm_causes_test.go` | AC-2, AC-3: `Since` is kept, and an alarm that clears while hidden was never shown | |
+| `TestAlarmSettlesAfterCauseClears` | `internal/component/plugin/server/managed_alarm_causes_test.go` | AC-5: observe closure at reconnect, absence one sample short, a new identifier and an opening time equal to the first qualifying observation at the exact threshold boundary, and no opening if the figure drops | |
+| `TestAlarmKindRegistryRefusesBadCauses` | `internal/component/plugin/server/managed_alarm_causes_test.go` | AC-7: an unknown cause, a cycle of two and of three kinds, a warning that would hide a critical | |
+| `TestAlarmKindRegisteredElsewhereIsHidden` | `internal/component/plugin/server/managed_alarm_causes_test.go`, with a kind registered from the test | AC-8 | |
+| `TestAlarmShowHiddenFilter` | `internal/component/managed/cmd_alarms_test.go` | AC-10, AC-11: the `hidden` filter and the `hidden-behind` field on hidden and shown alarms | |
 
 ### Boundary Tests (numeric inputs)
 | Field | Range | Last Valid | Invalid Below | Invalid Above |
 |-------|-------|------------|---------------|---------------|
-| Settle time after a cause clears | The kind's configured time (decision O-2) | One sample past the configured time shows the alarm | One sample short keeps it hidden | N/A |
+| Settle time after a cause clears | The kind's configured time (decision O-2) | The first fresh sample meeting the entire configured duration opens a new occurrence at that sample | One sample short leaves no open occurrence | N/A |
 
 ### Functional Tests
 | Test | Location | End-User Scenario | Status |
@@ -363,7 +377,10 @@ moved to `fleet-ui-9`.
 The browser test `fleet-alarm-cause` (`test/web/fleet-alarm-cause.wb`) moved to `fleet-ui-9`.
 
 ## Files to Modify
-- [pending design: the hub alarm model and the kind registrations `fleet-ui-5` creates, the `show fleet alarm` YANG and handler]
+- `internal/component/plugin/server/managed_alarms.go` and the condition registrations from Fleet UI-5 extend the kind declaration with causes and settling.
+- `internal/component/managed/cmd_alarms.go` returns the selected cause and registers the `hidden` pipe through `command.RegisterPipeFilters`.
+- `internal/component/managed/yang/ze-managed-cmd.yang` describes the command answer field.
+- `docs/architecture/fleet-config.md` documents hub alarm visibility, history and same-device matching.
 
 `internal/component/web/fleetui/source_activity.go` and
 `internal/component/web/fleetui/sample/activity.go`, which carry the fact to
@@ -371,12 +388,12 @@ the pages, moved to `fleet-ui-9`.
 
 ## Files to Create
 - `test/managed/alarm-hidden-behind-offline.ci` - functional test through the hub
-- [pending design]
+- `internal/component/plugin/server/managed_alarm_causes_test.go` and `internal/component/managed/cmd_alarms_test.go` prove the cause ordering, occurrence boundaries and command filter.
 
 ### Integration Checklist
 | Integration Point | Applies? | File / reason |
 |-------------------|----------|---------------|
-| YANG schema (new RPCs/config) | Yes | `show fleet alarm` gains the `hidden` filter and the `hidden-behind` answer leaf |
+| YANG schema (new RPCs/config) | Yes | `show fleet alarm` gains the `hidden-behind` answer leaf. Its command handler registers the `hidden` pipe |
 | YANG validation constraints | | |
 | YANG custom validators | | |
 | CLI commands/flags | Yes | `show fleet alarm` filter |
@@ -415,11 +432,11 @@ the pages, moved to `fleet-ui-9`.
 
 ### What changes
 
-[pending design]
+The hub explains related alarms on the same device. Each affected kind declares its causes. Every command surface reads the same result from the hub, including the identifier of the nearest open cause. A change in visibility preserves the opening time of a condition that is still true.
 
 ### Before and after
 
-[pending design]
+Suppose edge-01 reports a failed component at 09:00 and its offline alarm opens at 09:05. The basic alarm list has two rows with independent opening times. With causes enabled the unfiltered command still returns both. Device offline is shown, and Component down carries the offline alarm's identifier in `hidden-behind`. A component failure on edge-02 keeps its own row. On reconnect, Resource high closes even if the last stored CPU sample is high. Its history preserves that occurrence, and fresh high samples may open another. If edge-01 reconnects and still reports the failure, Component down is shown again with its original 09:00 opening time.
 
 ### Alternatives set aside
 
@@ -439,13 +456,15 @@ moved to `fleet-ui-9` as its C-1, because a toast is a page's.
 
 | # | Choice | Options | Decision |
 |---|--------|---------|----------|
-| O-1 | Is Relay not granted caused by Device offline? | (a) recommended, No: it stays, because the grant is a fact the hub was told and the operator can prepare the fix while the device is away; (b) Yes: the informational row leaves the list while the device is offline, and returns with it | |
-| O-2 | How long does a settling alarm wait after its cause clears? | (a) recommended, the kind's own configured time, counted again from the clear: no new setting, and the wait is as long as the operator already chose for that alarm; (b) a separate settle time per kind: one more setting, and a short alarm time can be combined with a long wait after recovery; (c) no wait: a figure that is still high in the first sample after recovery is shown at once | |
-| O-3 | Does the cause match carry targets other than one device now? | (a) recommended, No, until a kind needs it: the match is by device only, and the first kind about an interface or a tunnel adds its target with its own design; (b) Now: `Alarm` gains an interface target and a list of devices, so a tunnel alarm is hidden when either end is offline, and the part contract of `fleet-1` changes for kinds that do not exist yet | |
+| O-1 | Is Relay not granted caused by Device offline? | (a) recommended, No: it stays, because the grant is a fact the hub was told and the operator can prepare the fix while the device is away; (b) Yes: the informational row leaves the list while the device is offline, and returns with it | (a), 2026-11-25. Thomas selected “Use all three defaults”. |
+| O-2 | How long does a settling alarm wait after its cause clears? | (a) recommended, the kind's own configured time, counted again from the clear: no new setting, and the wait is as long as the operator already chose for that alarm; (b) a separate settle time per kind: one more setting, and a short alarm time can be combined with a long wait after recovery; (c) no wait: a figure that is still high in the first sample after recovery is shown at once | (a), 2026-11-25. Thomas selected “Use all three defaults”. |
+| O-3 | Does the cause match carry targets other than one device now? | (a) recommended, No, until a kind needs it: the match is by device only, and the first kind about an interface or a tunnel adds its target with its own design; (b) Now: `Alarm` gains an interface target and a list of devices, so a tunnel alarm is hidden when either end is offline, and the part contract of `fleet-1` changes for kinds that do not exist yet | (a), 2026-11-25. Thomas selected “Use all three defaults”. |
+
+Thomas settled the occurrence boundary on 2026-11-25: “End the old occurrence. Show a new alarm only if fresh samples qualify.”
 
 ## Implementation Steps
 
-1. **Phase: Wiring (MANDATORY FIRST)** -- [pending design]
+1. **Phase: Wiring (MANDATORY FIRST)** -- register a cause on an existing alarm kind and observe the same cause identifier through the hub command, before implementing transitive selection and reconnect handling.
    - Tests: `test/managed/alarm-hidden-behind-offline.ci`
    - Verify: `./le test managed` runs the wiring test, red until the hiding is computed
 

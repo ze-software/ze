@@ -9,6 +9,16 @@ build is made.
 The interface is being built as a prototype first: the real routes, shell and
 markup, reading a sample estate. No page acts on a real estate yet.
 
+## Design decisions
+
+| Decision | It forbids | Source | Date |
+|----------|------------|--------|------|
+| The proposed alarm defaults apply together. A missing relay grant stays visible while the device is offline. A measured alarm uses its existing threshold duration after reconnect. Causes match within one device. Thomas selected “Use all three defaults”. | Hiding a missing grant behind an offline device, adding a second threshold duration, or matching a cause across devices | plan/release/features/spec-fleet-ui-8-alarm-causes.md | 2026-11-25 |
+| Thomas chose the following rule for Resource high at reconnect. “End the old occurrence. Show a new alarm only if fresh samples qualify.” | Leaving a stale resource alarm open during the new interval or transferring the old opening time to a new occurrence | plan/release/features/spec-fleet-ui-8-alarm-causes.md | 2026-11-25 |
+| When a critical alarm becomes visible again after its cause clears, show its toast to an authorized viewer of the affected device. Thomas selected “Show the critical toast”. | Sending that toast outside the authorized view or silently suppressing the critical alarm's return within that view | plan/post-release/features/spec-fleet-ui-9-tasks-notifications-and-alarm-pages.md | 2026-11-25 |
+| For Force complete on a staged rollout, Thomas chose “Leave unstarted devices on their prior version”. | Releasing the pending configuration to an unstarted batch when an operator force-completes a rollout | plan/post-release/features/spec-fleet-5-staged-rollout.md | 2026-11-25 |
+| Thomas chose “Add the device Alarms tab”. The post-release device page offers the same authorized alarm rows as the device filter on the estate or group Alarms tab. | Restricting the Alarms tab to estates and groups in the operational fleet interface | plan/post-release/features/spec-fleet-ui-9-tasks-notifications-and-alarm-pages.md | 2026-11-25 |
+
 ## The package
 
 `internal/component/web/fleetui` holds the whole interface: its handlers, its
