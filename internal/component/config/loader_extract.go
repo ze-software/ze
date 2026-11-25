@@ -12,6 +12,7 @@ import (
 	"strconv"
 	"strings"
 	"unicode"
+	"unicode/utf8"
 
 	"github.com/ze-software/ze/internal/component/plugin"
 	"github.com/ze-software/ze/internal/core/env"
@@ -1167,7 +1168,7 @@ func readClientLabels(block, client string, tree *Tree) (map[string]string, erro
 
 // printableManagedLabel accepts a nonempty value made entirely of printable runes.
 func printableManagedLabel(value string) bool {
-	return value != "" && strings.IndexFunc(value, func(r rune) bool { return !unicode.IsPrint(r) }) < 0
+	return value != "" && utf8.ValidString(value) && strings.IndexFunc(value, func(r rune) bool { return !unicode.IsPrint(r) }) < 0
 }
 
 func managedClientLabelAgreement(client, first, other string, want, got map[string]string) error {

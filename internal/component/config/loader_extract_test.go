@@ -81,6 +81,10 @@ func TestExtractHubConfigLabelPrintable(t *testing.T) {
 		valid bool
 	}{
 		{"Île de Ré", true},
+		{"North\uFFFD", true},
+		{"site\xff", false},
+		{"\xc3", false},
+		{"\x80", false},
 		{"London\tNorth", false},
 		{"London\u200bNorth", false},
 	} {
