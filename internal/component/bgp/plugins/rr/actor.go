@@ -63,10 +63,16 @@ func (rr *routeReflector) sourcePolicyActor(owner, generation uint64) (peerIdent
 }
 
 func (rr *routeReflector) targets(source peerIdentity, fam family.Family) []peerTarget {
+	targets, _ := rr.targetsWithHold(source, fam)
+	return targets
+}
+
+func (rr *routeReflector) targetsWithHold(source peerIdentity, fam family.Family) ([]peerTarget, bool) {
 	rr.mu.RLock()
 	defer rr.mu.RUnlock()
 	src := rr.peers[source]
 	targets := make([]peerTarget, 0, len(rr.peers))
+	anyHeld := false
 	for identity, state := range rr.peers {
 		if identity.owner == source.owner {
 			continue
@@ -93,9 +99,12 @@ func (rr *routeReflector) targets(source peerIdentity, fam family.Family) []peer
 				continue
 			}
 		}
+		if state.awaitingSessionReady {
+			anyHeld = true
+		}
 		targets = append(targets, peerTarget{identity: identity, session: state.DestinationSession, generation: state.ReplayGen})
 	}
-	return targets
+	return targets, anyHeld
 }
 
 func (rr *routeReflector) targetCurrent(target peerTarget) bool {
@@ -218,7 +227,7 @@ func (rr *routeReflector) relayToPeer(ctx context.Context, target peerTarget, _ 
 				rr.noteWorkFailure("stored relay original identity", identityErr)
 				continue
 			}
-			rr.noteSourceOutputFailure(source, "stored relay", err)
+			rr.noteForwardFailure("stored relay", err, source)
 		}
 	}
 	return err

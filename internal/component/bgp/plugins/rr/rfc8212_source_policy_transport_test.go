@@ -83,7 +83,7 @@ func TestRFC8212RouteReflectorSourcePolicyTransport(t *testing.T) {
 			}
 
 			for _, event := range []string{
-				"peer " + rrTransportSource + " remote as 65001 state up peer-owner 1 connection-id 41 session-generation 3 destination-session 141 reason attached\n",
+				"peer " + rrTransportSource + " remote as 65001 state up peer-owner 1 connection-id 41 session-generation 3 destination-session 141 reason attached is-ibgp true rr-client true\n",
 				"peer " + rrTransportSource + " remote as 65001 received update 100 peer-owner 1 connection-id 41 source-receipt " + strconv.FormatUint(receipt, 10) + " source-policy-epoch 5 " +
 					"origin igp next " + rrTransportSource + " nlri ipv4/unicast add 10.1.0.0/24\n",
 			} {

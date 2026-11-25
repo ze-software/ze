@@ -36,6 +36,9 @@ func (r *AdjRIBInManager) replayRoutesCommand(args []string) (string, any, error
 	if err != nil {
 		return statusError, "", fmt.Errorf("adj-rib-in replay-routes: invalid from-index %q: %w (expected a non-negative integer)", args[1], err)
 	}
+	if len(args) == 4 && args[2] == ribevents.ReplaySourceProgressArgument {
+		return r.replaySourceProgressCommand(fromIndex, args[3])
+	}
 	cut := unboundedReplay()
 	if len(args) > 2 {
 		maxMsgID, parseErr := strconv.ParseUint(args[2], 10, 64)

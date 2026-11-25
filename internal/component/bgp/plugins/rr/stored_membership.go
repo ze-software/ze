@@ -491,7 +491,7 @@ func storedInventory(route rpc.StoredRoute) (withdrawalKey, withdrawalInfo, ribe
 		return withdrawalKey{}, withdrawalInfo{}, ribevents.ValidationRoute{}, err
 	}
 	validation := ribevents.ValidationRoute{Peer: address, PeerOwner: route.SourceOwner, ConnectionID: route.SourceConnectionID, Family: fam, PathID: pathID}
-	if isUnicast(fam) {
+	if isUnicast(fam) || fam == family.IPv4Multicast || fam == family.IPv6Multicast {
 		parsed, rest, err := nlri.ParseINET(fam.AFI, fam.SAFI, raw, false)
 		if err != nil {
 			return withdrawalKey{}, withdrawalInfo{}, ribevents.ValidationRoute{}, err

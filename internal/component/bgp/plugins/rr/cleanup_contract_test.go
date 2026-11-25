@@ -171,9 +171,9 @@ func TestRRCompletedCachedRefusalKeepsWholeTargetSet(t *testing.T) {
 	second, err := newPeerIdentity("192.0.2.2", 703, 43)
 	require.NoError(t, err)
 	rr := &routeReflector{plugin: plugin, peers: map[peerIdentity]*peerState{
-		source: {Identity: source, Up: true, DestinationSession: 141},
-		first:  {Identity: first, Up: true, DestinationSession: 142},
-		second: {Identity: second, Up: true, DestinationSession: 143},
+		source: {Identity: source, Up: true, Internal: true, RRClient: true, DestinationSession: 141},
+		first:  {Identity: first, Up: true, Internal: true, RRClient: true, DestinationSession: 142},
+		second: {Identity: second, Up: true, Internal: true, RRClient: true, DestinationSession: 143},
 	}}
 	calls := 0
 	bridge.SetForwardCached(func(_ context.Context, input rpc.ForwardCachedInput) (*rpc.CachedWriteOutput, error) {

@@ -15,6 +15,7 @@ func (rr *routeReflector) replayParent() context.Context {
 // The lifecycle MUST finish its admission and close done after all replay phases
 // and its final readiness report, including on an optional-store failure.
 func (rr *routeReflector) startPeerReplay(target peerTarget, initialReplay uint64) {
+	rr.captureReplaySources(target)
 	done := make(chan struct{})
 	ctx, admitted := rr.replays.begin(rr.downCtx, done)
 	if !admitted {

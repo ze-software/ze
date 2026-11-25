@@ -27,7 +27,8 @@ import (
 // judged on the store's own grant and refused.
 //
 // Arguments: "<destination> <from-index> [<max-msg-id>]", the same cursor and
-// cut as `request bgp adj-rib-in replay`.
+// cut as `request bgp adj-rib-in replay`. The projection-only form is
+// "<destination> 0 source-progress <json>", which answers ReplaySourceProgress.
 const ReplayRoutesCommand = "request bgp adj-rib-in replay-routes"
 
 // ReplayPathCommand asks the receive store for the current state of one source

@@ -137,6 +137,12 @@ func TestRRColdReplayRechecksWithdrawnRowAcrossRegisteredTransports(t *testing.T
 							return nil, err
 						}
 						if command.Command == ribevents.ReplayRoutesCommand {
+							if len(command.Args) == 4 && command.Args[2] == ribevents.ReplaySourceProgressArgument {
+								mu.Lock()
+								progress = 80
+								mu.Unlock()
+								return &rpc.DispatchCommandOutput{Status: rpc.StatusDone, Data: json.RawMessage(`{"covered":true}`)}, nil
+							}
 							page, err := json.Marshal(ribevents.ReplayPage{Routes: rows})
 							if err != nil {
 								return nil, err

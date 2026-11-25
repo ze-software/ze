@@ -333,6 +333,7 @@ func (rr *routeReflector) endOwner(owner uint64) {
 		rr.mu.Lock()
 		state.Up = false
 		state.DownSeen = true
+		state.awaitingSessionReady = false
 		state.RetainPending = false
 		state.optionalReplayErr = nil
 		rr.mu.Unlock()

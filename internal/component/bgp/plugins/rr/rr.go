@@ -85,6 +85,9 @@ const (
 
 // peerState tracks a connected peer's state and capabilities.
 type peerState struct {
+	// replaySources belongs to this original established destination. It is
+	// captured once before its replay starts and reads no later actor's state.
+	replaySources []ribevents.ReplaySource
 	// replayDebt is current work for this original target only, guarded by mu.
 	replayDebt        *peerReplayDebt
 	replayCalls       uint64 // Guarded by mu; pins this original actor until its admitted replay returns.
@@ -96,26 +99,27 @@ type peerState struct {
 	// inventoryRevision and processedMsgID are guarded by withdrawalMu. They
 	// describe only this original actor's current receive projection, not a
 	// tombstone or a second route inventory.
-	inventoryRevision   uint64
-	processedMsgID      uint64
-	leaseMu             sync.Mutex
-	leaseCall           sync.Mutex
-	Address             string
-	Identity            peerIdentity
-	DestinationSession  uint64
-	SourceReceipt       uint64
-	Leased              bool
-	DownSeen            bool
-	PublishedGeneration uint64
-	RetainPending       bool
-	ASN                 uint32
-	Up                  bool
-	Internal            bool // Session is iBGP (internal); false for eBGP (Q-5, AC-19).
-	RRClient            bool // Session is an RFC 4456 route-reflector client.
-	UpdateSendDenied    bool
-	ReplayGen           uint64 // Incremented on each state-up, guards stale goroutines
-	Families            map[family.Family]bool
-	Capabilities        map[string]bool
+	inventoryRevision    uint64
+	processedMsgID       uint64
+	leaseMu              sync.Mutex
+	leaseCall            sync.Mutex
+	Address              string
+	Identity             peerIdentity
+	DestinationSession   uint64
+	SourceReceipt        uint64
+	Leased               bool
+	DownSeen             bool
+	PublishedGeneration  uint64
+	RetainPending        bool
+	ASN                  uint32
+	Up                   bool
+	Internal             bool // Session is iBGP (internal); false for eBGP (Q-5, AC-19).
+	RRClient             bool // Session is an RFC 4456 route-reflector client.
+	UpdateSendDenied     bool
+	awaitingSessionReady bool   // Guarded by mu; true while reactor forwardOrderHold awaits signalSessionReady.
+	ReplayGen            uint64 // Incremented on each state-up, guards stale goroutines
+	Families             map[family.Family]bool
+	Capabilities         map[string]bool
 }
 
 // ownerRouteKey indexes the active physical connection for one (address, owner,
@@ -175,8 +179,9 @@ type routeReflector struct {
 	// forwards counts the received UPDATEs being reflected, and validation
 	// is the revalidation worker (nil without an event bus): a source-policy
 	// phase waits for both (settleSource).
-	forwards   forwardGate
-	validation *validationQueue
+	forwards        forwardGate
+	forwardDispatch *rrForwardDispatcher
+	validation      *validationQueue
 
 	// departures holds the workers that send each departed source's routes
 	// to the engine (sendPeerDown), up to departureWorkers sources at once,
@@ -224,9 +229,11 @@ func serveRouteReflector(p *sdk.Plugin) int {
 		withdrawals: make(map[string]map[withdrawalKey]withdrawalInfo),
 		downCtx:     downCtx,
 	}
+	rr.forwardDispatch = newRRForwardDispatcher(rr.runForwardTask)
 	defer rr.stopDepartures()
 	defer func() {
 		stopDown()
+		rr.forwardDispatch.stop()
 		rr.replays.stop()
 	}()
 
@@ -350,6 +357,13 @@ func (rr *routeReflector) forwardUpdate(ctx context.Context, source peerIdentity
 		return rr.plugin.ReleaseCached(ctx, []uint64{msgID})
 	}
 	targets := rr.targets(source, family.Family{})
+	return rr.forwardCaptured(ctx, source, msgID, targets)
+}
+
+func (rr *routeReflector) forwardCaptured(ctx context.Context, _ peerIdentity, msgID uint64, targets []peerTarget) error {
+	if rr.stopping.Load() {
+		return rr.plugin.ReleaseCached(ctx, []uint64{msgID})
+	}
 	if len(targets) == 0 {
 		return rr.plugin.ReleaseCached(ctx, []uint64{msgID})
 	}
@@ -522,11 +536,7 @@ func (rr *routeReflector) handleStructuredState(se *rpc.StructuredEvent) error {
 			return err
 		}
 		if !peer.Internal {
-			target := peerTarget{identity: identity, session: peer.DestinationSession, generation: peer.ReplayGen}
 			rr.mu.Unlock()
-			if se.InitialReplay != 0 && !se.UpdateSendDenied && se.Reason != rpc.ReasonAttached && rr.plugin != nil {
-				rr.signalExternalReady(target, se.InitialReplay)
-			}
 			return nil
 		}
 		if se.Reason == rpc.ReasonAttached {
@@ -538,6 +548,7 @@ func (rr *routeReflector) handleStructuredState(se *rpc.StructuredEvent) error {
 			return nil
 		}
 		peer.ReplayGen++
+		peer.awaitingSessionReady = se.InitialReplay != 0
 		target := peerTarget{identity: identity, session: peer.DestinationSession, generation: peer.ReplayGen}
 		rr.mu.Unlock()
 		rr.startPeerReplay(target, se.InitialReplay)
@@ -596,6 +607,7 @@ func (rr *routeReflector) handleStateDown(source peerIdentity, generation uint64
 	rr.mu.Lock()
 	state.Up = false
 	state.DownSeen = true
+	state.awaitingSessionReady = false
 	state.optionalReplayErr = nil
 	rr.mu.Unlock()
 	rr.withdrawalMu.Lock()
@@ -1064,27 +1076,64 @@ func (rr *routeReflector) replayForPeer(parent context.Context, target peerTarge
 		}
 		return err
 	}
-	progress, readFailure := ribevents.RelayReplay(ctx, rr.dispatchCommand, relay, destination, 0, "")
-	replayed := progress.Replayed
-	last := progress.LastIndex
+	readFailure := rr.waitReplaySources(ctx, target, state.replaySources)
+	if readFailure != nil {
+		if !errors.Is(readFailure, ribevents.ErrReplayStoreAbsent) {
+			rr.rememberReplay(target, initialReplay, readFailure)
+			return
+		}
+	}
+	rr.mu.Lock()
+	state.replaySources = nil
+	rr.mu.Unlock()
+	if !rr.targetCurrent(target) {
+		return
+	}
+	replayed := 0
 	if readFailure == nil {
-		for range replayConvergenceMax {
-			if last == 0 {
+		for attempt := 0; attempt <= replayConvergenceMax; attempt++ {
+			relayFailure = nil
+			readFailure = nil
+			progress, err := ribevents.RelayReplay(ctx, rr.dispatchCommand, relay, destination, 0, "")
+			readFailure = err
+			replayed += progress.Replayed
+			last := progress.LastIndex
+			for range replayConvergenceMax {
+				if readFailure != nil {
+					break
+				}
+				if last == 0 {
+					break
+				}
+				if !rr.targetCurrent(target) {
+					return
+				}
+				delta, err := ribevents.RelayReplay(ctx, rr.dispatchCommand, relay, destination, last, "")
+				replayed += delta.Replayed
+				if err != nil {
+					readFailure = err
+					break
+				}
+				if delta.Replayed == 0 {
+					break
+				}
+				last = delta.LastIndex
+			}
+			if relayFailure == nil {
+				break
+			}
+			if !isJoinedDepartedSourceRelayError(relayFailure) {
 				break
 			}
 			if !rr.targetCurrent(target) {
-				return
-			}
-			delta, err := ribevents.RelayReplay(ctx, rr.dispatchCommand, relay, destination, last, "")
-			replayed += delta.Replayed
-			if err != nil {
-				readFailure = err
 				break
 			}
-			if delta.Replayed == 0 {
+			if attempt == replayConvergenceMax {
 				break
 			}
-			last = delta.LastIndex
+			if err := waitStoredEligibility(ctx); err != nil {
+				break
+			}
 		}
 	}
 	if relayFailure != nil {
@@ -1173,7 +1222,15 @@ func (rr *routeReflector) signalSessionReady(parent context.Context, target peer
 	if !rr.targetCurrent(target) {
 		return nil
 	}
-	return rr.dispatchSessionReady(parent, target, initialReplay)
+	err := rr.dispatchSessionReady(parent, target, initialReplay)
+	if err == nil {
+		rr.mu.Lock()
+		if state := rr.peers[target.identity]; state != nil && state.DestinationSession == target.session && state.ReplayGen == target.generation {
+			state.awaitingSessionReady = false
+		}
+		rr.mu.Unlock()
+	}
+	return err
 }
 
 func (rr *routeReflector) dispatchSessionReady(parent context.Context, target peerTarget, initialReplay uint64) error {
@@ -1183,25 +1240,6 @@ func (rr *routeReflector) dispatchSessionReady(parent context.Context, target pe
 	command := text.Str("request peer ").Str(target.identity.address.String()).Str(" plugin session ready session ").Uint(initialReplay).String()
 	_, _, err := rr.plugin.DispatchDestinationCommand(ctx, rpc.DispatchCommandInput{Command: command, DestinationOwner: target.identity.owner, DestinationSession: target.session})
 	return err
-}
-
-// signalExternalReady lowers an eBGP session's initial-update barrier when the
-// engine asks bgp-rr for one, without running peer-up replay toward an eBGP peer.
-func (rr *routeReflector) signalExternalReady(target peerTarget, initialReplay uint64) {
-	done := make(chan struct{})
-	ctx, admitted := rr.replays.begin(rr.downCtx, done)
-	if !admitted {
-		rr.replays.finish(done)
-		return
-	}
-	go rr.runExternalReady(ctx, done, target, initialReplay)
-}
-
-func (rr *routeReflector) runExternalReady(ctx context.Context, done chan struct{}, target peerTarget, initialReplay uint64) {
-	defer rr.replays.finish(done)
-	if err := rr.dispatchSessionReady(ctx, target, initialReplay); err != nil {
-		rr.reportUpdateFailure(target.identity.address.String(), "external session ready", err)
-	}
 }
 
 // nlriDelCmd is one text withdrawal of prefixes, each a complete NLRI

@@ -13,6 +13,7 @@ import (
 
 	"encoding/json"
 	"fmt"
+
 	"github.com/ze-software/ze/internal/component/bgp/plugins/nlri/vpn"
 	"github.com/ze-software/ze/internal/component/bgp/retention"
 	"github.com/ze-software/ze/internal/core/family"
@@ -176,8 +177,8 @@ func TestPeerDownSkipsRetainedFamilies(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			rr, requests := newPeerDownReflector(t, rrOriginalFixture(t, "192.0.2.1", 701, 41))
-			rr.dispatchText("peer " + source + " remote as 65001 state up peer-owner 701 connection-id 41 session-generation 7 destination-session 141 reason attached")
-			rr.dispatchText("peer " + other + " remote as 65002 state up peer-owner 702 connection-id 42 session-generation 7 destination-session 142 reason attached")
+			rr.dispatchText("peer " + source + " remote as 65001 state up peer-owner 701 connection-id 41 session-generation 7 destination-session 141 reason attached is-ibgp true rr-client true")
+			rr.dispatchText("peer " + other + " remote as 65002 state up peer-owner 702 connection-id 42 session-generation 7 destination-session 142 reason attached is-ibgp true rr-client true")
 			// bgp-gr's verdict reaches bgp-rr as the bgp-gr/retention event,
 			// through the same event handler the DOWN arrives on, before it.
 			rr.dispatchText(retentionEvent(t, tt.retainedPeer, tt.retainedOwner, tt.retainedConnection, tt.retainedFam))
@@ -230,8 +231,8 @@ func TestRetentionVerdictConsumedPerDown(t *testing.T) {
 	origin := []byte{0x40, 1, 1, 0}
 
 	rr, requests := newPeerDownReflector(t, rrOriginalFixture(t, "192.0.2.1", 701, 41))
-	rr.dispatchText("peer " + source + " remote as 65001 state up peer-owner 701 connection-id 41 session-generation 7 destination-session 141 reason attached")
-	rr.dispatchText("peer " + other + " remote as 65002 state up peer-owner 702 connection-id 42 session-generation 7 destination-session 142 reason attached")
+	rr.dispatchText("peer " + source + " remote as 65001 state up peer-owner 701 connection-id 41 session-generation 7 destination-session 141 reason attached is-ibgp true rr-client true")
+	rr.dispatchText("peer " + other + " remote as 65002 state up peer-owner 702 connection-id 42 session-generation 7 destination-session 142 reason attached is-ibgp true rr-client true")
 	rr.dispatchText(retentionEvent(t, source, 701, 41, family.IPv4Unicast))
 	rr.dispatchText(retentionEvent(t, other, 702, 42, family.IPv4Unicast))
 	rrOriginalWire(t, rr, rrOriginalFixture(t, source, 701, 41), 70, 80, rrAddPathUpdate(t, nil, origin, path11))

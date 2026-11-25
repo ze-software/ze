@@ -5,6 +5,7 @@ package rr
 import (
 	"context"
 	"encoding/hex"
+	"net/netip"
 	"strconv"
 	"testing"
 
@@ -160,4 +161,54 @@ func TestWithdrawalIndexTracksPutSupersedeWithdrawAndLookup(t *testing.T) {
 	require.Zero(t, rr.addressTracked[addr])
 	require.False(t, rr.sourceMemberLocked(oldSource))
 	rr.withdrawalMu.Unlock()
+}
+
+// TestStoredInventoryMulticastValidationPrefix verifies that storedInventory
+// populates ValidationRoute.Prefix (not ValidationRoute.NLRI) for ipv4/multicast
+// and ipv6/multicast, matching adj-rib-in's isSimplePrefixFamily lookup key.
+//
+// VALIDATES: bgp-rr eligibility queries for stored multicast routes carry a
+// valid CIDR Prefix so adj-rib-in recognizes them during peer-up replay.
+// PREVENTS: bgp-rr dropping all ipv4/multicast and ipv6/multicast routes on
+// peer-up replay because validation.Prefix was left zero.
+func TestStoredInventoryMulticastValidationPrefix(t *testing.T) {
+	cases := []struct {
+		name    string
+		fam     string
+		nlriHex string
+		want    netip.Prefix
+	}{
+		{
+			name:    "ipv4 multicast",
+			fam:     "ipv4/multicast",
+			nlriHex: "18ec014c", // 236.1.76.0/24
+			want:    netip.MustParsePrefix("236.1.76.0/24"),
+		},
+		{
+			name:    "ipv6 multicast",
+			fam:     "ipv6/multicast",
+			nlriHex: "30ff0e00000001", // ff0e:0:1::/48
+			want:    netip.MustParsePrefix("ff0e:0:1::/48"),
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			route := rpc.StoredRoute{
+				SourcePeer:         "127.0.0.5",
+				SourceOwner:        11,
+				SourceConnectionID: 99,
+				SourceReceipt:      77,
+				Family:             tc.fam,
+				AttrHex:            "40010100",
+				NLRIHex:            tc.nlriHex,
+				NLRIFraming:        rpc.NLRIFramingPrefixOnly,
+				MsgID:              42,
+			}
+			_, _, validation, err := storedInventory(route)
+			require.NoError(t, err)
+			require.Equal(t, tc.want, validation.Prefix)
+			require.Empty(t, validation.NLRI)
+		})
+	}
 }

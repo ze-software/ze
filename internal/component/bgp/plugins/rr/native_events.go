@@ -89,6 +89,13 @@ func (rr *routeReflector) textState(fields []string) error {
 			index += 2
 			continue
 		}
+		if fields[index] == "notification" {
+			if index+3 >= len(fields) {
+				return errors.New("bgp-rr: state notification has too few fields")
+			}
+			index += 4
+			continue
+		}
 		parsed, next, err := eventNumbers(fields, index)
 		if err != nil {
 			return err

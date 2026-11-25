@@ -45,7 +45,7 @@ func TestReplayEORCarriesReplayMeta(t *testing.T) {
 	})
 	bridge.SetReady()
 	rr := &routeReflector{plugin: p, peers: map[peerIdentity]*peerState{
-		rrOriginalFixture(t, target, 702, 42): {Address: target, Identity: rrOriginalFixture(t, target, 702, 42), DestinationSession: 142, Up: true, ReplayGen: 3, Families: map[family.Family]bool{family.IPv4Unicast: true, family.IPv6Unicast: true}},
+		rrOriginalFixture(t, target, 702, 42): {Address: target, Identity: rrOriginalFixture(t, target, 702, 42), DestinationSession: 142, Up: true, Internal: true, RRClient: true, ReplayGen: 3, Families: map[family.Family]bool{family.IPv4Unicast: true, family.IPv6Unicast: true}},
 	}}
 	if err := rr.sendEOR(t.Context(), peerTarget{identity: rrOriginalFixture(t, target, 702, 42), session: 142, generation: 3}); err != nil {
 		t.Fatal(err)

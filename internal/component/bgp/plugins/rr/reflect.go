@@ -8,6 +8,7 @@ import (
 	"fmt"
 
 	bgptypes "github.com/ze-software/ze/internal/component/bgp/types"
+	"github.com/ze-software/ze/internal/core/family"
 	"github.com/ze-software/ze/pkg/plugin/rpc"
 )
 
@@ -52,9 +53,13 @@ func (rr *routeReflector) reflectWire(event *rpc.StructuredEvent, msg *bgptypes.
 	rr.forwards.enter()
 	rr.withdrawalMu.Unlock()
 	state.leaseMu.Unlock()
+	targets, held := rr.targetsWithHold(source, family.Family{})
+	if rr.enqueueForwardIfNeeded(source, msg.MessageID, targets, held, "cached reflection") {
+		return nil
+	}
 	defer rr.wakeCurrentReplay()
 	defer rr.forwards.leave()
-	err = rr.forwardUpdate(ctx, source, msg.MessageID)
+	err = rr.forwardCaptured(ctx, source, msg.MessageID, targets)
 	rr.noteForwardFailure("cached reflection", err, source)
 	return forwardResult(err)
 }
@@ -96,9 +101,13 @@ func (rr *routeReflector) reflectText(address string, owner, connection, receipt
 	rr.forwards.enter()
 	rr.withdrawalMu.Unlock()
 	state.leaseMu.Unlock()
+	targets, held := rr.targetsWithHold(source, family.Family{})
+	if rr.enqueueForwardIfNeeded(source, msgID, targets, held, "cached text reflection") {
+		return nil
+	}
 	defer rr.wakeCurrentReplay()
 	defer rr.forwards.leave()
-	err = rr.forwardUpdate(ctx, source, msgID)
+	err = rr.forwardCaptured(ctx, source, msgID, targets)
 	rr.noteForwardFailure("cached text reflection", err, source)
 	return forwardResult(err)
 }
