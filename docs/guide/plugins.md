@@ -47,18 +47,22 @@ containers, which is what lets a list path match.
 
 ## Loading Plugins
 
-Optional plugins are declared in the `plugin { }` block. Built-in plugins use `internal`, external processes use `external`. BGP loads `bgp-rib` automatically; an explicit RIB declaration is useful when naming that instance:
+Optional plugins and external programs are declared as endpoints in the `bus { }`
+block. Built-in plugins set `internal <plugin-name>;`, and external programs use
+an `external { run "..."; }` block. BGP loads `bgp-rib` automatically; an
+explicit endpoint declaration is useful when naming that instance, running it in
+a separate process (`process separate;`), or attaching bus-side filters:
 
 ```
-plugin {
-    internal rib {
-        use bgp-rib
+bus {
+    endpoint rib {
+        internal bgp-rib;
     }
-    internal adj-rib-in {
-        use bgp-adj-rib-in
+    endpoint adj-rib-in {
+        internal bgp-adj-rib-in;
     }
-    internal gr {
-        use bgp-gr
+    endpoint gr {
+        internal bgp-gr;
     }
 }
 ```
@@ -66,41 +70,48 @@ plugin {
 For external processes (scripts, custom binaries):
 
 ```
-plugin {
-    external collector {
-        run ./collector.py
-        encoder json
+bus {
+    endpoint collector {
+        external {
+            run ./collector.py;
+        }
+        encoding json;
     }
 }
 ```
 
-### Plugin Block Settings
+### Bus Endpoint Settings
 
-The system RIB uses the registration name `rib`. To run it externally, use
-`external system-rib { run "ze plugin rib"; }`. The equivalent internal
-block is `internal system-rib { use rib; }`. Keep the same route policy and
-distance configuration with either placement. `bgp-rib` is a different plugin:
-it stores BGP routes. See [Route Policy](route-policy.md#internal-and-external-system-rib)
-for the forwarding and recovery behavior.
+The system RIB uses the registration name `rib`. To run it in a separate process
+over TLS connect-back, declare `endpoint system-rib { internal rib; process
+separate; }`. The equivalent in-daemon block omits `process` (default
+`in-daemon`): `endpoint system-rib { internal rib; }`. Keep the same route
+policy and distance configuration with either placement. `bgp-rib` is a
+different plugin: it stores BGP routes. See
+[Route Policy](route-policy.md#internal-and-external-system-rib) for the
+forwarding and recovery behavior.
 <!-- source: internal/component/sysrib/register.go -- init, runRouteViewPlugin -->
 <!-- source: internal/component/sysrib/route_view_client.go -- openRouteViewMonitoredClient -->
 
-| List | Setting | Description |
-|------|---------|-------------|
-| `internal` | `use` | Name of a built-in plugin to run in-process |
-| `external` | `run` | Command to start an external plugin process. Ze runs it as `/bin/sh -c <run>`, so quoting, pipes and variable expansion work |
-| `external` | `encoder` | Wire encoding: `json` (default) or `text` |
-| `external` | `respawn` | What you expect when the process exits. Read the section below before you write it |
-| `external` | `timeout` | Startup stall timeout for this plugin |
+| Field | Scope | Description |
+|-------|-------|-------------|
+| `internal` | endpoint | Registry name of a built-in plugin shipped inside the `ze` binary (mutually exclusive with `external`) |
+| `process` | `internal` endpoint | `in-daemon` (default) runs inside the daemon over an in-memory pipe; `separate` forks the `ze` binary over TLS connect-back while keeping the same registration identity and grants |
+| `external > run` | `external` endpoint | Command to start an external program. Ze runs it as `/bin/sh -c <run>`, so quoting, pipes and variable expansion work |
+| `external > respawn` | `external` endpoint | Whether Ze restarts the process when it exits. Read the section below before you write it |
+| `external > timeout` | `external` endpoint | Startup stall timeout for this endpoint (e.g., `10s`, `1m`) |
+| `external > on-exit` | `external` endpoint | Disposition of routes originated by this endpoint on exit: `withdraw` (default) or `keep` (ExaBGP compatibility) |
+| `encoding` | endpoint | Wire encoding of delivered events: `json` (default) or `text` |
+| `receive`, `send` | endpoint | Optional direction-grouped bus filters (`allow`, `from`/`to`, per-message `message <name>`) |
 
-An `external` plugin needs a shell on the host, because the `run` string is
+An `external` endpoint needs a shell on the host, because the `run` string is
 given to `/bin/sh -c`. A gokrazy appliance image carries none, so an appliance
-runs its plugins from `internal` blocks. `ze doctor` reports the missing shell
+runs its plugins from `internal` endpoints. `ze doctor` reports the missing shell
 under `doctor-plugin-shell-missing`, and a start that meets it names the shell
 rather than the plugin.
 <!-- source: internal/component/plugin/shell.go -- Shell, ShellAvailable -->
 
-An `external` name is 1 to 64 letters, digits and hyphens, the first a letter
+An endpoint name is 1 to 64 letters, digits and hyphens, the first a letter
 or a digit: `collector` and `looking-glass` are accepted, `my_plugin` and
 `feed.v2` are not. The forked process authenticates to ze under that name, and
 ze binds the process's token to it, so the commit refuses any other form with
@@ -115,21 +126,21 @@ doctor` lists it under the same code.
 <!-- source: internal/component/plugin/doctor/check_external.go -- checkExternalPluginNames -->
 <!-- source: internal/component/plugin/ipc/connect_back_refusal.go -- reportConnectBackRefused -->
 
-A plugin whose registration declares that it works only inside the daemon
-cannot run from an `external` block: the forked process does not hold the
-daemon state it reaches, so it would start and do nothing. `ze doctor` reports
-such a block under `doctor-plugin-external-unsupported`, with the `internal`
-block that runs it instead.
+A plugin whose registration declares `RunsInProcessOnly` cannot run with
+`process separate;` or as an `external` endpoint: a forked process does not hold
+the daemon state it reaches, so it would start and do nothing. `ze doctor`
+reports such a block under `doctor-plugin-external-unsupported`, with the
+in-daemon `internal` endpoint that runs it instead.
 <!-- source: internal/component/plugin/doctor/check_external.go -- checkExternalInProcess, inProcessOnlyRegistration -->
 
 ### External Plugins with Their Own YANG Schema and Commands
 
-An external plugin can bring its own YANG modules in its Stage 1 `schemas` list: a `-conf` module for its own configuration root (or an `augment` of a shared container such as `service`), a `-cmd` module for its CLI commands and argument leaves, and an `-api` module for MCP, REST, and gRPC command parameters. At `ze start`, the daemon parses the `plugin` and `environment` blocks first (`config.FirstPass`), starts every declared external plugin, reads each plugin's Stage 1 `schemas` list while holding Stage 1 unanswered, joins and publishes those modules once for the daemon's life, and then parses the full configuration against the combined schema. Each plugin continues its five-stage handshake in its startup tier without being forked a second time, and receives its configuration section at start and on every commit.
+An external plugin can bring its own YANG modules in its Stage 1 `schemas` list: a `-conf` module for its own configuration root (or an `augment` of a shared container such as `service`), a `-cmd` module for its CLI commands and argument leaves, and an `-api` module for MCP, REST, and gRPC command parameters. At `ze start`, the daemon parses the `bus` and `environment` blocks first (`config.FirstPass`), starts every declared external endpoint, reads each plugin's Stage 1 `schemas` list while holding Stage 1 unanswered, joins and publishes those modules once for the daemon's life, and then parses the full configuration against the combined schema. Each plugin continues its five-stage handshake in its startup tier without being forked a second time, and receives its configuration section at start and on every commit.
 <!-- source: cmd/ze/hub/declared_plugins.go -- joinDeclaredPlugins -->
 <!-- source: internal/component/plugin/server/early_stage1.go -- HoldDeclaredPlugins -->
 <!-- source: internal/component/config/yang/publish.go -- PublishExternalModules -->
 
-External plugin declarations and their YANG modules are fixed until `ze` restarts. A reload (`SIGHUP` or commit) that adds, removes, or changes a `plugin { external <name> { run ... } }` declaration is refused whole under `doctor-config-reload-refused`, leaving the running configuration unchanged. If a running external plugin restarts and declares different YANG modules than the ones published at start, that plugin is failed at Stage 1 under `doctor-plugin-schema-changed` and its commands are released until `ze` restarts. Invalid, clashing, or unheld-registration modules refuse startup and record `doctor-plugin-schema-refused`; a declared plugin that fails to declare records `doctor-plugin-schema-undeclared`.
+External endpoint declarations and their YANG modules are fixed until `ze` restarts. A reload (`SIGHUP` or commit) that adds, removes, or changes a `bus { endpoint <name> { external { run ... } } }` declaration is refused whole under `doctor-config-reload-refused`, leaving the running configuration unchanged. If a running external plugin restarts and declares different YANG modules than the ones published at start, that plugin is failed at Stage 1 under `doctor-plugin-schema-changed` and its commands are released until `ze` restarts. Invalid, clashing, or unheld-registration modules refuse startup and record `doctor-plugin-schema-refused`; a declared plugin that fails to declare records `doctor-plugin-schema-undeclared`.
 <!-- source: internal/component/plugin/server/reload_declarations.go -- RefuseChangedDeclarations -->
 <!-- source: internal/component/plugin/server/stage1_schema.go -- refuseChangedSchema -->
 <!-- source: internal/component/plugin/server/doctor_codes.go -- CodeDoctorPluginSchemaChanged, CodeDoctorPluginSchemaRefused, CodeDoctorPluginSchemaUndeclared -->
@@ -209,7 +220,7 @@ under "Plugin config changed" and "What Requires Restart".
 ## When a Reload Changes a Plugin's Capability
 
 A plugin that adds a capability to ze's OPEN (`bgp-softver`, `bgp-hostname`,
-`bgp-role`, `bgp-llnh`, `bgp-gr`, `exabgp-bridge`) answers each reload with
+`bgp-role`, `bgp-llnh`, `bgp-gr`) answers each reload with
 the capabilities the new config declares, and ze installs them when the reload
 commits. A reload that does not commit puts the previous ones back.
 
@@ -225,13 +236,10 @@ complete declaration set, never a temporary gap between owners.
 | A peer is added that carries one of these capabilities | Accepted: its first OPEN carries them |
 | A capability's value changes, or is added or removed, on a peer that stays configured | Accepted. The session restarts to send the new OPEN when the peer advertised that capability code in its own OPEN, because the negotiated result can change. Otherwise the session keeps running, and its next OPEN carries the new value |
 | A session family is added or removed on a `graceful-restart` peer with no `graceful-restart family` list | Accepted, under the row above: the Graceful Restart payload follows the session families. An explicit `family` list keeps the payload fixed |
-| The exabgp bridge's `route-refresh` or `add-path` changes | Accepted, for every peer, under the same rule |
-| The exabgp bridge's families are edited | Refused by the bridge, naming the `family` leaf, with the restart steps: its scripts keep the families they started with |
 | A peer is removed, or nothing these plugins declare changes | Accepted |
 <!-- source: pkg/plugin/sdk/capability_declaration.go -- composeCapabilityVerify, CandidateCapabilities -->
 <!-- source: internal/component/plugin/server/config_tx_capabilities.go -- stageVerifiedCapabilities, installStagedCapabilities, restoreCapabilities -->
 <!-- source: internal/component/bgp/reactor/peer_settings_negotiation.go -- pluginDeclarationsKept -->
-<!-- source: internal/plugins/exabgp/bridgeplugin/config_tx.go -- verifyReload, changedBridgeLeaves -->
 
 The restart steps a refusal ends with give the route for the ze that refused.
 They name `sudo systemctl restart ze` only when Ze establishes, from its own
@@ -257,60 +265,86 @@ stopped after `ze signal restart`, so it is not one of the routes.
 <!-- source: internal/plugins/systemd/unit.go -- buildUnitFile -->
 <!-- source: pkg/plugin/rpc/drain.go -- DaemonRestartExitStatus -->
 
-## Binding Plugins to Peers
+## Message Bus Routing
 
-Each peer declares which plugins receive its events, in `attach process` blocks.
-The process name must match the plugin's `internal` or `external` name in the
-`plugin { }` block:
+Every participant on Ze's message bus — BGP peers (`/bgp/peer/<name>`), BGP
+groups (`/bgp/group/<group>`), dynamic peers by remote IP (`/bgp/ip/<address>`),
+bus endpoints (`/bus/endpoint/<name>`), and plugins with their own configuration
+section (such as `/bgp/route-server`) — registers which messages it sends and
+receives. With nothing written by the operator, every configured participant
+automatically sends and receives what it registered for, and `show configuration
+| implied` prints those registered defaults beside what you wrote.
+
+Write a `bus { ... }` block on a participant — or directly inside
+`bus { endpoint <name> { ... } }` or centrally under
+`bus { participant <path> { ... } }` — only when you want to override those
+defaults: to narrow allowed message names (`allow`), restrict destinations
+(`to`) or senders (`from`), or filter by message tags (`tag`).
 
 ```
-plugin {
-    internal rib { ... }       # <-- this name
-}
-peer transit-a {
-    attach process rib { ... }        # <-- must match
-}
-```
-
-Plugins receive BGP events through the attach blocks on each peer:
-
-```
-peer transit-a {
-    ...
-    attach process rib {
-        receive [ update state refresh ]
-        send [ update ]
+bus {
+    endpoint rib { internal bgp-rib; }
+    endpoint watcher {
+        external { run /usr/local/bin/watcher; }
+        encoding json;
+        receive {
+            allow [ bgp:update-received bgp:state ];
+            from  [ /bgp/peer/transit-a ];
+        }
+        send {
+            allow [ none ];
+        }
     }
-    attach process adj-rib-in {
-        receive [ update-received state ]
+}
+```
+
+You can also write overrides on a peer or group near the emitter:
+
+```
+bgp {
+    peer transit-a {
+        ...
+        bus {
+            receive {
+                allow [ bgp:update ];
+                from  [ /bus/endpoint/rib ];
+            }
+            send {
+                to [ /bus/endpoint/rib /bus/endpoint/watcher ];
+            }
+        }
     }
 }
 ```
 
-**A peer that attaches nothing feeds nothing.** The block is the whole
-statement of the relationship: a plugin that no peer attaches runs and is fed
-no peer event, and a peer that attaches one plugin feeds that plugin and no
-other. Loading a plugin and attaching it are two separate acts, and the second
-is the one that moves data.
+Two places to write compile into one filter per participant. If the same field
+for the same message is written in both the participant's own section and the
+central `bus` section with different content, commit refuses the config and
+names both lines.
 
-### Event Types
+### Message Types
 
-| Event | Description |
-|-------|-------------|
-| `update` | Route announcements and withdrawals |
-| `open` | OPEN message |
-| `notification` | NOTIFICATION message |
-| `keepalive` | KEEPALIVE message |
-| `refresh` | Route refresh request |
-| `state` | Peer state changes (up/down) |
-| `negotiated` | Capability negotiation results |
-| `eor` | End-of-RIB marker |
-| `rpki` | RPKI validation results |
-| `update-rpki` | Merged UPDATE + RPKI validation (from bgp-rpki-decorator) |
+| Message | Description |
+|---------|-------------|
+| `bgp:update` | Route announcements and withdrawals (`bgp:update-received`, `bgp:update-sent`) |
+| `bgp:open` | OPEN message |
+| `bgp:notification` | NOTIFICATION message |
+| `bgp:keepalive` | KEEPALIVE message |
+| `bgp:refresh` | Route refresh request |
+| `bgp:state` | Peer state changes (up/down) |
+| `bgp:negotiated` | Capability negotiation results |
+| `bgp:eor` | End-of-RIB marker |
+| `bgp:raw` | Raw wire BGP message |
+| `bgp:rpki` | RPKI validation results |
+| `rpki:update-rpki` | Merged UPDATE + RPKI validation (from `bgp-rpki-decorator`) |
+| `system-rib:route-install` | Install or remove routes in the system RIB |
+| `cli:<command path>` | CLI command path prefixes dispatched through the engine |
 
-Plugins can register custom event types via the `EventTypes` field in their registration.
-These become valid in `receive` config directives and `subscribe-events` RPCs.
+Plugins can register custom message types in their registration (`EventTypes` /
+declared sends and receptions). These become valid in `receive > allow`,
+`send > allow`, and `subscribe-events` RPCs.
 <!-- source: internal/component/plugin/registry/registry.go -- Registration.EventTypes -->
+<!-- source: internal/component/plugin/yang/ze-plugin-conf.yang -- grouping participant-bus -->
 
 ### Runtime subscriptions
 
@@ -345,65 +379,95 @@ byte-compatible with earlier releases.
 <!-- source: pkg/plugin/rpc/types.go -- SubscribeEventsInput, EventEnvelope -->
 <!-- source: internal/component/plugin/server/dispatch.go -- wildcard expansion and enveloped delivery -->
 
-### Directions
+### Directions and Tag Filters
+
+Every line in a `bus` block is grouped by direction:
 
 ```
-attach process my-plugin {
-    receive [ update-received ]   # UPDATEs the peer sends to ze
-    send [ update ]               # permission to announce toward the peer
+bus {
+    endpoint my-plugin {
+        external { run ./my-plugin.py; }
+        receive {
+            allow [ bgp:update-received bgp:state ];
+            from  [ /bgp/group/transit ];
+            message bgp:update-received {
+                from [ /bgp/peer/transit-a ];
+            }
+        }
+        send {
+            allow [ bgp:update ];
+            to    [ /bgp/group/customers ];
+        }
+    }
 }
 ```
 
-`receive` names an event type and the direction it is fed in. A plain type means
-both directions, so `receive [ update ]` feeds the program the UPDATEs ze sends
-as well as the ones it gets. `send` carries no direction, because every send type
-is sent.
+`receive` controls inbound delivery (`allow`, `from`, and per-message `message <name> { from ...; tag <t> [ ... ]; }`).
+`send` controls outbound delivery (`allow`, `to`, and per-message `message <name> { to ...; tag <t> [ ... ]; }`).
+`send > to` replaces the registered destination set whole (writing `none` sends
+to nobody); `receive > from` defaults to everybody (writing `none` accepts from
+nobody).
 
-The two lists are independent. A program with `send` and no `receive` announces
-to the peer and is told nothing by it. A program with `receive` and no `send`
-watches the peer and may not answer it.
+The two directions are independent. A program with `send { allow [ bgp:update ]; }`
+and `receive { allow [ none ]; }` announces to peers and receives no events from
+them. A program with `send { allow [ none ]; }` watches peers and cannot send
+anything on the bus.
 
 ### Groups and dynamic peers
 
-Write the block once on a group and every peer that group produces carries it.
-A member that restates the block REPLACES the group's list for itself, and the
-other members keep the group's.
+Write a `bus` block once on a group and every peer that group produces inherits
+it item by item. A member that writes a field (`send > to`, `receive > from`,
+`send > allow`, `receive > allow`, or a specific `message <name>` entry)
+replaces ONLY that field from its group; fields the member omits still come from
+its group.
 
 ```
-plugin {
-    external looking-glass {
-        run ./looking-glass.py
-        encoder json
+bus {
+    endpoint looking-glass {
+        external { run ./looking-glass.py; }
+        encoding json;
     }
 }
 
 bgp {
     group transit {
-        attach process looking-glass {
-            receive [ update-received state ]
+        bus {
+            send {
+                message bgp:update-received { to [ /bus/endpoint/looking-glass ]; }
+                message bgp:state           { to [ /bus/endpoint/looking-glass ]; }
+            }
         }
 
-        peer transit-a { }                    # updates and state
-        peer transit-b { }                    # updates and state
+        peer transit-a { }                    # updates and state to looking-glass
+        peer transit-b { }                    # updates and state to looking-glass
         peer transit-c {
-            attach process looking-glass {
-                receive [ state ]             # state ONLY
+            bus {
+                send {
+                    message bgp:update-received { to [ none ]; }  # state ONLY to looking-glass
+                }
             }
         }
     }
 }
 ```
 
-`transit-c` is fed state and no update. Its own list stands in for the group's
-rather than adding to it, which is how every leaf-list in a group merges. To
-widen one member, restate the whole list you want it to have.
-
-A peer a DYNAMIC group creates carries the group's blocks too. Such a peer is
-named by no config: ze generates `dyn-<address>` when it accepts the
-connection. Nothing needs to name it, because ze reads each peer's blocks after
-the group merge, not from the text of the config file.
+A peer a DYNAMIC group creates inherits the group's `bus` block too. Such a peer
+is named by no config: ze generates `dyn-<address>` when it accepts the
+connection. You can also target an individual future dynamic peer by its remote
+IP using `/bgp/ip/<address>` (accepted at commit when `<address>` falls inside a
+configured dynamic group's `range`, and dormant until that peer connects):
 
 ```
+bus {
+    endpoint looking-glass {
+        external { run ./looking-glass.py; }
+        encoding json;
+        receive {
+            from [ /bgp/group/ix /bgp/ip/198.51.100.7 ];
+        }
+    }
+}
+
 bgp {
     router-id 192.0.2.1
     session {
@@ -423,103 +487,91 @@ bgp {
                 accept true
             }
         }
-        attach process looking-glass {
-            receive [ update-received state ]
-        }
     }
 }
 ```
 
 Every member that connects from `198.51.100.0/24` feeds `looking-glass` its
-received UPDATEs and its session state. `show event delivery` lists them by the
-address each one connected from.
+registered messages. `show event delivery` lists them by the address each one
+connected from.
 
 <!-- source: internal/component/bgp/config/resolve.go -- ResolveBGPTree -->
 <!-- source: internal/component/bgp/reactor/reactor_dynamic.go -- buildDynamicPeerSettings -->
 
-### The send permission
+### Enforcement at the Bus
 
-`send` is a permission, and ze enforces it on the peers a command resolves to.
-A program that issues `send bgp * update ...` reaches the peers that attach it with
-`send [ update ]`, and no others. A peer the program is not attached to is
-dropped from the command, and ze writes one WARN naming the peer, the process
-and the message type. When the selector names ONLY peers that refuse it, the
-whole command fails and the program is told why.
+The bus enforces every participant's compiled `send` filter on every engine
+operation, on both the socket rail and DirectBridge. A program that issues
+`send bgp * update ...` reaches only the peers admitted by its compiled
+`send > allow` (`bgp:update`), its `send > to`, and each destination peer's
+`receive > allow` and `receive > from`. A peer not admitted is dropped from the
+command, and ze writes one WARN naming the peer, the process and the message
+type. When the selector names ONLY peers that refuse it, the whole command fails
+and the program is told why.
 
-The three BASE message types are separate permissions. A plugin registers more,
-and naming one auto-loads the plugin that enables it, `enhanced-refresh` from
-bgp-route-refresh among them:
+| Message | Permits | Operations / Commands |
+|---------|---------|-----------------------|
+| `bgp:update` | originating routes toward the peer | `update-route`, `forward-cached`, `relay-stored-route`, `select-routes`, `select-refresh` |
+| `bgp:refresh` | asking the peer to re-advertise | `peer <sel> refresh`, `borr`, `eorr`, `clear soft` |
+| `bgp:raw` | writing a whole BGP message the program built itself | `inject-wire-route`, `send bgp <sel> raw ...` |
+| `system-rib:route-install` | installing or removing system RIB routes | `route-install`, `route-remove` |
+| `cli:<command path>` | dispatching a CLI command path | `dispatch-command`, `dispatch-command-args` |
 
-| Type | Permits | Commands |
-|------|---------|----------|
-| `update` | originating routes toward the peer | `update text ... add`, `update text ... del`, an End-of-RIB marker, a named commit |
-| `refresh` | asking the peer to re-advertise | `peer <sel> refresh`, `borr`, `eorr`, `clear soft` |
-| `raw` | writing a whole BGP message the program built itself | `send bgp <sel> raw ...` |
+`bgp:raw` is the widest BGP message, because the bytes can be any BGP message,
+an OPEN or a NOTIFICATION included. `bgp:update` does not imply it.
 
-`raw` is the widest of the three, because the bytes can be any BGP message, an
-OPEN or a NOTIFICATION included. `send [ update ]` does not imply it.
+An operator at the CLI, over SSH or through the REST API is not a plugin
+participant and is not gated by this: their authority is the one AAA checks.
 
-`send [ * ]` grants all three, and every send type registered later.
-
-An operator at the CLI, over SSH or through the REST API is not a process and is
-not gated by this: their authority is the one AAA already checked.
-
-Counter: `ze_bgp_send_refused_total{process,type}` counts messages the permission
-refused. A non-zero value with no config change means a program is asking for a
-peer it was never attached to.
+Counter: `ze_bgp_send_refused_total{process,type}` counts messages the bus
+filter refused. A non-zero value with no config change means a program is asking
+for a peer its compiled filter does not admit.
 
 <!-- source: internal/component/bgp/reactor/send_permission.go -- Peer.maySend, sendPermissionDenied, ze_bgp_send_refused_total -->
 <!-- source: internal/component/bgp/reactor/reactor_api.go -- getMatchingPeersSel -->
 
 ### Reading the delivery graph
 
-`show event delivery` prints the peer-to-process edges the running config
-produces: one block per peer, one row per `attach process` block on it, with the
-event types that process is fed and the message types it may send toward that
-peer. A peer with no `attach process` block shows no process.
+`show event delivery` prints the effective participant-to-participant edges the
+running config compiles: one block per peer, one row per endpoint edge, with the
+message types delivered in each direction and any active tag filters.
+`show configuration | implied` prints the registered defaults beside what you
+wrote and shows which line produced each effective entry.
 
-The daemon builds this from the RESOLVED settings of each peer, so a block a
-peer inherits from its group is shown on the peer. A token the event registry
-does not know is listed under `unresolved` and carries no edge, which is what an
-operator sees when a custom event type names a plugin that did not load.
+The daemon builds this from the RESOLVED settings of each participant, so a
+block a peer inherits from its group or receives from a central
+`bus { participant <path> { ... } }` entry is shown on the peer.
 
-These edges DECIDE delivery. A peer hands a program an event when the peer's
-block grants the type and the program subscribed to it; a peer that attaches no
-block for a program feeds it nothing, whatever the program asked for at startup.
-That holds for ze's own plugins as well: a config that loads `bgp-rib` and
-attaches it to no peer stores no route. When the two halves disagree, the daemon
-names each peer, process and event type in the log rather than dropping the
-event in silence.
+These compiled edges DECIDE delivery. With nothing written by the operator,
+every configured endpoint receives and sends what it registered for. When an
+override removes a path or causes a runtime mismatch, the daemon reports it via
+`show doctor` rather than dropping events in silence.
 
-The name in `attach process <name>` is the name the program runs under: the one
-in its `plugin { external <name> }` or `plugin { internal <name> }` block, or the
-registry name of a plugin loaded with `--plugin`.
-
-<!-- source: internal/component/plugin/server/delivery_graph.go -- DeliveryGraph, Inspect, PeerScopedProcs -->
+<!-- source: internal/component/plugin/server/delivery_graph.go -- DeliveryGraph, Inspect -->
 <!-- source: internal/component/cmd/show/show.go -- handleShowEventDelivery -->
 <!-- source: internal/component/bgp/reactor/delivery_graph.go -- deliveryPeersFromSettings -->
 
-### Attached to a running peer
+### Changing delivery on a running peer
 
-A reload can attach a plugin to a peer whose session is already up, through a
-receive-only `attach process` block ([config reload](config-reload.md)). The
-plugin then receives a `state up` for that peer with reason `attached`. That up
+A reload can widen a peer's receive-only `bus` filter so an endpoint begins
+receiving from a peer whose session is already up ([config reload](config-reload.md)).
+The endpoint then receives a `state up` for that peer with reason `attached`. That up
 does not start the session: the peer's initial routing update already went out,
 so the up carries no initial-replay token and holds back no End-of-RIB. A plugin
 that replays routes toward a peer when it comes up must skip that replay on an
 `attached` up, or it sends the peer routes it already holds. `bgp-rib`,
 `bgp-rr`, `bgp-rs`, `bgp-watchdog`, `redistribute-orchestrator` and
-`bgp-adj-rib-in` skip it. Routes the peer announced before the attach reach the
-plugin through the ROUTE-REFRESH Ze sends after the up.
+`bgp-adj-rib-in` skip it. Routes the peer announced before the change reach the
+endpoint through the ROUTE-REFRESH Ze sends after the up.
 
-A reload that detaches a plugin sends it a `state down` for that peer alone,
-and the session stays up for every other plugin. The down names the
-still-running session as its `session-generation`, as a real down names the
-session it ended. The plugin drops what it holds
-for the peer. When that plugin is `bgp-rs`, the other peers lose the routes it
-forwarded from that peer, every one that session wrote included: each is replaced by the best remaining route or
-withdrawn, although the peer's session never went down. A plugin whose grant
-changed receives a down, then an `attached` up.
+A reload that removes an endpoint from a peer's delivery sends it a `state down`
+for that peer alone, and the session stays up for every other endpoint. The down
+names the still-running session as its `session-generation`, as a real down
+names the session it ended. The endpoint drops what it holds for the peer. When
+that endpoint is `bgp-rs`, the other peers lose the routes it forwarded from
+that peer, every one that session wrote included: each is replaced by the best
+remaining route or withdrawn, although the peer's session never went down. An
+endpoint whose effective filter changed receives a down, then an `attached` up.
 
 <!-- source: pkg/plugin/rpc/enums.go -- ReasonAttached -->
 <!-- source: internal/component/bgp/reactor/peer_derived_bindings.go -- bindProcesses, unbindProcesses -->
@@ -529,10 +581,11 @@ changed receives a down, then an `attached` up.
 
 | Mode | Config Syntax | Description |
 |------|--------------|-------------|
-| Internal | `internal rib { use bgp-rib; }` | Compiled-in plugin using `net.Pipe` for startup and DirectBridge for hot paths |
-| External | `external feed { run "/usr/local/bin/my-plugin"; }` | External binary or script using TLS connect-back |
+| Internal (in-daemon) | `bus { endpoint rib { internal bgp-rib; } }` | Compiled-in plugin running as a goroutine via `net.Pipe` for startup and DirectBridge for hot paths |
+| Internal (separate process) | `bus { endpoint rib { internal bgp-rib; process separate; } }` | Compiled-in plugin forked from the `ze` binary over TLS connect-back, keeping its registration identity and grants |
+| External | `bus { endpoint feed { external { run "/usr/local/bin/my-plugin"; } } }` | External binary or script using TLS connect-back |
 
-Internal mode (`use pluginname`) runs a compiled-in plugin as a goroutine within the ze process. Startup still uses the same YANG RPC handshake as external plugins, then DirectBridge bypasses socket I/O for supported hot paths. External mode starts a separate process; that process connects back to the plugin hub over TLS and authenticates with its per-plugin token.
+Internal mode (`internal <pluginname>;`) runs a compiled-in plugin as a goroutine within the ze process by default (`process in-daemon;`). Startup still uses the same YANG RPC handshake as external plugins, then DirectBridge bypasses socket I/O for supported hot paths. Setting `process separate;` forks the running `ze` binary over TLS connect-back while keeping the same compiled registration identity, state grants, and defaults. External mode starts a separate program Ze did not ship; that process connects back to the bus hub over TLS and authenticates with its per-endpoint token.
 <!-- source: internal/component/plugin/server/ -- plugin invocation modes; internal/component/plugin/cli/cli.go -- RunPlugin -->
 
 ## Built-In Plugins
@@ -596,29 +649,16 @@ A reason string reaches CLI output as data, so never put a secret in one.
 
 #### Migrating from bgp-persist
 
-`bgp-persist` has been removed. Delete each `plugin { internal <name> {
-use bgp-persist } }` block, or its external invocation. Replace its peer
-`attach process <name>` blocks with a binding to the mandatory RIB:
+`bgp-persist` has been removed. Delete any `bgp-persist` endpoint declaration.
+BGP loads `bgp-rib` automatically, and `bgp-rib` receives and sends its
+registered messages (`bgp:update`, `bgp:state`, `bgp:refresh`) across every BGP
+peer by default — no per-peer attachment block is required.
 
-```text
-attach process bgp-rib {
-    receive [ update state refresh ]
-    send [ update ]
-}
-```
-
-BGP loads `bgp-rib` automatically, so no replacement `internal`/`use` block
-is required. If your configuration already names a RIB instance explicitly,
-use that instance name in the binding and merge the grants into its existing
-binding rather than creating a second instance.
-
-Automatic loading does not grant replay or export authority. The binding must
-deliver both received and sent UPDATEs (`update`), peer state and refresh
-events, and permit UPDATE sends. Feed source peers' received UPDATEs and state
-to the same RIB so it can validate forwarded history. A selection-only
-received/state binding does not retain sent history or authorize replay.
-There is no compatibility alias, replacement cache command, or separate
-persistence store.
+If you write custom `bus { send { ... } receive { ... } }` overrides on peers,
+ensure `bgp-rib` still receives both received and sent UPDATEs, peer state, and
+refresh events, and can send `bgp:update` to replayed peers. A receive-only
+override does not retain sent history or authorize replay. There is no
+compatibility alias, replacement cache command, or separate persistence store.
 
 `bgp-rib` keeps sent history in process memory across a peer disconnect.
 On peer-UP, its initial replay restores only eligible history. Forwarded routes
@@ -771,19 +811,21 @@ including hidden and standby paths, in either placement.
 <!-- source: internal/component/sysrib/route_view_client.go -- openRouteViewClient -->
 <!-- source: internal/component/sysrib/route_view_worker_operations.go -- Candidates -->
 
-An external placement uses the same `rib` implementation:
+A separate-process placement runs the same compiled `rib` implementation over
+TLS connect-back:
 
 ```
-plugin {
-    external sysrib-owner {
-        run "ze plugin rib";
-        encoder json;
+bus {
+    endpoint sysrib-owner {
+        internal rib;
+        process separate;
+        encoding json;
     }
 }
 ```
 
-For internal placement, use `internal sysrib-owner { use rib; }` in the
-`plugin` block. Both placements apply their distance declaration at the daemon;
+For in-daemon placement, omit `process separate;` (`endpoint sysrib-owner {
+internal rib; }`). Both placements apply their distance declaration at the daemon;
 an external process never changes a disconnected local copy. Replay requests
 subscribe at startup and wait for the consumer's complete view before output.
 <!-- source: internal/component/sysrib/register.go -- runRouteViewPlugin -->
@@ -898,9 +940,9 @@ for the names and their value shapes. Filters respond accept, reject, or modify
 
 A single plugin can offer multiple named filters. Config references them as
 `<plugin>:<filter>` (e.g., `rpki:validate`, `community:scrub`). `<plugin>` is
-the plugin's own name, not the name of the `plugin { }` block that runs it: a
-block `internal gr { use bgp-gr; }` serves `bgp-gr:<filter>`, and two blocks
-running the same filter plugin are refused.
+the plugin's own registration name, not the endpoint alias that runs it: an
+endpoint `endpoint gr { internal bgp-gr; }` serves `bgp-gr:<filter>`, and two
+endpoints running the same filter plugin are refused.
 
 | Category | Behavior | Example |
 |----------|----------|---------|
@@ -963,24 +1005,21 @@ An import is scoped to its enclosing `destination`: an `import` under
 `destination bgp` feeds only BGP, not OSPF/IS-IS.
 
 The orchestrator **auto-loads** when `redistribute {}` appears in the
-config. No `plugin { internal redistribute-orchestrator { use redistribute-orchestrator; } }`
+config. No `bus { endpoint redistribute-orchestrator { internal redistribute-orchestrator; } }`
 block is required.
 
-The rules need no `attach process` plumbing either. Ze derives two bindings from
-the `redistribute` root, and they are the only bindings in the delivery index Ze
-writes for you. A peer whose config already names the process keeps its own
-binding unchanged. When that grant is narrower than what the plugin declared,
-for example `attach process bgp-rib { receive [ state ]; }` beside an
-`import bgp` rule, the daemon logs `event delivery: the plugin declared an
-event the peer does not grant it` for each type left out, naming the peer and
-the process, as it does for any plugin fed less than it declared.
+The rules need no per-peer `bus` plumbing either: registered bus defaults cover
+both `bgp-rib` and `redistribute-orchestrator` automatically. A peer whose own
+`bus` block narrows delivery keeps its override. When that override excludes a
+message a plugin declared, the daemon reports it via `show doctor` and logs it
+naming the peer and the endpoint.
 
 <!-- source: internal/component/plugin/server/delivery_reconcile.go -- reconcileDelivery, edgeDisagreements -->
 
-| The rule | The derived binding |
-|----------|---------------------|
-| `import bgp` | `receive [ update state refresh ]` toward `bgp-rib`, because the Loc-RIB is the source and a plugin sees a peer's UPDATEs only through a grant |
-| `destination bgp` | `receive [ state ]` and `send [ update ]` toward `redistribute-orchestrator`, because that plugin puts the route on the peer's wire |
+| The rule | Effective bus delivery |
+|----------|------------------------|
+| `import bgp` | peers deliver `bgp:update`, `bgp:state`, and `bgp:refresh` to `bgp-rib`, because the Loc-RIB is the source |
+| `destination bgp` | `redistribute-orchestrator` receives `bgp:state` and sends `bgp:update` toward peers, because that plugin puts the route on the peer's wire |
 
 <!-- source: internal/component/bgp/config/redistribute_binding.go -- wireRedistributeDelivery -->
 
@@ -1451,10 +1490,10 @@ NLRI plugins register address family support at init time via `family.MustRegist
 
 ## Hub Configuration
 
-For external plugins that connect over TLS (non-internal mode), configure the hub:
+For external or separate-process endpoints that connect over TLS, configure the bus hub:
 
 ```
-plugin {
+bus {
     hub {
         server local {
             ip 127.0.0.1;
@@ -1650,7 +1689,7 @@ Dependencies are declared in the plugin's registration, not in config. The engin
 
 | Kind | Field | Behavior if missing |
 |------|-------|----------------------|
-| Hard | `Dependencies` | Ze refuses to start, before any plugin runs, at boot, at a config reload and for an explicit `plugin {}` block. `ze config validate` and a commit refuse the same config with the same message, so a config that validates is one the daemon can start. The message names the plugin, the dependency and the build tags to rebuild with (or says the name is unknown to every build), and ends with the fix on its own line: rebuild with the tags, or remove the configuration that loads the plugin. A dependency an external program declares that nothing loads is refused at its startup, with the `plugin { internal ... }` or `plugin { external ... }` block to add as the fix. |
+| Hard | `Dependencies` | Ze refuses to start, before any plugin runs, at boot, at a config reload and for an explicit `bus { endpoint ... }` block. `ze config validate` and a commit refuse the same config with the same message, so a config that validates is one the daemon can start. The message names the plugin, the dependency and the build tags to rebuild with (or says the name is unknown to every build), and ends with the fix on its own line: rebuild with the tags, or remove the configuration that loads the plugin. A dependency an external program declares that nothing loads is refused at its startup, with the `bus { endpoint ... }` block to add as the fix. |
 | Optional | `OptionalDependencies` | Silently skipped. Plugin owner handles runtime absence (typically a one-shot WARN + feature disabled). |
 
 A block whose whole plugin was compiled out of the binary, such as `mrt { }`
@@ -1724,7 +1763,7 @@ Stage 2 is part of the sequential handshake, so the decision is recorded before 
 
 ### A claim is daemon-wide, and delivery is per-peer
 
-A claim says a role has an owner in this daemon. It cannot say the owner will act on a given peer, because Stage 2 runs before any session exists. Two things make the claim wrong for one peer, and the plugin that stood down can see neither: the claimant takes no delivery of that peer's events, because the peer's `attach process` blocks do not name it, or the claimant never reached Running at all.
+A claim says a role has an owner in this daemon. It cannot say the owner will act on a given peer, because Stage 2 runs before any session exists. Two things make the claim wrong for one peer, and the plugin that stood down can see neither: the claimant takes no delivery of that peer's events because a `bus` filter override excludes it, or the claimant never reached Running at all.
 
 So the engine RETRACTS the claim, per event, for the peers it does not cover. Each peer-scoped event carries the claimed roles that no process being fed this event holds: `StructuredEvent.UnheldRoles` for a plugin on the direct bridge, and the `unheld-roles` member of the state event for a JSON one. A plugin that stood a role down MUST run its own default behavior for an event that names it, because nothing else will. The list is absent whenever every claim holds, which is the common case and costs no bytes.
 
@@ -1749,9 +1788,9 @@ The declaration is voluntary. A plugin that pushes routes on its own schedule ne
 
 An external plugin has the same declaration under a different name. It is registered nowhere in this tree, so it declares `signals-session-ready` in its Stage-1 `declare-registration` instead, and the engine reads it off the running process. Declaring nothing stays the default there too.
 
-The name your report is credited to is the one the operator wrote in `attach process <name>`, whatever your plugin is called. `plugin { internal rs { use bgp-rs } }` runs the process as `rs`, and the engine resolves that alias back to the `bgp-rs` registration before it asks whether you declared. Your report carries the process name, so it is credited to `rs` as well. The spelling of the implementation does not change the answer: `use bgp-rs`, `use ze.bgp-rs`, `run ze.bgp-rs` and `run ze plugin bgp-rs` all reach the same registration, because one function (`plugin.RegistryNames`) answers which registry row a process configuration names and every caller derives from it.
+The name your report is credited to is the endpoint name in `bus { endpoint <name> { ... } }`, whatever your plugin is called. `bus { endpoint rs { internal bgp-rs; } }` runs the endpoint as `rs`, and the engine resolves that alias back to the `bgp-rs` registration identity before it asks whether you declared. Your report carries the endpoint name, so it is credited to `rs` as well. Running the same compiled-in plugin with `process separate;` preserves the same registration identity and grants.
 
-Three facts have to hold before a peer names your process in its barrier, and each one is something you can check in your own config. The peer grants the route-push rail, with `send [ update ]` or `send [ raw ]`. The plugin declares the field. The peer grants `receive [ state ]`, because the report answers the peer-up event: a process the peer never tells about the session cannot push into that session's initial update, so it is never named.
+Three facts have to hold before a peer names your endpoint in its barrier, and each one is something you can check in your own config. The compiled bus filter admits `bgp:update` or `bgp:raw` toward the peer. The plugin declares the field. The compiled bus filter admits `bgp:state` from the peer, because the report answers the peer-up event: an endpoint the peer never tells about the session cannot push into that session's initial update, so it is never named.
 
 Report once per establishment, from your peer-up handler, and report even when you had nothing to replay: completion accounting must distinguish "finished with nothing to send" from "still working".
 

@@ -131,7 +131,7 @@ A plugin declares what its own failure means, in its Stage-1 registration:
 `restart`, `ignore` or `fatal`. Ze restarts it, carries on without it, or stops
 with exit status 1.
 A plugin that declares nothing is carried on without. The `respawn` leaf of a
-`plugin { external <name> }` block states what the operator expects, and a
+`bus { endpoint <name> { external { ... } } }` block states what the operator expects, and a
 configuration asking to restart a plugin that declares it must not be restarted
 stops ze at startup rather than picking a side. `docs/guide/plugins.md` carries
 the table an operator needs.

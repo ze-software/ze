@@ -1420,7 +1420,7 @@ Pools are registered via the handler registry and dispatched when
 IPCP negotiation needs to assign an address.
 
 The pool runs inside the daemon. A configured `l2tp pool` loads it automatically.
-An explicit declaration uses `plugin { internal l2tp-pool { use l2tp-pool; } }`.
+An explicit declaration uses `bus { endpoint l2tp-pool { internal l2tp-pool; } }`.
 An external process cannot configure the daemon's address or prefix handlers,
 so the plugin refuses that mode before configuration. `ze doctor` reports it
 as `doctor-plugin-external-unsupported` and names the internal replacement.

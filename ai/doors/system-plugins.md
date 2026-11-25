@@ -13,7 +13,7 @@ protocols (`ospf`, `isis`, `ldp`, `rsvpte`, which are `routing-protocols.md`):
 - the TFTP and image servers
 - `init`
 - `systemd`
-- the ExaBGP bridge with its translator and migration under `internal/exabgp/`
+- the ExaBGP wrapper (`ze exabgp plugin`) with its translator and migration under `internal/exabgp/`
 
 Sysctl is not here: it is
 `internal/component/sysctl`, in `forwarding.md`.
@@ -43,20 +43,21 @@ Sysctl is not here: it is
 
 | Outside party | Contract | Breaks when |
 |---------------|----------|-------------|
-| An operator's ExaBGP script | ExaBGP's text command grammar going down, ExaBGP JSON (envelope `6.0.0`) or text going up, chosen by the process's `encoder` leaf (`docs/architecture/exabgp-bridge.md`) | A translated form or an event field changes. The script was written against ExaBGP, and Ze's own CLI does not reach it |
-| An operator who ran `ze exabgp migrate` | The `exabgp { bridge { ... } }` root the migration writes, and the registry name `exabgp-bridge` (`exabgp-bridge.md`, "Config root") | The migration and the runner disagree about a leaf |
-| An ExaBGP script, through the bridge | The bridge sends `send bgp <selector> update text ...` command strings into the daemon (`internal/exabgp/bridge` `TranslateLine`) | A command the bridge sends is renamed. The dispatch key is the YANG path, so a move is a wire break (`docs/architecture/api/commands.md`, "Dispatch keys are YANG paths") |
+| An operator's ExaBGP script | ExaBGP's text command grammar going down, ExaBGP JSON (envelope `6.0.0`) or text going up, chosen by the wrapper's `--encoder` flag (`docs/architecture/exabgp-bridge.md`) | A translated form or an event field changes. The script was written against ExaBGP, and Ze's own CLI does not reach it |
+| An operator who ran `ze exabgp migrate` | The `bus { endpoint <name> { external { run "ze exabgp plugin ..."; } } }` endpoints and `bus` filters that `ze exabgp migrate` writes (`docs/architecture/exabgp-bridge.md`) | The migration and the wrapper disagree about a flag or filter |
+| An ExaBGP script, through the wrapper | The wrapper sends `send bgp <selector> update text ...` command strings into the daemon (`internal/exabgp/bridge` `TranslateLine`) | A command the wrapper sends is renamed. The dispatch key is the YANG path, so a move is a wire break (`docs/architecture/api/commands.md`, "Dispatch keys are YANG paths") |
 | DHCP, TFTP and HTTP clients during PXE | RFC 2131, RFC 2132 and the boot flow (`docs/architecture/provisioning/`) | Any wire change. The client is boot firmware, which Ze cannot change |
 | NTP servers, chrony included | The NTP exchange in `internal/plugins/ntp` `syncWorker.doSync` | Ze misreads a server's answer (`plan/journal/error-answered-with-another-errors-code.md`, 2026-10-19) |
 | An operator | Each plugin's config YANG, its commands, its error text | A leaf or a command changes without its page |
 
 ## Boundaries
 
-- **Every plugin here can run in another process.** The bridge has a second
-  runner for exactly that: `ze exabgp plugin` runs as an SDK process over TLS
-  connect-back, beside the internal runner (`exabgp-bridge.md`, "The internal
-  runner cannot read the `run` line"). Reach the engine through the SDK, the
-  bus, or a command, never through a Go call into a component's state
+- **Every plugin here can run in another process.** Each ExaBGP script runs as
+  an ordinary external bus endpoint through `ze exabgp plugin` over TLS
+  connect-back (with the standalone stdin/stdout runner kept for testing
+  scripts by hand); there is no compiled-in bridge mode or `exabgp` config
+  root (`docs/architecture/exabgp-bridge.md`). Reach the engine through the SDK,
+  the bus, or a command, never through a Go call into a component's state
   (`docs/architecture/plugin/plugin-system.md`, "The process boundary").
 - **A plugin owns its whole surface.** Its commands, YANG, doctor checks and help
   live in its folder. A central verb package such as `internal/component/cmd/show`
@@ -79,7 +80,7 @@ Sysctl is not here: it is
 | `docs/architecture/module-tiers.md` | Plugin or component: the two axes and the gate |
 | `docs/architecture/plugin/feature-gates.md` | How to gate a plugin, and what always-on code is allowed to import |
 | `docs/architecture/plugin/plugin-system.md` | Registration fields, startup stages, the process boundary, `OnConfigApply` |
-| `docs/architecture/exabgp-bridge.md` | The two runners, translation both ways, batching, reload refusal |
+| `docs/architecture/exabgp-bridge.md` | The endpoint and standalone runners, translation both ways, batching, virtual session capabilities |
 | `docs/architecture/provisioning/` | DHCP, TFTP, image server and PXE staging |
 | `docs/architecture/static-routes.md`, `docs/architecture/firewall/` | Static route install and the firewall backends |
 | `ai/digests/fib-programming.md`, `ai/digests/firewall.md`, `ai/digests/dns-services.md` | The traced flows for static, firewall lowering, and the DNS plugins |

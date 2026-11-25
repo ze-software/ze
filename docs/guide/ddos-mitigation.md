@@ -587,8 +587,8 @@ one no operator can lift.
 is not the only way the plugin ends. Where the plugin can still reach the BGP
 engine, it withdraws the rule on its way out. Where it cannot, the rule stays
 recorded and the next start of the plugin withdraws it. The plugin runs only in
-the daemon: run as its own process (a `plugin { external ddos-flowspec { ... } }`
-block), it refuses its configuration stage with `ddos-flowspec: event bus not
+the daemon: run as its own process (a `bus { endpoint ddos-flowspec { external { ... } } }`
+or `process separate;` block), it refuses its configuration stage with `ddos-flowspec: event bus not
 configured`, because a forked plugin is handed no event bus, so its startup
 fails and it never runs. In the daemon it cannot reach the engine on its way out
 on any end other than the `bye`: the plugin's calls are refused once its run
@@ -672,15 +672,15 @@ whatever the daemon runs:
 | Configured, and the daemon has not started its plugins yet | The daemon, from its store | `ze show doctor` | The report says that the daemon cannot tell yet whether the plugin runs. Ask again once the plugins started |
 | Configured, and `ze doctor` runs without the daemon | No check judges the record | The fix of the `doctor-runtime-not-checked` row | The local run does not judge the record: its `doctor-runtime-not-checked` row says that the daemon's checks did not run and why no daemon answered, and its fix is the command for that reason: `ze start` only when no daemon listens, and for every other reason the command that reason needs. Once a daemon answers, `ze show doctor` runs its checks. While ze is stopped, the next start of the plugin withdraws the recorded rule and removes the record |
 | Not configured in the configuration doctor read | Doctor, from the store, with or without the daemon. On the daemon route, the daemon's own check says nothing about this record for any plugin state (stopped, not started yet, or no process of that name), so this is the only row | The exact withdrawal, `ze cli -c "send bgp * update text mp ipv4/flow del ..."` | Doctor reads the saved file, so a daemon that runs the plugin from another configuration gets this row too, with the plugin stopped or running. If the plugin runs and holds the rule as a live mitigation, the withdrawal ends that mitigation: check `ze show config running` before you send it. The withdrawal removes the rule from the peers, not the record, so the report stays. The plugin removes the record the next time it starts, when you configure `ddos flowspec` again. To remove it now, first send the withdrawal, then run `ze data rm meta/ddos-flowspec/announcement`, which works while ze runs. Keep that order: a record removed before its rule is withdrawn leaves the rule at the peers with no trace in the store and no report to find it. ze refuses the removal while a `ddos-flowspec` plugin runs, because that plugin manages the record: then run `ze request plugin restart ddos-flowspec`, whose start withdraws the recorded rule and removes the record |
-| Configured in the configuration doctor read, and the daemon holds no plugin process named `ddos-flowspec` | The daemon, from its plugin state, its store and the configuration doctor read | `ze show config running` | The report says that doctor cannot tell which of two cases holds, so it offers no withdrawal: the daemon runs a configuration without the `ddos flowspec` section, or a plugin block runs the plugin under another name. The running configuration tells them apart. With a `use ddos-flowspec` block under another name, that process may announce the same rule as a live mitigation, so do not withdraw the rule while it mitigates. With no `ddos flowspec` section, no process runs the plugin: send the withdrawal the report names. The record stays until the plugin next starts under its own name, or until you remove it with `ze data rm meta/ddos-flowspec/announcement` after that withdrawal, as in the not-configured row: it works while ze runs, and ze refuses it while a `ddos-flowspec` plugin runs |
-| The daemon holds no plugin process named `ddos-flowspec`, and doctor loaded no configuration | The daemon, from its plugin state and its store | `ze show config running` | The report says that the configuration did not load (a `doctor-config-missing` or `doctor-config-parse` row says why), so doctor cannot tell whether `ddos flowspec` is configured. The running configuration decides, as in the row above |
+| Configured in the configuration doctor read, and the daemon holds no compiled `ddos-flowspec` instance | The daemon, from its plugin state, its store and the configuration doctor read | `ze show config running` | The report says that doctor cannot tell whether the daemon runs a configuration without the `ddos flowspec` section, so it offers no withdrawal until you check `ze show config running`. With no `ddos flowspec` section, no process runs the plugin: send the withdrawal the report names. The record stays until the plugin next starts, or until you remove it with `ze data rm meta/ddos-flowspec/announcement` after that withdrawal, as in the not-configured row: it works while ze runs, and ze refuses it while a compiled `ddos-flowspec` instance runs |
+| The daemon holds no compiled `ddos-flowspec` instance, and doctor loaded no configuration | The daemon, from its plugin state and its store | `ze show config running` | The report says that the configuration did not load (a `doctor-config-missing` or `doctor-config-parse` row says why), so doctor cannot tell whether `ddos flowspec` is configured. The running configuration decides, as in the row above |
 
-A block of another name (`plugin { internal <name> { use ddos-flowspec } }`)
-is refused the record's store key, which is granted to the name
-`ddos-flowspec`, so the plugin it runs neither reads nor writes the record, and
-its own check does not judge it. The configuration doctor reads on the daemon
-route is the saved file, never the running one, which is why the daemon's
-report points at `ze show config running`.
+An aliased internal endpoint (`bus { endpoint <name> { internal ddos-flowspec; } }`)
+keeps the compiled `ddos-flowspec` registration identity, its state-store grant
+for `meta/ddos-flowspec/announcement`, and its doctor recognition (an external
+program named `ddos-flowspec` receives none of them). The configuration doctor
+reads on the daemon route is the saved file, never the running one, which is
+why the daemon's report points at `ze show config running`.
 <!-- source: internal/plugins/ddos/flowspec/doctor.go -- orphanRuntimeCheckDecl, orphanRecordCheck, checkOrphanRecord, stoppedRecordCheck, judgeStoppedRecord, stoppedRunReport, judgedTree, unrunReport, unavailableStoreFindings, unrunUndecidedDiagnostic, noConfigurationUnrunDiagnostic, unrunCases, runningConfigCommand, pluginRunFromSnapshot, stoppedOrphanReport, unknownRunOrphanReport, ruleFindings, unownedOrphanDiagnostic, unconfiguredOrphanDiagnostic, recordRemoval, recordRemovalCommand -->
 <!-- source: internal/component/doctor/local_route.go -- runtimeNotChecked -->
 <!-- source: internal/component/plugin/server/dispatch_state.go -- PluginKeyAllowed on the process name -->
@@ -772,7 +772,7 @@ when traffic returns. The warning names which case it saw:
 
 | Case | What to check |
 |------|---------------|
-| ddos-detect runs as an external plugin process | Remove the `plugin { external ddos-detect { ... } }` block. The feed is a same-process subscription, so an external ddos-detect never receives it. Today an external ddos-detect never arms: it fails startup with `ddos-detect: event bus not configured` in the log, because a forked plugin is handed no event bus. Once that is fixed, this case is reported as soon as the detector is armed, with no window |
+| ddos-detect runs as an external endpoint | Remove the `bus { endpoint ddos-detect { external { ... } } }` block (or `process separate;`). The feed is a same-process subscription, so an out-of-process ddos-detect never receives it. Today an external ddos-detect never arms: it fails startup with `ddos-detect: event bus not configured` in the log, because a forked plugin is handed no event bus. Once that is fixed, this case is reported as soon as the detector is armed, with no window |
 | No sample from the feed for a whole window | `ze show interface rate` |
 | The feed reports no interface | `ze show interface` |
 | Zero received packets and bytes on every interface | `ze show interface rate`. An idle lab or standby router shows this legitimately |

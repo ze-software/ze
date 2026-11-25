@@ -162,7 +162,7 @@ from stdin (`ze -`) is unaffected.
 |------|---------|
 | `-d`, `--debug` | Enable debug logging |
 | `-f <file>` | Start from an explicit config file |
-| `--plugin <name>` | Load plugin before starting a YANG/native config (repeatable). Hub/orchestrator configs reject this; use `plugin { internal ... }` or `plugin { external ... }` in the config instead. |
+| `--plugin <name>` | Load plugin before starting a YANG/native config (repeatable). Hub/orchestrator configs reject this; use `bus { endpoint ... }` in the config instead. |
 | `--pprof <addr:port>` | Start pprof HTTP server |
 | `-V`, `--version` | Show version (also available as `ze show version`) |
 | `--chaos-seed <N>` | Enable chaos self-test mode |
@@ -846,7 +846,7 @@ applies to the answer: `show plugin list | json`, `| yaml`, `| table`, `| count`
 
 | Key | Value |
 |-----|-------|
-| `name` | The plugin name, as `plugin { internal ... }` spells it |
+| `name` | The plugin name, as `bus { endpoint <name> { internal ... } }` spells it |
 | `description` | What the plugin does |
 | `outcome` | `succeeded`, `soft-failure`, `hard-failure`, or `unknown` |
 | `families` | The address families it handles, when it declares any |
@@ -974,8 +974,8 @@ ze show plugin conformance run "./my-plugin --flag"                     # judge 
 ze show plugin conformance run "./my-plugin --flag" name acme-monitor   # name the plugin in the report
 ```
 
-The value after `run` is the run string of `plugin { external <name> { run
-...; } }`, as one quoted token. A shell starts it. Without `name`, the plugin
+The value after `run` is the run string of `bus { endpoint <name> { external { run
+...; } } }`, as one quoted token. A shell starts it. Without `name`, the plugin
 name is the file name of the program. The budget is `ze.plugin.query.timeout`,
 5 seconds by default.
 

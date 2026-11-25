@@ -1188,11 +1188,10 @@ bgp plugin ack async         # Return immediately (default)
 
 ### Event Subscription Commands
 
-A plugin declares what it CAN handle. The peer's configuration decides what it
-GETS. A peer-scoped event is delivered to a process when both halves name it:
-the process subscribed to the event, and the peer's `attach process <name>`
-block grants that type in that direction. A peer that attaches no block for a
-process feeds it nothing.
+Every participant registers the messages it sends and receives at compile time
+or Stage 1; with nothing written, those registered defaults run. A peer-scoped
+event is delivered when the sender's and receiver's compiled bus filters
+(`DeliveryGraph`) admit the message, direction, peers, and any tag filters.
 
 ```
 request subscribe <namespace> event <type> [direction received|sent|both]
@@ -1201,15 +1200,15 @@ request subscribe plugin <name> <namespace> event <type> [direction ...]
 request unsubscribe <namespace> event <type> [direction received|sent|both]
 ```
 
-**Precedence.** The configuration is durable receive authorization and is
+**Precedence.** The compiled bus filter is durable receive authorization and is
 rebuilt on every config apply. A `request subscribe` typed at a running daemon
-is a live capability override: it can add a type the process did not declare at
-startup only where the peer's block grants that type. It cannot widen the
-configured grant, and the next config apply discards it.
+is a live capability override bounded by the participant's registered
+receptions and compiled receive filter: it cannot widen the configured receive
+filter, and the next config apply discards it.
 <!-- source: internal/component/plugin/server/delivery_graph.go -- (*Server).PeerScopedProcs, (*Server).DiscardRuntimeSubscriptions -->
 
-At plugin ready, and again after every apply, ze reports each peer, process and
-event type the two halves disagree about. Two lines an operator sees:
+At plugin ready, and again after every apply, ze reports dormant receptions and
+filter mismatches. Two lines an operator sees:
 
 ```
 event delivery: the config grants an event the plugin never declared  peer=... process=... granted=update-received
@@ -2374,11 +2373,8 @@ version
 ### Attribute Filtering
 
 `ContentConfig.Attributes` limits which path attributes are parsed for API
-output. It is set by the engine, not by a peer's attach block: the
-`content { encoding format attribute }` container inside `attach process`
-parses and reaches no field of `ProcessBinding`, so a peer cannot ask for one
-rendering while another peer asks for a different one.
-<!-- source: internal/component/bgp/reactor/peer_settings.go -- ProcessBinding -->
+output. It is set by the engine per endpoint (`bus { endpoint <name> { encoding ...; } }`),
+not per peer, so one endpoint uses one rendering across the peers it serves.
 
 Available attribute names:
 | Name | Code | Description |

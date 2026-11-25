@@ -9,8 +9,9 @@ Ze uses a JUNOS-like hierarchical format. YANG-driven parsing: each config
 node's type (leaf, leaf-list, container, list) determines how it is parsed.
 Unknown keys are rejected with a suggestion for the closest valid key. A key ze
 once accepted and has since retired is rejected with the spelling that replaces
-it: `process` becomes `attach process`, and `certificate-fingerprint` becomes
-`ca <pki-ca-name>` on a `plugin hub client` block.
+it: `plugin`, `attach`, `process`, and `exabgp` point to `bus` endpoints and
+participant `bus` blocks, and `certificate-fingerprint` becomes
+`ca <pki-ca-name>` on a `bus hub client` block.
 <!-- source: internal/component/config/tokenizer.go -- tokenizer for JUNOS-like syntax -->
 <!-- source: internal/component/config/yang/loader.go -- YANG-driven config parsing -->
 <!-- source: internal/component/config/retired.go -- retiredKeywords, RetiredKeywordHint -->
@@ -20,7 +21,7 @@ it: `process` becomes `attach process`, and `certificate-fingerprint` becomes
 | Blocks | `name { ... }` | `bgp { ... }` |
 | Values | `key value` or `key value;` | `router-id 1.2.3.4` |
 | Comments | `#` to end of line | `# this is a comment` |
-| Lists | `[ item1 item2 ]` | `receive [ update state ]` |
+| Lists | `[ item1 item2 ]` | `allow [ bgp:update-received bgp:state ]` |
 | Strings | Unquoted or `"double quoted"` | `run "/usr/bin/my-plugin"` |
 | Terminators | Optional semicolons | Both `router-id 1.2.3.4` and `router-id 1.2.3.4;` work |
 | Inline blocks | `name { key value; key value; }` | `remote { ip 10.0.0.1; as 65001; }` |
@@ -53,8 +54,8 @@ bgp {
     }
 }
 
-plugin {
-    internal rib { use bgp-rib; }
+bus {
+    endpoint rib { internal bgp-rib; }
 }
 ```
 
@@ -84,8 +85,9 @@ local and remote address, the port, MD5, and TTL security. `session` holds the
 protocol settings: the AS numbers, the router ID, the address families, and the
 capabilities. Both are inherited from the group.
 
-An internal plugin is a named entry whose `use` leaf gives the built-in name, so
-one plugin can run more than once under different names.
+An internal bus endpoint is a named entry whose `internal` leaf gives the
+built-in plugin name, so one plugin can run under a chosen endpoint name or in a
+separate process (`process separate;`).
 <!-- source: internal/component/bgp/config/resolve.go -- ResolveBGPTree -->
 
 ## Inheritance
@@ -240,8 +242,8 @@ session {
 
 A group whose `connection/remote/ip` is `dynamic` opens its own listening
 socket and builds one peer for each accepted connection. The member inherits
-the whole resolved group, its families, its filters and its `attach process`
-blocks included.
+the whole resolved group, its families, its filters and its `bus`
+block included.
 
 ```
 group ix {
@@ -535,114 +537,86 @@ capture file like a routing-table dump. `ze doctor` reports whether the
 directory is writable (`doctor-bgp-capture-directory`).
 <!-- source: internal/component/bgp/yang/ze-bgp-conf.yang -- container capture -->
 
-## Plugin Loading
+## Bus Endpoints
 
-Plugins are declared in the `plugin { }` block:
+Plugins and external programs are declared in the `bus { }` block as named
+`endpoint` entries:
 
 ```
-plugin {
-    internal rib { use bgp-rib; }
-    internal gr  { use bgp-gr; }
-    external my-plugin {
-        run "/path/to/binary";
-        encoder json;
+bus {
+    endpoint rib { internal bgp-rib; }
+    endpoint gr  { internal bgp-gr; }
+    endpoint my-plugin {
+        external { run "/path/to/binary"; }
+        encoding json;
     }
 }
 ```
 
-`internal` plugins run as goroutines via DirectBridge (zero IPC overhead).
-`external` plugins run as separate processes with TLS connect-back. Each entry
-is keyed by the name you give it, and the `use` leaf names the built-in plugin
-that runs under it. An `internal` entry with no `use` leaf is rejected.
+An `internal` endpoint runs a compiled-in plugin as a goroutine inside the
+daemon by default (`process in-daemon;`) via DirectBridge (zero IPC overhead).
+Setting `process separate;` forks the running `ze` binary for that plugin over
+TLS connect-back while keeping the same registration identity and grants.
+An `external` endpoint runs a separate program Ze did not ship, with `run`,
+optional `respawn`, `timeout`, and `on-exit` (`withdraw` default, or `keep` for
+ExaBGP compatibility). `encoding` sets wire event encoding (`json` default, or
+`text`). `internal` and `external` are mutually exclusive.
 
 BGP itself is config-driven: if `bgp { }` is present, BGP loads. If not, ze
 starts without BGP. The same mechanism works for `interface { }`, `firewall { }`,
-and other top-level sections. Plugins can be added or removed at runtime via
-config reload (SIGHUP).
+and other top-level sections.
+<!-- source: internal/component/plugin/yang/ze-plugin-conf.yang -- container bus, list endpoint -->
 <!-- source: internal/component/plugin/server/startup_autoload.go -- config-driven plugin loading -->
 
-## Process Bindings
+## Message Bus Delivery
 
-Plugins receive BGP events through the `attach process` blocks on each peer.
-A peer that attaches no block for a plugin feeds it nothing and lets it send
-nothing.
+Every participant on the bus (BGP peers and groups, bus endpoints, and plugins
+with their own configuration section) registers what messages it sends and
+receives. With nothing written by the operator, every configured participant
+sends and receives what it registered.
+
+Write a `bus { }` block on a participant (or centrally under `bus { participant <path> { ... } }`
+or directly on `bus { endpoint <name> { ... } }`) only when overriding defaults
+— to narrow allowed message names, restrict destinations (`to`) or senders
+(`from`), or filter by message tags:
 
 ```
 peer transit-a {
-    attach process rib {
-        receive [ update state refresh ];
-        send    [ update ];
+    bus {
+        receive {
+            allow [ bgp:update ];
+            from  [ /bus/endpoint/my-plugin ];
+        }
+        send {
+            allow [ bgp:update-received bgp:state ];
+            to    [ /bus/endpoint/rib /bus/endpoint/my-plugin ];
+        }
     }
 }
 ```
 
-This block replaces the older `process <name> { }` form written directly on the
-peer. The `attach` container is flattened, so the statement is written as one
-line: `attach process <name> { ... }`.
+| Field | Direction | Meaning |
+|-------|-----------|---------|
+| `receive > allow` | Inbound | Allowed message names (`<namespace>:<message>` or `cli:<path>`), or `none`. Absent allows every message the participant kind declared receiving |
+| `receive > from` | Inbound | Allowed sender participant paths (short form, e.g. `/bgp/group/transit`, `/bgp/peer/edge1`, `/bgp/ip/198.51.100.7`, `/bus/endpoint/collector`), or `none`. Absent allows everybody |
+| `receive > message <name>` | Inbound | Per-message `from` override (wins over block-level `from`) and `tag <name> [ <values> ]` filter |
+| `send > allow` | Outbound | Allowed message names, or `none`. Absent allows every message the participant kind declared sending |
+| `send > to` | Outbound | Destination participant paths replacing registered defaults whole (no add form), or `none`. Absent uses registered destinations |
+| `send > message <name>` | Outbound | Per-message `to` override (wins over block-level `to`) and `tag <name> [ <values> ]` filter |
 
-| Event | Description |
-|-------|-------------|
-| `update` | Route announcements and withdrawals |
-| `state` | Peer state changes (up/down) |
-| `open` | OPEN message |
-| `notification` | NOTIFICATION message |
-| `keepalive` | KEEPALIVE message |
-| `refresh` | Route refresh request |
-| `negotiated` | Capability negotiation results |
-| `eor` | End-of-RIB marker |
-| `congested` | The peer's send queue filled |
-| `resumed` | The peer's send queue drained again |
-| `rpki` | RPKI validation results |
-| `listener-ready` | The TCP listener is bound and accepting |
-| `update-notification` | Lightweight arrival notice for an UPDATE |
-| `connected` | The peer's TCP connection is established, before any OPEN |
-| `fsm` | The peer's FSM changed state |
-| `signal` | The daemon took an operating-system signal (SIGHUP, SIGINT, SIGTERM) |
-| `*` | Every registered type, in both directions |
+Common BGP message names include `bgp:update` (and direction-scoped
+`bgp:update-received`, `bgp:update-sent`), `bgp:state`, `bgp:open`,
+`bgp:notification`, `bgp:keepalive`, `bgp:refresh`, `bgp:negotiated`,
+`bgp:eor`, `bgp:raw`, `bgp:congested`, `bgp:resumed`, `bgp:rpki`,
+`bgp:listener-ready`, `bgp:update-notification`, `bgp:connected`, `bgp:fsm`,
+and `bgp:signal`.
 
-A plain type is fed in both directions. Add `-received` or `-sent` to name one:
-`receive [ update-received ]` asks for the UPDATEs the peer sends to ze.
-
-| Send type | Permits |
-|-----------|---------|
-| `update` | originating routes toward the peer |
-| `refresh` | asking the peer to re-advertise |
-| `raw` | writing a whole BGP message the program built itself |
-| `*` | all three, and every send type registered later |
-
-Those three are the base types. A plugin registers more, and naming one in a send
-list auto-loads the plugin that enables it: `send [ enhanced-refresh ]` starts
-bgp-route-refresh.
-
-Those two are read at delivery, in both directions. A peer that attaches no
-program feeds it no peer-scoped event, and a program that the peer does not
-list in `send` cannot originate a message toward it.
-
-An optional `content { }` container states how the events are rendered for one
-program:
-
-```
-peer transit-a {
-    attach process watcher {
-        receive [ update-received state ];
-        send    [ update ];
-        content { encoding json; format raw; attribute minimal; }
-    }
-}
-```
-
-| Leaf | Type | Description |
-|------|------|-------------|
-| `encoding` | string | Wire encoding for the events, for example `json` or `text` |
-| `format` | string | Output format template for event rendering |
-| `attribute` | string | Which BGP attributes the events carry |
-
-A block written on a group reaches every peer of that group, dynamic members
-included. A member that restates the block replaces the group's list for
-itself. `show event delivery` prints the resulting edges.
+A `bus` block written on a group is inherited item by item by every peer of that
+group, dynamic members included; any field a member writes replaces that field
+from its group whole. `show event delivery` and `show configuration | implied`
+display the effective delivery graph alongside registered defaults.
 <!-- source: internal/core/bgp/events/events.go -- event and send type names -->
-<!-- source: internal/component/bgp/yang/ze-bgp-conf.yang -- container attach -->
-<!-- source: internal/component/bgp/reactor/peer_settings.go -- ProcessBinding -->
+<!-- source: internal/component/plugin/yang/ze-plugin-conf.yang -- grouping participant-bus -->
 
 ## Configuration Database
 
@@ -1125,8 +1099,10 @@ a server that answers only unsigned (`doctor-radius-admin-unsigned-response`,
 
 | Form | State |
 |------|-------|
-| `env { }` at the top level | Parse error. `unknown top-level keyword: env` |
-| `process <name> { }` written directly on a peer | Replaced by `attach process <name> { }` |
+| `env` at the top level | Parse error. `unknown top-level keyword: env` |
+| `plugin` top-level block | Retired. Replaced by `bus { endpoint <name> { ... } hub { ... } }` |
+| `attach` / `process` on a peer or group | Retired. Participants send and receive registered messages by default; override with `bus { send { ... } receive { ... } }` |
+| `exabgp` top-level bridge block | Retired. Replaced by `bus { endpoint <name> { external { run "ze exabgp plugin ..."; } } }` |
 
 `ze config validate` always rejected a top-level `env { }` block. One daemon
 path used to accept it, read it once, and discard it. Both now refuse it. Set

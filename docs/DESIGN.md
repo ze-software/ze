@@ -493,8 +493,10 @@ bgp {
     }
 }
 
-plugin {
-    internal bgp-rib;
+bus {
+    endpoint rib {
+        internal bgp-rib;
+    }
 }
 ```
 

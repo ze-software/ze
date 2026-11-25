@@ -503,7 +503,7 @@ daemon-owned observations.
 
 ### A plugin run in its own process
 
-A plugin the daemon forks (`plugin { external <name> { run ...; } }`) cannot
+A plugin the daemon forks (`bus { endpoint <name> { external { run ...; } } }`) cannot
 reach the daemon's registry. Its runner, `cli.RunPlugin`, calls the same
 `ConfigureMetrics` before `RunEngine`, with an `sdk.MetricsPublisher`: a
 `metrics.Registry` that creates each metric in the daemon under the same name

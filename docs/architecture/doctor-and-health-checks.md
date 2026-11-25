@@ -1687,18 +1687,23 @@ rather than refused; the doctor row prints it whole. A generation that reaches r
 (`RemoveProcess`), after which a failed handshake records the plugin down
 again. A reload's removal (`stopCollectedProcesses`) takes the process out of
 its slot the same way, so a plugin a reload removed while it ran is not
-reported down. It stays in the configured set (`ConfiguredNames`, which this
-check, `request plugin restart` and its completion read), because nothing
-takes a name out of it. This is a known defect, not the design: `request plugin
-restart` still accepts the removed plugin and starts it again though the
-configuration no longer runs it, which is wrong, and the fix belongs where a
-reload's removal becomes final, which must take the name out of that set. A
+reported down. Once a reload is accepted, `finishRemovalScope` calls
+`ProcessManager.UnconfigureProcess` for each final removal (and
+`rollbackStartupProcess` drops any process stopped below `StageRunning` during
+a rolled-back reload start), so the removed name leaves `ConfiguredNames`:
+neither `plugin-stopped`, `request plugin restart`, nor its completion offers
+or accepts a plugin the configuration no longer runs. While a reload is still
+in flight (or after a rejected reload recovers its removals), the name remains
+configured until the scope settles. A
 plugin that was already down (a failed start left it configured with no
 process) is not collected by the removal at all, so it keeps its record and
 this check keeps reporting it, with a restart as its fix. `StartMore` replaces
 the config of a name added back, so the configured set holds each plugin once.
-A plugin declared in its own `plugin {}` block is read only at boot, so no
-reload removes it. While a process a restart stopped still
+External `bus > endpoint` declarations (and their schemas) are read at boot and
+changes to them still require a restart (`RefuseChangedDeclarations`).
+Compiled-in `bus > endpoint` declarations reload: `judgeReloadWriters` starts
+and stops compiled-in `ProgramsFIB` endpoints as the candidate selection
+changes, while leaving non-`ProgramsFIB` compiled-in endpoints untouched. While a process a restart stopped still
 owes its runtime cleanup (`lateCleanupRecord`), every restart and every startup
 phase naming the plugin is refused, and the row says so: that cleanup had not
 finished within the restart's bound, either because it waits for a call the
@@ -1906,7 +1911,7 @@ check answers one warning saying it could not read the plugin state.
 |-------|------|---------|-------------|-----|
 | `plugin-commands` | `doctor-plugin-command-not-registered` (warning) | each command or deprecated alias the registry refused, with the plugin that owns the name, or `builtin` | `registerProcessCommands` | remove or rename one of the two plugins, or the plugin that shadows a builtin |
 | `plugin-subscriptions` | `doctor-plugin-subscription-dropped` (error) | each dropped subscription block: unknown namespace, no default namespace, or ready parameters that did not parse | `resolveSubscriptionNamespace`, the sinks' `readyParamsRefused` | a plugin version that subscribes in a registered namespace, then the restart |
-| `plugin-delivery-agreement` | `doctor-plugin-delivery-disagreement` (warning) | each finding of `deliveryDisagreements(nil)` | computed at the snapshot | the `attach process` change (`DeliveryDisagreement.Fix`) |
+| `plugin-delivery-agreement` | `doctor-plugin-delivery-disagreement` (warning) | each finding of `deliveryDisagreements(nil)` | computed at the snapshot | the `bus` filter change (`DeliveryDisagreement.Fix`) |
 | `plugin-claims` | `doctor-plugin-claim-unbacked` (error) | each exclusive role with no claimant running, naming the claimants | computed at the snapshot | `ze request plugin restart <claimant>` |
 | `plugin-poststartup` | `doctor-plugin-poststartup-undelivered` (error) | each running plugin whose post-startup callback failed; one still starting, or whose callback is in flight, is not reported | `recordPostStartupOutcome` | `ze request plugin restart <name>` |
 | `plugin-panic` | `doctor-plugin-panic` (error) | a plugin's first failed event application (`projectionErr`), and each recovered engine handler panic with its namespace and event type | `deliverBatch`, `safeDeliverBatch`, `invokeHandler` | the restart, or `ze show log recent level err component plugin.server` for an engine handler, whose panics are logged and not raised on the report bus |
