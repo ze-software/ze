@@ -224,13 +224,17 @@ stay here are unchanged.
 | The sample alarms | `internal/component/web/fleetui/sample/activity.go` `alarmRows`, `alarmsAt` | Twelve open alarms and a script in which a device goes offline and comes back | Does not apply here: the sample answering the hidden-behind fact for the prototype is `fleet-ui-9`'s |
 | The report bus | `internal/core/report/report.go` `RaiseWarning`, `ClearWarning` | One active warning per (source, code, subject) on a device; raising again refreshes it. Codes are free strings with no registry | Does not apply: the hub's alarms keep the same identity shape, a kind and its target. The bus gets no causes: it has no registered kind to declare one on, and its readers are one device's own commands |
 | The stand-in finding of `ze doctor` | `docs/architecture/doctor-and-health-checks.md`; `show.go` `collectDoctorChecksFrom` | When a plugin cannot answer its checks, one `doctor-plugin-unreachable` finding stands in for them | Does not apply: it is the same idea on one device, one finding for the cause, not a guess about each thing behind it. It replaces answers that cannot be had; an alarm cause hides answers the hub does hold, so the two do not share code |
-| `stats.Hysteresis` | `internal/core/stats/hysteresis.go`; used by the host trend monitor and the DDoS detector | Confirms a condition after a count of holding evaluations and clears it after a count of failing ones | Extends, at design: "the configured time counts again" is a machine returned to idle when the cause clears. Whether Resource high runs one machine per device or reads the stored samples is `fleet-8`'s question |
+| `stats.Hysteresis` | `internal/core/stats/hysteresis.go`; used by the host trend monitor and the DDoS detector | Confirms a condition after a count of holding evaluations and clears it after a count of failing ones | Does not apply to AC-5. This counter counts evaluations. Clear the old occurrence on reconnect and measure elapsed time across fresh, consecutive qualifying observations using their timestamps; sample cadence must not change the configured duration |
+| Fleet command registration | `internal/component/managed/register.go`, init and `command.RegisterPipeFilters` | Registers an answer shape, columns and the typed label pipe for the devices table | Extend this registration for the alarm table; register the optional output column and the required text filter here. |
+| Hub device observations | `internal/component/plugin/server/managed_registry.go`, ManagedRegistrySnapshot and disconnectDevice | Disconnect changes the live connection state for the device. The snapshot represents the managed registry. | The prerequisite condition evaluator consumes that state for Device offline; the cause calculation uses its timestamped alarm transition on that same device. |
 
 ## Design documents
 
 | Document | Section | Derived from | Binding statement | Verdict | How this design stands against it |
 |----------|---------|--------------|-------------------|---------|-----------------------------------|
 | `docs/architecture/fleet-interface.md` | A source answers facts, the package derives | The `// Design:` page of `source_activity.go` | "A source answers facts only" | agrees | The hub answers `hidden-behind` as a fact in `show fleet alarm`; every count of shown or hidden alarms is derived by the pages from the table its link opens (`fleet-ui-9` AC-14) |
+| `ai/rules/repo-maintenance.md` | Directives | Managed command registration | "the owning `docs/architecture/` page for a contract" | agrees | Update the fleet alarm contract and command reference when the output and pipe ship. |
+| `docs/architecture/doctor-and-health-checks.md` | Recent events: the report bus in show doctor | Managed command registration | silent | silent | The section covers local diagnostics. The hub computes causes on its fleet alarm table. |
 | `ai/doors/system.md` | The core knows nothing, and everything registers | System door | "A feature registers from `init()` in its own `register.go` and is discovered" | agrees | Each kind declares its causes in its own registration; no list of causes exists anywhere else (AC-8) |
 | `ai/doors/system.md` | A plugin can run in another process | System door | "A declaration is a pure value." | agrees | A cause declaration is names and one boolean, so it reads the same from a plugin in another process |
 | `ai/doors/le-tooling.md` | Where it sits | The door covering `test/managed/alarm-hidden-behind-offline.ci` | "Functional `.ci` files live under `test/<suite>/` and run through" | agrees | `alarm-hidden-behind-offline` lives under `test/managed/` and runs through `./le test managed` |
@@ -243,7 +247,7 @@ stay here are unchanged.
 | `docs/architecture/fleet-config.md` | RPCs | anchored to internal/component/managed/yang/ze-managed-cmd.yang | "All RPCs are scoped to that name implicitly." | agrees | Cause matching uses the device bound to the session. |
 | `ai/doors/hub-engine.md` | Boundaries | the door covering internal/component/managed/yang/ze-managed-cmd.yang | "No always-on file imports a gated package." | agrees | The hub can derive causes and answer the command while the web feature is compiled out. |
 | `ai/doors/plugin-infra.md` | Boundaries | the door covering internal/component/plugin/yang/ze-plugin-conf.yang | "The SDK stays generic." | agrees | Alarm kinds declare names and a settling flag, keeping fleet-specific policy with the hub. |
-| `docs/architecture/api/commands.md` | Design decisions | Decision of 2026-08-21 | "The pipe wins: a command path names the subject and stops; scope, presentation and format are pipe operations after it, selector words included" | agrees | The hidden selector operates on the alarm answer as a registered pipe. |
+| `docs/architecture/api/commands.md` | Design decisions | Decision of 2026-08-21 | "The pipe wins: a command path names the subject and stops; scope, presentation and format are pipe operations after it, selector words included" | agrees | The managed registration adds the command-owned pipe `hidden` with command.ArgText. It accepts exactly `true` (rows with a cause) or `false` (rows without one), rejects other values, and preserves the table columns. The optional hidden-behind column is an output of the Go handler. |
 | `docs/architecture/api/commands.md` | Design decisions | Decision of 2026-11-20 | "A command may override any generic pipe operation that acts on its data, as long as the answer keeps the generic's data format: every data operator of the catalog is overridable, each held to its generic's answer shape; a format, paging, `save` and `log` are the data format or its display, and stay the generic's. In Thomas's words: "I believe it should be possible to overwrite more command as long as their data format is not changed."" | agrees | The registered hidden filter keeps the generic answer shape. |
 | `docs/architecture/api/commands.md` | Design decisions | Decision of 2026-11-23 | "A pipe operation works on the answer of the command before it. It may narrow the answer, extend it, transform it, or deliver it somewhere, such as saving it to a file. It never changes what the command does" | agrees | Filtering never mutates the alarm or acknowledges it. |
 | `docs/architecture/fleet-config.md` | Design decisions | Decision of 2026-11-23 | "A reload that changes the certificate a serving hub's managed listener presents installs it on the running listener at that reload: the next handshake presents the certificate the configuration names, the listener keeps its socket and no session is closed, as the web and looking glass listeners do. The certificate stays in the configuration's `pki` block. In Thomas's words (voice-transcribed): "Keep the certificate in the configuration." and "In that case on commit we can perform the certificate change on the listener."" | agrees | The ordinary certificate reload keeps established sessions, so that operation alone cannot open Device offline. |
@@ -267,11 +271,13 @@ stay here are unchanged.
 
 ### Changed-Wire Census
 
-**Search evidence:** [pending research: the `show fleet alarm` answer shape of `fleet-ui-5`]
+**Search evidence:** Fleet UI-5 defines the proposed alarm producer and command. The managed registration already publishes shapes, columns and filters for its device table. Fleet UI-9 owns the future ActivityPart reader.
 
 | Wire | Role (writer / reader) | Carrier (file + producer/consumer symbol or script entry) | Source evidence | Migration or preservation disposition |
 |------|------------------------|-----------------------------------------------------------|-----------------|----------------------------------------|
-| `show fleet alarm` answer | [pending research] | [pending research] | [pending research] | Change: adds `hidden-behind` on a hidden alarm |
+| Open alarm table | Writer | Planned managed cmd_alarms.go and register.go | Fleet UI-5's bounded alarm query and the existing managed device column registration | Add optional hidden-behind to the authorized result; preserve identity, Since and all existing fields. |
+| Alarm table and history | Readers | CLI, API and MCP through the dispatcher; Fleet UI-9's planned activity adapter | Fleet UI-5's command contract and UI-9's ActivityPart | Old consumers can ignore the extra column; a missing value means shown. The history reader intersects cause and occurrence intervals for the same device. |
+| Managed device transport | Both | Managed client and server | Cause declarations use conditions already supplied by Fleet UI-5 | All new fields are hub-derived command output. Devices continue sending the same reports. |
 
 ### Integration Points
 - The alarm-kind registry of `fleet-ui-5` - gains the Causes and Settles parts
@@ -281,12 +287,12 @@ stay here are unchanged.
 ### Architectural Verification
 | Check | Holds? | Evidence |
 |-------|--------|----------|
-| No bypassed layers (data flows through the intended path) | No | |
-| No unintended coupling (components stay isolated) | No | |
-| No duplicated functionality (extends existing, does not recreate) | No | |
-| Zero-copy preserved where applicable (refs, not copies) | No | |
-| Registration over hardcoding, outbound: new commands, views, families, and handlers register, and the core discovers them. No per-feature field, switch case, or factory is added to a core/shared package (`ai/rules/plugins.md`) | No | |
-| Registration over hardcoding, inbound: no existing switch, seed map, validator, parser, runner, help string, or completion table has to learn this feature's name. Evidence names every list that was searched for the names this feature introduces, and the registry each one now derives from (`ai/rules/principles.md`) | No | |
+| No bypassed layers (data flows through the intended path) | Yes | The managed command reads the hub-computed answer. |
+| No unintended coupling (components stay isolated) | Yes | The device and web transports require no changes. |
+| No duplicated functionality (extends existing, does not recreate) | Yes | Kinds share Fleet UI-5’s registry. |
+| Zero-copy preserved where applicable (refs, not copies) | Yes | No BGP wire objects enter the alarm model. |
+| Registration over hardcoding, outbound: new commands, views, families, and handlers register, and the core discovers them. No per-feature field, switch case, or factory is added to a core/shared package (`ai/rules/plugins.md`) | Yes | Each alarm kind registers its own causes. |
+| Registration over hardcoding, inbound: no existing switch, seed map, validator, parser, runner, help string, or completion table has to learn this feature's name. Evidence names every list that was searched for the names this feature introduces, and the registry each one now derives from (`ai/rules/principles.md`) | Yes | Validation iterates registered kinds and command completion uses registered pipes. |
 
 ## Risks & Assumptions
 
@@ -307,8 +313,8 @@ R-2, a count and the rows behind its link differing, moved to `fleet-ui-9`.
 
 | Question | Answer |
 |----------|--------|
-| What breaks if this is wrong? | [pending design] |
-| How is it reverted? | [pending design] |
+| What breaks if this is wrong? | A cross-device match could conceal an independent failure or reveal an out-of-scope identifier. Restrict candidates by authorized device before selection. |
+| How is it reverted? | Remove the derived column, pipe and cause declarations together. Preserve the underlying occurrence history. Coordinate the change with UI-9 readers. |
 | Who else touches this path? | `fleet-ui-5` (the alarm list), `fleet-ui-9` (the alarm pages and their counts), `fleet-ui-3` (the Alarms card), `fleet-10` (a kind that declares a cause) |
 
 ## Wiring Test (MANDATORY -- NOT deferrable)
@@ -327,7 +333,7 @@ part moved ("Moved to fleet-ui-9").
 
 | AC ID | Input / Condition | Expected Behavior | Permitted Survivors and Why |
 |-------|-------------------|-------------------|-----------------------------|
-| AC-1 | A device with a component down goes offline | The device has one shown alarm, Device offline. Component down is open and hidden behind it: `show fleet alarm` lists it with `hidden-behind` naming the offline alarm, and lists Device offline with no `hidden-behind` | `show fleet alarm` with the filter `hidden` lists it, because that filter selects the hidden alarms |
+| AC-1 | A device with a component down goes offline | The device has one shown alarm, Device offline. Component down is open and hidden behind it: `show fleet alarm` lists it with `hidden-behind` naming the offline alarm, and lists Device offline with no `hidden-behind` | `show fleet alarm` with the pipe `hidden true` lists it, because that filter selects the hidden alarms |
 | AC-2 | The device of AC-1 comes back and its report still names the component down | `show fleet alarm` lists Component down with no `hidden-behind`, with the `Since` of the moment the component went down | None |
 | AC-3 | A component alarm opens and its condition stops while the device is offline | `show fleet alarm` lists the alarm only with `hidden-behind` while it is open. Its history row exists and is marked hidden | None |
 | AC-4 | Resource high is shown, then its device goes offline | `show fleet alarm` lists it with `hidden-behind` naming Device offline and its own `Since`, and the alarm history holds no clearing for it | None |
@@ -336,7 +342,7 @@ part moved ("Moved to fleet-ui-9").
 | AC-7 | A kind registered with a cause name no kind holds, with a chain of causes that returns to itself, or with a cause less severe than itself | The hub refuses to start its alarms and names both kinds and the defect | None |
 | AC-8 | A later feature registers a kind that names Device offline as its cause | Its alarms are hidden behind Device offline with no edit to a file of this spec | None |
 | AC-10 | A condition in `fleet-ui-5`'s alarm table becomes true while a cause is open on its device, then false | `show fleet alarm` lists it with `hidden-behind` while it is open and no longer lists it once the condition is false. This narrows `fleet-ui-5` AC-4 for a hidden alarm | Its history row remains, marked hidden, because the history is the record that it happened |
-| AC-11 | `show fleet alarm` on any command surface, with and without the filter `hidden` | Unfiltered, every open alarm is listed and each hidden one carries `hidden-behind` with the identifier of the nearest open cause alarm, selected by the stable rule in Alarm causes; the filter selects the hidden set or the shown set | A shown alarm carries no `hidden-behind`, because it is hidden behind nothing |
+| AC-11 | `show fleet alarm` on any command surface, with and without the filter `hidden` | Unfiltered, every authorized open alarm is listed and each hidden one carries `hidden-behind` with the identifier of the nearest open cause alarm, selected by the stable rule in Alarm causes; the registered pipe selects rows with a cause for `hidden true` and without one for `hidden false`; missing and unsupported arguments return a usage error | A shown alarm carries no `hidden-behind`, because it is hidden behind nothing |
 | AC-13 | Two registered open causes are equally near on one device. A third open cause is one level farther away. | The selected identifier is the same across insertion orders and command surfaces. Clearing the two nearest causes in succession exposes the remaining nearest one and then the more distant cause. The affected alarm stays hidden with the same `Since` throughout. | A cause on another device cannot explain this occurrence. |
 
 ## End-to-End User Stories
@@ -351,8 +357,7 @@ The same story on the Alarms tab is `fleet-ui-9`'s, proved by `test/web/fleet-al
 
 ### Unit Tests
 
-The package of the hub's alarm model is fixed at `fleet-ui-5`'s design, so the
-unit tests are named and not yet placed. `TestAlarmCountsMatchTheirRows`
+The hub alarm tests run in the plugin server package. Command filter tests run in managed. `TestAlarmCountsMatchTheirRows`
 moved to `fleet-ui-9`.
 
 | Test | File | Validates | Status |
@@ -378,8 +383,8 @@ The browser test `fleet-alarm-cause` (`test/web/fleet-alarm-cause.wb`) moved to 
 
 ## Files to Modify
 - `internal/component/plugin/server/managed_alarms.go` and the condition registrations from Fleet UI-5 extend the kind declaration with causes and settling.
-- `internal/component/managed/cmd_alarms.go` returns the selected cause and registers the `hidden` pipe through `command.RegisterPipeFilters`.
-- `internal/component/managed/yang/ze-managed-cmd.yang` describes the command answer field.
+- `internal/component/managed/cmd_alarms.go` returns the selected cause; `internal/component/managed/register.go` registers the output column and the command-owned `hidden` pipe through `command.RegisterPipeFilters`.
+- The command uses the Fleet UI-5 YANG path. Its YANG leaves describe input arguments; the optional output field belongs in the Go alarm answer and its registered columns.
 - `docs/architecture/fleet-config.md` documents hub alarm visibility, history and same-device matching.
 
 `internal/component/web/fleetui/source_activity.go` and
@@ -393,40 +398,40 @@ the pages, moved to `fleet-ui-9`.
 ### Integration Checklist
 | Integration Point | Applies? | File / reason |
 |-------------------|----------|---------------|
-| YANG schema (new RPCs/config) | Yes | `show fleet alarm` gains the `hidden-behind` answer leaf. Its command handler registers the `hidden` pipe |
-| YANG validation constraints | | |
-| YANG custom validators | | |
+| YANG schema (new RPCs/config) | N-A | Uses the existing Fleet UI-5 command path and typed Go answer. |
+| YANG validation constraints | N-A | There is no new YANG input |
+| YANG custom validators | N-A | The cause graph is validated in the alarm registry |
 | CLI commands/flags | Yes | `show fleet alarm` filter |
-| CLI grammar (keyword before value) | | |
-| Editor autocomplete | | |
+| CLI grammar (keyword before value) | Yes | The pipe accepts hidden true and hidden false |
+| Editor autocomplete | Yes | The registered filter supplies the pipe name |
 | Functional test for new RPC/API | Yes | `test/managed/alarm-hidden-behind-offline.ci` |
-| Pipe completeness | | |
-| Env var registration | | |
-| Doctor check for runtime dependencies | | |
-| Doctor code per problem class | | |
-| Prometheus counters/metrics | | |
+| Pipe completeness | Yes | Test true, false, missing and invalid values and composition with generic operators |
+| Env var registration | N-A | Uses existing alarm thresholds |
+| Doctor check for runtime dependencies | N-A | No additional transport, storage or credentials |
+| Doctor code per problem class | N-A | Invalid cause declarations fail alarm startup with kind names |
+| Prometheus counters/metrics | N-A | The existing alarm inputs supply the measurements |
 | BGP family surface (new SAFI / capability / attribute) | N-A | No BGP wire surface |
 
 ### Documentation Update Checklist (BLOCKING)
 | # | Question | Applies? | File to update |
 |---|----------|----------|---------------|
-| 1 | New user-facing feature, or a feature's scope, evidence or level changed? | | |
-| 2 | Config syntax changed? | | |
+| 1 | New user-facing feature, or a feature's scope, evidence or level changed? | Yes | Update the fleet management feature evidence and command reference |
+| 2 | Config syntax changed? | N-A | No config syntax changes |
 | 3 | CLI command added/changed? | Yes | `docs/guide/command-reference.md`, `show fleet alarm` |
-| 4 | API/RPC added/changed? | | |
-| 5 | Plugin added/changed? | | |
-| 6 | Has a user guide page? | | |
-| 7 | Wire format changed? | | |
-| 8 | Plugin SDK/protocol changed? | | |
+| 4 | API/RPC added/changed? | Yes | Document the optional alarm answer field and command-owned pipe |
+| 5 | Plugin added/changed? | N-A | No new plugin |
+| 6 | Has a user guide page? | Yes | Update the fleet configuration guide with the two filter values |
+| 7 | Wire format changed? | Yes | The command result adds an optional column |
+| 8 | Plugin SDK/protocol changed? | N-A | No change to the plugin transport |
 | 9 | RFC behavior implemented, changed, or newly proven? | N-A | No RFC behavior |
-| 10 | Test infrastructure changed? | | |
-| 11 | Affects daemon comparison? | | |
+| 10 | Test infrastructure changed? | N-A | Uses the existing managed test harness |
+| 11 | Affects daemon comparison? | N-A | No change to BGP comparison |
 | 12 | Internal architecture changed? | Yes | The page that documents `fleet-ui-5`'s alarm model once it has landed. `docs/architecture/fleet-interface.md`, the pages' side, is `fleet-ui-9`'s |
 | 13 | Route metadata keys added/changed? | N-A | No route metadata keys |
-| 14 | Prometheus counters added/changed? | | |
-| 15 | Registered plugin, event type, send type, command, capability, or inventory changed? | | |
-| 16 | Any changed source file referenced by existing doc source anchors? | | |
-| 17 | Existing docs show config/CLI/API examples for this area? | | |
+| 14 | Prometheus counters added/changed? | N-A | No additional counter |
+| 15 | Registered plugin, event type, send type, command, capability, or inventory changed? | Yes | Publish the new alarm answer column and registered pipe |
+| 16 | Any changed source file referenced by existing doc source anchors? | Yes | Check current source anchors for managed registration and the alarm model |
+| 17 | Existing docs show config/CLI/API examples for this area? | Yes | Document shown and hidden examples in the command reference |
 
 ## Design presentation
 
@@ -468,6 +473,10 @@ Thomas settled the occurrence boundary on 2026-11-25: “End the old occurrence.
    - Tests: `test/managed/alarm-hidden-behind-offline.ci`
    - Verify: `./le test managed` runs the wiring test, red until the hiding is computed
 
+2. Validate the complete kind graph after registration. Compute nearest causes by depth and stable identifier over the authorized open set of each device. Run the graph, late opening and tie-break tests.
+3. At reconnect close measured occurrences, restart qualification on fresh observations and preserve closed intervals for history. Prove threshold and gap boundaries with a controlled clock.
+4. Publish the optional column, implement and validate the two pipe values, and exercise the command and history with the managed fixture.
+
 ### Critical Review Checklist
 | Check | What to verify for this spec |
 |-------|------------------------------|
@@ -479,12 +488,14 @@ Thomas settled the occurrence boundary on 2026-11-25: “End the old occurrence.
 ### Deliverables Checklist
 | Deliverable | Verification method |
 |-------------|---------------------|
-| [pending design] | [pending design] |
+| Hub cause graph and occurrence history | The table-driven kind, graph and time-boundary tests cover AC-1 through AC-8 and AC-13. |
+| Command filter and output column | The hub/client fixture observes the same identity and optional cause before and after reconnect through the public command. |
 
 ### Security Review Checklist
 | Check | What to look for |
 |-------|-----------------|
-| Input validation | [pending design] |
+| Input validation | Reject unknown kinds, cycles and invalid severity relations before serving. Reject invalid pipe arguments at the command. |
+| Device authorization | Filter the subject and candidates to the caller's allowed devices before producing cause identifiers or marking history. |
 
 The authorization row (a hidden alarm on a device the operator may not see
 reaches neither a count nor a side panel) moved to `fleet-ui-9`.
