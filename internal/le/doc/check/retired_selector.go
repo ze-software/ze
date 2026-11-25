@@ -1586,6 +1586,48 @@ var retiredSelectorExceptions = [...]retiredSelectorException{
 		why:   selectorExclusiveGroupWhy,
 	},
 	{
+		file:  "test/managed/dataplane-door-pushed-config-sees-command-line-plugin.ci",
+		old:   selectorValNFT,
+		lines: []string{selectorExclusiveGroupFlowspec},
+		why:   selectorExclusiveGroupWhy,
+	},
+	{
+		file:  "test/plugin/dataplane-door-api-sees-command-line-plugin.ci",
+		old:   selectorValNFT,
+		lines: []string{selectorExclusiveGroupFlowspec},
+		why:   selectorExclusiveGroupWhy,
+	},
+	{
+		file:  "test/plugin/dataplane-door-ephemeral-editor-sees-command-line-plugin.ci",
+		old:   selectorValNFT,
+		lines: []string{selectorExclusiveGroupFlowspec},
+		why:   selectorExclusiveGroupWhy,
+	},
+	{
+		file:  "test/plugin/dataplane-door-gnmi-sees-command-line-plugin.ci",
+		old:   selectorValNFT,
+		lines: []string{selectorExclusiveGroupFlowspec},
+		why:   selectorExclusiveGroupWhy,
+	},
+	{
+		file:  "test/plugin/dataplane-door-ssh-editor-sees-command-line-plugin.ci",
+		old:   selectorValNFT,
+		lines: []string{selectorExclusiveGroupFlowspec},
+		why:   selectorExclusiveGroupWhy,
+	},
+	{
+		file:  "test/plugin/dataplane-door-upload-sees-command-line-plugin.ci",
+		old:   selectorValNFT,
+		lines: []string{selectorExclusiveGroupFlowspec},
+		why:   selectorExclusiveGroupWhy,
+	},
+	{
+		file:  "test/plugin/dataplane-door-web-editor-sees-command-line-plugin.ci",
+		old:   selectorValNFT,
+		lines: []string{selectorExclusiveGroupFlowspec},
+		why:   selectorExclusiveGroupWhy,
+	},
+	{
 		file:  "test/plugin/flowspec-fw-legacy-table-removed.ci",
 		old:   selectorValNFT,
 		lines: []string{selectorExclusiveGroupFlowspec},
