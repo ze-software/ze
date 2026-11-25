@@ -7,7 +7,7 @@
 | Priority | P3 |
 | Release reason | Adds a capability absent from the supported release; existing supported behavior and its obligations remain required. |
 | RFC gaps | - |
-| Depends | plan/release/features/spec-fleet-1-device-registry.md, plan/post-release/features/spec-fleet-3-audit-trail.md |
+| Depends | spec-fleet-1-device-registry (closed 2026-11-25; documented in `docs/architecture/fleet-config.md`, "Device registry"), plan/post-release/features/spec-fleet-3-audit-trail.md |
 | Phase | 9/10 of plan/post-release/features/spec-fleet-0-umbrella.md |
 | Handoff | - |
 | Updated | 2026-11-25 |
@@ -106,7 +106,7 @@ For a single device the hub registers `request fleet command device edge-01 run 
 The hub holds each managed connection for its life under a cap of 128
 (`managedMaxConns`). An estate larger than that cannot connect, whatever the
 interface shows. Lifting that cap belongs to the registry work
-(`plan/release/features/spec-fleet-1-device-registry.md`); this spec states the dependency and adds
+(`spec-fleet-1-device-registry`, closed 2026-11-25; documented in `docs/architecture/fleet-config.md`); this spec states the dependency and adds
 its own per-device and hub-wide bounds on relayed commands.
 
 ### Key design decisions (to confirm at the design gate)

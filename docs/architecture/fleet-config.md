@@ -270,10 +270,14 @@ When a configuration drops a client, its last named rejection clears.
 | A listen address the plugin acceptor already holds | not recorded; logged at ERROR, and the local `hub-managed-listener` check reports it from the config | `doctor-hub-managed-collision` |
 | A second session under a name already connected | that client's last refusal | `doctor-managed-client-rejected` (warning) |
 | A `config-ack` with an error | that client's last refusal, cleared by the next successful ack | `doctor-managed-client-rejected` (warning) |
+| A client line exceeding `managedReadMax` (`ManagedRejectOversize`) | connection closed; recorded as that client's last refusal | `doctor-managed-client-rejected` (warning) |
 | A configured name with a token that is not its secret | that client's last refusal | `doctor-managed-client-rejected` (warning) |
 | A name with no `client` entry | the 16 most recent such names, the oldest forgotten first | `doctor-managed-client-rejected` (warning) |
 | A remote address whose TLS handshake ends with one of the six certificate-rejection alerts | up to 16 remote addresses (without port) kept for one hour, with count, first/last times, presented certificate, devices last seen from that address, and a forgotten-count row; cleared when an authenticated session opens from that address | `doctor-managed-certificate-refused` (warning) |
 | Any other connection that ends before naming a client (non-certificate fatal TLS alerts, TLS version/cipher mismatch, plain TCP close, non-TLS bytes, timeout, malformed first line) | up to 16 remote addresses apart from the certificate-refused class, kept for one hour, with count, first/last times, error, and a forgotten-count row; cleared on authentication | `doctor-managed-client-rejected` (warning) |
+| All 32 unauthenticated handshake slots occupied at once (`managedMaxHandshakes`) | saturation time, count, and the remote addresses holding slots | `doctor-managed-handshake-saturated` (warning) |
+| A device history write failure under `meta/fleet/device/<name>/record` (or failed removal of a foreign key) | per-device failure with key and store error, cleared by the next successful write or removal | `doctor-managed-device-record-unwritable` (error) |
+| A stored device record that fails read or strict JSON decode at startup | per-device failure with key and decode error, cleared when a new event replaces it or `ze data rm` deletes it | `doctor-managed-device-record-unreadable` (error) |
 | A `config-changed` a connected client was not given (the notification could not be built, or the client did not accept it) | an event on the report bus naming the client and the cause | `doctor-managed-client-notify-dropped` |
 
 ### Config Storage (Hub Side)
@@ -334,7 +338,7 @@ The hub's `Storage.SetWriteObserver` callback maps a written client-config key
 back to the client's name and marks that client as owed `config-changed`,
 without blocking the storage writer. A client fetches the updated configuration
 after the notification or on its next connection.
-<!-- source: cmd/ze/hub/managed_server.go -- startManagedServer -->
+<!-- source: internal/component/plugin/server/managed_serve.go -- Start -->
 <!-- source: internal/component/config/storage/storage.go -- Storage -->
 
 A change is never lost between the write and the push. The mark is held per

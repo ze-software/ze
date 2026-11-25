@@ -227,7 +227,11 @@ func splitAnswerLines(data []byte, atEOF bool, maxSize int) (advance int, token 
 		panic("BUG: answer line classifier returned an unknown state")
 	}
 
-	return ScanLinesKeepingReturns(data, atEOF)
+	advance, token, err = ScanLinesKeepingReturns(data, atEOF)
+	if err == nil && len(token) > maxSize {
+		return 0, nil, fmt.Errorf("%w %d", ErrMessageTooLong, maxSize)
+	}
+	return advance, token, err
 }
 
 // ScanLinesKeepingReturns is the bufio.SplitFunc for a stream that carries no

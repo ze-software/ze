@@ -5,7 +5,7 @@
 | Status | ready |
 | Priority | P2 |
 | Release reason | Thomas put this fleet capability (device health and inventory reports to the hub) in the first release; existing supported behavior and its obligations remain required. |
-| Depends | plan/release/features/spec-fleet-1-device-registry.md |
+| Depends | spec-fleet-1-device-registry (closed 2026-11-25; documented in `docs/architecture/fleet-config.md`, "Device registry") |
 | Phase | 4/10 of plan/post-release/features/spec-fleet-0-umbrella.md |
 | Updated | 2026-11-25 |
 
@@ -18,7 +18,7 @@
 4. `internal/core/health/` -- health registry (source data)
 5. `internal/component/host/inventory.go` -- hardware inventory (source data)
 6. `plan/post-release/features/spec-fleet-0-umbrella.md` -- umbrella design decisions
-7. `plan/release/features/spec-fleet-1-device-registry.md` -- device registry (dependency)
+7. `docs/architecture/fleet-config.md`, "Device registry" (`spec-fleet-1-device-registry`, closed 2026-11-25) -- device registry (dependency)
 
 ## Task
 
@@ -75,7 +75,7 @@ The managed client gains two periodic reports. The protocol gains two new verbs 
 | `internal/component/managed/client.go`, `runConnection` and `fetchAndProcess` | Start reporting after the initial fetch succeeds. A client holding local edits can still report hardware and health. |
 | `internal/component/plugin/server/managed_serve.go`, `handleRequest` | The hub returns an explicit error for an unknown method. Its serving loop can read subsequent requests. |
 | `pkg/plugin/rpc/conn.go` and `pkg/plugin/rpc/framing.go` | The frame bound and default 30-second write deadline protect transport. A report needs its own size limit and reply deadline. |
-| `plan/release/features/spec-fleet-1-device-registry.md`, Existing Mechanisms | Extend its per-name record and coalescing writer. The managed server owns the registry, its store lifetime and its snapshot. |
+| `docs/architecture/fleet-config.md`, "Device registry" (`spec-fleet-1-device-registry`, closed 2026-11-25) | Extend its per-name record and coalescing writer. The managed server owns the registry, its store lifetime and its snapshot. |
 | `plan/post-release/features/spec-fleet-ui-2-estate-tree-and-device-tables.md`, AC-16 and AC-17 | The future inventory-health source reads the device's model, serial, software version and component rows from these command answers. |
 
 ## Current Behavior

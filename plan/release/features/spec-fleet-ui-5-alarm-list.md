@@ -7,7 +7,7 @@
 | Priority | P2 |
 | Release reason | Thomas put the fleet alarm list in the first release, reached through its commands on every command surface (`ai/META-DECISIONS.md`, "Goal and scope"); existing supported behavior and its obligations remain required. Its pages, the hub's task model and panel, notifications and live page updates come after the first release, in `plan/post-release/features/spec-fleet-ui-9-tasks-notifications-and-alarm-pages.md`. |
 | RFC gaps | - |
-| Depends | plan/release/features/spec-fleet-1-device-registry.md, plan/release/features/spec-fleet-4-inventory-health.md, plan/release/features/spec-fleet-8-metric-history.md |
+| Depends | spec-fleet-1-device-registry (closed 2026-11-25; documented in `docs/architecture/fleet-config.md`, "Device registry"), plan/release/features/spec-fleet-4-inventory-health.md, plan/release/features/spec-fleet-8-metric-history.md |
 | Phase | 5/9 of plan/post-release/features/spec-fleet-ui-0-umbrella.md |
 | Handoff | - |
 | Updated | 2026-11-25 |

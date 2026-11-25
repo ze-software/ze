@@ -21,10 +21,11 @@ const (
 // doctorDiagnosticCodes is the explanation metadata for the doctor codes this package owns.
 var doctorDiagnosticCodes = []diagnostic.CodeMeta{
 	{
-		Code:        codeHubUnreachable,
-		Title:       "Management hub unreachable",
-		Description: "This node is configured as a managed client (bus/hub/client), and a TCP probe of the first hub block did not answer. The node still boots and runs its committed config; it will not receive hub-pushed config updates until that hub becomes reachable.",
-		Examples:    []string{"ze doctor --json", "ze show diagnostic doctor-hub-unreachable"},
+		Code:         codeHubUnreachable,
+		Title:        "Management hub unreachable",
+		Description:  "This node is configured as a managed client (bus/hub/client), and a TCP probe of the first hub block did not answer. The node still boots and runs its committed config; it will not receive hub-pushed config updates until that hub becomes reachable.",
+		Examples:     []string{"ze doctor --json", "ze show diagnostic doctor-hub-unreachable"},
+		RelatedCodes: []string{CodeDoctorHubCertificateUnverified, CodeDoctorHubHandshakeFailed, CodeDoctorHubAuthRejected},
 	},
 	{
 		Code:  CodeDoctorHubCertificateUnverified,

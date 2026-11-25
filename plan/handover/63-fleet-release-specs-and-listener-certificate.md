@@ -19,7 +19,7 @@ Updated at the end of the session of 2026-11-23, after the items below landed.
 |---|------|---------------------|
 | 1-3 | Web/LG listener keeps a removed named certificate on reload | Done: 2984d3eaa5. Unit tests, two mutations, lint, and the functional tests reload/web-pki-reference-dropped and reload/lg-pki-reference-dropped (80 stress iterations, runner-leased port) |
 | 4 | Looking glass with no store, started on a named certificate, reload drops the name | The fix refuses the reload (fail closed) rather than starting plaintext; recorded reading in tls-listeners.md, Thomas may revisit |
-| 5 | fleet-1 design | Done: revised e6eda5e8d8, judged APPROVE (digest e1897d459b10), approved by Thomas with C-11 (a), recorded 80f69b9f18. Next: implement plan/release/features/spec-fleet-1-device-registry.md in a fresh session (/ze-implement). Phase 6 adds the C-11 decision row to docs/architecture/pki/tls-listeners.md |
+| 5 | fleet-1 design | Done: revised e6eda5e8d8, judged APPROVE (digest e1897d459b10), approved by Thomas with C-11 (a), recorded 80f69b9f18. Next: implement spec-fleet-1-device-registry in a fresh session (/ze-implement). Phase 6 adds the C-11 decision row to docs/architecture/pki/tls-listeners.md |
 | 6 | Rename fleet-ui-5 | Done: 7b6cd880d6, now plan/release/features/spec-fleet-ui-5-alarm-list.md |
 | 7 | spec-fleet-10-drift-hash-chain.md | The untracked post-release duplicate is gone. The release copy carries another session's uncommitted rewrite, which still names the old stem spec-fleet-ui-5-tasks-alarms-notifications on 5 lines: it must use spec-fleet-ui-5-alarm-list when it lands. HEAD's copy was already updated by hunk in 7b6cd880d6 |
 | 8 | fleet-0 umbrella "fleet YANG container" | Done: fbe3d27b87 |

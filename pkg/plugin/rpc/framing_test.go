@@ -9,6 +9,7 @@ import (
 	"math"
 	"strings"
 	"testing"
+	"testing/iotest"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -315,5 +316,16 @@ func TestFrameReaderMaxRefusesLonger(t *testing.T) {
 	const maxSize = 256
 	line := strings.Repeat("a", maxSize+1)
 	_, err := NewFrameReaderMax(strings.NewReader(line+"\n"), maxSize).Read()
+	require.ErrorIs(t, err, ErrMessageTooLong)
+}
+
+// VALIDATES: fleet-1 review fix -- NewFrameReaderMax also refuses a maxSize+1
+// byte token terminated by EOF without a trailing newline (iotest.DataErrReader
+// delivers data and io.EOF together so splitAnswerLines runs with atEOF=true).
+func TestFrameReaderMaxRefusesLongerAtEOF(t *testing.T) {
+	t.Parallel()
+	const maxSize = 256
+	line := strings.Repeat("a", maxSize+1)
+	_, err := NewFrameReaderMax(iotest.DataErrReader(strings.NewReader(line)), maxSize).Read()
 	require.ErrorIs(t, err, ErrMessageTooLong)
 }

@@ -499,7 +499,7 @@ A line MUST NOT be terminated by `\r\n`, and a reader MUST NOT strip a trailing
 and it would take a `\r` a producer meant as data. A `\r` where the newline
 belongs is refused by name, and so is a count that disagrees with the bytes
 behind it or one past the 16 MB maximum.
-<!-- source: pkg/plugin/rpc/framing.go -- ScanAnswerLines, scanStatedLine -->
+<!-- source: pkg/plugin/rpc/framing.go -- ScanAnswerLines, scanStatedLineMax -->
 <!-- source: pkg/plugin/rpc/message.go -- answerLineWidth, answerLineShapes -->
 
 A text of zero bytes is present and empty, never omitted: it is written `0:`, so

@@ -5,6 +5,7 @@ import (
 	"crypto/tls"
 	"crypto/x509"
 	"net"
+	"net/netip"
 	"strconv"
 	"strings"
 	"testing"
@@ -280,4 +281,30 @@ func TestManagedUnidentifiedForgottenAfterKeep(t *testing.T) {
 	snap = d.snapshotAt(base.Add(managedUnidentifiedKeep))
 	require.Empty(t, snap.CertRefused)
 	require.Empty(t, snap.Unidentified)
+}
+
+// VALIDATES: fleet-1 review fix -- IPv4-mapped IPv6 peer addresses on dual-stack
+// listeners normalize to IPv4 so device joins and auth-clear match admitOnListener.
+func TestManagedDoctorUnmapsIPv4MappedIPv6(t *testing.T) {
+	base := time.Date(2026, 11, 25, 10, 0, 0, 0, time.UTC)
+	require.Equal(t, "192.0.2.7", remoteHostOf("[::ffff:192.0.2.7]:55555"))
+	require.Equal(t, "192.0.2.7", remoteHostOf("::ffff:192.0.2.7"))
+
+	s := &ManagedServer{
+		now: func() time.Time { return base },
+		devices: map[string]*managedDevice{
+			"edge-v4": {ManagedDeviceRecord: ManagedDeviceRecord{
+				Name:          "edge-v4",
+				SourceAddress: netip.MustParseAddr("192.0.2.7"),
+			}},
+		},
+	}
+	host := remoteHostOf("[::ffff:192.0.2.7]:55555")
+	s.doctor.recordCertRefused(host, "[::]:1791", "remote error: tls: bad certificate", base)
+	rec := s.doctor.snapshotAt(base)
+	s.appendCertificateAndAddressDevices(&rec)
+	require.Equal(t, []string{"edge-v4"}, rec.DevicesByAddress["192.0.2.7"])
+
+	s.doctor.clearAddress("::ffff:192.0.2.7")
+	require.Empty(t, s.doctor.snapshotAt(base).CertRefused)
 }

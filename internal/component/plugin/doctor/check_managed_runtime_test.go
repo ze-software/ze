@@ -66,7 +66,6 @@ func TestCheckManagedCertificateRefused(t *testing.T) {
 
 	// When serving the daemon's issued leaf (CertificateName == ""), the row names it.
 	issuedRows := managedCertRefusedRows(server.ManagedDoctorRecord{
-		CertificateIssued: true,
 		CertRefused: []server.ManagedUnidentifiedFailure{{
 			Addr: "192.0.2.12", ListenerAddr: "10.0.0.1:1791",
 			FirstTime: t1, LastTime: t1, Count: 1, LastError: "remote error: tls: bad certificate",

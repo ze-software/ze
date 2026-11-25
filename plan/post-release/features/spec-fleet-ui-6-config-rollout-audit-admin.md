@@ -160,7 +160,7 @@ Thomas ruled (voice-transcribed answer "1 b") that the fleet features of the
 first release are reached through commands on every command surface, and that
 their web pages and views come after the first release (`ai/META-DECISIONS.md`,
 "Goal and scope"). With that ruling the fleet interface's part table moved from
-`plan/release/features/spec-fleet-1-device-registry.md` to
+`spec-fleet-1-device-registry` to
 `plan/post-release/features/spec-fleet-ui-2-estate-tree-and-device-tables.md`
 ("Moved from fleet-1"), which names this spec as the owner of two parts:
 

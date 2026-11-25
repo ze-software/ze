@@ -147,6 +147,8 @@ func classifySessionFailure(cfg *ClientConfig, step HubSessionStep, err error, n
 		Error:  boundSessionError(err.Error()),
 	}
 	switch step {
+	case HubSessionStepNone, HubSessionStepConnect:
+		// Connect failures are owned by doctor-hub-unreachable; leave Cause unset.
 	case HubSessionStepAnchor:
 		if errors.Is(err, errCANotConfigured) {
 			failure.Cause = HubSessionCauseAnchorUndefined
@@ -240,6 +242,8 @@ func (f HubSessionFailure) anchorDescription() string {
 		return "verification switched off"
 	case HubTrustAnchorSystem:
 		return "the system trust store"
+	case HubTrustAnchorUnspecified:
+		return "its trust anchor"
 	default:
 		return "its trust anchor"
 	}
@@ -254,6 +258,8 @@ func (f HubSessionFailure) unknownIssuerFix() string {
 		return "correct pki ca " + f.CAName + " in this device's configuration on the hub, then run ze init --managed --force --hub-ca <file>, " + hubSide
 	case HubTrustAnchorStoredRoot:
 		return "ze init --managed --force --hub-ca <file> (holding the root from ze show pki local-ca pem on the hub), " + hubSide
+	case HubTrustAnchorSystem, HubTrustAnchorInsecure, HubTrustAnchorUnspecified:
+		return "name a ca in this device's configuration on the hub, then run ze init --managed --force --hub-ca <file>, " + hubSide
 	default:
 		return "name a ca in this device's configuration on the hub, then run ze init --managed --force --hub-ca <file>, " + hubSide
 	}
@@ -272,6 +278,9 @@ func (f HubSessionFailure) Diagnostic(now time.Time) (diagnostic.Diagnostic, boo
 
 	server := placeholderOr(f.Server, "<host:port>")
 	switch f.Cause {
+	case HubSessionCauseNone:
+		return diagnostic.Diagnostic{}, false
+
 	case HubSessionCauseAnchorUndefined:
 		caName := placeholderOr(f.CAName, "<name>")
 		return diagnostic.Diagnostic{

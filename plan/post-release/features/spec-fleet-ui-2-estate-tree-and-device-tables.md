@@ -7,7 +7,7 @@
 | Priority | P3 |
 | Release reason | Adds a capability absent from the supported release; existing supported behavior and its obligations remain required. |
 | RFC gaps | - |
-| Depends | plan/release/features/spec-fleet-1-device-registry.md, plan/release/features/spec-fleet-4-inventory-health.md, plan/release/features/spec-fleet-8-metric-history.md |
+| Depends | spec-fleet-1-device-registry (closed 2026-11-25; documented in `docs/architecture/fleet-config.md`, "Device registry"), plan/release/features/spec-fleet-4-inventory-health.md, plan/release/features/spec-fleet-8-metric-history.md |
 | Phase | 2/9 of plan/post-release/features/spec-fleet-ui-0-umbrella.md |
 | Handoff | - |
 | Updated | 2026-11-25 |
@@ -15,7 +15,7 @@
 Recovery after compaction: `.claude/rules/post-compaction.md`.
 
 **Re-read after compaction:** this file, `spec-fleet-ui-0-umbrella.md`,
-`plan/release/features/spec-fleet-1-device-registry.md`.
+`docs/architecture/fleet-config.md` (`spec-fleet-1-device-registry`, closed 2026-11-25).
 
 ## Task
 
@@ -162,7 +162,7 @@ seam and the sample build are described in `docs/architecture/fleet-interface.md
 | Item | What the prototype does | What this spec owes |
 |------|-------------------------|---------------------|
 | Fleet as a web mode | Fleet is reached at `/fleet/` and through its portal entry only | Make Fleet a selectable web mode in the existing shells' mode switch, with their markup and fixtures |
-| The real enabling condition | The fleet routes mount only when a data source is registered, and the only source is the sample one, which no shipped build links (`sourceRegistered` in `internal/component/web/fleetui/register.go`) | Register the real source, built over the command dispatcher, and mount the routes when the daemon serves managed devices. Amended 2026-11-19 (owner decision at `fleet-1`'s gates): `plan/release/features/spec-fleet-1-device-registry.md` splits the `Source` contract into one part per back end and registers the estate part (`Now`, `Estate`, `Devices`, `Device`) over the dispatcher, and the routes mount while the estate part is registered. This spec still owes the views part (`TreeViews`, `SavedFilters`), the filter grammar, sort and page over the estate rows, the web mode, sign-out and the CI stage below; `fleet-1`'s section "The fleet interface parts after the split" names the owner of every other part. Amended 2026-11-23 (owner ruling, "1 b": the first release reaches the fleet features through commands, their pages come after it): the split of the `Source` contract, the estate part and the live-estate browser test moved from `fleet-1` to this spec, with that section, under "Moved from fleet-1 (owner ruling 2026-11-23)" below |
+| The real enabling condition | The fleet routes mount only when a data source is registered, and the only source is the sample one, which no shipped build links (`sourceRegistered` in `internal/component/web/fleetui/register.go`) | Register the real source, built over the command dispatcher, and mount the routes when the daemon serves managed devices. Amended 2026-11-19 (owner decision at `fleet-1`'s gates): `spec-fleet-1-device-registry` splits the `Source` contract into one part per back end and registers the estate part (`Now`, `Estate`, `Devices`, `Device`) over the dispatcher, and the routes mount while the estate part is registered. This spec still owes the views part (`TreeViews`, `SavedFilters`), the filter grammar, sort and page over the estate rows, the web mode, sign-out and the CI stage below; `fleet-1`'s section "The fleet interface parts after the split" names the owner of every other part. Amended 2026-11-23 (owner ruling, "1 b": the first release reaches the fleet features through commands, their pages come after it): the split of the `Source` contract, the estate part and the live-estate browser test moved from `fleet-1` to this spec, with that section, under "Moved from fleet-1 (owner ruling 2026-11-23)" below |
 | Sign out | The account menu holds the theme switch and the link to the other web modes. The web server has no sign-out route in any mode | Add the sign-out entry the umbrella's header row names, over a sign-out route of the web package's session handling |
 | Side panel and a later sort | Opening a row asks for the side panel fragment alone, so the table's sort and page links keep the address they were drawn with, and following one closes the panel (`PanelLink` paragraph of `docs/architecture/fleet-interface.md`). Approved as built | Decide with the owner whether a sort keeps the open row, when the table becomes functional |
 | Fleet browser tests in CI | The thirteen `test/web/fleet-*.wb` cases declare `option=needs-build-tag:value=ze_fleet_ui_sample:state=present`, and no CI run builds `ze` with that tag, so every CI run skips them; they pass only when run locally (`runWebTests`, `internal/test/cli/cmd_web.go`) | The owner decided on 2026-11-19 that CI runs them. Add a verifier stage (the native verifier owns CI's stage population, `internal/le/verify/engine/stages.go`) that builds `ze` with `ze_fleet_ui_sample` and runs the fleet browser suite on a change that touches the fleet interface, with failure text naming the case and the rerun command |
@@ -171,7 +171,7 @@ seam and the sample build are described in `docs/architecture/fleet-interface.md
 
 | Data | Command it expects from the `fleet` set | State |
 |------|------------------------------------------|-------|
-| Device list with name, state, labels, group, version, configuration state, last seen | `show fleet devices` and `show fleet device name <name>` (`plan/release/features/spec-fleet-1-device-registry.md`, first release), answering JSON; filter, sort and page are this spec's, over the estate part's rows | `fleet-1` is ready; its approved design has no filter, sort or page arguments, so the grammar above runs in this spec over the estate rows |
+| Device list with name, state, labels, group, version, configuration state, last seen | `show fleet devices` and `show fleet device name <name>` (`spec-fleet-1-device-registry`, first release), answering JSON; filter, sort and page are this spec's, over the estate part's rows | `fleet-1` is ready; its approved design has no filter, sort or page arguments, so the grammar above runs in this spec over the estate rows |
 | Latest CPU, memory, storage, uptime per device | `fleet-8`'s latest-samples query (`plan/release/features/spec-fleet-8-metric-history.md`), read by the latest-sample part this spec registers | Missing: `fleet-8` is a skeleton |
 | Inventory and health per device | `fleet-4`'s `show fleet device inventory name <name>`, `show fleet device health name <name>` and `show fleet health` (`plan/release/features/spec-fleet-4-inventory-health.md`), read by the inventory-health part this spec registers | Missing: `fleet-4` is a skeleton |
 | Label keys and values in use | `show fleet labels` | Missing |
@@ -195,7 +195,7 @@ Thomas ruled (voice-transcribed answer "1 b") that the fleet features of the
 first release are reached through commands on every command surface, and that
 their web pages and views come after the first release (`ai/META-DECISIONS.md`,
 "Goal and scope"). The fleet interface work that
-`plan/release/features/spec-fleet-1-device-registry.md` carried moved here
+`spec-fleet-1-device-registry` carried moved here
 whole: the split of the `Source` contract into one part per back end, the
 estate part over the dispatcher, the join by device name, the not-available
 state, the sample build registering every part and the live-estate browser
@@ -239,7 +239,7 @@ spec keeps the commands.
 
 | Part (interface) | Method: inputs → answer, bound | Owner |
 |------------------|-------------------------------|-------|
-| `EstatePart` | `Now(ctx)` → `time.Time`; `Estate(ctx)` → `Estate`; `Devices(ctx)` → `[]Device`, at most `DevicesMax` (4,096), each with `Labels` at most `LabelsMax` (32); `Device(ctx, name)` → `Device`, an unknown name is `DeviceUnknownError`. The estate part fills only `Name`, `Labels`, `SecretSet`, `Connection.Connected`, `Since`, `EverConnected`, `LastSeen`, `SourceAddr`, and `Config.State`, `HubVersion`, `DeviceVersion`, `Fetched`, `LastFetch`, `LastFetchResult` | This spec, over `plan/release/features/spec-fleet-1-device-registry.md`'s `show fleet devices` and `show fleet device name <name>` |
+| `EstatePart` | `Now(ctx)` → `time.Time`; `Estate(ctx)` → `Estate`; `Devices(ctx)` → `[]Device`, at most `DevicesMax` (4,096), each with `Labels` at most `LabelsMax` (32); `Device(ctx, name)` → `Device`, an unknown name is `DeviceUnknownError`. The estate part fills only `Name`, `Labels`, `SecretSet`, `Connection.Connected`, `Since`, `EverConnected`, `LastSeen`, `SourceAddr`, and `Config.State`, `HubVersion`, `DeviceVersion`, `Fetched`, `LastFetch`, `LastFetchResult` | This spec, over `spec-fleet-1-device-registry`'s `show fleet devices` and `show fleet device name <name>` |
 | `ViewsPart` | `TreeViews(ctx)` → `[]TreeView`, at most `TreeViewsMax` (32), each at most `TreeLevelsMax` (8) levels; `SavedFilters(ctx, user)` → `[]SavedFilter`, at most `SavedFiltersMax` (64) | This spec |
 | `InventoryHealthPart` (device facts) | `InventoryHealth(ctx)` → one entry per device name holding `Inventory`, `HealthReported`, `Health` (at most `HealthComponentsMax`, 32) and the hardware list of `DeviceSystem.Hardware` (at most `HardwareItemsMax`, 64), at most `DevicesMax` entries; `InventoryHealthOf(ctx, name)` → the same entry for one device, an absent device answering the entry with `Reported` and `HealthReported` false | This spec, over `plan/release/features/spec-fleet-4-inventory-health.md`'s commands (was `fleet-4`'s before the ruling) |
 | `LatestSamplePart` (device facts) | `LatestSamples(ctx)` → one `LatestSample` per device name, at most `DevicesMax`; `LatestSampleOf(ctx, name)` → `LatestSample` | This spec, over `plan/release/features/spec-fleet-8-metric-history.md`'s latest-samples query (was `fleet-8`'s before the ruling) |
@@ -396,7 +396,7 @@ until then the main thread runs this one locally as an owed command.
 | Fleet interface seam | `internal/component/web/fleetui/source.go` `sourceSlot`, `MustRegisterSource`; `register.go` `sourceRegistered` | One source per build, all concerns | Replaces the single slot with one slot per part; the sample registers every part |
 | Device display state | `internal/component/web/fleetui/state.go` `DeviceDisplayState` | Derives Unknown while `HealthReported` is false | Extends unchanged: an absent health part leaves `HealthReported` false, which is the owner's "health Unknown" |
 | Route deps | `internal/component/web/webroute.go` `RouteDeps.Dispatch` | Gives a route builder the web dispatcher | Extends: the estate, inventory-health and latest-sample parts are built over it |
-| Device registry commands | `plan/release/features/spec-fleet-1-device-registry.md`, `show fleet devices`, `show fleet device name <name>` | First release: answered by the daemon on every command surface | Extends: the estate part reads them; no second reader of the registry |
+| Device registry commands | `spec-fleet-1-device-registry`, `show fleet devices`, `show fleet device name <name>` | First release: answered by the daemon on every command surface | Extends: the estate part reads them; no second reader of the registry |
 | Browser test server kinds | `internal/component/web/testing/parser.go` `WBServer`; `internal/test/cli/cmd_web.go` `zeTestStartLGServer` | Starts the process a browser test drives, with a peer beside it for the looking glass | Extends: a `fleet-hub` kind with a managed client beside the hub |
 | Registered tree, table, filter and actions | fleetui/handler_tree.go, handler_devices.go, handler_devices_action.go and table.go | Render and filter the sample estate and dispatch selected actions. | Keep the last valid filter in the per-view URL or fragment request. On malformed input rerun the last valid query on current authorized rows, with a visible error. A fresh direct URL with no prior filter uses the unfiltered authorized set. |
 | Candidate and account | web.EditorManager (editor.go), SessionStore (auth.go), ReadUIModeFromRequest (ui_mode.go) | Authenticate the request, select the shell and isolate a user's candidate for hub configuration. | Reuse these mechanisms for bulk labels. Enforce mutation and target permission both on stage and commit. Ordinary navigation neither grants a role nor modifies the candidate. |

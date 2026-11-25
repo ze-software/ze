@@ -72,7 +72,7 @@ Back-end work the interface needs, owned by the `fleet` set:
 
 | Spec | What the interface needs from it |
 |------|----------------------------------|
-| `plan/release/features/spec-fleet-1-device-registry.md` | The persistent registry, labels, groups, `show fleet` commands. Every page reads it |
+| `spec-fleet-1-device-registry` (closed 2026-11-25; `docs/architecture/fleet-config.md`) | The persistent registry, labels, groups, `show fleet` commands. Every page reads it |
 | `plan/release/features/spec-fleet-4-inventory-health.md` | Inventory and health per device. Dashboards, alarms and the System tab read it |
 | `plan/release/features/spec-fleet-8-metric-history.md` | The sample reports and the bounded history every chart reads |
 | `plan/post-release/features/spec-fleet-9-device-command-relay.md` | The relay every device tab and the per-device CLI use |
@@ -429,7 +429,7 @@ censused in the specs that own them: the report and history verbs in
 `plan/release/features/spec-fleet-8-metric-history.md`, the relay verbs in
 `plan/post-release/features/spec-fleet-9-device-command-relay.md`, and the
 `show fleet` answer shapes in
-`plan/release/features/spec-fleet-1-device-registry.md` and
+`spec-fleet-1-device-registry` (`docs/architecture/fleet-config.md`) and
 `plan/release/features/spec-fleet-4-inventory-health.md`.
 
 **Search evidence:** `pkg/fleet/envelope.go` was read whole and holds four verb constants (`config-fetch`, `config-changed`, `config-ack`, `ping`); a search of `internal` and `pkg` for `fleet` in YANG files returns nothing, so no fleet command or answer shape exists yet for this set to change. Positive control: the same search for `managed` finds the client and server packages.

@@ -1792,21 +1792,23 @@ configured plugin, saying which run (`completePluginRestart`, served through
 
 ### External plugin and managed fleet checks
 
-Two checks judge the `plugin external` blocks the daemon cannot start, and two
-read what the managed config server recorded. The name check runs on the
+Two checks judge the `plugin external` blocks the daemon cannot start, and six
+runtime checks read what the managed config server recorded. The name check runs on the
 parsed tree, before `ReadConfig`, because the commit now refuses a name of the
 wrong form and the load would hide the block; a run that hands it no tree gets
 a row saying the names were not checked, never the empty answer. The
 in-process check reads `Registration.RunsInProcessOnly` of the registration
 each external block resolves to. The managed server publishes its record when
-`Start` begins, before it binds, and `Stop` withdraws it; with no managed
-server in the process `ManagedDoctorSnapshot` answers `ErrManagedNotServing`,
-and both managed checks then report nothing, because no listener was asked for
-and no client was served.
+`Start` applies its initial listeners (`ApplyManagedListeners`), and `Stop`
+withdraws it; all six managed runtime checks read `ManagedRuntimeHealth`. With
+no managed server running, `checkManagedListenerUnbound` still reports any
+recorded `StartupFailure` (`doctor-managed-server-unavailable`), and all other
+managed checks stay silent because no listener was asked for and no client was
+served.
 <!-- source: internal/component/plugin/doctor/register_external.go -- init -->
 <!-- source: internal/component/plugin/doctor/check_external.go -- checkExternalPluginNames, checkExternalInProcess -->
-<!-- source: internal/component/plugin/doctor/check_managed_runtime.go -- checkManagedListenerUnbound, checkManagedClientRejected -->
-<!-- source: internal/component/plugin/server/managed_doctor.go -- ManagedDoctorSnapshot, managedDoctorState, authRefused -->
+<!-- source: internal/component/plugin/doctor/check_managed_runtime.go -- checkManagedListenerUnbound, checkManagedClientRejected, checkManagedDeviceRecordUnwritable, checkManagedDeviceRecordUnreadable, checkManagedCertificateRefused, checkManagedHandshakeSaturated -->
+<!-- source: internal/component/plugin/server/managed_doctor.go -- ManagedRuntimeHealth, managedDoctorState, authRefused -->
 
 | Check | Phase | Code | Reports | Fix |
 |-------|-------|------|---------|-----|

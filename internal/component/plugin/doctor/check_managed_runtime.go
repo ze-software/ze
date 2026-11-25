@@ -1,6 +1,6 @@
 // Design: docs/architecture/fleet-config.md -- what the managed config server tells doctor
-// Related: register_external.go -- registers the two runtime checks below
-// Related: ../server/managed_doctor.go -- ManagedDoctorSnapshot, the record both checks read
+// Related: register_external.go -- registers the six managed runtime checks below
+// Related: ../server/managed_doctor.go -- ManagedRuntimeHealth, the record the checks read
 
 package doctor
 

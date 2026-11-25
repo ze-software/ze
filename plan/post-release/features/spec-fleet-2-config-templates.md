@@ -5,7 +5,7 @@
 | Status | ready |
 | Priority | P3 |
 | Release reason | Adds a capability absent from the supported release; existing supported behavior and its obligations remain required. |
-| Depends | plan/release/features/spec-fleet-1-device-registry.md, plan/post-release/features/spec-fleet-ui-2-estate-tree-and-device-tables.md (operational adapters) |
+| Depends | spec-fleet-1-device-registry (closed 2026-11-25; documented in `docs/architecture/fleet-config.md`, "Device registry"), plan/post-release/features/spec-fleet-ui-2-estate-tree-and-device-tables.md (operational adapters) |
 | Phase | 2/10 of plan/post-release/features/spec-fleet-0-umbrella.md |
 | Updated | 2026-11-25 |
 
@@ -17,7 +17,7 @@
 3. `docs/architecture/fleet-config.md` -- existing fleet config architecture
 4. `internal/component/plugin/server/managed.go` -- ManagedConfigService.HandleConfigFetch
 5. `spec-fleet-0-umbrella.md` -- umbrella design decisions
-6. `plan/release/features/spec-fleet-1-device-registry.md` -- device registry (dependency)
+6. `docs/architecture/fleet-config.md`, "Device registry" (`spec-fleet-1-device-registry`, closed 2026-11-25) -- device registry (dependency)
 
 ## Task
 

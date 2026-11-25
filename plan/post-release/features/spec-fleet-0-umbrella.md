@@ -125,7 +125,7 @@ moved in its Task section. Where a row below says "web", that part is the
 
 | Phase | Spec | Scope | Depends |
 |-------|------|-------|---------|
-| 1 | `plan/release/features/spec-fleet-1-device-registry.md` | Hub-side persistent device registry. `show fleet devices` and `show fleet device name <name>` on every command surface. Device metadata (name, config version, last-seen, labels; health is `fleet-4`'s). Labels on the hub's client entry. The fleet web pages are `fleet-ui-2`'s, after the first release | - |
+| 1 | `spec-fleet-1-device-registry` (closed 2026-11-25; design in `docs/architecture/fleet-config.md`, "Device registry") | Hub-side persistent device registry. `show fleet devices` and `show fleet device name <name>` on every command surface. Device metadata (name, config version, last-seen, labels; health is `fleet-4`'s). Labels on the hub's client entry. The fleet web pages are `fleet-ui-2`'s, after the first release | - |
 | 2 | `plan/post-release/features/spec-fleet-2-config-templates.md` | Named config templates with variable substitution. Group-based assignment. The device fetches its admitted rendered version. YANG schema for templates and groups | fleet-1 |
 | 3 | `plan/post-release/features/spec-fleet-3-audit-trail.md` | Centralized audit log for fleet operations: config push/ack/reject, device connect/disconnect, template changes. Commands on every command surface; the audit web views are `fleet-ui-6`'s. Structured log entries in ZeFS | fleet-1 |
 | 4 | `plan/release/features/spec-fleet-4-inventory-health.md` | New `inventory-report` and `health-report` RPC verbs. Devices push on connect and periodically. Hub stores per-device inventory and health. `show fleet device inventory name <name>`, `show fleet device health name <name>` and `show fleet health` on every command surface. The inventory and health web views are `fleet-ui-2`'s, `fleet-ui-3`'s and `fleet-ui-4`'s, after the first release | fleet-1 |
@@ -480,7 +480,7 @@ child spec's own Implementation Steps, Files and test tables are the
 authority for its phase; where this list names a file or a test the child no
 longer plans, the child wins.
 
-1. **Phase: Device Registry (fleet-1, `plan/release/features/spec-fleet-1-device-registry.md`)** -- persistent device record, `show fleet devices` and `show fleet device name <name>`, labels in config, the reload apply, the connection bound (the estate part of the fleet interface and the `/fleet` pages moved to `fleet-ui-2`, after the first release)
+1. **Phase: Device Registry (fleet-1, `spec-fleet-1-device-registry`, closed 2026-11-25)** -- persistent device record, `show fleet devices` and `show fleet device name <name>`, labels in config, the reload apply, the connection bound (the estate part of the fleet interface and the `/fleet` pages moved to `fleet-ui-2`, after the first release)
    - Tests: `TestRegistryFirstConnectRecordsConnected` and the other `managed_registry_test.go` tests, `fleet-devices-connect.ci`, `fleet-device-detail.ci`, `fleet-devices-restart.ci`, `fleet-devices-reload-add.ci`, `fleet-devices-label.ci`
    - Files: `managed_registry.go`, `managed_apply.go`, `managed.go`, `managed_serve.go`, `internal/component/managed/cmd_devices.go`, `cmd/ze/hub/main_reload.go`
    - Verify: devices appear in the registry on connect, survive a hub restart as offline, and are queryable on every command surface

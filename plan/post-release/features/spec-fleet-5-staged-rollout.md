@@ -16,7 +16,7 @@
 2. `.claude/rules/planning.md` -- workflow rules
 3. `internal/component/plugin/server/managed.go` -- ManagedConfigService (config-changed dispatch)
 4. `spec-fleet-0-umbrella.md` -- umbrella design decisions
-5. `plan/release/features/spec-fleet-1-device-registry.md` -- device registry
+5. `docs/architecture/fleet-config.md`, "Device registry" (`spec-fleet-1-device-registry`, closed 2026-11-25) -- device registry
 6. `spec-fleet-2-config-templates.md` -- config templates and groups (dependency)
 7. `plan/release/features/spec-fleet-4-inventory-health.md` -- health reporting (dependency)
 

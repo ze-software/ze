@@ -385,10 +385,15 @@ holds that client in one owner, which `request fleet disable` and `enable` also
 stop and start; at shutdown the owner joins the running client and refuses
 every later start. It retains the
 managed server and joins its active config requests and notifications through
-`Stop`. Both owners finish before the hub returns its store to the launcher.
+`Stop`. Reloads prepare managed listener addresses, certificates, and client
+declarations at the certificate gate (`prepareManagedReload`) and apply them
+after promotion (`ApplyManagedListeners`) without restarting the daemon. Both
+owners finish before the hub returns its store to the launcher.
 <!-- source: cmd/ze/hub/main.go -- runYANGConfig -->
+<!-- source: cmd/ze/hub/main_reload.go -- runReloadContext -->
 <!-- source: cmd/ze/hub/managed_owner.go -- managedClientOwner, shutdown -->
-<!-- source: cmd/ze/hub/managed_server.go -- startManagedServer -->
+<!-- source: cmd/ze/hub/managed_server.go -- startManagedServer, prepareManagedReload -->
+<!-- source: internal/component/plugin/server/managed_apply.go -- ApplyManagedListeners -->
 <!-- source: internal/component/plugin/server/managed_serve.go -- Stop -->
 
 Once the reload gate is closed, and before gNMI, the API servers or any plugin

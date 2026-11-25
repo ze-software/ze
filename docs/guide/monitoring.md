@@ -725,6 +725,22 @@ their authority is checked by AAA, while the bus filter governs program sends.
 | `ze_bgp_prefix_teardown_total` | counter | `peer` | Sessions torn down for prefix limit |
 | `ze_bgp_prefix_stale` | gauge | `peer` | 1 if prefix data older than 6 months |
 
+### Managed Fleet Metrics
+
+A hub serving managed clients exports fleet session, fetch, and registry
+persistence metrics:
+
+| Metric | Type | Labels | Description |
+|--------|------|--------|-------------|
+| `ze_managed_clients_declared` | gauge | | Managed clients declared in the running hub configuration |
+| `ze_managed_clients_connected` | gauge | | Managed clients currently connected to the hub |
+| `ze_managed_handshakes_pending` | gauge | | Unauthenticated managed handshakes in progress (capped at 32) |
+| `ze_managed_config_fetch_total` | counter | `result` | Config fetch requests (`served`, `current`, `error`) |
+| `ze_managed_config_changed_pushed_total` | counter | | `config-changed` notifications pushed to connected clients |
+| `ze_managed_device_records_written_total` | counter | `result` | Persisted device history writes (`ok` or `failed`) |
+| `ze_managed_config_held_total` | counter | `result` | Held config uploads recorded on the hub |
+<!-- source: internal/component/plugin/server/managed_serve.go -- NewManagedServer -->
+
 ---
 
 ## Single Command

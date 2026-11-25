@@ -1,6 +1,6 @@
 // Design: docs/architecture/fleet-config.md -- what the managed config server tells doctor
 // Related: managed_serve.go -- ManagedServer, whose Start, handleConn and handleRequest record here
-// Related: ../doctor/check_managed_runtime.go -- the runtime checks that read ManagedDoctorSnapshot
+// Related: ../doctor/check_managed_runtime.go -- the runtime checks that read ManagedRuntimeHealth
 
 package server
 
@@ -8,6 +8,7 @@ import (
 	"crypto/tls"
 	"errors"
 	"net"
+	"net/netip"
 	"slices"
 	"strings"
 	"sync"
@@ -84,12 +85,16 @@ func isCertRejectionAlert(err error) bool {
 	return false
 }
 
-// remoteHostOf strips the TCP port from remote, falling back to remote itself
-// if it is already a bare address.
+// remoteHostOf strips the TCP port from remote and unmaps IPv4-mapped IPv6
+// addresses (e.g. ::ffff:192.0.2.7 -> 192.0.2.7) so doctor entries match the
+// unmapped SourceAddress stored by admitOnListener.
 func remoteHostOf(remote string) string {
 	host, _, err := net.SplitHostPort(remote)
 	if err != nil {
-		return remote
+		host = remote
+	}
+	if addr, parseErr := netip.ParseAddr(host); parseErr == nil {
+		return addr.Unmap().String()
 	}
 	return host
 }
@@ -231,7 +236,6 @@ type ManagedDoctorRecord struct {
 	Unreadable            []ManagedDeviceRecordFailure
 	Unwritable            []ManagedDeviceRecordFailure
 	CertificateName       string
-	CertificateIssued     bool
 	CertRefused           []ManagedUnidentifiedFailure // Sorted by Addr.
 	CertRefusedForgotten  int
 	Unidentified          []ManagedUnidentifiedFailure // Sorted by Addr.
@@ -298,7 +302,6 @@ func (s *ManagedServer) appendCertificateAndAddressDevices(record *ManagedDoctor
 	defer s.mu.Unlock()
 	if s.source != nil {
 		record.CertificateName = s.source.name
-		record.CertificateIssued = s.source.name == ""
 	}
 	if len(record.CertRefused) == 0 {
 		return
@@ -492,6 +495,7 @@ func pruneUnidentifiedClass(class map[string]ManagedUnidentifiedFailure, now tim
 // clearAddress removes addr from both nameless-connection failure classes once
 // a session from addr authenticates.
 func (d *managedDoctorState) clearAddress(addr string) {
+	addr = remoteHostOf(addr)
 	d.mu.Lock()
 	defer d.mu.Unlock()
 	delete(d.certRefused, addr)

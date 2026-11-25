@@ -660,7 +660,7 @@ func (s *ManagedServer) handleConn(conn net.Conn, bound *managedBound, handshake
 		}
 		return
 	}
-	s.doctor.clearAddress(remote.Addr().String())
+	s.doctor.clearAddress(remote.Addr().Unmap().String())
 	defer s.disconnectDevice(name, mc)
 	s.mConnected.Inc()
 	defer s.mConnected.Dec()

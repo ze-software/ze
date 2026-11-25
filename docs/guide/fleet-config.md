@@ -26,7 +26,8 @@ What you get, and what you do not:
 |--------------------------|------------------------------|
 | Keep one full configuration for each client, on the hub | Build a configuration from a template: each client has its own file |
 | Push a change to the one client it belongs to | Roll a change out to a group of clients in stages |
-| Keep a client running when the hub is down | Record which version each client runs |
+| Track each device's connection state, labels, version, and configuration state (`show fleet devices`, `show fleet device name <name>`) | Automatically enroll undeclared devices |
+| Keep a client running when the hub is down | Run a device without its hub-served or cached configuration |
 
 This guide follows the order of a first deployment:
 
@@ -87,14 +88,26 @@ Three rules apply to this block:
 <!-- source: internal/component/plugin/doctor/check_managed_listener.go -- diagnoseManagedListener -->
 <!-- source: internal/component/config/loader_extract.go -- readManagedClientLabels, managedClientLabelAgreement -->
 
-After changing a hub's managed listener address, certificate or client
-declarations (including secrets and labels), save the configuration and
-restart the hub. The running listener uses the settings it read at startup.
-Restarting closes existing sessions. Devices reconnect with their configured
-credentials and must trust the certificate the hub now presents.
+Changes to a hub's managed listener addresses, certificate, or client
+declarations (including adding or removing clients, rotating secrets, and
+updating labels) apply on live reload (`commit` or SIGHUP) without restarting
+the hub:
 
-<!-- source: cmd/ze/hub/managed_server.go -- startManagedServer -->
+- Adding a client lists it at once (never connected) and admits it on its first
+  connection.
+- Removing a client closes its active session during the reload and keeps its
+  recorded history marked `removed` with `removed-at`; its config file and any
+  held divergence record stay intact.
+- Changing a client's secret closes its active session so it reconnects with the
+  new secret.
+- Changing `bus hub server <block> certificate` (or renewing its material in
+  `pki`) presents the new certificate from the next handshake without closing
+  sessions already open; an undefined certificate name refuses the reload and
+  keeps the running configuration.
+
+<!-- source: cmd/ze/hub/managed_server.go -- startManagedServer, prepareManagedReload -->
 <!-- source: cmd/ze/hub/main_reload.go -- runReloadContext -->
+<!-- source: internal/component/plugin/server/managed_apply.go -- PrepareManagedListeners, ApplyManagedListeners -->
 
 Start the hub with `ze start`. It also needs the root of its certificate
 authority later, in step 3. Print it now and save it to a file:
@@ -675,6 +688,29 @@ A client provisioned before Ze recorded this, or provisioned again with
 not hold. It takes the hub's configuration once, and holds from then on when
 it is changed.
 <!-- source: internal/component/managed/baseline.go -- Diverged -->
+
+## Inspect the Fleet
+
+On the hub, `show fleet devices` lists every declared device (plus any removed
+device whose history record still exists) with its connection state,
+configuration state (`in-sync`, `pending`, `rejected`, `diverged`,
+`never-fetched`), declared labels, hub and device versions, fetch timestamps,
+and remote address. Both commands work on every command surface (CLI, SSH, MCP,
+REST, gRPC, and the web command line):
+
+```
+show fleet devices
+show fleet devices | label site=lon
+show fleet device name edge-01
+```
+
+A hub declares up to 4,096 distinct clients across its serving blocks, bounds
+concurrent unauthenticated handshakes at 32 (releasing each slot as soon as
+authentication completes), and supports 2,000+ simultaneous authenticated
+sessions.
+<!-- source: internal/component/managed/cmd_devices.go -- handleFleetDevices, handleFleetDevice -->
+<!-- source: internal/component/plugin/server/managed_serve.go -- managedMaxHandshakes, managedReadMax -->
+<!-- source: internal/component/plugin/types.go -- ManagedClientsMax -->
 
 ## Changing the Hub's Certificate Without Cutting Devices Off
 

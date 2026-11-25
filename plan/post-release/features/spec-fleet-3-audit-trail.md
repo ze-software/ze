@@ -5,7 +5,7 @@
 | Status | ready |
 | Priority | P3 |
 | Release reason | Adds a capability absent from the supported release; existing supported behavior and its obligations remain required. |
-| Depends | plan/release/features/spec-fleet-1-device-registry.md |
+| Depends | spec-fleet-1-device-registry (closed 2026-11-25; documented in `docs/architecture/fleet-config.md`, "Device registry") |
 | Phase | 3/10 of plan/post-release/features/spec-fleet-0-umbrella.md |
 | Updated | 2026-11-25 |
 
@@ -16,7 +16,7 @@
 2. `.claude/rules/planning.md` -- workflow rules
 3. `internal/component/plugin/server/managed.go` -- ManagedConfigService (hook points)
 4. `spec-fleet-0-umbrella.md` -- umbrella design decisions
-5. `plan/release/features/spec-fleet-1-device-registry.md` -- device registry (dependency)
+5. `docs/architecture/fleet-config.md`, "Device registry" (`spec-fleet-1-device-registry`, closed 2026-11-25) -- device registry (dependency)
 
 ## Task
 

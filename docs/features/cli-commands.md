@@ -297,6 +297,9 @@ owners keep the documented whole-snapshot overwrite behavior.
 **Login warnings:** When an operator connects via SSH, ze checks for conditions requiring attention and displays warnings in the welcome area. Each warning includes a message and an actionable command. Currently checks for stale prefix data (peers with `prefix-updated` older than 6 months); run `update bgp peer * prefix` to refresh from PeeringDB.
 <!-- source: internal/component/ssh/session.go -- createSessionModel login warning collection -->
 
+**Fleet device registry:** On a hub serving managed clients, `show fleet devices` lists every declared or recorded device with its connection state, configuration state, labels, versions, and timestamps; `show fleet devices | label <key>=<value>` narrows the table by declared label; and `show fleet device name <name>` returns one device's full detail document with tab-completion over known names. Both commands are builtin RPCs served identically on CLI, SSH, MCP, REST, gRPC, and the web command line.
+<!-- source: internal/component/managed/cmd_devices.go -- handleFleetDevices, handleFleetDevice, completeFleetDevices -->
+
 **Plugin debug shell:** `ze bgp plugin cli` connects to the daemon via SSH, runs the 5-stage plugin handshake, and enters interactive command mode. Developers can test plugin protocol interactions by hand -- sending dispatch-command, subscribe-events, decode-nlri, etc. Accepts defaults (Enter through Q&A) or custom registration parameters (families, plugin name).
 <!-- source: internal/component/bgp/cli/cmd_plugin.go -- cmdPluginCLI -->
 
