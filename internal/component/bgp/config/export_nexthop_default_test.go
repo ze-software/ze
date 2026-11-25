@@ -529,7 +529,7 @@ policy {
 		Direction: directionImport,
 		Position:  filterapi.ImpliedPositionHead,
 		Ref:       "fake-inserter:early",
-		ImpliedBy: "insertion-test mode=on",
+		ImpliedBy: "bgp > group G > peer A > insertion-test mode=on",
 	})
 
 	// Peer B (eBGP, no insertion-test leaf): export has any-peer plugin insertion,
@@ -539,7 +539,7 @@ policy {
 		Direction: directionExport,
 		Position:  filterapi.ImpliedPositionHead,
 		Ref:       "fake-inserter:late",
-		ImpliedBy: "any-peer insertion-test mode=on",
+		ImpliedBy: "bgp > group G > peer A > insertion-test mode=on",
 	})
 	assert.Contains(t, bExport, filterapi.ImpliedFilter{
 		Direction: directionExport,

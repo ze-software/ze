@@ -20,5 +20,16 @@
     "producer": "internal/core/bgp/attribute/mpnexthop.go::NextHopProfile.DecodeNextHops",
     "producer-sha": "27a8985909e0d4dd",
     "break": "body of NextHopProfile.DecodeNextHops replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC7752-3.4-1",
+    "polarity": "positive",
+    "unit": "internal/core/bgp/attribute/rfc7752_bgpls_test.go::TestRFC7752BGPLSNextHopFollowsRFC4760",
+    "unit-sha": "dbc2ae514b41bfb2",
+    "claim-sha": "054dee9271bcc930",
+    "route": "revert",
+    "producer": "internal/core/bgp/attribute/mpnlri.go::MPReachNLRI.WriteTo",
+    "producer-sha": "9ae401765f3b7014",
+    "break": "body of MPReachNLRI.WriteTo replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   }
 ]
