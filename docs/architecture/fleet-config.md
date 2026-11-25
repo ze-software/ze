@@ -160,11 +160,12 @@ A removed declaration leaves its retained history available by name.
 The current hub version is the hash of the configuration file the hub serves
 that device. The first registry read computes it, and the storage observer
 invalidates only the changed client's hash. The reader hashes outside the
-session lock. Each answer also lists the held-record keys once to determine
-which devices have diverged. A held key counts even when its contents cannot
-be decoded. These lookups let an operator see a new hub version or the end
-of a hold before the device makes another connection.
-<!-- source: internal/component/plugin/server/managed_registry_versions.go -- registrySnapshot, currentConfigVersion, MarkManagedConfigChanged -->
+session lock. The device table lists the held-record keys once to determine
+which devices have diverged. A named detail reads only that device's
+configuration and held key. A held key counts even when its contents cannot
+be decoded. Name completion reads the sorted names from memory.
+<!-- source: internal/component/plugin/server/managed_registry_versions.go -- registrySnapshot, registryDevice, currentConfigVersion, MarkManagedConfigChanged -->
+<!-- source: internal/component/plugin/server/managed_registry.go -- ManagedDeviceNames -->
 <!-- source: internal/component/plugin/server/managed_held.go -- HeldClients -->
 <!-- source: internal/component/managed/cmd_devices.go -- rowForDevice, deviceConfigState -->
 
@@ -236,7 +237,7 @@ connection leaves the first session and its connection time intact. A
 successful admission records the client address without its TCP port. A
 disconnect records when that session ended. A reconnect preserves the time
 of the first connection and records the start of the new session.
-<!-- source: internal/component/plugin/server/managed_registry.go -- ManagedDeviceRecord, admitDevice, disconnectDevice -->
+<!-- source: internal/component/plugin/server/managed_registry.go -- ManagedDeviceRecord, admitOnListener, disconnectDevice -->
 <!-- source: internal/component/plugin/server/managed_serve.go -- NewManagedServer, handleConn -->
 
 Each fetch records the version the device named and whether the hub served

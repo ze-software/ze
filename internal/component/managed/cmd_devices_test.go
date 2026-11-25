@@ -7,6 +7,7 @@ package managed
 
 import (
 	"encoding/json"
+	"errors"
 	"slices"
 	"testing"
 	"time"
@@ -31,6 +32,11 @@ func registryDispatcher(t *testing.T) *pluginserver.Server {
 
 func startRegistryForCommand(t *testing.T) {
 	t.Helper()
+	startRegistryWithReader(t, func(name string) ([]byte, error) { return []byte(name), nil })
+}
+
+func startRegistryWithReader(t *testing.T, read pluginserver.ConfigReader) {
+	t.Helper()
 	server, err := pluginserver.NewManagedServer(pluginserver.ManagedServerConfig{
 		Authority: testRoot(t),
 		Listeners: []pluginserver.ManagedListener{{Addr: "127.0.0.1:0",
@@ -39,7 +45,7 @@ func startRegistryForCommand(t *testing.T) {
 				"edge-01": {"site": "lon", "role": "core"}, "edge-02": {"site": "par"}, "edge-03": {"site": "lon"},
 			},
 		}},
-		ReadConfig: func(name string) ([]byte, error) { return []byte(name), nil },
+		ReadConfig: read,
 	})
 	require.NoError(t, err)
 	require.NoError(t, server.Start(t.Context()))
@@ -114,6 +120,12 @@ func TestShowFleetDevicesLabelFilter(t *testing.T) {
 		require.Equal(t, plugin.StatusError, resp.Status)
 		require.Contains(t, resp.Error, "key=value")
 	}
+	var args command.ValidatedArgs
+	args = args.WithPipeOperations([]command.PipeOperation{{Name: "other", Args: []string{"site=lon"}}})
+	resp, err := handleFleetDevices(nil, args)
+	require.NoError(t, err)
+	require.Equal(t, plugin.StatusError, resp.Status)
+	require.Contains(t, resp.Error, "unknown fleet device pipe operation other")
 }
 
 func TestShowFleetDeviceAnswersDetail(t *testing.T) {
@@ -140,6 +152,29 @@ func TestShowFleetDeviceUnknownName(t *testing.T) {
 	require.Contains(t, resp.Error, fleetDevicesPath)
 }
 
+func TestShowFleetDeviceReadsOnlyRequestedConfig(t *testing.T) {
+	var reads []string
+	startRegistryWithReader(t, func(name string) ([]byte, error) {
+		reads = append(reads, name)
+		if name == "edge-02" {
+			return []byte("target config"), nil
+		}
+		return nil, errors.New("cannot read unrelated configuration")
+	})
+	server := registryDispatcher(t)
+	require.Len(t, completeFleetDevices(server, []string{"name"}), 3)
+	require.Empty(t, reads)
+	resp := dispatchRegistry(t, server, fleetDevicePath+" absent")
+	require.Contains(t, resp.Error, "absent: unknown device")
+	require.Empty(t, reads)
+	var detail fleetDeviceDetail
+	registryAnswer(t, server, fleetDevicePath+" edge-02", &detail)
+	require.Equal(t, fleet.VersionHash([]byte("target config")), detail.HubVersion)
+	require.Equal(t, []string{"edge-02"}, reads)
+	resp = dispatchRegistry(t, server, fleetDevicePath+" edge-01")
+	require.Contains(t, resp.Error, "cannot read unrelated configuration")
+}
+
 func TestShowFleetDevicesNotServing(t *testing.T) {
 	resp := dispatchRegistry(t, registryDispatcher(t), fleetDevicesPath)
 	require.Equal(t, plugin.StatusError, resp.Status)
@@ -162,11 +197,24 @@ func TestShowFleetDevicesConfigState(t *testing.T) {
 	require.Equal(t, "in-sync", deviceConfigState(device))
 	device.HubVersion = "v2"
 	require.Equal(t, "pending", deviceConfigState(device))
+	device.AckVersion, device.HubVersion = "", ""
+	require.Equal(t, "pending", deviceConfigState(device))
 
 	device.Labels = map[string]string{"site": "lon"}
 	row := rowForDevice(device)
 	require.True(t, row.Removed)
 	require.Empty(t, row.Labels)
+}
+
+func TestShowFleetDevicesEverConnectedAfterForgettingHistory(t *testing.T) {
+	device := pluginserver.ManagedDevice{Persisted: true, ManagedDeviceRecord: pluginserver.ManagedDeviceRecord{
+		ConnectedSince: time.Now().UTC(), LastSeen: time.Now().UTC(),
+	}}
+	require.True(t, rowForDevice(device).EverConnected)
+	device.ConnectedSince = time.Time{}
+	require.True(t, rowForDevice(device).EverConnected)
+	device.LastSeen = time.Time{}
+	require.False(t, rowForDevice(device).EverConnected)
 }
 
 func TestShowFleetDeviceCompletion(t *testing.T) {

@@ -57,7 +57,6 @@ type managedDevice struct {
 	secret      string        // Used to retire a session whose admission secret was rotated.
 	sessionDone chan struct{}
 	labels      map[string]string
-	hubVersion  string
 	version     managedVersionCache
 	declared    bool
 	persisted   bool
@@ -80,18 +79,39 @@ func ManagedRegistrySnapshot() ([]ManagedDevice, error) {
 	return s.registrySnapshot()
 }
 
+// ManagedDeviceByName reads one device's current session, configuration and held state.
+func ManagedDeviceByName(name string) (ManagedDevice, error) {
+	managedRegistryReaders.RLock()
+	defer managedRegistryReaders.RUnlock()
+	s := managedDoctorSource.Load()
+	if s == nil {
+		return ManagedDevice{}, ErrManagedNotServing
+	}
+	return s.registryDevice(name)
+}
+
+// ManagedDeviceNames returns the names known to the running hub for command
+// completion. A daemon without a published registry has no names to complete.
+func ManagedDeviceNames() []string {
+	s := managedDoctorSource.Load()
+	if s == nil {
+		return nil
+	}
+	s.mu.Lock()
+	names := slices.Collect(maps.Keys(s.devices))
+	s.mu.Unlock()
+	slices.Sort(names)
+	return names
+}
+
 // snapshotLocked copies the current session facts while the caller holds s.mu.
 func (entry *managedDevice) snapshotLocked() ManagedDevice {
 	return ManagedDevice{
 		ManagedDeviceRecord: entry.ManagedDeviceRecord,
 		Connected:           entry.conn != nil, Declared: entry.declared,
-		Labels: maps.Clone(entry.labels), HubVersion: entry.hubVersion,
+		Labels:    maps.Clone(entry.labels),
 		Persisted: entry.persisted, Unreadable: entry.unreadable,
 	}
-}
-
-func (s *ManagedServer) admitDevice(name string, addr netip.Addr, conn *rpc.MuxConn) error {
-	return s.admitOnListener(name, addr, conn, nil, "")
 }
 
 func (s *ManagedServer) admitOnListener(name string, addr netip.Addr, conn *rpc.MuxConn, bound *managedBound, secret string) error {
@@ -156,6 +176,9 @@ func (s *ManagedServer) recordFetch(name, version string, resp fleet.ConfigFetch
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	device := s.devices[name]
+	if device == nil {
+		return // The operator forgot this record before the fetch completed.
+	}
 	device.LastFetch = s.now().UTC()
 	device.DeviceVersion = version
 	device.LastFetchError = ""
@@ -163,13 +186,10 @@ func (s *ManagedServer) recordFetch(name, version string, resp fleet.ConfigFetch
 	case fetchErr != nil:
 		device.LastFetchResult = ManagedFetchError
 		device.LastFetchError = boundedManagedDetail(fetchErr.Error())
-		device.hubVersion = ""
 	case resp.Status == "current":
 		device.LastFetchResult = ManagedFetchCurrent
-		device.hubVersion = version
 	default:
 		device.LastFetchResult = ManagedFetchServed
-		device.hubVersion = resp.Version
 	}
 	s.dirtyDeviceLocked(name)
 }
@@ -178,6 +198,9 @@ func (s *ManagedServer) recordAck(name string, ack fleet.ConfigAck, result Manag
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	device := s.devices[name]
+	if device == nil {
+		return // A late acknowledgement cannot restore a forgotten record.
+	}
 	device.LastAck = s.now().UTC()
 	device.AckVersion = ack.Version
 	device.AckResult = result

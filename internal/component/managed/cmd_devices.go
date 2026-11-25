@@ -12,7 +12,6 @@ import (
 	"github.com/ze-software/ze/internal/component/command"
 	"github.com/ze-software/ze/internal/component/plugin"
 	pluginserver "github.com/ze-software/ze/internal/component/plugin/server"
-	"github.com/ze-software/ze/internal/core/diagnostic"
 	"github.com/ze-software/ze/internal/core/opererr"
 )
 
@@ -69,7 +68,7 @@ func deviceConfigState(device pluginserver.ManagedDevice) string {
 		return "never-fetched"
 	case device.AckResult == pluginserver.ManagedAckRefused:
 		return "rejected"
-	case device.AckResult == pluginserver.ManagedAckApplied && device.AckVersion == device.HubVersion:
+	case device.AckResult == pluginserver.ManagedAckApplied && device.HubVersion != "" && device.AckVersion == device.HubVersion:
 		return "in-sync"
 	default:
 		return "pending"
@@ -90,7 +89,8 @@ func rowForDevice(device pluginserver.ManagedDevice) fleetDeviceRow {
 		Labels: labels, HubVersion: device.HubVersion, DeviceVersion: device.DeviceVersion,
 		LastFetch: deviceTime(device.LastFetch), LastFetchResult: device.LastFetchResult.String(),
 		ConnectedSince: deviceTime(device.ConnectedSince), LastSeen: deviceTime(device.LastSeen),
-		SourceAddress: addr, EverConnected: device.Connected || !device.FirstConnected.IsZero(),
+		SourceAddress: addr, EverConnected: device.Connected || !device.FirstConnected.IsZero() ||
+			!device.ConnectedSince.IsZero() || !device.LastSeen.IsZero(),
 		Diverged: device.Diverged, Removed: !device.Declared,
 	}
 }
@@ -114,6 +114,10 @@ func handleFleetDevices(_ *pluginserver.CommandContext, validated command.Valida
 	// The only command-owned operation is label. Successive filters narrow
 	// the same sorted rows, so their order is preserved and an empty answer is [].
 	for _, op := range validated.PipeOperations() {
+		if op.Name != "label" {
+			return plugin.OperatorErrorResponse(opererr.New("unknown fleet device pipe operation "+op.Name,
+				"the device list supports label selection", "show fleet devices | label site=lon")), nil
+		}
 		pair := strings.Join(op.Args, " ")
 		key, value, valid := splitFleetLabel(pair)
 		if !valid {
@@ -137,23 +141,21 @@ func handleFleetDevice(_ *pluginserver.CommandContext, validated command.Validat
 		return plugin.OperatorErrorResponse(opererr.New(fleetDevicePath+": a device name is required",
 			"the command reads the history of one managed device", fleetDevicesPath)), nil
 	}
-	devices, err := pluginserver.ManagedRegistrySnapshot()
+	device, err := pluginserver.ManagedDeviceByName(name)
+	if errors.Is(err, pluginserver.ErrManagedDeviceUnknown) {
+		return plugin.OperatorErrorResponse(opererr.New(fleetDevicePath+" "+name+": unknown device",
+			"the hub has no declaration or record for this device", fleetDevicesPath)), nil
+	}
 	if err != nil {
 		return registryReadRefusal(fleetDevicePath+" "+name, err), nil
 	}
-	for _, device := range devices {
-		if device.Name == name {
-			detail := fleetDeviceDetail{
-				fleetDeviceRow: rowForDevice(device), FirstConnected: deviceTime(device.FirstConnected),
-				LastAck: deviceTime(device.LastAck), AckResult: device.AckResult.String(),
-				AckVersion: device.AckVersion, AckError: device.AckError, LastFetchError: device.LastFetchError,
-				Persisted: device.Persisted, Unreadable: device.Unreadable, RemovedAt: deviceTime(device.RemovedAt),
-			}
-			return plugin.NewResponse(plugin.StatusDone, detail), nil
-		}
+	detail := fleetDeviceDetail{
+		fleetDeviceRow: rowForDevice(device), FirstConnected: deviceTime(device.FirstConnected),
+		LastAck: deviceTime(device.LastAck), AckResult: device.AckResult.String(),
+		AckVersion: device.AckVersion, AckError: device.AckError, LastFetchError: device.LastFetchError,
+		Persisted: device.Persisted, Unreadable: device.Unreadable, RemovedAt: deviceTime(device.RemovedAt),
 	}
-	return plugin.OperatorErrorResponse(opererr.New(fleetDevicePath+" "+name+": unknown device",
-		"the hub has no declaration or record for this device", fleetDevicesPath)), nil
+	return plugin.NewResponse(plugin.StatusDone, detail), nil
 }
 
 func registryReadRefusal(path string, cause error) *plugin.Response {
@@ -168,19 +170,10 @@ func completeFleetDevices(_ *pluginserver.Server, completed []string) []pluginse
 	if completed[0] != "name" {
 		return nil
 	}
-	devices, err := pluginserver.ManagedRegistrySnapshot()
-	if errors.Is(err, pluginserver.ErrManagedNotServing) {
-		return nil // A daemon that serves no managed devices has no names to complete.
-	}
-	// refuse-by-default: guards handleFleetDevice -- completion can return only candidates; executing the command reports the registry error.
-	if err != nil {
-		logger().Warn("the fleet registry could not be read for device name completion",
-			"code", diagnostic.CodeDoctorStoreIntegrity, "error", err, "fix", "ze show doctor")
-		return nil
-	}
+	devices := pluginserver.ManagedDeviceNames()
 	names := make([]pluginserver.Completion, 0, len(devices))
-	for _, device := range devices {
-		names = append(names, pluginserver.Completion{Value: device.Name, ShortHelp: "Managed device"})
+	for _, name := range devices {
+		names = append(names, pluginserver.Completion{Value: name, ShortHelp: "Managed device"})
 	}
 	return names
 }

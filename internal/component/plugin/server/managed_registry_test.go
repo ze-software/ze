@@ -18,6 +18,10 @@ import (
 	"github.com/ze-software/ze/pkg/plugin/rpc"
 )
 
+func (s *ManagedServer) admitDevice(name string, addr netip.Addr, conn *rpc.MuxConn) error {
+	return s.admitOnListener(name, addr, conn, nil, "")
+}
+
 // snapshotDevices reads just the session facts, without consulting storage.
 func (s *ManagedServer) snapshotDevices() []ManagedDevice {
 	s.mu.Lock()
@@ -47,7 +51,8 @@ func TestRegistryFirstConnectRecordsConnected(t *testing.T) {
 	s, addr := startTestManagedServer(t)
 	mc := dialTestClient(t, addr, testClientName, testClientSecret)
 	resp := fetch(t, mc, "")
-	got := s.snapshotDevices()[0]
+	got, err := s.registryDevice(testClientName)
+	require.NoError(t, err)
 	require.Equal(t, testClientName, got.Name)
 	require.True(t, got.Connected)
 	require.Equal(t, netip.MustParseAddr("127.0.0.1"), got.SourceAddress)
@@ -125,7 +130,8 @@ func TestRegistryFetchRecordsVersionAndResult(t *testing.T) {
 	resp := fetch(t, mc, "")
 	current := fetch(t, mc, resp.Version)
 	require.Equal(t, "current", current.Status)
-	got := s.snapshotDevices()[0]
+	got, err := s.registryDevice(testClientName)
+	require.NoError(t, err)
 	require.False(t, got.LastFetch.IsZero())
 	require.Equal(t, ManagedFetchCurrent, got.LastFetchResult)
 	require.Equal(t, resp.Version, got.DeviceVersion)
@@ -133,13 +139,22 @@ func TestRegistryFetchRecordsVersionAndResult(t *testing.T) {
 
 	failure := strings.Repeat("x", managedDetailMax+1)
 	s.recordFetch(testClientName, "other", fleet.ConfigFetchResponse{}, errors.New(failure))
-	got = s.snapshotDevices()[0]
+	got, err = s.registryDevice(testClientName)
+	require.NoError(t, err)
 	require.Equal(t, ManagedFetchError, got.LastFetchResult)
 	require.Equal(t, "other", got.DeviceVersion)
 	require.Equal(t, failure[:managedDetailMax], got.LastFetchError)
-	require.Empty(t, got.HubVersion)
+	require.Equal(t, resp.Version, got.HubVersion, "a fetch error does not remove the hub's configuration")
 	s.recordFetch(testClientName, "other", resp, nil)
 	require.Empty(t, s.snapshotDevices()[0].LastFetchError)
+}
+
+func TestRegistryLateEventsLeaveForgottenDeviceAbsent(t *testing.T) {
+	s := registryTestServer(t)
+	delete(s.devices, testClientName)
+	s.recordFetch(testClientName, "previous", fleet.ConfigFetchResponse{}, nil)
+	s.recordAck(testClientName, fleet.ConfigAck{Version: "previous"}, ManagedAckApplied)
+	require.NotContains(t, s.devices, testClientName)
 }
 
 func TestRegistryAckRefusedBoundsError(t *testing.T) {

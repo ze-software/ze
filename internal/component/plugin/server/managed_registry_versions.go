@@ -18,8 +18,9 @@ import (
 // write lock so Stop cannot return while an operator is still reading it.
 var managedRegistryReaders sync.RWMutex
 
-// A record can be forgotten while a command is reading its configuration.
-var errRegistryDeviceForgotten = errors.New("managed device record was forgotten")
+// ErrManagedDeviceUnknown means the hub has no declaration or history for the
+// requested name. A record can also be forgotten during a configuration read.
+var ErrManagedDeviceUnknown = errors.New("no managed device declaration or record")
 
 // The generation changes on every write, including writes during a config read.
 // The cache is independent of the version a concurrent fetch served its client.
@@ -72,7 +73,7 @@ func (s *ManagedServer) registrySnapshot() ([]ManagedDevice, error) {
 			continue
 		}
 		version, err := s.currentConfigVersion(entry.name, entry.device)
-		if errors.Is(err, errRegistryDeviceForgotten) {
+		if errors.Is(err, ErrManagedDeviceUnknown) {
 			continue
 		}
 		if err != nil {
@@ -98,6 +99,50 @@ func (s *ManagedServer) registrySnapshot() ([]ManagedDevice, error) {
 	return devices, nil
 }
 
+// registryDevice binds both store reads to the selected registry entry. A
+// concurrent deletion or redeclaration must not attach its answers to a new entry.
+func (s *ManagedServer) registryDevice(name string) (ManagedDevice, error) {
+	s.mu.Lock()
+	entry := s.devices[name]
+	s.mu.Unlock()
+	if entry == nil {
+		return ManagedDevice{}, ErrManagedDeviceUnknown
+	}
+
+	var version string
+	var diverged bool
+	var err error
+	if fleet.ValidDeviceKeyName(name) {
+		version, err = s.currentConfigVersion(name, entry)
+		if err != nil {
+			return ManagedDevice{}, err
+		}
+		if records := s.svc.records; records != nil {
+			_, err = records.store.ReadKey(HeldRecordKey(name))
+			switch {
+			case err == nil:
+				diverged = true // The key counts even if the stored text cannot decode.
+			case errors.Is(err, fs.ErrNotExist):
+				err = nil
+			default:
+				err = fmt.Errorf("read the held configuration for %s: %w", name, err)
+			}
+		}
+	}
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if s.devices[name] != entry {
+		return ManagedDevice{}, ErrManagedDeviceUnknown
+	}
+	if err != nil {
+		return ManagedDevice{}, err
+	}
+	device := entry.snapshotLocked()
+	device.HubVersion = version
+	device.Diverged = diverged
+	return device, nil
+}
+
 // currentConfigVersion uses the cache for every client whose config has not
 // changed. The read and hash run outside mu. A concurrent write invalidates
 // the read before it can cache an obsolete hash. Retry once to pick up a write
@@ -109,7 +154,7 @@ func (s *ManagedServer) currentConfigVersion(name string, device *managedDevice)
 		s.mu.Lock()
 		if s.devices[name] != device {
 			s.mu.Unlock()
-			return "", errRegistryDeviceForgotten
+			return "", ErrManagedDeviceUnknown
 		}
 		cached := device.version
 		s.mu.Unlock()
@@ -128,7 +173,7 @@ func (s *ManagedServer) currentConfigVersion(name string, device *managedDevice)
 		s.mu.Lock()
 		if s.devices[name] != device {
 			s.mu.Unlock()
-			return "", errRegistryDeviceForgotten
+			return "", ErrManagedDeviceUnknown
 		}
 		if err != nil {
 			s.mu.Unlock()

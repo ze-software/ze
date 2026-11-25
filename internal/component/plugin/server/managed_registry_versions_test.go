@@ -11,6 +11,7 @@ import (
 
 	"github.com/stretchr/testify/require"
 
+	"github.com/ze-software/ze/internal/component/config/storage"
 	"github.com/ze-software/ze/pkg/fleet"
 )
 
@@ -27,6 +28,38 @@ func TestRegistryDivergedFromHeldRecord(t *testing.T) {
 	rows, err = s.registrySnapshot()
 	require.NoError(t, err)
 	require.False(t, rows[0].Diverged)
+}
+
+type heldLookupStore struct {
+	storage.Storage
+	readKeys []string
+}
+
+func (s *heldLookupStore) ListKeys(string) ([]string, error) {
+	return nil, errors.New("a named detail must not enumerate the fleet's held records")
+}
+
+func (s *heldLookupStore) ReadKey(key string) ([]byte, error) {
+	s.readKeys = append(s.readKeys, key)
+	return s.Storage.ReadKey(key)
+}
+
+func TestRegistryDetailLooksUpOneHeldKey(t *testing.T) {
+	store := &heldLookupStore{Storage: heldTestStore(t)}
+	s := registryTestServer(t)
+	s.svc.records = newHeldRecords(store)
+	key := HeldRecordKey(testClientName)
+	require.NoError(t, store.WriteKey(key, []byte("malformed")))
+	got, err := s.registryDevice(testClientName)
+	require.NoError(t, err)
+	require.True(t, got.Diverged, "the existence of a held copy is enough")
+	require.NoError(t, store.RemoveKey(key))
+	got, err = s.registryDevice(testClientName)
+	require.NoError(t, err)
+	require.False(t, got.Diverged)
+	_, err = s.registryDevice("missing")
+	require.ErrorIs(t, err, ErrManagedDeviceUnknown)
+	require.Equal(t, []string{key, key}, store.readKeys)
 }
 
 func TestRegistryHubVersionStaleOnConfigWrite(t *testing.T) {
