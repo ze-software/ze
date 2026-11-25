@@ -628,6 +628,9 @@ func (s *loadStage) Release() error { return nil }
 // SetModifier is a no-op: loadStaged set the modifier on the real guard.
 func (s *loadStage) SetModifier(string) {}
 
+// SetRuntimeObserver forwards publication to the guard loadStaged releases.
+func (s *loadStage) SetRuntimeObserver(fn storage.RuntimeObserver) { s.guard.SetRuntimeObserver(fn) }
+
 // Remove is refused; see errLoadStage.
 func (s *loadStage) Remove(name string) error {
 	return fmt.Errorf("remove %s: %w", name, errLoadStage)

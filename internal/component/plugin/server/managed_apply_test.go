@@ -14,6 +14,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	pluginipc "github.com/ze-software/ze/internal/component/plugin/ipc"
+	"github.com/ze-software/ze/internal/core/opererr"
 	"github.com/ze-software/ze/internal/test/sim"
 	"github.com/ze-software/ze/pkg/plugin/rpc"
 )
@@ -254,6 +255,7 @@ func TestManagedApplyLeafIssueFailureLeavesAddressUnbound(t *testing.T) {
 	require.Len(t, unbound, 1)
 	require.Equal(t, next.Addr, unbound[0].Addr)
 	require.Contains(t, unbound[0].Error, "authority is offline")
+	require.Equal(t, "commit", unbound[0].Fix)
 	ca.failure = nil
 	applyManaged(t, s, []ManagedListener{first, next}, "")
 	require.Len(t, s.Addrs(), 2)
@@ -276,6 +278,10 @@ func TestManagedStartUnresolvedCertificateBindsNothingThenReloadBinds(t *testing
 	_, err := s.PrepareManagedListeners([]ManagedListener{blk}, "fleet-hub")
 	require.ErrorContains(t, err, "bus hub server central certificate fleet-hub")
 	require.ErrorContains(t, err, "define pki certificate fleet-hub")
+	var typed *opererr.Error
+	require.ErrorAs(t, err, &typed)
+	require.Equal(t, "delete bus hub server central certificate", typed.Fix())
+	require.Equal(t, typed.Fix(), s.doctor.snapshot().Unbound[0].Fix)
 	cert, key = hubCertMaterial(t)
 	applyManaged(t, s, []ManagedListener{blk}, "fleet-hub")
 	want, _ := pem.Decode(cert)
@@ -381,4 +387,49 @@ func TestManagedApplyEphemeralSocketsFollowNamedBlocks(t *testing.T) {
 	fetch(t, westClient, "")
 	require.False(t, authAs(t, east, testClient2Name, testClient2Secret))
 	require.False(t, authAs(t, west, testClientName, testClientSecret))
+}
+
+// TestManagedApplyNilPreservesServingClient checks the absent candidate
+// produced by prepareManagedReload leaves the serving socket available.
+func TestManagedApplyNilPreservesServingClient(t *testing.T) {
+	s, addr := startTestManagedServer(t)
+	s.ApplyManagedListeners(nil)
+	require.Equal(t, addr, s.Addrs()[0].String())
+	fetch(t, dialTestClient(t, addr, testClientName, testClientSecret), "")
+}
+
+// TestManagedRemovedClientClearsRejection covers a reconfiguration after
+// an invalid token and an old session recording a delayed acknowledgement.
+func TestManagedRemovedClientClearsRejection(t *testing.T) {
+	s, addr := startTestManagedServer(t)
+	require.False(t, authAs(t, addr, testClientName, "bad-token"))
+	waitForRejection(t, s, testClientName)
+	applyManaged(t, s, nil, "")
+	require.Empty(t, s.doctor.snapshot().Rejected)
+	s.recordDeclaredRejection(testClientName, ManagedRejectConfigRejected, "late ack")
+	require.Empty(t, s.doctor.snapshot().Rejected)
+}
+
+func TestManagedReloadUnnamedBlockCertificateRefusal(t *testing.T) {
+	s, _ := startTestManagedServer(t)
+	_, err := s.PrepareManagedListeners([]ManagedListener{applyTestBlock("127.0.0.1:0")}, "missing")
+	var typed *opererr.Error
+	require.ErrorAs(t, err, &typed)
+	require.Contains(t, typed.Problem(), "managed listener certificate missing")
+	require.Equal(t, "edit pki certificate missing", typed.Fix())
+}
+
+func TestManagedReloadAuthorityRefusalPreservesCause(t *testing.T) {
+	cert, key := hubCertMaterial(t)
+	ca := &failingApplyCA{testCA: newTestCA(t)}
+	block := applyTestBlock("127.0.0.1:0")
+	block.Block = "central"
+	s := startApplyTest(t, ManagedServerConfig{Certificate: "custom", Authority: ca, Listeners: []ManagedListener{block},
+		TLSMaterialResolver: func(string) ([]byte, []byte, error) { return cert, key, nil }})
+	ca.failure = errors.New("authority failure")
+	_, err := s.PrepareManagedListeners([]ManagedListener{block}, "")
+	var typed *opererr.Error
+	require.ErrorAs(t, err, &typed)
+	require.ErrorIs(t, err, ca.failure)
+	require.Equal(t, "set bus hub server central certificate custom", typed.Fix())
 }

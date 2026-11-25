@@ -113,6 +113,9 @@ type ManagedServerConfig struct {
 	// A leaf nothing issued is one a client can neither validate nor rotate.
 	Authority plugin.Authority
 
+	// LoadAuthority opens the durable authority on demand when no Authority was injected.
+	LoadAuthority func() (plugin.Authority, error)
+
 	// Clock decides when an ISSUED leaf is reissued. nil installs
 	// clock.RealClock{}, and a test passes a fake clock to move the leaf's
 	// expiry rather than wait for it. A named certificate reads no clock: the
@@ -220,7 +223,7 @@ func NewManagedServer(cfg ManagedServerConfig) (*ManagedServer, error) {
 		return nil, errors.New("managed server: ReadConfig is required")
 	}
 	source, certErr := managedCertificate(cfg, nil)
-	if certErr != nil && (cfg.Certificate == "" && cfg.Authority == nil || cfg.Certificate != "" && cfg.TLSMaterialResolver == nil) {
+	if certErr != nil && (cfg.Certificate == "" && cfg.Authority == nil && cfg.LoadAuthority == nil || cfg.Certificate != "" && cfg.TLSMaterialResolver == nil) {
 		return nil, certErr
 	}
 	listens := cloneManagedListeners(cfg.Listeners)
@@ -252,7 +255,7 @@ func NewManagedServer(cfg ManagedServerConfig) (*ManagedServer, error) {
 		now:            cfg.Clock.Now,
 		source:         source,
 		initialCertErr: certErr,
-		certConfig:     ManagedServerConfig{Authority: cfg.Authority, TLSMaterialResolver: cfg.TLSMaterialResolver, Clock: cfg.Clock},
+		certConfig:     ManagedServerConfig{Certificate: cfg.Certificate, Authority: cfg.Authority, LoadAuthority: cfg.LoadAuthority, TLSMaterialResolver: cfg.TLSMaterialResolver, Clock: cfg.Clock},
 		acceptor:       cfg.Acceptor,
 		pending:        make(map[string]struct{}),
 		pushing:        make(map[string]struct{}),
@@ -292,6 +295,9 @@ func NewManagedServer(cfg ManagedServerConfig) (*ManagedServer, error) {
 // leaf (withAuthority). No authority is an error too: a
 // self-signed leaf is one no client can validate and no operator can rotate.
 func managedCertificate(cfg ManagedServerConfig, current *managedCertSource) (*managedCertSource, error) {
+	if len(cfg.Listeners) == 0 {
+		return nil, nil // No socket needs a certificate.
+	}
 	if cfg.Certificate != "" {
 		if cfg.TLSMaterialResolver == nil {
 			var tb textbuf.Buffer
@@ -310,9 +316,6 @@ func managedCertificate(cfg ManagedServerConfig, current *managedCertSource) (*m
 		return &managedCertSource{name: cfg.Certificate, get: func(*tls.ClientHelloInfo) (*tls.Certificate, error) { return &pair, nil }}, nil
 	}
 
-	if cfg.Authority == nil {
-		return nil, errors.New("managed server: no certificate name and no certificate authority")
-	}
 	addrs := make([]string, 0, len(cfg.Listeners))
 	for _, listen := range cfg.Listeners {
 		addrs = append(addrs, listen.Addr)
@@ -321,11 +324,22 @@ func managedCertificate(cfg ManagedServerConfig, current *managedCertSource) (*m
 	if current != nil && current.name == "" && !slices.ContainsFunc(hosts, func(host string) bool { return !slices.Contains(current.hosts, host) }) {
 		return current, nil
 	}
-	leaf, err := plugin.NewServingLeaf(cfg.Authority, managedLeafCommonName, hosts, cfg.Clock)
+	authority := cfg.Authority
+	if authority == nil && cfg.LoadAuthority != nil {
+		loaded, err := cfg.LoadAuthority()
+		if err != nil {
+			return nil, fmt.Errorf("load managed certificate authority: %w", err)
+		}
+		authority = loaded
+	}
+	if authority == nil {
+		return nil, errors.New("managed server: no certificate name and no certificate authority")
+	}
+	leaf, err := plugin.NewServingLeaf(authority, managedLeafCommonName, hosts, cfg.Clock)
 	if err != nil {
 		return nil, fmt.Errorf("managed server: %w", err)
 	}
-	root, _ := pem.Decode(cfg.Authority.CertificatePEM())
+	root, _ := pem.Decode(authority.CertificatePEM())
 	if root == nil {
 		return nil, errors.New("managed server: the certificate authority has no root certificate in PEM")
 	}
@@ -390,7 +404,7 @@ func (s *ManagedServer) Start(ctx context.Context) error {
 		return err
 	}
 	s.ctx, s.cancel = context.WithCancel(ctx)
-	s.ApplyManagedListeners(&ManagedListenerPlan{listens: s.listens, source: s.source, bindErr: s.initialCertErr})
+	s.ApplyManagedListeners(&ManagedListenerPlan{listens: s.listens, source: s.source, bindErr: s.initialCertErr, certificate: s.certConfig.Certificate})
 	s.listens = nil
 	if s.recordIO != nil {
 		s.wg.Go(s.recordWriter) // long-lived: drains device history until cancellation
@@ -399,11 +413,12 @@ func (s *ManagedServer) Start(ctx context.Context) error {
 		s.wg.Go(s.notifyWorker) // long-lived pool: drains config-changed pushes
 	}
 	s.wg.Go(s.closeOnDone) // long-lived: closes listeners on shutdown
-	managedLogger().Info("managed config server listening",
-		"listeners", len(s.Addrs()))
-	if s.source != nil && s.source.name == "" {
-		managedLogger().Info("managed config server: no certificate configured, so it serves a leaf issued by " +
-			"this daemon's certificate authority. Export the root and name it in each client's pki ca block")
+	if bound := len(s.Addrs()); bound > 0 {
+		managedLogger().Info("managed config server listening", "listeners", bound)
+		if s.source != nil && s.source.name == "" {
+			managedLogger().Info("managed config server: no certificate configured, so it serves a leaf issued by " +
+				"this daemon's certificate authority. Export the root and name it in each client's pki ca block")
+		}
 	}
 	publishManagedDoctor(s)
 	return nil
@@ -519,7 +534,7 @@ func (s *ManagedServer) handleConn(conn net.Conn, bound *managedBound) {
 	defer mc.Close() //nolint:errcheck // cleanup
 	if regErr := s.admitOnListener(name, remote.Addr(), mc, bound, verifiedSecret); regErr != nil {
 		if errors.Is(regErr, ErrDuplicateClient) {
-			s.doctor.recordRejected(name, ManagedRejectNameConnected, regErr.Error())
+			s.recordDeclaredRejection(name, ManagedRejectNameConnected, regErr.Error())
 			managedLogger().Warn("managed client rejected", "code", CodeDoctorManagedClientRejected,
 				"name", name, "error", regErr)
 		} else {
@@ -643,7 +658,7 @@ func (s *ManagedServer) handleConfigAck(name string, ack fleet.ConfigAck, fetche
 		return
 	}
 	s.recordAck(name, ack, ManagedAckRefused)
-	s.doctor.recordRejected(name, ManagedRejectConfigRejected, ack.Error)
+	s.recordDeclaredRejection(name, ManagedRejectConfigRejected, ack.Error)
 	managedLogger().Warn("managed client rejected config", "code", CodeDoctorManagedClientRejected,
 		"name", name, "error", ack.Error)
 }

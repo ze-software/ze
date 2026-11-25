@@ -98,10 +98,25 @@ func ManagedDeviceNames() []string {
 		return nil
 	}
 	s.mu.Lock()
-	names := slices.Collect(maps.Keys(s.devices))
+	names := make([]string, 0, len(s.devices))
+	for name := range s.devices {
+		if s.visibleDeviceLocked(name) != nil {
+			names = append(names, name)
+		}
+	}
 	s.mu.Unlock()
 	slices.Sort(names)
 	return names
+}
+
+// visibleDeviceLocked hides an undeclared device whose history has been
+// deleted. Its private session entry survives until the close waiter wakes.
+func (s *ManagedServer) visibleDeviceLocked(name string) *managedDevice {
+	device := s.devices[name]
+	if device != nil && device.forgetOnDisconnect && !device.declared {
+		return nil
+	}
+	return device
 }
 
 // snapshotLocked copies the current session facts while the caller holds s.mu.
@@ -175,7 +190,7 @@ func (s *ManagedServer) disconnectDevice(name string, conn *rpc.MuxConn) {
 func (s *ManagedServer) recordFetch(name, version string, resp fleet.ConfigFetchResponse, fetchErr error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	device := s.devices[name]
+	device := s.visibleDeviceLocked(name)
 	if device == nil {
 		return // The operator forgot this record before the fetch completed.
 	}
@@ -197,7 +212,7 @@ func (s *ManagedServer) recordFetch(name, version string, resp fleet.ConfigFetch
 func (s *ManagedServer) recordAck(name string, ack fleet.ConfigAck, result ManagedAckResult) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	device := s.devices[name]
+	device := s.visibleDeviceLocked(name)
 	if device == nil {
 		return // A late acknowledgement cannot restore a forgotten record.
 	}

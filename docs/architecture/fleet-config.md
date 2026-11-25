@@ -252,17 +252,18 @@ device runs. It records a refusal when that copy is missing.
 
 `startManagedServer` hands the managed server the plugin acceptor's address
 (`ManagedServerConfig.Acceptor`, the first `server` block). The server
-publishes its record when `Start` begins, before it binds, and `Stop`
-withdraws it; `show doctor` reads it through `ManagedDoctorSnapshot`, and with
-no managed server in the process the answer is `ErrManagedNotServing`, so both
-checks report nothing.
+publishes its record after `Start` attempts its configured addresses, and
+`Stop` withdraws it. Doctor reads the record through `ManagedRuntimeHealth`.
+A startup failure that prevents publication remains visible with its cause.
+When a configuration drops a client, its last named rejection clears.
 <!-- source: cmd/ze/hub/managed_server.go -- startManagedServer -->
-<!-- source: internal/component/plugin/server/managed_doctor.go -- ManagedDoctorSnapshot, managedDoctorState, notifyDropped -->
+<!-- source: internal/component/plugin/server/managed_doctor.go -- ManagedRuntimeHealth, managedDoctorState, notifyDropped -->
 <!-- source: internal/component/plugin/doctor/check_managed_runtime.go -- checkManagedListenerUnbound, checkManagedClientRejected -->
 
 | Event | Recorded as | Doctor code |
 |-------|-------------|-------------|
-| A listen address that does not bind, other than the acceptor's own | the address and the kernel's error | `doctor-managed-listener-unbound` (error) |
+| Managed server startup fails before publishing the registry | the startup error and its repair | `doctor-managed-server-unavailable` (error) |
+| A listen address that does not bind, other than the acceptor's own | the address and the socket or certificate error with its repair | `doctor-managed-listener-unbound` (error) |
 | A listen address the plugin acceptor already holds | not recorded; logged at ERROR, and the local `hub-managed-listener` check reports it from the config | `doctor-hub-managed-collision` |
 | A second session under a name already connected | that client's last refusal | `doctor-managed-client-rejected` (warning) |
 | A `config-ack` with an error | that client's last refusal, cleared by the next successful ack | `doctor-managed-client-rejected` (warning) |
@@ -370,13 +371,18 @@ stays visible with `unreadable` true until a new event replaces it.
 Deleting a device record with `ze data rm meta/fleet/device/<name>/record`
 also clears the running hub's copy. An undeclared device disappears from
 the list. A declared device keeps its labels and, while connected, its current
-session time and source address. Its next event starts a fresh history.
+session time and source address. When the session ends those facts still show
+that it connected. Its next event writes the new history.
 Overwriting a record through a data command makes the hub restore its own
 history. The hub removes a newly written key for an unknown device. Each
 automatic correction writes an info log naming the affected key once it succeeds.
 If the correction fails, doctor reports the key and the store error.
-The writer compares the stored bytes under the same guard it uses
-for repair, so it can recognise its own writes.
+The store reports a successful runtime-key deletion while it still serializes
+changes to that key. The registry clears the corresponding history immediately.
+The writer publishes its own successful save directly into the registry under
+the same guard. A repair of malformed history restores the retained original
+bytes. If the original read failed, doctor reports the failure until the
+operator removes the key or a device event supplies new facts.
 <!-- source: internal/component/plugin/server/managed_record_store.go -- loadDeviceRecords, syncDeviceRecord -->
 
 ### Config Storage (Client Side)
@@ -1181,8 +1187,10 @@ plugin {
 
 The name wins whenever it is set, and a name that resolves to nothing is an
 error rather than a fallback. With no `certificate` the listener serves a leaf
-the daemon's own certificate authority issued. That authority is generated at
-the hub's first start and kept, so the leaf changes and the issuer does not: the
+the daemon's own certificate authority issued. A managed registry with no
+serving addresses loads neither a root nor a leaf. Preparing the first managed
+address with no named certificate opens the durable authority, generating the
+root on first use. The hub keeps the root across leaf renewals: the
 listener reissues the leaf as it ages, and a restart mints another. A client
 anchored on the root needs no change for either. Every server block that accepts managed clients serves one
 certificate: a config where two of them name different certificates is refused

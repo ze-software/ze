@@ -191,6 +191,14 @@ release, so a callback may read the store again. A guard reports each key
 it wrote and each runtime-state key it removed. Removing a configuration
 key leaves the configuration write observer silent.
 
+A runtime owner can subscribe to a prefix with `SetRuntimeObserver`. It sees
+each successful write or deletion while the runtime lock still orders changes
+to the key. Its callback may update memory, and must return without accessing
+storage or waiting on a writer. A guard can direct its own notifications to
+a callback that publishes the saved state in memory. The general write
+observer still receives the key after unlock. Removing a subscription leaves
+any replacement owner's subscription in place.
+
 An unguarded read does not wait for a guard. Three locks order the store
 (`store` in `store.go`): a guard holds the configuration lock (`writer`) or
 the runtime-state lock (`runtime`), or both, from `AcquireLock` to `Release`,

@@ -52,8 +52,10 @@ func (s *ManagedServer) registrySnapshot() ([]ManagedDevice, error) {
 	}
 	s.mu.Lock()
 	entries := make([]entryVersion, 0, len(s.devices))
-	for name, device := range s.devices {
-		entries = append(entries, entryVersion{name: name, device: device})
+	for name := range s.devices {
+		if device := s.visibleDeviceLocked(name); device != nil {
+			entries = append(entries, entryVersion{name: name, device: device})
+		}
 	}
 	s.mu.Unlock()
 	diverged := make(map[string]bool)
@@ -86,7 +88,7 @@ func (s *ManagedServer) registrySnapshot() ([]ManagedDevice, error) {
 	devices := make([]ManagedDevice, 0, len(entries))
 	s.mu.Lock()
 	for _, entry := range entries {
-		if s.devices[entry.name] != entry.device {
+		if s.visibleDeviceLocked(entry.name) != entry.device {
 			continue
 		}
 		device := entry.device.snapshotLocked()
@@ -103,7 +105,7 @@ func (s *ManagedServer) registrySnapshot() ([]ManagedDevice, error) {
 // concurrent deletion or redeclaration must not attach its answers to a new entry.
 func (s *ManagedServer) registryDevice(name string) (ManagedDevice, error) {
 	s.mu.Lock()
-	entry := s.devices[name]
+	entry := s.visibleDeviceLocked(name)
 	s.mu.Unlock()
 	if entry == nil {
 		return ManagedDevice{}, ErrManagedDeviceUnknown
@@ -131,7 +133,7 @@ func (s *ManagedServer) registryDevice(name string) (ManagedDevice, error) {
 	}
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	if s.devices[name] != entry {
+	if s.visibleDeviceLocked(name) != entry {
 		return ManagedDevice{}, ErrManagedDeviceUnknown
 	}
 	if err != nil {
@@ -152,7 +154,7 @@ func (s *ManagedServer) currentConfigVersion(name string, device *managedDevice)
 	var hash string
 	for range 2 {
 		s.mu.Lock()
-		if s.devices[name] != device {
+		if s.visibleDeviceLocked(name) != device {
 			s.mu.Unlock()
 			return "", ErrManagedDeviceUnknown
 		}
@@ -171,7 +173,7 @@ func (s *ManagedServer) currentConfigVersion(name string, device *managedDevice)
 			err = nil
 		}
 		s.mu.Lock()
-		if s.devices[name] != device {
+		if s.visibleDeviceLocked(name) != device {
 			s.mu.Unlock()
 			return "", ErrManagedDeviceUnknown
 		}

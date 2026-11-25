@@ -10,6 +10,8 @@ import (
 	"time"
 
 	pluginipc "github.com/ze-software/ze/internal/component/plugin/ipc"
+	"github.com/ze-software/ze/internal/core/configtext"
+	"github.com/ze-software/ze/internal/core/opererr"
 	"github.com/ze-software/ze/pkg/plugin/rpc"
 )
 
@@ -36,9 +38,10 @@ func cloneManagedListeners(listens []ManagedListener) []ManagedListener {
 // ManagedListenerPlan carries the certificate resolved against the candidate
 // PKI store and the declarations to install after configuration promotion.
 type ManagedListenerPlan struct {
-	listens []ManagedListener
-	source  *managedCertSource
-	bindErr error
+	listens     []ManagedListener
+	source      *managedCertSource
+	bindErr     error
+	certificate string
 }
 
 // PrepareManagedListeners validates the next configuration without changing any
@@ -51,25 +54,54 @@ func (s *ManagedServer) PrepareManagedListeners(listens []ManagedListener, certi
 	cfg.Listeners, cfg.Certificate = listens, certificate
 	source, err := managedCertificate(cfg, current)
 	if err != nil && certificate != "" {
-		var block string
-		for _, l := range listens {
-			if l.Certificate == certificate {
-				block = l.Block
+		return nil, managedNamedCertificateRefusal(listens, certificate, err)
+	}
+	if err != nil && serving && current != nil && current.name != "" {
+		fix := "edit bus hub"
+		for _, listen := range listens {
+			if listen.Block != "" {
+				fix = "set bus hub server " + configtext.QuoteToken(listen.Block) + " certificate " + configtext.QuoteToken(current.name)
 				break
 			}
 		}
-		return nil, fmt.Errorf("bus hub server %s certificate %s: %w; define pki certificate %s with a matching key, or remove the certificate leaf", block, certificate, err, certificate)
+		return nil, opererr.Wrap(err, "the managed listener cannot replace its serving certificate",
+			"keep certificate "+current.name+" in the configuration until the local authority can issue the replacement leaf", fix)
 	}
-	if err != nil && serving && current != nil && current.name != "" {
-		return nil, fmt.Errorf("managed listener: %w; keep certificate %s in the configuration until the authority issues again", err, current.name)
+	return &ManagedListenerPlan{listens: cloneManagedListeners(listens), source: source, bindErr: err, certificate: certificate}, nil
+}
+
+// managedNamedCertificateRefusal names the block that selected the certificate.
+// API callers can supply a common name without a configuration block.
+func managedNamedCertificateRefusal(listens []ManagedListener, certificate string, err error) *opererr.Error {
+	name := configtext.QuoteToken(certificate)
+	problem := "managed listener certificate " + name + " cannot be served"
+	fix := "edit pki certificate " + name
+	var firstPath string
+	for _, listen := range listens {
+		if listen.Certificate == certificate && listen.Block != "" {
+			if firstPath != "" {
+				// An edit to the common PKI entry repairs every referring block.
+				fix = "edit pki certificate " + name
+				break
+			}
+			firstPath = "bus hub server " + configtext.QuoteToken(listen.Block) + " certificate"
+			problem = firstPath + " " + name + " cannot be served"
+			fix = "delete " + firstPath
+		}
 	}
-	return &ManagedListenerPlan{listens: cloneManagedListeners(listens), source: source, bindErr: err}, nil
+	return opererr.Wrap(err, problem, "define pki certificate "+name+" with a matching key or remove the listener's certificate reference", fix)
 }
 
 // ApplyManagedListeners installs the prepared configuration after promotion.
 func (s *ManagedServer) ApplyManagedListeners(plan *ManagedListenerPlan) {
 	s.lifecycleMu.Lock()
 	defer s.lifecycleMu.Unlock()
+	if plan == nil {
+		return // No managed declarations were prepared by the caller.
+	}
+	if s.ctx == nil {
+		return // Start has not yet taken ownership of the listeners.
+	}
 	if s.ctx.Err() != nil {
 		return // Shutdown owns the listeners.
 	}
@@ -93,7 +125,7 @@ func (s *ManagedServer) ApplyManagedListeners(plan *ManagedListenerPlan) {
 	}
 
 	s.mu.Lock()
-	if plan.source != nil {
+	if plan.bindErr == nil {
 		s.source = plan.source
 	}
 	var retired []*managedBound
@@ -118,6 +150,7 @@ func (s *ManagedServer) ApplyManagedListeners(plan *ManagedListenerPlan) {
 		}
 		if _, declared := labels[name]; !declared && d.declared {
 			d.declared, d.labels = false, nil
+			s.doctor.clearRejected(name)
 			d.RemovedAt = s.now().UTC()
 			s.dirtyDeviceLocked(name)
 		}
@@ -146,6 +179,16 @@ func (s *ManagedServer) ApplyManagedListeners(plan *ManagedListenerPlan) {
 	s.doctor.mu.Lock()
 	s.doctor.unbound = nil
 	s.doctor.mu.Unlock()
+	bindFailure := plan.bindErr
+	var certFix string
+	if bindFailure != nil {
+		if plan.certificate == "" {
+			bindFailure = fmt.Errorf("restore the local certificate authority, then commit again: %w", bindFailure)
+			certFix = "commit"
+		} else {
+			certFix = managedNamedCertificateRefusal(plan.listens, plan.certificate, bindFailure).Fix()
+		}
+	}
 	active := make([]*managedBound, 0, len(plan.listens))
 	for _, key := range order {
 		listen := next[key]
@@ -153,8 +196,10 @@ func (s *ManagedServer) ApplyManagedListeners(plan *ManagedListenerPlan) {
 			active = append(active, bound)
 			continue
 		}
-		if plan.bindErr != nil {
-			s.doctor.recordUnbound(listen.Addr, plan.bindErr)
+		if bindFailure != nil {
+			s.doctor.recordUnboundWithFix(listen.Addr, bindFailure, certFix)
+			managedLogger().Error("managed listener disabled: its certificate could not be prepared",
+				"code", CodeDoctorManagedListenerUnbound, "addr", listen.Addr, "error", bindFailure, "fix", certFix)
 			continue
 		}
 		lns, err := pluginipc.StartListeners([]string{listen.Addr}, s.getCertificate)

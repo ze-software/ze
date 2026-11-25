@@ -34,3 +34,45 @@ func TestObserverRuntimeRemovalAfterUnlock(t *testing.T) {
 		})
 	}
 }
+
+func TestRuntimeObserverUsesGuardOwnershipAndKeepsWriteObserver(t *testing.T) {
+	for _, backend := range pointerTestStores() {
+		t.Run(backend.name, func(t *testing.T) {
+			store := backend.newStore(t, t.TempDir())
+			const key = "meta/fleet/device/edge/record"
+			const prefix = "meta/fleet/device/"
+			var events []string
+			stopFirst := store.SetRuntimeObserver(prefix, func(string, bool) {
+				t.Error("replaced observer received a publication")
+			})
+			stopSecond := store.SetRuntimeObserver(prefix, func(changed string, removed bool) {
+				require.Equal(t, key, changed)
+				require.True(t, removed)
+				events = append(events, "runtime delete")
+			})
+			stopFirst()
+			store.SetWriteObserver(func(changed string) {
+				if changed == key {
+					// The existing observer may re-enter the real store.
+					_, _ = store.ReadKey(changed)
+					events = append(events, "after unlock")
+				}
+			})
+			guard, err := store.AcquireLock(key)
+			require.NoError(t, err)
+			guard.SetRuntimeObserver(func(changed string, removed bool) {
+				require.Equal(t, key, changed)
+				require.False(t, removed)
+				events = append(events, "owner write")
+			})
+			require.NoError(t, guard.WriteKey(key, []byte("saved")))
+			require.Empty(t, events)
+			require.NoError(t, guard.Release())
+			require.NoError(t, store.WriteKey("meta/unrelated/state", []byte("other")))
+			require.NoError(t, store.RemoveKey(key))
+			stopSecond()
+			require.NoError(t, store.WriteKey(key, []byte("new")))
+			require.Equal(t, []string{"owner write", "after unlock", "runtime delete", "after unlock", "after unlock"}, events)
+		})
+	}
+}

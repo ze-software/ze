@@ -76,17 +76,23 @@ type keyEncoding interface {
 // writer waited for every sync a guard made, of keys it never asked for.
 // closed is written under all three locks and read under any one.
 type store struct {
-	writer   sync.RWMutex
-	runtime  sync.Mutex
-	mu       sync.RWMutex
-	tree     *treeEncoding
-	keys     keyEncoding
-	blob     *zefs.BlobStore
-	owner    *os.File
-	readonly bool
-	closed   bool
-	metas    map[string]FileMeta
-	observer func(string)
+	writer          sync.RWMutex
+	runtime         sync.Mutex
+	mu              sync.RWMutex
+	tree            *treeEncoding
+	keys            keyEncoding
+	blob            *zefs.BlobStore
+	owner           *os.File
+	readonly        bool
+	closed          bool
+	metas           map[string]FileMeta
+	observer        func(string)
+	runtimeObserver *runtimeObserver
+}
+
+type runtimeObserver struct {
+	prefix string
+	notify RuntimeObserver
 }
 
 func newStore(tree *treeEncoding, blob *zefs.BlobStore, owner *os.File, readonly bool) *store {
@@ -266,6 +272,23 @@ func (s *store) Stat(name string) (FileMeta, error) {
 	return s.metas[key], nil
 }
 func (s *store) SetWriteObserver(fn func(string)) { s.mu.Lock(); s.observer = fn; s.mu.Unlock() }
+
+func (s *store) SetRuntimeObserver(prefix string, fn RuntimeObserver) func() {
+	observer := &runtimeObserver{prefix: prefix, notify: fn}
+	if fn == nil {
+		observer = nil
+	}
+	s.mu.Lock()
+	s.runtimeObserver = observer
+	s.mu.Unlock()
+	return func() {
+		s.mu.Lock()
+		if s.runtimeObserver == observer {
+			s.runtimeObserver = nil
+		}
+		s.mu.Unlock()
+	}
+}
 
 func (s *store) ListKeys(prefix string) ([]string, error) {
 	if err := validPrefix(prefix); err != nil {
@@ -487,15 +510,16 @@ func (s *store) Close() error {
 }
 
 type guard struct {
-	parent       *store
-	access       keyAccess
-	blobLock     *zefs.WriteLock
-	modifier     string
-	pending      map[string]FileMeta
-	removed      map[string]bool
-	released     bool
-	holdsConfig  bool
-	holdsRuntime bool
+	parent          *store
+	access          keyAccess
+	blobLock        *zefs.WriteLock
+	modifier        string
+	runtimeObserver RuntimeObserver
+	pending         map[string]FileMeta
+	removed         map[string]bool
+	released        bool
+	holdsConfig     bool
+	holdsRuntime    bool
 }
 
 // errOutsideRuntimeGuard refuses a configuration key to a guard acquired for
@@ -705,7 +729,8 @@ func (g *guard) Has(name string) bool {
 	}
 	return g.parent.keys.has(key)
 }
-func (g *guard) SetModifier(modifier string) { g.modifier = modifier }
+func (g *guard) SetModifier(modifier string)           { g.modifier = modifier }
+func (g *guard) SetRuntimeObserver(fn RuntimeObserver) { g.runtimeObserver = fn }
 func (g *guard) WriteVersion(name string, data []byte, stamp time.Time) error {
 	if err := g.parent.CheckName(name); err != nil {
 		return err
@@ -713,7 +738,8 @@ func (g *guard) WriteVersion(name string, data []byte, stamp time.Time) error {
 	return writeVersionObject(g, zefs.KeyFileVersion.Key(FormatVersionStamp(stamp), filepath.Base(name)), data, stamp)
 }
 
-// Release MUST follow AcquireLock. Observers run only after durability and unlock.
+// Release MUST follow AcquireLock. Runtime observers see successful changes in
+// commit order. The general observer runs after unlock and can re-enter storage.
 func (g *guard) Release() error {
 	if g.released {
 		return nil
@@ -731,7 +757,24 @@ func (g *guard) Release() error {
 		}
 	}
 	observer := g.parent.observer
+	runtimeObserver := g.parent.runtimeObserver
 	g.parent.mu.Unlock()
+	if err == nil && runtimeObserver != nil {
+		notify := runtimeObserver.notify
+		if g.runtimeObserver != nil {
+			notify = g.runtimeObserver
+		}
+		for key := range g.pending {
+			if RuntimeKey(key) && strings.HasPrefix(key, runtimeObserver.prefix) {
+				notify(key, false)
+			}
+		}
+		for key := range g.removed {
+			if RuntimeKey(key) && strings.HasPrefix(key, runtimeObserver.prefix) {
+				notify(key, true)
+			}
+		}
+	}
 	g.unlock()
 	if err != nil {
 		return err

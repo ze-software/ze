@@ -4,12 +4,14 @@
 package doctor
 
 import (
+	"errors"
 	"testing"
 
 	"github.com/stretchr/testify/require"
 
 	"github.com/ze-software/ze/internal/component/plugin/server"
 	"github.com/ze-software/ze/internal/core/diagnostic"
+	"github.com/ze-software/ze/internal/core/opererr"
 )
 
 func TestCheckManagedDeviceRecordUnwritable(t *testing.T) {
@@ -43,4 +45,26 @@ func TestCheckManagedDeviceRecordUnwritableUnknownKey(t *testing.T) {
 	require.Contains(t, rows[0].Message, failure.Key)
 	require.Contains(t, rows[0].Message, failure.Error)
 	require.Contains(t, rows[0].Fix, "ze data rm "+failure.Key)
+}
+
+func TestCheckManagedListenerUnboundRepairs(t *testing.T) {
+	rows := managedUnboundRows([]server.ManagedListenerUnbound{
+		{Addr: "127.0.0.1:1790", Error: "undefined certificate fleet-hub", Fix: "delete bus hub server central certificate"},
+		{Addr: "127.0.0.2:1790", Error: "address in use"},
+	})
+	require.Len(t, rows, 2)
+	require.Equal(t, server.CodeDoctorManagedListenerUnbound, rows[0].Code)
+	require.Contains(t, rows[0].Message, "undefined certificate fleet-hub")
+	require.Equal(t, "delete bus hub server central certificate", rows[0].Fix)
+	require.Contains(t, rows[1].Fix, "free 127.0.0.2:1790")
+}
+
+func TestCheckManagedServerStartupFailure(t *testing.T) {
+	server.RecordManagedStartupFailure(opererr.Wrap(errors.New("disk read failed"), "cannot load the registry", "the index is unavailable", "ze show data check"))
+	t.Cleanup(func() { server.RecordManagedStartupFailure(nil) })
+	rows := checkManagedListenerUnbound(diagnostic.DoctorCheckContext{})
+	require.Len(t, rows, 1)
+	require.Equal(t, server.CodeDoctorManagedServerUnavailable, rows[0].Code)
+	require.Contains(t, rows[0].Message, "disk read failed")
+	require.Equal(t, "ze show data check", rows[0].Fix)
 }

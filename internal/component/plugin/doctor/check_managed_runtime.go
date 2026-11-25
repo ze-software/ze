@@ -5,8 +5,6 @@
 package doctor
 
 import (
-	"errors"
-
 	"github.com/ze-software/ze/internal/component/plugin/server"
 	"github.com/ze-software/ze/internal/core/diagnostic"
 	"github.com/ze-software/ze/internal/core/textbuf"
@@ -23,23 +21,36 @@ const managedRejectedCheckName = "managed-client-rejected"
 // collision with the plugin acceptor is not among them: the local
 // hub-managed-listener check reports it from the config.
 func checkManagedListenerUnbound(_ diagnostic.DoctorCheckContext) []diagnostic.Diagnostic {
-	record, err := server.ManagedDoctorSnapshot()
-	if errors.Is(err, server.ErrManagedNotServing) {
-		// No managed server runs here: no client entry in any server block.
-		// No listener was asked for, so none is unbound.
-		return nil
+	record, _ := server.ManagedRuntimeHealth()
+	if failure := record.StartupFailure; failure != nil {
+		message := failure.Problem() + ": " + failure.Why()
+		if cause := failure.Unwrap(); cause != nil {
+			message += ": " + cause.Error()
+		}
+		return []diagnostic.Diagnostic{{
+			Code: server.CodeDoctorManagedServerUnavailable, Severity: diagnostic.SeverityError,
+			Message: message,
+			Fix:     failure.Fix(),
+		}}
 	}
+	return managedUnboundRows(record.Unbound)
+}
+
+func managedUnboundRows(failures []server.ManagedListenerUnbound) []diagnostic.Diagnostic {
 	var rows []diagnostic.Diagnostic
-	for _, unbound := range record.Unbound {
-		var message, fix textbuf.Buffer
+	for _, unbound := range failures {
+		var message textbuf.Buffer
 		message.Str("managed listener ").Str(unbound.Addr).Str(" did not bind: ").Str(unbound.Error).
 			Str(", so managed clients of that server block cannot connect")
-		fix.Str("free ").Str(unbound.Addr).Str(" or give the server block another ip and port, then restart ze")
+		fix := unbound.Fix
+		if fix == "" {
+			fix = "free " + unbound.Addr + " or give the server block another ip and port, then restart ze"
+		}
 		rows = append(rows, diagnostic.Diagnostic{
 			Code:     server.CodeDoctorManagedListenerUnbound,
 			Severity: diagnostic.SeverityError,
 			Message:  message.String(),
-			Fix:      fix.String(),
+			Fix:      fix,
 		})
 	}
 	return rows
@@ -51,11 +62,7 @@ func checkManagedListenerUnbound(_ diagnostic.DoctorCheckContext) []diagnostic.D
 // client's secret, or a name the hub has no client entry for (the most recent
 // of those are kept, never the token).
 func checkManagedClientRejected(_ diagnostic.DoctorCheckContext) []diagnostic.Diagnostic {
-	record, err := server.ManagedDoctorSnapshot()
-	if errors.Is(err, server.ErrManagedNotServing) {
-		// No managed server runs here, so it refused no client.
-		return nil
-	}
+	record, _ := server.ManagedRuntimeHealth()
 	var rows []diagnostic.Diagnostic
 	for _, rejection := range record.Rejected {
 		rows = append(rows, managedRejectedRow(rejection))
@@ -99,7 +106,7 @@ func managedRejectedRow(rejection server.ManagedClientRejection) diagnostic.Diag
 
 // checkManagedDeviceRecordUnwritable explains which history a restart could lose.
 func checkManagedDeviceRecordUnwritable(_ diagnostic.DoctorCheckContext) []diagnostic.Diagnostic {
-	record, _ := server.ManagedDoctorSnapshot() // No managed server has no record failures.
+	record, _ := server.ManagedRuntimeHealth()
 	return managedRecordUnwritableRows(record.Unwritable)
 }
 
@@ -126,7 +133,7 @@ func managedRecordUnwritableRows(failures []server.ManagedDeviceRecordFailure) [
 
 // checkManagedDeviceRecordUnreadable reports records retained for correction.
 func checkManagedDeviceRecordUnreadable(_ diagnostic.DoctorCheckContext) []diagnostic.Diagnostic {
-	record, _ := server.ManagedDoctorSnapshot()
+	record, _ := server.ManagedRuntimeHealth()
 	return managedRecordUnreadableRows(record.Unreadable)
 }
 

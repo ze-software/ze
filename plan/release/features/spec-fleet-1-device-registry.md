@@ -1432,6 +1432,14 @@ refuses the reload: those are not choices.
 
 ## Implementation Steps
 
+The Phase 3 implementation for AC-42 changed during review. A data-command
+deletion takes effect in registry memory while the runtime guard still orders
+changes to the key. A later foreign write therefore cannot restore deleted
+history. A registry save publishes its result under its own guard, avoiding
+the second storage read described in the original design. The general write
+observer still runs after unlock. The managed record tests exercise both
+publication order and recovery of unreadable records across a failed repair.
+
 1. **Phase: Wiring (MANDATORY FIRST)** - YANG nodes for both commands; builtin registrations answering a stub; `ManagedRegistrySnapshot` returning `ErrManagedNotServing`
    - Tests: `fleet-devices-connect.ci`, `fleet-device-detail.ci` (red: stub answers), `TestEveryCommandOnEverySurface` (AC-34)
    - Files: `ze-managed-cmd.yang`, `register.go`, `cmd_devices.go`, `managed_registry.go` skeleton

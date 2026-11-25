@@ -52,7 +52,7 @@ func init() {
 		Component:    componentPlugin,
 		Dependencies: []string{doctorDependencyManagedServer},
 		Platforms:    []string{diagnostic.DoctorPlatformAny},
-		Codes:        []string{server.CodeDoctorManagedListenerUnbound},
+		Codes:        []string{server.CodeDoctorManagedListenerUnbound, server.CodeDoctorManagedServerUnavailable},
 		Check:        checkManagedListenerUnbound,
 	})
 	registerOrPanic(diagnostic.DoctorCheck{

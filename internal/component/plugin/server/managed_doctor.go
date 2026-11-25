@@ -13,6 +13,7 @@ import (
 	"time"
 
 	pluginipc "github.com/ze-software/ze/internal/component/plugin/ipc"
+	"github.com/ze-software/ze/internal/core/opererr"
 	"github.com/ze-software/ze/internal/core/report"
 	"github.com/ze-software/ze/internal/core/textbuf"
 )
@@ -56,7 +57,7 @@ func (s *ManagedServer) authRefused(remote string, err error, lookup func(name s
 	}
 	claimed := refusal.ShownClaim()
 	if _, known := lookup(refusal.Claimed); known {
-		s.doctor.recordRejected(claimed, ManagedRejectBadToken, refusal.Error())
+		s.recordDeclaredRejection(refusal.Claimed, ManagedRejectBadToken, refusal.Error())
 	} else {
 		s.doctor.recordUnknown(claimed, refusal.Error())
 	}
@@ -78,7 +79,8 @@ const managedDetailMax = 1024
 // reason other than the plugin acceptor holding it.
 type ManagedListenerUnbound struct {
 	Addr  string // The address the server block names, as Start was given it.
-	Error string // The bind error the kernel returned, as text.
+	Error string // The socket or certificate failure.
+	Fix   string // Certificate-specific repair; empty for socket failures.
 }
 
 // ManagedRejectCause says why a managed client was last refused. The zero
@@ -127,10 +129,11 @@ type ManagedDeviceRecordFailure struct {
 // ManagedDoctorRecord is what the managed server publishes for doctor: value
 // types only, copied at each read.
 type ManagedDoctorRecord struct {
-	Unbound    []ManagedListenerUnbound
-	Rejected   []ManagedClientRejection // Sorted by client name.
-	Unreadable []ManagedDeviceRecordFailure
-	Unwritable []ManagedDeviceRecordFailure
+	StartupFailure *opererr.Error
+	Unbound        []ManagedListenerUnbound
+	Rejected       []ManagedClientRejection // Sorted by client name.
+	Unreadable     []ManagedDeviceRecordFailure
+	Unwritable     []ManagedDeviceRecordFailure
 }
 
 // managedDoctorSource is the managed server doctor reads. Start publishes it
@@ -142,13 +145,35 @@ var managedDoctorSource atomic.Pointer[ManagedServer]
 // record, or ErrManagedNotServing when no managed server was started in this
 // process. Safe for concurrent use.
 func ManagedDoctorSnapshot() (ManagedDoctorRecord, error) {
+	record, running := ManagedRuntimeHealth()
+	if !running {
+		if record.StartupFailure != nil {
+			return record, record.StartupFailure
+		}
+		return record, ErrManagedNotServing
+	}
+	return record, nil
+}
+
+var managedStartupFailure atomic.Pointer[opererr.Error]
+
+// RecordManagedStartupFailure keeps the failure visible when the server could
+// not reach Start and therefore cannot publish its own doctor record.
+func RecordManagedStartupFailure(failure *opererr.Error) {
+	managedStartupFailure.Store(failure)
+}
+
+// ManagedRuntimeHealth supplies the current findings even when a startup error
+// prevented publication. The boolean distinguishes a running, healthy server
+// from a process without a server.
+func ManagedRuntimeHealth() (ManagedDoctorRecord, bool) {
 	s := managedDoctorSource.Load()
 	if s == nil {
-		return ManagedDoctorRecord{}, ErrManagedNotServing
+		return ManagedDoctorRecord{StartupFailure: managedStartupFailure.Load()}, false
 	}
 	record := s.doctor.snapshot()
 	s.appendDeviceRecordFailures(&record)
-	return record, nil
+	return record, true
 }
 
 // managedDoctorState is the record one ManagedServer keeps. The unbound list
@@ -191,9 +216,23 @@ func (d *managedDoctorState) recordUnknown(claimed, detail string) {
 
 // recordUnbound records one address Start could not bind.
 func (d *managedDoctorState) recordUnbound(addr string, err error) {
+	d.recordUnboundWithFix(addr, err, "")
+}
+
+func (d *managedDoctorState) recordUnboundWithFix(addr string, err error, fix string) {
 	d.mu.Lock()
 	defer d.mu.Unlock()
-	d.unbound = append(d.unbound, ManagedListenerUnbound{Addr: addr, Error: err.Error()})
+	d.unbound = append(d.unbound, ManagedListenerUnbound{Addr: addr, Error: err.Error(), Fix: fix})
+}
+
+// recordDeclaredRejection serializes refusal reporting with declaration removal.
+func (s *ManagedServer) recordDeclaredRejection(client string, cause ManagedRejectCause, detail string) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	device := s.devices[client]
+	if device != nil && device.declared {
+		s.doctor.recordRejected(client, cause, detail)
+	}
 }
 
 // recordRejected records the last refusal of one client, replacing any
@@ -207,7 +246,7 @@ func (d *managedDoctorState) recordRejected(client string, cause ManagedRejectCa
 	if d.rejected == nil {
 		d.rejected = make(map[string]ManagedClientRejection)
 	}
-	d.rejected[client] = ManagedClientRejection{Client: client, Cause: cause, Detail: detail, Time: time.Now()}
+	d.rejected[client] = ManagedClientRejection{Client: (&pluginipc.AuthRefusal{Claimed: client}).ShownClaim(), Cause: cause, Detail: detail, Time: time.Now()}
 }
 
 // clearRejected forgets a client's refusal once it applied a config.
@@ -234,6 +273,7 @@ func (d *managedDoctorState) snapshot() ManagedDoctorRecord {
 
 // publishManagedDoctor makes s the managed server doctor reads.
 func publishManagedDoctor(s *ManagedServer) {
+	managedStartupFailure.Store(nil)
 	managedDoctorSource.Store(s)
 }
 

@@ -4,7 +4,7 @@ package hub
 
 import (
 	"context"
-	"fmt"
+	"errors"
 
 	zeconfig "github.com/ze-software/ze/internal/component/config"
 
@@ -13,6 +13,7 @@ import (
 	zePlugin "github.com/ze-software/ze/internal/component/plugin"
 	"github.com/ze-software/ze/internal/component/plugin/registry"
 	pluginserver "github.com/ze-software/ze/internal/component/plugin/server"
+	"github.com/ze-software/ze/internal/core/opererr"
 	"github.com/ze-software/ze/internal/core/slogutil"
 )
 
@@ -46,7 +47,10 @@ func prepareManagedReload(tree *zeconfig.Tree, srv *pluginserver.ManagedServer) 
 	}
 	cfg, err := zeconfig.ExtractHubConfig(tree)
 	if err != nil {
-		return nil, fmt.Errorf("managed listener configuration: %w", err)
+		if problem, found := errors.AsType[*opererr.Error](err); found {
+			return nil, problem
+		}
+		return nil, opererr.Wrap(err, "the managed listener configuration is invalid", "the hub cannot prepare this candidate for reload", "edit bus hub")
 	}
 	if srv == nil {
 		return nil, nil // No managed store was opened by this daemon.
@@ -73,15 +77,6 @@ func startManagedServer(ctx context.Context, store storage.Storage, hubConfig *z
 		acceptor = hubConfig.Servers[0]
 	}
 
-	// The daemon's certificate authority issues the listener's leaf when no
-	// certificate is named. LoadOrGenerateRoot reads the root the hub already
-	// generated at startup, so this is a load and never a second root.
-	caRoot, caErr := zepki.LoadOrGenerateRoot(store)
-	if caErr != nil {
-		managedServerLog().Error("managed config server disabled: local certificate authority", "error", caErr)
-		return nil
-	}
-
 	srv, err := pluginserver.NewManagedServer(pluginserver.ManagedServerConfig{
 		Listeners: listeners,
 		ReadConfig: func(name string) ([]byte, error) {
@@ -97,7 +92,9 @@ func startManagedServer(ctx context.Context, store storage.Storage, hubConfig *z
 		// operator exports into each client's pki ca block.
 		Certificate:         certificate,
 		TLSMaterialResolver: zepki.ServerTLSMaterial,
-		Authority:           caRoot,
+		LoadAuthority: func() (zePlugin.Authority, error) {
+			return zepki.LoadOrGenerateRoot(store)
+		},
 		// The plugin acceptor binds the first server block (hubAcceptorServer),
 		// so a managed address colliding with it is the collision the local
 		// hub-managed-listener check reports, not an unbound listener.
@@ -105,13 +102,12 @@ func startManagedServer(ctx context.Context, store storage.Storage, hubConfig *z
 	})
 	// refuse-by-default: guards runYANGConfig -- a construction failure leaves no server to start, publish or pass to the fleet commands
 	if err != nil {
-		managedServerLog().Error("managed config server disabled", "error", err)
+		managedServerStartupFailed(opererr.Wrap(err, "the managed config server could not be constructed", "the hub cannot serve device configurations", "ze show doctor"))
 		return nil
 	}
-	// Subscribe before Start reads the stored records. The callback schedules work
-	// only, so it can also run while the configuration writer holds its lock.
+	// Configuration notifications run after store unlock. Start registers its
+	// separate runtime history observer while loading the stored records.
 	store.SetWriteObserver(func(key string) {
-		srv.ObserveDeviceRecordKey(key)
 		if name, ok := pluginserver.ClientNameFromConfigKey(key); ok {
 			srv.MarkManagedConfigChanged(name)
 			srv.NotifyConfigChanged(name)
@@ -119,10 +115,18 @@ func startManagedServer(ctx context.Context, store storage.Storage, hubConfig *z
 	})
 	if startErr := srv.Start(ctx); startErr != nil {
 		store.SetWriteObserver(nil)
-		managedServerLog().Error("managed config server failed to start", "error", startErr)
+		managedServerStartupFailed(opererr.Wrap(startErr, "the managed config server could not load its registry", "storage must be readable before the hub starts serving devices", "ze show data check"))
 		return nil
 	}
 
 	managedServerLog().Info("managed config server started", "listeners", len(listeners))
 	return srv
+}
+
+// managedServerStartupFailed reports startup failure even though Start could
+// not publish the server's runtime snapshot.
+func managedServerStartupFailed(problem *opererr.Error) {
+	pluginserver.RecordManagedStartupFailure(problem)
+	managedServerLog().Error(problem.Problem(), "code", pluginserver.CodeDoctorManagedServerUnavailable,
+		"error", problem.Unwrap(), "why", problem.Why(), "fix", problem.Fix())
 }

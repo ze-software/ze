@@ -15,6 +15,7 @@ import (
 	"slices"
 	"strings"
 	"time"
+	"unicode/utf8"
 
 	"github.com/ze-software/ze/internal/component/config/storage"
 	"github.com/ze-software/ze/pkg/fleet"
@@ -25,19 +26,19 @@ import (
 // one signal regardless of the number of events. Under the server mutex,
 // pending keeps one entry per name; true means its live facts changed.
 type managedRecordIO struct {
-	store    storage.Storage
-	pending  map[string]bool
-	observed map[string]managedRecordObservation
-	failed   map[string]string // Includes undeclared keys whose removal failed.
-	wake     chan struct{}
-	closed   bool
+	store     storage.Storage
+	pending   map[string]bool
+	unobserve func()
+	failed    map[string]managedRecordFailure // Includes undeclared keys whose removal failed.
+	wake      chan struct{}
+	loaded    bool
+	closed    bool
+	saving    string // A successful operator deletion cancels any older failure for this key.
 }
 
-// A callback cannot read its key. Remember the live facts it observed so an
-// authenticated event arriving after a deletion survives delayed reconciliation.
-type managedRecordObservation struct {
-	at        ManagedDeviceRecord
-	connected bool
+type managedRecordFailure struct {
+	message string
+	dirty   bool // A failed history save must be retried; a repair preserves the original bytes.
 }
 
 func newManagedRecordIO(store storage.Storage) *managedRecordIO {
@@ -46,8 +47,8 @@ func newManagedRecordIO(store storage.Storage) *managedRecordIO {
 		return nil
 	}
 	return &managedRecordIO{
-		store: store, pending: make(map[string]bool), observed: make(map[string]managedRecordObservation),
-		failed: make(map[string]string), wake: make(chan struct{}, 1),
+		store: store, pending: make(map[string]bool),
+		failed: make(map[string]managedRecordFailure), wake: make(chan struct{}, 1),
 	}
 }
 
@@ -56,6 +57,9 @@ func (s *ManagedServer) dirtyDeviceLocked(name string) {
 		return
 	}
 	device := s.devices[name]
+	if device == nil {
+		return // A late event has no history to persist after this device was forgotten.
+	}
 	if device.forgetOnDisconnect && !device.declared {
 		return // Reload is already closing this forgotten session.
 	}
@@ -82,31 +86,43 @@ func deviceRecordName(key string) (string, bool) {
 	return name, true
 }
 
-// ObserveDeviceRecordKey schedules a read-back after a durable store update.
-// The store invokes this on the writing goroutine, including our own writer:
-// it MUST never wait here for another store operation.
-func (s *ManagedServer) ObserveDeviceRecordKey(key string) {
-	if s.recordIO == nil {
-		return
-	}
+// observeDeviceRecord runs in publication order under the store's runtime
+// lock. It only updates memory. A later data write cannot hide an intervening
+// deletion, and the next authenticated event starts fresh history.
+func (s *ManagedServer) observeDeviceRecord(key string, removed bool) {
 	name, ok := deviceRecordName(key)
 	if !ok {
 		return
 	}
 	s.mu.Lock()
-	if !s.recordIO.closed {
-		if d := s.devices[name]; d != nil {
-			s.recordIO.observed[name] = managedRecordObservation{at: d.ManagedDeviceRecord, connected: d.conn != nil}
-		}
-		s.queueDeviceRecordLocked(name, false)
+	defer s.mu.Unlock()
+	if s.recordIO.closed {
+		return
 	}
-	s.mu.Unlock()
+	if !s.recordIO.loaded {
+		return // The initial guarded snapshot will include this change.
+	}
+	if removed {
+		if s.recordIO.saving == name {
+			s.recordIO.saving = ""
+		}
+		delete(s.recordIO.pending, name)
+		delete(s.recordIO.failed, name)
+		if device := s.devices[name]; device != nil {
+			s.forgetDeviceRecordLocked(name, device)
+		}
+		return
+	}
+	s.queueDeviceRecordLocked(name, false)
 }
 
 func decodeDeviceRecord(name string, data []byte) (ManagedDeviceRecord, error) {
 	var record ManagedDeviceRecord
 	if !fleet.ValidDeviceKeyName(name) {
 		return record, errors.New("record key contains an invalid device name")
+	}
+	if !utf8.Valid(data) {
+		return record, errors.New("device record contains invalid UTF-8")
 	}
 	decoder := json.NewDecoder(bytes.NewReader(data))
 	decoder.DisallowUnknownFields()
@@ -125,13 +141,29 @@ func decodeDeviceRecord(name string, data []byte) (ManagedDeviceRecord, error) {
 	return record, nil
 }
 
-func (s *ManagedServer) loadDeviceRecords() error {
+func (s *ManagedServer) loadDeviceRecords() (result error) {
 	// refuse-by-default: guards Start -- a server explicitly built without storage serves memory-only sessions
 	if s.recordIO == nil {
 		return nil
 	}
 	store := s.recordIO.store
-	keys, err := store.ListKeys(zefs.KeyFleetDeviceRecord.Prefix())
+	prefix := zefs.KeyFleetDeviceRecord.Prefix()
+	// Install outside the guard: on a blob an unguarded reader may hold the
+	// store mutex while waiting for the blob lock. Activate the observer only
+	// after loading the complete snapshot, before releasing its runtime lock.
+	s.recordIO.unobserve = store.SetRuntimeObserver(prefix, s.observeDeviceRecord)
+	guard, err := store.AcquireLock(strings.TrimSuffix(prefix, "/"))
+	if err != nil {
+		s.recordIO.unobserve()
+		return fmt.Errorf("lock managed device records: %w", err)
+	}
+	defer func() {
+		result = errors.Join(result, guard.Release())
+		if result != nil && s.recordIO.unobserve != nil {
+			s.recordIO.unobserve()
+		}
+	}()
+	keys, err := guard.ListKeys(prefix)
 	if err != nil {
 		return fmt.Errorf("list managed device records: %w", err)
 	}
@@ -140,12 +172,16 @@ func (s *ManagedServer) loadDeviceRecords() error {
 		if !ok {
 			continue
 		}
-		data, err := store.ReadKey(key)
+		data, err := guard.ReadKey(key)
 		if errors.Is(err, fs.ErrNotExist) {
-			continue // Removed between the listing and this read.
+			continue // A listed key is absent from this encoding.
 		}
+		var durable []byte
 		var record ManagedDeviceRecord
 		if err == nil {
+			// Keep even an empty original distinct from a failed read. Guard
+			// bytes are borrowed until Release, including on the blob backend.
+			durable = append([]byte{}, data...)
 			record, err = decodeDeviceRecord(name, data)
 		}
 		s.mu.Lock()
@@ -154,7 +190,7 @@ func (s *ManagedServer) loadDeviceRecords() error {
 			device = &managedDevice{ManagedDeviceRecord: ManagedDeviceRecord{Name: name}}
 			s.devices[name] = device
 		}
-		device.durable = data
+		device.durable = durable
 		if err != nil {
 			device.unreadable = true
 			device.readFailure = err.Error()
@@ -169,6 +205,9 @@ func (s *ManagedServer) loadDeviceRecords() error {
 		}
 		s.mu.Unlock()
 	}
+	s.mu.Lock()
+	s.recordIO.loaded = true
+	s.mu.Unlock()
 	return nil
 }
 
@@ -183,19 +222,30 @@ func (s *ManagedServer) recordWriter() {
 	}
 }
 
-// stopDeviceRecords runs after all event producers and the writer have left.
-// Give failed writes a final retry and stop accepting new observer work.
+// stopDeviceRecords runs after the last session and writer exit. Keep the
+// observer available during final saves so concurrent operator deletions win.
 func (s *ManagedServer) stopDeviceRecords() {
 	if s.recordIO == nil {
 		return
 	}
 	s.mu.Lock()
-	s.recordIO.closed = true
-	for name := range s.recordIO.failed {
-		s.recordIO.pending[name] = true
+	for name, failure := range s.recordIO.failed {
+		s.recordIO.pending[name] = s.recordIO.pending[name] || failure.dirty
 	}
 	s.mu.Unlock()
-	s.drainDeviceRecords()
+	for {
+		s.drainDeviceRecords()
+		s.mu.Lock()
+		if len(s.recordIO.pending) == 0 {
+			s.recordIO.closed = true
+			s.mu.Unlock()
+			break
+		}
+		s.mu.Unlock()
+	}
+	if s.recordIO.unobserve != nil {
+		s.recordIO.unobserve()
+	}
 }
 
 func (s *ManagedServer) drainDeviceRecords() {
@@ -204,130 +254,114 @@ func (s *ManagedServer) drainDeviceRecords() {
 	}
 	for {
 		s.mu.Lock()
-		pending := s.recordIO.pending
-		if len(pending) == 0 {
-			s.mu.Unlock()
+		var name string
+		for queued := range s.recordIO.pending {
+			name = queued
+			break
+		}
+		s.mu.Unlock()
+		if name == "" {
 			return
 		}
-		s.recordIO.pending = make(map[string]bool)
-		s.mu.Unlock()
-		for name, dirty := range pending {
-			s.syncDeviceRecord(name, dirty)
-		}
+		s.syncDeviceRecord(name)
 	}
 }
 
-// syncDeviceRecord takes the key guard before comparing the durable bytes.
-// A data command racing a writer therefore cannot be silently overwritten
-// between inspection and write. Release can synchronously call our observer,
-// so it MUST run without the registry mutex.
-func (s *ManagedServer) syncDeviceRecord(name string, dirty bool) {
-	// Rebuild from the single-segment name a storage listing returned. This
-	// also accepts a store key created by hand whose name contains "..".
+// syncDeviceRecord consumes the pending work under the runtime key lock.
+// A deletion cancels even a write that was already waiting for this lock.
+// No registry lock is held while accessing storage.
+func (s *ManagedServer) syncDeviceRecord(name string) {
 	key := deviceRecordKey(name)
 	guard, err := s.recordIO.store.AcquireLock(key)
-	if err != nil {
-		s.failDeviceRecord(name, key, err)
-		return
-	}
-	disk, readErr := guard.ReadKey(key)
-	gone := errors.Is(readErr, fs.ErrNotExist)
-	if readErr != nil && !gone {
-		err = errors.Join(readErr, guard.Release())
-		s.failDeviceRecord(name, key, err)
-		return
-	}
 	s.mu.Lock()
-	observed, wasObserved := s.recordIO.observed[name]
-	delete(s.recordIO.observed, name)
+	dirty, pending := s.recordIO.pending[name]
+	delete(s.recordIO.pending, name)
+	if pending {
+		s.recordIO.saving = name
+	}
+	dirty = dirty || s.recordIO.failed[name].dirty
 	device := s.devices[name]
-	if device == nil {
-		s.mu.Unlock()
-		// Memory is authoritative. A newly invented key has no record to
-		// restore and must not manufacture a device at the next restart.
-		if !gone {
-			err = guard.RemoveKey(key)
-		}
-		if err = errors.Join(err, guard.Release()); err != nil {
-			s.failDeviceRecord(name, key, err)
-			return
-		}
-		s.mu.Lock()
-		delete(s.recordIO.failed, name)
-		s.mu.Unlock()
-		if !gone {
-			managedLogger().Info("removed a data-command record for a device the registry does not know", "key", key)
-		}
-		return
-	}
-	if gone && (device.durable != nil || device.unreadable) {
-		if !wasObserved {
-			observed = managedRecordObservation{at: device.ManagedDeviceRecord, connected: device.conn != nil}
-		}
-		s.forgetDeviceRecordLocked(name, device, &observed)
-		s.mu.Unlock()
-		if err := guard.Release(); err != nil {
-			s.failDeviceRecord(name, key, err)
-		}
-		return
-	}
-	record := device.ManagedDeviceRecord
-	overwritten := !gone && !bytes.Equal(disk, device.durable)
-	// An unreadable record is retained byte for byte until an event supplies
-	// new facts; keep its original bytes even after an operator overwrite.
-	restoreUnreadable := overwritten && device.unreadable && !dirty
-	empty := record == (ManagedDeviceRecord{Name: name})
-	var encoded []byte
-	if restoreUnreadable {
-		encoded = slices.Clone(device.durable)
+	var record ManagedDeviceRecord
+	var original []byte
+	var readFailure string
+	if device != nil {
+		record = device.ManagedDeviceRecord
+		original = device.durable
+		readFailure = device.readFailure
 	}
 	s.mu.Unlock()
-	write := dirty || overwritten
-	if write {
-		switch {
-		case restoreUnreadable:
-			err = guard.WriteKey(key, encoded)
-		case empty:
-			if !gone {
-				err = guard.RemoveKey(key)
-			}
-		default:
-			encoded, err = json.Marshal(record)
-			if err == nil {
-				err = guard.WriteKey(key, encoded)
-			}
+	if err != nil {
+		if pending {
+			s.failDeviceRecord(name, key, dirty, err)
 		}
+		return
+	}
+	if !pending {
+		if err := guard.Release(); err != nil {
+			s.failDeviceRecord(name, key, false, err)
+		}
+		return
+	}
+
+	encoded := original
+	var remove bool
+	switch {
+	case dirty && device != nil:
+		encoded, err = json.Marshal(record)
+	case device != nil && original == nil && readFailure != "":
+		// The original could not be read at startup. Only a real event can
+		// replace it; a foreign write must never restore partial or nil bytes.
+		err = fmt.Errorf("cannot restore the original device record: %s", readFailure)
+	case original == nil:
+		remove = true
+	}
+	if err == nil {
+		if remove {
+			err = guard.RemoveKey(key)
+			if errors.Is(err, fs.ErrNotExist) {
+				// A previous attempt already removed this foreign key. No
+				// mutation remains for the guard's callback to acknowledge.
+				err = nil
+				s.mu.Lock()
+				delete(s.recordIO.failed, name)
+				s.mu.Unlock()
+			}
+		} else {
+			err = guard.WriteKey(key, encoded)
+		}
+	}
+	if err == nil {
+		guard.SetRuntimeObserver(func(_ string, _ bool) {
+			s.mu.Lock()
+			defer s.mu.Unlock()
+			delete(s.recordIO.failed, name)
+			if !remove {
+				s.mRecordWrites.With("ok").Inc()
+			}
+			if device == nil {
+				return
+			}
+			if dirty {
+				device.durable = encoded
+				device.readFailure = ""
+				device.unreadable = false
+			}
+			device.persisted = !remove && !device.unreadable && device.ManagedDeviceRecord == record
+		})
 	}
 	if err = errors.Join(err, guard.Release()); err != nil {
-		s.failDeviceRecord(name, key, err)
+		s.failDeviceRecord(name, key, dirty, err)
 		return
 	}
-	if !write {
-		return
+	if !dirty {
+		managedLogger().Info("reconciled a data-command write to managed device history", "key", key, "removed", remove)
 	}
-	if overwritten {
-		managedLogger().Info("restored managed device history after a data-command overwrite", "key", key)
-	}
-	s.mu.Lock()
-	if encoded != nil {
-		s.mRecordWrites.With("ok").Inc()
-	}
-	device.durable = encoded
-	delete(s.recordIO.failed, name)
-	if !restoreUnreadable {
-		device.readFailure = ""
-		device.unreadable = false
-		device.persisted = !empty && device.ManagedDeviceRecord == record
-	}
-	s.mu.Unlock()
 }
 
-func (s *ManagedServer) forgetDeviceRecordLocked(name string, device *managedDevice, observed *managedRecordObservation) {
-	delete(s.recordIO.failed, name)
+func (s *ManagedServer) forgetDeviceRecordLocked(name string, device *managedDevice) {
 	if !device.declared {
 		if device.conn != nil {
-			// A reload is closing this session and waiting for its done
-			// channel. The session handler still needs the entry to finish.
+			// Reload is closing this session and waiting for its done channel.
 			device.forgetOnDisconnect = true
 			device.durable = nil
 			return
@@ -335,57 +369,28 @@ func (s *ManagedServer) forgetDeviceRecordLocked(name string, device *managedDev
 		delete(s.devices, name)
 		return
 	}
-	current := device.ManagedDeviceRecord
-	device.ManagedDeviceRecord = observed.afterDelete(current)
-	if current != observed.at {
-		s.queueDeviceRecordLocked(name, true)
-	} else {
-		delete(s.recordIO.pending, name)
+	cleared := ManagedDeviceRecord{Name: name}
+	if device.conn != nil {
+		cleared.ConnectedSince = device.ConnectedSince
+		cleared.SourceAddress = device.SourceAddress
 	}
+	device.ManagedDeviceRecord = cleared
 	device.durable = nil
 	device.readFailure = ""
 	device.unreadable = false
 	device.persisted = false
 }
 
-// afterDelete rebuilds only the history recorded since the operator removed
-// the key. A live session at deletion retains its start and source. A later
-// session supplies the first connection of the new history.
-func (ob *managedRecordObservation) afterDelete(current ManagedDeviceRecord) ManagedDeviceRecord {
-	cleared := ManagedDeviceRecord{Name: current.Name}
-	if ob.connected {
-		cleared.ConnectedSince = ob.at.ConnectedSince
-		cleared.SourceAddress = ob.at.SourceAddress
-	}
-	if current.ConnectedSince != ob.at.ConnectedSince {
-		cleared.FirstConnected = current.ConnectedSince
-		cleared.ConnectedSince = current.ConnectedSince
-		cleared.SourceAddress = current.SourceAddress
-	}
-	if current.LastSeen != ob.at.LastSeen {
-		cleared.LastSeen = current.LastSeen
-	}
-	if current.LastFetch != ob.at.LastFetch {
-		cleared.LastFetch = current.LastFetch
-		cleared.DeviceVersion = current.DeviceVersion
-		cleared.LastFetchResult = current.LastFetchResult
-		cleared.LastFetchError = current.LastFetchError
-	}
-	if current.LastAck != ob.at.LastAck {
-		cleared.LastAck = current.LastAck
-		cleared.AckResult = current.AckResult
-		cleared.AckVersion = current.AckVersion
-		cleared.AckError = current.AckError
-	}
-	return cleared
-}
-
-func (s *ManagedServer) failDeviceRecord(name, key string, err error) {
+func (s *ManagedServer) failDeviceRecord(name, key string, dirty bool, err error) {
 	s.mRecordWrites.With("failed").Inc()
 	s.mu.Lock()
-	s.recordIO.failed[name] = err.Error()
-	if device := s.devices[name]; device != nil {
-		device.persisted = false
+	if s.recordIO.saving == name {
+		// If an operator already deleted the record after this guard released,
+		// shutdown must not retry the obsolete save and recreate the record.
+		s.recordIO.failed[name] = managedRecordFailure{message: err.Error(), dirty: dirty}
+		if device := s.devices[name]; device != nil {
+			device.persisted = false
+		}
 	}
 	s.mu.Unlock()
 	managedLogger().Error("cannot persist managed device record", "code", CodeDoctorManagedDeviceRecordUnwritable, "key", key, "error", err)
@@ -409,7 +414,7 @@ func (s *ManagedServer) appendDeviceRecordFailures(record *ManagedDoctorRecord) 
 	if s.recordIO != nil {
 		for _, name := range slices.Sorted(maps.Keys(s.recordIO.failed)) {
 			record.Unwritable = append(record.Unwritable, ManagedDeviceRecordFailure{
-				Name: name, Key: deviceRecordKey(name), Error: s.recordIO.failed[name], UnknownDevice: s.devices[name] == nil,
+				Name: name, Key: deviceRecordKey(name), Error: s.recordIO.failed[name].message, UnknownDevice: s.devices[name] == nil,
 			})
 		}
 	}

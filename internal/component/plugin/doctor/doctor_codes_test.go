@@ -75,6 +75,7 @@ func TestPluginInfraDoctorCodesDescribed(t *testing.T) {
 		server.CodeDoctorPluginSchemaRefused,
 		server.CodeDoctorPluginEnricherUnavailable,
 		server.CodeDoctorManagedListenerUnbound,
+		server.CodeDoctorManagedServerUnavailable,
 		server.CodeDoctorManagedClientRejected,
 		server.CodeDoctorPluginRemovalUnrecovered,
 		server.CodeDoctorPluginCapabilitiesNotRestored,

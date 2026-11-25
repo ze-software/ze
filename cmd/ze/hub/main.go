@@ -1760,10 +1760,9 @@ func runYANGConfig(store storage.Storage, configPath string, data []byte, plugin
 		})
 	}
 
-	// Serve managed fleet clients declared under hub server blocks (answers
-	// config-fetch, pushes config-changed). No-op unless a server block has client
-	// entries and storage is blob-backed. Independent of the outbound managed client.
-	// A live config restore targets a served client through this server only.
+	// Start the device registry on the daemon's store, including when it
+	// has no clients. Only serving blocks need a listener and certificate.
+	// A live config restore uses this server to find a served client.
 	if managedServer := startManagedServer(managedCtx, store, &hubConfig); managedServer != nil {
 		// The hub MUST join this server before returning the borrowed store.
 		defer managedServer.Stop()

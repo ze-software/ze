@@ -21,7 +21,6 @@ func registryWithHistory(t *testing.T, store storage.Storage) *ManagedServer {
 	t.Helper()
 	s := registryTestServer(t)
 	s.recordIO = newManagedRecordIO(store)
-	store.SetWriteObserver(s.ObserveDeviceRecordKey)
 	require.NoError(t, s.loadDeviceRecords())
 	return s
 }
@@ -65,6 +64,7 @@ func TestRegistryUnreadableRecordKept(t *testing.T) {
 	for _, bad := range []string{`{"name":"edge-01","new-field":2}`, `{"name":"edge-02"}`, `{"name":"edge-01"} {}`,
 		`{"name":"edge-01","last-fetch-result":"invalid"}`, `{"name":"edge-01","ack-result":"invalid"}`,
 		`{"name":"edge-01","source-address":"invalid"}`, `{"name":"edge-01","last-fetch":"yesterday"}`,
+		`{"name":"edge-01","ack-error":"` + "\xff" + `"}`,
 		`{"name":"edge-01","ack-error":"` + strings.Repeat("x", managedDetailMax+1) + `"}`} {
 		store := heldTestStore(t)
 		key := deviceRecordKey(testClientName)
@@ -94,7 +94,6 @@ func TestRegistryWriterCoalescesPerDevice(t *testing.T) {
 	writes := make(map[string]int)
 	store.SetWriteObserver(func(key string) {
 		writes[key]++
-		s.ObserveDeviceRecordKey(key)
 	})
 	for range 50 {
 		s.recordAck(testClientName, fleet.ConfigAck{Version: "v1"}, ManagedAckApplied)
@@ -116,13 +115,21 @@ func TestRegistryWriterCoalescesPerDevice(t *testing.T) {
 // failingRecordStore injects a durable release failure after a real guard write.
 type failingRecordStore struct {
 	storage.Storage
-	fail bool
+	fail         bool
+	afterRelease func()
 }
 
-type failingRecordGuard struct{ storage.WriteGuard }
+type failingRecordGuard struct {
+	storage.WriteGuard
+	afterRelease func()
+}
 
 func (g failingRecordGuard) Release() error {
-	return errors.Join(g.WriteGuard.Release(), errors.New("disk is full"))
+	releaseErr := g.WriteGuard.Release()
+	if g.afterRelease != nil {
+		g.afterRelease()
+	}
+	return errors.Join(releaseErr, errors.New("disk is full"))
 }
 
 func (store *failingRecordStore) AcquireLock(key string) (storage.WriteGuard, error) {
@@ -131,18 +138,16 @@ func (store *failingRecordStore) AcquireLock(key string) (storage.WriteGuard, er
 		return nil, err
 	}
 	if store.fail {
-		return failingRecordGuard{g}, nil
+		return failingRecordGuard{g, store.afterRelease}, nil
 	}
 	return g, nil
 }
 
 func TestRegistryWriteFailureKeepsLiveFacts(t *testing.T) {
-	store := &failingRecordStore{Storage: heldTestStore(t), fail: true}
+	store := &failingRecordStore{Storage: heldTestStore(t)}
 	s := registryWithHistory(t, store)
+	store.fail = true
 	s.recordAck(testClientName, fleet.ConfigAck{Version: "initial"}, ManagedAckRefused)
-	// The injected failure follows the underlying guard release. Suppress the
-	// underlying store's success callback, as a real failed release would.
-	store.SetWriteObserver(nil)
 	s.drainDeviceRecords()
 	before := s.snapshotDevices()[0]
 	require.False(t, before.Persisted)
@@ -197,6 +202,8 @@ func TestRegistryOnlineDeleteClearsDeclaredHistory(t *testing.T) {
 	require.False(t, restarted.Connected)
 	require.True(t, restarted.Persisted)
 	require.False(t, restarted.LastSeen.IsZero())
+	require.Equal(t, before.ConnectedSince, restarted.ConnectedSince)
+	require.Equal(t, before.SourceAddress, restarted.SourceAddress)
 	require.Empty(t, restarted.AckVersion)
 }
 
@@ -232,11 +239,21 @@ func TestRegistryOnlineDeleteFollowedByEventBeforeWriter(t *testing.T) {
 func TestRegistryOnlineDeleteWhileRemovalClosesSession(t *testing.T) {
 	store := heldTestStore(t)
 	s := registryWithHistory(t, store)
+	publishManagedDoctor(s)
+	t.Cleanup(func() { withdrawManagedDoctor(s) })
 	conn := recordTestSession(t, s)
 	device := s.devices[testClientName]
 	done := device.sessionDone
 	device.declared = false // Reload has withdrawn this name and is closing its connection.
 	require.NoError(t, store.RemoveKey(deviceRecordKey(testClientName)))
+	require.Same(t, device, s.devices[testClientName])
+	rows, err := ManagedRegistrySnapshot()
+	require.NoError(t, err)
+	require.Len(t, rows, 1)
+	require.Equal(t, testClient2Name, rows[0].Name)
+	_, err = ManagedDeviceByName(testClientName)
+	require.ErrorIs(t, err, ErrManagedDeviceUnknown)
+	require.Equal(t, []string{testClient2Name}, ManagedDeviceNames())
 	s.drainDeviceRecords()
 	s.disconnectDevice(testClientName, conn)
 	select {
@@ -246,7 +263,24 @@ func TestRegistryOnlineDeleteWhileRemovalClosesSession(t *testing.T) {
 	}
 	s.drainDeviceRecords()
 	require.NotContains(t, s.devices, testClientName)
-	_, err := store.ReadKey(deviceRecordKey(testClientName))
+	_, err = store.ReadKey(deviceRecordKey(testClientName))
+	require.ErrorIs(t, err, fs.ErrNotExist)
+}
+
+func TestRegistryLateDirtyEventAfterForget(t *testing.T) {
+	store := heldTestStore(t)
+	const name = "retired"
+	key := deviceRecordKey(name)
+	require.NoError(t, store.WriteKey(key, []byte(`{"name":"retired"}`)))
+	s := registryWithHistory(t, store)
+	require.NoError(t, store.RemoveKey(key))
+	require.NotContains(t, s.devices, name)
+	s.mu.Lock()
+	s.dirtyDeviceLocked(name)
+	s.mu.Unlock()
+	require.Empty(t, s.recordIO.pending)
+	s.drainDeviceRecords()
+	_, err := store.ReadKey(key)
 	require.ErrorIs(t, err, fs.ErrNotExist)
 }
 
@@ -259,9 +293,6 @@ func TestRegistryOnlineUnknownRecordRepairFailure(t *testing.T) {
 	key := deviceRecordKey(name)
 	require.NoError(t, store.WriteKey(key, []byte("injected")))
 	store.fail = true
-	// The underlying test guard succeeds before the injected release error;
-	// a truly failed release would suppress its callback.
-	store.SetWriteObserver(nil)
 	s.drainDeviceRecords()
 	var failed ManagedDoctorRecord
 	s.appendDeviceRecordFailures(&failed)
@@ -272,12 +303,147 @@ func TestRegistryOnlineUnknownRecordRepairFailure(t *testing.T) {
 	require.NotContains(t, s.devices, name)
 
 	store.fail = false
-	store.SetWriteObserver(s.ObserveDeviceRecordKey)
 	require.NoError(t, store.WriteKey(key, []byte("another data write")))
 	s.drainDeviceRecords()
 	var repaired ManagedDoctorRecord
 	s.appendDeviceRecordFailures(&repaired)
 	require.Empty(t, repaired.Unwritable)
+	_, err := store.ReadKey(key)
+	require.ErrorIs(t, err, fs.ErrNotExist)
+}
+
+// countingRecordStore counts actual storage acquisitions across a complete drain,
+// including any echo that the writer inadvertently put back in its own queue.
+type countingRecordStore struct {
+	storage.Storage
+	locks int
+}
+
+func (s *countingRecordStore) AcquireLock(key string) (storage.WriteGuard, error) {
+	s.locks++
+	return s.Storage.AcquireLock(key)
+}
+
+func TestRegistryStoreWritesOnceWithoutObserverEcho(t *testing.T) {
+	store := &countingRecordStore{Storage: heldTestStore(t)}
+	s := registryWithHistory(t, store)
+	baseline := store.locks
+	recordTestSession(t, s)
+	require.Equal(t, baseline+1, store.locks)
+	require.True(t, s.snapshotDevices()[0].Persisted)
+}
+
+func TestRegistryDeleteBeforeForeignWriteDoesNotRestoreHistory(t *testing.T) {
+	for _, declared := range []bool{true, false} {
+		store := heldTestStore(t)
+		s := registryWithHistory(t, store)
+		conn := recordTestSession(t, s)
+		s.disconnectDevice(testClientName, conn)
+		s.drainDeviceRecords()
+		s.devices[testClientName].declared = declared
+		key := deviceRecordKey(testClientName)
+		require.NoError(t, store.RemoveKey(key))
+		if declared {
+			require.Empty(t, s.snapshotDevices()[0].AckVersion)
+		} else {
+			require.NotContains(t, s.devices, testClientName)
+		}
+		require.NoError(t, store.WriteKey(key, []byte("foreign history")))
+		s.drainDeviceRecords()
+		_, err := store.ReadKey(key)
+		require.ErrorIs(t, err, fs.ErrNotExist)
+		restarted := registryWithHistory(t, store)
+		require.Empty(t, restarted.snapshotDevices()[0].AckVersion)
+	}
+}
+
+// An unreadable original has no bytes that the registry can safely copy back.
+// Inject a partial result as a failing underlying read is allowed to do.
+type unreadableRecordStore struct {
+	storage.Storage
+}
+
+type unreadableRecordGuard struct{ storage.WriteGuard }
+
+func (s *unreadableRecordStore) AcquireLock(key string) (storage.WriteGuard, error) {
+	g, err := s.Storage.AcquireLock(key)
+	if err != nil {
+		return nil, err
+	}
+	if key == "meta/fleet/device" {
+		return unreadableRecordGuard{g}, nil
+	}
+	return g, nil
+}
+
+func (g unreadableRecordGuard) ReadKey(key string) ([]byte, error) {
+	return []byte("partial"), fs.ErrPermission
+}
+
+func TestRegistryUnavailableOriginalNeverRestoresPartialBytes(t *testing.T) {
+	store := &unreadableRecordStore{heldTestStore(t)}
+	key := deviceRecordKey(testClientName)
+	require.NoError(t, store.WriteKey(key, []byte("original")))
+	s := registryWithHistory(t, store)
+	require.True(t, s.snapshotDevices()[0].Unreadable)
+	require.NoError(t, store.WriteKey(key, []byte("operator bytes")))
+	s.drainDeviceRecords()
+	value, err := store.ReadKey(key)
+	require.NoError(t, err)
+	require.Equal(t, "operator bytes", string(value))
+	var doctor ManagedDoctorRecord
+	s.appendDeviceRecordFailures(&doctor)
+	require.Len(t, doctor.Unwritable, 1)
+	s.recordAck(testClientName, fleet.ConfigAck{Version: "new"}, ManagedAckApplied)
+	s.drainDeviceRecords()
+	require.False(t, s.snapshotDevices()[0].Unreadable)
+	value, err = store.ReadKey(key)
+	require.NoError(t, err)
+	record, err := decodeDeviceRecord(testClientName, value)
+	require.NoError(t, err)
+	require.Equal(t, "new", record.AckVersion)
+}
+
+func TestRegistryShutdownRetriesUnreadableRecordRepair(t *testing.T) {
+	store := &failingRecordStore{Storage: heldTestStore(t)}
+	key := deviceRecordKey(testClientName)
+	original := []byte(`{"name":"edge-01","future-field":true}`)
+	require.NoError(t, store.WriteKey(key, original))
+	s := registryWithHistory(t, store)
+	require.NoError(t, store.WriteKey(key, []byte("foreign")))
+	store.fail = true
+	s.drainDeviceRecords()
+	require.True(t, s.snapshotDevices()[0].Unreadable)
+	var failed ManagedDoctorRecord
+	s.appendDeviceRecordFailures(&failed)
+	require.Len(t, failed.Unwritable, 1)
+	store.fail = false
+	s.stopDeviceRecords()
+	value, err := store.ReadKey(key)
+	require.NoError(t, err)
+	require.Equal(t, original, value)
+	var repaired ManagedDoctorRecord
+	s.appendDeviceRecordFailures(&repaired)
+	require.Empty(t, repaired.Unwritable)
+	require.Len(t, repaired.Unreadable, 1)
+}
+
+func TestRegistryDeletionSupersedesCompletingFailedSave(t *testing.T) {
+	store := &failingRecordStore{Storage: heldTestStore(t)}
+	s := registryWithHistory(t, store)
+	recordTestSession(t, s)
+	key := deviceRecordKey(testClientName)
+	store.fail = true
+	store.afterRelease = func() {
+		require.NoError(t, store.Storage.RemoveKey(key))
+	}
+	s.recordAck(testClientName, fleet.ConfigAck{Version: "previous"}, ManagedAckRefused)
+	s.drainDeviceRecords()
+	var doctor ManagedDoctorRecord
+	s.appendDeviceRecordFailures(&doctor)
+	require.Empty(t, doctor.Unwritable)
+	store.fail = false
+	s.stopDeviceRecords()
 	_, err := store.ReadKey(key)
 	require.ErrorIs(t, err, fs.ErrNotExist)
 }

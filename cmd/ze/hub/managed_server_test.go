@@ -11,6 +11,7 @@ import (
 	"crypto/tls"
 	"encoding/base64"
 	"encoding/json"
+	"io/fs"
 	"testing"
 	"time"
 
@@ -21,8 +22,10 @@ import (
 	zePlugin "github.com/ze-software/ze/internal/component/plugin"
 	pluginipc "github.com/ze-software/ze/internal/component/plugin/ipc"
 	pluginserver "github.com/ze-software/ze/internal/component/plugin/server"
+	"github.com/ze-software/ze/internal/core/opererr"
 	"github.com/ze-software/ze/pkg/fleet"
 	"github.com/ze-software/ze/pkg/plugin/rpc"
+	"github.com/ze-software/ze/pkg/zefs"
 )
 
 func TestStartManagedServerServesBlobConfig(t *testing.T) {
@@ -118,6 +121,10 @@ func TestStartManagedServerWithoutClients(t *testing.T) {
 	if len(srv.Addrs()) != 0 {
 		t.Fatal("a server block with no clients bound a managed listener")
 	}
+	for _, key := range []string{zefs.KeyCACert.Pattern, zefs.KeyCAKey.Pattern} {
+		_, readErr := store.ReadKey(key)
+		require.ErrorIs(t, readErr, fs.ErrNotExist, "idle managed registry created %s", key)
+	}
 	if devices, err := pluginserver.ManagedRegistrySnapshot(); err != nil || len(devices) != 0 {
 		t.Fatalf("empty hub registry = %v, %v", devices, err)
 	}
@@ -193,6 +200,8 @@ func TestPrepareManagedReloadReadsCandidate(t *testing.T) {
 	plan, err := prepareManagedReload(root, srv)
 	require.NoError(t, err)
 	require.Empty(t, srv.Addrs(), "preparation must not bind the candidate address")
+	_, err = store.ReadKey(zefs.KeyCACert.Pattern)
+	require.NoError(t, err, "preparing the first serving block needs the durable root")
 	srv.ApplyManagedListeners(plan)
 	devices, err := pluginserver.ManagedRegistrySnapshot()
 	require.NoError(t, err)
@@ -204,4 +213,32 @@ func TestPrepareManagedReloadReadsCandidate(t *testing.T) {
 	require.ErrorContains(t, err, "bus hub server central certificate unresolved-candidate-test")
 	require.ErrorContains(t, err, "define pki certificate unresolved-candidate-test")
 	require.Len(t, srv.Addrs(), 1)
+	label.Set("value", "\n")
+	_, err = prepareManagedReload(root, srv)
+	var problem *opererr.Error
+	require.ErrorAs(t, err, &problem)
+	require.Contains(t, problem.Fix(), "set bus hub server central client edge-01 label site value")
+	require.Contains(t, problem.Problem(), "invalid value for label site")
+}
+
+func TestManagedServerStartupFailurePublished(t *testing.T) {
+	closed, err := storage.Create(t.TempDir())
+	require.NoError(t, err)
+	require.NoError(t, closed.Close())
+	require.Nil(t, startManagedServer(t.Context(), closed, &zePlugin.HubConfig{}))
+	t.Cleanup(func() { pluginserver.RecordManagedStartupFailure(nil) })
+	_, err = pluginserver.ManagedDoctorSnapshot()
+	require.ErrorIs(t, err, fs.ErrClosed)
+	var problem *opererr.Error
+	require.ErrorAs(t, err, &problem)
+	require.Equal(t, "ze show data check", problem.Fix())
+	store, err := storage.Create(t.TempDir())
+	require.NoError(t, err)
+	t.Cleanup(func() { _ = store.Close() })
+	srv := startManagedServer(t.Context(), store, &zePlugin.HubConfig{})
+	require.NotNil(t, srv)
+	t.Cleanup(srv.Stop)
+	record, err := pluginserver.ManagedDoctorSnapshot()
+	require.NoError(t, err)
+	require.Nil(t, record.StartupFailure)
 }

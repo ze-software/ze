@@ -44,6 +44,8 @@ const (
 	CodeDoctorPluginSchemaRefused = "doctor-plugin-schema-refused"
 	// CodeDoctorPluginEnricherUnavailable is the doctor diagnostic code "doctor-plugin-enricher-unavailable".
 	CodeDoctorPluginEnricherUnavailable = "doctor-plugin-enricher-unavailable"
+	// CodeDoctorManagedServerUnavailable reports managed server startup failure.
+	CodeDoctorManagedServerUnavailable = "doctor-managed-server-unavailable"
 	// CodeDoctorManagedListenerUnbound is the doctor diagnostic code "doctor-managed-listener-unbound".
 	CodeDoctorManagedListenerUnbound = "doctor-managed-listener-unbound"
 	// CodeDoctorManagedDeviceRecordUnwritable reports device history that could not be saved.
@@ -220,10 +222,16 @@ var doctorDiagnosticCodes = []diagnostic.CodeMeta{
 		Examples: []string{exampleShowDoctor, "ze show diagnostic doctor-plugin-enricher-unavailable"},
 	},
 	{
+		Code:        CodeDoctorManagedServerUnavailable,
+		Title:       "Managed device registry failed to start",
+		Description: "The hub could not start its managed server. Its fleet registry and listeners are unavailable until startup succeeds.",
+		Examples:    []string{exampleShowDoctor, "ze show diagnostic doctor-managed-server-unavailable"},
+	},
+	{
 		Code:  CodeDoctorManagedListenerUnbound,
 		Title: "Managed client listener did not bind",
 		Description: "A hub server block declares managed clients, and its address could not be bound for a reason other than the plugin acceptor holding it, " +
-			"so managed clients that dial that address are not served. The row names the address and the kernel's error.",
+			"so managed clients that dial that address are not served. The row names the address and the socket or certificate error.",
 		Examples:     []string{exampleShowDoctor, "ze show diagnostic doctor-managed-listener-unbound"},
 		RelatedCodes: []string{CodeDoctorHubManagedCollision},
 	},
