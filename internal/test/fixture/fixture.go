@@ -437,6 +437,7 @@ var defaultObserverSends = []sdk.MessageSendDecl{
 	{Message: "cli:set"},
 	{Message: "cli:config"},
 	{Message: "cli:system"},
+	{Message: "cli:plugin"},
 	{Message: "cli:ping"},
 	{Message: "cli:traceroute"},
 	{Message: "cli:help"},
