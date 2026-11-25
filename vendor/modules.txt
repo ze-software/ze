@@ -11,7 +11,7 @@ charm.land/bubbles/v2/internal/runeutil
 charm.land/bubbles/v2/key
 charm.land/bubbles/v2/textinput
 charm.land/bubbles/v2/viewport
-# charm.land/bubbletea/v2 v2.1.1
+# charm.land/bubbletea/v2 v2.1.2
 ## explicit; go 1.26.0
 charm.land/bubbletea/v2
 # charm.land/lipgloss/v2 v2.1.1
@@ -271,7 +271,7 @@ github.com/charmbracelet/keygen
 # github.com/charmbracelet/ultraviolet v0.0.0-20261023060817-a45b7c86333f
 ## explicit; go 1.26.0
 github.com/charmbracelet/ultraviolet
-# github.com/charmbracelet/x/ansi v0.11.9
+# github.com/charmbracelet/x/ansi v0.11.10
 ## explicit; go 1.24.2
 github.com/charmbracelet/x/ansi
 github.com/charmbracelet/x/ansi/kitty
@@ -296,7 +296,7 @@ github.com/charmbracelet/x/xpty
 github.com/checkpoint-restore/go-criu/v8
 github.com/checkpoint-restore/go-criu/v8/internal/proto
 github.com/checkpoint-restore/go-criu/v8/rpc
-# github.com/chromedp/cdproto v0.160.1
+# github.com/chromedp/cdproto v0.160.8
 ## explicit; go 1.25
 github.com/chromedp/cdproto
 github.com/chromedp/cdproto/accessibility
@@ -358,7 +358,7 @@ github.com/chromedp/cdproto/tracing
 github.com/chromedp/cdproto/webaudio
 github.com/chromedp/cdproto/webauthn
 github.com/chromedp/cdproto/webmcp
-# github.com/chromedp/chromedp v0.23.1
+# github.com/chromedp/chromedp v0.24.0
 ## explicit; go 1.25
 github.com/chromedp/chromedp
 github.com/chromedp/chromedp/device
@@ -454,7 +454,7 @@ github.com/dave/dst/dstutil
 # github.com/denis-tingaikin/go-header v0.5.0
 ## explicit; go 1.21
 github.com/denis-tingaikin/go-header
-# github.com/dlclark/regexp2/v2 v2.13.0
+# github.com/dlclark/regexp2/v2 v2.13.2
 ## explicit; go 1.25
 github.com/dlclark/regexp2/v2
 github.com/dlclark/regexp2/v2/helpers
@@ -915,7 +915,7 @@ github.com/kisielk/errcheck/errcheck
 # github.com/kkHAIKE/contextcheck v1.1.6
 ## explicit; go 1.23.0
 github.com/kkHAIKE/contextcheck
-# github.com/klauspost/compress v1.20.4
+# github.com/klauspost/compress v1.20.5
 ## explicit; go 1.25
 github.com/klauspost/compress
 github.com/klauspost/compress/fse
@@ -1114,13 +1114,14 @@ github.com/openconfig/gnmi/proto/gnmi_ext
 ## explicit; go 1.22.0
 github.com/openconfig/goyang/pkg/indent
 github.com/openconfig/goyang/pkg/yang
-# github.com/opencontainers/cgroups v0.1.0
-## explicit; go 1.24.0
+# github.com/opencontainers/cgroups v0.1.1
+## explicit; go 1.25.0
 github.com/opencontainers/cgroups
 github.com/opencontainers/cgroups/devices/config
 github.com/opencontainers/cgroups/fs
 github.com/opencontainers/cgroups/fs2
 github.com/opencontainers/cgroups/fscommon
+github.com/opencontainers/cgroups/internal/delegate
 github.com/opencontainers/cgroups/internal/path
 github.com/opencontainers/cgroups/manager
 github.com/opencontainers/cgroups/systemd
@@ -1165,7 +1166,7 @@ github.com/pelletier/go-toml/v2
 github.com/pelletier/go-toml/v2/internal/parserbridge
 github.com/pelletier/go-toml/v2/internal/tracker
 github.com/pelletier/go-toml/v2/unstable
-# github.com/pierrec/lz4/v4 v4.1.33
+# github.com/pierrec/lz4/v4 v4.1.34
 ## explicit; go 1.22
 github.com/pierrec/lz4/v4
 github.com/pierrec/lz4/v4/internal/lz4block
@@ -1557,7 +1558,7 @@ golang.org/x/mod/modfile
 golang.org/x/mod/module
 golang.org/x/mod/semver
 golang.org/x/mod/sumdb/dirhash
-# golang.org/x/net v0.62.0
+# golang.org/x/net v0.63.0
 ## explicit; go 1.26.0
 golang.org/x/net/bpf
 golang.org/x/net/html
@@ -1588,7 +1589,7 @@ golang.org/x/sys/cpu
 golang.org/x/sys/plan9
 golang.org/x/sys/unix
 golang.org/x/sys/windows
-# golang.org/x/telemetry v0.0.0-20261021172232-6cd571d43fbb
+# golang.org/x/telemetry v0.0.0-20261116191925-e77a43154acb
 ## explicit; go 1.26.0
 golang.org/x/telemetry
 golang.org/x/telemetry/counter
@@ -1633,7 +1634,7 @@ golang.org/x/text/width
 # golang.org/x/time v0.16.0
 ## explicit; go 1.26.0
 golang.org/x/time/rate
-# golang.org/x/tools v0.52.0
+# golang.org/x/tools v0.53.0
 ## explicit; go 1.26.0
 golang.org/x/tools/cmd/goimports
 golang.org/x/tools/go/analysis
@@ -1839,7 +1840,7 @@ golang.org/x/tools/gopls/internal/vulncheck/osv
 golang.org/x/tools/gopls/internal/vulncheck/scan
 golang.org/x/tools/gopls/internal/vulncheck/semver
 golang.org/x/tools/gopls/internal/work
-# golang.org/x/vuln v1.9.0
+# golang.org/x/vuln v1.10.0
 ## explicit; go 1.26.0
 golang.org/x/vuln/cmd/govulncheck
 golang.org/x/vuln/internal
