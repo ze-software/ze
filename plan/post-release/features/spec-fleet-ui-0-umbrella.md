@@ -51,7 +51,7 @@ components it composes.
 | Relay identity | A relayed command runs under an authorization profile that the device's own configuration names. With no such line the device refuses every relayed command and names the line that adds it. The hub user's name travels with the command for the device's audit log |
 | Hub-side metric history | In scope, persisted and bounded: about a week of what devices report, kept across a hub restart (`plan/release/features/spec-fleet-8-metric-history.md`) |
 | Browser CLI per device | In scope: the existing web CLI opened against a chosen device through the relay |
-| Compile tag | The whole interface is one compiled-out feature under the tag `ze_fleet_ui`, declared in `feature-gates.txt` and dependent on `ze_web`. A build without the tag has no fleet route, no Fleet mode, no fleet asset and no fleet command. The prototype's sample dispatcher sits behind a second, development-only tag, `ze_fleet_ui_sample`, which no shipped flavour sets |
+| Compile tag | The whole interface is one compiled-out feature under the tag `ze_fleet_ui`, declared in `feature-gates.txt` and dependent on `ze_web`. A build without the tag has no fleet route, no Fleet mode, no fleet asset and no fleet command. The prototype's sample source sits behind a second, development-only tag, `ze_fleet_ui_sample`, which no shipped flavour sets |
 | Prototype first | The first deliverable is an interactive prototype of the whole interface on sample data, for the owner to review and correct. No child after `fleet-ui-1` starts until he has approved it. The prototype is built from the real shell, components and pages, so later children make it functional by replacing its data, never by rewriting it |
 
 ### Child specs
@@ -65,7 +65,7 @@ components it composes.
 | 5 | `plan/release/features/spec-fleet-ui-5-alarm-list.md` | The hub alarm list and its commands: the alarm model, its registered kinds, `show fleet alarm` and `show fleet alarm history` on every command surface. In the first release; its task model, pages, toasts and live updates moved to phase 9 (`ai/META-DECISIONS.md`, "Goal and scope") | fleet-1, fleet-4, fleet-8 |
 | 6 | `plan/post-release/features/spec-fleet-ui-6-config-rollout-audit-admin.md` | Per-device config view and diff, divergence resolution, rollouts, the audit trail and the administration pages | fleet-ui-2, fleet-ui-5, fleet-ui-9, fleet-2, fleet-3, fleet-5, fleet-7 |
 | 7 | `spec-fleet-ui-7-recorded-demonstration` (closed 2026-11-19) | A recorded demonstration of the interface on the sample estate, played from the website checkout with no daemon, written where the site does not publish it, for the owner's review. It is rendered on request by `./le site fleet-demo render`, never by the site build, into the output's unpublished `tmp/fleet-demo/` (`docs/contributing/gh-pages.md`, "Render the fleet demonstration") | fleet-ui-1 |
-| 8 | `plan/release/features/spec-fleet-ui-8-alarm-causes.md` | Alarm causes: an alarm kind names the kinds that cause it in its own registration; an alarm whose cause is open on its device is hidden behind it, listed under its cause, and shown again with its original `Since` when the cause clears. Narrows `fleet-ui-5` AC-4 for a hidden alarm and adds the `hidden` filter and the `hidden-behind` field of `show fleet alarm`. In the first release; how the pages show a hidden alarm (the `has:cause` filter, the card line, the toast rules) moved to phase 9 | fleet-ui-5, fleet-1, fleet-4, fleet-8 |
+| 8 | `plan/release/features/spec-fleet-ui-8-alarm-causes.md` | Alarm causes: an alarm kind names the kinds that cause it in its own registration; an alarm whose cause is open on its device is hidden behind it, listed under its cause, and shown again with its original `Since` when the cause clears if the condition still holds. A measured Resource high occurrence instead ends on reconnect and qualifies afresh. Narrows `fleet-ui-5` AC-4 for a hidden alarm and adds the `hidden` filter and the `hidden-behind` field of `show fleet alarm`. In the first release; how the pages show a hidden alarm (the `has:cause` filter, the card line, the toast rules) moved to phase 9 | fleet-ui-5, fleet-1, fleet-4, fleet-8 |
 | 9 | `plan/post-release/features/spec-fleet-ui-9-tasks-notifications-and-alarm-pages.md` | Split from `fleet-ui-5` and `fleet-ui-8` on 2026-11-23. The hub task model, `show fleet task` and `clear fleet task`, the task panel, the Tasks tabs and `/fleet/tasks/`; notifications and toasts; the live event stream; the alarm pages (the Alarms tabs, the Alarms card, the tree badges, the side panel) and the hidden form of an alarm on them (`has:cause`, the hidden counts, the toast rules) | fleet-ui-1 (approved), fleet-ui-5, fleet-ui-8, fleet-1, fleet-4, fleet-8 |
 
 Back-end work the interface needs, owned by the `fleet` set:
@@ -80,12 +80,7 @@ Back-end work the interface needs, owned by the `fleet` set:
 
 ### Prototype first, then functional
 
-The pages read everything through the command dispatcher. That gives the
-prototype a clean seam: in the prototype, a sample dispatcher answers the
-`show fleet ...` commands and the relayed device commands from recorded sample
-answers describing a believable estate (about forty devices over four sites,
-with offline, degraded, down and diverged devices, running tasks, open alarms
-and a week of history). Everything above that seam is the real thing: the
+The pages read a typed `fleetui.Source`. The development prototype registers its sample implementation in `internal/component/web/fleetui/sample/register`. For a real estate, the source parts call the hub dispatcher under the authenticated viewer’s identity. Everything above that seam is the real thing: the
 routes, the shell, the components, the styles, the htmx fragments and the live
 event stream.
 
@@ -94,7 +89,7 @@ event stream.
 | Prototype (`fleet-ui-1`) | Open every page, expand and filter the tree, sort and filter tables, select rows, open the side panel, switch tabs, change the chart range, switch theme, resize and pin the sidebar, open the task panel, see a scripted task progress and a device change state live, open confirm dialogs | Sample answers. Actions that would change something show their confirm dialog and then a toast saying the prototype changed nothing |
 | Functional (`fleet-ui-2`, `fleet-ui-3`, `fleet-ui-4`, `fleet-ui-6`, `fleet-ui-9`) | The same pages, acting on the real estate | The real commands of the `fleet` set, replacing the sample answers page by page |
 
-The sample dispatcher is development tooling. It is compiled only into a
+The sample source is development tooling. It is compiled only into a
 development build and is never part of a shipped binary. A page whose real
 command does not exist yet keeps its sample answer in a development build and
 shows the "not supported" state in a shipped one, so a half-finished page
@@ -169,9 +164,9 @@ that collides with no existing route.
 | `/fleet/` | Estate dashboard |
 | `/fleet/estate/<tab>/` | Estate tabs: `dashboard`, `devices`, `alarms`, `rollouts`, `tasks` |
 | `/fleet/group/<key>=<value>/.../<tab>/` | Group node tabs: `dashboard`, `devices`, `alarms`, `tasks`. One path segment per tree level, each escaped once |
-| `/fleet/device/<name>/<tab>/` | Device tabs: `dashboard`, `console`, `system`, `interfaces`, `routing`, `config`, `logs`, `tasks` |
+| `/fleet/device/<name>/<tab>/` | Device tabs: `dashboard`, `console`, `system`, `interfaces`, `routing`, `config`, `logs`, `tasks`, and the device-scoped `alarms` tab supplied by Fleet UI-9 |
 | `/fleet/tasks/` | Every task, whatever its target |
-| `/fleet/admin/<page>/` | Administration pages: `labels`, `tree-views`, `filters`, `access`, `audit`, `settings` |
+| `/fleet/admin/<page>/` | Administration pages include `devices`, `templates`, `history`, `states`, `labels`, `tree-views`, `filters`, `access`, `audit` and `settings` where registered |
 | `/fleet/fragment/...` | htmx fragments. Never linked to directly |
 | `/fleet/events` | The live event stream of the current view |
 
@@ -281,16 +276,16 @@ they are or extended in place.
 | Line chart | Extends the L2TP quality chart | A time series drawn with the vendored uPlot, with a range selector | Dashboards, device tabs |
 | Query bar | New | A filter text box, assisted filter menus that write into it, a saved filter menu, the count of matches | Every table |
 | Bulk bar | New | The number of selected rows and the actions valid for them | Tables with selection |
-| Table | Reuse (`WorkbenchTableData`) | Columns, sortable headers, flags, cells, row actions, empty state with headers visible | Every table |
+| Table | Reuse (the fleet table component) | Columns, sortable headers, flags, cells, row actions, empty state with headers visible | Every table |
 | Pagination | New | First, previous, next, last, "x to y of z", page size 25, 50 or 100 | Every table |
-| Side panel | Reuse (`WorkbenchDetailData`) | Tabs, key and value rows, tools, a close link | Tables |
+| Side panel | Reuse (the fleet panel component) | Tabs, key and value rows, tools, a close link | Tables |
 | Key and value list | Reuse (`component_detail_kv.templ`) | Labelled values, each with a copy control where the value is an identifier | Side panel, System tab |
 | Tag | New | One label as `key=value`, removable where the operator may edit it | Tables, side panel |
 | State hero | New | A centred icon, a sentence and one action, for the states in the table below | Every pane |
-| Toast | Extends `notification.js` | A short message with a level and an optional link | Shell |
+| Toast | Existing fleet toast component | A short message with a level and an optional link | Shell |
 | Confirm dialog | New | The action, its targets and a confirm control; a destructive action also asks the operator to type the target's name or the count | Destructive actions |
 | Task panel | New | Tasks by state with counts, each with progress and a link | Header |
-| Terminal | Reuse (`component_cli_terminal.templ`) | The web CLI | Console tab |
+| Terminal | Reuse (`fleetui/component_terminal.templ`) | The web CLI | Console tab |
 | Diff view | Reuse (`component_diff_modal.templ`) | A commit-style diff | Config tab |
 
 ### States every pane must show
@@ -326,7 +321,7 @@ empty state naming what is missing and the next action.
   → Constraint: every mutation passes the same-origin wrapper and the edit authorization check that existing routes use
   → Constraint: the event broker has no topics: a broadcast reaches every client, so per-view data must not use it
 - [ ] `docs/architecture/web-components.md` and `docs/architecture/web-workbench-pages.md` - the reusable components
-  → Decision: tables reuse `WorkbenchTableData` and the side panel reuses `WorkbenchDetailData`
+  → Decision: tables reuse the fleet table component and the side panel reuses the fleet panel component
   → Constraint: no tree, tab row, card grid or query bar component exists; they are new and shared
   → Decision: a per-subject live feed follows the L2TP quality feed, a stream per connection, because a broadcast "would leak one subscriber's data to another"
   → Decision: chart colours are custom properties read at draw time, as the L2TP chart does
@@ -368,26 +363,42 @@ empty state naming what is missing and the next action.
 
 **Behavior to change:**
 - A hub offers a fourth web mode, Fleet, under `/fleet/`
-- The web mode value set gains `fleet`, accepted only on a hub
+- Serve the fleet shell through the registered /fleet/ portal on an enabled hub.
 - The one-line web views listed in the `fleet` children are specified here instead
 
 ## Existing Mechanisms (MANDATORY)
 
 | Mechanism | Where (file + symbol, or page + section) | What it does today | This spec (extends, replaces, or does not apply, with the reason) |
 |-----------|------------------------------------------|--------------------|-------------------------------------------------------------------|
-| Web route registration | `internal/component/web/webroute.go`, `RegisterWebRoute` | A package registers a route, its wrapper, its builder and the condition that enables it | Extends: every fleet route registers through it, enabled only when the daemon serves managed clients |
-| Web mode selection | `internal/component/web/ui_mode.go`, `GetUIMode` | Chooses between the YANG editor and the workbench | Extends: gains the value `fleet`, valid on a hub |
+| Web route registration | `internal/component/web/webroute.go`, RouteDeps; fleetui/register.go, mustRegisterRoute | The hub supplies Dispatch and Authorizer; fleet route builders currently discard RouteDeps and read the mounted source. | UI-2 composes live source parts with these dependencies and derives identity from each wrapped request, without sharing an account across requests. |
+| Web mode selection | `internal/component/web/ui_mode.go`, GetUIMode | Selects the existing web shell. | Preserve current mode selection. Fleet UI routes use the existing fleet mount. |
 | Command dispatcher | `internal/component/plugin/dispatch.go`, `CommandDispatcher` | Runs a command for a caller with authorization and audit; every web read uses it | Extends: fleet pages read `show fleet ...` through it; the relay of `fleet-9` supplies a dispatcher of the same type bound to one device |
-| Workbench table and side panel | `internal/component/web/workbench_table.go`, `workbench_detail.go` | The table, its flags, row actions and empty state; the detail panel with tabs and tools | Extends: used for every fleet table and side panel; gains selection, sorting by URL and pagination where missing |
-| Theme variables | `internal/component/web/assets/style.css`, `:root` and the light override | Colours, fonts and radius in two themes | Extends: used unchanged; spacing and chart variables are added |
-| Chart drawing | `internal/component/web/assets/l2tp-chart.js` with the vendored uPlot | Draws the L2TP quality series, reading colours from custom properties | Extends: generalized to a line chart component fed by a data attribute |
-| Per-connection live feed | `internal/component/web/handler_l2tp.go`, the samples stream | Streams one subject's data to one connection on a ticker | Extends: the fleet event stream is per connection and scoped to the view |
+| Fleet table and side panel | `internal/component/web/fleetui/table.go`, QueryDevices; page_devices.templ | The built fleet package filters, sorts and pages the estate. | UI-2 supplies real device data to those components. |
+| Fleet theme | `internal/component/web/fleetui/assets/fleet-shell.css` | Defines the fleet shell and its chart colours. | Keep this theme for live pages. |
+| Fleet charts | `internal/component/web/fleetui/assets/fleet-chart.js`, handler_chart.go | Draws bounded chart data with uPlot. | UI-3 supplies authorized live history and preserves gaps. |
+| Per-connection live feed | `internal/component/web/fleetui/handler_events.go` and source_events.go | Delivers scoped fleet events. | UI-9 connects the live event producer and retains per-request authorization. |
 | Event broker | `internal/component/web/sse.go`, `EventBroker` | Broadcasts configuration and log events to every client | Does not apply to per-view data: a broadcast would send one view's devices to every client. Still used for hub-wide notices |
-| Toasts | `internal/component/web/assets/notification.js` | Shows notices | Extends: gains levels and an optional link |
-| Related tools | The `ze:related` extension and `/tools/related/run` | Resolves a tool identifier and a context into a command on the server | Extends: device row and header actions post tool identifiers; the resolved command runs through the relay |
-| Web CLI | `internal/component/web`, `component_cli_terminal.templ` and its handlers | A terminal in the browser against the local daemon | Extends: opened with a relay dispatcher for one device (`fleet-ui-4`) |
+| Fleet notices | `internal/component/web/fleetui/component_toast.templ` and the fleet event stream | Render notifications on the fleet shell. | UI-9 connects authorized events and critical alarm notifications. |
+| Fleet device actions | `internal/component/web/fleetui/handler_action.go`, device-tool | Validates a registered action before invoking the source. | UI-4 connects selected actions to the authorized device relay. |
+| Fleet console | `internal/component/web/fleetui/component_terminal.templ`, handler_device_console.go | Renders the terminal for one target device. | UI-4 extends the existing finite command path with live relay responses. |
 | Contribution registry for workbench pages | `plan/post-release/features/spec-web-plugin-extension-registry.md` | In design; not built | Does not apply yet: fleet pages use `RegisterWebRoute` now and move onto the registry when it exists |
 | Selector of other devices' addresses | `internal/component/web/page_system.go`, `CollectFleetPeers` | Links to each device's own interface from configured addresses | Does not apply: it links out and holds no state. The fleet device header offers the same link when an address is configured |
+
+## Design documents
+
+| Document | Section | Derived from | Binding statement | Verdict | How this design stands against it |
+|---|---|---|---|---|---|
+| `ai/doors/system.md` | One schema, one command registry, every interface | the door every change reads | "A command is declared once and reaches every interface." | agrees | The web and command presentations read facts through the registered operation under the caller’s identity. |
+| `docs/architecture/fleet-interface.md` | A source answers facts, the package derives | the // Design: page of internal/component/web/fleetui/source.go | "A source answers facts only" | agrees | Use caller-scoped source facts and the shared derivations to keep rows, totals and linked detail views consistent. |
+| `ai/doors/api-surfaces.md` | Boundaries | the door covering internal/component/web/fleetui/source.go | "Never add a command in an adapter." | agrees | The fleet view consumes registered operations. Each operation is implemented by the owner of its data. |
+| `docs/architecture/web-interface.md` | Component Structure | the // Design: page of internal/component/web/ui_mode.go | "Every page, fragment and editor is a templ component." | agrees | Use the current fleet templates and fragment handlers for page rendering. |
+| `docs/architecture/web-components.md` | Design Principles | the // Design: page of internal/component/web/workbench_table.go | "Server renders HTML, HTMX handles interaction." | agrees | Retain templ components for fragments and navigation. The client requests updates from the authorized view. |
+| `ai/doors/le-tooling.md` | Where it sits | the door covering test/web/fleet-*.wb | "Functional `.ci` files live under `test/<suite>/`" | agrees | Use the repository’s functional harness for managed behavior and its headless web harness for the views. |
+| `docs/architecture/fleet-interface.md` | Design decisions | the // Design: page of internal/component/web/fleetui/source.go | "The proposed alarm defaults apply together. A missing relay grant stays visible while the device is offline. A measured alarm uses its existing threshold duration after reconnect. Causes match within one device. Thomas selected “Use all three defaults”." | agrees | A relay grant is independent of connectivity. Use the hub’s cause result for one device and its configured resource duration. |
+| `docs/architecture/fleet-interface.md` | Design decisions | the // Design: page of internal/component/web/fleetui/source.go | "Thomas chose the following rule for Resource high at reconnect. “End the old occurrence. Show a new alarm only if fresh samples qualify.”" | agrees | A reconnect ends the old resource occurrence. Its historical opening and clearing survive, and any new qualifying interval has its own identity. |
+| `docs/architecture/fleet-interface.md` | Design decisions | the // Design: page of internal/component/web/fleetui/source.go | "When a critical alarm becomes visible again after its cause clears, show its toast to an authorized viewer of the affected device. Thomas selected “Show the critical toast”." | agrees | The post-release notification provider checks visibility before delivering the critical recovery toast. |
+| `docs/architecture/fleet-interface.md` | Design decisions | the // Design: page of internal/component/web/fleetui/source.go | "For Force complete on a staged rollout, Thomas chose “Leave unstarted devices on their prior version”." | agrees | The rollout result distinguishes devices admitted to the change from devices that keep their prior version. |
+| `docs/architecture/fleet-interface.md` | Design decisions | the // Design: page of internal/component/web/fleetui/source.go | "Thomas chose “Add the device Alarms tab”. The post-release device page offers the same authorized alarm rows as the device filter on the estate or group Alarms tab." | agrees | The shared device navigation includes its Alarms tab and uses the same authorized device filter as the estate view. |
 
 ## Data Flow (MANDATORY - see `ai/rules/architecture.md`)
 
@@ -430,9 +441,9 @@ censused in the specs that own them: the report and history verbs in
 
 ### Integration Points
 - `RegisterWebRoute` - the fleet package registers its routes and their enabling condition
-- `GetUIMode` - learns the `fleet` value
+- The registered fleet portal enables the shell without adding a configuration mode.
 - `CommandDispatcher` - every read and every action
-- `WorkbenchTableData`, `WorkbenchDetailData` - table and side panel
+- the fleet table component, the fleet panel component - table and side panel
 - The per-user editor and commit bar - label and configuration edits
 
 ### Architectural Verification
@@ -443,7 +454,7 @@ censused in the specs that own them: the report and history verbs in
 | No duplicated functionality (extends existing, does not recreate) | Yes | The Existing Mechanisms table names what each part extends |
 | Zero-copy preserved where applicable (refs, not copies) | Yes | Not applicable: no wire encoding path is touched |
 | Registration over hardcoding, outbound: new commands, views, families, and handlers register, and the core discovers them. No per-feature field, switch case, or factory is added to a core/shared package (`ai/rules/plugins.md`) | Yes | Routes register through `RegisterWebRoute`; tabs and cards are registered entries, so a later feature adds a device tab or a card without editing the shell |
-| Registration over hardcoding, inbound: no existing switch, seed map, validator, parser, runner, help string, or completion table has to learn this feature's name. Evidence names every list that was searched for the names this feature introduces, and the registry each one now derives from (`ai/rules/principles.md`) | No | One list must learn the name: the web mode value set in `ui_mode.go`. `fleet-ui-1` turns it into a registered set so the fourth mode is the last one added by an edit |
+| Registration over hardcoding, inbound: no existing switch, seed map, validator, parser, runner, help string, or completion table has to learn this feature's name. Evidence names every list that was searched for the names this feature introduces, and the registry each one now derives from (`ai/rules/principles.md`) | Yes | Fleet routes and provider parts are registered. Mounting depends on the source and build tags. |
 
 ## Risks & Assumptions
 
@@ -461,7 +472,7 @@ censused in the specs that own them: the report and history verbs in
 |----|------|--------------|----------------------|
 | R-1 | The interface is specified ahead of its data: `fleet-1`, `fleet-4`, `fleet-8` and `fleet-9` are skeletons | A child reaches implementation with its dependency undesigned | The prototype needs none of them. Each later child names its dependency and is not started before it |
 | R-8 | The sample answers and the real command answers diverge, so a page that worked in the prototype breaks when made functional | A `fleet` child designs an answer shape unlike the sample | The sample answers of `fleet-ui-1` are the proposed answer shapes, handed to the `fleet` children as input to their design; a shape they change is changed in the samples in the same work |
-| R-9 | Sample data reaches an operator as if it were real | A shipped build renders a sample device | The sample dispatcher is behind a development-only build tag, and a test of every shipped flavour proves it is not linked |
+| R-9 | Sample data reaches an operator as if it were real | A shipped build renders a sample device | The sample source is behind a development-only build tag, and a test of every shipped flavour proves it is not linked |
 | R-2 | Children drift apart visually | A child adds a colour, a spacing value or a component of its own | The token and component tables here are closed lists; a child that needs more amends this umbrella first. A style test refuses a literal colour in fleet styles |
 | R-3 | A dashboard becomes decoration | A card shows a figure with nothing behind it | Every card carries a link to a filtered table; the card component refuses to render without one |
 | R-4 | One slow or offline device stalls a page that shows many | An estate page takes as long as its slowest device | Estate and group pages read only hub-held state. Only device pages use the relay, each card or tab loading on its own with its own failure state |
@@ -505,7 +516,7 @@ censused in the specs that own them: the report and history verbs in
 | AC-10 | A daemon that serves no managed client | No fleet route answers and the mode switch omits Fleet | The three existing modes stay, unchanged |
 | AC-13 | A build without the `ze_fleet_ui` tag | The build compiles in every flavour, no fleet route, mode, asset or command exists, and always-on code imports nothing from the fleet package | The shared components in the web package remain, because they carry no fleet knowledge and the workbench may use them |
 | AC-11 | A development build started in prototype form | Every page of this set opens and responds to the interactions listed for the prototype stage, on the sample estate | Actions that would change the estate stop at a toast, because the prototype exists to judge the interface, not to act |
-| AC-12 | Any shipped build | The sample dispatcher and its sample answers are not linked | None: sample data in a shipped build would be shown as real |
+| AC-12 | Any shipped build | The sample source and its sample answers are not linked | None: sample data in a shipped build would be shown as real |
 
 ## End-to-End User Stories
 
@@ -523,10 +534,10 @@ censused in the specs that own them: the report and history verbs in
 ### Unit Tests
 | Test | File | Validates | Status |
 |------|------|-----------|--------|
-| `TestFleetURLRoundTrip` | `internal/component/fleetui/url_test.go` | A parsed fleet URL renders back to the same URL | |
-| `TestDeviceDisplayStatePrecedence` | `internal/component/fleetui/state_test.go` | The display state follows the precedence table | |
-| `TestFleetStylesUseVariablesOnly` | `internal/component/fleetui/style_test.go` | Fleet styles hold no literal colour and no spacing outside the six spacing variables | |
-| `TestFleetModeEnabledOnlyOnHub` | `internal/component/web/ui_mode_test.go` | The fleet mode is offered only when its enabling condition holds | |
+| `TestFleetURLRoundTrip` | `internal/component/web/fleetui/url_test.go` | A parsed fleet URL renders back to the same URL | |
+| `TestDeviceDisplayStatePrecedence` | `internal/component/web/fleetui/state_test.go` | The display state follows the precedence table | |
+| `TestFleetStylesUseVariablesOnly` | `internal/component/web/fleetui/style_test.go` | Fleet styles hold no literal colour and no spacing outside the six spacing variables | |
+| `TestFleetRoutesAbsentWithoutSource` | `internal/component/web/fleetui/register_test.go` | The fleet routes are disabled without a linked source. | |
 
 ### Boundary Tests (numeric inputs)
 | Field | Range | Last Valid | Invalid Below | Invalid Above |
@@ -551,24 +562,14 @@ censused in the specs that own them: the report and history verbs in
 | `fleet-task-progress` | `test/web/fleet-task-progress.wb` | A task's progress and result are visible as they happen | |
 
 ## Files to Modify
-- `feature-gates.txt` - declares `ze_fleet_ui` (requires `ze_web`) and the development-only `ze_fleet_ui_sample`
-- `internal/component/web/ui_mode.go` - the web mode set becomes registered and gains `fleet`
-- `internal/component/web/workbench_table.go` - selection, URL sorting and pagination fields where missing
-- `internal/component/web/assets/style.css` - the spacing and chart variables
-- `internal/component/web/assets/notification.js` - levels and an optional link
-- `plan/design/web-operator-workbench-definition-of-good.md` - four modes on a hub
-- `docs/architecture/web-interface.md` - the fleet routes and the fourth mode
-- `docs/architecture/web-components.md` - the new shared components
-- `plan/post-release/features/spec-fleet-0-umbrella.md` - children 8 and 9, web views moved here
+
+- `internal/component/web/fleetui/register.go` currently builds handlers with mountedSource() and ignores web.RouteDeps. Fleet UI-2 consumes the injected Dispatch and Authorizer at route build and binds the live source to the authenticated request at dispatch time. The registered mutation and read wraps still apply.
+- `internal/component/web/fleetui/source.go` and `internal/component/web/fleetui/pages.go` carry the registered source parts and request account into the child query paths. Retain NewRoutes for the injected in-process source used by the prototype.
+- `docs/architecture/fleet-interface.md` tracks live routes, registered providers and the sample-only build. The shipping gate is ze_fleet_ui; ze_fleet_ui_sample is a development build constraint outside feature-gates.txt.
 
 ## Files to Create
-- `internal/component/web/component_tree.templ`, `component_object_header.templ`, `component_tab_row.templ`, `component_card.templ`, `component_query_bar.templ`, `component_pagination.templ`, `component_state_hero.templ`, `component_confirm.templ` - shared components, free of fleet knowledge
-- `internal/component/web/assets/shell.js`, `chart.js` - sidebar sizing and pinning; the line chart
-- `internal/component/fleetui/` - the fleet pages, their handlers, view structs and route registration
-- `internal/component/fleetui/sample/` - the sample dispatcher and its recorded answers, behind a development-only build tag
-- `test/web/fleet-*.wb` - the functional tests named above
-- `docs/guide/fleet-interface.md` - the operator guide
-- `docs/architecture/fleet-interface.md` - the design this umbrella fixes, once built
+
+The prototype, sample data, component templates, theme, chart code and demo already exist. Fleet UI-2 through UI-9 name the new provider adapters and their functional fixtures in their own file inventories. This umbrella owns the delivery sequence and cross-child acceptance checks.
 
 ### Integration Checklist
 | Integration Point | Applies? | File / reason |
@@ -581,9 +582,9 @@ censused in the specs that own them: the report and history verbs in
 | Editor autocomplete | N-A | Automatic for the leaves added |
 | Functional test for new RPC/API | Yes | The `.wb` tests above and the `.ci` tests of the children |
 | Pipe completeness | Yes | Every fleet read is a command answering data, so pipes apply |
-| Env var registration | Yes | `ze.web.ui-mode` gains the value `fleet`; no new variable |
+| Env var registration | N-A | The portal uses the existing web runtime and feature tags. |
 | Doctor check for runtime dependencies | N-A | The interface adds no path, socket, port or binary: it is served by the existing web listener |
-| Doctor code per problem class | Yes | A hub whose web mode is set to `fleet` while it serves no managed client is reported by a check in `fleet-ui-1` |
+| Doctor code per problem class | N-A | The umbrella introduces no runtime dependency. Each provider owns its diagnostics. |
 | Prometheus counters/metrics | Yes | Open fleet event streams and fleet page render failures, defined in `fleet-ui-1` |
 | BGP family surface (new SAFI / capability / attribute) | N-A | No BGP wire surface |
 
@@ -608,6 +609,28 @@ censused in the specs that own them: the report and history verbs in
 | 16 | Any changed source file referenced by existing doc source anchors? | Yes | Derived at implementation with `./le spec citation anchors` |
 | 17 | Existing docs show config/CLI/API examples for this area? | Yes | `docs/guide/fleet-config.md` and `docs/guide/web-interface.md`, checked against the code |
 
+## Design presentation
+
+### What changes
+
+The approved fleet prototype supplies the routes, components and sample data. The remaining children connect those pages to registered data sources and the hub commands, in the release order recorded above.
+
+### Before and after
+
+The development build can draw a sample offline device. A functional build draws a declared device from its authenticated hub and reports an unavailable part explicitly. Removing the fleet build tag removes its routes. The first release exposes the fleet commands while the functional fleet pages follow afterward.
+
+### Alternatives set aside
+
+A second UI with a separate model would duplicate the working prototype. A sample fallback on a running hub would report devices that the hub does not manage.
+
+### Documents departed from
+
+None proposed in this spec. Any interface behavior added by Fleet UI-9 follows the decisions on the fleet interface design page.
+
+### Choices for Thomas
+
+The approved prototype and the recorded demo have already landed. Check each remaining child independently against its real data producer.
+
 ## Implementation Steps
 
 Each phase is a child spec. A child is designed with the owner before it is
@@ -615,7 +638,7 @@ implemented, and is not started before the specs it depends on.
 
 1. **Phase: Interactive prototype (fleet-ui-1)** -- the mode, the shell, the tokens, the shared components and every page, on sample data
    - Tests: `fleet-prototype-renders`, `fleet-absent-on-device`, `fleet-tree-selects-device`, the four unit tests above
-   - Files: `internal/component/fleetui/`, the shared component files, `ui_mode.go`, `style.css`, the sample dispatcher and its answers
+   - Files: `internal/component/web/fleetui/`, the completed fleet components, theme, sample source and its answers
    - Verify: the owner opens the prototype, reviews every page and states his corrections; they are applied and this umbrella is amended. No later phase starts before his approval
 2. **Phase: Tree views and device tables (fleet-ui-2)** -- label grouping, the devices table, filters, bulk actions, side panel
    - Tests: `fleet-devices-filter`, `fleet-bulk-label`
@@ -632,7 +655,7 @@ implemented, and is not started before the specs it depends on.
    - Verify: every fleet capability with a CLI command has a page
 8. **Phase: Alarm causes (fleet-ui-8)** -- an alarm hidden behind its open cause, listed under it, shown again when the cause clears
    - Tests: `alarm-hidden-behind-offline`
-   - Verify: for a device that goes offline, `show fleet alarm` shows one alarm and marks its other alarms `hidden-behind` it, and they return with it
+   - Verify: for a device that goes offline, `show fleet alarm` shows one alarm and marks its other alarms `hidden-behind` it, and component alarms still active return with it while a measured resource alarm requires fresh samples
 9. **Phase: Tasks, notifications, live updates and the alarm pages (fleet-ui-9)** -- the task model and its commands, the task panel, toasts, live events, the alarm pages and the hidden form on them
    - Tests: `fleet-task-progress`, `fleet-live-device-state`, `fleet-alarm-cause`
    - Verify: nothing the hub does to a device is invisible, and a device that goes offline shows one alarm on the pages
@@ -692,14 +715,14 @@ implemented, and is not started before the specs it depends on.
 | Decision | Alternatives Considered | Rationale |
 |----------|------------------------|-----------|
 | An interactive prototype on sample data comes first, built from the real pages | Static mock-ups or a separate throwaway prototype; building each page against its real data first | The owner judges the look and the feel in a browser before the costly back-end work, and nothing is thrown away: the sample answers sit behind the same dispatcher the real commands will, so making a page functional replaces its data and keeps its markup |
-| A fourth web mode on a hub | A section inside the workbench; replacing the workbench shell | The workbench shell has no tree and no object tabs, and replacing it would reopen a design in progress. A fourth mode leaves the three existing ones untouched |
+| Fleet portal on a hub | Embedding fleet pages in the workbench | A registered portal supplies its own tree and device tabs while preserving the existing mode configuration. |
 | Ze's density with the familiar structure | The more spacious density of comparable tools; a per-user density setting | The owner ruled the web interface compact and calm. One density keeps the device and fleet pages one product and halves the pages to test |
 | Device tabs render relayed command answers | Proxying each device's own web pages through the hub | Commands answer data with one authorization and audit path and no trust in markup produced by another software version. A proxied page would carry the device's own session, routes and assets through the hub |
 | The tree is computed from labels | A stored hierarchy of sites and groups | Labels are already decided as flat pairs. A tree view is an ordered list of label keys, so the same estate can be read by site, by role or by version without changing any device |
 | Estate and group pages read hub state only | Asking every device when a page opens | A page over hundreds of devices must not wait for the slowest one |
 | A per-connection event stream | The existing broadcast broker | The broker reaches every client, which would show one operator another's devices |
 | One compile tag, `ze_fleet_ui`, for the whole interface | Reusing `ze_web`; one tag per page family; the name `ze_control_ui` | A device build has no use for the fleet pages and should not carry them, so they cannot ride on `ze_web`. One tag keeps the gate simple to reason about. The name follows the spec set and the package, as `ze_web` and `ze_lg` follow theirs |
-| Shared components live in the web package, fleet pages in their own | Everything in the web package | The shell and components are domain-free and reusable; the fleet pages are a feature that registers and can be compiled out |
+| Fleet shell and components live in fleetui | Changing every workbench component | The fleet package owns the working prototype and UI children extend its components. |
 
 ## Known Limitations
 - The interface manages one hub. Several hubs seen as one estate is not specified, because `fleet-0` rules out replication between hubs.
