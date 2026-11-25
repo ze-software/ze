@@ -242,6 +242,7 @@ process r {
 }
 neighbor 192.0.2.1 {
 	router-id 1.1.1.1;
+	local-address 192.0.2.254;
 	local-as 65001;
 	peer-as 65002;
 	api {

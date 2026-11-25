@@ -248,7 +248,7 @@ bgp {
 EOF_CFGC
 
 # (d) Disagreeing central vs own-section receive > from lists -> refused (Refusal 6).
-tmpfs=cfg-d.conf:refused=config-parse:terminator=EOF_CFGD
+tmpfs=cfg-d.conf:refused=config-bgp-peer:terminator=EOF_CFGD
 system {
 	authentication {
 		user admin {

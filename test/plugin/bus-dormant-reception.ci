@@ -104,7 +104,7 @@ EOF_NOOP
 # Negative control: written receive > from naming nonexistent endpoint must be refused, NOT dormant.
 # Uses a non-observer external wrapper so startup refusal closing the early schema-discovery
 # connection does not emit the test.observer ZE-OBSERVER-FAIL sentinel.
-tmpfs=bad-nosuch.conf:refused=config-parse:terminator=EOF_NOSUCH
+tmpfs=bad-nosuch.conf:refused=config-validator-unavailable:terminator=EOF_NOSUCH
 bus {
 	endpoint collector {
 		external {

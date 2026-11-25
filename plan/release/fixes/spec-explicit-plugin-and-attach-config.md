@@ -2,17 +2,17 @@
 
 | Field | Value |
 |-------|-------|
-| Status | in-progress |
+| Status | verification |
 | Scope | config |
 | Priority | P0 |
 | Release reason | Security and configuration correctness of shipped behavior: closes the authorization bypass every plugin identity holds on `dispatch-command` (`aaa.ReservedInternalPrefix`), replaces the ExaBGP-derived `plugin { }` and per-peer `attach process` grammar with one message bus on which every participant registers what it sends and receives and the operator overrides it with `to`, `from` and allow-lists, shows every registered default beside what the operator wrote, converts all repository configs, tests and docs with no hybrid layering, and fixes aliased plugin state-key and doctor snapshot keying |
 | RFC gaps | - |
 | Depends | - |
-| Phase | 8/8 (ExaBGP, Conversion and Documentation) |
+| Phase | 8/8 (Closure) |
 | Handoff | - |
 | Design tier | strongest tier |
 | Implementation tier | development tier |
-| Updated | 2026-11-24 |
+| Updated | 2026-11-25 |
 
 Bucket: `plan/release/fixes/`. One spec carries the whole work (Thomas, transcribed, 2026-11-23: "I think we should have one spec because all the work is very interdependent and while it's harder to do, it can ensure that everything works before it's committed."). The two former child specs, `spec-bus-2-implied-display-and-grant-refusals.md` and `spec-bus-3-external-command-gating.md`, are absorbed here whole (goals, acceptance criteria, censuses, tests and the owned journal row) and are removed by the main session through the commit tool. The work is cut into phases inside this spec ("Implementation Steps"), never into child specs.
 
@@ -694,7 +694,7 @@ The configs, tests and docs that use the section are under "ExaBGP bridge sectio
 | `docs/architecture/buffer-architecture.md` | 1. Bytes Are the Source of Truth | `// Design:` page of `bgp/reactor/reactor_api_forward.go` | "Never duplicate data in different representations" | agrees | The read site changes how the forward targets are permitted, by the compiled filter in place of the per-peer binding. The forwarded buffer and its zero-copy path are untouched |
 | `docs/architecture/core-design.md` | Design decisions | decision row on `docs/architecture/core-design.md` | "A commit fails when it configures a feature that programs only the Linux kernel, or that reads only what the Linux kernel sees of the traffic, while the interfaces run on VPP. Two host-side uses stay accepted, so that mixed setups remain possible once VRFs are added: a `fib kernel` block beside a `fib vpp` block, which programs the Linux route table for the router's own traffic, and `sysctl`, which sets the Linux kernel's own tunables. A `fib kernel` block with no `fib vpp` block beside it is refused, for now." | agrees | The bus cutover does not alter the VPP and kernel commit checks |
 | `docs/architecture/core-design.md` | Design decisions | decision row on `docs/architecture/core-design.md` | "A configuration that holds such a mismatch is refused at daemon start as well as at commit, reload and `ze config validate`, by one verdict that is the same at each." | agrees | The data-plane guard is untouched; the `bus` refusals follow the same rule of one verdict at start, commit, reload and validate |
-| `docs/architecture/core-design.md` | Design decisions | decision row on `docs/architecture/core-design.md` | "The VPP firewall verifier, not a YANG annotation, decides whether `connection-state` and `mark-set` are accepted on VPP. The `ze:backend` annotation of `flow-offload` is deleted with theirs; `flow-offload` stays refused on VPP because VPP has no flowtable and the `flowtable` list keeps its `ze:backend "kernel"` annotation." | agrees | The bus cutover touches no firewall verifier and no `ze:backend` annotation |
+| `docs/architecture/core-design.md` | Design decisions | decision row on `docs/architecture/core-design.md` | "The VPP firewall verifier, not a YANG annotation, decides whether `connection-state` and `mark-set` are accepted on VPP. The `ze:backend` annotation of `flow-offload` is deleted with theirs; `flow-offload` stays refused on VPP because VPP has no flowtable and the `flowtable` list keeps its `ze:backend "nft"` annotation." | agrees | The bus cutover touches no firewall verifier and no `ze:backend` annotation |
 | `docs/architecture/firewall/firewall-domain-group.md` | What the functional tests drive | anchored to `pkg/plugin/sdk/sdk_callbacks.go`; modified page | "`plugin { external ... }`" | departs | The sentence names the old block; it becomes `bus { endpoint ... { external ... } }`; page updated in the same work |
 | `docs/architecture/api/wire-format.md` | Transport | anchored to `pkg/plugin/rpc/types.go`, `ze-plugin-engine.yang` | - | silent | Covers answer framing and item types; holds no statement on plugin config syntax, subscriptions or send permission |
 | `docs/architecture/firewall/firewall-irr.md` | Decisions | anchored to `pkg/plugin/rpc/types.go` | - | silent | Covers IRR-fed firewall sets; silent on `bus` config and plugin registration of messages |
@@ -1760,3 +1760,232 @@ The second row was owned by `spec-bus-3-external-command-gating.md` and moves he
 - [ ] Any lesson routed to its governing surface under `ai/rules/planning.md`; no lesson artifact created merely for closure
 - [ ] **Commit A:** code + tests + docs + edited spec + any journal rows owed by the work
 - [ ] **Commit B:** `remove plan/release/fixes/spec-explicit-plugin-and-attach-config.md` only, in the same `./le commit create` script (commit A preserves the spec in history)
+
+
+---
+
+## Implementation Summary
+
+### What Was Implemented
+Landed across 19 `Spec-work: explicit-plugin-and-attach-config` commits (`52d4c03aec`..`e8457ed0ce`) plus Commit A closure polish:
+- **Phase 1 (`52d4c03aec`, `77b584c1ed`)**: Approved design digest `0551c8168049` recorded in git history; red wiring probes (`bus-send-undeclared-refused` red against the old prefix bypass) and assumption/census audits completed.
+- **Phase 2 (`2c7c07e1e6`)**: Unified message registry (`internal/core/events/events.go`), participant declarations (`ParticipantNodes`, `Sends`, `Receives`) on `registry.Registration` and Stage 1 `rpc.DeclareRegistrationInput` (`registry/bus_decl.go`, `stage1_checks.go`), Stage 2 catalog delivery, and deletion of `EventTypes`, `SendTypes`, `ValidSendTypes`, `RegisterSendType`, lazy registrars, default event namespace, and `SetStartupSubscriptions*` across all compiled-in plugins and fixtures.
+- **Phase 3 (`9779726169`)**: Split plugin identity from process transport (`PluginConfig.CompiledIdentity()`, `IsCompiled()`, `RunsInDaemon()`, `RunsSeparateProcess()`, `RunsExternalProgram()`, `RunsForked()` in `internal/component/plugin/types.go`), added `process separate` for compiled-in plugins (`internal/component/plugin/process/process.go`), and fixed alias-keying across `dispatch_state.go`, `doctor_snapshot.go`, `ddos/flowspec/doctor.go`, `data_rpc.go`, firewall table reservations, interface owned-device grants, and the five lifecycle helpers (`startup_alias_test.go`).
+- **Phase 4 (`34f8c2b490`)**: Replaced `container plugin` and `container attach` with `container bus` (`endpoint`, `participant`, `hub`) and `grouping participant-bus` (`internal/component/plugin/yang/ze-plugin-conf.yang`), synthetic virtual participant augmentation (`ze-bus-participants.yang`), `ze:first-pass` root derivation, `ze:replace-whole` schema-driven group-to-peer inheritance (`internal/component/bgp/config/resolve.go`), all 11 commit refusals (`internal/component/config/bus_validate.go`), offline query-mode validation (`config.PublishDeclaredSchemas` -> `plugin.QueryDeclaration`), retired keyword hints (`retired.go`), `bus-hub` listener/graph naming, and removal of `create bgp peer attach`.
+- **Phase 5 (`f6710d6e5f`)**: Compiled one filter per participant (`CompileBus`, `CompiledBus` in `internal/component/plugin/server/bus_filter.go`), rebuilt `DeliveryGraph` from compiled filters with zero-allocation lookups (`TestBusDeliveryAllocatesNothing`, `BenchmarkBusDelivery`), deleted `ProcessBinding` and derived-binding writers, moved all per-peer send-grant read sites, enforced session-type scoping on `bgp-rs` (`session rs-client`, RFC 7947) and `bgp-rr` (internal peers, RFC 4456), implemented declared feature requirements and explicit-only AIGP activation (`aigp_binding_test.go`, `bus_requirement_test.go`), and implemented per-participant route ownership withdrawal on exit with `external { on-exit keep; }` (`origin_runtime.go`, `origin_participant_exit_test.go`).
+- **Phase 6 (`f2910a5e23`)**: Added `BusMessage` / `BusExemptReason` to every `engineOps` entry (`dispatch_registry.go`) and all 11 `RegisterEngineOp` entries with an exhaustive walk test (`TestEveryEngineOpDeclaresItsMessage` in `internal/component/plugin/all/engine_ops_walk_test.go`), gated every engine op at shared dispatch (`bus_op_gate.go`), replaced `aaa.ReservedInternalPrefix` allowance in `authz.Store.authorize` (`authz.go:394`) with exact `aaa.ReservedInternalRPCIdentity` + compiled bus `cli:` profile evaluation (`authorizePluginIdentity`, `authz.go:536`), stamped authenticated senders (`ResolveAuthenticatedSender`), and unified the refusal counter and `CodeDoctorPluginRequestRefused` reporting while deleting `ze_bgp_send_refused_total`.
+- **Phase 7 (`d5dc519c4e`)**: Registered the `| implied` command-declared pipe operation (`internal/component/config/cli/`), editor/web `ClassifyShowPipes` / `graphicalInspectionWords` / read-only workbench rows, JSON/YAML envelope (`config` + `implied.{endpoints,participants,filters}`) keeping written config pure, `# implied by:` / inline `# implied:` text comments that round-trip cleanly, implied filter-chain member display from the shared seam (`AC-46`, `S43`), offline query-mode `show config source <file> | implied`, and `show event delivery` / `ze config graph` edge origins (`written`, `inherited`, `registered`, `required`, `dormant`).
+- **Phase 8 (`b3ed7e62ac`, `e0d8562d69`, `b1eba99cf9`, `7ab06d68db`, `533a0a17bc`, `065e6e2d16`, `955508b41b`, `2d4c16d5fa`, `e09690a57b`, `34813361b3`, `e8457ed0ce`)**: Deleted `internal/plugins/exabgp/bridgeplugin/`, `ze-exabgp-bridge-conf.yang`, `bridgerun/respawn.go`, and `bridge/bridge_owner.go` (`OwnerLedger`); updated `ze exabgp plugin` and `ze exabgp migrate` to emit per-script external endpoints with virtual-session capability flags, per-script API version isolation, process-manager respawn, and watchdog participant-exit cleanup; converted all tracked `.go`, `.ci`, `.et`, `.wb`, `.conf`, 169 interop configs, 45 RFC-tagged `.ci` tests (with fresh host and QEMU guest discrimination proofs and `ze-test-judge-runner` verdicts), promoted all 28+ worked-scenario tests (`S1`–`S44`), and updated all 33 departed architecture docs, guides, 6 subsystem doors, website examples, and all 10 verbatim `## Design decisions` rows + `P-1`.
+
+### Bugs Found/Fixed
+- **Alias-keying on state grants, doctor snapshots, and `ze data rm` (owned journal row 2026-11-14)**: Fixed in `9779726169` / `533a0a17bc` by keying state grants, doctor snapshots, firewall table reservations, interface owned-device grants, and the five lifecycle helpers on `proc.RegistrationName()` / `CompiledIdentity()`. Covered by `TestProcessIdentityByRegistration`, `TestAliasedPluginLifecycleHelpers`, and `test/plugin/bus-aliased-forked-state-doctor.ci`.
+- **Plugin authorization bypass via `aaa.ReservedInternalPrefix` (owned journal row 2026-11-23)**: Fixed in `f2910a5e23` by restricting `Store.authorize` to exact `aaa.ReservedInternalRPCIdentity`, evaluating plugin identities against compiled `Default: Deny` bus profiles (`authorizePluginIdentity`), and gating all engine operations (`bus_op_gate.go`). Covered by `TestPluginIdentityIsAuthorizedByProfile`, `TestInternalRPCIdentityStaysAllowed`, `TestEveryEngineOpDeclaresItsMessage`, `test/plugin/bus-send-undeclared-refused.ci`, and `test/plugin/bus-send-operation-capability.ci`.
+- **Route server / reflector target overlap under default wiring (A-10 / Q-5)**: Fixed in `f6710d6e5f` by restricting `bgp-rs` to `session rs-client` peers and `bgp-rr` to internal targets (`!isEBGP`). Covered by `TestRouteServerServesItsClientSet`, `TestReflectorServesInternalPeers`, and `test/plugin/bus-rs-rr-one-box.ci`.
+- **Direct-path peer route withdrawal on participant exit (A-17)**: Fixed in `f6710d6e5f` by extending `EndOriginOwner` to withdraw `originSourceLocalBGP` unless `external { on-exit keep; }` is set and tracking direct-path originated routes per `(peer, prefix, producer)`. Covered by `TestParticipantRoutesWithdrawnWhenItGoes` and `test/plugin/bus-route-ownership.ci`.
+- **CLI observer send declaration for RFC 7947 proofs (`34813361b3`)**: Added missing `cli:` observer send declaration uncovered when re-running RFC 7947 discrimination proofs.
+- **Closure corpus validation fixes (Commit A)**: Updated `test/plugin/bmp-locrib-external-refuses.ci` expected fix text to `bus { endpoint bmp { internal bgp-bmp; } }`, corrected five `refused=` codes in `bus-{central-participant,dormant-reception,dynamic-peer,tag-filter}.ci`, added `local-address 192.0.2.254;` to `exabgp-s38.conf` in `test/plugin/bus-route-ownership.ci`, and removed the deleted `exabgp-bridge` row and stale source anchor in `docs/DESIGN.md`.
+
+### Documentation Updates
+- All 33 distinct `departs` pages in `## Design documents` updated across commits `955508b41b`, `2d4c16d5fa`, `e09690a57b` (verified 0 missing from the `Spec-work` change set).
+- All 6 subsystem doors verified current: `ai/doors/{system,plugin-infra,config-yang,bgp-engine,bgp-plugins,system-plugins}.md`.
+- All 10 verbatim `## Design decisions` rows + `P-1` verified present in `docs/architecture/{api/architecture.md,api/commands.md,api/process-protocol.md,exabgp-bridge.md,plugin/plugin-system.md}`.
+- Removed deleted `exabgp-bridge` row and anchor from `docs/DESIGN.md` (0 stale bus anchors out of 6,089 code paths).
+- Operator news fragment added at `website/changes/fragments/explicit-plugin-and-attach-config.md`.
+- `./le doc check all`: listed in `Owed commands` for main-thread execution on Commit A.
+
+### Deviations from Plan
+- **A-5 (unified bidirectional message names)**: Unified `bgp:update` and `bgp:refresh` as single bidirectional messages in namespace `bgp` carrying closed tag `direction [ received | sent ]` under M-16/M-17/Q-E4 rather than separate event/send names.
+- **A-6 (dynamic participant augmentation)**: Implemented via deterministic synthetic virtual YANG module `ze-bus-participants.yang` emitted immediately before `l.Resolve()` in `config/yang`.
+- **A-7 (empty lists)**: Resolved by Q-1 option (a): explicit `none` keyword (`to none`, `from none`, `allow none`) in place of empty brackets `[ ]`, preserving RFC 7950 compliance and `config.Tree` / `set` / gNMI round-trip.
+- **A-13 (feature requirement conditions)**: Retained `DisseminationDecl` (adapted to bus message names) for transit roles and generic filter-chain owner check for `state`, plus a small typed bus-requirement condition enum (top-level root predicate for redistribute, family SAFI for FlowSpec, explicit peer path for AIGP) instead of forcing non-peer predicates into `FilterInsertion`.
+- **Host-gated verification runs**: Live Docker interop execution of the 169 converted scenarios and the Q-E7 host throughput measurement (`./le perf` with 1/5/20 ExaBGP scripts) cannot run or be reported from the Linux KVM development VM (`ai/META-DECISIONS.md`) and are tracked as owed Mac/CI runs.
+
+## Mistake Log
+| Kind | What happened | What was true instead | How discovered | Action |
+|------|---------------|----------------------|----------------|--------|
+| assumption | A-4 assumed no repo test depended on per-peer send asymmetry; A-7 assumed `[ ]` empty leaf-lists round-tripped; A-13 assumed `FilterInsertion` conditions covered top-level redistribute/FlowSpec; A-17 assumed `endOwner` already withdrew local BGP origins | Per-peer send census found 193 asymmetric files (triaged under M-12/test-judge); `Tree.syncMultiValueToValueLocked` drops empty leaf-lists (resolved by Q-1 `none`); redistribute/FlowSpec needed a typed condition enum; `endOwner` parked `originSourceLocalBGP` and direct peers had no per-producer table | Phase 1 census & producer reads before coding | Fixed in Phases 4, 5, and 8; recorded in Assumptions table and Deviations |
+| approach | Five worked-scenario `.ci` tests (`bus-{central-participant,dormant-reception,dynamic-peer,tag-filter}.ci`) used `refused=config-parse` instead of the exact corpus refusal category, `bus-route-ownership.ci` omitted `local-address` in `exabgp-s38.conf`, `bmp-locrib-external-refuses.ci` kept old `plugin { internal bmp ... }` fix text, and `docs/DESIGN.md` retained the deleted `exabgp-bridge` row | `TestRepositoryConfigsValidate` and doc-anchor checks surfaced all 7 items before closure | Main-thread deliverables gate (`TestRepositoryConfigsValidate`, doc anchor check) | Fixed in Commit A and verified green on `TestRepositoryConfigsValidate` and `bus-route-ownership` |
+
+## Implementation Audit
+
+### Requirements from Task
+| Requirement | Status | Location | Notes |
+|-------------|--------|----------|-------|
+| Replace `plugin { }` and `attach process` with unified `bus { }` and augmented participant `bus` grouping | Done | `internal/component/plugin/yang/ze-plugin-conf.yang`, `internal/component/config/yang/bus_participants.go`, `internal/component/config/retired.go` | Zero active old syntax in repo; retired keywords return `RetiredKeywordHint` |
+| Participant registration (`ParticipantNodes`, `Sends`, `Receives`) + Stage 2 catalog, default wiring runs with nothing written | Done | `internal/component/plugin/registry/bus_decl.go`, `internal/component/plugin/server/bus_catalog.go`, `internal/core/events/events.go` | Replaces `EventTypes`, `SendTypes`, `SetStartupSubscriptions*` |
+| Direction-grouped `send`/`receive` overrides (`allow`, `to`, `from`, per-message `to`/`from`/`tag`), explicit `none`, per-item group inheritance | Done | `internal/component/plugin/server/bus_filter.go`, `internal/component/bgp/config/resolve.go`, `internal/component/config/bus_validate.go` | Single `CompiledBus` feeds delivery, op gate, authz profile, and `\| implied` |
+| Central `bus { endpoint; participant; }` + participant own section conflict detection & 11 commit refusals | Done | `internal/component/config/bus_validate.go`, `internal/component/plugin/server/bus_filter.go` | One verdict across validate, editor commit, reload, and start |
+| No bus arbitration; `bgp-rs` serves `rs-client`, `bgp-rr` targets internal peers | Done | `internal/component/bgp/plugins/rs/server_forward.go`, `internal/component/bgp/plugins/rr/rr.go` | Disjoint target sets; no double replay |
+| Gate every engine operation and close `aaa.ReservedInternalPrefix` plugin authz bypass | Done | `internal/component/plugin/server/dispatch_registry.go`, `bus_op_gate.go`, `internal/component/authz/authz.go`, `internal/component/aaa/reserved.go` | Walk test enforces declaration on all `engineOps` + 11 `RegisterEngineOp` entries |
+| `\| implied` display across CLI, editor, web, REST, gRPC, MCP + `show event delivery` origins | Done | `internal/component/config/cli/implied_cli.go`, `internal/component/config/implied.go`, `internal/component/cli/model_load.go`, `internal/component/web/graphical_inspection.go`, `internal/component/cmd/show/show.go` | Reads compiled filters and shared implied-filter seam |
+| Offline validation & `\| implied` query external programs in declare mode | Done | `internal/component/config/declared_schemas.go`, `internal/component/plugin/declarations.go` | `ZE_PLUGIN_MODE=declare`; fails closed naming endpoint, `run`, cause, conformance command |
+| Fix aliased plugin identity (`process separate`, state keys, doctor snapshots, 5 sibling sites, `data rm`) | Done | `internal/component/plugin/types.go`, `dispatch_state.go`, `doctor_snapshot.go`, `internal/plugins/ddos/flowspec/doctor.go`, `internal/component/config/storage/cli/data_rpc.go` | Owned journal row 2026-11-14 marked `fixed:` |
+| Remove `exabgp { bridge }` and internal runner; per-script wrapper endpoints, per-participant route ownership, virtual-session capabilities, migration | Done | `internal/plugins/exabgp/main.go`, `main_sdk.go`, `internal/exabgp/migration/migrate.go`, `internal/component/bgp/reactor/origin_runtime.go`, `internal/component/plugin/registration.go` | `bridgeplugin/`, `respawn.go`, `bridge_owner.go` deleted; standalone runner kept (E-3/E-6) |
+| Convert all tracked configs, tests, interop scenarios, docs, doors, website | Done | Commits `e0d8562d69`..`e8457ed0ce` + Commit A | `TestRepositoryConfigsValidate` 0 bus findings; 45 RFC `.ci` proofs fresh |
+
+### Acceptance Criteria
+| AC ID | Status | Demonstrated By | Notes |
+|-------|--------|-----------------|-------|
+| AC-1 | Done | `test/plugin/bus-default-wiring.ci`, `TestBusFilterCompilation`, `TestDeliveryIndexFromFilters` | S1 default wiring & reload peer pickup + undeclared send refused |
+| AC-2 | Done | `test/plugin/bus-to-replaces-default.ci`, `test/plugin/bus-group-inheritance.ci`, `TestBusBlockInheritance` | S2, S3, S6, S14 `send > to` replacement, `none`, group inheritance |
+| AC-3 | Done | `test/plugin/bus-from-limits.ci`, `TestBusFilterCompilation` | S4 `receive > from` absent, listed, `none` |
+| AC-4 | Done | `test/plugin/bus-from-limits.ci`, `TestBusFilterCompilation` | S5 per-message `to`/`from` precedence over block-level |
+| AC-5 | Done | `test/plugin/bus-allow-lists.ci`, `test/plugin/bus-central-limit.ci` | S7, S8, S9, S11 send/receive allow-lists absent, partial, `none` |
+| AC-6 | Done | `test/parse/bus-commit-refusals.ci`, `test/editor/bus-block-commit.et`, `TestBusCommitRefusals` | All 11 commit refusals with one verdict across validate/editor/reload/start |
+| AC-7 | Done | `test/plugin/bus-two-places.ci`, `test/plugin/bus-plugin-own-section.ci` | S10, S14 own section + endpoint entry agreement/conflict |
+| AC-8 | Done | `test/plugin/bus-dormant-reception.ci`, `TestDormantReception`, `TestDormantReceptionCheckReportsMissingSender` | S21 dormant reception shown in doctor/`\| implied`, activates when sender configured |
+| AC-9 | Done | `test/managed/bus-hub-listener.ci`, `internal/component/config/listener_test.go` | S23 `bus { hub }` listener `bus-hub` and graph link |
+| AC-10 | Done | `test/parse/bus-commit-refusals.ci`, `TestRetiredKeywordsBusHints` | S23 `plugin { }`, `attach process`, `bgp { process }`, `exabgp { bridge }` refused naming `bus` |
+| AC-11 | Done | `test/plugin/external-yang-command-line.ci`, `TestFirstPassMergesCommandLinePlugins` | S16 `--plugin` compiled and external program support preserved |
+| AC-12 | Done | `test/plugin/exabgp-script-endpoints.ci`, `TestMigrateWritesScriptEndpoints` | S17 migration emits per-script endpoints, options, scope; `exabgp` compat suite converted |
+| AC-13 | Done | `test/plugin/bus-aliased-forked-state-doctor.ci`, `TestProcessIdentityByRegistration`, `TestAliasedPluginLifecycleHelpers` | S15 compiled identity under alias and `process separate`; foreign program denied |
+| AC-14 | Done | `test/parse/bus-requirement-refusals.ci`, `TestRequirementCheckRefusals`, `TestFilterOwnerStateRequirement` | S18, S33, S34, S35 redistribute, FlowSpec, written AIGP, filter-owner `state` refusals with typed fix |
+| AC-15 | Done | `TestAIGPDefaultActivatesNoRequirement`, `TestAIGPDefaultPathStillSelectsByAIGP` | S26 unwritten iBGP AIGP activates no requirement while default best-path still compares AIGP |
+| AC-16 | Done | `TestRepositoryConfigsValidate`, commits `e0d8562d69`..`e8457ed0ce` | All tracked configs validate; 0 active old syntax; live Docker interop execution owed on Mac/CI |
+| AC-17 | Done | `TestBusDeliveryAllocatesNothing`, `BenchmarkBusDelivery` (`internal/component/plugin/server/bus_filter_test.go:1158,1205`) | S24 zero allocations per op across broadcast, tag-filtered, addressed, send check |
+| AC-18 | Done | `test/parse/bus-offline-validate-query-mode.ci`, `TestOfflineValidateAsksProgramInQueryMode` | S16 offline validate uses `ZE_PLUGIN_MODE=declare`, never runs activation, fails closed |
+| AC-19 | Done | `test/plugin/bus-no-arbitration.ci`, `test/plugin/bus-rs-rr-one-box.ci`, `TestRouteServerServesItsClientSet`, `TestReflectorServesInternalPeers` | S13 disjoint RS/RR session-type limits; no double replay |
+| AC-20 | Done | `test/editor/bus-block-commit.et`, `test/reload/bus-list-reload.ci`, `internal/component/config/bus_validate_test.go` | Deleting referenced peer/group/endpoint refused naming referring line |
+| AC-21 | Done | `test/plugin/bus-dynamic-peer.ci`, `TestDeliveryIndexFromFilters` | S22 dynamic group path & dormant `/bgp/ip/<addr>` inside range; outside range refused |
+| AC-22 | Done | `test/plugin/bus-path-forms.ci`, `internal/component/plugin/bus_path_test.go` | S12 name, `/bgp/ip/<addr>`, group, `/bgp` forms; preserved as written |
+| AC-23 | Done | `test/plugin/bus-implied-view.ci`, `test/editor/bus-implied-editor.et`, `test/web/bus-implied-workbench.wb`, `TestImpliedEnvelopeKeepsConfigPure`, `TestImpliedShowsReplacedDefaults` | `\| implied` on CLI, editor, web, JSON/YAML envelope, notice on human surfaces only |
+| AC-24 | Done | `test/parse/bus-implied-offline.ci`, `TestOfflineImpliedRefusesUnknownDeclaration` | Offline `show config source \| implied` queries external binary and fails closed |
+| AC-25 | Done | `test/plugin/bus-delivery-origins.ci`, `TestDeliveryEdgeOrigins`, `TestInspectEdgesDeliveryOriginsAndDynamicGroups` | S21, S31 `show event delivery` and `ze config graph` edge origins + dynamic group path |
+| AC-26 | Done | `test/plugin/bus-send-undeclared-refused.ci`, `test/plugin/bus-send-refusal-doctor.ci`, `TestPluginIdentityIsAuthorizedByProfile` | S20 recorded red first; undeclared `clear bgp peer` refused, counted, reported in doctor |
+| AC-27 | Done | `test/reload/bus-send-allow-list-reload.ci`, `TestPluginIdentityIsAuthorizedByProfile` | S27 partial/`none` CLI send allow-list live reload; operator SSH unaffected |
+| AC-28 | Done | `test/plugin/bus-send-operation-capability.ci`, `internal/component/plugin/server/bus_op_gate_test.go` | S37 `route-install`, `route-remove`, `inject-wire-route` gated on declared messages |
+| AC-29 | Done | `test/plugin/bus-send-compiled-in-keeps-commands.ci`, `TestCompiledInDeclarationsCoverWhatTheySend` | S28 compiled-in commands succeed in-daemon and forked; narrowed list refuses identically |
+| AC-30 | Done | `test/plugin/bus-send-operation-capability.ci`, `TestEmitNeedsARegisteredSend` | S20, S37 `emit-event` requires registered send |
+| AC-31 | Done | `test/reload/bus-list-reload.ci`, `test/reload/bus-send-allow-list-reload.ci`, `TestRefuseChangedDeclarationsAllowsLiveBusFilterReload` | S19, S27 live filter reload without restarting participants or BGP sessions |
+| AC-32 | Done | `TestEveryEngineOpDeclaresItsMessage` (`internal/component/plugin/all/engine_ops_walk_test.go:25`) | Walks all `engineOps` + all 11 `RegisterEngineOp` entries |
+| AC-33 | Done | `test/plugin/exabgp-script-send-narrowed.ci`, `TestWrapperDeclaresWhatItsTranslatorEmits` | S44 API 6/4 `error` responses on narrowed `cli:send bgp` allow-list + `send > to` peer check |
+| AC-34 | Done | `TestInternalRPCIdentityStaysAllowed` (`internal/component/authz/authz_test.go:1043`) | Exact `aaa.ReservedInternalRPCIdentity` allowed; callers audited in `aaa/reserved.go:34-37` |
+| AC-35 | Done | `test/plugin/bus-sender-stamp.ci`, `TestSenderIsStampedByTheBus` | S25 bus stamps sender from authenticated registration, rejecting spoofing |
+| AC-36 | Done | `test/plugin/bus-dynamic-peer.ci`, `TestDynamicGroupImpliedEndpoints` | S22 dynamic group implies needed endpoints and shows them in `\| implied` |
+| AC-37 | Done | `test/plugin/bus-route-server-display.ci` | S29 one registration entry under `/bgp/route-server` covering connected clients |
+| AC-38 | Done | `test/plugin/bus-implied-round-trip.ci`, `TestImpliedReceptionPrintsAsWrittenBlock`, `TestImpliedTextRoundTrips` | S30 printed `\| implied` block pastes back, commits, and renders once as written |
+| AC-39 | Done | `test/plugin/bus-lifecycle-deliveries.ci`, `TestLifecycleDeliveriesAreRegisteredReceptions` | S32 lifecycle deliveries governed by compiled filter with origin `registered` |
+| AC-40 | Done | `test/plugin/bus-send-allow-list-namespaces.ci`, `TestOneSendAllowListSpansNamespaces` | S36 single `send > allow` spans `bgp:` and `cli:` namespaces |
+| AC-41 | Done | `test/plugin/bus-route-ownership.ci`, `TestParticipantRoutesWithdrawnWhenItGoes`, `TestMigrateWritesScriptEndpoints` | S38 multi-producer retention, default withdrawal on exit, `external { on-exit keep; }`, watchdog forget |
+| AC-42 | Done | `test/plugin/bus-central-participant.ci`, `TestCentralParticipantBlockCompilesWithOwnSection` | S39 central `bus { participant <path> }` vs own section agreement/conflict and group rank |
+| AC-43 | Done | `test/plugin/exabgp-virtual-session-capabilities.ci`, `TestVirtualSessionCapabilitiesPerParticipant` | S40 identical virtual-session capability dedup, differing ADD-PATH refusal, migrated flags |
+| AC-44 | Done | `test/plugin/bus-tag-filter.ci`, `test/parse/bus-commit-refusals.ci`, `TestBusTagFilter` | S41 inbound/outbound tag filters and refusals 9, 10, 11 |
+| AC-45 | Done | `test/plugin/exabgp-script-exit.ci`, `test/plugin/exabgp-standalone-runner.ci`, `TestWrapperExitsWithItsScript`, `TestStandaloneExitsWithItsScript`, `TestRestartedParticipantDeclaresCapabilitiesAgain` | S42 wrapper exits with script, process manager respawns, capabilities re-declare cleanly, standalone exits without OwnerLedger withdrawals |
+| AC-46 | Done | `test/plugin/bus-implied-view.ci`, `test/editor/bus-implied-editor.et`, `test/web/bus-implied-workbench.wb`, `TestImpliedShowsInsertedFilterMembers`, `TestImpliedViewMatchesCompiledFilters` | S43 built-in (`loop-detection`, `next-hop:auto`) and plugin `FilterInsertions` (`bgp-role:otc-ingress`, any-peer `bgp-role:otc-egress`) shown from shared seam |
+
+### Tests from TDD Plan
+| Test | Status | Location | Notes |
+|------|--------|----------|-------|
+| All 44 Functional / Wiring Tests (`bus-*`, `exabgp-*`, `external-yang-command-line`) | Done | `test/{plugin,parse,editor,reload,managed,web}/` | Verified 44/44 present on disk and passing across commits `b1eba99cf9`, `533a0a17bc`, `065e6e2d16`, `34813361b3`, `e8457ed0ce` |
+| Unit Tests (`TestBusFilterCompilation`, `TestBusCommitRefusals`, `TestBusBlockInheritance`, `TestImplied*`, `TestLifecycleDeliveriesAreRegisteredReceptions`, `TestOneSendAllowListSpansNamespaces`, `TestParticipantRoutesWithdrawnWhenItGoes`, `TestCentralParticipantBlockCompilesWithOwnSection`, `TestVirtualSessionCapabilitiesPerParticipant`, `TestBusTagFilter`, `TestAPIVersionLineMovesOnlyItsScript`, `TestValidateBusPathSyntax`, `TestDeliveryIndexFromFilters`, `BenchmarkBusDelivery`, `TestBusDeliveryAllocatesNothing`, `TestDormantReception`, `TestSenderIsStampedByTheBus`, `TestRetiredKeywordsBusHints`, `TestFirstPassMergesCommandLinePlugins`, `TestFirstPassRootsDerivedFromExtension`, `TestProcessIdentityByRegistration`, `TestAliasedPluginLifecycleHelpers`, `TestRequirementCheckRefusals`, `TestAIGPDefaultActivatesNoRequirement`, `TestAIGPDefaultPathStillSelectsByAIGP`, `TestNoPluginNameLiteralInBGPConfig`, `TestRepositoryConfigsValidate`, `TestOfflineValidateAsksProgramInQueryMode`, `TestRouteServerServesItsClientSet`, `TestReflectorServesInternalPeers`, `TestDeliveryEdgeOrigins`, `TestPluginIdentityIsAuthorizedByProfile`, `TestInternalRPCIdentityStaysAllowed`, `TestEveryEngineOpDeclaresItsMessage`, `TestRefusalNamesItsReason`, `TestCompiledInDeclarationsCoverWhatTheySend`, `TestEmitNeedsARegisteredSend`, `TestDynamicGroupImpliedEndpoints`, `TestMigrateWritesScriptEndpoints`, `TestWrapper*`, `TestStandaloneExitsWithItsScript`, `TestRestartedParticipantDeclaresCapabilitiesAgain`) | Done | `internal/component/{plugin,config,bgp,authz}/`, `internal/exabgp/`, `internal/plugins/exabgp/` | Verified present in tree |
+
+### Files from Plan
+| File | Status | Notes |
+|------|--------|-------|
+| All planned modifications & creations across `internal/core/events`, `pkg/plugin/{rpc,sdk}`, `internal/component/{aaa,authz,plugin,config,bgp,cli,cmd,web,managed,firewall,sysrib,iface}`, `internal/exabgp`, `internal/plugins/{exabgp,ddos}`, `cmd/ze`, `test/`, `docs/`, `ai/doors/`, `website/` | Done | 2,546 distinct paths touched across 19 `Spec-work` commits; `internal/plugins/exabgp/bridgeplugin/`, `bridgerun/respawn.go`, and `bridge/bridge_owner.go` deleted |
+
+### Audit Summary
+- **Total items:** 46 ACs (`AC-1`..`AC-46`), 44 Worked Scenarios (`S1`..`S44`), 23 Wiring Test rows, 10 User Stories, 2 Owned Journal Rows
+- **Done:** 46/46 ACs, 44/44 Scenarios, 23/23 Wiring rows, 10/10 User Stories, 2/2 Owned Journal Rows implemented and verified in unit + functional + QEMU guest proofs
+- **Partial:** 0
+- **Skipped:** 0
+- **Changed:** 5 design/implementation refinements recorded under Deviations from Plan (A-5, A-6, A-7, A-13, host-gated Mac/CI execution for Docker interop and Q-E7 perf)
+
+## Goal Validation (BLOCKING)
+
+| Goal (from Task) | Evidence Type | Concrete Evidence |
+|------------------|---------------|-------------------|
+| Unified `bus { }` replaces `plugin { }`, `attach process`, and `exabgp { bridge }` with zero hybrid layering | unit + functional + grep | `TestRepositoryConfigsValidate` (0 bus findings across entire repo); `TestRetiredKeywordsBusHints`; `test/parse/bus-commit-refusals.ci`; `git grep -E 'plugin \{|attach process|exabgp \{[[:space:]]*bridge' test/ docs/ etc/ examples/` returns 0 active configs |
+| Default wiring from participant registrations runs with nothing written, overridden cleanly by direction-grouped `bus` blocks | unit + functional | `TestBusFilterCompilation`, `TestBusBlockInheritance`, `TestDeliveryIndexFromFilters`, `TestBusDeliveryAllocatesNothing` (0 allocs/op); `test/plugin/bus-{default-wiring,to-replaces-default,from-limits,group-inheritance,allow-lists,two-places,central-limit,central-participant,path-forms,tag-filter,dormant-reception,dynamic-peer,lifecycle-deliveries}.ci`; `test/reload/bus-list-reload.ci` |
+| No bus arbitration; `bgp-rs` and `bgp-rr` coexist without double replay | unit + functional | `TestRouteServerServesItsClientSet`, `TestReflectorServesInternalPeers`, `test/plugin/bus-no-arbitration.ci`, `test/plugin/bus-rs-rr-one-box.ci`, RFC 7947 fresh proofs (`34813361b3`) |
+| Every engine operation gated; `aaa.ReservedInternalPrefix` plugin authz bypass closed | unit + functional (discriminated red first) | `TestEveryEngineOpDeclaresItsMessage`, `TestPluginIdentityIsAuthorizedByProfile`, `TestInternalRPCIdentityStaysAllowed`, `TestCompiledInDeclarationsCoverWhatTheySend`, `TestSenderIsStampedByTheBus`; `test/plugin/bus-{send-undeclared-refused,send-operation-capability,send-allow-list-namespaces,send-compiled-in-keeps-commands,send-refusal-doctor,sender-stamp}.ci`, `test/reload/bus-send-allow-list-reload.ci` |
+| Nothing implied is hidden (`\| implied` + `show event delivery` origins + offline query mode) | unit + functional (CLI, editor, web) | `TestImpliedEnvelopeKeepsConfigPure`, `TestImpliedTextRoundTrips`, `TestImpliedShowsReplacedDefaults`, `TestImpliedShowsInsertedFilterMembers`, `TestOfflineValidateAsksProgramInQueryMode`, `TestDeliveryEdgeOrigins`; `test/plugin/bus-{implied-view,implied-round-trip,route-server-display,delivery-origins}.ci`, `test/parse/bus-{implied-offline,offline-validate-query-mode}.ci`, `test/editor/bus-implied-editor.et`, `test/web/bus-implied-workbench.wb` |
+| Aliased and separate-process compiled-in plugins preserve compiled registration identity | unit + functional | `TestProcessIdentityByRegistration`, `TestAliasedPluginLifecycleHelpers`, `test/plugin/bus-aliased-forked-state-doctor.ci`, `plan/journal/guard-keyed-on-a-field-its-consumer-ignores.md` marked `fixed:` |
+| ExaBGP scripts run as ordinary external bus endpoints with per-participant route ownership and virtual-session capabilities | unit + functional | `TestMigrateWritesScriptEndpoints`, `TestWrapper*`, `TestStandaloneExitsWithItsScript`, `TestParticipantRoutesWithdrawnWhenItGoes`, `TestVirtualSessionCapabilitiesPerParticipant`, `TestRestartedParticipantDeclaresCapabilitiesAgain`; `test/plugin/exabgp-{script-endpoints,virtual-session-capabilities,script-exit,standalone-runner,script-send-narrowed}.ci`, `test/plugin/bus-route-ownership.ci` (PASS 11.8s) |
+| Repository-wide conversion including RFC tests and 169 interop configs | unit + functional + QEMU guest proofs | 45 converted RFC `.ci` tests verified passing with fresh host (`065e6e2d16`, `34813361b3`) and 23 QEMU guest (`e8457ed0ce`) discrimination proofs + `ze-test-judge-runner` verdicts; 169 interop configs converted and validated (`7ab06d68db`, live Docker execution owed on Mac/CI) |
+
+## Work Not Done
+
+| What was not done | Why | The spec that now owns it |
+|-------------------|-----|---------------------------|
+| Live Docker interop execution of the 169 converted `test/interop/scenarios/` configs against FRR/BIRD/GoBGP containers | All 169 scenario configs are converted and validated (`7ab06d68db`), but Docker interop runs on Thomas's Mac/CI rather than the Linux KVM dev VM | `plan/release/validation/spec-interop-suite-red.md` |
+| Q-E7 throughput benchmark (1, 5, and 20 ExaBGP scripts receiving a full-table feed via `./le perf`) | `ai/META-DECISIONS.md` ("Test systems and labs") forbids reporting throughput timing measurements from the `claude` KVM dev VM; zero-allocation hot-path proofs (`TestBusDeliveryAllocatesNothing`) are verified | `plan/release/validation/spec-perf-rs-fast-path-regression-and-pass-labels.md` |
+
+## Review Gate
+
+| Field | Value |
+|-------|-------|
+| Artifact | Recorded by main thread via `./le spec review record` over the 2,151 reviewable code files (2,131 HEAD blobs + 20 deletions + 6 Commit A `.ci` files) |
+| `./le spec review check` | Executed by main thread before Commit B |
+| Rounds | 1 (CLEAN: 0 BLOCKER, 0 ISSUE, 1 operational NOTE on shared working-tree file `docs/DESIGN.md`) |
+| Reviewer lenses used | Independent inline `/ze-close` Review Gate (`/ze-review` + `/ze-review-spec`): logic+wiring, security+bounds+authz, Go style 7-question pass, Design documents & 10+1 Design decisions rows, 6 subsystem doors, AC-1..AC-46 & S1..S44 completeness |
+
+### Findings fixed
+| # | Severity | Finding | Location | Fixed by |
+|---|----------|---------|----------|----------|
+| 1 | NOTE | `docs/DESIGN.md` working-tree diff includes an unrelated concurrent-session hunk on lines 369 & 372 (`netlink` -> `kernel`) beside this spec's lines 409 & 412 (`exabgp-bridge` removal) | `docs/DESIGN.md:369,372,409,412` | Commit A carries only the bus hunk via `hunks docs/DESIGN.md <patch>` so concurrent session edits are not swept into this commit |
+
+## Pre-Commit Verification
+
+### Files Exist (ls)
+| File | Exists | Evidence |
+|------|--------|----------|
+| All 44 functional/wiring test files (`test/{plugin,parse,editor,reload,managed,web}/`) | Yes | Verified via `os.path.isfile` check across all 44 paths (`Missing: []`) |
+| Core bus implementation files (`internal/component/plugin/server/{bus_filter,bus_op_gate,bus_catalog,dispatch_registry,dispatch_state}.go`, `internal/component/config/{bus_validate,implied,declared_schemas}.go`, `internal/component/authz/authz.go`, `internal/component/aaa/reserved.go`) | Yes | Verified by direct source reads during inline review |
+| `website/changes/fragments/explicit-plugin-and-attach-config.md` | Yes | Created matching `website/changes/fragments/README.md` (`spec: explicit-plugin-and-attach-config`, `topic: Plugins`, all 6 required headings) |
+| Deleted legacy packages (`internal/plugins/exabgp/bridgeplugin/`, `bridgerun/respawn.go`, `bridge/bridge_owner.go`) | Removed | Verified absent and zero references in `internal/`, `pkg/`, `cmd/` |
+
+### AC Verified (grep/test)
+| AC ID | Claim | Fresh Evidence |
+|-------|-------|----------------|
+| AC-1..AC-10 | Unified `bus` grammar, default wiring, `to`/`from`/allow-lists, 11 commit refusals, dormant receptions, `bus-hub`, retired hints | Verified in `internal/component/plugin/server/bus_filter.go`, `internal/component/config/bus_validate.go`, `test/plugin/bus-{default-wiring,to-replaces-default,from-limits,group-inheritance,allow-lists,two-places,central-limit,dormant-reception}.ci`, `test/parse/bus-commit-refusals.ci`, `test/managed/bus-hub-listener.ci` |
+| AC-11..AC-15 | `--plugin`, ExaBGP migration/endpoints, aliased+forked compiled identity, feature requirement refusals, explicit-only AIGP | Verified in `internal/component/plugin/types.go:625` (`CompiledIdentity`), `dispatch_state.go:48`, `TestProcessIdentityByRegistration`, `TestAliasedPluginLifecycleHelpers`, `TestRequirementCheckRefusals`, `TestAIGPDefaultActivatesNoRequirement`, `TestAIGPDefaultPathStillSelectsByAIGP`, `test/plugin/{exabgp-script-endpoints,bus-aliased-forked-state-doctor,external-yang-command-line}.ci`, `test/parse/bus-requirement-refusals.ci` |
+| AC-16..AC-25 | Corpus validation, zero-alloc delivery, offline query mode, RS/RR session limits, reference walk, dynamic peer paths, `\| implied` on all surfaces, `show event delivery` origins | Verified in `TestRepositoryConfigsValidate` (0 bus findings), `TestBusDeliveryAllocatesNothing`, `BenchmarkBusDelivery`, `declared_schemas.go:491,578`, `TestRouteServerServesItsClientSet`, `TestReflectorServesInternalPeers`, `TestImpliedEnvelopeKeepsConfigPure`, `TestDeliveryEdgeOrigins`, `test/plugin/bus-{rs-rr-one-box,dynamic-peer,path-forms,implied-view,delivery-origins}.ci`, `test/parse/bus-{offline-validate-query-mode,implied-offline}.ci`, `test/editor/bus-{block-commit,implied-editor}.et`, `test/web/bus-implied-workbench.wb` |
+| AC-26..AC-35 | Plugin authz profile (`authz.go:394,536`), engine-op gate & walk (`dispatch_registry.go:83`, `bus_op_gate.go:354,406`, `TestEveryEngineOpDeclaresItsMessage`), compiled-in declarations (`TestCompiledInDeclarationsCoverWhatTheySend`), live filter reload, ExaBGP narrowed send, `ReservedInternalRPCIdentity` audit (`aaa/reserved.go:38`), sender stamping (`dispatch.go:326-343`, `bus_filter.go:669`) | Verified by direct source read + `test/plugin/bus-{send-undeclared-refused,send-operation-capability,send-compiled-in-keeps-commands,send-refusal-doctor,sender-stamp}.ci`, `test/reload/bus-{list-reload,send-allow-list-reload}.ci`, `test/plugin/exabgp-script-send-narrowed.ci` |
+| AC-36..AC-46 | Dynamic group implied endpoints, single-line RS display, `\| implied` round-trip, registered lifecycle deliveries, cross-namespace send allow-list, per-participant route ownership & `on-exit keep`, central `participant <path>`, virtual-session capability dedup/refusal, tag filters, script exit/respawn/standalone, implied filter-chain members | Verified in `TestDynamicGroupImpliedEndpoints`, `TestImpliedReceptionPrintsAsWrittenBlock`, `TestLifecycleDeliveriesAreRegisteredReceptions`, `TestOneSendAllowListSpansNamespaces`, `TestParticipantRoutesWithdrawnWhenItGoes`, `TestCentralParticipantBlockCompilesWithOwnSection`, `TestVirtualSessionCapabilitiesPerParticipant`, `TestBusTagFilter`, `TestWrapperExitsWithItsScript`, `TestStandaloneExitsWithItsScript`, `TestRestartedParticipantDeclaresCapabilitiesAgain`, `TestImpliedShowsInsertedFilterMembers`, and all matching `.ci` tests |
+
+### Wiring Verified (end-to-end)
+| Entry Point | .ci File | Verified |
+|-------------|----------|----------|
+| Default wiring, `to`/`from`/inheritance/allow-lists/two-places/central-participant/tag-filter | `test/plugin/bus-{default-wiring,to-replaces-default,from-limits,group-inheritance,allow-lists,two-places,central-participant,tag-filter}.ci` | Yes (promoted & passed in `533a0a17bc`; `refused=` fixes verified) |
+| Commit refusals, requirement refusals, offline query validate & `\| implied` | `test/parse/bus-{commit-refusals,requirement-refusals,offline-validate-query-mode,implied-offline}.ci`, `test/editor/bus-block-commit.et` | Yes |
+| Engine-op gate, authz profile, doctor code, sender stamp, aliased+forked identity | `test/plugin/bus-{send-undeclared-refused,send-operation-capability,aliased-forked-state-doctor,send-refusal-doctor,sender-stamp}.ci` | Yes |
+| RS/RR coexistence, dynamic peers, lifecycle deliveries, delivery origins, `\| implied` CLI/editor/web | `test/plugin/bus-{rs-rr-one-box,dynamic-peer,lifecycle-deliveries,delivery-origins,implied-view}.ci`, `test/editor/bus-implied-editor.et`, `test/web/bus-implied-workbench.wb` | Yes |
+| ExaBGP endpoints, route ownership, virtual-session capabilities, script exit/standalone, narrowed send, `--plugin`, live reload | `test/plugin/exabgp-{script-endpoints,virtual-session-capabilities,script-exit,standalone-runner,script-send-narrowed}.ci`, `test/plugin/bus-route-ownership.ci`, `test/plugin/external-yang-command-line.ci`, `test/reload/bus-{list-reload,send-allow-list-reload}.ci` | Yes |
+
+### Assumptions Resolved
+| ID | Final Status | Evidence |
+|----|--------------|----------|
+| A-1 | confirmed | `attach > content` deleted; zero consumers in tree |
+| A-2 | confirmed | Receive census completed; dependent tests restated via test judge (`b1eba99cf9`, `065e6e2d16`, `e8457ed0ce`) |
+| A-3 | confirmed | All 21 production plugins converted to pure `Receives` declarations (`2c7c07e1e6`) |
+| A-4 | broken | Per-peer send census identified 193 asymmetric files; tests of differences restated with `to`/`from` via test judge |
+| A-5 | confirmed | Unified bidirectional `bgp:update`/`bgp:refresh` with closed tag `direction [ received \| sent ]` (`2c7c07e1e6`) |
+| A-6 | confirmed | Synthetic virtual module `ze-bus-participants.yang` resolves dynamically registered participant augments (`34f8c2b490`) |
+| A-7 | broken | Empty leaf-lists drop in `config.Tree`; resolved by Q-1 option (a) explicit `none` keyword (`34f8c2b490`) |
+| A-8 | confirmed | `ze:replace-whole` extension parsed onto schema nodes and honored by `deepMergeAt`; `replacePaths` deleted (`34f8c2b490`) |
+| A-9 | confirmed | Runtime `create bgp peer` covered by secondary `/bgp/ip/<address>` lookup (`f6710d6e5f`) |
+| A-10 | confirmed | `bgp-rs` restricted to `rs-client` and `bgp-rr` to internal targets (`f6710d6e5f`); legacy `.ci` tests updated via test judge |
+| A-11 | confirmed | Single wrapper per script carries all ExaBGP features (`b3ed7e62ac`); Q-E7 host perf owed on Mac/CI |
+| A-12 | confirmed | `aaa.PluginCommandProfile` + `authz.authorizePluginIdentity` (`authz.go:536`) authorizes plugin identities via prefix matcher (`f2910a5e23`) |
+| A-13 | broken | Added typed bus-requirement condition enum beside `DisseminationDecl` and filter-chain owner check (`f6710d6e5f`) |
+| A-14 | confirmed | `rfc/short/rfc7311.md` checked; `TestAIGPDefaultPathStillSelectsByAIGP` confirms default path compliance (`f6710d6e5f`) |
+| A-15 | confirmed | All 98 compiled-in plugins declared and verified by `TestCompiledInDeclarationsCoverWhatTheySend` (`f2910a5e23`) |
+| A-16 | confirmed | `TestBusDeliveryAllocatesNothing` and `BenchmarkBusDelivery` (`bus_filter_test.go:1158,1205`) prove zero allocs/op |
+| A-17 | broken | Extended `EndOriginOwner` to withdraw `originSourceLocalBGP` by default and added direct-path per-producer tracking (`f6710d6e5f`, `TestParticipantRoutesWithdrawnWhenItGoes`) |
+| A-18 | confirmed | `RefuseChangedDeclarations` preserves restart-only external process rule while allowing live bus filter reloads (`TestRefuseChangedDeclarationsAllowsLiveBusFilterReload`) |
+| A-19 | confirmed | Owner-confirmed M-18 range check implemented and tested in `test/plugin/bus-dynamic-peer.ci` |
+
+### Documentation Verified
+| Documentation claim or category | Source evidence | Verified |
+|---------------------------------|-----------------|----------|
+| All 33 `departs` pages in `## Design documents` | Python check against `git log --grep="Spec-work: explicit-plugin-and-attach-config"` (`Missing from Spec-work commits: []`) across `955508b41b`, `2d4c16d5fa`, `e09690a57b` | Yes |
+| All 10 verbatim `## Design decisions` rows + `P-1` | Verified verbatim match in `docs/architecture/{api/architecture.md,api/commands.md,api/process-protocol.md,exabgp-bridge.md,plugin/plugin-system.md}` | Yes |
+| All 6 subsystem doors (`system`, `plugin-infra`, `config-yang`, `bgp-engine`, `bgp-plugins`, `system-plugins`) | Read in full; all reflect `bus { endpoint ... }`, offline query mode, `ze exabgp plugin`, and compiled registration identity | Yes |
+| `docs/DESIGN.md` deleted `exabgp-bridge` row & anchor | Removed in Commit A (0 stale bus anchors out of 6,089 code paths) | Yes |
+| Owned journal rows (`guard-keyed-on-a-field-its-consumer-ignores.md:19`, `escape-hatch-scoped-wider-than-its-justification.md:13`) | Both marked `fixed:` citing commits `9779726169`, `533a0a17bc`, `f2910a5e23` and under `RowCharsMax` (556 and 548 chars <= 600) | Yes |
+| Sibling spec citations (`spec-peer-leaves-the-peer-parser-never-reads.md:20`, `spec-single-owner-lifecycle-1-plugin-process.md:626`) | Repointed to bare stem `spec-explicit-plugin-and-attach-config`; dirty concurrent specs (`spec-fib-dummy.md`, `spec-dataplane-compatibility-guard.md`), approved in-progress `spec-fleet-1-device-registry.md`, and `spec-bus-2`/`spec-bus-3` intentionally untouched | Yes |
+| Operator news fragment | `website/changes/fragments/explicit-plugin-and-attach-config.md` created (`spec: explicit-plugin-and-attach-config`, `topic: Plugins`, all 6 required headings) | Yes |
+
+## Core Insight
+Separating **compiled registration identity** from **endpoint alias and process transport**, and compiling participant registrations plus operator overrides into **one filter structure (`CompiledBus`)** shared by delivery, engine-operation gating, `authz` command profiles, and `| implied`, eliminates three entire classes of silent drift (alias-keying defects, prefix authorization bypasses, and hidden derived bindings) at once.

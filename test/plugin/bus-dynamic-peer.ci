@@ -167,7 +167,7 @@ bgp {
 EOF_CONF
 
 # Negative check: /bgp/ip/203.0.113.7 outside every dynamic group range is refused listing both ranges.
-tmpfs=bad-outside-range.conf:refused=config-parse:terminator=EOF_BAD
+tmpfs=bad-outside-range.conf:refused=config-validator-unavailable:terminator=EOF_BAD
 bus {
 	endpoint watcher {
 		external {

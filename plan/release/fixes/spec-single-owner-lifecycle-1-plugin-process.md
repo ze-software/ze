@@ -623,7 +623,7 @@ Each phase is one commit, lands when its scoped tests pass, and edits its pages 
 | Class file | Date | Surface (short) | Why not here | Home |
 |------------|------|-----------------|--------------|------|
 | `plan/journal/exit-cleanup-runs-after-its-transport-closed.md` | 2026-11-13 | in-process plugin's exit withdrawal refused after `Run` stops dispatch | It needs a design of its own: either the SDK orders exit cleanup before dispatch stops, or the engine withdraws what a generation announced. Its symptom is a FlowSpec rule left at the peers, the subject of the receiving spec | `plan/release/fixes/spec-ddos-direction-allowlist-deferred-flowspec-withdraw.md` |
-| `plan/journal/guard-keyed-on-a-field-its-consumer-ignores.md` | 2026-11-14 | state-key grant and doctor snapshot keyed on the process name, so `use ddos-flowspec` under another name cannot reach its record | A question of which name identifies a plugin block, which the receiving spec redesigns (an endpoint's name against the registry name it runs) | `plan/release/fixes/spec-explicit-plugin-and-attach-config.md` |
+| `plan/journal/guard-keyed-on-a-field-its-consumer-ignores.md` | 2026-11-14 | state-key grant and doctor snapshot keyed on the process name, so `use ddos-flowspec` under another name cannot reach its record | A question of which name identifies a plugin block, which the receiving spec redesigns (an endpoint's name against the registry name it runs) | `spec-explicit-plugin-and-attach-config` (closed; fixed in `9779726169`) |
 
 ## Rows considered and not owned
 | Class file | Date | Surface (short) | Why not this root cause | Home |

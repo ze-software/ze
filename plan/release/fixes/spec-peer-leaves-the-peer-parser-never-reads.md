@@ -17,7 +17,7 @@ Recovery after compaction: `.claude/rules/post-compaction.md`.
 
 | Scope / leaves | Decision |
 |----------------|----------|
-| `attach/process/{processes, processes-match, content/attribute}` | Drop from this spec; `plan/release/fixes/spec-explicit-plugin-and-attach-config.md` removes `attach`. |
+| `attach/process/{processes, processes-match, content/attribute}` | Drop from this spec; `spec-explicit-plugin-and-attach-config` (closed) removed `attach`. |
 | `connection/link-local`, `rib/out/group-updates` | Delete both duplicate leaves (`session/link-local` and `behavior/group-updates` are the live surfaces). |
 | `rib/adj/in`, `rib/adj/out` | Delete both leaves; plugin loading and bus scope control Adj-RIB storage. |
 | `rib/out/auto-commit-delay`, `rib/out/max-batch-size` | Keep and wire per-peer outbound batching (`auto-commit-delay` and `max-batch-size`) so configured values actually control flush delay and batch size (updated 2026-11-24). |

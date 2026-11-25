@@ -82,7 +82,7 @@ cmd=foreground:seq=1:exec=ze init:stdin=init-answers:exit=0
 cmd=background:seq=2:exec=ze start bmp-refusal.conf:name=daemon:ready=Ze running.
 expect=stderr:contains=bgp-bmp Loc-RIB monitoring cannot run
 expect=stderr:contains=event bus is unavailable
-expect=stderr:contains=plugin { internal bmp { use bgp-bmp; } }
+expect=stderr:contains=bus { endpoint bmp { internal bgp-bmp; } }
 reject=stderr:contains=panic
 cmd=foreground:seq=3:exec=ze cli -c "show system subsystem list | json":exit=0
 expect=stdout:pattern="subsystems".*\[

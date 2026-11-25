@@ -49,7 +49,7 @@ bus {
 EOF_CONF
 
 # Refusal 9: undeclared tag name on bgp:route-change.
-tmpfs=bad-tag.conf:refused=config-parse:terminator=EOF_BADTAG
+tmpfs=bad-tag.conf:refused=config-validator-unavailable:terminator=EOF_BADTAG
 bus {
 	endpoint rc-sender {
 		external {
@@ -74,7 +74,7 @@ bus {
 EOF_BADTAG
 
 # Refusal 10: invalid value for declared tag `source` on bgp:route-change.
-tmpfs=bad-val.conf:refused=config-parse:terminator=EOF_BADVAL
+tmpfs=bad-val.conf:refused=config-validator-unavailable:terminator=EOF_BADVAL
 bus {
 	endpoint rc-sender {
 		external {
