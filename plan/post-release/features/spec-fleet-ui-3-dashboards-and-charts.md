@@ -129,8 +129,8 @@ Eight columns.
 | Quick info | Name, state, labels, model, serial number, software version, uptime, configuration state and version, last seen, management address; each identifier with a copy control | System tab | Registry, inventory |
 | Alarms | The device's open alarms | The device's alarms | Alarms |
 | Configuration | State, version, time of last fetch and its result, and the divergence banner when diverged | Config tab | Registry |
-| Peers | Donut: established, not established, administratively down | Routing tab | Latest samples |
-| Interfaces | Donut: up, down, administratively down | Interfaces tab | Latest samples |
+| Peers | Donut: established and remaining configured peers; distinguish administrative shutdown only when the source supplies that count | Routing tab | Latest samples |
+| Interfaces | Donut: up and remaining configured interfaces; distinguish administrative shutdown only when the source supplies that count | Interfaces tab | Latest samples |
 | Memory, Storage | Usage bars with used and total | System tab | Latest samples, inventory |
 | CPU, Memory, Traffic, Load | Line charts over the chart range | None | History |
 
@@ -151,7 +151,7 @@ charts stay, ending where the samples end, because the history is held by the hu
 | Gaps | A period with no samples is drawn as a gap, never joined by a line |
 | Hover | A cursor line with the time and each series value |
 | Axes | Time on the horizontal axis in the operator's local time; the unit named once on the vertical axis |
-| Data | Fetched as JSON from a fragment route, already reduced by the hub to at most the pixels available |
+| Data | Fetched as JSON from the existing chart fragment, reduced to its existing ceiling of 300 points per series. Each nonempty bucket retains its average and maximum; an empty bucket stays a gap |
 | No history yet | "No samples have been reported yet" with the time the first is expected |
 
 ### Key design decisions
@@ -167,13 +167,13 @@ charts stay, ending where the samples end, because the history is held by the hu
 
 | Data | Expected from | State |
 |------|---------------|-------|
-| Counts by state, configuration state and version, for the estate or a set of labels | `fleet-1`, as a summary form of `show fleet devices` | Missing |
+| Counts by state, configuration state and version, for the estate or a set of labels | Fleet UI-2’s scoped estate query over `show fleet devices`, joined to retained health | Count the same authorized set used by the linked table |
 | Latest samples per device and summed over a set | `fleet-8` | Missing |
 | A reduced series for a metric, a device or a set, and a range | `fleet-8` | Missing |
 | Open alarms, most severe first | `fleet-ui-5` | Missing |
 | Rollouts and audit entries | `fleet-5`, `fleet-3` | Missing; the two cards are added when those land |
 
-### Draft acceptance criteria
+## Acceptance Criteria
 
 | AC ID | Input / Condition | Expected Behavior | Permitted Survivors and Why |
 |-------|-------------------|-------------------|-----------------------------|
@@ -212,6 +212,33 @@ here; each back end keeps its commands.
 **Source files read:**
 - [ ] `internal/component/web/fleetui/source.go` - `Source` is the union of six interfaces, `HistorySource` among them; one source per build today. `fleet-ui-2` splits it into parts, `HistoryPart` among them.
 
+## Existing Mechanisms
+
+| Mechanism | Owner | Current behavior | Design |
+|---|---|---|---|
+| Dashboard source | `source_history.go`, `HistorySource`; `handler_chart.go`, `chartSeries` and `chartLine` | Chart requests select the device or estate query and represent missing buckets as gaps. | Supply a dispatcher-backed history part and preserve the existing gap and refusal behavior. |
+| Cards | `register_dashboard_pages.go` and `handler_dashboard_cards.go` | Individual card handlers consume source facts. | Reuse the card registration and keep a failed card independent of the rest of the dashboard. |
+| Series and card derivation | fleetui/summary.go, Reduce, CountByState and NeedsAttention | Folds raw points and derives card counts from the selected estate. | Keep Reduce for the sample source. The live history query returns buckets with coverage, average and peak. Pass them through without running Reduce again. Counts use the exact authorized target set of the link. |
+| Dashboard and invalidation | handler_dashboard.go, handler_dashboard_device.go, handler_events.go | Register and render scoped cards; the device path suppresses live cards when offline; the event stream identifies changed views. | Retain offline slots and subscribe to UI-9's scoped events for the user's current object. |
+| History administration and chart script | handler_admin.go, adminHistoryContent; assets/fleet-chart.js | Render the store usage and draw JSON gaps. | Adapt store usage from the hub status query; pass absent values, peaks and gaps through the existing JSON drawing path. |
+| Service wiring | web.RouteDeps.Dispatch, fleetui/register.go and the hub's build-tagged provider import | The daemon builds routes with its dispatcher. | UI-2 supplies the authenticated request and UI-3 registers the history provider on the real build. |
+
+## Design documents
+
+| Document | Section | Derived from | Binding statement | Verdict | How this design stands against it |
+|---|---|---|---|---|---|
+| `ai/doors/system.md` | One schema, one command registry, every interface | the door every change reads | "A command is declared once and reaches every interface." | agrees | The web and command presentations read facts through the registered operation under the caller’s identity. |
+| `ai/doors/api-surfaces.md` | Boundaries | the door covering internal/component/web/fleetui/handler_chart.go | "Never add a command in an adapter." | agrees | The fleet view consumes registered operations. Each operation is implemented by the owner of its data. |
+| `ai/doors/le-tooling.md` | Where it sits | the door covering test/web/fleet-dashboard-history.wb | "Functional `.ci` files live under `test/<suite>/`" | agrees | Use the repository’s functional harness for managed behavior and its headless web harness for the views. |
+| `docs/architecture/fleet-interface.md` | Design decisions | the // Design: page of internal/component/web/fleetui/handler_chart.go | "The proposed alarm defaults apply together. A missing relay grant stays visible while the device is offline. A measured alarm uses its existing threshold duration after reconnect. Causes match within one device. Thomas selected “Use all three defaults”." | agrees | A relay grant is independent of connectivity. Use the hub’s cause result for one device and its configured resource duration. |
+| `docs/architecture/fleet-interface.md` | Design decisions | the // Design: page of internal/component/web/fleetui/handler_chart.go | "Thomas chose the following rule for Resource high at reconnect. “End the old occurrence. Show a new alarm only if fresh samples qualify.”" | agrees | A reconnect ends the old resource occurrence. Its historical opening and clearing survive, and any new qualifying interval has its own identity. |
+| `docs/architecture/fleet-interface.md` | Design decisions | the // Design: page of internal/component/web/fleetui/handler_chart.go | "When a critical alarm becomes visible again after its cause clears, show its toast to an authorized viewer of the affected device. Thomas selected “Show the critical toast”." | agrees | The post-release notification provider checks visibility before delivering the critical recovery toast. |
+| `docs/architecture/fleet-interface.md` | Design decisions | the // Design: page of internal/component/web/fleetui/handler_chart.go | "For Force complete on a staged rollout, Thomas chose “Leave unstarted devices on their prior version”." | agrees | The rollout result distinguishes devices admitted to the change from devices that keep their prior version. |
+| `docs/architecture/fleet-interface.md` | Design decisions | the // Design: page of internal/component/web/fleetui/handler_chart.go | "Thomas chose “Add the device Alarms tab”. The post-release device page offers the same authorized alarm rows as the device filter on the estate or group Alarms tab." | agrees | The shared device navigation includes its Alarms tab and uses the same authorized device filter as the estate view. |
+| `docs/architecture/fleet-interface.md` | Dashboards | Live fleet interface | "the series reduced by `Reduce`" | departs | The sample may supply raw points; the live store supplies reduced, aligned buckets. Preserve the limit and rendering for both. |
+| `docs/architecture/fleet-interface.md` | A source answers facts, the package derives | Live fleet interface | "A source answers facts only" | departs | The history producer supplies bucket coverage and extrema as part of its query answer; cards still derive their presentation from source facts. |
+| `ai/doors/hub-engine.md` | Boundaries | The hub registration for the post-release history provider | "No always-on file imports a gated package." | agrees | The optional history provider is linked by its build-tagged hub registration file. The hub build without the web component has no import or dashboard route. |
+
 ## Data Flow (MANDATORY)
 
 ### Entry Point
@@ -227,29 +254,62 @@ here; each back end keeps its commands.
 | Web to daemon | `web.RouteDeps.Dispatch` with the request's caller identity | No |
 
 ### Integration Points
-- [pending design: the card registry and the history part's package]
+- `register_dashboard_pages.go` owns card registration. Supply the history part from the real-source build, alongside the estate part introduced by Fleet UI-2. `handler_chart.go` keeps the gap for a period without a sample.
+- Initial rendering and explicit refresh require only the hub-held facts. The live-refresh test of AC-2 additionally uses the authorized event source from Fleet UI-9. A build missing that optional part still renders and explains the availability of live updates.
 
 ## Wiring Test (MANDATORY -- NOT deferrable)
 
 | Entry Point | → | Feature Code | Test |
 |-------------|---|--------------|------|
-| A device dashboard on a real build with a reporting device | → | the history part over `fleet-8`'s series query, the chart card | [pending design: a `.wb` test] |
+| A device dashboard on a real build with a reporting device | → | the history part over `fleet-8`'s series query, the chart card | `test/web/fleet-dashboard-history.wb` |
 
 ## 🧪 TDD Test Plan
 
 ### Unit Tests
 | Test | File | Validates | Status |
 |------|------|-----------|--------|
-| `TestHistoryPartDrawsFleet8Series` | [pending design: the history part's package] | AC-9 | |
-| `TestDevicesCardCountsDegraded` | [pending design] | AC-8 | |
+| `TestHistoryPartDrawsFleet8Series` | `internal/component/web/fleetui/history/history_test.go` | AC-9 | |
+| `TestDevicesCardCountsDegraded` | `internal/component/web/fleetui/dashboard_test.go` | AC-8 | |
 
 ## Files to Modify
-- [pending design]
+- `internal/component/web/fleetui/handler_chart.go` and `internal/component/web/fleetui/handler_dashboard_cards.go` render the live data, its age, gaps and typed refusals.
+- `internal/component/web/fleetui/source_history.go` defines the dashboard contract used by the dispatcher-backed adapter.
+- `docs/architecture/fleet-interface.md` documents available cards and data owners for the live build.
+
+## Files to Create
+- `cmd/ze/hub/register_fleet_ui_history.go` links the registered history adapter under the same real-fleet-only build constraint as the estate provider.
+- `internal/component/web/fleetui/history/register.go` and `internal/component/web/fleetui/history/history.go` register and serve the live history part through the caller's dispatcher.
+- `test/web/fleet-dashboard-history.wb` exercises an authorized real-device series, a gap and a failed source beside a working card.
+
+## Design presentation
+
+### What changes
+
+Use the registered history and inventory providers for dashboard cards. The selected device, group, time range and caller identity reach the same hub queries as the command surface.
+
+### Before and after
+
+On a real hub an offline device shows its Quick info, offline state and historical charts. Its live cards are absent. Estate and group summaries can show retained readings with their age. An hour without reports appears as a gap. An unauthorized or unavailable series produces a card-level message while the other cards still render.
+
+### Alternatives set aside
+
+Recomputing history in the browser would create another aggregation rule and send per-device samples for an estate query. Scraping devices live would make historical cards unavailable during outages.
+
+### Documents departed from
+
+`docs/architecture/fleet-interface.md`, A source answers facts, the package derives, and Dashboards, describe raw points reduced by the view. The sample keeps that path. For live data the hub history query reduces the full estate before transport and returns timestamped buckets of coverage, average and maximum. The view draws the returned buckets once, keeping the same 300-point cap.
+
+### Choices for Thomas
+
+The history provider must preserve missing figures and gaps during downsampling. Live refresh exercises the event provider from Fleet UI-9.
 
 ## Implementation Steps
 
-1. **Phase: Wiring** - [pending design]
-   - Verify: `./le test functional web` runs the fleet browser cases of this spec
+1. **Phase: Wiring** - mount a real dashboard over the estate and history parts, compare its data to the command for that same caller, then exercise the view transitions in AC-1 through AC-9.
+2. Register the live history adapter in the hub build. Pass the caller, object or label scope, metric and range through the dispatcher. Retain errors, units, coverage, peaks and gaps when converting the answer.
+3. Bind cards to the estate, health, alarm and sample sources. Exercise a disconnected device, a missing optional figure, a failed card and a label-scoped caller. The count links open the same filtered set.
+4. Subscribe live cards to the scoped invalidations from UI-9 and refetch on reconnect. Verify changed device state updates linked counts, cancellation releases subscriptions and chart range survives navigation.
+   - Verify the dashboard tests in the fleetui package and the named `fleet-dashboard-history.wb` fixture through the headless web harness.
 
 ## Checklist
 
