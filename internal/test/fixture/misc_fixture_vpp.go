@@ -18,6 +18,7 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/ze-software/ze/internal/core/textbuf"
 	testpeer "github.com/ze-software/ze/internal/test/peer"
 )
 
