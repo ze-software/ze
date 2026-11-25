@@ -3,6 +3,7 @@ package rs
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"net/netip"
 	"slices"
@@ -106,5 +107,152 @@ func TestRSOptionalReadRefusalCompletesMandatoryReplayAndReconciles(t *testing.T
 				t.Fatalf("current retry lost useful mandatory output: %v", delivered)
 			}
 		})
+	}
+}
+
+// TestRSReplayRetriesWhenSourceDepartsMidPage verifies that a destination's
+// peer-up replay does not abort and wedge its session-ready fence when one
+// source peer disconnects mid-page. Once the departed source's DOWN clears its
+// live state, retrying the page skips the dead routes, sends EOR, and signals
+// session ready.
+//
+// VALIDATES: a joined departed-source relay error retries boundedly while the
+// destination stays up, instead of abandoning signalSessionReady forever.
+// PREVENTS: a peer disconnecting during another peer's replay from wedging the
+// replaying peer in forwardOrderHold for the rest of its session.
+func TestRSReplayRetriesWhenSourceDepartsMidPage(t *testing.T) {
+	rs, source, _, _ := retainedRSTestOwner(t)
+	rs.peers[source].Up = true
+	rs.peers[source].adoptionOpen = true
+	rs.receiveGate = "request bgp adj-rib-in eligibility"
+	target := rsFixtureKey("192.0.2.9", 19, 109)
+	rs.peers[target] = &PeerState{
+		Address:            target.address.String(),
+		Up:                 true,
+		RSClient:           true,
+		StateSeen:          true,
+		DestinationSession: 209,
+		InitialReplay:      17,
+		ForwardFrom:        42,
+		ReplayGen:          1,
+		Families:           map[family.Family]bool{family.IPv4Unicast: true},
+	}
+
+	relayCalls := 0
+	var delivered []string
+	rs.plugin = coldRSProtocol(t, true, func(_ context.Context, method string, value any) (any, error) {
+		switch method {
+		case rpc.MethodSourceLease:
+			var input rpc.SourceLeaseInput
+			switch v := value.(type) {
+			case rpc.SourceLeaseInput:
+				input = v
+			case *rpc.SourceLeaseInput:
+				input = *v
+			default:
+				return nil, errors.New("wrong lease shape")
+			}
+			return &rpc.SourceLeaseOutput{Action: input.Action, SourceReceipt: input.SourceReceipt, PeerOwner: input.PeerOwner}, nil
+		case rpc.MethodDispatchCommandArgs:
+			var in rpc.DispatchCommandArgsInput
+			switch v := value.(type) {
+			case rpc.DispatchCommandArgsInput:
+				in = v
+			case *rpc.DispatchCommandArgsInput:
+				in = *v
+			default:
+				return nil, errors.New("wrong command args shape")
+			}
+			if in.Command == rs.receiveGate {
+				rs.mu.RLock()
+				up := rs.peers[source].Up
+				rs.mu.RUnlock()
+				if up {
+					return &rpc.DispatchCommandOutput{Status: statusDone, Data: []byte(`{"answers":[true]}`)}, nil
+				}
+				return &rpc.DispatchCommandOutput{Status: statusDone, Data: []byte(`{"answers":[false]}`)}, nil
+			}
+			page, marshalErr := json.Marshal(struct {
+				Routes        []rpc.StoredRoute `json:"routes"`
+				LastIndex     uint64            `json:"last-index"`
+				More          bool              `json:"more"`
+				IngestedMsgID uint64            `json:"ingested-msg-id"`
+			}{
+				Routes: []rpc.StoredRoute{{
+					SourcePeer:         "192.0.2.1",
+					SourceOwner:        11,
+					SourceConnectionID: 101,
+					SourceReceipt:      201,
+					SourcePolicyEpoch:  7,
+					MsgID:              42,
+					Family:             "ipv4/unicast",
+					AttrHex:            "40010100",
+					NextHopHex:         "01010101",
+					NLRIHex:            "180a0000",
+					NLRIFraming:        rpc.NLRIFramingPrefixOnly,
+				}},
+				IngestedMsgID: 42,
+			})
+			if marshalErr != nil {
+				return nil, marshalErr
+			}
+			return &rpc.DispatchCommandOutput{
+				Status: statusDone,
+				Data:   page,
+			}, nil
+		case rpc.MethodRelayStoredRoute:
+			var input rpc.RelayStoredRouteInput
+			switch v := value.(type) {
+			case rpc.RelayStoredRouteInput:
+				input = v
+			case *rpc.RelayStoredRouteInput:
+				input = *v
+			default:
+				return nil, errors.New("wrong relay shape")
+			}
+			relayCalls++
+			// Simulate the source disconnecting mid-page on the first attempt:
+			// the reactor returns a joined error, and bgp-rs receives DOWN before
+			// the retry.
+			rs.mu.Lock()
+			rs.peers[source].Up = false
+			rs.peers[source].adoptionOpen = false
+			rs.mu.Unlock()
+			rs.withdrawalMu.Lock()
+			delete(rs.withdrawals, source.address.String())
+			rs.withdrawalMu.Unlock()
+			return &rpc.CachedWriteOutput{
+				Completed:  true,
+				DeadlineMS: input.DeadlineMS,
+				Failure:    "original cold relay source ended without retained membership; use its existing retained lease before replay",
+			}, nil
+		case rpc.MethodUpdateRoute:
+			delivered = append(delivered, "eor")
+			return &rpc.UpdateRouteOutput{}, nil
+		case rpc.MethodDispatchCommand:
+			input, err := rsFixtureCommandInput(value)
+			if err != nil {
+				return nil, err
+			}
+			delivered = append(delivered, "ready")
+			return rsFixtureBoundCommand(input), nil
+		default:
+			return nil, errors.New("unexpected operation: " + method)
+		}
+	})
+
+	ctx, cancel := context.WithTimeout(t.Context(), 5*time.Second)
+	defer cancel()
+	ctx = context.WithValue(ctx, replayTargetKey{}, rsFixtureTarget(target.address.String(), 19, 209))
+	rs.replayForPeer(ctx, target, 1, 42, 17, make(chan struct{}))
+
+	if relayCalls != 1 {
+		t.Fatalf("expected 1 failed relay call before departed source was filtered on retry, got %d", relayCalls)
+	}
+	if !slices.Equal(delivered, []string{"eor", "ready"}) {
+		t.Fatalf("destination replay did not finish after source departed mid-page: delivered=%v", delivered)
+	}
+	if rs.peers[target].replayFailure != nil {
+		t.Fatalf("unexpected lingering replayFailure after retry succeeded: %v", rs.peers[target].replayFailure)
 	}
 }
