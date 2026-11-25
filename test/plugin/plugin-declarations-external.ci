@@ -43,18 +43,31 @@
 # command runs in, which is the test's directory, where the runner writes these
 # files.
 
-# Leaves a marker named after its first argument, then writes the line the
-# protocol's own writer produces for a plugin with one command.
+# Under S-3 (spec-explicit-plugin-and-attach-config.md, AC-18), parsing the
+# config file offline queries each declared external program in declare mode
+# (`ZE_PLUGIN_MODE=declare`, never its run loop) via
+# PublishDeclaredSchemasForInspection, while `show plugin declarations config`
+# still reports offline external rows as `not-available`
+# (TestConfiguredPluginReaderNamesACommandWithNoDaemon).
+#
+# Honors ZE_PLUGIN_MODE=declare by writing a declare marker and printing the
+# Stage 1 declaration line; writes a run-loop marker only outside declare mode.
 tmpfs=marker.sh:terminator=EOF_MARKER
+if [ "$ZE_PLUGIN_MODE" = "declare" ]; then
+    echo declared > "declared-$1.marker"
+    printf '%s\n' '#1 ze-plugin-engine:declare-registration {"protocol-version":1,"commands":[{"name":"show query answer","short-help":"Show the answer."}]}'
+    exit 0
+fi
 echo started > "started-$1.marker"
-printf '%s\n' '#1 ze-plugin-engine:declare-registration {"protocol-version":1,"commands":[{"name":"show query answer","short-help":"Show the answer."}]}'
 EOF_MARKER
 
 tmpfs=plugin-declarations.conf:terminator=EOF_CONF
-plugin {
-    external acme-out-of-process {
-        run "sh marker.sh by-ze"
-        encoder json
+bus {
+    endpoint acme-out-of-process {
+        external {
+            run "sh marker.sh by-ze";
+        }
+        encoding json;
     }
 }
 EOF_CONF
@@ -101,5 +114,7 @@ cmd=foreground:seq=5:exec=ze show plugin conformance run "sh marker.sh by-checke
 expect=stdout:pattern=program-starts +declare +pass
 expect=stdout:pattern=declaration-line +declare +pass
 
-expect=file:path=started-by-checker.marker:exists=true
+expect=file:path=declared-by-checker.marker:exists=true
+expect=file:path=declared-by-ze.marker:exists=true
+expect=file:path=started-by-checker.marker:absent=true
 expect=file:path=started-by-ze.marker:absent=true

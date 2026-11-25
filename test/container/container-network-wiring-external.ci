@@ -42,12 +42,14 @@ environment {
 # The owned-device requests need a loaded interface backend, and the interface
 # component loads one only when the config holds an interface section.
 interface {
-	backend netlink
+	backend kernel
 }
-plugin {
-	external fakeowner {
-		run "ze plugin fakeowner"
-		encoder json
+bus {
+	endpoint fakeowner {
+		external {
+			run "ze plugin fakeowner";
+		}
+		encoding json;
 	}
 }
 EOF_CONF

@@ -80,7 +80,7 @@ func plugin15SignalStop(ctx context.Context, p *sdk.Plugin) error {
 		return fmt.Errorf("shutdown status=%s data=%s", r.status, r.text())
 	}
 	fmt.Fprintln(os.Stderr, "OK: daemon shutdown dispatched")
-	return nil
+	return errObserverDaemonStopped
 }
 
 func plugin15SubsystemList(ctx context.Context, p *sdk.Plugin) error {

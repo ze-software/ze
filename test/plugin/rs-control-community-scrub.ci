@@ -78,16 +78,18 @@ EOF_PEER
 # Observer: wait until the route server has replayed to every client, then shut down.
 
 stdin=ze-bgp:terminator=EOF_CONF
-plugin {
-	internal rs {
-		use bgp-rs
+bus {
+	endpoint rs {
+		internal bgp-rs;
 	}
-	internal adj-rib-in {
-		use bgp-adj-rib-in
+	endpoint adj-rib-in {
+		internal bgp-adj-rib-in;
 	}
-	external shutdown-after-up {
-		run "le test fixture plugin/rs-control-community-scrub"
-		encoder json
+	endpoint shutdown-after-up {
+		external {
+			run "le test fixture plugin/rs-control-community-scrub";
+		}
+		encoding json;
 	}
 }
 bgp {
@@ -130,16 +132,6 @@ bgp {
 				}
 			}
 		}
-		attach process adj-rib-in {
-			receive [ update-received state ]
-		}
-		attach process rs {
-			receive [ update-received state open-received refresh ]
-			send [ update ]
-		}
-		attach process shutdown-after-up {
-			receive [ update ]
-		}
 	}
 	peer receiver-named {
 		connection {
@@ -168,16 +160,6 @@ bgp {
 		behavior {
 			group-updates disable
 		}
-		attach process adj-rib-in {
-			send [ update ]
-		}
-		attach process rs {
-			receive [ update-received state open-received refresh ]
-			send [ update ]
-		}
-		attach process shutdown-after-up {
-			receive [ update ]
-		}
 	}
 	peer receiver-other {
 		connection {
@@ -205,16 +187,6 @@ bgp {
 		}
 		behavior {
 			group-updates disable
-		}
-		attach process adj-rib-in {
-			send [ update ]
-		}
-		attach process rs {
-			receive [ update-received state open-received refresh ]
-			send [ update ]
-		}
-		attach process shutdown-after-up {
-			receive [ update ]
 		}
 	}
 }

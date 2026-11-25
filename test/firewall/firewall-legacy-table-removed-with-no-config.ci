@@ -48,9 +48,9 @@ option=timeout:value=40s
 
 stdin=ze-bgp:terminator=EOF_CONF
 # No firewall section and no peer. The bridge is loaded and silent.
-plugin {
-	internal flowspec-firewall {
-		use flowspec-firewall
+bus {
+	endpoint flowspec-firewall {
+		internal flowspec-firewall;
 	}
 }
 EOF_CONF

@@ -20,10 +20,12 @@ action=sigterm:conn=1:seq=2
 EOF_PEER
 
 tmpfs=ze-bgp.conf:terminator=EOF_CONF
-plugin {
-	external drain-over-ceiling {
-		run "le test fixture plugin/drain-budget-over-ceiling"
-		encoder json
+bus {
+	endpoint drain-over-ceiling {
+		external {
+			run "le test fixture plugin/drain-budget-over-ceiling";
+		}
+		encoding json;
 	}
 }
 

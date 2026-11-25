@@ -18,10 +18,21 @@ EOF_PEER
 
 # ze bgp configuration
 stdin=ze-bgp:terminator=EOF_CONF
-plugin {
-	external announce-routes {
-		run "le test fixture plugin/fast"
-		encoder json
+bus {
+	endpoint bgp-rib {
+		internal bgp-rib;
+		receive {
+			from none;
+		}
+		send {
+			to none;
+		}
+	}
+	endpoint announce-routes {
+		external {
+			run "le test fixture plugin/fast";
+		}
+		encoding json;
 	}
 }
 bgp {
@@ -52,9 +63,6 @@ bgp {
 			group-updates disable
 		}
 	
-		attach process announce-routes {
-			send [ update ]
-		}
 	}
 }
 EOF_CONF

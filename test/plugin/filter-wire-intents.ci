@@ -128,6 +128,8 @@ while True:
     answer(line)
 EOF_RUN
 
+# Linux-only: static `next { interface lo { } }` resolves loopback `lo` via Linux netlink.
+option=needs-linux
 option=env:var=ze.log.bgp.filter:value=info
 
 # UPDATE: ORIGIN IGP 40010100, AS_PATH AS_SEQ[65001] 40020602010000FDE9,
@@ -147,27 +149,35 @@ option=tcp_connections:value=1
 option=timeout:value=20s
 # The relayed UPDATE: AS_PATH AS_SEQ[65000 65000 65000 65001]
 # (40021202040000FDE80000FDE80000FDE80000FDE9): two copies of the local AS
-# from the prepend intent, one from the EBGP export; NEXT_HOP 1.1.1.1; NLRI
-# 180A0001 (10.0.1.0/24) only, and no MP_REACH_NLRI. Attribute length 0020
-# (32), message length 003B (59).
-expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF003B02000000204001010040021202040000FDE80000FDE80000FDE80000FDE940030401010101180A0001
+# from the prepend intent, one from the EBGP export; NEXT_HOP 127.0.0.12
+# (bgp-rib eBGP local address); NLRI 180A0001 (10.0.1.0/24) only, and no
+# MP_REACH_NLRI. Attribute length 0020 (32), message length 003B (59).
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF003B02000000204001010040021202040000FDE80000FDE80000FDE80000FDE94003047F00000C180A0001
 EOF_DEST
 
 stdin=ze-bgp:terminator=EOF_CONF
-plugin {
-	internal rs {
-		use bgp-rs
+bus {
+	endpoint rs {
+		internal bgp-rib;
 	}
-	internal adj-rib-in {
-		use bgp-adj-rib-in
+	endpoint adj-rib-in {
+		internal bgp-adj-rib-in;
+		send {
+			message bgp:update {
+				to none;
+			}
+		}
 	}
-	external pyint {
-		run "./pyplug.run intents"
+	endpoint pyint {
+		external {
+			run "./pyplug.run intents";
+		}
 	}
-	# The relay observer: it waits until dest-peer was sent the route.
-	external test-strip {
-		run "le test fixture plugin/prefix-filter-modify-mp"
-		encoder json
+	endpoint test-strip {
+		external {
+			run "le test fixture plugin/prefix-filter-modify-mp";
+		}
+		encoding json;
 	}
 }
 policy {
@@ -180,6 +190,15 @@ policy {
 	}
 }
 
+fib {
+	dummy { }
+}
+static {
+	table default {
+		route 1.1.1.1/32 { next { interface lo { } } }
+		route 2001:db8::1/128 { next { interface lo { } } }
+	}
+}
 bgp {
 	# RFC 8212: an EBGP direction with no policy is refused; this test exchanges routes.
 	filter {
@@ -202,19 +221,12 @@ bgp {
 		filter {
 			import { filters [ ALL pyint:intents ]; final accept; }
 		}
-		attach process adj-rib-in {
-			receive [ update-received state ]
-		}
-		attach process rs {
-			receive [ update-received state open-received refresh ]
-			send [ update ]
-		}
 	}
 
 	peer dest-peer {
 		connection {
 			remote { ip 127.0.0.2; }
-			local { ip 127.0.0.2; accept false; }
+			local { ip 127.0.0.12; accept false; }
 		}
 		session {
 			asn { local 65000; remote 65002; }
@@ -226,14 +238,6 @@ bgp {
 		}
 		# bgp-rs asks adj-rib-in to replay the stored route here when this
 		# session establishes, so adj-rib-in needs the send permission.
-		attach process adj-rib-in {
-			receive [ update-received state ]
-			send [ update ]
-		}
-		attach process rs {
-			receive [ update-received state open-received refresh ]
-			send [ update ]
-		}
 	}
 }
 EOF_CONF

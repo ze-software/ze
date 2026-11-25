@@ -34,11 +34,22 @@ expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
 EOF_PLAIN
 
 stdin=ze-bgp:terminator=EOF_CONF
-plugin {
- internal rib { use rib; }
- internal gr { use bgp-gr; }
- internal bgp-rib { use bgp-rib; }
- external observer { run "le test fixture plugin/llgr-stale-received-depreferenced"; encoder json; }
+bus {
+  endpoint rib {
+    internal rib;
+  }
+  endpoint gr {
+    internal bgp-gr;
+  }
+  endpoint bgp-rib {
+    internal bgp-rib;
+  }
+  endpoint observer {
+    external {
+      run "le test fixture plugin/llgr-stale-received-depreferenced";
+    }
+    encoding json;
+  }
 }
 bgp {
  community { standard llgr-stale { value 65535:6; } }
@@ -54,9 +65,6 @@ bgp {
    import { filters [ bgp-filter-community:ingress ]; final accept; }
    ingress { community { strip llgr-stale; } }
   }
-  attach process gr { receive [ open state eor ]; send [ update ]; }
-  attach process bgp-rib { receive [ update state refresh ]; send [ update ]; }
-  attach process observer { receive [ state ]; }
  }
  peer plain {
   connection { remote { ip ::1; } local { ip ::1; accept false; } }
@@ -66,9 +74,6 @@ bgp {
    family { ipv4/unicast { prefix { maximum 10000; } } }
    capability { graceful-restart disable }
   }
-  attach process gr { receive [ open state eor ]; send [ update ]; }
-  attach process bgp-rib { receive [ update state refresh ]; send [ update ]; }
-  attach process observer { receive [ state ]; }
  }
 }
 EOF_CONF

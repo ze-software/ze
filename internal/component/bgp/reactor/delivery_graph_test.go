@@ -501,3 +501,113 @@ func TestRemovedPeerStaysInTheIndexUntilItsDownEvent(t *testing.T) {
 			"a completed removal leaves no edge for a removed peer")
 	}
 }
+
+func TestCentralBusEndpointReloadReconcilesPeers(t *testing.T) {
+	srv, err := pluginserver.NewServer(&pluginserver.ServerConfig{}, nil)
+	require.NoError(t, err)
+	snapshot := registry.Snapshot()
+	t.Cleanup(func() { registry.Restore(snapshot) })
+	require.NoError(t, registry.Register(registry.Registration{
+		Name:       "reload-added",
+		RunEngine:  func(net.Conn) int { return 0 },
+		CLIHandler: func([]string) int { return 0 },
+		Receives:   []rpc.MessageReceiveDecl{{Message: "bgp:state"}},
+	}))
+	require.NoError(t, registry.Register(registry.Registration{
+		Name:       "runtime-sub",
+		RunEngine:  func(net.Conn) int { return 0 },
+		CLIHandler: func([]string) int { return 0 },
+		Receives: []rpc.MessageReceiveDecl{
+			{Message: "bgp:state"},
+			{Message: "bgp:keepalive"},
+			{Message: "bgp:open"},
+		},
+	}))
+
+	// Initial bus config: reload-added has from none, runtime-sub allows state+keepalive.
+	srv.SetBusConfig(plugin.BusConfig{
+		Endpoints: map[string]plugin.BusBlock{
+			"reload-added": {
+				Receive: plugin.BusDirectionBlock{TargetsPresent: true, TargetsNone: true},
+			},
+			"runtime-sub": {
+				Receive: plugin.BusDirectionBlock{AllowPresent: true, Allow: []string{"bgp:state", "bgp:keepalive"}},
+			},
+		},
+	})
+
+	r := newTestReactor(t)
+	r.api = srv
+	ctx, cancel := context.WithCancel(context.Background())
+	t.Cleanup(cancel)
+	r.ctx = ctx
+	r.running = true
+
+	peerTree := map[string]any{
+		"router-id": "10.0.0.1",
+		"session":   map[string]any{"asn": map[string]any{"local": "65000"}},
+		"peer": map[string]any{
+			"peer1": map[string]any{
+				"connection": map[string]any{
+					"remote": map[string]any{"ip": "127.0.0.1", "connect": "false"},
+					"local":  map[string]any{"ip": "127.0.0.1"},
+				},
+				"session": map[string]any{"asn": map[string]any{"remote": "65000"}},
+			},
+		},
+	}
+	addPeersFromTree(t, r, peerTree)
+	r.mu.Lock()
+	r.publishDeliveryGraphLocked()
+	r.mu.Unlock()
+
+	// Case 1: reload-added gains from [/bgp/peer/peer1] -> diffEffectivePeerEdges sees gained=["reload-added"], deliverable=true (hot-swap).
+	before1 := r.DeliveryGraph()
+	srv.SetBusConfig(plugin.BusConfig{
+		Endpoints: map[string]plugin.BusBlock{
+			"reload-added": {
+				Receive: plugin.BusDirectionBlock{TargetsPresent: true, Targets: []string{"/bgp/peer/peer1"}},
+			},
+			"runtime-sub": {
+				Receive: plugin.BusDirectionBlock{AllowPresent: true, Allow: []string{"bgp:state", "bgp:keepalive"}},
+			},
+		},
+	})
+	newPeers1, err := PeersFromTree(peerTree)
+	require.NoError(t, err)
+	after1, err := srv.PreviewDeliveryGraph(bgpevents.Namespace, deliveryPeersFromSettings(newPeers1))
+	require.NoError(t, err)
+	diff1 := diffEffectivePeerEdges(before1, after1, "127.0.0.1")
+	require.True(t, diff1.changed, "adding /bgp/peer/peer1 on central bus endpoint must change effective edges")
+	require.Equal(t, []string{"reload-added"}, diff1.gained)
+	require.Contains(t, diff1.afterRecv["reload-added"], bgpevents.EventState)
+	require.True(t, effectiveBusDeliverable(&diff1, nil))
+
+	require.NoError(t, (&reactorAPIAdapter{r: r}).reconcilePeers(newPeers1, Globals{}, dynamicGroupsNotRead, "test reload 1"))
+	assert.Contains(t, recv(srv.DeliveryGraph(), bgpevents.EventState, events.DirUnspecified, "127.0.0.1"), "reload-added")
+
+	// Case 2: runtime-sub gains bgp:open (direction=received) -> gainedOpen=true, deliverable=false (restart).
+	before2 := r.DeliveryGraph()
+	srv.SetBusConfig(plugin.BusConfig{
+		Endpoints: map[string]plugin.BusBlock{
+			"reload-added": {
+				Receive: plugin.BusDirectionBlock{TargetsPresent: true, Targets: []string{"/bgp/peer/peer1"}},
+			},
+			"runtime-sub": {
+				Receive: plugin.BusDirectionBlock{
+					AllowPresent: true,
+					Allow:        []string{"bgp:state", "bgp:keepalive", "bgp:open"},
+					Messages: map[string]*plugin.BusMessageRule{
+						"bgp:open": {Tags: map[string][]string{"direction": {"received"}}},
+					},
+				},
+			},
+		},
+	})
+	after2, err := srv.PreviewDeliveryGraph(bgpevents.Namespace, deliveryPeersFromSettings(newPeers1))
+	require.NoError(t, err)
+	diff2 := diffEffectivePeerEdges(before2, after2, "127.0.0.1")
+	require.True(t, diff2.changed, "gaining bgp:open on central bus endpoint must change effective edges")
+	require.True(t, diff2.gainedOpen, "gaining bgp:open must set gainedOpen")
+	require.False(t, effectiveBusDeliverable(&diff2, nil), "gaining bgp:open must force peer restart")
+}

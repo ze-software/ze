@@ -21,10 +21,12 @@ expect=bgp:conn=1:seq=2:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF002D0306021741646D69
 EOF_PEER
 
 tmpfs=ze-bgp.conf:terminator=EOF_CONF
-plugin {
-	external drain-requester {
-		run "le test fixture plugin/drain-requester"
-		encoder json
+bus {
+	endpoint drain-requester {
+		external {
+			run "le test fixture plugin/drain-requester";
+		}
+		encoding json;
 	}
 }
 bgp {
@@ -53,9 +55,6 @@ bgp {
 		}
 		behavior {
 			group-updates disable
-		}
-		attach process drain-requester {
-			receive [ state ]
 		}
 	}
 }

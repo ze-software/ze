@@ -120,7 +120,20 @@ func withdrawSourceReady03(ctx context.Context, p *sdk.Plugin, peers int) error 
 // so without the hold forwarded can stay 0 under load.
 const bgpRSFastpathEnabled03 = "bgp-rs-fastpath.enabled"
 
+// bgpRSFastpathNextHopCover03 covers the 101.1.101.1 NEXT_HOP carried by
+// bgp-rs-fastpath.ci and bgp-rs-fastpath-replay.ci so RFC 4271 Section 9.1.2
+// next-hop admission admits 10.20.30.0/24 into the Loc-RIB.
+var bgpRSFastpathNextHopCover03 = terminalCovers{
+	label:     "bgp-rs-fastpath",
+	device:    "fastpath-fixture0",
+	instance:  4271,
+	addresses: []string{"101.1.101.1"},
+}
+
 func bgpRSFastpath03(ctx context.Context, p *sdk.Plugin) error {
+	if err := bgpRSFastpathNextHopCover03.seed(ctx, p); err != nil {
+		return err
+	}
 	value, err := done03(ctx, p, "request bgp rib fastpath enable")
 	if err != nil {
 		return err

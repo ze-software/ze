@@ -13,20 +13,24 @@ expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
 EOF_PEER
 
 tmpfs=doctor-missing-plugin.conf:terminator=EOF_DOCTOR_CONF
-plugin {
-    external feed {
-        run /nonexistent/ze-plugin-binary
-        encoder json
+bus {
+    endpoint feed {
+        external {
+            run /nonexistent/ze-plugin-binary;
+        }
+        encoding json;
     }
 }
 EOF_DOCTOR_CONF
 
 
 stdin=ze-conf:terminator=EOF_CONF
-plugin {
-    external doctor-owner-check-show {
-        run "le test fixture plugin/doctor-owner-check-show"
-        encoder json
+bus {
+    endpoint doctor-owner-check-show {
+        external {
+            run "le test fixture plugin/doctor-owner-check-show";
+        }
+        encoding json;
     }
 }
 

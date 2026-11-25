@@ -13,10 +13,12 @@ EOF_PEER
 
 # ze bgp configuration with add-path send
 stdin=ze-bgp:terminator=EOF_CONF
-plugin {
-	external addpath-test {
-		run "le test fixture plugin/config-addpath-mode"
-		encoder json
+bus {
+	endpoint addpath-test {
+		external {
+			run "le test fixture plugin/config-addpath-mode";
+		}
+		encoding json;
 	}
 }
 

@@ -8,11 +8,24 @@ option=netns-link:name=zesrproof
 option=timeout:value=150s
 
 stdin=ze-conf:terminator=EOF_CONF
-plugin {
-    external rib-import-test { run "le test fixture plugin/rib-import-tag-placement forked internal"; encoder json; }
-    external sysrib-owner { run "ze plugin rib"; encoder json; }
-    internal fib-kernel { use fib-kernel; }
-    internal static-owner { use static; }
+bus {
+    endpoint fib-kernel {
+        internal fib-kernel;
+    }
+    endpoint static-owner {
+        internal static;
+    }
+    endpoint rib-import-test {
+        external {
+            run "le test fixture plugin/rib-import-tag-placement forked internal";
+        }
+        encoding json;
+    }
+    endpoint sysrib-owner {
+        internal rib;
+        process separate;
+        encoding json;
+    }
 }
 fib { kernel { flush-on-stop true; } }
 rib {

@@ -106,7 +106,7 @@ func plugin14RunUntilShutdown(ctx context.Context, name string, updates []plugin
 		return nil
 	})
 
-	runErr := plugin.Run(ctx, &sdk.Registration{})
+	runErr := runObserver(ctx, plugin, &sdk.Registration{})
 	select {
 	case scenarioErr := <-result:
 		return errors.Join(scenarioErr, runErr)

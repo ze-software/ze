@@ -36,10 +36,12 @@ EOF_PEER
 
 # ze bgp configuration
 stdin=ze-bgp:terminator=EOF_CONF
-plugin {
-	external raw-injector {
-		run "le test fixture plugin/initial-sync-barrier-raw"
-		encoder json
+bus {
+	endpoint raw-injector {
+		external {
+			run "le test fixture plugin/initial-sync-barrier-raw";
+		}
+		encoding json;
 	}
 }
 bgp {
@@ -67,12 +69,6 @@ bgp {
 			group-updates disable
 		}
 
-		attach process raw-injector {
-			send [ raw ]
-			# Keep the session-ready reporter's state grant, but do not use its
-			# ready signal as an EOR-order assertion: the marker is independent.
-			receive [ state ]
-		}
 	}
 }
 EOF_CONF

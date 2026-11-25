@@ -42,14 +42,31 @@ EOF_PEER
 # state as well, and it drives the shutdown once its own event has arrived.
 
 stdin=ze-bgp:terminator=EOF_CONF
-plugin {
-	external receive-filter-state {
-		run "le test fixture plugin/attach-process-receive-filter-state"
-		encoder json
+bus {
+	endpoint receive-filter-state {
+		external {
+			run "le test fixture plugin/attach-process-receive-filter-state";
+		}
+		encoding json;
+		receive {
+			allow [ bgp:state ];
+			from [ /bgp/peer/peer1 ];
+		}
 	}
-	external receive-filter-update {
-		run "le test fixture plugin/attach-process-receive-filter-update"
-		encoder json
+	endpoint receive-filter-update {
+		external {
+			run "le test fixture plugin/attach-process-receive-filter-update";
+		}
+		encoding json;
+		receive {
+			allow [ bgp:update ];
+			from [ /bgp/peer/peer1 ];
+			message bgp:update {
+				tag direction {
+					value [ received ];
+				}
+			}
+		}
 	}
 }
 
@@ -81,12 +98,6 @@ bgp {
 		}
 		behavior {
 			group-updates disable
-		}
-		attach process receive-filter-state {
-			receive [ state ]
-		}
-		attach process receive-filter-update {
-			receive [ update-received ]
 		}
 	}
 }

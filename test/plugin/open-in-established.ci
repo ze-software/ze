@@ -43,18 +43,21 @@ option=timeout:value=15s
 # would trip that check instead and the test would pass for the wrong reason.
 action=send:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF001D0104FDE8005A0102030500
 
-# NOTIFICATION, Cease (6), subcode 0, no data: 21 bytes total.
-expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF0015030600
+# NOTIFICATION, Finite State Machine Error (5), subcode 3 (Receive Unexpected
+# Message in Established State, RFC 6608 Section 4), Data 0x01 (OPEN): 22 bytes total.
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF001603050301
 EOF_PEER
 
 # Native observer polls the monotonic session-drop counter after the exact Cease
 # frame has been observed.
 
 stdin=ze-bgp:terminator=EOF_CONF
-plugin {
-	external watch-down {
-		run "le test fixture plugin/open-in-established"
-		encoder json
+bus {
+	endpoint watch-down {
+		external {
+			run "le test fixture plugin/open-in-established";
+		}
+		encoding json;
 	}
 }
 

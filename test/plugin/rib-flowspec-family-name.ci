@@ -18,13 +18,15 @@
 # lookup, so the answer discriminates the spelling and nothing else.
 
 stdin=config:terminator=EOF_CONFIG
-plugin {
-	external engine-steps {
-		run "le mock engine-steps ./engine-steps.json"
-		encoder json
+bus {
+	endpoint bgp-rib {
+		internal bgp-rib;
 	}
-	internal bgp-rib {
-		use bgp-rib
+	endpoint engine-steps {
+		external {
+			run "le mock engine-steps ./engine-steps.json";
+		}
+		encoding json;
 	}
 }
 
@@ -51,10 +53,6 @@ bgp {
 			capability {
 				graceful-restart disable
 			}
-		}
-		attach process bgp-rib {
-			receive [ update state refresh ]
-			send [ update ]
 		}
 	}
 }

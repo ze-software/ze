@@ -29,10 +29,12 @@ expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
 EOF_PEER
 
 stdin=ze-bgp:terminator=EOF_CONF
-plugin {
-	external test-path-asn-show {
-		run "le test fixture plugin/path-asn-show"
-		encoder json
+bus {
+	endpoint test-path-asn-show {
+		external {
+			run "le test fixture plugin/path-asn-show";
+		}
+		encoding json;
 	}
 }
 policy {
@@ -71,9 +73,6 @@ bgp {
 			import { filters [ reject-asn-NO-TRANSIT ]; final accept; }
 		}
 
-		attach process test-path-asn-show {
-			receive [ update state ]
-		}
 	}
 }
 EOF_CONF

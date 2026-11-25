@@ -11,13 +11,15 @@ EOF_PEER
 
 
 stdin=ze-bgp:terminator=EOF_CONF
-plugin {
-	internal rs {
-		use bgp-rs
+bus {
+	endpoint rs {
+		internal bgp-rs;
 	}
-	external policy-test-export {
-		run "le test fixture plugin/policy-test-configured-export"
-		encoder json
+	endpoint policy-test-export {
+		external {
+			run "le test fixture plugin/policy-test-configured-export";
+		}
+		encoding json;
 	}
 }
 policy {

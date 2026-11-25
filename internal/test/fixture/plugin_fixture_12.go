@@ -93,7 +93,7 @@ func p12SubscribedDriver(name string, events []string, setup func(*sdk.Plugin) p
 			return nil
 		})
 
-		runErr := plugin.Run(ctx, &sdk.Registration{
+		runErr := runObserver(ctx, plugin, &sdk.Registration{
 			Receives: bgpReceiveDecls(events, nil),
 		})
 		select {
@@ -139,7 +139,7 @@ func p12WaitForDaemonDriver(name string, scenario p12Scenario) Driver {
 			}()
 			return nil
 		})
-		runErr := plugin.Run(ctx, &sdk.Registration{})
+		runErr := runObserver(ctx, plugin, &sdk.Registration{})
 		select {
 		case scenarioErr := <-result:
 			return errorsJoinP12(scenarioErr, runErr)

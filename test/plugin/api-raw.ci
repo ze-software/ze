@@ -25,10 +25,12 @@ EOF_PEER
 
 # ze bgp configuration
 stdin=ze-bgp:terminator=EOF_CONF
-plugin {
-	external raw-test {
-		run "le test fixture plugin/api-raw"
-		encoder json
+bus {
+	endpoint raw-test {
+		external {
+			run "le test fixture plugin/api-raw";
+		}
+		encoding json;
 	}
 }
 
@@ -58,9 +60,6 @@ bgp {
 		}
 		behavior {
 			group-updates disable
-		}
-		attach process raw-test {
-			send [ * ]
 		}
 	}
 }

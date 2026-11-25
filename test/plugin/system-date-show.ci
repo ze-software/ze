@@ -15,10 +15,12 @@ EOF_PEER
 
 
 stdin=ze-conf:terminator=EOF_CONF
-plugin {
-	external system-date-show-test {
-		run "le test fixture plugin/system-date-show"
-		encoder json
+bus {
+	endpoint system-date-show-test {
+		external {
+			run "le test fixture plugin/system-date-show";
+		}
+		encoding json;
 	}
 }
 

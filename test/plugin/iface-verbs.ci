@@ -3,7 +3,7 @@
 #
 # VALIDATES: the operator verbs registered in internal/component/iface/cmd/cmd.go
 #            (ze-iface:interface-create-dummy, -mtu, -mac, -up, -addr-add, -addr-del,
-#            -down, -delete) actually drive netlink and take effect, dispatched the
+#            -down, -delete) actually drive the netlink socket and take effect, dispatched the
 #            same way operators reach them: ze-plugin-engine:dispatch-command parses
 #            the CLI grammar (internal/component/iface/yang/ze-iface-cmd.yang) into the
 #            WireMethod + name selector + args each handler in
@@ -33,22 +33,24 @@ option=needs-linux:caps=net-admin
 
 
 stdin=ze-conf:terminator=EOF_CONF
-plugin {
-	external iface-verbs {
-		run "le test fixture plugin/iface-verbs"
-		encoder json
+bus {
+	endpoint iface-verbs {
+		external {
+			run "le test fixture plugin/iface-verbs";
+		}
+		encoding json;
 	}
 }
 
 # The interface block makes the iface component run OnConfigure ->
-# iface.LoadBackend("netlink"), giving the imperative ze-iface:* verbs an active
-# netlink backend to dispatch through (internal/component/iface/register.go:395-412;
-# backend defaults to netlink per internal/component/iface/config.go:302). Without it
+# iface.LoadBackend("kernel"), giving the imperative ze-iface:* verbs an active
+# kernel backend to dispatch through (internal/component/iface/register.go:395-412;
+# backend defaults to kernel per internal/component/iface/config.go:302). Without it
 # every verb returns "iface: no backend loaded". No interface is declared, so
 # applyConfig's managed set is empty and it creates/deletes nothing; zetest0 is built
 # entirely by the verbs under test.
 interface {
-	backend netlink
+	backend kernel
 }
 
 bgp {

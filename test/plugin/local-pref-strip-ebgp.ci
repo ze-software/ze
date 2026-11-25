@@ -44,6 +44,8 @@
 # nothing, so the observer below fails loudly when the destination was never sent
 # a real UPDATE.
 
+# Linux-only: static `next { interface lo { } }` resolves loopback `lo` via Linux netlink.
+option=needs-linux
 option=env:var=ze.log.bgp.forward:value=info
 
 # Source peer: INTERNAL (65000 -> 65000) on 127.0.0.1.
@@ -74,21 +76,36 @@ EOF_SOURCE
 stdin=dest-ebgp:terminator=EOF_DEST_EBGP
 option=tcp_connections:value=1
 option=timeout:value=20s
-expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF0036020000001B4001010040020602010000FDE840030401010101C00804FDE800C8180A0000
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF0036020000001B4001010040020602010000FDE84003047F00000CC00804FDE800C8180A0000
 EOF_DEST_EBGP
 
 
 stdin=ze-bgp:terminator=EOF_CONF
-plugin {
-	internal adj-rib-in {
-		use bgp-adj-rib-in
+bus {
+	endpoint adj-rib-in {
+		internal bgp-adj-rib-in;
+		send {
+			message bgp:update {
+				to none;
+			}
+		}
 	}
-	internal rs {
-		use bgp-rs
+	endpoint rs {
+		internal bgp-rib;
 	}
-	external test-localpref {
-		run "le test fixture plugin/local-pref-strip-ebgp"
-		encoder json
+	endpoint test-localpref {
+		external {
+			run "le test fixture plugin/local-pref-strip-ebgp";
+		}
+		encoding json;
+	}
+}
+fib {
+	dummy { }
+}
+static {
+	table default {
+		route 1.1.1.1/32 { next { interface lo { } } }
 	}
 }
 bgp {
@@ -117,14 +134,6 @@ bgp {
 				ipv4/unicast { prefix { maximum 10000; } }
 			}
 		}
-		attach process rs {
-			receive [ update-received state open-received refresh ]
-			send [ update ]
-		}
-		attach process adj-rib-in {
-			receive [ update-received state ]
-			send [ update ]
-		}
 	}
 
 	peer dest-ebgp-peer {
@@ -133,7 +142,7 @@ bgp {
 				ip 127.0.0.2
 			}
 			local {
-				ip 127.0.0.2
+				ip 127.0.0.12
 				accept false
 			}
 		}
@@ -146,14 +155,6 @@ bgp {
 			family {
 				ipv4/unicast { prefix { maximum 10000; } }
 			}
-		}
-		attach process rs {
-			receive [ update-received state open-received refresh ]
-			send [ update ]
-		}
-		attach process adj-rib-in {
-			receive [ update-received state ]
-			send [ update ]
 		}
 	}
 }

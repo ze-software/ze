@@ -21,9 +21,9 @@ expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
 EOF_PEER
 
 stdin=ze-bgp:terminator=EOF_CONF
-plugin {
-	internal rr {
-		use bgp-rs
+bus {
+	endpoint rr {
+		internal bgp-rs;
 	}
 }
 bgp {
@@ -41,6 +41,7 @@ bgp {
 			}
 		}
 		session {
+			rs-client true;
 			asn {
 				local 65001
 				remote 65001

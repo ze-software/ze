@@ -29,10 +29,12 @@
 
 
 stdin=ze-conf:terminator=EOF_CONF
-plugin {
-	external isis-show {
-		run "le test fixture isis/isis-show"
-		encoder json
+bus {
+	endpoint isis-show {
+		external {
+			run "le test fixture isis/isis-show";
+		}
+		encoding json;
 	}
 }
 

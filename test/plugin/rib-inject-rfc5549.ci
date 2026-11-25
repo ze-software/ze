@@ -31,16 +31,18 @@ EOF_PEER
 
 # ze bgp configuration
 stdin=ze-bgp:terminator=EOF_CONF
-plugin {
-	external rib-inject-rfc5549 {
-		run "le test fixture plugin/rib-inject-rfc5549"
-		encoder json
+bus {
+	endpoint bgp-rib {
+		internal bgp-rib;
 	}
-	internal bgp-rib {
-		use bgp-rib
+	endpoint rib {
+		internal rib;
 	}
-	internal rib {
-		use rib
+	endpoint rib-inject-rfc5549 {
+		external {
+			run "le test fixture plugin/rib-inject-rfc5549";
+		}
+		encoding json;
 	}
 }
 
@@ -72,10 +74,6 @@ bgp {
 			group-updates disable
 		}
 
-		attach process bgp-rib {
-			receive [ update state refresh ]
-			send [ update ]
-		}
 	}
 }
 EOF_CONF

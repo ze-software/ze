@@ -50,10 +50,12 @@ EOF_PEER
 
 # ze bgp configuration
 stdin=ze-bgp:terminator=EOF_CONF
-plugin {
-	external announce-routes {
-		run "le test fixture plugin/nexthop"
-		encoder json
+bus {
+	endpoint announce-routes {
+		external {
+			run "le test fixture plugin/nexthop";
+		}
+		encoding json;
 	}
 }
 bgp {
@@ -81,9 +83,6 @@ bgp {
 			receive-hold-time 30
 		}
 
-		attach process announce-routes {
-			send [ update ]
-		}
 	}
 }
 EOF_CONF

@@ -49,15 +49,15 @@ action=sigterm:conn=2:seq=5
 EOF_PEER
 
 stdin=ze-bgp:terminator=EOF_CONF
-plugin {
-	internal bgp-rib {
-		use bgp-rib
+bus {
+	endpoint bgp-rib {
+		internal bgp-rib;
 	}
-	internal rs {
-		use bgp-rs
+	endpoint rs {
+		internal bgp-rs;
 	}
-	internal adj-rib-in {
-		use bgp-adj-rib-in
+	endpoint adj-rib-in {
+		internal bgp-adj-rib-in;
 	}
 }
 bgp {
@@ -97,18 +97,6 @@ bgp {
 		behavior {
 			group-updates disable
 		}
-		attach process bgp-rib {
-			receive [ update state refresh ]
-			send [ update ]
-		}
-		attach process adj-rib-in {
-			receive [ update-received state ]
-			send [ update ]
-		}
-		attach process rs {
-			receive [ update-received state open-received refresh ]
-			send [ update ]
-		}
 	}
 	peer receiver {
 		connection {
@@ -138,18 +126,6 @@ bgp {
 		}
 		behavior {
 			group-updates disable
-		}
-		attach process bgp-rib {
-			receive [ update state refresh ]
-			send [ update ]
-		}
-		attach process adj-rib-in {
-			receive [ update-received state ]
-			send [ update ]
-		}
-		attach process rs {
-			receive [ update-received state open-received refresh ]
-			send [ update ]
 		}
 	}
 }

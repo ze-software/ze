@@ -33,10 +33,12 @@ service {
 	}
 }
 
-plugin {
-	external as112-health-test {
-		run "le test fixture plugin/as112-health"
-		encoder json
+bus {
+	endpoint as112-health-test {
+		external {
+			run "le test fixture plugin/as112-health";
+		}
+		encoding json;
 	}
 }
 

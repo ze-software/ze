@@ -1,6 +1,6 @@
 # Test: a hub client ca naming no pki ca entry is refused
 #
-# VALIDATES: the plugin hub client ca leaf declares ze:reference "pki-ca"
+# VALIDATES: the bus hub client ca leaf declares ze:reference "pki-ca"
 #            (ze-plugin-conf.yang), so `ze config validate` refuses a CA name
 #            the candidate's pki section does not define, naming the value, the
 #            ca entries that exist and the leaf, and accepts a defined one. The
@@ -16,7 +16,7 @@ pki {
 	}
 }
 
-plugin {
+bus {
 	hub {
 		client edge-01 {
 			host 127.0.0.1
@@ -35,7 +35,7 @@ pki {
 	}
 }
 
-plugin {
+bus {
 	hub {
 		client edge-01 {
 			host 127.0.0.1

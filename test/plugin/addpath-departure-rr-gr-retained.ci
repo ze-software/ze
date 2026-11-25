@@ -60,9 +60,16 @@ expect=bgp:conn=1:seq=3:contains=10AC10
 EOF_RECEIVER
 
 stdin=ze-bgp:terminator=EOF_CONF
-plugin {
-    internal relay { use bgp-rr; }
-    internal gr { use bgp-gr; }
+bus {
+    endpoint relay {
+        internal bgp-rr;
+    }
+    endpoint gr {
+        internal bgp-gr;
+    }
+    endpoint bgp-rib {
+        internal bgp-rib;
+    }
 }
 bgp {
     peer source {
@@ -84,18 +91,6 @@ bgp {
         }
         behavior { group-updates disable; }
         timer { connect-retry 5; }
-        attach process gr {
-            receive [ open-received state eor ]
-            send [ update ]
-        }
-        attach process relay {
-            receive [ update-received state open-received refresh ]
-            send [ update ]
-        }
-        attach process bgp-rib {
-            receive [ update state refresh ]
-            send [ update ]
-        }
     }
     peer receiver {
         connection {
@@ -115,14 +110,6 @@ bgp {
             }
         }
         behavior { group-updates disable; }
-        attach process relay {
-            receive [ update-received state open-received refresh ]
-            send [ update ]
-        }
-        attach process bgp-rib {
-            receive [ update state refresh ]
-            send [ update ]
-        }
     }
 }
 EOF_CONF

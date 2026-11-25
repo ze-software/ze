@@ -1,24 +1,25 @@
-# Valid config: a group attaches two processes
+# Valid config: two bus endpoints receive bgp:state from a group
 stdin=config:terminator=EOF_CONF
-plugin {
-	external my-process {
-		run "le test interop-bgp exabgp-api syslog"
-		encoder json
+bus {
+	endpoint my-process {
+		internal bgp-bmp
+		encoding json
+		receive {
+			allow [ bgp:state ]
+			from [ /bgp/group/test ]
+		}
 	}
-	external my-second-process {
-		run "le test interop-bgp exabgp-api stderr"
-		encoder json
+	endpoint my-second-process {
+		internal bgp-gr
+		encoding json
+		receive {
+			allow [ bgp:state ]
+			from [ /bgp/group/test ]
+		}
 	}
 }
 bgp {
 	group test {
-		attach process my-process {
-			receive [ state ]
-		}
-		attach process my-second-process {
-			receive [ state ]
-		}
-
 		peer peer3 {
 			connection {
 				remote {

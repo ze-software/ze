@@ -25,16 +25,18 @@ EOF_PEER
 
 # ze configuration -- eBGP: ze is AS 65001, peer is AS 64500.
 stdin=ze-bgp:terminator=EOF_CONF
-plugin {
-	external as112-ebgp-test {
-		run "le test fixture plugin/redistribute-as112-origin-ebgp"
-		encoder json
+bus {
+	endpoint redistribute-orchestrator {
+		internal redistribute-orchestrator;
 	}
-	internal redistribute-orchestrator {
-		use redistribute-orchestrator
+	endpoint fakeas112 {
+		internal fakeas112;
 	}
-	internal fakeas112 {
-		use fakeas112
+	endpoint as112-ebgp-test {
+		external {
+			run "le test fixture plugin/redistribute-as112-origin-ebgp";
+		}
+		encoding json;
 	}
 }
 
@@ -88,9 +90,6 @@ bgp {
 		}
 		behavior {
 			group-updates disable
-		}
-		attach process redistribute-orchestrator {
-			send [ update ]
 		}
 	}
 }

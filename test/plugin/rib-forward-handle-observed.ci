@@ -43,16 +43,18 @@ environment {
 	}
 }
 
-plugin {
-	external shutdown-after-update {
-		run "le test fixture plugin/rib-forward-handle-observed"
-		encoder json
+bus {
+	endpoint bgp-rib {
+		internal bgp-rib;
 	}
-	internal bgp-rib {
-		use bgp-rib
+	endpoint rib {
+		internal rib;
 	}
-	internal rib {
-		use rib
+	endpoint shutdown-after-update {
+		external {
+			run "le test fixture plugin/rib-forward-handle-observed";
+		}
+		encoding json;
 	}
 }
 
@@ -81,10 +83,6 @@ bgp {
 			}
 		}
 
-		attach process bgp-rib {
-			receive [ update state refresh ]
-			send [ update ]
-		}
 	}
 }
 EOF_CONF

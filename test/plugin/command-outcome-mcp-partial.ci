@@ -4,14 +4,18 @@
 # Healthy controls must have one data content item and isError false.
 
 stdin=ze-conf:terminator=EOF_CONF
-plugin {
-    external answer-outcome-provider {
-        run "le test fixture plugin/command-outcome-provider"
-        encoder json
+bus {
+    endpoint answer-outcome-provider {
+        external {
+            run "le test fixture plugin/command-outcome-provider";
+        }
+        encoding json;
     }
-    external answer-outcome-observer {
-        run "le test fixture plugin/command-outcome-mcp $PORT partial"
-        encoder json
+    endpoint answer-outcome-observer {
+        external {
+            run "le test fixture plugin/command-outcome-mcp $PORT partial";
+        }
+        encoding json;
     }
 }
 environment {

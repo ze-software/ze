@@ -90,9 +90,9 @@ EOF_PEER
 
 # ze bgp configuration
 stdin=ze-bgp:terminator=EOF_CONF
-plugin {
-	internal ribout {
-		use bgp-rib
+bus {
+	endpoint ribout {
+		internal bgp-rib;
 	}
 }
 bgp {
@@ -125,10 +125,6 @@ bgp {
 		# SignalsSessionReady, and `receive [ state ]` TELLS the process the
 		# session came up, which is the event its report answers. Deleting any
 		# one of them empties the barrier and reddens this file.
-		attach process ribout {
-			receive [ update state refresh ]
-			send [ update ]
-		}
 	}
 }
 EOF_CONF

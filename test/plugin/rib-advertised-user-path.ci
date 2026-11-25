@@ -16,13 +16,15 @@ EOF_PEER
 
 # ze bgp configuration
 stdin=ze-bgp:terminator=EOF_CONF
-plugin {
-	external rib-advertised-user-path {
-		run "le test fixture plugin/rib-advertised-user-path"
-		encoder json
+bus {
+	endpoint bgp-rib {
+		internal bgp-rib;
 	}
-	internal bgp-rib {
-		use bgp-rib
+	endpoint rib-advertised-user-path {
+		external {
+			run "le test fixture plugin/rib-advertised-user-path";
+		}
+		encoding json;
 	}
 }
 
@@ -54,13 +56,6 @@ bgp {
 			group-updates disable
 		}
 
-		attach process rib-advertised-user-path {
-			send [ update ]
-		}
-		attach process bgp-rib {
-			receive [ update state refresh ]
-			send [ update ]
-		}
 	}
 }
 EOF_CONF

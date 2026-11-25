@@ -65,9 +65,10 @@ stdin=dest-d:terminator=EOF_D
 option=tcp_connections:value=1
 option=linger:value=true
 option=established-file:path=d.up
-# Y relayed: AS_PATH [65000, 65002], NEXT_HOP 1.1.1.1 unchanged. A withdrawal
-# carries no path attribute, so only an announcement of Y satisfies this.
-expect=bgp:conn=1:seq=1:contains=40020A02020000FDE80000FDEA40030401010101
+# Y relayed to transparent RS client (RFC 7947 Section 2.2.2): AS_PATH [65002]
+# without AS 65000 prepend, NEXT_HOP 1.1.1.1 unchanged. A withdrawal carries no
+# path attribute, so only an announcement of Y satisfies this.
+expect=bgp:conn=1:seq=1:contains=40020602010000FDEA40030401010101
 reject=bgp:conn=1:scope=announced:pattern=180A0001
 EOF_D
 
@@ -83,9 +84,19 @@ reject=bgp:conn=1:scope=announced:pattern=180A0001
 EOF_E
 
 stdin=ze-bgp:terminator=EOF_CONF
-plugin {
-	internal rs {
-		use bgp-rs
+bus {
+	endpoint rs {
+		internal bgp-rs;
+		receive {
+			message bgp:update {
+				from [ /bgp/peer/src-g /bgp/peer/dest-d /bgp/peer/dest-e ];
+			}
+		}
+		send {
+			message bgp:update {
+				to [ /bgp/peer/src-n /bgp/peer/src-g /bgp/peer/dest-d ];
+			}
+		}
 	}
 }
 bgp {
@@ -110,6 +121,7 @@ bgp {
 				remote 65001
 			}
 			router-id 1.2.3.4
+			rs-client true
 			family {
 				ipv4/unicast { prefix { maximum 10000; } }
 			}
@@ -120,10 +132,6 @@ bgp {
 		behavior {
 			group-updates disable
 			rs-fast-path enable
-		}
-		attach process rs {
-			receive [ state open-received refresh ]
-			send [ update ]
 		}
 	}
 	peer src-g {
@@ -142,6 +150,7 @@ bgp {
 				remote 65002
 			}
 			router-id 1.2.3.4
+			rs-client true
 			family {
 				ipv4/unicast { prefix { maximum 10000; } }
 			}
@@ -152,10 +161,6 @@ bgp {
 		behavior {
 			group-updates disable
 			rs-fast-path enable
-		}
-		attach process rs {
-			receive [ update-received state open-received refresh ]
-			send [ update ]
 		}
 	}
 	peer dest-d {
@@ -174,6 +179,7 @@ bgp {
 				remote 65003
 			}
 			router-id 1.2.3.4
+			rs-client true
 			family {
 				ipv4/unicast { prefix { maximum 10000; } }
 			}
@@ -187,10 +193,6 @@ bgp {
 		behavior {
 			group-updates disable
 			rs-fast-path enable
-		}
-		attach process rs {
-			receive [ update-received state open-received refresh ]
-			send [ update ]
 		}
 	}
 	peer dest-e {
@@ -209,6 +211,7 @@ bgp {
 				remote 65004
 			}
 			router-id 1.2.3.4
+			rs-client true
 			family {
 				ipv4/unicast { prefix { maximum 10000; } }
 			}
@@ -219,9 +222,6 @@ bgp {
 		behavior {
 			group-updates disable
 			rs-fast-path enable
-		}
-		attach process rs {
-			receive [ update-received state open-received refresh ]
 		}
 	}
 }
@@ -239,10 +239,10 @@ expect=exit:code=0
 # refused peer, and bgp-rs reports one captured message refused by its original
 # destination. Together these identify Y's cached handback and E's missing send.
 expect=stderr:pattern=captured cached forward failed.*subsystem=bgp[.]rs ids=1 error=.*process rs may not send update messages to original destination.*send refused: no peer this selector names attaches this process.*original destination, process rs, send type update
-expect=stderr:pattern=send refused: this peer does not attach that process.*127\.0\.0\.4
-reject=stderr:pattern=send refused: this peer does not attach that process.*127\.0\.0\.[123][^0-9]
+expect=stderr:pattern=send refused: the compiled bus filter does not permit this process.*127\.0\.0\.4
+reject=stderr:pattern=send refused: the compiled bus filter does not permit this process.*127\.0\.0\.[123][^0-9]
 # The once-per-snapshot grant warnings name N's missing receive and E's missing send.
-expect=stderr:pattern=rs-fast-path: this peer does not grant.*127\.0\.0\.1.*update-received
-expect=stderr:pattern=rs-fast-path: this peer does not grant.*127\.0\.0\.4.*send \[ update \]
+expect=stderr:pattern=rs-fast-path: this peer does not grant.*127\.0\.0\.1.*send bgp:update \(direction received\)
+expect=stderr:pattern=rs-fast-path: this peer does not grant.*127\.0\.0\.4.*receive bgp:update
 reject=stderr:pattern=panic
 reject=stderr:pattern=fatal error

@@ -24,6 +24,8 @@
 #   AS_PATH: 40020602010000FDE9 (AS_SEQ [65001])
 #   NEXT_HOP: 40030401010101 (1.1.1.1)
 #   NLRI: 180A0001 180A0002 18C0A801 (10.0.1.0/24 10.0.2.0/24 192.168.1.0/24)
+# Linux-only: static `next { interface lo { } }` resolves loopback `lo` via Linux netlink.
+option=needs-linux
 stdin=source:terminator=EOF_SOURCE
 option=tcp_connections:value=1
 option=timeout:value=20s
@@ -35,23 +37,29 @@ stdin=dest:terminator=EOF_DEST
 option=tcp_connections:value=1
 option=timeout:value=20s
 # The relayed UPDATE: AS_PATH [65000 65001] (40020A02020000FDE80000FDE9),
-# NEXT_HOP 1.1.1.1 kept, NLRI 180A0001 (10.0.1.0/24) only; attribute length
-# 0018 (24), message length 0033 (51).
-expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF003302000000184001010040020A02020000FDE80000FDE940030401010101180A0001
+# NEXT_HOP 127.0.0.12 (bgp-rib eBGP local address), NLRI 180A0001 (10.0.1.0/24)
+# only; attribute length 0018 (24), message length 0033 (51).
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF003302000000184001010040020A02020000FDE80000FDE94003047F00000C180A0001
 EOF_DEST
 
 stdin=ze-bgp:terminator=EOF_CONF
-plugin {
-	internal rs {
-		use bgp-rs
+bus {
+	endpoint rs {
+		internal bgp-rib;
 	}
-	internal adj-rib-in {
-		use bgp-adj-rib-in
+	endpoint adj-rib-in {
+		internal bgp-adj-rib-in;
+		send {
+			message bgp:update {
+				to none;
+			}
+		}
 	}
-	# The relay observer: it waits until dest-peer was sent the route.
-	external test-strip {
-		run "le test fixture plugin/prefix-filter-modify-mp"
-		encoder json
+	endpoint test-strip {
+		external {
+			run "le test fixture plugin/prefix-filter-modify-mp";
+		}
+		encoding json;
 	}
 }
 policy {
@@ -70,6 +78,14 @@ policy {
 	}
 }
 
+fib {
+	dummy { }
+}
+static {
+	table default {
+		route 1.1.1.1/32 { next { interface lo { } } }
+	}
+}
 bgp {
 	# RFC 8212: an EBGP direction with no policy is refused; this test exchanges routes.
 	filter {
@@ -89,19 +105,12 @@ bgp {
 		filter {
 			import { filters [ CUSTOMER-IN ]; final accept; }
 		}
-		attach process adj-rib-in {
-			receive [ update-received state ]
-		}
-		attach process rs {
-			receive [ update-received state open-received refresh ]
-			send [ update ]
-		}
 	}
 
 	peer dest-peer {
 		connection {
 			remote { ip 127.0.0.2; }
-			local { ip 127.0.0.2; accept false; }
+			local { ip 127.0.0.12; accept false; }
 		}
 		session {
 			asn { local 65000; remote 65002; }
@@ -113,14 +122,6 @@ bgp {
 		}
 		# bgp-rs asks adj-rib-in to replay the stored route here when this
 		# session establishes, so adj-rib-in needs the send permission.
-		attach process adj-rib-in {
-			receive [ update-received state ]
-			send [ update ]
-		}
-		attach process rs {
-			receive [ update-received state open-received refresh ]
-			send [ update ]
-		}
 	}
 }
 EOF_CONF

@@ -45,6 +45,37 @@ func TestAdjOutWithdrawalNLRIUnicast(t *testing.T) {
 	require.Equal(t, raw, wire)
 }
 
+// TestAdjOutWithdrawalNLRIOverflow proves an NLRI longer than the inline
+// 33-octet fwdPathKey.nlri array (such as a 49-octet BGP-LS VPN NLRI stored in
+// overflow) rebuilds its withdrawal and stages its announcement owe without
+// slicing past the inline array bound.
+func TestAdjOutWithdrawalNLRIOverflow(t *testing.T) {
+	bgplsVPN := family.Family{AFI: family.AFI(16388), SAFI: family.SAFI(72)}
+	// 49-octet BGP-LS VPN Node NLRI (exceeds fwdPathNLRIMax = 33).
+	raw := []byte{
+		0x00, 0x01, 0x00, 0x2d,
+		0x00, 0x00, 0xfd, 0xe9, 0x00, 0x00, 0x00, 0x07,
+		0x03,
+		0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x01, 0x00,
+		0x01, 0x00, 0x00, 0x18,
+		0x02, 0x00, 0x00, 0x04, 0x00, 0x00, 0xfd, 0xe9,
+		0x02, 0x01, 0x00, 0x04, 0x12, 0x34, 0x56, 0x78,
+		0x02, 0x03, 0x00, 0x04, 0xc0, 0x00, 0x02, 0x09,
+	}
+	key := adjOutTestKey(t, bgplsVPN, 0, raw, false)
+	require.NotEmpty(t, key.path.overflow)
+	require.Greater(t, int(key.path.length), len(key.path.nlri))
+
+	wire, err := adjOutWithdrawalNLRI(key, &adjRIBOutRoute{})
+	require.NoError(t, err)
+	require.Equal(t, raw, wire)
+
+	var w adjOutWrite
+	owe := w.stageAnnouncementOwe(bgplsVPN, key, raw)
+	require.Equal(t, bgplsVPN, owe.family)
+	require.Equal(t, raw, owe.nlri)
+}
+
 // TestAdjOutWithdrawalBatches proves the snapshot is per family, honors the
 // family filter, and holds nothing for a session the table is not bound to.
 func TestAdjOutWithdrawalBatches(t *testing.T) {

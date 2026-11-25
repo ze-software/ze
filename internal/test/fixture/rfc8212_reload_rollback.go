@@ -7,9 +7,11 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"io/fs"
 	"net"
 	"os"
 	"reflect"
+	"time"
 
 	"github.com/ze-software/ze/internal/component/config"
 	"github.com/ze-software/ze/internal/component/config/storage"
@@ -236,12 +238,29 @@ func rfc8212ReloadOwner(ctx context.Context, p *sdk.Plugin, wire *rfc8212ReloadW
 }
 
 func rfc8212ReloadActive() ([]byte, error) {
-	store, err := openDaemonStoreReadOnly(os.Environ(), ".")
-	if err != nil {
-		return nil, err
+	// The daemon records the boot configuration asynchronously after startup
+	// (cmd/ze/hub/main.go bootRecord.Start), so an external observer reading the
+	// disk store directly right after peers come up can arrive before file/active
+	// lands. Poll briefly while the boot record finishes.
+	deadline := time.Now().Add(5 * time.Second)
+	for {
+		store, err := openDaemonStoreReadOnly(os.Environ(), ".")
+		if err != nil {
+			return nil, err
+		}
+		active, readErr := storage.ReadActiveConfig(store, fileBGPConf)
+		closeErr := store.Close()
+		if readErr == nil {
+			return active, closeErr
+		}
+		if !errors.Is(readErr, fs.ErrNotExist) {
+			return active, errors.Join(readErr, closeErr)
+		}
+		if time.Now().After(deadline) {
+			return active, errors.Join(readErr, closeErr)
+		}
+		time.Sleep(50 * time.Millisecond)
 	}
-	active, readErr := storage.ReadActiveConfig(store, fileBGPConf)
-	return active, errors.Join(readErr, store.Close())
 }
 
 func rfc8212ReloadDurable(want []byte) error {

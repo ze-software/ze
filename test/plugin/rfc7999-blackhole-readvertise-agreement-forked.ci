@@ -33,6 +33,8 @@
 #   COMMUNITY C00804FFFF029A (65535:666, BLACKHOLE, RFC 7999 Section 2), NLRI 180A0000
 # UPDATE 2 (fence):  same without COMMUNITY, NLRI 180A0001 (10.0.1.0/24)
 
+# Linux-only: static `next { interface lo { } }` resolves loopback `lo` via Linux netlink.
+option=needs-linux
 stdin=peer:terminator=EOF_PEER
 option=tcp_connections:value=1
 option=timeout:value=20s
@@ -101,20 +103,50 @@ expect=bgp:conn=1:seq=1:announced=180A0001
 EOF_DESTF
 
 stdin=ze-bgp:terminator=EOF_CONF
-plugin {
-	hub { server local { ip 127.0.0.1; port 0; secret rfc7999-blackhole-readvertise-agreement-forked-secret-0001; } }
-	external bgp-filter-community { run "ze plugin bgp-filter-community"; }
-	internal adj-rib-in {
-		use bgp-adj-rib-in
+bus {
+	endpoint bgp-rib {
+		internal bgp-rib;
+		send {
+			message bgp:update {
+				to [ /bgp/peer/peer-b /bgp/peer/peer-c /bgp/peer/peer-d /bgp/peer/peer-f ];
+			}
+		}
 	}
-	internal rs {
-		use bgp-rs
+	endpoint adj-rib-in {
+		internal bgp-adj-rib-in;
+		send {
+			message bgp:update {
+				to none;
+			}
+		}
 	}
-	# Fence: holds the daemon until the forwarding decision for both routes
-	# is made, then requests the clean shutdown (the ze-peers linger).
-	external test-blackhole {
-		run "le test fixture plugin/rfc7999-blackhole-readvertise-agreement"
-		encoder json
+	endpoint rs {
+		internal bgp-rs;
+	}
+	endpoint bgp-filter-community {
+		internal bgp-filter-community;
+		process separate;
+	}
+	endpoint test-blackhole {
+		external {
+			run "le test fixture plugin/rfc7999-blackhole-readvertise-agreement";
+		}
+		encoding json;
+	}
+	hub {
+		server local {
+			ip 127.0.0.1;
+			port 0;
+			secret rfc7999-blackhole-readvertise-agreement-forked-secret-0001;
+		}
+	}
+}
+fib {
+	dummy { }
+}
+static {
+	table default {
+		route 1.1.1.1/32 { next { interface lo { } } }
 	}
 }
 bgp {
@@ -129,6 +161,7 @@ bgp {
 			local { ip 127.0.0.1; accept false; }
 		}
 		session {
+			rs-client true;
 			asn { local 65000; remote 65001; }
 			router-id 1.2.3.4
 			family {
@@ -136,19 +169,11 @@ bgp {
 			}
 			capability { graceful-restart disable; }
 		}
-		attach process rs {
-			receive [ update-received state open-received refresh ]
-			send [ update ]
-		}
-		attach process adj-rib-in {
-			receive [ update-received state ]
-			send [ update ]
-		}
 	}
 	peer peer-b {
 		connection {
 			remote { ip 127.0.0.2; }
-			local { ip 127.0.0.2; accept false; }
+			local { ip 127.0.0.12; accept false; }
 		}
 		session {
 			asn { local 65000; remote 65002; }
@@ -161,19 +186,11 @@ bgp {
 		blackhole {
 			communities [ blackhole ]
 		}
-		attach process rs {
-			receive [ update-received state open-received refresh ]
-			send [ update ]
-		}
-		attach process adj-rib-in {
-			receive [ update-received state ]
-			send [ update ]
-		}
 	}
 	peer peer-c {
 		connection {
 			remote { ip 127.0.0.3; }
-			local { ip 127.0.0.3; accept false; }
+			local { ip 127.0.0.13; accept false; }
 		}
 		session {
 			asn { local 65000; remote 65003; }
@@ -182,14 +199,6 @@ bgp {
 				ipv4/unicast { prefix { maximum 10000; } }
 			}
 			capability { graceful-restart disable; }
-		}
-		attach process rs {
-			receive [ update-received state open-received refresh ]
-			send [ update ]
-		}
-		attach process adj-rib-in {
-			receive [ update-received state ]
-			send [ update ]
 		}
 	}
 	peer peer-d {
@@ -204,14 +213,6 @@ bgp {
 				ipv4/unicast { prefix { maximum 10000; } }
 			}
 			capability { graceful-restart disable; }
-		}
-		attach process rs {
-			receive [ update-received state open-received refresh ]
-			send [ update ]
-		}
-		attach process adj-rib-in {
-			receive [ update-received state ]
-			send [ update ]
 		}
 	}
 	peer peer-e {
@@ -228,14 +229,6 @@ bgp {
 			}
 			capability { graceful-restart disable; }
 		}
-		attach process rs {
-			receive [ update-received state open-received refresh ]
-			send [ update ]
-		}
-		attach process adj-rib-in {
-			receive [ update-received state ]
-			send [ update ]
-		}
 	}
 	peer peer-f {
 		connection {
@@ -249,14 +242,6 @@ bgp {
 				ipv4/unicast { prefix { maximum 10000; } }
 			}
 			capability { graceful-restart disable; }
-		}
-		attach process rs {
-			receive [ update-received state open-received refresh ]
-			send [ update ]
-		}
-		attach process adj-rib-in {
-			receive [ update-received state ]
-			send [ update ]
 		}
 	}
 }

@@ -63,13 +63,15 @@ EOF_PEER
 
 
 stdin=ze-bgp:terminator=EOF_CONF
-plugin {
-	external prefix-count-offered {
-		run "le test fixture plugin/prefix-count-offered"
-		encoder json
+bus {
+	endpoint bgp-rib {
+		internal bgp-rib;
 	}
-	internal bgp-rib {
-		use bgp-rib
+	endpoint prefix-count-offered {
+		external {
+			run "le test fixture plugin/prefix-count-offered";
+		}
+		encoding json;
 	}
 }
 
@@ -124,10 +126,6 @@ bgp {
 			nlri {
 				ipv4/unicast add 192.168.1.0/24
 			}
-		}
-		attach process bgp-rib {
-			receive [ update state refresh ]
-			send [ update ]
 		}
 	}
 }

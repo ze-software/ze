@@ -23,10 +23,12 @@
 #   compiled, so a broken module was accepted in silence and the daemon ran.
 
 tmpfs=ze.conf:terminator=EOF_CONF
-plugin {
-	external broken-module {
-		run "le test fixture plugin/external-yang invalid"
-		encoder json
+bus {
+	endpoint broken-module {
+		external {
+			run "le test fixture plugin/external-yang invalid";
+		}
+		encoding json;
 	}
 }
 EOF_CONF

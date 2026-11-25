@@ -13,10 +13,12 @@ option=timeout:value=20s
 # Native observer fixture: plugin/rr-status-show.
 
 stdin=ze-bgp:terminator=EOF_CONF
-plugin {
-    external rr-status-test {
-        run "le test fixture plugin/rr-status-show";
-        encoder json;
+bus {
+    endpoint rr-status-test {
+        external {
+            run "le test fixture plugin/rr-status-show";
+        }
+        encoding json;
     }
 }
 bgp {
@@ -45,9 +47,6 @@ bgp {
                 ipv4/unicast { prefix { maximum 10000; } }
             }
             route-reflector-client true
-        }
-        attach process rr-status-test {
-            receive [ state ]
         }
     }
 }

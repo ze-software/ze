@@ -20,10 +20,12 @@
 # the recording backend holds it instead (dataplane/recording_zetest.go).
 option=env:var=ze_test_ike_dataplane:value=recording
 stdin=config:terminator=EOF_CONFIG
-plugin {
-	external engine-steps {
-		run "le mock engine-steps ./engine-steps.json"
-		encoder json
+bus {
+	endpoint engine-steps {
+		external {
+			run "le mock engine-steps ./engine-steps.json";
+		}
+		encoding json;
 	}
 }
 

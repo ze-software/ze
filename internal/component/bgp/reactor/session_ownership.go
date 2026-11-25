@@ -746,9 +746,11 @@ func adjOutContests(entry *adjRIBOutRoute, owner adjOutPath, owed, tombstoned bo
 // RFC 8277 Section 2.4: "Upon transmission, the Compatibility field SHOULD be
 // set to 0x800000."
 func (w *adjOutWrite) stageAnnouncementOwe(fam family.Family, key adjOutKey, raw []byte) adjOutOwe {
-	native := key.path.nlri[:key.path.length]
+	var native []byte
 	if key.path.overflow != "" {
 		native = []byte(key.path.overflow) // Cold: a key longer than the inline array.
+	} else {
+		native = key.path.nlri[:key.path.length]
 	}
 	start := len(w.oweNLRI)
 	w.oweNLRI = slices.Grow(w.oweNLRI, len(native)+3)

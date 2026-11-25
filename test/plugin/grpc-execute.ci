@@ -17,10 +17,12 @@ EOF_PEER
 
 # ze bgp configuration with gRPC API enabled
 stdin=ze-bgp:terminator=EOF_CONF
-plugin {
-	external grpc-test {
-		run "le test fixture plugin/grpc-execute"
-		encoder json
+bus {
+	endpoint grpc-test {
+		external {
+			run "le test fixture plugin/grpc-execute";
+		}
+		encoding json;
 	}
 }
 

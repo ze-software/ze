@@ -56,15 +56,17 @@ service {
 	}
 }
 
-plugin {
-	external dns-resolver-forward-default-test {
-		run "le test fixture plugin/dns-resolver-forward-default config2.conf"
-		encoder json
+bus {
+	endpoint dns-resolver-forward-default-test {
+		external {
+			run "le test fixture plugin/dns-resolver-forward-default config2.conf";
+		}
+		encoding json;
 	}
 }
 
 interface {
-	backend netlink
+	backend kernel
 
 	veth zerfwd0 {
 		peer zerfwd1
@@ -100,15 +102,17 @@ service {
 	}
 }
 
-plugin {
-	external dns-resolver-forward-default-test {
-		run "le test fixture plugin/dns-resolver-forward-default config2.conf"
-		encoder json
+bus {
+	endpoint dns-resolver-forward-default-test {
+		external {
+			run "le test fixture plugin/dns-resolver-forward-default config2.conf";
+		}
+		encoding json;
 	}
 }
 
 interface {
-	backend netlink
+	backend kernel
 
 	veth zerfwd0 {
 		peer zerfwd1

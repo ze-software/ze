@@ -24,11 +24,15 @@ EOF_PEER
 # Native observer fixture: plugin/peer-families-show rs.
 
 stdin=ze-bgp:terminator=EOF_CONF
-plugin {
-	internal relay { use bgp-rs; }
-	external peer-families-show {
-		run "le test fixture plugin/peer-families-show rs"
-		encoder json
+bus {
+	endpoint relay {
+		internal bgp-rs;
+	}
+	endpoint peer-families-show {
+		external {
+			run "le test fixture plugin/peer-families-show rs";
+		}
+		encoding json;
 	}
 }
 bgp {
@@ -51,6 +55,7 @@ bgp {
 			}
 		}
 		session {
+			rs-client true;
 			asn {
 				local 65000
 				remote 65001
@@ -62,10 +67,6 @@ bgp {
 			capability {
 				graceful-restart disable
 			}
-		}
-		attach process relay {
-			receive [ update-received state open-received refresh ]
-			send [ update ]
 		}
 	}
 }

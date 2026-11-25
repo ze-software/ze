@@ -13,10 +13,12 @@ EOF_PEER
 
 
 stdin=ze-bgp:terminator=EOF_CONF
-plugin {
-	external bgp-health-show-test {
-		run "le test fixture plugin/bgp-health-show"
-		encoder json
+bus {
+	endpoint bgp-health-show-test {
+		external {
+			run "le test fixture plugin/bgp-health-show";
+		}
+		encoding json;
 	}
 }
 

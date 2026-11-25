@@ -20,9 +20,9 @@ EOF_PEER
 
 # ze bgp configuration with internal RS plugin
 stdin=ze-bgp:terminator=EOF_CONF
-plugin {
-	internal rr {
-		use bgp-rs
+bus {
+	endpoint rr {
+		internal bgp-rs;
 	}
 }
 bgp {
@@ -37,6 +37,7 @@ bgp {
 			}
 		}
 		session {
+			rs-client true;
 			asn {
 				local 65001
 				remote 65001

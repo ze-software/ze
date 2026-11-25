@@ -11,10 +11,12 @@ EOF_PEER
 
 
 stdin=ze-bgp:terminator=EOF_CONF
-plugin {
-	external capture-interface-show-test {
-		run "le test fixture plugin/capture-interface-show"
-		encoder json
+bus {
+	endpoint capture-interface-show-test {
+		external {
+			run "le test fixture plugin/capture-interface-show";
+		}
+		encoding json;
 	}
 }
 

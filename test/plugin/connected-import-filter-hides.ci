@@ -8,12 +8,21 @@ option=netns-link:name=zesrproof
 option=timeout:value=150s
 
 stdin=ze-conf:terminator=EOF_CONF
-plugin {
-    external rib-import-test { run "le test fixture plugin/connected-import-filter-hides internal"; encoder json; }
-    internal sysrib-owner { use rib; }
-    internal fib-kernel { use fib-kernel; }
+bus {
+    endpoint sysrib-owner {
+        internal rib;
+    }
+    endpoint fib-kernel {
+        internal fib-kernel;
+    }
+    endpoint rib-import-test {
+        external {
+            run "le test fixture plugin/connected-import-filter-hides internal";
+        }
+        encoding json;
+    }
 }
-interface { backend netlink; }
+interface { backend kernel; }
 fib { kernel { flush-on-stop true; } }
 rib { }
 policy {

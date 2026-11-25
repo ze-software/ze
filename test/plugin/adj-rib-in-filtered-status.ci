@@ -15,16 +15,18 @@ expect=bgp:conn=1:seq=2:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF002D0306021741646D69
 EOF_PEER
 
 stdin=ze-bgp:terminator=EOF_CONF
-plugin {
-	external filtered-status-check {
-		run "le test fixture plugin/adj-rib-in-filtered-status"
-		encoder json
+bus {
+	endpoint adj-rib-in {
+		internal bgp-adj-rib-in;
 	}
-	internal adj-rib-in {
-		use bgp-adj-rib-in
+	endpoint bgp-filter-prefix {
+		internal bgp-filter-prefix;
 	}
-	internal bgp-filter-prefix {
-		use bgp-filter-prefix
+	endpoint filtered-status-check {
+		external {
+			run "le test fixture plugin/adj-rib-in-filtered-status";
+		}
+		encoding json;
 	}
 }
 policy {
@@ -51,9 +53,6 @@ bgp {
 		filter {
 			import { filters [ match-deny-one ]; final accept; }
 			export { final accept; }
-		}
-		attach process adj-rib-in {
-			receive [ update-received update-filtered-received state ]
 		}
 	}
 }

@@ -146,6 +146,9 @@ func mcpHiddenCommand09(ctx context.Context, _ []string) error {
 
 func medLocallySet09(ctx context.Context, _ []string) error {
 	return passiveObserve09(ctx, "med-local", &sdk.Registration{}, func(ctx context.Context, p *sdk.Plugin) error {
+		if err := fixture10WaitEOR(ctx, p, "peer1", 60); err != nil {
+			return err
+		}
 		announced, withdrawn, err := p.UpdateRoute(ctx, "*", "update text origin igp med 100 nhop 101.1.101.1 nlri add 1.0.0.1/32")
 		if err != nil {
 			return err
@@ -260,7 +263,7 @@ func medRawDrop09(ctx context.Context, _ []string) error {
 		}()
 		return nil
 	})
-	runErr := plugin.Run(ctx, &sdk.Registration{Filters: []sdk.FilterDecl{{Name: "drop-med-raw", Direction: sdk.FilterExport, Reads: []string{sdk.FilterFieldRaw}, OnError: sdk.OnErrorReject}}})
+	runErr := runObserver(ctx, plugin, &sdk.Registration{Filters: []sdk.FilterDecl{{Name: "drop-med-raw", Direction: sdk.FilterExport, Reads: []string{sdk.FilterFieldRaw}, OnError: sdk.OnErrorReject}}})
 	return awaitObserverResult(started, result, runErr)
 }
 
@@ -310,7 +313,7 @@ func rsObserver09(_ string, expectedPeers int) Driver {
 			}()
 			return nil
 		})
-		runErr := plugin.Run(ctx, &sdk.Registration{
+		runErr := runObserver(ctx, plugin, &sdk.Registration{
 			Receives: bgpReceiveDecls([]string{eventUpdate}, nil),
 		})
 		select {
@@ -589,7 +592,7 @@ func accumulatorIsolation09(ctx context.Context, _ []string) error {
 		}()
 		return nil
 	})
-	runErr := plugin.Run(ctx, &sdk.Registration{
+	runErr := runObserver(ctx, plugin, &sdk.Registration{
 		Receives: bgpReceiveDecls([]string{eventUpdate}, nil),
 	})
 	return awaitObserverResult(started, result, runErr)

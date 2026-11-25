@@ -20,23 +20,25 @@ EOF_PEER
 # native observer: subscribe to rpki events, check aspa-state=valid
 # Native compiled fixture: plugin/rpki-aspa-valid
 stdin=ze-bgp:terminator=EOF_CONF
-plugin {
+bus {
+	endpoint rpki {
+		internal bgp-rpki;
+	}
+	endpoint adj-rib-in {
+		internal bgp-adj-rib-in;
+	}
+	endpoint rpki-aspa-valid-test {
+		external {
+			run "le test fixture plugin/rpki-aspa-valid";
+		}
+		encoding json;
+	}
 	hub {
 		server local {
 			ip 127.0.0.1;
 			port 0;
 			secret rpki-test-secret-key-01234567890;
 		}
-	}
-	external rpki-aspa-valid-test {
-		run "le test fixture plugin/rpki-aspa-valid"
-		encoder json
-	}
-	internal rpki {
-		use bgp-rpki
-	}
-	internal adj-rib-in {
-		use bgp-adj-rib-in
 	}
 }
 
@@ -80,15 +82,6 @@ bgp {
 			group-updates disable
 		}
 
-		attach process rpki-aspa-valid-test {
-			receive [ rpki-received ]
-		}
-		attach process rpki {
-			receive [ update-received state ]
-		}
-		attach process adj-rib-in {
-			receive [ update-received state ]
-		}
 	}
 }
 EOF_CONF

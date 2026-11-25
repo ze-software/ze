@@ -13,10 +13,12 @@ EOF_PEER
 
 # ze bgp configuration
 stdin=ze-bgp:terminator=EOF_CONF
-plugin {
-	external dashboard-test {
-		run "le test fixture plugin/bgp-monitor-dashboard"
-		encoder json
+bus {
+	endpoint dashboard-test {
+		external {
+			run "le test fixture plugin/bgp-monitor-dashboard";
+		}
+		encoding json;
 	}
 }
 

@@ -25,7 +25,7 @@ import (
 const (
 	fleetOrphanDivergedCode = "doctor-managed-client-diverged"
 	fleetOrphanDeclaredText = "the managed client " + caTrustClientName + " holds"
-	fleetOrphanText         = "no plugin hub server block declares " + caTrustClientName + ", so the copy is orphaned"
+	fleetOrphanText         = "no bus hub server block declares " + caTrustClientName + ", so the copy is orphaned"
 	fleetOrphanFixDeclare   = "declare client " + caTrustClientName + " again"
 	// What the fix says before the command it names, and the copy's key.
 	fleetOrphanFixRemove = "remove the copy with the hub stopped: "

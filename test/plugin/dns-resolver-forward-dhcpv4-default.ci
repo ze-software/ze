@@ -69,15 +69,17 @@ service {
 	}
 }
 
-plugin {
-	external dns-resolver-forward-dhcpv4-default-test {
-		run "le test fixture plugin/dns-resolver-forward-dhcpv4-default config2.conf"
-		encoder json
+bus {
+	endpoint dns-resolver-forward-dhcpv4-default-test {
+		external {
+			run "le test fixture plugin/dns-resolver-forward-dhcpv4-default config2.conf";
+		}
+		encoding json;
 	}
 }
 
 interface {
-	backend netlink
+	backend kernel
 
 	veth zerd40 {
 		peer zerd41
@@ -129,15 +131,17 @@ service {
 	}
 }
 
-plugin {
-	external dns-resolver-forward-dhcpv4-default-test {
-		run "le test fixture plugin/dns-resolver-forward-dhcpv4-default config2.conf"
-		encoder json
+bus {
+	endpoint dns-resolver-forward-dhcpv4-default-test {
+		external {
+			run "le test fixture plugin/dns-resolver-forward-dhcpv4-default config2.conf";
+		}
+		encoding json;
 	}
 }
 
 interface {
-	backend netlink
+	backend kernel
 
 	veth zerd40 {
 		peer zerd41

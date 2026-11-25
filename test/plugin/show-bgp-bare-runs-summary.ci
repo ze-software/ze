@@ -19,10 +19,12 @@ EOF_PEER
 # Native observer fixture: plugin/show-bgp-bare-runs-summary.
 
 stdin=ze-bgp:terminator=EOF_CONF
-plugin {
-	external bare-show-bgp {
-		run "le test fixture plugin/show-bgp-bare-runs-summary"
-		encoder json
+bus {
+	endpoint bare-show-bgp {
+		external {
+			run "le test fixture plugin/show-bgp-bare-runs-summary";
+		}
+		encoding json;
 	}
 }
 

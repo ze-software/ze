@@ -22,10 +22,12 @@ EOF_PEER
 
 # ze bgp configuration -- sets a custom write deadline via env var
 stdin=ze-bgp:terminator=EOF_CONF
-plugin {
-	external deadline-test {
-		run "le test fixture plugin/forward-write-deadline"
-		encoder json
+bus {
+	endpoint deadline-test {
+		external {
+			run "le test fixture plugin/forward-write-deadline";
+		}
+		encoding json;
 	}
 }
 
@@ -57,9 +59,6 @@ bgp {
 			group-updates disable
 		}
 
-		attach process deadline-test {
-			send [ update ]
-		}
 	}
 }
 EOF_CONF

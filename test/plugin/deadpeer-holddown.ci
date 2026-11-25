@@ -59,10 +59,12 @@ EOF_PEER
 
 
 stdin=ze-bgp:terminator=EOF_CONF
-plugin {
-	external deadpeer-watch {
-		run "le test fixture plugin/deadpeer-holddown"
-		encoder json
+bus {
+	endpoint deadpeer-watch {
+		external {
+			run "le test fixture plugin/deadpeer-holddown";
+		}
+		encoding json;
 	}
 }
 

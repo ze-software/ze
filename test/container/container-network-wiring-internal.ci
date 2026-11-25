@@ -39,11 +39,11 @@ environment {
 # The owned-device requests need a loaded interface backend, and the interface
 # component loads one only when the config holds an interface section.
 interface {
-	backend netlink
+	backend kernel
 }
-plugin {
-	internal fakeowner {
-		use fakeowner
+bus {
+	endpoint fakeowner {
+		internal fakeowner;
 	}
 }
 EOF_CONF

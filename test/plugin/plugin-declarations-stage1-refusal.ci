@@ -49,26 +49,40 @@
 # refuses it at Stage 1 (validateDoctorCheckDecls,
 # internal/component/plugin/server/startup.go), under the doctor-checks entry of
 # the Stage 1 table (internal/component/plugin/server/stage1_checks.go).
+# Under S-3, parsing the config queries external programs in declare mode
+# (ZE_PLUGIN_MODE=declare), never starting their run loop.
 tmpfs=refused-doctor-code.sh:terminator=EOF_REFUSED
+if [ "$ZE_PLUGIN_MODE" = "declare" ]; then
+    echo declared > "declared-refused-$1.marker"
+    printf '%s\n' '#1 ze-plugin-engine:declare-registration {"protocol-version":1,"commands":[{"name":"show refused answer","short-help":"Show the answer."}],"doctor-checks":[{"name":"plugin-ready","phase":"pre-config","codes":["plugin-not-ready"]}]}'
+    exit 0
+fi
 echo started > "started-refused-$1.marker"
-printf '%s\n' '#1 ze-plugin-engine:declare-registration {"protocol-version":1,"commands":[{"name":"show refused answer","short-help":"Show the answer."}],"doctor-checks":[{"name":"plugin-ready","phase":"pre-config","codes":["plugin-not-ready"]}]}'
 EOF_REFUSED
 
 # The same shape of declaration with nothing the daemon refuses.
 tmpfs=accepted.sh:terminator=EOF_ACCEPTED
+if [ "$ZE_PLUGIN_MODE" = "declare" ]; then
+    echo declared > "declared-accepted-$1.marker"
+    printf '%s\n' '#1 ze-plugin-engine:declare-registration {"protocol-version":1,"commands":[{"name":"show accepted answer","short-help":"Show the answer."}],"doctor-checks":[{"name":"plugin-ready","phase":"pre-config","codes":["doctor-plugin-not-ready"]}]}'
+    exit 0
+fi
 echo started > "started-accepted-$1.marker"
-printf '%s\n' '#1 ze-plugin-engine:declare-registration {"protocol-version":1,"commands":[{"name":"show accepted answer","short-help":"Show the answer."}],"doctor-checks":[{"name":"plugin-ready","phase":"pre-config","codes":["doctor-plugin-not-ready"]}]}'
 EOF_ACCEPTED
 
 tmpfs=plugin-declarations-stage1-refusal.conf:terminator=EOF_CONF
-plugin {
-    external plugin-accepted {
-        run "sh accepted.sh by-ze"
-        encoder json
+bus {
+    endpoint plugin-accepted {
+        external {
+            run "sh accepted.sh by-ze";
+        }
+        encoding json;
     }
-    external plugin-refused {
-        run "sh refused-doctor-code.sh by-ze"
-        encoder json
+    endpoint plugin-refused {
+        external {
+            run "sh refused-doctor-code.sh by-ze";
+        }
+        encoding json;
     }
 }
 EOF_CONF
@@ -100,9 +114,13 @@ cmd=foreground:seq=3:exec=ze show plugin conformance run "sh refused-doctor-code
 expect=stdout:pattern=doctor-checks +1 +fail +invalid doctor check: invalid doctor check code
 expect=stdout:contains=must start with
 
-# Each start by the checker left a marker, and the declarations command left
-# none.
-expect=file:path=started-accepted-by-checker.marker:exists=true
-expect=file:path=started-refused-by-checker.marker:exists=true
+# Both the declarations command (S-3 schema query) and the conformance checker
+# ran the scripts in declare mode; neither started a run loop.
+expect=file:path=declared-accepted-by-checker.marker:exists=true
+expect=file:path=declared-refused-by-checker.marker:exists=true
+expect=file:path=declared-accepted-by-ze.marker:exists=true
+expect=file:path=declared-refused-by-ze.marker:exists=true
+expect=file:path=started-accepted-by-checker.marker:absent=true
+expect=file:path=started-refused-by-checker.marker:absent=true
 expect=file:path=started-accepted-by-ze.marker:absent=true
 expect=file:path=started-refused-by-ze.marker:absent=true

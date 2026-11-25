@@ -1,9 +1,9 @@
 # Valid config: healthcheck plugin
 stdin=config:terminator=EOF_CONF
-plugin {
-	external service-nginx {
-		run "le test fixture parse/healthcheck-parse"
-		encoder text
+bus {
+	endpoint service-nginx {
+		internal bgp-healthcheck
+		encoding text
 	}
 }
 bgp {
@@ -24,9 +24,6 @@ bgp {
 			router-id 198.111.227.39
 		}
 		description "will announce a route to a service"
-		attach process service-nginx {
-			send [ update ]
-		}
 	}
 }
 EOF_CONF

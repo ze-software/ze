@@ -25,23 +25,25 @@ EOF_PEER
 
 # ze bgp configuration with RPKI plugin + VRP covering 10.0.0.0/8 max /24 for AS 65001
 stdin=ze-bgp:terminator=EOF_CONF
-plugin {
+bus {
+	endpoint rpki {
+		internal bgp-rpki;
+	}
+	endpoint adj-rib-in {
+		internal bgp-adj-rib-in;
+	}
+	endpoint rpki-batch-test {
+		external {
+			run "le test fixture plugin/rpki-validate-batch-mixed";
+		}
+		encoding json;
+	}
 	hub {
 		server local {
 			ip 127.0.0.1;
 			port 0;
 			secret rpki-test-secret-key-01234567890;
 		}
-	}
-	external rpki-batch-test {
-		run "le test fixture plugin/rpki-validate-batch-mixed"
-		encoder json
-	}
-	internal rpki {
-		use bgp-rpki
-	}
-	internal adj-rib-in {
-		use bgp-adj-rib-in
 	}
 }
 
@@ -82,12 +84,6 @@ bgp {
 			group-updates disable
 		}
 
-		attach process rpki {
-			receive [ update-received state ]
-		}
-		attach process adj-rib-in {
-			receive [ update-received state ]
-		}
 	}
 }
 EOF_CONF

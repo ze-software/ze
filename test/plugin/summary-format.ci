@@ -17,10 +17,12 @@ EOF_PEER
 
 # ze bgp configuration
 stdin=ze-bgp:terminator=EOF_CONF
-plugin {
-	external summary-check {
-		run "le test fixture plugin/summary-format"
-		encoder text
+bus {
+	endpoint summary-check {
+		external {
+			run "le test fixture plugin/summary-format";
+		}
+		encoding text;
 	}
 }
 bgp {
@@ -39,10 +41,6 @@ bgp {
 			nlri {
 				ipv4/unicast add 127.0.0.1/32
 			}
-		}
-		attach process summary-check {
-			receive [ update ]
-			send [ update ]
 		}
 
 		peer peer1 {

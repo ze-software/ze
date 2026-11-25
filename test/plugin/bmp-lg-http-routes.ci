@@ -38,10 +38,12 @@ environment {
         }
     }
 }
-plugin {
-    external bmp-lg-http {
-        run "le test fixture plugin/bmp-lg-http-routes $PORT2 $PORT3;"
-        encoder json;
+bus {
+    endpoint bmp-lg-http {
+        external {
+            run "le test fixture plugin/bmp-lg-http-routes $PORT2 $PORT3;";
+        }
+        encoding json;
     }
 }
 bgp {

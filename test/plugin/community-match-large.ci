@@ -22,10 +22,15 @@ EOF_PEER
 
 
 stdin=ze-bgp:terminator=EOF_CONF
-plugin {
-	external test-cm-large {
-		run "le test fixture plugin/community-match-large"
-		encoder json
+bus {
+	endpoint test-cm-large {
+		external {
+			run "le test fixture plugin/community-match-large";
+		}
+		encoding json;
+	}
+	endpoint bgp-adj-rib-in {
+		internal bgp-adj-rib-in;
 	}
 }
 policy {
@@ -65,9 +70,6 @@ bgp {
 		filter {
 			export { final accept; }
 			import { filters [ community-ALLOW-LARGE ]; final accept; }
-		}
-		attach process bgp-adj-rib-in {
-			receive [ update-received state ]
 		}
 	}
 }

@@ -27,6 +27,12 @@ type EarlyDeclaration struct {
 	// in the order it lists them. They are empty when the declaration carries
 	// none, and when Err is set.
 	Schemas []rpc.SchemaDecl
+	// ParticipantNodes, Sends, and Receives are the bus declarations carried
+	// by the plugin's Stage 1 declaration, recorded before the full parse so
+	// bus validation, implied views, and compilation know external endpoints.
+	ParticipantNodes []rpc.ParticipantNodeDecl
+	Sends            []rpc.MessageSendDecl
+	Receives         []rpc.MessageReceiveDecl
 	// Err says why the daemon holds no declaration from this plugin: it could
 	// not be started, it sent nothing within its bound, its connection ended,
 	// or what it sent is not a declaration. It names the plugin, the reason
@@ -114,7 +120,7 @@ func HoldDeclaredPlugins(ctx context.Context, spawner DeclaredSpawner, configs [
 		if proc == nil {
 			panic("BUG: declared plugin " + cfg.Name + " started and is not in the process manager")
 		}
-		schemas, held, readErr := readEarlyDeclaration(ctx, proc, started.Add(earlyDeclarationBound(cfg)))
+		input, held, readErr := readEarlyDeclaration(ctx, proc, started.Add(earlyDeclarationBound(cfg)))
 		if readErr != nil {
 			declarations[i].Err = readErr
 			if !held {
@@ -122,7 +128,10 @@ func HoldDeclaredPlugins(ctx context.Context, spawner DeclaredSpawner, configs [
 			}
 			continue
 		}
-		declarations[i].Schemas = schemas
+		declarations[i].Schemas = input.Schemas
+		declarations[i].ParticipantNodes = input.ParticipantNodes
+		declarations[i].Sends = input.Sends
+		declarations[i].Receives = input.Receives
 	}
 	return declarations
 }
@@ -147,14 +156,14 @@ const earlyDeclarationFloor = 100 * time.Millisecond
 // still held with a request for its tier to answer: true for a request that is
 // not a readable declaration, which the tier refuses on the wire with its own
 // text, and false when nothing was read, where the caller stops the plugin.
-func readEarlyDeclaration(ctx context.Context, proc *process.Process, deadline time.Time) (schemas []rpc.SchemaDecl, held bool, err error) {
+func readEarlyDeclaration(ctx context.Context, proc *process.Process, deadline time.Time) (input rpc.DeclareRegistrationInput, held bool, err error) {
 	cfg := proc.Config()
 	if initErr := proc.InitConns(); initErr != nil {
-		return nil, false, notDeclaredRefusal(cfg, "its connection could not be set up: "+initErr.Error())
+		return rpc.DeclareRegistrationInput{}, false, notDeclaredRefusal(cfg, "its connection could not be set up: "+initErr.Error())
 	}
 	conn := proc.Conn()
 	if conn == nil {
-		return nil, false, notDeclaredRefusal(cfg, "it has no connection to the daemon")
+		return rpc.DeclareRegistrationInput{}, false, notDeclaredRefusal(cfg, "it has no connection to the daemon")
 	}
 
 	// A plugin read after a slow one can reach here with its bound already
@@ -169,29 +178,29 @@ func readEarlyDeclaration(ctx context.Context, proc *process.Process, deadline t
 	request, readErr := conn.HoldStartupRequest(readCtx)
 	if readErr != nil {
 		if ctx.Err() != nil {
-			return nil, false, notDeclaredRefusal(cfg, "the daemon stopped waiting: "+ctx.Err().Error())
+			return rpc.DeclareRegistrationInput{}, false, notDeclaredRefusal(cfg, "the daemon stopped waiting: "+ctx.Err().Error())
 		}
 		if errors.Is(readErr, context.DeadlineExceeded) {
-			return nil, false, silentRefusal(cfg)
+			return rpc.DeclareRegistrationInput{}, false, silentRefusal(cfg)
 		}
-		return nil, false, notDeclaredRefusal(cfg, "its connection ended before it sent one: "+readErr.Error())
+		return rpc.DeclareRegistrationInput{}, false, notDeclaredRefusal(cfg, "its connection ended before it sent one: "+readErr.Error())
 	}
 	if request.Method != rpc.MethodDeclareRegistration {
-		return nil, true, unreadableDeclarationRefusal(cfg,
+		return rpc.DeclareRegistrationInput{}, true, unreadableDeclarationRefusal(cfg,
 			"its first request was not "+rpc.MethodDeclareRegistration,
 			fmt.Errorf("first request %q", request.Method))
 	}
-	input, decodeErr := rpc.DecodeDeclaration(cfg.Name, request.Params)
+	decoded, decodeErr := rpc.DecodeDeclaration(cfg.Name, request.Params)
 	if decodeErr != nil {
 		if _, refused := errors.AsType[*opererr.Error](decodeErr); refused {
 			// A declaration that carries a key ze does not know: the decoder
 			// names the plugin, the key and the fix, and the tier refuses it
 			// on the wire with the same text (runStartupHandshake).
-			return nil, true, decodeErr
+			return rpc.DeclareRegistrationInput{}, true, decodeErr
 		}
-		return nil, true, unreadableDeclarationRefusal(cfg, "its declaration is not valid JSON", decodeErr)
+		return rpc.DeclareRegistrationInput{}, true, unreadableDeclarationRefusal(cfg, "its declaration is not valid JSON", decodeErr)
 	}
-	return input.Schemas, true, nil
+	return decoded, true, nil
 }
 
 // unreadableDeclarationRefusal is the outcome of a plugin whose first request

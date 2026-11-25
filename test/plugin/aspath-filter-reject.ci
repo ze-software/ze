@@ -31,10 +31,12 @@ EOF_PEER
 # Observer: wait for filter dispatch then clean shutdown
 
 stdin=ze-bgp:terminator=EOF_CONF
-plugin {
-	external test-aspath-reject {
-		run "le test fixture plugin/aspath-filter-reject"
-		encoder json
+bus {
+	endpoint test-aspath-reject {
+		external {
+			run "le test fixture plugin/aspath-filter-reject";
+		}
+		encoding json;
 	}
 }
 policy {
@@ -75,9 +77,6 @@ bgp {
 			import { filters [ as-path-list-ALLOW-PEER ]; final accept; }
 		}
 
-		attach process test-aspath-reject {
-			receive [ update state ]
-		}
 	}
 }
 EOF_CONF

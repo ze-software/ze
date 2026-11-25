@@ -111,6 +111,13 @@ func (s *Server) deliveryDisagreements(only *process.Process) []deliveryDisagree
 	// rather than about one peer: the process is absent from every attach block
 	// the config holds.
 	for _, name := range s.subscriptions.declaredUnattached(g.ns, attached, only) {
+		if g.namespace != "" && name == g.namespace {
+			// The protocol host plugin (e.g. bgp) owns this namespace's
+			// participant nodes and is excluded from self-edges in
+			// collectBusEndpointInputs; its Stage 1 Receives apply to its
+			// participants, not as peer-scoped event subscriptions on itself.
+			continue
+		}
 		out = append(out, deliveryDisagreement{process: name, reason: reasonUnattached})
 	}
 	return out
@@ -152,6 +159,9 @@ func (s *Server) edgeDisagreements(g *DeliveryGraph, peer PeerEdges, edges Proce
 
 	for _, etID := range s.subscriptions.declaredTypes(proc, g.ns, peer.Peer, peer.Name) {
 		if slices.Contains(granted, etID) {
+			continue
+		}
+		if !g.PeerDeclaresSend(peer.Peer, g.ns, etID) {
 			continue
 		}
 		out = append(out, deliveryDisagreement{

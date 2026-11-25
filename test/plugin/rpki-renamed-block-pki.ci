@@ -15,9 +15,9 @@
 option=env:var=ze.log.bgp.plugin:value=info
 
 stdin=ze-bgp:terminator=EOF_CONF
-plugin {
-	internal rpki {
-		use bgp-rpki
+bus {
+	endpoint rpki {
+		internal bgp-rpki;
 	}
 }
 

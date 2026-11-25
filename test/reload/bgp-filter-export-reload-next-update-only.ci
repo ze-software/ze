@@ -43,9 +43,9 @@
 #   so no rule can refuse "10.0.0.0/24 carrying 65000:2" without also refusing
 #   the legitimate U1 at seq=1. spec-bgp-export-policy-reload-readvertise
 #   records the tooling need.
-# Frame of U2 at B: ORIGIN IGP, AS_PATH [65000 65001], NEXT_HOP 1.1.1.1,
-# COMMUNITY 65000:2 (extended-length flag set), NLRI 10.0.1.0/24; U3 the same
-# with 10.0.2.0/24.
+# Frame of U2 at B: ORIGIN IGP, AS_PATH [65001] (transparent RS-client per RFC
+# 7947 / A-10), NEXT_HOP 1.1.1.1, COMMUNITY 65000:2 (extended-length flag set),
+# NLRI 10.0.1.0/24; U3 the same with 10.0.2.0/24.
 #
 # VALIDATES: spec-plugin-reload-applies-or-refuses AC-1 (export: the UPDATEs
 #            sent after the reload) and the "Boundary with stored routes"
@@ -90,9 +90,9 @@ option=asn:value=65002
 expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
 expect=bgp:conn=1:seq=1:announced=180A0000:attribute=8,FDE80001
 action=rewrite:conn=1:seq=1:source=marker.txt:dest=b-first
-expect=bgp:conn=1:seq=2:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF003B02000000204001010040020A02020000FDE80000FDE940030401010101D0080004FDE80002180A0001
+expect=bgp:conn=1:seq=2:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF0037020000001C4001010040020602010000FDE940030401010101D0080004FDE80002180A0001
 action=rewrite:conn=1:seq=2:source=marker.txt:dest=b-second
-expect=bgp:conn=1:seq=3:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF003B02000000204001010040020A02020000FDE80000FDE940030401010101D0080004FDE80002180A0002
+expect=bgp:conn=1:seq=3:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF0037020000001C4001010040020602010000FDE940030401010101D0080004FDE80002180A0002
 action=rewrite:conn=1:seq=3:source=marker.txt:dest=b-third
 EOF_DESTB
 
@@ -113,16 +113,18 @@ EOF_SCRIPT
 
 # Startup: TAG is 65000:1.
 stdin=ze-bgp:terminator=EOF_CONF
-plugin {
-	internal adj-rib-in {
-		use bgp-adj-rib-in
+bus {
+	endpoint adj-rib-in {
+		internal bgp-adj-rib-in;
 	}
-	internal rs {
-		use bgp-rs
+	endpoint rs {
+		internal bgp-rs;
 	}
-	external stages {
-		run "le test fixture reload/live-stages stages.script"
-		encoder json
+	endpoint stages {
+		external {
+			run "le test fixture reload/live-stages stages.script";
+		}
+		encoding json;
 	}
 }
 bgp {
@@ -143,22 +145,12 @@ bgp {
 		}
 		session {
 			asn { local 65000; remote 65001; }
+			rs-client true;
 			router-id 1.2.3.4
 			family {
 				ipv4/unicast { prefix { maximum 10000; } }
 			}
 			capability { graceful-restart disable; }
-		}
-		attach process stages {
-			send [ update ]
-		}
-		attach process rs {
-			receive [ update-received state open-received refresh ]
-			send [ update ]
-		}
-		attach process adj-rib-in {
-			receive [ update-received state ]
-			send [ update ]
 		}
 	}
 	peer peer-b {
@@ -168,6 +160,7 @@ bgp {
 		}
 		session {
 			asn { local 65000; remote 65002; }
+			rs-client true;
 			router-id 1.2.3.4
 			family {
 				ipv4/unicast { prefix { maximum 10000; } }
@@ -185,30 +178,24 @@ bgp {
 				}
 			}
 		}
-		attach process rs {
-			receive [ update-received state open-received refresh ]
-			send [ update ]
-		}
-		attach process adj-rib-in {
-			receive [ update-received state ]
-			send [ update ]
-		}
 	}
 }
 EOF_CONF
 
 # The reload: TAG's value is the ONLY difference (65000:1 -> 65000:2).
 tmpfs=config2.conf:terminator=EOF_CONF2
-plugin {
-	internal adj-rib-in {
-		use bgp-adj-rib-in
+bus {
+	endpoint adj-rib-in {
+		internal bgp-adj-rib-in;
 	}
-	internal rs {
-		use bgp-rs
+	endpoint rs {
+		internal bgp-rs;
 	}
-	external stages {
-		run "le test fixture reload/live-stages stages.script"
-		encoder json
+	endpoint stages {
+		external {
+			run "le test fixture reload/live-stages stages.script";
+		}
+		encoding json;
 	}
 }
 bgp {
@@ -229,22 +216,12 @@ bgp {
 		}
 		session {
 			asn { local 65000; remote 65001; }
+			rs-client true;
 			router-id 1.2.3.4
 			family {
 				ipv4/unicast { prefix { maximum 10000; } }
 			}
 			capability { graceful-restart disable; }
-		}
-		attach process stages {
-			send [ update ]
-		}
-		attach process rs {
-			receive [ update-received state open-received refresh ]
-			send [ update ]
-		}
-		attach process adj-rib-in {
-			receive [ update-received state ]
-			send [ update ]
 		}
 	}
 	peer peer-b {
@@ -254,6 +231,7 @@ bgp {
 		}
 		session {
 			asn { local 65000; remote 65002; }
+			rs-client true;
 			router-id 1.2.3.4
 			family {
 				ipv4/unicast { prefix { maximum 10000; } }
@@ -270,14 +248,6 @@ bgp {
 					tag [ TAG ]
 				}
 			}
-		}
-		attach process rs {
-			receive [ update-received state open-received refresh ]
-			send [ update ]
-		}
-		attach process adj-rib-in {
-			receive [ update-received state ]
-			send [ update ]
 		}
 	}
 }

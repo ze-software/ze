@@ -11,10 +11,12 @@
 
 
 stdin=ze-conf:terminator=EOF_CONF
-plugin {
-    external traffic-monitor-done {
-        run "le test fixture plugin/traffic-monitor"
-        encoder json
+bus {
+    endpoint traffic-monitor-done {
+        external {
+            run "le test fixture plugin/traffic-monitor";
+        }
+        encoding json;
     }
 }
 

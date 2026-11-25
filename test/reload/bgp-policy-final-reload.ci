@@ -51,11 +51,50 @@ option=asn:value=65000
 EOF_SINK
 
 stdin=ze-bgp:terminator=EOF_CONF
-plugin {
-    internal adj-rib-in { use bgp-adj-rib-in; }
-    internal rs { use bgp-rs; }
-    internal rib { use bgp-rib; }
-    external policy-final { run "le test fixture reload/bgp-policy-final-reload"; encoder json; }
+bus {
+    endpoint adj-rib-in {
+        internal bgp-adj-rib-in;
+        receive {
+            message bgp:update {
+                from [ /bgp/peer/peer-1 /bgp/peer/peer-3 ];
+            }
+            message bgp:state {
+                from [ /bgp/peer/peer-1 /bgp/peer/peer-3 ];
+            }
+        }
+        send {
+            message bgp:update {
+                to none;
+            }
+        }
+    }
+    endpoint rs {
+        internal bgp-rs;
+        receive {
+            message bgp:update {
+                from [ /bgp/peer/peer-1 /bgp/peer/peer-3 ];
+            }
+        }
+        send {
+            message bgp:update {
+                to [ /bgp/peer/peer-2 ];
+            }
+        }
+    }
+    endpoint rib {
+        internal bgp-rib;
+        send {
+            message bgp:update {
+                to [ /bgp/peer/peer-2 ];
+            }
+        }
+    }
+    endpoint policy-final {
+        external {
+            run "le test fixture reload/bgp-policy-final-reload";
+        }
+        encoding json;
+    }
 }
 policy { reject-asn DENY-LIST { indirect [ 65010 ]; } match DENY { reject-asn DENY-LIST; } }
 bgp {
@@ -68,21 +107,19 @@ bgp {
         connection { remote { ip 127.0.0.1; } local { ip 127.0.0.4; accept false; } }
         session {
             asn { local 65000; remote 65001; }
+            rs-client true;
             router-id 1.2.3.4;
             family { ipv4/unicast { prefix { maximum 10000; } } }
             capability { graceful-restart disable; }
         }
         behavior { group-updates disable; }
         filter { import { final accept; } }
-        attach process policy-final { send [ update ]; }
-        attach process adj-rib-in { receive [ update-received state ]; }
-        attach process rs { receive [ update-received state open-received refresh ]; }
-        attach process rib { receive [ update state refresh ]; }
     }
     peer peer-2 {
         connection { remote { ip 127.0.0.2; } local { ip 127.0.0.5; accept false; } }
         session {
             asn { local 65000; remote 65000; }
+            rs-client true;
             # Echo is wire evidence, not an election source. Keep this
             # fixture's explicit AIGP setting and sent-only RIB observation.
             aigp { enabled false; }
@@ -92,24 +129,18 @@ bgp {
         }
         behavior { group-updates disable; }
         filter { export { filters [ DENY ]; final accept; } }
-        attach process policy-final { receive [ update-received ]; send [ update ]; }
-        attach process rs { receive [ state open-received refresh ]; send [ update ]; }
-        attach process rib { receive [ update-sent state refresh ]; send [ update ]; }
     }
     peer peer-3 {
         connection { remote { ip 127.0.0.3; } local { ip 127.0.0.6; accept false; } }
         session {
             asn { local 65000; remote 65003; }
+            rs-client true;
             router-id 1.2.3.4;
             family { ipv4/unicast { prefix { maximum 10000; } } }
             capability { graceful-restart disable; }
         }
         behavior { group-updates disable; }
         filter { import { final accept; } }
-        attach process policy-final { send [ update ]; }
-        attach process adj-rib-in { receive [ update-received state ]; }
-        attach process rs { receive [ update-received state open-received refresh ]; }
-        attach process rib { receive [ update state refresh ]; }
     }
 }
 EOF_CONF

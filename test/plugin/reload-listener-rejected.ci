@@ -21,10 +21,12 @@ EOF_PEER
 # Post-SIGHUP config: switches the listener to $PORT3. The reload
 # must reject this change with WARN and keep the original $PORT2.
 tmpfs=config2.conf:terminator=EOF_CONF2
-plugin {
-	external reload-listener-rejected-test {
-		run "le test fixture plugin/reload-listener-rejected"
-		encoder json
+bus {
+	endpoint reload-listener-rejected-test {
+		external {
+			run "le test fixture plugin/reload-listener-rejected";
+		}
+		encoding json;
 	}
 }
 
@@ -77,10 +79,12 @@ EOF_CONF2
 
 
 stdin=ze-conf:terminator=EOF_CONF
-plugin {
-	external reload-listener-rejected-test {
-		run "le test fixture plugin/reload-listener-rejected"
-		encoder json
+bus {
+	endpoint reload-listener-rejected-test {
+		external {
+			run "le test fixture plugin/reload-listener-rejected";
+		}
+		encoding json;
 	}
 }
 

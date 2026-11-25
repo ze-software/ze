@@ -16,23 +16,25 @@ EOF_PEER
 # native test plugin: subscribes to update-rpki, verifies UPDATE data without rpki section
 # Native compiled fixture: plugin/rpki-decorator-timeout
 stdin=ze-bgp:terminator=EOF_CONF
-plugin {
+bus {
+	endpoint rpki-decorator {
+		internal bgp-rpki-decorator;
+	}
+	endpoint adj-rib-in {
+		internal bgp-adj-rib-in;
+	}
+	endpoint rpki-to-test {
+		external {
+			run "le test fixture plugin/rpki-decorator-timeout";
+		}
+		encoding json;
+	}
 	hub {
 		server local {
 			ip 127.0.0.1;
 			port 0;
 			secret rpki-timeout-test-secret-0123456789abcdef;
 		}
-	}
-	external rpki-to-test {
-		run "le test fixture plugin/rpki-decorator-timeout"
-		encoder json
-	}
-	internal rpki-decorator {
-		use bgp-rpki-decorator
-	}
-	internal adj-rib-in {
-		use bgp-adj-rib-in
 	}
 }
 
@@ -64,15 +66,6 @@ bgp {
 			group-updates disable
 		}
 
-		attach process rpki-to-test {
-			receive [ update-rpki ]
-		}
-		attach process rpki-decorator {
-			receive [ update-received rpki ]
-		}
-		attach process adj-rib-in {
-			receive [ update-received state ]
-		}
 	}
 }
 EOF_CONF

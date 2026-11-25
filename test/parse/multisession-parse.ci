@@ -1,9 +1,9 @@
 # Valid config: IPv4 and IPv6 routes with multiple update blocks
 stdin=config:terminator=EOF_CONF
-plugin {
-	external parsed-route-backend {
-		run "le test interop-bgp exabgp-api syslog"
-		encoder json
+bus {
+	endpoint parsed-route-backend {
+		internal bgp-rib
+		encoding json
 	}
 }
 bgp {
@@ -49,8 +49,6 @@ bgp {
 			nlri {
 				ipv6/unicast add 2A02:B80:0:1::/64
 			}
-		}
-		attach process parsed-route-backend {
 		}
 	}
 }

@@ -12,10 +12,12 @@ option=storage:value=disk
 option=timeout:value=60s
 
 stdin=ze-bgp:terminator=EOF_CONF
-plugin {
-    external pppoe-backend-refusal {
-        run "le test fixture reload/pppoe-vpp-backend-refused 127.0.0.1:$PORT2 pppoe-refusal.pem"
-        encoder json
+bus {
+    endpoint pppoe-backend-refusal {
+        external {
+            run "le test fixture reload/pppoe-vpp-backend-refused 127.0.0.1:$PORT2 pppoe-refusal.pem";
+        }
+        encoding json;
     }
 }
 environment {
@@ -30,7 +32,7 @@ environment {
     }
 }
 interface {
-    backend netlink;
+    backend kernel;
 }
 pppoe {
     ac-name "before";
@@ -38,10 +40,12 @@ pppoe {
 EOF_CONF
 
 tmpfs=config2.conf:refused=config-validator-unavailable:terminator=EOF_CONF2
-plugin {
-    external pppoe-backend-refusal {
-        run "le test fixture reload/pppoe-vpp-backend-refused 127.0.0.1:$PORT2 pppoe-refusal.pem"
-        encoder json
+bus {
+    endpoint pppoe-backend-refusal {
+        external {
+            run "le test fixture reload/pppoe-vpp-backend-refused 127.0.0.1:$PORT2 pppoe-refusal.pem";
+        }
+        encoding json;
     }
 }
 environment {
@@ -65,10 +69,12 @@ pppoe {
 EOF_CONF2
 
 tmpfs=config3.conf:terminator=EOF_CONF3
-plugin {
-    external pppoe-backend-refusal {
-        run "le test fixture reload/pppoe-vpp-backend-refused 127.0.0.1:$PORT2 pppoe-refusal.pem"
-        encoder json
+bus {
+    endpoint pppoe-backend-refusal {
+        external {
+            run "le test fixture reload/pppoe-vpp-backend-refused 127.0.0.1:$PORT2 pppoe-refusal.pem";
+        }
+        encoding json;
     }
 }
 environment {
@@ -83,7 +89,7 @@ environment {
     }
 }
 interface {
-    backend netlink;
+    backend kernel;
 }
 pppoe {
     ac-name "after";
@@ -97,10 +103,10 @@ expect=exit:code=0
 expect=stderr:contains=reload error:
 expect=stderr:contains=/pppoe/interface/access0
 expect=stderr:contains=backend "vpp"
-expect=stderr:contains=supported: netlink
+expect=stderr:contains=supported: kernel
 expect=stderr:contains=no PPPoE session data plane
 expect=stderr:contains=ze_vpp
-expect=stderr:contains=fix: set interface backend netlink
+expect=stderr:contains=fix: set interface backend kernel
 expect=stderr:contains=OK: PPPoE backend commit refused before changing the running configuration
 expect=stderr:contains=OK: PPPoE backend reload refused and the running configuration stayed unchanged
 expect=stderr:contains=OK: a subsequent supported PPPoE configuration applied

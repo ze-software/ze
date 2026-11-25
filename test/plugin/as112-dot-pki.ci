@@ -43,10 +43,12 @@ service {
 	}
 }
 
-plugin {
-	external as112-dot-pki-test {
-		run "le test fixture plugin/as112-dot-pki"
-		encoder json
+bus {
+	endpoint as112-dot-pki-test {
+		external {
+			run "le test fixture plugin/as112-dot-pki";
+		}
+		encoding json;
 	}
 }
 

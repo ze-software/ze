@@ -16,6 +16,8 @@
 # local address on the unmatched route is not evidence of a valid production
 # NEXT_HOP or acceptance by another router.
 
+# Linux-only: static `next { interface lo { } }` resolves loopback `lo` via Linux netlink.
+option=needs-linux
 option=env:var=ze.log.bgp.rs:value=info
 
 stdin=source:terminator=EOF_SOURCE
@@ -48,10 +50,21 @@ expect=bgp:conn=1:seq=2:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00330200000018400101
 EOF_DESTINATION
 
 stdin=ze-bgp:terminator=EOF_CONF
-plugin {
-	internal rs { use bgp-rs; }
-	internal adj-rib-in { use bgp-adj-rib-in; }
-	internal bgp-filter-modify { use bgp-filter-modify; }
+bus {
+	endpoint rs {
+		internal bgp-rib;
+	}
+	endpoint adj-rib-in {
+		internal bgp-adj-rib-in;
+		send {
+			message bgp:update {
+				to none;
+			}
+		}
+	}
+	endpoint bgp-filter-modify {
+		internal bgp-filter-modify;
+	}
 }
 policy {
 	modify bh {
@@ -61,6 +74,14 @@ policy {
 		set {
 			next-hop 192.0.2.66;
 		}
+	}
+}
+fib {
+	dummy { }
+}
+static {
+	table default {
+		route 192.0.2.9/32 { next { interface lo { } } }
 	}
 }
 bgp {
@@ -80,11 +101,6 @@ bgp {
 			capability { graceful-restart disable; }
 		}
 		behavior { group-updates disable; }
-		attach process rs {
-			receive [ update-received state open-received refresh ];
-			send [ update ];
-		}
-		attach process adj-rib-in { receive [ update-received state ]; }
 	}
 	peer destination {
 		connection {
@@ -101,11 +117,6 @@ bgp {
 			export { filters [ modify:bh ]; final accept; }
 		}
 		behavior { group-updates disable; }
-		attach process rs {
-			receive [ update-received state open-received refresh ];
-			send [ update ];
-		}
-		attach process adj-rib-in { receive [ update-received state ]; }
 	}
 }
 EOF_CONF

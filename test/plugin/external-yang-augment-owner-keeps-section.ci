@@ -52,10 +52,12 @@ environment {
 		}
 	}
 }
-plugin {
-	external acme-chrony {
-		run "le test fixture plugin/external-yang augment"
-		encoder json
+bus {
+	endpoint acme-chrony {
+		external {
+			run "le test fixture plugin/external-yang augment";
+		}
+		encoding json;
 	}
 }
 

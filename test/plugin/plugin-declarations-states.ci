@@ -41,41 +41,60 @@
 # plugin costs the suite two seconds, not the five a default query waits.
 option=env:var=ze.plugin.query.timeout:value=2s
 
-# Leaves a marker named after its first argument, then writes the line the
-# protocol's own writer produces for a plugin with one command.
+# Under S-3, parsing the config offline queries each declared external program
+# in declare mode (ZE_PLUGIN_MODE=declare), never starting its run loop. Each
+# script below writes its run-loop marker only outside declare mode.
 tmpfs=declares.sh:terminator=EOF_DECLARES
+if [ "$ZE_PLUGIN_MODE" = "declare" ]; then
+    echo declared > "declared-declares-$1.marker"
+    printf '%s\n' '#1 ze-plugin-engine:declare-registration {"protocol-version":1,"commands":[{"name":"show query answer","short-help":"Show the answer."}]}'
+    exit 0
+fi
 echo started > "started-declares-$1.marker"
-printf '%s\n' '#1 ze-plugin-engine:declare-registration {"protocol-version":1,"commands":[{"name":"show query answer","short-help":"Show the answer."}]}'
 EOF_DECLARES
 
-# Leaves a marker, writes no declaration and exits 0.
+# Exits 0 without declaring in declare mode; writes marker only in run loop.
 tmpfs=silent.sh:terminator=EOF_SILENT
+if [ "$ZE_PLUGIN_MODE" = "declare" ]; then
+    exit 0
+fi
 echo started > "started-silent.marker"
 EOF_SILENT
 
-# Leaves a marker and never answers.
+# Times out in declare mode; writes marker only if run loop is ever started.
 tmpfs=slow.sh:terminator=EOF_SLOW
+if [ "$ZE_PLUGIN_MODE" = "declare" ]; then
+    exec sleep 30
+fi
 echo started > "started-slow.marker"
 exec sleep 30
 EOF_SLOW
 
 tmpfs=plugin-declarations-states.conf:terminator=EOF_CONF
-plugin {
-    external plugin-declares {
-        run "sh declares.sh by-ze"
-        encoder json
+bus {
+    endpoint plugin-declares {
+        external {
+            run "sh declares.sh by-ze";
+        }
+        encoding json;
     }
-    external plugin-absent {
-        run "/no/such/ze-plugin"
-        encoder json
+    endpoint plugin-absent {
+        external {
+            run /no/such/ze-plugin;
+        }
+        encoding json;
     }
-    external plugin-silent {
-        run "sh silent.sh"
-        encoder json
+    endpoint plugin-silent {
+        external {
+            run "sh silent.sh";
+        }
+        encoding json;
     }
-    external plugin-slow {
-        run "sh slow.sh"
-        encoder json
+    endpoint plugin-slow {
+        external {
+            run "sh slow.sh";
+        }
+        encoding json;
     }
 }
 EOF_CONF
@@ -104,7 +123,9 @@ reject=stdout:contains=show query answer
 cmd=foreground:seq=2:exec=ze show plugin conformance run "sh declares.sh by-checker":exit=0
 expect=stdout:pattern=program-starts +declare +pass
 
-expect=file:path=started-declares-by-checker.marker:exists=true
+expect=file:path=declared-declares-by-checker.marker:exists=true
+expect=file:path=declared-declares-by-ze.marker:exists=true
+expect=file:path=started-declares-by-checker.marker:absent=true
 expect=file:path=started-declares-by-ze.marker:absent=true
 expect=file:path=started-silent.marker:absent=true
 expect=file:path=started-slow.marker:absent=true

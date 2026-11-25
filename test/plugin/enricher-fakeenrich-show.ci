@@ -10,13 +10,15 @@ EOF_PEER
 
 
 stdin=ze-conf:terminator=EOF_CONF
-plugin {
-    internal fakeenrich {
-        use fakeenrich
+bus {
+    endpoint fakeenrich {
+        internal fakeenrich;
     }
-    external fakeenrich-checker {
-        run "le test fixture plugin/enricher-fakeenrich-show"
-        encoder json
+    endpoint fakeenrich-checker {
+        external {
+            run "le test fixture plugin/enricher-fakeenrich-show";
+        }
+        encoding json;
     }
 }
 

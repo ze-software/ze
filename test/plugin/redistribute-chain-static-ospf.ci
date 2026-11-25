@@ -26,10 +26,12 @@ option=needs-linux:caps=net-admin
 option=netns-link:name=eth1:address=10.0.0.1/24
 
 stdin=ze-bgp:terminator=EOF_CONF
-plugin {
-	external redist-chain-static-ospf {
-		run "le test fixture plugin/redistribute-chain-static-ospf"
-		encoder json
+bus {
+	endpoint redist-chain-static-ospf {
+		external {
+			run "le test fixture plugin/redistribute-chain-static-ospf";
+		}
+		encoding json;
 	}
 }
 
@@ -98,10 +100,12 @@ EOF_CONF
 
 # The reload's config: the same import, narrowed to 10.81.1.0/24.
 tmpfs=config-narrow-ospf.conf:terminator=EOF_NARROW
-plugin {
-	external redist-chain-static-ospf {
-		run "le test fixture plugin/redistribute-chain-static-ospf"
-		encoder json
+bus {
+	endpoint redist-chain-static-ospf {
+		external {
+			run "le test fixture plugin/redistribute-chain-static-ospf";
+		}
+		encoding json;
 	}
 }
 

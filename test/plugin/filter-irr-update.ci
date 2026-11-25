@@ -27,10 +27,12 @@ EOF_PEER
 
 
 stdin=ze-bgp:terminator=EOF_CONF
-plugin {
-	external test-filter-irr-update {
-		run "le test fixture plugin/filter-irr-update"
-		encoder json
+bus {
+	endpoint test-filter-irr-update {
+		external {
+			run "le test fixture plugin/filter-irr-update";
+		}
+		encoding json;
 	}
 }
 system {

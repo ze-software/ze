@@ -16,10 +16,12 @@
 
 
 stdin=ze-bgp:terminator=EOF_CONF
-plugin {
-	external event-predicate-test {
-		run "le test fixture plugin/event-predicate-wait"
-		encoder json
+bus {
+	endpoint event-predicate-test {
+		external {
+			run "le test fixture plugin/event-predicate-wait";
+		}
+		encoding json;
 	}
 }
 
@@ -51,10 +53,6 @@ bgp {
 			group-updates disable
 		}
 
-		attach process event-predicate-test {
-			receive [ update ]
-			send [ update ]
-		}
 	}
 }
 EOF_CONF

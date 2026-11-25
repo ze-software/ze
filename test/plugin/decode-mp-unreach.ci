@@ -15,10 +15,12 @@ EOF_PEER
 
 # ze bgp configuration
 stdin=ze-bgp:terminator=EOF_CONF
-plugin {
-    external decode-test {
-        run "le test fixture plugin/decode-mp-unreach"
-        encoder json
+bus {
+    endpoint decode-test {
+        external {
+            run "le test fixture plugin/decode-mp-unreach";
+        }
+        encoding json;
     }
 }
 bgp {
@@ -46,9 +48,6 @@ bgp {
     		group-updates disable
     	}
 
-        attach process decode-test {
-            send [ update ]
-        }
     }
 }
 EOF_CONF

@@ -5,7 +5,7 @@
 # VALIDATES: spec-fixit-ddos-test-infra AC-4 -- a flood at a remote, box-unowned
 #            victim (203.0.113.9) is classified Direction=remote (classifyDirection
 #            -> iface.AddressIsLocal false, detector.go:354-367) and, with
-#            `ddos { local { forward-mitigation } }` on, ddos-local installs an nft
+#            `ddos { local { forward-mitigation } }` on, ddos-local installs an nftables
 #            drop on the FORWARD hook (hookForDirection -> HookForward,
 #            responder.go:160-168; chain rendered `type filter hook forward`).
 # VALIDATES: spec-fixit-ddos-test-infra AC-5 -- with forward-mitigation off the
@@ -17,15 +17,15 @@
 # COMPLEMENTS (does not replace) the exhaustive hook-selection unit test
 # TestLocalHookByDirection (internal/plugins/ddos/local/responder_test.go:179):
 # this proves the same selection end to end, through a real flood and a kernel
-# nft readback.
+# nftables readback.
 #
 # STATUS: option=needs-linux; runs as root on the QEMU Alpine VM. The compiled
 # setup fixture creates the veth pair, then the compiled root driver polls the
-# daemon and kernel state without a blind sleep. The nft readback stays in that
+# daemon and kernel state without a blind sleep. The nftables readback stays in that
 # root driver, which the runner keeps privileged for exactly this
 # (runner_exec.go:740-744); no `firewall {}` block
-#   is declared, so ApplyAll autoloads nft on demand (registry.go:104-109) with
-#   ddos-local as the sole nft driver (spec D-2).
+#   is declared, so ApplyAll autoloads kernel on demand (registry.go:104-109) with
+#   ddos-local as the sole nftables driver (spec D-2).
 #
 #   Two attack generations are required and are the timing-sensitive part of this
 #   test: AttackDetected/Characterized emit ONCE per generation at attack onset

@@ -9,7 +9,7 @@
 #
 # Requires Linux and CAP_NET_ADMIN for netlink route programming and interface
 # resolution. The native setup fixture creates the gateway subnet and tun100
-# devices. The config loads the netlink interface backend so iface.Resolve can
+# devices. The config loads the kernel interface backend so iface.Resolve can
 # resolve tun100 (spec-fixit-static-interface-nexthops C-6). The capability
 # declaration makes an unprivileged host skip instead of failing `ip`.
 option=needs-linux:caps=net-admin
@@ -20,15 +20,17 @@ option=needs-linux:caps=net-admin
 # could never reach the daemon -- it failed with "no credentials for
 # 127.0.0.1:2222".
 stdin=ze-bgp:terminator=EOF_CONF
-plugin {
-    external static-show {
-        run "le test fixture static/static-table-interface"
-        encoder json
+bus {
+    endpoint static-show {
+        external {
+            run "le test fixture static/static-table-interface";
+        }
+        encoding json;
     }
 }
 
 interface {
-    backend netlink
+    backend kernel
 }
 
 routing-table {

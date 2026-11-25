@@ -85,18 +85,63 @@ environment {
     cli { format { default yaml; } }
     looking-glass { enabled true; server main { ip 127.0.0.1; port $PORT2; } }
 }
-plugin {
-    internal adj-rib-in { use bgp-adj-rib-in; }
-    internal rs { use bgp-rs; }
-    internal rib { use bgp-rib; }
-    external rfc8212-owner { run "le test fixture reload/rfc8212-owner"; encoder json; }
-    external rfc8212-reload { run "le test fixture reload/rfc8212-import-rollback"; encoder json; }
+bus {
+    endpoint adj-rib-in {
+        internal bgp-adj-rib-in;
+        receive {
+            message bgp:update {
+                from [ /bgp/peer/peer-1 /bgp/peer/peer-3 ];
+            }
+            message bgp:state {
+                from [ /bgp/peer/peer-1 /bgp/peer/peer-3 ];
+            }
+        }
+        send {
+            message bgp:update {
+                to none;
+            }
+        }
+    }
+    endpoint rs {
+        internal bgp-rs;
+        receive {
+            message bgp:update {
+                from [ /bgp/peer/peer-1 /bgp/peer/peer-3 ];
+            }
+        }
+        send {
+            message bgp:update {
+                to [ /bgp/peer/peer-2 ];
+            }
+        }
+    }
+    endpoint rib {
+        internal bgp-rib;
+        send {
+            message bgp:update {
+                to [ /bgp/peer/peer-2 ];
+            }
+        }
+    }
+    endpoint rfc8212-owner {
+        external {
+            run "le test fixture reload/rfc8212-owner";
+        }
+        encoding json;
+    }
+    endpoint rfc8212-reload {
+        external {
+            run "le test fixture reload/rfc8212-import-rollback";
+        }
+        encoding json;
+    }
 }
 bgp {
     peer peer-1 {
         connection { remote { ip 127.0.0.1; } local { ip 127.0.0.4; accept false; } }
         session {
             asn { local 65000; remote 65001; }
+            rs-client true;
             router-id 1.2.3.4;
             family { ipv4/unicast { prefix { maximum 10000; } } }
             capability { graceful-restart disable; route-refresh disable; }
@@ -107,44 +152,33 @@ bgp {
             attribute { origin igp; next-hop 10.0.0.1; }
             nlri { ipv4/unicast add 192.168.0.0/24; }
         }
-        attach process rfc8212-reload { send [ update ]; }
-        attach process rfc8212-owner { receive [ update-received ]; send [ update ]; }
-        attach process adj-rib-in { receive [ update-received state ]; }
-        attach process rs { receive [ update-received state open-received refresh ]; }
-        attach process rib { receive [ update state refresh ]; }
     }
     peer peer-2 {
         connection { remote { ip 127.0.0.2; } local { ip 127.0.0.5; accept false; } }
         session {
             asn { local 65000; remote 65000; }
+            rs-client true;
             aigp { enabled false; }
             router-id 1.2.3.4;
             family { ipv4/unicast { prefix { maximum 10000; } } }
             capability { graceful-restart disable; }
         }
         behavior { group-updates disable; }
-        attach process rfc8212-reload { receive [ update-received state ]; send [ update ]; }
-        attach process rfc8212-owner { receive [ update-received ]; }
-        attach process rs { receive [ state open-received refresh ]; send [ update ]; }
         # bgp-rib is the only writer of the invalidation: its sent inventory holds
         # every copy bgp-rs forwarded here, and its apply withdraws or replaces
         # them, so it needs this peer's send permission as well as bgp-rs.
-        attach process rib { receive [ update-sent state refresh ]; send [ update ]; }
     }
     peer peer-3 {
         connection { remote { ip 127.0.0.3; } local { ip 127.0.0.6; accept false; } }
         session {
             asn { local 65000; remote 65003; }
+            rs-client true;
             router-id 1.2.3.4;
             family { ipv4/unicast { prefix { maximum 10000; } } }
             capability { graceful-restart disable; route-refresh disable; }
         }
         behavior { group-updates disable; }
         filter { import { final accept; } export { final accept; } }
-        attach process rfc8212-reload { send [ update ]; }
-        attach process adj-rib-in { receive [ update-received state ]; }
-        attach process rs { receive [ update-received state open-received refresh ]; }
-        attach process rib { receive [ update state refresh ]; }
     }
 }
 EOF_CONF

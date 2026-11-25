@@ -37,10 +37,12 @@ service {
 	}
 }
 
-plugin {
-	external geodns-show-test {
-		run "le test fixture plugin/geodns-show"
-		encoder json
+bus {
+	endpoint geodns-show-test {
+		external {
+			run "le test fixture plugin/geodns-show";
+		}
+		encoding json;
 	}
 }
 

@@ -4,14 +4,18 @@
 # Healthy controls at both sizes must retain data without an error flag.
 
 stdin=ze-conf:terminator=EOF_CONF
-plugin {
-    external answer-outcome-provider {
-        run "le test fixture plugin/command-outcome-provider"
-        encoder json
+bus {
+    endpoint answer-outcome-provider {
+        external {
+            run "le test fixture plugin/command-outcome-provider";
+        }
+        encoding json;
     }
-    external answer-outcome-observer {
-        run "le test fixture plugin/command-outcome-mcp $PORT failed"
-        encoder json
+    endpoint answer-outcome-observer {
+        external {
+            run "le test fixture plugin/command-outcome-mcp $PORT failed";
+        }
+        encoding json;
     }
 }
 environment {

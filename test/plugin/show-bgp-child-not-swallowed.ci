@@ -18,22 +18,24 @@ EOF_PEER
 # Native observer fixture: plugin/show-bgp-child-not-swallowed.
 
 stdin=ze-bgp:terminator=EOF_CONF
-plugin {
-	external child-not-swallowed {
-		run "le test fixture plugin/show-bgp-child-not-swallowed"
-		encoder json
+bus {
+	endpoint bgp-rib {
+		internal bgp-rib;
 	}
-	internal bgp-rib {
-		use bgp-rib
+	endpoint adj-rib-in {
+		internal bgp-adj-rib-in;
 	}
-	internal adj-rib-in {
-		use bgp-adj-rib-in
+	endpoint rpki {
+		internal bgp-rpki;
 	}
-	internal rpki {
-		use bgp-rpki
+	endpoint rs {
+		internal bgp-rs;
 	}
-	internal rs {
-		use bgp-rs
+	endpoint child-not-swallowed {
+		external {
+			run "le test fixture plugin/show-bgp-child-not-swallowed";
+		}
+		encoding json;
 	}
 }
 

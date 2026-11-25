@@ -17,10 +17,12 @@
 # and a crashed plugin stayed dead for the life of the daemon.
 
 tmpfs=ze-bgp.conf:terminator=EOF_CONF
-plugin {
-	external failure-restart {
-		run "le test fixture plugin/failure-policy-restart"
-		encoder json
+bus {
+	endpoint failure-restart {
+		external {
+			run "le test fixture plugin/failure-policy-restart";
+		}
+		encoding json;
 	}
 }
 EOF_CONF

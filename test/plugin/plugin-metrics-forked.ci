@@ -19,10 +19,12 @@ EOF_PEER
 
 
 stdin=ze-bgp:terminator=EOF_CONF
-plugin {
-	external plugin-metrics-forked {
-		run "le test fixture plugin/metrics-forked"
-		encoder json
+bus {
+	endpoint plugin-metrics-forked {
+		external {
+			run "le test fixture plugin/metrics-forked";
+		}
+		encoding json;
 	}
 }
 

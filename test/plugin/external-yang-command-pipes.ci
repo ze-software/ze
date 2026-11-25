@@ -59,10 +59,12 @@ environment {
 		}
 	}
 }
-plugin {
-	external acme-monitor {
-		run "le test fixture plugin/external-yang commands"
-		encoder json
+bus {
+	endpoint acme-monitor {
+		external {
+			run "le test fixture plugin/external-yang commands";
+		}
+		encoding json;
 	}
 }
 acme-monitor {

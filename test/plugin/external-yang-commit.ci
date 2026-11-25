@@ -21,14 +21,18 @@
 option=timeout:value=60s
 
 stdin=ze-bgp:terminator=EOF_CONF
-plugin {
-	external live-stages {
-		run "le test fixture reload/live-stages stages.script"
-		encoder json
+bus {
+	endpoint live-stages {
+		external {
+			run "le test fixture reload/live-stages stages.script";
+		}
+		encoding json;
 	}
-	external acme-monitor {
-		run "le test fixture plugin/external-yang valid"
-		encoder json
+	endpoint acme-monitor {
+		external {
+			run "le test fixture plugin/external-yang valid";
+		}
+		encoding json;
 	}
 }
 
@@ -40,14 +44,18 @@ EOF_CONF
 
 # The accepted change: interval 5 becomes 7.
 tmpfs=config2.conf:terminator=EOF_CONF2
-plugin {
-	external live-stages {
-		run "le test fixture reload/live-stages stages.script"
-		encoder json
+bus {
+	endpoint live-stages {
+		external {
+			run "le test fixture reload/live-stages stages.script";
+		}
+		encoding json;
 	}
-	external acme-monitor {
-		run "le test fixture plugin/external-yang valid"
-		encoder json
+	endpoint acme-monitor {
+		external {
+			run "le test fixture plugin/external-yang valid";
+		}
+		encoding json;
 	}
 }
 
@@ -59,14 +67,18 @@ EOF_CONF2
 
 # The refused change: the plugin's verify refuses this target.
 tmpfs=config3.conf:terminator=EOF_CONF3
-plugin {
-	external live-stages {
-		run "le test fixture reload/live-stages stages.script"
-		encoder json
+bus {
+	endpoint live-stages {
+		external {
+			run "le test fixture reload/live-stages stages.script";
+		}
+		encoding json;
 	}
-	external acme-monitor {
-		run "le test fixture plugin/external-yang valid"
-		encoder json
+	endpoint acme-monitor {
+		external {
+			run "le test fixture plugin/external-yang valid";
+		}
+		encoding json;
 	}
 }
 

@@ -45,17 +45,19 @@ option=timeout:value=30s
 
 
 tmpfs=config2.conf:terminator=EOF_CONF2
-plugin {
-	external firewall-irr-reject-test {
-		run "le test fixture plugin/firewall-irr-reject"
-		encoder json
+bus {
+	endpoint firewall-irr-reject-test {
+		external {
+			run "le test fixture plugin/firewall-irr-reject";
+		}
+		encoding json;
 	}
 }
 system {
 	irr { server 127.0.0.1:$PORT2; }
 }
 firewall {
-	backend nft;
+	backend kernel;
 	table wan {
 		family inet;
 		chain input {
@@ -90,17 +92,19 @@ bgp {
 EOF_CONF2
 
 stdin=ze-fw:terminator=EOF_CONF
-plugin {
-	external firewall-irr-reject-test {
-		run "le test fixture plugin/firewall-irr-reject"
-		encoder json
+bus {
+	endpoint firewall-irr-reject-test {
+		external {
+			run "le test fixture plugin/firewall-irr-reject";
+		}
+		encoding json;
 	}
 }
 system {
 	irr { server 127.0.0.1:$PORT2; }
 }
 firewall {
-	backend nft;
+	backend kernel;
 }
 bgp {
 	peer peer1 {

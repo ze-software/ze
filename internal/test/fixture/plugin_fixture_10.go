@@ -124,7 +124,7 @@ func fixture10Observe(ctx context.Context, driver *fixture10Driver) error {
 		}()
 		return nil
 	})
-	runErr := plugin.Run(ctx, &driver.registration)
+	runErr := runObserver(ctx, plugin, &driver.registration)
 	select {
 	case scenarioErr := <-result:
 		return errors.Join(scenarioErr, runErr)
@@ -1253,7 +1253,7 @@ func fixture10PluginCheck(ctx context.Context, _ []string) error {
 		}()
 		return nil
 	})
-	runErr := plugin.Run(ctx, &sdk.Registration{
+	runErr := runObserver(ctx, plugin, &sdk.Registration{
 		Receives: bgpReceiveDecls([]string{eventUpdate}, nil),
 	})
 	select {

@@ -59,9 +59,9 @@ stdin=ze-bgp:terminator=EOF_CONF
 # Test: Level filtering
 # Verifies that ze.bgp.log.server=info filters out DEBUG messages
 
-plugin {
-    internal gr {
-        use bgp-gr
+bus {
+    endpoint gr {
+        internal bgp-gr;
     }
 }
 
@@ -110,10 +110,6 @@ bgp {
 	        }
 	    }
 	
-	    attach process gr {
-	    	receive [ open-received state eor ]
-	    	send [ update ]
-	    }
 	}
 }
 EOF_CONF

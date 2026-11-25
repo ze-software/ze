@@ -43,15 +43,17 @@ system {
 	}
 }
 
-plugin {
-	external dns-source-router-follows-lease-test {
-		run "le test fixture pppoe/dns-source-router-follows-lease"
-		encoder json
+bus {
+	endpoint dns-source-router-follows-lease-test {
+		external {
+			run "le test fixture pppoe/dns-source-router-follows-lease";
+		}
+		encoding json;
 	}
 }
 
 interface {
-	backend netlink
+	backend kernel
 	ethernet zecpe0 {
 	}
 	pppoe-client zedns1 {

@@ -108,7 +108,7 @@ func p12FilterDriver(name string, registration *sdk.Registration, handler sdk.Fi
 			}()
 			return nil
 		})
-		runErr := plugin.Run(ctx, registration)
+		runErr := runObserver(ctx, plugin, registration)
 		select {
 		case scenarioErr := <-result:
 			return errorsJoinP12(scenarioErr, runErr)

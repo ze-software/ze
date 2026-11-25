@@ -1,9 +1,9 @@
-# Test: plugin hub config with multiple server blocks
+# Test: bus hub config with multiple server blocks
 # VALIDATES: list server accepts multiple named entries
 # PREVENTS: Only first server being parsed
 
 stdin=ze-bgp:terminator=EOF_CONF
-plugin {
+bus {
     hub {
         server local {
             ip 127.0.0.1;

@@ -11,16 +11,18 @@ EOF_PEER
 
 # ze bgp configuration with adj-rib-in plugin
 stdin=ze-bgp:terminator=EOF_CONF
-plugin {
-	external adj-rib-test {
-		run "le test fixture plugin/config-adj-rib"
-		encoder json
+bus {
+	endpoint bgp-rib {
+		internal bgp-rib;
 	}
-	internal bgp-rib {
-		use bgp-rib
+	endpoint adj-rib-in {
+		internal bgp-adj-rib-in;
 	}
-	internal adj-rib-in {
-		use bgp-adj-rib-in
+	endpoint adj-rib-test {
+		external {
+			run "le test fixture plugin/config-adj-rib";
+		}
+		encoding json;
 	}
 }
 
@@ -52,13 +54,6 @@ bgp {
 			group-updates disable
 		}
 
-		attach process bgp-rib {
-			receive [ update state refresh ]
-			send [ update ]
-		}
-		attach process adj-rib-in {
-			receive [ update-received state ]
-		}
 	}
 }
 EOF_CONF

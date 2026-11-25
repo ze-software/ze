@@ -42,15 +42,29 @@ EOF_PEER
 
 # ze configuration: one eBGP peer with the propagation guard set to no-export.
 stdin=ze-bgp:terminator=EOF_CONF
-plugin {
-	hub { server local { ip 127.0.0.1; port 0; secret community-blackhole-noexport-forked-secret-0001; } }
-	external bgp-filter-community { run "ze plugin bgp-filter-community"; }
-	external test-blackhole {
-		run "le test fixture plugin/community-blackhole-noexport"
-		encoder json
+bus {
+	endpoint bgp-rib {
+		internal bgp-rib;
 	}
-	internal bgp-rib {
-		use bgp-rib
+	endpoint bgp-filter-community {
+		internal bgp-filter-community;
+		process separate;
+	}
+	endpoint test-blackhole {
+		external {
+			run "le test fixture plugin/community-blackhole-noexport";
+		}
+		encoding json;
+	}
+	endpoint bgp-adj-rib-in {
+		internal bgp-adj-rib-in;
+	}
+	hub {
+		server local {
+			ip 127.0.0.1;
+			port 0;
+			secret community-blackhole-noexport-forked-secret-0001;
+		}
 	}
 }
 bgp {
@@ -92,13 +106,6 @@ bgp {
 					blackhole-propagation no-export
 				}
 			}
-		}
-		attach process bgp-rib {
-			receive [ update state refresh ]
-			send [ update ]
-		}
-		attach process bgp-adj-rib-in {
-			receive [ update-received state ]
 		}
 	}
 }

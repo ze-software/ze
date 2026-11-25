@@ -23,10 +23,12 @@
 
 # The observer is an external plugin: its stderr joins the daemon's.
 stdin=ze-bgp:terminator=EOF_CONF
-plugin {
-	external config-apply-ordering-coarse-root {
-		run "le test fixture reload/config-apply-ordering-coarse-root"
-		encoder json
+bus {
+	endpoint config-apply-ordering-coarse-root {
+		external {
+			run "le test fixture reload/config-apply-ordering-coarse-root";
+		}
+		encoding json;
 	}
 }
 
@@ -75,10 +77,12 @@ EOF_CONF
 # root and nothing else. The bgp section is byte-identical, so bgp declares no
 # operations and the transaction carries coarse nodes only.
 tmpfs=config2.conf:terminator=EOF_CONF2
-plugin {
-	external config-apply-ordering-coarse-root {
-		run "le test fixture reload/config-apply-ordering-coarse-root"
-		encoder json
+bus {
+	endpoint config-apply-ordering-coarse-root {
+		external {
+			run "le test fixture reload/config-apply-ordering-coarse-root";
+		}
+		encoding json;
 	}
 }
 

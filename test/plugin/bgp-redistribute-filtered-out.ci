@@ -24,16 +24,18 @@ EOF_PEER
 # Compiled observer emits a family-rejected route and verifies its absence.
 
 stdin=ze-bgp:terminator=EOF_CONF
-plugin {
-	external filtered-test {
-		run "le test fixture plugin/bgp-redistribute-filtered-out"
-		encoder json
+bus {
+	endpoint redistribute-orchestrator {
+		internal redistribute-orchestrator;
 	}
-	internal redistribute-orchestrator {
-		use redistribute-orchestrator
+	endpoint fakeredist {
+		internal fakeredist;
 	}
-	internal fakeredist {
-		use fakeredist
+	endpoint filtered-test {
+		external {
+			run "le test fixture plugin/bgp-redistribute-filtered-out";
+		}
+		encoding json;
 	}
 }
 

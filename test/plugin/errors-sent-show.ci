@@ -16,10 +16,12 @@ EOF_PEER
 
 # ze bgp configuration
 stdin=ze-bgp:terminator=EOF_CONF
-plugin {
-	external errors-sent-show-test {
-		run "le test fixture plugin/errors-sent-show"
-		encoder json
+bus {
+	endpoint errors-sent-show-test {
+		external {
+			run "le test fixture plugin/errors-sent-show";
+		}
+		encoding json;
 	}
 }
 

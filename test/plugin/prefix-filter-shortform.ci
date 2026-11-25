@@ -27,10 +27,15 @@ action=send:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF002F020000001440010
 EOF_PEER
 
 stdin=ze-bgp:terminator=EOF_CONF
-plugin {
-	external test-shortform {
-		run "le test fixture plugin/prefix-filter-shortform"
-		encoder json
+bus {
+	endpoint test-shortform {
+		external {
+			run "le test fixture plugin/prefix-filter-shortform";
+		}
+		encoding json;
+	}
+	endpoint bgp-adj-rib-in {
+		internal bgp-adj-rib-in;
 	}
 }
 policy {
@@ -67,9 +72,6 @@ bgp {
 		filter {
 			export { final accept; }
 			import { filters [ modify:CUSTOMERS ]; final accept; }
-		}
-		attach process bgp-adj-rib-in {
-			receive [ update-received state ]
 		}
 	}
 }

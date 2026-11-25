@@ -17,10 +17,20 @@ action=send:conn=1:seq=5:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF003D020000002240010
 action=send:conn=1:seq=6:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
 PEER
 stdin=config:terminator=CONFIG
-plugin {
- internal checker { use filter-wire-cases; }
- external outside { run "ze plugin filter-wire-cases-forked"; }
- external observer { run "le test fixture plugin/filter-wire-cases-invalid-fence"; encoder json; }
+bus {
+  endpoint checker {
+    internal filter-wire-cases;
+  }
+  endpoint outside {
+    internal filter-wire-cases-forked;
+    process separate;
+  }
+  endpoint observer {
+    external {
+      run "le test fixture plugin/filter-wire-cases-invalid-fence";
+    }
+    encoding json;
+  }
 }
 telemetry { prometheus { enabled true; server main { ip 127.0.0.1; port $PORT2; } } }
 bgp {

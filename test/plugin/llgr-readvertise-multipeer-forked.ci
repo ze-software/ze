@@ -63,32 +63,35 @@ EOF_OBSN
 
 
 stdin=ze-bgp:terminator=EOF_CONF
-plugin {
-	internal rs {
-		use bgp-rs
+bus {
+	endpoint rs {
+		internal bgp-rr;
 	}
-	internal adj-rib-in {
-		use bgp-adj-rib-in
+	endpoint adj-rib-in {
+		internal bgp-adj-rib-in;
 	}
-	external observer {
-		run "le test fixture plugin/llgr-readvertise-multipeer"
-		encoder json
+	endpoint bgp-rib {
+		internal bgp-rib;
+	}
+	endpoint rib {
+		internal rib;
+	}
+	endpoint observer {
+		external {
+			run "le test fixture plugin/llgr-readvertise-multipeer";
+		}
+		encoding json;
+	}
+	endpoint bgp-gr {
+		internal bgp-gr;
+		process separate;
 	}
 	hub {
 		server local {
-			ip 127.0.0.1
-			port 0
-			secret llgr-readvertise-multipeer-forked-secret
+			ip 127.0.0.1;
+			port 0;
+			secret llgr-readvertise-multipeer-forked-secret;
 		}
-	}
-	external bgp-gr {
-		run "ze plugin bgp-gr"
-	}
-	internal bgp-rib {
-		use bgp-rib
-	}
-	internal rib {
-		use rib
 	}
 }
 
@@ -131,21 +134,6 @@ bgp {
 			group-updates disable
 		}
 
-		attach process bgp-gr {
-			receive [ open-received state eor ]
-			send [ update ]
-		}
-		attach process bgp-rib {
-			receive [ update state refresh ]
-			send [ update ]
-		}
-		attach process adj-rib-in {
-			receive [ update-received state ]
-		}
-		attach process rs {
-			receive [ update-received state open-received refresh ]
-			send [ update ]
-		}
 	}
 
 	peer obsn {
@@ -177,21 +165,6 @@ bgp {
 			group-updates disable
 		}
 
-		attach process bgp-gr {
-			receive [ open-received state eor ]
-			send [ update ]
-		}
-		attach process bgp-rib {
-			receive [ update state refresh ]
-			send [ update ]
-		}
-		attach process adj-rib-in {
-			send [ update ]
-		}
-		attach process rs {
-			receive [ update-received state open-received refresh ]
-			send [ update ]
-		}
 	}
 }
 EOF_CONF

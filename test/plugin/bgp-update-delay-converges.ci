@@ -65,9 +65,9 @@ expect=bgp:conn=1:seq=2:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
 EOF_PEER
 
 stdin=ze-bgp:terminator=EOF_CONF
-plugin {
-	internal bgp-rib {
-		use bgp-rib
+bus {
+	endpoint bgp-rib {
+		internal bgp-rib;
 	}
 }
 
@@ -121,10 +121,6 @@ bgp {
 		# graceful-restart peer must attach a process permitted to put a route
 		# on the wire, either `send [ update ]` or `send [ raw ]`, which is why
 		# bgp-rib is attached rather than merely declared.
-		attach process bgp-rib {
-			receive [ update state refresh ]
-			send [ update ]
-		}
 
 		update {
 			attribute {

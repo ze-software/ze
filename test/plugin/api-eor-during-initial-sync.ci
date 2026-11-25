@@ -42,10 +42,12 @@ EOF_PEER
 
 # ze bgp configuration
 stdin=ze-bgp:terminator=EOF_CONF
-plugin {
-	external add-remove {
-		run "le test fixture plugin/api-eor-during-initial-sync"
-		encoder json
+bus {
+	endpoint add-remove {
+		external {
+			run "le test fixture plugin/api-eor-during-initial-sync";
+		}
+		encoding json;
 	}
 }
 bgp {
@@ -77,11 +79,6 @@ bgp {
 			manual-eor true
 		}
 
-		attach process add-remove {
-			send [ update ]
-			# The peer-UP event starts the fixture's requests.
-			receive [ state ]
-		}
 	}
 }
 EOF_CONF

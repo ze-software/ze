@@ -79,15 +79,17 @@ system {
 	}
 }
 
-plugin {
-	external dhcp-server-dns-replay-hold-test {
-		run "le test fixture pppoe/dhcp-server-dns-replay-hold config2.conf"
-		encoder json
+bus {
+	endpoint dhcp-server-dns-replay-hold-test {
+		external {
+			run "le test fixture pppoe/dhcp-server-dns-replay-hold config2.conf";
+		}
+		encoding json;
 	}
 }
 
 interface {
-	backend netlink
+	backend kernel
 	ethernet zecpe0 {
 	}
 	pppoe-client zedns1 {
@@ -137,15 +139,17 @@ service {
 	}
 }
 
-plugin {
-	external dhcp-server-dns-replay-hold-test {
-		run "le test fixture pppoe/dhcp-server-dns-replay-hold config2.conf"
-		encoder json
+bus {
+	endpoint dhcp-server-dns-replay-hold-test {
+		external {
+			run "le test fixture pppoe/dhcp-server-dns-replay-hold config2.conf";
+		}
+		encoding json;
 	}
 }
 
 interface {
-	backend netlink
+	backend kernel
 	ethernet zecpe0 {
 	}
 	pppoe-client zedns1 {

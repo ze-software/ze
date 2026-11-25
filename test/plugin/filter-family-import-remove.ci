@@ -24,10 +24,12 @@ EOF_PEER
 
 
 stdin=ze-bgp:terminator=EOF_CONF
-plugin {
-	external test-family-remove {
-		run "le test fixture plugin/filter-family-import-remove"
-		encoder json
+bus {
+	endpoint test-family-remove {
+		external {
+			run "le test fixture plugin/filter-family-import-remove";
+		}
+		encoding json;
 	}
 }
 policy {
@@ -64,9 +66,6 @@ bgp {
 			import { filters [ bgp-filter-family:NoFlow ]; final accept; }
 		}
 
-		attach process test-family-remove {
-			receive [ update state ]
-		}
 	}
 }
 EOF_CONF

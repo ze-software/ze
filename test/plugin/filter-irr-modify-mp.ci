@@ -16,6 +16,8 @@
 # 3. bgp-filter-irr answers modify with "mp ipv6/unicast add 2001:db8::/32".
 # 4. bgp-rs relays the filtered route to dest-peer, which expects it byte for byte.
 
+# Linux-only: static `next { interface lo { } }` resolves loopback `lo` via Linux netlink.
+option=needs-linux
 option=env:var=ze.log.bgp.filter.irr:value=info
 
 # MP_REACH_NLRI value: AFI 0002, SAFI 01, NH length 10, NH 2001:db8::1,
@@ -44,18 +46,23 @@ expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF0045020000002E800E1A
 EOF_DEST
 
 stdin=ze-bgp:terminator=EOF_CONF
-plugin {
-	internal rs {
-		use bgp-rs
+bus {
+	endpoint rs {
+		internal bgp-rib;
 	}
-	internal adj-rib-in {
-		use bgp-adj-rib-in
+	endpoint adj-rib-in {
+		internal bgp-adj-rib-in;
+		send {
+			message bgp:update {
+				to none;
+			}
+		}
 	}
-	# The relay observer: it releases source-peer once AS-TEST is enforced,
-	# then waits until dest-peer was sent the route.
-	external test-strip {
-		run "le test fixture plugin/filter-irr-modify-mp"
-		encoder json
+	endpoint test-strip {
+		external {
+			run "le test fixture plugin/filter-irr-modify-mp";
+		}
+		encoding json;
 	}
 }
 system {
@@ -65,6 +72,14 @@ system {
 	}
 }
 
+fib {
+	dummy { }
+}
+static {
+	table default {
+		route 2001:db8::1/128 { next { interface lo { } } }
+	}
+}
 bgp {
 	# RFC 8212: an EBGP direction with no policy is refused; this test exchanges routes.
 	filter {
@@ -96,13 +111,6 @@ bgp {
 		}
 		filter {
 			import { filters [ bgp-filter-irr:65001 ]; final accept; }
-		}
-		attach process adj-rib-in {
-			receive [ update-received state ]
-		}
-		attach process rs {
-			receive [ update-received state open-received refresh ]
-			send [ update ]
 		}
 	}
 
@@ -136,14 +144,6 @@ bgp {
 		}
 		# bgp-rs asks adj-rib-in to replay the stored route here when this
 		# session establishes, so adj-rib-in needs the send permission.
-		attach process adj-rib-in {
-			receive [ update-received state ]
-			send [ update ]
-		}
-		attach process rs {
-			receive [ update-received state open-received refresh ]
-			send [ update ]
-		}
 	}
 }
 EOF_CONF

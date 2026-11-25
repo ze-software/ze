@@ -277,7 +277,7 @@ func rsObserver04(expected int, prefix string, requireReplay bool, requiredSerie
 			}()
 			return nil
 		})
-		runErr := p.Run(ctx, &sdk.Registration{
+		runErr := runObserver(ctx, p, &sdk.Registration{
 			Receives: bgpReceiveDecls([]string{eventUpdate}, nil),
 		})
 		return awaitObserverResult(started, result, runErr)

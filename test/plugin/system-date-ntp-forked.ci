@@ -6,21 +6,24 @@
 # PREVENTS: an active forked NTP client silently looking disabled to its daemon.
 
 stdin=ntp-conf:terminator=EOF_CONF
-plugin {
+bus {
+	endpoint ntp {
+		internal ntp;
+		process separate;
+		encoding json;
+	}
+	endpoint system-date-ntp-forked-test {
+		external {
+			run "le test fixture plugin/system-date-ntp-forked";
+		}
+		encoding json;
+	}
 	hub {
 		server local {
-			ip 127.0.0.1
-			port 0
-			secret ntp-state-test-secret-01234567890
+			ip 127.0.0.1;
+			port 0;
+			secret ntp-state-test-secret-01234567890;
 		}
-	}
-	external ntp {
-		run "ze plugin ntp"
-		encoder json
-	}
-	external system-date-ntp-forked-test {
-		run "le test fixture plugin/system-date-ntp-forked"
-		encoder json
 	}
 }
 environment {

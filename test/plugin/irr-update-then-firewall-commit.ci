@@ -19,17 +19,19 @@ option=env:var=ze.log.irr:value=debug
 option=timeout:value=40s
 
 stdin=ze-irr:terminator=EOF_CONF
-plugin {
-	external irr-update-then-firewall-commit-test {
-		run "le test fixture plugin/irr-update-then-firewall-commit"
-		encoder json
+bus {
+	endpoint irr-update-then-firewall-commit-test {
+		external {
+			run "le test fixture plugin/irr-update-then-firewall-commit";
+		}
+		encoding json;
 	}
 }
 system {
 	irr { server 127.0.0.1:$PORT2; }
 }
 firewall {
-	backend nft;
+	backend kernel;
 	table lan {
 		family inet;
 		chain input {
@@ -60,17 +62,19 @@ bgp {
 EOF_CONF
 
 tmpfs=config2.conf:terminator=EOF_CONF2
-plugin {
-	external irr-update-then-firewall-commit-test {
-		run "le test fixture plugin/irr-update-then-firewall-commit"
-		encoder json
+bus {
+	endpoint irr-update-then-firewall-commit-test {
+		external {
+			run "le test fixture plugin/irr-update-then-firewall-commit";
+		}
+		encoding json;
 	}
 }
 system {
 	irr { server 127.0.0.1:$PORT2; }
 }
 firewall {
-	backend nft;
+	backend kernel;
 	table lan {
 		family inet;
 		chain input {

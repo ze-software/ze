@@ -69,10 +69,12 @@ sys.exit(1)
 EOF_RUN
 
 tmpfs=ze.conf:terminator=EOF_CONF
-plugin {
-	external acme-shell {
-		run "./oldkey.run"
-		encoder json
+bus {
+	endpoint acme-shell {
+		external {
+			run ./oldkey.run;
+		}
+		encoding json;
 	}
 }
 

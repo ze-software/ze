@@ -1,26 +1,28 @@
-# Test: a reload that changes an exabgp bridge script's run command is
-#       refused while the bridge runs, naming the leaf.
-# Initial config: the exabgp bridge runs process helper and feeds peer1.
-# Live change:    config2.conf gives process helper another run command;
-#                 nothing else changes.
-# Expected:       the reload is refused at verify naming the leaf path
-#                 `exabgp bridge process helper`, saying it cannot change while
-#                 ze runs, with the restart steps; the session stays up on one
-#                 TCP connection.
+# Test: a reload that changes an ExaBGP wrapper endpoint's external run command
+#       is refused while ze runs, naming the endpoint, the changed `run` leaf,
+#       and `restart ze`.
+# Initial config: external bus endpoint `helper` runs `ze exabgp plugin` over
+#                 `plugin/exabgp-bridge-helper` and feeds peer1.
+# Live change:    config2.conf gives endpoint `helper` another `external > run`
+#                 command; nothing else changes.
+# Expected:       the reload is refused before apply by
+#                 RefuseChangedDeclarations, naming plugin "helper" (run) and
+#                 `restart ze`, `show reload-status` reports failed, and the
+#                 session stays up on one TCP connection with the helper's
+#                 route intact.
 #
-# VALIDATES: spec-plugin-reload-applies-or-refuses row 27, AC-8 (owner
-#            decision Q4 = e1): bridgeRunner.verifyReload refuses every
-#            non-capability change under exabgp bridge.
-# ROUTE:     the runner starts ze, so ze runs outside ze.service: the
-#            restart route is the stop-and-start steps and never a
-#            systemctl command (privilege.RestartRemedy).
-# PREVENTS:  the acked-and-dropped reload. With OnConfigure alone the SDK
-#            answered config-verify and config-apply OK, the commit succeeded,
-#            and the script kept running the old command.
+# VALIDATES: spec-explicit-plugin-and-attach-config E-1 (external-plugin
+#            restart-only ruling) and spec-plugin-reload-applies-or-refuses
+#            AC-8: RefuseChangedDeclarations refuses any change to an external
+#            endpoint's `run` leaf on reload.
+# PREVENTS:  the acked-and-dropped reload where changing an ExaBGP script
+#            endpoint's `run` command commits while the old subprocess keeps
+#            running.
 #
-# DISCRIMINATION: the refusal line is written only by verifyReload; with
-# registerReloadHandlers removed from runInternalBridge the reload is accepted
-# and the first expectation fails.
+# DISCRIMINATION: the refusal is produced by RefuseChangedDeclarations
+# (internal/component/plugin/server/reload_declarations.go) comparing the
+# external endpoint's `run` field; without it `show reload-status` reads
+# "applied" and the refusal assertions fail.
 option=timeout:value=60s
 
 stdin=peer:terminator=EOF_PEER
@@ -32,7 +34,7 @@ option=established-file:path=established
 # EOR from ze
 expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
 # The helper script's route, 1.1.0.0/24 next-hop 101.1.101.1 (as in
-# test/plugin/exabgp-bridge-internal.ci).
+# test/plugin/exabgp-bridge-sdk.ci).
 expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF0030020000001540010100400200400304650165014005040000006418010100
 # The clean shutdown after the last stage, on the SAME connection: Cease (6) /
 # Administrative Shutdown (2, RFC 4486) with the RFC 8203 default text.
@@ -40,25 +42,18 @@ expect=bgp:conn=1:seq=2:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF002D0306021741646D69
 EOF_PEER
 
 stdin=ze-bgp:terminator=EOF_CONF
-plugin {
-	external live-stages {
-		run "le test fixture reload/live-stages stages.script"
-		encoder json
-	}
-}
-
-exabgp {
-	bridge {
-		process helper {
-			run "le test fixture plugin/exabgp-bridge-helper"
+bus {
+	endpoint live-stages {
+		external {
+			run "le test fixture reload/live-stages stages.script";
 		}
-		family ipv4/unicast
-		route-refresh false
+		encoding json;
 	}
-}
-plugin {
-	internal exabgp-bridge {
-		use exabgp-bridge
+	endpoint helper {
+		external {
+			run "ze exabgp plugin --family ipv4/unicast le test fixture plugin/exabgp-bridge-helper";
+		}
+		encoding json;
 	}
 }
 bgp {
@@ -82,38 +77,26 @@ bgp {
 			family {
 				ipv4/unicast { prefix { maximum 10000; } }
 			}
-		}
-		attach process exabgp-bridge {
-			receive [ * ]
-			send [ * ]
 		}
 	}
 }
 EOF_CONF
 
-# The reload: process helper's run command is the only difference. The
-# plugin block is byte-identical in both configs, so the staged fixture
-# survives.
+# The reload: endpoint helper's external run command is the only difference.
+# live-stages is byte-identical in both configs, so the staged fixture survives.
 tmpfs=config2.conf:terminator=EOF_CONF2
-plugin {
-	external live-stages {
-		run "le test fixture reload/live-stages stages.script"
-		encoder json
-	}
-}
-
-exabgp {
-	bridge {
-		process helper {
-			run "le test fixture plugin/exabgp-bridge-helper --edited"
+bus {
+	endpoint live-stages {
+		external {
+			run "le test fixture reload/live-stages stages.script";
 		}
-		family ipv4/unicast
-		route-refresh false
+		encoding json;
 	}
-}
-plugin {
-	internal exabgp-bridge {
-		use exabgp-bridge
+	endpoint helper {
+		external {
+			run "ze exabgp plugin --family ipv4/unicast le test fixture plugin/exabgp-bridge-helper --edited";
+		}
+		encoding json;
 	}
 }
 bgp {
@@ -137,10 +120,6 @@ bgp {
 			family {
 				ipv4/unicast { prefix { maximum 10000; } }
 			}
-		}
-		attach process exabgp-bridge {
-			receive [ * ]
-			send [ * ]
 		}
 	}
 }
@@ -149,11 +128,12 @@ EOF_CONF2
 tmpfs=stages.script:terminator=EOF_SCRIPT
 await-file established
 reload config2.conf
-# The helper is a forked process whose first line reaches the bridge whenever
+has show reload-status => "last-outcome":"failed"
+# The helper is a forked process whose first line reaches the daemon whenever
 # the machine lets it start, before or after the reload. The EOR and its route
 # are the two UPDATEs: this fences the shutdown behind the route, which the
-# peer expects, and shows the session and the bridge still carry it after the
-# reload.
+# peer expects, and shows the session and the helper still carry it after the
+# refused reload.
 has show bgp peer 127.0.0.1 detail => "updates-sent":2,
 say BRIDGE-RUN-REFUSED: reload refused, session kept
 EOF_SCRIPT
@@ -161,12 +141,11 @@ EOF_SCRIPT
 cmd=background:seq=1:exec=le test peer --port $PORT:stdin=peer
 cmd=foreground:seq=2:exec=ze -:stdin=ze-bgp:timeout=60s
 
-expect=stderr:contains=exabgp bridge process helper cannot change while ze runs (plugin exabgp-bridge): the bridge's scripts keep the config they started with.
-expect=stderr:contains=no single command restarts an unsupervised ze: run ze signal stop, then start ze again the way it was started
-expect=stderr:contains=  on the ze appliance: request reboot in the ze CLI, or ze signal reboot from a shell
+expect=stderr:contains=the new config changes the external plugins ze runs, which change only when ze restarts
+expect=stderr:pattern=it changes plugin.*helper.*\(run\)
+expect=stderr:contains=restart ze
 expect=stderr:contains=BRIDGE-RUN-REFUSED: reload refused, session kept
 reject=stderr:pattern=ZE-OBSERVER-FAIL
 reject=stderr:pattern=peer restart required
-reject=stderr:pattern=capability route-refresh cannot change
 reject=stderr:pattern=ze signal restart
 reject=stderr:pattern=systemctl restart ze

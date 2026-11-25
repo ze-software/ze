@@ -19,10 +19,12 @@ l2tp {
 environment {
     l2tp { server main { ip 127.0.0.1; port $PORT; } }
 }
-plugin {
-    external engine-steps {
-        run "le mock engine-steps ./engine-steps.json";
-        encoder json;
+bus {
+    endpoint engine-steps {
+        external {
+            run "le mock engine-steps ./engine-steps.json";
+        }
+        encoding json;
     }
 }
 EOF_DAEMON

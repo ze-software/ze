@@ -30,16 +30,18 @@ EOF_PEER
 
 # Initial config: fakeredist + orchestrator + redistribute, but NO bgp peers.
 stdin=ze-bgp:terminator=EOF_CONF
-plugin {
-	external late-join-configadd-test {
-		run "le test fixture plugin/redistribute-late-join-configadd"
-		encoder json
+bus {
+	endpoint redistribute-orchestrator {
+		internal redistribute-orchestrator;
 	}
-	internal redistribute-orchestrator {
-		use redistribute-orchestrator
+	endpoint fakeredist {
+		internal fakeredist;
 	}
-	internal fakeredist {
-		use fakeredist
+	endpoint late-join-configadd-test {
+		external {
+			run "le test fixture plugin/redistribute-late-join-configadd";
+		}
+		encoding json;
 	}
 }
 
@@ -69,16 +71,18 @@ EOF_CONF
 
 # Rewritten config: adds peer1 (no config route -- only the replay can feed it).
 tmpfs=config2.conf:terminator=EOF_CONF2
-plugin {
-	external late-join-configadd-test {
-		run "le test fixture plugin/redistribute-late-join-configadd"
-		encoder json
+bus {
+	endpoint redistribute-orchestrator {
+		internal redistribute-orchestrator;
 	}
-	internal redistribute-orchestrator {
-		use redistribute-orchestrator
+	endpoint fakeredist {
+		internal fakeredist;
 	}
-	internal fakeredist {
-		use fakeredist
+	endpoint late-join-configadd-test {
+		external {
+			run "le test fixture plugin/redistribute-late-join-configadd";
+		}
+		encoding json;
 	}
 }
 
@@ -127,10 +131,6 @@ bgp {
 		}
 		behavior {
 			group-updates disable
-		}
-		attach process redistribute-orchestrator {
-			receive [ state ]
-			send [ update ]
 		}
 	}
 }

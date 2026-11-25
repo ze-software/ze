@@ -56,10 +56,12 @@ EOF_PEER
 
 # Initial ze bgp configuration: import chain references prefix-list ALLOW
 stdin=ze-bgp:terminator=EOF_CONF
-plugin {
-	external reload-policy-applies {
-		run "le test fixture reload/reload-import-policy-applies"
-		encoder json
+bus {
+	endpoint reload-policy-applies {
+		external {
+			run "le test fixture reload/reload-import-policy-applies";
+		}
+		encoding json;
 	}
 }
 	policy {
@@ -171,10 +173,12 @@ EOF_CONF
 # Rewritten config: the import chain is the ONLY difference (ALLOW -> DENY).
 # The plugin block is byte-identical, so the observer survives the reload.
 tmpfs=config2.conf:terminator=EOF_CONF2
-plugin {
-	external reload-policy-applies {
-		run "le test fixture reload/reload-import-policy-applies"
-		encoder json
+bus {
+	endpoint reload-policy-applies {
+		external {
+			run "le test fixture reload/reload-import-policy-applies";
+		}
+		encoding json;
 	}
 }
 	policy {

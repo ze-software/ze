@@ -17,17 +17,19 @@ option=env:var=ze.log.irr:value=debug
 option=timeout:value=40s
 
 stdin=ze-irr:terminator=EOF_CONF
-plugin {
-	external irr-shared-dataset-test {
-		run "le test fixture plugin/irr-shared-dataset"
-		encoder json
+bus {
+	endpoint irr-shared-dataset-test {
+		external {
+			run "le test fixture plugin/irr-shared-dataset";
+		}
+		encoding json;
 	}
 }
 system {
 	irr { server 127.0.0.1:$PORT2; }
 }
 firewall {
-	backend nft;
+	backend kernel;
 	table wan {
 		family inet;
 		chain input {

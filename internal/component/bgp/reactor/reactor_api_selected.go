@@ -135,6 +135,9 @@ func (a *reactorAPIAdapter) selectRoute(ctx context.Context, peer *Peer, session
 	if err := selectedOriginalSource(route, &source, fam); err != nil {
 		return rpc.SelectedRouteResult{}, err
 	}
+	if source.info.peer == peer {
+		return a.writeSelected(ctx, peer, &work, nil)
+	}
 	ctx, release := write.writeContext(ctx)
 	defer release()
 	// Complete provenance before publishing the reconstruction in the shared

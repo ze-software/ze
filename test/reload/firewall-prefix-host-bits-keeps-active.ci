@@ -1,6 +1,6 @@
 # Test: does a refused live prefix edit keep both the active config and the
 # installed kernel rule, and can the operator then commit the corrected prefix?
-# A unit test cannot prove transaction persistence and nft kernel state survive
+# A unit test cannot prove transaction persistence and nftables kernel state survive
 # an actual rejected reload. The compiled observer checks both between reloads.
 # VALIDATES: spec-firewall-prefix-normalize AC-6 through the running daemon.
 # PREVENTS: rejecting only offline validation, or applying a refused candidate.
@@ -10,7 +10,7 @@ option=storage:value=disk
 
 stdin=ze-bgp:terminator=EOF_CONFIG
 firewall {
-    backend nft;
+    backend kernel;
     table prefix_guard {
         family inet;
         chain input {
@@ -25,16 +25,18 @@ firewall {
         }
     }
 }
-plugin {
-    external prefix-proof {
-        run "le test fixture firewall/prefix-host-bits-keeps-active prefix-invalid.conf prefix-corrected.conf";
+bus {
+    endpoint prefix-proof {
+        external {
+            run "le test fixture firewall/prefix-host-bits-keeps-active prefix-invalid.conf prefix-corrected.conf";
+        }
     }
 }
 EOF_CONFIG
 
 tmpfs=prefix-invalid.conf:refused=config-plugin-verify:terminator=EOF_INVALID
 firewall {
-    backend nft;
+    backend kernel;
     table prefix_guard {
         family inet;
         chain input {
@@ -49,16 +51,18 @@ firewall {
         }
     }
 }
-plugin {
-    external prefix-proof {
-        run "le test fixture firewall/prefix-host-bits-keeps-active prefix-invalid.conf prefix-corrected.conf";
+bus {
+    endpoint prefix-proof {
+        external {
+            run "le test fixture firewall/prefix-host-bits-keeps-active prefix-invalid.conf prefix-corrected.conf";
+        }
     }
 }
 EOF_INVALID
 
 tmpfs=prefix-corrected.conf:terminator=EOF_CORRECTED
 firewall {
-    backend nft;
+    backend kernel;
     table prefix_guard {
         family inet;
         chain input {
@@ -73,9 +77,11 @@ firewall {
         }
     }
 }
-plugin {
-    external prefix-proof {
-        run "le test fixture firewall/prefix-host-bits-keeps-active prefix-invalid.conf prefix-corrected.conf";
+bus {
+    endpoint prefix-proof {
+        external {
+            run "le test fixture firewall/prefix-host-bits-keeps-active prefix-invalid.conf prefix-corrected.conf";
+        }
     }
 }
 EOF_CORRECTED

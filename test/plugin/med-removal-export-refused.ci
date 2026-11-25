@@ -54,16 +54,18 @@ EOF_PEER
 # Observer: wait until every client has been replayed to, then shut down.
 
 stdin=ze-bgp:terminator=EOF_CONF
-plugin {
-	internal rs {
-		use bgp-rs
+bus {
+	endpoint rs {
+		internal bgp-rs;
 	}
-	internal adj-rib-in {
-		use bgp-adj-rib-in
+	endpoint adj-rib-in {
+		internal bgp-adj-rib-in;
 	}
-	external shutdown-after-up {
-		run "le test fixture plugin/med-removal-export-refused"
-		encoder json
+	endpoint shutdown-after-up {
+		external {
+			run "le test fixture plugin/med-removal-export-refused";
+		}
+		encoding json;
 	}
 }
 policy {
@@ -93,6 +95,7 @@ bgp {
 			}
 		}
 		session {
+			rs-client true;
 			asn {
 				local 65000
 				remote 65001
@@ -107,16 +110,6 @@ bgp {
 		}
 		behavior {
 			group-updates disable
-		}
-		attach process adj-rib-in {
-			receive [ update-received state ]
-		}
-		attach process rs {
-			receive [ update-received state open-received refresh ]
-			send [ update ]
-		}
-		attach process shutdown-after-up {
-			receive [ update ]
 		}
 	}
 	peer rs-client-receiver {
@@ -151,16 +144,6 @@ bgp {
 		# EXPORT, which is the direction the mechanism is not honored on.
 		filter {
 			export { filters [ modify:DROP-MED ]; final accept; }
-		}
-		attach process adj-rib-in {
-			send [ update ]
-		}
-		attach process rs {
-			receive [ update-received state open-received refresh ]
-			send [ update ]
-		}
-		attach process shutdown-after-up {
-			receive [ update ]
 		}
 	}
 }

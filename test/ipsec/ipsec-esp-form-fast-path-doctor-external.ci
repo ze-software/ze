@@ -28,14 +28,18 @@ option=env:var=ze_test_ike_port:value=$PORT2
 option=timeout:value=45s
 
 stdin=config:terminator=EOF_CONFIG
-plugin {
-	external ike {
-		run "ze plugin ike"
-		encoder json
+bus {
+	endpoint ike {
+		external {
+			run "ze plugin ike";
+		}
+		encoding json;
 	}
-	external engine-steps {
-		run "le mock engine-steps ./engine-steps.json"
-		encoder json
+	endpoint engine-steps {
+		external {
+			run "le mock engine-steps ./engine-steps.json";
+		}
+		encoding json;
 	}
 }
 vpn {

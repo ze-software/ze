@@ -20,10 +20,12 @@ option=env:var=ze.log.flow.export:value=info
 option=timeout:value=20s
 
 stdin=ze-conf:terminator=EOF_CONF
-plugin {
-	external sflow-receiver {
-		run "le test fixture flow-export/sflow-export $PORT2"
-		encoder json
+bus {
+	endpoint sflow-receiver {
+		external {
+			run "le test fixture flow-export/sflow-export $PORT2";
+		}
+		encoding json;
 	}
 }
 

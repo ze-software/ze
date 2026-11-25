@@ -33,10 +33,12 @@ EOF_PEER
 # and peer2 never establishes. The plugin is attached to BOTH peers, so the
 # commit's `*` selector matches both and the answer owes a row for each.
 stdin=ze-bgp:terminator=EOF_CONF
-plugin {
-	external commit-report-test {
-		run "le test fixture plugin/commit-end-per-peer-report"
-		encoder json
+bus {
+	endpoint commit-report-test {
+		external {
+			run "le test fixture plugin/commit-end-per-peer-report";
+		}
+		encoding json;
 	}
 }
 
@@ -68,9 +70,6 @@ bgp {
 			group-updates disable
 		}
 
-		attach process commit-report-test {
-			send [ update ]
-		}
 	}
 
 	peer peer2 {
@@ -100,9 +99,6 @@ bgp {
 			group-updates disable
 		}
 
-		attach process commit-report-test {
-			send [ update ]
-		}
 	}
 }
 EOF_CONF

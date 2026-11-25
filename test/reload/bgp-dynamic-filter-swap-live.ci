@@ -69,13 +69,15 @@ expect=bgp:conn=1:seq=2:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF002D0306021741646D69
 EOF_PEER
 
 stdin=ze-bgp:terminator=EOF_CONF
-plugin {
-	internal bgp-rib {
-		use bgp-rib
+bus {
+	endpoint bgp-rib {
+		internal bgp-rib;
 	}
-	external live-stages {
-		run "le test fixture reload/live-stages stages.script"
-		encoder json
+	endpoint live-stages {
+		external {
+			run "le test fixture reload/live-stages stages.script";
+		}
+		encoding json;
 	}
 }
 
@@ -143,9 +145,6 @@ bgp {
 		filter {
 			import { filters [ DENY-$remote_as ]; final accept; }
 		}
-		attach process bgp-rib {
-			receive [ update-received state ]
-		}
 	}
 }
 EOF_CONF
@@ -153,13 +152,15 @@ EOF_CONF
 # The second config: the import chain is the ONLY difference (DENY -> ALLOW).
 # The plugin block is byte-identical, so the staged fixture survives the reload.
 tmpfs=config2.conf:terminator=EOF_CONF2
-plugin {
-	internal bgp-rib {
-		use bgp-rib
+bus {
+	endpoint bgp-rib {
+		internal bgp-rib;
 	}
-	external live-stages {
-		run "le test fixture reload/live-stages stages.script"
-		encoder json
+	endpoint live-stages {
+		external {
+			run "le test fixture reload/live-stages stages.script";
+		}
+		encoding json;
 	}
 }
 
@@ -226,9 +227,6 @@ bgp {
 		}
 		filter {
 			import { filters [ ALLOW-$remote_as ]; final accept; }
-		}
-		attach process bgp-rib {
-			receive [ update-received state ]
 		}
 	}
 }

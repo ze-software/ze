@@ -52,10 +52,12 @@ say ROLE-ADD-PEER: the peer added by reload established with its Role capability
 EOF_SCRIPT
 
 stdin=ze-bgp:terminator=EOF_CONF
-plugin {
-	external live-stages {
-		run "le test fixture reload/live-stages stages.script"
-		encoder json
+bus {
+	endpoint live-stages {
+		external {
+			run "le test fixture reload/live-stages stages.script";
+		}
+		encoding json;
 	}
 }
 
@@ -84,10 +86,12 @@ bgp {
 EOF_CONF
 
 tmpfs=config2.conf:terminator=EOF_CONF2
-plugin {
-	external live-stages {
-		run "le test fixture reload/live-stages stages.script"
-		encoder json
+bus {
+	endpoint live-stages {
+		external {
+			run "le test fixture reload/live-stages stages.script";
+		}
+		encoding json;
 	}
 }
 

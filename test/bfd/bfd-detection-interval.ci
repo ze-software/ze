@@ -41,10 +41,12 @@ option=env:var=ze.bfd.test-parallel:value=true
 option=exclusive:group=bfd-ports
 
 stdin=ze-bfd:terminator=EOF_CONF
-plugin {
-	external bfd-detection-interval-test {
-		run "le test fixture bfd/bfd-detection-interval"
-		encoder json
+bus {
+	endpoint bfd-detection-interval-test {
+		external {
+			run "le test fixture bfd/bfd-detection-interval";
+		}
+		encoding json;
 	}
 }
 

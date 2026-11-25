@@ -406,7 +406,7 @@ func grCLIRestart08(ctx context.Context, p *sdk.Plugin) error {
 		return err
 	}
 	fmt.Fprintln(os.Stderr, "OK: lifecycle dispatch works")
-	return nil
+	return errObserverDaemonStopped
 }
 
 func grpcExecute08(ctx context.Context, p *sdk.Plugin) error {
@@ -499,7 +499,7 @@ func ifaceRateJSON08(ctx context.Context, p *sdk.Plugin) error {
 	// starts it (ratesOf, internal/component/iface/cmd/interface_rate.go).
 	const absent = "interface rates unavailable: the interface plugin, which measures interface rates, is not running. " +
 		"Ze starts it only when the configuration holds an interface section. " +
-		"To start it, add the section and commit: set interface backend netlink"
+		"To start it, add the section and commit: set interface backend kernel"
 	if !strings.Contains(message, absent) {
 		return fmt.Errorf("interface rate: expected the refusal that names the missing interface plugin and its fix, got %s", message)
 	}

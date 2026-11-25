@@ -12,10 +12,12 @@ option=netns-link:name=veth-bng:peer=veth-sub
 option=timeout:value=180s
 
 stdin=config:terminator=EOF_CONF
-plugin {
-    external pppoe-subscriber-route-test {
-        run "le test fixture pppoe/redistribute-subscriber-route veth-sub 127.0.0.4:$PORT"
-        encoder json
+bus {
+    endpoint pppoe-subscriber-route-test {
+        external {
+            run "le test fixture pppoe/redistribute-subscriber-route veth-sub 127.0.0.4:$PORT";
+        }
+        encoding json;
     }
 }
 
@@ -93,9 +95,6 @@ bgp {
             capability {
                 graceful-restart disable
             }
-        }
-        attach process redistribute-orchestrator {
-            send [ update ]
         }
     }
 }

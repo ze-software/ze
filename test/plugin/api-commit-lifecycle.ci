@@ -13,10 +13,12 @@ EOF_PEER
 
 # ze bgp configuration
 stdin=ze-bgp:terminator=EOF_CONF
-plugin {
-	external commit-lifecycle-test {
-		run "le test fixture plugin/api-commit-lifecycle"
-		encoder json
+bus {
+	endpoint commit-lifecycle-test {
+		external {
+			run "le test fixture plugin/api-commit-lifecycle";
+		}
+		encoding json;
 	}
 }
 
@@ -48,9 +50,6 @@ bgp {
 			group-updates disable
 		}
 
-		attach process commit-lifecycle-test {
-			send [ update ]
-		}
 	}
 }
 EOF_CONF

@@ -34,17 +34,19 @@ option=timeout:value=20s
 
 
 stdin=ze-fw:terminator=EOF_CONF
-plugin {
-	external firewall-irr-no-blackhole-test {
-		run "le test fixture plugin/firewall-irr-iface-no-blackhole"
-		encoder json
+bus {
+	endpoint firewall-irr-no-blackhole-test {
+		external {
+			run "le test fixture plugin/firewall-irr-iface-no-blackhole";
+		}
+		encoding json;
 	}
 }
 system {
 	irr { server 127.0.0.1:$PORT2; }
 }
 firewall {
-	backend nft;
+	backend kernel;
 	irr {
 		interface eth1 {
 			source-as-set AS-TEST;

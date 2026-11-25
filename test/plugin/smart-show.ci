@@ -7,10 +7,12 @@
 # Native observer fixture: plugin/smart-show.
 
 stdin=ze-conf:terminator=EOF_CONF
-plugin {
-    external smart-show-done {
-        run "le test fixture plugin/smart-show"
-        encoder json
+bus {
+    endpoint smart-show-done {
+        external {
+            run "le test fixture plugin/smart-show";
+        }
+        encoding json;
     }
 }
 

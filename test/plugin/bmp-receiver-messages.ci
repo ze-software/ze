@@ -22,10 +22,12 @@ environment {
         }
     }
 }
-plugin {
-    external bmp-client {
-        run "le test fixture plugin/bmp-receiver-messages $PORT2;"
-        encoder json;
+bus {
+    endpoint bmp-client {
+        external {
+            run "le test fixture plugin/bmp-receiver-messages $PORT2;";
+        }
+        encoding json;
     }
 }
 bgp {
@@ -53,9 +55,6 @@ bgp {
             family {
                 ipv4/unicast { prefix { maximum 10000; } }
             }
-        }
-        attach process bmp-client {
-            receive [ state ];
         }
     }
 }

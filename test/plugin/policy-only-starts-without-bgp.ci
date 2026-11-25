@@ -15,10 +15,12 @@
 option=timeout:value=30s
 
 stdin=ze-conf:terminator=EOF_CONF
-plugin {
-	external policy-only-boot {
-		run "le test fixture plugin/policy-only-boot"
-		encoder json
+bus {
+	endpoint policy-only-boot {
+		external {
+			run "le test fixture plugin/policy-only-boot";
+		}
+		encoding json;
 	}
 }
 policy {

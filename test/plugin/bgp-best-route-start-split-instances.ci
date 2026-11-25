@@ -10,9 +10,30 @@ option=timeout:value=25s
 option=env:var=ze.log.bgp.plugin:value=info
 
 stdin=split-instances:terminator=CONFIG
-plugin {
- internal ac25-table { use bgp-rib; }
- internal ac25-other { use bgp-rib; }
+bus {
+  endpoint ac25-table {
+    internal bgp-rib;
+    receive {
+      from [ /bgp/peer/destination ];
+      message bgp:update {
+        tag direction {
+          value [ sent ];
+        }
+      }
+    }
+    send {
+      to [ /bgp/peer/destination ];
+    }
+  }
+  endpoint ac25-other {
+    internal bgp-rib;
+    receive {
+      from [ /bgp/peer/source ];
+    }
+    send {
+      to none;
+    }
+  }
 }
 bgp {
  router-id 192.0.2.254;
@@ -21,19 +42,18 @@ bgp {
   connection { local { ip 127.0.0.1; port $PORT; } remote { ip 127.0.0.2; connect false; } }
   session { asn { remote 65001; } }
   filter { import { final accept; } export { final reject; } }
-  attach process ac25-other { receive [ update-received state ]; }
  }
  peer destination {
   connection { local { ip 127.0.0.1; port $PORT; } remote { ip 127.0.0.3; connect false; } }
   session { asn { remote 65002; } }
   filter { import { final reject; } export { final accept; } }
-  attach process ac25-table { receive [ state refresh update-sent ]; send [ update ]; }
  }
 }
 CONFIG
 
 cmd=foreground:seq=1:exec=ze -:stdin=split-instances:timeout=20s
 expect=exit:code=1
-expect=stderr:contains=peer "destination" destination process "ac25-table" has no complete source on this same instance; attach a source peer with `attach process ac25-table { receive [ update-received state ]; }`
+expect=stderr:contains=participant "destination" destination endpoint "ac25-table" has no complete source on this same instance for dissemination role "bgp-selected-output"
+expect=stderr:contains=bus { endpoint ac25-table { receive { allow [ bgp:update bgp:state ]; } } }
 reject=stderr:contains=bgp peers started
 reject=stderr:contains=panic

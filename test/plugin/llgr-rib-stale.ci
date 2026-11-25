@@ -50,12 +50,30 @@ reject=bgp:conn=1:scope=withdrawn:pattern=180A0000
 EOF_CONTROL
 
 stdin=ze-bgp:terminator=EOF_CONF
-plugin {
- internal gr { use bgp-gr; }
- internal bgp-rib { use bgp-rib; }
- internal rs { use bgp-rs; }
- internal adj-rib-in { use bgp-adj-rib-in; }
- external observer { run "le test fixture plugin/llgr-rib-stale"; encoder json; }
+bus {
+  endpoint gr {
+    internal bgp-gr;
+  }
+  endpoint bgp-rib {
+    internal bgp-rib;
+  }
+  endpoint rs {
+    internal bgp-rr;
+    send {
+      message bgp:update {
+        to [ /bgp/peer/control ];
+      }
+    }
+  }
+  endpoint adj-rib-in {
+    internal bgp-adj-rib-in;
+  }
+  endpoint observer {
+    external {
+      run "le test fixture plugin/llgr-rib-stale";
+    }
+    encoding json;
+  }
 }
 bgp {
  peer source {
@@ -70,12 +88,7 @@ bgp {
   }
   behavior { group-updates disable; }
   timer { connect-retry 8; }
-  attach process gr { receive [ open state eor ]; send [ update ]; }
-  attach process bgp-rib { receive [ update state refresh ]; send [ update ]; }
-  attach process observer { receive [ state ]; send [ update ]; }
-  attach process adj-rib-in { receive [ update-received state ]; }
   # ACKs from control must not be reflected to this strict source dialogue.
-  attach process rs { receive [ update-received state open-received refresh ]; }
  }
  peer control {
   connection { remote { ip ::1; } local { ip ::1; accept false; } }
@@ -89,11 +102,6 @@ bgp {
   }
   behavior { group-updates disable; }
   timer { connect-retry 60; }
-  attach process gr { receive [ open state eor ]; send [ update ]; }
-  attach process bgp-rib { receive [ update state refresh ]; send [ update ]; }
-  attach process observer { receive [ state ]; send [ update ]; }
-  attach process adj-rib-in { receive [ update-received state ]; }
-  attach process rs { receive [ update-received state open-received refresh ]; send [ update ]; }
  }
 }
 EOF_CONF

@@ -16,19 +16,18 @@ EOF_PEER
 
 # ze bgp configuration
 stdin=ze-bgp:terminator=EOF_CONF
-plugin {
-	external route-refresh-test {
-		run "le test fixture plugin/api-route-refresh"
-		encoder json
+bus {
+	endpoint route-refresh {
+		internal bgp-route-refresh;
 	}
-	internal route-refresh {
-		use bgp-route-refresh
+	endpoint bgp-rib {
+		internal bgp-rib;
 	}
-	# The peer advertises route-refresh, so ze must be able to re-advertise its
-	# Adj-RIB-Out when the peer asks (RFC 2918 Section 3). bgp-rib is what does
-	# that, and validatePeerProcessCaps refuses the config without it.
-	internal bgp-rib {
-		use bgp-rib
+	endpoint route-refresh-test {
+		external {
+			run "le test fixture plugin/api-route-refresh";
+		}
+		encoding json;
 	}
 }
 
@@ -61,16 +60,6 @@ bgp {
 			group-updates disable
 		}
 
-		attach process route-refresh-test {
-			send [ refresh ]
-		}
-		attach process route-refresh {
-			send [ refresh ]
-		}
-		attach process bgp-rib {
-			receive [ update state refresh ]
-			send [ update ]
-		}
 	}
 }
 EOF_CONF

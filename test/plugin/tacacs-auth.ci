@@ -22,10 +22,12 @@ system {
 	}
 }
 environment { ssh { enabled true; server main { ip 127.0.0.1; port $PORT2; } } }
-plugin {
-	external tacacs-auth-test {
-		run "le test fixture plugin/tacacs-auth $PORT $PORT2"
-		encoder json
+bus {
+	endpoint tacacs-auth-test {
+		external {
+			run "le test fixture plugin/tacacs-auth $PORT $PORT2";
+		}
+		encoding json;
 	}
 }
 EOF_CONF

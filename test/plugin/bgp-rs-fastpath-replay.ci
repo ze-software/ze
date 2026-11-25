@@ -24,13 +24,15 @@ EOF_PEER
 # require the enable answer to record it.
 
 stdin=ze-bgp:terminator=EOF_CONF
-plugin {
-	external bgp-rs-fastpath-replay {
-		run "le test fixture plugin/bgp-rs-fastpath-replay"
-		encoder json
+bus {
+	endpoint bgp-rib {
+		internal bgp-rib;
 	}
-	internal bgp-rib {
-		use bgp-rib
+	endpoint bgp-rs-fastpath-replay {
+		external {
+			run "le test fixture plugin/bgp-rs-fastpath-replay";
+		}
+		encoding json;
 	}
 }
 
@@ -67,10 +69,6 @@ bgp {
 			group-updates disable
 		}
 
-		attach process bgp-rib {
-			receive [ update state refresh ]
-			send [ update ]
-		}
 	}
 }
 EOF_CONF

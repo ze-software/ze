@@ -1,14 +1,13 @@
-# Test: binding RPKI to a RUNNING peer and enabling validation in one SSH commit
-#       keeps the session, and the routes received before the commit carry
-#       their RFC 6811 states.
-# Initial config: one iBGP peer that negotiates Route Refresh, bound to
-#                 bgp-adj-rib-in and bgp-rib, NOT to bgp-rpki, and no
-#                 `bgp rpki` block. The peer announces Valid, Invalid and
-#                 NotFound prefixes, installed unvalidated.
+# Test: adding bgp-rpki to a RUNNING peer's bus send list and enabling
+#       validation in one SSH commit keeps the session, and the routes received
+#       before the commit carry their RFC 6811 states.
+# Initial config: one iBGP peer that negotiates Route Refresh, feeding
+#                 adj-rib-in and bgp-rib, NOT bgp-rpki, and no `bgp rpki`
+#                 block. The peer announces Valid, Invalid and NotFound
+#                 prefixes, installed unvalidated.
 # Live change:    an SSH session editor load-merges the RTR cache, the policy
-#                 AND `attach process bgp-rpki { receive [ update-received state ] }`
-#                 on the peer (the D-6 shape of spec-terminal-demo-showcase), and
-#                 commits.
+#                 AND adds `/bus/endpoint/bgp-rpki` to peer1's `bus > send` for
+#                 `bgp:update` and `bgp:state`, and commits.
 # Expected:       one TCP connection and no NOTIFICATION from Ze; Ze asks the
 #                 peer for its routes again with one ROUTE-REFRESH for
 #                 ipv4/unicast (the gained bgp-rpki feed carries routes the
@@ -16,10 +15,10 @@
 #                 received before the commit at validation-state 1, 2 and 3.
 #
 # VALIDATES: spec-bgp-live-receive-binding-and-bfd-keep-session AC-3 (wiring
-#            row 1): SSH commit -> reconcilePeersJournaled ->
-#            peerSettingsSwapPlan -> applyHotSwappableSettings -> targeted up
-#            and catch-up.
-# PREVENTS: an operator receive-only attach that resets the session, the
+#            row 1) and spec-explicit-plugin-and-attach-config S19: SSH commit
+#            -> reconcilePeersJournaled -> peerSettingsSwapPlan ->
+#            applyHotSwappableSettings -> targeted up and catch-up.
+# PREVENTS: an operator receive-only bus feed edit that resets the session, the
 #           behaviour FRR and BIRD do not have (owner decision "yes like them").
 #
 # The peer does not re-send after the ROUTE-REFRESH: the states come from
@@ -66,12 +65,12 @@ environment {
     }
 }
 
-plugin {
-    internal adj-rib-in {
-        use bgp-adj-rib-in
+bus {
+    endpoint adj-rib-in {
+        internal bgp-adj-rib-in;
     }
-    internal bgp-rib {
-        use bgp-rib
+    endpoint bgp-rib {
+        internal bgp-rib;
     }
 }
 
@@ -100,14 +99,27 @@ bgp {
                 route-refresh enable
             }
         }
-        attach process adj-rib-in {
-            receive [ update-received state ]
-        }
-        # Route Refresh needs a process that may put routes on the wire
-        # (validatePeerProcessCaps). Bound before and after the commit.
-        attach process bgp-rib {
-            receive [ update state refresh ]
-            send [ update ]
+        # Route Refresh needs an endpoint that may put routes on the wire
+        # (validatePeerProcessCapsOnGraph). bgp-rib holds that grant before and
+        # after the commit; bgp-rpki is absent from bus > send at boot.
+        bus {
+            receive {
+                allow [ bgp:update ];
+                from [ /bus/endpoint/bgp-rib ];
+            }
+            send {
+                allow [ bgp:update bgp:state bgp:refresh ];
+                to none;
+                message bgp:update {
+                    to [ /bus/endpoint/bgp-rib /bus/endpoint/adj-rib-in ];
+                }
+                message bgp:state {
+                    to [ /bus/endpoint/bgp-rib /bus/endpoint/adj-rib-in ];
+                }
+                message bgp:refresh {
+                    to [ /bus/endpoint/bgp-rib ];
+                }
+            }
         }
     }
 }
@@ -127,8 +139,20 @@ bgp {
         }
     }
     peer peer1 {
-        attach process bgp-rpki {
-            receive [ update-received state ]
+        bus {
+            send {
+                allow [ bgp:update bgp:state bgp:refresh ];
+                to none;
+                message bgp:update {
+                    to [ /bus/endpoint/bgp-rib /bus/endpoint/adj-rib-in /bus/endpoint/bgp-rpki ];
+                }
+                message bgp:state {
+                    to [ /bus/endpoint/bgp-rib /bus/endpoint/adj-rib-in /bus/endpoint/bgp-rpki ];
+                }
+                message bgp:refresh {
+                    to [ /bus/endpoint/bgp-rib ];
+                }
+            }
         }
     }
 }

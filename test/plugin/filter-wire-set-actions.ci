@@ -39,9 +39,16 @@ action=send:conn=1:seq=3:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
 RECEIVER
 
 stdin=slot:terminator=CONF_SLOT
-plugin {
- internal actions { use filter-wire-cases; }
- external observer { run "le test fixture plugin/filter-wire-transports actions internal 1 1 0"; encoder json; }
+bus {
+  endpoint actions {
+    internal filter-wire-cases;
+  }
+  endpoint observer {
+    external {
+      run "le test fixture plugin/filter-wire-transports actions internal 1 1 0";
+    }
+    encoding json;
+  }
 }
 telemetry { prometheus { enabled true; server main { ip 127.0.0.1; port $PORT2; } } }
 bgp {
@@ -51,21 +58,27 @@ bgp {
   session { asn { local 65000; remote 65001; } router-id 1.2.3.4; family { ipv4/unicast { prefix { maximum 10000; } } } capability { graceful-restart disable; } }
   behavior { group-updates disable; }
   filter { import { filters [ filter-wire-cases:actions ]; final accept; } }
-  attach process observer { receive [ update state ]; send [ update ]; }
  }
  peer destination {
   connection { remote { ip 127.0.0.2; port $PORT; } local { ip 127.0.0.2; accept false; } }
   session { asn { local 65000; remote 65000; } router-id 1.2.3.4; family { ipv4/unicast { prefix { maximum 10000; } } } capability { graceful-restart disable; } }
   behavior { group-updates disable; }
-  attach process observer { receive [ update state ]; send [ update ]; }
  }
 }
 CONF_SLOT
 
 stdin=batch:terminator=CONF_BATCH
-plugin {
- external actions { run "ze plugin filter-wire-cases-forked"; }
- external observer { run "le test fixture plugin/filter-wire-transports actions external 1 0 1"; encoder json; }
+bus {
+  endpoint actions {
+    internal filter-wire-cases-forked;
+    process separate;
+  }
+  endpoint observer {
+    external {
+      run "le test fixture plugin/filter-wire-transports actions external 1 0 1";
+    }
+    encoding json;
+  }
 }
 telemetry { prometheus { enabled true; server main { ip 127.0.0.1; port $PORT2; } } }
 bgp {
@@ -75,13 +88,11 @@ bgp {
   session { asn { local 65000; remote 65001; } router-id 1.2.3.4; family { ipv4/unicast { prefix { maximum 10000; } } } capability { graceful-restart disable; } }
   behavior { group-updates disable; }
   filter { import { filters [ filter-wire-cases-forked:actions ]; final accept; } }
-  attach process observer { receive [ update state ]; send [ update ]; }
  }
  peer destination {
   connection { remote { ip 127.0.0.2; port $PORT; } local { ip 127.0.0.2; accept false; } }
   session { asn { local 65000; remote 65000; } router-id 1.2.3.4; family { ipv4/unicast { prefix { maximum 10000; } } } capability { graceful-restart disable; } }
   behavior { group-updates disable; }
-  attach process observer { receive [ update state ]; send [ update ]; }
  }
 }
 CONF_BATCH

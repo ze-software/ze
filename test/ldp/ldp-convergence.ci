@@ -24,10 +24,12 @@
 
 
 stdin=ze-conf:terminator=EOF_CONF
-plugin {
-	external ldp-converge {
-		run "le test fixture ldp/ldp-convergence"
-		encoder json
+bus {
+	endpoint ldp-converge {
+		external {
+			run "le test fixture ldp/ldp-convergence";
+		}
+		encoding json;
 	}
 }
 

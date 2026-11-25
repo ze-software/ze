@@ -44,10 +44,12 @@ EOF_PEER
 
 # Initial ze bgp configuration: prefix data last refreshed in 2020
 stdin=ze-bgp:terminator=EOF_CONF
-plugin {
-	external prefix-stale-reload {
-		run "le test fixture reload/reload-prefix-updated-clears-stale"
-		encoder json
+bus {
+	endpoint prefix-stale-reload {
+		external {
+			run "le test fixture reload/reload-prefix-updated-clears-stale";
+		}
+		encoding json;
 	}
 }
 
@@ -93,10 +95,12 @@ EOF_CONF
 # measures now - updated against 180 days, so a future date is permanently fresh
 # and this fixture cannot expire the way a hardcoded recent date would.
 tmpfs=config2.conf:terminator=EOF_CONF2
-plugin {
-	external prefix-stale-reload {
-		run "le test fixture reload/reload-prefix-updated-clears-stale"
-		encoder json
+bus {
+	endpoint prefix-stale-reload {
+		external {
+			run "le test fixture reload/reload-prefix-updated-clears-stale";
+		}
+		encoding json;
 	}
 }
 

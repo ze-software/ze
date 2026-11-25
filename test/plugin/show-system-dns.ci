@@ -11,10 +11,12 @@ option=env:var=ze.l2tp.skip-kernel-probe:value=true
 option=env:var=TEST_SECRET:value=s3cr3t
 option=timeout:value=60s
 stdin=ze-conf:terminator=EOF_CONF
-plugin {
-	external show-system-dns-test {
-		run "le test fixture plugin/show-system-dns"
-		encoder json
+bus {
+	endpoint show-system-dns-test {
+		external {
+			run "le test fixture plugin/show-system-dns";
+		}
+		encoding json;
 	}
 }
 service {

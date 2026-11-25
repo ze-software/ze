@@ -19,10 +19,12 @@ EOF_PEER
 # Native observer fixture: plugin/show-bgp-summary-is-gone.
 
 stdin=ze-bgp:terminator=EOF_CONF
-plugin {
-	external summary-is-gone {
-		run "le test fixture plugin/show-bgp-summary-is-gone"
-		encoder json
+bus {
+	endpoint summary-is-gone {
+		external {
+			run "le test fixture plugin/show-bgp-summary-is-gone";
+		}
+		encoding json;
 	}
 }
 

@@ -46,13 +46,15 @@ EOF_PEER
 option=env:var=ZE_LG_PORT:value=$PORT2
 
 stdin=ze-bgp:terminator=EOF_CONF
-plugin {
-	external lg-route-age {
-		run "le test fixture plugin/lg-route-age"
-		encoder json
+bus {
+	endpoint bgp-rib {
+		internal bgp-rib;
 	}
-	internal bgp-rib {
-		use bgp-rib
+	endpoint lg-route-age {
+		external {
+			run "le test fixture plugin/lg-route-age";
+		}
+		encoding json;
 	}
 }
 
@@ -97,10 +99,6 @@ bgp {
 			group-updates disable
 		}
 
-		attach process bgp-rib {
-			receive [ update state refresh ]
-			send [ update ]
-		}
 	}
 }
 EOF_CONF

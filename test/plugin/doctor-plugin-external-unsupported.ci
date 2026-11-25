@@ -19,9 +19,11 @@
 # expectations read both.
 
 tmpfs=in-process.conf:terminator=EOF_CONF
-plugin {
-	external in-process-probe {
-		run "ze plugin fake-in-process-only"
+bus {
+	endpoint in-process-probe {
+		external {
+			run "ze plugin fake-in-process-only";
+		}
 	}
 }
 
@@ -42,5 +44,5 @@ EOF_CONF
 cmd=foreground:seq=1:exec=ze doctor --json config in-process.conf
 expect=exit:code=1
 expect=stdout:contains=doctor-plugin-external-unsupported
-expect=stdout:contains=runs fake-in-process-only, which works only inside the daemon
-expect=stdout:contains=move it to an internal block: plugin { internal in-process-probe { use fake-in-process-only; } }
+expect=stdout:contains=runs fake-in-process-only as a separate process, which works only inside the daemon
+expect=stdout:contains=bus { endpoint in-process-probe { internal fake-in-process-only; } }

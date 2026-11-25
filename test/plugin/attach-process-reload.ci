@@ -71,14 +71,21 @@ EOF_PEER
 # external program a config newly declares (unwired-feature journal, row of
 # 2026-10-11), and the attach, not the start, is what this test is about.
 stdin=ze-bgp:terminator=EOF_CONF
-plugin {
-	external reload-kept {
-		run "le test fixture plugin/attach-process-reload-kept"
-		encoder json
+bus {
+	endpoint reload-kept {
+		external {
+			run "le test fixture plugin/attach-process-reload-kept";
+		}
+		encoding json;
 	}
-	external reload-added {
-		run "le test fixture plugin/attach-process-reload-added"
-		encoder json
+	endpoint reload-added {
+		external {
+			run "le test fixture plugin/attach-process-reload-added";
+		}
+		encoding json;
+		receive {
+			from none;
+		}
 	}
 }
 
@@ -112,9 +119,6 @@ bgp {
 		}
 		behavior {
 			group-updates disable
-		}
-		attach process reload-kept {
-			receive [ state keepalive ]
 		}
 	}
 }
@@ -122,14 +126,21 @@ EOF_CONF
 
 # The second config attaches reload-added beside the kept one.
 tmpfs=config2.conf:terminator=EOF_CONF2
-plugin {
-	external reload-kept {
-		run "le test fixture plugin/attach-process-reload-kept"
-		encoder json
+bus {
+	endpoint reload-kept {
+		external {
+			run "le test fixture plugin/attach-process-reload-kept";
+		}
+		encoding json;
 	}
-	external reload-added {
-		run "le test fixture plugin/attach-process-reload-added"
-		encoder json
+	endpoint reload-added {
+		external {
+			run "le test fixture plugin/attach-process-reload-added";
+		}
+		encoding json;
+		receive {
+			from [ /bgp/peer/peer1 ];
+		}
 	}
 }
 
@@ -163,12 +174,6 @@ bgp {
 		}
 		behavior {
 			group-updates disable
-		}
-		attach process reload-kept {
-			receive [ state keepalive ]
-		}
-		attach process reload-added {
-			receive [ state ]
 		}
 	}
 }

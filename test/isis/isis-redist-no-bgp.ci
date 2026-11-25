@@ -22,13 +22,15 @@
 # isis-narrow-metric-frr runs the static source against FRR.
 
 stdin=ze-conf:terminator=EOF_CONF
-plugin {
-	external isis-redist-no-bgp {
-		run "le test fixture isis/isis-redist-no-bgp"
-		encoder json
+bus {
+	endpoint fakeredist {
+		internal fakeredist;
 	}
-	internal fakeredist {
-		use fakeredist
+	endpoint isis-redist-no-bgp {
+		external {
+			run "le test fixture isis/isis-redist-no-bgp";
+		}
+		encoding json;
 	}
 }
 

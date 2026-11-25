@@ -35,10 +35,12 @@ EOF_PEER
 # alone, then reads its own entries back out of the shared registry.
 
 stdin=ze-bgp:terminator=EOF_CONF
-plugin {
-    external two-texts-test {
-        run "le test fixture plugin/plugin-command-two-texts"
-        encoder json
+bus {
+    endpoint two-texts-test {
+        external {
+            run "le test fixture plugin/plugin-command-two-texts";
+        }
+        encoding json;
     }
 }
 

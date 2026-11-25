@@ -3,7 +3,7 @@
 #       metric live carrier calls for -- without the self-heal repairing it.
 #
 # VALIDATES: spec-fixit-link-event-drop-loses-carrier-state AC-5, on a RUNNING
-#            daemon. Every part of the path is production wiring: the netlink
+#            daemon. Every part of the path is production wiring: the netlink socket
 #            monitor's read loop, the subscribers subscribeLinkEvents registers
 #            (internal/component/iface/link_queue.go), the worker runEngine
 #            starts on the same queue, and the route calls applyLinkEvent makes.
@@ -130,10 +130,12 @@ option=needs-linux:caps=net-admin
 
 
 stdin=ze-conf:terminator=EOF_CONF
-plugin {
-	external iface-link-flap-during-commit {
-		run "le test fixture plugin/iface-link-flap-during-commit $PORT2"
-		encoder json
+bus {
+	endpoint iface-link-flap-during-commit {
+		external {
+			run "le test fixture plugin/iface-link-flap-during-commit $PORT2";
+		}
+		encoding json;
 	}
 }
 
@@ -147,7 +149,7 @@ plugin {
 # reconcileDHCP stops and starts all forty inside dhcpMu and the link worker
 # waits 1.1-3.3s for that lock. That wait is the condition AC-5 names.
 interface {
-	backend netlink
+	backend kernel
 	veth zeflapv0 {
 		peer zeflapv1
 		unit 0 {

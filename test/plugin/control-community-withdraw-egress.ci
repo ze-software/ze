@@ -125,16 +125,32 @@ EOF_SEED
 # the mixed UPDATE ahead of it was already decided, then count what each client was sent.
 
 stdin=ze-bgp:terminator=EOF_CONF
-plugin {
-	internal adj-rib-in {
-		use bgp-adj-rib-in
+bus {
+	endpoint bgp-rib {
+		internal bgp-rib;
+		receive {
+			allow none;
+		}
+		send {
+			allow none;
+		}
 	}
-	internal rs {
-		use bgp-rs
+	endpoint adj-rib-in {
+		internal bgp-adj-rib-in;
+		send {
+			message bgp:update {
+				to none;
+			}
+		}
 	}
-	external control-community-withdraw {
-		run "le test fixture plugin/control-community-withdraw-egress"
-		encoder json
+	endpoint rs {
+		internal bgp-rs;
+	}
+	endpoint control-community-withdraw {
+		external {
+			run "le test fixture plugin/control-community-withdraw-egress";
+		}
+		encoding json;
 	}
 }
 bgp {
@@ -154,6 +170,7 @@ bgp {
 			}
 		}
 		session {
+			rs-client true;
 			asn {
 				local 65000
 				remote 65001
@@ -169,18 +186,7 @@ bgp {
 		behavior {
 			group-updates disable
 		}
-		attach process rs {
-			receive [ update-received state open-received refresh ]
-			send [ update ]
-		}
-		attach process adj-rib-in {
-			receive [ update-received state ]
-			send [ update ]
-		}
 		# The observer may send readiness markers only to the source.
-		attach process control-community-withdraw {
-			send [ update ]
-		}
 	}
 
 	peer excluded-client {
@@ -213,14 +219,6 @@ bgp {
 		behavior {
 			group-updates disable
 		}
-		attach process rs {
-			receive [ update-received state open-received refresh ]
-			send [ update ]
-		}
-		attach process adj-rib-in {
-			receive [ update-received state ]
-			send [ update ]
-		}
 	}
 
 	peer included-client {
@@ -249,14 +247,6 @@ bgp {
 		}
 		behavior {
 			group-updates disable
-		}
-		attach process rs {
-			receive [ update-received state open-received refresh ]
-			send [ update ]
-		}
-		attach process adj-rib-in {
-			receive [ update-received state ]
-			send [ update ]
 		}
 	}
 }

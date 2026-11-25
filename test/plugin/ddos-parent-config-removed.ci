@@ -118,10 +118,12 @@ traffic {
 	}
 }
 
-plugin {
-	external ddos-parent-config-removed-probe {
-		run "le test fixture plugin/ddos-parent-config-removed-driver"
-		encoder json
+bus {
+	endpoint ddos-parent-config-removed-probe {
+		external {
+			run "le test fixture plugin/ddos-parent-config-removed-driver";
+		}
+		encoding json;
 	}
 }
 EOF_CONF

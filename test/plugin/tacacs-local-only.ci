@@ -21,10 +21,12 @@ system {
 	}
 }
 environment { ssh { enabled true; server main { ip 127.0.0.1; port $PORT2; } } }
-plugin {
-	external tacacs-local-only-test {
-		run "le test fixture plugin/tacacs-local-only $PORT2"
-		encoder json
+bus {
+	endpoint tacacs-local-only-test {
+		external {
+			run "le test fixture plugin/tacacs-local-only $PORT2";
+		}
+		encoding json;
 	}
 }
 EOF_CONF

@@ -63,13 +63,15 @@ EOF_PEER
 
 # ze configuration
 stdin=ze-bgp:terminator=EOF_CONF
-plugin {
-	external redist-blast-radius-test {
-		run "le test fixture plugin/redistribute-block-does-not-gate-peer-routes"
-		encoder json
+bus {
+	endpoint bgp-rib {
+		internal bgp-rib;
 	}
-	internal bgp-rib {
-		use bgp-rib
+	endpoint redist-blast-radius-test {
+		external {
+			run "le test fixture plugin/redistribute-block-does-not-gate-peer-routes";
+		}
+		encoding json;
 	}
 }
 
@@ -114,10 +116,6 @@ bgp {
 			group-updates disable
 		}
 
-		attach process bgp-rib {
-			receive [ update state refresh ]
-			send [ update ]
-		}
 	}
 }
 EOF_CONF

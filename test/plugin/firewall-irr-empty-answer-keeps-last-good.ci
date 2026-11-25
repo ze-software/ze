@@ -34,17 +34,19 @@ option=timeout:value=20s
 
 
 stdin=ze-fw:terminator=EOF_CONF
-plugin {
-	external firewall-irr-empty-answer-test {
-		run "le test fixture plugin/firewall-irr-empty-answer-keeps-last-good"
-		encoder json
+bus {
+	endpoint firewall-irr-empty-answer-test {
+		external {
+			run "le test fixture plugin/firewall-irr-empty-answer-keeps-last-good";
+		}
+		encoding json;
 	}
 }
 system {
 	irr { server 127.0.0.1:$PORT2; }
 }
 firewall {
-	backend nft;
+	backend kernel;
 	irr {
 		interface eth1 {
 			source-as-set AS-TEST;

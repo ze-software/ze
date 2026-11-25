@@ -7,10 +7,12 @@ option=storage:value=disk
 option=timeout:value=30s
 
 tmpfs=gnmi-set-enum-refusal.conf:terminator=EOF_CONF
-plugin {
-    external gnmi-enum-refusal {
-        run "le test fixture plugin/gnmi-set-enum-refusal 127.0.0.1:$PORT2 api-refusal.pem"
-        encoder json
+bus {
+    endpoint gnmi-enum-refusal {
+        external {
+            run "le test fixture plugin/gnmi-set-enum-refusal 127.0.0.1:$PORT2 api-refusal.pem";
+        }
+        encoding json;
     }
 }
 environment {

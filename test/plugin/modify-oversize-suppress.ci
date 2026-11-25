@@ -70,16 +70,18 @@ EOF_DEST
 # UPDATE; the dest peer tags large communities on egress, which cannot be written
 # without pushing the rebuilt body past the message ceiling.
 stdin=ze-bgp:terminator=EOF_CONF
-plugin {
-	internal adj-rib-in {
-		use bgp-adj-rib-in
+bus {
+	endpoint adj-rib-in {
+		internal bgp-adj-rib-in;
 	}
-	internal rs {
-		use bgp-rs
+	endpoint rs {
+		internal bgp-rs;
 	}
-	external test-oversize {
-		run "le test fixture plugin/modify-oversize-suppress"
-		encoder json
+	endpoint test-oversize {
+		external {
+			run "le test fixture plugin/modify-oversize-suppress";
+		}
+		encoding json;
 	}
 }
 bgp {
@@ -105,6 +107,7 @@ bgp {
 			}
 		}
 		session {
+			rs-client true;
 			asn {
 				local 65000
 				remote 65001
@@ -116,14 +119,6 @@ bgp {
 			capability {
 				extended-message enable
 			}
-		}
-		attach process rs {
-			receive [ update-received state open-received refresh ]
-			send [ update ]
-		}
-		attach process adj-rib-in {
-			receive [ update-received state ]
-			send [ update ]
 		}
 	}
 
@@ -138,6 +133,7 @@ bgp {
 			}
 		}
 		session {
+			rs-client true;
 			asn {
 				local 65000
 				remote 65002
@@ -154,14 +150,6 @@ bgp {
 					tag oversize
 				}
 			}
-		}
-		attach process rs {
-			receive [ update-received state open-received refresh ]
-			send [ update ]
-		}
-		attach process adj-rib-in {
-			receive [ update-received state ]
-			send [ update ]
 		}
 	}
 }

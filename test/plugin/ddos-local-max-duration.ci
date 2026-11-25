@@ -1,5 +1,5 @@
 # Test: `ddos local max-mitigation-duration` bounds an on-host drop rule that no
-# AttackCleared will ever lift, proven by an nft readback and by `show ddos
+# AttackCleared will ever lift, proven by an nftables readback and by `show ddos
 # local` while the flood is still running.
 #
 # VALIDATES: spec-ddos-timing-leaves-reach-no-worker AC-6 -- with
@@ -83,10 +83,12 @@ traffic {
 	}
 }
 
-plugin {
-	external ddos-local-max-duration-probe {
-		run "le test fixture plugin/ddos-local-max-duration-driver"
-		encoder json
+bus {
+	endpoint ddos-local-max-duration-probe {
+		external {
+			run "le test fixture plugin/ddos-local-max-duration-driver";
+		}
+		encoding json;
 	}
 }
 EOF_CONF

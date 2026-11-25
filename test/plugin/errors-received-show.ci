@@ -17,10 +17,12 @@ EOF_PEER
 
 # ze bgp configuration: peer1 connects to ze-peer, which sends NOTIFICATION.
 stdin=ze-bgp:terminator=EOF_CONF
-plugin {
-	external errors-received-show-test {
-		run "le test fixture plugin/errors-received-show"
-		encoder json
+bus {
+	endpoint errors-received-show-test {
+		external {
+			run "le test fixture plugin/errors-received-show";
+		}
+		encoding json;
 	}
 }
 

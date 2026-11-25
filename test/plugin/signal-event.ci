@@ -18,14 +18,18 @@ EOF_PEER
 
 # ze bgp configuration
 stdin=ze-bgp:terminator=EOF_CONF
-plugin {
-	external signal-json {
-		run "le test fixture plugin/signal-event-json"
-		encoder json
+bus {
+	endpoint signal-json {
+		external {
+			run "le test fixture plugin/signal-event-json";
+		}
+		encoding json;
 	}
-	external signal-text {
-		run "le test fixture plugin/signal-event-text"
-		encoder json
+	endpoint signal-text {
+		external {
+			run "le test fixture plugin/signal-event-text";
+		}
+		encoding json;
 	}
 }
 
@@ -54,12 +58,6 @@ bgp {
 			}
 		}
 
-		attach process signal-json {
-			receive [ signal ]
-		}
-		attach process signal-text {
-			receive [ signal ]
-		}
 	}
 }
 EOF_CONF

@@ -32,15 +32,42 @@ func init() {
 	Register("plugin/attach-process-reload-kept", eventObserver02("reload-kept", []string{eventState, bgpevents.EventKeepalive}, reloadKept02), StopsDaemon)
 	Register("plugin/attach-process-reload-added", eventObserver02("reload-added", []string{eventState}, reloadAdded02), StopsDaemon)
 	Register("plugin/attach-receive-only-live", eventObserver02("attach-receive-only-live", []string{eventUpdate, eventState}, attachReceiveOnlyLive02), StopsDaemon)
-	Register("plugin/attach-process-runtime-subscribe", eventObserver02("runtime-subscribe", []string{eventState}, runtimeSubscribe02), StopsDaemon)
+	Register("plugin/attach-process-runtime-subscribe", eventObserverWithSends02(
+		"runtime-subscribe",
+		[]string{eventState, bgpevents.EventKeepalive, bgpevents.EventOpen + " direction received"},
+		[]sdk.MessageSendDecl{
+			{Message: "cli:request subscribe"},
+			{Message: "cli:request unsubscribe"},
+			{Message: "cli:show event delivery"},
+			{Message: observerSendShutdown},
+		},
+		runtimeSubscribe02,
+	), StopsDaemon)
 	Register("plugin/attach-process-runtime-subscribe-trigger", runtimeSubscribeTrigger02)
-	Register("plugin/attach-process-send-permission", eventObserver02("send-permission-injector", []string{eventUpdate, eventState}, sendPermission02), StopsDaemon)
+	Register("plugin/attach-process-send-permission", eventObserverWithSends02(
+		"send-permission-injector",
+		[]string{eventUpdate, eventState},
+		[]sdk.MessageSendDecl{
+			{Message: bgpevents.Namespace + ":" + bgpevents.SendUpdate},
+			{Message: "cli:show bgp peer"},
+			{Message: observerSendQuiesce},
+			{Message: observerSendShutdown},
+		},
+		sendPermission02,
+	), StopsDaemon)
 	Register("plugin/attach-process-unattached-served", eventObserver02("unattached-served", []string{eventUpdate, eventState}, unattachedServed02), StopsDaemon)
 	Register("plugin/attach-process-unattached-silent", eventObserver02("unattached-silent", []string{eventUpdate, eventState}, unattachedSilent02), StopsDaemon)
 	Register("plugin/audit-config-commit", observer02("audit-commit-test", auditConfigCommit02), StopsDaemon)
 }
 
 func eventObserver02(name string, events []string, scenario eventScenario02) Driver {
+	return eventObserverWithSends02(name, events, []sdk.MessageSendDecl{
+		{Message: observerSendQuiesce},
+		{Message: observerSendShutdown},
+	}, scenario)
+}
+
+func eventObserverWithSends02(name string, events []string, sends []sdk.MessageSendDecl, scenario eventScenario02) Driver {
 	return func(ctx context.Context, args []string) error {
 		if len(args) != 0 {
 			return fmt.Errorf("%s takes no arguments", name)
@@ -86,6 +113,7 @@ func eventObserver02(name string, events []string, scenario eventScenario02) Dri
 
 		runErr := plugin.Run(runCtx, &sdk.Registration{
 			Receives: bgpReceiveDecls(events, nil),
+			Sends:    sends,
 		})
 		shutdownOnce.Do(func() { close(shutdown) })
 		cancel()
@@ -574,10 +602,27 @@ func runtimeGrantedReceive02(ctx context.Context, plugin *sdk.Plugin) ([]string,
 	return nil, nil
 }
 
+func drainKeepalives02(events <-chan string) {
+	for {
+		select {
+		case <-events:
+		default:
+			return
+		}
+	}
+}
+
 func runtimeSubscribe02(ctx context.Context, plugin *sdk.Plugin, events <-chan string, shutdown <-chan struct{}) error {
+	// Stage 1 declares keepalive so the bus receive allow-list accepts it, and
+	// Stage 5 activates all declared receives. Unsubscribe keepalive first so
+	// the runtime subscribe override below starts from state-only delivery.
+	if _, err := requireDone02(ctx, plugin, "request unsubscribe bgp event keepalive"); err != nil {
+		return fmt.Errorf("RUNTIME-SUB: initial unsubscribe refused: %w", err)
+	}
 	if err := waitUp02(ctx, events, shutdown, "for the first session"); err != nil {
 		return err
 	}
+	drainKeepalives02(events)
 	if keepaliveWithin02(ctx, events, shutdown, 4*time.Second) {
 		return fmt.Errorf("RUNTIME-SUB: fed a keepalive the program never declared")
 	}

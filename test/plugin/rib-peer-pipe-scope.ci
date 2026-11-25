@@ -63,12 +63,12 @@ environment {
 		}
 	}
 }
-plugin {
-	internal bgp-rib {
-		use bgp-rib
+bus {
+	endpoint bgp-rib {
+		internal bgp-rib;
 	}
-	internal adj-rib-in {
-		use bgp-adj-rib-in
+	endpoint adj-rib-in {
+		internal bgp-adj-rib-in;
 	}
 }
 bgp {
@@ -86,13 +86,6 @@ bgp {
 			capability { graceful-restart disable; }
 		}
 		behavior { group-updates disable; }
-		attach process bgp-rib {
-			receive [ update state refresh ]
-			send [ update ]
-		}
-		attach process adj-rib-in {
-			receive [ update-received state ]
-		}
 	}
 }
 EOF_CONF

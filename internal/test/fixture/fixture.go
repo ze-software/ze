@@ -26,6 +26,7 @@ import (
 	testfunctional "github.com/ze-software/ze/internal/le/test/functional"
 	"github.com/ze-software/ze/internal/test/fixturedecl"
 	"github.com/ze-software/ze/internal/test/sessionpath"
+	"github.com/ze-software/ze/pkg/plugin/rpc"
 	"github.com/ze-software/ze/pkg/plugin/sdk"
 )
 
@@ -421,11 +422,77 @@ func declareObserverAppliesNothing(plugin *sdk.Plugin) error {
 	return nil
 }
 
+// defaultObserverSends is the Stage 1 send declaration set merged for test
+// observer fixtures built on Observe when the caller omits Sends. It covers
+// the CLI command prefixes, BGP wire send types, and engine operations that
+// test observers exercise across the functional suites.
+var defaultObserverSends = []sdk.MessageSendDecl{
+	{Message: "cli:show"},
+	{Message: "cli:request"},
+	{Message: "cli:send"},
+	{Message: "cli:update"},
+	{Message: "cli:clear"},
+	{Message: "cli:create"},
+	{Message: "cli:delete"},
+	{Message: "cli:set"},
+	{Message: "cli:config"},
+	{Message: "cli:system"},
+	{Message: "cli:ping"},
+	{Message: "cli:traceroute"},
+	{Message: "cli:help"},
+	{Message: "cli:debug"},
+	{Message: "cli:batch-validate"},
+	{Message: "cli:monitor"},
+	{Message: "cli:resolve"},
+	{Message: "bgp:update"},
+	{Message: "bgp:refresh"},
+	{Message: "bgp:raw"},
+	{Message: "bgp:enhanced-refresh"},
+	{Message: "system-rib:route-install"},
+	{Message: "system-rib:route-metrics"},
+	{Message: "system-rib:replay-request"},
+	{Message: "resolve:dns"},
+	{Message: "ldp:session-up"},
+	{Message: "ldp:session-down"},
+	{Message: "system-dns:snapshot-request"},
+	{Message: "redistribute:replay-request"},
+}
+
+// mergeObserverSends fills in defaultObserverSends when reg.Sends is empty and
+// always includes request quiesce / request shutdown so test observers can
+// cleanly stop the daemon. Probe fixtures testing send refusal call plugin.Run
+// directly with their explicit Sends list.
+func mergeObserverSends(reg *sdk.Registration) *sdk.Registration {
+	var merged sdk.Registration
+	if reg != nil {
+		merged = *reg
+	}
+	if len(merged.Sends) == 0 {
+		merged.Sends = mergeSendDecls(merged.Sends, defaultObserverSends)
+	}
+	merged.Sends = mergeSendDecls(merged.Sends, []sdk.MessageSendDecl{
+		{Message: observerSendQuiesce},
+		{Message: observerSendShutdown},
+	})
+	return &merged
+}
+
+// runObserver runs a test observer plugin with defaultObserverSends merged into
+// reg when reg.Sends is empty.
+func runObserver(ctx context.Context, plugin *sdk.Plugin, reg *sdk.Registration) error {
+	return plugin.Run(ctx, mergeObserverSends(reg))
+}
+
 // Observe connects as a plugin, completes the five startup stages, runs the
 // scenario when every daemon plugin is ready, and requests a clean shutdown.
 func Observe(ctx context.Context, name string, registration *sdk.Registration, scenario ObserverScenario) error {
 	return observeConfigured(ctx, name, registration, nil, scenario)
 }
+
+// errObserverDaemonStopped is returned by an Observe scenario that already
+// dispatched `request shutdown` itself so Observe skips the post-scenario
+// `request quiesce` and duplicate `request shutdown` without failing on EOF.
+var errObserverDaemonStopped = errors.New("observer already stopped daemon")
 
 // observeConfigured installs callbacks before startup, completes the five
 // stages, runs the scenario when every daemon plugin is ready, and requests a
@@ -437,6 +504,21 @@ func observeConfigured(
 	setup observerSetup,
 	scenario ObserverScenario,
 ) error {
+	if sdk.QueryModeRequested() {
+		var reg sdk.Registration
+		if registration != nil {
+			reg = *registration
+		}
+		if len(reg.Sends) == 0 {
+			reg.Sends = mergeSendDecls(reg.Sends, defaultObserverSends)
+		}
+		reg.Sends = mergeSendDecls(reg.Sends, []sdk.MessageSendDecl{
+			{Message: observerSendQuiesce},
+			{Message: observerSendShutdown},
+		})
+		reg.ProtocolVersion = rpc.ProtocolVersion
+		return rpc.WriteDeclaration(os.Stdout, &reg)
+	}
 	plugin, err := newObserver(name)
 	if err != nil {
 		return fmt.Errorf("connect observer %s: %w", name, err)
@@ -456,9 +538,13 @@ func observeConfigured(
 		reg.Receives = mergeReceiveDecls(reg.Receives, extra)
 	}
 	// Every observer built on Observe dispatches request quiesce and request
-	// shutdown below to cleanly stop the daemon. Auto-merge only those two
-	// lifecycle sends so probe fixtures that omit other declarations stay
-	// fail-closed.
+	// shutdown below to cleanly stop the daemon, and test observers that pass
+	// an empty Sends slice dispatch arbitrary CLI/BGP/engine test commands.
+	// Probe fixtures that test send refusal either pass an explicit Sends list
+	// or call plugin.Run directly (busScenarioWorker) and stay fail-closed.
+	if len(reg.Sends) == 0 {
+		reg.Sends = mergeSendDecls(reg.Sends, defaultObserverSends)
+	}
 	reg.Sends = mergeSendDecls(reg.Sends, []sdk.MessageSendDecl{
 		{Message: observerSendQuiesce},
 		{Message: observerSendShutdown},
@@ -470,7 +556,11 @@ func observeConfigured(
 		close(started)
 		go func() {
 			scenarioErr := invokeScenario(ctx, plugin, scenario)
-			if scenarioErr == nil {
+			alreadyStopped := errors.Is(scenarioErr, errObserverDaemonStopped)
+			if alreadyStopped {
+				scenarioErr = nil
+			}
+			if scenarioErr == nil && !alreadyStopped {
 				status, _, quiesceErr := plugin.DispatchCommand(ctx, "request quiesce")
 				if quiesceErr != nil {
 					scenarioErr = fmt.Errorf("observer quiesce: %w", quiesceErr)
@@ -490,9 +580,11 @@ func observeConfigured(
 			// assertion fail.
 			ReportFailure(scenarioErr)
 			result <- scenarioErr
-			shutdownCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-			defer cancel()
-			_, _, _ = plugin.DispatchCommand(shutdownCtx, "request shutdown")
+			if !alreadyStopped {
+				shutdownCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+				defer cancel()
+				_, _, _ = plugin.DispatchCommand(shutdownCtx, "request shutdown")
+			}
 		}()
 		return nil
 	})

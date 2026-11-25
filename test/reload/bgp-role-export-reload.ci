@@ -117,16 +117,18 @@ EOF_SCRIPT
 
 # Startup: peer-a exports to its default roles only, which exclude B (customer).
 stdin=ze-bgp:terminator=EOF_CONF
-plugin {
-	internal adj-rib-in {
-		use bgp-adj-rib-in
+bus {
+	endpoint adj-rib-in {
+		internal bgp-adj-rib-in;
 	}
-	internal rs {
-		use bgp-rs
+	endpoint rs {
+		internal bgp-rs;
 	}
-	external stages {
-		run "le test fixture reload/live-stages stages.script"
-		encoder json
+	endpoint stages {
+		external {
+			run "le test fixture reload/live-stages stages.script";
+		}
+		encoding json;
 	}
 }
 # The stage that fences step 1 reads the role plugin's suppression counter
@@ -152,6 +154,7 @@ bgp {
 		}
 		session {
 			asn { local 65000; remote 65001; }
+			rs-client true;
 			router-id 1.2.3.4
 			family {
 				ipv4/unicast { prefix { maximum 10000; } }
@@ -162,17 +165,6 @@ bgp {
 			import customer
 			export default
 		}
-		attach process stages {
-			send [ update ]
-		}
-		attach process rs {
-			receive [ update-received state open-received refresh ]
-			send [ update ]
-		}
-		attach process adj-rib-in {
-			receive [ update-received state ]
-			send [ update ]
-		}
 	}
 	peer peer-b {
 		connection {
@@ -181,6 +173,7 @@ bgp {
 		}
 		session {
 			asn { local 65000; remote 65002; }
+			rs-client true;
 			router-id 1.2.3.4
 			family {
 				ipv4/unicast { prefix { maximum 10000; } }
@@ -192,14 +185,6 @@ bgp {
 				filters [ next-hop:unchanged ]
 				final accept
 			}
-		}
-		attach process rs {
-			receive [ update-received state open-received refresh ]
-			send [ update ]
-		}
-		attach process adj-rib-in {
-			receive [ update-received state ]
-			send [ update ]
 		}
 	}
 }
@@ -207,16 +192,18 @@ EOF_CONF
 
 # The reload: peer-a's export set is the ONLY difference (default -> default customer).
 tmpfs=config2.conf:terminator=EOF_CONF2
-plugin {
-	internal adj-rib-in {
-		use bgp-adj-rib-in
+bus {
+	endpoint adj-rib-in {
+		internal bgp-adj-rib-in;
 	}
-	internal rs {
-		use bgp-rs
+	endpoint rs {
+		internal bgp-rs;
 	}
-	external stages {
-		run "le test fixture reload/live-stages stages.script"
-		encoder json
+	endpoint stages {
+		external {
+			run "le test fixture reload/live-stages stages.script";
+		}
+		encoding json;
 	}
 }
 # The stage that fences step 1 reads the role plugin's suppression counter
@@ -242,6 +229,7 @@ bgp {
 		}
 		session {
 			asn { local 65000; remote 65001; }
+			rs-client true;
 			router-id 1.2.3.4
 			family {
 				ipv4/unicast { prefix { maximum 10000; } }
@@ -252,17 +240,6 @@ bgp {
 			import customer
 			export [ default customer ]
 		}
-		attach process stages {
-			send [ update ]
-		}
-		attach process rs {
-			receive [ update-received state open-received refresh ]
-			send [ update ]
-		}
-		attach process adj-rib-in {
-			receive [ update-received state ]
-			send [ update ]
-		}
 	}
 	peer peer-b {
 		connection {
@@ -271,6 +248,7 @@ bgp {
 		}
 		session {
 			asn { local 65000; remote 65002; }
+			rs-client true;
 			router-id 1.2.3.4
 			family {
 				ipv4/unicast { prefix { maximum 10000; } }
@@ -283,30 +261,24 @@ bgp {
 				final accept
 			}
 		}
-		attach process rs {
-			receive [ update-received state open-received refresh ]
-			send [ update ]
-		}
-		attach process adj-rib-in {
-			receive [ update-received state ]
-			send [ update ]
-		}
 	}
 }
 EOF_CONF2
 
 # The unrelated reload: config2 plus peer-b's description. No peer is removed.
 tmpfs=config3.conf:terminator=EOF_CONF3
-plugin {
-	internal adj-rib-in {
-		use bgp-adj-rib-in
+bus {
+	endpoint adj-rib-in {
+		internal bgp-adj-rib-in;
 	}
-	internal rs {
-		use bgp-rs
+	endpoint rs {
+		internal bgp-rs;
 	}
-	external stages {
-		run "le test fixture reload/live-stages stages.script"
-		encoder json
+	endpoint stages {
+		external {
+			run "le test fixture reload/live-stages stages.script";
+		}
+		encoding json;
 	}
 }
 # The stage that fences step 1 reads the role plugin's suppression counter
@@ -332,6 +304,7 @@ bgp {
 		}
 		session {
 			asn { local 65000; remote 65001; }
+			rs-client true;
 			router-id 1.2.3.4
 			family {
 				ipv4/unicast { prefix { maximum 10000; } }
@@ -341,17 +314,6 @@ bgp {
 		role {
 			import customer
 			export [ default customer ]
-		}
-		attach process stages {
-			send [ update ]
-		}
-		attach process rs {
-			receive [ update-received state open-received refresh ]
-			send [ update ]
-		}
-		attach process adj-rib-in {
-			receive [ update-received state ]
-			send [ update ]
 		}
 	}
 	peer peer-b {
@@ -362,6 +324,7 @@ bgp {
 		}
 		session {
 			asn { local 65000; remote 65002; }
+			rs-client true;
 			router-id 1.2.3.4
 			family {
 				ipv4/unicast { prefix { maximum 10000; } }
@@ -373,14 +336,6 @@ bgp {
 				filters [ next-hop:unchanged ]
 				final accept
 			}
-		}
-		attach process rs {
-			receive [ update-received state open-received refresh ]
-			send [ update ]
-		}
-		attach process adj-rib-in {
-			receive [ update-received state ]
-			send [ update ]
 		}
 	}
 }

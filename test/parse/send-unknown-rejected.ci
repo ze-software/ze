@@ -1,10 +1,13 @@
-# Test: send [ unknown-type ] rejected when no plugin registers it
-# VALIDATES: AC-2: Unregistered send types rejected at config parse time
+# Test: unknown bus message rejected in send allow when no plugin registers it
+# VALIDATES: AC-2: Unregistered bus message names rejected at config validation time
 stdin=config:terminator=EOF_CONF
-plugin {
-	external my-process {
-		run ./test.py
-		encoder json
+bus {
+	endpoint my-process {
+		internal bgp-rib
+		encoding json
+		send {
+			allow [ bgp:unknown-send-type ]
+		}
 	}
 }
 bgp {
@@ -23,9 +26,6 @@ bgp {
 				local 65001
 				remote 65001
 			}
-		}
-		attach process my-process {
-			send [ unknown-send-type ]
 		}
 	}
 }

@@ -29,13 +29,15 @@ EOF_SOURCE
 # StateTimeout). See bgp-rs-fastpath-ebgp-shared.ci for the rationale.
 
 stdin=ze-bgp:terminator=EOF_CONF
-plugin {
-	internal rs {
-		use bgp-rs
+bus {
+	endpoint rs {
+		internal bgp-rs;
 	}
-	external shutdown-after-up {
-		run "le test fixture plugin/bgp-rs-replaying-gate"
-		encoder json
+	endpoint shutdown-after-up {
+		external {
+			run "le test fixture plugin/bgp-rs-replaying-gate";
+		}
+		encoding json;
 	}
 }
 bgp {
@@ -50,6 +52,7 @@ bgp {
 			}
 		}
 		session {
+			rs-client true;
 			asn {
 				local 65000
 				remote 65000
@@ -64,13 +67,6 @@ bgp {
 		}
 		behavior {
 			group-updates disable
-		}
-		attach process rs {
-			receive [ update-received state open-received refresh ]
-			send [ update ]
-		}
-		attach process shutdown-after-up {
-			receive [ update ]
 		}
 	}
 }

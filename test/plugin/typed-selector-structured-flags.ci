@@ -46,11 +46,13 @@ environment {
   }
  }
 }
-plugin {
- external typed-selector-provider {
-  run "le test fixture plugin/typed-selector-provider"
-  encoder json
- }
+bus {
+  endpoint typed-selector-provider {
+    external {
+      run "le test fixture plugin/typed-selector-provider";
+    }
+    encoding json;
+  }
 }
 EOF_CONFIG
 

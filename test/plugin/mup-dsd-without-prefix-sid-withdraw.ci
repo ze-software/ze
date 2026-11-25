@@ -58,16 +58,32 @@ EOF_PEER
 # shut down. The T1ST test's fixture is reused: it waits for the same fence, 10.0.0.0/24.
 
 stdin=ze-bgp:terminator=EOF_CONF
-plugin {
-	internal rs {
-		use bgp-rs
+bus {
+	endpoint bgp-rib {
+		internal bgp-rib;
+		receive {
+			allow none;
+		}
+		send {
+			allow none;
+		}
 	}
-	internal adj-rib-in {
-		use bgp-adj-rib-in
+	endpoint rs {
+		internal bgp-rs;
 	}
-	external shutdown-after-up {
-		run "le test fixture plugin/mup-t1st-malformed-treat-as-withdraw"
-		encoder json
+	endpoint adj-rib-in {
+		internal bgp-adj-rib-in;
+		send {
+			message bgp:update {
+				to none;
+			}
+		}
+	}
+	endpoint shutdown-after-up {
+		external {
+			run "le test fixture plugin/mup-t1st-malformed-treat-as-withdraw";
+		}
+		encoding json;
 	}
 }
 bgp {
@@ -87,6 +103,7 @@ bgp {
 			}
 		}
 		session {
+			rs-client true;
 			asn {
 				local 65000
 				remote 65001
@@ -105,16 +122,6 @@ bgp {
 		}
 		behavior {
 			group-updates disable
-		}
-		attach process adj-rib-in {
-			receive [ update-received state ]
-		}
-		attach process rs {
-			receive [ update-received state open-received refresh ]
-			send [ update ]
-		}
-		attach process shutdown-after-up {
-			receive [ update ]
 		}
 	}
 	peer receiver-peer {
@@ -144,16 +151,6 @@ bgp {
 		}
 		behavior {
 			group-updates disable
-		}
-		attach process adj-rib-in {
-			send [ update ]
-		}
-		attach process rs {
-			receive [ update-received state open-received refresh ]
-			send [ update ]
-		}
-		attach process shutdown-after-up {
-			receive [ update ]
 		}
 	}
 }

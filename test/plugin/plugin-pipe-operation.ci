@@ -63,10 +63,12 @@ environment {
 		}
 	}
 }
-plugin {
-	external pipe-operation-declared {
-		run "le test fixture plugin/pipe-operation-declared"
-		encoder json
+bus {
+	endpoint pipe-operation-declared {
+		external {
+			run "le test fixture plugin/pipe-operation-declared";
+		}
+		encoding json;
 	}
 }
 EOF_CONF

@@ -59,9 +59,9 @@ environment {
 		}
 	}
 }
-plugin {
-	internal bgp-rib {
-		use bgp-rib
+bus {
+	endpoint bgp-rib {
+		internal bgp-rib
 	}
 }
 EOF_CONF

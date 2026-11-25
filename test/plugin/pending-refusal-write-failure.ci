@@ -30,8 +30,10 @@ environment {
         }
     }
 }
-plugin {
-    internal bgp-rib { use bgp-rib; }
+bus {
+    endpoint bgp-rib {
+        internal bgp-rib;
+    }
 }
 bgp {
     filter {
@@ -47,10 +49,6 @@ bgp {
             asn { local 65001; remote 65001; }
             router-id 1.1.1.1
             family { ipv4/unicast { prefix { maximum 10000; } } }
-        }
-        attach process bgp-rib {
-            receive [ update state refresh ]
-            send [ update ]
         }
     }
 }

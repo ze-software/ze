@@ -353,24 +353,9 @@ func (s *Server) signalStartupComplete() {
 	}
 
 	// Compile the bus filter index from all Stage 1 declarations and BusConfig,
-	// publishing every endpoint's command profile before any OnAllPluginsReady
-	// handler runs.
+	// publishing every endpoint's command profile before any reactor post-startup
+	// or OnAllPluginsReady handler runs.
 	s.RefreshDeliveryGraph()
-
-	// Fan out the post-startup callback to every running plugin so that
-	// OnAllPluginsReady handlers (e.g., bgp-rpki enabling the adj-rib-in
-	// validation gate) can safely dispatch cross-plugin commands -- at this
-	// point the dispatcher command registry is frozen and guaranteed to hold
-	// every registered command from every startup phase. Best-effort.
-	//
-	// Nothing that must be in place before the first peer-up may be decided
-	// here: this fan-out is not ordered against StartPeers below. Such state is
-	// declared instead and delivered on the Stage-2 configure callback -- see
-	// sendPostStartupToAll's doc comment and startup_claims.go.
-	s.sendPostStartupToAll()
-	if s.startupCompletionStopped() {
-		return
-	}
 
 	// A reactor's post-startup step can refuse the loaded config: the bgp
 	// plugin places the filter insertions every running plugin declared
@@ -380,14 +365,36 @@ func (s *Server) signalStartupComplete() {
 	// cmd/ze/hub exits with it, as `ze config validate` refuses the same
 	// config. An earlier phase's failure stays the startup error: it is the
 	// cause, and this step ran after it.
+	//
+	// Run this BEFORE sendPostStartupToAll so RebuildRunningPeers and StartPeers
+	// settle before any OnAllPluginsReady handler dispatches routes or commands
+	// against the live peers, and so a refused startup never fires post-startup
+	// callbacks.
 	if s.reactor != nil {
 		if err := s.reactor.SignalPluginStartupComplete(); err != nil {
 			logger().Error("plugin startup: the reactor refused the loaded config after every plugin phase", "error", err)
 			s.recordStartupFailure(err)
+			return
 		}
 	}
 	// The reactor callback can itself stop the daemon. It MUST run without
 	// lifecycleMu held, and its return cannot turn that stop into a clean boot.
+	if s.startupCompletionStopped() {
+		return
+	}
+
+	// Fan out the post-startup callback to every running plugin so that
+	// OnAllPluginsReady handlers (e.g., bgp-rpki enabling the adj-rib-in
+	// validation gate) can safely dispatch cross-plugin commands -- at this
+	// point the dispatcher command registry is frozen and guaranteed to hold
+	// every registered command from every startup phase, and peers are already
+	// rebuilt and started. Best-effort.
+	//
+	// Nothing that must be in place before the first peer-up may be decided
+	// here: this fan-out runs after StartPeers. Such state is declared instead
+	// and delivered on the Stage-2 configure callback -- see
+	// sendPostStartupToAll's doc comment and startup_claims.go.
+	s.sendPostStartupToAll()
 	if s.startupCompletionStopped() {
 		return
 	}

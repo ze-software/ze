@@ -20,11 +20,11 @@ expect=viewport:contains=cost accepts a value in 1..65535
 expect=viewport:contains=fix: set ospf interfaces interface eth0 cost <1..65535>
 expect=dirty:false
 
-input=type:text=set exabgp bridge process demo run ""
+input=type:text=set bgp peer demo capture directory ""
 input=enter
 expect=error:contains=is outside the accepted length (0 characters)
-expect=viewport:contains=run accepts 1..4096 characters
-expect=viewport:contains=fix: set exabgp bridge process demo run <1..4096 characters>
+expect=viewport:contains=directory accepts 1..4096 characters
+expect=viewport:contains=fix: set bgp peer demo capture directory <1..4096 characters>
 expect=dirty:false
 
 input=type:text=set l2tp shaper default-rate fast

@@ -20,13 +20,15 @@ EOF_PEER
 
 
 stdin=ze-bgp:terminator=EOF_CONF
-plugin {
-	external summary-counts-test {
-		run "le test fixture plugin/bgp-summary-route-counts"
-		encoder json
+bus {
+	endpoint bgp-rib {
+		internal bgp-rib;
 	}
-	internal bgp-rib {
-		use bgp-rib
+	endpoint summary-counts-test {
+		external {
+			run "le test fixture plugin/bgp-summary-route-counts";
+		}
+		encoding json;
 	}
 }
 
@@ -58,10 +60,6 @@ bgp {
 			group-updates disable
 		}
 
-		attach process bgp-rib {
-			receive [ update state refresh ]
-			send [ update ]
-		}
 	}
 }
 EOF_CONF

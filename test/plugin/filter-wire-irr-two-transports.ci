@@ -36,9 +36,16 @@ action=send:conn=1:seq=8:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
 DEST_internal
 
 stdin=config-internal:terminator=CONFIG_internal
-plugin {
- internal bgp-filter-irr { use bgp-filter-irr; }
- external observer { run "le test fixture plugin/filter-wire-transports irr internal 5 6 0"; encoder json; }
+bus {
+    endpoint bgp-filter-irr {
+        internal bgp-filter-irr;
+    }
+    endpoint observer {
+        external {
+            run "le test fixture plugin/filter-wire-transports irr internal 5 6 0";
+        }
+        encoding json;
+    }
 }
 telemetry { prometheus { enabled true; server main { ip 127.0.0.1; port $PORT3; } } }
 system { irr { server 127.0.0.1:$PORT2; refresh-interval 3600; } }
@@ -48,14 +55,12 @@ peer source {
  session { asn { local 65000; remote 65001; } router-id 1.2.3.4; family { ipv4/unicast { prefix { maximum 1000; } } ipv6/unicast { prefix { maximum 1000; } } } capability { graceful-restart disable; } irr { as-set AS-TEST; } }
  behavior { group-updates disable; }
  filter { import { filters [ bgp-filter-irr:65001 ]; final accept; } export { final accept; } }
- attach process observer { receive [ update state ]; send [ update ]; }
 }
 peer destination {
  connection { remote { ip 127.0.0.2; } local { ip 127.0.0.2; accept false; } }
  session { asn { local 65000; remote 65000; } router-id 1.2.3.4; family { ipv4/unicast { prefix { maximum 1000; } } ipv6/unicast { prefix { maximum 1000; } } } capability { graceful-restart disable; }  }
  behavior { group-updates disable; }
  filter { import {  final accept; } export { final accept; } }
- attach process observer { receive [ update state ]; send [ update ]; }
 }
 }
 CONFIG_internal
@@ -106,9 +111,17 @@ action=send:conn=1:seq=8:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
 DEST_forked
 
 stdin=config-forked:terminator=CONFIG_forked
-plugin {
- external bgp-filter-irr { run "ze plugin bgp-filter-irr"; }
- external observer { run "le test fixture plugin/filter-wire-transports irr forked 5 0 6"; encoder json; }
+bus {
+    endpoint bgp-filter-irr {
+        internal bgp-filter-irr;
+        process separate;
+    }
+    endpoint observer {
+        external {
+            run "le test fixture plugin/filter-wire-transports irr forked 5 0 6";
+        }
+        encoding json;
+    }
 }
 telemetry { prometheus { enabled true; server main { ip 127.0.0.1; port $PORT3; } } }
 system { irr { server 127.0.0.1:$PORT2; refresh-interval 3600; } }
@@ -118,14 +131,12 @@ peer source {
  session { asn { local 65000; remote 65001; } router-id 1.2.3.4; family { ipv4/unicast { prefix { maximum 1000; } } ipv6/unicast { prefix { maximum 1000; } } } capability { graceful-restart disable; } irr { as-set AS-TEST; } }
  behavior { group-updates disable; }
  filter { import { filters [ bgp-filter-irr:65001 ]; final accept; } export { final accept; } }
- attach process observer { receive [ update state ]; send [ update ]; }
 }
 peer destination {
  connection { remote { ip 127.0.0.2; } local { ip 127.0.0.2; accept false; } }
  session { asn { local 65000; remote 65000; } router-id 1.2.3.4; family { ipv4/unicast { prefix { maximum 1000; } } ipv6/unicast { prefix { maximum 1000; } } } capability { graceful-restart disable; }  }
  behavior { group-updates disable; }
  filter { import {  final accept; } export { final accept; } }
- attach process observer { receive [ update state ]; send [ update ]; }
 }
 }
 CONFIG_forked

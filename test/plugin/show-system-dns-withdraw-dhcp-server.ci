@@ -39,10 +39,12 @@ option=needs-linux:caps=net-admin,net-raw
 option=timeout:value=60s
 
 stdin=ze-bgp:terminator=EOF_CONF
-plugin {
-	external show-system-dns-withdraw-dhcp-test {
-		run "le test fixture plugin/show-system-dns-withdraw-dhcp"
-		encoder json
+bus {
+	endpoint show-system-dns-withdraw-dhcp-test {
+		external {
+			run "le test fixture plugin/show-system-dns-withdraw-dhcp";
+		}
+		encoding json;
 	}
 }
 service {
@@ -67,10 +69,12 @@ service {
 EOF_CONF
 
 tmpfs=config2.conf:terminator=EOF_CONF2
-plugin {
-	external show-system-dns-withdraw-dhcp-test {
-		run "le test fixture plugin/show-system-dns-withdraw-dhcp"
-		encoder json
+bus {
+	endpoint show-system-dns-withdraw-dhcp-test {
+		external {
+			run "le test fixture plugin/show-system-dns-withdraw-dhcp";
+		}
+		encoding json;
 	}
 }
 EOF_CONF2

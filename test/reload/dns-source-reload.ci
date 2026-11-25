@@ -24,10 +24,12 @@
 option=timeout:value=40s
 
 stdin=ze-bgp:terminator=EOF_CONF
-plugin {
-	external live-stages {
-		run "le test fixture reload/live-stages stages.script"
-		encoder json
+bus {
+	endpoint live-stages {
+		external {
+			run "le test fixture reload/live-stages stages.script";
+		}
+		encoding json;
 	}
 }
 system {
@@ -41,10 +43,12 @@ system {
 EOF_CONF
 
 tmpfs=config2.conf:refused=config-validator-unavailable:terminator=EOF_CONF2
-plugin {
-	external live-stages {
-		run "le test fixture reload/live-stages stages.script"
-		encoder json
+bus {
+	endpoint live-stages {
+		external {
+			run "le test fixture reload/live-stages stages.script";
+		}
+		encoding json;
 	}
 }
 system {
@@ -59,10 +63,12 @@ system {
 EOF_CONF2
 
 tmpfs=config3.conf:terminator=EOF_CONF3
-plugin {
-	external live-stages {
-		run "le test fixture reload/live-stages stages.script"
-		encoder json
+bus {
+	endpoint live-stages {
+		external {
+			run "le test fixture reload/live-stages stages.script";
+		}
+		encoding json;
 	}
 }
 system {

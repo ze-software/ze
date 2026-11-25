@@ -18,10 +18,12 @@ option=env:var=ze.log.flow.export:value=info
 option=timeout:value=20s
 
 stdin=ze-conf:terminator=EOF_CONF
-plugin {
-	external ipfix-receiver {
-		run "le test fixture flow-export/ipfix-export $PORT2"
-		encoder json
+bus {
+	endpoint ipfix-receiver {
+		external {
+			run "le test fixture flow-export/ipfix-export $PORT2";
+		}
+		encoding json;
 	}
 }
 

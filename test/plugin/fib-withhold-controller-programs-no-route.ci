@@ -22,16 +22,18 @@
 option=needs-linux:caps=net-admin
 
 stdin=ze-conf:terminator=EOF_CONF
-plugin {
-	external fib-withhold-controller {
-		run "le test fixture plugin/fib-withhold-controller-programs-no-route"
-		encoder json
+bus {
+	endpoint rib {
+		internal rib;
 	}
-	internal rib {
-		use rib
+	endpoint fib-kernel {
+		internal fib-kernel;
 	}
-	internal fib-kernel {
-		use fib-kernel
+	endpoint fib-withhold-controller {
+		external {
+			run "le test fixture plugin/fib-withhold-controller-programs-no-route";
+		}
+		encoding json;
 	}
 }
 

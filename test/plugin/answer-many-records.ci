@@ -45,10 +45,12 @@ EOF_PEER
 
 # ze bgp configuration
 stdin=ze-bgp:terminator=EOF_CONF
-plugin {
-	external answer-records {
-		run "le test fixture plugin/answer-many-records"
-		encoder json
+bus {
+	endpoint answer-records {
+		external {
+			run "le test fixture plugin/answer-many-records";
+		}
+		encoding json;
 	}
 }
 

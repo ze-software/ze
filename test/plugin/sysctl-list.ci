@@ -26,10 +26,12 @@ EOF_PEER
 # Native observer fixture: plugin/sysctl-list.
 
 stdin=ze-sysctl:terminator=EOF_CONF
-plugin {
-	external sysctl-list-test {
-		run "le test fixture plugin/sysctl-list"
-		encoder json
+bus {
+	endpoint sysctl-list-test {
+		external {
+			run "le test fixture plugin/sysctl-list";
+		}
+		encoding json;
 	}
 }
 

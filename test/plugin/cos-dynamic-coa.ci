@@ -31,9 +31,11 @@ EOF_PEER
 
 
 stdin=ze-conf:terminator=EOF_CONF
-plugin {
-    external cos-dynamic-coa-test {
-        run "le test fixture plugin/cos-dynamic-coa"
+bus {
+    endpoint cos-dynamic-coa-test {
+        external {
+            run "le test fixture plugin/cos-dynamic-coa";
+        }
     }
 }
 
@@ -49,7 +51,7 @@ class-of-service {
 }
 
 interface {
-    backend netlink;
+    backend kernel;
     ethernet eth0 {
         unit v100 { vlan-id 100; }
     }

@@ -22,10 +22,12 @@ environment {
         }
     }
 }
-plugin {
-    external bmp-bestpath {
-        run "le test fixture plugin/bmp-lg-bestpath-isolation $PORT2;"
-        encoder json;
+bus {
+    endpoint bmp-bestpath {
+        external {
+            run "le test fixture plugin/bmp-lg-bestpath-isolation $PORT2;";
+        }
+        encoding json;
     }
 }
 bgp {

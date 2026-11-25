@@ -17,7 +17,7 @@
 
 # Plugin-only config: no bgp, no interface, no protocol block.
 tmpfs=plugin-only.conf:terminator=EOF_CONF
-plugin {
+bus {
 }
 EOF_CONF
 

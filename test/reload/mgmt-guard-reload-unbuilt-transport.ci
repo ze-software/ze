@@ -28,10 +28,12 @@ EOF_PEER
 # Post-SIGHUP config: the token is gone. The listen address is untouched, so the
 # reload's whole job is the credential rebuild on the one transport that runs.
 tmpfs=config2.conf:terminator=EOF_CONF2
-plugin {
-	external mgmt-unbuilt-transport-test {
-		run "le test fixture reload/mgmt-guard-reload-unbuilt-transport $PORT2"
-		encoder json
+bus {
+	endpoint mgmt-unbuilt-transport-test {
+		external {
+			run "le test fixture reload/mgmt-guard-reload-unbuilt-transport $PORT2";
+		}
+		encoding json;
 	}
 }
 
@@ -82,10 +84,12 @@ EOF_CONF2
 # Initial config: REST enabled with a token, and no grpc block at all. That is
 # the surface the daemon builds; gRPC is the one it does not.
 stdin=ze-conf:terminator=EOF_CONF
-plugin {
-	external mgmt-unbuilt-transport-test {
-		run "le test fixture reload/mgmt-guard-reload-unbuilt-transport $PORT2"
-		encoder json
+bus {
+	endpoint mgmt-unbuilt-transport-test {
+		external {
+			run "le test fixture reload/mgmt-guard-reload-unbuilt-transport $PORT2";
+		}
+		encoding json;
 	}
 }
 

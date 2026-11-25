@@ -425,9 +425,22 @@ func (s *Server) deliverEventCaptured(ctx context.Context, emitter *process.Proc
 	var procs []*process.Process
 	if peerAddress == "" {
 		procs = s.subscriptions.getMatching(nsID, etID, dirID, "", "")
+		if capture != nil && slices.Contains(procs, emitter) {
+			return 0, eventAppliedSelfRefusal()
+		}
 		if stampedSender != "" {
 			procs = filterReceiversByCompiledSender(s.DeliveryGraph().Compiled(), stampedSender, nsID, etID, dirID, procs)
 		}
+	} else if g := s.DeliveryGraph(); stampedSender != "" && g.Compiled() != nil && g.Compiled().Filter(stampedSender) != nil && !g.PeerDeclaresSend(peerAddress, nsID, etID) {
+		// Endpoint-emitted peer-scoped events (such as bgp:rpki from bgp-rpki
+		// and bgp:update-rpki from bgp-rpki-decorator) are sent by the endpoint,
+		// not by the peer participant. Route them through the endpoint's compiled
+		// bus edges while keeping each subscriber's peer filter intact.
+		procs = s.subscriptions.getMatching(nsID, etID, dirID, peerAddress, "")
+		if capture != nil && slices.Contains(procs, emitter) {
+			return 0, eventAppliedSelfRefusal()
+		}
+		procs = filterReceiversByCompiledSender(g.Compiled(), stampedSender, nsID, etID, dirID, procs)
 	} else {
 		procs = s.PeerScopedProcs(nsID, etID, dirID, peerAddress, "")
 	}

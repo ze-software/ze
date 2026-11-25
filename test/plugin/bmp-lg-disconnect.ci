@@ -22,10 +22,12 @@ environment {
         }
     }
 }
-plugin {
-    external bmp-disconnect {
-        run "le test fixture plugin/bmp-lg-disconnect $PORT2;"
-        encoder json;
+bus {
+    endpoint bmp-disconnect {
+        external {
+            run "le test fixture plugin/bmp-lg-disconnect $PORT2;";
+        }
+        encoding json;
     }
 }
 bgp {

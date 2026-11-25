@@ -47,10 +47,12 @@ option=timeout:value=90s
 
 
 stdin=ze-conf:terminator=EOF_CONF
-plugin {
-	external iface-ra-slaac {
-		run "le test fixture plugin/iface-ra-slaac"
-		encoder json
+bus {
+	endpoint iface-ra-slaac {
+		external {
+			run "le test fixture plugin/iface-ra-slaac";
+		}
+		encoding json;
 	}
 }
 
@@ -59,7 +61,7 @@ plugin {
 # in this configuration, so every global address it ends up with came from the
 # advertisement.
 interface {
-	backend netlink
+	backend kernel
 
 	veth zeraslc0 {
 		peer zeraslc1

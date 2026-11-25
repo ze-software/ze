@@ -58,19 +58,18 @@ EOF_PEER2
 # On peer1 it would never be consulted: the route arrives from peer1 and ze does
 # not send it back to its source.
 stdin=ze-bgp:terminator=EOF_CONF
-plugin {
-    # Ze forwards a route between peers only when the route-server plugin is
-    # attached to both. Without it nothing reaches the egress path, and the
-    # export filter under test is never consulted.
-    internal adj-rib-in {
-        use bgp-adj-rib-in;
+bus {
+    endpoint adj-rib-in {
+        internal bgp-adj-rib-in;
     }
-    internal rs {
-        use bgp-rs;
+    endpoint rs {
+        internal bgp-rs;
     }
-    external filter-export-reject-test {
-        run "le test fixture plugin/redistribute-export-reject";
-        encoder json;
+    endpoint filter-export-reject-test {
+        external {
+            run "le test fixture plugin/redistribute-export-reject";
+        }
+        encoding json;
     }
 }
 bgp {
@@ -99,6 +98,7 @@ bgp {
             }
         }
         session {
+            rs-client true;
             asn {
                 local 65000
                 remote 65001
@@ -109,14 +109,6 @@ bgp {
         }
         behavior {
             group-updates disable
-        }
-        attach process rs {
-            receive [ update-received state open-received refresh ];
-            send [ update ];
-        }
-        attach process adj-rib-in {
-            receive [ update-received state ];
-            send [ update ];
         }
     }
     peer peer2 {
@@ -130,6 +122,7 @@ bgp {
             }
         }
         session {
+            rs-client true;
             asn {
                 local 65000
                 remote 65002
@@ -140,14 +133,6 @@ bgp {
         }
         behavior {
             group-updates disable
-        }
-        attach process rs {
-            receive [ update-received state open-received refresh ];
-            send [ update ];
-        }
-        attach process adj-rib-in {
-            receive [ update-received state ];
-            send [ update ];
         }
         filter {
             export { filters [ filter-export-reject-test:block-export ]; final accept; }

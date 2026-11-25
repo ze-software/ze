@@ -20,16 +20,18 @@
 option=needs-linux:caps=net-admin
 
 stdin=ze-bgp:terminator=EOF_CONF
-plugin {
-	external static-named-table-test {
-		run "le test fixture static/static-named-table-unchanged"
-		encoder json
+bus {
+	endpoint rib {
+		internal rib;
 	}
-	internal rib {
-		use rib
+	endpoint fib-kernel {
+		internal fib-kernel;
 	}
-	internal fib-kernel {
-		use fib-kernel
+	endpoint static-named-table-test {
+		external {
+			run "le test fixture static/static-named-table-unchanged";
+		}
+		encoding json;
 	}
 }
 

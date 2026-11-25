@@ -13,13 +13,15 @@
 # circuit, so IS-IS starts without CAP_NET_RAW and still originates its own LSP.
 
 stdin=ze-conf:terminator=EOF_CONF
-plugin {
-	external isis-export-chain {
-		run "le test fixture isis/isis-export-chain"
-		encoder json
+bus {
+	endpoint fakeredist {
+		internal fakeredist;
 	}
-	internal fakeredist {
-		use fakeredist
+	endpoint isis-export-chain {
+		external {
+			run "le test fixture isis/isis-export-chain";
+		}
+		encoding json;
 	}
 }
 

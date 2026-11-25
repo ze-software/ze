@@ -58,13 +58,15 @@ reject=bgp:conn=3:pattern=40020A02020000FDE80000FDE9
 EOF_SOURCE
 
 stdin=ze-bgp:terminator=EOF_CONF
-plugin {
-	internal rs {
-		use bgp-rs
+bus {
+	endpoint rs {
+		internal bgp-rs;
 	}
-	external shutdown-after-up {
-		run "le test fixture plugin/bgp-rs-mod-copy"
-		encoder json
+	endpoint shutdown-after-up {
+		external {
+			run "le test fixture plugin/bgp-rs-mod-copy";
+		}
+		encoding json;
 	}
 }
 bgp {
@@ -79,6 +81,7 @@ bgp {
 			local { ip 127.0.0.1; accept false; }
 		}
 		session {
+			rs-client true;
 			asn { local 65000; remote 65000; }
 			router-id 1.2.3.4
 			route-reflector-client true
@@ -89,14 +92,6 @@ bgp {
 			capability { graceful-restart disable; }
 		}
 		behavior { group-updates disable; }
-		attach process rs {
-			receive [ update-received state open-received refresh ]
-			send [ update ]
-		}
-		attach process shutdown-after-up {
-			receive [ update ]
-			send [ update ]
-		}
 	}
 	peer edited-ebgp-recipient {
 		connection {
@@ -114,13 +109,6 @@ bgp {
 			capability { graceful-restart disable; }
 		}
 		behavior { group-updates disable; }
-		attach process rs {
-			receive [ update-received state open-received refresh ]
-			send [ update ]
-		}
-		attach process shutdown-after-up {
-			receive [ update ]
-		}
 	}
 	peer internal-control {
 		connection {
@@ -128,6 +116,7 @@ bgp {
 			local { ip 127.0.0.3; accept false; }
 		}
 		session {
+			rs-client true;
 			asn { local 65000; remote 65000; }
 			router-id 1.2.3.6
 			route-reflector-client true
@@ -138,13 +127,6 @@ bgp {
 			capability { graceful-restart disable; }
 		}
 		behavior { group-updates disable; }
-		attach process rs {
-			receive [ update-received state open-received refresh ]
-			send [ update ]
-		}
-		attach process shutdown-after-up {
-			receive [ update ]
-		}
 	}
 }
 EOF_CONF

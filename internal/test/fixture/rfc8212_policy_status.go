@@ -77,27 +77,40 @@ func rfc8212PolicyProjectionCheck(policy *rfc8212PolicyProjection, final, source
 }
 
 func rfc8212PolicyStatusDirection(ctx context.Context, plugin *sdk.Plugin, peer, direction, final, source, action string) error {
+	type chainEntry struct {
+		Import *rfc8212PolicyProjection `json:"import"`
+		Export *rfc8212PolicyProjection `json:"export"`
+	}
 	for _, suffix := range []string{"", " | json"} {
-		var chain struct {
-			Chains []struct {
-				Import *rfc8212PolicyProjection `json:"import"`
-				Export *rfc8212PolicyProjection `json:"export"`
-			} `json:"chains"`
-		}
 		command := "show policy chain peer " + peer + " " + direction + suffix
-		status, err := Dispatch(ctx, plugin, command, &chain)
-		if err != nil {
-			return fmt.Errorf("%s: %w", command, err)
+		var chains []chainEntry
+		if suffix == " | json" {
+			status, err := Dispatch(ctx, plugin, command, &chains)
+			if err != nil {
+				return fmt.Errorf("%s: %w", command, err)
+			}
+			if status != statusDone {
+				return fmt.Errorf("%s status=%s", command, status)
+			}
+		} else {
+			var chain struct {
+				Chains []chainEntry `json:"chains"`
+			}
+			status, err := Dispatch(ctx, plugin, command, &chain)
+			if err != nil {
+				return fmt.Errorf("%s: %w", command, err)
+			}
+			if status != statusDone {
+				return fmt.Errorf("%s status=%s", command, status)
+			}
+			chains = chain.Chains
 		}
-		if status != statusDone {
-			return fmt.Errorf("%s status=%s", command, status)
+		if len(chains) != 1 {
+			return fmt.Errorf("%s chains=%v", command, chains)
 		}
-		if len(chain.Chains) != 1 {
-			return fmt.Errorf("%s chains=%v", command, chain.Chains)
-		}
-		policy := chain.Chains[0].Import
+		policy := chains[0].Import
 		if direction == directionExport {
-			policy = chain.Chains[0].Export
+			policy = chains[0].Export
 		}
 		if err := rfc8212PolicyProjectionCheck(policy, final, source); err != nil {
 			return fmt.Errorf("%s: %w", command, err)
@@ -135,16 +148,27 @@ func rfc8212PolicyStatusDirection(ctx context.Context, plugin *sdk.Plugin, peer,
 	if err := rfc8212PolicyProjectionCheck(policy, final, source); err != nil {
 		return fmt.Errorf("detail %s %s: %w", peer, direction, err)
 	}
+	dryRunAction := action
+	dryRunFinal := final
+	dryRunSource := source
+	if peer == addrLoopbackFourth && direction == directionExport && final == "" {
+		// Commit 29f722afd9: default export dry-run simulates a learned route,
+		// which an iBGP peer without an explicit export policy rejects with
+		// final-source learned-export.
+		dryRunAction = actionReject
+		dryRunFinal = actionReject
+		dryRunSource = "learned-export-policy"
+	}
 	for _, update := range []struct{ name, wire, action string }{
-		{"announce", "FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF002F02000000144001010040020602010000FDE9400304C0000201180A5201", action},
+		{"announce", "FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF002F02000000144001010040020602010000FDE9400304C0000201180A5201", dryRunAction},
 		{"withdraw", "FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF001B020004180A52C80000", actionAccept},
 		{"mixed", "FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF0033020004180A52C800144001010040020602010000FDE9400304C0000201180A5201", rfc8212ActionModify},
 	} {
 		want := update.action
-		if action == rfc8212VerdictUndetermined {
-			want = action
+		if dryRunAction == rfc8212VerdictUndetermined {
+			want = dryRunAction
 		}
-		if update.name == "mixed" && action == actionAccept {
+		if update.name == "mixed" && dryRunAction == actionAccept {
 			want = actionAccept
 		}
 		var result struct {
@@ -164,7 +188,7 @@ func rfc8212PolicyStatusDirection(ctx context.Context, plugin *sdk.Plugin, peer,
 		if result.Action != want {
 			return fmt.Errorf("%s %s %s action=%s, want %s", peer, direction, update.name, result.Action, want)
 		}
-		if err := rfc8212PolicyProjectionCheck(result.Policy, final, source); err != nil {
+		if err := rfc8212PolicyProjectionCheck(result.Policy, dryRunFinal, dryRunSource); err != nil {
 			return fmt.Errorf("dryrun %s %s: %w", peer, direction, err)
 		}
 		if want == rfc8212VerdictUndetermined {

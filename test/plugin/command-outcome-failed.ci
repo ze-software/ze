@@ -6,14 +6,18 @@
 # callback error would stop the SDK before it writes any rows.
 
 stdin=ze-bgp:terminator=EOF_CONF
-plugin {
-	external answer-outcome-provider {
-		run "le test fixture plugin/command-outcome-provider"
-		encoder json
+bus {
+	endpoint answer-outcome-provider {
+		external {
+			run "le test fixture plugin/command-outcome-provider";
+		}
+		encoding json;
 	}
-	external answer-outcome-observer {
-		run "le test fixture plugin/command-outcome-observer failed"
-		encoder json
+	endpoint answer-outcome-observer {
+		external {
+			run "le test fixture plugin/command-outcome-observer failed";
+		}
+		encoding json;
 	}
 }
 EOF_CONF

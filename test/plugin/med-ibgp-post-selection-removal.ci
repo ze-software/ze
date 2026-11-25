@@ -54,16 +54,18 @@ EOF_DEST
 
 
 stdin=ze-bgp:terminator=EOF_CONF
-plugin {
-    internal adj-rib-in {
-        use bgp-adj-rib-in;
+bus {
+    endpoint adj-rib-in {
+        internal bgp-adj-rib-in;
     }
-    internal rs {
-        use bgp-rs;
+    endpoint rs {
+        internal bgp-rr;
     }
-    external raw-med-drop {
-        run "le test fixture plugin/med-ibgp-post-selection-removal;"
-        encoder json;
+    endpoint raw-med-drop {
+        external {
+            run "le test fixture plugin/med-ibgp-post-selection-removal;";
+        }
+        encoding json;
     }
 }
 bgp {
@@ -87,14 +89,6 @@ bgp {
             capability { graceful-restart disable; }
         }
         behavior { group-updates disable; }
-        attach process rs {
-            receive [ update-received state open-received refresh ];
-            send [ update ];
-        }
-        attach process adj-rib-in {
-            receive [ update-received state ];
-            send [ update ];
-        }
     }
     peer dest {
         connection {
@@ -109,14 +103,6 @@ bgp {
         behavior { group-updates disable; }
         filter {
             export { filters [ next-hop:self raw-med-drop:drop-med-raw ]; final accept; }
-        }
-        attach process rs {
-            receive [ update-received state open-received refresh ];
-            send [ update ];
-        }
-        attach process adj-rib-in {
-            receive [ update-received state ];
-            send [ update ];
         }
     }
 }

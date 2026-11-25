@@ -20,14 +20,18 @@ outcome-recovery-password
 EOF_INIT
 
 tmpfs=command-outcome-web.conf:terminator=EOF_CONF
-plugin {
-    external answer-outcome-provider {
-        run "le test fixture plugin/command-outcome-provider web"
-        encoder json
+bus {
+    endpoint answer-outcome-provider {
+        external {
+            run "le test fixture plugin/command-outcome-provider web";
+        }
+        encoding json;
     }
-    external answer-outcome-observer {
-        run "le test fixture plugin/command-outcome-web $PORT related failed"
-        encoder json
+    endpoint answer-outcome-observer {
+        external {
+            run "le test fixture plugin/command-outcome-web $PORT related failed";
+        }
+        encoding json;
     }
 }
 system {

@@ -13,10 +13,12 @@ EOF_PEER
 
 # ze bgp configuration
 stdin=ze-bgp:terminator=EOF_CONF
-plugin {
-	external teardown-msg-test {
-		run "le test fixture plugin/teardown-msg"
-		encoder json
+bus {
+	endpoint teardown-msg-test {
+		external {
+			run "le test fixture plugin/teardown-msg";
+		}
+		encoding json;
 	}
 }
 bgp {
@@ -47,9 +49,6 @@ bgp {
 			group-updates disable
 		}
 
-		attach process teardown-msg-test {
-			send [ update ]
-		}
 	}
 }
 EOF_CONF

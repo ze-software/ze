@@ -20,10 +20,12 @@ expect=bgp:conn=1:seq=1:contains=001946047F0000010003110000FDE800000007000000002
 EOF_PEER
 
 stdin=ze-bgp:terminator=EOF_CONF
-plugin {
-    external self-observer {
-        run "le test fixture plugin/evpn-config-self"
-        encoder json
+bus {
+    endpoint self-observer {
+        external {
+            run "le test fixture plugin/evpn-config-self";
+        }
+        encoding json;
     }
 }
 bgp {

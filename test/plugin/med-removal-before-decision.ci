@@ -59,13 +59,15 @@ EOF_PEER
 
 
 stdin=ze-bgp:terminator=EOF_CONF
-plugin {
-	external med-store-check {
-		run "le test fixture plugin/med-removal-before-decision"
-		encoder json
+bus {
+	endpoint adj-rib-in {
+		internal bgp-adj-rib-in;
 	}
-	internal adj-rib-in {
-		use bgp-adj-rib-in
+	endpoint med-store-check {
+		external {
+			run "le test fixture plugin/med-removal-before-decision";
+		}
+		encoding json;
 	}
 }
 policy {
@@ -111,9 +113,6 @@ bgp {
 			import { filters [ modify:DROP-MED ]; final accept; }
 		}
 
-		attach process adj-rib-in {
-			receive [ update-received state ]
-		}
 	}
 }
 EOF_CONF

@@ -70,15 +70,14 @@ bgp {
         behavior {
             group-updates disable;
         }
-    	attach process bgp-bmp {
-    		receive [ state update open notification keepalive refresh ]
-    	}
     }
 }
-plugin {
-    external bmp-shutdown {
-        run "le test fixture plugin/bmp-sender-route-mirroring;"
-        encoder json;
+bus {
+    endpoint bmp-shutdown {
+        external {
+            run "le test fixture plugin/bmp-sender-route-mirroring;";
+        }
+        encoding json;
     }
 }
 EOF_CONF

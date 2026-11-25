@@ -157,10 +157,11 @@ func TestFilterIRRMultiBlockVerdict(t *testing.T) {
 	}
 }
 
-// VALIDATES: configure names every IRR-filtered peer whose config does not let
-// bgp-filter-irr send a ROUTE-REFRESH, at peer or group level, and no other.
+// VALIDATES: configure names every IRR-filtered peer whose bus receive block
+// excludes bgp:refresh or /bus/endpoint/bgp-filter-irr, at peer or group level,
+// and no other.
 // PREVENTS: re-admission failing in silence on every such peer: without the
-// grant the engine refuses each refresh the filter asks for.
+// bus grant the engine refuses each refresh the filter asks for.
 func TestPeersMissingRefreshGrant(t *testing.T) {
 	session := func() map[string]any {
 		return map[string]any{
@@ -168,31 +169,29 @@ func TestPeersMissingRefreshGrant(t *testing.T) {
 			"irr": map[string]any{"as-set": "AS-TEST"},
 		}
 	}
-	grant := map[string]any{"process": map[string]any{
-		pluginName: map[string]any{"send": []any{"refresh"}},
-	}}
-	otherGrant := map[string]any{"process": map[string]any{
-		pluginName: map[string]any{"send": []any{"update"}},
-	}}
+	denyAllow := map[string]any{"receive": map[string]any{"allow": []any{"bgp:update"}}}
+	denyFrom := map[string]any{"receive": map[string]any{"from": []any{"/bus/endpoint/bgp-rib"}}}
+	allowRefresh := map[string]any{"receive": map[string]any{"allow": []any{"bgp:refresh"}}}
 	cfg := parseIRRConfigOf(map[string]any{
 		"peer": map[string]any{
-			"granted":  map[string]any{"session": session(), "attach": grant},
-			"bare":     map[string]any{"session": session()},
-			"wrongset": map[string]any{"session": session(), "attach": otherGrant},
+			"granted":  map[string]any{"session": session(), "bus": allowRefresh},
+			"default":  map[string]any{"session": session()},
+			"wrongset": map[string]any{"session": session(), "bus": denyAllow},
+			"wrongsrc": map[string]any{"session": session(), "bus": denyFrom},
 			"unfiltered": map[string]any{"session": map[string]any{
 				"asn": map[string]any{"remote": float64(65002)},
 			}},
 		},
 		"group": map[string]any{
 			"g": map[string]any{
-				"attach": grant,
-				"peer":   map[string]any{"member": map[string]any{"session": session()}},
+				"bus":  denyAllow,
+				"peer": map[string]any{"member": map[string]any{"session": session()}},
 			},
 		},
 	})
 	got := peersMissingRefreshGrant(cfg)
 	slices.Sort(got)
-	want := []string{"bare", "wrongset"}
+	want := []string{"member", "wrongset", "wrongsrc"}
 	if !slices.Equal(got, want) {
 		t.Errorf("peers missing the refresh grant = %v, want %v", got, want)
 	}
@@ -279,13 +278,11 @@ func TestFilterIRRNoListKeepsWithdrawals(t *testing.T) {
 	}
 }
 
-// VALIDATES: the refresh grant is read the way the engine reads it. `send [ * ]`
-// grants refresh, and the peer's own binding decides when it states a `send`
-// list, because ResolveBGPTree does not merge `send` across levels
-// (bgp/config/resolve.go cumulativePaths); a peer binding without one inherits
-// the group's.
-// PREVENTS: a peer granted by `*` warned as missing the grant, and a peer whose
-// own `send` list replaces the group's grant read as granted.
+// VALIDATES: the refresh grant is read from bus receive blocks: wildcard and
+// default allow refresh, per-message from restrictions apply, and a peer's own
+// restriction narrows its group's grant.
+// PREVENTS: a peer granted by default or `*` warned as missing the grant, and a
+// peer whose own bus block excludes bgp-filter-irr read as granted.
 func TestRefreshGrantPeerBindingDecides(t *testing.T) {
 	session := func() map[string]any {
 		return map[string]any{
@@ -293,25 +290,22 @@ func TestRefreshGrantPeerBindingDecides(t *testing.T) {
 			"irr": map[string]any{"as-set": "AS-TEST"},
 		}
 	}
-	binding := func(fields map[string]any) map[string]any {
-		return map[string]any{"process": map[string]any{pluginName: fields}}
-	}
-	grant := binding(map[string]any{"send": []any{"refresh"}})
+	grant := map[string]any{"receive": map[string]any{"allow": []any{"bgp:refresh"}}}
 	cfg := parseIRRConfigOf(map[string]any{
 		"peer": map[string]any{
-			"wildcard": map[string]any{"session": session(), "attach": binding(map[string]any{"send": []any{"*"}})},
+			"wildcard": map[string]any{"session": session(), "bus": map[string]any{"receive": map[string]any{"allow": []any{"*"}}}},
 		},
 		"group": map[string]any{
 			"g": map[string]any{
-				"attach": grant,
+				"bus": grant,
 				"peer": map[string]any{
-					"overrides": map[string]any{"session": session(), "attach": binding(map[string]any{"send": []any{"update"}})},
-					"inherits":  map[string]any{"session": session(), "attach": binding(map[string]any{"receive": []any{"update"}})},
+					"overrides": map[string]any{"session": session(), "bus": map[string]any{"receive": map[string]any{"message": map[string]any{"bgp:refresh": map[string]any{"from": []any{"none"}}}}}},
+					"inherits":  map[string]any{"session": session()},
 				},
 			},
 			"wild": map[string]any{
-				"attach": binding(map[string]any{"send": []any{"*"}}),
-				"peer":   map[string]any{"wildmember": map[string]any{"session": session()}},
+				"bus":  map[string]any{"receive": map[string]any{"from": []any{"/bus/endpoint"}}},
+				"peer": map[string]any{"wildmember": map[string]any{"session": session()}},
 			},
 		},
 	})

@@ -18,10 +18,12 @@ EOF_PEER
 
 # ze bgp configuration
 stdin=ze-bgp:terminator=EOF_CONF
-plugin {
-	external quiesce-barrier {
-		run "le test fixture plugin/quiesce-barrier"
-		encoder json
+bus {
+	endpoint quiesce-barrier {
+		external {
+			run "le test fixture plugin/quiesce-barrier";
+		}
+		encoding json;
 	}
 }
 bgp {
@@ -52,9 +54,6 @@ bgp {
 			group-updates disable
 		}
 
-		attach process quiesce-barrier {
-			send [ update ]
-		}
 	}
 }
 EOF_CONF

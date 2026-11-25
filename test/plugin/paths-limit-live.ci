@@ -12,6 +12,17 @@
 option=timeout:value=180s
 
 tmpfs=paths-limit.conf:terminator=EOF_CONF
+bus {
+	endpoint bgp-rib {
+		internal bgp-rib;
+		receive { allow none; }
+		send { allow none; }
+	}
+	endpoint bgp-adj-rib-in {
+		internal bgp-adj-rib-in;
+		send { message bgp:update { to none; } }
+	}
+}
 bgp {
 	# RFC 8212: an EBGP direction with no policy is refused; this test exchanges routes.
 	filter {

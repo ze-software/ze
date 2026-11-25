@@ -18,13 +18,15 @@ EOF_PEER
 
 # ze bgp configuration
 stdin=ze-bgp:terminator=EOF_CONF
-plugin {
-	external graph-filtered-test {
-		run "le test fixture plugin/rib-graph-filtered"
-		encoder json
+bus {
+	endpoint bgp-rib {
+		internal bgp-rib;
 	}
-	internal bgp-rib {
-		use bgp-rib
+	endpoint graph-filtered-test {
+		external {
+			run "le test fixture plugin/rib-graph-filtered";
+		}
+		encoding json;
 	}
 }
 
@@ -56,10 +58,6 @@ bgp {
 			group-updates disable
 		}
 
-		attach process bgp-rib {
-			receive [ update state refresh ]
-			send [ update ]
-		}
 	}
 }
 EOF_CONF

@@ -26,10 +26,12 @@
 
 
 stdin=ze-conf:terminator=EOF_CONF
-plugin {
-	external rsvpte-setup {
-		run "le test fixture rsvpte/rsvpte-lsp-setup"
-		encoder json
+bus {
+	endpoint rsvpte-setup {
+		external {
+			run "le test fixture rsvpte/rsvpte-lsp-setup";
+		}
+		encoding json;
 	}
 }
 

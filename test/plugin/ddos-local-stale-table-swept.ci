@@ -59,7 +59,7 @@ option=timeout:value=90s
 
 stdin=ze-bgp:terminator=EOF_CONF
 firewall {
-	backend nft
+	backend kernel
 	flush-on-shutdown false
 }
 
@@ -77,10 +77,12 @@ control-plane-protection {
 	}
 }
 
-plugin {
-	external ddos-stale-table-swept-probe {
-		run "le test fixture plugin/ddos-stale-table-swept-driver"
-		encoder json
+bus {
+	endpoint ddos-stale-table-swept-probe {
+		external {
+			run "le test fixture plugin/ddos-stale-table-swept-driver";
+		}
+		encoding json;
 	}
 }
 EOF_CONF

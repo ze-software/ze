@@ -38,10 +38,12 @@ EOF_PEER
 # Compiled observer waits for echo metrics before requesting shutdown.
 
 stdin=ze-bfd-echo:terminator=EOF_CONF
-plugin {
-	external bfd-echo-observe {
-		run "le test fixture plugin/bfd-echo-handshake $PORT2"
-		encoder json
+bus {
+	endpoint bfd-echo-observe {
+		external {
+			run "le test fixture plugin/bfd-echo-handshake $PORT2";
+		}
+		encoding json;
 	}
 }
 

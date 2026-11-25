@@ -4,10 +4,12 @@
 # This is a newly authored carrier for the existing plugin/bgp-delay-open fixture.
 # It does not recover the absent historical carrier or clear its TIME30 result.
 stdin=ze-bgp:terminator=EOF_CONF
-plugin {
-    external delay-watch {
-        run "le test fixture plugin/bgp-delay-open 127.0.0.1:$PORT"
-        encoder json
+bus {
+    endpoint delay-watch {
+        external {
+            run "le test fixture plugin/bgp-delay-open 127.0.0.1:$PORT";
+        }
+        encoding json;
     }
 }
 bgp {

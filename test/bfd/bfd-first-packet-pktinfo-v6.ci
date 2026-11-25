@@ -19,7 +19,7 @@
 # `bind-v6 true` is what opens the RFC 5883 IPv6 socket at all; without it the
 # daemon binds v4 only and nothing would receive this packet.
 #
-# The two `ip -6 addr replace` steps program netlink, so the test declares
+# The two `ip -6 addr replace` steps program the netlink socket, so the test declares
 # net-admin: without it an unprivileged host answers "RTNETLINK answers:
 # Operation not permitted" on step 1 and the run is a FAIL rather than the
 # visible skip the capability check produces (docs/architecture/testing/ci-format.md).
@@ -28,10 +28,12 @@ option=env:var=ze.bfd.test-parallel:value=true
 option=exclusive:group=bfd-ports
 
 stdin=ze-bfd:terminator=EOF_CONF
-plugin {
-	external bfd-first-packet-pktinfo-v6-test {
-		run "le test fixture bfd/bfd-first-packet-pktinfo-v6"
-		encoder json
+bus {
+	endpoint bfd-first-packet-pktinfo-v6-test {
+		external {
+			run "le test fixture bfd/bfd-first-packet-pktinfo-v6";
+		}
+		encoding json;
 	}
 }
 

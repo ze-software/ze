@@ -6,14 +6,18 @@
 # healthy selected row is a separate control. The original four checks stay.
 
 stdin=ze-conf:terminator=EOF_CONF
-plugin {
-    external answer-outcome-provider {
-        run "le test fixture plugin/command-outcome-provider"
-        encoder json
+bus {
+    endpoint answer-outcome-provider {
+        external {
+            run "le test fixture plugin/command-outcome-provider";
+        }
+        encoding json;
     }
-    external answer-outcome-observer {
-        run "le test fixture plugin/command-outcome-cli $PORT failed"
-        encoder json
+    endpoint answer-outcome-observer {
+        external {
+            run "le test fixture plugin/command-outcome-cli $PORT failed";
+        }
+        encoding json;
     }
 }
 system {

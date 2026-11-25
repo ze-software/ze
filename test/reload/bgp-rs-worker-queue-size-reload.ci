@@ -36,9 +36,9 @@ action=sighup:conn=1:seq=2
 EOF_PEER
 
 stdin=ze-bgp:terminator=EOF_CONF
-plugin {
-	internal rr {
-		use bgp-rs
+bus {
+	endpoint rr {
+		internal bgp-rs;
 	}
 }
 bgp {
@@ -71,9 +71,9 @@ EOF_CONF
 
 # Rewritten config: worker-queue-size is the only difference.
 tmpfs=config2.conf:terminator=EOF_CONF2
-plugin {
-	internal rr {
-		use bgp-rs
+bus {
+	endpoint rr {
+		internal bgp-rs;
 	}
 }
 bgp {

@@ -33,10 +33,12 @@ option=storage:value=disk
 option=timeout:value=60s
 option=env:var=ze.ssh.port:value=$PORT
 tmpfs=running.conf:terminator=EOF_CONF
-plugin {
-	external unheld-validate {
-		run "le test fixture plugin/external-yang unheld-validate"
-		encoder json
+bus {
+	endpoint unheld-validate {
+		external {
+			run "le test fixture plugin/external-yang unheld-validate";
+		}
+		encoding json;
 	}
 }
 EOF_CONF

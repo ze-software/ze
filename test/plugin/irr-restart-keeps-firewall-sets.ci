@@ -26,17 +26,19 @@ option=timeout:value=60s
 # system irr server points the irr plugin, the only fetcher, at the mock; the
 # firewall reads the copy it stores and fetches nothing itself.
 stdin=ze-irr:terminator=EOF_CONF
-plugin {
-	external irr-restart-keeps-firewall-sets-test {
-		run "le test fixture plugin/irr-restart-keeps-firewall-sets"
-		encoder json
+bus {
+	endpoint irr-restart-keeps-firewall-sets-test {
+		external {
+			run "le test fixture plugin/irr-restart-keeps-firewall-sets";
+		}
+		encoding json;
 	}
 }
 system {
 	irr { server 127.0.0.1:$PORT2; }
 }
 firewall {
-	backend nft;
+	backend kernel;
 	table wan {
 		family inet;
 		chain input {

@@ -40,10 +40,12 @@ option=timeout:value=20s
 
 
 stdin=ze-fw:terminator=EOF_CONF
-plugin {
-	external firewall-irr-refresh-test {
-		run "le test fixture plugin/firewall-irr-refresh"
-		encoder json
+bus {
+	endpoint firewall-irr-refresh-test {
+		external {
+			run "le test fixture plugin/firewall-irr-refresh";
+		}
+		encoding json;
 	}
 }
 system {
@@ -53,7 +55,7 @@ system {
 	}
 }
 firewall {
-	backend nft;
+	backend kernel;
 }
 bgp {
 	peer peer1 {

@@ -26,10 +26,12 @@ action=send:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF0022020000000B800F0
 EOF_PEER
 
 stdin=ze-bgp:terminator=EOF_CONF
-plugin {
-	external labeled-withdraw-event {
-		run "le test fixture plugin/labeled-withdraw-event"
-		encoder json
+bus {
+	endpoint labeled-withdraw-event {
+		external {
+			run "le test fixture plugin/labeled-withdraw-event";
+		}
+		encoding json;
 	}
 }
 
@@ -63,9 +65,6 @@ bgp {
 			group-updates disable
 		}
 
-		attach process labeled-withdraw-event {
-			receive [ update-received ]
-		}
 	}
 }
 EOF_CONF

@@ -19,10 +19,12 @@ option=env:var=ze.log.irr:value=debug
 option=timeout:value=60s
 
 stdin=ze-irr:terminator=EOF_CONF
-plugin {
-	external irr-cold-start-stores-test {
-		run "le test fixture plugin/irr-cold-start-stores"
-		encoder json
+bus {
+	endpoint irr-cold-start-stores-test {
+		external {
+			run "le test fixture plugin/irr-cold-start-stores";
+		}
+		encoding json;
 	}
 }
 system {

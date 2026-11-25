@@ -55,16 +55,18 @@ EOF_PEER
 
 # ze bgp configuration
 stdin=ze-bgp:terminator=EOF_CONF
-plugin {
-	external dispatch-pipe-chain-applied-test {
-		run "le test fixture plugin/dispatch-pipe-chain-applied"
-		encoder json
+bus {
+	endpoint bgp-rib {
+		internal bgp-rib;
 	}
-	internal bgp-rib {
-		use bgp-rib
+	endpoint adj-rib-in {
+		internal bgp-adj-rib-in;
 	}
-	internal adj-rib-in {
-		use bgp-adj-rib-in
+	endpoint dispatch-pipe-chain-applied-test {
+		external {
+			run "le test fixture plugin/dispatch-pipe-chain-applied";
+		}
+		encoding json;
 	}
 }
 
@@ -96,13 +98,6 @@ bgp {
 			group-updates disable
 		}
 
-		attach process bgp-rib {
-			receive [ update state refresh ]
-			send [ update ]
-		}
-		attach process adj-rib-in {
-			receive [ update-received state ]
-		}
 	}
 }
 EOF_CONF

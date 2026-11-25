@@ -47,10 +47,12 @@ service {
 	}
 }
 
-plugin {
-	external geodns-dot-pki-test {
-		run "le test fixture plugin/geodns-dot-pki"
-		encoder json
+bus {
+	endpoint geodns-dot-pki-test {
+		external {
+			run "le test fixture plugin/geodns-dot-pki";
+		}
+		encoding json;
 	}
 }
 

@@ -32,6 +32,9 @@ func fixture06DecodeMPReach(ctx context.Context, p *sdk.Plugin) error {
 	if len(nlri) != 1 || nlri[0] != prefixTenZero {
 		return fmt.Errorf("expected exactly [10.0.0.0/24], got %v", nlri)
 	}
+	if err := fixture06WaitEOR(ctx, p, 1); err != nil {
+		return err
+	}
 	announced, _, err := p.UpdateRoute(ctx, "*", fmt.Sprintf("update text nhop %s %s add %s", result.NextHop, nlriSectionText(result.Family, result.NextHop), nlri[0]))
 	if err != nil {
 		return err
@@ -63,6 +66,9 @@ func fixture06DecodeMPUnreach(ctx context.Context, p *sdk.Plugin) error {
 	}
 	if len(nlri) != 1 || nlri[0] != "192.168.0.0/24" {
 		return fmt.Errorf("expected exactly [192.168.0.0/24], got %v", nlri)
+	}
+	if err := fixture06WaitEOR(ctx, p, 1); err != nil {
+		return err
 	}
 	announced, _, err := p.UpdateRoute(ctx, "*", fmt.Sprintf("update text nhop 10.0.0.1 %s add %s", nlriSectionText(result.Family, "10.0.0.1"), nlri[0]))
 	if err != nil {
@@ -128,6 +134,9 @@ func fixture06DecodeUpdate(ctx context.Context, p *sdk.Plugin) error {
 	nlri, ok := entry["nlri"].([]any)
 	if !ok || len(nlri) != 1 || nlri[0] != "10.0.0.0/24" {
 		return fmt.Errorf("expected exactly [10.0.0.0/24], got %v", entry["nlri"])
+	}
+	if err := fixture06WaitEOR(ctx, p, 1); err != nil {
+		return err
 	}
 	announced, _, err := p.UpdateRoute(ctx, "*", fmt.Sprintf("update text nhop %s %s add %s", nextHopValue, nlriSectionText(family, nextHopValue), nlri[0]))
 	if err != nil {

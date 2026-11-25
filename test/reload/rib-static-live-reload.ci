@@ -25,6 +25,11 @@ EOF_PEER
 
 # Initial configuration: one static route; mandatory bgp-rib gets explicit grants.
 tmpfs=ze-bgp.conf:terminator=EOF_CONF
+bus {
+	endpoint bgp-rib {
+		internal bgp-rib;
+	}
+}
 bgp {
 	peer peer1 {
 		connection {
@@ -53,10 +58,6 @@ bgp {
 			group-updates disable
 		}
 
-		attach process bgp-rib {
-			receive [ update state refresh ]
-			send [ update ]
-		}
 
 		update {
 			attribute {
@@ -74,6 +75,11 @@ EOF_CONF
 
 # Rewritten configuration: the added route is delivered without restarting the peer.
 tmpfs=config2.conf:terminator=EOF_CONF2
+bus {
+	endpoint bgp-rib {
+		internal bgp-rib;
+	}
+}
 bgp {
 	peer peer1 {
 		connection {
@@ -102,10 +108,6 @@ bgp {
 			group-updates disable
 		}
 
-		attach process bgp-rib {
-			receive [ update state refresh ]
-			send [ update ]
-		}
 
 		update {
 			attribute {

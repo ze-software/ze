@@ -63,15 +63,26 @@ EOF_PEER
 
 # ze configuration: one eBGP peer with the Section 11 scrub and one kept function.
 stdin=ze-bgp:terminator=EOF_CONF
-plugin {
-	hub { server local { ip 127.0.0.1; port 0; secret community-scrub-own-ga-forked-secret-0001; } }
-	external bgp-filter-community { run "ze plugin bgp-filter-community"; }
-	external test-scrub {
-		run "le test fixture plugin/community-scrub-own-ga"
-		encoder json
+bus {
+	endpoint bgp-rib {
+		internal bgp-rib;
 	}
-	internal bgp-rib {
-		use bgp-rib
+	endpoint bgp-filter-community {
+		internal bgp-filter-community;
+		process separate;
+	}
+	endpoint test-scrub {
+		external {
+			run "le test fixture plugin/community-scrub-own-ga";
+		}
+		encoding json;
+	}
+	hub {
+		server local {
+			ip 127.0.0.1;
+			port 0;
+			secret community-scrub-own-ga-forked-secret-0001;
+		}
 	}
 }
 bgp {
@@ -114,10 +125,6 @@ bgp {
 					scrub-keep-function 64
 				}
 			}
-		}
-		attach process bgp-rib {
-			receive [ update state refresh ]
-			send [ update ]
 		}
 	}
 }

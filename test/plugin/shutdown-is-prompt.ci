@@ -23,10 +23,12 @@ option=timeout:value=30s
 # Native observer fixture: plugin/shutdown-is-prompt.
 
 stdin=ze-conf:terminator=EOF_CONF
-plugin {
-	external shutdown-is-prompt {
-		run "le test fixture plugin/shutdown-is-prompt"
-		encoder json
+bus {
+	endpoint shutdown-is-prompt {
+		external {
+			run "le test fixture plugin/shutdown-is-prompt";
+		}
+		encoding json;
 	}
 }
 

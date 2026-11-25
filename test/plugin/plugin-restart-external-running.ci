@@ -58,10 +58,12 @@ environment {
 		}
 	}
 }
-plugin {
-	external restart-generation {
-		run "le test fixture plugin/restart-generation"
-		encoder json
+bus {
+	endpoint restart-generation {
+		external {
+			run "le test fixture plugin/restart-generation";
+		}
+		encoding json;
 	}
 }
 EOF_CONF

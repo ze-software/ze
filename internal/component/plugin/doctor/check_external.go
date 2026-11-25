@@ -7,7 +7,9 @@ package doctor
 
 import (
 	"maps"
+	"path/filepath"
 	"slices"
+	"strings"
 
 	"github.com/ze-software/ze/internal/component/config"
 	zeplugin "github.com/ze-software/ze/internal/component/plugin"
@@ -92,7 +94,7 @@ func externalNameRow(name string) diagnostic.Diagnostic {
 func checkExternalInProcess(ctx diagnostic.DoctorCheckContext) []diagnostic.Diagnostic {
 	var rows []diagnostic.Diagnostic
 	for _, block := range ctx.Plugins {
-		if !block.RunsSeparateProcess() {
+		if !block.RunsForked() {
 			continue
 		}
 		if reg := inProcessOnlyRegistration(block); reg != nil {
@@ -103,19 +105,37 @@ func checkExternalInProcess(ctx diagnostic.DoctorCheckContext) []diagnostic.Diag
 }
 
 // inProcessOnlyRegistration returns the in-process-only registration an
-// external block runs, or nil when the block runs none: a third-party binary,
-// or a plugin that also works forked.
+// external or separate-process block runs, or nil when the block runs none: a
+// third-party binary, or a plugin that also works forked.
 func inProcessOnlyRegistration(block zeplugin.PluginConfig) *registry.Registration {
 	for _, name := range zeplugin.RegistryNames(block) {
-		reg := registry.Lookup(name)
-		if reg == nil {
-			continue // Not a plugin this binary carries.
-		}
-		if reg.RunsInProcessOnly {
+		if reg := registry.Lookup(name); reg != nil && reg.RunsInProcessOnly {
 			return reg
 		}
 	}
+	if block.RunsExternalProgram() {
+		if name := zePluginCommandName(block.Run); name != "" {
+			if reg := registry.Lookup(name); reg != nil && reg.RunsInProcessOnly {
+				return reg
+			}
+		}
+	}
 	return nil
+}
+
+// zePluginCommandName extracts <name> when a run command invokes `ze plugin <name> ...`.
+func zePluginCommandName(run string) string {
+	parts := strings.Fields(run)
+	if len(parts) < 3 {
+		return ""
+	}
+	if filepath.Base(parts[0]) != "ze" {
+		return ""
+	}
+	if parts[1] != "plugin" {
+		return ""
+	}
+	return parts[2]
 }
 
 // externalInProcessRow is the row for one separate-process endpoint running an

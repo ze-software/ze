@@ -27,14 +27,18 @@ option=env:var=ze_test_ike_port:value=$PORT2
 option=timeout:value=90s
 
 stdin=config:terminator=EOF_CONFIG
-plugin {
-	external ike {
-		run "ze plugin ike"
-		encoder json
+bus {
+	endpoint ike {
+		external {
+			run "ze plugin ike";
+		}
+		encoding json;
 	}
-	external ipsec-doctor-peer-removal-test {
-		run "le test fixture ipsec/doctor-peer-removal"
-		encoder json
+	endpoint ipsec-doctor-peer-removal-test {
+		external {
+			run "le test fixture ipsec/doctor-peer-removal";
+		}
+		encoding json;
 	}
 }
 vpn {
@@ -75,14 +79,18 @@ vpn {
 EOF_CONFIG
 
 tmpfs=no-peer.conf:terminator=EOF_NO_PEER
-plugin {
-	external ike {
-		run "ze plugin ike"
-		encoder json
+bus {
+	endpoint ike {
+		external {
+			run "ze plugin ike";
+		}
+		encoding json;
 	}
-	external ipsec-doctor-peer-removal-test {
-		run "le test fixture ipsec/doctor-peer-removal"
-		encoder json
+	endpoint ipsec-doctor-peer-removal-test {
+		external {
+			run "le test fixture ipsec/doctor-peer-removal";
+		}
+		encoding json;
 	}
 }
 vpn {
@@ -109,14 +117,18 @@ vpn {
 EOF_NO_PEER
 
 tmpfs=with-peer.conf:terminator=EOF_WITH_PEER
-plugin {
-	external ike {
-		run "ze plugin ike"
-		encoder json
+bus {
+	endpoint ike {
+		external {
+			run "ze plugin ike";
+		}
+		encoding json;
 	}
-	external ipsec-doctor-peer-removal-test {
-		run "le test fixture ipsec/doctor-peer-removal"
-		encoder json
+	endpoint ipsec-doctor-peer-removal-test {
+		external {
+			run "le test fixture ipsec/doctor-peer-removal";
+		}
+		encoding json;
 	}
 }
 vpn {

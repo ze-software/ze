@@ -29,10 +29,12 @@ EOF_PEER
 
 
 stdin=ze-bgp:terminator=EOF_CONF
-plugin {
-	external metrics-name-show-test {
-		run "le test fixture plugin/metrics-name-show"
-		encoder json
+bus {
+	endpoint metrics-name-show-test {
+		external {
+			run "le test fixture plugin/metrics-name-show";
+		}
+		encoding json;
 	}
 }
 

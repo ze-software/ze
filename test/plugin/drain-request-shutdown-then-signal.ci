@@ -23,10 +23,12 @@ expect=bgp:conn=1:seq=2:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF002D0306021741646D69
 EOF_PEER
 
 tmpfs=ze-bgp.conf:terminator=EOF_CONF
-plugin {
-	external drain-signaler {
-		run "le test fixture plugin/drain-signaler request"
-		encoder json
+bus {
+	endpoint drain-signaler {
+		external {
+			run "le test fixture plugin/drain-signaler request";
+		}
+		encoding json;
 	}
 }
 bgp {

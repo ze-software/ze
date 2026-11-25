@@ -10,23 +10,25 @@
 #           default unrouted until an unrelated reload.
 #
 # Requires Linux and CAP_NET_ADMIN: pppoe-client is a Linux-only kind, the
-# netlink interface backend runs, and the setup creates zentk, the client's
+# kernel interface backend runs, and the setup creates zentk, the client's
 # source interface.
 option=needs-linux:caps=net-admin
 
 stdin=ze-bgp:terminator=EOF_CONF
-plugin {
-	external static-pppoe-test {
-		run "le test fixture static/static-interface-nexthop-pppoe-absent"
-		encoder json
+bus {
+	endpoint rib {
+		internal rib;
 	}
-	internal rib {
-		use rib
+	endpoint static-pppoe-test {
+		external {
+			run "le test fixture static/static-interface-nexthop-pppoe-absent";
+		}
+		encoding json;
 	}
 }
 
 interface {
-	backend netlink
+	backend kernel
 	ethernet zentk {
 	}
 	pppoe-client pppoe0 {

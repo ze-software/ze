@@ -12,10 +12,12 @@ EOF_PEER
 
 # ze bgp configuration
 stdin=ze-bgp:terminator=EOF_CONF
-plugin {
-    external filter-declare-test {
-        run "le test fixture plugin/redistribute-declare";
-        encoder json;
+bus {
+    endpoint filter-declare-test {
+        external {
+            run "le test fixture plugin/redistribute-declare";
+        }
+        encoding json;
     }
 }
 bgp {

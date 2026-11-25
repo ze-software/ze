@@ -1,5 +1,10 @@
 # Valid config: graceful-restart with graceful-restart long-lived family (RFC 9494)
 stdin=config:terminator=EOF_CONF
+bus {
+	endpoint bgp-rib {
+		internal bgp-rib
+	}
+}
 bgp {
 	filter {
 		import {
@@ -36,9 +41,6 @@ bgp {
 					}
 				}
 			}
-		}
-		attach process gr {
-			send [ update ]
 		}
 	}
 }

@@ -28,10 +28,12 @@ class-of-service {
 	}
 }
 
-plugin {
-	external subscriber-enricher-wiring-show-test {
-		run "le test fixture plugin/subscriber-enricher-wiring-show"
-		encoder json
+bus {
+	endpoint subscriber-enricher-wiring-show-test {
+		external {
+			run "le test fixture plugin/subscriber-enricher-wiring-show";
+		}
+		encoding json;
 	}
 }
 

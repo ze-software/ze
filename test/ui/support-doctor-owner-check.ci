@@ -6,10 +6,12 @@
 #           `ze doctor` still reports them.
 
 tmpfs=missing-plugin.conf:terminator=EOF_CONF
-plugin {
-    external feed {
-        run /nonexistent/ze-plugin-binary
-        encoder json
+bus {
+    endpoint feed {
+        external {
+            run /nonexistent/ze-plugin-binary
+        }
+        encoding json
     }
 }
 EOF_CONF

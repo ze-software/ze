@@ -1,5 +1,5 @@
-# Test: ze config completion — process list fields
-# VALIDATES: Process container shows run, receive, send, content, etc.
+# Test: ze config completion — bus endpoint fields
+# VALIDATES: bus > endpoint container shows internal, external, receive, send, encoding, format.
 # VALIDATES: the removed old-syntax fields (processes, processes-match,
 #            neighbor-changes) are not offered.
 
@@ -37,11 +37,13 @@ bgp {
 }
 EOF_CONF
 
-cmd=foreground:seq=1:exec=ze config completion --context bgp/peer/peer1/attach/process --input set+ test.conf
+cmd=foreground:seq=1:exec=ze config completion --context bus/endpoint/ep1 --input set+ test.conf
 expect=exit:code=0
-expect=stdout:contains=run
+expect=stdout:contains=external
+expect=stdout:contains=internal
 expect=stdout:contains=receive
 expect=stdout:contains=send
-expect=stdout:contains=content
+expect=stdout:contains=encoding
+expect=stdout:contains=format
 reject=stdout:contains=neighbor-changes
 reject=stdout:contains=processes

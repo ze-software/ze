@@ -783,6 +783,13 @@ func (s *Server) lookupPluginCommandProfile(endpoint string) (aaa.PluginCommandP
 			}
 		}
 	}
+	if v, ok := s.adHocProcs.Load(endpoint); ok {
+		if proc, ok := v.(*process.Process); ok && proc != nil {
+			if f, err := compileSingleProcessFilter(s, proc); err == nil && f != nil {
+				return compiledFilterToCommandProfile(endpoint, f), true
+			}
+		}
+	}
 	return aaa.PluginCommandProfile{}, false
 }
 

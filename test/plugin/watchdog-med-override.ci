@@ -21,10 +21,12 @@ EOF_PEER
 
 # ze bgp configuration
 stdin=ze-bgp:terminator=EOF_CONF
-plugin {
-	external service-watchdog {
-		run "le test fixture plugin/watchdog-med-override"
-		encoder json
+bus {
+	endpoint service-watchdog {
+		external {
+			run "le test fixture plugin/watchdog-med-override";
+		}
+		encoding json;
 	}
 }
 bgp {
@@ -83,10 +85,6 @@ bgp {
 				name dnsr
 				withdraw true
 			}
-		}
-		attach process bgp-watchdog {
-			receive [ state ]
-			send [ update ]
 		}
 	}
 }

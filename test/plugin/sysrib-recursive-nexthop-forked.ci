@@ -8,12 +8,23 @@ option=needs-linux:caps=net-admin
 option=netns-link:name=zesrproof
 option=timeout:value=150s
 stdin=ze-conf:terminator=EOF_CONF
-plugin {
- external sysrib-recursive-test { run "le test fixture plugin/sysrib-recursive-nexthop forked"; encoder json; }
- external sysrib-owner { run "ze plugin rib"; encoder json; }
- internal fib-kernel { use fib-kernel; }
+bus {
+    endpoint fib-kernel {
+        internal fib-kernel;
+    }
+    endpoint sysrib-recursive-test {
+        external {
+            run "le test fixture plugin/sysrib-recursive-nexthop forked";
+        }
+        encoding json;
+    }
+    endpoint sysrib-owner {
+        internal rib;
+        process separate;
+        encoding json;
+    }
 }
-interface { backend netlink; }
+interface { backend kernel; }
 connected { }
 fib { kernel { flush-on-stop true; } }
 rib { distance { ospf 110; } filter { import { filters [ NO4242 ]; final accept; } } }

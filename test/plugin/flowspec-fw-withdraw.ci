@@ -36,15 +36,17 @@ expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF0042020000002B800E0F
 # ExaBGP contract api-flow records). This line asserted the pre-2026-09-06
 # shape and was never reached: the announce above failed first.
 cmd=api:conn=1:seq=2:text=send bgp * update text mp ipv4/flow del destination-ipv4 10.1.0.0/24
-expect=bgp:conn=1:seq=2:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF0031020000001A800F090001850501180A01004001010040020040050400000064
+expect=bgp:conn=1:seq=2:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF0023020000000C800F090001850501180A0100
 EOF_PEER
 
 
 stdin=ze-bgp:terminator=EOF_CONF
-plugin {
-	external flowspec-fw-process {
-		run "le test fixture plugin/flowspec-fw-withdraw"
-		encoder json
+bus {
+	endpoint flowspec-fw-process {
+		external {
+			run "le test fixture plugin/flowspec-fw-withdraw";
+		}
+		encoding json;
 	}
 }
 bgp {
@@ -79,9 +81,6 @@ bgp {
 		# nothing about the external process API. The observer is now the only
 		# producer, and the withdraw this file is named for is asserted for the
 		# first time.
-		attach process flowspec-fw-process {
-			send [ update ]
-		}
 	}
 }
 EOF_CONF

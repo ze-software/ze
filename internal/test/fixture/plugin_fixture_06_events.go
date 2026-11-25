@@ -182,6 +182,9 @@ func fixture06EventPredicateWait(ctx context.Context, p *sdk.Plugin) error {
 	if err := fixture06DispatchDone(ctx, p, "request subscribe bgp event update"); err != nil {
 		return err
 	}
+	if err := fixture06WaitEOR(ctx, p, 1); err != nil {
+		return err
+	}
 	announced, _, err := p.UpdateRoute(ctx, "*", "update text origin igp nhop 101.1.101.1 nlri add "+prefix)
 	if err != nil {
 		return err

@@ -17,10 +17,12 @@ EOF_PEER
 
 # ze bgp configuration
 stdin=ze-bgp:terminator=EOF_CONF
-plugin {
-	external update-text-prefix-sid {
-		run "le test fixture plugin/update-text-prefix-sid"
-		encoder json
+bus {
+	endpoint update-text-prefix-sid {
+		external {
+			run "le test fixture plugin/update-text-prefix-sid";
+		}
+		encoding json;
 	}
 }
 bgp {
@@ -49,9 +51,6 @@ bgp {
 			group-updates disable
 		}
 
-		attach process update-text-prefix-sid {
-			send [ update ]
-		}
 	}
 }
 EOF_CONF

@@ -171,12 +171,16 @@ action=send:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF0042020000002740010
 EOF_PEER
 
 stdin=ze-bgp:terminator=EOF_CONF
-plugin {
-	external pynewer {
-		run "./pyplug.run v2-reads-prefix"
+bus {
+	endpoint pynewer {
+		external {
+			run "./pyplug.run v2-reads-prefix";
+		}
 	}
-	external pyexact {
-		run "./pyplug.run reads-prefix"
+	endpoint pyexact {
+		external {
+			run "./pyplug.run reads-prefix";
+		}
 	}
 }
 bgp {

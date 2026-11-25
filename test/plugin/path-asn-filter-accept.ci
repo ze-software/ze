@@ -33,10 +33,15 @@ EOF_PEER
 
 # ze configuration: the same list and the same chain the reject test uses.
 stdin=ze-bgp:terminator=EOF_CONF
-plugin {
-	external test-path-asn-accept {
-		run "le test fixture plugin/path-asn-filter-accept"
-		encoder json
+bus {
+	endpoint test-path-asn-accept {
+		external {
+			run "le test fixture plugin/path-asn-filter-accept";
+		}
+		encoding json;
+	}
+	endpoint bgp-adj-rib-in {
+		internal bgp-adj-rib-in;
 	}
 }
 policy {
@@ -75,9 +80,6 @@ bgp {
 			import { filters [ reject-asn-NO-TRANSIT ]; final accept; }
 		}
 
-		attach process bgp-adj-rib-in {
-			receive [ update-received state ]
-		}
 	}
 }
 EOF_CONF

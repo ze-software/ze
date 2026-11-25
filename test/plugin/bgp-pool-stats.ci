@@ -23,10 +23,12 @@ EOF_PEER
 
 # ze bgp configuration
 stdin=ze-bgp:terminator=EOF_CONF
-plugin {
-	external pool-stats-test {
-		run "le test fixture plugin/bgp-pool-stats"
-		encoder json
+bus {
+	endpoint pool-stats-test {
+		external {
+			run "le test fixture plugin/bgp-pool-stats";
+		}
+		encoding json;
 	}
 }
 

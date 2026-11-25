@@ -1,4 +1,4 @@
-# Invalid config: graceful-restart requires an attached process with send [ update ]
+# Invalid config: graceful-restart requires an endpoint permitted to send bgp:update or bgp:raw
 stdin=config:terminator=EOF_CONF
 bgp {
 	peer peer1 {
@@ -20,10 +20,15 @@ bgp {
 				graceful-restart { short-lived { restart-time 120; } }
 			}
 		}
+		bus {
+			receive {
+				from none;
+			}
+		}
 	}
 }
 EOF_CONF
 
 cmd=foreground:seq=1:exec=ze config validate -:stdin=config
 expect=exit:code=1
-expect=stdout:contains=graceful-restart requires an attached process with send [ update ]
+expect=stdout:contains=graceful-restart requires an endpoint permitted to send bgp:update or bgp:raw

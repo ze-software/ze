@@ -12,7 +12,7 @@
 # expect= line in a .ci is evaluated against the LAST command's output.
 
 tmpfs=hub-collision.conf:terminator=EOF_COLLISION
-plugin {
+bus {
     hub {
         server local {
             ip 127.0.0.1;

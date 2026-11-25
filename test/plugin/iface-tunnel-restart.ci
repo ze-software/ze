@@ -73,15 +73,17 @@ option=needs-linux:caps=net-admin
 # run's: only the observer differs, so the restart applies one tunnel config
 # twice.
 stdin=boot:terminator=EOF_BOOT_CONF
-plugin {
-	external iface-tunnel-restart-boot {
-		run "le test fixture plugin/iface-tunnel-restart-boot"
-		encoder json
+bus {
+	endpoint iface-tunnel-restart-boot {
+		external {
+			run "le test fixture plugin/iface-tunnel-restart-boot";
+		}
+		encoding json;
 	}
 }
 
 interface {
-	backend netlink
+	backend kernel
 
 	tunnel trs0 {
 		encapsulation {
@@ -96,15 +98,17 @@ EOF_BOOT_CONF
 
 # Second run's config: same tunnel, the checking observer.
 stdin=restart:terminator=EOF_RESTART_CONF
-plugin {
-	external iface-tunnel-restart-check {
-		run "le test fixture plugin/iface-tunnel-restart-check"
-		encoder json
+bus {
+	endpoint iface-tunnel-restart-check {
+		external {
+			run "le test fixture plugin/iface-tunnel-restart-check";
+		}
+		encoding json;
 	}
 }
 
 interface {
-	backend netlink
+	backend kernel
 
 	tunnel trs0 {
 		encapsulation {

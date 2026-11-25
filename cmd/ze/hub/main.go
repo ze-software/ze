@@ -1198,6 +1198,60 @@ func runYANGConfig(store storage.Storage, configPath string, data []byte, plugin
 		}
 	}
 
+	// Start SMART monitoring and bind runtime config commits before eng.Start
+	// fires OnAllPluginsReady so plugins running immediately on ready see both.
+	startSmartManager(loadResult.Tree)
+	defer stopSmartManager()
+
+	// commitReloads holds the store open until every commit-driven reload has
+	// returned, and holds the cancel of each one for the stop (reloadGate,
+	// main_reload.go). Shutdown closes it below, after the SIGHUP worker, and
+	// before Run returns to the store's Close (fenceCommitReloads).
+	commitReloads := &sessionMutations.gate
+	// signalReloads serializes the signal reloads of this daemon: SIGHUP waits
+	// on it, request reload refuses while it is held (main_reload.go).
+	signalReloads := &sync.Mutex{}
+	reloadCommittedContext := func(ctx context.Context) error {
+		startupCtx, startupCancel := context.WithTimeout(ctx, 30*time.Second)
+		defer startupCancel()
+		if err := apiServer.WaitForStartupComplete(startupCtx); err != nil {
+			return fmt.Errorf("wait for plugin startup: %w", err)
+		}
+		if err := doReloadContext(ctx, reloadSourceCommit, apiServer, eng, configProvider, store, configPath, loadBoth, lm); err != nil {
+			return err
+		}
+		if gnmiReloadNotify != nil {
+			gnmiReloadNotify()
+		}
+		return nil
+	}
+	reloadAfterCommitContext := sessionMutations.Reload
+	reloadAfterCommit := func() error {
+		return reloadAfterCommitContext(context.Background())
+	}
+	// The empty window starts before runtime binding. It cannot revert until a
+	// commit opens it. The runtime MUST retain this window after shutdown
+	// withdraws it from new editors. The deferred stop covers an early return.
+	confirmWindow := startConfirmWindow(store, configPath, reloadAfterCommit)
+	defer stopConfirmWindow(confirmWindow)
+	if err := sessionMutations.bind(store, configPath, confirmWindow, reloadCommittedContext); err != nil {
+		panic("BUG: configuration runtime binding failed: " + err.Error())
+	}
+	// The request data RPCs act on this store through the same reload. The
+	// deferred clear runs before the store closes, so no RPC reaches a closed one.
+	// The managed clients this hub serves are published once the managed
+	// server starts, below.
+	var dataTarget *storagecli.DataRPCTarget
+	if store != nil {
+		dataTarget = &storagecli.DataRPCTarget{Store: store, ConfigPath: configPath, Reload: reloadAfterCommitContext, Window: daemonConfirmWindow.Load}
+		storagecli.InstallDataRPC(dataTarget)
+		defer storagecli.InstallDataRPC(nil)
+	}
+	commandregistry.SetRuntimeConfigCommit(func(path string, expected, content []byte) error {
+		return commitRuntimeConfig(store, configPath, path, expected, content, reloadAfterCommit, daemonConfirmWindow.Load())
+	})
+	defer commandregistry.SetRuntimeConfigCommit(nil)
+
 	startCtx := context.Background()
 	// Engine.Start joins this complete plugin startup before it starts any
 	// registered subsystem. Each handshake wait owns its stage/progress bound;
@@ -1278,8 +1332,6 @@ func runYANGConfig(store storage.Storage, configPath string, data []byte, plugin
 	// once, at daemon start, never on a reload. They take the config text
 	// this boot already read: a "-" source is a stdin nobody can read twice.
 	registry.RunBootEffects(configPath, data)
-	startSmartManager(loadResult.Tree)
-	defer stopSmartManager()
 	startTrendMonitor()
 	defer stopTrendMonitor()
 	applyConsole(&sc)
@@ -1290,55 +1342,6 @@ func runYANGConfig(store storage.Storage, configPath string, data []byte, plugin
 	defer stopBackend()
 	startArchiveScheduler(loadResult.Tree, configPath, store, apiServer)
 	defer stopArchiveScheduler()
-
-	// commitReloads holds the store open until every commit-driven reload has
-	// returned, and holds the cancel of each one for the stop (reloadGate,
-	// main_reload.go). Shutdown closes it below, after the SIGHUP worker, and
-	// before Run returns to the store's Close (fenceCommitReloads).
-	commitReloads := &sessionMutations.gate
-	// signalReloads serializes the signal reloads of this daemon: SIGHUP waits
-	// on it, request reload refuses while it is held (main_reload.go).
-	signalReloads := &sync.Mutex{}
-	reloadCommittedContext := func(ctx context.Context) error {
-		startupCtx, startupCancel := context.WithTimeout(ctx, 30*time.Second)
-		defer startupCancel()
-		if err := apiServer.WaitForStartupComplete(startupCtx); err != nil {
-			return fmt.Errorf("wait for plugin startup: %w", err)
-		}
-		if err := doReloadContext(ctx, reloadSourceCommit, apiServer, eng, configProvider, store, configPath, loadBoth, lm); err != nil {
-			return err
-		}
-		if gnmiReloadNotify != nil {
-			gnmiReloadNotify()
-		}
-		return nil
-	}
-	reloadAfterCommitContext := sessionMutations.Reload
-	reloadAfterCommit := func() error {
-		return reloadAfterCommitContext(context.Background())
-	}
-	// The empty window starts before runtime binding. It cannot revert until a
-	// commit opens it. The runtime MUST retain this window after shutdown
-	// withdraws it from new editors. The deferred stop covers an early return.
-	confirmWindow := startConfirmWindow(store, configPath, reloadAfterCommit)
-	defer stopConfirmWindow(confirmWindow)
-	if err := sessionMutations.bind(store, configPath, confirmWindow, reloadCommittedContext); err != nil {
-		panic("BUG: configuration runtime binding failed: " + err.Error())
-	}
-	// The request data RPCs act on this store through the same reload. The
-	// deferred clear runs before the store closes, so no RPC reaches a closed one.
-	// The managed clients this hub serves are published once the managed
-	// server starts, below.
-	var dataTarget *storagecli.DataRPCTarget
-	if store != nil {
-		dataTarget = &storagecli.DataRPCTarget{Store: store, ConfigPath: configPath, Reload: reloadAfterCommitContext, Window: daemonConfirmWindow.Load}
-		storagecli.InstallDataRPC(dataTarget)
-		defer storagecli.InstallDataRPC(nil)
-	}
-	commandregistry.SetRuntimeConfigCommit(func(path string, expected, content []byte) error {
-		return commitRuntimeConfig(store, configPath, path, expected, content, reloadAfterCommit, daemonConfirmWindow.Load())
-	})
-	defer commandregistry.SetRuntimeConfigCommit(nil)
 
 	// Without BGP, main owns the AAA bundle for every management surface. Build
 	// and install it before standalone SSH, MCP, REST, or gRPC can bind. The BGP

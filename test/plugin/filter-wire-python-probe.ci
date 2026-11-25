@@ -23,9 +23,11 @@ sys.exit(0)
 EOF_RUN
 
 stdin=ze-bgp:terminator=EOF_CONF
-plugin {
-	external pyprobe {
-		run ./pyprobe.run
+bus {
+	endpoint pyprobe {
+		external {
+			run ./pyprobe.run;
+		}
 	}
 }
 EOF_CONF

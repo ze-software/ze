@@ -158,9 +158,11 @@ while True:
 EOF_RUN
 
 stdin=ze-bgp:terminator=EOF_CONF
-plugin {
-	external pylegacy {
-		run "./pyplug.run noversion"
+bus {
+	endpoint pylegacy {
+		external {
+			run "./pyplug.run noversion";
+		}
 	}
 }
 EOF_CONF

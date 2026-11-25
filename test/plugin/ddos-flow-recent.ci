@@ -8,7 +8,7 @@
 #            (a 404 at dispatch time), or the handler panicking on an empty ring.
 #
 # STATUS: needs-linux. flow-export declares a hard dependency on the `interface`
-#   plugin, whose backend (netlink) exists only on Linux; on the darwin dev host
+#   plugin, whose backend (kernel) exists only on Linux; on the darwin dev host
 #   the daemon aborts at interface configure, so this cannot run there. The RPC
 #   wiring (registration, handler, arg grammar) and the bounded/drop-oldest ring
 #   mechanics are unit-tested on any platform (cmd_show_test.go, recent_test.go);
@@ -32,10 +32,12 @@ EOF_PEER
 
 
 stdin=ze-bgp:terminator=EOF_CONF
-plugin {
-	external flow-recent-test {
-		run "le test fixture plugin/ddos-flow-recent"
-		encoder json
+bus {
+	endpoint flow-recent-test {
+		external {
+			run "le test fixture plugin/ddos-flow-recent";
+		}
+		encoding json;
 	}
 }
 

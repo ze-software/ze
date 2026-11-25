@@ -62,21 +62,23 @@ option=needs-linux:caps=net-admin
 
 
 stdin=ze-conf:terminator=EOF_CONF
-plugin {
-	external iface-learned-route-metric {
-		run "le test fixture plugin/iface-learned-route-metric"
-		encoder json
+bus {
+	endpoint iface-learned-route-metric {
+		external {
+			run "le test fixture plugin/iface-learned-route-metric";
+		}
+		encoding json;
 	}
 }
 
 # The interface block makes the iface component run OnConfigure ->
-# iface.LoadBackend("netlink"), so `show route` has an active backend to read the
+# iface.LoadBackend("kernel"), so `show route` has an active backend to read the
 # kernel through. Without it the command answers "iface: no backend loaded" and
 # the test can assert nothing. No interface is declared, so the managed set is
 # empty and the daemon creates and deletes nothing; zermetric0 belongs to the
 # test alone.
 interface {
-	backend netlink
+	backend kernel
 }
 
 bgp {

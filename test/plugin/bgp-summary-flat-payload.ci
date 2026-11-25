@@ -24,10 +24,12 @@ EOF_PEER
 
 # ze bgp configuration
 stdin=ze-bgp:terminator=EOF_CONF
-plugin {
-	external flat-payload-test {
-		run "le test fixture plugin/bgp-summary-flat-payload"
-		encoder json
+bus {
+	endpoint flat-payload-test {
+		external {
+			run "le test fixture plugin/bgp-summary-flat-payload";
+		}
+		encoding json;
 	}
 }
 

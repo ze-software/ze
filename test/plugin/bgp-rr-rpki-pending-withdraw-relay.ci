@@ -59,7 +59,7 @@ expect=bgp:conn=1:seq=2:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00440200000029400101
 EOF_DESTINATION
 
 stdin=ze-bgp:terminator=EOF_CONF
-plugin {
+bus {
 	hub {
 		server local {
 			ip 127.0.0.1;
@@ -67,18 +67,25 @@ plugin {
 			secret rpki-test-secret-key-01234567890;
 		}
 	}
-	external rpki-pending-withdraw-relay-test {
-		run "le test fixture plugin/rpki-pending-withdraw-relay"
-		encoder json
+	endpoint rpki-pending-withdraw-relay-test {
+		external {
+			run "le test fixture plugin/rpki-pending-withdraw-relay";
+		}
+		encoding json;
 	}
-	internal relay {
-		use bgp-rr
+	endpoint relay {
+		internal bgp-rr;
 	}
-	internal rpki {
-		use bgp-rpki
+	endpoint rpki {
+		internal bgp-rpki;
 	}
-	internal adj-rib-in {
-		use bgp-adj-rib-in
+	endpoint adj-rib-in {
+		internal bgp-adj-rib-in;
+		send {
+			message bgp:update {
+				to none;
+			}
+		}
 	}
 }
 
@@ -106,17 +113,6 @@ bgp {
 			capability { graceful-restart disable; }
 		}
 		behavior { group-updates disable; }
-
-		attach process relay {
-			receive [ update-received state open-received refresh ]
-			send [ update ]
-		}
-		attach process rpki {
-			receive [ update-received state ]
-		}
-		attach process adj-rib-in {
-			receive [ update-received state ]
-		}
 	}
 
 	peer destination {
@@ -133,17 +129,6 @@ bgp {
 		}
 		behavior { group-updates disable; }
 		timer { connect-retry 5; }
-
-		attach process relay {
-			receive [ update-received state open-received refresh ]
-			send [ update ]
-		}
-		attach process rpki {
-			receive [ update-received state ]
-		}
-		attach process adj-rib-in {
-			receive [ update-received state ]
-		}
 	}
 }
 EOF_CONF

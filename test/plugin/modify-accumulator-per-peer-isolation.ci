@@ -83,19 +83,21 @@ EOF_PEER
 # Progress is event-driven and a genuinely wedged replay fails loudly.
 
 stdin=ze-bgp:terminator=EOF_CONF
-plugin {
-	internal rs {
-		use bgp-rs
+bus {
+	endpoint rs {
+		internal bgp-rs;
 	}
-	internal adj-rib-in {
-		use bgp-adj-rib-in
+	endpoint adj-rib-in {
+		internal bgp-adj-rib-in;
 	}
-	internal bgp-filter-modify {
-		use bgp-filter-modify
+	endpoint bgp-filter-modify {
+		internal bgp-filter-modify;
 	}
-	external shutdown-after-up {
-		run "le test fixture plugin/modify-accumulator-per-peer-isolation"
-		encoder json
+	endpoint shutdown-after-up {
+		external {
+			run "le test fixture plugin/modify-accumulator-per-peer-isolation";
+		}
+		encoding json;
 	}
 }
 policy {
@@ -146,16 +148,6 @@ bgp {
 		behavior {
 			group-updates disable
 		}
-		attach process adj-rib-in {
-			receive [ update-received state ]
-		}
-		attach process rs {
-			receive [ update-received state open-received refresh ]
-			send [ update ]
-		}
-		attach process shutdown-after-up {
-			receive [ update ]
-		}
 	}
 	peer client-a {
 		connection {
@@ -187,16 +179,6 @@ bgp {
 		}
 		behavior {
 			group-updates disable
-		}
-		attach process adj-rib-in {
-			send [ update ]
-		}
-		attach process rs {
-			receive [ update-received state open-received refresh ]
-			send [ update ]
-		}
-		attach process shutdown-after-up {
-			receive [ update ]
 		}
 	}
 	peer client-b {
@@ -231,16 +213,6 @@ bgp {
 		behavior {
 			group-updates disable
 		}
-		attach process adj-rib-in {
-			send [ update ]
-		}
-		attach process rs {
-			receive [ update-received state open-received refresh ]
-			send [ update ]
-		}
-		attach process shutdown-after-up {
-			receive [ update ]
-		}
 	}
 	peer client-c {
 		connection {
@@ -273,16 +245,6 @@ bgp {
 		}
 		behavior {
 			group-updates disable
-		}
-		attach process adj-rib-in {
-			send [ update ]
-		}
-		attach process rs {
-			receive [ update-received state open-received refresh ]
-			send [ update ]
-		}
-		attach process shutdown-after-up {
-			receive [ update ]
 		}
 	}
 }

@@ -178,9 +178,11 @@ func (a *adjRIBOut) snapshotWithdrawalBatches(session *Session, only family.Fami
 // family whose key drops wire information this function does not restore is
 // refused by name rather than withdrawn as some other route.
 func adjOutWithdrawalNLRI(key adjOutKey, entry *adjRIBOutRoute) ([]byte, error) {
-	keyBytes := key.path.nlri[:key.path.length]
+	var keyBytes []byte
 	if key.path.overflow != "" {
 		keyBytes = []byte(key.path.overflow)
+	} else {
+		keyBytes = key.path.nlri[:key.path.length]
 	}
 	head := 0
 	if key.addPath {

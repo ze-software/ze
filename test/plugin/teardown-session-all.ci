@@ -26,10 +26,12 @@ EOF_PEER
 
 
 stdin=ze-conf:terminator=EOF_CONF
-plugin {
-	external teardown-session-all-test {
-		run "le test fixture plugin/teardown-session-all"
-		encoder json
+bus {
+	endpoint teardown-session-all-test {
+		external {
+			run "le test fixture plugin/teardown-session-all";
+		}
+		encoding json;
 	}
 }
 

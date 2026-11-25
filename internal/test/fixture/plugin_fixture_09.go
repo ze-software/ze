@@ -153,7 +153,7 @@ func passiveObserve09(ctx context.Context, name string, registration *sdk.Regist
 		}()
 		return nil
 	})
-	runErr := plugin.Run(ctx, registration)
+	runErr := runObserver(ctx, plugin, registration)
 	select {
 	case scenarioErr := <-result:
 		return errors.Join(scenarioErr, runErr)
@@ -171,6 +171,9 @@ func passiveObserve09(ctx context.Context, name string, registration *sdk.Regist
 func announceWithdraw09(family, add, del string) Driver {
 	return func(ctx context.Context, _ []string) error {
 		return observe09(ctx, "announce-routes", func(ctx context.Context, p *sdk.Plugin) error {
+			if err := fixture10WaitEOR(ctx, p, "peer1", 60); err != nil {
+				return err
+			}
 			for _, command := range []string{add, del} {
 				announced, withdrawn, err := p.UpdateRoute(ctx, "*", "update text "+command)
 				if err != nil {

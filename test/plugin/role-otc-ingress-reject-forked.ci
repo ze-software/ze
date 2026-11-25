@@ -51,12 +51,26 @@ EOF_DEST
 # Native compiled fixture: plugin/role-otc-ingress-reject
 # ze configuration: local role = provider, source/dest peers are customers
 stdin=ze-bgp:terminator=EOF_CONF
-plugin {
-	hub { server local { ip 127.0.0.1; port 0; secret role-otc-ingress-reject-forked-secret-0001; } }
-	external bgp-role { run "ze plugin bgp-role"; }
-	external test-otc {
-		run "le test fixture plugin/role-otc-ingress-reject"
-		encoder json
+bus {
+	endpoint bgp-role {
+		internal bgp-role;
+		process separate;
+	}
+	endpoint test-otc {
+		external {
+			run "le test fixture plugin/role-otc-ingress-reject";
+		}
+		encoding json;
+	}
+	endpoint bgp-adj-rib-in {
+		internal bgp-adj-rib-in;
+	}
+	hub {
+		server local {
+			ip 127.0.0.1;
+			port 0;
+			secret role-otc-ingress-reject-forked-secret-0001;
+		}
 	}
 }
 bgp {
@@ -88,14 +102,8 @@ bgp {
 		role {
 			import provider
 		}
-		attach process test-otc {
-			receive [ update state ]
-		}
 		# The import chain runs before bgp-adj-rib-in, which stores only the
 		# routes the chain accepted: its total-routes is the ingress verdict.
-		attach process bgp-adj-rib-in {
-			receive [ update-received state ]
-		}
 	}
 
 	peer dest-peer {

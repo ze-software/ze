@@ -1,7 +1,21 @@
-# Test: ze config completion — peer with attached processes configured
-# VALIDATES: Process list keys shown when multiple processes exist
+# Test: ze config completion — bus with multiple endpoints configured
+# VALIDATES: Endpoint list keys shown when multiple endpoints exist
 
 tmpfs=test.conf:terminator=EOF_CONF
+bus {
+	endpoint my-watcher {
+		internal bgp-rib
+		receive {
+			allow [ bgp:update ]
+		}
+	}
+	endpoint my-filter {
+		internal bgp-gr
+		receive {
+			allow [ bgp:state ]
+		}
+	}
+}
 bgp {
 	filter {
 		import {
@@ -31,19 +45,11 @@ bgp {
 				remote 65001
 			}
 		}
-		attach process my-watcher {
-			run /usr/bin/watcher
-			receive update
-		}
-		attach process my-filter {
-			run /usr/bin/filter
-			send update
-		}
 	}
 }
 EOF_CONF
 
-cmd=foreground:seq=1:exec=ze config completion --context bgp/peer/peer1/attach --input edit+process+ test.conf
+cmd=foreground:seq=1:exec=ze config completion --context bus --input edit+endpoint+ test.conf
 expect=exit:code=0
 expect=stdout:contains=my-watcher
 expect=stdout:contains=my-filter

@@ -100,21 +100,47 @@ EOF_DEST
 # ---------------------------------------------------------------------------
 # ze -- AS 65000, two external peers on separate loopbacks.
 # ---------------------------------------------------------------------------
-# bgp-rs is loaded and claims the peer-up-replay role, so adj-rib-in stands down
-# daemon-wide. The DEST peer attaches rs nowhere, so rs neither replays it nor
-# forwards to it: it is exactly the peer the claim cannot cover. No RIB plugin is
-# loaded, so no local table can announce to the dest either.
+# bgp-rs is loaded and claims the peer-up-replay role for rs-client peers, so
+# adj-rib-in stands down where rs owns the peer. source-peer is an rs-client
+# covered by rs, while dest-peer is neither an rs-client nor in rs's send > to
+# list: rs's claim is retracted for dest-peer (peerStateUnheldRoles) and
+# adj-rib-in replays the stored source route to dest-peer itself. No RIB plugin
+# is loaded, so no local table can announce to dest-peer either.
 stdin=ze-bgp:terminator=EOF_CONF
-plugin {
-	internal rs {
-		use bgp-rs
+bus {
+	endpoint bgp-rib {
+		internal bgp-rib;
+		receive {
+			from none;
+		}
+		send {
+			to none;
+		}
 	}
-	external unowned-peer {
-		run "le test fixture plugin/adj-rib-in-replay-unowned-peer"
-		encoder json
+	endpoint rs {
+		internal bgp-rs;
+		receive {
+			from [ /bgp/peer/source-peer ];
+		}
+		send {
+			message bgp:update {
+				to [ /bgp/peer/source-peer ];
+			}
+		}
 	}
-	internal adj-rib-in {
-		use bgp-adj-rib-in
+	endpoint unowned-peer {
+		external {
+			run "le test fixture plugin/adj-rib-in-replay-unowned-peer";
+		}
+		encoding json;
+	}
+	endpoint adj-rib-in {
+		internal bgp-adj-rib-in;
+		send {
+			message bgp:update {
+				to [ /bgp/peer/dest-peer ];
+			}
+		}
 	}
 }
 
@@ -140,6 +166,7 @@ bgp {
 				remote 65001
 			}
 			router-id 1.2.3.4
+			rs-client true
 			family {
 				ipv4/unicast { prefix { maximum 10000; } }
 			}
@@ -149,17 +176,6 @@ bgp {
 		}
 		behavior {
 			group-updates disable
-		}
-
-		attach process unowned-peer {
-			send [ update ]
-		}
-		attach process adj-rib-in {
-			receive [ update-received state ]
-		}
-		attach process rs {
-			receive [ update-received state open-received refresh ]
-			send [ update ]
 		}
 	}
 
@@ -194,18 +210,6 @@ bgp {
 			group-updates disable
 		}
 		timer { connect-retry 2; }
-
-		# `state` so adj-rib-in sees this peer come up, `send [ update ]` so it may
-		# originate the replayed UPDATE towards it (maySend,
-		# reactor/send_permission.go). bgp-rs is attached NOWHERE on this peer,
-		# which is the condition under test.
-		attach process adj-rib-in {
-			receive [ state ]
-			send [ update ]
-		}
-		attach process unowned-peer {
-			send [ update ]
-		}
 	}
 }
 EOF_CONF

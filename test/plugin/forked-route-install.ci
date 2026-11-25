@@ -23,13 +23,15 @@
 
 
 stdin=ze-conf:terminator=EOF_CONF
-plugin {
-	external forked-route {
-		run "le test fixture plugin/forked-route-install"
-		encoder json
+bus {
+	endpoint rib {
+		internal rib;
 	}
-	internal rib {
-		use rib
+	endpoint forked-route {
+		external {
+			run "le test fixture plugin/forked-route-install";
+		}
+		encoding json;
 	}
 }
 
@@ -59,9 +61,6 @@ bgp {
 		}
 		behavior {
 			group-updates disable
-		}
-		attach process forked-route {
-			receive [ update state ]
 		}
 	}
 }

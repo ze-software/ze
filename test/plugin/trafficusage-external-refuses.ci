@@ -41,9 +41,11 @@ traffic {
 	}
 }
 
-plugin {
-	external traffic-usage {
-		run "le mock plugin-external traffic-usage"
+bus {
+	endpoint traffic-usage {
+		external {
+			run "le mock plugin-external traffic-usage";
+		}
 	}
 }
 

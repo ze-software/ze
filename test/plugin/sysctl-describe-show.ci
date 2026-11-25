@@ -27,10 +27,12 @@ EOF_PEER
 # Native observer fixture: plugin/sysctl-describe-show.
 
 stdin=ze-sysctl:terminator=EOF_CONF
-plugin {
-	external sysctl-describe-show-test {
-		run "le test fixture plugin/sysctl-describe-show"
-		encoder json
+bus {
+	endpoint sysctl-describe-show-test {
+		external {
+			run "le test fixture plugin/sysctl-describe-show";
+		}
+		encoding json;
 	}
 }
 

@@ -23,10 +23,12 @@ EOF_PEER
 # The second config text that the compiled `plugin/reload-hello-interval`
 # fixture driver copies over ze-bgp.conf before SIGHUP. Only hello-interval changes (45 -> 90).
 tmpfs=config2.conf:terminator=EOF_CONF2
-plugin {
-	external reload-hello-interval-test {
-		run "le test fixture plugin/reload-hello-interval"
-		encoder json
+bus {
+	endpoint reload-hello-interval-test {
+		external {
+			run "le test fixture plugin/reload-hello-interval";
+		}
+		encoding json;
 	}
 }
 
@@ -80,10 +82,12 @@ EOF_CONF2
 
 
 stdin=ze-conf:terminator=EOF_CONF
-plugin {
-	external reload-hello-interval-test {
-		run "le test fixture plugin/reload-hello-interval"
-		encoder json
+bus {
+	endpoint reload-hello-interval-test {
+		external {
+			run "le test fixture plugin/reload-hello-interval";
+		}
+		encoding json;
 	}
 }
 

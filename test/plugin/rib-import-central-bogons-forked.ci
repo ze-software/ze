@@ -14,13 +14,26 @@ expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
 EOF_PEER
 
 stdin=ze-conf:terminator=EOF_CONF
-plugin {
-    external rib-import-test { run "le test fixture plugin/rib-import-central-bogons forked"; encoder json; }
-    external sysrib-owner { run "ze plugin rib"; encoder json; }
-    internal fib-kernel { use fib-kernel; }
-    internal bgp-rib { use bgp-rib; }
+bus {
+    endpoint fib-kernel {
+        internal fib-kernel;
+    }
+    endpoint bgp-rib {
+        internal bgp-rib;
+    }
+    endpoint rib-import-test {
+        external {
+            run "le test fixture plugin/rib-import-central-bogons forked";
+        }
+        encoding json;
+    }
+    endpoint sysrib-owner {
+        internal rib;
+        process separate;
+        encoding json;
+    }
 }
-interface { backend netlink; }
+interface { backend kernel; }
 connected { }
 fib { kernel { flush-on-stop true; } }
 rib {
@@ -48,7 +61,6 @@ bgp {
             capability { graceful-restart disable; }
         }
         behavior { group-updates disable; }
-        attach process bgp-rib { receive [ update state refresh ]; send [ update ]; }
     }
 }
 EOF_CONF

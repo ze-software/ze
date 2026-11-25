@@ -89,13 +89,13 @@ option=timeout:value=30s
 option=bind:value=127.0.0.2
 
 # seq=1 CONTROL -- the LIVE forward of the source's announcement.
-expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF003302000000184001010040020A02020000FDE80000FDE940030401010101180A0000
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF002F02000000144001010040020602010000FDE940030401010101180A0000
 
 # seq=2 SUBJECT -- the REPLAY, reconstructed from the stored (AttrHex, NextHopHex,
 # NLRIHex) by buildRelayUpdate and pushed through the same forwardUpdateCore. Exact
 # hex, so a reconstruction that reorders attributes, drops NEXT_HOP, or re-announces
 # a second NLRI is refused rather than tolerated.
-expect=bgp:conn=1:seq=2:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF003302000000184001010040020A02020000FDE80000FDE940030401010101180A0000
+expect=bgp:conn=1:seq=2:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF002F02000000144001010040020602010000FDE940030401010101180A0000
 EOF_DEST
 
 # ---------------------------------------------------------------------------
@@ -112,16 +112,18 @@ EOF_DEST
 # cannot fire for the dest, leaving the observer's explicit dispatch as the one
 # producer of the second message.
 stdin=ze-bgp:terminator=EOF_CONF
-plugin {
-	internal rs {
-		use bgp-rs
+bus {
+	endpoint rs {
+		internal bgp-rs;
 	}
-	external replay-relay {
-		run "le test fixture plugin/adj-rib-in-replay-on-peerup"
-		encoder json
+	endpoint adj-rib-in {
+		internal bgp-adj-rib-in;
 	}
-	internal adj-rib-in {
-		use bgp-adj-rib-in
+	endpoint replay-relay {
+		external {
+			run "le test fixture plugin/adj-rib-in-replay-on-peerup";
+		}
+		encoding json;
 	}
 }
 
@@ -142,6 +144,7 @@ bgp {
 			}
 		}
 		session {
+			rs-client true;
 			asn {
 				local 65000
 				remote 65001
@@ -158,16 +161,6 @@ bgp {
 			group-updates disable
 		}
 
-		attach process replay-relay {
-			send [ update ]
-		}
-		attach process adj-rib-in {
-			receive [ update-received state ]
-		}
-		attach process rs {
-			receive [ update-received state open-received refresh ]
-			send [ update ]
-		}
 	}
 
 	peer dest-peer {
@@ -181,6 +174,7 @@ bgp {
 			}
 		}
 		session {
+			rs-client true;
 			asn {
 				local 65000
 				remote 65002
@@ -207,13 +201,6 @@ bgp {
 		# adj-rib-in never being fed `state` for the dest peer, so its own
 		# peer-up self-replay (rib.go, handleStructuredState) stays silent and
 		# the second arrival can come from nothing but the commanded relay.
-		attach process adj-rib-in {
-			send [ update ]
-		}
-		attach process rs {
-			receive [ update-received state open-received refresh ]
-			send [ update ]
-		}
 	}
 }
 EOF_CONF

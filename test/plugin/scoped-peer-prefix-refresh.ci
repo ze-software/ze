@@ -76,9 +76,16 @@ action=send:conn=1:seq=3:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF0043020000002C40010
 END_SOURCE_3
 
 tmpfs=ze.conf:terminator=END_CONFIG
-plugin {
- internal rs { use bgp-rs; }
- external scoped-status { run "le test fixture plugin/scoped-peer-prefix-status"; encoder json; }
+bus {
+  endpoint rs {
+    internal bgp-rs;
+  }
+  endpoint scoped-status {
+    external {
+      run "le test fixture plugin/scoped-peer-prefix-status";
+    }
+    encoding json;
+  }
 }
 bgp {
  router-id 10.57.30.1;
@@ -86,6 +93,7 @@ bgp {
  peer receive {
   connection { remote { ip fe80::2%sp; port $PORT; } local { ip fe80::1%sp; accept false; } }
   session {
+   rs-client true;
    asn { local 65001; remote 65003; }
    link-local fe80::1;
    family { ipv6/unicast { prefix { maximum 100; } } }
@@ -93,12 +101,12 @@ bgp {
   }
   filter { export { filters [ next-hop:unchanged ]; final accept; } }
   behavior { rs-fast-path enable; group-updates disable; }
-  attach process rs { receive [ update-received state open-received refresh ]; send [ update ]; }
   timer { connect-retry 1; }
  }
  peer source1 {
   connection { remote { ip 2001:db8:5730::9; port $PORT; } local { ip 2001:db8:5730::1; accept false; } }
   session {
+   rs-client true;
    asn { local 65001; remote 65004; }
    link-local fe80::1;
    family { ipv6/unicast { prefix { maximum 100; } } }
@@ -106,12 +114,12 @@ bgp {
   }
   filter { export { filters [ next-hop:unchanged ]; final accept; } }
   behavior { rs-fast-path enable; group-updates disable; }
-  attach process rs { receive [ update-received state open-received refresh ]; send [ update ]; }
   timer { connect-retry 1; }
  }
  peer source2 {
   connection { remote { ip 2001:db8:5730::a; port $PORT; } local { ip 2001:db8:5730::1; accept false; } }
   session {
+   rs-client true;
    asn { local 65001; remote 65005; }
    link-local fe80::1;
    family { ipv6/unicast { prefix { maximum 100; } } }
@@ -119,12 +127,12 @@ bgp {
   }
   filter { export { filters [ next-hop:unchanged ]; final accept; } }
   behavior { rs-fast-path enable; group-updates disable; }
-  attach process rs { receive [ update-received state open-received refresh ]; send [ update ]; }
   timer { connect-retry 1; }
  }
  peer source3 {
   connection { remote { ip 2001:db8:5730::b; port $PORT; } local { ip 2001:db8:5730::1; accept false; } }
   session {
+   rs-client true;
    asn { local 65001; remote 65006; }
    link-local fe80::1;
    family { ipv6/unicast { prefix { maximum 100; } } }
@@ -132,7 +140,6 @@ bgp {
   }
   filter { export { filters [ next-hop:unchanged ]; final accept; } }
   behavior { rs-fast-path enable; group-updates disable; }
-  attach process rs { receive [ update-received state open-received refresh ]; send [ update ]; }
   timer { connect-retry 1; }
  }
  peer sentinel1 {

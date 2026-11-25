@@ -39,10 +39,15 @@ EOF_PEER
 
 # The prefix-list sits at the top level, beside bgp, not inside it.
 stdin=ze-bgp:terminator=EOF_CONF
-plugin {
-	external test-modify-partial {
-		run "le test fixture plugin/prefix-filter-modify-partial"
-		encoder json
+bus {
+	endpoint test-modify-partial {
+		external {
+			run "le test fixture plugin/prefix-filter-modify-partial";
+		}
+		encoding json;
+	}
+	endpoint bgp-adj-rib-in {
+		internal bgp-adj-rib-in;
 	}
 }
 policy {
@@ -83,9 +88,6 @@ bgp {
 		filter {
 			export { final accept; }
 			import { filters [ prefix-list-CUSTOMERS ]; final accept; }
-		}
-		attach process bgp-adj-rib-in {
-			receive [ update-received state ]
 		}
 	}
 }

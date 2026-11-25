@@ -49,21 +49,23 @@ option=needs-linux:caps=net-admin
 
 
 stdin=ze-conf:terminator=EOF_CONF
-plugin {
-	external iface-route-protocol-name {
-		run "le test fixture plugin/iface-route-protocol-name"
-		encoder json
+bus {
+	endpoint iface-route-protocol-name {
+		external {
+			run "le test fixture plugin/iface-route-protocol-name";
+		}
+		encoding json;
 	}
 }
 
 # The interface block makes the iface component run OnConfigure ->
-# iface.LoadBackend("netlink"), so `show route` has an active backend to read the
+# iface.LoadBackend("kernel"), so `show route` has an active backend to read the
 # kernel through. Without it the command answers "iface: no backend loaded" and
 # the test can assert nothing. No interface is declared, so the managed set is
 # empty and the daemon creates and deletes nothing; zertproto0 belongs to the
 # test alone.
 interface {
-	backend netlink
+	backend kernel
 }
 
 bgp {

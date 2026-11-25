@@ -35,15 +35,15 @@ action=send:conn=1:seq=4:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF002F020000001440010
 EOF_PEER
 
 stdin=ze-bgp:terminator=EOF_CONF
-plugin {
-	external test-filter-irr-readmit {
-		run "le test fixture plugin/filter-irr-readmit"
-		encoder json
+bus {
+	endpoint bgp-rib {
+		internal bgp-rib;
 	}
-	# ze advertises route-refresh, so it must be able to re-advertise its
-	# Adj-RIB-Out when the peer asks (RFC 2918 Section 3); bgp-rib does that.
-	internal bgp-rib {
-		use bgp-rib
+	endpoint test-filter-irr-readmit {
+		external {
+			run "le test fixture plugin/filter-irr-readmit";
+		}
+		encoding json;
 	}
 }
 system {
@@ -87,18 +87,8 @@ bgp {
 			import { filters [ bgp-filter-irr:65001 ]; final accept; }
 		}
 
-		attach process test-filter-irr-readmit {
-			receive [ update state ]
-		}
 		# The filter asks the peer for its routes again, so it needs the refresh
 		# send permission like any other process.
-		attach process bgp-filter-irr {
-			send [ refresh ]
-		}
-		attach process bgp-rib {
-			receive [ update state refresh ]
-			send [ update ]
-		}
 	}
 }
 EOF_CONF

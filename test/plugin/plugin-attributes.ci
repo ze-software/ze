@@ -34,10 +34,12 @@ EOF_PEER
 
 # ze bgp configuration
 stdin=ze-bgp:terminator=EOF_CONF
-plugin {
-	external add-remove {
-		run "le test fixture plugin/plugin-attributes"
-		encoder json
+bus {
+	endpoint add-remove {
+		external {
+			run "le test fixture plugin/plugin-attributes";
+		}
+		encoding json;
 	}
 }
 bgp {
@@ -65,13 +67,6 @@ bgp {
 			group-updates disable
 		}
 	
-		attach process add-remove {
-			send update
-			# Capture the initial-replay token from this peer's UP event before
-			# announcing. The declared reporter completes with that same token;
-			# its completion never delays the independent End-of-RIB.
-			receive [ state ]
-		}
 	}
 }
 EOF_CONF

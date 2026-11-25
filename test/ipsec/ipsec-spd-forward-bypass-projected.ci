@@ -88,10 +88,12 @@ option=env:var=ze_log_ike:value=info
 # The plugin block is byte-identical to the start one, so the reload keeps the
 # fixture alive.
 tmpfs=config2.conf:terminator=EOF_CONFIG2
-plugin {
-	external live-stages {
-		run "le test fixture reload/live-stages stages.script"
-		encoder json
+bus {
+	endpoint live-stages {
+		external {
+			run "le test fixture reload/live-stages stages.script";
+		}
+		encoding json;
 	}
 }
 
@@ -170,10 +172,12 @@ EOF_SCRIPT
 
 # ── The daemon (REAL xfrm): the three accepted entries ──
 stdin=ze-bgp:terminator=EOF_CONF
-plugin {
-	external live-stages {
-		run "le test fixture reload/live-stages stages.script"
-		encoder json
+bus {
+	endpoint live-stages {
+		external {
+			run "le test fixture reload/live-stages stages.script";
+		}
+		encoding json;
 	}
 }
 

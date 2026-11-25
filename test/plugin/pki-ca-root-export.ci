@@ -14,10 +14,12 @@ EOF_PEER
 # The daemon generates its root at start with no config, so this test configures
 # no pki block. That is the point: the root exists because the daemon ran.
 stdin=ze-bgp:terminator=EOF_CONF
-plugin {
-    external pki-ca-root-export-test {
-        run "le test fixture plugin/pki-ca-root-export"
-        encoder json
+bus {
+    endpoint pki-ca-root-export-test {
+        external {
+            run "le test fixture plugin/pki-ca-root-export";
+        }
+        encoding json;
     }
 }
 

@@ -85,10 +85,12 @@ ddos {
 	}
 }
 
-plugin {
-	external ddos-bps-probe {
-		run "le test fixture plugin/ddos-bps-amplification"
-		encoder json
+bus {
+	endpoint ddos-bps-probe {
+		external {
+			run "le test fixture plugin/ddos-bps-amplification";
+		}
+		encoding json;
 	}
 }
 

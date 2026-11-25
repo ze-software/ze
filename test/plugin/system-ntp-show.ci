@@ -12,10 +12,12 @@ EOF_PEER
 
 
 stdin=ze-bgp:terminator=EOF_CONF
-plugin {
-	external system-ntp-show-test {
-		run "le test fixture plugin/system-ntp-show"
-		encoder json
+bus {
+	endpoint system-ntp-show-test {
+		external {
+			run "le test fixture plugin/system-ntp-show";
+		}
+		encoding json;
 	}
 }
 

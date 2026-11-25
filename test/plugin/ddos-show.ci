@@ -12,7 +12,7 @@
 # and ddos-local declares Dependencies: ["firewall"], so the daemon also starts
 # the interface plugin, which has no OS-default backend on darwin ("no backend
 # configured and no OS default available") and fails startup before the show
-# handlers run. Runs on Linux (CI/QEMU) where the netlink backend is available.
+# handlers run. Runs on Linux (CI/QEMU) where the kernel backend is available.
 option=needs-linux
 # Serialize against every other ddos test: they all flood the SAME loopback
 # interface and the detector picks the victim by top-destination-bytes over that
@@ -51,10 +51,12 @@ ddos {
 	}
 }
 
-plugin {
-	external ddos-show-test {
-		run "le test fixture plugin/ddos-show"
-		encoder json
+bus {
+	endpoint ddos-show-test {
+		external {
+			run "le test fixture plugin/ddos-show";
+		}
+		encoding json;
 	}
 }
 

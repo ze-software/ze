@@ -16,10 +16,12 @@ EOF_PEER
 
 
 stdin=ze-bgp:terminator=EOF_CONF
-plugin {
-	external diag-capture-test {
-		run "le test fixture plugin/diag-capture"
-		encoder json
+bus {
+	endpoint diag-capture-test {
+		external {
+			run "le test fixture plugin/diag-capture";
+		}
+		encoding json;
 	}
 }
 

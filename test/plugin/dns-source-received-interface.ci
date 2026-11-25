@@ -44,15 +44,17 @@ system {
 	}
 }
 
-plugin {
-	external dns-source-received-interface-test {
-		run "le test fixture plugin/dns-source-received-interface"
-		encoder json
+bus {
+	endpoint dns-source-received-interface-test {
+		external {
+			run "le test fixture plugin/dns-source-received-interface";
+		}
+		encoding json;
 	}
 }
 
 interface {
-	backend netlink
+	backend kernel
 
 	veth zerifa0 {
 		peer zerifa1

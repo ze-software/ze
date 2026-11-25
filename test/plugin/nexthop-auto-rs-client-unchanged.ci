@@ -5,7 +5,9 @@
 # This portable loopback harness is untagged wiring evidence; the synthetic
 # ordinary 127/8 next hop is not a claim of production RFC conformance.
 
-option=env:var=ze.log.bgp.rs:value=info
+# Linux-only: static `next { interface lo { } }` resolves loopback `lo` via netlink so bgp-rib resolves NEXT_HOP 192.0.2.9 per RFC 4271 Section 9.1.2.1.
+option=needs-linux
+option=env:var=ze.log.bgp.routes:value=debug
 
 stdin=source:terminator=EOF_SOURCE
 option=tcp_connections:value=1
@@ -38,9 +40,28 @@ expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00330200000018400101
 EOF_ORDINARY
 
 stdin=ze-bgp:terminator=EOF_CONF
-plugin {
-	internal rs { use bgp-rs; }
-	internal adj-rib-in { use bgp-adj-rib-in; }
+bus {
+	endpoint bgp-rib {
+		internal bgp-rib;
+	}
+	endpoint adj-rib-in {
+		internal bgp-adj-rib-in;
+		send {
+			message bgp:update {
+				to none;
+			}
+		}
+	}
+}
+fib {
+	dummy { }
+}
+static {
+	table default {
+		route 192.0.2.0/24 {
+			next { interface lo { } }
+		}
+	}
 }
 bgp {
 	filter {
@@ -55,15 +76,11 @@ bgp {
 		session {
 			asn { local 65000; remote 65001; }
 			router-id 1.2.3.4;
+			rs-client true;
 			family { ipv4/unicast { prefix { maximum 10000; } } }
 			capability { graceful-restart disable; }
 		}
 		behavior { group-updates disable; }
-		attach process rs {
-			receive [ update-received state open-received refresh ];
-			send [ update ];
-		}
-		attach process adj-rib-in { receive [ update-received state ]; }
 	}
 	peer client {
 		connection {
@@ -78,11 +95,6 @@ bgp {
 			capability { graceful-restart disable; }
 		}
 		behavior { group-updates disable; }
-		attach process rs {
-			receive [ update-received state open-received refresh ];
-			send [ update ];
-		}
-		attach process adj-rib-in { receive [ update-received state ]; }
 	}
 	peer ordinary {
 		connection {
@@ -96,11 +108,6 @@ bgp {
 			capability { graceful-restart disable; }
 		}
 		behavior { group-updates disable; }
-		attach process rs {
-			receive [ update-received state open-received refresh ];
-			send [ update ];
-		}
-		attach process adj-rib-in { receive [ update-received state ]; }
 	}
 }
 EOF_CONF

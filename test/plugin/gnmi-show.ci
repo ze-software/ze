@@ -12,10 +12,12 @@ EOF_PEER
 
 
 stdin=ze-bgp:terminator=EOF_CONF
-plugin {
-	external gnmi-show-test {
-		run "le test fixture plugin/gnmi-show"
-		encoder json
+bus {
+	endpoint gnmi-show-test {
+		external {
+			run "le test fixture plugin/gnmi-show";
+		}
+		encoding json;
 	}
 }
 

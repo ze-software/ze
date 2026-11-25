@@ -24,20 +24,18 @@ service {
 	}
 }
 
-plugin {
+bus {
+	endpoint as112 {
+		external {
+			run "le mock plugin-external as112";
+		}
+	}
 	hub {
 		server local {
 			ip 127.0.0.1;
 			port 0;
 			secret as112-external-refuse-test-secret-01;
 		}
-	}
-	external as112 {
-		# "ze plugin" is an unrelated CLI verb, not a plugin launcher --
-		# le mock plugin-external
-		# (internal/test/cli/cmd_plugin_external.go) launches a registered
-		# plugin's own RunEngine via a real TLS connect-back.
-		run "le mock plugin-external as112"
 	}
 }
 

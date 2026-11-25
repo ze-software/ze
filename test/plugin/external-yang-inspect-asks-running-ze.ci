@@ -63,10 +63,12 @@ environment {
 		}
 	}
 }
-plugin {
-	external acme-monitor {
-		run "le test fixture plugin/external-yang valid"
-		encoder json
+bus {
+	endpoint acme-monitor {
+		external {
+			run "le test fixture plugin/external-yang valid";
+		}
+		encoding json;
 	}
 }
 
@@ -77,10 +79,12 @@ acme-monitor {
 EOF_RUNNING
 
 tmpfs=first.conf:terminator=EOF_FIRST
-plugin {
-	external acme-monitor {
-		run "le test fixture plugin/external-yang valid"
-		encoder json
+bus {
+	endpoint acme-monitor {
+		external {
+			run "le test fixture plugin/external-yang valid";
+		}
+		encoding json;
 	}
 }
 
@@ -123,10 +127,12 @@ bgp {
 EOF_FIRST
 
 tmpfs=second.conf:terminator=EOF_SECOND
-plugin {
-	external acme-monitor {
-		run "le test fixture plugin/external-yang valid"
-		encoder json
+bus {
+	endpoint acme-monitor {
+		external {
+			run "le test fixture plugin/external-yang valid";
+		}
+		encoding json;
 	}
 }
 
@@ -184,10 +190,12 @@ bgp {
 EOF_SECOND
 
 tmpfs=nobgp.conf:terminator=EOF_NOBGP
-plugin {
-	external acme-monitor {
-		run "le test fixture plugin/external-yang valid"
-		encoder json
+bus {
+	endpoint acme-monitor {
+		external {
+			run "le test fixture plugin/external-yang valid";
+		}
+		encoding json;
 	}
 }
 

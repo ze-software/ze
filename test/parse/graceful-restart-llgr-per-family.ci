@@ -7,6 +7,11 @@
 # ze-graceful-restart.yang and bgp-gr's InProcessConfigVerifier.
 
 stdin=valid:terminator=EOF_VALID
+bus {
+	endpoint bgp-rib {
+		internal bgp-rib;
+	}
+}
 bgp {
 	filter {
 		import { final accept; }
@@ -41,7 +46,6 @@ bgp {
 				}
 			}
 		}
-		attach process gr { send [ update ]; }
 	}
 	peer skip_gr {
 		connection {
@@ -64,12 +68,16 @@ bgp {
 				}
 			}
 		}
-		attach process gr { send [ update ]; }
 	}
 }
 EOF_VALID
 
 stdin=uncarried:terminator=EOF_UNCARRIED
+bus {
+	endpoint bgp-rib {
+		internal bgp-rib;
+	}
+}
 bgp {
 	filter {
 		import { final accept; }
@@ -96,12 +104,16 @@ bgp {
 				}
 			}
 		}
-		attach process gr { send [ update ]; }
 	}
 }
 EOF_UNCARRIED
 
 stdin=legacy:terminator=EOF_LEGACY
+bus {
+	endpoint bgp-rib {
+		internal bgp-rib;
+	}
+}
 bgp {
 	filter {
 		import { final accept; }
@@ -121,12 +133,16 @@ bgp {
 				}
 			}
 		}
-		attach process gr { send [ update ]; }
 	}
 }
 EOF_LEGACY
 
 stdin=bad_stale_time:terminator=EOF_BAD_STALE
+bus {
+	endpoint bgp-rib {
+		internal bgp-rib;
+	}
+}
 bgp {
 	filter {
 		import { final accept; }
@@ -153,7 +169,6 @@ bgp {
 				}
 			}
 		}
-		attach process gr { send [ update ]; }
 	}
 }
 EOF_BAD_STALE

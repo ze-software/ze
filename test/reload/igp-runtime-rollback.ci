@@ -30,10 +30,12 @@ system {
 		resolv-conf-path ""
 	}
 }
-plugin {
-	external zz-igp-runtime-rollback {
-		run "le test fixture reload/igp-runtime-rollback"
-		encoder json
+bus {
+	endpoint zz-igp-runtime-rollback {
+		external {
+			run "le test fixture reload/igp-runtime-rollback";
+		}
+		encoding json;
 	}
 }
 isis {
@@ -74,10 +76,12 @@ system {
 		resolv-conf-path ""
 	}
 }
-plugin {
-	external zz-igp-runtime-rollback {
-		run "le test fixture reload/igp-runtime-rollback"
-		encoder json
+bus {
+	endpoint zz-igp-runtime-rollback {
+		external {
+			run "le test fixture reload/igp-runtime-rollback";
+		}
+		encoding json;
 	}
 }
 isis {

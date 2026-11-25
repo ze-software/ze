@@ -12,10 +12,12 @@ EOF_PEER
 
 
 stdin=ze-bgp:terminator=EOF_CONF
-plugin {
-	external dns-cache-show-test {
-		run "le test fixture plugin/dns-cache-show"
-		encoder json
+bus {
+	endpoint dns-cache-show-test {
+		external {
+			run "le test fixture plugin/dns-cache-show";
+		}
+		encoding json;
 	}
 }
 

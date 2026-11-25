@@ -1,16 +1,16 @@
-# Test: ze config validate rejects plugin { internal { } } with no use
-# VALIDATES: the loader's internal-plugin check runs at the user entry point --
-# ExtractPluginsFromTree (internal/component/config/loader.go:232) is reached
+# Test: ze config validate rejects bus { endpoint rib { } } with neither internal nor external
+# VALIDATES: the loader's endpoint-kind check runs at the user entry point --
+# ExtractPluginsFromTree (internal/component/config/bus_validate.go) is reached
 # from cmd_validate.go, so a config that fails at boot also fails validation.
 # PREVENTS: validate silently accepting an engine-invalid config again (before
 # the extraction call existed, this config passed validate and died at boot).
 stdin=config:terminator=EOF_CONF
-plugin {
-	internal rib {
+bus {
+	endpoint rib {
 	}
 }
 EOF_CONF
 
 cmd=foreground:seq=1:exec=ze config validate -:stdin=config
 expect=exit:code=1
-expect=stdout:contains=plugin "rib": internal plugin requires use
+expect=stdout:contains=bus > endpoint "rib": must specify either internal or external

@@ -86,11 +86,23 @@ expect=bgp:conn=1:seq=6:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF0019020002080C0000
 EOF_RECEIVER
 
 stdin=ze-bgp:terminator=EOF_CONF
-plugin {
-    internal relay { use bgp-rr; }
-    external withdrawal-replacement {
-        run "le test fixture plugin/vpn-withdrawal-inventory rr 7 gates 6 release 127.0.0.5"
-        encoder json
+bus {
+    endpoint relay {
+        internal bgp-rr;
+        send {
+            message bgp:update {
+                to [ /bgp/peer/receiver ];
+            }
+        }
+    }
+    endpoint withdrawal-replacement {
+        external {
+            run "le test fixture plugin/vpn-withdrawal-inventory rr 7 gates 6 release 127.0.0.5";
+        }
+        encoding json;
+    }
+    endpoint bgp-rib {
+        internal bgp-rib;
     }
 }
 bgp {
@@ -109,17 +121,8 @@ bgp {
             capability { graceful-restart disable; }
         }
         behavior { group-updates disable; }
-        attach process relay {
-            receive [ update-received state open-received refresh ]
-        }
-        attach process bgp-rib {
-            receive [ update state refresh ]
-            send [ update ]
-        }
-        attach process withdrawal-replacement { send [ update ]; }
     }
     peer sourceb {
-        attach process withdrawal-replacement { send [ update ]; }
         connection {
             remote { ip 127.0.0.5; }
             local { ip 127.0.0.6; accept false; }
@@ -134,13 +137,6 @@ bgp {
             capability { graceful-restart disable; }
         }
         behavior { group-updates disable; }
-        attach process relay {
-            receive [ update-received state open-received refresh ]
-        }
-        attach process bgp-rib {
-            receive [ update state refresh ]
-            send [ update ]
-        }
     }
     peer receiver {
         connection {
@@ -157,14 +153,6 @@ bgp {
             capability { graceful-restart disable; }
         }
         behavior { group-updates disable; }
-        attach process relay {
-            receive [ update-received state open-received refresh ]
-            send [ update ]
-        }
-        attach process bgp-rib {
-            receive [ update state refresh ]
-            send [ update ]
-        }
     }
 }
 EOF_CONF

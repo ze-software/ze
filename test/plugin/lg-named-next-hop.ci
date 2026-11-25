@@ -42,13 +42,15 @@ option=env:var=ZE_LG_PORT:value=$PORT2
 # The config the fixture writes over ze-bgp.conf before it asks for the
 # reload. It differs from the first config in one value: the name of the range.
 tmpfs=ze-renamed.conf:mode=644:terminator=EOF_RENAMED
-plugin {
-	external lg-named-next-hop {
-		run "le test fixture plugin/lg-named-next-hop ze-bgp.conf ze-renamed.conf"
-		encoder json
+bus {
+	endpoint bgp-rib {
+		internal bgp-rib;
 	}
-	internal bgp-rib {
-		use bgp-rib
+	endpoint lg-named-next-hop {
+		external {
+			run "le test fixture plugin/lg-named-next-hop ze-bgp.conf ze-renamed.conf";
+		}
+		encoding json;
 	}
 }
 
@@ -94,10 +96,6 @@ bgp {
 			group-updates disable
 		}
 
-		attach process bgp-rib {
-			receive [ update state refresh ]
-			send [ update ]
-		}
 	}
 }
 EOF_RENAMED
@@ -106,13 +104,15 @@ EOF_RENAMED
 # config to ze-bgp.conf in the test directory, beside ze-renamed.conf, and the
 # fixture runs there.
 stdin=ze-bgp:terminator=EOF_CONF
-plugin {
-	external lg-named-next-hop {
-		run "le test fixture plugin/lg-named-next-hop ze-bgp.conf ze-renamed.conf"
-		encoder json
+bus {
+	endpoint bgp-rib {
+		internal bgp-rib;
 	}
-	internal bgp-rib {
-		use bgp-rib
+	endpoint lg-named-next-hop {
+		external {
+			run "le test fixture plugin/lg-named-next-hop ze-bgp.conf ze-renamed.conf";
+		}
+		encoding json;
 	}
 }
 
@@ -160,10 +160,6 @@ bgp {
 			group-updates disable
 		}
 
-		attach process bgp-rib {
-			receive [ update state refresh ]
-			send [ update ]
-		}
 	}
 }
 EOF_CONF

@@ -105,10 +105,12 @@ environment {
 		}
 	}
 }
-plugin {
-	external ddos-flowspec {
-		run "le mock plugin-external ddos-flowspec"
-		encoder json
+bus {
+	endpoint ddos-flowspec {
+		external {
+			run "le mock plugin-external ddos-flowspec";
+		}
+		encoding json;
 	}
 }
 ddos {

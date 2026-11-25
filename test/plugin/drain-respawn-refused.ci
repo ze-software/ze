@@ -14,14 +14,18 @@
 option=env:var=ze.log.plugin.server:value=info
 
 tmpfs=ze-bgp.conf:terminator=EOF_CONF
-plugin {
-	external drain-exits {
-		run "le test fixture plugin/drain-exits"
-		encoder json
+bus {
+	endpoint drain-exits {
+		external {
+			run "le test fixture plugin/drain-exits";
+		}
+		encoding json;
 	}
-	external drain-requester {
-		run "le test fixture plugin/drain-requester reactorless"
-		encoder json
+	endpoint drain-requester {
+		external {
+			run "le test fixture plugin/drain-requester reactorless";
+		}
+		encoding json;
 	}
 }
 EOF_CONF

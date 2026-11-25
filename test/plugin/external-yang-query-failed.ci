@@ -23,10 +23,12 @@
 #   the plugin that should have brought the root.
 
 tmpfs=ze.conf:terminator=EOF_CONF
-plugin {
-	external absent-plugin {
-		run "./no-such-plugin-program"
-		encoder json
+bus {
+	endpoint absent-plugin {
+		external {
+			run ./no-such-plugin-program;
+		}
+		encoding json;
 	}
 }
 

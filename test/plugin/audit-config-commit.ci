@@ -17,10 +17,12 @@ EOF_PEER
 
 
 tmpfs=audit-config-commit.conf:terminator=EOF_CONF
-plugin {
-	external audit-commit-test {
-		run "le test fixture plugin/audit-config-commit"
-		encoder json
+bus {
+	endpoint audit-commit-test {
+		external {
+			run "le test fixture plugin/audit-config-commit";
+		}
+		encoding json;
 	}
 }
 

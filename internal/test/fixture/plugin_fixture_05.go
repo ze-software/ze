@@ -702,7 +702,7 @@ func p05RunActivePlugin(ctx context.Context, process string, registration *sdk.R
 		}()
 		return nil
 	})
-	runErr := plugin.Run(ctx, registration)
+	runErr := runObserver(ctx, plugin, registration)
 	return awaitObserverResult(started, scenarioDone, runErr)
 }
 
@@ -842,7 +842,7 @@ func p05ConcurrentConfigCommit(ctx context.Context, args []string) error {
 	if err := declareObserverAppliesNothing(plugin); err != nil {
 		return err
 	}
-	runErr := plugin.Run(ctx, &sdk.Registration{WantsConfig: []string{namespaceBGP}, VerifyBudget: 3})
+	runErr := runObserver(ctx, plugin, &sdk.Registration{WantsConfig: []string{namespaceBGP}, VerifyBudget: 3})
 	select {
 	case driverErr := <-driverDone:
 		return errors.Join(driverErr, runErr)

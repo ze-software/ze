@@ -24,10 +24,12 @@
 
 
 stdin=ze-conf:terminator=EOF_CONF
-plugin {
-	external rsvpte-bw {
-		run "le test fixture rsvpte/rsvpte-bandwidth"
-		encoder json
+bus {
+	endpoint rsvpte-bw {
+		external {
+			run "le test fixture rsvpte/rsvpte-bandwidth";
+		}
+		encoding json;
 	}
 }
 

@@ -41,17 +41,19 @@ environment {
 		}
 	}
 }
-plugin {
+bus {
+	endpoint bgp-bmp {
+		external {
+			run "ze plugin bgp-bmp";
+		}
+		encoding json;
+	}
 	hub {
 		server local {
 			ip 127.0.0.1;
 			port 0;
 			secret bmp-locrib-refusal-test-0123456789;
 		}
-	}
-	external bgp-bmp {
-		run "ze plugin bgp-bmp"
-		encoder json
 	}
 }
 

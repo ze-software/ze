@@ -14,10 +14,12 @@ option=netns-link:name=ptmp0:address=10.0.0.1/24
 
 
 stdin=ze-conf:terminator=EOF_CONF
-plugin {
-	external ospf-ptmp {
-		run "le test fixture ospf/ospf-ptmp"
-		encoder json
+bus {
+	endpoint ospf-ptmp {
+		external {
+			run "le test fixture ospf/ospf-ptmp";
+		}
+		encoding json;
 	}
 }
 

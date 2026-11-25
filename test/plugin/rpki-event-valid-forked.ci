@@ -16,24 +16,27 @@ expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
 EOF_PEER
 
 stdin=ze-bgp:terminator=EOF_CONF
-plugin {
+bus {
+	endpoint adj-rib-in {
+		internal bgp-adj-rib-in;
+	}
+	endpoint rpki-event-test {
+		external {
+			run "le test fixture plugin/rpki-event-valid";
+		}
+		encoding json;
+	}
+	endpoint rpki {
+		internal bgp-rpki;
+		process separate;
+		encoding json;
+	}
 	hub {
 		server local {
 			ip 127.0.0.1;
 			port 0;
 			secret rpki-test-secret-key-01234567890;
 		}
-	}
-	external rpki-event-test {
-		run "le test fixture plugin/rpki-event-valid"
-		encoder json
-	}
-	external rpki {
-		run "ze plugin bgp-rpki"
-		encoder json
-	}
-	internal adj-rib-in {
-		use bgp-adj-rib-in
 	}
 }
 
@@ -69,15 +72,6 @@ bgp {
 		}
 		behavior {
 			group-updates disable
-		}
-		attach process rpki-event-test {
-			receive [ rpki-received ]
-		}
-		attach process rpki {
-			receive [ update-received state ]
-		}
-		attach process adj-rib-in {
-			receive [ update-received state ]
 		}
 	}
 }

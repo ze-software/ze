@@ -27,10 +27,12 @@ anomaly {
 	}
 }
 
-plugin {
-	external anomaly-observe-show-test {
-		run "le test fixture plugin/anomaly-observe-show"
-		encoder json
+bus {
+	endpoint anomaly-observe-show-test {
+		external {
+			run "le test fixture plugin/anomaly-observe-show";
+		}
+		encoding json;
 	}
 }
 

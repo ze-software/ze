@@ -65,6 +65,9 @@ STAY = ("reads-prefix", "reads-raw", "v2-reads-prefix")
 
 mode = sys.argv[1]
 decl = MODES[mode]
+if os.environ.get("ZE_PLUGIN_MODE") == "declare":
+    print("#1 ze-plugin-engine:declare-registration " + json.dumps(decl, separators=(",", ":")))
+    sys.exit(0)
 host = os.environ["ZE_PLUGIN_HUB_HOST"]
 ctx = ssl.create_default_context(cadata=os.environ["ZE_PLUGIN_CA_PEM"])
 ctx.minimum_version = ssl.TLSVersion.TLSv1_3
@@ -164,15 +167,21 @@ while True:
 EOF_RUN
 
 stdin=ze-bgp:terminator=EOF_CONF
-plugin {
-	external pymatch {
-		run "./pyplug.run pattern"
+bus {
+	endpoint pymatch {
+		external {
+			run "./pyplug.run pattern";
+		}
 	}
-	external pyunmatched {
-		run "./pyplug.run pattern"
+	endpoint pyunmatched {
+		external {
+			run "./pyplug.run pattern";
+		}
 	}
-	external pyfields {
-		run "./pyplug.run pattern-tag"
+	endpoint pyfields {
+		external {
+			run "./pyplug.run pattern-tag";
+		}
 	}
 }
 bgp {

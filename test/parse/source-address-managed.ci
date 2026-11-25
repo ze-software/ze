@@ -1,7 +1,7 @@
 # Test: managed hub client with source-address parses successfully
 
 stdin=ze-bgp:terminator=EOF_CONF
-plugin {
+bus {
     hub {
         client mgmt {
             host 10.0.0.1;

@@ -65,10 +65,12 @@ option=env:var=ze_log_ike:value=info
 
 # ── Responder daemon (REAL xfrm, engine-steps executor): 127.0.0.2 ──
 stdin=responder:terminator=EOF_RESPONDER
-plugin {
-	external engine-steps {
-		run "le mock engine-steps ./engine-steps.json"
-		encoder json
+bus {
+	endpoint engine-steps {
+		external {
+			run "le mock engine-steps ./engine-steps.json";
+		}
+		encoding json;
 	}
 }
 

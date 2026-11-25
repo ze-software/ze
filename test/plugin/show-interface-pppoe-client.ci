@@ -12,20 +12,22 @@
 # the interop checkers under internal/le/interoplab/pppoe/ own that half.
 #
 # Requires Linux and CAP_NET_ADMIN: pppoe-client is a Linux-only kind, the
-# netlink interface backend runs, and the setup creates zentk, the client's
+# kernel interface backend runs, and the setup creates zentk, the client's
 # source interface, where no access concentrator answers.
 option=needs-linux:caps=net-admin
 
 stdin=ze-conf:terminator=EOF_CONF
-plugin {
-	external show-interface-pppoe-client-test {
-		run "le test fixture plugin/show-interface-pppoe-client"
-		encoder json
+bus {
+	endpoint show-interface-pppoe-client-test {
+		external {
+			run "le test fixture plugin/show-interface-pppoe-client";
+		}
+		encoding json;
 	}
 }
 
 interface {
-	backend netlink
+	backend kernel
 	ethernet zentk {
 	}
 	pppoe-client pppoe0 {

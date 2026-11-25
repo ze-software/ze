@@ -123,7 +123,7 @@ func plugin15ObserveStarted(name string, registration *sdk.Registration, scenari
 			}()
 			return nil
 		})
-		runErr := p.Run(ctx, registration)
+		runErr := runObserver(ctx, p, registration)
 		return awaitObserverResult(started, result, runErr)
 	}
 }

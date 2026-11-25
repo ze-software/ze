@@ -75,7 +75,7 @@ func TestBoundPhysicalConnectionKeepsCapturedSession(t *testing.T) {
 	capture := &boundConnectionCapture{}
 	reactor := &Reactor{bindEvents: capture}
 	bus := testBusBlockForGrants(operatorGrant("monitor", "state negotiated", ""))
-	peer.bindProcesses(reactor, original, bus, []string{"monitor"})
+	peer.bindProcesses(reactor, original, bus, []string{"monitor"}, nil)
 	require.Len(t, capture.info, 1)
 	first := &capture.info[0]
 	require.Equal(t, original.connectionID, first.ConnectionID)
@@ -110,7 +110,7 @@ func TestBoundPhysicalConnectionKeepsCapturedSession(t *testing.T) {
 	require.Equal(t, original.connectionID, oldAgain.ConnectionID)
 	require.Equal(t, original.initialReplay.Load(), oldAgain.DestinationSession)
 	require.Empty(t, oldAgain.SelectedOwner, "a replacement's selected owner is not the old Session's")
-	peer.bindProcesses(reactor, replacement, bus, []string{"monitor"})
+	peer.bindProcesses(reactor, replacement, bus, []string{"monitor"}, nil)
 	require.Len(t, capture.info, 2)
 	second := &capture.info[1]
 	require.Equal(t, replacement.connectionID, second.ConnectionID)

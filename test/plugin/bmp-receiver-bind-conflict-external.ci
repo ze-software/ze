@@ -37,17 +37,18 @@ environment {
         server blocked { ip 127.0.0.1; port $PORT3; }
     }
 }
-plugin {
+bus {
+    endpoint bgp-bmp {
+        internal bgp-bmp;
+        process separate;
+        encoding json;
+    }
     hub {
         server local {
-            ip 127.0.0.1
-            port 0
-            secret bmp-bind-external-test-0123456789
+            ip 127.0.0.1;
+            port 0;
+            secret bmp-bind-external-test-0123456789;
         }
-    }
-    external bgp-bmp {
-        run "ze plugin bgp-bmp"
-        encoder json
     }
 }
 EOF_CONF

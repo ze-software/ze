@@ -21,10 +21,12 @@
 #   reason nobody can find.
 
 tmpfs=ze.conf:terminator=EOF_CONF
-plugin {
-	external clash-module {
-		run "le test fixture plugin/external-yang clash"
-		encoder json
+bus {
+	endpoint clash-module {
+		external {
+			run "le test fixture plugin/external-yang clash";
+		}
+		encoding json;
 	}
 }
 EOF_CONF

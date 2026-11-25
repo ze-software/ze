@@ -55,19 +55,22 @@ EOF_PEER
 # Observer: wait until both peers have synced and 10.0.0.0/24 is forwarded, then stop.
 
 stdin=ze-bgp:terminator=EOF_CONF
-plugin {
-	external bgp-filter-modify {
-		run "ze plugin bgp-filter-modify"
+bus {
+	endpoint rs {
+		internal bgp-rr;
 	}
-	internal rs {
-		use bgp-rs
+	endpoint adj-rib-in {
+		internal bgp-adj-rib-in;
 	}
-	internal adj-rib-in {
-		use bgp-adj-rib-in
+	endpoint bgp-filter-modify {
+		internal bgp-filter-modify;
+		process separate;
 	}
-	external shutdown-after-up {
-		run "le test fixture plugin/modify-increment-localpref"
-		encoder json
+	endpoint shutdown-after-up {
+		external {
+			run "le test fixture plugin/modify-increment-localpref";
+		}
+		encoding json;
 	}
 }
 policy {
@@ -113,16 +116,6 @@ bgp {
 		filter {
 			import { filters [ modify:INC-LP ]; final accept; }
 		}
-		attach process adj-rib-in {
-			receive [ update-received state ]
-		}
-		attach process rs {
-			receive [ update-received state open-received refresh ]
-			send [ update ]
-		}
-		attach process shutdown-after-up {
-			receive [ update ]
-		}
 	}
 	peer ibgp-receiver {
 		connection {
@@ -149,16 +142,6 @@ bgp {
 		}
 		behavior {
 			group-updates disable
-		}
-		attach process adj-rib-in {
-			send [ update ]
-		}
-		attach process rs {
-			receive [ update-received state open-received refresh ]
-			send [ update ]
-		}
-		attach process shutdown-after-up {
-			receive [ update ]
 		}
 	}
 }

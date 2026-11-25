@@ -1,5 +1,5 @@
-# Test: ze config completion — plugin external fields
-# VALIDATES: Plugin external container shows run, encoder, respawn, timeout
+# Test: ze config completion — bus endpoint external fields
+# VALIDATES: bus > endpoint > external container shows run, respawn, timeout, on-exit
 
 tmpfs=test.conf:terminator=EOF_CONF
 bgp {
@@ -12,9 +12,9 @@ bgp {
 }
 EOF_CONF
 
-cmd=foreground:seq=1:exec=ze config completion --context plugin/external --input set+ test.conf
+cmd=foreground:seq=1:exec=ze config completion --context bus/endpoint/ep1/external --input set+ test.conf
 expect=exit:code=0
 expect=stdout:contains=run
-expect=stdout:contains=encoder
 expect=stdout:contains=respawn
 expect=stdout:contains=timeout
+expect=stdout:contains=on-exit

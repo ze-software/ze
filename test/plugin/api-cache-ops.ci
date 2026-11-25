@@ -13,10 +13,12 @@ EOF_PEER
 
 # ze bgp configuration
 stdin=ze-bgp:terminator=EOF_CONF
-plugin {
-	external cache-ops-test {
-		run "le test fixture plugin/api-cache-ops"
-		encoder json
+bus {
+	endpoint cache-ops-test {
+		external {
+			run "le test fixture plugin/api-cache-ops";
+		}
+		encoding json;
 	}
 }
 

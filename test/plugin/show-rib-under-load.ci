@@ -74,13 +74,15 @@ EOF_PEER
 
 # ze bgp configuration
 stdin=ze-bgp:terminator=EOF_CONF
-plugin {
-	external rib-under-load-walk {
-		run "le test fixture plugin/show-rib-under-load"
-		encoder json
+bus {
+	endpoint bgp-rib {
+		internal bgp-rib;
 	}
-	internal bgp-rib {
-		use bgp-rib
+	endpoint rib-under-load-walk {
+		external {
+			run "le test fixture plugin/show-rib-under-load";
+		}
+		encoding json;
 	}
 }
 
@@ -117,10 +119,6 @@ bgp {
 			group-updates disable
 		}
 
-		attach process bgp-rib {
-			receive [ update state refresh ]
-			send [ update ]
-		}
 	}
 }
 EOF_CONF

@@ -36,21 +36,23 @@ option=needs-linux:caps=net-admin
 
 
 stdin=ze-conf:terminator=EOF_CONF
-plugin {
-	external iface-migrate {
-		run "le test fixture plugin/iface-migrate"
-		encoder json
+bus {
+	endpoint iface-migrate {
+		external {
+			run "le test fixture plugin/iface-migrate";
+		}
+		encoding json;
 	}
 }
 
 # The interface block makes the iface component run OnConfigure ->
-# iface.LoadBackend("netlink"), so the imperative ze-iface:* verbs and
-# iface.MigrateInterface have an active netlink backend. Without it every verb
+# iface.LoadBackend("kernel"), so the imperative ze-iface:* verbs and
+# iface.MigrateInterface have an active kernel backend. Without it every verb
 # returns "iface: no backend loaded". No interface is declared, so applyConfig's
 # managed set is empty and it creates nothing; zemig0 is built by the verbs and
 # zemig1 by the migration under test.
 interface {
-	backend netlink
+	backend kernel
 }
 
 bgp {

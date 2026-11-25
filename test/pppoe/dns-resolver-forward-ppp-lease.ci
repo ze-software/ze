@@ -61,15 +61,17 @@ service {
 	}
 }
 
-plugin {
-	external dns-resolver-forward-ppp-lease-test {
-		run "le test fixture pppoe/dns-resolver-forward-ppp-lease"
-		encoder json
+bus {
+	endpoint dns-resolver-forward-ppp-lease-test {
+		external {
+			run "le test fixture pppoe/dns-resolver-forward-ppp-lease";
+		}
+		encoding json;
 	}
 }
 
 interface {
-	backend netlink
+	backend kernel
 	ethernet zecpe0 {
 	}
 	pppoe-client zedns1 {

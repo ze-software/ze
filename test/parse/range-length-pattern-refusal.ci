@@ -10,8 +10,8 @@
 # Leaves:
 #   ospf interfaces interface <name> cost, `uint16 { range "1..65535"; }`
 #     (internal/plugins/ospf/yang/ze-ospf-conf.yang).
-#   exabgp bridge process <name> run, `string { length "1..4096"; }`
-#     (internal/plugins/exabgp/bridgeplugin/yang/ze-exabgp-bridge-conf.yang).
+#   bgp peer <name> capture directory, `string { length "1..4096"; }`
+#     (internal/component/bgp/yang/ze-bgp-conf.yang).
 #   l2tp shaper default-rate, typedef zt:rate (pattern, no ze:help, description
 #     "Traffic rate string (for example 10mbit, 100kbit, 1gbps)")
 #     (internal/component/l2tp/plugins/shaper/yang/ze-l2tp-shaper-conf.yang,
@@ -22,7 +22,7 @@
 # text, fileFix and framedRefusal for the fix.
 #
 # VALIDATES: spec-config-enum-refusal-proposes-valid-values AC-35 (cost 0 and
-#   cost 70000 past the width, file and set form), AC-36 (run ""), AC-37
+#   cost 70000 past the width, file and set form), AC-36 (directory ""), AC-37
 #   (default-rate fast: the format text, no regular expression).
 # PREVENTS: `outside range`, `outside allowed`, `does not match`, the regular
 #   expression in the output, or a refusal with no fix line.
@@ -66,15 +66,15 @@ set ospf router-id 10.0.0.1
 set ospf interfaces interface eth0 cost 0
 EOF_COSTSET
 
-stdin=runempty:terminator=EOF_RUNEMPTY
-exabgp {
-	bridge {
-		process p1 {
-			run ""
+stdin=dirempty:terminator=EOF_DIREMPTY
+bgp {
+	peer p1 {
+		capture {
+			directory ""
 		}
 	}
 }
-EOF_RUNEMPTY
+EOF_DIREMPTY
 
 stdin=ratefast:terminator=EOF_RATEFAST
 l2tp {
@@ -107,9 +107,9 @@ expect=stdout:contains=line 2: ospf interfaces interface eth0 cost: "0" is outsi
 expect=stdout:contains=fix: set ospf interfaces interface eth0 cost <1..65535>
 reject=stdout:contains=invalid value for
 
-cmd=foreground:seq=4:exec=ze config validate -:stdin=runempty
+cmd=foreground:seq=4:exec=ze config validate -:stdin=dirempty
 expect=exit:code=1
-expect=stdout:pattern=line 4: exabgp bridge process p1 run: "" is outside the accepted length \(0 characters\)\n *run accepts 1\.\.4096 characters\n *fix: run <1\.\.4096 characters>;
+expect=stdout:pattern=line 4: bgp peer p1 capture directory: "" is outside the accepted length \(0 characters\)\n *directory accepts 1\.\.4096 characters\n *fix: directory <1\.\.4096 characters>;
 reject=stdout:contains=outside allowed
 reject=stdout:contains=length must be
 

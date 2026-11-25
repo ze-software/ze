@@ -610,7 +610,7 @@ func plugin15SummaryFormat(ctx context.Context, _ []string) error {
 		})
 		return nil
 	})
-	runErr := p.Run(ctx, &sdk.Registration{
+	runErr := runObserver(ctx, p, &sdk.Registration{
 		Receives: bgpReceiveDecls([]string{eventUpdate}, nil),
 	})
 	if timer != nil {

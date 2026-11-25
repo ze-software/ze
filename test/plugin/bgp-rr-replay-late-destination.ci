@@ -22,8 +22,9 @@
 # With the replay judged on adj-rib-in's own grant (the defect), conn=2 seq=1
 # never arrives and the client fails with that expectation unmet.
 
-# The await fence below is the reflector's Info line for each End-of-RIB.
+# The await fence below is the reactor's sent EOR line.
 option=env:var=ze.log.bgp.rr:value=info
+option=env:var=ze.log.bgp.routes:value=debug
 
 stdin=source:terminator=EOF_SOURCE
 option=tcp_connections:value=1
@@ -56,12 +57,17 @@ expect=bgp:conn=2:seq=1:announced=180A0000
 EOF_CLIENT
 
 stdin=ze-bgp:terminator=EOF_CONF
-plugin {
-	internal relay {
-		use bgp-rr
+bus {
+	endpoint relay {
+		internal bgp-rr;
 	}
-	internal adj-rib-in {
-		use bgp-adj-rib-in
+	endpoint adj-rib-in {
+		internal bgp-adj-rib-in;
+		send {
+			message bgp:update {
+				to none;
+			}
+		}
 	}
 }
 
@@ -79,14 +85,6 @@ bgp {
 			capability { graceful-restart disable; }
 		}
 		behavior { group-updates disable; }
-
-		attach process relay {
-			receive [ update-received state open-received ]
-			send [ update ]
-		}
-		attach process adj-rib-in {
-			receive [ update-received state ]
-		}
 	}
 
 	peer client {
@@ -103,14 +101,6 @@ bgp {
 		}
 		behavior { group-updates disable; }
 		timer { connect-retry 5; }
-
-		attach process relay {
-			receive [ update-received state open-received ]
-			send [ update ]
-		}
-		attach process adj-rib-in {
-			receive [ update-received state ]
-		}
 	}
 }
 EOF_CONF

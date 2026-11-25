@@ -24,8 +24,10 @@ import (
 	"github.com/ze-software/ze/internal/component/bgp/message"
 	"github.com/ze-software/ze/internal/component/bgp/rib"
 	"github.com/ze-software/ze/internal/component/plugin"
+	pluginserver "github.com/ze-software/ze/internal/component/plugin/server"
 	"github.com/ze-software/ze/internal/core/bgp/asn"
 	"github.com/ze-software/ze/internal/core/bgp/capability"
+	bgpevents "github.com/ze-software/ze/internal/core/bgp/events"
 	"github.com/ze-software/ze/internal/core/configorder"
 	"github.com/ze-software/ze/internal/core/selector"
 	"github.com/ze-software/ze/internal/core/textbuf"
@@ -1127,6 +1129,7 @@ func (a *reactorAPIAdapter) reconcilePeersJournaled(newPeers []*PeerSettings, gl
 	if err := r.resolveDisseminationSettings(newPeers, groups); err != nil {
 		return err
 	}
+	beforeGraph := r.DeliveryGraph()
 
 	// RFC 4271 Section 4.2: the global BGP Identifier the reactor reports.
 	if err := a.applyGlobalsJournaled(globals, j); err != nil {
@@ -1146,6 +1149,12 @@ func (a *reactorAPIAdapter) reconcilePeersJournaled(newPeers []*PeerSettings, gl
 	newPeerSettings := make(map[netip.AddrPort]*PeerSettings)
 	for _, p := range newPeers {
 		newPeerSettings[p.PeerKey()] = p
+	}
+	var afterGraph *pluginserver.DeliveryGraph
+	if r.api != nil && r.deliveryPublished {
+		if preview, err := r.api.PreviewDeliveryGraph(bgpevents.Namespace, deliveryPeersFromSettings(newPeers)); err == nil {
+			afterGraph = preview
+		}
 	}
 
 	// Get current peer addresses and settings snapshot. The session goes with the
@@ -1246,8 +1255,22 @@ func (a *reactorAPIAdapter) reconcilePeersJournaled(newPeers []*PeerSettings, gl
 		}
 		// Equal settings are not yet an unchanged peer: a plugin capability the
 		// running OPEN carried may have changed in the injector store, which no
-		// PeerSettings field holds (Session.pluginCapabilitiesKept).
-		if peerSettingsEqual(currentPeers[key], newSettings) && currentSessions[key].pluginCapabilitiesKept() {
+		// PeerSettings field holds (Session.pluginCapabilitiesKept), or a central
+		// bus > endpoint filter edit may have changed this peer's effective edges.
+		effDiff := diffEffectivePeerEdges(beforeGraph, afterGraph, key.Addr().String())
+		if !effDiff.changed && peerSettingsEqual(currentPeers[key], newSettings) && currentSessions[key].pluginCapabilitiesKept() {
+			continue
+		}
+		if effDiff.changed && !effectiveBusDeliverable(&effDiff, currentSessions[key]) {
+			if session := currentSessions[key]; session != nil && bfdStrictConfigChanged(currentPeers[key], newSettings) {
+				session.raiseBFDStrictConfigChanged()
+			}
+			toRemove = append(toRemove, key)
+			restarted[key] = true
+			toAdd = append(toAdd, newSettings)
+			if r.peersStarted {
+				reactorLogger().Info("peer restart required", "phase", label, "peer", key, "changed", "Bus")
+			}
 			continue
 		}
 		// A change the running session can take applies WITHOUT a restart: the
@@ -1270,10 +1293,17 @@ func (a *reactorAPIAdapter) reconcilePeersJournaled(newPeers []*PeerSettings, gl
 			toRemove = append(toRemove, key)
 			restarted[key] = true
 			toAdd = append(toAdd, newSettings)
-			reactorLogger().Info("peer restart required", "phase", label, "peer", key, "changed", reason)
+			if r.peersStarted {
+				reactorLogger().Info("peer restart required", "phase", label, "peer", key, "changed", reason)
+			}
 			continue
 		}
-		toSwap = append(toSwap, peerSettingsSwap{key: key, next: newSettings, apply: apply})
+		swapEntry := peerSettingsSwap{key: key, next: newSettings, apply: apply}
+		if effDiff.changed {
+			diffCopy := effDiff
+			swapEntry.effBusDiff = &diffCopy
+		}
+		toSwap = append(toSwap, swapEntry)
 		reactorLogger().Debug("peer settings swapped in place", "phase", label, "peer", key)
 	}
 

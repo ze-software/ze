@@ -30,13 +30,15 @@ EOF_PEER
 
 # ze bgp configuration
 stdin=ze-bgp:terminator=EOF_CONF
-plugin {
-	external pipe-test {
-		run "le test fixture plugin/rib-pipe-filter"
-		encoder json
+bus {
+	endpoint bgp-rib {
+		internal bgp-rib;
 	}
-	internal bgp-rib {
-		use bgp-rib
+	endpoint pipe-test {
+		external {
+			run "le test fixture plugin/rib-pipe-filter";
+		}
+		encoding json;
 	}
 }
 
@@ -80,14 +82,7 @@ bgp {
 			}
 		}
 
-		attach process bgp-rib {
-			receive [ update update-received state refresh ]
-			send [ update ]
-		}
 
-		attach process pipe-test {
-			send [ update ]
-		}
 	}
 }
 EOF_CONF

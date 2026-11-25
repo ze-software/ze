@@ -55,12 +55,16 @@ say OK: both internal peers received API fences after their inputs reached Adj-R
 STAGES
 
 stdin=config:terminator=CONFIG
-plugin {
- internal adj-rib-in { use bgp-adj-rib-in; }
- external ac26-api {
-  run "le test fixture reload/live-stages ac26-stages.script";
-  encoder json;
- }
+bus {
+  endpoint adj-rib-in {
+    internal bgp-adj-rib-in;
+  }
+  endpoint ac26-api {
+    external {
+      run "le test fixture reload/live-stages ac26-stages.script";
+    }
+    encoding json;
+  }
 }
 bgp {
  router-id 192.0.2.254;
@@ -69,16 +73,12 @@ bgp {
   session { asn { local 65000; remote 65000; } family { ipv4/unicast { prefix { maximum 100; } } } capability { graceful-restart disable; } }
   behavior { group-updates disable; }
   filter { import { final accept; } export { final accept; } }
-  attach process adj-rib-in { receive [ update-received state ]; }
-  attach process ac26-api { send [ update ]; }
  }
  peer destination {
   connection { local { ip 127.0.0.1; accept false; } remote { ip 127.0.0.3; } }
   session { asn { local 65000; remote 65000; } family { ipv4/unicast { prefix { maximum 100; } } } capability { graceful-restart disable; } }
   behavior { group-updates disable; }
   filter { import { final accept; } export { final accept; } }
-  attach process adj-rib-in { receive [ update-received state ]; }
-  attach process ac26-api { send [ update ]; }
  }
 }
 CONFIG

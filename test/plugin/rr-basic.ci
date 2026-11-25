@@ -26,16 +26,18 @@ EOF_PEER
 # Native observer fixture: plugin/rr-basic.
 
 stdin=ze-bgp:terminator=EOF_CONF
-plugin {
-	external rr-test {
-		run "le test fixture plugin/rr-basic"
-		encoder json
+bus {
+	endpoint bgp-rib {
+		internal bgp-rib;
 	}
-	internal bgp-rib {
-		use bgp-rib
+	endpoint rib {
+		internal rib;
 	}
-	internal rib {
-		use rib
+	endpoint rr-test {
+		external {
+			run "le test fixture plugin/rr-basic";
+		}
+		encoding json;
 	}
 }
 bgp {
@@ -65,10 +67,6 @@ bgp {
 			}
 		}
 
-		attach process bgp-rib {
-			receive [ update state refresh ]
-			send [ update ]
-		}
 	}
 }
 EOF_CONF

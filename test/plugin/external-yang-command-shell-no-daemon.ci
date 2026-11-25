@@ -44,10 +44,12 @@ exec le test fixture plugin/external-yang commands
 EOF_RUN
 
 tmpfs=ze.conf:terminator=EOF_CONF
-plugin {
-	external acme-monitor {
-		run "sh marker.run"
-		encoder json
+bus {
+	endpoint acme-monitor {
+		external {
+			run "sh marker.run";
+		}
+		encoding json;
 	}
 }
 EOF_CONF

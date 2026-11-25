@@ -14,16 +14,18 @@ expect=bgp:conn=1:seq=2:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF002D0306021741646D69
 EOF_PEER
 
 stdin=ze-bgp:terminator=EOF_CONF
-plugin {
-	external filtered-visible-check {
-		run "le test fixture plugin/adj-rib-in-filtered-visible"
-		encoder json
+bus {
+	endpoint rib {
+		internal bgp-rib;
 	}
-	internal rib {
-		use bgp-rib
+	endpoint adj-rib-in {
+		internal bgp-adj-rib-in;
 	}
-	internal adj-rib-in {
-		use bgp-adj-rib-in
+	endpoint filtered-visible-check {
+		external {
+			run "le test fixture plugin/adj-rib-in-filtered-visible";
+		}
+		encoding json;
 	}
 }
 telemetry {
@@ -53,12 +55,6 @@ bgp {
 			capability { graceful-restart disable; }
 		}
 		behavior { group-updates disable; }
-		attach process rib {
-			receive [ update-received state ]
-		}
-		attach process adj-rib-in {
-			receive [ update-received update-filtered-received state ]
-		}
 	}
 }
 EOF_CONF

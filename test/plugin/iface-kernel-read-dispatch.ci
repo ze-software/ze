@@ -7,7 +7,7 @@
 # dispatch correctly.
 # PREVENTS: a rename that leaves a command unregistered or a malformed grammar.
 #
-# Backend-free by design: no `interface {}` block, so the netlink backend is not
+# Backend-free by design: no `interface {}` block, so the kernel backend is not
 # loaded and the live reads return a graceful "no backend loaded" error. Wiring
 # is the assertion, so this is deterministic on every OS -- no QEMU needed.
 # Invalid args (bad family, non-numeric limit) are rejected upstream by the YANG
@@ -15,10 +15,12 @@
 
 
 stdin=ze-conf:terminator=EOF_CONF
-plugin {
-	external iface-kernel-read-test {
-		run "le test fixture plugin/iface-kernel-read-dispatch"
-		encoder json
+bus {
+	endpoint iface-kernel-read-test {
+		external {
+			run "le test fixture plugin/iface-kernel-read-dispatch";
+		}
+		encoding json;
 	}
 }
 

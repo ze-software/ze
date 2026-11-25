@@ -63,10 +63,12 @@ option=timeout:value=90s
 option=env:var=ze_log_ike:value=info
 
 stdin=daemon:terminator=EOF_DAEMON
-plugin {
-	external engine-steps {
-		run "le mock engine-steps ./engine-steps.json"
-		encoder json
+bus {
+	endpoint engine-steps {
+		external {
+			run "le mock engine-steps ./engine-steps.json";
+		}
+		encoding json;
 	}
 }
 

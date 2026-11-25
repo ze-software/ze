@@ -26,16 +26,18 @@ EOF_PEER
 # Native observer checks peer detail and the learned RIB route.
 
 stdin=ze-bgp:terminator=EOF_CONF
-plugin {
-	external nh-test {
-		run "le test fixture plugin/nexthop-unchanged"
-		encoder json
+bus {
+	endpoint bgp-rib {
+		internal bgp-rib;
 	}
-	internal bgp-rib {
-		use bgp-rib
+	endpoint rib {
+		internal rib;
 	}
-	internal rib {
-		use rib
+	endpoint nh-test {
+		external {
+			run "le test fixture plugin/nexthop-unchanged";
+		}
+		encoding json;
 	}
 }
 bgp {
@@ -66,10 +68,6 @@ bgp {
 			export { filters [ next-hop:unchanged ]; final accept; }
 		}
 
-		attach process bgp-rib {
-			receive [ update state refresh ]
-			send [ update ]
-		}
 	}
 }
 EOF_CONF

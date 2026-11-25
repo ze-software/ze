@@ -21,16 +21,18 @@ EOF_PEER
 
 
 stdin=ze-bgp:terminator=EOF_CONF
-plugin {
-	external fib-recursive-test {
-		run "le test fixture plugin/fib-recursive"
-		encoder json
+bus {
+	endpoint bgp-rib {
+		internal bgp-rib;
 	}
-	internal bgp-rib {
-		use bgp-rib
+	endpoint rib {
+		internal rib;
 	}
-	internal rib {
-		use rib
+	endpoint fib-recursive-test {
+		external {
+			run "le test fixture plugin/fib-recursive";
+		}
+		encoding json;
 	}
 }
 
@@ -62,10 +64,6 @@ bgp {
 			group-updates disable
 		}
 
-		attach process bgp-rib {
-			receive [ update state refresh ]
-			send [ update ]
-		}
 	}
 }
 EOF_CONF

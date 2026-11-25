@@ -525,7 +525,10 @@ func (s *Server) reloadConfig(ctx context.Context, newTree map[string]any, candi
 
 	if len(affected) == 0 {
 		recordReloadCompensation(ctx, running, newTree, nil, created)
+		prevBusCfg := s.BusConfig()
+		s.SetBusConfig(busCfg)
 		if err := s.reactor.ApplyConfigDiff(newTree); err != nil {
+			s.SetBusConfig(prevBusCfg)
 			return errors.Join(fmt.Errorf("reactor config apply: %w", err), s.compensateReload(ctx))
 		}
 		// No plugins care about these changes. Recompute orphan ownership after
@@ -545,7 +548,6 @@ func (s *Server) reloadConfig(ctx context.Context, newTree map[string]any, candi
 		if hasSelection {
 			s.setRunningSelection(candidateSelection, true)
 		}
-		s.SetBusConfig(busCfg)
 		s.RefreshDeliveryGraph()
 		return nil
 	}
@@ -600,7 +602,10 @@ func (s *Server) reloadConfig(ctx context.Context, newTree map[string]any, candi
 		}
 	}
 
+	prevBusCfg := s.BusConfig()
+	s.SetBusConfig(busCfg)
 	if err := s.reactor.ApplyConfigDiff(newTree); err != nil {
+		s.SetBusConfig(prevBusCfg)
 		return errors.Join(fmt.Errorf("reactor config apply: %w", err), s.compensateReload(ctx))
 	}
 	// Update running config tree after the orchestrator commits. Plugins
@@ -611,7 +616,6 @@ func (s *Server) reloadConfig(ctx context.Context, newTree map[string]any, candi
 	if hasSelection {
 		s.setRunningSelection(candidateSelection, true)
 	}
-	s.SetBusConfig(busCfg)
 	s.RefreshDeliveryGraph()
 	logger().Info("config reload completed")
 	return nil

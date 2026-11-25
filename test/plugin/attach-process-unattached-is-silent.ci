@@ -26,14 +26,21 @@ EOF_PEER
 # fed nothing at all.
 
 stdin=ze-bgp:terminator=EOF_CONF
-plugin {
-	external unattached-served {
-		run "le test fixture plugin/attach-process-unattached-served"
-		encoder json
+bus {
+	endpoint unattached-served {
+		external {
+			run "le test fixture plugin/attach-process-unattached-served";
+		}
+		encoding json;
 	}
-	external unattached-silent {
-		run "le test fixture plugin/attach-process-unattached-silent"
-		encoder json
+	endpoint unattached-silent {
+		external {
+			run "le test fixture plugin/attach-process-unattached-silent";
+		}
+		encoding json;
+		receive {
+			from none;
+		}
 	}
 }
 
@@ -68,9 +75,6 @@ bgp {
 		}
 		behavior {
 			group-updates disable
-		}
-		attach process unattached-served {
-			receive [ update state ]
 		}
 	}
 }

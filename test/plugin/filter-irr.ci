@@ -56,10 +56,12 @@ EOF_PEER
 
 # ze configuration with mock IRR server and IRR filter
 stdin=ze-bgp:terminator=EOF_CONF
-plugin {
-	external test-filter-irr {
-		run "le test fixture plugin/filter-irr"
-		encoder json
+bus {
+	endpoint test-filter-irr {
+		external {
+			run "le test fixture plugin/filter-irr";
+		}
+		encoding json;
 	}
 }
 system {
@@ -99,9 +101,6 @@ bgp {
 			import { filters [ bgp-filter-irr:65001 ]; final accept; }
 		}
 
-		attach process test-filter-irr {
-			receive [ update state ]
-		}
 	}
 }
 EOF_CONF

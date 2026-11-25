@@ -17,20 +17,22 @@ EOF_PEER
 
 # No RPKI plugin loaded -- only adj-rib-in
 stdin=ze-bgp:terminator=EOF_CONF
-plugin {
+bus {
+	endpoint adj-rib-in {
+		internal bgp-adj-rib-in;
+	}
+	endpoint rpki-passthrough-test {
+		external {
+			run "le test fixture plugin/rpki-passthrough";
+		}
+		encoding json;
+	}
 	hub {
 		server local {
 			ip 127.0.0.1;
 			port 0;
 			secret rpki-test-secret-key-01234567890;
 		}
-	}
-	external rpki-passthrough-test {
-		run "le test fixture plugin/rpki-passthrough"
-		encoder json
-	}
-	internal adj-rib-in {
-		use bgp-adj-rib-in
 	}
 }
 
@@ -62,9 +64,6 @@ bgp {
 			group-updates disable
 		}
 
-		attach process adj-rib-in {
-			receive [ update-received state ]
-		}
 	}
 }
 EOF_CONF

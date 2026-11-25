@@ -17,10 +17,12 @@ EOF_PEER
 
 # ze bgp configuration
 stdin=ze-bgp:terminator=EOF_CONF
-plugin {
-	external cursor-test {
-		run "le test fixture plugin/cursor-replay"
-		encoder json
+bus {
+	endpoint cursor-test {
+		external {
+			run "le test fixture plugin/cursor-replay";
+		}
+		encoding json;
 	}
 }
 bgp {
@@ -51,9 +53,6 @@ bgp {
 			group-updates disable
 		}
 
-		attach process cursor-test {
-			send [ update ]
-		}
 	}
 }
 EOF_CONF

@@ -65,13 +65,15 @@ EOF_BAD_BODY
 
 # ze bgp configuration with LG enabled
 stdin=ze-bgp:terminator=EOF_CONF
-plugin {
-	external lg-ui-pages {
-		run "le test fixture plugin/lg-ui-pages"
-		encoder json
+bus {
+	endpoint bgp-rib {
+		internal bgp-rib;
 	}
-	internal bgp-rib {
-		use bgp-rib
+	endpoint lg-ui-pages {
+		external {
+			run "le test fixture plugin/lg-ui-pages";
+		}
+		encoding json;
 	}
 }
 
@@ -118,10 +120,6 @@ bgp {
 			group-updates disable
 		}
 
-		attach process bgp-rib {
-			receive [ update state refresh ]
-			send [ update ]
-		}
 	}
 }
 EOF_CONF

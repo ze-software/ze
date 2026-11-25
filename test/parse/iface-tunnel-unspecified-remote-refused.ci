@@ -15,12 +15,12 @@
 #   seq=1 a sit tunnel with a specific remote loads (the accepted counterpart,
 #         so the refusals below cannot all pass against a verifier that refuses
 #         every tunnel);
-#   seq=2 sit, remote ip 0.0.0.0, backend netlink: refused, naming the address,
+#   seq=2 sit, remote ip 0.0.0.0, backend kernel: refused, naming the address,
 #         the reason and the set command;
-#   seq=3 ip6tnl, remote ip ::, backend netlink: refused the same way;
+#   seq=3 ip6tnl, remote ip ::, backend kernel: refused the same way;
 #   seq=4 gre, remote ip 0.0.0.0, backend vpp: refused the same way, so the
 #         refusal does not depend on the backend.
-# PREVENTS: a config that commits and fails only when the netlink backend
+# PREVENTS: a config that commits and fails only when the kernel backend
 #   applies it (the refusal used to live in parseTunnelRemote alone), and a
 #   VPP tunnel to the unspecified address, which the VPP backend accepted.
 #
@@ -33,7 +33,7 @@
 
 stdin=accepted:terminator=EOF_ACCEPTED
 interface {
-	backend netlink;
+	backend kernel;
 	tunnel sit0 {
 		encapsulation {
 			sit {
@@ -47,7 +47,7 @@ EOF_ACCEPTED
 
 stdin=sit:terminator=EOF_SIT
 interface {
-	backend netlink;
+	backend kernel;
 	tunnel sit0 {
 		encapsulation {
 			sit {
@@ -61,7 +61,7 @@ EOF_SIT
 
 stdin=ip6tnl:terminator=EOF_IP6TNL
 interface {
-	backend netlink;
+	backend kernel;
 	tunnel tnl6 {
 		encapsulation {
 			ip6tnl {

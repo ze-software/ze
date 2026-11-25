@@ -5,14 +5,18 @@
 # A selected long-answer row must also retain the warning label and transcript.
 
 stdin=ze-conf:terminator=EOF_CONF
-plugin {
-    external answer-outcome-provider {
-        run "le test fixture plugin/command-outcome-provider"
-        encoder json
+bus {
+    endpoint answer-outcome-provider {
+        external {
+            run "le test fixture plugin/command-outcome-provider";
+        }
+        encoding json;
     }
-    external answer-outcome-observer {
-        run "le test fixture plugin/command-outcome-cli $PORT warning"
-        encoder json
+    endpoint answer-outcome-observer {
+        external {
+            run "le test fixture plugin/command-outcome-cli $PORT warning";
+        }
+        encoding json;
     }
 }
 system {

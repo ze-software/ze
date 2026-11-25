@@ -112,13 +112,24 @@ EOF_SEED
 # the mixed UPDATE ahead of it was already decided, then count what each client was sent.
 
 stdin=ze-bgp:terminator=EOF_CONF
-plugin {
-	internal rs {
-		use bgp-rs
+bus {
+	endpoint bgp-rib {
+		internal bgp-rib;
+		receive {
+			allow none;
+		}
+		send {
+			allow none;
+		}
 	}
-	external rs-community-withdraw {
-		run "le test fixture plugin/bgp-rs-control-community-withdraw-egress"
-		encoder json
+	endpoint rs {
+		internal bgp-rs;
+	}
+	endpoint rs-community-withdraw {
+		external {
+			run "le test fixture plugin/bgp-rs-control-community-withdraw-egress";
+		}
+		encoding json;
 	}
 }
 bgp {
@@ -159,14 +170,8 @@ bgp {
 			rs-fast-path enable
 		}
 		# The observer may send readiness markers only to the source.
-		attach process rs-community-withdraw {
-			send [ update ]
-		}
 		# The fast path relays a source's UPDATE only when the source grants the
 		# route-server relay its received UPDATEs, as the cached rail does.
-		attach process rs {
-			receive [ update-received state ]
-		}
 	}
 
 	peer excluded-client {
@@ -201,10 +206,6 @@ bgp {
 		}
 		# The fast path forwards only to a destination that lets the
 		# route-server relay send it UPDATEs.
-		attach process rs {
-			receive [ state open-received refresh ]
-			send [ update ]
-		}
 	}
 
 	peer included-client {
@@ -233,10 +234,6 @@ bgp {
 		}
 		behavior {
 			group-updates disable
-		}
-		attach process rs {
-			receive [ state open-received refresh ]
-			send [ update ]
 		}
 	}
 }

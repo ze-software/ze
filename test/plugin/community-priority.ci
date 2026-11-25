@@ -33,13 +33,18 @@ EOF_PEER
 
 # ze configuration: role + community filter both active
 stdin=ze-bgp:terminator=EOF_CONF
-plugin {
-	external test-priority {
-		run "le test fixture plugin/community-priority"
-		encoder json
+bus {
+	endpoint bgp-rib {
+		internal bgp-rib;
 	}
-	internal bgp-rib {
-		use bgp-rib
+	endpoint test-priority {
+		external {
+			run "le test fixture plugin/community-priority";
+		}
+		encoding json;
+	}
+	endpoint bgp-adj-rib-in {
+		internal bgp-adj-rib-in;
 	}
 }
 bgp {
@@ -89,13 +94,6 @@ bgp {
 					tag priority-mark
 				}
 			}
-		}
-		attach process bgp-rib {
-			receive [ update state refresh ]
-			send [ update ]
-		}
-		attach process bgp-adj-rib-in {
-			receive [ update-received state ]
 		}
 	}
 }

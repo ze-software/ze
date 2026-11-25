@@ -40,7 +40,7 @@
 # node -> proxy -> ForwardToPlugin hop), a proxy that re-dispatches into
 # recursion, or a payload whose top-level key drifts from the CLI contract.
 #
-# option=needs-linux: the daemon runs the interface plugin's netlink backend,
+# option=needs-linux: the daemon runs the interface plugin's kernel backend,
 # which needs Linux (on darwin it fails config apply and the daemon never boots).
 #
 # The observer is spawned as a BGP peer `process` (with a ze-peer connection),
@@ -63,15 +63,17 @@ EOF_PEER
 
 
 stdin=ze-bgp:terminator=EOF_CONF
-plugin {
-	external vrrp-show {
-		run "le test fixture vrrp/vrrp-show"
-		encoder json
+bus {
+	endpoint vrrp-show {
+		external {
+			run "le test fixture vrrp/vrrp-show";
+		}
+		encoding json;
 	}
 }
 
 interface {
-	backend netlink;
+	backend kernel;
 }
 
 bgp {

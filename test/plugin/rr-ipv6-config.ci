@@ -46,10 +46,12 @@ EOF_PEER
 # Native observer fixture: plugin/rr-ipv6-config.
 
 stdin=ze-bgp:terminator=EOF_CONF
-plugin {
-	external rr-ipv6-test {
-		run "le test fixture plugin/rr-ipv6-config"
-		encoder json
+bus {
+	endpoint rr-ipv6-test {
+		external {
+			run "le test fixture plugin/rr-ipv6-config";
+		}
+		encoding json;
 	}
 }
 bgp {

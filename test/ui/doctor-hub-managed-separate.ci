@@ -11,7 +11,7 @@
 # The positive half is doctor-hub-managed-collision.ci.
 
 tmpfs=hub-separate.conf:terminator=EOF_SEPARATE
-plugin {
+bus {
     hub {
         server local {
             ip 127.0.0.1;

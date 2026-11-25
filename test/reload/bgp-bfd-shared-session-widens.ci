@@ -60,10 +60,12 @@ expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
 EOF_PEER
 
 stdin=ze-bgp:terminator=EOF_CONF
-plugin {
-	external live-stages {
-		run "le test fixture reload/live-stages stages.script"
-		encoder json
+bus {
+	endpoint live-stages {
+		external {
+			run "le test fixture reload/live-stages stages.script";
+		}
+		encoding json;
 	}
 }
 
@@ -108,10 +110,12 @@ EOF_CONF
 
 # First reload: the peer gains the opt-in (client A).
 tmpfs=config2.conf:terminator=EOF_CONF2
-plugin {
-	external live-stages {
-		run "le test fixture reload/live-stages stages.script"
-		encoder json
+bus {
+	endpoint live-stages {
+		external {
+			run "le test fixture reload/live-stages stages.script";
+		}
+		encoding json;
 	}
 }
 
@@ -161,10 +165,12 @@ EOF_CONF2
 
 # Second reload: client B pinned to local 127.0.0.1 joins.
 tmpfs=config3.conf:terminator=EOF_CONF3
-plugin {
-	external live-stages {
-		run "le test fixture reload/live-stages stages.script"
-		encoder json
+bus {
+	endpoint live-stages {
+		external {
+			run "le test fixture reload/live-stages stages.script";
+		}
+		encoding json;
 	}
 }
 
@@ -219,10 +225,12 @@ EOF_CONF3
 
 # Third reload: client B removed.
 tmpfs=config4.conf:terminator=EOF_CONF4
-plugin {
-	external live-stages {
-		run "le test fixture reload/live-stages stages.script"
-		encoder json
+bus {
+	endpoint live-stages {
+		external {
+			run "le test fixture reload/live-stages stages.script";
+		}
+		encoding json;
 	}
 }
 
@@ -272,10 +280,12 @@ EOF_CONF4
 
 # Fourth reload: client C pinned to local 127.0.0.2.
 tmpfs=config5.conf:terminator=EOF_CONF5
-plugin {
-	external live-stages {
-		run "le test fixture reload/live-stages stages.script"
-		encoder json
+bus {
+	endpoint live-stages {
+		external {
+			run "le test fixture reload/live-stages stages.script";
+		}
+		encoding json;
 	}
 }
 

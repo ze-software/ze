@@ -22,10 +22,12 @@ environment {
         }
     }
 }
-plugin {
-    external bmp-ingest {
-        run "le test fixture plugin/bmp-lg-ingest $PORT2;"
-        encoder json;
+bus {
+    endpoint bmp-ingest {
+        external {
+            run "le test fixture plugin/bmp-lg-ingest $PORT2;";
+        }
+        encoding json;
     }
 }
 bgp {

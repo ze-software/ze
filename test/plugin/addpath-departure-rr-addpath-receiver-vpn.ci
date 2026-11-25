@@ -47,11 +47,18 @@ expect=bgp:conn=1:seq=3:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF002E0200000017800F14
 EOF_RECEIVER
 
 stdin=ze-bgp:terminator=EOF_CONF
-plugin {
-    internal relay { use bgp-rr; }
-    external vpn-withdrawal {
-        run "le test fixture plugin/vpn-withdrawal-inventory rr 3"
-        encoder json
+bus {
+    endpoint relay {
+        internal bgp-rr;
+    }
+    endpoint vpn-withdrawal {
+        external {
+            run "le test fixture plugin/vpn-withdrawal-inventory rr 3";
+        }
+        encoding json;
+    }
+    endpoint bgp-rib {
+        internal bgp-rib;
     }
 }
 bgp {
@@ -74,15 +81,6 @@ bgp {
             }
         }
         behavior { group-updates disable; }
-        attach process relay {
-            receive [ update-received state open-received refresh ]
-            send [ update ]
-        }
-        attach process bgp-rib {
-            receive [ update state refresh ]
-            send [ update ]
-        }
-        attach process vpn-withdrawal { send [ update ]; }
     }
     peer receiver {
         connection {
@@ -103,14 +101,6 @@ bgp {
             }
         }
         behavior { group-updates disable; }
-        attach process relay {
-            receive [ update-received state open-received refresh ]
-            send [ update ]
-        }
-        attach process bgp-rib {
-            receive [ update state refresh ]
-            send [ update ]
-        }
     }
 }
 EOF_CONF

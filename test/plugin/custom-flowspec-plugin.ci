@@ -30,10 +30,12 @@ EOF_PEER
 # Plugin name "acme-traffic-filter" has NO relation to "flowspec"
 # Only the family declaration matters for auto-load prevention
 stdin=ze-bgp:terminator=EOF_CONF
-plugin {
-    external acme-traffic-filter {
-        run "le test fixture plugin/custom-flowspec-plugin"
-        encoder json
+bus {
+    endpoint acme-traffic-filter {
+        external {
+            run "le test fixture plugin/custom-flowspec-plugin";
+        }
+        encoding json;
     }
 }
 bgp {
@@ -60,9 +62,6 @@ bgp {
     	}
 
 
-        attach process acme-traffic-filter {
-            send [ update ]
-        }
     }
 }
 EOF_CONF

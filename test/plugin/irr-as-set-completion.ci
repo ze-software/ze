@@ -22,16 +22,20 @@ option=storage:value=disk
 option=timeout:value=60s
 
 stdin=ze-irr:terminator=EOF_CONF
-plugin {
-	external irr-as-set-completion-test {
-		run "le test fixture plugin/irr-as-set-completion"
-		encoder json
+bus {
+	endpoint irr-as-set-completion-test {
+		external {
+			run "le test fixture plugin/irr-as-set-completion";
+		}
+		encoding json;
 	}
-	external irr {
-		run "ze plugin irr"
+	endpoint irr {
+		internal irr;
+		process separate;
 	}
-	external bgp-filter-irr {
-		run "ze plugin bgp-filter-irr"
+	endpoint bgp-filter-irr {
+		internal bgp-filter-irr;
+		process separate;
 	}
 }
 system {

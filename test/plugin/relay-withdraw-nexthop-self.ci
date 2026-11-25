@@ -79,16 +79,18 @@ EOF_DEST
 # ze (ASN 65000) with two external peers on separate loopbacks. Only the DEST
 # carries `next-hop self`: rewriting toward the source would prove nothing.
 stdin=ze-bgp:terminator=EOF_CONF
-plugin {
-	internal adj-rib-in {
-		use bgp-adj-rib-in
+bus {
+	endpoint adj-rib-in {
+		internal bgp-adj-rib-in;
 	}
-	internal rs {
-		use bgp-rs
+	endpoint rs {
+		internal bgp-rs;
 	}
-	external relay-nhself {
-		run "le test fixture plugin/relay-withdraw-nexthop-self"
-		encoder json
+	endpoint relay-nhself {
+		external {
+			run "le test fixture plugin/relay-withdraw-nexthop-self";
+		}
+		encoding json;
 	}
 }
 bgp {
@@ -108,6 +110,7 @@ bgp {
 			}
 		}
 		session {
+			rs-client true;
 			asn {
 				local 65000
 				remote 65001
@@ -116,17 +119,6 @@ bgp {
 			family {
 				ipv4/unicast { prefix { maximum 10000; } }
 			}
-		}
-		attach process relay-nhself {
-			send [ update ]
-		}
-		attach process rs {
-			receive [ update-received state open-received refresh ]
-			send [ update ]
-		}
-		attach process adj-rib-in {
-			receive [ update-received state ]
-			send [ update ]
 		}
 	}
 
@@ -144,6 +136,7 @@ bgp {
 			}
 		}
 		session {
+			rs-client true;
 			asn {
 				local 65000
 				remote 65002
@@ -157,14 +150,6 @@ bgp {
 		# a NEXT_HOP operation recorded against it by applyFactsNextHop.
 		filter {
 			export { filters [ next-hop:self ]; final accept; }
-		}
-		attach process rs {
-			receive [ update-received state open-received refresh ]
-			send [ update ]
-		}
-		attach process adj-rib-in {
-			receive [ update-received state ]
-			send [ update ]
 		}
 	}
 }

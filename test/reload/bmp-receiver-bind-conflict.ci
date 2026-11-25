@@ -15,10 +15,12 @@ environment {
         server old { ip 127.0.0.1; port $PORT; }
     }
 }
-plugin {
-    external bmp-bind-observer {
-        run "le test fixture plugin/bmp-bind-reload $PORT $PORT3 $PORT2"
-        encoder json
+bus {
+    endpoint bmp-bind-observer {
+        external {
+            run "le test fixture plugin/bmp-bind-reload $PORT $PORT3 $PORT2";
+        }
+        encoding json;
     }
 }
 EOF_CONF
@@ -33,10 +35,12 @@ environment {
         server blocked { ip 127.0.0.1; port $PORT3; }
     }
 }
-plugin {
-    external bmp-bind-observer {
-        run "le test fixture plugin/bmp-bind-reload $PORT $PORT3 $PORT2"
-        encoder json
+bus {
+    endpoint bmp-bind-observer {
+        external {
+            run "le test fixture plugin/bmp-bind-reload $PORT $PORT3 $PORT2";
+        }
+        encoding json;
     }
 }
 EOF_REFUSED
@@ -51,10 +55,12 @@ environment {
         server staged { ip 127.0.0.1; port $PORT2; }
     }
 }
-plugin {
-    external bmp-bind-observer {
-        run "le test fixture plugin/bmp-bind-reload $PORT $PORT3 $PORT2"
-        encoder json
+bus {
+    endpoint bmp-bind-observer {
+        external {
+            run "le test fixture plugin/bmp-bind-reload $PORT $PORT3 $PORT2";
+        }
+        encoding json;
     }
 }
 EOF_REPAIR

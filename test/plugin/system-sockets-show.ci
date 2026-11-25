@@ -12,10 +12,12 @@ EOF_PEER
 
 
 stdin=ze-bgp:terminator=EOF_CONF
-plugin {
-	external system-sockets-show-test {
-		run "le test fixture plugin/system-sockets-show"
-		encoder json
+bus {
+	endpoint system-sockets-show-test {
+		external {
+			run "le test fixture plugin/system-sockets-show";
+		}
+		encoding json;
 	}
 }
 

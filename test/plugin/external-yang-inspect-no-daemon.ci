@@ -1,22 +1,25 @@
-# Test: with no ze running, dump, fmt, graph and diff say an external plugin's section is not available
+# Test: with no ze running, dump, fmt, graph and diff query external plugins in declare mode and fail closed when a program cannot declare
 #
-# Question: with no ze running, does each local inspection command, on a file
-# that holds a section under an external plugin's own root, refuse the section,
-# say a running ze was asked and none answered, and name one fix, without
-# starting the plugin's program?
+# Question: with no ze running, does each local inspection command (`dump`,
+# `fmt`, `graph`, `diff`), on a file declaring an external endpoint whose
+# program exits without writing a Stage 1 declaration in declare mode, fail
+# closed naming the endpoint, its `run` line, the cause, and the one conformance
+# fix, without starting the program's run loop?
 # Why not a unit test: TestInspectRouteFallsBackWhenNoZeAnswers proves the
-# fallback over a stub ask. Only the real command shows the walk to the
-# daemon's listener failing and its reason reaching the operator's refusal.
+# fallback over a stub ask. Only the real binary proves the local fallback
+# reaches `SchemaWithDeclaredPlugins` -> `QueryDeclaration` with
+# `ZE_PLUGIN_MODE=declare`, never starts the run loop, and prints the refusal.
 #
-# The program the config declares writes a marker when it is started, so a
-# command that ran it leaves the marker behind.
+# The program honors `ZE_PLUGIN_MODE=declare` by exiting 0 with no declaration
+# line, and writes `started-by-ze.marker` only if started outside declare mode
+# (the run loop).
 #
-# VALIDATES: owner ruling of 2026-11-16 for the four commands: with no daemon
-#   running, what needs an external plugin is not available, and the refusal
-#   says what is true and names one fix.
-# PREVENTS: a refusal that says no ze was asked after one was; a fix that names
-#   `ze config validate` for a command that is not validate; a program started
-#   with no daemon.
+# VALIDATES: S-3 / AC-18 of spec-explicit-plugin-and-attach-config.md for the
+#   four inspection commands when no daemon listens: query mode fails closed on
+#   a non-declaring program and never starts its run loop.
+# PREVENTS: silently accepting a config whose external plugin failed to declare;
+#   a fix that names `ze config validate` instead of `ze show plugin conformance
+#   run`; starting an external program's run loop offline.
 
 option=timeout:value=60s
 option=env:var=ze.ssh.username:value=admin
@@ -24,14 +27,19 @@ option=env:var=ze.ssh.password:value=testpass
 option=env:var=ze.ssh.port:value=$PORT
 
 tmpfs=marker.run:terminator=EOF_RUN
+if [ "$ZE_PLUGIN_MODE" = "declare" ]; then
+	exit 0
+fi
 echo started > started-by-ze.marker
 EOF_RUN
 
 tmpfs=ze.conf:terminator=EOF_CONF
-plugin {
-	external acme-shell {
-		run "sh marker.run"
-		encoder json
+bus {
+	endpoint acme-shell {
+		external {
+			run "sh marker.run";
+		}
+		encoding json;
 	}
 }
 
@@ -41,32 +49,24 @@ acme-shell {
 EOF_CONF
 
 cmd=foreground:seq=1:exec=ze config dump ze.conf:exit=1
-expect=stderr:contains=unknown top-level keyword: acme-shell
-expect=stderr:contains=the config declares external plugin "acme-shell"
-expect=stderr:contains=none answered: no ze listens at 127.0.0.1:
-expect=stderr:contains=then `ze config dump ze.conf` again
-expect=stderr:contains=fix: ze start
+expect=stderr:contains=bus endpoint "acme-shell" (run "sh marker.run"): declaration query failed: program exited without writing a Stage 1 declaration
+expect=stderr:contains=offline validation queries each declared external program in declare mode without starting its run loop
+expect=stderr:contains=fix: ze show plugin conformance run "sh marker.run"
 reject=stderr:contains=fix: ze config validate
 
 cmd=foreground:seq=2:exec=ze config fmt ze.conf:exit=2
-expect=stderr:contains=unknown top-level keyword: acme-shell
-expect=stderr:contains=none answered: no ze listens at 127.0.0.1:
-expect=stderr:contains=then `ze config fmt ze.conf` again
-expect=stderr:contains=fix: ze start
+expect=stderr:contains=bus endpoint "acme-shell" (run "sh marker.run"): declaration query failed: program exited without writing a Stage 1 declaration
+expect=stderr:contains=fix: ze show plugin conformance run "sh marker.run"
 reject=stderr:contains=fix: ze config validate
 
 cmd=foreground:seq=3:exec=ze config graph ze.conf:exit=2
-expect=stderr:contains=unknown top-level keyword: acme-shell
-expect=stderr:contains=none answered: no ze listens at 127.0.0.1:
-expect=stderr:contains=then `ze config graph ze.conf` again
-expect=stderr:contains=fix: ze start
+expect=stderr:contains=bus endpoint "acme-shell" (run "sh marker.run"): declaration query failed: program exited without writing a Stage 1 declaration
+expect=stderr:contains=fix: ze show plugin conformance run "sh marker.run"
 reject=stderr:contains=fix: ze config validate
 
 cmd=foreground:seq=4:exec=ze config diff ze.conf ze.conf:exit=2
-expect=stderr:contains=unknown top-level keyword: acme-shell
-expect=stderr:contains=none answered: no ze listens at 127.0.0.1:
-expect=stderr:contains=then `ze config diff ze.conf ze.conf` again
-expect=stderr:contains=fix: ze start
+expect=stderr:contains=bus endpoint "acme-shell" (run "sh marker.run"): declaration query failed: program exited without writing a Stage 1 declaration
+expect=stderr:contains=fix: ze show plugin conformance run "sh marker.run"
 reject=stderr:contains=fix: ze config validate
 
 cmd=foreground:seq=5:exec=ze config dump ze.conf:exit=1

@@ -61,13 +61,15 @@ EOF_PEER
 # plugin declares WantsConfig=["bgp"] at Stage 1, so it participates in
 # every bgp-root transaction.
 stdin=ze-bgp:terminator=EOF_CONF
-plugin {
-	internal bgp-watchdog {
-		use bgp-watchdog
+bus {
+	endpoint bgp-watchdog {
+		internal bgp-watchdog;
 	}
-	external tx-protocol-external-plugin-observer {
-		run "le test fixture reload/tx-protocol-external-plugin-observer"
-		encoder json
+	endpoint tx-protocol-external-plugin-observer {
+		external {
+			run "le test fixture reload/tx-protocol-external-plugin-observer";
+		}
+		encoding json;
 	}
 }
 
@@ -99,9 +101,6 @@ bgp {
 			group-updates disable
 		}
 
-		attach process bgp-watchdog {
-			receive [ state ]
-		}
 
 		update {
 			attribute {
@@ -120,13 +119,15 @@ EOF_CONF
 # Updated config: BGP router-id changed so the bgp root diffs and the
 # transaction runs at least one participant (bgp-watchdog).
 tmpfs=updated.conf:terminator=EOF_UPDATED
-plugin {
-	internal bgp-watchdog {
-		use bgp-watchdog
+bus {
+	endpoint bgp-watchdog {
+		internal bgp-watchdog;
 	}
-	external tx-protocol-external-plugin-observer {
-		run "le test fixture reload/tx-protocol-external-plugin-observer"
-		encoder json
+	endpoint tx-protocol-external-plugin-observer {
+		external {
+			run "le test fixture reload/tx-protocol-external-plugin-observer";
+		}
+		encoding json;
 	}
 }
 
@@ -158,9 +159,6 @@ bgp {
 			group-updates disable
 		}
 
-		attach process bgp-watchdog {
-			receive [ state ]
-		}
 
 		update {
 			attribute {

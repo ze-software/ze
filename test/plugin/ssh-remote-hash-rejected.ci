@@ -35,10 +35,12 @@ environment {
 		server lan { ip 0.0.0.0; port $PORT2; }
 	}
 }
-plugin {
-	external remote-hash-test {
-		run "le test fixture plugin/ssh-remote-hash-rejected $PORT $PORT2"
-		encoder json
+bus {
+	endpoint remote-hash-test {
+		external {
+			run "le test fixture plugin/ssh-remote-hash-rejected $PORT $PORT2";
+		}
+		encoding json;
 	}
 }
 EOF_CONF

@@ -101,10 +101,12 @@ traffic {
 	}
 }
 
-plugin {
-	external ddos-local-config-removed-probe {
-		run "le test fixture plugin/ddos-local-config-removed-driver"
-		encoder json
+bus {
+	endpoint ddos-local-config-removed-probe {
+		external {
+			run "le test fixture plugin/ddos-local-config-removed-driver";
+		}
+		encoding json;
 	}
 }
 EOF_CONF

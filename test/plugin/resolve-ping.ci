@@ -26,10 +26,12 @@ EOF_PEER
 
 
 stdin=ze-bgp:terminator=EOF_CONF
-plugin {
-	external ping-test {
-		run "le test fixture plugin/resolve-ping"
-		encoder json
+bus {
+	endpoint ping-test {
+		external {
+			run "le test fixture plugin/resolve-ping";
+		}
+		encoding json;
 	}
 }
 bgp {

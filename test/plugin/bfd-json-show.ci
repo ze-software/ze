@@ -25,10 +25,12 @@ EOF_PEER
 
 
 stdin=ze-bfd:terminator=EOF_CONF
-plugin {
-	external bfd-json-show-test {
-		run "le test fixture plugin/bfd-json-show"
-		encoder json
+bus {
+	endpoint bfd-json-show-test {
+		external {
+			run "le test fixture plugin/bfd-json-show";
+		}
+		encoding json;
 	}
 }
 

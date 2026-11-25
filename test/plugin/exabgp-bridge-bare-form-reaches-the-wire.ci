@@ -15,21 +15,15 @@ EOF_PEER
 
 # Compiled ExaBGP-style helper writes one bare text command to stdout.
 
-# ze bgp configuration: bridge runs as an internal (in-process) plugin. The
-# helper command lives in the exabgp.bridge config root; `use exabgp-bridge`
-# resolves the internal runner name.
+# ze bgp configuration: ExaBGP script runs via the external `ze exabgp plugin`
+# wrapper endpoint on the bus (E-1, E-7).
 stdin=ze-bgp:terminator=EOF_CONF
-exabgp {
-	bridge {
-		process helper {
-			run "le test fixture plugin/exabgp-bridge-bare-helper"
+bus {
+	endpoint helper {
+		external {
+			run "ze exabgp plugin --family ipv4/unicast le test fixture plugin/exabgp-bridge-bare-helper";
 		}
-		family ipv4/unicast
-	}
-}
-plugin {
-	internal exabgp-bridge {
-		use exabgp-bridge
+		encoding json;
 	}
 }
 bgp {
@@ -58,11 +52,6 @@ bgp {
 		}
 		behavior {
 			group-updates disable
-		}
-
-		attach process exabgp-bridge {
-			receive [ * ]
-			send [ * ]
 		}
 	}
 }

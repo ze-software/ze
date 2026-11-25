@@ -14,15 +14,38 @@
 option=timeout:value=130s
 
 stdin=ze-bgp:terminator=CONFIG_FORKED
-plugin {
- internal adj-rib-in { use bgp-adj-rib-in; }
- external rib { run "ze plugin bgp-rib"; }
- external rr { run "ze plugin bgp-rr"; }
- external rs { run "ze plugin bgp-rs"; }
- external bgp-policy-diagnostics {
-  run "le test fixture plugin/bgp-policy-diagnostics forked 127.0.0.1:$PORT ze-bgp.conf";
-  encoder json;
- }
+bus {
+  endpoint adj-rib-in {
+    internal bgp-adj-rib-in;
+  }
+  endpoint rib {
+    internal bgp-rib;
+    process separate;
+  }
+  endpoint rr {
+    internal bgp-rr;
+    process separate;
+    send {
+      message bgp:update {
+        to [ /bgp/peer/D ];
+      }
+    }
+  }
+  endpoint rs {
+    internal bgp-rs;
+    process separate;
+    send {
+      message bgp:update {
+        to [ /bgp/peer/E ];
+      }
+    }
+  }
+  endpoint bgp-policy-diagnostics {
+    external {
+      run "le test fixture plugin/bgp-policy-diagnostics forked 127.0.0.1:$PORT ze-bgp.conf";
+    }
+    encoding json;
+  }
 }
 bgp {
  router-id 1.1.1.1;
@@ -31,50 +54,36 @@ bgp {
   session { asn { local 65000; remote 65001; } aigp { enabled false; } family { ipv4/unicast { prefix { maximum 100; } } } capability { graceful-restart disable; } }
   behavior { group-updates disable; }
   filter { import { final accept; } export { final reject; } }
-  attach process adj-rib-in { receive [ update-received state ]; }
-  attach process rib { receive [ update-received state ]; }
-  attach process rr { receive [ update-received state open-received ]; }
-  attach process rs { receive [ update-received state open-received refresh ]; }
  }
  peer B {
   connection { local { ip 127.0.0.1; port $PORT; } remote { ip 127.0.0.3; connect false; } }
   session { asn { local 65000; remote 65000; } aigp { enabled false; } family { ipv4/unicast { prefix { maximum 100; } } } capability { graceful-restart disable; } }
   behavior { group-updates disable; }
   filter { import { final reject; } export { final accept; } }
-  attach process rib { receive [ state refresh update-sent ]; send [ update ]; }
  }
  peer C {
   connection { local { ip 127.0.0.1; port $PORT; } remote { ip 127.0.0.4; connect false; } }
   session { asn { local 65000; remote 65000; } aigp { enabled false; } family { ipv4/unicast { prefix { maximum 100; } } } capability { graceful-restart disable; } }
   behavior { group-updates disable; }
   filter { import { final reject; } }
-  attach process rib { receive [ state refresh update-sent ]; send [ update ]; }
-  attach process bgp-policy-diagnostics { send [ update ]; }
  }
  peer D {
   connection { local { ip 127.0.0.1; port $PORT; } remote { ip 127.0.0.5; connect false; } }
   session { asn { local 65000; remote 65000; } aigp { enabled false; } family { ipv4/unicast { prefix { maximum 100; } } } capability { graceful-restart disable; } route-reflector-client true; cluster-id 10.0.0.1; }
   behavior { group-updates disable; }
   filter { import { final reject; } }
-  attach process rr { receive [ state open-received ]; send [ update ]; }
  }
  peer E {
   connection { local { ip 127.0.0.1; port $PORT; } remote { ip 127.0.0.6; connect false; } }
-  session { asn { local 65000; remote 65002; } aigp { enabled false; } family { ipv4/unicast { prefix { maximum 100; } } } capability { graceful-restart disable; } }
+  session { asn { local 65000; remote 65002; } aigp { enabled false; } rs-client true; family { ipv4/unicast { prefix { maximum 100; } } } capability { graceful-restart disable; } }
   behavior { group-updates disable; }
   filter { import { final reject; } }
-  attach process rs { receive [ state open-received refresh ]; send [ update ]; }
-  attach process bgp-policy-diagnostics { send [ update ]; }
  }
  peer S {
   connection { local { ip 127.0.0.1; port $PORT; } remote { ip 127.0.0.7; connect false; } }
   session { asn { local 65000; remote 65000; } aigp { enabled false; } family { ipv4/unicast { prefix { maximum 100; } } } capability { graceful-restart disable; } }
   behavior { group-updates disable; }
   filter { import { final accept; } export { final reject; } }
-  attach process adj-rib-in { receive [ update-received state ]; }
-  attach process rib { receive [ update-received state ]; }
-  attach process rr { receive [ update-received state open-received ]; }
-  attach process rs { receive [ update-received state open-received refresh ]; }
  }
 }
 CONFIG_FORKED

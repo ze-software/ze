@@ -1,8 +1,8 @@
 # Test: command dispatch stays responsive while the firewall engine and the
-# ddos-local responder drive the same nft backend under a sustained flood.
+# ddos-local responder drive the same kernel backend under a sustained flood.
 #
 # VALIDATES: spec-fixit-firewall-concurrency-deadlock AC-3 -- with a
-#            `firewall { backend nft }` block loaded AND ddos-local installing an
+#            `firewall { backend kernel }` block loaded AND ddos-local installing an
 #            on-host drop under a flood, every `ze-plugin-engine:dispatch-command`
 #            answers inside a bounded time. This is the shape that was observed to
 #            wedge dispatch on 2026-07-12 and made test/plugin/ddos-direction.ci
@@ -42,8 +42,8 @@
 #   - bpf (CAP_BPF + CAP_SYS_RESOURCE): traffic-usage calls rlimit.RemoveMemlock()
 #     then link.AttachTCX() (internal/plugins/trafficusage/attach_linux.go).
 #     Without it eBPF accounting runs inert and no attack is ever detected.
-#   - net-admin: the nft backend programs kernel tables, and AttachTCX programs
-#     the interface's tc hooks.
+#   - net-admin: the kernel backend programs kernel tables, and AttachTCX programs
+#     the interface's traffic control hooks.
 # Declaring only one fails OPEN: a host holding that one passes the gate and the
 # test fails exactly as it would with no marker at all.
 option=needs-linux:caps=net-admin,bpf
@@ -60,7 +60,7 @@ option=timeout:value=170s
 
 stdin=ze-bgp:terminator=EOF_CONF
 firewall {
-	backend nft;
+	backend kernel;
 	table fwconc {
 		family inet;
 		chain input {
@@ -110,10 +110,12 @@ traffic {
 	}
 }
 
-plugin {
-	external ddos-firewall-concurrency-probe {
-		run "le test fixture plugin/ddos-firewall-concurrency"
-		encoder json
+bus {
+	endpoint ddos-firewall-concurrency-probe {
+		external {
+			run "le test fixture plugin/ddos-firewall-concurrency";
+		}
+		encoding json;
 	}
 }
 EOF_CONF

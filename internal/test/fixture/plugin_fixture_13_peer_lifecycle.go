@@ -51,19 +51,24 @@ func peerCreateDeleteRIB13(ctx context.Context, args []string) error {
 	}
 	// The .ci starts a second daemon on the file this run leaves behind, and the
 	// file names this same plugin. The marker sends that second run to the
-	// start check. It is written first, so a failed first run still hands the
-	// second daemon to the check.
-	if _, err := os.Stat(lifecycleFirstRunMarker); err == nil {
-		return observe13(ctx, "lifecycle-driver", lifecycleStartedOnTheFile)
-	}
-	if err := os.WriteFile(lifecycleFirstRunMarker, nil, 0o600); err != nil {
-		return fmt.Errorf("write %s: %w", lifecycleFirstRunMarker, err)
+	// start check. Query mode must not create the marker before the first run.
+	if !sdk.QueryModeRequested() {
+		if _, err := os.Stat(lifecycleFirstRunMarker); err == nil {
+			return Observe(ctx, "lifecycle-driver", &sdk.Registration{
+				Receives: bgpReceiveDecls([]string{eventUpdate}, nil),
+			}, lifecycleStartedOnTheFile)
+		}
 	}
 	driver := restLifecycle13{
 		base:    "http://127.0.0.1:" + args[0] + "/api/v1",
 		headers: map[string]string{"Authorization": "Bearer secret", headerContentType: mediaTypeJSON},
 	}
-	return observe13(ctx, "lifecycle-driver", func(ctx context.Context, plugin *sdk.Plugin) error {
+	return Observe(ctx, "lifecycle-driver", &sdk.Registration{
+		Receives: bgpReceiveDecls([]string{eventUpdate}, nil),
+	}, func(ctx context.Context, plugin *sdk.Plugin) error {
+		if err := os.WriteFile(lifecycleFirstRunMarker, nil, 0o600); err != nil {
+			return fmt.Errorf("write %s: %w", lifecycleFirstRunMarker, err)
+		}
 		// Bounded: an event that finds the channel full is dropped, and the
 		// channel is drained before the one wait that reads it.
 		events := make(chan string, 256)
@@ -115,7 +120,7 @@ func peerCreateDeleteRIB13(ctx context.Context, args []string) error {
 func lifecycleCreate(ctx context.Context, plugin *sdk.Plugin) error {
 	data, err := plugin01RequireDone(ctx, plugin,
 		"create bgp peer "+lifecycleCreatedPeer+" asn 65002 local-as 65000 local-address "+lifecycleCreatedPeer+
-			" router-id 1.2.3.4 accept false attach bgp-rib,rs,lifecycle-driver")
+			" router-id 1.2.3.4 accept false")
 	if err != nil {
 		return err
 	}

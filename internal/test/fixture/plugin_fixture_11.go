@@ -77,7 +77,7 @@ func runPlugin11WithRegistration(ctx context.Context, name string, reg *sdk.Regi
 		}()
 		return nil
 	})
-	runErr := plugin.Run(ctx, reg)
+	runErr := runObserver(ctx, plugin, reg)
 	select {
 	case scenarioErr := <-result:
 		return errors.Join(scenarioErr, runErr)
@@ -543,10 +543,12 @@ func policyChainNames(ctx context.Context, _ []string) error {
 		}
 		exports, _ := exportPolicy["filters"].([]any)
 		// The mandatory BLACKHOLE agreement check precedes the operator's
-		// STRIP member; both expose a plain name and the canonical reference.
+		// STRIP member, followed by the default next-hop:auto filter; each
+		// exposes a plain name and canonical reference.
 		expected := [...]struct{ name, canonical string }{
 			{"blackhole-agreement", "bgp-filter-community:blackhole-agreement"},
 			{"STRIP", "bgp-filter-remove-private-as:STRIP"},
+			{"auto", "next-hop:auto"},
 		}
 		if len(exports) != len(expected) {
 			return fmt.Errorf("export refs=%v, want %v", exports, expected)

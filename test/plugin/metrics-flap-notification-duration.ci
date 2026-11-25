@@ -35,10 +35,12 @@ EOF_PEER
 
 # ze bgp configuration with telemetry and fast metrics interval
 stdin=ze-bgp:terminator=EOF_CONF
-plugin {
-	external flap-notif-test {
-		run "le test fixture plugin/metrics-flap-notification-duration"
-		encoder json
+bus {
+	endpoint flap-notif-test {
+		external {
+			run "le test fixture plugin/metrics-flap-notification-duration";
+		}
+		encoding json;
 	}
 }
 

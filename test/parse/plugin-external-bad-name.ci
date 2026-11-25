@@ -1,8 +1,8 @@
-# Test: the commit refuses a plugin external name the connect-back refuses.
+# Test: the commit refuses a bus external endpoint name the connect-back refuses.
 #
-# VALIDATES: spec-doctor-coverage-12-plugin-infra AC-23 -- `plugin external a_b`
-#            is refused by `ze config validate` and by `ze start`, naming the
-#            name and the allowed form, from the one declaration
+# VALIDATES: spec-doctor-coverage-12-plugin-infra AC-23 -- `bus endpoint a_b`
+#            with `external` is refused by `ze config validate` and by `ze start`,
+#            naming the name and the allowed form, from the one declaration
 #            (ipc.pluginNamePattern, internal/component/plugin/ipc/plugin_name.go)
 #            the auth handshake reads.
 # PREVENTS:  plan/journal/validate-accepts-what-start-refuses.md, 2026-11-10:
@@ -11,17 +11,19 @@
 #
 # The enforcing producer is ExternalPluginNameValidator
 # (internal/component/config/validators.go), reached through the ze:validate
-# on plugin/external/name in ze-plugin-conf.yang, walked by
+# on bus/endpoint/name in ze-plugin-conf.yang, walked by
 # ValidateCustomSections. Revert the ze:validate and both commands accept the
 # config: validate exits 0 and the daemon starts.
 #
-# The bgp block routes the config to runYANGConfig rather than the hub-only
-# parser (see test/parse/config-startup-refuses-invalid-validator.ci).
+# The bgp block routes the config through runYANGConfig
+# (see test/parse/config-startup-refuses-invalid-validator.ci).
 
 tmpfs=bad-name.conf:terminator=EOF_CONF
-plugin {
-	external a_b {
-		run "/bin/true"
+bus {
+	endpoint a_b {
+		external {
+			run "/bin/true"
+		}
 	}
 }
 

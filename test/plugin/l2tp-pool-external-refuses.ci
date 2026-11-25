@@ -15,17 +15,19 @@ l2tp {
         }
     }
 }
-plugin {
-    external pool-probe {
-        run "ze plugin l2tp-pool --log-level err"
+bus {
+    endpoint pool-probe {
+        external {
+            run "ze plugin l2tp-pool --log-level err";
+        }
     }
 }
 EOF_CONF
 
 cmd=foreground:seq=1:exec=ze doctor --json config pool-external.conf:exit=1
 expect=stdout:contains=doctor-plugin-external-unsupported
-expect=stdout:contains=runs l2tp-pool, which works only inside the daemon
-expect=stdout:contains=internal pool-probe { use l2tp-pool; }
+expect=stdout:contains=runs l2tp-pool as a separate process, which works only inside the daemon
+expect=stdout:contains=bus { endpoint pool-probe { internal l2tp-pool; } }
 
 cmd=foreground:seq=2:exec=ze start pool-external.conf:timeout=15s
 await=stderr:contains=l2tp-pool cannot run as an external plugin

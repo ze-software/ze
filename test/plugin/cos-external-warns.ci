@@ -33,9 +33,11 @@ class-of-service {
 	}
 }
 
-plugin {
-	external cos {
-		run "le mock plugin-external cos"
+bus {
+	endpoint cos {
+		external {
+			run "le mock plugin-external cos";
+		}
 	}
 }
 

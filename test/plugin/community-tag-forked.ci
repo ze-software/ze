@@ -39,15 +39,29 @@ EOF_PEER
 
 # ze configuration: community definition + ingress tag
 stdin=ze-bgp:terminator=EOF_CONF
-plugin {
-	hub { server local { ip 127.0.0.1; port 0; secret community-tag-forked-secret-0001; } }
-	external bgp-filter-community { run "ze plugin bgp-filter-community"; }
-	external test-tag {
-		run "le test fixture plugin/community-tag"
-		encoder json
+bus {
+	endpoint bgp-rib {
+		internal bgp-rib;
 	}
-	internal bgp-rib {
-		use bgp-rib
+	endpoint bgp-filter-community {
+		internal bgp-filter-community;
+		process separate;
+	}
+	endpoint test-tag {
+		external {
+			run "le test fixture plugin/community-tag";
+		}
+		encoding json;
+	}
+	endpoint bgp-adj-rib-in {
+		internal bgp-adj-rib-in;
+	}
+	hub {
+		server local {
+			ip 127.0.0.1;
+			port 0;
+			secret community-tag-forked-secret-0001;
+		}
 	}
 }
 bgp {
@@ -95,13 +109,6 @@ bgp {
 					tag mark-transit
 				}
 			}
-		}
-		attach process bgp-rib {
-			receive [ update state refresh ]
-			send [ update ]
-		}
-		attach process bgp-adj-rib-in {
-			receive [ update-received state ]
 		}
 	}
 }

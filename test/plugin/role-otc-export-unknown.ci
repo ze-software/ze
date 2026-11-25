@@ -3,6 +3,8 @@
 # PREVENTS: OTC filtering being applied to peers without role config
 
 # ze-peer: NO role capability (untagged peer)
+# Linux-only: static `next { interface lo { } }` resolves loopback `lo` via Linux netlink.
+option=needs-linux
 stdin=peer:terminator=EOF_PEER
 option=tcp_connections:value=1
 option=timeout:value=15s
@@ -36,8 +38,8 @@ EOF_PEER
 stdin=dest:terminator=EOF_DEST
 option=tcp_connections:value=1
 option=timeout:value=15s
-# ze prepends its own AS 65000 on export: AS_PATH=[65000 65001].
-expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF003302000000184001010040020A02020000FDE80000FDE940030401010101180A0000
+# ze prepends its own AS 65000 on export: AS_PATH=[65000 65001], NEXT_HOP=127.0.0.12 (bgp-rib eBGP local address).
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF003302000000184001010040020A02020000FDE80000FDE94003047F00000C180A0000
 # // the removed End-of-RIB rule was unsatisfiable by construction, so
 # it asserted nothing and only produced a red the runner used to mask. This peer's
 # EOR is emitted by its OWN initial sync the moment it establishes
@@ -55,16 +57,31 @@ EOF_DEST
 # Native compiled fixture: plugin/role-otc-export-unknown
 # ze configuration: no role config for either peer (backward compatible)
 stdin=ze-bgp:terminator=EOF_CONF
-plugin {
-	internal adj-rib-in {
-		use bgp-adj-rib-in
+bus {
+	endpoint adj-rib-in {
+		internal bgp-adj-rib-in;
+		send {
+			message bgp:update {
+				to none;
+			}
+		}
 	}
-	internal rs {
-		use bgp-rs
+	endpoint rs {
+		internal bgp-rib;
 	}
-	external test-unknown {
-		run "le test fixture plugin/role-otc-export-unknown"
-		encoder json
+	endpoint test-unknown {
+		external {
+			run "le test fixture plugin/role-otc-export-unknown";
+		}
+		encoding json;
+	}
+}
+fib {
+	dummy { }
+}
+static {
+	table default {
+		route 1.1.1.1/32 { next { interface lo { } } }
 	}
 }
 bgp {
@@ -93,14 +110,6 @@ bgp {
 				ipv4/unicast { prefix { maximum 10000; } }
 			}
 		}
-		attach process rs {
-			receive [ update-received state open-received refresh ]
-			send [ update ]
-		}
-		attach process adj-rib-in {
-			receive [ update-received state ]
-			send [ update ]
-		}
 	}
 
 	peer dest-peer {
@@ -109,7 +118,7 @@ bgp {
 				ip 127.0.0.2
 			}
 			local {
-				ip 127.0.0.2
+				ip 127.0.0.12
 				accept false
 			}
 		}
@@ -122,14 +131,6 @@ bgp {
 			family {
 				ipv4/unicast { prefix { maximum 10000; } }
 			}
-		}
-		attach process rs {
-			receive [ update-received state open-received refresh ]
-			send [ update ]
-		}
-		attach process adj-rib-in {
-			receive [ update-received state ]
-			send [ update ]
 		}
 	}
 }

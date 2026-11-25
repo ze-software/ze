@@ -43,13 +43,15 @@ option=env:var=ZE_LG_PORT:value=$PORT2
 
 # ze bgp configuration with LG enabled
 stdin=ze-bgp:terminator=EOF_CONF
-plugin {
-	external lg-covering {
-		run "le test fixture plugin/lg-covering-lookup"
-		encoder json
+bus {
+	endpoint bgp-rib {
+		internal bgp-rib;
 	}
-	internal bgp-rib {
-		use bgp-rib
+	endpoint lg-covering {
+		external {
+			run "le test fixture plugin/lg-covering-lookup";
+		}
+		encoding json;
 	}
 }
 
@@ -94,10 +96,6 @@ bgp {
 			group-updates disable
 		}
 
-		attach process bgp-rib {
-			receive [ update state refresh ]
-			send [ update ]
-		}
 	}
 }
 EOF_CONF

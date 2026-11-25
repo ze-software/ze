@@ -25,16 +25,17 @@ option=linger:value=true
 # Ze writes MP_REACH_NLRI first on this rail, as test/encode/bgp-srpolicy-2-encode.ci
 # pins for the config route; the attribute values are the ExaBGP case's.
 expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00790200000062800E1A00014904C0000201000000000760000000000000012C0A0000034001010040020040050400000064C01734000F00300C0600000000012C8000110009060000000000010106000003E810008000110009060000000000020106000003E82000
-# MP_UNREACH_NLRI 800F14 0001 49 00000007 60 00000000 0000012C 0A000003, then ORIGIN,
-# AS_PATH and LOCAL_PREF.
-expect=bgp:conn=1:seq=2:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF003C0200000025800F140001490000000760000000000000012C0A0000034001010040020040050400000064
+# MP_UNREACH_NLRI 800F14 0001 49 00000007 60 00000000 0000012C 0A000003 (bgp-rib selected-output withdrawal).
+expect=bgp:conn=1:seq=2:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF002E0200000017800F140001490000000760000000000000012C0A000003
 EOF_PEER
 
 stdin=config:terminator=EOF_CONFIG
-plugin {
-	external engine-steps {
-		run "le mock engine-steps ./engine-steps.json"
-		encoder json
+bus {
+	endpoint engine-steps {
+		external {
+			run "le mock engine-steps ./engine-steps.json";
+		}
+		encoding json;
 	}
 }
 
@@ -70,9 +71,6 @@ bgp {
 		}
 		behavior {
 			group-updates disable
-		}
-		attach process engine-steps {
-			send [ update ]
 		}
 	}
 }

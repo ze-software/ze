@@ -37,14 +37,18 @@ EOF_PEER
 
 # ze bgp configuration
 stdin=ze-bgp:terminator=EOF_CONF
-plugin {
-	external answer-silent {
-		run "le test fixture plugin/answer-unconditional-first"
-		encoder json
+bus {
+	endpoint answer-silent {
+		external {
+			run "le test fixture plugin/answer-unconditional-first";
+		}
+		encoding json;
 	}
-	external answer-second {
-		run "le test fixture plugin/answer-unconditional-second"
-		encoder json
+	endpoint answer-second {
+		external {
+			run "le test fixture plugin/answer-unconditional-second";
+		}
+		encoding json;
 	}
 }
 

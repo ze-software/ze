@@ -18,10 +18,19 @@ action=close:conn=1:seq=3
 EOF_SOURCE
 
 stdin=ze-bgp:terminator=EOF_CONF
-plugin {
- internal gr { use bgp-gr; }
- internal bgp-rib { use bgp-rib; }
- external observer { run "le test fixture plugin/llgr-transition"; encoder json; }
+bus {
+  endpoint gr {
+    internal bgp-gr;
+  }
+  endpoint bgp-rib {
+    internal bgp-rib;
+  }
+  endpoint observer {
+    external {
+      run "le test fixture plugin/llgr-transition";
+    }
+    encoding json;
+  }
 }
 bgp {
  peer source {
@@ -34,9 +43,6 @@ bgp {
   }
   behavior { group-updates disable; }
   timer { connect-retry 60; }
-  attach process gr { receive [ open state eor ]; send [ update ]; }
-  attach process bgp-rib { receive [ update state refresh ]; send [ update ]; }
-  attach process observer { receive [ state ]; send [ update ]; }
  }
 }
 EOF_CONF

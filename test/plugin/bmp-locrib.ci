@@ -85,10 +85,12 @@ bgp {
         }
     }
 }
-plugin {
-    external bmp-shutdown {
-        run "le test fixture plugin/bmp-locrib;"
-        encoder json;
+bus {
+    endpoint bmp-shutdown {
+        external {
+            run "le test fixture plugin/bmp-locrib;";
+        }
+        encoding json;
     }
 }
 EOF_CONF

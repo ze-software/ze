@@ -102,10 +102,12 @@ EOF_RESPONDER
 # ── Initiator daemon (foreground): x509 authentication on 127.0.0.1, judging
 # the responder's certificate ──
 stdin=config:terminator=EOF_CONFIG
-plugin {
-	external engine-steps {
-		run "le mock engine-steps ./engine-steps.json"
-		encoder json
+bus {
+	endpoint engine-steps {
+		external {
+			run "le mock engine-steps ./engine-steps.json";
+		}
+		encoding json;
 	}
 }
 

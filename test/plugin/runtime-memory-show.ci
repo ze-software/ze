@@ -16,10 +16,12 @@ EOF_PEER
 # Native observer fixture: plugin/runtime-memory-show.
 
 stdin=ze-bgp:terminator=EOF_CONF
-plugin {
-	external runtime-memory-show-test {
-		run "le test fixture plugin/runtime-memory-show"
-		encoder json
+bus {
+	endpoint runtime-memory-show-test {
+		external {
+			run "le test fixture plugin/runtime-memory-show";
+		}
+		encoding json;
 	}
 }
 

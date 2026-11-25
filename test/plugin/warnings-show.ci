@@ -13,10 +13,12 @@ EOF_PEER
 
 # ze bgp configuration: peer1 has stale prefix data (2024-01-01)
 stdin=ze-bgp:terminator=EOF_CONF
-plugin {
-	external warnings-show-test {
-		run "le test fixture plugin/warnings-show"
-		encoder json
+bus {
+	endpoint warnings-show-test {
+		external {
+			run "le test fixture plugin/warnings-show";
+		}
+		encoding json;
 	}
 }
 

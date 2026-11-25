@@ -24,10 +24,12 @@ EOF_PEER
 
 # ze bgp configuration with telemetry enabled
 stdin=ze-bgp:terminator=EOF_CONF
-plugin {
-	external session-lifecycle-test {
-		run "le test fixture plugin/metrics-session-lifecycle"
-		encoder json
+bus {
+	endpoint session-lifecycle-test {
+		external {
+			run "le test fixture plugin/metrics-session-lifecycle";
+		}
+		encoding json;
 	}
 }
 

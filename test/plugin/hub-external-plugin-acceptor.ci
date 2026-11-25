@@ -27,9 +27,11 @@
 # full YANG daemon. A single `bgp {}`/`ospf {}` block here would route around
 # the code under test.
 stdin=hub-conf:terminator=EOF_CONF
-plugin {
-	external hub-acceptor-probe {
-		run "le test fixture plugin/hub-external-plugin-acceptor"
+bus {
+	endpoint hub-acceptor-probe {
+		external {
+			run "le test fixture plugin/hub-external-plugin-acceptor";
+		}
 	}
 }
 EOF_CONF

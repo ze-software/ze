@@ -18,10 +18,12 @@
 # a plugin raising under a name or a code the daemon did not give it.
 
 stdin=ze-conf:terminator=EOF_CONF
-plugin {
-	external doctor-report-raise-test {
-		run "le test fixture plugin/doctor-plugin-report-raise"
-		encoder json
+bus {
+	endpoint doctor-report-raise-test {
+		external {
+			run "le test fixture plugin/doctor-plugin-report-raise";
+		}
+		encoding json;
 	}
 }
 EOF_CONF

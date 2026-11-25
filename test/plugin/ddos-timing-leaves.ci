@@ -26,7 +26,7 @@
 #   and the interface plugin has no OS-default backend on darwin. It needs NO
 #   capability: the detector's rate feed is trafficstat over iface.ListRates(),
 #   whose tracker the interface plugin starts unconditionally
-#   (internal/component/iface/register.go), so no eBPF and no tc hook is
+#   (internal/component/iface/register.go), so no eBPF and no traffic control hook is
 #   involved. The victim is left unresolved on purpose -- an incident opens on
 #   AttackDetected with an empty target, and neither assertion reads the target.
 #   There is no BGP peer and no `bgp` block: neither leaf touches a session, and
@@ -62,10 +62,12 @@ ddos {
 	}
 }
 
-plugin {
-	external ddos-timing-leaves-probe {
-		run "le test fixture plugin/ddos-timing-leaves"
-		encoder json
+bus {
+	endpoint ddos-timing-leaves-probe {
+		external {
+			run "le test fixture plugin/ddos-timing-leaves";
+		}
+		encoding json;
 	}
 }
 

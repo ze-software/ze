@@ -26,10 +26,12 @@ option=netns-link:name=eth1:address=10.0.2.1/24
 
 
 stdin=ze-conf:terminator=EOF_CONF
-plugin {
-	external ospf-multiaf-views {
-		run "le test fixture ospf/ospf-multiaf-views"
-		encoder json
+bus {
+	endpoint ospf-multiaf-views {
+		external {
+			run "le test fixture ospf/ospf-multiaf-views";
+		}
+		encoding json;
 	}
 }
 

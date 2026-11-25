@@ -13,10 +13,12 @@ EOF_PEER
 # Native observer fixture: plugin/set-system-file-descriptors.
 
 stdin=ze-bgp:terminator=EOF_CONF
-plugin {
-	external set-system-fd-test {
-		run "le test fixture plugin/set-system-file-descriptors"
-		encoder json
+bus {
+	endpoint set-system-fd-test {
+		external {
+			run "le test fixture plugin/set-system-file-descriptors";
+		}
+		encoding json;
 	}
 }
 

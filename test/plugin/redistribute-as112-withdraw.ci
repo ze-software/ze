@@ -24,16 +24,18 @@ EOF_PEER
 
 # ze configuration
 stdin=ze-bgp:terminator=EOF_CONF
-plugin {
-	external as112-withdraw-test {
-		run "le test fixture plugin/redistribute-as112-withdraw"
-		encoder json
+bus {
+	endpoint redistribute-orchestrator {
+		internal redistribute-orchestrator;
 	}
-	internal redistribute-orchestrator {
-		use redistribute-orchestrator
+	endpoint fakeas112 {
+		internal fakeas112;
 	}
-	internal fakeas112 {
-		use fakeas112
+	endpoint as112-withdraw-test {
+		external {
+			run "le test fixture plugin/redistribute-as112-withdraw";
+		}
+		encoding json;
 	}
 }
 
@@ -82,9 +84,6 @@ bgp {
 		}
 		behavior {
 			group-updates disable
-		}
-		attach process redistribute-orchestrator {
-			send [ update ]
 		}
 	}
 }

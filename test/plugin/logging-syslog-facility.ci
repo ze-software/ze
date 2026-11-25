@@ -34,9 +34,9 @@ environment {
     }
 }
 
-plugin {
-    internal gr {
-        use bgp-gr
+bus {
+    endpoint gr {
+        internal bgp-gr;
     }
 }
 
@@ -85,10 +85,6 @@ bgp {
 	        }
 	    }
 	
-	    attach process gr {
-	    	receive [ open-received state eor ]
-	    	send [ update ]
-	    }
 	}
 }
 EOF_CONF

@@ -48,10 +48,12 @@ ddos {
 	}
 }
 
-plugin {
-	external doctor-ddos-detect-blind-zero-test {
-		run "le test fixture plugin/doctor-ddos-detect-blind-zero"
-		encoder json
+bus {
+	endpoint doctor-ddos-detect-blind-zero-test {
+		external {
+			run "le test fixture plugin/doctor-ddos-detect-blind-zero";
+		}
+		encoding json;
 	}
 }
 EOF_CONF

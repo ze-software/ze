@@ -10,10 +10,12 @@ option=skip-os:value=darwin
 
 
 stdin=ze-conf:terminator=EOF_CONF
-plugin {
-	external ospf-inter-area-cli {
-		run "le test fixture ospf/ospf-inter-area-cli"
-		encoder json
+bus {
+	endpoint ospf-inter-area-cli {
+		external {
+			run "le test fixture ospf/ospf-inter-area-cli";
+		}
+		encoding json;
 	}
 }
 

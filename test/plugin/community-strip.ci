@@ -3,6 +3,8 @@
 # PREVENTS: egress community stripping being configured but not applied on the wire
 
 # Source peer (ASN 65001) on 127.0.0.1
+# Linux-only: static `next { interface lo { } }` resolves loopback `lo` via Linux netlink.
+option=needs-linux
 option=env:var=ze.log.bgp.filter.community:value=info
 # bgp.adj.rib.in: the plugin registers as "bgp-adj-rib-in" (adj_rib_in/register.go)
 # and its engine logger name is CanonicalSubsystemName of that (plugin/inprocess.go),
@@ -38,7 +40,7 @@ EOF_SOURCE
 stdin=dest:terminator=EOF_DEST
 option=tcp_connections:value=1
 option=timeout:value=20s
-expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF003302000000184001010040020A02020000FDE80000FDE940030401010101180A0000
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF003302000000184001010040020A02020000FDE80000FDE94003047F00000C180A0000
 # // the removed End-of-RIB rule was unsatisfiable by construction, so
 # it asserted nothing and only produced a red that the runner used to mask. This
 # peer's EOR is emitted by its OWN initial sync the moment it establishes
@@ -53,16 +55,31 @@ EOF_DEST
 
 # ze configuration: two peers, egress strip on dest peer
 stdin=ze-bgp:terminator=EOF_CONF
-plugin {
-	internal rs {
-		use bgp-rs
+bus {
+	endpoint rs {
+		internal bgp-rib;
 	}
-	internal adj-rib-in {
-		use bgp-adj-rib-in
+	endpoint adj-rib-in {
+		internal bgp-adj-rib-in;
+		send {
+			message bgp:update {
+				to none;
+			}
+		}
 	}
-	external test-strip {
-		run "le test fixture plugin/community-strip"
-		encoder json
+	endpoint test-strip {
+		external {
+			run "le test fixture plugin/community-strip";
+		}
+		encoding json;
+	}
+}
+fib {
+	dummy { }
+}
+static {
+	table default {
+		route 1.1.1.1/32 { next { interface lo { } } }
 	}
 }
 bgp {
@@ -97,13 +114,6 @@ bgp {
 				ipv4/unicast { prefix { maximum 10000; } }
 			}
 		}
-		attach process adj-rib-in {
-			receive [ update-received state ]
-		}
-		attach process rs {
-			receive [ update-received state open-received refresh ]
-			send [ update ]
-		}
 	}
 
 	peer dest-peer {
@@ -112,7 +122,7 @@ bgp {
 				ip 127.0.0.2
 			}
 			local {
-				ip 127.0.0.2
+				ip 127.0.0.12
 				accept false
 			}
 		}
@@ -140,14 +150,6 @@ bgp {
 		# toward this peer and needs the permission to do it (maySend,
 		# internal/component/bgp/reactor/send_permission.go). The source peer
 		# needs no such grant: nothing replays toward the peer the route came from.
-		attach process adj-rib-in {
-			receive [ update-received state ]
-			send [ update ]
-		}
-		attach process rs {
-			receive [ update-received state open-received refresh ]
-			send [ update ]
-		}
 	}
 }
 EOF_CONF

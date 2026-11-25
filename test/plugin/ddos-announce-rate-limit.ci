@@ -140,16 +140,15 @@ bgp {
 		# plugin RPC, and the engine refuses a send from a process no peer
 		# attaches: "no peer this selector names attaches this process with the
 		# required send permission". This is that attachment.
-		attach process ddos-flowspec {
-			send [ update ]
-		}
 	}
 }
 
-plugin {
-	external ddos-announce-rate-limit-probe {
-		run "le test fixture plugin/ddos-announce-rate-limit-driver"
-		encoder json
+bus {
+	endpoint ddos-announce-rate-limit-probe {
+		external {
+			run "le test fixture plugin/ddos-announce-rate-limit-driver";
+		}
+		encoding json;
 	}
 }
 EOF_CONF

@@ -32,10 +32,12 @@ EOF_PEER
 
 # ze configuration: one reject-asn list, named bare in the import chain.
 stdin=ze-bgp:terminator=EOF_CONF
-plugin {
-	external test-path-asn-reject {
-		run "le test fixture plugin/path-asn-filter-reject"
-		encoder json
+bus {
+	endpoint test-path-asn-reject {
+		external {
+			run "le test fixture plugin/path-asn-filter-reject";
+		}
+		encoding json;
 	}
 }
 policy {
@@ -74,9 +76,6 @@ bgp {
 			import { filters [ reject-asn-NO-TRANSIT ]; final accept; }
 		}
 
-		attach process test-path-asn-reject {
-			receive [ update state ]
-		}
 	}
 }
 EOF_CONF

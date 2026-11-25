@@ -16,13 +16,15 @@ EOF_PEER
 
 # ze bgp configuration
 stdin=ze-bgp:terminator=EOF_CONF
-plugin {
-	external rib-clear-out-family-test {
-		run "le test fixture plugin/rib-clear-out-family"
-		encoder json
+bus {
+	endpoint bgp-rib {
+		internal bgp-rib;
 	}
-	internal bgp-rib {
-		use bgp-rib
+	endpoint rib-clear-out-family-test {
+		external {
+			run "le test fixture plugin/rib-clear-out-family";
+		}
+		encoding json;
 	}
 }
 
@@ -54,10 +56,6 @@ bgp {
 			group-updates disable
 		}
 
-		attach process bgp-rib {
-			receive [ update state refresh ]
-			send [ update ]
-		}
 	}
 }
 EOF_CONF

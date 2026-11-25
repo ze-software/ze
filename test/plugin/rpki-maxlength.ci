@@ -16,23 +16,25 @@ EOF_PEER
 
 # Native compiled fixture: plugin/rpki-maxlength
 stdin=ze-bgp:terminator=EOF_CONF
-plugin {
+bus {
+	endpoint rpki {
+		internal bgp-rpki;
+	}
+	endpoint adj-rib-in {
+		internal bgp-adj-rib-in;
+	}
+	endpoint rpki-maxlen-test {
+		external {
+			run "le test fixture plugin/rpki-maxlength";
+		}
+		encoding json;
+	}
 	hub {
 		server local {
 			ip 127.0.0.1;
 			port 0;
 			secret rpki-test-secret-key-01234567890;
 		}
-	}
-	external rpki-maxlen-test {
-		run "le test fixture plugin/rpki-maxlength"
-		encoder json
-	}
-	internal rpki {
-		use bgp-rpki
-	}
-	internal adj-rib-in {
-		use bgp-adj-rib-in
 	}
 }
 
@@ -73,15 +75,6 @@ bgp {
 			group-updates disable
 		}
 
-		attach process rpki-maxlen-test {
-			receive [ update state ]
-		}
-		attach process rpki {
-			receive [ update-received state ]
-		}
-		attach process adj-rib-in {
-			receive [ update-received state ]
-		}
 	}
 }
 EOF_CONF

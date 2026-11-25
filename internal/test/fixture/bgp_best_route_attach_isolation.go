@@ -11,6 +11,7 @@ import (
 	"strings"
 	"sync"
 
+	bgpevents "github.com/ze-software/ze/internal/core/bgp/events"
 	"github.com/ze-software/ze/pkg/plugin/sdk"
 )
 
@@ -130,6 +131,9 @@ func bgpBestRouteAttachObserver(ctx context.Context, args []string) error {
 	})
 	return plugin.Run(ctx, &sdk.Registration{
 		Receives: bgpReceiveDecls([]string{eventUpdate}, nil),
+		Sends: []sdk.MessageSendDecl{
+			{Message: bgpevents.Namespace + ":" + bgpevents.SendUpdate},
+		},
 	})
 }
 

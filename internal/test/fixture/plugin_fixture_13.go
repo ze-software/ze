@@ -211,7 +211,7 @@ func runPlugin13WithRegistration(ctx context.Context, name string, reg *sdk.Regi
 		}()
 		return nil
 	})
-	runErr := plugin.Run(ctx, reg)
+	runErr := runObserver(ctx, plugin, reg)
 	return awaitObserverResult(started, result, runErr)
 }
 
@@ -225,7 +225,7 @@ func passivePlugin13(name string) Driver {
 			return err
 		}
 		defer plugin.Close() //nolint:errcheck // fixture teardown, so a close failure changes no assertion
-		return plugin.Run(ctx, &sdk.Registration{})
+		return runObserver(ctx, plugin, &sdk.Registration{})
 	}
 }
 

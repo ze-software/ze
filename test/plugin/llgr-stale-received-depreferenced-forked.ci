@@ -39,12 +39,30 @@ expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
 EOF_PLAIN
 
 stdin=ze-bgp:terminator=EOF_CONF
-plugin {
- internal rib { use rib; }
- hub { server local { ip 127.0.0.1; port 0; secret llgr-stale-received-forked-secret-01; } }
- external bgp-gr { run "ze plugin bgp-gr"; }
- internal bgp-rib { use bgp-rib; }
- external observer { run "le test fixture plugin/llgr-stale-received-depreferenced"; encoder json; }
+bus {
+  endpoint rib {
+    internal rib;
+  }
+  endpoint bgp-rib {
+    internal bgp-rib;
+  }
+  endpoint bgp-gr {
+    internal bgp-gr;
+    process separate;
+  }
+  endpoint observer {
+    external {
+      run "le test fixture plugin/llgr-stale-received-depreferenced";
+    }
+    encoding json;
+  }
+  hub {
+    server local {
+      ip 127.0.0.1;
+      port 0;
+      secret llgr-stale-received-forked-secret-01;
+    }
+  }
 }
 bgp {
  peer llgr {
@@ -55,9 +73,6 @@ bgp {
    family { ipv4/unicast { prefix { maximum 10000; } } }
    capability { graceful-restart { short-lived { restart-time 120; } long-lived { family { ipv4/unicast 3600; } } } }
   }
-  attach process bgp-gr { receive [ open state eor ]; send [ update ]; }
-  attach process bgp-rib { receive [ update state refresh ]; send [ update ]; }
-  attach process observer { receive [ state ]; }
  }
  peer plain {
   connection { remote { ip ::1; } local { ip ::1; accept false; } }
@@ -67,9 +82,6 @@ bgp {
    family { ipv4/unicast { prefix { maximum 10000; } } }
    capability { graceful-restart disable }
   }
-  attach process bgp-gr { receive [ open state eor ]; send [ update ]; }
-  attach process bgp-rib { receive [ update state refresh ]; send [ update ]; }
-  attach process observer { receive [ state ]; }
  }
 }
 EOF_CONF

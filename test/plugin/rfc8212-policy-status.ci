@@ -56,10 +56,21 @@ option=linger:value=true
 EOF_P4
 
 stdin=ze-bgp:terminator=EOF_CONF
-plugin {
-	external rfc8212-policy-status {
-		run "le test fixture plugin/rfc8212-policy-status $PORT"
-		encoder json
+bus {
+	endpoint bgp-rib {
+		internal bgp-rib;
+		receive {
+			from none;
+		}
+		send {
+			to none;
+		}
+	}
+	endpoint rfc8212-policy-status {
+		external {
+			run "le test fixture plugin/rfc8212-policy-status $PORT";
+		}
+		encoding json;
 	}
 }
 # A loop-detection entry makes the daemon prepend its automatic filter to every

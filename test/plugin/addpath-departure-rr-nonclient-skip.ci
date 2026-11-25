@@ -76,11 +76,23 @@ expect=bgp:conn=1:seq=3:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF003C0200000023400101
 EOF_RECEIVER
 
 stdin=ze-bgp:terminator=EOF_CONF
-plugin {
-    internal relay { use bgp-rr; }
-    external addpath-departure {
-        run "le test fixture plugin/vpn-withdrawal-inventory rr 3 release 127.0.0.5 release 127.0.0.6 held 127.0.0.5"
-        encoder json
+bus {
+    endpoint relay {
+        internal bgp-rr;
+        send {
+            message bgp:update {
+                to [ /bgp/peer/receiver ];
+            }
+        }
+    }
+    endpoint addpath-departure {
+        external {
+            run "le test fixture plugin/vpn-withdrawal-inventory rr 3 release 127.0.0.5 release 127.0.0.6 held 127.0.0.5";
+        }
+        encoding json;
+    }
+    endpoint bgp-rib {
+        internal bgp-rib;
     }
 }
 bgp {
@@ -99,17 +111,8 @@ bgp {
             capability { graceful-restart disable; }
         }
         behavior { group-updates disable; }
-        attach process relay {
-            receive [ update-received state open-received refresh ]
-        }
-        attach process bgp-rib {
-            receive [ update state refresh ]
-            send [ update ]
-        }
-        attach process addpath-departure { send [ update ]; }
     }
     peer sourceb {
-        attach process addpath-departure { send [ update ]; }
         connection {
             remote { ip 127.0.0.5; }
             local { ip 127.0.0.3; accept false; }
@@ -124,16 +127,8 @@ bgp {
             capability { graceful-restart disable; }
         }
         behavior { group-updates disable; }
-        attach process relay {
-            receive [ update-received state open-received refresh ]
-        }
-        attach process bgp-rib {
-            receive [ update state refresh ]
-            send [ update ]
-        }
     }
     peer sourcec {
-        attach process addpath-departure { send [ update ]; }
         connection {
             remote { ip 127.0.0.6; }
             local { ip 127.0.0.4; accept false; }
@@ -148,13 +143,6 @@ bgp {
             capability { graceful-restart disable; }
         }
         behavior { group-updates disable; }
-        attach process relay {
-            receive [ update-received state open-received refresh ]
-        }
-        attach process bgp-rib {
-            receive [ update state refresh ]
-            send [ update ]
-        }
     }
     peer receiver {
         connection {
@@ -171,14 +159,6 @@ bgp {
             capability { graceful-restart disable; }
         }
         behavior { group-updates disable; }
-        attach process relay {
-            receive [ update-received state open-received refresh ]
-            send [ update ]
-        }
-        attach process bgp-rib {
-            receive [ update state refresh ]
-            send [ update ]
-        }
     }
 }
 EOF_CONF

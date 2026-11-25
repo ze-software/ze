@@ -25,10 +25,12 @@ option=timeout:value=60s
 
 # ── Hub (background): two unbound respond peers and the engine-steps executor ──
 stdin=hub:terminator=EOF_HUB
-plugin {
-	external engine-steps {
-		run "le mock engine-steps ./engine-steps.json"
-		encoder json
+bus {
+	endpoint engine-steps {
+		external {
+			run "le mock engine-steps ./engine-steps.json";
+		}
+		encoding json;
 	}
 }
 

@@ -15,7 +15,18 @@ import (
 
 func init() {
 	Register("plugin/replay-permission-claimant", replayPermissionClaimant)
-	Register("plugin/redistribute-explicit-source-grant", p12ObserveDriver("redist-explicit-attach-test", redistExplicitSourceGrantServes), StopsDaemon)
+	Register("plugin/redistribute-explicit-source-grant", redistExplicitSourceGrantDriver, StopsDaemon)
+}
+
+func redistExplicitSourceGrantDriver(ctx context.Context, _ []string) error {
+	reg := &sdk.Registration{
+		Sends: []sdk.MessageSendDecl{
+			{Message: "cli:show bgp rib"},
+			{Message: "cli:show bgp peer"},
+			{Message: "cli:show event delivery"},
+		},
+	}
+	return Observe(ctx, "redist-explicit-attach-test", reg, redistExplicitSourceGrantServes)
 }
 
 // replayPermissionClaimant advertises only the role whose per-peer permission
@@ -35,6 +46,10 @@ func replayPermissionClaimant(ctx context.Context, args []string) error {
 	return plugin.Run(ctx, &sdk.Registration{
 		Claims:   []string{"bgp-peer-up-replay"},
 		Receives: bgpReceiveDecls([]string{eventState}, nil),
+		Sends: []sdk.MessageSendDecl{
+			{Message: "bgp:update"},
+			{Message: "bgp:raw"},
+		},
 	})
 }
 
@@ -88,8 +103,8 @@ func redistExplicitSourceGrantServes(ctx context.Context, plugin *sdk.Plugin) er
 		bindings++
 		receive := slices.Clone(process.Receive)
 		slices.Sort(receive)
-		if !slices.Equal(receive, []string{"state", "update-received"}) {
-			return fmt.Errorf("explicit source grant: receive %v, want exactly state and update-received", receive)
+		if !slices.Equal(receive, []string{"refresh", "state", "update"}) {
+			return fmt.Errorf("explicit source grant: receive %v, want exactly refresh, state, and update", receive)
 		}
 		if len(process.Send) != 0 {
 			return fmt.Errorf("explicit source grant: unexpected send grants %v", process.Send)
@@ -104,6 +119,6 @@ func redistExplicitSourceGrantServes(ctx context.Context, plugin *sdk.Plugin) er
 	if bindings != 1 {
 		return fmt.Errorf("explicit source grant: got %d bgp-rib bindings, want 1", bindings)
 	}
-	fmt.Fprintln(os.Stderr, "EXPLICIT-SOURCE-GRANT: bindings=1 receive=[state update-received] send=[] implicit=[] unresolved=[]")
+	fmt.Fprintln(os.Stderr, "EXPLICIT-SOURCE-GRANT: bindings=1 receive=[refresh state update] send=[] implicit=[] unresolved=[]")
 	return nil
 }

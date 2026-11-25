@@ -40,17 +40,19 @@ option=timeout:value=20s
 
 
 stdin=ze-fw:terminator=EOF_CONF
-plugin {
-	external firewall-irr-show-test {
-		run "le test fixture plugin/firewall-irr-show"
-		encoder json
+bus {
+	endpoint firewall-irr-show-test {
+		external {
+			run "le test fixture plugin/firewall-irr-show";
+		}
+		encoding json;
 	}
 }
 system {
 	irr { server 127.0.0.1:$PORT2; }
 }
 firewall {
-	backend nft;
+	backend kernel;
 	irr {
 		interface eth1 {
 			source-as-set AS-TEST;

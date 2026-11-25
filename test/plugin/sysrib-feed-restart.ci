@@ -9,12 +9,21 @@ option=needs-linux:caps=net-admin
 option=netns-link:name=zesrproof
 option=timeout:value=150s
 stdin=ze-conf:terminator=EOF_CONF
-plugin {
- external sysrib-restart-test { run "le test fixture plugin/sysrib-feed-restart internal"; encoder json; }
- internal sysrib-owner { use rib; }
- internal fib-kernel { use fib-kernel; }
+bus {
+    endpoint sysrib-owner {
+        internal rib;
+    }
+    endpoint fib-kernel {
+        internal fib-kernel;
+    }
+    endpoint sysrib-restart-test {
+        external {
+            run "le test fixture plugin/sysrib-feed-restart internal";
+        }
+        encoding json;
+    }
 }
-interface { backend netlink; }
+interface { backend kernel; }
 connected { }
 fib { kernel { flush-on-stop true; } }
 rib { fib-withhold [ bgp ]; }

@@ -33,15 +33,17 @@ option=timeout:value=30s
 
 
 stdin=ze-conf:terminator=EOF_CONF
-plugin {
-	external iface-osname-alias-apply {
-		run "le test fixture plugin/iface-osname-alias-apply"
-		encoder json
+bus {
+	endpoint iface-osname-alias-apply {
+		external {
+			run "le test fixture plugin/iface-osname-alias-apply";
+		}
+		encoding json;
 	}
 }
 
 interface {
-	backend netlink
+	backend kernel
 
 	# The device the alias names. ze creates it in Phase 1, before Phase 2
 	# reads the interface list the selectors resolve against.

@@ -16,10 +16,12 @@ EOF_PEER
 
 
 stdin=ze-bgp:terminator=EOF_CONF
-plugin {
-	external policy-test-errors {
-		run "le test fixture plugin/policy-test-errors"
-		encoder json
+bus {
+	endpoint policy-test-errors {
+		external {
+			run "le test fixture plugin/policy-test-errors";
+		}
+		encoding json;
 	}
 }
 policy {

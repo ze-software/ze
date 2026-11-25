@@ -58,19 +58,18 @@ expect=bgp:conn=1:seq=2:contains=02000418C000020000
 EOF_DEST
 
 stdin=ze-bgp:terminator=EOF_CONF
-plugin {
-	external lifecycle-driver {
-		run "le test fixture plugin/api-peer-create-delete-rib $PORT2"
-		encoder json
+bus {
+	endpoint bgp-rib {
+		internal bgp-rib;
 	}
-	internal rs {
-		use bgp-rs
+	endpoint rib {
+		internal rib;
 	}
-	internal bgp-rib {
-		use bgp-rib
-	}
-	internal rib {
-		use rib
+	endpoint lifecycle-driver {
+		external {
+			run "le test fixture plugin/api-peer-create-delete-rib $PORT2";
+		}
+		encoding json;
 	}
 }
 
@@ -105,7 +104,7 @@ bgp {
 				ip 127.0.0.1
 			}
 			local {
-				ip 127.0.0.1
+				ip 127.0.0.11
 				accept false
 			}
 		}
@@ -115,7 +114,6 @@ bgp {
 				remote 65001
 			}
 			router-id 1.2.3.4
-			rs-client true
 			family {
 				ipv4/unicast { prefix { maximum 10000; } }
 			}
@@ -126,19 +124,9 @@ bgp {
 		behavior {
 			group-updates disable
 		}
-		attach process rs {
-			receive [ update-received state open-received refresh ]
-			send [ update ]
-		}
 		# The selecting RIB owns what was sent here: source-DOWN recovery asks it
 		# which routes this peer holds from a departed source (rib_recovery.go).
-		attach process bgp-rib {
-			receive [ update state refresh ]
-		}
 		# The driver is told of the WITHDRAW sent here when the created peer goes.
-		attach process lifecycle-driver {
-			receive [ update-sent ]
-		}
 	}
 }
 EOF_CONF

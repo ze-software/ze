@@ -22,10 +22,12 @@ EOF_PEER
 
 # ze bgp configuration with telemetry enabled
 stdin=ze-bgp:terminator=EOF_CONF
-plugin {
-	external metrics-list-test {
-		run "le test fixture plugin/cli-metrics-list"
-		encoder json
+bus {
+	endpoint metrics-list-test {
+		external {
+			run "le test fixture plugin/cli-metrics-list";
+		}
+		encoding json;
 	}
 }
 

@@ -42,10 +42,12 @@ EOF_PEER
 
 # ze configuration: one external filter plugin on the import chain.
 stdin=ze-bgp:terminator=EOF_CONF
-plugin {
-    external filter-subject-test {
-        run "le test fixture plugin/filter-subject-names-every-attribute";
-        encoder json;
+bus {
+    endpoint filter-subject-test {
+        external {
+            run "le test fixture plugin/filter-subject-names-every-attribute";
+        }
+        encoding json;
     }
 }
 bgp {

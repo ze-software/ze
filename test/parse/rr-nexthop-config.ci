@@ -1,6 +1,13 @@
-# Test: BGP route reflection and next-hop control config parsing
-# Validates YANG leaves: route-reflector-client, cluster-id, next-hop
+# Test: BGP route reflection and export-chain next-hop control config parsing
+# Validates YANG leaves: route-reflector-client, cluster-id, export next-hop:* and modify next-hop
 stdin=config:terminator=EOF_CONF
+policy {
+	modify explicit-nh {
+		set {
+			next-hop 10.0.0.254
+		}
+	}
+}
 bgp {
 	filter {
 		import {
@@ -20,7 +27,12 @@ bgp {
 		session {
 			route-reflector-client true
 			cluster-id 1.1.1.1
-			next-hop self
+		}
+		filter {
+			export {
+				filters [ next-hop:self ]
+				final accept
+			}
 		}
 		peer client1 {
 			connection {
@@ -50,7 +62,12 @@ bgp {
 				asn {
 					remote 65000
 				}
-				next-hop unchanged
+			}
+			filter {
+				export {
+					filters [ next-hop:unchanged ]
+					final accept
+				}
 			}
 		}
 	}
@@ -67,7 +84,12 @@ bgp {
 			asn {
 				remote 65001
 			}
-			next-hop 10.0.0.254
+		}
+		filter {
+			export {
+				filters [ modify:explicit-nh ]
+				final accept
+			}
 		}
 	}
 }

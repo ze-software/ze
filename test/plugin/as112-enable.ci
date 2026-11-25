@@ -19,10 +19,12 @@ service {
 	}
 }
 
-plugin {
-	external as112-enable-test {
-		run "le test fixture plugin/as112-enable"
-		encoder json
+bus {
+	endpoint as112-enable-test {
+		external {
+			run "le test fixture plugin/as112-enable";
+		}
+		encoding json;
 	}
 }
 

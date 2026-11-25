@@ -101,10 +101,12 @@ environment {
 		}
 	}
 }
-plugin {
-	external acme-monitor {
-		run "le test fixture plugin/external-yang commands"
-		encoder json
+bus {
+	endpoint acme-monitor {
+		external {
+			run "le test fixture plugin/external-yang commands";
+		}
+		encoding json;
 	}
 }
 acme-monitor {
@@ -124,10 +126,11 @@ reject=stderr:pattern=ZE-OBSERVER-FAIL
 cmd=foreground:seq=3:exec=le test mcp --port $PORT2:stdin=mcp:timeout=30s
 expect=exit:code=0
 expect=stdout:contains=probe status=200 code=ok
-# The plugin's tool: action and the typed leaf name, required, no arguments.
-expect=stdout:pattern="inputSchema":\{"properties":\{"action":\{[^}]*\},"name":\{"description":"The target name, from 1 to 16 characters\.","title":"Name of the target\.","type":"string"\}\},"required":\["action","name"\],"type":"object"\},"name":"ze_show_acme_monitor"
-# The compiled-in comparison: the rpc input leaf of system command help.
-expect=stdout:pattern="name":\{"description":"The full command name, as command-list prints it\. A name in\\nneither registry fails with unknown command\.","title":"Command name","type":"string"\}
+# The plugin's tool: action, the typed leaf name (required), and the shared
+# optional pipe list (command.PipeListSchema); no generic arguments property.
+expect=stdout:pattern="inputSchema":\{"properties":\{"action":\{[^}]*\},"name":\{"description":"The target name, from 1 to 16 characters\.","title":"Name of the target\.","type":"string"\},"pipe":\{"description":"Pipe operations[^"]*","items":\{"properties":\{"args":\{"description":"[^"]*","items":\{"type":"string"\},"type":"array"\},"name":\{"description":"[^"]*","type":"string"\}\},"required":\["name"\],"type":"object"\},"type":"array"\}\},"required":\["action","name"\],"type":"object"\},"name":"ze_show_acme_monitor"
+# The compiled-in comparison: the CLI leaf of system command help (ze-system-cmd.yang).
+expect=stdout:pattern="name":\{"description":"The full command name, as command list prints it\. A name in\\nneither registry fails with unknown command\.","title":"Command name","type":"string"\}
 # The YANG summaries name the actions, never the Stage 1 one.
 expect=stdout:pattern=status: Show whether the acme monitor is polling\.
 expect=stdout:pattern=target: Show one target the acme monitor polls\.

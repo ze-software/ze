@@ -20,10 +20,12 @@ system {
 	}
 }
 
-plugin {
-	external prefix-update-test {
-		run "le test fixture plugin/api-peer-prefix-update"
-		encoder json
+bus {
+	endpoint prefix-update-test {
+		external {
+			run "le test fixture plugin/api-peer-prefix-update";
+		}
+		encoding json;
 	}
 }
 

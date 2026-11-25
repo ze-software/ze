@@ -1,11 +1,14 @@
-# Test: send [ enhanced-refresh ] accepted via dynamic send type registration
-# VALIDATES: AC-1: Plugin-registered send type "enhanced-refresh" accepted in config
-# VALIDATES: AC-4: No hardcoded enhanced-refresh in engine -- validated dynamically
+# Test: plugin-registered bus messages accepted via dynamic bus message registration
+# VALIDATES: AC-1: Plugin-registered bus message names accepted in bus send allow
+# VALIDATES: AC-4: Validated dynamically against the registered bus message catalog
 stdin=config:terminator=EOF_CONF
-plugin {
-	external my-process {
-		run ./test.py
-		encoder json
+bus {
+	endpoint my-process {
+		internal bgp-rib
+		encoding json
+		send {
+			allow [ bgp:update bgp:refresh bgp-rib:best-change ]
+		}
 	}
 }
 bgp {
@@ -24,9 +27,6 @@ bgp {
 				local 65001
 				remote 65001
 			}
-		}
-		attach process my-process {
-			send [ update refresh enhanced-refresh ]
 		}
 	}
 }

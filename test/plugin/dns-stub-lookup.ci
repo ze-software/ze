@@ -37,10 +37,12 @@ system {
 	}
 }
 
-plugin {
-	external dns-stub-lookup-test {
-		run "le test fixture plugin/dns-stub-lookup"
-		encoder json
+bus {
+	endpoint dns-stub-lookup-test {
+		external {
+			run "le test fixture plugin/dns-stub-lookup";
+		}
+		encoding json;
 	}
 }
 

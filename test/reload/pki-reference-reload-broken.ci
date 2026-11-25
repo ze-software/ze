@@ -14,7 +14,7 @@
 
 
 tmpfs=hub.conf:terminator=EOF_CONF
-plugin {
+bus {
 }
 
 pki {
@@ -42,7 +42,7 @@ environment {
 EOF_CONF
 
 tmpfs=broken.conf:refused=config-yang-reference:terminator=EOF_BROKEN
-plugin {
+bus {
 }
 
 pki {

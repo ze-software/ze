@@ -21,10 +21,12 @@ EOF_PEER
 
 
 stdin=ze-bgp:terminator=EOF_CONF
-plugin {
-	external clear-irr-cache-test {
-		run "le test fixture plugin/clear-irr-cache"
-		encoder json
+bus {
+	endpoint clear-irr-cache-test {
+		external {
+			run "le test fixture plugin/clear-irr-cache";
+		}
+		encoding json;
 	}
 }
 

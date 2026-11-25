@@ -21,10 +21,19 @@ action=send:conn=1:seq=3:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
 DEST_internal
 
 stdin=config-internal:terminator=CONFIG_internal
-plugin {
- internal bgp-filter-family { use bgp-filter-family; }
- internal bgp-filter-modify { use bgp-filter-modify; }
- external observer { run "le test fixture plugin/filter-wire-transports dryrun internal 1 2 1"; encoder json; }
+bus {
+    endpoint bgp-filter-family {
+        internal bgp-filter-family;
+    }
+    endpoint bgp-filter-modify {
+        internal bgp-filter-modify;
+    }
+    endpoint observer {
+        external {
+            run "le test fixture plugin/filter-wire-transports dryrun internal 1 2 1";
+        }
+        encoding json;
+    }
 }
 telemetry { prometheus { enabled true; server main { ip 127.0.0.1; port $PORT2; } } }
 policy { modify SETLP { set { local-preference 200; } }
@@ -35,14 +44,12 @@ peer source {
  session { asn { local 65000; remote 65001; } router-id 1.2.3.4; family { ipv4/unicast { prefix { maximum 1000; } } ipv6/unicast { prefix { maximum 1000; } } } capability { graceful-restart disable; }  }
  behavior { group-updates disable; }
  filter { import { filters [ SETLP observer:check bgp-filter-family:NoV6 ]; final accept; } export { final accept; } }
- attach process observer { receive [ update state ]; send [ update ]; }
 }
 peer destination {
  connection { remote { ip 127.0.0.2; } local { ip 127.0.0.2; accept false; } }
  session { asn { local 65000; remote 65000; } router-id 1.2.3.4; family { ipv4/unicast { prefix { maximum 1000; } } ipv6/unicast { prefix { maximum 1000; } } } capability { graceful-restart disable; }  }
  behavior { group-updates disable; }
  filter { import {  final accept; } export { final accept; } }
- attach process observer { receive [ update state ]; send [ update ]; }
 }
 }
 CONFIG_internal

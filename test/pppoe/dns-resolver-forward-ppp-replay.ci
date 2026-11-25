@@ -67,15 +67,17 @@ system {
 	}
 }
 
-plugin {
-	external dns-resolver-forward-ppp-replay-test {
-		run "le test fixture pppoe/dns-resolver-forward-ppp-replay config2.conf"
-		encoder json
+bus {
+	endpoint dns-resolver-forward-ppp-replay-test {
+		external {
+			run "le test fixture pppoe/dns-resolver-forward-ppp-replay config2.conf";
+		}
+		encoding json;
 	}
 }
 
 interface {
-	backend netlink
+	backend kernel
 	ethernet zecpe0 {
 	}
 	pppoe-client zedns1 {
@@ -122,15 +124,17 @@ service {
 	}
 }
 
-plugin {
-	external dns-resolver-forward-ppp-replay-test {
-		run "le test fixture pppoe/dns-resolver-forward-ppp-replay config2.conf"
-		encoder json
+bus {
+	endpoint dns-resolver-forward-ppp-replay-test {
+		external {
+			run "le test fixture pppoe/dns-resolver-forward-ppp-replay config2.conf";
+		}
+		encoding json;
 	}
 }
 
 interface {
-	backend netlink
+	backend kernel
 	ethernet zecpe0 {
 	}
 	pppoe-client zedns1 {

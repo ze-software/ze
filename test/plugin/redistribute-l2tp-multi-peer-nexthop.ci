@@ -42,16 +42,18 @@ EOF_PEER2
 
 # ze configuration: two peers with distinct local addresses
 stdin=ze-bgp:terminator=EOF_CONF
-plugin {
-	external l2tp-nexthop-test {
-		run "le test fixture plugin/redistribute-l2tp-multi-peer-nexthop"
-		encoder json
+bus {
+	endpoint redistribute-orchestrator {
+		internal redistribute-orchestrator;
 	}
-	internal redistribute-orchestrator {
-		use redistribute-orchestrator
+	endpoint fakel2tp {
+		internal fakel2tp;
 	}
-	internal fakel2tp {
-		use fakel2tp
+	endpoint l2tp-nexthop-test {
+		external {
+			run "le test fixture plugin/redistribute-l2tp-multi-peer-nexthop";
+		}
+		encoding json;
 	}
 }
 
@@ -99,9 +101,6 @@ bgp {
 		behavior {
 			group-updates disable
 		}
-		attach process redistribute-orchestrator {
-			send [ update ]
-		}
 	}
 
 	peer peer2 {
@@ -132,9 +131,6 @@ bgp {
 		}
 		behavior {
 			group-updates disable
-		}
-		attach process redistribute-orchestrator {
-			send [ update ]
 		}
 	}
 }

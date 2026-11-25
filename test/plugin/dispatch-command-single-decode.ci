@@ -15,13 +15,15 @@ EOF_PEER
 
 # ze bgp configuration with rib plugin (provides structured command responses)
 stdin=ze-bgp:terminator=EOF_CONF
-plugin {
-	external dispatch-decode-test {
-		run "le test fixture plugin/dispatch-command-single-decode"
-		encoder json
+bus {
+	endpoint bgp-rib {
+		internal bgp-rib;
 	}
-	internal bgp-rib {
-		use bgp-rib
+	endpoint dispatch-decode-test {
+		external {
+			run "le test fixture plugin/dispatch-command-single-decode";
+		}
+		encoding json;
 	}
 }
 
@@ -53,10 +55,6 @@ bgp {
 			group-updates disable
 		}
 
-		attach process bgp-rib {
-			receive [ update state refresh ]
-			send [ update ]
-		}
 	}
 }
 EOF_CONF

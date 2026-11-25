@@ -13,10 +13,12 @@ EOF_PEER
 
 # ze bgp configuration with extended-nexthop via capability nexthop list
 stdin=ze-bgp:terminator=EOF_CONF
-plugin {
-	external ext-nh-test {
-		run "le test fixture plugin/config-ext-nexthop"
-		encoder json
+bus {
+	endpoint ext-nh-test {
+		external {
+			run "le test fixture plugin/config-ext-nexthop";
+		}
+		encoding json;
 	}
 }
 

@@ -30,10 +30,12 @@ EOF_PEER
 # elsewhere) and the limit argument.
 
 stdin=ze-bgp:terminator=EOF_CONF
-plugin {
-	external mpls-forwarding-show-test {
-		run "le test fixture plugin/mpls-forwarding-show"
-		encoder json
+bus {
+	endpoint mpls-forwarding-show-test {
+		external {
+			run "le test fixture plugin/mpls-forwarding-show";
+		}
+		encoding json;
 	}
 }
 

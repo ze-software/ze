@@ -38,13 +38,15 @@ EOF_PEER
 # Native compiled fixture: plugin/rpf-multicast
 # ze bgp configuration
 stdin=ze-bgp:terminator=EOF_CONF
-plugin {
-	external rpf-multicast-test {
-		run "le test fixture plugin/rpf-multicast"
-		encoder json
+bus {
+	endpoint bgp-rib {
+		internal bgp-rib;
 	}
-	internal bgp-rib {
-		use bgp-rib
+	endpoint rpf-multicast-test {
+		external {
+			run "le test fixture plugin/rpf-multicast";
+		}
+		encoding json;
 	}
 }
 
@@ -76,10 +78,6 @@ bgp {
 			group-updates disable
 		}
 
-		attach process bgp-rib {
-			receive [ update state refresh ]
-			send [ update ]
-		}
 	}
 }
 EOF_CONF

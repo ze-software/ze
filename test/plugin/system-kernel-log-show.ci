@@ -14,10 +14,12 @@ EOF_PEER
 
 
 stdin=ze-bgp:terminator=EOF_CONF
-plugin {
-	external system-kernel-log-show-test {
-		run "le test fixture plugin/system-kernel-log-show"
-		encoder json
+bus {
+	endpoint system-kernel-log-show-test {
+		external {
+			run "le test fixture plugin/system-kernel-log-show";
+		}
+		encoding json;
 	}
 }
 

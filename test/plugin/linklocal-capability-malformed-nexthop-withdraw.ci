@@ -61,16 +61,32 @@ EOF_PEER
 # Observer: wait until the route server has relayed the fence prefix, then shut down.
 
 stdin=ze-bgp:terminator=EOF_CONF
-plugin {
-	internal rs {
-		use bgp-rs
+bus {
+	endpoint bgp-rib {
+		internal bgp-rib;
+		receive {
+			allow none;
+		}
+		send {
+			allow none;
+		}
 	}
-	internal adj-rib-in {
-		use bgp-adj-rib-in
+	endpoint rs {
+		internal bgp-rs;
 	}
-	external shutdown-after-up {
-		run "le test fixture plugin/linklocal-capability-malformed-nexthop-withdraw"
-		encoder json
+	endpoint adj-rib-in {
+		internal bgp-adj-rib-in;
+		send {
+			message bgp:update {
+				to none;
+			}
+		}
+	}
+	endpoint shutdown-after-up {
+		external {
+			run "le test fixture plugin/linklocal-capability-malformed-nexthop-withdraw";
+		}
+		encoding json;
 	}
 }
 bgp {
@@ -90,6 +106,7 @@ bgp {
 			}
 		}
 		session {
+			rs-client true;
 			asn {
 				local 65000
 				remote 65001
@@ -107,16 +124,6 @@ bgp {
 		}
 		behavior {
 			group-updates disable
-		}
-		attach process adj-rib-in {
-			receive [ update-received state ]
-		}
-		attach process rs {
-			receive [ update-received state open-received refresh ]
-			send [ update ]
-		}
-		attach process shutdown-after-up {
-			receive [ update ]
 		}
 	}
 	peer receiver-peer {
@@ -147,16 +154,6 @@ bgp {
 		}
 		behavior {
 			group-updates disable
-		}
-		attach process adj-rib-in {
-			send [ update ]
-		}
-		attach process rs {
-			receive [ update-received state open-received refresh ]
-			send [ update ]
-		}
-		attach process shutdown-after-up {
-			receive [ update ]
 		}
 	}
 }

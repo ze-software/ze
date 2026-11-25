@@ -34,14 +34,29 @@ action=close:conn=1:seq=3
 EOF_PLAIN
 
 stdin=ze-bgp:terminator=EOF_CONF
-plugin {
-	hub { server local { ip 127.0.0.1; port 0; secret llgr-import-no-llgr-forked-secret-00001; } }
-	external bgp-gr { run "ze plugin bgp-gr"; }
-	internal bgp-rib { use bgp-rib; }
-	internal bgp-filter-modify { use bgp-filter-modify; }
-	external observer {
-		run "le test fixture plugin/llgr-import-no-llgr"
-		encoder json
+bus {
+	endpoint bgp-rib {
+		internal bgp-rib;
+	}
+	endpoint bgp-filter-modify {
+		internal bgp-filter-modify;
+	}
+	endpoint bgp-gr {
+		internal bgp-gr;
+		process separate;
+	}
+	endpoint observer {
+		external {
+			run "le test fixture plugin/llgr-import-no-llgr";
+		}
+		encoding json;
+	}
+	hub {
+		server local {
+			ip 127.0.0.1;
+			port 0;
+			secret llgr-import-no-llgr-forked-secret-00001;
+		}
 	}
 }
 policy {
@@ -63,9 +78,6 @@ bgp {
 		behavior { group-updates disable; }
 		timer { connect-retry 30; }
 		filter { import { filters [ modify:NO-LLGR ]; final accept; } }
-		attach process bgp-gr { receive [ open state eor ]; send [ update ]; }
-		attach process bgp-rib { receive [ update state refresh ]; send [ update ]; }
-		attach process observer { receive [ state ]; send [ update ]; }
 	}
 	peer plain {
 		connection {
@@ -80,9 +92,6 @@ bgp {
 		}
 		behavior { group-updates disable; }
 		timer { connect-retry 30; }
-		attach process bgp-gr { receive [ open state eor ]; send [ update ]; }
-		attach process bgp-rib { receive [ update state refresh ]; send [ update ]; }
-		attach process observer { receive [ state ]; send [ update ]; }
 	}
 }
 EOF_CONF

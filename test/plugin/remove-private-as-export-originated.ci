@@ -23,10 +23,12 @@ EOF_PEER
 
 
 stdin=ze-bgp:terminator=EOF_CONF
-plugin {
-	external remove-private-as-export-originated {
-		run "le test fixture plugin/remove-private-as-export-originated"
-		encoder json
+bus {
+	endpoint remove-private-as-export-originated {
+		external {
+			run "le test fixture plugin/remove-private-as-export-originated";
+		}
+		encoding json;
 	}
 }
 policy {
@@ -64,9 +66,6 @@ bgp {
 		filter {
 			import { final accept; }
 			export { filters [ remove-private-as:STRIP ]; final accept; }
-		}
-		attach process remove-private-as-export-originated {
-			send update
 		}
 	}
 }

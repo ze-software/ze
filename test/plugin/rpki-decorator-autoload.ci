@@ -1,6 +1,9 @@
-# Test: rpki-decorator auto-loaded when consumer subscribes to update-rpki
-# VALIDATES: AC-6: Decorator auto-loaded when config references update-rpki event type
-# PREVENTS: Consumers forced to explicitly configure decorator plugin
+# Test: explicit bus endpoint for bgp-rpki-decorator pulls bgp-rpki via
+# dependencies and delivers update-rpki events to a consumer (Q-11 option (c)).
+# VALIDATES: explicit bgp-rpki-decorator endpoint loads its bgp-rpki dependency
+# and correlates peer UPDATEs into bgp:update-rpki events on the bus.
+# PREVENTS: missing dependency auto-load or broken update-rpki delivery when
+# bgp-rpki-decorator is declared explicitly without manual bgp-rpki wiring.
 
 # ze-peer: send one route
 stdin=peer:terminator=EOF_PEER
@@ -15,7 +18,7 @@ EOF_PEER
 # native test plugin: subscribes to update-rpki, verifies decorator was auto-loaded
 # Native compiled fixture: plugin/rpki-decorator-autoload
 stdin=ze-bgp:terminator=EOF_CONF
-plugin {
+bus {
 	hub {
 		server local {
 			ip 127.0.0.1;
@@ -23,12 +26,16 @@ plugin {
 			secret rpki-autoload-test-secret-0123456789abcdef;
 		}
 	}
-	# NOTE: No explicit rpki, rpki-decorator, or adj-rib-in plugins!
-	# The engine should auto-load bgp-rpki-decorator (and its dependency bgp-rpki)
-	# because rpki-auto-test has receive [ update-rpki ].
-	external rpki-auto-test {
-		run "le test fixture plugin/rpki-decorator-autoload"
-		encoder json
+	# Per Q-11 option (c), bgp-rpki-decorator is declared explicitly and pulls
+	# its dependency bgp-rpki (and bgp-adj-rib-in) via registered Dependencies.
+	endpoint rpki-decorator {
+		internal bgp-rpki-decorator;
+	}
+	endpoint rpki-auto-test {
+		external {
+			run "le test fixture plugin/rpki-decorator-autoload";
+		}
+		encoding json;
 	}
 }
 
@@ -58,16 +65,6 @@ bgp {
 		}
 		behavior {
 			group-updates disable
-		}
-
-		attach process rpki-auto-test {
-			receive [ update-rpki ]
-		}
-		attach process bgp-rpki {
-			receive [ update-received state ]
-		}
-		attach process bgp-rpki-decorator {
-			receive [ update-received rpki ]
 		}
 	}
 }

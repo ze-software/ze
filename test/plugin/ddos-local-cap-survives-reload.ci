@@ -1,5 +1,5 @@
 # Test: an operator's unrelated commit does not orphan a live ddos local drop
-# rule. The cap still removes it after the reload, proven by an nft readback and
+# rule. The cap still removes it after the reload, proven by an nftables readback and
 # by `show ddos local` while the flood is still running.
 #
 # VALIDATES: spec-ddos-timing-leaves-reach-no-worker AC-6 across a config apply.
@@ -94,10 +94,12 @@ traffic {
 	}
 }
 
-plugin {
-	external ddos-local-cap-survives-reload-probe {
-		run "le test fixture plugin/ddos-local-cap-survives-reload-driver"
-		encoder json
+bus {
+	endpoint ddos-local-cap-survives-reload-probe {
+		external {
+			run "le test fixture plugin/ddos-local-cap-survives-reload-driver";
+		}
+		encoding json;
 	}
 }
 EOF_CONF

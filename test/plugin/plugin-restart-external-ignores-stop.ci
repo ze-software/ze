@@ -67,10 +67,12 @@ environment {
 		}
 	}
 }
-plugin {
-	external restart-generation {
-		run "le test fixture plugin/restart-generation ignore-first-stop"
-		encoder json
+bus {
+	endpoint restart-generation {
+		external {
+			run "le test fixture plugin/restart-generation ignore-first-stop";
+		}
+		encoding json;
 	}
 }
 EOF_CONF

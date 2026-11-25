@@ -30,13 +30,15 @@ EOF_PEER
 # route was read through the Change.Forward handle (forwarded > 0).
 
 stdin=ze-bgp:terminator=EOF_CONF
-plugin {
-	external bgp-rs-fastpath {
-		run "le test fixture plugin/bgp-rs-fastpath"
-		encoder json
+bus {
+	endpoint bgp-rib {
+		internal bgp-rib;
 	}
-	internal bgp-rib {
-		use bgp-rib
+	endpoint bgp-rs-fastpath {
+		external {
+			run "le test fixture plugin/bgp-rs-fastpath";
+		}
+		encoding json;
 	}
 }
 
@@ -73,10 +75,6 @@ bgp {
 			group-updates disable
 		}
 
-		attach process bgp-rib {
-			receive [ update state refresh ]
-			send [ update ]
-		}
 	}
 }
 EOF_CONF

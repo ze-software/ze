@@ -15,10 +15,12 @@ EOF_PEER
 
 # ze bgp configuration
 stdin=ze-bgp:terminator=EOF_CONF
-plugin {
-	external event-monitor-include-test {
-		run "le test fixture plugin/event-monitor-include"
-		encoder json
+bus {
+	endpoint event-monitor-include-test {
+		external {
+			run "le test fixture plugin/event-monitor-include";
+		}
+		encoding json;
 	}
 }
 

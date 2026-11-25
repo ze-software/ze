@@ -1,9 +1,7 @@
-# ExaBGP bridge INTERNAL mode: runs in-process via the plugin registry
-# (plugin { internal exabgp-bridge }). The helper command is delivered through
-# the exabgp.bridge config root (SDK OnConfigure), not the process-manager run
-# line. The announce and resulting wire UPDATE are identical to the external
-# SDK-mode test (exabgp-bridge-sdk.ci); only the plugin declaration and config
-# source differ.
+# ExaBGP script endpoint (default text encoder): runs via the external wrapper
+# `ze exabgp plugin` declared under `bus { endpoint helper { external ... } }`
+# (E-1, E-7). The announce and resulting wire UPDATE match the explicit JSON
+# encoder test (exabgp-bridge-sdk.ci).
 
 # ze-peer expectations
 stdin=peer:terminator=EOF_PEER
@@ -13,21 +11,15 @@ EOF_PEER
 
 # Compiled ExaBGP-style helper writes one text command to stdout.
 
-# ze bgp configuration: bridge runs as an internal (in-process) plugin. The
-# helper command lives in the exabgp.bridge config root; `use exabgp-bridge`
-# resolves the internal runner name.
+# ze bgp configuration: ExaBGP script runs via the external `ze exabgp plugin`
+# wrapper endpoint on the bus.
 stdin=ze-bgp:terminator=EOF_CONF
-exabgp {
-	bridge {
-		process helper {
-			run "le test fixture plugin/exabgp-bridge-helper"
+bus {
+	endpoint helper {
+		external {
+			run "ze exabgp plugin --family ipv4/unicast le test fixture plugin/exabgp-bridge-helper";
 		}
-		family ipv4/unicast
-	}
-}
-plugin {
-	internal exabgp-bridge {
-		use exabgp-bridge
+		encoding json;
 	}
 }
 bgp {
@@ -56,11 +48,6 @@ bgp {
 		}
 		behavior {
 			group-updates disable
-		}
-
-		attach process exabgp-bridge {
-			receive [ * ]
-			send [ * ]
 		}
 	}
 }

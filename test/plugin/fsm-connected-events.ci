@@ -13,10 +13,12 @@ EOF_PEER
 
 # ze bgp configuration
 stdin=ze-bgp:terminator=EOF_CONF
-plugin {
-	external fsm-test {
-		run "le test fixture plugin/fsm-connected-events"
-		encoder json
+bus {
+	endpoint fsm-test {
+		external {
+			run "le test fixture plugin/fsm-connected-events";
+		}
+		encoding json;
 	}
 }
 
@@ -45,9 +47,6 @@ bgp {
 			}
 		}
 
-		attach process fsm-test {
-			receive [ connected fsm ]
-		}
 	}
 }
 EOF_CONF

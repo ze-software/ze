@@ -20,10 +20,12 @@ system {
 	}
 }
 
-plugin {
-	external clear-peeringdb-cache-test {
-		run "le test fixture plugin/clear-peeringdb-cache"
-		encoder json
+bus {
+	endpoint clear-peeringdb-cache-test {
+		external {
+			run "le test fixture plugin/clear-peeringdb-cache";
+		}
+		encoding json;
 	}
 }
 

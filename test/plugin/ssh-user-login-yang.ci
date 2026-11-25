@@ -32,10 +32,12 @@ environment {
 		server main { ip 127.0.0.1; port $PORT2; }
 	}
 }
-plugin {
-	external ssh-user-login-test {
-		run "le test fixture plugin/ssh-user-login-yang $PORT2"
-		encoder json
+bus {
+	endpoint ssh-user-login-test {
+		external {
+			run "le test fixture plugin/ssh-user-login-yang $PORT2";
+		}
+		encoding json;
 	}
 }
 EOF_CONF

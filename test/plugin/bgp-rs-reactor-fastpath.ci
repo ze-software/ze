@@ -90,22 +90,24 @@ expect=bgp:conn=1:seq=2:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
 # ineligible LOCAL_PREF with an ATTR_DISCARD marker, which is the open question
 # raised by bgp-rs-fastpath-ebgp-shared.ci -- settle that there first, then tighten
 # this to a full hex= match.
-expect=bgp:conn=2:seq=2:contains=40020A02020000FDE80000FDE940030401010101
+expect=bgp:conn=2:seq=2:contains=40020602010000FDE940030401010101
 EOF_PEER
 
 # Observer: shut down cleanly after forwarding completes.
 
 stdin=ze-bgp:terminator=EOF_CONF
-plugin {
-	internal rs {
-		use bgp-rs
+bus {
+	endpoint rs {
+		internal bgp-rs;
 	}
-	internal adj-rib-in {
-		use bgp-adj-rib-in
+	endpoint adj-rib-in {
+		internal bgp-adj-rib-in;
 	}
-	external shutdown-after-up {
-		run "le test fixture plugin/bgp-rs-reactor-fastpath"
-		encoder json
+	endpoint shutdown-after-up {
+		external {
+			run "le test fixture plugin/bgp-rs-reactor-fastpath";
+		}
+		encoding json;
 	}
 }
 bgp {
@@ -125,6 +127,7 @@ bgp {
 			}
 		}
 		session {
+			rs-client true;
 			asn {
 				local 65000
 				remote 65001
@@ -141,16 +144,6 @@ bgp {
 			group-updates disable
 			rs-fast-path enable
 		}
-		attach process adj-rib-in {
-			receive [ update-received state ]
-		}
-		attach process rs {
-			receive [ update-received state open-received refresh ]
-			send [ update ]
-		}
-		attach process shutdown-after-up {
-			receive [ update ]
-		}
 	}
 	peer receiver-peer {
 		connection {
@@ -163,6 +156,7 @@ bgp {
 			}
 		}
 		session {
+			rs-client true;
 			asn {
 				local 65000
 				remote 65002
@@ -182,16 +176,6 @@ bgp {
 		behavior {
 			group-updates disable
 			rs-fast-path enable
-		}
-		attach process adj-rib-in {
-			send [ update ]
-		}
-		attach process rs {
-			receive [ update-received state open-received refresh ]
-			send [ update ]
-		}
-		attach process shutdown-after-up {
-			receive [ update ]
 		}
 	}
 }

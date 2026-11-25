@@ -20,10 +20,12 @@ option=netns-link:name=ptmp0
 
 
 stdin=ze-conf:terminator=EOF_CONF
-plugin {
-	external ospfv3-ptmp {
-		run "le test fixture ospfv3/ospfv3-ptmp"
-		encoder json
+bus {
+	endpoint ospfv3-ptmp {
+		external {
+			run "le test fixture ospfv3/ospfv3-ptmp";
+		}
+		encoding json;
 	}
 }
 

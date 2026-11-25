@@ -551,11 +551,17 @@ func (p *Plugin) Close() error {
 	// Close MuxConn first -- its background reader must stop before
 	// closing the underlying engineConn (which it reads from).
 	if p.engineMux != nil {
-		if err := p.engineMux.Close(); err != nil {
+		if err := p.engineMux.Close(); err != nil && !errors.Is(err, net.ErrClosed) {
 			return err
 		}
 	}
-	return p.engineConn.Close()
+	if p.engineConn == nil {
+		return nil
+	}
+	if err := p.engineConn.Close(); err != nil && !errors.Is(err, net.ErrClosed) {
+		return err
+	}
+	return nil
 }
 
 // errNilRegistration refuses a nil declaration at the entry of Run and

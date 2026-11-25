@@ -8,7 +8,7 @@
 # refuses the bad value immediately.
 
 tmpfs=test.conf:terminator=EOF_CONF
-plugin { internal bgp-rib { use bgp-rib; } }
+bus { endpoint bgp-rib { internal bgp-rib; } }
 bgp {
   router-id 1.2.3.4;
   session { asn { local 65000; } }
@@ -16,10 +16,6 @@ bgp {
     connection { local { ip auto; } remote { ip 1.1.1.1; } }
     session { asn { remote 65001; } }
     timer { receive-hold-time 90; }
-    attach process bgp-rib {
-      receive [ update state refresh ];
-      send [ update ];
-    }
   }
 }
 ospf {

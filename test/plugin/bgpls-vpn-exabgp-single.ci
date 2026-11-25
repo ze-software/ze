@@ -20,6 +20,8 @@
 # or `uv` on PATH to resolve that immutable commit. Absence is a loud setup
 # failure (`SETUP ERROR`), never a skip or passing result.
 
+# Linux-only: static `next { interface lo { } }` resolves loopback `lo` via Linux netlink.
+option=needs-linux
 option=timeout:value=90s
 option=env:var=ze.log.bgp.rs:value=info
 
@@ -123,11 +125,12 @@ def main():
         "ctrl2_announced": False,
     }
     up_written = False
+    v4_acked = False
     completed = False
 
     for raw in sys.stdin:
         line = raw.strip()
-        if not line:
+        if not line or line in ("done", "error"):
             continue
         sys.stderr.write(f"[exabgp-reader] {line}\n")
         sys.stderr.flush()
@@ -171,6 +174,10 @@ def main():
             for entry in ls_ann.get("127.0.0.4", []):
                 if matches_ls72_node(entry, "65001:7", "192.0.2.9"):
                     state["v4_announced"] = True
+                    if not v4_acked:
+                        v4_acked = True
+                        sys.stdout.write("neighbor 127.0.0.4 announce route 198.51.100.0/24 next-hop 192.0.2.9\n")
+                        sys.stdout.flush()
             for entry in ls_ann.get("2001:db8::fe", []):
                 if matches_ls72_node(entry, "65001:8", "192.0.2.10"):
                     state["v6_announced"] = True
@@ -218,6 +225,7 @@ set -eu
 unset PYTHONPATH
 export exabgp_tcp_port="$1"
 export exabgp_api_cli=false
+export exabgp_api_ack=false
 export exabgp_debug_rotate=true
 export exabgp_debug_configuration=true
 export exabgp_api_socketname="exabgp-lsvpn-$1"
@@ -247,6 +255,9 @@ action=send:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF0069020000005240010
 action=send:conn=1:seq=2:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF007002000000594001010040020602010000FDE9C00804FDE80006800E424004480C0000000000000000C0000209000001002D0000FDE90000000803000000000000010001000018020000040000FDE9020100041234567802030004C000020A
 # 3. Control route 1: IPv4 unicast 10.88.0.0/24 -> next-hop:auto rewrites to 127.0.0.4.
 action=send:conn=1:seq=3:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF002F02000000144001010040020602010000FDE9400304C0000209180A5800
+# Barrier: wait for ExaBGP to confirm receipt of Node 1 via 198.51.100.0/24 before withdrawing it,
+# so bgp-rib cannot coalesce seq=1 add and seq=4 withdraw before wire flush.
+expect=bgp:conn=1:seq=3:announced=18C63364
 # 4. Exact withdrawal of LS72 Node 1 (MP_UNREACH_NLRI AFI 16388 / SAFI 72).
 action=send:conn=1:seq=4:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF004E0200000037800F344004480001002D0000FDE90000000703000000000000010001000018020000040000FDE9020100041234567802030004C0000209
 # 5. Control route 2: IPv4 unicast 10.88.1.0/24 after withdrawal (proves healthy session).
@@ -255,10 +266,21 @@ expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF001E0200000007900F00
 EOF_SOURCE
 
 stdin=ze-bgp:terminator=EOF_CONF
-plugin {
-	internal rs { use bgp-rs; }
-	internal adj-rib-in { use bgp-adj-rib-in; }
-	internal bgp-filter-modify { use bgp-filter-modify; }
+bus {
+	endpoint bgp-rib {
+		internal bgp-rib;
+	}
+	endpoint bgp-adj-rib-in {
+		internal bgp-adj-rib-in;
+		send {
+			message bgp:update {
+				to none;
+			}
+		}
+	}
+	endpoint bgp-filter-modify {
+		internal bgp-filter-modify;
+	}
 }
 policy {
 	modify ls-nh6 {
@@ -268,6 +290,14 @@ policy {
 		set {
 			next-hop 2001:db8::fe;
 		}
+	}
+}
+fib {
+	dummy { }
+}
+static {
+	table default {
+		route 192.0.2.9/32 { next { interface lo { } } }
 	}
 }
 bgp {
@@ -290,11 +320,6 @@ bgp {
 			capability { graceful-restart disable; }
 		}
 		behavior { group-updates disable; }
-		attach process rs {
-			receive [ update-received state open-received refresh ];
-			send [ update ];
-		}
-		attach process adj-rib-in { receive [ update-received state ]; }
 	}
 	peer exabgp-dest {
 		connection {
@@ -314,11 +339,6 @@ bgp {
 			export { filters [ modify:ls-nh6 ]; final accept; }
 		}
 		behavior { group-updates disable; }
-		attach process rs {
-			receive [ update-received state open-received refresh ];
-			send [ update ];
-		}
-		attach process adj-rib-in { receive [ update-received state ]; }
 	}
 }
 EOF_CONF

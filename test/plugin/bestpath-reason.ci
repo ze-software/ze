@@ -32,16 +32,18 @@ EOF_PEER
 
 
 stdin=ze-bgp:terminator=EOF_CONF
-plugin {
-	external reason-test {
-		run "le test fixture plugin/bestpath-reason"
-		encoder json
+bus {
+	endpoint bgp-rib {
+		internal bgp-rib;
 	}
-	internal bgp-rib {
-		use bgp-rib
+	endpoint rib {
+		internal rib;
 	}
-	internal rib {
-		use rib
+	endpoint reason-test {
+		external {
+			run "le test fixture plugin/bestpath-reason";
+		}
+		encoding json;
 	}
 }
 bgp {
@@ -69,10 +71,6 @@ bgp {
 			}
 		}
 
-		attach process bgp-rib {
-			receive [ update state refresh ]
-			send [ update ]
-		}
 	}
 }
 EOF_CONF

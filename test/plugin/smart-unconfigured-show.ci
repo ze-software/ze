@@ -8,10 +8,12 @@
 # Native observer fixture: plugin/smart-unconfigured-show.
 
 stdin=ze-conf:terminator=EOF_CONF
-plugin {
-    external smart-show-error {
-        run "le test fixture plugin/smart-unconfigured-show"
-        encoder json
+bus {
+    endpoint smart-show-error {
+        external {
+            run "le test fixture plugin/smart-unconfigured-show";
+        }
+        encoding json;
     }
 }
 

@@ -39,15 +39,17 @@ system {
 	}
 }
 
-plugin {
-	external dns-source-router-follows-ra-rdnss-test {
-		run "le test fixture plugin/dns-source-router-follows-ra-rdnss"
-		encoder json
+bus {
+	endpoint dns-source-router-follows-ra-rdnss-test {
+		external {
+			run "le test fixture plugin/dns-source-router-follows-ra-rdnss";
+		}
+		encoding json;
 	}
 }
 
 interface {
-	backend netlink
+	backend kernel
 
 	veth zerdnss0 {
 		peer zerdnss1

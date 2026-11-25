@@ -14,10 +14,12 @@ EOF_PEER
 
 
 stdin=ze-conf:terminator=EOF_CONF
-plugin {
-	external iface-rate-json-test {
-		run "le test fixture plugin/iface-rate-json"
-		encoder json
+bus {
+	endpoint iface-rate-json-test {
+		external {
+			run "le test fixture plugin/iface-rate-json";
+		}
+		encoding json;
 	}
 }
 

@@ -40,10 +40,15 @@ EOF_PEER
 # Trigger: apply the document again once the override is in force.
 
 stdin=ze-bgp:terminator=EOF_CONF
-plugin {
-	external runtime-subscribe {
-		run "le test fixture plugin/attach-process-runtime-subscribe"
-		encoder json
+bus {
+	endpoint runtime-subscribe {
+		external {
+			run "le test fixture plugin/attach-process-runtime-subscribe";
+		}
+		encoding json;
+		receive {
+			allow [ bgp:keepalive bgp:state ];
+		}
 	}
 }
 
@@ -85,9 +90,6 @@ bgp {
 		}
 		behavior {
 			group-updates disable
-		}
-		attach process runtime-subscribe {
-			receive [ keepalive state ]
 		}
 	}
 }
@@ -97,10 +99,20 @@ EOF_CONF
 # real one. It keeps granting keepalive; only discarding the live capability
 # addition can stop those events.
 tmpfs=config2.conf:terminator=EOF_CONF2
-plugin {
-	external runtime-subscribe {
-		run "le test fixture plugin/attach-process-runtime-subscribe"
-		encoder json
+bus {
+	endpoint runtime-subscribe {
+		external {
+			run "le test fixture plugin/attach-process-runtime-subscribe";
+		}
+		encoding json;
+		receive {
+			allow [ bgp:keepalive bgp:state bgp:open ];
+			message bgp:open {
+				tag direction {
+					value [ received ];
+				}
+			}
+		}
 	}
 }
 
@@ -142,9 +154,6 @@ bgp {
 		}
 		behavior {
 			group-updates disable
-		}
-		attach process runtime-subscribe {
-			receive [ keepalive state open-received ]
 		}
 	}
 }

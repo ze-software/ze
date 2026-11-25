@@ -33,13 +33,15 @@
 # this scenario needs no session at all.
 
 stdin=ze-bgp:terminator=EOF_CONF
-plugin {
-	external redist-late-consumer-test {
-		run "le test fixture plugin/redistribute-late-consumer"
-		encoder json
+bus {
+	endpoint fakeredist {
+		internal fakeredist;
 	}
-	internal fakeredist {
-		use fakeredist
+	endpoint redist-late-consumer-test {
+		external {
+			run "le test fixture plugin/redistribute-late-consumer";
+		}
+		encoding json;
 	}
 }
 

@@ -34,10 +34,12 @@ EOF_PEER
 
 
 stdin=ze-bgp:terminator=EOF_CONF
-plugin {
-	external med-local {
-		run "le test fixture plugin/med-locally-set-reaches-peer"
-		encoder json
+bus {
+	endpoint med-local {
+		external {
+			run "le test fixture plugin/med-locally-set-reaches-peer";
+		}
+		encoding json;
 	}
 }
 bgp {
@@ -70,9 +72,6 @@ bgp {
 			group-updates disable
 		}
 
-		attach process med-local {
-			send update
-		}
 	}
 }
 EOF_CONF

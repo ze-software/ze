@@ -59,10 +59,12 @@ option=timeout:value=60s
 
 # The configuration the operator commits: the start configuration plus dscp-map 46.
 tmpfs=config2.conf:terminator=EOF_CONFIG2
-plugin {
-	external live-stages {
-		run "le test fixture reload/live-stages stages.script"
-		encoder json
+bus {
+	endpoint live-stages {
+		external {
+			run "le test fixture reload/live-stages stages.script";
+		}
+		encoding json;
 	}
 }
 
@@ -124,10 +126,12 @@ EOF_SCRIPT
 
 # ── The daemon (REAL xfrm): the start configuration, peer at the default dscp-map ──
 stdin=ze-bgp:terminator=EOF_CONF
-plugin {
-	external live-stages {
-		run "le test fixture reload/live-stages stages.script"
-		encoder json
+bus {
+	endpoint live-stages {
+		external {
+			run "le test fixture reload/live-stages stages.script";
+		}
+		encoding json;
 	}
 }
 

@@ -27,10 +27,12 @@ EOF_PEER
 
 # Initial ze config: plugin + BGP peer. router-id 1.2.3.4.
 stdin=ze-bgp:terminator=EOF_CONF
-plugin {
-	external errors-config-abort-show-test {
-		run "le test fixture plugin/errors-config-abort-show"
-		encoder json
+bus {
+	endpoint errors-config-abort-show-test {
+		external {
+			run "le test fixture plugin/errors-config-abort-show";
+		}
+		encoding json;
 	}
 }
 
@@ -81,10 +83,12 @@ EOF_CONF
 # the plugin receives a config-verify RPC for the reload. Plugin block
 # unchanged so the transaction participant list matches the active set.
 tmpfs=config2.conf:terminator=EOF_CONF2
-plugin {
-	external errors-config-abort-show-test {
-		run "le test fixture plugin/errors-config-abort-show"
-		encoder json
+bus {
+	endpoint errors-config-abort-show-test {
+		external {
+			run "le test fixture plugin/errors-config-abort-show";
+		}
+		encoding json;
 	}
 }
 

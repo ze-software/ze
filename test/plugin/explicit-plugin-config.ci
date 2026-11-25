@@ -38,10 +38,12 @@ EOF_PEER
 
 # ze bgp configuration
 stdin=ze-bgp:terminator=EOF_CONF
-plugin {
-    external flowspec {
-        run "le test fixture plugin/explicit-plugin-config"
-        encoder json
+bus {
+    endpoint flowspec {
+        external {
+            run "le test fixture plugin/explicit-plugin-config";
+        }
+        encoding json;
     }
 }
 bgp {
@@ -68,9 +70,6 @@ bgp {
     	}
 
 
-        attach process flowspec {
-            send [ update ]
-        }
     }
 }
 EOF_CONF

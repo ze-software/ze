@@ -25,10 +25,12 @@ pki {
     }
 }
 
-plugin {
-    external pki-export-show-test {
-        run "le test fixture plugin/pki-certificate-export-show"
-        encoder json
+bus {
+    endpoint pki-export-show-test {
+        external {
+            run "le test fixture plugin/pki-certificate-export-show";
+        }
+        encoding json;
     }
 }
 

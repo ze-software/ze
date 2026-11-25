@@ -17,10 +17,12 @@ EOF_PEER
 # ze bgp configuration
 # manual-eor, not the absence of graceful restart, suppresses the automatic EOR.
 stdin=ze-bgp:terminator=EOF_CONF
-plugin {
-    external test-plugin {
-        run "le test fixture plugin/registration"
-        encoder json
+bus {
+    endpoint test-plugin {
+        external {
+            run "le test fixture plugin/registration";
+        }
+        encoding json;
     }
 }
 bgp {
@@ -50,9 +52,6 @@ bgp {
     	}
 
         # Only the registered plugin may satisfy the expected EOR.
-        attach process test-plugin {
-            send [ update ]
-        }
     }
 }
 EOF_CONF

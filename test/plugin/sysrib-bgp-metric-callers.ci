@@ -15,13 +15,26 @@ expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
 EOF_PEER
 
 stdin=ze-conf:terminator=EOF_CONF
-plugin {
- external sysrib-bgp-metric-test { run "le test fixture plugin/sysrib-bgp-metric-callers internal"; encoder json; }
- external sysrib-owner { run "ze plugin rib"; encoder json; }
- internal bgp-rib { use bgp-rib; }
- internal fib-kernel { use fib-kernel; }
+bus {
+  endpoint bgp-rib {
+    internal bgp-rib;
+  }
+  endpoint fib-kernel {
+    internal fib-kernel;
+  }
+  endpoint sysrib-bgp-metric-test {
+    external {
+      run "le test fixture plugin/sysrib-bgp-metric-callers internal";
+    }
+    encoding json;
+  }
+  endpoint sysrib-owner {
+    internal rib;
+    process separate;
+    encoding json;
+  }
 }
-interface { backend netlink; }
+interface { backend kernel; }
 connected { }
 fib { kernel { flush-on-stop true; } }
 bgp {
@@ -35,7 +48,6 @@ bgp {
    capability { graceful-restart disable; }
   }
   behavior { group-updates disable; }
-  attach process bgp-rib { receive [ update state refresh ]; send [ update ]; }
  }
 }
 EOF_CONF

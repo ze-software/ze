@@ -23,10 +23,12 @@ EOF_PEER
 
 
 stdin=ze-conf:terminator=EOF_CONF
-plugin {
-	external l2tp-config-show-test {
-		run "le test fixture plugin/l2tp-config-show"
-		encoder json
+bus {
+	endpoint l2tp-config-show-test {
+		external {
+			run "le test fixture plugin/l2tp-config-show";
+		}
+		encoding json;
 	}
 }
 

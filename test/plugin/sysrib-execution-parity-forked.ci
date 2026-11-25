@@ -11,17 +11,20 @@ option=needs-linux:caps=net-admin
 option=netns-link:name=zesrproof
 
 stdin=ze-conf:terminator=EOF_CONF
-plugin {
-	external sysrib-execution-test {
-		run "le test fixture plugin/sysrib-execution-parity forked kernel"
-		encoder json
+bus {
+	endpoint fib-kernel {
+		internal fib-kernel;
 	}
-	external sysrib-owner {
-		run "ze plugin rib"
-		encoder json
+	endpoint sysrib-execution-test {
+		external {
+			run "le test fixture plugin/sysrib-execution-parity forked kernel";
+		}
+		encoding json;
 	}
-	internal fib-kernel {
-		use fib-kernel
+	endpoint sysrib-owner {
+		internal rib;
+		process separate;
+		encoding json;
 	}
 }
 rib {

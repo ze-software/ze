@@ -16,15 +16,17 @@ l2tp {
         }
     }
 }
-plugin {
-    internal l2tp-pool {
-        use l2tp-pool
+bus {
+    endpoint l2tp-pool {
+        internal l2tp-pool;
     }
-    internal pool-source {
-        use fakel2tp
+    endpoint pool-source {
+        internal fakel2tp;
     }
-    external pool-observer {
-        run "le test fixture reload/l2tp-pool-range"
+    endpoint pool-observer {
+        external {
+            run "le test fixture reload/l2tp-pool-range";
+        }
     }
 }
 EOF_CONF
@@ -53,15 +55,17 @@ l2tp {
         }
     }
 }
-plugin {
-    internal l2tp-pool {
-        use l2tp-pool
+bus {
+    endpoint l2tp-pool {
+        internal l2tp-pool;
     }
-    internal pool-source {
-        use fakel2tp
+    endpoint pool-source {
+        internal fakel2tp;
     }
-    external pool-observer {
-        run "le test fixture reload/l2tp-pool-range"
+    endpoint pool-observer {
+        external {
+            run "le test fixture reload/l2tp-pool-range";
+        }
     }
 }
 EOF_CONF2
@@ -90,15 +94,17 @@ l2tp {
         }
     }
 }
-plugin {
-    internal l2tp-pool {
-        use l2tp-pool
+bus {
+    endpoint l2tp-pool {
+        internal l2tp-pool;
     }
-    internal pool-source {
-        use fakel2tp
+    endpoint pool-source {
+        internal fakel2tp;
     }
-    external pool-observer {
-        run "le test fixture reload/l2tp-pool-range"
+    endpoint pool-observer {
+        external {
+            run "le test fixture reload/l2tp-pool-range";
+        }
     }
 }
 EOF_CONF3

@@ -7,12 +7,12 @@
 option=timeout:value=30s
 
 stdin=ze-bgp:refused=config-hub-invalid:terminator=EOF_CONF
-plugin {
+bus {
     hub {
         server invalid-hub {
-            ip 127.0.0.1
-            port $PORT
-            secret bmp-bind-reload-test-0123456789
+            ip 127.0.0.1;
+            port $PORT;
+            secret bmp-bind-reload-test-0123456789;
         }
     }
 }

@@ -15,23 +15,25 @@ EOF_PEER
 # Native compiled fixture: plugin/rpki-event-unavailable
 # Config with rpki plugin but NO RTR server (cache will be empty)
 stdin=ze-bgp:terminator=EOF_CONF
-plugin {
+bus {
+	endpoint rpki {
+		internal bgp-rpki;
+	}
+	endpoint adj-rib-in {
+		internal bgp-adj-rib-in;
+	}
+	endpoint rpki-unavail-test {
+		external {
+			run "le test fixture plugin/rpki-event-unavailable";
+		}
+		encoding json;
+	}
 	hub {
 		server local {
 			ip 127.0.0.1;
 			port 0;
 			secret rpki-test-secret-key-01234567890;
 		}
-	}
-	external rpki-unavail-test {
-		run "le test fixture plugin/rpki-event-unavailable"
-		encoder json
-	}
-	internal rpki {
-		use bgp-rpki
-	}
-	internal adj-rib-in {
-		use bgp-adj-rib-in
 	}
 }
 
@@ -69,15 +71,6 @@ bgp {
 			group-updates disable
 		}
 
-		attach process rpki-unavail-test {
-			receive [ rpki-received ]
-		}
-		attach process rpki {
-			receive [ update-received state ]
-		}
-		attach process adj-rib-in {
-			receive [ update-received state ]
-		}
 	}
 }
 EOF_CONF

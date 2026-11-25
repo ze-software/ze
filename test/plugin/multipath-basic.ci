@@ -30,16 +30,18 @@ EOF_PEER
 # Native observer injects the equal-cost route and polls the RIB multipath state.
 
 stdin=ze-bgp:terminator=EOF_CONF
-plugin {
-	external multipath-test {
-		run "le test fixture plugin/multipath-basic"
-		encoder json
+bus {
+	endpoint bgp-rib {
+		internal bgp-rib;
 	}
-	internal bgp-rib {
-		use bgp-rib
+	endpoint rib {
+		internal rib;
 	}
-	internal rib {
-		use rib
+	endpoint multipath-test {
+		external {
+			run "le test fixture plugin/multipath-basic";
+		}
+		encoding json;
 	}
 }
 bgp {
@@ -72,10 +74,6 @@ bgp {
 			}
 		}
 
-		attach process bgp-rib {
-			receive [ update state refresh ]
-			send [ update ]
-		}
 	}
 }
 EOF_CONF

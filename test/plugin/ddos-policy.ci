@@ -4,7 +4,7 @@
 # VALIDATES: spec-ddos-direction-allowlist AC-2 -- with a
 #            `rule <victim> { action allow; match destination; scope mitigation; }`
 #            the detector still opens an incident (show ddos status active-attacks > 0)
-#            but the local responder installs NO nft drop (show ddos local active=false).
+#            but the local responder installs NO nftables drop (show ddos local active=false).
 # PREVENTS:  the policy having no effect (a drop installed anyway) or suppressing
 #            detection entirely (no incident opened).
 #
@@ -18,7 +18,7 @@
 # drives rlimit.RemoveMemlock() + link.AttachTCX()
 # (internal/plugins/trafficusage/attach_linux.go:33,46), so it needs bpf
 # (CAP_BPF + CAP_SYS_RESOURCE) to account at all and net-admin to program the
-# interface's tc hooks. Without them eBPF accounting runs inert, no incident is
+# interface's traffic control hooks. Without them eBPF accounting runs inert, no incident is
 # ever opened, and the observer's runtime_fail fires -- which is what a bare
 # needs-linux produced on the unprivileged GitHub runner
 # (ai/rules/qemu-testing.md).
@@ -81,15 +81,17 @@ traffic {
 
 # // no firewall {} backend block here. An allow/mitigation policy exempts
 # the victim in the responder BEFORE any firewall call (applyMitigation returns at the
-# "policy exempts mitigation" branch), so no nft backend is needed. Adding one
+# "policy exempts mitigation" branch), so no kernel backend is needed. Adding one
 # deadlocked the daemon's command dispatch under the flood (firewall component + the
-# responder both drive nft concurrently). Validity comes from the expect=stderr
+# responder both drive nftables concurrently). Validity comes from the expect=stderr
 # "policy exempts mitigation" assertion, which fires only when the policy set the
 # event's SuppressMitigation flag -- i.e. only when the policy actually worked.
-plugin {
-	external ddos-policy-probe {
-		run "le test fixture plugin/ddos-policy"
-		encoder json
+bus {
+	endpoint ddos-policy-probe {
+		external {
+			run "le test fixture plugin/ddos-policy";
+		}
+		encoding json;
 	}
 }
 

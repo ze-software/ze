@@ -13,10 +13,12 @@ EOF_PEER
 
 # ze bgp configuration: two filters from same plugin in order
 stdin=ze-bgp:terminator=EOF_CONF
-plugin {
-    external filter-chain-test {
-        run "le test fixture plugin/redistribute-chain-order";
-        encoder json;
+bus {
+    endpoint filter-chain-test {
+        external {
+            run "le test fixture plugin/redistribute-chain-order";
+        }
+        encoding json;
     }
 }
 bgp {

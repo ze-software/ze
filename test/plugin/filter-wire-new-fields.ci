@@ -24,10 +24,20 @@ action=send:conn=1:seq=2:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
 PEER2
 
 stdin=config:terminator=CONFIG
-plugin {
- internal inside { use filter-wire-cases; }
- external outside { run "ze plugin filter-wire-cases-forked"; }
- external observer { run "le test fixture plugin/filter-wire-cases-fence"; encoder json; }
+bus {
+  endpoint inside {
+    internal filter-wire-cases;
+  }
+  endpoint outside {
+    internal filter-wire-cases-forked;
+    process separate;
+  }
+  endpoint observer {
+    external {
+      run "le test fixture plugin/filter-wire-cases-fence";
+    }
+    encoding json;
+  }
 }
 bgp {
  peer peer1 {

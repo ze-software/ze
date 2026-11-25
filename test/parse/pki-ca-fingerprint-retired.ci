@@ -8,10 +8,10 @@
 # carries the replacement into the parse error.
 #
 # The accepted counterpart is asserted second. Without it this file would still
-# pass if `plugin hub client` stopped accepting any trust anchor at all, which
+# pass if `bus hub client` stopped accepting any trust anchor at all, which
 # is a refusal of the wrong thing.
 stdin=retired:terminator=EOF_RETIRED
-plugin {
+bus {
 	hub {
 		client central-hub {
 			host 127.0.0.1
@@ -29,7 +29,7 @@ pki {
 		certificate MIIBgDCCASWgAwIBAgIUN8tmPUUL2Ec/2cVjYvX05q2i+QEwCgYIKoZIzj0EAwIwFTETMBEGA1UEAwwKemUtdGVzdC1jYTAeFw0yNjA4MDMyMTIyMDFaFw0zNjA3MzEyMTIyMDFaMBUxEzARBgNVBAMMCnplLXRlc3QtY2EwWTATBgcqhkjOPQIBBggqhkjOPQMBBwNCAATN9NaXzwmSRYDK2D74maehpcicub6tEvETMBE/LIJojtnRALX71x1KovqCz+9LffIy0AOFVTP+/A8anJUkFYEWo1MwUTAdBgNVHQ4EFgQUBQPnmMeLjJEwa6rsZviFJpmHdswwHwYDVR0jBBgwFoAUBQPnmMeLjJEwa6rsZviFJpmHdswwDwYDVR0TAQH/BAUwAwEB/zAKBggqhkjOPQQDAgNJADBGAiEAtUbaI4yvaJ/KruZs+nMnOPZJi0Ib6rqQFoEOUlwADZwCIQDuDJmTlfDJHsDNcZ2HPGDKmJeG7G9EH+oIoll3jk6cLg==
 	}
 }
-plugin {
+bus {
 	hub {
 		client central-hub {
 			host 127.0.0.1

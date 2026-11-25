@@ -12,10 +12,12 @@ EOF_PEER
 
 # ze bgp configuration
 stdin=ze-bgp:terminator=EOF_CONF
-plugin {
-	external peer-selector-asn {
-		run "le test fixture plugin/peer-selector-asn"
-		encoder json
+bus {
+	endpoint peer-selector-asn {
+		external {
+			run "le test fixture plugin/peer-selector-asn";
+		}
+		encoding json;
 	}
 }
 bgp {
@@ -46,9 +48,6 @@ bgp {
 			group-updates disable
 		}
 
-		attach process peer-selector-asn {
-			send [ update ]
-		}
 	}
 }
 EOF_CONF

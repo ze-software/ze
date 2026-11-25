@@ -22,10 +22,12 @@
 
 # Initial ze config: rsvp-te services two interfaces.
 stdin=ze-bgp:terminator=EOF_CONF
-plugin {
-	external rsvpte-reload {
-		run "le test fixture reload/rsvpte-reload"
-		encoder json
+bus {
+	endpoint rsvpte-reload {
+		external {
+			run "le test fixture reload/rsvpte-reload";
+		}
+		encoding json;
 	}
 }
 
@@ -77,10 +79,12 @@ EOF_CONF
 
 # Reloaded config: dummy0 is gone and refresh-period is 10.
 tmpfs=config2.conf:terminator=EOF_CONF2
-plugin {
-	external rsvpte-reload {
-		run "le test fixture reload/rsvpte-reload"
-		encoder json
+bus {
+	endpoint rsvpte-reload {
+		external {
+			run "le test fixture reload/rsvpte-reload";
+		}
+		encoding json;
 	}
 }
 

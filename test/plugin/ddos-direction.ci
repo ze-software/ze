@@ -12,7 +12,7 @@
 # PREVENTS:  direction being unset/wrong (e.g. defaulting to remote) for a box-owned
 #            victim, and a classified attack that nothing enforces.
 #
-# WHY THE SCOPE WAS NARROW, and why it is not any more. Loading the firewall nft
+# WHY THE SCOPE WAS NARROW, and why it is not any more. Loading the firewall kernel
 # backend alongside the ddos-local responder under a flood used to wedge the
 # daemon's command dispatch, so this test dropped both the firewall block and the
 # drop assertion. Every mechanism that could produce that hang is now fixed at
@@ -44,7 +44,7 @@
 #     (internal/plugins/trafficusage/attach_linux.go:33,46). On the unprivileged
 #     GitHub runner the rlimit call failed with "need CAP_BPF/CAP_SYS_RESOURCE",
 #     eBPF accounting ran inert, and no incident was ever opened.
-#   - net-admin: AttachTCX programs the interface's tc hooks, a privileged
+#   - net-admin: AttachTCX programs the interface's traffic control hooks, a privileged
 #     network operation.
 # Declaring only one of the two would fail OPEN: a host holding just that one
 # passes the gate and the test fails exactly as it did with no marker at all
@@ -104,10 +104,12 @@ traffic {
 	}
 }
 
-plugin {
-	external ddos-direction-probe {
-		run "le test fixture plugin/ddos-direction"
-		encoder json
+bus {
+	endpoint ddos-direction-probe {
+		external {
+			run "le test fixture plugin/ddos-direction";
+		}
+		encoding json;
 	}
 }
 

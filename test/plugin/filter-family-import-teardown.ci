@@ -24,10 +24,12 @@ EOF_PEER
 
 
 stdin=ze-bgp:terminator=EOF_CONF
-plugin {
-	external test-family-teardown {
-		run "le test fixture plugin/filter-family-import-teardown"
-		encoder json
+bus {
+	endpoint test-family-teardown {
+		external {
+			run "le test fixture plugin/filter-family-import-teardown";
+		}
+		encoding json;
 	}
 }
 policy {
@@ -64,9 +66,6 @@ bgp {
 			import { filters [ bgp-filter-family:Kill ]; final accept; }
 		}
 
-		attach process test-family-teardown {
-			receive [ update state ]
-		}
 	}
 }
 EOF_CONF

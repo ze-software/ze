@@ -31,6 +31,8 @@
 # (internal/component/bgp/reactor/reactor_notify.go), which that test configures.
 
 # Source peer (Customer, ASN 65001) on 127.0.0.1.
+# Linux-only: static `next { interface lo { } }` resolves loopback `lo` via Linux netlink.
+option=needs-linux
 stdin=source:terminator=EOF_SOURCE
 option=tcp_connections:value=1
 option=timeout:value=30s
@@ -61,9 +63,9 @@ option=timeout:value=30s
 option=open:value=drop-capability:code=9
 option=open:value=add-capability:code=9:hex=03
 # seq=1 POSITIVE -- the advertisement MUST carry OTC: C0 23 04 0000FDE8, value
-# 65000, ze's local AS (RFC 9234 Section 5 egress rule 1). Byte-identical to
-# role-otc-egress-stamp.ci's assertion.
-expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF003A020000001F4001010040020A02020000FDE80000FDE940030401010101C023040000FDE8180A0000
+# 65000, ze's local AS (RFC 9234 Section 5 egress rule 1). NEXT_HOP is 127.0.0.12
+# (bgp-rib eBGP local address, RFC 4271 Section 5.1.3).
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF003A020000001F4001010040020A02020000FDE80000FDE94003047F00000CC023040000FDE8180A0000
 # seq=2 NEGATIVE -- the forwarded withdrawal, BYTE-IDENTICAL to what the source
 # sent: attrLen=0000, no attribute of any code. A stamped withdrawal would read
 # attrLen=0007 with C023040000FDE8, and this exact-hex rule refuses it.
@@ -85,16 +87,31 @@ EOF_DEST
 # Native compiled fixture: plugin/role-otc-fwd-withdraw
 # ze: Provider (ASN 65000) with two Customer peers on separate loopbacks.
 stdin=ze-bgp:terminator=EOF_CONF
-plugin {
-	internal adj-rib-in {
-		use bgp-adj-rib-in
+bus {
+	endpoint adj-rib-in {
+		internal bgp-adj-rib-in;
+		send {
+			message bgp:update {
+				to none;
+			}
+		}
 	}
-	internal rs {
-		use bgp-rs
+	endpoint rs {
+		internal bgp-rib;
 	}
-	external test-withdraw {
-		run "le test fixture plugin/role-otc-fwd-withdraw"
-		encoder json
+	endpoint test-withdraw {
+		external {
+			run "le test fixture plugin/role-otc-fwd-withdraw";
+		}
+		encoding json;
+	}
+}
+fib {
+	dummy { }
+}
+static {
+	table default {
+		route 1.1.1.1/32 { next { interface lo { } } }
 	}
 }
 bgp {
@@ -127,17 +144,6 @@ bgp {
 			import provider
 			export default
 		}
-		attach process test-withdraw {
-			send [ update ]
-		}
-		attach process rs {
-			receive [ update-received state open-received refresh ]
-			send [ update ]
-		}
-		attach process adj-rib-in {
-			receive [ update-received state ]
-			send [ update ]
-		}
 	}
 
 	peer dest-peer {
@@ -146,7 +152,7 @@ bgp {
 				ip 127.0.0.2
 			}
 			local {
-				ip 127.0.0.2
+				ip 127.0.0.12
 				accept false
 			}
 		}
@@ -164,14 +170,6 @@ bgp {
 		role {
 			import provider
 			export default
-		}
-		attach process rs {
-			receive [ update-received state open-received refresh ]
-			send [ update ]
-		}
-		attach process adj-rib-in {
-			receive [ update-received state ]
-			send [ update ]
 		}
 	}
 }

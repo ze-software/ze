@@ -23,25 +23,27 @@ EOF_PEER
 
 
 stdin=ze-bgp:terminator=EOF_CONF
-plugin {
-	external fib-mpls-kernel-test {
-		run "le test fixture plugin/fib-mpls-kernel"
-		encoder json
+bus {
+	endpoint bgp-rib {
+		internal bgp-rib;
 	}
-	internal bgp-rib {
-		use bgp-rib
+	endpoint rib {
+		internal rib;
 	}
-	internal rib {
-		use rib
+	endpoint fib-kernel {
+		internal fib-kernel;
 	}
-	internal fib-kernel {
-		use fib-kernel
+	endpoint sysctl {
+		internal sysctl;
 	}
-	internal sysctl {
-		use sysctl
+	endpoint fakefib {
+		internal fakefib;
 	}
-	internal fakefib {
-		use fakefib
+	endpoint fib-mpls-kernel-test {
+		external {
+			run "le test fixture plugin/fib-mpls-kernel";
+		}
+		encoding json;
 	}
 }
 
@@ -73,10 +75,6 @@ bgp {
 			group-updates disable
 		}
 
-		attach process bgp-rib {
-			receive [ update state refresh ]
-			send [ update ]
-		}
 	}
 }
 EOF_CONF

@@ -20,9 +20,9 @@
 option=timeout:value=30s
 
 tmpfs=ze-sealed.conf:terminator=EOF_CONF
-plugin {
-	internal lateregister {
-		use lateregister
+bus {
+	endpoint lateregister {
+		internal lateregister;
 	}
 }
 EOF_CONF

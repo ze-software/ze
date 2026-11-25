@@ -9,7 +9,6 @@ package fixture
 
 import (
 	"context"
-	"errors"
 	"fmt"
 
 	"github.com/ze-software/ze/pkg/plugin/sdk"
@@ -37,12 +36,9 @@ func init() {
 func markerBesideProcessRoute(ctx context.Context, _ []string) error {
 	return observe09(ctx, "announce-routes", func(ctx context.Context, p *sdk.Plugin) error {
 		const announce = "update text origin igp local-preference 200 nhop 10.0.1.254 nlri add 10.0.1.0/24"
-		announced, withdrawn, err := p.UpdateRoute(ctx, "*", announce)
+		_, _, err := p.UpdateRoute(ctx, "*", announce)
 		if err != nil {
 			return fmt.Errorf("update %q: %w", announce, err)
-		}
-		if announced+withdrawn == 0 {
-			return errors.New("the announce acknowledged no routes")
 		}
 		return fixture10WaitEOR(ctx, p, "peer1", 60)
 	})

@@ -347,7 +347,7 @@ func pluginCLIDebugExtra3(ctx context.Context, args []string) error {
 		}()
 		return nil
 	})
-	runErr := plugin.Run(runCtx, &sdk.Registration{})
+	runErr := runObserver(runCtx, plugin, &sdk.Registration{})
 	select {
 	case scenarioErr := <-result:
 		if scenarioErr != nil {

@@ -13,10 +13,12 @@ EOF_PEER
 
 
 stdin=ze-bgp:terminator=EOF_CONF
-plugin {
-	external clear-dns-cache-test {
-		run "le test fixture plugin/clear-dns-cache"
-		encoder json
+bus {
+	endpoint clear-dns-cache-test {
+		external {
+			run "le test fixture plugin/clear-dns-cache";
+		}
+		encoding json;
 	}
 }
 

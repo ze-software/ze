@@ -131,6 +131,7 @@ func startSelectedOriginResultPeers(t *testing.T, ctx context.Context, producer 
 	started := make(chan readyOriginCaller, 1)
 	require.NoError(t, registry.Register(registry.Registration{
 		Name: producer, CLIHandler: func([]string) int { return 0 },
+		Sends: []rpc.MessageSendDecl{{Message: "bgp:update"}},
 		RunEngine: func(conn net.Conn) int {
 			if !typed {
 				conn = struct{ net.Conn }{conn}
@@ -149,7 +150,9 @@ func startSelectedOriginResultPeers(t *testing.T, ctx context.Context, producer 
 				started <- readyOriginCaller{client: caller, bridge: bridge}
 				return nil
 			})
-			if err := caller.Run(t.Context(), &sdk.Registration{}); err != nil && t.Context().Err() == nil {
+			if err := caller.Run(t.Context(), &sdk.Registration{
+				Sends: []sdk.MessageSendDecl{{Message: "bgp:update"}},
+			}); err != nil && t.Context().Err() == nil {
 				t.Errorf("origin caller: %v", err)
 				return 1
 			}

@@ -13,7 +13,7 @@
 #           and a verdict computed for a path nobody measured.
 #
 # The path is three network namespaces joined by veth pairs, built by the
-# compiled fixture `plugin/clamped-path` (internal/test/fixture, netlink): the
+# compiled fixture `plugin/clamped-path` (internal/test/fixture, via netlink): the
 # daemon runs in the sender namespace, the router forwards with its far link at
 # 1400, and the far namespace answers. Building them needs CAP_NET_ADMIN and
 # the raw ICMP socket needs CAP_NET_RAW, so the test runs in the QEMU guest as
@@ -29,10 +29,12 @@ option=env:var=ze_test_ike_port:value=$PORT2
 option=timeout:value=180s
 
 tmpfs=mtu-oversized.conf:terminator=EOF_A
-plugin {
-	external show-mtu-test {
-		run "le test fixture plugin/show-mtu-oversized"
-		encoder json
+bus {
+	endpoint show-mtu-test {
+		external {
+			run "le test fixture plugin/show-mtu-oversized";
+		}
+		encoding json;
 	}
 }
 environment {

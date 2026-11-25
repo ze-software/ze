@@ -29,10 +29,12 @@ EOF_PEER
 
 # ze bgp configuration with single-hop GTSM
 stdin=ze-bgp:terminator=EOF_CONF
-plugin {
-	external gtsm-show-test {
-		run "le test fixture plugin/bgp-gtsm"
-		encoder json
+bus {
+	endpoint gtsm-show-test {
+		external {
+			run "le test fixture plugin/bgp-gtsm";
+		}
+		encoding json;
 	}
 }
 

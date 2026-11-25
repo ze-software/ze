@@ -25,10 +25,12 @@ EOF_PEER
 
 
 stdin=ze-bgp:terminator=EOF_CONF
-plugin {
-	external test-cm-reject {
-		run "le test fixture plugin/community-match-reject"
-		encoder json
+bus {
+	endpoint test-cm-reject {
+		external {
+			run "le test fixture plugin/community-match-reject";
+		}
+		encoding json;
 	}
 }
 policy {
@@ -70,9 +72,6 @@ bgp {
 			import { filters [ community-BLOCK-NO-EXPORT ]; final accept; }
 		}
 
-		attach process test-cm-reject {
-			receive [ update state ]
-		}
 	}
 }
 EOF_CONF

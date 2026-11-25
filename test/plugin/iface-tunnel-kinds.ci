@@ -1,5 +1,5 @@
 # Test: every tunnel kind ze models can be created on the running kernel
-# Exercises: interface config -> iface OnConfigure -> netlink CreateTunnel ->
+# Exercises: interface config -> iface OnConfigure -> kernel CreateTunnel ->
 #            RTM_NEWLINK -> `show interface` (internal/component/iface/cmd/show_interface.go)
 # VALIDATES: all nine kinds in tunnelKindNames (internal/component/iface/tunnel.go)
 #            reach the kernel and leave a link behind, read back by name.
@@ -50,15 +50,17 @@ EOF_PEER
 
 
 stdin=ze-conf:terminator=EOF_CONF
-plugin {
-	external iface-tunnel-kinds-test {
-		run "le test fixture plugin/iface-tunnel-kinds"
-		encoder json
+bus {
+	endpoint iface-tunnel-kinds-test {
+		external {
+			run "le test fixture plugin/iface-tunnel-kinds";
+		}
+		encoding json;
 	}
 }
 
 interface {
-	backend netlink
+	backend kernel
 
 	tunnel tkgre {
 		encapsulation {

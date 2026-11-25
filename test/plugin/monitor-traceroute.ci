@@ -22,10 +22,12 @@ EOF_PEER
 # Native observer exercises both traceroute command paths.
 
 stdin=ze-bgp:terminator=EOF_CONF
-plugin {
-	external monitor-traceroute-test {
-		run "le test fixture plugin/monitor-traceroute"
-		encoder json
+bus {
+	endpoint monitor-traceroute-test {
+		external {
+			run "le test fixture plugin/monitor-traceroute";
+		}
+		encoding json;
 	}
 }
 

@@ -72,6 +72,10 @@ func fixture06Registration(name string) *sdk.Registration {
 	switch name {
 	case "plugin/enricher-external-show-checker":
 		return &sdk.Registration{}
+	case "plugin/event-predicate-wait":
+		return &sdk.Registration{
+			Receives: []sdk.MessageReceiveDecl{{Message: "bgp:update"}},
+		}
 	case "plugin/explicit-plugin-config":
 		return &sdk.Registration{Families: []sdk.FamilyDecl{
 			{Name: "ipv4/flow", Mode: modeDecode, AFI: 1, SAFI: 133},
@@ -394,7 +398,7 @@ func fixture06EnricherExternalProvider(ctx context.Context, _ []string) error {
 		}
 		return map[string]any{}, nil
 	})
-	return p.Run(ctx, &sdk.Registration{Enrichers: []sdk.EnricherDecl{{Command: "show test enrich", Key: "ext-cos"}}})
+	return runObserver(ctx, p, &sdk.Registration{Enrichers: []sdk.EnricherDecl{{Command: "show test enrich", Key: "ext-cos"}}})
 }
 
 func fixture06EnricherExternalChecker(ctx context.Context, p *sdk.Plugin) error {
@@ -428,6 +432,9 @@ func fixture06EORPerFamily(ctx context.Context, p *sdk.Plugin) error {
 }
 
 func fixture06ExplicitPluginConfig(ctx context.Context, p *sdk.Plugin) error {
+	if err := fixture06WaitEOR(ctx, p, 1); err != nil {
+		return err
+	}
 	announced, _, err := p.UpdateRoute(ctx, "*", "update text origin igp local-preference 100 nhop 1.2.3.4 nlri add 99.99.99.0/24")
 	if err != nil {
 		return err

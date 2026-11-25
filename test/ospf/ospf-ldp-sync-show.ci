@@ -16,10 +16,12 @@ option=skip-os:value=darwin
 
 
 stdin=ze-conf:terminator=EOF_CONF
-plugin {
-	external ospf-ldp-sync-show {
-		run "le test fixture ospf/ospf-ldp-sync-show"
-		encoder json
+bus {
+	endpoint ospf-ldp-sync-show {
+		external {
+			run "le test fixture ospf/ospf-ldp-sync-show";
+		}
+		encoding json;
 	}
 }
 

@@ -44,9 +44,11 @@ flow-export {
 	}
 }
 
-plugin {
-	external flow-export {
-		run "le mock plugin-external flow-export"
+bus {
+	endpoint flow-export {
+		external {
+			run "le mock plugin-external flow-export";
+		}
 	}
 }
 

@@ -32,18 +32,18 @@ EOF_PEER
 
 # ze configuration -- NO redistribute import as112 block.
 stdin=ze-bgp:terminator=EOF_CONF
-plugin {
-	external as112-nocfg-test {
-		run "le test fixture plugin/redistribute-as112-not-imported"
-		encoder json
+bus {
+	endpoint redistribute-orchestrator {
+		internal redistribute-orchestrator;
 	}
-	# Orchestrator IS running (subscribed to as112) -- so a route reaching the
-	# wire could only come from a missing import filter, not a missing subscriber.
-	internal redistribute-orchestrator {
-		use redistribute-orchestrator
+	endpoint fakeas112 {
+		internal fakeas112;
 	}
-	internal fakeas112 {
-		use fakeas112
+	endpoint as112-nocfg-test {
+		external {
+			run "le test fixture plugin/redistribute-as112-not-imported";
+		}
+		encoding json;
 	}
 }
 

@@ -43,10 +43,12 @@ EOF_PEER
 
 # ze bgp configuration
 stdin=ze-bgp:terminator=EOF_CONF
-plugin {
-	external route-driver {
-		run "le test fixture plugin/mpls-push"
-		encoder json
+bus {
+	endpoint route-driver {
+		external {
+			run "le test fixture plugin/mpls-push";
+		}
+		encoding json;
 	}
 }
 
@@ -85,9 +87,6 @@ bgp {
 		# during this fix and never shipped: it made ze announce, but through the
 		# OTHER encoder. The assertion runs against the path it was written
 		# for. Zero assertions removed.
-		attach process route-driver {
-			send [ update ]
-		}
 	}
 }
 EOF_CONF

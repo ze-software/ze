@@ -11,10 +11,12 @@ EOF_PEER
 
 # ze bgp configuration with group-updates disable
 stdin=ze-bgp:terminator=EOF_CONF
-plugin {
-	external group-test {
-		run "le test fixture plugin/config-group-updates"
-		encoder json
+bus {
+	endpoint group-test {
+		external {
+			run "le test fixture plugin/config-group-updates";
+		}
+		encoding json;
 	}
 }
 

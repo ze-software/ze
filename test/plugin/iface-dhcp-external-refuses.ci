@@ -16,19 +16,18 @@
 option=needs-linux
 
 stdin=ze-bgp:terminator=EOF_CONF
-plugin {
+bus {
+	endpoint iface-dhcp {
+		external {
+			run "le mock plugin-external iface-dhcp";
+		}
+	}
 	hub {
 		server local {
 			ip 127.0.0.1;
 			port 0;
 			secret iface-dhcp-external-refuse-test-secret-1;
 		}
-	}
-	external iface-dhcp {
-		# le mock plugin-external (internal/test/cli/cmd_plugin_external.go)
-		# launches the registered plugin's own RunEngine via a real TLS
-		# connect-back.
-		run "le mock plugin-external iface-dhcp"
 	}
 }
 

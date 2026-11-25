@@ -1,30 +1,26 @@
-# Test: redistribute-explicit-attach-kept -- an operator's own attach block for
-#       the Loc-RIB survives a `redistribute` rule that derives a wider one, and
-#       the daemon says the two halves disagree.
+# Test: redistribute-explicit-attach-kept -- an operator's explicit narrowed bus
+#       filter on the Loc-RIB survives a `redistribute` rule importing BGP
+#       without being widened back to every declared message, and the daemon
+#       reports the declared events the narrower filter omits.
 #
-# VALIDATES: spec-fixit-redistribution-chain-drops-silently AC-4, at the process
-# boundary. The config is AC-1's (a `redistribute` rule importing BGP, no plugin
-# block for bgp-rib) plus `attach process bgp-rib { receive [ update-received state ]; }`
-# on the peer (the complete Loc-RIB source grant, still narrower than the derived
-# `update state refresh` binding). Three things must hold:
+# VALIDATES: spec-fixit-redistribution-chain-drops-silently AC-4 and bus S4/S8
+# at the process boundary. The config combines `redistribute { destination
+# fakedest { import bgp } }` with an explicit `bus` filter on `bgp-rib` that
+# permits the required redistribution feed (`bgp:update`, `bgp:state`,
+# `bgp:refresh`) while omitting `bgp:eor` and `bgp:negotiated` and blocking
+# `bgp:update`/`bgp:refresh` sends toward `peer1`. Three things must hold:
 #
-#   1. the operator's grant is the one in force: the Loc-RIB counts the peer as
-#      up, which only the state event the operator granted can make it do (the
-#      observer asserts it through `show bgp rib status`)
-#   2. `show event delivery` reports exactly one `bgp-rib` binding carrying only
-#      `state` and `update-received`, with no `send`, `implicit` or `unresolved`
-#      grants (so the wider derived `update state refresh` neither replaced nor
-#      supplemented it)
-#   3. the daemon reports that the grant is narrower than what the Loc-RIB
-#      declared: bgp-rib declares refresh, and the peer grants it only
-#      update-received and state. That line is reconcileDelivery's
-#      reasonUngranted (internal/component/plugin/server/delivery_reconcile.go),
-#      the same report any plugin fed less than it declared gets
+#   1. the operator's narrowed receive filter is in force: the Loc-RIB counts
+#      the peer as up (`show bgp rib status`)
+#   2. `show event delivery` reports exactly one `bgp-rib` edge carrying only
+#      `refresh`, `state`, and `update`, with no `send` grants (so redistribution
+#      neither widened `receive` back to `eor`/`negotiated` nor added `send`)
+#   3. the daemon reports that the filter is narrower than what the Loc-RIB
+#      declared (`reconcileDelivery` reasonUngranted naming `peer=127.0.0.1`,
+#      `process=bgp-rib`, and omitted declared events such as `eor`/`negotiated`)
 #
-# PREVENTS: the derived binding silently widening the operator's grant (then no
-# disagreement exists to report), or replacing it with a second binding for the
-# same process. The unit half, exactly one narrower binding, is
-# TestExplicitBindingWins (internal/component/bgp/config/redistribute_binding_test.go).
+# PREVENTS: redistribution silently widening an explicit bus filter back to
+# every declared message or duplicating the `bgp-rib` delivery edge.
 
 # ze-peer expectations
 stdin=peer:terminator=EOF_PEER
@@ -40,15 +36,32 @@ EOF_PEER
 
 # ze configuration
 stdin=ze-bgp:terminator=EOF_CONF
-plugin {
-	external redist-explicit-attach-test {
-		run "le test fixture plugin/redistribute-explicit-source-grant"
-		encoder json
+bus {
+	endpoint bgp-rib {
+		internal bgp-rib;
+		receive {
+			allow [ bgp:update bgp:state bgp:refresh ];
+			from [ /bgp/peer/peer1 ];
+		}
+		send {
+			message bgp:update {
+				to none;
+			}
+			message bgp:refresh {
+				to none;
+			}
+		}
+	}
+	endpoint redist-explicit-attach-test {
+		external {
+			run "le test fixture plugin/redistribute-explicit-source-grant";
+		}
+		encoding json;
 	}
 	# Declares the fakedest destination the rule names. Nothing here registers a
-	# consumer: the assertion is about the Loc-RIB's binding, not delivery.
-	internal fakeredist {
-		use fakeredist
+	# consumer: the assertion is about the Loc-RIB's bus filter, not delivery.
+	endpoint fakeredist {
+		internal fakeredist;
 	}
 }
 
@@ -98,9 +111,6 @@ bgp {
 		behavior {
 			group-updates disable
 		}
-		attach process bgp-rib {
-			receive [ update-received state ]
-		}
 	}
 }
 EOF_CONF
@@ -109,8 +119,8 @@ EOF_CONF
 cmd=background:seq=1:exec=le test peer --port $PORT:stdin=peer
 cmd=foreground:seq=2:exec=ze -:stdin=ze-bgp:timeout=25s
 expect=stderr:pattern=OK: the operator's state grant brought the peer up in the Loc-RIB
-expect=stderr:contains=EXPLICIT-SOURCE-GRANT: bindings=1 receive=[state update-received] send=[] implicit=[] unresolved=[]
-# The daemon's report for the type the operator did not grant. The pattern pins
-# the peer and the process, so another plugin's line cannot satisfy it.
-expect=stderr:pattern=the plugin declared an event the peer does not grant it.*peer=127.0.0.1.*process=bgp-rib.*declared=[^ ]*refresh
+expect=stderr:contains=EXPLICIT-SOURCE-GRANT: bindings=1 receive=[refresh state update] send=[] implicit=[] unresolved=[]
+# The daemon's report for the types the operator's narrower bus filter omitted.
+# The pattern pins the peer and the process, so another plugin's line cannot satisfy it.
+expect=stderr:pattern=the plugin declared an event the peer does not grant it.*peer=127.0.0.1.*process=bgp-rib.*declared=[^ ]*(eor|negotiated)
 expect=exit:code=0

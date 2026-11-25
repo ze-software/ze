@@ -4,6 +4,11 @@
 # VALIDATES: Completion works with a comprehensive config across all sections
 
 tmpfs=test.conf:terminator=EOF_CONF
+bus {
+	endpoint bgp-rib {
+		internal bgp-rib
+	}
+}
 environment {
 	log {
 		level info
@@ -55,11 +60,6 @@ bgp {
 		}
 		role {
 			import customer
-		}
-		# Graceful restart needs a process that may send UPDATEs for the peer.
-		attach process bgp-rib {
-			receive [ update state refresh ]
-			send [ update ]
 		}
 	}
 	peer peer1-2 {

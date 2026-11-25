@@ -21,7 +21,9 @@
 # valid production NEXT_HOP or acceptance by another router (covered separately
 # by `bgpls-vpn-exabgp-single.ci`).
 
-option=env:var=ze.log.bgp.rs:value=info
+# Linux-only: static `next { interface lo { } }` resolves loopback `lo` via Linux netlink.
+option=needs-linux
+option=env:var=ze.log.bgp.routes:value=debug
 
 stdin=source:terminator=EOF_SOURCE
 option=tcp_connections:value=1
@@ -72,16 +74,35 @@ expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF006D0200000056800E42
 EOF_DEST_UNCHANGED
 
 stdin=ze-bgp:terminator=EOF_CONF
-plugin {
-	internal rs { use bgp-rs; }
-	internal adj-rib-in { use bgp-adj-rib-in; }
-	internal bgp-filter-modify { use bgp-filter-modify; }
+bus {
+	endpoint rs {
+		internal bgp-rib;
+	}
+	endpoint adj-rib-in {
+		internal bgp-adj-rib-in;
+		send {
+			message bgp:update {
+				to none;
+			}
+		}
+	}
+	endpoint bgp-filter-modify {
+		internal bgp-filter-modify;
+	}
 }
 policy {
 	modify ls-nh6 {
 		set {
 			next-hop 2001:db8::fe;
 		}
+	}
+}
+fib {
+	dummy { }
+}
+static {
+	table default {
+		route 192.0.2.9/32 { next { interface lo { } } }
 	}
 }
 bgp {
@@ -101,11 +122,6 @@ bgp {
 			capability { graceful-restart disable; }
 		}
 		behavior { group-updates disable; }
-		attach process rs {
-			receive [ update-received state open-received refresh ];
-			send [ update ];
-		}
-		attach process adj-rib-in { receive [ update-received state ]; }
 	}
 	peer dest-auto-v4 {
 		connection {
@@ -119,11 +135,6 @@ bgp {
 			capability { graceful-restart disable; }
 		}
 		behavior { group-updates disable; }
-		attach process rs {
-			receive [ update-received state open-received refresh ];
-			send [ update ];
-		}
-		attach process adj-rib-in { receive [ update-received state ]; }
 	}
 	peer dest-modify-v6 {
 		connection {
@@ -140,11 +151,6 @@ bgp {
 			export { filters [ modify:ls-nh6 ]; final accept; }
 		}
 		behavior { group-updates disable; }
-		attach process rs {
-			receive [ update-received state open-received refresh ];
-			send [ update ];
-		}
-		attach process adj-rib-in { receive [ update-received state ]; }
 	}
 	peer dest-unchanged {
 		connection {
@@ -161,11 +167,6 @@ bgp {
 			export { filters [ next-hop:unchanged ]; final accept; }
 		}
 		behavior { group-updates disable; }
-		attach process rs {
-			receive [ update-received state open-received refresh ];
-			send [ update ];
-		}
-		attach process adj-rib-in { receive [ update-received state ]; }
 	}
 }
 EOF_CONF
@@ -177,7 +178,7 @@ cmd=background:seq=4:exec=le test peer --bind 127.0.0.7 --port $PORT:stdin=dest-
 cmd=foreground:seq=5:exec=ze -:stdin=ze-bgp:timeout=30s
 # The runner waits for all four lingering check peers' exact wire expectations
 # before stopping Ze.
-await=stderr:contains=worker-queue-size applied:then=stop
+await=stderr:contains=sent EOR:then=stop
 expect=exit:code=0
 reject=stderr:pattern=panic
 reject=stderr:pattern=fatal error

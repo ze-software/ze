@@ -15,10 +15,12 @@ EOF_PEER
 # Native observer fixture: plugin/subscriber-summary-show.
 
 stdin=ze-conf:terminator=EOF_CONF
-plugin {
-	external subscriber-summary-show-test {
-		run "le test fixture plugin/subscriber-summary-show"
-		encoder json
+bus {
+	endpoint subscriber-summary-show-test {
+		external {
+			run "le test fixture plugin/subscriber-summary-show";
+		}
+		encoding json;
 	}
 }
 

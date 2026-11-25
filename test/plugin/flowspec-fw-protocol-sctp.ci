@@ -20,8 +20,10 @@ action=send:conn=1:seq=2:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF0041020000002A40010
 EOF_PEER
 
 stdin=ze-bgp:terminator=EOF_CONF
-plugin {
-	internal flowspec-firewall { use flowspec-firewall; }
+bus {
+	endpoint flowspec-firewall {
+		internal flowspec-firewall;
+	}
 }
 bgp {
 	peer peer1 {

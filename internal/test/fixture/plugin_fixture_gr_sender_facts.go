@@ -66,11 +66,16 @@ func grStateRow(result commandResult13, peerAddr string) map[string]any {
 	if !ok {
 		return nil
 	}
-	row, ok := object[peerAddr].(map[string]any)
-	if !ok {
-		return nil
+	if row, ok := object[peerAddr].(map[string]any); ok {
+		return row
 	}
-	return row
+	for _, value := range object {
+		row, ok := value.(map[string]any)
+		if ok && row["peer-address"] == peerAddr {
+			return row
+		}
+	}
+	return nil
 }
 
 // awaitGRState polls until the peer has a gr-state row, which is the observable

@@ -24,13 +24,18 @@ EOF_PEER
 
 # ze configuration: BGP-level tag + peer-level tag (cumulative)
 stdin=ze-bgp:terminator=EOF_CONF
-plugin {
-	external test-cumulative {
-		run "le test fixture plugin/community-cumulative"
-		encoder json
+bus {
+	endpoint bgp-rib {
+		internal bgp-rib;
 	}
-	internal bgp-rib {
-		use bgp-rib
+	endpoint test-cumulative {
+		external {
+			run "le test fixture plugin/community-cumulative";
+		}
+		encoding json;
+	}
+	endpoint bgp-adj-rib-in {
+		internal bgp-adj-rib-in;
 	}
 }
 bgp {
@@ -89,13 +94,6 @@ bgp {
 					tag peer-mark
 				}
 			}
-		}
-		attach process bgp-rib {
-			receive [ update state refresh ]
-			send [ update ]
-		}
-		attach process bgp-adj-rib-in {
-			receive [ update-received state ]
 		}
 	}
 }

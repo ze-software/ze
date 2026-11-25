@@ -12,17 +12,20 @@ option=netns-link:name=zesrproof
 option=timeout:value=90s
 
 stdin=ze-conf:terminator=EOF_CONF
-plugin {
-	external sysrib-execution-test {
-		run "le test fixture plugin/sysrib-execution-health forked"
-		encoder json
+bus {
+	endpoint fib-kernel {
+		internal fib-kernel;
 	}
-	external sysrib-owner {
-		run "ze plugin rib"
-		encoder json
+	endpoint sysrib-execution-test {
+		external {
+			run "le test fixture plugin/sysrib-execution-health forked";
+		}
+		encoding json;
 	}
-	internal fib-kernel {
-		use fib-kernel
+	endpoint sysrib-owner {
+		internal rib;
+		process separate;
+		encoding json;
 	}
 }
 telemetry { prometheus { enabled true; server main { ip 127.0.0.1; port $PORT2; } } }

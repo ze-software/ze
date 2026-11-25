@@ -219,9 +219,6 @@ bgp {
 				graceful-restart disable
 			}
 		}
-		attach process ddos-flowspec {
-			send [ update ]
-		}
 	}
 }
 EOF_CONF

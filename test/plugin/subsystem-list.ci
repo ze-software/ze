@@ -18,10 +18,12 @@ EOF_PEER
 # Native observer fixture: plugin/subsystem-list.
 
 stdin=ze-bgp:terminator=EOF_CONF
-plugin {
-	external subsystem-list-test {
-		run "le test fixture plugin/subsystem-list"
-		encoder json
+bus {
+	endpoint subsystem-list-test {
+		external {
+			run "le test fixture plugin/subsystem-list";
+		}
+		encoding json;
 	}
 }
 

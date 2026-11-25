@@ -64,10 +64,24 @@ expect=bgp:conn=1:seq=3:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF001D0200060000000108
 EOF_RECEIVER
 
 stdin=ze-bgp:terminator=EOF_CONF
-plugin {
-    hub { server local { ip 127.0.0.1; port 0; secret rr-gr-expiry-forked-secret-00000001; } }
-    external relay { run "ze plugin bgp-rr"; }
-    internal gr { use bgp-gr; }
+bus {
+    endpoint gr {
+        internal bgp-gr;
+    }
+    endpoint relay {
+        internal bgp-rr;
+        process separate;
+    }
+    endpoint bgp-rib {
+        internal bgp-rib;
+    }
+    hub {
+        server local {
+            ip 127.0.0.1;
+            port 0;
+            secret rr-gr-expiry-forked-secret-00000001;
+        }
+    }
 }
 bgp {
     peer source {
@@ -89,18 +103,6 @@ bgp {
         }
         behavior { group-updates disable; }
         timer { connect-retry 5; }
-        attach process gr {
-            receive [ open-received state eor ]
-            send [ update ]
-        }
-        attach process relay {
-            receive [ update-received state open-received refresh ]
-            send [ update ]
-        }
-        attach process bgp-rib {
-            receive [ update state refresh ]
-            send [ update ]
-        }
     }
     peer receiver {
         connection {
@@ -120,14 +122,6 @@ bgp {
             }
         }
         behavior { group-updates disable; }
-        attach process relay {
-            receive [ update-received state open-received refresh ]
-            send [ update ]
-        }
-        attach process bgp-rib {
-            receive [ update state refresh ]
-            send [ update ]
-        }
     }
 }
 EOF_CONF

@@ -14,13 +14,15 @@ expect=bgp:conn=1:seq=2:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF002D0306021741646D69
 EOF_PEER
 
 stdin=ze-bgp:terminator=EOF_CONF
-plugin {
-	external plain-peer-check {
-		run "le test fixture plugin/adj-rib-in-filtered-absent-for-plain-peer"
-		encoder json
+bus {
+	endpoint adj-rib-in {
+		internal bgp-adj-rib-in;
 	}
-	internal adj-rib-in {
-		use bgp-adj-rib-in
+	endpoint plain-peer-check {
+		external {
+			run "le test fixture plugin/adj-rib-in-filtered-absent-for-plain-peer";
+		}
+		encoding json;
 	}
 }
 bgp {
@@ -40,9 +42,6 @@ bgp {
 			capability { graceful-restart disable; }
 		}
 		behavior { group-updates disable; }
-		attach process adj-rib-in {
-			receive [ update-received update-filtered-received state ]
-		}
 	}
 }
 EOF_CONF

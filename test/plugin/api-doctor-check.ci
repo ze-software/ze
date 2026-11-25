@@ -13,14 +13,18 @@ EOF_PEER
 # Plugin 2: dispatches show doctor and verifies plugin diagnostics appear
 
 stdin=ze-conf:terminator=EOF_CONF
-plugin {
-    external doctor-provider {
-        run "le test fixture plugin/api-doctor-check-provider"
-        encoder json
+bus {
+    endpoint doctor-provider {
+        external {
+            run "le test fixture plugin/api-doctor-check-provider";
+        }
+        encoding json;
     }
-    external doctor-checker {
-        run "le test fixture plugin/api-doctor-check-checker"
-        encoder json
+    endpoint doctor-checker {
+        external {
+            run "le test fixture plugin/api-doctor-check-checker";
+        }
+        encoding json;
     }
 }
 

@@ -1,8 +1,9 @@
 # Test: a plugin dispatches a command over the internal RPC path on a box that
 #       has authorization configured (RBAC in use). Plugin dispatch must keep
-#       working: the engine injects a reserved trusted-internal identity, and
-#       Store.Authorize grants it -- it is NOT subject to the operator's
-#       restrictive profiles, and an empty username would otherwise fail closed.
+#       working: the engine injects the plugin's reserved identity, and
+#       Store.Authorize evaluates it against the endpoint's compiled bus
+#       command profile -- independent of operator RBAC profiles (Phase 6 of
+#       spec-explicit-plugin-and-attach-config.md closed the old prefix bypass).
 #
 # Flow:
 # 1. Daemon starts with system.authorization (a "locked" profile whose run/edit
@@ -11,24 +12,27 @@
 #    On this box the old code denied the internal dispatch identity outright.
 # 2. A plugin connects over the plugin socket and, after post-startup, dispatches
 #    "show version" via ze-plugin-engine:dispatch-command. The engine authorizes
-#    it under the reserved internal identity (aaa.ReservedInternalPrefix,
-#    injected by dispatchCommand / wrapHandler), so the command is allowed even
-#    though the only configured profile denies everything.
-# 3. The plugin then dispatches "request shutdown" (same internal-identity path),
+#    it under the plugin's reserved identity (aaa.ReservedInternalPluginPrefix,
+#    injected by dispatchCommand / wrapHandler) against the endpoint's compiled
+#    bus command profile, so the declared command is allowed even though the
+#    only configured operator profile denies everything.
+# 3. The plugin then dispatches "request shutdown" (same plugin-identity path),
 #    so the daemon exits cleanly -- proving the RPC path is not broken.
 #
 # VALIDATES: AC-3 / AC-10 / User Story 3, guards R-4 -- the S-1 fail-closed
 #            decision does not break plugin RPC dispatch on an RBAC-configured
-#            box (spec-fixit-authz-admin-fallthrough O-4/F-6).
+#            box (spec-fixit-authz-admin-fallthrough O-4/F-6), and Phase 6 of
+#            spec-explicit-plugin-and-attach-config.md authorizes plugins by
+#            their compiled bus command profile rather than a prefix bypass.
 # LOAD-BEARING:
 #   - exit 0 requires the plugin's "request shutdown" dispatch to be authorized;
-#     if the reserved identity were absent, the internal identity would fail
+#     if the plugin identity were absent, the internal identity would fail
 #     closed (empty username Deny, or the former bare plugin:<name> Deny on a
 #     hasUsers box), the daemon would never shut down, and the run would time out.
 #   - "OK: internal RPC dispatch authorized" prints only after "show version"
 #     returns a result (not an "unauthorized" RPC error).
-#   - With ze.log.authz=debug the daemon logs "authorized: trusted internal
-#     caller" from the reserved-identity branch of Store.Authorize; its presence
+#   - With ze.log.authz=debug the daemon logs "authorized: plugin identity by
+#     bus profile" from authorizePluginIdentity in Store.Authorize; its presence
 #     also proves authorization is actually wired and consulted (a nil authorizer
 #     would short-circuit before that branch and never log it).
 
@@ -56,10 +60,12 @@ system {
 	}
 }
 
-plugin {
-	external rpc-dispatcher {
-		run "le test fixture plugin/authz-rpc-identity"
-		encoder json
+bus {
+	endpoint rpc-dispatcher {
+		external {
+			run "le test fixture plugin/authz-rpc-identity";
+		}
+		encoding json;
 	}
 }
 
@@ -105,6 +111,6 @@ cmd=foreground:seq=2:exec=ze -:stdin=ze-conf:timeout=20s
 expect=exit:code=0
 # The plugin's internal dispatch of "show version" was authorized.
 expect=stderr:pattern=OK: internal RPC dispatch authorized on RBAC box
-# The reserved-identity branch of Store.Authorize decided (proves authz is wired
-# and the trusted-internal grant fired).
-expect=stderr:pattern=authorized: trusted internal caller
+# The plugin-identity branch of Store.Authorize decided via the endpoint's
+# compiled bus command profile (proves authz is wired and consulted).
+expect=stderr:pattern=authorized: plugin identity by bus profile.*endpoint=rpc-dispatcher.*command="show version"

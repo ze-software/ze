@@ -21,20 +21,20 @@
 # rows red with "expected 'external', got internal" -- the pre-fix error.
 
 tmpfs=shapes/plugin_internal.conf:terminator=EOF_PLUGIN_INTERNAL
-plugin {
-	internal static {
-		use static
+bus {
+	endpoint static {
+		internal static;
 	}
 }
 EOF_PLUGIN_INTERNAL
 
 tmpfs=shapes/plugin_two.conf:terminator=EOF_PLUGIN_TWO
-plugin {
-	internal static {
-		use static
+bus {
+	endpoint static {
+		internal static;
 	}
-	internal rt {
-		use routing-table
+	endpoint rt {
+		internal routing-table;
 	}
 }
 EOF_PLUGIN_TWO
@@ -45,14 +45,14 @@ tmpfs=shapes/legacy_env.conf:terminator=EOF_LEGACY_ENV
 env {
 	log-level debug
 }
-plugin {
+bus {
 }
 EOF_LEGACY_ENV
 
 tmpfs=shapes/unknown_internal.conf:refused=config-yang-type:terminator=EOF_UNKNOWN_INTERNAL
-plugin {
-	internal bogus {
-		use no-such-plugin
+bus {
+	endpoint bogus {
+		internal no-such-plugin;
 	}
 }
 EOF_UNKNOWN_INTERNAL

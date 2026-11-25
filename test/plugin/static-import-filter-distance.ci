@@ -15,14 +15,30 @@ expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
 EOF_PEER
 
 stdin=ze-conf:terminator=EOF_CONF
-plugin {
-    external rib-import-test { run "le test fixture plugin/static-import-filter-distance internal"; encoder json; }
-    internal sysrib-owner { use rib; }
-    internal fib-kernel { use fib-kernel; }
-    internal bgp-rib { use bgp-rib; }
-    external import-rollback { run "le test fixture plugin/import-policy-rollback"; encoder json; }
+bus {
+    endpoint sysrib-owner {
+        internal rib;
+    }
+    endpoint fib-kernel {
+        internal fib-kernel;
+    }
+    endpoint bgp-rib {
+        internal bgp-rib;
+    }
+    endpoint rib-import-test {
+        external {
+            run "le test fixture plugin/static-import-filter-distance internal";
+        }
+        encoding json;
+    }
+    endpoint import-rollback {
+        external {
+            run "le test fixture plugin/import-policy-rollback";
+        }
+        encoding json;
+    }
 }
-interface { backend netlink; }
+interface { backend kernel; }
 connected { }
 fib { kernel { flush-on-stop true; } }
 rib { distance { static 10; } }
@@ -51,7 +67,6 @@ bgp {
             capability { graceful-restart disable; }
         }
         behavior { group-updates disable; }
-        attach process bgp-rib { receive [ update state refresh ]; send [ update ]; }
     }
 }
 EOF_CONF

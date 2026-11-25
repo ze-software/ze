@@ -24,25 +24,27 @@ EOF_PEER
 
 
 stdin=ze-bgp:terminator=EOF_CONF
-plugin {
-	external fib-blackhole-test {
-		run "le test fixture plugin/fib-blackhole"
-		encoder json
+bus {
+	endpoint bgp-rib {
+		internal bgp-rib;
 	}
-	internal bgp-rib {
-		use bgp-rib
+	endpoint rib {
+		internal rib;
 	}
-	internal rib {
-		use rib
+	endpoint fib-kernel {
+		internal fib-kernel;
 	}
-	internal fib-kernel {
-		use fib-kernel
+	endpoint sysctl {
+		internal sysctl;
 	}
-	internal sysctl {
-		use sysctl
+	endpoint fakefib {
+		internal fakefib;
 	}
-	internal fakefib {
-		use fakefib
+	endpoint fib-blackhole-test {
+		external {
+			run "le test fixture plugin/fib-blackhole";
+		}
+		encoding json;
 	}
 }
 
@@ -74,10 +76,6 @@ bgp {
 			group-updates disable
 		}
 
-		attach process bgp-rib {
-			receive [ update state refresh ]
-			send [ update ]
-		}
 	}
 }
 EOF_CONF

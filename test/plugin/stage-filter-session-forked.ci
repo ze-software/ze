@@ -58,16 +58,20 @@ action=send:conn=1:seq=3:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
 EOF_PEER2
 
 stdin=ze-bgp:terminator=EOF_CONF
-plugin {
-	external fakefilter {
-		run "ze-fakefilter"
+bus {
+	endpoint bgp-rib {
+		internal bgp-rib;
 	}
-	internal bgp-rib {
-		use bgp-rib
+	endpoint fakefilter {
+		external {
+			run ze-fakefilter;
+		}
 	}
-	external observer {
-		run "le test fixture plugin/stage-filter-inserted 2 10.0.0.0/24 10.1.0.0/24 10.99.0.0/24"
-		encoder json
+	endpoint observer {
+		external {
+			run "le test fixture plugin/stage-filter-inserted 2 10.0.0.0/24 10.1.0.0/24 10.99.0.0/24";
+		}
+		encoding json;
 	}
 }
 bgp {
@@ -86,10 +90,6 @@ bgp {
 			export { final accept; }
 			import { final accept; }
 		}
-		attach process bgp-rib {
-			receive [ update state refresh ]
-			send [ update ]
-		}
 	}
 	peer peer2 {
 		connection {
@@ -105,10 +105,6 @@ bgp {
 		filter {
 			export { final accept; }
 			import { final accept; }
-		}
-		attach process bgp-rib {
-			receive [ update state refresh ]
-			send [ update ]
 		}
 	}
 }

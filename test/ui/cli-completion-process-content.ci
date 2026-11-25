@@ -1,5 +1,5 @@
-# Test: ze config completion — process content sub-container
-# VALIDATES: Process content shows encoding, format, attribute
+# Test: ze config completion — bus endpoint content/wire fields
+# VALIDATES: bus > endpoint shows encoding and format
 
 tmpfs=test.conf:terminator=EOF_CONF
 bgp {
@@ -35,7 +35,7 @@ bgp {
 }
 EOF_CONF
 
-cmd=foreground:seq=1:exec=ze config completion --context bgp/peer/peer1/attach/process/content --input set+ test.conf
+cmd=foreground:seq=1:exec=ze config completion --context bus/endpoint/ep1 --input set+ test.conf
 expect=exit:code=0
 expect=stdout:contains=encoding
 expect=stdout:contains=format

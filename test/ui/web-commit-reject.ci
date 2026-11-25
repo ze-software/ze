@@ -22,10 +22,12 @@ EOF_PEER
 # would never fire. A router-id-only change keeps the reload on the full-diff
 # apply path, where every participant's OnConfigApply runs and the reject fires.
 tmpfs=web-commit-reject.conf:terminator=EOF_CONF
-plugin {
-    external web-commit-reject {
-        run "le test fixture ui/web-commit-reject"
-        encoder json
+bus {
+    endpoint web-commit-reject {
+        external {
+            run "le test fixture ui/web-commit-reject"
+        }
+        encoding json
     }
 }
 

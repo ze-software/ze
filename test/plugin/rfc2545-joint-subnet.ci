@@ -43,8 +43,10 @@ reject=bgp:conn=1:scope=withdrawn:pattern=3020010DB85702
 EOF_RECEIVE
 
 tmpfs=same-link/ze.conf:terminator=EOF_CONF
-plugin {
-    internal rs { use bgp-rs; }
+bus {
+    endpoint rs {
+        internal bgp-rs;
+    }
 }
 bgp {
     # RFC 8212: an EBGP direction with no policy is refused; this test exchanges routes.
@@ -59,12 +61,12 @@ bgp {
             ttl { set 3; }
         }
         session {
+            rs-client true;
             asn { local 65001; remote 65004; }
             router-id 10.254.5.1;
             family { ipv6/unicast { prefix { maximum 10000; } } }
         }
         behavior { rs-fast-path enable; }
-        attach process rs { receive [ update-received state open-received refresh ]; send [ update ]; }
         timer { connect-retry 2; }
     }
     peer receive {
@@ -74,12 +76,12 @@ bgp {
             ttl { set 3; }
         }
         session {
+            rs-client true;
             asn { local 65001; remote 65003; }
             router-id 10.254.5.1;
             family { ipv6/unicast { prefix { maximum 10000; } } }
         }
         behavior { rs-fast-path enable; }
-        attach process rs { receive [ update-received state open-received refresh ]; send [ update ]; }
         timer { connect-retry 2; }
     }
 }
@@ -114,8 +116,10 @@ reject=bgp:conn=1:pattern=FE800000000000000000000000000009
 EOF_RECEIVE_SPLIT
 
 tmpfs=split-link/ze.conf:terminator=EOF_CONF_SPLIT
-plugin {
-    internal rs { use bgp-rs; }
+bus {
+    endpoint rs {
+        internal bgp-rs;
+    }
 }
 bgp {
     # RFC 8212: an EBGP direction with no policy is refused; this test exchanges routes.
@@ -130,12 +134,12 @@ bgp {
             ttl { set 3; }
         }
         session {
+            rs-client true;
             asn { local 65001; remote 65004; }
             router-id 10.254.5.1;
             family { ipv6/unicast { prefix { maximum 10000; } } }
         }
         behavior { rs-fast-path enable; }
-        attach process rs { receive [ update-received state open-received refresh ]; send [ update ]; }
         timer { connect-retry 2; }
     }
     peer receive {
@@ -145,12 +149,12 @@ bgp {
             ttl { set 3; }
         }
         session {
+            rs-client true;
             asn { local 65001; remote 65003; }
             router-id 10.254.5.1;
             family { ipv6/unicast { prefix { maximum 10000; } } }
         }
         behavior { rs-fast-path enable; }
-        attach process rs { receive [ update-received state open-received refresh ]; send [ update ]; }
         timer { connect-retry 2; }
     }
 }
@@ -185,8 +189,10 @@ reject=bgp:conn=1:pattern=FE800000000000000000000000000009
 EOF_RECEIVE_ENTITY
 
 tmpfs=entity-off-link/ze.conf:terminator=EOF_CONF_ENTITY
-plugin {
-    internal rs { use bgp-rs; }
+bus {
+    endpoint rs {
+        internal bgp-rs;
+    }
 }
 bgp {
     # RFC 8212: an EBGP direction with no policy is refused; this test exchanges routes.
@@ -201,12 +207,12 @@ bgp {
             ttl { set 3; }
         }
         session {
+            rs-client true;
             asn { local 65001; remote 65004; }
             router-id 10.254.5.1;
             family { ipv6/unicast { prefix { maximum 10000; } } }
         }
         behavior { rs-fast-path enable; }
-        attach process rs { receive [ update-received state open-received refresh ]; send [ update ]; }
         timer { connect-retry 2; }
     }
     peer receive {
@@ -216,12 +222,12 @@ bgp {
             ttl { set 3; }
         }
         session {
+            rs-client true;
             asn { local 65001; remote 65003; }
             router-id 10.254.5.1;
             family { ipv6/unicast { prefix { maximum 10000; } } }
         }
         behavior { rs-fast-path enable; }
-        attach process rs { receive [ update-received state open-received refresh ]; send [ update ]; }
         timer { connect-retry 2; }
     }
 }
@@ -256,8 +262,10 @@ reject=bgp:conn=1:pattern=FE800000000000000000000000000009
 EOF_RECEIVE_RECIPIENT
 
 tmpfs=recipient-off-link/ze.conf:terminator=EOF_CONF_RECIPIENT
-plugin {
-    internal rs { use bgp-rs; }
+bus {
+    endpoint rs {
+        internal bgp-rs;
+    }
 }
 bgp {
     # RFC 8212: an EBGP direction with no policy is refused; this test exchanges routes.
@@ -272,12 +280,12 @@ bgp {
             ttl { set 3; }
         }
         session {
+            rs-client true;
             asn { local 65001; remote 65004; }
             router-id 10.254.5.1;
             family { ipv6/unicast { prefix { maximum 10000; } } }
         }
         behavior { rs-fast-path enable; }
-        attach process rs { receive [ update-received state open-received refresh ]; send [ update ]; }
         timer { connect-retry 2; }
     }
     peer receive {
@@ -287,12 +295,12 @@ bgp {
             ttl { set 3; }
         }
         session {
+            rs-client true;
             asn { local 65001; remote 65003; }
             router-id 10.254.5.1;
             family { ipv6/unicast { prefix { maximum 10000; } } }
         }
         behavior { rs-fast-path enable; }
-        attach process rs { receive [ update-received state open-received refresh ]; send [ update ]; }
         timer { connect-retry 2; }
     }
 }

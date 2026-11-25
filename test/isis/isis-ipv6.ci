@@ -36,10 +36,12 @@
 
 
 stdin=ze-conf:terminator=EOF_CONF
-plugin {
-	external isis-ipv6 {
-		run "le test fixture isis/isis-ipv6"
-		encoder json
+bus {
+	endpoint isis-ipv6 {
+		external {
+			run "le test fixture isis/isis-ipv6";
+		}
+		encoding json;
 	}
 }
 

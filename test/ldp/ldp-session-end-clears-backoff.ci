@@ -41,10 +41,12 @@ option=env:var=ze.log.ldp:value=info
 option=timeout:value=90s
 
 tmpfs=ldp.conf:terminator=EOF_CONF
-plugin {
-	external ldp-neighbor {
-		run "le test fixture ldp/session-end-clears-backoff netns zls$PORT-n"
-		encoder json
+bus {
+	endpoint ldp-neighbor {
+		external {
+			run "le test fixture ldp/session-end-clears-backoff netns zls$PORT-n";
+		}
+		encoding json;
 	}
 }
 

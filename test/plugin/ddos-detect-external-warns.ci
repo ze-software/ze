@@ -44,9 +44,11 @@ ddos {
 	}
 }
 
-plugin {
-	external ddos-detect {
-		run "le mock plugin-external ddos-detect"
+bus {
+	endpoint ddos-detect {
+		external {
+			run "le mock plugin-external ddos-detect";
+		}
 	}
 }
 

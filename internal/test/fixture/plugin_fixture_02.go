@@ -12,6 +12,7 @@ import (
 	"strings"
 	"time"
 
+	bgpevents "github.com/ze-software/ze/internal/core/bgp/events"
 	"github.com/ze-software/ze/pkg/plugin/sdk"
 )
 
@@ -39,7 +40,7 @@ func init() {
 	Register("plugin/aspath-filter-reject", observer02("test-aspath-reject", updateReceivedObserver02), StopsDaemon)
 	Register("plugin/aspath-filter-shortform", observer02("test-aspath-short", adjRIBRouteObserver02), StopsDaemon)
 	Register("plugin/aspath-length-reject", observer02("test-aspath-len", updateReceivedObserver02), StopsDaemon)
-	Register("plugin/attach-process-delivery-graph", observer02("delivery-graph-test", deliveryGraph02), StopsDaemon)
+	Register("plugin/attach-process-delivery-graph", deliveryGraphDriver02, StopsDaemon)
 	Register("plugin/authz-rpc-identity", observer02("rpc-dispatcher", authzRPCIdentity02), StopsDaemon)
 	Register("plugin/bestpath-reason", observer02("reason-test", bestpathReason02), StopsDaemon)
 	Register("plugin/bfd-auth-sha1", observer02("bfd-auth-sha1-test", bfdAuthSHA102), StopsDaemon)
@@ -571,6 +572,21 @@ func pathASNExportDriver02() Driver {
 	}
 }
 
+func deliveryGraphDriver02(ctx context.Context, args []string) error {
+	if len(args) != 0 {
+		return fmt.Errorf("delivery-graph-test takes no arguments")
+	}
+	reg := &sdk.Registration{
+		Receives: bgpReceiveDecls([]string{eventState}, nil),
+		Sends: []sdk.MessageSendDecl{
+			{Message: bgpevents.Namespace + ":" + bgpevents.SendUpdate},
+			{Message: "cli:show bgp peer"},
+			{Message: "cli:show event delivery"},
+		},
+	}
+	return Observe(ctx, "delivery-graph-test", reg, deliveryGraph02)
+}
+
 func deliveryGraph02(ctx context.Context, plugin *sdk.Plugin) error {
 	if !eorSent02(ctx, plugin, addrLoopback, 1, 40) {
 		return fmt.Errorf("delivery: peer1 never reached its initial-sync end-of-rib")
@@ -580,37 +596,52 @@ func deliveryGraph02(ctx context.Context, plugin *sdk.Plugin) error {
 		return err
 	}
 	type processEdge struct {
-		Process    string   `json:"process"`
-		Receive    []string `json:"receive"`
-		Send       []string `json:"send"`
-		Implicit   []string `json:"implicit"`
-		Unresolved []string `json:"unresolved"`
+		Process string   `json:"process"`
+		Path    string   `json:"path"`
+		Receive []string `json:"receive"`
+		Send    []string `json:"send"`
+		Origin  string   `json:"origin"`
+	}
+	type peerSpec struct {
+		path      string
+		wantEdge  *processEdge
+		wantCount int
 	}
 	var data struct {
 		Peers []struct {
 			Peer      string        `json:"peer"`
+			Path      string        `json:"path"`
 			Processes []processEdge `json:"processes"`
 		} `json:"peers"`
 	}
 	if err := decode02(raw, &data); err != nil {
 		return err
 	}
-	// Every bilateral eBGP peer carries the mandatory BLACKHOLE member, whose
-	// owner gains state only. Explicit attachments grant nothing beyond their
-	// own receive/send tokens.
-	community := processEdge{
-		Process: "bgp-filter-community", Receive: []string{eventState}, Implicit: []string{eventState},
-	}
-	expected := map[string][]processEdge{
+	expected := map[string]peerSpec{
 		addrLoopback: {
-			community,
-			{Process: "delivery-graph-test", Receive: []string{eventState}},
+			path: "/bgp/peer/peer1",
+			wantEdge: &processEdge{
+				Process: "delivery-graph-test",
+				Path:    "/bus/endpoint/delivery-graph-test",
+				Receive: []string{eventState},
+				Origin:  "written",
+			},
+			wantCount: 1,
 		},
 		"192.0.2.9": {
-			community,
-			{Process: "delivery-graph-test", Send: []string{eventUpdate}},
+			path: "/bgp/peer/peer2",
+			wantEdge: &processEdge{
+				Process: "delivery-graph-test",
+				Path:    "/bus/endpoint/delivery-graph-test",
+				Send:    []string{eventUpdate},
+				Origin:  "written",
+			},
+			wantCount: 1,
 		},
-		"192.0.2.10": {community},
+		"192.0.2.10": {
+			path:      "/bgp/peer/peer3",
+			wantCount: 0,
+		},
 	}
 	if len(data.Peers) != len(expected) {
 		return fmt.Errorf("delivery: expected %d peers, got %d", len(expected), len(data.Peers))
@@ -621,26 +652,42 @@ func deliveryGraph02(ctx context.Context, plugin *sdk.Plugin) error {
 			return fmt.Errorf("delivery: unexpected or duplicate peer %s", peer.Peer)
 		}
 		delete(expected, peer.Peer)
-		if len(peer.Processes) != len(want) {
-			return fmt.Errorf("delivery: peer %s edges are %v, want %v", peer.Peer, peer.Processes, want)
+		if peer.Path != want.path {
+			return fmt.Errorf("delivery: peer %s path is %q, want %q", peer.Peer, peer.Path, want.path)
 		}
-		for i, edge := range peer.Processes {
-			target := &want[i]
-			if edge.Process != target.Process {
-				return fmt.Errorf("delivery: peer %s process %d is %s, want %s", peer.Peer, i, edge.Process, target.Process)
+		var gotTestEdges []processEdge
+		sawRole := false
+		for _, edge := range peer.Processes {
+			if edge.Process == "bgp-role" {
+				if slices.Contains(edge.Receive, eventState) {
+					sawRole = true
+				}
 			}
-			if !slices.Equal(edge.Receive, target.Receive) {
-				return fmt.Errorf("delivery: peer %s process %s receive is %v, want %v", peer.Peer, edge.Process, edge.Receive, target.Receive)
+			if edge.Process == "delivery-graph-test" {
+				gotTestEdges = append(gotTestEdges, edge)
 			}
-			if !slices.Equal(edge.Send, target.Send) {
-				return fmt.Errorf("delivery: peer %s process %s send is %v, want %v", peer.Peer, edge.Process, edge.Send, target.Send)
-			}
-			if !slices.Equal(edge.Implicit, target.Implicit) {
-				return fmt.Errorf("delivery: peer %s process %s implicit is %v, want %v", peer.Peer, edge.Process, edge.Implicit, target.Implicit)
-			}
-			if len(edge.Unresolved) != 0 {
-				return fmt.Errorf("delivery: peer %s process %s unresolved tokens are %v", peer.Peer, edge.Process, edge.Unresolved)
-			}
+		}
+		if !sawRole {
+			return fmt.Errorf("delivery: peer %s missing bgp-role state edge in %v", peer.Peer, peer.Processes)
+		}
+		if len(gotTestEdges) != want.wantCount {
+			return fmt.Errorf("delivery: peer %s delivery-graph-test edges=%v, want count %d", peer.Peer, gotTestEdges, want.wantCount)
+		}
+		if want.wantEdge == nil {
+			continue
+		}
+		edge := gotTestEdges[0]
+		if edge.Path != want.wantEdge.Path {
+			return fmt.Errorf("delivery: peer %s endpoint path is %q, want %q", peer.Peer, edge.Path, want.wantEdge.Path)
+		}
+		if !slices.Equal(edge.Receive, want.wantEdge.Receive) {
+			return fmt.Errorf("delivery: peer %s receive is %v, want %v", peer.Peer, edge.Receive, want.wantEdge.Receive)
+		}
+		if !slices.Equal(edge.Send, want.wantEdge.Send) {
+			return fmt.Errorf("delivery: peer %s send is %v, want %v", peer.Peer, edge.Send, want.wantEdge.Send)
+		}
+		if edge.Origin != want.wantEdge.Origin {
+			return fmt.Errorf("delivery: peer %s origin is %q, want %q", peer.Peer, edge.Origin, want.wantEdge.Origin)
 		}
 	}
 	fmt.Fprintln(os.Stderr, "OK: delivery graph published for 3 peers")

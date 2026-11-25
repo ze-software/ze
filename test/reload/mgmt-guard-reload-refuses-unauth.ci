@@ -22,10 +22,12 @@ EOF_PEER
 # Post-SIGHUP config: the token is gone and REST is asked for 0.0.0.0. Either
 # half alone is allowed; together they are the pair the guard refuses.
 tmpfs=config2.conf:terminator=EOF_CONF2
-plugin {
-	external mgmt-refuses-unauth-test {
-		run "le test fixture reload/mgmt-guard-reload-refuses-unauth $PORT2"
-		encoder json
+bus {
+	endpoint mgmt-refuses-unauth-test {
+		external {
+			run "le test fixture reload/mgmt-guard-reload-refuses-unauth $PORT2";
+		}
+		encoding json;
 	}
 }
 
@@ -74,10 +76,12 @@ EOF_CONF2
 
 
 stdin=ze-conf:terminator=EOF_CONF
-plugin {
-	external mgmt-refuses-unauth-test {
-		run "le test fixture reload/mgmt-guard-reload-refuses-unauth $PORT2"
-		encoder json
+bus {
+	endpoint mgmt-refuses-unauth-test {
+		external {
+			run "le test fixture reload/mgmt-guard-reload-refuses-unauth $PORT2";
+		}
+		encoding json;
 	}
 }
 

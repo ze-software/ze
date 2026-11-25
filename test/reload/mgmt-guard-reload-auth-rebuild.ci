@@ -22,10 +22,12 @@ EOF_PEER
 # Post-SIGHUP config: the same REST endpoint, now with a token. No address
 # changes, so the reload's whole job is the credential rebuild.
 tmpfs=config2.conf:terminator=EOF_CONF2
-plugin {
-	external mgmt-auth-rebuild-test {
-		run "le test fixture reload/mgmt-guard-reload-auth-rebuild $PORT2"
-		encoder json
+bus {
+	endpoint mgmt-auth-rebuild-test {
+		external {
+			run "le test fixture reload/mgmt-guard-reload-auth-rebuild $PORT2";
+		}
+		encoding json;
 	}
 }
 
@@ -75,10 +77,12 @@ EOF_CONF2
 
 
 stdin=ze-conf:terminator=EOF_CONF
-plugin {
-	external mgmt-auth-rebuild-test {
-		run "le test fixture reload/mgmt-guard-reload-auth-rebuild $PORT2"
-		encoder json
+bus {
+	endpoint mgmt-auth-rebuild-test {
+		external {
+			run "le test fixture reload/mgmt-guard-reload-auth-rebuild $PORT2";
+		}
+		encoding json;
 	}
 }
 

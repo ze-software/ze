@@ -14,23 +14,25 @@ EOF_PEER
 # Native compiled fixture: plugin/rpki-cache-connect
 # ze bgp configuration with RPKI plugin
 stdin=ze-bgp:terminator=EOF_CONF
-plugin {
+bus {
+	endpoint rpki {
+		internal bgp-rpki;
+	}
+	endpoint adj-rib-in {
+		internal bgp-adj-rib-in;
+	}
+	endpoint rpki-cache-test {
+		external {
+			run "le test fixture plugin/rpki-cache-connect";
+		}
+		encoding json;
+	}
 	hub {
 		server local {
 			ip 127.0.0.1;
 			port 0;
 			secret rpki-test-secret-key-01234567890;
 		}
-	}
-	external rpki-cache-test {
-		run "le test fixture plugin/rpki-cache-connect"
-		encoder json
-	}
-	internal rpki {
-		use bgp-rpki
-	}
-	internal adj-rib-in {
-		use bgp-adj-rib-in
 	}
 }
 
@@ -68,12 +70,6 @@ bgp {
 			group-updates disable
 		}
 
-		attach process rpki {
-			receive [ update-received state ]
-		}
-		attach process adj-rib-in {
-			receive [ update-received state ]
-		}
 	}
 }
 EOF_CONF

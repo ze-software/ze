@@ -20,10 +20,12 @@ option=env:var=ze.log.flow.export:value=info
 option=timeout:value=25s
 
 stdin=ze-conf:terminator=EOF_CONF
-plugin {
-	external multi-receiver {
-		run "le test fixture flow-export/multi-collector-export $PORT2 $PORT"
-		encoder json
+bus {
+	endpoint multi-receiver {
+		external {
+			run "le test fixture flow-export/multi-collector-export $PORT2 $PORT";
+		}
+		encoding json;
 	}
 }
 

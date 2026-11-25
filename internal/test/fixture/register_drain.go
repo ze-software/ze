@@ -59,7 +59,7 @@ func drainRequester(ctx context.Context, args []string) error {
 			go requestStopAfterSettle(plugin, command)
 			return nil
 		})
-		return drainAnsweredOrFail(answered, plugin.Run(ctx, &sdk.Registration{DrainBudget: drain.Budget}))
+		return drainAnsweredOrFail(answered, runObserver(ctx, plugin, &sdk.Registration{DrainBudget: drain.Budget}))
 	}
 
 	// The peer's session MUST still be up when the drain arrives: a stop that
@@ -67,13 +67,17 @@ func drainRequester(ctx context.Context, args []string) error {
 	// shows here as a state event other than up before the drain. Seeing the
 	// up first keeps the check from passing on a peer that never attached.
 	var sessionUp, sessionDown atomic.Bool
+	var downEvent atomic.Value
 	plugin.OnEvent(func(event string) error {
 		if eventIsUp02(event) {
 			sessionUp.Store(true)
 			return nil
 		}
-		if _, kind, _ := eventFacts02(event); kind == eventState {
-			sessionDown.Store(true)
+		if sessionUp.Load() {
+			if _, kind, _ := eventFacts02(event); kind == eventState {
+				downEvent.Store(event)
+				sessionDown.Store(true)
+			}
 		}
 		return nil
 	})
@@ -82,14 +86,15 @@ func drainRequester(ctx context.Context, args []string) error {
 			drain.Log("drain-fixture: FAIL no peer session up before the drain")
 		}
 		if sessionDown.Load() {
-			drain.Log("drain-fixture: FAIL peer session went down before the drain")
+			ev, _ := downEvent.Load().(string)
+			drain.Log("drain-fixture: FAIL peer session went down before the drain: " + ev)
 		}
 	})
 	plugin.OnAllPluginsReady(func() error {
 		go requestStopAfterSettle(plugin, command)
 		return nil
 	})
-	return drainAnsweredOrFail(answered, plugin.Run(ctx, &sdk.Registration{
+	return drainAnsweredOrFail(answered, runObserver(ctx, plugin, &sdk.Registration{
 		DrainBudget: drain.Budget,
 		Receives:    bgpReceiveDecls([]string{eventState}, nil),
 	}))
@@ -135,7 +140,7 @@ func drainResponder(ctx context.Context, _ []string) error {
 	defer plugin.Close() //nolint:errcheck // fixture teardown, so a close failure changes no assertion
 
 	answered := drain.Responder(plugin)
-	return drainAnsweredOrFail(answered, plugin.Run(ctx, &sdk.Registration{DrainBudget: drain.Budget}))
+	return drainAnsweredOrFail(answered, runObserver(ctx, plugin, &sdk.Registration{DrainBudget: drain.Budget}))
 }
 
 // drainBudgetOverCeiling declares a DrainBudget one second above the daemon
@@ -180,7 +185,7 @@ func drainNeverReplies(ctx context.Context, _ []string) error {
 		<-drainCtx.Done()
 		return drainCtx.Err()
 	})
-	return plugin.Run(ctx, &sdk.Registration{DrainBudget: drainNeverRepliesBudget})
+	return runObserver(ctx, plugin, &sdk.Registration{DrainBudget: drainNeverRepliesBudget})
 }
 
 // drainZeroWait declares a drain budget and answers its drain at once, the
@@ -197,5 +202,5 @@ func drainZeroWait(ctx context.Context, _ []string) error {
 		drain.Log("drain-fixture: drain answered at once")
 		return nil
 	})
-	return plugin.Run(ctx, &sdk.Registration{DrainBudget: drain.Budget})
+	return runObserver(ctx, plugin, &sdk.Registration{DrainBudget: drain.Budget})
 }

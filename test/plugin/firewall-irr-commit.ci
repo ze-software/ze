@@ -32,17 +32,19 @@ option=timeout:value=20s
 
 
 stdin=ze-fw:terminator=EOF_CONF
-plugin {
-	external firewall-irr-commit-test {
-		run "le test fixture plugin/firewall-irr-commit"
-		encoder json
+bus {
+	endpoint firewall-irr-commit-test {
+		external {
+			run "le test fixture plugin/firewall-irr-commit";
+		}
+		encoding json;
 	}
 }
 system {
 	irr { server 127.0.0.1:$PORT2; }
 }
 firewall {
-	backend nft;
+	backend kernel;
 }
 bgp {
 	peer peer1 {

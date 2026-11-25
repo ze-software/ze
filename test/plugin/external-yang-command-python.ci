@@ -76,10 +76,12 @@ environment {
 		}
 	}
 }
-plugin {
-	external acme-monitor {
-		run "sh acme-monitor.run"
-		encoder json
+bus {
+	endpoint acme-monitor {
+		external {
+			run "sh acme-monitor.run";
+		}
+		encoding json;
 	}
 }
 acme-monitor {

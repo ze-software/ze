@@ -31,10 +31,12 @@ EOF_PEER
 # and the paced multi-probe result shape.
 
 stdin=ze-bgp:terminator=EOF_CONF
-plugin {
-	external ping-show-test {
-		run "le test fixture plugin/ping-show"
-		encoder json
+bus {
+	endpoint ping-show-test {
+		external {
+			run "le test fixture plugin/ping-show";
+		}
+		encoding json;
 	}
 }
 

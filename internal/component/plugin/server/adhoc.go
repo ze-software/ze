@@ -54,6 +54,7 @@ func (s *Server) HandleAdHocPluginSession(reader io.ReadCloser, writer io.WriteC
 	if proc.Stage() < plugin.StageRunning {
 		return fmt.Errorf("handshake incomplete: reached stage %d", proc.Stage())
 	}
+	s.adHocProcs.Store(name, proc)
 
 	// Enter runtime command loop (blocks until disconnect).
 	s.handleSingleProcessCommandsRPC(proc)
@@ -68,6 +69,7 @@ func (s *Server) HandleAdHocPluginSession(reader io.ReadCloser, writer io.WriteC
 // window goes too (forgetPluginReports), on every return, a failed handshake
 // included.
 func (s *Server) endAdHocSession(name string) {
+	s.adHocProcs.Delete(name)
 	report.ClearSource(name)
 	s.forgetPluginReports(name)
 }

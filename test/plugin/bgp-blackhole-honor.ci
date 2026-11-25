@@ -54,16 +54,27 @@ action=send:conn=1:seq=3:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF0037020000001B40010
 EOF_PEER
 
 stdin=config:terminator=EOF_CONFIG
-plugin {
-	external engine-steps {
-		run "le mock engine-steps ./engine-steps.json"
-		encoder json
+bus {
+	endpoint bgp-rib {
+		internal bgp-rib;
 	}
-	internal bgp-rib {
-		use bgp-rib
+	endpoint rib {
+		internal rib;
 	}
-	internal rib {
-		use rib
+	endpoint engine-steps {
+		external {
+			run "le mock engine-steps ./engine-steps.json";
+		}
+		encoding json;
+	}
+}
+
+fib {
+	dummy { }
+}
+static {
+	table default {
+		route 1.1.1.1/32 { next { interface lo { } } }
 	}
 }
 
@@ -98,10 +109,6 @@ bgp {
 			communities [ blackhole 65001:666 ]
 			prefixes    10.0.0.0/24
 		}
-		attach process bgp-rib {
-			receive [ update state refresh ]
-			send [ update ]
-		}
 	}
 }
 EOF_CONFIG
@@ -109,8 +116,6 @@ EOF_CONFIG
 cmd=background:seq=1:exec=le test peer --port $PORT:stdin=peer
 cmd=foreground:seq=2:exec=ze -:stdin=config:timeout=25s
 
-# Resolve 1.1.1.1 so both announced prefixes reach the system RIB.
-command=request bgp rib inject 10.0.0.2 ipv4/unicast 1.1.1.0/24 origin igp
 command=show rib
 # AC-2: the covered prefix is a discard route. The regexp is scoped inside one
 # JSON object ([^}]*) so it cannot match route-type belonging to another entry.

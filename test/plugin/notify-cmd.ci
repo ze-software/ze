@@ -17,10 +17,12 @@ EOF_PEER
 
 # ze bgp configuration
 stdin=ze-bgp:terminator=EOF_CONF
-plugin {
-	external notify-test {
-		run "le test fixture plugin/notify-cmd"
-		encoder json
+bus {
+	endpoint notify-test {
+		external {
+			run "le test fixture plugin/notify-cmd";
+		}
+		encoding json;
 	}
 }
 bgp {
@@ -51,9 +53,6 @@ bgp {
 			group-updates disable
 		}
 	
-		attach process notify-test {
-			send [ update ]
-		}
 	}
 }
 EOF_CONF

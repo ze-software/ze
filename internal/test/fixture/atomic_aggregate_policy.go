@@ -106,6 +106,7 @@ func atomicAggregatePolicyForwarder(ctx context.Context, args []string) error {
 	})
 	return plugin.Run(ctx, &sdk.Registration{
 		CacheConsumer: true,
+		Sends:         []sdk.MessageSendDecl{{Message: "bgp:update"}},
 		Receives:      bgpReceiveDecls([]string{eventUpdate}, []string{addrLoopbackSecond}),
 	})
 }

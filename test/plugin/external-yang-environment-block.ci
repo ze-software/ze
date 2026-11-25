@@ -29,10 +29,12 @@
 # the code it ended with (docs/architecture/testing/ci-format.md, "Await").
 
 tmpfs=ze.conf:terminator=EOF_CONF
-plugin {
-	external acme-monitor {
-		run "le test fixture plugin/external-yang valid-environment"
-		encoder json
+bus {
+	endpoint acme-monitor {
+		external {
+			run "le test fixture plugin/external-yang valid-environment";
+		}
+		encoding json;
 	}
 }
 

@@ -15,10 +15,12 @@ EOF_PEER
 
 
 stdin=ze-bgp:terminator=EOF_CONF
-plugin {
-	external clear-cymru-cache-test {
-		run "le test fixture plugin/clear-cymru-cache"
-		encoder json
+bus {
+	endpoint clear-cymru-cache-test {
+		external {
+			run "le test fixture plugin/clear-cymru-cache";
+		}
+		encoding json;
 	}
 }
 

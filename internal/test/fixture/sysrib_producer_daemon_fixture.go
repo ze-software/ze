@@ -72,7 +72,7 @@ func sysribProducerSDKDriver(ctx context.Context, args []string) error {
 		}()
 		return nil
 	})
-	runErr := p.Run(ctx, &sdk.Registration{})
+	runErr := runObserver(ctx, p, &sdk.Registration{})
 	cancel()
 	select {
 	case <-started:

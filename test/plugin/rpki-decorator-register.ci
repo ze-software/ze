@@ -16,26 +16,28 @@ EOF_PEER
 # native test plugin: subscribes to update-rpki, verifies subscription accepted
 # Native compiled fixture: plugin/rpki-decorator-register
 stdin=ze-bgp:terminator=EOF_CONF
-plugin {
+bus {
+	endpoint rpki {
+		internal bgp-rpki;
+	}
+	endpoint rpki-decorator {
+		internal bgp-rpki-decorator;
+	}
+	endpoint adj-rib-in {
+		internal bgp-adj-rib-in;
+	}
+	endpoint rpki-reg-test {
+		external {
+			run "le test fixture plugin/rpki-decorator-register";
+		}
+		encoding json;
+	}
 	hub {
 		server local {
 			ip 127.0.0.1;
 			port 0;
 			secret rpki-reg-test-secret-0123456789abcdef;
 		}
-	}
-	external rpki-reg-test {
-		run "le test fixture plugin/rpki-decorator-register"
-		encoder json
-	}
-	internal rpki {
-		use bgp-rpki
-	}
-	internal rpki-decorator {
-		use bgp-rpki-decorator
-	}
-	internal adj-rib-in {
-		use bgp-adj-rib-in
 	}
 }
 
@@ -73,18 +75,6 @@ bgp {
 			group-updates disable
 		}
 
-		attach process rpki-reg-test {
-			receive [ update-rpki ]
-		}
-		attach process rpki {
-			receive [ update-received state ]
-		}
-		attach process rpki-decorator {
-			receive [ update-received rpki ]
-		}
-		attach process adj-rib-in {
-			receive [ update-received state ]
-		}
 	}
 }
 EOF_CONF

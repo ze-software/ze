@@ -21,10 +21,12 @@ EOF_PEER
 
 # ze bgp configuration with SSH
 stdin=ze-bgp:terminator=EOF_CONF
-plugin {
-	external signal-stop-test {
-		run "le test fixture plugin/signal-stop-ssh"
-		encoder json
+bus {
+	endpoint signal-stop-test {
+		external {
+			run "le test fixture plugin/signal-stop-ssh";
+		}
+		encoding json;
 	}
 }
 

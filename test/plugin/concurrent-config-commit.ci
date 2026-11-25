@@ -12,10 +12,12 @@ EOF_PEER
 
 
 tmpfs=concurrent-config-commit.conf:terminator=EOF_CONF
-plugin {
-    external slow-commit {
-        run "le test fixture plugin/concurrent-config-commit $PORT2"
-        encoder json
+bus {
+    endpoint slow-commit {
+        external {
+            run "le test fixture plugin/concurrent-config-commit $PORT2";
+        }
+        encoding json;
     }
 }
 

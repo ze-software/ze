@@ -12,14 +12,16 @@ option=netns-link:name=zecpe0:peer=zeac0
 option=timeout:value=120s
 option=env:var=ze.log.l2tp:value=debug
 stdin=ze-conf:terminator=EOF_CONF
-plugin {
-	external l2tp-pool-dns-source-received-test {
-		run "le test fixture pppoe/l2tp-pool-dns-source-received"
-		encoder json
+bus {
+	endpoint l2tp-pool-dns-source-received-test {
+		external {
+			run "le test fixture pppoe/l2tp-pool-dns-source-received";
+		}
+		encoding json;
 	}
 }
 interface {
-	backend netlink
+	backend kernel
 	ethernet zecpe0 {
 	}
 	pppoe-client zedns1 {

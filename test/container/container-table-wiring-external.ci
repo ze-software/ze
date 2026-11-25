@@ -44,12 +44,14 @@ environment {
 	}
 }
 firewall {
-	backend nft
+	backend kernel
 }
-plugin {
-	external fakeowner {
-		run "ze plugin fakeowner"
-		encoder json
+bus {
+	endpoint fakeowner {
+		external {
+			run "ze plugin fakeowner";
+		}
+		encoding json;
 	}
 }
 EOF_CONF

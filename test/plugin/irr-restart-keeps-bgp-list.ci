@@ -41,10 +41,12 @@ action=send:conn=2:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF002F020000001440010
 EOF_PEER
 
 stdin=ze-irr:terminator=EOF_CONF
-plugin {
-	external irr-restart-keeps-bgp-list-test {
-		run "le test fixture plugin/irr-restart-keeps-bgp-list"
-		encoder json
+bus {
+	endpoint irr-restart-keeps-bgp-list-test {
+		external {
+			run "le test fixture plugin/irr-restart-keeps-bgp-list";
+		}
+		encoding json;
 	}
 }
 system {
@@ -68,9 +70,6 @@ bgp {
 		}
 		# The observer counts the accepted UPDATE, so the peer delivers it the
 		# received UPDATEs.
-		attach process irr-restart-keeps-bgp-list-test {
-			receive [ update ]
-		}
 	}
 }
 EOF_CONF

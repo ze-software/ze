@@ -525,16 +525,18 @@ EOF_PEER
 
 
 stdin=ze-bgp:terminator=EOF_CONF
-plugin {
-	external burst-test {
-		run "le test fixture plugin/bgp-redistribute-burst"
-		encoder json
+bus {
+	endpoint redistribute-orchestrator {
+		internal redistribute-orchestrator;
 	}
-	internal redistribute-orchestrator {
-		use redistribute-orchestrator
+	endpoint fakeredist {
+		internal fakeredist;
 	}
-	internal fakeredist {
-		use fakeredist
+	endpoint burst-test {
+		external {
+			run "le test fixture plugin/bgp-redistribute-burst";
+		}
+		encoding json;
 	}
 }
 
@@ -581,9 +583,6 @@ bgp {
 		}
 		behavior {
 			group-updates disable
-		}
-		attach process redistribute-orchestrator {
-			send [ update ]
 		}
 	}
 }

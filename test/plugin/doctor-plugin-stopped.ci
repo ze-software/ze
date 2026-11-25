@@ -45,10 +45,12 @@ environment {
 		}
 	}
 }
-plugin {
-	external failure-ignore {
-		run "le test fixture plugin/failure-policy-ignore"
-		encoder json
+bus {
+	endpoint failure-ignore {
+		external {
+			run "le test fixture plugin/failure-policy-ignore";
+		}
+		encoding json;
 	}
 }
 EOF_CONF

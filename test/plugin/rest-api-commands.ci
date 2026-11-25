@@ -13,10 +13,12 @@ EOF_PEER
 
 # ze bgp configuration with REST API enabled
 stdin=ze-bgp:terminator=EOF_CONF
-plugin {
-	external rest-test {
-		run "le test fixture plugin/rest-api-commands"
-		encoder json
+bus {
+	endpoint rest-test {
+		external {
+			run "le test fixture plugin/rest-api-commands";
+		}
+		encoding json;
 	}
 }
 

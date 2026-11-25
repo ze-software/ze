@@ -26,11 +26,15 @@ action=send:conn=1:seq=5:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00290200000012800F0
 EOF_PEER
 
 stdin=ze-bgp:terminator=EOF_CONF
-plugin {
-	internal flowspec-firewall { use flowspec-firewall; }
-	external flowspec-observer {
-		run "le test fixture plugin/flowspec-fw-withdraw-removes-table";
-		encoder json;
+bus {
+	endpoint flowspec-firewall {
+		internal flowspec-firewall;
+	}
+	endpoint flowspec-observer {
+		external {
+			run "le test fixture plugin/flowspec-fw-withdraw-removes-table";
+		}
+		encoding json;
 	}
 }
 bgp {
@@ -47,7 +51,6 @@ bgp {
 				ipv4/flow { prefix { maximum 10000; } }
 			}
 		}
-		attach process flowspec-observer { send [ raw ]; }
 	}
 }
 EOF_CONF

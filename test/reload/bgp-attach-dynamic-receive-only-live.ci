@@ -1,14 +1,14 @@
-# Test: a reload that attaches a receive-only process to a dynamic group's
-#       template keeps the RUNNING dynamic session, tells the process the session
+# Test: a reload that adds a receive-only endpoint to a dynamic group's bus send
+#       list keeps the RUNNING dynamic session, tells the endpoint the session
 #       is up, and brings it level with the routes the peer announced before.
-# Initial config: one dynamic group (iBGP, Route Refresh), bound to bgp-rib only,
+# Initial config: one dynamic group (iBGP, Route Refresh), feeding bgp-rib only,
 #                 and no configured peer. The test peer dials Ze, so the only
 #                 session is the dynamic one the inbound connection creates.
 #                 The peer announces 192.168.1.0/24 right after its OPEN.
 # Live change:    the peer rewrites the config and sends SIGHUP once Ze's
-#                 End-of-RIB arrived. The new config attaches an external process,
-#                 started by that reload, bound `receive [ update-received state ]`
-#                 in the group template.
+#                 End-of-RIB arrived. The new config adds the already-running
+#                 external endpoint attach-live to group ix's bus > send > to
+#                 list (group ix's bus > receive > from stays bgp-rib only).
 # Expected:       no NOTIFICATION and no second TCP connection; Ze sends one
 #                 ROUTE-REFRESH for ipv4/unicast; the peer re-sends the route;
 #                 the process receives `state up` with reason `attached` before
@@ -17,9 +17,11 @@
 #                 dynamic step.
 #
 # VALIDATES: spec-bgp-live-receive-binding-and-bfd-keep-session AC-9 (wiring
-#            row "journaled dynamic step -> ordered bind delivery -> targeted up").
-# PREVENTS: a dynamic template change that resets every dynamic session, and a
-#           gained process fed an UPDATE before it is told the session is up.
+#            row "journaled dynamic step -> ordered bind delivery -> targeted up")
+#            and spec-explicit-plugin-and-attach-config S19.
+# PREVENTS: a dynamic template bus feed edit that resets every dynamic session,
+#           and a gained endpoint fed an UPDATE before it is told the session is
+#           up.
 #
 # A dynamic step that restarted the peer on the template change (the rule
 # before that spec's Phase 3) makes the peer read a NOTIFICATION where it
@@ -48,18 +50,18 @@ expect=bgp:conn=1:seq=2:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170500010001
 action=send:conn=1:seq=3:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00300200000015400101004002004003040A0000014005040000006418C0A801
 EOF_PEER
 
-# The process runs from boot, attached to no peer, so no event reaches it
-# until the reload attaches it. A reload does not start an external program a
-# config newly declares (unwired-feature journal, row of 2026-10-11), and the
-# attach, not the start, is what this test is about.
+# The endpoint runs from boot, outside group ix's bus > send > to list, so no
+# event reaches it until the reload widens the group's send list.
 stdin=ze-bgp:terminator=EOF_CONF
-plugin {
-	internal bgp-rib {
-		use bgp-rib
+bus {
+	endpoint bgp-rib {
+		internal bgp-rib;
 	}
-	external attach-live {
-		run "le test fixture plugin/attach-receive-only-live"
-		encoder json
+	endpoint attach-live {
+		external {
+			run "le test fixture plugin/attach-receive-only-live";
+		}
+		encoding json;
 	}
 }
 
@@ -97,27 +99,35 @@ bgp {
 		behavior {
 			group-updates disable
 		}
-		# Route Refresh needs a process that may put routes on the wire
-		# (validatePeerProcessCaps). Bound in both configs, so it never changes.
-		attach process bgp-rib {
-			receive [ update state refresh ]
-			send [ update ]
+		# Route Refresh needs an endpoint that may put routes on the wire
+		# (validatePeerProcessCapsOnGraph). bgp-rib holds that grant in both
+		# configs; attach-live is never in bus > receive > from.
+		bus {
+			receive {
+				allow [ bgp:update ];
+				from [ /bus/endpoint/bgp-rib ];
+			}
+			send {
+				allow [ bgp:update bgp:state bgp:refresh ];
+				to [ /bus/endpoint/bgp-rib ];
+			}
 		}
 	}
 }
 
 EOF_CONF
 
-# The second config declares the external process and attaches it receive-only
-# in the group template.
+# The second config adds attach-live to group ix's bus > send > to list only.
 tmpfs=config2.conf:terminator=EOF_CONF2
-plugin {
-	internal bgp-rib {
-		use bgp-rib
+bus {
+	endpoint bgp-rib {
+		internal bgp-rib;
 	}
-	external attach-live {
-		run "le test fixture plugin/attach-receive-only-live"
-		encoder json
+	endpoint attach-live {
+		external {
+			run "le test fixture plugin/attach-receive-only-live";
+		}
+		encoding json;
 	}
 }
 
@@ -155,14 +165,18 @@ bgp {
 		behavior {
 			group-updates disable
 		}
-		# Route Refresh needs a process that may put routes on the wire
-		# (validatePeerProcessCaps). Bound in both configs, so it never changes.
-		attach process bgp-rib {
-			receive [ update state refresh ]
-			send [ update ]
-		}
-		attach process attach-live {
-			receive [ update-received state ]
+		# Route Refresh needs an endpoint that may put routes on the wire
+		# (validatePeerProcessCapsOnGraph). bgp-rib holds that grant in both
+		# configs; attach-live is added receive-only (bus > send > to only).
+		bus {
+			receive {
+				allow [ bgp:update ];
+				from [ /bus/endpoint/bgp-rib ];
+			}
+			send {
+				allow [ bgp:update bgp:state bgp:refresh ];
+				to [ /bus/endpoint/bgp-rib /bus/endpoint/attach-live ];
+			}
 		}
 	}
 }

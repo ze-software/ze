@@ -9,13 +9,29 @@ option=netns-link:name=zesrproof
 option=storage:value=disk
 option=timeout:value=180s
 stdin=ze-conf:terminator=EOF_CONF
-plugin {
- external sysrib-distance-test { run "le test fixture plugin/sysrib-distance-reload forked defaults"; encoder json; }
- external sysrib-distance-rollback { run "le test fixture plugin/sysrib-distance-rollback"; encoder json; }
- external sysrib-owner { run "ze plugin rib"; encoder json; }
- internal fib-kernel { use fib-kernel; }
+bus {
+    endpoint fib-kernel {
+        internal fib-kernel;
+    }
+    endpoint sysrib-distance-test {
+        external {
+            run "le test fixture plugin/sysrib-distance-reload forked defaults";
+        }
+        encoding json;
+    }
+    endpoint sysrib-distance-rollback {
+        external {
+            run "le test fixture plugin/sysrib-distance-rollback";
+        }
+        encoding json;
+    }
+    endpoint sysrib-owner {
+        internal rib;
+        process separate;
+        encoding json;
+    }
 }
-interface { backend netlink; }
+interface { backend kernel; }
 connected { }
 fib { kernel { flush-on-stop true; } }
 # No rib root: boot must publish schema defaults to the authority.

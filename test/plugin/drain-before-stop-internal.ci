@@ -23,9 +23,9 @@ action=sigterm:conn=1:seq=2
 EOF_PEER
 
 tmpfs=ze-bgp.conf:terminator=EOF_CONF
-plugin {
-	internal fakedrain {
-		use fakedrain
+bus {
+	endpoint fakedrain {
+		internal fakedrain;
 	}
 }
 

@@ -46,10 +46,12 @@ option=env:var=ze_log_ike:value=info
 
 # ── Responder daemon (background, REAL xfrm, engine-steps executor): 127.0.0.2 ──
 stdin=responder:terminator=EOF_RESPONDER
-plugin {
-	external engine-steps {
-		run "le mock engine-steps ./engine-steps.json"
-		encoder json
+bus {
+	endpoint engine-steps {
+		external {
+			run "le mock engine-steps ./engine-steps.json";
+		}
+		encoding json;
 	}
 }
 
@@ -161,7 +163,7 @@ expect=output:contains=aes-cbc:timeout=60
 # AC-1: the kernel SAD carries the two ESP states this tunnel installed, and the
 # dump names the transform. `cbc(aes)` and `hmac(sha256)` are the kernel's own
 # spellings of the aes256 / sha256 proposal above (xfrmEncName, xfrmAuthName in
-# internal/component/ike/dataplane/xfrm_linux.go). They come from the netlink
+# internal/component/ike/dataplane/xfrm_linux.go). They come from the netlink message
 # record, so neither string can be produced by the engine's belief.
 command=show vpn ipsec dataplane sa
 expect=output:contains=cbc(aes):timeout=45

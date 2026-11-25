@@ -38,20 +38,22 @@ option=bind:value=127.0.0.2
 option=linger:value=true
 # AS_PATH [65000 65001] after ze's prepend, the same NEXT_HOP, and the NLRI
 # prefixed by the four octets of ze's own Path Identifier 0.
-expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF003702000000184001010040020A02020000FDE80000FDE94003040101010100000000180A0000
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF003302000000144001010040020602010000FDE94003040101010100000000180A0000
 EOF_RECEIVER
 
 stdin=ze-bgp:terminator=EOF_CONF
-plugin {
-	internal rs {
-		use bgp-rs
+bus {
+	endpoint rs {
+		internal bgp-rs;
 	}
-	external addpath-zero {
-		run "le test fixture plugin/addpath-identifier-zero"
-		encoder json
+	endpoint adj-rib-in {
+		internal bgp-adj-rib-in;
 	}
-	internal adj-rib-in {
-		use bgp-adj-rib-in
+	endpoint addpath-zero {
+		external {
+			run "le test fixture plugin/addpath-identifier-zero";
+		}
+		encoding json;
 	}
 }
 
@@ -72,6 +74,7 @@ bgp {
 			}
 		}
 		session {
+			rs-client true;
 			asn {
 				local 65000
 				remote 65001
@@ -93,13 +96,6 @@ bgp {
 		behavior {
 			group-updates disable
 		}
-		attach process adj-rib-in {
-			receive [ update-received state ]
-		}
-		attach process rs {
-			receive [ update-received state open-received refresh ]
-			send [ update ]
-		}
 	}
 
 	peer receiver {
@@ -113,6 +109,7 @@ bgp {
 			}
 		}
 		session {
+			rs-client true;
 			asn {
 				local 65000
 				remote 65002
@@ -137,10 +134,6 @@ bgp {
 		}
 		behavior {
 			group-updates disable
-		}
-		attach process rs {
-			receive [ update-received state open-received refresh ]
-			send [ update ]
 		}
 	}
 }

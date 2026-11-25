@@ -12,7 +12,16 @@ import (
 )
 
 func init() {
-	Register("plugin/peer-up-replay-claim-permission", eventObserver02("claim-permission", []string{eventState}, observeReplayClaimPermissions), StopsDaemon)
+	Register("plugin/peer-up-replay-claim-permission", eventObserverWithSends02(
+		"claim-permission",
+		[]string{eventState},
+		[]sdk.MessageSendDecl{
+			{Message: "cli:show bgp peer"},
+			{Message: observerSendQuiesce},
+			{Message: observerSendShutdown},
+		},
+		observeReplayClaimPermissions,
+	), StopsDaemon)
 }
 
 // observeReplayClaimPermissions consumes the actual onPeerStateChange JSON, not

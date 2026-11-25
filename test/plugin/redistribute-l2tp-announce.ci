@@ -22,16 +22,18 @@ EOF_PEER
 
 # ze configuration
 stdin=ze-bgp:terminator=EOF_CONF
-plugin {
-	external l2tp-announce-test {
-		run "le test fixture plugin/redistribute-l2tp-announce"
-		encoder json
+bus {
+	endpoint redistribute-orchestrator {
+		internal redistribute-orchestrator;
 	}
-	internal redistribute-orchestrator {
-		use redistribute-orchestrator
+	endpoint fakel2tp {
+		internal fakel2tp;
 	}
-	internal fakel2tp {
-		use fakel2tp
+	endpoint l2tp-announce-test {
+		external {
+			run "le test fixture plugin/redistribute-l2tp-announce";
+		}
+		encoding json;
 	}
 }
 
@@ -78,9 +80,6 @@ bgp {
 		}
 		behavior {
 			group-updates disable
-		}
-		attach process redistribute-orchestrator {
-			send [ update ]
 		}
 	}
 }

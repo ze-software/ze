@@ -119,6 +119,9 @@ func (r *Reactor) removalLocked(peer *Peer, stop peerStop) peerRemoval {
 // delivery. Each captured down MUST run exactly once here, after its Cease and
 // outside r.mu. The final publication reflects the current peer set.
 func (r *Reactor) completeRemovals(removals ...peerRemoval) {
+	if len(removals) == 0 {
+		return
+	}
 	for _, removal := range removals {
 		removal.run()
 	}

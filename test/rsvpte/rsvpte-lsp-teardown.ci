@@ -21,10 +21,12 @@
 
 
 stdin=ze-conf:terminator=EOF_CONF
-plugin {
-	external rsvpte-teardown {
-		run "le test fixture rsvpte/rsvpte-lsp-teardown"
-		encoder json
+bus {
+	endpoint rsvpte-teardown {
+		external {
+			run "le test fixture rsvpte/rsvpte-lsp-teardown";
+		}
+		encoding json;
 	}
 }
 

@@ -112,16 +112,18 @@ EOF_PEER
 # on a stalled replay.
 
 stdin=ze-bgp:terminator=EOF_CONF
-plugin {
-	internal rs {
-		use bgp-rs
+bus {
+	endpoint rs {
+		internal bgp-rr;
 	}
-	internal adj-rib-in {
-		use bgp-adj-rib-in
+	endpoint adj-rib-in {
+		internal bgp-adj-rib-in;
 	}
-	external shutdown-after-up {
-		run "le test fixture plugin/asn4-transcode-pooled-buffer"
-		encoder json
+	endpoint shutdown-after-up {
+		external {
+			run "le test fixture plugin/asn4-transcode-pooled-buffer";
+		}
+		encoding json;
 	}
 }
 bgp {
@@ -157,16 +159,6 @@ bgp {
 			group-updates disable
 			rs-fast-path enable
 		}
-		attach process adj-rib-in {
-			receive [ update-received state ]
-		}
-		attach process rs {
-			receive [ update-received state open-received refresh ]
-			send [ update ]
-		}
-		attach process shutdown-after-up {
-			receive [ update ]
-		}
 	}
 	peer receiver-peer {
 		connection {
@@ -195,16 +187,6 @@ bgp {
 		behavior {
 			group-updates disable
 			rs-fast-path enable
-		}
-		attach process adj-rib-in {
-			send [ update ]
-		}
-		attach process rs {
-			receive [ update-received state open-received refresh ]
-			send [ update ]
-		}
-		attach process shutdown-after-up {
-			receive [ update ]
 		}
 	}
 }

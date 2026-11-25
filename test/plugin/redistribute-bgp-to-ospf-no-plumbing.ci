@@ -42,6 +42,9 @@
 # names the stage rather than the symptom: `routes-in 0` is the delivery half,
 # `routes-in 1` with an empty consumer is the orchestrator half.
 
+# Linux-only: static `next { interface lo { } }` resolves loopback `lo` via Linux netlink so bgp-rib resolves NEXT_HOP 10.0.0.1 per RFC 4271 Section 9.1.2.1.
+option=needs-linux
+
 # ze-peer expectations
 stdin=peer:terminator=EOF_PEER
 option=tcp_connections:value=1
@@ -59,19 +62,28 @@ EOF_PEER
 
 # ze configuration
 stdin=ze-bgp:terminator=EOF_CONF
-plugin {
-	external redist-no-plumbing-test {
-		run "le test fixture plugin/redistribute-bgp-to-ospf-no-plumbing"
-		encoder json
+bus {
+	endpoint fakeredist {
+		internal fakeredist;
 	}
-	# The synthetic consumer's host. It registers nothing at startup: the
-	# observer registers it by command, which is what lets this scenario read
-	# back what the orchestrator delivered.
-	internal fakeredist {
-		use fakeredist
+	endpoint redist-no-plumbing-test {
+		external {
+			run "le test fixture plugin/redistribute-bgp-to-ospf-no-plumbing";
+		}
+		encoding json;
 	}
 }
 
+fib {
+	dummy { }
+}
+static {
+	table default {
+		route 10.0.0.1/32 {
+			next { interface lo { } }
+		}
+	}
+}
 policy {
 	match redistribute-fakedest-bgp {
 		family [ ipv4/unicast ];

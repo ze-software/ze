@@ -1,32 +1,39 @@
-# Test: the external ExaBGP bridge runner (`ze exabgp plugin`) writes a script ExaBGP's shutdown line before the daemon stops
-# VALIDATES: a script under `ze exabgp plugin`, which writes JSON, that sends
-#            ExaBGP's `shutdown` reads `{"notification": "shutdown", "type":
-#            "notification"}` on stdin before stdin closes (main_sdk.go
-#            runSDKMode, after p.Run returns -> bridgerun Fleet.Shutdown ->
-#            bridge.ShutdownLine). The engine stops a plugin with no `bye`
-#            (ProcessManager.Stop).
+# Test: the ExaBGP wrapper (`ze exabgp plugin`) writes a script ExaBGP's shutdown line before the daemon stops, in both json and text encodings
+# VALIDATES: a script under `ze exabgp plugin` that sends ExaBGP's `shutdown`
+#            reads the shutdown line on stdin before stdin closes in BOTH
+#            encodings (main_sdk.go runSDKMode, after p.Run returns ->
+#            bridgerun Fleet.Shutdown -> bridge.ShutdownLine):
+#              1) `--encoder json`: `{"notification": "shutdown", "type": "notification"}`
+#              2) `--encoder text`: `shutdown <pid> <ppid>`
+#            The engine stops a plugin with no `bye` (ProcessManager.Stop).
+#            Covers both formats in one test so deleting the retired internal
+#            runner test (`exabgp-bridge-shutdown-internal.ci`, E-1) loses zero
+#            shutdown-line coverage.
 # PREVENTS: a script stopped with no shutdown line, which ExaBGP always writes
 #           (Processes.terminate, src/exabgp/reactor/api/processes.py)
-# The helper waits for the neighbor's `up` state, sends `shutdown` (the bridge
-# translates it to `request shutdown`), and fails unless the shutdown line follows.
+# Each helper waits for the neighbor's `up` state (JSON state=up in run 1,
+# `neighbor 127.0.0.1 up` in run 2), sends `shutdown` (the wrapper translates
+# it to `request shutdown`), and fails unless the matching shutdown line follows.
 # Linux only: the line reaches the script because a stop lets an external
 # plugin exit on its own before its group is killed (pluginExitGrace), which
 # needs waitid with WNOWAIT (exitwait_linux.go). Elsewhere the stop kills the
-# group at once (exitwait_other.go), so the bridge rarely writes the line first.
+# group at once (exitwait_other.go), so the wrapper rarely writes the line first.
 option=needs-linux
+option=timeout:value=45s
 
-# ze-peer expectations
-stdin=peer:terminator=EOF_PEER
+# Run 1: --encoder json
+stdin=peer-json:terminator=EOF_PEER_JSON
 option=tcp_connections:value=1
 option=timeout:value=15s
-EOF_PEER
+EOF_PEER_JSON
 
-# ze bgp configuration
-stdin=ze-bgp:terminator=EOF_CONF
-plugin {
-	external exabgp-bridge {
-		run "ze exabgp plugin --family ipv4/unicast le test fixture plugin/exabgp-shutdown-helper json"
-		encoder json
+stdin=ze-bgp-json:terminator=EOF_CONF_JSON
+bus {
+	endpoint exabgp-json {
+		external {
+			run "ze exabgp plugin --encoder json --family ipv4/unicast le test fixture plugin/exabgp-shutdown-helper json";
+		}
+		encoding json;
 	}
 }
 bgp {
@@ -34,6 +41,7 @@ bgp {
 		connection {
 			remote {
 				ip 127.0.0.1
+				port $PORT
 			}
 			local {
 				ip 127.0.0.1
@@ -53,17 +61,62 @@ bgp {
 				graceful-restart disable
 			}
 		}
+	}
+}
+EOF_CONF_JSON
 
-		attach process exabgp-bridge {
-			receive [ * ]
-			send [ * ]
+# Run 2: --encoder text (replaces retired exabgp-bridge-shutdown-internal.ci)
+stdin=peer-text:terminator=EOF_PEER_TEXT
+option=tcp_connections:value=1
+option=timeout:value=15s
+EOF_PEER_TEXT
+
+stdin=ze-bgp-text:terminator=EOF_CONF_TEXT
+bus {
+	endpoint exabgp-text {
+		external {
+			run "ze exabgp plugin --encoder text --family ipv4/unicast le test fixture plugin/exabgp-shutdown-helper text";
+		}
+		encoding json;
+	}
+}
+bgp {
+	peer peer1 {
+		connection {
+			remote {
+				ip 127.0.0.1
+				port $PORT
+			}
+			local {
+				ip 127.0.0.1
+				accept false
+			}
+		}
+		session {
+			asn {
+				local 1
+				remote 1
+			}
+			router-id 1.2.3.4
+			family {
+				ipv4/unicast { prefix { maximum 10000; } }
+			}
+			capability {
+				graceful-restart disable
+			}
 		}
 	}
 }
-EOF_CONF
+EOF_CONF_TEXT
 
-# Process orchestration
-cmd=background:seq=1:exec=le test peer --mode sink --port $PORT:stdin=peer
-cmd=foreground:seq=2:exec=ze -:stdin=ze-bgp:timeout=20s
-expect=exit:code=0
+# Process orchestration: Run 1 (json), then Run 2 (text)
+cmd=background:seq=1:name=peer-json:exec=le test peer --mode sink --port $PORT:stdin=peer-json
+cmd=background:seq=2:name=ze-json:exec=ze -:stdin=ze-bgp-json:ready=Ze stopped.
 expect=stderr:contains=OK: exabgp shutdown line in json:
+cmd=stop:seq=3:name=ze-json:signal=term
+cmd=stop:seq=4:name=peer-json
+
+cmd=background:seq=5:name=peer-text:exec=le test peer --mode sink --port $PORT:stdin=peer-text
+cmd=foreground:seq=6:exec=ze -:stdin=ze-bgp-text:timeout=20s
+expect=exit:code=0
+expect=stderr:contains=OK: exabgp shutdown line in text:

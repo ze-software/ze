@@ -17,10 +17,12 @@
 # Restart=on-failure reads as a clean shutdown.
 
 tmpfs=ze-bgp.conf:terminator=EOF_CONF
-plugin {
-	external failure-fatal {
-		run "le test fixture plugin/failure-policy-fatal"
-		encoder json
+bus {
+	endpoint failure-fatal {
+		external {
+			run "le test fixture plugin/failure-policy-fatal";
+		}
+		encoding json;
 	}
 }
 EOF_CONF

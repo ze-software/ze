@@ -32,10 +32,15 @@ EOF_PEER
 # Observer: wait for filter dispatch then clean shutdown
 
 stdin=ze-bgp:terminator=EOF_CONF
-plugin {
-	external test-aspath-short {
-		run "le test fixture plugin/aspath-filter-shortform"
-		encoder json
+bus {
+	endpoint test-aspath-short {
+		external {
+			run "le test fixture plugin/aspath-filter-shortform";
+		}
+		encoding json;
+	}
+	endpoint bgp-adj-rib-in {
+		internal bgp-adj-rib-in;
 	}
 }
 policy {
@@ -70,9 +75,6 @@ bgp {
 			import { filters [ remove-private-as:CUSTOMERS ]; final accept; }
 		}
 
-		attach process bgp-adj-rib-in {
-			receive [ update-received state ]
-		}
 	}
 }
 EOF_CONF

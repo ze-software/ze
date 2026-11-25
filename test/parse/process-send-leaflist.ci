@@ -1,9 +1,12 @@
-# Test: attach process send with leaf-list bracket syntax
+# Test: bus endpoint send allow with leaf-list bracket syntax
 stdin=config:terminator=EOF_CONF
-plugin {
-	external my-process {
-		run "le test interop-bgp exabgp-api syslog"
-		encoder json
+bus {
+	endpoint my-process {
+		internal bgp-rib
+		encoding json
+		send {
+			allow [ bgp:update ]
+		}
 	}
 }
 bgp {
@@ -22,9 +25,6 @@ bgp {
 				local 65533
 				remote 65533
 			}
-		}
-		attach process my-process {
-			send [ update ]
 		}
 	}
 }

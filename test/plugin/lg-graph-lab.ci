@@ -40,13 +40,15 @@ system {
 	}
 }
 
-plugin {
-	external lg-lab {
-		run "le test interop-bgp process lg-graph-lab lg-lab"
-		encoder json
+bus {
+	endpoint bgp-rib {
+		internal bgp-rib;
 	}
-	internal bgp-rib {
-		use bgp-rib
+	endpoint lg-lab {
+		external {
+			run "le test interop-bgp process lg-graph-lab lg-lab";
+		}
+		encoding json;
 	}
 }
 
@@ -93,10 +95,6 @@ bgp {
 			group-updates disable
 		}
 
-		attach process bgp-rib {
-			receive [ update state refresh ]
-			send [ update ]
-		}
 	}
 }
 EOF_CONF

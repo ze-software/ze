@@ -21,10 +21,12 @@
 option=needs-linux:caps=net-admin,net-raw
 
 tmpfs=probe.conf:terminator=EOF_CONF
-plugin {
-	external ping-df-test {
-		run "le test fixture plugin/ping-do-not-fragment"
-		encoder json
+bus {
+	endpoint ping-df-test {
+		external {
+			run "le test fixture plugin/ping-do-not-fragment";
+		}
+		encoding json;
 	}
 }
 EOF_CONF

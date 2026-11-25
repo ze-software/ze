@@ -1,36 +1,21 @@
-# Test: boot judges the section that validate, with no ze running, calls not available
+# Test: offline validate (query mode, S-3) and boot agree on an external plugin's YANG module
 #
 # Question: for a config under an external plugin's own root, does `ze config
-# validate` with no ze listening refuse the section as not available (it
-# starts no plugin, so it holds no schema of it, and no running ze answered),
-# while `ze start` judges the same root with the plugin's module, and accepts
-# and delivers a valid section?
+# validate` with no ze listening query the declared external program in declare
+# mode (`ZE_PLUGIN_MODE=declare`, never its run loop), join its YANG module,
+# accept a valid section and refuse an out-of-range leaf, matching `ze start`
+# which accepts and delivers the valid section?
 # Why not a unit test: the verdicts come from two entries of the binary.
-# Validate parses against the compiled-in schema; boot runs the plugin, reads
-# its module at Stage 1 and loads against the joined schema. Only running both
-# shows that the refusal with no ze is about where the config is checked and
-# not about the config, which is what its message says.
+# Validate runs the plugin in query mode (S-3) and joins its Stage 1 schema
+# offline; boot starts the plugin live, reads its module at Stage 1 and loads
+# against the joined schema. Only running both proves both entries agree on the
+# external plugin's module.
 #
-# This file was external-yang-validate-agrees-with-boot. It asserted that
-# the two entries give one verdict, because validate ran the plugin in declare
-# mode. The owner ruled that out: "plugin command requiring external plugins
-# which can not be started from the code when no daemon is running to pass it
-# to are not available". Validate now never accepts what boot refuses, and
-# boot accepts a section validate calls not available.
-#
-# It then asserted `show config validation ze.conf` and `fix: ze cli` for the
-# refusal. That advice fails: in a `ze cli` session the daemon reads ze.conf
-# through command.CallerPath, which admits its config directories only. The
-# command now passes the config to a running ze itself
-# (external-yang-validate-asks-running-ze.ci), and with none the fix is
-# `ze start`.
-#
-# It also held a third step, boot refusing a section that lacks the leaf the
-# module marks mandatory. The exit expectation and the await fence are
-# file-level, so that step's refused daemon was the one the exit check judged,
-# and with no `then=stop` the check compared a peer wait with no peer, which
-# passes whatever the daemons did. That step is now
-# external-yang-boot-refuses-missing-mandatory.ci.
+# Under S-3 (plan/release/fixes/spec-explicit-plugin-and-attach-config.md,
+# AC-18), Thomas reversed the earlier ruling that offline validation starts no
+# external program: offline commands that parse a config now query each declared
+# external program in declare mode (never its run loop), validate against its
+# declared YANG module, and print the queried plugins.
 #
 # The exit assertion is of the DAEMON'S own exit. `then=stop` on the await
 # makes the runner wait for daemon.ready and for the awaited line, stop the
@@ -39,26 +24,23 @@
 # the daemon started, ran the plugin and stopped cleanly.
 #
 # ze.ssh.port points validate's ask at the runner's $PORT, where nothing
-# listens during step 1. The daemon of step 2 configures no SSH listener, so
-# the option does not reach it.
+# listens during steps 1 and 2. The daemon of step 3 configures no SSH listener,
+# so the option does not reach it.
 #
-# What this file does not assert: the range verdicts (interval 0 and 11) the
-# old file compared. TestJoinedModuleRangeRefusesOutOfRangeValue proves them
-# at the join, and TestValidateJudgesSectionWithThePublishedModule at the
-# validate entry of a process that holds the module.
-#
-# VALIDATES: AC-2 of spec-plugin-external-yang-at-startup, as the ruling
-#   restates it, beside AC-1, and AC-19 of phase 10.
-# PREVENTS: validate accepting a section it could not check; a refusal message
-#   whose advice the daemon then refuses.
+# VALIDATES: S-3 / AC-18 of spec-explicit-plugin-and-attach-config.md beside
+#   AC-1 and AC-2 of spec-plugin-external-yang-at-startup.
+# PREVENTS: offline validate disagreeing with boot on an external plugin's YANG
+#   module, accepting an out-of-range value, or starting the plugin's run loop.
 
 option=env:var=ze.ssh.port:value=$PORT
 
 tmpfs=ze.conf:terminator=EOF_CONF
-plugin {
-	external acme-monitor {
-		run "le test fixture plugin/external-yang valid"
-		encoder json
+bus {
+	endpoint acme-monitor {
+		external {
+			run "le test fixture plugin/external-yang valid";
+		}
+		encoding json;
 	}
 }
 
@@ -68,19 +50,40 @@ acme-monitor {
 }
 EOF_CONF
 
-# No ze running: the section is not available, and the message says a running
-# ze was asked, why none answered, and how to get one.
-cmd=foreground:seq=1:exec=ze config validate ze.conf:exit=1
-expect=stdout:contains=unknown top-level keyword: acme-monitor
-expect=stdout:contains=the config declares external plugin "acme-monitor"
-expect=stdout:contains=starts no plugin
-expect=stdout:contains=none answered: no ze listens at 127.0.0.1:
-expect=stdout:contains=fix: ze start
-reject=stdout:contains=show config validation
-reject=stdout:contains=fix: ze cli
+tmpfs=bad.conf:terminator=EOF_BAD
+bus {
+	endpoint acme-monitor {
+		external {
+			run "le test fixture plugin/external-yang valid";
+		}
+		encoding json;
+	}
+}
+
+acme-monitor {
+	target probe-a
+	interval 11
+}
+EOF_BAD
+
+# No ze running: validate queries acme-monitor in declare mode (S-3), joins its
+# YANG module, accepts the valid section, and names the queried plugin without
+# starting its run loop.
+cmd=foreground:seq=1:exec=ze config validate ze.conf:exit=0
+expect=stdout:contains=configuration valid: ze.conf
+expect=stdout:contains=queried external plugins: acme-monitor
+reject=stdout:contains=unknown top-level keyword
+reject=stderr:contains=FIXTURE: external-yang
+
+# Negative: the queried YANG module's range (1..10) is enforced offline.
+cmd=foreground:seq=2:exec=ze config validate bad.conf:exit=1
+expect=stdout:contains=configuration invalid: bad.conf
+expect=stdout:contains=queried external plugins: acme-monitor
+expect=stdout:contains=interval
+reject=stdout:contains=unknown top-level keyword
 
 # Boot runs the plugin, joins its module and delivers the section.
-cmd=foreground:seq=2:exec=ze start ze.conf:timeout=30s
+cmd=foreground:seq=3:exec=ze start ze.conf:timeout=30s
 await=stderr:contains=FIXTURE: external-yang generation 1 ready:then=stop
 expect=exit:code=0
 expect=stderr:contains=FIXTURE: external-yang configure root=acme-monitor leaves=[acme-monitor/interval=5 acme-monitor/target=probe-a]

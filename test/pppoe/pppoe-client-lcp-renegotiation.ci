@@ -27,15 +27,17 @@ option=netns-link:name=zecpe0:peer=zeac0
 option=timeout:value=90s
 
 stdin=ze-conf:terminator=EOF_CONF
-plugin {
-	external pppoe-client-renegotiation-test {
-		run "le test fixture pppoe/pppoe-client-lcp-renegotiation"
-		encoder json
+bus {
+	endpoint pppoe-client-renegotiation-test {
+		external {
+			run "le test fixture pppoe/pppoe-client-lcp-renegotiation";
+		}
+		encoding json;
 	}
 }
 
 interface {
-	backend netlink
+	backend kernel
 	ethernet zecpe0 {
 	}
 	pppoe-client zereneg0 {

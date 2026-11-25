@@ -24,10 +24,12 @@ option=storage:value=disk
 option=timeout:value=60s
 option=env:var=ze.ssh.port:value=$PORT
 tmpfs=running.conf:terminator=EOF_CONF
-plugin {
-	external absent-plugin {
-		run "./no-such-plugin-program"
-		encoder json
+bus {
+	endpoint absent-plugin {
+		external {
+			run ./no-such-plugin-program;
+		}
+		encoding json;
 	}
 }
 

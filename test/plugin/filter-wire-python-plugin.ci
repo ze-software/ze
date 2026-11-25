@@ -157,12 +157,14 @@ expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF003D0200000022400101
 EOF_DESTINATION
 
 stdin=ze-bgp:terminator=EOF_CONF
-plugin {
-	internal rs {
-		use bgp-rs
+bus {
+	endpoint rs {
+		internal bgp-rr;
 	}
-	external pyfilter {
-		run "./pyfilter.run"
+	endpoint pyfilter {
+		external {
+			run ./pyfilter.run;
+		}
 	}
 }
 
@@ -187,10 +189,6 @@ bgp {
 		filter {
 			import { filters [ pyfilter:med50 ]; final accept; }
 		}
-		attach process rs {
-			receive [ update-received state open-received refresh ]
-			send [ update ]
-		}
 	}
 
 	peer destination {
@@ -205,10 +203,6 @@ bgp {
 			capability { graceful-restart disable; }
 		}
 		behavior { group-updates disable; }
-		attach process rs {
-			receive [ update-received state open-received refresh ]
-			send [ update ]
-		}
 	}
 }
 EOF_CONF

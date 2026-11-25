@@ -14,12 +14,42 @@ tmpfs=retained-vrps.txt:terminator=VRPS
 VRPS
 
 stdin=ze-conf:terminator=CONFIG
-plugin {
- external adj-rib-in { run "ze plugin bgp-adj-rib-in"; }
- external rib { run "ze plugin bgp-rib"; }
- external gr { run "ze plugin bgp-gr"; }
- external rpki { run "ze plugin bgp-rpki"; }
- external bgp-retained-test { run "le test fixture plugin/bgp-best-route-retained-validation forked 127.0.0.1:$PORT purge"; encoder json; }
+bus {
+  endpoint bgp-adj-rib-in {
+    internal bgp-adj-rib-in;
+    process separate;
+    send {
+      message bgp:update {
+        to none;
+      }
+    }
+  }
+  endpoint bgp-rib {
+    internal bgp-rib;
+    process separate;
+    send {
+      message bgp:update {
+        to [ /bgp/peer/destination ];
+      }
+    }
+  }
+  endpoint bgp-gr {
+    internal bgp-gr;
+    process separate;
+    receive {
+      from [ /bgp/peer/source ];
+    }
+  }
+  endpoint bgp-rpki {
+    internal bgp-rpki;
+    process separate;
+  }
+  endpoint bgp-retained-test {
+    external {
+      run "le test fixture plugin/bgp-best-route-retained-validation forked 127.0.0.1:$PORT purge";
+    }
+    encoding json;
+  }
 }
 bgp {
  router-id 1.1.1.1;
@@ -29,27 +59,18 @@ bgp {
   session { asn { local 65000; remote 65001; } aigp { enabled false; } family { ipv4/unicast { prefix { maximum 100; } } } capability { graceful-restart { short-lived { restart-time 120; } } } }
   behavior { group-updates disable; }
   filter { import { final accept; } export { final accept; } }
-  attach process gr { receive [ open state eor ]; send [ update ]; }
-  attach process rpki { receive [ update-received state ]; }
-  attach process adj-rib-in { receive [ update-received state ]; }
-  attach process rib { receive [ update-received state refresh ]; }
  }
  peer destination {
   connection { local { ip 127.0.0.1; port $PORT; } remote { ip 127.0.0.3; connect false; } }
   session { asn { local 65000; remote 65002; } aigp { enabled false; } family { ipv4/unicast { prefix { maximum 100; } } } capability { graceful-restart disable; } }
   behavior { group-updates disable; }
   filter { import { final reject; } export { final accept; } }
-  attach process rib { receive [ update-received update-sent state refresh ]; send [ update ]; }
-  attach process bgp-retained-test { send [ update ]; }
  }
  peer control {
   connection { local { ip 127.0.0.1; port $PORT; } remote { ip 127.0.0.4; connect false; } }
   session { asn { local 65000; remote 65001; } aigp { enabled false; } family { ipv4/unicast { prefix { maximum 100; } } } capability { graceful-restart disable; } }
   behavior { group-updates disable; }
   filter { import { final accept; } export { final accept; } }
-  attach process rpki { receive [ update-received state ]; }
-  attach process adj-rib-in { receive [ update-received state ]; }
-  attach process rib { receive [ update-received state refresh ]; }
  }
 }
 CONFIG

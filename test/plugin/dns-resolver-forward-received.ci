@@ -74,15 +74,17 @@ service {
 	}
 }
 
-plugin {
-	external dns-resolver-forward-received-test {
-		run "le test fixture plugin/dns-resolver-forward-received"
-		encoder json
+bus {
+	endpoint dns-resolver-forward-received-test {
+		external {
+			run "le test fixture plugin/dns-resolver-forward-received";
+		}
+		encoding json;
 	}
 }
 
 interface {
-	backend netlink
+	backend kernel
 
 	veth zerfwr0 {
 		peer zerfwr1

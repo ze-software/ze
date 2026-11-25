@@ -225,17 +225,19 @@ EOF_DEST
 # ze configuration: source -> ze (RS) -> dest
 # ze.fwd.chan.size=2 forces tiny channel, guaranteeing overflow with 80 routes
 stdin=ze-bgp:terminator=EOF_CONF
-plugin {
-	internal adj-rib-in {
-		use bgp-adj-rib-in
+bus {
+	endpoint adj-rib-in {
+		internal bgp-adj-rib-in;
 	}
-	internal rs {
-		use bgp-rs
+	endpoint rs {
+		internal bgp-rs;
 	}
-    external two-tier-load-test {
-        run "le test fixture plugin/forward-two-tier-under-load"
-        encoder json
-    }
+	endpoint two-tier-load-test {
+		external {
+			run "le test fixture plugin/forward-two-tier-under-load";
+		}
+		encoding json;
+	}
 }
 
 telemetry {
@@ -265,6 +267,7 @@ bgp {
             }
         }
         session {
+            rs-client true;
             asn {
                 local 65000
                 remote 65001
@@ -280,14 +283,6 @@ bgp {
         behavior {
             group-updates disable
         }
-    	attach process rs {
-    		receive [ update-received state open-received refresh ]
-    		send [ update ]
-    	}
-    	attach process adj-rib-in {
-    		receive [ update-received state ]
-    		send [ update ]
-    	}
     }
 
     peer dest-peer {
@@ -301,6 +296,7 @@ bgp {
             }
         }
         session {
+            rs-client true;
             asn {
                 local 65000
                 remote 65002
@@ -313,14 +309,6 @@ bgp {
                 graceful-restart disable
             }
         }
-    	attach process rs {
-    		receive [ update-received state open-received refresh ]
-    		send [ update ]
-    	}
-    	attach process adj-rib-in {
-    		receive [ update-received state ]
-    		send [ update ]
-    	}
     }
 }
 EOF_CONF

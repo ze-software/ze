@@ -13,10 +13,12 @@ EOF_PEER
 
 
 stdin=ze-bgp:terminator=EOF_CONF
-plugin {
-	external traffic-feature-show-test {
-		run "le test fixture plugin/traffic-feature-show"
-		encoder json
+bus {
+	endpoint traffic-feature-show-test {
+		external {
+			run "le test fixture plugin/traffic-feature-show";
+		}
+		encoding json;
 	}
 }
 

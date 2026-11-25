@@ -18,10 +18,12 @@ option=env:var=ze.log.flow.export:value=info
 option=timeout:value=20s
 
 stdin=ze-conf:terminator=EOF_CONF
-plugin {
-	external flow-export-show-test {
-		run "le test fixture flow-export/flow-export-show"
-		encoder json
+bus {
+	endpoint flow-export-show-test {
+		external {
+			run "le test fixture flow-export/flow-export-show";
+		}
+		encoding json;
 	}
 }
 

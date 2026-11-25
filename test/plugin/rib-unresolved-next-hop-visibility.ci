@@ -18,26 +18,26 @@
 # PREVENTS: silent best-path exclusion after `request bgp rib inject`, missing
 #           `next-hop-unresolvable` annotation in `show bgp rib`, missing or
 #           stale `doctor-bgp-next-hop-unresolvable` warnings in `show doctor`.
-# Linux-only: `interface { backend netlink }` and `static` (`next interface lo`) require Linux netlink and loopback interface `lo`.
+# Linux-only: `interface { backend kernel }` and `static` (`next interface lo`) require Linux netlink sockets and loopback interface `lo`.
 option=needs-linux
 option=storage:value=disk
 option=timeout:value=60s
 
 tmpfs=rib-unresolved-next-hop-visibility.conf:terminator=EOF_CONF
-plugin {
-    internal bgp-rib {
-        use bgp-rib
+bus {
+    endpoint bgp-rib {
+        internal bgp-rib;
     }
-    internal rib {
-        use rib
+    endpoint rib {
+        internal rib;
     }
-    internal static {
-        use static
+    endpoint static {
+        internal static;
     }
 }
 
 interface {
-    backend netlink
+    backend kernel
 }
 
 system {

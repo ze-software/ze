@@ -39,15 +39,17 @@ option=timeout:value=30s
 
 
 stdin=ze-conf:terminator=EOF_CONF
-plugin {
-	external iface-mac-match-address-apply {
-		run "le test fixture plugin/iface-mac-match-address-apply"
-		encoder json
+bus {
+	endpoint iface-mac-match-address-apply {
+		external {
+			run "le test fixture plugin/iface-mac-match-address-apply";
+		}
+		encoding json;
 	}
 }
 
 interface {
-	backend netlink
+	backend kernel
 
 	# The hardware the selector binds to. ze creates it and gives it the MAC.
 	dummy zemacsel0 {

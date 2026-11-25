@@ -28,18 +28,15 @@ EOF_PEER
 
 # ze configuration
 stdin=ze-bgp:terminator=EOF_CONF
-plugin {
-	external announce-test {
-		run "le test fixture plugin/bgp-redistribute-announce"
-		encoder json
+bus {
+	endpoint fakeredist {
+		internal fakeredist;
 	}
-	# redistribute-orchestrator is intentionally NOT listed here. The
-	# `redistribute {}` block below carries `ConfigRoots: ["redistribute"]`,
-	# which auto-loads the orchestrator. This validates the auto-load
-	# wiring -- if the orchestrator fails to start, no UPDATE reaches the peer
-	# and the test times out.
-	internal fakeredist {
-		use fakeredist
+	endpoint announce-test {
+		external {
+			run "le test fixture plugin/bgp-redistribute-announce";
+		}
+		encoding json;
 	}
 }
 
@@ -86,9 +83,6 @@ bgp {
 		}
 		behavior {
 			group-updates disable
-		}
-		attach process redistribute-orchestrator {
-			send [ update ]
 		}
 	}
 }

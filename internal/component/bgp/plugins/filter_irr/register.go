@@ -14,6 +14,7 @@ import (
 
 func filterIRRBusSends() []rpc.MessageSendDecl {
 	return []rpc.MessageSendDecl{
+		{Message: "bgp:refresh"},
 		{Message: events.NamespaceCLI + ":show bgp peer"},
 		{Message: events.NamespaceCLI + ":request peer"},
 		{Message: store.NoticeNamespace + ":" + store.EventInterestChanged},

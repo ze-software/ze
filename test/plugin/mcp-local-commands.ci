@@ -17,7 +17,7 @@
 # not exercise.
 
 tmpfs=valid.conf:terminator=EOF_VALID
-plugin {
+bus {
 }
 EOF_VALID
 
@@ -30,7 +30,7 @@ probe tools/call {"name":"ze_show_config","arguments":{"action":"validation","fi
 EOF_MCP
 
 stdin=ze-conf:terminator=EOF_CONF
-plugin {
+bus {
 }
 EOF_CONF
 

@@ -40,10 +40,12 @@ option=env:var=TEST_SECRET:value=s3cr3t
 option=timeout:value=60s
 
 stdin=ze-bgp:terminator=EOF_CONF
-plugin {
-	external show-system-dns-withdraw-pool-test {
-		run "le test fixture plugin/show-system-dns-withdraw-pool"
-		encoder json
+bus {
+	endpoint show-system-dns-withdraw-pool-test {
+		external {
+			run "le test fixture plugin/show-system-dns-withdraw-pool";
+		}
+		encoding json;
 	}
 }
 l2tp {
@@ -69,10 +71,12 @@ environment {
 EOF_CONF
 
 tmpfs=config2.conf:terminator=EOF_CONF2
-plugin {
-	external show-system-dns-withdraw-pool-test {
-		run "le test fixture plugin/show-system-dns-withdraw-pool"
-		encoder json
+bus {
+	endpoint show-system-dns-withdraw-pool-test {
+		external {
+			run "le test fixture plugin/show-system-dns-withdraw-pool";
+		}
+		encoding json;
 	}
 }
 environment {

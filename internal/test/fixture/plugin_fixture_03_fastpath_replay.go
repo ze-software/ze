@@ -17,6 +17,9 @@ const bgpRSFastpathReplayPrefix03 = "10.20.30.0/24"
 // itself. Enable rebuilds the tracker's state from the Loc-RIB before it
 // answers, so the enable answer itself must count that route.
 func bgpRSFastpathReplay03(ctx context.Context, p *sdk.Plugin) error {
+	if err := bgpRSFastpathNextHopCover03.seed(ctx, p); err != nil {
+		return err
+	}
 	var last any
 	if !Poll(ctx, 60, 200*time.Millisecond, func() bool {
 		value, err := done03(ctx, p, "show bgp rib rpf ipv4/unicast 10.20.30.1")

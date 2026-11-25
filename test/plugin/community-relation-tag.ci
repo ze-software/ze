@@ -38,13 +38,18 @@ EOF_PEER
 
 # ze configuration: one eBGP peer declared a transit provider, tagging on.
 stdin=ze-bgp:terminator=EOF_CONF
-plugin {
-	external test-relation {
-		run "le test fixture plugin/community-relation-tag"
-		encoder json
+bus {
+	endpoint bgp-rib {
+		internal bgp-rib;
 	}
-	internal bgp-rib {
-		use bgp-rib
+	endpoint test-relation {
+		external {
+			run "le test fixture plugin/community-relation-tag";
+		}
+		encoding json;
+	}
+	endpoint bgp-adj-rib-in {
+		internal bgp-adj-rib-in;
 	}
 }
 bgp {
@@ -90,13 +95,6 @@ bgp {
 					relation-tag true
 				}
 			}
-		}
-		attach process bgp-rib {
-			receive [ update state refresh ]
-			send [ update ]
-		}
-		attach process bgp-adj-rib-in {
-			receive [ update-received state ]
 		}
 	}
 }

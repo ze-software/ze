@@ -170,7 +170,14 @@ func liveStagesRoute(ctx context.Context, plugin *sdk.Plugin, spec string) error
 	if !found {
 		return errors.New("want `route <peer> <command>`")
 	}
-	if _, _, err := plugin.UpdateRoute(ctx, peer, strings.TrimSpace(command)); err != nil {
+	trimmed := strings.TrimSpace(command)
+	if strings.HasPrefix(trimmed, "raw ") {
+		if _, err := done03(ctx, plugin, "send bgp "+peer+" "+trimmed); err != nil {
+			return fmt.Errorf("route to %s: %w", peer, err)
+		}
+		return nil
+	}
+	if _, _, err := plugin.UpdateRoute(ctx, peer, trimmed); err != nil {
 		return fmt.Errorf("route to %s: %w", peer, err)
 	}
 	return nil

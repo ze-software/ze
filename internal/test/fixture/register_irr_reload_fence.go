@@ -7,6 +7,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/ze-software/ze/pkg/plugin/sdk"
@@ -44,9 +45,16 @@ const irrReloadFencePeer = "127.0.0.1"
 // only after the import chain accepted it (reactor_notify.go), so its arrival
 // is the filter's accept, and returning earlier would stop the daemon before
 // the filter decided. Each failure returns an error naming what was not seen.
+// irrReloadSentinelPrefix is the static route config2.conf adds on SIGHUP.
+// Waiting for Ze to send it before announcing irrReloadFenceRoute ensures the
+// peer receives 192.168.1.0/24 before 192.168.2.0/24 even when AS-TEST settles
+// before the reload's static route is written to the wire.
+const irrReloadSentinelPrefix = "192.168.1.0/24"
+
 func irrReloadFence(ctx context.Context, _ []string) error {
 	const name = "reload/irr-listed-fence"
 	updates := make(chan string, 4)
+	sentinelSent := make(chan struct{}, 1)
 	setup := func(p *sdk.Plugin) error {
 		p.OnEvent(func(event string) error {
 			var decoded map[string]any
@@ -55,16 +63,24 @@ func irrReloadFence(ctx context.Context, _ []string) error {
 			}
 			bgp, _ := decoded["bgp"].(map[string]any)
 			message, _ := bgp["message"].(map[string]any)
-			if message["direction"] != directionReceived {
-				return nil
-			}
 			update, _ := bgp["update"].(map[string]any)
 			if _, hasNLRI := update["nlri"]; !hasNLRI {
 				return nil
 			}
-			select {
-			case updates <- text07(update):
-			default:
+			rendered := text07(update)
+			switch message["direction"] {
+			case directionSent:
+				if strings.Contains(rendered, irrReloadSentinelPrefix) {
+					select {
+					case sentinelSent <- struct{}{}:
+					default:
+					}
+				}
+			case directionReceived:
+				select {
+				case updates <- rendered:
+				default:
+				}
 			}
 			return nil
 		})
@@ -81,6 +97,13 @@ func irrReloadFence(ctx context.Context, _ []string) error {
 		if entry := irrBGPEntry(listed); entry == nil || entry["status"] != "ok" {
 			return fmt.Errorf("show bgp irr never reported %s enforced after the reload: status=%s error=%w data=%s",
 				irrTestASSet, listed.status, listed.err, text07(listed.data))
+		}
+		select {
+		case <-sentinelSent:
+		case <-time.After(WaitBudget(50, 10*time.Second)):
+			return fmt.Errorf("reload sentinel %s was never sent to %s before announcing fence", irrReloadSentinelPrefix, irrReloadFencePeer)
+		case <-ctx.Done():
+			return ctx.Err()
 		}
 		if _, _, err := p.UpdateRoute(ctx, irrReloadFencePeer, irrReloadFenceRoute); err != nil {
 			return fmt.Errorf("announce the fence route to %s: %w", irrReloadFencePeer, err)

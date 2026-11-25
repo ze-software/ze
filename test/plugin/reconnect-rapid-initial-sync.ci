@@ -73,9 +73,9 @@ EOF_PEER
 # plugin by its process name (registry.RequiresPeerUpBarrier(proc.Name()),
 # events.go), so the peer-up barrier applies to this peer.
 stdin=ze-bgp:terminator=EOF_CONF
-plugin {
-	internal bgp-rs {
-		use bgp-rs
+bus {
+	endpoint bgp-rs {
+		internal bgp-rs;
 	}
 }
 bgp {
@@ -90,6 +90,7 @@ bgp {
 			}
 		}
 		session {
+			rs-client true;
 			asn {
 				local 1
 				remote 1
@@ -105,10 +106,6 @@ bgp {
 		}
 		behavior {
 			group-updates disable
-		}
-		attach process bgp-rs {
-			receive [ update-received state open-received refresh ]
-			send [ update ]
 		}
 		update {
 			attribute {

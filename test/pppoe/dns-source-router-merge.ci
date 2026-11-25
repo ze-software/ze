@@ -57,15 +57,17 @@ system {
 	}
 }
 
-plugin {
-	external dns-source-router-merge-test {
-		run "le test fixture pppoe/dns-source-router-merge"
-		encoder json
+bus {
+	endpoint dns-source-router-merge-test {
+		external {
+			run "le test fixture pppoe/dns-source-router-merge";
+		}
+		encoding json;
 	}
 }
 
 interface {
-	backend netlink
+	backend kernel
 	ethernet zecpe0 {
 	}
 	pppoe-client zedns1 {

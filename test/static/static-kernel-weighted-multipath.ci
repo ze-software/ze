@@ -12,16 +12,18 @@
 option=needs-linux:caps=net-admin
 
 stdin=ze-bgp:terminator=EOF_CONF
-plugin {
-	external static-kernel-test {
-		run "le test fixture static/static-kernel-weighted-multipath"
-		encoder json
+bus {
+	endpoint rib {
+		internal rib;
 	}
-	internal rib {
-		use rib
+	endpoint fib-kernel {
+		internal fib-kernel;
 	}
-	internal fib-kernel {
-		use fib-kernel
+	endpoint static-kernel-test {
+		external {
+			run "le test fixture static/static-kernel-weighted-multipath";
+		}
+		encoding json;
 	}
 }
 

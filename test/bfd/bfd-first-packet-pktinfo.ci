@@ -34,10 +34,12 @@ option=env:var=ze.bfd.test-parallel:value=true
 option=exclusive:group=bfd-ports
 
 stdin=ze-bfd:terminator=EOF_CONF
-plugin {
-	external bfd-first-packet-pktinfo-test {
-		run "le test fixture bfd/bfd-first-packet-pktinfo"
-		encoder json
+bus {
+	endpoint bfd-first-packet-pktinfo-test {
+		external {
+			run "le test fixture bfd/bfd-first-packet-pktinfo";
+		}
+		encoding json;
 	}
 }
 

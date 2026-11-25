@@ -20,10 +20,12 @@ environment {
         }
     }
 }
-plugin {
-    external bmp-observer {
-        run "le test fixture plugin/bmp-receiver-session $PORT2;"
-        encoder json;
+bus {
+    endpoint bmp-observer {
+        external {
+            run "le test fixture plugin/bmp-receiver-session $PORT2;";
+        }
+        encoding json;
     }
 }
 bgp {

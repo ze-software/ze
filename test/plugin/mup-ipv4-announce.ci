@@ -36,10 +36,12 @@ EOF_PEER
 
 # ze bgp configuration
 stdin=ze-bgp:terminator=EOF_CONF
-plugin {
-	external announce-routes {
-		run "le test fixture plugin/mup-ipv4-announce"
-		encoder json
+bus {
+	endpoint announce-routes {
+		external {
+			run "le test fixture plugin/mup-ipv4-announce";
+		}
+		encoding json;
 	}
 }
 bgp {
@@ -71,9 +73,6 @@ bgp {
 			group-updates disable
 		}
 	
-		attach process announce-routes {
-			send [ update ]
-		}
 	}
 }
 EOF_CONF

@@ -20,13 +20,15 @@ EOF_PEER
 
 # ze bgp configuration
 stdin=ze-bgp:terminator=EOF_CONF
-plugin {
-	external as-notation-test {
-		run "le test fixture plugin/bgp-as-notation"
-		encoder json
+bus {
+	endpoint bgp-rib {
+		internal bgp-rib;
 	}
-	internal bgp-rib {
-		use bgp-rib
+	endpoint as-notation-test {
+		external {
+			run "le test fixture plugin/bgp-as-notation";
+		}
+		encoding json;
 	}
 }
 
@@ -59,10 +61,6 @@ bgp {
 			group-updates disable
 		}
 
-		attach process bgp-rib {
-			receive [ update state refresh ]
-			send [ update ]
-		}
 	}
 }
 EOF_CONF

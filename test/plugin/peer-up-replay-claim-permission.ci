@@ -35,14 +35,26 @@ expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
 EOF_WRITER
 
 stdin=ze-bgp:terminator=EOF_CONF
-plugin {
-    external replay-claimant {
-        run "le test fixture plugin/replay-permission-claimant";
-        encoder json;
+bus {
+    endpoint replay-claimant {
+        external {
+            run "le test fixture plugin/replay-permission-claimant";
+        }
+        encoding json;
+        send {
+            message bgp:update {
+                to [ /bgp/peer/writer ];
+            }
+            message bgp:raw {
+                to [ /bgp/peer/raw-only ];
+            }
+        }
     }
-    external claim-permission {
-        run "le test fixture plugin/peer-up-replay-claim-permission";
-        encoder json;
+    endpoint claim-permission {
+        external {
+            run "le test fixture plugin/peer-up-replay-claim-permission";
+        }
+        encoding json;
     }
 }
 bgp {
@@ -64,8 +76,6 @@ bgp {
             remote { ip 127.0.0.1; }
             local { ip 127.0.0.1; accept false; }
         }
-        attach process replay-claimant { receive [ state ]; }
-        attach process claim-permission { receive [ state ]; }
     }
     peer raw-only {
         session {
@@ -77,8 +87,6 @@ bgp {
             remote { ip 127.0.0.2; }
             local { ip 127.0.0.2; accept false; }
         }
-        attach process replay-claimant { receive [ state ]; send [ raw ]; }
-        attach process claim-permission { receive [ state ]; }
     }
     peer writer {
         session {
@@ -90,8 +98,6 @@ bgp {
             remote { ip 127.0.0.3; }
             local { ip 127.0.0.3; accept false; }
         }
-        attach process replay-claimant { receive [ state ]; send [ update ]; }
-        attach process claim-permission { receive [ state ]; }
     }
 }
 EOF_CONF

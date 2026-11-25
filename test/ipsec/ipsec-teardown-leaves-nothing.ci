@@ -58,10 +58,12 @@ option=env:var=ze_log_ike:value=info
 # config twice, started the peer twice, and one run in three lost IKE_AUTH integrity
 # verification to the two competing handshakes).
 stdin=responder:terminator=EOF_RESPONDER
-plugin {
-	external engine-steps {
-		run "le mock engine-steps ./engine-steps.json"
-		encoder json
+bus {
+	endpoint engine-steps {
+		external {
+			run "le mock engine-steps ./engine-steps.json";
+		}
+		encoding json;
 	}
 }
 

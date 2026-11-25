@@ -1,9 +1,9 @@
 # Valid config: graceful-restart-llgr.ci with bgp-gr forked
 # (spec-filter-wire-6-stage-filters AC-13): graceful-restart long-lived family (RFC 9494)
-# validates with bgp-gr configured as an external process, its LLGR
+# validates with bgp-gr configured as a separate process, its LLGR
 # insertions placed and no out-of-process refusal reported.
 stdin=config:terminator=EOF_CONF
-plugin {
+bus {
 	hub {
 		server local {
 			ip 127.0.0.1;
@@ -11,8 +11,12 @@ plugin {
 			secret gr-llgr-forked-parse-secret-00001;
 		}
 	}
-	external bgp-gr {
-		run "ze plugin bgp-gr"
+	endpoint bgp-gr {
+		internal bgp-gr;
+		process separate;
+	}
+	endpoint bgp-rib {
+		internal bgp-rib;
 	}
 }
 
@@ -53,9 +57,6 @@ bgp {
 				}
 			}
 		}
-		attach process bgp-gr {
-			send [ update ]
-		}
 	}
 }
 EOF_CONF
@@ -65,4 +66,5 @@ expect=exit:code=0
 cmd=foreground:seq=2:exec=ze cli -c "show config dump - | json":stdin=config
 expect=exit:code=0
 expect=stdout:pattern="stale-time": "3600"
-expect=stdout:pattern="run": "ze plugin bgp-gr"
+expect=stdout:pattern="internal": "bgp-gr"
+expect=stdout:pattern="process": "separate"

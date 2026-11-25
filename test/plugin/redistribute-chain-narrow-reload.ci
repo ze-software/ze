@@ -20,13 +20,15 @@
 # `destination fakedest` puts nothing on a BGP session.
 
 stdin=ze-bgp:terminator=EOF_CONF
-plugin {
-	external redist-chain-narrow-test {
-		run "le test fixture plugin/redistribute-chain-narrow-reload"
-		encoder json
+bus {
+	endpoint fakeredist {
+		internal fakeredist;
 	}
-	internal fakeredist {
-		use fakeredist
+	endpoint redist-chain-narrow-test {
+		external {
+			run "le test fixture plugin/redistribute-chain-narrow-reload";
+		}
+		encoding json;
 	}
 }
 
@@ -60,13 +62,15 @@ EOF_CONF
 
 # The reload's config: the same import, narrowed to 10.1.0.0/24.
 tmpfs=config-narrow.conf:terminator=EOF_NARROW
-plugin {
-	external redist-chain-narrow-test {
-		run "le test fixture plugin/redistribute-chain-narrow-reload"
-		encoder json
+bus {
+	endpoint fakeredist {
+		internal fakeredist;
 	}
-	internal fakeredist {
-		use fakeredist
+	endpoint redist-chain-narrow-test {
+		external {
+			run "le test fixture plugin/redistribute-chain-narrow-reload";
+		}
+		encoding json;
 	}
 }
 

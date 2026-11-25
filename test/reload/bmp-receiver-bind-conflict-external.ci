@@ -14,18 +14,25 @@ environment {
         server old { ip 127.0.0.1; port $PORT; }
     }
 }
-plugin {
+bus {
+    endpoint bgp-bmp {
+        external {
+            run "ze plugin bgp-bmp";
+        }
+        encoding json;
+    }
+    endpoint bmp-bind-observer {
+        external {
+            run "le test fixture plugin/bmp-bind-reload $PORT $PORT3 $PORT2";
+        }
+        encoding json;
+    }
     hub {
         server local {
-            ip 127.0.0.1
-            port 0
-            secret bmp-bind-reload-test-01234567890
+            ip 127.0.0.1;
+            port 0;
+            secret bmp-bind-reload-test-01234567890;
         }
-    }
-    external bgp-bmp { run "ze plugin bgp-bmp"; encoder json; }
-    external bmp-bind-observer {
-        run "le test fixture plugin/bmp-bind-reload $PORT $PORT3 $PORT2"
-        encoder json
     }
 }
 EOF_CONF
@@ -40,18 +47,25 @@ environment {
         server blocked { ip 127.0.0.1; port $PORT3; }
     }
 }
-plugin {
+bus {
+    endpoint bgp-bmp {
+        external {
+            run "ze plugin bgp-bmp";
+        }
+        encoding json;
+    }
+    endpoint bmp-bind-observer {
+        external {
+            run "le test fixture plugin/bmp-bind-reload $PORT $PORT3 $PORT2";
+        }
+        encoding json;
+    }
     hub {
         server local {
-            ip 127.0.0.1
-            port 0
-            secret bmp-bind-reload-test-01234567890
+            ip 127.0.0.1;
+            port 0;
+            secret bmp-bind-reload-test-01234567890;
         }
-    }
-    external bgp-bmp { run "ze plugin bgp-bmp"; encoder json; }
-    external bmp-bind-observer {
-        run "le test fixture plugin/bmp-bind-reload $PORT $PORT3 $PORT2"
-        encoder json
     }
 }
 EOF_REFUSED
@@ -66,18 +80,25 @@ environment {
         server staged { ip 127.0.0.1; port $PORT2; }
     }
 }
-plugin {
+bus {
+    endpoint bgp-bmp {
+        external {
+            run "ze plugin bgp-bmp";
+        }
+        encoding json;
+    }
+    endpoint bmp-bind-observer {
+        external {
+            run "le test fixture plugin/bmp-bind-reload $PORT $PORT3 $PORT2";
+        }
+        encoding json;
+    }
     hub {
         server local {
-            ip 127.0.0.1
-            port 0
-            secret bmp-bind-reload-test-01234567890
+            ip 127.0.0.1;
+            port 0;
+            secret bmp-bind-reload-test-01234567890;
         }
-    }
-    external bgp-bmp { run "ze plugin bgp-bmp"; encoder json; }
-    external bmp-bind-observer {
-        run "le test fixture plugin/bmp-bind-reload $PORT $PORT3 $PORT2"
-        encoder json
     }
 }
 EOF_REPAIR

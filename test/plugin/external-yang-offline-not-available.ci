@@ -1,44 +1,33 @@
-# Test: with no ze running, validate starts no external plugin and says its section is not available
+# Test: with no ze running, validate queries declared external programs in declare mode (S-3), never starts their run loop, and fails closed when a program cannot declare
 #
 # Question: when `ze config validate` runs with no ze listening on a config
 # that declares an external plugin and holds a section under that plugin's
-# root, does it refuse the section, say that a running ze was asked and why
-# none answered, and name `ze start` as the one fix, without starting the
-# program the config names? And does it still accept a config that holds no
-# such section, and a compiled-in plugin?
-# Why not a unit test: TestValidateRouteFallsBackWhenNoDaemonListens proves the
-# route over a stub ask. This proves the `ze` binary an operator runs: no
-# route from the command line to a fork of the declared program, the real walk
-# to a listener that is not there, and the message as it is printed.
+# root, does it query the program in declare mode (`ZE_PLUGIN_MODE=declare`,
+# never starting its run loop), validate the section against its declared YANG
+# schema, report the queried plugin, still accept a config with no section or a
+# compiled-in plugin, and fail closed naming the endpoint, `run` line, cause,
+# and `ze show plugin conformance run` when a declared program cannot be found?
+# Why not a unit test: TestValidateRefusesSectionOfExternalPluginWithoutStartingIt
+# proves runValidation over a test helper. This proves the `ze` binary an
+# operator runs: the real query-mode invocation, the printed stdout/fix lines,
+# and that the run-loop marker is never written.
 #
-# The declared program writes a marker file when it is started, in any mode,
-# and then answers a declaration query the way a conforming plugin does. Under
-# the behaviour the owner ruled out, validate ran it in declare mode, the
-# marker appeared and the section was accepted. Step 4 is the control: the
-# conformance checker, the one command that starts a named program with no
-# daemon, starts the same program from the same directory, and its marker
-# shows that a start leaves one where the test looks.
-#
-# Source of the contract (Thomas): "plugin command requiring external plugins
-# which can not be started from the code when no daemon is running to pass it
-# to are not available, for command built-in then yes you should run them as
-# we can look them up in the yang hardcoded in the binary".
-#
-# This file asserted `show config validation ze.conf` and `fix: ze cli`. That
-# advice fails: typed in a `ze cli` session, the daemon reads ze.conf on its
-# own host through command.CallerPath, which admits its config directories
-# only, never the operator's working directory. The command now passes the
-# config to a running ze itself, and with none running the fix is to start one.
+# The declared program honors `ZE_PLUGIN_MODE=declare` by writing a declare-mode
+# marker and its Stage 1 declaration line and exiting 0, and writes a run-loop
+# marker only if started outside declare mode. Under S-3
+# (plan/release/fixes/spec-explicit-plugin-and-attach-config.md, AC-18 / S16),
+# Thomas reversed the earlier ruling that offline validation starts no external
+# program: offline validation queries external programs in declare mode and
+# never starts their run loop.
 #
 # ze.ssh.port points the ask at the runner's $PORT, where nothing listens, so
 # another session's daemon on the default port cannot answer it.
 #
-# VALIDATES: AC-2 and AC-15 of spec-plugin-external-yang-at-startup, as the
-#   ruling restates them, and AC-19 and AC-21 of its phase 10.
-# PREVENTS: inspecting a config someone else wrote running their command; a
-#   bare "unknown top-level keyword" with no word about why; advice the daemon
-#   then refuses; validate refusing every config that declares an external
-#   plugin.
+# VALIDATES: S-3 / AC-18 / S16 of spec-explicit-plugin-and-attach-config.md
+#   beside AC-2 and AC-15 of spec-plugin-external-yang-at-startup.
+# PREVENTS: offline validate refusing a valid declare-mode external plugin;
+#   starting an external plugin's run loop offline; silently accepting a config
+#   whose external plugin binary is missing.
 #
 # The program is a script the run string hands to a shell by name, because a
 # declaration holds double quotes and the config's run string is itself
@@ -48,18 +37,24 @@
 
 option=env:var=ze.ssh.port:value=$PORT
 
-# Leaves a marker named after its first argument, then answers a declaration
-# query.
+# Honors ZE_PLUGIN_MODE=declare by writing a declare marker and printing its
+# Stage 1 declaration line; writes a run-loop marker only outside declare mode.
 tmpfs=marker.run:terminator=EOF_RUN
+if [ "$ZE_PLUGIN_MODE" = "declare" ]; then
+	echo declared > "declared-$1.marker"
+	printf '%s\n' '#1 ze-plugin-engine:declare-registration {"protocol-version":1,"wants-config":["acme-shell"],"schemas":[{"module":"acme-shell-conf","namespace":"urn:acme:shell:conf","yang-text":"module acme-shell-conf { namespace \"urn:acme:shell:conf\"; prefix shell; container acme-shell { presence \"The acme shell plugin is configured\"; leaf greeting { type string { length \"1..64\"; } } } }"}]}'
+	exit 0
+fi
 echo started > "started-$1.marker"
-printf '%s\n' '#1 ze-plugin-engine:declare-registration {"protocol-version":1,"wants-config":["acme-shell"],"schemas":[{"module":"acme-shell-conf","namespace":"urn:acme:shell:conf","yang-text":"module acme-shell-conf { namespace \"urn:acme:shell:conf\"; prefix shell; container acme-shell { presence \"The acme shell plugin is configured\"; leaf greeting { type string { length \"1..64\"; } } } }"}]}'
 EOF_RUN
 
 tmpfs=ze.conf:terminator=EOF_CONF
-plugin {
-	external acme-shell {
-		run "sh marker.run by-ze"
-		encoder json
+bus {
+	endpoint acme-shell {
+		external {
+			run "sh marker.run by-ze";
+		}
+		encoding json;
 	}
 }
 
@@ -69,47 +64,66 @@ acme-shell {
 EOF_CONF
 
 tmpfs=no-section.conf:terminator=EOF_NO_SECTION
-plugin {
-	external acme-shell {
-		run "sh marker.run by-ze"
-		encoder json
+bus {
+	endpoint acme-shell {
+		external {
+			run "sh marker.run by-ze";
+		}
+		encoding json;
 	}
 }
 EOF_NO_SECTION
 
 tmpfs=built-in.conf:terminator=EOF_BUILT_IN
-plugin {
-	internal static {
-		use static
+bus {
+	endpoint static {
+		internal static;
 	}
 }
 EOF_BUILT_IN
 
-# The section of the external plugin is refused: a running ze was asked, none
-# listens, and the one fix starts one.
-cmd=foreground:seq=1:exec=ze config validate ze.conf:exit=1
-expect=stdout:contains=unknown top-level keyword: acme-shell
-expect=stdout:contains=the config declares external plugin "acme-shell"
-expect=stdout:contains=starts no plugin
-expect=stdout:contains=none answered: no ze listens at 127.0.0.1:
-expect=stdout:contains=then `ze config validate ze.conf` again
-expect=stdout:contains=fix: ze start
-reject=stdout:contains=show config validation
-reject=stdout:contains=fix: ze cli
+tmpfs=missing.conf:terminator=EOF_MISSING
+bus {
+	endpoint acme-missing {
+		external {
+			run "/no/such/ze-plugin";
+		}
+		encoding json;
+	}
+}
+EOF_MISSING
 
-# A config that declares the plugin and holds no section of it is valid, with
-# no ze running: nothing in it needs the plugin's schema.
-cmd=foreground:seq=2:exec=ze config validate no-section.conf:exit=0
-reject=stdout:contains=external plugin "acme-shell"
+# With no ze running, validate queries acme-shell in declare mode (S-3), joins
+# its YANG module, validates the acme-shell section, and names the queried
+# plugin without starting its run loop.
+cmd=foreground:seq=1:exec=ze config validate ze.conf:exit=0
+expect=stdout:contains=configuration valid: ze.conf
+expect=stdout:contains=queried external plugins: acme-shell
 reject=stdout:contains=unknown top-level keyword
 
-# A compiled-in plugin is judged with the schema in the binary, as before.
-cmd=foreground:seq=3:exec=ze config validate built-in.conf:exit=0
+# A config that declares the plugin and holds no section of it is valid too.
+cmd=foreground:seq=2:exec=ze config validate no-section.conf:exit=0
+expect=stdout:contains=configuration valid: no-section.conf
+expect=stdout:contains=queried external plugins: acme-shell
+reject=stdout:contains=unknown top-level keyword
 
-# Control: the conformance checker starts the program, with no daemon, and
-# that start leaves its marker in this directory.
-cmd=foreground:seq=4:exec=ze show plugin conformance run "sh marker.run by-checker" name acme-shell:exit=0
+# A compiled-in plugin is judged with the schema in the binary, with no query.
+cmd=foreground:seq=3:exec=ze config validate built-in.conf:exit=0
+expect=stdout:contains=configuration valid: built-in.conf
+reject=stdout:contains=queried external plugins:
+
+# Negative: a missing external program fails closed, naming the endpoint, its
+# run line, the cause, and the conformance command.
+cmd=foreground:seq=4:exec=ze config validate missing.conf:exit=1
+expect=stdout:contains=configuration invalid: missing.conf
+expect=stdout:contains=bus endpoint "acme-missing" (run "/no/such/ze-plugin"): declaration query failed: command not found (exit status 127)
+expect=stdout:contains=fix: ze show plugin conformance run "/no/such/ze-plugin"
+
+# Control: the conformance checker runs the same program in declare mode.
+cmd=foreground:seq=5:exec=ze show plugin conformance run "sh marker.run by-checker" name acme-shell:exit=0
 expect=stdout:pattern=program-starts +declare +pass
 
-expect=file:path=started-by-checker.marker:exists=true
+expect=file:path=declared-by-ze.marker:exists=true
+expect=file:path=declared-by-checker.marker:exists=true
 expect=file:path=started-by-ze.marker:absent=true
+expect=file:path=started-by-checker.marker:absent=true

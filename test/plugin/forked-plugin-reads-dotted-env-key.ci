@@ -26,10 +26,12 @@ option=env:var=ze.test.fork-environment.hyphen-key:value=hyphen
 option=timeout:value=30s
 
 stdin=ze-conf:terminator=EOF_CONF
-plugin {
-	external fork-environment {
-		run "le test fixture plugin/fork-environment"
-		encoder json
+bus {
+	endpoint fork-environment {
+		external {
+			run "le test fixture plugin/fork-environment";
+		}
+		encoding json;
 	}
 }
 policy {

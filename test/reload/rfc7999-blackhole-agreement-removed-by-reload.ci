@@ -106,16 +106,31 @@ EOF_SCRIPT
 
 # Startup: B agreed, C not.
 stdin=ze-bgp:terminator=EOF_CONF
-plugin {
-	internal adj-rib-in {
-		use bgp-adj-rib-in
+bus {
+	endpoint adj-rib-in {
+		internal bgp-adj-rib-in;
 	}
-	internal rs {
-		use bgp-rs
+	endpoint rib {
+		internal bgp-rib;
+		send {
+			message bgp:update {
+				to [ /bgp/peer/peer-b /bgp/peer/peer-c ];
+			}
+		}
 	}
-	external stages {
-		run "le test fixture reload/live-stages stages.script"
-		encoder json
+	endpoint stages {
+		external {
+			run "le test fixture reload/live-stages stages.script";
+		}
+		encoding json;
+	}
+}
+fib {
+	dummy { }
+}
+static {
+	table default {
+		route 1.1.1.1/32 { next { interface lo { } } }
 	}
 }
 bgp {
@@ -127,7 +142,7 @@ bgp {
 	peer peer-a {
 		connection {
 			remote { ip 127.0.0.1; }
-			local { ip 127.0.0.1; accept false; }
+			local { ip 127.0.0.4; accept false; }
 		}
 		session {
 			asn { local 65000; remote 65001; }
@@ -137,22 +152,11 @@ bgp {
 			}
 			capability { graceful-restart disable; }
 		}
-		attach process stages {
-			send [ update ]
-		}
-		attach process rs {
-			receive [ update-received state open-received refresh ]
-			send [ update ]
-		}
-		attach process adj-rib-in {
-			receive [ update-received state ]
-			send [ update ]
-		}
 	}
 	peer peer-b {
 		connection {
 			remote { ip 127.0.0.2; }
-			local { ip 127.0.0.2; accept false; }
+			local { ip 127.0.0.5; accept false; }
 		}
 		session {
 			asn { local 65000; remote 65002; }
@@ -165,19 +169,11 @@ bgp {
 		blackhole {
 			communities [ blackhole ]
 		}
-		attach process rs {
-			receive [ update-received state open-received refresh ]
-			send [ update ]
-		}
-		attach process adj-rib-in {
-			receive [ update-received state ]
-			send [ update ]
-		}
 	}
 	peer peer-c {
 		connection {
 			remote { ip 127.0.0.3; }
-			local { ip 127.0.0.3; accept false; }
+			local { ip 127.0.0.6; accept false; }
 		}
 		session {
 			asn { local 65000; remote 65003; }
@@ -186,14 +182,6 @@ bgp {
 				ipv4/unicast { prefix { maximum 10000; } }
 			}
 			capability { graceful-restart disable; }
-		}
-		attach process rs {
-			receive [ update-received state open-received refresh ]
-			send [ update ]
-		}
-		attach process adj-rib-in {
-			receive [ update-received state ]
-			send [ update ]
 		}
 	}
 }
@@ -201,16 +189,31 @@ EOF_CONF
 
 # Reload 1: B's agreement removed.
 tmpfs=config2.conf:terminator=EOF_CONF2
-plugin {
-	internal adj-rib-in {
-		use bgp-adj-rib-in
+bus {
+	endpoint adj-rib-in {
+		internal bgp-adj-rib-in;
 	}
-	internal rs {
-		use bgp-rs
+	endpoint rib {
+		internal bgp-rib;
+		send {
+			message bgp:update {
+				to [ /bgp/peer/peer-b /bgp/peer/peer-c ];
+			}
+		}
 	}
-	external stages {
-		run "le test fixture reload/live-stages stages.script"
-		encoder json
+	endpoint stages {
+		external {
+			run "le test fixture reload/live-stages stages.script";
+		}
+		encoding json;
+	}
+}
+fib {
+	dummy { }
+}
+static {
+	table default {
+		route 1.1.1.1/32 { next { interface lo { } } }
 	}
 }
 bgp {
@@ -222,7 +225,7 @@ bgp {
 	peer peer-a {
 		connection {
 			remote { ip 127.0.0.1; }
-			local { ip 127.0.0.1; accept false; }
+			local { ip 127.0.0.4; accept false; }
 		}
 		session {
 			asn { local 65000; remote 65001; }
@@ -232,22 +235,11 @@ bgp {
 			}
 			capability { graceful-restart disable; }
 		}
-		attach process stages {
-			send [ update ]
-		}
-		attach process rs {
-			receive [ update-received state open-received refresh ]
-			send [ update ]
-		}
-		attach process adj-rib-in {
-			receive [ update-received state ]
-			send [ update ]
-		}
 	}
 	peer peer-b {
 		connection {
 			remote { ip 127.0.0.2; }
-			local { ip 127.0.0.2; accept false; }
+			local { ip 127.0.0.5; accept false; }
 		}
 		session {
 			asn { local 65000; remote 65002; }
@@ -257,19 +249,11 @@ bgp {
 			}
 			capability { graceful-restart disable; }
 		}
-		attach process rs {
-			receive [ update-received state open-received refresh ]
-			send [ update ]
-		}
-		attach process adj-rib-in {
-			receive [ update-received state ]
-			send [ update ]
-		}
 	}
 	peer peer-c {
 		connection {
 			remote { ip 127.0.0.3; }
-			local { ip 127.0.0.3; accept false; }
+			local { ip 127.0.0.6; accept false; }
 		}
 		session {
 			asn { local 65000; remote 65003; }
@@ -279,30 +263,37 @@ bgp {
 			}
 			capability { graceful-restart disable; }
 		}
-		attach process rs {
-			receive [ update-received state open-received refresh ]
-			send [ update ]
-		}
-		attach process adj-rib-in {
-			receive [ update-received state ]
-			send [ update ]
-		}
 	}
 }
 EOF_CONF2
 
 # Reload 2: C's agreement added.
 tmpfs=config3.conf:terminator=EOF_CONF3
-plugin {
-	internal adj-rib-in {
-		use bgp-adj-rib-in
+bus {
+	endpoint adj-rib-in {
+		internal bgp-adj-rib-in;
 	}
-	internal rs {
-		use bgp-rs
+	endpoint rib {
+		internal bgp-rib;
+		send {
+			message bgp:update {
+				to [ /bgp/peer/peer-b /bgp/peer/peer-c ];
+			}
+		}
 	}
-	external stages {
-		run "le test fixture reload/live-stages stages.script"
-		encoder json
+	endpoint stages {
+		external {
+			run "le test fixture reload/live-stages stages.script";
+		}
+		encoding json;
+	}
+}
+fib {
+	dummy { }
+}
+static {
+	table default {
+		route 1.1.1.1/32 { next { interface lo { } } }
 	}
 }
 bgp {
@@ -314,7 +305,7 @@ bgp {
 	peer peer-a {
 		connection {
 			remote { ip 127.0.0.1; }
-			local { ip 127.0.0.1; accept false; }
+			local { ip 127.0.0.4; accept false; }
 		}
 		session {
 			asn { local 65000; remote 65001; }
@@ -324,22 +315,11 @@ bgp {
 			}
 			capability { graceful-restart disable; }
 		}
-		attach process stages {
-			send [ update ]
-		}
-		attach process rs {
-			receive [ update-received state open-received refresh ]
-			send [ update ]
-		}
-		attach process adj-rib-in {
-			receive [ update-received state ]
-			send [ update ]
-		}
 	}
 	peer peer-b {
 		connection {
 			remote { ip 127.0.0.2; }
-			local { ip 127.0.0.2; accept false; }
+			local { ip 127.0.0.5; accept false; }
 		}
 		session {
 			asn { local 65000; remote 65002; }
@@ -349,19 +329,11 @@ bgp {
 			}
 			capability { graceful-restart disable; }
 		}
-		attach process rs {
-			receive [ update-received state open-received refresh ]
-			send [ update ]
-		}
-		attach process adj-rib-in {
-			receive [ update-received state ]
-			send [ update ]
-		}
 	}
 	peer peer-c {
 		connection {
 			remote { ip 127.0.0.3; }
-			local { ip 127.0.0.3; accept false; }
+			local { ip 127.0.0.6; accept false; }
 		}
 		session {
 			asn { local 65000; remote 65003; }
@@ -373,14 +345,6 @@ bgp {
 		}
 		blackhole {
 			communities [ blackhole ]
-		}
-		attach process rs {
-			receive [ update-received state open-received refresh ]
-			send [ update ]
-		}
-		attach process adj-rib-in {
-			receive [ update-received state ]
-			send [ update ]
 		}
 	}
 }

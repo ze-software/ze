@@ -31,10 +31,12 @@ EOF_PEER
 # Native observer waits for the EOR UPDATE before requesting clean shutdown.
 
 stdin=ze-bgp:terminator=EOF_CONF
-plugin {
-	external mrt-observer {
-		run "le test fixture plugin/mrt-dump-all"
-		encoder json
+bus {
+	endpoint mrt-observer {
+		external {
+			run "le test fixture plugin/mrt-dump-all";
+		}
+		encoding json;
 	}
 }
 

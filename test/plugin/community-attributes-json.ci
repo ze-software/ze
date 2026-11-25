@@ -51,10 +51,12 @@ EOF_PEER
 
 
 stdin=ze-bgp:terminator=EOF_CONF
-plugin {
-	external community-json {
-		run "le test fixture plugin/community-attributes-json"
-		encoder json
+bus {
+	endpoint community-json {
+		external {
+			run "le test fixture plugin/community-attributes-json";
+		}
+		encoding json;
 	}
 }
 
@@ -86,9 +88,6 @@ bgp {
 			group-updates disable
 		}
 
-		attach process community-json {
-			receive [ update-received ]
-		}
 	}
 }
 EOF_CONF

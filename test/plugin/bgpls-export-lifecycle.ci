@@ -25,11 +25,24 @@ expect=bgp:conn=1:seq=6:contains=400447000100170100000000000000000100000A0203000
 EOF_PEER
 
 stdin=ze-bgp:terminator=EOF_CONF
-plugin {
-    internal native-export { use bgp-ls-export; }
-    external lifecycle {
-        run "le test fixture plugin/bgpls-export-lifecycle"
-        encoder json
+bus {
+    endpoint bgp-rib {
+        internal bgp-rib;
+        receive {
+            from none;
+        }
+        send {
+            to none;
+        }
+    }
+    endpoint bgp-ls-export {
+        internal bgp-ls-export;
+    }
+    endpoint lifecycle {
+        external {
+            run "le test fixture plugin/bgpls-export-lifecycle";
+        }
+        encoding json;
     }
 }
 bgp-ls-export { }
@@ -51,10 +64,6 @@ bgp {
             capability { route-refresh enable; graceful-restart disable; }
         }
         behavior { group-updates disable; }
-        attach process native-export {
-            receive [ state refresh ]
-            send [ update ]
-        }
     }
 }
 EOF_CONF

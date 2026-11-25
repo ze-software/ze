@@ -75,9 +75,9 @@ reject=bgp:conn=1:pattern=FE800000000000000000000000000009
 EOF_RECEIVE
 
 tmpfs=ze.conf:terminator=EOF_CONF
-plugin {
-	internal rs {
-		use bgp-rs;
+bus {
+	endpoint rs {
+		internal bgp-rs;
 	}
 }
 bgp {
@@ -91,6 +91,7 @@ bgp {
 			local  { ip 2001:db8:99:1::1; accept false; }
 		}
 		session {
+			rs-client true;
 			asn { local 65001; remote 65004; }
 			router-id 10.99.1.1;
 			# The sender namespace's own Link-Local on sr0 (the fixture's ipv6).
@@ -104,10 +105,6 @@ bgp {
 		}
 		behavior {
 			rs-fast-path enable;
-		}
-		attach process rs {
-			receive [ update-received state open-received refresh ]
-			send [ update ]
 		}
 		# The injector starts after the receiver is up, so Ze's first dial is
 		# refused and the retry is what connects.
@@ -124,6 +121,7 @@ bgp {
 			}
 		}
 		session {
+			rs-client true;
 			asn { local 65001; remote 65003; }
 			router-id 10.99.1.1;
 			link-local fe80::99:1:1;
@@ -141,10 +139,6 @@ bgp {
 		}
 		behavior {
 			rs-fast-path enable;
-		}
-		attach process rs {
-			receive [ update-received state open-received refresh ]
-			send [ update ]
 		}
 		timer { connect-retry 2; }
 	}

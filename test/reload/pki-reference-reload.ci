@@ -18,7 +18,7 @@
 
 
 tmpfs=hub.conf:terminator=EOF_CONF
-plugin {
+bus {
 }
 
 pki {
@@ -46,7 +46,7 @@ environment {
 EOF_CONF
 
 tmpfs=addref.conf:terminator=EOF_ADDREF
-plugin {
+bus {
 }
 
 pki {

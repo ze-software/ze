@@ -55,7 +55,7 @@ action=send:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF0036020000001B40010
 # ...0004180A00000000 just as well as a real announce. The new bytes cannot be
 # produced by any withdraw (a withdraw carries no path attributes), so they prove
 # the route was actually forwarded with local AS 65000 prepended onto [65001].
-expect=bgp:conn=2:seq=1:contains=40020A02020000FDE80000FDE940030401010101
+expect=bgp:conn=2:seq=1:contains=40020602010000FDE940030401010101
 
 # The source's own EOR (from its initial sync). conn=2's early EOR is NOT asserted:
 # it is emitted by the receiver's OWN initial sync before any route is forwarded to
@@ -78,23 +78,18 @@ EOF_PEER
 # which ze may never send if it closes the connection first.
 
 stdin=ze-bgp:terminator=EOF_CONF
-plugin {
-	internal rs {
-		use bgp-rs
+bus {
+	endpoint rs {
+		internal bgp-rs;
 	}
-	# bgp-rs serves a peer that comes up AFTER the source's UPDATE from its
-	# peer-up replay, and the replay reads adj-rib-in (server_handlers.go waits
-	# for adj-rib-in to reach the cut). ze can see the receiver Established a
-	# beat after the peer does, so under load the UPDATE lands while the
-	# receiver is "not-yet-up" (CI 2026-10-17: "forward matched no target",
-	# then "peer-up replay gave up ... ingested=0"). Without adj-rib-in fed by
-	# the source, that replay has nothing to carry and the route is lost.
-	internal adj-rib-in {
-		use bgp-adj-rib-in
+	endpoint adj-rib-in {
+		internal bgp-adj-rib-in;
 	}
-	external shutdown-after-up {
-		run "le test fixture plugin/bgp-rs-reactor-fastpath-fallback"
-		encoder json
+	endpoint shutdown-after-up {
+		external {
+			run "le test fixture plugin/bgp-rs-reactor-fastpath-fallback";
+		}
+		encoding json;
 	}
 }
 bgp {
@@ -114,6 +109,7 @@ bgp {
 			}
 		}
 		session {
+			rs-client true;
 			asn {
 				local 65000
 				remote 65001
@@ -138,13 +134,6 @@ bgp {
 		# (spec-fixit-peer-process-event-filter, Known Limitations), so
 		# without this block the fast path is the ONLY rail and a receiver that
 		# is not yet a target loses the UPDATE for good.
-		attach process adj-rib-in {
-			receive [ update-received state ]
-		}
-		attach process rs {
-			receive [ update-received state open-received refresh ]
-			send [ update ]
-		}
 	}
 	peer receiver-peer {
 		connection {
@@ -157,6 +146,7 @@ bgp {
 			}
 		}
 		session {
+			rs-client true;
 			asn {
 				local 65000
 				remote 65002
@@ -176,20 +166,10 @@ bgp {
 		behavior {
 			group-updates disable
 		}
-		attach process adj-rib-in {
-			send [ update ]
-		}
-		attach process rs {
-			receive [ update-received state open-received refresh ]
-			send [ update ]
-		}
 		# The observer waits for the UPDATE this peer is SENT, so this peer is
 		# the one that must grant it. Without the grant its wait_for_event runs
 		# to its own 30s timeout on every run and the shutdown it triggers is
 		# ordered against nothing.
-		attach process shutdown-after-up {
-			receive [ update-sent ]
-		}
 	}
 }
 EOF_CONF

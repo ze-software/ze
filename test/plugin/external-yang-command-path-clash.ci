@@ -35,10 +35,12 @@ option=storage:value=disk
 option=timeout:value=60s
 option=env:var=ze.ssh.port:value=$PORT
 tmpfs=running.conf:terminator=EOF_CONF
-plugin {
-	external clash-command {
-		run "le test fixture plugin/external-yang command-clash"
-		encoder json
+bus {
+	endpoint clash-command {
+		external {
+			run "le test fixture plugin/external-yang command-clash";
+		}
+		encoding json;
 	}
 }
 EOF_CONF

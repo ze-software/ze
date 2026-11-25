@@ -24,9 +24,11 @@ EOF_PEER
 
 # ze bgp configuration
 stdin=ze-bgp:terminator=EOF_CONF
-plugin {
-	external text-test {
-		run "le mock text-plugin"
+bus {
+	endpoint text-test {
+		external {
+			run "le mock text-plugin";
+		}
 	}
 }
 bgp {
@@ -54,9 +56,6 @@ bgp {
 			group-updates disable
 		}
 
-		attach process text-test {
-			receive [ update ]
-		}
 	}
 }
 EOF_CONF

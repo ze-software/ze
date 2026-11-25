@@ -105,53 +105,107 @@ func (p *peerIRRConfig) enrolled() bool {
 	return p.UsesIRR
 }
 
-// sendRefresh is the `send` list word that lets a process ask the engine for a
-// ROUTE-REFRESH (reactor send_permission.go).
-const sendRefresh = "refresh"
+// busRefreshMessage is the bus message that lets a plugin ask the engine for a
+// ROUTE-REFRESH on a peer.
+const (
+	busRefreshMessage     = "bgp:refresh"
+	busFilterIRREndpoint  = "/bus/endpoint/" + pluginName
+	busEndpointParentPath = "/bus/endpoint"
+	busRootPath           = "/bus"
+	busKeywordNone        = "none"
+	busNamespaceWildcard  = "bgp:*"
+)
 
-// grantsRefresh reports whether the peer's binding of this plugin carries
-// `send [ refresh ]` or `send [ * ]`, the wildcard that grants every type
-// (reactor parseOneSendFlag). ResolveBGPTree merges the peer over its group
-// key by key, and `send` is not cumulative (bgp/config/resolve.go
-// cumulativePaths), so the peer's own `send` list replaces the group's: the
-// group decides only when the peer's binding states none.
+// grantsRefresh reports whether the peer's and group's bus receive blocks
+// permit bgp-filter-irr to send bgp:refresh to this peer. By default, every BGP
+// peer accepts bgp:refresh from every declared sender; a peer's or group's bus
+// block denies it only when its receive allow-list excludes bgp:refresh or its
+// receive from / message bgp:refresh from list excludes /bus/endpoint/bgp-filter-irr.
 func grantsRefresh(peerMap, groupMap map[string]any) bool {
-	if send, stated := bindingSend(peerMap); stated {
-		return grantsRefreshWord(send)
+	return levelAllowsRefresh(groupMap) && levelAllowsRefresh(peerMap)
+}
+
+func levelAllowsRefresh(m map[string]any) bool {
+	if m == nil {
+		return true
 	}
-	if send, stated := bindingSend(groupMap); stated {
-		return grantsRefreshWord(send)
+	bus, ok := m["bus"].(map[string]any)
+	if !ok {
+		return true
+	}
+	recv, ok := bus["receive"].(map[string]any)
+	// refuse-by-default: guards grantsRefresh -- absent bus > receive block means default-accept on the bus.
+	if !ok {
+		return true
+	}
+	if rawAllow, stated := recv["allow"]; stated {
+		allow := configvalue.LeafList(rawAllow)
+		if !busAllowCoversRefresh(allow) {
+			return false
+		}
+	}
+	if rawFrom, stated := recv["from"]; stated {
+		from := configvalue.LeafList(rawFrom)
+		if !busPathsCoverFilterIRR(from) {
+			return false
+		}
+	}
+	if msgs, ok := recv["message"].(map[string]any); ok {
+		if msg, ok := msgs[busRefreshMessage].(map[string]any); ok {
+			if rawFrom, stated := msg["from"]; stated {
+				from := configvalue.LeafList(rawFrom)
+				if !busPathsCoverFilterIRR(from) {
+					return false
+				}
+			}
+		}
+	}
+	return true
+}
+
+func busAllowCoversRefresh(allow []string) bool {
+	if len(allow) == 0 {
+		return false
+	}
+	if slices.Contains(allow, busKeywordNone) {
+		return false
+	}
+	for _, entry := range allow {
+		if entry == events.TokenWildcard {
+			return true
+		}
+		if entry == busNamespaceWildcard {
+			return true
+		}
+		if entry == busRefreshMessage {
+			return true
+		}
 	}
 	return false
 }
 
-// bindingSend returns the `send` list of this plugin's binding at one config
-// level, and whether that level states one.
-func bindingSend(m map[string]any) ([]string, bool) {
-	attach, ok := m["attach"].(map[string]any)
-	if !ok {
-		return nil, false
+func busPathsCoverFilterIRR(paths []string) bool {
+	if len(paths) == 0 {
+		return false
 	}
-	processes, ok := attach["process"].(map[string]any)
-	if !ok {
-		return nil, false
+	if slices.Contains(paths, busKeywordNone) {
+		return false
 	}
-	binding, ok := processes[pluginName].(map[string]any)
-	if !ok {
-		return nil, false
+	for _, path := range paths {
+		if path == events.TokenWildcard {
+			return true
+		}
+		if path == busRootPath {
+			return true
+		}
+		if path == busEndpointParentPath {
+			return true
+		}
+		if path == busFilterIRREndpoint {
+			return true
+		}
 	}
-	raw, stated := binding["send"]
-	if !stated {
-		return nil, false
-	}
-	return configvalue.LeafList(raw), true
-}
-
-func grantsRefreshWord(send []string) bool {
-	if slices.Contains(send, events.TokenWildcard) {
-		return true
-	}
-	return slices.Contains(send, sendRefresh)
+	return false
 }
 
 // advertisesRouteRefresh reports whether ze advertises Route Refresh to the

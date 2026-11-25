@@ -1,20 +1,20 @@
-# Test: ze config validate rejects a name used by both internal and external
-# VALIDATES: the loader's duplicate-name check runs at the user entry point --
-# the `seen` set spans internal and external, so the external loop rejects the
-# collision (internal/component/config/loader.go:249) via ExtractPluginsFromTree.
-# PREVENTS: validate accepting two plugins that claim the same name, which the
-# engine rejects at boot.
+# Test: ze config validate rejects an endpoint specifying both internal and external
+# VALIDATES: the loader's endpoint conflict check runs at the user entry point --
+# parseSingleEndpointConfig (internal/component/config/bus_validate.go) rejects
+# internal and external on the same endpoint via ExtractPluginsFromTree.
+# PREVENTS: validate accepting one endpoint claiming both internal and external,
+# which the engine rejects at boot.
 stdin=config:terminator=EOF_CONF
-plugin {
-	internal rib {
-		use bgp-rib
-	}
-	external rib {
-		run /bin/true
+bus {
+	endpoint rib {
+		internal bgp-rib
+		external {
+			run "/bin/true"
+		}
 	}
 }
 EOF_CONF
 
 cmd=foreground:seq=1:exec=ze config validate -:stdin=config
 expect=exit:code=1
-expect=stdout:contains=plugin "rib": duplicate plugin name
+expect=stdout:contains=bus > endpoint "rib": internal and external are mutually exclusive

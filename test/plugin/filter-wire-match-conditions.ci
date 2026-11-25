@@ -37,6 +37,8 @@
 #   ORIGIN 40010100 (IGP), AS_PATH 4002.., NEXT_HOP 40030401010101 (1.1.1.1),
 #   COMMUNITY C00804FDE90064 (65001:100) or C00804FDE9029A (65001:666), NLRI.
 
+# Linux-only: static `next { interface lo { } }` resolves loopback `lo` via Linux netlink.
+option=needs-linux
 option=env:var=ze.log.bgp.filter.prefix:value=info
 option=env:var=ze.log.bgp.filter.aspath:value=info
 option=env:var=ze.log.bgp.filter.aspath-length:value=info
@@ -65,9 +67,9 @@ stdin=dest:terminator=EOF_DEST
 option=tcp_connections:value=1
 option=timeout:value=20s
 # The relayed U6: AS_PATH [65000 65001] (40020A02020000FDE80000FDE9),
-# NEXT_HOP 1.1.1.1 kept, COMMUNITY 65001:100 kept, NLRI 180A0001
-# (10.0.1.0/24); attribute length 001F (31), message length 003A (58).
-expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF003A020000001F4001010040020A02020000FDE80000FDE940030401010101C00804FDE90064180A0001
+# NEXT_HOP 127.0.0.12 (bgp-rib eBGP local address), COMMUNITY 65001:100 kept,
+# NLRI 180A0001 (10.0.1.0/24); attribute length 001F (31), message length 003A (58).
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF003A020000001F4001010040020A02020000FDE80000FDE94003047F00000CC00804FDE90064180A0001
 # No refused UPDATE is announced to dest-peer, whenever it would arrive.
 reject=bgp:conn=1:scope=announced:pattern=18C0A801
 reject=bgp:conn=1:scope=announced:pattern=180A0002
@@ -77,17 +79,23 @@ reject=bgp:conn=1:scope=announced:pattern=180A0005
 EOF_DEST
 
 stdin=ze-bgp:terminator=EOF_CONF
-plugin {
-	internal rs {
-		use bgp-rs
+bus {
+	endpoint rs {
+		internal bgp-rib;
 	}
-	internal adj-rib-in {
-		use bgp-adj-rib-in
+	endpoint adj-rib-in {
+		internal bgp-adj-rib-in;
+		send {
+			message bgp:update {
+				to none;
+			}
+		}
 	}
-	# The relay observer: it waits until dest-peer was sent the route.
-	external test-strip {
-		run "le test fixture plugin/prefix-filter-modify-mp"
-		encoder json
+	endpoint test-strip {
+		external {
+			run "le test fixture plugin/prefix-filter-modify-mp";
+		}
+		encoding json;
 	}
 }
 policy {
@@ -125,6 +133,14 @@ policy {
 	}
 }
 
+fib {
+	dummy { }
+}
+static {
+	table default {
+		route 1.1.1.1/32 { next { interface lo { } } }
+	}
+}
 bgp {
 	# RFC 8212: an EBGP direction with no policy is refused; this test exchanges routes.
 	filter {
@@ -144,18 +160,11 @@ bgp {
 		filter {
 			import { filters [ M-PL M-AP M-LEN M-COM M-RA ]; final accept; }
 		}
-		attach process adj-rib-in {
-			receive [ update-received state ]
-		}
-		attach process rs {
-			receive [ update-received state open-received refresh ]
-			send [ update ]
-		}
 	}
 	peer dest-peer {
 		connection {
 			remote { ip 127.0.0.2; }
-			local { ip 127.0.0.2; accept false; }
+			local { ip 127.0.0.12; accept false; }
 		}
 		session {
 			asn { local 65000; remote 65002; }
@@ -164,14 +173,6 @@ bgp {
 		}
 		# bgp-rs asks adj-rib-in to replay the stored route here when this
 		# session establishes, so adj-rib-in needs the send permission.
-		attach process adj-rib-in {
-			receive [ update-received state ]
-			send [ update ]
-		}
-		attach process rs {
-			receive [ update-received state open-received refresh ]
-			send [ update ]
-		}
 	}
 }
 EOF_CONF

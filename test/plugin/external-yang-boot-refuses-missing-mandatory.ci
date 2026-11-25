@@ -28,10 +28,12 @@
 # with the module published as boot holds it and asserts that code. The runner
 # writes the file as it does any other.
 tmpfs=mandatory.conf:refused=config-yang-missing:terminator=EOF_MANDATORY
-plugin {
-	external acme-monitor {
-		run "le test fixture plugin/external-yang valid-config-refused"
-		encoder json
+bus {
+	endpoint acme-monitor {
+		external {
+			run "le test fixture plugin/external-yang valid-config-refused";
+		}
+		encoding json;
 	}
 }
 

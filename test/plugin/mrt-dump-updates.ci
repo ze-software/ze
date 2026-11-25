@@ -40,10 +40,12 @@ EOF_PEER
 # (config-path auto-load, startup_autoload.go:74) and the observer drives the
 # clean shutdown.
 stdin=ze-bgp:terminator=EOF_CONF
-plugin {
-	external mrt-observer {
-		run "le test fixture plugin/mrt-dump-updates"
-		encoder json
+bus {
+	endpoint mrt-observer {
+		external {
+			run "le test fixture plugin/mrt-dump-updates";
+		}
+		encoding json;
 	}
 }
 

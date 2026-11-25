@@ -38,10 +38,12 @@ option=timeout:value=60s
 # so the probe is refused and the local checks answer.
 option=env:var=ze.ssh.port:value=$PORT
 tmpfs=running.conf:terminator=EOF_CONF
-plugin {
-	external failure-fatal {
-		run "le test fixture plugin/failure-policy-fatal"
-		encoder json
+bus {
+	endpoint failure-fatal {
+		external {
+			run "le test fixture plugin/failure-policy-fatal";
+		}
+		encoding json;
 	}
 }
 EOF_CONF

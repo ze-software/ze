@@ -26,10 +26,12 @@ EOF_PEER
 
 # ze bgp configuration
 stdin=ze-bgp:terminator=EOF_CONF
-plugin {
-	external wire-edit-api-origin-order {
-		run "le test fixture plugin/wire-edit-api-origin-order"
-		encoder json
+bus {
+	endpoint wire-edit-api-origin-order {
+		external {
+			run "le test fixture plugin/wire-edit-api-origin-order";
+		}
+		encoding json;
 	}
 }
 bgp {
@@ -57,9 +59,6 @@ bgp {
 			group-updates disable
 		}
 
-		attach process wire-edit-api-origin-order {
-			send [ update ]
-		}
 	}
 }
 EOF_CONF

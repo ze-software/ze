@@ -27,10 +27,12 @@
 # compares the peers' wait, and this file starts no peer.
 
 tmpfs=ze.conf:terminator=EOF_CONF
-plugin {
-	external acme-monitor {
-		run "le test fixture plugin/external-yang valid"
-		encoder json
+bus {
+	endpoint acme-monitor {
+		external {
+			run "le test fixture plugin/external-yang valid";
+		}
+		encoding json;
 	}
 }
 

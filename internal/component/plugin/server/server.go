@@ -91,6 +91,7 @@ type Server struct {
 	rpcHandlersOnce   sync.Once
 	commitManager     any
 	procManager       atomic.Pointer[process.ProcessManager]
+	adHocProcs        sync.Map // ad-hoc SSH plugin protocol sessions (name -> *process.Process)
 	busConfig         atomic.Pointer[plugin.BusConfig]
 	spawner           plugin.ProcessSpawner         // PluginManager for process lifecycle
 	subscriptions     *SubscriptionManager          // API-driven event subscriptions (plugin processes)

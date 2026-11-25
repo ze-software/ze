@@ -27,10 +27,12 @@
 # A SKIP or setup-only run is not evidence for this test.
 
 stdin=config:terminator=EOF_CONF
-plugin {
-    external route-overflow-test {
-        run "le test fixture l2tp/radius-framed-route-overflow $PORT"
-        encoder json
+bus {
+    endpoint route-overflow-test {
+        external {
+            run "le test fixture l2tp/radius-framed-route-overflow $PORT";
+        }
+        encoding json;
     }
 }
 l2tp {

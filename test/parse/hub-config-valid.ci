@@ -1,9 +1,9 @@
-# Test: plugin hub config with server block is valid
+# Test: bus hub config with server block is valid
 # VALIDATES: hub config block is accepted by YANG schema parser
 # PREVENTS: hub config being rejected as unknown key
 
 stdin=ze-bgp:terminator=EOF_CONF
-plugin {
+bus {
     hub {
         server local {
             ip 127.0.0.1;

@@ -24,10 +24,12 @@ EOF_PEER
 
 # ze bgp configuration
 stdin=ze-bgp:terminator=EOF_CONF
-plugin {
-	external cli-grammar-test {
-		run "le test fixture plugin/cli-grammar-action-first"
-		encoder json
+bus {
+	endpoint cli-grammar-test {
+		external {
+			run "le test fixture plugin/cli-grammar-action-first";
+		}
+		encoding json;
 	}
 }
 
@@ -59,9 +61,6 @@ bgp {
 			group-updates disable
 		}
 
-		attach process cli-grammar-test {
-			send [ update ]
-		}
 	}
 }
 EOF_CONF

@@ -17,10 +17,12 @@ EOF_PEER
 # ze bgp configuration: one peer the file declares, which the save must keep
 # until the runtime delete takes it out.
 stdin=ze-bgp:terminator=EOF_CONF
-plugin {
-	external peer-save-test {
-		run "le test fixture plugin/api-peer-save"
-		encoder json
+bus {
+	endpoint peer-save-test {
+		external {
+			run "le test fixture plugin/api-peer-save";
+		}
+		encoding json;
 	}
 }
 

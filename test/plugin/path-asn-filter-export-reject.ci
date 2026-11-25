@@ -66,19 +66,18 @@ peer2 received the permitted fence and nothing for the rejected route
 EOF_FENCE
 
 stdin=ze-bgp:terminator=EOF_CONF
-plugin {
-    # Ze forwards a route between peers only when the route-server plugin is
-    # attached to both. Without it nothing reaches the egress path and the
-    # export chain under test is never consulted.
-    internal adj-rib-in {
-        use bgp-adj-rib-in;
+bus {
+    endpoint adj-rib-in {
+        internal bgp-adj-rib-in;
     }
-    internal rs {
-        use bgp-rs;
+    endpoint rs {
+        internal bgp-rs;
     }
-    external test-path-asn-export {
-        run "le test fixture plugin/path-asn-filter-export-reject path-asn-export.ready";
-        encoder json;
+    endpoint test-path-asn-export {
+        external {
+            run "le test fixture plugin/path-asn-filter-export-reject path-asn-export.ready";
+        }
+        encoding json;
     }
 }
 policy {
@@ -117,6 +116,7 @@ bgp {
             }
         }
         session {
+            rs-client true;
             asn {
                 local 65000
                 remote 65001
@@ -127,14 +127,6 @@ bgp {
         }
         behavior {
             group-updates disable
-        }
-        attach process rs {
-            receive [ update-received state open-received refresh ];
-            send [ update ];
-        }
-        attach process adj-rib-in {
-            receive [ update-received state ];
-            send [ update ];
         }
     }
     peer peer2 {
@@ -148,6 +140,7 @@ bgp {
             }
         }
         session {
+            rs-client true;
             asn {
                 local 65000
                 remote 65002
@@ -158,14 +151,6 @@ bgp {
         }
         behavior {
             group-updates disable
-        }
-        attach process rs {
-            receive [ update-received state open-received refresh ];
-            send [ update ];
-        }
-        attach process adj-rib-in {
-            receive [ update-received state ];
-            send [ update ];
         }
         filter {
             export { filters [ reject-asn-NO-TRANSIT ]; final accept; }

@@ -16,10 +16,12 @@ option=skip-os:value=darwin
 
 
 stdin=ze-conf:terminator=EOF_CONF
-plugin {
-	external ospf-instance-teardown {
-		run "le test fixture ospf/ospf-instance-teardown"
-		encoder json
+bus {
+	endpoint ospf-instance-teardown {
+		external {
+			run "le test fixture ospf/ospf-instance-teardown";
+		}
+		encoding json;
 	}
 }
 

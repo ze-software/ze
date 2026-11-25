@@ -32,9 +32,12 @@
 # ATTR_DISCARD marker (message/rfc7606.go) and the byte-equality below would pin the marker
 # rather than the AS_PATH.
 
+# Linux-only: static `next { interface lo { } }` resolves loopback `lo` via Linux netlink.
+option=needs-linux
 stdin=peer:terminator=EOF_PEER
 option=tcp_connections:value=3
 option=timeout:value=20s
+option=linger:value=true
 option=bind:value=0.0.0.0
 # Bind conn=N by remote IP rather than accept order: which client connects first is a race,
 # and the two receivers must be told apart by identity, not arrival (peer_connmap.go).
@@ -62,23 +65,47 @@ expect=bgp:conn=2:seq=2:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF002F0200000014400101
 
 # Receiver B (conn=3, AS 65003, rs-client left at its default FALSE): local AS prepended.
 #   AS_PATH:   40020A02020000FDE80000FDE9   AS_SEQUENCE[65000, 65001]
+#   NEXT_HOP:  4003047F00000D               127.0.0.13 (bgp-rib eBGP local address, RFC 4271 Section 5.1.3)
 # attr len = 4+13+7 = 24 = 0x18; total = 19+2+2+24+4 = 51 = 0x33.
-expect=bgp:conn=3:seq=2:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF003302000000184001010040020A02020000FDE80000FDE940030401010101180A0000
+expect=bgp:conn=3:seq=2:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF003302000000184001010040020A02020000FDE80000FDE94003047F00000D180A0000
 EOF_PEER
 
 # Observer: wait until the route server has replayed to every client, then shut down.
 
 stdin=ze-bgp:terminator=EOF_CONF
-plugin {
-	internal rs {
-		use bgp-rs
+bus {
+	endpoint bgp-rib {
+		internal bgp-rib;
+		send {
+			message bgp:update {
+				to [ /bgp/peer/plain-ebgp-receiver ];
+			}
+		}
 	}
-	internal adj-rib-in {
-		use bgp-adj-rib-in
+	endpoint rs {
+		internal bgp-rs;
 	}
-	external shutdown-after-up {
-		run "le test fixture plugin/bgp-rs-relay-aspath-transparency"
-		encoder json
+	endpoint adj-rib-in {
+		internal bgp-adj-rib-in;
+		send {
+			message bgp:update {
+				to none;
+			}
+		}
+	}
+	endpoint shutdown-after-up {
+		external {
+			run "le test fixture plugin/bgp-rs-relay-aspath-transparency";
+		}
+		encoding json;
+	}
+}
+fib {
+	dummy { }
+}
+static {
+	table default {
+		route 1.1.1.1/32 { next { interface lo { } } }
 	}
 }
 bgp {
@@ -98,6 +125,7 @@ bgp {
 			}
 		}
 		session {
+			rs-client true;
 			asn {
 				local 65000
 				remote 65001
@@ -112,16 +140,6 @@ bgp {
 		}
 		behavior {
 			group-updates disable
-		}
-		attach process adj-rib-in {
-			receive [ update-received state ]
-		}
-		attach process rs {
-			receive [ update-received state open-received refresh ]
-			send [ update ]
-		}
-		attach process shutdown-after-up {
-			receive [ update ]
 		}
 	}
 	peer rs-client-receiver {
@@ -155,16 +173,6 @@ bgp {
 		behavior {
 			group-updates disable
 		}
-		attach process adj-rib-in {
-			send [ update ]
-		}
-		attach process rs {
-			receive [ update-received state open-received refresh ]
-			send [ update ]
-		}
-		attach process shutdown-after-up {
-			receive [ update ]
-		}
 	}
 	peer plain-ebgp-receiver {
 		connection {
@@ -172,7 +180,7 @@ bgp {
 				ip 127.0.0.3
 			}
 			local {
-				ip 127.0.0.3
+				ip 127.0.0.13
 				accept false
 			}
 		}
@@ -193,16 +201,6 @@ bgp {
 		}
 		behavior {
 			group-updates disable
-		}
-		attach process adj-rib-in {
-			send [ update ]
-		}
-		attach process rs {
-			receive [ update-received state open-received refresh ]
-			send [ update ]
-		}
-		attach process shutdown-after-up {
-			receive [ update ]
 		}
 	}
 }

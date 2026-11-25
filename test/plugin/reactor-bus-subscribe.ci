@@ -15,10 +15,12 @@ EOF_PEER
 
 # ze bgp configuration
 stdin=ze-bgp:terminator=EOF_CONF
-plugin {
-	external bus-test {
-		run "le test fixture plugin/reactor-bus-subscribe"
-		encoder json
+bus {
+	endpoint bus-test {
+		external {
+			run "le test fixture plugin/reactor-bus-subscribe";
+		}
+		encoding json;
 	}
 }
 
@@ -50,9 +52,6 @@ bgp {
 			group-updates disable
 		}
 
-		attach process bus-test {
-			receive [ state ]
-		}
 	}
 }
 EOF_CONF

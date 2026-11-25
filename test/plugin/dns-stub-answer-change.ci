@@ -28,10 +28,12 @@ system {
 	}
 }
 
-plugin {
-	external dns-stub-answer-change-test {
-		run "le test fixture plugin/dns-stub-answer-change"
-		encoder json
+bus {
+	endpoint dns-stub-answer-change-test {
+		external {
+			run "le test fixture plugin/dns-stub-answer-change";
+		}
+		encoding json;
 	}
 }
 

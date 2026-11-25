@@ -56,7 +56,7 @@ func communityAttributes04(ctx context.Context, args []string) error {
 		}()
 		return nil
 	})
-	runErr := p.Run(ctx, &sdk.Registration{
+	runErr := runObserver(ctx, p, &sdk.Registration{
 		Receives: bgpReceiveDecls([]string{eventUpdate}, nil),
 	})
 	select {

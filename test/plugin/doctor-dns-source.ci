@@ -14,10 +14,12 @@ option=env:var=ze.l2tp.skip-kernel-probe:value=true
 option=env:var=TEST_SECRET:value=s3cr3t
 option=timeout:value=60s
 stdin=ze-conf:terminator=EOF_CONF
-plugin {
-	external doctor-dns-source-test {
-		run "le test fixture plugin/doctor-dns-source"
-		encoder json
+bus {
+	endpoint doctor-dns-source-test {
+		external {
+			run "le test fixture plugin/doctor-dns-source";
+		}
+		encoding json;
 	}
 }
 l2tp {

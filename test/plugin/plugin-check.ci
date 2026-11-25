@@ -20,10 +20,12 @@ EOF_PEER
 
 # ze bgp configuration
 stdin=ze-bgp:terminator=EOF_CONF
-plugin {
-	external check-and-announce {
-		run "le test fixture plugin/plugin-check"
-		encoder json
+bus {
+	endpoint check-and-announce {
+		external {
+			run "le test fixture plugin/plugin-check";
+		}
+		encoding json;
 	}
 }
 bgp {
@@ -53,13 +55,6 @@ bgp {
 			nlri {
 				ipv6/unicast add ::1/128
 			}
-		}
-		attach process check-and-announce {
-			content {
-				format parsed
-			}
-			receive [ update ]
-			send [ update ]
 		}
 
 		peer peer1 {

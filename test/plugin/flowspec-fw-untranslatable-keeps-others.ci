@@ -24,8 +24,10 @@ action=send:conn=1:seq=4:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF0041020000002A40010
 EOF_PEER
 
 stdin=ze-bgp:terminator=EOF_CONF
-plugin {
-	internal flowspec-firewall { use flowspec-firewall; }
+bus {
+	endpoint flowspec-firewall {
+		internal flowspec-firewall;
+	}
 }
 telemetry {
 	prometheus {
@@ -34,7 +36,7 @@ telemetry {
 	}
 }
 firewall {
-	backend nft;
+	backend kernel;
 	table fslocal {
 		family inet;
 		chain input {

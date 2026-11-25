@@ -32,13 +32,15 @@ option=env:var=ZE_LG_PORT:value=$PORT2
 
 # ze bgp configuration with LG enabled
 stdin=ze-bgp:terminator=EOF_CONF
-plugin {
-	external lg-csv {
-		run "le test fixture plugin/lg-csv-download"
-		encoder json
+bus {
+	endpoint bgp-rib {
+		internal bgp-rib;
 	}
-	internal bgp-rib {
-		use bgp-rib
+	endpoint lg-csv {
+		external {
+			run "le test fixture plugin/lg-csv-download";
+		}
+		encoding json;
 	}
 }
 
@@ -85,10 +87,6 @@ bgp {
 			group-updates disable
 		}
 
-		attach process bgp-rib {
-			receive [ update state refresh ]
-			send [ update ]
-		}
 	}
 }
 EOF_CONF

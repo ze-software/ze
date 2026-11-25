@@ -20,10 +20,12 @@ EOF_PEER
 # Native observer fixture: plugin/show-bgp-family-arg.
 
 stdin=ze-bgp:terminator=EOF_CONF
-plugin {
-	external show-bgp-family-arg {
-		run "le test fixture plugin/show-bgp-family-arg"
-		encoder json
+bus {
+	endpoint show-bgp-family-arg {
+		external {
+			run "le test fixture plugin/show-bgp-family-arg";
+		}
+		encoding json;
 	}
 }
 

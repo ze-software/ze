@@ -31,13 +31,15 @@ EOF_PEER
 # Native compiled fixture: plugin/rib-reconnect
 # ze bgp configuration
 stdin=ze-bgp:terminator=EOF_CONF
-plugin {
-	external announce-routes {
-		run "le test fixture plugin/rib-reconnect"
-		encoder json
+bus {
+	endpoint bgp-rib {
+		internal bgp-rib;
 	}
-	internal bgp-rib {
-		use bgp-rib
+	endpoint announce-routes {
+		external {
+			run "le test fixture plugin/rib-reconnect";
+		}
+		encoding json;
 	}
 }
 
@@ -71,13 +73,6 @@ bgp {
 		}
 		timer { connect-retry 5; }
 	
-		attach process announce-routes {
-			send [ update ]
-		}
-		attach process bgp-rib {
-			receive [ update state refresh ]
-			send [ update ]
-		}
 	}
 }
 EOF_CONF

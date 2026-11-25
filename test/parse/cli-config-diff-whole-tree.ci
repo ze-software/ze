@@ -21,7 +21,7 @@ bgp {
 EOF_CONF
 
 tmpfs=before.conf:terminator=EOF_BEFORE
-plugin {
+bus {
 	hub {
 		client edge-01 {
 			host 10.0.0.1
@@ -33,7 +33,7 @@ plugin {
 EOF_BEFORE
 
 tmpfs=after.conf:terminator=EOF_AFTER
-plugin {
+bus {
 	hub {
 		client edge-01 {
 			host 10.0.0.2
@@ -46,8 +46,8 @@ EOF_AFTER
 
 cmd=foreground:seq=1:exec=ze config diff before.conf after.conf
 expect=exit:code=0
-expect=stdout:contains=~ plugin/hub/client/edge-01/host: 10.0.0.1 -> 10.0.0.2
-expect=stdout:contains=~ plugin/hub/client/edge-01/secret: /* SECRET-DATA */ -> /* SECRET-DATA */
+expect=stdout:contains=~ bus/hub/client/edge-01/host: 10.0.0.1 -> 10.0.0.2
+expect=stdout:contains=~ bus/hub/client/edge-01/secret: /* SECRET-DATA */ -> /* SECRET-DATA */
 reject=stdout:contains=No differences
 reject=stdout:contains=whole-tree-secret-old
 reject=stdout:contains=whole-tree-secret-new

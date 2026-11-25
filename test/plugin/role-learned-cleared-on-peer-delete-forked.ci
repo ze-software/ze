@@ -36,12 +36,24 @@ expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
 EOF_WITH_ROLE
 
 stdin=ze-bgp:terminator=EOF_CONF
-plugin {
-	hub { server local { ip 127.0.0.1; port 0; secret role-learned-cleared-on-peer-delete-forked-secret-0001; } }
-	external bgp-role { run "ze plugin bgp-role --log-level info"; }
-	external role-cleared-driver {
-		run "le test fixture plugin/role-learned-cleared-on-peer-delete $PORT"
-		encoder json
+bus {
+	endpoint bgp-role {
+		external {
+			run "ze plugin bgp-role --log-level info";
+		}
+	}
+	endpoint role-cleared-driver {
+		external {
+			run "le test fixture plugin/role-learned-cleared-on-peer-delete $PORT";
+		}
+		encoding json;
+	}
+	hub {
+		server local {
+			ip 127.0.0.1;
+			port 0;
+			secret role-learned-cleared-on-peer-delete-forked-secret-0001;
+		}
 	}
 }
 
@@ -82,12 +94,24 @@ EOF_CONF
 # The configuration the fixture reloads after the delete: the one the daemon
 # started with, which still names role-peer.
 tmpfs=role-cleared-next.conf:terminator=EOF_NEXT
-plugin {
-	hub { server local { ip 127.0.0.1; port 0; secret role-learned-cleared-on-peer-delete-forked-secret-0001; } }
-	external bgp-role { run "ze plugin bgp-role --log-level info"; }
-	external role-cleared-driver {
-		run "le test fixture plugin/role-learned-cleared-on-peer-delete $PORT"
-		encoder json
+bus {
+	endpoint bgp-role {
+		external {
+			run "ze plugin bgp-role --log-level info";
+		}
+	}
+	endpoint role-cleared-driver {
+		external {
+			run "le test fixture plugin/role-learned-cleared-on-peer-delete $PORT";
+		}
+		encoding json;
+	}
+	hub {
+		server local {
+			ip 127.0.0.1;
+			port 0;
+			secret role-learned-cleared-on-peer-delete-forked-secret-0001;
+		}
 	}
 }
 

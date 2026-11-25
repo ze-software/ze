@@ -1,28 +1,30 @@
-# Test: a reload that attaches a receive-only process to a RUNNING peer keeps the
-#       session, tells the process the session is up, and brings it level with
-#       the routes the peer announced before the reload.
-# Initial config: one iBGP peer that negotiates Route Refresh, bound to bgp-rib
+# Test: a reload that adds a receive-only endpoint to a RUNNING peer's bus send
+#       list keeps the session, tells the endpoint the session is up, and brings
+#       it level with the routes the peer announced before the reload.
+# Initial config: one iBGP peer that negotiates Route Refresh, feeding bgp-rib
 #                 only. The peer announces 192.168.1.0/24 right after its OPEN.
 # Live change:    the peer rewrites the config and sends SIGHUP once Ze's
-#                 End-of-RIB arrived. The new config attaches an external process,
-#                 started by that reload, bound `receive [ update-received state ]`.
+#                 End-of-RIB arrived. The new config adds the already-running
+#                 external endpoint attach-live to peer1's bus > send > to list
+#                 (peer1's bus > receive > from stays bgp-rib only).
 # Expected:       no NOTIFICATION and no second TCP connection; Ze sends one
 #                 ROUTE-REFRESH for ipv4/unicast; the peer re-sends the route;
 #                 the process receives `state up` with reason `attached` before
 #                 any UPDATE, then the route.
 #
 # VALIDATES: spec-bgp-live-receive-binding-and-bfd-keep-session AC-4 (wiring
-#            row 3): SIGHUP -> reconcilePeersJournaled -> peerSettingsSwapPlan
-#            -> applyHotSwappableSettings -> targeted up -> requestRouteRefreshAll.
-# PREVENTS: a receive-only attach that resets the session (Cease subcode 6), a
-#           gained process fed an UPDATE before it is told the session is up,
-#           and a gained process that never sees the routes the session
-#           already carried.
+#            row 3) and spec-explicit-plugin-and-attach-config S19: SIGHUP ->
+#            reconcilePeersJournaled -> peerSettingsSwapPlan ->
+#            applyHotSwappableSettings -> targeted up -> requestRouteRefreshAll.
+# PREVENTS: a receive-only bus feed widening that resets the session (Cease
+#           subcode 6), a gained endpoint fed an UPDATE before it is told the
+#           session is up, and a gained endpoint that never sees the routes the
+#           session already carried.
 #
-# An apply that swapped ProcessBindings only for derived feeds (the rule
-# before that spec's Phase 2) restarts the peer on this operator attach, and
-# the peer then reads a NOTIFICATION Cease subcode 6 where it expects the
-# ROUTE-REFRESH, and the second connection is refused (tcp_connections=1).
+# An apply that swapped bus feeds only for derived feeds (the rule before that
+# spec's Phase 2) restarts the peer on this operator bus edit, and the peer then
+# reads a NOTIFICATION Cease subcode 6 where it expects the ROUTE-REFRESH, and
+# the second connection is refused (tcp_connections=1).
 option=timeout:value=60s
 
 stdin=peer:terminator=EOF_PEER
@@ -44,18 +46,18 @@ expect=bgp:conn=1:seq=2:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170500010001
 action=send:conn=1:seq=3:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00300200000015400101004002004003040A0000014005040000006418C0A801
 EOF_PEER
 
-# The process runs from boot, attached to no peer, so no event reaches it
-# until the reload attaches it. A reload does not start an external program a
-# config newly declares (unwired-feature journal, row of 2026-10-11), and the
-# attach, not the start, is what this test is about.
+# The endpoint runs from boot, outside peer1's bus > send > to list, so no
+# event reaches it until the reload widens peer1's send list.
 stdin=ze-bgp:terminator=EOF_CONF
-plugin {
-	internal bgp-rib {
-		use bgp-rib
+bus {
+	endpoint bgp-rib {
+		internal bgp-rib;
 	}
-	external attach-live {
-		run "le test fixture plugin/attach-receive-only-live"
-		encoder json
+	endpoint attach-live {
+		external {
+			run "le test fixture plugin/attach-receive-only-live";
+		}
+		encoding json;
 	}
 }
 
@@ -87,26 +89,35 @@ bgp {
 		behavior {
 			group-updates disable
 		}
-		# Route Refresh needs a process that may put routes on the wire
-		# (validatePeerProcessCaps). Bound in both configs, so it never changes.
-		attach process bgp-rib {
-			receive [ update state refresh ]
-			send [ update ]
+		# Route Refresh needs an endpoint that may put routes on the wire
+		# (validatePeerProcessCapsOnGraph). bgp-rib holds that grant in both
+		# configs; attach-live is never in bus > receive > from.
+		bus {
+			receive {
+				allow [ bgp:update ];
+				from [ /bus/endpoint/bgp-rib ];
+			}
+			send {
+				allow [ bgp:update bgp:state bgp:refresh ];
+				to [ /bus/endpoint/bgp-rib ];
+			}
 		}
 	}
 }
 
 EOF_CONF
 
-# The second config attaches the process receive-only.
+# The second config adds attach-live to peer1's bus > send > to list only.
 tmpfs=config2.conf:terminator=EOF_CONF2
-plugin {
-	internal bgp-rib {
-		use bgp-rib
+bus {
+	endpoint bgp-rib {
+		internal bgp-rib;
 	}
-	external attach-live {
-		run "le test fixture plugin/attach-receive-only-live"
-		encoder json
+	endpoint attach-live {
+		external {
+			run "le test fixture plugin/attach-receive-only-live";
+		}
+		encoding json;
 	}
 }
 
@@ -138,14 +149,18 @@ bgp {
 		behavior {
 			group-updates disable
 		}
-		# Route Refresh needs a process that may put routes on the wire
-		# (validatePeerProcessCaps). Bound in both configs, so it never changes.
-		attach process bgp-rib {
-			receive [ update state refresh ]
-			send [ update ]
-		}
-		attach process attach-live {
-			receive [ update-received state ]
+		# Route Refresh needs an endpoint that may put routes on the wire
+		# (validatePeerProcessCapsOnGraph). bgp-rib holds that grant in both
+		# configs; attach-live is added receive-only (bus > send > to only).
+		bus {
+			receive {
+				allow [ bgp:update ];
+				from [ /bus/endpoint/bgp-rib ];
+			}
+			send {
+				allow [ bgp:update bgp:state bgp:refresh ];
+				to [ /bus/endpoint/bgp-rib /bus/endpoint/attach-live ];
+			}
 		}
 	}
 }

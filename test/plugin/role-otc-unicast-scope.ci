@@ -3,6 +3,8 @@
 # PREVENTS: OTC applied to multicast/VPN/flow families violating RFC 9234 Section 5
 
 # ze-peer: customer peer sends multicast UPDATE with OTC (would be rejected if OTC applied)
+# Linux-only: static `next { interface lo { } }` resolves loopback `lo` via Linux netlink.
+option=needs-linux
 stdin=peer:terminator=EOF_PEER
 option=tcp_connections:value=1
 option=timeout:value=15s
@@ -39,7 +41,7 @@ option=tcp_connections:value=1
 option=timeout:value=15s
 option=open:value=drop-capability:code=9
 option=open:value=add-capability:code=9:hex=03
-expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF003F0200000028800E0D000102040101010100180A00004001010040020A02020000FDE80000FDE9C023040000FDE9
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF003F0200000028800E0D000102047F00000C00180A00004001010040020A02020000FDE80000FDE9C023040000FDE9
 # // the removed End-of-RIB rule was unsatisfiable by construction, so
 # it asserted nothing and only produced a red the runner used to mask. This peer's
 # EOR is emitted by its OWN initial sync the moment it establishes
@@ -57,16 +59,31 @@ EOF_DEST
 # Native compiled fixture: plugin/role-otc-unicast-scope
 # ze configuration: Provider with two Customer peers, ipv4/multicast enabled
 stdin=ze-bgp:terminator=EOF_CONF
-plugin {
-	internal adj-rib-in {
-		use bgp-adj-rib-in
+bus {
+	endpoint adj-rib-in {
+		internal bgp-adj-rib-in;
+		send {
+			message bgp:update {
+				to none;
+			}
+		}
 	}
-	internal rs {
-		use bgp-rs
+	endpoint rs {
+		internal bgp-rib;
 	}
-	external test-scope {
-		run "le test fixture plugin/role-otc-unicast-scope"
-		encoder json
+	endpoint test-scope {
+		external {
+			run "le test fixture plugin/role-otc-unicast-scope";
+		}
+		encoding json;
+	}
+}
+fib {
+	dummy { }
+}
+static {
+	table default {
+		route 1.1.1.1/32 { next { interface lo { } } }
 	}
 }
 bgp {
@@ -99,14 +116,6 @@ bgp {
 		role {
 			import provider
 		}
-		attach process rs {
-			receive [ update-received state open-received refresh ]
-			send [ update ]
-		}
-		attach process adj-rib-in {
-			receive [ update-received state ]
-			send [ update ]
-		}
 	}
 
 	peer dest-peer {
@@ -115,7 +124,7 @@ bgp {
 				ip 127.0.0.2
 			}
 			local {
-				ip 127.0.0.2
+				ip 127.0.0.12
 				accept false
 			}
 		}
@@ -134,14 +143,6 @@ bgp {
 		role {
 			import provider
 			export default
-		}
-		attach process rs {
-			receive [ update-received state open-received refresh ]
-			send [ update ]
-		}
-		attach process adj-rib-in {
-			receive [ update-received state ]
-			send [ update ]
 		}
 	}
 }

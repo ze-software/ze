@@ -30,10 +30,12 @@ action=send:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF0037020000001E40010
 EOF_PEER
 
 stdin=ze-bgp:terminator=EOF_CONF
-plugin {
-	external family-key-merge-event {
-		run "le test fixture plugin/family-key-merge-event"
-		encoder json
+bus {
+	endpoint family-key-merge-event {
+		external {
+			run "le test fixture plugin/family-key-merge-event";
+		}
+		encoding json;
 	}
 }
 
@@ -68,9 +70,6 @@ bgp {
 			group-updates disable
 		}
 
-		attach process family-key-merge-event {
-			receive [ update-received ]
-		}
 	}
 }
 EOF_CONF

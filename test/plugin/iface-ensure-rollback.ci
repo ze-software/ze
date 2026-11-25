@@ -48,22 +48,24 @@ option=needs-linux:caps=net-admin
 
 
 stdin=ze-conf:terminator=EOF_CONF
-plugin {
-	external iface-ensure-rollback {
-		run "le test fixture plugin/iface-ensure-rollback"
-		encoder json
+bus {
+	endpoint iface-ensure-rollback {
+		external {
+			run "le test fixture plugin/iface-ensure-rollback";
+		}
+		encoding json;
 	}
 }
 
 # The interface block makes the iface component run OnConfigure ->
-# iface.LoadBackend("netlink"), giving the ze-iface:* verbs an active netlink backend
-# (internal/component/iface/register.go; backend defaults to netlink per
+# iface.LoadBackend("kernel"), giving the ze-iface:* verbs an active kernel backend
+# (internal/component/iface/register.go; backend defaults to kernel per
 # internal/component/iface/config.go). Without it every verb returns
 # "iface: no backend loaded" and the ensure chain would never create anything. No
 # interface is declared, so applyConfig's managed set is empty and it creates/deletes
 # nothing; zeens0/1/2 are built entirely by the commands under test.
 interface {
-	backend netlink
+	backend kernel
 }
 
 bgp {

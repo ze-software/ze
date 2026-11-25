@@ -29,13 +29,15 @@ EOF_SOURCE
 # the peer.
 
 stdin=ze-bgp:terminator=EOF_CONF
-plugin {
-	internal rs {
-		use bgp-rs
+bus {
+	endpoint rs {
+		internal bgp-rs;
 	}
-	external shutdown-after-up {
-		run "le test fixture plugin/bgp-rs-fastpath-ibgp-identity"
-		encoder json
+	endpoint shutdown-after-up {
+		external {
+			run "le test fixture plugin/bgp-rs-fastpath-ibgp-identity";
+		}
+		encoding json;
 	}
 }
 bgp {
@@ -50,6 +52,7 @@ bgp {
 			}
 		}
 		session {
+			rs-client true;
 			asn {
 				local 65000
 				remote 65000
@@ -64,13 +67,6 @@ bgp {
 		}
 		behavior {
 			group-updates disable
-		}
-		attach process rs {
-			receive [ update-received state open-received refresh ]
-			send [ update ]
-		}
-		attach process shutdown-after-up {
-			receive [ update ]
 		}
 	}
 }

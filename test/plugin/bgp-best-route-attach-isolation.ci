@@ -10,21 +10,36 @@
 option=timeout:value=75s
 
 stdin=config:terminator=CONFIG
-plugin {
- internal adj-rib-in { use bgp-adj-rib-in; }
- internal transit-rib { use bgp-rib; }
- internal bgp-filter-prefix { use bgp-filter-prefix; }
- external attach-isolation-driver {
-  run "le test fixture plugin/bgp-best-route-attach-isolation 127.0.0.1:$PORT";
-  encoder json;
+bus {
+ endpoint adj-rib-in {
+  internal bgp-adj-rib-in;
+  send {
+   message bgp:update {
+    to none;
+   }
+  }
  }
- external attach-isolation-unattached {
-  run "le test fixture plugin/bgp-best-route-attach-observer attach-isolation-unattached";
-  encoder json;
+ endpoint transit-rib { internal bgp-rib; }
+ endpoint bgp-filter-prefix { internal bgp-filter-prefix; }
+ endpoint attach-isolation-driver {
+  external {
+   run "le test fixture plugin/bgp-best-route-attach-isolation 127.0.0.1:$PORT";
+  }
+  encoding json;
  }
- external attach-isolation-source {
-  run "le test fixture plugin/bgp-best-route-attach-observer attach-isolation-source";
-  encoder json;
+ endpoint attach-isolation-unattached {
+  external {
+   run "le test fixture plugin/bgp-best-route-attach-observer attach-isolation-unattached";
+  }
+  encoding json;
+  receive { from none; }
+ }
+ endpoint attach-isolation-source {
+  external {
+   run "le test fixture plugin/bgp-best-route-attach-observer attach-isolation-source";
+  }
+  encoding json;
+  receive { from [ /bgp/peer/source ]; }
  }
 }
 policy {
@@ -48,17 +63,14 @@ bgp {
   session { asn { local 65000; remote 65001; } aigp { enabled false; } family { ipv4/unicast { prefix { maximum 100; } } } capability { graceful-restart disable; } }
   behavior { group-updates disable; }
   filter { import { final accept; } export { filters [ attach-to-source ]; final accept; } }
-  attach process transit-rib { receive [ update-received state refresh update-sent ]; send [ update ]; }
-  attach process adj-rib-in { receive [ update-received state ]; }
-  attach process attach-isolation-source { receive [ update ]; }
+  bus { receive { from [ /bus/endpoint/transit-rib ]; } }
  }
  peer destination {
   connection { local { ip 127.0.0.1; port $PORT; } remote { ip 127.0.0.3; connect false; } }
   session { asn { local 65000; remote 65000; } aigp { enabled false; } family { ipv4/unicast { prefix { maximum 100; } } } capability { graceful-restart disable; } }
   behavior { group-updates disable; }
   filter { import { final accept; } export { filters [ attach-to-destination ]; final accept; } }
-  attach process transit-rib { receive [ update-received state refresh update-sent ]; send [ update ]; }
-  attach process adj-rib-in { receive [ update-received state ]; }
+  bus { receive { from [ /bus/endpoint/transit-rib ]; } }
  }
 }
 CONFIG

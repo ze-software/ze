@@ -1,15 +1,18 @@
-# Valid config: attach process on a group
+# Valid config: bus rules on a BGP group
 stdin=config:terminator=EOF_CONF
-plugin {
-	external my-process {
-		run "le test interop-bgp exabgp-api syslog"
-		encoder json
+bus {
+	endpoint my-process {
+		internal bgp-bmp
+		encoding json
 	}
 }
 bgp {
 	group default {
-		attach process my-process {
-			receive [ state ]
+		bus {
+			send {
+				allow [ bgp:state ]
+				to [ /bus/endpoint/my-process ]
+			}
 		}
 
 		peer peer3 {

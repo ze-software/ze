@@ -24,10 +24,12 @@ EOF_PEER
 
 # ze bgp configuration
 stdin=ze-bgp:terminator=EOF_CONF
-plugin {
-	external ddos-flowspec-announce {
-		run "le test fixture plugin/ddos-flowspec-announce"
-		encoder json
+bus {
+	endpoint ddos-flowspec-announce {
+		external {
+			run "le test fixture plugin/ddos-flowspec-announce";
+		}
+		encoding json;
 	}
 }
 bgp {
@@ -64,9 +66,6 @@ bgp {
 			group-updates disable
 		}
 
-		attach process ddos-flowspec-announce {
-			send [ update ]
-		}
 	}
 }
 EOF_CONF

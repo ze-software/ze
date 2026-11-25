@@ -37,16 +37,18 @@ EOF_PEER2
 
 
 stdin=ze-bgp:terminator=EOF_CONF
-plugin {
-	external nhself-test {
-		run "le test fixture plugin/bgp-redistribute-nexthop-self"
-		encoder json
+bus {
+	endpoint redistribute-orchestrator {
+		internal redistribute-orchestrator;
 	}
-	internal redistribute-orchestrator {
-		use redistribute-orchestrator
+	endpoint fakeredist {
+		internal fakeredist;
 	}
-	internal fakeredist {
-		use fakeredist
+	endpoint nhself-test {
+		external {
+			run "le test fixture plugin/bgp-redistribute-nexthop-self";
+		}
+		encoding json;
 	}
 }
 
@@ -94,9 +96,6 @@ bgp {
 		behavior {
 			group-updates disable
 		}
-		attach process redistribute-orchestrator {
-			send [ update ]
-		}
 	}
 	peer peer2 {
 		connection {
@@ -126,9 +125,6 @@ bgp {
 		}
 		behavior {
 			group-updates disable
-		}
-		attach process redistribute-orchestrator {
-			send [ update ]
 		}
 	}
 }

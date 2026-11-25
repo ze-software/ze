@@ -49,9 +49,9 @@ EOF_PEER
 
 
 stdin=ze-bgp:terminator=EOF_CONF
-plugin {
-	internal flowspec-firewall {
-		use flowspec-firewall
+bus {
+	endpoint flowspec-firewall {
+		internal flowspec-firewall;
 	}
 }
 
@@ -87,9 +87,6 @@ bgp {
 			}
 		}
 
-		attach process flowspec-firewall {
-			receive [ update-received state ]
-		}
 	}
 }
 EOF_CONF

@@ -29,10 +29,12 @@ option=storage:value=disk
 option=timeout:value=60s
 option=env:var=ze.ssh.port:value=$PORT
 tmpfs=running.conf:terminator=EOF_CONF
-plugin {
-	external broken-module {
-		run "le test fixture plugin/external-yang invalid"
-		encoder json
+bus {
+	endpoint broken-module {
+		external {
+			run "le test fixture plugin/external-yang invalid";
+		}
+		encoding json;
 	}
 }
 EOF_CONF

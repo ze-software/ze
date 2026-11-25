@@ -24,16 +24,18 @@ expect=json:conn=1:seq=2:json={"meta":{"version":"1.0.0","format":"ze-bgp"},"mes
 EOF_PEER
 
 stdin=ze-bgp:terminator=EOF_CONF
-plugin {
-	external l2tp-withdraw-test {
-		run "le test fixture plugin/redistribute-l2tp-withdraw"
-		encoder json
+bus {
+	endpoint redistribute-orchestrator {
+		internal redistribute-orchestrator;
 	}
-	internal redistribute-orchestrator {
-		use redistribute-orchestrator
+	endpoint fakel2tp {
+		internal fakel2tp;
 	}
-	internal fakel2tp {
-		use fakel2tp
+	endpoint l2tp-withdraw-test {
+		external {
+			run "le test fixture plugin/redistribute-l2tp-withdraw";
+		}
+		encoding json;
 	}
 }
 
@@ -80,9 +82,6 @@ bgp {
 		}
 		behavior {
 			group-updates disable
-		}
-		attach process redistribute-orchestrator {
-			send [ update ]
 		}
 	}
 }

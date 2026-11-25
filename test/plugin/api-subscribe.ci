@@ -13,10 +13,12 @@ EOF_PEER
 
 # ze bgp configuration
 stdin=ze-bgp:terminator=EOF_CONF
-plugin {
-	external subscribe-test {
-		run "le test fixture plugin/api-subscribe"
-		encoder json
+bus {
+	endpoint subscribe-test {
+		external {
+			run "le test fixture plugin/api-subscribe";
+		}
+		encoding json;
 	}
 }
 

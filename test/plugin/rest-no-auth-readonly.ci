@@ -10,10 +10,12 @@ EOF_PEER
 
 
 stdin=ze-bgp:terminator=EOF_CONF
-plugin {
-	external rest-readonly-test {
-		run "le test fixture plugin/rest-no-auth-readonly"
-		encoder json
+bus {
+	endpoint rest-readonly-test {
+		external {
+			run "le test fixture plugin/rest-no-auth-readonly";
+		}
+		encoding json;
 	}
 }
 

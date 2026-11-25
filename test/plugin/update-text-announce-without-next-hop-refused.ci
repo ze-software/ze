@@ -20,10 +20,12 @@
 # announce with a next hop is queued and accepted.
 
 stdin=config:terminator=EOF_CONFIG
-plugin {
-	external engine-steps {
-		run "le mock engine-steps ./engine-steps.json"
-		encoder json
+bus {
+	endpoint engine-steps {
+		external {
+			run "le mock engine-steps ./engine-steps.json";
+		}
+		encoding json;
 	}
 }
 
@@ -50,9 +52,6 @@ bgp {
 			capability {
 				graceful-restart disable
 			}
-		}
-		attach process engine-steps {
-			send [ update ]
 		}
 	}
 }

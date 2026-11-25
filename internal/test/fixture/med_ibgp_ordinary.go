@@ -109,7 +109,7 @@ func medIBGPOrdinaryPostSelectionRemoval(ctx context.Context, args []string) err
 			OnError:   sdk.OnErrorReject,
 		}},
 	}
-	runErr := plugin.Run(ctx, reg)
+	runErr := runObserver(ctx, plugin, reg)
 	return awaitObserverResult(started, result, runErr)
 }
 

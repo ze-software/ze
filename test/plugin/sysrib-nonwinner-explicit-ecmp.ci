@@ -10,12 +10,21 @@ option=netns-link:name=zesrnwproof
 option=storage:value=disk
 option=timeout:value=180s
 stdin=ze-conf:terminator=EOF_CONF
-plugin {
- external sysrib-nonwinner-ecmp-test { run "le test fixture plugin/sysrib-nonwinner-explicit-ecmp internal"; encoder json; }
- internal sysrib-owner { use rib; }
- internal fib-kernel { use fib-kernel; }
+bus {
+  endpoint sysrib-owner {
+    internal rib;
+  }
+  endpoint fib-kernel {
+    internal fib-kernel;
+  }
+  endpoint sysrib-nonwinner-ecmp-test {
+    external {
+      run "le test fixture plugin/sysrib-nonwinner-explicit-ecmp internal";
+    }
+    encoding json;
+  }
 }
-interface { backend netlink; }
+interface { backend kernel; }
 connected { }
 fib { kernel { flush-on-stop true; } }
 rib { distance { static 20; ospf 20; } }

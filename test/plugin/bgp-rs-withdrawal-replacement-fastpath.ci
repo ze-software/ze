@@ -87,11 +87,18 @@ expect=bgp:conn=1:seq=5:contains=18644100
 EOF_CLIENT
 
 stdin=ze-bgp:terminator=EOF_CONF
-plugin {
-    internal relay { use bgp-rs; }
-    external sequence {
-        run "le test fixture plugin/rs-source-sequence 127.0.0.2 up 127.0.0.1 up 127.0.0.2 up 127.0.0.5 send 127.0.0.5 192.0.2.0/24 sent 1 send 127.0.0.1 192.0.2.0/24 sent 2 send 127.0.0.1 198.51.100.0/24 sent 3 send 127.0.0.5 198.51.100.0/24 sent 4 send 127.0.0.2 100.65.0.0/24 sent 5"
-        encoder json
+bus {
+    endpoint relay {
+        internal bgp-rs;
+    }
+    endpoint sequence {
+        external {
+            run "le test fixture plugin/rs-source-sequence 127.0.0.2 up 127.0.0.1 up 127.0.0.2 up 127.0.0.5 send 127.0.0.5 192.0.2.0/24 sent 1 send 127.0.0.1 192.0.2.0/24 sent 2 send 127.0.0.1 198.51.100.0/24 sent 3 send 127.0.0.5 198.51.100.0/24 sent 4 send 127.0.0.2 100.65.0.0/24 sent 5";
+        }
+        encoding json;
+    }
+    endpoint bgp-rib {
+        internal bgp-rib;
     }
 }
 bgp {
@@ -115,15 +122,6 @@ bgp {
             capability { graceful-restart disable }
         }
         behavior { group-updates disable; rs-fast-path enable; }
-        attach process relay {
-            receive [ update-received state open-received refresh ]
-            send [ update ]
-        }
-        attach process bgp-rib {
-            receive [ update state refresh ]
-            send [ update ]
-        }
-        attach process sequence { send [ update ]; }
     }
     peer client {
         connection {
@@ -140,15 +138,6 @@ bgp {
             capability { graceful-restart disable }
         }
         behavior { group-updates disable; rs-fast-path enable; }
-        attach process relay {
-            receive [ update-received state open-received refresh ]
-            send [ update ]
-        }
-        attach process bgp-rib {
-            receive [ update state refresh ]
-            send [ update ]
-        }
-        attach process sequence { send [ update ]; }
     }
     peer sourceb {
         connection {
@@ -165,15 +154,6 @@ bgp {
             capability { graceful-restart disable }
         }
         behavior { group-updates disable; rs-fast-path enable; }
-        attach process relay {
-            receive [ update-received state open-received refresh ]
-            send [ update ]
-        }
-        attach process bgp-rib {
-            receive [ update state refresh ]
-            send [ update ]
-        }
-        attach process sequence { send [ update ]; }
     }
 }
 EOF_CONF

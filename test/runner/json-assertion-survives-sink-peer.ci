@@ -32,10 +32,12 @@ expect=json:conn=1:seq=1:json={"meta":{"version":"1.0.0","format":"ze-bgp"},"mes
 
 # ze bgp configuration: one iBGP peer that originates a single route from config.
 stdin=ze-bgp:terminator=EOF_CONF
-plugin {
-	external sink-json {
-		run "le test fixture runner/json-assertion-survives-sink-peer"
-		encoder json
+bus {
+	endpoint sink-json {
+		external {
+			run "le test fixture runner/json-assertion-survives-sink-peer";
+		}
+		encoding json;
 	}
 }
 

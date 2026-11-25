@@ -10,8 +10,12 @@ option=timeout:value=25s
 option=env:var=ze.log.bgp.plugin:value=info
 
 stdin=destination-send-only:terminator=CONFIG
-plugin {
- internal ac25-table { use bgp-rib; }
+bus {
+ endpoint ac25-table {
+  internal bgp-rib;
+  receive { from [ /bgp/peer/source ]; }
+  send { to [ /bgp/peer/destination ]; }
+ }
 }
 bgp {
  router-id 192.0.2.254;
@@ -20,19 +24,18 @@ bgp {
   connection { local { ip 127.0.0.1; port $PORT; } remote { ip 127.0.0.2; connect false; } }
   session { asn { remote 65001; } }
   filter { import { final accept; } export { final reject; } }
-  attach process ac25-table { receive [ update-received state ]; }
  }
  peer destination {
   connection { local { ip 127.0.0.1; port $PORT; } remote { ip 127.0.0.3; connect false; } }
   session { asn { remote 65002; } }
   filter { import { final reject; } export { final accept; } }
-  attach process ac25-table { send [ update ]; }
  }
 }
 CONFIG
 
 cmd=foreground:seq=1:exec=ze -:stdin=destination-send-only:timeout=20s
 expect=exit:code=1
-expect=stderr:contains=peer "destination" process "ac25-table" has incomplete destination grants; complete with `attach process ac25-table { receive [ state refresh update-sent ]; send [ update ]; }`
+expect=stderr:contains=participant "destination" endpoint "ac25-table" has incomplete destination grants for dissemination role "bgp-selected-output"
+expect=stderr:contains=bus { endpoint ac25-table { receive { allow [ bgp:state bgp:refresh bgp:update ]; } send { allow [ bgp:update ]; } } }
 reject=stderr:contains=bgp peers started
 reject=stderr:contains=panic

@@ -1142,24 +1142,32 @@ func compiledEdgeTags(sendRule *BusCompiledSendRule, recvRule *BusCompiledReceiv
 // back out of the index, formatted as operator tokens.
 func (g *DeliveryGraph) receiveTokens(peerAddr, processName string) []string {
 	pd := g.peers[peerAddr]
+	type nsET struct {
+		ns events.NamespaceID
+		et events.EventTypeID
+	}
+	seen := make(map[nsET]struct{}, len(pd.receive))
 	var out []string
 	for k := range pd.receive {
-		if k.dir != events.DirUnspecified {
+		pair := nsET{ns: k.ns, et: k.et}
+		if _, done := seen[pair]; done {
 			continue
 		}
-		if !slices.Contains(g.Receivers(k.ns, k.et, k.dir, peerAddr), processName) {
+		seen[pair] = struct{}{}
+		hasRec := slices.Contains(g.Receivers(k.ns, k.et, events.DirReceived, peerAddr), processName)
+		hasSent := slices.Contains(g.Receivers(k.ns, k.et, events.DirSent, peerAddr), processName)
+		hasAny := slices.Contains(g.Receivers(k.ns, k.et, events.DirUnspecified, peerAddr), processName)
+		if !hasRec && !hasSent && !hasAny {
 			continue
 		}
 		dir := events.DirUnspecified
-		if slices.Contains(g.Receivers(k.ns, k.et, events.DirReceived, peerAddr), processName) {
+		switch {
+		case hasRec && hasSent:
+			dir = events.DirBoth
+		case hasRec:
 			dir = events.DirReceived
-		}
-		if slices.Contains(g.Receivers(k.ns, k.et, events.DirSent, peerAddr), processName) {
-			if dir == events.DirReceived {
-				dir = events.DirBoth
-			} else {
-				dir = events.DirSent
-			}
+		case hasSent:
+			dir = events.DirSent
 		}
 		out = append(out, events.DirectionToken(k.et.String(), dir))
 	}
@@ -1198,6 +1206,45 @@ func (s *Server) DeliveryGraph() *DeliveryGraph {
 		return g
 	}
 	return emptyDeliveryGraph
+}
+
+// PeerProcessEdges returns the resolved ProcessEdges for one peer address,
+// matching the entries Inspect produces. Returns nil if g is nil or peerAddr
+// is absent.
+func (g *DeliveryGraph) PeerProcessEdges(peerAddr string) []ProcessEdges {
+	if g == nil {
+		return nil
+	}
+	if peerAddr == "" {
+		return nil
+	}
+	pd, ok := g.peers[peerAddr]
+	// refuse-by-default: guards DeliveryGraph.Inspect -- a peer absent from the graph snapshot has no resolved process edges.
+	if !ok {
+		return nil
+	}
+	out := make([]ProcessEdges, 0, len(pd.procs))
+	for _, proc := range pd.procs {
+		recvTokens := g.receiveTokens(peerAddr, proc.name)
+		origins := g.tokenOriginsForProcess(proc, recvTokens)
+		out = append(out, ProcessEdges{
+			Process: proc.name,
+			Path:    proc.path,
+			Receive: recvTokens,
+			Send:    slices.Clone(proc.send),
+			Origin:  proc.origin.String(),
+			Origins: origins,
+		})
+	}
+	return out
+}
+
+// PreviewDeliveryGraph compiles a candidate DeliveryGraph from s's current
+// BusConfig, active/declared endpoints, and peers without publishing it.
+func (s *Server) PreviewDeliveryGraph(namespace string, peers []DeliveryPeer) (*DeliveryGraph, error) {
+	busCfg := s.BusConfig()
+	endpoints := s.collectBusEndpointInputs(namespace, busCfg)
+	return BuildDeliveryGraph(namespace, peers, busCfg, endpoints)
 }
 
 // SetDeliveryGraph compiles the bus from s's stored BusConfig, active and
@@ -1615,6 +1662,30 @@ func (s *Server) PeerScopedProcsNamed(ns events.NamespaceID, et events.EventType
 	return kept
 }
 
+// PeerDeclaresSend reports whether the peer participant at peerAddr declares
+// sending (ns, et) in its compiled bus filter. When the peer is unknown or the
+// graph carries no compiled bus, it returns true so callers stay on the
+// fail-closed PeerScopedProcs path.
+func (g *DeliveryGraph) PeerDeclaresSend(peerAddr string, ns events.NamespaceID, et events.EventTypeID) bool {
+	if g == nil {
+		return true
+	}
+	if g.compiled == nil {
+		return true
+	}
+	pd, ok := g.peers[peerAddr]
+	// refuse-by-default: guards Server.BroadcastEvent -- an unknown peer stays on the fail-closed PeerScopedProcs path.
+	if !ok {
+		return true
+	}
+	f := g.compiled.Filter(pd.path)
+	if f == nil {
+		return true
+	}
+	_, declared := f.SendRules[ns.String()+":"+et.String()]
+	return declared
+}
+
 // EndpointAcceptsFrom reports whether endpointName's compiled inbound receive
 // filter in g permits receiving (ns, et) from peerAddr, independent of
 // peerAddr's outbound send rules. Used during pre-publish peer-attach delivery
@@ -1713,6 +1784,8 @@ func (s *Server) PeerScopedProcsBind(ns events.NamespaceID, et events.EventTypeI
 	}
 	g := s.DeliveryGraph()
 	granted := g.Receivers(ns, et, dir, peerAddr)
+	var preview *DeliveryGraph
+	previewLoaded := false
 	kept := procs[:0]
 	for _, proc := range procs {
 		name := proc.Name()
@@ -1724,6 +1797,16 @@ func (s *Server) PeerScopedProcsBind(ns events.NamespaceID, et events.EventTypeI
 			continue
 		}
 		if g.EndpointAcceptsFrom(peerAddr, name, ns, et) {
+			kept = append(kept, proc)
+			continue
+		}
+		if !previewLoaded {
+			previewLoaded = true
+			if cand, err := s.PreviewDeliveryGraph(g.namespace, g.disseminationPeers); err == nil {
+				preview = cand
+			}
+		}
+		if preview != nil && (slices.Contains(preview.Receivers(ns, et, dir, peerAddr), name) || preview.EndpointAcceptsFrom(peerAddr, name, ns, et)) {
 			kept = append(kept, proc)
 		}
 	}

@@ -18,16 +18,18 @@ EOF_PEER
 
 
 stdin=ze-bgp:terminator=EOF_CONF
-plugin {
-	external fib-ecmp-test {
-		run "le test fixture plugin/fib-ecmp"
-		encoder json
+bus {
+	endpoint bgp-rib {
+		internal bgp-rib;
 	}
-	internal bgp-rib {
-		use bgp-rib
+	endpoint rib {
+		internal rib;
 	}
-	internal rib {
-		use rib
+	endpoint fib-ecmp-test {
+		external {
+			run "le test fixture plugin/fib-ecmp";
+		}
+		encoding json;
 	}
 }
 
@@ -64,10 +66,6 @@ bgp {
 			group-updates disable
 		}
 
-		attach process bgp-rib {
-			receive [ update state refresh ]
-			send [ update ]
-		}
 	}
 }
 EOF_CONF

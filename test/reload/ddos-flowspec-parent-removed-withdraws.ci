@@ -159,16 +159,15 @@ bgp {
 		# The responder's update-route is refused for a process no peer
 		# attaches with send [ update ] (reactor/send_permission.go). The
 		# reload keeps this block byte-identical, so the peer is not re-added.
-		attach process ddos-flowspec {
-			send [ update ]
-		}
 	}
 }
 
-plugin {
-	external ddos-flowspec-parent-removed-probe {
-		run "le test fixture plugin/ddos-flowspec-parent-removed-driver"
-		encoder json
+bus {
+	endpoint ddos-flowspec-parent-removed-probe {
+		external {
+			run "le test fixture plugin/ddos-flowspec-parent-removed-driver";
+		}
+		encoding json;
 	}
 }
 EOF_CONF

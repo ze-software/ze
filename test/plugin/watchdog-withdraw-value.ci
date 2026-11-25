@@ -19,11 +19,15 @@ expect=bgp:conn=1:seq=7:withdrawn=180A0003
 EOF_PEER
 
 stdin=ze-bgp:terminator=EOF_CONF
-plugin {
-    internal bgp-watchdog { use bgp-watchdog; }
-    external service-watchdog {
-        run "le test fixture plugin/watchdog-withdraw-value"
-        encoder json
+bus {
+    endpoint bgp-watchdog {
+        internal bgp-watchdog;
+    }
+    endpoint service-watchdog {
+        external {
+            run "le test fixture plugin/watchdog-withdraw-value";
+        }
+        encoding json;
     }
 }
 bgp {
@@ -56,10 +60,6 @@ bgp {
             attribute { origin igp; next-hop 1.2.3.4; local-preference 100; }
             nlri { ipv4/unicast add 10.0.3.0/24; }
             watchdog { name dnsr; withdraw true; }
-        }
-        attach process bgp-watchdog {
-            receive [ state ]
-            send [ update ]
         }
     }
 }
