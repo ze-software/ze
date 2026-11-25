@@ -104,10 +104,13 @@ sends the same words under `del`. Both SAFI words are rows of `bridgeSAFI`.
 <!-- source: internal/exabgp/bridge/bridge_family.go -- bridgeSAFI -->
 
 
-The read happens ONCE for the whole fleet, and each format is rendered once. So
-the cost of a fan-out grows with the number of formats in use, not with the
-number of scripts. Both numbers matter here, because the fan-out runs for every
-UPDATE of every peer.
+Inside `ze`, the BGP event dispatcher formats Ze's bus JSON once per distinct
+format across all matching external endpoints (`fmtCache` in
+`internal/component/bgp/server/events.go`). Because each ExaBGP script runs as
+its own `ze exabgp plugin` endpoint process (E-1), TLS delivery, `json.Unmarshal`,
+wire decoding, and ExaBGP line rendering happen once per script process rather
+than once across a shared fleet. The measured cost of 1, 5, and 20 full-table
+scripts is recorded in [Measured per-script cost (Q-E7)](#measured-per-script-cost-q-e7).
 
 The ExaBGP side is an external contract. An operator writes a script against
 ExaBGP, so a change to ze's own CLI does not reach that script through the
@@ -1243,6 +1246,60 @@ like any native plugin.
 <!-- source: internal/exabgp/migration/migrate.go -- migrateSingleNeighbor -->
 <!-- source: internal/exabgp/migration/migrate_serialize.go -- serializeTreeIndent -->
 <!-- source: internal/component/plugin/server/reload_declarations.go -- RefuseChangedDeclarations -->
+
+## Measured per-script cost (Q-E7)
+
+Measured on 2026-11-25 at commit `f88708e4dc` on an Apple M4 Max (`Darwin arm64`,
+16 host cores / 64 GiB RAM) running the `ze` Colima Docker host (`4 vCPUs`,
+`7.75 GiB` RAM) via `./le perf run dut ze` with `PERF_CONFIGS_DIR` overlays.
+Each script ran as an independent external bus endpoint
+(`ze exabgp plugin --encoder json -- /bin/sh -c 'cat >/dev/null'`) subscribed to
+`bgp:update`, `bgp:state`, and `bgp:negotiated` from `perf-sender` (`send { allow
+none; }`). Every run completed with `0` lost routes.
+
+### Full-table feed: 1,000,000 IPv4/unicast routes (`DUT_REPEAT=1` + 1 warmup)
+
+| Scripts | Live Conv. | Live Throughput | Delta vs 0 | Live p99 | Live Withdraw | RIB Prop. Conv. | RIB Prop. Throughput | Peak CPU (4 vCPU) | Cgroup Mem (settled) | `ze` Peak VmRSS | Wrapper Sum Peak VmRSS |
+|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|
+| 0 | 1,593 ms | 627,746 r/s | baseline | 1,368 ms | 1,938 ms | 5,682 ms | 175,994 r/s | 154.4% | 3.00 GiB | 3,312 MiB | — |
+| 1 | 1,503 ms | 665,335 r/s | +6.0% | 1,323 ms | 1,927 ms | 5,420 ms | 184,501 r/s | 275.5% | 3.49 GiB | 3,398 MiB | 167 MiB (167/s) |
+| 5 | 3,796 ms | 263,435 r/s | −58.0% | 3,541 ms | 3,323 ms | 5,453 ms | 183,385 r/s | 397.0% | 3.82 GiB | 3,691 MiB | 827 MiB (165/s) |
+| 20 | 9,773 ms | 102,322 r/s | −83.7% | 6,433 ms | 9,657 ms | 9,419 ms | 106,168 r/s | 422.8% | 4.40 GiB | 4,143 MiB | 2,854 MiB (143/s) |
+
+### Standard `./le perf` scale: 100,000 IPv4/unicast routes (`DUT_REPEAT=3` + 1 warmup)
+
+| Scripts | Live Conv. | Live Throughput | Delta vs 0 | Live p99 | Live Withdraw | RIB Prop. Conv. | RIB Prop. Throughput | Peak CPU (4 vCPU) | Cgroup Mem (settled) | `ze` Peak VmRSS | Wrapper Sum Peak VmRSS |
+|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|
+| 0 | 136 ± 9 ms | 735,294 ± 48,659 r/s | baseline | 94 ms | 597 ms | 546 ± 7 ms | 183,150 r/s | 99.2% | 403 MiB | 534 MiB | — |
+| 1 | 139 ± 17 ms | 719,424 ± 87,987 r/s | −2.2% | 113 ms | 608 ms | 568 ± 6 ms | 176,056 r/s | 82.3% | 465 MiB (+62 MiB) | 518 MiB | 153 MiB (153/s) |
+| 5 | 279 ± 9 ms | 358,422 ± 11,562 r/s | −51.3% | 214 ms | 742 ms | 554 ± 3 ms | 180,505 r/s | 189.2% | 873 MiB (+470 MiB) | 576 MiB | 787 MiB (157/s) |
+| 20 | 907 ± 22 ms | 110,253 ± 2,674 r/s | −85.0% | 855 ms | 1,366 ms | 542 ± 3 ms | 184,501 r/s | 377.7% | 2,122 MiB (+1,719 MiB) | 654 MiB | 3,018 MiB (151/s) |
+
+### Cost breakdown
+
+- **CPU and forwarding backpressure:** Each script adds roughly `~1.6–1.8 µs` of
+  CPU per received UPDATE across TLS send/receive, `json.Unmarshal` into
+  `map[string]any`, wire attribute decoding, ExaBGP JSON formatting, and pipe
+  write (`~1.2` cores during a 1M-route burst). At 1 script, spare cores absorb
+  this work with negligible impact on live forwarding. At 5 and 20 scripts on
+  4 vCPUs, CPU saturates (`397%–423%`); `Process.Deliver` (`eventChan` capacity
+  64) blocks `onMessageBatchReceived`, which fills the peer's `deliverChan` and
+  throttles the BGP read goroutine (`reactorForwardRS`) linearly to
+  `~0.41 s` per script per 1M routes (`102k r/s` at 20 scripts). A slow child
+  script still drops at its 1,000-line stdin queue without blocking `ze`, whereas
+  a CPU-starved wrapper process backpressures the peer reader through
+  `eventChan`.
+- **Memory:** Per-process `VmRSS` is `~143–167 MiB` per wrapper because each
+  endpoint execs `/usr/local/bin/ze` (`~156 MiB` multi-personality binary), but
+  the read-only text/rodata pages are shared in the page cache. Actual private
+  physical memory (`docker stats` cgroup delta) is **`~72–94 MiB` per script**
+  (linked package `init()` state plus Go GC heap under JSON streaming), plus
+  `~2.4 MiB` for the child `sh`/`cat` and up to `~42 MiB` per script of transient
+  TLS/batch buffer headroom inside `ze` during a 1M-route burst.
+
+<!-- source: internal/component/bgp/server/events.go -- onMessageBatchReceived -->
+<!-- source: internal/component/plugin/process/delivery.go -- DeliverContext, deliveryLoop -->
+<!-- source: internal/component/bgp/reactor/reactor_notify.go -- deliverChan -->
 
 ## Design decisions
 
