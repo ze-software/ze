@@ -168,13 +168,13 @@ func TestManagedCommitOverNil(t *testing.T) {
 	defer clientEnd.Close() //nolint:errcheck // test cleanup
 	defer hubEnd.Close()    //nolint:errcheck // test cleanup
 	ackCh := make(chan fleet.ConfigAck, 1)
-	go mockHubFetchAndAck(t, hubEnd, configData, ackCh)
 
 	mc := rpc.NewMuxConn(rpc.NewConn(clientEnd, clientEnd))
 	defer mc.Close() //nolint:errcheck // test cleanup
 	access := appliedDevice(t)
 	cfg := &ClientConfig{Handler: &Handler{Validate: func([]byte) error { return nil }}, Baseline: access}
 
+	go mockHubFetchAndAck(t, hubEnd, configData, ackCh)
 	require.NoError(t, fetchAndProcess(context.Background(), mc, cfg))
 	ack := <-ackCh
 	assert.False(t, ack.OK)
@@ -193,7 +193,6 @@ func TestManagedACKDeferredUntilCommit(t *testing.T) {
 	defer clientEnd.Close() //nolint:errcheck // test cleanup
 	defer hubEnd.Close()    //nolint:errcheck // test cleanup
 	ackCh := make(chan fleet.ConfigAck, 1)
-	go mockHubFetchAndAck(t, hubEnd, configData, ackCh)
 
 	mc := rpc.NewMuxConn(rpc.NewConn(clientEnd, clientEnd))
 	defer mc.Close() //nolint:errcheck // test cleanup
@@ -209,6 +208,7 @@ func TestManagedACKDeferredUntilCommit(t *testing.T) {
 		Baseline: access,
 	}
 
+	go mockHubFetchAndAck(t, hubEnd, configData, ackCh)
 	require.NoError(t, fetchAndProcess(context.Background(), mc, cfg))
 	ack := <-ackCh
 	assert.True(t, committed, "CommitOver must run before ACK is sent")
@@ -226,7 +226,6 @@ func TestManagedACKErrorOnCommitFail(t *testing.T) {
 	defer clientEnd.Close() //nolint:errcheck // test cleanup
 	defer hubEnd.Close()    //nolint:errcheck // test cleanup
 	ackCh := make(chan fleet.ConfigAck, 1)
-	go mockHubFetchAndAck(t, hubEnd, configData, ackCh)
 
 	mc := rpc.NewMuxConn(rpc.NewConn(clientEnd, clientEnd))
 	defer mc.Close() //nolint:errcheck // test cleanup
@@ -237,6 +236,7 @@ func TestManagedACKErrorOnCommitFail(t *testing.T) {
 		Baseline:   access,
 	}
 
+	go mockHubFetchAndAck(t, hubEnd, configData, ackCh)
 	require.NoError(t, fetchAndProcess(context.Background(), mc, cfg))
 	ack := <-ackCh
 	assert.False(t, ack.OK)

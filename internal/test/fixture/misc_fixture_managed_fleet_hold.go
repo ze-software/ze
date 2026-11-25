@@ -213,6 +213,14 @@ func managedFleetHoldClearsOnMatchDriver(ctx context.Context, args []string) err
 // when scenario returns.
 func fleetHoldRun(ctx context.Context, name string, args []string, deviceServesSSH bool,
 	scenario func(context.Context, *fleetHoldScenario) error,
+) error {
+	return fleetHoldRunWithHubConfig(ctx, name, args, deviceServesSSH, restoreClientHubConfig, scenario)
+}
+
+// fleetHoldRunWithHubConfig also lets a registry scenario declare several
+// devices and their labels in the hub configuration it imports before startup.
+func fleetHoldRunWithHubConfig(ctx context.Context, name string, args []string, deviceServesSSH bool,
+	hubConfig func(sshPort, pluginPort, managedPort string) string, scenario func(context.Context, *fleetHoldScenario) error,
 ) (retErr error) {
 	if len(args) != 3 {
 		return errors.New("usage: " + name + " <hub-ssh-port> <hub-plugin-port> <hub-managed-port>")
@@ -260,7 +268,7 @@ func fleetHoldRun(ctx context.Context, name string, args []string, deviceServesS
 	if deviceServesSSH {
 		s.deviceListener = restoreClientSSHListener(devicePort)
 	}
-	if err := caTrustImportConfig(ctx, hub, caTrustHubName+".conf", restoreClientHubConfig(sshPort, pluginPort, managedPort)); err != nil {
+	if err := caTrustImportConfig(ctx, hub, caTrustHubName+".conf", hubConfig(sshPort, pluginPort, managedPort)); err != nil {
 		return err
 	}
 	if err := caTrustImportConfig(ctx, hub, s.hubConfigName(), s.config(restoreClientServedRouterID)); err != nil {

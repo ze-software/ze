@@ -169,6 +169,11 @@ func restoreClientDaemon(ctx context.Context, base, role string, managedClient b
 // plugin transport first, and the managed listener naming the client, in the
 // order caTrustHubConfig explains.
 func restoreClientHubConfig(sshPort, pluginPort, managedPort string) string {
+	client := "            client " + caTrustClientName + " { secret \"" + caTrustClientSecret + "\"; }\n"
+	return restoreClientHubConfigWithClients(sshPort, pluginPort, managedPort, client)
+}
+
+func restoreClientHubConfigWithClients(sshPort, pluginPort, managedPort, clients string) string {
 	var b textbuf.Buffer
 	b.Str(restoreClientSSHListener(sshPort))
 	b.Str("bus {\n    hub {\n")
@@ -176,7 +181,7 @@ func restoreClientHubConfig(sshPort, pluginPort, managedPort string) string {
 		Str("; secret \"").Str(caTrustPluginSecret).Str("\"; }\n")
 	b.Str("        server remote-fleet { ip 127.0.0.1; port ").Str(managedPort).
 		Str("; secret \"").Str(caTrustHubSecret).Str("\";\n")
-	b.Str("            client ").Str(caTrustClientName).Str(" { secret \"").Str(caTrustClientSecret).Str("\"; }\n")
+	b.Str(clients)
 	b.Str("        }\n    }\n}\n")
 	b.Str("bgp {\n    session { asn { local 65000; } }\n    router-id 10.0.0.1\n}\n")
 	return b.String()
