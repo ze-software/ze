@@ -155,8 +155,17 @@ needs cannot be measured, because a part of it is missing, so no row prints a
 figure for a set no agent starts with. `| json` carries the rows under
 `agent-payloads`, each with `name`, `start`, `payload` and `tokens`.
 <!-- source: internal/le/ai/sync/agentpayload.go -- checkWithPayloads, agentPayloads, payloadRow, AgentPayload -->
+<!-- source: internal/le/ai/sync/harnesses.go -- DeclaredHarnesses, InspectHarnesses, HarnessGrants -->
 <!-- source: internal/le/ai/rules/ruleset/agentstart.go -- ReadAgentStart, AgentStart -->
 <!-- source: internal/le/ai/rules/artifacts.go -- Payload -->
+
+After the agent payloads, `./le ai sync check` prints one row per synced harness
+tree (`.claude/skills`, `.codex/skills`, `.agents/skills`) stating which
+capabilities that harness actually receives: skill stubs, mirrored subagent
+definitions, PreToolUse/PostToolUse hook enforcement (verified against
+`.claude/settings.json`), and `@path` include expansion. `| json` carries those
+rows under `harnesses`. Harnesses without hook enforcement rely on
+self-enforcing the rules in `AGENTS.md`.
 
 A skill body holds every step, instruction, prohibition, command and gate the
 agent runs, because the whole body loads into that agent. The reasons, history

@@ -74,6 +74,7 @@ func (m Mirror) checkWithPayloads() (Report, error) {
 	if err != nil {
 		return Report{}, err
 	}
+	report.Harnesses = InspectHarnesses(m.Root)
 	return report, nil
 }
 

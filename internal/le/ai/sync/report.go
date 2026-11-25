@@ -39,6 +39,10 @@ type Report struct {
 	// how that agent starts and the rule payload it starts with. The command's
 	// check fills it (checkWithPayloads), and nothing else does.
 	AgentPayloads []AgentPayload `json:"agent-payloads,omitempty"`
+	// Harnesses holds one row per synced harness tree, naming which skill,
+	// agent, hook, and include capabilities that harness actually enforces.
+	// The command's check fills it (checkWithPayloads), and nothing else does.
+	Harnesses []HarnessGrants `json:"harnesses,omitempty"`
 }
 
 // Fresh reports whether the checkout's mirrors match their sources. It is the
@@ -55,6 +59,18 @@ func (r Report) payloadsText(tb *textbuf.Buffer) {
 	tb.Str("agent payloads (the rules each definition under ").Str(agentSources).Str(" starts with, read from ").
 		Str(claudeAgents).Str("):\n")
 	for _, row := range r.AgentPayloads {
+		row.text(tb)
+	}
+}
+
+// harnessesText renders the harness capability rows under a heading of their
+// own, or nothing when the run carries none.
+func (r Report) harnessesText(tb *textbuf.Buffer) {
+	if len(r.Harnesses) == 0 {
+		return
+	}
+	tb.Str("harnesses (what each synced harness enforces):\n")
+	for _, row := range r.Harnesses {
 		row.text(tb)
 	}
 }
@@ -79,6 +95,7 @@ func (r Report) Text() string {
 			tb.Str("generated agent files are stale -- run: ./le ai sync update\n")
 		}
 		r.payloadsText(&tb)
+		r.harnessesText(&tb)
 		return tb.String()
 	default:
 		tb.Str("synced ").Int(int64(len(r.Skills))).Str(" skill(s) + ").
