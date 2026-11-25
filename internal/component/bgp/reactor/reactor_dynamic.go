@@ -516,7 +516,7 @@ func (r *Reactor) tryCreateDynamicPeerAt(addr netip.Addr, local netip.AddrPort) 
 		localAddress := settings.LocalAddress.Unmap()
 		if localAddress.IsValid() {
 			if !localAddress.IsUnspecified() {
-				if !sameTransportAddress(localAddress, local.Addr()) {
+				if r.sameTransportAddress(localAddress, local.Addr()) != transportAddressSame {
 					return false
 				}
 			}

@@ -73,7 +73,7 @@ func (r *Reactor) handleConnectionWithContext(conn net.Conn, listenerAddr netip.
 	// the existing socket can establish that its other declaration is eligible.
 	if !settings.IsDynamic {
 		if settings.LocalAddress.IsValid() {
-			if !sameTransportAddress(settings.LocalAddress, listenerAddr) {
+			if r.sameTransportAddress(settings.LocalAddress, listenerAddr) != transportAddressSame {
 				local, ok := conn.LocalAddr().(*net.TCPAddr)
 				if !ok {
 					closeConnQuietly(conn)

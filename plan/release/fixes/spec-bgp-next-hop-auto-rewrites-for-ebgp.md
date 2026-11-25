@@ -2,14 +2,14 @@
 
 | Field | Value |
 |-------|-------|
-| Status | design |
+| Status | in-progress |
 | Priority | P1 |
 | Release reason | The default next-hop policy must implement its promised eBGP and iBGP behavior through the single export filter chain surface. |
 | Scope | protocol |
 | Depends | - |
-| Phase | Export-chain unification design (D-0..D-6); AC-11/12/14 closure follow-through |
+| Phase | 5/5 |
 | Handoff | - |
-| Updated | 2026-11-23 |
+| Updated | 2026-11-25 |
 
 Bucket: `plan/release/fixes/`, because the default next-hop behavior is a prerequisite of ordinary best-route advertisement.
 
@@ -798,7 +798,7 @@ All BGP egress next-hop rewriting moves into the export filter chain, and `sessi
 | D-4 | IPv6/MP_REACH & import direction | (a) IPv4 + IPv6/MP_REACH explicit on export and import; refuse `self`/`unchanged`/`auto` on import at config load (recommended); (b) IPv6 on export only | (a) Selected (`390086adb8`) |
 | D-5 | Originated vs. forwarded routes | (a) Trailing `next-hop:auto` applies to forwarded routes only; explicit export next-hop applies to both (recommended); (b) Trailing `auto` also rewrites originated routes | (a) Selected (`390086adb8`) |
 | D-6 | `\| implied` display of extra chain members | Publish built-in (`loop-detection`, trailing `next-hop:auto`) and plugin `FilterInsertions` via one queryable implied-filter seam for `\| implied` | Requested and recorded (`ee8d115eb6`) |
-| AC-14 | Listener ownership review round 6 (`9b6f3c8708` hit 5-round review cap) | (a) Authorize 6th review round (`--owner-authorised`) to close AC-14 inside this spec; (b) Split AC-14 into its own spec so it does not hold this closure | Pending owner input |
+| AC-14 | Listener ownership review round 6 (`9b6f3c8708` hit 5-round review cap) | (a) Authorize 6th review round (`--owner-authorised`) to close AC-14 inside this spec; (b) Split AC-14 into its own spec so it does not hold this closure | (a) Authorized by Thomas on 2026-11-25: run 6th independent review round on `9b6f3c8708`, fix findings, and close inside this spec |
 
 ## Implementation Steps
 
@@ -1343,3 +1343,204 @@ executes the commands finalized by each implementation tranche.
 - [ ] Any lesson routed to its governing surface under `ai/rules/planning.md`; no lesson artifact created merely for closure
 - [ ] **Commit A:** code + tests + docs + edited spec + any journal rows owed by the work
 - [ ] **Commit B:** `remove plan/release/fixes/spec-bgp-next-hop-auto-rewrites-for-ebgp.md` only, in the same `./le commit create` script (commit A preserves the spec in history)
+
+
+---
+
+## Implementation Summary
+
+### What Was Implemented
+- **Default eBGP Auto next-hop & boundary semantics (AC-1..AC-10):** `ae01917413`, `3a0bc5ef46`, `c562cdde0b` implemented RFC 4271 Section 5.1.3 default next-hop-self on ordinary eBGP while preserving received next hops on iBGP and RS clients, added RFC 2545 / draft-linklocal boundary and bare-link-local proofs, removed dead `applyNextHopMod`, corrected the RFC 7947 Section 2.2.1 cite, and repaired ASN4/identity test fixtures.
+- **AC-11 raw & scoped peer-own next-hop refusal:** `5854d06bff`, `f2569d1c08`, `5ef6ed17f5` enforced RFC 4271 Section 5.1.3 peer-own next-hop refusal on recognized raw body/full-packet origination (`session_aigp.go::writeOriginatedRawUpdate`), compared scoped IPv6 wire identity zone-free (`forward_next_hop.go::nextHopValue.has`), registered `doctor-bgp-originated-next-hop-peer-own`, added daemon/unit proofs, ran live FRR 10.7.1 `bgp-self-nexthop-withheld-frr` acceptance + semantic redwalk, and re-judged `RFC4271-5.1.3-1` (`enforced`) and `RFC4271-5.1.3-3` (`enforced`).
+- **AC-12 BGP-LS & BGP-LS VPN framing + MUP preservation:** `ff7032975a`, `52e4ae832a`, `771ba0d96d`, `81f6bd905c`, `5ef6ed17f5` added `attribute.RegisterMPNextHopProfile` and `NextHopProfile` framing (`RDPerAddress`, `EncodeIPv4Mapped`, `DecodeUnprefixedIPv6`), registered LS71 (4/16/32) and LS72 (12/24/48 per-address zero-RD) in `plugins/nlri/ls/register.go`, proved MUP 2/85 mapped16 preservation (`TestMUPMappedNextHopPreserved`), added daemon (`bgpls-vpn-next-hop-framing.ci`) and real ExaBGP (`bgpls-vpn-exabgp-single.ci`) proofs, and updated `RFC7752-3.4-1` / `RFC9552-5.5-1` (`partial`, paired non-Ze peer acceptance honestly unclaimed).
+- **AC-13 FlowSpec scope preservation:** `63afaf0c95` preserved FlowSpec / FlowSpecVPN family-cleared empty next-hop fields and permitted single redirect targets across common-subnet scope normalization without letting invalid received bytes restore cleared fields.
+- **AC-14 listener ownership & interface-read fail-closed:** `9b6f3c8708` plus Commit A fixes in `reactor_connection.go`, `reactor_dynamic.go`, `transport_scope.go`, `transport_scope_read_failure_test.go`, and `docs/architecture/bgp/interface-event-reactions.md` enforced reactor-local `r.sameTransportAddress` fail-closed checks on static and dynamic admission, rejected invalid zero `netip.Addr{}` inputs in `sameTransportAddressUsing` and `listenerBinding.matches`, and deduplicated repeated address checks.
+- **AC-15..AC-20 export-chain next-hop unification (D-0..D-6):** `6f79198a40`, `cabc8c511e`, `c2d7117d05` removed `session { next-hop }`, `PeerSettings.NextHopMode`/`NextHopAddress`, `applyNextHopMode`, and `plugin.PeerInfo` next-hop fields; widened `ze-filter-modify.yang` and `policychain.Sets.NextHop` to `self | unchanged | auto | <ipv4/ipv6>`; compiled zero-RPC built-in `next-hop:self|unchanged|auto` steps into `policychain.Chain`; added `appendDefaultExportFilters` (leaving `Policy.Configured()` false, refusing `inactive:next-hop:auto` and import-direction egress modes); implemented MED-style wire byte provenance for raw overrides and forwarded-only scope for trailing `next-hop:auto`; exposed the unified implied-filter seam for `| implied` and `show bgp peer`; and migrated all repository tests, interop configs, netlab templates/goldens, and docs off `session { next-hop }`.
+
+### Bugs Found/Fixed
+- **BGP-LS native IPv4 mapped-IPv6 defect:** `applyFactsNextHop` emitted 16-octet mapped IPv6 for usable IPv4 replacements on BGP-LS; fixed via `NextHopProfile` and covered by `next_hop_auto_bgpls_test.go` + LS71/72 tests.
+- **Raw origination peer-own bypass:** recognized raw body/full-packet UPDATEs bypassed RFC 4271 §5.1.3 peer-own refusal; fixed in `session_aigp.go::writeOriginatedRawUpdate` and covered by `rfc4271_raw_originated_next_hop_test.go`, `raw-originated-nexthop-peer-own.ci`, and FRR `bgp-self-nexthop-withheld-frr`.
+- **AC-14 Round 6 defects (Commit A):** `reactor_connection.go:76` and `reactor_dynamic.go:519` bypassed `r.readInterfaces` via package-level `sameTransportAddress`, and `transport_scope.go` (`sameTransportAddressUsing` / `listenerBinding.matches`) matched invalid zero `netip.Addr{}` values; fixed and covered by `TestScopedTransportReadFailureCannotGrantDedicatedOwnership` (`unreadable=true` dynamic refusal) and `TestInvalidAddressNeverMatchesTransportBinding`.
+
+### Documentation Updates
+- Commit `c2d7117d05` updated all 13 departed design pages (`ai/doors/bgp-engine.md`, `docs/architecture/core-design.md`, `docs/architecture/bgp/structural-forwarding.md`, `docs/architecture/wire/attributes.md`, `docs/architecture/wire/capabilities.md`, `docs/architecture/api/commands.md`, `docs/architecture/api/process-protocol.md`, `docs/architecture/api/update-syntax.md`, `docs/plugin-development/protocol.md`, `docs/architecture/update-building.md`, `docs/architecture/config/syntax.md`, `docs/guide/bgp-policy.md`, `docs/guide/route-policy.md`) plus `docs/architecture/bgp/egress-attribute-rules.md`, `docs/features/bgp-protocol.md`, `docs/guide/configuration.md`, `docs/guide/plugins.md`, `docs/guide/netlab.md`, `docs/guide/quickstart.md`, `docs/guide/as112.md`, `docs/guide/flowspec-route-reflector.md`, `docs/guide/healthcheck.md`, `docs/functional-tests.md`, `docs/architecture/testing/interop.md`, and `contrib/netlab/ze/ze.j2` + golden configs.
+- Commit `5ef6ed17f5` updated `rfc/short/rfc4271.md`, `rfc/short/rfc7752.md`, `rfc/short/rfc9552.md`, and regenerated `docs/features/rfc-status.md`.
+- Commit A updates `docs/architecture/bgp/interface-event-reactions.md` (lines 89-93, hunks only: ownership fail-closed wording matching `transport_scope.go`), repoints `docs/architecture/core-design.md` lines 4266-4272 `## Design decisions` `Source` cells from this closing spec path to landed decision commits `a7f7eb14d2`, `390086adb8`, and `ee8d115eb6` (hunks only), and adds operator news fragment `website/changes/fragments/bgp-next-hop-auto-rewrites-for-ebgp.md`.
+- `./bin/le-nh-unify/le doc check all` and `./bin/le-nh-unify/le doc consistency` ran with zero errors on any file owned by this spec (only unrelated concurrent-session drift: `docs/DESIGN.md` missing `fib-dummy`, and pre-existing VPP/interoplab JSON tag warnings).
+
+### Deviations from Plan
+- **D-0..D-6 mid-spec unification (owner-approved 2026-11-23/24):** Thomas ruled to unify all egress next-hop rewriting into the export filter chain and remove `session { next-hop }` inside this spec before closure (`a7f7eb14d2`, `390086adb8`, `ee8d115eb6`, approved digest `9e2823b94235`).
+- **`docs/architecture/core-design.md` `## Design decisions` `Source` repoint:** `internal/le/doc/consistency/decisions.go::sourceProblem` refuses bare stems and requires a committed SHA, existing file, or `ai/META-DECISIONS.md` section, so lines 4266-4272 repoint to landed decision commits `a7f7eb14d2`, `390086adb8`, and `ee8d115eb6` (matching closed-spec precedent `6619eb83e0`), requiring Thomas's terminal `decision-change` on Commit A.
+- **AC-14 Round 6 owner authorization:** Thomas explicitly authorized Option (a) on 2026-11-25 to run the 6th independent review round on `9b6f3c8708`, fix the two product defects found, and close AC-14 inside this spec.
+
+## Mistake Log
+
+| Kind | What happened | What was true instead | How discovered | Action |
+|------|---------------|----------------------|----------------|--------|
+| assumption | Existing Self encoding was treated as complete for every implemented MP family | Absent BGP-LS length contract caused `applyFactsNextHop` to emit mapped IPv6 for IPv4; SAFI 72 also lacked per-address zero-RD framing | Shared reactor propagation reds and source trace | Resolved in AC-12 via `attribute.RegisterMPNextHopProfile` and LS71/72 profiles |
+| assumption | Admission-fixture repair assumed Session ASN4 width alone sufficed for every original announcement | `newCommitFixture` used identity-free `EncodingContextForASN4` causing AS 0 prepend on eBGP | Focused unit run `job-unit-pkg-8a3d09f3.log` | Resolved in AC-10 with approved identity-bearing fixture context |
+| approach | AC-14 listener ownership left package-level `sameTransportAddress` at two reactor call sites (`reactor_connection.go:76`, `reactor_dynamic.go:519`) and allowed zero `netip.Addr{}` equality in `sameTransportAddressUsing`/`listenerBinding.matches` | Both call sites bypassed `r.readInterfaces`, and two zero `netip.Addr{}` values compared equal | Round 6 independent review (`c44c93e1`) | Fixed in Commit A and proved via `TestScopedTransportReadFailureCannotGrantDedicatedOwnership` (`unreadable=true`) and `TestInvalidAddressNeverMatchesTransportBinding` |
+
+## Implementation Audit
+
+### Requirements from Task
+| Requirement | Status | Location | Notes |
+|-------------|--------|----------|-------|
+| Default eBGP `auto` rewrites to self; iBGP and RS clients preserve received next hop | Done | `internal/component/bgp/config/peers.go::appendDefaultExportFilters`, `internal/component/bgp/reactor/peer_forward_facts.go::precomputeNextHop`, `internal/component/bgp/reactor/forward_rs.go` | Verified by unit, `.ci`, and FRR interop |
+| Remove `session { next-hop }` and unify into export filter chain (D-0..D-6) | Done | `internal/component/bgp/yang/ze-bgp-conf.yang`, `internal/component/bgp/plugins/filter_modify/yang/ze-filter-modify.yang`, `internal/component/bgp/policychain/`, `internal/component/bgp/config/`, `internal/component/bgp/reactor/`, `internal/component/bgp/plugins/cmd/peer/peer.go` | Landed in `6f79198a40`, `cabc8c511e`, `c2d7117d05` |
+| Remove dead `applyNextHopMod` and fix RFC 7947 Section 2.2.1 cite | Done | `internal/component/bgp/reactor/reactor_api_forward.go`, `internal/component/bgp/reactor/forward_rs.go`, `rfc/short/rfc8277.md` | Verified absent by grep |
+| AC-11 raw & scoped peer-own NEXT_HOP refusal + FRR proof + RFC4271 rejudgment | Done | `internal/component/bgp/reactor/session_aigp.go::writeOriginatedRawUpdate`, `internal/component/bgp/reactor/forward_next_hop.go::nextHopValue.has`, `internal/le/interoplab/bgp/check_raw_originated_next_hop.go`, `rfc/short/rfc4271.md` | Live FRR acceptance + redwalk PASS; `RFC4271-5.1.3-1` and `-3` enforced (`5ef6ed17f5`) |
+| AC-12 BGP-LS native IPv4 + LS-VPN 12/24/48 RD framing + MUP + ExaBGP proof | Done | `internal/core/bgp/attribute/mpnexthop.go::RegisterMPNextHopProfile`, `internal/component/bgp/plugins/nlri/ls/register.go`, `internal/component/bgp/plugins/nlri/mup/next_hop_mapped_test.go`, `test/plugin/bgpls-vpn-next-hop-framing.ci`, `test/plugin/bgpls-vpn-exabgp-single.ci` | `81f6bd905c`, `5ef6ed17f5`; `RFC7752-3.4-1` and `RFC9552-5.5-1` partial |
+| AC-13 FlowSpec scope preservation | Done | `internal/component/bgp/reactor/forward_next_hop.go` | Landed in `63afaf0c95` |
+| AC-14 listener ownership fail-closed on interface-read errors & zero-address guard | Done | `internal/component/bgp/reactor/transport_scope.go::sameTransportAddressUsing`, `listenerBinding.matches`, `reactor_connection.go::handleConnectionWithContext`, `reactor_dynamic.go::tryCreateDynamicPeerAt` | `9b6f3c8708` + Commit A Round 6 fixes |
+
+### Acceptance Criteria
+| AC ID | Status | Demonstrated By | Notes |
+|-------|--------|-----------------|-------|
+| AC-1 | Done | `TestNextHopAutoMatchesSelfForEBGP`, `test/plugin/nexthop-auto-ebgp-rewrite.ci`, `bgp-nexthop-auto-ebgp-frr` | IPv4 single-hop eBGP rewrite to self |
+| AC-2 | Done | `TestNextHopAutoIPv6PairFollowsConnectedSubnet`, `TestNextHopAutoMatchesSelfForEBGP` | IPv6 global + conditional RFC 2545 link-local pair |
+| AC-3 | Done | `TestNextHopAutoMatchesSelfForEBGP` | Multihop eBGP global-only rewrite |
+| AC-4 | Done | `TestNextHopAutoWithoutOwnAddressPreservesMixedWithdrawals`, `TestNextHopAutoMissingOwnAddressWarnsForThePeer` | Withheld announcement, preserved withdrawals, peer warning |
+| AC-5 | Done | `TestNextHopAutoPreservesRSClientAndIBGP`, `bgp-nexthop-auto-ebgp-frr` | iBGP preserves received next hop |
+| AC-6 | Done | `TestNextHopAutoPreservesRSClientAndIBGP`, `test/plugin/nexthop-auto-rs-client-unchanged.ci` | RS client preserves received next hop on both rails |
+| AC-7 | Done | `TestNextHopAutoInternalMultihopUsesOnlyUsableNextHop` | Multihop iBGP withholds unusable link-local-only; preserves global/Self |
+| AC-8 | Done | `TestNextHopAutoChangePreservesExplicitModes`, `test/plugin/nexthop-self.ci` | `unchanged`, `self`, explicit modes preserved under export chain |
+| AC-9 | Done | `draft_ietf_idr_linklocal_capability_single_next_hop_test.go` (6 units) | 16-octet bare Link-Local withheld multihop; permitted on-link cap 77 |
+| AC-10 | Done | 30 admission callers (`job-unit-pkg-2da61af7.log`), 10 tagged callers (`job-unit-pkg-f3909007.log`), 6 Auto callers (`job-unit-pkg-bf94097f.log`) | ASN4/identity fixture repairs green |
+| AC-11 | Done | `rfc4271_raw_originated_next_hop_test.go`, `rfc4271_scoped_next_hop_test.go`, `raw_originated_error_test.go`, `test/plugin/raw-originated-nexthop-peer-own.ci`, FRR `bgp-self-nexthop-withheld-frr` + redwalk | `RFC4271-5.1.3-1` enforced (`5ef6ed17f5`) |
+| AC-12 | Done | `next_hop_auto_bgpls_test.go`, `plugins/nlri/ls/next_hop_wire_test.go`, `TestMUPMappedNextHopPreserved`, `bgpls-vpn-next-hop-framing.ci`, `bgpls-vpn-exabgp-single.ci` | LS71 4/16/32, LS72 12/24/48, ExaBGP singles PASS |
+| AC-13 | Done | `63afaf0c95` FlowSpec scope tests in `internal/component/bgp/reactor/` | Empty & permitted redirect targets preserved |
+| AC-14 | Done | `TestScopedTransportReadFailureCannotGrantDedicatedOwnership`, `TestInvalidAddressNeverMatchesTransportBinding` (PASS 0.592s) | `9b6f3c8708` + Commit A Round 6 fixes CLEAN |
+| AC-15 | Done | `test/parse/session-nexthop-removed.ci`, `TestDynamicGroupRejectsRemovedSessionNextHop` | `session { next-hop }` removed across YANG, PeerSettings, PeerInfo, CLI |
+| AC-16 | Done | `policychain/nexthop_intent_test.go`, `filter_modify/config_test.go`, `test/plugin/export-chain-nexthop-precedence.ci`, `test/parse/session-nexthop-removed.ci` | Built-in `next-hop:*`, IPv4+IPv6 `modify`, import refusal |
+| AC-17 | Done | `TestAppendDefaultExportNextHopAuto`, `test/parse/session-nexthop-removed.ci` | Trailing `next-hop:auto`, `Policy.Configured()` false, `inactive:next-hop:auto` refused |
+| AC-18 | Done | `reactor/export_nexthop_chain_test.go`, `test/plugin/export-chain-nexthop-precedence.ci` | Last-write-wins, fill-if-unset trailing `auto`, MED-style raw override provenance |
+| AC-19 | Done | `reactor/export_nexthop_chain_test.go`, `test/plugin/originated-nexthop-peer-own.ci`, `test/plugin/raw-originated-nexthop-peer-own.ci` | Forwarded-only trailing `auto`; explicit export applies uniformly |
+| AC-20 | Done | `TestImpliedFilterSeamIncludesEngineAndPluginInsertions`, `TestBuiltInNextHopDoctorAndCompletion`, `c2d7117d05` repo migration | Unified implied-filter seam; zero remaining `session { next-hop }` configs |
+
+### Tests from TDD Plan
+| Test | Status | Location | Notes |
+|------|--------|----------|-------|
+| Unit tests (AC-1..AC-10, AC-11, AC-12, AC-13, AC-14, AC-15..AC-20) | Done | `internal/component/bgp/{reactor,config,policychain,plugins/filter_modify,plugins/nlri/mup}/*_test.go` | All passing in scoped main-thread runs |
+| Functional `.ci` tests | Done | `test/plugin/{nexthop-auto-ebgp-rewrite,nexthop-auto-rs-client-unchanged,raw-originated-nexthop-peer-own,originated-nexthop-peer-own,export-chain-nexthop-precedence,bgpls-vpn-next-hop-framing,bgpls-vpn-exabgp-single,nexthop-self}.ci`, `test/parse/session-nexthop-removed.ci` | All passing (`./bin/le-nh-unify/le test bgp`) |
+| Interop scenarios | Done | `test/interop/scenarios/bgp-nexthop-auto-ebgp-frr/`, `test/interop/scenarios/bgp-self-nexthop-withheld-frr/`, `test/plugin/bgpls-vpn-exabgp-single.ci` | Live FRR 10.7.1 acceptance + redwalk PASS; real ExaBGP PASS |
+
+### Files from Plan
+| File | Status | Notes |
+|------|--------|-------|
+| All 21 Files to Create + `test/plugin/nexthop-self.ci` | Done | Verified present via `ls -la` in Pre-Commit Verification |
+| All Files to Modify (YANG, config, policy, policychain, filter_modify, reactor, plugin, cmd/peer, interoplab, netlab, tests, docs, RFCs) | Done | Landed across `63afaf0c95`, `9b6f3c8708`, `6f79198a40`, `81f6bd905c`, `cabc8c511e`, `c2d7117d05`, `5ef6ed17f5`, and Commit A |
+
+### Audit Summary
+- **Total items:** 20 ACs, 21 created files, 13 departed design pages, 3 interop/ExaBGP suites
+- **Done:** All 20 ACs, all 21 created files, all 13 departed pages, all interop/ExaBGP suites
+- **Partial:** 0
+- **Skipped:** 0
+- **Changed:** 3 (recorded in Deviations from Plan)
+
+## Goal Validation (BLOCKING)
+
+| Goal (from Task) | Evidence Type | Concrete Evidence |
+|------------------|---------------|-------------------|
+| Default eBGP `auto` rewrites forwarded next hop to Ze's session address while iBGP and RS clients preserve received next hops | Functional `.ci` + Live FRR Interop + Redwalk | `test/plugin/nexthop-auto-ebgp-rewrite.ci` (PASS, redwalk clean PASS/broken FAIL), `test/plugin/nexthop-auto-rs-client-unchanged.ci` (PASS, redwalk clean PASS/broken FAIL), FRR `bgp-nexthop-auto-ebgp-frr` (PASS + semantic redwalk PASS) |
+| Unify all egress next-hop rewriting into the export filter chain, remove `session { next-hop }`, and surface implied members (D-0..D-6) | Unit + Functional `.ci` | `TestAppendDefaultExportNextHopAuto`, `TestImpliedFilterSeamIncludesEngineAndPluginInsertions`, `TestBuiltInNextHopDoctorAndCompletion`, `TestDynamicGroupRejectsRemovedSessionNextHop` (PASS); `test/parse/session-nexthop-removed.ci` (PASS 1/1); `test/plugin/export-chain-nexthop-precedence.ci` (PASS) |
+| Raw and scoped locally originated UPDATEs enforce RFC 4271 §5.1.3 peer-own NEXT_HOP refusal | Unit + Functional `.ci` + Live FRR 10.7.1 Interop + Redwalk | `TestRawOriginatedAnnouncementDecoded`, `TestFRRDecodedAnnouncementForPeerOwnRelay` (PASS); `test/plugin/raw-originated-nexthop-peer-own.ci` & `originated-nexthop-peer-own.ci` (PASS 3/3); FRR `bgp-self-nexthop-withheld-frr` PASS (2m37s) + redwalk PASS (clean 2m6s, broken FAIL 2m59s assertion 7); `RFC4271-5.1.3-1` enforced (`5ef6ed17f5`) |
+| BGP-LS uses native 4/16/32 next hops, LS-VPN uses 12/24/48 per-address zero-RD framing, and MUP retains mapped16 | Unit + Functional `.ci` + Real ExaBGP Interop | `TestNextHopAutoBGPLSNativeIPv4`, `TestLSVPNNextHopTypedWire`, `TestMUPMappedNextHopPreserved` (PASS); `test/plugin/bgpls-vpn-next-hop-framing.ci` (PASS); `test/plugin/bgpls-vpn-exabgp-single.ci` (PASS) |
+| FlowSpec scope processing preserves empty and permitted redirect targets (AC-13) | Unit | `63afaf0c95` reactor FlowSpec scope tests (PASS) |
+| Shared scoped listeners fail closed on interface-table read errors and invalid zero addresses (AC-14) | Unit | `go test -count=1 -v -run "TestScopedTransport\|TestListener\|TestInvalidAddressNeverMatchesTransportBinding" ./internal/component/bgp/reactor/` -> PASS (0.592s) |
+
+## Work Not Done
+
+| What was not done | Why | The spec that now owns it |
+|-------------------|-----|---------------------------|
+| none | All AC-1..AC-20, interop proofs, RFC updates, and AC-14 Round 6 fixes are complete inside this spec | - |
+
+## Review Gate
+
+| Field | Value |
+|-------|-------|
+| Artifact | `tmp/review/bgp-next-hop-auto-rewrites-for-ebgp-8af317a1-5223-4974-8a3a-a381f5ad64aa.md` (recorded from Thomas's terminal via owed `le spec review record` with `rounds 6` and `owner-authorised`) |
+| `./le spec review check` | Owed after Thomas records the terminal-only `rounds 6` artifact |
+| Rounds | 6 — Rounds 1-5 covered AC-1..AC-13, export-chain unification (`/ze-review` `104794df`, `/ze-review-spec` `85daefd4`, `ze-test-judge` `8384730a` CLEAN), and AC-14 (`9b6f3c8708`); Round 6 (authorized by Thomas on 2026-11-25, `c44c93e1`) found two AC-14 product defects (`reactor_connection.go:76` and `reactor_dynamic.go:519` bypassed `r.readInterfaces`; `transport_scope.go` matched invalid zero `netip.Addr{}`), fixed in Commit A and re-verified CLEAN (0 BLOCKER, 0 ISSUE, 0 NOTE) |
+| Reviewer lenses used | logic+wiring, security+edge-cases, Ze Go style pass (7 questions, 0 peer-reachable panics), design-documents lens (all 13 departures corrected in `c2d7117d05`), spec completeness (`/ze-review-spec`), test-weakening (`le test weakened check`: 0 findings on owned files) |
+
+### Findings fixed
+| # | Severity | Finding | Location | Fixed by |
+|---|----------|---------|----------|----------|
+| 1 | BLOCKER | `handleConnectionWithContext` and `tryCreateDynamicPeerAt` called package-level `sameTransportAddress` instead of `r.sameTransportAddress`, bypassing `r.readInterfaces` and failing open/ignoring test reader injection | `internal/component/bgp/reactor/reactor_connection.go:76`, `internal/component/bgp/reactor/reactor_dynamic.go:519` | Switched both call sites to `r.sameTransportAddress(...) != transportAddressSame`; added `unreadable=true` refusal assertion in `transport_scope_read_failure_test.go` (Commit A) |
+| 2 | ISSUE | `sameTransportAddressUsing` and `listenerBinding.matches` allowed invalid zero `netip.Addr{}` values to match each other (`a == b`) and redundantly re-checked equal `declaration`/`bound` addresses | `internal/component/bgp/reactor/transport_scope.go:48-55,319-358` | Guarded `!a.IsValid()`, `!b.IsValid()`, `!candidate.IsValid()` returning `transportAddressDifferent`, deduplicated equal fields, and added `TestInvalidAddressNeverMatchesTransportBinding` (Commit A) |
+
+## Pre-Commit Verification
+
+### Files Exist (ls)
+| File | Exists | Evidence |
+|------|--------|----------|
+| `internal/component/bgp/reactor/next_hop_auto_bgpls_test.go` | Yes | `-rw-r--r-- 1 thomas thomas 6271 Nov 24 02:16` |
+| `internal/component/bgp/reactor/rfc4271_scoped_next_hop_test.go` | Yes | `-rw-r--r-- 1 thomas thomas 10552 Nov 24 02:08` |
+| `internal/component/bgp/reactor/rfc4271_raw_originated_next_hop_test.go` | Yes | `-rw-r--r-- 1 thomas thomas 17063 Nov 20 18:00` |
+| `internal/component/bgp/reactor/raw_originated_error_test.go` | Yes | `-rw-r--r-- 1 thomas thomas 10686 Nov 20 18:00` |
+| `internal/component/bgp/reactor/register_originated_next_hop.go` | Yes | `-rw-r--r-- 1 thomas thomas 1386 Nov 20 18:00` |
+| `internal/test/fixture/register_raw_originated_next_hop.go` | Yes | `-rw-r--r-- 1 thomas thomas 3706 Nov 20 18:00` |
+| `test/plugin/raw-originated-nexthop-peer-own.ci` | Yes | `-rw-r--r-- 1 thomas thomas 2190 Nov 24 19:37` |
+| `internal/le/interoplab/bgp/check_raw_originated_next_hop.go` | Yes | `-rw-r--r-- 1 thomas thomas 6100 Nov 20 18:00` |
+| `internal/le/interoplab/bgp/check_raw_originated_next_hop_test.go` | Yes | `-rw-r--r-- 1 thomas thomas 2273 Nov 20 18:00` |
+| `test/plugin/nexthop-auto-ebgp-rewrite.ci` | Yes | `-rw-r--r-- 1 thomas thomas 3316 Nov 24 20:00` |
+| `test/plugin/nexthop-auto-rs-client-unchanged.ci` | Yes | `-rw-r--r-- 1 thomas thomas 3753 Nov 25 01:20` |
+| `test/interop/scenarios/bgp-nexthop-auto-ebgp-frr/` | Yes | `frr.conf`, `frr-sink.conf`, `gobgp.toml`, `inject-args`, `inject.msg`, `ze.conf` (Nov 25 03:45) |
+| `internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_single_next_hop_test.go` | Yes | `-rw-r--r-- 1 thomas thomas 10158 Nov 24 02:03` |
+| `internal/component/bgp/config/export_nexthop_default_test.go` | Yes | `-rw-r--r-- 1 thomas thomas 24030 Nov 25 11:28` |
+| `internal/component/bgp/policychain/nexthop_intent_test.go` | Yes | `-rw-r--r-- 1 thomas thomas 30716 Nov 24 10:26` |
+| `internal/component/bgp/reactor/export_nexthop_chain_test.go` | Yes | `-rw-r--r-- 1 thomas thomas 31200 Nov 24 12:44` |
+| `internal/component/bgp/plugins/nlri/mup/next_hop_mapped_test.go` | Yes | `-rw-r--r-- 1 thomas thomas 14676 Nov 24 02:31` |
+| `test/plugin/export-chain-nexthop-precedence.ci` | Yes | `-rw-r--r-- 1 thomas thomas 4583 Nov 25 11:32` |
+| `test/parse/session-nexthop-removed.ci` | Yes | `-rw-r--r-- 1 thomas thomas 3899 Nov 24 10:25` |
+| `test/plugin/bgpls-vpn-next-hop-framing.ci` | Yes | `-rw-r--r-- 1 thomas thomas 6936 Nov 25 11:32` |
+| `test/plugin/bgpls-vpn-exabgp-single.ci` | Yes | `-rw-r--r-- 1 thomas thomas 12057 Nov 25 11:32` |
+| `website/changes/fragments/bgp-next-hop-auto-rewrites-for-ebgp.md` | Yes | Created in Commit A (front matter `spec: bgp-next-hop-auto-rewrites-for-ebgp`, `topic: BGP`, 6 required headings) |
+
+### AC Verified (grep/test)
+| AC ID | Claim | Fresh Evidence |
+|-------|-------|----------------|
+| AC-1..AC-3 | eBGP single-hop/multihop IPv4/IPv6 `auto` rewrites to self (conditional RFC 2545 link-local) | `./bin/le-nh-unify/le test bgp` `plugin/nexthop-auto-ebgp-rewrite` PASS (4/4 batch, 2.7s); `bgp-nexthop-auto-ebgp-frr` + redwalk PASS |
+| AC-4 | Missing local address withholds announcement, preserves withdrawals, warns peer | `next_hop_auto_relay_test.go::TestNextHopAutoWithoutOwnAddressPreservesMixedWithdrawals`, `next_hop_auto_boundaries_test.go::TestNextHopAutoMissingOwnAddressWarnsForThePeer` PASS |
+| AC-5..AC-7 | iBGP & RS clients preserve received next hop; multihop iBGP withholds unusable link-local-only | `./bin/le-nh-unify/le test bgp` `plugin/nexthop-auto-rs-client-unchanged` PASS (4/4 batch, 2.7s); `TestNextHopAutoInternalMultihopUsesOnlyUsableNextHop` PASS |
+| AC-8..AC-10 | Explicit modes preserved; 16-octet bare Link-Local refused multihop; ASN4/identity fixtures repaired | `test/plugin/nexthop-self.ci`, `draft_ietf_idr_linklocal_capability_single_next_hop_test.go`, `cabc8c511e` 93/93 fresh Go RFC records |
+| AC-11 | Raw & scoped peer-own NEXT_HOP refusal on unit, daemon, and live FRR 10.7.1 | `go test -count=1 -run "TestRawOriginatedAnnouncementDecoded\|TestFRRDecodedAnnouncementForPeerOwnRelay" ./internal/le/interoplab/bgp/` PASS; `plugin/raw-originated-nexthop-peer-own` + `plugin/originated-nexthop-peer-own` PASS (3/3, 3.9s); FRR `bgp-self-nexthop-withheld-frr` PASS (2m37s) + redwalk PASS (broken FAIL assertion 7); `RFC4271-5.1.3-1` enforced (`5ef6ed17f5`) |
+| AC-12 | BGP-LS native IPv4 4/16/32, LS-VPN 12/24/48 RD framing, MUP mapped16, real ExaBGP singles | `plugin/bgpls-vpn-next-hop-framing` PASS (4/4 batch, 2.7s); `plugin/bgpls-vpn-exabgp-single` PASS (3/3 batch, 3.9s); `81f6bd905c` + `5ef6ed17f5` |
+| AC-13 | FlowSpec scope preserves empty and permitted single redirect target | `63afaf0c95` landed & verified |
+| AC-14 | Scoped listener ownership fails closed on unreadable interfaces and rejects zero `netip.Addr{}` | `go test -count=1 -v -run "TestScopedTransport\|TestListener\|TestInvalidAddressNeverMatchesTransportBinding" ./internal/component/bgp/reactor/` PASS (0.592s); `./bin/le-nh-unify/le go style check` OK on all 4 reactor files |
+| AC-15..AC-20 | Export-chain next-hop unification, `session { next-hop }` removal, raw override provenance, originated preservation, implied-filter seam | `go test -count=1 -run "TestAppendDefaultExportNextHopAuto\|TestImpliedFilterSeamIncludesEngineAndPluginInsertions\|TestBuiltInNextHopDoctorAndCompletion\|TestDynamicGroupRejectsRemovedSessionNextHop\|TestImplied" ./internal/component/bgp/config/` PASS; `parse/session-nexthop-removed` PASS (1/1, 2.9s); `plugin/export-chain-nexthop-precedence` PASS (4/4 batch, 2.7s) |
+
+### Wiring Verified (end-to-end)
+| Entry Point | .ci File | Verified |
+|-------------|----------|----------|
+| Absent export `next-hop:*` (trailing `next-hop:auto`) relaying to eBGP peer | `test/plugin/nexthop-auto-ebgp-rewrite.ci` | Yes — read lines 1-103: sends `NEXT_HOP 192.0.2.9` from `source` (`65001`) and asserts exact `NEXT_HOP 127.0.0.4` (`7F000004`) at eBGP `destination` (`65002`) with no explicit next-hop config; PASS |
+| Trailing `next-hop:auto` relaying to RS client vs ordinary eBGP control | `test/plugin/nexthop-auto-rs-client-unchanged.ci` | Yes — read lines 1-120: asserts byte-identical `NEXT_HOP 192.0.2.9` at `rs-client true` `client` and rewritten `127.0.0.6` (`7F000006`) at ordinary eBGP `ordinary`; PASS |
+| Conditional `policy { modify bh }` beating trailing `next-hop:auto` on eBGP | `test/plugin/export-chain-nexthop-precedence.ci` | Yes — read lines 1-134: Route 1 (`65000:666`) carries `NEXT_HOP 192.0.2.66` (`C0000242`) while unmatched Route 2 falls through to trailing `next-hop:auto` and carries `127.0.0.4` (`7F000004`); PASS |
+| Peer-wide `filter { export { filters [ next-hop:self ]; } }` on iBGP | `test/plugin/nexthop-self.ci` | Yes — read lines 1-87: configures `filter { export { filters [ next-hop:self ]; final accept; } }` on iBGP `peer1` and verifies peer detail + RIB via `le test fixture plugin/nexthop-self`; PASS |
+| Removed `session { next-hop }`, `inactive:next-hop:auto`, and import egress-mode refusal | `test/parse/session-nexthop-removed.ci` | Yes — read lines 1-150: validates `next-hop:self|unchanged|auto` + IPv6 `modify` on export/import while refusing `session { next-hop self; }`, `inactive:next-hop:auto`, `import { next-hop:self }`, and `import { modify:nh-self }`; PASS (1/1, 2.9s) |
+
+### Assumptions Resolved
+| ID | Final Status | Evidence |
+|----|--------------|----------|
+| A-1 | confirmed | `ze-bgp-conf.yang` had `default "auto"`, now unified as trailing `next-hop:auto` appended by `appendDefaultExportFilters` |
+| A-2 | confirmed | `TestNextHopAutoPreservesRSClientAndIBGP` + `test/plugin/nexthop-auto-rs-client-unchanged.ci` PASS; RS clients keep received next hop on both rails |
+| A-3 | confirmed | `TestNextHopAutoInternalMultihopUsesOnlyUsableNextHop` proves multihop iBGP withholds unusable link-local-only while preserving usable Global and explicit Self |
+| A-4 | confirmed | `TestNextHopAutoMatchesSelfForEBGP` confirms connected local endpoint then `LocalAddress` across both relays |
+| A-5 | confirmed | `buildForwardFacts` uses `PeerSettings.IsEBGP` (`!IsIBGP`), consistent across reactor |
+| A-6 | broken | Broken: BGP-LS emitted mapped IPv6 and LS-VPN lacked RD framing; resolved in AC-12 via `attribute.RegisterMPNextHopProfile` and LS71/72 profiles (Mistake Log row 1) |
+| A-7 | confirmed | Pinned Wireshark v4.4.0 LS72 decoder (12/24/48 per-address zero-RD) matches `plugins/nlri/ls/register.go`; paired non-Ze peer acceptance honestly unclaimed (`RFC9552-5.5-1` partial) |
+| A-8 | confirmed | Real pinned ExaBGP exercised in `test/plugin/bgpls-vpn-exabgp-single.ci` (PASS 3/3 batch) |
+
+### Documentation Verified
+| Documentation claim or category | Source evidence | Verified |
+|---------------------------------|-----------------|----------|
+| Feature list & user guides (Checklist #1, #2, #3, #5, #6, #17) | `c2d7117d05` updated `docs/features/bgp-protocol.md`, `docs/guide/{configuration,bgp-policy,route-policy,plugins,netlab,quickstart,as112,flowspec-route-reflector,healthcheck}.md`, `contrib/netlab/ze/ze.j2` + golden configs | Yes |
+| API/RPC, Plugin SDK, wire & architecture (Checklist #4, #7, #8, #12, #16) | `c2d7117d05` corrected all 13 departed design pages (verified via `git log --grep="Spec-work: bgp-next-hop-auto-rewrites-for-ebgp"` — all 13 present); Commit A updates `docs/architecture/bgp/interface-event-reactions.md` (hunk lines 89-93) and repoints `docs/architecture/core-design.md` (hunk lines 4266-4272) `Source` to `a7f7eb14d2`/`390086adb8`/`ee8d115eb6` | Yes |
+| RFC compliance (Checklist #9) | `5ef6ed17f5` updated `rfc/short/rfc4271.md` (`RFC4271-5.1.3-1`, `-3` enforced), `rfc/short/rfc7752.md`, `rfc/short/rfc9552.md` (`partial`), and regenerated `docs/features/rfc-status.md`; `5956b5b518` resealed 63 shifted and re-judged 39 stale audit verdicts across 20 stems (`./bin/le-nh-unify/le rfc check`: 0 remaining violations on any file touched by this spec) | Yes |
+| Test infrastructure & comparison (Checklist #10, #11, #13, #14, #15) | `c2d7117d05` updated `docs/functional-tests.md` and `docs/architecture/testing/interop.md`; `docs/comparison.md`, route metadata, metrics, and runtime inventories required no change (`le doc check all` & `le doc consistency`: 0 errors on owned files) | Yes |
+| Spec citation check (post-closure citers) | `git grep -n "plan/release/fixes/spec-bgp-next-hop-auto-rewrites-for-ebgp.md"` returns zero hits outside this spec itself; `./bin/le-nh-unify/le spec citation` reports zero errors for this spec | Yes |
+
+## Core Insight
+
+Egress next-hop rewriting belongs on a single ordered surface — the export filter chain with a fill-if-unset trailing `next-hop:auto` — so conditional policy rules and the RFC 4271 Section 5.1.3 default compose deterministically without a second session-level writer silently overwriting policy decisions, while post-policy scope and peer-own admission remain non-negotiable engine gates.

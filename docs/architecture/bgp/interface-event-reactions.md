@@ -83,8 +83,8 @@ counted. A canonical replacement therefore reuses and releases the original
 mapped-key entry even when its observed wildcard has another address family.
 
 If neither the stored declaration nor the observed endpoint establishes a
-possible interface alias, an unreadable interface table leaves ownership
-unknown. Removal retains that socket and incoming connections use remote-address
+match without an interface lookup, an unreadable interface table leaves
+ownership unknown. Removal retains that socket and incoming connections use remote-address
 attribution. Removal checks the exact configured key and other bindings whose
 stored or observed zone-free address matches the removed peer on its listen
 port. Only a known empty claimant

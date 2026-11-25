@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"net"
 	"net/netip"
+	"strconv"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -93,17 +94,23 @@ func TestScopedTransportReadFailureCannotGrantDedicatedOwnership(t *testing.T) {
 				assert.Same(t, first, accepted[before])
 				assert.False(t, known.closed)
 
-				if group != nil && !unreadable {
+				if group != nil {
 					dynamic := dynamicInboundConnection(t, local.String(), "fe80::4%if0")
 					dynamic.local.Port = port
-					dynamic.local.Zone = group.Settings.LocalAddress.Zone()
 					r.handleListenerConnection(dynamic, local, port)
-					require.Len(t, accepted, before+2)
-					assert.True(t, accepted[before+1].IsDynamic)
-					assert.Equal(t, "co-owner", accepted[before+1].GroupName)
-					assert.False(t, dynamic.closed)
-					assert.EqualValues(t, 1, group.ActivePeers.Load())
-					assert.Len(t, r.peers, peerCount+1)
+					if unreadable {
+						assert.Len(t, accepted, before+1, "unreadable interface table must refuse aliased dynamic admission")
+						assert.True(t, dynamic.closed)
+						assert.Zero(t, group.ActivePeers.Load())
+						assert.Len(t, r.peers, peerCount)
+					} else {
+						require.Len(t, accepted, before+2)
+						assert.True(t, accepted[before+1].IsDynamic)
+						assert.Equal(t, "co-owner", accepted[before+1].GroupName)
+						assert.False(t, dynamic.closed)
+						assert.EqualValues(t, 1, group.ActivePeers.Load())
+						assert.Len(t, r.peers, peerCount+1)
+					}
 				}
 			})
 		}
@@ -219,3 +226,34 @@ func (l *scopeReadFailureListener) Close() error {
 }
 
 func (l *scopeReadFailureListener) Addr() net.Addr { return l.address }
+
+// TestInvalidAddressNeverMatchesTransportBinding proves that a zero netip.Addr
+// is never treated as matching another zero address or any bound listener
+// socket on the same port.
+//
+// VALIDATES: sameTransportAddressUsing, listenerBinding.matches, and
+// listenerForAddressPort refuse invalid netip.Addr{} inputs as different.
+// PREVENTS: an invalid zero query address accidentally matching a bound
+// listener socket through listenerBinding's zero address field.
+func TestInvalidAddressNeverMatchesTransportBinding(t *testing.T) {
+	t.Parallel()
+	r := scopeReadFailureReactor(false)
+	assert.Equal(t, transportAddressDifferent, sameTransportAddressUsing(netip.Addr{}, netip.Addr{}, r.readInterfaces))
+	assert.Equal(t, transportAddressDifferent, sameTransportAddressUsing(netip.Addr{}, netip.MustParseAddr("192.0.2.1"), r.readInterfaces))
+	assert.Equal(t, transportAddressDifferent, sameTransportAddressUsing(netip.MustParseAddr("192.0.2.1"), netip.Addr{}, r.readInterfaces))
+
+	const port = 17961
+	boundAddr := netip.MustParseAddr("192.0.2.10")
+	key := net.JoinHostPort(boundAddr.String(), strconv.Itoa(port))
+	r.listeners[key] = &Listener{listener: &scopeReadFailureListener{
+		address: &net.TCPAddr{IP: boundAddr.AsSlice(), Port: port},
+	}}
+
+	_, foundListener, found := r.listenerForAddressPort(netip.Addr{}, port)
+	assert.False(t, found, "invalid zero query address must never match a bound listener")
+	assert.Nil(t, foundListener)
+
+	binding := newListenerBinding(netip.Addr{}, port, r.listeners[key]).withStoredDeclaration(key)
+	assert.Equal(t, transportAddressDifferent, binding.matches(r, netip.Addr{}))
+	assert.Equal(t, transportAddressSame, binding.matches(r, boundAddr))
+}

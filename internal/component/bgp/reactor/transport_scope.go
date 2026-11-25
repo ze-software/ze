@@ -46,6 +46,12 @@ func (r *Reactor) sameTransportAddress(a, b netip.Addr) transportAddressMatch {
 }
 
 func sameTransportAddressUsing(a, b netip.Addr, read func() ([]net.Interface, error)) transportAddressMatch {
+	if !a.IsValid() {
+		return transportAddressDifferent
+	}
+	if !b.IsValid() {
+		return transportAddressDifferent
+	}
 	// TCPAddr can present IPv4 in sixteen bytes. Canonicalize comparison
 	// values without changing declarations or IPv6 interface scopes.
 	a = a.Unmap()
@@ -314,26 +320,38 @@ func (binding listenerBinding) matches(r *Reactor, candidate netip.Addr) transpo
 	if binding.declarationErr != nil {
 		return transportAddressUnknown
 	}
-	match := r.sameTransportAddress(candidate, binding.address)
-	if match == transportAddressSame {
-		return match
+	if !candidate.IsValid() {
+		return transportAddressDifferent
+	}
+	match := transportAddressDifferent
+	if binding.address.IsValid() {
+		match = r.sameTransportAddress(candidate, binding.address)
+		if match == transportAddressSame {
+			return match
+		}
 	}
 	if binding.declaration.IsValid() {
-		declarationMatch := r.sameTransportAddress(candidate, binding.declaration)
-		if declarationMatch == transportAddressSame {
-			return declarationMatch
-		}
-		if declarationMatch == transportAddressUnknown {
-			match = declarationMatch
+		if binding.declaration != binding.address {
+			declarationMatch := r.sameTransportAddress(candidate, binding.declaration)
+			if declarationMatch == transportAddressSame {
+				return declarationMatch
+			}
+			if declarationMatch == transportAddressUnknown {
+				match = declarationMatch
+			}
 		}
 	}
 	if binding.bound.IsValid() {
-		boundMatch := r.sameTransportAddress(candidate, binding.bound)
-		if boundMatch == transportAddressSame {
-			return boundMatch
-		}
-		if boundMatch == transportAddressUnknown {
-			return boundMatch
+		if binding.bound != binding.address {
+			if binding.bound != binding.declaration {
+				boundMatch := r.sameTransportAddress(candidate, binding.bound)
+				if boundMatch == transportAddressSame {
+					return boundMatch
+				}
+				if boundMatch == transportAddressUnknown {
+					return boundMatch
+				}
+			}
 		}
 	}
 	return match
