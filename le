@@ -403,100 +403,148 @@ next_label() {
 	fi
 }
 
-# The lock one builder holds: a directory, because mkdir is atomic, holding the
-# owner's host and then its pid. A pid means something only on the host that
-# wrote it: a QEMU guest mounts this directory over 9p and cannot see the
-# host's processes, so it would judge every live host build dead. The owner's
-# liveness is therefore judged only on its own host. A lock from another host is
-# busy until it is thirty minutes old, past which it is reclaimed: a cold build
-# of HEAD takes about two minutes, and the foreground wait gives up after
-# fifteen, so a build still holding the lock at thirty is not running. A lock
-# with no pid yet is reclaimed after ten minutes, the window being the instant
-# between mkdir and the write. A lock with a pid and no host was written by a
-# launcher from before the host was recorded, and is judged by its pid.
+# The lock one builder holds: a directory, because mkdir is atomic. Its builder
+# proves it is alive through the one thing every caller sees, the directory's
+# own modification time, which lock_heartbeat refreshes every five seconds
+# while the build runs. A lock nobody refreshed for two minutes at most (one to
+# two, by how the system's find rounds a minute) is dead for every caller,
+# whatever it holds.
+#
+# Nothing else is judged, because nothing else is visible to every caller: the
+# builder's pid means nothing to a QEMU guest that mounts this directory over
+# 9p, nor to a tool that runs each command in its own PID namespace, and a
+# builder killed with its namespace runs no cleanup. Both read the same
+# modification time, which the file server stamps, so a guest holds a live host
+# build and takes over a dead one exactly as the host does. The judge compares
+# that time with its own clock: a machine whose clock runs more than a minute
+# ahead of the file server's would take over a live build.
+#
+# A dead lock is taken over in place, never removed and made again: the caller
+# that makes the next claim-<n> directory inside it owns it, so mkdir stays the
+# arbiter between two callers that judge the same lock dead, and the claim
+# itself refreshes the lock's time. `owner` names the claim that holds the lock,
+# and `pid` its builder, which names the staging directory.
 lock=$builds/.building
+lock_token=
 
-# Sets $lock_host_id to this host's identity: its node name and, where the
-# system has one, the id of its current boot, so a guest named like its host,
-# or a host since rebooted, is still another host.
-lock_host_id() {
-	boot_id=$(cat /proc/sys/kernel/random/boot_id 2>/dev/null) ||
-		boot_id=$(sysctl -n kern.bootsessionuuid 2>/dev/null) ||
-		boot_id=
-	lock_host_id="$(uname -n) $boot_id"
+# True when the lock's builder is alive: the lock was written within the last
+# two minutes at most.
+lock_held() {
+	[ -z "$(find "$lock" -prune -mmin +1 2>/dev/null)" ]
 }
 
-# Records this process as the owner of the lock it just created.
+# Sets $lock_gen to the number of the newest claim the lock holds, or to 0 for
+# a lock nobody claimed.
+lock_generation() {
+	lock_gen=0
+	for claim in "$lock"/claim-*; do
+		[ -d "$claim" ] || continue
+		claim=${claim##*/claim-}
+		case $claim in
+		'' | *[!0-9]*) continue ;;
+		esac
+		if [ "$claim" -gt "$lock_gen" ]; then
+			lock_gen=$claim
+		fi
+	done
+}
+
+# Records this process as the owner of the lock whose claim it just made, and
+# sets $lock_dead_pid to the builder the lock named before, or to "".
 claim_lock() {
-	lock_host_id
-	printf '%s\n' "$lock_host_id" >"$lock/host"
+	lock_dead_pid=$(cat "$lock/pid" 2>/dev/null) || lock_dead_pid=
+	lock_token="$$ $(date -u +%Y%m%dT%H%M%SZ) $(uname -n)"
+	printf '%s\n' "$lock_token" >"$lock/owner"
 	echo $$ >"$lock/pid"
 }
 
-# True when the existing lock still holds: its owner lives, or it cannot be
-# judged dead yet.
-lock_held() {
-	lock_owner=$(cat "$lock/pid" 2>/dev/null) || lock_owner=
-	if owner_host=$(cat "$lock/host" 2>/dev/null); then
-		lock_host_id
-		if [ "$owner_host" != "$lock_host_id" ]; then
-			[ -z "$(find "$lock" -prune -mmin +30 2>/dev/null)" ]
-			return
-		fi
+# True when this process made the claim that holds the lock. A builder that
+# stopped refreshing the lock for two minutes (a suspended machine) may have
+# been taken over while it still runs: it asks this before it touches anything
+# in the lock, so it never removes or reports on the next builder's work.
+lock_mine() {
+	[ -n "$lock_token" ] && [ "$(cat "$lock/owner" 2>/dev/null)" = "$lock_token" ]
+}
+
+# Removes the lock once its build ended, when this process still owns it.
+release_lock() {
+	if lock_mine; then
+		rm -rf "$lock"
 	fi
-	if [ -n "$lock_owner" ]; then
-		kill -0 "$lock_owner" 2>/dev/null
-		return
-	fi
-	[ -z "$(find "$lock" -prune -mmin +10 2>/dev/null)" ]
+}
+
+# Refreshes the lock's time every five seconds while the builder with pid $1
+# lives and owns the lock. It runs beside the build, in the builder's own PID
+# namespace, so it sees that pid whatever a caller elsewhere sees, and it ends
+# within five seconds of a builder that was killed alone. `"$lock/."` names the
+# directory only: touch never makes a file where a lock was removed.
+lock_heartbeat() {
+	while kill -0 "$1" 2>/dev/null && lock_mine; do
+		touch "$lock/." 2>/dev/null || :
+		sleep 5
+	done
 }
 
 # Takes the lock. Answers 0 when this process now holds it, 1 when another live
-# builder does, and 2 when no lock can be made at all: bin/builds or the lock
-# cannot be created, or a dead owner's lock cannot be removed. On 2,
-# $lock_error names the path, the cause and the fix. A busy lock frees when its
-# builder ends, so a caller may wait on 1; nothing frees a lock that cannot be
-# made, so a caller MUST NOT wait on 2.
+# builder does or another caller took it first, and 2 when no lock can be made
+# at all: bin/builds or the lock cannot be created, or a dead builder's lock
+# cannot be written. On 2, $lock_error names the path, the cause and the fix. A
+# busy lock frees when its builder ends or stops refreshing it, so a caller may
+# wait on 1; nothing frees a lock that cannot be made, so a caller MUST NOT
+# wait on 2.
 take_lock() {
 	if ! lock_cause=$(mkdir -p "$builds" 2>&1); then
 		lock_unmade "$builds"
 		return 2
 	fi
 	if lock_cause=$(mkdir "$lock" 2>&1); then
-		lock_claimed
-		return
+		lock_gen=0
+	else
+		# mkdir also fails when another caller made the lock first: only a
+		# lock that exists is busy, and a missing one could not be created.
+		if [ ! -d "$lock" ]; then
+			lock_unmade "$lock"
+			return 2
+		fi
+		# The newest claim is read before the lock is judged: a caller that
+		# takes the lock over in between has made the claim this one is about
+		# to try, so the mkdir below fails for this one.
+		lock_generation
+		if lock_held; then
+			return 1
+		fi
 	fi
-	# mkdir also fails when another caller made the lock first: only a lock
-	# that exists is busy, and a missing one could not be created.
-	if [ ! -d "$lock" ]; then
-		lock_unmade "$lock"
+	lock_claim=$lock/claim-$((lock_gen + 1))
+	if ! lock_cause=$(mkdir "$lock_claim" 2>&1); then
+		# Another caller made the claim first, or the builder ended and
+		# removed its lock: either way the next call judges what is there.
+		if [ -d "$lock_claim" ] || [ ! -d "$lock" ]; then
+			return 1
+		fi
+		lock_error="cannot write into $lock, the lock of a builder that is no longer running: $lock_cause. Remove it as the user who owns it (rm -rf '$lock'), then run ./le again"
 		return 2
 	fi
-	if lock_held; then
-		return 1
-	fi
-	if ! lock_cause=$(rm -rf "$lock" 2>&1); then
-		lock_error="cannot remove $lock, the lock of a builder that is no longer running: $lock_cause. Remove it as the user who owns it (rm -rf '$lock'), then run ./le again"
-		return 2
-	fi
-	if lock_cause=$(mkdir "$lock" 2>&1); then
-		lock_claimed
-		return
-	fi
-	if [ -d "$lock" ]; then
-		return 1
-	fi
-	lock_unmade "$lock"
-	return 2
+	lock_claimed
 }
 
-# Records this process in the lock take_lock just created, answering 0, or 2
-# with $lock_error when the owner cannot be written into it. claim_lock runs in
-# this shell, never in a command substitution: there `set -e` would end it at a
-# host probe that is missing (uname on a bare PATH), which only leaves the host
-# empty. The pid file it writes last is what decides.
+# Records this process in the lock whose claim take_lock just made, answering
+# 0, or 2 with $lock_error when the owner cannot be written into it. claim_lock
+# runs in this shell, never in a command substitution: there `set -e` would end
+# it at a probe that is missing (uname or date on a bare PATH), which only
+# leaves a word of the owner's name empty. The pid file it writes last is what
+# decides.
+#
+# The builder this lock named before is dead, and it was the only user of the
+# staging directory named after its pid, so that directory goes when it is
+# empty, which is how a build killed before its link leaves it. rmdir removes
+# nothing else: a staging directory holding files, or named for any other pid,
+# is left to the store trim.
 lock_claimed() {
 	if claim_lock 2>/dev/null && [ -s "$lock/pid" ]; then
+		case $lock_dead_pid in
+		'' | *[!0-9]*) ;;
+		*) rmdir "$builds/.staging-$lock_dead_pid" 2>/dev/null || : ;;
+		esac
 		return 0
 	fi
 	lock_cause="the owner could not be written into the lock"
@@ -523,11 +571,25 @@ lock_busy() {
 	lock_held
 }
 
-# Builds HEAD into bin/builds under the lock, which the caller holds: export,
-# compile into .staging-<pid>, smoke-test, then one rename publishes the whole
-# directory. $1 is the platform suffix. Nothing is published unless every step
-# passed, and the staging directory goes either way.
+# Builds HEAD into bin/builds under the lock, which the caller holds, and keeps
+# the lock's time fresh for as long as that takes. $1 is the platform suffix.
+# The heartbeat holds none of the caller's output, so a caller reading this
+# call through a pipe never waits on it.
 build_head() {
+	builder_pid=$(cat "$lock/pid") || return 1
+	lock_heartbeat "$builder_pid" </dev/null >/dev/null 2>&1 &
+	heartbeat_pid=$!
+	build_status=0
+	build_published "$1" || build_status=$?
+	kill "$heartbeat_pid" 2>/dev/null || :
+	return "$build_status"
+}
+
+# The build itself: export, compile into .staging-<pid>, smoke-test, then one
+# rename publishes the whole directory. Nothing is published unless every step
+# passed, and the staging directory goes either way. The export sits in the
+# lock, so it is removed only while this process still owns the lock.
+build_published() {
 	require_go "$root" || return 1
 	head_commit=$(git -C "$root" rev-parse --verify 'HEAD^{commit}') || return 1
 	head_sha=$(git -C "$root" rev-parse --short "$head_commit") || return 1
@@ -536,10 +598,15 @@ build_head() {
 	staging=$builds/.staging-$(cat "$lock/pid")
 	rm -rf "$lock/src" "$staging"
 	if ! build_staging "$1"; then
-		rm -rf "$lock/src" "$staging"
+		rm -rf "$staging"
+		if lock_mine; then
+			rm -rf "$lock/src"
+		fi
 		return 1
 	fi
-	rm -rf "$lock/src"
+	if lock_mine; then
+		rm -rf "$lock/src"
+	fi
 	published=$builds/$head_stamp-$head_sha$1
 	if [ -e "$published" ]; then
 		rm -rf "$staging"
@@ -569,16 +636,20 @@ build_staging() {
 # Starts one candidate build of HEAD in the background and returns at once. The
 # build's output goes to its log, which becomes .failed-<commit>.log when the
 # build fails, so the failure is reported once, by the next caller. $1 is the
-# platform suffix.
+# platform suffix. A build whose lock was taken over reports nothing: the log
+# in the lock is the next builder's, and its own failure may be that builder
+# removing its export.
 start_candidate() {
 	take_lock || return 0
 	(
 		trap '' HUP INT
 		sh -c 'echo "$PPID"' >"$lock/pid"
 		if ! build_head "$1"; then
-			mv -f "$lock/build.log" "$builds/.failed-${head_commit:-$(git -C "$root" rev-parse HEAD)}.log"
+			if lock_mine; then
+				mv -f "$lock/build.log" "$builds/.failed-${head_commit:-$(git -C "$root" rev-parse HEAD)}.log"
+			fi
 		fi
-		rm -rf "$lock"
+		release_lock
 	) </dev/null >"$lock/build.log" 2>&1 &
 }
 
@@ -851,7 +922,7 @@ if [ -z "$build_dir" ]; then
 		fi
 		checks=$((checks + 1))
 		if [ "$checks" -gt 450 ]; then
-			echo "le: no build appeared in $builds after 15 minutes, and the build in progress still holds $lock (owner pid $(cat "$lock/pid" 2>/dev/null || echo unknown)); remove $lock once that process is gone" >&2
+			echo "le: no build of le appeared in $builds after 15 minutes. Another le is still building it: its builder (pid $(cat "$lock/pid" 2>/dev/null || echo unknown) on the machine that started it) refreshed $lock within the last two minutes, and a builder that stops is replaced within two more. Run ./le again to keep waiting" >&2
 			exit 1
 		fi
 		sleep 2
@@ -860,13 +931,13 @@ if [ -z "$build_dir" ]; then
 	if [ -z "$build_dir" ]; then
 		echo "le: no build of le for this machine yet; building HEAD into $builds" >&2
 		if ! build_head "$build_suffix"; then
-			rm -rf "$lock"
+			release_lock
 			echo "le: the build of HEAD failed, so no le is available; the message above names the cause" >&2
 			exit 1
 		fi
 		choose_build
 	fi
-	rm -rf "$lock"
+	release_lock
 	if [ -z "$build_dir" ]; then
 		echo "le: the build of HEAD finished but $builds holds no build this machine runs" >&2
 		exit 1

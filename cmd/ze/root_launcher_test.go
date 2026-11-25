@@ -1640,92 +1640,231 @@ func TestLauncherPicksItsPlatform(t *testing.T) {
 	}
 }
 
-// TestLauncherJudgesALockByItsHost: the build lock names the host that took
-// it. A lock from another host, whose pid means nothing here, holds until it is
-// thirty minutes old and is then reclaimed; a lock from this host whose pid is
-// dead is reclaimed at once. The local identity is read from a lock the
-// launcher itself wrote, so the test holds no second copy of how it is formed.
-//
-// VALIDATES: R-8, that a QEMU guest sharing bin/builds over 9p cannot judge a
-// live host build dead.
-// PREVENTS: a guest reclaiming the host's lock and removing its export
-// mid-build, or a dead lock from this host blocking every candidate.
-func TestLauncherJudgesALockByItsHost(t *testing.T) {
+// What a caller reads in the lock of a builder it cannot see: a host name that
+// is not its own, and a pid no process here has, being above every system's
+// pid limit. A QEMU guest reads these in the host's lock, and so does a caller
+// outside the PID namespace a builder ran in.
+const (
+	foreignLockHost = "another-host 00000000-0000-0000-0000-000000000000\n"
+	foreignLockPid  = "2147483646"
+	// silentLockAge is how long ago a dead builder's lock was last written:
+	// just past the bound, which is one to two minutes by how the system's
+	// find rounds a minute, so a launcher that held a silent lock for longer
+	// than the two minutes its page states fails these tests.
+	silentLockAge = 3 * time.Minute
+	// quietLockAge is a silence every find still reads as alive: under the
+	// one minute the bound is at its shortest, and four refreshes long.
+	quietLockAge = 20 * time.Second
+)
+
+// lockPath answers the path of the fixture's build lock.
+func lockPath(fixture string) string {
+	return filepath.Join(fixture, "bin", "builds", ".building")
+}
+
+// unbuiltHeadFixture answers a fixture whose HEAD, marker "two", has no build
+// yet: the build of its parent, which answers as B, is the newest.
+func unbuiltHeadFixture(t *testing.T) string {
+	t.Helper()
 	fixture := launcherFixture(t, personalityRepoRoot(t), "le")
 	writeHeadGo(t, fixture)
 	writeMarker(t, fixture, "one")
 	commitFixture(t, fixture, "marker one")
 	writeHeadBuild(t, fixture, recordingBuild("B"))
-	execRecord := filepath.Join(fixture, "exec.record")
-	launcher := filepath.Join(fixture, "le")
-	lock := filepath.Join(fixture, "bin", "builds", ".building")
-	gate := filepath.Join(fixture, "build.gate")
-	env := headEnv(fixture, "ZE_GO_GATE="+gate)
-	// No process here has this pid: it is above every system's pid limit.
-	const deadPid = "2147483646\n"
-
 	writeMarker(t, fixture, "two")
 	commitFixture(t, fixture, "marker two")
+	return fixture
+}
+
+// writeLockFiles writes files, named relative to the fixture's lock, into it.
+func writeLockFiles(t *testing.T, fixture string, files map[string]string) {
+	t.Helper()
+	for name, body := range files {
+		path := filepath.Join(lockPath(fixture), name)
+		if err := os.MkdirAll(filepath.Dir(path), 0o750); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(path, []byte(body), 0o600); err != nil {
+			t.Fatal(err)
+		}
+	}
+}
+
+// ageLock sets the time the fixture's lock was last written to age ago, and
+// answers that time. It runs after every write into the lock, because a file
+// made there moves the lock's time to now.
+func ageLock(t *testing.T, fixture string, age time.Duration) time.Time {
+	t.Helper()
+	then := time.Now().Add(-age)
+	if err := os.Chtimes(lockPath(fixture), then, then); err != nil {
+		t.Fatal(err)
+	}
+	return then
+}
+
+// TestLauncherTakesOverASilentLock: a lock no builder refreshed for five
+// minutes is dead for every caller, whatever it holds, and the next call
+// builds HEAD under it. One case is the lock a builder killed with its PID
+// namespace leaves (a host and a pid this caller cannot judge, a log, a
+// half-written export); the other is what was left of such a lock once only
+// its export remained, with no owner at all.
+//
+// VALIDATES: the lock's liveness is its builder's heartbeat, read from the
+// filesystem every caller shares, and not a host name or a pid.
+// PREVENTS: one killed builder keeping every session on an old build for the
+// ten minutes a lock with no pid was held, or the thirty a lock from another
+// host was.
+func TestLauncherTakesOverASilentLock(t *testing.T) {
+	cases := []struct {
+		name  string
+		files map[string]string
+	}{
+		{
+			name: "a killed builder this caller cannot see",
+			files: map[string]string{
+				"host":       foreignLockHost,
+				"pid":        foreignLockPid + "\n",
+				"build.log":  "",
+				"src/go.mod": "module half.written\n",
+			},
+		},
+		{
+			name:  "no owner at all",
+			files: map[string]string{"src/go.mod": "module half.written\n"},
+		},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			fixture := unbuiltHeadFixture(t)
+			execRecord := filepath.Join(fixture, "exec.record")
+			launcher := filepath.Join(fixture, "le")
+			env := headEnv(fixture)
+			writeLockFiles(t, fixture, tc.files)
+			ageLock(t, fixture, silentLockAge)
+
+			launcherRun(t, fixture, launcher, env, []string{"first"})
+			assertLauncherRecord(t, execRecord, []string{"B", "first"})
+			waitFor(t, "a candidate took over the silent lock", func() bool { return len(goCount(t, fixture)) == 1 })
+			waitFor(t, "the candidate build finished", lockGone(fixture))
+			launcherRun(t, fixture, launcher, env, []string{"after"})
+			assertLauncherRecord(t, execRecord, []string{"two", "after"})
+		})
+	}
+}
+
+// TestLauncherHoldsALockSilentForLessThanTheBound: a lock last written twenty
+// seconds ago is held, with no builder refreshing it and an owner this caller
+// cannot judge. The take-over writes the lock's pid before the call returns,
+// so the pid still read there afterwards says no take-over happened.
+//
+// VALIDATES: the other side of the bound TestLauncherTakesOverASilentLock
+// proves: a builder that misses a few refreshes is not judged dead.
+// PREVENTS: a bound so short that a loaded machine's live build is taken over
+// and its export removed mid-compile.
+func TestLauncherHoldsALockSilentForLessThanTheBound(t *testing.T) {
+	fixture := unbuiltHeadFixture(t)
+	execRecord := filepath.Join(fixture, "exec.record")
+	writeLockFiles(t, fixture, map[string]string{"host": foreignLockHost, "pid": foreignLockPid + "\n"})
+	ageLock(t, fixture, quietLockAge)
+
+	launcherRun(t, fixture, filepath.Join(fixture, "le"), headEnv(fixture), []string{"first"})
+	assertLauncherRecord(t, execRecord, []string{"B", "first"})
+	pid, err := os.ReadFile(filepath.Join(lockPath(fixture), "pid"))
+	if err != nil {
+		t.Fatalf("the quiet lock was removed: %v", err)
+	}
+	if string(pid) != foreignLockPid+"\n" {
+		t.Fatalf("the quiet lock was taken over: its pid reads %q", pid)
+	}
+	if builds := goCount(t, fixture); len(builds) != 0 {
+		t.Fatalf("a call started a build under a quiet lock: %v", builds)
+	}
+}
+
+// TestLauncherHoldsALiveBuildersLockItCannotJudge: while a build runs, its lock
+// is held for a caller that reads a foreign host and an unknown pid in it, as a
+// QEMU guest sharing bin/builds over 9p does, however old the lock is.
+//
+// Method: a real candidate build waits at its gate. The test then makes its
+// lock read as another host's, thirty-one minutes old, and waits for the
+// builder to refresh it, which only a live builder does.
+//
+// VALIDATES: R-8, that a caller which cannot see a builder's processes does
+// not judge a live build dead; and that the builder refreshes its lock while
+// it builds.
+// PREVENTS: a guest taking over the host's lock and removing its export
+// mid-build, and two builds of one HEAD.
+func TestLauncherHoldsALiveBuildersLockItCannotJudge(t *testing.T) {
+	fixture := unbuiltHeadFixture(t)
+	execRecord := filepath.Join(fixture, "exec.record")
+	launcher := filepath.Join(fixture, "le")
+	gate := filepath.Join(fixture, "build.gate")
+	env := headEnv(fixture, "ZE_GO_GATE="+gate)
+
 	launcherRun(t, fixture, launcher, env, []string{"first"})
 	waitFor(t, "the candidate build started", func() bool { return len(goCount(t, fixture)) == 1 })
-	localHost, err := os.ReadFile(filepath.Join(lock, "host"))
-	if err != nil {
-		t.Fatalf("the launcher's lock names no host: %v", err)
+	writeLockFiles(t, fixture, map[string]string{"host": foreignLockHost, "pid": foreignLockPid + "\n"})
+	aged := ageLock(t, fixture, 31*time.Minute)
+	waitFor(t, "the live builder refreshed its lock", func() bool {
+		info, err := os.Stat(lockPath(fixture))
+		return err == nil && info.ModTime().After(aged.Add(time.Minute))
+	})
+
+	launcherRun(t, fixture, launcher, env, []string{"guest"})
+	assertLauncherRecord(t, execRecord, []string{"B", "guest"})
+	if builds := goCount(t, fixture); len(builds) != 1 {
+		t.Fatalf("a live builder's lock was taken over: builds %v", builds)
 	}
+
 	if err := os.WriteFile(gate, nil, 0o600); err != nil {
 		t.Fatal(err)
 	}
 	waitFor(t, "the candidate build finished", lockGone(fixture))
-
-	writeLock := func(host, pid string, age time.Duration) {
-		t.Helper()
-		if err := os.MkdirAll(lock, 0o750); err != nil {
-			t.Fatal(err)
-		}
-		if err := os.WriteFile(filepath.Join(lock, "host"), []byte(host), 0o600); err != nil {
-			t.Fatal(err)
-		}
-		if err := os.WriteFile(filepath.Join(lock, "pid"), []byte(pid), 0o600); err != nil {
-			t.Fatal(err)
-		}
-		then := time.Now().Add(-age)
-		if err := os.Chtimes(lock, then, then); err != nil {
-			t.Fatal(err)
-		}
-	}
-	foreignHost := "another-host 00000000-0000-0000-0000-000000000000\n"
-
-	// Another host's lock with a pid dead here holds.
-	writeMarker(t, fixture, "three")
-	commitFixture(t, fixture, "marker three")
-	writeLock(foreignHost, deadPid, 29*time.Minute)
-	launcherRun(t, fixture, launcher, env, []string{"guest"})
-	assertLauncherRecord(t, execRecord, []string{"two", "guest"})
-	if builds := goCount(t, fixture); len(builds) != 1 {
-		t.Fatalf("another host's live lock was reclaimed: builds %v", builds)
-	}
-	if body, err := os.ReadFile(filepath.Join(lock, "host")); err != nil || string(body) != foreignHost {
-		t.Fatalf("another host's live lock was replaced: %q, %v", body, err)
-	}
-
-	// The same lock past thirty minutes is reclaimed.
-	writeLock(foreignHost, deadPid, 31*time.Minute)
-	launcherRun(t, fixture, launcher, env, []string{"stale"})
-	assertLauncherRecord(t, execRecord, []string{"two", "stale"})
-	waitFor(t, "a candidate took over the stale lock", func() bool { return len(goCount(t, fixture)) == 2 })
-	waitFor(t, "the candidate build finished", lockGone(fixture))
 	launcherRun(t, fixture, launcher, env, []string{"after"})
-	assertLauncherRecord(t, execRecord, []string{"three", "after"})
+	assertLauncherRecord(t, execRecord, []string{"two", "after"})
+	if builds := goCount(t, fixture); len(builds) != 1 {
+		t.Fatalf("the published HEAD was built again: %v", builds)
+	}
+}
 
-	// This host's lock with a dead pid is reclaimed at once.
-	writeMarker(t, fixture, "four")
-	commitFixture(t, fixture, "marker four")
-	writeLock(string(localHost), deadPid, 0)
-	launcherRun(t, fixture, launcher, env, []string{"local"})
-	waitFor(t, "a candidate took over the dead local lock", func() bool { return len(goCount(t, fixture)) == 3 })
-	waitFor(t, "the candidate build finished", lockGone(fixture))
-	launcherRun(t, fixture, launcher, env, []string{"last"})
-	assertLauncherRecord(t, execRecord, []string{"four", "last"})
+// TestLauncherTakeOverLeavesNothingOfTheDeadBuilder: the build that took over a
+// dead builder's lock removes the lock when it finishes, with everything the
+// dead builder left in it, and the take-over removes the empty staging
+// directory named after the dead builder's pid. An empty staging directory
+// named for any other pid is another builder's, and stays.
+//
+// VALIDATES: a finished build removes its lock after a take-over too, and the
+// leftovers removed are only the ones the dead lock itself names.
+// PREVENTS: a lock that outlives its build and holds every later one, empty
+// staging directories piling up in bin/builds, and a take-over removing a
+// directory of a build it does not own.
+func TestLauncherTakeOverLeavesNothingOfTheDeadBuilder(t *testing.T) {
+	fixture := unbuiltHeadFixture(t)
+	builds := filepath.Join(fixture, "bin", "builds")
+	deadStaging := filepath.Join(builds, ".staging-"+foreignLockPid)
+	otherStaging := filepath.Join(builds, ".staging-2147483645")
+	for _, dir := range []string{deadStaging, otherStaging} {
+		if err := os.MkdirAll(dir, 0o750); err != nil {
+			t.Fatal(err)
+		}
+	}
+	writeLockFiles(t, fixture, map[string]string{
+		"host":       foreignLockHost,
+		"pid":        foreignLockPid + "\n",
+		"build.log":  "",
+		"src/go.mod": "module half.written\n",
+	})
+	ageLock(t, fixture, silentLockAge)
+
+	launcherRun(t, fixture, filepath.Join(fixture, "le"), headEnv(fixture), []string{"first"})
+	waitFor(t, "a candidate took over the dead lock", func() bool { return len(goCount(t, fixture)) == 1 })
+	waitFor(t, "the build that took over removed its lock", lockGone(fixture))
+	if _, err := os.Stat(deadStaging); !errors.Is(err, os.ErrNotExist) {
+		t.Errorf("the dead builder's empty staging directory is still there: %v", err)
+	}
+	if _, err := os.Stat(otherStaging); err != nil {
+		t.Errorf("a staging directory the dead lock does not name was removed: %v", err)
+	}
 }
 
 // TestLauncherMigrationPassesOverAForeignLegacy: a machine sharing a migrated

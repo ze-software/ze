@@ -360,12 +360,8 @@ Builds follow HEAD, never the working tree. Each build records its input key:
 the git object id of `internal cmd pkg api vendor go.mod go.sum
 feature-gates.txt feature-tags` at the commit it was built from. When HEAD's key
 differs from the newest build's, the call starts one detached build and still
-runs the newest; later calls see the lock (`bin/builds/.building`, holding the
-builder's host and pid) and run the newest too. A lock from this host is
-reclaimed once its pid is dead. A lock from another host (a QEMU guest sharing
-the checkout over 9p, which cannot see the host's pids) holds until it is thirty
-minutes old, well past the two minutes a cold build takes, and is then
-reclaimed. The builder exports HEAD with `git archive` into the lock directory, compiles with
+runs the newest; later calls see the lock (`bin/builds/.building`) and run the
+newest too. The builder exports HEAD with `git archive` into the lock directory, compiles with
 the patched GOROOT into `bin/builds/.staging-<pid>/le`, smoke-tests it (`le
 help`, `le spec wip`, `le spec current`, with `ZE_REPO_ROOT` naming the
 checkout), and renames the directory into place. A commit that changes no input
@@ -374,6 +370,32 @@ call builds HEAD in the foreground and the others wait for it. When
 `bin/builds` or its lock cannot be created at all (a read-only `bin/`, a full
 disk), that call refuses at once with the path, the cause and the fix, because
 no wait would end it.
+
+The lock is held by a heartbeat. While its build runs, the builder sets the
+lock directory's modification time every five seconds, and a lock nobody
+refreshed for two minutes at most (one to two, by how the system's `find`
+rounds a minute) is dead for every caller, whatever it holds. Nothing else is
+judged, because nothing else is visible to every caller: a QEMU guest sharing
+the checkout over 9p cannot see the host's pids, and neither can a tool that
+runs each command in its own PID namespace, where the detached build is
+killed, with no cleanup, when the command ends. Both read the same modification
+time, so a guest holds the host's live build and takes over a dead one as the
+host does. The judge compares that time with its own clock, so a machine whose
+clock runs more than a minute ahead of the file server's would take over a live
+build.
+
+A dead lock is taken over in place, never removed and made again. The caller
+that makes the next `claim-<n>` directory inside it owns it, so `mkdir` decides
+between two callers that judge the same lock dead, and the lock's `owner` file
+names the claim that holds it. The new owner's build removes the dead builder's
+export first, and the take-over removes `bin/builds/.staging-<pid>` for the pid
+the dead lock named when that directory is empty, which is how a build killed
+before its link leaves it; any other staging directory is left to the store
+trim. A builder that stopped refreshing for two minutes and still runs (a
+suspended machine) finds another owner in the lock: it then leaves the lock,
+the export in it and the failure log alone. The heartbeat ends with its
+builder, within five seconds when the builder alone is killed.
+<!-- source: le -- lock_held, lock_heartbeat, take_lock, lock_claimed, lock_mine -->
 
 A build that fails to compile or fails its smoke test is never published. Its
 log becomes `bin/builds/.failed-<commit>.log`, the next caller reads one line
