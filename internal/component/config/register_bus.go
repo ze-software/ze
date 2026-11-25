@@ -262,6 +262,12 @@ func init() {
 	if err := RegisterTreeValidator("bus-config", ValidateBusConfig); err != nil {
 		panic("BUG: config: bus-config validator registration failed: " + err.Error())
 	}
+	if err := RegisterTreeValidator("managed-client-labels", func(tree *Tree) error {
+		_, err := readManagedClientLabels(tree.GetContainerPath("bus/hub"))
+		return err
+	}); err != nil {
+		panic("BUG: config: managed-client-labels validator registration failed: " + err.Error())
+	}
 }
 
 // collectBusParticipantTargets returns all YANG schema paths registered as bus

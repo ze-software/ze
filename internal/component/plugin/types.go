@@ -518,6 +518,10 @@ type ProcessSpawner interface {
 	GetProcessManager() any
 }
 
+// ManagedClientsMax bounds the number of distinct devices a hub can manage
+// across all its server blocks. A device may appear on more than one block.
+const ManagedClientsMax = 4096
+
 // HubServerConfig holds a named hub server block.
 // Extracted from: bus { hub { server <name> { ip; port; secret; } } }.
 type HubServerConfig struct {
@@ -526,6 +530,9 @@ type HubServerConfig struct {
 	Port    uint16            // Listen port
 	Secret  string            `json:"-"` // Auth token for plugin connections
 	Clients map[string]string `json:"-"` // Per-client secrets: name -> secret
+	// ClientLabels holds the labels declared for each named client. A client
+	// with no labels has no entry.
+	ClientLabels map[string]map[string]string
 	// Certificate names the pki store certificate the managed-client listener
 	// on this block serves. Empty serves a self-signed certificate no client
 	// can verify against a CA. Every block that accepts managed clients serves

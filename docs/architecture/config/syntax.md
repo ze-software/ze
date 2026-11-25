@@ -1011,6 +1011,21 @@ plugin {
 
 **Timeout semantics:** During startup, all plugins synchronize at each stage. The timeout controls how long this plugin waits for all plugins to complete each stage. With multiple plugins, use the same timeout for all, or set the longest timeout on all plugins to avoid fast plugins timing out while waiting for slow ones.
 
+### Managed device labels
+
+In `bus hub server`, each `client` can carry up to 32 labels. For example,
+`set bus hub server central client edge-01 label site value lon` assigns the
+site `lon` to `edge-01`. A key starts with a lowercase letter and can
+contain up to 63 lowercase letters, digits and hyphens. A value contains
+1 to 128 printable characters. Quote a value that contains spaces.
+<!-- source: internal/component/plugin/yang/ze-plugin-conf.yang -- bus hub server client label -->
+<!-- source: internal/component/config/loader_extract.go -- readClientLabels -->
+
+The hub accepts up to 4,096 distinct client names across all its server
+blocks. A client listed under several blocks must have the same label keys
+and values in each block.
+<!-- source: internal/component/config/loader_extract.go -- readManagedClientLabels, managedClientLabelAgreement -->
+
 ### dns-source (resolver source lists)
 
 Every consumer that hands resolver addresses on writes one shared container,

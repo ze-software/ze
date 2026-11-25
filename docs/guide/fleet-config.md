@@ -44,10 +44,11 @@ Then the daily work: [change a client's configuration](#change-a-clients-configu
 ## 1. Set Up the Hub
 
 The hub is an ordinary Ze. It becomes a hub when one `server` block of its
-configuration lists the clients it accepts.
+configuration lists the clients it accepts. The `site` label in this example
+identifies the site of `edge-01`.
 
 ```
-plugin {
+bus {
     hub {
         server local {
             ip 127.0.0.1;
@@ -58,12 +59,16 @@ plugin {
             ip 0.0.0.0;
             port 1791;
             secret "remote-plugin-secret-of-32-character";
-            client edge-01 { secret "edge-01-secret-of-at-least-32-chars"; }
+            client edge-01 {
+                secret "edge-01-secret-of-at-least-32-chars";
+                label site { value lon; }
+            }
             client edge-02 { secret "edge-02-secret-of-at-least-32-chars"; }
         }
     }
 }
 ```
+<!-- source: internal/component/plugin/yang/ze-plugin-conf.yang -- bus hub server client label -->
 
 Three rules apply to this block:
 
@@ -76,8 +81,11 @@ Three rules apply to this block:
 - **A client connects to the block that lists it.** With two blocks that list
   clients, the hub refuses a client on the address of the other block. List a
   client under both blocks if it must reach both.
+  Give the client the same labels under both blocks. The hub counts that
+  client once toward its limit of 4,096 distinct devices.
 <!-- source: internal/component/plugin/server/managed_serve.go -- ManagedListener, handleConn -->
 <!-- source: internal/component/plugin/doctor/check_managed_listener.go -- diagnoseManagedListener -->
+<!-- source: internal/component/config/loader_extract.go -- readManagedClientLabels, managedClientLabelAgreement -->
 
 Start the hub with `ze start`. It also needs the root of its certificate
 authority later, in step 3. Print it now and save it to a file:

@@ -6,9 +6,12 @@ package config
 import (
 	"errors"
 	"fmt"
+	"maps"
 	"net/url"
+	"slices"
 	"strconv"
 	"strings"
+	"unicode"
 
 	"github.com/ze-software/ze/internal/component/plugin"
 	"github.com/ze-software/ze/internal/core/env"
@@ -993,10 +996,14 @@ func ExtractHubConfig(tree *Tree) (plugin.HubConfig, error) {
 		return plugin.HubConfig{}, nil
 	}
 
+	labels, err := readManagedClientLabels(hubContainer)
+	if err != nil {
+		return plugin.HubConfig{}, err
+	}
 	var hub plugin.HubConfig
 
 	for _, entry := range hubContainer.GetListOrdered("server") {
-		srv, err := extractHubServerConfig(entry.Key, entry.Value)
+		srv, err := extractHubServerConfig(entry.Key, entry.Value, labels)
 		if err != nil {
 			return plugin.HubConfig{}, fmt.Errorf("hub server %q: %w", entry.Key, err)
 		}
@@ -1043,7 +1050,7 @@ func checkManagedCertificateAgreement(servers []plugin.HubServerConfig) error {
 	return nil
 }
 
-func extractHubServerConfig(name string, tree *Tree) (plugin.HubServerConfig, error) {
+func extractHubServerConfig(name string, tree *Tree, labels map[string]map[string]string) (plugin.HubServerConfig, error) {
 	srv := plugin.HubServerConfig{Name: name}
 
 	if ip, ok := tree.Get("ip"); ok {
@@ -1081,10 +1088,105 @@ func extractHubServerConfig(name string, tree *Tree) (plugin.HubServerConfig, er
 				return srv, fmt.Errorf("client %q: secret too short: minimum %d characters, got %d", clientName, minTokenLength, len(clientSecret))
 			}
 			srv.Clients[clientName] = clientSecret
+			if values := labels[clientName]; len(values) > 0 {
+				if srv.ClientLabels == nil {
+					srv.ClientLabels = make(map[string]map[string]string)
+				}
+				srv.ClientLabels[clientName] = maps.Clone(values)
+			}
 		}
 	}
 
 	return srv, nil
+}
+
+func managedClientConfigPath(block, client string) string {
+	return "bus hub server " + QuoteIfNeeded(block) + " client " + QuoteIfNeeded(client)
+}
+
+// readManagedClientLabels joins declarations by device name. One device has
+// one set of labels even when it can reach several listeners. The same read
+// checks editor candidates and supplies the labels to ExtractHubConfig.
+func readManagedClientLabels(hub *Tree) (map[string]map[string]string, error) {
+	if hub == nil {
+		return nil, nil //nolint:nilnil // no hub config declares any labels
+	}
+	first := make(map[string]string)
+	labels := make(map[string]map[string]string)
+	var excessPath string
+	for _, block := range hub.GetListOrdered("server") {
+		for _, client := range block.Value.GetListOrdered("client") {
+			values, err := readClientLabels(block.Key, client.Key, client.Value)
+			if err != nil {
+				return nil, err
+			}
+			if firstBlock, exists := first[client.Key]; exists {
+				if err := managedClientLabelAgreement(client.Key, firstBlock, block.Key, labels[client.Key], values); err != nil {
+					return nil, err
+				}
+				continue
+			}
+			first[client.Key] = block.Key
+			if len(values) > 0 {
+				labels[client.Key] = values
+			}
+			if len(first) == plugin.ManagedClientsMax+1 {
+				excessPath = managedClientConfigPath(block.Key, client.Key)
+			}
+		}
+	}
+	if excessPath != "" {
+		return nil, opererr.New("bus hub declares "+strconv.Itoa(len(first))+" distinct managed clients",
+			"the hub can manage up to "+strconv.Itoa(plugin.ManagedClientsMax)+" distinct client names",
+			"delete "+excessPath)
+	}
+	return labels, nil
+}
+
+func readClientLabels(block, client string, tree *Tree) (map[string]string, error) {
+	entries := tree.GetListOrdered("label")
+	if len(entries) == 0 {
+		return nil, nil //nolint:nilnil // an unlabeled client is valid
+	}
+	values := make(map[string]string, len(entries))
+	for _, entry := range entries {
+		value, _ := entry.Value.Get("value")
+		if !printableManagedLabel(value) {
+			return nil, opererr.New("invalid value for label "+QuoteIfNeeded(entry.Key)+" on client "+QuoteIfNeeded(client),
+				"a label needs a printable value",
+				"set "+managedClientConfigPath(block, client)+" label "+QuoteIfNeeded(entry.Key)+" value <value>")
+		}
+		values[entry.Key] = value
+	}
+	return values, nil
+}
+
+// printableManagedLabel accepts a nonempty value made entirely of printable runes.
+func printableManagedLabel(value string) bool {
+	return value != "" && strings.IndexFunc(value, func(r rune) bool { return !unicode.IsPrint(r) }) < 0
+}
+
+func managedClientLabelAgreement(client, first, other string, want, got map[string]string) error {
+	if maps.Equal(want, got) {
+		return nil
+	}
+	path := managedClientConfigPath(other, client)
+	disagrees := func(key, fix string) error {
+		return opererr.New("label "+QuoteIfNeeded(key)+" for client "+QuoteIfNeeded(client)+" differs between hub servers "+
+			QuoteIfNeeded(first)+" and "+QuoteIfNeeded(other),
+			"each server that declares a device must give it the same labels", fix)
+	}
+	for _, key := range slices.Sorted(maps.Keys(want)) {
+		if want[key] != got[key] {
+			return disagrees(key, "set "+path+" label "+key+" value "+QuoteIfNeeded(want[key]))
+		}
+	}
+	for _, key := range slices.Sorted(maps.Keys(got)) {
+		if _, ok := want[key]; !ok {
+			return disagrees(key, "delete "+path+" label "+key)
+		}
+	}
+	return nil
 }
 
 // APIListenConfig holds one parsed api-server listen endpoint.

@@ -398,6 +398,31 @@ module ze-plugin-conf {
                             clear.";
                         ze:help "Per-client auth token (min 32 chars)";
                     }
+
+                    list label {
+                        key "key";
+                        max-elements 32;
+                        description "Operator labels for this managed device. Give the device the same
+                            labels on every server block that declares it.";
+                        ze:help "Labels assigned to the device";
+
+                        leaf key {
+                            type string {
+                                length "1..63";
+                                pattern '[a-z][a-z0-9-]*';
+                            }
+                            description "Start with a lowercase letter. Subsequent characters can be
+                                lowercase letters, digits or hyphens.";
+                            ze:help "Label key, for example site";
+                        }
+
+                        leaf value {
+                            type string { length "1..128"; }
+                            mandatory true;
+                            description "A value of 1 to 128 printable characters.";
+                            ze:help "Value of this label";
+                        }
+                    }
                 }
             }
 

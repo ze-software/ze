@@ -178,6 +178,12 @@ certificate authority.
 
 ### Per-Client Secrets
 
+The hub accepts up to 4,096 distinct client names across its server blocks.
+An operator can label a client under `bus hub server <block> client <name>`.
+Blocks that declare the same client must give it the same labels. The hub
+checks the label sets independently of each listener's authentication token.
+<!-- source: internal/component/config/loader_extract.go -- ExtractHubConfig, readManagedClientLabels -->
+
 At `#0 auth`, the hub looks up the token against the `client` entries nested under the `server` block whose listener accepted the connection. A client cannot use another client's token, and a client is admitted only on the address of the block that declares it: on any other managed listener it is an unknown name, whatever token it sends. A client that must be reachable through two blocks is declared under both.
 <!-- source: internal/component/plugin/server/managed_serve.go -- ManagedListener, handleConn -->
 

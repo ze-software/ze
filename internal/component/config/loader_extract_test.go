@@ -1,6 +1,9 @@
 package config
 
 import (
+	"path/filepath"
+	"strconv"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -19,6 +22,138 @@ import (
 	_ "github.com/ze-software/ze/internal/component/mcp/yang"
 	_ "github.com/ze-software/ze/internal/component/web/yang"
 )
+
+const labelTestSecret = "a-managed-client-secret-of-32-chars"
+
+func hubLabelConfig(labels string) string {
+	return "bus { hub { server central { client edge-01 { secret " + labelTestSecret + "; " + labels + " } } } }"
+}
+
+// VALIDATES: A loaded device retains its secret and each label, including the
+// longest key and value.
+// PREVENTS: Accepting labels in the schema and dropping them before the registry.
+func TestExtractHubConfigLabels(t *testing.T) {
+	key := "a" + strings.Repeat("b", 62)
+	value := strings.Repeat("x", 128)
+	result, err := LoadConfig(hubLabelConfig("label "+key+" { value "+value+"; } label site { value \"London North\"; }"), filepath.Join(t.TempDir(), "hub.conf"), nil)
+	require.NoError(t, err)
+	hub, err := ExtractHubConfig(result.Tree)
+	require.NoError(t, err)
+	require.Len(t, hub.Servers, 1)
+	assert.Equal(t, map[string]string{key: value, "site": "London North"}, hub.Servers[0].ClientLabels["edge-01"])
+	assert.Equal(t, labelTestSecret, hub.Servers[0].Clients["edge-01"])
+}
+
+// VALIDATES: A file with 32 labels loads, while the upper bounds, key syntax
+// and required value are enforced by the normal loader.
+// PREVENTS: A schema restriction on the wrong list or leaf passing unnoticed.
+func TestExtractHubConfigLabelConstraints(t *testing.T) {
+	var labels strings.Builder
+	for i := range 32 {
+		labels.WriteString("label k" + strconv.Itoa(i) + " { value v; } ")
+	}
+	path := filepath.Join(t.TempDir(), "hub.conf")
+	_, err := LoadConfig(hubLabelConfig(labels.String()), path, nil)
+	require.NoError(t, err)
+	for _, test := range []struct{ name, config string }{
+		{"33 entries", labels.String() + "label excess { value v; }"},
+		{"empty key", `label "" { value v; }`},
+		{"key too long", "label " + strings.Repeat("a", 64) + " { value v; }"},
+		{"invalid key", "label 3site { value v; }"},
+		{"missing value", "label site { }"},
+		{"empty value", `label site { value ""; }`},
+		{"value too long", "label site { value " + strings.Repeat("x", 129) + "; }"},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			_, loadErr := LoadConfig(hubLabelConfig(test.config), path, nil)
+			require.Error(t, loadErr)
+		})
+	}
+}
+
+// VALIDATES: Printable Unicode and spaces reach the device, while a tab and
+// an invisible formatting character are refused with a repair command.
+// PREVENTS: Accepting control characters or excluding printable non-ASCII text.
+func TestExtractHubConfigLabelPrintable(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "hub.conf")
+	for _, test := range []struct {
+		value string
+		valid bool
+	}{
+		{"Île de Ré", true},
+		{"London\tNorth", false},
+		{"London\u200bNorth", false},
+	} {
+		t.Run(strconv.Quote(test.value), func(t *testing.T) {
+			result, err := LoadConfig(hubLabelConfig("label site { value "+QuoteIfNeeded(test.value)+"; }"), path, nil)
+			if test.valid {
+				require.NoError(t, err)
+				hub, err := ExtractHubConfig(result.Tree)
+				require.NoError(t, err)
+				assert.Equal(t, test.value, hub.Servers[0].ClientLabels["edge-01"]["site"])
+				return
+			}
+			require.ErrorContains(t, err, "printable")
+			assert.Contains(t, err.Error(), "set bus hub server central client edge-01 label site value")
+		})
+	}
+}
+
+// VALIDATES: Two server blocks may declare one device with the same labels.
+// A missing, extra or changed label identifies both blocks and its repair.
+// PREVENTS: The device's labels depending on which listener it connects to.
+func TestExtractHubConfigRefusesDisagreeingLabels(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "hub.conf")
+	block := func(name, labels string) string {
+		return "server " + name + " { client edge-01 { secret " + labelTestSecret + "; " + labels + " } } "
+	}
+	site := "label site { value lon; }"
+	for _, test := range []struct{ name, first, second, fix string }{
+		{"same", site, site, ""},
+		{"different value", site, "label site { value par; }", "set bus hub server south client edge-01 label site value lon"},
+		{"missing key", site, "", "set bus hub server south client edge-01 label site value lon"},
+		{"extra key", "", site, "delete bus hub server south client edge-01 label site"},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			_, err := LoadConfig("bus { hub { "+block("north", test.first)+block("south", test.second)+"} }", path, nil)
+			if test.fix == "" {
+				require.NoError(t, err)
+				return
+			}
+			require.Error(t, err)
+			for _, word := range []string{"north", "south", "edge-01", "site", test.fix} {
+				assert.Contains(t, err.Error(), word)
+			}
+		})
+	}
+}
+
+// VALIDATES: Extraction and commit verification bound the distinct device
+// names across all blocks and allow a second declaration at the limit.
+// PREVENTS: Counting duplicates twice or enforcing the limit per listener.
+func TestExtractHubConfigRefusesTooManyClients(t *testing.T) {
+	tree, bus, hub := NewTree(), NewTree(), NewTree()
+	tree.SetContainer("bus", bus)
+	bus.SetContainer("hub", hub)
+	central, backup, client := NewTree(), NewTree(), NewTree()
+	hub.AddListEntry("server", "central", central)
+	hub.AddListEntry("server", "backup", backup)
+	client.Set("secret", labelTestSecret)
+	for i := range 4096 {
+		central.AddListEntry("client", "edge-"+strconv.Itoa(i), client)
+	}
+	backup.AddListEntry("client", "edge-0", client)
+	_, err := ExtractHubConfig(tree)
+	require.NoError(t, err)
+	backup.AddListEntry("client", "edge-extra", client)
+	_, verifyErr := ValidateCustomSections(tree)
+	require.ErrorContains(t, verifyErr, "4097")
+	_, err = ExtractHubConfig(tree)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "4097")
+	assert.Contains(t, err.Error(), "4096")
+	assert.Contains(t, err.Error(), "delete bus hub server backup client edge-extra")
+}
 
 // TestExtractAPIConfig_RESTSingleServer verifies a single named list entry
 // is read into cfg.REST[0] and the transport is marked enabled.
