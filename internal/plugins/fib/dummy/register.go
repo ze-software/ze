@@ -2,6 +2,7 @@
 // Related: fibdummy.go -- held route table, best-change handler, counters, metrics
 // Related: show.go -- command answer shapes and builders
 // Related: labels.go -- MPLS label refusal and targeted replay request
+// Related: doctor.go -- post-config doctor check for held routes
 // Related: register_doctor_codes.go -- diagnostic codes owned by fib-dummy
 //
 // Package fibdummy implements the fib-dummy plugin, which receives the routes
@@ -69,10 +70,12 @@ func init() {
 		Features:     "yang",
 		ConfigRoots:  []string{configRoot},
 		Dependencies: []string{"rib"},
-		// ProgramsFIB with no DataPlane: `fib { dummy { } }` IS the operator's
-		// FIB choice, so Ze adds no data-plane writer beside it, and fib-dummy
-		// is never resolved as a route producer's data-plane writer.
+		// ProgramsFIB with NoDataPlaneChoice and no DataPlane: `fib { dummy { } }`
+		// IS the operator's FIB choice to program no data plane, so Ze adds no
+		// data-plane writer beside it, refuses it beside any other FIB plugin,
+		// and never resolves fib-dummy as a route producer's data-plane writer.
 		ProgramsFIB:             true,
+		NoDataPlaneChoice:       true,
 		YANG:                    fibdummyyang.ZeFibDummyConfYANG,
 		InProcessConfigVerifier: verifyFIBDummyConfig,
 		Sends:                   fibDummySends(),

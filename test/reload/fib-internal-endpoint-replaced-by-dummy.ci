@@ -1,0 +1,199 @@
+# Test: replacing a compiled-in `ProgramsFIB` bus endpoint (`bus { endpoint k { internal fib-kernel; } }`)
+#       with `fib { dummy { } }` by reload stops process `k`, starts `fib-dummy`
+#       to hold the static route, and leaves `fib-dummy` alone across a later
+#       unrelated reload.
+#
+# VALIDATES: spec-fib-dummy AC-20, R-13 -- reload writer judgement covers
+#            compiled-in `ProgramsFIB` bus endpoints, stops `k` when removed,
+#            starts `fib-dummy`, and starts/stops no plugin on an unrelated BGP
+#            peer description edit.
+# PREVENTS:  reloads leaving a removed `ProgramsFIB` bus endpoint running
+#            beside `fib-dummy`, or churning `fib-dummy` on unrelated edits.
+
+option=needs-linux
+option=timeout:value=90s
+option=env:var=ZE_CONFIG_DIR:value=.
+option=env:var=XDG_DATA_HOME:value=.
+option=env:var=ze.ssh.password:value=testpass
+option=env:var=ze.log.plugin.server:value=info
+
+stdin=init-answers:terminator=EOF_INIT
+admin
+testpass
+127.0.0.1
+$PORT2
+EOF_INIT
+
+# Initial config: compiled-in FIB bus endpoint k + static + BGP peer.
+tmpfs=ze-bgp.conf:terminator=EOF_CONF1
+system {
+	authentication {
+		# bcrypt cost-4 hash of "testpass".
+		user admin {
+			password "$2a$04$UlwuiuH82Unfsq.XEMPGJeDkXwbm3KW.nvVaVXOd/JeFK8VjMjrQO"
+		}
+	}
+}
+environment {
+	ssh {
+		enabled true;
+		server main {
+			ip 127.0.0.1;
+			port $PORT2;
+		}
+	}
+}
+bus {
+	endpoint k {
+		internal fib-kernel;
+	}
+}
+static {
+	table default {
+		route 198.51.100.0/24 {
+			next { hop 192.0.2.1 { } }
+		}
+	}
+}
+bgp {
+	peer peer1 {
+		description "before";
+		connection {
+			remote { ip 127.0.0.2; connect false; }
+			local { ip 127.0.0.1; port $PORT; accept true; }
+		}
+		session {
+			asn { local 65001; remote 65001; }
+			router-id 1.2.3.4;
+			family { ipv4/unicast { prefix { maximum 10000; } } }
+			capability { graceful-restart disable; }
+		}
+	}
+}
+EOF_CONF1
+
+# Reload 1: replace bus endpoint k with fib { dummy { } }.
+tmpfs=reload-dummy.conf:terminator=EOF_CONF2
+system {
+	authentication {
+		user admin {
+			password "$2a$04$UlwuiuH82Unfsq.XEMPGJeDkXwbm3KW.nvVaVXOd/JeFK8VjMjrQO"
+		}
+	}
+}
+environment {
+	ssh {
+		enabled true;
+		server main {
+			ip 127.0.0.1;
+			port $PORT2;
+		}
+	}
+}
+fib {
+	dummy { }
+}
+static {
+	table default {
+		route 198.51.100.0/24 {
+			next { hop 192.0.2.1 { } }
+		}
+	}
+}
+bgp {
+	peer peer1 {
+		description "before";
+		connection {
+			remote { ip 127.0.0.2; connect false; }
+			local { ip 127.0.0.1; port $PORT; accept true; }
+		}
+		session {
+			asn { local 65001; remote 65001; }
+			router-id 1.2.3.4;
+			family { ipv4/unicast { prefix { maximum 10000; } } }
+			capability { graceful-restart disable; }
+		}
+	}
+}
+EOF_CONF2
+
+# Reload 2: change only BGP peer description (unrelated edit).
+tmpfs=reload-desc.conf:terminator=EOF_CONF3
+system {
+	authentication {
+		user admin {
+			password "$2a$04$UlwuiuH82Unfsq.XEMPGJeDkXwbm3KW.nvVaVXOd/JeFK8VjMjrQO"
+		}
+	}
+}
+environment {
+	ssh {
+		enabled true;
+		server main {
+			ip 127.0.0.1;
+			port $PORT2;
+		}
+	}
+}
+fib {
+	dummy { }
+}
+static {
+	table default {
+		route 198.51.100.0/24 {
+			next { hop 192.0.2.1 { } }
+		}
+	}
+}
+bgp {
+	peer peer1 {
+		description "after";
+		connection {
+			remote { ip 127.0.0.2; connect false; }
+			local { ip 127.0.0.1; port $PORT; accept true; }
+		}
+		session {
+			asn { local 65001; remote 65001; }
+			router-id 1.2.3.4;
+			family { ipv4/unicast { prefix { maximum 10000; } } }
+			capability { graceful-restart disable; }
+		}
+	}
+}
+EOF_CONF3
+
+cmd=foreground:seq=1:exec=ze init:stdin=init-answers:exit=0
+cmd=background:seq=2:exec=ze start ze-bgp.conf:name=daemon:ready=Ze running.
+reject=stderr:pattern=panic
+
+# Wait until endpoint k and static are running.
+cmd=foreground:seq=3:exec=le test fixture daemon/await-answer-all "show system subsystem list | json" static '"name": "k"':exit=0
+expect=stdout:contains=OK:
+
+# Reload 1: replace endpoint k with fib { dummy { } }.
+cmd=foreground:seq=4:exec=le test fixture plugin/bus-sighup-reload reload-dummy.conf ze-bgp.conf reload1.applied:exit=0
+expect=stdout:contains=OK: SIGHUP reload reload-dummy.conf applied
+
+# AC-20: fib-dummy holds the static route, process k is stopped, only fib-dummy runs among ProgramsFIB.
+cmd=foreground:seq=5:exec=le test fixture daemon/await-answer-all "show fib dummy | json" 198.51.100.0/24:exit=0
+expect=stdout:contains=OK:
+cmd=foreground:seq=6:exec=ze cli -c "show fib dummy | json":exit=0
+expect=stdout:pattern="prefix": ?"198\.51\.100\.0/24"
+expect=stdout:pattern="programmed": ?"no"
+cmd=foreground:seq=7:exec=ze cli -c "show system subsystem list | json":exit=0
+expect=stdout:pattern="name": ?"fib-dummy"
+reject=stdout:pattern="name": ?"k"
+reject=stdout:pattern="name": ?"fib-kernel"
+
+# Reload 2: unrelated BGP peer description edit starts/stops no plugin.
+cmd=foreground:seq=8:exec=le test fixture plugin/bus-sighup-reload reload-desc.conf ze-bgp.conf reload2.applied:exit=0
+expect=stdout:contains=OK: SIGHUP reload reload-desc.conf applied
+cmd=foreground:seq=9:exec=ze cli -c "show system subsystem list | json":exit=0
+expect=stdout:pattern="name": ?"fib-dummy"
+reject=stdout:pattern="name": ?"k"
+reject=stdout:pattern="name": ?"fib-kernel"
+cmd=foreground:seq=10:exec=ze cli -c "show fib dummy counters | json":exit=0
+expect=stdout:pattern="routes-held": ?1
+expect=stdout:pattern="installs": ?1
+
+cmd=stop:seq=11:name=daemon:signal=term

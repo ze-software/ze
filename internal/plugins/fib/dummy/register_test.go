@@ -44,6 +44,7 @@ func TestFIBDummyDeclaresNoDataPlane(t *testing.T) {
 	require.NotNil(t, reg, "fib-dummy must be registered by init()")
 
 	assert.True(t, reg.ProgramsFIB, "fib-dummy must declare ProgramsFIB so Ze adds no writer beside it")
+	assert.True(t, reg.NoDataPlaneChoice, "fib-dummy must mark NoDataPlaneChoice so the verdict refuses it beside another FIB plugin")
 	assert.Empty(t, reg.DataPlane, "fib-dummy reaches no data plane and must leave DataPlane empty")
 	assert.Equal(t, []string{configRoot}, reg.ConfigRoots)
 	assert.Equal(t, []string{"rib"}, reg.Dependencies)

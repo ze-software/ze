@@ -1,0 +1,63 @@
+# Test: `ze config validate` refuses `fib { dummy { } }` beside any other
+#       `ProgramsFIB` plugin (config root or bus endpoint) with the exact
+#       What / Why / Fix lines, and accepts `fib { dummy { } }` alone.
+#
+# VALIDATES: spec-fib-dummy AC-4 -- the no-plane verdict rule refuses
+#            `fib dummy` beside `fib kernel` (names the kernel plane), beside
+#            `fib p4` (says "is another FIB plugin"), and beside a bus endpoint
+#            selecting `fib-kernel` (names `delete bus endpoint k`), while
+#            accepting `fib dummy` alone.
+# PREVENTS:  running a real FIB writer beside `fib dummy` or emitting missing /
+#            wrong fix lines from `ze config validate`.
+
+stdin=dummy-kernel:refused=config-plugin-verify:terminator=EOF_KERNEL
+fib {
+	dummy { }
+	kernel { }
+}
+EOF_KERNEL
+
+stdin=dummy-p4:refused=config-plugin-verify:terminator=EOF_P4
+fib {
+	dummy { }
+	p4 { }
+}
+EOF_P4
+
+stdin=dummy-endpoint:refused=config-plugin-verify:terminator=EOF_EP
+fib {
+	dummy { }
+}
+bus {
+	endpoint k {
+		internal fib-kernel;
+	}
+}
+EOF_EP
+
+stdin=dummy-alone:terminator=EOF_ALONE
+fib {
+	dummy { }
+}
+EOF_ALONE
+
+cmd=foreground:seq=1:exec=ze config validate -:stdin=dummy-kernel
+expect=exit:code=1
+expect=stdout:contains=fib dummy is configured beside fib kernel
+expect=stdout:contains=fib dummy is the choice to program no route, and fib kernel programs the kernel data plane
+expect=stdout:contains=fix: delete fib dummy, or delete fib kernel
+
+cmd=foreground:seq=2:exec=ze config validate -:stdin=dummy-p4
+expect=exit:code=1
+expect=stdout:contains=fib dummy is configured beside fib p4
+expect=stdout:contains=fib dummy is the choice to program no route, and fib p4 is another FIB plugin
+expect=stdout:contains=fix: delete fib dummy, or delete fib p4
+
+cmd=foreground:seq=3:exec=ze config validate -:stdin=dummy-endpoint
+expect=exit:code=1
+expect=stdout:contains=fib dummy is configured and the plugin fib-kernel is selected
+expect=stdout:contains=fix: delete fib dummy, or delete bus endpoint k
+
+cmd=foreground:seq=4:exec=ze config validate -:stdin=dummy-alone
+expect=exit:code=0
+expect=stdout:contains=valid

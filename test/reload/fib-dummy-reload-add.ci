@@ -1,0 +1,147 @@
+# Test: adding `fib { dummy { } }` by reload stops the engine-added `fib-kernel`
+#       writer, starts `fib-dummy`, refuses `request plugin restart fib-kernel`,
+#       holds later static routes without programming Linux, and surfaces LDP's
+#       refused label entry in `show doctor`.
+#
+# VALIDATES: spec-fib-dummy AC-5, AC-9, AC-17 -- reload writer judgement stops
+#            the engine-added `fib-kernel` when `fib { dummy { } }` is added,
+#            drops `fib-kernel` from the configured set so `request plugin
+#            restart fib-kernel` is refused, holds new static routes in
+#            `fib-dummy` instead of the kernel, and records LDP's refused label
+#            entry under `doctor-fib-mpls-no-writer` in `show doctor`.
+# PREVENTS:  reload keeping `fib-kernel` running beside `fib-dummy`, allowing a
+#            stopped auto-loaded writer to be restarted, or losing LDP's label
+#            refusal diagnostic after transitioning to `fib dummy`.
+
+option=needs-linux
+option=timeout:value=90s
+option=env:var=ZE_CONFIG_DIR:value=.
+option=env:var=XDG_DATA_HOME:value=.
+option=env:var=ze.ssh.password:value=testpass
+option=env:var=ze.log.plugin.server:value=info
+
+stdin=init-answers:terminator=EOF_INIT
+admin
+testpass
+127.0.0.1
+$PORT2
+EOF_INIT
+
+# Initial config: static + ldp with no fib block, so the engine auto-loads fib-kernel.
+tmpfs=ze-bgp.conf:terminator=EOF_CONF1
+system {
+	authentication {
+		# bcrypt cost-4 hash of "testpass".
+		user admin {
+			password "$2a$04$UlwuiuH82Unfsq.XEMPGJeDkXwbm3KW.nvVaVXOd/JeFK8VjMjrQO"
+		}
+	}
+}
+environment {
+	ssh {
+		enabled true;
+		server main {
+			ip 127.0.0.1;
+			port $PORT2;
+		}
+	}
+}
+static {
+	table default {
+		route 198.51.100.0/24 {
+			next { hop 192.0.2.1 { } }
+		}
+	}
+}
+ldp {
+	lsr-id 10.0.0.1
+	transport-address 10.0.0.1
+	hello-interval 5
+	hello-hold-time 15
+	keepalive-time 60
+	interfaces lo
+}
+EOF_CONF1
+
+# Reload config: add fib { dummy { } } and a second static route.
+tmpfs=reload-add-dummy.conf:terminator=EOF_CONF2
+system {
+	authentication {
+		user admin {
+			password "$2a$04$UlwuiuH82Unfsq.XEMPGJeDkXwbm3KW.nvVaVXOd/JeFK8VjMjrQO"
+		}
+	}
+}
+environment {
+	ssh {
+		enabled true;
+		server main {
+			ip 127.0.0.1;
+			port $PORT2;
+		}
+	}
+}
+fib {
+	dummy { }
+}
+static {
+	table default {
+		route 198.51.100.0/24 {
+			next { hop 192.0.2.1 { } }
+		}
+		route 203.0.113.0/24 {
+			next { hop 192.0.2.1 { } }
+		}
+	}
+}
+ldp {
+	lsr-id 10.0.0.1
+	transport-address 10.0.0.1
+	hello-interval 5
+	hello-hold-time 15
+	keepalive-time 60
+	interfaces lo
+}
+EOF_CONF2
+
+cmd=foreground:seq=1:exec=ze init:stdin=init-answers:exit=0
+cmd=background:seq=2:exec=ze start ze-bgp.conf:name=daemon:ready=Ze running.
+reject=stderr:pattern=panic
+
+# Wait until engine-added fib-kernel and both producers are running.
+cmd=foreground:seq=3:exec=le test fixture daemon/await-answer-all "show system subsystem list | json" fib-kernel static ldp:exit=0
+expect=stdout:contains=OK:
+
+# Reload to add fib { dummy { } } and the second static route.
+cmd=foreground:seq=4:exec=le test fixture plugin/bus-sighup-reload reload-add-dummy.conf ze-bgp.conf reload1.applied:exit=0
+expect=stdout:contains=OK: SIGHUP reload reload-add-dummy.conf applied
+
+# AC-5: fib-dummy holds both static routes with programmed="no".
+cmd=foreground:seq=5:exec=le test fixture daemon/await-answer-all "show fib dummy | json" 198.51.100.0/24 203.0.113.0/24:exit=0
+expect=stdout:contains=OK:
+cmd=foreground:seq=6:exec=ze cli -c "show fib dummy | json":exit=0
+expect=stdout:pattern="prefix": ?"203\.0\.113\.0/24"
+expect=stdout:pattern="programmed": ?"no"
+reject=stdout:pattern="programmed": ?"yes"
+
+# AC-5: fib-kernel stopped and is no longer listed or serving commands.
+cmd=foreground:seq=7:exec=ze cli -c "show system subsystem list | json":exit=0
+expect=stdout:pattern="name": ?"fib-dummy"
+reject=stdout:pattern="name": ?"fib-kernel"
+cmd=foreground:seq=8:exec=ze cli -c "show fib kernel":exit=1
+
+# AC-17: restarting the writer a reload removed is refused.
+cmd=foreground:seq=9:exec=ze cli -c "request plugin restart fib-kernel":exit=1
+
+# AC-5: the new static route never reached any Linux kernel routing table.
+cmd=foreground:seq=10:exec=le test fixture static/kernel-route-absent 203.0.113.0/24:exit=0
+expect=stdout:contains=OK: 203.0.113.0/24 absent from kernel
+
+# AC-9: LDP's label entry refusal from fib-dummy is reported by show doctor.
+cmd=foreground:seq=11:exec=le test fixture daemon/await-answer-all "show doctor | json" doctor-fib-mpls-no-writer "fib dummy programs no label":exit=0
+expect=stdout:contains=OK:
+cmd=foreground:seq=12:exec=ze cli -c "show doctor | json":exit=0
+expect=stdout:pattern="code": ?"doctor-fib-mpls-no-writer"
+expect=stdout:contains=fib dummy programs no label, so this entry is not installed; delete fib dummy, or remove the label protocol
+
+cmd=stop:seq=13:name=daemon:signal=term

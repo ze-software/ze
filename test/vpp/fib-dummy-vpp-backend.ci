@@ -1,0 +1,22 @@
+# Test: `fib { dummy { } }` under `interface { backend vpp; }` holds BGP routes
+#       without auto-loading `fib-vpp` or sending any route call to the VPP stub.
+#
+# VALIDATES: spec-fib-dummy AC-11 -- `fib dummy` suppresses the VPP data-plane
+#            writer (`fib-vpp`), holds the BGP route with `programmed: "no"`,
+#            and leaves the VPP stub JSONL log free of `ip_route_add_del_v2`.
+# PREVENTS:  `interface { backend vpp; }` auto-loading `fib-vpp` beside
+#            `fib { dummy { } }` or programming routes into VPP.
+
+option=needs-linux
+
+tmpfs=peer-script:terminator=EOF_PEER
+option=tcp_connections:value=1
+option=timeout:value=20s
+option=linger:value=true
+option=update:value=send-route:prefix=10.20.0.0/24:next-hop=10.0.0.1:origin-as=65001
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
+EOF_PEER
+
+cmd=foreground:seq=1:exec=le test fixture vpp/fib-dummy-vpp-backend $PORT $PORT2:timeout=45s
+expect=exit:code=0
+expect=stderr:pattern=OK: fib-dummy held 10\.20\.0\.0/24 under VPP backend with no stub route call

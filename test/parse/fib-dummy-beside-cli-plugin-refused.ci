@@ -1,0 +1,21 @@
+# Test: `ze --plugin ze.fib-kernel config validate` refuses a config holding
+#       `fib { dummy { } }` with the exact `--plugin` What / Why / Fix lines.
+#
+# VALIDATES: spec-fib-dummy AC-4, A-1 -- the process-wide `--plugin` record
+#            reaches `ze config validate` through `candidatePluginSelection`,
+#            refusing `fib dummy` when `fib-kernel` is selected on the command
+#            line and naming `start ze without --plugin ze.fib-kernel`.
+# PREVENTS:  `--plugin ze.fib-kernel` bypassing the no-plane refusal at
+#            `ze config validate`.
+
+stdin=dummy-only:terminator=EOF_CONF
+fib {
+	dummy { }
+}
+EOF_CONF
+
+cmd=foreground:seq=1:exec=ze --plugin ze.fib-kernel config validate -:stdin=dummy-only
+expect=exit:code=1
+expect=stdout:contains=fib dummy is configured and the plugin fib-kernel is selected
+expect=stdout:contains=fib dummy is the choice to program no route, and fib kernel programs the kernel data plane
+expect=stdout:contains=fix: delete fib dummy, or start ze without --plugin ze.fib-kernel

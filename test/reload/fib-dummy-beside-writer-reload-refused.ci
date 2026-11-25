@@ -1,0 +1,117 @@
+# Test: a SIGHUP reload that puts `fib { dummy { } }` beside `fib { kernel { } }`
+#       is refused with the AC-4 What / Why / Fix lines, the daemon keeps
+#       running `fib-dummy` without starting `fib-kernel`, and a subsequent
+#       valid reload succeeds.
+#
+# VALIDATES: spec-fib-dummy AC-4, A-1 -- SIGHUP reload runs `evaluateDataPlaneVerdict`
+#            through `loadConfig`, refuses `fib dummy` beside `fib kernel` with
+#            the exact three-line refusal, leaves the running `fib-dummy`
+#            configuration untouched, and accepts a later valid reload.
+# PREVENTS:  reload bypassing the no-plane verdict rule, dropping the daemon on
+#            refusal, or starting `fib-kernel` beside `fib-dummy`.
+
+option=timeout:value=60s
+option=env:var=ZE_CONFIG_DIR:value=.
+option=env:var=XDG_DATA_HOME:value=.
+option=env:var=ze.ssh.password:value=testpass
+
+stdin=init-answers:terminator=EOF_INIT
+admin
+testpass
+127.0.0.1
+$PORT2
+EOF_INIT
+
+tmpfs=ze-bgp.conf:terminator=EOF_CONF
+system {
+	authentication {
+		# bcrypt cost-4 hash of "testpass".
+		user admin {
+			password "$2a$04$UlwuiuH82Unfsq.XEMPGJeDkXwbm3KW.nvVaVXOd/JeFK8VjMjrQO"
+		}
+	}
+}
+environment {
+	ssh {
+		enabled true;
+		server main {
+			ip 127.0.0.1;
+			port $PORT2;
+		}
+	}
+}
+fib {
+	dummy { }
+}
+EOF_CONF
+
+tmpfs=config2.conf:refused=config-plugin-verify:terminator=EOF_CONF2
+system {
+	authentication {
+		user admin {
+			password "$2a$04$UlwuiuH82Unfsq.XEMPGJeDkXwbm3KW.nvVaVXOd/JeFK8VjMjrQO"
+		}
+	}
+}
+environment {
+	ssh {
+		enabled true;
+		server main {
+			ip 127.0.0.1;
+			port $PORT2;
+		}
+	}
+}
+fib {
+	dummy { }
+	kernel { }
+}
+EOF_CONF2
+
+tmpfs=config3.conf:terminator=EOF_CONF3
+system {
+	authentication {
+		user admin {
+			password "$2a$04$UlwuiuH82Unfsq.XEMPGJeDkXwbm3KW.nvVaVXOd/JeFK8VjMjrQO"
+		}
+	}
+}
+environment {
+	ssh {
+		enabled true;
+		server main {
+			ip 127.0.0.1;
+			port $PORT2;
+		}
+	}
+}
+fib {
+	dummy { }
+}
+EOF_CONF3
+
+cmd=foreground:seq=1:exec=ze init:stdin=init-answers:exit=0
+cmd=background:seq=2:exec=ze start ze-bgp.conf:name=daemon:ready=Ze running.
+expect=stderr:contains=reload error:
+expect=stderr:contains=fib dummy is configured beside fib kernel
+expect=stderr:contains=fib dummy is the choice to program no route, and fib kernel programs the kernel data plane
+expect=stderr:contains=fix: delete fib dummy, or delete fib kernel
+reject=stderr:pattern=panic
+
+cmd=foreground:seq=3:exec=ze cli -c "show fib dummy counters | json":exit=0
+expect=stdout:pattern="forwarding": ?"none"
+
+cmd=foreground:seq=4:exec=le test fixture plugin/bus-sighup-reload-refused config2.conf ze-bgp.conf reload2.failed:exit=0
+expect=stdout:contains=OK: SIGHUP reload config2.conf failed
+
+cmd=foreground:seq=5:exec=ze cli -c "show fib dummy counters | json":exit=0
+expect=stdout:pattern="forwarding": ?"none"
+
+cmd=foreground:seq=6:exec=ze cli -c "show system subsystem list | json":exit=0
+expect=stdout:pattern="name": ?"fib-dummy"
+reject=stdout:pattern="name": ?"fib-kernel"
+
+cmd=foreground:seq=7:exec=le test fixture plugin/bus-sighup-reload config3.conf ze-bgp.conf reload3.applied:exit=0
+expect=stdout:contains=OK: SIGHUP reload config3.conf applied
+
+cmd=stop:seq=8:name=daemon:signal=term

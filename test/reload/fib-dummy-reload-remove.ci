@@ -1,0 +1,138 @@
+# Test: booting with `fib { dummy { } }`, a static route, and LDP, then removing
+#       `fib { dummy { } }` by reload stops `fib-dummy`, starts the engine-added
+#       `fib-kernel` writer, programs the static route into Linux, replays LDP's
+#       previously refused label entry into the Linux MPLS table, and clears
+#       LDP's `doctor-fib-mpls-no-writer` finding.
+#
+# VALIDATES: spec-fib-dummy AC-6, AC-21, AC-24 -- remove-only reload runs the
+#            writer judgement, starts `fib-kernel` when `fib { dummy { } }`
+#            leaves while producers remain, programs the held static route into
+#            the kernel, replays LDP's refused label entry into `ip -f mpls
+#            route show`, and clears `ldp-label-entries` in `show doctor`.
+# PREVENTS:  remove-only reloads skipping writer judgement, stranding routes
+#            with no FIB writer, or leaving LDP's refused label unprogrammed
+#            after transitioning from `fib dummy` to `fib-kernel`.
+
+option=needs-linux:caps=net-admin
+option=timeout:value=90s
+option=env:var=ZE_CONFIG_DIR:value=.
+option=env:var=XDG_DATA_HOME:value=.
+option=env:var=ze.ssh.password:value=testpass
+option=env:var=ze.log.plugin.server:value=info
+
+stdin=init-answers:terminator=EOF_INIT
+admin
+testpass
+127.0.0.1
+$PORT2
+EOF_INIT
+
+# Initial config: fib { dummy { } } with static + ldp; kernel gets no routes or labels.
+tmpfs=ze-bgp.conf:terminator=EOF_CONF1
+system {
+	authentication {
+		# bcrypt cost-4 hash of "testpass".
+		user admin {
+			password "$2a$04$UlwuiuH82Unfsq.XEMPGJeDkXwbm3KW.nvVaVXOd/JeFK8VjMjrQO"
+		}
+	}
+}
+environment {
+	ssh {
+		enabled true;
+		server main {
+			ip 127.0.0.1;
+			port $PORT2;
+		}
+	}
+}
+fib {
+	dummy { }
+}
+static {
+	table default {
+		route 198.18.206.0/24 {
+			next { hop 192.0.2.1 { } }
+		}
+	}
+}
+ldp {
+	lsr-id 10.0.0.1
+	transport-address 10.0.0.1
+	hello-interval 5
+	hello-hold-time 15
+	keepalive-time 60
+	interfaces lo
+}
+EOF_CONF1
+
+# Reload config: remove fib { dummy { } }, keep static + ldp.
+tmpfs=reload-remove-dummy.conf:terminator=EOF_CONF2
+system {
+	authentication {
+		user admin {
+			password "$2a$04$UlwuiuH82Unfsq.XEMPGJeDkXwbm3KW.nvVaVXOd/JeFK8VjMjrQO"
+		}
+	}
+}
+environment {
+	ssh {
+		enabled true;
+		server main {
+			ip 127.0.0.1;
+			port $PORT2;
+		}
+	}
+}
+static {
+	table default {
+		route 198.18.206.0/24 {
+			next { hop 192.0.2.1 { } }
+		}
+	}
+}
+ldp {
+	lsr-id 10.0.0.1
+	transport-address 10.0.0.1
+	hello-interval 5
+	hello-hold-time 15
+	keepalive-time 60
+	interfaces lo
+}
+EOF_CONF2
+
+cmd=foreground:seq=1:exec=le test fixture static/static-kernel-setup:exit=0
+cmd=foreground:seq=2:exec=ze init:stdin=init-answers:exit=0
+cmd=background:seq=3:exec=ze start ze-bgp.conf:name=daemon:ready=Ze running.
+reject=stderr:pattern=panic
+
+# Before reload: fib-dummy holds the static route, LDP reports doctor-fib-mpls-no-writer,
+# and Linux holds no route for 198.18.206.0/24.
+cmd=foreground:seq=4:exec=le test fixture daemon/await-answer-all "show fib dummy | json" 198.18.206.0/24:exit=0
+expect=stdout:contains=OK:
+cmd=foreground:seq=5:exec=le test fixture daemon/await-answer-all "show doctor | json" doctor-fib-mpls-no-writer "fib dummy programs no label":exit=0
+expect=stdout:contains=OK:
+cmd=foreground:seq=6:exec=le test fixture static/kernel-route-absent 198.18.206.0/24:exit=0
+expect=stdout:contains=OK: 198.18.206.0/24 absent from kernel
+
+# Reload to remove fib { dummy { } }.
+cmd=foreground:seq=7:exec=le test fixture plugin/bus-sighup-reload reload-remove-dummy.conf ze-bgp.conf reload1.applied:exit=0
+expect=stdout:contains=OK: SIGHUP reload reload-remove-dummy.conf applied
+
+# AC-6: fib-kernel auto-loads, fib-dummy stops, and 198.18.206.0/24 reaches the Linux kernel.
+cmd=foreground:seq=8:exec=le test fixture daemon/await-answer-all "show fib kernel" 198.18.206.0/24:exit=0
+expect=stdout:contains=OK:
+cmd=foreground:seq=9:exec=ze cli -c "show system subsystem list | json":exit=0
+expect=stdout:pattern="name": ?"fib-kernel"
+reject=stdout:pattern="name": ?"fib-dummy"
+cmd=foreground:seq=10:exec=ip -N route show exact 198.18.206.0/24:exit=0
+expect=stdout:contains=198.18.206.0/24
+
+# AC-21 & AC-24: fib-kernel replayed LDP's refused label into the Linux MPLS table
+# and cleared LDP's doctor-fib-mpls-no-writer finding.
+cmd=foreground:seq=11:exec=ip -f mpls route show:exit=0
+expect=stdout:pattern=[0-9]+
+cmd=foreground:seq=12:exec=ze cli -c "show doctor | json":exit=0
+reject=stdout:contains=doctor-fib-mpls-no-writer
+
+cmd=stop:seq=13:name=daemon:signal=term

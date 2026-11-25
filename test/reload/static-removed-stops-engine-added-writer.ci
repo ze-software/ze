@@ -1,0 +1,101 @@
+# Test: removing the last NeedsDataPlane producer (`static`) by reload withdraws
+#       its route from the Linux kernel before stopping the engine-added
+#       `fib-kernel` writer.
+#
+# VALIDATES: spec-fib-dummy AC-16 -- reload stops the producer ahead of the
+#            engine-added FIB writer so the route leaves the kernel cleanly and
+#            no orphaned writer stays running.
+# PREVENTS:  engine-added `fib-kernel` remaining running after the last route
+#            producer leaves, or stopping ahead of `static` and stranding the
+#            kernel route.
+
+option=needs-linux:caps=net-admin
+option=timeout:value=90s
+option=env:var=ZE_CONFIG_DIR:value=.
+option=env:var=XDG_DATA_HOME:value=.
+option=env:var=ze.ssh.password:value=testpass
+option=env:var=ze.log.plugin.server:value=info
+
+stdin=init-answers:terminator=EOF_INIT
+admin
+testpass
+127.0.0.1
+$PORT2
+EOF_INIT
+
+# Initial config: static route with no fib block; engine auto-loads fib-kernel.
+tmpfs=ze-bgp.conf:terminator=EOF_CONF1
+system {
+	authentication {
+		# bcrypt cost-4 hash of "testpass".
+		user admin {
+			password "$2a$04$UlwuiuH82Unfsq.XEMPGJeDkXwbm3KW.nvVaVXOd/JeFK8VjMjrQO"
+		}
+	}
+}
+environment {
+	ssh {
+		enabled true;
+		server main {
+			ip 127.0.0.1;
+			port $PORT2;
+		}
+	}
+}
+static {
+	table default {
+		route 198.18.205.0/24 {
+			next { hop 192.0.2.1 { } }
+		}
+	}
+}
+EOF_CONF1
+
+# Reload config: remove static block completely.
+tmpfs=reload-no-static.conf:terminator=EOF_CONF2
+system {
+	authentication {
+		user admin {
+			password "$2a$04$UlwuiuH82Unfsq.XEMPGJeDkXwbm3KW.nvVaVXOd/JeFK8VjMjrQO"
+		}
+	}
+}
+environment {
+	ssh {
+		enabled true;
+		server main {
+			ip 127.0.0.1;
+			port $PORT2;
+		}
+	}
+}
+EOF_CONF2
+
+cmd=foreground:seq=1:exec=le test fixture static/static-kernel-setup:exit=0
+cmd=foreground:seq=2:exec=ze init:stdin=init-answers:exit=0
+cmd=background:seq=3:exec=ze start ze-bgp.conf:name=daemon:ready=Ze running.
+reject=stderr:pattern=panic
+
+# Wait until static and engine-added fib-kernel are running and the route is in the kernel.
+cmd=foreground:seq=4:exec=le test fixture daemon/await-answer-all "show system subsystem list | json" static fib-kernel:exit=0
+expect=stdout:contains=OK:
+cmd=foreground:seq=5:exec=le test fixture daemon/await-answer-all "show fib kernel" 198.18.205.0/24:exit=0
+expect=stdout:contains=OK:
+cmd=foreground:seq=6:exec=ip -N route show exact 198.18.205.0/24:exit=0
+expect=stdout:contains=198.18.205.0/24
+
+# Reload to remove the static block.
+cmd=foreground:seq=7:exec=le test fixture plugin/bus-sighup-reload reload-no-static.conf ze-bgp.conf reload1.applied:exit=0
+expect=stdout:contains=OK: SIGHUP reload reload-no-static.conf applied
+
+# AC-16: both static and engine-added fib-kernel stopped.
+cmd=foreground:seq=8:exec=ze cli -c "show system subsystem list | json":exit=0
+reject=stdout:pattern="name": ?"static"
+reject=stdout:pattern="name": ?"fib-kernel"
+cmd=foreground:seq=9:exec=ze cli -c "show fib kernel":exit=1
+
+# AC-16: the static route left the kernel before fib-kernel stopped.
+cmd=foreground:seq=10:exec=le test fixture static/kernel-route-absent 198.18.205.0/24:exit=0
+expect=stdout:contains=OK: 198.18.205.0/24 absent from kernel
+
+cmd=stop:seq=11:name=daemon:signal=term

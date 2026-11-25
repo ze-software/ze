@@ -28,6 +28,7 @@ func init() {
 	Register("vpp/vpp-fib-route-lookup", vppLookupDriver)
 	Register("vpp/vpp-iface-create", vppIfaceDriver)
 	Register("vpp/vpp-mpls-push", vppMPLSDriver)
+	Register("vpp/fib-dummy-vpp-backend", vppFIBDummyDriver)
 }
 
 type lockedBuffer struct {
@@ -426,5 +427,142 @@ func vppIfaceDriver(ctx context.Context, args []string) error {
 		return errors.New("ze did not log interface backend loaded backend=vpp")
 	}
 	fmt.Fprintln(os.Stderr, "OK: ifacevpp loaded and name map populated")
+	return nil
+}
+
+// vppFIBDummyDriver verifies AC-11: with `interface { backend vpp; }` and
+// `fib { dummy { } }` against the VPP stub, BGP routes are held by `fib-dummy`
+// with `programmed: "no"`, `fib-vpp` is never loaded, and the VPP stub logs
+// handshake traffic but zero `ip_route_add_del_v2` calls.
+func vppFIBDummyDriver(ctx context.Context, args []string) error {
+	if len(args) != 2 {
+		return errors.New("VPP fib-dummy fixture requires BGP port and SSH port")
+	}
+	bgpPort, err := strconv.Atoi(args[0])
+	if err != nil {
+		return err
+	}
+	sshPort, err := strconv.Atoi(args[1])
+	if err != nil {
+		return err
+	}
+	dir, socket, log, err := vppWorkPaths("vpp-fib-dummy-")
+	if err != nil {
+		return err
+	}
+	defer os.RemoveAll(dir) //nolint:errcheck // fixture cleanup
+	stub, err := startVPPStub(ctx, socket, log, 40)
+	if err != nil {
+		return err
+	}
+	defer stopFixtureProcess(stub, 2*time.Second)
+	if !waitForFile(ctx, socket, 100, 50*time.Millisecond) {
+		return errors.New("stub socket did not appear")
+	}
+	cwd, _ := os.Getwd()
+	peer, err := startVPPPeer(ctx, bgpPort, filepath.Join(cwd, "peer-script"), testpeer.ModeCheck)
+	if err != nil {
+		return err
+	}
+	defer stopFixtureProcess(peer, 2*time.Second)
+
+	const passHash = "$2a$04$UlwuiuH82Unfsq.XEMPGJeDkXwbm3KW.nvVaVXOd/JeFK8VjMjrQO"
+	var cfgBuf textbuf.Buffer
+	cfgBuf.Str("system {\n\tauthentication {\n\t\tuser admin {\n\t\t\tpassword \"").Str(passHash).Str("\"\n\t\t}\n\t}\n}\n")
+	cfgBuf.Str("environment {\n\tssh {\n\t\tenabled true;\n\t\tserver main {\n\t\t\tip 127.0.0.1;\n\t\t\tport ").Int(int64(sshPort)).Str(";\n\t\t}\n\t}\n}\n")
+	cfgBuf.Str("bus {\n\tendpoint bgp-rib {\n\t\tinternal bgp-rib;\n\t}\n}\n")
+	cfgBuf.Str("bgp {\n\tpeer peer1 {\n\t\tconnection { remote { ip 127.0.0.1; } local { ip 127.0.0.1; accept false; } }\n")
+	cfgBuf.Str("\t\tsession { asn { local 1; remote 1; } router-id 1.2.3.4; family { ipv4/unicast { prefix { maximum 10000; } } } capability { graceful-restart disable; } }\n")
+	cfgBuf.Str("\t\tbehavior { group-updates disable; }\n\t}\n}\n")
+	cfgBuf.Str("vpp { enabled true; external true; api-socket ").Str(socket).Str("; lcp { enabled false; } }\n")
+	cfgBuf.Str("connected {}\n")
+	cfgBuf.Str("interface { backend vpp; dummy vpp-route0 { unit 0 { ipv4 { address [ 10.0.0.2/24 ]; } } } }\n")
+	cfgBuf.Str("fib { dummy { } }\n")
+	cfg := cfgBuf.String()
+
+	cliEnv := miscEnvironment(map[string]string{
+		envConfigDir:      dir,
+		"XDG_DATA_HOME":   dir,
+		"ze.ssh.password": "testpass",
+	})
+	var initStdin textbuf.Buffer
+	initStdin.Str("admin\ntestpass\n127.0.0.1\n").Int(int64(sshPort)).Byte('\n')
+	initCmd := exec.CommandContext(ctx, "ze", "init")
+	initCmd.Env = cliEnv
+	initCmd.Stdin = strings.NewReader(initStdin.String())
+	if out, initErr := initCmd.CombinedOutput(); initErr != nil {
+		return fmt.Errorf("ze init failed: %w: %s", initErr, out)
+	}
+
+	ze, err := startVPPZe(ctx, cfg, map[string]string{
+		envConfigDir:      dir,
+		"XDG_DATA_HOME":   dir,
+		envLogVPP:         logLevelInfo,
+		envLogBGP:         logLevelInfo,
+		envTestBGPPort:    strconv.Itoa(bgpPort),
+		"ze.ssh.password": "testpass",
+	})
+	if err != nil {
+		return err
+	}
+	defer stopFixtureProcess(ze, 3*time.Second)
+
+	var lastShow string
+	held := Poll(ctx, 120, 200*time.Millisecond, func() bool {
+		code, stdout, _, runErr := runCaptured(ctx, cliEnv, "", "ze", "cli", "-c", "show fib dummy | json")
+		if runErr != nil {
+			return false
+		}
+		if code != 0 {
+			return false
+		}
+		lastShow = stdout
+		return strings.Contains(stdout, prefixTenTwenty) && strings.Contains(stdout, `"programmed"`) && strings.Contains(stdout, `"no"`)
+	})
+	if !held {
+		return fmt.Errorf("fib-dummy did not hold %s; last show output: %s", prefixTenTwenty, lastShow)
+	}
+	if strings.Contains(lastShow, `"programmed": "yes"`) {
+		return fmt.Errorf("fib-dummy reported programmed=yes: %s", lastShow)
+	}
+	if strings.Contains(lastShow, `"programmed":"yes"`) {
+		return fmt.Errorf("fib-dummy reported programmed=yes: %s", lastShow)
+	}
+
+	code, pluginsOut, pluginsErr, runErr := runCaptured(ctx, cliEnv, "", "ze", "cli", "-c", "show system subsystem list | json")
+	if runErr != nil {
+		return fmt.Errorf("show system subsystem list failed (code=%d err=%v): %s", code, runErr, pluginsErr)
+	}
+	if code != 0 {
+		return fmt.Errorf("show system subsystem list failed (code=%d): %s", code, pluginsErr)
+	}
+	if !strings.Contains(pluginsOut, `"fib-dummy"`) {
+		return fmt.Errorf("show system subsystem list missing fib-dummy: %s", pluginsOut)
+	}
+	if strings.Contains(pluginsOut, `"fib-vpp"`) {
+		return fmt.Errorf("fib-vpp must not run beside fib-dummy: %s", pluginsOut)
+	}
+
+	stopFixtureProcess(ze, 3*time.Second)
+
+	connected, err := vppLogMatches(log, func(entry map[string]any) bool {
+		return entry["msg"] == "sockclnt_create"
+	})
+	if err != nil {
+		return err
+	}
+	if !connected {
+		return errors.New("stub did not log sockclnt_create; VPP backend did not connect")
+	}
+	routeLogged, err := vppLogMatches(log, func(entry map[string]any) bool {
+		return entry["msg"] == "ip_route_add_del_v2"
+	})
+	if err != nil {
+		return err
+	}
+	if routeLogged {
+		return errors.New("VPP stub logged an ip_route_add_del_v2 call despite fib dummy")
+	}
+	fmt.Fprintln(os.Stderr, "OK: fib-dummy held 10.20.0.0/24 under VPP backend with no stub route call")
 	return nil
 }
