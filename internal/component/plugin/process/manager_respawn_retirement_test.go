@@ -251,3 +251,236 @@ func TestOrderedStopRetainsRespawnOutgoingGeneration(t *testing.T) {
 		t.Errorf("terminal manager admitted another replacement: %v", err)
 	}
 }
+
+// TestRespawnDoesNotBlockReadersOrUnrelatedRespawn verifies that while one
+// plugin's Respawn is blocked waiting on its outgoing process join, readers of
+// ProcessManager and Respawn of an unrelated plugin name complete promptly,
+// while a second Respawn of the same name remains serialized.
+//
+// VALIDATES: spec-plugin-restart-bounded-and-configuration-true AC-3 --
+// per-name respawning serialization and unlocked join/start let GetProcess,
+// AllProcesses, ConfiguredNames, ConfiguredConfigs, and Respawn("other") answer
+// well inside a slow plugin's join/connect-back window, while GetProcess("slow")
+// immediately returns nil (!= old) for applyFailurePolicy's generation check.
+// PREVENTS: a slow or stalled replacement blocking ProcessManager readers or
+// unrelated plugin respawns behind a manager-wide lock.
+func TestRespawnDoesNotBlockReadersOrUnrelatedRespawn(t *testing.T) {
+	const (
+		slowName  = "test-respawn-nonblocking-slow"
+		otherName = "test-respawn-nonblocking-other"
+	)
+	origMargin := respawnJoinMargin
+	respawnJoinMargin = 5 * time.Second
+	t.Cleanup(func() { respawnJoinMargin = origMargin })
+
+	entered, release := make(chan struct{}), make(chan struct{})
+	var releaseOnce sync.Once
+	unblock := func() { releaseOnce.Do(func() { close(release) }) }
+	var slowGenerations atomic.Int64
+	registerRunEngine(t, slowName, func(conn net.Conn) int {
+		generation := slowGenerations.Add(1)
+		drainUntilClosed(conn)
+		if generation == 1 {
+			close(entered)
+			<-release
+		}
+		return 0
+	})
+	registerRunEngine(t, otherName, func(conn net.Conn) int {
+		drainUntilClosed(conn)
+		return 0
+	})
+
+	pm := NewProcessManager([]plugin.PluginConfig{
+		{Name: slowName, Internal: true, Encoder: "json"},
+		{Name: otherName, Internal: true, Encoder: "json"},
+	})
+	if err := pm.Start(); err != nil {
+		t.Fatal(err)
+	}
+	slowOld := pm.GetProcess(slowName)
+	otherOld := pm.GetProcess(otherName)
+	if slowOld == nil || otherOld == nil {
+		t.Fatal("initial processes were not published")
+	}
+
+	type respawnOutcome struct {
+		proc *Process
+		err  error
+	}
+	slow1Ch := make(chan respawnOutcome, 1)
+	slow2Ch := make(chan respawnOutcome, 1)
+	var wg sync.WaitGroup
+	t.Cleanup(func() {
+		unblock()
+		pm.Stop()
+		wg.Wait()
+		ctx, cancel := context.WithTimeout(context.Background(), processStopBudget)
+		defer cancel()
+		if err := slowOld.Wait(ctx); err != nil {
+			t.Errorf("join retired slow generation: %v", err)
+		}
+	})
+
+	wg.Go(func() {
+		proc, err := pm.Respawn(slowName)
+		slow1Ch <- respawnOutcome{proc: proc, err: err}
+	})
+
+	select {
+	case <-entered:
+	case <-time.After(2 * time.Second):
+		t.Fatal("slow respawn did not enter outgoing cleanup")
+	}
+
+	const promptBound = time.Second
+	readersDone := make(chan struct{})
+	wg.Go(func() {
+		defer close(readersDone)
+		if got := pm.GetProcess(slowName); got == slowOld || got != nil {
+			t.Errorf("GetProcess(%q) during retiring join = %p, want nil (!= old %p)", slowName, got, slowOld)
+		}
+		if got := pm.GetProcess(otherName); got != otherOld {
+			t.Errorf("GetProcess(%q) = %p, want %p", otherName, got, otherOld)
+		}
+		if procs := pm.AllProcesses(); len(procs) != 1 || procs[0] != otherOld {
+			t.Errorf("AllProcesses() = %v, want only %q", procs, otherName)
+		}
+		if names := pm.ConfiguredNames(); len(names) != 2 {
+			t.Errorf("ConfiguredNames() = %v, want 2 names", names)
+		}
+		cfgs := pm.ConfiguredConfigs()
+		if len(cfgs) != 2 || cfgs[0].Name != otherName || cfgs[1].Name != slowName {
+			t.Errorf("ConfiguredConfigs() = %+v, want sorted [%q %q]", cfgs, otherName, slowName)
+		}
+	})
+	select {
+	case <-readersDone:
+	case <-time.After(promptBound):
+		t.Fatal("ProcessManager readers blocked while slow Respawn waited on join")
+	}
+
+	otherCh := make(chan respawnOutcome, 1)
+	wg.Go(func() {
+		proc, err := pm.Respawn(otherName)
+		otherCh <- respawnOutcome{proc: proc, err: err}
+	})
+	select {
+	case outcome := <-otherCh:
+		if outcome.err != nil {
+			t.Fatalf("Respawn(%q) while %q was blocked: %v", otherName, slowName, outcome.err)
+		}
+		if outcome.proc == nil || outcome.proc == otherOld || pm.GetProcess(otherName) != outcome.proc {
+			t.Fatal("unrelated Respawn did not publish a distinct replacement")
+		}
+	case <-time.After(promptBound):
+		t.Fatalf("Respawn(%q) blocked behind %q's Respawn", otherName, slowName)
+	}
+
+	// Same-name Respawn MUST still serialize behind slow1 rather than racing it.
+	wg.Go(func() {
+		proc, err := pm.Respawn(slowName)
+		slow2Ch <- respawnOutcome{proc: proc, err: err}
+	})
+	select {
+	case outcome := <-slow1Ch:
+		t.Fatalf("slow1 returned before release: %+v", outcome)
+	default:
+	}
+
+	unblock()
+
+	var slow1, slow2 respawnOutcome
+	select {
+	case slow1 = <-slow1Ch:
+	case <-time.After(2 * time.Second):
+		t.Fatal("first slow Respawn did not complete after release")
+	}
+	if slow1.err != nil {
+		t.Fatalf("first slow Respawn: %v", slow1.err)
+	}
+	select {
+	case slow2 = <-slow2Ch:
+	case <-time.After(2 * time.Second):
+		t.Fatal("second serialized slow Respawn did not complete after first finished")
+	}
+	if slow2.err != nil {
+		t.Fatalf("second slow Respawn: %v", slow2.err)
+	}
+	if slow2.proc == nil || slow2.proc == slowOld || slow2.proc == slow1.proc {
+		t.Fatalf("second slow Respawn did not publish a third distinct generation: old=%p slow1=%p slow2=%p",
+			slowOld, slow1.proc, slow2.proc)
+	}
+	if pm.GetProcess(slowName) != slow2.proc {
+		t.Fatalf("pm.GetProcess(%q) = %p, want %p", slowName, pm.GetProcess(slowName), slow2.proc)
+	}
+}
+
+// TestRespawnInDaemonExitNoOverlap verifies that an in-daemon plugin engine
+// whose exit path reads ProcessManager (GetProcess, AllProcesses,
+// ConfiguredNames, ConfiguredConfigs) joins within StopJoinBound and raises no
+// doctor-plugin-restart-overlap event.
+//
+// VALIDATES: spec-plugin-restart-bounded-and-configuration-true AC-3 --
+// releasing pm.mu before old.Stop/Wait lets an exiting in-daemon engine read
+// ProcessManager without deadlocking its own join.
+// PREVENTS: a false doctor-plugin-restart-overlap caused by an exiting engine
+// blocking on pm.mu held by Respawn.
+func TestRespawnInDaemonExitNoOverlap(t *testing.T) {
+	report.ResetForTest()
+	t.Cleanup(report.ResetForTest)
+
+	const name = "test-respawn-indaemon-exit-reads-pm"
+	var pmRef atomic.Pointer[ProcessManager]
+	var oldRef atomic.Pointer[Process]
+	var exitReadsCompleted atomic.Bool
+	var sawWithdrawnSlot atomic.Bool
+	var generations atomic.Int64
+
+	registerRunEngine(t, name, func(conn net.Conn) int {
+		generation := generations.Add(1)
+		drainUntilClosed(conn)
+		if generation == 1 {
+			if mgr := pmRef.Load(); mgr != nil {
+				if mgr.GetProcess(name) != oldRef.Load() {
+					sawWithdrawnSlot.Store(true)
+				}
+				_ = mgr.AllProcesses()
+				_ = mgr.ConfiguredNames()
+				_ = mgr.ConfiguredConfigs()
+				exitReadsCompleted.Store(true)
+			}
+		}
+		return 0
+	})
+
+	pm := NewProcessManager([]plugin.PluginConfig{{Name: name, Internal: true, Encoder: "json"}})
+	pmRef.Store(pm)
+	if err := pm.Start(); err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(pm.Stop)
+
+	old := pm.GetProcess(name)
+	if old == nil {
+		t.Fatal("initial process was not published")
+	}
+	oldRef.Store(old)
+
+	replacement, err := pm.Respawn(name)
+	if err != nil {
+		t.Fatalf("Respawn: %v", err)
+	}
+	if replacement == nil || replacement == old {
+		t.Fatalf("Respawn did not publish a distinct replacement: %p", replacement)
+	}
+	if !exitReadsCompleted.Load() {
+		t.Fatal("exiting in-daemon engine did not finish its ProcessManager reads during join")
+	}
+	if !sawWithdrawnSlot.Load() {
+		t.Fatal("exiting in-daemon engine still saw itself in pm.GetProcess during join")
+	}
+	if events := restartOverlapEvents(); len(events) != 0 {
+		t.Fatalf("unexpected doctor-plugin-restart-overlap events: %+v", events)
+	}
+}

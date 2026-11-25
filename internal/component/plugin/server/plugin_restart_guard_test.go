@@ -333,3 +333,180 @@ func TestRestartCommandFailsWhenOldCleanupNeverEnds(t *testing.T) {
 		t.Fatal("the plugin does not run after the old cleanup ran and it was restarted")
 	}
 }
+
+// TestRefusedRestartPreservesDisableAndRespawnCounters verifies that every
+// pre-spawn refusal of `request plugin restart` leaves a respawn-disabled
+// plugin's disable state, respawn counters, and StopRespawnLimit record intact,
+// and that once unblocked an admitted restart lifts them atomically and brings
+// the plugin back to running.
+//
+// VALIDATES: spec-plugin-restart-bounded-and-configuration-true AC-7 --
+// handlePluginRestart checks pluginRestartRefusal under txLock and defers
+// re-enable into ProcessManager.RespawnReenabled after all pre-spawn refusals
+// pass, while restartReplacementWithin preserves existing stop records on
+// pre-spawn refusals (transaction.ErrRestartRefused).
+// PREVENTS: a refused restart lifting the respawn-limit disable or resetting
+// respawn counters, or overwriting StopRespawnLimit with StopRestartFailed.
+func TestRefusedRestartPreservesDisableAndRespawnCounters(t *testing.T) {
+	t.Cleanup(privilege.SetServiceMembershipForTest(privilege.MembershipZeService, nil))
+
+	exhaustRespawnLimit := func(t *testing.T, s *Server, pm *process.ProcessManager, name string) process.PluginStop {
+		t.Helper()
+		for range process.RespawnLimit {
+			if err := s.restartPlugin(name); err != nil {
+				t.Fatalf("setup restart %s: %v", name, err)
+			}
+		}
+		err := s.restartPlugin(name)
+		if !errors.Is(err, process.ErrRespawnLimitExceeded) {
+			t.Fatalf("expected ErrRespawnLimitExceeded after %d restarts, got %v", process.RespawnLimit, err)
+		}
+		if !errors.Is(err, transaction.ErrRestartRefused) {
+			t.Fatalf("expected ErrRestartRefused on respawn limit, got %v", err)
+		}
+		if !pm.Disabled(name) {
+			t.Fatalf("plugin %s was not disabled at respawn limit", name)
+		}
+		stop, down := pm.Stopped(name)
+		if !down || stop.Cause != process.StopRespawnLimit {
+			t.Fatalf("expected StopRespawnLimit preserved after hitting limit, got down=%v stop=%+v", down, stop)
+		}
+		return stop
+	}
+
+	assertStillDisabled := func(t *testing.T, pm *process.ProcessManager, name, wantDetail string) {
+		t.Helper()
+		if !pm.Disabled(name) {
+			t.Fatalf("refused restart cleared disabled state for %s", name)
+		}
+		stop, down := pm.Stopped(name)
+		if !down || stop.Cause != process.StopRespawnLimit {
+			t.Fatalf("refused restart overwrote StopRespawnLimit: down=%v stop=%+v", down, stop)
+		}
+		if stop.Detail != wantDetail {
+			t.Fatalf("stop detail changed from %q to %q", wantDetail, stop.Detail)
+		}
+	}
+
+	t.Run("recoverable refusals keep disable until admitted restart", func(t *testing.T) {
+		const name = "restart-refused-keeps-disable"
+		s := startRestartTarget(t, name, rpc.FailureUnspecified, nil)
+		pm := s.procManager.Load()
+		initialStop := exhaustRespawnLimit(t, s, pm, name)
+
+		// Unconfigured name refusal under txLock releases txLock cleanly and
+		// leaves no stop record for the unknown name.
+		const unknownName = "restart-refused-unknown"
+		unknownResp := restartByCommand(t, &CommandContext{Server: s}, commandtest.Args(pluginRestartLeaf, unknownName))
+		if unknownResp.Status == plugin.StatusDone {
+			t.Fatalf("restart of unconfigured plugin was accepted: %+v", unknownResp)
+		}
+		if !strings.Contains(unknownResp.Error, "not a configured plugin") {
+			t.Fatalf("unexpected refusal for unknown plugin: %s", unknownResp.Error)
+		}
+		requireTxLockFree(t, s)
+		if _, down := pm.Stopped(unknownName); down {
+			t.Fatal("refused restart of unconfigured plugin wrote a stop record")
+		}
+
+		// Refusal 1: restart controller busy.
+		ctrl, err := s.restartControllers.tryAcquire(name)
+		if err != nil {
+			t.Fatalf("tryAcquire controller: %v", err)
+		}
+		resp := restartByCommand(t, &CommandContext{Server: s}, commandtest.Args(pluginRestartLeaf, name))
+		ctrl.release()
+		if resp.Status == plugin.StatusDone {
+			t.Fatalf("restart succeeded while controller was busy: %+v", resp)
+		}
+		if !strings.Contains(resp.Error, "another restart is still in progress") {
+			t.Fatalf("controller-busy refusal had unexpected message: %s", resp.Error)
+		}
+		requireTxLockFree(t, s)
+		assertStillDisabled(t, pm, name, initialStop.Detail)
+
+		// Refusal 2: cleanup owed by a stopped predecessor.
+		owedProc := process.NewProcess(plugin.PluginConfig{Name: name, Internal: true})
+		s.lateCleanups.owe(owedProc)
+		t.Cleanup(func() { owedProc.RunRuntimeCleanupOnce(func() {}) })
+		resp = restartByCommand(t, &CommandContext{Server: s}, commandtest.Args(pluginRestartLeaf, name))
+		if resp.Status == plugin.StatusDone {
+			t.Fatalf("restart succeeded while cleanup was owed: %+v", resp)
+		}
+		requireTxLockFree(t, s)
+		assertStillDisabled(t, pm, name, initialStop.Detail)
+		owedProc.RunRuntimeCleanupOnce(func() {})
+
+		// Refusal 3: pending removal.
+		live := pm.GetProcess(name)
+		s.removalMu.Lock()
+		if s.removals == nil {
+			s.removals = make(map[*process.Process]*pluginRemoval)
+		}
+		s.removals[live] = &pluginRemoval{done: make(chan struct{}), recovering: true}
+		s.removalMu.Unlock()
+		resp = restartByCommand(t, &CommandContext{Server: s}, commandtest.Args(pluginRestartLeaf, name))
+		s.removalMu.Lock()
+		delete(s.removals, live)
+		s.removalMu.Unlock()
+		if resp.Status == plugin.StatusDone {
+			t.Fatalf("restart succeeded while removal was pending: %+v", resp)
+		}
+		if !strings.Contains(resp.Error, "removal") {
+			t.Fatalf("pending-removal refusal had unexpected message: %s", resp.Error)
+		}
+		requireTxLockFree(t, s)
+		assertStillDisabled(t, pm, name, initialStop.Detail)
+
+		// Refusal 4: config transaction lock held.
+		if !s.txLock.tryAcquire() {
+			t.Fatal("txLock unexpectedly held before test")
+		}
+		resp = restartByCommand(t, &CommandContext{Server: s}, commandtest.Args(pluginRestartLeaf, name))
+		s.txLock.release()
+		if resp.Status == plugin.StatusDone {
+			t.Fatalf("restart succeeded while txLock was held: %+v", resp)
+		}
+		if !strings.Contains(resp.Error, "config transaction is in flight") {
+			t.Fatalf("txLock refusal had unexpected message: %s", resp.Error)
+		}
+		assertStillDisabled(t, pm, name, initialStop.Detail)
+
+		// Non-operator Respawn still observes disabled state and counters intact.
+		if _, err := pm.Respawn(name); !errors.Is(err, process.ErrProcessDisabled) {
+			t.Fatalf("non-operator Respawn after refusals = %v, want ErrProcessDisabled", err)
+		}
+
+		// Once all blockers are cleared, an admitted operator restart lifts the
+		// disable atomically and brings the plugin back to running.
+		resp = restartByCommand(t, &CommandContext{Server: s}, commandtest.Args(pluginRestartLeaf, name))
+		if resp.Status != plugin.StatusDone {
+			t.Fatalf("admitted restart after clearing refusals failed: %+v", resp)
+		}
+		requireTxLockFree(t, s)
+		if pm.Disabled(name) {
+			t.Fatal("admitted restart did not clear disabled state")
+		}
+		if stop, down := pm.Stopped(name); down {
+			t.Fatalf("admitted restart left stop record behind: %+v", stop)
+		}
+		if proc := pm.GetProcess(name); proc == nil || !proc.Running() {
+			t.Fatal("plugin is not running after admitted restart")
+		}
+	})
+
+	t.Run("daemon stopping refusal keeps disable and stop record", func(t *testing.T) {
+		const name = "restart-refused-stopping"
+		s := startRestartTarget(t, name, rpc.FailureUnspecified, nil)
+		pm := s.procManager.Load()
+		initialStop := exhaustRespawnLimit(t, s, pm, name)
+
+		pm.RefuseRespawns()
+		resp := restartByCommand(t, &CommandContext{Server: s}, commandtest.Args(pluginRestartLeaf, name))
+		if resp.Status == plugin.StatusDone {
+			t.Fatalf("restart succeeded while daemon was stopping: %+v", resp)
+		}
+		requireTxLockFree(t, s)
+		assertStillDisabled(t, pm, name, initialStop.Detail)
+	})
+}

@@ -3,8 +3,11 @@ package process
 import (
 	"context"
 	"io"
+	"net"
 	"net/http"
 	"net/http/httptest"
+	"sync"
+	"sync/atomic"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -220,4 +223,112 @@ func TestPluginMetricsDeletedOnDisable(t *testing.T) {
 		"restart counter should be preserved after disable for post-mortem")
 	assert.Contains(t, body, `ze_plugin_events_delivered_total{plugin="crash-metrics"} 1`,
 		"delivery counter should be preserved after disable for post-mortem")
+}
+
+// TestRespawnLimitDeleteStatusLabelSurvivesConcurrentSetStage verifies that
+// hitting the respawn limit deletes ze_plugin_status{plugin=name} cleanly even
+// while concurrent goroutines hammer SetStage on the live process, while all
+// counters survive.
+//
+// VALIDATES: spec-plugin-restart-bounded-and-configuration-true AC-5 --
+// leaf statusMu serializes deletePluginStatusLabel against wireMetrics's
+// stageChange re-checking proc.metricHooks, so ze_plugin_status stays absent
+// after disable while restarts, delivered, failed, and slow counters survive.
+// PREVENTS: an in-flight SetStage re-creating ze_plugin_status after
+// clearMetricHooks and deletePluginStatusLabel ran on a live disabled process.
+func TestRespawnLimitDeleteStatusLabelSurvivesConcurrentSetStage(t *testing.T) {
+	const name = "test-metrics-concurrent-disable"
+	const label = `plugin="` + name + `"`
+
+	registerRunEngine(t, name, func(conn net.Conn) int {
+		drainUntilClosed(conn)
+		return 0
+	})
+
+	for range 8 {
+		reg := metrics.NewPrometheusRegistry()
+		pm := NewProcessManager([]plugin.PluginConfig{{
+			Name:     name,
+			Internal: true,
+			Encoder:  "json",
+		}})
+		pm.SetMetricsRegistry(reg)
+		require.NoError(t, pm.Start())
+
+		pm.pmetrics.delivered.With(name).Inc()
+		pm.pmetrics.failed.With(name).Inc()
+		pm.pmetrics.slow.With(name).Inc()
+
+		for range RespawnLimit {
+			_, err := pm.Respawn(name)
+			require.NoError(t, err)
+		}
+
+		live := pm.GetProcess(name)
+		require.NotNil(t, live)
+		live.SetStage(plugin.StageRunning)
+
+		const workerCount = 4
+		started := make(chan struct{}, workerCount)
+		stopWorkers := make(chan struct{})
+		afterDone := make(chan struct{})
+		var disabled atomic.Bool
+		var afterCount atomic.Int64
+		var afterOnce sync.Once
+		var workers sync.WaitGroup
+
+		for range workerCount {
+			workers.Go(func() {
+				signaled := false
+				stage := plugin.StageRunning
+				for {
+					select {
+					case <-stopWorkers:
+						return
+					default:
+					}
+					live.SetStage(stage)
+					if stage == plugin.StageRunning {
+						stage = plugin.StageConfig
+					} else {
+						stage = plugin.StageRunning
+					}
+					if !signaled {
+						signaled = true
+						started <- struct{}{}
+					}
+					if disabled.Load() && afterCount.Add(1) >= 64 {
+						afterOnce.Do(func() { close(afterDone) })
+					}
+				}
+			})
+		}
+
+		for range workerCount {
+			<-started
+		}
+
+		_, err := pm.Respawn(name)
+		require.ErrorIs(t, err, ErrRespawnLimitExceeded)
+		require.True(t, pm.Disabled(name))
+
+		disabled.Store(true)
+		<-afterDone
+		close(stopWorkers)
+		workers.Wait()
+
+		body := scrapeMetrics(t, reg)
+		assert.NotContains(t, body, "ze_plugin_status{"+label+"}",
+			"ze_plugin_status was re-created by concurrent SetStage after disable")
+		assert.Contains(t, body, "ze_plugin_restarts_total{"+label+"} 5",
+			"restart counter must survive disable")
+		assert.Contains(t, body, "ze_plugin_events_delivered_total{"+label+"} 1",
+			"delivered counter must survive disable")
+		assert.Contains(t, body, "ze_plugin_delivery_failures_total{"+label+"} 1",
+			"delivery failure counter must survive disable")
+		assert.Contains(t, body, "ze_plugin_delivery_slow_batches_total{"+label+"} 1",
+			"delivery slow counter must survive disable")
+
+		pm.Stop()
+	}
 }

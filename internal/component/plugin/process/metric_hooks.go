@@ -55,10 +55,14 @@ func (p *Process) noteDeliverySlow() {
 	}
 }
 
-// clearMetricHooks takes the metrics callbacks back, so a process the manager
-// let go cannot re-create a deleted metric label through SetStage or Deliver.
-// A reader that loaded the set before this call may still make one last call
-// through it. Safe for concurrent use.
+// clearMetricHooks takes the metrics callbacks back from a process the manager
+// let go or disabled. The status-gauge callback (wireMetrics) re-checks
+// metricHooks under ProcessManager.statusMu, serialized with
+// deletePluginStatusLabel, so an in-flight SetStage cannot re-create a deleted
+// ze_plugin_status label after this call. Counter callbacks (delivered,
+// deliveryFailed, deliverySlow) are never deleted mid-lifetime, and a reader
+// that loaded the set before this call may still make one last counter
+// increment through it. Safe for concurrent use.
 func (p *Process) clearMetricHooks() {
 	p.metricHooks.Store(nil)
 }

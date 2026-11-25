@@ -97,14 +97,16 @@ const (
 // one (restartPlugin, ProcessManager.Respawn stops and joins the process it
 // replaces), which cuts the commands it was serving; its failure policy is not
 // applied, because the name already holds the replacement
-// (applyFailurePolicy). The operator's order lifts a respawn-limit disable,
-// because the limit guards against a crash loop nobody asked for, and this
-// restart was asked for.
+// (applyFailurePolicy). The operator's order lifts a respawn-limit disable
+// atomically inside RespawnReenabled only after every pre-spawn refusal
+// passes, so a refused restart preserves the disable state, respawn counters,
+// and stop record.
 //
 // The restart holds the config transaction lock, so it never runs beside a
 // reload or commit, which may be talking to the plugin's process; any
-// transaction in flight refuses it. The lock is taken here and not in
-// restartPlugin, which the rollback calls while it holds the lock.
+// transaction in flight refuses it. Configured-name and pending-removal checks
+// run under that lock. The lock is taken here and not in restartPlugin, which
+// the rollback calls while it holds the lock.
 //
 // Two more refusals keep the restart from undoing work it cannot see. A
 // plugin asking for its own restart is refused before anything stops: the
@@ -133,9 +135,6 @@ func handlePluginRestart(ctx *CommandContext, validated command.ValidatedArgs) (
 			"the daemon has not handed its plugins to a process manager yet",
 			"ze show doctor")), nil
 	}
-	if refusal := pluginRestartRefusal(pm, name); refusal != nil {
-		return plugin.OperatorErrorResponse(refusal), nil
-	}
 	if ctx.Process != nil && ctx.Process.Name() == name {
 		return plugin.OperatorErrorResponse(opererr.New("plugin "+name+" cannot restart itself",
 			"the restart waits until the plugin's calls into ze have ended, and this request is one of them, "+
@@ -150,6 +149,9 @@ func handlePluginRestart(ctx *CommandContext, validated command.ValidatedArgs) (
 	unlock := sync.OnceFunc(ctx.Server.txLock.release)
 	defer unlock()
 
+	if refusal := pluginRestartRefusal(pm, name); refusal != nil {
+		return plugin.OperatorErrorResponse(refusal), nil
+	}
 	if ctx.Server.removalPendingFor(name) {
 		return plugin.OperatorErrorResponse(opererr.New("plugin "+name+" was not restarted: its removal is still pending",
 			"a reload removed it and the removal has not settled (the plugin has not acknowledged it, or putting it back failed), "+
@@ -161,8 +163,7 @@ func handlePluginRestart(ctx *CommandContext, validated command.ValidatedArgs) (
 	if proc := pm.GetProcess(name); proc != nil {
 		wasRunning = proc.Running()
 	}
-	pm.Reenable(name)
-	replacement, err := ctx.Server.restartPluginReplacement(name)
+	replacement, err := ctx.Server.restartPluginReplacementReenabled(name)
 	// Reconciliation may have deferred this exact replacement to release.
 	// The caller MUST join release before reading its restoration outcome.
 	unlock()

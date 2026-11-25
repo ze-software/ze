@@ -1074,13 +1074,25 @@ func (s *Server) restartPlugin(pluginName string) error {
 // The operator MUST retain it through transaction release before checking its
 // restoration result. Transaction rollback uses restartPlugin's error adapter.
 func (s *Server) restartPluginReplacement(pluginName string) (*process.Process, error) {
+	return s.restartPluginReplacementMode(pluginName, false)
+}
+
+// restartPluginReplacementReenabled is restartPluginReplacement for an
+// operator's explicit restart command (`request plugin restart`): once every
+// pre-spawn refusal passes, RespawnReenabled lifts any respawn-limit disable
+// and resets respawn counters atomically under ProcessManager.mu.
+func (s *Server) restartPluginReplacementReenabled(pluginName string) (*process.Process, error) {
+	return s.restartPluginReplacementMode(pluginName, true)
+}
+
+func (s *Server) restartPluginReplacementMode(pluginName string, reenable bool) (*process.Process, error) {
 	controller, err := s.restartControllers.tryAcquire(pluginName)
 	if err != nil {
 		return nil, fmt.Errorf("restart %s: %w: %w", pluginName, transaction.ErrRestartRefused, err)
 	}
 	defer controller.release()
 
-	return s.restartReplacementWithin(pluginName, s.boundedRestartHandshake)
+	return s.restartReplacementWithin(pluginName, s.boundedRestartHandshake, reenable)
 }
 
 // restartPluginAfterExit is restartPlugin for the failure policy, which holds
@@ -1110,16 +1122,24 @@ func (s *Server) restartPluginAfterExit(outgoing *process.Process) error {
 // restartPluginWithin is the restart both entry points run, with the
 // handshake bounded by handshake.
 func (s *Server) restartPluginWithin(pluginName string, handshake handshakeScope) error {
-	_, err := s.restartReplacementWithin(pluginName, handshake)
+	_, err := s.restartReplacementWithin(pluginName, handshake, false)
 	return err
 }
 
 // restartReplacementWithin retains the exact Process even when its later
 // restoration fails. Callers that need only a failure use restartPluginWithin.
-func (s *Server) restartReplacementWithin(pluginName string, handshake handshakeScope) (*process.Process, error) {
-	replacement, err := s.restartPluginProcess(pluginName, handshake)
+// Pre-spawn refusals (transaction.ErrRestartRefused) preserve whatever stop
+// record already exists (such as StopRespawnLimit) instead of overwriting it
+// with StopRestartFailed.
+func (s *Server) restartReplacementWithin(pluginName string, handshake handshakeScope, reenable bool) (*process.Process, error) {
+	replacement, err := s.restartPluginProcess(pluginName, handshake, reenable)
 	if err == nil {
 		return replacement, nil
+	}
+	// A pre-spawn refusal did not stop a live process or spawn a replacement,
+	// so preserve any existing stop record (for example StopRespawnLimit).
+	if errors.Is(err, transaction.ErrRestartRefused) {
+		return replacement, err
 	}
 	// A failed restart leaves the plugin down whatever asked for it (its
 	// failure policy, a reload rollback, `request plugin restart`), so it is
@@ -1132,7 +1152,7 @@ func (s *Server) restartReplacementWithin(pluginName string, handshake handshake
 
 // restartPluginProcess is the restart itself. Once Respawn succeeds, every
 // answer retains that exact lifetime, including an error after its disposal.
-func (s *Server) restartPluginProcess(pluginName string, handshake handshakeScope) (*process.Process, error) {
+func (s *Server) restartPluginProcess(pluginName string, handshake handshakeScope, reenable bool) (*process.Process, error) {
 	if s.spawner == nil {
 		return nil, fmt.Errorf("no plugin spawner available to restart %s", pluginName)
 	}
@@ -1151,7 +1171,15 @@ func (s *Server) restartPluginProcess(pluginName string, handshake handshakeScop
 	old := pm.GetProcess(pluginName)
 	startupBudget := previousStartupBudget(old)
 	declarationsBefore := declaredPeerMetadata(old)
-	newProc, err := pm.Respawn(pluginName)
+	var (
+		newProc *process.Process
+		err     error
+	)
+	if reenable {
+		newProc, err = pm.RespawnReenabled(pluginName)
+	} else {
+		newProc, err = pm.Respawn(pluginName)
+	}
 	if respawnRefused(err) {
 		return nil, fmt.Errorf("respawn %s: %w: %w", pluginName, transaction.ErrRestartRefused, err)
 	}
@@ -1199,6 +1227,9 @@ func respawnRefused(err error) bool {
 		return true
 	}
 	if errors.Is(err, process.ErrDaemonStopping) {
+		return true
+	}
+	if errors.Is(err, process.ErrManagerNotStarted) {
 		return true
 	}
 	return errors.Is(err, process.ErrProcessNotFound)

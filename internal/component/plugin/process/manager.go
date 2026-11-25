@@ -67,6 +67,8 @@ var (
 	// stop is terminal, and a respawned plugin would announce again what its
 	// drain just made unattractive.
 	ErrDaemonStopping = errors.New("respawn refused: ze is stopping")
+	// ErrManagerNotStarted refuses a respawn before StartWithContext has run.
+	ErrManagerNotStarted = errors.New("process manager not started")
 )
 
 // pluginMetrics holds Prometheus metrics for plugin health.
@@ -92,7 +94,7 @@ type ProcessManager struct {
 	respawnTimes map[string][]time.Time
 
 	// Cumulative respawn counts, reset only by an operator's restart
-	// (Reenable).
+	// (Reenable, RespawnReenabled).
 	totalRespawns map[string]int
 
 	// Disabled processes (respawn limit exceeded)
@@ -108,10 +110,18 @@ type ProcessManager struct {
 	// Plugin health metrics (nil when metrics disabled).
 	pmetrics *pluginMetrics
 
-	ctx       context.Context
-	cancel    context.CancelFunc
-	mu        sync.RWMutex
-	respawnMu sync.Mutex // Serializes replacements without blocking shutdown admission.
+	// statusMu is a leaf lock serializing ze_plugin_status gauge updates in
+	// wireMetrics against deletePluginStatusLabel so a concurrent SetStage
+	// cannot re-create a deleted status label after clearMetricHooks. NEVER
+	// acquire pm.mu or p.stageMu while holding statusMu.
+	statusMu sync.Mutex
+
+	ctx    context.Context
+	cancel context.CancelFunc
+	mu     sync.RWMutex
+	// respawning serializes concurrent Respawn calls for the same plugin name
+	// without blocking readers or respawns of unrelated names. Protected by mu.
+	respawning map[string]chan struct{}
 
 	// stopping is true from the moment Stop signals until the next spawn clears it
 	// (startConfigs). A second entry to Stop returns at once instead of waiting for
@@ -180,8 +190,14 @@ func (pm *ProcessManager) wireMetrics(proc *Process) {
 		return
 	}
 	m := pm.pmetrics
-	proc.metricHooks.Store(&processMetricHooks{
+	var hooks *processMetricHooks
+	hooks = &processMetricHooks{
 		stageChange: func(stage plugin.PluginStage) {
+			pm.statusMu.Lock()
+			defer pm.statusMu.Unlock()
+			if proc.metricHooks.Load() != hooks {
+				return
+			}
 			m.status.With(name).Set(float64(stage))
 		},
 		delivered: func() {
@@ -193,7 +209,8 @@ func (pm *ProcessManager) wireMetrics(proc *Process) {
 		deliverySlow: func() {
 			m.slow.With(name).Inc()
 		},
-	})
+	}
+	proc.metricHooks.Store(hooks)
 }
 
 // NewProcessManager creates a new process manager.
@@ -207,6 +224,7 @@ func NewProcessManager(configs []plugin.PluginConfig) *ProcessManager {
 		totalRespawns: make(map[string]int),
 		disabled:      make(map[string]bool),
 		stopped:       make(map[string]PluginStop),
+		respawning:    make(map[string]chan struct{}),
 	}
 }
 
@@ -749,6 +767,18 @@ func (pm *ProcessManager) ConfiguredNames() []string {
 	return names
 }
 
+// ConfiguredConfigs returns a copy of every plugin configuration this manager
+// currently holds, sorted by Name. Safe for concurrent use.
+func (pm *ProcessManager) ConfiguredConfigs() []plugin.PluginConfig {
+	pm.mu.RLock()
+	configs := slices.Clone(pm.configs)
+	pm.mu.RUnlock()
+	slices.SortFunc(configs, func(a, b plugin.PluginConfig) int {
+		return strings.Compare(a.Name, b.Name)
+	})
+	return configs
+}
+
 // Disabled reports whether the respawn limit disabled the named process
 // (Respawn). Safe for concurrent use.
 func (pm *ProcessManager) Disabled(name string) bool {
@@ -809,6 +839,15 @@ func (pm *ProcessManager) ReportCrash(name string, exit ProcessExit, policy stri
 // process on success, and a nil process with a non-nil error on every other
 // path.
 //
+// Respawns are serialized per plugin name (respawning) rather than across the
+// whole manager, and pm.mu is released before stopping/joining the outgoing
+// generation or starting the replacement (including TLS connect-back). Readers
+// (GetProcess, AllProcesses, ConfiguredNames, ConfiguredConfigs) and respawns
+// of unrelated plugin names never wait on another plugin's join or
+// connect-back. The outgoing generation is withdrawn from pm.processes under
+// pm.mu before Stop wakes its supervisor, so applyFailurePolicy sees
+// GetProcess(name) != old without blocking.
+//
 // The new process is RETURNED because a restart is only half done when this
 // returns. The process is spawned, and it has run no startup handshake, so it
 // carries no registration, no delivered config, no subscriptions and no
@@ -825,10 +864,53 @@ func (pm *ProcessManager) ReportCrash(name string, exit ProcessExit, policy stri
 // Returns ErrProcessDisabled if process was previously disabled.
 // Returns ErrProcessNotFound if process name not in configuration.
 // Returns ErrDaemonStopping once RefuseRespawns has been called.
-// Returns error if ProcessManager was not started (ctx is nil).
+// Returns ErrManagerNotStarted if ProcessManager was not started (ctx is nil).
 func (pm *ProcessManager) Respawn(name string) (*Process, error) {
-	pm.respawnMu.Lock()
-	defer pm.respawnMu.Unlock()
+	return pm.respawn(name, false)
+}
+
+// RespawnReenabled is Respawn for an operator's explicit restart command
+// (`request plugin restart`). It runs every pre-spawn admission check first
+// (manager started, daemon not stopping, name configured), and only after all
+// pass atomically clears any respawn-limit disable and respawn counters under
+// pm.mu before admitting the replacement. A refused call leaves disable state
+// and respawn history untouched. Safe for concurrent use.
+func (pm *ProcessManager) RespawnReenabled(name string) (*Process, error) {
+	return pm.respawn(name, true)
+}
+
+// acquireRespawnSlot serializes concurrent respawns of the same plugin name
+// without blocking readers or respawns of unrelated names. The caller MUST
+// call the returned release function once the respawn finishes.
+func (pm *ProcessManager) acquireRespawnSlot(name string) func() {
+	pm.mu.Lock()
+	for {
+		ch, busy := pm.respawning[name]
+		if !busy {
+			break
+		}
+		pm.mu.Unlock()
+		<-ch
+		pm.mu.Lock()
+	}
+	if pm.respawning == nil {
+		pm.respawning = make(map[string]chan struct{})
+	}
+	done := make(chan struct{})
+	pm.respawning[name] = done
+	pm.mu.Unlock()
+	return func() {
+		pm.mu.Lock()
+		delete(pm.respawning, name)
+		close(done)
+		pm.mu.Unlock()
+	}
+}
+
+func (pm *ProcessManager) respawn(name string, reenable bool) (*Process, error) {
+	releaseSlot := pm.acquireRespawnSlot(name)
+	defer releaseSlot()
+
 	pm.mu.Lock()
 	pmLocked := true
 	// Only rate/config bookkeeping and admission hold mu. Every early return
@@ -839,9 +921,9 @@ func (pm *ProcessManager) Respawn(name string) (*Process, error) {
 		}
 	}()
 
-	// Check if ProcessManager was started
+	// Check if ProcessManager was started.
 	if pm.ctx == nil {
-		return nil, errors.New("process manager not started")
+		return nil, ErrManagerNotStarted
 	}
 
 	if pm.respawnRefused.Load() {
@@ -854,12 +936,8 @@ func (pm *ProcessManager) Respawn(name string) (*Process, error) {
 		return nil, ErrDaemonStopping
 	}
 
-	// Check if already disabled
-	if pm.disabled[name] {
-		return nil, ErrProcessDisabled
-	}
-
-	// Find config
+	// Find config before mutating any disable or respawn state so an unknown
+	// name is always refused without side effects.
 	var cfg *plugin.PluginConfig
 	for i := range pm.configs {
 		if pm.configs[i].Name == name {
@@ -871,9 +949,22 @@ func (pm *ProcessManager) Respawn(name string) (*Process, error) {
 		return nil, ErrProcessNotFound
 	}
 
+	// Lift disable state and respawn counters only after all pre-spawn
+	// admission checks have passed, atomically under pm.mu.
+	if reenable {
+		delete(pm.disabled, name)
+		delete(pm.respawnTimes, name)
+		delete(pm.totalRespawns, name)
+	}
+
+	// Check if already disabled.
+	if pm.disabled[name] {
+		return nil, ErrProcessDisabled
+	}
+
 	now := time.Now()
 
-	// Clean up old respawn times (outside window)
+	// Clean up old respawn times (outside window).
 	var validTimes []time.Time
 	for _, t := range pm.respawnTimes[name] {
 		if now.Sub(t) < RespawnWindow {
@@ -881,7 +972,7 @@ func (pm *ProcessManager) Respawn(name string) (*Process, error) {
 		}
 	}
 
-	// Check per-window limit
+	// Check per-window limit.
 	if len(validTimes) >= RespawnLimit {
 		pm.disabled[name] = true
 		pm.clearProcessCallbacks(name)
@@ -893,7 +984,7 @@ func (pm *ProcessManager) Respawn(name string) (*Process, error) {
 		return nil, ErrRespawnLimitExceeded
 	}
 
-	// Check cumulative limit (prevents cycling indefinitely across windows)
+	// Check cumulative limit (prevents cycling indefinitely across windows).
 	pm.totalRespawns[name]++
 	if pm.totalRespawns[name] > MaxTotalRespawns {
 		pm.disabled[name] = true
@@ -906,7 +997,7 @@ func (pm *ProcessManager) Respawn(name string) (*Process, error) {
 		return nil, ErrRespawnLimitExceeded
 	}
 
-	// Record this respawn
+	// Record this respawn.
 	validTimes = append(validTimes, now)
 	pm.respawnTimes[name] = validTimes
 
@@ -963,23 +1054,28 @@ func (pm *ProcessManager) Respawn(name string) (*Process, error) {
 }
 
 // clearProcessCallbacks takes the metrics callbacks back from the named
-// process (clearMetricHooks), so a dying process cannot re-create deleted
-// metric labels via SetStage or Deliver during shutdown. Caller holds pm.mu.
+// process (clearMetricHooks), so a dying or disabled process cannot re-create
+// deleted metric labels via SetStage. MUST be called before
+// deletePluginStatusLabel; caller holds pm.mu.
 func (pm *ProcessManager) clearProcessCallbacks(name string) {
 	if proc, ok := pm.processes[name]; ok {
 		proc.clearMetricHooks()
 	}
 }
 
-// deletePluginStatusLabel removes the status gauge label for a plugin.
-// Called when a plugin is disabled (respawn limit exceeded).
-// Only deletes the status gauge; restarts and delivered counters are
-// preserved for post-mortem monitoring (counters must not be deleted
-// mid-lifetime as it breaks rate() and increase() queries).
+// deletePluginStatusLabel removes the status gauge label for a plugin under
+// leaf lock statusMu, serialized with wireMetrics's stageChange callback so an
+// in-flight SetStage cannot re-create ze_plugin_status after clearMetricHooks.
+// Called when a plugin is disabled (respawn limit exceeded) or unconfigured.
+// Only deletes the status gauge; restarts, delivered, failed, and slow
+// counters are preserved for post-mortem monitoring (counters must not be
+// deleted mid-lifetime as it breaks rate() and increase() queries).
 func (pm *ProcessManager) deletePluginStatusLabel(name string) {
 	if pm.pmetrics == nil {
 		return
 	}
+	pm.statusMu.Lock()
+	defer pm.statusMu.Unlock()
 	pm.pmetrics.status.Delete(name)
 }
 
