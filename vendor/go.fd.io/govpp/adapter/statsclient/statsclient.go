@@ -76,8 +76,6 @@ type StatsClient struct {
 	socket       string
 	retryPeriod  time.Duration
 	retryTimeout time.Duration
-	pinned bool
-	connectionHook func(*net.UnixConn) error
 
 	headerData []byte
 
@@ -114,16 +112,6 @@ func SetSocketRetryTimeout(t time.Duration) Option {
 	}
 }
 
-// WithPinnedConnection validates the actual segment-transfer socket and
-// suppresses the automatic monitor/reconnect. One successful Connect then owns
-// one immutable mapping until Disconnect. The callback borrows the socket only
-// during its call; it MUST NOT close, retain or use that socket concurrently.
-// It may retain an independently owned descriptor through SyscallConn. The
-// caller MUST close that descriptor after Disconnect, including Connect errors.
-func WithPinnedConnection(validate func(*net.UnixConn) error) Option {
-    return func(c *StatsClient) { c.pinned, c.connectionHook = true, validate }
-}
-
 // NewStatsClient returns a new StatsClient using socket.
 // If socket is empty string DefaultSocketName is used.
 func NewStatsClient(socket string, options ...Option) *StatsClient {
@@ -148,7 +136,6 @@ func NewStatsClient(socket string, options ...Option) *StatsClient {
 // Connect to validated VPP stats socket and start monitoring
 // socket file changes
 func (sc *StatsClient) Connect() (err error) {
-    if sc.pinned && sc.connectionHook == nil { return fmt.Errorf("pinned stats connection requires a socket validator") }
 	if err := sc.waitForSocket(); err != nil {
 		return err
 	}
@@ -158,7 +145,7 @@ func (sc *StatsClient) Connect() (err error) {
 	if sc.statSegment, err = sc.connect(); err != nil {
 		return err
 	}
-	if !sc.pinned { sc.monitorSocket() }
+	sc.monitorSocket()
 	return nil
 }
 
@@ -364,21 +351,9 @@ func (sc *StatsClient) connect() (ss statSegment, err error) {
 			Log.Warnf("closing socket failed: %v", err)
 		}
 	}()
-    if sc.pinned {
-        if err := conn.SetDeadline(time.Now().Add(sc.retryTimeout)); err != nil { return nil, err }
-        if err := sc.connectionHook(conn); err != nil { return nil, err }
-    }
 	Log.Debugf("connected to socket")
 
 	files, err := fd.Get(conn, 1, nil)
-	// Get transfers every returned file, including partial results on error.
-	defer func() {
-		for _, file := range files {
-			if err := file.Close(); err != nil {
-				Log.Warnf("closing file failed: %v", err)
-			}
-		}
-	}()
 	if err != nil {
 		return nil, fmt.Errorf("getting file descriptor over socket failed: %v", err)
 	}
@@ -387,6 +362,11 @@ func (sc *StatsClient) connect() (ss statSegment, err error) {
 	}
 
 	file := files[0]
+	defer func() {
+		if err := file.Close(); err != nil {
+			Log.Warnf("closing file failed: %v", err)
+		}
+	}()
 
 	info, err := file.Stat()
 	if err != nil {

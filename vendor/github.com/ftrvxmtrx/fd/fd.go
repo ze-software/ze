@@ -19,7 +19,6 @@
 package fd
 
 import (
-	"io"
 	"net"
 	"os"
 	"syscall"
@@ -40,27 +39,24 @@ func Get(via *net.UnixConn, num int, filenames []string) ([]*os.File, error) {
 		return nil, nil
 	}
 
-	// Receive through the original connection so its read deadline applies.
-	// Get leaves the caller's connection open.
-	buf := make([]byte, syscall.CmsgSpace(num*4))
-	_, oobn, _, _, err := via.ReadMsgUnix(nil, buf)
-	// ReadMsgUnix can report EOF for a zero-byte Unixpacket carrying rights.
-	// Keep its ancillary data for the ordinary parser and ownership rules.
-	if err == io.EOF {
-		if oobn > 0 {
-			err = nil
-		}
-	}
+	// get the underlying socket
+	viaf, err := via.File()
 	if err != nil {
 		return nil, err
 	}
-	if oobn == 0 {
-		return nil, io.ErrUnexpectedEOF
+	socket := int(viaf.Fd())
+	defer viaf.Close()
+
+	// recvmsg
+	buf := make([]byte, syscall.CmsgSpace(num*4))
+	_, _, _, _, err = syscall.Recvmsg(socket, nil, buf, 0)
+	if err != nil {
+		return nil, err
 	}
 
 	// parse control msgs
 	var msgs []syscall.SocketControlMessage
-	msgs, err = syscall.ParseSocketControlMessage(buf[:oobn])
+	msgs, err = syscall.ParseSocketControlMessage(buf)
 
 	// convert fds to files
 	res := make([]*os.File, 0, len(msgs))

@@ -130,7 +130,9 @@ func (r *vmRunConfig) buildFullDiskImage(ctx context.Context, dest string, fileC
 		Output:  &output,
 	}
 
-	return pack.Main(ctx)
+	pack.Main(ctx)
+
+	return nil
 }
 
 func (r *vmRunConfig) runQEMU(ctx context.Context, fullDiskImage string, extraArgs []string) error {

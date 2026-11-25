@@ -846,24 +846,28 @@ func (p *initProcess) start() (retErr error) {
 			return fmt.Errorf("unable to apply Intel RDT configuration: %w", err)
 		}
 	}
-	// ze patch (runc-02-start-without-bootstrap): no C stage reads bootstrap
-	// data, reports a child pid or exits first. The process started above is
-	// init itself. The C stage also wrote the out-of-memory score from that
-	// data, so it is written here, before init is sent its configuration.
-	if adj := p.container.config.OomScoreAdj; adj != nil {
-		if err := os.WriteFile("/proc/"+strconv.Itoa(p.pid())+"/oom_score_adj", []byte(strconv.Itoa(*adj)), 0o644); err != nil {
-			return fmt.Errorf("unable to set the oom score adjustment of init: %w", err)
-		}
+	if _, err := io.Copy(p.comm.initSockParent, p.bootstrapData); err != nil {
+		return fmt.Errorf("can't copy bootstrap data to pipe: %w", err)
+	}
+
+	childPid, err := p.getChildPid()
+	if err != nil {
+		return fmt.Errorf("can't get final child's PID from pipe: %w", err)
 	}
 
 	// Save the standard descriptor names before the container process
 	// can potentially move them (e.g., via dup2()).  If we don't do this now,
 	// we won't know at checkpoint time which file descriptor to look up.
-	fds, err := getPipeFds(p.pid())
+	fds, err := getPipeFds(childPid)
 	if err != nil {
-		return fmt.Errorf("error getting pipe fds for pid %d: %w", p.pid(), err)
+		return fmt.Errorf("error getting pipe fds for pid %d: %w", childPid, err)
 	}
 	p.setExternalDescriptors(fds)
+
+	// Wait for our first child to exit
+	if err := p.waitForChildExit(childPid); err != nil {
+		return fmt.Errorf("error waiting for our first child to exit: %w", err)
+	}
 
 	// Spin up a goroutine to handle remapping mount requests by runc init.
 	// There is no point doing this for rootless containers because they cannot

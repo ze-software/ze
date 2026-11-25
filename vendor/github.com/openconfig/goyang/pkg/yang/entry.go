@@ -63,48 +63,12 @@ func (t TriState) String() string {
 	}
 }
 
-// deviationPresence records explicit properties on an entry, including values
-// equal to their defaults. Inherited properties are not explicit statements.
+// deviationPresence stores whether certain attributes for a DeviateEntry-type
+// Entry have been given deviation values. This is useful when the attribute
+// doesn't have a presence indicator (e.g. non-pointers).
 type deviationPresence struct {
-	hasConfig      bool
-	hasDefault     bool
-	hasMandatory   bool
 	hasMinElements bool
 	hasMaxElements bool
-	hasUnits       bool
-}
-
-// deviationPresenceFor reads statement presence from the AST, before its
-// pointer-valued properties become scalar Entry values. This distinguishes
-// absent units from units "", and absent bounds from 0 and unbounded.
-// RFC 7950 Section 7.20.3.2: "The properties to add are identified by
-// substatements to the "deviate" statement."
-func deviationPresenceFor(n Node) deviationPresence {
-	var presence deviationPresence
-	value := reflect.ValueOf(n).Elem()
-	fields := value.Type()
-	for i := 0; i < fields.NumField(); i++ {
-		keyword := strings.Split(fields.Field(i).Tag.Get("yang"), ",")[0]
-		switch keyword {
-		case "config":
-			presence.hasConfig = !value.Field(i).IsNil()
-		case "default":
-			if value.Field(i).Kind() == reflect.Slice {
-				presence.hasDefault = value.Field(i).Len() > 0
-			} else {
-				presence.hasDefault = !value.Field(i).IsNil()
-			}
-		case "mandatory":
-			presence.hasMandatory = !value.Field(i).IsNil()
-		case "min-elements":
-			presence.hasMinElements = !value.Field(i).IsNil()
-		case "max-elements":
-			presence.hasMaxElements = !value.Field(i).IsNil()
-		case "units":
-			presence.hasUnits = !value.Field(i).IsNil()
-		}
-	}
-	return presence
 }
 
 // Entry represents a single schema tree node, which can be a directory
@@ -153,7 +117,8 @@ type Entry struct {
 	Augmented  []*Entry                   `json:",omitempty"` // Augments merged into this entry.
 	Deviations []*DeviatedEntry           `json:"-"`          // Deviations associated with this entry.
 	Deviate    map[deviationType][]*Entry `json:"-"`
-	// deviatePresence keeps explicit property presence through deviations.
+	// deviationPresence tracks whether certain attributes for a DeviateEntry-type
+	// Entry have been given deviation values.
 	deviatePresence deviationPresence
 	Uses            []*UsesStmt `json:",omitempty"` // Uses merged into this entry.
 
@@ -598,7 +563,6 @@ func ToEntry(n Node) (e *Entry) {
 		return e
 	}
 	defer func() {
-		e.deviatePresence = deviationPresenceFor(n)
 		ms.setEntryCache(n, e)
 	}()
 
@@ -696,43 +660,6 @@ func ToEntry(n Node) (e *Entry) {
 		// when the group is used in multiple locations and the
 		// grouping has a leafref that references outside the group.
 		e = ToEntry(g).dup()
-		// RFC 7950 Section 7.13: "The effect of a "uses" reference to a
-		// grouping is that the nodes defined by the grouping are copied into
-		// the current schema tree and are then updated according to the
-		// "refine" and "augment" statements."
-		for _, augment := range s.Augment {
-			// RFC 7950 Section 14 requires at least one data-def-stmt,
-			// case-stmt, action-stmt or notification-stmt. A uses of an empty
-			// grouping counts even though it produces no effective child.
-			definitions := len(augment.Action) + len(augment.Anydata) + len(augment.Anyxml) +
-				len(augment.Case) + len(augment.Choice) + len(augment.Container) +
-				len(augment.Leaf) + len(augment.LeafList) + len(augment.List) +
-				len(augment.Notification) + len(augment.Uses)
-			if definitions == 0 {
-				e.errorf("%s: augment %s has no data definitions; add a data definition, case, action or notification",
-					Source(augment), augment.Name)
-				continue
-			}
-			a := ToEntry(augment).dup()
-			// Retain the declaring namespace as provenance before parenting the
-			// augment to a possibly imported grouping copy. Augment decides
-			// whether this also binds the resulting data nodes.
-			a.namespace = a.Namespace()
-			a.Parent = e
-			e.Augments = append(e.Augments, a)
-		}
-		// Each successful pass removes at least one of these finite augments.
-		for len(e.Augments) > 0 {
-			// RFC 7950 Section 7.17.
-			processed, skipped := e.Augment(false)
-			if skipped == 0 {
-				break
-			}
-			if processed == 0 {
-				e.Augment(true)
-				break
-			}
-		}
 		addExtraKeywordsToLeafEntry(n, e)
 		return e
 	}
@@ -1176,15 +1103,7 @@ func (e *Entry) Augment(addErrors bool) (processed, skipped int) {
 	// progress)
 	var unapplied []*Entry
 	for _, a := range e.Augments {
-		var target *Entry
-		uses, local := a.Node.ParentNode().(*Uses)
-		// RFC 7950 Section 7.17 requires the descendant form under uses.
-		// Its starting point is the grouping copy, not the augment's body.
-		if local {
-			target = e.Find(a.Name)
-		} else {
-			target = a.Find(a.Name)
-		}
+		target := a.Find(a.Name)
 		if target == nil {
 			if addErrors {
 				e.errorf("%s: augment %s not found", Source(a.Node), a.Name)
@@ -1194,70 +1113,15 @@ func (e *Entry) Augment(addErrors bool) (processed, skipped int) {
 			continue
 		}
 		// Augments do not have a prefix we merge in, just a node.
-		// RFC 7950 Section 7.17.2: "All data nodes defined in the "augment"
-		// statement are defined as XML elements in the XML namespace of the
-		// module where the "augment" is specified."
-		namespace := a.Namespace()
-		// RFC 7950 Section 7.13: "The identifiers defined in the grouping are
-		// not bound to a namespace until the contents of the grouping are added
-		// to the schema tree via a "uses" statement that does not appear inside
-		// a "grouping" statement, at which point they are bound to the namespace
-		// of the current module."
-		if local {
-			// The parsed AST's finite lexical parent chain ends at its module.
-			for parent := uses.ParentNode(); parent != nil; parent = parent.ParentNode() {
-				if _, grouping := parent.(*Grouping); grouping {
-					// Nil deliberately defers data-node binding; the augment's
-					// own namespace remains its declaration provenance.
-					namespace = nil
-					break
-				}
-			}
-		}
+		// We retain the namespace from the original context of the
+		// augment since the nodes have this namespace even though they
+		// are merged into another entry.
 		processed++
-		target.merge(nil, namespace, a)
+		target.merge(nil, a.Namespace(), a)
 		target.Augmented = append(target.Augmented, a.shallowDup())
 	}
 	e.Augments = unapplied
 	return processed, skipped
-}
-
-// checkDeviationAdd refuses an add that would overwrite an explicit singleton.
-// RFC 7950 Section 7.20.3.2: "If a property can only appear once, the property
-// MUST NOT exist in the target node."
-func (e *Entry) checkDeviationAdd(spec *Entry) error {
-	// RFC 7950 Section 14's deviate-add-stmt admits no type-stmt.
-	if spec.Type != nil {
-		return fmt.Errorf("%s: type is not permitted in deviate add; use deviate replace on a leaf or leaf-list with an existing type",
-			Source(spec.Node))
-	}
-	properties := [...]struct {
-		name    string
-		added   bool
-		present bool
-	}{
-		{"config", spec.deviatePresence.hasConfig, e.deviatePresence.hasConfig},
-		{"default", spec.deviatePresence.hasDefault, e.deviatePresence.hasDefault},
-		{"mandatory", spec.deviatePresence.hasMandatory, e.deviatePresence.hasMandatory},
-		{"min-elements", spec.deviatePresence.hasMinElements, e.deviatePresence.hasMinElements},
-		{"max-elements", spec.deviatePresence.hasMaxElements, e.deviatePresence.hasMaxElements},
-		{"units", spec.deviatePresence.hasUnits, e.deviatePresence.hasUnits},
-	}
-	for _, property := range properties {
-		if !property.added {
-			continue
-		}
-		if property.name == "default" {
-			if e.IsLeafList() {
-				continue
-			}
-		}
-		if property.present {
-			return fmt.Errorf("%s: cannot deviate add %s: target %s already has that property; use deviate replace instead",
-				Source(spec.Node), property.name, e.Path())
-		}
-	}
-	return nil
 }
 
 // ApplyDeviate walks the deviations within the supplied entry, and applies them to the
@@ -1274,18 +1138,10 @@ func (e *Entry) ApplyDeviate(deviateOpts ...DeviateOpt) []error {
 
 		for dt, dv := range d.Deviate {
 			for _, devSpec := range dv {
-				if dt == DeviationAdd {
-					// RFC 7950 Section 7.20.3.2.
-					if err := deviatedNode.checkDeviationAdd(devSpec); err != nil {
-						appendErr(err)
-						continue
-					}
-				}
 				switch dt {
 				case DeviationAdd, DeviationReplace:
 					if devSpec.Config != TSUnset {
 						deviatedNode.Config = devSpec.Config
-						deviatedNode.deviatePresence.hasConfig = true
 					}
 
 					if len(devSpec.Default) > 0 {
@@ -1304,12 +1160,10 @@ func (e *Entry) ApplyDeviate(deviateOpts ...DeviateOpt) []error {
 						case DeviationReplace:
 							deviatedNode.Default = append([]string{}, devSpec.Default...)
 						}
-						deviatedNode.deviatePresence.hasDefault = len(deviatedNode.Default) > 0
 					}
 
 					if devSpec.Mandatory != TSUnset {
 						deviatedNode.Mandatory = devSpec.Mandatory
-						deviatedNode.deviatePresence.hasMandatory = true
 					}
 
 					if devSpec.deviatePresence.hasMinElements {
@@ -1318,7 +1172,6 @@ func (e *Entry) ApplyDeviate(deviateOpts ...DeviateOpt) []error {
 							continue
 						}
 						deviatedNode.ListAttr.MinElements = devSpec.ListAttr.MinElements
-						deviatedNode.deviatePresence.hasMinElements = true
 					}
 
 					if devSpec.deviatePresence.hasMaxElements {
@@ -1327,12 +1180,10 @@ func (e *Entry) ApplyDeviate(deviateOpts ...DeviateOpt) []error {
 							continue
 						}
 						deviatedNode.ListAttr.MaxElements = devSpec.ListAttr.MaxElements
-						deviatedNode.deviatePresence.hasMaxElements = true
 					}
 
-					if devSpec.deviatePresence.hasUnits {
+					if devSpec.Units != "" {
 						deviatedNode.Units = devSpec.Units
-						deviatedNode.deviatePresence.hasUnits = true
 					}
 
 					if devSpec.Type != nil {
@@ -1355,7 +1206,6 @@ func (e *Entry) ApplyDeviate(deviateOpts ...DeviateOpt) []error {
 				case DeviationDelete:
 					if devSpec.Config != TSUnset {
 						deviatedNode.Config = TSUnset
-						deviatedNode.deviatePresence.hasConfig = false
 					}
 
 					if len(devSpec.Default) > 0 {
@@ -1371,13 +1221,11 @@ func (e *Entry) ApplyDeviate(deviateOpts ...DeviateOpt) []error {
 							appendErr(fmt.Errorf("%s: tried to deviate delete a default statement with a non-matching keyword", Source(e.Node)))
 						default:
 							deviatedNode.Default = nil
-							deviatedNode.deviatePresence.hasDefault = false
 						}
 					}
 
 					if devSpec.Mandatory != TSUnset {
 						deviatedNode.Mandatory = TSUnset
-						deviatedNode.deviatePresence.hasMandatory = false
 					}
 
 					if devSpec.deviatePresence.hasMinElements {
@@ -1391,7 +1239,6 @@ func (e *Entry) ApplyDeviate(deviateOpts ...DeviateOpt) []error {
 							appendErr(fmt.Errorf("min-element value %d differs from deviation's min-element value %d for entry %v", devSpec.ListAttr.MinElements, deviatedNode.ListAttr.MinElements, d.DeviatedPath))
 						}
 						deviatedNode.ListAttr.MinElements = 0
-						deviatedNode.deviatePresence.hasMinElements = false
 					}
 
 					if devSpec.deviatePresence.hasMaxElements {
@@ -1403,7 +1250,6 @@ func (e *Entry) ApplyDeviate(deviateOpts ...DeviateOpt) []error {
 							appendErr(fmt.Errorf("max-element value %d differs from deviation's max-element value %d for entry %v", devSpec.ListAttr.MaxElements, deviatedNode.ListAttr.MaxElements, d.DeviatedPath))
 						}
 						deviatedNode.ListAttr.MaxElements = math.MaxUint64
-						deviatedNode.deviatePresence.hasMaxElements = false
 					}
 
 					if musts, exists := devSpec.Extra["must"]; exists {
@@ -1533,25 +1379,19 @@ func (e *Entry) Find(name string) *Entry {
 			switch part {
 			case "input":
 				if e.RPC.Input == nil {
-					// An input created for an augment is a child of its
-					// operation like a declared one (RFC 7950 Section 6.4.1).
 					e.RPC.Input = &Entry{
-						Name:   "input",
-						Kind:   InputEntry,
-						Dir:    make(map[string]*Entry),
-						Parent: e,
+						Name: "input",
+						Kind: InputEntry,
+						Dir:  make(map[string]*Entry),
 					}
 				}
 				e = e.RPC.Input
 			case "output":
 				if e.RPC.Output == nil {
-					// An output created for an augment is a child of its
-					// operation like a declared one (RFC 7950 Section 6.4.1).
 					e.RPC.Output = &Entry{
-						Name:   "output",
-						Kind:   OutputEntry,
-						Dir:    make(map[string]*Entry),
-						Parent: e,
+						Name: "output",
+						Kind: OutputEntry,
+						Dir:  make(map[string]*Entry),
 					}
 				}
 				e = e.RPC.Output
@@ -1668,26 +1508,6 @@ func (e *Entry) dup() *Entry {
 			de.Parent = &ne
 			ne.Dir[k] = de
 		}
-	}
-
-	// RPC is a pointer, so the copy above would share one input and one output
-	// between every copy of an rpc or action, such as each use of a grouping
-	// that defines an action. An augment or a deviation aimed at the input or
-	// output of one use would then reach every use, against RFC 7950 Section
-	// 7.17: the augment's target node "is augmented with the nodes defined in
-	// the substatements that follow the "augment" statement". Copy the input
-	// and output too, parented to this copy.
-	if e.RPC != nil {
-		rpc := *e.RPC
-		if e.RPC.Input != nil {
-			rpc.Input = e.RPC.Input.dup()
-			rpc.Input.Parent = &ne
-		}
-		if e.RPC.Output != nil {
-			rpc.Output = e.RPC.Output.dup()
-			rpc.Output.Parent = &ne
-		}
-		ne.RPC = &rpc
 	}
 
 	ne.Extra = make(map[string][]interface{})

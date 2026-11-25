@@ -264,17 +264,12 @@ func (srv *Server) Close() error {
 // active connections. Shutdown works by first closing all open
 // listeners, and then waiting indefinitely for connections to close.
 // If the provided context expires before the shutdown is complete,
-// then the context's error is returned, joined with any error from closing
-// the listeners.
+// then the context's error is returned.
 func (srv *Server) Shutdown(ctx context.Context) error {
 	srv.mu.Lock()
 	lnerr := srv.closeListenersLocked()
 	srv.closeDoneChanLocked()
 	srv.mu.Unlock()
-	if lnerr != nil {
-		// Keep a listener failure distinct from the context's own sentinel.
-		lnerr = fmt.Errorf("ssh: close listeners: %w", lnerr)
-	}
 
 	finished := make(chan struct{}, 1)
 	go func() {
@@ -285,9 +280,6 @@ func (srv *Server) Shutdown(ctx context.Context) error {
 
 	select {
 	case <-ctx.Done():
-		if lnerr != nil {
-			return errors.Join(ctx.Err(), lnerr)
-		}
 		return ctx.Err()
 	case <-finished:
 		return lnerr

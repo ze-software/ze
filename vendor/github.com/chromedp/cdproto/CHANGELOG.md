@@ -11,6 +11,71 @@ as `jsonv2.Value` and `jsonv2.Unmarshal`. They are aliases of the standard types
 1.27 or `GOEXPERIMENT=jsonv2`. Otherwise they come from the module
 `github.com/go-json-experiment/json`.
 
+## v0.160.8 - 2026-11-21
+
+- Chromium: 160.0.8175.2 (was 160.0.8173.1)
+- V8: 16.0.101 (was 16.0.90)
+- API changes since v0.160.7: 0 incompatible, 3 compatible
+
+By package, as removed, changed and added names:
+
+  network                     0 removed    0 changed    2 added
+  page                        0 removed    0 changed    1 added
+
+## v0.160.7 - 2026-11-20
+
+- Chromium: 160.0.8173.1 (was 160.0.8171.1)
+- V8: 16.0.90 (was 16.0.85)
+- API changes since v0.160.6: 0 incompatible, 4 compatible
+
+By package, as removed, changed and added names:
+
+  audits                      0 removed    0 changed    3 added
+  network                     0 removed    0 changed    1 added
+
+## v0.160.6 - 2026-11-19
+
+- Chromium: 160.0.8171.1 (was 160.0.8169.0)
+- V8: 16.0.85 (was 16.0.76)
+- API changes since v0.160.5: 0 incompatible, 0 compatible
+
+## v0.160.5 - 2026-11-18
+
+- Chromium: 160.0.8169.0 (was 160.0.8167.1)
+- V8: 16.0.76 (was 16.0.50)
+- API changes since v0.160.4: 0 incompatible, 0 compatible
+
+## v0.160.4 - 2026-11-17
+
+- Chromium: 160.0.8167.1 (was 160.0.8163.1)
+- V8: 16.0.50 (was 16.0.42)
+- API changes since v0.160.3: 0 incompatible, 1 compatible
+
+By package, as removed, changed and added names:
+
+  preload                     0 removed    0 changed    1 added
+
+## v0.160.3 - 2026-11-15
+
+- Chromium: 160.0.8163.1 (was 160.0.8161.1)
+- V8: 16.0.42 (was 16.0.30)
+- API changes since v0.160.2: 1 incompatible, 0 compatible
+
+By package, as removed, changed and added names:
+
+  cdp                         1 removed    0 changed    0 added
+
+## v0.160.2 - 2026-11-14
+
+- Chromium: 160.0.8161.1 (was 160.0.8159.0)
+- V8: 16.0.30 (was 16.0.29)
+- API changes since v0.160.1: 0 incompatible, 4 compatible
+
+By package, as removed, changed and added names:
+
+  bluetoothemulation          0 removed    0 changed    3 added
+  cdproto                     0 removed    0 changed    1 added
+
 ## v0.160.1 - 2026-11-13
 
 - Chromium: 160.0.8159.0 (was 160.0.8157.1)
