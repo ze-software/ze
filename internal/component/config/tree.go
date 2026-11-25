@@ -1401,7 +1401,8 @@ func (t *Tree) toMap(withListOrder, withInactiveIntent bool) map[string]any {
 		case 0:
 			// wholly deactivated leaf-list: omit
 		case 1:
-			if strings.ContainsAny(active[0], " \t\n\r") {
+			_, hasScalar := t.values[k]
+			if (t.mirrored[k] || !hasScalar) && strings.ContainsAny(active[0], " \t\n\r") {
 				result[k] = active
 			} else {
 				result[k] = active[0]

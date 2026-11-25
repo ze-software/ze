@@ -243,13 +243,52 @@ func insertionHolds(ps *reactor.PeerSettings, resolved map[string]any, ins *rpc.
 		return insertionConditionHolds(resolved, ins.Config, ins.Values), false, nil
 	}
 	if ps.IsDynamic {
-		return true, true, nil
+		// Facts fixed on the dynamic group template (peer-group, local-as,
+		// rs-client, route-server-as) never change per accepted connection:
+		// judge them now so a non-rs-client dynamic group never carries
+		// bgp-rs:transparency and never triggers a bogus filter-owner bus
+		// requirement. Facts learned from OPEN (ibgp, peer-as, peer-address,
+		// peer-name) remain deferred to each admitted member.
+		var templateFacts []rpc.FilterSessionFact
+		hasDynamicFact := false
+		for i := range ins.Session {
+			if isDynamicGroupTemplateFact(ins.Session[i].Fact) {
+				templateFacts = append(templateFacts, ins.Session[i])
+			} else {
+				hasDynamicFact = true
+			}
+		}
+		if len(templateFacts) > 0 {
+			holds, err = policyview.SessionConditionHolds(templateFacts, ps.SessionFacts(ps.PeerAS))
+			if err != nil {
+				return false, false, fmt.Errorf("peer %s: filter insertion %s: %w", ps.Name, ins.Filter, err)
+			}
+			if !holds {
+				return false, false, nil
+			}
+		}
+		return true, hasDynamicFact, nil
 	}
 	holds, err = policyview.SessionConditionHolds(ins.Session, ps.SessionFacts(ps.PeerAS))
 	if err != nil {
 		return false, false, fmt.Errorf("peer %s: filter insertion %s: %w", ps.Name, ins.Filter, err)
 	}
 	return holds, false, nil
+}
+
+// isDynamicGroupTemplateFact reports whether a peer session fact is fixed on
+// the dynamic group template rather than learned from each peer's OPEN or TCP
+// connection.
+func isDynamicGroupTemplateFact(fact string) bool {
+	switch fact {
+	case policyview.FieldPeerGroup.String(),
+		policyview.FieldLocalAS.String(),
+		policyview.FieldRouteServerAS.String(),
+		policyview.FieldRSClient.String():
+		return true
+	default:
+		return false
+	}
 }
 
 // insertionConditionHolds reports whether the resolved config holds the path,

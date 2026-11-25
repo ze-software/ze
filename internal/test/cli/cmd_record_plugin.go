@@ -215,6 +215,9 @@ func CmdRecordPlugin(_ []string) int {
 	})
 
 	registration := sdk.Registration{
+		Sends: []sdk.MessageSendDecl{
+			{Message: "cli:" + engineWalkCommand},
+		},
 		Commands: []sdk.CommandDecl{
 			{Name: recordWalkCommand, ShortHelp: "Walk that streams its rows"},
 			{Name: recordFaultCommand, ShortHelp: "Walk with one row no line can carry"},

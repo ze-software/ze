@@ -188,9 +188,21 @@ func storedConfigExternalPlugins() ([]string, error) {
 	if err != nil {
 		return nil, err
 	}
-	declared, err := config.PublishDeclaredSchemas(config.ConfigSource{Text: string(text), Path: name})
+	firstPass, err := config.FirstPass(string(text), name, nil)
 	if err != nil {
 		return nil, err
 	}
-	return declared.WithoutSchema(), nil
+	names := make([]string, 0, len(firstPass.External))
+	seen := make(map[string]struct{}, len(firstPass.External))
+	for _, ext := range firstPass.External {
+		if ext.Name == "" {
+			continue
+		}
+		if _, dup := seen[ext.Name]; dup {
+			continue
+		}
+		seen[ext.Name] = struct{}{}
+		names = append(names, ext.Name)
+	}
+	return names, nil
 }

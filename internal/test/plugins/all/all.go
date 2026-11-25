@@ -27,6 +27,7 @@ import (
 	_ "github.com/ze-software/ze/internal/test/plugins/fakeowner"
 	_ "github.com/ze-software/ze/internal/test/plugins/fakeredist"
 	_ "github.com/ze-software/ze/internal/test/plugins/fakeredist/yang"
+	_ "github.com/ze-software/ze/internal/test/plugins/fakestate"
 	_ "github.com/ze-software/ze/internal/test/plugins/filterwirecases"
 	_ "github.com/ze-software/ze/internal/test/plugins/lateregister"
 	_ "github.com/ze-software/ze/internal/test/plugins/recordplugin/yang"

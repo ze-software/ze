@@ -47,7 +47,9 @@ func runPlugin(conn net.Conn) int {
 		go probe(p)
 		return nil
 	})
-	if err := p.Run(context.Background(), &sdk.Registration{}); err != nil {
+	if err := p.Run(context.Background(), &sdk.Registration{
+		Sends: lateRegisterSends(),
+	}); err != nil {
 		logLine("lateregister: plugin run ended: " + err.Error())
 		return 1
 	}

@@ -231,7 +231,7 @@ func TestDumpRouteDrawsTheDaemonsDocument(t *testing.T) {
 	t.Cleanup(config.ResetDeclaredSchemasForTest())
 	_, path, marker := routedConfig(t)
 	body := `{"acme-monitor":{"interval":"5"},"bgp":{"router-id":"192.0.2.1"},` +
-		`"plugin":{"external":{"acme":{"run":"sh plugin.sh","encoder":"json"}}}}`
+		`"bus":{"endpoint":{"acme":{"external":{"run":"sh plugin.sh"},"encoding":"json"}}}}`
 	recorder := &askRecorder{verdict: daemonVerdict{body: []byte(body), address: daemonAddress}}
 
 	var diag textbuf.Buffer

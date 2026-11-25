@@ -73,13 +73,14 @@ const (
 	// blobAnswerKey is the one key of a Blob's JSON answer
 	// (command.Blob.MarshalJSON), under which command.DecodeBlob reads.
 	blobAnswerKey = "blob"
-	// keyPluginRoot, keyPluginExternal, keyPluginRun and keyPluginEncoder are
-	// the names of the plugin declarations in a dump document, as
-	// ze-plugin-conf.yang declares them.
-	keyPluginRoot     = "plugin"
+	// keyBusRoot, keyBusEndpoint, keyPluginExternal, keyPluginRun and
+	// keyPluginEncoding are the names of the external endpoint declarations in a
+	// dump document, as ze-plugin-conf.yang declares them.
+	keyBusRoot        = "bus"
+	keyBusEndpoint    = "endpoint"
 	keyPluginExternal = "external"
 	keyPluginRun      = "run"
-	keyPluginEncoder  = "encoder"
+	keyPluginEncoding = "encoding"
 	keyBGP            = "bgp"
 )
 
@@ -462,8 +463,21 @@ func daemonDump(body []byte, text, path string, stripPrivate bool) (dumpResult, 
 // (config.FirstPass over text), then any declaration the first pass does not
 // answer (one with no run line), by name.
 func documentPlugins(document map[string]any, text, path string) []dumpPlugin {
-	root, _ := document[keyPluginRoot].(map[string]any)
-	entries, _ := root[keyPluginExternal].(map[string]any)
+	root, _ := document[keyBusRoot].(map[string]any)
+	allEndpoints, _ := root[keyBusEndpoint].(map[string]any)
+	if len(allEndpoints) == 0 {
+		return nil
+	}
+	entries := make(map[string]map[string]any, len(allEndpoints))
+	for name, raw := range allEndpoints {
+		ep, _ := raw.(map[string]any)
+		if ep == nil {
+			continue
+		}
+		if _, hasExt := ep[keyPluginExternal].(map[string]any); hasExt {
+			entries[name] = ep
+		}
+	}
 	if len(entries) == 0 {
 		return nil
 	}
@@ -487,11 +501,12 @@ func documentPlugins(document map[string]any, text, path string) []dumpPlugin {
 	plugins := make([]dumpPlugin, 0, len(names))
 	for _, name := range names {
 		plugin := dumpPlugin{name: name}
-		entry, _ := entries[name].(map[string]any)
-		if run, held := entry[keyPluginRun].(string); held {
+		entry := entries[name]
+		ext, _ := entry[keyPluginExternal].(map[string]any)
+		if run, held := ext[keyPluginRun].(string); held {
 			plugin.run, plugin.hasRun = run, true
 		}
-		if encoder, held := entry[keyPluginEncoder].(string); held {
+		if encoder, held := entry[keyPluginEncoding].(string); held {
 			plugin.encoder, plugin.hasEncoder = encoder, true
 		}
 		plugins = append(plugins, plugin)

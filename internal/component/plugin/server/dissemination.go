@@ -243,14 +243,21 @@ func (s *Server) ResolveDisseminationOwnerForPeer(peer DeliveryPeer, role string
 	peers := make([]DeliveryPeer, 0, len(graph.disseminationPeers)+1)
 	var tb textbuf.Buffer
 	for i, source := range graph.disseminationPeers {
+		if peer.Path != "" && source.Path == peer.Path {
+			continue
+		}
 		source.Addr = tb.Reset().Str("source-").Int(int64(i)).String()
-		source.Path = tb.Reset().Byte('/').Str(ns).Str("/source-").Int(int64(i)).String()
-		source.SecondaryPaths = nil
+		if source.Path == "" {
+			source.Path = tb.Reset().Byte('/').Str(ns).Str("/source-").Int(int64(i)).String()
+			source.SecondaryPaths = nil
+		}
 		peers = append(peers, source)
 	}
 	peer.Addr = "destination"
-	peer.Path = tb.Reset().Byte('/').Str(ns).Str("/destination").String()
-	peer.SecondaryPaths = nil
+	if peer.Path == "" {
+		peer.Path = tb.Reset().Byte('/').Str(ns).Str("/destination").String()
+		peer.SecondaryPaths = nil
+	}
 	peers = append(peers, peer)
 	built, err := s.buildDeliveryGraphForPeers(ns, peers, plugin.BusConfig{})
 	if err != nil {
@@ -269,8 +276,8 @@ func (s *Server) ValidateDisseminationBindings() error {
 		peers[i].Addr = tb.Reset().Str("peer-").Int(int64(i)).String()
 		if peers[i].Path == "" {
 			peers[i].Path = tb.Reset().Byte('/').Str(graph.namespace).Str("/peer-").Int(int64(i)).String()
+			peers[i].SecondaryPaths = nil
 		}
-		peers[i].SecondaryPaths = nil
 	}
 	built, err := s.buildDeliveryGraphForPeers(graph.namespace, peers, plugin.BusConfig{})
 	if err != nil {

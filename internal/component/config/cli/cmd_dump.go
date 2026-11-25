@@ -199,16 +199,20 @@ func (r dumpResult) declaredPlugins() []dumpPlugin {
 	if r.tree == nil {
 		return r.plugins
 	}
-	container := r.tree.GetContainer(keyPluginRoot)
+	container := r.tree.GetContainer(keyBusRoot)
 	if container == nil {
 		return nil
 	}
-	entries := container.GetListOrdered(keyPluginExternal)
+	entries := container.GetListOrdered(keyBusEndpoint)
 	plugins := make([]dumpPlugin, 0, len(entries))
 	for _, entry := range entries {
+		ext := entry.Value.GetContainer(keyPluginExternal)
+		if ext == nil {
+			continue
+		}
 		plugin := dumpPlugin{name: entry.Key}
-		plugin.run, plugin.hasRun = entry.Value.Get(keyPluginRun)
-		plugin.encoder, plugin.hasEncoder = entry.Value.Get(keyPluginEncoder)
+		plugin.run, plugin.hasRun = ext.Get(keyPluginRun)
+		plugin.encoder, plugin.hasEncoder = entry.Value.Get(keyPluginEncoding)
 		plugins = append(plugins, plugin)
 	}
 	return plugins

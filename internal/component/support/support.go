@@ -615,7 +615,7 @@ func collectConfig(opts *collectOptions) (any, error) {
 	// Served by a daemon, the parse answers from the set the daemon joined at
 	// start; with no daemon a section of an external plugin is refused, and
 	// the report says why beside the refusal.
-	declared, declaredErr := config.PublishDeclaredSchemas(config.ConfigSource{Text: string(configData), Path: configName})
+	declared, declaredErr := config.PublishDeclaredSchemasForInspection(config.ConfigSource{Text: string(configData), Path: configName})
 	if declaredErr != nil {
 		return map[string]any{
 			keyAvailable:  true,

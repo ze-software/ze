@@ -133,7 +133,6 @@ func (rs *routeServer) handleState(event *Event) {
 		}
 		if !event.RSClient {
 			rs.handleUpWithoutReplay(key, event)
-			rs.signalNonClientReady(key, event)
 			return
 		}
 		if event.Reason == rpc.ReasonAttached {
@@ -605,48 +604,6 @@ func (rs *routeServer) handleUpWithoutReplay(key workerKey, event *Event) {
 
 	logger().Debug("peer state applied", "peer", peerAddr, "state", "up", "reason", event.Reason,
 		"rs-client", event.RSClient, "update-send-denied", event.UpdateSendDenied, "cut", cut)
-}
-
-// signalNonClientReady lowers a non-RS-client session's initial-update barrier
-// when the engine asks bgp-rs for one, without running replayForPeer.
-func (rs *routeServer) signalNonClientReady(key workerKey, event *Event) {
-	if event.InitialReplay == 0 {
-		return
-	}
-	if event.UpdateSendDenied {
-		return
-	}
-	if event.Reason == rpc.ReasonAttached {
-		return
-	}
-	if rs.plugin == nil {
-		return
-	}
-	rs.mu.RLock()
-	peer := rs.peers[key]
-	if peer == nil {
-		rs.mu.RUnlock()
-		return
-	}
-	target, err := targetOf(key, peer)
-	rs.mu.RUnlock()
-	if err != nil {
-		rs.warnLifecycle("non-client readiness target refused", "code", lifecycleDoctorCode, "fix", lifecycleDoctorFix, "error", err)
-		return
-	}
-	done := make(chan struct{})
-	ctx, admitted := rs.replays.begin(rs.downCtx, done)
-	if !admitted {
-		rs.replays.finish(done)
-		return
-	}
-	initialReplay := event.InitialReplay
-	go func() {
-		defer rs.replays.finish(done)
-		if err := rs.signalSessionReady(ctx, target, initialReplay); err != nil {
-			rs.logEngineCallFailure("non-client session ready failed", err, "peer-owner", target.DestinationOwner)
-		}
-	}()
 }
 
 // endReplay opens the replay gate of one peer-up replay. The replay goroutine

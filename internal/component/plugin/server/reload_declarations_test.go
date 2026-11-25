@@ -51,7 +51,7 @@ func TestDeclarationChangesNamesEachDifference(t *testing.T) {
 	otherLeaves[0].Encoder = "text"
 	otherLeaves[0].Respawn = plugin.RespawnDeclined
 	otherLeaves[0].StageTimeout = 9 * time.Second
-	assert.Equal(t, []string{`it changes plugin "live-stages" (encoder, respawn, timeout)`},
+	assert.Equal(t, []string{`it changes plugin "live-stages" (encoding, respawn, timeout)`},
 		declarationChanges(started, otherLeaves))
 
 	otherField := startedDeclarations()

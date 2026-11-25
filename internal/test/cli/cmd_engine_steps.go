@@ -21,6 +21,32 @@ import (
 // The spawn env binds the connect-back token to this exact name.
 const engineStepsPluginName = "engine-steps"
 
+var engineStepsDefaultSends = []sdk.MessageSendDecl{
+	{Message: "cli:show"},
+	{Message: "cli:request"},
+	{Message: "cli:send"},
+	{Message: "cli:update"},
+	{Message: "cli:clear"},
+	{Message: "cli:create"},
+	{Message: "cli:delete"},
+	{Message: "cli:set"},
+	{Message: "cli:config"},
+	{Message: "cli:system"},
+	{Message: "cli:ping"},
+	{Message: "cli:traceroute"},
+	{Message: "cli:help"},
+	{Message: "cli:debug"},
+	{Message: "cli:monitor"},
+	{Message: "cli:resolve"},
+	{Message: "cli:batch-validate"},
+	{Message: "bgp:update"},
+	{Message: "bgp:refresh"},
+	{Message: "bgp:raw"},
+	{Message: "bgp:enhanced-refresh"},
+	{Message: "system-rib:route-install"},
+	{Message: "system-rib:route-metrics"},
+}
+
 // CmdEngineSteps is the harness command `le mock engine-steps`, registered by
 // internal/le/test/enginesteps. It answers the process exit code.
 //
@@ -121,7 +147,10 @@ func CmdEngineSteps(args []string) int {
 		return nil
 	})
 
-	runErr := p.Run(ctx, &sdk.Registration{Receives: receives})
+	runErr := p.Run(ctx, &sdk.Registration{
+		Receives: receives,
+		Sends:    engineStepsDefaultSends,
+	})
 
 	select {
 	case err := <-stepResult:

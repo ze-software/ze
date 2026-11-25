@@ -47,7 +47,7 @@ func (a *reactorAPIAdapter) selectOrigin(ctx context.Context, peer *Peer, work *
 		return rpc.SelectedRouteResult{}, err
 	}
 	if !nc.Has(fam) {
-		return rpc.SelectedRouteResult{}, errAdjOutProvenance
+		return a.writeSelected(ctx, peer, work, nil)
 	}
 	nextHop, err := peer.resolveNextHop(work.session, value.nextHop, fam)
 	if err != nil {

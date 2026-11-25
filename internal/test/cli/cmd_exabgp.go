@@ -1120,20 +1120,49 @@ func absoluteBridgeRun(migrated, configDir string) string {
 		if !ok {
 			continue
 		}
+		command = strings.TrimSuffix(command, ";")
 		command = strings.Trim(command, `"`)
 		// Only an EXPLICITLY relative command is rooted at the config. A bare
 		// name is resolved through PATH: a run line such as `le test
 		// interop-bgp exabgp-api <profile>`, written as unquoted argv words,
 		// would have its first word absolutised into a path under the config
 		// directory, so the bridge would fork a file that does not exist.
-		if !strings.HasPrefix(command, "./") && !strings.HasPrefix(command, "../") {
+		if isRelativeRunToken(command) {
+			indent := line[:len(line)-len(strings.TrimLeft(line, " \t"))]
+			var tb textbuf.Buffer
+			lines[index] = tb.Str(indent).Str(runKeyword).Quoted(filepath.Join(configDir, command)).String()
+			continue
+		}
+		if !strings.HasPrefix(command, "ze exabgp plugin ") {
+			continue
+		}
+		fields := strings.Fields(command)
+		changed := false
+		for i := 3; i < len(fields); i++ {
+			if isRelativeRunToken(fields[i]) {
+				joined := filepath.Join(configDir, fields[i])
+				if strings.ContainsAny(joined, " \t'\"") {
+					joined = "'" + strings.ReplaceAll(joined, "'", `'\''`) + "'"
+				}
+				fields[i] = joined
+				changed = true
+			}
+		}
+		if !changed {
 			continue
 		}
 		indent := line[:len(line)-len(strings.TrimLeft(line, " \t"))]
 		var tb textbuf.Buffer
-		lines[index] = tb.Str(indent).Str(runKeyword).Quoted(filepath.Join(configDir, command)).String()
+		lines[index] = tb.Str(indent).Str(runKeyword).Quoted(strings.Join(fields, " ")).String()
 	}
 	return strings.Join(lines, "\n")
+}
+
+func isRelativeRunToken(token string) bool {
+	if strings.HasPrefix(token, "./") {
+		return true
+	}
+	return strings.HasPrefix(token, "../")
 }
 
 // copyConfigDir seeds a per-test config directory from the one the run shares,

@@ -16,6 +16,7 @@ import (
 	"github.com/ze-software/ze/internal/component/bgp/message"
 	"github.com/ze-software/ze/internal/component/bgp/wireu"
 	"github.com/ze-software/ze/internal/component/plugin"
+	pluginserver "github.com/ze-software/ze/internal/component/plugin/server"
 	"github.com/ze-software/ze/internal/core/bgp/capability"
 	bgpevents "github.com/ze-software/ze/internal/core/bgp/events"
 	"github.com/ze-software/ze/internal/core/diagnostic"
@@ -701,7 +702,134 @@ func (p *Peer) announceDown(r *Reactor, closed sessionClose) {
 // processes' delivery edges yet: the delivery waits for every process
 // (peerBindEvents), and the graph without the edges is what keeps the
 // session's messages away from a process that has not been told it is up.
-func (p *Peer) bindProcesses(r *Reactor, session *Session, bus plugin.BusBlock, names []string) {
+// effectivePeerBusDiff captures the difference in compiled delivery edges for
+// one peer between the running DeliveryGraph and a reload candidate graph,
+// including edits written solely on central bus > endpoint blocks.
+type effectivePeerBusDiff struct {
+	changed     bool
+	sendChanged bool
+	gainedOpen  bool
+	gained      []string
+	lost        []string
+	afterRecv   map[string][]string
+}
+
+func diffEffectivePeerEdges(before, after *pluginserver.DeliveryGraph, peerAddr string) effectivePeerBusDiff {
+	var diff effectivePeerBusDiff
+	if before == nil {
+		return diff
+	}
+	if after == nil {
+		return diff
+	}
+	if peerAddr == "" {
+		return diff
+	}
+	beforeEdges := before.PeerProcessEdges(peerAddr)
+	afterEdges := after.PeerProcessEdges(peerAddr)
+	beforeMap := make(map[string]pluginserver.ProcessEdges, len(beforeEdges))
+	afterMap := make(map[string]pluginserver.ProcessEdges, len(afterEdges))
+	namesSet := make(map[string]struct{}, len(beforeEdges)+len(afterEdges))
+	for _, e := range beforeEdges {
+		beforeMap[e.Process] = e
+		namesSet[e.Process] = struct{}{}
+	}
+	for _, e := range afterEdges {
+		afterMap[e.Process] = e
+		namesSet[e.Process] = struct{}{}
+	}
+	names := slices.Sorted(maps.Keys(namesSet))
+	for _, name := range names {
+		b := beforeMap[name]
+		a := afterMap[name]
+		if slices.Equal(b.Receive, a.Receive) && slices.Equal(b.Send, a.Send) {
+			continue
+		}
+		diff.changed = true
+		if !slices.Equal(b.Send, a.Send) {
+			diff.sendChanged = true
+		}
+		for _, tok := range a.Receive {
+			if (tok == bgpevents.EventOpen || strings.HasPrefix(tok, bgpevents.EventOpen+"-")) && !slices.Contains(b.Receive, tok) {
+				diff.gainedOpen = true
+				break
+			}
+		}
+		if !slices.Equal(b.Receive, a.Receive) {
+			if len(a.Receive) > 0 {
+				diff.gained = append(diff.gained, name)
+				if diff.afterRecv == nil {
+					diff.afterRecv = make(map[string][]string)
+				}
+				diff.afterRecv[name] = a.Receive
+			}
+			if len(b.Receive) > 0 {
+				diff.lost = append(diff.lost, name)
+			}
+		}
+	}
+	return diff
+}
+
+func receiveTokensRouteDirections(tokens []string) (received, sent bool) {
+	for _, tok := range tokens {
+		switch tok {
+		case bgpevents.EventUpdate, bgpevents.EventUpdate + "-both":
+			received, sent = true, true
+		case bgpevents.EventUpdate + "-received":
+			received = true
+		case bgpevents.EventUpdate + "-sent":
+			sent = true
+		}
+	}
+	return received, sent
+}
+
+func effectiveBusDeliverable(diff *effectivePeerBusDiff, s *Session) bool {
+	if diff == nil {
+		return true
+	}
+	if !diff.changed {
+		return true
+	}
+	if diff.sendChanged {
+		return false
+	}
+	if diff.gainedOpen {
+		return false
+	}
+	for _, name := range diff.gained {
+		received, sent := receiveTokensRouteDirections(diff.afterRecv[name])
+		switch s.feedDirectionsCatchUp(received, sent) {
+		case feedCatchUpNothing, feedCatchUpRouteRefresh:
+		case feedCatchUpUnspecified, feedCatchUpImpossible:
+			return false
+		default:
+			panic("BUG: invalid bus feed catch-up outcome")
+		}
+	}
+	return true
+}
+
+func mergeSortedNames(a, b []string) []string {
+	if len(b) == 0 {
+		return a
+	}
+	if len(a) == 0 {
+		return slices.Clone(b)
+	}
+	merged := make([]string, 0, len(a)+len(b))
+	merged = append(merged, a...)
+	for _, name := range b {
+		if !slices.Contains(merged, name) {
+			merged = append(merged, name)
+		}
+	}
+	slices.Sort(merged)
+	return merged
+}
+
+func (p *Peer) bindProcesses(r *Reactor, session *Session, bus plugin.BusBlock, names []string, effDiff *effectivePeerBusDiff) {
 	sink := bindEventsOf(r)
 	if sink == nil {
 		return
@@ -712,15 +840,23 @@ func (p *Peer) bindProcesses(r *Reactor, session *Session, bus plugin.BusBlock, 
 	feeds, _ := busSendEndpointFeeds(bus.Send)
 	var stateNames, negotiatedNames []string
 	for _, name := range names {
-		spec, ok := feeds[name]
-		if !ok {
+		if spec, ok := feeds[name]; ok {
+			if spec.receivesState() {
+				stateNames = append(stateNames, name)
+			}
+			if spec.receivesNegotiated() {
+				negotiatedNames = append(negotiatedNames, name)
+			}
 			continue
 		}
-		if spec.receivesState() {
-			stateNames = append(stateNames, name)
-		}
-		if spec.receivesNegotiated() {
-			negotiatedNames = append(negotiatedNames, name)
+		if effDiff != nil {
+			tokens := effDiff.afterRecv[name]
+			if slices.Contains(tokens, bgpevents.EventState) {
+				stateNames = append(stateNames, name)
+			}
+			if slices.Contains(tokens, bgpevents.EventNegotiated) {
+				negotiatedNames = append(negotiatedNames, name)
+			}
 		}
 	}
 	if len(stateNames) == 0 && len(negotiatedNames) == 0 {
@@ -773,17 +909,25 @@ func (p *Peer) unbindProcesses(r *Reactor, names []string) {
 //
 // The caller MUST NOT hold r.mu or p.mu: the calls below can block on the
 // peer's socket.
-func (p *Peer) catchUpBoundProcesses(bus plugin.BusBlock, gained []string) {
+func (p *Peer) catchUpBoundProcesses(bus plugin.BusBlock, gained []string, effDiff *effectivePeerBusDiff) {
 	session := p.currentSession()
 	feeds, _ := busSendEndpointFeeds(bus.Send)
 	refresh := false
 	for _, name := range gained {
-		spec, ok := feeds[name]
-		if !ok {
+		var received, sent bool
+		if spec, ok := feeds[name]; ok {
+			received, sent = spec.routeDirections()
+		} else if effDiff != nil {
+			tokens, ok := effDiff.afterRecv[name]
+			if !ok {
+				p.restartForBinding(session, gained, "process bound without a resolved feed rule: restarting the session")
+				return
+			}
+			received, sent = receiveTokensRouteDirections(tokens)
+		} else {
 			p.restartForBinding(session, gained, "process bound without a resolved feed rule: restarting the session")
 			return
 		}
-		received, sent := spec.routeDirections()
 		switch session.feedDirectionsCatchUp(received, sent) {
 		case feedCatchUpNothing:
 		case feedCatchUpRouteRefresh:

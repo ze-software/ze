@@ -90,6 +90,17 @@ func joinDeclaredPlugins(ctx context.Context, firstPass *zeconfig.FirstPassResul
 	declarations := pluginserver.HoldDeclaredPlugins(ctx, spawner,
 		pluginServerConfigs(firstPass.External, firstPass.ConfigDir),
 		zeconfig.EnvironmentEntries(firstPass.Environment))
+	for _, declaration := range declarations {
+		if declaration.Err != nil {
+			continue
+		}
+		zeconfig.RecordExternalBusDecl(zeconfig.ExternalBusDecl{
+			Endpoint:         declaration.Plugin,
+			ParticipantNodes: declaration.ParticipantNodes,
+			Sends:            declaration.Sends,
+			Receives:         declaration.Receives,
+		})
+	}
 	// Published even when no plugin declared a module: the set is then
 	// recorded as holding no external module, which is what a plugin
 	// restarted later is compared with.

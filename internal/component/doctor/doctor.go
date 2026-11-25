@@ -91,7 +91,7 @@ func runChecks(configPath string) (diags []diagnostic.Diagnostic, judged *config
 	// by a daemon, the set the daemon joined at start answers; with no daemon
 	// the compiled-in set does, and a section of an external plugin is
 	// refused below with the command that reaches a running ze.
-	declared, declaredErr := config.PublishDeclaredSchemas(config.ConfigSource{Text: string(configData), Path: configName})
+	declared, declaredErr := config.PublishDeclaredSchemasForInspection(config.ConfigSource{Text: string(configData), Path: configName})
 	if declaredErr != nil {
 		message, fix := configRefusalParts(declaredErr, configName)
 		diags = append(diags, diagnostic.Diagnostic{

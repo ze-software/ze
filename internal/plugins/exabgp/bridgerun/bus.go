@@ -4,18 +4,29 @@
 package bridgerun
 
 import (
+	bgpevents "github.com/ze-software/ze/internal/core/bgp/events"
 	"github.com/ze-software/ze/internal/exabgp/bridge"
 	"github.com/ze-software/ze/pkg/plugin/rpc"
 )
 
-// BridgeSends returns the CLI command prefixes the ExaBGP wrapper translates
-// from script stdout and dispatches to the daemon, derived directly from the
-// translator's single command declaration table.
+// BridgeSends returns the CLI command prefixes and BGP wire send messages the
+// ExaBGP wrapper translates from script stdout and dispatches to the daemon,
+// derived directly from the translator's single command declaration table plus
+// the BGP send message types that `send bgp` exercises against peers.
 func BridgeSends() []rpc.MessageSendDecl {
 	prefixes := bridge.DeclaredCommandPrefixes()
-	decls := make([]rpc.MessageSendDecl, len(prefixes))
-	for i, prefix := range prefixes {
-		decls[i] = rpc.MessageSendDecl{Message: prefix}
+	wireSends := []string{
+		bgpevents.Namespace + ":" + bgpevents.SendUpdate,
+		bgpevents.Namespace + ":" + bgpevents.SendRefresh,
+		bgpevents.Namespace + ":" + bgpevents.SendRaw,
+		bgpevents.Namespace + ":" + bgpevents.SendEnhancedRefresh,
+	}
+	decls := make([]rpc.MessageSendDecl, 0, len(prefixes)+len(wireSends))
+	for _, prefix := range prefixes {
+		decls = append(decls, rpc.MessageSendDecl{Message: prefix})
+	}
+	for _, msg := range wireSends {
+		decls = append(decls, rpc.MessageSendDecl{Message: msg})
 	}
 	return decls
 }

@@ -92,6 +92,20 @@ func originBatchProducerOperation(ctx context.Context, batch bgptypes.NLRIBatch,
 	return newProcessOriginProducer(owner)
 }
 
+// originNativeBytes returns the native NLRI payload without any leading 4-byte
+// ADD-PATH identifier. WireNLRI.Bytes retains the leading path ID when
+// HasAddPath is true, whereas originIdentity stores native framing and pathID
+// separately.
+func originNativeBytes(n nlri.NLRI) []byte {
+	if w, ok := n.(*nlri.WireNLRI); ok && w.HasAddPath() {
+		raw := w.Bytes()
+		if len(raw) >= 4 {
+			return raw[4:]
+		}
+	}
+	return n.Bytes()
+}
+
 // captureOriginBuild owns the original API bytes once per admitted key. A wire
 // block keeps its original ContextID, including unknown zero. A Builder is
 // explicitly API ASN4; RawWire and every AppendAttributes contribution survive.
@@ -102,7 +116,7 @@ func captureOriginBuild(batch bgptypes.NLRIBatch, n nlri.NLRI) (*originBuildValu
 	if n.Family() != batch.Family {
 		return nil, errors.New("origin native path family differs from its batch")
 	}
-	input := originBuildInput{family: batch.Family, native: n.Bytes(), pathID: n.PathID(), hasPathID: nlri.HasPathID(n), nextHop: batch.NextHop, originAS: batch.OriginAS}
+	input := originBuildInput{family: batch.Family, native: originNativeBytes(n), pathID: n.PathID(), hasPathID: nlri.HasPathID(n), nextHop: batch.NextHop, originAS: batch.OriginAS}
 	switch {
 	case batch.Wire != nil:
 		input.attributes = batch.Wire.Packed()
@@ -252,7 +266,7 @@ func (a *reactorAPIAdapter) offerOriginBatch(ctx context.Context, batch bgptypes
 				if n.Family() != batch.Family {
 					return nil, errors.New("origin withdrawal native family differs")
 				}
-				identity, identityErr := newOriginIdentity(batch.Family, n.Bytes(), n.PathID(), nlri.HasPathID(n))
+				identity, identityErr := newOriginIdentity(batch.Family, originNativeBytes(n), n.PathID(), nlri.HasPathID(n))
 				if identityErr != nil {
 					return nil, identityErr
 				}

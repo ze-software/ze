@@ -61,5 +61,9 @@ func lookup(key string) string {
 	if value, ok := os.LookupEnv(key); ok {
 		return value
 	}
-	return os.Getenv(strings.ReplaceAll(key, ".", "_"))
+	under := strings.ReplaceAll(key, ".", "_")
+	if value, ok := os.LookupEnv(under); ok {
+		return value
+	}
+	return os.Getenv(strings.ToUpper(under))
 }

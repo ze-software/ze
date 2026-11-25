@@ -323,7 +323,7 @@ func queryUnrecordedExternalEndpoints(tree *Tree, configFile string) error {
 		return nil
 	}
 
-	_, busDecls, _, err := queryExternalDeclarations(unrecorded)
+	_, busDecls, _, err := queryExternalDeclarations(unrecorded, false)
 	if err != nil {
 		return err
 	}

@@ -19,7 +19,6 @@ import (
 
 	"github.com/ze-software/ze/internal/component/config/storage"
 	"github.com/ze-software/ze/internal/core/env"
-	"github.com/ze-software/ze/internal/core/textbuf"
 	"github.com/ze-software/ze/pkg/plugin/sdk"
 	"github.com/ze-software/ze/pkg/zefs"
 )
@@ -939,16 +938,17 @@ func storageStateObserver(ctx context.Context, args []string) error {
 
 func storageStateRestart(ctx context.Context) error {
 	for _, mode := range []string{observerModeWrite, observerModeRead} {
-		var tb textbuf.Buffer
-		tb.Str("bus { endpoint ospf { external { run \"le test fixture storage/state-observer ").
-			Str(mode).
-			Str("\"; } encoding json; } }\n")
-		config := tb.String()
+		config := "bus { endpoint fake-state-probe { internal fake-state-probe; } }\n"
 		if err := os.WriteFile("state.conf", []byte(config), 0o600); err != nil {
 			return err
 		}
-		if _, err := storageRequireCommand(ctx, "", "start", "state.conf"); err != nil {
-			return err
+		env := append(os.Environ(), "ZE_FAKE_STATE_MODE="+mode)
+		out, err := storageCommandEnviron(ctx, env, "", "start", "state.conf")
+		if err != nil {
+			return fmt.Errorf("start state.conf (%s): %w\n%s", mode, err, out)
+		}
+		if !bytes.Contains(out, []byte("OK: fake-state-probe "+mode)) {
+			return fmt.Errorf("fake-state-probe (%s) did not complete:\n%s", mode, out)
 		}
 	}
 	return nil

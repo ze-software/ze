@@ -474,7 +474,7 @@ func HasUnresolvedExternalPlugins(sources ...ConfigSource) bool {
 // The caller MUST call it before the first full parse of the process. Safe
 // for concurrent use.
 func SchemaWithDeclaredPlugins(sources ...ConfigSource) (*Schema, *DeclaredSchemas, error) {
-	declared, err := publishDeclaredSchemas(sources)
+	declared, err := publishDeclaredSchemas(sources, false)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -489,15 +489,25 @@ func SchemaWithDeclaredPlugins(sources ...ConfigSource) (*Schema, *DeclaredSchem
 // through a function that takes the schema itself (ReadConfig,
 // ParseTreeForValidation): steps 1 and 2, with no schema answered.
 func PublishDeclaredSchemas(sources ...ConfigSource) (*DeclaredSchemas, error) {
-	return publishDeclaredSchemas(sources)
+	return publishDeclaredSchemas(sources, false)
+}
+
+// PublishDeclaredSchemasForInspection is PublishDeclaredSchemas for offline
+// diagnostic and inspection commands (doctor, support, show plugin
+// declarations) that must report on configs naming missing or non-executable
+// external binaries rather than aborting before their own checks run. External
+// endpoints whose declare-mode query fails remain unqueried in DeclaredSchemas
+// so the caller can inspect the config and diagnose the missing binary.
+func PublishDeclaredSchemasForInspection(sources ...ConfigSource) (*DeclaredSchemas, error) {
+	return publishDeclaredSchemas(sources, true)
 }
 
 // publishDeclaredSchemas is steps 1 and 2 of SchemaWithDeclaredPlugins.
 // In offline mode (!yang.ModuleSetFixed()), each declared external program is
 // started in query mode (ze.plugin.mode=declare, never its run loop) to read
-// its Stage 1 declaration, schemas, and bus declarations (S-3). Any query or
-// declaration refusal fails closed.
-func publishDeclaredSchemas(sources []ConfigSource) (*DeclaredSchemas, error) {
+// its Stage 1 declaration, schemas, and bus declarations (S-3). When
+// bestEffort is false, any query or declaration refusal fails closed.
+func publishDeclaredSchemas(sources []ConfigSource, bestEffort bool) (*DeclaredSchemas, error) {
 	declared := &DeclaredSchemas{}
 	if len(sources) == 1 {
 		declared.path = sources[0].Path
@@ -507,7 +517,7 @@ func publishDeclaredSchemas(sources []ConfigSource) (*DeclaredSchemas, error) {
 	declaredStep.mu.Lock()
 	defer declaredStep.mu.Unlock()
 	if !yang.ModuleSetFixed() {
-		modules, busDecls, queried, err := queryExternalDeclarations(externals)
+		modules, busDecls, queried, err := queryExternalDeclarations(externals, bestEffort)
 		if err != nil {
 			return nil, err
 		}
@@ -549,9 +559,10 @@ func publishDeclaredSchemas(sources []ConfigSource) (*DeclaredSchemas, error) {
 }
 
 // queryExternalDeclarations asks each declared external program for its Stage 1
-// declaration in query mode (S-3), failing closed on any execution, timeout,
-// decode, or Stage 1 judgement error.
-func queryExternalDeclarations(externals []plugin.PluginConfig) ([]yang.ExternalModule, []ExternalBusDecl, []string, error) {
+// declaration in query mode (S-3). When bestEffort is false, any execution,
+// timeout, decode, or Stage 1 judgement error fails closed; when true, a failed
+// probe is skipped so inspection callers can still parse and diagnose the config.
+func queryExternalDeclarations(externals []plugin.PluginConfig, bestEffort bool) ([]yang.ExternalModule, []ExternalBusDecl, []string, error) {
 	if len(externals) == 0 {
 		return nil, nil, nil, nil
 	}
@@ -566,12 +577,21 @@ func queryExternalDeclarations(externals []plugin.PluginConfig) ([]yang.External
 	for _, pc := range externals {
 		q := plugin.QueryDeclaration(context.Background(), pc, budget)
 		if !q.Declared {
+			if bestEffort {
+				continue
+			}
 			return nil, nil, nil, externalQueryRefusal(pc, queryFailureCause(q, budget))
 		}
 		if q.Refusal != nil {
+			if bestEffort {
+				continue
+			}
 			return nil, nil, nil, externalQueryRefusal(pc, q.Refusal.Error())
 		}
 		if err := judgeQueriedDeclaration(pc, &q); err != nil {
+			if bestEffort {
+				continue
+			}
 			return nil, nil, nil, err
 		}
 		for i := range q.Declaration.Schemas {

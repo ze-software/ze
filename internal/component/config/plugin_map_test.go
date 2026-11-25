@@ -87,3 +87,42 @@ func TestTreeFromPluginMapDoesNotInventOrder(t *testing.T) {
 		t.Fatal("duplicated order entry was accepted")
 	}
 }
+
+// Scalar leaves whose values contain whitespace (for example NLRI content or
+// descriptions) must remain scalar strings across repeated ToRunningMap ->
+// TreeFromPluginMap round-trips, while genuine single-member leaf-lists with
+// spaces remain slices so multi-word members are never split.
+func TestTreeFromPluginMapPreservesWhitespaceScalarsAcrossRoundTrips(t *testing.T) {
+	root := NewTree()
+	entry := NewTree()
+	entry.Set("content", "add 10.0.1.0/24 10.0.2.0/24")
+	entry.SetSlice("allow", []string{"cli:show bgp peer"})
+	root.SetContainer("entry", entry)
+
+	cur := root
+	for round := 1; round <= 3; round++ {
+		m := cur.ToRunningMap()
+		entryMap, ok := m["entry"].(map[string]any)
+		if !ok {
+			t.Fatalf("round %d: entry is not a map: %#v", round, m["entry"])
+		}
+		if got, ok := entryMap["content"].(string); !ok || got != "add 10.0.1.0/24 10.0.2.0/24" {
+			t.Fatalf("round %d: scalar content changed type/value: %#v", round, entryMap["content"])
+		}
+		if got, ok := entryMap["allow"].([]string); !ok || !reflect.DeepEqual(got, []string{"cli:show bgp peer"}) {
+			t.Fatalf("round %d: singleton leaf-list allow changed type/value: %#v", round, entryMap["allow"])
+		}
+		var err error
+		cur, err = TreeFromPluginMap(m)
+		if err != nil {
+			t.Fatalf("round %d: TreeFromPluginMap: %v", round, err)
+		}
+		gotScalar, ok := cur.GetContainer("entry").Get("content")
+		if !ok || gotScalar != "add 10.0.1.0/24 10.0.2.0/24" {
+			t.Fatalf("round %d: reconstructed scalar content = %q (ok=%t)", round, gotScalar, ok)
+		}
+		if gotSlice := cur.GetContainer("entry").GetSlice("allow"); !reflect.DeepEqual(gotSlice, []string{"cli:show bgp peer"}) {
+			t.Fatalf("round %d: reconstructed leaf-list allow = %q", round, gotSlice)
+		}
+	}
+}

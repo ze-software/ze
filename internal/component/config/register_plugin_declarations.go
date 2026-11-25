@@ -49,7 +49,7 @@ func readConfiguredPlugins(path string) (plugin.ConfiguredPlugins, error) {
 	if err != nil {
 		return plugin.ConfiguredPlugins{}, err
 	}
-	declared, err := PublishDeclaredSchemas(ConfigSource{Text: string(input), Path: path})
+	declared, err := PublishDeclaredSchemasForInspection(ConfigSource{Text: string(input), Path: path})
 	if err != nil {
 		return plugin.ConfiguredPlugins{}, err
 	}

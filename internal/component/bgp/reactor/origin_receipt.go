@@ -228,8 +228,19 @@ func (store *originReceiptStore) issueOriginal(ctx context.Context, producer ori
 	if err := provider.Current(); err != nil {
 		return 0, err
 	}
-	if peer.selectedOwnerSnapshot() != publication {
-		return 0, errors.New("origin Peer ownership changed during admission")
+	if current := peer.selectedOwnerSnapshot(); current != publication {
+		if publication != nil {
+			return 0, errors.New("origin Peer ownership changed during admission")
+		}
+		if current == nil {
+			return 0, errors.New("origin Peer ownership changed during admission")
+		}
+		if current.err != nil {
+			return 0, errors.New("origin Peer ownership changed during admission")
+		}
+		if current.owner != snapshot.owner {
+			return 0, errors.New("origin Peer ownership changed during admission")
+		}
 	}
 	if store.next == math.MaxUint64 {
 		return 0, errors.New("origin receipt identities exhausted; restart Ze before admitting another origin")

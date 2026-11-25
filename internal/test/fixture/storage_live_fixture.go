@@ -149,7 +149,7 @@ func storageLiveBackup(ctx context.Context, args []string) error {
 		{"request data backup path " + artifact, "exist"},
 		{"request data backup path " + filepath.Join(cwd, storageTreeName, "inside.zefs") + " force", storageTreeName},
 		{"request data backup path " + filepath.Join(cwd, "database.lock") + " force", "database.lock"},
-		{"request data backup path " + artifact + " spare 101", "out of range 0..100"},
+		{"request data backup path " + artifact + " spare 101", "is outside the accepted range"},
 	}
 	for _, refusal := range refusals {
 		if err := storageLiveRefused(ctx, env, refusal.command, refusal.want); err != nil {
