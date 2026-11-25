@@ -24,10 +24,16 @@ const (
 // The helper changes a next-hop distance or releases the synchronized source;
 // it never advertises either AIGP subject NLRI.
 func runAIGPSourceCostProcess(name string) error {
-	registration := sdk.Registration{Commands: []rpc.CommandDecl{
-		{Name: aigpCostCommand, ShortHelp: "Install an AIGP interop next-hop distance"},
-		{Name: aigpReleaseCommand, ShortHelp: "Release the synchronized AIGP source"},
-	}}
+	registration := sdk.Registration{
+		Commands: []rpc.CommandDecl{
+			{Name: aigpCostCommand, ShortHelp: "Install an AIGP interop next-hop distance"},
+			{Name: aigpReleaseCommand, ShortHelp: "Release the synchronized AIGP source"},
+		},
+		Sends: []rpc.MessageSendDecl{
+			{Message: "bgp:update"},
+			{Message: "system-rib:route-install"},
+		},
+	}
 	var runErr error
 	code := sdk.RunOrDeclare(&registration, func() int {
 		plugin, err := sdk.NewFromEnv(name)

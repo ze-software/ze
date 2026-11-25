@@ -119,6 +119,7 @@ func runSRv6IdentityPolicy(name string) error {
 			{Name: srv6IdentityRelease, ShortHelp: "Release the received SRv6 fixture source"},
 			{Name: srv6IdentityState, ShortHelp: "Read actual SRv6 export callback receipts"},
 		},
+		Sends: []rpc.MessageSendDecl{{Message: "bgp:update"}},
 	}
 	var runErr error
 	code := sdk.RunOrDeclare(&registration, func() int {

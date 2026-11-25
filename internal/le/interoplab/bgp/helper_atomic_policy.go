@@ -31,6 +31,7 @@ func runAtomicPolicy(name string) error {
 			Reads: []string{sdk.FilterFieldRaw}, OnError: sdk.OnErrorReject}},
 		Commands: []rpc.CommandDecl{{Name: atomicPolicyRelease,
 			ShortHelp: "Release one atomic-policy source phase"}},
+		Sends: []rpc.MessageSendDecl{{Message: "bgp:update"}},
 	}
 	var runErr error
 	code := sdk.RunOrDeclare(&registration, func() int {

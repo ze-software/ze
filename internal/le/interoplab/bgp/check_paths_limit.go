@@ -25,9 +25,12 @@ const (
 // sentinel prefix over the same session. Seeing that sentinel at FRR proves the
 // preceding offered update has passed the sender's queue, even when it is denied.
 func runPathsLimitProcess(name string) error {
-	registration := sdk.Registration{Commands: []rpc.CommandDecl{{
-		Name: pathsLimitCommand, ShortHelp: "Offer a PATHS-LIMIT interop phase and its ordering sentinel",
-	}}}
+	registration := sdk.Registration{
+		Commands: []rpc.CommandDecl{{
+			Name: pathsLimitCommand, ShortHelp: "Offer a PATHS-LIMIT interop phase and its ordering sentinel",
+		}},
+		Sends: []rpc.MessageSendDecl{{Message: "bgp:update"}},
+	}
 	var runErr error
 	code := sdk.RunOrDeclare(&registration, func() int {
 		plugin, err := sdk.NewFromEnv(name)

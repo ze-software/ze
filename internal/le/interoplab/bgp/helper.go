@@ -91,7 +91,14 @@ func runProcessHelper(args []string) error {
 		}()
 		return nil
 	})
-	runErr := plugin.Run(ctx, &sdk.Registration{})
+	runErr := plugin.Run(ctx, &sdk.Registration{
+		Sends: []rpc.MessageSendDecl{
+			{Message: "bgp:update"},
+			{Message: "cli:show bgp peer"},
+			{Message: "cli:request quiesce"},
+			{Message: "cli:request shutdown"},
+		},
+	})
 	if errors.Is(runErr, context.Canceled) {
 		return nil
 	}
@@ -442,7 +449,12 @@ func runRPKIObserver(name string) error {
 		}()
 		return nil
 	})
-	err = plugin.Run(ctx, &sdk.Registration{})
+	err = plugin.Run(ctx, &sdk.Registration{
+		Sends: []rpc.MessageSendDecl{
+			{Message: "cli:show bgp rpki status"},
+			{Message: "cli:show bgp adj-rib-in"},
+		},
+	})
 	if errors.Is(err, context.Canceled) {
 		return nil
 	}

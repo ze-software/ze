@@ -296,6 +296,7 @@ func runManualEORProcess(name string) error {
 	})
 	runErr := plugin.Run(ctx, &sdk.Registration{
 		Receives: []sdk.MessageReceiveDecl{{Message: "bgp:" + manualEORStateEvent}},
+		Sends:    []sdk.MessageSendDecl{{Message: "bgp:update"}},
 	})
 	if errors.Is(runErr, context.Canceled) {
 		return nil
