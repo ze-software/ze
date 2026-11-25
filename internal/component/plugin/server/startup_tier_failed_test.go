@@ -146,6 +146,8 @@ func TestFatalPluginEndedBeforeItsDeclarationMetTheFailedTierStopsTheDaemon(t *t
 	siblingRefused := make(chan struct{})
 	observed := make(chan error, 1)
 	answered := make(chan struct{})
+	gate := make(chan struct{})
+	s.beforeStageTransition = func() { <-gate }
 	registerRefusedSibling(t, "ended-tier-failing-sibling", "tierendedsibling", siblingRefused)
 	require.NoError(t, registry.Register(registry.Registration{
 		Name:        fatalName,
@@ -156,7 +158,6 @@ func TestFatalPluginEndedBeforeItsDeclarationMetTheFailedTierStopsTheDaemon(t *t
 			mux := rpc.NewMuxConn(rpc.NewConn(conn, conn))
 			defer mux.Close() //nolint:errcheck // The engine already closed its end.
 			observed <- awaitTierFailure(s, siblingRefused)
-			s.coordinatorMu.Lock() // Released by the test once this engine has returned.
 			defer close(answered)
 			if _, err := mux.CallRPC(context.Background(), rpc.MethodDeclareRegistration, &rpc.DeclareRegistrationInput{
 				ProtocolVersion: rpc.ProtocolVersion,
@@ -173,7 +174,7 @@ func TestFatalPluginEndedBeforeItsDeclarationMetTheFailedTierStopsTheDaemon(t *t
 		if proc := spawner.pm.GetProcess(fatalName); proc != nil {
 			<-proc.EngineDone()
 		}
-		s.coordinatorMu.Unlock()
+		close(gate)
 	}()
 
 	err := s.ReloadConfig(context.Background(), map[string]any{

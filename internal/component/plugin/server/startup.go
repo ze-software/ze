@@ -48,12 +48,12 @@ const (
 // Returns true if transition succeeded, false if failed (caller should return true to stop processing).
 // ctx bounds the wait: the server lifetime for ordinary startup, and the shared
 // rollback deadline for a recovery startup inside reload compensation.
-func (s *Server) stageTransition(ctx context.Context, proc *process.Process, pluginName string, completeStage, waitStage plugin.PluginStage) bool {
-	s.coordinatorMu.Lock()
-	coord := s.coordinator
-	s.coordinatorMu.Unlock()
+func (s *Server) stageTransition(ctx context.Context, coord *plugin.StartupCoordinator, proc *process.Process, pluginName string, completeStage, waitStage plugin.PluginStage) bool {
 	if coord == nil {
 		return true
+	}
+	if s.beforeStageTransition != nil {
+		s.beforeStageTransition()
 	}
 
 	logger().Debug("server: stageTransition START", "plugin", pluginName, "complete", completeStage, "wait_for", waitStage)
@@ -646,7 +646,7 @@ func (s *Server) runPluginPhaseWithin(ctx context.Context, plugins []plugin.Plug
 			procWg.Add(1)
 			go func(p *process.Process) {
 				defer procWg.Done()
-				s.handleProcessStartupWithin(ctx, p)
+				s.handleProcessStartupWithin(ctx, p, newCoord)
 			}(proc)
 		}
 		procWg.Wait()
@@ -691,11 +691,16 @@ func (s *Server) runPluginPhaseWithin(ctx context.Context, plugins []plugin.Plug
 	s.coordinator = nil
 	s.coordinatorMu.Unlock()
 
-	// Step (d): Start async handlers only for processes that committed.
+	// Step (d): Start async handlers only for processes that committed and
+	// still hold their manager slot.
 	for _, proc := range allProcesses {
 		if proc.Stage() < plugin.StageRunning {
 			continue
 		}
+		if pm.GetProcess(proc.Name()) != proc {
+			continue
+		}
+		pm.ClearStopped(proc.Name())
 		s.wg.Go(func() {
 			s.superviseProcess(proc)
 		})
@@ -705,6 +710,9 @@ func (s *Server) runPluginPhaseWithin(ctx context.Context, plugins []plugin.Plug
 	// owning startup goroutine and MUST join before this phase reports success.
 	for _, proc := range allProcesses {
 		if proc.Stage() < plugin.StageRunning {
+			continue
+		}
+		if pm.GetProcess(proc.Name()) != proc {
 			continue
 		}
 		if err := s.runProcessGenerationReady(ctx, proc); err != nil {
@@ -783,37 +791,37 @@ func (s *Server) rollbackNonRunningStartupProcesses(pm *process.ProcessManager, 
 // sink's Transition), not the returned error -- which is why the driver's error
 // is only logged here and the outer runPluginPhase inspects the process stage.
 func (s *Server) handleProcessStartupRPC(proc *process.Process) {
-	s.handleProcessStartupRPCWithin(s.ctx, proc)
+	s.coordinatorMu.Lock()
+	coord := s.coordinator
+	s.coordinatorMu.Unlock()
+	s.handleProcessStartupRPCWithin(s.ctx, proc, coord)
 }
 
 // handleProcessStartupRPCWithin is handleProcessStartupRPC bounded by ctx: it
 // binds the process's Configure scope, then runs handleProcessStartupWithin
-// under ctx. A restart passes its handshake bound (restartHandshake).
-func (s *Server) handleProcessStartupRPCWithin(ctx context.Context, proc *process.Process) {
+// under ctx with coord as its explicit tier coordinator (nil for unbarriered
+// handshakes). A restart passes its handshake bound (restartHandshake) and nil.
+func (s *Server) handleProcessStartupRPCWithin(ctx context.Context, proc *process.Process, coord *plugin.StartupCoordinator) {
 	scoped := []*process.Process{proc}
 	if err := s.bindConfigureConfig(scoped, s.currentConfigureConfig()); err != nil {
 		logger().Error("plugin Configure scope refused", "plugin", proc.Name(), "error", err)
 		return
 	}
 	defer s.clearConfigureConfig(scoped)
-	s.handleProcessStartupWithin(ctx, proc)
+	s.handleProcessStartupWithin(ctx, proc, coord)
 }
 
 // handleProcessStartupWithin is handleProcessStartupRPC bounded by ctx, which
-// reaches every handshake read, send and barrier wait.
-func (s *Server) handleProcessStartupWithin(ctx context.Context, proc *process.Process) {
+// reaches every handshake read, send and barrier wait. coord is this
+// handshake's tier coordinator, or nil for an unbarriered handshake.
+func (s *Server) handleProcessStartupWithin(ctx context.Context, proc *process.Process, coord *plugin.StartupCoordinator) {
 	proc.SetStage(plugin.StageRegistration)
 
 	// Signal coordinator on early exit if startup didn't complete.
 	// Without this, other plugins hang at WaitForStage until timeout.
 	defer func() {
-		if proc.Stage() < plugin.StageRunning {
-			s.coordinatorMu.Lock()
-			coord := s.coordinator
-			s.coordinatorMu.Unlock()
-			if coord != nil {
-				coord.PluginFailed(proc.Index(), "startup incomplete")
-			}
+		if proc.Stage() < plugin.StageRunning && coord != nil {
+			coord.PluginFailed(proc.Index(), "startup incomplete")
 		}
 	}()
 
@@ -836,7 +844,7 @@ func (s *Server) handleProcessStartupWithin(ctx context.Context, proc *process.P
 		return
 	}
 
-	if err := runStartupHandshake(ctx, &engineStartupSink{s: s, proc: proc, startup: ctx}); err != nil {
+	if err := runStartupHandshake(ctx, &engineStartupSink{s: s, proc: proc, coord: coord, startup: ctx}); err != nil {
 		logger().Debug("rpc startup: handshake ended before running", "plugin", proc.Name(), "error", err)
 		proc.SetStartupError(err)
 		// The final barrier precedes the ready acknowledgement. A failed write
@@ -850,12 +858,14 @@ func (s *Server) handleProcessStartupWithin(ctx context.Context, proc *process.P
 
 // engineStartupSink adapts the engine Server to the shared startup driver. It
 // performs the full set of engine-side registrations between stages and
-// synchronizes concurrent plugins in a tier through the Server's
-// StartupCoordinator barrier (a nil coordinator, as in ad-hoc sessions, makes
-// every Transition an immediate success).
+// synchronizes concurrent plugins in a tier through its explicit
+// StartupCoordinator barrier (a nil coordinator, as in ad-hoc and restart
+// sessions, makes every Transition an immediate success without touching any
+// concurrent tier coordinator).
 type engineStartupSink struct {
-	s    *Server
-	proc *process.Process
+	s     *Server
+	proc  *process.Process
+	coord *plugin.StartupCoordinator
 	// startup bounds the barrier waits, as the handshake's own context bounds
 	// its reads. Nil means the server lifetime (see lifetime).
 	startup context.Context
@@ -997,7 +1007,7 @@ func (e *engineStartupSink) onRegistration(input *rpc.DeclareRegistrationInput) 
 // plugin REFUSED the configuration and its registration asked for that; see
 // deliverConfigRPC and configRefusalIsFatal.
 func (e *engineStartupSink) deliverConfig(ctx context.Context) error {
-	return e.s.deliverConfigRPC(ctx, e.proc)
+	return e.s.deliverConfigRPCWithCoordinator(ctx, e.proc, e.coord)
 }
 
 // OnCapabilities converts and registers the plugin's declared capabilities into
@@ -1108,21 +1118,28 @@ func (e *engineStartupSink) publishTransport(conn *plugipc.PluginConn, input *rp
 }
 
 // Transition advances the tier barrier from one stage to the next and records
-// the new process stage. A nil coordinator (ad-hoc session) makes stageTransition
-// an immediate success.
+// the new process stage. A nil coordinator (ad-hoc or restart session) makes
+// stageTransition an immediate success.
 func (e *engineStartupSink) transition(from, to plugin.PluginStage) bool {
-	if !e.s.stageTransition(e.lifetime(), e.proc, e.proc.Name(), from, to) {
+	if !e.s.stageTransition(e.lifetime(), e.coord, e.proc, e.proc.Name(), from, to) {
 		return false
 	}
 	e.proc.SetStage(to)
 	return true
 }
 
-// deliverConfigRPC sends configuration to a plugin via RPC (Stage 2).
-// Sends ze-plugin-callback:configure RPC to the plugin. Returns a non-nil error
-// (aborting the shared driver) only when the send fails; a build-sections error
-// is logged and delivery proceeds with whatever sections were built.
+// deliverConfigRPC sends configuration to a plugin via RPC (Stage 2) without a
+// tier coordinator. Handshakes use deliverConfigRPCWithCoordinator directly.
 func (s *Server) deliverConfigRPC(ctx context.Context, proc *process.Process) error {
+	return s.deliverConfigRPCWithCoordinator(ctx, proc, nil)
+}
+
+// deliverConfigRPCWithCoordinator sends configuration to a plugin via RPC
+// (Stage 2). Sends ze-plugin-callback:configure RPC to the plugin. Returns a
+// non-nil error (aborting the shared driver) only when the send fails; a
+// build-sections error is logged and delivery proceeds with whatever sections
+// were built.
+func (s *Server) deliverConfigRPCWithCoordinator(ctx context.Context, proc *process.Process, coord *plugin.StartupCoordinator) error {
 	reg := proc.Registration()
 	conn := proc.Conn()
 	if conn == nil {
@@ -1175,9 +1192,6 @@ func (s *Server) deliverConfigRPC(ctx context.Context, proc *process.Process) er
 		return s.serveConfigureEngineOp(ctx, proc, conn, req)
 	}); err != nil {
 		logger().Error("deliverConfigRPC failed", "plugin", proc.Name(), "error", err)
-		s.coordinatorMu.Lock()
-		coord := s.coordinator
-		s.coordinatorMu.Unlock()
 		if coord != nil {
 			var tb textbuf.Buffer
 			coord.PluginFailed(proc.Index(), tb.Str("configure failed: ").Err(err).String())

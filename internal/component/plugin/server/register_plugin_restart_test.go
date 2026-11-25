@@ -55,6 +55,7 @@ func TestRestartRefusesPluginAReloadRemoved(t *testing.T) {
 	var s *Server
 	t.Cleanup(func() {
 		if s != nil {
+			s.stopParticipantFilterPushWorker()
 			s.wg.Wait()
 		}
 	})
@@ -66,7 +67,7 @@ func TestRestartRefusesPluginAReloadRemoved(t *testing.T) {
 		{Name: keptName, Internal: true, Encoder: plugin.EncodingJSON},
 		{Name: removedName, Internal: true, Encoder: plugin.EncodingJSON},
 	}))
-	s.dispatcher.Registry().Freeze()
+	s.signalStartupComplete()
 
 	completionOffers := func(name string) bool {
 		for _, candidate := range completePluginRestart(s, nil) {

@@ -115,12 +115,13 @@ type Server struct {
 	stopHooks         stopHooks               // Work a command started that Stop ends (stop_hooks.go)
 
 	// Plugin registration protocol
-	coordinator       *plugin.StartupCoordinator             // Stage synchronization
-	coordinatorMu     sync.Mutex                             // Protects coordinator reads/writes
-	registry          *plugin.PluginRegistry                 // Command/capability registry
-	capInjector       *plugin.CapabilityInjector             // Capability injection for OPEN
-	runtimeFamilies   map[string][]family.FamilyRegistration // dynamic families committed by each plugin
-	runtimeFamiliesMu sync.Mutex
+	coordinator           *plugin.StartupCoordinator             // Active tier coordinator (observed by tier startup tests)
+	coordinatorMu         sync.Mutex                             // Protects coordinator reads/writes
+	beforeStageTransition func()                                 // Optional test gate before tier stageTransition
+	registry              *plugin.PluginRegistry                 // Command/capability registry
+	capInjector           *plugin.CapabilityInjector             // Capability injection for OPEN
+	runtimeFamilies       map[string][]family.FamilyRegistration // dynamic families committed by each plugin
+	runtimeFamiliesMu     sync.Mutex
 
 	eventRing *EventRing // Global event history ring (diag-2)
 

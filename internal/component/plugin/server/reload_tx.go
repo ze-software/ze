@@ -1029,9 +1029,10 @@ func (s *Server) restartPluginFn() transaction.RestartFunc {
 // the config transaction lock: the orchestrator when a rollback ack reports
 // CodeBroken (restartPluginFn), and the operator's `request plugin restart`
 // (handlePluginRestart). The failure policy of a plugin that exited asking
-// for a restart holds no lock and calls restartPluginAfterExit. Because the
-// lock is held, restartPlugin MUST answer within a bound, and every wait
-// below has one:
+// for a restart calls restartPluginAfterExit, which acquires the transaction
+// lock before its per-name restart controller and runs the same bounded
+// handshake. Because the lock is held, every restart MUST answer within a
+// bound, and every wait below has one:
 //
 //   - Respawn's join of the process it stops: that process's StopJoinBound
 //     (2s for a forked plugin on Linux, 1s for one in the daemon).
@@ -1095,28 +1096,58 @@ func (s *Server) restartPluginReplacementMode(pluginName string, reenable bool) 
 	return s.restartReplacementWithin(pluginName, s.boundedRestartHandshake, reenable)
 }
 
-// restartPluginAfterExit is restartPlugin for the failure policy, which holds
-// no lock: the replacement's handshake runs as long as the daemon does
-// (lifetimeRestartHandshake), so a slow replacement still comes up. Its other
-// waits are restartPlugin's. An earlier controller retains its name until it
-// settles. This failure controller waits within the daemon lifetime, then
-// rechecks its outgoing process under the acquired reservation.
+// restartPluginAfterExit restarts a plugin for its failure policy. It acquires
+// the config transaction lock FIRST, then the per-name restart controller
+// (global lock order txLock -> restartControllers), rechecking stopping state,
+// pending removal, and exact outgoing generation before replacing anything,
+// and bounds the replacement's handshake with boundedRestartHandshake. The
+// inner defer releases the restart controller BEFORE txLock.release runs so
+// any deferred peer-declaration admission or refusal inside txLock.release can
+// acquire the per-name restart controller without inverting locks.
 func (s *Server) restartPluginAfterExit(outgoing *process.Process) error {
-	controller, err := s.restartControllers.wait(s.ctx, outgoing.Name())
+	name := outgoing.Name()
+	ctx := s.Context()
+	if err := s.txLock.acquire(ctx); err != nil {
+		return err
+	}
+	defer s.txLock.release()
+
+	// refuse-by-default: guards applyFailurePolicy -- daemon teardown ends every plugin, so no failure-policy restart runs during stop
+	if s.stopping.Load() {
+		return nil
+	}
+	// refuse-by-default: guards applyFailurePolicy -- an ended server context leaves no live daemon to restart a plugin into
+	if ctx.Err() != nil {
+		return nil
+	}
+	// refuse-by-default: guards applyFailurePolicy -- a pending reload removal owns this plugin until its recovery or acceptance settles
+	if s.removalPendingFor(name) {
+		return nil
+	}
+	pm := s.procManager.Load()
+	if pm == nil {
+		return fmt.Errorf("no process manager available to restart %s", name)
+	}
+	// refuse-by-default: guards applyFailurePolicy -- a superseded generation no longer owns a restart of this name
+	if pm.GetProcess(name) != outgoing {
+		return nil
+	}
+
+	controller, err := s.restartControllers.wait(ctx, name)
 	if err != nil {
 		return err
 	}
 	defer controller.release()
 
-	pm := s.procManager.Load()
-	if pm == nil {
-		return fmt.Errorf("no process manager available to restart %s", outgoing.Name())
-	}
-	// refuse-by-default: guards applyFailurePolicy -- a superseded generation no longer owns a restart of this name
-	if pm.GetProcess(outgoing.Name()) != outgoing {
+	// refuse-by-default: guards applyFailurePolicy -- a pending reload removal may have claimed this plugin before the controller settled
+	if s.removalPendingFor(name) {
 		return nil
 	}
-	return s.restartPluginWithin(outgoing.Name(), s.lifetimeRestartHandshake)
+	// refuse-by-default: guards applyFailurePolicy -- a superseded generation no longer owns a restart of this name
+	if pm.GetProcess(name) != outgoing {
+		return nil
+	}
+	return s.restartPluginWithin(name, s.boundedRestartHandshake)
 }
 
 // restartPluginWithin is the restart both entry points run, with the

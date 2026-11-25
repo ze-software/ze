@@ -1150,22 +1150,27 @@ Every path that leaves a configured plugin down records why and raises the
 The warning clears when the plugin runs again, and when a reload removes it from
 the configuration. `request plugin restart <name>` starts a configured plugin
 again, stopping it first when it runs; the operator's order lifts a
-respawn-limit disable, and the command refuses a name nothing configured, a
-restart while a config transaction is in flight, a plugin asking for its own
-restart, and a plugin whose removal a refused reload left pending. Every
-restart, whoever asks for it, waits at most `restartCleanupGrace` (the
-daemon's 3-second stop budget) for the stopped process's runtime cleanup,
-which runs only once its in-flight calls into the engine have returned. A wait
-that expires fails the restart: the replacement is stopped the way a failed
-handshake stops it, because the late cleanup removes what is keyed by the
-plugin's name, and each later restart of the name is refused until that
-cleanup has run.
+respawn-limit disable atomically only after every pre-spawn refusal passes, and
+the command refuses while plugin startup is still in progress (before
+`startupComplete`, so it cannot race startup supervision; once startup finishes,
+the restart succeeds), a name nothing configured, a restart while a config
+transaction is in flight, a plugin asking for its own restart, and a plugin
+whose removal a refused reload left pending. Every restart, whoever asks for
+it, waits at most `restartCleanupGrace` (the daemon's 3-second stop budget) for
+the stopped process's runtime cleanup, which runs only once its in-flight calls
+into the engine have returned. A wait that expires fails the restart: the
+replacement is stopped the way a failed handshake stops it, because the late
+cleanup removes what is keyed by the plugin's name, and each later restart of
+the name is refused until every recorded stopped process of that name has
+finished its cleanup.
 
 Each configured name has one restart controller through process replacement,
 outgoing cleanup, startup, and result recording. An operator or rollback restart
 refuses a name whose controller is still active, before changing its process or
-stop record. Failure-policy restart waits for the earlier controller within the
-daemon lifetime, then checks its exact outgoing process under that reservation.
+stop record. Failure-policy restart acquires the config transaction lock first
+and then waits for any earlier controller within the daemon lifetime (global
+lock order `txLock` -> `restartControllers`), checking its exact outgoing
+process and pending removals under both reservations before replacing anything.
 A delayed failure of an older generation cannot replace
 the current generation or remove its registrations.
 <!-- source: internal/component/plugin/server/restart_controller.go -- restartControllerSet.tryAcquire, restartControllerSet.wait, restartController.release -->
@@ -1180,8 +1185,9 @@ that owner remains responsible for terminal shutdown before providers close.
 The replacement becomes current only after its own process start succeeds.
 <!-- source: internal/component/plugin/process/manager.go -- Respawn -->
 
-The operator's restart and a reload rollback's restart hold the config
-transaction lock, so each of their waits has a bound. The replacement's
+Every plugin restart (the operator's command, a reload rollback, and a
+failure-policy restart) holds the config transaction lock, so each of its waits
+has a bound. The replacement's
 startup handshake gets five ordinary stage windows (25s by default). When no
 per-process `stage-timeout` is explicit and the environment timeout is positive,
 the configure window is the larger of the ordinary window and the outgoing
@@ -1206,10 +1212,13 @@ replacement waits for it for that process's own stop bound (2s for a forked
 plugin on Linux, 1s for one in the daemon), then releases it. A forked
 plugin still running then is killed by its exit supervisor, while an engine
 in the daemon that does not return on its closed connection runs until it
-returns. A restart the failure policy makes holds no lock: its replacement's
-handshake runs as long as the daemon does, so a slow replacement still comes
-up, and only its rollback wait is bounded.
-<!-- source: internal/component/plugin/server/restart.go -- restartHandshakeBound, boundedRestartHandshake, lifetimeRestartHandshake, rollbackReplacement -->
+returns. A failure-policy restart acquires the config transaction lock (`txLock.acquire`)
+before its per-name restart controller so it cannot race a config reload or removal,
+and bounds its replacement's handshake with `boundedRestartHandshake` (five stage
+windows plus any accepted `apply-budget` and `started-handler` window, the same bound
+`request plugin restart` uses). A replacement that does not reach running within that
+bound is rolled back and recorded stopped (`doctor-plugin-stopped`), releasing `txLock`.
+<!-- source: internal/component/plugin/server/restart.go -- restartHandshakeBound, boundedRestartHandshake, rollbackReplacement -->
 <!-- source: internal/component/plugin/server/startup_budget.go -- previousStartupBudget, restartStartupHandshakeBound -->
 
 A process exit clears the ordinary active warnings the plugin raised through

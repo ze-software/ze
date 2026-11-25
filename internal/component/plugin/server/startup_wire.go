@@ -63,9 +63,7 @@ func startupStageHasAllowance(stage plugin.PluginStage) bool {
 }
 
 func (e *engineStartupSink) runStartupWire(ctx context.Context, stage plugin.PluginStage, allowance int, operation func(context.Context) error) error {
-	e.s.coordinatorMu.Lock()
-	coordinator := e.s.coordinator
-	e.s.coordinatorMu.Unlock()
+	coordinator := e.coord
 	if coordinator == nil {
 		// Ad-hoc and replacement startup retain the caller's lifetime or bounded
 		// restart scope as their sole authority, including declared initialization.

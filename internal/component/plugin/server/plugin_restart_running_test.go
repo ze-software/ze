@@ -68,6 +68,7 @@ func startRestartTargetConfig(t *testing.T, cfg plugin.PluginConfig, setup func(
 	var s *Server
 	t.Cleanup(func() {
 		if s != nil {
+			s.stopParticipantFilterPushWorker()
 			s.wg.Wait()
 		}
 	})
@@ -75,7 +76,7 @@ func startRestartTargetConfig(t *testing.T, cfg plugin.PluginConfig, setup func(
 	if err := s.runPluginPhase([]plugin.PluginConfig{cfg}); err != nil {
 		t.Fatalf("startup: %v", err)
 	}
-	s.dispatcher.Registry().Freeze()
+	s.signalStartupComplete()
 	if proc := s.procManager.Load().GetProcess(name); proc == nil || !proc.Running() {
 		t.Fatalf("plugin %s is not running after startup", name)
 	}
@@ -249,7 +250,8 @@ func TestRestartCommandOfRunningFatalPluginKeepsDaemonUp(t *testing.T) {
 // refusal during a transaction leaves the running process in place.
 // PREVENTS: a restart that replaces the process a reload is talking to.
 func TestRestartCommandRefusals(t *testing.T) {
-	configured := &Server{}
+	configured := &Server{startupDone: make(chan struct{})}
+	close(configured.startupDone)
 	configured.procManager.Store(process.NewProcessManager([]plugin.PluginConfig{{Name: "alpha"}}))
 	refused := []struct {
 		name string

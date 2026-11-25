@@ -3,6 +3,7 @@ package server
 import (
 	"context"
 	"net"
+	"sync"
 	"sync/atomic"
 	"testing"
 	"time"
@@ -11,7 +12,10 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/ze-software/ze/internal/component/plugin"
+	plugipc "github.com/ze-software/ze/internal/component/plugin/ipc"
+	"github.com/ze-software/ze/internal/component/plugin/process"
 	"github.com/ze-software/ze/internal/component/plugin/registry"
+	"github.com/ze-software/ze/pkg/plugin/rpc"
 	"github.com/ze-software/ze/pkg/plugin/sdk"
 )
 
@@ -243,4 +247,130 @@ func TestRestartBeforeStartupCompletesLeavesTheFanOutToDeliverOnce(t *testing.T)
 		"the fan-out must deliver the callback to the replacement")
 	assert.Never(t, func() bool { return ready.Load() > 1 }, failureSettle, 10*time.Millisecond,
 		"the replacement must not run its OnAllPluginsReady handler twice")
+}
+
+// TestUnbarrieredHandshakeDoesNotClobberTierCoordinator verifies that running
+// an unbarriered startup handshake concurrently with an active tier barrier
+// neither nils s.coordinator nor disturbs the tier's StartupCoordinator.
+//
+// VALIDATES: spec-plugin-restart-bounded-and-configuration-true AC-4, AC-9 --
+// runUnbarrieredStartupHandshake passes coord=nil explicitly instead of
+// mutating s.coordinator.
+// PREVENTS: an ad-hoc session or restart nil-and-restoring s.coordinator while
+// a startup tier barrier is active, which let tier plugins bypass their barrier.
+func TestUnbarrieredHandshakeDoesNotClobberTierCoordinator(t *testing.T) {
+	snap := registry.Snapshot()
+	registry.Reset()
+	t.Cleanup(func() { registry.Restore(snap) })
+
+	s, _ := newLifecycleStartupServer(t)
+	ctx, cancel := context.WithTimeout(t.Context(), failureWait)
+	var wg sync.WaitGroup
+	t.Cleanup(func() {
+		cancel()
+		wg.Wait()
+	})
+
+	tierCoord := plugin.NewStartupCoordinator(2)
+	s.coordinatorMu.Lock()
+	s.coordinator = tierCoord
+	s.coordinatorMu.Unlock()
+
+	tier0 := process.NewProcess(plugin.PluginConfig{Name: "tier-member-0", Internal: true})
+	tier0.SetIndex(0)
+	tier0.SetStage(plugin.StageRegistration)
+	tier0.SetRegistration(&plugin.PluginRegistration{})
+
+	tier1 := process.NewProcess(plugin.PluginConfig{Name: "tier-member-1", Internal: true})
+	tier1.SetIndex(1)
+	tier1.SetStage(plugin.StageRegistration)
+	tier1.SetRegistration(&plugin.PluginRegistration{})
+
+	entered := make(chan struct{})
+	observed := &startupWaitObservedContext{Context: ctx, entered: entered}
+	tier0Result := make(chan bool, 1)
+	wg.Go(func() {
+		sink := &engineStartupSink{s: s, proc: tier0, coord: tierCoord, startup: observed}
+		tier0Result <- sink.transition(plugin.StageRegistration, plugin.StageConfig)
+	})
+
+	select {
+	case <-entered:
+	case ok := <-tier0Result:
+		t.Fatalf("tier member 0 did not park at the tier barrier: %v", ok)
+	case <-ctx.Done():
+		t.Fatalf("tier member 0 never entered the tier barrier: %v", ctx.Err())
+	}
+
+	// Run a real 5-stage unbarriered handshake while tier0 waits at tierCoord.
+	engineEnd, pluginEnd := net.Pipe()
+	adhoc := process.NewProcess(plugin.PluginConfig{Name: "unbarriered-concurrent", Internal: true, Encoder: plugin.EncodingJSON})
+	engineMux := rpc.NewMuxConn(rpc.NewConn(engineEnd, engineEnd))
+	adhoc.SetConn(plugipc.NewMuxPluginConn(engineMux))
+	adhoc.SetRunning(true)
+
+	adhocCtx, adhocCancel := context.WithCancel(ctx)
+	t.Cleanup(func() {
+		adhocCancel()
+		_ = engineMux.Close() //nolint:errcheck // test cleanup
+		_ = pluginEnd.Close() //nolint:errcheck // test cleanup
+	})
+	wg.Go(func() {
+		p := sdk.NewWithConn("unbarriered-concurrent", pluginEnd)
+		_ = p.Run(adhocCtx, &sdk.Registration{}) //nolint:errcheck // test cancels adhocCtx on cleanup
+	})
+
+	s.runUnbarrieredStartupHandshake(ctx, adhoc)
+	require.Equal(t, plugin.StageRunning, adhoc.Stage(), "unbarriered handshake must reach running without waiting on the tier")
+
+	s.coordinatorMu.Lock()
+	gotCoord := s.coordinator
+	s.coordinatorMu.Unlock()
+	assert.Same(t, tierCoord, gotCoord, "unbarriered handshake must not clear or alter s.coordinator")
+
+	select {
+	case ok := <-tier0Result:
+		t.Fatalf("tier member 0 left the barrier before member 1 completed: %v", ok)
+	default:
+	}
+
+	sink1 := &engineStartupSink{s: s, proc: tier1, coord: tierCoord, startup: ctx}
+	require.True(t, sink1.transition(plugin.StageRegistration, plugin.StageConfig),
+		"tier member 1 must complete registration on the intact coordinator")
+	require.True(t, receiveWithin(t, tier0Result, failureWait, "tier member 0 did not release after member 1 completed"),
+		"tier member 0 must advance cleanly to StageConfig")
+	assert.Equal(t, plugin.StageConfig, tier0.Stage())
+	assert.Equal(t, plugin.StageConfig, tier1.Stage())
+}
+
+// TestLateCleanupRecordTracksMultipleProcessesPerName verifies that
+// lateCleanupRecord retains every stopped process per plugin name and clears
+// only once every recorded process has finished its runtime cleanup.
+//
+// VALIDATES: spec-plugin-restart-bounded-and-configuration-true AC-4 --
+// lateCleanupRecord tracks []*process.Process per name with pointer dedup.
+// PREVENTS: a newer stopped process finishing cleanup early from clearing an
+// earlier predecessor whose cleanup is still owed.
+func TestLateCleanupRecordTracksMultipleProcessesPerName(t *testing.T) {
+	const name = "multi-cleanup-plugin"
+	var record lateCleanupRecord
+
+	record.owe(nil)
+	assert.False(t, record.owed(name))
+
+	p1 := process.NewProcess(plugin.PluginConfig{Name: name, Internal: true})
+	p2 := process.NewProcess(plugin.PluginConfig{Name: name, Internal: true})
+
+	record.owe(p1)
+	record.owe(p1)
+	record.owe(p2)
+	assert.True(t, record.owed(name), "both processes owe cleanup")
+
+	// Finish the newer process first; p1 still owes cleanup.
+	p2.RunRuntimeCleanupOnce(func() {})
+	assert.True(t, record.owed(name), "owed must stay true while earlier process p1 still owes cleanup")
+
+	// Finish the earlier process; now the name clears.
+	p1.RunRuntimeCleanupOnce(func() {})
+	assert.False(t, record.owed(name), "owed must clear once every recorded process has finished cleanup")
 }

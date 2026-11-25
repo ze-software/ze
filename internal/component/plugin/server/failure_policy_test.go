@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"net"
+	"sync"
 	"sync/atomic"
 	"testing"
 	"time"
@@ -598,4 +599,206 @@ func TestRefuseRespawnDisagreementRefusesOnlyTheAskedPairings(t *testing.T) {
 			assert.ErrorIs(t, err, errRespawnDisagreement)
 		})
 	}
+}
+
+// TestFailurePolicyRestartSerializesWithReloadAndBoundsHandshake verifies that
+// restartPluginAfterExit acquires txLock before restartControllers, skips when
+// a removal is pending, bounds the replacement handshake via
+// boundedRestartHandshake, and releases its restart controller before
+// txLock.release so deferred peer-declaration admission/refusal never deadlocks.
+//
+// VALIDATES: spec-plugin-restart-bounded-and-configuration-true AC-4 (D1, R-1).
+// PREVENTS: failure-policy restarts racing config reloads, respawning a plugin
+// under pending removal, hanging forever on a wedged replacement, or inverting
+// restartControllers -> txLock when peer declarations change on restart.
+func TestFailurePolicyRestartSerializesWithReloadAndBoundsHandshake(t *testing.T) {
+	t.Run("waits behind txLock", func(t *testing.T) {
+		const name = "fp-txlock-wait"
+		s := startRestartTarget(t, name, rpc.FailureRestart, nil)
+		pm := s.procManager.Load()
+		first := pm.GetProcess(name)
+		require.NotNil(t, first)
+
+		require.True(t, s.txLock.tryAcquire(), "txLock must be free before test")
+		var wg sync.WaitGroup
+		t.Cleanup(wg.Wait)
+		errCh := make(chan error, 1)
+		wg.Go(func() {
+			errCh <- s.restartPluginAfterExit(first)
+		})
+
+		assert.Never(t, func() bool { return pm.GetProcess(name) != first }, 150*time.Millisecond, 10*time.Millisecond,
+			"failure-policy restart replaced the process while txLock was held")
+
+		s.txLock.release()
+		err := receiveWithin(t, errCh, restartAnswerBound, "failure-policy restart did not complete after txLock release")
+		require.NoError(t, err)
+		after := pm.GetProcess(name)
+		require.NotNil(t, after)
+		assert.NotSame(t, first, after)
+		assert.True(t, after.Running())
+		requireTxLockFree(t, s)
+	})
+
+	t.Run("skips when removal is pending", func(t *testing.T) {
+		const name = "fp-removal-pending"
+		s := startRestartTarget(t, name, rpc.FailureRestart, nil)
+		pm := s.procManager.Load()
+		first := pm.GetProcess(name)
+		require.NotNil(t, first)
+
+		require.True(t, s.txLock.tryAcquire(), "txLock must be free before test")
+		s.removalMu.Lock()
+		if s.removals == nil {
+			s.removals = make(map[*process.Process]*pluginRemoval)
+		}
+		s.removals[first] = &pluginRemoval{done: make(chan struct{}), recovering: true}
+		s.removalMu.Unlock()
+		t.Cleanup(func() {
+			s.removalMu.Lock()
+			delete(s.removals, first)
+			s.removalMu.Unlock()
+		})
+
+		var wg sync.WaitGroup
+		t.Cleanup(wg.Wait)
+		errCh := make(chan error, 1)
+		wg.Go(func() {
+			errCh <- s.restartPluginAfterExit(first)
+		})
+
+		s.txLock.release()
+		err := receiveWithin(t, errCh, restartAnswerBound, "failure-policy restart did not return for pending removal")
+		require.NoError(t, err)
+		assert.Same(t, first, pm.GetProcess(name), "failure-policy restart replaced a process with a pending removal")
+		requireTxLockFree(t, s)
+	})
+
+	t.Run("bounds replacement handshake", func(t *testing.T) {
+		const name = "fp-bounded-handshake"
+		const stage = 100 * time.Millisecond
+		var wg sync.WaitGroup
+		t.Cleanup(wg.Wait)
+
+		hold := make(chan struct{})
+		var holdOnce sync.Once
+		releaseReplacement := func() { holdOnce.Do(func() { close(hold) }) }
+		var starts atomic.Int32
+		s := startRestartTargetConfig(t,
+			plugin.PluginConfig{Name: name, Internal: true, Encoder: plugin.EncodingJSON, StageTimeout: stage},
+			func(*sdk.Plugin) *sdk.Registration {
+				if starts.Add(1) > 1 {
+					<-hold
+				}
+				return &sdk.Registration{FailurePolicy: rpc.FailureRestart}
+			})
+		t.Cleanup(releaseReplacement)
+		pm := s.procManager.Load()
+		first := pm.GetProcess(name)
+		require.NotNil(t, first)
+
+		errCh := make(chan error, 1)
+		wg.Go(func() {
+			errCh <- s.restartPluginAfterExit(first)
+		})
+
+		err := receiveWithin(t, errCh, restartAnswerBound, "failure-policy restart hung on silent replacement")
+		require.ErrorIs(t, err, errRestartHandshakeLate)
+		requireTxLockFree(t, s)
+		stop, down := pm.Stopped(name)
+		require.True(t, down, "failed bounded failure-policy restart must record stopped")
+		assert.Equal(t, process.StopRestartFailed, stop.Cause)
+		assert.Nil(t, pm.GetProcess(name), "rolled-back replacement must not remain in process manager")
+	})
+
+	t.Run("deferred peer declaration admission and refusal do not deadlock", func(t *testing.T) {
+		cases := []struct {
+			name        string
+			listenerErr error
+		}{
+			{"admitted", nil},
+			{"refused", errors.New("peer declaration rebuild refused")},
+		}
+		for _, tc := range cases {
+			t.Run(tc.name, func(t *testing.T) {
+				pluginName := "fp-peer-decl-" + tc.name
+				s := startRestartTarget(t, pluginName, rpc.FailureRestart, nil)
+				pm := s.procManager.Load()
+				first := pm.GetProcess(pluginName)
+				require.NotNil(t, first)
+				first.Registration().FilterInsertions = []rpc.FilterInsertion{thirdPartyInsertion}
+
+				var calls atomic.Int64
+				registry.SetPeerDeclarationsChanged(func() error {
+					calls.Add(1)
+					return tc.listenerErr
+				})
+				t.Cleanup(func() { registry.SetPeerDeclarationsChanged(nil) })
+
+				var wg sync.WaitGroup
+				t.Cleanup(wg.Wait)
+				errCh := make(chan error, 1)
+				wg.Go(func() {
+					errCh <- s.restartPluginAfterExit(first)
+				})
+
+				err := receiveWithin(t, errCh, restartAnswerBound, "failure-policy restart deadlocked during deferred peer declaration release")
+				require.NoError(t, err)
+				assert.Equal(t, int64(1), calls.Load(), "deferred peer declaration listener must run once at txLock release")
+				requireTxLockFree(t, s)
+
+				if tc.listenerErr == nil {
+					after := pm.GetProcess(pluginName)
+					require.NotNil(t, after)
+					assert.NotSame(t, first, after)
+					assert.True(t, after.Running())
+					require.NoError(t, after.RequirePeerDeclarations())
+					require.NoError(t, after.RequireRuntimeRestoration())
+					return
+				}
+				assert.Nil(t, pm.GetProcess(pluginName), "refused peer declaration replacement must be rolled back")
+				stop, down := pm.Stopped(pluginName)
+				require.True(t, down, "refused peer declaration replacement must be recorded stopped")
+				assert.Equal(t, process.StopRestartFailed, stop.Cause)
+				assert.Contains(t, stop.Detail, tc.listenerErr.Error())
+			})
+		}
+	})
+}
+
+// TestSuperviseStaleProcessDoesNotClearStopped verifies that superviseProcess
+// does not clear a newer stop record when invoked for a process that no longer
+// holds the manager's live slot for its name.
+//
+// VALIDATES: spec-plugin-restart-bounded-and-configuration-true AC-9 defense in
+// depth -- superviseProcess clears pm.Stopped only when pm.GetProcess(name) == proc.
+// PREVENTS: a delayed Step (d) supervisor for a superseded generation wiping out
+// a replacement's or failure's doctor-plugin-stopped record.
+func TestSuperviseStaleProcessDoesNotClearStopped(t *testing.T) {
+	const name = "stale-supervise-stop"
+	const failureDetail = "newer restart failure must survive stale supervisor"
+
+	s := startRestartTarget(t, name, rpc.FailureUnspecified, nil)
+	pm := s.procManager.Load()
+	old := pm.GetProcess(name)
+	require.NotNil(t, old)
+
+	// Remove old from the live slot BEFORE stopping it so its original
+	// supervisor's applyFailurePolicy observes pm.GetProcess(name) != old and
+	// cannot race RecordStopped below.
+	pm.RemoveProcess(name)
+	old.Stop()
+	cleanupCtx, cancel := context.WithTimeout(t.Context(), failureWait)
+	defer cancel()
+	require.NoError(t, old.WaitRuntimeCleanupContext(cleanupCtx))
+	pm.RecordStopped(name, process.PluginStop{Cause: process.StopRestartFailed, Detail: failureDetail})
+
+	// Running superviseProcess for old after it lost the slot must leave the
+	// newer stop record untouched.
+	s.superviseProcess(old)
+
+	stop, down := pm.Stopped(name)
+	require.True(t, down, "stale superviseProcess erased the stop record")
+	assert.Equal(t, process.StopRestartFailed, stop.Cause)
+	assert.Equal(t, failureDetail, stop.Detail)
 }

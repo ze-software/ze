@@ -698,8 +698,10 @@ and the startup context can cancel earlier. An operator or rollback restart
 captures the outgoing process's accepted allowance before replacement and uses
 it for the configure window of its bounded handshake. A declared `started-handler`
 adds a separate initializer window with that allowance; explicit stage timeouts
-still win. Unbarriered ad-hoc and failure-policy startup retain their caller's
-lifetime as their only bound. Declare the time needed for initial configuration
+still win. Unbarriered ad-hoc sessions retain their caller's lifetime as their
+only bound; failure-policy restarts use `boundedRestartHandshake` under
+`txLock`, honoring any accepted `apply-budget` and `started-handler` window.
+Declare the time needed for initial configuration
 and local initialization as well as later configuration applies.
 <!-- source: internal/component/plugin/startup_budget.go -- DeclareConfigureBudget, ConfigureStall -->
 <!-- source: internal/component/plugin/server/startup_budget.go -- declaredConfigureBudget, startupStageStall, previousStartupBudget, restartStartupHandshakeBound -->

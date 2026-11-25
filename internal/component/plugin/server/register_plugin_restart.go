@@ -108,8 +108,10 @@ const (
 // run under that lock. The lock is taken here and not in restartPlugin, which
 // the rollback calls while it holds the lock.
 //
-// Two more refusals keep the restart from undoing work it cannot see. A
-// plugin asking for its own restart is refused before anything stops: the
+// Three more refusals keep the restart from undoing work it cannot see. A
+// restart arriving before startup completes is refused before anything stops,
+// because runtime supervision and remaining startup phases are still wiring up.
+// A plugin asking for its own restart is refused before anything stops: the
 // restart waits for the runtime cleanup of the process it replaces, and that
 // cleanup runs only once the process's in-flight calls have returned, this
 // request among them (the reload refuses to stop its caller the same way,
@@ -134,6 +136,11 @@ func handlePluginRestart(ctx *CommandContext, validated command.ValidatedArgs) (
 		return plugin.OperatorErrorResponse(opererr.New("plugin "+name+" cannot be restarted: plugin startup has not begun",
 			"the daemon has not handed its plugins to a process manager yet",
 			"ze show doctor")), nil
+	}
+	if !ctx.Server.startupComplete() {
+		return plugin.OperatorErrorResponse(opererr.New("plugin "+name+" cannot be restarted while startup is in progress",
+			"plugin startup has not finished wiring runtime supervision yet",
+			"wait for startup to finish, run ze show doctor, then run "+process.RestartCommand(name))), nil
 	}
 	if ctx.Process != nil && ctx.Process.Name() == name {
 		return plugin.OperatorErrorResponse(opererr.New("plugin "+name+" cannot restart itself",

@@ -1079,6 +1079,7 @@ running: stopped and started again` (the `was-running` field says which).
 | `plugin <name> was not restarted: its removal is still pending` | a reload removed the plugin and the removal has not settled: the plugin has not acknowledged it, or putting it back failed. `ze request reload` retries the removal's recovery |
 | `plugin <name> cannot be restarted: no plugin server runs here` | the process that answered holds no plugin server; the fix is `ze start` |
 | `plugin <name> cannot be restarted: plugin startup has not begun` | the daemon has not handed its plugins to a process manager yet |
+| `plugin <name> cannot be restarted while startup is in progress` | plugin startup has not finished wiring runtime supervision yet; wait for startup to finish, run `ze show doctor`, then run `ze request plugin restart <name>` |
 | `plugin <name> did not start again` | the restart itself failed. The plugin stays down, and `ze doctor` names it with the error |
 
 The restart waits 3 seconds, the daemon's stop budget, for the stopped process

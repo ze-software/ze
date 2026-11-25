@@ -219,7 +219,7 @@ func TestStartupWireWaitTracksTierProgress(t *testing.T) {
 		ctx, cancel := context.WithCancel(context.Background())
 		defer cancel()
 		coordinator := plugin.NewStartupCoordinator(2)
-		owner := &engineStartupSink{s: &Server{coordinator: coordinator}, proc: process.NewProcess(plugin.PluginConfig{Name: "widget", StageTimeout: time.Second})}
+		owner := &engineStartupSink{s: &Server{}, proc: process.NewProcess(plugin.PluginConfig{Name: "widget", StageTimeout: time.Second}), coord: coordinator}
 		release := make(chan struct{})
 		done := make(chan error, 1)
 		go func() {
@@ -330,7 +330,7 @@ func testInitializerEnds(t *testing.T, internal, canceled bool) {
 func TestStartupWireWaitRejectsStalledTier(t *testing.T) {
 	synctest.Test(t, func(t *testing.T) {
 		coordinator := plugin.NewStartupCoordinator(1)
-		owner := &engineStartupSink{s: &Server{coordinator: coordinator}, proc: process.NewProcess(plugin.PluginConfig{Name: "widget", StageTimeout: time.Second})}
+		owner := &engineStartupSink{s: &Server{}, proc: process.NewProcess(plugin.PluginConfig{Name: "widget", StageTimeout: time.Second}), coord: coordinator}
 		err := owner.runStartupWire(context.Background(), plugin.StageRegistration, 0, func(ctx context.Context) error { <-ctx.Done(); return ctx.Err() })
 		if err == nil {
 			t.Fatal("stalled single-plugin tier had no failure")

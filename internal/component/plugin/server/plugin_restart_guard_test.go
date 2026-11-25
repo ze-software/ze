@@ -3,6 +3,7 @@ package server
 import (
 	"context"
 	"errors"
+	"net"
 	"slices"
 	"strings"
 	"sync"
@@ -14,6 +15,7 @@ import (
 	"github.com/ze-software/ze/internal/component/config/transaction"
 	"github.com/ze-software/ze/internal/component/plugin"
 	"github.com/ze-software/ze/internal/component/plugin/process"
+	"github.com/ze-software/ze/internal/component/plugin/registry"
 	"github.com/ze-software/ze/internal/core/privilege"
 	"github.com/ze-software/ze/pkg/plugin/rpc"
 	"github.com/ze-software/ze/pkg/plugin/sdk"
@@ -509,4 +511,91 @@ func TestRefusedRestartPreservesDisableAndRespawnCounters(t *testing.T) {
 		requireTxLockFree(t, s)
 		assertStillDisabled(t, pm, name, initialStop.Detail)
 	})
+}
+
+// TestRestartRefusedDuringBootWindow verifies that `request plugin restart` is
+// refused immediately while plugin startup is still in progress (before
+// signalStartupComplete), leaves no owed cleanup or replaced process, and
+// succeeds once startup completes.
+//
+// VALIDATES: spec-plugin-restart-bounded-and-configuration-true AC-9 --
+// handlePluginRestart refuses when !s.startupComplete() with an operator error
+// naming ze show doctor and the restart command, and allows the restart once
+// startup completes.
+// PREVENTS: an SSH restart arriving right after bgp Stage 2 opens the SSH
+// listener from racing Phase 1 Step (d) supervision or later startup phases.
+func TestRestartRefusedDuringBootWindow(t *testing.T) {
+	const name = "restart-boot-window"
+	snap := registry.Snapshot()
+	registry.Reset()
+	t.Cleanup(func() { registry.Restore(snap) })
+
+	if err := registry.Register(registry.Registration{
+		Name:        name,
+		Description: "boot-window restart refusal test plugin",
+		RunEngine: func(conn net.Conn) int {
+			p := sdk.NewWithConn(name, conn)
+			if err := p.Run(context.Background(), &sdk.Registration{}); err != nil {
+				return 1
+			}
+			return 0
+		},
+		CLIHandler: func([]string) int { return 0 },
+	}); err != nil {
+		t.Fatalf("register: %v", err)
+	}
+
+	var s *Server
+	t.Cleanup(func() {
+		if s != nil {
+			s.stopParticipantFilterPushWorker()
+			s.wg.Wait()
+		}
+	})
+	s, _ = newLifecycleStartupServer(t)
+	if err := s.runPluginPhase([]plugin.PluginConfig{{Name: name, Internal: true, Encoder: plugin.EncodingJSON}}); err != nil {
+		t.Fatalf("runPluginPhase: %v", err)
+	}
+	pm := s.procManager.Load()
+	initial := pm.GetProcess(name)
+	if initial == nil || !initial.Running() {
+		t.Fatalf("plugin %s is not running after Phase 1", name)
+	}
+
+	// Boot is still in progress: signalStartupComplete has not run yet.
+	resp := restartByCommand(t, &CommandContext{Server: s}, commandtest.Args(pluginRestartLeaf, name))
+	if resp.Status == plugin.StatusDone {
+		t.Fatalf("restart during boot window was accepted: %+v", resp)
+	}
+	if !strings.Contains(resp.Error, "cannot be restarted while startup is in progress") {
+		t.Fatalf("boot-window refusal missing expected problem text: %s", resp.Error)
+	}
+	if !strings.Contains(resp.Error, "ze show doctor") {
+		t.Fatalf("boot-window refusal does not name ze show doctor: %s", resp.Error)
+	}
+	if !strings.Contains(resp.Error, process.RestartCommand(name)) {
+		t.Fatalf("boot-window refusal does not name the restart command: %s", resp.Error)
+	}
+	if after := pm.GetProcess(name); after != initial {
+		t.Fatalf("refused boot-window restart replaced the process: got %p, want %p", after, initial)
+	}
+	if s.lateCleanups.owed(name) {
+		t.Fatal("refused boot-window restart left a cleanup-owed record")
+	}
+	requireTxLockFree(t, s)
+
+	// Once startup completes, the restart succeeds cleanly.
+	s.signalStartupComplete()
+	resp = restartByCommand(t, &CommandContext{Server: s}, commandtest.Args(pluginRestartLeaf, name))
+	if resp.Status != plugin.StatusDone {
+		t.Fatalf("restart after startup completed failed: %+v", resp)
+	}
+	after := pm.GetProcess(name)
+	if after == nil || after == initial || !after.Running() {
+		t.Fatalf("plugin did not restart cleanly after startup completed: %p (was %p)", after, initial)
+	}
+	if s.lateCleanups.owed(name) {
+		t.Fatal("completed post-boot restart left a cleanup-owed record")
+	}
+	requireTxLockFree(t, s)
 }

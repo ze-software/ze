@@ -10,6 +10,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"slices"
 	"sync"
 	"time"
 
@@ -102,19 +103,11 @@ func restartHandshakeBound(proc *process.Process) time.Duration {
 	return restartHandshakeStages * stage
 }
 
-// boundedRestartHandshake is the handshakeScope of a restart that holds the
-// config transaction lock (the operator's command, the reload rollback):
+// boundedRestartHandshake is the handshakeScope of every plugin restart (the
+// operator's command, a reload rollback, and a failure-policy restart):
 // restartStartupHandshakeBound, inside the daemon's lifetime.
 func (s *Server) boundedRestartHandshake(proc *process.Process, budget restartStartupBudget) (context.Context, context.CancelFunc) {
 	return context.WithTimeout(s.ctx, restartStartupHandshakeBound(proc, budget))
-}
-
-// lifetimeRestartHandshake is the handshakeScope of the failure policy's
-// restart, which holds no lock: its handshake runs as long as the daemon
-// does, as it always has, so a replacement that is slow but progressing is
-// never failed for its pace. Its cancel releases nothing.
-func (s *Server) lifetimeRestartHandshake(*process.Process, restartStartupBudget) (context.Context, context.CancelFunc) {
-	return s.ctx, func() {}
 }
 
 // rollbackReplacement stops and releases a replacement a restart could not
@@ -154,39 +147,57 @@ func (s *Server) rollbackReplacement(proc *process.Process) {
 	s.releaseStoppedProcess(proc)
 }
 
-// lateCleanupRecord holds, per plugin name, a stopped process whose runtime
-// cleanup outlived the restart that stopped it. Its zero value is empty and
-// ready. Safe for concurrent use.
+// lateCleanupRecord holds, per plugin name, every stopped process whose
+// runtime cleanup outlived the restart that stopped it. Its zero value is
+// empty and ready. Safe for concurrent use.
 type lateCleanupRecord struct {
 	mu    sync.Mutex
-	procs map[string]*process.Process
+	procs map[string][]*process.Process
 }
 
 // owe records proc as a process whose runtime cleanup has not run yet.
+// Multiple stopped processes for one name are kept so a later process
+// finishing early cannot clear an earlier predecessor that still owes cleanup.
 func (r *lateCleanupRecord) owe(proc *process.Process) {
+	if proc == nil {
+		return
+	}
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	if r.procs == nil {
-		r.procs = make(map[string]*process.Process)
+		r.procs = make(map[string][]*process.Process)
 	}
-	r.procs[proc.Name()] = proc
+	name := proc.Name()
+	if slices.Contains(r.procs[name], proc) {
+		return
+	}
+	r.procs[name] = append(r.procs[name], proc)
 }
 
-// owed reports whether a stopped process of name still owes its runtime
-// cleanup. One whose cleanup has run since is forgotten.
+// owed reports whether any stopped process of name still owes its runtime
+// cleanup. Processes whose cleanup has run since are dropped; the name clears
+// only once every recorded process has finished.
 func (r *lateCleanupRecord) owed(name string) bool {
 	r.mu.Lock()
 	defer r.mu.Unlock()
-	proc, recorded := r.procs[name]
+	list := r.procs[name]
 	// refuse-by-default: guards restartPluginProcess -- a name with no late cleanup recorded owes none, so its restart may run
-	if !recorded {
+	if len(list) == 0 {
 		return false
 	}
 	// A probe, not a wait: an ended context answers at once, and the wait
 	// answers nil whenever the cleanup has run, even with ctx already ended.
 	probe, cancel := context.WithCancel(context.Background())
 	cancel()
-	if proc.WaitRuntimeCleanupContext(probe) != nil {
+	kept := list[:0]
+	for _, proc := range list {
+		if proc.WaitRuntimeCleanupContext(probe) != nil {
+			kept = append(kept, proc)
+		}
+	}
+	if len(kept) > 0 {
+		clear(list[len(kept):])
+		r.procs[name] = kept
 		return true
 	}
 	delete(r.procs, name)
@@ -243,8 +254,9 @@ func (s *Server) releasePluginRegistrations(proc *process.Process) {
 
 // runUnbarrieredStartupHandshake drives the 5-stage handshake for a process that
 // belongs to no tier: an ad-hoc session, or a replacement process a respawn
-// produced. The coordinator is nilled for the call, which makes every stage
-// barrier an immediate success, and restored afterwards.
+// produced. It passes a nil StartupCoordinator explicitly so every stage
+// barrier is an immediate success without reading or mutating any concurrent
+// tier coordinator on the server.
 //
 // A tier barrier counts the processes of ONE phase and releases when they have
 // all reached a stage. A process that joined outside a phase is not in that
@@ -254,16 +266,7 @@ func (s *Server) releasePluginRegistrations(proc *process.Process) {
 // only bound, reaching every read, send and Configure wait. An ad-hoc session
 // passes the daemon's lifetime; a restart passes its handshakeScope's answer.
 func (s *Server) runUnbarrieredStartupHandshake(ctx context.Context, proc *process.Process) {
-	s.coordinatorMu.Lock()
-	saved := s.coordinator
-	s.coordinator = nil
-	s.coordinatorMu.Unlock()
-
-	s.handleProcessStartupRPCWithin(ctx, proc)
-
-	s.coordinatorMu.Lock()
-	s.coordinator = saved
-	s.coordinatorMu.Unlock()
+	s.handleProcessStartupRPCWithin(ctx, proc, nil)
 }
 
 // restartHandshake brings a respawned process into the engine: it runs the
@@ -299,6 +302,9 @@ func (s *Server) restartHandshake(ctx context.Context, proc *process.Process, bu
 		return err
 	}
 
+	if pm := s.procManager.Load(); pm != nil && pm.GetProcess(proc.Name()) == proc {
+		pm.ClearStopped(proc.Name())
+	}
 	s.wg.Go(func() { s.superviseProcess(proc) })
 	return nil
 }

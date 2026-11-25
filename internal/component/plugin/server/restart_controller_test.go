@@ -119,14 +119,21 @@ func TestRestartControllerRetainsAutomaticReplacement(t *testing.T) {
 	require.NotNil(t, command, "a stale controller removed the admitted replacement's command")
 	require.Same(t, replacement, command.Process)
 	require.Same(t, replacement, pm.GetProcess(name))
-	requireTxLockFree(t, s)
-	// A completed controller releases its reservation: a later healthy operator
-	// restart still reaches runtime and owns the same command.
+	// A completed controller releases its reservation and then txLock: a later
+	// healthy operator restart still reaches runtime and owns the same command.
 	select {
 	case <-controller.done:
 	case <-ctx.Done():
 		t.Fatal("automatic controller did not release its completed replacement")
 	}
+	if txDone := s.ConfigTransactionDone(); txDone != nil {
+		select {
+		case <-txDone:
+		case <-ctx.Done():
+			t.Fatal("automatic controller did not release txLock after completing replacement")
+		}
+	}
+	requireTxLockFree(t, s)
 	response, err = handlePluginRestart(&CommandContext{Server: s}, commandtest.Args("name", name))
 	require.NoError(t, err)
 	require.Equal(t, plugin.StatusDone, response.Status, response.Error)

@@ -57,8 +57,8 @@ func TestRestartJoinsSeparatelyBudgetedConfigurationAndInitialization(t *testing
 	})
 }
 
-// MUTATION: adding a local 5s deadline to an unbarriered wire wait breaks the
-// established failure-policy lifetime for a slow but progressing replacement.
+// MUTATION: adding a local 5s per-stage deadline to an unbarriered wire wait
+// breaks a replacement stage that stays within its boundedRestartHandshake scope.
 func TestLifetimeRestartRetainsSlowStagePolicy(t *testing.T) {
 	for _, initializer := range []bool{false, true} {
 		name := "configure"
@@ -93,15 +93,15 @@ func TestLifetimeRestartRetainsSlowStagePolicy(t *testing.T) {
 				})
 				before := s.procManager.Load().GetProcess(pluginName)
 				began := time.Now()
-				if err := s.restartPluginWithin(pluginName, s.lifetimeRestartHandshake); err != nil {
-					t.Fatalf("slow replacement failed before its lifetime ended: %v", err)
+				if err := s.restartPluginWithin(pluginName, s.boundedRestartHandshake); err != nil {
+					t.Fatalf("slow replacement failed before its bounded handshake ended: %v", err)
 				}
 				if elapsed := time.Since(began); elapsed < 10*time.Second {
 					t.Fatalf("restart admitted an unfinished stage after %s", elapsed)
 				}
 				replacement := s.procManager.Load().GetProcess(pluginName)
 				if replacement == nil || replacement == before || replacement.Stage() != plugin.StageRunning {
-					t.Fatal("lifetime restart did not admit the initialized replacement")
+					t.Fatal("bounded restart did not admit the initialized replacement")
 				}
 			})
 		})

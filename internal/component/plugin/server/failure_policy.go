@@ -39,9 +39,14 @@ func (s *Server) superviseProcess(proc *process.Process) {
 	stopDrainCaller := s.startDrainCaller(proc)
 	// This generation reached running, so the plugin is no longer down: a
 	// stop record from the generation before it (a failed handshake, the
-	// respawn that started this one) is cleared with its bus warning.
+	// respawn that started this one) is cleared with its bus warning. Clear
+	// only while this exact process still holds the manager's live slot so a
+	// delayed supervisor for a superseded generation cannot erase a newer
+	// failure's stop record.
 	if pm := s.procManager.Load(); pm != nil {
-		pm.ClearStopped(proc.Name())
+		if pm.GetProcess(proc.Name()) == proc && !pm.Disabled(proc.Name()) {
+			pm.ClearStopped(proc.Name())
+		}
 	}
 	s.handleSingleProcessCommandsRPC(proc)
 	stopDrainCaller()
@@ -166,9 +171,10 @@ func (s *Server) applyFailurePolicy(proc *process.Process) {
 	switch policy {
 	case rpc.FailureRestart:
 		logger().Warn("plugin exited, starting it again", "plugin", name, "code", diagnostic.CodeDoctorPluginCrashed)
-		// The restart records the stop itself when it fails. This path holds
-		// no lock, so the replacement's handshake runs as long as the daemon
-		// does (restartPluginAfterExit).
+		// The restart records the stop itself when it fails. It acquires
+		// txLock before the per-name restart controller and bounds the
+		// replacement's handshake with boundedRestartHandshake
+		// (restartPluginAfterExit).
 		if err := s.restartPluginAfterExit(proc); err != nil {
 			logger().Error("plugin exited and could not be started again, so it stays down",
 				"plugin", name, "error", err, "code", diagnostic.CodeDoctorPluginStopped)

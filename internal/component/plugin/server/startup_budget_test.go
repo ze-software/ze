@@ -110,7 +110,7 @@ func TestStartupConfigureBudgetKeepsFastSibling(t *testing.T) {
 	var worker sync.WaitGroup
 	t.Cleanup(func() { cancel(); worker.Wait() })
 	worker.Go(func() {
-		sink := &engineStartupSink{s: s, proc: fast, startup: observed}
+		sink := &engineStartupSink{s: s, proc: fast, coord: s.coordinator, startup: observed}
 		result <- sink.transition(plugin.StageConfig, plugin.StageCapability)
 	})
 	select {
@@ -131,7 +131,7 @@ func TestStartupConfigureBudgetKeepsFastSibling(t *testing.T) {
 	case <-ctx.Done():
 		t.Fatal(ctx.Err())
 	}
-	slowSink := &engineStartupSink{s: s, proc: slow, startup: ctx}
+	slowSink := &engineStartupSink{s: s, proc: slow, coord: s.coordinator, startup: ctx}
 	if !slowSink.transition(plugin.StageConfig, plugin.StageCapability) {
 		t.Fatal("slow declared owner could not complete its configure stage")
 	}
@@ -321,7 +321,7 @@ func registeredConfigureBudgetPair(t *testing.T, slowBudget int) (*Server, *proc
 		if id == 1 {
 			declaration.ApplyBudget = slowBudget
 		}
-		sink := &engineStartupSink{s: s, proc: proc, startup: ctx}
+		sink := &engineStartupSink{s: s, proc: proc, coord: coord, startup: ctx}
 		if err := sink.onRegistration(declaration); err != nil {
 			t.Fatalf("accepted registration: %v", err)
 		}
