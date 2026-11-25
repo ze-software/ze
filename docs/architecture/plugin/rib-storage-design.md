@@ -3760,6 +3760,13 @@ verdict and a successful retain action keep that source's rows. The rows keep
 the original owner, physical connection, message, policy epoch and NO_LLGR bit.
 <!-- source: internal/component/bgp/plugins/rs/source_lifetime.go -- dispatchSourceUpdate, finishSourceDown -->
 
+Each native or text UPDATE records its message ID and NO_LLGR bit as it
+installs or replaces each announced path. Untouched rows keep their original
+facts. Inventory work follows the NLRI in the UPDATE, independent of how many
+other paths that source already announced.
+<!-- source: internal/component/bgp/plugins/rs/server_inventory.go -- applyNLRIRecords -->
+<!-- source: internal/component/bgp/plugins/rs/server_withdrawal.go -- processForward, updateWithdrawalMapText -->
+
 A source receipt identifies a session; it does not establish current route
 membership. Every stored-route relay checks the exact current path and original
 provenance at output admission. Cold replay can adopt an authenticated received

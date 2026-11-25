@@ -58,34 +58,9 @@ func textNoLLGR(text string) bool {
 	return false
 }
 
-// stampCurrentRowsLocked stores accepted scalar route facts in the existing
-// current inventory. It never stores a session-wide eligibility substitute.
-func (rs *routeServer) stampCurrentRowsLocked(source workerKey, message, receipt uint64, noLLGR bool) {
-	for native, entry := range rs.withdrawals[source.address.String()] {
-		if entry.owner != source.owner {
-			continue
-		}
-		if entry.connectionID != source.connectionID {
-			continue
-		}
-		if entry.sourceReceipt != receipt {
-			continue
-		}
-		// Only rows changed by this UPDATE get its generation. Older rows retain
-		// their own community value even though they share this source receipt.
-		if entry.msgID != 0 {
-			continue
-		}
-		entry.msgID = message
-		entry.noLLGR = noLLGR
-		rs.withdrawals[source.address.String()][native] = entry
-	}
-}
-
-func textInventoryEntry(fam family.Family, text string, pathID uint32, addPath, withdraw bool, epoch, receipt, owner, connection uint64) (withdrawalKey, withdrawalEntry, error) {
-	entry := withdrawalEntry{owner: owner, connectionID: connection, sourcePolicyEpoch: epoch, sourceReceipt: receipt}
+func textInventoryEntry(fam family.Family, text string, pathID uint32, addPath, withdraw bool, entry withdrawalEntry) (withdrawalKey, withdrawalEntry, error) {
 	if payload, raw := strings.CutPrefix(text, "raw "); raw {
-		route := rpc.StoredRoute{Family: fam.String(), SourceOwner: owner, NLRIHex: payload, PathID: pathID, NLRIFraming: rpc.NLRIFramingPrefixOnly, Withdraw: withdraw}
+		route := rpc.StoredRoute{Family: fam.String(), SourceOwner: entry.owner, NLRIHex: payload, PathID: pathID, NLRIFraming: rpc.NLRIFramingPrefixOnly, Withdraw: withdraw}
 		native, err := storedKey(route, false)
 		if err != nil {
 			return withdrawalKey{}, entry, err
@@ -110,7 +85,7 @@ func textInventoryEntry(fam family.Family, text string, pathID uint32, addPath, 
 	if err != nil {
 		return withdrawalKey{}, entry, err
 	}
-	return withdrawalKey{owner: owner, fam: fam, prefix: prefix.Masked(), pathID: pathID, addPath: addPath}, entry, nil
+	return withdrawalKey{owner: entry.owner, fam: fam, prefix: prefix.Masked(), pathID: pathID, addPath: addPath}, entry, nil
 }
 
 func sameNativeMembership(a, b withdrawalKey) bool {

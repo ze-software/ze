@@ -68,10 +68,12 @@ func (rs *routeServer) processForward(key workerKey, item workItem) {
 	// deferred to the withdrawal map update after forwarding.
 	var wireRecords *nlriRecords
 	var recordsErr error
-	noLLGR := false
 	if item.msg != nil {
 		wireRecords, recordsErr = extractWireNLRIRecords(item.msg)
-		noLLGR = wireNoLLGR(item.msg.AttrsWire)
+		if wireRecords != nil {
+			wireRecords.msgID = item.msgID
+			wireRecords.noLLGR = wireNoLLGR(item.msg.AttrsWire)
+		}
 	}
 
 	// Both transports carry the same owned delivery receipt. The reactor
@@ -99,10 +101,11 @@ func (rs *routeServer) processForward(key workerKey, item workItem) {
 	if wireRecords != nil {
 		rs.applyNLRIRecords(item.sourcePeer, wireRecords)
 	} else {
-		noLLGR = textNoLLGR(item.textPayload)
-		rs.updateWithdrawalMapText(item.sourcePeer, parseTextNLRIOps(item.textPayload), item.sourcePolicyEpoch, item.sourceReceipt, item.sourceOwner, key.connectionID)
+		announcement := withdrawalEntry{msgID: item.msgID, noLLGR: textNoLLGR(item.textPayload),
+			sourcePolicyEpoch: item.sourcePolicyEpoch, sourceReceipt: item.sourceReceipt,
+			owner: item.sourceOwner, connectionID: key.connectionID}
+		rs.updateWithdrawalMapText(item.sourcePeer, parseTextNLRIOps(item.textPayload), announcement)
 	}
-	rs.stampCurrentRowsLocked(key, item.msgID, item.sourceReceipt, noLLGR)
 	// Current source progress is recorded only after every parsed route mutation,
 	// including withdrawals. Another source's larger MessageID proves nothing.
 	rs.mu.RLock()
@@ -151,7 +154,7 @@ func isUnicast(f family.Family) bool {
 
 // updateWithdrawalMapText updates the withdrawal map from text-parsed NLRI operations.
 // Caller must hold rs.withdrawalMu.
-func (rs *routeServer) updateWithdrawalMapText(sourcePeer string, ops map[string][]FamilyOperation, epoch, receipt, owner, connection uint64) {
+func (rs *routeServer) updateWithdrawalMapText(sourcePeer string, ops map[string][]FamilyOperation, announcement withdrawalEntry) {
 	for famName, operations := range ops {
 		fam, known := family.LookupFamily(famName)
 		if !known {
@@ -163,7 +166,7 @@ func (rs *routeServer) updateWithdrawalMapText(sourcePeer string, ops map[string
 				if !ok {
 					continue
 				}
-				native, entry, err := textInventoryEntry(fam, text, operation.PathID, operation.AddPath, operation.Action == actionDel, epoch, receipt, owner, connection)
+				native, entry, err := textInventoryEntry(fam, text, operation.PathID, operation.AddPath, operation.Action == actionDel, announcement)
 				if err != nil {
 					rs.warnLifecycle("original text NLRI inventory refused", "code", lifecycleDoctorCode, "fix", lifecycleDoctorFix, "error", err)
 					continue
@@ -173,7 +176,7 @@ func (rs *routeServer) updateWithdrawalMapText(sourcePeer string, ops map[string
 						rs.withdrawals[sourcePeer] = make(map[withdrawalKey]withdrawalEntry)
 					}
 					rs.withdrawals[sourcePeer][native] = entry
-				} else if old, exists := rs.withdrawals[sourcePeer][native]; exists && old.connectionID == connection {
+				} else if old, exists := rs.withdrawals[sourcePeer][native]; exists && old.connectionID == announcement.connectionID {
 					delete(rs.withdrawals[sourcePeer], native)
 				}
 			}

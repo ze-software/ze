@@ -48,6 +48,8 @@ type nlriRecords struct {
 	sourceReceipt     uint64
 	sourceConnection  uint64
 	sourceOwner       uint64
+	msgID             uint64
+	noLLGR            bool
 }
 
 // nlriRecordPool amortizes records and scratch allocation for NLRI extraction.
@@ -95,6 +97,8 @@ func extractWireNLRIRecords(msg *bgptypes.RawMessage) (*nlriRecords, error) {
 	sp.sourceReceipt = msg.SourceReceipt
 	sp.sourceConnection = msg.SourceConnectionID
 	sp.sourceOwner = msg.SourceOwner
+	sp.msgID = 0
+	sp.noLLGR = false
 
 	// Withdrawn records are appended BEFORE announced ones, and the order is
 	// load-bearing: every consumer walks this slice in order, and
@@ -404,22 +408,23 @@ func recordKey(rec *nlriRecord, sourceOwner uint64) withdrawalKey {
 	return withdrawalKey{owner: sourceOwner, fam: rec.fam, prefix: rec.prefix, pathID: rec.pathID, addPath: rec.addPath}
 }
 
-// recordEntry is what the withdrawal set holds for an announced record: the
-// hex its peer-down withdrawal goes out as when the key is not that hex.
-func recordEntry(rec *nlriRecord, sourcePolicyEpoch, sourceReceipt, sourceOwner, sourceConnection uint64) withdrawalEntry {
-	if rec.nativeKey != "" {
-		return withdrawalEntry{connectionID: sourceConnection, owner: sourceOwner, sourceReceipt: sourceReceipt, wire: rec.nlriStr, addPath: rec.addPath, sourcePolicyEpoch: sourcePolicyEpoch}
+// recordEntry adds the wire form a peer-down withdrawal needs when the
+// semantic key does not carry that form.
+func recordEntry(rec *nlriRecord, entry withdrawalEntry) withdrawalEntry {
+	if rec.nativeKey != "" || rec.cidrKeyed {
+		entry.wire = rec.nlriStr
+		entry.addPath = rec.addPath
 	}
-	if rec.cidrKeyed {
-		return withdrawalEntry{connectionID: sourceConnection, owner: sourceOwner, sourceReceipt: sourceReceipt, wire: rec.nlriStr, addPath: rec.addPath, sourcePolicyEpoch: sourcePolicyEpoch}
-	}
-	return withdrawalEntry{connectionID: sourceConnection, owner: sourceOwner, sourceReceipt: sourceReceipt, sourcePolicyEpoch: sourcePolicyEpoch}
+	return entry
 }
 
 // applyNLRIRecords updates the withdrawal map from pre-extracted NLRI records.
 // Called AFTER forwarding, off the forward critical path.
 // Caller must hold rs.withdrawalMu.
 func (rs *routeServer) applyNLRIRecords(sourcePeer string, records *nlriRecords) {
+	announcement := withdrawalEntry{msgID: records.msgID, noLLGR: records.noLLGR,
+		connectionID: records.sourceConnection, owner: records.sourceOwner,
+		sourceReceipt: records.sourceReceipt, sourcePolicyEpoch: records.sourcePolicyEpoch}
 	for i := range records.records {
 		rec := &records.records[i]
 		switch rec.action {
@@ -427,7 +432,7 @@ func (rs *routeServer) applyNLRIRecords(sourcePeer string, records *nlriRecords)
 			if rs.withdrawals[sourcePeer] == nil {
 				rs.withdrawals[sourcePeer] = make(map[withdrawalKey]withdrawalEntry)
 			}
-			rs.withdrawals[sourcePeer][recordKey(rec, records.sourceOwner)] = recordEntry(rec, records.sourcePolicyEpoch, records.sourceReceipt, records.sourceOwner, records.sourceConnection)
+			rs.withdrawals[sourcePeer][recordKey(rec, records.sourceOwner)] = recordEntry(rec, announcement)
 		case actionDel:
 			if rs.withdrawals[sourcePeer] != nil {
 				if entry := rs.withdrawals[sourcePeer][recordKey(rec, records.sourceOwner)]; entry.connectionID == records.sourceConnection {

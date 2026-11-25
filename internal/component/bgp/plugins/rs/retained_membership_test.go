@@ -294,13 +294,14 @@ func TestRSTextCurrentNativePathZeroDoesNotRemoveSibling(t *testing.T) {
 	rs.peers[key].Up = true
 	rs.withdrawals = make(map[string]map[withdrawalKey]withdrawalEntry)
 	text := "peer 192.0.2.1 remote as 65001 received update 301 peer-owner 11 connection-id 101 source-receipt 201 source-policy-epoch 7 nlri ipv4/unicast info 0 add raw 180a0001 nlri ipv4/unicast info 7 add raw 180a0001"
-	rs.updateWithdrawalMapText(key.address.String(), parseTextNLRIOps(text), 7, 201, 11, 101)
-	rs.stampCurrentRowsLocked(key, 301, 201, false)
+	announcement := withdrawalEntry{msgID: 301, sourcePolicyEpoch: 7, sourceReceipt: 201, owner: 11, connectionID: 101}
+	rs.updateWithdrawalMapText(key.address.String(), parseTextNLRIOps(text), announcement)
 	if len(rs.withdrawals[key.address.String()]) != 2 {
 		t.Fatal("text original path zero was merged with its sibling identifier")
 	}
 	withdrawn := "peer 192.0.2.1 remote as 65001 received update 302 peer-owner 11 connection-id 101 source-receipt 201 source-policy-epoch 7 nlri ipv4/unicast info 0 del raw 180a0001"
-	rs.updateWithdrawalMapText(key.address.String(), parseTextNLRIOps(withdrawn), 7, 201, 11, 101)
+	announcement.msgID = 302
+	rs.updateWithdrawalMapText(key.address.String(), parseTextNLRIOps(withdrawn), announcement)
 	if len(rs.withdrawals[key.address.String()]) != 1 {
 		t.Fatal("path-zero withdrawal removed another original current path")
 	}

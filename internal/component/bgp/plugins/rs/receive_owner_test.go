@@ -62,7 +62,7 @@ func receiveOwnerInventory(t *testing.T) *routeServer {
 	t.Helper()
 	rs := &routeServer{withdrawals: make(map[string]map[withdrawalKey]withdrawalEntry)}
 	ops := map[string][]FamilyOperation{"ipv4/unicast": {{Action: actionAdd, NLRIs: []any{"prefix 203.0.113.0/24"}}}}
-	rs.updateWithdrawalMapText("192.0.2.1", ops, 5, 141, 41, 241)
-	rs.updateWithdrawalMapText("192.0.2.1", ops, 6, 142, 42, 242)
+	rs.updateWithdrawalMapText("192.0.2.1", ops, withdrawalEntry{sourcePolicyEpoch: 5, sourceReceipt: 141, owner: 41, connectionID: 241})
+	rs.updateWithdrawalMapText("192.0.2.1", ops, withdrawalEntry{sourcePolicyEpoch: 6, sourceReceipt: 142, owner: 42, connectionID: 242})
 	return rs
 }
