@@ -7,7 +7,7 @@
 | Priority | P1 |
 | Release reason | `request plugin restart` is the fix line of five `ze doctor` rows. A restart that resurrects a plugin the configuration removed, stalls every reader of the process manager for up to 30 s, or leaves a plugin down after a refusal is a shipped-daemon lifecycle defect an operator meets in production (`plan/README.md`, `release/fixes/`) |
 | RFC gaps | - |
-| Depends | Found by `plan/release/validation/spec-doctor-coverage-12-plugin-infra.md`, which needs nothing from this spec. Shares files with `plan/release/fixes/spec-single-owner-lifecycle-1-plugin-process.md` (`Respawn`, `restartPlugin`, `applyFailurePolicy`, the stop records): whichever lands second is designed against the other's code. Item 1 is split with `plan/release/features/spec-fib-dummy.md` (design, 2026-11-24): that spec fixes the half with a process (its AC-17, at `finishRemovalScope`), and this spec keeps the half with no process, designed against that spec's code once it lands |
+| Depends | Found by `plan/release/validation/spec-doctor-coverage-12-plugin-infra.md`, which needs nothing from this spec. Shares files with `plan/release/fixes/spec-single-owner-lifecycle-1-plugin-process.md` (`Respawn`, `restartPlugin`, `applyFailurePolicy`, the stop records): whichever lands second is designed against the other's code. Item 1 is split with `spec-fib-dummy` (design, 2026-11-24): that spec fixes the half with a process (its AC-17, at `finishRemovalScope`), and this spec keeps the half with no process, designed against that spec's code once it lands |
 | Phase | - |
 | Handoff | - |
 | Updated | 2026-11-24 |
@@ -35,7 +35,7 @@ found and the hardening did not fix. Each item is one journal row
 
 | # | Defect | Where |
 |---|--------|-------|
-| 1 | "Configured" never shrinks. A plugin a committed reload removed is still offered and accepted by the restart and respawned from its old config. A plugin with no process when its roots go keeps its `doctor-plugin-stopped` row. Split on 2026-11-24: the first half, a plugin with a process that an accepted reload stopped and that stays in `ConfiguredNames`, is owned by `plan/release/features/spec-fib-dummy.md` (its AC-17). This spec keeps the second half, a plugin with no process when its roots go (AC-1) | `ProcessManager.configs`, `ConfiguredNames`, `Respawn`; `completePluginRestart`, `pluginRestartRefusal`; `stopCollectedProcesses` |
+| 1 | "Configured" never shrinks. A plugin a committed reload removed is still offered and accepted by the restart and respawned from its old config. A plugin with no process when its roots go keeps its `doctor-plugin-stopped` row. Split on 2026-11-24: the first half, a plugin with a process that an accepted reload stopped and that stays in `ConfiguredNames`, is owned by `spec-fib-dummy` (its AC-17). This spec keeps the second half, a plugin with no process when its roots go (AC-1) | `ProcessManager.configs`, `ConfiguredNames`, `Respawn`; `completePluginRestart`, `pluginRestartRefusal`; `stopCollectedProcesses` |
 | 2 | Seen under full-package load, not reproduced on demand: a rejected reload's recovery may stop a dependency that ran before the reload | `restoreRemovedPlugin` -> `stopOrphanedDependencies` -> `collectOrphanedDependencies` |
 | 3 | `Respawn` holds the manager's write lock across the old process's join and the replacement's start, connect-back included | `ProcessManager.Respawn`, `Process.StopJoinBound`, the 30 s connect-back wait in `process.go` |
 | 4 | A failure-policy restart runs without the transaction lock, and the cleanup-owed record keeps one process per name | `applyFailurePolicy` -> `restartPlugin`; `lateCleanupRecord.owe`, `owed` |
@@ -54,7 +54,7 @@ leaves where a reload's removal becomes final
 names the committed-removal sites record in the scope, a name with no process
 included. Which shape that takes is design.
 
-Item 1 is split since 2026-11-24. `plan/release/features/spec-fib-dummy.md`
+Item 1 is split since 2026-11-24. `spec-fib-dummy`
 drops the name at `finishRemovalScope` for a plugin whose stop an accepted
 reload made final (its AC-17: the engine-added writer it stops, and the owner
 of a removed config root), because after its AC-5 one `request plugin
@@ -128,7 +128,7 @@ This is a skeleton: idea capture. No design is written here.
 | Metric hook set | `internal/component/plugin/process/metric_hooks.go` | One atomic set of callbacks, swapped by the manager | Extends (item 5) |
 | Orphaned-dependency stop | `internal/component/plugin/server/startup_autoload.go` `collectOrphanedDependencies`, `stopOrphanedDependencies` | Stops dependencies left without a dependent | Extends (item 2), once reproduced |
 | Neighbour: plugin-process lifecycle | `plan/release/fixes/spec-single-owner-lifecycle-1-plugin-process.md` (status `ready`) | Owns the replacement published before its handshake, the unrestarted exit and the stop-signal refusal, over the same `Respawn` and supervisor | Does not apply as an owner: its design is approved and owns other rows. Coordinate, same files |
-| Neighbour: the first half of item 1 | `plan/release/features/spec-fib-dummy.md` (status `design`), its AC-17 | Will drop the name of a plugin whose stop an accepted reload made final, at `finishRemovalScope`, so `ConfiguredNames`, `completePluginRestart` and `pluginRestartRefusal` stop offering it | Extends, once it lands (item 1, second half): the name of a plugin with no process when its roots go leaves at the same point, by the same path. Owns the journal row with this spec (Owned journal rows) |
+| Neighbour: the first half of item 1 | `spec-fib-dummy` (status `design`), its AC-17 | Will drop the name of a plugin whose stop an accepted reload made final, at `finishRemovalScope`, so `ConfiguredNames`, `completePluginRestart` and `pluginRestartRefusal` stop offering it | Extends, once it lands (item 1, second half): the name of a plugin with no process when its roots go leaves at the same point, by the same path. Owns the journal row with this spec (Owned journal rows) |
 | Neighbour: reload reconciliation | `plan/release/fixes/spec-single-owner-reload-reconcile.md` (status `design`) | Owns reload and rollback reconciliation in general | Does not apply as an owner of items 1 and 2: they are plugin-process removal state, not a participant's applied state. Coordinate |
 
 ## Data Flow (MANDATORY - see `ai/rules/architecture.md`)
@@ -198,7 +198,7 @@ This is a skeleton: idea capture. No design is written here.
 
 | AC ID | Input / Condition | Expected Behavior | Permitted Survivors and Why |
 |-------|-------------------|-------------------|-----------------------------|
-| AC-1 | A committed reload removes plugin X while X is already down and holds no process | Completion offers the names still configured. `request plugin restart X` answers that X is not configured. `ze doctor` reports no stopped row for X | A plugin stopped by a failed or rolled-back reload stays configured and restartable, because the configuration still names it. The same command for an X that was running when the reload removed it is `plan/release/features/spec-fib-dummy.md` AC-17, the first half of item 1 |
+| AC-1 | A committed reload removes plugin X while X is already down and holds no process | Completion offers the names still configured. `request plugin restart X` answers that X is not configured. `ze doctor` reports no stopped row for X | A plugin stopped by a failed or rolled-back reload stays configured and restartable, because the configuration still names it. The same command for an X that was running when the reload removed it is `spec-fib-dummy` AC-17, the first half of item 1 |
 | AC-2 | Item 2 | First, the failure is reproduced on demand (it fails under full-package load and passes alone), and the reproduction is recorded. Then it is fixed: a dependency that ran before a rejected reload runs after its recovery | A dependency that the rejected reload itself started is stopped, because nothing configured needs it |
 | AC-3 | A restart of a forked plugin while its replacement waits for connect-back | The doctor snapshot and every `GetProcess`, `AllProcesses` and `ConfiguredNames` caller answer within a bound that does not include the connect-back wait. The old generation's failure policy still sees it was replaced. An in-daemon engine that reads the manager on its exit raises no `doctor-plugin-restart-overlap` | A reader that needs the replaced slot itself waits for the swap, because the generation test depends on it |
 | AC-4 | A failure-policy restart and an operator restart of the same plugin at once | One restart runs and the other is refused or follows it. The cleanup-owed refusal holds while any stopped process of the name still owes its cleanup | The second request is answered with its refusal, because two generations cannot take one name |
@@ -286,7 +286,7 @@ N-A: no wire-visible change.
 
 | Class file | Date | Surface (short) |
 |------------|------|-----------------|
-| `retained-entry-still-answers-lookups.md` | 2026-11-12 | item 1, second half: a plugin with no process when its roots go keeps its name and its `doctor-plugin-stopped` row. The first half (a removed plugin with a process stays in `ConfiguredNames`) is fixed by `plan/release/features/spec-fib-dummy.md` AC-17, whose table lists this row too; the row turns `fixed:` only when both halves are done, so that spec's closure leaves it open and this spec's closure fixes it |
+| `retained-entry-still-answers-lookups.md` | 2026-11-12 | item 1, second half: a plugin with no process when its roots go keeps its name and its `doctor-plugin-stopped` row. The first half (a removed plugin with a process stays in `ConfiguredNames`) is fixed by `spec-fib-dummy` AC-17, whose table lists this row too; the row turns `fixed:` only when both halves are done, so that spec's closure leaves it open and this spec's closure fixes it |
 | `reconciler-claims-state-another-owner-installed.md` | 2026-11-12 | item 2: rejected reload's recovery may stop a pre-existing dependency |
 | `lock-held-across-a-join.md` | 2026-11-12 | item 3: `Respawn` holds `pm.mu` across join and connect-back |
 | `two-owners-share-one-name.md` | 2026-11-12 | item 4: failure-policy restart without `txLock`; one cleanup-owed process per name |

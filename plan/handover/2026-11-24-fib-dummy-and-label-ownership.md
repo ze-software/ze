@@ -11,13 +11,13 @@ Transcribed: "can you create a spec for a dummy backend which does nothing for
 the fib". Asked what it is for, he chose both purposes: a control-plane-only box
 (route reflector or route server that must never program forwarding) and
 testing and benchmarking the RIB path without kernel cost, written to
-first-release standard at `plan/release/features/spec-fib-dummy.md`.
+first-release standard at `spec-fib-dummy`.
 
 ## The specs
 
 | Spec | Status | Last commit | Judge state |
 |------|--------|-------------|-------------|
-| `plan/release/features/spec-fib-dummy.md` | ready | e38da3f4aa (choices and `ready` transition committed after approval) | Approved by judge at digest 6e51c0e84de3 and approved by Thomas (C-1a, C-2a, C-3a, C-4a, C-5a, C-6b) on 2026-11-24 |
+| `spec-fib-dummy` | ready | e38da3f4aa (choices and `ready` transition committed after approval) | Approved by judge at digest 6e51c0e84de3 and approved by Thomas (C-1a, C-2a, C-3a, C-4a, C-5a, C-6b) on 2026-11-24 |
 | `plan/release/fixes/spec-fib-kernel-label-ownership.md` | design | ab580c27e5 | Four judges refused; a fifth judge was judging digest dd2f9a383fcc when this was written |
 | `plan/release/fixes/spec-bgp-graceful-restart-rfc-defects.md` | design (amended) | 4f5789f7cb | D7 recorded, not designed or judged |
 
@@ -29,7 +29,7 @@ judge and is owned by the GR spec.
 
 ## In flight when this was written
 
-1. A ze-work agent was revising `spec-fib-dummy.md` for the tenth refusal. The
+1. A ze-work agent was revising `spec-fib-dummy` for the tenth refusal. The
    main-session decisions it was given:
    - D1: EPE's unacquired replay answers the opening writer alone, as one
      `ApplyReplay` batch tagged with the request's token holding the

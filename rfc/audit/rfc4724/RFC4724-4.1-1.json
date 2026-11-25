@@ -1,10 +1,10 @@
 {
   "code": {
-    "internal/plugins/fib/kernel/fibkernel.go::fibKernel.run": "a7ce1e0347cf1763",
+    "internal/plugins/fib/kernel/fibkernel.go::fibKernel.run": "8abb79b8871f055f",
     "internal/plugins/fib/kernel/fibkernel.go::fibKernel.startupSweep": "1b259b49657a4164",
     "internal/plugins/fib/kernel/register.go::parseFIBConfig": "5d239669c5e02957"
   },
-  "note": "Independent re-judgment against RFC 4724 Section 4.1 ('When the Restarting Speaker restarts, it MUST retain, if possible, the forwarding state for the BGP routes in the Loc-RIB') after fib-kernel retry/sweep updates (20d642984c). TestRFC4724RestartingSpeakerForwardingState is unchanged and proves default FlushOnStop=false in parseFIBConfig, shutdown retention across fib.run(ctx, false, ready) with 0 backend deletes (runRetryLoop blocks until ctx.Done() before beginStop and conditional flushRoutes), startupSweep retaining surviving kernel routes with 0 deletes (only a refuse-by-default comment was added), and explicit flush-on-stop=true flushing 198.51.100.0/24 on shutdown (negative).",
+  "note": "Re-judged against RFC 4724 Section 4.1 ('When the Restarting Speaker restarts, it MUST retain, if possible, the forwarding state for the BGP routes in the Loc-RIB') after fib-kernel added targeted MPLS label replay on open and WriterStopped in fibKernel.run (4e6ad5d5c4). Neither addition alters default FlushOnStop=false in parseFIBConfig, shutdown route retention across fib.run(ctx, false, ready) (runRetryLoop blocks until ctx.Done() before beginStop, the f.mu barrier, and conditional flushRoutes), startupSweep retaining surviving kernel routes with 0 deletes, or explicit flush-on-stop=true flushing 198.51.100.0/24 on shutdown (negative). TestRFC4724RestartingSpeakerForwardingState is unchanged and still fails if forwarding state is flushed on default restart.",
   "requirement_sha": "2ddf81c616c9924e",
   "tests": {
     "internal/plugins/fib/kernel/rfc4724_restarting_fib_test.go::TestRFC4724RestartingSpeakerForwardingState": "1577840eac90ea3b",

@@ -87,7 +87,8 @@ vpp` as well and its keys are applied to the Linux kernel whatever the
 data plane, so a setting about kernel behavior works the same on a VPP
 box, while a key about packet forwarding, such as `rp_filter`, acts
 only on the packets that reach Linux, not on the packets VPP forwards.
-<!-- source: internal/component/plugin/server/startup_autoload.go -- appendDataPlaneWriter, fibPluginChosen -->
+<!-- source: internal/component/plugin/server/startup_autoload.go -- appendDataPlaneWriter, appendDataPlaneWriterWithReason -->
+<!-- source: internal/component/plugin/registry/dataplane_writer.go -- JudgeDataPlaneWriter -->
 <!-- source: internal/plugins/fib/vpp/register.go -- Dependencies: ["rib", "vpp"] -->
 <!-- source: internal/plugins/fib/vpp/fibvpp.go -- Subscribe to BestChangeBatch -->
 <!-- source: internal/plugins/fib/kernel/fibkernel.go -- parallel backend for the kernel -->

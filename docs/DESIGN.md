@@ -360,6 +360,7 @@ are kebab-case. Address families are `"afi/safi"` strings (`"ipv4/unicast"`,
 | `sysrib` | System RIB (route table management) |
 | `kernel` | Redistribute externally installed kernel routes into BGP |
 | `mrt` | MRT routing information export (RFC 6396) |
+| `fib-dummy` | FIB dummy: holds selected system RIB routes in memory and programs no forwarding table |
 | `fib-kernel` | FIB route installation via netlink |
 | `fib-p4` | FIB route installation via P4 backend |
 | `fib-vpp` | FIB route installation via VPP binary API |

@@ -150,7 +150,7 @@ Optional metadata:
 | `Claims` | `[]string` | Exclusive runtime roles this plugin takes over from another plugin's default |
 | `Dissemination` | `[]rpc.DisseminationDecl` | Opaque peer-output roles and their source/destination grant requirements. A declaration creates no grant; an eligible claimant takes precedence only at that destination |
 | `ProgramsFIB` | `bool` | The plugin writes or holds the routes the system RIB selects as the operator's FIB choice. A config that names one (by config root, compiled-in bus endpoint, or `--plugin`) gets no data-plane writer added to it |
-| `DataPlane` | `string` | The data plane a `ProgramsFIB` plugin reaches, spelled the way `interface { backend }` names it: `kernel`, `vpp`. A data plane has one writer, and a duplicate aborts startup. Empty means the plugin reaches no data plane (e.g. `fib-dummy`, `fib-p4`) and is never resolved as a producer's writer |
+| `DataPlane` | `string` | The data plane a `ProgramsFIB` plugin reaches, spelled the way `interface { backend }` names it: `kernel`, `vpp`. A data plane has one writer, and a duplicate aborts startup. Empty means the plugin reaches no data plane and is never resolved as a producer's writer: with `NoDataPlaneChoice` (`fib-dummy`) that is the operator's deliberate choice to program none, and without it (`fib-p4`) its client is not written |
 | `NeedsDataPlane` | `bool` | The plugin's routes reach forwarding only through a `ProgramsFIB` plugin, so the engine loads the writer for the configured data plane |
 | `DataPlaneSelector` | `*DataPlaneSelector` | Backend selector leaf (`LeafPath`), governed config roots (`Roots`), primary selector flag (`SelectsDataPlane`, unique across the registry), and backend list callback (`RegisteredBackends`) |
 | `DataPlaneFeatures` | `[]DataPlaneFeature` | Forwarding-plane requirements (`Planes` or `FollowsSelector`, mutually exclusive) and active-in-config rule (`DataPlaneInUseConfigRoot`, `DataPlaneInUsePredicate`, or `DataPlaneInUseSelectedPlugin`). Subsystems with no plugin registration declare predicate features through `RegisterDataPlaneFeature` |
@@ -538,7 +538,7 @@ under `config-plugin-extract` in `ze config validate`.
 <!-- source: internal/component/config/plugin_verify.go -- refuseUnresolvableDependencies, verifyTree -->
 <!-- source: internal/component/config/loader.go -- dependencyRequest, ExpandDependencies -->
 <!-- source: internal/component/plugin/server/startup.go -- runPluginStartup, refuseBootAutoLoad -->
-<!-- source: internal/component/plugin/server/startup_autoload.go -- getConfigPathPlugins, refuseUnresolvableDeferredAutoLoad, getUnclaimedPluginsForTokens -->
+<!-- source: internal/component/plugin/server/startup_autoload.go -- getConfigPathPlugins, refuseUnresolvableDeferredAutoLoad -->
 
 All three fields reject empty strings and self-edges at registration. Cycle
 detection and `TopologicalTiers` walk every edge whose endpoints are both in the

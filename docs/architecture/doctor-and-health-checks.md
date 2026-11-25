@@ -161,7 +161,7 @@ plugin's process:
 | `bgp-rib-unresolved-next-hop` | `bgp-rib` | stored BGP routes currently excluded from Phase 2 best-path selection by an unresolvable next hop, with excluded count, bounded sample, and `ze show bgp rib \| match next-hop-unresolvable` as fix (warning) | `doctor-bgp-next-hop-unresolvable` |
 | `bgp-rib-next-hop-metrics` | `bgp-rib` | an active forked engine `route-metrics` lookup failure leaving affected next hops fail-closed until recovery (warning) | `doctor-bgp-next-hop-metrics` |
 | `ldp-label-entries` | `ldp` | a push or pop LDP wants that no writer carried out | `doctor-fib-mpls-no-writer` |
-| `rsvp-te-label-entries` | `rsvp-te` | an entry a writer's replay did not install, under an LSP RSVP-TE holds up | `doctor-fib-mpls-no-writer` |
+| `rsvp-te-label-entries` | `rsvp-te` | an entry a writer refused on apply or a replay did not restore, until a later apply of the same slot succeeds | `doctor-fib-mpls-no-writer` |
 | `ospf-sr-label-entries` | `ospf` | a Segment Routing push, swap or pop no writer carried out, or one OSPF cannot program because it runs forked | `doctor-fib-mpls-no-writer` |
 | `bgp-epe-label-entries` | `bgp-epe` | a PeerNode SID label no writer installed or removed as EPE wants | `doctor-fib-mpls-no-writer` |
 | `fib-vpp-label-entries` | `fib-vpp` | label entries installed without their path MTU; a label route a previous run left in VPP that could not be removed | `doctor-fib-vpp-mpls-path-mtu`, `doctor-fib-vpp-mpls-stale-label` |
@@ -1743,6 +1743,8 @@ remains owned by that original resource until its recovery is confirmed.
 | `plugin-autoload` | post-config | `doctor-plugin-autoload-unresolved` (error) | the config's auto-load set that `registry.ResolveDependencies` refuses, with the boot refusal's text | the fix the refusal names |
 | `plugin-setup` | pre-config | `doctor-plugin-setup-failed` (error for hard, warning for soft) | each `registry.SetupResults` failure, with the recorded reason | the remedy after the reason's last `; `, else `ze show plugin list` |
 | `plugin-dataplane-writer` | post-config | `doctor-plugin-no-dataplane-writer` (error) | the config's auto-load set holds a `NeedsDataPlane` producer, no `ProgramsFIB` plugin is selected or configured, and `registry.JudgeDataPlaneWriter` refuses the data plane the config selects: the boot and reload refusal of `appendDataPlaneWriterWithReason` / `judgeReloadWriters`, in its words | the fix the refusal names |
+| `fib-dummy-holds-routes` | post-config | `doctor-fib-dummy-holds-routes` (warning when any `NeedsDataPlane` producer is selected, naming each; info otherwise; silent without `fib dummy`) | `fib dummy` holds selected system RIB routes in memory and writes them to no forwarding table (named-table static routes, policy routing, IPsec tunnel-source guards, and interface addresses are outside the system RIB and untouched) | `delete fib dummy` |
+| `recent-events` | runtime | `doctor-fib-dummy-invalid-change` (warning event, raised once via `RaiseIssue`) | `fib-dummy` received a `(system-rib, best-change)` entry carrying an invalid prefix, counted it in `invalid-changes`, and held it nowhere | `ze show fib dummy counters` |
 | `plugin-removal-recovery` | runtime | `doctor-plugin-removal-unrecovered` (error) | each `pluginRemoval` whose restore after a refused reload failed (`recoveryErr`), with plugin and cause | `ze request reload`, which retries the restore first |
 | `plugin-capability-restore` | runtime | `doctor-plugin-capabilities-not-restored` (error) | the latest failed `restoreCapabilities` after a refused reload, kept until a reload commits | `ze request reload` |
 | `audit-record` | runtime | `doctor-audit-record-failed` (error) | the published audit log's last failed write (`audit.PublishedWriteFailure`): file, error, time, count, last surface; cleared by a write that lands | `ls -ld <dir> && df -h <dir>`, then make it writable |
@@ -1756,6 +1758,8 @@ name (`doctor-command-deprecated-used`, warning, the fix the new name). The
 config transaction does not unwind within its grace, and by `Server.cleanup`
 for every engine `ProcessManager.CleanupLate` names.
 <!-- source: internal/component/plugin/doctor/check_dataplane_writer.go -- checkDataPlaneWriter, dataPlaneWriterRows -->
+<!-- source: internal/plugins/fib/dummy/doctor.go -- checkFIBDummyHoldsRoutes, holdsRoutesDoctorCheck -->
+<!-- source: internal/plugins/fib/dummy/register_doctor_codes.go -- holdsRoutesCodeMeta, invalidChangeCodeMeta -->
 <!-- source: internal/component/plugin/doctor/check_reload_records.go -- removalUnrecoveredRows, capabilitiesNotRestoredRows -->
 <!-- source: internal/component/plugin/server/doctor_reload_records.go -- PluginReloadRecords -->
 <!-- source: internal/component/plugin/server/command_events.go -- ensureRollbackFailed, deprecatedUsed -->
