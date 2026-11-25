@@ -2,7 +2,7 @@
 
 | Field | Value |
 |-------|-------|
-| Status | skeleton |
+| Status | design |
 | Priority | P3 |
 | Release reason | Adds a capability absent from the supported release; existing supported behavior and its obligations remain required. |
 | Depends | plan/release/features/spec-fleet-1-device-registry.md, plan/post-release/features/spec-fleet-ui-2-estate-tree-and-device-tables.md (operational adapters) |

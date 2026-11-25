@@ -12,7 +12,7 @@
 | Handoff | - |
 | Design tier | strongest tier |
 | Implementation tier | development tier |
-| Updated | 2026-11-23 |
+| Updated | 2026-11-25 |
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.
 

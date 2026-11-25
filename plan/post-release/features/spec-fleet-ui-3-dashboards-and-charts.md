@@ -2,7 +2,7 @@
 
 | Field | Value |
 |-------|-------|
-| Status | skeleton |
+| Status | design |
 | Scope | web, fleet |
 | Priority | P3 |
 | Release reason | Adds a capability absent from the supported release; existing supported behavior and its obligations remain required. |
@@ -10,7 +10,7 @@
 | Depends | spec-fleet-ui-2-estate-tree-and-device-tables.md, plan/release/features/spec-fleet-4-inventory-health.md, plan/release/features/spec-fleet-8-metric-history.md |
 | Phase | 3/9 of plan/post-release/features/spec-fleet-ui-0-umbrella.md |
 | Handoff | - |
-| Updated | 2026-11-23 |
+| Updated | 2026-11-25 |
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.
 
@@ -256,6 +256,17 @@ here; each back end keeps its commands.
 ### Integration Points
 - `register_dashboard_pages.go` owns card registration. Supply the history part from the real-source build, alongside the estate part introduced by Fleet UI-2. `handler_chart.go` keeps the gap for a period without a sample.
 - Initial rendering and explicit refresh require only the hub-held facts. The live-refresh test of AC-2 additionally uses the authorized event source from Fleet UI-9. A build missing that optional part still renders and explains the availability of live updates.
+
+### Changed-Wire Census
+
+**Search evidence:** Searched the in-tree Go, templ, JS, HTML and functional fixtures for dashboard-chart, data-chart-url, DeviceSeries, EstateSeries, HistoryUsage, chartDataSeries and fleet-chart.js. chartAnswer writes the current chart JSON; lines in fleet-chart.js reads average and maximum series and the sample package supplies raw points. The live provider is new.
+
+| Wire | Role (writer / reader) | Carrier (file + producer/consumer symbol or script entry) | Source evidence | Migration or preservation disposition |
+|---|---|---|---|---|
+| selected history series and usage | writer | fleet-8 managed/cmd_history.go history queries; fleetui/history/history.go adapter; fleetui/sample/history.go existing sample source | source_history.go defines DeviceSeries, EstateSeries and HistoryUsage. | Carry aligned coverage, average and maximum from the authorized live daemon. Preserve the raw sample fixture contract. |
+| same | reader | fleetui/handler_chart.go chartSeries, chartAnswer; handler_dashboard_cards.go; handler_admin.go adminHistoryContent | The live hub has already reduced its series, and the sample fixture still feeds Reduce. | Draw the live bucket once, retain gaps and preserve the chart point limit. |
+| dashboard-chart HTTP JSON | writer | fleetui/handler_chart.go dashboardChartFragment and chartAnswer; component_card.templ and its generated file place the chart URL/legend data in the DOM | chartData and chartDataSeries carry the time axis, unit, named values, maxima and empty/refusal text. | Keep parallel arrays aligned with UTC slots and use null for gaps. |
+| same | reader | fleetui/assets/fleet-chart.js lines and chart drawing; dashboards in fleetui/dashboard_test.go and the headless web suite; browsers loading the chart URL | The JS matches series to legend data and consumes the optional maximum; golden ChartCard and Dashboard fixtures preserve the DOM contract. | Retain the existing chart envelope; consume typed missing and failure states inside the relevant card. |
 
 ## Wiring Test (MANDATORY -- NOT deferrable)
 

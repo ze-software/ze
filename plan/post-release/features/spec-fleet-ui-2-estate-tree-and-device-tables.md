@@ -2,7 +2,7 @@
 
 | Field | Value |
 |-------|-------|
-| Status | skeleton |
+| Status | design |
 | Scope | web, fleet |
 | Priority | P3 |
 | Release reason | Adds a capability absent from the supported release; existing supported behavior and its obligations remain required. |
@@ -10,7 +10,7 @@
 | Depends | plan/release/features/spec-fleet-1-device-registry.md, plan/release/features/spec-fleet-4-inventory-health.md, plan/release/features/spec-fleet-8-metric-history.md |
 | Phase | 2/9 of plan/post-release/features/spec-fleet-ui-0-umbrella.md |
 | Handoff | - |
-| Updated | 2026-11-23 |
+| Updated | 2026-11-25 |
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.
 
@@ -173,11 +173,11 @@ seam and the sample build are described in `docs/architecture/fleet-interface.md
 |------|------------------------------------------|-------|
 | Device list with name, state, labels, group, version, configuration state, last seen | `show fleet devices` and `show fleet device name <name>` (`plan/release/features/spec-fleet-1-device-registry.md`, first release), answering JSON; filter, sort and page are this spec's, over the estate part's rows | `fleet-1` is ready; its approved design has no filter, sort or page arguments, so the grammar above runs in this spec over the estate rows |
 | Latest CPU, memory, storage, uptime per device | `fleet-8`'s latest-samples query (`plan/release/features/spec-fleet-8-metric-history.md`), read by the latest-sample part this spec registers | Missing: `fleet-8` is a skeleton |
-| Inventory and health per device | `fleet-4`'s `show fleet device inventory <name>`, `show fleet device health <name>` and `show fleet health` (`plan/release/features/spec-fleet-4-inventory-health.md`), read by the inventory-health part this spec registers | Missing: `fleet-4` is a skeleton |
+| Inventory and health per device | `fleet-4`'s `show fleet device inventory name <name>`, `show fleet device health name <name>` and `show fleet health` (`plan/release/features/spec-fleet-4-inventory-health.md`), read by the inventory-health part this spec registers | Missing: `fleet-4` is a skeleton |
 | Label keys and values in use | `show fleet labels` | Missing |
 | Open alarm and running task counts per device | `show fleet alarm` (`plan/release/features/spec-fleet-ui-5-alarm-list.md`), `show fleet task` (`plan/post-release/features/spec-fleet-ui-9-tasks-notifications-and-alarm-pages.md`) | Missing |
 
-### Draft acceptance criteria
+## Acceptance Criteria
 
 | AC ID | Input / Condition | Expected Behavior | Permitted Survivors and Why |
 |-------|-------------------|-------------------|-----------------------------|
@@ -186,7 +186,7 @@ seam and the sample build are described in `docs/architecture/fleet-interface.md
 | AC-3 | A filter in the query bar | The table shows exactly the matching devices, the count names them, and the URL reproduces the view | Selection is cleared when the filter changes, because selected rows may no longer be visible |
 | AC-4 | A malformed filter | The table keeps its rows and a message names the bad term and the valid fields | None |
 | AC-5 | A selection and a bulk label edit | The edits are staged, shown as pending, and applied on commit, after which the tree regroups | A device removed from the estate meanwhile is reported and skipped, because the rest of the edit is still wanted |
-| AC-6 | An estate of 2000 devices | The tree, the table and a filter each answer within the time bound fixed at design, and no fragment carries more rows than it shows | None |
+| AC-6 | An estate of 2000 devices | For the full 2,000-device fixture, each tree, table and filtered-table handler responds within a proposed 1-second p95 over 100 warm requests on an idle, identified release-test host. Record response bytes, page size, the slowest request and the host alongside the result. The returned table fragment contains only the requested page | None |
 | AC-7 | A row's eye control | The side panel opens with the sections above, the URL carries the row, and a reload restores it | None |
 
 ### Moved from fleet-1 (owner ruling 2026-11-23)
@@ -398,6 +398,42 @@ until then the main thread runs this one locally as an owed command.
 | Route deps | `internal/component/web/webroute.go` `RouteDeps.Dispatch` | Gives a route builder the web dispatcher | Extends: the estate, inventory-health and latest-sample parts are built over it |
 | Device registry commands | `plan/release/features/spec-fleet-1-device-registry.md`, `show fleet devices`, `show fleet device name <name>` | First release: answered by the daemon on every command surface | Extends: the estate part reads them; no second reader of the registry |
 | Browser test server kinds | `internal/component/web/testing/parser.go` `WBServer`; `internal/test/cli/cmd_web.go` `zeTestStartLGServer` | Starts the process a browser test drives, with a peer beside it for the looking glass | Extends: a `fleet-hub` kind with a managed client beside the hub |
+| Registered tree, table, filter and actions | fleetui/handler_tree.go, handler_devices.go, handler_devices_action.go and table.go | Render and filter the sample estate and dispatch selected actions. | Keep the last valid filter in the per-view URL or fragment request. On malformed input rerun the last valid query on current authorized rows, with a visible error. A fresh direct URL with no prior filter uses the unfiltered authorized set. |
+| Candidate and account | web.EditorManager (editor.go), SessionStore (auth.go), ReadUIModeFromRequest (ui_mode.go) | Authenticate the request, select the shell and isolate a user's candidate for hub configuration. | Reuse these mechanisms for bulk labels. Enforce mutation and target permission both on stage and commit. Ordinary navigation neither grants a role nor modifies the candidate. |
+| Preferences and CI stage | internal/core/statestore, pkg/zefs/keys.go; internal/le/verify/engine/stages.go | Register permitted persistent keys and select the test build per verification stage. | Put saved preferences under the owning account's key and give the live fixture its own real fleet build. Keep the existing prototype stage separate. |
+
+## Design documents
+
+| Document | Section | Derived from | Binding statement | Verdict | How this design stands against it |
+|---|---|---|---|---|---|
+| `ai/doors/system.md` | One schema, one command registry, every interface | the door every change reads | "A command is declared once and reaches every interface." | agrees | The web and command presentations read facts through the registered operation under the caller’s identity. |
+| `docs/architecture/fleet-interface.md` | A source answers facts, the package derives | the // Design: page of internal/component/web/fleetui/source.go | "A source answers facts only" | agrees | Use caller-scoped source facts and the shared derivations to keep rows, totals and linked detail views consistent. |
+| `ai/doors/api-surfaces.md` | Boundaries | the door covering internal/component/web/fleetui/source.go | "Never add a command in an adapter." | agrees | The fleet view consumes registered operations. Each operation is implemented by the owner of its data. |
+| `docs/architecture/web-interface.md` | Component Structure | anchored to internal/component/web/fleetui/register.go | "Every page, fragment and editor is a templ component." | agrees | Use the current fleet templates and fragment handlers for page rendering. |
+| `docs/architecture/testing/ci-format.md` | Syntax Overview | the // Design: page of internal/component/web/testing/parser.go | "All lines use key=value format" | agrees | Extend only the named fleet-hub fixture option. Existing test directives retain their grammar. |
+| `docs/architecture/testing/runner-architecture.md` | Web test format (`.wb`) | anchored to internal/component/web/testing/parser.go | "Web tests live in `test/web/*.wb`" | agrees | The live-estate case uses the same headless browser driver and fixture lifecycle as the existing sample cases. |
+| `ai/doors/le-tooling.md` | Where it sits | the door covering internal/test/cli/cmd_web.go | "Functional `.ci` files live under `test/<suite>/`" | agrees | Use the repository’s functional harness for managed behavior and its headless web harness for the views. |
+| `ai/doors/hub-engine.md` | Boundaries | the door covering cmd/ze/hub/register_fleet_ui_estate.go | "No always-on file imports a gated package." | agrees | The build-gated composition file registers its provider. Builds without the optional UI still serve the fleet commands. |
+| `docs/architecture/fleet-interface.md` | Design decisions | the // Design: page of internal/component/web/fleetui/source.go | "The proposed alarm defaults apply together. A missing relay grant stays visible while the device is offline. A measured alarm uses its existing threshold duration after reconnect. Causes match within one device. Thomas selected “Use all three defaults”." | agrees | A relay grant is independent of connectivity. Use the hub’s cause result for one device and its configured resource duration. |
+| `docs/architecture/fleet-interface.md` | Design decisions | the // Design: page of internal/component/web/fleetui/source.go | "Thomas chose the following rule for Resource high at reconnect. “End the old occurrence. Show a new alarm only if fresh samples qualify.”" | agrees | A reconnect ends the old resource occurrence. Its historical opening and clearing survive, and any new qualifying interval has its own identity. |
+| `docs/architecture/fleet-interface.md` | Design decisions | the // Design: page of internal/component/web/fleetui/source.go | "When a critical alarm becomes visible again after its cause clears, show its toast to an authorized viewer of the affected device. Thomas selected “Show the critical toast”." | agrees | The post-release notification provider checks visibility before delivering the critical recovery toast. |
+| `docs/architecture/fleet-interface.md` | Design decisions | the // Design: page of internal/component/web/fleetui/source.go | "For Force complete on a staged rollout, Thomas chose “Leave unstarted devices on their prior version”." | agrees | The rollout result distinguishes devices admitted to the change from devices that keep their prior version. |
+| `docs/architecture/fleet-interface.md` | Design decisions | the // Design: page of internal/component/web/fleetui/source.go | "Thomas chose “Add the device Alarms tab”. The post-release device page offers the same authorized alarm rows as the device filter on the estate or group Alarms tab." | agrees | The shared device navigation includes its Alarms tab and uses the same authorized device filter as the estate view. |
+| `docs/architecture/fleet-interface.md` | The devices table | Live fleet interface | "over the unfiltered table" | departs | An invalid filter on an existing view keeps its last valid query and exposes the error. A fresh URL can use the unfiltered authorized set. |
+
+| `docs/architecture/zefs-format.md` | Key Registry | Registered fleet preference storage | "All known key patterns are registered in `pkg/zefs/keys.go` via `MustRegister()`" | agrees | Register bounded per-account view and saved-filter preference keys. Validate the account in the trusted request before selecting the namespace. |
+| `docs/architecture/container/image-store.md` | State keys | Registered fleet preference storage | — | silent | Saved fleet views are independent of container images and projects. They use separate registered key patterns. |
+| `docs/architecture/diagnostics/debug-filtering.md` | One ZeFS trap | Registered fleet preference storage | "`List(prefix)` fails when the prefix ends in a slash." | agrees | Read the authorized account prefix without a trailing slash when enumerating saved views. |
+| `docs/architecture/irr-owner.md` | Who may touch which key | Registered fleet preference storage | — | silent | The preferences owner writes only its own keys; these keys grant no IRR or route access. |
+| `docs/architecture/storage-backends.md` | Durable publication | Registered fleet preference storage | "Sync failures are returned to the caller." | agrees | Publish a saved view only after the store confirms durable success and surface its failure to the operator. |
+| `ai/doors/core.md` | Boundaries | Registered fleet preference storage | "Runtime state goes through the daemon's one store." | agrees | Borrow the existing statestore. The fleet view package owns the optional registered feature and the core needs no web import. |
+| `docs/architecture/fleet-config.md` | Config Storage (Hub Side) | Managed client and preference keys | "The hub may write the configuration of a declared client at any time" | agrees | Bulk labels stage changes to the hub declaration. Saved per-account filters never overwrite a managed client’s desired configuration. |
+| `docs/architecture/testing/verify-freshness-scope.md` | Certificate | The CI stage selection in stages.go | "The manifest records each path at the content the stages read." | agrees | Name the estate fixture, stage runner and real build-tag inputs in its freshness accounting. The separate sample stage must not stand in for the operational fixture. |
+| `docs/architecture/plugin/feature-gates.md` | Dependent gates and dependent files | Gated real and sample binaries | "the tagged blank import is the gate" | agrees | Keep separate real and sample composition imports. Verify the ordinary shipped flavor cannot link the sample package. |
+| `docs/architecture/plugin/plugin-system.md` | Registration fields | The fullStages registration checks | "Every call to one sits in a `register*.go` file" | agrees | The operational adapters register from init in their owning register files. The targeted stage sits alongside existing plugin registration checks. |
+| `docs/architecture/site-facts.md` | The defect this page exists to remove | The site facts check shares fullStages | — | silent | The website facts producer is independent of the operational fleet browser fixture. Its stage remains reachable in the CI stage list. |
+| `docs/architecture/fleet-config.md` | Design decisions | Fleet managed service design | "A reload that changes the certificate a serving hub's managed listener presents installs it on the running listener at that reload: the next handshake presents the certificate the configuration names, the listener keeps its socket and no session is closed, as the web and looking glass listeners do. The certificate stays in the configuration's `pki` block. In Thomas's words (voice-transcribed): "Keep the certificate in the configuration." and "In that case on commit we can perform the certificate change on the listener."" | agrees | UI-2 consumes authenticated registry facts. The listener and its certificates retain their existing reload behavior. |
+| `docs/architecture/fleet-config.md` | Design decisions | Fleet managed service design | "Thomas chose “Allow first provisioning and later edits from the device’s web Config tab”. An authorized operator can commit the first or a later version of a declared device’s configuration while it is offline, through the post-release fleet web surface." | agrees | The estate tree may list devices before first contact. Bulk labels edit the hub’s declarations. Fleet-ui-6 owns the separately authorized creation and later editing of client config from its device tab. |
 
 ## Data Flow (MANDATORY)
 
@@ -405,9 +441,29 @@ until then the main thread runs this one locally as an owed command.
 - A fleet web page request on a build with `ze_web && ze_fleet_ui`.
 
 ### Transformation Path
+
+Use the registered web route’s authenticated request, fleet mode and session principal for every mutation. Requesting a different shell does not give the browser a different identity or rights. For a bulk label change, resolve each selected device against the current authorized estate; reject missing or newly disallowed targets before staging any change. Edit each matching server/client declaration in the caller’s existing hub candidate, keeping duplicate-listener declarations consistent, then display the staged diff and commit through the hub’s normal transaction. A concurrent registry change or abandoned editor must never stage or commit another user’s candidate. The authorization, session cookie and general editor already exist. Reuse them through RouteDeps rather than introducing a separate fleet login or candidate.
+
+Keep preference writes scoped to the authenticated account. A private filter string is not data authorization: run it only against the current permitted facts. The real adapter must pass the caller’s trusted dispatcher identity on each read, not bind the first visitor at process startup. The global registration retains builder functions and shared transport only. If the registry refuses a single named lookup, expose the appropriate typed refusal. Missing and unavailable data do not turn into an empty successful result.
 1. The estate part dispatches `show fleet devices` as the request's account and decodes the rows into `fleetui.Device` facts.
 2. The interface joins every registered device-fact part by name; an absent part leaves its fields not reported.
 3. The page renders; a part that is not registered renders its not-available state.
+
+### Changed-Wire Census
+
+**Search evidence:** Searched the fleet UI and its sample, the web test parser, CLI runner, stage selection, browser JavaScript and repository .wb, .ci, shell and Python files for MustRegisterSource, ReadSnapshot, queryDevicesTable, devicesActionAnswer, needs-build-tag and WBServerLG. The existing sample registration and the looking-glass fixture are positive controls for the two build paths. The browser tests fleet-devices-filter.wb and fleet-tree-selects-device.wb exercise the existing readers.
+
+| Wire | Role (writer / reader) | Carrier (file + producer/consumer symbol or script entry) | Source evidence | Migration or preservation disposition |
+|------|------------------------|-----------------------------------------------------------|-----------------|----------------------------------------|
+| Fleet typed source | writer | `fleetui/sample/register/register.go` and `fleetui/sample/source.go`, estate data and SavedFilters | The review build registers one value implementing the complete Source. | Register that same sample behind each part. Preserve sample values and method bounds. |
+| Fleet typed source | writer | Planned `fleetui/estate/estate.go`, inventory.go, samples.go and views.go plus the tagged hub registration | The current `show fleet devices` and named-device dispatcher results supply estate registry facts. | Operational parts project only their existing public fields and preserve errors and unavailable states. |
+| Fleet typed source | reader | `internal/component/web/fleetui/pages.go` ReadSnapshot and the object and fragment handlers; `register.go` mountedSource | The page builds its Snapshot from Source before it derives displays. | Join by device name inside the request. An absent optional part is marked unavailable; a missing estate part leaves the routes unmounted. |
+| Devices query and actions | writer | The fleet page templates, links, bulk-action selection and `assets/fleet.js`; browser users and saved URLs | The devices pages encode the tree, current filter, selected targets and page in server requests. | Carry the last valid filter as described in the Task. Derive the acting identity on the server. |
+| Devices query and actions | reader | `fleetui/handler_devices.go` queryDevicesTable, `handler_tree.go`, `handler_devices_action.go` devicesActionAnswer and browser .wb tests | The table parses the selected view and gives an error on a bad term. The bulk handler reads the selected action from form values. | Keep existing link shapes and replay saved URLs. Revalidate current selections and account rights at stage and commit. |
+| Per-account preferences | writer | Planned views.go stored-preference actions using the borrowed statestore and registered ZeFS keys | The current sample supplies SavedFilters; it has no durable account-scoped preference writer. | Write bounded, versioned account-specific values. Report a failed persistence attempt to the owner. |
+| Per-account preferences | reader | ViewsPart.SavedFilters and TreeViews, `handler_admin.go` adminFiltersContent and the devices filter menu | The existing sample returns typed SavedFilter records for callers. | Use the authenticated account to select keys. An absent record takes the documented default without loading another user’s settings. |
+| Browser fixture declaration | writer | `test/web/fleet-estate-live.wb` (planned) and existing .wb authors | Existing fixture files use option=server and needs-build-tag to describe a test daemon. | Introduce the fleet-hub server kind with the real/synthetic tag expectations. The existing sample fixtures retain their own build. |
+| Browser fixture declaration | reader | `internal/component/web/testing/parser.go` ParseWBFile, `internal/test/cli/cmd_web.go` suite server selection, `internal/le/verify/engine/stages.go` | The parser enumerates WBServer kinds. The test runner already starts a peer alongside the LG daemon. | Parse the new kind, start and join the managed test peer, and select the real tagged fixture separately in CI. |
 
 ### Boundaries Crossed
 | Boundary | How | Verified |
@@ -437,7 +493,7 @@ until then the main thread runs this one locally as an owed command.
 |-------------|---|--------------|------|
 | A fleet page on a real `ze_fleet_ui` build (no `ze_fleet_ui_sample`) with one real managed client | → | the estate part over the dispatcher, the join, the not-available component | `test/web/fleet-estate-live.wb` |
 | A page asking an unregistered part | → | the not-available component | `TestEveryAbsentPartRendersNotAvailable` |
-| The tree, the devices table, a filter, a bulk label edit, the side panel | → | [pending design: the handlers of AC-1 to AC-7, AC-16] | [pending design] |
+| The tree, the devices table, a filter, a bulk label edit, the side panel | → | `handler_devices.go`, tree and filtered page handlers | `test/web/fleet-estate-live.wb` |
 
 ## 🧪 TDD Test Plan
 
@@ -459,8 +515,8 @@ until then the main thread runs this one locally as an owed command.
 | `TestEstatePartDispatchErrorIsOperatorError` | same | A refused dispatch is an operator error, never empty | |
 | `TestEstatePartAnswersHubClock` | same | A-1 | |
 | `TestFleetDevicesMaxAgreesWithManagedClientsMax` | `cmd/ze/hub/fleet_ui_bounds_test.go` (`ze_web ze_fleet_ui`) | AC-10 | |
-| `TestInventoryHealthPartMapsReports` | [pending design: the package of the inventory-health part] | AC-16, AC-17 | |
-| `TestLatestSamplePartMapsSamples` | [pending design: the package of the latest-sample part] | AC-17 | |
+| `TestInventoryHealthPartMapsReports` | `internal/component/web/fleetui/estate/estate_test.go` | AC-16, AC-17 | |
+| `TestLatestSamplePartMapsSamples` | `internal/component/web/fleetui/estate/estate_test.go` | AC-17 | |
 
 ### Functional Tests
 | Test | Location | End-User Scenario | Status |
@@ -468,6 +524,10 @@ until then the main thread runs this one locally as an owed command.
 | `fleet-estate-live` | `test/web/fleet-estate-live.wb` (`option=server:kind=fleet-hub`, `ze_fleet_ui` present, `ze_fleet_ui_sample` absent) | AC-11: a real managed client listed online with its config version; the Alarms card not available | |
 
 ## Files to Modify
+- `internal/component/web/fleetui/register.go` — retain the request’s authenticated session and existing RouteDeps.EditorManager in the operational route wrapper. Reuse `internal/component/web/editor.go`, `internal/component/web/auth.go` and `internal/component/web/ui_mode.go` for candidate, session and mode without replacing their behavior.
+- `internal/component/web/fleetui/handler_tree.go`, `internal/component/web/fleetui/handler_devices.go`, `internal/component/web/fleetui/handler_devices_action.go` and `internal/component/web/fleetui/table.go` handle the scoped tree, filtered result and staged actions.
+- `pkg/zefs/keys.go` registers account-scoped fleet preference keys used by the existing state store.
+- `internal/le/verify/engine/stages.go` selects the tagged live fixture in CI; cover its freshness inputs. The real and sample builds have distinct cache identities.
 - `internal/component/web/fleetui/source.go`, `source_devices.go`, `source_activity.go`, `source_config.go`, `source_history.go`, `source_views.go`, `source_events.go` - interfaces regrouped per part, bounds unchanged.
 - `internal/component/web/fleetui/register.go`, `pages.go`, every page handler that renders a part's answer - parts, join, not-available markers.
 - `internal/component/web/fleetui/sample/register/register.go` - register every part.
@@ -475,6 +535,8 @@ until then the main thread runs this one locally as an owed command.
 - `docs/architecture/fleet-interface.md` (parts, join, not available), `docs/guide/web-interface.md` (real estate, not-available parts) - the pages this work makes wrong.
 
 ## Files to Create
+- `internal/component/web/fleetui/estate/views.go` and `internal/component/web/fleetui/estate/views_test.go` — ViewsPart for named tree views and per-account saved filters, storage bounds and user isolation.
+- `internal/component/web/fleetui/estate/inventory.go` and `internal/component/web/fleetui/estate/samples.go` — the operational inventory/health and latest-sample parts over the first-release dispatcher commands. Only a valid returned device identity participates in the join.
 - `internal/component/web/fleetui/source_parts.go` - one slot per part and the join; `source_parts_test.go`.
 - `internal/component/web/fleetui/estate/estate.go`, `register.go`, `estate_test.go` - the estate part over the dispatcher.
 - `cmd/ze/hub/register_fleet_ui_estate.go` - `ze_web && ze_fleet_ui && !ze_fleet_ui_sample` blank import.
@@ -483,13 +545,35 @@ until then the main thread runs this one locally as an owed command.
 - `internal/component/web/fleetui/sample/register/register_test.go`
 - `test/web/fleet-estate-live.wb` - the live-estate browser test (AC-11).
 
+## Design presentation
+
+### What changes
+
+Use the registered estate source to populate the tree, devices table, filter results and detail panel from the authenticated hub. Optional report parts add their sections without enabling sample data on a real install.
+
+### Before and after
+
+A device labelled site=west appears under West and in the matching table on the same request. Editing a label stages a change; a successful commit and refresh move it to its new group. If health reporting is unavailable the table keeps the device and explains the missing health field.
+
+### Alternatives set aside
+
+A browser-owned copy of the whole estate would duplicate visibility and filtering rules. Making every source part mandatory would remove useful inventory views on installations lacking history.
+
+### Documents departed from
+
+`docs/architecture/fleet-interface.md`, The devices table, currently shows filter errors above the unfiltered table. After applying a valid filter, a typo will keep those matching rows visible and show the error. On a fresh URL without a prior valid filter it shows the unfiltered authorized rows.
+
+### Choices for Thomas
+
+The one-second p95 for 2,000 devices is a proposed acceptance target. Record the host, query mix, response size and latency separately for the initial tree, table and filter.
+
 ## Implementation Steps
 
 1. **Phase: Fleet interface parts (moved from `fleet-1`'s Phase 8)** - one slot per part, join, not-available markers in `ReadSnapshot` and the pages, sample registers every part, estate part over the dispatcher
    - Tests: `source_parts_test.go` (every test of AC-12 to AC-14), `estate_test.go`, `TestSampleRegistersEveryPart`, `TestFleetDevicesMaxAgreesWithManagedClientsMax`, `fleet-estate-live.wb` (AC-11), the existing sample `.wb` suite unchanged (AC-15)
    - Verify: the browser test is red before the estate part is registered (the routes do not mount) and green after, run with `./le test functional web`
 2. **Phase: Inventory-health and latest-sample parts** - over `fleet-4`'s and `fleet-8`'s commands (AC-16, AC-17)
-3. **Phase: Tree, table, filters, bulk actions, side panel** - [pending design: AC-1 to AC-7]
+3. **Phase: Tree, table, filters, bulk actions, side panel** - connect the existing filter, pagination and selection handlers to the authorized registry snapshot. Exercise malformed filters, two different page sizes, stale selected targets on commit, and URL restoration after navigation
 
 ## Checklist
 

@@ -2,7 +2,7 @@
 
 | Field | Value |
 |-------|-------|
-| Status | skeleton |
+| Status | design |
 | Scope | web, fleet |
 | Priority | P3 |
 | Release reason | Adds a capability absent from the supported release; existing supported behavior and its obligations remain required. |
@@ -240,6 +240,23 @@ with the alarm pages.
 ### Transformation Path
 1. The page asks its part through the dispatcher-backed source.
 2. A change is staged in the operator's candidate and committed through the existing path.
+
+### Changed-Wire Census
+
+**Search evidence:** Searched the fleet page and templ form writers, route construction, JavaScript, the general web editor, managed divergence commands, managed .ci tests, browser .wb tests and shell/Python carriers for manageActionAnswer, configTextFragment, rolloutPreviewFragment, auditExport, divergenceDiff, hx-post and client-<name>.conf. The current prototype form and the real masked daemon diff confirm both ends before the live wiring. The new device editor is a proposed scoped HTTP binding over present storage semantics.
+
+| Wire | Role (writer / reader) | Carrier (file + producer/consumer symbol or script entry) | Source evidence | Migration or preservation disposition |
+|------|------------------------|-----------------------------------------------------------|-----------------|----------------------------------------|
+| Fleet device editor | writer | Device Config tab and `internal/component/web/fleetui/page_config.templ` manage form; authenticated browser | The existing form submits the selected action to its server URL. Current prototype actions return a toast. | Carry a validated fleet device identity, an isolated candidate handle and its expected version on mutation. Never accept an arbitrary filename. |
+| Fleet device editor | reader | `internal/component/web/fleetui/register.go` mustRegisterRoute, `handler_config.go` manageActionAnswer and the planned target factory over `web/editor.go` | The registered route previously ignored RouteDeps; the general manager manages the hub’s own file. | The fleet binding checks session, target and action at every call and routes to the guarded client-file candidate. The general manager keeps its existing scope. |
+| Managed desired configuration | writer | Target-scoped fleet editor commit; the existing named SSH editor, import, restore and adopt writers described in fleet-config.md | The active client file keys the configuration the next fetch will serve. The existing write observer drives notification. | Add the confirmed first or subsequent device-tab commit. Keep existing version guards, secret masking and delivery semantics. |
+| Managed desired configuration | reader | `internal/component/plugin/server/managed.go` HandleConfigFetch, managed registry/version readers, DeviceConfigPart and the named file editor | The hub already serves selected desired bytes and tracks actual replies separately. | Use actual version and fetch/ACK/hold evidence. Editing an offline device cannot produce an applied result. |
+| Held configuration diff and resolution | writer | `internal/component/managed/cmd_divergence_show.go` divergenceDiff and divergenceChanges; the confirmation form for guarded adopt and revert | The daemon produces schema-masked structural rows and the operator’s compared versions. | Use the structured result and retain both compared versions where the resolution command requires them. |
+| Held configuration diff and resolution | reader | Fleet DivergencePart and `handler_config.go`; daemon handlers in `internal/component/managed/cmd_divergence.go`; CLI/API recipients | The Config tab displays a diff, and the command owner checks the held version before a change. | Surface permission and stale-version refusals. Browser HTML and exports carry only the masked diff. |
+| Rollout and administration actions | writer | `page_rollouts.templ` and `handler_rollouts.go` rolloutControls and rolloutStart; `handler_admin.go` and the manage forms | The forms already identify preview/action subjects and selected targets. | Keep the form and confirmation flow; submit the authenticated command or approved configuration target. |
+| Rollout and administration actions | reader | `handler_rollouts.go` rolloutPreviewFragment, `handler_config.go` manageActionAnswer and the corresponding managed command/config owner | Today the preview reads current device views. The mutation path is currently demonstrative. | Use the same preview and named version as the dispatcher; bind writes to the authorized actor and selected devices. |
+| Audit export | writer | `internal/component/web/fleetui/handler_audit.go` auditExport.ServeHTTP, writeAuditCSV and writeAuditJSON | The handler selects CSV or JSON and serializes entries through its bounded export path. | Apply the same authorized query as the page, mask secrets and preserve documented size and escaping rules. |
+| Audit export | reader | Browser download links from auditExports and external CSV/JSON readers | The current structured download is exposed by the export route; callers can consume either representation. | Preserve columns, JSON field spellings and escaping for existing clients while drawing rows from the real audit owner. |
 
 ### Boundaries Crossed
 | Boundary | How | Verified |

@@ -10,7 +10,7 @@
 | Depends | spec-fleet-0-umbrella.md |
 | Phase | - |
 | Handoff | - |
-| Updated | 2026-11-23 |
+| Updated | 2026-11-25 |
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.
 

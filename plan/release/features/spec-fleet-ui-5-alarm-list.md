@@ -2,7 +2,7 @@
 
 | Field | Value |
 |-------|-------|
-| Status | skeleton |
+| Status | design |
 | Scope | fleet, cli |
 | Priority | P2 |
 | Release reason | Thomas put the fleet alarm list in the first release, reached through its commands on every command surface (`ai/META-DECISIONS.md`, "Goal and scope"); existing supported behavior and its obligations remain required. Its pages, the hub's task model and panel, notifications and live page updates come after the first release, in `plan/post-release/features/spec-fleet-ui-9-tasks-notifications-and-alarm-pages.md`. |
@@ -224,7 +224,17 @@ which names this spec as the source of each.
 5. Authorize scope before filtering, sorting and counting. Propose a page of up to 1,024 open occurrences (including hidden ones) and up to 512 history results per page; the existing optional web interface has those bounds. Return a stable continuation tied to the authorized caller, filters, ordering and snapshot, together with its full matching total and severity and visibility counts. Consume every page to enumerate all matching occurrences, even when 2,000 devices disconnect. A new occurrence cannot displace an older one in an existing listing. Recheck access on every continuation; a changed grant, changed filter or expired snapshot requires an explicit restart. Headings and badges use the counts across all authorized pages.
 6. Propose a seven-day episode horizon, up to 512 retained closed episodes per device and 65,536 across the hub. Evict the oldest closed episode first under pressure, expose the earliest retained time and truncation, and preserve the opening identity of every active condition. Retain a cause's overlap for the retained portion of a dependent episode, or mark earlier visibility unknown when required evidence was evicted. Fleet-ui-8 derives hidden intervals from occurrence history without storing a parallel hidden flag.
 
-### Changed-wire census
+### Changed-Wire Census
+
+**Search evidence:** Searched the tracked Go, templates, JS, CLI fixtures and web test data for show fleet alarm, AlarmEvent, AlarmHistoryMax and AlarmsMax. The current bound is in source_activity.go; scopedAlarms renders the resulting rows and sample/activity.go already produces sample events. The first-release daemon command and persistent alarm record are new.
+
+| Wire | Role (writer / reader) | Carrier (file + producer/consumer symbol or script entry) | Source evidence | Migration or preservation disposition |
+|---|---|---|---|---|
+| open-alarm and alarm-history answers | writer | managed/cmd_alarms.go registered query handlers; plugin/server/managed_alarms.go occurrence snapshots and cursor generation | source_activity.go defines the later Alarm/AlarmEvent consumer vocabulary. | Return authorized total and severity/visibility counts, stable occurrence IDs, timestamp and a bounded page with cursor. |
+| same | reader | CLI, SSH, REST, MCP, gRPC and web command dispatchers; later fleetui/source_activity.go, handler_alarms.go scopedAlarms and per-device history page; external operator clients | Page bounds, the sample activity producer and fleet dashboard tests are existing controls. | Read all pages of the same authorized snapshot; restart a listing on an expired or invalidated continuation. |
+| alarm occurrence shards and declaration timing | writer | plugin/server/managed_alarms.go serialized transitions; managed_apply.go accepted declaration generation; managed_registry.go admission and disconnect events | ManagedServerConfig.Store is borrowed from the daemon. | Persist the occurrence with its time and declaration generation in bounded versioned shards. |
+| same | reader | plugin/server/managed_alarms.go startup/reconciliation before deadline evaluation; history query snapshot | Restart must preserve opening IDs and the original grace start. | An old store without declaration timing begins at the first recorded observation. Reject corrupt shards and expose degraded evidence. |
+
 
 `show fleet alarm` and `show fleet alarm history device <name>` publish the same daemon answer through the CLI, SSH, REST, gRPC, MCP and the web command line. The typed web adapter in `internal/component/web/fleetui/source_activity.go` consumes the result when the later pages ship. Its answer bounds limit the rows returned per page. The cursor, authorized total and severity and visibility counts describe the complete filtered snapshot. Exercise a second page on the same snapshot while another incident opens, permission loss between reads, and an estate larger than the first page. These commands read the hub’s facts. Device registration, health reporting and sampling retain their own managed protocol owners.
 
