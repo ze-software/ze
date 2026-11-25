@@ -19,8 +19,11 @@ import (
 	// The areas whose lines the piped-command tests and the recorded verdict
 	// table judge: `verify current`, `verify worktree`, `verify changed`,
 	// `verify deps unit-cached` and `go lint run`. Each declares its heavy
-	// actions on its own rows, and none imports this package.
+	// actions on its own rows, and none imports this package. `go symbols`
+	// is linked for the light line a subagent types to locate code
+	// (TestSubagentLightCommandsPass), so that verdict reads its real table.
 	_ "github.com/ze-software/ze/internal/le/go/lint"
+	_ "github.com/ze-software/ze/internal/le/go/symbols"
 	_ "github.com/ze-software/ze/internal/le/verify"
 	_ "github.com/ze-software/ze/internal/le/verify/deps"
 )

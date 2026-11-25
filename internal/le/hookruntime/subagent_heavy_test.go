@@ -329,6 +329,7 @@ func TestSubagentLightCommandsPass(t *testing.T) {
 		`git log --oneline -3`,
 		identityLineOfAgent + `grep -n 'go build ./cmd/ze' f`,
 		identityLineOfAgent + `gopls symbols x.go`,
+		identityLineOfAgent + `./le go symbols list path internal/le/hookruntime/session.go`,
 		identityLineOfAgent + `go version`,
 		identityLineOfAgent + `./le exec go version`,
 		identityLineOfAgent + `go env GOFLAGS`,

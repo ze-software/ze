@@ -9,7 +9,9 @@ This page says how each one works.
 
 ## Resolving a Go symbol
 
-There are two routes to one server, and they give the same answers.
+The map of one file comes from `./le go symbols list path <file>`, in every
+context. Every other symbol question goes to a symbol server, and there are
+two routes to it, which give the same answers.
 
 1. The agent LSP tool, when the harness serves it. Load it with
    `ToolSearch query="select:LSP"`.
@@ -22,9 +24,9 @@ mean the capability is absent: run `gopls` instead.
 
 ### Which operation answers which question
 
-| Question | LSP tool operation | `gopls` command | What comes back |
-|----------|--------------------|-----------------|-----------------|
-| What is in this file? | `documentSymbol` | `gopls symbols <file>` | every symbol with its line range: the map you would otherwise read the whole file to build |
+| Question | LSP tool operation | Command line | What comes back |
+|----------|--------------------|--------------|-----------------|
+| What is in this file? | none: use the command line | `./le go symbols list path <file>` | every symbol with its position: the map you would otherwise read the whole file to build |
 | What does this one symbol declare or say? | `goToDefinition`, then `hover` | `gopls definition <file>:<line>:<col>` | the declaration and its doc comment, without the file around it |
 | Who calls this? | `findReferences` | `gopls references <file>:<line>:<col>` | every call site as file plus line. `grep` on a common name returns the comments and the string literals too |
 | Who calls this, and from inside WHICH function? | `callHierarchy` | `gopls call_hierarchy <file>:<line>:<col>` | each caller's range AND the enclosing function that `references` leaves you to work out |
@@ -33,39 +35,54 @@ mean the capability is absent: run `gopls` instead.
 
 ### The two-step recipe
 
-`gopls symbols` prints one line per symbol as `Name Kind <line>:<col>-<line>:<col>`.
-That `<line>:<col>` is exactly what `definition`, `references` and
+`./le go symbols list path <file>` prints one line per symbol as
+`Name Kind <line>:<col>-<line>:<col>`, the lines the language server's
+document symbols give. A method is named with its receiver, as
+`(*List[T]).Push`. The fields of a struct and the methods and embedded types
+of an interface follow their type, one tab in and sorted by name. The kind is
+one of `Function`, `Method`, `Struct`, `Interface`, `Class` (any other named
+type, an alias included), `Field`, `Constant` and `Variable`. That
+`<line>:<col>` is exactly what `definition`, `references` and
 `call_hierarchy` take. Find the symbol in step one, ask about it in step two.
 Never guess a position.
+<!-- source: internal/le/go/symbols/symbols.go -- List, Kind -->
+<!-- source: internal/le/go/symbols/actions.go -- Report.Text -->
 
 ```
-$ gopls symbols internal/component/bgp/config/resolve.go
-ResolveBGPTree Function 43:6-43:20
-$ gopls definition internal/component/bgp/config/resolve.go:43:6
-.../resolve.go:43:6-43:20: defined here as func ResolveBGPTree(tree *config.Tree) (map[string]any, error)
+$ ./le go symbols list path internal/component/bgp/config/resolve.go
+ResolveBGPTree Function 58:6-58:20
+$ gopls definition internal/component/bgp/config/resolve.go:58:6
+.../resolve.go:58:6-20: defined here as func ResolveBGPTree(tree *config.Tree) (map[string]any, error)
 ResolveBGPTree resolves peer-group inheritance and returns the bgp block as map[string]any.
-$ gopls references internal/component/bgp/config/resolve.go:43:6
-.../loader_create.go:274:28-42
-.../peers.go:53:18-32
+$ gopls references internal/component/bgp/config/resolve.go:58:6
+.../bfd_strict_doctor.go:91:18-32
+.../loader_create.go:334:19-33
 ```
 
 Positions are 1-based, and the column is the start of the identifier rather
-than the start of the line. A `func` declaration puts its name at column 6.
+than the start of the line, counted in UTF-16 code units as the language
+server counts. A `func` declaration puts its name at column 6.
+
+The map is read from the file's syntax tree alone, so a file that does not
+parse is refused with the parser's error, and a path that names no Go file is
+refused with the command that lists the Go files near it.
+<!-- source: internal/le/go/symbols/actions.go -- load -->
 
 ### What it costs
 
-A `symbols` map of a large file is an order of magnitude smaller than the file.
+A symbol map of a large file is an order of magnitude smaller than the file.
 Measure it for any file rather than trusting a frozen number, because both
 sides grow:
 
 ```
-gopls symbols <file> | wc -c ; wc -c < <file>
+./le go symbols list path <file> | wc -c ; wc -c < <file>
 ```
 
-Every invocation starts a fresh server and loads the workspace, so budget
-seconds rather than milliseconds. A 60-second timeout is generous. Several
-independent `gopls` questions belong in one message, as with any independent
-calls.
+The map parses one file and loads no package. A `gopls` command starts a
+fresh server and lists every package of the module before it answers, so
+budget about ten seconds for each: that listing is why the map does not go
+through `gopls`. A 60-second timeout is generous. Several independent `gopls`
+questions belong in one message, as with any independent calls.
 
 ### Why `gopls mcp` is not registered
 

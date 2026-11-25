@@ -338,8 +338,7 @@ gopls sees the patch when it starts with that environment: gopls v0.23.0, run
 under the tree, reported no error at the constant. A gopls daemon shared between
 editors keeps the environment of whichever client started it. Started from a
 shell without the tree, it reports `undefined: tls.ZeServerChoosesSessionID` at
-the reference, while navigation, `gopls symbols`, definitions and references
-still work. Start the daemon from a shell that has the three exports, or expect
+the reference, while navigation, definitions and references still work. Start the daemon from a shell that has the three exports, or expect
 that one diagnostic.
 
 `./le exec gopls` does the exports for you: run from inside the checkout, it

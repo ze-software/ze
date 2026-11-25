@@ -18,16 +18,17 @@ and where. When it needs a fan-out, report the packages. The main thread owns
 both decisions.
 
 You run no test, build, lint, formatter or other code. Bash is yours for
-readers, git read verbs, `gopls` and `./le help`, and the Bash hook refuses the
-rest from a subagent.
+readers, git read verbs, `gopls`, `./le go symbols list` and `./le help`, and
+the Bash hook refuses the rest from a subagent.
 When a finding needs a run to confirm it, end your report with an `Owed
 commands` list: each exact command line, what it proves and the result you
 expect. The main thread runs it.
 
-**You hold no LSP tool, so every symbol question goes to `gopls` from Bash.**
+**You hold no LSP tool, so every symbol question past the file map goes to `gopls` from Bash.**
 This is the second of the two routes `ai/rules/context-economy.md` names, not a
-missing capability: same server, same answers. `gopls symbols <file>` maps a
-file and costs about a tenth of reading it. Never read a whole file to hunt for
+missing capability: same server, same answers. `./le go symbols list path <file>`
+maps a file from its syntax alone, with no package loaded, and costs about a
+tenth of reading it. Never read a whole file to hunt for
 a symbol, and never report that you cannot look.
 
 **You start without the project instruction files** (`omitClaudeMd` above), so

@@ -24,6 +24,7 @@ Ask the question from Bash instead
 | What does package X do? (one line each, all ~1,060 packages) | `ai/PACKAGE-MAP.md` |
 | Which `.go` files implement design doc Y? | `ai/DOCS-TO-CODE.md` (inverse of the per-file `// Design:` headers) |
 | Which docs describe code path Z? | `ai/CODE-TO-DOCS.md` (inverse of doc `<!-- source: -->` anchors) |
+| What symbols does Go file F declare, and at which positions? | `./le go symbols list path <file>`, read from the file alone with no package loaded; the positions feed `gopls definition` and `gopls references` (`docs/contributing/navigating-the-code.md`) |
 | Why is the code shaped this way? | `plan/learned/DESIGN-HISTORY.md` |
 | Which problems recur? | `plan/journal/` (one file per class; `./le spec journal report` prints classes with 2+ rows, their open rows and capture; a class is due when its rows counted since its capture reach the threshold the report prints, and due classes come first) |
 | Which rule covers a topic? | `ai/rules/TRIGGERS.md` |

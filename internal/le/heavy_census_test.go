@@ -81,6 +81,8 @@ var heavyCensus = []censusArea{
 	{area: "spec current"},
 	{area: "commit"},
 	{area: "test weakened"},
+	// It reads one Go file, and a subagent locates code with it.
+	{area: "go symbols"},
 }
 
 // TestCensusActionsDeclareHeavy asks whether every action the census calls
@@ -223,6 +225,7 @@ func TestCensusActionsDeclareHeavy(t *testing.T) {
 		{"test unit all --help", false},
 		{"test functional --help", false},
 		{"go lint run --help", false},
+		{"go symbols list path internal/le/register.go", false},
 	} {
 		if got := leroot.HeavyLine(strings.Fields(row.line)); got != row.heavy {
 			t.Errorf("HeavyLine(%q) = %v, want %v", row.line, got, row.heavy)

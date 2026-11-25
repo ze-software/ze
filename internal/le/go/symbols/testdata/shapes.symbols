@@ -1,0 +1,62 @@
+Color Class 10:6-10:11
+Red Constant 13:2-13:5
+Green Constant 14:2-14:7
+Blue Constant 16:2-16:6
+a Constant 19:7-19:8
+b Constant 19:10-19:11
+𝒳 Variable 21:5-21:7
+yy Variable 21:9-21:11
+ünï Variable 23:5-23:8
+grouped Variable 27:5-27:12
+	Mutex Field 28:7-28:12
+	inner Field 29:2-29:7
+	n Field 33:2-33:3
+plain Variable 36:5-36:10
+empty Variable 38:5-38:10
+Shape Interface 40:6-40:11
+	Area Method 44:2-44:6
+	Perimeter Method 45:2-45:11
+	Reader Field 41:5-41:11
+	comparable Field 42:2-42:12
+	~int | ~string Field 43:2-43:16
+Empty Interface 48:6-48:11
+Literal Interface 50:6-50:13
+	struct{x int} | interface{M()} Field 51:2-51:36
+List Struct 54:6-54:10
+	Pair Field 57:2-57:6
+	RWMutex Field 55:8-55:15
+	Writer Field 56:5-56:11
+	Z Field 60:5-60:6
+	_ Field 59:2-59:3
+	aa Field 60:8-60:10
+	fn Field 63:2-63:4
+	head Field 58:2-58:6
+	iface Field 62:2-62:7
+	nested Field 61:2-61:8
+	tail Field 58:8-58:12
+	z Field 60:2-60:3
+Pair Struct 66:6-66:10
+	key Field 67:2-67:5
+	val Field 68:2-68:5
+node Struct 71:6-71:10
+	v Field 71:26-71:27
+Alias Class 73:6-73:11
+GenericAlias Class 75:6-75:18
+StructAlias Struct 77:6-77:17
+	s Field 77:28-77:29
+Handler Function 79:6-79:13
+Lookup Class 81:6-81:12
+Ptr Class 83:6-83:9
+One Class 88:2-88:5
+Two Struct 89:2-89:5
+	a Field 89:16-89:17
+Three Interface 90:2-90:7
+	M Method 90:19-90:20
+(*List[T]).Push Method 93:19-93:23
+(List[T]).Len Method 95:18-95:21
+(*Pair[K, V]).Key Method 97:22-97:25
+(Color).String Method 99:14-99:20
+(*Color).Set Method 101:17-101:20
+Map Function 105:6-105:9
+multi Function 107:6-107:11
+Moved Function 113:6-113:11

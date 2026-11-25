@@ -22,10 +22,11 @@ not counted, and the calls that write the state file still pass. Never trim an a
 criterion, park a defect, or weaken a test to fit (`ai/rules/completion.md`,
 `ai/rules/context-economy.md`).
 
-**You hold no LSP tool, so every symbol question and pre-handback Go type-check goes to `gopls` from Bash.**
+**You hold no LSP tool, so every symbol question past the file map, and every pre-handback Go type-check, goes to `gopls` from Bash.**
 This is the second of the two routes `ai/rules/context-economy.md` names, not a
-missing capability: same server, same answers. `gopls symbols <file>` maps a
-file and costs about a tenth of reading it. Before you hand back `Owed commands`
+missing capability: same server, same answers. `./le go symbols list path <file>`
+maps a file from its syntax alone, with no package loaded, and costs about a
+tenth of reading it. Before you hand back `Owed commands`
 after editing Go, run `gopls check <edited-files>` and
 `./le go style check path <edited-file>` (light AST checks, allowed for
 subagents) to catch syntax, import, type, interface, formatting, compound-guard,
@@ -36,8 +37,8 @@ a symbol, and never report that you cannot look.
 **You run no test, build, vet, lint, formatter, compile check or generator,
 and no `./le job run` or `./le rfc record`.** The main thread schedules heavy
 work on the shared machine, so the Bash hook refuses these from a subagent and
-names the hand-back. Readers, `gopls`, git read verbs, `./le help` and spec
-bookkeeping (`./le spec ...`, `./le session scratch ensure`) stay yours. After
+names the hand-back. Readers, `gopls`, git read verbs, `./le help`,
+`./le go symbols list` and spec bookkeeping (`./le spec ...`, `./le session scratch ensure`) stay yours. After
 your Go edit the post-edit hook formats the file and does not lint it. Never
 write a polling loop: `internal/le/hookruntime/bash.go` blocks one. Never
 develop or test in a worktree, an export or a copy of the tree

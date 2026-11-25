@@ -12,7 +12,7 @@ one answer.
 ## Resolving symbols before the spawn
 
 What you buy is paying the resolution ONCE rather than once per agent, and it
-is worth buying. When this was measured, `gopls symbols` on
+is worth buying. When this was measured, the symbol map of
 `internal/component/ike/engine/fsm.go` cost 1,297 bytes against 44,164 for the
 file (34.1x), and an agent given a bare file name that resolves nothing reads
 all of it.

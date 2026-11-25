@@ -78,8 +78,9 @@ phase itself.
   step runs a test, a lint, a compile check or `./le rfc record`, list the
   command under `Owed commands` in your report instead of running it. When an
   earlier phase already did steps 1-3, take what it FOUND from the state file
-  rather than re-deriving it. To place a symbol your prompt did not resolve, use
-  the LSP tool if your registry carries it and `gopls symbols` / `definition` /
+  rather than re-deriving it. To place a symbol your prompt did not resolve, map
+  its file with `./le go symbols list path <file>`, then ask about the position
+  with the LSP tool if your registry carries it and `gopls definition` /
   `references` from Bash if it does not, rather than reading whole files to hunt
   for it. You cannot ask the user. When you hit a
   STOP-and-ask condition, halt and put the question in your report for the main

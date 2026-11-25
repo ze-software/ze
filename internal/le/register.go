@@ -81,6 +81,7 @@ import (
 	_ "github.com/ze-software/ze/internal/le/go/stdpatch"
 	"github.com/ze-software/ze/internal/le/go/stdpatch/gen"
 	_ "github.com/ze-software/ze/internal/le/go/style"
+	_ "github.com/ze-software/ze/internal/le/go/symbols"
 	_ "github.com/ze-software/ze/internal/le/go/versionpin"
 	_ "github.com/ze-software/ze/internal/le/go/vetplatforms"
 	_ "github.com/ze-software/ze/internal/le/job"
