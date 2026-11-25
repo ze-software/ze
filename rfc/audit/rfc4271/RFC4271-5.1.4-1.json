@@ -1,5 +1,5 @@
 {
-  "note": "Independent rejudgment of RFC 4271 Section 5.1.4: \"The MULTI_EXIT_DISC attribute received from a neighboring AS MUST NOT be propagated to other neighboring ASes.\" Verified all existing tagged units (forward_med_test.go, med-not-propagated-across-as.ci, med-locally-set-reaches-peer.ci, checkMEDAcrossAS) and the three new post-Established eBGP origination negative units in rfc4271_originated_med_established_test.go (TestRFC4271OriginatedMEDEstablishedWriteAnnounceUpdate, TestRFC4271OriginatedMEDEstablishedBuildUnicast, TestRFC4271OriginatedMEDEstablishedPlanBatchAttrs). applyFactsMED strips unchanged received MED on ordinary eBGP while retaining iBGP, RS-client, and policy-originated metrics; the three new negatives verify exact wire MED (42 and 0) on Established eBGP sessions through writeAnnounceUpdate, UpdateBuilder.BuildUnicast, and planBatchAttrs.",
+  "note": "Independent re-judgment on 2026-11-25 against RFC 4271 Section 5.1.4 ('The MULTI_EXIT_DISC attribute received from a neighboring AS MUST NOT be propagated to other neighboring ASes.'). Reviewed all diffs since the prior verdict across med-locally-set-reaches-peer.ci (bus endpoint migration; exact API announce and wire hex with MED 80040400000064 unchanged) and med-not-propagated-across-as.ci (bus migration routing rs-client-receiver via bgp-rs and plain-ebgp-receiver via bgp-rib with local 127.0.0.13, option=needs-linux, and comment wording in 1f82b2727d). Verified conn=3's exact expected wire hex byte-for-byte: 51 octets carrying ORIGIN(IGP), AS_PATH([65000,65001]), NEXT_HOP(127.0.0.13), NLRI(10.0.0.0/24), and NO attribute 4 (MED), while conn=2 (rs-client true) still expects the exact source frame carrying MED 100. All Go unit tests and checkMEDAcrossAS are unchanged. Enforcement is unchanged.",
   "requirement_sha": "5d956ce89d316bad",
   "tests": {
     "internal/component/bgp/reactor/forward_med_test.go::TestForwardKeepsFilterSetMED": "e2ddf92a893ba162",
@@ -12,9 +12,9 @@
     "internal/component/bgp/reactor/rfc4271_originated_med_established_test.go::TestRFC4271OriginatedMEDEstablishedWriteAnnounceUpdate": "343a6c83e54f9088",
     "internal/le/interoplab/bgp/check_rfc.go::checkMEDAcrossAS": "7aa0ef34755a56dc",
     "internal/le/interoplab/bgp/check_rfc.go::checkMEDAcrossAS#2": "7aa0ef34755a56dc",
-    "test/plugin/med-locally-set-reaches-peer.ci": "c9cecb80fb2bab3a",
-    "test/plugin/med-not-propagated-across-as.ci": "645c67f92099c212",
-    "test/plugin/med-not-propagated-across-as.ci#2": "645c67f92099c212"
+    "test/plugin/med-locally-set-reaches-peer.ci": "89e9885941ae02a4",
+    "test/plugin/med-not-propagated-across-as.ci": "2a620a7d4e8175b0",
+    "test/plugin/med-not-propagated-across-as.ci#2": "2a620a7d4e8175b0"
   },
   "units": {
     "internal/component/bgp/reactor/forward_med_test.go::TestForwardKeepsFilterSetMED": "afe9a59e7f10d739",
@@ -27,9 +27,9 @@
     "internal/component/bgp/reactor/rfc4271_originated_med_established_test.go::TestRFC4271OriginatedMEDEstablishedWriteAnnounceUpdate": "f7333f6c83b540a9",
     "internal/le/interoplab/bgp/check_rfc.go::checkMEDAcrossAS": "f416657dfdc77c0d",
     "internal/le/interoplab/bgp/check_rfc.go::checkMEDAcrossAS#2": "f416657dfdc77c0d",
-    "test/plugin/med-locally-set-reaches-peer.ci": "c9cecb80fb2bab3a",
-    "test/plugin/med-not-propagated-across-as.ci": "645c67f92099c212",
-    "test/plugin/med-not-propagated-across-as.ci#2": "645c67f92099c212"
+    "test/plugin/med-locally-set-reaches-peer.ci": "89e9885941ae02a4",
+    "test/plugin/med-not-propagated-across-as.ci": "2a620a7d4e8175b0",
+    "test/plugin/med-not-propagated-across-as.ci#2": "2a620a7d4e8175b0"
   },
   "verdict": "enforced"
 }

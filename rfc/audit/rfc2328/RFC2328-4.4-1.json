@@ -4,8 +4,8 @@
   "tests": {
     "internal/plugins/ospf/transport/rfc2328_socket_linux_test.go::TestOSPFMulticastMembershipInstalled": "d5c94aa47f4b6b51",
     "internal/plugins/ospf/transport/rfc2328_socket_linux_test.go::TestOSPFMulticastMembershipRefusesForeignGroup": "d5c94aa47f4b6b51",
-    "internal/plugins/ospf/transport/rfc2328_transport_integration_linux_test.go::TestOSPFTransportAllDRoutersReceive": "2d9164dfb5c1524a",
-    "internal/plugins/ospf/transport/rfc2328_transport_integration_linux_test.go::TestOSPFTransportVethMulticastRoundTrip": "2d9164dfb5c1524a"
+    "internal/plugins/ospf/transport/rfc2328_transport_integration_linux_test.go::TestOSPFTransportAllDRoutersReceive": "060d11de61632731",
+    "internal/plugins/ospf/transport/rfc2328_transport_integration_linux_test.go::TestOSPFTransportVethMulticastRoundTrip": "060d11de61632731"
   },
   "units": {
     "internal/plugins/ospf/transport/rfc2328_socket_linux_test.go::TestOSPFMulticastMembershipInstalled": "3e6caeb689ba2dcb",

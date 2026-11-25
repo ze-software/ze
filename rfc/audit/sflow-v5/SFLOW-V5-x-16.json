@@ -5,8 +5,8 @@
     "internal/plugins/flowexport/sflow/sflow_v5_flow_sampling_test.go::TestSFlowV5UnknownEgressInterfaceIsZero": "c09c030ae4130286",
     "internal/plugins/flowexport/sflow_v5_counters_test.go::TestSFlowV5AvailableCountersNeverTurnUnavailable": "763d88a16419f274",
     "internal/plugins/flowexport/sflow_v5_counters_test.go::TestSFlowV5UnavailableCountersCarrySentinelEveryPoll": "763d88a16419f274",
-    "internal/plugins/flowexport/sflow_v5_register_test.go::TestInterfaceCountersFromExtended": "253a6c8085aa9fb2",
-    "internal/plugins/flowexport/sflow_v5_register_test.go::TestInterfaceCountersFromUnknownSpeed": "253a6c8085aa9fb2"
+    "internal/plugins/flowexport/sflow_v5_register_test.go::TestInterfaceCountersFromExtended": "2197566b789ee477",
+    "internal/plugins/flowexport/sflow_v5_register_test.go::TestInterfaceCountersFromUnknownSpeed": "2197566b789ee477"
   },
   "units": {
     "internal/plugins/flowexport/sflow/sflow_v5_flow_sampling_test.go::TestSFlowV5UnknownEgressInterfaceIsZero": "5b78f29b2dc2278f",

@@ -1,21 +1,21 @@
 {
-  "note": "Re-judged 2026-11-02 by an independent auditor who authored none of the changes named. RFC 9234 Section 5: \"The OTC Attribute is considered malformed if the length value is not 4. An UPDATE message with a malformed OTC Attribute SHALL be handled using the approach of \"treat-as-withdraw\" [RFC7606].\" The earlier weak finding (no tagged unit proved the handling, only the withdraw verdict) is answered by the new tag on test/plugin/role-otc-malformed-treat-as-withdraw.ci (b5990018f7): ze with bgp-role, a Provider source and a Customer dest. Negative: the source's 10.0.0.0/24 with OTC C0 23 04 0000FDE9 must reach the dest as an announcement still carrying that OTC (dest seq 1). Positive: the same prefix re-sent with OTC length 3 must reach the dest as exactly the withdrawal FF..001B020004180A00000000 (dest seq 2) with no attributes, so the earlier announcement is removed on the wire, the RFC 7606 treat-as-withdraw outcome; a reject would leave seq 2 absent, an accept would send an announcement. Isolation: the source is a Provider, so no leak rule rejects either UPDATE, and a length-3 OTC read as absent would be stamped and announced, so only the malformed rule yields the withdrawal; a barrier route makes the dest an established target first. Discrimination: otc.go checkOTCIngress isMalformed disabled reddens the positive, findOTC length check forced true reddens the negative (judged genuine by ze-test-judge this session). Lengths 0, 5 and 8 are proven at the decision level by the byte-identical Go units. Whole requirement now covered: decision and handling. Verdict: enforced (was weak).",
+  "note": "Independent source rejudgment 2026-11-25 against RFC 9234 Section 5 (rfc/full/rfc9234.txt): \"The OTC Attribute is considered malformed if the length value is not 4. An UPDATE message with a malformed OTC Attribute SHALL be handled using the approach of \\\"treat-as-withdraw\\\" [RFC7606].\" Verified all changes since 5063e0e84d: all four Go units (rfc9234_otc_malformed_test.go, rfc9234_otc_test.go) are unchanged; 065e6e2d16 migrated test/plugin/role-otc-malformed-treat-as-withdraw.ci from plugin/attach blocks to bus (bgp-rib, fib dummy, static routes) and added a second synchronization barrier (198.51.100.0/24) so dest confirms receipt of the valid length-4 OTC announcement before source sends the malformed length-3 OTC UPDATE, preventing coalescing before wire flush; 1f82b2727d reworded only the Linux-only netlink comment. Both wire assertions are unchanged: length-4 OTC 65001 reaches dest as an announcement containing C023040000FDE9180A0000 (negative), and length-3 OTC reaches dest as exact withdrawal FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF001B020004180A00000000 (positive). Verdict unchanged: enforced. Source rejudgment only; no test or gate executed.",
   "requirement_sha": "7101647356070194",
   "tests": {
     "internal/component/bgp/plugins/role/rfc9234_otc_malformed_test.go::TestRFC9234OTCOfAnyLengthButFourIsTreatedAsWithdraw": "7c447a92b0d084ce",
     "internal/component/bgp/plugins/role/rfc9234_otc_malformed_test.go::TestRFC9234OTCOfLengthFourIsNotTreatedAsWithdraw": "7c447a92b0d084ce",
     "internal/component/bgp/plugins/role/rfc9234_otc_test.go::TestCheckOTCIngress": "cb38b5c5f2ca8ffc",
     "internal/component/bgp/plugins/role/rfc9234_otc_test.go::TestOTCIngressMalformedTreatAsWithdraw": "cb38b5c5f2ca8ffc",
-    "test/plugin/role-otc-malformed-treat-as-withdraw.ci": "efb66645cd582471",
-    "test/plugin/role-otc-malformed-treat-as-withdraw.ci#2": "efb66645cd582471"
+    "test/plugin/role-otc-malformed-treat-as-withdraw.ci": "91bb4d9d44595005",
+    "test/plugin/role-otc-malformed-treat-as-withdraw.ci#2": "91bb4d9d44595005"
   },
   "units": {
     "internal/component/bgp/plugins/role/rfc9234_otc_malformed_test.go::TestRFC9234OTCOfAnyLengthButFourIsTreatedAsWithdraw": "c9d88290e5b696c1",
     "internal/component/bgp/plugins/role/rfc9234_otc_malformed_test.go::TestRFC9234OTCOfLengthFourIsNotTreatedAsWithdraw": "a7f2b2c7e1461d7b",
     "internal/component/bgp/plugins/role/rfc9234_otc_test.go::TestCheckOTCIngress": "a8f63ea4d0fba230",
     "internal/component/bgp/plugins/role/rfc9234_otc_test.go::TestOTCIngressMalformedTreatAsWithdraw": "aaf52547bfb7bc9a",
-    "test/plugin/role-otc-malformed-treat-as-withdraw.ci": "efb66645cd582471",
-    "test/plugin/role-otc-malformed-treat-as-withdraw.ci#2": "efb66645cd582471"
+    "test/plugin/role-otc-malformed-treat-as-withdraw.ci": "91bb4d9d44595005",
+    "test/plugin/role-otc-malformed-treat-as-withdraw.ci#2": "91bb4d9d44595005"
   },
   "verdict": "enforced"
 }

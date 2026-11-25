@@ -1,14 +1,14 @@
 {
-  "note": "vrrp judge 2026-09-29 re-read after a tag was added to TestEffectivePriorityWithTracking (body unchanged): TestBoundaryPriority accepts 1 and 254 and rejects 0 and 255 through extractGroupSpecs/validateGroups; TestEffectivePriorityWithTracking floors a tracked decrement at 1",
+  "note": "Re-judged 2026-11-25 (independent auditor, after 1f82b2727d): RFC 9568 Section 5.2.4 states \"VRRP Routers backing up a Virtual Router MUST use priority values between 1-254 (decimal).\" TestBoundaryPriority changed only by dropping the removed backendNetlink argument from validateGroups(specs); validateGroup (groups.go:672) and TestEffectivePriorityWithTracking are unchanged. Priorities 1 and 254 are still accepted, 0 and 255 rejected, and runtime tracked decrements floor at 1. Verdict enforced.",
   "requirement_sha": "42188062644e680e",
   "tests": {
-    "internal/plugins/vrrp/groups_test.go::TestBoundaryPriority": "30e27105e8a9f202",
-    "internal/plugins/vrrp/groups_test.go::TestBoundaryPriority#2": "30e27105e8a9f202",
-    "internal/plugins/vrrp/groups_test.go::TestEffectivePriorityWithTracking": "30e27105e8a9f202"
+    "internal/plugins/vrrp/groups_test.go::TestBoundaryPriority": "5a525667dfaed6b3",
+    "internal/plugins/vrrp/groups_test.go::TestBoundaryPriority#2": "5a525667dfaed6b3",
+    "internal/plugins/vrrp/groups_test.go::TestEffectivePriorityWithTracking": "5a525667dfaed6b3"
   },
   "units": {
-    "internal/plugins/vrrp/groups_test.go::TestBoundaryPriority": "fcd4ad07247002db",
-    "internal/plugins/vrrp/groups_test.go::TestBoundaryPriority#2": "fcd4ad07247002db",
+    "internal/plugins/vrrp/groups_test.go::TestBoundaryPriority": "7cf156461e08ce39",
+    "internal/plugins/vrrp/groups_test.go::TestBoundaryPriority#2": "7cf156461e08ce39",
     "internal/plugins/vrrp/groups_test.go::TestEffectivePriorityWithTracking": "0748e903dc3ed0cb"
   },
   "verdict": "enforced"

@@ -1,13 +1,13 @@
 {
-  "note": "Row narrowed 2026-09-30 to the first sentence. The tags prove LoadConfig refuses a ze:validate violation with ErrCustomValidation and no partial tree, and accepts a valid config. \"All validation constraints\" is not met by the stack: a missing mandatory leaf is only a warning (SectionValidationError.Blocking), and when, unique and choice are evaluated nowhere, so a final datastore content violating those is accepted. Owner ruling 4: carried by spec-config-yang-when-unique-choice AC-2.",
+  "note": "Independent source rejudgment 2026-11-25 against RFC 7950 Section 8.3.3 (rfc/full/rfc7950.txt): \"When datastore processing is complete, the final contents MUST obey all validation constraints.\" Verified changes in internal/component/config/rfc7950_datastore_test.go since dcc219072a: e0d8562d69 migrated TestRFC7950RunningDatastoreRefusesAViolationAfterParse from retired plugin/internal/use to bus/endpoint/internal (which carries ze:validate \"internal-plugin-name\" in ze-plugin-conf.yang), and 1f82b2727d updated validRunningConfig from retired \"backend netlink;\" to \"backend kernel;\" (matching ze-iface-conf.yang default \"kernel\"). Both tests still prove LoadConfig accepts a valid config and refuses a ze:validate violation with ErrCustomValidation and no partial tree, but \"all validation constraints\" remains unenforced for when, unique, and choice exclusivity (spec-config-yang-when-unique-choice). Verdict unchanged: weak. Source rejudgment only; no test or gate executed.",
   "requirement_sha": "177fcc9174244517",
   "tests": {
-    "internal/component/config/rfc7950_datastore_test.go::TestRFC7950RunningDatastoreAcceptsAValidConfig": "881ae8cd8e73bade",
-    "internal/component/config/rfc7950_datastore_test.go::TestRFC7950RunningDatastoreRefusesAViolationAfterParse": "881ae8cd8e73bade"
+    "internal/component/config/rfc7950_datastore_test.go::TestRFC7950RunningDatastoreAcceptsAValidConfig": "b2af7db5141d35cf",
+    "internal/component/config/rfc7950_datastore_test.go::TestRFC7950RunningDatastoreRefusesAViolationAfterParse": "b2af7db5141d35cf"
   },
   "units": {
     "internal/component/config/rfc7950_datastore_test.go::TestRFC7950RunningDatastoreAcceptsAValidConfig": "a4dd1bf5400ad5d7",
-    "internal/component/config/rfc7950_datastore_test.go::TestRFC7950RunningDatastoreRefusesAViolationAfterParse": "cd1fa735402534b4"
+    "internal/component/config/rfc7950_datastore_test.go::TestRFC7950RunningDatastoreRefusesAViolationAfterParse": "7eb6d4af79b2f4c6"
   },
   "verdict": "weak"
 }

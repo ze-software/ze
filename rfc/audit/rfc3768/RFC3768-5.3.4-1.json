@@ -1,17 +1,17 @@
 {
-  "note": "vrrp judge 2026-09-29 (independent): TestV2OwnerRunsAtPriority255 extracts a group with version 2 and fatals unless Version reached the spec as v2; the owner configured at 120 must have EffectivePriority 255 under decrements 0, 1, 119 and 4064 and must advertise Priority 255 on startup; a v2 non-owner keeps 120 (negative). Records: revert EffectivePriority, both polarities, observed red.",
+  "note": "Re-judged 2026-11-25 (independent auditor, after 1f82b2727d): RFC 3768 Section 5.3.4 states \"The priority value for the VRRP router that owns the IP address(es) associated with the virtual router MUST be 255 (decimal).\" TestV2OwnerRunsAtPriority255 changed only by dropping the removed backendNetlink argument from validateGroups([]GroupSpec{owner}) after backend compatibility moved to the config component's engine-owned walk; TestOwnerAutoDetection is unchanged. TestV2OwnerRunsAtPriority255 still asserts Version == 2, IsOwner == true, EffectivePriority == 255 across decrements 0/1/119/4064, startup advert Priority 255, and the v2 non-owner negative keeping priority 120. Verdict enforced.",
   "requirement_sha": "10a546502ef3e667",
   "tests": {
-    "internal/plugins/vrrp/groups_test.go::TestOwnerAutoDetection": "30e27105e8a9f202",
-    "internal/plugins/vrrp/groups_test.go::TestOwnerAutoDetection#2": "30e27105e8a9f202",
-    "internal/plugins/vrrp/rfc3768_v2_group_test.go::TestV2OwnerRunsAtPriority255": "8b5d8c7a41e8e18e",
-    "internal/plugins/vrrp/rfc3768_v2_group_test.go::TestV2OwnerRunsAtPriority255#2": "8b5d8c7a41e8e18e"
+    "internal/plugins/vrrp/groups_test.go::TestOwnerAutoDetection": "5a525667dfaed6b3",
+    "internal/plugins/vrrp/groups_test.go::TestOwnerAutoDetection#2": "5a525667dfaed6b3",
+    "internal/plugins/vrrp/rfc3768_v2_group_test.go::TestV2OwnerRunsAtPriority255": "4f33fc505f21e0c7",
+    "internal/plugins/vrrp/rfc3768_v2_group_test.go::TestV2OwnerRunsAtPriority255#2": "4f33fc505f21e0c7"
   },
   "units": {
     "internal/plugins/vrrp/groups_test.go::TestOwnerAutoDetection": "47246169c047d639",
     "internal/plugins/vrrp/groups_test.go::TestOwnerAutoDetection#2": "47246169c047d639",
-    "internal/plugins/vrrp/rfc3768_v2_group_test.go::TestV2OwnerRunsAtPriority255": "e1b5fe735db9c117",
-    "internal/plugins/vrrp/rfc3768_v2_group_test.go::TestV2OwnerRunsAtPriority255#2": "e1b5fe735db9c117"
+    "internal/plugins/vrrp/rfc3768_v2_group_test.go::TestV2OwnerRunsAtPriority255": "242f8247fdb6e201",
+    "internal/plugins/vrrp/rfc3768_v2_group_test.go::TestV2OwnerRunsAtPriority255#2": "242f8247fdb6e201"
   },
   "verdict": "enforced"
 }

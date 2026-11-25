@@ -1,15 +1,15 @@
 {
-  "note": "TestValidateIPv6LinkLocal refuses a global-first IPv6 group and accepts a link-local-first one (transmit side); TestValidationOrder row 13 rejects a received global-first advert with ErrFirstNotLinkLocal",
+  "note": "Re-judged 2026-11-25 (independent auditor, after 1f82b2727d): RFC 9568 Section 5.2.9 states \"For IPv6, the first address MUST be the IPv6 link-local address associated with the Virtual Router.\" TestValidateIPv6LinkLocal changed only by dropping the removed \"netlink\" argument from validateGroups(specs); validateGroup (groups.go:693), TestDecodeGoldenV3IPv6, and TestValidationOrder are unchanged. Transmit config validation still refuses global-first IPv6 lists and accepts link-local-first lists, and receive validation still rejects global-first adverts with ErrFirstNotLinkLocal. Verdict enforced.",
   "requirement_sha": "db9157e6a345c00d",
   "tests": {
-    "internal/plugins/vrrp/groups_test.go::TestValidateIPv6LinkLocal": "30e27105e8a9f202",
-    "internal/plugins/vrrp/groups_test.go::TestValidateIPv6LinkLocal#2": "30e27105e8a9f202",
+    "internal/plugins/vrrp/groups_test.go::TestValidateIPv6LinkLocal": "5a525667dfaed6b3",
+    "internal/plugins/vrrp/groups_test.go::TestValidateIPv6LinkLocal#2": "5a525667dfaed6b3",
     "internal/plugins/vrrp/packet/validate_test.go::TestDecodeGoldenV3IPv6": "5bbc8ddba98cd418",
     "internal/plugins/vrrp/packet/validate_test.go::TestValidationOrder": "5bbc8ddba98cd418"
   },
   "units": {
-    "internal/plugins/vrrp/groups_test.go::TestValidateIPv6LinkLocal": "a29abb886acdd502",
-    "internal/plugins/vrrp/groups_test.go::TestValidateIPv6LinkLocal#2": "a29abb886acdd502",
+    "internal/plugins/vrrp/groups_test.go::TestValidateIPv6LinkLocal": "1aaa79c3f7584656",
+    "internal/plugins/vrrp/groups_test.go::TestValidateIPv6LinkLocal#2": "1aaa79c3f7584656",
     "internal/plugins/vrrp/packet/validate_test.go::TestDecodeGoldenV3IPv6": "2a54600c4cbf442d",
     "internal/plugins/vrrp/packet/validate_test.go::TestValidationOrder": "e9e509cbd07a9bdc"
   },

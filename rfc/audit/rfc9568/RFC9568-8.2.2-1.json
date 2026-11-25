@@ -1,12 +1,12 @@
 {
-  "note": "Re-judged 2026-10-30 (independent auditor, after the user-namespace conversion): every tagged unit now opens with `if !userns.Enter(t) { return }`, which re-executes the test in its own user, network and mount namespace and carries the child's fail or skip to the parent (Enter, internal/test/userns/userns_linux.go), and the file builds under plain linux instead of integration && linux. RFC 9568 Section 8.2.2 says \"The Active Router MUST NOT respond with its physical MAC address.\" TestVRRPNonOwnerMasterAnswersNDWithVirtualMACOnly, otherwise unchanged, sees the physical MAC in the Target Link-Layer Address option with the address on the parent, only the virtual MAC once it lives on the macvlan, and no advertisement once removed; TestVRRPOwnerAnswersWithVirtualMACOnly gives the owner case with and without the owner filter. Verdict enforced.",
+  "note": "Re-judged 2026-11-25 (independent auditor, after 1f82b2727d): RFC 9568 Section 8.2.2 states \"The Active Router MUST NOT respond with its physical MAC address.\" TestVRRPOwnerAnswersWithVirtualMACOnly changed only firewall.LoadBackend(\"nft\") to firewall.LoadBackend(\"kernel\") matching firewallnft's renamed backendName = \"kernel\" (internal/plugins/firewall/nft/register.go:7); every ND Neighbor Advertisement control, owner-filter, and ownerExpect assertion is byte-identical, and sibling units (instance_test.go, nd_nonowner_integration_linux_test.go, ownerfilter_test.go) are unchanged. Verdict enforced.",
   "requirement_sha": "d8243483107b4756",
   "tests": {
     "internal/plugins/vrrp/instance_test.go::TestInstanceIPv6VIPLivesOnVirtualMACDevice": "52298a1ed170e60a",
     "internal/plugins/vrrp/nd_nonowner_integration_linux_test.go::TestVRRPNonOwnerMasterAnswersNDWithVirtualMACOnly": "99f318aaad829656",
     "internal/plugins/vrrp/nd_nonowner_integration_linux_test.go::TestVRRPNonOwnerMasterAnswersNDWithVirtualMACOnly#2": "99f318aaad829656",
-    "internal/plugins/vrrp/owner_answer_integration_linux_test.go::TestVRRPOwnerAnswersWithVirtualMACOnly": "633e536888478e8d",
-    "internal/plugins/vrrp/owner_answer_integration_linux_test.go::TestVRRPOwnerAnswersWithVirtualMACOnly#2": "633e536888478e8d",
+    "internal/plugins/vrrp/owner_answer_integration_linux_test.go::TestVRRPOwnerAnswersWithVirtualMACOnly": "388988727e0ff73d",
+    "internal/plugins/vrrp/owner_answer_integration_linux_test.go::TestVRRPOwnerAnswersWithVirtualMACOnly#2": "388988727e0ff73d",
     "internal/plugins/vrrp/ownerfilter_test.go::TestOwnerFilterWiredOnPromotionForEveryFamily": "9bbf08a19af0da85",
     "internal/plugins/vrrp/ownerfilter_test.go::TestOwnerFilterWiredOnPromotionForEveryFamily#2": "9bbf08a19af0da85"
   },
@@ -14,8 +14,8 @@
     "internal/plugins/vrrp/instance_test.go::TestInstanceIPv6VIPLivesOnVirtualMACDevice": "bb1f308ff09eb61c",
     "internal/plugins/vrrp/nd_nonowner_integration_linux_test.go::TestVRRPNonOwnerMasterAnswersNDWithVirtualMACOnly": "94b5479a0edaeede",
     "internal/plugins/vrrp/nd_nonowner_integration_linux_test.go::TestVRRPNonOwnerMasterAnswersNDWithVirtualMACOnly#2": "94b5479a0edaeede",
-    "internal/plugins/vrrp/owner_answer_integration_linux_test.go::TestVRRPOwnerAnswersWithVirtualMACOnly": "cbc96b6de8443f62",
-    "internal/plugins/vrrp/owner_answer_integration_linux_test.go::TestVRRPOwnerAnswersWithVirtualMACOnly#2": "cbc96b6de8443f62",
+    "internal/plugins/vrrp/owner_answer_integration_linux_test.go::TestVRRPOwnerAnswersWithVirtualMACOnly": "50bb2caf155ed499",
+    "internal/plugins/vrrp/owner_answer_integration_linux_test.go::TestVRRPOwnerAnswersWithVirtualMACOnly#2": "50bb2caf155ed499",
     "internal/plugins/vrrp/ownerfilter_test.go::TestOwnerFilterWiredOnPromotionForEveryFamily": "ddef6ffca811100b",
     "internal/plugins/vrrp/ownerfilter_test.go::TestOwnerFilterWiredOnPromotionForEveryFamily#2": "ddef6ffca811100b"
   },

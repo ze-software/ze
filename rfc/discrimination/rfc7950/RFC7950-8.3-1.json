@@ -3,12 +3,12 @@
     "rid": "RFC7950-8.3-1",
     "polarity": "negative",
     "unit": "cmd/ze/hub/rfc7950_web_commit_validation_test.go::TestRFC7950WebCommitRefusesAConstraintViolation",
-    "unit-sha": "033a085f533fdfd2",
-    "claim-sha": "1cacdc3336c8bbdc",
+    "unit-sha": "7b0387cf27d183c8",
+    "claim-sha": "ae91a255383755b5",
     "route": "revert",
     "producer": "internal/component/web/editor_commit_window.go::validateTransition",
     "producer-sha": "a9fcf37371463de2",
-    "break": "body of validateTransition replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    "break": "body of validateTransition replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   },
   {
     "rid": "RFC7950-8.3-1",

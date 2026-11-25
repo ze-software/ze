@@ -1,5 +1,5 @@
 {
-  "note": "Independent rejudgment 2026-11-24 against RFC 8092 Section 3 (rfc/full/rfc8092.txt): \"Duplicate BGP Large Community values MUST NOT be transmitted.\" Verified changes since 69662e9c96 (94079ae78b, 3573004e78): TestRFC8092PolicyAddOfPresentValueSentOnce added negotiateForwardTestFamilies(peer, family.IPv4Unicast) and updated the egressRouteFilter stub return signature from []byte to [][]byte; rfc8092-large-community-no-repeat-egress.ci added `next-hop unchanged` to peer config. Every wire assertion is unchanged: repeated LARGE_COMMUNITY values (including policy-appended repeats across raw, parsed, filter-override, relay writers, attribute WriteTo, and the end-to-end .ci) are deduplicated in first-occurrence order with exact lengths, and distinct lists (negative tests) transmit byte-for-byte unchanged. Verdict stands: enforced.",
+  "note": "Independent source rejudgment 2026-11-25 against RFC 8092 Section 3 (rfc/full/rfc8092.txt): \"Duplicate BGP Large Community values MUST NOT be transmitted.\" Verified all changes since da7857536f: 065e6e2d16 migrated test/plugin/rfc8092-large-community-no-repeat-egress.ci from plugin/attach blocks to bus (bgp-rib, fib dummy, static 1.1.1.1/32 via lo, export filter next-hop:unchanged) and 1f82b2727d reworded only the Linux-only netlink comment; all five Go units in rfc8092_large_community_egress_test.go and community_test.go are byte-identical. Every wire assertion is unchanged: repeated LARGE_COMMUNITY values (including policy-appended repeats in the .ci: input C02018 -> output D0200024 with 36 octets in first-occurrence order [65000:1:1 65000:3:3 65000:2:2], not 60 octets) are deduplicated, and distinct lists (negative tests) transmit byte-for-byte unchanged. Verdict unchanged: enforced. Source rejudgment only; no test or gate executed.",
   "requirement_sha": "42daae0ee97b186e",
   "tests": {
     "internal/component/bgp/reactor/rfc8092_large_community_egress_test.go::TestRFC8092PolicyAddOfPresentValueSentOnce": "3fcd2972b338cec3",
@@ -7,7 +7,7 @@
     "internal/component/bgp/reactor/rfc8092_large_community_egress_test.go::TestRFC8092WriteRemovesRepeatedLargeCommunity": "3fcd2972b338cec3",
     "internal/core/bgp/attribute/community_test.go::TestLargeCommunities": "34fcdbe05b3de369",
     "internal/core/bgp/attribute/community_test.go::TestLargeCommunitiesWriteToNoDuplicates": "34fcdbe05b3de369",
-    "test/plugin/rfc8092-large-community-no-repeat-egress.ci": "0a57c69120bbba1f"
+    "test/plugin/rfc8092-large-community-no-repeat-egress.ci": "5f05a1efaa36a5a2"
   },
   "units": {
     "internal/component/bgp/reactor/rfc8092_large_community_egress_test.go::TestRFC8092PolicyAddOfPresentValueSentOnce": "a905de28ee1f4896",
@@ -15,7 +15,7 @@
     "internal/component/bgp/reactor/rfc8092_large_community_egress_test.go::TestRFC8092WriteRemovesRepeatedLargeCommunity": "816532f5e821f37a",
     "internal/core/bgp/attribute/community_test.go::TestLargeCommunities": "d0693f4c5a17e247",
     "internal/core/bgp/attribute/community_test.go::TestLargeCommunitiesWriteToNoDuplicates": "2b11448b2135ae5b",
-    "test/plugin/rfc8092-large-community-no-repeat-egress.ci": "0a57c69120bbba1f"
+    "test/plugin/rfc8092-large-community-no-repeat-egress.ci": "5f05a1efaa36a5a2"
   },
   "verdict": "enforced"
 }

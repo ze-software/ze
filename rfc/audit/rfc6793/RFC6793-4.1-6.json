@@ -1,19 +1,19 @@
 {
-  "note": "Re-judged 2026-10-31 by an independent auditor who authored none of the change. RFC text (rfc6793): \"The new attributes, AS4_PATH and AS4_AGGREGATOR, MUST NOT be carried in an UPDATE message between NEW BGP speakers.\" The only edit to test/plugin/rfc6793-narrow-to-old-speaker.ci, test/plugin/rfc6793-no-as4aggregator-from-new-speaker.ci, test/plugin/rfc6793-no-as4path-from-new-speaker.ci since the last judgement is f8f7628bdf, which adds a bgp-level filter { import { final accept; } export { final accept; } } with no filter refs, because RFC 8212 Section 3 now makes an EBGP direction with no explicit policy reject. No expect, reject, input or requirement-tag line changed. policy.ConcatChains keeps every peer-level ref and takes the final from the most specific configured level, so a peer-level chain still decides where one exists. An accepting final with no refs neither refuses nor rewrites a route: a withheld, stripped or discarded outcome the file asserts can still come only from the producer under test, and a delivered outcome is the eligibility the test was written under before RFC 8212; without the block the positives would fail for the wrong reason. What the unit proves is unchanged. Verdict unchanged: enforced. Earlier judgements are in this file's git history.",
+  "note": "Independent re-judgment on 2026-11-25 against RFC 6793 Section 4.1 ('The new attributes, AS4_PATH and AS4_AGGREGATOR, MUST NOT be carried in an UPDATE message between NEW BGP speakers.'). Reviewed all diffs since the prior verdict across rfc6793-no-as4path-from-new-speaker.ci and rfc6793-no-as4aggregator-from-new-speaker.ci (bus endpoint migration only; exact send frames and exact receiver wire hex expectations without AS4_PATH/AS4_AGGREGATOR are unchanged) and rfc6793-narrow-to-old-speaker.ci (bus/bgp-rib migration with static 1.1.1.1/32 -> lo, option=needs-linux, receiver-old local 127.0.0.12, and comment wording in 1f82b2727d). Verified conn=2's exact expected wire hex in rfc6793-narrow-to-old-speaker.ci byte-for-byte: 66 octets carrying ORIGIN(IGP), 2-octet AS_PATH([65000,65001,AS_TRANS]), NEXT_HOP(127.0.0.12), AS4_PATH([65000,65001,4200000123]), and NLRI(10.0.0.0/24), proving the MUST NOT is scoped to NEW-to-NEW sessions and not a blanket drop. Both Go origination unit tests are unchanged. Enforcement is unchanged.",
   "requirement_sha": "2ec906b72a3df6f1",
   "tests": {
     "internal/component/bgp/message/rfc6793_originate_as4_test.go::TestOriginatedUpdateOmitsAS4PathTowardNewSpeaker": "f906f1ec41d71b88",
     "internal/component/bgp/message/rfc6793_originate_as4agg_new_test.go::TestOriginatedAggregatorOmitsAS4AggregatorTowardNewSpeaker": "37d26ab7979c4e08",
-    "test/plugin/rfc6793-narrow-to-old-speaker.ci": "eabe2eb3613f84cb",
-    "test/plugin/rfc6793-no-as4aggregator-from-new-speaker.ci": "a48cad31b5eb6814",
-    "test/plugin/rfc6793-no-as4path-from-new-speaker.ci": "26e7498ef9b23dd0"
+    "test/plugin/rfc6793-narrow-to-old-speaker.ci": "4b9c07ba03b0a545",
+    "test/plugin/rfc6793-no-as4aggregator-from-new-speaker.ci": "c855c09326e242cd",
+    "test/plugin/rfc6793-no-as4path-from-new-speaker.ci": "88dca842a7ad840d"
   },
   "units": {
     "internal/component/bgp/message/rfc6793_originate_as4_test.go::TestOriginatedUpdateOmitsAS4PathTowardNewSpeaker": "bd621e569e53b228",
     "internal/component/bgp/message/rfc6793_originate_as4agg_new_test.go::TestOriginatedAggregatorOmitsAS4AggregatorTowardNewSpeaker": "e83de3a62cfcedcc",
-    "test/plugin/rfc6793-narrow-to-old-speaker.ci": "eabe2eb3613f84cb",
-    "test/plugin/rfc6793-no-as4aggregator-from-new-speaker.ci": "a48cad31b5eb6814",
-    "test/plugin/rfc6793-no-as4path-from-new-speaker.ci": "26e7498ef9b23dd0"
+    "test/plugin/rfc6793-narrow-to-old-speaker.ci": "4b9c07ba03b0a545",
+    "test/plugin/rfc6793-no-as4aggregator-from-new-speaker.ci": "c855c09326e242cd",
+    "test/plugin/rfc6793-no-as4path-from-new-speaker.ci": "88dca842a7ad840d"
   },
   "verdict": "enforced"
 }

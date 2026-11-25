@@ -1,17 +1,17 @@
 {
-  "note": "Rejudged against RFC 7296 Section 3.13.1: For protocols for which port is undefined (including protocol 0), or if all ports are allowed, this field MUST be zero. TestTSWireAnyPortsForEveryProtocol calls selectorsToWire for every protocol number with an ANY port and asserts one selector with StartPort 0 and EndPort 65535. TestTSWireRefusesUndefinedPortValues calls the encoder with specific and OPAQUE ports under protocol 0, GRE, ESP, AH, OSPF, VRRP and an unknown protocol and requires a nil payload. These replace the earlier single-protocol tagged fixture that justified the weak verdict. The encoder now checks Port.ValidForProtocol before writing the wire selector; it cannot emit a specific port for the invalid inputs tested. The conforming ANY controls prevent a blanket refusal from satisfying the pair. The judgment concerns these field encodings, not support for every exact ICMP or Mobility Header selector.",
+  "note": "Re-judged 2026-11-25 by an independent agent after commit 1f82b2727d reworded one comment inside TestPortEncodingFollowsSection3131 (netlink to netlink library); no code or assertion changed. RFC 7296 Section 3.13.1 (Start Port): \"For protocols for which port is undefined (including protocol 0), or if all ports are allowed, this field MUST be zero.\" TestTSWireAnyPortsForEveryProtocol still verifies StartPort == 0 and EndPort == 65535 for ANY ports across all 256 IP protocol values, TestTSWireRefusesUndefinedPortValues verifies selectorsToWire refuses specific and OPAQUE ports for portless protocols (0, GRE, ESP, AH, OSPF, VRRP, 255), and TestPortEncodingFollowsSection3131 asserts StartPort == 0 for protocol 0 alongside the single-port 443 discriminator. Verdict stands.",
   "requirement_sha": "f9a6633b996ca03e",
   "tests": {
     "internal/component/ike/engine/rfc7296_protocol_selector_test.go::TestTSWireAnyPortsForEveryProtocol": "139a96ec405f8e42",
     "internal/component/ike/engine/rfc7296_protocol_selector_test.go::TestTSWireRefusesUndefinedPortValues": "139a96ec405f8e42",
-    "internal/component/ike/engine/ts_narrow_test.go::TestPortEncodingFollowsSection3131": "7a2ef4cde370eb4b",
-    "internal/component/ike/engine/ts_narrow_test.go::TestPortEncodingFollowsSection3131#2": "7a2ef4cde370eb4b"
+    "internal/component/ike/engine/ts_narrow_test.go::TestPortEncodingFollowsSection3131": "f77753e2a9865d1c",
+    "internal/component/ike/engine/ts_narrow_test.go::TestPortEncodingFollowsSection3131#2": "f77753e2a9865d1c"
   },
   "units": {
     "internal/component/ike/engine/rfc7296_protocol_selector_test.go::TestTSWireAnyPortsForEveryProtocol": "d53527639a4e8c0d",
     "internal/component/ike/engine/rfc7296_protocol_selector_test.go::TestTSWireRefusesUndefinedPortValues": "01e1417e2974061a",
-    "internal/component/ike/engine/ts_narrow_test.go::TestPortEncodingFollowsSection3131": "2e0ea6846dddb242",
-    "internal/component/ike/engine/ts_narrow_test.go::TestPortEncodingFollowsSection3131#2": "2e0ea6846dddb242"
+    "internal/component/ike/engine/ts_narrow_test.go::TestPortEncodingFollowsSection3131": "d4456de9626610f2",
+    "internal/component/ike/engine/ts_narrow_test.go::TestPortEncodingFollowsSection3131#2": "d4456de9626610f2"
   },
   "verdict": "enforced"
 }

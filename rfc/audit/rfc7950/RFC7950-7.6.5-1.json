@@ -12,8 +12,8 @@
     "internal/component/config/rfc7950_validator_yang_test.go::TestValidateTree_MandatoryMissing": "de5079eed13aa928",
     "internal/component/config/rfc7950_validator_yang_test.go::TestValidator_MandatoryField": "de5079eed13aa928",
     "internal/component/config/rfc7950_validator_yang_test.go::TestValidator_MandatoryField#2": "de5079eed13aa928",
-    "internal/component/config/yang/rfc7950_mandatory_test.go::TestRFC7950MandatoryWithNoQualifyingAncestor": "39faaa97711e3fdf",
-    "internal/component/config/yang/rfc7950_mandatory_test.go::TestRFC7950MandatoryWithNoQualifyingAncestor#2": "39faaa97711e3fdf"
+    "internal/component/config/yang/rfc7950_mandatory_test.go::TestRFC7950MandatoryWithNoQualifyingAncestor": "3e725d3a488e125d",
+    "internal/component/config/yang/rfc7950_mandatory_test.go::TestRFC7950MandatoryWithNoQualifyingAncestor#2": "3e725d3a488e125d"
   },
   "units": {
     "internal/component/config/rfc7950_mandatory_bgp_test.go::TestRFC7950MandatoryRefusesBGPConfig": "87aa17250985fe1f",

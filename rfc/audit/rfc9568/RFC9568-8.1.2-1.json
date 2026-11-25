@@ -1,11 +1,11 @@
 {
-  "note": "Re-judged 2026-10-30 (independent auditor, after the user-namespace conversion): every tagged unit now opens with `if !userns.Enter(t) { return }`, which re-executes the test in its own user, network and mount namespace and carries the child's fail or skip to the parent (Enter, internal/test/userns/userns_linux.go), and the file builds under plain linux instead of integration && linux. RFC 9568 Section 8.1.2 says \"The Active Router MUST NOT respond with its physical MAC address in the ARP response.\" TestVRRPOwnerAnswersWithVirtualMACOnly (owner case; its helper ownerAwaitUsable now also syncs the macvlan receive filter before probing, outside the unit) sees the physical MAC as ARP sender hardware address without the owner filter, only the virtual MAC with it, and the physical MAC again once withdrawn; TestVRRPNonOwnerMasterAnswersARPWithVirtualMACOnly gives the non-owner case with the recipe as control. ownerExpect fails on any MAC other than the two and requires the virtual MAC in every phase. The owner unit still t.Skipf's when the nft backend cannot load, as before. Verdict enforced.",
+  "note": "Re-judged 2026-11-25 (independent auditor, after 1f82b2727d): RFC 9568 Section 8.1.2 states \"The Active Router MUST NOT respond with its physical MAC address in the ARP response.\" TestVRRPOwnerAnswersWithVirtualMACOnly changed only firewall.LoadBackend(\"nft\") to firewall.LoadBackend(\"kernel\") matching firewallnft's renamed backendName = \"kernel\" (internal/plugins/firewall/nft/register.go:7); every ARP control, owner-filter, withdrawal, and ownerExpect assertion is byte-identical, and sibling units (dataplane_linux_test.go, ownerfilter_test.go, vmac_state_integration_linux_test.go) are unchanged. Verdict enforced.",
   "requirement_sha": "1e2a000e0692b566",
   "tests": {
     "internal/plugins/vrrp/dataplane_linux_test.go::TestDataplaneApplyIPv4SetsRecipe": "7407d3130d3125e0",
     "internal/plugins/vrrp/dataplane_linux_test.go::TestDataplaneRestoreOnLastGroup": "7407d3130d3125e0",
-    "internal/plugins/vrrp/owner_answer_integration_linux_test.go::TestVRRPOwnerAnswersWithVirtualMACOnly": "633e536888478e8d",
-    "internal/plugins/vrrp/owner_answer_integration_linux_test.go::TestVRRPOwnerAnswersWithVirtualMACOnly#2": "633e536888478e8d",
+    "internal/plugins/vrrp/owner_answer_integration_linux_test.go::TestVRRPOwnerAnswersWithVirtualMACOnly": "388988727e0ff73d",
+    "internal/plugins/vrrp/owner_answer_integration_linux_test.go::TestVRRPOwnerAnswersWithVirtualMACOnly#2": "388988727e0ff73d",
     "internal/plugins/vrrp/ownerfilter_test.go::TestOwnerFilterWiredOnPromotionForEveryFamily": "9bbf08a19af0da85",
     "internal/plugins/vrrp/ownerfilter_test.go::TestOwnerFilterWiredOnPromotionForEveryFamily#2": "9bbf08a19af0da85",
     "internal/plugins/vrrp/vmac_state_integration_linux_test.go::TestVRRPNonOwnerMasterAnswersARPWithVirtualMACOnly": "19ef3dad02ddfed4",
@@ -14,8 +14,8 @@
   "units": {
     "internal/plugins/vrrp/dataplane_linux_test.go::TestDataplaneApplyIPv4SetsRecipe": "8bbcb38638b03997",
     "internal/plugins/vrrp/dataplane_linux_test.go::TestDataplaneRestoreOnLastGroup": "9264454e88d221df",
-    "internal/plugins/vrrp/owner_answer_integration_linux_test.go::TestVRRPOwnerAnswersWithVirtualMACOnly": "cbc96b6de8443f62",
-    "internal/plugins/vrrp/owner_answer_integration_linux_test.go::TestVRRPOwnerAnswersWithVirtualMACOnly#2": "cbc96b6de8443f62",
+    "internal/plugins/vrrp/owner_answer_integration_linux_test.go::TestVRRPOwnerAnswersWithVirtualMACOnly": "50bb2caf155ed499",
+    "internal/plugins/vrrp/owner_answer_integration_linux_test.go::TestVRRPOwnerAnswersWithVirtualMACOnly#2": "50bb2caf155ed499",
     "internal/plugins/vrrp/ownerfilter_test.go::TestOwnerFilterWiredOnPromotionForEveryFamily": "ddef6ffca811100b",
     "internal/plugins/vrrp/ownerfilter_test.go::TestOwnerFilterWiredOnPromotionForEveryFamily#2": "ddef6ffca811100b",
     "internal/plugins/vrrp/vmac_state_integration_linux_test.go::TestVRRPNonOwnerMasterAnswersARPWithVirtualMACOnly": "a3f86dc2073cd551",

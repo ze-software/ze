@@ -2,8 +2,8 @@
   "note": "owner EffectivePriority(0)==255 from configured 120; non-owner keeps 100",
   "requirement_sha": "55c8b9a3b3f6605b",
   "tests": {
-    "internal/plugins/vrrp/groups_test.go::TestOwnerAutoDetection": "30e27105e8a9f202",
-    "internal/plugins/vrrp/groups_test.go::TestOwnerAutoDetection#2": "30e27105e8a9f202"
+    "internal/plugins/vrrp/groups_test.go::TestOwnerAutoDetection": "5a525667dfaed6b3",
+    "internal/plugins/vrrp/groups_test.go::TestOwnerAutoDetection#2": "5a525667dfaed6b3"
   },
   "units": {
     "internal/plugins/vrrp/groups_test.go::TestOwnerAutoDetection": "47246169c047d639",

@@ -10,27 +10,27 @@
     "internal/plugins/ospf/ipsec_install.go::buildIPsecPolicies": "60a7b4ef74bf7c48",
     "internal/plugins/ospf/ipsec_install.go::defaultDataplaneSource": "f1afcc7c5c0fb959"
   },
-  "note": "Re-judged 2026-11-23 by an independent agent after applyConfig, releaseSPD, installUnmatched and TestRFC4301FinalEntryIsUnderEveryZeSPDEntry changed. RFC 4301 Section 4.4.1: \"Every SPD SHOULD have a nominal, final entry that matches anything that is otherwise unmatched, and discards it.\" Tested: \"a nominal, final entry that matches anything that is otherwise unmatched, and discards it\". Gap: \"Every SPD\". Producer: internal/component/ike/dataplane/vpp_policy.go::vppPolicyInterface. applyConfig now pins spdForwardAnswer across operator SPD reconciliation while keeping assertUnmatched first on first apply, releaseSPD pins s.spdForward on operator removal and still removes the catch-all last after warnSPDLeft, and installUnmatched (installUnmatchedEntries) supports ForwardDefaultInstaller with reload undo while failing closed on any reload refusal. TestRFC4301FinalEntryIsUnderEveryZeSPDEntry replays startup apply, Child SA PROTECT entries and shutdown, asserting exact write counts (protectWrites and others), SPActionDiscard on all six catch-all entries at every write holding another Ze entry, and zero entries after release. All other tagged units (default final entry, inbound clear discard, interface SPD builder/apply/refusal/release/kernel discard) still enforce the Tested scope. Gap stands: VPP SPDs (vppPolicyInterface / CatchAllSupported returning ErrNoNodeWideSPD) and OSPFv3 RFC 4552 manual-key entries (defaultDataplaneSource, buildIPsecPolicies) carry no final DISCARD entry. Scoped evidence only; zero whole-requirement credit.",
+  "note": "Re-judged 2026-11-25 by an independent agent after commit 1f82b2727d reworded comments and one t.Errorf diagnostic in TestApplyInstallsInterfaceSPDCatchAllAndGuard and TestReleaseRemovesInterfaceSPDAndGuard (nft to nftables) and comments outside the cited functions in vpp_policy.go, unmatched.go, ipsec_install.go and rfc4301_spd_lifecycle_test.go. RFC 4301 Section 4.4.1: \"Every SPD SHOULD have a nominal, final entry that matches anything that is otherwise unmatched, and discards it.\" Tested: \"a nominal, final entry that matches anything that is otherwise unmatched, and discards it\". Gap: \"Every SPD\". Producer: internal/component/ike/dataplane/vpp_policy.go::vppPolicyInterface. No production logic or test assertion changed: all 8 tagged covers still enforce the final DISCARD entry on the IKE engine's node-wide SPD (if_id 0) and bound XFRM interface SPDs across apply, reload refusal, inbound clear discard, lifecycle writes and release. Gap stands: VPP SPDs (vppPolicyInterface / CatchAllSupported returning ErrNoNodeWideSPD) and OSPFv3 RFC 4552 manual-key entries (defaultDataplaneSource, buildIPsecPolicies) carry no final DISCARD entry. Scoped evidence only; zero whole-requirement credit.",
   "requirement_sha": "3a35f5ad6de38f99",
   "tests": {
     "internal/component/ike/dataplane/rfc4301_xfrm_xfrmi_catchall_integration_linux_test.go::TestRFC4301InterfaceSPDDiscardsUnmatchedInKernel": "09c20a946e025391",
     "internal/component/ike/engine/rfc4301_final_entry_test.go::TestRFC4301DefaultFinalSPDEntryDiscards": "ce1822d5a225982c",
     "internal/component/ike/engine/rfc4301_inbound_steps_linux_test.go::TestRFC4301InboundClearPacketIsDiscardedByTheDefaultFinalEntry": "a616863b27478a29",
-    "internal/component/ike/engine/rfc4301_spd_lifecycle_test.go::TestRFC4301FinalEntryIsUnderEveryZeSPDEntry": "56ac55338acc9a55",
-    "internal/component/ike/engine/rfc4301_unmatched_xfrm_interface_test.go::TestApplyInstallsInterfaceSPDCatchAllAndGuard": "7c8fbca77ba7186c",
-    "internal/component/ike/engine/rfc4301_unmatched_xfrm_interface_test.go::TestInterfaceSPDCatchAllEntries": "7c8fbca77ba7186c",
-    "internal/component/ike/engine/rfc4301_unmatched_xfrm_interface_test.go::TestInterfaceSPDCatchAllInstallFailureFailsTheApply": "7c8fbca77ba7186c",
-    "internal/component/ike/engine/rfc4301_unmatched_xfrm_interface_test.go::TestReleaseRemovesInterfaceSPDAndGuard": "7c8fbca77ba7186c"
+    "internal/component/ike/engine/rfc4301_spd_lifecycle_test.go::TestRFC4301FinalEntryIsUnderEveryZeSPDEntry": "7ef2a9d09a906801",
+    "internal/component/ike/engine/rfc4301_unmatched_xfrm_interface_test.go::TestApplyInstallsInterfaceSPDCatchAllAndGuard": "d0bbe89ed6a4b3eb",
+    "internal/component/ike/engine/rfc4301_unmatched_xfrm_interface_test.go::TestInterfaceSPDCatchAllEntries": "d0bbe89ed6a4b3eb",
+    "internal/component/ike/engine/rfc4301_unmatched_xfrm_interface_test.go::TestInterfaceSPDCatchAllInstallFailureFailsTheApply": "d0bbe89ed6a4b3eb",
+    "internal/component/ike/engine/rfc4301_unmatched_xfrm_interface_test.go::TestReleaseRemovesInterfaceSPDAndGuard": "d0bbe89ed6a4b3eb"
   },
   "units": {
     "internal/component/ike/dataplane/rfc4301_xfrm_xfrmi_catchall_integration_linux_test.go::TestRFC4301InterfaceSPDDiscardsUnmatchedInKernel": "5fbbaa8fd394329f",
     "internal/component/ike/engine/rfc4301_final_entry_test.go::TestRFC4301DefaultFinalSPDEntryDiscards": "e893ce566eb615a8",
     "internal/component/ike/engine/rfc4301_inbound_steps_linux_test.go::TestRFC4301InboundClearPacketIsDiscardedByTheDefaultFinalEntry": "de15886febbe79a1",
     "internal/component/ike/engine/rfc4301_spd_lifecycle_test.go::TestRFC4301FinalEntryIsUnderEveryZeSPDEntry": "02754a7ba7b9b81b",
-    "internal/component/ike/engine/rfc4301_unmatched_xfrm_interface_test.go::TestApplyInstallsInterfaceSPDCatchAllAndGuard": "5e4162f1077636a8",
+    "internal/component/ike/engine/rfc4301_unmatched_xfrm_interface_test.go::TestApplyInstallsInterfaceSPDCatchAllAndGuard": "225a9e9939af1e00",
     "internal/component/ike/engine/rfc4301_unmatched_xfrm_interface_test.go::TestInterfaceSPDCatchAllEntries": "f785e1b59415aa5d",
     "internal/component/ike/engine/rfc4301_unmatched_xfrm_interface_test.go::TestInterfaceSPDCatchAllInstallFailureFailsTheApply": "856e7ecde1b150da",
-    "internal/component/ike/engine/rfc4301_unmatched_xfrm_interface_test.go::TestReleaseRemovesInterfaceSPDAndGuard": "228bd9cd0806180e"
+    "internal/component/ike/engine/rfc4301_unmatched_xfrm_interface_test.go::TestReleaseRemovesInterfaceSPDAndGuard": "957cd03d58e5f940"
   },
   "verdict": "partial"
 }

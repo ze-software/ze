@@ -2,9 +2,9 @@
   "code": {
     "internal/component/ike/dataplane/vpp.go::InstallSA": "b0c652e23d7fd98d",
     "internal/component/ike/dataplane/vpp.go::vppSAFlags": "0bd04d589b269a4d",
-    "internal/component/ike/dataplane/xfrm_linux.go::xfrmStateFromParams": "9c91c6c1b05be55d"
+    "internal/component/ike/dataplane/xfrm_linux.go::xfrmStateFromParams": "3a70817ac9f487ff"
   },
-  "note": "Re-judged 2026-11-20 by an independent agent after 3977cef525 changed vppSAFlags and xfrmStateFromParams to install each Child SA with its kernel direction. RFC 4303 Section 3.4.4.1: \"If the default padding scheme (see Section 2.4) has been employed, the receiver SHOULD inspect the Padding field before removing the padding prior to passing the decrypted data to the next layer.\" vppSAFlags now sets IS_INBOUND from the SA direction beside the tunnel, replay and UDP flags, and xfrmStateFromParams carries the direction and the state scope; neither requests any padding inspection, and neither boundary decrypts ESP. Nothing in the tree shows Linux XFRM or VPP inspecting the Padding bytes on the installed state, so the {gap} annotation is accurate and the requirement stays unmet.",
+  "note": "Re-judged 2026-11-25 by an independent agent after commit 1f82b2727d reworded comments in xfrmStateFromParams (netlink to netlink library); vpp.go::InstallSA and vpp.go::vppSAFlags were untouched. RFC 4303 Section 3.4.4.1: \"If the default padding scheme (see Section 2.4) has been employed, the receiver SHOULD inspect the Padding field before removing the padding prior to passing the decrypted data to the next layer.\" Neither xfrmStateFromParams nor vpp.go requests padding inspection or decrypts ESP, and nothing in the tree shows Linux XFRM or VPP inspecting the Padding bytes on the installed state, so the {gap} annotation is accurate and the requirement stays unmet.",
   "requirement_sha": "dea07385ec5c5f6a",
   "verdict": "unimplemented"
 }

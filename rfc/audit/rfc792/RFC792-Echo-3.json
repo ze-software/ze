@@ -3,8 +3,8 @@
   "requirement_sha": "a0f5ea4063259908",
   "tests": {
     "internal/core/probe/icmp_test.go::TestRFC792ChecksumValid": "e4aad773ce5cac19",
-    "internal/plugins/vrrp/rfc792_gateway_icmp_integration_linux_test.go::TestGatewayICMPEchoReply": "e652c87c70fd32cb",
-    "internal/plugins/vrrp/rfc792_gateway_icmp_integration_linux_test.go::TestGatewayICMPEchoReply#2": "e652c87c70fd32cb"
+    "internal/plugins/vrrp/rfc792_gateway_icmp_integration_linux_test.go::TestGatewayICMPEchoReply": "15d38c7c333b951a",
+    "internal/plugins/vrrp/rfc792_gateway_icmp_integration_linux_test.go::TestGatewayICMPEchoReply#2": "15d38c7c333b951a"
   },
   "units": {
     "internal/core/probe/icmp_test.go::TestRFC792ChecksumValid": "6fab4edc6e7812e1",

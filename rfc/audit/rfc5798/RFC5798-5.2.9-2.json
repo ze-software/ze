@@ -1,13 +1,13 @@
 {
-  "note": "vrrp judge 2026-09-29 (independent): TestValidateVIPFamilyMatchesGroupFamily now isolates both mixed-family cases: the IPv4 group lists 192.0.2.1 then 2001:db8::1, the IPv6 group lists fe80::1 then 192.0.2.1 (so the first-address-link-local rule cannot refuse it), and each refusal must carry the family error text; same-family lists validate. Records: revert validateGroup, both polarities.",
+  "note": "Re-judged 2026-11-25 (independent auditor, after 1f82b2727d): RFC 5798 Section 5.2.9 states \"This field contains either one or more IPv4 addresses, or one or more IPv6 addresses, that is, IPv4 and IPv6 MUST NOT both be carried in one IPvX Address field.\" TestValidateVIPFamilyMatchesGroupFamily changed only by dropping the removed backendNetlink argument from validateGroups(specs); validateGroup (groups.go:681-688) is unchanged. Both mixed-family cases remain isolated (IPv6 list leads with fe80::1 before 192.0.2.1 so link-local cannot trip first) and assert exact family-mismatch error text, while same-family lists validate. Verdict enforced.",
   "requirement_sha": "0d3b9463a005ec4c",
   "tests": {
-    "internal/plugins/vrrp/groups_test.go::TestValidateVIPFamilyMatchesGroupFamily": "30e27105e8a9f202",
-    "internal/plugins/vrrp/groups_test.go::TestValidateVIPFamilyMatchesGroupFamily#2": "30e27105e8a9f202"
+    "internal/plugins/vrrp/groups_test.go::TestValidateVIPFamilyMatchesGroupFamily": "5a525667dfaed6b3",
+    "internal/plugins/vrrp/groups_test.go::TestValidateVIPFamilyMatchesGroupFamily#2": "5a525667dfaed6b3"
   },
   "units": {
-    "internal/plugins/vrrp/groups_test.go::TestValidateVIPFamilyMatchesGroupFamily": "d7ca52f2021d9d58",
-    "internal/plugins/vrrp/groups_test.go::TestValidateVIPFamilyMatchesGroupFamily#2": "d7ca52f2021d9d58"
+    "internal/plugins/vrrp/groups_test.go::TestValidateVIPFamilyMatchesGroupFamily": "e53450bf9fbb6fd8",
+    "internal/plugins/vrrp/groups_test.go::TestValidateVIPFamilyMatchesGroupFamily#2": "e53450bf9fbb6fd8"
   },
   "verdict": "enforced"
 }

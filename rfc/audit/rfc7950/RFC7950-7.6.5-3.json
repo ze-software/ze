@@ -4,8 +4,8 @@
   "tests": {
     "internal/component/config/rfc7950_mandatory_sections_test.go::TestRFC7950MandatoryOutsideValidatedSections": "52bcb6bcc2373e82",
     "internal/component/config/rfc7950_mandatory_sections_test.go::TestRFC7950MandatoryOutsideValidatedSections#2": "52bcb6bcc2373e82",
-    "internal/component/config/yang/rfc7950_mandatory_test.go::TestRFC7950MandatoryRequiredWhenAncestorExists": "39faaa97711e3fdf",
-    "internal/component/config/yang/rfc7950_mandatory_test.go::TestRFC7950MandatoryRequiredWhenAncestorExists#2": "39faaa97711e3fdf"
+    "internal/component/config/yang/rfc7950_mandatory_test.go::TestRFC7950MandatoryRequiredWhenAncestorExists": "3e725d3a488e125d",
+    "internal/component/config/yang/rfc7950_mandatory_test.go::TestRFC7950MandatoryRequiredWhenAncestorExists#2": "3e725d3a488e125d"
   },
   "units": {
     "internal/component/config/rfc7950_mandatory_sections_test.go::TestRFC7950MandatoryOutsideValidatedSections": "516b20e80e7cdb1b",

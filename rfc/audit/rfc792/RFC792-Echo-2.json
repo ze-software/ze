@@ -3,7 +3,7 @@
   "requirement_sha": "2923f8d76b399c94",
   "tests": {
     "internal/core/probe/icmp_test.go::TestRFC792EchoRequestCode": "e4aad773ce5cac19",
-    "internal/plugins/vrrp/rfc792_gateway_icmp_integration_linux_test.go::TestGatewayICMPEchoReply": "e652c87c70fd32cb"
+    "internal/plugins/vrrp/rfc792_gateway_icmp_integration_linux_test.go::TestGatewayICMPEchoReply": "15d38c7c333b951a"
   },
   "units": {
     "internal/core/probe/icmp_test.go::TestRFC792EchoRequestCode": "d5b109231b5c7514",

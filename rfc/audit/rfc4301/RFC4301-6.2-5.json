@@ -1,12 +1,12 @@
 {
   "code": {
-    "internal/component/ike/dataplane/xfrm_linux.go::xfrmStateFromParams": "9c91c6c1b05be55d"
+    "internal/component/ike/dataplane/xfrm_linux.go::xfrmStateFromParams": "3a70817ac9f487ff"
   },
-  "note": "Re-judged independently against RFC 4301 Section 6.2 and Section 6 paragraph 2 after the row corrected the paragraph reference. Tested: \"MUST NOT forwarded the ICMP message to the destination\"; Gap: \"If the packet fails this check\" (split by case: ICMPv6 errors failing the reverse check, owned by plan/release/validation/spec-ipsec-fragment-receive-and-kernel-proof.md). Producer: internal/component/ike/dataplane/xfrm_linux.go::xfrmStateFromParams (sets XFRM_STATE_ICMP on inbound states). All 4 tagged covers enforce the declared ICMPv4 scope: an ICMPv4 error whose reversed quoted header does not match the SA's selectors increments the reject counter and is neither delivered locally nor forwarded to the protected host, contrasted with a consistent error that succeeds. Residual notes: the two test files invert MUST NOT polarity labels (both polarities present in each); dataplane covers use semantic mutants while forwarded covers use panic-reverts.",
+  "note": "Re-judged 2026-11-25 by an independent agent after commit 1f82b2727d reworded comments in xfrmStateFromParams and the file header of rfc4301_icmp_error_integration_linux_test.go (netlink to netlink library); no logic or test assertion changed. RFC 4301 Section 6.2: \"If the packet fails this check, the IPsec implementation MUST NOT forwarded the ICMP message to the destination.\" Tested: \"MUST NOT forwarded the ICMP message to the destination\". Gap: \"If the packet fails this check\" (split by case: ICMPv6 errors failing the reverse check, owned by plan/release/validation/spec-ipsec-fragment-receive-and-kernel-proof.md). Producer: internal/component/ike/dataplane/xfrm_linux.go::xfrmStateFromParams (sets XFRM_STATE_ICMP on inbound states). All 4 tagged covers still enforce the declared ICMPv4 scope: an ICMPv4 error whose reversed quoted header does not match the SA's selectors increments the reject counter and is neither delivered locally nor forwarded to the protected host; ICMPv6 errors remain untested. Scoped evidence only; zero whole-requirement credit.",
   "requirement_sha": "12ef5143d5ca3055",
   "tests": {
-    "internal/component/ike/dataplane/rfc4301_icmp_error_integration_linux_test.go::TestICMPErrorPayloadHeaderCheckedOnLocalDelivery": "5b2376bef28fdb4c",
-    "internal/component/ike/dataplane/rfc4301_icmp_error_integration_linux_test.go::TestICMPErrorPayloadHeaderCheckedOnLocalDelivery#2": "5b2376bef28fdb4c",
+    "internal/component/ike/dataplane/rfc4301_icmp_error_integration_linux_test.go::TestICMPErrorPayloadHeaderCheckedOnLocalDelivery": "543d46fbfa5ca14f",
+    "internal/component/ike/dataplane/rfc4301_icmp_error_integration_linux_test.go::TestICMPErrorPayloadHeaderCheckedOnLocalDelivery#2": "543d46fbfa5ca14f",
     "internal/component/ike/engine/rfc4301_forward_icmp_integration_linux_test.go::TestRFC4301ForwardedICMPUsesPayloadPolicy": "88f53e0e03d18f47",
     "internal/component/ike/engine/rfc4301_forward_icmp_integration_linux_test.go::TestRFC4301ForwardedICMPUsesPayloadPolicy#2": "88f53e0e03d18f47"
   },

@@ -1,13 +1,13 @@
 {
-  "note": "RFC 8955 Section 7.3: \"The use of the Terminal Action (bit 47) may result in more than one Flow Specification matching a particular traffic flow. All the Traffic Filtering Actions from these Flow Specifications shall be collected and applied.\" The same paragraph leaves interfering-action selection implementation-defined. TestSelectedFlowSpecKernelPacketSemantics now observes a received packet with the first rule's DSCP 10 AND exactly one increment of the later rule's sample counter; switching only the narrow rule to T-clear leaves the sample counter unchanged. Earlier controls prove T-set reaches a covering discard and that marking does not change the original DSCP used by later matching. rule_chains.go ruleChains/beforeMarkActions/markingTerms separate deferred marking and continuing action execution. Omitting the first action, the later action, or continuation fails independently, closing the earlier mark-plus-discard ambiguity. Requires a real privileged integration+linux execution; skips are not proof. Independent source rejudgment only; no test, mutation, build or gate was executed by this auditor. Native observed-red renewal is a separate parent step.",
+  "note": "Independent source rejudgment 2026-11-25 against RFC 8955 Section 7.3 (rfc/full/rfc8955.txt): \"The use of the Terminal Action (bit 47) may result in more than one Flow Specification matching a particular traffic flow. All the Traffic Filtering Actions from these Flow Specifications shall be collected and applied.\" Verified changes in 1f82b2727d to TestSelectedFlowSpecKernelPacketSemantics (internal/plugins/flowspec-firewall/rfc8955_selected_integration_linux_test.go): added //ze:guest-root directive comment and renamed firewall.LoadBackend(\"nft\") to firewall.LoadBackend(\"kernel\") (verified at internal/plugins/firewall/nft/register.go to load the same Linux nftables newBackend). All Section 7.3 assertions are unchanged: T-set applies both the first rule's DSCP 10 mark and the later rule's -sample counter increment (=1) to the same received packet, T-clear stops before the later sampling action, and continuing DSCP marking does not alter the original DSCP seen by a later predicate. Privileged integration+linux execution remains required for runtime proof. Verdict unchanged: enforced. Source rejudgment only; no test or gate executed.",
   "requirement_sha": "476dfe1e6c45cf3e",
   "tests": {
-    "internal/plugins/flowspec-firewall/rfc8955_selected_integration_linux_test.go::TestSelectedFlowSpecKernelPacketSemantics": "0e32a8e3cfb43c84",
-    "internal/plugins/flowspec-firewall/rfc8955_selected_integration_linux_test.go::TestSelectedFlowSpecKernelPacketSemantics#2": "0e32a8e3cfb43c84"
+    "internal/plugins/flowspec-firewall/rfc8955_selected_integration_linux_test.go::TestSelectedFlowSpecKernelPacketSemantics": "503bc47ff01ba2c5",
+    "internal/plugins/flowspec-firewall/rfc8955_selected_integration_linux_test.go::TestSelectedFlowSpecKernelPacketSemantics#2": "503bc47ff01ba2c5"
   },
   "units": {
-    "internal/plugins/flowspec-firewall/rfc8955_selected_integration_linux_test.go::TestSelectedFlowSpecKernelPacketSemantics": "a770f2869bd51ed2",
-    "internal/plugins/flowspec-firewall/rfc8955_selected_integration_linux_test.go::TestSelectedFlowSpecKernelPacketSemantics#2": "a770f2869bd51ed2"
+    "internal/plugins/flowspec-firewall/rfc8955_selected_integration_linux_test.go::TestSelectedFlowSpecKernelPacketSemantics": "0a1379025154ddae",
+    "internal/plugins/flowspec-firewall/rfc8955_selected_integration_linux_test.go::TestSelectedFlowSpecKernelPacketSemantics#2": "0a1379025154ddae"
   },
   "verdict": "enforced"
 }

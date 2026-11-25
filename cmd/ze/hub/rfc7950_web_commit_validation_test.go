@@ -78,13 +78,13 @@ func TestRFC7950WebCommitWritesAValidEdit(t *testing.T) {
 // validation (EditorManager.validateTransition, internal/component/web), which
 // runs the ConfigValidator the SSH editor's commit runs, before anything is staged.
 //
-// RFC requirement: RFC7950-8.3-1 negative -- through the web editor factory the daemon installs, setting plugin/internal p1 use to "no-such-plugin-here" and committing returns an error naming the value, and the config file is byte-identical to its content before the commit.
+// RFC requirement: RFC7950-8.3-1 negative -- through the web editor factory the daemon installs, setting bus/endpoint p1 internal to "no-such-plugin-here" and committing returns an error naming the value, and the config file is byte-identical to its content before the commit.
 // RFC requirement: RFC7950-8.1-2 negative -- the web editor commit of a config the internal-plugin-name ze:validate rule refuses writes nothing, so the config the daemon loads stays the valid one.
 func TestRFC7950WebCommitRefusesAConstraintViolation(t *testing.T) {
 	mgr, store, configPath := webCommitManager(t)
 	before := webCommittedConfig(t, store, configPath)
 
-	if err := mgr.SetValue("bob", []string{"plugin", "internal", "p1"}, "use", "no-such-plugin-here"); err != nil {
+	if err := mgr.SetValue("bob", []string{"bus", "endpoint", "p1"}, "internal", "no-such-plugin-here"); err != nil {
 		t.Fatalf("set value: %v", err)
 	}
 	_, err := mgr.CommitNow("bob")

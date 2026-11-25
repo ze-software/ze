@@ -2,8 +2,8 @@
   "note": "Re-judged 2026-10-30 (independent auditor) after the user-namespace conversion (d8427e4380): the TestGatewayICMPEchoReply unit gained only `if !userns.Enter(t) { return }` as its first statement and its build tag moved from integration&&linux to linux. userns.Enter (internal/test/userns/userns_linux.go) re-runs the one named test in a fresh user+net+mount namespace and returns false to the parent only when the child reported PASS or SKIP; a failing child, a non-zero exit, or a child that ran nothing calls t.Fatalf, so every assertion below the guard still fails the test when the behaviour breaks. Body otherwise byte-identical. RFC 792 Echo: \"The data received in the echo message must be returned in the echo reply message.\" Fresh judgement: odd-length data must come back byte-equal, and TestGatewayICMPEchoReplyToTheQueriedAddress (same guard-only change) requires 1, 333 and 1400 distinct-octet payloads each returned exactly to its own sequence and every request answered. Enforced.",
   "requirement_sha": "2638c1cf3ce02daf",
   "tests": {
-    "internal/plugins/vrrp/rfc792_gateway_icmp_integration_linux_test.go::TestGatewayICMPEchoReply": "e652c87c70fd32cb",
-    "internal/plugins/vrrp/rfc792_gateway_icmp_integration_linux_test.go::TestGatewayICMPEchoReplyToTheQueriedAddress": "e652c87c70fd32cb"
+    "internal/plugins/vrrp/rfc792_gateway_icmp_integration_linux_test.go::TestGatewayICMPEchoReply": "15d38c7c333b951a",
+    "internal/plugins/vrrp/rfc792_gateway_icmp_integration_linux_test.go::TestGatewayICMPEchoReplyToTheQueriedAddress": "15d38c7c333b951a"
   },
   "units": {
     "internal/plugins/vrrp/rfc792_gateway_icmp_integration_linux_test.go::TestGatewayICMPEchoReply": "e3ce56f2d7eebb60",

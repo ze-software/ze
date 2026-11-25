@@ -1,13 +1,13 @@
 {
-  "note": "vrrp judge 2026-09-29 (independent): the cascade confound is removed: the IPv6 group's IPv4 address now follows fe80::1, so the first-address-link-local rule cannot refuse it, and every refusal must carry the family error text ('is not an IPv6 address' / 'is not an IPv4 address'); same-family IPv4 and IPv6 lists validate. Records: revert validateGroup, both polarities.",
+  "note": "Re-judged 2026-11-25 (independent auditor, after 1f82b2727d): RFC 9568 Section 5.2.9 states \"The address family of the addresses, IPv4 or IPv6 but not both, MUST be the same as the VRRP packet's IPvX header address family.\" TestValidateVIPFamilyMatchesGroupFamily changed only by dropping the removed backendNetlink argument from validateGroups(specs); validateGroup (groups.go:681-688) is unchanged. Both mixed-family cases remain isolated (IPv6 list leads with fe80::1 before 192.0.2.1 so the link-local check cannot trip first) and assert exact family-mismatch error text, while same-family lists validate. Verdict enforced.",
   "requirement_sha": "0e09fb8c97fbaed5",
   "tests": {
-    "internal/plugins/vrrp/groups_test.go::TestValidateVIPFamilyMatchesGroupFamily": "30e27105e8a9f202",
-    "internal/plugins/vrrp/groups_test.go::TestValidateVIPFamilyMatchesGroupFamily#2": "30e27105e8a9f202"
+    "internal/plugins/vrrp/groups_test.go::TestValidateVIPFamilyMatchesGroupFamily": "5a525667dfaed6b3",
+    "internal/plugins/vrrp/groups_test.go::TestValidateVIPFamilyMatchesGroupFamily#2": "5a525667dfaed6b3"
   },
   "units": {
-    "internal/plugins/vrrp/groups_test.go::TestValidateVIPFamilyMatchesGroupFamily": "d7ca52f2021d9d58",
-    "internal/plugins/vrrp/groups_test.go::TestValidateVIPFamilyMatchesGroupFamily#2": "d7ca52f2021d9d58"
+    "internal/plugins/vrrp/groups_test.go::TestValidateVIPFamilyMatchesGroupFamily": "e53450bf9fbb6fd8",
+    "internal/plugins/vrrp/groups_test.go::TestValidateVIPFamilyMatchesGroupFamily#2": "e53450bf9fbb6fd8"
   },
   "verdict": "enforced"
 }

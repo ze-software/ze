@@ -1,17 +1,17 @@
 {
-  "note": "vrrp judge 2026-09-29 (independent): TestV2BoundaryPriority validates version-2 groups (version asserted at extraction): 1 and 254 accepted, 0 and 255 refused with the range-check text 'is out of range; configure 1..254' (so no other check can satisfy the case), and a v2 non-owner at 100 floors at 1 under decrements 99, 100, 4064. Records: revert validateGroup, both polarities.",
+  "note": "Re-judged 2026-11-25 (independent auditor, after 1f82b2727d): RFC 3768 Section 5.3.4 states \"VRRP routers backing up a virtual router MUST use priority values between 1-254 (decimal).\" TestBoundaryPriority and TestV2BoundaryPriority changed only by dropping the removed backendNetlink argument from validateGroups; validateGroup (groups.go:672) is unchanged. Both units still accept priorities 1 and 254 and reject 0 and 255 (TestV2BoundaryPriority asserts exact range-check text 'is out of range; configure 1..254' and runtime EffectivePriority floor at 1 under decrements 99, 100, 4064). Verdict enforced.",
   "requirement_sha": "395a0085cfbc094b",
   "tests": {
-    "internal/plugins/vrrp/groups_test.go::TestBoundaryPriority": "30e27105e8a9f202",
-    "internal/plugins/vrrp/groups_test.go::TestBoundaryPriority#2": "30e27105e8a9f202",
-    "internal/plugins/vrrp/rfc3768_v2_group_test.go::TestV2BoundaryPriority": "8b5d8c7a41e8e18e",
-    "internal/plugins/vrrp/rfc3768_v2_group_test.go::TestV2BoundaryPriority#2": "8b5d8c7a41e8e18e"
+    "internal/plugins/vrrp/groups_test.go::TestBoundaryPriority": "5a525667dfaed6b3",
+    "internal/plugins/vrrp/groups_test.go::TestBoundaryPriority#2": "5a525667dfaed6b3",
+    "internal/plugins/vrrp/rfc3768_v2_group_test.go::TestV2BoundaryPriority": "4f33fc505f21e0c7",
+    "internal/plugins/vrrp/rfc3768_v2_group_test.go::TestV2BoundaryPriority#2": "4f33fc505f21e0c7"
   },
   "units": {
-    "internal/plugins/vrrp/groups_test.go::TestBoundaryPriority": "fcd4ad07247002db",
-    "internal/plugins/vrrp/groups_test.go::TestBoundaryPriority#2": "fcd4ad07247002db",
-    "internal/plugins/vrrp/rfc3768_v2_group_test.go::TestV2BoundaryPriority": "4a24b4547d5df7e0",
-    "internal/plugins/vrrp/rfc3768_v2_group_test.go::TestV2BoundaryPriority#2": "4a24b4547d5df7e0"
+    "internal/plugins/vrrp/groups_test.go::TestBoundaryPriority": "7cf156461e08ce39",
+    "internal/plugins/vrrp/groups_test.go::TestBoundaryPriority#2": "7cf156461e08ce39",
+    "internal/plugins/vrrp/rfc3768_v2_group_test.go::TestV2BoundaryPriority": "600d1b681491ddeb",
+    "internal/plugins/vrrp/rfc3768_v2_group_test.go::TestV2BoundaryPriority#2": "600d1b681491ddeb"
   },
   "verdict": "enforced"
 }

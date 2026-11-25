@@ -2,15 +2,15 @@
   "code": {
     "internal/component/config/yang/validator_mandatory.go::mandatoryPresent": "0c5fd237cd0f1a35"
   },
-  "note": "Re-judged 2026-10-25 after the row went stale. The only change to the row since the verdict is the spec path in its Reason, plan/pre-release/ moved to plan/release/fixes/ (commit 666f1bc521); Tested, Gap, Producer and the requirement text are byte-identical, and reseal reported the tagged units unchanged. Section 7.9.4: \"If \"mandatory\" is \"true\", at least one node from exactly one of the choice's case branches MUST exist.\" Tested \"at least one node from\"; Gap \"exactly one of the choice's case branches\"; Producer internal/component/config/yang/validator_mandatory.go::mandatoryPresent. Tested holds: TestMandatoryChoiceSatisfiedByACaseNode reports the missing choice for a container with no node of any case and accepts a node of one case and of a nested choice's case. Gap holds, re-read at the producer: mandatoryPresent returns true at the first case node it finds and no other check compares the cases, so data from two cases is accepted. Whole requirement earns no credit; spec-config-yang-when-unique-choice.",
+  "note": "Independent source rejudgment 2026-11-25 against RFC 7950 Section 7.9.4 (rfc/full/rfc7950.txt): \"If \\\"mandatory\\\" is \\\"true\\\", at least one node from exactly one of the choice's case branches MUST exist.\" The only change in 1f82b2727d is renaming the test module prefix in TestMandatoryChoiceSatisfiedByACaseNode (internal/component/config/yang/rfc7950_mandatory_test.go) from \"tc\" to \"tch\" for the retired-selector-values sweep; all schema nodes and assertions are unchanged. Tested \"at least one node from\"; Gap \"exactly one of the choice's case branches\"; Producer internal/component/config/yang/validator_mandatory.go::mandatoryPresent. Verified at the producer: mandatoryPresent still returns true on the first matching case node and no sibling check rejects nodes from two cases simultaneously. Partial verdict unchanged (spec-config-yang-when-unique-choice); whole requirement earns zero credit. Source rejudgment only; no test or gate executed.",
   "requirement_sha": "c1264b006e97eb71",
   "tests": {
-    "internal/component/config/yang/rfc7950_mandatory_test.go::TestMandatoryChoiceSatisfiedByACaseNode": "39faaa97711e3fdf",
-    "internal/component/config/yang/rfc7950_mandatory_test.go::TestMandatoryChoiceSatisfiedByACaseNode#2": "39faaa97711e3fdf"
+    "internal/component/config/yang/rfc7950_mandatory_test.go::TestMandatoryChoiceSatisfiedByACaseNode": "3e725d3a488e125d",
+    "internal/component/config/yang/rfc7950_mandatory_test.go::TestMandatoryChoiceSatisfiedByACaseNode#2": "3e725d3a488e125d"
   },
   "units": {
-    "internal/component/config/yang/rfc7950_mandatory_test.go::TestMandatoryChoiceSatisfiedByACaseNode": "cbcdca52065b2a46",
-    "internal/component/config/yang/rfc7950_mandatory_test.go::TestMandatoryChoiceSatisfiedByACaseNode#2": "cbcdca52065b2a46"
+    "internal/component/config/yang/rfc7950_mandatory_test.go::TestMandatoryChoiceSatisfiedByACaseNode": "906327e5a1d04f1a",
+    "internal/component/config/yang/rfc7950_mandatory_test.go::TestMandatoryChoiceSatisfiedByACaseNode#2": "906327e5a1d04f1a"
   },
   "verdict": "partial"
 }
