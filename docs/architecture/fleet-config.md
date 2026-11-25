@@ -1199,11 +1199,13 @@ anchored on the root needs no change for either. Every server block that accepts
 certificate: a config where two of them name different certificates is refused
 at load.
 
-The running hub uses the managed certificate and client declarations it read
-at startup. An unresolved certificate leaves the managed addresses unbound and
-reported in doctor. Use `edit pki certificate <name>` to supply the leaf,
-matching private key and chain for the configured name. Commit the change and
-restart the hub to bind the addresses.
+At startup an unresolved certificate leaves the managed server built with
+nothing bound and each affected address reported unbound in doctor. Use
+`edit pki certificate <name>` to supply the leaf, matching private key and chain
+for the configured name, or remove the `certificate` leaf, and commit: the
+reload binds the addresses and serves the configured certificate without a
+restart. While the name remains unresolved, any reload that still names it is
+refused at the certificate gate.
 
 If the hub needs its own authority at startup and cannot load it, the managed
 server stays unavailable. `ze data check` checks the store's integrity. A
@@ -1214,16 +1216,21 @@ after the repair. A signer that loaded but failed to issue a leaf reports its
 signing error on each affected address. `ze show pki local-ca pem` exports
 the public issuer for comparison with the root trusted by the clients.
 
-The server's reload methods are implemented and tested directly.
-`PrepareManagedListeners` resolves the candidate's named chain or prepares an
-issued leaf covering loopback and every explicit serving host.
-`ApplyManagedListeners` installs the prepared source before binding new
-addresses. Existing sessions keep their socket. If issuance fails for a new
-host, its address stays unbound and existing listeners keep their leaf.
-An unresolved name, an unusable pair or a failed replacement for a serving
-named chain returns a preparation error. The remaining daemon integration is
-to reject that candidate before any consumer applies, restore the previous
-PKI store, and install successful preparations only after promotion.
+Config reloads update the managed client set, serving addresses and managed
+certificate without restarting the hub. At the certificate gate before any
+consumer applies, `runReloadContext` calls `prepareManagedReload`
+(`PrepareManagedListeners`), which resolves the candidate's named chain or
+prepares an issued leaf covering loopback and every explicit serving host. An
+unresolved name, an unusable pair or a failed leaf replacement for a serving
+named chain refuses the candidate whole and restores the previous PKI store
+(`restorePKIAfter`). After candidate promotion, `ApplyManagedListeners` installs
+the prepared certificate source before binding added addresses, admits newly
+declared clients, closes sessions of removed clients or clients whose secret
+changed, and closes removed addresses. Existing sessions on unchanged listeners
+keep their sockets and the certificate they negotiated; the next handshake
+presents the new certificate. If leaf issuance fails for an added host while
+already serving the issued leaf, the existing leaf stays and the added address
+is left unbound and reported in doctor.
 
 <!-- source: cmd/ze/hub/managed_server.go -- startManagedServer, prepareManagedReload -->
 <!-- source: cmd/ze/hub/main_reload.go -- runReloadContext -->

@@ -654,8 +654,15 @@ func (s *ManagedServer) handleRequest(name string, mc *rpc.MuxConn, req *rpc.Req
 		}
 
 	case fleet.VerbConfigAck:
+		if len(req.Params) == 0 {
+			_ = mc.SendError(s.ctx, req.ID, "bad config-ack payload")
+			return
+		}
 		var ack fleet.ConfigAck
-		_ = json.Unmarshal(req.Params, &ack) //nolint:errcheck // ack is informational; log best-effort
+		if err := json.Unmarshal(req.Params, &ack); err != nil {
+			_ = mc.SendError(s.ctx, req.ID, "bad config-ack payload")
+			return
+		}
 		s.handleConfigAck(name, ack, session.fetched)
 		_ = mc.SendOK(s.ctx, req.ID)
 

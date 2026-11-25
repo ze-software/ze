@@ -792,6 +792,9 @@ func (g *guard) Release() error {
 		observer.active.Add(1)
 	}
 	g.parent.mu.Unlock()
+	if observer != nil {
+		defer observer.active.Done()
+	}
 	if err == nil && g.holdsRuntime {
 		for key := range g.pending {
 			g.notifyRuntime(key, false)
@@ -805,7 +808,6 @@ func (g *guard) Release() error {
 		return err
 	}
 	if observer != nil {
-		defer observer.active.Done()
 		for key := range g.pending {
 			observer.notify(key)
 		}

@@ -12,9 +12,11 @@ import (
 	"net/netip"
 	"slices"
 	"sync"
+	"sync/atomic"
 
 	zeconfig "github.com/ze-software/ze/internal/component/config"
 	"github.com/ze-software/ze/internal/component/config/infra"
+	pluginserver "github.com/ze-software/ze/internal/component/plugin/server"
 	"github.com/ze-software/ze/internal/core/network"
 	"github.com/ze-software/ze/internal/core/selfcert"
 	"github.com/ze-software/ze/internal/core/slogutil"
@@ -142,6 +144,11 @@ type listenerMigrator struct {
 	sshMu sync.Mutex
 	ssh   Reconfigurable
 
+	// managed is the hub's managed-config server, published once startup opens
+	// it and cleared before Stop. Reload prepares against it at the certificate
+	// gate and applies after candidate promotion.
+	managed atomic.Pointer[pluginserver.ManagedServer]
+
 	// authAtBoot records, per service name, whether the boot guard
 	// (mgmt_guard.go) classified that surface as gating every request. It is
 	// the reload guard's source for a service whose authentication is fixed at
@@ -158,6 +165,16 @@ type listenerMigrator struct {
 	// authReloaders resolves each service's configured authentication from a
 	// reloaded config tree.
 	authReloaders map[string]authReloader
+}
+
+// setManaged publishes the hub's managed-config server for live reloads.
+func (m *listenerMigrator) setManaged(srv *pluginserver.ManagedServer) {
+	m.managed.Store(srv)
+}
+
+// managedServer returns the hub's running managed-config server, or nil.
+func (m *listenerMigrator) managedServer() *pluginserver.ManagedServer {
+	return m.managed.Load()
 }
 
 // markAuthenticated records that the boot guard classified the named service as

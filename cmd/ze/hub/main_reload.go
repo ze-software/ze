@@ -772,6 +772,21 @@ func runReloadContext(ctx context.Context, source reloadSource, s *pluginserver.
 		}
 	}
 
+	// Prepare the managed listener's certificate and serving declarations
+	// against the just-installed PKI store before any consumer applies (AC-39).
+	// Unresolved names, unparseable pairs, or an authority unable to replace a
+	// serving named chain refuse the reload whole and restore the prior PKI.
+	var managedPlan *pluginserver.ManagedListenerPlan
+	if lm != nil {
+		if srv := lm.managedServer(); srv != nil {
+			plan, planErr := prepareManagedReload(parsedTree, srv)
+			if planErr != nil {
+				return restorePKIAfter(priorPKI, clearCandidate, fmt.Errorf("reload: %w", planErr))
+			}
+			managedPlan = plan
+		}
+	}
+
 	// The named next-hop ranges of the looking glass, read by the reader the
 	// startup path uses, whatever the `enabled` leaf says. A list the reader
 	// refuses stops the reload here, before anything is applied.
@@ -1023,6 +1038,11 @@ func runReloadContext(ctx context.Context, source reloadSource, s *pluginserver.
 	applyResolvConf(parsedTree)
 	reloadSmartManager(parsedTree)
 	publishNameServers(parsedTree)
+	if lm != nil {
+		if srv := lm.managedServer(); srv != nil {
+			srv.ApplyManagedListeners(managedPlan)
+		}
+	}
 
 	// The complete local and API identity becomes live only after every
 	// fallible reload step, including candidate promotion, has succeeded.

@@ -48,11 +48,13 @@ deployment until a client rejects it.
 
 With an empty name, the web and looking glass use their self-signed pair at
 startup and after a reload. The managed fleet listener uses the leaf issued
-by the daemon authority. The hub declares these rules in `listenerTLSMaterial`
-for the web and looking glass and in `managedCertificate` for the managed
-listener. The web and looking-glass reload paths use their startup rule.
-The managed server shares its startup rule with its preparation method.
-Today the hub reads managed listener settings at startup.
+by the daemon authority, at a reload too. The hub declares each of its two
+precedences once: `listenerTLSMaterial` for the web and looking glass listeners,
+and `managedCertificate` for the managed listener. Each is called by its
+listener's start and by its reload, so neither two surfaces nor a start and a
+reload can disagree about which certificate a resolvable config asks a listener
+for (the unresolved-name startup/reload difference for the managed listener is
+stated under "Decision: rotation does not rebind the hub listeners").
 
 The self-signed branch alone needs the `database/` store, because that is where
 the generated pair is persisted. The looking glass therefore applies its
@@ -86,25 +88,26 @@ identity to every client.
 
 <!-- source: cmd/ze/hub/main.go -- runYANGConfig, the web and looking-glass certificate startup gates -->
 
-The reload path refuses the same two names against the just-installed store. The
-check runs before any consumer applies, so the reload fails as a whole rather
-than leaving a listener on a certificate the config no longer describes.
-`restorePKIAfter` puts the prior store back on failure. The looking glass reads
-its listeners and its name through `lgListenerConfigFrom`, which the startup
-gate calls too, so a restart and a reload cannot disagree about which
-certificate one config asks for. The same gate refuses, through
+The reload path refuses the same two names against the just-installed store and
+asks the managed server to prepare its certificate (`prepareManagedReload`) at
+the same gate. The check runs before any consumer applies, so the reload fails
+as a whole rather than leaving a listener on a certificate the config no longer
+describes. `restorePKIAfter` puts the prior store back on failure. The looking
+glass reads its listeners and its name through `lgListenerConfigFrom`, which
+the startup gate calls too, so a restart and a reload cannot disagree about
+which certificate one config asks for. The same gate refuses, through
 `checkLGTransport`, a `tls true` entry that has no certificate to present.
 
-At startup an unresolved managed certificate leaves each affected address
-unbound and reported in doctor. `edit pki certificate <name>` opens the
-entry shared by those listeners. Supply the leaf, its matching private key
-and the chain to a configured CA, then commit. The repaired entry takes effect on a hub
-restart. Fleet's approved design extends the reload gate to prepare the managed
-certificate against the candidate PKI store. An unresolved name or unusable
-pair will refuse the candidate and restore the previous store. Wiring
-`prepareManagedReload` into the daemon reload path is still pending.
+The startup gate of `runYANGConfig` does not read the managed name: at startup
+an unresolved managed certificate leaves the managed server built with nothing
+bound and each affected address reported unbound in doctor, so the operator can
+commit a fix without restarting into a dead daemon. Every later reload that
+still carries the unresolved name is refused at the reload gate until the name
+is defined in `pki` (`edit pki certificate <name>`) or removed from the serving
+blocks.
 
 <!-- source: cmd/ze/hub/managed_server.go -- startManagedServer, prepareManagedReload -->
+<!-- source: cmd/ze/hub/main_reload.go -- runReloadContext, prepareManagedReload call -->
 
 A reload can also fail after the web or looking-glass listener took the reloaded config's
 certificate: the looking glass refuses its install, a listener cannot move to
@@ -120,8 +123,10 @@ the listener serves the certificate of the config that stays in force, and each
 looking-glass listener serves HTTPS or HTTP as that config says. A
 listener whose install failed kept what it was serving, so nothing is
 reinstalled on it. A reinstall that fails is reported with the refusal as a
-failed `certificate restore`. The approved managed reload design installs
-its prepared source after promotion, so it needs no certificate restore.
+failed `certificate restore`. The managed listener needs no reinstall: its
+certificate is prepared at the gate and installed after promotion
+(`ApplyManagedListeners`), so it never presents the certificate of a config
+that was rolled back.
 
 <!-- source: cmd/ze/hub/main_reload.go -- the web and environment.looking-glass.certificate reference checks, restorePKIAfter -->
 <!-- source: cmd/ze/hub/lg_transport.go -- lgListenerConfigFrom -->
@@ -234,26 +239,31 @@ the certificate that config names. With no name and no store they have no
 self-signed pair to return to, and that reload is refused
 (`errSelfSignedNeedsStore`).
 
-The managed server can prepare a certificate, then install it before binding
-added addresses. Tests exercise these methods on a running server. Its next
-handshake presents the prepared chain and open sessions keep answering. The
-daemon still requires a restart to change its managed listener settings.
-The table describes the approved behavior once the daemon calls preparation
-before any consumer applies and installation after promotion.
+On every reload the managed listener prepares its certificate at the certificate
+gate through `managedCertificate` (`prepareManagedReload`,
+`PrepareManagedListeners`) and installs it after promotion
+(`ApplyManagedListeners`) behind the source `getCertificate` reads, before
+binding any added addresses. All three listeners keep their sockets during
+rotation, no managed session is closed for a certificate change, and the next
+handshake presents the prepared chain. An accepted managed reload matches a
+restart with the same configuration, whereas an unresolved managed certificate
+name differs: at startup the daemon keeps running with its managed addresses
+unbound and reports them in doctor, while a reload naming an unresolved managed
+certificate is refused and keeps the previous configuration.
 
-| Candidate managed listener configuration | Planned daemon reload outcome |
+| Reloaded managed listener configuration | What the next handshake presents |
 |--------------------------------|----------------------------------|
-| A name the candidate store defines | The named chain, including a renewal under the same name |
-| An unresolved name or an unusable pair | The reload is refused. The previous certificate stays |
-| No name | The authority-issued leaf covers loopback and each specified serving host |
-| Name removed, authority cannot issue a replacement for a serving named chain | The reload is refused. The named chain stays. Restore its name on each candidate serving block. For multiple blocks the refusal supplies the set lines for an absolute merge |
-| Issued leaf in use, authority cannot cover a newly added address | The existing leaf stays. Added addresses stay unbound with the issue error in doctor |
+| A name the new store defines | That chain, including a renewal under the same name |
+| A name the new store does not define, or material that does not parse | The reload is refused, the previous certificate stays |
+| No name | The leaf the daemon's authority issues, naming `127.0.0.1` and the host of every served address |
+| No name, and the authority cannot issue, on a listener that presents a named certificate | The reload is refused, the named certificate stays. Restore its name on each candidate serving block (for multiple blocks the refusal supplies the set lines for an absolute merge) |
+| No name, and the authority cannot issue, on a listener that presents the issued leaf | The leaf in place stays, and an address the reload added is left unbound and reported in doctor |
 
 | Consumer | Reload hook | Running server |
 |----------|-------------|----------------|
 | Web and API | `updateWebCertificate` | `web.(*WebServer).UpdateTLSCertificate`, read per handshake by `getCertificate` |
 | Looking glass | `updateLGTransport` | `lg.(*LGServer).UpdateTLSCertificate`, read per handshake by `getCertificate`, then `lg.(*LGServer).UpdateListenerTLS`, read per connection by `transportListener.Accept` |
-| Managed fleet | Daemon integration pending for `PrepareManagedListeners` and `ApplyManagedListeners` | `ManagedServer.getCertificate`, read per handshake |
+| Managed fleet | `prepareManagedReload` (`PrepareManagedListeners`) at the certificate gate; `ApplyManagedListeners` after promotion | `ManagedServer` certificate source, read per handshake by `getCertificate` |
 | DoT and DoH | none | as112 and geodns rebind, because the listener signature folds in the leaf fingerprint |
 
 The web and looking-glass servers clear `tls.Config.Certificates` at the statement that sets

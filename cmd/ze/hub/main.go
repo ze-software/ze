@@ -1748,6 +1748,31 @@ func runYANGConfig(store storage.Storage, configPath string, data []byte, plugin
 		}()
 	}
 
+	// Start the device registry on the daemon's store before signaling ready,
+	// including when it has no clients. Only serving blocks need a listener
+	// and certificate. A live config restore uses this server to find a served
+	// client, and live reloads update its listeners and certificate through lm.
+	if managedServer := startManagedServer(managedCtx, store, &hubConfig); managedServer != nil {
+		// The hub MUST join this server before returning the borrowed store.
+		defer managedServer.Stop()
+		lm.setManaged(managedServer)
+		defer lm.setManaged(nil)
+		if dataTarget != nil {
+			serving := *dataTarget
+			serving.ServesClient = managedServer.Serves
+			storagecli.InstallDataRPC(&serving)
+		}
+		// The divergence commands act on the held copies this server keeps.
+		// Deferred after Stop, so the target is withdrawn before the server
+		// stops and before the store is returned.
+		managed.InstallDivergenceTarget(&managed.DivergenceTarget{
+			Store:               store,
+			ServesClient:        managedServer.Serves,
+			NotifyConfigChanged: managedServer.NotifyConfigChanged,
+		})
+		defer managed.InstallDivergenceTarget(nil)
+	}
+
 	writeReadyFile()
 
 	// Record the boot configuration (see DeferBootRecord above), now that ze
@@ -1764,28 +1789,6 @@ func runYANGConfig(store storage.Storage, configPath string, data []byte, plugin
 		bootRecord.Start(func(view storage.Storage) error {
 			return recordBootConfig(view, configPath, data)
 		})
-	}
-
-	// Start the device registry on the daemon's store, including when it
-	// has no clients. Only serving blocks need a listener and certificate.
-	// A live config restore uses this server to find a served client.
-	if managedServer := startManagedServer(managedCtx, store, &hubConfig); managedServer != nil {
-		// The hub MUST join this server before returning the borrowed store.
-		defer managedServer.Stop()
-		if dataTarget != nil {
-			serving := *dataTarget
-			serving.ServesClient = managedServer.Serves
-			storagecli.InstallDataRPC(&serving)
-		}
-		// The divergence commands act on the held copies this server keeps.
-		// Deferred after Stop, so the target is withdrawn before the server
-		// stops and before the store is returned.
-		managed.InstallDivergenceTarget(&managed.DivergenceTarget{
-			Store:               store,
-			ServesClient:        managedServer.Serves,
-			NotifyConfigChanged: managedServer.NotifyConfigChanged,
-		})
-		defer managed.InstallDivergenceTarget(nil)
 	}
 
 	if clientOwner != nil {

@@ -5,14 +5,20 @@
 package server
 
 import (
+	"bufio"
 	"errors"
 	"io/fs"
+	"net"
+	"net/netip"
+	"strings"
 	"testing"
+	"unicode/utf8"
 
 	"github.com/stretchr/testify/require"
 
 	"github.com/ze-software/ze/internal/component/config/storage"
 	"github.com/ze-software/ze/pkg/fleet"
+	"github.com/ze-software/ze/pkg/plugin/rpc"
 )
 
 func TestRegistryDivergedFromHeldRecord(t *testing.T) {
@@ -203,5 +209,65 @@ func TestRegistryForgetDuringConfigRead(t *testing.T) {
 			require.Len(t, rows, 1)
 			require.Equal(t, testClient2Name, rows[0].Name)
 		}
+	}
+}
+
+// VALIDATES: deleting a client config file clears the cached hub-version on the
+// next registry read even though config deletion does not trigger write observers.
+// PREVENTS: show fleet devices displaying a deleted config's stale hash as in-sync.
+func TestRegistryHubVersionClearsWhenConfigRemoved(t *testing.T) {
+	store := heldTestStore(t)
+	s := registryWithHistory(t, store)
+	s.svc.readConfig = func(name string) ([]byte, error) {
+		return store.ReadFile(ClientConfigKey(name))
+	}
+	require.NoError(t, store.WriteFile(ClientConfigKey(testClientName), []byte("v1"), 0o600))
+	got, err := s.registryDevice(testClientName)
+	require.NoError(t, err)
+	require.Equal(t, fleet.VersionHash([]byte("v1")), got.HubVersion)
+
+	require.NoError(t, store.Remove(ClientConfigKey(testClientName)))
+	got, err = s.registryDevice(testClientName)
+	require.NoError(t, err)
+	require.Empty(t, got.HubVersion)
+}
+
+// VALIDATES: malformed config-ack JSON returns an RPC error and leaves both
+// persisted ack history and doctor rejection state untouched.
+// PREVENTS: corrupt ack frames overwriting recorded applied state with a blank refusal.
+func TestMalformedConfigAckDoesNotCorruptHistory(t *testing.T) {
+	s := registryTestServer(t)
+	s.ctx = t.Context()
+	conn := &rpc.MuxConn{}
+	require.NoError(t, s.admitDevice(testClientName, netip.MustParseAddr("192.0.2.10"), conn))
+	s.recordAck(testClientName, fleet.ConfigAck{Version: "v1", OK: true}, ManagedAckApplied)
+
+	clientPipe, serverPipe := net.Pipe()
+	defer clientPipe.Close()
+	defer serverPipe.Close()
+	serverEnd := rpc.NewMuxConn(rpc.NewConn(serverPipe, serverPipe))
+	defer serverEnd.Close()
+	var session managedSession
+	go s.handleRequest(testClientName, serverEnd, &rpc.Request{ID: 7, Method: fleet.VerbConfigAck, Params: []byte("{bad")}, &session)
+	raw, err := bufio.NewReader(clientPipe).ReadString('\n')
+	require.NoError(t, err)
+	require.Contains(t, raw, "bad config-ack payload")
+
+	got := s.snapshotDevices()[0]
+	require.Equal(t, ManagedAckApplied, got.AckResult)
+	require.Equal(t, "v1", got.AckVersion)
+	require.Empty(t, s.doctor.snapshot().Rejected)
+}
+
+// VALIDATES: doctor rejection detail truncation cuts on a UTF-8 rune boundary.
+// PREVENTS: invalid UTF-8 sequences in doctor output for long multi-byte details.
+func TestDoctorDetailTruncationPreservesUTF8(t *testing.T) {
+	var d managedDoctorState
+	detail := strings.Repeat("a", managedDetailMax-1) + "é"
+	d.recordUnknown("alien", detail)
+	d.recordRejected("edge-01", ManagedRejectConfigRejected, detail)
+	for _, r := range d.snapshot().Rejected {
+		require.LessOrEqual(t, len(r.Detail), managedDetailMax)
+		require.True(t, utf8.ValidString(r.Detail))
 	}
 }

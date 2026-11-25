@@ -161,7 +161,15 @@ func (s *ManagedServer) currentConfigVersion(name string, device *managedDevice)
 		cached := device.version
 		s.mu.Unlock()
 		if cached.known {
-			return cached.hash, nil
+			if cached.hash == "" {
+				return "", nil
+			}
+			if s.recordIO == nil {
+				return cached.hash, nil
+			}
+			if s.recordIO.store.Exists(ClientConfigKey(name)) {
+				return cached.hash, nil
+			}
 		}
 		data, err := s.svc.readConfig(name)
 		hash = ""

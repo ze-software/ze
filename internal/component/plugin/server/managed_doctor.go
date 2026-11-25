@@ -191,9 +191,7 @@ type managedDoctorState struct {
 // client entry for. When managedUnknownMax names are already kept and this
 // one is new, the oldest is forgotten.
 func (d *managedDoctorState) recordUnknown(claimed, detail string) {
-	if len(detail) > managedDetailMax {
-		detail = detail[:managedDetailMax]
-	}
+	detail = boundedManagedDetail(detail)
 	d.mu.Lock()
 	defer d.mu.Unlock()
 	if d.unknown == nil {
@@ -238,9 +236,7 @@ func (s *ManagedServer) recordDeclaredRejection(client string, cause ManagedReje
 // recordRejected records the last refusal of one client, replacing any
 // earlier one.
 func (d *managedDoctorState) recordRejected(client string, cause ManagedRejectCause, detail string) {
-	if len(detail) > managedDetailMax {
-		detail = detail[:managedDetailMax]
-	}
+	detail = boundedManagedDetail(detail)
 	d.mu.Lock()
 	defer d.mu.Unlock()
 	if d.rejected == nil {
