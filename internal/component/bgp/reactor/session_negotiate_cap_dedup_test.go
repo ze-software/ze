@@ -92,3 +92,55 @@ func TestBuildOpenDeduplicatesConfigAndPluginCapabilities(t *testing.T) {
 	assert.Equal(t, 1, addPathCount, "identical ADD-PATH declared by both config and plugin must emit once")
 	assert.Equal(t, 1, errCount, "duplicate plugin capability must emit once")
 }
+
+// TestBuildOpenCoalescesAndChecksAddPath verifies Q-E9 on the OPEN builder:
+// disjoint ADD-PATH families across peer config and plugins merge into one
+// sorted RFC 7911 capability, while conflicting modes for the same family are
+// refused instead of letting one silently overwrite the other.
+func TestBuildOpenCoalescesAndChecksAddPath(t *testing.T) {
+	t.Parallel()
+
+	s, settings := newNoFamilySession(t)
+	configCaps := []capability.Capability{
+		&capability.Multiprotocol{AFI: capability.AFIIPv4, SAFI: capability.SAFIUnicast},
+		&capability.Multiprotocol{AFI: capability.AFIIPv6, SAFI: capability.SAFIUnicast},
+		&capability.AddPath{
+			Families: []capability.AddPathFamily{
+				{AFI: capability.AFIIPv4, SAFI: capability.SAFIUnicast, Mode: capability.AddPathSend},
+			},
+		},
+	}
+
+	// Disjoint family (IPv6 unicast receive) merges cleanly with config IPv4 send.
+	mergedPlugins := pluginCapabilitySnapshot{
+		capabilities: []capability.Capability{
+			capability.NewPlugin(uint8(capability.CodeAddPath), []byte{0x00, 0x02, 0x01, 0x01}),
+		},
+	}
+	open, err := s.buildOpenFromSnapshot(settings, configCaps, mergedPlugins)
+	require.NoError(t, err)
+	got, err := capability.ParseFromOptionalParams(open.OptionalParams, open.ExtendedParams)
+	require.NoError(t, err)
+
+	var apCaps []*capability.AddPath
+	for _, c := range got {
+		if ap, ok := c.(*capability.AddPath); ok {
+			apCaps = append(apCaps, ap)
+		}
+	}
+	require.Len(t, apCaps, 1, "merged ADD-PATH must emit as a single Code 69 capability")
+	assert.Equal(t, []capability.AddPathFamily{
+		{AFI: capability.AFIIPv4, SAFI: capability.SAFIUnicast, Mode: capability.AddPathSend},
+		{AFI: capability.AFIIPv6, SAFI: capability.SAFIUnicast, Mode: capability.AddPathReceive},
+	}, apCaps[0].Families)
+
+	// Conflicting mode on the same family (IPv4 unicast receive vs config send) MUST refuse.
+	conflictPlugins := pluginCapabilitySnapshot{
+		capabilities: []capability.Capability{
+			capability.NewPlugin(uint8(capability.CodeAddPath), []byte{0x00, 0x01, 0x01, 0x01}),
+		},
+	}
+	_, err = s.buildOpenFromSnapshot(settings, configCaps, conflictPlugins)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "ADD-PATH")
+}

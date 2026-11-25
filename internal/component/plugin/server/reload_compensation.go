@@ -24,6 +24,8 @@ type retainedOperationRootsKey struct{}
 type reloadCompensation struct {
 	before             map[string]any
 	beforeTransactions map[string]string
+	beforeBusConfig    plugin.BusConfig
+	beforeBusTree      map[string]any
 	// created is the reactor's created peers when before was recorded. A
 	// reload whose tree declares one takes it over, and restoring before does
 	// not mark it again, nor rebuild one it renamed (RestoreCreatedPeers,
@@ -70,6 +72,8 @@ func recordReloadCompensation(ctx context.Context, before, after map[string]any,
 		pending.compensation = &reloadCompensation{
 			before:             before,
 			beforeTransactions: maps.Clone(pending.server.txLock.configTransactions),
+			beforeBusConfig:    pending.server.BusConfig(),
+			beforeBusTree:      pending.server.currentBusConfigTree(),
 			created:            created,
 			affected:           make(map[string]affectedPlugin),
 			inverses:           make(map[inverseKey]inverseOutcome),
@@ -166,6 +170,9 @@ func (s *Server) restoreReload(pending *reloadAcceptance, undo *reloadCompensati
 		if err := s.reactor.RestoreCreatedPeers(undo.before, undo.created); err != nil {
 			return err
 		}
+		s.SetBusConfig(undo.beforeBusConfig)
+		s.SetBusConfigTree(undo.beforeBusTree)
+		s.RefreshDeliveryGraph()
 		s.txLock.configTransactions = maps.Clone(undo.beforeTransactions)
 		return errors.Join(s.restoreOriginalJournals(pending, undo, undo.before, nil), pending.completeBatchesBounded(false))
 	}
@@ -244,6 +251,9 @@ func (s *Server) restoreReload(pending *reloadAcceptance, undo *reloadCompensati
 		}
 	}
 	s.reactor.SetConfigTree(undo.before)
+	s.SetBusConfig(undo.beforeBusConfig)
+	s.SetBusConfigTree(undo.beforeBusTree)
+	s.RefreshDeliveryGraph()
 	// And after SetConfigTree, which drops every created peer the tree declares.
 	// A created peer the reconcile freed the address of, because the reload
 	// had declared that address under another name, is rebuilt here.

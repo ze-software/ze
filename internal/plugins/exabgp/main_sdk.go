@@ -140,12 +140,17 @@ func runSDKWithPlugin(ctx context.Context, p *sdk.Plugin, endpointName string, o
 	})
 	p.OnParticipantFilter(func(filter *rpc.BusParticipantFilter) {
 		fleet.ApplyFilter(filter)
+		p.SetEventFormat(bridgerun.EventFormat(filter, opts.Forms))
 	})
 
 	// Stage 3 virtual session capabilities (E-4, Q-E9): scoped to the peers
-	// permitted by `send > to` when narrowed, or global when unscoped.
+	// permitted by `send > to` when narrowed, global when unscoped, and empty
+	// when `send > to none` or `send > allow none` denies all sends.
 	p.DeclareCapabilitiesFrom(func([]sdk.ConfigSection) (sdk.CapabilityDeclaration, error) {
-		peers := fleet.CapabilityPeers()
+		peers, noPeers := fleet.CapabilityScope()
+		if noPeers {
+			return sdk.CapabilityDeclaration{}, nil
+		}
 		return sdk.CapabilityDeclaration{
 			Capabilities: buildCapabilityDecls(opts.Families, opts.RouteRefresh, opts.AddPath, peers),
 		}, nil

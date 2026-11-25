@@ -9,6 +9,7 @@ package plugin
 import (
 	"bytes"
 	"encoding/base64"
+	"encoding/binary"
 	"encoding/hex"
 	"fmt"
 	"slices"
@@ -589,20 +590,327 @@ func (ci *CapabilityInjector) replacementLocked(declarations map[string]*PluginC
 	return candidate, nil
 }
 
-// planLocked decodes caps and checks every code against the store. Identical
-// (code, value) pairs share ownership with no conflict; differing values for
-// the same code within one scope are refused with an operator error naming both
-// endpoints, the code, both values, and the fix. The caller MUST hold ci.mu, or
-// own the private unpublished store.
+const (
+	// capCodeMultiprotocol is RFC 4760 Multiprotocol Extensions (code 1).
+	// Multiple endpoints may declare disjoint (AFI, SAFI) families toward the
+	// same peer; each distinct 4-octet value is kept and identical values
+	// deduplicate (Q-E9).
+	capCodeMultiprotocol uint8 = 1
+	// capCodeAddPath is RFC 7911 ADD-PATH (code 69). Multiple endpoints may
+	// declare disjoint (AFI, SAFI) families toward the same peer and merge into
+	// one canonical sorted capability; conflicting send/receive modes for the
+	// same family are refused (Q-E9).
+	capCodeAddPath uint8 = 69
+)
+
+type addPathTuple struct {
+	afi  uint16
+	safi uint8
+	mode uint8
+}
+
+func parseAddPathTuples(value []byte) ([]addPathTuple, error) {
+	if len(value) == 0 {
+		return nil, opererr.New(
+			"invalid ADD-PATH capability (code 69) length 0",
+			"RFC 7911 Section 4 requires one or more 4-octet (AFI, SAFI, Send/Receive) tuples",
+			"provide a valid hex ADD-PATH payload whose byte length is a non-zero multiple of 4")
+	}
+	if len(value)%4 != 0 {
+		var tb textbuf.Buffer
+		return nil, opererr.New(
+			tb.Str("invalid ADD-PATH capability (code 69) length ").Int(int64(len(value))).String(),
+			"RFC 7911 Section 4 requires one or more 4-octet (AFI, SAFI, Send/Receive) tuples",
+			"provide a valid hex ADD-PATH payload whose byte length is a non-zero multiple of 4")
+	}
+	n := len(value) / 4
+	tuples := make([]addPathTuple, 0, n)
+	seen := make(map[uint32]uint8, n)
+	for i := range n {
+		off := i * 4
+		afi := binary.BigEndian.Uint16(value[off:])
+		safi := value[off+2]
+		mode := value[off+3]
+		key := uint32(afi)<<8 | uint32(safi)
+		if prev, ok := seen[key]; ok {
+			if prev != mode {
+				var tb textbuf.Buffer
+				return nil, opererr.New(
+					tb.Str("conflicting ADD-PATH modes for AFI ").Int(int64(afi)).Str(" SAFI ").Uint8(safi).
+						Str(" (").Str(formatAddPathMode(prev)).Str(" vs ").Str(formatAddPathMode(mode)).
+						Str(") in one declaration").String(),
+					"one endpoint cannot declare two different ADD-PATH modes for the same family",
+					"declare one ADD-PATH mode per family")
+			}
+			continue
+		}
+		seen[key] = mode
+		tuples = append(tuples, addPathTuple{afi: afi, safi: safi, mode: mode})
+	}
+	sortAddPathTuples(tuples)
+	return tuples, nil
+}
+
+func sortAddPathTuples(tuples []addPathTuple) {
+	slices.SortFunc(tuples, func(a, b addPathTuple) int {
+		if a.afi != b.afi {
+			if a.afi < b.afi {
+				return -1
+			}
+			return 1
+		}
+		if a.safi < b.safi {
+			return -1
+		}
+		if a.safi > b.safi {
+			return 1
+		}
+		return 0
+	})
+}
+
+func encodeAddPathTuples(tuples []addPathTuple) []byte {
+	sortAddPathTuples(tuples)
+	out := make([]byte, len(tuples)*4)
+	for i, t := range tuples {
+		off := i * 4
+		binary.BigEndian.PutUint16(out[off:], t.afi)
+		out[off+2] = t.safi
+		out[off+3] = t.mode
+	}
+	return out
+}
+
+func formatAddPathMode(mode uint8) string {
+	switch mode {
+	case 1:
+		return "receive"
+	case 2:
+		return "send"
+	case 3:
+		return "both"
+	default:
+		var tb textbuf.Buffer
+		return tb.Str("mode(").Uint8(mode).Byte(')').String()
+	}
+}
+
+func checkAddPathConflict(scope, existingOwner string, existingVal []byte, candidateOwner string, candidateVal []byte) error {
+	existingTuples, err := parseAddPathTuples(existingVal)
+	if err != nil {
+		return err
+	}
+	candidateTuples, err := parseAddPathTuples(candidateVal)
+	if err != nil {
+		return err
+	}
+	byFam := make(map[uint32]uint8, len(existingTuples))
+	for _, t := range existingTuples {
+		byFam[uint32(t.afi)<<8|uint32(t.safi)] = t.mode
+	}
+	for _, t := range candidateTuples {
+		key := uint32(t.afi)<<8 | uint32(t.safi)
+		prev, ok := byFam[key]
+		if !ok {
+			continue
+		}
+		if prev == t.mode {
+			continue
+		}
+		return capabilityAddPathConflictError(scope, t.afi, t.safi, existingOwner, prev, existingVal, candidateOwner, t.mode, candidateVal)
+	}
+	return nil
+}
+
+func capabilityAddPathConflictError(
+	scope string,
+	afi uint16,
+	safi uint8,
+	existingOwner string,
+	existingMode uint8,
+	existingVal []byte,
+	candidateOwner string,
+	candidateMode uint8,
+	candidateVal []byte,
+) error {
+	var problem textbuf.Buffer
+	problem.Str("capability conflict: code 69 (ADD-PATH) for AFI ").Int(int64(afi)).
+		Str(" SAFI ").Uint8(safi)
+	if scope != "" {
+		problem.Str(" on peer ").Str(scope)
+	}
+	problem.Str(" already registered by ").Str(existingOwner).
+		Str(" (").Str(formatAddPathMode(existingMode)).Str(", value ").Str(formatCapabilityValue(existingVal)).
+		Str("), conflicts with ").Str(candidateOwner).
+		Str(" (").Str(formatAddPathMode(candidateMode)).Str(", value ").Str(formatCapabilityValue(candidateVal)).Byte(')')
+
+	var why textbuf.Buffer
+	why.Str("endpoints declared conflicting ADD-PATH modes for the same address family")
+	if scope != "" {
+		why.Str(" on destination ").Str(scope)
+	}
+
+	var fix textbuf.Buffer
+	if existingOwner == candidateOwner {
+		fix.Str("declare one capability value for code 69 AFI ").Int(int64(afi)).Str(" SAFI ").Uint8(safi).
+			Str(" on endpoint ").Str(candidateOwner)
+	} else {
+		fix.Str("align the capability declaration across endpoints ").
+			Str(existingOwner).Str(" and ").Str(candidateOwner).
+			Str(", or narrow their bus send > to lists so they do not target the same destination")
+	}
+	return opererr.New(problem.String(), why.String(), fix.String())
+}
+
+// planLocked decodes caps and checks every code against the store.
+//   - Code 1 (Multiprotocol): distinct (AFI, SAFI) values coexist and identical
+//     values deduplicate (Q-E9).
+//   - Code 69 (ADD-PATH): disjoint (AFI, SAFI) families merge across endpoints
+//     (and across global/per-peer scopes); conflicting modes for the same family
+//     are refused (Q-E9).
+//   - All other codes: identical (code, value) pairs share ownership with no
+//     conflict; differing values for the same code within one scope are refused.
+//
+// The caller MUST hold ci.mu, or own the private unpublished store.
 func (ci *CapabilityInjector) planLocked(caps *PluginCapabilities) ([]InjectedCapability, error) {
 	addedGlobals := make(map[uint8][]byte)
 	addedTargets := make(map[string]map[uint8][]byte)
+	addedGlobalMP := make(map[string]struct{})
+	addedTargetMP := make(map[string]map[string]struct{})
+	var addedGlobalAP [][]byte
+	addedTargetAP := make(map[string][][]byte)
 	pending := make([]InjectedCapability, 0, len(caps.Capabilities))
 
 	for _, cap := range caps.Capabilities {
 		value, err := decodeCapabilityPayload(cap)
 		if err != nil {
 			return nil, err
+		}
+
+		if cap.Code == capCodeMultiprotocol {
+			if len(cap.Peers) == 0 {
+				if ci.hasExactGlobal(caps.PluginName, cap.Code, value) {
+					continue
+				}
+				key := string(value)
+				if _, dup := addedGlobalMP[key]; dup {
+					continue
+				}
+				addedGlobalMP[key] = struct{}{}
+				pending = append(pending, InjectedCapability{
+					Code:   cap.Code,
+					Value:  value,
+					Plugin: caps.PluginName,
+				})
+				continue
+			}
+			for _, target := range cap.Peers {
+				if ci.hasExactPeer(target, caps.PluginName, cap.Code, value) {
+					continue
+				}
+				if addedTargetMP[target] == nil {
+					addedTargetMP[target] = make(map[string]struct{})
+				}
+				key := string(value)
+				if _, dup := addedTargetMP[target][key]; dup {
+					continue
+				}
+				addedTargetMP[target][key] = struct{}{}
+				pending = append(pending, InjectedCapability{
+					Code:     cap.Code,
+					Value:    value,
+					Plugin:   caps.PluginName,
+					PeerAddr: target,
+				})
+			}
+			continue
+		}
+
+		if cap.Code == capCodeAddPath {
+			tuples, err := parseAddPathTuples(value)
+			if err != nil {
+				return nil, err
+			}
+			value = encodeAddPathTuples(tuples)
+			if len(cap.Peers) == 0 {
+				for _, existing := range ci.globalCaps {
+					if existing.Code != capCodeAddPath {
+						continue
+					}
+					if err := checkAddPathConflict("", existing.Plugin, existing.Value, caps.PluginName, value); err != nil {
+						return nil, err
+					}
+				}
+				for target, peerList := range ci.peerCaps {
+					for _, existing := range peerList {
+						if existing.Code != capCodeAddPath {
+							continue
+						}
+						if err := checkAddPathConflict(target, existing.Plugin, existing.Value, caps.PluginName, value); err != nil {
+							return nil, err
+						}
+					}
+				}
+				for _, prev := range addedGlobalAP {
+					if err := checkAddPathConflict("", caps.PluginName, prev, caps.PluginName, value); err != nil {
+						return nil, err
+					}
+				}
+				for target, prevList := range addedTargetAP {
+					for _, prev := range prevList {
+						if err := checkAddPathConflict(target, caps.PluginName, prev, caps.PluginName, value); err != nil {
+							return nil, err
+						}
+					}
+				}
+				addedGlobalAP = append(addedGlobalAP, value)
+				if !ci.hasExactGlobal(caps.PluginName, cap.Code, value) {
+					pending = append(pending, InjectedCapability{
+						Code:   cap.Code,
+						Value:  value,
+						Plugin: caps.PluginName,
+					})
+				}
+				continue
+			}
+			for _, target := range cap.Peers {
+				for _, existing := range ci.globalCaps {
+					if existing.Code != capCodeAddPath {
+						continue
+					}
+					if err := checkAddPathConflict(target, existing.Plugin, existing.Value, caps.PluginName, value); err != nil {
+						return nil, err
+					}
+				}
+				for _, existing := range ci.peerCaps[target] {
+					if existing.Code != capCodeAddPath {
+						continue
+					}
+					if err := checkAddPathConflict(target, existing.Plugin, existing.Value, caps.PluginName, value); err != nil {
+						return nil, err
+					}
+				}
+				for _, prev := range addedGlobalAP {
+					if err := checkAddPathConflict(target, caps.PluginName, prev, caps.PluginName, value); err != nil {
+						return nil, err
+					}
+				}
+				for _, prev := range addedTargetAP[target] {
+					if err := checkAddPathConflict(target, caps.PluginName, prev, caps.PluginName, value); err != nil {
+						return nil, err
+					}
+				}
+				addedTargetAP[target] = append(addedTargetAP[target], value)
+				if !ci.hasExactPeer(target, caps.PluginName, cap.Code, value) {
+					pending = append(pending, InjectedCapability{
+						Code:     cap.Code,
+						Value:    value,
+						Plugin:   caps.PluginName,
+						PeerAddr: target,
+					})
+				}
+			}
+			continue
 		}
 
 		if len(cap.Peers) == 0 {
@@ -670,6 +978,24 @@ func (ci *CapabilityInjector) planLocked(caps *PluginCapabilities) ([]InjectedCa
 	return pending, nil
 }
 
+func (ci *CapabilityInjector) hasExactGlobal(pluginName string, code uint8, value []byte) bool {
+	for _, existing := range ci.globalCaps {
+		if existing.Plugin == pluginName && existing.Code == code && bytes.Equal(existing.Value, value) {
+			return true
+		}
+	}
+	return false
+}
+
+func (ci *CapabilityInjector) hasExactPeer(target, pluginName string, code uint8, value []byte) bool {
+	for _, existing := range ci.peerCaps[target] {
+		if existing.Plugin == pluginName && existing.Code == code && bytes.Equal(existing.Value, value) {
+			return true
+		}
+	}
+	return false
+}
+
 // formatCapabilityValue renders a capability payload for conflict diagnostics:
 // lowercase hex when non-empty, or "empty" when zero-length.
 func formatCapabilityValue(value []byte) string {
@@ -719,6 +1045,12 @@ func (ci *CapabilityInjector) storeLocked(pending []InjectedCapability) {
 	for _, cap := range pending {
 		if cap.PeerAddr == "" {
 			ci.globalCaps = append(ci.globalCaps, cap)
+			if cap.Code == capCodeMultiprotocol {
+				continue
+			}
+			if cap.Code == capCodeAddPath {
+				continue
+			}
 			if rec, ok := ci.globalByCode[cap.Code]; ok {
 				rec.addOwner(cap.Plugin)
 			} else {
@@ -730,6 +1062,12 @@ func (ci *CapabilityInjector) storeLocked(pending []InjectedCapability) {
 			continue
 		}
 		ci.peerCaps[cap.PeerAddr] = append(ci.peerCaps[cap.PeerAddr], cap)
+		if cap.Code == capCodeMultiprotocol {
+			continue
+		}
+		if cap.Code == capCodeAddPath {
+			continue
+		}
 		if ci.peerByCode[cap.PeerAddr] == nil {
 			ci.peerByCode[cap.PeerAddr] = make(map[uint8]*capabilityOwners)
 		}
@@ -832,29 +1170,69 @@ func (ci *CapabilityInjector) GetCapabilitiesForSelectors(selectors ...string) [
 
 	result := make([]InjectedCapability, 0, len(ci.globalCaps)+len(selectors))
 	seenCodes := make(map[uint8]bool)
+	seenMP := make(map[string]struct{})
+	var mergedAddPath []addPathTuple
+	seenAddPathFam := make(map[uint32]bool)
+	var addPathPlugin, addPathPeer string
 
-	// Per-peer capabilities first, in selector order: they take precedence over
-	// the globals, and an earlier selector takes precedence over a later one.
-	for _, selector := range selectors {
-		if selector == "" {
-			continue
-		}
-		for _, cap := range ci.peerCaps[selector] {
+	collect := func(cap InjectedCapability) {
+		switch cap.Code {
+		case capCodeMultiprotocol:
+			key := string(cap.Value)
+			if _, dup := seenMP[key]; dup {
+				return
+			}
+			seenMP[key] = struct{}{}
+			result = append(result, cap)
+		case capCodeAddPath:
+			tuples, err := parseAddPathTuples(cap.Value)
+			if err != nil {
+				return
+			}
+			if addPathPlugin == "" {
+				addPathPlugin = cap.Plugin
+				addPathPeer = cap.PeerAddr
+			}
+			for _, t := range tuples {
+				key := uint32(t.afi)<<8 | uint32(t.safi)
+				if seenAddPathFam[key] {
+					continue
+				}
+				seenAddPathFam[key] = true
+				mergedAddPath = append(mergedAddPath, t)
+			}
+		default:
 			if seenCodes[cap.Code] {
-				continue
+				return
 			}
 			result = append(result, cap)
 			seenCodes[cap.Code] = true
 		}
 	}
 
-	// Add global capabilities that were not overridden, once per code.
-	for _, cap := range ci.globalCaps {
-		if seenCodes[cap.Code] {
+	// Per-peer capabilities first, in selector order: they take precedence over
+	// globals for non-mergeable codes, and merge per family for Code 1 and Code 69.
+	for _, selector := range selectors {
+		if selector == "" {
 			continue
 		}
-		result = append(result, cap)
-		seenCodes[cap.Code] = true
+		for _, cap := range ci.peerCaps[selector] {
+			collect(cap)
+		}
+	}
+
+	// Add global capabilities that were not overridden, merging Code 1 and Code 69.
+	for _, cap := range ci.globalCaps {
+		collect(cap)
+	}
+
+	if len(mergedAddPath) > 0 {
+		result = append(result, InjectedCapability{
+			Code:     capCodeAddPath,
+			Value:    encodeAddPathTuples(mergedAddPath),
+			Plugin:   addPathPlugin,
+			PeerAddr: addPathPeer,
+		})
 	}
 
 	return result

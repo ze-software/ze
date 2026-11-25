@@ -591,7 +591,7 @@ func (a *reactorAPIAdapter) withdrawDirectWithOwnership(ctx context.Context, pee
 			if n == nil {
 				continue
 			}
-			identity, err := newOriginIdentity(batch.Family, n.Bytes(), n.PathID(), nlri.HasPathID(n))
+			identity, err := newOriginIdentity(batch.Family, originNativeBytes(n), n.PathID(), nlri.HasPathID(n))
 			if err != nil {
 				continue
 			}
@@ -622,7 +622,7 @@ func (a *reactorAPIAdapter) withdrawDirectWithOwnership(ctx context.Context, pee
 				plans[pi].toWithdraw = append(plans[pi].toWithdraw, n)
 				continue
 			}
-			identity, err := newOriginIdentity(batch.Family, n.Bytes(), n.PathID(), nlri.HasPathID(n))
+			identity, err := newOriginIdentity(batch.Family, originNativeBytes(n), n.PathID(), nlri.HasPathID(n))
 			if err != nil {
 				plans[pi].toWithdraw = append(plans[pi].toWithdraw, n)
 				continue

@@ -20,6 +20,8 @@ import (
 	bgpevents "github.com/ze-software/ze/internal/core/bgp/events"
 	"github.com/ze-software/ze/internal/core/bgp/ribevents"
 	"github.com/ze-software/ze/internal/core/family"
+	"github.com/ze-software/ze/internal/core/report"
+	"github.com/ze-software/ze/internal/core/textbuf"
 	"github.com/ze-software/ze/pkg/plugin/rpc"
 )
 
@@ -106,8 +108,8 @@ func (p *Peer) reconcileExportFinalKinds(changed exportFinalKinds) error {
 	if r.api == nil {
 		return nil
 	}
-	owner := p.policyReplayOwner()
-	if !owner.IsSet() {
+	owners := p.policyReplayOwners()
+	if len(owners) == 0 {
 		return nil
 	}
 	negotiated := p.negotiated.Load()
@@ -131,63 +133,106 @@ func (p *Peer) reconcileExportFinalKinds(changed exportFinalKinds) error {
 	// same lock, so even work queued before this transition rejoins overflow.
 	p.beginPolicyReplay(session)
 	defer p.endPolicyReplay()
-	dispatch := func(ctx context.Context, command string, args ...string) (string, json.RawMessage, error) {
-		request := &pluginserver.CommandContext{Server: r.api, RequestContext: ctx, Sender: owner}
-		response, err := r.api.Dispatcher().ForwardToPlugin(request, command, args, "*")
-		if err != nil {
-			return "", nil, err
-		}
-		if response == nil {
-			return "", nil, errors.New("export final replay returned no answer")
-		}
-		if response.Error != "" {
-			return "", nil, errors.New(response.Error)
-		}
-		data, err := json.Marshal(response.Data)
-		return response.Status, data, err
+	type replayedRouteKey struct {
+		sourcePeer string
+		family     string
+		nlriHex    string
+		pathID     uint32
 	}
-	relay := func(_ context.Context, _ string, routes []rpc.StoredRoute) error {
-		if p.currentSession() != session {
-			return errRecoveryDestinationClosed
-		}
-		return adapter.RelayStoredRoute(p.Settings().Address, routes, owner)
-	}
+	seenOrdinary := make(map[replayedRouteKey]struct{})
+	seenFlowSpec := make(map[replayedRouteKey]struct{})
 	var err error
-	if ordinary {
-		_, err = ribevents.RelayReplay(ctx, dispatch, relay, p.addrString, 0, "")
-	}
-	if err == nil {
-		// FlowSpec is deliberately absent from receive-store replay. Its
-		// selecting RIB is authoritative, including when Adj-RIB-In is absent.
-		// Relay through the actual owner's grant and the ordinary live gate,
-		// which rechecks the current path's authorization and generation.
-		for _, key := range ribevents.FlowSpecRoutes() {
-			if key.Peer == p.Settings().Address {
-				continue
-			}
-			if negotiated == nil {
-				continue
-			}
-			if !negotiated.families[key.Family] {
-				continue
-			}
-			path, present := ribevents.LookupFlowSpecPath(key)
-			if !present {
-				continue
-			}
-			route := rpc.StoredRoute{SourcePeer: key.Peer.String(), SourceOwner: key.PeerOwner,
-				SourceReceipt: path.SourceReceipt, SourceConnectionID: key.ConnectionID, Family: key.Family.String(),
-				PathID: key.PathID, MsgID: path.MsgID, NLRIFraming: rpc.NLRIFramingPrefixOnly,
-				SourcePolicyEpoch: path.SourcePolicyEpoch,
-				NLRIHex:           hex.EncodeToString([]byte(key.NLRI)), AttrHex: hex.EncodeToString(path.Attributes),
-				InitialUpdate: true}
-			err = ctx.Err()
-			if err == nil {
-				err = relay(ctx, p.addrString, []rpc.StoredRoute{route})
-			}
+	for _, owner := range owners {
+		dispatch := func(ctx context.Context, command string, args ...string) (string, json.RawMessage, error) {
+			request := &pluginserver.CommandContext{Server: r.api, RequestContext: ctx, Sender: owner}
+			response, err := r.api.Dispatcher().ForwardToPlugin(request, command, args, "*")
 			if err != nil {
-				break
+				return "", nil, err
 			}
+			if response == nil {
+				return "", nil, errors.New("export final replay returned no answer")
+			}
+			if response.Error != "" {
+				return "", nil, errors.New(response.Error)
+			}
+			data, err := json.Marshal(response.Data)
+			return response.Status, data, err
+		}
+		relay := func(_ context.Context, _ string, routes []rpc.StoredRoute) error {
+			if p.currentSession() != session {
+				return errRecoveryDestinationClosed
+			}
+			if len(owners) == 1 {
+				return adapter.RelayStoredRoute(p.Settings().Address, routes, owner)
+			}
+			unique := make([]rpc.StoredRoute, 0, len(routes))
+			for _, rt := range routes {
+				k := replayedRouteKey{
+					sourcePeer: rt.SourcePeer,
+					family:     rt.Family,
+					nlriHex:    rt.NLRIHex,
+					pathID:     rt.PathID,
+				}
+				if _, dup := seenOrdinary[k]; dup {
+					continue
+				}
+				seenOrdinary[k] = struct{}{}
+				unique = append(unique, rt)
+			}
+			if len(unique) == 0 {
+				return nil
+			}
+			return adapter.RelayStoredRoute(p.Settings().Address, unique, owner)
+		}
+		if ordinary {
+			_, err = ribevents.RelayReplay(ctx, dispatch, relay, p.addrString, 0, "")
+		}
+		if err == nil {
+			// FlowSpec is deliberately absent from receive-store replay. Its
+			// selecting RIB is authoritative, including when Adj-RIB-In is absent.
+			// Relay through each actual owner's grant and the ordinary live gate,
+			// deduplicating overlapping keys across multiple forwarders (Q-9).
+			for _, key := range ribevents.FlowSpecRoutes() {
+				if key.Peer == p.Settings().Address {
+					continue
+				}
+				if negotiated == nil {
+					continue
+				}
+				if !negotiated.families[key.Family] {
+					continue
+				}
+				fsKey := replayedRouteKey{
+					sourcePeer: key.Peer.String(),
+					family:     key.Family.String(),
+					nlriHex:    key.NLRI,
+					pathID:     key.PathID,
+				}
+				if _, dup := seenFlowSpec[fsKey]; dup {
+					continue
+				}
+				path, present := ribevents.LookupFlowSpecPath(key)
+				if !present {
+					continue
+				}
+				route := rpc.StoredRoute{SourcePeer: key.Peer.String(), SourceOwner: key.PeerOwner,
+					SourceReceipt: path.SourceReceipt, SourceConnectionID: key.ConnectionID, Family: key.Family.String(),
+					PathID: key.PathID, MsgID: path.MsgID, NLRIFraming: rpc.NLRIFramingPrefixOnly,
+					SourcePolicyEpoch: path.SourcePolicyEpoch,
+					NLRIHex:           hex.EncodeToString([]byte(key.NLRI)), AttrHex: hex.EncodeToString(path.Attributes),
+					InitialUpdate: true}
+				err = ctx.Err()
+				if err == nil {
+					err = adapter.RelayStoredRoute(p.Settings().Address, []rpc.StoredRoute{route}, owner)
+				}
+				if err != nil {
+					break
+				}
+				seenFlowSpec[fsKey] = struct{}{}
+			}
+		}
+		if err != nil {
+			break
 		}
 	}
 	return errors.Join(err, p.flushPolicyReplay(ctx, session))
@@ -246,6 +291,7 @@ func (p *Peer) endPolicyReplay() {
 // replayed page. A normal barrier would wait behind those held live changes.
 func (p *Peer) flushPolicyReplay(ctx context.Context, session *Session) error {
 	pool := p.reactor.fwdPool
+	// refuse-by-default: guards Peer.reconcileExportFinalKinds -- a reactor with no forward pool has no queued replay writes to drain.
 	if pool == nil {
 		return nil
 	}
@@ -269,17 +315,30 @@ func (p *Peer) flushPolicyReplay(ctx context.Context, session *Session) error {
 	return err
 }
 
-// policyReplayOwner reads the actual configured claimant from the compiled
-// delivery graph, not an implementation name. External and aliased plugins use
-// the same runtime declaration, compiled bus grant, and ClaimSessionScope.
+// policyReplayOwner returns the first eligible configured claimant from
+// policyReplayOwners, or the zero Sender when none applies.
 func (p *Peer) policyReplayOwner() plugin.Sender {
+	owners := p.policyReplayOwners()
+	if len(owners) == 0 {
+		return plugin.Sender{}
+	}
+	return owners[0]
+}
+
+// policyReplayOwners reads every eligible configured claimant from the compiled
+// delivery graph (Q-9 Option 2), not an implementation name. External and
+// aliased plugins use the same runtime declaration, compiled bus grant, and
+// ClaimSessionScope. When more than one forwarder targets the same peer, all
+// eligible forwarders replay (with route deduplication) and a doctor warning is
+// raised so the operator sees the overlapping forwarders.
+func (p *Peer) policyReplayOwners() []plugin.Sender {
 	manager := p.reactor.api.ProcessManager()
 	if manager == nil {
-		return plugin.Sender{}
+		return nil
 	}
 	g := p.reactor.DeliveryGraph()
 	if g == nil {
-		return plugin.Sender{}
+		return nil
 	}
 	p.mu.RLock()
 	settings := p.settings
@@ -330,14 +389,26 @@ func (p *Peer) policyReplayOwner() plugin.Sender {
 		claimants = append(claimants, procName)
 	}
 	if len(claimants) > 1 {
-		peerLogger().Warn("multiple eligible bgp-peer-up-replay forwarders match this peer; selecting first in sorted order",
+		var msg, fix textbuf.Buffer
+		msg.Str("multiple eligible bgp-peer-up-replay forwarders target peer ").Str(p.addrString).
+			Str(" (").Join(claimants, ", ").Str("); replaying all with route deduplication")
+		fix.Str("narrow bus send > to or peer receive > from on ").Str(p.addrString).
+			Str(" if only one forwarder should serve this peer")
+		peerLogger().Warn(msg.String(),
 			"peer", p.addrString,
-			"selected", claimants[0],
 			"candidates", claimants,
 			"code", pluginserver.CodeDoctorPluginDeliveryDisagreement)
+		report.RaiseWarningFix("bgp", pluginserver.CodeDoctorPluginDeliveryDisagreement, p.addrString, msg.String(), fix.String())
 	}
 	if len(claimants) > 0 {
-		return plugin.ProcessSender(claimants[0])
+		out := make([]plugin.Sender, len(claimants))
+		for i, name := range claimants {
+			out[i] = plugin.ProcessSender(name)
+		}
+		return out
 	}
-	return selfReplay
+	if selfReplay.IsSet() {
+		return []plugin.Sender{selfReplay}
+	}
+	return nil
 }

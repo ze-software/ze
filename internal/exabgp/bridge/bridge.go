@@ -16,6 +16,7 @@ import (
 	"log/slog"
 	"os"
 	"os/exec"
+	"slices"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -212,14 +213,39 @@ func EncodeAddPathHex(families []string, mode string) string {
 		families = []string{defaultFamily}
 	}
 
-	var result []byte
+	type afiSafi struct {
+		afi  uint16
+		safi uint16
+	}
+	pairs := make([]afiSafi, 0, len(families))
 	for _, fam := range families {
 		afi, safi := parseFamilyToAFISAFI(fam)
 		if afi == 0 {
 			slog.Warn("unknown family ignored for ADD-PATH", "family", fam)
 			continue
 		}
-		result = append(result, byte(afi>>8), byte(afi), byte(safi), m)
+		pairs = append(pairs, afiSafi{afi: afi, safi: safi})
+	}
+	slices.SortFunc(pairs, func(a, b afiSafi) int {
+		if a.afi != b.afi {
+			if a.afi < b.afi {
+				return -1
+			}
+			return 1
+		}
+		if a.safi < b.safi {
+			return -1
+		}
+		if a.safi > b.safi {
+			return 1
+		}
+		return 0
+	})
+	pairs = slices.Compact(pairs)
+
+	result := make([]byte, 0, len(pairs)*4)
+	for _, p := range pairs {
+		result = append(result, byte(p.afi>>8), byte(p.afi), byte(p.safi), m)
 	}
 
 	return fmt.Sprintf("%x", result)

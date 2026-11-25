@@ -8,6 +8,7 @@ import (
 	"encoding/binary"
 	"fmt"
 	"net"
+	"slices"
 	"time"
 
 	"github.com/ze-software/ze/internal/component/bgp/message"
@@ -318,6 +319,15 @@ func (s *Session) buildOpenFromSnapshot(settings *PeerSettings, configCaps []cap
 		return nil, err
 	}
 
+	// RFC 7911 Section 4 / Q-E9: merge disjoint-family ADD-PATH capability
+	// entries across configuration and plugin declarations into one canonical
+	// sorted capability, refusing conflicting send/receive modes on the same
+	// family rather than letting a later declaration overwrite an earlier one.
+	caps, err = coalesceAddPath(caps)
+	if err != nil {
+		return nil, err
+	}
+
 	// Every capability rides in one type-2 parameter; the packer chooses the
 	// framing from the whole field length.
 	// RFC 9072 Section 2
@@ -457,6 +467,91 @@ func coalescePathsLimit(caps []capability.Capability) ([]capability.Capability, 
 			seen[f] = true
 			merged.Entries = append(merged.Entries, entry)
 		}
+	}
+	return caps[:count], nil
+}
+
+// coalesceAddPath merges all ADD-PATH (code 69) capabilities in caps into one
+// canonical sorted *capability.AddPath (Q-E9). Disjoint families merge cleanly;
+// identical (AFI, SAFI, mode) entries deduplicate; conflicting modes for the
+// same (AFI, SAFI) return an error rather than silently letting one win.
+func coalesceAddPath(caps []capability.Capability) ([]capability.Capability, error) {
+	var merged *capability.AddPath
+	var modes map[family.Family]capability.AddPathMode
+	count := 0
+	for _, c := range caps {
+		if c.Code() != capability.CodeAddPath {
+			caps[count] = c
+			count++
+			continue
+		}
+
+		var entries []capability.AddPathFamily
+		if ap, ok := c.(*capability.AddPath); ok {
+			entries = ap.Families
+		} else {
+			size := c.Len()
+			if size < 6 {
+				return nil, fmt.Errorf("%w: ADD-PATH value must contain 1..63 four-octet tuples", capability.ErrInvalidLength)
+			}
+			if size > 257 {
+				return nil, fmt.Errorf("%w: ADD-PATH value must contain 1..63 four-octet tuples", capability.ErrInvalidLength)
+			}
+			if (size-2)%4 != 0 {
+				return nil, fmt.Errorf("%w: ADD-PATH value must contain 1..63 four-octet tuples", capability.ErrInvalidLength)
+			}
+			var wire [257]byte
+			if c.WriteTo(wire[:], 0) != size {
+				return nil, fmt.Errorf("%w: ADD-PATH encoded size differs from declared size", capability.ErrInvalidLength)
+			}
+			entries = make([]capability.AddPathFamily, (size-2)/4)
+			for i := range entries {
+				off := 2 + i*4
+				entries[i] = capability.AddPathFamily{
+					AFI:  family.AFI(binary.BigEndian.Uint16(wire[off:])),
+					SAFI: family.SAFI(wire[off+2]),
+					Mode: capability.AddPathMode(wire[off+3]),
+				}
+			}
+		}
+
+		if merged == nil {
+			merged = &capability.AddPath{}
+			modes = make(map[family.Family]capability.AddPathMode)
+			caps[count] = merged
+			count++
+		}
+		for _, entry := range entries {
+			f := family.Family{AFI: entry.AFI, SAFI: entry.SAFI}
+			if prev, exists := modes[f]; exists {
+				if prev != entry.Mode {
+					return nil, fmt.Errorf("capability conflict: ADD-PATH (code 69) for %s declares conflicting modes (%v vs %v)", f, prev, entry.Mode)
+				}
+				continue
+			}
+			if len(merged.Families) == 63 {
+				return nil, fmt.Errorf("%w: ADD-PATH exceeds 63 distinct AFI/SAFI tuples", capability.ErrInvalidLength)
+			}
+			modes[f] = entry.Mode
+			merged.Families = append(merged.Families, entry)
+		}
+	}
+	if merged != nil && len(merged.Families) > 1 {
+		slices.SortFunc(merged.Families, func(a, b capability.AddPathFamily) int {
+			if a.AFI != b.AFI {
+				if a.AFI < b.AFI {
+					return -1
+				}
+				return 1
+			}
+			if a.SAFI < b.SAFI {
+				return -1
+			}
+			if a.SAFI > b.SAFI {
+				return 1
+			}
+			return 0
+		})
 	}
 	return caps[:count], nil
 }

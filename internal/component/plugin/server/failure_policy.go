@@ -176,9 +176,15 @@ func (s *Server) applyFailurePolicy(proc *process.Process) {
 	case rpc.FailureFatal:
 		s.stopDaemonForPlugin(name, pluginStopFatalPolicy, "the plugin declares that its failure stops ze")
 	case rpc.FailureIgnore, rpc.FailureUnspecified:
+		if s.capInjector != nil {
+			s.capInjector.RemovePluginCapabilities(name)
+		}
 		pm.RecordStopped(name, process.PluginStop{Cause: process.StopPolicyExit, Policy: policy.String(), ExitStatus: exitStatus})
 	default:
 		// Typed plugin registrations are open; unknown policies do not authorize a restart.
+		if s.capInjector != nil {
+			s.capInjector.RemovePluginCapabilities(name)
+		}
 		pm.RecordStopped(name, process.PluginStop{Cause: process.StopPolicyExit, Policy: policy.String(), ExitStatus: exitStatus})
 	}
 }

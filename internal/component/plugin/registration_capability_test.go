@@ -286,4 +286,67 @@ func TestRestartedParticipantDeclaresCapabilitiesAgain(t *testing.T) {
 		require.Len(t, got, 1)
 		assert.Equal(t, testEndpointOne, got[0].Plugin)
 	})
+
+	t.Run("Q_E9_merge_disjoint_families_code1_and_code69", func(t *testing.T) {
+		t.Parallel()
+		ci := NewCapabilityInjector()
+
+		// Script 1 announces IPv4/unicast (Code 1 + Code 69 send) toward target.
+		require.NoError(t, ci.AddPluginCapabilities(&PluginCapabilities{
+			PluginName: testEndpointOne,
+			Capabilities: []PluginCapability{
+				{Code: 1, Encoding: rpc.CapEncodingHex, Payload: "00010001", Peers: []string{testTargetSelector}},
+				{Code: 69, Encoding: rpc.CapEncodingHex, Payload: "00010102", Peers: []string{testTargetSelector}},
+			},
+			Done: true,
+		}))
+		// Script 2 announces IPv6/unicast (Code 1 + Code 69 receive) toward the same target.
+		require.NoError(t, ci.AddPluginCapabilities(&PluginCapabilities{
+			PluginName: testEndpointTwo,
+			Capabilities: []PluginCapability{
+				{Code: 1, Encoding: rpc.CapEncodingHex, Payload: "00020001", Peers: []string{testTargetSelector}},
+				{Code: 69, Encoding: rpc.CapEncodingHex, Payload: "00020101", Peers: []string{testTargetSelector}},
+			},
+			Done: true,
+		}))
+
+		got := ci.GetCapabilitiesForSelectors(testTargetSelector)
+		require.Len(t, got, 3, "two distinct Code 1 families and one merged Code 69 capability must be emitted")
+		var mpCount int
+		var mergedAP []byte
+		for _, c := range got {
+			switch c.Code {
+			case 1:
+				mpCount++
+			case 69:
+				mergedAP = c.Value
+			}
+		}
+		assert.Equal(t, 2, mpCount, "both IPv4 and IPv6 Code 1 Multiprotocol capabilities must be preserved")
+		assert.Equal(t, []byte{0x00, 0x01, 0x01, 0x02, 0x00, 0x02, 0x01, 0x01}, mergedAP,
+			"disjoint Code 69 families must merge into one canonical sorted capability")
+
+		// Global vs per-peer conflict on the same family (IPv4/unicast receive vs send) MUST refuse.
+		err := ci.AddPluginCapabilities(&PluginCapabilities{
+			PluginName: testEndpointThree,
+			Capabilities: []PluginCapability{
+				{Code: 69, Encoding: rpc.CapEncodingHex, Payload: "00010101"},
+			},
+			Done: true,
+		})
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "code 69")
+		assert.Contains(t, err.Error(), testEndpointOne)
+		assert.Contains(t, err.Error(), testEndpointThree)
+
+		// Removing script 1 leaves script 2's IPv6/unicast intact.
+		ci.RemovePluginCapabilities(testEndpointOne)
+		got = ci.GetCapabilitiesForSelectors(testTargetSelector)
+		require.Len(t, got, 2)
+		for _, c := range got {
+			if c.Code == 69 {
+				assert.Equal(t, []byte{0x00, 0x02, 0x01, 0x01}, c.Value)
+			}
+		}
+	})
 }

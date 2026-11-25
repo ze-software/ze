@@ -937,6 +937,15 @@ func TestDeriveSendScopePreservesTargetsWhenSendBGPDisallowed(t *testing.T) {
 			if !reflect.DeepEqual(peers, tc.wantPeers) {
 				t.Fatalf("peers = %v, want %v", peers, tc.wantPeers)
 			}
+			f := New(slogutil.DiscardLogger(), testFamilies, nil)
+			f.ApplyFilter(tc.filter)
+			capPeers, capNoPeers := f.CapabilityScope()
+			if capNoPeers != tc.wantNoPeers {
+				t.Fatalf("CapabilityScope noPeers = %v, want %v", capNoPeers, tc.wantNoPeers)
+			}
+			if !reflect.DeepEqual(capPeers, tc.wantPeers) {
+				t.Fatalf("CapabilityScope peers = %v, want %v", capPeers, tc.wantPeers)
+			}
 		})
 	}
 }

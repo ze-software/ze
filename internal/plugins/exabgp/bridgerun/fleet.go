@@ -60,10 +60,11 @@ type Fleet struct {
 
 	// stopping tells each script runner that EOF is a daemon-initiated shutdown
 	// rather than an unexpected script exit.
-	stopping bool
-	onExit   func(exitCode int)
-	capPeers []string
-	mu       sync.Mutex
+	stopping   bool
+	onExit     func(exitCode int)
+	capPeers   []string
+	capNoPeers bool
+	mu         sync.Mutex
 
 	// apiSetting is `exabgp.api.version` as a bridge.APIVersion: what each
 	// script starts held to. Start reads it from the env, and a script's
@@ -113,6 +114,7 @@ func (f *Fleet) ApplyFilter(filter *rpc.BusParticipantFilter) {
 
 	f.mu.Lock()
 	f.capPeers = slices.Clone(peers)
+	f.capNoPeers = noPeers
 	f.mu.Unlock()
 
 	for _, s := range f.scripts {
@@ -124,12 +126,24 @@ func (f *Fleet) ApplyFilter(filter *rpc.BusParticipantFilter) {
 // for Stage 3 capability declarations, or nil when send scope is unscoped
 // (`SendToAll`) or empty.
 func (f *Fleet) CapabilityPeers() []string {
+	peers, _ := f.CapabilityScope()
+	return peers
+}
+
+// CapabilityScope returns the peer IP addresses scoped by `send > to` for Stage
+// 3 capability declarations together with noPeers. When noPeers is true (for
+// example `send { to none; }` or `send { allow none; }`), the caller MUST emit
+// zero capabilities rather than treating nil peers as global (Q-E9, R5).
+func (f *Fleet) CapabilityScope() (peers []string, noPeers bool) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
-	if len(f.capPeers) == 0 {
-		return nil
+	if f.capNoPeers {
+		return nil, true
 	}
-	return slices.Clone(f.capPeers)
+	if len(f.capPeers) == 0 {
+		return nil, false
+	}
+	return slices.Clone(f.capPeers), false
 }
 
 // TranslatorScope returns the first script's current `(Peers, NoPeers)` send

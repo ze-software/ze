@@ -542,13 +542,17 @@ func (s *Server) reloadConfig(ctx context.Context, newTree map[string]any, candi
 		// any same-name FIB endpoint replacements, then update the running config.
 		logger().Info("config reload: no affected plugins, updating config")
 		if err := s.stopCollectedProcesses(s.collectReloadStopProcesses(running, newTree, addedKeys, removedKeys, candidateSelection, hasSelection)); err != nil {
+			s.SetBusConfig(prevBusCfg)
 			s.SetBusConfigTree(prevBusTree)
+			s.RefreshDeliveryGraph()
 			return errors.Join(err, s.compensateReload(ctx))
 		}
 		if len(deferredAutoLoad) > 0 {
 			s.recordAutoLoadReasons(deferredAutoLoad)
 			if _, err := s.startAutoLoaded(ctx, autoLoadedConfigs(deferredAutoLoad), newTree, false); err != nil {
+				s.SetBusConfig(prevBusCfg)
 				s.SetBusConfigTree(prevBusTree)
+				s.RefreshDeliveryGraph()
 				return errors.Join(err, s.compensateReload(ctx))
 			}
 		}

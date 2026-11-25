@@ -148,6 +148,22 @@ func validateTargetListEntry(
 	if len(messages) == 0 {
 		return nil
 	}
+	// CLI send messages (cli:<command>) address the CLI/peer selector rather than
+	// a bus participant declaring Receives: ["cli:..."], so Refusal 2 does not
+	// apply to them (Refusal 1 existence check above still ran).
+	if isSend {
+		filtered := make([]string, 0, len(messages))
+		for _, msg := range messages {
+			if strings.HasPrefix(msg, events.NamespaceCLI+":") {
+				continue
+			}
+			filtered = append(filtered, msg)
+		}
+		messages = filtered
+		if len(messages) == 0 {
+			return nil
+		}
+	}
 
 	allDeclared := true
 	matchedAny := false
@@ -478,7 +494,17 @@ func effectiveDirectionMessages(p *BusValidatedParticipant, block plugin.BusDire
 		if block.AllowNone {
 			return nil
 		}
-		return slices.Clone(block.Allow)
+		if !isSend {
+			return slices.Clone(block.Allow)
+		}
+		var out []string
+		for _, msg := range block.Allow {
+			if strings.HasPrefix(msg, events.NamespaceCLI+":") {
+				continue
+			}
+			out = append(out, msg)
+		}
+		return out
 	}
 	if !p.HasDeclaration {
 		return nil
