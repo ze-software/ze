@@ -223,6 +223,8 @@ func (s *Server) judgeReloadWriters(
 
 	var runningFIB []*process.Process
 	runningFIBByKey := make(map[fibProcessKey]*process.Process)
+	var downFIB []plugin.PluginConfig
+	stoppedFIBByKey := make(map[fibProcessKey]bool)
 	if pm != nil {
 		for _, proc := range pm.AllProcesses() {
 			if key, ok := fibKeyOfProcess(proc); ok {
@@ -230,11 +232,27 @@ func (s *Server) judgeReloadWriters(
 				runningFIBByKey[key] = proc
 			}
 		}
+		for _, cfg := range pm.ConfiguredConfigs() {
+			if pm.GetProcess(cfg.Name) != nil {
+				continue
+			}
+			reg := registryRow(cfg)
+			if reg == nil {
+				continue
+			}
+			if !reg.ProgramsFIB {
+				continue
+			}
+			downFIB = append(downFIB, cfg)
+			if _, stopped := pm.Stopped(cfg.Name); stopped {
+				stoppedFIBByKey[fibKeyOfConfig(cfg)] = true
+			}
+		}
 	}
 
 	// Row 1: chosen FIB plugins unchanged and producer set unchanged -> swap no writer.
 	if sameChosenFIB(runningChosen, candidateChosen) && slices.Equal(runningProducers, sortedWillRun) {
-		if chosenStateMatchesRunning(candidateChosen, sortedWillRun, runningFIB, runningFIBByKey) {
+		if len(downFIB) == 0 && chosenStateMatchesRunning(candidateChosen, sortedWillRun, runningFIB, runningFIBByKey) {
 			return verdict, nil
 		}
 	}
@@ -245,7 +263,7 @@ func (s *Server) judgeReloadWriters(
 		for _, pc := range candidateChosen {
 			key := fibKeyOfConfig(pc)
 			chosenKeys[key] = true
-			if _, running := runningFIBByKey[key]; !running {
+			if _, running := runningFIBByKey[key]; !running && !stoppedFIBByKey[key] {
 				verdict.start = append(verdict.start, pc)
 				if pc.Name == pc.CompiledIdentity() && !pc.SeparateProcess {
 					if matchedRoot := firstMatchingConfigRoot(pc.Name, newPathSet); matchedRoot != "" {
@@ -272,6 +290,16 @@ func (s *Server) judgeReloadWriters(
 					"plugin", proc.Name())
 			}
 		}
+		for _, cfg := range downFIB {
+			if !chosenKeys[fibKeyOfConfig(cfg)] {
+				if verdict.stop == nil {
+					verdict.stop = make(map[string]bool)
+				}
+				verdict.stop[cfg.Name] = true
+				logger().Info("config reload: unconfiguring down FIB plugin no longer selected by configuration",
+					"plugin", cfg.Name)
+			}
+		}
 		return verdict, nil
 	}
 
@@ -284,6 +312,14 @@ func (s *Server) judgeReloadWriters(
 			verdict.stop[proc.Name()] = true
 			logger().Info("config reload: stopping FIB plugin because no route producer remains",
 				"plugin", proc.Name())
+		}
+		for _, cfg := range downFIB {
+			if verdict.stop == nil {
+				verdict.stop = make(map[string]bool)
+			}
+			verdict.stop[cfg.Name] = true
+			logger().Info("config reload: unconfiguring down FIB plugin because no route producer remains",
+				"plugin", cfg.Name)
 		}
 		return verdict, nil
 	}
@@ -312,6 +348,16 @@ func (s *Server) judgeReloadWriters(
 			verdict.stop[proc.Name()] = true
 			logger().Info("config reload: stopping displaced FIB plugin", "plugin", proc.Name())
 		}
+		for _, cfg := range downFIB {
+			if cfg.Name == keptEngineWriter.Name() {
+				continue
+			}
+			if verdict.stop == nil {
+				verdict.stop = make(map[string]bool)
+			}
+			verdict.stop[cfg.Name] = true
+			logger().Info("config reload: unconfiguring displaced down FIB plugin", "plugin", cfg.Name)
+		}
 		return verdict, nil
 	}
 
@@ -322,7 +368,7 @@ func (s *Server) judgeReloadWriters(
 	}
 	if writer != "" {
 		writerKey := fibProcessKey{name: writer, compiledID: writer, separateProcess: false}
-		if _, alreadyRunning := runningFIBByKey[writerKey]; !alreadyRunning {
+		if _, alreadyRunning := runningFIBByKey[writerKey]; !alreadyRunning && !stoppedFIBByKey[writerKey] {
 			verdict.start = append(verdict.start, plugin.PluginConfig{
 				Name:           writer,
 				CompiledPlugin: writer,
@@ -351,12 +397,23 @@ func (s *Server) judgeReloadWriters(
 			verdict.stop[proc.Name()] = true
 			logger().Info("config reload: stopping displaced FIB plugin", "plugin", proc.Name())
 		}
+		for _, cfg := range downFIB {
+			if fibKeyOfConfig(cfg) == writerKey {
+				continue
+			}
+			if verdict.stop == nil {
+				verdict.stop = make(map[string]bool)
+			}
+			verdict.stop[cfg.Name] = true
+			logger().Info("config reload: unconfiguring displaced down FIB plugin", "plugin", cfg.Name)
+		}
 	}
 	return verdict, nil
 }
 
-// collectNonFIBRemovedProcesses returns the non-ProgramsFIB processes stopped
-// by removedRoots (without orphan expansion).
+// collectNonFIBRemovedProcesses returns the non-ProgramsFIB plugins (running or
+// configured down with no live process) removed by removedRoots (without orphan
+// expansion).
 func (s *Server) collectNonFIBRemovedProcesses(pm *process.ProcessManager, removedRoots []string, tree map[string]any) map[string]bool {
 	stopped := make(map[string]bool)
 	if pm == nil {
@@ -377,10 +434,11 @@ func (s *Server) collectNonFIBRemovedProcesses(pm *process.ProcessManager, remov
 			continue
 		}
 		proc := pm.GetProcess(pluginName)
-		if proc == nil {
-			continue
-		}
-		if proc.RegistrationName() != pluginName {
+		if proc != nil {
+			if proc.RegistrationName() != pluginName {
+				continue
+			}
+		} else if pm.RegistrationFor(pluginName) != pluginName {
 			continue
 		}
 		if rootRemovalStopsOwner(roots, removedSet, tree) {
@@ -575,10 +633,11 @@ func (s *Server) selectReloadAutoLoadWithReasons(
 	return entries, nil
 }
 
-// collectReloadStopProcesses returns every running process that a reload from
-// (runningTree, runningSelection) to (newTree, candidateSelection) must stop:
-// owners of removed roots, displaced or unneeded ProgramsFIB processes judged
-// by judgeReloadWriters, and their transitively orphaned dependencies.
+// collectReloadStopProcesses returns every running or configured-down plugin
+// that a reload from (runningTree, runningSelection) to
+// (newTree, candidateSelection) must stop or unconfigure: owners of removed
+// roots, displaced or unneeded ProgramsFIB plugins judged by
+// judgeReloadWriters, and their transitively orphaned dependencies.
 func (s *Server) collectReloadStopProcesses(
 	runningTree, newTree map[string]any,
 	addedRoots, removedRoots []string,

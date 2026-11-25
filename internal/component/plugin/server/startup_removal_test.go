@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"maps"
 	"net"
+	"slices"
 	"sync"
 	"sync/atomic"
 	"testing"
@@ -17,7 +18,10 @@ import (
 
 	"github.com/ze-software/ze/internal/component/command"
 	"github.com/ze-software/ze/internal/component/plugin"
+	"github.com/ze-software/ze/internal/component/plugin/process"
 	"github.com/ze-software/ze/internal/component/plugin/registry"
+	"github.com/ze-software/ze/internal/core/diagnostic"
+	"github.com/ze-software/ze/internal/core/report"
 	"github.com/ze-software/ze/pkg/plugin/rpc"
 	"github.com/ze-software/ze/pkg/plugin/sdk"
 )
@@ -857,5 +861,505 @@ func TestRolledBackStartLeavesConfiguredSet(t *testing.T) {
 		require.Error(t, err)
 		require.Contains(t, spawner.pm.ConfiguredNames(), failedBootName,
 			"a boot-configured plugin whose start failed must keep its configured name for doctor and restart")
+	})
+}
+
+func hasStoppedBusWarning(name string) bool {
+	for _, w := range report.Warnings() {
+		if w.Code == diagnostic.CodeDoctorPluginStopped && w.Subject == name {
+			return true
+		}
+	}
+	return false
+}
+
+func takePluginDownForTest(t *testing.T, s *Server, pm *process.ProcessManager, name string, cause process.StopCause) {
+	t.Helper()
+	proc := pm.GetProcess(name)
+	require.NotNil(t, proc)
+	pm.RemoveProcess(name)
+	proc.Stop()
+	require.NoError(t, proc.Wait(s.Context()))
+	proc.WaitRuntimeCleanup()
+	pm.RecordStopped(name, process.PluginStop{Cause: cause, Detail: "simulated down state"})
+	t.Cleanup(func() { pm.ClearStopped(name) })
+	require.Nil(t, pm.GetProcess(name))
+	_, down := pm.Stopped(name)
+	require.True(t, down)
+	require.True(t, hasStoppedBusWarning(name))
+}
+
+// TestReloadRemovingDownNonFIBPluginUnconfiguresOnAccept verifies that an
+// accepted reload removing the config root of an already-down non-FIB plugin
+// (and its down dependency) drops them from ConfiguredNames, pm.stopped, and
+// the report bus only once the reload scope is accepted.
+//
+// VALIDATES: spec-plugin-restart-bounded-and-configuration-true AC-1 --
+// collectNonFIBRemovedProcesses, collectOrphanedDependencies,
+// stopCollectedProcesses, and finishRemovalScope(scope, true) drop down
+// non-FIB plugins via UnconfigureProcess.
+// PREVENTS: a removed down plugin keeping a stale doctor-plugin-stopped row
+// and remaining restartable through `request plugin restart`.
+func TestReloadRemovingDownNonFIBPluginUnconfiguresOnAccept(t *testing.T) {
+	snapshot := registry.Snapshot()
+	registry.Reset()
+	t.Cleanup(func() { registry.Restore(snapshot) })
+
+	const (
+		keptName = "down-nonfib-kept"
+		depName  = "down-nonfib-dep"
+		downName = "down-nonfib-owner"
+		downRoot = "down-nonfib-root"
+	)
+	registerIdle := func(name string, roots, deps []string) {
+		require.NoError(t, registry.Register(registry.Registration{
+			Name:         name,
+			Description:  "down non-FIB removal test plugin",
+			ConfigRoots:  roots,
+			Dependencies: deps,
+			CLIHandler:   func([]string) int { return 0 },
+			RunEngine: func(conn net.Conn) int {
+				p := sdk.NewWithConn(name, conn)
+				if err := p.Run(context.Background(), &sdk.Registration{}); err != nil {
+					return 1
+				}
+				return 0
+			},
+		}))
+	}
+	registerIdle(keptName, nil, nil)
+	registerIdle(depName, nil, nil)
+	registerIdle(downName, []string{downRoot}, []string{depName})
+
+	var s *Server
+	t.Cleanup(func() {
+		if s != nil {
+			s.wg.Wait()
+		}
+	})
+	s, spawner := newLifecycleStartupServer(t)
+	s.SetShutdownFunc(func() {})
+	s.reactor = &removalRecoveryReactor{tree: map[string]any{downRoot: map[string]any{"enabled": true}}}
+
+	require.NoError(t, s.runPluginPhase([]plugin.PluginConfig{
+		{Name: keptName, Internal: true, Encoder: plugin.EncodingJSON},
+		{Name: depName, Internal: true, Encoder: plugin.EncodingJSON},
+		{Name: downName, Internal: true, Encoder: plugin.EncodingJSON},
+	}))
+	s.recordAutoLoadReasons([]AutoLoadedEndpoint{
+		{
+			Config: plugin.PluginConfig{Name: depName, Internal: true, Encoder: plugin.EncodingJSON},
+			Reason: AutoLoadReason{Kind: AutoLoadReasonDependency, Source: downName},
+		},
+	})
+
+	takePluginDownForTest(t, s, spawner.pm, downName, process.StopHandshakeFailed)
+	takePluginDownForTest(t, s, spawner.pm, depName, process.StopHandshakeFailed)
+
+	reloadCtx, finish := s.DeferReloadAcceptance(t.Context())
+	defer finish(false) //nolint:errcheck // Cleanup; outcome is asserted below.
+	require.NoError(t, s.ReloadConfig(reloadCtx, map[string]any{}))
+
+	// Pending scope keeps the down plugins configured and reported down until accepted.
+	require.Contains(t, spawner.pm.ConfiguredNames(), downName)
+	require.Contains(t, spawner.pm.ConfiguredNames(), depName)
+	_, stillDown := spawner.pm.Stopped(downName)
+	require.True(t, stillDown)
+
+	require.NoError(t, finish(true))
+
+	require.Equal(t, []string{keptName}, spawner.pm.ConfiguredNames())
+	_, downAfter := spawner.pm.Stopped(downName)
+	require.False(t, downAfter)
+	_, depDownAfter := spawner.pm.Stopped(depName)
+	require.False(t, depDownAfter)
+	require.False(t, hasStoppedBusWarning(downName))
+	require.False(t, hasStoppedBusWarning(depName))
+	require.False(t, s.isPluginLoaded(downName))
+	require.False(t, s.isPluginLoaded(depName))
+
+	refusal := pluginRestartRefusal(spawner.pm, downName)
+	require.NotNil(t, refusal)
+	require.Contains(t, refusal.Error(), "is not a configured plugin")
+}
+
+// TestReloadRemovingDownFIBPluginUnconfiguresOnAccept verifies that an
+// accepted reload removing or displacing an already-down ProgramsFIB plugin
+// drops it from ConfiguredNames, pm.stopped, and the report bus.
+//
+// VALIDATES: spec-plugin-restart-bounded-and-configuration-true AC-1 --
+// judgeReloadWriters collects down ProgramsFIB configs from ConfiguredConfigs
+// and finishRemovalScope(scope, true) calls UnconfigureProcess.
+// PREVENTS: a removed down FIB plugin lingering in ConfiguredNames and keeping
+// doctor-plugin-stopped raised after its config block leaves.
+func TestReloadRemovingDownFIBPluginUnconfiguresOnAccept(t *testing.T) {
+	snapshot := registry.Snapshot()
+	registry.Reset()
+	t.Cleanup(func() { registry.Restore(snapshot) })
+
+	const (
+		keptName = "down-fib-kept"
+		fibName  = "down-fib-writer"
+		fibRoot  = "down-fib-root"
+	)
+	require.NoError(t, registry.Register(registry.Registration{
+		Name:        keptName,
+		Description: "kept baseline plugin",
+		CLIHandler:  func([]string) int { return 0 },
+		RunEngine: func(conn net.Conn) int {
+			p := sdk.NewWithConn(keptName, conn)
+			if err := p.Run(context.Background(), &sdk.Registration{}); err != nil {
+				return 1
+			}
+			return 0
+		},
+	}))
+	require.NoError(t, registry.Register(registry.Registration{
+		Name:        fibName,
+		Description: "down FIB writer test plugin",
+		ProgramsFIB: true,
+		ConfigRoots: []string{fibRoot},
+		CLIHandler:  func([]string) int { return 0 },
+		RunEngine: func(conn net.Conn) int {
+			p := sdk.NewWithConn(fibName, conn)
+			if err := p.Run(context.Background(), &sdk.Registration{}); err != nil {
+				return 1
+			}
+			return 0
+		},
+	}))
+
+	var s *Server
+	t.Cleanup(func() {
+		if s != nil {
+			s.wg.Wait()
+		}
+	})
+	s, spawner := newLifecycleStartupServer(t)
+	s.SetShutdownFunc(func() {})
+	s.reactor = &removalRecoveryReactor{tree: map[string]any{fibRoot: map[string]any{"enabled": true}}}
+
+	require.NoError(t, s.runPluginPhase([]plugin.PluginConfig{
+		{Name: keptName, Internal: true, Encoder: plugin.EncodingJSON},
+		{Name: fibName, Internal: true, Encoder: plugin.EncodingJSON},
+	}))
+
+	takePluginDownForTest(t, s, spawner.pm, fibName, process.StopRestartFailed)
+
+	reloadCtx, finish := s.DeferReloadAcceptance(t.Context())
+	defer finish(false) //nolint:errcheck // Cleanup; outcome is asserted below.
+	require.NoError(t, s.ReloadConfig(reloadCtx, map[string]any{}))
+
+	require.Contains(t, spawner.pm.ConfiguredNames(), fibName)
+	_, stillDown := spawner.pm.Stopped(fibName)
+	require.True(t, stillDown)
+
+	require.NoError(t, finish(true))
+
+	require.Equal(t, []string{keptName}, spawner.pm.ConfiguredNames())
+	_, downAfter := spawner.pm.Stopped(fibName)
+	require.False(t, downAfter)
+	require.False(t, hasStoppedBusWarning(fibName))
+
+	refusal := pluginRestartRefusal(spawner.pm, fibName)
+	require.NotNil(t, refusal)
+	require.Contains(t, refusal.Error(), "is not a configured plugin")
+}
+
+// TestRejectedReloadKeepsDownPluginConfiguredAndStopped verifies the AC-1
+// survivor: when a deferred reload removing down plugins (non-FIB and FIB) is
+// rejected, both remain in ConfiguredNames with their stop records and bus
+// warnings intact.
+//
+// VALIDATES: spec-plugin-restart-bounded-and-configuration-true AC-1 survivor
+// -- finishRemovalScope(scope, false) discards s.unconfigureOnAccept[scope].
+// PREVENTS: a rejected reload prematurely dropping configured down plugins.
+func TestRejectedReloadKeepsDownPluginConfiguredAndStopped(t *testing.T) {
+	snapshot := registry.Snapshot()
+	registry.Reset()
+	t.Cleanup(func() { registry.Restore(snapshot) })
+
+	const (
+		nonFIBName = "rejected-down-nonfib"
+		nonFIBRoot = "rejected-down-nonfib-root"
+		fibName    = "rejected-down-fib"
+		fibRoot    = "rejected-down-fib-root"
+	)
+	registerDown := func(name, root string, programsFIB bool) {
+		require.NoError(t, registry.Register(registry.Registration{
+			Name:        name,
+			Description: "rejected reload down plugin",
+			ProgramsFIB: programsFIB,
+			ConfigRoots: []string{root},
+			CLIHandler:  func([]string) int { return 0 },
+			RunEngine: func(conn net.Conn) int {
+				p := sdk.NewWithConn(name, conn)
+				if err := p.Run(context.Background(), &sdk.Registration{}); err != nil {
+					return 1
+				}
+				return 0
+			},
+		}))
+	}
+	registerDown(nonFIBName, nonFIBRoot, false)
+	registerDown(fibName, fibRoot, true)
+
+	var s *Server
+	t.Cleanup(func() {
+		if s != nil {
+			s.wg.Wait()
+		}
+	})
+	s, spawner := newLifecycleStartupServer(t)
+	s.SetShutdownFunc(func() {})
+	committed := map[string]any{
+		nonFIBRoot: map[string]any{"enabled": true},
+		fibRoot:    map[string]any{"enabled": true},
+	}
+	s.reactor = &removalRecoveryReactor{tree: committed}
+
+	require.NoError(t, s.runPluginPhase([]plugin.PluginConfig{
+		{Name: nonFIBName, Internal: true, Encoder: plugin.EncodingJSON},
+		{Name: fibName, Internal: true, Encoder: plugin.EncodingJSON},
+	}))
+	takePluginDownForTest(t, s, spawner.pm, nonFIBName, process.StopHandshakeFailed)
+	takePluginDownForTest(t, s, spawner.pm, fibName, process.StopRestartFailed)
+
+	reloadCtx, finish := s.DeferReloadAcceptance(t.Context())
+	defer finish(false) //nolint:errcheck // Cleanup; outcome is asserted below.
+	require.NoError(t, s.ReloadConfig(reloadCtx, map[string]any{}))
+
+	require.NoError(t, finish(false))
+
+	require.Contains(t, spawner.pm.ConfiguredNames(), nonFIBName)
+	require.Contains(t, spawner.pm.ConfiguredNames(), fibName)
+	_, nonFIBDown := spawner.pm.Stopped(nonFIBName)
+	require.True(t, nonFIBDown)
+	_, fibDown := spawner.pm.Stopped(fibName)
+	require.True(t, fibDown)
+	require.True(t, hasStoppedBusWarning(nonFIBName))
+	require.True(t, hasStoppedBusWarning(fibName))
+	require.Nil(t, pluginRestartRefusal(spawner.pm, nonFIBName))
+	require.Nil(t, pluginRestartRefusal(spawner.pm, fibName))
+}
+
+// TestFailedReloadAutoLoadLeavesNoStoppedRecordOrConfig verifies that a
+// candidate reload auto-load failing below StageRunning (including unstarted
+// dependents rolled back by rollbackNonRunningStartupProcesses) or during
+// runProcessGenerationReady at StageRunning leaves neither pm.configs nor
+// pm.stopped nor a doctor-plugin-stopped bus warning, while a boot failure
+// still keeps both.
+//
+// VALIDATES: spec-plugin-restart-bounded-and-configuration-true AC-10 --
+// runPluginPhaseWithin skips RecordStopped and calls UnconfigureProcess when
+// unconfigureFailedReloadStart applies, and preserves boot failure stop records.
+// PREVENTS: a refused reload leaking doctor-plugin-stopped and leaving an
+// uncommitted plugin restartable.
+func TestFailedReloadAutoLoadLeavesNoStoppedRecordOrConfig(t *testing.T) {
+	t.Run("below-running", func(t *testing.T) {
+		snapshot := registry.Snapshot()
+		registry.Reset()
+		t.Cleanup(func() { registry.Restore(snapshot) })
+
+		const (
+			baselineName = "ac10-below-baseline"
+			depName      = "ac10-below-dep"
+			ownerName    = "ac10-below-owner"
+			ownerRoot    = "ac10-below-root"
+		)
+		require.NoError(t, registry.Register(registry.Registration{
+			Name:        baselineName,
+			Description: "committed baseline plugin",
+			CLIHandler:  func([]string) int { return 0 },
+			RunEngine: func(conn net.Conn) int {
+				p := sdk.NewWithConn(baselineName, conn)
+				if err := p.Run(context.Background(), &sdk.Registration{}); err != nil {
+					return 1
+				}
+				return 0
+			},
+		}))
+		require.NoError(t, registry.Register(registry.Registration{
+			Name:        depName,
+			Description: "tier-0 dependency failing Stage 2",
+			CLIHandler:  func([]string) int { return 0 },
+			RunEngine: func(conn net.Conn) int {
+				p := sdk.NewWithConn(depName, conn)
+				p.OnConfigure(func([]sdk.ConfigSection) error {
+					return errors.New("candidate dep configure refused")
+				})
+				if err := p.Run(context.Background(), &sdk.Registration{}); err != nil {
+					return 1
+				}
+				return 0
+			},
+		}))
+		require.NoError(t, registry.Register(registry.Registration{
+			Name:         ownerName,
+			Description:  "tier-1 owner blocked behind failing dep",
+			ConfigRoots:  []string{ownerRoot},
+			Dependencies: []string{depName},
+			CLIHandler:   func([]string) int { return 0 },
+			RunEngine: func(conn net.Conn) int {
+				p := sdk.NewWithConn(ownerName, conn)
+				if err := p.Run(context.Background(), &sdk.Registration{}); err != nil {
+					return 1
+				}
+				return 0
+			},
+		}))
+
+		var s *Server
+		t.Cleanup(func() {
+			if s != nil {
+				s.wg.Wait()
+			}
+		})
+		s, spawner := newLifecycleStartupServer(t)
+		s.SetShutdownFunc(func() {})
+		s.reactor = &removalRecoveryReactor{tree: map[string]any{}}
+
+		require.NoError(t, s.runPluginPhase([]plugin.PluginConfig{
+			{Name: baselineName, Internal: true, Encoder: plugin.EncodingJSON},
+		}))
+
+		err := s.ReloadConfig(t.Context(), map[string]any{ownerRoot: map[string]any{"enabled": true}})
+		require.Error(t, err)
+
+		for _, name := range []string{depName, ownerName} {
+			require.Nil(t, spawner.pm.GetProcess(name))
+			require.NotContains(t, spawner.pm.ConfiguredNames(), name)
+			_, down := spawner.pm.Stopped(name)
+			require.False(t, down, "failed candidate reload auto-load %s must not leak pm.stopped", name)
+			require.False(t, hasStoppedBusWarning(name), "failed candidate reload auto-load %s must not raise doctor-plugin-stopped", name)
+		}
+		require.Contains(t, spawner.pm.ConfiguredNames(), baselineName)
+		require.NotNil(t, spawner.pm.GetProcess(baselineName))
+	})
+
+	t.Run("generation-ready", func(t *testing.T) {
+		snapshot := registry.Snapshot()
+		registry.Reset()
+		t.Cleanup(func() { registry.Restore(snapshot) })
+
+		const (
+			baselineName  = "ac10-ready-baseline"
+			readyFailName = "ac10-ready-candidate"
+			readyRoot     = "ac10-ready-root"
+		)
+		require.NoError(t, registry.Register(registry.Registration{
+			Name:        baselineName,
+			Description: "committed baseline plugin",
+			CLIHandler:  func([]string) int { return 0 },
+			RunEngine: func(conn net.Conn) int {
+				p := sdk.NewWithConn(baselineName, conn)
+				if err := p.Run(context.Background(), &sdk.Registration{}); err != nil {
+					return 1
+				}
+				return 0
+			},
+		}))
+		require.NoError(t, registry.Register(registry.Registration{
+			Name:        readyFailName,
+			Description: "candidate failing generation-ready hook",
+			ConfigRoots: []string{readyRoot},
+			CLIHandler:  func([]string) int { return 0 },
+			RunEngine: func(conn net.Conn) int {
+				p := sdk.NewWithConn(readyFailName, conn)
+				if err := p.Run(context.Background(), &sdk.Registration{}); err != nil {
+					return 1
+				}
+				return 0
+			},
+		}))
+
+		engineOperationMu.Lock()
+		savedReadyHooks := slices.Clone(processGenerationReady)
+		processGenerationReady = append(processGenerationReady, func(_ context.Context, _ *Server, proc *process.Process) error {
+			if proc.Name() == readyFailName {
+				return errors.New("generation ready hook refused candidate")
+			}
+			return nil
+		})
+		engineOperationMu.Unlock()
+		t.Cleanup(func() {
+			engineOperationMu.Lock()
+			processGenerationReady = savedReadyHooks
+			engineOperationMu.Unlock()
+		})
+
+		var s *Server
+		t.Cleanup(func() {
+			if s != nil {
+				s.wg.Wait()
+			}
+		})
+		s, spawner := newLifecycleStartupServer(t)
+		s.SetShutdownFunc(func() {})
+		s.reactor = &removalRecoveryReactor{tree: map[string]any{}}
+
+		require.NoError(t, s.runPluginPhase([]plugin.PluginConfig{
+			{Name: baselineName, Internal: true, Encoder: plugin.EncodingJSON},
+		}))
+
+		err := s.ReloadConfig(t.Context(), map[string]any{readyRoot: map[string]any{"enabled": true}})
+		require.Error(t, err)
+		require.ErrorContains(t, err, "generation ready hook refused candidate")
+
+		require.Nil(t, spawner.pm.GetProcess(readyFailName))
+		require.NotContains(t, spawner.pm.ConfiguredNames(), readyFailName)
+		_, down := spawner.pm.Stopped(readyFailName)
+		require.False(t, down, "failed generation-ready candidate must not leak pm.stopped")
+		require.False(t, hasStoppedBusWarning(readyFailName), "failed generation-ready candidate must not raise doctor-plugin-stopped")
+		require.False(t, s.isPluginLoaded(readyFailName))
+		require.Contains(t, spawner.pm.ConfiguredNames(), baselineName)
+		require.NotNil(t, spawner.pm.GetProcess(baselineName))
+	})
+
+	t.Run("boot-failure-survivor", func(t *testing.T) {
+		snapshot := registry.Snapshot()
+		registry.Reset()
+		t.Cleanup(func() { registry.Restore(snapshot) })
+
+		const bootFailName = "ac10-boot-failed-survivor"
+		require.NoError(t, registry.Register(registry.Registration{
+			Name:        bootFailName,
+			Description: "boot plugin failing Stage 2",
+			CLIHandler:  func([]string) int { return 0 },
+			RunEngine: func(conn net.Conn) int {
+				p := sdk.NewWithConn(bootFailName, conn)
+				p.OnConfigure(func([]sdk.ConfigSection) error {
+					return errors.New("boot configure refused")
+				})
+				if err := p.Run(context.Background(), &sdk.Registration{}); err != nil {
+					return 1
+				}
+				return 0
+			},
+		}))
+
+		var s *Server
+		t.Cleanup(func() {
+			if s != nil {
+				s.wg.Wait()
+			}
+		})
+		s, spawner := newLifecycleStartupServer(t)
+		s.SetShutdownFunc(func() {})
+		t.Cleanup(func() {
+			if spawner.pm != nil {
+				spawner.pm.ClearStopped(bootFailName)
+			}
+		})
+
+		err := s.runPluginPhase([]plugin.PluginConfig{
+			{Name: bootFailName, Internal: true, Encoder: plugin.EncodingJSON},
+		})
+		require.Error(t, err)
+		require.Contains(t, spawner.pm.ConfiguredNames(), bootFailName)
+		stop, down := spawner.pm.Stopped(bootFailName)
+		require.True(t, down, "boot failure must still record pm.stopped")
+		require.Equal(t, process.StopHandshakeFailed, stop.Cause)
+		require.True(t, hasStoppedBusWarning(bootFailName), "boot failure must still raise doctor-plugin-stopped")
 	})
 }

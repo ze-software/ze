@@ -363,7 +363,7 @@ func (s *Server) startAutoLoaded(ctx context.Context, plugins []plugin.PluginCon
 		if s.reactor != nil {
 			s.reactor.AddAPIProcessCount(-len(plugins))
 		}
-		stopErr := s.autoStopPluginNames(started)
+		stopErr := s.autoStopStartedPlugins(started, !recovery)
 		refusal := errors.Join(fmt.Errorf("config-path auto-load startup: %w", reloadChainRefusal(startErr)), stopErr)
 		raiseReloadRefused(reloadRefusalMessage(autoLoadRefusalProblem(recovery,
 			"did not all start, so ze stopped them"), started, refusal), refusal)
@@ -379,7 +379,7 @@ func (s *Server) startAutoLoaded(ctx context.Context, plugins []plugin.PluginCon
 		if err := s.reactor.SignalPluginStartupComplete(); err != nil {
 			logger().Error("config reload: the reactor refused the config after the auto-loaded plugins started", "error", err,
 				"code", CodeDoctorConfigReloadRefused)
-			stopErr := s.autoStopPluginNames(started)
+			stopErr := s.autoStopStartedPlugins(started, !recovery)
 			refusal := errors.Join(fmt.Errorf("config-path auto-load post-startup: %w", err), stopErr)
 			raiseReloadRefused(reloadRefusalMessage(autoLoadRefusalProblem(recovery,
 				"started, and ze then refused the configuration, so it stopped them"), started, refusal), refusal)
@@ -487,18 +487,36 @@ func rootRemovalStopsOwner(roots []string, removedSet map[string]bool, tree map[
 
 // stopCollectedProcesses reverses the startup dependency tiers so each running
 // producer can finish its removal callback while its dependencies and FIB
-// writer remain live. After stopping any ProgramsFIB process, it emits
+// writer remain live. Configured down plugins with no live process are recorded
+// on the active reload acceptance scope so finishRemovalScope drops them only
+// when the reload is accepted. After stopping any ProgramsFIB process, it emits
 // mplsfib.WriterStopped so remaining data-plane label writers trigger one more
 // targeted label replay once the displaced writer has unsubscribed (AC-24).
 func (s *Server) stopCollectedProcesses(stopped map[string]bool) error {
+	return s.stopCollectedProcessesMode(stopped, true, true)
+}
+
+func (s *Server) stopCollectedProcessesMode(stopped map[string]bool, provisional, handleProcessless bool) error {
 	pm := s.procManager.Load()
 	if pm == nil {
 		return nil
 	}
+	var scope *reloadAcceptance
+	if provisional {
+		scope = s.currentRemovalScope()
+	}
+	var configuredNames []string
+	if handleProcessless {
+		configuredNames = pm.ConfiguredNames()
+	}
 	selected := make([]plugin.PluginConfig, 0, len(stopped))
+	var processless []string
 	for name := range stopped {
 		proc := pm.GetProcess(name)
 		if proc == nil {
+			if handleProcessless && slices.Contains(configuredNames, name) {
+				processless = append(processless, name)
+			}
 			continue
 		}
 		selected = append(selected, proc.Config())
@@ -523,13 +541,16 @@ func (s *Server) stopCollectedProcesses(stopped map[string]bool) error {
 			declared := !declaredPeerMetadata(proc).empty()
 			reg := registryRow(proc.Config())
 			isFIB := reg != nil && reg.ProgramsFIB
-			if err := s.rollbackStartupProcess(proc); err != nil {
+			if err := s.stopProcessRemoval(proc, provisional); err != nil {
 				return fmt.Errorf("config reload: remove plugin %q: %w", name, err)
 			}
 			s.clearAutoLoadReason(name)
 			withdrawn = withdrawn || declared
 			stoppedFIB = stoppedFIB || isFIB
 		}
+	}
+	for _, name := range processless {
+		s.recordUnconfigureOnAccept(scope, name)
 	}
 	if withdrawn {
 		if err := s.announcePeerDeclarationsChanged(nil); err != nil {
@@ -546,16 +567,22 @@ func (s *Server) stopCollectedProcesses(stopped map[string]bool) error {
 }
 
 // autoStopPluginNames stops the exact plugin processes that a failed reload
-// auto-loaded. Unlike collectProcessesForRemovedConfigPaths, the input is already a
-// plugin name list, not config roots such as "fib/kernel".
+// auto-loaded, directly as non-provisional removals so they never enter
+// committed-removal recovery on scope rejection. Unlike
+// collectProcessesForRemovedConfigPaths, the input is already a plugin name
+// list, not config roots such as "fib/kernel".
 func (s *Server) autoStopPluginNames(pluginNames []string) error {
+	return s.autoStopStartedPlugins(pluginNames, true)
+}
+
+func (s *Server) autoStopStartedPlugins(pluginNames []string, unconfigureProcessless bool) error {
 	stopped := make(map[string]bool, len(pluginNames))
 	for _, name := range pluginNames {
 		if !s.hasConfiguredPlugin(name) {
 			stopped[name] = true
 		}
 	}
-	return s.stopCollectedProcesses(stopped)
+	return s.stopCollectedProcessesMode(stopped, false, unconfigureProcessless)
 }
 
 // collectOrphanCandidates returns the set of plugin names that the stopped
@@ -594,10 +621,12 @@ func pluginDependsOn(reg *registry.Registration, candidate string) bool {
 }
 
 // collectOrphanedDependencies expands stopped with dependency-only plugins
-// that have no remaining dependents. Both stopped and remaining processes are
-// resolved by their compiled registration identity so aliased compiled plugins
-// participate accurately and foreign external programs never borrow compiled
-// dependency edges. It does not change process state.
+// (running or configured down with AutoLoadReasonDependency) that have no
+// remaining dependents. Both stopped and remaining processes are resolved by
+// their compiled registration identity so aliased compiled plugins participate
+// accurately and foreign external programs never borrow compiled dependency
+// edges. Any candidate whose recorded AutoLoadReason is not
+// AutoLoadReasonDependency is spared. It does not change process state.
 func (s *Server) collectOrphanedDependencies(pm *process.ProcessManager, stopped map[string]bool) map[string]bool {
 	result := make(map[string]bool, len(stopped))
 	for name := range stopped {
@@ -631,10 +660,18 @@ func (s *Server) collectOrphanedDependencies(pm *process.ProcessManager, stopped
 				continue
 			}
 			candProc := pm.GetProcess(candidate)
-			if candProc == nil {
+			if candProc != nil {
+				if candProc.RegistrationName() != candidate {
+					continue
+				}
+			} else if pm.RegistrationFor(candidate) != candidate {
 				continue
 			}
-			if candProc.RegistrationName() != candidate {
+			reason, recorded := s.AutoLoadReasonFor(candidate)
+			if recorded && reason.Kind != AutoLoadReasonDependency {
+				continue
+			}
+			if candProc == nil && !recorded {
 				continue
 			}
 
@@ -649,6 +686,23 @@ func (s *Server) collectOrphanedDependencies(pm *process.ProcessManager, stopped
 				if pluginDependsOn(registryRow(proc.Config()), candidate) {
 					hasDependent = true
 					break
+				}
+			}
+			if !hasDependent {
+				for _, cfg := range pm.ConfiguredConfigs() {
+					if result[cfg.Name] {
+						continue
+					}
+					if pm.GetProcess(cfg.Name) != nil {
+						continue
+					}
+					if cfg.CompiledIdentity() == candidate {
+						continue
+					}
+					if pluginDependsOn(registryRow(cfg), candidate) {
+						hasDependent = true
+						break
+					}
 				}
 			}
 			if !hasDependent {

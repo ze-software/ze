@@ -196,8 +196,11 @@ type Server struct {
 
 	// Removal retains the callback and dependency lifetime across a refused
 	// reload, until cleanup and committed-configuration recovery both finish.
-	removalMu sync.Mutex
-	removals  map[*process.Process]*pluginRemoval
+	// unconfigureOnAccept tracks configured plugins with no live process whose
+	// removal becomes final only when their reload acceptance scope is accepted.
+	removalMu           sync.Mutex
+	removals            map[*process.Process]*pluginRemoval
+	unconfigureOnAccept map[*reloadAcceptance]map[string]struct{}
 	// lateCleanups holds each replaced process whose runtime cleanup outlived
 	// its restart's wait, until that cleanup has run (restart.go).
 	lateCleanups lateCleanupRecord

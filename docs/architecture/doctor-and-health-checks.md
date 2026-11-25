@@ -1694,10 +1694,15 @@ a rolled-back reload start), so the removed name leaves `ConfiguredNames`:
 neither `plugin-stopped`, `request plugin restart`, nor its completion offers
 or accepts a plugin the configuration no longer runs. While a reload is still
 in flight (or after a rejected reload recovers its removals), the name remains
-configured until the scope settles. A
-plugin that was already down (a failed start left it configured with no
-process) is not collected by the removal at all, so it keeps its record and
-this check keeps reporting it, with a restart as its fix. `StartMore` replaces
+configured until the scope settles. A plugin that was already down when a
+reload removes its config roots or displaces its FIB selection is recorded on
+the reload acceptance scope and dropped by `ProcessManager.UnconfigureProcess`
+when the reload is accepted, clearing its configured entry, stop record, and
+`doctor-plugin-stopped` row; a rejected reload preserves them. A candidate
+plugin that a refused reload auto-loaded and whose startup failed at any stage
+(below `StageRunning` or during generation readiness) is unconfigured
+immediately without recording a stop, so neither `ConfiguredNames` nor
+`doctor-plugin-stopped` retains it. `StartMore` replaces
 the config of a name added back, so the configured set holds each plugin once.
 External `bus > endpoint` declarations (and their schemas) are read at boot and
 changes to them still require a restart (`RefuseChangedDeclarations`).

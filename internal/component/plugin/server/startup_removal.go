@@ -114,16 +114,71 @@ func (s *Server) runPluginRecoveryPhase(ctx context.Context, plugins []plugin.Pl
 
 // done publishes the actual callback result, not the caller's waiting deadline.
 // scope keeps compensation behind the outer reload's publication or rollback.
+// direct marks a non-provisional stop of a rolled-back candidate auto-load that
+// never belonged to the committed configuration.
 // stopped, recovering and recoveryErr are protected by Server.removalMu.
 type pluginRemoval struct {
 	done        chan struct{}
 	err         error
 	scope       *reloadAcceptance
+	direct      bool
 	stop        sync.Once
 	failure     sync.Once // Supervisor and recovery MUST classify before retirement.
 	stopped     bool
 	recovering  bool
 	recoveryErr error
+}
+
+// currentRemovalScope returns the reload acceptance scope currently active
+// under the transaction lock, or nil outside a reload transaction.
+func (s *Server) currentRemovalScope() *reloadAcceptance {
+	s.txLock.mu.Lock()
+	scope := s.txLock.acceptance
+	s.txLock.mu.Unlock()
+	return scope
+}
+
+// recordUnconfigureOnAccept schedules a configured plugin holding no live
+// process to leave the configured set when scope is accepted, or drops it
+// immediately when scope is nil.
+func (s *Server) recordUnconfigureOnAccept(scope *reloadAcceptance, name string) {
+	if scope == nil {
+		s.unconfigureProcessless(name)
+		return
+	}
+	s.removalMu.Lock()
+	if s.unconfigureOnAccept == nil {
+		s.unconfigureOnAccept = make(map[*reloadAcceptance]map[string]struct{})
+	}
+	names := s.unconfigureOnAccept[scope]
+	if names == nil {
+		names = make(map[string]struct{})
+		s.unconfigureOnAccept[scope] = names
+	}
+	names[name] = struct{}{}
+	s.removalMu.Unlock()
+}
+
+// unconfigureProcessless drops name from the process manager's configured set
+// and server loaded marks when no live process currently holds the slot.
+func (s *Server) unconfigureProcessless(name string) {
+	pm := s.procManager.Load()
+	if pm == nil {
+		s.unmarkPluginLoaded(name)
+		return
+	}
+	if pm.GetProcess(name) != nil {
+		return
+	}
+	regName := pm.RegistrationFor(name)
+	pm.UnconfigureProcess(name)
+	if pm.GetProcess(name) != nil {
+		return
+	}
+	s.unmarkPluginLoaded(name)
+	if regName != "" && regName != name && len(pm.BlocksServing(regName)) == 0 {
+		s.unmarkPluginLoaded(regName)
+	}
 }
 
 // rollbackStartupProcess keeps dependencies and registrations available until a
@@ -133,26 +188,34 @@ type pluginRemoval struct {
 // a rolled-back reload start (or a direct stop outside a boot/recovery startup
 // phase), its stop is final here and its name leaves the configured set.
 func (s *Server) rollbackStartupProcess(proc *process.Process) error {
+	return s.stopProcessRemoval(proc, true)
+}
+
+// stopProcessRemoval stops proc with provisional reload semantics when
+// provisional is true (attaching running removals to the active reload
+// acceptance scope), or directly as a final stop when provisional is false
+// (stopping plugins that a failed or rolled-back candidate reload just started
+// so they never enter committed-removal recovery).
+func (s *Server) stopProcessRemoval(proc *process.Process, provisional bool) error {
 	if proc.Stage() < plugin.StageRunning {
 		s.stopRemovedProcess(proc)
-		if s.unconfigureBelowRunning(proc) {
+		if !provisional || s.unconfigureFailedReloadStart(proc) {
 			if pm := s.procManager.Load(); pm != nil {
 				pm.UnconfigureProcess(proc.Name())
 			}
 		}
 		return nil
 	}
-	return s.notifyPluginRemoval(proc)
+	return s.notifyPluginRemoval(proc, provisional)
 }
 
-// unconfigureBelowRunning reports whether a process stopped before StageRunning
-// should leave the configured set. A boot startup failure and a recovery
-// startup failure belong to a plugin the committed configuration still names,
-// so they keep their configured name for doctor and `request plugin restart`.
-// A rolled-back reload start (a non-recovery startup phase running under an
-// active reload acceptance scope) and a direct stop outside any startup phase
-// drop the name immediately because finishRemovalScope never sees them.
-func (s *Server) unconfigureBelowRunning(proc *process.Process) bool {
+// unconfigureFailedReloadStart reports whether a process that failed startup
+// belongs to a candidate reload auto-load (or a direct stop outside any startup
+// Configure scope) and should leave the configured set without recording a stop.
+// A boot startup failure and a recovery startup failure belong to a plugin the
+// committed configuration still names, so they keep their configured name and
+// stop record for doctor and `request plugin restart`.
+func (s *Server) unconfigureFailedReloadStart(proc *process.Process) bool {
 	selected, scoped := s.pluginConfigureConfig(proc)
 	// refuse-by-default: guards rollbackStartupProcess -- a process outside any active Configure scope is a direct stop rather than a boot or recovery failure
 	if !scoped {
@@ -161,10 +224,7 @@ func (s *Server) unconfigureBelowRunning(proc *process.Process) bool {
 	if selected.recovering {
 		return false
 	}
-	s.txLock.mu.Lock()
-	inReload := s.txLock.acceptance != nil
-	s.txLock.mu.Unlock()
-	return inReload
+	return s.currentRemovalScope() != nil
 }
 
 func (s *Server) stopRemovedProcess(proc *process.Process) {
@@ -199,14 +259,15 @@ func (s *Server) pluginRemovalPending(proc *process.Process) bool {
 	return s.removals[proc] != nil
 }
 
-func (s *Server) notifyPluginRemoval(proc *process.Process) error {
+func (s *Server) notifyPluginRemoval(proc *process.Process, provisional bool) error {
 	parent := s.Context()
 	if err := parent.Err(); err != nil {
 		return err
 	}
-	s.txLock.mu.Lock()
-	scope := s.txLock.acceptance
-	s.txLock.mu.Unlock()
+	var scope *reloadAcceptance
+	if provisional {
+		scope = s.currentRemovalScope()
+	}
 	s.removalMu.Lock()
 	attempt := s.removals[proc]
 	if attempt != nil && (attempt.recovering || attempt.stopped) {
@@ -217,9 +278,16 @@ func (s *Server) notifyPluginRemoval(proc *process.Process) error {
 		conn := proc.Conn()
 		if conn == nil {
 			s.removalMu.Unlock()
+			if !provisional {
+				s.stopRemovedProcess(proc)
+				if pm := s.procManager.Load(); pm != nil {
+					pm.UnconfigureProcess(proc.Name())
+				}
+				return nil
+			}
 			return fmt.Errorf("plugin %q removal has no live callback connection", proc.Name())
 		}
-		attempt = &pluginRemoval{done: make(chan struct{}), scope: scope}
+		attempt = &pluginRemoval{done: make(chan struct{}), scope: scope, direct: !provisional}
 		if s.removals == nil {
 			s.removals = make(map[*process.Process]*pluginRemoval)
 		}
@@ -280,8 +348,11 @@ func (s *Server) finishFailedPluginRemoval(proc *process.Process, attempt *plugi
 }
 
 // finishRemovalScope is called before the outer reload releases its completion
-// barrier. Successful removals are final only if the whole reload was accepted;
-// each finalized removal's name leaves the process manager's configured set.
+// barrier. Successful removals (with or without a live process) are final only
+// if the whole reload was accepted; each finalized removal's name leaves the
+// process manager's configured set. Rejected scopes discard pending
+// process-less unconfigure entries so already-down plugins stay configured and
+// reported down.
 func (s *Server) finishRemovalScope(scope *reloadAcceptance, accepted bool) {
 	s.removalMu.Lock()
 	var finalized []string
@@ -300,12 +371,19 @@ func (s *Server) finishRemovalScope(scope *reloadAcceptance, accepted bool) {
 		}
 		rejected[proc] = attempt
 	}
+	pendingUnconfigure := s.unconfigureOnAccept[scope]
+	delete(s.unconfigureOnAccept, scope)
 	s.removalMu.Unlock()
 	if len(finalized) > 0 {
 		if pm := s.procManager.Load(); pm != nil {
 			for _, name := range finalized {
 				pm.UnconfigureProcess(name)
 			}
+		}
+	}
+	if accepted && len(pendingUnconfigure) > 0 {
+		for name := range pendingUnconfigure {
+			s.unconfigureProcessless(name)
 		}
 	}
 	for proc, attempt := range rejected {
@@ -394,6 +472,23 @@ func removalConnectionFailed(proc *process.Process, err error) bool {
 // restoreRemovedPlugin runs under the same exclusion as config reload and reads
 // the current committed tree, never the rejected candidate captured by removal.
 func (s *Server) restoreRemovedPlugin(ctx context.Context, proc *process.Process, attempt *pluginRemoval) error {
+	// A direct non-provisional stop (rolled-back candidate auto-load) whose Bye
+	// timed out or returned an error never belonged to the committed
+	// configuration: stop and unconfigure it without touching pre-existing
+	// dependencies.
+	if attempt.direct {
+		if attempt.err != nil && removalConnectionFailed(proc, attempt.err) {
+			if err := s.finishFailedPluginRemoval(proc, attempt); err != nil {
+				return err
+			}
+		} else {
+			s.finishPluginRemoval(proc, attempt)
+		}
+		if pm := s.procManager.Load(); pm != nil {
+			pm.UnconfigureProcess(proc.Name())
+		}
+		return nil
+	}
 	if attempt.err == nil {
 		s.finishPluginRemoval(proc, attempt)
 	} else if removalConnectionFailed(proc, attempt.err) {

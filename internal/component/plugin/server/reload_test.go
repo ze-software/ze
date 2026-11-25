@@ -581,7 +581,9 @@ func TestReloadFailureStopsAutoLoadedPluginByName(t *testing.T) {
 // TestReloadFailureKeepsPreExistingDependency verifies failed reload cleanup
 // restores only processes started by that reload.
 //
-// VALIDATES: AC-4, dependencies that predate a rejected reload remain running.
+// VALIDATES: AC-4 (reload) and AC-2 (spec-plugin-restart-bounded-and-configuration-true),
+// dependencies that predate a rejected reload remain running after background
+// removal recovery settles.
 // PREVENTS: failed auto-load rollback stopping an unrelated pre-existing dependency.
 func TestReloadFailureKeepsPreExistingDependency(t *testing.T) {
 	snap := registry.Snapshot()
@@ -662,8 +664,134 @@ func TestReloadFailureKeepsPreExistingDependency(t *testing.T) {
 	}
 	err = s.ReloadConfig(context.Background(), newTree)
 	require.Error(t, err)
+	s.wg.Wait()
 	assert.Nil(t, spawner.pm.GetProcess(pluginName), "failed reload must stop newly auto-loaded plugin")
 	assert.NotNil(t, spawner.pm.GetProcess(depName), "failed reload must keep pre-existing dependency")
+}
+
+// TestReloadFailureStopsReloadAutoLoadedDependencyOnly verifies that when a
+// rejected reload auto-loads an owner together with a new dependency while
+// sharing a pre-existing dependency, only the reload-started owner and new
+// dependency are stopped and unconfigured, while the pre-existing dependency
+// stays running. It also verifies that collectOrphanedDependencies spares a
+// plugin whose recorded AutoLoadReason is not AutoLoadReasonDependency.
+//
+// VALIDATES: spec-plugin-restart-bounded-and-configuration-true AC-2 survivor
+// and AutoLoadReason defense in depth.
+// PREVENTS: rejected reload cleanup leaving reload-started dependencies
+// running, or orphan detection stopping independently auto-loaded plugins.
+func TestReloadFailureStopsReloadAutoLoadedDependencyOnly(t *testing.T) {
+	snap := registry.Snapshot()
+	registry.Reset()
+	t.Cleanup(func() { registry.Restore(snap) })
+
+	const (
+		preDepName = "reload-preexisting-dep"
+		newDepName = "reload-new-dep"
+		ownerName  = "reload-owner-two-deps"
+	)
+	registerSimple := func(name string) {
+		require.NoError(t, registry.Register(registry.Registration{
+			Name:        name,
+			Description: "dependency test plugin",
+			RunEngine: func(conn net.Conn) int {
+				p := sdk.NewWithConn(name, conn)
+				if err := p.Run(context.Background(), &sdk.Registration{}); err != nil {
+					return 1
+				}
+				return 0
+			},
+			CLIHandler: func([]string) int { return 0 },
+		}))
+	}
+	registerSimple(preDepName)
+	registerSimple(newDepName)
+	require.NoError(t, registry.Register(registry.Registration{
+		Name:         ownerName,
+		Description:  "config owner needing pre-existing and new dependency",
+		ConfigRoots:  []string{"fib/kernel"},
+		Dependencies: []string{preDepName, newDepName},
+		RunEngine: func(conn net.Conn) int {
+			p := sdk.NewWithConn(ownerName, conn)
+			p.DeclareAppliesNothing("test owner: holds no config a reload applies")
+			if err := p.Run(context.Background(), &sdk.Registration{WantsConfig: []string{"fib/kernel"}}); err != nil {
+				return 1
+			}
+			return 0
+		},
+		CLIHandler: func([]string) int { return 0 },
+	}))
+
+	reactor := &mockReloadReactor{tree: map[string]any{"other": map[string]any{"enabled": false}}}
+	serverCtx, cancel := context.WithCancel(context.Background())
+	t.Cleanup(cancel)
+	s, err := NewServer(&ServerConfig{}, reactor)
+	require.NoError(t, err)
+	s.ctx, s.cancel = context.WithCancel(serverCtx)
+	t.Cleanup(s.cancel)
+
+	pm := process.NewProcessManager(nil)
+	require.NoError(t, pm.StartWithContext(s.ctx))
+	preDepProc := process.NewProcess(plugin.PluginConfig{Name: preDepName})
+	preDepProc.SetRunning(true)
+	require.NoError(t, pm.AddProcess(preDepName, preDepProc))
+
+	engineEnd, pluginEnd := net.Pipe()
+	t.Cleanup(func() {
+		engineEnd.Close() //nolint:errcheck // test cleanup
+		pluginEnd.Close() //nolint:errcheck // test cleanup
+	})
+	rejector := process.NewProcess(plugin.PluginConfig{Name: "reload-rejector"})
+	rejector.SetRegistration(&plugin.PluginRegistration{WantsConfigRoots: []string{"other"}})
+	rejector.SetConn(ipc.NewPluginConn(engineEnd, engineEnd))
+	rejector.SetRunning(true)
+	require.NoError(t, pm.AddProcess("reload-rejector", rejector))
+	(&mockPluginResponder{
+		pluginConn: ipc.NewPluginConn(pluginEnd, pluginEnd),
+		pluginName: "reload-rejector",
+		verifyResp: &rpc.ConfigVerifyOutput{Status: plugin.StatusError, Error: "reject other"},
+	}).start(s.ctx)
+	s.procManager.Store(pm)
+
+	spawner := &lifecycleTestSpawner{ctx: s.ctx, pm: pm}
+	s.SetProcessSpawner(spawner)
+
+	newTree := map[string]any{
+		"fib":   map[string]any{"kernel": map[string]any{"enabled": true}},
+		"other": map[string]any{"enabled": true},
+	}
+	err = s.ReloadConfig(context.Background(), newTree)
+	require.Error(t, err)
+	s.wg.Wait()
+
+	assert.Nil(t, spawner.pm.GetProcess(ownerName), "rejected reload must stop reload-started owner")
+	assert.Nil(t, spawner.pm.GetProcess(newDepName), "rejected reload must stop dependency auto-loaded by that reload")
+	assert.NotContains(t, spawner.pm.ConfiguredNames(), ownerName)
+	assert.NotContains(t, spawner.pm.ConfiguredNames(), newDepName)
+	_, ownerDown := spawner.pm.Stopped(ownerName)
+	assert.False(t, ownerDown)
+	_, newDepDown := spawner.pm.Stopped(newDepName)
+	assert.False(t, newDepDown)
+	assert.NotNil(t, spawner.pm.GetProcess(preDepName), "rejected reload must keep pre-existing dependency running")
+
+	// Defense in depth: collectOrphanedDependencies spares a candidate whose
+	// AutoLoadReason is not AutoLoadReasonDependency.
+	depOnlyProc := process.NewProcess(plugin.PluginConfig{Name: newDepName})
+	depOnlyProc.SetRunning(true)
+	require.NoError(t, pm.AddProcess(newDepName, depOnlyProc))
+	s.recordAutoLoadReasons([]AutoLoadedEndpoint{
+		{
+			Config: plugin.PluginConfig{Name: preDepName, Internal: true, Encoder: encoderJSON},
+			Reason: AutoLoadReason{Kind: AutoLoadReasonConfigPath, Source: "pre-root"},
+		},
+		{
+			Config: plugin.PluginConfig{Name: newDepName, Internal: true, Encoder: encoderJSON},
+			Reason: AutoLoadReason{Kind: AutoLoadReasonDependency, Source: ownerName},
+		},
+	})
+	orphans := s.collectOrphanedDependencies(pm, map[string]bool{ownerName: true})
+	assert.True(t, orphans[newDepName], "dependency-only auto-load must be collected as orphan")
+	assert.False(t, orphans[preDepName], "non-dependency AutoLoadReason must be spared by collectOrphanedDependencies")
 }
 
 // TestReloadConfigVerifyFails verifies that verify error aborts apply.

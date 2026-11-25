@@ -659,12 +659,17 @@ func (s *Server) runPluginPhaseWithin(ctx context.Context, plugins []plugin.Plug
 			err := startupFailureError(proc)
 			phaseErr = preferDiagnosedError(phaseErr, err)
 			logger().Error("plugin startup failed", "plugin", proc.Name(), "stage", proc.Stage(), "error", err)
+			candidateReload := s.unconfigureFailedReloadStart(proc)
 			if rollbackErr := s.rollbackStartupProcess(proc); rollbackErr != nil {
 				phaseErr = errors.Join(phaseErr, rollbackErr)
 			}
 			// Recorded after the rollback, because the rollback removes the
-			// process and a removal clears the record.
-			pm.RecordStopped(proc.Name(), process.PluginStop{Cause: process.StopHandshakeFailed, Detail: err.Error()})
+			// process and a removal clears the record. A failed candidate reload
+			// auto-load was never committed, so it leaves neither pm.configs nor
+			// a stop record behind.
+			if !candidateReload {
+				pm.RecordStopped(proc.Name(), process.PluginStop{Cause: process.StopHandshakeFailed, Detail: err.Error()})
+			}
 			// A phase that fails leaves the daemon running without those
 			// plugins, which is right for a plugin that said nothing about its
 			// own failure and wrong for one that did (failure_policy.go).
@@ -704,9 +709,15 @@ func (s *Server) runPluginPhaseWithin(ctx context.Context, plugins []plugin.Plug
 		}
 		if err := s.runProcessGenerationReady(ctx, proc); err != nil {
 			proc.SetStartupError(err)
+			candidateReload := s.unconfigureFailedReloadStart(proc)
 			s.rollbackReplacement(proc)
 			phaseErr = errors.Join(phaseErr, err)
-			pm.RecordStopped(proc.Name(), process.PluginStop{Cause: process.StopHandshakeFailed, Detail: err.Error()})
+			if candidateReload {
+				pm.UnconfigureProcess(proc.Name())
+				s.unmarkPluginLoaded(proc.Name())
+			} else {
+				pm.RecordStopped(proc.Name(), process.PluginStop{Cause: process.StopHandshakeFailed, Detail: err.Error()})
+			}
 			s.stopDaemonOnStartupFailure(ctx, proc, err)
 			s.refuseStartupOnLoadedChain(err)
 		}
@@ -753,11 +764,14 @@ func (s *Server) rollbackNonRunningStartupProcesses(pm *process.ProcessManager, 
 		}
 		logger().Error("plugin startup failed before tier handshake completed",
 			"plugin", proc.Name(), "stage", proc.Stage())
+		candidateReload := s.unconfigureFailedReloadStart(proc)
 		if err := s.rollbackStartupProcess(proc); err != nil {
 			logger().Error("plugin startup rollback failed", "plugin", proc.Name(), "error", err)
 		}
-		pm.RecordStopped(proc.Name(), process.PluginStop{Cause: process.StopHandshakeFailed,
-			Detail: "the startup phase failed before its tier handshake completed; the log names the plugin that failed it"})
+		if !candidateReload {
+			pm.RecordStopped(proc.Name(), process.PluginStop{Cause: process.StopHandshakeFailed,
+				Detail: "the startup phase failed before its tier handshake completed; the log names the plugin that failed it"})
+		}
 	}
 }
 

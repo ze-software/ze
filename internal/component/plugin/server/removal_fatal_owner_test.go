@@ -67,7 +67,7 @@ func TestFatalRemovalFailurePrecedesGenerationRetirement(t *testing.T) {
 				if original == nil {
 					t.Fatal("startup did not publish the fatal owner")
 				}
-				err := s.notifyPluginRemoval(original)
+				err := s.notifyPluginRemoval(original, true)
 				if (err != nil) != disconnected {
 					t.Fatalf("removal error=%v, disconnected=%t", err, disconnected)
 				}
@@ -148,7 +148,7 @@ func TestFatalRemovalRefusalThenConfigureDisconnect(t *testing.T) {
 			if original == nil {
 				t.Fatal("startup did not publish the fatal owner")
 			}
-			if err := s.notifyPluginRemoval(original); err == nil {
+			if err := s.notifyPluginRemoval(original, true); err == nil {
 				t.Fatal("Bye refusal was acknowledged as successful removal")
 			}
 			s.wg.Wait()
