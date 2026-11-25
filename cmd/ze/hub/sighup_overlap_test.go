@@ -71,18 +71,18 @@ func TestSIGHUPReloadKeepsOperatorEditMadeDuringReload(t *testing.T) {
 
 			// The loader reads the staged candidate, as diskConfigLoaders does,
 			// and the operator's next edit lands while the reload applies it.
-			load := func() (map[string]any, *zeconfig.Tree, error) {
+			load := func() (map[string]any, *zeconfig.Tree, reloadSelection, error) {
 				staged, readErr := storage.ReadReloadConfig(store, path)
 				if readErr != nil {
-					return nil, nil, readErr
+					return nil, nil, nil, readErr
 				}
 				if !bytes.Equal(staged, reloaded) {
 					t.Errorf("the reload loaded %q, the SIGHUP staged %q", staged, reloaded)
 				}
 				if writeErr := os.WriteFile(path, tc.nextEdit, 0o600); writeErr != nil {
-					return nil, nil, writeErr
+					return nil, nil, nil, writeErr
 				}
-				return map[string]any{"bgp": map[string]any{"router-id": "2.2.2.2"}}, nil, nil
+				return map[string]any{"bgp": map[string]any{"router-id": "2.2.2.2"}}, nil, nil, nil
 			}
 
 			if err := doReloadContext(context.Background(), reloadSourceSignal, server, nil, nil, store, path, load, nil); err != nil {
@@ -193,12 +193,12 @@ func TestRequestReloadPromotesTheOperatorFile(t *testing.T) {
 	if err := os.WriteFile(path, edited, 0o600); err != nil {
 		t.Fatal(err)
 	}
-	load := func() (map[string]any, *zeconfig.Tree, error) { //nolint:unparam // the daemon loader type; this reload parses no tree
+	load := func() (map[string]any, *zeconfig.Tree, reloadSelection, error) { //nolint:unparam // the daemon loader type; this reload parses no tree
 		staged, readErr := storage.ReadReloadConfig(store, path)
 		if readErr != nil {
-			return nil, nil, readErr
+			return nil, nil, nil, readErr
 		}
-		return map[string]any{"bgp": map[string]any{"router-id": string(staged)}}, nil, nil
+		return map[string]any{"bgp": map[string]any{"router-id": string(staged)}}, nil, nil, nil
 	}
 	// The handler main.go wires as the server's FullReloadFunc, with the
 	// startup wait already satisfied.

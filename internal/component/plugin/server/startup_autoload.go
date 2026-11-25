@@ -1,6 +1,6 @@
 // Design: docs/architecture/api/process-protocol.md — plugin auto-loading
 // Overview: startup.go — plugin startup phases
-// Related: config.go — ServerConfig with ConfiguredFamilies, ConfiguredCustomEvents, ConfiguredCustomSendTypes
+// Related: config.go — ServerConfig with ConfiguredPaths, ConfiguredFamilies, DataPlane, and ConfigNeedHolds
 // Related: autoload_reasons.go — offline implied-endpoint evaluation and Server auto-load reason store
 
 package server
@@ -15,6 +15,7 @@ import (
 	plugin "github.com/ze-software/ze/internal/component/plugin"
 	"github.com/ze-software/ze/internal/component/plugin/process"
 	"github.com/ze-software/ze/internal/component/plugin/registry"
+	"github.com/ze-software/ze/internal/core/mplsfib"
 	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
@@ -228,7 +229,7 @@ func (s *Server) getConfigPathAutoLoaded() ([]AutoLoadedEndpoint, error) {
 // its routes, and a VPP deployment gets the VPP writer for the same config.
 //
 // An explicit `fib { ... }` block wins by arriving first: its plugin is a
-// config path, so it is already in needed and fibPluginChosen finds it.
+// config path, so it is already in needed and bootChosenFIB finds it.
 // An unresolvable data plane refuses the entire selection before any route
 // producer starts. Both boot and reload MUST propagate that refusal.
 func (s *Server) appendDataPlaneWriter(needed []string, dataPlane string) ([]string, error) {
@@ -236,19 +237,16 @@ func (s *Server) appendDataPlaneWriter(needed []string, dataPlane string) ([]str
 }
 
 func (s *Server) appendDataPlaneWriterWithReason(needed []string, dataPlane string, reasons map[string]AutoLoadReason) ([]string, error) {
-	producerIndex := slices.IndexFunc(needed, registry.NeedsDataPlane)
-	if producerIndex < 0 {
-		return needed, nil
-	}
-	if s.fibPluginChosen(needed) {
-		return needed, nil
-	}
-	producer := needed[producerIndex]
-	// The judgement `ze doctor` repeats (doctor-plugin-no-dataplane-writer).
-	writer, err := registry.DataPlaneWriter(producer, dataPlane)
+	chosenFIB := s.bootChosenFIB(needed)
+	// The judgement boot, reload, and `ze doctor` share.
+	writer, err := registry.JudgeDataPlaneWriter(needed, chosenFIB, dataPlane)
 	if err != nil {
 		return nil, err
 	}
+	if writer == "" {
+		return needed, nil
+	}
+	producer := needed[slices.IndexFunc(needed, registry.NeedsDataPlane)]
 	if reasons != nil {
 		var tb textbuf.Buffer
 		reasons[writer] = AutoLoadReason{
@@ -257,12 +255,24 @@ func (s *Server) appendDataPlaneWriterWithReason(needed []string, dataPlane stri
 			Detail: tb.Str("data plane ").Str(dataPlane).Str(" for ").Str(producer).String(),
 		}
 	}
-	// No second "is it already loaded" check: writer declares a data plane, so
-	// it declares ProgramsFIB, so fibPluginChosen above has already answered for
-	// it.
 	logger().Info("auto-loading the FIB plugin for the configured data plane",
 		"plugin", writer, "data-plane", dataPlane)
 	return append(needed, writer), nil
+}
+
+// bootChosenFIB returns the registered ProgramsFIB plugin names already
+// present in needed, loaded/running, or configured at boot.
+func (s *Server) bootChosenFIB(needed []string) []string {
+	var chosen []string
+	for _, reg := range registry.All() {
+		if !reg.ProgramsFIB {
+			continue
+		}
+		if slices.Contains(needed, reg.Name) || s.isPluginLoaded(reg.Name) || s.hasConfiguredPlugin(reg.Name) {
+			chosen = append(chosen, reg.Name)
+		}
+	}
+	return chosen
 }
 
 // ConfigDataPlane answers the data plane a config tree selects through the
@@ -271,41 +281,16 @@ func (s *Server) appendDataPlaneWriterWithReason(needed []string, dataPlane stri
 // schema default can be read.
 func ConfigDataPlane(tree map[string]any) string {
 	schema, err := config.YANGSchema()
-	// refuse-by-default: guards DataPlaneWriter -- an unavailable schema yields empty plane, which DataPlaneWriter refuses
+	// refuse-by-default: guards JudgeDataPlaneWriter -- an unavailable schema yields empty plane, which JudgeDataPlaneWriter refuses
 	if err != nil {
 		return ""
 	}
 	plane, err := config.ResolvePrimaryDataPlaneFromMap(tree, schema)
-	// refuse-by-default: guards DataPlaneWriter -- an unresolved selector yields empty plane, which DataPlaneWriter refuses
+	// refuse-by-default: guards JudgeDataPlaneWriter -- an unresolved selector yields empty plane, which JudgeDataPlaneWriter refuses
 	if err != nil {
 		return ""
 	}
 	return plane
-}
-
-// fibPluginChosen reports whether a plugin that programs the FIB is configured,
-// running, or in the candidate set. It asks each registration for its own
-// declaration rather than comparing against a list of FIB plugin names, so a
-// FIB plugin added later needs no edit here.
-//
-// It reads ProgramsFIB and not DataPlane, because the two answer different
-// questions. `fib { p4 { } }` reaches no data plane and is still the operator
-// choosing a FIB plugin, and adding the kernel writer beside it would program
-// a data plane they did not ask for.
-func (s *Server) fibPluginChosen(needed []string) bool {
-	pm := s.procManager.Load()
-	for _, reg := range registry.All() {
-		if !reg.ProgramsFIB {
-			continue
-		}
-		if slices.Contains(needed, reg.Name) {
-			return true
-		}
-		if s.isPluginLoaded(reg.Name) || s.hasConfiguredPlugin(reg.Name) || (pm != nil && pm.GetProcess(reg.Name) != nil) {
-			return true
-		}
-	}
-	return false
 }
 
 // autoLoadForNewConfigPaths starts plugins for newly added config sections.
@@ -341,82 +326,12 @@ func (s *Server) selectAutoLoad(newTree map[string]any, addedRoots []string) ([]
 // selectAutoLoadWithReasons returns the reload auto-load selection paired with
 // typed AutoLoadReason entries.
 func (s *Server) selectAutoLoadWithReasons(newTree map[string]any, addedRoots []string) ([]AutoLoadedEndpoint, error) {
-	// Build the set of all new paths by navigating into the nested tree.
-	// diff keys are slash-separated (e.g., "fib/kernel"), so we split and descend.
-	newPaths := make([]string, 0, len(addedRoots))
-	for _, root := range addedRoots {
-		newPaths = append(newPaths, root)
-		sub := navigateNestedMap(newTree, root)
-		if sub != nil {
-			collectContainerMapPaths(sub, root, &newPaths)
-		}
+	var runningTree map[string]any
+	if s.reactor != nil {
+		runningTree = s.reactor.GetConfigTree()
 	}
-
-	pathSet := make(map[string]bool, len(newPaths))
-	for _, p := range newPaths {
-		pathSet[p] = true
-	}
-
-	// Match against ConfigRoots from registered plugins: the same registry
-	// answer boot auto-load and the validate and commit doors use.
-	pm := s.procManager.Load()
-	var needed []string
-	seen := make(map[string]bool)
-	seedReasons := make(map[string]AutoLoadReason)
-	for _, pluginName := range registry.PluginsForConfigPaths(newPaths) {
-		if s.isPluginLoaded(pluginName) {
-			continue
-		}
-		if s.hasConfiguredPlugin(pluginName) {
-			continue
-		}
-		if pm != nil && pm.GetProcess(pluginName) != nil {
-			continue
-		}
-		seen[pluginName] = true
-		matchedRoot := firstMatchingConfigRoot(pluginName, pathSet)
-		seedReasons[pluginName] = AutoLoadReason{
-			Kind:   AutoLoadReasonConfigPath,
-			Source: matchedRoot,
-			Detail: "config section " + matchedRoot,
-		}
-		needed = append(needed, pluginName)
-		logger().Info("config reload: auto-loading plugin for new config path", "plugin", pluginName, "root", matchedRoot)
-	}
-
-	needed, err := s.appendDataPlaneWriterWithReason(needed, ConfigDataPlane(newTree), seedReasons)
-	if err != nil {
-		return nil, err
-	}
-	// The new tree decides the optional providers: a need it now holds pulls
-	// its provider, including for an owner that was already running. A nil
-	// answer adds nothing here and is refused by ResolveDependencies below
-	// whenever anything is needed.
-	needHolds := config.ConfigNeedHolds(newTree)
-	if needHolds != nil {
-		needed = appendHeldNeedProvidersWithReasons(needed, seen, needHolds, func(name string) bool {
-			return s.isRegistrationRunning(pm, name)
-		}, seedReasons)
-	}
-
-	if len(needed) == 0 {
-		return nil, nil
-	}
-
-	entries, err := s.resolveAutoLoadWithReasons(needed, seedReasons, needHolds, AutoLoadReasonConfigPath)
-	if err != nil {
-		logger().Error("config reload: dependency resolution failed, aborting auto-load",
-			"plugins", needed, "error", err, "code", CodeDoctorConfigReloadRefused)
-		// Reload compensation also selects here, to restore what a refused
-		// reload removed, so the event claims only what both callers make
-		// true: nothing was started.
-		raiseReloadRefused(reloadRefusalMessage(
-			"ze could not resolve the plugins the configuration needs, so it started none of them",
-			needed, err), err)
-		return nil, fmt.Errorf("config-path auto-load dependency resolution: %w", err)
-	}
-
-	return entries, nil
+	sel, hasSel := s.currentRunningSelection()
+	return s.selectReloadAutoLoadWithReasons(runningTree, newTree, addedRoots, nil, sel, hasSel)
 }
 
 // startAutoLoaded starts plugins that selectAutoLoad chose, and expands nothing.
@@ -540,33 +455,12 @@ func collectContainerMapPaths(m map[string]any, prefix string, paths *[]string) 
 // holds keeps running (rootRemovalStopsOwner). It does not change process or
 // registry state.
 func (s *Server) collectProcessesForRemovedConfigPaths(removedRoots []string, tree map[string]any) map[string]bool {
-	removedSet := make(map[string]bool, len(removedRoots))
-	for _, root := range removedRoots {
-		removedSet[root] = true
+	var runningTree map[string]any
+	if s.reactor != nil {
+		runningTree = s.reactor.GetConfigTree()
 	}
-
-	pm := s.procManager.Load()
-	if pm == nil {
-		return nil
-	}
-
-	stopped := make(map[string]bool)
-	for pluginName, roots := range registry.ConfigRootsMap() {
-		if s.hasConfiguredPlugin(pluginName) {
-			continue
-		}
-		proc := pm.GetProcess(pluginName)
-		if proc == nil {
-			continue
-		}
-		if proc.RegistrationName() != pluginName {
-			continue
-		}
-		if rootRemovalStopsOwner(roots, removedSet, tree) {
-			stopped[pluginName] = true
-		}
-	}
-	return s.collectOrphanedDependencies(pm, stopped)
+	sel, hasSel := s.currentRunningSelection()
+	return s.collectReloadStopProcesses(runningTree, tree, nil, removedRoots, sel, hasSel)
 }
 
 // rootRemovalStopsOwner reports whether removing the paths in removedSet stops
@@ -592,7 +486,10 @@ func rootRemovalStopsOwner(roots []string, removedSet map[string]bool, tree map[
 }
 
 // stopCollectedProcesses reverses the startup dependency tiers so each running
-// producer can finish its removal callback while its dependencies remain live.
+// producer can finish its removal callback while its dependencies and FIB
+// writer remain live. After stopping any ProgramsFIB process, it emits
+// mplsfib.WriterStopped so remaining data-plane label writers trigger one more
+// targeted label replay once the displaced writer has unsubscribed (AC-24).
 func (s *Server) stopCollectedProcesses(stopped map[string]bool) error {
 	pm := s.procManager.Load()
 	if pm == nil {
@@ -606,7 +503,7 @@ func (s *Server) stopCollectedProcesses(stopped map[string]bool) error {
 		}
 		selected = append(selected, proc.Config())
 	}
-	tiers, err := registry.TopologicalGraphTiers(selectedPluginGraph(selected))
+	tiers, err := registry.TopologicalGraphTiers(stopOrderGraph(selected))
 	if err != nil {
 		return fmt.Errorf("config reload: order plugin removal: %w", err)
 	}
@@ -615,6 +512,7 @@ func (s *Server) stopCollectedProcesses(stopped map[string]bool) error {
 	// its members are still on them, and only a rebuild once it is gone
 	// removes them (announcePeerDeclarationsChanged, deferred to this reload).
 	withdrawn := false
+	stoppedFIB := false
 	for _, tier := range slices.Backward(tiers) {
 		for _, name := range tier {
 			proc := pm.GetProcess(name)
@@ -623,16 +521,25 @@ func (s *Server) stopCollectedProcesses(stopped map[string]bool) error {
 			}
 			logger().Info("config reload: stopping plugin", "plugin", name)
 			declared := !declaredPeerMetadata(proc).empty()
+			reg := registryRow(proc.Config())
+			isFIB := reg != nil && reg.ProgramsFIB
 			if err := s.rollbackStartupProcess(proc); err != nil {
 				return fmt.Errorf("config reload: remove plugin %q: %w", name, err)
 			}
 			s.clearAutoLoadReason(name)
 			withdrawn = withdrawn || declared
+			stoppedFIB = stoppedFIB || isFIB
 		}
 	}
 	if withdrawn {
 		if err := s.announcePeerDeclarationsChanged(nil); err != nil {
 			return err
+		}
+	}
+	if stoppedFIB && s.engineSubscribers != nil {
+		if _, err := mplsfib.WriterStopped.Emit(s); err != nil {
+			logger().Warn("config reload: emit mpls-fib writer-stopped signal failed",
+				"error", err, "code", CodeDoctorConfigReloadRefused)
 		}
 	}
 	return nil

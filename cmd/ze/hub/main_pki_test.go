@@ -14,11 +14,11 @@ import (
 	"testing"
 	"time"
 
+	"github.com/stretchr/testify/require"
+
 	zeconfig "github.com/ze-software/ze/internal/component/config"
 	zepki "github.com/ze-software/ze/internal/component/pki"
 	pluginserver "github.com/ze-software/ze/internal/component/plugin/server"
-
-	"github.com/stretchr/testify/require"
 )
 
 // chainB64 builds a trust chain of the requested depth and returns every value
@@ -154,8 +154,8 @@ func TestReloadInstallsEveryIntermediate(t *testing.T) {
 	// The same pair diskConfigLoaders returns: the plugin-facing map, and the
 	// tree it was lowered from.
 	lowered := tree.ToPluginMap()
-	load := func() (map[string]any, *zeconfig.Tree, error) {
-		return lowered, tree, nil
+	load := func() (map[string]any, *zeconfig.Tree, reloadSelection, error) {
+		return lowered, tree, nil, nil
 	}
 
 	// This harness has no reactor, so the reload always ends there. WHICH error

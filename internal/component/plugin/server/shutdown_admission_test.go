@@ -55,7 +55,7 @@ func TestServerStopRefusesDirectReloads(t *testing.T) {
 	if err := s.Start(); err != nil {
 		t.Fatal(err)
 	}
-	s.SetConfigLoader(func() (map[string]any, error) { return map[string]any{}, nil })
+	s.SetConfigLoader(func() (map[string]any, []plugin.PluginConfig, error) { return map[string]any{}, nil, nil })
 	s.Stop()
 	if err := s.ReloadConfig(t.Context(), map[string]any{}); !errors.Is(err, transaction.ErrShutdown) {
 		t.Fatalf("ReloadConfig after Stop = %v, want ErrShutdown", err)

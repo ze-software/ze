@@ -24,6 +24,8 @@ type retainedOperationRootsKey struct{}
 type reloadCompensation struct {
 	before             map[string]any
 	beforeTransactions map[string]string
+	beforeSelection    []plugin.PluginConfig
+	hasBeforeSelection bool
 	beforeBusConfig    plugin.BusConfig
 	beforeBusTree      map[string]any
 	// created is the reactor's created peers when before was recorded. A
@@ -69,9 +71,12 @@ func recordReloadCompensation(ctx context.Context, before, after map[string]any,
 	pending.mu.Lock()
 	defer pending.mu.Unlock()
 	if pending.compensation == nil {
+		beforeSelection, hasBeforeSelection := pending.server.currentRunningSelection()
 		pending.compensation = &reloadCompensation{
 			before:             before,
 			beforeTransactions: maps.Clone(pending.server.txLock.configTransactions),
+			beforeSelection:    beforeSelection,
+			hasBeforeSelection: hasBeforeSelection,
 			beforeBusConfig:    pending.server.BusConfig(),
 			beforeBusTree:      pending.server.currentBusConfigTree(),
 			created:            created,
@@ -170,6 +175,7 @@ func (s *Server) restoreReload(pending *reloadAcceptance, undo *reloadCompensati
 		if err := s.reactor.RestoreCreatedPeers(undo.before, undo.created); err != nil {
 			return err
 		}
+		s.setRunningSelection(undo.beforeSelection, undo.hasBeforeSelection)
 		s.SetBusConfig(undo.beforeBusConfig)
 		s.SetBusConfigTree(undo.beforeBusTree)
 		s.RefreshDeliveryGraph()
@@ -244,13 +250,14 @@ func (s *Server) restoreReload(pending *reloadAcceptance, undo *reloadCompensati
 		}
 		undo.reactorRestored = true
 	}
-	if len(diff.Removed) != 0 {
-		removed := s.collectProcessesForRemovedConfigPaths(slices.Sorted(maps.Keys(diff.Removed)), undo.before)
+	removed := s.collectReloadStopProcesses(undo.after, undo.before, slices.Sorted(maps.Keys(diff.Added)), slices.Sorted(maps.Keys(diff.Removed)), undo.beforeSelection, undo.hasBeforeSelection)
+	if len(removed) != 0 {
 		if err := s.stopCollectedProcesses(removed); err != nil {
 			return err
 		}
 	}
 	s.reactor.SetConfigTree(undo.before)
+	s.setRunningSelection(undo.beforeSelection, undo.hasBeforeSelection)
 	s.SetBusConfig(undo.beforeBusConfig)
 	s.SetBusConfigTree(undo.beforeBusTree)
 	s.RefreshDeliveryGraph()

@@ -281,8 +281,8 @@ func TestLGCertificateEnvWins(t *testing.T) {
 		lm := &listenerMigrator{}
 		lm.setLGTransport(fake)
 
-		load := func() (map[string]any, *zeconfig.Tree, error) {
-			return newTree, treeFromMap(newTree), nil
+		load := func() (map[string]any, *zeconfig.Tree, reloadSelection, error) {
+			return newTree, treeFromMap(newTree), nil, nil
 		}
 
 		err = runReload(srv, cp, load, lm)
@@ -365,8 +365,8 @@ func TestReloadPlaintextLGKeepsCertificateInert(t *testing.T) {
 	lm := &listenerMigrator{}
 	lm.setLGTransport(fake)
 
-	load := func() (map[string]any, *zeconfig.Tree, error) {
-		return plaintext, treeFromMap(plaintext), nil
+	load := func() (map[string]any, *zeconfig.Tree, reloadSelection, error) {
+		return plaintext, treeFromMap(plaintext), nil, nil
 	}
 
 	err = runReload(srv, cp, load, lm)
@@ -415,8 +415,8 @@ func TestReloadRejectsBrokenLGCertificateReference(t *testing.T) {
 	lm := &listenerMigrator{}
 	lm.setLGTransport(fake)
 
-	load := func() (map[string]any, *zeconfig.Tree, error) {
-		return newTree, treeFromMap(newTree), nil
+	load := func() (map[string]any, *zeconfig.Tree, reloadSelection, error) {
+		return newTree, treeFromMap(newTree), nil, nil
 	}
 
 	err = runReload(srv, cp, load, lm)
@@ -495,8 +495,8 @@ func TestReloadInstallsPKIBeforePluginApply(t *testing.T) {
 	lm := &listenerMigrator{}
 	lm.setWebTLS(fake)
 
-	load := func() (map[string]any, *zeconfig.Tree, error) {
-		return newTree, treeFromMap(newTree), nil
+	load := func() (map[string]any, *zeconfig.Tree, reloadSelection, error) {
+		return newTree, treeFromMap(newTree), nil, nil
 	}
 
 	err = runReload(srv, cp, load, lm)
@@ -556,8 +556,8 @@ func TestReloadRejectsBrokenWebCertificateReference(t *testing.T) {
 	lm := &listenerMigrator{}
 	lm.setWebTLS(fake)
 
-	load := func() (map[string]any, *zeconfig.Tree, error) {
-		return newTree, treeFromMap(newTree), nil
+	load := func() (map[string]any, *zeconfig.Tree, reloadSelection, error) {
+		return newTree, treeFromMap(newTree), nil, nil
 	}
 
 	err = runReload(srv, cp, load, lm)
@@ -635,8 +635,8 @@ func TestRollbackReloadRestoresInstalledListenerCertificate(t *testing.T) {
 	lm.setWebTLS(web)
 	lm.setLGTransport(lookingGlass)
 
-	load := func() (map[string]any, *zeconfig.Tree, error) {
-		return reloaded, treeFromMap(reloaded), nil
+	load := func() (map[string]any, *zeconfig.Tree, reloadSelection, error) {
+		return reloaded, treeFromMap(reloaded), nil, nil
 	}
 
 	err = runReload(srv, cp, load, lm)

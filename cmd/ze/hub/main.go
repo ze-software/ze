@@ -1052,9 +1052,11 @@ func runYANGConfig(store storage.Storage, configPath string, data []byte, plugin
 		// Boot auto-load pulls an optional provider only when this config
 		// holds the need that names it, so the needs are answered from the
 		// same tree.
-		ConfigNeedHolds: zeconfig.ConfigNeedHolds(loadResult.Tree.ToMap()),
-		Plugins:         explicitPlugins,
-		Hub:             &hubConfig,
+		ConfigNeedHolds:       zeconfig.ConfigNeedHolds(loadResult.Tree.ToMap()),
+		Plugins:               explicitPlugins,
+		CandidateSelection:    loadResult.CandidateSelection,
+		HasCandidateSelection: loadResult.HasCandidateSelection,
+		Hub:                   &hubConfig,
 	}
 	apiServer, serverErr := pluginserver.NewServer(serverConfig, coordinator)
 	if serverErr != nil {
@@ -1155,8 +1157,8 @@ func runYANGConfig(store storage.Storage, configPath string, data []byte, plugin
 	// and directly by doReload so subsystems see the freshly loaded tree
 	// without depending on the plugin server's internal diff/short-circuit
 	// behavior.
-	var loadConfigFromDisk func() (map[string]any, error)
-	var loadBoth func() (map[string]any, *zeconfig.Tree, error)
+	var loadConfigFromDisk pluginserver.ConfigLoader
+	var loadBoth func() (map[string]any, *zeconfig.Tree, []zePlugin.PluginConfig, error)
 	if configPath != "" && configPath != "-" {
 		loadConfigFromDisk, loadBoth = diskConfigLoaders(store, configPath, plugins, startedExternal)
 		apiServer.SetConfigLoader(loadConfigFromDisk)

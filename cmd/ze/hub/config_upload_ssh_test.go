@@ -96,22 +96,22 @@ func newSSHUploadFixture(t *testing.T, refuseReload bool) *sshUploadFixture {
 		t.Fatal(err)
 	}
 	t.Cleanup(daemon.Stop)
-	load := func() (map[string]any, *zeconfig.Tree, error) {
+	load := func() (map[string]any, *zeconfig.Tree, reloadSelection, error) {
 		if refuseReload {
-			return nil, nil, errors.New("injected daemon reload refusal")
+			return nil, nil, nil, errors.New("injected daemon reload refusal")
 		}
 		content, _, present, err := storage.ReadCandidateConfig(store, path)
 		if err != nil {
-			return nil, nil, err
+			return nil, nil, nil, err
 		}
 		if !present {
-			return nil, nil, errors.New("upload did not stage a daemon candidate")
+			return nil, nil, nil, errors.New("upload did not stage a daemon candidate")
 		}
 		parsed, err := zeconfig.ReadConfig(string(content), path, nil)
 		if err != nil {
-			return nil, nil, err
+			return nil, nil, nil, err
 		}
-		return parsed.Tree.ToRunningMap(), parsed.Tree, nil
+		return parsed.Tree.ToRunningMap(), parsed.Tree, parsed.CandidateSelection, nil
 	}
 	_, private, err := ed25519.GenerateKey(rand.Reader)
 	if err != nil {

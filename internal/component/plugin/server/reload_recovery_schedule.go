@@ -75,12 +75,20 @@ func (s *Server) restoreOriginalJournals(pending *reloadAcceptance, undo *reload
 
 	chain, consumed := pending.inverseChain(undo)
 	var recovery []plugin.PluginConfig
-	if len(addedRoots) != 0 {
-		var err error
-		recovery, err = s.selectAutoLoad(tree, addedRoots)
+	hasBeforeSelection := undo != nil && undo.hasBeforeSelection
+	if len(addedRoots) != 0 || hasBeforeSelection {
+		var afterTree map[string]any
+		var beforeSel []plugin.PluginConfig
+		if undo != nil {
+			afterTree = undo.after
+			beforeSel = undo.beforeSelection
+		}
+		entries, err := s.selectReloadAutoLoadWithReasons(afterTree, tree, addedRoots, nil, beforeSel, hasBeforeSelection)
 		if err != nil {
 			return errors.Join(consumed, err)
 		}
+		s.recordAutoLoadReasons(entries)
+		recovery = autoLoadedConfigs(entries)
 	}
 	schedule, err := planRecoverySchedule(chain, recovery)
 	if err != nil {

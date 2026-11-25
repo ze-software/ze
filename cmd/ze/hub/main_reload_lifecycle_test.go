@@ -58,10 +58,10 @@ func TestRunReloadDefersHostMutationsUntilAfterPromotion(t *testing.T) {
 	require.NoError(t, store.WriteFile(configPath, []byte("active-file"), 0o600))
 	require.NoError(t, store.WriteVersion(configPath, []byte("active-version"), mustParseReloadStamp(t, oldStamp)))
 	setConfigPointer(t, store, configPath, zefs.KeyConfigActive, oldStamp)
-	loadTree := func(tree *zeconfig.Tree) func() (map[string]any, *zeconfig.Tree, error) {
-		return func() (map[string]any, *zeconfig.Tree, error) {
+	loadTree := func(tree *zeconfig.Tree) func() (map[string]any, *zeconfig.Tree, reloadSelection, error) {
+		return func() (map[string]any, *zeconfig.Tree, reloadSelection, error) {
 			pluginMap := tree.ToPluginMap()
-			return pluginMap, tree, nil
+			return pluginMap, tree, nil, nil
 		}
 	}
 
@@ -103,9 +103,9 @@ func TestHandleSIGHUPReloadExitsOnContextCancelAndChannelClose(t *testing.T) {
 		reloadCh := make(chan os.Signal, 1)
 		done := make(chan struct{})
 		var loads atomic.Int32
-		load := func() (map[string]any, *zeconfig.Tree, error) {
+		load := func() (map[string]any, *zeconfig.Tree, reloadSelection, error) {
 			loads.Add(1)
-			return nil, nil, nil
+			return nil, nil, nil, nil
 		}
 
 		go handleSIGHUPReload(ctx, reloadCh, done, &sync.Mutex{}, nil, nil, nil, nil, "", load, nil, nil)
@@ -123,9 +123,9 @@ func TestHandleSIGHUPReloadExitsOnContextCancelAndChannelClose(t *testing.T) {
 		reloadCh := make(chan os.Signal, 1)
 		done := make(chan struct{})
 		var loads atomic.Int32
-		load := func() (map[string]any, *zeconfig.Tree, error) {
+		load := func() (map[string]any, *zeconfig.Tree, reloadSelection, error) {
 			loads.Add(1)
-			return nil, nil, nil
+			return nil, nil, nil, nil
 		}
 
 		go handleSIGHUPReload(t.Context(), reloadCh, done, &sync.Mutex{}, nil, nil, nil, nil, "", load, nil, nil)
@@ -146,9 +146,9 @@ func TestHandleSIGHUPReloadExitsOnContextCancelAndChannelClose(t *testing.T) {
 		reloadCh <- syscall.SIGHUP
 		done := make(chan struct{})
 		var loads atomic.Int32
-		load := func() (map[string]any, *zeconfig.Tree, error) {
+		load := func() (map[string]any, *zeconfig.Tree, reloadSelection, error) {
 			loads.Add(1)
-			return nil, nil, nil
+			return nil, nil, nil, nil
 		}
 
 		go handleSIGHUPReload(ctx, reloadCh, done, &sync.Mutex{}, nil, nil, nil, nil, "", load, nil, nil)

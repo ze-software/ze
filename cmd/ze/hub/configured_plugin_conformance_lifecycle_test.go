@@ -259,8 +259,8 @@ func TestConfiguredPluginConformanceRejectedReloadRetainsAcceptedTarget(t *testi
 	// As in the initial fixture, the domain diff is empty, but the complete
 	// reload still refreshes the provider before the injected listener failure.
 	f.coordinator.SetConfigTree(parsed.Tree.ToRunningMap())
-	load := func() (map[string]any, *zeconfig.Tree, error) {
-		return parsed.Tree.ToRunningMap(), parsed.Tree, nil
+	load := func() (map[string]any, *zeconfig.Tree, reloadSelection, error) {
+		return parsed.Tree.ToRunningMap(), parsed.Tree, nil, nil
 	}
 	listener := &configuredConformanceRejectListener{}
 	migrator := newListenerMigrator()

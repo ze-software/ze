@@ -133,6 +133,13 @@ type Server struct {
 	loadedPlugins   map[string]bool // tracks all plugins loaded across startup phases
 	loadedPluginsMu sync.Mutex      // protects loadedPlugins
 
+	// runningSelection holds the candidate plugin selection of the config this
+	// server currently runs, initialized from ServerConfig.CandidateSelection
+	// at boot and updated when a reload commits or rolls back.
+	runningSelectionMu  sync.RWMutex
+	runningSelection    []plugin.PluginConfig
+	hasRunningSelection bool
+
 	// advertisedClaims records every exclusive-role token the engine told a
 	// plugin was claimed (Stage-2 configure), mapped to the claimants it was
 	// derived from. Read back in signalStartupComplete to prove each claimant
@@ -319,6 +326,10 @@ func NewServer(config *ServerConfig, reactor plugin.ReactorLifecycle) (*Server, 
 		loadedPlugins:     make(map[string]bool),
 		runtimeFamilies:   make(map[string][]family.FamilyRegistration),
 	}
+	if config != nil && config.HasCandidateSelection {
+		s.runningSelection = slices.Clone(config.CandidateSelection)
+		s.hasRunningSelection = true
+	}
 
 	// Register the reactor's forward pool as a quiescer so `request quiesce`
 	// drains queued routes to peer sockets (see quiesce.go).
@@ -400,6 +411,49 @@ func (s *Server) ConfigPath() string {
 		return ""
 	}
 	return s.config.ConfigPath
+}
+
+// currentRunningSelection returns a copy of the running configuration's judged
+// plugin selection and whether one has been recorded. Safe for concurrent use.
+func (s *Server) currentRunningSelection() ([]plugin.PluginConfig, bool) {
+	s.runningSelectionMu.RLock()
+	defer s.runningSelectionMu.RUnlock()
+	if !s.hasRunningSelection {
+		return nil, false
+	}
+	return slices.Clone(s.runningSelection), true
+}
+
+// setRunningSelection records the judged plugin selection of the configuration
+// this server now runs. Safe for concurrent use.
+func (s *Server) setRunningSelection(selection []plugin.PluginConfig, hasSelection bool) {
+	s.runningSelectionMu.Lock()
+	if hasSelection {
+		s.runningSelection = slices.Clone(selection)
+		s.hasRunningSelection = true
+	} else {
+		s.runningSelection = nil
+		s.hasRunningSelection = false
+	}
+	s.runningSelectionMu.Unlock()
+}
+
+// runningSelectionOrBoot returns the running configuration's judged plugin
+// selection, falling back to ServerConfig.CandidateSelection or
+// ServerConfig.Plugins only when no judged selection has been recorded (legacy
+// unit tests that construct a Server without HasCandidateSelection).
+// Safe for concurrent use.
+func (s *Server) runningSelectionOrBoot() []plugin.PluginConfig {
+	if sel, ok := s.currentRunningSelection(); ok {
+		return sel
+	}
+	if s.config == nil {
+		return nil
+	}
+	if s.config.HasCandidateSelection {
+		return slices.Clone(s.config.CandidateSelection)
+	}
+	return slices.Clone(s.config.Plugins)
 }
 
 // hasConfiguredPlugin reports whether the operator already configured an

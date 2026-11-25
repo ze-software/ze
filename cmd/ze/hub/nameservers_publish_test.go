@@ -103,10 +103,10 @@ func TestRunReloadPublishesNameServersOnlyWhenAccepted(t *testing.T) {
 	require.NoError(t, store.WriteFile(configPath, []byte("active-file"), 0o600))
 	require.NoError(t, store.WriteVersion(configPath, []byte("active-version"), mustParseReloadStamp(t, oldStamp)))
 	setConfigPointer(t, store, configPath, zefs.KeyConfigActive, oldStamp)
-	loadTree := func(tree *zeconfig.Tree) func() (map[string]any, *zeconfig.Tree, error) {
-		return func() (map[string]any, *zeconfig.Tree, error) {
+	loadTree := func(tree *zeconfig.Tree) func() (map[string]any, *zeconfig.Tree, reloadSelection, error) {
+		return func() (map[string]any, *zeconfig.Tree, reloadSelection, error) {
 			lowered := tree.ToPluginMap()
-			return lowered, tree, nil
+			return lowered, tree, nil, nil
 		}
 	}
 

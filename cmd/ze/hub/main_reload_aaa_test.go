@@ -187,8 +187,8 @@ func TestDoReloadRebuildsAAABundleFromReloadedConfig(t *testing.T) {
 	require.NoError(t, err)
 	t.Cleanup(func() { server.Stop() })
 
-	load := func() (map[string]any, *zeconfig.Tree, error) {
-		return map[string]any{"bgp": map[string]any{"router-id": "1.1.1.1"}}, reloadAAATree("rotated-secret"), nil
+	load := func() (map[string]any, *zeconfig.Tree, reloadSelection, error) {
+		return map[string]any{"bgp": map[string]any{"router-id": "1.1.1.1"}}, reloadAAATree("rotated-secret"), nil, nil
 	}
 	require.NoError(t, doReload(server, nil, store, configPath, load, nil))
 
@@ -234,10 +234,10 @@ func TestDoReloadClosesTheAAABundleItAbandons(t *testing.T) {
 
 	lm := newListenerMigrator()
 	lm.web = &failingReconfigurable{addrs: []string{"127.0.0.1:3443"}, err: errReloadAAAListenerRefused}
-	load := func() (map[string]any, *zeconfig.Tree, error) {
+	load := func() (map[string]any, *zeconfig.Tree, reloadSelection, error) {
 		tree := reloadAAATree("rotated-secret")
 		tree.SetContainer("environment", reloadWebTree("127.0.0.1", "3444").GetContainer("environment"))
-		return map[string]any{"bgp": map[string]any{"router-id": "1.1.1.1"}}, tree, nil
+		return map[string]any{"bgp": map[string]any{"router-id": "1.1.1.1"}}, tree, nil, nil
 	}
 	require.Error(t, doReload(server, nil, store, configPath, load, lm))
 
@@ -279,8 +279,8 @@ func TestDoReloadRefusesWhenTheAAABundleCannotBeBuilt(t *testing.T) {
 	require.NoError(t, server.Start())
 	t.Cleanup(func() { server.Stop() })
 
-	load := func() (map[string]any, *zeconfig.Tree, error) {
-		return map[string]any{"bgp": map[string]any{"router-id": "1.1.1.1"}}, reloadAAATree("rotated-secret"), nil
+	load := func() (map[string]any, *zeconfig.Tree, reloadSelection, error) {
+		return map[string]any{"bgp": map[string]any{"router-id": "1.1.1.1"}}, reloadAAATree("rotated-secret"), nil, nil
 	}
 	reloadErr := doReload(server, nil, store, configPath, load, nil)
 	require.Error(t, reloadErr, "a reload whose AAA chain cannot be built must be refused")
@@ -461,16 +461,16 @@ func TestDoReloadRebuildsTheAAABundleOnlyWhenAuthenticationChanges(t *testing.T)
 		}
 	}
 
-	unchanged := func() (map[string]any, *zeconfig.Tree, error) {
-		return reloadAAAMap("boot-secret"), reloadAAATree("boot-secret"), nil
+	unchanged := func() (map[string]any, *zeconfig.Tree, reloadSelection, error) {
+		return reloadAAAMap("boot-secret"), reloadAAATree("boot-secret"), nil, nil
 	}
 	require.NoError(t, doReload(server, cp, store, configPath, unchanged, nil))
 	require.Len(t, chains.all(), 1, "a reload that changes no authentication config must build no chain")
 	require.False(t, chains.all()[0].closed.Load(), "the running chain must stay open")
 	require.Same(t, bootBundle, aaaBundle.Load(), "the running bundle must stay installed")
 
-	rotated := func() (map[string]any, *zeconfig.Tree, error) {
-		return reloadAAAMap("rotated-secret"), reloadAAATree("rotated-secret"), nil
+	rotated := func() (map[string]any, *zeconfig.Tree, reloadSelection, error) {
+		return reloadAAAMap("rotated-secret"), reloadAAATree("rotated-secret"), nil, nil
 	}
 	require.NoError(t, doReload(server, cp, store, configPath, rotated, nil))
 	built := chains.all()

@@ -37,7 +37,7 @@ func TestBuildTag_VRRP_Absent(t *testing.T) {
 // unknown field rather than silently accept or crash.
 func TestBuildTag_VRRP_AbsentRejectsVRRPConfig(t *testing.T) {
 	const cfg = `interface {
-	backend netlink;
+	backend kernel;
 	ethernet eth0 {
 		unit 0 {
 			ipv4 {

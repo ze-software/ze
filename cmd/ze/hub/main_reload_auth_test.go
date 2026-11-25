@@ -167,8 +167,8 @@ func TestRunReloadPublishesAcceptedIdentityAtomically(t *testing.T) {
 		assert.NoError(t, oldErr, "non-API local authentication remains on the accepted generation")
 		return authIntent{authenticated: true}, true, nil
 	})
-	load := func() (map[string]any, *zeconfig.Tree, error) {
-		return tree, treeFromMap(tree), nil
+	load := func() (map[string]any, *zeconfig.Tree, reloadSelection, error) {
+		return tree, treeFromMap(tree), nil, nil
 	}
 
 	require.NoError(t, runReload(srv, cp, load, lm))
@@ -208,8 +208,8 @@ func TestRunReloadWithoutAPIBlockKeepsUserAuthentication(t *testing.T) {
 
 	_, ok := liveAcceptedAPIAuthentication().Authenticate("Bearer old-token")
 	require.True(t, ok)
-	load := func() (map[string]any, *zeconfig.Tree, error) {
-		return tree, treeFromMap(tree), nil
+	load := func() (map[string]any, *zeconfig.Tree, reloadSelection, error) {
+		return tree, treeFromMap(tree), nil, nil
 	}
 	require.NoError(t, runReload(srv, cp, load, nil))
 
@@ -238,8 +238,8 @@ func TestRunReloadPublishesExactCandidateAPIToken(t *testing.T) {
 		return liveConfigUsers(cp)
 	}, nil)
 	publishAcceptedLocalIdentity(newAcceptedLocalIdentity(nil, nil, resolveCandidate, "accepted-token"))
-	load := func() (map[string]any, *zeconfig.Tree, error) {
-		return tree, treeFromMap(tree), nil
+	load := func() (map[string]any, *zeconfig.Tree, reloadSelection, error) {
+		return tree, treeFromMap(tree), nil, nil
 	}
 
 	require.NoError(t, runReload(srv, cp, load, nil))
@@ -270,8 +270,8 @@ func TestRunReloadUserSourceErrorPreservesAcceptedAPICredentials(t *testing.T) {
 		return nil, assert.AnError
 	}
 	publishAcceptedLocalIdentity(newAcceptedLocalIdentity(nil, nil, resolveCandidate, "accepted-token"))
-	load := func() (map[string]any, *zeconfig.Tree, error) {
-		return tree, treeFromMap(tree), nil
+	load := func() (map[string]any, *zeconfig.Tree, reloadSelection, error) {
+		return tree, treeFromMap(tree), nil, nil
 	}
 
 	err := runReload(srv, cp, load, nil)
@@ -312,8 +312,8 @@ func TestRunReloadInvalidAPIListenClearsCandidate(t *testing.T) {
 	store := newTestStore(t, dir)
 	_, err := storage.WriteCandidateVersion(store, configPath, []byte("candidate"), mustParseReloadStamp(t, "20260817-120000.000"))
 	require.NoError(t, err)
-	load := func() (map[string]any, *zeconfig.Tree, error) {
-		return tree, treeFromMap(tree), nil
+	load := func() (map[string]any, *zeconfig.Tree, reloadSelection, error) {
+		return tree, treeFromMap(tree), nil, nil
 	}
 
 	err = runReloadContext(t.Context(), reloadSourceCommit, srv, nil, cp, store, configPath, load, nil)
@@ -344,8 +344,8 @@ func TestRunReloadEmptyUsersSelectNoAPIAuthentication(t *testing.T) {
 		return liveConfigUsers(cp)
 	}, nil)
 	publishAcceptedLocalIdentity(newAcceptedLocalIdentity(nil, nil, resolveCandidate, "accepted-token"))
-	load := func() (map[string]any, *zeconfig.Tree, error) {
-		return tree, treeFromMap(tree), nil
+	load := func() (map[string]any, *zeconfig.Tree, reloadSelection, error) {
+		return tree, treeFromMap(tree), nil, nil
 	}
 
 	require.NoError(t, runReload(srv, cp, load, nil))
@@ -374,8 +374,8 @@ func TestRunReloadConfiguredUsersTakePrecedenceOverSharedToken(t *testing.T) {
 		return liveConfigUsers(cp)
 	}, nil)
 	publishAcceptedLocalIdentity(newAcceptedLocalIdentity(nil, nil, resolveCandidate, "accepted-token"))
-	load := func() (map[string]any, *zeconfig.Tree, error) {
-		return tree, treeFromMap(tree), nil
+	load := func() (map[string]any, *zeconfig.Tree, reloadSelection, error) {
+		return tree, treeFromMap(tree), nil, nil
 	}
 
 	require.NoError(t, runReload(srv, cp, load, nil))
@@ -414,8 +414,8 @@ func TestRunReloadWithoutAPIBlockPreservesAcceptedAPIToken(t *testing.T) {
 	lm.setREST(rest)
 	lm.markAuthenticated(svcREST)
 	registerMgmtAuthReloaders(lm, mgmtAuthInputs{apiCandidateUsers: resolveCandidate})
-	load := func() (map[string]any, *zeconfig.Tree, error) {
-		return tree, treeFromMap(tree), nil
+	load := func() (map[string]any, *zeconfig.Tree, reloadSelection, error) {
+		return tree, treeFromMap(tree), nil, nil
 	}
 
 	require.NoError(t, runReload(srv, cp, load, lm))
@@ -467,8 +467,8 @@ func TestRunReloadFailurePreservesAcceptedIdentity(t *testing.T) {
 	})
 	lm.markAuthenticated(svcREST)
 	lm.setAuthReloader(svcREST, staticAuth(true, "candidate"))
-	load := func() (map[string]any, *zeconfig.Tree, error) {
-		return tree, treeFromMap(tree), nil
+	load := func() (map[string]any, *zeconfig.Tree, reloadSelection, error) {
+		return tree, treeFromMap(tree), nil, nil
 	}
 
 	require.Error(t, runReload(srv, cp, load, lm))
@@ -513,8 +513,8 @@ func TestRunReloadCertificateFailurePreservesAcceptedAPIToken(t *testing.T) {
 	})
 	lm.markAuthenticated(svcREST)
 	lm.setAuthReloader(svcREST, staticAuth(true, "candidate-token"))
-	load := func() (map[string]any, *zeconfig.Tree, error) {
-		return tree, treeFromMap(tree), nil
+	load := func() (map[string]any, *zeconfig.Tree, reloadSelection, error) {
+		return tree, treeFromMap(tree), nil, nil
 	}
 
 	require.Error(t, runReload(srv, cp, load, lm))
@@ -560,8 +560,8 @@ func TestRunReloadListenerRollbackFailureStaysFailClosed(t *testing.T) {
 	baseStore := newTestStore(t, dir)
 	_, err := storage.WriteCandidateVersion(baseStore, configPath, []byte("candidate"), mustParseReloadStamp(t, "20260817-100000.000"))
 	require.NoError(t, err)
-	load := func() (map[string]any, *zeconfig.Tree, error) {
-		return tree, treeValue, nil
+	load := func() (map[string]any, *zeconfig.Tree, reloadSelection, error) {
+		return tree, treeValue, nil, nil
 	}
 
 	err = runReloadContext(t.Context(), reloadSourceCommit, srv, nil, cp, failAcquireStorage{Storage: baseStore}, configPath, load, lm)
@@ -617,8 +617,8 @@ func TestRunReloadInternalAndRetryListenerRollbackFailureStaysFailClosed(t *test
 	lm.markAuthenticated(svcGRPC)
 	lm.setAuthReloader(svcREST, staticAuth(true, "candidate-token"))
 	lm.setAuthReloader(svcGRPC, staticAuth(true, "candidate-token"))
-	load := func() (map[string]any, *zeconfig.Tree, error) {
-		return tree, treeValue, nil
+	load := func() (map[string]any, *zeconfig.Tree, reloadSelection, error) {
+		return tree, treeValue, nil, nil
 	}
 
 	err := runReload(srv, cp, load, lm)
@@ -666,8 +666,8 @@ func TestRunReloadRemovedAssignmentDeniedAfterReauthentication(t *testing.T) {
 	require.NoError(t, err)
 	require.True(t, authorizer.Authorize("operator", "", "show version", true))
 
-	load := func() (map[string]any, *zeconfig.Tree, error) {
-		return tree, treeFromMap(tree), nil
+	load := func() (map[string]any, *zeconfig.Tree, reloadSelection, error) {
+		return tree, treeFromMap(tree), nil, nil
 	}
 	require.NoError(t, runReload(srv, cp, load, nil))
 	assert.False(t, authorizer.Authorize("operator", "", "show version", true),
@@ -709,7 +709,7 @@ func TestReloadHashesPlaintextPassword(t *testing.T) {
 
 	_, loadBoth := diskConfigLoaders(store, configPath, nil, nil)
 
-	treeMap, tree, err := loadBoth()
+	treeMap, tree, _, err := loadBoth()
 	require.NoError(t, err)
 
 	lab := tree.GetContainer("system").GetContainer("authentication").GetList("user")["lab"]
@@ -818,8 +818,8 @@ func TestRunReloadReusesGenerationWhenNoCredentialChanged(t *testing.T) {
 	session := recoverySessionAuthorizer(t, "recovery-admin")
 	require.True(t, session.Authorize("recovery-admin", "", "config commit", false))
 
-	load := func() (map[string]any, *zeconfig.Tree, error) {
-		return tree, treeFromMap(tree), nil
+	load := func() (map[string]any, *zeconfig.Tree, reloadSelection, error) {
+		return tree, treeFromMap(tree), nil, nil
 	}
 	require.NoError(t, runReload(srv, cp, load, nil))
 
@@ -870,8 +870,8 @@ func TestRunReloadAdvancesGenerationWhenACredentialChanged(t *testing.T) {
 	session := recoverySessionAuthorizer(t, "recovery-admin")
 	require.True(t, session.Authorize("recovery-admin", "", "config commit", false))
 
-	load := func() (map[string]any, *zeconfig.Tree, error) {
-		return tree, treeFromMap(tree), nil
+	load := func() (map[string]any, *zeconfig.Tree, reloadSelection, error) {
+		return tree, treeFromMap(tree), nil, nil
 	}
 	require.NoError(t, runReload(srv, cp, load, nil))
 

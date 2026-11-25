@@ -348,8 +348,8 @@ func TestRunReloadEnvEnabledGRPCKeepsDormantAPISettings(t *testing.T) {
 	lm.setGRPC(grpc)
 	lm.markAuthenticated(svcGRPC)
 	registerMgmtAuthReloaders(lm, mgmtAuthInputs{apiCandidateUsers: resolveCandidate})
-	load := func() (map[string]any, *zeconfig.Tree, error) {
-		return tree, treeValue, nil
+	load := func() (map[string]any, *zeconfig.Tree, reloadSelection, error) {
+		return tree, treeValue, nil, nil
 	}
 
 	require.NoError(t, runReload(srv, cp, load, lm))
@@ -401,8 +401,8 @@ func TestRunReloadRejectsAbsentAPIBlockAndLastUserRemovalOnRemoteGRPC(t *testing
 	lm.setGRPC(grpc)
 	lm.markAuthenticated(svcGRPC)
 	registerMgmtAuthReloaders(lm, mgmtAuthInputs{apiCandidateUsers: resolveCandidate})
-	load := func() (map[string]any, *zeconfig.Tree, error) {
-		return tree, treeValue, nil
+	load := func() (map[string]any, *zeconfig.Tree, reloadSelection, error) {
+		return tree, treeValue, nil, nil
 	}
 
 	err := runReload(srv, cp, load, lm)

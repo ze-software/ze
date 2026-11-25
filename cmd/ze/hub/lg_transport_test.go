@@ -322,8 +322,8 @@ func TestReloadBindsAnAddedHTTPEntryOnHTTP(t *testing.T) {
 	lm := newListenerMigrator()
 	lm.setLG(running)
 	lm.setLGTransport(running)
-	load := func() (map[string]any, *zeconfig.Tree, error) {
-		return tree, treeFromMap(tree), nil
+	load := func() (map[string]any, *zeconfig.Tree, reloadSelection, error) {
+		return tree, treeFromMap(tree), nil, nil
 	}
 
 	require.NoError(t, runReload(srv, cp, load, lm))

@@ -12,11 +12,18 @@ import (
 
 // ServerConfig holds API server configuration.
 type ServerConfig struct {
-	ConfigPath         string                // Path to config file (for peer save)
-	Plugins            []plugin.PluginConfig // External plugins to spawn
-	ConfiguredFamilies []string              // Families configured on peers (for deferred auto-load)
-	ConfiguredPaths    []string              // Top-level config sections present (for config-driven auto-load)
-	// DataPlane is the backend `interface { backend }` selects ("netlink",
+	ConfigPath string                // Path to config file (for peer save)
+	Plugins    []plugin.PluginConfig // External plugins to spawn
+	// CandidateSelection is the candidate plugin selection the boot config
+	// loader judged (config.LoadConfigResult.CandidateSelection): declared bus
+	// endpoints merged with the process-recorded and caller --plugin lists,
+	// with no dependencies expanded. HasCandidateSelection distinguishes an
+	// explicitly empty selection from a ServerConfig constructed without one.
+	CandidateSelection    []plugin.PluginConfig
+	HasCandidateSelection bool
+	ConfiguredFamilies    []string // Families configured on participants (for deferred auto-load)
+	ConfiguredPaths       []string // Top-level config sections present (for config-driven auto-load)
+	// DataPlane is the backend `interface { backend }` selects ("kernel",
 	// "vpp"), read from the startup config tree. It answers which FIB plugin
 	// writes for a route producer that declares Registration.NeedsDataPlane.
 	// Empty means the tree named none and the build has no default, which is

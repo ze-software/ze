@@ -149,12 +149,12 @@ func TestDoReloadPromotesCandidateOnSuccess(t *testing.T) {
 	newStamp, err := storage.WriteCandidateVersion(store, configPath, []byte("candidate-version"), mustParseReloadStamp(t, "20260524-100000.000"))
 	require.NoError(t, err)
 
-	load := func() (map[string]any, *zeconfig.Tree, error) {
+	load := func() (map[string]any, *zeconfig.Tree, reloadSelection, error) {
 		data, _, ok, readErr := storage.ReadCandidateConfig(store, configPath)
 		require.NoError(t, readErr)
 		require.True(t, ok, "doReload should load the staged candidate")
 		require.Equal(t, "candidate-version", string(data))
-		return map[string]any{"bgp": map[string]any{"router-id": "2.2.2.2"}}, nil, nil
+		return map[string]any{"bgp": map[string]any{"router-id": "2.2.2.2"}}, nil, nil, nil
 	}
 
 	// VALIDATES: AC-1 promotes candidate only after runtime reload succeeds.
@@ -190,8 +190,8 @@ func TestDoReloadClearsCandidateOnFailure(t *testing.T) {
 	require.NoError(t, store.WriteVersion(configPath, []byte("candidate"), mustParseReloadStamp(t, candidateStamp)))
 	setConfigPointer(t, store, configPath, zefs.KeyConfigCandidate, candidateStamp)
 
-	load := func() (map[string]any, *zeconfig.Tree, error) {
-		return nil, nil, fmt.Errorf("candidate parse failed")
+	load := func() (map[string]any, *zeconfig.Tree, reloadSelection, error) {
+		return nil, nil, nil, fmt.Errorf("candidate parse failed")
 	}
 
 	// VALIDATES: AC-2 clears candidate after a failed reload and leaves active unchanged.
@@ -232,8 +232,8 @@ func TestDoReloadRollsBackOnListenerMigrationFailure(t *testing.T) {
 
 	lm := newListenerMigrator()
 	lm.web = &failingReconfigurable{addrs: []string{"127.0.0.1:3443"}, err: fmt.Errorf("listener refused")}
-	load := func() (map[string]any, *zeconfig.Tree, error) {
-		return newTree, reloadWebTree("127.0.0.1", "3444"), nil
+	load := func() (map[string]any, *zeconfig.Tree, reloadSelection, error) {
+		return newTree, reloadWebTree("127.0.0.1", "3444"), nil, nil
 	}
 
 	// VALIDATES: listener migration failure rolls runtime/provider back before rejecting the candidate.
@@ -343,8 +343,8 @@ func TestEnsureActivePointerProtectsFailedFirstSIGHUP(t *testing.T) {
 	_, err = storage.WriteCandidateVersion(store, configPath, []byte("bad edited file"), mustParseReloadStamp(t, "20260524-100000.000"))
 	require.NoError(t, err)
 
-	load := func() (map[string]any, *zeconfig.Tree, error) {
-		return nil, nil, fmt.Errorf("candidate parse failed")
+	load := func() (map[string]any, *zeconfig.Tree, reloadSelection, error) {
+		return nil, nil, nil, fmt.Errorf("candidate parse failed")
 	}
 
 	// VALIDATES: AC-8 and AC-12 keep active pointer on the known-good version after failed SIGHUP.
@@ -417,10 +417,10 @@ func TestWaitLoopSIGTERMDuringFailedReload(t *testing.T) {
 
 	entered := make(chan struct{}, 1)
 	release := make(chan struct{})
-	load := func() (map[string]any, *zeconfig.Tree, error) {
+	load := func() (map[string]any, *zeconfig.Tree, reloadSelection, error) {
 		entered <- struct{}{}
 		<-release
-		return nil, nil, errors.New("candidate verify failed")
+		return nil, nil, nil, errors.New("candidate verify failed")
 	}
 
 	stopCh := make(chan os.Signal, 1)
@@ -557,9 +557,9 @@ func TestSIGHUPQueuedBehindTransactionRunsWhenItEnds(t *testing.T) {
 
 		server, reactor := newServer(t)
 		loads := make(chan struct{}, 4)
-		load := func() (map[string]any, *zeconfig.Tree, error) {
+		load := func() (map[string]any, *zeconfig.Tree, reloadSelection, error) {
 			loads <- struct{}{}
-			return sighupTree, nil, nil
+			return sighupTree, nil, nil, nil
 		}
 
 		held := startHeldTransaction(t, server, reactor)
@@ -642,10 +642,10 @@ func TestSIGHUPQueuedBehindTransactionRunsWhenItEnds(t *testing.T) {
 		close(reactor.release)
 		release := make(chan struct{})
 		loads := make(chan struct{}, 4)
-		load := func() (map[string]any, *zeconfig.Tree, error) {
+		load := func() (map[string]any, *zeconfig.Tree, reloadSelection, error) {
 			loads <- struct{}{}
 			<-release
-			return sighupTree, nil, nil
+			return sighupTree, nil, nil, nil
 		}
 
 		reloadCh := make(chan os.Signal, 1)
@@ -681,9 +681,9 @@ func TestSIGHUPQueuedBehindTransactionRunsWhenItEnds(t *testing.T) {
 		t.Parallel()
 		server, reactor := newServer(t)
 		loads := make(chan struct{}, 4)
-		load := func() (map[string]any, *zeconfig.Tree, error) {
+		load := func() (map[string]any, *zeconfig.Tree, reloadSelection, error) {
 			loads <- struct{}{}
-			return sighupTree, nil, nil
+			return sighupTree, nil, nil, nil
 		}
 
 		held := startHeldTransaction(t, server, reactor)
@@ -886,7 +886,7 @@ func TestRunReloadOriginalUndoAndFinalizationFailure(t *testing.T) {
 			if publicationFails {
 				store = failAcquireStorage{Storage: base}
 			}
-			load := func() (map[string]any, *zeconfig.Tree, error) { return candidate, nil, nil }
+			load := func() (map[string]any, *zeconfig.Tree, reloadSelection, error) { return candidate, nil, nil, nil }
 			err = runReloadContext(t.Context(), reloadSourceCommit, server, nil, provider, store, path, load, nil)
 			require.Error(t, err)
 			if publicationFails {
@@ -904,4 +904,95 @@ func TestRunReloadOriginalUndoAndFinalizationFailure(t *testing.T) {
 			}
 		})
 	}
+}
+
+// TestReloadJudgesTheLoaderSelection verifies that diskConfigLoaders answers
+// the exact candidate plugin selection LoadConfig judged beside the tree, and
+// that both loadBoth (through doReload) and loadMap (through ReloadFromDisk)
+// deliver that selection unchanged to Server.ReloadConfigWithSelection.
+//
+// VALIDATES: spec-fib-dummy A-9 -- diskConfigLoaders carries LoadConfig's
+// judged CandidateSelection unchanged into Server reload writer judgement.
+// PREVENTS: reload discarding the loader's judged selection and falling back
+// to boot-time s.config.Plugins.
+func TestReloadJudgesTheLoaderSelection(t *testing.T) {
+	snap := registry.Snapshot()
+	t.Cleanup(func() { registry.Restore(snap) })
+
+	const (
+		fibOne = "loader-sel-fib-one"
+		fibTwo = "loader-sel-fib-two"
+	)
+	var startedOne, startedTwo atomic.Bool
+	registerFixture := func(name string, flag *atomic.Bool) {
+		require.NoError(t, registry.Register(registry.Registration{
+			Name:        name,
+			Description: "test FIB endpoint for loader selection",
+			ProgramsFIB: true,
+			RunEngine: func(conn net.Conn) int {
+				flag.Store(true)
+				p := sdk.NewWithConn(name, conn)
+				if err := p.Run(context.Background(), &sdk.Registration{}); err != nil {
+					return 1
+				}
+				return 0
+			},
+			CLIHandler: func([]string) int { return 0 },
+		}))
+	}
+	registerFixture(fibOne, &startedOne)
+	registerFixture(fibTwo, &startedTwo)
+
+	dir := t.TempDir()
+	configPath := filepath.Join(dir, "loader-selection.conf")
+	store := newTestStore(t, dir)
+
+	cfgOne := "bus { endpoint ep-one { internal " + fibOne + "; } }\n"
+	require.NoError(t, store.WriteFile(configPath, []byte(cfgOne), 0o600))
+
+	loadMap, loadBoth := diskConfigLoaders(store, configPath, nil, nil)
+
+	treeMap, tree, selBoth, err := loadBoth()
+	require.NoError(t, err)
+	require.NotNil(t, tree)
+	require.NotNil(t, treeMap)
+	require.Len(t, selBoth, 1)
+	assert.Equal(t, "ep-one", selBoth[0].Name)
+	assert.Equal(t, fibOne, selBoth[0].CompiledIdentity())
+
+	mapFromLoadMap, selMap, err := loadMap()
+	require.NoError(t, err)
+	require.NotNil(t, mapFromLoadMap)
+	assert.Equal(t, selBoth, selMap, "loadMap and loadBoth must carry the same judged selection")
+
+	// Start a server with empty initial selection and drive doReload through loadBoth.
+	initial := map[string]any{}
+	reactor := &reloadTestReactor{tree: initial}
+	provider := zeconfig.NewProvider()
+	server, err := pluginserver.NewServer(&pluginserver.ServerConfig{
+		HasCandidateSelection: true,
+	}, reactor)
+	require.NoError(t, err)
+	manager := pluginmgr.NewManager()
+	require.NoError(t, manager.StartAll(t.Context(), server, provider))
+	server.SetProcessSpawner(manager)
+	t.Cleanup(func() { server.Stop(); require.NoError(t, manager.StopAll(context.Background())) })
+	require.NoError(t, server.StartWithContext(t.Context()))
+	require.NoError(t, server.WaitForStartupComplete(t.Context()))
+
+	_, err = storage.WriteCandidateVersion(store, configPath, []byte(cfgOne), mustParseReloadStamp(t, "20260918-100000.000"))
+	require.NoError(t, err)
+	require.NoError(t, doReload(server, provider, store, configPath, loadBoth, nil))
+	assert.True(t, startedOne.Load(), "selection from diskConfigLoaders loadBoth must reach Server and start ep-one")
+	assert.NotNil(t, server.ProcessManager().GetProcess("ep-one"))
+
+	// Now drive ReloadFromDisk through loadMap with a replacement compiled-in FIB endpoint.
+	cfgTwo := "bus { endpoint ep-two { internal " + fibTwo + "; } }\n"
+	_, err = storage.WriteCandidateVersion(store, configPath, []byte(cfgTwo), mustParseReloadStamp(t, "20260918-100100.000"))
+	require.NoError(t, err)
+	server.SetConfigLoader(loadMap)
+	require.NoError(t, server.ReloadFromDisk(t.Context()))
+	assert.True(t, startedTwo.Load(), "selection from diskConfigLoaders loadMap must reach Server and start ep-two")
+	assert.True(t, server.ProcessManager().GetProcess("ep-two") != nil, "ep-two must be running")
+	assert.True(t, server.ProcessManager().GetProcess("ep-one") == nil, "displaced ep-one must be stopped when replaced")
 }

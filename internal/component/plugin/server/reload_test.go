@@ -894,8 +894,8 @@ func TestReloadFromDiskParseError(t *testing.T) {
 	s := newTestReloadServer(t, reactor, nil)
 
 	// Set a failing config loader.
-	s.SetConfigLoader(func() (map[string]any, error) {
-		return nil, fmt.Errorf("syntax error at line 42")
+	s.SetConfigLoader(func() (map[string]any, []plugin.PluginConfig, error) {
+		return nil, nil, fmt.Errorf("syntax error at line 42")
 	})
 
 	err := s.ReloadFromDisk(context.Background())
@@ -936,8 +936,8 @@ func TestHasConfigLoader(t *testing.T) {
 
 	assert.False(t, s.HasConfigLoader(), "should be false before SetConfigLoader")
 
-	s.SetConfigLoader(func() (map[string]any, error) {
-		return map[string]any{}, nil
+	s.SetConfigLoader(func() (map[string]any, []plugin.PluginConfig, error) {
+		return map[string]any{}, nil, nil
 	})
 
 	assert.True(t, s.HasConfigLoader(), "should be true after SetConfigLoader")

@@ -110,8 +110,8 @@ func (f *configuredConformanceFixture) accept(t *testing.T, content string) {
 	// Only the domain diff is empty. Parsing, provider refresh, source promotion
 	// and the complete reload's accepted-generation publication run for real.
 	f.coordinator.SetConfigTree(parsed.Tree.ToRunningMap())
-	load := func() (map[string]any, *zeconfig.Tree, error) {
-		return parsed.Tree.ToRunningMap(), parsed.Tree, nil
+	load := func() (map[string]any, *zeconfig.Tree, reloadSelection, error) {
+		return parsed.Tree.ToRunningMap(), parsed.Tree, nil, nil
 	}
 	require.NoError(t, doReload(f.server, f.provider, f.store, f.path, load, nil))
 	active, err := storage.ReadActiveConfig(f.store, f.path)

@@ -64,8 +64,8 @@ func TestHandleDaemonReloadUsesFullReload(t *testing.T) {
 		assert.NotNil(t, ctx)
 		return nil
 	})
-	server.SetConfigLoader(func() (map[string]any, error) {
-		return nil, fmt.Errorf("plugin-only reload should not be used")
+	server.SetConfigLoader(func() (map[string]any, []plugin.PluginConfig, error) {
+		return nil, nil, fmt.Errorf("plugin-only reload should not be used")
 	})
 
 	resp, err := handleDaemonReload(&CommandContext{Server: server}, commandtest.Args())

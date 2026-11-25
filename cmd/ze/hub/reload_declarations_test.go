@@ -45,7 +45,7 @@ func TestReloadLoaderRefusesChangedPluginDeclarations(t *testing.T) {
 
 	require.NoError(t, os.WriteFile(configPath, []byte(reloadAddsPlugin), 0o600))
 	_, loadBoth := diskConfigLoaders(store, configPath, nil, nil)
-	treeMap, tree, err := loadBoth()
+	treeMap, tree, _, err := loadBoth()
 	require.Error(t, err, "a reload that adds an external plugin was loaded")
 	assert.Nil(t, treeMap)
 	assert.Nil(t, tree)
@@ -57,7 +57,7 @@ func TestReloadLoaderRefusesChangedPluginDeclarations(t *testing.T) {
 	require.NoError(t, os.WriteFile(configPath, []byte(reloadValidHost), 0o600))
 	started := []zePlugin.PluginConfig{{Name: "acme-monitor", Run: "./acme-monitor"}}
 	_, loadBoth = diskConfigLoaders(store, configPath, nil, started)
-	_, _, err = loadBoth()
+	_, _, _, err = loadBoth()
 	require.Error(t, err, "a reload that removes an external plugin was loaded")
 	refusal, operator = errors.AsType[*opererr.Error](err)
 	require.True(t, operator, "the refusal is no operator error: %v", err)
@@ -79,7 +79,7 @@ func TestReloadLoaderLoadsWhenTheDeclarationsAreUnchanged(t *testing.T) {
 	require.NoError(t, os.WriteFile(configPath, []byte(reloadValidHost), 0o600))
 
 	_, loadBoth := diskConfigLoaders(store, configPath, nil, nil)
-	treeMap, tree, err := loadBoth()
+	treeMap, tree, _, err := loadBoth()
 	require.NoError(t, err)
 	require.NotNil(t, tree)
 	assert.Contains(t, treeMap, "system")

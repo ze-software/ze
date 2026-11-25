@@ -52,7 +52,7 @@ func TestReloadRefusalKeepsRunningConfig(t *testing.T) {
 	incoming := map[string]any{reloadCapabilityMarker: map[string]any{}}
 	tree := zeconfig.NewTree()
 	tree.GetOrCreateContainer(reloadCapabilityMarker)
-	load := func() (map[string]any, *zeconfig.Tree, error) { return incoming, tree, nil }
+	load := func() (map[string]any, *zeconfig.Tree, reloadSelection, error) { return incoming, tree, nil, nil }
 
 	err = runReload(srv, cp, load, nil)
 	require.Error(t, err, "a reload into an ungated subsystem must be refused")
@@ -77,7 +77,9 @@ func TestReloadUnaffectedByAnUnusedCapability(t *testing.T) {
 
 	cp := zeconfig.NewProvider()
 	incoming := map[string]any{}
-	load := func() (map[string]any, *zeconfig.Tree, error) { return incoming, zeconfig.NewTree(), nil }
+	load := func() (map[string]any, *zeconfig.Tree, reloadSelection, error) {
+		return incoming, zeconfig.NewTree(), nil, nil
+	}
 
 	if err := runReload(srv, cp, load, nil); err != nil {
 		require.False(t, strings.Contains(err.Error(), "kernel capability"),

@@ -229,8 +229,8 @@ func TestDoReloadRadiusRemovalLateBindFailurePreservesAccounting(t *testing.T) {
 		return nextReloadAccounting(t, packets, radius.AcctStatusStart)
 	}
 	first, second := up(t, 1), up(t, 2)
-	loadRemoval := func(port string) func() (map[string]any, *zeconfig.Tree, error) {
-		return func() (map[string]any, *zeconfig.Tree, error) {
+	loadRemoval := func(port string) func() (map[string]any, *zeconfig.Tree, reloadSelection, error) {
+		return func() (map[string]any, *zeconfig.Tree, reloadSelection, error) {
 			tree := zeconfig.NewTree()
 			environment := zeconfig.NewTree()
 			environment.SetContainer("web", listenerServiceTree(port))
@@ -242,7 +242,7 @@ func TestDoReloadRadiusRemovalLateBindFailurePreservesAccounting(t *testing.T) {
 			probeTree.Set("revision", "0")
 			tree.SetContainer(radiusReloadProbeRoot, probeTree)
 			pluginMap := tree.ToPluginMap()
-			return pluginMap, tree, nil
+			return pluginMap, tree, nil, nil
 		}
 	}
 	migrator := &listenerMigrator{web: listener}
@@ -280,7 +280,7 @@ func TestDoReloadRadiusRemovalLateBindFailurePreservesAccounting(t *testing.T) {
 	// previous whole-reload retirement has installed a fresh client.
 	require.NoError(t, server.ReloadConfig(ctx, running))
 	fourth := up(t, 4)
-	removed, _, err := loadRemoval(webPort)()
+	removed, _, _, err := loadRemoval(webPort)()
 	require.NoError(t, err)
 	require.NoError(t, server.ReloadConfig(ctx, removed))
 	stop = nextReloadAccounting(t, packets, radius.AcctStatusStop)
