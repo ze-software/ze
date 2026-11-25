@@ -605,7 +605,8 @@ func applyCentralOverrideToInput(input *BusParticipantInput, busCfg plugin.BusCo
 	if ov, ok := busCfg.Participants[input.Path]; ok {
 		input.BusSideBlock = ov.Block.Clone()
 		input.BusSideSource = ov.Source
-	} else {
+	}
+	if input.BusSideBlock.IsEmpty() {
 		for _, sp := range input.SecondaryPaths {
 			if ov, ok := busCfg.Participants[sp]; ok {
 				input.BusSideBlock = ov.Block.Clone()
@@ -621,6 +622,23 @@ func applyCentralOverrideToInput(input *BusParticipantInput, busCfg plugin.BusCo
 		if ov, ok := busCfg.Participants[input.ParentPath]; ok {
 			input.ParentBusSideBlock = ov.Block.Clone()
 			input.ParentBusSideSource = ov.Source
+			return
+		}
+	}
+	// Walk ancestor prefixes of input.Path (e.g. "/bgp/peer/p1" -> "/bgp") so
+	// central prefix overrides like `bus { participant /bgp { ... } }` inherit
+	// into covered participants at runtime.
+	cur := input.Path
+	for {
+		slash := strings.LastIndexByte(cur, '/')
+		if slash <= 0 {
+			break
+		}
+		cur = cur[:slash]
+		if ov, ok := busCfg.Participants[cur]; ok {
+			input.ParentBusSideBlock = ov.Block.Clone()
+			input.ParentBusSideSource = ov.Source
+			break
 		}
 	}
 }

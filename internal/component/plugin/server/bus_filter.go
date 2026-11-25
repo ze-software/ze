@@ -782,12 +782,12 @@ type resolvedTagSet struct {
 func buildMessageTagCatalog(participants []BusParticipantInput) (map[string]map[string][]string, map[string]bool) {
 	tagDefs := make(map[string]map[string][]string)
 	hasSender := make(map[string]bool)
+	// Engine-emitted lifecycle signals have no participant SendDecl, yet are
+	// actively produced by the daemon (e.g. bus:participant-exit for bgp-watchdog).
+	hasSender[events.NamespaceBus+":"+events.EventParticipantExit] = true
 
 	for _, def := range events.AllMessages() {
 		full := def.FullName()
-		if len(def.Tags) == 0 {
-			continue
-		}
 		m := make(map[string][]string, len(def.Tags))
 		for _, t := range def.Tags {
 			m[t.Name] = slices.Clone(t.Values)
@@ -800,9 +800,6 @@ func buildMessageTagCatalog(participants []BusParticipantInput) (map[string]map[
 		for j := range p.Sends {
 			send := &p.Sends[j]
 			hasSender[send.Message] = true
-			if len(send.Tags) == 0 {
-				continue
-			}
 			m, ok := tagDefs[send.Message]
 			if !ok {
 				m = make(map[string][]string, len(send.Tags))
@@ -1536,45 +1533,62 @@ func validateDirectionAllowAndMessages(
 
 	// Refusal 4, 5, 9, 10 on per-message rules across layers.
 	seenMsgs := make(map[string]bool)
+	seenMsgTags := make(map[string]map[string]bool)
 	for i := range layers {
 		dl := &layers[i].receive
 		if isSend {
 			dl = &layers[i].send
 		}
 		for _, msg := range slices.Sorted(maps.Keys(dl.block.Messages)) {
-			if seenMsgs[msg] {
-				continue
-			}
-			seenMsgs[msg] = true
 			rule := dl.block.Messages[msg]
 			if rule == nil {
 				continue
 			}
-			if !messageDeclaredInDirection(msg, declared, isSend) {
-				return busRefusal4Error(participantPath, dirName, busLabelMsg+msg, msg, declared)
-			}
-			// Refusal 5: per-message rule written at the same or more specific rank
-			// for a message excluded by allow. An inherited parent per-message rule
-			// for a message a child's narrower allow-list dropped is superseded,
-			// not a contradiction.
-			if allow.present {
-				admitted := receiveMessageAdmitted(msg, allow)
-				if isSend {
-					admitted = sendMessageAdmitted(msg, allow)
+			if !seenMsgs[msg] {
+				seenMsgs[msg] = true
+				if !messageDeclaredInDirection(msg, declared, isSend) {
+					return busRefusal4Error(participantPath, dirName, busLabelMsg+msg, msg, declared)
 				}
-				if !admitted {
-					if i > allow.layerIdx {
-						continue
+				// Refusal 5: per-message rule written at the same or more specific rank
+				// for a message excluded by allow. An inherited parent per-message rule
+				// for a message a child's narrower allow-list dropped is superseded,
+				// not a contradiction.
+				if allow.present {
+					admitted := receiveMessageAdmitted(msg, allow)
+					if isSend {
+						admitted = sendMessageAdmitted(msg, allow)
 					}
-					return busRefusal5Error(participantPath, dirName, targetKey, msg, allow.origin.Sources)
+					if !admitted {
+						if i > allow.layerIdx {
+							continue
+						}
+						fieldKey := targetKey
+						if !rule.TargetsPresent && len(rule.Tags) > 0 {
+							fieldKey = "tag"
+						}
+						return busRefusal5Error(participantPath, dirName, fieldKey, msg, allow.origin.Sources)
+					}
 				}
 			}
-			// Refusals 9 & 10: tag name and closed value set checks when the
-			// message's tag schema is known.
+			// Refusals 9 & 10: tag name and closed value set checks on every
+			// unoverridden tag across layers when the message's tag schema is known.
 			if len(rule.Tags) > 0 {
 				if tagSchema, known := msgTagDefs[msg]; known {
-					if err := validateMessageTagRules(participantPath, dirName, msg, rule.Tags, tagSchema); err != nil {
-						return err
+					if seenMsgTags[msg] == nil {
+						seenMsgTags[msg] = make(map[string]bool, len(rule.Tags))
+					}
+					unseenTags := make(map[string][]string, len(rule.Tags))
+					for tagName, vals := range rule.Tags {
+						if seenMsgTags[msg][tagName] {
+							continue
+						}
+						seenMsgTags[msg][tagName] = true
+						unseenTags[tagName] = vals
+					}
+					if len(unseenTags) > 0 {
+						if err := validateMessageTagRules(participantPath, dirName, msg, unseenTags, tagSchema); err != nil {
+							return err
+						}
 					}
 				}
 			}
@@ -1948,6 +1962,17 @@ func compileDeliveryAndSendIndices(
 					continue
 				}
 
+				var effectiveDir events.Direction
+				if hasEventID {
+					effectiveDir = intersectEdgeDirection(sendRule.OutboundTagMap, recvRule.Direction)
+					// Disjoint outbound/inbound direction tags (e.g. sender only
+					// sends received while receiver only accepts sent) produce no
+					// active delivery edge.
+					if recvRule.Direction != events.DirUnspecified && effectiveDir == events.DirUnspecified {
+						continue
+					}
+				}
+
 				entry.allowedDests[d.idx] = struct{}{}
 				entry.allowedPaths = append(entry.allowedPaths, dInput.Path)
 				entry.allowedTargets = append(entry.allowedTargets, BusResolvedTarget{
@@ -1973,16 +1998,13 @@ func compileDeliveryAndSendIndices(
 				})
 
 				if hasEventID {
-					effectiveDir := intersectEdgeDirection(sendRule.OutboundTagMap, recvRule.Direction)
-					if effectiveDir != events.DirUnspecified || recvRule.Direction == events.DirUnspecified {
-						rec := compiledReceiver{
-							EndpointName: dInput.EndpointName,
-							Path:         dInput.Path,
-							TagFilter:    recvRule.InboundTags,
-							Origin:       edgeOrigin,
-						}
-						indexDeliveryReceiver(bus.deliveryIndex, s.idx, nsID, etID, effectiveDir, rec)
+					rec := compiledReceiver{
+						EndpointName: dInput.EndpointName,
+						Path:         dInput.Path,
+						TagFilter:    recvRule.InboundTags,
+						Origin:       edgeOrigin,
 					}
+					indexDeliveryReceiver(bus.deliveryIndex, s.idx, nsID, etID, effectiveDir, rec)
 				}
 			}
 

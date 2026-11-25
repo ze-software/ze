@@ -128,14 +128,14 @@ func peerRemoteIP(peerKey string, peerTree *zeconfig.Tree) (netip.Addr, bool) {
 			if remote := conn.GetContainer("remote"); remote != nil {
 				if ipStr, ok := remote.Get("ip"); ok && ipStr != "" && ipStr != bgpDynamicIPKeyword {
 					if addr, err := netip.ParseAddr(ipStr); err == nil {
-						return addr.Unmap(), true
+						return addr.WithZone("").Unmap(), true
 					}
 				}
 			}
 		}
 	}
 	if addr, err := netip.ParseAddr(peerKey); err == nil {
-		return addr.Unmap(), true
+		return addr.WithZone("").Unmap(), true
 	}
 	return netip.Addr{}, false
 }

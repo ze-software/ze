@@ -1234,3 +1234,126 @@ func BenchmarkBusDelivery(b *testing.B) {
 		}
 	})
 }
+
+// TestBusFilterWave3Fixes pins the Wave 3 bus compilation and delivery fixes:
+//   - Refusal 9 rejects unknown tags on zero-tag messages;
+//   - Disjoint outbound/inbound direction tags produce zero active edges;
+//   - Engine-emitted bus:participant-exit is not falsely flagged as dormant;
+//   - Central prefix override (/bgp) inherits into covered participants at runtime.
+func TestBusFilterWave3Fixes(t *testing.T) {
+	t.Run("refusal9_rejects_unknown_tag_on_zero_tag_message", func(t *testing.T) {
+		_, err := CompileBus(NewTagInterner(), []BusParticipantInput{
+			{
+				Path:         "/bus/endpoint/sender",
+				EndpointName: "sender",
+				Sends:        []rpc.MessageSendDecl{{Message: "acme:zero-tag"}},
+			},
+			{
+				Path:         "/bus/endpoint/recv",
+				EndpointName: "recv",
+				Receives:     []rpc.MessageReceiveDecl{{Message: "acme:zero-tag"}},
+				OwnBlock: plugin.BusBlock{
+					Receive: plugin.BusDirectionBlock{
+						Messages: map[string]*plugin.BusMessageRule{
+							"acme:zero-tag": {
+								Tags: map[string][]string{"bogus": {"val"}},
+							},
+						},
+					},
+				},
+			},
+		})
+		if err == nil {
+			t.Fatal("unknown tag on zero-tag message must be refused (Refusal 9)")
+		}
+		if !strings.Contains(err.Error(), "bogus") {
+			t.Fatalf("error = %q, want mention of bogus tag", err.Error())
+		}
+	})
+
+	t.Run("disjoint_outbound_inbound_direction_produces_no_edge", func(t *testing.T) {
+		bus, err := CompileBus(NewTagInterner(), []BusParticipantInput{
+			{
+				Path:  "/bgp/peer/edge1",
+				Sends: []rpc.MessageSendDecl{{Message: "bgp:update", Tags: []rpc.MessageTagDecl{{Name: "direction", Values: []string{"received", "sent"}}}}},
+				OwnBlock: plugin.BusBlock{
+					Send: plugin.BusDirectionBlock{
+						Messages: map[string]*plugin.BusMessageRule{
+							"bgp:update": {
+								Tags: map[string][]string{"direction": {"received"}},
+							},
+						},
+					},
+				},
+			},
+			{
+				Path:         "/bus/endpoint/only-sent",
+				EndpointName: "only-sent",
+				Receives:     []rpc.MessageReceiveDecl{{Message: "bgp:update"}},
+				OwnBlock: plugin.BusBlock{
+					Receive: plugin.BusDirectionBlock{
+						Messages: map[string]*plugin.BusMessageRule{
+							"bgp:update": {
+								Tags: map[string][]string{"direction": {"sent"}},
+							},
+						},
+					},
+				},
+			},
+		})
+		if err != nil {
+			t.Fatalf("CompileBus: %v", err)
+		}
+		if len(bus.Edges()) != 0 {
+			t.Fatalf("edges = %+v, want empty for disjoint outbound/inbound direction tags", bus.Edges())
+		}
+	})
+
+	t.Run("participant_exit_is_not_dormant", func(t *testing.T) {
+		bus, err := CompileBus(NewTagInterner(), []BusParticipantInput{
+			{
+				Path:         "/bus/endpoint/watchdog",
+				EndpointName: "watchdog",
+				Receives:     []rpc.MessageReceiveDecl{{Message: events.NamespaceBus + ":" + events.EventParticipantExit}},
+			},
+		})
+		if err != nil {
+			t.Fatalf("CompileBus: %v", err)
+		}
+		f := bus.Filter("/bus/endpoint/watchdog")
+		if f == nil {
+			t.Fatal("missing watchdog filter")
+		}
+		if len(f.DormantReceptions) != 0 {
+			t.Fatalf("DormantReceptions = %+v, want empty for engine-emitted bus:participant-exit", f.DormantReceptions)
+		}
+	})
+
+	t.Run("central_prefix_override_inherits_at_runtime", func(t *testing.T) {
+		input := BusParticipantInput{
+			Path:           "/bgp/peer/edge1",
+			SecondaryPaths: []string{"/bgp/ip/10.0.0.1"},
+		}
+		busCfg := plugin.BusConfig{
+			Participants: map[string]plugin.BusParticipantOverride{
+				"/bgp": {
+					Path:   "/bgp",
+					Source: "bus > participant /bgp",
+					Block: plugin.BusBlock{
+						Send: plugin.BusDirectionBlock{
+							AllowPresent: true,
+							Allow:        []string{"bgp:state"},
+						},
+					},
+				},
+			},
+		}
+		applyCentralOverrideToInput(&input, busCfg, true)
+		if input.ParentBusSideSource != "bus > participant /bgp" {
+			t.Fatalf("ParentBusSideSource = %q, want %q", input.ParentBusSideSource, "bus > participant /bgp")
+		}
+		if !input.ParentBusSideBlock.Send.AllowPresent || !slices.Equal(input.ParentBusSideBlock.Send.Allow, []string{"bgp:state"}) {
+			t.Fatalf("ParentBusSideBlock.Send = %+v, want allow [bgp:state]", input.ParentBusSideBlock.Send)
+		}
+	})
+}

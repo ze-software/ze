@@ -532,3 +532,22 @@ func TestGraphBusEdgeProviderOrigins(t *testing.T) {
 	assert.Equal(t, 1, originsFound[ImpliedOriginRegistered])
 	assert.Equal(t, 1, originsFound[ImpliedOriginDormant])
 }
+
+// TestAnnotateWrittenFilterLinesMatchesPeerFilterContainer verifies that
+// written `bgp { peer edge1 { filter { import { filters [ ... ]; } } } }`
+// matches ImpliedFilterMember.TargetPath `/bgp/peer/edge1` (stripping the
+// enclosing `/filter` container) so inline `# implied:` annotations attach.
+func TestAnnotateWrittenFilterLinesMatchesPeerFilterContainer(t *testing.T) {
+	written := "bgp {\n\tpeer edge1 {\n\t\tfilter {\n\t\t\timport {\n\t\t\t\tfilters [ my-filter ];\n\t\t\t}\n\t\t}\n\t}\n}\n"
+	filters := []ImpliedFilterMember{{
+		TargetPath: "/bgp/peer/edge1",
+		Direction:  "import",
+		Position:   "head",
+		Ref:        "loop-detection",
+		ImpliedBy:  "built-in BGP",
+	}}
+	annotated, remaining := annotateWrittenFilterLines(written, filters)
+	assert.Contains(t, annotated, "filters [ my-filter ]; # implied:")
+	assert.Contains(t, annotated, "loop-detection")
+	assert.Empty(t, remaining)
+}

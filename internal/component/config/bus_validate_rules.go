@@ -61,20 +61,24 @@ func validateDirectionBlock(
 		}
 	}
 
-	// Refusal 5: per-message to/from written for a message excluded by this
-	// direction's allow list.
+	// Refusal 5: per-message to/from or tag written for a message excluded by
+	// this direction's allow list.
 	if block.AllowPresent {
 		for _, msg := range slices.Sorted(maps.Keys(block.Messages)) {
 			rule := block.Messages[msg]
 			if rule == nil {
 				continue
 			}
-			if !rule.TargetsPresent {
+			if !rule.TargetsPresent && len(rule.Tags) == 0 {
 				continue
 			}
 			excluded := block.AllowNone || !allowListAdmits(block.Allow, msg)
 			if excluded {
-				return refusal5ExcludedMessageTarget(dirLoc, targetKey, msg)
+				fieldKey := targetKey
+				if !rule.TargetsPresent {
+					fieldKey = "tag"
+				}
+				return refusal5ExcludedMessageTarget(dirLoc, fieldKey, msg)
 			}
 		}
 	}

@@ -659,7 +659,7 @@ func applyCentralParticipantOverrides(
 		}
 
 		if direct, ok := participants[pPath]; ok {
-			if err := checkBusBlockConflict(direct.Source, direct.Block, source, block); err != nil {
+			if err := checkBusBlockConflictResolved(tree, participants, templates, direct.Source, direct.Block, source, block); err != nil {
 				return nil, err
 			}
 			direct.Block = mergeBusBlocks(direct.Block, block)
@@ -670,7 +670,7 @@ func applyCentralParticipantOverrides(
 			if _, isSecondary := matchingSecondaryResolver(pPath); isSecondary {
 				for _, cp := range resolvedPaths {
 					if direct, ok := participants[cp]; ok {
-						if err := checkBusBlockConflict(direct.Source, direct.Block, source, block); err != nil {
+						if err := checkBusBlockConflictResolved(tree, participants, templates, direct.Source, direct.Block, source, block); err != nil {
 							return nil, err
 						}
 						direct.Block = mergeBusBlocks(direct.Block, block)
@@ -735,13 +735,92 @@ func checkBusBlockConflict(srcA string, a plugin.BusBlock, srcB string, b plugin
 	return checkDirectionConflict(srcA, busDirectionSend, busTargetKeyTo, a.Send, srcB, b.Send)
 }
 
+func checkBusBlockConflictResolved(
+	tree *Tree,
+	participants map[string]*BusValidatedParticipant,
+	templates []participantNodeTemplate,
+	srcA string,
+	a plugin.BusBlock,
+	srcB string,
+	b plugin.BusBlock,
+) error {
+	if err := checkDirectionConflictResolved(tree, participants, templates, srcA, busDirectionReceive, busTargetKeyFrom, a.Receive, srcB, b.Receive); err != nil {
+		return err
+	}
+	return checkDirectionConflictResolved(tree, participants, templates, srcA, busDirectionSend, busTargetKeyTo, a.Send, srcB, b.Send)
+}
+
 func checkDirectionConflict(srcA, dir, targetKey string, a plugin.BusDirectionBlock, srcB string, b plugin.BusDirectionBlock) error {
+	return checkDirectionConflictResolved(nil, nil, nil, srcA, dir, targetKey, a, srcB, b)
+}
+
+func busTargetsEquivalent(
+	tree *Tree,
+	participants map[string]*BusValidatedParticipant,
+	templates []participantNodeTemplate,
+	noneA bool,
+	targetsA []string,
+	noneB bool,
+	targetsB []string,
+) bool {
+	if noneA != noneB {
+		return false
+	}
+	if noneA {
+		return true
+	}
+	if plugin.StringSetEqual(targetsA, targetsB) {
+		return true
+	}
+	if tree == nil {
+		return false
+	}
+	if len(participants) == 0 {
+		return false
+	}
+	resolvedA, okA := resolveTargetSetCanonical(tree, targetsA, participants, templates)
+	if !okA {
+		return false
+	}
+	resolvedB, okB := resolveTargetSetCanonical(tree, targetsB, participants, templates)
+	if !okB {
+		return false
+	}
+	return plugin.StringSetEqual(resolvedA, resolvedB)
+}
+
+func resolveTargetSetCanonical(
+	tree *Tree,
+	targets []string,
+	participants map[string]*BusValidatedParticipant,
+	templates []participantNodeTemplate,
+) ([]string, bool) {
+	var out []string
+	for _, t := range targets {
+		paths, _, err := resolveTargetPath(tree, t, "", participants, templates)
+		if err != nil {
+			return nil, false
+		}
+		out = append(out, paths...)
+	}
+	return out, true
+}
+
+func checkDirectionConflictResolved(
+	tree *Tree,
+	participants map[string]*BusValidatedParticipant,
+	templates []participantNodeTemplate,
+	srcA, dir, targetKey string,
+	a plugin.BusDirectionBlock,
+	srcB string,
+	b plugin.BusDirectionBlock,
+) error {
 	if a.AllowPresent && b.AllowPresent && !plugin.BusAllowEqual(a, b) {
 		lineA := srcA + " > " + dir + " > allow"
 		lineB := srcB + " > " + dir + " > allow"
 		return refusal6ConflictError(lineA, formatAllowOrTargets(a.AllowNone, a.Allow), lineB, formatAllowOrTargets(b.AllowNone, b.Allow))
 	}
-	if a.TargetsPresent && b.TargetsPresent && !plugin.BusTargetsEqual(a, b) {
+	if a.TargetsPresent && b.TargetsPresent && !busTargetsEquivalent(tree, participants, templates, a.TargetsNone, a.Targets, b.TargetsNone, b.Targets) {
 		lineA := srcA + " > " + dir + " > " + targetKey
 		lineB := srcB + " > " + dir + " > " + targetKey
 		return refusal6ConflictError(lineA, formatAllowOrTargets(a.TargetsNone, a.Targets), lineB, formatAllowOrTargets(b.TargetsNone, b.Targets))
@@ -758,7 +837,7 @@ func checkDirectionConflict(srcA, dir, targetKey string, a plugin.BusDirectionBl
 		if rb == nil {
 			continue
 		}
-		if ra.TargetsPresent && rb.TargetsPresent && !plugin.BusMessageRuleTargetsEqual(ra, rb) {
+		if ra.TargetsPresent && rb.TargetsPresent && !busTargetsEquivalent(tree, participants, templates, ra.TargetsNone, ra.Targets, rb.TargetsNone, rb.Targets) {
 			lineA := srcA + " > " + dir + " > message " + msg + " > " + targetKey
 			lineB := srcB + " > " + dir + " > message " + msg + " > " + targetKey
 			return refusal6ConflictError(lineA, formatAllowOrTargets(ra.TargetsNone, ra.Targets), lineB, formatAllowOrTargets(rb.TargetsNone, rb.Targets))

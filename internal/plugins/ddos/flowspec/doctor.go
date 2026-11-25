@@ -597,9 +597,9 @@ func noConfigurationUnrunDiagnostic(m flowspecMatch) rpc.DoctorCheckDiagnostic {
 // granted to the name ddos-flowspec alone (register.go, RegisterPluginKeys),
 // so its own doctor check does not judge this record.
 func unrunCases(msg *textbuf.Buffer, m flowspecMatch) {
-	msg.Str("Either the daemon runs a configuration without the ddos flowspec section, or a plugin block runs ").Str(Name).
+	msg.Str("Either the daemon runs a configuration without the ddos flowspec section, or a bus endpoint block runs ").Str(Name).
 		Str(" under another name; ").Str(unrunUndecidedSentence).
-		Str(", because a withdrawal sent while a plugin announces the same rule ends a running mitigation. The command below prints the configuration the daemon runs. If it holds a plugin block with use ").Str(Name).
+		Str(", because a withdrawal sent while a plugin announces the same rule ends a running mitigation. The command below prints the configuration the daemon runs. If it holds a bus endpoint block with internal ").Str(Name).
 		Str(", that process runs the plugin under another name and may announce the same rule as a live mitigation. It cannot read or withdraw this record, which only the name ").Str(Name).
 		Str(" may use, so do not send the withdrawal while it mitigates traffic to ").Str(m.DstPrefix.String()).
 		Str(". If it holds no ddos flowspec section, no process runs the plugin, nothing withdraws the rule, and every BGP peer that took it may still discard or rate-limit traffic to ").Str(m.DstPrefix.String()).

@@ -755,6 +755,9 @@ func filterReceiversByCompiledSender(
 	if senderFilter == nil {
 		return filterReceiversByInboundTags(compiled, nsID, etID, payload, procs)
 	}
+	if !senderOutboundTagsMatch(compiled, senderFilter, nsID, etID, payload) {
+		return procs[:0]
+	}
 	filterTags := compiled.deliveryFilterTags(stampedSender, nsID, etID, dirID)
 	var admitted []string
 	if len(filterTags) == 0 {
@@ -793,6 +796,45 @@ func senderHasRestrictedTarget(senderFilter *CompiledParticipantFilter, nsID eve
 		return rule.ToNone || !rule.ToAll
 	}
 	return false
+}
+
+// senderOutboundTagsMatch enforces send > message > tag outbound filters on
+// emitted events. Returns true with zero allocations when the sender declares
+// no outbound tag filter on any send rule.
+func senderOutboundTagsMatch(
+	compiled *CompiledBus,
+	senderFilter *CompiledParticipantFilter,
+	nsID events.NamespaceID,
+	etID events.EventTypeID,
+	payload any,
+) bool {
+	hasAnyOutbound := false
+	for _, rule := range senderFilter.SendRules {
+		if rule != nil && rule.OutboundTags != nil {
+			hasAnyOutbound = true
+			break
+		}
+	}
+	if !hasAnyOutbound {
+		return true
+	}
+	var tb textbuf.Buffer
+	msg := tb.Str(nsID.String()).Byte(':').Str(etID.String()).String()
+	rule := senderFilter.SendRules[msg]
+	// refuse-by-default: guards filterReceiversByCompiledSender -- an absent send rule has no outbound tag filter to match and is gated by compiled.Receivers.
+	if rule == nil {
+		return true
+	}
+	if rule.OutboundTags == nil {
+		return true
+	}
+	filterTags := sortCompactFilterTags(appendMatcherFilterTags(compiled.Interner(), rule.OutboundTags, nil))
+	if len(filterTags) == 0 {
+		return true
+	}
+	var tagBuf [busTagStackCap]BusTagValue
+	msgTags := extractEventBusTags(compiled.Interner(), filterTags, payload, tagBuf[:0])
+	return rule.OutboundTags.Matches(msgTags)
 }
 
 // publishPluginProfileServer registers s as the active publisher for

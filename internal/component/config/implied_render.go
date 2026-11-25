@@ -616,8 +616,12 @@ func annotateWrittenFilterLines(writtenText string, filters []ImpliedFilterMembe
 		if len(pathStack) >= 2 && isFiltersStatement(code) && !hasComment {
 			dir := pathStack[len(pathStack)-1]
 			targetPath := "/" + textbuf.Join(pathStack[:len(pathStack)-1], "/")
-			k := filterTargetDirKey{targetPath: targetPath, direction: dir}
-			if indices := byKey[k]; len(indices) > 0 {
+			indices := byKey[filterTargetDirKey{targetPath: targetPath, direction: dir}]
+			if len(indices) == 0 && strings.HasSuffix(targetPath, "/filter") {
+				stripped := strings.TrimSuffix(targetPath, "/filter")
+				indices = byKey[filterTargetDirKey{targetPath: stripped, direction: dir}]
+			}
+			if len(indices) > 0 {
 				var note textbuf.Buffer
 				note.Byte(' ').Str(impliedPrefix)
 				for j, fi := range indices {
