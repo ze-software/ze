@@ -79,7 +79,7 @@ func TestOrchestratorEventProcessing(t *testing.T) {
 	tr := validation.NewTracker(3)
 	conv := validation.NewConvergence(3, 5*time.Second)
 
-	ep := &EventProcessor{
+	ep := &validation.EventProcessor{
 		Model:       m,
 		Tracker:     tr,
 		Convergence: conv,
@@ -112,7 +112,7 @@ func TestOrchestratorWithdrawal(t *testing.T) {
 	tr := validation.NewTracker(2)
 	conv := validation.NewConvergence(2, 5*time.Second)
 
-	ep := &EventProcessor{
+	ep := &validation.EventProcessor{
 		Model:       m,
 		Tracker:     tr,
 		Convergence: conv,
@@ -137,7 +137,7 @@ func TestOrchestratorDisconnect(t *testing.T) {
 	tr := validation.NewTracker(3)
 	conv := validation.NewConvergence(3, 5*time.Second)
 
-	ep := &EventProcessor{
+	ep := &validation.EventProcessor{
 		Model:       m,
 		Tracker:     tr,
 		Convergence: conv,
@@ -164,7 +164,7 @@ func TestOrchestratorCounters(t *testing.T) {
 	tr := validation.NewTracker(2)
 	conv := validation.NewConvergence(2, 5*time.Second)
 
-	ep := &EventProcessor{
+	ep := &validation.EventProcessor{
 		Model:       m,
 		Tracker:     tr,
 		Convergence: conv,
@@ -187,7 +187,7 @@ func TestOrchestratorChaosCounters(t *testing.T) {
 	tr := validation.NewTracker(2)
 	conv := validation.NewConvergence(2, 5*time.Second)
 
-	ep := &EventProcessor{
+	ep := &validation.EventProcessor{
 		Model:       m,
 		Tracker:     tr,
 		Convergence: conv,

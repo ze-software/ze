@@ -11,18 +11,17 @@ import (
 
 // ConfigParams holds inputs for generating a Ze configuration file.
 type ConfigParams struct {
-	LocalAS   uint32
-	RouterID  netip.Addr
-	LocalAddr string
-	BasePort  int
-	ZeBinary  string // Path to ze binary for bus endpoint run directives (default: "ze").
-	Profiles  []PeerProfile
-	NoPlugin  bool   // When true, omit the bus block (in-process mode adds plugins via CLI args).
-	PprofAddr string // When set, inject environment { debug { pprof <addr>; } } into generated config.
-	SSHPort   int    // When >0, add system { ssh + authentication } block with test/test user.
-	WebUIPort int    // When >0, add environment { web { insecure; } } block.
-	LGPort    int    // When >0, add environment { looking-glass { } } block.
-	MCPPort   int    // When >0, add environment { mcp { port N; } } block.
+	LocalAS             uint32
+	RouterID            netip.Addr
+	LocalAddr           string
+	BasePort            int
+	Profiles            []PeerProfile
+	SeparateRouteServer bool   // Run the built-in route server in a separate process.
+	PprofAddr           string // When set, write environment pprof to the generated config.
+	SSHPort             int    // When >0, add system { ssh + authentication } block with test/test user.
+	WebUIPort           int    // When >0, add environment { web { insecure; } } block.
+	LGPort              int    // When >0, add environment { looking-glass { } } block.
+	MCPPort             int    // When >0, enable a Ze MCP listener on the loopback address.
 
 	// Collector makes the config a route collector's: bgp-rib runs inside the
 	// daemon as the only bus endpoint, and no route server forwards between the
@@ -37,39 +36,23 @@ type ConfigParams struct {
 	LGPlaintext bool
 }
 
-// GenerateConfig produces a Ze configuration string from the given parameters.
-// The output is a valid Ze config file that can be passed to `ze bgp server`.
+// GenerateConfig produces a Ze configuration file for `ze start`.
 func GenerateConfig(params ConfigParams) string {
 	var b textbuf.Buffer
 
-	zeBin := params.ZeBinary
-	if zeBin == "" {
-		zeBin = "ze"
+	b.Str("bus {\n")
+	writeInternalEndpoint(&b, "bgp-rib", false)
+	if !params.Collector {
+		writePropagationPlugins(&b, params)
 	}
-
-	// The bus block: bgp-rib alone for a collector, and otherwise the route
-	// server plugin, required for route forwarding between peers, beside it.
-	// In-process mode adds plugins via CLI args to LoadReactorWithPlugins,
-	// so emitting an external endpoint block would create a duplicate that
-	// tries to fork a subprocess and fails.
-	if !params.NoPlugin {
-		b.Str("bus {\n")
-		if params.Collector {
-			writeCollectorPlugins(&b)
-		} else {
-			writeRouteServerPlugins(&b, zeBin, params.PprofAddr)
-		}
-		b.Str("}\n\n")
-	}
+	b.Str("}\n\n")
 
 	// Environment block — debug settings, SSH, web UI, looking glass.
 	hasEnv := params.PprofAddr != "" || params.SSHPort > 0 || params.WebUIPort > 0 || params.LGPort > 0 || params.MCPPort > 0
 	if hasEnv {
 		fmt.Fprintf(&b, "environment {\n") //nolint:errcheck // buffer output
 		if params.PprofAddr != "" {
-			fmt.Fprintf(&b, "    debug {\n")                         //nolint:errcheck // buffer output
-			fmt.Fprintf(&b, "        pprof %s;\n", params.PprofAddr) //nolint:errcheck // buffer output
-			fmt.Fprintf(&b, "    }\n")                               //nolint:errcheck // buffer output
+			b.Str("    pprof ").Quoted(params.PprofAddr).Str(";\n")
 		}
 		if params.SSHPort > 0 {
 			fmt.Fprintf(&b, "    ssh {\n")                            //nolint:errcheck // buffer output
@@ -103,9 +86,13 @@ func GenerateConfig(params ConfigParams) string {
 			b.Str("    }\n")
 		}
 		if params.MCPPort > 0 {
-			fmt.Fprintf(&b, "    mcp {\n")                        //nolint:errcheck // buffer output
-			fmt.Fprintf(&b, "        port %d;\n", params.MCPPort) //nolint:errcheck // buffer output
-			fmt.Fprintf(&b, "    }\n")                            //nolint:errcheck // buffer output
+			b.Str("    mcp {\n").
+				Str("        enabled true;\n").
+				Str("        server main {\n").
+				Str("            ip 127.0.0.1;\n").
+				Str("            port ").Int(int64(params.MCPPort)).Str(";\n").
+				Str("        }\n").
+				Str("    }\n")
 		}
 		fmt.Fprintf(&b, "}\n\n") //nolint:errcheck // buffer output
 	}
@@ -124,6 +111,13 @@ func GenerateConfig(params ConfigParams) string {
 
 	// bgp block with all peer definitions.
 	fmt.Fprintf(&b, "bgp {\n") //nolint:errcheck // buffer output
+	if !params.Collector {
+		// Generated test routes must pass both eBGP policy directions.
+		b.Str("    filter {\n").
+			Str("        import { final accept; }\n").
+			Str("        export { final accept; }\n").
+			Str("    }\n")
+	}
 	for i := range params.Profiles {
 		writeFullPeerBlock(&b, params, params.Profiles[i])
 	}
@@ -132,35 +126,34 @@ func GenerateConfig(params ConfigParams) string {
 	return b.String()
 }
 
-// writeCollectorPlugins writes the bus endpoint of a route collector: bgp-rib
-// alone, inside the daemon.
-func writeCollectorPlugins(b *textbuf.Buffer) {
-	b.Str("    endpoint bgp-rib {\n").
-		Str("        internal bgp-rib;\n").
-		Str("    }\n")
+// writePropagationPlugins selects the forwarders for the generated peer roles.
+func writePropagationPlugins(b *textbuf.Buffer, params ConfigParams) {
+	var hasInternal, hasExternal bool
+	for i := range params.Profiles {
+		if params.Profiles[i].IsIBGP {
+			hasInternal = true
+		} else {
+			hasExternal = true
+		}
+	}
+	if hasExternal {
+		writeInternalEndpoint(b, "bgp-rs", params.SeparateRouteServer)
+	}
+	if hasInternal {
+		writeInternalEndpoint(b, "bgp-rr", false)
+	}
+	// The forwarders use the receive store to replay routes after reconnect.
+	writeInternalEndpoint(b, "bgp-adj-rib-in", false)
 }
 
-// writeRouteServerPlugins writes the two external bus endpoints a chaos run
-// against a route server needs: bgp-rs to forward between the peers, and bgp-rib.
-func writeRouteServerPlugins(b *textbuf.Buffer, zeBin, pprofAddr string) {
-	b.Str("    endpoint bgp-rs {\n").
-		Str("        external {\n")
-	if pprofAddr == "" {
-		b.Str("            run \"").Str(zeBin).Str(" plugin bgp-rs\";\n")
-	} else {
-		b.Str("            run \"ze.bgp-rs\";\n")
+// writeInternalEndpoint keeps the compiled plugin identity on either transport.
+func writeInternalEndpoint(b *textbuf.Buffer, name string, separate bool) {
+	b.Str("    endpoint ").Str(name).Str(" {\n").
+		Str("        internal ").Str(name).Str(";\n")
+	if separate {
+		b.Str("        process separate;\n")
 	}
-	b.Str("        }\n").
-		Str("    }\n").
-		Str("    endpoint bgp-rib {\n").
-		Str("        external {\n")
-	if pprofAddr == "" {
-		b.Str("            run \"").Str(zeBin).Str(" plugin bgp-rib\";\n")
-	} else {
-		b.Str("            run \"ze.bgp-rib\";\n")
-	}
-	b.Str("        }\n").
-		Str("    }\n")
+	b.Str("    }\n")
 }
 
 // PeerSummary returns a compact one-line-per-peer summary for stderr display.
@@ -233,6 +226,14 @@ func writeFullPeerBlock(b *textbuf.Buffer, params ConfigParams, p PeerProfile) {
 	fmt.Fprintf(b, "                local %d;\n", params.LocalAS)  //nolint:errcheck // output
 	fmt.Fprintf(b, "            }\n")                              //nolint:errcheck // output
 	fmt.Fprintf(b, "            router-id %s;\n", params.RouterID) //nolint:errcheck // output
+	if !params.Collector {
+		if p.IsIBGP {
+			b.Str("            route-reflector-client true;\n").
+				Str("            cluster-id ").Addr(params.RouterID).Str(";\n")
+		} else {
+			b.Str("            rs-client true;\n")
+		}
+	}
 
 	// Family block — per-peer families from profile.
 	families := p.Families
@@ -254,7 +255,7 @@ func writeFullPeerBlock(b *textbuf.Buffer, params ConfigParams, p PeerProfile) {
 	// no import policy Ze uses none of an eBGP peer's routes (RFC 8212), and
 	// the collector's RIB would hold nothing from it. No export policy is
 	// written, because a collector announces nothing. An iBGP peer needs no
-	// import policy, and the seed-generated chaos config is left as it was.
+	// import policy.
 	if params.Collector {
 		if !p.IsIBGP {
 			b.Str("        filter {\n").

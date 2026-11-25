@@ -33,15 +33,10 @@ func eventTypeCounts(events []peer.Event) map[peer.EventType]int {
 	return m
 }
 
-// TestInProcessBasicRoute verifies a 2-peer in-process scenario where
-// both peers establish BGP sessions and peer 0 announces routes.
+// TestInProcessBasicRoute verifies route reflection between two iBGP peers.
 //
-// VALIDATES: Full pipeline: config → reactor → mock connections → peer simulators → session establishment → route sending.
-// PREVENTS: Broken in-process wiring (wrong addresses, mock connections not accepted, sessions not establishing).
-//
-// NOTE: RR route forwarding is not tested here because the RR plugin has a
-// pre-existing JSON format mismatch (expects ExaBGP-style events, receives
-// ze-bgp envelope). That needs a separate fix in the RR plugin.
+// VALIDATES: The simulator observes the exact prefixes sent through the reactor.
+// PREVENTS: A scenario reporting success after sending routes that never arrive.
 func TestInProcessBasicRoute(t *testing.T) {
 	if testing.Short() {
 		t.Skip("skipping integration test in short mode")
@@ -95,18 +90,22 @@ func TestInProcessBasicRoute(t *testing.T) {
 
 	// Both peers should establish BGP sessions.
 	established := map[int]bool{}
-	var routesSentByPeer0 int
+	var sent, received []netip.Prefix
 	for _, ev := range result.Events {
 		if ev.Type == peer.EventEstablished {
 			established[ev.PeerIndex] = true
 		}
 		if ev.PeerIndex == 0 && ev.Type == peer.EventRouteSent {
-			routesSentByPeer0++
+			sent = append(sent, ev.Prefix)
+		}
+		if ev.PeerIndex == 1 && ev.Type == peer.EventRouteReceived && ev.Time.Before(result.ObservationEnd) {
+			received = append(received, ev.Prefix)
 		}
 	}
 	assert.True(t, established[0], "peer 0 should establish BGP session")
 	assert.True(t, established[1], "peer 1 should establish BGP session")
-	assert.Greater(t, routesSentByPeer0, 0, "peer 0 should send routes to reactor")
+	require.Len(t, sent, 5, "source route count")
+	assert.ElementsMatch(t, sent, received, "all and only the source routes should reach peer 1")
 }
 
 // TestInProcessHoldTimerExpiry verifies that advancing VirtualClock past the
@@ -441,10 +440,6 @@ func TestInProcessDeterminism(t *testing.T) {
 //
 // VALIDATES: Property engine processes in-process events correctly.
 // PREVENTS: In-process events having wrong format for property validation.
-//
-// NOTE: Uses RouteCount=0 because RouteConsistency and ConvergenceDeadline
-// require RR route forwarding, which is blocked by pre-existing RR format
-// mismatch (see plan/spec-rr-event-format.md).
 func TestInProcessProperties(t *testing.T) {
 	if testing.Short() {
 		t.Skip("skipping integration test in short mode")
@@ -458,7 +453,7 @@ func TestInProcessProperties(t *testing.T) {
 			ASN:        65000,
 			RouterID:   netip.MustParseAddr(fmt.Sprintf("10.0.0.%d", 2+i)),
 			IsIBGP:     true,
-			RouteCount: 0, // No routes — avoids RouteConsistency violations from missing RR forwarding.
+			RouteCount: 3,
 			HoldTime:   90,
 			Families:   []string{"ipv4/unicast"},
 		}
@@ -482,7 +477,9 @@ func TestInProcessProperties(t *testing.T) {
 		validation.AllProperties(numPeers, 10*time.Second),
 	)
 	for _, ev := range result.Events {
-		engine.ProcessEvent(ev)
+		if ev.Time.Before(result.ObservationEnd) {
+			engine.ProcessEvent(ev)
+		}
 	}
 
 	violations := engine.AllViolations()

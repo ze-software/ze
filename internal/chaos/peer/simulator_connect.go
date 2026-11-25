@@ -87,7 +87,7 @@ func establishSession(ctx context.Context, cfg SimulatorConfig, emit func(Event)
 			conn, err = dialPeer(ctx, cfg)
 			if err != nil {
 				if ctx.Err() != nil {
-					emit(Event{Type: EventDisconnected})
+					emit(Event{Type: EventDisconnected, PlannedShutdown: true})
 					return nil, false
 				}
 				if !errors.Is(err, syscall.ECONNREFUSED) {
@@ -104,7 +104,7 @@ func establishSession(ctx context.Context, cfg SimulatorConfig, emit func(Event)
 			}
 			conn.Close() //nolint:errcheck,gosec // closing the connection whose handshake failed
 			if ctx.Err() != nil {
-				emit(Event{Type: EventError, Err: err})
+				emit(Event{Type: EventDisconnected, PlannedShutdown: true})
 				return nil, false
 			}
 			if !errors.Is(err, errClosedBeforeOpen) {
@@ -129,7 +129,7 @@ func establishSession(ctx context.Context, cfg SimulatorConfig, emit func(Event)
 		select {
 		case <-time.After(backoff):
 		case <-ctx.Done():
-			emit(Event{Type: EventDisconnected})
+			emit(Event{Type: EventDisconnected, PlannedShutdown: true})
 			return nil, false
 		}
 		backoff = min(backoff*2, connectBackoffMax)

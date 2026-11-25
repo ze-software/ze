@@ -20,10 +20,14 @@ type ConvergenceDeadline struct {
 
 // NewConvergenceDeadline creates a convergence-deadline property for n peers.
 func NewConvergenceDeadline(n int, deadline time.Duration) *ConvergenceDeadline {
+	return newConvergenceDeadline(n, deadline, nil)
+}
+
+func newConvergenceDeadline(n int, deadline time.Duration, reachable Reachability) *ConvergenceDeadline {
 	return &ConvergenceDeadline{
 		n:           n,
 		deadline:    deadline,
-		convergence: NewConvergence(n, deadline),
+		convergence: NewConvergenceWithReachability(n, deadline, reachable),
 	}
 }
 
@@ -32,14 +36,24 @@ func (p *ConvergenceDeadline) Description() string { return "All routes converge
 func (p *ConvergenceDeadline) RFC() string         { return "" }
 
 func (p *ConvergenceDeadline) ProcessEvent(ev peer.Event) {
-	p.lastTime = ev.Time
-	// This independent property observes only announcement and receipt pairs.
+	if ev.Time.After(p.lastTime) {
+		p.lastTime = ev.Time
+	}
+	// Observe events that create, resolve, or cancel delivery expectations.
 	//exhaustive:ignore
 	switch ev.Type {
 	case peer.EventRouteSent:
-		p.convergence.RecordAnnounce(ev.PeerIndex, ev.Prefix, ev.Time, ev.Family)
+		if ev.Prefix.IsValid() {
+			p.convergence.RecordAnnounce(ev.PeerIndex, ev.Prefix, ev.Time, ev.Family)
+		}
 	case peer.EventRouteReceived:
 		p.convergence.RecordReceive(ev.PeerIndex, ev.Prefix, ev.Time)
+	case peer.EventWithdrawalSent:
+		for _, prefix := range ev.WithdrawnPrefixes {
+			p.convergence.RecordWithdraw(ev.PeerIndex, prefix)
+		}
+	case peer.EventDisconnected:
+		p.convergence.Disconnect(ev.PeerIndex)
 	}
 }
 
@@ -48,9 +62,17 @@ func (p *ConvergenceDeadline) Violations() []Violation {
 	violations := make([]Violation, 0, len(slow))
 	for _, s := range slow {
 		var b textbuf.Buffer
+		b.Str("route ").Str(s.Prefix.String()).Str(" from peer ").Int(int64(s.Source))
+		if s.Received {
+			b.Str(" received late by peer ")
+		} else {
+			b.Str(" not received by peer ")
+		}
+		b.Int(int64(s.Peer)).Str(" after ").Str(s.Age.String())
+		b.Str(" (deadline ").Str(p.deadline.String()).Byte(')')
 		violations = append(violations, Violation{
 			Property:  p.Name(),
-			Message:   b.Reset().Str("route ").Str(s.Prefix.String()).Str(" from peer ").Int(int64(s.Source)).Str(" not received by peer ").Int(int64(s.Peer)).Str(" after ").Str(s.Age.String()).Str(" (deadline ").Str(p.deadline.String()).Byte(')').String(),
+			Message:   b.String(),
 			PeerIndex: s.Peer,
 			Time:      p.lastTime,
 		})
@@ -59,6 +81,6 @@ func (p *ConvergenceDeadline) Violations() []Violation {
 }
 
 func (p *ConvergenceDeadline) Reset() {
-	p.convergence = NewConvergence(p.n, p.deadline)
+	p.convergence = NewConvergenceWithReachability(p.n, p.deadline, p.convergence.reachable)
 	p.lastTime = time.Time{}
 }

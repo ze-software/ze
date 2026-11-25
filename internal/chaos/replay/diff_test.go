@@ -112,3 +112,36 @@ func TestDiffHeaderOnly(t *testing.T) {
 	assert.Equal(t, 0, exitCode)
 	assert.Contains(t, out.String(), "identical")
 }
+
+// VALIDATES: A changed withdrawal list locates the difference in a v2 capture.
+// PREVENTS: Reporting identical withdrawals that affect different prefixes.
+func TestDiffObservationWithdrawals(t *testing.T) {
+	header := makeHeader(42, 2)
+	header["version"] = 2
+	end := map[string]any{"record-type": "observation-end", "seq": 2}
+	log1 := buildNDJSON(header, makeEvent(1, "withdrawal-sent", 0, func(event map[string]any) {
+		event["withdrawn-prefixes"] = []string{"2001:db8::/48"}
+	}), end)
+	log2 := buildNDJSON(header, makeEvent(1, "withdrawal-sent", 0, func(event map[string]any) {
+		event["withdrawn-prefixes"] = []string{"2001:db8:1::/48"}
+	}), end)
+
+	var out bytes.Buffer
+	assert.Equal(t, 1, Diff(strings.NewReader(log1), strings.NewReader(log2), &out))
+	assert.Contains(t, out.String(), "seq 1")
+}
+
+// VALIDATES: The observation checkpoint ends the comparison of a v2 capture.
+// PREVENTS: Different cleanup events appearing as differences in the run.
+func TestDiffObservationEndsBeforeTeardown(t *testing.T) {
+	header := makeHeader(42, 2)
+	header["version"] = 2
+	end := map[string]any{"record-type": "observation-end", "seq": 2}
+	first := makeEvent(1, "established", 0)
+	log1 := buildNDJSON(header, first, end)
+	log2 := buildNDJSON(header, first, end, makeEvent(3, "disconnected", 0))
+
+	var out bytes.Buffer
+	assert.Equal(t, 0, Diff(strings.NewReader(log1), strings.NewReader(log2), &out))
+	assert.Contains(t, out.String(), "identical")
+}

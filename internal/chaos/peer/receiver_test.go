@@ -350,8 +350,69 @@ func TestParseUpdatePrefixesMPUnreach(t *testing.T) {
 	}, withdrawn)
 }
 
+// TestParseMulticastNLRIPrefixes checks both multicast attributes.
+//
+// VALIDATES: IPv4 and IPv6 multicast announcements and withdrawals retain each prefix.
+// PREVENTS: Collapsing a batch of multicast routes into a prefixless event.
+func TestParseMulticastNLRIPrefixes(t *testing.T) {
+	cases := []struct {
+		family   string
+		afi      byte
+		nextHop  []byte
+		wireNLRI []byte
+		prefixes []netip.Prefix
+	}{
+		{
+			family:   "ipv4/multicast",
+			afi:      1,
+			nextHop:  []byte{192, 0, 2, 1},
+			wireNLRI: []byte{24, 239, 1, 2, 32, 239, 3, 4, 5},
+			prefixes: []netip.Prefix{
+				netip.MustParsePrefix("239.1.2.0/24"),
+				netip.MustParsePrefix("239.3.4.5/32"),
+			},
+		},
+		{
+			family:   "ipv6/multicast",
+			afi:      2,
+			nextHop:  []byte{0x20, 0x01, 0x0d, 0xb8, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1},
+			wireNLRI: []byte{32, 0xff, 0x3e, 0, 1, 48, 0xff, 0x3e, 0, 2, 0, 3},
+			prefixes: []netip.Prefix{
+				netip.MustParsePrefix("ff3e:1::/32"),
+				netip.MustParsePrefix("ff3e:2:3::/48"),
+			},
+		},
+	}
+	for _, tc := range cases {
+		t.Run(tc.family, func(t *testing.T) {
+			reach := []byte{0, tc.afi, 2, byte(len(tc.nextHop))}
+			reach = append(reach, tc.nextHop...)
+			reach = append(reach, 0)
+			reach = append(reach, tc.wireNLRI...)
+			unreach := append([]byte{0, tc.afi, 2}, tc.wireNLRI...)
+
+			buf := newEventBuffer()
+			parseMPReachNLRI(reach, 1, buf)
+			parseMPUnreachNLRI(unreach, 1, buf)
+
+			require.Len(t, buf.items, 2*len(tc.prefixes))
+			for i, prefix := range tc.prefixes {
+				announcement := buf.items[i]
+				assert.Equal(t, EventRouteReceived, announcement.Type)
+				assert.Equal(t, tc.family, announcement.Family)
+				assert.Equal(t, prefix, announcement.Prefix)
+
+				withdrawal := buf.items[len(tc.prefixes)+i]
+				assert.Equal(t, EventRouteWithdrawn, withdrawal.Type)
+				assert.Equal(t, tc.family, withdrawal.Family)
+				assert.Equal(t, prefix, withdrawal.Prefix)
+			}
+		})
+	}
+}
+
 // TestParseUpdatePrefixesMPReachVPN verifies that MP_REACH_NLRI for
-// non-unicast families (e.g., IPv4/VPN) emits exactly one counted event
+// VPN families (e.g., IPv4/VPN) emits exactly one counted event
 // with the correct family tag, without attempting to parse individual NLRI.
 //
 // VALIDATES: Non-unicast MP_REACH produces one event per UPDATE with family tag.

@@ -22,6 +22,12 @@ func NewPrefixSet() *PrefixSet {
 // Add inserts a prefix into the set.
 func (s *PrefixSet) Add(p netip.Prefix) { s.m[p] = struct{}{} }
 
+func (s *PrefixSet) addAll(prefixes *PrefixSet) {
+	for prefix := range prefixes.m {
+		s.Add(prefix)
+	}
+}
+
 // Remove deletes a prefix from the set.
 func (s *PrefixSet) Remove(p netip.Prefix) { delete(s.m, p) }
 
@@ -60,14 +66,17 @@ func (s *PrefixSet) SortedStrings() []string {
 	return result
 }
 
-// Model tracks the expected route state for all peers.
-//
-// Core invariant: after convergence, established peer P should have received
-// exactly the routes from all other established peers Q (where Q != P).
-//
-// A refcounted globalAnnounced map is maintained incrementally so that
-// Expected() can iterate the global set instead of rebuilding it from
-// all per-peer sets on every call.
+// Reachability reports whether the target exports a family from source to destination.
+// A nil policy allows all pairs of distinct peers. An empty family denotes an
+// announcement without family information. The policy must be safe for concurrent use.
+type Reachability func(source, destination int, family string) bool
+
+func (reachable Reachability) allows(source, destination int, family string) bool {
+	return source != destination && (reachable == nil || reachable(source, destination, family))
+}
+
+// Model tracks the expected route state for all peers. After convergence, each
+// established peer should have every route exported to it by another established peer.
 type Model struct {
 	// peerCount is the number of peers in the scenario.
 	peerCount int
@@ -75,31 +84,32 @@ type Model struct {
 	// established tracks which peers have active sessions.
 	established []bool
 
-	// announced tracks which routes each peer has announced.
-	// announced[peerIndex] = set of prefixes peer has announced.
-	announced []*PrefixSet
+	// announced lists each source peer's prefixes by family.
+	announced []map[string]*PrefixSet
 
-	// globalAnnounced maps prefix → number of peers that have announced it.
-	// Maintained incrementally by Announce, Withdraw, and Disconnect.
-	globalAnnounced map[netip.Prefix]int
+	reachable Reachability
 }
 
-// NewModel creates a new validation model for n peers.
+// NewModel creates a validation model with full reachability between distinct peers.
 func NewModel(n int) *Model {
-	announced := make([]*PrefixSet, n)
+	return NewModelWithReachability(n, nil)
+}
+
+// NewModelWithReachability creates a validation model for the target's export policy.
+func NewModelWithReachability(n int, reachable Reachability) *Model {
+	announced := make([]map[string]*PrefixSet, n)
 	for i := range n {
-		announced[i] = NewPrefixSet()
+		announced[i] = make(map[string]*PrefixSet)
 	}
 	return &Model{
-		peerCount:       n,
-		established:     make([]bool, n),
-		announced:       announced,
-		globalAnnounced: make(map[netip.Prefix]int),
+		peerCount:   n,
+		established: make([]bool, n),
+		announced:   announced,
+		reachable:   reachable,
 	}
 }
 
-// SetEstablished marks a peer as established or not.
-// When a peer becomes established, its expected set is rebuilt.
+// SetEstablished records whether a peer's routes can be exchanged.
 func (m *Model) SetEstablished(peer int, established bool) {
 	if peer < 0 || peer >= m.peerCount {
 		return
@@ -107,31 +117,38 @@ func (m *Model) SetEstablished(peer int, established bool) {
 	m.established[peer] = established
 }
 
-// Announce records that a peer has announced a route.
-// The route becomes expected at all other established peers.
+// Established reports whether the latest observation has a live session.
+func (m *Model) Established(peer int) bool {
+	return peer >= 0 && peer < m.peerCount && m.established[peer]
+}
+
+// Announce records a route the source sends to the target.
 func (m *Model) Announce(source int, prefix netip.Prefix) {
+	m.AnnounceFamily(source, prefix, "")
+}
+
+// AnnounceFamily records a route with its family so export eligibility can be checked.
+func (m *Model) AnnounceFamily(source int, prefix netip.Prefix, family string) {
 	if source < 0 || source >= m.peerCount {
 		return
 	}
-	if !m.announced[source].Contains(prefix) {
-		m.globalAnnounced[prefix]++
+	families := m.announced[source]
+	prefixes := families[family]
+	if prefixes == nil {
+		prefixes = NewPrefixSet()
+		families[family] = prefixes
 	}
-	m.announced[source].Add(prefix)
+	prefixes.Add(prefix)
 }
 
-// Withdraw records that a peer has withdrawn a route.
-// The route is removed from all other peers' expected sets.
+// Withdraw forgets a route sent by the source. Routes from other sources remain.
 func (m *Model) Withdraw(source int, prefix netip.Prefix) {
 	if source < 0 || source >= m.peerCount {
 		return
 	}
-	if m.announced[source].Contains(prefix) {
-		m.globalAnnounced[prefix]--
-		if m.globalAnnounced[prefix] <= 0 {
-			delete(m.globalAnnounced, prefix)
-		}
+	for _, prefixes := range m.announced[source] {
+		prefixes.Remove(prefix)
 	}
-	m.announced[source].Remove(prefix)
 }
 
 // Disconnect marks a peer as disconnected and removes all its announced routes.
@@ -139,38 +156,24 @@ func (m *Model) Disconnect(peer int) {
 	if peer < 0 || peer >= m.peerCount {
 		return
 	}
-	// Decrement global refcounts for all routes this peer announced.
-	for _, prefix := range m.announced[peer].All() {
-		m.globalAnnounced[prefix]--
-		if m.globalAnnounced[prefix] <= 0 {
-			delete(m.globalAnnounced, prefix)
-		}
-	}
 	m.established[peer] = false
-	m.announced[peer] = NewPrefixSet()
+	clear(m.announced[peer])
 }
 
-// Expected computes the set of prefixes that peer should have received
-// from the route server. This is the union of all routes announced by
-// other established peers.
-//
-// Uses the incrementally maintained globalAnnounced refcount map instead
-// of iterating all per-peer announcement sets.
+// Expected returns the union of prefixes that established sources export to peer.
 func (m *Model) Expected(peer int) *PrefixSet {
 	result := NewPrefixSet()
 	if peer < 0 || peer >= m.peerCount || !m.established[peer] {
 		return result
 	}
-	ownAnnounced := m.announced[peer]
-	for prefix, count := range m.globalAnnounced {
-		if ownAnnounced.Contains(prefix) {
-			// This peer also announced it — only include if at least
-			// one other peer announced the same prefix.
-			if count > 1 {
-				result.Add(prefix)
+	for source, families := range m.announced {
+		if !m.established[source] {
+			continue
+		}
+		for family, prefixes := range families {
+			if m.reachable.allows(source, peer, family) {
+				result.addAll(prefixes)
 			}
-		} else {
-			result.Add(prefix)
 		}
 	}
 	return result
@@ -178,8 +181,12 @@ func (m *Model) Expected(peer int) *PrefixSet {
 
 // AnnouncedRoutes returns the set of routes a peer has announced.
 func (m *Model) AnnouncedRoutes(peer int) *PrefixSet {
+	result := NewPrefixSet()
 	if peer < 0 || peer >= m.peerCount {
-		return NewPrefixSet()
+		return result
 	}
-	return m.announced[peer]
+	for _, prefixes := range m.announced[peer] {
+		result.addAll(prefixes)
+	}
+	return result
 }

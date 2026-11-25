@@ -52,6 +52,47 @@ func TestJSONLogHeader(t *testing.T) {
 	assert.Contains(t, hdr, "start-time")
 }
 
+// TestJSONLogReplayWindow pins the record layout needed for replay.
+//
+// VALIDATES: Version 2 retains run settings and the exact observation cutoff.
+// PREVENTS: Replay reapplying defaults or rounding a convergence deadline.
+func TestJSONLogReplayWindow(t *testing.T) {
+	var buf bytes.Buffer
+	start := time.Date(2025, 1, 15, 10, 30, 0, 0, time.UTC)
+	jlog := NewJSONLog(&buf, JSONLogConfig{
+		Start:               start,
+		Peers:               2,
+		IBGPPeers:           []bool{true, false},
+		PeerFamilies:        [][]string{{"ipv4/unicast", "ipv4/multicast"}, {"ipv4/unicast"}},
+		ConvergenceDeadline: 5 * time.Second,
+		Properties:          "convergence",
+	})
+	jlog.ProcessEvent(peer.Event{
+		Type:   peer.EventRouteSent,
+		Time:   start.Add(321 * time.Microsecond),
+		Prefix: netip.MustParsePrefix("239.1.2.0/24"),
+		Family: "ipv4/multicast",
+	})
+	jlog.EndObservation(start.Add(1500 * time.Microsecond))
+	require.NoError(t, jlog.Close())
+
+	parsed := parseNDJSON(t, &buf)
+	require.Len(t, parsed, 3)
+	assert.Equal(t, float64(2), parsed[0]["version"])
+	assert.Equal(t, []any{true, false}, parsed[0]["ibgp-peers"])
+	assert.Equal(t, []any{[]any{"ipv4/unicast", "ipv4/multicast"}, []any{"ipv4/unicast"}}, parsed[0]["peer-families"])
+	assert.Equal(t, float64(5*time.Second), parsed[0]["convergence-deadline-ns"])
+	assert.Equal(t, "convergence", parsed[0]["properties"])
+	assert.Equal(t, "ipv4/multicast", parsed[1]["family"])
+	assert.Equal(t, float64(321*time.Microsecond), parsed[1]["time-offset-ns"])
+	assert.Equal(t, map[string]any{
+		"record-type":    "observation-end",
+		"seq":            float64(2),
+		"time-offset-ms": float64(1),
+		"time-offset-ns": float64(1500 * time.Microsecond),
+	}, parsed[2])
+}
+
 // TestJSONLogFormat verifies NDJSON output: header + one event line, kebab-case keys.
 //
 // VALIDATES: Each event produces valid JSON with record-type, seq, time-offset-ms.

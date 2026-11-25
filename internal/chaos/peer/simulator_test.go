@@ -105,6 +105,61 @@ func readBGPMessage(conn net.Conn) ([]byte, error) {
 	return buf, nil
 }
 
+// VALIDATES: The peer reads an UPDATE while its initial send is blocked.
+// PREVENTS: Two-way route exchange stalling with both TCP send buffers full.
+func TestSimulatorReceivesWhileAnnouncing(t *testing.T) {
+	client, server := net.Pipe()
+	t.Cleanup(func() { _ = server.Close() })
+	ctx, cancel := context.WithTimeout(t.Context(), 5*time.Second)
+	defer cancel()
+	events := make(chan Event, 16)
+	go func() {
+		defer close(events)
+		RunSimulator(ctx, SimulatorConfig{
+			Profile: SimProfile{
+				ASN: 65001, RouterID: netip.MustParseAddr("10.0.0.2"), HoldTime: 90, RouteCount: 1,
+			},
+			Conn: client, Events: events, Quiet: true,
+		})
+	}()
+
+	deadline, _ := ctx.Deadline()
+	require.NoError(t, server.SetDeadline(deadline))
+	_, err := readBGPMessage(server)
+	require.NoError(t, err)
+	routerID := netip.MustParseAddr("10.0.0.1")
+	open, err := BuildOpen(SessionConfig{ASN: 65000, RouterID: routerID, HoldTime: 90})
+	require.NoError(t, err)
+	require.NoError(t, writeMsg(server, open))
+	_, err = readBGPMessage(server)
+	require.NoError(t, err)
+	require.NoError(t, writeMsg(server, message.NewKeepalive()))
+
+	remotePrefix := netip.MustParsePrefix("192.0.2.0/24")
+	sender := NewSender(SenderConfig{ASN: 65000, NextHop: routerID})
+	_, err = server.Write(sender.BuildRoute(remotePrefix))
+	require.NoError(t, err, "remote UPDATE must cross while the local UPDATE waits to be read")
+	_, err = readBGPMessage(server)
+	require.NoError(t, err)
+	_, err = readBGPMessage(server)
+	require.NoError(t, err)
+
+	var received, synchronized bool
+	for event := range events {
+		if event.Type == EventRouteReceived && event.Prefix == remotePrefix {
+			received = true
+		}
+		if event.Type == EventEORSent {
+			synchronized = true
+		}
+		if received && synchronized {
+			break
+		}
+	}
+	assert.True(t, received, "remote route observed")
+	assert.True(t, synchronized, "local initial route transfer completed")
+}
+
 // TestSimulatorEstablishes verifies that the simulator connects, completes
 // the BGP handshake, and emits an EventEstablished event.
 //

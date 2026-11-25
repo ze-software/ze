@@ -3,8 +3,10 @@ package shrink
 import (
 	"errors"
 	"io"
+	"net/netip"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -171,4 +173,27 @@ func TestParseLogReadError(t *testing.T) {
 	_, _, err := ParseLog(r)
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "reading event log")
+}
+
+// VALIDATES: Shrinking reads the same observation events and metadata as replay.
+// PREVENTS: A teardown disconnect erasing a failure or loss of withdrawal identity.
+func TestParseLogObservation(t *testing.T) {
+	input := `{"record-type":"header","version":2,"peers":2,"start-time":"2026-01-01T00:00:00Z","ibgp-peers":[false,true],"peer-families":[["ipv6/unicast"],["ipv6/unicast"]],"convergence-deadline-ns":1500000000,"properties":"route-consistency"}
+{"record-type":"event","seq":1,"time-offset-ms":1,"time-offset-ns":1234567,"event-type":"withdrawal-sent","peer-index":0,"family":"ipv6/unicast","withdrawn-prefixes":["2001:db8::/48"]}
+{"record-type":"event","seq":2,"time-offset-ns":1500000,"event-type":"disconnected","peer-index":1,"planned-shutdown":true}
+{"record-type":"observation-end","seq":3,"time-offset-ns":2000000}
+{"record-type":"event","seq":4,"time-offset-ns":3000000,"event-type":"disconnected","peer-index":0,"planned-shutdown":true}
+`
+
+	meta, events, err := ParseLog(strings.NewReader(input))
+	require.NoError(t, err)
+	assert.Equal(t, []bool{false, true}, meta.IBGPPeers)
+	assert.Equal(t, [][]string{{"ipv6/unicast"}, {"ipv6/unicast"}}, meta.PeerFamilies)
+	assert.Equal(t, 1500*time.Millisecond, meta.ConvergenceDeadline)
+	assert.Equal(t, "route-consistency", meta.Properties)
+	require.Len(t, events, 2)
+	assert.Equal(t, meta.StartTime.Add(1234567), events[0].Time)
+	assert.Equal(t, "ipv6/unicast", events[0].Family)
+	assert.Equal(t, []netip.Prefix{netip.MustParsePrefix("2001:db8::/48")}, events[0].WithdrawnPrefixes)
+	assert.True(t, events[1].PlannedShutdown)
 }

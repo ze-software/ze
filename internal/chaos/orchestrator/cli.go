@@ -35,6 +35,7 @@ import (
 	_ "github.com/ze-software/ze/internal/component/plugin/all"
 	"github.com/ze-software/ze/internal/core/cliio"
 	"github.com/ze-software/ze/internal/core/env"
+	"github.com/ze-software/ze/internal/core/opererr"
 	"github.com/ze-software/ze/internal/core/stringsx"
 	"github.com/ze-software/ze/internal/core/textbuf"
 )
@@ -301,6 +302,17 @@ Control:
 		fmt.Fprintf(os.Stderr, "error: --pipe and --config-out are mutually exclusive\n")
 		return 1
 	}
+	if *pipe && *inProcess {
+		fmt.Fprintln(os.Stderr, opererr.New("--pipe and --in-process select different Ze instances",
+			"The run needs one target. To use the simulator's built-in Ze, run:", "./le chaos run --in-process").Error())
+		return 1
+	}
+	if *eventLog == "-" && (*pipe || *configOut == "-") {
+		fmt.Fprintln(os.Stderr, opererr.New("the event log and Ze configuration both use stdout",
+			"Ze needs a stream containing only its configuration. Write the log to a file:",
+			"./le chaos run --event-log run.ndjson --pipe | ze -").Error())
+		return 1
+	}
 	if (*configOnly || *pipe) && modeCount > 0 {
 		fmt.Fprintf(os.Stderr, "error: --config-only/--pipe cannot be used with --shrink/--replay/--diff\n")
 		return 1
@@ -383,6 +395,21 @@ Control:
 	// Validate routes.
 	if *routes < 1 {
 		fmt.Fprintf(os.Stderr, "error: --routes must be >= 1, got %d\n", *routes)
+		return 1
+	}
+	if *convergenceDeadline <= 0 {
+		fmt.Fprintln(os.Stderr, opererr.New("--convergence-deadline must be positive",
+			"The simulator needs a positive time limit for route delivery.", "./le chaos run --convergence-deadline 30s").Error())
+		return 1
+	}
+	if *chaosInterval <= 0 {
+		fmt.Fprintln(os.Stderr, opererr.New("--chaos-interval must be positive",
+			"The fault scheduler needs a positive time between checks.", "./le chaos run --chaos-interval 1s").Error())
+		return 1
+	}
+	if *routeInterval <= 0 {
+		fmt.Fprintln(os.Stderr, opererr.New("--route-interval must be positive",
+			"The route scheduler needs a positive time between checks.", "./le chaos run --route-interval 5s").Error())
 		return 1
 	}
 
@@ -534,17 +561,17 @@ Control:
 
 	// Generate config for the target daemon.
 	configParams := scenario.ConfigParams{
-		LocalAS:   65000,
-		RouterID:  netip.MustParseAddr("10.0.0.1"),
-		LocalAddr: *localAddr,
-		BasePort:  *port,
-		ZeBinary:  *daemonBinary,
-		Profiles:  profiles,
-		PprofAddr: *debugAddr,
-		SSHPort:   *sshPort,
-		WebUIPort: *webUIPort,
-		LGPort:    *lgPort,
-		MCPPort:   *zeMCPPort,
+		LocalAS:             65000,
+		RouterID:            netip.MustParseAddr("10.0.0.1"),
+		LocalAddr:           *localAddr,
+		BasePort:            *port,
+		SeparateRouteServer: !*inProcess,
+		Profiles:            profiles,
+		PprofAddr:           *debugAddr,
+		SSHPort:             *sshPort,
+		WebUIPort:           *webUIPort,
+		LGPort:              *lgPort,
+		MCPPort:             *zeMCPPort,
 	}
 
 	var daemonConfig string
@@ -582,7 +609,7 @@ Control:
 	// Pre-flight: verify the base port is free before starting Ze.
 	// Catches conflicts early instead of producing confusing BGP errors later.
 	zeAddr := fmt.Sprintf("%s:%d", *localAddr, *port)
-	if !*inProcess {
+	if !*inProcess && *configOut == "" {
 		if err := checkPortFree(zeAddr); err != nil {
 			fmt.Fprintf(os.Stderr, "error: %v\n", err)
 			return 1
@@ -591,7 +618,7 @@ Control:
 
 	// Write config for pipe, config-out, and in-process modes.
 	// Fork mode (default) pipes config to the child process instead.
-	if *pipe || *configOut != "" || *inProcess {
+	if *pipe || *configOut != "" || (*inProcess && *eventLog != "-") {
 		if writeErr := writeConfig(daemonConfig, configParams, *configOut, *quiet); writeErr != nil {
 			fmt.Fprintf(os.Stderr, "error: writing config: %v\n", writeErr)
 			return 1
@@ -603,6 +630,16 @@ Control:
 	if *inProcess {
 		if *duration == 0 {
 			fmt.Fprintf(os.Stderr, "error: --in-process requires --duration\n")
+			return 1
+		}
+		profileConfig := orchestratorConfig{Profiles: profiles, Target: scenario.TargetZe}
+		ibgp, families := replayPeerProfiles(&profileConfig)
+		reachable := validation.ScenarioReachability(ibgp, families)
+		ep := validation.NewEventProcessor(len(profiles), *convergenceDeadline, reachable)
+		props, selectionErr := validation.ScenarioProperties(*properties, len(profiles), *convergenceDeadline, reachable)
+		if selectionErr != nil {
+			var tb textbuf.Buffer
+			tb.Str("error: ").Err(selectionErr).Byte('\n').StdErr() //nolint:errcheck // CLI diagnostic
 			return 1
 		}
 
@@ -639,7 +676,7 @@ Control:
 			mcpProvider := &chaosmcp.Provider{
 				State:       wd.State(),
 				Watchdog:    ipWatchdog,
-				Convergence: validation.NewConvergence(len(profiles), *convergenceDeadline),
+				Convergence: ep.Convergence,
 				Seed:        *seed,
 				StartTime:   time.Now(),
 				PeerCount:   len(profiles),
@@ -706,12 +743,26 @@ Control:
 			ipCfg.StepDelay = 1 * time.Second  // Real-time pacing for web dashboard.
 			ipCfg.StepDelayFunc = wd.StepDelay // Dynamic speed control from dashboard.
 		}
+		start := time.Now()
 		result, ipErr := inprocess.Run(ipCtx, ipCfg)
 		if ipErr != nil {
 			fmt.Fprintf(os.Stderr, "error: in-process run: %v\n", ipErr)
 			return 1
 		}
 		fmt.Fprintf(os.Stderr, "le chaos run | in-process complete | events: %d\n", len(result.Events))
+		if sigCtx.Err() != nil {
+			return 0
+		}
+		if ipCtx.Err() != nil {
+			var tb textbuf.Buffer
+			tb.Str("error: in-process observation timed out: ").Err(ipCtx.Err()).Byte('\n').StdErr() //nolint:errcheck // CLI diagnostic
+			return 1
+		}
+		logConfig := report.JSONLogConfig{
+			Start: start, Seed: *seed, Peers: len(profiles), ChaosRate: *chaosRate,
+			IBGPPeers: ibgp, PeerFamilies: families, ConvergenceDeadline: *convergenceDeadline, Properties: *properties,
+		}
+		exitCode := observeInProcess(result, ep, props, *eventLog, logConfig)
 
 		// When web dashboard is active, keep serving until Ctrl-C
 		// so the user can explore the final state. A signal that already
@@ -720,17 +771,21 @@ Control:
 			fmt.Fprintf(os.Stderr, "le chaos run | simulation done — dashboard at %s (Ctrl-C to exit)\n", dashboardURL(*webAddr))
 			<-sigCtx.Done()
 		}
-		return 0
+		return exitCode
 	}
 
 	// Fork mode (default): start the daemon as a child process.
 	var child *zeChild
 	if !*pipe && *configOut == "" {
 		var forkErr error
+		stdout := os.Stdout
+		if *eventLog == "-" {
+			stdout = os.Stderr
+		}
 		if target == scenario.TargetZe {
-			child, forkErr = forkZe(context.Background(), daemonConfig, *daemonBinary)
+			child, forkErr = forkZe(context.Background(), daemonConfig, *daemonBinary, *debugAddr, stdout)
 		} else {
-			child, forkErr = forkDaemon(context.Background(), daemonConfig, *daemonBinary, target, *port, *localAddr)
+			child, forkErr = forkDaemon(context.Background(), daemonConfig, *daemonBinary, target, *port, *localAddr, stdout)
 		}
 		if forkErr != nil {
 			fmt.Fprintf(os.Stderr, "error: %v\n", forkErr)
@@ -790,8 +845,7 @@ Control:
 
 	// Wait for Ze to start listening. In pipeline mode, Ze is reading
 	// piped config and needs time to initialize — retry with backoff.
-	pipeline := *configOut == ""
-	if err := waitForZe(parentCtx, zeAddr, pipeline); err != nil {
+	if err := waitForZe(parentCtx, zeAddr, true); err != nil {
 		fmt.Fprintf(os.Stderr, "error: %v\n", err)
 		return 1
 	}

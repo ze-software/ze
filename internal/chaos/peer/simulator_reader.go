@@ -101,15 +101,14 @@ func readLoop(ctx context.Context, conn net.Conn, peerIndex int, events chan<- E
 		copy(fullMsg[message.HeaderLen:], body)
 		buf.setBGPMessage(fullMsg)
 
-		// Parse IPv4/unicast UPDATE for announced and withdrawn prefixes.
+		// Parse announced and withdrawn routes from the UPDATE.
 		parseUpdatePrefixes(body, peerIndex, buf)
 	}
 }
 
 // parseUpdatePrefixes extracts announced and withdrawn prefixes from an
-// UPDATE message body (after the 19-byte header). Handles both IPv4/unicast
-// NLRI (trailing field) and MP_REACH_NLRI / MP_UNREACH_NLRI attributes for
-// IPv6/unicast.
+// UPDATE message body (after the 19-byte header). Handles IPv4 unicast NLRI
+// directly and other address families via MP_REACH_NLRI or MP_UNREACH_NLRI.
 func parseUpdatePrefixes(body []byte, peerIndex int, buf *eventBuffer) {
 	if len(body) < 4 {
 		return
@@ -194,11 +193,11 @@ func afiSafiFamily(afi uint16, safi uint8) string {
 	case afi == 1 && safi == 1:
 		return familyIPv4Unicast
 	case afi == 1 && safi == 2:
-		return "ipv4/multicast"
+		return familyIPv4Multicast
 	case afi == 2 && safi == 1:
 		return familyIPv6Unicast
 	case afi == 2 && safi == 2:
-		return "ipv6/multicast"
+		return familyIPv6Multicast
 	case afi == 1 && safi == 128:
 		return "ipv4/mpls-vpn"
 	case afi == 2 && safi == 128:
@@ -217,7 +216,7 @@ func afiSafiFamily(afi uint16, safi uint8) string {
 // parseMPReachNLRI parses MP_REACH_NLRI (type 14) and emits EventRouteReceived.
 // Format: AFI(2) + SAFI(1) + NH-len(1) + NH(variable) + reserved(1) + NLRI...
 //
-// For IPv4/IPv6 unicast: parses individual prefixes from the NLRI field.
+// For IPv4/IPv6 unicast and multicast: parses individual prefixes from the NLRI field.
 // For other families (VPN, EVPN, FlowSpec): emits one event per UPDATE
 // with the family tag. In the chaos simulator each UPDATE carries exactly
 // one non-unicast NLRI, so the count stays accurate.
@@ -243,7 +242,7 @@ func parseMPReachNLRI(data []byte, peerIndex int, buf *eventBuffer) {
 // parseMPUnreachNLRI parses MP_UNREACH_NLRI (type 15) and emits EventRouteWithdrawn.
 // Format: AFI(2) + SAFI(1) + withdrawn-NLRI...
 //
-// For IPv4/IPv6 unicast: parses individual prefixes.
+// For IPv4/IPv6 unicast and multicast: parses individual prefixes.
 // For other families: emits one event per UPDATE with the family tag.
 func parseMPUnreachNLRI(data []byte, peerIndex int, buf *eventBuffer) {
 	if len(data) < 3 { // AFI(2) + SAFI(1) minimum
@@ -259,14 +258,14 @@ func parseMPUnreachNLRI(data []byte, peerIndex int, buf *eventBuffer) {
 }
 
 // emitNLRIEvents dispatches NLRI parsing by family and sends events.
-// For unicast families, individual prefixes are parsed. For others (VPN,
-// EVPN, FlowSpec), one event per UPDATE is emitted since the chaos
-// simulator sends exactly one NLRI per UPDATE for non-unicast families.
+// For unicast and multicast families, individual prefixes are parsed. For
+// VPN, EVPN and FlowSpec, it emits one event per UPDATE because the simulator
+// sends one NLRI per UPDATE for those families.
 func emitNLRIEvents(data []byte, family string, evType EventType, peerIndex int, buf *eventBuffer) {
 	switch family {
-	case familyIPv4Unicast:
+	case familyIPv4Unicast, familyIPv4Multicast:
 		emitPrefixEvents(data, parseIPv4Prefix, family, evType, peerIndex, buf)
-	case familyIPv6Unicast:
+	case familyIPv6Unicast, familyIPv6Multicast:
 		emitPrefixEvents(data, parseIPv6Prefix, family, evType, peerIndex, buf)
 	default:
 		// VPN, EVPN, FlowSpec: one NLRI per UPDATE in chaos simulator.

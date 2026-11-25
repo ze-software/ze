@@ -144,12 +144,8 @@ func ActionTypeFromString(s string) (ActionType, bool) {
 	return 0, false
 }
 
-// needsReconnect returns true if this action type causes a session teardown
-// that requires the peer to reconnect afterwards. Unexported: no production
-// consumer yet (the validation model classifies from runtime EventDisconnected,
-// not from action type); the classification table is kept because it documents
-// action semantics and is asserted by TestActionNeedsReconnect.
-func (a ActionType) needsReconnect() bool {
+// NeedsReconnect reports whether the action is expected to tear down a session.
+func (a ActionType) NeedsReconnect() bool {
 	return actionReconnect[a]
 }
 

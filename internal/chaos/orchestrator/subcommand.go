@@ -15,6 +15,7 @@ import (
 	"github.com/ze-software/ze/internal/chaos/replay"
 	"github.com/ze-software/ze/internal/chaos/scenario"
 	"github.com/ze-software/ze/internal/chaos/shrink"
+	"github.com/ze-software/ze/internal/chaos/validation"
 	"github.com/ze-software/ze/internal/core/cliio"
 	"github.com/ze-software/ze/internal/core/textbuf"
 )
@@ -55,8 +56,13 @@ func runShrink(path string, deadline time.Duration, verbose bool) int {
 	}
 
 	cfg := shrink.Config{
-		PeerCount: meta.Peers,
-		Deadline:  deadline,
+		PeerCount:    meta.Peers,
+		Deadline:     deadline,
+		Reachability: validation.ScenarioReachability(meta.IBGPPeers, meta.PeerFamilies),
+		Properties:   meta.Properties,
+	}
+	if meta.ConvergenceDeadline > 0 {
+		cfg.Deadline = meta.ConvergenceDeadline
 	}
 	if verbose {
 		cfg.Verbose = os.Stderr

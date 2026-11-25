@@ -1,3 +1,5 @@
+// Design: docs/architecture/chaos-web-dashboard.md -- scenario configuration.
+
 package scenario
 
 import (
@@ -10,16 +12,15 @@ import (
 
 	zeconfig "github.com/ze-software/ze/internal/component/config"
 
-	_ "github.com/ze-software/ze/internal/component/bgp/yang"    // registers ze-bgp-conf.yang
-	_ "github.com/ze-software/ze/internal/component/hub/yang"    // ze-bgp-conf.yang imports ze-hub-conf
-	_ "github.com/ze-software/ze/internal/component/plugin/yang" // the config's own bus block
+	_ "github.com/ze-software/ze/internal/component/bgp/plugins/rs/yang" // the rs-client session leaf
+	_ "github.com/ze-software/ze/internal/component/bgp/yang"            // registers ze-bgp-conf.yang
+	_ "github.com/ze-software/ze/internal/component/hub/yang"            // ze-bgp-conf.yang imports ze-hub-conf
+	_ "github.com/ze-software/ze/internal/component/mcp/yang"            // the daemon MCP listener
+	_ "github.com/ze-software/ze/internal/component/plugin/yang"         // the config's own bus block
 )
 
-// TestConfigGenStructure verifies the generated config has the required
-// top-level structure: process block for RR plugin and N neighbor blocks.
-//
-// VALIDATES: Config has process + neighbor blocks.
-// PREVENTS: Missing structural elements causing Ze parse failures.
+// VALIDATES: The BGP block contains one peer with a remote endpoint per profile.
+// PREVENTS: A generated scenario dropping peers before Ze can start them.
 func TestConfigGenStructure(t *testing.T) {
 	profiles := []PeerProfile{
 		{Index: 0, ASN: 65001, RouterID: netip.MustParseAddr("10.255.0.1"), Mode: ModeActive, RouteCount: 100, HoldTime: 90, Port: 1890},
@@ -221,9 +222,16 @@ func TestConfigGenPerPeerPort(t *testing.T) {
 
 	config := GenerateConfig(params)
 
-	assert.Contains(t, config, "port 1790;")
-	assert.Contains(t, config, "port 1791;")
-	assert.Equal(t, 2, strings.Count(config, "port "))
+	tree, err := zeconfig.ParseTreeWithYANG(config, nil)
+	require.NoError(t, err)
+	peers := tree.GetContainer("bgp").GetList("peer")
+	require.Len(t, peers, 2)
+	require.Contains(t, peers, "chaos-peer-0")
+	require.Contains(t, peers, "chaos-peer-1")
+	first, _ := peers["chaos-peer-0"].GetContainerPath("connection/local").Get("port")
+	second, _ := peers["chaos-peer-1"].GetContainerPath("connection/local").Get("port")
+	assert.Equal(t, "1790", first)
+	assert.Equal(t, "1791", second)
 }
 
 // TestConfigGenMultiFamily verifies that per-peer family blocks use the
@@ -292,6 +300,8 @@ func TestConfigGenFallbackToIPv4(t *testing.T) {
 	assert.Contains(t, config, "ipv4/unicast { prefix { maximum 10000; } }")
 }
 
+// VALIDATES: The generated Ze config enables MCP on the requested loopback port.
+// PREVENTS: Emitting a port on the wrong node or leaving the service disabled.
 func TestConfigGenerateMCPPort(t *testing.T) {
 	profiles := []PeerProfile{
 		{Index: 0, ASN: 65001, RouterID: netip.MustParseAddr("10.255.0.1"),
@@ -310,6 +320,11 @@ func TestConfigGenerateMCPPort(t *testing.T) {
 	config := GenerateConfig(params)
 	assert.Contains(t, config, "mcp {")
 	assert.Contains(t, config, "port 9718;")
+	tree, err := zeconfig.ParseTreeWithYANG(config, nil)
+	require.NoError(t, err)
+	mcp, enabled := zeconfig.ExtractMCPConfig(tree)
+	require.True(t, enabled)
+	assert.Equal(t, []zeconfig.ServerEndpoint{{Host: "127.0.0.1", Port: "9718"}}, mcp.Servers)
 
 	// MCPPort 0 should not emit mcp block.
 	params.MCPPort = 0
@@ -317,15 +332,85 @@ func TestConfigGenerateMCPPort(t *testing.T) {
 	assert.NotContains(t, config, "mcp {")
 }
 
-// TestConfigGenAttachesEveryPluginItRuns verifies the generated bus block
-// declares the required route-server endpoints when NoPlugin is false, omits
-// the bus block in in-process mode, relies on default bus wiring instead of
-// removed per-peer attach blocks, and parses against the real YANG schema.
-//
-// VALIDATES: generated chaos config declares bus endpoints for bgp-rs and
-// bgp-rib when NoPlugin is false, omits the bus block when NoPlugin is true,
-// and parses against the real YANG schema.
-// PREVENTS: stale legacy plugin/attach syntax that the YANG schema rejects.
+// VALIDATES: The pprof address is the environment setting Ze's schema accepts.
+// PREVENTS: Emitting a retired environment debug block.
+func TestConfigGeneratePprof(t *testing.T) {
+	const address = "127.0.0.1:6061"
+	tree, err := zeconfig.ParseTreeWithYANG(GenerateConfig(ConfigParams{
+		LocalAS:   65000,
+		RouterID:  netip.MustParseAddr("10.0.0.1"),
+		LocalAddr: "127.0.0.1",
+		PprofAddr: address,
+	}), nil)
+	require.NoError(t, err)
+	environment := tree.GetContainer("environment")
+	require.NotNil(t, environment)
+	got, ok := environment.Get("pprof")
+	assert.True(t, ok)
+	assert.Equal(t, address, got)
+}
+
+// VALIDATES: Propagation config names the output role of each session.
+// PREVENTS: Route-server or reflector sessions establishing without their role.
+func TestConfigGenPropagationPeerRoles(t *testing.T) {
+	tree, err := zeconfig.ParseTreeWithYANG(GenerateConfig(ConfigParams{
+		LocalAS:   65000,
+		RouterID:  netip.MustParseAddr("10.0.0.1"),
+		LocalAddr: "127.0.0.1",
+		Profiles: []PeerProfile{
+			{Index: 0, ASN: 65001, ZePort: 1850, HoldTime: 90, RouteCount: 100},
+			{Index: 1, ASN: 65000, ZePort: 1851, HoldTime: 90, RouteCount: 100, IsIBGP: true},
+		},
+	}), nil)
+	require.NoError(t, err)
+	bgp := tree.GetContainer("bgp")
+	require.NotNil(t, bgp)
+	peers := bgp.GetList("peer")
+	require.Contains(t, peers, "chaos-peer-0")
+	require.Contains(t, peers, "chaos-peer-1")
+	external := peers["chaos-peer-0"].GetContainer("session")
+	require.NotNil(t, external)
+	internal := peers["chaos-peer-1"].GetContainer("session")
+	require.NotNil(t, internal)
+
+	externalRS, _ := external.Get("rs-client")
+	externalRR, _ := external.Get("route-reflector-client")
+	assert.Equal(t, "true", externalRS)
+	assert.NotEqual(t, "true", externalRR)
+	internalRS, _ := internal.Get("rs-client")
+	internalRR, _ := internal.Get("route-reflector-client")
+	clusterID, _ := internal.Get("cluster-id")
+	assert.NotEqual(t, "true", internalRS)
+	assert.Equal(t, "true", internalRR)
+	assert.Equal(t, "10.0.0.1", clusterID)
+}
+
+// VALIDATES: The generated propagation config imports and exports test routes.
+// PREVENTS: A healthy BGP session with all eBGP routes rejected by default.
+func TestConfigGenPropagationPolicy(t *testing.T) {
+	tree, err := zeconfig.ParseTreeWithYANG(GenerateConfig(ConfigParams{
+		LocalAS:   65000,
+		RouterID:  netip.MustParseAddr("10.0.0.1"),
+		LocalAddr: "127.0.0.1",
+		Profiles: []PeerProfile{
+			{Index: 0, ASN: 65001, ZePort: 1850, HoldTime: 90, RouteCount: 100},
+		},
+	}), nil)
+	require.NoError(t, err)
+	filters := tree.GetContainerPath("bgp/filter")
+	require.NotNil(t, filters)
+	for _, direction := range []string{"import", "export"} {
+		policy := filters.GetContainer(direction)
+		require.NotNil(t, policy, direction)
+		final, ok := policy.Get("final")
+		assert.True(t, ok, direction)
+		assert.Equal(t, "accept", final, direction)
+	}
+}
+
+// VALIDATES: The current schema parses built-in endpoint identities on both
+// transports, with the route server alone separate when requested.
+// PREVENTS: Forking shipped plugins as foreign programs or during a simulation.
 func TestConfigGenAttachesEveryPluginItRuns(t *testing.T) {
 	profiles := []PeerProfile{
 		{Index: 0, ASN: 65001, RouterID: netip.MustParseAddr("10.255.0.1"), Mode: ModeActive, RouteCount: 100, HoldTime: 90, Port: 1890},
@@ -339,25 +424,38 @@ func TestConfigGenAttachesEveryPluginItRuns(t *testing.T) {
 		Profiles:  profiles,
 	}
 
-	config := GenerateConfig(params)
-
-	// Bus block declares external endpoints for bgp-rs and bgp-rib, and peers
-	// rely on default bus wiring rather than per-peer attach blocks.
-	assert.Contains(t, config, "bus {\n")
-	assert.Contains(t, config, "    endpoint bgp-rs {\n        external {\n            run \"ze plugin bgp-rs\";\n        }\n    }\n")
-	assert.Contains(t, config, "    endpoint bgp-rib {\n        external {\n            run \"ze plugin bgp-rib\";\n        }\n    }\n")
-	assert.NotContains(t, config, "attach")
-
-	// In-process mode passes plugins via CLI flags, so no bus block is emitted.
-	params.NoPlugin = true
-	inProcess := GenerateConfig(params)
-	assert.NotContains(t, inProcess, "bus {")
-	assert.NotContains(t, inProcess, "endpoint bgp-rib")
-	assert.NotContains(t, inProcess, "attach")
-
-	// Both generated texts are schema-valid: they parse against the YANG schema.
-	_, err := zeconfig.ParseTreeWithYANG(config, nil)
-	require.NoError(t, err)
-	_, err = zeconfig.ParseTreeWithYANG(inProcess, nil)
-	require.NoError(t, err)
+	for _, placement := range []struct {
+		name     string
+		separate bool
+	}{
+		{name: "in-daemon"},
+		{name: "separate-route-server", separate: true},
+	} {
+		t.Run(placement.name, func(t *testing.T) {
+			params.SeparateRouteServer = placement.separate
+			config := GenerateConfig(params)
+			assert.Contains(t, config, "bus {\n")
+			assert.NotContains(t, config, "attach")
+			tree, err := zeconfig.ParseTreeWithYANG(config, nil)
+			require.NoError(t, err)
+			bus := tree.GetContainer("bus")
+			require.NotNil(t, bus)
+			endpoints := bus.GetList("endpoint")
+			assert.Len(t, endpoints, 4)
+			for _, name := range []string{"bgp-rib", "bgp-adj-rib-in", "bgp-rs", "bgp-rr"} {
+				require.Contains(t, endpoints, name)
+				endpoint := endpoints[name]
+				identity, _ := endpoint.Get("internal")
+				assert.Equal(t, name, identity)
+				assert.Nil(t, endpoint.GetContainer("external"))
+				mode, processSet := endpoint.Get("process")
+				if name == "bgp-rs" && placement.separate {
+					assert.True(t, processSet, name)
+					assert.Equal(t, "separate", mode, name)
+				} else {
+					assert.False(t, processSet, name)
+				}
+			}
+		})
+	}
 }

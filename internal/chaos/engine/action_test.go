@@ -108,7 +108,7 @@ func TestActionNeedsReconnect(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.action.String(), func(t *testing.T) {
-			assert.Equal(t, tt.want, tt.action.needsReconnect())
+			assert.Equal(t, tt.want, tt.action.NeedsReconnect())
 		})
 	}
 }

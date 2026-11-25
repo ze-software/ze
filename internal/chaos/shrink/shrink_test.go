@@ -74,6 +74,25 @@ func TestShrinkNoViolation(t *testing.T) {
 	assert.Contains(t, err.Error(), "no violation")
 }
 
+// VALIDATES: Shrink checks the property set selected in a capture.
+// PREVENTS: Shrinking an unrelated property violation as the recorded failure.
+func TestShrinkSelectedProperties(t *testing.T) {
+	events := []peer.Event{
+		{Type: peer.EventEstablished, PeerIndex: 0, Time: t0},
+		{Type: peer.EventEstablished, PeerIndex: 1, Time: t0},
+		{Type: peer.EventRouteSent, PeerIndex: 0, Prefix: prefix1, Time: t1},
+	}
+	cfg := defaultCfg
+	cfg.Properties = "no-duplicate-routes"
+	_, err := Run(events, cfg)
+	require.ErrorIs(t, err, errNoViolationFoundInEventLog)
+
+	cfg.Properties = "route-consistency"
+	result, err := Run(events, cfg)
+	require.NoError(t, err)
+	assert.Equal(t, cfg.Properties, result.Property)
+}
+
 // TestShrinkEmpty verifies error on empty event list.
 //
 // VALIDATES: Empty input produces descriptive error.

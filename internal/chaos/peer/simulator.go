@@ -29,8 +29,10 @@ var logger = slogutil.Logger("chaos.peer")
 // spelled a second time here. Resolved once: the dispatch switch below compares
 // against them for every family a simulated peer sends.
 var (
-	familyIPv4Unicast = family.IPv4Unicast.String()
-	familyIPv6Unicast = family.IPv6Unicast.String()
+	familyIPv4Unicast   = family.IPv4Unicast.String()
+	familyIPv6Unicast   = family.IPv6Unicast.String()
+	familyIPv4Multicast = family.IPv4Multicast.String()
+	familyIPv6Multicast = family.IPv6Multicast.String()
 )
 
 // SimProfile holds the peer identity and route parameters for a simulator.
@@ -171,9 +173,6 @@ type SimulatorConfig struct {
 type chaosResult struct {
 	// Disconnected is true if the action caused a session teardown.
 	Disconnected bool
-
-	// WithdrawnPrefixes lists prefixes explicitly withdrawn by the action.
-	WithdrawnPrefixes []netip.Prefix
 }
 
 // stormCycles is the number of rapid reconnect cycles in a reconnect storm.
@@ -282,6 +281,33 @@ func RunSimulator(ctx context.Context, cfg SimulatorConfig) {
 		logger.Debug("session established", "peer", p.Index)
 	}
 
+	// Read while announcing. The remote peer can send UPDATEs as soon as the
+	// handshake completes, even while our own initial write is blocked.
+	var readDelayNs atomic.Int64
+	readDelayNs.Store(int64(p.SlowRead))
+	readerDone := make(chan struct{})
+	go func() {
+		defer close(readerDone)
+		readLoop(ctx, conn, p.Index, cfg.Events, &readDelayNs)
+	}()
+	// A disconnect event MUST follow the reader's final event for this session.
+	closeReader := func() {
+		conn.Close() //nolint:errcheck,gosec // best-effort close to unblock readLoop
+		<-readerDone
+	}
+	finishInitial := func(err error) {
+		endSession()
+		planned := ctx.Err() != nil
+		if planned {
+			sendCease(ctx, conn, p.Index, cfg.Quiet)
+		}
+		closeReader()
+		if err != nil && !planned {
+			emit(Event{Type: EventError, Err: err})
+		}
+		emit(Event{Type: EventDisconnected, PlannedShutdown: planned})
+	}
+
 	// IPv4 unicast routes are used for chaos withdrawals.
 	routes := ipv4Routes(cfg.Seed, p)
 	totalSent := 0
@@ -291,9 +317,7 @@ func RunSimulator(ctx context.Context, cfg SimulatorConfig) {
 	// total route volume manageable while still exercising all code paths.
 	for _, fam := range families {
 		if ctx.Err() != nil {
-			endSession()
-			sendCease(ctx, conn, p.Index, cfg.Quiet)
-			emit(Event{Type: EventDisconnected})
+			finishInitial(nil)
 			return
 		}
 
@@ -305,10 +329,9 @@ func RunSimulator(ctx context.Context, cfg SimulatorConfig) {
 					break
 				}
 				data := sender.BuildRoute(prefix)
-				if _, writeErr = conn.Write(data); writeErr != nil {
+				if writeErr = sendRouteUpdate(conn, prefix, fam, data, emit); writeErr != nil {
 					break
 				}
-				emit(Event{Type: EventRouteSent, Prefix: prefix, Family: fam, BytesSent: int64(len(data)), BGPMessage: data})
 				totalSent++
 			}
 		case familyIPv6Unicast:
@@ -318,10 +341,9 @@ func RunSimulator(ctx context.Context, cfg SimulatorConfig) {
 					break
 				}
 				data := senderV6.BuildRoute(prefix)
-				if _, writeErr = conn.Write(data); writeErr != nil {
+				if writeErr = sendRouteUpdate(conn, prefix, fam, data, emit); writeErr != nil {
 					break
 				}
-				emit(Event{Type: EventRouteSent, Prefix: prefix, Family: fam, BytesSent: int64(len(data)), BGPMessage: data})
 				totalSent++
 			}
 		case "ipv4/mpls-vpn":
@@ -334,10 +356,9 @@ func RunSimulator(ctx context.Context, cfg SimulatorConfig) {
 				if data == nil {
 					continue
 				}
-				if _, writeErr = conn.Write(data); writeErr != nil {
+				if writeErr = sendRouteUpdate(conn, netip.Prefix{}, fam, data, emit); writeErr != nil {
 					break
 				}
-				emit(Event{Type: EventRouteSent, Family: fam, BytesSent: int64(len(data)), BGPMessage: data})
 				totalSent++
 			}
 		case "ipv6/mpls-vpn":
@@ -350,10 +371,9 @@ func RunSimulator(ctx context.Context, cfg SimulatorConfig) {
 				if data == nil {
 					continue
 				}
-				if _, writeErr = conn.Write(data); writeErr != nil {
+				if writeErr = sendRouteUpdate(conn, netip.Prefix{}, fam, data, emit); writeErr != nil {
 					break
 				}
-				emit(Event{Type: EventRouteSent, Family: fam, BytesSent: int64(len(data)), BGPMessage: data})
 				totalSent++
 			}
 		case "l2vpn/evpn":
@@ -366,10 +386,9 @@ func RunSimulator(ctx context.Context, cfg SimulatorConfig) {
 				if data == nil {
 					continue
 				}
-				if _, writeErr = conn.Write(data); writeErr != nil {
+				if writeErr = sendRouteUpdate(conn, netip.Prefix{}, fam, data, emit); writeErr != nil {
 					break
 				}
-				emit(Event{Type: EventRouteSent, Family: fam, BytesSent: int64(len(data)), BGPMessage: data})
 				totalSent++
 			}
 		case "ipv4/flow":
@@ -382,10 +401,9 @@ func RunSimulator(ctx context.Context, cfg SimulatorConfig) {
 				if data == nil {
 					continue
 				}
-				if _, writeErr = conn.Write(data); writeErr != nil {
+				if writeErr = sendRouteUpdate(conn, netip.Prefix{}, fam, data, emit); writeErr != nil {
 					break
 				}
-				emit(Event{Type: EventRouteSent, Family: fam, BytesSent: int64(len(data)), BGPMessage: data})
 				totalSent++
 			}
 		case "ipv6/flow":
@@ -398,41 +416,42 @@ func RunSimulator(ctx context.Context, cfg SimulatorConfig) {
 				if data == nil {
 					continue
 				}
-				if _, writeErr = conn.Write(data); writeErr != nil {
+				if writeErr = sendRouteUpdate(conn, netip.Prefix{}, fam, data, emit); writeErr != nil {
 					break
 				}
-				emit(Event{Type: EventRouteSent, Family: fam, BytesSent: int64(len(data)), BGPMessage: data})
 				totalSent++
 			}
-		case "ipv4/multicast":
+		case familyIPv4Multicast:
 			mcastRoutes := scenario.GenerateIPv4MulticastRoutes(cfg.Seed, p.Index, p.RouteCount/4, p.TotalPeers)
 			for _, prefix := range mcastRoutes {
 				if ctx.Err() != nil {
 					break
 				}
 				data := sender.buildMulticastRoute(prefix)
-				if _, writeErr = conn.Write(data); writeErr != nil {
+				if writeErr = sendRouteUpdate(conn, prefix, fam, data, emit); writeErr != nil {
 					break
 				}
-				emit(Event{Type: EventRouteSent, Prefix: prefix, Family: fam, BytesSent: int64(len(data)), BGPMessage: data})
 				totalSent++
 			}
-		case "ipv6/multicast":
+		case familyIPv6Multicast:
 			mcastRoutes := scenario.GenerateIPv6MulticastRoutes(cfg.Seed, p.Index, p.RouteCount/4, p.TotalPeers)
 			for _, prefix := range mcastRoutes {
 				if ctx.Err() != nil {
 					break
 				}
 				data := senderV6.buildMulticastRoute(prefix)
-				if _, writeErr = conn.Write(data); writeErr != nil {
+				if writeErr = sendRouteUpdate(conn, prefix, fam, data, emit); writeErr != nil {
 					break
 				}
-				emit(Event{Type: EventRouteSent, Prefix: prefix, Family: fam, BytesSent: int64(len(data)), BGPMessage: data})
 				totalSent++
 			}
 		}
+		if ctx.Err() != nil {
+			finishInitial(nil)
+			return
+		}
 		if writeErr != nil {
-			emit(Event{Type: EventError, Err: fmt.Errorf("sending %s UPDATE: %w", fam, writeErr)})
+			finishInitial(fmt.Errorf("sending %s UPDATE: %w", fam, writeErr))
 			return
 		}
 	}
@@ -446,26 +465,12 @@ func RunSimulator(ctx context.Context, cfg SimulatorConfig) {
 			continue
 		}
 		if _, writeErr := conn.Write(eor); writeErr != nil {
-			emit(Event{Type: EventError, Err: fmt.Errorf("sending %s EOR: %w", fam, writeErr)})
+			finishInitial(fmt.Errorf("sending %s EOR: %w", fam, writeErr))
 			return
 		}
 		eorBytes += int64(len(eor))
 	}
 	emit(Event{Type: EventEORSent, Count: totalSent, Families: families, BytesSent: eorBytes})
-
-	// Atomic read delay: initialized from profile, toggled by ActionSlowRead.
-	// Stored as nanoseconds so atomic.Int64 can hold it.
-	var readDelayNs atomic.Int64
-	readDelayNs.Store(int64(p.SlowRead))
-
-	// Start reader goroutine for incoming messages from RR.
-	// Uses an unbounded EventBuffer so readLoop never blocks on event emission
-	// and no route events are dropped. A drain goroutine feeds the output channel.
-	readerDone := make(chan struct{})
-	go func() {
-		defer close(readerDone)
-		readLoop(ctx, conn, p.Index, cfg.Events, &readDelayNs)
-	}()
 
 	// KEEPALIVE loop with optional chaos handling.
 	// When cfg.Clock is set (in-process mode), use a virtual timer that fires
@@ -508,26 +513,26 @@ func RunSimulator(ctx context.Context, cfg SimulatorConfig) {
 		case <-ctx.Done():
 			endSession()
 			sendCease(ctx, conn, p.Index, cfg.Quiet)
-			conn.Close() //nolint:errcheck,gosec // best-effort close to unblock readLoop
-			<-readerDone
-			emit(Event{Type: EventDisconnected})
+			closeReader()
+			emit(Event{Type: EventDisconnected, PlannedShutdown: true})
 			return
 		case <-readerDone:
-			// Reader closed — connection lost.
+			// The cancellation watcher can close the socket before this select
+			// receives ctx.Done(). Preserve the reason for that disconnect.
 			endSession()
-			emit(Event{Type: EventDisconnected})
+			emit(Event{Type: EventDisconnected, PlannedShutdown: ctx.Err() != nil})
 			return
 		case <-keepaliveCh:
 			keepaliveReset()
 			if writeErr := writeMsg(conn, message.NewKeepalive()); writeErr != nil {
 				endSession()
-				conn.Close() //nolint:errcheck,gosec // best-effort close to unblock readLoop
-				<-readerDone
+				closeReader()
 				if ctx.Err() != nil {
-					emit(Event{Type: EventDisconnected})
+					emit(Event{Type: EventDisconnected, PlannedShutdown: true})
 					return
 				}
 				emit(Event{Type: EventError, Err: fmt.Errorf("sending KEEPALIVE: %w", writeErr)})
+				emit(Event{Type: EventDisconnected})
 				return
 			}
 		case action := <-chaosCh:
@@ -540,8 +545,7 @@ func RunSimulator(ctx context.Context, cfg SimulatorConfig) {
 			}
 			emit(Event{Type: EventChaosExecuted, ChaosAction: action.Type.String(), ChaosParams: action.Params})
 			if result.Disconnected {
-				conn.Close() //nolint:errcheck,gosec // best-effort close to unblock readLoop
-				<-readerDone
+				closeReader()
 				emit(Event{Type: EventDisconnected})
 				return
 			}
@@ -550,4 +554,18 @@ func RunSimulator(ctx context.Context, cfg SimulatorConfig) {
 			emit(Event{Type: EventRouteAction, RouteAction: action.Type.String()})
 		}
 	}
+}
+
+// sendRouteUpdate measures convergence from the start of a successful write.
+// The remote route event can reach the observer before this write returns.
+func sendRouteUpdate(conn net.Conn, prefix netip.Prefix, family string, data []byte, emit func(Event)) error {
+	at := time.Now()
+	if _, err := conn.Write(data); err != nil {
+		return err
+	}
+	emit(Event{
+		Type: EventRouteSent, Time: at, Prefix: prefix, Family: family,
+		BytesSent: int64(len(data)), BGPMessage: data,
+	})
+	return nil
 }

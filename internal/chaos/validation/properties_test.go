@@ -74,6 +74,47 @@ func TestRouteConsistencyAfterDisconnect(t *testing.T) {
 	assert.Empty(t, p.Violations())
 }
 
+// TestRouteConsistencySourceWithdrawal validates that a withdrawal removes the
+// source's expectation while the destination still observes the old route.
+//
+// VALIDATES: The route is extra until removed by the target.
+// PREVENTS: Mistaking a retained stale route for successful withdrawal.
+func TestRouteConsistencySourceWithdrawal(t *testing.T) {
+	p := NewRouteConsistency(2)
+	p.ProcessEvent(peer.Event{Type: peer.EventEstablished, PeerIndex: 0, Time: t0})
+	p.ProcessEvent(peer.Event{Type: peer.EventEstablished, PeerIndex: 1, Time: t0})
+	p.ProcessEvent(peer.Event{Type: peer.EventRouteSent, PeerIndex: 0, Prefix: prefix1, Time: t1})
+	p.ProcessEvent(peer.Event{Type: peer.EventRouteReceived, PeerIndex: 1, Prefix: prefix1, Time: t2})
+	p.ProcessEvent(peer.Event{
+		Type: peer.EventWithdrawalSent, PeerIndex: 0, Time: t3,
+		WithdrawnPrefixes: []netip.Prefix{prefix1},
+	})
+
+	violation := p.Violations()
+	require.Len(t, violation, 1)
+	assert.Contains(t, violation[0].Message, "unexpected route")
+	assert.Equal(t, 1, violation[0].PeerIndex)
+}
+
+// TestPropertyEngineKeepsRoutesOnPlannedShutdown validates the observation
+// boundary after the run requests simulator cleanup.
+//
+// VALIDATES: An administrative disconnect cannot erase a route violation.
+// PREVENTS: A propagation failure passing because the end of the run cleans up peers.
+func TestPropertyEngineKeepsRoutesOnPlannedShutdown(t *testing.T) {
+	engine := NewPropertyEngine([]Property{NewRouteConsistency(2)})
+	engine.ProcessEvent(peer.Event{Type: peer.EventEstablished, PeerIndex: 0, Time: t0})
+	engine.ProcessEvent(peer.Event{Type: peer.EventEstablished, PeerIndex: 1, Time: t0})
+	engine.ProcessEvent(peer.Event{Type: peer.EventRouteSent, PeerIndex: 0, Prefix: prefix1, Time: t1})
+	engine.ProcessEvent(peer.Event{
+		Type: peer.EventDisconnected, PeerIndex: 0, Time: t2, PlannedShutdown: true,
+	})
+
+	violations := engine.AllViolations()
+	require.Len(t, violations, 1)
+	assert.Equal(t, 1, violations[0].PeerIndex)
+}
+
 // --- ConvergenceDeadline ---
 
 // TestConvergenceDeadlinePass verifies no violation when routes converge in time.
@@ -102,6 +143,22 @@ func TestConvergenceDeadlineFail(t *testing.T) {
 	require.NotEmpty(t, v)
 	assert.Equal(t, "convergence-deadline", v[0].Property)
 	assert.Contains(t, v[0].Message, "not received")
+}
+
+// TestConvergenceDeadlineLateDelivery validates diagnosis of a late arrival.
+//
+// VALIDATES: The deadline property reports that a route was received late.
+// PREVENTS: Erasing the violation or incorrectly reporting absent delivery.
+func TestConvergenceDeadlineLateDelivery(t *testing.T) {
+	p := NewConvergenceDeadline(2, time.Second)
+	p.ProcessEvent(peer.Event{Type: peer.EventRouteSent, PeerIndex: 0, Prefix: prefix1, Time: t0})
+	p.ProcessEvent(peer.Event{
+		Type: peer.EventRouteReceived, PeerIndex: 1, Prefix: prefix1, Time: t0.Add(2 * time.Second),
+	})
+
+	violation := p.Violations()
+	require.Len(t, violation, 1)
+	assert.Contains(t, violation[0].Message, "received late")
 }
 
 // --- NoDuplicateRoutes ---

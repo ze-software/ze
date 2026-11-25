@@ -7,6 +7,7 @@ package peer
 import (
 	"context"
 	"fmt"
+	"io"
 	"math/rand"
 	"net"
 	"net/netip"
@@ -150,32 +151,28 @@ func executeRoute(action route.Action, conn net.Conn, routes []netip.Prefix,
 		// Churn: withdraw N routes, then immediately re-announce them.
 		// Simulates normal internet route instability.
 		selected := pickRandomRoutes(routes, action.ChurnCount, cfg.Seed, p.Index)
-		wdBytes, err := sendWithdrawal(conn, selected)
-		if err != nil {
+		if err := sendWithdrawal(conn, selected, emit); err != nil {
 			emit(Event{Type: EventError, Err: fmt.Errorf("sending churn withdrawal: %w", err)})
 			return
 		}
-		emit(Event{Type: EventWithdrawalSent, Count: len(selected), BytesSent: int64(wdBytes)})
 		// Re-announce the churned routes.
 		for _, prefix := range selected {
 			data := sender.BuildRoute(prefix)
-			if _, writeErr := conn.Write(data); writeErr != nil {
+			if writeErr := sendRouteUpdate(conn, prefix, familyIPv4Unicast, data, emit); writeErr != nil {
 				emit(Event{Type: EventError, Err: fmt.Errorf("sending churn re-announce: %w", writeErr)})
 				return
 			}
-			emit(Event{Type: EventRouteSent, Prefix: prefix, BytesSent: int64(len(data)), BGPMessage: data})
 		}
 
 	case route.ActionPartialWithdraw:
-		withdrawn, wdBytes := withdrawFraction(conn, routes, action.WithdrawFraction, cfg.Seed, p.Index, emit)
-		emit(Event{Type: EventWithdrawalSent, Count: len(withdrawn), BytesSent: int64(wdBytes)})
+		if err := withdrawFraction(conn, routes, action.WithdrawFraction, cfg.Seed, p.Index, emit); err != nil {
+			emit(Event{Type: EventError, Err: fmt.Errorf("sending partial withdrawal: %w", err)})
+		}
 
 	case route.ActionFullWithdraw:
-		wdBytes, err := sendWithdrawal(conn, routes)
-		if err != nil {
+		if err := sendWithdrawal(conn, routes, emit); err != nil {
 			emit(Event{Type: EventError, Err: fmt.Errorf("sending full withdrawal: %w", err)})
 		}
-		emit(Event{Type: EventWithdrawalSent, Count: len(routes), BytesSent: int64(wdBytes)})
 	default:
 		panic("BUG: invalid executed route action")
 	}
@@ -288,24 +285,40 @@ func executeConnectionCollision(ctx context.Context, addr string, p SimProfile, 
 	collisionConn.Close() //nolint:errcheck,gosec // intentional close after collision test
 }
 
-// sendWithdrawal sends a withdrawal UPDATE for the given prefixes.
-// Returns the number of bytes written and any error.
-func sendWithdrawal(conn net.Conn, prefixes []netip.Prefix) (int, error) {
-	data := buildWithdrawal(prefixes)
-	if data == nil {
-		return 0, nil
+// sendWithdrawal writes standard IPv4 UPDATEs and emits each completed batch,
+// even if a subsequent write fails. The event owns the serialized UPDATE for MRT.
+func sendWithdrawal(conn io.Writer, prefixes []netip.Prefix, emit func(Event)) error {
+	for len(prefixes) > 0 {
+		// RFC 4271 Section 4: split at the size limit before serializing.
+		count := withdrawalBatchSize(prefixes)
+		batch := prefixes[:count]
+		data := buildWithdrawal(batch)
+		written, err := conn.Write(data)
+		if err != nil {
+			return err
+		}
+		if written != len(data) {
+			return io.ErrShortWrite
+		}
+		emit(Event{
+			Type:              EventWithdrawalSent,
+			WithdrawnPrefixes: batch,
+			Family:            familyIPv4Unicast,
+			Count:             count,
+			BytesSent:         int64(written),
+			BGPMessage:        data,
+		})
+		prefixes = prefixes[count:]
 	}
-	_, err := conn.Write(data)
-	return len(data), err
+	return nil
 }
 
-// withdrawFraction withdraws a random subset of routes and returns the
-// withdrawn prefixes and number of bytes written. Uses a deterministic PRNG derived from the seed.
+// withdrawFraction withdraws a subset chosen using the peer's deterministic seed.
 func withdrawFraction(conn net.Conn, routes []netip.Prefix, fraction float64,
 	seed uint64, peerIndex int, emit func(Event),
-) ([]netip.Prefix, int) {
+) error {
 	if len(routes) == 0 || fraction <= 0 {
-		return nil, 0
+		return nil
 	}
 
 	count := min(max(int(float64(len(routes))*fraction), 1), len(routes))
@@ -320,10 +333,5 @@ func withdrawFraction(conn net.Conn, routes []netip.Prefix, fraction float64,
 		selected[i] = routes[indices[i]]
 	}
 
-	n, err := sendWithdrawal(conn, selected)
-	if err != nil {
-		emit(Event{Type: EventError, Err: fmt.Errorf("sending partial withdrawal: %w", err)})
-	}
-
-	return selected, n
+	return sendWithdrawal(conn, selected, emit)
 }

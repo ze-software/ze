@@ -1,0 +1,6 @@
+# Does the generated route-server config deliver each announced prefix to both other peers?
+# A unit test cannot prove delivery through forked Ze, compiled plugins, and TCP sessions.
+
+cmd=foreground:seq=1:exec=le chaos run --seed 42 --peers 3 --ibgp-ratio 0 --families ipv4/unicast --routes 3 --heavy-peers 0 --duration 6s --convergence-deadline 3s --chaos-rate 0 --churn-rate 0 --quiet --port $PORT:timeout=20s
+expect=exit:code=0
+expect=stderr:pattern=(?m)^  routes: 9 announced, 18 received, 0 missing, 0 extra$

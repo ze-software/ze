@@ -53,11 +53,10 @@ func executeRouteBurst(ctx context.Context, action engine.ChaosAction, conn net.
 			return
 		}
 		data := sender.BuildRoute(prefix)
-		if _, writeErr := conn.Write(data); writeErr != nil {
+		if writeErr := sendRouteUpdate(conn, prefix, params.Family, data, emit); writeErr != nil {
 			emit(Event{Type: EventError, Err: fmt.Errorf("route-burst: %w", writeErr)})
 			return
 		}
-		emit(Event{Type: EventRouteSent, Prefix: prefix, Family: params.Family, BytesSent: int64(len(data)), BGPMessage: data})
 	}
 }
 
@@ -73,12 +72,9 @@ func executeWithdrawalBurst(action engine.ChaosAction, conn net.Conn, p SimProfi
 	}
 
 	selected := pickRandomRoutes(routes, count, cfg.Seed, p.Index)
-	wdBytes, err := sendWithdrawal(conn, selected)
-	if err != nil {
+	if err := sendWithdrawal(conn, selected, emit); err != nil {
 		emit(Event{Type: EventError, Err: fmt.Errorf("withdrawal-burst: %w", err)})
-		return
 	}
-	emit(Event{Type: EventWithdrawalSent, Count: len(selected), BytesSent: int64(wdBytes)})
 }
 
 // executeRouteFlap withdraws and re-announces the same routes in cycles.
@@ -100,12 +96,10 @@ func executeRouteFlap(ctx context.Context, action engine.ChaosAction, conn net.C
 		}
 
 		// Withdraw.
-		wdBytes, err := sendWithdrawal(conn, selected)
-		if err != nil {
+		if err := sendWithdrawal(conn, selected, emit); err != nil {
 			emit(Event{Type: EventError, Err: fmt.Errorf("route-flap withdraw cycle %d: %w", cycle, err)})
 			return
 		}
-		emit(Event{Type: EventWithdrawalSent, Count: len(selected), BytesSent: int64(wdBytes)})
 
 		// Re-announce.
 		for _, prefix := range selected {
@@ -113,11 +107,10 @@ func executeRouteFlap(ctx context.Context, action engine.ChaosAction, conn net.C
 				return
 			}
 			data := sender.BuildRoute(prefix)
-			if _, writeErr := conn.Write(data); writeErr != nil {
+			if writeErr := sendRouteUpdate(conn, prefix, familyIPv4Unicast, data, emit); writeErr != nil {
 				emit(Event{Type: EventError, Err: fmt.Errorf("route-flap announce cycle %d: %w", cycle, writeErr)})
 				return
 			}
-			emit(Event{Type: EventRouteSent, Prefix: prefix, Family: familyIPv4Unicast, BytesSent: int64(len(data)), BGPMessage: data})
 		}
 
 		// Inter-cycle delay.

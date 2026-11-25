@@ -150,6 +150,8 @@ func everyPeerEstablished(r *bgpreactor.Reactor, profiles []scenario.PeerProfile
 type RunResult struct {
 	// Events is every lifecycle event from all peer simulators.
 	Events []peer.Event
+	// ObservationEnd is captured before shutdown can change the route state.
+	ObservationEnd time.Time
 }
 
 // defaultStepDelay is the real-time pause per virtual second when the caller
@@ -180,7 +182,6 @@ func Run(ctx context.Context, cfg RunConfig) (*RunResult, error) {
 		RouterID:  cfg.RouterID,
 		LocalAddr: cfg.LocalAddr,
 		Profiles:  cfg.Profiles,
-		NoPlugin:  true, // In-process mode: plugins added via CLI args to LoadReactorWithPlugins.
 	})
 
 	// Create temp directory for API socket to avoid conflicts.
@@ -201,7 +202,7 @@ func Run(ctx context.Context, cfg RunConfig) (*RunResult, error) {
 	_ = os.Setenv("ze.bgp.api.socketpath", socketPath) //nolint:errcheck // best-effort env setup
 	// Standalone: the in-process sim owns the reactor lifecycle (virtual clock,
 	// mock net) and self-hosts the plugin server; there is no hub to borrow from.
-	reactor, err := bgpconfig.LoadReactorWithPluginsStandalone(store, zeConfig, "-", []string{"ze.bgp-rs"})
+	reactor, err := bgpconfig.LoadReactorWithPluginsStandalone(store, zeConfig, "-", nil)
 	_ = os.Unsetenv("ze.bgp.api.socketpath") //nolint:errcheck // best-effort cleanup
 	if err != nil {
 		return nil, fmt.Errorf("create reactor: %w", err)
@@ -829,6 +830,7 @@ func Run(ctx context.Context, cfg RunConfig) (*RunResult, error) {
 	waitSettled(ctx, chaosEnabled && cfg.StopKeepalivesAt == 0, settled, stepDelay)
 
 	// Stop simulators and reactor.
+	observationEnd := time.Now()
 	simCancel()
 
 	simWg.Wait()
@@ -847,7 +849,7 @@ func Run(ctx context.Context, cfg RunConfig) (*RunResult, error) {
 	<-eventsDone
 
 	eventsMu.Lock()
-	result := RunResult{Events: collectedEvents}
+	result := RunResult{Events: collectedEvents, ObservationEnd: observationEnd}
 	eventsMu.Unlock()
 
 	return &result, nil

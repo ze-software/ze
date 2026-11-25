@@ -30,6 +30,70 @@ func TestConvergenceRecordAndResolve(t *testing.T) {
 	assert.InDelta(t, 100.0, float64(stats.Min/time.Millisecond), 1.0)
 }
 
+// TestConvergenceReceiveBeforeAnnounce checks that event order does not change latency.
+//
+// VALIDATES: A receipt observed before the announcement still resolves at its wire time.
+// PREVENTS: A late delivered route appearing absent or timely.
+func TestConvergenceReceiveBeforeAnnounce(t *testing.T) {
+	c := NewConvergence(2, time.Second)
+	at := time.Now()
+	prefix := p("10.0.0.0/24")
+	c.RecordReceive(1, prefix, at.Add(2*time.Second))
+	c.RecordAnnounce(0, prefix, at, "ipv4/unicast")
+
+	assert.Equal(t, []SlowRoute{
+		{Source: 0, Peer: 1, Prefix: prefix, Age: 2 * time.Second, Received: true},
+	}, c.CheckDeadline(at.Add(3*time.Second)))
+	stats := c.StatsByFamily()["ipv4/unicast"]
+	assert.Equal(t, 1, stats.Resolved)
+	assert.Equal(t, 2*time.Second, stats.Min)
+}
+
+// TestConvergenceStaleReceive checks that only an arrival after a send clears it.
+//
+// VALIDATES: An earlier receive is rejected on either side of announcement processing.
+// PREVENTS: A prior version of a route satisfying a new convergence deadline.
+func TestConvergenceStaleReceive(t *testing.T) {
+	c := NewConvergence(2, time.Second)
+	at := time.Now()
+	prefix := p("10.0.0.0/24")
+	c.RecordReceive(1, prefix, at.Add(-2*time.Second))
+	c.RecordAnnounce(0, prefix, at)
+	c.RecordReceive(1, prefix, at.Add(-time.Second))
+
+	assert.Equal(t, []SlowRoute{
+		{Source: 0, Peer: 1, Prefix: prefix, Age: time.Second},
+	}, c.CheckDeadline(at.Add(time.Second)))
+}
+
+// TestConvergenceEarlyReceiptInvalidated checks session and route boundaries.
+//
+// VALIDATES: Withdrawal and disconnect invalidate an unmatched receipt.
+// PREVENTS: A receipt from a removed route or prior session resolving a new send.
+func TestConvergenceEarlyReceiptInvalidated(t *testing.T) {
+	prefix := p("10.0.0.0/24")
+	cases := []struct {
+		name       string
+		invalidate func(*Convergence)
+	}{
+		{name: "withdrawal", invalidate: func(c *Convergence) { c.RecordWithdraw(0, prefix) }},
+		{name: "disconnect", invalidate: func(c *Convergence) { c.Disconnect(1) }},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			c := NewConvergence(2, time.Second)
+			at := time.Now()
+			c.RecordReceive(1, prefix, at.Add(time.Millisecond))
+			tc.invalidate(c)
+
+			c.RecordAnnounce(0, prefix, at)
+			assert.Equal(t, []SlowRoute{
+				{Source: 0, Peer: 1, Prefix: prefix, Age: time.Second},
+			}, c.CheckDeadline(at.Add(time.Second)))
+		})
+	}
+}
+
 // TestConvergenceMultiPeerResolve verifies that a route announced by peer 0
 // creates pending entries for peers 1 and 2, both resolved independently.
 //
@@ -229,4 +293,97 @@ func TestConvergencePerFamily(t *testing.T) {
 	// No-family route should not appear in per-family breakdown.
 	_, hasEmpty := byFamily[""]
 	assert.False(t, hasEmpty, "empty family should not appear in StatsByFamily")
+}
+
+// TestConvergenceReachability validates deadlines under a directional export policy.
+//
+// VALIDATES: Each pending route names an eligible destination other than its source.
+// PREVENTS: Reporting an iBGP route missing at an eBGP destination.
+func TestConvergenceReachability(t *testing.T) {
+	c := NewConvergenceWithReachability(4, time.Second, mixedPeerReachability)
+	at := time.Now()
+	ibgpRoute := p("10.0.0.0/24")
+	ebgpRoute := p("10.0.2.0/24")
+	c.RecordAnnounce(0, ibgpRoute, at)
+	c.RecordAnnounce(2, ebgpRoute, at)
+
+	assert.ElementsMatch(t, []SlowRoute{
+		{Source: 0, Peer: 1, Prefix: ibgpRoute, Age: time.Second},
+		{Source: 2, Peer: 0, Prefix: ebgpRoute, Age: time.Second},
+		{Source: 2, Peer: 1, Prefix: ebgpRoute, Age: time.Second},
+		{Source: 2, Peer: 3, Prefix: ebgpRoute, Age: time.Second},
+	}, c.CheckDeadline(at.Add(time.Second)))
+}
+
+// TestConvergenceFamilyReachability validates family-specific delivery expectations.
+//
+// VALIDATES: The family of an announcement limits its eligible destinations.
+// PREVENTS: Reporting overdue delivery to a peer that does not support the family.
+func TestConvergenceFamilyReachability(t *testing.T) {
+	c := NewConvergenceWithReachability(3, time.Second, func(_, destination int, family string) bool {
+		return destination != 2 || family == "ipv4/unicast"
+	})
+	at := time.Now()
+	ipv4 := p("10.0.0.0/24")
+	ipv6 := p("2001:db8::/32")
+	c.RecordAnnounce(0, ipv4, at, "ipv4/unicast")
+	c.RecordAnnounce(0, ipv6, at, "ipv6/unicast")
+
+	assert.ElementsMatch(t, []SlowRoute{
+		{Source: 0, Peer: 1, Prefix: ipv4, Age: time.Second},
+		{Source: 0, Peer: 1, Prefix: ipv6, Age: time.Second},
+		{Source: 0, Peer: 2, Prefix: ipv4, Age: time.Second},
+	}, c.CheckDeadline(at.Add(time.Second)))
+}
+
+// TestConvergenceWithdrawal validates cancellation of the withdrawn route's delivery.
+//
+// VALIDATES: Other pending routes still have a deadline.
+// PREVENTS: Treating a withdrawn route as missing or dropping unrelated obligations.
+func TestConvergenceWithdrawal(t *testing.T) {
+	c := NewConvergence(2, time.Second)
+	at := time.Now()
+	withdrawn := p("10.0.0.0/24")
+	active := p("10.0.1.0/24")
+	c.RecordAnnounce(0, withdrawn, at)
+	c.RecordAnnounce(0, active, at)
+	c.RecordWithdraw(0, withdrawn)
+
+	assert.Equal(t, []SlowRoute{
+		{Source: 0, Peer: 1, Prefix: active, Age: time.Second},
+	}, c.CheckDeadline(at.Add(time.Second)))
+}
+
+// TestConvergenceDisconnect validates cancellation of pending routes for the ended session.
+//
+// VALIDATES: Both incoming and outgoing obligations for the disconnecting peer are removed.
+// PREVENTS: Judging routes from or to an ended session against a deadline.
+func TestConvergenceDisconnect(t *testing.T) {
+	c := NewConvergence(3, time.Second)
+	at := time.Now()
+	first := p("10.0.0.0/24")
+	second := p("10.0.1.0/24")
+	c.RecordAnnounce(0, first, at)
+	c.RecordAnnounce(1, second, at)
+	c.Disconnect(1)
+
+	assert.Equal(t, []SlowRoute{
+		{Source: 0, Peer: 2, Prefix: first, Age: time.Second},
+	}, c.CheckDeadline(at.Add(time.Second)))
+}
+
+// TestConvergenceLateReceive validates the deadline after a route eventually arrives.
+//
+// VALIDATES: A delivered route retains its observed latency as a deadline violation.
+// PREVENTS: Clearing a convergence failure when the matching receipt is processed.
+func TestConvergenceLateReceive(t *testing.T) {
+	c := NewConvergence(2, time.Second)
+	at := time.Now()
+	route := p("10.0.0.0/24")
+	c.RecordAnnounce(0, route, at)
+	c.RecordReceive(1, route, at.Add(2*time.Second))
+
+	assert.Equal(t, []SlowRoute{
+		{Source: 0, Peer: 1, Prefix: route, Age: 2 * time.Second, Received: true},
+	}, c.CheckDeadline(at.Add(3*time.Second)))
 }

@@ -171,3 +171,48 @@ func TestModelAnnouncedRoutes(t *testing.T) {
 	// Peer 1 announced nothing.
 	assert.Equal(t, 0, m.AnnouncedRoutes(1).Len())
 }
+
+// TestModelReachability validates the route sets for two iBGP and two eBGP peers.
+//
+// VALIDATES: The direction of the export policy determines each peer's expected routes.
+// PREVENTS: Requiring iBGP routes at eBGP peers or ignoring routes in the reverse direction.
+func TestModelReachability(t *testing.T) {
+	m := NewModelWithReachability(4, mixedPeerReachability)
+	routes := []netip.Prefix{
+		p("10.0.0.0/24"), p("10.0.1.0/24"), p("10.0.2.0/24"), p("10.0.3.0/24"),
+	}
+	for index, prefix := range routes {
+		m.SetEstablished(index, true)
+		m.Announce(index, prefix)
+	}
+
+	assert.ElementsMatch(t, []netip.Prefix{routes[1], routes[2], routes[3]}, m.Expected(0).All())
+	assert.ElementsMatch(t, []netip.Prefix{routes[0], routes[2], routes[3]}, m.Expected(1).All())
+	assert.Equal(t, []netip.Prefix{routes[3]}, m.Expected(2).All())
+	assert.Equal(t, []netip.Prefix{routes[2]}, m.Expected(3).All())
+}
+
+// mixedPeerReachability models Ze's export policy for iBGP peers 0–1 and eBGP peers 2–3.
+func mixedPeerReachability(source, destination int, _ string) bool {
+	return source >= 2 || destination < 2
+}
+
+// TestModelFamilyReachability validates that peers only expect supported families.
+//
+// VALIDATES: A destination can accept one family and reject another from one source.
+// PREVENTS: Treating families as if every established session negotiated them.
+func TestModelFamilyReachability(t *testing.T) {
+	m := NewModelWithReachability(3, func(_, destination int, family string) bool {
+		return destination != 2 || family == "ipv4/unicast"
+	})
+	for peer := range 3 {
+		m.SetEstablished(peer, true)
+	}
+	ipv4 := p("10.0.0.0/24")
+	ipv6 := p("2001:db8::/32")
+	m.AnnounceFamily(0, ipv4, "ipv4/unicast")
+	m.AnnounceFamily(0, ipv6, "ipv6/unicast")
+
+	assert.ElementsMatch(t, []netip.Prefix{ipv4, ipv6}, m.Expected(1).All())
+	assert.Equal(t, []netip.Prefix{ipv4}, m.Expected(2).All())
+}

@@ -55,6 +55,10 @@ func (p *NoDuplicateRoutes) ProcessEvent(ev peer.Event) {
 		p.announced[ev.PeerIndex][ev.Prefix] = true
 	case peer.EventRouteWithdrawn:
 		delete(p.announced[ev.PeerIndex], ev.Prefix)
+	case peer.EventWithdrawalSent:
+		for _, prefix := range ev.WithdrawnPrefixes {
+			delete(p.announced[ev.PeerIndex], prefix)
+		}
 	case peer.EventDisconnected:
 		p.announced[ev.PeerIndex] = make(map[netip.Prefix]bool)
 	}

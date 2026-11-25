@@ -9,7 +9,6 @@ import (
 	"log/slog"
 	"net/http"
 	"os"
-	"strings"
 	"sync"
 	"time"
 
@@ -57,42 +56,17 @@ func RunOrchestrator(ctx context.Context, cfg *orchestratorConfig) int {
 
 	chaosEnabled := cfg.ChaosCfg.Rate > 0 || cfg.WebAddr != ""
 
-	model := validation.NewModel(n)
-	tracker := validation.NewTracker(n)
-	convergence := validation.NewConvergence(n, cfg.ConvergenceDeadline)
-	ep := &EventProcessor{
-		Model:       model,
-		Tracker:     tracker,
-		Convergence: convergence,
+	ibgp, families := replayPeerProfiles(cfg)
+	reachable := validation.ScenarioReachability(ibgp, families)
+	ep := validation.NewEventProcessor(n, cfg.ConvergenceDeadline, reachable)
+	propEngine, err := validation.ScenarioProperties(cfg.Properties, n, cfg.ConvergenceDeadline, reachable)
+	if err != nil {
+		var tb textbuf.Buffer
+		tb.Str("error: ").Err(err).Byte('\n').StdErr() //nolint:errcheck // CLI diagnostic
+		return 1
 	}
 
-	var propEngine *validation.PropertyEngine
-	if cfg.Properties != "" {
-		all := validation.AllProperties(n, cfg.ConvergenceDeadline)
-		if cfg.Properties == "all" {
-			propEngine = validation.NewPropertyEngine(all)
-		} else {
-			var names []string
-			for n := range strings.SplitSeq(cfg.Properties, ",") {
-				n = strings.TrimSpace(n)
-				if n != "" {
-					names = append(names, n)
-				}
-			}
-			if len(names) == 0 {
-				fmt.Fprintf(os.Stderr, "error: --properties requires at least one property name\n")
-				return 1
-			}
-			selected, selErr := validation.SelectProperties(all, names)
-			if selErr != nil {
-				fmt.Fprintf(os.Stderr, "error: %v\n", selErr)
-				return 1
-			}
-			propEngine = validation.NewPropertyEngine(selected)
-		}
-	}
-
-	rr, err := setupReporting(cfg, n)
+	rr, err := setupReporting(cfg, ep.Convergence, ibgp, families)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "error: setting up reporting: %v\n", err)
 		return 1
@@ -207,6 +181,7 @@ func RunOrchestrator(ctx context.Context, cfg *orchestratorConfig) int {
 	}()
 
 	propUpdateCounter := 0
+	observationEnd, _ := ctx.Deadline()
 
 	for ev := range events {
 		if savedTermState != nil && isLifecycleEvent(ev.Type) {
@@ -251,9 +226,17 @@ func RunOrchestrator(ctx context.Context, cfg *orchestratorConfig) int {
 			}
 		}
 
-		ep.Process(ev)
-		if propEngine != nil {
-			propEngine.ProcessEvent(ev)
+		if ev.PlannedShutdown && (observationEnd.IsZero() || ev.Time.Before(observationEnd)) {
+			observationEnd = ev.Time
+		}
+		if !ev.PlannedShutdown && (observationEnd.IsZero() || ev.Time.Before(observationEnd)) {
+			ep.Process(ev)
+			if propEngine != nil {
+				propEngine.ProcessEvent(ev)
+			}
+			if rr.eventLog != nil {
+				rr.eventLog.ProcessEvent(ev)
+			}
 		}
 		rr.reporter.Process(ev)
 
@@ -286,8 +269,20 @@ func RunOrchestrator(ctx context.Context, cfg *orchestratorConfig) int {
 		_ = term.Restore(int(os.Stderr.Fd()), savedTermState)
 	}
 
+	if now := time.Now(); observationEnd.IsZero() || now.Before(observationEnd) {
+		observationEnd = now
+	}
+	if rr.eventLog != nil {
+		rr.eventLog.EndObservation(observationEnd)
+		if closeErr := rr.eventLog.Close(); closeErr != nil {
+			var tb textbuf.Buffer
+			tb.Str("error: closing event log: ").Err(closeErr).Byte('\n').StdErr() //nolint:errcheck // CLI diagnostic
+			return 1
+		}
+	}
 	if closeErr := rr.reporter.Close(); closeErr != nil {
 		fmt.Fprintf(os.Stderr, "error: closing reporter: %v\n", closeErr)
+		return 1
 	}
 
 	var ibgpCount, ebgpCount int
@@ -299,70 +294,17 @@ func RunOrchestrator(ctx context.Context, cfg *orchestratorConfig) int {
 		}
 	}
 
-	result := validation.Check(model, tracker)
-	convStats := convergence.Stats()
-	slow := convergence.CheckDeadline(time.Now())
-
-	var peerFailures []report.PeerFailure
-	var missingCount, extraCount int
-	for i, pr := range result.Peers {
-		if pr.Missing.Len() == 0 && pr.Extra.Len() == 0 {
-			continue
-		}
-		pf := report.PeerFailure{
-			PeerIndex:     i,
-			ExpectedCount: pr.ExpectedCount,
-			ActualCount:   pr.ActualCount,
-		}
-		pf.Missing = pr.Missing.SortedStrings()
-		pf.Extra = pr.Extra.SortedStrings()
-		missingCount += len(pf.Missing)
-		extraCount += len(pf.Extra)
-		peerFailures = append(peerFailures, pf)
-	}
-
-	var propResults []report.PropertyLine
-	if propEngine != nil {
-		for _, r := range propEngine.Results() {
-			pl := report.PropertyLine{
-				Name: r.Name,
-				Pass: r.Pass,
-			}
-			for _, v := range r.Violations {
-				pl.Violations = append(pl.Violations, v.Message)
-			}
-			propResults = append(propResults, pl)
-		}
-	}
-
 	summary := report.Summary{
-		Seed:          cfg.Seed,
-		Duration:      time.Since(cfg.Start).Truncate(time.Millisecond),
-		SyncDuration:  syncDuration.Truncate(time.Millisecond),
-		PeerCount:     n,
-		IBGPCount:     ibgpCount,
-		EBGPCount:     ebgpCount,
-		Announced:     ep.Announced,
-		Received:      ep.Received,
-		Missing:       missingCount,
-		Extra:         extraCount,
-		MinLatency:    convStats.Min,
-		AvgLatency:    convStats.Avg,
-		MaxLatency:    convStats.Max,
-		P99Latency:    convStats.P99,
-		SlowRoutes:    len(slow),
-		ChaosEvents:   ep.ChaosEvents,
-		Reconnections: ep.Reconnections,
-		Withdrawn:     ep.Withdrawn,
-		DroppedEvents: ep.DroppedEvents,
-		PeerFailures:  peerFailures,
-		Properties:    propResults,
+		Seed: cfg.Seed, Duration: observationEnd.Sub(cfg.Start), SyncDuration: syncDuration,
+		PeerCount: n, IBGPCount: ibgpCount, EBGPCount: ebgpCount,
 	}
+	summary.Observe(ep, propEngine, observationEnd)
 
 	return summary.Write(os.Stderr)
 }
 
 type reportingResult struct {
+	eventLog       *report.JSONLog
 	reporter       *report.Reporter
 	cleanup        func()
 	controlCh      chan web.ControlCommand
@@ -370,7 +312,24 @@ type reportingResult struct {
 	webDash        *web.Dashboard
 }
 
-func setupReporting(cfg *orchestratorConfig, peerCount int) (*reportingResult, error) {
+func replayPeerProfiles(cfg *orchestratorConfig) ([]bool, [][]string) {
+	families := make([][]string, len(cfg.Profiles))
+	var ibgp []bool
+	if cfg.Target == scenario.TargetZe {
+		ibgp = make([]bool, len(cfg.Profiles))
+	}
+	for _, profile := range cfg.Profiles {
+		families[profile.Index] = profile.Families
+		if ibgp != nil {
+			ibgp[profile.Index] = profile.IsIBGP
+		}
+	}
+	return ibgp, families
+}
+
+func setupReporting(cfg *orchestratorConfig, convergence *validation.Convergence, ibgp []bool, families [][]string) (*reportingResult, error) {
+	peerCount := len(cfg.Profiles)
+	var eventLog *report.JSONLog
 	var consumers []report.Consumer
 	var cleanups []func()
 	var controlCh chan web.ControlCommand
@@ -391,14 +350,17 @@ func setupReporting(cfg *orchestratorConfig, peerCount int) (*reportingResult, e
 		if err != nil {
 			return nil, fmt.Errorf("opening event file %s: %w", cfg.EventLog, err)
 		}
-		jlog := report.NewJSONLog(f, report.JSONLogConfig{
-			Start:     cfg.Start,
-			Seed:      cfg.Seed,
-			Peers:     peerCount,
-			ChaosRate: cfg.ChaosCfg.Rate,
+		eventLog = report.NewJSONLog(f, report.JSONLogConfig{
+			Start:               cfg.Start,
+			Seed:                cfg.Seed,
+			Peers:               peerCount,
+			ChaosRate:           cfg.ChaosCfg.Rate,
+			IBGPPeers:           ibgp,
+			PeerFamilies:        families,
+			ConvergenceDeadline: cfg.ConvergenceDeadline,
+			Properties:          cfg.Properties,
 		})
-		consumers = append(consumers, jlog)
-		controlLogger = jlog
+		controlLogger = eventLog
 		cleanups = append(cleanups, func() {
 			if err := f.Close(); err != nil {
 				fmt.Fprintf(os.Stderr, "error: closing event file: %v\n", err)
@@ -530,7 +492,7 @@ func setupReporting(cfg *orchestratorConfig, peerCount int) (*reportingResult, e
 		provider := &chaosmcp.Provider{
 			State:       webDashRef.State(),
 			Watchdog:    wd,
-			Convergence: validation.NewConvergence(peerCount, cfg.ConvergenceDeadline),
+			Convergence: convergence,
 			Seed:        cfg.Seed,
 			StartTime:   cfg.Start,
 			PeerCount:   peerCount,
@@ -561,6 +523,7 @@ func setupReporting(cfg *orchestratorConfig, peerCount int) (*reportingResult, e
 
 	r := report.NewReporter(consumers...)
 	return &reportingResult{
+		eventLog:       eventLog,
 		reporter:       r,
 		controlCh:      controlCh,
 		routeControlCh: routeControlCh,

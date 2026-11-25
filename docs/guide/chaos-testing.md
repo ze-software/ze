@@ -29,7 +29,13 @@ prints its own option list.
 
 ## Chaos Tool
 
-The chaos tool, `./le chaos run`, is a chaos simulator that runs multiple BGP peers against a ze route server, validates route propagation, and injects faults.
+`./le chaos run` simulates BGP peers, checks route propagation, and injects faults.
+For Ze, the generated configuration assigns eBGP peers to the route server
+and iBGP peers to the route reflector. The route server relays routes between
+its eBGP clients. The reflector sends eligible routes to iBGP clients. The
+configuration explicitly accepts test routes on import and export and loads
+Adj-RIB-In to replay routes to peers that connect later.
+<!-- source: internal/chaos/scenario/config.go -- GenerateConfig -->
 
 ![chaos dashboard](img/chaos-dashboard.webp)
 
@@ -186,6 +192,12 @@ docker run --rm -v ./bird.conf:/etc/bird.conf:ro \
 ```
 <!-- source: internal/chaos/orchestrator/subcommand.go -- event logging, replay, shrink modes -->
 
+New event logs record the peer roles, address families, property selection,
+and convergence deadline. Live and in-process runs check the observations
+before shutdown clears peer state. Replay uses the same cutoff and refuses
+a new-format log that ends before it.
+<!-- source: internal/chaos/replay/replay.go -- Run -->
+
 ### Property Validation
 
 ```bash
@@ -193,11 +205,10 @@ docker run --rm -v ./bird.conf:/etc/bird.conf:ro \
 ./le chaos run --properties list    # Show available properties
 ```
 
-Properties validated:
-- **Convergence:** All routes reach all peers despite faults
-- **State consistency:** RIB matches peer state after recovery
-- **No data loss:** Updates eventually delivered
-- **Graceful degradation:** Sessions restart on critical faults
+Route consistency checks the routes each peer can receive under the scenario's
+roles and address families. The convergence deadline also counts deliveries
+that arrived after it elapsed. The property list shows the additional checks.
+<!-- source: internal/chaos/validation/property.go -- AllPropertiesWithReachability -->
 
 ### Simulated Network Topology
 

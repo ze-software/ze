@@ -32,7 +32,7 @@ const (
 	// or by the simulator itself before it retries a connection the remote
 	// side closed or refused before its OPEN.
 	EventReconnecting
-	// EventWithdrawalSent is sent when explicit withdrawals are sent by chaos.
+	// EventWithdrawalSent is sent after an explicit withdrawal UPDATE is written.
 	EventWithdrawalSent
 	// EventRouteAction is sent when a route dynamics action is executed on a peer.
 	EventRouteAction
@@ -55,6 +55,12 @@ type Event struct {
 	// Prefix is set for route events (EventRouteSent, EventRouteReceived, EventRouteWithdrawn).
 	Prefix netip.Prefix
 
+	// WithdrawnPrefixes identifies the routes sent in an EventWithdrawalSent UPDATE.
+	WithdrawnPrefixes []netip.Prefix
+
+	// PlannedShutdown marks an EventDisconnected caused by cancellation of the run.
+	PlannedShutdown bool
+
 	// Err is set for EventError, and for the EventReconnecting of a connection
 	// retry, where it is the cause of the retry.
 	Err error
@@ -75,7 +81,7 @@ type Event struct {
 	RouteAction string
 
 	// Family is the address family (e.g., "ipv4/unicast").
-	// Set for EventRouteSent, EventRouteReceived, and EventRouteWithdrawn.
+	// Set for EventRouteSent, EventRouteReceived, EventRouteWithdrawn, and EventWithdrawalSent.
 	Family string
 
 	// Families is set for EventEstablished and EventEORSent with the list of families.

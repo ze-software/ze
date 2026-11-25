@@ -1,13 +1,17 @@
 package peer
 
 import (
+	"bytes"
+	"io"
 	"net/netip"
+	"slices"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
 	"github.com/ze-software/ze/internal/chaos/scenario"
+	"github.com/ze-software/ze/internal/component/bgp/message"
 )
 
 // TestUpdateBuild verifies building a valid ipv4/unicast UPDATE
@@ -311,4 +315,73 @@ func TestBuildWithdrawalRoundTrip(t *testing.T) {
 	}
 
 	assert.Equal(t, original, parsed)
+}
+
+// TestSendWithdrawalBatches validates bounded UPDATEs and the wire data in their events.
+//
+// VALIDATES: The first UPDATE fits the legacy limit exactly and the second carries
+// the remaining prefix. Both events describe the bytes written to the connection.
+// PREVENTS: Oversized withdrawal UPDATEs or incomplete route and MRT observations.
+func TestSendWithdrawalBatches(t *testing.T) {
+	prefixes := withdrawalTestPrefixes()
+	var wire bytes.Buffer
+	var events []Event
+	err := sendWithdrawal(&wire, prefixes, func(event Event) { events = append(events, event) })
+	require.NoError(t, err)
+	require.Len(t, events, 2)
+
+	firstCount := len(prefixes) - 1
+	assert.Equal(t, prefixes[:firstCount], events[0].WithdrawnPrefixes)
+	assert.Equal(t, firstCount, events[0].Count)
+	assert.Equal(t, prefixes[firstCount:], events[1].WithdrawnPrefixes)
+	assert.Equal(t, 1, events[1].Count)
+	assert.Len(t, events[0].BGPMessage, message.MaxMsgLen)
+	assert.Len(t, events[1].BGPMessage, message.MinUpdateLen+4)
+
+	for _, event := range events {
+		header, parseErr := message.ParseHeader(event.BGPMessage)
+		require.NoError(t, parseErr)
+		assert.Equal(t, len(event.BGPMessage), int(header.Length))
+		assert.Equal(t, int64(header.Length), event.BytesSent)
+	}
+	assert.Equal(t, wire.Bytes(), append(slices.Clone(events[0].BGPMessage), events[1].BGPMessage...))
+}
+
+// TestSendWithdrawalPreservesCompletedBatches validates the observation after a write fails.
+//
+// VALIDATES: A second-batch failure retains the first batch as committed evidence.
+// PREVENTS: Losing the successful batch or recording a batch the writer rejected.
+func TestSendWithdrawalPreservesCompletedBatches(t *testing.T) {
+	prefixes := withdrawalTestPrefixes()
+	var writes int
+	writer := withdrawalTestWriter(func(data []byte) (int, error) {
+		writes++
+		if writes == 2 {
+			return 0, io.ErrClosedPipe
+		}
+		return len(data), nil
+	})
+	var events []Event
+	err := sendWithdrawal(writer, prefixes, func(event Event) { events = append(events, event) })
+
+	require.ErrorIs(t, err, io.ErrClosedPipe)
+	assert.Equal(t, 2, writes)
+	require.Len(t, events, 1)
+	assert.Equal(t, prefixes[:len(prefixes)-1], events[0].WithdrawnPrefixes)
+}
+
+func withdrawalTestPrefixes() []netip.Prefix {
+	// 814 /32s plus one /16 occupy the 4073 route octets in a legacy UPDATE.
+	prefixes := make([]netip.Prefix, 0, 816)
+	for i := range 814 {
+		addr := netip.AddrFrom4([4]byte{10, 0, byte(i >> 8), byte(i & 255)})
+		prefixes = append(prefixes, netip.PrefixFrom(addr, 32))
+	}
+	return append(prefixes, netip.MustParsePrefix("172.16.0.0/16"), netip.MustParsePrefix("192.0.2.0/24"))
+}
+
+type withdrawalTestWriter func([]byte) (int, error)
+
+func (w withdrawalTestWriter) Write(data []byte) (int, error) {
+	return w(data)
 }

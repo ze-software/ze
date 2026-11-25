@@ -8,6 +8,7 @@ import (
 	"io"
 	"time"
 
+	"github.com/ze-software/ze/internal/chaos/validation"
 	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
@@ -56,10 +57,12 @@ type Summary struct {
 	SlowRoutes int
 
 	// Chaos injection stats.
-	ChaosEvents   int
-	Reconnections int
-	Withdrawn     int
-	DroppedEvents int
+	ChaosEvents         int
+	Reconnections       int
+	Withdrawn           int
+	DroppedEvents       int
+	UnsynchronizedPeers []int
+	NoRouteReceipts     bool
 
 	// Per-peer failure details (empty when all routes match).
 	PeerFailures []PeerFailure
@@ -68,11 +71,51 @@ type Summary struct {
 	Properties []PropertyLine
 }
 
+// Observe records the route and property verdict at the end of the observation window.
+func (s *Summary) Observe(ep *validation.EventProcessor, properties *validation.PropertyEngine, end time.Time) {
+	s.Announced = ep.Announced
+	s.Received = ep.Received
+	s.Withdrawn = ep.Withdrawn
+	s.ChaosEvents = ep.ChaosEvents
+	s.Reconnections = ep.Reconnections
+	s.DroppedEvents = ep.DroppedEvents
+	if !end.IsZero() {
+		s.SlowRoutes = len(ep.Convergence.CheckDeadline(end))
+		s.UnsynchronizedPeers = ep.UnsynchronizedPeers()
+		s.NoRouteReceipts = ep.MissingAllReceipts()
+	}
+	stats := ep.Convergence.Stats()
+	s.MinLatency, s.AvgLatency = stats.Min, stats.Avg
+	s.MaxLatency, s.P99Latency = stats.Max, stats.P99
+	for index, routes := range validation.Check(ep.Model, ep.Tracker).Peers {
+		if routes.Missing.Len() == 0 && routes.Extra.Len() == 0 {
+			continue
+		}
+		failure := PeerFailure{
+			PeerIndex: index, ExpectedCount: routes.ExpectedCount, ActualCount: routes.ActualCount,
+			Missing: routes.Missing.SortedStrings(), Extra: routes.Extra.SortedStrings(),
+		}
+		s.Missing += len(failure.Missing)
+		s.Extra += len(failure.Extra)
+		s.PeerFailures = append(s.PeerFailures, failure)
+	}
+	if properties != nil {
+		for _, result := range properties.Results() {
+			property := PropertyLine{Name: result.Name, Pass: result.Pass}
+			for _, violation := range result.Violations {
+				property.Violations = append(property.Violations, violation.Message)
+			}
+			s.Properties = append(s.Properties, property)
+		}
+	}
+}
+
 // Pass returns true when there are no validation failures.
 // A run with zero announced routes is always a failure — it means
 // no peers connected and the test exercised nothing.
 func (s *Summary) Pass() bool {
-	if s.Announced == 0 {
+	switch {
+	case s.Announced == 0, s.NoRouteReceipts, len(s.UnsynchronizedPeers) != 0, s.DroppedEvents != 0:
 		return false
 	}
 	if s.Missing != 0 || s.Extra != 0 || s.SlowRoutes != 0 {
@@ -143,6 +186,12 @@ func (s *Summary) Write(w io.Writer) int {
 
 	if s.DroppedEvents > 0 {
 		rw.printf("  WARNING: %d events dropped (event channel full)\n", s.DroppedEvents)
+	}
+	if s.NoRouteReceipts {
+		rw.printf("  no announced routes reached an eligible peer\n")
+	}
+	if len(s.UnsynchronizedPeers) > 0 {
+		rw.printf("  peers that did not complete routing synchronization: %v\n", s.UnsynchronizedPeers)
 	}
 
 	// Per-peer failure details: show expected vs actual with prefix lists.

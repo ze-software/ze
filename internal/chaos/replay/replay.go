@@ -21,26 +21,34 @@ import (
 
 // logHeader is the parsed header line of an event log.
 type logHeader struct {
-	RecordType string  `json:"record-type"`
-	Version    int     `json:"version"`
-	Seed       uint64  `json:"seed"`
-	Peers      int     `json:"peers"`
-	ChaosRate  float64 `json:"chaos-rate"`
-	StartTime  string  `json:"start-time"`
+	RecordType          string        `json:"record-type"`
+	Version             int           `json:"version"`
+	Seed                uint64        `json:"seed"`
+	Peers               int           `json:"peers"`
+	ChaosRate           float64       `json:"chaos-rate"`
+	StartTime           string        `json:"start-time"`
+	IBGPPeers           []bool        `json:"ibgp-peers"`
+	PeerFamilies        [][]string    `json:"peer-families"`
+	ConvergenceDeadline time.Duration `json:"convergence-deadline-ns"`
+	Properties          string        `json:"properties"`
 }
 
 // logEvent is a parsed event line from an event log.
 type logEvent struct {
-	RecordType   string            `json:"record-type"`
-	Seq          uint64            `json:"seq"`
-	TimeOffsetMS int64             `json:"time-offset-ms"`
-	EventType    string            `json:"event-type"`
-	PeerIndex    int               `json:"peer-index"`
-	Prefix       string            `json:"prefix,omitempty"`
-	Count        int               `json:"count,omitempty"`
-	ChaosAction  string            `json:"chaos-action,omitempty"`
-	ChaosParams  map[string]string `json:"chaos-params,omitempty"`
-	Error        string            `json:"error,omitempty"`
+	RecordType        string            `json:"record-type"`
+	Seq               uint64            `json:"seq"`
+	TimeOffsetMS      int64             `json:"time-offset-ms"`
+	TimeOffsetNS      *int64            `json:"time-offset-ns"`
+	EventType         string            `json:"event-type"`
+	PeerIndex         int               `json:"peer-index"`
+	Prefix            string            `json:"prefix,omitempty"`
+	Count             int               `json:"count,omitempty"`
+	Family            string            `json:"family"`
+	PlannedShutdown   bool              `json:"planned-shutdown"`
+	WithdrawnPrefixes []netip.Prefix    `json:"withdrawn-prefixes"`
+	ChaosAction       string            `json:"chaos-action,omitempty"`
+	ChaosParams       map[string]string `json:"chaos-params,omitempty"`
+	Error             string            `json:"error,omitempty"`
 }
 
 // eventTypeFromString maps kebab-case event type strings to EventType constants.
@@ -55,6 +63,8 @@ var eventTypeFromString = map[string]peer.EventType{
 	"chaos-executed":  peer.EventChaosExecuted,
 	"reconnecting":    peer.EventReconnecting,
 	"withdrawal-sent": peer.EventWithdrawalSent,
+	"dropped-events":  peer.EventDroppedEvents,
+	"route-action":    peer.EventRouteAction,
 }
 
 // writeErr writes an error message to w, ignoring write failures
@@ -70,6 +80,8 @@ func writeErr(w io.Writer, format string, args ...any) {
 // a summary to w. Returns exit code: 0=pass, 1=fail, 2=error.
 func Run(r io.Reader, w io.Writer) int {
 	scanner := bufio.NewScanner(r)
+	// A withdrawal record can carry every prefix from an extended UPDATE.
+	scanner.Buffer(nil, 2*1024*1024)
 
 	// Parse header line.
 	if !scanner.Scan() {
@@ -86,78 +98,97 @@ func Run(r io.Reader, w io.Writer) int {
 		writeErr(w, "error: first line must be a header (got %q)\n", hdr.RecordType)
 		return 2
 	}
-	if hdr.Peers < 1 {
+	switch {
+	case hdr.Peers < 1, hdr.Peers > 50:
 		writeErr(w, "error: invalid peer count in header: %d\n", hdr.Peers)
 		return 2
 	}
 
-	// Create validation components.
-	n := hdr.Peers
-	model := validation.NewModel(n)
-	tracker := validation.NewTracker(n)
-	convergence := validation.NewConvergence(n, 5*time.Second)
-
-	// Parse start time for convergence tracking.
-	startTime, err := time.Parse(time.RFC3339Nano, hdr.StartTime)
-	if err != nil {
-		startTime = time.Now() // fallback
+	switch {
+	case !validReplayProfiles(len(hdr.IBGPPeers), hdr.Peers), !validReplayProfiles(len(hdr.PeerFamilies), hdr.Peers):
+		writeErr(w, "error: event log profile count does not match the header\n")
+		return 2
+	}
+	if hdr.Version >= 2 && hdr.ConvergenceDeadline <= 0 {
+		writeErr(w, "error: event log lacks a positive convergence deadline\n")
+		return 2
 	}
 
-	// Aggregate counters.
-	var announced, received, chaosEvents, reconnections, withdrawn int
-
-	// Process event lines.
-	for scanner.Scan() {
-		var ev logEvent
-		if err := json.Unmarshal(scanner.Bytes(), &ev); err != nil {
-			continue // skip malformed lines
+	startTime, err := time.Parse(time.RFC3339Nano, hdr.StartTime)
+	if err != nil {
+		if hdr.Version >= 2 {
+			writeErr(w, "error: parsing event log start time: %v\n", err)
+			return 2
 		}
-		if ev.RecordType != "event" {
+		startTime = time.Now()
+	}
+	deadline := hdr.ConvergenceDeadline
+	if hdr.Version < 2 {
+		deadline = 5 * time.Second
+	}
+	reachable := validation.ScenarioReachability(hdr.IBGPPeers, hdr.PeerFamilies)
+	ep := validation.NewEventProcessor(hdr.Peers, deadline, reachable)
+	properties, err := validation.ScenarioProperties(hdr.Properties, hdr.Peers, deadline, reachable)
+	if err != nil {
+		writeErr(w, "error: reading event log properties: %v\n", err)
+		return 2
+	}
+
+	var observationEnd time.Time
+	for scanner.Scan() {
+		if hdr.Version < 2 && len(scanner.Bytes()) >= bufio.MaxScanTokenSize {
+			writeErr(w, "error: reading event log: legacy record exceeds the line size limit\n")
+			return 2
+		}
+		var record logEvent
+		if err := json.Unmarshal(scanner.Bytes(), &record); err != nil {
+			if hdr.Version >= 2 {
+				writeErr(w, "error: parsing event log record: %v\n", err)
+				return 2
+			}
+			continue
+		}
+		if !observationEnd.IsZero() {
+			continue
+		}
+		offset := time.Duration(record.TimeOffsetMS) * time.Millisecond
+		if record.TimeOffsetNS != nil {
+			offset = time.Duration(*record.TimeOffsetNS)
+		}
+		at := startTime.Add(offset)
+		if record.RecordType == "observation-end" {
+			observationEnd = at
+			continue
+		}
+		if record.RecordType != "event" {
 			continue
 		}
 
-		evTime := startTime.Add(time.Duration(ev.TimeOffsetMS) * time.Millisecond)
-
-		et, ok := eventTypeFromString[ev.EventType]
+		kind, ok := eventTypeFromString[record.EventType]
 		if !ok {
-			continue // skip unknown event types
+			continue
 		}
-
-		// Parse prefix if present.
+		switch {
+		case record.PeerIndex < 0, record.PeerIndex >= hdr.Peers:
+			writeErr(w, "error: event log peer index %d is outside the scenario\n", record.PeerIndex)
+			return 2
+		}
 		var prefix netip.Prefix
-		if ev.Prefix != "" {
-			prefix, _ = netip.ParsePrefix(ev.Prefix)
+		if record.Prefix != "" {
+			prefix, err = netip.ParsePrefix(record.Prefix)
+			if err != nil && hdr.Version >= 2 {
+				writeErr(w, "error: parsing event log prefix: %v\n", err)
+				return 2
+			}
 		}
-
-		// Route event to validation components (mirrors EventProcessor.Process).
-		switch et {
-		case peer.EventEstablished:
-			model.SetEstablished(ev.PeerIndex, true)
-		case peer.EventRouteSent:
-			model.Announce(ev.PeerIndex, prefix)
-			convergence.RecordAnnounce(ev.PeerIndex, prefix, evTime)
-			announced++
-		case peer.EventRouteReceived:
-			tracker.RecordReceive(ev.PeerIndex, prefix)
-			convergence.RecordReceive(ev.PeerIndex, prefix, evTime)
-			received++
-		case peer.EventRouteWithdrawn:
-			tracker.RecordWithdraw(ev.PeerIndex, prefix)
-		case peer.EventDisconnected:
-			model.Disconnect(ev.PeerIndex)
-			tracker.ClearPeer(ev.PeerIndex)
-		case peer.EventChaosExecuted:
-			chaosEvents++
-		case peer.EventReconnecting:
-			reconnections++
-		case peer.EventWithdrawalSent:
-			withdrawn += ev.Count
-		case peer.EventRouteAction:
-			// Route dynamics — no validation action.
-		case peer.EventEORSent, peer.EventError, peer.EventDroppedEvents:
-			// Informational — no validation action.
-		default:
-			panic("BUG: invalid replay event type")
+		event := peer.Event{
+			Type: kind, PeerIndex: record.PeerIndex, Time: at, Prefix: prefix, Family: record.Family,
+			Count: record.Count, ChaosAction: record.ChaosAction, ChaosParams: record.ChaosParams,
+			PlannedShutdown: record.PlannedShutdown, WithdrawnPrefixes: record.WithdrawnPrefixes,
+		}
+		ep.Process(event)
+		if properties != nil {
+			properties.ProcessEvent(event)
 		}
 	}
 
@@ -170,45 +201,18 @@ func Run(r io.Reader, w io.Writer) int {
 		return 2
 	}
 
-	// Final validation.
-	result := validation.Check(model, tracker)
-	convStats := convergence.Stats()
-
-	// Build per-peer failure details from check result.
-	var peerFailures []report.PeerFailure
-	var missingCount, extraCount int
-	for i, pr := range result.Peers {
-		if pr.Missing.Len() == 0 && pr.Extra.Len() == 0 {
-			continue
-		}
-		pf := report.PeerFailure{
-			PeerIndex:     i,
-			ExpectedCount: pr.ExpectedCount,
-			ActualCount:   pr.ActualCount,
-		}
-		pf.Missing = pr.Missing.SortedStrings()
-		pf.Extra = pr.Extra.SortedStrings()
-		missingCount += len(pf.Missing)
-		extraCount += len(pf.Extra)
-		peerFailures = append(peerFailures, pf)
+	if hdr.Version >= 2 && observationEnd.IsZero() {
+		writeErr(w, "error: event log ended before the observation checkpoint\n")
+		return 2
 	}
-
-	summary := report.Summary{
-		Seed:          hdr.Seed,
-		PeerCount:     n,
-		Announced:     announced,
-		Received:      received,
-		Missing:       missingCount,
-		Extra:         extraCount,
-		MinLatency:    convStats.Min,
-		AvgLatency:    convStats.Avg,
-		MaxLatency:    convStats.Max,
-		P99Latency:    convStats.P99,
-		ChaosEvents:   chaosEvents,
-		Reconnections: reconnections,
-		Withdrawn:     withdrawn,
-		PeerFailures:  peerFailures,
+	summary := report.Summary{Seed: hdr.Seed, PeerCount: hdr.Peers}
+	if !observationEnd.IsZero() {
+		summary.Duration = observationEnd.Sub(startTime)
 	}
-
+	summary.Observe(ep, properties, observationEnd)
 	return summary.Write(w)
+}
+
+func validReplayProfiles(count, peers int) bool {
+	return count == 0 || count == peers
 }

@@ -57,9 +57,14 @@ func resolveZeDaemon(flagValue string) (string, error) {
 
 // forkZe starts a Ze instance with config piped via stdin. binary MUST be a
 // path resolveZeDaemon returned.
-func forkZe(ctx context.Context, config, binary string) (*zeChild, error) {
-	cmd := exec.CommandContext(ctx, binary, "-") // #nosec G204 - binary from --binary flag or PATH, checked by resolveZeDaemon
-	cmd.Stdout = os.Stdout
+func forkZe(ctx context.Context, config, binary, pprofAddr string, stdout io.Writer) (*zeChild, error) {
+	var args []string
+	if pprofAddr != "" {
+		args = append(args, "--pprof", pprofAddr)
+	}
+	args = append(args, "-")
+	cmd := exec.CommandContext(ctx, binary, args...) // #nosec G204 - binary from --binary flag or PATH, checked by resolveZeDaemon
+	cmd.Stdout = stdout
 	cmd.Stderr = os.Stderr
 
 	stdin, err := cmd.StdinPipe()
@@ -75,9 +80,7 @@ func forkZe(ctx context.Context, config, binary string) (*zeChild, error) {
 		if err := cmd.Process.Kill(); err != nil {
 			fmt.Fprintf(os.Stderr, "warning: killing ze: %v\n", err)
 		}
-		if err := cmd.Wait(); err != nil {
-			fmt.Fprintf(os.Stderr, "warning: waiting for ze: %v\n", err)
-		}
+		_ = cmd.Wait() // Reap the child after terminating it. The caller reports the configuration write failure.
 	}
 
 	if _, err := stdin.Write([]byte(config)); err != nil {
@@ -144,7 +147,7 @@ func (z *zeChild) Shutdown() {
 
 // forkDaemon launches an external BGP daemon (FRR bgpd or BIRD) with config
 // written to a temp file. The daemon runs in the foreground as a child process.
-func forkDaemon(ctx context.Context, config, binary string, target scenario.Target, port int, localAddr string) (*zeChild, error) {
+func forkDaemon(ctx context.Context, config, binary string, target scenario.Target, port int, localAddr string, stdout io.Writer) (*zeChild, error) {
 	if binary == "" {
 		var err error
 		binary, err = exec.LookPath(target.DefaultBinary())
@@ -199,7 +202,7 @@ func forkDaemon(ctx context.Context, config, binary string, target scenario.Targ
 	}
 
 	cmd := exec.CommandContext(ctx, binary, args...) // #nosec G204 G702 - binary from --binary flag or PATH
-	cmd.Stdout = os.Stdout
+	cmd.Stdout = stdout
 	cmd.Stderr = os.Stderr
 
 	if err := cmd.Start(); err != nil {

@@ -9,7 +9,6 @@ import (
 	"github.com/ze-software/ze/internal/chaos/engine"
 	"github.com/ze-software/ze/internal/chaos/peer"
 	"github.com/ze-software/ze/internal/chaos/scenario"
-	"github.com/ze-software/ze/internal/chaos/validation"
 )
 
 // ChaosConfig holds chaos injection parameters passed from CLI flags.
@@ -118,70 +117,4 @@ func isLifecycleEvent(t peer.EventType) bool {
 		return false
 	}
 	return false
-}
-
-// EventProcessor routes peer events to the validation model, tracker,
-// and convergence tracker. It also maintains aggregate counters.
-type EventProcessor struct {
-	Model       *validation.Model
-	Tracker     *validation.Tracker
-	Convergence *validation.Convergence
-
-	// Aggregate counters for the exit summary.
-	Announced     int
-	Received      int
-	ChaosEvents   int
-	Reconnections int
-	Withdrawn     int
-	DroppedEvents int
-}
-
-// Process handles a single peer event, updating all validation components.
-func (ep *EventProcessor) Process(ev peer.Event) {
-	switch ev.Type {
-	case peer.EventEstablished:
-		ep.Model.SetEstablished(ev.PeerIndex, true)
-
-	case peer.EventRouteSent:
-		ep.Model.Announce(ev.PeerIndex, ev.Prefix)
-		// Only track convergence for IPv4 unicast — the readLoop can only
-		// parse IPv4 NLRI from the trailing UPDATE section, so IPv6 routes
-		// would create permanently unresolved pending entries.
-		if ev.Prefix.Addr().Is4() {
-			ep.Convergence.RecordAnnounce(ev.PeerIndex, ev.Prefix, ev.Time, ev.Family)
-		}
-		ep.Announced++
-
-	case peer.EventRouteReceived:
-		ep.Tracker.RecordReceive(ev.PeerIndex, ev.Prefix)
-		ep.Convergence.RecordReceive(ev.PeerIndex, ev.Prefix, ev.Time)
-		ep.Received++
-
-	case peer.EventRouteWithdrawn:
-		ep.Tracker.RecordWithdraw(ev.PeerIndex, ev.Prefix)
-
-	case peer.EventDisconnected:
-		ep.Model.Disconnect(ev.PeerIndex)
-		ep.Tracker.ClearPeer(ev.PeerIndex)
-
-	case peer.EventEORSent, peer.EventError:
-		// EOR is informational; errors are logged by the caller.
-
-	case peer.EventChaosExecuted:
-		ep.ChaosEvents++
-
-	case peer.EventReconnecting:
-		ep.Reconnections++
-
-	case peer.EventWithdrawalSent:
-		ep.Withdrawn += ev.Count
-
-	case peer.EventRouteAction:
-		// Route dynamics actions are informational — counted by the web dashboard.
-
-	case peer.EventDroppedEvents:
-		ep.DroppedEvents += ev.Count
-	default:
-		panic("BUG: invalid validation event type")
-	}
 }

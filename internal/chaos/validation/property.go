@@ -68,8 +68,11 @@ func NewPropertyEngine(props []Property) *PropertyEngine {
 	return &PropertyEngine{props: props}
 }
 
-// ProcessEvent dispatches an event to all registered properties.
+// ProcessEvent dispatches observation events to all registered properties.
 func (e *PropertyEngine) ProcessEvent(ev peer.Event) {
+	if ev.Type == peer.EventDisconnected && ev.PlannedShutdown {
+		return
+	}
 	for _, p := range e.props {
 		p.ProcessEvent(ev)
 	}
@@ -100,9 +103,14 @@ func (e *PropertyEngine) AllViolations() []Violation {
 
 // AllProperties creates all available properties for n peers with given convergence deadline.
 func AllProperties(n int, deadline time.Duration) []Property {
+	return AllPropertiesWithReachability(n, deadline, nil)
+}
+
+// AllPropertiesWithReachability creates the properties for the target's export policy.
+func AllPropertiesWithReachability(n int, deadline time.Duration, reachable Reachability) []Property {
 	return []Property{
-		NewRouteConsistency(n),
-		NewConvergenceDeadline(n, deadline),
+		newRouteConsistency(n, reachable),
+		newConvergenceDeadline(n, deadline, reachable),
 		NewNoDuplicateRoutes(n),
 		NewHoldTimerEnforcement(n),
 		NewMessageOrdering(n),

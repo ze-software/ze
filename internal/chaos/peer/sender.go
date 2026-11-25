@@ -181,6 +181,9 @@ func (s *Sender) buildMulticastRoute(prefix netip.Prefix) []byte {
 // buildWithdrawal constructs a serialized IPv4/unicast withdrawal UPDATE.
 // RFC 4271 Section 4.3: withdrawals use the Withdrawn Routes field with no
 // path attributes and no NLRI. Returns nil for an empty prefix list.
+//
+//	0          19                 21                 21 + withdrawn length
+//	| header   | withdrawn length | withdrawn routes | attribute length (0) |
 func buildWithdrawal(prefixes []netip.Prefix) []byte {
 	if len(prefixes) == 0 {
 		return nil
@@ -190,7 +193,7 @@ func buildWithdrawal(prefixes []netip.Prefix) []byte {
 	var withdrawn []byte
 	for _, p := range prefixes {
 		bits := p.Bits()
-		byteLen := (bits + 7) / 8
+		byteLen := withdrawalPrefixSize(p) - 1
 		addr := p.Addr().As4()
 		withdrawn = append(withdrawn, byte(bits))
 		withdrawn = append(withdrawn, addr[:byteLen]...)
@@ -198,6 +201,23 @@ func buildWithdrawal(prefixes []netip.Prefix) []byte {
 
 	update := &message.Update{WithdrawnRoutes: withdrawn}
 	return serializeMessage(update)
+}
+
+func withdrawalPrefixSize(prefix netip.Prefix) int {
+	return 1 + (prefix.Bits()+7)/8
+}
+
+// withdrawalBatchSize counts how many IPv4 prefixes fit in a legacy UPDATE.
+// RFC 4271 Section 4: "The maximum message size is 4096 octets."
+func withdrawalBatchSize(prefixes []netip.Prefix) int {
+	remaining := message.MaxMsgLen - message.MinUpdateLen
+	for index, prefix := range prefixes {
+		remaining -= withdrawalPrefixSize(prefix)
+		if remaining < 0 {
+			return index
+		}
+	}
+	return len(prefixes)
 }
 
 // buildMalformedUpdate constructs a BGP UPDATE with an invalid ORIGIN attribute.

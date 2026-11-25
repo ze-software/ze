@@ -161,9 +161,14 @@ func TestConfigGenCollectorForTopology(t *testing.T) {
 		assert.Equal(t, speaker.Session == SessionKindExternal, strings.Contains(block, importPolicy), "speaker %d (%s)", index, speaker.Address)
 	}
 
-	// The config of a chaos run against a route server is left without one.
+	// Propagation uses one import and export policy for the whole scenario.
+	// The collector's per-peer import block belongs to the collector alone.
 	params.Collector = false
-	assert.NotContains(t, GenerateConfig(params), "filter {")
+	propagation := GenerateConfig(params)
+	assert.NotContains(t, propagation, importPolicy)
+	assert.Equal(t, 1, strings.Count(propagation, "filter {"))
+	assert.Contains(t, propagation, "import { final accept; }")
+	assert.Contains(t, propagation, "export { final accept; }")
 	params.Collector = true
 
 	// Without the plaintext option the looking glass keeps its default.

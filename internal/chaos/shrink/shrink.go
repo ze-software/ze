@@ -26,6 +26,12 @@ type Config struct {
 	// Deadline is the convergence deadline for property checks.
 	Deadline time.Duration
 
+	// Reachability describes eligible source and destination pairs.
+	Reachability validation.Reachability
+
+	// Properties selects a recorded property set. An empty selection checks all properties.
+	Properties string
+
 	// Verbose is the writer for progress output (nil for silent).
 	Verbose io.Writer
 }
@@ -59,7 +65,7 @@ func verbosef(cfg Config, format string, args ...any) {
 // that still triggers the same property violation.
 //
 // Algorithm:
-//  1. Verify the input actually fails (replay through all properties).
+//  1. Verify the input fails a selected property.
 //  2. Binary search: try halves to coarsely narrow the boundary.
 //  3. Single-step elimination: try removing each event (with causal dependents).
 func Run(events []peer.Event, cfg Config) (*Result, error) {
@@ -71,7 +77,10 @@ func Run(events []peer.Event, cfg Config) (*Result, error) {
 	iterations := 0
 
 	// Phase 1: verify the input fails.
-	violation := findViolation(events, cfg)
+	violation, err := findViolation(events, cfg)
+	if err != nil {
+		return nil, err
+	}
 	iterations++
 	if violation == nil {
 		return nil, errNoViolationFoundInEventLog
@@ -100,37 +109,38 @@ func Run(events []peer.Event, cfg Config) (*Result, error) {
 	}, nil
 }
 
-// findViolation replays events through all properties and returns the first violation.
-func findViolation(events []peer.Event, cfg Config) *validation.Violation {
-	engine := newEngine(cfg)
+// findViolation replays events through the selected properties and returns the first violation.
+func findViolation(events []peer.Event, cfg Config) (*validation.Violation, error) {
+	selection := cfg.Properties
+	if selection == "" {
+		selection = "all"
+	}
+	engine, err := validation.ScenarioProperties(selection, cfg.PeerCount, cfg.Deadline, cfg.Reachability)
+	if err != nil {
+		return nil, err
+	}
 	for i := range events {
 		engine.ProcessEvent(events[i])
 	}
 	violations := engine.AllViolations()
 	if len(violations) == 0 {
-		return nil
+		return nil, nil
 	}
-	return &violations[0]
+	return &violations[0], nil
 }
 
 // hasViolation checks if replaying events triggers a violation for the named property.
 func hasViolation(events []peer.Event, property string, cfg Config) bool {
-	engine := newEngine(cfg)
+	engine := validation.NewPropertyEngine(validation.AllPropertiesWithReachability(cfg.PeerCount, cfg.Deadline, cfg.Reachability))
 	for i := range events {
 		engine.ProcessEvent(events[i])
 	}
-	for _, v := range engine.AllViolations() {
-		if v.Property == property {
+	for _, violation := range engine.AllViolations() {
+		if violation.Property == property {
 			return true
 		}
 	}
 	return false
-}
-
-// newEngine creates a fresh PropertyEngine with all properties.
-func newEngine(cfg Config) *validation.PropertyEngine {
-	props := validation.AllProperties(cfg.PeerCount, cfg.Deadline)
-	return validation.NewPropertyEngine(props)
 }
 
 // binarySearch coarsely narrows the event list by trying halves.
