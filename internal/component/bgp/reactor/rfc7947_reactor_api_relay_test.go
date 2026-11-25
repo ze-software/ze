@@ -12,6 +12,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/ze-software/ze/internal/component/bgp/message"
 	"github.com/ze-software/ze/internal/component/plugin"
 	routepolicy "github.com/ze-software/ze/internal/component/policy"
 	bgpctx "github.com/ze-software/ze/internal/core/bgp/context"
@@ -999,4 +1000,108 @@ func TestRelayStoredRouteRefusesUnrecordedFraming(t *testing.T) {
 		assert.Equal(t, "180a0000", hex.EncodeToString(relayDispatchedNLRI(t, &item)),
 			"a source that declares no ADD-PATH has one framing, so the marker is not consulted")
 	})
+}
+
+// TestRelayStoredRouteIPv6RunStaysInStdPool verifies that replaying a full 4K
+// IPv6 UPDATE run from a standard (non-Extended-Message) source compacts the
+// stored MP_REACH_NLRI out of the scratch buffer and coalesces within the 4K
+// UPDATE ceiling without touching bufMuxExt.
+//
+// VALIDATES: standard 4K peer replays never fail with errRelayBufferPool when
+// the shared pool budget leaves no room for an 8 MB bufMuxExt block.
+// PREVENTS: buildRelayUpdate requesting a 64K buffer because stored AttrHex
+// still carries the source's full MP_REACH_NLRI alongside all run NLRIs.
+func TestRelayStoredRouteIPv6RunStaysInStdPool(t *testing.T) {
+	bufMuxGlobalMu.Lock()
+	defer bufMuxGlobalMu.Unlock()
+
+	oldStdBudget := bufMuxStd.mux.budget
+	oldExtBudget := bufMuxExt.mux.budget
+	defer func() {
+		bufMuxStd.mux.mu.Lock()
+		bufMuxStd.mux.budget = oldStdBudget
+		bufMuxStd.mux.mu.Unlock()
+		bufMuxExt.mux.mu.Lock()
+		bufMuxExt.mux.budget = oldExtBudget
+		bufMuxExt.mux.mu.Unlock()
+	}()
+
+	// Cap the shared budget so bufMuxStd can serve 4K buffers while bufMuxExt
+	// cannot grow a new 64K block (mimics minPoolBudget after bufMuxStd grows
+	// to >=2 blocks). Swap in a fresh empty bufMuxExt so any accidental 64K
+	// Get() hits growLocked and fails immediately.
+	oldExt := bufMuxExt
+	bufMuxExt = newProbedPool(message.ExtMsgLen, bufMuxBlockSize)
+	defer func() { bufMuxExt = oldExt }()
+
+	stdBlockBytes := int64(bufMuxBlockSize * message.MaxMsgLen)
+	cb := newCombinedBudget(stdBlockBytes * 4) // 2 MB: fits 4K blocks, never an 8 MB 64K block
+	bufMuxStd.setBudget(cb)
+	bufMuxExt.setBudget(cb)
+
+	api, cache, dispatched, mu, done := relayFixture(t)
+
+	// Build 500 distinct IPv6 /48 NLRIs (7 bytes each = 3500 bytes) and a
+	// realistic stored AttrHex carrying ORIGIN + AS_PATH + a ~3525-byte
+	// MP_REACH_NLRI (total AttrHex ~3555 bytes, so attrLen + runNLRILen > 7000).
+	nextHop := mustHex(t, "20010db8000000000000000000000001")
+	const routeCount = 500
+	var allNLRIs []byte
+	nlriHexes := make([]string, routeCount)
+	for i := range routeCount {
+		var p [7]byte
+		p[0] = 48
+		p[1] = 0x20
+		p[2] = 0x01
+		p[3] = 0x0d
+		p[4] = 0xb8
+		p[5] = byte(i >> 8)
+		p[6] = byte(i)
+		allNLRIs = append(allNLRIs, p[:]...)
+		nlriHexes[i] = hex.EncodeToString(p[:])
+	}
+
+	var attrBuf [message.MaxMsgLen]byte
+	off := 0
+	off += copy(attrBuf[off:], mustHex(t, "4001010040020602010000FDE9")) // ORIGIN IGP + AS_PATH [65001]
+	off += writeMPReach(attrBuf[:], off, family.IPv6Unicast, nextHop, allNLRIs)
+	attrHex := hex.EncodeToString(attrBuf[:off])
+	nextHopHex := hex.EncodeToString(nextHop)
+
+	routes := make([]rpc.StoredRoute, routeCount)
+	for i := range routeCount {
+		routes[i] = rpc.StoredRoute{
+			SourcePeer:  "10.0.0.1",
+			Family:      "ipv6/unicast",
+			AttrHex:     attrHex,
+			NextHopHex:  nextHopHex,
+			NLRIHex:     nlriHexes[i],
+			NLRIFraming: rpc.NLRIFramingPrefixOnly,
+		}
+	}
+
+	require.NoError(t, api.RelayStoredRoute(netip.MustParseAddr("10.0.0.2"), routes, plugin.OperatorSender()))
+
+	select {
+	case <-done:
+	case <-time.After(2 * time.Second):
+		t.Fatal("timed out waiting for relayed IPv6 UPDATE dispatch")
+	}
+
+	extAlloc, extInUse := bufMuxExt.Stats()
+	assert.Equal(t, 0, extAlloc, "standard 4K IPv6 replay must not allocate from bufMuxExt")
+	assert.Equal(t, 0, extInUse, "standard 4K IPv6 replay must leave bufMuxExt untouched")
+
+	mu.Lock()
+	totalBodies := 0
+	for _, item := range *dispatched {
+		for _, body := range item.rawBodies {
+			assert.LessOrEqual(t, len(body), message.MaxMsgLen-message.HeaderLen,
+				"replayed body for a 4K source must stay within the 4K UPDATE ceiling")
+			totalBodies++
+		}
+	}
+	mu.Unlock()
+	assert.GreaterOrEqual(t, totalBodies, 1, "at least one IPv6 UPDATE body must be dispatched")
+	assert.Equal(t, 0, cache.Len(), "relay cache entry must be fully released")
 }

@@ -463,8 +463,10 @@ func (a *reactorAPIAdapter) buildRelayUpdate(routes []rpc.StoredRoute, src *rela
 	// it per destination afterwards, in both directions, exactly as it does for a
 	// live forward -- so there is one framing decision here and none below.
 	srcAddPath := false
+	srcExtMsg := false
 	if srcCtx := bgpctx.Registry.Get(src.ctxID); srcCtx != nil {
 		srcAddPath = srcCtx.AddPath(fam)
+		srcExtMsg = srcCtx.ExtendedMessage()
 	}
 	// RFC 7911 Section 3: an ADD-PATH session prepends a four-octet Path
 	// Identifier to every NLRI. Written unconditionally when the context declares
@@ -491,46 +493,77 @@ func (a *reactorAPIAdapter) buildRelayUpdate(routes []rpc.StoredRoute, src *rela
 		return a.buildRelayWithdrawal(route, src, fam, pathIDLen)
 	}
 
+	const stdBodyMax = message.MaxMsgLen - message.HeaderLen
+
 	attrLen := hex.DecodedLen(len(route.AttrHex))
 	nhLen := hex.DecodedLen(len(route.NextHopHex))
 	firstNLRILen := hex.DecodedLen(len(route.NLRIHex))
 	if firstNLRILen == 0 || (nhLen == 0 && fam.NeedsNextHop()) {
 		return nil, 0, 0, errRelayHex
 	}
-
-	// Decode the stored hex fields into ONE pooled scratch buffer rather than
-	// separate heap slices. The attribute block and the next hop are stated once
-	// for the whole run; the NLRI region that follows them takes one element per
-	// route, so the NLRI section stays one contiguous span whatever the run
-	// length. The path identifier is written into the four octets reserved ahead
-	// of each element.
-	runNLRILen := 0
-	for i := range routes {
-		runNLRILen += pathIDLen + hex.DecodedLen(len(routes[i].NLRIHex))
+	if len(route.NextHopHex)%2 != 0 {
+		return nil, 0, 0, errRelayHex
 	}
-	scratchLen := attrLen + nhLen + runNLRILen
-	scratch := getReadBuf(scratchLen > message.MaxMsgLen-message.HeaderLen)
-	if scratch.Buf == nil {
-		return nil, 0, 0, errRelayBufferPool
-	}
-	defer returnReadBuffer(scratch)
-	// Only the FIRST element has to fit. A run longer than one message is not an
-	// error: the fill loop below stops where the message stops, and the caller
-	// starts the next reconstruction at the route that did not fit.
-	if attrLen+nhLen+pathIDLen+firstNLRILen > len(scratch.Buf) {
+	if nhLen > maxNextHopLen {
+		if fam == family.IPv4Unicast {
+			return nil, 0, 0, errRelayNextHopLen
+		}
 		return nil, 0, 0, errRelayTooLarge
 	}
-	attrs := scratch.Buf[:attrLen]
-	nextHop := scratch.Buf[attrLen : attrLen+nhLen]
-	nlriRegion := scratch.Buf[attrLen+nhLen:]
+	var nextHopBuf [maxNextHopLen]byte
+	nextHop := nextHopBuf[:nhLen]
 	// hex.Decode does not leak src, so the []byte conversions are elided by the
 	// compiler ("zero-copy string->[]byte conversion") and cost nothing per
 	// route. A hand-rolled decoder was tried here and reverted: it was premised
 	// on an allocation that measurement showed does not happen.
-	if _, err := hex.Decode(attrs, []byte(route.AttrHex)); err != nil {
+	if _, err := hex.Decode(nextHop, []byte(route.NextHopHex)); err != nil {
 		return nil, 0, 0, errRelayHex
 	}
-	if _, err := hex.Decode(nextHop, []byte(route.NextHopHex)); err != nil {
+
+	// Decode the stored attribute block and NLRI run into ONE pooled scratch
+	// buffer rather than separate heap slices. A stored AttrHex from a 4K
+	// multiprotocol UPDATE still carries the source's full MP_REACH_NLRI (up to
+	// ~4073 bytes), so decoding AttrHex and all run NLRIs side-by-side would
+	// exceed 4K and demand a 64K bufMuxExt slot even on standard 4K peers.
+	// Compacting surviving attributes in place after scanAttrBlock strips
+	// MP_REACH/MP_UNREACH first, leaving the rest of the 4K scratch buffer free
+	// for the contiguous NLRI region.
+	//
+	// Coalescing also respects the source's negotiated message limit: a standard
+	// 4K source never sent an UPDATE body above stdBodyMax, so capping coalescing
+	// there keeps both scratch and output in bufMuxStd. If an extended source
+	// asks bufMuxExt and the 64K pool is exhausted, fall back to a 4K scratch
+	// when the attribute block fits so replay degrades cleanly to 4K frames.
+	attrsNeedExt := attrLen > message.MaxMsgLen
+	coalesceMax := stdBodyMax
+	wantExt := attrsNeedExt
+	if srcExtMsg {
+		coalesceMax = maxUpdateBodyLen
+		if !wantExt {
+			runNLRILen := 0
+			for i := range routes {
+				runNLRILen += pathIDLen + hex.DecodedLen(len(routes[i].NLRIHex))
+				if runNLRILen > stdBodyMax {
+					wantExt = true
+					break
+				}
+			}
+		}
+	}
+	scratch := getReadBuf(wantExt)
+	if scratch.Buf == nil && wantExt && !attrsNeedExt {
+		scratch = getReadBuf(false)
+		coalesceMax = stdBodyMax
+	}
+	if scratch.Buf == nil {
+		return nil, 0, 0, errRelayBufferPool
+	}
+	defer func() { returnReadBuffer(scratch) }()
+	if attrLen > len(scratch.Buf) {
+		return nil, 0, 0, errRelayTooLarge
+	}
+	attrs := scratch.Buf[:attrLen]
+	if _, err := hex.Decode(attrs, []byte(route.AttrHex)); err != nil {
 		return nil, 0, 0, errRelayHex
 	}
 
@@ -541,7 +574,9 @@ func (a *reactorAPIAdapter) buildRelayUpdate(routes []rpc.StoredRoute, src *rela
 	}
 
 	if len(nextHop) == 0 && !fam.NeedsNextHop() {
-		nextHop = relayFlowSpecNextHop(attrs, fam)
+		if fsNH := relayFlowSpecNextHop(attrs, fam); len(fsNH) > 0 {
+			nextHop = nextHopBuf[:copy(nextHopBuf[:], fsNH)]
+		}
 	}
 
 	needNextHop := relayNeedsNextHopAttr(scanned, fam)
@@ -568,6 +603,46 @@ func (a *reactorAPIAdapter) buildRelayUpdate(routes []rpc.StoredRoute, src *rela
 			return nil, 0, 0, errRelayNextHopLen
 		}
 	}
+
+	// Compact surviving attributes in place so stripped MP_REACH/MP_UNREACH
+	// bytes do not eat the NLRI region. Zero-length spans are retained at their
+	// original positions so writeRelayPayload still slots a re-added legacy
+	// NEXT_HOP where the source's MP_REACH stood.
+	legacyIPv4 := fam == family.IPv4Unicast && len(nextHop) == 4
+	keptAttrLen := 0
+	for idx := range scanned {
+		s := scanned[idx]
+		if isRelayStrippedAttr(s.code, legacyIPv4) {
+			scanned[idx] = relayAttrSpan{code: s.code, start: keptAttrLen, end: keptAttrLen}
+			continue
+		}
+		n := s.end - s.start
+		if keptAttrLen != s.start {
+			copy(scratch.Buf[keptAttrLen:keptAttrLen+n], attrs[s.start:s.end])
+		}
+		scanned[idx] = relayAttrSpan{code: s.code, start: keptAttrLen, end: keptAttrLen + n}
+		keptAttrLen += n
+	}
+	// If a single route's surviving attributes plus its first NLRI still exceed
+	// a 4K scratch buffer, upgrade once to a 64K buffer before declaring it too
+	// large. Only the FIRST element has to fit: a run longer than one message
+	// stops in the fill loop below and resumes on the next iteration.
+	if keptAttrLen+pathIDLen+firstNLRILen > len(scratch.Buf) {
+		if len(scratch.Buf) < message.ExtMsgLen {
+			ext := getReadBuf(true)
+			if ext.Buf == nil {
+				return nil, 0, 0, errRelayBufferPool
+			}
+			copy(ext.Buf[:keptAttrLen], scratch.Buf[:keptAttrLen])
+			returnReadBuffer(scratch)
+			scratch = ext
+		}
+		if keptAttrLen+pathIDLen+firstNLRILen > len(scratch.Buf) {
+			return nil, 0, 0, errRelayTooLarge
+		}
+	}
+	attrs = scratch.Buf[:keptAttrLen]
+	nlriRegion := scratch.Buf[keptAttrLen:]
 
 	// Fill the NLRI section with as much of the run as this UPDATE can carry.
 	// relayPayloadLen is asked before each element is accepted, so the message
@@ -606,6 +681,9 @@ func (a *reactorAPIAdapter) buildRelayUpdate(routes []rpc.StoredRoute, src *rela
 			}
 			break
 		}
+		if consumed > 0 && trialSize > coalesceMax {
+			break
+		}
 		nlriLen += elemLen
 		size = trialSize
 		consumed++
@@ -618,7 +696,7 @@ func (a *reactorAPIAdapter) buildRelayUpdate(routes []rpc.StoredRoute, src *rela
 	// The reconstruction buffer is NOT returned here: it backs the WireUpdate for
 	// the whole forward, including asynchronous per-peer writes, and is returned
 	// when the cache evicts the entry.
-	out := getReadBuf(size > message.MaxMsgLen-message.HeaderLen)
+	out := getReadBuf(size > stdBodyMax)
 	if out.Buf == nil {
 		return nil, 0, 0, errRelayBufferPool
 	}
