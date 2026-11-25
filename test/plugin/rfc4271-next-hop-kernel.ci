@@ -13,13 +13,24 @@ option=netns-link:name=zesrproof
 option=timeout:value=150s
 
 stdin=ze-conf:terminator=EOF_CONF
-plugin {
- external rfc4271-next-hop-test { run "le test fixture plugin/rfc4271-next-hop-kernel internal 127.0.0.1:$PORT"; encoder json; }
- internal sysrib-owner { use rib; }
- internal bgp-rib { use bgp-rib; }
- internal fib-kernel { use fib-kernel; }
+bus {
+  endpoint sysrib-owner {
+    internal rib;
+  }
+  endpoint bgp-rib {
+    internal bgp-rib;
+  }
+  endpoint fib-kernel {
+    internal fib-kernel;
+  }
+  endpoint rfc4271-next-hop-test {
+    external {
+      run "le test fixture plugin/rfc4271-next-hop-kernel internal 127.0.0.1:$PORT";
+    }
+    encoding json;
+  }
 }
-interface { backend netlink; }
+interface { backend kernel; }
 connected { }
 fib { kernel { flush-on-stop true; } }
 rib { distance { ospf 110; } }
@@ -29,13 +40,11 @@ bgp {
   connection { local { ip 127.0.0.1; port $PORT; } remote { ip 127.0.0.2; connect false; } }
   session { asn { local 65001; remote 65001; } router-id 1.1.1.1; family { ipv4/unicast { prefix { maximum 100; } } } capability { graceful-restart disable; } }
   behavior { group-updates disable; }
-  attach process bgp-rib { receive [ update state refresh ]; send [ update ]; }
  }
  peer alternate {
   connection { local { ip 127.0.0.1; port $PORT; } remote { ip 127.0.0.3; connect false; } }
   session { asn { local 65001; remote 65001; } router-id 1.1.1.1; family { ipv4/unicast { prefix { maximum 100; } } } capability { graceful-restart disable; } }
   behavior { group-updates disable; }
-  attach process bgp-rib { receive [ update state refresh ]; send [ update ]; }
  }
 }
 EOF_CONF

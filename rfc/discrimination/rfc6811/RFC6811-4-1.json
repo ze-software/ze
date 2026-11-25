@@ -59,12 +59,12 @@
     "rid": "RFC6811-4-1",
     "polarity": "positive",
     "unit": "test/plugin/rpki-revalidate-selected-route.ci",
-    "unit-sha": "c699f663c9005e35",
+    "unit-sha": "c29b201fef27c19b",
     "claim-sha": "c088aad44ff0a47a",
     "route": "mutant",
     "producer": "internal/component/bgp/plugins/rib/rib_bestchange.go::checkRouteBestChange",
-    "producer-sha": "3f5dec7a9b9128da",
-    "break": "line 948: \"r.removeLocRIB(fam, pfx)\" -\u003e \"if false { r.removeLocRIB(fam, pfx) }\"",
+    "producer-sha": "48bb523d2ee3b3fd",
+    "break": "line 1057: \"r.removeLocRIB(fam, pfx)\" -\u003e \"if false { r.removeLocRIB(fam, pfx) }\"",
     "citation": "expect=stderr:contains=OK: VRP addition removes the retained Invalid route from BGP best and Loc-RIB while the Valid control stays selected"
   }
 ]

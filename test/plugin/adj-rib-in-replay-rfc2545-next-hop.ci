@@ -101,10 +101,10 @@ option=linger:value=true
 option=established-file:path=destination.up
 
 # seq=1 CONTROL -- the LIVE forward.
-expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00570200000040800E2C0002012020010DB8000000000000000000000001FE800000000000000000000000000001003020010DB800014001010040020A02020000FDE80000FDE9
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF0053020000003C800E2C0002012020010DB8000000000000000000000001FE800000000000000000000000000001003020010DB800014001010040020602010000FDE9
 # seq=2 SUBJECT -- the REPLAY, reconstructed from the stored route. The store is
 # the only place the link-local half can be lost, so this line is the assertion.
-expect=bgp:conn=1:seq=2:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00570200000040800E2C0002012020010DB8000000000000000000000001FE800000000000000000000000000001003020010DB800014001010040020A02020000FDE80000FDE9
+expect=bgp:conn=1:seq=2:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF0053020000003C800E2C0002012020010DB8000000000000000000000001FE800000000000000000000000000001003020010DB800014001010040020602010000FDE9
 EOF_DEST
 
 # ---------------------------------------------------------------------------
@@ -118,16 +118,18 @@ EOF_DEST
 # Adj-rib-in receives `update-received state` on the SOURCE only, so it stores
 # that peer's routes and never sees the destination come up.
 tmpfs=ze.conf:terminator=EOF_CONF
-plugin {
-	internal rs {
-		use bgp-rs
+bus {
+	endpoint rs {
+		internal bgp-rs;
 	}
-	external replay-nh2545 {
-		run "le test fixture plugin/adj-rib-in-replay-rfc2545-next-hop"
-		encoder json
+	endpoint adj-rib-in {
+		internal bgp-adj-rib-in;
 	}
-	internal adj-rib-in {
-		use bgp-adj-rib-in
+	endpoint replay-nh2545 {
+		external {
+			run "le test fixture plugin/adj-rib-in-replay-rfc2545-next-hop";
+		}
+		encoding json;
 	}
 }
 
@@ -148,6 +150,7 @@ bgp {
 			}
 		}
 		session {
+			rs-client true;
 			asn {
 				local 65000
 				remote 65001
@@ -164,16 +167,6 @@ bgp {
 			group-updates disable
 		}
 
-		attach process replay-nh2545 {
-			send [ update ]
-		}
-		attach process adj-rib-in {
-			receive [ update-received state ]
-		}
-		attach process rs {
-			receive [ update-received state open-received refresh ]
-			send [ update ]
-		}
 	}
 
 	peer dest-peer {
@@ -187,6 +180,7 @@ bgp {
 			}
 		}
 		session {
+			rs-client true;
 			asn {
 				local 65000
 				remote 65002
@@ -207,13 +201,6 @@ bgp {
 		# internal/component/bgp/reactor/send_permission.go). Send only, and no
 		# receive list: the NON-VACUITY note rests on adj-rib-in never being fed
 		# `state` for a destination, so its own peer-up self-replay stays silent.
-		attach process adj-rib-in {
-			send [ update ]
-		}
-		attach process rs {
-			receive [ update-received state open-received refresh ]
-			send [ update ]
-		}
 	}
 }
 EOF_CONF

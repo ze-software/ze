@@ -17,7 +17,25 @@ expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
 EOF_PEER
 
 stdin=ze-conf:terminator=EOF_CONF
-plugin {
+bus {
+	endpoint rpki {
+		internal bgp-rpki;
+	}
+	endpoint adj-rib-in {
+		internal bgp-adj-rib-in;
+	}
+	endpoint bgp-rib {
+		internal bgp-rib;
+	}
+	endpoint sysrib-owner {
+		internal rib;
+	}
+	endpoint rpki-selected-revalidation-test {
+		external {
+			run "le test fixture plugin/rpki-revalidate-selected-route";
+		}
+		encoding json;
+	}
 	hub {
 		server local {
 			ip 127.0.0.1;
@@ -25,16 +43,8 @@ plugin {
 			secret rpki-test-secret-key-01234567890;
 		}
 	}
-	external rpki-selected-revalidation-test {
-		run "le test fixture plugin/rpki-revalidate-selected-route"
-		encoder json;
-	}
-	internal rpki { use bgp-rpki; }
-	internal adj-rib-in { use bgp-adj-rib-in; }
-	internal bgp-rib { use bgp-rib; }
-	internal sysrib-owner { use rib; }
 }
-interface { backend netlink; }
+interface { backend kernel; }
 connected { }
 bgp {
 	rpki {
@@ -60,9 +70,6 @@ bgp {
 			capability { graceful-restart disable; }
 		}
 		behavior { group-updates disable; }
-		attach process rpki { receive [ update-received state ]; }
-		attach process adj-rib-in { receive [ update-received state ]; }
-		attach process bgp-rib { receive [ update state refresh ]; send [ update ]; }
 	}
 }
 EOF_CONF
