@@ -161,7 +161,7 @@ func TestManagedServeDuplicateNameRejected(t *testing.T) {
 
 	waitForConnected(t, srv, testClientName, true)
 
-	// Second connection authenticates but is dropped by RegisterClient; a fetch fails.
+	// The registry refuses the second session after authentication, so its fetch fails.
 	mc2 := dialTestClient(t, addr, testClientName, testClientSecret)
 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
 	defer cancel()
@@ -381,8 +381,8 @@ func TestManagedServeResilientBinding(t *testing.T) {
 	_ = fetch(t, mc, "")
 }
 
-// TestManagedServeAllAddressesUnavailable: when no address can bind, Start returns an
-// error (and releases its context rather than leaking the cancel func).
+// TestManagedServeAllAddressesUnavailable keeps the unavailable socket closed and
+// reports its address, while allowing the live server to retry a later reload.
 func TestManagedServeAllAddressesUnavailable(t *testing.T) {
 	srv1, occupied := startTestManagedServer(t)
 	_ = srv1
@@ -396,9 +396,16 @@ func TestManagedServeAllAddressesUnavailable(t *testing.T) {
 	if err != nil {
 		t.Fatalf("NewManagedServer: %v", err)
 	}
-	if startErr := srv2.Start(context.Background()); startErr == nil {
-		srv2.Stop()
-		t.Fatal("Start should fail when no address can bind")
+	if startErr := srv2.Start(t.Context()); startErr != nil {
+		t.Fatal(startErr)
+	}
+	t.Cleanup(srv2.Stop)
+	if len(srv2.Addrs()) != 0 {
+		t.Fatal("an unavailable address was reported bound")
+	}
+	record := srv2.doctor.snapshot()
+	if len(record.Unbound) != 1 || record.Unbound[0].Addr != occupied || record.Unbound[0].Error == "" {
+		t.Fatalf("expected occupied address and bind error in doctor: %+v", record.Unbound)
 	}
 }
 

@@ -18,8 +18,9 @@ import (
 	"encoding/pem"
 	"errors"
 	"fmt"
-	"maps"
 	"net"
+	"net/netip"
+	"slices"
 	"strconv"
 	"strings"
 	"sync"
@@ -36,6 +37,7 @@ import (
 	"github.com/ze-software/ze/internal/core/textbuf"
 	"github.com/ze-software/ze/pkg/fleet"
 	"github.com/ze-software/ze/pkg/plugin/rpc"
+	"github.com/ze-software/ze/pkg/zefs"
 )
 
 var managedLogger = slogutil.LazyLogger("hub.managed-server")
@@ -67,8 +69,11 @@ const managedNotifyWorkers = 4
 // only on the address of the block that declares it, so a secret configured
 // for one listener opens no other.
 type ManagedListener struct {
-	Addr    string            // Listen address of the server block.
-	Clients map[string]string // Client name -> secret, admitted on Addr only.
+	Block        string                       // Configuration block, for operator errors.
+	Certificate  string                       // Certificate reference on this block.
+	Addr         string                       // Listen address of the server block.
+	Clients      map[string]string            // Client name -> secret, admitted on Addr only.
+	ClientLabels map[string]map[string]string // Label assignments by client name.
 }
 
 // ManagedServerConfig configures the dedicated managed-config TLS server.
@@ -137,27 +142,25 @@ const managedLoopbackHost = "127.0.0.1"
 type ManagedServer struct {
 	svc *ManagedConfigService
 	// listens is ManagedServerConfig.Listeners, each with its own copy of the
-	// client map. Fixed at construction and never written after, so it is read
-	// without a lock.
+	// startup declarations. Reload takes its own prepared declarations.
 	listens []ManagedListener
-	// served names every client some listener admits. Fixed at construction.
-	served map[string]struct{}
+	// devices holds one entry across all declarations of a name. Its session
+	// pointer is also the destination for config-changed. Guarded by mu.
+	recordIO *managedRecordIO
+	devices  map[string]*managedDevice
+	now      func() time.Time
 
-	// getCertificate answers the served certificate for each handshake. It is
-	// tls.Config.GetCertificate, so an issued leaf is reissued as it ages
-	// rather than served past its expiry.
-	getCertificate func(*tls.ClientHelloInfo) (*tls.Certificate, error)
-	// certName is the configured pki certificate name, empty when the leaf was
-	// issued by the daemon root. Kept only so Start can name it in its log.
-	certName string
+	// source is installed once the reload is accepted. Each new handshake reads it.
+	source         *managedCertSource
+	certConfig     ManagedServerConfig // Only the authority, clock and material resolver.
+	initialCertErr error
 	// acceptor is ManagedServerConfig.Acceptor.
 	acceptor plugin.HubServerConfig
 
 	// doctor is what this server records for the managed runtime checks.
 	doctor managedDoctorState
 
-	mu    sync.Mutex
-	conns map[string]*rpc.MuxConn // Connected client name -> mux, for config-changed push.
+	mu sync.Mutex
 	// pending names the connected clients whose config changed and who have
 	// not been told yet. It holds connected names only, so managedMaxConns
 	// bounds it and a change is never dropped for want of room. Guarded by mu.
@@ -176,19 +179,30 @@ type ManagedServer struct {
 
 	// Metrics handles (no-op unless a registry was supplied). Set once at construction,
 	// so they are read without a lock.
-	mConnected metrics.Gauge      // ze_managed_clients_connected
-	mFetch     metrics.CounterVec // ze_managed_config_fetch_total{result}
-	mPushed    metrics.Counter    // ze_managed_config_changed_pushed_total
-	mHeld      metrics.CounterVec // ze_managed_config_held_total{result}
+	mConnected    metrics.Gauge      // ze_managed_clients_connected
+	mFetch        metrics.CounterVec // ze_managed_config_fetch_total{result}
+	mPushed       metrics.Counter    // ze_managed_config_changed_pushed_total
+	mRecordWrites metrics.CounterVec // ze_managed_device_records_written_total{result}
+	mHeld         metrics.CounterVec // ze_managed_config_held_total{result}
 
-	listeners []managedBound
-	ctx       context.Context
-	cancel    context.CancelFunc
-	wg        sync.WaitGroup
+	lifecycleMu sync.Mutex // Serializes applying socket changes with shutdown.
+	listeners   []*managedBound
+	ctx         context.Context
+	cancel      context.CancelFunc
+	wg          sync.WaitGroup
+}
+
+// managedListenerKey identifies a configured bind request. Multiple port-zero
+// requests for the same host each receive a distinct socket from the kernel.
+type managedListenerKey struct {
+	addr       string
+	block      string
+	occurrence int
 }
 
 // managedBound is one bound listener and the clients its server block admits.
 type managedBound struct {
+	key      managedListenerKey
 	listener net.Listener
 	clients  map[string]string
 }
@@ -205,18 +219,18 @@ func NewManagedServer(cfg ManagedServerConfig) (*ManagedServer, error) {
 	if cfg.ReadConfig == nil {
 		return nil, errors.New("managed server: ReadConfig is required")
 	}
-	getCertificate, err := managedCertificate(cfg)
-	if err != nil {
-		return nil, err
+	source, certErr := managedCertificate(cfg, nil)
+	if certErr != nil && (cfg.Certificate == "" && cfg.Authority == nil || cfg.Certificate != "" && cfg.TLSMaterialResolver == nil) {
+		return nil, certErr
 	}
-	listens := make([]ManagedListener, 0, len(cfg.Listeners))
-	served := make(map[string]struct{})
-	for _, listen := range cfg.Listeners {
-		// A copy, so a caller that later changes its map cannot change who
-		// this server admits.
-		listens = append(listens, ManagedListener{Addr: listen.Addr, Clients: maps.Clone(listen.Clients)})
+	listens := cloneManagedListeners(cfg.Listeners)
+	devices := make(map[string]*managedDevice)
+	for _, listen := range listens {
 		for name := range listen.Clients {
-			served[name] = struct{}{}
+			devices[name] = &managedDevice{
+				ManagedDeviceRecord: ManagedDeviceRecord{Name: name},
+				declared:            true, labels: listen.ClientLabels[name],
+			}
 		}
 	}
 	reg := cfg.Metrics
@@ -225,16 +239,21 @@ func NewManagedServer(cfg ManagedServerConfig) (*ManagedServer, error) {
 	} else {
 		managedPanics().guard.SetMetricsRegistry(reg)
 	}
+	if cfg.Clock == nil {
+		cfg.Clock = clock.RealClock{}
+	}
 	svc := newManagedConfigService(cfg.ReadConfig)
 	svc.records = newHeldRecords(cfg.Store)
 	return &ManagedServer{
 		svc:            svc,
 		listens:        listens,
-		served:         served,
-		getCertificate: getCertificate,
-		certName:       cfg.Certificate,
+		devices:        devices,
+		recordIO:       newManagedRecordIO(cfg.Store),
+		now:            cfg.Clock.Now,
+		source:         source,
+		initialCertErr: certErr,
+		certConfig:     ManagedServerConfig{Authority: cfg.Authority, TLSMaterialResolver: cfg.TLSMaterialResolver, Clock: cfg.Clock},
 		acceptor:       cfg.Acceptor,
-		conns:          make(map[string]*rpc.MuxConn),
 		pending:        make(map[string]struct{}),
 		pushing:        make(map[string]struct{}),
 		notifyWake:     make(chan struct{}, 1),
@@ -246,6 +265,8 @@ func NewManagedServer(cfg ManagedServerConfig) (*ManagedServer, error) {
 			"Managed config-fetch requests served, by result (served|current|error).", []string{managedMetricResult}),
 		mPushed: reg.Counter("ze_managed_config_changed_pushed_total",
 			"config-changed notifications pushed to connected managed clients."),
+		mRecordWrites: reg.CounterVec("ze_managed_device_records_written_total",
+			"Managed device history writes, by result (ok|failed).", []string{managedMetricResult}),
 		mHeld: reg.CounterVec("ze_managed_config_held_total",
 			"Copies of a held configuration managed clients sent, by result (stored|refused).", []string{managedMetricResult}),
 	}, nil
@@ -270,7 +291,7 @@ func NewManagedServer(cfg ManagedServerConfig) (*ManagedServer, error) {
 // lives keeps presenting a valid certificate. The root is presented after the
 // leaf (withAuthority). No authority is an error too: a
 // self-signed leaf is one no client can validate and no operator can rotate.
-func managedCertificate(cfg ManagedServerConfig) (func(*tls.ClientHelloInfo) (*tls.Certificate, error), error) {
+func managedCertificate(cfg ManagedServerConfig, current *managedCertSource) (*managedCertSource, error) {
 	if cfg.Certificate != "" {
 		if cfg.TLSMaterialResolver == nil {
 			var tb textbuf.Buffer
@@ -280,13 +301,13 @@ func managedCertificate(cfg ManagedServerConfig) (func(*tls.ClientHelloInfo) (*t
 		}
 		certPEM, keyPEM, err := cfg.TLSMaterialResolver(cfg.Certificate)
 		if err != nil {
-			return nil, fmt.Errorf("managed server: certificate %q: %w", cfg.Certificate, err)
+			return nil, fmt.Errorf("certificate %s is not defined in pki: %w", cfg.Certificate, err)
 		}
 		pair, err := tls.X509KeyPair(certPEM, keyPEM)
 		if err != nil {
-			return nil, fmt.Errorf("managed server: certificate %q: %w", cfg.Certificate, err)
+			return nil, fmt.Errorf("certificate %s material does not parse: %w", cfg.Certificate, err)
 		}
-		return func(*tls.ClientHelloInfo) (*tls.Certificate, error) { return &pair, nil }, nil
+		return &managedCertSource{name: cfg.Certificate, get: func(*tls.ClientHelloInfo) (*tls.Certificate, error) { return &pair, nil }}, nil
 	}
 
 	if cfg.Authority == nil {
@@ -296,7 +317,11 @@ func managedCertificate(cfg ManagedServerConfig) (func(*tls.ClientHelloInfo) (*t
 	for _, listen := range cfg.Listeners {
 		addrs = append(addrs, listen.Addr)
 	}
-	leaf, err := plugin.NewServingLeaf(cfg.Authority, managedLeafCommonName, managedLeafHosts(addrs), cfg.Clock)
+	hosts := managedLeafHosts(addrs)
+	if current != nil && current.name == "" && !slices.ContainsFunc(hosts, func(host string) bool { return !slices.Contains(current.hosts, host) }) {
+		return current, nil
+	}
+	leaf, err := plugin.NewServingLeaf(cfg.Authority, managedLeafCommonName, hosts, cfg.Clock)
 	if err != nil {
 		return nil, fmt.Errorf("managed server: %w", err)
 	}
@@ -304,13 +329,13 @@ func managedCertificate(cfg ManagedServerConfig) (func(*tls.ClientHelloInfo) (*t
 	if root == nil {
 		return nil, errors.New("managed server: the certificate authority has no root certificate in PEM")
 	}
-	return func(hello *tls.ClientHelloInfo) (*tls.Certificate, error) {
+	return &managedCertSource{hosts: hosts, get: func(hello *tls.ClientHelloInfo) (*tls.Certificate, error) {
 		issued, err := leaf.Certificate(hello)
 		if err != nil {
 			return nil, err
 		}
 		return withAuthority(issued, root.Bytes), nil
-	}, nil
+	}}, nil
 }
 
 // withAuthority returns issued with the authority's root appended to the
@@ -349,6 +374,8 @@ func managedLeafHosts(addrs []string) []string {
 // Addrs returns the bound listener addresses (useful when a port-0 was requested,
 // and for tests to discover the ephemeral port).
 func (s *ManagedServer) Addrs() []net.Addr {
+	s.mu.Lock()
+	defer s.mu.Unlock()
 	out := make([]net.Addr, 0, len(s.listeners))
 	for _, bound := range s.listeners {
 		out = append(out, bound.listener.Addr())
@@ -356,47 +383,29 @@ func (s *ManagedServer) Addrs() []net.Addr {
 	return out
 }
 
-// Start binds the listeners and begins serving in background goroutines. It returns
-// once binding succeeds; serving continues until Stop or ctx cancellation.
+// Start loads device history and binds each available address. A server with no
+// bound address still publishes its registry and can accept a repairing reload.
 func (s *ManagedServer) Start(ctx context.Context) error {
-	if len(s.listens) == 0 {
-		return errors.New("managed server: no listen addresses")
+	if err := s.loadDeviceRecords(); err != nil {
+		return err
 	}
 	s.ctx, s.cancel = context.WithCancel(ctx)
-	// Published before any bind, so a server whose every address failed is still
-	// what the managed-listener-unbound check reads.
-	publishManagedDoctor(s)
-	// Bind each address independently so one unavailable address (e.g. a server block
-	// whose port collides with the plugin acceptor's listener) disables only that block,
-	// not the whole managed server.
-	for _, listen := range s.listens {
-		lns, err := pluginipc.StartListeners([]string{listen.Addr}, s.getCertificate)
-		if err != nil {
-			s.bindFailed(listen.Addr, err)
-			continue
-		}
-		for _, ln := range lns {
-			s.listeners = append(s.listeners, managedBound{listener: ln, clients: listen.Clients})
-		}
-	}
-	if len(s.listeners) == 0 {
-		s.cancel() // Release the context: no listeners bound, nothing to serve.
-		return errors.New("managed server: no listeners could bind")
-	}
-	for _, bound := range s.listeners {
-		s.wg.Go(func() { s.acceptLoop(bound) })
+	s.ApplyManagedListeners(&ManagedListenerPlan{listens: s.listens, source: s.source, bindErr: s.initialCertErr})
+	s.listens = nil
+	if s.recordIO != nil {
+		s.wg.Go(s.recordWriter) // long-lived: drains device history until cancellation
 	}
 	for range managedNotifyWorkers {
 		s.wg.Go(s.notifyWorker) // long-lived pool: drains config-changed pushes
 	}
 	s.wg.Go(s.closeOnDone) // long-lived: closes listeners on shutdown
 	managedLogger().Info("managed config server listening",
-		"listeners", len(s.listeners),
-		"certificate", s.certName)
-	if s.certName == "" {
+		"listeners", len(s.Addrs()))
+	if s.source != nil && s.source.name == "" {
 		managedLogger().Info("managed config server: no certificate configured, so it serves a leaf issued by " +
 			"this daemon's certificate authority. Export the root and name it in each client's pki ca block")
 	}
+	publishManagedDoctor(s)
 	return nil
 }
 
@@ -431,12 +440,15 @@ func (s *ManagedServer) collidesWithAcceptor(addr string) bool {
 	return plugin.HubAddressesCollide(s.acceptor, plugin.HubServerConfig{Host: host, Port: uint16(port)})
 }
 
-func (s *ManagedServer) acceptLoop(bound managedBound) {
+func (s *ManagedServer) acceptLoop(bound *managedBound) {
 	for {
 		conn, err := bound.listener.Accept()
 		if err != nil {
 			if s.ctx.Err() != nil {
-				return // Server stopped.
+				return // The server stopped.
+			}
+			if errors.Is(err, net.ErrClosed) {
+				return // Reload removed the block.
 			}
 			managedLogger().Debug("managed accept error", "error", err)
 			continue
@@ -451,7 +463,7 @@ func (s *ManagedServer) acceptLoop(bound managedBound) {
 		}
 		s.wg.Go(func() {
 			defer func() { <-s.sem }()
-			s.handleConn(conn, bound.clients)
+			s.handleConn(conn, bound)
 		})
 	}
 }
@@ -462,7 +474,7 @@ func (s *ManagedServer) acceptLoop(bound managedBound) {
 // cleanup below has already closed the connection and released the client's
 // name when the boundary runs, and the server keeps serving every other
 // client.
-func (s *ManagedServer) handleConn(conn net.Conn, clients map[string]string) {
+func (s *ManagedServer) handleConn(conn net.Conn, bound *managedBound) {
 	defer managedPanics().client.Contain(
 		func() taskguard.Context {
 			return taskguard.Context{Unit: "managed client connection from " + conn.RemoteAddr().String()}
@@ -481,8 +493,12 @@ func (s *ManagedServer) handleConn(conn net.Conn, clients map[string]string) {
 	// a client another server block declares is unknown here. The name is taken
 	// ONLY from the authenticated session, never from a later request payload
 	// (config isolation: a client can only fetch its own config).
+	var verifiedSecret string
 	lookup := func(name string) (string, bool) {
-		secret, ok := clients[name]
+		s.mu.Lock()
+		defer s.mu.Unlock()
+		secret, ok := bound.clients[name]
+		verifiedSecret = secret
 		return secret, ok
 	}
 	name, err := pluginipc.AuthenticateWithLookup(authCtx, conn, "", lookup)
@@ -491,33 +507,29 @@ func (s *ManagedServer) handleConn(conn net.Conn, clients map[string]string) {
 		return // AuthenticateWithLookup already closed conn on failure.
 	}
 
-	// One connection per name. A duplicate is refused so a second session cannot
-	// shadow the first (RegisterClient tracks the connected set).
-	if regErr := s.svc.RegisterClient(name); regErr != nil {
-		s.doctor.recordRejected(name, ManagedRejectNameConnected, regErr.Error())
-		managedLogger().Warn("managed client rejected", "code", CodeDoctorManagedClientRejected,
-			"name", name, "error", regErr)
-		conn.Close() //nolint:errcheck,gosec // duplicate name; refuse the second connection
+	// The accept loop binds TCP listeners. Record the host without its
+	// ephemeral port so a later handshake from the same device can be joined.
+	remote, err := netip.ParseAddrPort(conn.RemoteAddr().String())
+	if err != nil {
+		s.authRefused(conn.RemoteAddr().String(), err, lookup)
+		conn.Close() //nolint:errcheck,gosec // cannot identify the remote endpoint
 		return
 	}
-	defer s.svc.UnregisterClient(name)
-	s.mConnected.Inc()
-	defer s.mConnected.Dec()
-
 	mc := rpc.NewMuxConn(rpc.NewConn(conn, conn))
 	defer mc.Close() //nolint:errcheck // cleanup
-
-	s.mu.Lock()
-	s.conns[name] = mc
-	s.mu.Unlock()
-	defer func() {
-		s.mu.Lock()
-		delete(s.conns, name)
-		// A change it was never told about needs no push: it fetches the
-		// config when it connects again.
-		delete(s.pending, name)
-		s.mu.Unlock()
-	}()
+	if regErr := s.admitOnListener(name, remote.Addr(), mc, bound, verifiedSecret); regErr != nil {
+		if errors.Is(regErr, ErrDuplicateClient) {
+			s.doctor.recordRejected(name, ManagedRejectNameConnected, regErr.Error())
+			managedLogger().Warn("managed client rejected", "code", CodeDoctorManagedClientRejected,
+				"name", name, "error", regErr)
+		} else {
+			s.authRefused(conn.RemoteAddr().String(), regErr, lookup)
+		}
+		return
+	}
+	defer s.disconnectDevice(name, mc)
+	s.mConnected.Inc()
+	defer s.mConnected.Dec()
 
 	managedLogger().Info("managed client connected", "name", name)
 	s.serve(name, mc)
@@ -566,6 +578,7 @@ func (s *ManagedServer) handleRequest(name string, mc *rpc.MuxConn, req *rpc.Req
 		}
 		session.fetched = fr.Version
 		resp, err := s.svc.HandleConfigFetch(name, fr)
+		s.recordFetch(name, fr.Version, resp, err)
 		if err != nil {
 			s.mFetch.With("error").Inc()
 			var tb textbuf.Buffer
@@ -613,6 +626,7 @@ func (s *ManagedServer) handleRequest(name string, mc *rpc.MuxConn, req *rpc.Req
 // on this connection, the one it runs.
 func (s *ManagedServer) handleConfigAck(name string, ack fleet.ConfigAck, fetched string) {
 	if ack.OK {
+		s.recordAck(name, ack, ManagedAckApplied)
 		s.doctor.clearRejected(name)
 		if err := s.svc.records.clear(name); err != nil {
 			managedLogger().Warn("the hub could not remove the held copy of a managed client that applied its config",
@@ -622,11 +636,13 @@ func (s *ManagedServer) handleConfigAck(name string, ack fleet.ConfigAck, fetche
 		return
 	}
 	if s.holdShownFromCopy(name, ack, fetched) {
+		s.recordAck(name, ack, ManagedAckHolding)
 		s.doctor.clearRejected(name)
 		managedLogger().Info("managed client holds a configuration of its own, and the hub keeps a copy of it",
 			"name", name, "version", ack.Version)
 		return
 	}
+	s.recordAck(name, ack, ManagedAckRefused)
 	s.doctor.recordRejected(name, ManagedRejectConfigRejected, ack.Error)
 	managedLogger().Warn("managed client rejected config", "code", CodeDoctorManagedClientRejected,
 		"name", name, "error", ack.Error)
@@ -661,7 +677,8 @@ func (s *ManagedServer) holdShownFromCopy(name string, ack fleet.ConfigAck, fetc
 // fetches the latest config when it connects.
 func (s *ManagedServer) NotifyConfigChanged(name string) {
 	s.mu.Lock()
-	_, connected := s.conns[name]
+	device := s.devices[name]
+	connected := device != nil && device.conn != nil
 	if connected {
 		s.pending[name] = struct{}{}
 	}
@@ -752,10 +769,14 @@ func (s *ManagedServer) pushPending() {
 // config each time it connects.
 func (s *ManagedServer) pushConfigChanged(name string) {
 	s.mu.Lock()
-	mc, ok := s.conns[name]
+	device := s.devices[name]
+	var mc *rpc.MuxConn
+	if device != nil {
+		mc = device.conn
+	}
 	s.mu.Unlock()
-	if !ok {
-		return
+	if mc == nil {
+		return // A disconnected client will fetch when it reconnects.
 	}
 	changed, err := s.svc.BuildConfigChanged(name)
 	if err != nil {
@@ -792,6 +813,8 @@ func (s *ManagedServer) pushConfigChanged(name string) {
 // the accept loops. A single long-lived goroutine started by Start.
 func (s *ManagedServer) closeOnDone() {
 	<-s.ctx.Done()
+	s.lifecycleMu.Lock()
+	defer s.lifecycleMu.Unlock()
 	for _, bound := range s.listeners {
 		bound.listener.Close() //nolint:errcheck,gosec // shutdown cleanup
 	}
@@ -803,9 +826,11 @@ func (s *ManagedServer) closeOnDone() {
 func (s *ManagedServer) connectedClients() []string {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	out := make([]string, 0, len(s.conns))
-	for n := range s.conns {
-		out = append(out, n)
+	var out []string
+	for name, device := range s.devices {
+		if device.conn != nil {
+			out = append(out, name)
+		}
 	}
 	return out
 }
@@ -817,6 +842,7 @@ func (s *ManagedServer) Stop() {
 		s.cancel()
 	}
 	s.wg.Wait()
+	s.stopDeviceRecords() // final disconnects may follow writer cancellation
 	withdrawManagedDoctor(s)
 }
 
@@ -831,11 +857,12 @@ const (
 )
 
 // Serves reports whether name is a managed client this server accepts, which is
-// a client entry in one of the hub's serving blocks. The client set is fixed at
-// construction, so Serves is safe for concurrent use.
+// a client entry in one of the hub's serving blocks. The set follows the last accepted configuration. Safe for concurrent use.
 func (s *ManagedServer) Serves(name string) bool {
-	_, ok := s.served[name]
-	return ok
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	device := s.devices[name]
+	return device != nil && device.declared
 }
 
 // ClientConfigKey returns the blob key (relative; storage adds the file/active/
@@ -847,13 +874,12 @@ func ClientConfigKey(name string) string {
 }
 
 // ClientNameFromConfigKey extracts the managed client name from a written blob key,
-// reporting false when the key is not a per-client config key. It tolerates the
-// storage namespace prefix (file/active/) by matching on the key's basename, so it
-// works whether the observer reports the relative or the resolved key.
+// reported as a relative name or a resolved active configuration key. A value
+// under another namespace is never a change to the client's active file.
 func ClientNameFromConfigKey(key string) (string, bool) {
-	base := key
-	if i := strings.LastIndexByte(base, '/'); i >= 0 {
-		base = base[i+1:]
+	base := strings.TrimPrefix(key, zefs.KeyFileActive.Prefix())
+	if strings.ContainsRune(base, '/') {
+		return "", false
 	}
 	if !strings.HasPrefix(base, clientConfigPrefix) || !strings.HasSuffix(base, clientConfigSuffix) {
 		return "", false

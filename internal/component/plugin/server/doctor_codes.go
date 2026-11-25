@@ -46,6 +46,10 @@ const (
 	CodeDoctorPluginEnricherUnavailable = "doctor-plugin-enricher-unavailable"
 	// CodeDoctorManagedListenerUnbound is the doctor diagnostic code "doctor-managed-listener-unbound".
 	CodeDoctorManagedListenerUnbound = "doctor-managed-listener-unbound"
+	// CodeDoctorManagedDeviceRecordUnwritable reports device history that could not be saved.
+	CodeDoctorManagedDeviceRecordUnwritable = "doctor-managed-device-record-unwritable"
+	// CodeDoctorManagedDeviceRecordUnreadable reports a stored record this hub cannot read.
+	CodeDoctorManagedDeviceRecordUnreadable = "doctor-managed-device-record-unreadable"
 	// CodeDoctorManagedClientRejected is the doctor diagnostic code "doctor-managed-client-rejected".
 	CodeDoctorManagedClientRejected = "doctor-managed-client-rejected"
 	// CodeDoctorPluginRemovalUnrecovered is the doctor diagnostic code "doctor-plugin-removal-unrecovered".
@@ -222,6 +226,18 @@ var doctorDiagnosticCodes = []diagnostic.CodeMeta{
 			"so managed clients that dial that address are not served. The row names the address and the kernel's error.",
 		Examples:     []string{exampleShowDoctor, "ze show diagnostic doctor-managed-listener-unbound"},
 		RelatedCodes: []string{CodeDoctorHubManagedCollision},
+	},
+	{
+		Code:        CodeDoctorManagedDeviceRecordUnwritable,
+		Title:       "Managed device history could not be saved",
+		Description: "The running hub retains this device's facts in memory. An error writing its record leaves its durable history behind. The next device event retries it.",
+		Examples:    []string{exampleShowDoctor, "ze show diagnostic doctor-managed-device-record-unwritable"},
+	},
+	{
+		Code:        CodeDoctorManagedDeviceRecordUnreadable,
+		Title:       "Stored managed device history cannot be read",
+		Description: "The hub retains the unreadable record. A new device event replaces it, or the operator can delete the key to forget its history.",
+		Examples:    []string{exampleShowDoctor, "ze show diagnostic doctor-managed-device-record-unreadable"},
 	},
 	{
 		Code:  CodeDoctorManagedClientRejected,

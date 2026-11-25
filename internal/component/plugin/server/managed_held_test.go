@@ -52,6 +52,10 @@ func heldTestServer(t *testing.T, store storage.Storage) (*ManagedServer, *rpc.M
 	svc := newManagedConfigService(func(string) ([]byte, error) { return []byte(heldHubText), nil })
 	svc.records = newHeldRecords(store)
 	s := &ManagedServer{
+		devices: map[string]*managedDevice{
+			testClientName: {ManagedDeviceRecord: ManagedDeviceRecord{Name: testClientName}, declared: true},
+		},
+		now:   time.Now,
 		svc:   svc,
 		ctx:   t.Context(),
 		mHeld: metrics.NopRegistry{}.CounterVec("held", "held", []string{"result"}),
@@ -345,6 +349,9 @@ func TestHoldingAckWithRecordClearsRefusal(t *testing.T) {
 	s.handleConfigAck("edge-01", fleet.ConfigAck{OK: false, Holding: true, Error: "holding: ..."}, fleet.VersionHash([]byte(heldClientText)))
 
 	assert.Empty(t, s.doctor.snapshot().Rejected)
+	got := s.snapshotDevices()[0]
+	require.Equal(t, ManagedAckHolding, got.AckResult)
+	require.Equal(t, "holding: ...", got.AckError)
 }
 
 // TestHoldingAckWithOlderRecordRecordsText proves that a holding ack keeps

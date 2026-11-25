@@ -65,6 +65,26 @@ func init() {
 		Codes:        []string{server.CodeDoctorManagedClientRejected},
 		Check:        checkManagedClientRejected,
 	})
+	registerOrPanic(diagnostic.DoctorCheck{
+		Name:         "managed-device-record-unwritable",
+		Phase:        diagnostic.DoctorPhaseRuntime,
+		Order:        713,
+		Component:    componentPlugin,
+		Dependencies: []string{doctorDependencyManagedServer},
+		Platforms:    []string{diagnostic.DoctorPlatformAny},
+		Codes:        []string{server.CodeDoctorManagedDeviceRecordUnwritable},
+		Check:        checkManagedDeviceRecordUnwritable,
+	})
+	registerOrPanic(diagnostic.DoctorCheck{
+		Name:         "managed-device-record-unreadable",
+		Phase:        diagnostic.DoctorPhaseRuntime,
+		Order:        714,
+		Component:    componentPlugin,
+		Dependencies: []string{doctorDependencyManagedServer},
+		Platforms:    []string{diagnostic.DoctorPlatformAny},
+		Codes:        []string{server.CodeDoctorManagedDeviceRecordUnreadable},
+		Check:        checkManagedDeviceRecordUnreadable,
+	})
 }
 
 // registerOrPanic registers one check and panics on a refusal. Registration

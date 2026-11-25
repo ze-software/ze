@@ -285,10 +285,7 @@ func TestNamedCertificateOutranksIssuance(t *testing.T) {
 			},
 			Authority: ca,
 		})
-		if err == nil {
-			srv.Stop()
-			t.Fatal("a certificate name that does not resolve must be an error, not an issued leaf")
-		}
+		assertManagedCertificateUnbound(t, srv, err, "missing")
 		if ca.issued != 0 {
 			t.Fatalf("the authority issued %d certificates for a name that did not resolve", ca.issued)
 		}
@@ -327,8 +324,8 @@ func TestManagedServerIssuesFromTheAuthority(t *testing.T) {
 }
 
 // TestManagedServerFailsClosedOnCertificate: a configured name that cannot be
-// resolved refuses to build the server, and so does a hub with neither a name
-// nor an authority. Neither falls back to a certificate nothing issued: such a
+// resolved leaves all sockets unbound. A hub with no authority or resolver
+// for its configured certificate source refuses construction. Neither falls back to a certificate nothing issued: such a
 // listener looks healthy until a client refuses the handshake.
 //
 // MUTATION: self-sign on a resolver error, or when Authority is nil, and each
@@ -346,10 +343,7 @@ func TestManagedServerFailsClosedOnCertificate(t *testing.T) {
 			return nil, nil, errors.New("certificate missing not found")
 		}
 		srv, err := NewManagedServer(cfg)
-		if err == nil {
-			srv.Stop()
-			t.Fatal("NewManagedServer accepted an unresolvable certificate name")
-		}
+		assertManagedCertificateUnbound(t, srv, err, "missing")
 	})
 
 	t.Run("no-resolver", func(t *testing.T) {

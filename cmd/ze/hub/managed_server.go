@@ -4,6 +4,9 @@ package hub
 
 import (
 	"context"
+	"fmt"
+
+	zeconfig "github.com/ze-software/ze/internal/component/config"
 
 	"github.com/ze-software/ze/internal/component/config/storage"
 	zepki "github.com/ze-software/ze/internal/component/pki"
@@ -15,15 +18,46 @@ import (
 
 var managedServerLog = slogutil.LazyLogger("hub.managed-server")
 
-// startManagedServer starts the dedicated managed-config server when this hub declares
-// one or more server blocks with client entries and storage is blob-backed. It returns
-// nil when managed config is not configured (or fails to start, which is logged at
-// Error). The server:
-//   - authenticates each managed client with its per-client secret,
-//   - answers config-fetch/config-ack/config-held/ping,
-//   - reads each client's config from the blob at file/active/client-<name>.conf,
-//   - pushes config-changed when that blob is written (via the storage write observer).
-//
+// managedListeners reads the serving blocks and their common certificate for
+// both startup and reload. Extraction validates the shared certificate name.
+func managedListeners(hub *zePlugin.HubConfig) ([]pluginserver.ManagedListener, string) {
+	var listeners []pluginserver.ManagedListener
+	var certificate string
+	for _, block := range hub.Servers {
+		if len(block.Clients) == 0 {
+			continue
+		}
+		listeners = append(listeners, pluginserver.ManagedListener{
+			Block: block.Name, Addr: block.Address(), Clients: block.Clients,
+			ClientLabels: block.ClientLabels, Certificate: block.Certificate,
+		})
+		if block.Certificate != "" {
+			certificate = block.Certificate
+		}
+	}
+	return listeners, certificate
+}
+
+// prepareManagedReload extracts the candidate's serving declarations before any
+// consumer applies them. The caller has already installed the candidate PKI store.
+func prepareManagedReload(tree *zeconfig.Tree, srv *pluginserver.ManagedServer) (*pluginserver.ManagedListenerPlan, error) {
+	if tree == nil {
+		return nil, nil // A reload with no parsed configuration supplies no listener declarations.
+	}
+	cfg, err := zeconfig.ExtractHubConfig(tree)
+	if err != nil {
+		return nil, fmt.Errorf("managed listener configuration: %w", err)
+	}
+	if srv == nil {
+		return nil, nil // No managed store was opened by this daemon.
+	}
+	listens, certificate := managedListeners(&cfg)
+	return srv.PrepareManagedListeners(listens, certificate)
+}
+
+// startManagedServer starts the registry and its workers on the daemon's store.
+// A hub with no managed clients starts with no bound sockets. An accepted reload
+// can add its first serving block.
 // The caller MUST call Stop before releasing store. Cancellation closes the
 // listeners, but Stop also joins requests and notifications already reading it.
 // It is independent of the outbound managed client
@@ -33,26 +67,10 @@ func startManagedServer(ctx context.Context, store storage.Storage, hubConfig *z
 		return nil
 	}
 
-	var listeners []pluginserver.ManagedListener
-	var certificate string
-	clients := 0
-	for _, blk := range hubConfig.Servers {
-		if len(blk.Clients) == 0 {
-			continue // Not a managed-client-serving block.
-		}
-		// Each block keeps its own clients: a client is admitted on the
-		// address of the block that declares it and on no other.
-		listeners = append(listeners, pluginserver.ManagedListener{Addr: blk.Address(), Clients: blk.Clients})
-		clients += len(blk.Clients)
-		// One certificate across every serving block. The extraction refuses two
-		// blocks that name different ones (internal/component/config/loader_extract.go),
-		// so the last non-empty name is the only name.
-		if blk.Certificate != "" {
-			certificate = blk.Certificate
-		}
-	}
-	if len(listeners) == 0 {
-		return nil // No managed clients configured on any server block.
+	listeners, certificate := managedListeners(hubConfig)
+	var acceptor zePlugin.HubServerConfig
+	if len(hubConfig.Servers) != 0 {
+		acceptor = hubConfig.Servers[0]
 	}
 
 	// The daemon's certificate authority issues the listener's leaf when no
@@ -83,27 +101,28 @@ func startManagedServer(ctx context.Context, store storage.Storage, hubConfig *z
 		// The plugin acceptor binds the first server block (hubAcceptorServer),
 		// so a managed address colliding with it is the collision the local
 		// hub-managed-listener check reports, not an unbound listener.
-		Acceptor: hubConfig.Servers[0],
+		Acceptor: acceptor,
 	})
+	// refuse-by-default: guards runYANGConfig -- a construction failure leaves no server to start, publish or pass to the fleet commands
 	if err != nil {
 		managedServerLog().Error("managed config server disabled", "error", err)
 		return nil
 	}
+	// Subscribe before Start reads the stored records. The callback schedules work
+	// only, so it can also run while the configuration writer holds its lock.
+	store.SetWriteObserver(func(key string) {
+		srv.ObserveDeviceRecordKey(key)
+		if name, ok := pluginserver.ClientNameFromConfigKey(key); ok {
+			srv.MarkManagedConfigChanged(name)
+			srv.NotifyConfigChanged(name)
+		}
+	})
 	if startErr := srv.Start(ctx); startErr != nil {
+		store.SetWriteObserver(nil)
 		managedServerLog().Error("managed config server failed to start", "error", startErr)
 		return nil
 	}
 
-	// Push config-changed when a client's config blob is written. NotifyConfigChanged
-	// only enqueues (non-blocking), so the storage write path is never stalled.
-	// Stop joins every consumer of that queue. The callback itself never reads
-	// storage, so it can remain installed until the borrowed store closes.
-	store.SetWriteObserver(func(key string) {
-		if name, ok := pluginserver.ClientNameFromConfigKey(key); ok {
-			srv.NotifyConfigChanged(name)
-		}
-	})
-
-	managedServerLog().Info("managed config server started", "listeners", len(listeners), "clients", clients)
+	managedServerLog().Info("managed config server started", "listeners", len(listeners))
 	return srv
 }

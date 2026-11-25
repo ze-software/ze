@@ -203,6 +203,25 @@ and recorded for doctor (below) under the claimed name, never with the token.
 <!-- source: internal/component/plugin/ipc/tls.go -- AuthenticateWithLookup -->
 <!-- source: internal/component/plugin/server/managed_doctor.go -- authRefused -->
 
+### Device connections and configuration history
+
+A hub keeps one registry entry for each declared client name, including a
+device that has never connected. Each entry admits one session. A duplicate
+connection leaves the first session and its connection time intact. A
+successful admission records the client address without its TCP port. A
+disconnect records when that session ended. A reconnect preserves the time
+of the first connection and records the start of the new session.
+<!-- source: internal/component/plugin/server/managed_registry.go -- ManagedDeviceRecord, admitDevice, disconnectDevice -->
+<!-- source: internal/component/plugin/server/managed_serve.go -- NewManagedServer, handleConn -->
+
+Each fetch records the version the device named and whether the hub served
+configuration, answered that the device is current, or encountered a read
+error. Each acknowledgement records its version and outcome. The hub
+records a holding acknowledgement when it has a copy of the version the
+device runs. It records a refusal when that copy is missing.
+<!-- source: internal/component/plugin/server/managed_registry.go -- recordFetch, recordAck -->
+<!-- source: internal/component/plugin/server/managed_serve.go -- handleRequest, handleConfigAck, holdShownFromCopy -->
+
 ### What doctor reads from the managed listener
 
 `startManagedServer` hands the managed server the plugin acceptor's address
@@ -302,6 +321,35 @@ is not connected is owed nothing: it fetches when it connects.
 The managed listener exposes Prometheus metrics: `ze_managed_clients_connected` (gauge),
 `ze_managed_config_fetch_total{result}`, and `ze_managed_config_changed_pushed_total`.
 <!-- source: internal/component/plugin/server/managed_serve.go -- metric registration -->
+
+### Device history on the hub
+
+On startup the hub loads the JSON records under `meta/fleet/device/<name>/record`.
+It lists every recorded device offline until a new session authenticates.
+A declaration with no recorded event appears in the registry without writing
+a key. A device name must fit one store key segment. The hub rejects a slash,
+a name equal to a single dot, or consecutive dots in a declared name.
+
+Session, fetch and acknowledgement events update memory first. One writer
+coalesces pending events by device and saves the latest facts. A clean stop
+drains the final disconnections. The counter `ze_managed_device_records_written_total`
+reports saves by result (`ok` or `failed`). An interrupted hub can lose events still
+waiting for the writer. A failed write leaves the live facts visible with
+`persisted` false and the next event retries it. Doctor names the device and
+the store error. A stored record with unknown fields or an invalid value
+stays visible with `unreadable` true until a new event replaces it.
+
+Deleting a device record with `ze data rm meta/fleet/device/<name>/record`
+also clears the running hub's copy. An undeclared device disappears from
+the list. A declared device keeps its labels and, while connected, its current
+session time and source address. Its next event starts a fresh history.
+Overwriting a record through a data command makes the hub restore its own
+history. The hub removes a newly written key for an unknown device. Each
+automatic correction writes an info log naming the affected key once it succeeds.
+If the correction fails, doctor reports the key and the store error.
+The writer compares the stored bytes under the same guard it uses
+for repair, so it can recognise its own writes.
+<!-- source: internal/component/plugin/server/managed_record_store.go -- loadDeviceRecords, syncDeviceRecord -->
 
 ### Config Storage (Client Side)
 

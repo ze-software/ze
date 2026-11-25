@@ -1803,6 +1803,8 @@ and no client was served.
 | `plugin-external-in-process` | post-config | `doctor-plugin-external-unsupported` (error) | each external block that runs a plugin declared in-process only | the `internal` block that runs it |
 | `managed-listener-unbound` | runtime | `doctor-managed-listener-unbound` (error) | each managed listen address that did not bind, with the kernel's error; a collision with the plugin acceptor is `hub-managed-listener`'s | free the address or give the server block another ip and port, then restart ze |
 | `managed-client-rejected` | runtime | `doctor-managed-client-rejected` (warning) | each client whose last exchange was a refusal: a second session under a connected name, a config it refused to apply, a token that is not its secret, or a name the hub has no client entry for | the cause's own fix |
+| `managed-device-record-unwritable` | runtime | `doctor-managed-device-record-unwritable` (error) | each device whose latest history write failed, or a key for an unknown device that the hub could not remove, with its underlying store error | run `ze show data check`, correct the store error and reconnect the device to retry. For an unknown device, use `ze data rm <key>` |
+| `managed-device-record-unreadable` | runtime | `doctor-managed-device-record-unreadable` (error) | each stored device record the hub could not read or decode, with the key and the cause | reconnect the device to replace its record, or use `ze data rm meta/fleet/device/<name>/record` to delete its history |
 
 The managed client has three checks of its own, and its hub one more, all
 registered by `internal/component/managed`. All four are post-config checks,

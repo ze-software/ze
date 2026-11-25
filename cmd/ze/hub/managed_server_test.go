@@ -14,6 +14,9 @@ import (
 	"testing"
 	"time"
 
+	"github.com/stretchr/testify/require"
+
+	zeconfig "github.com/ze-software/ze/internal/component/config"
 	"github.com/ze-software/ze/internal/component/config/storage"
 	zePlugin "github.com/ze-software/ze/internal/component/plugin"
 	pluginipc "github.com/ze-software/ze/internal/component/plugin/ipc"
@@ -95,9 +98,9 @@ func TestStartManagedServerServesBlobConfig(t *testing.T) {
 	}
 }
 
-// TestStartManagedServerNilWithoutClients: AC-11 -- a hub with no client entries starts
-// no managed server.
-func TestStartManagedServerNilWithoutClients(t *testing.T) {
+// TestStartManagedServerWithoutClients checks the empty registry is available
+// for the reload that declares the first device.
+func TestStartManagedServerWithoutClients(t *testing.T) {
 	dir := t.TempDir()
 	store, err := storage.Create(dir)
 	if err != nil {
@@ -106,8 +109,17 @@ func TestStartManagedServerNilWithoutClients(t *testing.T) {
 	hubConfig := &zePlugin.HubConfig{
 		Servers: []zePlugin.HubServerConfig{{Name: "local", Host: "127.0.0.1", Port: 0}},
 	}
-	if srv := startManagedServer(t.Context(), store, hubConfig); srv != nil {
-		t.Error("expected nil managed server when no server block declares clients")
+	defer store.Close() //nolint:errcheck // test cleanup
+	srv := startManagedServer(t.Context(), store, hubConfig)
+	if srv == nil {
+		t.Fatal("no managed server to receive the first serving block on reload")
+	}
+	defer srv.Stop()
+	if len(srv.Addrs()) != 0 {
+		t.Fatal("a server block with no clients bound a managed listener")
+	}
+	if devices, err := pluginserver.ManagedRegistrySnapshot(); err != nil || len(devices) != 0 {
+		t.Fatalf("empty hub registry = %v, %v", devices, err)
 	}
 }
 
@@ -153,4 +165,43 @@ func hubFetch(t *testing.T, mc *rpc.MuxConn, version string) fleet.ConfigFetchRe
 		t.Fatalf("unmarshal config-fetch response: %v", err)
 	}
 	return resp
+}
+
+// TestPrepareManagedReloadReadsCandidate verifies startup and the candidate
+// reader agree on labels, block identity, and the scope of a broken reference.
+func TestPrepareManagedReloadReadsCandidate(t *testing.T) {
+	store, err := storage.Create(t.TempDir())
+	require.NoError(t, err)
+	t.Cleanup(func() { _ = store.Close() })
+	srv := startManagedServer(t.Context(), store, &zePlugin.HubConfig{})
+	require.NotNil(t, srv)
+	t.Cleanup(srv.Stop)
+	root, hub, bus := zeconfig.NewTree(), zeconfig.NewTree(), zeconfig.NewTree()
+	root.SetContainer("bus", bus)
+	bus.SetContainer("hub", hub)
+	blk := zeconfig.NewTree()
+	blk.Set("ip", "127.0.0.1")
+	blk.Set("port", "0")
+	device := zeconfig.NewTree()
+	device.Set("secret", "fleet-candidate-device-secret-at-least-32ch")
+	label := zeconfig.NewTree()
+	label.Set("value", "London")
+	device.AddListEntry("label", "site", label)
+	blk.AddListEntry("client", "edge-01", device)
+	hub.AddListEntry("server", "central", blk)
+
+	plan, err := prepareManagedReload(root, srv)
+	require.NoError(t, err)
+	require.Empty(t, srv.Addrs(), "preparation must not bind the candidate address")
+	srv.ApplyManagedListeners(plan)
+	devices, err := pluginserver.ManagedRegistrySnapshot()
+	require.NoError(t, err)
+	require.Len(t, devices, 1)
+	require.Equal(t, "London", devices[0].Labels["site"])
+	blk.Set("certificate", "unresolved-candidate-test")
+	plan, err = prepareManagedReload(root, srv)
+	require.Nil(t, plan)
+	require.ErrorContains(t, err, "bus hub server central certificate unresolved-candidate-test")
+	require.ErrorContains(t, err, "define pki certificate unresolved-candidate-test")
+	require.Len(t, srv.Addrs(), 1)
 }

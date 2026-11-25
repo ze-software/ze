@@ -96,3 +96,49 @@ func managedRejectedRow(rejection server.ManagedClientRejection) diagnostic.Diag
 		Fix:      fix.String(),
 	}
 }
+
+// checkManagedDeviceRecordUnwritable explains which history a restart could lose.
+func checkManagedDeviceRecordUnwritable(_ diagnostic.DoctorCheckContext) []diagnostic.Diagnostic {
+	record, _ := server.ManagedDoctorSnapshot() // No managed server has no record failures.
+	return managedRecordUnwritableRows(record.Unwritable)
+}
+
+func managedRecordUnwritableRows(failures []server.ManagedDeviceRecordFailure) []diagnostic.Diagnostic {
+	var rows []diagnostic.Diagnostic
+	for _, failure := range failures {
+		if failure.UnknownDevice {
+			rows = append(rows, diagnostic.Diagnostic{
+				Code: server.CodeDoctorManagedDeviceRecordUnwritable, Severity: diagnostic.SeverityError,
+				Message: "the hub could not remove unrecognised device record " + failure.Key + ": " + failure.Error,
+				Fix:     "run ze show data check, correct the store error, then delete the key with ze data rm " + failure.Key,
+			})
+			continue
+		}
+		rows = append(rows, diagnostic.Diagnostic{
+			Code:     server.CodeDoctorManagedDeviceRecordUnwritable,
+			Severity: diagnostic.SeverityError,
+			Message:  "managed device " + failure.Name + " has unsaved history at " + failure.Key + ": " + failure.Error,
+			Fix:      "run ze show data check, correct the store error, then reconnect " + failure.Name + " to write its history",
+		})
+	}
+	return rows
+}
+
+// checkManagedDeviceRecordUnreadable reports records retained for correction.
+func checkManagedDeviceRecordUnreadable(_ diagnostic.DoctorCheckContext) []diagnostic.Diagnostic {
+	record, _ := server.ManagedDoctorSnapshot()
+	return managedRecordUnreadableRows(record.Unreadable)
+}
+
+func managedRecordUnreadableRows(failures []server.ManagedDeviceRecordFailure) []diagnostic.Diagnostic {
+	var rows []diagnostic.Diagnostic
+	for _, failure := range failures {
+		rows = append(rows, diagnostic.Diagnostic{
+			Code:     server.CodeDoctorManagedDeviceRecordUnreadable,
+			Severity: diagnostic.SeverityError,
+			Message:  "managed device " + failure.Name + " has unreadable history at " + failure.Key + ": " + failure.Error,
+			Fix:      "reconnect the device to replace its record, or forget its history with ze data rm " + failure.Key,
+		})
+	}
+	return rows
+}

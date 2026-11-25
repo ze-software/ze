@@ -1,12 +1,14 @@
 package server
 
 import (
+	"net/netip"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
 	"github.com/ze-software/ze/pkg/fleet"
+	"github.com/ze-software/ze/pkg/plugin/rpc"
 )
 
 // TestHubConfigFetch verifies that config-fetch returns config and version hash.
@@ -117,22 +119,23 @@ func TestHubConfigFetchUpdated(t *testing.T) {
 func TestHubDuplicateClientRejected(t *testing.T) {
 	t.Parallel()
 
-	svc := newManagedConfigService(func(name string) ([]byte, error) {
-		return []byte("config"), nil
-	})
+	srv := registryTestServer(t)
+	addr := netip.MustParseAddr("192.0.2.1")
+	first, second := &rpc.MuxConn{}, &rpc.MuxConn{}
 
 	// First registration succeeds.
-	require.NoError(t, svc.RegisterClient("edge-01"))
+	require.NoError(t, srv.admitDevice(testClientName, addr, first))
 
-	// Second registration with same name fails.
-	err := svc.RegisterClient("edge-01")
+	// A duplicate leaves the first session in place.
+	err := srv.admitDevice(testClientName, addr, second)
 	require.Error(t, err)
 	assert.ErrorIs(t, err, ErrDuplicateClient)
+	require.Same(t, first, srv.devices[testClientName].conn)
 
 	// Different name succeeds.
-	require.NoError(t, svc.RegisterClient("edge-02"))
+	require.NoError(t, srv.admitDevice(testClient2Name, addr, &rpc.MuxConn{}))
 
 	// After unregister, same name succeeds again.
-	svc.UnregisterClient("edge-01")
-	require.NoError(t, svc.RegisterClient("edge-01"))
+	srv.disconnectDevice(testClientName, first)
+	require.NoError(t, srv.admitDevice(testClientName, addr, second))
 }

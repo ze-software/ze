@@ -7,7 +7,6 @@ package server
 import (
 	"encoding/base64"
 	"errors"
-	"sync"
 
 	"github.com/ze-software/ze/internal/core/diagnostic"
 	"github.com/ze-software/ze/pkg/fleet"
@@ -26,43 +25,17 @@ type ConfigReader func(name string) ([]byte, error)
 
 // ManagedConfigService handles hub-side config-fetch and config-changed operations
 // for managed clients. It reads client configs via a ConfigReader and computes
-// version hashes for change detection. Tracks connected clients and rejects
-// duplicate names. Safe for concurrent use.
+// version hashes for change detection. Safe for concurrent use.
 type ManagedConfigService struct {
 	readConfig ConfigReader
 	// records holds the copy each holding client sent (heldRecords). nil
 	// keeps none: no answer names a held version and nothing is cleared.
-	records   *heldRecords
-	mu        sync.Mutex
-	connected map[string]struct{} // connected client names
+	records *heldRecords
 }
 
 // newManagedConfigService creates a service that reads client configs via reader.
 func newManagedConfigService(reader ConfigReader) *ManagedConfigService {
-	return &ManagedConfigService{
-		readConfig: reader,
-		connected:  make(map[string]struct{}),
-	}
-}
-
-// RegisterClient marks a client as connected. Returns ErrDuplicateClient
-// if a client with the same name is already connected.
-// Caller MUST call UnregisterClient when the client disconnects.
-func (s *ManagedConfigService) RegisterClient(name string) error {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	if _, exists := s.connected[name]; exists {
-		return ErrDuplicateClient
-	}
-	s.connected[name] = struct{}{}
-	return nil
-}
-
-// UnregisterClient removes a client from the connected set.
-func (s *ManagedConfigService) UnregisterClient(name string) {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	delete(s.connected, name)
+	return &ManagedConfigService{readConfig: reader}
 }
 
 // HandleConfigFetch processes a config-fetch request from a managed client.

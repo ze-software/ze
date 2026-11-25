@@ -116,11 +116,21 @@ type ManagedClientRejection struct {
 	Time   time.Time
 }
 
+// ManagedDeviceRecordFailure names a durable key and the failure reported for it.
+type ManagedDeviceRecordFailure struct {
+	UnknownDevice bool // A data command created a key with no corresponding device.
+	Name          string
+	Key           string
+	Error         string
+}
+
 // ManagedDoctorRecord is what the managed server publishes for doctor: value
 // types only, copied at each read.
 type ManagedDoctorRecord struct {
-	Unbound  []ManagedListenerUnbound
-	Rejected []ManagedClientRejection // Sorted by client name.
+	Unbound    []ManagedListenerUnbound
+	Rejected   []ManagedClientRejection // Sorted by client name.
+	Unreadable []ManagedDeviceRecordFailure
+	Unwritable []ManagedDeviceRecordFailure
 }
 
 // managedDoctorSource is the managed server doctor reads. Start publishes it
@@ -136,7 +146,9 @@ func ManagedDoctorSnapshot() (ManagedDoctorRecord, error) {
 	if s == nil {
 		return ManagedDoctorRecord{}, ErrManagedNotServing
 	}
-	return s.doctor.snapshot(), nil
+	record := s.doctor.snapshot()
+	s.appendDeviceRecordFailures(&record)
+	return record, nil
 }
 
 // managedDoctorState is the record one ManagedServer keeps. The unbound list
@@ -228,5 +240,7 @@ func publishManagedDoctor(s *ManagedServer) {
 // withdrawManagedDoctor withdraws s, unless another server was published
 // after it.
 func withdrawManagedDoctor(s *ManagedServer) {
+	managedRegistryReaders.Lock()
+	defer managedRegistryReaders.Unlock()
 	managedDoctorSource.CompareAndSwap(s, nil)
 }
