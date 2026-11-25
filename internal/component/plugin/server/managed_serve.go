@@ -559,9 +559,10 @@ func (s *ManagedServer) handleConn(conn net.Conn, bound *managedBound) {
 		verifiedSecret = secret
 		return secret, ok
 	}
+	listenerAddr := bound.listener.Addr().String()
 	name, err := pluginipc.AuthenticateWithLookup(authCtx, conn, "", lookup)
 	if err != nil {
-		s.authRefused(conn.RemoteAddr().String(), err, lookup)
+		s.authRefused(conn.RemoteAddr().String(), listenerAddr, err, lookup)
 		return // AuthenticateWithLookup already closed conn on failure.
 	}
 
@@ -569,7 +570,7 @@ func (s *ManagedServer) handleConn(conn net.Conn, bound *managedBound) {
 	// ephemeral port so a later handshake from the same device can be joined.
 	remote, err := netip.ParseAddrPort(conn.RemoteAddr().String())
 	if err != nil {
-		s.authRefused(conn.RemoteAddr().String(), err, lookup)
+		s.authRefused(conn.RemoteAddr().String(), listenerAddr, err, lookup)
 		conn.Close() //nolint:errcheck,gosec // cannot identify the remote endpoint
 		return
 	}
@@ -581,10 +582,11 @@ func (s *ManagedServer) handleConn(conn net.Conn, bound *managedBound) {
 			managedLogger().Warn("managed client rejected", "code", CodeDoctorManagedClientRejected,
 				"name", name, "error", regErr)
 		} else {
-			s.authRefused(conn.RemoteAddr().String(), regErr, lookup)
+			s.authRefused(conn.RemoteAddr().String(), listenerAddr, regErr, lookup)
 		}
 		return
 	}
+	s.doctor.clearAddress(remote.Addr().String())
 	defer s.disconnectDevice(name, mc)
 	s.mConnected.Inc()
 	defer s.mConnected.Dec()

@@ -676,6 +676,35 @@ not hold. It takes the hub's configuration once, and holds from then on when
 it is changed.
 <!-- source: internal/component/managed/baseline.go -- Diverged -->
 
+## Changing the Hub's Certificate Without Cutting Devices Off
+
+A reload that changes `bus hub server <block> certificate` (or renews the
+certificate material in `pki`) takes effect from the next TLS handshake without
+closing sessions already open.
+
+- **Renewing under the same CA** needs no action on the devices: existing
+  sessions stay connected, and reconnecting devices verify the renewed leaf
+  against the CA root they already hold.
+- **Switching to a certificate issued by a different CA** requires ordering,
+  because each device holds one trust anchor at a time:
+  1. Add the new CA and certificate to `pki` on the hub, set
+     `bus hub server <block> certificate <name>`, and commit. Connected devices
+     keep their open hub sessions while the listener presents the new
+     certificate to new handshakes.
+  2. Update each connected device's configuration on the hub to add the new
+     `pki ca <new-ca>` block and set `bus hub client <name> ca <new-ca>`. When
+     the device applies that configuration over its open session, its hub client
+     detects the changed `ca` (`adoptEndpoint`), closes the old session, and
+     immediately reconnects using the new anchor with no restart.
+  3. Any device that was offline during the commit fails verification on its
+     next attempt: `ze doctor` on that device reports
+     `doctor-hub-certificate-unverified` with the repair command
+     (`ze init --managed --force --hub-ca <file>`), and `show doctor` on the hub
+     reports `doctor-managed-certificate-refused` naming that device's address
+     and last-seen device names.
+<!-- source: internal/component/managed/client.go -- adoptEndpoint, errEndpointChanged -->
+<!-- source: internal/component/plugin/server/managed_apply.go -- PrepareManagedListeners, ApplyManagedListeners -->
+
 ## Troubleshooting
 
 Start with `show doctor` on the hub, and `ze doctor` on the client.
@@ -683,8 +712,12 @@ Start with `show doctor` on the hub, and `ze doctor` on the client.
 | What you see | Cause | Fix |
 |--------------|-------|-----|
 | The first start stops and names a missing value | `ze init` did not get the hub address, the name or the token | Give it with `--server`, `--name` or `--token` |
-| The first start fails on the hub's certificate | The client has no root for this hub | Run `ze init --managed --force` with `--hub-ca` or `--hub-trust-first-use` |
-| The client fails on the hub's certificate after a hub was replaced | The client holds the root of the old hub | Run `ze init --managed --force` with the new hub's root |
+| The first start fails on the hub's certificate (`doctor-hub-certificate-unverified` once running) | The client has no root for this hub | Run `ze init --managed --force` with `--hub-ca` or `--hub-trust-first-use` |
+| `doctor-hub-certificate-unverified` on the client (unknown issuer, wrong host name, expired/not-yet-valid, or undefined `pki ca`) | The running client refused the hub's certificate or its configured `pki ca` is not defined | Follow the cause- and anchor-specific fix in the doctor row (update `pki ca <name>`, run `ze init --managed --force --hub-ca <file>`, renew `pki certificate <name>`, or configure `bus hub server <block> certificate` on the hub) |
+| `doctor-hub-handshake-failed` on the client | The client reached the hub's TCP port, and the TLS handshake failed without a certificate verification error | Run `ze show doctor` on the hub (check for a saturated handshake cap or unbound listener), or correct `host` and `port` |
+| `doctor-hub-auth-rejected` on the client | TLS succeeded and the hub refused the device's name or secret | Run `ze show doctor` on the hub (`doctor-managed-client-rejected`), then correct the `client` entry on the hub or the device's secret |
+| `doctor-managed-certificate-refused` on the hub | A remote device rejected the hub's managed TLS certificate during handshake | Run `ze doctor` on the named device to see the verification cause, or have the hub present a certificate its devices verify (`bus hub server <block> certificate`); `show fleet devices` lists every disconnected device |
+| The client fails on the hub's certificate after a hub was replaced (`doctor-hub-certificate-unverified`) | The client holds the root of the old hub | Run `ze init --managed --force` with the new hub's root |
 | `doctor-managed-client-rejected` on the hub, wrong secret or unknown name | The client's name or secret does not match a `client` entry on the block it connects to | Correct the `client` entry on the hub, or the `client` block in the client's configuration |
 | `doctor-managed-client-rejected`, name already connected | A second Ze uses the same client name | Give each client its own name and entry |
 | `doctor-managed-client-rejected`, the client refused its configuration | The configuration does not pass the client's checks | Read the reason in the row, correct the file, and import it again |

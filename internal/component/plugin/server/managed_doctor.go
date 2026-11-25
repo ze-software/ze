@@ -5,7 +5,9 @@
 package server
 
 import (
+	"crypto/tls"
 	"errors"
+	"net"
 	"slices"
 	"strings"
 	"sync"
@@ -40,19 +42,82 @@ func notifyDropped(client, cause string) {
 		message.String(), fix.String())
 }
 
+// certRejectionAlerts lists the six RFC 8446 / IANA TLS alerts a peer sends
+// when it refuses the hub's certificate (42 bad_certificate, 43
+// unsupported_certificate, 44 certificate_revoked, 45 certificate_expired, 46
+// certificate_unknown, 48 unknown_ca).
+var certRejectionAlerts = []tls.AlertError{
+	tls.AlertError(42),
+	tls.AlertError(43),
+	tls.AlertError(44),
+	tls.AlertError(45),
+	tls.AlertError(46),
+	tls.AlertError(48),
+}
+
+// isCertRejectionAlert reports whether err is a remote TLS alert indicating
+// that the peer rejected the hub's certificate. In Go's crypto/tls, every fatal
+// remote alert arrives as *net.OpError with Op == "remote error" whose Err is
+// an unexported alert whose Error() matches tls.AlertError(code).Error().
+// Non-certificate fatal alerts (such as handshake_failure or protocol_version)
+// arrive with the same Op and MUST return false.
+func isCertRejectionAlert(err error) bool {
+	opErr, ok := errors.AsType[*net.OpError](err)
+	if !ok {
+		return false
+	}
+	if opErr.Op != "remote error" {
+		return false
+	}
+	if opErr.Err == nil {
+		return false
+	}
+	if alertErr, ok := errors.AsType[tls.AlertError](opErr.Err); ok {
+		return slices.Contains(certRejectionAlerts, alertErr)
+	}
+	errText := opErr.Err.Error()
+	for _, alert := range certRejectionAlerts {
+		if errText == alert.Error() {
+			return true
+		}
+	}
+	return false
+}
+
+// remoteHostOf strips the TCP port from remote, falling back to remote itself
+// if it is already a bare address.
+func remoteHostOf(remote string) string {
+	host, _, err := net.SplitHostPort(remote)
+	if err != nil {
+		return remote
+	}
+	return host
+}
+
 // authRefused records and logs a managed connection whose auth was refused,
 // so `show doctor` names the name it claimed (never the token it sent). A
 // claimed client that lookup knows, which is one the accepting listener's
 // server block declares, is recorded under its name with
 // ManagedRejectBadToken; any other claim goes to the bounded unknown record,
 // a client declared only under another server block included.
-// A connection that failed before it named a client is logged only: there is
-// no name to report it under.
-func (s *ManagedServer) authRefused(remote string, err error, lookup func(name string) (string, bool)) {
+// A connection that failed before it named a client is recorded per remote
+// address without its port, split between certificate-rejection TLS alerts
+// (doctor-managed-certificate-refused) and all other pre-identification
+// failures (doctor-managed-client-rejected).
+func (s *ManagedServer) authRefused(remote, listenerAddr string, err error, lookup func(name string) (string, bool)) {
 	refusal, named := errors.AsType[*pluginipc.AuthRefusal](err)
 	if !named {
+		host := remoteHostOf(remote)
+		now := s.now()
+		if isCertRejectionAlert(err) {
+			s.doctor.recordCertRefused(host, listenerAddr, err.Error(), now)
+			managedLogger().Warn("managed connection refused hub certificate",
+				"code", CodeDoctorManagedCertificateRefused, "remote", remote, "listener", listenerAddr, "error", err)
+			return
+		}
+		s.doctor.recordUnidentified(host, listenerAddr, err.Error(), now)
 		managedLogger().Warn("managed connection refused before it named a client",
-			"code", CodeDoctorManagedClientRejected, "remote", remote, "error", err)
+			"code", CodeDoctorManagedClientRejected, "remote", remote, "listener", listenerAddr, "error", err)
 		return
 	}
 	claimed := refusal.ShownClaim()
@@ -126,14 +191,40 @@ type ManagedDeviceRecordFailure struct {
 	Error         string
 }
 
+// managedUnidentifiedMax bounds each per-address class of connections that
+// ended before naming a client.
+const managedUnidentifiedMax = 16
+
+// managedUnidentifiedKeep is how long a kept remote address stays visible
+// without another failure, judged on read so no timer goroutine is needed.
+const managedUnidentifiedKeep = time.Hour
+
+// ManagedUnidentifiedFailure summarizes repeated pre-identification failures
+// from one remote IP address (without port).
+type ManagedUnidentifiedFailure struct {
+	Addr         string
+	ListenerAddr string
+	FirstTime    time.Time
+	LastTime     time.Time
+	Count        int
+	LastError    string
+}
+
 // ManagedDoctorRecord is what the managed server publishes for doctor: value
 // types only, copied at each read.
 type ManagedDoctorRecord struct {
-	StartupFailure *opererr.Error
-	Unbound        []ManagedListenerUnbound
-	Rejected       []ManagedClientRejection // Sorted by client name.
-	Unreadable     []ManagedDeviceRecordFailure
-	Unwritable     []ManagedDeviceRecordFailure
+	StartupFailure        *opererr.Error
+	Unbound               []ManagedListenerUnbound
+	Rejected              []ManagedClientRejection // Sorted by client name.
+	Unreadable            []ManagedDeviceRecordFailure
+	Unwritable            []ManagedDeviceRecordFailure
+	CertificateName       string
+	CertificateIssued     bool
+	CertRefused           []ManagedUnidentifiedFailure // Sorted by Addr.
+	CertRefusedForgotten  int
+	Unidentified          []ManagedUnidentifiedFailure // Sorted by Addr.
+	UnidentifiedForgotten int
+	DevicesByAddress      map[string][]string // Sorted device names per CertRefused Addr.
 }
 
 // managedDoctorSource is the managed server doctor reads. Start publishes it
@@ -171,20 +262,61 @@ func ManagedRuntimeHealth() (ManagedDoctorRecord, bool) {
 	if s == nil {
 		return ManagedDoctorRecord{StartupFailure: managedStartupFailure.Load()}, false
 	}
-	record := s.doctor.snapshot()
+	record := s.doctor.snapshotAt(s.now())
 	s.appendDeviceRecordFailures(&record)
+	s.appendCertificateAndAddressDevices(&record)
 	return record, true
+}
+
+// appendCertificateAndAddressDevices enriches record with the currently
+// presented managed certificate identity and the devices whose last session
+// came from each address in record.CertRefused.
+func (s *ManagedServer) appendCertificateAndAddressDevices(record *ManagedDoctorRecord) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if s.source != nil {
+		record.CertificateName = s.source.name
+		record.CertificateIssued = s.source.name == ""
+	}
+	if len(record.CertRefused) == 0 {
+		return
+	}
+	wanted := make(map[string]struct{}, len(record.CertRefused))
+	for _, entry := range record.CertRefused {
+		wanted[entry.Addr] = struct{}{}
+	}
+	byAddr := make(map[string][]string, len(wanted))
+	for name, dev := range s.devices {
+		if !dev.SourceAddress.IsValid() {
+			continue
+		}
+		addr := dev.SourceAddress.String()
+		if _, ok := wanted[addr]; ok {
+			byAddr[addr] = append(byAddr[addr], name)
+		}
+	}
+	for addr := range byAddr {
+		slices.Sort(byAddr[addr])
+	}
+	if len(byAddr) > 0 {
+		record.DevicesByAddress = byAddr
+	}
 }
 
 // managedDoctorState is the record one ManagedServer keeps. The unbound list
 // is bounded by the configured addresses, the rejection map by the configured
-// client names (a name reaches it only when the lookup knows it), and the
-// unknown map by managedUnknownMax. Safe for concurrent use.
+// client names (a name reaches it only when the lookup knows it), the unknown
+// map by managedUnknownMax, and each nameless connection class by
+// managedUnidentifiedMax. Safe for concurrent use.
 type managedDoctorState struct {
-	mu       sync.Mutex
-	unbound  []ManagedListenerUnbound
-	rejected map[string]ManagedClientRejection
-	unknown  map[string]ManagedClientRejection
+	mu                    sync.Mutex
+	unbound               []ManagedListenerUnbound
+	rejected              map[string]ManagedClientRejection
+	unknown               map[string]ManagedClientRejection
+	certRefused           map[string]ManagedUnidentifiedFailure
+	certRefusedForgotten  int
+	unidentified          map[string]ManagedUnidentifiedFailure
+	unidentifiedForgotten int
 }
 
 // recordUnknown records a connection that claimed a name the hub has no
@@ -252,11 +384,98 @@ func (d *managedDoctorState) clearRejected(client string) {
 	delete(d.rejected, client)
 }
 
-// snapshot copies the record.
-func (d *managedDoctorState) snapshot() ManagedDoctorRecord {
+// recordCertRefused records one certificate-rejection handshake alert from addr.
+func (d *managedDoctorState) recordCertRefused(addr, listenerAddr, detail string, now time.Time) {
+	detail = boundedManagedDetail(detail)
 	d.mu.Lock()
 	defer d.mu.Unlock()
-	record := ManagedDoctorRecord{Unbound: slices.Clone(d.unbound)}
+	if d.certRefused == nil {
+		d.certRefused = make(map[string]ManagedUnidentifiedFailure)
+	}
+	recordUnidentifiedClass(d.certRefused, &d.certRefusedForgotten, addr, listenerAddr, detail, now)
+}
+
+// recordUnidentified records one non-certificate pre-identification failure from addr.
+func (d *managedDoctorState) recordUnidentified(addr, listenerAddr, detail string, now time.Time) {
+	detail = boundedManagedDetail(detail)
+	d.mu.Lock()
+	defer d.mu.Unlock()
+	if d.unidentified == nil {
+		d.unidentified = make(map[string]ManagedUnidentifiedFailure)
+	}
+	recordUnidentifiedClass(d.unidentified, &d.unidentifiedForgotten, addr, listenerAddr, detail, now)
+}
+
+// recordUnidentifiedClass updates an existing entry or inserts a new one into
+// class, pruning expired entries first and evicting the oldest when at
+// managedUnidentifiedMax.
+func recordUnidentifiedClass(class map[string]ManagedUnidentifiedFailure, forgotten *int, addr, listenerAddr, detail string, now time.Time) {
+	pruneUnidentifiedClass(class, now)
+	if existing, ok := class[addr]; ok {
+		existing.ListenerAddr = listenerAddr
+		existing.LastTime = now
+		existing.Count++
+		existing.LastError = detail
+		class[addr] = existing
+		return
+	}
+	if len(class) >= managedUnidentifiedMax {
+		oldest := ""
+		var oldestTime time.Time
+		for key, entry := range class {
+			if oldest == "" || entry.LastTime.Before(oldestTime) {
+				oldest, oldestTime = key, entry.LastTime
+			}
+		}
+		delete(class, oldest)
+		*forgotten++
+	}
+	class[addr] = ManagedUnidentifiedFailure{
+		Addr:         addr,
+		ListenerAddr: listenerAddr,
+		FirstTime:    now,
+		LastTime:     now,
+		Count:        1,
+		LastError:    detail,
+	}
+}
+
+// pruneUnidentifiedClass forgets entries that have not repeated for at least
+// managedUnidentifiedKeep.
+func pruneUnidentifiedClass(class map[string]ManagedUnidentifiedFailure, now time.Time) {
+	for addr, entry := range class {
+		if now.Sub(entry.LastTime) >= managedUnidentifiedKeep {
+			delete(class, addr)
+		}
+	}
+}
+
+// clearAddress removes addr from both nameless-connection failure classes once
+// a session from addr authenticates.
+func (d *managedDoctorState) clearAddress(addr string) {
+	d.mu.Lock()
+	defer d.mu.Unlock()
+	delete(d.certRefused, addr)
+	delete(d.unidentified, addr)
+}
+
+// snapshot copies the record as of time.Now().
+func (d *managedDoctorState) snapshot() ManagedDoctorRecord {
+	return d.snapshotAt(time.Now())
+}
+
+// snapshotAt copies the record as of now, forgetting unidentified entries that
+// have not repeated for managedUnidentifiedKeep.
+func (d *managedDoctorState) snapshotAt(now time.Time) ManagedDoctorRecord {
+	d.mu.Lock()
+	defer d.mu.Unlock()
+	pruneUnidentifiedClass(d.certRefused, now)
+	pruneUnidentifiedClass(d.unidentified, now)
+	record := ManagedDoctorRecord{
+		Unbound:               slices.Clone(d.unbound),
+		CertRefusedForgotten:  d.certRefusedForgotten,
+		UnidentifiedForgotten: d.unidentifiedForgotten,
+	}
 	for _, rejection := range d.rejected {
 		record.Rejected = append(record.Rejected, rejection)
 	}
@@ -264,6 +483,14 @@ func (d *managedDoctorState) snapshot() ManagedDoctorRecord {
 		record.Rejected = append(record.Rejected, rejection)
 	}
 	slices.SortFunc(record.Rejected, func(a, b ManagedClientRejection) int { return strings.Compare(a.Client, b.Client) })
+	for _, entry := range d.certRefused {
+		record.CertRefused = append(record.CertRefused, entry)
+	}
+	slices.SortFunc(record.CertRefused, func(a, b ManagedUnidentifiedFailure) int { return strings.Compare(a.Addr, b.Addr) })
+	for _, entry := range d.unidentified {
+		record.Unidentified = append(record.Unidentified, entry)
+	}
+	slices.SortFunc(record.Unidentified, func(a, b ManagedUnidentifiedFailure) int { return strings.Compare(a.Addr, b.Addr) })
 	return record
 }
 

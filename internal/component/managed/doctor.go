@@ -93,6 +93,52 @@ var managedDivergedDoctorCheck = diagnostic.DoctorCheck{
 	Check:        checkManagedDiverged,
 }
 
+// hubSessionDoctorCheck reports a running hub client whose attempts to open a
+// session fail at the anchor, TLS handshake or authentication step. Registered
+// from register.go in the runtime phase because only the running daemon holds
+// the hub client's last failed attempt.
+var hubSessionDoctorCheck = diagnostic.DoctorCheck{
+	Name:         "hub-session",
+	Phase:        diagnostic.DoctorPhaseRuntime,
+	Order:        734,
+	Component:    doctorComponent,
+	Dependencies: []string{"fleet-client"},
+	Platforms:    []string{diagnostic.DoctorPlatformAny},
+	Codes: []string{
+		CodeDoctorHubCertificateUnverified,
+		CodeDoctorHubHandshakeFailed,
+		CodeDoctorHubAuthRejected,
+	},
+	Check: checkHubSession,
+}
+
+// checkHubSession reads the running daemon's hub client state through the
+// installed FleetTarget and reports its last pre-authentication failure.
+func checkHubSession(_ diagnostic.DoctorCheckContext) []diagnostic.Diagnostic {
+	target := fleetTarget.Load()
+	if target == nil {
+		return nil
+	}
+	return diagnoseHubSessionState(target.ClientState(), time.Now())
+}
+
+// diagnoseHubSessionState answers one warning row when state describes a
+// running, unconnected hub client whose last attempt failed at a reportable
+// step (anchor, handshake or authentication).
+func diagnoseHubSessionState(state ClientState, now time.Time) []diagnostic.Diagnostic {
+	if !state.Running {
+		return nil
+	}
+	if state.Connected {
+		return nil
+	}
+	diag, ok := state.LastFailure.Diagnostic(now)
+	if !ok {
+		return nil
+	}
+	return []diagnostic.Diagnostic{diag}
+}
+
 // hubDivergedDoctorCheck reports, on a hub, each managed client whose
 // configuration the hub keeps a copy of because the client holds
 // (pluginserver.HeldRecord). Registered from register.go. It reads the store
@@ -122,6 +168,7 @@ var hubDivergedDoctorCheck = diagnostic.DoctorCheck{
 // hold the only copy of a client's configuration.
 func checkHubClientsDiverged(ctx diagnostic.DoctorCheckContext) []diagnostic.Diagnostic {
 	tree, ok := ctx.Tree.(*config.Tree)
+	// refuse-by-default: guards hubDivergedDoctorCheck -- config validation reports an unreadable config tree; this check stays silent without one
 	if !ok {
 		return nil
 	}
@@ -440,6 +487,7 @@ func checkHubReachable(ctx diagnostic.DoctorCheckContext) []diagnostic.Diagnosti
 		return nil
 	}
 	hubCfg, err := config.ExtractHubConfig(tree)
+	// refuse-by-default: guards hubDoctorCheck -- config validation reports a malformed hub block; this check avoids flagging it as unreachable
 	if err != nil {
 		return nil
 	}

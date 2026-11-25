@@ -272,6 +272,8 @@ When a configuration drops a client, its last named rejection clears.
 | A `config-ack` with an error | that client's last refusal, cleared by the next successful ack | `doctor-managed-client-rejected` (warning) |
 | A configured name with a token that is not its secret | that client's last refusal | `doctor-managed-client-rejected` (warning) |
 | A name with no `client` entry | the 16 most recent such names, the oldest forgotten first | `doctor-managed-client-rejected` (warning) |
+| A remote address whose TLS handshake ends with one of the six certificate-rejection alerts | up to 16 remote addresses (without port) kept for one hour, with count, first/last times, presented certificate, devices last seen from that address, and a forgotten-count row; cleared when an authenticated session opens from that address | `doctor-managed-certificate-refused` (warning) |
+| Any other connection that ends before naming a client (non-certificate fatal TLS alerts, TLS version/cipher mismatch, plain TCP close, non-TLS bytes, timeout, malformed first line) | up to 16 remote addresses apart from the certificate-refused class, kept for one hour, with count, first/last times, error, and a forgotten-count row; cleared on authentication | `doctor-managed-client-rejected` (warning) |
 | A `config-changed` a connected client was not given (the notification could not be built, or the client did not accept it) | an event on the report bus naming the client and the cause | `doctor-managed-client-notify-dropped` |
 
 ### Config Storage (Hub Side)
@@ -1276,9 +1278,22 @@ that: it named one certificate and died with it. Ze no longer accepts the
 an error naming `ca <pki-ca-name>` as the replacement.
 
 The client sends its token only after the handshake, so a certificate the client
-cannot authenticate ends the connection before the token is written.
+cannot authenticate ends the connection before the token is written. When a
+running client fails before authentication succeeds, it classifies the failure
+by step and x509/TLS error type, attaches the doctor code and fix to its
+reconnect warning, and reports the failure to its daemon owner so `ze doctor`
+(the runtime `hub-session` check) surfaces `doctor-hub-certificate-unverified`
+(unknown issuer, hostname mismatch, validity dates, or undefined `pki ca`),
+`doctor-hub-handshake-failed`, or `doctor-hub-auth-rejected`. On the hub, a
+connection that terminates with a certificate-rejection TLS alert is recorded
+under `doctor-managed-certificate-refused` per remote address alongside any
+devices last seen from that address; any other pre-identification handshake
+failure is recorded under `doctor-managed-client-rejected`. Both sides clear
+their failure state as soon as a session authenticates.
 <!-- source: internal/component/plugin/server/managed_serve.go -- managedCertificate, managedLeafHosts -->
 <!-- source: internal/component/managed/tls.go -- clientTLSConfig, ClientTLSConfig -->
+<!-- source: internal/component/managed/session_failure.go -- classifySessionFailure, HubSessionFailure -->
+<!-- source: internal/component/plugin/server/managed_doctor.go -- isCertRejectionAlert, recordCertRefused, recordUnidentified -->
 <!-- source: internal/component/pki/show.go -- handleShowPKILocalCAPEM -->
 <!-- source: internal/component/config/retired.go -- retiredKeywords, RetiredKeywordHint -->
 

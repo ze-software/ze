@@ -91,6 +91,34 @@ type managedClientRun struct {
 	// hubAnswer is what the client's last answered fetch said of the hub's
 	// copy of a hold; nil until the client read one.
 	hubAnswer atomic.Pointer[managed.HubAnswer]
+	// lastFailure is the last attempt that failed before the hub session
+	// opened; cleared when a session authenticates.
+	lastFailure atomic.Pointer[managed.HubSessionFailure]
+}
+
+// storeConnection records the client's connection state and clears the last
+// session failure once a session authenticates.
+func (r *managedClientRun) storeConnection(connected bool) {
+	r.connected.Store(connected)
+	if connected {
+		r.lastFailure.Store(nil)
+	}
+}
+
+// storeSessionFailure keeps the client's last failed session attempt.
+func (r *managedClientRun) storeSessionFailure(failure managed.HubSessionFailure) {
+	r.lastFailure.Store(&failure)
+}
+
+// loadLastFailure returns the client's last failed session attempt, or the
+// zero HubSessionFailure when none is recorded.
+func (r *managedClientRun) loadLastFailure() managed.HubSessionFailure {
+	failure := r.lastFailure.Load()
+	// refuse-by-default: guards managedClientRun -- nil means no pre-auth failure is recorded
+	if failure == nil {
+		return managed.HubSessionFailure{}
+	}
+	return *failure
 }
 
 // storeHubAnswer keeps the client's last report of a fetch answer
@@ -124,11 +152,13 @@ func (r *managedClientRun) finished() bool {
 // state answers what this client is doing. A client that returned holds no
 // connection, whatever it last reported.
 func (r *managedClientRun) state() managed.ClientState {
-	if r.finished() {
+	running := !r.finished()
+	if !running {
 		return managed.ClientState{}
 	}
 	return managed.ClientState{
-		Running: true, Connected: r.connected.Load(), Holding: r.holding.Load(), HubAnswer: r.lastHubAnswer(),
+		Running: running, Connected: r.connected.Load(), Holding: r.holding.Load(),
+		HubAnswer: r.lastHubAnswer(), LastFailure: r.loadLastFailure(),
 	}
 }
 
@@ -200,7 +230,8 @@ func (o *managedClientOwner) startWith(storeFlag func() error) (bool, error) {
 	}
 	o.wire(client)
 	run := &managedClientRun{done: make(chan struct{})}
-	client.OnConnection = run.connected.Store
+	client.OnConnection = run.storeConnection
+	client.OnSessionFailure = run.storeSessionFailure
 	client.OnHold = run.holding.Store
 	client.OnHubAnswer = run.storeHubAnswer
 	ctx, cancel := context.WithCancel(context.Background())

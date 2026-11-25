@@ -38,7 +38,7 @@ func init() {
 		Name: "label", Description: "Select devices with this key=value label", Argument: command.ArgText,
 	})
 
-	for _, check := range []diagnostic.DoctorCheck{hubDoctorCheck, hubClientDoctorCheck, managedDivergedDoctorCheck, hubDivergedDoctorCheck} {
+	for _, check := range []diagnostic.DoctorCheck{hubDoctorCheck, hubClientDoctorCheck, managedDivergedDoctorCheck, hubDivergedDoctorCheck, hubSessionDoctorCheck} {
 		if err := diagnostic.RegisterDoctorCheck(check); err != nil {
 			panic("BUG: managed doctor check registration refused: " + err.Error())
 		}

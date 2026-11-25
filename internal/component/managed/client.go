@@ -111,9 +111,10 @@ type ClientConfig struct {
 	// of a revert (HubAnswer). The daemon's owner of this client reports all
 	// three in `show fleet status`. The client calls them from its own
 	// goroutine and MUST NOT be blocked by them. nil reports nothing.
-	OnConnection func(connected bool)
-	OnHold       func(holding bool)
-	OnHubAnswer  func(answer HubAnswer)
+	OnConnection     func(connected bool)
+	OnSessionFailure func(failure HubSessionFailure)
+	OnHold           func(holding bool)
+	OnHubAnswer      func(answer HubAnswer)
 
 	// held is what this run of the client remembers of the copies it sent
 	// its hub (heldUploads). It is state, not configuration: a caller leaves
@@ -184,6 +185,16 @@ func (cfg *ClientConfig) reportConnection(connected bool) {
 	if cfg.OnConnection != nil {
 		cfg.OnConnection(connected)
 	}
+}
+
+// reportSessionFailure tells the owner of this client why an attempt failed
+// before the hub session opened (ClientConfig.OnSessionFailure).
+func (cfg *ClientConfig) reportSessionFailure(step HubSessionStep, err error) error {
+	failure := classifySessionFailure(cfg, step, err, time.Now())
+	if cfg.OnSessionFailure != nil {
+		cfg.OnSessionFailure(failure.clone())
+	}
+	return sessionAttemptError{failure: failure, err: err}
 }
 
 // reportHold tells the owner of this client whether its last fetch was held
@@ -355,13 +366,33 @@ func RunManagedClient(ctx context.Context, cfg ClientConfig) {
 			}
 			continue
 		}
-		logger().Warn("connection lost, reconnecting",
-			"delay", delay.Round(time.Millisecond),
-			"error", err)
+		logReconnectWarning(delay, err)
 
 		if !waitBackoff(ctx, delay) {
 			return
 		}
+	}
+}
+
+// logReconnectWarning logs the reconnect backoff warning with a static doctor
+// code constant matching the failed session attempt's class.
+func logReconnectWarning(delay time.Duration, err error) {
+	rounded := delay.Round(time.Millisecond)
+	attempt, ok := errors.AsType[sessionAttemptError](err)
+	if !ok {
+		logger().Warn("connection lost, reconnecting", "code", codeHubUnreachable, "delay", rounded, "error", err)
+		return
+	}
+	code, fix := attempt.failure.ReconnectMeta(time.Now())
+	switch code {
+	case CodeDoctorHubCertificateUnverified:
+		logger().Warn("connection lost, reconnecting", "code", CodeDoctorHubCertificateUnverified, "fix", fix, "delay", rounded, "error", err)
+	case CodeDoctorHubHandshakeFailed:
+		logger().Warn("connection lost, reconnecting", "code", CodeDoctorHubHandshakeFailed, "fix", fix, "delay", rounded, "error", err)
+	case CodeDoctorHubAuthRejected:
+		logger().Warn("connection lost, reconnecting", "code", CodeDoctorHubAuthRejected, "fix", fix, "delay", rounded, "error", err)
+	default:
+		logger().Warn("connection lost, reconnecting", "code", codeHubUnreachable, "fix", fix, "delay", rounded, "error", err)
 	}
 }
 
@@ -398,7 +429,7 @@ func serverNameFromAddr(server string) string {
 func runConnection(ctx context.Context, cfg *ClientConfig, backoff *Backoff) error {
 	tlsConf, err := clientTLSConfig(cfg)
 	if err != nil {
-		return err
+		return cfg.reportSessionFailure(HubSessionStepAnchor, err)
 	}
 
 	connectCtx, connectCancel := context.WithTimeout(ctx, cfg.connectTimeout())
@@ -406,40 +437,40 @@ func runConnection(ctx context.Context, cfg *ClientConfig, backoff *Backoff) err
 
 	dialer := &network.RealDialer{}
 	if err := dialer.SetSourceAddress(cfg.SourceAddress); err != nil {
-		return err
+		return cfg.reportSessionFailure(HubSessionStepConnect, err)
 	}
 	rawConn, err := dialer.DialContext(connectCtx, "tcp", cfg.Server)
 	if err != nil {
-		return fmt.Errorf("connect: %w", err)
+		return cfg.reportSessionFailure(HubSessionStepConnect, fmt.Errorf("connect: %w", err))
 	}
 
 	tlsConn := tls.Client(rawConn, tlsConf)
 	if err := tlsConn.HandshakeContext(connectCtx); err != nil {
 		rawConn.Close() //nolint:errcheck // cleanup on handshake failure
-		return fmt.Errorf("tls handshake: %w", err)
+		return cfg.reportSessionFailure(HubSessionStepHandshake, fmt.Errorf("tls handshake: %w", err))
 	}
 	conn := net.Conn(tlsConn)
 	defer conn.Close() //nolint:errcheck // cleanup
 
 	// Auth.
 	if err := pluginipc.SendAuth(ctx, conn, cfg.Token, cfg.Name); err != nil {
-		return fmt.Errorf("auth send: %w", err)
+		return cfg.reportSessionFailure(HubSessionStepAuth, fmt.Errorf("auth send: %w", err))
 	}
 
 	// Read auth response line (newline-terminated).
 	if err := setAuthDeadline(ctx, conn); err != nil {
-		return err
+		return cfg.reportSessionFailure(HubSessionStepAuth, err)
 	}
 	authLine, err := readLine(conn, maxAuthResponse)
 	if err != nil {
-		return fmt.Errorf("read auth response: %w", err)
+		return cfg.reportSessionFailure(HubSessionStepAuth, fmt.Errorf("read auth response: %w", err))
 	}
 	_ = conn.SetReadDeadline(time.Time{}) // clear deadline
 
 	// Parse response: #<id> <verb> [payload]
 	_, verb, _, parseErr := rpc.ParseLine(authLine)
 	if parseErr != nil || verb != "ok" {
-		return errAuthRejected
+		return cfg.reportSessionFailure(HubSessionStepAuth, errAuthRejected)
 	}
 
 	// Auth succeeded -- reset backoff for fresh retry delays on next disconnect.

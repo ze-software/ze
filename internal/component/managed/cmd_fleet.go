@@ -125,6 +125,9 @@ type ClientState struct {
 	// HubAnswer is what the hub's last fetch answer said of its copy of a
 	// hold. Its zero value is a client with no answered fetch yet.
 	HubAnswer HubAnswer
+	// LastFailure is the last attempt that failed before the hub session
+	// opened. Cleared when a session authenticates and zero when no client runs.
+	LastFailure HubSessionFailure
 }
 
 // RevertOffer is what one fetch answer said of a revert: whether the hub

@@ -379,3 +379,50 @@ func TestOwnerStateAnswersWhileStopWaits(t *testing.T) {
 	}
 	assert.Equal(t, managed.ClientState{}, owner.state())
 }
+
+// VALIDATES: fleet-1 Phase 7 -- managedClientRun keeps the last failed session
+// attempt in ClientState, clears it when the client reports connected, and
+// returns the zero ClientState once the client's goroutine has returned.
+func TestManagedClientRunKeepsLastFailure(t *testing.T) {
+	started := make(chan managed.ClientConfig, 1)
+	release := make(chan struct{})
+	owner := newStandInOwner(t, func() (*managed.ClientConfig, error) {
+		return &managed.ClientConfig{Server: ownerHubAddress}, nil
+	}, func(ctx context.Context, client managed.ClientConfig) {
+		started <- client
+		select {
+		case <-release:
+		case <-ctx.Done():
+		}
+	})
+
+	_, err := owner.startWith(noFlagWrite)
+	require.NoError(t, err)
+	client := awaitOwnerRun(t, started)
+
+	failure := managed.HubSessionFailure{
+		Time:   time.Now().UTC(),
+		Server: ownerHubAddress,
+		Step:   managed.HubSessionStepHandshake,
+		Cause:  managed.HubSessionCauseUnknownAuthority,
+		Anchor: managed.HubTrustAnchorStoredRoot,
+		Error:  "x509: unknown authority",
+	}
+	client.OnSessionFailure(failure)
+	require.Equal(t, failure, owner.state().LastFailure)
+
+	// Connecting clears the last failure.
+	client.OnConnection(true)
+	require.Equal(t, managed.HubSessionStepNone, owner.state().LastFailure.Step)
+	require.True(t, owner.state().Connected)
+
+	// A new failure after disconnect is kept until the goroutine finishes.
+	client.OnConnection(false)
+	client.OnSessionFailure(failure)
+	require.Equal(t, failure, owner.state().LastFailure)
+
+	close(release)
+	require.Eventually(t, func() bool {
+		return owner.state().LastFailure.Step == managed.HubSessionStepNone && !owner.state().Running
+	}, 2*time.Second, 10*time.Millisecond)
+}

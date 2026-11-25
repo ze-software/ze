@@ -5,6 +5,10 @@
 package doctor
 
 import (
+	"strconv"
+	"strings"
+	"time"
+
 	"github.com/ze-software/ze/internal/component/plugin/server"
 	"github.com/ze-software/ze/internal/core/diagnostic"
 	"github.com/ze-software/ze/internal/core/textbuf"
@@ -15,6 +19,10 @@ const managedUnboundCheckName = "managed-listener-unbound"
 
 // managedRejectedCheckName reports a managed client the hub last refused.
 const managedRejectedCheckName = "managed-client-rejected"
+
+// managedCertRefusedCheckName reports remote addresses that refused the hub's
+// managed TLS certificate.
+const managedCertRefusedCheckName = "managed-certificate-refused"
 
 // checkManagedListenerUnbound answers one error per managed listen address the
 // daemon could not bind, naming the address and the kernel's error. A
@@ -59,13 +67,90 @@ func managedUnboundRows(failures []server.ManagedListenerUnbound) []diagnostic.D
 // checkManagedClientRejected answers one warning per managed client whose last
 // exchange with the hub was a refusal: a second session under a name already
 // connected, a config the client refused to apply, a token that is not the
-// client's secret, or a name the hub has no client entry for (the most recent
-// of those are kept, never the token).
+// client's secret, a name the hub has no client entry for, or a connection
+// that ended before naming a client without a certificate-rejection TLS alert.
 func checkManagedClientRejected(_ diagnostic.DoctorCheckContext) []diagnostic.Diagnostic {
 	record, _ := server.ManagedRuntimeHealth()
+	return managedClientRejectedRows(record)
+}
+
+func managedClientRejectedRows(record server.ManagedDoctorRecord) []diagnostic.Diagnostic {
 	var rows []diagnostic.Diagnostic
 	for _, rejection := range record.Rejected {
 		rows = append(rows, managedRejectedRow(rejection))
+	}
+	for _, entry := range record.Unidentified {
+		rows = append(rows, managedUnidentifiedRow(entry))
+	}
+	if record.UnidentifiedForgotten > 0 {
+		rows = append(rows, diagnostic.Diagnostic{
+			Code:     server.CodeDoctorManagedClientRejected,
+			Severity: diagnostic.SeverityWarning,
+			Message: strconv.Itoa(record.UnidentifiedForgotten) +
+				" additional remote address(es) failed before naming a managed client and were forgotten because the table keeps at most 16",
+			Fix: "run ze show fleet devices to see every device that is not connected, and inspect the hub warnings with ze show warnings",
+		})
+	}
+	return rows
+}
+
+func managedUnidentifiedRow(entry server.ManagedUnidentifiedFailure) diagnostic.Diagnostic {
+	var message textbuf.Buffer
+	message.Str("a connection from ").Str(entry.Addr).Str(" to managed listener ").Str(entry.ListenerAddr).
+		Str(" ended before naming a client (").Str(strconv.Itoa(entry.Count)).Str(" time(s), first ").
+		Str(entry.FirstTime.UTC().Format(time.RFC3339)).Str(", last ").Str(entry.LastTime.UTC().Format(time.RFC3339)).
+		Str("): ").Str(entry.LastError).
+		Str(", so no managed session opened from that address")
+	return diagnostic.Diagnostic{
+		Code:     server.CodeDoctorManagedClientRejected,
+		Severity: diagnostic.SeverityWarning,
+		Message:  message.String(),
+		Fix:      "check the remote client at " + entry.Addr + " with ze doctor or confirm it speaks TLS 1.3 to the managed listener",
+	}
+}
+
+// checkManagedCertificateRefused reports remote addresses whose TLS handshake
+// ended with a certificate-rejection alert.
+func checkManagedCertificateRefused(_ diagnostic.DoctorCheckContext) []diagnostic.Diagnostic {
+	record, _ := server.ManagedRuntimeHealth()
+	return managedCertRefusedRows(record)
+}
+
+func managedCertRefusedRows(record server.ManagedDoctorRecord) []diagnostic.Diagnostic {
+	var rows []diagnostic.Diagnostic
+	certDesc := "the leaf ze issues"
+	if record.CertificateName != "" {
+		certDesc = "certificate " + record.CertificateName
+	}
+	for _, entry := range record.CertRefused {
+		devices := record.DevicesByAddress[entry.Addr]
+		devicesDesc := "no device is recorded from this address"
+		if len(devices) > 0 {
+			devicesDesc = "devices last seen from this address: " + strings.Join(devices, ", ")
+		}
+		var message textbuf.Buffer
+		message.Str("remote address ").Str(entry.Addr).Str(" refused the managed listener's certificate (").
+			Str(certDesc).Str(") ").Str(strconv.Itoa(entry.Count)).Str(" time(s) (first ").
+			Str(entry.FirstTime.UTC().Format(time.RFC3339)).Str(", last ").Str(entry.LastTime.UTC().Format(time.RFC3339)).
+			Str("): ").Str(entry.LastError).Str("; ").Str(devicesDesc).
+			Str(", so those devices hold no hub session")
+		rows = append(rows, diagnostic.Diagnostic{
+			Code:     server.CodeDoctorManagedCertificateRefused,
+			Severity: diagnostic.SeverityWarning,
+			Message:  message.String(),
+			Fix: "run ze doctor on the device at " + entry.Addr +
+				" for the verification cause, or have the hub present a certificate its devices verify (bus hub server <block> certificate); " +
+				"show fleet devices lists every device that is not connected",
+		})
+	}
+	if record.CertRefusedForgotten > 0 {
+		rows = append(rows, diagnostic.Diagnostic{
+			Code:     server.CodeDoctorManagedCertificateRefused,
+			Severity: diagnostic.SeverityWarning,
+			Message: strconv.Itoa(record.CertRefusedForgotten) +
+				" additional remote address(es) refused the hub's managed certificate and were forgotten because the table keeps at most 16",
+			Fix: "run ze show fleet devices to list every device that is not connected, and check bus hub server <block> certificate",
+		})
 	}
 	return rows
 }

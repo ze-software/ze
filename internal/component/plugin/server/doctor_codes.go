@@ -54,6 +54,8 @@ const (
 	CodeDoctorManagedDeviceRecordUnreadable = "doctor-managed-device-record-unreadable"
 	// CodeDoctorManagedClientRejected is the doctor diagnostic code "doctor-managed-client-rejected".
 	CodeDoctorManagedClientRejected = "doctor-managed-client-rejected"
+	// CodeDoctorManagedCertificateRefused reports remote addresses that refused the hub's managed TLS certificate.
+	CodeDoctorManagedCertificateRefused = "doctor-managed-certificate-refused"
 	// CodeDoctorPluginRemovalUnrecovered is the doctor diagnostic code "doctor-plugin-removal-unrecovered".
 	CodeDoctorPluginRemovalUnrecovered = "doctor-plugin-removal-unrecovered"
 	// CodeDoctorPluginCapabilitiesNotRestored is the doctor diagnostic code "doctor-plugin-capabilities-not-restored".
@@ -250,9 +252,18 @@ var doctorDiagnosticCodes = []diagnostic.CodeMeta{
 	{
 		Code:  CodeDoctorManagedClientRejected,
 		Title: "Managed client refused or rejected its config",
-		Description: "A managed client was refused because a client of the same name is already connected, or the client rejected the configuration the daemon sent it, " +
-			"so it runs without its current configuration. The row names the client and its last answer.",
+		Description: "A managed client was refused because a client of the same name is already connected, the client rejected the configuration the daemon sent it, " +
+			"an unknown name or bad token failed authentication, or a connection ended before naming a client without a certificate-rejection TLS alert. " +
+			"The row names the client or remote address and its last failure.",
 		Examples: []string{exampleShowDoctor, "ze show diagnostic doctor-managed-client-rejected"},
+	},
+	{
+		Code:  CodeDoctorManagedCertificateRefused,
+		Title: "Remote device refused the hub's managed certificate",
+		Description: "A connection to the managed listener ended during the TLS handshake with a certificate-rejection TLS alert (bad_certificate, unsupported_certificate, certificate_revoked, certificate_expired, certificate_unknown, or unknown_ca). " +
+			"The row names the remote address, how many times and when it refused, the alert, the certificate the listener presents now, and any devices whose last session came from that address.",
+		Examples:     []string{exampleShowDoctor, "ze show fleet devices", "ze show diagnostic doctor-managed-certificate-refused"},
+		RelatedCodes: []string{CodeDoctorManagedClientRejected, "doctor-hub-certificate-unverified"},
 	},
 	{
 		Code:  CodeDoctorPluginRemovalUnrecovered,

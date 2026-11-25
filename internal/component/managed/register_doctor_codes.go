@@ -9,6 +9,12 @@ const (
 	codeDoctorManagedClientDiverged = "doctor-managed-client-diverged"
 	// CodeDoctorManagedDiverged is the doctor diagnostic code "doctor-managed-diverged".
 	CodeDoctorManagedDiverged = "doctor-managed-diverged"
+	// CodeDoctorHubCertificateUnverified reports a managed client that refused its hub's certificate or has an undefined anchor.
+	CodeDoctorHubCertificateUnverified = "doctor-hub-certificate-unverified"
+	// CodeDoctorHubHandshakeFailed reports a managed client TLS handshake that failed without a certificate verification error.
+	CodeDoctorHubHandshakeFailed = "doctor-hub-handshake-failed"
+	// CodeDoctorHubAuthRejected reports a managed client whose hub refused its authentication.
+	CodeDoctorHubAuthRejected = "doctor-hub-auth-rejected"
 	exampleShowDoctor         = "ze show doctor"
 )
 
@@ -17,8 +23,32 @@ var doctorDiagnosticCodes = []diagnostic.CodeMeta{
 	{
 		Code:        codeHubUnreachable,
 		Title:       "Management hub unreachable",
-		Description: "This node is configured as a managed client (bus/hub/client) but none of its management hubs answered a TCP probe. The node still boots and runs its committed config; it will not receive hub-pushed config updates until a hub becomes reachable.",
+		Description: "This node is configured as a managed client (bus/hub/client), and a TCP probe of the first hub block did not answer. The node still boots and runs its committed config; it will not receive hub-pushed config updates until that hub becomes reachable.",
 		Examples:    []string{"ze doctor --json", "ze show diagnostic doctor-hub-unreachable"},
+	},
+	{
+		Code:  CodeDoctorHubCertificateUnverified,
+		Title: "Hub certificate refused by managed client",
+		Description: "The running hub client refused the certificate its hub presented (unknown issuer, wrong host name, outside its validity dates, or another verification failure) or its configuration names a pki ca entry that pki does not define. " +
+			"The device holds no hub session, receives no configuration change and keeps retrying while it keeps running the configuration it has.",
+		Examples:     []string{exampleShowDoctor, "ze show diagnostic doctor-hub-certificate-unverified"},
+		RelatedCodes: []string{CodeDoctorHubHandshakeFailed, CodeDoctorHubAuthRejected, codeHubUnreachable},
+	},
+	{
+		Code:  CodeDoctorHubHandshakeFailed,
+		Title: "Hub TLS handshake failed",
+		Description: "The running hub client reached the hub's TCP port, and the TLS handshake failed without a certificate verification error (the hub closed the connection, the endpoint does not speak TLS, or the handshake timed out). " +
+			"The device holds no hub session, receives no configuration change and keeps retrying while it keeps running the configuration it has.",
+		Examples:     []string{exampleShowDoctor, "ze show diagnostic doctor-hub-handshake-failed"},
+		RelatedCodes: []string{CodeDoctorHubCertificateUnverified, CodeDoctorHubAuthRejected, codeHubUnreachable},
+	},
+	{
+		Code:  CodeDoctorHubAuthRejected,
+		Title: "Hub refused managed client authentication",
+		Description: "The running hub client completed TLS with its hub, and the hub refused its authentication (unknown client name, wrong secret, or name already connected). " +
+			"The device holds no hub session, receives no configuration change and keeps retrying while it keeps running the configuration it has.",
+		Examples:     []string{exampleShowDoctor, "ze show diagnostic doctor-hub-auth-rejected"},
+		RelatedCodes: []string{CodeDoctorHubCertificateUnverified, CodeDoctorHubHandshakeFailed, "doctor-managed-client-rejected"},
 	},
 	{
 		Code:  codeDoctorHubClientMissing,
