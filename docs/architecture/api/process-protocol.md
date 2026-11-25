@@ -5641,3 +5641,4 @@ its bound maintenance path joins synchronously after that destination's FIFO.
 | Decision | It forbids | Source | Date |
 |----------|------------|--------|------|
 | Every engine operation names the message it carries or `none` with a reason, and a plugin identity is authorized by a profile compiled from its filter | An operation with no declaration; authorizing a plugin identity by prefix | plan/release/fixes/spec-explicit-plugin-and-attach-config.md | 2026-11-23 |
+| Engine-to-plugin event delivery never drops events on queue overflow; endpoints expect every subscribed network event losslessly | Any drop-on-full or lossy overflow policy on engine-to-plugin event delivery | plan/release/fixes/spec-bus-observer-delivery-decoupling.md | 2026-11-25 |
