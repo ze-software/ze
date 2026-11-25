@@ -2,7 +2,7 @@
 
 | Field | Value |
 |-------|-------|
-| Status | skeleton |
+| Status | design |
 | Scope | web, fleet, cli |
 | Priority | P3 |
 | Release reason | Thomas ruled on 2026-11-23 that the fleet features of the first release are reached through commands on every command surface, and that their web pages, the hub's task model and panel, notifications and live page updates come after the first release (`ai/META-DECISIONS.md`, "Goal and scope"). Split out of `plan/release/features/spec-fleet-ui-5-alarm-list.md` and `plan/release/features/spec-fleet-ui-8-alarm-causes.md`, which keep the alarm model and its commands; existing supported behavior and its obligations remain required. |
@@ -338,13 +338,16 @@ command first and a page second.
 
 ### Changed-Wire Census
 
-The typed sample, web handlers and browser script are current consumers. The hub task commands are new. Existing device config and report frames retain their present meaning.
+**Search evidence:** Searched the fleetui handlers, sources, sample and browser assets for TaskDetail, AlarmEvent, Subscribe, regionSet.frame and openStream, and the managed command registration for existing fleet RPCs. The eventStream.run writer and the stale listener in assets/fleet.js are the working producer and reader.
 
-| Wire | Producer | Reader and compatibility |
-|------|----------|--------------------------|
-| Task list, detail, cancellation and retry | The managed task owner registers YANG and handlers once. List answers contain ID, registered kind and words, actor, permitted targets, counts, state and times. Detail adds bounded outcomes, truncation and visible audit references. Retry returns child and original IDs. | CLI, SSH, REST, MCP, gRPC and the web command line use the same typed result. The activity adapter maps to `Task`, `TaskDetail` and `TaskResult` in `source_activity.go`. Sample callers keep their bounded method signatures. |
-| Open and historical alarms | Fleet-ui-5 and fleet-ui-8 publish occurrences, history, hidden-behind and authorized counts and cursor for a snapshot. | The paged adapter and bounded ActivityPart methods share these commands. Table, card, badges and side panel read the cause. Continue through the same snapshot to reach all matching rows. |
-| `/fleet/events` | `handler_events.go`’s `eventStream.run` writes `regionSet.frame` as a stale SSE event with comma-separated region names. | `assets/fleet.js`’s `openStream` listens for stale, filters against its region list and refetches. Preserve tree, content, tasks and header. Add notifications in both producer and reader. Older clients ignore the extra region. The SSE carries no device, task or notification content. |
+| Wire | Role (writer / reader) | Carrier | Source evidence | Migration or preservation disposition |
+|---|---|---|---|---|
+| Task list, detail, cancellation and retry | Writer | The managed task owner registers YANG and handlers once. List answers contain ID, registered kind and words, actor, permitted targets, counts, state and times. Detail adds bounded outcomes, truncation and visible audit references. Retry returns child and original IDs. | Managed task and alarm contracts; existing web event writer | Publish only the authorized result for the current caller. |
+| Task list, detail, cancellation and retry | Reader | CLI, SSH, REST, MCP, gRPC and the web command line use the same typed result. The activity adapter maps to `Task`, `TaskDetail` and `TaskResult` in `source_activity.go`. Sample callers keep their bounded method signatures. | Fleet activity source and existing fleet browser client | Preserve bounded typed answers and the existing event regions. |
+| Open and historical alarms | Writer | Fleet-ui-5 and fleet-ui-8 publish occurrences, history, hidden-behind and authorized counts and cursor for a snapshot. | Managed task and alarm contracts; existing web event writer | Publish only the authorized result for the current caller. |
+| Open and historical alarms | Reader | The paged adapter and bounded ActivityPart methods share these commands. Table, card, badges and side panel read the cause. Continue through the same snapshot to reach all matching rows. | Fleet activity source and existing fleet browser client | Preserve bounded typed answers and the existing event regions. |
+| `/fleet/events` | Writer | `handler_events.go`’s `eventStream.run` writes `regionSet.frame` as a stale SSE event with comma-separated region names. | Managed task and alarm contracts; existing web event writer | Publish only the authorized result for the current caller. |
+| `/fleet/events` | Reader | `assets/fleet.js`’s `openStream` listens for stale, filters against its region list and refetches. Preserve tree, content, tasks and header. Add notifications in both producer and reader. Older clients ignore the extra region. The SSE carries no device, task or notification content. | Fleet activity source and existing fleet browser client | Preserve bounded typed answers and the existing event regions. |
 
 ### Integration Points
 - `ActivitySource` and `EventSource` - answered by the real source over the hub
@@ -404,13 +407,13 @@ Keep active tasks independent of the finished-task cap. Ask the operational task
 | AC-3 | The hub restarts during a task | After restart the task shows Failed with the reason "hub restarted" | Devices that had finished keep their result |
 | AC-4 | A condition in `fleet-ui-5`'s alarm table becomes true, then false | The alarm opens, appears in every place "Alarm pages" lists, and clears from all of them | Its history row remains, because the history is the record that it happened |
 | AC-5 | A device changes state while a page is open | The tree row, the table row and the cards that count it change without a reload, at the next one-second coalescing tick after the authorized event, plus the time to fetch the fragment | Pages the operator is not viewing do not update, because they have no stream |
-| AC-6 | An operator who may not see a device | No event about it reaches the operator's stream | None |
+| AC-6 | An operator who may not see a device | With an allowed and a forbidden device changed in the same fixture, the operator receives the allowed device’s invalidation. The event for the forbidden device is excluded. | None |
 | AC-7 | The stream is lost | The stale banner shows with the time, the page reconnects, and the live fragments refresh once | None |
 | AC-8 | `show fleet task` on any command surface: the CLI, MCP, REST, gRPC, SSH and the web command surface | The same data as the pages, as data answering every pipe | None |
 | AC-9 | The alarm pages and `show fleet alarm` on the same hub | The pages show the same open alarms `show fleet alarm` answers on every command surface | None |
 | AC-10 | A device with a component down goes offline | On the pages the device has one shown alarm, Device offline. Component down has no row of its own, is not in the tree badge or the Alarms card count, and is listed in the offline row's side panel | The `has:cause` table lists it, because that table is the hidden alarms |
 | AC-11 | The device of AC-10 comes back and its report still names the component down | Component down has its row again, with the `Since` of the moment the component went down, and a toast is raised as for an opening (choice C-1) | None |
-| AC-12 | A component alarm opens and its condition stops while the device is offline | The alarm never has a row of its own on the default Alarms table and raises no toast | Its history row shows in the side panel, marked hidden, because the history is the record that it happened |
+| AC-12 | A component alarm opens and its condition stops while the device is offline | The default table continues to show its offline cause and its side panel records the hidden component occurrence. Its opening and clearing generate neither a top-level row nor a toast. | Its history row shows in the side panel, marked hidden, because the history is the record that it happened |
 | AC-13 | Resource high is shown, then its device goes offline | The row leaves the default table with no alarm-cleared event, and is listed under Device offline with its own `Since` | None |
 | AC-14 | Any count of alarms on a page, shown or hidden | Following its link lists exactly that many authorized rows across all pages of the same snapshot | None |
 | AC-15 | A condition in `fleet-ui-5`'s alarm table becomes true while a cause is open on its device, then false | The alarm appears on the pages only where "Where a hidden alarm appears on the pages" says, and clears from all of them. This narrows AC-4 for a hidden alarm | Its history row remains, marked hidden, because the history is the record that it happened |

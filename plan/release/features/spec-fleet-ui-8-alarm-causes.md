@@ -2,7 +2,7 @@
 
 | Field | Value |
 |-------|-------|
-| Status | skeleton |
+| Status | design |
 | Scope | fleet, cli |
 | Priority | P2 |
 | Release reason | Thomas put this fleet capability (alarm causes: an alarm hidden while the alarm that causes it is open) in the first release, reached through `show fleet alarm` on every command surface (`ai/META-DECISIONS.md`, "Goal and scope"); existing supported behavior and its obligations remain required. How the pages show a hidden alarm comes after the first release, in `plan/post-release/features/spec-fleet-ui-9-tasks-notifications-and-alarm-pages.md`. |
@@ -12,7 +12,7 @@
 | Handoff | - |
 | Design tier | strongest tier |
 | Implementation tier | development tier |
-| Updated | 2026-11-23 |
+| Updated | 2026-11-25 |
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.
 
@@ -277,8 +277,8 @@ stay here are unchanged.
 | Wire | Role (writer / reader) | Carrier (file + producer/consumer symbol or script entry) | Source evidence | Migration or preservation disposition |
 |------|------------------------|-----------------------------------------------------------|-----------------|----------------------------------------|
 | Open alarm table | Writer | Planned managed cmd_alarms.go and register.go | Fleet UI-5's bounded alarm query and the existing managed device column registration | Add optional hidden-behind to the authorized result; preserve identity, Since and all existing fields. |
-| Alarm table and history | Readers | CLI, API and MCP through the dispatcher; Fleet UI-9's planned activity adapter | Fleet UI-5's command contract and UI-9's ActivityPart | Old consumers can ignore the extra column; a missing value means shown. The history reader intersects cause and occurrence intervals for the same device. |
-| Managed device transport | Both | Managed client and server | Cause declarations use conditions already supplied by Fleet UI-5 | All new fields are hub-derived command output. Devices continue sending the same reports. |
+| Open alarm table | Reader | CLI, API and MCP through the dispatcher; Fleet UI-9's planned activity adapter | Fleet UI-5's command contract and UI-9's ActivityPart | Old consumers can ignore the extra column; a missing value means shown. The history reader intersects cause and occurrence intervals for the same device. |
+| Managed device transport | Writer and reader | Managed client and server | Cause declarations use conditions already supplied by Fleet UI-5 | All new fields are hub-derived command output. Devices continue sending the same reports. |
 
 ### Integration Points
 - The alarm-kind registry of `fleet-ui-5` - gains the Causes and Settles parts
@@ -341,7 +341,7 @@ part moved ("Moved to fleet-ui-9").
 | AC-5 | A device comes back and its first samples are above the resource threshold | At reconnect, history shows the old Resource high occurrence cleared. Both open and hidden lists omit it. Fresh samples above the threshold spanning the configured duration open a new occurrence with a new identifier and opening time | A figure that falls below the threshold in that time opens nothing |
 | AC-6 | A device is offline and its configuration is diverged or rejected, or its software is behind, or the installed relay reports an absent grant | Those alarms are shown beside Device offline | They name no cause, because the hub holds the fact and the operator can act on it |
 | AC-7 | A kind registered with a cause name no kind holds, with a chain of causes that returns to itself, or with a cause less severe than itself | The hub refuses to start its alarms and names both kinds and the defect | None |
-| AC-8 | A later feature registers a kind that names Device offline as its cause | Its alarms are hidden behind Device offline with no edit to a file of this spec | None |
+| AC-8 | A later feature registers a kind that names Device offline as its cause | The command names Device offline in the new kind’s hidden-behind column. The only added registration is the external kind. | None |
 | AC-10 | A condition in `fleet-ui-5`'s alarm table becomes true while a cause is open on its device, then false | `show fleet alarm` lists it with `hidden-behind` while it is open and no longer lists it once the condition is false. This narrows `fleet-ui-5` AC-4 for a hidden alarm | Its history row remains, marked hidden, because the history is the record that it happened |
 | AC-11 | `show fleet alarm` on any command surface, with and without the filter `hidden` | Unfiltered, every authorized open alarm is listed and each hidden one carries `hidden-behind` with the identifier of the nearest open cause alarm, selected by the stable rule in Alarm causes; the registered pipe selects rows with a cause for `hidden true` and without one for `hidden false`; missing and unsupported arguments return a usage error | A shown alarm carries no `hidden-behind`, because it is hidden behind nothing |
 | AC-13 | Two registered open causes are equally near on one device. A third open cause is one level farther away. | The selected identifier is the same across insertion orders and command surfaces. Clearing the two nearest causes in succession exposes the remaining nearest one and then the more distant cause. The affected alarm stays hidden with the same `Since` throughout. | A cause on another device cannot explain this occurrence. |
