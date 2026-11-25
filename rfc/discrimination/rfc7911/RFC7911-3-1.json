@@ -36,24 +36,24 @@
     "rid": "RFC7911-3-1",
     "polarity": "negative",
     "unit": "test/plugin/adj-rib-in-replay-addpath-source.ci",
-    "unit-sha": "240a9641f0133c98",
+    "unit-sha": "77fa055a2e31d57e",
     "claim-sha": "b516abfc46a2f084",
     "route": "mutant",
     "producer": "internal/component/bgp/reactor/session_write.go::writeUpdateBody",
-    "producer-sha": "7e022ad1355ded25",
-    "break": "line 919: \"accepted, err := s.bufWriter.Write(buf[:totalLen])\" -\u003e \"writeFrame := buf[:totalLen]\\n\\tif s.settings.Address.String() == \\\"127.0.0.3\\\" {\\n\\t\\tif sections, parseErr := wire.ParseUpdateSections(body); parseErr == nil {\\n\\t\\t\\tif wireNLRI := sections.NLRI(body); len(wireNLRI) == 4 \u0026\u0026 len(writeFrame)+4 \u003c= message.MaxMsgLen {\\n\\t\\t\\t\\tframeAt := len(writeFrame) - len(wireNLRI)\\n\\t\\t\\t\\texpanded := make([]byte, len(writeFrame)+4)\\n\\t\\t\\t\\tcopy(expanded[:frameAt], writeFrame[:frameAt])\\n\\t\\t\\t\\tcopy(expanded[frameAt+4:], writeFrame[frameAt:])\\n\\t\\t\\t\\twriteFrame = expanded\\n\\t\\t\\t\\twriteFrame[16] = byte(len(writeFrame) \u003e\u003e 8)\\n\\t\\t\\t\\twriteFrame[17] = byte(len(writeFrame))\\n\\t\\t\\t}\\n\\t\\t}\\n\\t}\\n\\ttotalLen = len(writeFrame)\\n\\taccepted, err := s.bufWriter.Write(writeFrame)\"",
-    "citation": "expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF003302000000184001010040020A02020000FDE80000FDE940030401010101180A0000"
+    "producer-sha": "4a1916dff9f3c2fb",
+    "break": "line 997: \"accepted, err := s.bufWriter.Write(buf[:totalLen])\" -\u003e \"writeFrame := buf[:totalLen]\\n\\tif s.settings.Address.String() == \\\"127.0.0.3\\\" {\\n\\t\\tif sections, parseErr := wire.ParseUpdateSections(body); parseErr == nil {\\n\\t\\t\\tif wireNLRI := sections.NLRI(body); len(wireNLRI) == 4 \u0026\u0026 len(writeFrame)+4 \u003c= message.MaxMsgLen {\\n\\t\\t\\t\\tframeAt := len(writeFrame) - len(wireNLRI)\\n\\t\\t\\t\\texpanded := make([]byte, len(writeFrame)+4)\\n\\t\\t\\t\\tcopy(expanded[:frameAt], writeFrame[:frameAt])\\n\\t\\t\\t\\tcopy(expanded[frameAt+4:], writeFrame[frameAt:])\\n\\t\\t\\t\\twriteFrame = expanded\\n\\t\\t\\t\\twriteFrame[16] = byte(len(writeFrame) \u003e\u003e 8)\\n\\t\\t\\t\\twriteFrame[17] = byte(len(writeFrame))\\n\\t\\t\\t}\\n\\t\\t}\\n\\t}\\n\\ttotalLen = len(writeFrame)\\n\\taccepted, err := s.bufWriter.Write(writeFrame)\"",
+    "citation": "expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF002F02000000144001010040020602010000FDE940030401010101180A0000"
   },
   {
     "rid": "RFC7911-3-1",
     "polarity": "positive",
     "unit": "test/plugin/adj-rib-in-replay-addpath-source.ci",
-    "unit-sha": "240a9641f0133c98",
+    "unit-sha": "77fa055a2e31d57e",
     "claim-sha": "ba22bc95a6496129",
     "route": "mutant",
     "producer": "internal/component/bgp/reactor/session_write.go::writeUpdateBody",
-    "producer-sha": "7e022ad1355ded25",
-    "break": "line 919: \"accepted, err := s.bufWriter.Write(buf[:totalLen])\" -\u003e \"writeFrame := buf[:totalLen]\\n\\tif s.settings.Address.String() == \\\"127.0.0.2\\\" {\\n\\t\\tif sections, parseErr := wire.ParseUpdateSections(body); parseErr == nil {\\n\\t\\t\\tif wireNLRI := sections.NLRI(body); len(wireNLRI) == 8 {\\n\\t\\t\\t\\twriteFrame = append([]byte(nil), writeFrame...)\\n\\t\\t\\t\\tframeAt := len(writeFrame) - len(wireNLRI)\\n\\t\\t\\t\\tcopy(writeFrame[frameAt:], writeFrame[frameAt+4:])\\n\\t\\t\\t\\twriteFrame = writeFrame[:len(writeFrame)-4]\\n\\t\\t\\t\\twriteFrame[16] = byte(len(writeFrame) \u003e\u003e 8)\\n\\t\\t\\t\\twriteFrame[17] = byte(len(writeFrame))\\n\\t\\t\\t}\\n\\t\\t}\\n\\t}\\n\\ttotalLen = len(writeFrame)\\n\\taccepted, err := s.bufWriter.Write(writeFrame)\"",
-    "citation": "expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF003702000000184001010040020A02020000FDE80000FDE94003040101010100000000180A0000"
+    "producer-sha": "4a1916dff9f3c2fb",
+    "break": "line 997: \"accepted, err := s.bufWriter.Write(buf[:totalLen])\" -\u003e \"writeFrame := buf[:totalLen]\\n\\tif s.settings.Address.String() == \\\"127.0.0.2\\\" {\\n\\t\\tif sections, parseErr := wire.ParseUpdateSections(body); parseErr == nil {\\n\\t\\t\\tif wireNLRI := sections.NLRI(body); len(wireNLRI) == 8 {\\n\\t\\t\\t\\twriteFrame = append([]byte(nil), writeFrame...)\\n\\t\\t\\t\\tframeAt := len(writeFrame) - len(wireNLRI)\\n\\t\\t\\t\\tcopy(writeFrame[frameAt:], writeFrame[frameAt+4:])\\n\\t\\t\\t\\twriteFrame = writeFrame[:len(writeFrame)-4]\\n\\t\\t\\t\\twriteFrame[16] = byte(len(writeFrame) \u003e\u003e 8)\\n\\t\\t\\t\\twriteFrame[17] = byte(len(writeFrame))\\n\\t\\t\\t}\\n\\t\\t}\\n\\t}\\n\\ttotalLen = len(writeFrame)\\n\\taccepted, err := s.bufWriter.Write(writeFrame)\"",
+    "citation": "expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF003302000000144001010040020602010000FDE94003040101010100000000180A0000"
   }
 ]

@@ -23,10 +23,12 @@ reject=bgp:conn=1:scope=announced:pattern=180A5B01
 EOF_PEER
 
 stdin=ze-bgp:terminator=EOF_CONF
-plugin {
-	external raw-originated-nh {
-		run "le test fixture plugin/raw-originated-nexthop-peer-own"
-		encoder json
+bus {
+	endpoint raw-originated-nh {
+		external {
+			run "le test fixture plugin/raw-originated-nexthop-peer-own";
+		}
+		encoding json;
 	}
 }
 bgp {
@@ -44,7 +46,6 @@ bgp {
 			router-id 1.2.3.4;
 			family { ipv4/unicast { prefix { maximum 10000; } } }
 		}
-		attach process raw-originated-nh { send [ raw ]; }
 	}
 }
 EOF_CONF

@@ -160,29 +160,45 @@ expect=bgp:conn=1:seq=3:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF001B02000418AC100000
 # contains= rather than hex= for the same reason bgp-rs-reactor-fastpath.ci gives: the eBGP
 # LOCAL_PREF rewrite is an open question settled elsewhere. These bytes cannot be satisfied by
 # a withdraw, which carries no path attributes at all.
-expect=bgp:conn=1:seq=4:contains=40020A02020000FDE80000FDE940030401010101
+expect=bgp:conn=1:seq=4:contains=40020602010000FDE940030401010101
 EOF_RECEIVER
 
 # Observer: shut down cleanly after forwarding completes.
 
 stdin=ze-bgp:terminator=EOF_CONF
-plugin {
-	internal rs {
-		use bgp-rs
+bus {
+	endpoint bgp-rib {
+		internal bgp-rib;
+		receive {
+			allow none;
+		}
+		send {
+			allow none;
+		}
 	}
-	internal adj-rib-in {
-		use bgp-adj-rib-in
+	endpoint rs {
+		internal bgp-rs;
 	}
-	external shutdown-after-up {
-		run "le test fixture plugin/rfc7606-relay-one-field"
-		encoder json
+	endpoint adj-rib-in {
+		internal bgp-adj-rib-in;
+		send {
+			message bgp:update {
+				to none;
+			}
+		}
+	}
+	endpoint shutdown-after-up {
+		external {
+			run "le test fixture plugin/rfc7606-relay-one-field";
+		}
+		encoding json;
 	}
 }
 bgp {
 	# RFC 8212: an EBGP direction with no policy is refused; this test exchanges routes.
 	filter {
 		import { final accept; }
-		export { final accept; }
+		export { filters [ next-hop:unchanged ]; final accept; }
 	}
 	peer source-peer {
 		connection {
@@ -195,12 +211,12 @@ bgp {
 			}
 		}
 		session {
+			rs-client true;
 			asn {
 				local 65000
 				remote 65001
 			}
 			router-id 1.2.3.4
-			next-hop unchanged
 			family {
 				ipv4/unicast { prefix { maximum 10000; } }
 			}
@@ -210,18 +226,6 @@ bgp {
 		}
 		behavior {
 			group-updates disable
-		}
-		attach process adj-rib-in {
-			receive [ update-received state ]
-		}
-		attach process rs {
-			receive [ update-received state open-received refresh ]
-			send [ update ]
-		}
-		attach process shutdown-after-up {
-			receive [ update ]
-			# The readiness marker is source-only, never a receiver seed.
-			send [ update ]
 		}
 	}
 	peer receiver-peer {
@@ -235,12 +239,12 @@ bgp {
 			}
 		}
 		session {
+			rs-client true;
 			asn {
 				local 65000
 				remote 65002
 			}
 			router-id 1.2.3.4
-			next-hop unchanged
 			family {
 				ipv4/unicast { prefix { maximum 10000; } }
 			}
@@ -250,18 +254,6 @@ bgp {
 		}
 		behavior {
 			group-updates disable
-		}
-		attach process adj-rib-in {
-			# The receiver originates the seed acknowledgement back to the source.
-			receive [ update-received state ]
-			send [ update ]
-		}
-		attach process rs {
-			receive [ update-received state open-received refresh ]
-			send [ update ]
-		}
-		attach process shutdown-after-up {
-			receive [ update ]
 		}
 	}
 }

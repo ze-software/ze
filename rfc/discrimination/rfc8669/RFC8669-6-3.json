@@ -25,7 +25,7 @@
     "rid": "RFC8669-6-3",
     "polarity": "positive",
     "unit": "test/plugin/prefixsid-duplicate-tlv-relay.ci",
-    "unit-sha": "02597c4b8ada69ed",
+    "unit-sha": "114d42044ebf3764",
     "claim-sha": "21ad04e2d2da16c0",
     "route": "revert",
     "producer": "internal/component/bgp/reactor/rfc8669_duplicate_tlv.go::discardRepeatedPrefixSIDTLVs",

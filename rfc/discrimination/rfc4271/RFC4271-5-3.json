@@ -80,7 +80,7 @@
     "rid": "RFC4271-5-3",
     "polarity": "positive",
     "unit": "test/plugin/rfc4271-partial-unknown-transitive.ci",
-    "unit-sha": "97f7d77c765620e6",
+    "unit-sha": "0f9e4e7e0e6225bb",
     "claim-sha": "99ba6264bbd2846f",
     "route": "revert",
     "producer": "internal/core/bgp/attribute/partial.go::SetPartialOnUnrecognizedTransitive",

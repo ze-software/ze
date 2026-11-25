@@ -54,10 +54,12 @@ EOF_PEER
 # the two permitted routes have reached the peer.
 
 stdin=ze-bgp:terminator=EOF_CONF
-plugin {
-	external originated-nh {
-		run "le test fixture plugin/originated-nexthop-peer-own"
-		encoder json
+bus {
+	endpoint originated-nh {
+		external {
+			run "le test fixture plugin/originated-nexthop-peer-own";
+		}
+		encoding json;
 	}
 }
 bgp {
@@ -86,9 +88,6 @@ bgp {
 			family {
 				ipv4/unicast { prefix { maximum 10000; } }
 			}
-		}
-		attach process originated-nh {
-			send [ update ]
 		}
 	}
 }

@@ -31,13 +31,21 @@ action=close:conn=1:seq=3
 EOF_PLAIN
 
 stdin=ze-bgp:terminator=EOF_CONF
-plugin {
-	internal gr { use bgp-gr; }
-	internal bgp-rib { use bgp-rib; }
-	internal bgp-filter-modify { use bgp-filter-modify; }
-	external observer {
-		run "le test fixture plugin/llgr-import-no-llgr"
-		encoder json
+bus {
+	endpoint gr {
+		internal bgp-gr;
+	}
+	endpoint bgp-rib {
+		internal bgp-rib;
+	}
+	endpoint bgp-filter-modify {
+		internal bgp-filter-modify;
+	}
+	endpoint observer {
+		external {
+			run "le test fixture plugin/llgr-import-no-llgr";
+		}
+		encoding json;
 	}
 }
 policy {
@@ -59,9 +67,6 @@ bgp {
 		behavior { group-updates disable; }
 		timer { connect-retry 30; }
 		filter { import { filters [ modify:NO-LLGR ]; final accept; } }
-		attach process gr { receive [ open state eor ]; send [ update ]; }
-		attach process bgp-rib { receive [ update state refresh ]; send [ update ]; }
-		attach process observer { receive [ state ]; send [ update ]; }
 	}
 	peer plain {
 		connection {
@@ -76,9 +81,6 @@ bgp {
 		}
 		behavior { group-updates disable; }
 		timer { connect-retry 30; }
-		attach process gr { receive [ open state eor ]; send [ update ]; }
-		attach process bgp-rib { receive [ update state refresh ]; send [ update ]; }
-		attach process observer { receive [ state ]; send [ update ]; }
 	}
 }
 EOF_CONF

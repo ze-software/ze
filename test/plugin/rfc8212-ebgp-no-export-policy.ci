@@ -78,19 +78,42 @@ option=asn:value=65003
 EOF_ACCEPTED
 
 stdin=ze-bgp:terminator=EOF_CONF
-exabgp {
-    bridge {
-        process rfc8212-bridge { run "le test fixture plugin/rfc8212-policy-bridge"; }
-        family ipv4/unicast
+bus {
+    endpoint adj-rib-in {
+        internal bgp-adj-rib-in;
     }
-}
-plugin {
-    internal adj-rib-in { use bgp-adj-rib-in; }
-    internal rs { use bgp-rs; }
-    internal rib { use bgp-rib; }
-    internal fakeredist { use fakeredist; }
-    internal exabgp-bridge { use exabgp-bridge; }
-    external rfc8212-policy { run "le test fixture plugin/rfc8212-ebgp-no-export-policy"; encoder json; }
+    endpoint rs {
+        internal bgp-rs;
+        send {
+            message bgp:update {
+                to [ /bgp/peer/absent-export /bgp/peer/accepted ];
+            }
+        }
+    }
+    endpoint rib {
+        internal bgp-rib;
+    }
+    endpoint fakeredist {
+        internal fakeredist;
+    }
+    endpoint rfc8212-bridge {
+        external {
+            run "ze exabgp plugin --family ipv4/unicast le test fixture plugin/rfc8212-policy-bridge";
+        }
+        encoding json;
+        receive {
+            from [ /bgp/peer/absent-export /bgp/peer/accepted ];
+        }
+        send {
+            to [ /bgp/peer/absent-export /bgp/peer/accepted ];
+        }
+    }
+    endpoint rfc8212-policy {
+        external {
+            run "le test fixture plugin/rfc8212-ebgp-no-export-policy";
+        }
+        encoding json;
+    }
 }
 policy {
     match redistribute-bgp-fakeredist {
@@ -101,6 +124,11 @@ policy {
     # observer sees it. The control below names this instance as inactive,
     # which turns loop detection off on that session only.
     loop-detection ECHO-OWN-AS { allow-own-as 0; }
+    # Redistributed routes default to next-hop self (127.0.0.5) on eBGP peers,
+    # which the echo control returns as a loopback NEXT_HOP (RFC 4271 Section 6.3
+    # treat-as-withdraw). Keep the test's 192.0.2.1 unicast next hop on the echo
+    # control peer so all seven origins remain observable.
+    modify ECHO-NH { set { next-hop 192.0.2.1; } }
 }
 redistribute {
     destination bgp {
@@ -113,21 +141,19 @@ bgp {
         session {
             asn { local 65000; remote 65001; }
             router-id 1.2.3.4;
+            rs-client true;
             family { ipv4/unicast { prefix { maximum 10000; } } }
             capability { graceful-restart disable; }
         }
         behavior { group-updates disable; }
         filter { import { final accept; } export { final accept; } }
-        attach process rfc8212-policy { send [ update ]; }
-        attach process adj-rib-in { receive [ update-received state ]; }
-        attach process rs { receive [ update-received state open-received refresh ]; }
-        attach process rib { receive [ update state refresh ]; }
     }
     peer absent-export {
         connection { remote { ip 127.0.0.2; } local { ip 127.0.0.5; accept false; } }
         session {
             asn { local 65000; remote 65002; }
             router-id 1.2.3.4;
+            rs-client true;
             family { ipv4/unicast { prefix { maximum 10000; } } }
             capability { graceful-restart disable; }
         }
@@ -137,17 +163,13 @@ bgp {
             attribute { origin igp; next-hop 192.0.2.1; }
             nlri { ipv4/unicast add 10.82.10.0/24; }
         }
-        attach process rfc8212-policy { receive [ update-received state ]; send [ update raw ]; }
-        attach process rs { receive [ state open-received refresh ]; send [ update ]; }
-        attach process rib { receive [ update-sent state refresh ]; send [ update ]; }
-        attach process exabgp-bridge { receive [ * ]; send [ * ]; }
-        attach process redistribute-orchestrator { send [ update ]; }
     }
     peer accepted {
         connection { remote { ip 127.0.0.3; } local { ip 127.0.0.5; accept false; } }
         session {
             asn { local 65000; remote 65003; }
             router-id 1.2.3.4;
+            rs-client true;
             family { ipv4/unicast { prefix { maximum 10000; } } }
             capability { graceful-restart disable; }
         }
@@ -159,17 +181,12 @@ bgp {
         role { import rs-client; }
         filter {
             import { filters [ inactive:ECHO-OWN-AS ]; final accept; }
-            export { final accept; }
+            export { filters [ ECHO-NH ]; final accept; }
         }
         update {
             attribute { origin igp; next-hop 192.0.2.1; }
             nlri { ipv4/unicast add 10.82.10.0/24; }
         }
-        attach process rfc8212-policy { receive [ update-received state ]; send [ update raw ]; }
-        attach process rs { receive [ state open-received refresh ]; send [ update ]; }
-        attach process rib { receive [ update-sent state refresh ]; send [ update ]; }
-        attach process exabgp-bridge { receive [ * ]; send [ * ]; }
-        attach process redistribute-orchestrator { send [ update ]; }
     }
 }
 EOF_CONF

@@ -3,7 +3,7 @@
     "rid": "RFC7606-5.1-3",
     "polarity": "positive",
     "unit": "test/plugin/rfc7606-receive-combinations.ci",
-    "unit-sha": "bb73ec9bb1e9f320",
+    "unit-sha": "2d4fdfcd1fc92f81",
     "claim-sha": "40fa8f5b0d8b8ccf",
     "route": "mutant",
     "producer": "internal/component/bgp/message/update_split.go::splitUpdateWithMP",
@@ -15,12 +15,12 @@
     "rid": "RFC7606-5.1-3",
     "polarity": "positive",
     "unit": "test/plugin/rfc7606-relay-one-field.ci",
-    "unit-sha": "1e1f3cd28008ed4d",
+    "unit-sha": "2439e370fb56ffaa",
     "claim-sha": "3d8ce1cc62058473",
     "route": "mutant",
     "producer": "internal/component/bgp/message/update_split.go::splitUpdateIPv4",
     "producer-sha": "a086ef9f99a78873",
     "break": "line 502: \"\u003e\" -\u003e \"\u003c\"",
-    "citation": "expect=bgp:conn=1:seq=4:contains=40020A02020000FDE80000FDE940030401010101"
+    "citation": "expect=bgp:conn=1:seq=4:contains=40020602010000FDE940030401010101"
   }
 ]

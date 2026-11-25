@@ -39,16 +39,18 @@ action=send:conn=1:seq=3:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF0070020000005940010
 EOF_PEER
 
 stdin=ze-bgp:terminator=EOF_CONF
-plugin {
-	external srv6-ineligible-test {
-		run "le test fixture plugin/srv6-invalid-sid-ineligible"
-		encoder json
+bus {
+	endpoint bgp-rib {
+		internal bgp-rib;
 	}
-	internal bgp-rib {
-		use bgp-rib
+	endpoint rib {
+		internal rib;
 	}
-	internal rib {
-		use rib
+	endpoint srv6-ineligible-test {
+		external {
+			run "le test fixture plugin/srv6-invalid-sid-ineligible";
+		}
+		encoding json;
 	}
 }
 bgp {
@@ -74,10 +76,6 @@ bgp {
 			capability {
 				graceful-restart disable
 			}
-		}
-		attach process bgp-rib {
-			receive [ update state refresh ]
-			send [ update ]
 		}
 	}
 }

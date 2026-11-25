@@ -15,12 +15,18 @@
 option=timeout:value=90s
 
 stdin=ze-bgp:terminator=EOF_CONF
-plugin {
-	internal adj-rib-in { use bgp-adj-rib-in; }
-	internal rib { use bgp-rib; }
-	external raw-med-drop {
-		run "le test fixture plugin/med-ibgp-ordinary-post-selection-removal 127.0.0.1:$PORT";
-		encoder json;
+bus {
+	endpoint adj-rib-in {
+		internal bgp-adj-rib-in;
+	}
+	endpoint rib {
+		internal bgp-rib;
+	}
+	endpoint raw-med-drop {
+		external {
+			run "le test fixture plugin/med-ibgp-ordinary-post-selection-removal 127.0.0.1:$PORT";
+		}
+		encoding json;
 	}
 }
 bgp {
@@ -35,8 +41,6 @@ bgp {
 		}
 		behavior { group-updates disable; }
 		filter { import { final accept; } export { final reject; } }
-		attach process adj-rib-in { receive [ update-received state ]; }
-		attach process rib { receive [ update-received state ]; }
 	}
 	peer destination {
 		connection { local { ip 127.0.0.1; port $PORT; } remote { ip 127.0.0.3; connect false; } }
@@ -51,7 +55,6 @@ bgp {
 			import { final reject; }
 			export { filters [ raw-med-drop:drop-med-raw ]; final accept; }
 		}
-		attach process rib { send [ update ]; receive [ state refresh update-sent ]; }
 	}
 }
 EOF_CONF

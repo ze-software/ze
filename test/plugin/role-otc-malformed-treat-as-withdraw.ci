@@ -21,6 +21,8 @@
 # withdrawal at dest seq=2 follows an announcement the same dest received.
 
 # Source peer (Provider, ASN 65001) on 127.0.0.1.
+# Linux-only: static `next { interface lo { } }` resolves loopback `lo` via Linux netlink.
+option=needs-linux
 stdin=source:terminator=EOF_SOURCE
 option=tcp_connections:value=1
 option=timeout:value=30s
@@ -31,8 +33,11 @@ option=open:value=add-capability:code=9:hex=00
 expect=bgp:conn=1:seq=1:contains=18C00002
 # seq=2 -- 10.0.0.0/24 with a well-formed OTC: C0 23 04 0000FDE9 (65001).
 action=send:conn=1:seq=2:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF0036020000001B4001010040020602010000FDE940030401010101C023040000FDE9180A0000
-# seq=3 -- 10.0.0.0/24 again, OTC length 3: C0 23 03 0000FD. Malformed.
-action=send:conn=1:seq=3:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF0035020000001A4001010040020602010000FDE940030401010101C023030000FD180A0000
+# seq=3 -- BARRIER 2: wait until dest confirmed receipt of seq=2 by sending 198.51.100.0/24,
+# so bgp-rib cannot coalesce seq=2 and the malformed treat-as-withdraw before wire flush.
+expect=bgp:conn=1:seq=3:contains=18C63364
+# seq=4 -- 10.0.0.0/24 again, OTC length 3: C0 23 03 0000FD. Malformed.
+action=send:conn=1:seq=4:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF0035020000001A4001010040020602010000FDE940030401010101C023030000FD180A0000
 EOF_SOURCE
 
 # Dest peer (Customer, ASN 65002) on 127.0.0.2 -- the wire assertions live here.
@@ -48,6 +53,8 @@ action=send:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF002F020000001440010
 # seq=1 NEGATIVE -- an announcement of 10.0.0.0/24 that keeps the length-4 OTC
 # 65001 (a Provider's route already carries one, so none is stamped).
 expect=bgp:conn=1:seq=1:contains=C023040000FDE9180A0000
+# seq=2 -- confirm receipt of 10.0.0.0/24 by announcing 198.51.100.0/24 to release source seq=4.
+action=send:conn=1:seq=2:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF002F02000000144001010040020602010000FDEA4003040202020218C63364
 # seq=2 POSITIVE -- the withdrawal of 10.0.0.0/24 and no path attribute.
 expect=bgp:conn=1:seq=2:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF001B020004180A00000000
 EOF_DEST
@@ -57,16 +64,41 @@ EOF_DEST
 # requests shutdown; the dest's expect lines judge the bytes.
 # ze: Customer of the source (ASN 65000), Provider of the dest.
 stdin=ze-bgp:terminator=EOF_CONF
-plugin {
-	external test-malformed-otc {
-		run "le test fixture plugin/role-otc-malformed-treat-as-withdraw"
-		encoder json
+bus {
+	endpoint bgp-adj-rib-in {
+		internal bgp-adj-rib-in;
+		send {
+			message bgp:update {
+				to none;
+			}
+		}
 	}
-	internal adj-rib-in {
-		use bgp-adj-rib-in
+	endpoint bgp-rs {
+		internal bgp-rs;
+		receive {
+			allow none;
+		}
+		send {
+			allow none;
+		}
 	}
-	internal rs {
-		use bgp-rs
+	endpoint bgp-rib {
+		internal bgp-rib;
+	}
+	endpoint test-malformed-otc {
+		external {
+			run "le test fixture plugin/role-otc-malformed-treat-as-withdraw";
+		}
+		encoding json;
+	}
+}
+fib {
+	dummy { }
+}
+static {
+	table default {
+		route 1.1.1.1/32 { next { interface lo { } } }
+		route 2.2.2.2/32 { next { interface lo { } } }
 	}
 }
 bgp {
@@ -80,7 +112,7 @@ bgp {
 				ip 127.0.0.1
 			}
 			local {
-				ip 127.0.0.1
+				ip 127.0.0.11
 				accept false
 			}
 		}
@@ -101,14 +133,6 @@ bgp {
 			import customer
 			export [ provider rs peer customer ]
 		}
-		attach process rs {
-			receive [ update-received state open-received refresh ]
-			send [ update ]
-		}
-		attach process adj-rib-in {
-			receive [ update-received state ]
-			send [ update ]
-		}
 	}
 
 	peer dest-peer {
@@ -117,7 +141,7 @@ bgp {
 				ip 127.0.0.2
 			}
 			local {
-				ip 127.0.0.2
+				ip 127.0.0.12
 				accept false
 			}
 		}
@@ -138,14 +162,6 @@ bgp {
 		role {
 			import provider
 			export [ customer rs-client provider ]
-		}
-		attach process rs {
-			receive [ update-received state open-received refresh ]
-			send [ update ]
-		}
-		attach process adj-rib-in {
-			receive [ update-received state ]
-			send [ update ]
 		}
 	}
 }

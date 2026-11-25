@@ -67,16 +67,32 @@ EOF_RECEIVER
 # Stop only after the final legacy route reaches the route-server output path.
 
 stdin=ze-bgp:terminator=EOF_CONF
-plugin {
-	internal rs {
-		use bgp-rs
+bus {
+	endpoint bgp-rib {
+		internal bgp-rib;
+		receive {
+			allow none;
+		}
+		send {
+			allow none;
+		}
 	}
-	internal adj-rib-in {
-		use bgp-adj-rib-in
+	endpoint rs {
+		internal bgp-rs;
 	}
-	external shutdown-after-forward {
-		run "le test fixture plugin/rfc7606-receive-combinations"
-		encoder json
+	endpoint adj-rib-in {
+		internal bgp-adj-rib-in;
+		send {
+			message bgp:update {
+				to none;
+			}
+		}
+	}
+	endpoint shutdown-after-forward {
+		external {
+			run "le test fixture plugin/rfc7606-receive-combinations";
+		}
+		encoding json;
 	}
 }
 bgp {
@@ -91,6 +107,7 @@ bgp {
 			local { ip 127.0.0.1; accept false; }
 		}
 		session {
+			rs-client true;
 			asn { local 65000; remote 65001; }
 			router-id 1.2.3.4
 			family {
@@ -100,18 +117,6 @@ bgp {
 			capability { graceful-restart disable; }
 		}
 		behavior { group-updates disable; }
-		attach process adj-rib-in {
-			receive [ update-received state ]
-		}
-		attach process rs {
-			receive [ update-received state open-received refresh ]
-			send [ update ]
-		}
-		attach process shutdown-after-forward {
-			receive [ update ]
-			# The readiness marker is source-only, never a receiver seed.
-			send [ update ]
-		}
 	}
 	peer receiver-peer {
 		connection {
@@ -119,6 +124,7 @@ bgp {
 			local { ip 127.0.0.2; accept false; }
 		}
 		session {
+			rs-client true;
 			asn { local 65000; remote 65002; }
 			router-id 1.2.3.4
 			family {
@@ -128,18 +134,6 @@ bgp {
 			capability { graceful-restart disable; }
 		}
 		behavior { group-updates disable; }
-		attach process adj-rib-in {
-			# The receiver originates the seed acknowledgement back to the source.
-			receive [ update-received state ]
-			send [ update ]
-		}
-		attach process rs {
-			receive [ update-received state open-received refresh ]
-			send [ update ]
-		}
-		attach process shutdown-after-forward {
-			receive [ update ]
-		}
 	}
 }
 EOF_CONF

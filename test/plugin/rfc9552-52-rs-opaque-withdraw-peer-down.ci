@@ -150,13 +150,18 @@ EOF_RECEIVER
 # Observer: makes the departure and the shutdown wait on STATE, never on a clock.
 
 stdin=ze-bgp:terminator=EOF_CONF
-plugin {
-	internal rs {
-		use bgp-rs
+bus {
+	endpoint rs {
+		internal bgp-rs;
 	}
-	external bgpls-withdraw {
-		run "le test fixture plugin/rfc9552-52-rs-opaque-withdraw-peer-down"
-		encoder json
+	endpoint bgpls-withdraw {
+		external {
+			run "le test fixture plugin/rfc9552-52-rs-opaque-withdraw-peer-down";
+		}
+		encoding json;
+	}
+	endpoint bgp-rib {
+		internal bgp-rib;
 	}
 }
 bgp {
@@ -176,6 +181,7 @@ bgp {
 			}
 		}
 		session {
+			rs-client true;
 			asn {
 				local 65000
 				remote 65001
@@ -191,17 +197,6 @@ bgp {
 		}
 		behavior {
 			group-updates disable
-		}
-		attach process rs {
-			receive [ update-received state open-received refresh ]
-			send [ update ]
-		}
-		attach process bgp-rib {
-			receive [ update state refresh ]
-			send [ update ]
-		}
-		attach process bgpls-withdraw {
-			send [ update ]
 		}
 	}
 	peer receiver-peer {
@@ -231,14 +226,6 @@ bgp {
 		}
 		behavior {
 			group-updates disable
-		}
-		attach process rs {
-			receive [ update-received state open-received refresh ]
-			send [ update ]
-		}
-		attach process bgp-rib {
-			receive [ update state refresh ]
-			send [ update ]
 		}
 	}
 }

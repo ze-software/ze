@@ -110,12 +110,12 @@ option=timeout:value=40s
 option=bind:value=127.0.0.2
 
 # seq=1 CONTROL -- the LIVE forward.
-expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF003702000000184001010040020A02020000FDE80000FDE94003040101010100000000180A0000
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF003302000000144001010040020602010000FDE94003040101010100000000180A0000
 # seq=2 SUBJECT -- the REPLAY, reconstructed from the stored route.
-expect=bgp:conn=1:seq=2:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF003702000000184001010040020A02020000FDE80000FDE94003040101010100000000180A0000
+expect=bgp:conn=1:seq=2:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF003302000000144001010040020602010000FDE94003040101010100000000180A0000
 # seq=3 COLLISION -- AS65004 announced the same prefix and received ID1.
 # Its distinct local ID2 keeps the first source's still-advertised ID0 separate.
-expect=bgp:conn=1:seq=3:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF003702000000184001010040020A02020000FDE80000FDEC4003040101010100000002180A0000
+expect=bgp:conn=1:seq=3:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF003302000000144001010040020602010000FDEC4003040101010100000002180A0000
 action=rewrite:conn=1:seq=3:source=addpath-collision-release:dest=addpath-collision-ap-done
 EOF_DEST_AP
 
@@ -132,13 +132,13 @@ option=timeout:value=40s
 option=bind:value=127.0.0.3
 
 # seq=1 CONTROL -- the LIVE forward.
-expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF003302000000184001010040020A02020000FDE80000FDE940030401010101180A0000
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF002F02000000144001010040020602010000FDE940030401010101180A0000
 # seq=2 SUBJECT -- the REPLAY. This is the arrival the blanket refusal removed while
 # nothing about this session had changed.
-expect=bgp:conn=1:seq=2:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF003302000000184001010040020A02020000FDE80000FDE940030401010101180A0000
+expect=bgp:conn=1:seq=2:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF002F02000000144001010040020602010000FDE940030401010101180A0000
 # seq=3 COLLISION -- the same second source reaches the plain destination
 # without an identifier, preserving that destination's negotiated framing.
-expect=bgp:conn=1:seq=3:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF003302000000184001010040020A02020000FDE80000FDEC40030401010101180A0000
+expect=bgp:conn=1:seq=3:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF002F02000000144001010040020602010000FDEC40030401010101180A0000
 action=rewrite:conn=1:seq=3:source=addpath-collision-release:dest=addpath-collision-plain-done
 EOF_DEST_PLAIN
 
@@ -171,16 +171,35 @@ EOF_SOURCE_COLLISION
 # the relay. adj-rib-in is given `update-received state` on the SOURCE peer only, so
 # it stores that peer's routes and never sees a destination come up.
 stdin=ze-bgp:terminator=EOF_CONF
-plugin {
-	internal rs {
-		use bgp-rs
+bus {
+	endpoint rs {
+		internal bgp-rs;
 	}
-	external replay-addpath {
-		run "le test fixture plugin/adj-rib-in-replay-addpath-collision"
-		encoder json
+	endpoint bgp-rib {
+		internal bgp-rib;
+		receive {
+			from none;
+		}
+		send {
+			to none;
+		}
 	}
-	internal adj-rib-in {
-		use bgp-adj-rib-in
+	endpoint adj-rib-in {
+		internal bgp-adj-rib-in;
+		receive {
+			message bgp:update {
+				from [ /bgp/peer/source-peer ];
+			}
+			message bgp:state {
+				from [ /bgp/peer/source-peer ];
+			}
+		}
+	}
+	endpoint replay-addpath {
+		external {
+			run "le test fixture plugin/adj-rib-in-replay-addpath-collision";
+		}
+		encoding json;
 	}
 }
 
@@ -218,6 +237,7 @@ bgp {
 			}
 		}
 		session {
+			rs-client true;
 			asn {
 				local 65000
 				remote 65001
@@ -240,16 +260,6 @@ bgp {
 			group-updates disable
 		}
 
-		attach process replay-addpath {
-			send [ update ]
-		}
-		attach process adj-rib-in {
-			receive [ update-received state ]
-		}
-		attach process rs {
-			receive [ update-received state open-received refresh ]
-			send [ update ]
-		}
 	}
 
 	peer source-collision {
@@ -258,6 +268,7 @@ bgp {
 			local { ip 127.0.0.4; accept false; }
 		}
 		session {
+			rs-client true;
 			asn { local 65000; remote 65004; }
 			router-id 1.2.3.4
 			family {
@@ -281,13 +292,6 @@ bgp {
 		# rs may ask adj-rib-in for peer-up replay to D. Grant send only, so
 		# that authorized replay meets D's rejecting export policy without
 		# adding D's announcements or state to the original receive store.
-		attach process adj-rib-in {
-			send [ update ]
-		}
-		attach process rs {
-			receive [ update-received state open-received refresh ]
-			send [ update ]
-		}
 	}
 
 	peer dest-addpath {
@@ -301,13 +305,12 @@ bgp {
 			}
 		}
 		session {
+			rs-client true;
 			asn {
 				local 65000
 				remote 65002
 			}
 			router-id 1.2.3.4
-			# Preserve the received NEXT_HOP bytes asserted by this test.
-			next-hop unchanged
 			family {
 				ipv4/unicast { prefix { maximum 10000; } }
 			}
@@ -321,6 +324,10 @@ bgp {
 				}
 			}
 		}
+		# Preserve the received NEXT_HOP bytes asserted by this test.
+		filter {
+			export { filters [ next-hop:unchanged ]; final accept; }
+		}
 		behavior {
 			group-updates disable
 		}
@@ -329,13 +336,6 @@ bgp {
 		# internal/component/bgp/reactor/send_permission.go). Send only, and no
 		# receive list: the NON-VACUITY note rests on adj-rib-in never being fed
 		# `state` for a destination, so its own peer-up self-replay stays silent.
-		attach process adj-rib-in {
-			send [ update ]
-		}
-		attach process rs {
-			receive [ update-received state open-received refresh ]
-			send [ update ]
-		}
 	}
 
 	peer dest-plain {
@@ -349,13 +349,12 @@ bgp {
 			}
 		}
 		session {
+			rs-client true;
 			asn {
 				local 65000
 				remote 65003
 			}
 			router-id 1.2.3.4
-			# Preserve the received NEXT_HOP bytes asserted by this test.
-			next-hop unchanged
 			family {
 				ipv4/unicast { prefix { maximum 10000; } }
 			}
@@ -363,15 +362,12 @@ bgp {
 				graceful-restart disable
 			}
 		}
+		# Preserve the received NEXT_HOP bytes asserted by this test.
+		filter {
+			export { filters [ next-hop:unchanged ]; final accept; }
+		}
 		behavior {
 			group-updates disable
-		}
-		attach process adj-rib-in {
-			send [ update ]
-		}
-		attach process rs {
-			receive [ update-received state open-received refresh ]
-			send [ update ]
 		}
 	}
 }

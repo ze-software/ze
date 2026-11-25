@@ -25,7 +25,7 @@
     "rid": "RFC4271-9.2-7",
     "polarity": "positive",
     "unit": "test/plugin/bgp-best-route-transit-default.ci",
-    "unit-sha": "431d98c8beed98da",
+    "unit-sha": "1b57a675bbf3bbd4",
     "claim-sha": "2b5e7a6b76cc3c0f",
     "route": "revert",
     "producer": "internal/component/bgp/plugins/rib/rib_selected_dispatch.go::selectedDispatch.publish",

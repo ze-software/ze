@@ -37,10 +37,12 @@ EOF_PEER
 
 # ze bgp configuration (IBGP)
 stdin=ze-bgp:terminator=EOF_CONF
-plugin {
-	external rfc7606-test {
-		run "le test fixture plugin/rfc7606-reset"
-		encoder json
+bus {
+	endpoint rfc7606-test {
+		external {
+			run "le test fixture plugin/rfc7606-reset";
+		}
+		encoding json;
 	}
 }
 bgp {

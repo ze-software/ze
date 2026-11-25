@@ -32,6 +32,8 @@
 # Independent peer processes are required: conn_map executes complete scripts
 # serially, so a source waiting for another connection's receipt would deadlock.
 # The observer waits for all three EOR counters before releasing the seed.
+# Linux-only: static `next { interface lo { } }` resolves loopback `lo` via Linux netlink.
+option=needs-linux
 stdin=peer:terminator=EOF_PEER
 option=tcp_connections:value=1
 option=timeout:value=30s
@@ -110,16 +112,31 @@ EOF_SEED
 # withdrawal is waited for rather than inferred, then check each one's UPDATE count.
 
 stdin=ze-bgp:terminator=EOF_CONF
-plugin {
-	internal adj-rib-in {
-		use bgp-adj-rib-in
+bus {
+	endpoint adj-rib-in {
+		internal bgp-adj-rib-in;
+		send {
+			message bgp:update {
+				to none;
+			}
+		}
 	}
-	internal rs {
-		use bgp-rs
+	endpoint rs {
+		internal bgp-rib;
 	}
-	external wellknown-withdraw {
-		run "le test fixture plugin/wellknown-no-export-withdraw-egress"
-		encoder json
+	endpoint wellknown-withdraw {
+		external {
+			run "le test fixture plugin/wellknown-no-export-withdraw-egress";
+		}
+		encoding json;
+	}
+}
+fib {
+	dummy { }
+}
+static {
+	table default {
+		route 1.1.1.1/32 { next { interface lo { } } }
 	}
 }
 bgp {
@@ -148,18 +165,7 @@ bgp {
 				ipv4/unicast { prefix { maximum 10000; } }
 			}
 		}
-		attach process rs {
-			receive [ update-received state open-received refresh ]
-			send [ update ]
-		}
-		attach process adj-rib-in {
-			receive [ update-received state ]
-			send [ update ]
-		}
 		# The observer may send readiness markers only to the source.
-		attach process wellknown-withdraw {
-			send [ update ]
-		}
 	}
 
 	peer internal-peer {
@@ -182,14 +188,6 @@ bgp {
 				ipv4/unicast { prefix { maximum 10000; } }
 			}
 		}
-		attach process rs {
-			receive [ update-received state open-received refresh ]
-			send [ update ]
-		}
-		attach process adj-rib-in {
-			receive [ update-received state ]
-			send [ update ]
-		}
 	}
 
 	peer external-peer {
@@ -198,7 +196,7 @@ bgp {
 				ip 127.0.0.3
 			}
 			local {
-				ip 127.0.0.3
+				ip 127.0.0.13
 				accept false
 			}
 		}
@@ -211,14 +209,6 @@ bgp {
 			family {
 				ipv4/unicast { prefix { maximum 10000; } }
 			}
-		}
-		attach process rs {
-			receive [ update-received state open-received refresh ]
-			send [ update ]
-		}
-		attach process adj-rib-in {
-			receive [ update-received state ]
-			send [ update ]
 		}
 	}
 }

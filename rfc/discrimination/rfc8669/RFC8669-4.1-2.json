@@ -25,7 +25,7 @@
     "rid": "RFC8669-4.1-2",
     "polarity": "negative",
     "unit": "test/plugin/prefixsid-malformed-receive.ci",
-    "unit-sha": "a7b230daaf3de7f0",
+    "unit-sha": "04dd3206a876b1e9",
     "claim-sha": "c2a3b793123881f9",
     "route": "revert",
     "producer": "internal/component/bgp/message/rfc7606.go::validatePrefixSIDValue",

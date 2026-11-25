@@ -10,13 +10,19 @@
 option=timeout:value=150s
 
 stdin=config-internal:terminator=CONFIG_INTERNAL
-plugin {
- internal adj-rib-in { use bgp-adj-rib-in; }
- internal rib { use bgp-rib; }
- external bgp-selected-test {
-  run "le test fixture plugin/bgp-best-route-transit-default internal 127.0.0.1:$PORT";
-  encoder json;
- }
+bus {
+  endpoint adj-rib-in {
+    internal bgp-adj-rib-in;
+  }
+  endpoint rib {
+    internal bgp-rib;
+  }
+  endpoint bgp-selected-test {
+    external {
+      run "le test fixture plugin/bgp-best-route-transit-default internal 127.0.0.1:$PORT";
+    }
+    encoding json;
+  }
 }
 bgp {
  router-id 1.1.1.1;
@@ -25,16 +31,12 @@ bgp {
   session { asn { local 65000; remote 65000; } aigp { enabled false; } family { ipv4/unicast { prefix { maximum 100; } } } capability { graceful-restart disable; } }
   behavior { group-updates disable; }
   filter { import { final accept; } }
-  attach process adj-rib-in { receive [ update-received state ]; }
-  attach process rib { receive [ update-received state ]; }
  }
  peer destination {
   connection { local { ip 127.0.0.1; port $PORT; } remote { ip 127.0.0.3; connect false; } }
   session { asn { local 65000; remote 65002; } aigp { enabled false; } family { ipv4/unicast { prefix { maximum 100; } } } capability { graceful-restart disable; } }
   behavior { group-updates disable; }
   filter { import { final reject; } export { final accept; } }
-  attach process rib { send [ update ]; receive [ state refresh update-sent ]; }
-  attach process bgp-selected-test { send [ update ]; }
  }
 }
 CONFIG_INTERNAL
@@ -48,13 +50,20 @@ cmd=foreground:seq=2:exec=le test fixture daemon/await-exit:timeout=20s
 expect=stderr:contains=OK: the first daemon exited
 
 stdin=config-forked:terminator=CONFIG_FORKED
-plugin {
- internal adj-rib-in { use bgp-adj-rib-in; }
- external rib { run "ze plugin bgp-rib"; }
- external bgp-selected-test {
-  run "le test fixture plugin/bgp-best-route-transit-default forked 127.0.0.1:$PORT";
-  encoder json;
- }
+bus {
+  endpoint adj-rib-in {
+    internal bgp-adj-rib-in;
+  }
+  endpoint rib {
+    internal bgp-rib;
+    process separate;
+  }
+  endpoint bgp-selected-test {
+    external {
+      run "le test fixture plugin/bgp-best-route-transit-default forked 127.0.0.1:$PORT";
+    }
+    encoding json;
+  }
 }
 bgp {
  router-id 1.1.1.1;
@@ -63,16 +72,12 @@ bgp {
   session { asn { local 65000; remote 65000; } aigp { enabled false; } family { ipv4/unicast { prefix { maximum 100; } } } capability { graceful-restart disable; } }
   behavior { group-updates disable; }
   filter { import { final accept; } }
-  attach process adj-rib-in { receive [ update-received state ]; }
-  attach process rib { receive [ update-received state ]; }
  }
  peer destination {
   connection { local { ip 127.0.0.1; port $PORT; } remote { ip 127.0.0.3; connect false; } }
   session { asn { local 65000; remote 65002; } aigp { enabled false; } family { ipv4/unicast { prefix { maximum 100; } } } capability { graceful-restart disable; } }
   behavior { group-updates disable; }
   filter { import { final reject; } export { final accept; } }
-  attach process rib { send [ update ]; receive [ state refresh update-sent ]; }
-  attach process bgp-selected-test { send [ update ]; }
  }
 }
 CONFIG_FORKED

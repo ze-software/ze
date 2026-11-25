@@ -45,6 +45,8 @@ option=bind:value=0.0.0.0
 # Bind conn=N by remote IP rather than accept order: which client connects first is a race, and
 # the two receivers must be told apart by identity, not arrival (peer_connmap.go).
 option=conn_map:value=remote-ip
+# Hold all three peer sockets open until the observer's request quiesce finishes.
+option=linger:value=true
 
 # Source peer (conn=1, AS 65001): announce 10.0.0.0/24 carrying a Prefix-SID.
 #   ORIGIN:     40010100                     IGP
@@ -77,16 +79,32 @@ expect=bgp:conn=3:seq=2:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF003C0200000021400101
 EOF_PEER
 
 stdin=ze-bgp:terminator=EOF_CONF
-plugin {
-	internal rs {
-		use bgp-rs
+bus {
+	endpoint bgp-rib {
+		internal bgp-rib;
+		receive {
+			allow none;
+		}
+		send {
+			allow none;
+		}
 	}
-	internal adj-rib-in {
-		use bgp-adj-rib-in
+	endpoint rs {
+		internal bgp-rs;
 	}
-	external shutdown-after-up {
-		run "le test fixture plugin/prefixsid-ebgp-egress-boundary"
-		encoder json
+	endpoint adj-rib-in {
+		internal bgp-adj-rib-in;
+		send {
+			message bgp:update {
+				to none;
+			}
+		}
+	}
+	endpoint shutdown-after-up {
+		external {
+			run "le test fixture plugin/prefixsid-ebgp-egress-boundary";
+		}
+		encoding json;
 	}
 }
 bgp {
@@ -106,6 +124,7 @@ bgp {
 			}
 		}
 		session {
+			rs-client true;
 			asn {
 				local 65000
 				remote 65001
@@ -123,16 +142,6 @@ bgp {
 		}
 		behavior {
 			group-updates disable
-		}
-		attach process adj-rib-in {
-			receive [ update-received state ]
-		}
-		attach process rs {
-			receive [ update-received state open-received refresh ]
-			send [ update ]
-		}
-		attach process shutdown-after-up {
-			receive [ update ]
 		}
 	}
 	peer outside-sr-domain-receiver {
@@ -165,16 +174,6 @@ bgp {
 		behavior {
 			group-updates disable
 		}
-		attach process adj-rib-in {
-			send [ update ]
-		}
-		attach process rs {
-			receive [ update-received state open-received refresh ]
-			send [ update ]
-		}
-		attach process shutdown-after-up {
-			receive [ update ]
-		}
 	}
 	peer inside-sr-domain-receiver {
 		connection {
@@ -206,16 +205,6 @@ bgp {
 		}
 		behavior {
 			group-updates disable
-		}
-		attach process adj-rib-in {
-			send [ update ]
-		}
-		attach process rs {
-			receive [ update-received state open-received refresh ]
-			send [ update ]
-		}
-		attach process shutdown-after-up {
-			receive [ update ]
 		}
 	}
 }

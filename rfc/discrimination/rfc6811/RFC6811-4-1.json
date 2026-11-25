@@ -47,12 +47,12 @@
     "rid": "RFC6811-4-1",
     "polarity": "positive",
     "unit": "test/plugin/rpki-revalidate-late-sync.ci",
-    "unit-sha": "f392d8504724306b",
+    "unit-sha": "e30ffe6cad73ce84",
     "claim-sha": "d00eec03d51c54c5",
     "route": "mutant",
     "producer": "internal/component/bgp/plugins/rpki/rpki.go::handleROAChange",
-    "producer-sha": "42e2bb0e760f001d",
-    "break": "line 1334: \"if !c.decisionRequired {\" -\u003e \"if c.decisionRequired {\"",
+    "producer-sha": "6dadf6efdaf0b691",
+    "break": "line 1420: \"if !c.decisionRequired {\" -\u003e \"if c.decisionRequired {\"",
     "citation": "reject=stderr:pattern=ZE-OBSERVER-FAIL"
   },
   {

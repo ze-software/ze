@@ -83,11 +83,47 @@ option=asn:value=65000
 EOF_SINK
 
 stdin=ze-bgp:terminator=EOF_CONF
-plugin {
-    internal adj-rib-in { use bgp-adj-rib-in; }
-    internal rs { use bgp-rs; }
-    internal rib { use bgp-rib; }
-    external rfc8212-policy { run "le test fixture plugin/rfc8212-ebgp-no-import-policy"; encoder json; }
+bus {
+    endpoint bgp-adj-rib-in {
+        internal bgp-adj-rib-in;
+        send {
+            message bgp:update {
+                to none;
+            }
+        }
+    }
+    endpoint bgp-rs {
+        internal bgp-rs;
+        receive {
+            allow none;
+        }
+        send {
+            allow none;
+        }
+    }
+    endpoint bgp-rib {
+        internal bgp-rib;
+        send {
+            message bgp:update {
+                to [ /bgp/peer/sink ];
+            }
+        }
+    }
+    endpoint rfc8212-policy {
+        external {
+            run "le test fixture plugin/rfc8212-ebgp-no-import-policy";
+        }
+        encoding json;
+    }
+}
+fib {
+    dummy { }
+}
+static {
+    table default {
+        route 192.0.2.1/32 { next { interface lo { } } }
+        route 2001:db8::1/128 { next { interface lo { } } }
+    }
 }
 bgp {
     peer absent-import {
@@ -100,10 +136,6 @@ bgp {
         }
         behavior { group-updates disable; }
         filter { export { final accept; } }
-        attach process rfc8212-policy { send [ update ]; }
-        attach process adj-rib-in { receive [ update-received state ]; }
-        attach process rs { receive [ update-received state open-received refresh ]; }
-        attach process rib { receive [ update state refresh ]; }
     }
     peer sink {
         connection { remote { ip 127.0.0.2; } local { ip 127.0.0.5; accept false; } }
@@ -115,9 +147,7 @@ bgp {
             capability { graceful-restart disable; }
         }
         behavior { group-updates disable; }
-        attach process rfc8212-policy { receive [ update-received state ]; send [ update ]; }
-        attach process rs { receive [ state open-received refresh ]; send [ update ]; }
-        attach process rib { receive [ update-sent state refresh ]; send [ update ]; }
+        filter { export { final accept; } }
     }
     peer accepted {
         connection { remote { ip 127.0.0.3; } local { ip 127.0.0.5; accept false; } }
@@ -129,10 +159,6 @@ bgp {
         }
         behavior { group-updates disable; }
         filter { import { final accept; } export { final accept; } }
-        attach process rfc8212-policy { receive [ update-received state ]; send [ update ]; }
-        attach process adj-rib-in { receive [ update-received state ]; }
-        attach process rs { receive [ update-received state open-received refresh ]; }
-        attach process rib { receive [ update state refresh ]; }
     }
     peer rejected {
         connection { remote { ip 127.0.0.4; } local { ip 127.0.0.5; accept false; } }
@@ -144,10 +170,6 @@ bgp {
         }
         behavior { group-updates disable; }
         filter { import { final reject; } export { final accept; } }
-        attach process rfc8212-policy { send [ update ]; }
-        attach process adj-rib-in { receive [ update-received state ]; }
-        attach process rs { receive [ update-received state open-received refresh ]; }
-        attach process rib { receive [ update state refresh ]; }
     }
 }
 EOF_CONF

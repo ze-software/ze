@@ -47,7 +47,7 @@
     "rid": "RFC9252-5-1",
     "polarity": "negative",
     "unit": "test/plugin/srv6-invalid-sid-ineligible.ci",
-    "unit-sha": "f797edb457add095",
+    "unit-sha": "325a5718636de7fe",
     "claim-sha": "17e42e6e256e1b4d",
     "route": "revert",
     "producer": "internal/component/bgp/plugins/rib/rib_bestchange.go::isSRv6Ineligible",
