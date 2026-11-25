@@ -1029,10 +1029,10 @@ func (p *Peer) initialUpdateReporters() []string {
 		if !g.ProcessReceivesState(p.addrString, procName) {
 			continue
 		}
-		regName := resolveRegistrationName(p.reactor, procName)
-		if !registry.SignalsSessionReady(regName) && !registry.SignalsSessionReady(procName) {
+		if !registry.SignalsSessionReady(procName) {
 			continue
 		}
+		regName := resolveRegistrationName(p.reactor, procName)
 		if !peerSettingsMatchesClaimScope(settings, peerAS, registry.ClaimSessionScopeFor(regName)) {
 			continue
 		}

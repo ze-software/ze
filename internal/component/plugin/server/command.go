@@ -249,6 +249,13 @@ type CommandContext struct {
 	// authority by omission (ai/rules/evidence.md,
 	// internal/component/bgp/reactor/send_permission.go).
 	Sender plugin.Sender
+	// BusCLIMessage is the normalized cli:<command> [args...] message gated by
+	// dispatch-command or dispatch-command-args for a plugin sender. Peer-scoped
+	// command handlers check send > to targets against this message (Q-T5).
+	BusCLIMessage string
+	// BusCLIReportMessage is the bounded cli:<command> label reported in refusal
+	// errors and metrics when BusCLIMessage target enforcement refuses a peer.
+	BusCLIReportMessage string
 	// RendersResidualChain is the caller's rendering statement
 	// (plugin.CallerIdentity.RendersResidualChain): true leaves the residual
 	// pipe chain to the surface that renders the answer. False, the zero
@@ -444,6 +451,9 @@ func ResolveSinglePeer(ctx *CommandContext, action string) (netip.Addr, *plugin.
 
 	switch len(matched) {
 	case 1:
+		if errResp, err := PermitSenderPeer(ctx, matched[0]); err != nil {
+			return netip.Addr{}, errResp, err
+		}
 		return matched[0], nil, nil
 	case 0:
 		// An ADDRESS that matches no current peer is passed through unchanged.
@@ -454,6 +464,9 @@ func ResolveSinglePeer(ctx *CommandContext, action string) (netip.Addr, *plugin.
 		// NON-address selector -- a name, an ASN, a glob -- has to resolve here,
 		// because there is nothing downstream that could interpret it.
 		if ip, perr := netip.ParseAddr(sel); perr == nil {
+			if errResp, err := PermitSenderPeer(ctx, ip); err != nil {
+				return netip.Addr{}, errResp, err
+			}
 			return ip, nil, nil
 		}
 		var tb textbuf.Buffer
@@ -466,6 +479,117 @@ func ResolveSinglePeer(ctx *CommandContext, action string) (netip.Addr, *plugin.
 			Str(" peers; it must identify exactly one").String()
 		return netip.Addr{}, &plugin.Response{Status: plugin.StatusError, Error: msg}, errAmbiguousPeerSelector
 	}
+}
+
+// SenderCLIToAll reports whether a plugin CLI sender has an unrestricted
+// send > to target set (or whether the caller is not a plugin CLI dispatch).
+// Plural peer handlers use this to decide whether "*" may act on all peers or
+// must be narrowed to the sender's permitted peers (Q-T5, AC-33).
+func SenderCLIToAll(ctx *CommandContext) bool {
+	if ctx == nil {
+		return true
+	}
+	if ctx.Server == nil {
+		return true
+	}
+	if ctx.BusCLIMessage == "" {
+		return true
+	}
+	procName, isProc := ctx.Sender.Process()
+	// refuse-by-default: guards Dispatcher.Dispatch -- non-process callers (operator or internal RPC) are outside plugin bus target scoping.
+	if !isProc {
+		return true
+	}
+	compiled := ctx.Server.DeliveryGraph().Compiled()
+	if compiled == nil {
+		return true
+	}
+	senderPath := plugin.EndpointPath(procName)
+	f := compiled.Filter(senderPath)
+	if f == nil {
+		return true
+	}
+	rule := longestMatchingCLISendRule(f, ctx.BusCLIMessage)
+	if rule == nil {
+		return false
+	}
+	return rule.ToAll && !rule.ToNone
+}
+
+// PermitSenderPeer enforces the compiled bus send > to target restriction for a
+// plugin-dispatched CLI command targeting peer addr (Q-T5, AC-33). Returns nil
+// for operator or internal-RPC senders and for non-CLI dispatch paths such as
+// update-route (which enforces peer targets through BGP's send permission gate).
+func PermitSenderPeer(ctx *CommandContext, addr netip.Addr) (*plugin.Response, error) {
+	if ctx == nil {
+		return nil, nil
+	}
+	if ctx.Server == nil {
+		return nil, nil
+	}
+	if ctx.BusCLIMessage == "" {
+		return nil, nil
+	}
+	procName, isProc := ctx.Sender.Process()
+	// refuse-by-default: guards ResolveSinglePeer -- non-process callers (operator or internal RPC) are outside plugin bus target scoping.
+	if !isProc {
+		return nil, nil
+	}
+	compiled := ctx.Server.DeliveryGraph().Compiled()
+	if compiled == nil {
+		return nil, nil
+	}
+	senderPath := plugin.EndpointPath(procName)
+	f := compiled.Filter(senderPath)
+	if f == nil {
+		return nil, nil
+	}
+	peerPath := "/bgp/ip/" + addr.String()
+	ok, reason := compiled.MaySend(senderPath, ctx.BusCLIMessage, peerPath)
+	if ok {
+		return nil, nil
+	}
+	rule := longestMatchingCLISendRule(f, ctx.BusCLIMessage)
+	if reason == SendRefusedDestination {
+		if _, known := compiled.pathToIdx[peerPath]; !known {
+			if rule != nil && rule.ToAll && !rule.ToNone {
+				return nil, nil
+			}
+		}
+	}
+	return refuseSenderPeerTarget(ctx, senderPath, peerPath, rule)
+}
+
+// RefuseSenderAllPeers builds the Reason 3 refusal when a restricted plugin CLI
+// sender targets "*" and zero peers fall inside its compiled send > to set.
+func RefuseSenderAllPeers(ctx *CommandContext) (*plugin.Response, error) {
+	procName, _ := ctx.Sender.Process()
+	senderPath := plugin.EndpointPath(procName)
+	var rule *BusCompiledSendRule
+	if ctx != nil && ctx.Server != nil {
+		if compiled := ctx.Server.DeliveryGraph().Compiled(); compiled != nil {
+			rule = longestMatchingCLISendRule(compiled.Filter(senderPath), ctx.BusCLIMessage)
+		}
+	}
+	return refuseSenderPeerTarget(ctx, senderPath, "*", rule)
+}
+
+func refuseSenderPeerTarget(
+	ctx *CommandContext,
+	senderPath, targetPath string,
+	rule *BusCompiledSendRule,
+) (*plugin.Response, error) {
+	listSource := ""
+	if rule != nil {
+		listSource = firstOriginSource(rule.ToOrigin)
+	}
+	reportMsg := ctx.BusCLIReportMessage
+	if reportMsg == "" {
+		reportMsg = ctx.BusCLIMessage
+	}
+	refusal := FormatBusTargetRefusal(senderPath, targetPath, reportMsg, listSource)
+	ReportBusSendRefusal(senderPath, reportMsg, refusal.Problem(), refusal.Fix())
+	return &plugin.Response{Status: plugin.StatusError, Error: refusal.Error()}, refusal
 }
 
 // PeersMatching returns every configured peer the selector names.
@@ -1074,6 +1198,7 @@ func (d *Dispatcher) isAuthorized(ctx *CommandContext, input string, tokens []st
 			authorizer = ctx.Authorizer
 		}
 	}
+	// refuse-by-default: guards Dispatcher.Dispatch -- a dispatcher without an installed authorizer allows local callers by contract.
 	if authorizer == nil {
 		return true
 	}
@@ -1100,6 +1225,7 @@ func (d *Dispatcher) isAuthorizedCommandArgs(ctx *CommandContext, command string
 			authorizer = ctx.Authorizer
 		}
 	}
+	// refuse-by-default: guards Server.dispatchCommandArgsResponse -- a dispatcher without an installed authorizer allows local callers by contract.
 	if authorizer == nil {
 		return true
 	}
@@ -1538,6 +1664,7 @@ func argFaultOutsideSelector(argErr error) bool {
 			return true
 		}
 		missing, found := errors.AsType[*command.MissingArgumentError](members[0])
+		// refuse-by-default: guards Dispatcher.Dispatch -- any non-MissingArgumentError fault is outside the selector guard and reports its own refusal.
 		if !found {
 			return true
 		}

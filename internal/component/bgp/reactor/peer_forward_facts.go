@@ -247,7 +247,7 @@ func rsRelaySendProcessName(p *Peer, s *PeerSettings, peerAS uint32) string {
 	}
 	for _, name := range g.SendersForPeer(p.addrString, bgpevents.SendUpdate) {
 		regName := resolveRegistrationName(p.reactor, name)
-		if !registry.RelaysOnRSFastPath(regName) && !registry.RelaysOnRSFastPath(name) {
+		if !registry.RelaysOnRSFastPath(regName) {
 			continue
 		}
 		if !peerSettingsMatchesClaimScope(s, peerAS, registry.ClaimSessionScopeFor(regName)) {
@@ -271,7 +271,7 @@ func rsRelayReceiveGranted(p *Peer, s *PeerSettings, peerAS uint32) bool {
 	updateET := events.LookupEventTypeID(bgpevents.EventUpdate)
 	for _, name := range g.ReceiversForPeer(p.addrString, bgpNS, updateET, events.DirReceived) {
 		regName := resolveRegistrationName(p.reactor, name)
-		if !registry.RelaysOnRSFastPath(regName) && !registry.RelaysOnRSFastPath(name) {
+		if !registry.RelaysOnRSFastPath(regName) {
 			continue
 		}
 		if !peerSettingsMatchesClaimScope(s, peerAS, registry.ClaimSessionScopeFor(regName)) {

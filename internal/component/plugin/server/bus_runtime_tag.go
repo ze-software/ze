@@ -181,6 +181,54 @@ func (b *CompiledBus) inboundTagMatcher(endpoint string, ns events.NamespaceID, 
 	}]
 }
 
+// filterReceiversByEngineReceive enforces compiled receive > allow and
+// receive > from none rules on engine-emitted events (emitter == nil and
+// peerAddress == ""). Endpoints not present in compiled pass through unchanged
+// so bare unit tests without a compiled bus keep existing behavior.
+func filterReceiversByEngineReceive(
+	compiled *CompiledBus,
+	busMsg string,
+	procs []*process.Process,
+) []*process.Process {
+	if compiled == nil {
+		return procs
+	}
+	if len(procs) == 0 {
+		return procs
+	}
+	kept := procs[:0]
+	for _, p := range procs {
+		idx, ok := compiled.endpointToIdx[p.Name()]
+		if !ok {
+			kept = append(kept, p)
+			continue
+		}
+		f := compiled.filters[idx]
+		if f == nil {
+			continue
+		}
+		if f.ReceiveAllowNone {
+			continue
+		}
+		rule := f.ReceiveRules[busMsg]
+		if rule == nil {
+			if f.ReceiveAllowOrigin.Origin != BusOriginRegistered && len(f.ReceiveAllowOrigin.Sources) > 0 {
+				continue
+			}
+			kept = append(kept, p)
+			continue
+		}
+		if !rule.Allowed {
+			continue
+		}
+		if rule.FromNone {
+			continue
+		}
+		kept = append(kept, p)
+	}
+	return kept
+}
+
 // filterReceiversByInboundTags enforces compiled non-direction InboundTags
 // matchers on candidate subscriber processes when an event is delivered without
 // a compiled sender edge (engine-emitted BroadcastEvent / EmitEngineEvent or

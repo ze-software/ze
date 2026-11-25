@@ -269,8 +269,11 @@ func (r *Reactor) publishDeliveryGraphLocked() {
 }
 
 // resolveRegistrationName maps a configured endpoint/process name to its
-// compiled plugin registration name via the process manager when available,
-// falling back to procName itself.
+// compiled plugin registration name via the process manager when available.
+// When the process is known to the manager, its compiled RegistrationName is
+// authoritative: a foreign external process carries "" and never falls back to
+// its endpoint name (AC-13, R-4). Only when no live process exists in the
+// manager (standalone reactor unit tests) does procName act as the fallback.
 func resolveRegistrationName(r *Reactor, procName string) string {
 	if r != nil && r.api != nil {
 		if mgr := r.api.ProcessManager(); mgr != nil {
@@ -278,11 +281,15 @@ func resolveRegistrationName(r *Reactor, procName string) string {
 				if regName := proc.RegistrationName(); regName != "" {
 					return regName
 				}
+				if !proc.Config().Internal {
+					return ""
+				}
 				for _, rn := range plugin.RegistryNames(proc.Config()) {
 					if registry.Lookup(rn) != nil {
 						return rn
 					}
 				}
+				return ""
 			}
 		}
 	}

@@ -419,17 +419,8 @@ func checkEngineOpBusSendCLI(s *Server, proc *process.Process, matchMsg, reportM
 		ReportBusSendRefusal(participant, reportMsg, refusal.Problem(), refusal.Fix())
 		return refusal
 	}
-	declared := false
-	for declMsg := range f.SendRules {
-		if !strings.HasPrefix(declMsg, busCLIPrefix) {
-			continue
-		}
-		if cliPrefixMatchesFold(declMsg, matchMsg) {
-			declared = true
-			break
-		}
-	}
-	if !declared {
+	bestRule := longestMatchingCLISendRule(f, matchMsg)
+	if bestRule == nil {
 		refusal := formatBusUndeclaredRefusal(f.Path, reportMsg)
 		ReportBusSendRefusal(f.Path, reportMsg, refusal.Problem(), refusal.Fix())
 		return refusal
@@ -452,7 +443,39 @@ func checkEngineOpBusSendCLI(s *Server, proc *process.Process, matchMsg, reportM
 		ReportBusSendRefusal(f.Path, reportMsg, refusal.Problem(), refusal.Fix())
 		return refusal
 	}
+	if bestRule.ToNone {
+		refusal := FormatBusTargetRefusal(f.Path, plugin.BusKeywordNone, reportMsg, firstOriginSource(bestRule.ToOrigin))
+		ReportBusSendRefusal(f.Path, reportMsg, refusal.Problem(), refusal.Fix())
+		return refusal
+	}
 	return nil
+}
+
+// longestMatchingCLISendRule returns the longest declared cli: send rule in f
+// covering matchMsg (case-insensitive at word boundaries), or nil when none
+// covers matchMsg.
+func longestMatchingCLISendRule(f *CompiledParticipantFilter, matchMsg string) *BusCompiledSendRule {
+	if f == nil {
+		return nil
+	}
+	var best *BusCompiledSendRule
+	bestLen := -1
+	for declMsg, rule := range f.SendRules {
+		if !strings.HasPrefix(declMsg, busCLIPrefix) {
+			continue
+		}
+		if rule == nil {
+			continue
+		}
+		if !cliPrefixMatchesFold(declMsg, matchMsg) {
+			continue
+		}
+		if len(declMsg) > bestLen {
+			bestLen = len(declMsg)
+			best = rule
+		}
+	}
+	return best
 }
 
 // cliPrefixMatchesFold mirrors authz.Entry.matches: case-insensitive match at
@@ -579,6 +602,12 @@ func refuseWildcardAllowExcluded(f *CompiledParticipantFilter, namespace, nsPref
 // subcommands so callers cannot smuggle `raw` or unrelated commands past the
 // bgp:update gate (Q-T4(b)).
 func validateUpdateRouteSubcommand(command string) error {
+	if strings.ContainsAny(command, "|\n\r") {
+		return opererr.New(
+			"update-route refuses pipeline or multi-line command",
+			"update-route is restricted to a single UPDATE subcommand under bgp:update and cannot chain commands or pipe stages",
+			"use a single UPDATE subcommand (update, unicast, blackhole, flowspec, announce, withdraw, or cached) without pipes or newlines")
+	}
 	fields := strings.Fields(command)
 	if len(fields) == 0 {
 		return opererr.New(
@@ -722,7 +751,8 @@ func filterReceiversByCompiledSender(
 	if len(procs) == 0 {
 		return procs
 	}
-	if compiled.Filter(stampedSender) == nil {
+	senderFilter := compiled.Filter(stampedSender)
+	if senderFilter == nil {
 		return filterReceiversByInboundTags(compiled, nsID, etID, payload, procs)
 	}
 	filterTags := compiled.deliveryFilterTags(stampedSender, nsID, etID, dirID)
@@ -738,7 +768,9 @@ func filterReceiversByCompiledSender(
 	kept := procs[:0]
 	for _, p := range procs {
 		if !compiled.hasEndpoint(p.Name()) {
-			kept = append(kept, p)
+			if !senderHasRestrictedTarget(senderFilter, nsID, etID) {
+				kept = append(kept, p)
+			}
 			continue
 		}
 		if slices.Contains(admitted, p.Name()) {
@@ -746,6 +778,21 @@ func filterReceiversByCompiledSender(
 		}
 	}
 	return kept
+}
+
+// senderHasRestrictedTarget reports whether senderFilter restricts send > to
+// for (nsID, etID), ensuring endpoints absent from CompiledBus do not fail open
+// past an explicit send > to list or send > to none.
+func senderHasRestrictedTarget(senderFilter *CompiledParticipantFilter, nsID events.NamespaceID, etID events.EventTypeID) bool {
+	if senderFilter.SendToNone {
+		return true
+	}
+	var tb textbuf.Buffer
+	msg := tb.Str(nsID.String()).Byte(':').Str(etID.String()).String()
+	if rule := senderFilter.SendRules[msg]; rule != nil {
+		return rule.ToNone || !rule.ToAll
+	}
+	return false
 }
 
 // publishPluginProfileServer registers s as the active publisher for
@@ -808,9 +855,24 @@ func (s *Server) lookupPluginCommandProfile(endpoint string) (aaa.PluginCommandP
 }
 
 func compiledFilterToCommandProfile(endpoint string, f *CompiledParticipantFilter) aaa.PluginCommandProfile {
+	if f.SendAllowNone {
+		return aaa.PluginCommandProfile{
+			Endpoint:  endpoint,
+			AllowNone: true,
+		}
+	}
+	allowed := make([]string, 0, len(f.AllowedCLIPrefixes))
+	for _, prefix := range f.AllowedCLIPrefixes {
+		var tb textbuf.Buffer
+		msg := tb.Str(busCLIPrefix).Str(prefix).String()
+		if rule := longestMatchingCLISendRule(f, msg); rule != nil && rule.ToNone {
+			continue
+		}
+		allowed = append(allowed, prefix)
+	}
 	return aaa.PluginCommandProfile{
 		Endpoint:        endpoint,
-		AllowNone:       f.SendAllowNone || len(f.AllowedCLIPrefixes) == 0,
-		AllowedPrefixes: slices.Clone(f.AllowedCLIPrefixes),
+		AllowNone:       len(allowed) == 0,
+		AllowedPrefixes: allowed,
 	}
 }

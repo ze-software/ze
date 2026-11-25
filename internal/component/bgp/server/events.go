@@ -809,9 +809,6 @@ func peerStateUnheldRoles(s *pluginserver.Server, peer *plugin.PeerInfo, fed []*
 			return false
 		}
 		regName := proc.RegistrationName()
-		if regName == "" {
-			regName = proc.Name()
-		}
 		return peerMatchesClaimScope(peer, registry.ClaimSessionScopeFor(regName))
 	})
 }

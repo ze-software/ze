@@ -774,6 +774,33 @@ func handleBgpPeerFlush(ctx *pluginserver.CommandContext, _ command.ValidatedArg
 	defer cancel()
 
 	if selector == "*" || selector == "" {
+		if !pluginserver.SenderCLIToAll(ctx) {
+			peers := ctx.Reactor().Peers()
+			flushed := make([]string, 0, len(peers))
+			for i := range peers {
+				if _, permErr := pluginserver.PermitSenderPeer(ctx, peers[i].Address); permErr != nil {
+					continue
+				}
+				peerAddr := peers[i].Address.String()
+				if err := ctx.Reactor().FlushForwardPoolPeer(flushCtx, peerAddr); err != nil {
+					return flushFailed(peerAddr, err)
+				}
+				flushed = append(flushed, peerAddr)
+			}
+			if len(flushed) == 0 {
+				return pluginserver.RefuseSenderAllPeers(ctx)
+			}
+			if len(flushed) == 1 {
+				return &plugin.Response{
+					Status: plugin.StatusDone,
+					Data:   plugin.Map{fieldAction: actionFlush, fieldPeer: flushed[0]},
+				}, nil
+			}
+			return &plugin.Response{
+				Status: plugin.StatusDone,
+				Data:   plugin.Map{fieldAction: actionFlush, fieldPeer: "*", fieldPeers: flushed},
+			}, nil
+		}
 		// Flush all peers.
 		if err := ctx.Reactor().FlushForwardPool(flushCtx); err != nil {
 			return &plugin.Response{
@@ -800,6 +827,11 @@ func handleBgpPeerFlush(ctx *pluginserver.CommandContext, _ command.ValidatedArg
 	found := pluginserver.PeersMatching(ctx, peersel.ParseDefault(selector))
 	if len(found) == 0 {
 		return flushUnmatchedSelector(flushCtx, ctx, selector)
+	}
+	for i := range found {
+		if errResp, permErr := pluginserver.PermitSenderPeer(ctx, found[i].Address); permErr != nil {
+			return errResp, permErr
+		}
 	}
 	flushed := make([]string, 0, len(found))
 	for i := range found {
@@ -838,6 +870,9 @@ func flushUnmatchedSelector(flushCtx context.Context, ctx *pluginserver.CommandC
 		msg := tb.Str("flush: no peer matches selector ").Quoted(selector).
 			Str(", so there is no forward-pool queue to drain; give a peer address, a configured peer name or an ASN (see `show bgp peer list`)").String()
 		return &plugin.Response{Status: plugin.StatusError, Error: msg}, errFlushNoPeer
+	}
+	if errResp, permErr := pluginserver.PermitSenderPeer(ctx, ip); permErr != nil {
+		return errResp, permErr
 	}
 	peerAddr := ip.String()
 	if err := ctx.Reactor().FlushForwardPoolPeer(flushCtx, peerAddr); err != nil {

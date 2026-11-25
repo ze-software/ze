@@ -11,12 +11,14 @@
 package rib
 
 import (
+	"net/netip"
 	"slices"
 
 	"github.com/ze-software/ze/internal/component/command"
 	"github.com/ze-software/ze/internal/component/plugin"
 	pluginserver "github.com/ze-software/ze/internal/component/plugin/server"
 	"github.com/ze-software/ze/internal/core/opererr"
+	peersel "github.com/ze-software/ze/internal/core/selector"
 	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
@@ -394,6 +396,50 @@ func ribClearMissingSelector(path string) *plugin.Response {
 	}
 }
 
+// restrictRibClearSelector enforces the sender's compiled bus send > to target
+// scope on the bound peer selector before forwarding clear bgp rib in/out to
+// bgp-rib (Q-T5, AC-33).
+func restrictRibClearSelector(ctx *pluginserver.CommandContext, rawSel string) (string, *plugin.Response, error) {
+	if pluginserver.SenderCLIToAll(ctx) {
+		return rawSel, nil, nil
+	}
+	if rawSel == "*" {
+		r := ctx.Reactor()
+		if r == nil {
+			errResp, err := pluginserver.RefuseSenderAllPeers(ctx)
+			return "", errResp, err
+		}
+		peers := r.Peers()
+		allowed := make([]string, 0, len(peers))
+		for i := range peers {
+			if _, permErr := pluginserver.PermitSenderPeer(ctx, peers[i].Address); permErr != nil {
+				continue
+			}
+			allowed = append(allowed, peers[i].Address.String())
+		}
+		if len(allowed) == 0 {
+			errResp, err := pluginserver.RefuseSenderAllPeers(ctx)
+			return "", errResp, err
+		}
+		return textbuf.Join(allowed, ","), nil, nil
+	}
+	found := pluginserver.PeersMatching(ctx, peersel.ParseDefault(rawSel))
+	if len(found) > 0 {
+		for i := range found {
+			if errResp, permErr := pluginserver.PermitSenderPeer(ctx, found[i].Address); permErr != nil {
+				return "", errResp, permErr
+			}
+		}
+		return rawSel, nil, nil
+	}
+	if ip, perr := netip.ParseAddr(rawSel); perr == nil {
+		if errResp, permErr := pluginserver.PermitSenderPeer(ctx, ip); permErr != nil {
+			return "", errResp, permErr
+		}
+	}
+	return rawSel, nil, nil
+}
+
 // forwardRibClearIn hands the bgp-rib plugin the bound selector as its first
 // argument, which is where the plugin reads it (rib_commands.go).
 func forwardRibClearIn(ctx *pluginserver.CommandContext, validated command.ValidatedArgs) (*plugin.Response, error) {
@@ -401,6 +447,11 @@ func forwardRibClearIn(ctx *pluginserver.CommandContext, validated command.Valid
 	if refusal != nil {
 		return refusal, nil
 	}
+	sel, errResp, err := restrictRibClearSelector(ctx, args[0])
+	if err != nil {
+		return errResp, err
+	}
+	args[0] = sel
 	return ctx.Dispatcher().ForwardToPlugin(ribClearHandoff(ctx), cmdRibClearIn, args, args[0])
 }
 
@@ -411,6 +462,11 @@ func forwardRibClearOut(ctx *pluginserver.CommandContext, validated command.Vali
 	if refusal != nil {
 		return refusal, nil
 	}
+	sel, errResp, err := restrictRibClearSelector(ctx, args[0])
+	if err != nil {
+		return errResp, err
+	}
+	args[0] = sel
 	return ctx.Dispatcher().ForwardToPluginAfterEvents(ribClearHandoff(ctx), cmdRibClearOut, args, args[0])
 }
 

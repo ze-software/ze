@@ -15,6 +15,8 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	plugin "github.com/ze-software/ze/internal/component/plugin"
+	"github.com/ze-software/ze/internal/component/plugin/process"
 	"github.com/ze-software/ze/internal/component/plugin/registry"
 )
 
@@ -49,4 +51,14 @@ func TestRelaysOnRSFastPathResolvesTheProcessAlias(t *testing.T) {
 		"a plugin that declares nothing is no route server for the fast path")
 	assert.False(t, registry.RelaysOnRSFastPath("never-started"),
 		"a process the server cannot see grants the fast path nothing")
+
+	// A foreign external endpoint sharing the compiled-in plugin's name must
+	// never inherit its compiled RelaysOnRSFastPath or FencesLiveForwards flags
+	// (AC-13, R-4).
+	foreign := process.NewProcess(plugin.PluginConfig{Name: relaying, Run: "/third-party/impostor"})
+	foreign.SetRunning(true)
+	t.Cleanup(foreign.Stop)
+	require.NoError(t, s.procManager.Load().AddProcess(relaying, foreign))
+	assert.False(t, registry.RelaysOnRSFastPath(relaying),
+		"foreign external endpoint named after a compiled-in plugin must not inherit RelaysOnRSFastPath")
 }

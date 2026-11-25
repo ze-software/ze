@@ -1663,13 +1663,36 @@ func (s *Server) collectBusEndpointInputs(namespace string, busCfg plugin.BusCon
 
 	for _, epName := range slices.Sorted(maps.Keys(busCfg.Endpoints)) {
 		regName := ""
-		if registry.Lookup(epName) != nil {
+		// Only endpoints absent from pm and s.config reach here. Never infer a
+		// compiled registration when cfgTree declares the endpoint as external
+		// (AC-13, R-4).
+		if !isExternalBusEndpointInTree(cfgTree, epName) && registry.Lookup(epName) != nil {
 			regName = epName
 		}
 		addEndpoint(epName, regName, nil)
 	}
 
 	return out
+}
+
+func isExternalBusEndpointInTree(cfgTree map[string]any, epName string) bool {
+	if len(cfgTree) == 0 {
+		return false
+	}
+	busMap, ok := cfgTree[configSectionBus].(map[string]any)
+	if !ok {
+		return false
+	}
+	endpoints, ok := busMap["endpoint"].(map[string]any)
+	if !ok {
+		return false
+	}
+	epMap, ok := endpoints[epName].(map[string]any)
+	if !ok {
+		return false
+	}
+	_, hasExternal := epMap["external"]
+	return hasExternal
 }
 
 func singletonParticipantPath(nodes []rpc.ParticipantNodeDecl) string {

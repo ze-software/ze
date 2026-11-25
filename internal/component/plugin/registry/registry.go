@@ -2004,28 +2004,37 @@ func RelaysOnRSFastPath(name string) bool {
 // no registration, and an alias with no seam installed, answer false.
 func processDeclares(name string, declared func(*Registration) bool) bool {
 	mu.RLock()
-	reg := plugins[name]
 	resolve := runtimeRegistryNames
 	mu.RUnlock()
 
-	if reg != nil {
-		return declared(reg)
+	if resolve != nil {
+		// Resolved outside mu: the seam reads the process manager, and a nested
+		// read lock deadlocks behind a waiting writer. A non-nil slice (including
+		// an empty slice for a foreign external process) means the runtime
+		// manager owns this process name and is authoritative, so a foreign
+		// external endpoint named after a compiled-in plugin never inherits
+		// compiled registration flags (AC-13, R-4).
+		if names := resolve.query(name); names != nil {
+			for _, implName := range names {
+				mu.RLock()
+				impl := plugins[implName]
+				mu.RUnlock()
+				if impl == nil {
+					continue
+				}
+				if declared(impl) {
+					return true
+				}
+			}
+			return false
+		}
 	}
-	if resolve == nil {
+
+	mu.RLock()
+	reg := plugins[name]
+	mu.RUnlock()
+	if reg == nil {
 		return false
 	}
-	// Resolved outside mu: the seam reads the process manager, and a nested
-	// read lock deadlocks behind a waiting writer.
-	for _, implName := range resolve.query(name) {
-		mu.RLock()
-		impl := plugins[implName]
-		mu.RUnlock()
-		if impl == nil {
-			continue
-		}
-		if declared(impl) {
-			return true
-		}
-	}
-	return false
+	return declared(reg)
 }

@@ -9,6 +9,31 @@ import (
 	"github.com/ze-software/ze/pkg/plugin/rpc"
 )
 
+// validUpdateRoutePeerToken reports whether peer is a single safe selector token
+// that cannot smuggle additional command words, pipes, or control characters
+// into the synthesized send/request command line (Q-T4).
+func validUpdateRoutePeerToken(peer string) bool {
+	if peer == "" {
+		return false
+	}
+	for i := range len(peer) {
+		c := peer[i]
+		if c <= 0x20 {
+			return false
+		}
+		if c == 0x7f {
+			return false
+		}
+		if c == '|' {
+			return false
+		}
+		if c == ';' {
+			return false
+		}
+	}
+	return true
+}
+
 // updateRouteDispatchCommand accepts one raw DTO variant before dispatch. The
 // registered marker handler still owns capability checks and refresh grants.
 func updateRouteDispatchCommand(input rpc.UpdateRouteInput, peer string) (string, error) {
@@ -16,6 +41,9 @@ func updateRouteDispatchCommand(input rpc.UpdateRouteInput, peer string) (string
 		return "", opererr.New("Replay request has an invalid operation",
 			"No route or marker was dispatched.",
 			"Use a route command alone, or peer-marker borr/eorr with marker-family and both captured destination identifiers; omit route metadata for markers.")
+	}
+	if !validUpdateRoutePeerToken(peer) {
+		return refuse()
 	}
 	if input.DestinationOwner != 0 {
 		if input.DeadlineMS <= 0 {

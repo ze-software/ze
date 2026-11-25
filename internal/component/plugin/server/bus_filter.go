@@ -706,7 +706,7 @@ func (b *CompiledBus) lookupSendEntry(senderIdx uint32, message string) *compile
 	}
 	cliEntries := b.cliSends[senderIdx]
 	for i := range cliEntries {
-		if cliPrefixMatches(cliEntries[i].prefix, message) {
+		if cliPrefixMatchesFold(cliEntries[i].prefix, message) {
 			return cliEntries[i].entry
 		}
 	}

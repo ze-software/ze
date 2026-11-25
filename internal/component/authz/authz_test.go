@@ -1429,3 +1429,36 @@ func TestBuiltinReadOnlyProfileDeniesEverySendByDefault(t *testing.T) {
 		t.Fatalf("Store.Authorize(%q, isReadOnly=false) = %v, want Deny", sendRaw, got)
 	}
 }
+
+// TestPluginAuthorizeCommandArgsIgnoresSyntheticPeerPrefix verifies that
+// peer-scoped dispatch-command-args from a plugin identity evaluates against
+// the plugin's compiled bus command profile without prepending the synthetic
+// "peer " prefix used only for human operator RBAC (R5f).
+func TestPluginAuthorizeCommandArgsIgnoresSyntheticPeerPrefix(t *testing.T) {
+	aaa.SetPluginCommandProfileLookup(func(endpoint string) (aaa.PluginCommandProfile, bool) {
+		if endpoint != "bgp-rib-caller" {
+			return aaa.PluginCommandProfile{}, false
+		}
+		return aaa.PluginCommandProfile{
+			Endpoint:        endpoint,
+			AllowedPrefixes: []string{"show bgp rib"},
+		}, true
+	})
+	t.Cleanup(func() { aaa.SetPluginCommandProfileLookup(nil) })
+
+	store := NewStore()
+	auth := StoreAuthorizer{Store: store}
+	pluginUser := aaa.ReservedInternalPluginPrefix + "bgp-rib-caller"
+
+	if !auth.AuthorizeCommandArgs(pluginUser, "", "show bgp rib", []string{"summary"}, "10.0.0.1", false) {
+		t.Fatal("StoreAuthorizer.AuthorizeCommandArgs denied peer-scoped plugin command that matches its bus profile")
+	}
+	if auth.AuthorizeCommandArgs(pluginUser, "", "clear bgp rib in", []string{"10.0.0.1"}, "10.0.0.1", false) {
+		t.Fatal("StoreAuthorizer.AuthorizeCommandArgs allowed undeclared plugin command")
+	}
+
+	bound := auth.BindProfiles(nil).(aaa.CommandArgsAuthorizer)
+	if !bound.AuthorizeCommandArgs(pluginUser, "", "show bgp rib", []string{"summary"}, "10.0.0.1", false) {
+		t.Fatal("boundStoreAuthorizer.AuthorizeCommandArgs denied peer-scoped plugin command that matches its bus profile")
+	}
+}

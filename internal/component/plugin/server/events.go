@@ -112,5 +112,9 @@ func (s *Server) processRegistryNames(process string) []string {
 	if proc == nil {
 		return nil
 	}
-	return plugin.RegistryNames(proc.Config())
+	names := plugin.RegistryNames(proc.Config())
+	if names == nil {
+		return []string{}
+	}
+	return names
 }

@@ -217,8 +217,25 @@ func (s *Server) registerSubscriptions(proc *process.Process, input *rpc.Subscri
 
 		for _, event := range input.Events {
 			// Expand "*" at registration, not on the per-event match path.
+			// Bound wildcard expansion to the events admitted by the
+			// participant's compiled receive filter (S5, AC-35).
 			if event == "*" {
+				f, _ := resolveParticipantFilter(s, proc)
 				for _, et := range events.AllEventTypes()[namespace] {
+					if f != nil {
+						if f.ReceiveAllowNone {
+							continue
+						}
+						var msgBuf textbuf.Buffer
+						msg := msgBuf.Str(namespace).Byte(':').Str(et).String()
+						rule := f.ReceiveRules[msg]
+						if rule == nil {
+							continue
+						}
+						if !rule.Allowed {
+							continue
+						}
+					}
 					s.subscriptions.Add(proc, &Subscription{
 						Namespace:  nsID,
 						EventType:  events.LookupEventTypeID(et),
@@ -323,11 +340,11 @@ func (s *Server) deliverEventCaptured(ctx context.Context, emitter *process.Proc
 		return 0, &rpc.RPCCallError{Message: "emit-event requires namespace and event-type"}
 	}
 
+	var msgBuf textbuf.Buffer
+	busMsg := msgBuf.Str(namespace).Byte(':').Str(eventType).String()
 	var stampedSender string
 	if emitter != nil {
-		var msgBuf textbuf.Buffer
-		msg := msgBuf.Str(namespace).Byte(':').Str(eventType).String()
-		if err := checkEngineOpBusSend(s, emitter, msg); err != nil {
+		if err := checkEngineOpBusSend(s, emitter, busMsg); err != nil {
 			return 0, err
 		}
 		stampedSender = plugin.EndpointPath(emitter.Name())
@@ -431,7 +448,9 @@ func (s *Server) deliverEventCaptured(ctx context.Context, emitter *process.Proc
 		if stampedSender != "" {
 			procs = filterReceiversByCompiledSender(s.DeliveryGraph().Compiled(), stampedSender, nsID, etID, dirID, payload, procs)
 		} else {
-			procs = filterReceiversByInboundTags(s.DeliveryGraph().Compiled(), nsID, etID, payload, procs)
+			compiled := s.DeliveryGraph().Compiled()
+			procs = filterReceiversByEngineReceive(compiled, busMsg, procs)
+			procs = filterReceiversByInboundTags(compiled, nsID, etID, payload, procs)
 		}
 	} else if g := s.DeliveryGraph(); stampedSender != "" && g.Compiled() != nil && g.Compiled().Filter(stampedSender) != nil && !g.PeerDeclaresSend(peerAddress, nsID, etID) {
 		// Endpoint-emitted peer-scoped events (such as bgp:rpki from bgp-rpki
@@ -445,7 +464,11 @@ func (s *Server) deliverEventCaptured(ctx context.Context, emitter *process.Proc
 		procs = filterReceiversByCompiledSender(g.Compiled(), stampedSender, nsID, etID, dirID, payload, procs)
 	} else {
 		procs = s.PeerScopedProcs(nsID, etID, dirID, peerAddress, "")
-		procs = filterReceiversByInboundTags(s.DeliveryGraph().Compiled(), nsID, etID, payload, procs)
+		if stampedSender != "" {
+			procs = filterReceiversByCompiledSender(s.DeliveryGraph().Compiled(), stampedSender, nsID, etID, dirID, payload, procs)
+		} else {
+			procs = filterReceiversByInboundTags(s.DeliveryGraph().Compiled(), nsID, etID, payload, procs)
+		}
 	}
 	if capture != nil {
 		// A self subscriber is required work, not a subscriber silently omitted to
@@ -800,12 +823,14 @@ func (s *Server) dispatchCommandArgsResponse(ctx context.Context, proc *process.
 		peer = "*"
 	}
 	cmdCtx := &CommandContext{
-		Server:         s,
-		Process:        proc,
-		RequestContext: ctx,
-		Peer:           peer,
-		Username:       internalPluginIdentity(proc.Name()),
-		Sender:         plugin.ProcessSender(proc.Name()),
+		Server:              s,
+		Process:             proc,
+		RequestContext:      ctx,
+		Peer:                peer,
+		Username:            internalPluginIdentity(proc.Name()),
+		Sender:              plugin.ProcessSender(proc.Name()),
+		BusCLIMessage:       matchMsg,
+		BusCLIReportMessage: reportMsg,
 	}
 	// The typed path bypasses Dispatch. Only the accounting copy is rendered;
 	// policy and forwarding continue to receive the original argument slice.
@@ -899,12 +924,15 @@ func (s *Server) dispatchCommandPeerResponse(ctx context.Context, proc *process.
 		}
 	}
 	cmdCtx := &CommandContext{
-		Server:         s,
-		Process:        proc,
-		RequestContext: ctx,
-		PeerOwner:      owner, ConnectionID: connection,
-		Username: internalPluginIdentity(proc.Name()),
-		Sender:   sender,
+		Server:              s,
+		Process:             proc,
+		RequestContext:      ctx,
+		PeerOwner:           owner,
+		ConnectionID:        connection,
+		Username:            internalPluginIdentity(proc.Name()),
+		Sender:              sender,
+		BusCLIMessage:       cliMsg,
+		BusCLIReportMessage: cliMsg,
 	}
 
 	resp, dispatchErr := s.dispatcher.Dispatch(cmdCtx, command)

@@ -8,6 +8,7 @@ import (
 	"context"
 	"encoding/json"
 	"net"
+	"net/netip"
 	"testing"
 	"time"
 
@@ -488,4 +489,202 @@ func TestBatchValidateGatedOnBothTransports(t *testing.T) {
 			require.NoError(t, <-done)
 		})
 	}
+}
+
+// TestBusOpGateWave1Security proves the Wave 1 security invariants:
+//   - S1: peer-scoped emit-event from a plugin enforces the plugin's compiled
+//     send > to and receiver's receive > from rather than spoofing the peer;
+//   - S2: send { to none; } refuses cli: sends in both the bus gate and
+//     compiledFilterToCommandProfile, and PermitSenderPeer enforces send > to
+//     on peer-selecting CLI verbs;
+//   - S3: update-route rejects PeerSelector whitespace/pipes and command pipes;
+//   - S5: wildcard subscribe-events ["*"] expands only to compiled allowed
+//     receptions and engine-emitted events enforce compiled receive filters.
+func TestBusOpGateWave1Security(t *testing.T) {
+	t.Run("S1_peer_scoped_emit_cannot_spoof_peer", func(t *testing.T) {
+		s := &Server{dispatcher: NewDispatcher(), subscriptions: newSubscriptionManager()}
+		s.ctx, s.cancel = context.WithCancel(t.Context())
+		t.Cleanup(s.cancel)
+
+		spoofer := process.NewProcess(plugin.PluginConfig{Name: "spoofer"})
+		spoofer.SetRegistration(&plugin.PluginRegistration{
+			Sends: []rpc.MessageSendDecl{{Message: "bgp:state"}},
+		})
+		victim := process.NewProcess(plugin.PluginConfig{Name: "victim"})
+		victim.SetRegistration(&plugin.PluginRegistration{
+			Receives: []rpc.MessageReceiveDecl{{Message: "bgp:state"}},
+		})
+		s.subscriptions.Add(victim, &Subscription{
+			Namespace: events.LookupNamespaceID("bgp"),
+			EventType: events.LookupEventTypeID("state"),
+			Direction: events.DirBoth,
+		})
+
+		// Peer 10.0.0.1 declares sending bgp:state; victim only accepts bgp:state
+		// from /bgp/ip/10.0.0.1, NOT from /bus/endpoint/spoofer.
+		s.SetBusConfig(plugin.BusConfig{
+			Endpoints: map[string]plugin.BusBlock{
+				"victim": {
+					Receive: plugin.BusDirectionBlock{
+						TargetsPresent: true,
+						Targets:        []string{"/bgp/ip/10.0.0.1"},
+					},
+				},
+			},
+		})
+		require.NoError(t, s.UpdateDeliveryGraphWithEndpoints("bgp", []DeliveryPeer{{
+			Addr:           "10.0.0.1",
+			Name:           "p1",
+			Path:           "/bgp/peer/p1",
+			SecondaryPaths: []string{"/bgp/ip/10.0.0.1"},
+		}}, []BusParticipantInput{
+			{
+				Path:         plugin.EndpointPath("spoofer"),
+				EndpointName: "spoofer",
+				Sends:        []rpc.MessageSendDecl{{Message: "bgp:state"}},
+			},
+			{
+				Path:         plugin.EndpointPath("victim"),
+				EndpointName: "victim",
+				Receives:     []rpc.MessageReceiveDecl{{Message: "bgp:state"}},
+			},
+		}))
+
+		delivered, err := s.deliverEvent(spoofer, "bgp", "state", "", "10.0.0.1", `{"state":"down"}`)
+		require.NoError(t, err)
+		assert.Equal(t, 0, delivered, "plugin emit-event with peerAddress must not bypass receive > from by spoofing the peer")
+	})
+
+	t.Run("S2_cli_to_none_and_peer_target_enforcement", func(t *testing.T) {
+		s := &Server{dispatcher: NewDispatcher(), subscriptions: newSubscriptionManager()}
+		s.ctx, s.cancel = context.WithCancel(t.Context())
+		t.Cleanup(s.cancel)
+
+		noneProc := process.NewProcess(plugin.PluginConfig{Name: "ops-none"})
+		noneProc.SetRegistration(&plugin.PluginRegistration{
+			Sends: []rpc.MessageSendDecl{{Message: "cli:request peer"}},
+		})
+		scopedProc := process.NewProcess(plugin.PluginConfig{Name: "ops-scoped"})
+		scopedProc.SetRegistration(&plugin.PluginRegistration{
+			Sends: []rpc.MessageSendDecl{{Message: "cli:request peer"}},
+		})
+		s.SetBusConfig(plugin.BusConfig{
+			Endpoints: map[string]plugin.BusBlock{
+				"ops-none": {
+					Send: plugin.BusDirectionBlock{
+						TargetsPresent: true,
+						TargetsNone:    true,
+					},
+				},
+				"ops-scoped": {
+					Send: plugin.BusDirectionBlock{
+						TargetsPresent: true,
+						Targets:        []string{"/bgp/peer/p1"},
+					},
+				},
+			},
+		})
+		require.NoError(t, s.UpdateDeliveryGraphWithEndpoints("bgp", []DeliveryPeer{
+			{Addr: "10.0.0.1", Name: "p1", Path: "/bgp/peer/p1", SecondaryPaths: []string{"/bgp/ip/10.0.0.1"}},
+			{Addr: "10.0.0.2", Name: "p2", Path: "/bgp/peer/p2", SecondaryPaths: []string{"/bgp/ip/10.0.0.2"}},
+		}, []BusParticipantInput{
+			{
+				Path:         plugin.EndpointPath("ops-none"),
+				EndpointName: "ops-none",
+				Sends:        []rpc.MessageSendDecl{{Message: "cli:request peer"}},
+			},
+			{
+				Path:         plugin.EndpointPath("ops-scoped"),
+				EndpointName: "ops-scoped",
+				Sends:        []rpc.MessageSendDecl{{Message: "cli:request peer"}},
+			},
+		}))
+
+		// send { to none; } refuses cli: send and produces AllowNone profile.
+		err := checkEngineOpBusSendCLI(s, noneProc, "cli:request peer 10.0.0.1 teardown", "cli:request peer")
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "cannot send")
+		prof, ok := s.lookupPluginCommandProfile("ops-none")
+		require.True(t, ok)
+		assert.True(t, prof.AllowNone)
+
+		// send { to [ "/bgp/peer/p1" ]; } allows p1 and refuses p2.
+		cmdCtx := &CommandContext{
+			Server:              s,
+			Sender:              plugin.ProcessSender("ops-scoped"),
+			BusCLIMessage:       "cli:request peer 10.0.0.1 teardown",
+			BusCLIReportMessage: "cli:request peer",
+		}
+		assert.False(t, SenderCLIToAll(cmdCtx))
+		_, err = PermitSenderPeer(cmdCtx, netip.MustParseAddr("10.0.0.1"))
+		require.NoError(t, err)
+		_, err = PermitSenderPeer(cmdCtx, netip.MustParseAddr("10.0.0.2"))
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "/bgp/ip/10.0.0.2")
+	})
+
+	t.Run("S3_update_route_rejects_smuggling", func(t *testing.T) {
+		_, err := updateRouteDispatchCommand(rpc.UpdateRouteInput{Command: "announce route 192.0.2.0/24 next-hop 192.0.2.1"}, "10.0.0.1 raw deadbeef")
+		require.Error(t, err, "PeerSelector with whitespace must be rejected")
+
+		_, err = updateRouteDispatchCommand(rpc.UpdateRouteInput{Command: "announce route 192.0.2.0/24 next-hop 192.0.2.1 | text"}, "10.0.0.1")
+		require.Error(t, err, "update-route command with pipe must be rejected")
+
+		_, err = updateRouteDispatchCommand(rpc.UpdateRouteInput{Command: "announce route 192.0.2.0/24 next-hop 192.0.2.1\nrequest peer * teardown"}, "10.0.0.1")
+		require.Error(t, err, "update-route command with newline must be rejected")
+
+		cmd, err := updateRouteDispatchCommand(rpc.UpdateRouteInput{Command: "announce route 192.0.2.0/24 next-hop 192.0.2.1"}, "10.0.0.1")
+		require.NoError(t, err)
+		assert.Equal(t, "send bgp 10.0.0.1 announce route 192.0.2.0/24 next-hop 192.0.2.1", cmd)
+	})
+
+	t.Run("S5_wildcard_and_engine_receive_filtering", func(t *testing.T) {
+		s := &Server{dispatcher: NewDispatcher(), subscriptions: newSubscriptionManager()}
+		s.ctx, s.cancel = context.WithCancel(t.Context())
+		t.Cleanup(s.cancel)
+
+		sub := process.NewProcess(plugin.PluginConfig{Name: "sub-only-state"})
+		sub.SetRegistration(&plugin.PluginRegistration{
+			Receives: []rpc.MessageReceiveDecl{
+				{Message: "bgp:state"},
+				{Message: "bgp:open"},
+			},
+		})
+		s.SetBusConfig(plugin.BusConfig{
+			Endpoints: map[string]plugin.BusBlock{
+				"sub-only-state": {
+					Receive: plugin.BusDirectionBlock{
+						AllowPresent: true,
+						Allow:        []string{"bgp:state"},
+					},
+				},
+			},
+		})
+		require.NoError(t, s.UpdateDeliveryGraphWithEndpoints("bgp", nil, []BusParticipantInput{{
+			Path:         plugin.EndpointPath("sub-only-state"),
+			EndpointName: "sub-only-state",
+			Receives: []rpc.MessageReceiveDecl{
+				{Message: "bgp:state"},
+				{Message: "bgp:open"},
+			},
+		}}))
+
+		s.registerSubscriptions(sub, &rpc.SubscribeEventsInput{
+			Namespace: "bgp",
+			Events:    []string{"*"},
+		})
+
+		bgpNS := events.LookupNamespaceID("bgp")
+		stateET := events.LookupEventTypeID("state")
+		openET := events.LookupEventTypeID("open")
+		assert.Len(t, s.subscriptions.getMatching(bgpNS, stateET, events.DirBoth, "", ""), 1)
+		assert.Empty(t, s.subscriptions.getMatching(bgpNS, openET, events.DirBoth, "", ""),
+			"wildcard subscription must not register events excluded by receive > allow")
+
+		// Even if a subscription exists directly, engine-emitted delivery enforces compiled receive filter.
+		s.subscriptions.Add(sub, &Subscription{Namespace: bgpNS, EventType: openET, Direction: events.DirBoth})
+		delivered, err := s.deliverEvent(nil, "bgp", "open", "", "", `{"asn":65001}`)
+		require.NoError(t, err)
+		assert.Equal(t, 0, delivered, "engine-emitted event must respect receive > allow")
+	})
 }

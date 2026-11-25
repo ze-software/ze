@@ -60,11 +60,26 @@ func (a boundStoreAuthorizer) Authorize(username, _, command string, isReadOnly 
 	return a.store.AuthorizeWithProfiles(username, a.profiles, command, isReadOnly) != Deny
 }
 
-func (a boundStoreAuthorizer) AuthorizeCommandArgs(username, _, command string, args []string, peer string, isReadOnly bool) bool {
-	if a.store == nil {
-		return authorizeWithNilStore(username, aaa.CanonicalCommand(command, args, peer), isReadOnly)
+// canonicalCommandForIdentity builds the authorization command string for
+// username. Plugin identities match compiled bus command profiles (cli:<cmd>),
+// which omit the synthetic "peer " prefix that operator RBAC adds when a peer
+// selector is present.
+func canonicalCommandForIdentity(username, command string, args []string, peer string) string {
+	if _, isPlugin := aaa.PluginEndpointFromIdentity(username); isPlugin {
+		return aaa.CanonicalCommand(command, args, "")
 	}
-	return a.store.AuthorizeWithProfiles(username, a.profiles, aaa.CanonicalCommand(command, args, peer), isReadOnly) != Deny
+	if strings.HasPrefix(username, aaa.ReservedInternalPluginPrefix) {
+		return aaa.CanonicalCommand(command, args, "")
+	}
+	return aaa.CanonicalCommand(command, args, peer)
+}
+
+func (a boundStoreAuthorizer) AuthorizeCommandArgs(username, _, command string, args []string, peer string, isReadOnly bool) bool {
+	canonical := canonicalCommandForIdentity(username, command, args, peer)
+	if a.store == nil {
+		return authorizeWithNilStore(username, canonical, isReadOnly)
+	}
+	return a.store.AuthorizeWithProfiles(username, a.profiles, canonical, isReadOnly) != Deny
 }
 
 // Authorize implements aaa.Authorizer.
@@ -79,10 +94,11 @@ func (a StoreAuthorizer) Authorize(username, remoteAddr, command string, isReadO
 // It preserves typed argument boundaries while keeping the dispatcher's
 // existing peer-scoped RBAC semantics through aaa.CanonicalCommand.
 func (a StoreAuthorizer) AuthorizeCommandArgs(username, _, command string, args []string, peer string, isReadOnly bool) bool {
+	canonical := canonicalCommandForIdentity(username, command, args, peer)
 	if a.Store == nil {
-		return authorizeWithNilStore(username, aaa.CanonicalCommand(command, args, peer), isReadOnly)
+		return authorizeWithNilStore(username, canonical, isReadOnly)
 	}
-	return a.Store.Authorize(username, aaa.CanonicalCommand(command, args, peer), isReadOnly) != Deny
+	return a.Store.Authorize(username, canonical, isReadOnly) != Deny
 }
 
 // localBackend is the AAA backend for built-in bcrypt user authentication.
