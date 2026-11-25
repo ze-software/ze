@@ -11,11 +11,16 @@ import (
 	"crypto/tls"
 	"encoding/base64"
 	"encoding/json"
+	"fmt"
+	"net"
 	"slices"
 	"strings"
 	"testing"
 	"time"
 
+	"github.com/stretchr/testify/require"
+
+	"github.com/ze-software/ze/internal/component/config/storage"
 	pluginipc "github.com/ze-software/ze/internal/component/plugin/ipc"
 	"github.com/ze-software/ze/internal/core/report"
 	"github.com/ze-software/ze/pkg/fleet"
@@ -632,4 +637,167 @@ func TestManagedServeAnotherClientsSecretRefused(t *testing.T) {
 	if !authAs(t, addr, testClientName, testClientSecret) {
 		t.Error("edge-01's secret was refused under its own name")
 	}
+}
+
+// VALIDATES: fleet-1 AC-16 -- handshake slots are released immediately after
+// authentication, so far more than managedMaxHandshakes (129) authenticated
+// sessions coexist simultaneously.
+func TestHandshakeSlotReleasedAfterAuth(t *testing.T) {
+	const count = 129
+	clients := make(map[string]string, count)
+	for i := range count {
+		clients[fmt.Sprintf("edge-%03d", i)] = fmt.Sprintf("edge-%03d-secret-at-least-32-chars", i)
+	}
+	srv, err := NewManagedServer(ManagedServerConfig{
+		Authority:  newTestCA(t),
+		Listeners:  []ManagedListener{{Addr: "127.0.0.1:0", Clients: clients}},
+		ReadConfig: func(string) ([]byte, error) { return []byte(testClientConfig), nil },
+	})
+	require.NoError(t, err)
+	require.NoError(t, srv.Start(t.Context()))
+	t.Cleanup(srv.Stop)
+	addr := srv.Addrs()[0].String()
+
+	conns := make([]*rpc.MuxConn, 0, count)
+	for i := range count {
+		name := fmt.Sprintf("edge-%03d", i)
+		conns = append(conns, dialTestClient(t, addr, name, clients[name]))
+	}
+	require.Eventually(t, func() bool {
+		return len(srv.connectedClients()) == count
+	}, 5*time.Second, 20*time.Millisecond)
+	for _, mc := range conns {
+		_ = mc.Close()
+	}
+}
+
+// VALIDATES: fleet-1 AC-16 and AC-27 -- holding managedMaxHandshakes (32)
+// unauthenticated connections saturates the handshake cap (recorded in doctor),
+// and freeing one slot lets a declared client authenticate.
+func TestHandshakeCapHoldsUnauthenticated(t *testing.T) {
+	srv, addr := startTestManagedServer(t)
+
+	// Open 32 unauthenticated TCP connections that never send a TLS ClientHello.
+	held := make([]net.Conn, 0, managedMaxHandshakes)
+	t.Cleanup(func() {
+		for _, c := range held {
+			_ = c.Close()
+		}
+	})
+	for range managedMaxHandshakes {
+		c, err := net.DialTimeout("tcp", addr, 2*time.Second)
+		require.NoError(t, err)
+		held = append(held, c)
+	}
+	require.Eventually(t, func() bool {
+		return len(srv.sem) == managedMaxHandshakes
+	}, 2*time.Second, 10*time.Millisecond)
+
+	// 33rd connection hits the saturated handshake cap and waits until a slot frees.
+	done := make(chan struct{})
+	go func() {
+		defer close(done)
+		mc := dialTestClient(t, addr, testClientName, testClientSecret)
+		_ = fetch(t, mc, "")
+	}()
+
+	require.Eventually(t, func() bool {
+		return srv.doctor.snapshotAt(srv.now()).HandshakeSaturation != nil
+	}, 2*time.Second, 10*time.Millisecond)
+	sat := srv.doctor.snapshotAt(srv.now()).HandshakeSaturation
+	require.NotNil(t, sat)
+	require.GreaterOrEqual(t, sat.Count, 1)
+	require.Contains(t, sat.Holders, "127.0.0.1")
+
+	// Free one unauthenticated slot: the waiting declared client authenticates promptly.
+	require.NoError(t, held[0].Close())
+	select {
+	case <-done:
+	case <-time.After(3 * time.Second):
+		t.Fatal("declared client did not authenticate after a handshake slot freed")
+	}
+}
+
+// VALIDATES: fleet-1 AC-17 -- a config-held upload carrying exactly
+// fleet.HeldConfigMax raw bytes is accepted and stored through the bounded hub reader.
+func TestManagedReadMaxAcceptsLargestHeld(t *testing.T) {
+	store, err := storage.Create(t.TempDir())
+	require.NoError(t, err)
+	t.Cleanup(func() { require.NoError(t, store.Close()) })
+
+	srv, err := NewManagedServer(ManagedServerConfig{
+		Authority:  newTestCA(t),
+		Store:      store,
+		Listeners:  []ManagedListener{{Addr: "127.0.0.1:0", Clients: map[string]string{testClientName: testClientSecret}}},
+		ReadConfig: func(string) ([]byte, error) { return []byte(testClientConfig), nil },
+	})
+	require.NoError(t, err)
+	require.NoError(t, srv.Start(t.Context()))
+	t.Cleanup(srv.Stop)
+
+	mc := dialTestClient(t, srv.Addrs()[0].String(), testClientName, testClientSecret)
+
+	// Build a valid YANG config of exact length fleet.HeldConfigMax (padded with whitespace).
+	raw := []byte(strings.Repeat(" ", fleet.HeldConfigMax))
+	require.Equal(t, fleet.HeldConfigMax, len(raw))
+
+	_, err = mc.CallRPC(t.Context(), fleet.VerbConfigHeld, fleet.ConfigHeld{
+		Version: fleet.VersionHash(raw),
+		Config:  base64.StdEncoding.EncodeToString(raw),
+	})
+	require.NoError(t, err)
+	rec, ok, err := ReadHeldRecord(store, testClientName)
+	require.NoError(t, err)
+	require.True(t, ok)
+	require.Equal(t, fleet.VersionHash(raw), rec.Version())
+}
+
+// VALIDATES: fleet-1 AC-18 -- a wire line one byte over managedReadMax closes
+// that client's connection, records ManagedRejectOversize under
+// doctor-managed-client-rejected, and keeps serving other clients.
+func TestManagedReadMaxClosesOversize(t *testing.T) {
+	srv, addr := startTestManagedServer(t)
+
+	healthy := dialTestClient(t, addr, testClient2Name, testClient2Secret)
+	_ = fetch(t, healthy, "")
+	waitForConnected(t, srv, testClient2Name, true)
+
+	// Authenticate edge-01 on a raw TLS conn so we can write a line of managedReadMax+1 bytes.
+	dialer := &tls.Dialer{Config: &tls.Config{InsecureSkipVerify: true, MinVersion: tls.VersionTLS13}} //nolint:gosec // test
+	conn, err := dialer.DialContext(t.Context(), "tcp", addr)
+	require.NoError(t, err)
+	t.Cleanup(func() { _ = conn.Close() })
+	require.NoError(t, sendAuthFrame(conn, testClientSecret, testClientName))
+	waitForConnected(t, srv, testClientName, true)
+
+	oversize := make([]byte, managedReadMax+2)
+	for i := range managedReadMax + 1 {
+		oversize[i] = 'x'
+	}
+	oversize[managedReadMax+1] = '\n'
+	_, _ = conn.Write(oversize)
+
+	require.Eventually(t, func() bool {
+		for _, r := range srv.doctor.snapshot().Rejected {
+			if r.Client == testClientName && r.Cause == ManagedRejectOversize {
+				return true
+			}
+		}
+		return false
+	}, 3*time.Second, 10*time.Millisecond)
+	waitForConnected(t, srv, testClientName, false)
+
+	// Other connected client keeps working.
+	_, err = healthy.CallRPC(t.Context(), fleet.VerbPing, struct{}{})
+	require.NoError(t, err)
+}
+
+func sendAuthFrame(conn net.Conn, token, name string) error {
+	line := fmt.Sprintf("#0 auth {\"token\":%q,\"name\":%q}\n", token, name)
+	if _, err := conn.Write([]byte(line)); err != nil {
+		return err
+	}
+	buf := make([]byte, 256)
+	_, err := conn.Read(buf)
+	return err
 }

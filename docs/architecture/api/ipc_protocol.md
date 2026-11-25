@@ -115,8 +115,12 @@ The engine exposes separate SDK RPCs for cached and stored UPDATEs:
 
 `rpc.Conn` supports one socket for both directions, separate read and write
 connections, or standard input and standard output. All transports use the same
-plugin RPC frames.
-<!-- source: pkg/plugin/rpc/conn.go -- Conn, NewConn -->
+plugin RPC frames. `NewConn` / `NewFrameReader` enforce `MaxMessageSize` (16 MiB);
+callers that need a tighter inbound line bound (such as the managed fleet hub
+listener) use `NewConnWithMaxRead` / `NewFrameReaderMax`, returning an error
+wrapping `ErrMessageTooLong` when a line exceeds the configured maximum.
+<!-- source: pkg/plugin/rpc/conn.go -- Conn, NewConn, NewConnWithMaxRead -->
+<!-- source: pkg/plugin/rpc/framing.go -- FrameReader, NewFrameReaderMax, ErrMessageTooLong -->
 
 Recovery's applied-event drain reads known transport failure without sending a
 probe. `PluginConn.Err` reads bridge delivery admission or the mux reader's

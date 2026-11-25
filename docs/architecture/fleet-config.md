@@ -352,8 +352,10 @@ and a client fetches its config each time it connects. The event
 is not connected is owed nothing: it fetches when it connects.
 <!-- source: internal/component/plugin/server/managed_serve.go -- NotifyConfigChanged, takePending, pushConfigChanged -->
 
-The managed listener exposes Prometheus metrics: `ze_managed_clients_connected` (gauge),
-`ze_managed_config_fetch_total{result}`, and `ze_managed_config_changed_pushed_total`.
+The managed listener exposes Prometheus metrics: `ze_managed_clients_declared` (gauge),
+`ze_managed_clients_connected` (gauge), `ze_managed_handshakes_pending` (gauge),
+`ze_managed_config_fetch_total{result}`, `ze_managed_config_changed_pushed_total`,
+`ze_managed_device_records_written_total{result}`, and `ze_managed_config_held_total{result}`.
 <!-- source: internal/component/plugin/server/managed_serve.go -- metric registration -->
 
 ### Device history on the hub
@@ -935,6 +937,27 @@ hub built before `config-held` answers it with an unknown-method error.
 | `edited-at` | `config-held` | When the version the client runs was written into its store (the stamp of its active version). Absent when the client's store records no such stamp |
 <!-- source: pkg/fleet/envelope.go -- VerbConfigHeld, ConfigHeld, ConfigFetchResponse, ConfigAck -->
 <!-- test: pkg/fleet/envelope_test.go TestConfigHeldEnvelopeRoundTrip, TestOldPeerIgnoresNewFields -->
+
+The hub caps concurrent unauthenticated handshakes at 32 (`managedMaxHandshakes`)
+and releases each handshake slot as soon as authentication finishes, so
+authenticated sessions are bounded by the declared client entries (up to 4,096)
+and duplicate-name refusal rather than by a fixed connection cap. Reaching the
+handshake cap is logged and reported under `doctor-managed-handshake-saturated`.
+
+Each authenticated managed connection on the hub reads through a bounded frame
+reader (`rpc.NewConnWithMaxRead`, `managedReadMax` = base64(`fleet.HeldConfigMax`)
++ 64 KiB, ~1.4 MiB). Its `bufio.Scanner` starts at 64 KiB and grows at most to
+`managedReadMax` when a client uploads its largest held copy, so worst-case
+read-buffer memory is bounded by declared clients times `managedReadMax`. A line
+past `managedReadMax` closes that client's connection, records `ManagedRejectOversize`
+under `doctor-managed-client-rejected`, and leaves all other clients running. On
+the client side, `SendConfigAck` bounds `ConfigAck.Error` to `fleet.AckErrorMax`
+(1,024 UTF-8 bytes) with a truncation marker (`... (truncated)`). The client's
+inbound reader stays at `rpc.MaxMessageSize` (16 MiB) so the hub can serve
+configurations larger than `HeldConfigMax`.
+<!-- source: internal/component/plugin/server/managed_serve.go -- managedMaxHandshakes, managedReadMax, handleConn -->
+<!-- source: pkg/fleet/envelope.go -- AckErrorMax, BoundAckError -->
+<!-- source: internal/component/managed/client.go -- SendConfigAck -->
 
 ### Version Hash
 

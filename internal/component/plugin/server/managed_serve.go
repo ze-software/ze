@@ -24,6 +24,7 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/ze-software/ze/internal/component/config/storage"
@@ -44,10 +45,16 @@ var managedLogger = slogutil.LazyLogger("hub.managed-server")
 
 const managedAuthTimeout = 10 * time.Second
 
-// managedMaxConns bounds concurrent connection handlers so an unauthenticated
-// connection flood cannot exhaust goroutines/memory (each handler must authenticate
-// within managedAuthTimeout or is dropped). Mirrors the plugin acceptor's cap.
-const managedMaxConns = 128
+// managedMaxHandshakes bounds concurrent unauthenticated handshakes so a flood
+// of unauthenticated connections cannot exhaust goroutines or memory while
+// authenticated sessions remain bounded by declared client entries (up to
+// 4,096) and duplicate refusal. Mirrors the plugin acceptor's handshake cap.
+const managedMaxHandshakes = 32
+
+// managedReadMax is the maximum inbound wire line size on an authenticated
+// managed connection: base64-encoded fleet.HeldConfigMax (1 MiB raw) plus
+// 64 KiB of JSON and RPC framing overhead (~1.4 MiB).
+const managedReadMax = ((fleet.HeldConfigMax+2)/3)*4 + 64*1024
 
 // ManagedPushTimeout bounds a single config-changed round-trip so a client that
 // accepts the notification but never replies cannot stall the notify worker
@@ -166,28 +173,35 @@ type ManagedServer struct {
 
 	mu sync.Mutex
 	// pending names the connected clients whose config changed and who have
-	// not been told yet. It holds connected names only, so managedMaxConns
-	// bounds it and a change is never dropped for want of room. Guarded by mu.
+	// not been told yet. It holds connected names only, so declared clients
+	// bound it and a change is never dropped for want of room. Guarded by mu.
 	pending map[string]struct{}
 	// pushing names the clients a notifyWorker is pushing to right now. A
 	// client in it is left in pending for later, so a client that does not
 	// answer holds one worker and never the whole pool. Guarded by mu.
 	pushing map[string]struct{}
 
+	// pendingHandshakes tracks the remote addresses currently holding an
+	// unauthenticated handshake slot, keyed by handshakeSeq. Guarded by mu.
+	pendingHandshakes map[uint64]string
+	handshakeSeq      atomic.Uint64
+
 	// notifyWake tells a notifyWorker that pending is not empty. One token is
 	// enough: a worker that takes a name and leaves others puts the token back.
 	notifyWake chan struct{}
 	// pushTimeout is ManagedPushTimeout. A test shortens it.
 	pushTimeout time.Duration
-	sem         chan struct{} // Bounds concurrent connection handlers (managedMaxConns).
+	sem         chan struct{} // Bounds concurrent unauthenticated handshakes (managedMaxHandshakes).
 
 	// Metrics handles (no-op unless a registry was supplied). Set once at construction,
 	// so they are read without a lock.
-	mConnected    metrics.Gauge      // ze_managed_clients_connected
-	mFetch        metrics.CounterVec // ze_managed_config_fetch_total{result}
-	mPushed       metrics.Counter    // ze_managed_config_changed_pushed_total
-	mRecordWrites metrics.CounterVec // ze_managed_device_records_written_total{result}
-	mHeld         metrics.CounterVec // ze_managed_config_held_total{result}
+	mDeclared          metrics.Gauge      // ze_managed_clients_declared
+	mConnected         metrics.Gauge      // ze_managed_clients_connected
+	mHandshakesPending metrics.Gauge      // ze_managed_handshakes_pending
+	mFetch             metrics.CounterVec // ze_managed_config_fetch_total{result}
+	mPushed            metrics.Counter    // ze_managed_config_changed_pushed_total
+	mRecordWrites      metrics.CounterVec // ze_managed_device_records_written_total{result}
+	mHeld              metrics.CounterVec // ze_managed_config_held_total{result}
 
 	lifecycleMu sync.Mutex // Serializes applying socket changes with shutdown.
 	listeners   []*managedBound
@@ -255,23 +269,28 @@ func NewManagedServer(cfg ManagedServerConfig) (*ManagedServer, error) {
 	}
 	svc := newManagedConfigService(cfg.ReadConfig)
 	svc.records = newHeldRecords(cfg.Store)
-	return &ManagedServer{
-		svc:            svc,
-		listens:        listens,
-		devices:        devices,
-		recordIO:       newManagedRecordIO(cfg.Store),
-		now:            cfg.Clock.Now,
-		source:         source,
-		initialCertErr: certErr,
-		certConfig:     ManagedServerConfig{Certificate: cfg.Certificate, Authority: cfg.Authority, LoadAuthority: cfg.LoadAuthority, TLSMaterialResolver: cfg.TLSMaterialResolver, Clock: cfg.Clock},
-		acceptor:       cfg.Acceptor,
-		pending:        make(map[string]struct{}),
-		pushing:        make(map[string]struct{}),
-		notifyWake:     make(chan struct{}, 1),
-		pushTimeout:    ManagedPushTimeout,
-		sem:            make(chan struct{}, managedMaxConns),
+	srv := &ManagedServer{
+		svc:               svc,
+		listens:           listens,
+		devices:           devices,
+		recordIO:          newManagedRecordIO(cfg.Store),
+		now:               cfg.Clock.Now,
+		source:            source,
+		initialCertErr:    certErr,
+		certConfig:        ManagedServerConfig{Certificate: cfg.Certificate, Authority: cfg.Authority, LoadAuthority: cfg.LoadAuthority, TLSMaterialResolver: cfg.TLSMaterialResolver, Clock: cfg.Clock},
+		acceptor:          cfg.Acceptor,
+		pending:           make(map[string]struct{}),
+		pushing:           make(map[string]struct{}),
+		pendingHandshakes: make(map[uint64]string, managedMaxHandshakes),
+		notifyWake:        make(chan struct{}, 1),
+		pushTimeout:       ManagedPushTimeout,
+		sem:               make(chan struct{}, managedMaxHandshakes),
+		mDeclared: reg.Gauge("ze_managed_clients_declared",
+			"Number of managed fleet clients declared in the running hub configuration."),
 		mConnected: reg.Gauge("ze_managed_clients_connected",
 			"Number of managed fleet clients currently connected to the hub."),
+		mHandshakesPending: reg.Gauge("ze_managed_handshakes_pending",
+			"Number of unauthenticated managed client handshakes currently in progress."),
 		mFetch: reg.CounterVec("ze_managed_config_fetch_total",
 			"Managed config-fetch requests served, by result (served|current|error).", []string{managedMetricResult}),
 		mPushed: reg.Counter("ze_managed_config_changed_pushed_total",
@@ -280,7 +299,9 @@ func NewManagedServer(cfg ManagedServerConfig) (*ManagedServer, error) {
 			"Managed device history writes, by result (ok|failed).", []string{managedMetricResult}),
 		mHeld: reg.CounterVec("ze_managed_config_held_total",
 			"Copies of a held configuration managed clients sent, by result (stored|refused).", []string{managedMetricResult}),
-	}, nil
+	}
+	srv.mDeclared.Set(float64(len(devices)))
+	return srv, nil
 }
 
 var errManagedAuthorityLoad = errors.New("load managed certificate authority")
@@ -511,28 +532,79 @@ func (s *ManagedServer) acceptLoop(bound *managedBound) {
 			managedLogger().Debug("managed accept error", "error", err)
 			continue
 		}
-		// Acquire a handler slot (backpressure when saturated). Abandon the connection
-		// if the server is shutting down rather than block forever.
+		// Acquire an unauthenticated handshake slot (backpressure when
+		// saturated). Record saturation for doctor when all managedMaxHandshakes
+		// slots are held, then wait until a slot frees or shutdown cancels.
 		select {
 		case s.sem <- struct{}{}:
-		case <-s.ctx.Done():
-			conn.Close() //nolint:errcheck,gosec // shutting down
-			return
+		default:
+			holders := s.pendingHandshakeAddrs()
+			s.doctor.recordHandshakeSaturated(s.now(), holders)
+			managedLogger().Warn("managed handshake cap reached; new connection waiting for a slot",
+				"code", CodeDoctorManagedHandshakeSaturated, "cap", managedMaxHandshakes,
+				"remote", conn.RemoteAddr().String(), "holders", len(holders))
+			select {
+			case s.sem <- struct{}{}:
+			case <-s.ctx.Done():
+				conn.Close() //nolint:errcheck,gosec // shutting down
+				return
+			}
 		}
+		hsID := s.beginHandshake(remoteHostOf(conn.RemoteAddr().String()))
 		s.wg.Go(func() {
-			defer func() { <-s.sem }()
-			s.handleConn(conn, bound)
+			s.handleConn(conn, bound, hsID)
 		})
 	}
 }
 
+func (s *ManagedServer) beginHandshake(remoteHost string) uint64 {
+	id := s.handshakeSeq.Add(1)
+	s.mu.Lock()
+	s.pendingHandshakes[id] = remoteHost
+	s.mu.Unlock()
+	s.mHandshakesPending.Inc()
+	return id
+}
+
+func (s *ManagedServer) endHandshake(id uint64) {
+	s.mu.Lock()
+	delete(s.pendingHandshakes, id)
+	s.mu.Unlock()
+	s.mHandshakesPending.Dec()
+	<-s.sem
+}
+
+func (s *ManagedServer) pendingHandshakeAddrs() []string {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	seen := make(map[string]struct{}, len(s.pendingHandshakes))
+	out := make([]string, 0, len(s.pendingHandshakes))
+	for _, addr := range s.pendingHandshakes {
+		if _, dup := seen[addr]; dup {
+			continue
+		}
+		seen[addr] = struct{}{}
+		out = append(out, addr)
+	}
+	slices.Sort(out)
+	return out
+}
+
 // handleConn authenticates one managed client against clients, the entries of
-// the server block whose listener accepted it, and serves its RPCs until it
-// disconnects. A panic while it does so is contained here: the deferred
-// cleanup below has already closed the connection and released the client's
-// name when the boundary runs, and the server keeps serving every other
-// client.
-func (s *ManagedServer) handleConn(conn net.Conn, bound *managedBound) {
+// the server block whose listener accepted it, releases its handshake slot as
+// soon as authentication finishes, and serves its RPCs until it disconnects. A
+// panic while it does so is contained here: the deferred cleanup below has
+// already closed the connection and released the client's name when the
+// boundary runs, and the server keeps serving every other client.
+func (s *ManagedServer) handleConn(conn net.Conn, bound *managedBound, handshakeID uint64) {
+	var releaseOnce sync.Once
+	releaseHandshake := func() {
+		releaseOnce.Do(func() {
+			s.endHandshake(handshakeID)
+		})
+	}
+	defer releaseHandshake()
+
 	defer managedPanics().client.Contain(
 		func() taskguard.Context {
 			return taskguard.Context{Unit: "managed client connection from " + conn.RemoteAddr().String()}
@@ -561,6 +633,7 @@ func (s *ManagedServer) handleConn(conn net.Conn, bound *managedBound) {
 	}
 	listenerAddr := bound.listener.Addr().String()
 	name, err := pluginipc.AuthenticateWithLookup(authCtx, conn, "", lookup)
+	releaseHandshake()
 	if err != nil {
 		s.authRefused(conn.RemoteAddr().String(), listenerAddr, err, lookup)
 		return // AuthenticateWithLookup already closed conn on failure.
@@ -574,7 +647,8 @@ func (s *ManagedServer) handleConn(conn net.Conn, bound *managedBound) {
 		conn.Close() //nolint:errcheck,gosec // cannot identify the remote endpoint
 		return
 	}
-	mc := rpc.NewMuxConn(rpc.NewConn(conn, conn))
+	rc := rpc.NewConnWithMaxRead(conn, conn, managedReadMax)
+	mc := rpc.NewMuxConn(rc)
 	defer mc.Close() //nolint:errcheck // cleanup
 	if regErr := s.admitOnListener(name, remote.Addr(), mc, bound, verifiedSecret); regErr != nil {
 		if errors.Is(regErr, ErrDuplicateClient) {
@@ -593,6 +667,11 @@ func (s *ManagedServer) handleConn(conn net.Conn, bound *managedBound) {
 
 	managedLogger().Info("managed client connected", "name", name)
 	s.serve(name, mc)
+	if readErr := rc.Err(); errors.Is(readErr, rpc.ErrMessageTooLong) {
+		s.recordDeclaredRejection(name, ManagedRejectOversize, readErr.Error())
+		managedLogger().Warn("managed client sent oversize line; closing connection",
+			"code", CodeDoctorManagedClientRejected, "name", name, "error", readErr)
+	}
 	managedLogger().Info("managed client disconnected", "name", name)
 }
 

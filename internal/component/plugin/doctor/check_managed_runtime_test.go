@@ -119,3 +119,34 @@ func TestCheckManagedClientRejectedUnidentified(t *testing.T) {
 	require.Contains(t, rejRows[1].Message, "EOF")
 	require.Contains(t, rejRows[2].Message, "2 additional")
 }
+
+// VALIDATES: fleet-1 AC-27 -- managed-handshake-saturated reports the time,
+// count, remote addresses holding slots, and fix, and is registered in the
+// runtime phase.
+func TestCheckManagedHandshakeSaturated(t *testing.T) {
+	require.Empty(t, managedHandshakeSaturatedRows(nil))
+
+	when := time.Date(2026, 11, 25, 11, 30, 0, 0, time.UTC)
+	rows := managedHandshakeSaturatedRows(&server.ManagedHandshakeSaturation{
+		Time:    when,
+		Count:   5,
+		Holders: []string{"192.0.2.1", "192.0.2.2"},
+	})
+	require.Len(t, rows, 1)
+	require.Equal(t, server.CodeDoctorManagedHandshakeSaturated, rows[0].Code)
+	require.Equal(t, diagnostic.SeverityWarning, rows[0].Severity)
+	require.Contains(t, rows[0].Message, when.Format(time.RFC3339))
+	require.Contains(t, rows[0].Message, "5 time(s)")
+	require.Contains(t, rows[0].Message, "192.0.2.1, 192.0.2.2")
+	require.Contains(t, rows[0].Fix, "show fleet devices")
+
+	var registered bool
+	for _, check := range diagnostic.DoctorChecksForPhase(diagnostic.DoctorPhaseRuntime) {
+		if check.Name == managedHandshakeSaturatedCheckName {
+			registered = true
+			require.True(t, slices.Contains(check.Codes, server.CodeDoctorManagedHandshakeSaturated))
+		}
+	}
+	require.True(t, registered)
+	require.NotNil(t, diagnostic.Lookup(server.CodeDoctorManagedHandshakeSaturated))
+}

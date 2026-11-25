@@ -100,8 +100,14 @@ type Conn struct {
 // When the writer supports SetWriteDeadline (e.g., net.Conn), writes use
 // deadline-based timeouts. Otherwise (e.g., os.Stdout), deadlines are skipped.
 func NewConn(reader io.ReadCloser, writer io.WriteCloser) *Conn {
+	return NewConnWithMaxRead(reader, writer, MaxMessageSize)
+}
+
+// NewConnWithMaxRead creates a Conn whose inbound FrameReader enforces maxRead
+// bytes per line instead of MaxMessageSize. Writes keep MaxMessageSize.
+func NewConnWithMaxRead(reader io.ReadCloser, writer io.WriteCloser, maxRead int) *Conn {
 	return &Conn{
-		reader:         NewFrameReader(reader),
+		reader:         NewFrameReaderMax(reader, maxRead),
 		writer:         NewFrameWriter(writer),
 		readCloser:     reader,
 		writeCloser:    writer,

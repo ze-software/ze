@@ -24,6 +24,10 @@ const managedRejectedCheckName = "managed-client-rejected"
 // managed TLS certificate.
 const managedCertRefusedCheckName = "managed-certificate-refused"
 
+// managedHandshakeSaturatedCheckName reports when the managed listener's
+// unauthenticated handshake cap was reached.
+const managedHandshakeSaturatedCheckName = "managed-handshake-saturated"
+
 // checkManagedListenerUnbound answers one error per managed listen address the
 // daemon could not bind, naming the address and the kernel's error. A
 // collision with the plugin acceptor is not among them: the local
@@ -177,6 +181,11 @@ func managedRejectedRow(rejection server.ManagedClientRejection) diagnostic.Diag
 			Str(rejection.Detail)
 		fix.Str("set the managed client's secret to the one in client ").Str(rejection.Client).
 			Str(" { secret ...; } of the hub server block")
+	case server.ManagedRejectOversize:
+		message.Str(" sent a wire line past the managed read maximum, so the hub closed its connection: ").
+			Str(rejection.Detail)
+		fix.Str("check the managed client ").Str(rejection.Client).
+			Str(" with ze doctor and ensure its configuration stays within 1 MiB")
 	case server.ManagedRejectUnspecified:
 		message.Str(" was refused for an unrecorded cause: ").Str(rejection.Detail)
 		fix.Str("ze show warnings")
@@ -187,6 +196,34 @@ func managedRejectedRow(rejection server.ManagedClientRejection) diagnostic.Diag
 		Message:  message.String(),
 		Fix:      fix.String(),
 	}
+}
+
+// checkManagedHandshakeSaturated reports when all unauthenticated managed
+// handshake slots were occupied at once.
+func checkManagedHandshakeSaturated(_ diagnostic.DoctorCheckContext) []diagnostic.Diagnostic {
+	record, _ := server.ManagedRuntimeHealth()
+	return managedHandshakeSaturatedRows(record.HandshakeSaturation)
+}
+
+func managedHandshakeSaturatedRows(sat *server.ManagedHandshakeSaturation) []diagnostic.Diagnostic {
+	if sat == nil {
+		return nil
+	}
+	holders := "none recorded"
+	if len(sat.Holders) > 0 {
+		holders = strings.Join(sat.Holders, ", ")
+	}
+	var message textbuf.Buffer
+	message.Str("the managed listener's 32-slot unauthenticated handshake cap was reached ").
+		Str(strconv.Itoa(sat.Count)).Str(" time(s) (last at ").
+		Str(sat.Time.UTC().Format(time.RFC3339)).Str(", remote addresses holding slots: ").
+		Str(holders).Str("), so new managed connections had to wait before authenticating")
+	return []diagnostic.Diagnostic{{
+		Code:     server.CodeDoctorManagedHandshakeSaturated,
+		Severity: diagnostic.SeverityWarning,
+		Message:  message.String(),
+		Fix:      "check firewall rules and the listed addresses for stalled or abusive connections, and run ze show fleet devices",
+	}}
 }
 
 // checkManagedDeviceRecordUnwritable explains which history a restart could lose.

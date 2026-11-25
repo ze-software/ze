@@ -167,6 +167,9 @@ const (
 	// ManagedRejectBadToken means a connection claimed a configured client's
 	// name and sent a token that is not that client's secret.
 	ManagedRejectBadToken
+	// ManagedRejectOversize means an authenticated client sent a line longer
+	// than the managed read maximum, so the hub closed its connection.
+	ManagedRejectOversize
 )
 
 // managedUnknownMax bounds the unknown names the record keeps. A name reaches
@@ -210,6 +213,15 @@ type ManagedUnidentifiedFailure struct {
 	LastError    string
 }
 
+// ManagedHandshakeSaturation records when the unauthenticated handshake cap
+// was last reached, how many times it happened, and which remote addresses
+// held handshake slots at that moment.
+type ManagedHandshakeSaturation struct {
+	Time    time.Time
+	Count   int
+	Holders []string // Sorted unique remote addresses holding slots.
+}
+
 // ManagedDoctorRecord is what the managed server publishes for doctor: value
 // types only, copied at each read.
 type ManagedDoctorRecord struct {
@@ -225,6 +237,7 @@ type ManagedDoctorRecord struct {
 	Unidentified          []ManagedUnidentifiedFailure // Sorted by Addr.
 	UnidentifiedForgotten int
 	DevicesByAddress      map[string][]string // Sorted device names per CertRefused Addr.
+	HandshakeSaturation   *ManagedHandshakeSaturation
 }
 
 // managedDoctorSource is the managed server doctor reads. Start publishes it
@@ -317,6 +330,23 @@ type managedDoctorState struct {
 	certRefusedForgotten  int
 	unidentified          map[string]ManagedUnidentifiedFailure
 	unidentifiedForgotten int
+	handshakeSaturation   *ManagedHandshakeSaturation
+}
+
+// recordHandshakeSaturated records that all managedMaxHandshakes slots were
+// occupied at now, together with the remote addresses currently holding slots.
+func (d *managedDoctorState) recordHandshakeSaturated(now time.Time, holders []string) {
+	d.mu.Lock()
+	defer d.mu.Unlock()
+	count := 1
+	if d.handshakeSaturation != nil {
+		count = d.handshakeSaturation.Count + 1
+	}
+	d.handshakeSaturation = &ManagedHandshakeSaturation{
+		Time:    now,
+		Count:   count,
+		Holders: slices.Clone(holders),
+	}
 }
 
 // recordUnknown records a connection that claimed a name the hub has no
@@ -491,6 +521,15 @@ func (d *managedDoctorState) snapshotAt(now time.Time) ManagedDoctorRecord {
 		record.Unidentified = append(record.Unidentified, entry)
 	}
 	slices.SortFunc(record.Unidentified, func(a, b ManagedUnidentifiedFailure) int { return strings.Compare(a.Addr, b.Addr) })
+	if d.handshakeSaturation != nil {
+		if now.Sub(d.handshakeSaturation.Time) >= managedUnidentifiedKeep {
+			d.handshakeSaturation = nil
+		} else {
+			cp := *d.handshakeSaturation
+			cp.Holders = slices.Clone(d.handshakeSaturation.Holders)
+			record.HandshakeSaturation = &cp
+		}
+	}
 	return record
 }
 

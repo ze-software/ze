@@ -717,3 +717,48 @@ func TestLocalCommitTwiceReconnectsQuietly(t *testing.T) {
 	assert.Zero(t, strings.Count(lines.String(), "level=WARN"), "log: %s", lines.String())
 	assert.Equal(t, 1, strings.Count(lines.String(), "keeps its local edit"), "log: %s", lines.String())
 }
+
+// VALIDATES: fleet-1 Phase 8 -- SendConfigAck preserves an error of exactly
+// fleet.AckErrorMax bytes and cuts one byte longer on a UTF-8 boundary with
+// fleet.AckErrorTruncatedSuffix.
+func TestSendConfigAckBoundsError(t *testing.T) {
+	t.Parallel()
+
+	clientEnd, hubEnd := net.Pipe()
+	defer clientEnd.Close() //nolint:errcheck // test cleanup
+	defer hubEnd.Close()    //nolint:errcheck // test cleanup
+
+	gotCh := make(chan fleet.ConfigAck, 3)
+	go func() {
+		hubMux := rpc.NewMuxConn(rpc.NewConn(hubEnd, hubEnd))
+		defer hubMux.Close() //nolint:errcheck // test cleanup
+		for req := range hubMux.Requests() {
+			var ack fleet.ConfigAck
+			if err := json.Unmarshal(req.Params, &ack); err == nil {
+				gotCh <- ack
+			}
+			_ = hubMux.SendOK(context.Background(), req.ID)
+		}
+	}()
+
+	mc := rpc.NewMuxConn(rpc.NewConn(clientEnd, clientEnd))
+	defer mc.Close() //nolint:errcheck // test cleanup
+
+	exact := strings.Repeat("e", fleet.AckErrorMax)
+	require.NoError(t, SendConfigAck(t.Context(), mc, fleet.ConfigAck{Version: "v1", OK: false, Error: exact}))
+	gotExact := <-gotCh
+	require.Equal(t, exact, gotExact.Error)
+
+	over := strings.Repeat("e", fleet.AckErrorMax+1)
+	require.NoError(t, SendConfigAck(t.Context(), mc, fleet.ConfigAck{Version: "v2", OK: false, Error: over}))
+	gotOver := <-gotCh
+	require.LessOrEqual(t, len(gotOver.Error), fleet.AckErrorMax)
+	require.True(t, strings.HasSuffix(gotOver.Error, fleet.AckErrorTruncatedSuffix))
+
+	// Multi-byte UTF-8 rune straddling the cut stays valid UTF-8.
+	multi := strings.Repeat("x", fleet.AckErrorMax-len(fleet.AckErrorTruncatedSuffix)-1) + strings.Repeat("é", 20)
+	require.NoError(t, SendConfigAck(t.Context(), mc, fleet.ConfigAck{Version: "v3", OK: false, Error: multi}))
+	gotMulti := <-gotCh
+	require.LessOrEqual(t, len(gotMulti.Error), fleet.AckErrorMax)
+	require.True(t, strings.HasSuffix(gotMulti.Error, fleet.AckErrorTruncatedSuffix))
+}

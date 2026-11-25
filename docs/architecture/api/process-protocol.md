@@ -123,8 +123,11 @@ grammar with the buffering threshold and the failure cases beside it.
 <!-- source: pkg/plugin/rpc/message.go -- NewErrorPayload -->
 
 **Framing:** `FrameReader` uses `bufio.Scanner` with newline splitting.
-`FrameWriter` appends `\n` to each message. Maximum message size is 16 MB.
-<!-- source: pkg/plugin/rpc/framing.go -- FrameReader, FrameWriter, MaxMessageSize -->
+`FrameWriter` appends `\n` to each message. The plugin protocol keeps
+`MaxMessageSize` (16 MiB) on both directions; `NewFrameReaderMax` and
+`NewConnWithMaxRead` allow other consumers (such as the managed fleet listener)
+to enforce a tighter inbound line bound without changing plugin framing.
+<!-- source: pkg/plugin/rpc/framing.go -- FrameReader, NewFrameReaderMax, FrameWriter, MaxMessageSize, ErrMessageTooLong -->
 
 **Multiplexing:** `MuxConn` wraps a `Conn` to support concurrent RPCs on a single
 connection. A background reader goroutine routes responses (verb `ok`/`error`) to

@@ -185,6 +185,7 @@ func (s *ManagedServer) ApplyManagedListeners(plan *ManagedListenerPlan) {
 			s.setRemovedAtLocked(d, time.Time{})
 		}
 	}
+	s.mDeclared.Set(float64(len(labels)))
 	s.mu.Unlock()
 
 	for _, bound := range retired {

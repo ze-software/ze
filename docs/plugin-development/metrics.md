@@ -231,9 +231,13 @@ Use labels for runtime dimensions. Never encode variable data in metric names.
 | `ze_traffic_usage_ingress_bytes_total` | GaugeVec | interface, src_ip | traffic-usage (track-ip) |
 | `ze_traffic_usage_egress_bytes_total` | GaugeVec | interface, dst_ip | traffic-usage (track-ip) |
 | `ze_traffic_usage_map_entries` | GaugeVec | interface, map | traffic-usage |
+| `ze_managed_clients_declared` | Gauge | | managed (hub server): managed clients declared in the running configuration |
 | `ze_managed_clients_connected` | Gauge | | managed (hub server) |
+| `ze_managed_handshakes_pending` | Gauge | | managed (hub server): unauthenticated managed handshakes in progress (capped at 32) |
 | `ze_managed_config_fetch_total` | CounterVec | result | managed (hub server) |
 | `ze_managed_config_changed_pushed_total` | Counter | | managed (hub server) |
+| `ze_managed_device_records_written_total` | CounterVec | result | managed (hub server): device history writes (`ok` or `failed`) |
+| `ze_managed_config_held_total` | CounterVec | result | managed (hub server): held configuration copies received (`stored` or `refused`) |
 | `ze_plugin_write_watchdog_total` | CounterVec | transport | plugin (server) |
 | `ze_plugin_delivery_failures_total` | CounterVec | plugin | plugin (process): event batches sent with no caller waiting that failed to reach the plugin |
 | `ze_plugin_delivery_slow_batches_total` | CounterVec | plugin | plugin (process): event batches that took over 500 ms to deliver, on any transport |

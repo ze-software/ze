@@ -1027,8 +1027,10 @@ func fetchConfigWithin(ctx context.Context, mc *rpc.MuxConn, version string, bou
 }
 
 // SendConfigAck sends a config-ack RPC to the hub confirming receipt. The
-// round-trip is bounded by configAckTimeout, whatever deadline ctx carries.
+// round-trip is bounded by configAckTimeout, whatever deadline ctx carries,
+// and Error is bounded to fleet.AckErrorMax bytes.
 func SendConfigAck(ctx context.Context, mc *rpc.MuxConn, ack fleet.ConfigAck) error {
+	ack.Error = fleet.BoundAckError(ack.Error)
 	ackCtx, cancel := context.WithTimeout(ctx, configAckTimeout)
 	defer cancel()
 	_, err := mc.CallRPC(ackCtx, fleet.VerbConfigAck, ack)

@@ -95,6 +95,16 @@ func init() {
 		Codes:        []string{server.CodeDoctorManagedCertificateRefused},
 		Check:        checkManagedCertificateRefused,
 	})
+	registerOrPanic(diagnostic.DoctorCheck{
+		Name:         managedHandshakeSaturatedCheckName,
+		Phase:        diagnostic.DoctorPhaseRuntime,
+		Order:        716,
+		Component:    componentPlugin,
+		Dependencies: []string{doctorDependencyManagedServer},
+		Platforms:    []string{diagnostic.DoctorPlatformAny},
+		Codes:        []string{server.CodeDoctorManagedHandshakeSaturated},
+		Check:        checkManagedHandshakeSaturated,
+	})
 }
 
 // registerOrPanic registers one check and panics on a refusal. Registration

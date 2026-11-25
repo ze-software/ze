@@ -3,7 +3,10 @@
 
 package fleet
 
-import "time"
+import (
+	"time"
+	"unicode/utf8"
+)
 
 // RPC verb constants for managed config protocol.
 const (
@@ -79,6 +82,29 @@ type ConfigHeld struct {
 // bound is set by the client's notification loop, which answers no
 // config-changed while an upload runs, not by the store.
 const HeldConfigMax = 1 << 20
+
+// AckErrorMax is the maximum number of UTF-8 bytes a managed client sends in
+// ConfigAck.Error. Longer messages are cut on a UTF-8 rune boundary and marked
+// with AckErrorTruncatedSuffix so every legal client request stays well below
+// the hub's managed read maximum.
+const AckErrorMax = 1024
+
+// AckErrorTruncatedSuffix marks a ConfigAck.Error value that was shortened to
+// fit AckErrorMax.
+const AckErrorTruncatedSuffix = "... (truncated)"
+
+// BoundAckError shortens text to at most AckErrorMax bytes on a UTF-8 rune
+// boundary and appends AckErrorTruncatedSuffix when truncated.
+func BoundAckError(text string) string {
+	if len(text) <= AckErrorMax {
+		return text
+	}
+	limit := AckErrorMax - len(AckErrorTruncatedSuffix)
+	for limit > 0 && !utf8.RuneStart(text[limit]) {
+		limit--
+	}
+	return text[:limit] + AckErrorTruncatedSuffix
+}
 
 // HeldRefusedCode is the error code of a hub that takes config-held and
 // refused this one copy: too large, a hash that is not the hash of the bytes,

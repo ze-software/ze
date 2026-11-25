@@ -296,3 +296,24 @@ func TestPlainTextIsFramedByItsNewlineAlone(t *testing.T) {
 	require.False(t, scanner.Scan(), "the answer framer delivered a line of plain text")
 	require.Error(t, scanner.Err(), "the answer framer read plain text without measuring it")
 }
+
+// VALIDATES: fleet-1 Phase 8 -- NewFrameReaderMax reads a wire line of exactly
+// maxSize bytes intact.
+func TestFrameReaderMaxAcceptsExact(t *testing.T) {
+	t.Parallel()
+	const maxSize = 256
+	line := strings.Repeat("a", maxSize)
+	got, err := NewFrameReaderMax(strings.NewReader(line+"\n"), maxSize).Read()
+	require.NoError(t, err)
+	require.Equal(t, line, string(got))
+}
+
+// VALIDATES: fleet-1 Phase 8 -- NewFrameReaderMax refuses a wire line one byte
+// longer than maxSize with ErrMessageTooLong.
+func TestFrameReaderMaxRefusesLonger(t *testing.T) {
+	t.Parallel()
+	const maxSize = 256
+	line := strings.Repeat("a", maxSize+1)
+	_, err := NewFrameReaderMax(strings.NewReader(line+"\n"), maxSize).Read()
+	require.ErrorIs(t, err, ErrMessageTooLong)
+}

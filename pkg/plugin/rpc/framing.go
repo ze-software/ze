@@ -134,6 +134,10 @@ func ReleaseAnswerLineBuffer(line *[]byte) {
 // MaxMessageSize is the maximum allowed message size (16 MB).
 const MaxMessageSize = 16 * 1024 * 1024
 
+// ErrMessageTooLong is returned by FrameReader.Read when a wire line exceeds
+// the reader's configured maximum size.
+var ErrMessageTooLong = errors.New("message exceeds maximum size")
+
 // initialBufSize is the initial read buffer size (64 KB).
 const initialBufSize = 64 * 1024
 
@@ -145,16 +149,29 @@ const initialBufSize = 64 * 1024
 // (ScanAnswerLines).
 type FrameReader struct {
 	scanner *bufio.Scanner
+	maxSize int
 }
 
-// NewFrameReader creates a FrameReader that reads one wire line at a time.
+// NewFrameReader creates a FrameReader that reads one wire line at a time,
+// bounded by MaxMessageSize (16 MiB).
 func NewFrameReader(r io.Reader) *FrameReader {
+	return NewFrameReaderMax(r, MaxMessageSize)
+}
+
+// NewFrameReaderMax creates a FrameReader that accepts wire lines of at most
+// maxSize bytes (excluding the trailing newline) and rejects longer lines with
+// an error wrapping ErrMessageTooLong.
+func NewFrameReaderMax(r io.Reader, maxSize int) *FrameReader {
+	if maxSize <= 0 {
+		panic("BUG: rpc.NewFrameReaderMax: maxSize must be positive")
+	}
 	scanner := bufio.NewScanner(r)
-	// MaxMessageSize+1 because bufio.Scanner's max is exclusive (token must be
-	// < max), and a line of exactly MaxMessageSize needs its newline held too.
-	scanner.Buffer(make([]byte, initialBufSize), MaxMessageSize+1)
-	scanner.Split(ScanAnswerLines)
-	return &FrameReader{scanner: scanner}
+	initSize := min(initialBufSize, maxSize+1)
+	// maxSize+1 because bufio.Scanner's max is exclusive (token must be
+	// < max), and a line of exactly maxSize needs its newline held too.
+	scanner.Buffer(make([]byte, initSize), maxSize+1)
+	scanner.Split(scanAnswerLinesMax(maxSize))
+	return &FrameReader{scanner: scanner, maxSize: maxSize}
 }
 
 // ScanAnswerLines is the bufio.SplitFunc every reader of this protocol frames
@@ -186,9 +203,19 @@ func NewFrameReader(r io.Reader) *FrameReader {
 // instead, which is the same refusal to strip a `\r` with none of the width
 // arithmetic.
 func ScanAnswerLines(data []byte, atEOF bool) (advance int, token []byte, err error) {
+	return splitAnswerLines(data, atEOF, MaxMessageSize)
+}
+
+func scanAnswerLinesMax(maxSize int) bufio.SplitFunc {
+	return func(data []byte, atEOF bool) (int, []byte, error) {
+		return splitAnswerLines(data, atEOF, maxSize)
+	}
+}
+
+func splitAnswerLines(data []byte, atEOF bool, maxSize int) (advance int, token []byte, err error) {
 	switch width, state := answerLineWidth(data); state {
 	case answerLineStated:
-		return scanStatedLine(data, atEOF, width)
+		return scanStatedLineMax(data, atEOF, width, maxSize)
 	case answerLinePartial:
 		if atEOF {
 			return 0, nil, fmt.Errorf("answer line states a field wider than the %d bytes that arrived before the stream ended", len(data))
@@ -225,12 +252,12 @@ func ScanLinesKeepingReturns(data []byte, atEOF bool) (advance int, token []byte
 	return 0, nil, nil
 }
 
-// scanStatedLine frames one answer line by the width it states. The count is
+// scanStatedLineMax frames one answer line by the width it states. The count is
 // bounded BEFORE anything is sliced, so a count an attacker chose cannot become
 // a buffer this reader grows to hold.
-func scanStatedLine(data []byte, atEOF bool, width uint64) (int, []byte, error) {
-	if width > MaxMessageSize {
-		return 0, nil, fmt.Errorf("answer line states %d bytes, past the %d-byte maximum", width, MaxMessageSize)
+func scanStatedLineMax(data []byte, atEOF bool, width uint64, maxSize int) (int, []byte, error) {
+	if width > uint64(maxSize) {
+		return 0, nil, fmt.Errorf("%w: answer line states %d bytes, past the %d-byte maximum", ErrMessageTooLong, width, maxSize)
 	}
 	end := int(width)
 	if len(data) <= end {
@@ -258,7 +285,7 @@ func (fr *FrameReader) Read() ([]byte, error) {
 	if err := fr.scanner.Err(); err != nil {
 		// Check if this is a token-too-long error (oversized message)
 		if errors.Is(err, bufio.ErrTooLong) {
-			return nil, fmt.Errorf("message exceeds maximum size %d", MaxMessageSize)
+			return nil, fmt.Errorf("%w %d", ErrMessageTooLong, fr.maxSize)
 		}
 		return nil, err
 	}

@@ -56,6 +56,8 @@ const (
 	CodeDoctorManagedClientRejected = "doctor-managed-client-rejected"
 	// CodeDoctorManagedCertificateRefused reports remote addresses that refused the hub's managed TLS certificate.
 	CodeDoctorManagedCertificateRefused = "doctor-managed-certificate-refused"
+	// CodeDoctorManagedHandshakeSaturated reports that the hub's unauthenticated managed handshake cap was reached.
+	CodeDoctorManagedHandshakeSaturated = "doctor-managed-handshake-saturated"
 	// CodeDoctorPluginRemovalUnrecovered is the doctor diagnostic code "doctor-plugin-removal-unrecovered".
 	CodeDoctorPluginRemovalUnrecovered = "doctor-plugin-removal-unrecovered"
 	// CodeDoctorPluginCapabilitiesNotRestored is the doctor diagnostic code "doctor-plugin-capabilities-not-restored".
@@ -264,6 +266,14 @@ var doctorDiagnosticCodes = []diagnostic.CodeMeta{
 			"The row names the remote address, how many times and when it refused, the alert, the certificate the listener presents now, and any devices whose last session came from that address.",
 		Examples:     []string{exampleShowDoctor, "ze show fleet devices", "ze show diagnostic doctor-managed-certificate-refused"},
 		RelatedCodes: []string{CodeDoctorManagedClientRejected, "doctor-hub-certificate-unverified"},
+	},
+	{
+		Code:  CodeDoctorManagedHandshakeSaturated,
+		Title: "Managed listener handshake cap reached",
+		Description: "All 32 unauthenticated handshake slots of the managed listener were occupied at the same time, so new connections waited until an in-flight handshake completed or timed out. " +
+			"The row names when the cap was last reached, how many times it was reached, and the remote addresses holding slots.",
+		Examples:     []string{exampleShowDoctor, "ze show fleet devices", "ze show diagnostic doctor-managed-handshake-saturated"},
+		RelatedCodes: []string{CodeDoctorManagedClientRejected, "doctor-hub-handshake-failed"},
 	},
 	{
 		Code:  CodeDoctorPluginRemovalUnrecovered,
