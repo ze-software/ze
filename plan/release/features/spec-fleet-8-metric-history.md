@@ -2,7 +2,7 @@
 
 | Field | Value |
 |-------|-------|
-| Status | design |
+| Status | ready |
 | Scope | fleet, protocol |
 | Priority | P2 |
 | Release reason | Thomas put this fleet capability (the hub's metric history of its devices) in the first release; existing supported behavior and its obligations remain required. |

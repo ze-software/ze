@@ -2,7 +2,7 @@
 
 | Field | Value |
 |-------|-------|
-| Status | design |
+| Status | ready |
 | Scope | protocol, plugin, config, cli |
 | Priority | P2 |
 | Release reason | Thomas put this fleet capability (configuration drift detection by SHA-1 hash chain, repaired by the hub with a diff resync and a full replay fallback, reached through commands on every command surface per `ai/META-DECISIONS.md`) in the first release; existing first-release managed behavior and the fleet-6/fleet-7 hold guarantees remain required. |
