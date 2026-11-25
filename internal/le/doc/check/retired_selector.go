@@ -50,11 +50,10 @@ var retiredSelectorNotZePrefixes = [...]string{
 }
 
 // retiredSelectorSweepFiles and retiredSelectorSweepDir declare file class
-// F-3: the sweep itself, its test, its fixture tree, and its design spec.
+// F-3: the sweep itself, its test, and its fixture tree.
 var retiredSelectorSweepFiles = [...]string{
 	"internal/le/doc/check/retired_selector.go",
 	"internal/le/doc/check/retired_selector_test.go",
-	"plan/release/fixes/spec-dataplane-compatibility-guard.md",
 }
 
 const retiredSelectorSweepDir = "internal/le/doc/check/testdata/retired_selector/"
@@ -174,6 +173,9 @@ const (
 	selectorN1DecisionLineBGPSpec     = "| `docs/architecture/core-design.md` | Design decisions | decision of 2026-11-23 on `core-design.md` | \"Every data-plane selector names the plane it programs"
 	selectorN1DecisionLinePluginSpec  = "| `docs/architecture/core-design.md` | Design decisions | decision row on `docs/architecture/core-design.md` | \"Every data-plane selector names the plane it programs"
 	selectorN1DecisionQuote           = "\"Every data-plane selector names the plane it programs, `kernel` or `vpp`: `interface backend`, `firewall backend` and `traffic control backend` take `kernel` where they took `netlink`, `nft` and `tc`"
+	selectorFragmentFile              = "website/changes/fragments/dataplane-compatibility-guard.md"
+	selectorFragmentLine              = "the previous implementation names (`netlink`, `nft`, and `tc`) are refused without aliasing."
+	selectorFragmentWhy               = "change fragment records the retired selector names for operator migration"
 )
 
 // retiredSelectorExceptions declares the line exceptions of AC-20. Each entry
@@ -287,19 +289,34 @@ var retiredSelectorExceptions = [...]retiredSelectorException{
 		why:   selectorN1DecisionWhy,
 	},
 	{
-		file: selectorCoreDesignFile,
-		old:  selectorValNFT,
-		lines: []string{
-			selectorN1DecisionLineCoreDesign,
-			`| The VPP firewall verifier, not a YANG annotation, decides whether ` + "`connection-state`" + ` and ` + "`mark-set`" + ` are accepted on VPP. The ` + "`ze:backend`" + ` annotation of ` + "`flow-offload`" + ` is deleted with theirs; ` + "`flow-offload`" + ` stays refused on VPP because VPP has no flowtable and the ` + "`flowtable`" + ` list keeps its ` + "`ze:backend \"nft\"`" + ` annotation. | A ` + "`ze:backend`" + ` annotation that refuses ` + "`connection-state`" + ` or ` + "`mark-set`" + ` on VPP, or announcing any of ` + "`connection-state`" + `, ` + "`flow-offload`" + ` and ` + "`mark-set`" + ` as supported on VPP before a test on real VPP proves it. | plan/release/fixes/spec-dataplane-compatibility-guard.md | 2026-11-23 |`,
-		},
-		why: selectorN1DecisionWhy,
+		file:  selectorCoreDesignFile,
+		old:   selectorValNFT,
+		lines: []string{selectorN1DecisionLineCoreDesign},
+		why:   selectorN1DecisionWhy,
 	},
 	{
 		file:  selectorCoreDesignFile,
 		old:   selectorValTC,
 		lines: []string{selectorN1DecisionLineCoreDesign},
 		why:   selectorN1DecisionWhy,
+	},
+	{
+		file:  selectorFragmentFile,
+		old:   selectorValNetlink,
+		lines: []string{selectorFragmentLine},
+		why:   selectorFragmentWhy,
+	},
+	{
+		file:  selectorFragmentFile,
+		old:   selectorValNFT,
+		lines: []string{selectorFragmentLine},
+		why:   selectorFragmentWhy,
+	},
+	{
+		file:  selectorFragmentFile,
+		old:   selectorValTC,
+		lines: []string{selectorFragmentLine},
+		why:   selectorFragmentWhy,
 	},
 	{
 		file:  "docs/architecture/firewall/table-ownership-and-shutdown-flush.md",

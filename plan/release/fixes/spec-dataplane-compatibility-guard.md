@@ -910,7 +910,7 @@ Assumption A-6 covers what that means for an external plugin.
 ### Assumptions
 | ID | Assumption | Basis (file/doc/user statement) | If wrong | Validated by | Status |
 |----|-----------|--------------------------------|----------|--------------|--------|
-| A-1 | With `interface backend vpp`, a feature programmed in the Linux kernel acts only on packets VPP hands to Linux through the LCP TAP, never on packets VPP forwards | `docs/guide/vpp.md`; `plan/journal/silent-fall-through.md` rp_filter row (read, not run) | The "why" line of refusals C and E is wrong, though Thomas's decision stands without it; and the consequence Known Limitations states for a forwarding key of `sysctl` under `vpp` (an `rp_filter` key acts only on the packets that reach Linux) is wrong in the other direction. A `sysctl` key about kernel behaviour does not rest on A-1: it is applied to the Linux kernel whatever the data plane | Read the punt and TAP paths in `third_party/vpp-linux-cp/src` and name the function; then one real-VPP packet check in `./le test deployment vpp` | unvalidated |
+| A-1 | With `interface backend vpp`, a feature programmed in the Linux kernel acts only on packets VPP hands to Linux through the LCP TAP, never on packets VPP forwards | `docs/guide/vpp.md`; `plan/journal/silent-fall-through.md` rp_filter row (read, not run) | The "why" line of refusals C and E is wrong, though Thomas's decision stands without it; and the consequence Known Limitations states for a forwarding key of `sysctl` under `vpp` (an `rp_filter` key acts only on the packets that reach Linux) is wrong in the other direction. A `sysctl` key about kernel behaviour does not rest on A-1: it is applied to the Linux kernel whatever the data plane | Read `third_party/vpp-linux-cp/src/lcp_interface.c` (`lcp_itf_pair_add` wires only passive punt `ip4_punt_redirect_add_paths`/`ip6_punt_redirect_add_paths`, `linux-cp-arp-phy`, `linux-cp-punt-l3`; `lcp_interface_init` registers `linux-cp-punt` + `udp_punt_unknown`/`tcp_punt_unknown`; `lcp.rst` lines 76-86 confirm only ARP and punted IP cross to the TAP); verified in QEMU KVM `./le test qemu docker-lab lab "test deployment vpp ..."` against real `vpp v26.06-release` (`mpls-label-pop` traced `pg-input -> ethernet-input -> mpls-input -> mpls-lookup -> ip4-mpls-label-disposition-pipe -> lookup-ip4-dst -> ip4-drop -> error-drop -> drop` entirely inside VPP's graph without touching Linux/TAP, while kernel `sysctl` on `net.mpls.conf.pg0.input` hit `no such file or directory`; `ipsec` traced `pg-input -> ethernet-input -> ip4-input -> ipsec4-input-feature -> ip4-lookup`) (2026-11-25) | validated |
 | A-2 | IPsec, L2TP, flow export sampling and policy routing program the kernel whatever `interface backend` says | Read at the producers: `ikeDataplaneName` returns `xfrm`; `prepareKernelBackend` opens `iface.DefaultBackendName()`; `SetupSampling` installs kernel tc; `applyPolicies` installs kernel `ip rule` entries | A feature already handles VPP and the refusal would remove working behavior | Read at the producer (done 2026-11-23). Corrected: the draft said none of them reads the backend. L2TP names it and picks the OS default on purpose, and sampling takes the active backend's index, so under `vpp` it programs a kernel filter on a VPP index | validated |
 | A-3 | The doors that run `refuseAbsentOptionalProviders` are shared by boot, reload, `ze config validate`, editor and API commit | `loadConfig` (boot, SIGHUP reload) and `VerifyPluginConfigMapTransition`, reached by `ze config validate` through `VerifyPluginConfig` → `verifyTree`: read. The verdict needs the tree, so its call site at validate and commit is `verifyTree`, whose callers are `VerifyPluginConfig` (`cmd_validate.go`, and `internal/component/cli/validator.go` at editor pre-commit) and `VerifyPluginConfigTransition` (`validator.go`, editor commit); `VerifyPluginConfigMap`, the map-only entry, has no caller outside tests (search of `internal` and `cmd`, 2026-11-23). API commit reaches it per the comment of `refuseAbsentOptionalProviders` only | The verdict misses one entry point | Trace the API commit to `verifyTree` (A-13); all 7 door `.ci` tests + boot/reload/validate `.ci` tests passed (2026-11-25) | validated |
 | A-4 | A table producer whose tables the configuration fixes can build them from the candidate tree, in a tree validator, without side effects | copp: `translatePolicy` is pure over the parsed policy. Policy routing: `verifyPolicySections` already runs `translate` on a fresh allocator. IRR interface bindings: the set contents come from the store, but the table shape (ingress chain, named set) comes from the binding alone, so the builder reads no store. ddos-local, flowspec-firewall and anomaly shape build tables only at run time (a detection, a selected FlowSpec route), so no commit holds their tables | H or K cannot move ahead of apply for that producer | Read each producer's table builder (done 2026-11-23): holds for copp, policy routing and the IRR binding shape, broken for the three run-time producers, which AC-8 leaves to `ApplyAll`. The IRR shape builder is new code, proven by `TestIRRInterfaceBindingBuilderAnswersTheShape` | validated |
@@ -1704,3 +1704,192 @@ answered it the same day (voice-transcribed).
 - [ ] The `Source` cell of the `docs/architecture/core-design.md` design decision row that names this spec is repointed in commit A
 - [ ] **Commit A:** code + tests + docs + edited spec + any journal rows owed by the work
 - [ ] **Commit B:** `remove plan/release/fixes/spec-dataplane-compatibility-guard.md` only, in the same `./le commit create` script
+
+
+---
+
+## Implementation Summary
+
+### What Was Implemented
+- Landed in commit `1f82b2727d` (`feat(config): enforce data-plane compatibility guard and kernel naming`, 1406 files changed, 5 obsolete per-component gate files deleted) plus closure cleanup in Commit A:
+  - **Registry & data-plane declarations (`internal/component/plugin/registry/dataplane_decl.go`, `registry.go`)**: added `DataPlaneSelector`, `DataPlaneFeature`, `HostSideDataPlane`, and lookup helpers; renamed all kernel backend/provider/reader registrations and `DataPlane` values from `netlink`/`nft`/`tc` to `kernel`.
+  - **Unified config-door verdict & doctor check (`internal/component/config/dataplane_verdict.go`, `register_dataplane_doctor.go`, `declared_schemas.go`, `loader.go`, `plugin_verify.go`)**: added `evaluateDataPlaneVerdict`, `candidatePluginSelection`, `RecordCommandLinePlugins` / `RecordedCommandLinePlugins`, and `doctor-dataplane-mismatch`. Wired into `loadConfig`, `verifyTree`, `zeDispatch` (`cmd/ze/ze_core_dispatch.go`), `judgeConfigBeforeBoot` (`cmd/ze/pushed_config.go`), `startEphemeralDaemon` (`internal/component/config/cli/cmd_edit.go`), and SSH upload refusal fixes (`cmd/ze/hub/config_upload.go`).
+  - **Single engine-owned `ze:backend` walk (`internal/component/config/backend_gate.go`)**: replaced all four per-component `ValidateBackendFeatures` call sites and VRRP's hand check with `walkBackendFeaturesTree` run over the written tree before schema defaults materialize; deleted 5 obsolete gate files and `doctor-vrrp-backend-unusable`.
+  - **Feature planes, host-side marks, and original-tree validators**: declared kernel planes on `ike`, `l2tp`, `flow-export` (sampling + conntrack), `policyroute`, `gtsm`, and table producers (`copp`, `ddos-local`, `anomaly-shape`, `flowspec-firewall`); marked `fib-kernel` and `sysctl` as `HostSideDataPlane`; added `iface-vpp-wireguard-plugin` (`internal/plugins/iface/vpp/verify_wireguard.go`, `register_wireguard_validator.go`) shared with `doctor-vpp-wireguard`; added `firewall-producer-tables` (`internal/component/firewall/producer_verify.go`, `register_producer_verify.go`) with config table builders from `copp` and `firewall-irr`.
+  - **VPP firewall & static named-table routes**: made VPP NAT44 `snat`/`masquerade` source-address match a refusal (`internal/plugins/firewall/vpp/verify.go`), deleted `ze:backend` annotations on `connection-state`/`flow-offload`/`mark-set` while keeping `flowtable` `ze:backend "kernel"`, and made `static` select its named-table route backend strictly from the configured primary data plane with `doctor-static-vpp-channel` and zero kernel fallback (`internal/plugins/static/backend_linux.go`, `backend_vpp_linux.go`, `register_doctor_codes.go`).
+  - **N-1 selector rename, sweep, and generated matrix**: renamed `netlink`/`nft`/`tc` to `kernel` across schemas, registrations, docs, tests, and site goldens; added `le doc check retired-selector-values` (`internal/le/doc/check/retired_selector.go`) sharing `walkTracked`, `retiredRecords` (with manifest-pinned reboot snapshots), and `retiredOwnedRowsAfter`; generated `docs/guide/dataplane-features.md` via `internal/le/doc/yangcontract/dataplane_page.go`.
+
+### Bugs Found/Fixed
+- **Missed `docs/architecture/core-design.md:4264` N-1 departure in `1f82b2727d`**: row 3 of `## Design decisions` still carried ``ze:backend "nft"`` (and `internal/le/doc/check/retired_selector.go:294` carried a line exception for it) despite the approved `departs` row in `07a90bb50f`. Fixed in Commit A (`ze:backend "kernel"` on `docs/architecture/core-design.md:4264`, line 294 exception deleted from `retired_selector.go`), covered by `TestRetiredSelectorValueSweepPassesTheTree`.
+- **Closure cleanup of F-3 entry**: removed `"plan/release/fixes/spec-dataplane-compatibility-guard.md"` from `retiredSelectorSweepFiles` (`internal/le/doc/check/retired_selector.go:57`) and scheduled removal of its test fixture `internal/le/doc/check/testdata/retired_selector/plan/release/fixes/spec-dataplane-compatibility-guard.md` in Commit A alongside Commit B's spec removal.
+
+### Documentation Updates
+- Updated all 10 departed design pages in `1f82b2727d`, plus `docs/architecture/core-design.md` lines 4262-4265 in Commit A (repointed `Source` to `1f82b2727d` and updated `flowtable` `ze:backend "kernel"`).
+- Generated `docs/guide/dataplane-features.md` (`internal/le/doc/yangcontract/dataplane_page.go`), updated `features/commit-time-backend-capability-check.md`, `ai/INDEX.md`, `ai/CODE-TO-DOCS.md`, `ai/DOCS-TO-CODE.md`, and guides (`docs/guide/configuration.md`, `docs/guide/vpp.md`, `docs/guide/firewall.md`, `docs/guide/traffic-control.md`, `docs/features/interfaces.md`, `docs/config-reference.md`).
+- Added operator change fragment `website/changes/fragments/dataplane-compatibility-guard.md` (with its single migration line declared in `retiredSelectorExceptions` for `netlink`/`nft`/`tc`).
+- `./le doc check all`: 0 findings attributable to `1f82b2727d` or Commit A (only unrelated concurrent-session working-tree drift on `bus`/`fib-dummy` files).
+
+### Deviations from Plan
+- None in product behavior. All AC-1..AC-20, all 35 TDD unit tests, all 52 `.ci` functional tests, and all N-1 renames match the approved design (`8dae4d565fb701a600262b6ac394818bfa8eae9c463d4326ad6f6aaa0bfec2e8`).
+
+## Mistake Log
+
+| Kind | What happened | What was true instead | How discovered | Action |
+|------|---------------|----------------------|----------------|--------|
+| approach | `1f82b2727d` left `ze:backend "nft"` in `docs/architecture/core-design.md:4264` and added a line exception in `retired_selector.go:294` instead of updating that cell to `ze:backend "kernel"` as the approved `departs` row required | `ze-firewall-conf.yang` had already been renamed to `ze:backend "kernel"` on `flowtable`, so line 4264 contradicted the live schema and the approved departure | Caught during `/ze-close` design-documents lens review of `docs/architecture/core-design.md:4262-4265` | Updated line 4264 to `ze:backend "kernel"` and deleted the obsolete line 294 exception in Commit A |
+
+## Implementation Audit
+
+### Requirements from Task
+| Requirement | Status | Location | Notes |
+|-------------|--------|----------|-------|
+| Refuse kernel-only features, wrong-plane FIB writers, cross-plane firewall/traffic/producers, and missing VPP WireGuard plugin at commit, start, reload, and `ze config validate` | Done | `internal/component/config/dataplane_verdict.go` (`evaluateDataPlaneVerdict`), `internal/plugins/iface/vpp/verify_wireguard.go`, `internal/component/firewall/producer_verify.go` | Single verdict in `loadConfig` and `verifyTree` plus two original-tree validators |
+| Keep host-side `fib kernel` (beside `fib vpp`) and `sysctl` accepted under `vpp`; refuse `fib kernel` alone under `vpp` | Done | `internal/plugins/fib/kernel/register.go`, `internal/component/sysctl/register.go`, `internal/component/config/dataplane_verdict.go` | Driven by `HostSideDataPlane` and `ProgramsFIB` |
+| Honor global `--plugin` at every candidate door | Done | `internal/component/config/declared_schemas.go` (`RecordCommandLinePlugins`), `cmd/ze/ze_core_dispatch.go`, `cmd/ze/pushed_config.go`, `internal/component/config/cli/cmd_edit.go`, `cmd/ze/hub/config_upload.go` | Proven by all 7 door `.ci` tests + 8/8 A-16 recorded-red proofs |
+| Collapse per-component `ze:backend` gates into one config walk | Done | `internal/component/config/backend_gate.go` (`walkBackendFeaturesTree`) | All 4 call sites and 5 obsolete gate files deleted in `1f82b2727d` |
+| Static named-table backend follows configured data plane without kernel fallback | Done | `internal/plugins/static/backend_linux.go`, `backend_vpp_linux.go`, `register_doctor_codes.go` | `doctor-static-vpp-channel` registered |
+| VPP NAT44 source-address match refused; `connection-state`/`mark-set`/`flow-offload` annotations removed so verifier / `flowtable` decides | Done | `internal/plugins/firewall/vpp/verify.go`, `internal/component/firewall/yang/ze-firewall-conf.yang` | `flowtable` keeps `ze:backend "kernel"` |
+| Rename selectors `netlink`/`nft`/`tc` -> `kernel` atomically with sweep gate and generated `docs/guide/dataplane-features.md` | Done | `internal/le/doc/check/retired_selector.go`, `internal/le/doc/yangcontract/dataplane_page.go`, `docs/guide/dataplane-features.md` | 0 retired selector hits; site goldens refreshed |
+
+### Acceptance Criteria
+| AC ID | Status | Demonstrated By | Notes |
+|-------|--------|-----------------|-------|
+| AC-1 | Done | `TestDataPlaneVerdictRefusesWrongPlaneFIB`, `test/parse/dataplane-fib-vpp-on-kernel-refused.ci`, `test/plugin/dataplane-fib-vpp-on-kernel-refuses-start.ci` | `fib vpp` under `interface backend kernel` refused |
+| AC-2 | Done | `TestVPPWireguardPluginCheckAndValidatorShareLogic`, `test/parse/iface-vpp-wireguard-plugin-required.ci`, `test/plugin/iface-vpp-wireguard-plugin-refuses-start.ci`, `test/reload/vpp-wireguard-plugin-off-reload-refused.ci` | `iface-vpp-wireguard-plugin` + `doctor-vpp-wireguard` share `verifyWireguardPlugin` |
+| AC-3 | Done | `TestDataPlaneVerdictRefusesCrossPlaneFirewallAndTraffic`, `TestDataPlaneVerdictRefusesFlowspecFirewallByPluginBlockAndCLI`, `test/parse/dataplane-vpp-refuses-kernel-{firewall,traffic,copp,ddos-local,anomaly-shape,flowspec-firewall,flowspec-firewall-custom-key}.ci`, `test/parse/dataplane-validate-sees-command-line-plugin.ci` | Unused defaults stay accepted |
+| AC-4 | Done | `TestDataPlaneVerdictRefusesCrossPlaneFirewallAndTraffic`, `test/parse/dataplane-kernel-refuses-vpp-{firewall,traffic}.ci`, `test/plugin/dataplane-kernel-refuses-vpp-firewall-at-start.ci` | Names both fix paths |
+| AC-5 | Done | `TestDataPlaneVerdictRefusesKernelOnlyFeaturesUnderVPP`, `TestDataPlaneVerdictAcceptsSysctlAndCleanFlowExportUnderVPP`, `test/parse/dataplane-vpp-refuses-{ipsec,l2tp,flow-export-sampling,policyroute,gtsm}.ci`, `test/parse/dataplane-vpp-accepts-{sysctl,l2tp-without-listener,flow-export-no-kernel-workers}.ci` | One refusal per feature; `sysctl` accepted |
+| AC-6 | Done | `TestVPPFirewallRefusesNATSourceAddressMatch`, `test/parse/firewall-vpp-nat-source-match-refused.ci` | Names table, chain, term, and whole-interface rule |
+| AC-7 | Done | `TestStaticNamedTableBackendSelectsFromConfiguredDataPlane`, `test/static/static-named-table-follows-dataplane.ci` | Zero kernel fallback; `doctor-static-vpp-channel` |
+| AC-8 | Done | `TestFirewallProducerTablesValidatorRefusesCoppAndIRRUnderVPP`, `TestIRRInterfaceBindingBuilderAnswersTheShape`, `test/parse/firewall-vpp-refuses-{copp,irr-interface}.ci`, `test/plugin/firewall-vpp-copp-refuses-start.ci` | Refused before plugin start |
+| AC-9 | Done | `TestDataPlaneDoctorReportsVerdictAndWalkRefusals`, `test/plugin/doctor-dataplane-mismatch.ci`, `test/vrrp/vrrp-doctor.ci`, `test/vrrp/vrrp-doctor-fires.ci` | `doctor-dataplane-mismatch` replaces `doctor-vrrp-backend-unusable` |
+| AC-10 | Done | `TestWalkBackendFeaturesTreeCoversEveryModuleBeforeDefaults`, `internal/component/config/dataplane_walk_test.go`, `test/parse/container-vpp-refused.ci`, `test/parse/iface-vpp-accepts-tunnel-without-ttl.ci` | All 4 per-component gate calls removed |
+| AC-11 | Done | `TestEveryRegisteredBackendAndPlaneKeyMatchesPrimaryDataPlanes` | Verified over composition root |
+| AC-12 | Done | `TestDataplaneFeaturesPageMatchesLiveDeclarations` (`internal/le/doc/yangcontract/dataplane_page_test.go`) | Generates and verifies `docs/guide/dataplane-features.md` |
+| AC-13 | Done | `test/reload/dataplane-mismatch-reload-refused.ci` | Running config stays active |
+| AC-14 | Done | `TestDataPlaneVerdictFibKernelHostSideAndAloneRefusal`, `test/parse/dataplane-vpp-fib-kernel-{beside-vpp-accepted,alone-refused}.ci`, `test/plugin/dataplane-vpp-fib-kernel-alone-refuses-start.ci` | Fix derived from `ProgramsFIB` + selected plane |
+| AC-15 | Done | `TestDataPlaneVerdictRefusesFlowExportConntrackUnderVPP`, `test/parse/dataplane-vpp-refuses-flow-export-conntrack.ci`, `test/plugin/dataplane-vpp-flow-export-conntrack-refuses-start.ci` | Second in-use predicate on flow-export registration |
+| AC-16 | Done | `TestLoadConfigRefusesIPsecAndEveryMismatchAtStart`, `test/plugin/dataplane-ipsec-vpp-refuses-start.ci` | One verdict at start, reload, commit, validate |
+| AC-17 | Done | `TestVPPFirewallConnectionStateMarkSetAndFlowtable`, `test/parse/firewall-vpp-{connection-state-accepted,connection-state-new-refused,mark-set-accepted,flow-offload-refused-by-flowtable}.ci` | Three annotations deleted; `flowtable` keeps `ze:backend "kernel"` |
+| AC-18 | Done | `TestDispatcherRecordsTheCommandLinePlugins`, `TestLoadConfigVerdictReadsItsCommandLinePlugins`, `TestEphemeralDaemonForwardsRecordedPlugins`, `TestSSHUploadRefusalCarriesDaemonPlugins`, 7 door `.ci` tests + `test/parse/dataplane-validate-sees-command-line-plugin.ci` + `test/managed/dataplane-managed-push-sees-plugin.ci` | 8/8 A-16 recorded-red proofs passed |
+| AC-19 | Done | `TestRetiredSelectorValuesRefusedWithSchemaDefaultFix` (`internal/component/config/dataplane_retired_values_test.go`), `test/parse/dataplane-refuses-old-backend-names.ci`, `test/plugin/dataplane-old-backend-names-refuse-start.ci` | No aliases; schema default `kernel` |
+| AC-20 | Done | `TestRetiredSelectorValueSweepRefusesEachShape`, `TestRetiredSelectorValueSweepPassesTheTree`, `TestRetiredSelectorEveryExceptionDeclaresItsLines`, `TestEveryBackendAnnotationNamesARegisteredBackend`, `TestRetiredRecordsCoverExactlyTheManifestPins` | 0 retired selector hits across tracked tree |
+
+### Tests from TDD Plan
+| Test | Status | Location | Notes |
+|------|--------|----------|-------|
+| All 35 unit tests named in TDD Test Plan | Done | `internal/component/config/`, `internal/component/firewall/`, `internal/plugins/iface/vpp/`, `internal/plugins/firewall/vpp/`, `internal/plugins/static/`, `internal/component/plugin/registry/`, `internal/le/doc/check/`, `internal/le/doc/yangcontract/`, `cmd/ze/` | Verified all 35 test symbols exist in `1f82b2727d` and passed on main thread |
+| All 52 new `.ci` functional tests (34 parse, 14 plugin, 2 reload, 1 static, 1 managed) | Done | `test/parse/`, `test/plugin/`, `test/reload/`, `test/static/`, `test/managed/` | 52/52 PASS + 8/8 A-16 recorded-red proofs observed by main thread |
+| Converted suites (`vrrp`, `bgp plugin fib-vpp`, `web`, `traffic`, `parse`, 46 RFC proofs) | Done | `test/vrrp/`, `test/traffic/`, `test/parse/`, `rfc/discrimination/` | All PASS; 66/66 independent `ze-test-judge` approvals carried in `1f82b2727d` |
+| Real-VPP QEMU KVM proofs (`mpls-label-pop`, `firewall-acl`, `traffic-interface-class`) | Done | `internal/le/test/deployment/vpp/` (`vpp v26.06-release` on QEMU KVM) | All PASS (`lab-exit 0`), validating A-1 and real-VPP firewall/traffic/MPLS |
+
+### Files from Plan
+| File | Status | Notes |
+|------|--------|-------|
+| `internal/component/config/dataplane_verdict.go`, `register_dataplane_doctor.go` | Done | Created in `1f82b2727d` |
+| `internal/plugins/iface/vpp/verify_wireguard.go`, `register_wireguard_validator.go` | Done | Created in `1f82b2727d` |
+| `internal/component/firewall/producer_verify.go`, `register_producer_verify.go` | Done | Created in `1f82b2727d` |
+| `internal/le/doc/check/retired_selector.go`, `retired_selector_test.go`, `testdata/retired_selector/` | Done | Created in `1f82b2727d`; F-3 spec entry & fixture cleaned in Commit A |
+| `internal/le/doc/yangcontract/dataplane_page.go`, `docs/guide/dataplane-features.md` | Done | Generated guide + drift gate in `1f82b2727d` |
+| 5 obsolete per-component gate files (`internal/component/firewall/backend_gate_test.go`, `internal/component/iface/backend_gate_test.go`, `internal/component/traffic/backend_gate_test.go`, `internal/plugins/container/network/backend_gate_test.go`, `internal/plugins/vrrp/backend_gate_test.go`) | Done | Deleted in `1f82b2727d`, assertions ported to `dataplane_walk_test.go` |
+| `docs/architecture/core-design.md`, `plan/release/features/spec-fib-dummy.md`, `website/changes/fragments/dataplane-compatibility-guard.md` | Done | Closure citers repointed/restated and news fragment added in Commit A |
+
+### Audit Summary
+- **Total items:** 20 ACs + 35 unit tests + 52 `.ci` functional tests + 10 departed pages + 5 gate deletions
+- **Done:** 100%
+- **Partial:** 0
+- **Skipped:** 0
+- **Changed:** 0
+
+## Goal Validation (BLOCKING)
+
+| Goal (from Task) | Evidence Type | Concrete Evidence |
+|------------------|---------------|-------------------|
+| Refuse cross-plane, kernel-only, lone `fib kernel`, missing VPP WireGuard plugin, and incompatible firewall producer configs at commit, start, reload, validate, and doctor | Unit + functional `.ci` | 34/34 `test/parse/dataplane-*.ci` & `firewall-vpp-*.ci`, 14/14 `test/plugin/dataplane-*.ci` & `doctor-dataplane-mismatch.ci`, 2/2 `test/reload/*.ci`, plus `internal/component/config` / `firewall` / `iface/vpp` unit suites PASS |
+| Honor global `--plugin` across every validation and commit door | Functional `.ci` + recorded red/green | 8/8 A-16 recorded-red proofs (failing with `RecordCommandLinePlugins(nil)`, passing restored) across start, validate, SSH editor, web editor/upload, REST/gRPC API, gNMI, SSH upload, managed push, and ephemeral `ze config edit` |
+| Static named-table routes program configured data plane with zero kernel fallback | Unit + functional `.ci` | `TestStaticNamedTableBackendSelectsFromConfiguredDataPlane` + `test/static/static-named-table-follows-dataplane.ci` PASS |
+| Rename retired selector values `netlink`/`nft`/`tc` -> `kernel` with zero surviving tracked occurrences and live-generated feature matrix | Unit + sweep + golden tests | `TestRetiredSelectorValueSweepRefusesEachShape`, `TestRetiredSelectorValueSweepPassesTheTree` (0 hits), `TestDataplaneFeaturesPageMatchesLiveDeclarations`, `test/parse/dataplane-refuses-old-backend-names.ci`, `test/plugin/dataplane-old-backend-names-refuse-start.ci` PASS |
+| Validate A-1 (VPP forwarding bypasses Linux kernel/LCP TAP) and real-VPP firewall/traffic/MPLS behavior | Real-VPP QEMU KVM deployment labs | `vpp v26.06-release` on `7.3-runtime-amd64-runtime-qemu-1fc606ec-5d7f6651` + `docker-host.img` `ee3d01f92f10143e`: `mpls-label-pop` traced labeled packet entirely inside VPP graph (`pg-input -> ethernet-input -> mpls-input -> mpls-lookup -> ip4-mpls-label-disposition-pipe -> lookup-ip4-dst -> ip4-drop -> error-drop -> drop`) while kernel `sysctl net.mpls.conf.pg0.input` returned `no such file or directory`; `firewall-acl` and `traffic-interface-class` exited `lab-exit 0` |
+
+## Work Not Done
+
+| What was not done | Why | The spec that now owns it |
+|-------------------|-----|---------------------------|
+| none | All AC-1..AC-20 complete. `connection-state` and `mark-set` remain unannounced as supported on VPP in `docs/guide/dataplane-features.md` and `fw-6-firewall-vpp.md` per Thomas's C-2 (b) decision (`docs/architecture/core-design.md:4264`) until dedicated real-VPP proof tests land. | none |
+
+## Review Gate
+
+| Field | Value |
+|-------|-------|
+| Artifact | `tmp/review/dataplane-compatibility-guard-0e3a937e-b7cd-4f75-bc79-95d6dc661e0c.md` (1174 code files across 24 `Spec-work: dataplane-compatibility-guard` commits including `aa28d17af1` + Commit A, verdict `clean`) |
+| `./le spec review check` | `review_gate: OK (2 code files, clean, hashes match tmp/review/dataplane-compatibility-guard-0e3a937e-b7cd-4f75-bc79-95d6dc661e0c.md)` |
+| Rounds | 2 (Round 1 covered `1f82b2727d` + Commit A; Round 2 added `aa28d17af1` `cmd/ze/hub/rfc7950_web_commit_validation_test.go` after `./le rfc check` remediation) |
+| Reviewer lenses used | logic, wiring, design-documents, security, go-style (`./le go style check path`: OK on all 9 core files + edited `retired_selector.go` + `cmd/ze/hub/rfc7950_web_commit_validation_test.go`), spec-completeness (`/ze-review-spec`) |
+
+### Findings fixed
+| # | Severity | Finding | Location | Fixed by |
+|---|----------|---------|----------|----------|
+| 1 | ISSUE | Approved departure for `docs/architecture/core-design.md:4264` was missed (`ze:backend "nft"` remained on `flowtable` row with a line exception in `retired_selector.go:294`) | `docs/architecture/core-design.md:4264`, `internal/le/doc/check/retired_selector.go:294` | Updated `core-design.md:4264` to `ze:backend "kernel"` and deleted the obsolete line 294 exception in Commit A |
+| 2 | BLOCKER | `./le rfc check` uncovered 27 shifted + 54 stale RFC audit verdicts after `1f82b2727d` plus retired `plugin/internal p1 use` path blocking `RFC7950-8.1-2` and `RFC7950-8.3-1` | `rfc/audit/`, `rfc/discrimination/rfc7950/`, `cmd/ze/hub/rfc7950_web_commit_validation_test.go` | Landed `aa28d17af1` (27 resealed + 54 independently re-judged via `ze-rfc-audit`, migrated test to `bus/endpoint p1 internal` with `ze-test-judge` `10161eac` approval and re-recorded `RFC7950` proofs; 0 remaining RFC check violations for our files) |
+
+## Pre-Commit Verification
+
+### Files Exist (ls)
+| File | Exists | Evidence |
+|------|--------|----------|
+| Core Go files (`dataplane_verdict.go`, `register_dataplane_doctor.go`, `verify_wireguard.go`, `register_wireguard_validator.go`, `producer_verify.go`, `register_producer_verify.go`, `retired_selector.go`, `dataplane_page.go`) | Yes | `ls -1` returned all 8 paths present |
+| Generated guide & operator news fragment (`docs/guide/dataplane-features.md`, `website/changes/fragments/dataplane-compatibility-guard.md`) | Yes | `ls -1` returned both paths present |
+| Functional `.ci` suite in `1f82b2727d` | Yes | `git show --stat --oneline 1f82b2727d -- 'test/*.ci' 'test/**/*.ci' \| grep -c 'test/'` = 228 `.ci` files touched (including all 52 new `.ci` files) |
+
+### AC Verified (grep/test)
+| AC ID | Claim | Fresh Evidence |
+|-------|-------|----------------|
+| AC-1..AC-5, AC-14..AC-16 | Unified verdict in `loadConfig` + `verifyTree` | `internal/component/config/dataplane_verdict.go` (`evaluateDataPlaneVerdict`, `candidatePluginSelection`), `loader.go`, `plugin_verify.go` read; 34 parse + 14 plugin `.ci` tests PASS |
+| AC-2 | WireGuard plugin validator + doctor share check | `internal/plugins/iface/vpp/verify_wireguard.go`, `register_wireguard_validator.go`, `doctor.go` read; `iface-vpp-wireguard-plugin-*.ci` and `vpp-wireguard-plugin-off-reload-refused.ci` PASS |
+| AC-6, AC-17 | VPP NAT44 source-match refused; 3 annotations removed, `flowtable` `ze:backend "kernel"` | `internal/plugins/firewall/vpp/verify.go` and `ze-firewall-conf.yang` verified; `firewall-vpp-*.ci` PASS |
+| AC-7 | Static named-table backend follows configured data plane | `internal/plugins/static/backend_linux.go`, `backend_vpp_linux.go`, `register_doctor_codes.go` read; `static-named-table-follows-dataplane.ci` PASS |
+| AC-8 | `firewall-producer-tables` runs registered builders (`copp`, `firewall-irr`) | `internal/component/firewall/producer_verify.go`, `internal/plugins/copp/register_table_builder.go:16`, `internal/component/firewall/plugins/irr/register.go` read; `firewall-vpp-refuses-{copp,irr-interface}.ci` & `firewall-vpp-copp-refuses-start.ci` PASS |
+| AC-9, AC-10 | `doctor-dataplane-mismatch` + single `walkBackendFeaturesTree`, 0 old gate calls | `git grep -n 'ValidateBackendFeatures' -- internal/ cmd/` returns only `internal/component/config/backend_gate_test.go`; `vrrp-doctor*.ci` & `doctor-dataplane-mismatch.ci` PASS |
+| AC-11, AC-12 | Plane keys match primary planes; `docs/guide/dataplane-features.md` generated | `internal/le/doc/yangcontract/dataplane_page.go` read; `yangcontract` suite PASS |
+| AC-13, AC-18 | Reload refusal & process-wide `--plugin` record at all doors | `declared_schemas.go`, `ze_core_dispatch.go`, `pushed_config.go`, `cmd_edit.go`, `config_upload.go` read; 2/2 reload `.ci` + 8/8 A-16 red/green proofs PASS |
+| AC-19, AC-20 | `netlink`/`nft`/`tc` -> `kernel` + tracked sweep | `internal/le/doc/check/retired_selector.go` passes `./le go style check path` (`go style: OK`); `TestRetiredSelector*` PASS (re-run owed post-Commit B after deleting tracked spec & fixture) |
+| RFC check | `./le rfc check` clean after `1f82b2727d` | Landed `aa28d17af1`: 27 shifted RFC audit verdicts resealed, 54 stale verdicts independently re-judged (`ze-rfc-audit`), `cmd/ze/hub/rfc7950_web_commit_validation_test.go` (`TestRFC7950WebCommitRefusesAConstraintViolation`) migrated from retired `plugin/internal p1 use` to `bus/endpoint p1 internal` (`ze-test-judge` `10161eac`, `RFC7950-8.1-2` and `RFC7950-8.3-1` proofs re-recorded); 0 remaining RFC check violations for our files |
+
+### Wiring Verified (end-to-end)
+| Entry Point | .ci File | Verified |
+|-------------|----------|----------|
+| `ze start` / daemon boot | `test/plugin/dataplane-ipsec-vpp-refuses-start.ci`, `test/plugin/dataplane-old-backend-names-refuse-start.ci`, `test/plugin/dataplane-vpp-fib-kernel-alone-refuses-start.ci` | Yes (exercised in `1f82b2727d`, PASS) |
+| `ze config validate` | `test/parse/dataplane-validate-sees-command-line-plugin.ci`, `test/parse/dataplane-refuses-old-backend-names.ci` | Yes (PASS + A-16 red/green) |
+| Live reload (`SIGHUP`) | `test/reload/dataplane-mismatch-reload-refused.ci`, `test/reload/vpp-wireguard-plugin-off-reload-refused.ci` | Yes (2/2 PASS) |
+| SSH editor, web editor/upload, REST/gRPC API, gNMI, SSH upload, managed push, ephemeral `ze config edit` | 7 AC-18 door `.ci` files in `test/plugin/` & `test/managed/` | Yes (all PASS + 8/8 A-16 recorded-red proofs) |
+| `ze doctor` | `test/plugin/doctor-dataplane-mismatch.ci`, `test/vrrp/vrrp-doctor.ci`, `test/vrrp/vrrp-doctor-fires.ci` | Yes (PASS) |
+| Static named-table apply | `test/static/static-named-table-follows-dataplane.ci` | Yes (PASS) |
+| Real VPP data plane (`vpp v26.06-release`) | QEMU KVM labs `mpls-label-pop`, `firewall-acl`, `traffic-interface-class` | Yes (`lab-exit 0`) |
+
+### Assumptions Resolved
+| ID | Final Status | Evidence |
+|----|--------------|----------|
+| A-1 | validated | `third_party/vpp-linux-cp/src/lcp_interface.c` (`lcp_itf_pair_add`, `lcp_interface_init`) + QEMU KVM `vpp v26.06-release` `mpls-label-pop` trace (`pg-input -> ... -> ip4-drop`) while kernel `sysctl net.mpls.conf.pg0.input` returned `no such file or directory` |
+| A-2 | validated | Producer audit (`ikeDataplaneName`, `prepareKernelBackend`, `SetupSampling`, `applyPolicies`) |
+| A-3 | validated | Traced all doors to `loadConfig` / `verifyTree` (closed with A-13); all 52 `.ci` tests PASS |
+| A-4 | validated | Producer builders audited; `TestIRRInterfaceBindingBuilderAnswersTheShape` + `firewall-vpp-refuses-{copp,irr-interface}.ci` PASS |
+| A-5 | validated | `docs/guide/vpp.md` + `fibPluginChosen` verified; C-3 (a) + P-1 (b) tests PASS |
+| A-6 | validated | Searched `pkg/plugin/`, `docs/`, `test/`: no external plugin programs forwarding state |
+| A-7 | validated | All 4 per-component gate calls removed; `dataplane_walk_test.go`, `test/parse/`, `test/vrrp/`, `test/traffic/` PASS |
+| A-8 | validated | `internal/plugins/static/locrib.go` (`applyProgrammed`/`withdrawProgrammed`) verified |
+| A-9 | validated | `cmd_validate.go` verified; stale `core-design.md` section 14a claim corrected |
+| A-10 | validated | `ExtractPluginsFromTree` + `MergeCliPlugins` verified; Q-2 / AC-18 `.ci` tests PASS |
+| A-11 | validated | `cmd/ze/hub/main.go` + `main_reload.go` share `LoadConfig`; C-5 unified verdict verified |
+| A-12 | validated | `ValidateCustomSections` -> `validateOriginalTree` verified; `test/reload/vpp-wireguard-plugin-off-reload-refused.ci` PASS |
+| A-13 | validated | `configValidationHook` -> `ValidateContent` -> `VerifyPluginConfigContentTransition` -> `verifyTree` traced and tested |
+| A-15 | validated | Every door traced + 7 AC-18 door `.ci` tests PASS |
+| A-16 | validated | 8/8 recorded-red proofs with `RecordCommandLinePlugins(nil)` failed red and passed green restored |
+| A-17 | validated | Generated `yang/register.go` `init()` registrations verified; `ParseTreeForValidation` needs no join |
+
+### Documentation Verified
+| Documentation claim or category | Source evidence | Verified |
+|---------------------------------|-----------------|----------|
+| Rows 1, 2, 5, 6, 10, 12, 16, 17 (Yes) | `features/commit-time-backend-capability-check.md`, `docs/guide/dataplane-features.md` (generated), all 10 departed pages updated in `1f82b2727d`, `docs/architecture/core-design.md:4262-4265` updated & repointed in Commit A, `website/changes/fragments/dataplane-compatibility-guard.md` added; `./le doc check all` clean for all files of this spec | Yes |
+| Rows 3, 4, 7, 8, 9, 13, 14, 15 (No) | No CLI grammar, RPC, wire format, SDK, RFC, route metadata, metric, or plugin added; verified against `git show --stat 1f82b2727d` | Yes |
+| Row 11 (`docs/comparison.md`, No) | `git grep -nE 'netlink|nft|tc|dataplane|backend' docs/comparison.md` shows no stale selector or data-plane compatibility claim | Yes |
+| Spec citations cleared | `git grep -n 'spec-dataplane-compatibility-guard\.md'` matches ONLY `plan/release/fixes/spec-dataplane-compatibility-guard.md` itself (Commit A carries `docs/architecture/core-design.md`, `internal/le/doc/check/retired_selector.go`, and 4-hunk patch for `plan/release/features/spec-fib-dummy.md`) | Yes |
