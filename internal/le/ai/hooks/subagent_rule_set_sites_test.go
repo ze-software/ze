@@ -55,8 +55,8 @@ func TestSubagentRuleSetSitesMatchTheHook(t *testing.T) {
 		files := map[string]string{
 			filepath.Join(ruleset.AgentDefinitionsDir, "ze-probe.md"): "---\n" + frontmatter + "---\n\nBody.\n",
 			ruleset.InstructionsFile:                                  "# Ze\n\n# " + ruleset.HardBansHeading + "\n\n- Never run the probe's banned verb.\n",
-			ruleset.DecisionsFile: "# Decisions\n\n## " + ruleset.DecisionsAgentPartHeading + "\n- A.\n\n## " + ruleset.DecisionsMainPartHeading + "\n- B.\n" +
-				"\n## " + ruleset.DecisionsSituationalPartHeading + "\n\n### Lab work\n" + ruleset.SituationPrefix + "running a lab.\n- C.\n",
+			ruleset.DecisionsFile:                                     "# Decisions\n\n## " + ruleset.DecisionsAgentPartHeading + "\n- A.\n\n## " + ruleset.DecisionsMainPartHeading + "\n- B.\n",
+			ruleset.SituationalDecisionsFile:                          "# " + ruleset.DecisionsSituationalPartHeading + "\n\n## Lab work\n" + ruleset.SituationPrefix + "running a lab.\n- C.\n",
 		}
 		for name, body := range files {
 			path := filepath.Join(root, name)

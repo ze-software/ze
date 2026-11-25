@@ -50,16 +50,17 @@ func fixture(t *testing.T) string {
 }
 
 // The rule files of the fixture, beside ai/INSTRUCTIONS.md. The decisions
-// file holds its three parts, so every part the payload report reads from it
-// is present; the main-session part is the longest, so the always-loaded
-// payload and the agent rule set measure different totals.
+// file holds its two parts and the situational companion holds its one section,
+// so every part the payload report reads is present; the main-session part is
+// the longest, so the always-loaded payload and the agent rule set measure
+// different totals.
 const (
 	fixtureDecisions = "# Decisions\n\n# Rules for every agent\n\n- every agent reads this\n\n" +
 		"# Rules for the main session\n\n- only the main session reads this, and it is long enough to tell the sets apart\n" +
-		"- a second main-session rule, so the always-loaded payload is the larger set\n\n" +
-		"# Rules for one kind of work\n\n## Labs\n\nRead before: building a lab.\n\n- a lab rule\n"
-	fixtureTriggers = "# Trigger Index\n\n| Rule | When |\n|------|------|\n| `ai/rules/x.md` | always |\n" // <!-- doc-links: ignore (synthetic rule name in the temporary checkout trigger fixture) -->
-	fixtureCore     = "# Core\n\n## A rule\n\nA directive every agent keeps.\n"
+		"- a second main-session rule, so the always-loaded payload is the larger set\n"
+	fixtureSituationalDecisions = "# Rules for one kind of work\n\n## Labs\n\nRead before: building a lab.\n\n- a lab rule\n"
+	fixtureTriggers             = "# Trigger Index\n\n| Rule | When |\n|------|------|\n| `ai/rules/x.md` | always |\n" // <!-- doc-links: ignore (synthetic rule name in the temporary checkout trigger fixture) -->
+	fixtureCore                 = "# Core\n\n## A rule\n\nA directive every agent keeps.\n"
 )
 
 func write(t *testing.T, root, rel, body string) {

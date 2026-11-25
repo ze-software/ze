@@ -159,7 +159,8 @@ func TestSubagentStartAvoidsDuplicateHardBansWhenDefinitionCarriesThem(t *testin
 		filepath.Join(ruleset.AgentDefinitionsDir, "ze-inline.md"): "---\nname: ze-inline\nomitClaudeMd: true\n---\n<!-- hard-bans: begin -->\n# Hard Bans\n- " + uniqueBan + "\n<!-- hard-bans: end -->\n",
 		filepath.Join(ruleset.AgentDefinitionsDir, "ze-plain.md"):  "---\nname: ze-plain\nomitClaudeMd: true\n---\nBody.\n",
 		ruleset.InstructionsFile:                                   "# Ze\n\n# " + ruleset.HardBansHeading + "\n\n- " + uniqueBan + "\n",
-		ruleset.DecisionsFile:                                      "# Decisions\n\n# " + ruleset.DecisionsAgentPartHeading + "\n- A.\n\n# " + ruleset.DecisionsMainPartHeading + "\n- B.\n\n# " + ruleset.DecisionsSituationalPartHeading + "\n\n## Lab\n" + ruleset.SituationPrefix + "running a lab.\n- C.\n",
+		ruleset.DecisionsFile:                                      "# Decisions\n\n# " + ruleset.DecisionsAgentPartHeading + "\n- A.\n\n# " + ruleset.DecisionsMainPartHeading + "\n- B.\n",
+		ruleset.SituationalDecisionsFile:                           "# " + ruleset.DecisionsSituationalPartHeading + "\n\n## Lab\n" + ruleset.SituationPrefix + "running a lab.\n- C.\n",
 	}
 	for rel, body := range files {
 		full := filepath.Join(root, rel)

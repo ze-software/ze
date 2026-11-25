@@ -30,8 +30,12 @@ const DecisionsHeading = "## Design decisions"
 // decisionColumns are the section's table columns, in order.
 var decisionColumns = []string{"Decision", "It forbids", "Source", "Date"}
 
-// metaDecisions is the one Source that names a file and a section of it.
-const metaDecisions = "ai/META-DECISIONS.md"
+// metaDecisions and metaDecisionsSituational are the Sources that name an
+// owner-decisions file and a section of it.
+const (
+	metaDecisions            = "ai/META-DECISIONS.md"
+	metaDecisionsSituational = "ai/META-DECISIONS-SITUATIONAL.md"
+)
 
 // pageFormat names where the format is defined, for every fix line.
 const pageFormat = `docs/architecture/README.md, "Page format"`
@@ -288,11 +292,15 @@ func appendEntry(entries []string, entry string) []string {
 }
 
 // sourceProblem answers what is wrong with one Source entry, or "" when it
-// resolves: ai/META-DECISIONS.md with a quoted section it holds, a commit
-// this repository holds, or a file inside the checkout.
+// resolves: ai/META-DECISIONS.md or ai/META-DECISIONS-SITUATIONAL.md with a
+// quoted section it holds, a commit this repository holds, or a file inside
+// the checkout.
 func sourceProblem(root, entry string) string {
+	if section, isSituational := strings.CutPrefix(entry, metaDecisionsSituational); isSituational {
+		return metaSectionProblem(root, metaDecisionsSituational, strings.TrimSpace(section))
+	}
 	if section, isMeta := strings.CutPrefix(entry, metaDecisions); isMeta {
-		return metaSectionProblem(root, strings.TrimSpace(section))
+		return metaSectionProblem(root, metaDecisions, strings.TrimSpace(section))
 	}
 	if commitID.MatchString(entry) {
 		if _, err := objects.Resolve(context.Background(), root, entry); err != nil {
@@ -303,26 +311,44 @@ func sourceProblem(root, entry string) string {
 	return pathProblem(root, entry)
 }
 
-// metaSectionProblem answers whether ai/META-DECISIONS.md holds the heading
-// quoted, or what is wrong.
-func metaSectionProblem(root, quoted string) string {
+// metaSectionProblem answers whether sourceFile (or, for ai/META-DECISIONS.md,
+// its situational companion ai/META-DECISIONS-SITUATIONAL.md) holds the quoted
+// heading, or what is wrong.
+func metaSectionProblem(root, sourceFile, quoted string) string {
 	heading, err := strconv.Unquote(quoted)
 	if err != nil {
-		return `names no section; fix: write ` + metaDecisions + ` "<the heading of the section that holds the rule>"`
+		return `names no section; fix: write ` + sourceFile + ` "<the heading of the section that holds the rule>"`
 	}
-	text, err := os.ReadFile(filepath.Join(root, filepath.FromSlash(metaDecisions))) //nolint:gosec // a constant tracked file under the checkout root
+	found, err := fileHasHeading(root, sourceFile, heading)
 	if err != nil {
-		return "cannot be checked, because " + metaDecisions + " cannot be read (" + err.Error() + ")"
+		return "cannot be checked, because " + sourceFile + " cannot be read (" + err.Error() + ")"
+	}
+	if found {
+		return ""
+	}
+	if sourceFile == metaDecisions {
+		situationalFound, sitErr := fileHasHeading(root, metaDecisionsSituational, heading)
+		if sitErr == nil && situationalFound {
+			return ""
+		}
+	}
+	return "names a section " + sourceFile + " does not hold; fix: quote one of its headings exactly"
+}
+
+func fileHasHeading(root, rel, heading string) (bool, error) {
+	text, err := os.ReadFile(filepath.Join(root, filepath.FromSlash(rel))) //nolint:gosec // a constant tracked file under the checkout root
+	if err != nil {
+		return false, err
 	}
 	for line := range strings.SplitSeq(string(text), "\n") {
 		if !strings.HasPrefix(line, "#") {
 			continue
 		}
 		if strings.TrimSpace(strings.TrimLeft(line, "#")) == heading {
-			return ""
+			return true, nil
 		}
 	}
-	return "names a section " + metaDecisions + " does not hold; fix: quote one of its headings exactly"
+	return false, nil
 }
 
 // outsideCheckout is the problem of a Source path that leaves the checkout.

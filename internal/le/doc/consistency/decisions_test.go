@@ -97,6 +97,10 @@ func TestDesignDecisionsSectionJudged(t *testing.T) {
 		{"a Source under tmp", decisionsPageWith("| The widget answers data | Rendering text | tmp/notes.md | 2026-08-21 |\n"), true},
 		{"a Source leaving the checkout", decisionsPageWith("| The widget answers data | Rendering text | ../outside.md | 2026-08-21 |\n"), true},
 		{"a META-DECISIONS section it holds", decisionsPageWith("| The widget answers data | Rendering text | `ai/META-DECISIONS.md` \"How agents work\" | 2026-08-21 |\n"), false},
+		{"a META-DECISIONS section resolved in the situational companion", decisionsPageWith("| The widget answers data | Rendering text | `ai/META-DECISIONS.md` \"Website design\" | 2026-08-21 |\n"), false},
+		{"a META-DECISIONS-SITUATIONAL section it holds", decisionsPageWith("| The widget answers data | Rendering text | `ai/META-DECISIONS-SITUATIONAL.md` \"Website design\" | 2026-08-21 |\n"), false},
+		{"a META-DECISIONS-SITUATIONAL section it lacks", decisionsPageWith("| The widget answers data | Rendering text | `ai/META-DECISIONS-SITUATIONAL.md` \"No such rule\" | 2026-08-21 |\n"), true},
+		{"META-DECISIONS-SITUATIONAL with no section", decisionsPageWith("| The widget answers data | Rendering text | ai/META-DECISIONS-SITUATIONAL.md | 2026-08-21 |\n"), true},
 		{"a META-DECISIONS section it lacks", decisionsPageWith("| The widget answers data | Rendering text | `ai/META-DECISIONS.md` \"No such rule\" | 2026-08-21 |\n"), true},
 		{"META-DECISIONS with no section", decisionsPageWith("| The widget answers data | Rendering text | ai/META-DECISIONS.md | 2026-08-21 |\n"), true},
 		{"a commit the repository holds", decisionsPageWith("| The widget answers data | Rendering text | COMMIT | 2026-08-21 |\n"), false},
@@ -109,10 +113,11 @@ func TestDesignDecisionsSectionJudged(t *testing.T) {
 			caseRoot := t.TempDir()
 			commit := fixtureCommit(t, caseRoot)
 			writeDecisionsTree(t, caseRoot, map[string]string{
-				decisionsSource:        "// Design: " + decisionsPage + " -- the widget\n\npackage widget\n",
-				decisionsPage:          strings.ReplaceAll(tc.page, "COMMIT", commit),
-				decisionsSourceOK:      "# Widget record\n",
-				"ai/META-DECISIONS.md": "# Meta\n\n## How agents work\n\n- A rule.\n",
+				decisionsSource:                    "// Design: " + decisionsPage + " -- the widget\n\npackage widget\n",
+				decisionsPage:                      strings.ReplaceAll(tc.page, "COMMIT", commit),
+				decisionsSourceOK:                  "# Widget record\n",
+				"ai/META-DECISIONS.md":             "# Meta\n\n## How agents work\n\n- A rule.\n",
+				"ai/META-DECISIONS-SITUATIONAL.md": "# Rules for one kind of work\n\n## Website design\n\nRead before: editing the website.\n\n- A web rule.\n",
 			})
 			report := Check(caseRoot)
 			if got := findingFor(report, "design-decisions", decisionsPage); got != tc.error {

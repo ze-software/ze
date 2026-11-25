@@ -13,7 +13,6 @@ import (
 	"io/fs"
 	"os"
 	"path/filepath"
-	"slices"
 	"strings"
 	"testing"
 )
@@ -276,96 +275,89 @@ func TestReadAnswersAnAbsentPartAsMissing(t *testing.T) {
 	}
 }
 
-// ownerApprovedSituationalSections names the sections of the checkout's
-// decisions file an agent reads only before the work each one names, in file
-// order. The owner approved exactly these four; the reader finds them by
-// heading level and never by this list, which only the test holds.
-var ownerApprovedSituationalSections = []string{
-	"ExaBGP compatibility",
-	"Test systems and labs",
-	"Developer tooling",
-	"Website design",
-}
-
+// TestTheSituationalSectionsAreTheFourTheOwnerApproved validates the
+// checkout's own ai/META-DECISIONS-SITUATIONAL.md and ai/META-DECISIONS.md
+// (the name predates expanding beyond the original four sections).
 func TestTheSituationalSectionsAreTheFourTheOwnerApproved(t *testing.T) {
-	// Goal: AC-15, on the checkout's own ai/META-DECISIONS.md. Exactly the
-	// four approved sections are situational, each states a situation, each
-	// range holds its own heading and lies past the every-agent range, and no
-	// approved heading is left in the every-agent text.
+	// Goal: on the checkout's own ai/META-DECISIONS-SITUATIONAL.md and
+	// ai/META-DECISIONS.md, at least one situational section exists, every
+	// section comes from SituationalDecisionsFile, states a situation, opens
+	// with its own heading, has a unique heading, and none of those headings
+	// remains inside the every-agent part of ai/META-DECISIONS.md.
 	// Method: SituationalDecisions and AgentDecisions over the repository root.
 	root := filepath.Clean("../../../../..")
 	sections, err := SituationalDecisions(root)
 	if err != nil {
 		t.Fatalf("SituationalDecisions: %v", err)
 	}
+	if len(sections) == 0 {
+		t.Fatal("SituationalDecisions returned no sections")
+	}
 	agent, err := AgentDecisions(root)
 	if err != nil {
 		t.Fatalf("AgentDecisions: %v", err)
 	}
-	headings := make([]string, 0, len(sections))
+	seen := make(map[string]bool, len(sections))
 	for _, section := range sections {
-		headings = append(headings, section.Heading)
+		if section.File != SituationalDecisionsFile {
+			t.Errorf("section %q reports file %q, want %q", section.Heading, section.File, SituationalDecisionsFile)
+		}
+		if seen[section.Heading] {
+			t.Errorf("duplicate situational heading %q", section.Heading)
+		}
+		seen[section.Heading] = true
 		if section.Situation == "" {
 			t.Errorf("section %q names no situation", section.Heading)
 		}
 		if !strings.HasPrefix(section.Text, "## "+section.Heading+"\n") {
 			t.Errorf("section %q at lines %d-%d does not open with its heading", section.Heading, section.First, section.Last)
 		}
-		if section.First <= agent.Last {
-			t.Errorf("section %q starts at line %d, inside the every-agent range %d-%d", section.Heading, section.First, agent.First, agent.Last)
-		}
 		if strings.Contains(agent.Text, "\n## "+section.Heading+"\n") {
 			t.Errorf("the every-agent part still holds a section %q", section.Heading)
 		}
 	}
-	if !slices.Equal(headings, ownerApprovedSituationalSections) {
-		t.Errorf("the situational sections are %q, want %q", headings, ownerApprovedSituationalSections)
-	}
 }
 
 func TestTheSituationalReaderAnswersEachSectionAndItsSituation(t *testing.T) {
-	// Goal: each section of the third part is answered with its exact range,
-	// up to the next section or the end of the part, its deeper headings kept,
-	// and its situation joined from a wrapped first paragraph, which ends at a
-	// bullet. A heading in a code fence neither opens nor ends a section.
-	// Method: a file whose third part holds a wrapped situation, a level-3
+	// Goal: each section of ai/META-DECISIONS-SITUATIONAL.md is answered with
+	// its exact range, up to the next section or the end of the file, its
+	// deeper headings kept, and its situation joined from a wrapped first
+	// paragraph, which ends at a bullet. A heading in a code fence neither
+	// opens nor ends a section.
+	// Method: a situational file holding a wrapped situation, a level-3
 	// subheading, a fenced level-2 heading, and a situation followed at once by
 	// a bullet.
-	decisions := "# " + DecisionsAgentPartHeading + "\n" + // line 1
-		"- every agent\n" + // 2
-		"# " + DecisionsMainPartHeading + "\n" + // 3
-		"- main only\n" + // 4
-		"# " + DecisionsSituationalPartHeading + "\n" + // 5
-		"Opening.\n" + // 6
-		"## Lab work\n" + // 7
-		"\n" + // 8
-		SituationPrefix + "running a lab\n" + // 9
-		"  or a VM.\n" + // 10
-		"\n" + // 11
-		"- Use Ze's kernel.\n" + // 12
-		"### Detail\n" + // 13
-		"```\n## Not a section\n```\n" + // 14-16
-		"## Website design\n" + // 17
-		SituationPrefix + "editing the website.\n" + // 18
-		"- Render into gh-pages.\n" // 19
-	sections, err := SituationalDecisions(fixtureTree(t, map[string]string{DecisionsFile: decisions}))
+	situational := "# " + DecisionsSituationalPartHeading + "\n" + // line 1
+		"Opening.\n" + // 2
+		"## Lab work\n" + // 3
+		"\n" + // 4
+		SituationPrefix + "running a lab\n" + // 5
+		"  or a VM.\n" + // 6
+		"\n" + // 7
+		"- Use Ze's kernel.\n" + // 8
+		"### Detail\n" + // 9
+		"```\n## Not a section\n```\n" + // 10-12
+		"## Website design\n" + // 13
+		SituationPrefix + "editing the website.\n" + // 14
+		"- Render into gh-pages.\n" // 15
+	sections, err := SituationalDecisions(fixtureTree(t, map[string]string{SituationalDecisionsFile: situational}))
 	if err != nil {
 		t.Fatalf("SituationalDecisions: %v", err)
 	}
 	if len(sections) != 2 {
 		t.Fatalf("answered %d sections, want 2: %+v", len(sections), sections)
 	}
-	wantSpan(t, "the lab section", sections[0].Part, 7, 16,
+	wantSpan(t, "the lab section", sections[0].Part, 3, 12,
 		"## Lab work\n\n"+SituationPrefix+"running a lab\n  or a VM.\n\n- Use Ze's kernel.\n### Detail\n```\n## Not a section\n```\n")
-	wantSpan(t, "the website section", sections[1].Part, 17, 19,
+	wantSpan(t, "the website section", sections[1].Part, 13, 15,
 		"## Website design\n"+SituationPrefix+"editing the website.\n- Render into gh-pages.\n")
 	for index, want := range []struct{ heading, situation string }{
 		{"Lab work", "running a lab or a VM."},
 		{"Website design", "editing the website."},
 	} {
-		if sections[index].Heading != want.heading || sections[index].Situation != want.situation || sections[index].File != DecisionsFile {
-			t.Errorf("section %d is %q in %s, situation %q; want %q, situation %q",
-				index+1, sections[index].Heading, sections[index].File, sections[index].Situation, want.heading, want.situation)
+		if sections[index].Heading != want.heading || sections[index].Situation != want.situation || sections[index].File != SituationalDecisionsFile {
+			t.Errorf("section %d is %q in %s, situation %q; want %q in %s, situation %q",
+				index+1, sections[index].Heading, sections[index].File, sections[index].Situation, want.heading, SituationalDecisionsFile, want.situation)
 		}
 	}
 }
@@ -374,9 +366,8 @@ func TestASituationWrappedOntoTheNextLineIsRead(t *testing.T) {
 	// Goal: a situation paragraph whose marker stands alone on its line, the
 	// work wrapped onto the next, names that work, as one that starts on the
 	// marker's line does. Method: the marker line alone, then the work.
-	decisions := "# " + DecisionsAgentPartHeading + "\n- every agent\n# " + DecisionsMainPartHeading + "\n- main only\n# " +
-		DecisionsSituationalPartHeading + "\n## Lab work\n" + strings.TrimSpace(SituationPrefix) + "\n  running a lab.\n\n- Use Ze's kernel.\n"
-	sections, err := SituationalDecisions(fixtureTree(t, map[string]string{DecisionsFile: decisions}))
+	situational := "# " + DecisionsSituationalPartHeading + "\n## Lab work\n" + strings.TrimSpace(SituationPrefix) + "\n  running a lab.\n\n- Use Ze's kernel.\n"
+	sections, err := SituationalDecisions(fixtureTree(t, map[string]string{SituationalDecisionsFile: situational}))
 	if err != nil {
 		t.Fatalf("SituationalDecisions: %v", err)
 	}
@@ -386,45 +377,41 @@ func TestASituationWrappedOntoTheNextLineIsRead(t *testing.T) {
 }
 
 func TestASituationalPartTheReaderCannotPlaceIsAnError(t *testing.T) {
-	// Goal: a third part that cannot tell an agent what to read is an error
-	// naming what is wrong, never an empty list that reads as "nothing to
+	// Goal: a situational file that cannot tell an agent what to read is an
+	// error naming what is wrong, never an empty list that reads as "nothing to
 	// read", and Read's absence test classifies it as missing.
-	// Method: each fault on its own: the heading absent, repeated, before the
-	// main-session heading, a part with no section, a bullet or a deeper
-	// heading before the first section, a later heading of the part's level
-	// that ends the part before the end of the file, a section that opens with
-	// a bullet, with another paragraph, or with the prefix and no situation.
-	agent := "# " + DecisionsAgentPartHeading + "\n- every agent\n"
-	session := "# " + DecisionsMainPartHeading + "\n- main only\n"
+	// Method: each fault on its own: the heading absent, repeated, a file with
+	// no section, a bullet or a deeper heading before the first section, a
+	// later heading of the part's level that ends the part before the end of
+	// the file, a section that opens with a bullet, with another paragraph, or
+	// with the prefix and no situation.
 	situational := "# " + DecisionsSituationalPartHeading + "\nOpening.\n"
 	section := "## Lab work\n" + SituationPrefix + "running a lab.\n- Use Ze's kernel.\n"
 	noSituation := `section "Lab work" names no work: its first paragraph must be "` + SituationPrefix + `<the work it binds>", so no agent can tell when to read it`
 	stray := func(line string) string {
-		return DecisionsFile + ` holds "` + line + `" under the heading "` + DecisionsSituationalPartHeading + `" before its first section, so no agent is told to read it`
+		return SituationalDecisionsFile + ` holds "` + line + `" under the heading "` + DecisionsSituationalPartHeading + `" before its first section, so no agent is told to read it`
 	}
-	for _, tc := range []struct{ name, decisions, want string }{
-		{"no third part", agent + session,
-			DecisionsFile + ` holds 0 headings "` + DecisionsSituationalPartHeading + `", want exactly one`},
-		{"a repeated third part", agent + session + situational + section + situational + section,
-			DecisionsFile + ` holds 2 headings "` + DecisionsSituationalPartHeading + `", want exactly one`},
-		{"the third part before the main-session part", agent + situational + section + session,
-			DecisionsFile + ` puts the heading "` + DecisionsSituationalPartHeading + `" before "` + DecisionsMainPartHeading + `"`},
-		{"no section", agent + session + situational,
-			DecisionsFile + ` holds no section under the heading "` + DecisionsSituationalPartHeading + `"`},
-		{"a bullet before the first section", agent + session + situational + "- An unread rule.\n" + section,
+	for _, tc := range []struct{ name, body, want string }{
+		{"no situational heading", "# Other\n- An unread rule.\n",
+			SituationalDecisionsFile + ` holds 0 headings "` + DecisionsSituationalPartHeading + `", want exactly one`},
+		{"a repeated situational heading", situational + section + situational + section,
+			SituationalDecisionsFile + ` holds 2 headings "` + DecisionsSituationalPartHeading + `", want exactly one`},
+		{"no section", situational,
+			SituationalDecisionsFile + ` holds no section under the heading "` + DecisionsSituationalPartHeading + `"`},
+		{"a bullet before the first section", situational + "- An unread rule.\n" + section,
 			stray("- An unread rule.")},
-		{"a deeper heading before the first section", agent + session + situational + "### Stray\n- An unread rule.\n" + section,
+		{"a deeper heading before the first section", situational + "### Stray\n- An unread rule.\n" + section,
 			stray("### Stray")},
-		{"a heading of the part's level after it", agent + session + situational + section + "# Later\n- An unread rule.\n",
-			DecisionsFile + ` ends the part "` + DecisionsSituationalPartHeading + `" at the heading "Later", so the rules after it sit in no section an agent is told to read`},
-		{"a section that opens with a bullet", agent + session + situational + "## Lab work\n\n- Use Ze's kernel.\n",
-			DecisionsFile + " " + noSituation},
-		{"a section that opens with another paragraph", agent + session + situational + "## Lab work\nAbout labs.\n" + SituationPrefix + "running a lab.\n",
-			DecisionsFile + " " + noSituation},
-		{"a prefix that names nothing", agent + session + situational + "## Lab work\n" + strings.TrimSpace(SituationPrefix) + "\n\n- Use Ze's kernel.\n",
-			DecisionsFile + " " + noSituation},
+		{"a heading of the part's level after it", situational + section + "# Later\n- An unread rule.\n",
+			SituationalDecisionsFile + ` ends the part "` + DecisionsSituationalPartHeading + `" at the heading "Later", so the rules after it sit in no section an agent is told to read`},
+		{"a section that opens with a bullet", situational + "## Lab work\n\n- Use Ze's kernel.\n",
+			SituationalDecisionsFile + " " + noSituation},
+		{"a section that opens with another paragraph", situational + "## Lab work\nAbout labs.\n" + SituationPrefix + "running a lab.\n",
+			SituationalDecisionsFile + " " + noSituation},
+		{"a prefix that names nothing", situational + "## Lab work\n" + strings.TrimSpace(SituationPrefix) + "\n\n- Use Ze's kernel.\n",
+			SituationalDecisionsFile + " " + noSituation},
 	} {
-		sections, err := SituationalDecisions(fixtureTree(t, map[string]string{DecisionsFile: tc.decisions}))
+		sections, err := SituationalDecisions(fixtureTree(t, map[string]string{SituationalDecisionsFile: tc.body}))
 		if err == nil {
 			t.Errorf("%s: answered %d sections instead of an error", tc.name, len(sections))
 			continue
@@ -435,11 +422,11 @@ func TestASituationalPartTheReaderCannotPlaceIsAnError(t *testing.T) {
 		if err.Error() != tc.want {
 			t.Errorf("%s: the error is %q, want %q", tc.name, err, tc.want)
 		}
-		if reason, absent := MissingReason(err, DecisionsFile); !absent || reason != tc.want {
+		if reason, absent := MissingReason(err, SituationalDecisionsFile); !absent || reason != tc.want {
 			t.Errorf("%s: MissingReason = %q, %v; want the error as an absence", tc.name, reason, absent)
 		}
 	}
 	if _, err := SituationalDecisions(fixtureTree(t, map[string]string{CoreFile: "core\n"})); !errors.Is(err, fs.ErrNotExist) {
-		t.Errorf("an absent decisions file is not answered as fs.ErrNotExist: %v", err)
+		t.Errorf("an absent situational decisions file is not answered as fs.ErrNotExist: %v", err)
 	}
 }

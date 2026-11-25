@@ -30,10 +30,11 @@ import (
 
 // The files a rule set is read from, as repository paths.
 const (
-	InstructionsFile = "ai/INSTRUCTIONS.md"
-	DecisionsFile    = "ai/META-DECISIONS.md"
-	TriggersFile     = "ai/rules/TRIGGERS.md"
-	CoreFile         = "ai/rules/CORE.md"
+	InstructionsFile         = "ai/INSTRUCTIONS.md"
+	DecisionsFile            = "ai/META-DECISIONS.md"
+	SituationalDecisionsFile = "ai/META-DECISIONS-SITUATIONAL.md"
+	TriggersFile             = "ai/rules/TRIGGERS.md"
+	CoreFile                 = "ai/rules/CORE.md"
 )
 
 // AgentDefinitionsDir is the repository directory the harness reads custom
@@ -140,52 +141,42 @@ type Situational struct {
 	Situation string
 }
 
-// SituationalDecisions reads each section of the part of ai/META-DECISIONS.md
-// for one kind of work: every heading one level below the part heading, up to
-// the next heading of its own or a higher level. The sections are found by
-// heading level alone, so a section added to the file is answered with no
-// edit here.
+// SituationalDecisions reads each section of ai/META-DECISIONS-SITUATIONAL.md
+// under DecisionsSituationalPartHeading: every heading one level below the part
+// heading, up to the next heading of its own or a higher level. The sections
+// are found by heading level alone, so a section added to the file is answered
+// with no edit here.
 //
 // It answers an error, never an empty list, when the part cannot tell an agent
-// what to read: the part heading absent, repeated or before the main-session
-// heading, a part with no section, or a section whose first paragraph does not
-// open with SituationPrefix and a situation. An empty list would read as
-// "nothing to read", while the caller can still send the whole file.
+// what to read: the part heading absent or repeated, a part with no section, or
+// a section whose first paragraph does not open with SituationPrefix and a
+// situation. An empty list would read as "nothing to read", while the caller
+// can still send the whole file.
 //
 // It also refuses a part that leaves a rule outside every section, because no
 // agent would be told to read it: a part that does not run to the end of the
 // file (a later heading of its own level ends it), and a bullet or a deeper
 // heading before its first section.
 func SituationalDecisions(tree string) ([]Situational, error) {
-	lines, err := readMarkdownLines(tree, DecisionsFile)
+	lines, err := readMarkdownLines(tree, SituationalDecisionsFile)
 	if err != nil {
 		return nil, err
 	}
-	session, err := onlyHeading(lines, DecisionsFile, DecisionsMainPartHeading)
+	start, err := onlyHeading(lines, SituationalDecisionsFile, DecisionsSituationalPartHeading)
 	if err != nil {
 		return nil, err
-	}
-	start, err := onlyHeading(lines, DecisionsFile, DecisionsSituationalPartHeading)
-	if err != nil {
-		return nil, err
-	}
-	if start < session {
-		var tb textbuf.Buffer
-		tb.Str(DecisionsFile).Str(" puts the heading ").Quoted(DecisionsSituationalPartHeading).
-			Str(" before ").Quoted(DecisionsMainPartHeading)
-		return nil, &missingPartError{tb.String()}
 	}
 	end := sectionEnd(lines, start)
 	if end != len(lines) {
 		var tb textbuf.Buffer
-		tb.Str(DecisionsFile).Str(" ends the part ").Quoted(DecisionsSituationalPartHeading).
+		tb.Str(SituationalDecisionsFile).Str(" ends the part ").Quoted(DecisionsSituationalPartHeading).
 			Str(" at the heading ").Quoted(lines[end].heading).
 			Str(", so the rules after it sit in no section an agent is told to read")
 		return nil, &missingPartError{tb.String()}
 	}
 	if stray, found := strayBeforeSection(lines[start+1:end], lines[start].level); found {
 		var tb textbuf.Buffer
-		tb.Str(DecisionsFile).Str(" holds ").Quoted(stray).Str(" under the heading ").
+		tb.Str(SituationalDecisionsFile).Str(" holds ").Quoted(stray).Str(" under the heading ").
 			Quoted(DecisionsSituationalPartHeading).
 			Str(" before its first section, so no agent is told to read it")
 		return nil, &missingPartError{tb.String()}
@@ -199,17 +190,17 @@ func SituationalDecisions(tree string) ([]Situational, error) {
 		situation, found := situationOf(lines[index+1 : last])
 		if !found {
 			var tb textbuf.Buffer
-			tb.Str(DecisionsFile).Str(" section ").Quoted(lines[index].heading).
+			tb.Str(SituationalDecisionsFile).Str(" section ").Quoted(lines[index].heading).
 				Str(" names no work: its first paragraph must be ").Quoted(SituationPrefix + "<the work it binds>").
 				Str(", so no agent can tell when to read it")
 			return nil, &missingPartError{tb.String()}
 		}
-		part := spanned(Part{File: DecisionsFile, Heading: lines[index].heading}, lines, index, last)
+		part := spanned(Part{File: SituationalDecisionsFile, Heading: lines[index].heading}, lines, index, last)
 		sections = append(sections, Situational{Part: part, Situation: situation})
 	}
 	if len(sections) == 0 {
 		var tb textbuf.Buffer
-		tb.Str(DecisionsFile).Str(" holds no section under the heading ").Quoted(DecisionsSituationalPartHeading)
+		tb.Str(SituationalDecisionsFile).Str(" holds no section under the heading ").Quoted(DecisionsSituationalPartHeading)
 		return nil, &missingPartError{tb.String()}
 	}
 	return sections, nil

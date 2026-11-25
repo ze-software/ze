@@ -17,10 +17,11 @@ import (
 // section, so the agent rule set read from the fixture is complete.
 const fixtureInstructions = "# Instructions\n\nWhat every session loads.\n\n# Hard Bans\n\n- never push on your own\n\n# Other\n\nMore for the main session.\n"
 
-// writeRuleFiles writes the decisions, the trigger index and the core.
+// writeRuleFiles writes the decisions, situational companion, trigger index and core.
 func writeRuleFiles(t *testing.T, root string) {
 	t.Helper()
 	write(t, root, ruleset.DecisionsFile, fixtureDecisions)
+	write(t, root, ruleset.SituationalDecisionsFile, fixtureSituationalDecisions)
 	write(t, root, ruleset.TriggersFile, fixtureTriggers)
 	write(t, root, ruleset.CoreFile, fixtureCore)
 }

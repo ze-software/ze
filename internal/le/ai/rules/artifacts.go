@@ -606,17 +606,17 @@ type PayloadReport struct {
 	Situational SituationalSet `json:"situational-decisions"`
 }
 
-// SituationalSet measures the sections of ai/META-DECISIONS.md an agent reads
-// only before the work each one names. It has no budget and is no part of the
-// agent rule set's total, because no agent always loads it; a main session
-// does, inside the whole file the always-loaded payload measures.
+// SituationalSet measures the sections of ai/META-DECISIONS-SITUATIONAL.md
+// read only before the work each one names. It has no budget and is no part of
+// the always-loaded payload or the agent rule set, because neither a main
+// session nor a subagent loads it at start; each reads a section on demand.
 type SituationalSet struct {
 	Parts  []PayloadPart `json:"parts"`
 	Chars  int           `json:"chars"`
 	Tokens int           `json:"tokens"`
 	// Missing names why the sections cannot be read. The start hook then tells
-	// an agent to read the whole decisions file, so the agent rule set's total
-	// understates what that agent reads.
+	// an agent to read the whole situational decisions file, so the agent rule
+	// set's total understates what that agent reads.
 	Missing []string `json:"missing"`
 }
 
@@ -649,14 +649,14 @@ func (r PayloadReport) Text() string {
 // text renders the situational sections, one line each, and their total on a
 // line of its own.
 func (s SituationalSet) text(tb *textbuf.Buffer) {
-	tb.Str("situational decisions (read before the work each names, outside the agent rule set):\n")
+	tb.Str("situational decisions (read before the work each names, outside the always-loaded and agent payloads):\n")
 	for _, part := range s.Parts {
 		tb.Str("  ").Str(part.File).Str(" (").Str(part.Part).Str("): ").
 			Int(int64(part.Chars)).Str(" chars (").Int(int64(part.Tokens)).Str(" tokens)\n")
 	}
 	tb.Str("  TOTAL: ").Int(int64(s.Chars)).Str(" chars (").Int(int64(s.Tokens)).Str(" tokens)\n")
 	if len(s.Missing) > 0 {
-		tb.Str("WARNING: the situational decisions cannot be read, so an agent is told to read the whole decisions file: ").
+		tb.Str("WARNING: the situational decisions cannot be read, so an agent is told to read the whole situational decisions file: ").
 			Join(s.Missing, ", ").Byte('\n')
 	}
 }
@@ -781,7 +781,7 @@ func Payload(tree string) (PayloadReport, error) {
 func measureSituational(tree string) (SituationalSet, error) {
 	sections, err := ruleset.SituationalDecisions(tree)
 	if err != nil {
-		reason, absent := ruleset.MissingReason(err, ruleset.DecisionsFile)
+		reason, absent := ruleset.MissingReason(err, ruleset.SituationalDecisionsFile)
 		if !absent {
 			return SituationalSet{}, err
 		}

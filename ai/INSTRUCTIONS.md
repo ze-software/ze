@@ -61,13 +61,26 @@ you have broken one, stop and tell the user.
 
 # Owner Meta Decisions
 
-`ai/META-DECISIONS.md` holds the rules Thomas set for how agents work and what is
-in scope, as plain rules grouped by topic in three parts: "Rules for every agent",
-the part a subagent is given, "Rules for the main session", and "Rules for one
-kind of work", whose sections a subagent reads before the work each one names.
-A question one of those rules
-answers is never put to him. A harness that does not expand the include below
-reads that file before its first action.
+`ai/META-DECISIONS.md` holds the always-applicable rules Thomas set for how
+agents work and what is in scope, in two parts: "Rules for every agent" (given
+to every subagent) and "Rules for the main session". A question those rules
+answer is never put to him. A harness that does not expand the include below
+reads `ai/META-DECISIONS.md` before its first action.
+
+Domain-specific rulings live in `ai/META-DECISIONS-SITUATIONAL.md` ("Rules for
+one kind of work") and are NOT pre-loaded: read the matching section before
+starting that kind of work:
+
+| Section in `ai/META-DECISIONS-SITUATIONAL.md` | Read before |
+|---|---|
+| `Release scope and spec planning` | fleet/opt-in first-release scope, claiming/closing specs, WIP caps, child specs |
+| `ExaBGP compatibility` | ExaBGP bridge, migration, tests, `AS_SET`, OPERATIONAL, multi-session |
+| `Test systems and labs` | VMs, test guests, labs, kernel features/bumps, cross-machine work, `sudo`, perf/alloc figures |
+| `Developer tooling` | adding or changing any `le` command, keyword, value, option, or launcher word |
+| `Website design` | website, generator, blog, weekly update/ze-news, README, published docs, demos/screenshots |
+| `Protocol and RFC scope` | protocol code, FRR/BIRD interop, `rfc/short/`, RFC-tagged tests, discrimination records, release profiles |
+| `Third-party dependencies and licensing` | `go.mod`, `vendor/`, `third_party/`, third-party Go modules, `circl` |
+| `CLI, config, and daemon surfaces` | daemon command surfaces (CLI/MCP/REST/gRPC/SSH/web), `ze doctor`, peer reload, filter-list insertion, implied config, pipe ops |
 
 @ai/META-DECISIONS.md
 

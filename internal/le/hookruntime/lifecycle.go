@@ -736,8 +736,8 @@ const startTextErrorMax = 240
 // one kind of work the start text carries: a heading, a range and a situation
 // a line. A situation is never cut, because the words cut off could be the
 // ones that name an agent's work, so a list past the bound sends the whole
-// decisions file instead, and a longer list never pushes the bans past the
-// harness cap.
+// situational decisions file instead, and a longer list never pushes the bans
+// past the harness cap.
 const startTextSectionsMax = 2350
 
 // agentInlineHardBansMarker identifies an agent definition that already embeds
@@ -802,11 +802,16 @@ func agentRuleSet(text *textbuf.Buffer, root, agentType string) {
 		text.Str(ruleset.DecisionsFile).Str(" whole: its every-agent part cannot be found, because ").Str(startTextBounded(err.Error())).Str(".\n")
 		return
 	}
-	// Sections that cannot be listed send the whole file: a range alone would
-	// read as "nothing else to read" to an agent about to do that work.
+	text.Str(ruleset.DecisionsFile).Str(" lines ").Int(part.First).Byte('-').Int(part.Last).
+		Str(" (offset ").Int(part.First).Str(", limit ").Int(part.Last - part.First + 1).
+		Str("), the part headed \"").Str(ruleset.DecisionsAgentPartHeading).Str("\".\n")
+	// Sections that cannot be listed send the whole situational file: a range
+	// alone would read as "nothing else to read" to an agent about to do that
+	// work.
 	sections, err := ruleset.SituationalDecisions(root)
 	if err != nil {
-		text.Str(ruleset.DecisionsFile).Str(" whole: its sections for one kind of work cannot be listed, because ").Str(startTextBounded(err.Error())).Str(".\n")
+		text.Str("Read ").Str(ruleset.SituationalDecisionsFile).Str(" whole: its sections for one kind of work cannot be listed, because ").
+			Str(startTextBounded(err.Error())).Str(".\n")
 		return
 	}
 	var listed textbuf.Buffer
@@ -818,16 +823,13 @@ func agentRuleSet(text *textbuf.Buffer, root, agentType string) {
 	}
 	list := listed.String()
 	if len(list) > startTextSectionsMax {
-		text.Str(ruleset.DecisionsFile).Str(" whole: the list of its sections for one kind of work is ").Int(int64(len(list))).
+		text.Str("Read ").Str(ruleset.SituationalDecisionsFile).Str(" whole: the list of its sections for one kind of work is ").Int(int64(len(list))).
 			Str(" bytes, more than the ").Int(startTextSectionsMax).Str(" this start text carries.\n")
 		return
 	}
-	text.Str(ruleset.DecisionsFile).Str(" lines ").Int(part.First).Byte('-').Int(part.Last).
-		Str(" (offset ").Int(part.First).Str(", limit ").Int(part.Last - part.First + 1).
-		Str("), the part headed \"").Str(ruleset.DecisionsAgentPartHeading).
-		Str("\".\nBefore work one of these situations names, read that section of ").Str(ruleset.DecisionsFile).Str(" too:\n").
+	text.Str("Before work one of these situations names, read that section of ").Str(ruleset.SituationalDecisionsFile).Str(" too:\n").
 		Str(list).
-		Str("The rest of that file binds the main session only.\n")
+		Str("The rest of ").Str(ruleset.DecisionsFile).Str(" binds the main session only.\n")
 }
 
 // agentDefinitionCarriesHardBans reports whether the mirrored agent definition
