@@ -1,10 +1,13 @@
 package config
 
 import (
+	"sync/atomic"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	"github.com/ze-software/ze/internal/component/config/yang"
 )
 
 const validBcryptHash = "$2a$10$abcdefghijklmnopqrstuuABCDEFGHIJKLMNOPQRSTUVWXYZ01234"
@@ -309,4 +312,32 @@ func TestDisplayValueAtPathFailsClosed(t *testing.T) {
 			assert.Equal(t, tc.want, got)
 		})
 	}
+}
+
+// TestDisplayCommandSkipsSchemaForOperationalCommands proves that masking
+// non-set operational commands never resolves or locks the global YANG schema.
+//
+// VALIDATES: high-frequency plugin RPCs (such as adj-rib-in eligibility checks
+// during peer-up replay) bypass YANGSchema() and its DefaultLoader/registry
+// lookup when accounted through DisplayCommand.
+// PREVENTS: a regression that runs registry.All() reflection cloning on every
+// operational command dispatch, stalling route-reflector replay for seconds.
+func TestDisplayCommandSkipsSchemaForOperationalCommands(t *testing.T) {
+	restore := yang.ResetBusParticipantTargetsForTest()
+	t.Cleanup(restore)
+
+	var providerCalls atomic.Int32
+	yang.SetBusParticipantTargetsProvider(func() []string {
+		providerCalls.Add(1)
+		return nil
+	})
+
+	cmd := `request bgp adj-rib-in eligibility {"queries":[{"msg-id":42}]}`
+	assert.Equal(t, cmd, DisplayCommand(cmd))
+	assert.Equal(t, "show bgp summary", DisplayCommand("show bgp summary"))
+	assert.Equal(t, int32(0), providerCalls.Load(), "operational commands must not consult YANGSchema")
+
+	// Control: a set command must still consult YANGSchema.
+	_ = DisplayCommand("set system host-name router1")
+	assert.GreaterOrEqual(t, providerCalls.Load(), int32(1), "set commands must still consult YANGSchema")
 }

@@ -90,18 +90,33 @@ func DisplayCommand(input string) string {
 // address. Leading top/run words reset that address without changing the text
 // the operator recalls. Unknown addresses retain DisplayCommand's closed mask.
 func DisplayCommandAtPath(input string, contextPath []string) string {
+	tokens, ctxPath, hasFile, isSet := parseSetCommandPrefix(input, contextPath)
+	if !isSet {
+		// Non-set commands never consult the YANG schema; avoid acquiring the
+		// global DefaultLoader lock and cloning plugin registrations on every
+		// operational RPC dispatched through command accounting.
+		return redact.Command(input)
+	}
 	schema, err := YANGSchema()
 	if err != nil {
 		// An unavailable schema is deliberately passed to the closed mask;
 		// operational commands still use the credential-keyword producer.
-		return DisplayCommandWithSchema(input, contextPath, nil)
+		return displaySetCommandWithSchema(input, tokens, ctxPath, hasFile, nil)
 	}
-	return DisplayCommandWithSchema(input, contextPath, schema)
+	return displaySetCommandWithSchema(input, tokens, ctxPath, hasFile, schema)
 }
 
 // DisplayCommandWithSchema uses the owning editor's schema rather than the
 // process-wide schema. A nil schema masks configuration assignments closed.
 func DisplayCommandWithSchema(input string, contextPath []string, schema *Schema) string {
+	tokens, ctxPath, hasFile, isSet := parseSetCommandPrefix(input, contextPath)
+	if !isSet {
+		return redact.Command(input)
+	}
+	return displaySetCommandWithSchema(input, tokens, ctxPath, hasFile, schema)
+}
+
+func parseSetCommandPrefix(input string, contextPath []string) (*tokenizer, []string, bool, bool) {
 	tokens := newTokenizer(input)
 	first := tokens.next()
 	for strings.EqualFold(first.value, "top") || strings.EqualFold(first.value, "run") {
@@ -128,8 +143,12 @@ func DisplayCommandWithSchema(input string, contextPath []string, schema *Schema
 		first = tokens.next()
 	}
 	if !strings.EqualFold(first.value, "set") {
-		return redact.Command(input)
+		return nil, nil, false, false
 	}
+	return tokens, contextPath, hasFile, true
+}
+
+func displaySetCommandWithSchema(input string, tokens *tokenizer, contextPath []string, hasFile bool, schema *Schema) string {
 	prefix := tokens.pos
 	if schema == nil {
 		return input[:prefix] + " " + redact.Placeholder
