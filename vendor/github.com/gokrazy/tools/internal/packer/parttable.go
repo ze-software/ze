@@ -1,6 +1,7 @@
 package packer
 
 import (
+	"errors"
 	"fmt"
 	"log"
 	"net"
@@ -26,12 +27,24 @@ func (p *Pack) partitionDevice(o *os.File, path string) error {
 	return p.RereadPartitions(o)
 }
 
-func mustUnixConn(fd uintptr) *net.UnixConn {
-	fc, err := net.FileConn(os.NewFile(fd, ""))
-	if err != nil {
-		panic(err)
+func unixConn(fd uintptr) (*net.UnixConn, error) {
+	file := os.NewFile(fd, "")
+	if file == nil {
+		return nil, fmt.Errorf("invalid socket descriptor %d", fd)
 	}
-	return fc.(*net.UnixConn)
+	fc, err := net.FileConn(file)
+	closeErr := file.Close()
+	if err != nil {
+		return nil, errors.Join(err, closeErr)
+	}
+	if closeErr != nil {
+		return nil, errors.Join(closeErr, fc.Close())
+	}
+	conn, ok := fc.(*net.UnixConn)
+	if !ok {
+		return nil, errors.Join(fmt.Errorf("descriptor %d is not a Unix socket", fd), fc.Close())
+	}
+	return conn, nil
 }
 
 func (p *Pack) partition(path string) (*os.File, error) {

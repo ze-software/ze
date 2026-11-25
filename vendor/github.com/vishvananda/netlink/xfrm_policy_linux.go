@@ -93,6 +93,30 @@ type XfrmPolicy struct {
 	Ifid     int
 	Mark     *XfrmMark
 	Tmpls    []XfrmPolicyTmpl
+	// Selector port masks, in host byte order. The reader fills them from the
+	// kernel. The writer sends a non-zero mask as given; a zero mask keeps the
+	// upstream rule of deriving the mask from the port value (any port for 0,
+	// exact for any other value).
+	DstPortMask uint16
+	SrcPortMask uint16
+	// ICMP sets XFRM_POLICY_ICMP and is read back from it. The kernel's
+	// xfrm_lookup refuses a policy without it to a lookup made with
+	// XFRM_LOOKUP_ICMP, the lookup icmp_route_lookup and xfrm_out_fwd_icmp
+	// make for an ICMP error on the reversed header of the packet it reports.
+	ICMP bool
+}
+
+// xfrmPolicyFlagICMP is XFRM_POLICY_ICMP of include/uapi/linux/xfrm.h, which
+// the nl package names only in a comment.
+const xfrmPolicyFlagICMP = 2
+
+// xfrmUserpolicyFlags answers the xfrm_userpolicy_info flags a policy asks for.
+func xfrmUserpolicyFlags(policy *XfrmPolicy) uint8 {
+	var flags uint8
+	if policy.ICMP {
+		flags |= xfrmPolicyFlagICMP
+	}
+	return flags
 }
 
 func (p XfrmPolicy) String() string {
@@ -104,13 +128,37 @@ func selFromPolicy(sel *nl.XfrmSelector, policy *XfrmPolicy) {
 	sel.Family = uint16(nl.FAMILY_V4)
 	if policy.Dst != nil {
 		sel.Family = uint16(nl.GetIPFamily(policy.Dst.IP))
-		sel.Daddr.FromIP(policy.Dst.IP)
-		prefixlenD, _ := policy.Dst.Mask.Size()
+		prefixlenD, bits := policy.Dst.Mask.Size()
+		// The mask declares the family; To4 would erase mapped IPv6 prefixes.
+		switch bits {
+		case 32:
+			sel.Family = uint16(nl.FAMILY_V4)
+		case 128:
+			sel.Family = uint16(nl.FAMILY_V6)
+		}
+		if sel.Family == uint16(nl.FAMILY_V6) {
+			copy(sel.Daddr[:], policy.Dst.IP.To16())
+		} else {
+			sel.Daddr.FromIP(policy.Dst.IP)
+		}
 		sel.PrefixlenD = uint8(prefixlenD)
 	}
 	if policy.Src != nil {
-		sel.Saddr.FromIP(policy.Src.IP)
-		prefixlenS, _ := policy.Src.Mask.Size()
+		prefixlenS, bits := policy.Src.Mask.Size()
+		if policy.Dst == nil {
+			// With no destination, the source mask declares the family.
+			switch bits {
+			case 32:
+				sel.Family = uint16(nl.FAMILY_V4)
+			case 128:
+				sel.Family = uint16(nl.FAMILY_V6)
+			}
+		}
+		if sel.Family == uint16(nl.FAMILY_V6) {
+			copy(sel.Saddr[:], policy.Src.IP.To16())
+		} else {
+			sel.Saddr.FromIP(policy.Src.IP)
+		}
 		sel.PrefixlenS = uint8(prefixlenS)
 	}
 	sel.Proto = uint8(policy.Proto)
@@ -121,6 +169,16 @@ func selFromPolicy(sel *nl.XfrmSelector, policy *XfrmPolicy) {
 	}
 	if sel.Sport != 0 {
 		sel.SportMask = ^uint16(0)
+	}
+	// An explicit mask wins over the derived one. The kernel matches
+	// (flow ^ sel) & mask, so a caller can ask for exactly port 0, or for a
+	// mask-aligned block such as an ICMP code range (the kernel reads an ICMP
+	// type into the source port and its code into the destination port).
+	if policy.DstPortMask != 0 {
+		sel.DportMask = nl.Swap16(policy.DstPortMask)
+	}
+	if policy.SrcPortMask != 0 {
+		sel.SportMask = nl.Swap16(policy.SrcPortMask)
 	}
 	sel.Ifindex = int32(policy.Ifindex)
 }
@@ -149,6 +207,18 @@ func (h *Handle) XfrmPolicyUpdate(policy *XfrmPolicy) error {
 	return h.xfrmPolicyAddOrUpdate(policy, nl.XFRM_MSG_UPDPOLICY)
 }
 
+// xfrmUserTmplFamily answers the family written into a template. A template
+// with no destination takes the policy selector's family. The test is on
+// LENGTH, not on nil: GetIPFamily answers FAMILY_V4 for any address of four
+// bytes or fewer, so a non-nil zero-length net.IP would put AF_INET on an IPv6
+// policy, which is the case this fixes.
+func xfrmUserTmplFamily(tmpl XfrmPolicyTmpl, selFamily uint16) uint16 {
+	if len(tmpl.Dst) > 0 {
+		return uint16(nl.GetIPFamily(tmpl.Dst))
+	}
+	return selFamily
+}
+
 func (h *Handle) xfrmPolicyAddOrUpdate(policy *XfrmPolicy, nlProto int) error {
 	req := h.newNetlinkRequest(nlProto, unix.NLM_F_CREATE|unix.NLM_F_EXCL|unix.NLM_F_ACK)
 
@@ -158,6 +228,7 @@ func (h *Handle) xfrmPolicyAddOrUpdate(policy *XfrmPolicy, nlProto int) error {
 	msg.Index = uint32(policy.Index)
 	msg.Dir = uint8(policy.Dir)
 	msg.Action = uint8(policy.Action)
+	msg.Flags = xfrmUserpolicyFlags(policy)
 	msg.Lft.SoftByteLimit = nl.XFRM_INF
 	msg.Lft.HardByteLimit = nl.XFRM_INF
 	msg.Lft.SoftPacketLimit = nl.XFRM_INF
@@ -170,7 +241,7 @@ func (h *Handle) xfrmPolicyAddOrUpdate(policy *XfrmPolicy, nlProto int) error {
 		userTmpl := nl.DeserializeXfrmUserTmpl(tmplData[start : start+nl.SizeofXfrmUserTmpl])
 		userTmpl.XfrmId.Daddr.FromIP(tmpl.Dst)
 		userTmpl.Saddr.FromIP(tmpl.Src)
-		userTmpl.Family = uint16(nl.GetIPFamily(tmpl.Dst))
+		userTmpl.Family = xfrmUserTmplFamily(tmpl, msg.Sel.Family)
 		userTmpl.XfrmId.Proto = uint8(tmpl.Proto)
 		userTmpl.XfrmId.Spi = nl.Swap32(uint32(tmpl.Spi))
 		userTmpl.Mode = uint8(tmpl.Mode)
@@ -315,6 +386,21 @@ func (h *Handle) xfrmPolicyGetOrDelete(policy *XfrmPolicy, nlProto int) (*XfrmPo
 	return parseXfrmPolicy(msgs[0], FAMILY_ALL)
 }
 
+// XFRM addresses are unions; the message family, rather than their bytes,
+// selects the IPv4 or IPv6 arm.
+func xfrmIPFromAddress(addr *nl.XfrmAddress, family uint16) net.IP {
+	addrLen := net.IPv4len
+	if family == nl.FAMILY_V6 {
+		addrLen = net.IPv6len
+	}
+	return append(net.IP(nil), addr[:addrLen]...)
+}
+
+func xfrmIPNetFromAddress(addr *nl.XfrmAddress, prefixlen uint8, family uint16) *net.IPNet {
+	ip := xfrmIPFromAddress(addr, family)
+	return &net.IPNet{IP: ip, Mask: net.CIDRMask(int(prefixlen), len(ip)*8)}
+}
+
 func parseXfrmPolicy(m []byte, family int) (*XfrmPolicy, error) {
 	msg := nl.DeserializeXfrmUserpolicyInfo(m)
 
@@ -325,16 +411,19 @@ func parseXfrmPolicy(m []byte, family int) (*XfrmPolicy, error) {
 
 	var policy XfrmPolicy
 
-	policy.Dst = msg.Sel.Daddr.ToIPNet(msg.Sel.PrefixlenD, uint16(family))
-	policy.Src = msg.Sel.Saddr.ToIPNet(msg.Sel.PrefixlenS, uint16(family))
+	policy.Dst = xfrmIPNetFromAddress(&msg.Sel.Daddr, msg.Sel.PrefixlenD, msg.Sel.Family)
+	policy.Src = xfrmIPNetFromAddress(&msg.Sel.Saddr, msg.Sel.PrefixlenS, msg.Sel.Family)
 	policy.Proto = Proto(msg.Sel.Proto)
 	policy.DstPort = int(nl.Swap16(msg.Sel.Dport))
 	policy.SrcPort = int(nl.Swap16(msg.Sel.Sport))
+	policy.DstPortMask = nl.Swap16(msg.Sel.DportMask)
+	policy.SrcPortMask = nl.Swap16(msg.Sel.SportMask)
 	policy.Ifindex = int(msg.Sel.Ifindex)
 	policy.Priority = int(msg.Priority)
 	policy.Index = int(msg.Index)
 	policy.Dir = Dir(msg.Dir)
 	policy.Action = PolicyAction(msg.Action)
+	policy.ICMP = msg.Flags&xfrmPolicyFlagICMP != 0
 
 	attrs, err := nl.ParseRouteAttr(m[msg.Len():])
 	if err != nil {
@@ -348,8 +437,8 @@ func parseXfrmPolicy(m []byte, family int) (*XfrmPolicy, error) {
 			for i := 0; i < max; i += nl.SizeofXfrmUserTmpl {
 				var resTmpl XfrmPolicyTmpl
 				tmpl := nl.DeserializeXfrmUserTmpl(attr.Value[i : i+nl.SizeofXfrmUserTmpl])
-				resTmpl.Dst = tmpl.XfrmId.Daddr.ToIP()
-				resTmpl.Src = tmpl.Saddr.ToIP()
+				resTmpl.Dst = xfrmIPFromAddress(&tmpl.XfrmId.Daddr, tmpl.Family)
+				resTmpl.Src = xfrmIPFromAddress(&tmpl.Saddr, tmpl.Family)
 				resTmpl.Proto = Proto(tmpl.XfrmId.Proto)
 				resTmpl.Mode = Mode(tmpl.Mode)
 				resTmpl.Spi = int(nl.Swap32(tmpl.XfrmId.Spi))

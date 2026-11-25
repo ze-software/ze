@@ -123,8 +123,32 @@ type XfrmState struct {
 	ESN           bool
 	DontEncapDSCP bool
 	OSeqMayWrap   bool
-	Replay        *XfrmReplayState
-	Selector      *XfrmPolicy
+	// AFUnspec sets XFRM_STATE_AF_UNSPEC. Without it the kernel gives a state
+	// with no selector family the outer family, so a tunnel-mode state carries
+	// inner packets of that family only.
+	AFUnspec bool
+	// NoPMTUDisc sets XFRM_STATE_NOPMTUDISC. The kernel's
+	// xfrm4_tunnel_encap_add then writes a clear DF bit into the outer IPv4
+	// header instead of copying the inner header's.
+	NoPMTUDisc bool
+	// ICMP sets XFRM_STATE_ICMP. On an inbound state, icmp_rcv and
+	// icmpv6_rcv then re-check an ICMP error that failed the inbound policy
+	// check against the header it embeds, with addresses and ports reversed.
+	ICMP     bool
+	Replay   *XfrmReplayState
+	Selector *XfrmPolicy
+	// ExtraAttrs are netlink attributes this package does not model. The state
+	// writer sends each one unchanged, in order, directly after
+	// xfrm_usersa_info. The state reader returns each attribute whose type is
+	// above nl.XFRMA_MAX, with its own copy of the value.
+	ExtraAttrs []XfrmAttr
+}
+
+// XfrmAttr is a netlink attribute of an XFRM message: its type and its value,
+// without the attribute header.
+type XfrmAttr struct {
+	Type  uint16
+	Value []byte
 }
 
 func (sa XfrmState) String() string {
@@ -205,6 +229,17 @@ func writeMark(m *XfrmMark) []byte {
 	return mark.Serialize()
 }
 
+// xfrm_usersa_info carries a 32-bit legacy replay bitmap. Larger windows use
+// XFRMA_REPLAY_ESN_VAL; without XFRM_STATE_ESN, Linux selects bitmap mode.
+const xfrmLegacyReplayWindow = 32
+
+// xfrmReplayWindowInESN reports whether the replay window travels in
+// XFRMA_REPLAY_ESN_VAL: always for an ESN state, and for any window wider than
+// the legacy bitmap.
+func xfrmReplayWindowInESN(state *XfrmState) bool {
+	return state.ESN || state.ReplayWindow > xfrmLegacyReplayWindow
+}
+
 func writeReplayEsn(replayWindow int) []byte {
 	replayEsn := &nl.XfrmReplayStateEsn{
 		OSeq:         0,
@@ -260,6 +295,15 @@ func (h *Handle) XfrmStateUpdate(state *XfrmState) error {
 	return h.xfrmStateAddOrUpdate(state, nl.XFRM_MSG_UPDSA)
 }
 
+// addXfrmExtraAttrs appends attrs to req unchanged and in order. It is split
+// out of xfrmStateAddOrUpdate so that the request can be checked without
+// sending it.
+func addXfrmExtraAttrs(req *nl.NetlinkRequest, attrs []XfrmAttr) {
+	for _, attr := range attrs {
+		req.AddData(nl.NewRtAttr(int(attr.Type), attr.Value))
+	}
+}
+
 func (h *Handle) xfrmStateAddOrUpdate(state *XfrmState, nlProto int) error {
 
 	// A state with spi 0 can't be deleted so don't allow it to be set
@@ -270,16 +314,20 @@ func (h *Handle) xfrmStateAddOrUpdate(state *XfrmState, nlProto int) error {
 
 	msg := xfrmUsersaInfoFromXfrmState(state)
 
+	useReplayESN := xfrmReplayWindowInESN(state)
 	if state.ESN {
 		if state.ReplayWindow == 0 {
 			return fmt.Errorf("ESN flag set without ReplayWindow")
 		}
 		msg.Flags |= nl.XFRM_STATE_ESN
+	}
+	if useReplayESN {
 		msg.ReplayWindow = 0
 	}
 
 	limitsToLft(state.Limits, &msg.Lft)
 	req.AddData(msg)
+	addXfrmExtraAttrs(req, state.ExtraAttrs)
 
 	if state.Auth != nil {
 		out := nl.NewRtAttr(nl.XFRMA_ALG_AUTH_TRUNC, writeStateAlgoAuth(state.Auth))
@@ -307,7 +355,7 @@ func (h *Handle) xfrmStateAddOrUpdate(state *XfrmState, nlProto int) error {
 		out := nl.NewRtAttr(nl.XFRMA_MARK, writeMark(state.Mark))
 		req.AddData(out)
 	}
-	if state.ESN {
+	if useReplayESN {
 		out := nl.NewRtAttr(nl.XFRMA_REPLAY_ESN_VAL, writeReplayEsn(state.ReplayWindow))
 		req.AddData(out)
 	}
@@ -502,28 +550,37 @@ var familyError = fmt.Errorf("family error")
 
 func xfrmStateFromXfrmUsersaInfo(msg *nl.XfrmUsersaInfo) *XfrmState {
 	var state XfrmState
-	state.Dst = msg.Id.Daddr.ToIP()
-	state.Src = msg.Saddr.ToIP()
+	state.Dst = xfrmIPFromAddress(&msg.Id.Daddr, msg.Family)
+	state.Src = xfrmIPFromAddress(&msg.Saddr, msg.Family)
 	state.Proto = Proto(msg.Id.Proto)
 	state.Mode = Mode(msg.Mode)
 	state.Spi = int(nl.Swap32(msg.Id.Spi))
 	state.Reqid = int(msg.Reqid)
 	state.ReplayWindow = int(msg.ReplayWindow)
+	state.ESN = msg.Flags&nl.XFRM_STATE_ESN != 0
+	state.AFUnspec = msg.Flags&nl.XFRM_STATE_AF_UNSPEC != 0
+	state.NoPMTUDisc = msg.Flags&nl.XFRM_STATE_NOPMTUDISC != 0
+	state.ICMP = msg.Flags&nl.XFRM_STATE_ICMP != 0
 	lftToLimits(&msg.Lft, &state.Limits)
 	curToStats(&msg.Curlft, &msg.Stats, &state.Statistics)
 	state.Selector = &XfrmPolicy{
-		Dst:     msg.Sel.Daddr.ToIPNet(msg.Sel.PrefixlenD, msg.Sel.Family),
-		Src:     msg.Sel.Saddr.ToIPNet(msg.Sel.PrefixlenS, msg.Sel.Family),
-		Proto:   Proto(msg.Sel.Proto),
-		DstPort: int(nl.Swap16(msg.Sel.Dport)),
-		SrcPort: int(nl.Swap16(msg.Sel.Sport)),
-		Ifindex: int(msg.Sel.Ifindex),
+		Dst:         xfrmIPNetFromAddress(&msg.Sel.Daddr, msg.Sel.PrefixlenD, msg.Sel.Family),
+		Src:         xfrmIPNetFromAddress(&msg.Sel.Saddr, msg.Sel.PrefixlenS, msg.Sel.Family),
+		Proto:       Proto(msg.Sel.Proto),
+		DstPort:     int(nl.Swap16(msg.Sel.Dport)),
+		SrcPort:     int(nl.Swap16(msg.Sel.Sport)),
+		DstPortMask: nl.Swap16(msg.Sel.DportMask),
+		SrcPortMask: nl.Swap16(msg.Sel.SportMask),
+		Ifindex:     int(msg.Sel.Ifindex),
 	}
 
 	return &state
 }
 
 func parseXfrmState(m []byte, family int) (*XfrmState, error) {
+	if len(m) < nl.SizeofXfrmUsersaInfo {
+		return nil, errors.New("XFRM state header is truncated")
+	}
 	msg := nl.DeserializeXfrmUsersaInfo(m)
 	// This is mainly for the state dump
 	if family != FAMILY_ALL && family != int(msg.Family) {
@@ -605,6 +662,16 @@ func parseXfrmState(m []byte, family int) (*XfrmState, error) {
 		case nl.XFRMA_SA_PCPU:
 			pcpuNum := native.Uint32(attr.Value)
 			state.Pcpunum = &pcpuNum
+		case nl.XFRMA_REPLAY_ESN_VAL:
+			// xfrm_replay_state_esn is {bmp_len, oseq, seq, oseq_hi, seq_hi,
+			// replay_window} u32s then bmp[]. Read the window at its offset
+			// rather than casting the buffer to the Go struct: that struct
+			// carries a slice header for bmp, so a pointer conversion over a
+			// SizeofXfrmReplayStateEsn buffer would build a slice out of
+			// whatever follows the attribute.
+			if len(attr.Value) >= nl.SizeofXfrmReplayStateEsn {
+				state.ReplayWindow = int(native.Uint32(attr.Value[20:24]))
+			}
 		case nl.XFRMA_REPLAY_VAL:
 			if state.Replay == nil {
 				state.Replay = new(XfrmReplayState)
@@ -613,6 +680,11 @@ func parseXfrmState(m []byte, family int) (*XfrmState, error) {
 			state.Replay.OSeq = replay.OSeq
 			state.Replay.Seq = replay.Seq
 			state.Replay.BitMap = replay.BitMap
+		default:
+			if attr.Attr.Type > nl.XFRMA_MAX {
+				value := append([]byte(nil), attr.Value...)
+				state.ExtraAttrs = append(state.ExtraAttrs, XfrmAttr{Type: attr.Attr.Type, Value: value})
+			}
 		}
 	}
 
@@ -692,6 +764,15 @@ func xfrmUsersaInfoFromXfrmState(state *XfrmState) *nl.XfrmUsersaInfo {
 	msg.Sel = nl.XfrmSelector{}
 	if state.Selector != nil {
 		selFromPolicy(&msg.Sel, state.Selector)
+	}
+	if state.AFUnspec {
+		msg.Flags |= nl.XFRM_STATE_AF_UNSPEC
+	}
+	if state.NoPMTUDisc {
+		msg.Flags |= nl.XFRM_STATE_NOPMTUDISC
+	}
+	if state.ICMP {
+		msg.Flags |= nl.XFRM_STATE_ICMP
 	}
 	return msg
 }

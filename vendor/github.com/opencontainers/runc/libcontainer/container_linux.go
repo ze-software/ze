@@ -624,26 +624,57 @@ func (c *Container) newParentProcess(p *Process) (parentProcess, error) {
 
 func (c *Container) newInitProcess(p *Process, cmd *exec.Cmd, comm *processComm) (*initProcess, error) {
 	cmd.Env = append(cmd.Env, "_LIBCONTAINER_INITTYPE="+string(initStandard))
-	nsMaps := make(map[configs.NamespaceType]string)
+	// ze patch (runc-01-direct-init): no C stage runs before the Go init, so
+	// the standard library creates the namespaces when it clones init. What
+	// only the C stage could do is refused here, never ignored.
 	for _, ns := range c.config.Namespaces {
 		if ns.Path != "" {
-			nsMaps[ns.Type] = ns.Path
+			return nil, fmt.Errorf("joining the existing %s namespace %s is not supported: init is cloned into new namespaces only", ns.Type, ns.Path)
 		}
 	}
-	data, err := c.bootstrapData(c.config.Namespaces.CloneFlags(), nsMaps)
-	if err != nil {
-		return nil, err
+	if c.config.TimeOffsets != nil {
+		return nil, errors.New("time namespace offsets are not supported: nothing writes them before init runs")
 	}
+	if c.config.UIDMappings != nil || c.config.GIDMappings != nil {
+		return nil, errors.New("user and group identity mappings are not supported: nothing writes them before init runs")
+	}
+	// The standard library makes a child with a parent death signal compare
+	// its parent pid with the one read before the clone. Inside a new pid
+	// namespace that pid reads 0, so init would kill itself at once.
+	if c.config.ParentDeathSignal != 0 {
+		return nil, errors.New("a parent death signal is not supported: init cloned into a new pid namespace would kill itself")
+	}
+	cmd.SysProcAttr.Cloneflags = c.config.Namespaces.CloneFlags()
+	// The C stage called setsid(2); nothing in the Go init does.
+	cmd.SysProcAttr.Setsid = true
+
+	// Init MUST be in its cgroup before its cgroup namespace exists, or that
+	// namespace is rooted at the caller's cgroup and the container sees the
+	// host's tree. Upstream attaches init after the start and lets the C stage
+	// unshare afterwards. Here the cgroup is created with no process (pid -1)
+	// and the standard library clones init into it (CLONE_INTO_CGROUP).
+	if err := c.cgroupManager.Apply(-1); err != nil {
+		return nil, fmt.Errorf("unable to create the container cgroup: %w", err)
+	}
+	cgroupDir, err := cgroups.OpenFile(c.cgroupManager.Path(""), "", unix.O_PATH|unix.O_DIRECTORY|unix.O_CLOEXEC)
+	if err != nil {
+		_ = c.cgroupManager.Destroy()
+		return nil, fmt.Errorf("unable to open the container cgroup: %w", err)
+	}
+	// The descriptor MUST stay open until init is spawned. closeClonedExes
+	// closes it then, with the sealed binary, and on the next start.
+	p.clonedExes = append(p.clonedExes, cgroupDir)
+	cmd.SysProcAttr.UseCgroupFD = true
+	cmd.SysProcAttr.CgroupFD = int(cgroupDir.Fd())
 
 	init := &initProcess{
 		containerProcess: containerProcess{
-			cmd:           cmd,
-			comm:          comm,
-			manager:       c.cgroupManager,
-			config:        c.newInitConfig(p),
-			process:       p,
-			bootstrapData: data,
-			container:     c,
+			cmd:       cmd,
+			comm:      comm,
+			manager:   c.cgroupManager,
+			config:    c.newInitConfig(p),
+			process:   p,
+			container: c,
 		},
 		intelRdtManager: c.intelRdtManager,
 	}
@@ -652,6 +683,16 @@ func (c *Container) newInitProcess(p *Process, cmd *exec.Cmd, comm *processComm)
 }
 
 func (c *Container) newSetnsProcess(p *Process, cmd *exec.Cmd, comm *processComm) (*setnsProcess, error) {
+	// ze patch (runc-03-refuse-setns): entering a running container means
+	// joining its namespaces, which the standard library cannot do at clone
+	// and which upstream leaves to the C stage this build does not have.
+	// Nothing below this return runs.
+	return nil, errors.New("entering a running container is not supported: this build has no namespace join")
+}
+
+// newSetnsProcessWithJoin is the upstream body of newSetnsProcess, kept
+// unchanged for the patch that restores entering a container.
+func (c *Container) newSetnsProcessWithJoin(p *Process, cmd *exec.Cmd, comm *processComm) (*setnsProcess, error) {
 	cmd.Env = append(cmd.Env, "_LIBCONTAINER_INITTYPE="+string(initSetns))
 	state := c.currentState()
 	// for setns process, we don't have to set cloneflags as the process namespaces
