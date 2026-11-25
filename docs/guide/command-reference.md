@@ -1223,6 +1223,29 @@ refuses when the `plugin` block of the configuration cannot be read, and names
 
 <!-- source: internal/component/managed/cmd_fleet.go -- fleetStatus, answerFleetStatusWith, readFleetStatus, decodeDaemonFleetStatus, daemonClientReport, hubAnswerOf, heldByHubWord, revertOfferedWord -->
 
+### show fleet devices
+
+Run `ze cli -c "show fleet devices"` on the hub to list devices by name.
+The table includes disconnected devices, declarations that have never
+connected and retained records whose client entry was removed. Use
+`ze cli -c "show fleet devices | label site=lon"` for devices whose
+declaration assigns the label `site=lon`. A removed device has no labels.
+
+| Columns | What they tell you |
+|---------|--------------------|
+| `connected`, `ever-connected`, `connected-since`, `last-seen`, `source-address` | Whether the device has a session now, whether it has ever authenticated, when the most recent session opened and closed, and which address the hub saw |
+| `hub-version`, `device-version`, `last-fetch`, `last-fetch-result` | The hash the hub currently serves, the hash the device presented on its last fetch, when it fetched, and whether the hub served a configuration, confirmed it was current or returned an error |
+| `config-state`, `diverged` | A held configuration is `diverged`. Otherwise a device that has never fetched is `never-fetched`, a refused acknowledgement is `rejected`, and an applied acknowledgement for the hub's current hash is `in-sync`. The other devices are `pending` |
+| `labels`, `removed` | The labels on the current declaration and whether the hub retains history for a device whose declaration is gone |
+
+Run `ze cli -c "show fleet device name edge-01"` to read the same fields
+for one device with its first connection, most recent acknowledgement,
+fetch and acknowledgement errors, removal time, and record storage status.
+An unknown name directs you to the list. When the running hub cannot supply
+its registry, the error directs you to `ze show doctor`.
+
+<!-- source: internal/component/managed/cmd_devices.go -- handleFleetDevices, handleFleetDevice, registryReadRefusal -->
+
 ### show fleet divergence list
 
 On a hub: every managed client whose held configuration the hub keeps. A

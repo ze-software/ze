@@ -11,6 +11,7 @@ serves configuration to remote ze instances over TLS.
   and against nothing else, so a hub that reissues its certificate stays
   reachable with no client change. A name that resolves to nothing is an error,
   never a fall-through to another anchor
+- Hub device registry: `show fleet devices` lists live sessions, current configuration states and retained history, and `| label site=lon` filters the table by a declared label. `show fleet device name edge-01` includes fetch and acknowledgement details.
 - Config fetch with version hashing: clients only download when config changes
 - Two-phase config change: hub notifies, client fetches when ready
 - Partition resilience: clients cache config locally and start from cache when hub is unreachable
@@ -23,4 +24,5 @@ serves configuration to remote ze instances over TLS.
 <!-- source: internal/component/managed/tls.go -- clientTLSConfig, the three trust anchors in order -->
 <!-- source: internal/component/plugin/server/managed.go -- hub-side config handlers -->
 <!-- source: internal/component/plugin/server/managed_serve.go -- managedCertificate, the leaf the hub serves -->
+<!-- source: internal/component/managed/cmd_devices.go -- handleFleetDevices, handleFleetDevice -->
 <!-- source: pkg/fleet/ -- version hash and RPC envelope types -->

@@ -8,7 +8,6 @@ import (
 	"errors"
 	"fmt"
 	"io/fs"
-	"maps"
 	"sort"
 	"sync"
 
@@ -44,10 +43,18 @@ func (s *ManagedServer) MarkManagedConfigChanged(name string) {
 // registrySnapshot joins the session facts with what the store currently
 // serves and the presence of a held copy. An unreadable copy still exists.
 func (s *ManagedServer) registrySnapshot() ([]ManagedDevice, error) {
+	// Keep each name tied to the record it identified when this read began.
+	type entryVersion struct {
+		name    string
+		device  *managedDevice
+		version string
+	}
 	s.mu.Lock()
-	entries := maps.Clone(s.devices)
+	entries := make([]entryVersion, 0, len(s.devices))
+	for name, device := range s.devices {
+		entries = append(entries, entryVersion{name: name, device: device})
+	}
 	s.mu.Unlock()
-	devices := make([]ManagedDevice, 0, len(entries))
 	diverged := make(map[string]bool)
 	if records := s.svc.records; records != nil {
 		names, err := HeldClients(records.store)
@@ -58,29 +65,35 @@ func (s *ManagedServer) registrySnapshot() ([]ManagedDevice, error) {
 			diverged[name] = true
 		}
 	}
-	for name, entry := range entries {
-		var version string
+	for i, entry := range entries {
 		// A malformed history key can be listed and forgotten, but cannot name
 		// a client configuration. Only a valid name has a version to look up.
-		if fleet.ValidDeviceKeyName(name) {
-			var err error
-			version, err = s.currentConfigVersion(name, entry)
-			if errors.Is(err, errRegistryDeviceForgotten) {
-				continue
-			}
-			if err != nil {
-				return nil, err
-			}
+		if !fleet.ValidDeviceKeyName(entry.name) {
+			continue
 		}
-		s.mu.Lock()
-		if s.devices[name] == entry {
-			device := entry.snapshotLocked()
-			device.HubVersion = version
-			device.Diverged = diverged[name]
-			devices = append(devices, device)
+		version, err := s.currentConfigVersion(entry.name, entry.device)
+		if errors.Is(err, errRegistryDeviceForgotten) {
+			continue
 		}
-		s.mu.Unlock()
+		if err != nil {
+			return nil, err
+		}
+		entries[i].version = version
 	}
+	// Copy all session facts together after I/O. A new device under a
+	// forgotten name belongs to the next snapshot, with its own version.
+	devices := make([]ManagedDevice, 0, len(entries))
+	s.mu.Lock()
+	for _, entry := range entries {
+		if s.devices[entry.name] != entry.device {
+			continue
+		}
+		device := entry.device.snapshotLocked()
+		device.HubVersion = entry.version
+		device.Diverged = diverged[entry.name]
+		devices = append(devices, device)
+	}
+	s.mu.Unlock()
 	sort.Slice(devices, func(i, j int) bool { return devices[i].Name < devices[j].Name })
 	return devices, nil
 }

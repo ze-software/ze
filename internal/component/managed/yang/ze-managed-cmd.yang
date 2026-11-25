@@ -166,8 +166,33 @@ module ze-managed-cmd {
 
         container fleet {
             config false;
-            description "Inspect how this device stands with the hub that manages its configuration.";
-            ze:help "This device and its hub.";
+            description "Inspect a managed device's local state or a hub's device registry.";
+            ze:help "Managed devices and their hub.";
+
+            container devices {
+                config false;
+                ze:command "ze-managed:fleet-devices";
+                description "List the devices this hub declares or remembers.";
+                ze:help "List the hub's managed devices.";
+            }
+
+            container device {
+                config false;
+                description "Inspect the facts a hub holds for one device.";
+                ze:help "Inspect one managed device.";
+                container name {
+                    config false;
+                    ze:command "ze-managed:fleet-device";
+                    description "Show the named device's connection and configuration history.";
+                    ze:help "Show one managed device by name.";
+                    leaf name {
+                        type string { length "1..64"; }
+                        mandatory true;
+                        description "The device name declared or recorded on this hub.";
+                        ze:help "Managed device name";
+                    }
+                }
+            }
 
             container status {
                 config false;

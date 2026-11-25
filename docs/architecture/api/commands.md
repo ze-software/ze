@@ -4643,6 +4643,17 @@ unreadable chain never reads as an empty answer.
 
 ## Managed Config RPCs
 
+The hub's device registry exposes two builtin RPCs. `ze-managed:fleet-devices`
+serves `show fleet devices` as a table. `ze-managed:fleet-device` serves
+`show fleet device name <name>` as a document, with name completion from the
+same snapshot. The table declares the `label` pipe operation with a
+`key=value` argument. Multiple label operations select rows matching every
+pair. The published column order supplies the table headings and field
+completion for generic pipe operations. Both commands report a read error when that snapshot is
+unavailable.
+<!-- source: internal/component/managed/register.go -- init -->
+<!-- source: internal/component/managed/cmd_devices.go -- handleFleetDevices, handleFleetDevice, completeFleetDevices -->
+
 RPCs for hub-client managed configuration. These operate over MuxConn after auth,
 separate from the plugin 5-stage protocol.
 

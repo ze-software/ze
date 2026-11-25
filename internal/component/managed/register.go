@@ -4,6 +4,7 @@
 // Related: doctor.go -- the hub-unreachable reachability check registered here
 // Related: cmd_fleet.go -- the three fleet command handlers registered here
 // Related: cmd_divergence.go -- the four fleet divergence command handlers registered here
+// Related: cmd_devices.go -- the hub device registry commands
 
 package managed
 
@@ -20,6 +21,23 @@ import (
 const commandModeOffline = "offline"
 
 func init() {
+	pluginserver.RegisterRPCs(
+		pluginserver.RPCRegistration{WireMethod: "ze-managed:fleet-devices", Handler: handleFleetDevices},
+		pluginserver.RPCRegistration{WireMethod: "ze-managed:fleet-device", Handler: handleFleetDevice, Complete: completeFleetDevices},
+	)
+	command.RegisterShape([]string{"show fleet devices"}, command.ShapeTab)
+	command.RegisterShape([]string{"show fleet device name"}, command.ShapeDoc)
+	rowColumns := command.ColumnOrder{
+		"name", "connected", "config-state", "labels", "hub-version", "device-version", "last-fetch", "last-fetch-result",
+		"connected-since", "last-seen", "source-address", "ever-connected", "diverged", "removed",
+	}
+	command.RegisterColumns([]string{"show fleet devices"}, rowColumns)
+	command.RegisterColumns([]string{"show fleet device name"}, append(rowColumns,
+		"first-connected", "last-ack", "ack-version", "ack-result", "ack-error", "last-fetch-error", "persisted", "unreadable", "removed-at"))
+	command.RegisterPipeFilters([]string{"show fleet devices"}, command.PipeFilter{
+		Name: "label", Description: "Select devices with this key=value label", Argument: command.ArgText,
+	})
+
 	for _, check := range []diagnostic.DoctorCheck{hubDoctorCheck, hubClientDoctorCheck, managedDivergedDoctorCheck, hubDivergedDoctorCheck} {
 		if err := diagnostic.RegisterDoctorCheck(check); err != nil {
 			panic("BUG: managed doctor check registration refused: " + err.Error())

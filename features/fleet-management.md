@@ -18,4 +18,4 @@
 
 ## Description
 
-Centralized config distribution over TLS
+Centralized configuration distribution over TLS with a hub registry of managed device sessions and configuration state.

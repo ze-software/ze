@@ -135,17 +135,21 @@ func TestRegistryConfigUnderContinuousWritesKeepsNextReadFresh(t *testing.T) {
 // declaration using the same name appears with its own facts on the next read.
 func TestRegistryForgetDuringConfigRead(t *testing.T) {
 	for _, replace := range []bool{false, true} {
-		s := registryTestServer(t)
-		original := s.devices[testClientName]
-		original.declared = false
+		store := heldTestStore(t)
+		s := registryWithHistory(t, store)
+		conn := recordTestSession(t, s)
+		s.disconnectDevice(testClientName, conn)
+		s.drainDeviceRecords()
+		s.devices[testClientName].declared = false
 		s.svc.readConfig = func(name string) ([]byte, error) {
 			if name == testClientName {
-				s.mu.Lock()
-				s.forgetDeviceRecordLocked(name, original)
+				require.NoError(t, store.RemoveKey(deviceRecordKey(name)))
+				s.drainDeviceRecords()
 				if replace {
+					s.mu.Lock()
 					s.devices[name] = &managedDevice{ManagedDeviceRecord: ManagedDeviceRecord{Name: name}, declared: true}
+					s.mu.Unlock()
 				}
-				s.mu.Unlock()
 				return nil, errors.New("read from the forgotten record")
 			}
 			return []byte(name), nil

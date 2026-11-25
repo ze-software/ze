@@ -87,6 +87,15 @@ Three rules apply to this block:
 <!-- source: internal/component/plugin/doctor/check_managed_listener.go -- diagnoseManagedListener -->
 <!-- source: internal/component/config/loader_extract.go -- readManagedClientLabels, managedClientLabelAgreement -->
 
+After changing a hub's managed listener address, certificate or client
+declarations (including secrets and labels), save the configuration and
+restart the hub. The running listener uses the settings it read at startup.
+Restarting closes existing sessions. Devices reconnect with their configured
+credentials and must trust the certificate the hub now presents.
+
+<!-- source: cmd/ze/hub/managed_server.go -- startManagedServer -->
+<!-- source: cmd/ze/hub/main_reload.go -- runReloadContext -->
+
 Start the hub with `ze start`. It also needs the root of its certificate
 authority later, in step 3. Print it now and save it to a file:
 

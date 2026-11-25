@@ -310,6 +310,8 @@ ze-ldp:show-neighbor
 ze-log:bgp-log-levels
 ze-log:bgp-log-recent
 ze-log:bgp-log-set
+ze-managed:fleet-device
+ze-managed:fleet-devices
 ze-managed:fleet-disable
 ze-managed:fleet-divergence-adopt
 ze-managed:fleet-divergence-revert

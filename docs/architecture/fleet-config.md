@@ -12,6 +12,9 @@ TLS listener that reuses the shared auth + MuxConn primitives (see "Architecture
 
 ## Design decisions
 
+The decision below is the approved target for live reload. The daemon currently
+reads the managed listener configuration at startup.
+
 | Decision | It forbids | Source | Date |
 |----------|------------|--------|------|
 | A reload that changes the certificate a serving hub's managed listener presents installs it on the running listener at that reload: the next handshake presents the certificate the configuration names, the listener keeps its socket and no session is closed, as the web and looking glass listeners do. The certificate stays in the configuration's `pki` block. In Thomas's words (voice-transcribed): "Keep the certificate in the configuration." and "In that case on commit we can perform the certificate change on the listener." | Keeping a changed managed certificate until the next restart; refusing a reload because it changes the managed certificate; rebinding the managed listener or closing its sessions to change its certificate; keeping the managed certificate anywhere but the configuration's `pki` block | plan/release/features/spec-fleet-1-device-registry.md | 2026-11-23 |
@@ -142,6 +145,28 @@ restore cannot replace the store while these managed operations still use it.
 <!-- source: cmd/ze/hub/main.go -- runYANGConfig -->
 <!-- source: internal/component/plugin/server/managed_serve.go -- Stop -->
 <!-- source: internal/component/managed/client.go -- RunManagedClient -->
+
+### Device registry
+
+The managed server keeps one record per device name across its serving
+blocks. An authenticated session supplies its start time and source address.
+The hub records the end of the session and the latest config fetch and
+acknowledgement. The `show fleet devices` table and the
+`show fleet device name <name>` document join these facts with the current
+client declaration, including a declared device before its first connection.
+A removed declaration leaves its retained history available by name.
+<!-- source: internal/component/plugin/server/managed_registry.go -- ManagedDevice, ManagedDeviceRecord, ManagedRegistrySnapshot -->
+
+The current hub version is the hash of the configuration file the hub serves
+that device. The first registry read computes it, and the storage observer
+invalidates only the changed client's hash. The reader hashes outside the
+session lock. Each answer also lists the held-record keys once to determine
+which devices have diverged. A held key counts even when its contents cannot
+be decoded. These lookups let an operator see a new hub version or the end
+of a hold before the device makes another connection.
+<!-- source: internal/component/plugin/server/managed_registry_versions.go -- registrySnapshot, currentConfigVersion, MarkManagedConfigChanged -->
+<!-- source: internal/component/plugin/server/managed_held.go -- HeldClients -->
+<!-- source: internal/component/managed/cmd_devices.go -- rowForDevice, deviceConfigState -->
 
 ### Roles
 
@@ -1159,6 +1184,25 @@ listener reissues the leaf as it ages, and a restart mints another. A client
 anchored on the root needs no change for either. Every server block that accepts managed clients serves one
 certificate: a config where two of them name different certificates is refused
 at load.
+
+The running hub uses the managed certificate and client declarations it read
+at startup. An unresolved certificate leaves the managed addresses unbound and
+reported in doctor. Correct the configuration and restart the hub to bind them.
+
+The server's reload methods are implemented and tested directly.
+`PrepareManagedListeners` resolves the candidate's named chain or prepares an
+issued leaf covering loopback and every explicit serving host.
+`ApplyManagedListeners` installs the prepared source before binding new
+addresses. Existing sessions keep their socket. If issuance fails for a new
+host, its address stays unbound and existing listeners keep their leaf.
+An unresolved name, an unusable pair or a failed replacement for a serving
+named chain returns a preparation error. The remaining daemon integration is
+to reject that candidate before any consumer applies, restore the previous
+PKI store, and install successful preparations only after promotion.
+
+<!-- source: cmd/ze/hub/managed_server.go -- startManagedServer, prepareManagedReload -->
+<!-- source: cmd/ze/hub/main_reload.go -- runReloadContext -->
+<!-- source: internal/component/plugin/server/managed_apply.go -- PrepareManagedListeners, ApplyManagedListeners -->
 
 A client authenticates the hub in one of two ways:
 
