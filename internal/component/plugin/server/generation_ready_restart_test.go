@@ -36,8 +36,8 @@ func TestGenerationReadyRestartFollowsPeerAdmission(t *testing.T) {
 	}
 }
 
-// TestGenerationReadyDeferredAdmissionOwnsRestoration reaches an automatic
-// restart during a real held transaction. Its release owns the bounded ready
+// TestGenerationReadyDeferredAdmissionOwnsRestoration reaches a restart
+// during a real held transaction. Its release owns the bounded ready
 // join, with no post-startup reservation before completion or after refusal.
 func TestGenerationReadyDeferredAdmissionOwnsRestoration(t *testing.T) {
 	for _, typed := range []bool{false, true} {
@@ -188,7 +188,7 @@ func checkGenerationReadyReplacement(t *testing.T, typed, deferred, refuse bool)
 		locked = true
 		original.Stop()
 		require.NoError(t, original.WaitRuntimeCleanupContext(ctx))
-		require.NoError(t, s.restartPluginAfterExit(original))
+		require.NoError(t, s.restartPlugin(name))
 		require.Equal(t, int64(0), reconciled.Load(), "the held transaction owns the later rebuild")
 		pending := s.ProcessManager().GetProcess(name)
 		require.NotNil(t, pending)

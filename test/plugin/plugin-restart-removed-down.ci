@@ -1,0 +1,180 @@
+# Test: a committed reload that removes a configured plugin's config root while
+#       that plugin is already down with no process clears its configured entry,
+#       its doctor-plugin-stopped row, its bus warning, and refuses restarts.
+#
+# Question: when an auto-loaded compiled-in plugin (fib-vpp) is down with no
+#   live process (pm.GetProcess == nil) and doctor-plugin-stopped raised, and a
+#   committed reload removes its config section (fib vpp), do `show doctor`,
+#   `show warnings`, and `show health` clear the stop record and does
+#   `request plugin restart fib-vpp` refuse it as not a configured plugin?
+# Why not a unit test: only a live daemon running `ze start`, `request reload`,
+#   `request plugin restart`, `show doctor`, `show warnings`, and `show health`
+#   proves the reload writer judgement, removal scope finalization,
+#   ProcessManager.UnconfigureProcess, the report bus, the doctor runtime check,
+#   and the CLI restart refusal meet in one process.
+#
+# Spec: spec-plugin-restart-bounded-and-configuration-true AC-1
+# VALIDATES: collectReloadStopProcesses / judgeReloadWriters +
+#   stopCollectedProcesses + finishRemovalScope(scope, true) ->
+#   ProcessManager.UnconfigureProcess for a configured plugin holding no
+#   process when its section leaves the configuration.
+# PREVENTS: a removed down plugin lingering in ConfiguredNames and pm.stopped,
+#   keeping a stale doctor-plugin-stopped row and letting `request plugin
+#   restart` respawn it from stale configuration.
+#
+# How fib-vpp enters the down / no-process state deterministically:
+#   1. Boot cleanly with `vpp { enabled false; }`, `interface { backend vpp; }`,
+#      and `fib { vpp { enabled true; } }` (no VPP daemon or netlink needed).
+#   2. Reload adding `batch-size 128;` under `fib { vpp }`: valid YANG and
+#      accepted by fib-vpp's OnConfigVerify/OnConfigApply, so the running config
+#      tree commits it.
+#   3. Run `request plugin restart fib-vpp`: Respawn stops old fib-vpp and
+#      starts the replacement, whose Stage 2 OnConfigure rejects the deferred
+#      `batch-size` leaf. rollbackReplacement removes fib-vpp from pm.processes
+#      (pm.GetProcess("fib-vpp") == nil) while keeping it in pm.configs and
+#      recording StopRestartFailed (raising doctor-plugin-stopped).
+#   4. Reload removing `fib { vpp { ... } }` completely, then assert doctor,
+#      warnings, health, and restart refusal.
+
+option=needs-build-tag:value=ze_vpp:state=present
+option=timeout:value=60s
+option=env:var=ze.ssh.username:value=admin
+option=env:var=ze.ssh.password:value=testpass
+option=env:var=ze.ssh.port:value=$PORT
+
+tmpfs=running.conf:terminator=EOF_V1
+system {
+	authentication {
+		# bcrypt cost-4 hash of "testpass".
+		user admin {
+			password "$2a$04$UlwuiuH82Unfsq.XEMPGJeDkXwbm3KW.nvVaVXOd/JeFK8VjMjrQO"
+		}
+	}
+}
+environment {
+	ssh {
+		enabled true
+		server main {
+			ip 127.0.0.1;
+			port $PORT;
+		}
+	}
+}
+vpp {
+	enabled false;
+}
+interface {
+	backend vpp;
+}
+fib {
+	vpp {
+		enabled true;
+	}
+}
+EOF_V1
+
+tmpfs=v2-broken.conf:terminator=EOF_V2
+system {
+	authentication {
+		# bcrypt cost-4 hash of "testpass".
+		user admin {
+			password "$2a$04$UlwuiuH82Unfsq.XEMPGJeDkXwbm3KW.nvVaVXOd/JeFK8VjMjrQO"
+		}
+	}
+}
+environment {
+	ssh {
+		enabled true
+		server main {
+			ip 127.0.0.1;
+			port $PORT;
+		}
+	}
+}
+vpp {
+	enabled false;
+}
+interface {
+	backend vpp;
+}
+fib {
+	vpp {
+		enabled true;
+		batch-size 128;
+	}
+}
+EOF_V2
+
+tmpfs=v3-removed.conf:terminator=EOF_V3
+system {
+	authentication {
+		# bcrypt cost-4 hash of "testpass".
+		user admin {
+			password "$2a$04$UlwuiuH82Unfsq.XEMPGJeDkXwbm3KW.nvVaVXOd/JeFK8VjMjrQO"
+		}
+	}
+}
+environment {
+	ssh {
+		enabled true
+		server main {
+			ip 127.0.0.1;
+			port $PORT;
+		}
+	}
+}
+vpp {
+	enabled false;
+}
+interface {
+	backend vpp;
+}
+EOF_V3
+
+tmpfs=swap-config.sh:mode=755:terminator=EOF_SWAP
+#!/bin/sh
+set -eu
+cp "$1" running.conf
+EOF_SWAP
+
+cmd=background:seq=1:exec=ze start running.conf:name=daemon:ready=Ze running.
+cmd=foreground:seq=2:exec=le test fixture daemon/await-answer plugins "show health | json":exit=0
+
+# Commit v2 (adds deferred batch-size leaf) then restart fib-vpp so Stage 2
+# OnConfigure fails and rollbackReplacement leaves fib-vpp configured with no
+# process and doctor-plugin-stopped raised.
+cmd=foreground:seq=3:exec=sh swap-config.sh v2-broken.conf:exit=0
+cmd=foreground:seq=4:exec=ze cli -c "request reload":exit=0
+cmd=foreground:seq=5:exec=ze cli -c "request plugin restart fib-vpp":exit=1
+expect=stderr:contains=plugin fib-vpp did not start again
+
+# Confirm precondition: doctor and warnings both report fib-vpp stopped.
+cmd=foreground:seq=6:exec=ze cli -c "show doctor | json":exit=0
+expect=stdout:contains="code": "doctor-plugin-stopped"
+expect=stdout:contains=configured plugin fib-vpp is not running
+cmd=foreground:seq=7:exec=ze cli -c "show warnings | json":exit=0
+expect=stdout:contains=doctor-plugin-stopped
+expect=stdout:contains=fib-vpp
+
+# Commit v3 removing fib vpp while fib-vpp holds no process.
+cmd=foreground:seq=8:exec=sh swap-config.sh v3-removed.conf:exit=0
+cmd=foreground:seq=9:exec=ze cli -c "request reload":exit=0
+
+# AC-1: doctor, warnings, and health show no stopped row for fib-vpp, and
+# restarting fib-vpp is refused as not a configured plugin.
+cmd=foreground:seq=10:exec=ze cli -c "show doctor | json":exit=0
+reject=stdout:contains=doctor-plugin-stopped
+reject=stdout:contains=configured plugin fib-vpp is not running
+
+cmd=foreground:seq=11:exec=ze cli -c "show warnings | json":exit=0
+reject=stdout:contains=doctor-plugin-stopped
+
+cmd=foreground:seq=12:exec=ze cli -c "show health | json":exit=0
+expect=stdout:pattern="name":\s*"plugins",\s*"status":\s*"healthy"
+
+cmd=foreground:seq=13:exec=ze cli -c "request plugin restart fib-vpp":exit=1
+expect=stderr:contains=plugin fib-vpp is not a configured plugin
+expect=stderr:contains=only a plugin the configuration or its auto-load started can be restarted
+expect=stderr:contains=ze show doctor, which names every configured plugin
+
+cmd=stop:seq=14:name=daemon:signal=term

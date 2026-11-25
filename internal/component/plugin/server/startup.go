@@ -700,7 +700,6 @@ func (s *Server) runPluginPhaseWithin(ctx context.Context, plugins []plugin.Plug
 		if pm.GetProcess(proc.Name()) != proc {
 			continue
 		}
-		pm.ClearStopped(proc.Name())
 		s.wg.Go(func() {
 			s.superviseProcess(proc)
 		})

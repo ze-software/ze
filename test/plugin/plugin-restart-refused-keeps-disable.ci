@@ -1,0 +1,267 @@
+# Test: a plugin disabled by the respawn limit keeps its StopRespawnLimit
+#       record and disabled state across a refused `request plugin restart`,
+#       and recovers once an admitted `request plugin restart` runs.
+#
+# Question: when an external plugin declaring failure-policy restart exhausts
+#   its per-window respawn limit (5 restarts in 60s), does `show doctor` report
+#   `the respawn limit disabled it` (preserving StopRespawnLimit rather than
+#   overwriting it with StopRestartFailed), does a refused `request plugin
+#   restart` leave that disabled state and stop record intact, and does a later
+#   admitted `request plugin restart` lift the disable and restore the plugin?
+# Why not a unit test: only a live daemon proves the full failure-policy loop,
+#   ProcessManager.Respawn limit, reload_tx.go stop-record preservation,
+#   handlePluginRestart refusal, doctor runtime snapshot, and operator recovery
+#   over SSH on a real forked plugin.
+#
+# Spec: spec-plugin-restart-bounded-and-configuration-true AC-7
+# VALIDATES: pre-spawn restart refusals preserve StopRespawnLimit, disabled
+#   state, and respawn counters; an admitted operator restart lifts them
+#   atomically and brings the plugin back to running.
+# PREVENTS: restartReplacementWithin overwriting StopRespawnLimit with
+#   StopRestartFailed on pre-spawn refusals, or handlePluginRestart lifting the
+#   respawn-limit disable before refusals run.
+#
+# Synchronization (no sleeps):
+#   - crash-loop.py exits immediately after acknowledging post-startup on
+#     generations 1..6 (5 automatic respawns -> 6th exit hits RespawnLimit=5);
+#     generation 7+ stays running and serves `show crash-loop status`.
+#   - slow-other.sh uses two POSIX FIFOs on generation 2 to hold txLock open
+#     deterministically while `request plugin restart crash-loop` is refused.
+
+option=timeout:value=60s
+option=env:var=ze.ssh.username:value=admin
+option=env:var=ze.ssh.password:value=testpass
+option=env:var=ze.ssh.port:value=$PORT
+
+tmpfs=make-fifos.sh:mode=755:terminator=EOF_MKFIFO
+#!/bin/sh
+set -eu
+mkfifo slow-other.stalled.fifo slow-other.release.fifo
+EOF_MKFIFO
+
+tmpfs=await-stalled.sh:mode=755:terminator=EOF_AWAIT
+#!/bin/sh
+set -eu
+read -r line < slow-other.stalled.fifo
+printf '%s\n' "$line"
+EOF_AWAIT
+
+tmpfs=release-stalled.sh:mode=755:terminator=EOF_RELEASE
+#!/bin/sh
+set -eu
+printf 'go\n' > slow-other.release.fifo
+EOF_RELEASE
+
+tmpfs=slow-other.sh:mode=755:terminator=EOF_SLOW
+#!/bin/sh
+set -eu
+if [ "${ZE_PLUGIN_MODE:-}" = "declare" ]; then
+	printf '%s\n' '#1 ze-plugin-engine:declare-registration {"protocol-version":1,"commands":[{"name":"show restart-generation status"}]}'
+	exit 0
+fi
+if [ -f slow-other-gen1.started ] && [ ! -f slow-other-gen2.done ]; then
+	printf 'stalled\n' > slow-other.stalled.fifo
+	read -r _ < slow-other.release.fifo
+	printf 'done\n' > slow-other-gen2.done
+else
+	printf 'started\n' > slow-other-gen1.started
+fi
+exec le test fixture plugin/restart-generation
+EOF_SLOW
+
+tmpfs=crash-loop.py:mode=755:terminator=EOF_CRASH
+#!/usr/bin/env -S python3 -I
+import json, os, socket, ssl, sys
+
+DECL = {
+    "protocol-version": 1,
+    "failure-policy": "restart",
+    "commands": [{"name": "show crash-loop status", "short-help": "Show crash-loop status."}],
+}
+
+if os.environ.get("ZE_PLUGIN_MODE") == "declare":
+    print("#1 ze-plugin-engine:declare-registration " + json.dumps(DECL, separators=(",", ":")))
+    sys.exit(0)
+
+MARKER = "crash-loop.generations"
+
+def next_generation():
+    prev = b""
+    if os.path.exists(MARKER):
+        with open(MARKER, "rb") as f:
+            prev = f.read()
+    with open(MARKER, "wb") as f:
+        f.write(prev + b"x")
+    return len(prev) + 1
+
+host = os.environ["ZE_PLUGIN_HUB_HOST"]
+ctx = ssl.create_default_context(cadata=os.environ["ZE_PLUGIN_CA_PEM"])
+ctx.minimum_version = ssl.TLSVersion.TLSv1_3
+raw = socket.create_connection((host, int(os.environ["ZE_PLUGIN_HUB_PORT"])), timeout=30)
+conn = ctx.wrap_socket(raw, server_hostname=host)
+conn.settimeout(None)
+reader = conn.makefile("rb")
+
+def send(line):
+    conn.sendall(line.encode() + b"\n")
+
+def recv():
+    line = reader.readline()
+    if not line:
+        return None
+    return line.decode().rstrip("\n")
+
+def split(line):
+    ident, _, rest = line.partition(" ")
+    verb, _, payload = rest.partition(" ")
+    return ident, verb, payload
+
+gen = 0
+
+def answer(line):
+    global gen
+    ident, verb, _ = split(line)
+    if ":" not in verb:
+        return
+    if verb == "ze-plugin-callback:execute-command":
+        doc = json.dumps({"status": "crash-loop-alive", "generation": gen}, separators=(",", ":")).encode()
+        conn.sendall(
+            (ident + " top doc 0: 0:\n").encode()
+            + (ident + " row %d:" % len(doc)).encode() + doc + b"\n"
+            + (ident + " end 1 0 0:\n").encode()
+        )
+        return
+    send(ident + " ok")
+    if verb == "ze-plugin-callback:post-startup":
+        gen = next_generation()
+        if gen <= 6:
+            conn.close()
+            sys.exit(0)
+        return
+    if verb == "ze-plugin-callback:bye":
+        sys.exit(0)
+
+def await_request(method):
+    while True:
+        line = recv()
+        if line is None:
+            sys.exit(1)
+        answer(line)
+        if split(line)[1] == method:
+            return
+
+def call(n, method, params):
+    send("#%d %s %s" % (n, method, json.dumps(params, separators=(",", ":"))))
+    while True:
+        line = recv()
+        if line is None:
+            sys.exit(1)
+        ident, verb, payload = split(line)
+        if ident == "#%d" % n and verb in ("ok", "error"):
+            return verb, payload
+        answer(line)
+
+verb, _ = call(0, "auth", {"token": os.environ["ZE_PLUGIN_HUB_TOKEN"], "name": os.environ["ZE_PLUGIN_NAME"]})
+if verb != "ok":
+    sys.exit(1)
+verb, _ = call(1, "ze-plugin-engine:declare-registration", DECL)
+if verb != "ok":
+    sys.exit(1)
+await_request("ze-plugin-callback:configure")
+call(2, "ze-plugin-engine:declare-capabilities", {"capabilities": []})
+await_request("ze-plugin-callback:share-registry")
+call(3, "ze-plugin-engine:ready", {})
+
+while True:
+    line = recv()
+    if line is None:
+        sys.exit(0)
+    answer(line)
+EOF_CRASH
+
+tmpfs=running.conf:terminator=EOF_CONF
+system {
+	authentication {
+		# bcrypt cost-4 hash of "testpass".
+		user admin {
+			password "$2a$04$UlwuiuH82Unfsq.XEMPGJeDkXwbm3KW.nvVaVXOd/JeFK8VjMjrQO"
+		}
+	}
+}
+environment {
+	ssh {
+		enabled true
+		server main {
+			ip 127.0.0.1;
+			port $PORT;
+		}
+	}
+}
+bus {
+	endpoint crash-loop {
+		external {
+			run "python3 crash-loop.py";
+		}
+		encoding json;
+	}
+	endpoint slow-other {
+		external {
+			run "sh slow-other.sh";
+		}
+		encoding json;
+	}
+}
+EOF_CONF
+
+cmd=foreground:seq=1:exec=sh make-fifos.sh:exit=0
+cmd=background:seq=2:exec=ze start running.conf:name=daemon:ready=Ze running.
+
+# Barrier: crash-loop hits RespawnLimit (5 in 60s) on its 6th exit and raises
+# doctor-plugin-stopped.
+cmd=foreground:seq=3:exec=le test fixture daemon/await-answer doctor-plugin-stopped "show warnings | json":exit=0
+
+# AC-7: the respawn-limit stop record MUST stay StopRespawnLimit ("the respawn
+# limit disabled it"), not overwritten with StopRestartFailed.
+cmd=foreground:seq=4:exec=ze cli -c "show doctor | json":exit=0
+expect=stdout:contains="code": "doctor-plugin-stopped"
+expect=stdout:contains=configured plugin crash-loop is not running: the respawn limit disabled it
+expect=stdout:contains=per-window limit
+expect=stdout:contains="fix": "ze request plugin restart crash-loop"
+reject=stdout:contains=it exited and could not be started again
+
+# Hold txLock via slow-other's restart so `request plugin restart crash-loop`
+# is refused cleanly.
+cmd=foreground:seq=5:exec=le test fixture daemon/await-answer restart-generation-1 "show restart-generation status":exit=0
+cmd=background:seq=6:exec=ze cli -c "request plugin restart slow-other | json":name=bg-slow
+cmd=foreground:seq=7:exec=sh await-stalled.sh:exit=0
+expect=stdout:contains=stalled
+
+cmd=foreground:seq=8:exec=ze cli -c "request plugin restart crash-loop":exit=1
+expect=stderr:contains=a config transaction is in flight
+
+cmd=foreground:seq=9:exec=sh release-stalled.sh:exit=0
+cmd=foreground:seq=10:exec=le test fixture daemon/await-answer restart-generation-2 "show restart-generation status":exit=0
+
+# After the refused restart, crash-loop remains disabled with StopRespawnLimit.
+cmd=foreground:seq=11:exec=ze cli -c "show doctor | json":exit=0
+expect=stdout:contains=configured plugin crash-loop is not running: the respawn limit disabled it
+expect=stdout:contains=per-window limit
+
+cmd=foreground:seq=12:exec=ze cli -c "show crash-loop status":exit=1
+expect=stderr:contains=unknown command
+
+# Once unblocked, an admitted restart lifts the disable and starts generation 7.
+cmd=foreground:seq=13:exec=ze cli -c "request plugin restart crash-loop | json":exit=0
+expect=stdout:contains=plugin crash-loop started again
+expect=stdout:pattern="was-running":\s*false
+
+cmd=foreground:seq=14:exec=ze cli -c "show crash-loop status":exit=0
+expect=stdout:contains=crash-loop-alive
+
+cmd=foreground:seq=15:exec=ze cli -c "show doctor | json":exit=0
+reject=stdout:contains=doctor-plugin-stopped
+
+cmd=foreground:seq=16:exec=ze cli -c "show warnings | json":exit=0
+reject=stdout:contains=doctor-plugin-stopped
+
+cmd=stop:seq=17:name=daemon:signal=term

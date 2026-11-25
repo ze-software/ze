@@ -1,0 +1,226 @@
+# Test: restarting an external plugin whose replacement stalls before TLS
+#       connect-back does not block `ze show doctor` or a sibling plugin's
+#       commands, and completes cleanly once the replacement connects back.
+#
+# Question: while `request plugin restart restart-generation` is waiting for
+#   its forked replacement to connect back over TLS, do `show doctor`, a
+#   sibling external plugin's command, and a concurrent restart refusal all
+#   answer promptly without waiting out the 30 s connect-back timeout, and does
+#   releasing the replacement complete the restart to generation 2?
+# Why not a unit test: only a live daemon forking real external processes over
+#   TLS connect-back proves the full path from `ze cli` through `Respawn` and
+#   `PluginDoctorSnapshot` without stalling readers during connect-back.
+#
+# Spec: spec-plugin-restart-bounded-and-configuration-true AC-3
+# VALIDATES: ProcessManager.Respawn releases pm.mu before join and connect-back
+#   and uses per-name respawn serialization, so PluginDoctorSnapshot (`show
+#   doctor`) and sibling plugins keep answering promptly while a replacement
+#   waits on connect-back.
+# PREVENTS: a slow or stuck forked replacement stalling `ze show doctor` and
+#   every ProcessManager reader across the 30 s connect-back window.
+#
+# Synchronization (no sleeps): two POSIX FIFOs coordinate generation 2 of
+#   slow-restart.sh with the test steps:
+#   - Generation 2 writes "stalled" to slow-gen2.stalled.fifo (blocking until
+#     seq=6 reads it), guaranteeing Respawn is in connect-back wait.
+#   - Generation 2 then reads from slow-gen2.release.fifo (blocking until
+#     seq=10 writes "go"), holding connect-back open across seq=7..9 and
+#     releasing immediately afterward.
+
+option=timeout:value=60s
+option=env:var=ze.ssh.username:value=admin
+option=env:var=ze.ssh.password:value=testpass
+option=env:var=ze.ssh.port:value=$PORT
+
+tmpfs=make-fifos.sh:mode=755:terminator=EOF_MKFIFO
+#!/bin/sh
+set -eu
+mkfifo slow-gen2.stalled.fifo slow-gen2.release.fifo
+EOF_MKFIFO
+
+tmpfs=await-stalled.sh:mode=755:terminator=EOF_AWAIT
+#!/bin/sh
+set -eu
+read -r line < slow-gen2.stalled.fifo
+printf '%s\n' "$line"
+EOF_AWAIT
+
+tmpfs=release-stalled.sh:mode=755:terminator=EOF_RELEASE
+#!/bin/sh
+set -eu
+printf 'go\n' > slow-gen2.release.fifo
+EOF_RELEASE
+
+tmpfs=slow-restart.sh:mode=755:terminator=EOF_SLOW
+#!/bin/sh
+set -eu
+if [ "${ZE_PLUGIN_MODE:-}" = "declare" ]; then
+	printf '%s\n' '#1 ze-plugin-engine:declare-registration {"protocol-version":1,"commands":[{"name":"show restart-generation status"}]}'
+	exit 0
+fi
+if [ -f slow-gen1.started ] && [ ! -f slow-gen2.done ]; then
+	printf 'stalled\n' > slow-gen2.stalled.fifo
+	read -r _ < slow-gen2.release.fifo
+	printf 'done\n' > slow-gen2.done
+else
+	printf 'started\n' > slow-gen1.started
+fi
+exec le test fixture plugin/restart-generation
+EOF_SLOW
+
+tmpfs=sibling-plugin.py:mode=755:terminator=EOF_SIBLING
+#!/usr/bin/env -S python3 -I
+import json, os, socket, ssl, sys
+
+DECL = {
+    "protocol-version": 1,
+    "commands": [{"name": "show sibling-plugin status", "short-help": "Show sibling plugin status."}],
+}
+
+if os.environ.get("ZE_PLUGIN_MODE") == "declare":
+    print("#1 ze-plugin-engine:declare-registration " + json.dumps(DECL, separators=(",", ":")))
+    sys.exit(0)
+
+host = os.environ["ZE_PLUGIN_HUB_HOST"]
+ctx = ssl.create_default_context(cadata=os.environ["ZE_PLUGIN_CA_PEM"])
+ctx.minimum_version = ssl.TLSVersion.TLSv1_3
+raw = socket.create_connection((host, int(os.environ["ZE_PLUGIN_HUB_PORT"])), timeout=30)
+conn = ctx.wrap_socket(raw, server_hostname=host)
+conn.settimeout(None)
+reader = conn.makefile("rb")
+
+def send(line):
+    conn.sendall(line.encode() + b"\n")
+
+def recv():
+    line = reader.readline()
+    if not line:
+        return None
+    return line.decode().rstrip("\n")
+
+def split(line):
+    ident, _, rest = line.partition(" ")
+    verb, _, payload = rest.partition(" ")
+    return ident, verb, payload
+
+def answer(line):
+    ident, verb, payload = split(line)
+    if ":" not in verb:
+        return
+    if verb == "ze-plugin-callback:execute-command":
+        doc = json.dumps({"status": "sibling-alive"}, separators=(",", ":")).encode()
+        conn.sendall(
+            (ident + " top doc 0: 0:\n").encode()
+            + (ident + " row %d:" % len(doc)).encode() + doc + b"\n"
+            + (ident + " end 1 0 0:\n").encode()
+        )
+        return
+    send(ident + " ok")
+    if verb == "ze-plugin-callback:bye":
+        sys.exit(0)
+
+def await_request(method):
+    while True:
+        line = recv()
+        if line is None:
+            sys.exit(1)
+        answer(line)
+        if split(line)[1] == method:
+            return
+
+def call(n, method, params):
+    send("#%d %s %s" % (n, method, json.dumps(params, separators=(",", ":"))))
+    while True:
+        line = recv()
+        if line is None:
+            sys.exit(1)
+        ident, verb, payload = split(line)
+        if ident == "#%d" % n and verb in ("ok", "error"):
+            return verb, payload
+        answer(line)
+
+verb, _ = call(0, "auth", {"token": os.environ["ZE_PLUGIN_HUB_TOKEN"], "name": os.environ["ZE_PLUGIN_NAME"]})
+if verb != "ok":
+    sys.exit(1)
+verb, _ = call(1, "ze-plugin-engine:declare-registration", DECL)
+if verb != "ok":
+    sys.exit(1)
+await_request("ze-plugin-callback:configure")
+call(2, "ze-plugin-engine:declare-capabilities", {"capabilities": []})
+await_request("ze-plugin-callback:share-registry")
+call(3, "ze-plugin-engine:ready", {})
+
+while True:
+    line = recv()
+    if line is None:
+        sys.exit(0)
+    answer(line)
+EOF_SIBLING
+
+tmpfs=running.conf:terminator=EOF_CONF
+system {
+	authentication {
+		# bcrypt cost-4 hash of "testpass".
+		user admin {
+			password "$2a$04$UlwuiuH82Unfsq.XEMPGJeDkXwbm3KW.nvVaVXOd/JeFK8VjMjrQO"
+		}
+	}
+}
+environment {
+	ssh {
+		enabled true
+		server main {
+			ip 127.0.0.1;
+			port $PORT;
+		}
+	}
+}
+bus {
+	endpoint restart-generation {
+		external {
+			run "sh slow-restart.sh";
+		}
+		encoding json;
+	}
+	endpoint sibling-plugin {
+		external {
+			run "python3 sibling-plugin.py";
+		}
+		encoding json;
+	}
+}
+EOF_CONF
+
+cmd=foreground:seq=1:exec=sh make-fifos.sh:exit=0
+cmd=background:seq=2:exec=ze start running.conf:name=daemon:ready=Ze running.
+
+# Barrier: both external plugins are live and serving.
+cmd=foreground:seq=3:exec=le test fixture daemon/await-answer restart-generation-1 "show restart-generation status":exit=0
+cmd=foreground:seq=4:exec=le test fixture daemon/await-answer sibling-alive "show sibling-plugin status":exit=0
+
+# Start restarting restart-generation in the background and wait until its
+# replacement process is stalled BEFORE TLS connect-back.
+cmd=background:seq=5:exec=ze cli -c "request plugin restart restart-generation | json":name=bg-restart
+cmd=foreground:seq=6:exec=sh await-stalled.sh:exit=0
+expect=stdout:contains=stalled
+
+# While restart-generation's replacement waits on connect-back, show doctor,
+# sibling-plugin's command, and a concurrent restart refusal must all answer
+# promptly without waiting for connect-back.
+cmd=foreground:seq=7:exec=ze cli -c "show doctor | json":exit=0
+reject=stdout:contains=doctor-plugin-restart-overlap
+
+cmd=foreground:seq=8:exec=ze cli -c "show sibling-plugin status":exit=0
+expect=stdout:contains=sibling-alive
+
+cmd=foreground:seq=9:exec=ze cli -c "request plugin restart sibling-plugin":exit=1
+expect=stderr:contains=a config transaction is in flight
+
+# Release generation 2 so it connects back and completes the restart cleanly.
+cmd=foreground:seq=10:exec=sh release-stalled.sh:exit=0
+cmd=foreground:seq=11:exec=le test fixture daemon/await-answer restart-generation-2 "show restart-generation status":exit=0
+
+cmd=foreground:seq=12:exec=ze cli -c "show warnings | json":exit=0
+reject=stdout:contains=doctor-plugin-stopped
+
+cmd=stop:seq=13:name=daemon:signal=term

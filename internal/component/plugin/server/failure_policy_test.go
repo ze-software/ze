@@ -132,8 +132,11 @@ func TestPluginThatExitsIsStartedAgainWhenItDeclaredRestart(t *testing.T) {
 
 	require.Eventually(t, func() bool { return starts.Load() == 2 }, failureWait, 10*time.Millisecond,
 		"the plugin exited and was never started again")
-	require.Eventually(t, func() bool { return pm.GetProcess(name) != first }, failureWait, 10*time.Millisecond,
-		"the manager still holds the exited process")
+	require.Eventually(t, func() bool {
+		p := pm.GetProcess(name)
+		return p != nil && p != first && p.Stage() == plugin.StageRunning
+	}, failureWait, 10*time.Millisecond,
+		"the replacement process did not reach StageRunning")
 
 	cmd := s.dispatcher.Registry().Lookup(commandName)
 	require.NotNil(t, cmd, "the replacement's command must be resolvable again")

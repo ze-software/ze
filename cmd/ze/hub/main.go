@@ -423,7 +423,13 @@ func runYANGConfig(store storage.Storage, configPath string, data []byte, plugin
 	// all borrowers, including deferred service owners, and is the final verdict
 	// the outer store owner MUST use before applying a pending full restore.
 	var cleanupFailure error
+	var stopFailure *opererr.Error
 	defer func() {
+		if stopFailure != nil {
+			exitStatus = 1
+			var tb textbuf.Buffer
+			tb.Str("error: ").Err(stopFailure).Byte('\n').StdErr() //nolint:errcheck // reporting failure cannot change the failed stop result
+		}
 		if cleanupFailure == nil {
 			return
 		}
@@ -1090,7 +1096,7 @@ func runYANGConfig(store storage.Storage, configPath string, data []byte, plugin
 		}
 		apiServer.Stop()
 		if failure := apiServer.StopFailure(); failure != nil {
-			retainCleanupFailure("daemon shutdown", failure)
+			stopFailure = failure
 		}
 	})
 	defer stopAPI()

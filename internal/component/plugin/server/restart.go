@@ -325,9 +325,6 @@ func (s *Server) restartHandshake(ctx context.Context, proc *process.Process, bu
 		return err
 	}
 
-	if pm := s.procManager.Load(); pm != nil && pm.GetProcess(proc.Name()) == proc {
-		pm.ClearStopped(proc.Name())
-	}
 	s.wg.Go(func() { s.superviseProcess(proc) })
 	return nil
 }

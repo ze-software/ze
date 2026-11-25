@@ -1,0 +1,120 @@
+# Test: a refused reload that auto-loaded a plugin whose startup handshake
+#       failed reports doctor-config-reload-refused only, leaving no
+#       doctor-plugin-stopped row or bus warning, keeping plugins health up,
+#       and refusing `request plugin restart` for that unconfigured plugin.
+#
+# Question: when `request reload` adds an `mrt` section whose Stage 2
+#   OnConfigure fails (RFC 6397 mixed WGS84/NaN coordinates: latitude set with
+#   longitude omitted) so the reload is refused, do `show doctor` and `show
+#   warnings` omit `doctor-plugin-stopped` for `mrt`, does `show health` keep
+#   the `plugins` row `up`, and does `request plugin restart mrt` refuse it as
+#   not a configured plugin?
+# Why not a unit test: only a live daemon proves the full reload -> auto-load ->
+#   Stage 2 failure -> rollback -> report bus -> doctor/warnings/health -> CLI
+#   restart refusal path end to end.
+#
+# Spec: spec-plugin-restart-bounded-and-configuration-true AC-10
+# VALIDATES: runPluginPhaseWithin skips pm.RecordStopped and unconfigures a
+#   failed candidate reload auto-load so neither pm.configs nor pm.stopped nor
+#   the doctor-plugin-stopped bus warning leaks into the running daemon.
+# PREVENTS: a refused reload leaving `plugins` health down and `show warnings`
+#   prescribing `ze request plugin restart <name>` for a plugin the committed
+#   configuration never named.
+
+option=needs-build-tag:value=ze_bgp:state=present
+option=timeout:value=60s
+option=env:var=ze.ssh.username:value=admin
+option=env:var=ze.ssh.password:value=testpass
+option=env:var=ze.ssh.port:value=$PORT
+
+tmpfs=running.conf:terminator=EOF_BASE
+system {
+	authentication {
+		# bcrypt cost-4 hash of "testpass".
+		user admin {
+			password "$2a$04$UlwuiuH82Unfsq.XEMPGJeDkXwbm3KW.nvVaVXOd/JeFK8VjMjrQO"
+		}
+	}
+}
+environment {
+	ssh {
+		enabled true
+		server main {
+			ip 127.0.0.1;
+			port $PORT;
+		}
+	}
+}
+EOF_BASE
+
+# Valid YANG, no InProcessConfigVerifier on mrt; mrt Stage 2 OnConfigure rejects
+# mixed WGS84 latitude with omitted (NaN) longitude (RFC 6397 Section 4.1).
+tmpfs=bad-mrt.conf:terminator=EOF_BAD_MRT
+system {
+	authentication {
+		# bcrypt cost-4 hash of "testpass".
+		user admin {
+			password "$2a$04$UlwuiuH82Unfsq.XEMPGJeDkXwbm3KW.nvVaVXOd/JeFK8VjMjrQO"
+		}
+	}
+}
+environment {
+	ssh {
+		enabled true
+		server main {
+			ip 127.0.0.1;
+			port $PORT;
+		}
+	}
+}
+mrt {
+	routes {
+		file "dump.mrt";
+		interval 60;
+		geo {
+			enabled true;
+			collector {
+				latitude "10.0";
+			}
+		}
+	}
+}
+EOF_BAD_MRT
+
+tmpfs=swap-config.sh:mode=755:terminator=EOF_SWAP
+#!/bin/sh
+set -eu
+cp "$1" running.conf
+EOF_SWAP
+
+cmd=background:seq=1:exec=ze start running.conf:name=daemon:ready=Ze running.
+cmd=foreground:seq=2:exec=le test fixture daemon/await-answer plugins "show health | json":exit=0
+
+# Swap in bad-mrt.conf and reload: mrt auto-loads and fails Stage 2 OnConfigure,
+# so the reload is refused.
+cmd=foreground:seq=3:exec=sh swap-config.sh bad-mrt.conf:exit=0
+cmd=foreground:seq=4:exec=ze cli -c "request reload":exit=1
+
+# AC-10: doctor reports doctor-config-reload-refused and NO doctor-plugin-stopped.
+cmd=foreground:seq=5:exec=ze cli -c "show doctor | json":exit=0
+expect=stdout:contains="code": "doctor-config-reload-refused"
+reject=stdout:contains=doctor-plugin-stopped
+reject=stdout:contains=configured plugin mrt is not running
+
+# AC-10: warnings carry no leaked doctor-plugin-stopped warning for mrt.
+cmd=foreground:seq=6:exec=ze cli -c "show warnings | json":exit=0
+reject=stdout:contains=doctor-plugin-stopped
+reject=stdout:contains=configured plugin mrt is not running
+
+# AC-10: plugins health stays up.
+cmd=foreground:seq=7:exec=ze cli -c "show health | json":exit=0
+expect=stdout:pattern="name":\s*"plugins",\s*"status":\s*"healthy"
+reject=stdout:contains=configured plugin mrt is not running
+
+# AC-10: mrt is not a configured plugin, so restart refuses it.
+cmd=foreground:seq=8:exec=ze cli -c "request plugin restart mrt":exit=1
+expect=stderr:contains=plugin mrt is not a configured plugin
+expect=stderr:contains=only a plugin the configuration or its auto-load started can be restarted
+expect=stderr:contains=ze show doctor, which names every configured plugin
+
+cmd=stop:seq=9:name=daemon:signal=term

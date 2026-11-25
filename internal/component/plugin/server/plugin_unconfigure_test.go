@@ -89,6 +89,7 @@ func TestRefusedRemovalKeepsPluginConfigured(t *testing.T) {
 		})
 	})
 	require.NoError(t, err)
+	s.signalStartupComplete()
 	pm := s.procManager.Load()
 	before := pm.GetProcess(name)
 
