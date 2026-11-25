@@ -10,10 +10,13 @@ import (
 	"encoding/json"
 	"net/netip"
 	"sync"
+	"sync/atomic"
 	"testing"
+	"time"
 
 	"github.com/ze-software/ze/internal/component/policy"
 	"github.com/ze-software/ze/internal/core/family"
+	"github.com/ze-software/ze/internal/core/metrics"
 	"github.com/ze-software/ze/internal/core/redistevents"
 	"github.com/ze-software/ze/internal/core/rib/locrib"
 	ribpolicy "github.com/ze-software/ze/internal/core/rib/policy"
@@ -343,5 +346,163 @@ func TestRouteInstallTagReachesGate(t *testing.T) {
 		if _, err := applyRouteInstall(rib, rpc.RouteInstallInput{Routes: []rpc.RouteInstallEntry{bad}}); err == nil {
 			t.Errorf("entry with level %d route type %d accepted, want refused", bad.Level, bad.OSPFRouteType)
 		}
+	}
+}
+
+const (
+	largeTablePlugin = "test-large-table"
+	largeTableProto  = "test-disconnect"
+)
+
+func makeLargeRouteKeys(count int, protoID redistevents.ProtocolID) []routeKey {
+	fam := v4u()
+	keys := make([]routeKey, count)
+	for i := range count {
+		addr := netip.AddrFrom4([4]byte{100, byte(64 + (i >> 16)), byte(i >> 8), byte(i)})
+		keys[i] = routeKey{
+			fam:      fam,
+			prefix:   netip.PrefixFrom(addr, 32),
+			source:   protoID,
+			instance: 0,
+		}
+	}
+	return keys
+}
+
+// TestWithdrawPluginRoutesLargeTableWithinGrace verifies that withdrawing a
+// multi-shard, multi-chunk route table finishes well inside restartCleanupGrace
+// (3 s) and leaves no tracked or Loc-RIB routes behind.
+//
+// VALIDATES: AC-8 chunked batch route withdrawal via withdrawPluginRoutes.
+// PREVENTS: large-table plugin restarts expiring restartCleanupGrace (3 s).
+func TestWithdrawPluginRoutesLargeTableWithinGrace(t *testing.T) {
+	count := 50_000
+	if testing.Short() {
+		count = 10_000
+	}
+	protoID, ok := redistevents.ProtocolIDOf(largeTableProto)
+	if !ok {
+		t.Fatalf("protocol %q not registered", largeTableProto)
+	}
+	rib := locrib.Default()
+	if rib == nil {
+		t.Fatal("locrib.Default() returned nil in unit test")
+	}
+
+	reg := metrics.NewPrometheusRegistry()
+	locrib.SetMetricsRegistry(reg)
+	testRange := netip.MustParsePrefix("100.64.0.0/10")
+	var removedEvents atomic.Int64
+	unsub := rib.OnChange(func(c locrib.Change) {
+		if c.Kind == locrib.ChangeRemove && testRange.Contains(c.Prefix.Addr()) {
+			removedEvents.Add(1)
+		}
+	})
+	s := &Server{}
+	t.Cleanup(func() {
+		s.withdrawPluginRoutes(largeTablePlugin)
+		unsub()
+		locrib.SetMetricsRegistry(nil)
+	})
+
+	keys := makeLargeRouteKeys(count, protoID)
+	path := locrib.Path{
+		Source:              protoID,
+		Instance:            0,
+		NextHop:             netip.MustParseAddr("192.0.2.20"),
+		DistanceOverride:    110,
+		HasDistanceOverride: true,
+	}
+	for i := range keys {
+		rib.Insert(keys[i].fam, keys[i].prefix, path)
+	}
+	s.recordInstalled(largeTablePlugin, keys)
+
+	start := time.Now()
+	s.withdrawPluginRoutes(largeTablePlugin)
+	elapsed := time.Since(start)
+
+	if elapsed >= restartCleanupGrace {
+		t.Fatalf("withdrawPluginRoutes(%d routes) took %s; want < %s", count, elapsed, restartCleanupGrace)
+	}
+	if got := removedEvents.Load(); got != int64(count) {
+		t.Fatalf("ChangeRemove events = %d, want %d", got, count)
+	}
+	for _, idx := range []int{0, count / 2, count - 1} {
+		if _, found := rib.Best(keys[idx].fam, keys[idx].prefix); found {
+			t.Fatalf("prefix %s still present in Loc-RIB after withdrawal", keys[idx].prefix)
+		}
+	}
+	s.routeMu.Lock()
+	_, tracked := s.installedByPlugin[largeTablePlugin]
+	s.routeMu.Unlock()
+	if tracked {
+		t.Fatal("plugin tracking entry remained after withdrawPluginRoutes")
+	}
+}
+
+// BenchmarkWithdrawPluginRoutes measures withdrawPluginRoutes across 100k,
+// 500k, and 1M installed routes against restartCleanupGrace (3 s).
+func BenchmarkWithdrawPluginRoutes(b *testing.B) {
+	protoID, ok := redistevents.ProtocolIDOf(largeTableProto)
+	if !ok {
+		b.Fatalf("protocol %q not registered", largeTableProto)
+	}
+	rib := locrib.Default()
+	if rib == nil {
+		b.Fatal("locrib.Default() returned nil in benchmark")
+	}
+	path := locrib.Path{
+		Source:              protoID,
+		Instance:            0,
+		NextHop:             netip.MustParseAddr("192.0.2.20"),
+		DistanceOverride:    110,
+		HasDistanceOverride: true,
+	}
+
+	cases := []struct {
+		name           string
+		count          int
+		withMetricsSub bool
+	}{
+		{name: "100k", count: 100_000, withMetricsSub: true},
+		{name: "500k", count: 500_000, withMetricsSub: true},
+		{name: "1M", count: 1_000_000, withMetricsSub: true},
+		{name: "1M_nometa", count: 1_000_000, withMetricsSub: false},
+	}
+
+	for _, tc := range cases {
+		b.Run(tc.name, func(b *testing.B) {
+			keys := makeLargeRouteKeys(tc.count, protoID)
+			s := &Server{}
+			var unsub func()
+			if tc.withMetricsSub {
+				locrib.SetMetricsRegistry(metrics.NewPrometheusRegistry())
+				var seen atomic.Int64
+				unsub = rib.OnChange(func(c locrib.Change) {
+					if c.Kind == locrib.ChangeRemove {
+						seen.Add(1)
+					}
+				})
+			}
+			b.Cleanup(func() {
+				s.withdrawPluginRoutes(largeTablePlugin)
+				if unsub != nil {
+					unsub()
+				}
+				locrib.SetMetricsRegistry(nil)
+			})
+
+			b.ResetTimer()
+			for range b.N {
+				b.StopTimer()
+				for i := range keys {
+					rib.Insert(keys[i].fam, keys[i].prefix, path)
+				}
+				s.recordInstalled(largeTablePlugin, keys)
+				b.StartTimer()
+				s.withdrawPluginRoutes(largeTablePlugin)
+			}
+		})
 	}
 }

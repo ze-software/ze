@@ -92,3 +92,62 @@ func TestStoreLookupLPM_IPv6(t *testing.T) {
 	assert.Equal(t, 10, val)
 	assert.Equal(t, netip.MustParsePrefix("2001:db8::/32"), pfx)
 }
+
+// TestModifyOrDeleteSinglePass verifies Store.ModifyOrDelete mutates in place
+// when fn returns true, deletes directly when fn returns false, and skips fn
+// for absent or invalid prefixes.
+//
+// VALIDATES: Store.ModifyOrDelete keep, delete, absent, and invalid-prefix paths.
+// PREVENTS: redundant Insert + Get + Delete work or lost mutations on remove.
+func TestModifyOrDeleteSinglePass(t *testing.T) {
+	s := NewStore[int](family.IPv4Unicast)
+	p1 := netip.MustParsePrefix("10.1.0.0/24")
+	p2 := netip.MustParsePrefix("10.2.0.0/24")
+	absent := netip.MustParsePrefix("10.3.0.0/24")
+
+	s.Insert(p1, 10)
+	s.Insert(p2, 20)
+
+	// keep=true mutates the stored value and preserves Len.
+	ok := s.ModifyOrDelete(p1, func(v *int) bool {
+		*v += 5
+		return true
+	})
+	assert.True(t, ok, "present prefix must return true")
+	assert.Equal(t, 2, s.Len(), "keep=true must preserve entry count")
+	v, found := s.Lookup(p1)
+	assert.True(t, found)
+	assert.Equal(t, 15, v, "keep=true mutation must persist")
+
+	// keep=false deletes the entry directly and decrements Len while keeping siblings.
+	ok = s.ModifyOrDelete(p1, func(v *int) bool {
+		assert.Equal(t, 15, *v)
+		return false
+	})
+	assert.True(t, ok, "deleted prefix must return true")
+	assert.Equal(t, 1, s.Len(), "keep=false must decrement entry count")
+	_, found = s.Lookup(p1)
+	assert.False(t, found, "deleted prefix must no longer exist")
+	v2, found2 := s.Lookup(p2)
+	assert.True(t, found2, "sibling prefix must remain intact")
+	assert.Equal(t, 20, v2)
+
+	// Absent prefix returns false without invoking fn.
+	called := false
+	ok = s.ModifyOrDelete(absent, func(*int) bool {
+		called = true
+		return false
+	})
+	assert.False(t, ok, "absent prefix must return false")
+	assert.False(t, called, "callback must not run for absent prefix")
+	assert.Equal(t, 1, s.Len())
+
+	// Invalid prefix returns false without invoking fn.
+	ok = s.ModifyOrDelete(netip.Prefix{}, func(*int) bool {
+		called = true
+		return false
+	})
+	assert.False(t, ok, "invalid prefix must return false")
+	assert.False(t, called, "callback must not run for invalid prefix")
+	assert.Equal(t, 1, s.Len())
+}

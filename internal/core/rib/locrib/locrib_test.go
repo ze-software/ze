@@ -1,14 +1,19 @@
 package locrib
 
 import (
+	"maps"
 	"net/netip"
+	"strings"
+	"sync"
 	"sync/atomic"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/ze-software/ze/internal/core/env"
 	"github.com/ze-software/ze/internal/core/family"
+	"github.com/ze-software/ze/internal/core/metrics"
 	"github.com/ze-software/ze/internal/core/redistevents"
 )
 
@@ -717,4 +722,298 @@ func TestRemoveNotFoundReturnsFalse(t *testing.T) {
 	// Remove a path that was never inserted.
 	_, changed := r.Remove(famV4, pfx, idOSPF, 0)
 	assert.False(t, changed)
+}
+
+type batchRecordingRegistry struct {
+	metrics.NopRegistry
+	mu       sync.Mutex
+	counters map[string]*recCounterVec
+	gauges   map[string]*recGaugeVec
+}
+
+type recCounterVec struct {
+	mu    sync.Mutex
+	vals  map[string]float64
+	calls int
+}
+
+type recCounter struct {
+	vec *recCounterVec
+	key string
+}
+
+type recGaugeVec struct {
+	mu    sync.Mutex
+	vals  map[string]float64
+	calls int
+}
+
+type recGauge struct {
+	vec *recGaugeVec
+	key string
+}
+
+func newBatchRecordingRegistry() *batchRecordingRegistry {
+	return &batchRecordingRegistry{
+		counters: make(map[string]*recCounterVec),
+		gauges:   make(map[string]*recGaugeVec),
+	}
+}
+
+func (r *batchRecordingRegistry) CounterVec(name, _ string, _ []string) metrics.CounterVec {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	if cv, ok := r.counters[name]; ok {
+		return cv
+	}
+	cv := &recCounterVec{vals: make(map[string]float64)}
+	r.counters[name] = cv
+	return cv
+}
+
+func (r *batchRecordingRegistry) GaugeVec(name, _ string, _ []string) metrics.GaugeVec {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	if gv, ok := r.gauges[name]; ok {
+		return gv
+	}
+	gv := &recGaugeVec{vals: make(map[string]float64)}
+	r.gauges[name] = gv
+	return gv
+}
+
+func (r *batchRecordingRegistry) counterSnapshot(name string) (map[string]float64, int) {
+	r.mu.Lock()
+	cv := r.counters[name]
+	r.mu.Unlock()
+	if cv == nil {
+		return nil, 0
+	}
+	cv.mu.Lock()
+	defer cv.mu.Unlock()
+	return maps.Clone(cv.vals), cv.calls
+}
+
+func (r *batchRecordingRegistry) gaugeSnapshot(name string) map[string]float64 {
+	r.mu.Lock()
+	gv := r.gauges[name]
+	r.mu.Unlock()
+	if gv == nil {
+		return nil
+	}
+	gv.mu.Lock()
+	defer gv.mu.Unlock()
+	return maps.Clone(gv.vals)
+}
+
+func (v *recCounterVec) With(labelValues ...string) metrics.Counter {
+	return recCounter{vec: v, key: strings.Join(labelValues, "|")}
+}
+
+func (v *recCounterVec) Delete(labelValues ...string) bool {
+	v.mu.Lock()
+	defer v.mu.Unlock()
+	key := strings.Join(labelValues, "|")
+	_, ok := v.vals[key]
+	delete(v.vals, key)
+	return ok
+}
+
+func (c recCounter) Inc() { c.Add(1) }
+
+func (c recCounter) Add(delta float64) {
+	c.vec.mu.Lock()
+	c.vec.vals[c.key] += delta
+	c.vec.calls++
+	c.vec.mu.Unlock()
+}
+
+func (v *recGaugeVec) With(labelValues ...string) metrics.Gauge {
+	return recGauge{vec: v, key: strings.Join(labelValues, "|")}
+}
+
+func (v *recGaugeVec) Delete(labelValues ...string) bool {
+	v.mu.Lock()
+	defer v.mu.Unlock()
+	key := strings.Join(labelValues, "|")
+	_, ok := v.vals[key]
+	delete(v.vals, key)
+	return ok
+}
+
+func (g recGauge) Set(val float64) {
+	g.vec.mu.Lock()
+	g.vec.vals[g.key] = val
+	g.vec.calls++
+	g.vec.mu.Unlock()
+}
+
+func (g recGauge) Inc() { g.Add(1) }
+func (g recGauge) Dec() { g.Add(-1) }
+
+func (g recGauge) Add(delta float64) {
+	g.vec.mu.Lock()
+	g.vec.vals[g.key] += delta
+	g.vec.calls++
+	g.vec.mu.Unlock()
+}
+
+// TestRIBRemoveBatchMatchesSerialRemove verifies that RIB.RemoveBatch produces
+// identical best-path fallback, complete withdrawal, ECMP sibling updates,
+// multi-family state, revision count, OnChange sequences, and shard metrics
+// compared to serial RIB.Remove, including across the 1,024-key chunk boundary.
+//
+// VALIDATES: AC-8 batch removal semantics and chunked per-shard metric parity.
+// PREVENTS: batch withdrawal diverging from serial Remove on fallback, ECMP,
+// duplicate/absent keys, chunk boundaries, or Prometheus counters and gauges.
+func TestRIBRemoveBatchMatchesSerialRemove(t *testing.T) {
+	require.NoError(t, env.Set("ze.rib.shards", "2"))
+	env.ResetCache()
+	t.Cleanup(func() {
+		SetMetricsRegistry(nil)
+		_ = env.Set("ze.rib.shards", "") //nolint:errcheck // test cleanup restoring default shard count
+		env.ResetCache()
+	})
+
+	famV6 := family.IPv6Unicast
+	serialRIB := NewRIB()
+	batchRIB := NewRIB()
+
+	insertBoth := func(fam family.Family, p netip.Prefix, path Path) {
+		serialRIB.Insert(fam, p, path)
+		batchRIB.Insert(fam, p, path)
+	}
+
+	// 1. Multi-source fallback + non-best removal.
+	pFallback := netip.MustParsePrefix("10.10.0.0/24")
+	insertBoth(famV4, pFallback, pathStatic())
+	insertBoth(famV4, pFallback, pathBGP(1, 10))
+	insertBoth(famV4, pFallback, pathOSPF(5))
+
+	// 2. Multi-source full withdrawal in one batch (order preserved per prefix).
+	pDouble := netip.MustParsePrefix("10.10.1.0/24")
+	insertBoth(famV4, pDouble, pathStatic())
+	insertBoth(famV4, pDouble, pathBGP(2, 20))
+
+	// 3. ECMP sibling removal (same best, narrowed ECMP slice).
+	pECMP := netip.MustParsePrefix("10.10.2.0/24")
+	ecmpPath := func(inst uint32, nh string) Path {
+		return Path{
+			Source: idOSPF, Instance: inst, NextHop: netip.MustParseAddr(nh),
+			DistanceOverride: 110, HasDistanceOverride: true, Metric: 10,
+		}
+	}
+	insertBoth(famV4, pECMP, ecmpPath(0, "10.0.1.1"))
+	insertBoth(famV4, pECMP, ecmpPath(1, "10.0.1.2"))
+	insertBoth(famV4, pECMP, ecmpPath(2, "10.0.1.3"))
+
+	// 4. Explicit Path.ECMP withdrawal (and duplicate RemoveKey test).
+	pExplicitECMP := netip.MustParsePrefix("10.10.3.0/24")
+	insertBoth(famV4, pExplicitECMP, Path{
+		Source: idBGP, Instance: 7, NextHop: netip.MustParseAddr("192.0.2.10"),
+		DistanceOverride: 20, HasDistanceOverride: true,
+		ECMP: hops(netip.MustParseAddr("192.0.2.11"), netip.MustParseAddr("192.0.2.12")),
+	})
+
+	// 5. IPv6 routes: one complete withdrawal, one fallback.
+	pV6Withdraw := netip.MustParsePrefix("2001:db8:1::/48")
+	pV6Fallback := netip.MustParsePrefix("2001:db8:2::/48")
+	v6Static := Path{Source: idStatic, Instance: 0, NextHop: netip.MustParseAddr("2001:db8::1"), DistanceOverride: 1, HasDistanceOverride: true}
+	v6BGP := Path{Source: idBGP, Instance: 1, NextHop: netip.MustParseAddr("2001:db8::2"), DistanceOverride: 20, HasDistanceOverride: true, Metric: 50}
+	insertBoth(famV6, pV6Withdraw, v6BGP)
+	insertBoth(famV6, pV6Fallback, v6Static)
+	insertBoth(famV6, pV6Fallback, v6BGP)
+
+	// 6. Bulk IPv4 prefixes exceeding removeBatchChunkSize (1,024) on each of the 2 shards.
+	const bulkCount = 3000
+	bulkPrefixes := make([]netip.Prefix, bulkCount)
+	bulkPath := pathBGP(1, 50)
+	for i := range bulkCount {
+		p := netip.PrefixFrom(netip.AddrFrom4([4]byte{10, byte(128 + (i >> 8)), byte(i), 0}), 24)
+		bulkPrefixes[i] = p
+		insertBoth(famV4, p, bulkPath)
+	}
+
+	keys := make([]RemoveKey, 0, bulkCount+16)
+	keys = append(keys,
+		RemoveKey{Family: famV4, Prefix: pFallback, Source: idStatic, Instance: 0},
+		RemoveKey{Family: famV4, Prefix: pFallback, Source: idOSPF, Instance: 0},
+		RemoveKey{Family: famV4, Prefix: pDouble, Source: idStatic, Instance: 0},
+		RemoveKey{Family: famV4, Prefix: pDouble, Source: idBGP, Instance: 2},
+		RemoveKey{Family: famV4, Prefix: pECMP, Source: idOSPF, Instance: 2},
+		RemoveKey{Family: famV4, Prefix: pExplicitECMP, Source: idBGP, Instance: 7},
+		// Duplicate key (already removed above) must be a no-op.
+		RemoveKey{Family: famV4, Prefix: pExplicitECMP, Source: idBGP, Instance: 7},
+		// Absent prefix, absent family, absent (source, instance), invalid prefix.
+		RemoveKey{Family: famV4, Prefix: netip.MustParsePrefix("198.51.100.0/24"), Source: idBGP, Instance: 1},
+		RemoveKey{Family: family.IPv6Multicast, Prefix: netip.MustParsePrefix("ff00::/8"), Source: idBGP, Instance: 1},
+		RemoveKey{Family: famV4, Prefix: pFallback, Source: idBGP, Instance: 99},
+		RemoveKey{Family: famV4, Prefix: netip.Prefix{}, Source: idBGP, Instance: 1},
+		// IPv6 removals.
+		RemoveKey{Family: famV6, Prefix: pV6Withdraw, Source: idBGP, Instance: 1},
+		RemoveKey{Family: famV6, Prefix: pV6Fallback, Source: idStatic, Instance: 0},
+	)
+	for _, p := range bulkPrefixes {
+		keys = append(keys, RemoveKey{Family: famV4, Prefix: p, Source: idBGP, Instance: 1})
+	}
+	const expectedRemoved = 8 + bulkCount
+
+	type prefixKey struct {
+		fam family.Family
+		pfx netip.Prefix
+	}
+	serialEvents := make(map[prefixKey][]Change)
+	batchEvents := make(map[prefixKey][]Change)
+	serialEventCount := 0
+	batchEventCount := 0
+
+	serialRIB.OnChange(func(c Change) {
+		k := prefixKey{fam: c.Family, pfx: c.Prefix}
+		serialEvents[k] = append(serialEvents[k], c)
+		serialEventCount++
+	})
+	batchRIB.OnChange(func(c Change) {
+		assert.Nil(t, c.Forward, "RemoveBatch Change must leave Forward nil")
+		k := prefixKey{fam: c.Family, pfx: c.Prefix}
+		batchEvents[k] = append(batchEvents[k], c)
+		batchEventCount++
+	})
+
+	regSerial := newBatchRecordingRegistry()
+	SetMetricsRegistry(regSerial)
+	for _, k := range keys {
+		serialRIB.Remove(k.Family, k.Prefix, k.Source, k.Instance)
+	}
+
+	regBatch := newBatchRecordingRegistry()
+	SetMetricsRegistry(regBatch)
+	gotRemoved := batchRIB.RemoveBatch(keys)
+	SetMetricsRegistry(nil)
+
+	assert.Equal(t, expectedRemoved, gotRemoved, "RemoveBatch must count exact removed paths")
+	assert.Equal(t, serialRIB.Len(famV4), batchRIB.Len(famV4), "IPv4 Len must match")
+	assert.Equal(t, serialRIB.Len(famV6), batchRIB.Len(famV6), "IPv6 Len must match")
+	assert.Equal(t, serialRIB.Revision(), batchRIB.Revision(), "Revision must match")
+	assert.Equal(t, serialEventCount, batchEventCount, "total OnChange count must match")
+	assert.Equal(t, serialEvents, batchEvents, "per-prefix OnChange sequences must match")
+
+	for _, fam := range []family.Family{famV4, famV6} {
+		serialRIB.Iterate(fam, func(p netip.Prefix, g PathGroup) bool {
+			gotBest, ok := batchRIB.Best(fam, p)
+			wantBest, wantOK := g.best()
+			assert.Equal(t, wantOK, ok, "surviving prefix %s presence mismatch", p)
+			assert.True(t, wantBest.Equal(gotBest), "surviving prefix %s best path mismatch", p)
+			return true
+		})
+	}
+
+	const (
+		metricRemoves = "ze_locrib_shard_removes_total"
+		metricDepth   = "ze_locrib_shard_depth"
+	)
+	serialRemoves, serialRemoveCalls := regSerial.counterSnapshot(metricRemoves)
+	batchRemoves, batchRemoveCalls := regBatch.counterSnapshot(metricRemoves)
+	assert.Equal(t, serialRemoves, batchRemoves, "shard remove counters must match")
+	assert.Equal(t, regSerial.gaugeSnapshot(metricDepth), regBatch.gaugeSnapshot(metricDepth), "shard depth gauges must match")
+	assert.Less(t, batchRemoveCalls, serialRemoveCalls/100, "RemoveBatch must update shard counters per chunk, not per route")
 }

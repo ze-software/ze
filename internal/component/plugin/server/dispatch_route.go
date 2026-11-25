@@ -398,8 +398,15 @@ func (s *Server) withdrawPluginRoutes(pluginName string) {
 	if rib == nil {
 		return
 	}
+	keys := make([]locrib.RemoveKey, 0, len(set))
 	for k := range set {
-		rib.Remove(k.fam, k.prefix, k.source, k.instance)
+		keys = append(keys, locrib.RemoveKey{
+			Family:   k.fam,
+			Prefix:   k.prefix,
+			Source:   k.source,
+			Instance: k.instance,
+		})
 	}
+	rib.RemoveBatch(keys)
 	logger().Debug("withdrew forked plugin routes on disconnect", "plugin", pluginName, "routes", len(set))
 }

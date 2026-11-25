@@ -382,6 +382,45 @@ func (g PathGroup) ECMPNextHops(best Path) []NextHop {
 	return siblingNextHops(&g, best)
 }
 
+// removeBatchChunkSize bounds how many prefixes RemoveBatch processes per shard
+// write-lock hold so large withdrawals (such as a 1M-route plugin disconnect)
+// do not starve concurrent BGP or sysrib lookups.
+const removeBatchChunkSize = 1024
+
+// RemoveKey identifies one path to withdraw in RIB.RemoveBatch: the same
+// (Family, Prefix, Source, Instance) tuple that RIB.Remove takes.
+type RemoveKey struct {
+	Family   family.Family
+	Prefix   netip.Prefix
+	Source   redistevents.ProtocolID
+	Instance uint32
+}
+
+type removeOutcome struct {
+	prevBest    Path
+	newBest     Path
+	prevMembers []ForwardingMember
+	members     []ForwardingMember
+	ecmp        []NextHop
+	hadBest     bool
+	newHad      bool
+}
+
+type keyPlacement struct {
+	batchIdx int // 1-based index into batches; 0 means skipped
+	shardIdx int
+}
+
+type familyBatch struct {
+	fam     family.Family
+	fs      *familyShards
+	counts  [maxShards]int
+	starts  [maxShards]int
+	cursors [maxShards]int
+	total   int
+	ordered []RemoveKey
+}
+
 // Remove deletes the Path matching (source, instance) at (fam, prefix).
 // Returns (best, changed) after the removal: best is the remaining best
 // Path (zero-value if none), changed reports whether the best differs from
@@ -397,74 +436,255 @@ func (r *RIB) Remove(fam family.Family, prefix netip.Prefix, source redistevents
 	if !ok {
 		return Path{}, false
 	}
-	sh := fs.shardFor(prefix)
-	family := fam.String()
 	shardIdx := shardIndex(prefix, len(fs.shards))
+	sh := &fs.shards[shardIdx]
 
 	sh.mu.Lock()
-	var prevBest Path
-	var hadBest bool
-	var newBest Path
-	var newHad bool
-	var removed bool
-	empty := false
-	// Capture selected members before removal. Removing one of two identical
-	// targets can change the surviving target's metadata alone.
-	var ecmp []NextHop
-	var prevMembers, members []ForwardingMember
+	var out removeOutcome
+	var didRemove bool
+	var entryEmpty bool
+	key := pathKey{source: source, instance: instance}
 
-	sh.store.Modify(prefix, func(g *PathGroup) {
-		prevBest, hadBest = g.best()
-		if hadBest {
-			prevMembers = forwardingMembers(g, &prevBest)
+	sh.store.ModifyOrDelete(prefix, func(g *PathGroup) bool {
+		out.prevBest, out.hadBest = g.best()
+		// Capture selected members before removal only when another path can
+		// survive. Removing the sole path leaves no best, so members are unused.
+		if out.hadBest && len(g.Paths) > 1 {
+			out.prevMembers = forwardingMembers(g, &out.prevBest)
 		}
-		removed = g.remove(pathKey{source: source, instance: instance})
-		newBest, newHad = g.best()
+		didRemove = g.remove(key)
+		if !didRemove {
+			return true
+		}
 		if len(g.Paths) == 0 {
-			empty = true
+			entryEmpty = true
+			return false
 		}
-		members = forwardingMembers(g, &newBest)
-		ecmp = siblingNextHops(g, newBest)
+		out.newBest, out.newHad = g.best()
+		if out.newHad {
+			out.members = forwardingMembers(g, &out.newBest)
+			out.ecmp = siblingNextHops(g, out.newBest)
+		}
+		return true
 	})
 
-	if !removed {
+	if !didRemove {
 		sh.mu.Unlock()
-		return prevBest, false
+		return out.prevBest, false
 	}
 
-	if empty {
-		sh.store.Delete(prefix)
+	depth := 0
+	if entryEmpty {
+		depth = sh.store.Len()
 	}
-	depth := sh.store.Len()
-	changed := !prevBest.Equal(newBest)
-	ecmpChanged := !equalForwardingMemberSets(prevMembers, members)
-	if changed || ecmpChanged {
-		r.revision.Add(1)
-	}
-
-	if !newHad {
-		if hadBest {
-			sh.subs.dispatch(&Change{Family: fam, Prefix: prefix, Kind: ChangeRemove})
-		}
-		sh.mu.Unlock()
-		recordRemove(family, shardIdx)
+	best, changed := r.dispatchRemoved(sh, fam, prefix, &out)
+	sh.mu.Unlock()
+	if metricsEnabled() {
+		famLabel := fam.String()
+		recordRemove(famLabel, shardIdx)
 		// Depth changed only when the prefix itself was deleted from the
-		// store (empty == true). empty == false && !newHad means paths
-		// remain but none is valid -- prefix count unchanged.
-		if empty {
-			updateDepth(family, shardIdx, depth)
+		// store (entryEmpty == true). entryEmpty == false && !out.newHad means
+		// paths remain but none is valid -- prefix count unchanged.
+		if entryEmpty {
+			updateDepth(famLabel, shardIdx, depth)
 		}
-		return Path{}, hadBest
 	}
-	if changed || ecmpChanged {
-		sh.subs.dispatch(&Change{Family: fam, Prefix: prefix, Kind: ChangeUpdate, Best: newBest, ECMP: ecmp})
+	return best, changed
+}
+
+// RemoveBatch withdraws every key in keys from the RIB and returns the number
+// of paths actually removed. Keys are partitioned by (Family, shard) so each
+// shard write lock is acquired per chunk of at most removeBatchChunkSize
+// prefixes rather than once per route, and shard metrics are updated once per
+// chunk.
+//
+// Semantics match calling Remove serially for each key: best-path fallback,
+// ECMP updates, revision increments, and synchronous OnChange notifications
+// under the owning shard's write lock are identical, with keys for the same
+// prefix processed in their input order.
+func (r *RIB) RemoveBatch(keys []RemoveKey) int {
+	if len(keys) == 0 {
+		return 0
+	}
+	batches := r.partitionRemoveKeys(keys)
+	totalRemoved := 0
+	for i := range batches {
+		fb := &batches[i]
+		famLabel := ""
+		for shardIdx := range fb.fs.shards {
+			start := fb.starts[shardIdx]
+			end := start + fb.counts[shardIdx]
+			if start == end {
+				continue
+			}
+			sh := &fb.fs.shards[shardIdx]
+			for off := start; off < end; off += removeBatchChunkSize {
+				chunk := fb.ordered[off:min(off+removeBatchChunkSize, end)]
+				chunkRemoved, chunkDeleted, depth := r.removeShardChunk(sh, fb.fam, chunk)
+				totalRemoved += chunkRemoved
+				if chunkRemoved > 0 && metricsEnabled() {
+					if famLabel == "" {
+						famLabel = fb.fam.String()
+					}
+					recordRemoveBatch(famLabel, shardIdx, chunkRemoved, depth, chunkDeleted > 0)
+				}
+			}
+		}
+	}
+	return totalRemoved
+}
+
+// partitionRemoveKeys groups keys stably by (Family, shardIdx) into one
+// contiguous slice per family, skipping invalid prefixes and absent families.
+func (r *RIB) partitionRemoveKeys(keys []RemoveKey) []familyBatch {
+	placements := make([]keyPlacement, len(keys))
+	var batches []familyBatch
+	var famToBatch map[family.Family]int
+	var lastFam family.Family
+	var lastBatchID int
+	hasLast := false
+
+	for i := range keys {
+		pfx := keys[i].Prefix
+		if !pfx.IsValid() {
+			continue
+		}
+		fam := keys[i].Family
+		var batchID int
+		if hasLast && fam == lastFam {
+			batchID = lastBatchID
+		} else {
+			var cached bool
+			if famToBatch != nil {
+				batchID, cached = famToBatch[fam]
+			}
+			if !cached {
+				r.famMu.RLock()
+				fs, ok := r.families[fam]
+				r.famMu.RUnlock()
+				if ok {
+					batches = append(batches, familyBatch{fam: fam, fs: fs})
+					batchID = len(batches)
+				}
+				if hasLast {
+					if famToBatch == nil {
+						famToBatch = make(map[family.Family]int, 4)
+						famToBatch[lastFam] = lastBatchID
+					}
+					famToBatch[fam] = batchID
+				}
+			}
+			lastFam = fam
+			lastBatchID = batchID
+			hasLast = true
+		}
+		if batchID == 0 {
+			continue
+		}
+		fb := &batches[batchID-1]
+		sIdx := shardIndex(pfx, len(fb.fs.shards))
+		placements[i] = keyPlacement{batchIdx: batchID, shardIdx: sIdx}
+		fb.counts[sIdx]++
+		fb.total++
+	}
+	if len(batches) == 0 {
+		return nil
+	}
+
+	for i := range batches {
+		fb := &batches[i]
+		fb.ordered = make([]RemoveKey, fb.total)
+		offset := 0
+		for s := range len(fb.fs.shards) {
+			fb.starts[s] = offset
+			fb.cursors[s] = offset
+			offset += fb.counts[s]
+		}
+	}
+	for i := range keys {
+		pl := placements[i]
+		if pl.batchIdx == 0 {
+			continue
+		}
+		fb := &batches[pl.batchIdx-1]
+		pos := fb.cursors[pl.shardIdx]
+		fb.ordered[pos] = keys[i]
+		fb.cursors[pl.shardIdx] = pos + 1
+	}
+	return batches
+}
+
+// removeShardChunk removes one bounded chunk of keys from sh under a single
+// sh.mu write-lock hold.
+func (r *RIB) removeShardChunk(sh *shard, fam family.Family, keys []RemoveKey) (removed, deleted, depth int) {
+	sh.mu.Lock()
+	var (
+		key        pathKey
+		out        removeOutcome
+		didRemove  bool
+		entryEmpty bool
+	)
+	mutate := func(g *PathGroup) bool {
+		out.prevBest, out.hadBest = g.best()
+		if out.hadBest && len(g.Paths) > 1 {
+			out.prevMembers = forwardingMembers(g, &out.prevBest)
+		}
+		didRemove = g.remove(key)
+		if !didRemove {
+			return true
+		}
+		if len(g.Paths) == 0 {
+			entryEmpty = true
+			return false
+		}
+		out.newBest, out.newHad = g.best()
+		if out.newHad {
+			out.members = forwardingMembers(g, &out.newBest)
+			out.ecmp = siblingNextHops(g, out.newBest)
+		}
+		return true
+	}
+	for i := range keys {
+		k := keys[i]
+		key = pathKey{source: k.Source, instance: k.Instance}
+		out = removeOutcome{}
+		didRemove = false
+		entryEmpty = false
+
+		sh.store.ModifyOrDelete(k.Prefix, mutate)
+		if !didRemove {
+			continue
+		}
+		removed++
+		if entryEmpty {
+			deleted++
+		}
+		r.dispatchRemoved(sh, fam, k.Prefix, &out)
+	}
+	if deleted > 0 {
+		depth = sh.store.Len()
 	}
 	sh.mu.Unlock()
-	recordRemove(family, shardIdx)
-	if empty {
-		updateDepth(family, shardIdx, depth)
+	return removed, deleted, depth
+}
+
+// dispatchRemoved updates the revision counter and notifies subscribers for one
+// removed path. Caller MUST hold sh.mu.
+func (r *RIB) dispatchRemoved(sh *shard, fam family.Family, prefix netip.Prefix, out *removeOutcome) (Path, bool) {
+	if !out.newHad {
+		if out.hadBest {
+			r.revision.Add(1)
+			sh.subs.dispatch(&Change{Family: fam, Prefix: prefix, Kind: ChangeRemove})
+		}
+		return Path{}, out.hadBest
 	}
-	return newBest, changed
+	changed := !out.prevBest.Equal(out.newBest)
+	ecmpChanged := !equalForwardingMemberSets(out.prevMembers, out.members)
+	if changed || ecmpChanged {
+		r.revision.Add(1)
+		sh.subs.dispatch(&Change{Family: fam, Prefix: prefix, Kind: ChangeUpdate, Best: out.newBest, ECMP: out.ecmp})
+	}
+	return out.newBest, changed
 }
 
 // Lookup returns a copy of the PathGroup for (fam, prefix). Returns
@@ -639,6 +859,7 @@ func (r *RIB) Len(fam family.Family) int {
 	r.famMu.RLock()
 	fs, ok := r.families[fam]
 	r.famMu.RUnlock()
+	// refuse-by-default: guards familyShardsFor -- families are allocated lazily on first insert, so an absent family holds zero prefixes
 	if !ok {
 		return 0
 	}

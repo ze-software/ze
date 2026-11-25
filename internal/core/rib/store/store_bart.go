@@ -106,6 +106,26 @@ func (s *Store[T]) Modify(pfx netip.Prefix, fn func(*T)) bool {
 	return true
 }
 
+// ModifyOrDelete calls fn with a pointer to the entry for pfx. When fn returns
+// true the mutated value is written back; when fn returns false the entry is
+// deleted directly without writing back first. Returns false if the entry is
+// absent or pfx is invalid.
+func (s *Store[T]) ModifyOrDelete(pfx netip.Prefix, fn func(*T) (keep bool)) bool {
+	if !pfx.IsValid() {
+		return false
+	}
+	v, exists := s.trie.Get(pfx)
+	if !exists {
+		return false
+	}
+	if fn(&v) {
+		s.trie.Insert(pfx, v)
+		return true
+	}
+	s.trie.Delete(pfx)
+	return true
+}
+
 // ModifyAll visits every entry. Mutations written through the pointer are
 // persisted back into the store.
 func (s *Store[T]) ModifyAll(fn func(*T)) {

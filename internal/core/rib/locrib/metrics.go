@@ -62,8 +62,32 @@ func SetMetricsRegistry(reg metrics.Registry) {
 	locribMetricsPtr.Store(m)
 }
 
-// shardLabel formats the shard index as a metric label value.
-func shardLabel(idx int) string { return strconv.Itoa(idx) }
+// shardIndexLabels caches decimal string labels for valid shard indices
+// [0, maxShards) so metric updates never call strconv.Itoa on the hot path.
+var shardIndexLabels = makeShardIndexLabels()
+
+func makeShardIndexLabels() [maxShards]string {
+	var labels [maxShards]string
+	for i := range labels {
+		labels[i] = strconv.Itoa(i)
+	}
+	return labels
+}
+
+// metricsEnabled reports whether a metrics registry is currently wired into
+// locrib. Callers use it to skip family-label formatting when metrics are off.
+func metricsEnabled() bool {
+	return locribMetricsPtr.Load() != nil
+}
+
+// shardLabel formats the shard index as a metric label value, reading the
+// precomputed table for every in-range shard index.
+func shardLabel(idx int) string {
+	if idx >= 0 && idx < len(shardIndexLabels) {
+		return shardIndexLabels[idx]
+	}
+	return strconv.Itoa(idx)
+}
 
 func recordInsert(family string, shardIdx int) {
 	if m := locribMetricsPtr.Load(); m != nil {
@@ -74,6 +98,22 @@ func recordInsert(family string, shardIdx int) {
 func recordRemove(family string, shardIdx int) {
 	if m := locribMetricsPtr.Load(); m != nil {
 		m.removes.With(family, shardLabel(shardIdx)).Inc()
+	}
+}
+
+// recordRemoveBatch records a chunk of removals on one shard with a single
+// counter Add and, when at least one prefix became empty, one depth Set.
+func recordRemoveBatch(family string, shardIdx, removed, depth int, depthChanged bool) {
+	m := locribMetricsPtr.Load()
+	if m == nil {
+		return
+	}
+	shardLbl := shardLabel(shardIdx)
+	if removed > 0 {
+		m.removes.With(family, shardLbl).Add(float64(removed))
+	}
+	if depthChanged {
+		m.depth.With(family, shardLbl).Set(float64(depth))
 	}
 }
 
