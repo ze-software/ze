@@ -149,9 +149,10 @@ type ManagedServer struct {
 	listens []ManagedListener
 	// devices holds one entry across all declarations of a name. Its session
 	// pointer is also the destination for config-changed. Guarded by mu.
-	recordIO *managedRecordIO
-	devices  map[string]*managedDevice
-	now      func() time.Time
+	recordIO             *managedRecordIO
+	detachConfigObserver func()
+	devices              map[string]*managedDevice
+	now                  func() time.Time
 
 	// source is installed once the reload is accepted. Each new handshake reads it.
 	source         *managedCertSource
@@ -193,6 +194,7 @@ type ManagedServer struct {
 	ctx         context.Context
 	cancel      context.CancelFunc
 	wg          sync.WaitGroup
+	stopOnce    sync.Once
 }
 
 // managedListenerKey identifies a configured bind request. Multiple port-zero
@@ -430,9 +432,19 @@ func (s *ManagedServer) Addrs() []net.Addr {
 
 // Start loads device history and binds each available address. A server with no
 // bound address still publishes its registry and can accept a repairing reload.
+// Each open store has one Fleet history writer. A caller replacing that server
+// MUST wait for its Stop to return before starting the successor on the same store.
 func (s *ManagedServer) Start(ctx context.Context) error {
 	if err := s.loadDeviceRecords(); err != nil {
 		return err
+	}
+	if s.recordIO != nil {
+		s.detachConfigObserver = s.recordIO.store.SetWriteObserver(func(key string) {
+			if name, ok := ClientNameFromConfigKey(key); ok {
+				s.MarkManagedConfigChanged(name)
+				s.NotifyConfigChanged(name)
+			}
+		})
 	}
 	s.ctx, s.cancel = context.WithCancel(ctx)
 	s.ApplyManagedListeners(&ManagedListenerPlan{listens: s.listens, source: s.source, bindErr: s.initialCertErr, certificate: s.certConfig.Certificate})
@@ -881,15 +893,20 @@ func (s *ManagedServer) connectedClients() []string {
 	return out
 }
 
-// Stop cancels serving and waits for all goroutines to drain. Listeners are closed by
-// closeOnDone when the context is canceled.
+// Stop closes sessions, waits for serving goroutines and flushes device history.
+// The caller MUST allow Stop to finish before reusing or closing the store.
 func (s *ManagedServer) Stop() {
-	if s.cancel != nil {
-		s.cancel()
-	}
-	s.wg.Wait()
-	s.stopDeviceRecords() // final disconnects may follow writer cancellation
-	withdrawManagedDoctor(s)
+	s.stopOnce.Do(func() {
+		if s.detachConfigObserver != nil {
+			s.detachConfigObserver()
+		}
+		if s.cancel != nil {
+			s.cancel()
+		}
+		s.wg.Wait()
+		s.stopDeviceRecords() // final disconnects may follow writer cancellation
+		withdrawManagedDoctor(s)
+	})
 }
 
 // Per-client config key convention: a managed client's config is stored on the hub

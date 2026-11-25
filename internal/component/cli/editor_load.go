@@ -629,7 +629,9 @@ func (s *loadStage) Release() error { return nil }
 func (s *loadStage) SetModifier(string) {}
 
 // SetRuntimeObserver forwards publication to the guard loadStaged releases.
-func (s *loadStage) SetRuntimeObserver(fn storage.RuntimeObserver) { s.guard.SetRuntimeObserver(fn) }
+func (s *loadStage) SetRuntimeObserver(owner storage.RuntimeSubscription, fn storage.RuntimeObserver) {
+	s.guard.SetRuntimeObserver(owner, fn)
+}
 
 // Remove is refused; see errLoadStage.
 func (s *loadStage) Remove(name string) error {

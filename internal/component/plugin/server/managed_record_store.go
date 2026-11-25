@@ -18,6 +18,7 @@ import (
 	"unicode/utf8"
 
 	"github.com/ze-software/ze/internal/component/config/storage"
+	"github.com/ze-software/ze/internal/core/diagnostic"
 	"github.com/ze-software/ze/pkg/fleet"
 	"github.com/ze-software/ze/pkg/zefs"
 )
@@ -26,14 +27,14 @@ import (
 // one signal regardless of the number of events. Under the server mutex,
 // pending keeps one entry per name; true means its live facts changed.
 type managedRecordIO struct {
-	store     storage.Storage
-	pending   map[string]bool
-	unobserve func()
-	failed    map[string]managedRecordFailure // Includes undeclared keys whose removal failed.
-	wake      chan struct{}
-	loaded    bool
-	closed    bool
-	saving    string // A successful operator deletion cancels any older failure for this key.
+	store        storage.Storage
+	pending      map[string]bool
+	subscription storage.RuntimeSubscription
+	failed       map[string]managedRecordFailure // Includes undeclared keys whose removal failed.
+	wake         chan struct{}
+	loaded       bool
+	closed       bool
+	saving       string // Active until Release returns or an operator deletes the key.
 }
 
 type managedRecordFailure struct {
@@ -148,19 +149,18 @@ func (s *ManagedServer) loadDeviceRecords() (result error) {
 	}
 	store := s.recordIO.store
 	prefix := zefs.KeyFleetDeviceRecord.Prefix()
-	// Install outside the guard: on a blob an unguarded reader may hold the
-	// store mutex while waiting for the blob lock. Activate the observer only
-	// after loading the complete snapshot, before releasing its runtime lock.
-	s.recordIO.unobserve = store.SetRuntimeObserver(prefix, s.observeDeviceRecord)
+	// Subscribe before taking the guard and activate under its runtime lock
+	// after the snapshot, so no change can fall between loading and observing.
+	s.recordIO.subscription = store.SetRuntimeObserver(prefix, s.observeDeviceRecord)
 	guard, err := store.AcquireLock(strings.TrimSuffix(prefix, "/"))
 	if err != nil {
-		s.recordIO.unobserve()
+		s.recordIO.subscription.Unsubscribe()
 		return fmt.Errorf("lock managed device records: %w", err)
 	}
 	defer func() {
 		result = errors.Join(result, guard.Release())
-		if result != nil && s.recordIO.unobserve != nil {
-			s.recordIO.unobserve()
+		if result != nil {
+			s.recordIO.subscription.Unsubscribe()
 		}
 	}()
 	keys, err := guard.ListKeys(prefix)
@@ -243,8 +243,8 @@ func (s *ManagedServer) stopDeviceRecords() {
 		}
 		s.mu.Unlock()
 	}
-	if s.recordIO.unobserve != nil {
-		s.recordIO.unobserve()
+	if s.recordIO.subscription != nil {
+		s.recordIO.subscription.Unsubscribe()
 	}
 }
 
@@ -298,7 +298,7 @@ func (s *ManagedServer) syncDeviceRecord(name string) {
 	}
 	if !pending {
 		if err := guard.Release(); err != nil {
-			s.failDeviceRecord(name, key, false, err)
+			managedLogger().Error("cannot release unused managed device record guard", "code", diagnostic.CodeDoctorStoreIntegrity, "key", key, "error", err)
 		}
 		return
 	}
@@ -331,7 +331,7 @@ func (s *ManagedServer) syncDeviceRecord(name string) {
 		}
 	}
 	if err == nil {
-		guard.SetRuntimeObserver(func(_ string, _ bool) {
+		guard.SetRuntimeObserver(s.recordIO.subscription, func(_ string, _ bool) {
 			s.mu.Lock()
 			defer s.mu.Unlock()
 			delete(s.recordIO.failed, name)
@@ -353,6 +353,11 @@ func (s *ManagedServer) syncDeviceRecord(name string) {
 		s.failDeviceRecord(name, key, dirty, err)
 		return
 	}
+	// A guard can report an error after publishing the mutation to its
+	// observer. Keep the save active until Release itself succeeds.
+	s.mu.Lock()
+	s.recordIO.saving = ""
+	s.mu.Unlock()
 	if !dirty {
 		managedLogger().Info("reconciled a data-command write to managed device history", "key", key, "removed", remove)
 	}
@@ -387,6 +392,7 @@ func (s *ManagedServer) failDeviceRecord(name, key string, dirty bool, err error
 	if s.recordIO.saving == name {
 		// If an operator already deleted the record after this guard released,
 		// shutdown must not retry the obsolete save and recreate the record.
+		s.recordIO.saving = ""
 		s.recordIO.failed[name] = managedRecordFailure{message: err.Error(), dirty: dirty}
 		if device := s.devices[name]; device != nil {
 			device.persisted = false

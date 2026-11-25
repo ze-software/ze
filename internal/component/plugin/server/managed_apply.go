@@ -167,8 +167,11 @@ func (s *ManagedServer) ApplyManagedListeners(plan *ManagedListenerPlan) {
 		if _, declared := labels[name]; !declared && d.declared {
 			d.declared, d.labels = false, nil
 			s.doctor.clearRejected(name)
-			d.RemovedAt = s.now().UTC()
-			s.dirtyDeviceLocked(name)
+			if d.durable == nil && !d.unreadable && !d.hasSessionHistory() {
+				delete(s.devices, name)
+				continue
+			}
+			s.setRemovedAtLocked(d, s.now().UTC())
 		}
 	}
 	for name, assigned := range labels {
@@ -179,8 +182,7 @@ func (s *ManagedServer) ApplyManagedListeners(plan *ManagedListenerPlan) {
 		}
 		d.declared, d.labels = true, maps.Clone(assigned)
 		if !d.RemovedAt.IsZero() {
-			d.RemovedAt = time.Time{}
-			s.dirtyDeviceLocked(name)
+			s.setRemovedAtLocked(d, time.Time{})
 		}
 	}
 	s.mu.Unlock()
@@ -234,6 +236,19 @@ func (s *ManagedServer) ApplyManagedListeners(plan *ManagedListenerPlan) {
 	s.mu.Lock()
 	s.listeners = active
 	s.mu.Unlock()
+}
+
+func (d *managedDevice) hasSessionHistory() bool {
+	withoutSession := ManagedDeviceRecord{Name: d.Name, RemovedAt: d.RemovedAt}
+	return d.conn != nil || d.ManagedDeviceRecord != withoutSession
+}
+
+func (s *ManagedServer) setRemovedAtLocked(d *managedDevice, at time.Time) {
+	d.RemovedAt = at
+	if d.unreadable && !d.hasSessionHistory() {
+		return // Preserve the original bytes until an authenticated event replaces them.
+	}
+	s.dirtyDeviceLocked(d.Name)
 }
 
 func (s *ManagedServer) getCertificate(hello *tls.ClientHelloInfo) (*tls.Certificate, error) {

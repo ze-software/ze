@@ -189,15 +189,19 @@ modification time and modifier identity on both encodings; it is not a durable
 audit log. Observers receive resolved keys after successful publication and lock
 release, so a callback may read the store again. A guard reports each key
 it wrote and each runtime-state key it removed. Removing a configuration
-key leaves the configuration write observer silent.
+key leaves the configuration write observer silent. The returned detach
+function waits for callbacks admitted before removal. It can be called after a
+replacement has been installed and removes only the original registration.
 
 A runtime owner can subscribe to a prefix with `SetRuntimeObserver`. It sees
 each successful write or deletion while the runtime lock still orders changes
 to the key. Its callback may update memory, and must return without accessing
-storage or waiting on a writer. A guard can direct its own notifications to
-a callback that publishes the saved state in memory. The general write
-observer still receives the key after unlock. Removing a subscription leaves
-any replacement owner's subscription in place.
+storage or waiting on a writer. Multiple owners can subscribe to overlapping
+prefixes. A guard can publish each of its runtime changes directly to a
+callback, even when the store has no subscribers. A writer passes its own
+subscription to the guard to avoid observing its save twice. Every other
+matching subscription still receives the change. Unsubscribing removes just
+that registration. The general write observer receives the key after unlock.
 
 An unguarded read does not wait for a guard. Three locks order the store
 (`store` in `store.go`): a guard holds the configuration lock (`writer`) or

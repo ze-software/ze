@@ -16,11 +16,12 @@ import (
 // this component. The aliases keep this package's names as the spelling every
 // component-side caller uses.
 type (
-	Storage         = statestore.Storage
-	WriteGuard      = statestore.WriteGuard
-	RuntimeObserver = statestore.RuntimeObserver
-	FileMeta        = statestore.FileMeta
-	VersionInfo     = statestore.VersionInfo
+	Storage             = statestore.Storage
+	WriteGuard          = statestore.WriteGuard
+	RuntimeObserver     = statestore.RuntimeObserver
+	RuntimeSubscription = statestore.RuntimeSubscription
+	FileMeta            = statestore.FileMeta
+	VersionInfo         = statestore.VersionInfo
 )
 
 // FormatVersionStamp formats a time as YYYYMMDD-HHMMSS.mmm.

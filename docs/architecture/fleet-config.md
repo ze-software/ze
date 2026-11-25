@@ -154,7 +154,10 @@ The hub records the end of the session and the latest config fetch and
 acknowledgement. The `show fleet devices` table and the
 `show fleet device name <name>` document join these facts with the current
 client declaration, including a declared device before its first connection.
-A removed declaration leaves its retained history available by name.
+Removing a declaration before the device has any history drops its row.
+Devices with retained history remain available by name. Removing or restoring
+a declaration preserves unreadable record bytes until an authenticated event
+replaces them.
 <!-- source: internal/component/plugin/server/managed_registry.go -- ManagedDevice, ManagedDeviceRecord, ManagedRegistrySnapshot -->
 
 The current hub version is the hash of the configuration file the hub serves

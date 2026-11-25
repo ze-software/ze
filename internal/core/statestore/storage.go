@@ -28,12 +28,13 @@ type Storage interface {
 	ReadVersion(name, stamp string) ([]byte, error)
 	// SetWriteObserver installs one callback for durable writes and runtime-key
 	// removals. The guard has released its locks before the callback runs.
-	SetWriteObserver(func(string))
-	// SetRuntimeObserver installs an observer for runtime keys under prefix.
-	// Unlike SetWriteObserver this runs in publication order before the runtime
-	// lock is released. It MUST NOT access storage or wait for another writer.
-	// The returned function removes only this registration.
-	SetRuntimeObserver(prefix string, fn RuntimeObserver) func()
+	// The returned function detaches this registration and waits for its
+	// callbacks to return. Call it outside the callback.
+	SetWriteObserver(func(string)) func()
+	// SetRuntimeObserver subscribes to durable changes of runtime keys under prefix.
+	// Each matching subscriber runs in publication order under the runtime lock.
+	// Its callback MUST NOT access storage or wait for another writer.
+	SetRuntimeObserver(prefix string, fn RuntimeObserver) RuntimeSubscription
 	ReadKey(string) ([]byte, error)
 	WriteKey(string, []byte) error
 	RemoveKey(string) error
@@ -61,6 +62,12 @@ type VersionInfo struct {
 // RuntimeObserver receives the final durable change to a runtime key.
 type RuntimeObserver func(key string, removed bool)
 
+// RuntimeSubscription identifies one observer. Unsubscribe waits for any
+// active publication and must be called outside a guard or runtime callback.
+type RuntimeSubscription interface {
+	Unsubscribe()
+}
+
 // WriteGuard serializes a group of operations. Callers MUST Release it and MUST
 // use the guard, not Storage, until Release. Guarded bytes MUST NOT outlive it.
 // A guard acquired with a runtime-state key (meta/, outside meta/config/)
@@ -76,10 +83,10 @@ type WriteGuard interface {
 	List(string) ([]string, error)
 	Release() error
 	SetModifier(string)
-	// SetRuntimeObserver directs this guard's runtime notifications to fn
-	// in place of the store's observer. A writer may publish its own result
-	// directly to memory before another transaction can change the key.
-	SetRuntimeObserver(fn RuntimeObserver)
+	// SetRuntimeObserver publishes every successful runtime mutation in this
+	// guard through fn before notifying the matching subscribers. When owner
+	// is set, fn replaces only that subscription for this transaction.
+	SetRuntimeObserver(owner RuntimeSubscription, fn RuntimeObserver)
 	WriteVersion(string, []byte, time.Time) error
 	// ReadKey and ListKeys are the raw-key pair Storage carries, answered
 	// under the held guard. On a blob, Storage.ReadKey and Storage.ListKeys

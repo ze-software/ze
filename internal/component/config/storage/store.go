@@ -76,21 +76,27 @@ type keyEncoding interface {
 // writer waited for every sync a guard made, of keys it never asked for.
 // closed is written under all three locks and read under any one.
 type store struct {
-	writer          sync.RWMutex
-	runtime         sync.Mutex
-	mu              sync.RWMutex
-	tree            *treeEncoding
-	keys            keyEncoding
-	blob            *zefs.BlobStore
-	owner           *os.File
-	readonly        bool
-	closed          bool
-	metas           map[string]FileMeta
-	observer        func(string)
-	runtimeObserver *runtimeObserver
+	writer           sync.RWMutex
+	runtime          sync.Mutex
+	mu               sync.RWMutex
+	tree             *treeEncoding
+	keys             keyEncoding
+	blob             *zefs.BlobStore
+	owner            *os.File
+	readonly         bool
+	closed           bool
+	metas            map[string]FileMeta
+	observer         *writeObserver
+	runtimeObservers []*runtimeSubscription // Guarded by runtime.
 }
 
-type runtimeObserver struct {
+type writeObserver struct {
+	notify func(string)
+	active sync.WaitGroup
+}
+
+type runtimeSubscription struct {
+	store  *store
 	prefix string
 	notify RuntimeObserver
 }
@@ -271,22 +277,43 @@ func (s *store) Stat(name string) (FileMeta, error) {
 	}
 	return s.metas[key], nil
 }
-func (s *store) SetWriteObserver(fn func(string)) { s.mu.Lock(); s.observer = fn; s.mu.Unlock() }
-
-func (s *store) SetRuntimeObserver(prefix string, fn RuntimeObserver) func() {
-	observer := &runtimeObserver{prefix: prefix, notify: fn}
-	if fn == nil {
-		observer = nil
+func (s *store) SetWriteObserver(fn func(string)) func() {
+	var observer *writeObserver
+	if fn != nil {
+		observer = &writeObserver{notify: fn}
 	}
 	s.mu.Lock()
-	s.runtimeObserver = observer
+	s.observer = observer
 	s.mu.Unlock()
 	return func() {
+		if observer == nil {
+			return
+		}
 		s.mu.Lock()
-		if s.runtimeObserver == observer {
-			s.runtimeObserver = nil
+		if s.observer == observer {
+			s.observer = nil
 		}
 		s.mu.Unlock()
+		observer.active.Wait()
+	}
+}
+
+func (s *store) SetRuntimeObserver(prefix string, fn RuntimeObserver) RuntimeSubscription {
+	sub := &runtimeSubscription{store: s, prefix: prefix, notify: fn}
+	s.runtime.Lock()
+	defer s.runtime.Unlock()
+	if fn != nil {
+		s.runtimeObservers = append(s.runtimeObservers, sub)
+	}
+	return sub
+}
+
+func (sub *runtimeSubscription) Unsubscribe() {
+	s := sub.store
+	s.runtime.Lock()
+	defer s.runtime.Unlock()
+	if i := slices.Index(s.runtimeObservers, sub); i >= 0 {
+		s.runtimeObservers = slices.Delete(s.runtimeObservers, i, i+1)
 	}
 }
 
@@ -515,6 +542,7 @@ type guard struct {
 	blobLock        *zefs.WriteLock
 	modifier        string
 	runtimeObserver RuntimeObserver
+	runtimeOwner    RuntimeSubscription
 	pending         map[string]FileMeta
 	removed         map[string]bool
 	released        bool
@@ -729,8 +757,10 @@ func (g *guard) Has(name string) bool {
 	}
 	return g.parent.keys.has(key)
 }
-func (g *guard) SetModifier(modifier string)           { g.modifier = modifier }
-func (g *guard) SetRuntimeObserver(fn RuntimeObserver) { g.runtimeObserver = fn }
+func (g *guard) SetModifier(modifier string) { g.modifier = modifier }
+func (g *guard) SetRuntimeObserver(owner RuntimeSubscription, fn RuntimeObserver) {
+	g.runtimeOwner, g.runtimeObserver = owner, fn
+}
 func (g *guard) WriteVersion(name string, data []byte, stamp time.Time) error {
 	if err := g.parent.CheckName(name); err != nil {
 		return err
@@ -756,23 +786,18 @@ func (g *guard) Release() error {
 			delete(g.parent.metas, key)
 		}
 	}
-	observer := g.parent.observer
-	runtimeObserver := g.parent.runtimeObserver
+	var observer *writeObserver
+	if err == nil && g.parent.observer != nil {
+		observer = g.parent.observer
+		observer.active.Add(1)
+	}
 	g.parent.mu.Unlock()
-	if err == nil && runtimeObserver != nil {
-		notify := runtimeObserver.notify
-		if g.runtimeObserver != nil {
-			notify = g.runtimeObserver
-		}
+	if err == nil && g.holdsRuntime {
 		for key := range g.pending {
-			if RuntimeKey(key) && strings.HasPrefix(key, runtimeObserver.prefix) {
-				notify(key, false)
-			}
+			g.notifyRuntime(key, false)
 		}
 		for key := range g.removed {
-			if RuntimeKey(key) && strings.HasPrefix(key, runtimeObserver.prefix) {
-				notify(key, true)
-			}
+			g.notifyRuntime(key, true)
 		}
 	}
 	g.unlock()
@@ -780,14 +805,32 @@ func (g *guard) Release() error {
 		return err
 	}
 	if observer != nil {
+		defer observer.active.Done()
 		for key := range g.pending {
-			observer(key)
+			observer.notify(key)
 		}
 		for key := range g.removed {
 			if RuntimeKey(key) {
-				observer(key)
+				observer.notify(key)
 			}
 		}
 	}
 	return nil
+}
+
+func (g *guard) notifyRuntime(key string, removed bool) {
+	if !RuntimeKey(key) {
+		return
+	}
+	if g.runtimeObserver != nil {
+		g.runtimeObserver(key, removed)
+	}
+	for _, sub := range g.parent.runtimeObservers {
+		if g.runtimeObserver != nil && sub == g.runtimeOwner {
+			continue
+		}
+		if strings.HasPrefix(key, sub.prefix) {
+			sub.notify(key, removed)
+		}
+	}
 }

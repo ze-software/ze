@@ -252,6 +252,75 @@ func TestManagedServerStartupFailurePublished(t *testing.T) {
 	require.Nil(t, record.StartupFailure)
 }
 
+// observedManagedStore records which server consumes a real client-config write.
+type observedManagedStore struct {
+	storage.Storage
+	registrations int
+	observed      []int
+}
+
+func (s *observedManagedStore) SetWriteObserver(fn func(string)) func() {
+	s.registrations++
+	registration := s.registrations
+	return s.Storage.SetWriteObserver(func(key string) {
+		if key == "file/active/client-edge.conf" {
+			s.observed = append(s.observed, registration)
+		}
+		fn(key)
+	})
+}
+
+func TestManagedServerStopDetachesItsWriteObserver(t *testing.T) {
+	backing, err := storage.Create(t.TempDir())
+	require.NoError(t, err)
+	t.Cleanup(func() { require.NoError(t, backing.Close()) })
+	store := &observedManagedStore{Storage: backing}
+	const secret = "edge-device-secret-at-least-32-characters"
+	cfg := &zePlugin.HubConfig{Servers: []zePlugin.HubServerConfig{{
+		Name: "central", Host: "127.0.0.1", Clients: map[string]string{"edge": secret},
+	}}}
+	first := startManagedServer(t.Context(), store, cfg)
+	require.NotNil(t, first)
+	t.Cleanup(first.Stop)
+	write := func() {
+		t.Helper()
+		require.NoError(t, store.WriteFile("client-edge.conf", []byte("config"), 0o600))
+	}
+	write()
+	require.Equal(t, []int{1}, store.observed)
+	require.Len(t, first.Addrs(), 1)
+	client := dialHubClient(t, first.Addrs()[0].String(), "edge", secret)
+	require.Equal(t, fleet.VersionHash([]byte("config")), hubFetch(t, client, "").Version)
+	require.NoError(t, client.Close())
+	first.Stop()
+	write()
+	require.Equal(t, []int{1}, store.observed)
+
+	raw, err := store.ReadKey("meta/fleet/device/edge/record")
+	require.NoError(t, err)
+	var history pluginserver.ManagedDeviceRecord
+	require.NoError(t, json.Unmarshal(raw, &history))
+	require.Equal(t, "edge", history.Name)
+	require.False(t, history.FirstConnected.IsZero())
+	require.False(t, history.LastSeen.IsZero())
+	require.Equal(t, pluginserver.ManagedFetchServed, history.LastFetchResult)
+
+	second := startManagedServer(t.Context(), store, cfg)
+	require.NotNil(t, second)
+	t.Cleanup(second.Stop)
+	device, err := pluginserver.ManagedDeviceByName("edge")
+	require.NoError(t, err)
+	require.True(t, device.Persisted)
+	require.False(t, device.Connected)
+	require.Equal(t, history, device.ManagedDeviceRecord)
+	first.Stop()
+	write()
+	require.Equal(t, []int{1, 2}, store.observed)
+	second.Stop()
+	write()
+	require.Equal(t, []int{1, 2}, store.observed)
+}
+
 // The durable CA is needed at startup only for managed listeners that use it.
 // Keep the store error and the operator repair available to doctor even though
 // construction stopped before a managed server was published.

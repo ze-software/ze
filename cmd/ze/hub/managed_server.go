@@ -109,16 +109,7 @@ func startManagedServer(ctx context.Context, store storage.Storage, hubConfig *z
 		managedServerStartupFailed(problem)
 		return nil
 	}
-	// Configuration notifications run after store unlock. Start registers its
-	// separate runtime history observer while loading the stored records.
-	store.SetWriteObserver(func(key string) {
-		if name, ok := pluginserver.ClientNameFromConfigKey(key); ok {
-			srv.MarkManagedConfigChanged(name)
-			srv.NotifyConfigChanged(name)
-		}
-	})
 	if startErr := srv.Start(ctx); startErr != nil {
-		store.SetWriteObserver(nil)
 		managedServerStartupFailed(opererr.Wrap(startErr, "the managed config server could not load its registry", "storage must be readable before the hub starts serving devices", "ze show data check"))
 		return nil
 	}

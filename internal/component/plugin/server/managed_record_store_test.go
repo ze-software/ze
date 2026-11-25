@@ -166,6 +166,27 @@ func TestRegistryWriteFailureKeepsLiveFacts(t *testing.T) {
 	require.True(t, s.snapshotDevices()[0].Persisted)
 }
 
+func TestRegistryStoppedWriterCannotRetryAfterHandover(t *testing.T) {
+	store := &failingRecordStore{Storage: heldTestStore(t)}
+	first := registryWithHistory(t, store)
+	store.fail = true
+	first.recordAck(testClientName, fleet.ConfigAck{Version: "old"}, ManagedAckRefused)
+	first.Stop()
+	require.Contains(t, first.recordIO.failed, testClientName)
+
+	store.fail = false
+	second := registryWithHistory(t, store)
+	t.Cleanup(second.Stop)
+	second.recordAck(testClientName, fleet.ConfigAck{Version: "new"}, ManagedAckApplied)
+	second.drainDeviceRecords()
+	first.Stop()
+	raw, err := store.ReadKey(deviceRecordKey(testClientName))
+	require.NoError(t, err)
+	record, err := decodeDeviceRecord(testClientName, raw)
+	require.NoError(t, err)
+	require.Equal(t, "new", record.AckVersion)
+}
+
 func TestRegistryOnlineDeleteForgetsRemovedDevice(t *testing.T) {
 	store := heldTestStore(t)
 	key := deviceRecordKey("retired")
@@ -445,5 +466,76 @@ func TestRegistryDeletionSupersedesCompletingFailedSave(t *testing.T) {
 	store.fail = false
 	s.stopDeviceRecords()
 	_, err := store.ReadKey(key)
+	require.ErrorIs(t, err, fs.ErrNotExist)
+}
+
+func TestRegistrySaveCompletesBeforeUnusedGuardFails(t *testing.T) {
+	store := &failingRecordStore{Storage: heldTestStore(t)}
+	s := registryWithHistory(t, store)
+	recordTestSession(t, s)
+	require.Empty(t, s.recordIO.saving)
+
+	// A queued name can have no pending work by the time the writer gets
+	// its guard. Releasing this unused guard cannot invalidate a prior save.
+	store.fail = true
+	s.syncDeviceRecord(testClientName)
+	require.Empty(t, s.recordIO.failed)
+	require.True(t, s.snapshotDevices()[0].Persisted)
+
+	s.recordAck(testClientName, fleet.ConfigAck{Version: "retry"}, ManagedAckApplied)
+	s.drainDeviceRecords()
+	require.Empty(t, s.recordIO.saving)
+	require.Contains(t, s.recordIO.failed, testClientName)
+	store.fail = false
+	s.stopDeviceRecords()
+	require.Empty(t, s.recordIO.saving)
+	require.Empty(t, s.recordIO.failed)
+}
+
+// An unused declaration has no history to remove. Durable and unreadable
+// records on the same listener survive removal, redeclaration and restart.
+func TestManagedApplyRemovesOnlyDeclarationsWithoutHistory(t *testing.T) {
+	store := heldTestStore(t)
+	const saved = "saved"
+	const unreadable = "unreadable"
+	corrupt := []byte("cannot decode this history")
+	require.NoError(t, store.WriteKey(deviceRecordKey(saved), []byte(`{"name":"saved","ack-version":"v1"}`)))
+	require.NoError(t, store.WriteKey(deviceRecordKey(unreadable), corrupt))
+	services := []ManagedListener{{
+		Addr:    "127.0.0.1:0",
+		Clients: map[string]string{testClientName: testClientSecret, saved: "saved-secret", unreadable: "unreadable-secret"},
+	}}
+	t.Run("reload", func(t *testing.T) {
+		s := startApplyTest(t, ManagedServerConfig{Authority: newTestCA(t), Store: store, Listeners: services})
+		for range 2 {
+			device, err := s.registryDevice(testClientName)
+			require.NoError(t, err)
+			require.True(t, device.Declared)
+			require.True(t, device.RemovedAt.IsZero())
+			require.False(t, device.Persisted)
+			applyManaged(t, s, nil, "")
+			_, err = s.registryDevice(testClientName)
+			require.ErrorIs(t, err, ErrManagedDeviceUnknown)
+			device, err = s.registryDevice(unreadable)
+			require.NoError(t, err)
+			require.False(t, device.Declared)
+			require.True(t, device.Unreadable)
+			applyManaged(t, s, services, "")
+		}
+		applyManaged(t, s, nil, "")
+	}) // Stop flushes every pending change before the store is reopened by the next server.
+	restarted := startApplyTest(t, ManagedServerConfig{Store: store})
+	rows := restarted.snapshotDevices()
+	require.Len(t, rows, 2)
+	require.Equal(t, saved, rows[0].Name)
+	require.False(t, rows[0].Declared)
+	require.False(t, rows[0].RemovedAt.IsZero())
+	require.Equal(t, "v1", rows[0].AckVersion)
+	require.Equal(t, unreadable, rows[1].Name)
+	require.True(t, rows[1].Unreadable)
+	data, err := store.ReadKey(deviceRecordKey(unreadable))
+	require.NoError(t, err)
+	require.Equal(t, corrupt, data)
+	_, err = store.ReadKey(deviceRecordKey(testClientName))
 	require.ErrorIs(t, err, fs.ErrNotExist)
 }
