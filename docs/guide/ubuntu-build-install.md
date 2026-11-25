@@ -316,7 +316,7 @@ trap 'rm -f "$CONFIG_SET" "$CONFIG_IMPORT"' EXIT
 sudo -u ze env ZE_CONFIG_DIR=/etc/ze /usr/local/bin/ze config cat edge-01.conf | /usr/local/bin/ze config migrate -o "$CONFIG_SET" -
 
 cat >>"$CONFIG_SET" <<'EOF'
-set plugin internal bgp-rr use bgp-rr
+set bus endpoint bgp-rr internal bgp-rr
 EOF
 
 /usr/local/bin/ze config migrate -o "$CONFIG_IMPORT" format hierarchical "$CONFIG_SET"

@@ -38,7 +38,7 @@ trap 'rm -f "$CONFIG_SET" "$CONFIG_IMPORT"' EXIT
 sudo /usr/local/bin/ze config cat edge-01.conf | /usr/local/bin/ze config migrate -o "$CONFIG_SET" -
 
 cat >>"$CONFIG_SET" <<'EOF'
-set plugin internal flowspec-firewall use flowspec-firewall
+set bus endpoint flowspec-firewall internal flowspec-firewall
 
 set firewall backend nft
 

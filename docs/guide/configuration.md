@@ -102,10 +102,6 @@ bgp {
                 final accept;
             }
         }
-        attach process bgp-rib {
-            receive [ update-received state refresh ];
-            send [ update ];
-        }
 
         peer transit-a {
             connection {
@@ -1611,49 +1607,57 @@ image sized to the target's RAM.
 <!-- source: internal/component/config/system/crashdump.go -- extraction and the intent it produces -->
 <!-- source: internal/component/config/validators.go -- crashMemoryImageValidator, the architecture refusal -->
 
-## Process Bindings
+## Message Bus Delivery
 
-A peer attaches a program in an `attach process` block. The block names a
-plugin and states the relationship in two directions: `receive` is what the
-program is fed for this peer, and `send` is what it may originate toward it.
+Every participant on Ze's message bus — BGP peers and groups, bus endpoints
+(`bus { endpoint <name> { ... } }`), and plugins with their own configuration
+section — declares which messages it sends and receives. With nothing written
+by the operator, every configured participant sends and receives what it
+registered for, and `show configuration | implied` displays those defaults
+beside what you wrote.
+
+Write a `bus { ... }` block on a peer, a group, a plugin's configuration
+section, or centrally under `bus { participant <path> { ... } }` only when you
+need to narrow allowed messages, restrict destinations (`to`) or senders
+(`from`), or filter by message tags:
 
 ```
 peer transit-a {
     ...
-    attach process adj-rib-in {
-        receive [ update-received state ];
-    }
-    attach process rpki {
-        receive [ update-received state ];
+    bus {
+        receive {
+            allow [ bgp:update ];
+            from  [ /bus/endpoint/bgp-rib ];
+        }
+        send {
+            allow [ bgp:update-received bgp:state ];
+            to    [ /bus/endpoint/bgp-rib /bus/endpoint/rpki ];
+        }
     }
 }
 ```
 
-**A peer that attaches nothing feeds nothing.** These blocks decide delivery.
-A running plugin that a peer does not attach receives no event from that peer,
-whatever the plugin asked for when it started, and it may send that peer
-nothing. Loading a plugin and attaching it to a peer are two separate acts.
+`send > to` replaces the registered destination set whole (there is no add
+form); writing `none` sends to nobody. `receive > from` defaults to everybody;
+writing `none` accepts from nobody. Per-message `message <name> { to|from ...;
+tag <t> [ ... ]; }` entries override the block-level list for that message.
 
-Base event types for `receive`: `update`, `update-filtered`, `open`, `notification`, `keepalive`,
-`refresh`, `state`, `negotiated`, `eor`, `rpki`. `update-filtered` carries
-ingress-denied UPDATEs for route-server clients (`rs-client true`) so
-`bgp-adj-rib-in` retains the pre-policy population (RFC 7947 Section 2.1). Plugins may register more (for
-example `update-rpki` from bgp-rpki-decorator). A plain type is fed in both
-directions; `update-received` and `update-sent` name one. `*` names every
-registered type. Values are validated at config parse time.
-<!-- source: internal/core/bgp/events/events.go -- EventUpdateFiltered -->
+Base BGP messages include `bgp:update` (`bgp:update-received`,
+`bgp:update-sent`), `bgp:update-filtered`, `bgp:open`, `bgp:notification`,
+`bgp:keepalive`, `bgp:refresh`, `bgp:state`, `bgp:negotiated`, `bgp:eor`,
+`bgp:raw`, and `bgp:rpki`. `bgp:update-filtered` carries ingress-denied UPDATEs
+for route-server clients (`rs-client true`) so `bgp-adj-rib-in` retains the
+pre-policy population (RFC 7947 Section 2.1). Plugins may register more (for
+example `rpki:update-rpki` from `bgp-rpki-decorator`). Command messages use the
+`cli:<command path>` namespace.
 
-Base message types for `send`: `update` to originate routes, `refresh` to ask
-the peer to re-advertise, `raw` to write a whole BGP message the program built
-itself. `*` grants all three, and every send type registered later. A send a
-peer's block does not grant is refused and reported.
-
-Write the block on a group and every peer of that group carries it, dynamic
-members included. A member that restates the block replaces the group's list
-for itself alone. `show event delivery` prints the edges the running config
+Write a `bus` block on a group and every peer of that group inherits it item by
+item, dynamic members included. A member that writes a field replaces only that
+field from its group. `show event delivery` prints the edges the running config
 produces, peer by peer.
-<!-- source: internal/component/bgp/event.go -- event type definitions; internal/component/plugin/registry/registry.go -- EventTypes registration -->
-<!-- source: internal/component/plugin/server/delivery_graph.go -- DeliveryGraph, PeerScopedProcs -->
+<!-- source: internal/core/bgp/events/events.go -- EventUpdateFiltered -->
+<!-- source: internal/component/plugin/yang/ze-plugin-conf.yang -- grouping participant-bus -->
+<!-- source: internal/component/plugin/server/delivery_graph.go -- DeliveryGraph -->
 
 ## Route Filters
 
@@ -1770,7 +1774,7 @@ change events) lives in each protocol component; the orchestrator
 (`redistribute-orchestrator`) enumerates non-consumer producers at startup and subscribes.
 
 The orchestrator auto-loads when `redistribute {}` is present in the
-config (it claims `ConfigRoots: ["redistribute"]`). No `plugin { external
+config (it claims `ConfigRoots: ["redistribute"]`). No `bus { endpoint
 redistribute-orchestrator { ... } }` block is required. No ingress filter reads
 the `redistribute` block: a rule states which routes move BETWEEN protocols, and
 gating BGP's own Adj-RIB-In on one dropped every received route, so the
@@ -1923,11 +1927,7 @@ survive restarts and the filter enforces the stored lists with no query at start
 | `update irr asn <asn>` | Fetch and store the AS-SET of one AS number |
 | `update irr as-set <as-set>` | Fetch and store one AS-SET |
 
-A route that the filter rejected before its list arrived, or that the old list did not hold, is evaluated again when a new list authorizes it. The filter asks the peer for the route with a ROUTE-REFRESH, so each IRR-filtered peer needs this line in its block:
-
-```text
-attach process bgp-filter-irr { send [ refresh ] }
-```
+A route that the filter rejected before its list arrived, or that the old list did not hold, is evaluated again when a new list authorizes it. The filter asks the peer for the route with a ROUTE-REFRESH, which `bgp-filter-irr` registers on the message bus by default — no per-peer attachment is required (if you narrow a peer's `bus` block, keep `bgp:refresh` admitted from `/bus/endpoint/bgp-filter-irr`).
 
 The page [IRR filtering](irr-filtering.md) describes how this works.
 
@@ -4941,12 +4941,12 @@ on an IPv4 pool must contain an IPv4 address.
 
 ## Hub Configuration
 
-The plugin hub provides TLS transport for plugin communication and fleet management.
+The bus hub provides TLS transport for plugin communication and fleet management.
 Named `server` blocks declare listeners; hub-level `client` blocks declare outbound
 connections to a remote hub (managed mode).
 
 ```
-plugin {
+bus {
     hub {
         server local {
             ip 127.0.0.1;
@@ -5009,7 +5009,7 @@ local interface or the connection fails with `cannot assign requested address`.
 | RPKI/RTR | `bgp rpki cache-server <addr>` | `source-address` | Mutual TLS, or explicitly trusted TCP |
 | Flow Export | `flow-export collector <name>` | `source-address` | UDP |
 | IRR (whois) | `system irr` | `source-address` | TCP |
-| Managed hub | `plugin hub client <name>` | `source-address` | TLS |
+| Managed hub | `bus hub client <name>` | `source-address` | TLS |
 | LDP | `ldp` | `transport-address` | TCP |
 
 LDP reuses its existing `transport-address` leaf: RFC 5036 defines the transport

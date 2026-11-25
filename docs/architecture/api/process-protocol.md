@@ -673,17 +673,19 @@ hold, and `raw` declared as a set. An exact name wins over a pattern that also
 covers it. A build that links no subsystem running filters (no `ze_bgp`)
 refuses any plugin declaring one.
 
-The `<plugin>` of a reference names the plugin, never the operator's block.
-`plugin { internal gr { use bgp-gr; } }` runs `bgp-gr` in a block named `gr`,
-and its filters are `bgp-gr:<filter>`, the name the plugin itself declares its
+The `<plugin>` of a reference names the plugin's registration identity, never
+the operator's endpoint alias. `bus { endpoint gr { internal bgp-gr; } }` runs
+`bgp-gr` under endpoint name `gr` (in-daemon or with `process separate;`), and
+its filters are `bgp-gr:<filter>`, the name the plugin itself declares its
 insertions under, because a plugin cannot know what an operator called its
-block. A program no registry row describes is named by its block (`external
-my-filter { run "/usr/local/bin/x"; }` serves `my-filter:<filter>`). Stage 1
-judges the filters, the insertions and the loaded config's references under
-that name, and at run time a member reaches the process running the plugin
-whatever its block is called. A second block running the same plugin, when the
-plugin declares filters or insertions, is refused at its Stage 1 naming both
-blocks: a reference could not say which one judges the route.
+endpoint. A foreign external program no registry row describes is named by its
+endpoint (`bus { endpoint my-filter { external { run "/usr/local/bin/x"; } } }`
+serves `my-filter:<filter>`). Stage 1 judges the filters, the insertions and
+the loaded config's references under that name, and at run time a member
+reaches the process running the plugin whatever its endpoint is called. A
+second endpoint running the same plugin, when the plugin declares filters or
+insertions, is refused at its Stage 1 naming both endpoints: a reference could
+not say which one judges the route.
 <!-- source: internal/component/plugin/process/process.go -- Process.RegistrationName -->
 <!-- source: internal/component/plugin/process/manager.go -- ProcessManager.ProcessServing, ProcessManager.BlocksServing, AmbiguousRegistration -->
 <!-- source: internal/component/plugin/server/startup_driver.go -- runStartupHandshake -->
@@ -999,28 +1001,29 @@ its `declare-registration`. They are the ordering edges a compiled-in
 plugin's registration carries (`Dependencies`, `OptionalDependencies`,
 `StartAfter`): a `dependencies` entry must name a plugin this daemon runs or
 Stage 1 is refused, and the other two order only and load nothing. A
-dependency is met by a plugin the `plugin { }` block configures, or by one a
-startup phase loaded: auto-load resolves a compiled-in plugin's registry
+dependency is met by a plugin a `bus { endpoint ... }` block configures, or by
+one a startup phase loaded: auto-load resolves a compiled-in plugin's registry
 dependencies and starts them in the same phase, so `bgp-gr` auto-loaded for
 `bgp { }` finds the `bgp-rib` started beside it. An external program's
 dependencies are resolved by nobody, so the operator configures them. The
 refusal is a `*registry.MissingDependencyError` (`errors.Is`
-`ErrMissingDependency`) whose fix names what to write: the
-`internal <name> { use <name>; }` block for a plugin this build carries, an
-`external <name> { run ...; }` block for a name no build carries, or the build
-tags for a plugin this build was compiled without (`plugin-system.md`,
-"Dependencies").
+`ErrMissingDependency`) whose fix names what to write: a
+`bus { endpoint <name> { internal <name>; } }` block for a plugin this build
+carries, a `bus { endpoint <name> { external { run ...; } } }` block for a name
+no build carries, or the build tags for a plugin this build was compiled
+without (`plugin-system.md`, "Dependencies").
 <!-- source: internal/component/plugin/registry/missing_dependency.go -- UnloadedDependencyError -->
 The engine keeps the
 three with the process's registration. State events are delivered in reverse
-dependency order, and a process that runs an external program takes its edges
-from this declaration alone, never from a registration that shares its name.
-`bgp-gr` declares `dependencies [bgp-rib, policy]`, `optional-dependencies [bgp-rs]`
-and `start-after [bgp-rr]`, so a forked `bgp-gr` would take a DOWN, and emit
-its `bgp-gr/retention` verdict, before the route server, the route reflector
-and the RIB take theirs. An edge's target is matched forked too: an external
-program counts as the implementation its `run` line names (`ze plugin bgp-rr`)
-and as its process name, so the edge holds whichever side runs forked.
+dependency order, and a process that runs a foreign external program takes its
+edges from this declaration alone, never from a compiled registration that
+shares its endpoint name. `bgp-gr` declares `dependencies [bgp-rib, policy]`,
+`optional-dependencies [bgp-rs]` and `start-after [bgp-rr]`, so a compiled-in
+`bgp-gr` running with `process separate;` keeps its registration identity and
+takes a DOWN, and emits its `bgp-gr/retention` verdict, before the route
+server, the route reflector and the RIB take theirs. An edge's target matches
+by registration identity as well as endpoint name, so the edge holds whether a
+compiled-in plugin runs in-daemon or with `process separate;`.
 
 | Field | Type | Description |
 |-------|------|-------------|
@@ -1066,10 +1069,12 @@ Declaring is a claim about WHEN this plugin's routes belong, not about what it
 may send.
 
 Three facts have to hold before a peer credits the process's report, so
-declaring alone does not name it. The peer grants `send [ update ]` or `send [ raw ]`, the
-plugin declares, and the peer grants `receive [ state ]`. The last one is the
-peer telling the process its session started, which is what the report answers:
-a process the peer never tells cannot push into that session's initial update.
+declaring alone does not name it. The compiled bus filter admits `bgp:update`
+or `bgp:raw` from the endpoint toward the peer, the plugin declares
+`signals-session-ready`, and the compiled bus filter admits `bgp:state` from
+the peer to the endpoint. The last one is the peer telling the process its
+session started, which is what the report answers: a process the peer never
+tells cannot push into that session's initial update.
 
 <!-- source: pkg/plugin/rpc/types.go -- DeclareRegistrationInput.SignalsSessionReady -->
 <!-- source: internal/component/plugin/server/events.go -- (*Server).declaresSessionReady -->
@@ -1096,12 +1101,12 @@ One value answers two questions, because the engine starts a plugin again for
 exactly one reason. `restart` is also the plugin's statement that it MAY be
 started again, and the other two are its statement that it must not be.
 
-The `respawn` leaf of a `plugin { external <name> }` block is the operator's
-request inside that declaration. It can ask for less and never for more. With no
-leaf the declaration decides. With `respawn false` a plugin that would have been
-started again is left stopped. With `respawn true` against a plugin that
-declares it must not be restarted, the daemon stops at startup and the error
-names the plugin, the policy it declared and the leaf.
+The `respawn` leaf of a `bus { endpoint <name> { external { ... } } }` block is
+the operator's request inside that declaration. It can ask for less and never
+for more. With no leaf the declaration decides. With `respawn false` a plugin
+that would have been started again is left stopped. With `respawn true` against
+a plugin that declares it must not be restarted, the daemon stops at startup
+and the error names the plugin, the policy it declared and the leaf.
 
 A stop a plugin causes, under `fatal` or through that disagreement, is a
 failure, and `ze` exits 1 once the stop has completed, as it does for a refused
@@ -3227,15 +3232,18 @@ Grants come from compiled registration and come in three kinds:
 The dispatcher picks the grant by the operation: `state-get` and `state-list`
 need a read or a write grant (`statestore.PluginKeyReadable`), and
 `state-put`, `state-remove` and `state-increment` need a write grant
-(`statestore.PluginKeyWritable`). Requests use the daemon's configured process
-name as identity. A request cannot choose another owner or grant itself access
-to credentials. Template parameters match one path segment
+(`statestore.PluginKeyWritable`). Compiled-in plugins key state grants on their
+compiled registration identity (`proc.RegistrationName()`) under any endpoint
+alias or transport (`in-daemon` or `process separate;`), while foreign
+`external` programs hold none of those grants even if their endpoint name
+matches a compiled-in plugin. A request cannot choose another owner or grant
+itself access to credentials. Template parameters match one path segment
 (`zefs.KeyEntry.Matches`), and a list returns only keys that the caller can
 read. The daemon's key commands `delete data key` and `update data key` read
-the same grants by the same process name (`statestore.PluginKeyOwners`, which
-names write grants only) and refuse a key while a plugin granted it runs, so a
-plugin run under another name neither holds the grant nor trips that refusal,
-and a plugin that only reads a key does not block it.
+the same grants by registration identity (`statestore.PluginKeyOwners`, which
+names write grants only) and refuse a key while any running process holding
+that registration identity is active (under any endpoint alias), while a plugin
+that only reads a key does not block it.
 
 `StateInput.key` is bounded to 512 bytes. A value is bounded by its key's
 registration: one MiB (`rpc.StateDataMax`) unless the key's `zefs.KeyEntry`
@@ -3412,29 +3420,25 @@ decisions. Empty input does not bypass that lifecycle boundary.
 
 ## Event Delivery
 
-A subscription states what a plugin CAN handle. The peer's configuration
-decides what it GETS. A peer-scoped event is delivered when both halves name
-it: the plugin subscribed to the type in that direction, and the peer's
-`attach process <name>` block grants it. A peer that attaches no block for a
-plugin feeds it nothing, whatever the plugin subscribed to.
+Every participant registers the messages it sends and receives at compile time
+(`registry.Registration`) or Stage 1 (`declare-registration`). With nothing
+written in config, those registered defaults are what runs. Any `bus { }`
+override on the participant, on its `bus { endpoint <name> }` block, or under
+`bus { participant <path> }` compiles with the registrations into one filter
+per participant (`DeliveryGraph`). A peer-scoped event is delivered when both
+the sender's and receiver's compiled filters admit the message, direction,
+endpoints, and any tag filters.
 
-**Write no plugin that assumes its subscription is enough.** Declare what the
-program can act on, and tell the operator which `receive` list the program
-needs. ze names each peer, process and event type the two halves disagree
-about, at plugin ready and after every config apply, so an operator can see the
-gap without reading the program.
-
-An event that is not peer-scoped is untouched by this: the config filter is per
-peer.
-
-A reload can attach a process to a peer whose session is already up, through a
-receive-only `attach process` block (no `send`, no `open`, no `*`). That process
-receives a `state` up with reason `attached`, then `negotiated` if its block
-grants it, before any other message of that session reaches it. The up carries
-no initial-replay token, arms no End-of-RIB barrier, and is not a new session:
-a plugin that replays routes toward the peer on up MUST skip the replay for it. A
-process detached by a reload receives a `state` down with reason `removed`, to
-it alone. A changed grant is a down, then an `attached` up.
+A reload can widen a receive-only `bus` filter so a running endpoint begins
+receiving from a peer whose session is already up (with no route-sending
+permission added). That endpoint receives a `state` up with reason `attached`,
+then `negotiated` if its compiled filter admits it, before any other message of
+that session reaches it. The up carries no initial-replay token, arms no
+End-of-RIB barrier, and is not a new session: a plugin that replays routes
+toward the peer on up MUST skip the replay for it. An endpoint removed from a
+peer's compiled filter by a reload receives a `state` down with reason
+`removed`, to it alone. A changed filter scope is a down, then an `attached`
+up.
 <!-- source: internal/component/plugin/server/delivery_graph.go -- DeliveryGraph, PeerScopedProcs -->
 <!-- source: internal/component/bgp/server/events.go -- onPeerBound, onPeerUnbound -->
 <!-- source: internal/component/plugin/server/delivery_reconcile.go -- deliveryDisagreements -->
@@ -3662,8 +3666,8 @@ UPDATE is never an `EventEnvelope`.
 ### An Event Emitted Before the Subscribers Exist
 
 A subscription is registered when its plugin handshakes, and plugins handshake
-in phases: config-path plugins load first, `plugin { external ... }` plugins
-after them. An event a config-path plugin emits during its own configure
+in phases: config-path plugins load first, explicit `bus { endpoint ... }`
+plugins after them. An event a config-path plugin emits during its own configure
 callback is therefore routed correctly and delivered to nobody. `getMatching`
 returns an empty set, `deliverEvent` returns 0, and no error is raised: an
 empty subscriber set and a filtered-out subscriber look the same.
@@ -3963,14 +3967,14 @@ when config doesn't specify families.
 **Auto-loading plugins:** When a family is configured but no plugin has claimed it,
 the engine automatically loads the internal plugin for that family (if one exists).
 
-**Five-phase plugin startup:**
+**Three-phase plugin startup:**
 1. **Phase 1:** Config-path plugins start first (for example, BGP, interface, and FIB infrastructure plugins), together with any already-selected explicit prerequisites they need.
-2. **Phase 2:** Remaining explicit plugins from `plugin { external ... }` start after config-path infrastructure is available.
+2. **Phase 2:** Remaining explicit plugins from `bus { endpoint ... }` start after config-path infrastructure is available.
 3. **Phase 3:** The engine checks which configured families are still unclaimed. Internal plugins are auto-loaded only for unclaimed families.
-4. **Phase 4:** The engine checks which custom event types are referenced in peer `receive` config but not produced by any running plugin. Producing plugins and their transitive dependencies are auto-loaded. For example, `receive [ update-rpki ]` auto-loads `bgp-rpki-decorator` and its dependency `bgp-rpki`.
-5. **Phase 5:** The engine checks which custom send types are referenced in peer `send` config but not enabled by any running plugin. Enabling plugins and their transitive dependencies are auto-loaded. For example, `send [ enhanced-refresh ]` auto-loads `bgp-route-refresh`.
 
-Before Phase 1 starts any plugin, the engine resolves the dependencies of the Phase 1, 3, 4 and 5 auto-load sets. A plugin whose `Dependencies` names a plugin this build does not register refuses startup, naming the plugin, the dependency and the build tags that carry it; no plugin starts. It is never loaded without its dependency. Every resolution judges the startup config's needs: an optional dependency that a `ConfigNeeds` entry names is auto-loaded only when the config holds that need, so flow export with `enrichment bgp` off does not start `bgp-rib`.
+Custom event-type and send-type auto-load phases are deleted: a registered reception whose sender is not loaded stays dormant and is named by `show config running | implied` and `show doctor`.
+
+Before Phase 1 starts any plugin, the engine resolves the dependencies of the Phase 1 and Phase 3 auto-load sets. A plugin whose `Dependencies` names a plugin this build does not register refuses startup, naming the plugin, the dependency and the build tags that carry it; no plugin starts. It is never loaded without its dependency. Every resolution judges the startup config's needs: an optional dependency that a `ConfigNeeds` entry names is auto-loaded only when the config holds that need, so flow export with `enrichment bgp` off does not start `bgp-rib`.
 <!-- source: internal/component/plugin/server/startup.go -- runPluginStartup, refuseBootAutoLoad -->
 
 **Family auto-loading** (Phase 3) is **prevented** when:
@@ -3983,31 +3987,14 @@ The check is based on **family claims**, not plugin name. Plugin names are infor
 |--------|--------|--------|
 | `family { ipv4/flow; }` | None | Auto-loads `bgp-nlri-flowspec` |
 | `family { ipv4/flow; }` | `--plugin bgp-nlri-flowspec` | Uses explicit plugin (no auto-load) |
-| `family { ipv4/flow; }` | `plugin { external my-traffic { declares ipv4/flow } }` | Uses config plugin (no auto-load, family claimed) |
+| `family { ipv4/flow; }` | `bus { endpoint my-traffic { external { run ...; } } }` declaring `ipv4/flow` at Stage 1 | Uses config plugin (no auto-load, family claimed) |
 | `family { ipv4/foo; }` | None | Startup fails (no plugin for family) |
-
-**Event type auto-loading** (Phase 3) triggers when a peer process has `receive [ <custom-type> ]` and no running plugin produces that event type. The producing plugin is found via `registry.PluginForEventType()` which matches against `Registration.EventTypes`. Dependencies are resolved transitively.
-
-| Config | Plugin | Result |
-|--------|--------|--------|
-| `receive [ update-rpki ]` | None | Auto-loads `bgp-rpki-decorator` + dependency `bgp-rpki` |
-| `receive [ update-rpki ]` | `plugin { external rpki-decorator { ... } }` | Uses explicit plugin (no auto-load) |
-
-**Send type auto-loading** (Phase 4) triggers when a peer process has `send [ <custom-type> ]` and no running plugin enables that send type. The enabling plugin is found via `registry.PluginForSendType()` which matches against `Registration.SendTypes`. Dependencies are resolved transitively.
-
-| Config | Plugin | Result |
-|--------|--------|--------|
-| `send [ enhanced-refresh ]` | None | Auto-loads `bgp-route-refresh` |
-| `send [ enhanced-refresh ]` | `plugin { external route-refresh { ... } }` | Uses explicit plugin (no auto-load) |
 
 **Functional tests:**
 - `test/plugin/flowspec-open-capability.ci` - auto-load for known family
 - `test/plugin/family-no-plugin-failure.ci` - failure for unknown family
 - `test/plugin/explicit-plugin-precedence.ci` - explicit `--plugin` prevents auto-load
 - `test/plugin/explicit-plugin-config.ci` - config plugin prevents auto-load
-- `test/plugin/rpki-decorator-autoload.ci` - auto-load for custom event type
-- `test/parse/send-enhanced-refresh.ci` - dynamic send type accepted in config
-- `test/parse/send-unknown-rejected.ci` - unregistered send type rejected
 
 **Ordering:** Plugin families are sorted alphabetically for deterministic OPEN messages.
 
@@ -4250,8 +4237,14 @@ The interface and firewall components each register engine operations in their
 own namespace, so a plugin that owns kernel state reaches them over the direct
 path internal and over RPC forked. The kernel state they create is the
 interface component's and the firewall component's, never the plugin's: the
-plugin holds no netlink call or nftables call. The owner of every device and table
-is the authenticated process name, never a name in the request.
+plugin holds no netlink call or nftables call. Compiled-in plugins key firewall
+table reservations and interface owned-device grants on their compiled
+registration identity (`proc.RegistrationName()`) under any endpoint alias or
+transport (`in-daemon` or `process separate;`), never a name in the request,
+while foreign `external` programs hold none of those grants even if their
+endpoint name matches a compiled-in plugin. Per-process runtime ledgers
+(`metrics-publish`, `report-issue`, `release-cached`) remain keyed on the
+endpoint name (`proc.Name()`).
 <!-- source: internal/component/iface/cmd/owned_devices.go -- init, ownedBridgesReplaceHandler -->
 <!-- source: internal/component/firewall/register_contribution.go -- init, tablesReplaceHandler -->
 
@@ -4429,7 +4422,7 @@ every queued event, and does not forcibly cancel arbitrary handler work.
 For external plugins (Python, Rust, etc.) -- runs as separate process:
 <!-- source: pkg/plugin/sdk/sdk.go -- NewFromTLSEnv -->
 
-1. Engine starts TLS listener from `plugin { hub { server <name> { ip ...; port ...; secret ...; } } }` config
+1. Engine starts TLS listener from `bus { hub { server <name> { ip ...; port ...; secret ...; } } }` config
 2. Engine forks `/bin/sh -c <run>` as the child, with env vars: `ZE_PLUGIN_HUB_HOST`, `ZE_PLUGIN_HUB_PORT`, `ZE_PLUGIN_HUB_TOKEN` (per-plugin unique token), `ZE_PLUGIN_CA_PEM` (the PEM certificate authority root that issued the listener's certificate), `ZE_PLUGIN_NAME`
 3. Child validates the engine certificate chain against that root and nothing else, then authenticates with `#0 auth {"token":"...","name":"..."}`
 4. Engine validates token matches the per-plugin token generated for that name (name binding prevents impersonation)
@@ -4443,7 +4436,7 @@ For external plugins (Python, Rust, etc.) -- runs as separate process:
 The engine answers a refused `#0 auth` with an error line and closes the
 connection. It refuses a claimed name that is not 1 to 64 letters, digits and
 hyphens, the first a letter or a digit (the form the commit also requires of a
-`plugin external` name), a token that is not the one bound to the claimed
+`bus endpoint` name), a token that is not the one bound to the claimed
 name, and any request when no token is bound to the name and no shared secret
 exists: an empty expected token never authenticates. The acceptor logs each
 refusal at WARN and raises `doctor-plugin-connect-back-refused` on the report
@@ -4976,14 +4969,13 @@ lifecycle").
 <!-- source: internal/component/bgp/reactor/peer.go -- validateOpen -->
 
 `wants-validate-open` makes the process an OPEN observer for every peer, not
-only peers whose local OPEN carries one of its capabilities. That observation
-has a matching cleanup lifetime: a process subscribed to BGP `state` receives
-`down` with reason `removed` even without a peer attachment or filter member.
-Its subscription peer selector still applies. This grants neither other state
-transitions nor other message types, and a process already receiving the
-removal through a binding receives it only once.
+only peers whose local OPEN carries one of its capabilities. Peer-removal
+delivery (`down` with reason `removed`) to OPEN validators is a registered
+reception (`bgp:state`) governed by the compiled bus filter (`DeliveryGraph`),
+shown on `show event delivery` with origin `registered` and excluded if the
+operator's `receive > allow` omits it.
 <!-- source: internal/component/bgp/server/validate.go -- askOpenValidators -->
-<!-- source: internal/component/bgp/server/events.go -- onPeerStateChange, addOpenRemovalObservers -->
+<!-- source: internal/component/bgp/server/events.go -- onPeerStateChange -->
 
 To reject:
 ```
@@ -5063,7 +5055,7 @@ that stays locked for the life of ze and so is never destroyed.
 <!-- source: internal/core/crashlog/stderr.go -- redirectStderr -->
 <!-- source: internal/component/plugin/sysproc_linux.go -- NewSysProcAttr -->
 
-1. Engine reads `plugin { hub { server <name> { ip ...; port ...; secret ...; } } }` from config
+1. Engine reads `bus { hub { server <name> { ip ...; port ...; secret ...; } } }` from config
 2. Engine starts TLS listener(s) (one per `server` entry), creates `PluginAcceptor` holding the certificate authority root that issued the served certificate
 3. Engine generates per-plugin token, registers the waiter for the plugin's name (`ExpectPlugin`) so a child that authenticates before the engine waits is held rather than dropped, then forks child with `ZE_PLUGIN_HUB_HOST`, `ZE_PLUGIN_HUB_PORT`, `ZE_PLUGIN_HUB_TOKEN` (unique per plugin), `ZE_PLUGIN_CA_PEM`, `ZE_PLUGIN_NAME` env vars
 4. Child validates the engine chain against that root, connects via TLS, sends `#0 auth {"token":"...","name":"..."}`
@@ -5077,10 +5069,10 @@ that stays locked for the life of ze and so is never destroyed.
 
 | Key | Type | Default | Description |
 |-----|------|---------|-------------|
-| `plugin.hub.server` | named list | -- | TLS listener entries (keyed by name) |
-| `plugin.hub.server.<name>.ip` | string | `127.0.0.1` | Bind address |
-| `plugin.hub.server.<name>.port` | uint16 | `12700` | Bind port |
-| `plugin.hub.server.<name>.secret` | string | (required, min 32 chars) | Auth token |
+| `bus.hub.server` | named list | -- | TLS listener entries (keyed by name) |
+| `bus.hub.server.<name>.ip` | string | `127.0.0.1` | Bind address |
+| `bus.hub.server.<name>.port` | uint16 | `12700` | Bind port |
+| `bus.hub.server.<name>.secret` | string | (required, min 32 chars) | Auth token |
 
 ### Files
 
@@ -5609,3 +5601,9 @@ its bound maintenance path joins synchronously after that destination's FIFO.
 <!-- source: internal/component/bgp/server/events.go -- getStructuredEvent -->
 <!-- test: internal/component/bgp/reactor/sent_destination_capture_test.go TestSentDestinationCaptureKeepsOriginalSession -->
 <!-- test: internal/component/bgp/server/events_sent_destination_test.go TestStructuredSentKeepsCapturedDestinationSession -->
+
+## Design decisions
+
+| Decision | It forbids | Source | Date |
+|----------|------------|--------|------|
+| Every engine operation names the message it carries or `none` with a reason, and a plugin identity is authorized by a profile compiled from its filter | An operation with no declaration; authorizing a plugin identity by prefix | plan/release/fixes/spec-explicit-plugin-and-attach-config.md | 2026-11-23 |

@@ -793,11 +793,10 @@ flowchart TB
 <!-- source: internal/plugins/ospf/v3/transport/transport.go -- Transport, RawPacket, SendPacket, rxLoop -->
 - **EventDispatcher** handles plugin data delivery (format negotiation, DirectBridge with `StructuredEvent`, cache counts). Internal plugins receive `*rpc.StructuredEvent` via DirectBridge (no JSON round-trip); external plugins receive formatted JSON text. Called directly by reactor -- not via Bus.
 - **Plugin Server** handles 5-stage handshake, subscriptions, command dispatch. Uses PluginManager for process creation.
-- **Five-phase plugin startup** -- Phase 1: config-path plugins (BGP, iface, fib via ConfigRoots). Phase 2: explicit plugins (from config `plugin { }` block). Phase 3: unclaimed families. Phase 4: custom event types. Phase 5: custom send types. Each phase uses tier-ordered handshake based on Dependencies.
-- **Plugin IPC** uses newline-framed YANG RPC over one bidirectional connection. Internal plugins use `net.Pipe()` for startup and DirectBridge after ready; external plugins use TLS connect-back. External event payloads are formatted text or JSON according to the process binding.
+- **Three-phase plugin startup** -- Phase 1: config-path plugins (BGP, iface, fib via ConfigRoots). Phase 2: explicit bus endpoints (from config `bus { endpoint ... }` block). Phase 3: unclaimed families. Custom event-type and send-type auto-load phases are deleted (an absent sender leaves a registered reception dormant and named by `| implied` and `show doctor`). Each phase uses tier-ordered handshake based on Dependencies.
+- **Plugin IPC** uses newline-framed YANG RPC over one bidirectional connection. Compiled-in plugins use `net.Pipe()` for startup and DirectBridge after ready (or TLS connect-back when configured with `process separate;`); external programs use TLS connect-back. External event payloads are formatted text or JSON according to the endpoint's `encoding` leaf.
 - **BGP cache** enables zero-copy forwarding (`send bgp <sel> cached 123`).
-- **Dynamic event types** -- plugins declare event types they produce via `Registration.EventTypes`. Engine registers them into `ValidEvents` at startup.
-- **Dynamic send types** -- plugins declare send types they enable via `Registration.SendTypes`. Engine registers them into `ValidSendTypes` at startup.
+- **Participant message declarations** -- plugins declare the bus messages they send and receive via `Registration.Sends` and `Registration.Receives` (and Stage 1 `declare-registration` for external programs), replacing the deleted `EventTypes`/`SendTypes` fields.
 <!-- source: internal/component/plugin/registry/ -- plugin registry, Register -->
 <!-- source: internal/component/plugin/types.go -- Registration struct -->
 <!-- source: internal/component/engine/engine.go -- Engine supervisor -->
@@ -3375,45 +3374,34 @@ plugin tracks announced prefixes and withdraws all on shutdown. Configured via
 <!-- source: internal/plugins/kernel/kernel.go -- routeObserver, handleRouteEvent, withdrawAll -->
 <!-- source: internal/plugins/kernel/events/events.go -- redistevents producer registration -->
 
-### The Two Deliveries a Redistribution Rule Derives
+### Redistribution Bus Requirements (Replacing Derived Bindings)
 
 `redistribute { destination <proto> { import bgp } }` names the daemon's own
-Loc-RIB as the route source. The Loc-RIB is the `bgp-rib` plugin, and a plugin
-receives a peer's UPDATEs only where that peer's config grants them.
+Loc-RIB (`bgp-rib`) as the route source, and `destination bgp` puts
+redistributed routes onto peers through `redistribute-orchestrator`.
 
-Peer-scoped delivery is the OVERLAP of two halves. One is what the peer's
-`attach process` block grants, the other is what the plugin declared, and there
-is no default ([API architecture](api/architecture.md)). A config that wrote the
-rule and no attach block therefore held an empty Loc-RIB. Every stage after it
-produced nothing to say.
+Derived `ProcessBinding` entries are deleted. With nothing written by the
+operator, `bgp-rib` and `redistribute-orchestrator` receive and send by their
+registered participant defaults ([API architecture](api/architecture.md)), and
+`show config running | implied` renders those defaults beside what the operator
+wrote.
 
-So the rule derives the binding. Where any rule's source resolves to a
-BGP-registered route source, every peer the config builds gains one process
-binding. It grants `update`, `state` and `refresh` to the process the Loc-RIB
-runs under. It is added only where the peer's own config does not name that
-process.
+Each redistribution rule declares the bus relationship it requires, checked
+against the compiled bus filters at validate, commit, reload, and start:
 
-Two properties follow. A peer's own binding always wins, so a narrower grant an
-operator typed stays narrow. A config that names no BGP source gains nothing. A
-daemon that redistributes IS-IS into BGP therefore pays no per-UPDATE delivery
-it did not ask for.
+- `import bgp` (or any BGP-protocol route source) requires `bgp-rib` (under its
+  compiled registration identity, regardless of any endpoint alias such as
+  `bus { endpoint <alias> { internal bgp-rib; } }`) to receive `bgp:update`,
+  `bgp:state`, and `bgp:refresh` from every peer.
+- `destination bgp` requires `redistribute-orchestrator` to receive `bgp:state`
+  and be allowed to send `bgp:update` to every peer.
 
-The binding names the process the plugin server will run.
-`plugin { internal <alias> { use bgp-rib; } }` makes it `<alias>`. Where no such
-block exists, the config-root auto-load starts it under its registry name
-`bgp-rib`.
+If an operator writes a `bus` override that removes one of those required
+relationships, commit validation refuses it naming the feature, the
+participant, and the completing bus line.
 
-The other direction derives the mirror of that binding. A `destination bgp`
-rule moves its routes onto a peer's wire through the redistribute orchestrator,
-and a peer grants a process that right with `send` (Peer.maySend).
-
-So every peer gains `receive [ state ]` and `send [ update ]` toward the process
-`redistribute-orchestrator` runs under. The same precedence rule applies: a
-binding the operator typed for that process stands unchanged.
-
-<!-- source: internal/component/bgp/config/redistribute_binding.go -- wireRedistributeDelivery, processNameFor -->
+<!-- source: internal/component/bgp/config/bus_requirements.go -- validateBGPBusRequirements, checkRedistributionRequirements -->
 <!-- source: internal/component/bgp/reactor/send_permission.go -- Peer.maySend, filterPermittedPeers -->
-<!-- source: internal/component/bgp/reactor/config.go -- EnsureProcessBinding, where an operator's binding wins -->
 <!-- source: internal/component/bgp/redistribute/producer.go -- SourceIsBGP, LocRIBPlugin -->
 
 ### A Redistribution Rule Never Gates What BGP Learns
@@ -3871,21 +3859,20 @@ first.
 
 <!-- source: internal/component/bgp/reactor/peer_static_wire.go -- deliverStaticRouteDelta, staticRouteDelta -->
 
-`ProcessBindings` is swappable for one kind of change only: a RECEIVE-ONLY
-binding, one that grants the process no send type and does not receive the OPEN
-(`open` in any direction, or the `*` wildcard). The rule reads the grant, never
-who wrote it: an operator's `attach process` block and a binding the config
-builder adds (`EnsureProcessBinding`, for example the RFC 7311 AIGP grant to
-`bgp-rib` that the first iBGP peer adds to EVERY peer) are judged alike. A
-binding that may send restarts, because the process can put routes into the
-session's initial routing update and the End-of-RIB barrier counts it
-(`ProcessBinding.MayPushRoutes`). A binding that receives the OPEN restarts,
-because only a new session produces an OPEN the process can be shown. A dynamic
-peer takes the same swap. The reload's dynamic step
-(`reconcileDynamicGroupsJournaled`) builds the settings the old and the next
-template give the peer's address and hands that pair to `peerSettingsSwapPlan`,
-so a receive-only binding change on a dynamic group swaps on the running
-dynamic peers, and a change the session cannot take restarts them.
+A peer's compiled bus filter is swappable for one kind of change only: a
+RECEIVE-ONLY change that neither adds/removes a route-pushing send permission
+nor changes `bgp:open` delivery. The rule reads the compiled filter, never who
+wrote it (whether on the peer's `bus` block or centrally in `bus { endpoint |
+participant }`). A change that alters route-pushing send permissions restarts,
+because the endpoint can put routes into the session's initial routing update
+and `Peer.initialUpdateReporters` counts it (`MayPushRoutes`). A change that
+adds `bgp:open` delivery restarts, because only a new session produces an OPEN
+the endpoint can be shown. A dynamic peer takes the same swap. The reload's
+dynamic step (`reconcileDynamicGroupsJournaled`) builds the settings the old
+and the next template give the peer's address and hands that pair to
+`peerSettingsSwapPlan`, so a receive-only bus filter change on a dynamic group
+swaps on the running dynamic peers, and a change the session cannot take
+restarts them.
 
 `BFD` is swappable when neither the running nor the next opt-in runs strict mode
 (`bfdOptInStrict`). A non-strict peer's BFD client runs beside the session and
@@ -4250,7 +4237,7 @@ Nobody edits a read view directly. A change goes to the source, and the builder 
 
 Ze applies the same pattern to the data that it pulls from the network. The configuration is the source that the operator edits. Data that Ze fetches, for example an IRR prefix list resolved through WHOIS, is a local read view of an external source. A background service keeps that read view current.
 
-IRR data follows this pattern literally. The `irr` plugin is the builder: it is the only component that knows the source's model, pulls from the IRR server and PeeringDB, and writes the read view into Ze's state store, one stored dataset per AS-SET, named by a pointer it flips only after the dataset is written (`docs/architecture/irr-owner.md`). A refresh runs when `system irr refresh-interval` says the dataset is due, counted from the last time the server answered, or when the operator runs `update irr`. A refresh that fails, or that returns no prefixes, keeps the last known good list. The consumers, the BGP IRR filter and the firewall IRR sets, pull the read view when the `irr` plugin's notice says "pull now", and at their start. The read view survives a restart, so a restarted router enforces exactly the lists it enforced before and sends no query for them. A set not stored yet is fetched at once, and until it arrives the filter rejects the peer's announcements. A route that the filter rejected before a list arrived, or that the old list did not hold, is evaluated again when a new list authorizes it: the filter asks the peer for the route with a ROUTE-REFRESH. The peer must allow it with `attach process bgp-filter-irr { send [ refresh ] }`. The page [IRR filtering](../guide/irr-filtering.md) describes how.
+IRR data follows this pattern literally. The `irr` plugin is the builder: it is the only component that knows the source's model, pulls from the IRR server and PeeringDB, and writes the read view into Ze's state store, one stored dataset per AS-SET, named by a pointer it flips only after the dataset is written (`docs/architecture/irr-owner.md`). A refresh runs when `system irr refresh-interval` says the dataset is due, counted from the last time the server answered, or when the operator runs `update irr`. A refresh that fails, or that returns no prefixes, keeps the last known good list. The consumers, the BGP IRR filter and the firewall IRR sets, pull the read view when the `irr` plugin's notice says "pull now", and at their start. The read view survives a restart, so a restarted router enforces exactly the lists it enforced before and sends no query for them. A set not stored yet is fetched at once, and until it arrives the filter rejects the peer's announcements. A route that the filter rejected before a list arrived, or that the old list did not hold, is evaluated again when a new list authorizes it: the filter asks the peer for the route with a ROUTE-REFRESH (which `bgp-filter-irr` registers to send by default unless narrowed by a `bus` block). The page [IRR filtering](../guide/irr-filtering.md) describes how.
 <!-- source: internal/plugins/irr/owner.go -- refreshSet, the builder's pull -->
 <!-- source: internal/component/bgp/plugins/filter_irr/stored.go -- storeReader, the consumer's pull -->
 <!-- source: internal/component/resolve/irr/store/store.go -- atomic refresh and last-known-good -->

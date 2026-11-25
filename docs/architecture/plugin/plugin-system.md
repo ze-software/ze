@@ -137,23 +137,27 @@ Optional metadata:
 | `Families` | `[]string` | Address families handled, as `afi/safi` |
 | `CapabilityCodes` | `[]uint8` | Capability codes this plugin decodes |
 | `ConfigRoots` | `[]string` | Config roots the plugin owns. A present root auto-loads the plugin. A reload that removes one of them stops the plugin only when the new config holds none of its roots, so the firewall, which owns `firewall` and `system/conntrack`, keeps running when `system conntrack` goes and the `firewall {}` block stays (`rootRemovalStopsOwner`) |
-| `ConfigReads` | `[]string` | Config roots the plugin reads but does not own. Its config verifier and its schema receive them, and they never auto-load it. `ze config validate` hands them to an in-process verifier, and the daemon's server joins them into the roots it delivers at a commit and a SIGHUP reload, where a change to any of the plugin's roots delivers all of them whole. The server finds the entry through the implementation the process runs (`use bgp-rpki` under a block named `rpki` still gets `pki`). A forked process (`run "ze plugin <name>"`) has no registry row (`registryRow` refuses an external program), so a plugin that reads a root also lists it in its Stage 1 `WantsConfig`: `bgp-filter-modify`, `bgp-filter-family` and `bgp-filter-remove-private-as` list `policy` there, or their definitions never reach the forked process. A read root is delivered and never owned: the transaction lists it as the participant's `WantsConfig`, so it reaches verify and a coarse section apply, and the operation coverage guard never counts it as the reader's (`docs/architecture/config/transaction-protocol.md`). `bgp-rpki` reads `pki` this way, so a `pki`-only config does not start BGP |
+| `ConfigReads` | `[]string` | Config roots the plugin reads but does not own. Its config verifier and its schema receive them, and they never auto-load it. `ze config validate` hands them to an in-process verifier, and the daemon's server joins them into the roots it delivers at a commit and a SIGHUP reload, where a change to any of the plugin's roots delivers all of them whole. The server resolves the entry through the plugin's compiled registration identity (`bus { endpoint rpki { internal bgp-rpki; } }` still gets `pki`, whether in-daemon or with `process separate`). A foreign `external` program has no registry row, so any read roots it needs are listed in its Stage 1 `WantsConfig`. A read root is delivered and never owned: the transaction lists it as the participant's `WantsConfig`, so it reaches verify and a coarse section apply, and the operation coverage guard never counts it as the reader's (`docs/architecture/config/transaction-protocol.md`). `bgp-rpki` reads `pki` this way, so a `pki`-only config does not start BGP |
 | `Dependencies` | `[]string` | Plugin names that must also load. A name this build does not register gives a `*MissingDependencyError` (`errors.Is` `ErrMissingDependency`) and refuses the load (see Dependencies) |
 | `OptionalDependencies` | `[]string` | Plugin names the owner uses when present. A missing name is skipped in silence. A name a single-provider `ConfigNeeds` entry lists is pulled only when the config holds that need; a name only a need of several providers lists is never pulled; any other is pulled whenever it is registered |
 | `ConfigNeeds` | `[]ConfigNeed` | Config values of the owner's that need one of its `OptionalDependencies`. Each need names a leaf `Path` as the operator writes it, the `Value` that needs a provider, and the `Providers`, any one of which meets it. `Register` refuses a need with an empty path or path element, no value, no provider, or a provider outside `OptionalDependencies`, naming the plugin. The config component judges the needs at load (`LoadConfig`) and at validate and commit (`VerifyPluginConfigMapTransition`) through one check, `refuseAbsentOptionalProviders`. A need holds when the leaf at `Path`, reached through containers in the `ToPluginMap` form, carries `Value` (a leaf-list holds it when `Value` is a member); an absent node or a node of another shape means it does not hold. A path crosses a YANG list by following the list keyword with `registry.AnyEntry` (`*`), and then holds when any entry carries `Value` at the rest of the path; the refusal names each such entry (`bgp-ls-export domain core source isis`). `Register` refuses `*` as the first or last element, and each owner's `TestConfigNeedPathsExistInSchema` (`configneedtest.PathFault`) refuses a list not followed by it. A held need whose providers are none of them registered in this build is refused with `ErrAbsentOptionalProvider`, naming the setting and the build tag of each provider (see `feature-gates.md`, "Naming a plugin the build left out"). The verdict is about the build only, never whether a provider is configured. The same evaluator, `config.ConfigNeedHolds`, decides the pull: `ResolveDependencies` pulls the provider of a need that names one provider only when the config holds that need. A need that names several providers names alternatives and pulls none of them, even when it holds: the source the operator configured loads from its own config root (`ConfigNeed.PullsProvider`, see Dependencies). Flow export declares one: `flow-export enrichment bgp` set to `true` needs `bgp-rib`; the BGP-LS exporter declares `bgp-ls-export domain * source` set to `isis` or `ospf`, needing that IGP |
 | `StartAfter` | `[]string` | Order-only prerequisites when both plugins are selected. Never auto-loads a plugin |
-| `EventTypes` | `[]string` | Event types this plugin produces. Registered at startup |
-| `SendTypes` | `[]string` | Send types this plugin enables, such as `enhanced-refresh` |
+| `Sends` | `[]rpc.MessageSendDecl` | Bus messages (events and `cli:` command prefixes) this participant sends by default, replacing the deleted lazy `EventTypes`/`SendTypes` declarations |
+| `Receives` | `[]rpc.MessageReceiveDecl` | Bus messages this participant receives by default (with optional default source and tag filters). An absent sender leaves a reception dormant and named by `\| implied` and `show doctor` (custom event/send token auto-load is deleted) |
 | `Claims` | `[]string` | Exclusive runtime roles this plugin takes over from another plugin's default |
 | `Dissemination` | `[]rpc.DisseminationDecl` | Opaque peer-output roles and their source/destination grant requirements. A declaration creates no grant; an eligible claimant takes precedence only at that destination |
-| `ProgramsFIB` | `bool` | The plugin writes the routes the system RIB selects into a forwarding path. It IS the operator's data-plane choice, so a config that names one gets no writer added to it |
-| `DataPlane` | `string` | The data plane a `ProgramsFIB` plugin reaches, spelled the way `interface { backend }` names it: `netlink`, `vpp`. A data plane has one writer, and a duplicate aborts startup. Empty means the plugin reaches no data plane and is never resolved as a producer's writer |
+| `ProgramsFIB` | `bool` | The plugin writes or holds the routes the system RIB selects as the operator's FIB choice. A config that names one (by config root, compiled-in bus endpoint, or `--plugin`) gets no data-plane writer added to it |
+| `DataPlane` | `string` | The data plane a `ProgramsFIB` plugin reaches, spelled the way `interface { backend }` names it: `kernel`, `vpp`. A data plane has one writer, and a duplicate aborts startup. Empty means the plugin reaches no data plane (e.g. `fib-dummy`, `fib-p4`) and is never resolved as a producer's writer |
 | `NeedsDataPlane` | `bool` | The plugin's routes reach forwarding only through a `ProgramsFIB` plugin, so the engine loads the writer for the configured data plane |
+| `DataPlaneSelector` | `*DataPlaneSelector` | Backend selector leaf (`LeafPath`), governed config roots (`Roots`), primary selector flag (`SelectsDataPlane`, unique across the registry), and backend list callback (`RegisteredBackends`) |
+| `DataPlaneFeatures` | `[]DataPlaneFeature` | Forwarding-plane requirements (`Planes` or `FollowsSelector`, mutually exclusive) and active-in-config rule (`DataPlaneInUseConfigRoot`, `DataPlaneInUsePredicate`, or `DataPlaneInUseSelectedPlugin`). Subsystems with no plugin registration declare predicate features through `RegisterDataPlaneFeature` |
+| `HostSideDataPlane` | `bool` | Marks that this declaration acts on the Linux host itself, beside the selected data plane; requires `DataPlane` or at least one `DataPlaneFeatures` entry |
+| `NoDataPlaneChoice` | `bool` | Marks a `ProgramsFIB` plugin with empty `DataPlane` as the deliberate choice to program no data plane (`fib-dummy`). `validateDataPlaneDecl` refuses it without `ProgramsFIB` or with a `DataPlane`, and `evaluateDataPlaneVerdict` refuses it alongside any other `ProgramsFIB` plugin in use |
 | `PeerUpBarrier` | `bool` | The plugin registers the peer on the peer-up event, so End-of-RIB waits for it |
 | `SignalsSessionReady` | `bool` | The plugin's routes belong to a peer's initial routing update and it reports `plugin session ready` when they are out. The report lowers the replay fence when the plugin also declares `FencesLiveForwards`; the End-of-RIB waits for no report ("Session-ready reports") |
 | `ExitConfirmsCleanup` | `bool` | Exit zero confirms this original engine's native cleanup. The daemon reserves reporting capacity before internal startup or accepted external Stage 1. The live declaration must agree for a compiled internal engine. |
 | `FencesLiveForwards` | `bool` | The plugin replays a peer's routes on peer-up while it also forwards live changes to that peer. The engine holds the peer's live forwards until the plugin's session-ready report. Counts only with `SignalsSessionReady`. Stage 1 uses `fences-live-forwards`; bgp-rib, bgp-rs and bgp-rr declare it on both transports |
-| `RelaysOnRSFastPath` | `bool` | The BGP route-server fast path forwards received UPDATEs on this plugin's behalf, in place of its cached forward. The fast path then relays a source only when the source's attach block feeds this plugin its UPDATEs (`receive [ update-received ]`), and reaches a destination only when the destination grants this plugin `send [ update ]`, the grants the cached forward answers to. `registry.RelaysOnRSFastPath` resolves a `use` alias. bgp-rs declares it |
+| `RelaysOnRSFastPath` | `bool` | The BGP route-server fast path forwards received UPDATEs on this plugin's behalf, in place of its cached forward. The fast path reads the compiled bus filter (`DeliveryGraph`): it relays a source only when the compiled filter delivers `bgp:update` (direction `received`) from that source to this endpoint, and reaches a destination only when the compiled filter admits `bgp:update` from this endpoint to that destination — the same filter the cached forward answers to. `registry.RelaysOnRSFastPath` resolves through the endpoint's compiled registration identity. `bgp-rs` declares it |
 | `YANG` | `string` | YANG schema content |
 | `Commands` | `[]rpc.CommandDecl` | The commands the plugin serves, and what each answer holds. It is the SAME slice the runner sends at Stage 1, taken from the plugin's one `commandDecls()` function, so a reader that links the composition root sees a declaration with no engine started. `./le plugin declarations check` holds the two readings together, in both directions and field by field |
 | `FilterTypes` | `[]string` | YANG filter list names this plugin owns, such as `prefix-list`. Names are globally unique; a duplicate aborts startup |
@@ -428,7 +432,7 @@ conformance check run <command> [name <name>]`.
 
 | Field | Semantics |
 |-------|-----------|
-| `Dependencies` | Hard. `ResolveDependencies` returns a `*MissingDependencyError` when the named plugin is not registered, and every load path refuses: boot (config-path, family, and custom event or send type auto-load), a config reload, and an explicit `plugin {}` block. The plugin is never started without its dependency. `ze config validate`, editor and API commit, and doctor refuse the same config with the same error |
+| `Dependencies` | Hard. `ResolveDependencies` returns a `*MissingDependencyError` when the named plugin is not registered, and every load path refuses: boot (config-path and unclaimed-family auto-load), a config reload, and an explicit `bus { endpoint ... }` block. The plugin is never started without its dependency. `ze config validate`, editor and API commit, and doctor refuse the same config with the same error |
 | `OptionalDependencies` | Soft. The resolver skips the plugin in silence when it is not registered. When it is registered, it is pulled unless a `ConfigNeeds` entry of the owner lists it: then it is pulled only when the config holds one of those needs that names it alone. A need naming several providers is a set of alternatives and pulls none (anomaly and DDoS detection name flow export and traffic usage), because pulling every alternative would start sources nobody configured, each with its own hard dependencies. A config that holds a need whose provider is absent is refused before resolution, at load, validate and commit |
 | `StartAfter` | Order only. Never expands the selected set; orders the owner after a named plugin only when both are selected |
 
@@ -457,19 +461,21 @@ what to configure:
 
 | The dependency is | The fix line names |
 |-------------------|--------------------|
-| In this build, not loaded | `add 'plugin { internal <name> { use <name>; } }' to the config` |
-| In no build of ze | `add 'plugin { external <name> { run "<the command that starts <name>>"; } }' to the config` |
+| In this build, not loaded | `add 'bus { endpoint <name> { internal <name>; } }' to the config` |
+| In no build of ze | `add 'bus { endpoint <name> { external { run "<the command that starts <name>>"; } } }' to the config` |
 | Compiled out of this build | The build tags, as above |
 
 Every row also keeps the other fix: remove the configuration that loads the
 plugin.
 
-Boot resolves every auto-load set before the first plugin starts. The family
-set and the custom event and send type sets load after the explicit plugins, so
-`refuseUnresolvableDeferredAutoLoad` resolves them up front: a refusal found
+Boot resolves every auto-load set before the first plugin starts. The unclaimed
+family set loads after the explicit bus endpoints, so
+`refuseUnresolvableDeferredAutoLoad` resolves it up front: a refusal found
 only then would leave the earlier phases' plugins running. No explicit plugin
 has declared its families at that point, so the family set it resolves is every
-configured family's internal plugin.
+configured family's internal plugin. Custom event-type and send-type auto-load
+are deleted; an absent sender leaves a registered reception dormant and named
+by `| implied` and `show doctor`.
 
 Resolution needs the config it resolves for, because a `ConfigNeeds` entry
 decides whether its provider is pulled. Every caller passes a
@@ -493,15 +499,15 @@ its closure that is not running.
 config with the same error, before any daemon runs. They resolve the set boot
 starts (`config.refuseUnresolvableDependencies`, called from
 `VerifyPluginConfig` and `VerifyPluginConfigTransition`): the plugins the
-`plugin { }` block declares, asked through `dependencyRequest` exactly as
-`ExpandDependencies` asks, and the plugins the config's roots select. Boot
-auto-load, reload auto-load and these doors read that selection from one
-answer, `registry.PluginsForConfigPaths`, so a config the doors call valid is
-one boot can resolve. A `ze_core ze_exabgp` build validating an `exabgp { }`
-config is refused naming `ze_bgp`, as its boot is. The FIB plugin boot adds
-for the configured data plane is the one member these doors do not resolve,
-because the data plane is read by the `iface` component, which `config` does
-not import.
+`bus { endpoint ... }` block declares, asked through `dependencyRequest`
+exactly as `ExpandDependencies` asks, and the plugins the config's roots
+select. Boot auto-load, reload auto-load and these doors read that selection
+from one answer, `registry.PluginsForConfigPaths`, so a config the doors call
+valid is one boot can resolve. A minimal build validating a config whose root
+needs a compiled-out dependency is refused naming the missing build tag, as its
+boot is. The FIB plugin boot adds for the configured data plane is the one
+member these doors do not resolve, because the data plane is read by the
+`iface` component, which `config` does not import.
 
 The set those doors resolve starts from `ExtractPluginsFromTree`. When that
 extraction fails, the set is unknown, so the dependency refusal is not asked:
@@ -517,7 +523,7 @@ peer resolution) already refused the config, and adds it otherwise. `ze
 doctor` drops it from its `config-semantics` check, because its bgp peer check
 (`doctor-config-bgp-peer`) reports the same `ResolveBGPTree` failure and is
 registered by the package that registers the bgp extractor. A failure
-in the `plugin { }` block itself carries no section and is always reported,
+in the `bus { }` block itself carries no section and is always reported,
 under `config-plugin-extract` in `ze config validate`.
 
 <!-- source: internal/component/config/loader.go -- PluginExtractionError, RegisterPluginExtractor, ExtractPluginsFromTree -->
@@ -647,36 +653,39 @@ publication does not clone the record. A new Process starts with an empty
 record, and an explicit nil publication clears it.
 <!-- source: internal/component/plugin/process/process.go -- NewProcess, Registration, SetRegistration -->
 
-Stages 1 to 5 of the handshake run per phase. The engine loads plugins across up
-to five phases in series: config-path auto-load, explicit, family, event-type,
-send-type. A plugin's `OnStarted` fires after its ready acknowledgment within
-Stage 5, before plugins of a later phase are loaded. A declared initializer must
-return successfully and answer runtime-ready before its tier completes.
+Stages 1 to 5 of the handshake run per phase. The engine loads plugins across
+three phases in series: config-path auto-load, explicit bus endpoints, and
+unclaimed families. Custom event-type and send-type auto-load are deleted; an
+absent sender leaves a reception dormant and named by `| implied` and
+`show doctor`. A plugin's `OnStarted` fires after its ready acknowledgment
+within Stage 5, before plugins of a later phase are loaded. A declared
+initializer must return successfully and answer runtime-ready before its tier
+completes.
 
-Declared external plugins (from `plugin { external <name> { run ... } }` or the
-command line) take an earlier Stage 1 step before the full configuration parse:
-boot runs `config.FirstPass`, starts each declared external process once
+Declared external plugins (from `bus { endpoint <name> { external { run ...; } } }`
+or the command line) take an earlier Stage 1 step before the full configuration
+parse: boot runs `config.FirstPass`, starts each declared external process once
 (`HoldDeclaredPlugins` -> `Manager.StartDeclared`), reads its Stage 1 `schemas`
-list while keeping the Stage 1 request unanswered on `pendingStartup`, joins and
-publishes the external YANG modules once (`PublishExternalModules`), and only
-then parses the full configuration and constructs the plugin server. When the
-plugin's startup tier runs later, `Manager.SpawnMore` hands back the held
-process and replays its kept Stage 1 request so every Stage 1 check runs against
-the published schema and the process is never forked twice. External plugin
-declarations and their modules are fixed for the life of the daemon: a reload
-that changes `external` declarations is refused (`RefuseChangedDeclarations`),
-and a restarted plugin that declares a different module set is failed at Stage 1
-(`refuseChangedSchema`, `doctor-plugin-schema-changed`), naming a restart of
-`ze`.
+and participant declarations while keeping the Stage 1 request unanswered on
+`pendingStartup`, joins and publishes the external YANG modules once
+(`PublishExternalModules`), and only then parses the full configuration and
+constructs the plugin server. When the plugin's startup tier runs later,
+`Manager.SpawnMore` hands back the held process and replays its kept Stage 1
+request so every Stage 1 check runs against the published schema and the
+process is never forked twice. External plugin declarations and their modules
+are fixed for the life of the daemon: a reload that changes `external`
+declarations is refused (`RefuseChangedDeclarations`), and a restarted plugin
+that declares a different module set is failed at Stage 1 (`refuseChangedSchema`,
+`doctor-plugin-schema-changed`), naming a restart of `ze`.
 <!-- source: internal/component/plugin/server/early_stage1.go -- HoldDeclaredPlugins -->
 <!-- source: internal/component/plugin/manager/manager.go -- StartDeclared, SpawnMore -->
 <!-- source: internal/component/plugin/server/reload_declarations.go -- RefuseChangedDeclarations -->
 <!-- source: internal/component/plugin/server/stage1_schema.go -- refuseChangedSchema -->
 
 Before the first phase starts,
-the engine resolves the dependencies of the config-path, family, event-type
-and send-type sets, and refuses startup when one names a plugin this build
-lacks (see Dependencies).
+the engine resolves the dependencies of the config-path and unclaimed-family
+sets, and refuses startup when one names a plugin this build lacks (see
+Dependencies).
 
 Each dependency tier freezes its largest accepted Stage1 `apply-budget` when
 registration completes. For the configure barrier, a positive environment
@@ -1004,7 +1013,7 @@ that transport, or from arriving after the compiled-in set:
 |-----------------------------|--------|
 | Its declaration and modules are read at Stage 1, before the full parse of the config | It reaches the bus by connecting, so its declaration travels at Stage 1 |
 | Its declaration and modules change only when `ze` restarts | The set is published once at start (owner ruling) |
-| With no daemon running, no command starts it, and a config section only its module defines is not available | With no `ze` running there is no plugin to ask (owner ruling) |
+| With no daemon running, a command that parses a config starts each declared external program in query mode, never its run loop, and validates against its declaration | It reaches the bus by connecting, so offline validation queries its declaration directly without running its main loop (owner ruling) |
 | A module name or namespace already in the set is refused | It arrives after the compiled-in set, so the name already exists |
 
 A behaviour that differs between the two kinds with no reason of this kind is a
@@ -1018,10 +1027,14 @@ differently.
 
 ## The process boundary
 
-A plugin runs internal, as a goroutine sharing the daemon's process through
-`startInternal`, or external, as a forked subprocess that talks only over
-TLS/RPC through `startExternal`. Plugin code reaches the engine through the
-SDK's RPC layer, which hides the difference.
+A compiled-in plugin runs in-daemon by default, as a goroutine sharing the
+daemon's process through `startInternal`, or as a separate forked subprocess
+over TLS/RPC when configured with `process separate;` — keeping the exact same
+compiled registration identity, state grants, and defaults on either transport.
+A foreign `external` program always runs as a forked subprocess through
+`startExternal` and holds none of a compiled plugin's grants. Plugin code
+reaches the engine through the SDK's RPC layer, which hides the transport
+difference.
 
 What authenticates that TLS is documented once, on
 [process-protocol.md](../api/process-protocol.md), because it is a property of
@@ -1191,3 +1204,9 @@ not useful output success. Required replay and source-policy output failures
 remain current until their original useful work succeeds or its lifetime ends.
 <!-- source: internal/component/bgp/plugins/rs/retained_settlement.go -- settlementFailure, lifecycleStatus -->
 <!-- source: internal/component/bgp/plugins/rs/source_lifetime.go -- joinedOutputError, sourceRelayFailure, retryCurrentReplays -->
+
+## Design decisions
+
+| Decision | It forbids | Source | Date |
+|----------|------------|--------|------|
+| With no daemon running, a command that parses a config starts each declared external program in query mode, never its run loop, and validates against its declaration | Refusing a section because no daemon runs; accepting a config that could not be checked | plan/release/fixes/spec-explicit-plugin-and-attach-config.md | 2026-11-23 |
