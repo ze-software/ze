@@ -1190,7 +1190,7 @@ error rather than a fallback. With no `certificate` the listener serves a leaf
 the daemon's own certificate authority issued. A managed registry with no
 serving addresses loads neither a root nor a leaf. Preparing the first managed
 address with no named certificate opens the durable authority, generating the
-root on first use. The hub keeps the root across leaf renewals: the
+root on first use. The managed server keeps the loaded authority in memory, including when a new serving address needs a different leaf. The
 listener reissues the leaf as it ages, and a restart mints another. A client
 anchored on the root needs no change for either. Every server block that accepts managed clients serves one
 certificate: a config where two of them name different certificates is refused
@@ -1198,7 +1198,18 @@ at load.
 
 The running hub uses the managed certificate and client declarations it read
 at startup. An unresolved certificate leaves the managed addresses unbound and
-reported in doctor. Correct the configuration and restart the hub to bind them.
+reported in doctor. Use `edit pki certificate <name>` to supply the leaf,
+matching private key and chain for the configured name. Commit the change and
+restart the hub to bind the addresses.
+
+If the hub needs its own authority at startup and cannot load it, the managed
+server stays unavailable. `ze data check` checks the store's integrity. A
+clean result can still accompany a missing key or a mismatched pair. Restore
+the original `meta/ca/cert` and `meta/ca/key` from a trusted copy, or contact
+the CA administrator if recovery requires a trust change. Restart the hub
+after the repair. A signer that loaded but failed to issue a leaf reports its
+signing error on each affected address. `ze show pki local-ca pem` exports
+the public issuer for comparison with the root trusted by the clients.
 
 The server's reload methods are implemented and tested directly.
 `PrepareManagedListeners` resolves the candidate's named chain or prepares an

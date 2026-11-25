@@ -96,7 +96,9 @@ certificate one config asks for. The same gate refuses, through
 `checkLGTransport`, a `tls true` entry that has no certificate to present.
 
 At startup an unresolved managed certificate leaves each affected address
-unbound and reported in doctor. Repairing the reference takes effect on a hub
+unbound and reported in doctor. `edit pki certificate <name>` opens the
+entry shared by those listeners. Supply the leaf, its matching private key
+and the chain to a configured CA, then commit. The repaired entry takes effect on a hub
 restart. Fleet's approved design extends the reload gate to prepare the managed
 certificate against the candidate PKI store. An unresolved name or unusable
 pair will refuse the candidate and restore the previous store. Wiring
@@ -244,7 +246,7 @@ before any consumer applies and installation after promotion.
 | A name the candidate store defines | The named chain, including a renewal under the same name |
 | An unresolved name or an unusable pair | The reload is refused. The previous certificate stays |
 | No name | The authority-issued leaf covers loopback and each specified serving host |
-| Name removed, authority cannot issue a replacement for a serving named chain | The reload is refused. The named chain stays |
+| Name removed, authority cannot issue a replacement for a serving named chain | The reload is refused. The named chain stays. Restore its name on each candidate serving block. For multiple blocks the refusal supplies the set lines for an absolute merge |
 | Issued leaf in use, authority cannot cover a newly added address | The existing leaf stays. Added addresses stay unbound with the issue error in doctor |
 
 | Consumer | Reload hook | Running server |

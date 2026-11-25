@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"maps"
+	"strings"
 	"time"
 
 	pluginipc "github.com/ze-software/ze/internal/component/plugin/ipc"
@@ -57,15 +58,7 @@ func (s *ManagedServer) PrepareManagedListeners(listens []ManagedListener, certi
 		return nil, managedNamedCertificateRefusal(listens, certificate, err)
 	}
 	if err != nil && serving && current != nil && current.name != "" {
-		fix := "edit bus hub"
-		for _, listen := range listens {
-			if listen.Block != "" {
-				fix = "set bus hub server " + configtext.QuoteToken(listen.Block) + " certificate " + configtext.QuoteToken(current.name)
-				break
-			}
-		}
-		return nil, opererr.Wrap(err, "the managed listener cannot replace its serving certificate",
-			"keep certificate "+current.name+" in the configuration until the local authority can issue the replacement leaf", fix)
+		return nil, managedReplacementRefusal(listens, current.name, err)
 	}
 	return &ManagedListenerPlan{listens: cloneManagedListeners(listens), source: source, bindErr: err, certificate: certificate}, nil
 }
@@ -75,21 +68,44 @@ func (s *ManagedServer) PrepareManagedListeners(listens []ManagedListener, certi
 func managedNamedCertificateRefusal(listens []ManagedListener, certificate string, err error) *opererr.Error {
 	name := configtext.QuoteToken(certificate)
 	problem := "managed listener certificate " + name + " cannot be served"
-	fix := "edit pki certificate " + name
-	var firstPath string
 	for _, listen := range listens {
 		if listen.Certificate == certificate && listen.Block != "" {
-			if firstPath != "" {
-				// An edit to the common PKI entry repairs every referring block.
-				fix = "edit pki certificate " + name
-				break
-			}
-			firstPath = "bus hub server " + configtext.QuoteToken(listen.Block) + " certificate"
-			problem = firstPath + " " + name + " cannot be served"
-			fix = "delete " + firstPath
+			problem = "bus hub server " + configtext.QuoteToken(listen.Block) + " certificate " + name + " cannot be served"
+			break
 		}
 	}
-	return opererr.Wrap(err, problem, "define pki certificate "+name+" with a matching key or remove the listener's certificate reference", fix)
+	return opererr.Wrap(err, problem,
+		"define pki certificate "+name+" with the leaf PEM in certificate and its matching PEM key in private key, supply its chain to a configured pki ca, then commit",
+		"edit pki certificate "+configtext.QuoteCommandWord(certificate))
+}
+
+// Each candidate serving block needs the same name, including newly added
+// blocks. An absolute merge applies just these leaves in one editor operation.
+func managedReplacementRefusal(listens []ManagedListener, certificate string, err error) *opererr.Error {
+	const problem = "the managed listener cannot replace its serving certificate"
+	why := "keep certificate " + configtext.QuoteToken(certificate) + " on every serving block and keep its pki certificate entry until the local authority can issue the replacement leaf"
+	var lines []string
+	for _, listen := range listens {
+		if listen.Block == "" {
+			return opererr.Wrap(err, problem, why, "edit bus hub")
+		}
+		lines = append(lines, "set bus hub server "+configtext.QuoteCommandWord(listen.Block)+" certificate "+configtext.QuoteCommandWord(certificate))
+	}
+	if len(lines) == 1 {
+		return opererr.Wrap(err, problem, why, lines[0])
+	}
+	return opererr.Wrap(err, problem, why+". At the load prompt paste these lines, then press Ctrl-D:\n"+strings.Join(lines, "\n")+"\nThe merge preserves the rest of the candidate", "load terminal absolute merge")
+}
+
+func managedAuthorityFailure(err error) *opererr.Error {
+	if errors.Is(err, errManagedAuthorityLoad) {
+		return opererr.Wrap(err, "the managed listener cannot load the local certificate authority",
+			"first check store integrity. A clean store can still hold an invalid certificate or mismatched key. Restore meta/ca/cert and meta/ca/key from a trusted copy of this authority before retrying. If the original pair is unavailable, contact the CA administrator to coordinate a trust change",
+			"ze data check")
+	}
+	return opererr.Wrap(err, "the local certificate authority could not issue the managed listener certificate",
+		"compare the public root with the issuer trusted by the clients. Correct the reported signing error or give it to the CA administrator, then retry issuance by restarting the hub",
+		"ze show pki local-ca pem")
 }
 
 // ApplyManagedListeners installs the prepared configuration after promotion.
@@ -182,12 +198,14 @@ func (s *ManagedServer) ApplyManagedListeners(plan *ManagedListenerPlan) {
 	bindFailure := plan.bindErr
 	var certFix string
 	if bindFailure != nil {
+		var problem *opererr.Error
 		if plan.certificate == "" {
-			bindFailure = fmt.Errorf("restore the local certificate authority, then commit again: %w", bindFailure)
-			certFix = "commit"
+			problem = managedAuthorityFailure(bindFailure)
 		} else {
-			certFix = managedNamedCertificateRefusal(plan.listens, plan.certificate, bindFailure).Fix()
+			problem = managedNamedCertificateRefusal(plan.listens, plan.certificate, bindFailure)
 		}
+		bindFailure = fmt.Errorf("%s: %w", problem.Why(), bindFailure)
+		certFix = problem.Fix()
 	}
 	active := make([]*managedBound, 0, len(plan.listens))
 	for _, key := range order {

@@ -13,6 +13,7 @@ import (
 
 	"github.com/stretchr/testify/require"
 
+	plugin "github.com/ze-software/ze/internal/component/plugin"
 	pluginipc "github.com/ze-software/ze/internal/component/plugin/ipc"
 	"github.com/ze-software/ze/internal/core/opererr"
 	"github.com/ze-software/ze/internal/test/sim"
@@ -255,7 +256,8 @@ func TestManagedApplyLeafIssueFailureLeavesAddressUnbound(t *testing.T) {
 	require.Len(t, unbound, 1)
 	require.Equal(t, next.Addr, unbound[0].Addr)
 	require.Contains(t, unbound[0].Error, "authority is offline")
-	require.Equal(t, "commit", unbound[0].Fix)
+	require.Equal(t, "ze show pki local-ca pem", unbound[0].Fix)
+	require.Contains(t, unbound[0].Error, "signing error")
 	ca.failure = nil
 	applyManaged(t, s, []ManagedListener{first, next}, "")
 	require.Len(t, s.Addrs(), 2)
@@ -280,7 +282,9 @@ func TestManagedStartUnresolvedCertificateBindsNothingThenReloadBinds(t *testing
 	require.ErrorContains(t, err, "define pki certificate fleet-hub")
 	var typed *opererr.Error
 	require.ErrorAs(t, err, &typed)
-	require.Equal(t, "delete bus hub server central certificate", typed.Fix())
+	require.Equal(t, "edit pki certificate fleet-hub", typed.Fix())
+	require.Contains(t, typed.Why(), "matching PEM key in private key")
+	require.Contains(t, s.doctor.snapshot().Unbound[0].Error, typed.Why())
 	require.Equal(t, typed.Fix(), s.doctor.snapshot().Unbound[0].Fix)
 	cert, key = hubCertMaterial(t)
 	applyManaged(t, s, []ManagedListener{blk}, "fleet-hub")
@@ -432,4 +436,42 @@ func TestManagedReloadAuthorityRefusalPreservesCause(t *testing.T) {
 	require.ErrorAs(t, err, &typed)
 	require.ErrorIs(t, err, ca.failure)
 	require.Equal(t, "set bus hub server central certificate custom", typed.Fix())
+}
+
+// A failed first load on an idle hub can be retried. Host expansion and
+// switching back from an operator certificate reuse the first successful signer.
+func TestManagedAuthorityRetryAndReuse(t *testing.T) {
+	ca := newTestCA(t)
+	cert, key := hubCertMaterial(t)
+	var loads int
+	s := startApplyTest(t, ManagedServerConfig{
+		LoadAuthority: func() (plugin.Authority, error) {
+			loads++
+			if loads == 1 {
+				return nil, errors.New("cannot read stored root")
+			}
+			return ca, nil
+		},
+		TLSMaterialResolver: func(string) ([]byte, []byte, error) { return cert, key, nil },
+	})
+	require.Zero(t, loads)
+	first := []ManagedListener{applyTestBlock("127.0.0.1:0")}
+	applyManaged(t, s, first, "")
+	require.Empty(t, s.Addrs())
+	unbound := s.doctor.snapshot().Unbound
+	require.Len(t, unbound, 1)
+	require.Equal(t, "ze data check", unbound[0].Fix)
+	require.Contains(t, unbound[0].Error, "cannot read stored root")
+	applyManaged(t, s, first, "")
+	require.Len(t, s.Addrs(), 1)
+	require.Empty(t, s.doctor.snapshot().Unbound)
+	expanded := append(first, applyTestBlock("127.0.0.2:0"))
+	applyManaged(t, s, expanded, "")
+	require.NoError(t, dialAnchored(t, s, ca.CertificatePEM()).VerifyHostname("127.0.0.2"))
+	applyManaged(t, s, expanded, "custom")
+	want, _ := pem.Decode(cert)
+	require.Equal(t, want.Bytes, dialAnchored(t, s, cert).Raw)
+	applyManaged(t, s, expanded, "")
+	require.NoError(t, dialAnchored(t, s, ca.CertificatePEM()).VerifyHostname("127.0.0.2"))
+	require.Equal(t, 2, loads)
 }

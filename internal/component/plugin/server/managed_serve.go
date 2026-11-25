@@ -222,7 +222,13 @@ func NewManagedServer(cfg ManagedServerConfig) (*ManagedServer, error) {
 	if cfg.ReadConfig == nil {
 		return nil, errors.New("managed server: ReadConfig is required")
 	}
+	if cfg.LoadAuthority != nil {
+		cfg.LoadAuthority = cachedManagedAuthority(cfg.LoadAuthority)
+	}
 	source, certErr := managedCertificate(cfg, nil)
+	if errors.Is(certErr, errManagedAuthorityLoad) {
+		return nil, managedAuthorityFailure(certErr)
+	}
 	if certErr != nil && (cfg.Certificate == "" && cfg.Authority == nil && cfg.LoadAuthority == nil || cfg.Certificate != "" && cfg.TLSMaterialResolver == nil) {
 		return nil, certErr
 	}
@@ -273,6 +279,31 @@ func NewManagedServer(cfg ManagedServerConfig) (*ManagedServer, error) {
 		mHeld: reg.CounterVec("ze_managed_config_held_total",
 			"Copies of a held configuration managed clients sent, by result (stored|refused).", []string{managedMetricResult}),
 	}, nil
+}
+
+var errManagedAuthorityLoad = errors.New("load managed certificate authority")
+
+// A successful load selects the daemon's signer for this server's lifetime.
+// A failed load can be retried after the operator repairs the store.
+func cachedManagedAuthority(load func() (plugin.Authority, error)) func() (plugin.Authority, error) {
+	var mu sync.Mutex
+	var authority plugin.Authority
+	return func() (plugin.Authority, error) {
+		mu.Lock()
+		defer mu.Unlock()
+		if authority != nil {
+			return authority, nil
+		}
+		loaded, err := load()
+		if err != nil {
+			return nil, err
+		}
+		if loaded == nil {
+			return nil, errors.New("the authority loader returned no signer")
+		}
+		authority = loaded
+		return authority, nil
+	}
 }
 
 // managedCertificate returns what answers the managed listener's certificate
@@ -328,7 +359,7 @@ func managedCertificate(cfg ManagedServerConfig, current *managedCertSource) (*m
 	if authority == nil && cfg.LoadAuthority != nil {
 		loaded, err := cfg.LoadAuthority()
 		if err != nil {
-			return nil, fmt.Errorf("load managed certificate authority: %w", err)
+			return nil, fmt.Errorf("%w: %w", errManagedAuthorityLoad, err)
 		}
 		authority = loaded
 	}

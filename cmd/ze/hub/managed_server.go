@@ -102,7 +102,11 @@ func startManagedServer(ctx context.Context, store storage.Storage, hubConfig *z
 	})
 	// refuse-by-default: guards runYANGConfig -- a construction failure leaves no server to start, publish or pass to the fleet commands
 	if err != nil {
-		managedServerStartupFailed(opererr.Wrap(err, "the managed config server could not be constructed", "the hub cannot serve device configurations", "ze show doctor"))
+		problem, found := errors.AsType[*opererr.Error](err)
+		if !found {
+			problem = opererr.Wrap(err, "the managed config server could not be constructed", "the hub cannot serve device configurations", "ze show doctor")
+		}
+		managedServerStartupFailed(problem)
 		return nil
 	}
 	// Configuration notifications run after store unlock. Start registers its

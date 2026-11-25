@@ -12,13 +12,16 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"io/fs"
+	"strings"
 	"testing"
 	"time"
 
 	"github.com/stretchr/testify/require"
 
+	"github.com/ze-software/ze/internal/component/cli"
 	zeconfig "github.com/ze-software/ze/internal/component/config"
 	"github.com/ze-software/ze/internal/component/config/storage"
+	zepki "github.com/ze-software/ze/internal/component/pki"
 	zePlugin "github.com/ze-software/ze/internal/component/plugin"
 	pluginipc "github.com/ze-software/ze/internal/component/plugin/ipc"
 	pluginserver "github.com/ze-software/ze/internal/component/plugin/server"
@@ -41,6 +44,11 @@ func TestStartManagedServerServesBlobConfig(t *testing.T) {
 	if err != nil {
 		t.Fatalf("create store: %v", err)
 	}
+	t.Cleanup(func() {
+		if err := store.Close(); err != nil {
+			t.Errorf("close store: %v", err)
+		}
+	})
 	// Admin provisions the client's config on the hub blob.
 	if err := store.WriteFile(pluginserver.ClientConfigKey(clientName), []byte(cfgV1), 0o600); err != nil {
 		t.Fatalf("write client config: %v", err)
@@ -59,6 +67,7 @@ func TestStartManagedServerServesBlobConfig(t *testing.T) {
 	if srv == nil {
 		t.Fatal("startManagedServer returned nil; expected a server for a hub with client entries")
 	}
+	t.Cleanup(srv.Stop)
 	addrs := srv.Addrs()
 	if len(addrs) != 1 {
 		t.Fatalf("expected 1 managed listener, got %d", len(addrs))
@@ -241,4 +250,86 @@ func TestManagedServerStartupFailurePublished(t *testing.T) {
 	record, err := pluginserver.ManagedDoctorSnapshot()
 	require.NoError(t, err)
 	require.Nil(t, record.StartupFailure)
+}
+
+// The durable CA is needed at startup only for managed listeners that use it.
+// Keep the store error and the operator repair available to doctor even though
+// construction stopped before a managed server was published.
+func TestManagedColdStartWithBrokenAuthority(t *testing.T) {
+	store, err := storage.Create(t.TempDir())
+	require.NoError(t, err)
+	t.Cleanup(func() { _ = store.Close() })
+	t.Cleanup(func() { pluginserver.RecordManagedStartupFailure(nil) })
+	require.NoError(t, store.WriteFile(zefs.KeyCACert.Pattern, []byte("original root"), 0o600))
+	cfg := &zePlugin.HubConfig{Servers: []zePlugin.HubServerConfig{{
+		Name: "central", Host: "127.0.0.1", Clients: map[string]string{"device": "device-secret"},
+	}}}
+	require.Nil(t, startManagedServer(t.Context(), store, cfg))
+	snapshot, err := pluginserver.ManagedDoctorSnapshot()
+	var problem *opererr.Error
+	require.ErrorAs(t, err, &problem)
+	require.Equal(t, err, snapshot.StartupFailure)
+	require.ErrorIs(t, err, fs.ErrNotExist)
+	require.Equal(t, "ze data check", problem.Fix())
+	require.Contains(t, problem.Why(), "meta/ca/cert and meta/ca/key")
+	surviving, err := store.ReadFile(zefs.KeyCACert.Pattern)
+	require.NoError(t, err)
+	require.Equal(t, "original root", string(surviving))
+	_, err = store.ReadFile(zefs.KeyCAKey.Pattern)
+	require.ErrorIs(t, err, fs.ErrNotExist)
+}
+
+// A failed move from a named certificate to the local CA must give a repair
+// the editor can merge even when this candidate adds a new serving block.
+func TestManagedCertificateRepairMergesCandidate(t *testing.T) {
+	ca, chain, cert, key := chainB64(t, "web-cert", 1)
+	candidate := pkiChainConfig(ca, chain, cert, key, "web-cert") + `bus { hub {
+		server central { ip 127.0.0.1; port 14401; client edge-01 { secret changed-device-secret-at-least-32-characters; } }
+		server "new block" { ip 127.0.0.2; port 14402; client edge-02 { secret added-device-secret-at-least-32-characters; } }
+	} }`
+	editor, err := cli.NewEditorFromContent([]byte(candidate), "fleet.conf")
+	require.NoError(t, err)
+	issuer, err := preparePKIConfig(editor.Tree())
+	require.NoError(t, err)
+	require.NoError(t, zepki.Load(issuer))
+	t.Cleanup(func() { _ = zepki.Load(nil) })
+	store, err := storage.Create(t.TempDir())
+	require.NoError(t, err)
+	t.Cleanup(func() { _ = store.Close() })
+	require.NoError(t, store.WriteFile(zefs.KeyCACert.Pattern, []byte("original root"), 0o600))
+	srv := startManagedServer(t.Context(), store, &zePlugin.HubConfig{Servers: []zePlugin.HubServerConfig{{
+		Name: "central", Host: "127.0.0.1", Certificate: "web-cert",
+		Clients: map[string]string{"edge-01": "old-device-secret-at-least-32-characters"},
+	}}})
+	require.NotNil(t, srv)
+	t.Cleanup(srv.Stop)
+	require.Len(t, srv.Addrs(), 1)
+	before, err := zeconfig.ExtractHubConfig(editor.Tree())
+	require.NoError(t, err)
+	require.Len(t, before.Servers, 2)
+	_, err = prepareManagedReload(editor.Tree(), srv)
+	var problem *opererr.Error
+	require.ErrorAs(t, err, &problem)
+	require.ErrorIs(t, err, fs.ErrNotExist)
+	require.Equal(t, "load terminal absolute merge", problem.Fix())
+	var lines []string
+	for line := range strings.SplitSeq(problem.Why(), "\n") {
+		if strings.HasPrefix(line, "set ") {
+			lines = append(lines, line)
+		}
+	}
+	fragment, err := editor.ParseLoad(strings.Join(lines, "\n"), nil)
+	require.NoError(t, err)
+	require.NoError(t, editor.LoadMerge(nil, fragment))
+	after, err := zeconfig.ExtractHubConfig(editor.Tree())
+	require.NoError(t, err)
+	for i := range before.Servers {
+		before.Servers[i].Certificate = "web-cert"
+	}
+	require.Equal(t, before, after)
+	issuer, err = preparePKIConfig(editor.Tree())
+	require.NoError(t, err)
+	require.NoError(t, zepki.Load(issuer))
+	_, err = prepareManagedReload(editor.Tree(), srv)
+	require.NoError(t, err)
 }

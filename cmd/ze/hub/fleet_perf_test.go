@@ -52,6 +52,11 @@ func TestFleetManyClientsPerf(t *testing.T) {
 	if err != nil {
 		t.Fatalf("create store: %v", err)
 	}
+	t.Cleanup(func() {
+		if err := store.Close(); err != nil {
+			t.Errorf("close store: %v", err)
+		}
+	})
 
 	// Provision one distinct config + secret per client.
 	secrets := make(map[string]string, clients)
@@ -80,6 +85,7 @@ func TestFleetManyClientsPerf(t *testing.T) {
 	if srv == nil {
 		t.Fatal("startManagedServer returned nil")
 	}
+	t.Cleanup(srv.Stop)
 	addrs := srv.Addrs()
 	if len(addrs) != 1 {
 		t.Fatalf("expected 1 managed listener, got %d", len(addrs))
