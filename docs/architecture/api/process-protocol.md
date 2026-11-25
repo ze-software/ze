@@ -1162,7 +1162,17 @@ into the engine have returned. A wait that expires fails the restart: the
 replacement is stopped the way a failed handshake stops it, because the late
 cleanup removes what is keyed by the plugin's name, and each later restart of
 the name is refused until every recorded stopped process of that name has
-finished its cleanup.
+finished its cleanup. Both the `doctor-plugin-stopped` report-bus warning
+(`ze show warnings` and the daemon WARN log) and `ze show doctor`'s
+`plugin-stopped` row render from one shared declaration
+(`process.StoppedMessage` / `process.StoppedFix`, carrying
+`PluginStop.CleanupOwed`): `Fix` stays `ze request plugin restart <name>`,
+while the message carries the cleanup-owed refusal explanation and
+`privilege.RestartRemedy()` last resort whenever cleanup is owed. Once every
+recorded stopped process finishes its cleanup (`cleanupProcess` /
+`lateCleanupOwed`), `ClearStoppedCleanupOwed` refreshes the bus warning to drop
+the cleanup-owed notice while keeping the warning active until the plugin runs
+again.
 
 Each configured name has one restart controller through process replacement,
 outgoing cleanup, startup, and result recording. An operator or rollback restart
@@ -1264,10 +1274,10 @@ aborted it, the error log line names the plugin and the sibling's failure.
 <!-- source: internal/component/plugin/startup_budget.go -- ErrStartupTierFailed, DeclareConfigureBudget -->
 <!-- source: internal/component/plugin/process/process.go -- (*Process).PluginEnded -->
 <!-- source: internal/component/plugin/process/manager.go -- RespawnLimit, RespawnWindow, MaxTotalRespawns, RefuseRespawns, ErrDaemonStopping, ReportCrash, RemoveProcess -->
-<!-- source: internal/component/plugin/process/stopped.go -- StopCause, RecordStopped, ClearStopped, RestartCommand, Reenable -->
+<!-- source: internal/component/plugin/process/stopped.go -- StopCause, RecordStopped, ClearStopped, SetStoppedCleanupOwed, ClearStoppedCleanupOwed, StoppedMessage, StoppedFix, DaemonRestartLastResort, RestartCommand, Reenable -->
 <!-- source: internal/component/plugin/server/reload_tx.go -- restartPlugin -->
 <!-- source: internal/component/plugin/server/register_plugin_restart.go -- handlePluginRestart, pluginRestartRefusal -->
-<!-- source: internal/component/plugin/server/restart.go -- restartCleanupGrace, awaitReplacedCleanup -->
+<!-- source: internal/component/plugin/server/restart.go -- restartCleanupGrace, awaitReplacedCleanup, lateCleanupOwed -->
 
 **Pipe Alias Declaration (Stage 1):**
 

@@ -6,12 +6,9 @@
 package doctor
 
 import (
-	"time"
-
 	"github.com/ze-software/ze/internal/component/plugin/process"
 	"github.com/ze-software/ze/internal/component/plugin/server"
 	"github.com/ze-software/ze/internal/core/diagnostic"
-	"github.com/ze-software/ze/internal/core/privilege"
 	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
@@ -19,17 +16,13 @@ import (
 // the command that shows what the daemon reports instead.
 const fixShowHealth = "ze show health"
 
-// pluginStoppedTimeLayout is how the row writes when the plugin went down.
-const pluginStoppedTimeLayout = time.RFC3339
-
 // checkPluginStopped answers one error per configured plugin that is down:
 // its failure policy left it stopped, the respawn limit disabled it, its
 // restart failed or its startup handshake failed. Each names the plugin and
-// why, and its fix is the command that starts it again. A plugin a reload
-// removed while it ran is not reported: the removal took its process out of
-// its slot (ProcessManager.RemoveProcess), which cleared its record. One that
-// was already down when a reload removed its config keeps its record, so it
-// is still reported.
+// why, and its fix is the command that starts it again. A plugin an accepted
+// reload removed (whether running or already down) is unconfigured via
+// ProcessManager.UnconfigureProcess, clearing its stop record so it is no
+// longer reported; a rejected reload preserves it.
 //
 // When the snapshot cannot be read it says so, as a warning, rather than
 // answering no row, which would read as every plugin running.
@@ -69,34 +62,18 @@ func pluginStoppedRows(snapshot *server.DoctorSnapshot) []diagnostic.Diagnostic 
 	return rows
 }
 
-// daemonRestartLastResort names the one way out when a stopped process's
-// cleanup never finishes: restarting the ze daemon ends every call a plugin
-// made into it. privilege.RestartRemedy offers systemctl only under ze.service
-// and explains the stop-and-start steps otherwise.
-func daemonRestartLastResort() string {
-	return "if it never finishes, the last resort is to restart the ze daemon, " +
-		"which ends every call a plugin made into it: " + privilege.RestartRemedy()
-}
-
-// pluginStoppedRow is the row for one down plugin. While a stopped process
-// of it still owes its cleanup, the restart command refuses the plugin, so
-// the row says so, says the restart works once that cleanup has finished,
-// and names the daemon restart as the last resort.
+// pluginStoppedRow is the row for one down plugin, rendered from the shared
+// process.StoppedMessage and process.StoppedFix declaration so ze show doctor
+// and the doctor-plugin-stopped report-bus warning always agree.
 func pluginStoppedRow(name string, stop *process.PluginStop, cleanupOwed bool) diagnostic.Diagnostic {
-	var message textbuf.Buffer
-	message.Str(process.StoppedMessage(name, stop)).
-		Str("; down since ").Str(stop.Time.UTC().Format(pluginStoppedTimeLayout))
+	effective := *stop
 	if cleanupOwed {
-		message.Str("; the cleanup of its stopped process had not finished within the restart's bound " +
-			"(it may be waiting for a call that process made into ze, or still be running), " +
-			"and ze refuses to start the plugin until it has, because that cleanup " +
-			"would remove what a new process registered under the name; " +
-			"run the restart again once this row no longer says so; ").Str(daemonRestartLastResort())
+		effective.CleanupOwed = true
 	}
 	return diagnostic.Diagnostic{
 		Code:     diagnostic.CodeDoctorPluginStopped,
 		Severity: diagnostic.SeverityError,
-		Message:  message.String(),
-		Fix:      process.RestartCommand(name),
+		Message:  process.StoppedMessage(name, &effective),
+		Fix:      process.StoppedFix(name, &effective),
 	}
 }

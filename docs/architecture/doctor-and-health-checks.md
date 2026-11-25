@@ -1710,10 +1710,15 @@ Compiled-in `bus > endpoint` declarations reload: `judgeReloadWriters` starts
 and stops compiled-in `ProgramsFIB` endpoints as the candidate selection
 changes, while leaving non-`ProgramsFIB` compiled-in endpoints untouched. While a process a restart stopped still
 owes its runtime cleanup (`lateCleanupRecord`), every restart and every startup
-phase naming the plugin is refused, and the row says so: that cleanup had not
+phase naming the plugin is refused, and both the `doctor-plugin-stopped`
+report-bus warning (`ze show warnings`, daemon log) and `ze show doctor`'s
+`plugin-stopped` row say so from one shared declaration
+(`process.StoppedMessage` / `process.StoppedFix`, reading
+`PluginStop.CleanupOwed`): that cleanup had not
 finished within the restart's bound, either because it waits for a call the
-stopped process made into ze or because it is still running. Its fix is the
-restart, run again once that cleanup has finished. The row names the last
+stopped process made into ze or because it is still running. Both keep
+`ze request plugin restart <name>` alone as `Fix`, to be run again once that
+cleanup has finished. Both name the last
 resort as what it is: a restart of the ze daemon, which ends every call a
 plugin made into it, worded for this process by `privilege.RestartRemedy`:
 `sudo systemctl restart ze` only when ze runs under ze.service; otherwise
@@ -1721,18 +1726,21 @@ plugin made into it, worded for this process by `privilege.RestartRemedy`:
 `ze start <config-file>`), prefixed, when membership cannot be read, by a
 sentence saying Ze could not tell. `ze signal restart` is never offered: it
 writes the graceful-restart marker and exits without starting a new process,
-so ze comes back only under a supervisor.
+so ze comes back only under a supervisor. Once every owed process finishes its
+cleanup (`cleanupProcess` / `lateCleanupOwed`), `ClearStoppedCleanupOwed`
+refreshes the bus warning to drop the cleanup-owed notice while keeping the
+warning active until the plugin runs again.
 `RemoveProcess` and `ReportCrash` also clear the ordinary warnings the plugin
 raised through `report-issue` (`report.ClearSource` of its name), because only
 the plugin could clear them. A warning reserved by a retained daemon resource
 remains owned by that original resource until its recovery is confirmed.
-<!-- source: internal/component/plugin/process/stopped.go -- RecordStopped, ClearStopped, StoppedMessage, RestartCommand, ExitStatus -->
+<!-- source: internal/component/plugin/process/stopped.go -- RecordStopped, ClearStopped, SetStoppedCleanupOwed, ClearStoppedCleanupOwed, StoppedMessage, StoppedFix, DaemonRestartLastResort, RestartCommand, ExitStatus -->
 <!-- source: internal/component/plugin/process/manager.go -- RemoveProcess, StartMore, ConfiguredNames, UnconfigureProcess -->
 <!-- source: internal/component/plugin/server/failure_policy.go -- superviseProcess, applyFailurePolicy -->
 <!-- source: internal/component/plugin/server/startup_autoload.go -- collectProcessesForRemovedConfigPaths, stopCollectedProcesses -->
 <!-- source: internal/component/plugin/server/startup_removal.go -- finishRemovalScope, rollbackStartupProcess -->
 <!-- source: internal/component/plugin/server/reload_dataplane_writer.go -- judgeReloadWriters -->
-<!-- source: internal/component/plugin/server/restart.go -- lateCleanupRecord -->
+<!-- source: internal/component/plugin/server/restart.go -- lateCleanupRecord, lateCleanupOwed -->
 <!-- source: internal/component/plugin/doctor/checks_runtime.go -- pluginStoppedRow -->
 
 | Check | Phase | Code | Reports | Fix |

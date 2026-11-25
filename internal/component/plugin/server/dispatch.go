@@ -1063,4 +1063,9 @@ func (s *Server) cleanupProcess(proc *process.Process) {
 		s.runProcessGenerationCleanups(proc)
 		runProcessCleanupHooks(proc.Name())
 	})
+	// RunRuntimeCleanupOnce closes proc's cleanup-done channel before returning.
+	// Probing lateCleanups here clears CleanupOwed on any stop record for this
+	// name and refreshes doctor-plugin-stopped on the bus immediately, with no
+	// extra goroutine.
+	s.lateCleanupOwed(proc.Name())
 }

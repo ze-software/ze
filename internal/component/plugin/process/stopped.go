@@ -19,9 +19,13 @@ import (
 	"time"
 
 	"github.com/ze-software/ze/internal/core/diagnostic"
+	"github.com/ze-software/ze/internal/core/privilege"
 	"github.com/ze-software/ze/internal/core/report"
 	"github.com/ze-software/ze/internal/core/textbuf"
 )
+
+// stoppedTimeLayout is how StoppedMessage writes when the plugin went down.
+const stoppedTimeLayout = time.RFC3339
 
 // StopCause says why a configured plugin is not running. The zero value is a
 // cause nobody set, which RecordStopped refuses.
@@ -77,6 +81,10 @@ type PluginStop struct {
 	ExitStatus ProcessExit
 	// Time is when the stop was recorded.
 	Time time.Time
+	// CleanupOwed is true while a stopped predecessor of this plugin still
+	// owes its runtime cleanup, so ze refuses to start a replacement until
+	// that cleanup finishes.
+	CleanupOwed bool
 }
 
 // RestartCommand is the command that starts a stopped plugin again
@@ -84,6 +92,24 @@ type PluginStop struct {
 // row and the bus warning name it as the fix.
 func RestartCommand(name string) string {
 	return "ze request plugin restart " + name
+}
+
+// DaemonRestartLastResort names the one way out when a stopped process's
+// cleanup never finishes: restarting the ze daemon ends every call a plugin
+// made into it. privilege.RestartRemedy offers systemctl only under ze.service
+// and explains the stop-and-start steps otherwise.
+func DaemonRestartLastResort() string {
+	return "if it never finishes, the last resort is to restart the ze daemon, " +
+		"which ends every call a plugin made into it: " + privilege.RestartRemedy()
+}
+
+// StoppedFix is the fix command for a stopped plugin, shared by the
+// doctor-plugin-stopped report-bus warning and ze show doctor's plugin-stopped
+// row. It stays the bare restart command even while stop.CleanupOwed is true;
+// the cleanup-owed refusal and daemon-restart last resort live in
+// StoppedMessage.
+func StoppedFix(name string, _ *PluginStop) string {
+	return RestartCommand(name)
 }
 
 // Reenable lifts a respawn-limit disable and forgets the respawn history of
@@ -117,20 +143,72 @@ func (pm *ProcessManager) recordStoppedLocked(name string, stop PluginStop) {
 		stop.Time = time.Now()
 	}
 	pm.stopped[name] = stop
+	msg, fix := pm.raiseStoppedWarningLocked(name, &stop)
+	logger().Warn("configured plugin is not running; start it again with the fix command",
+		"plugin", name, "cause", stop.Cause.String(), "detail", stop.Detail,
+		"message", msg, "cleanup-owed", stop.CleanupOwed,
+		"code", diagnostic.CodeDoctorPluginStopped, "fix", fix)
+}
+
+// raiseStoppedWarningLocked publishes or refreshes doctor-plugin-stopped on
+// the report bus from the shared StoppedMessage/StoppedFix declaration. Caller
+// MUST hold pm.mu.
+func (pm *ProcessManager) raiseStoppedWarningLocked(name string, stop *PluginStop) (string, string) {
+	msg := StoppedMessage(name, stop)
+	fix := StoppedFix(name, stop)
 	// The message carries the stop's detail, an error's text of any length, so
 	// it is fitted: the bus refuses a longer message, and the warning, the
 	// `plugins` health row and `show warnings` would then miss this plugin. The
 	// subject and the fix carry only the plugin name, which is within the bus
 	// bounds: a configured name is at most 64 characters (ipc.PluginNameForm).
 	report.RaiseWarningFix(reportSourcePlugin, diagnostic.CodeDoctorPluginStopped, name,
-		report.FitMessage(StoppedMessage(name, &stop)), RestartCommand(name))
-	logger().Warn("configured plugin is not running; start it again with the fix command",
-		"plugin", name, "cause", stop.Cause.String(), "detail", stop.Detail,
-		"code", diagnostic.CodeDoctorPluginStopped, "fix", RestartCommand(name))
+		report.FitMessage(msg), fix)
+	return msg, fix
+}
+
+// SetStoppedCleanupOwed marks an existing stop record for name as owing
+// runtime cleanup and refreshes its doctor-plugin-stopped report-bus warning
+// so ze show warnings and ze show doctor say the same thing. No-op when name
+// has no stop record or already carries CleanupOwed. Safe for concurrent use.
+func (pm *ProcessManager) SetStoppedCleanupOwed(name string) {
+	pm.mu.Lock()
+	defer pm.mu.Unlock()
+	stop, ok := pm.stopped[name]
+	if !ok {
+		return
+	}
+	if stop.CleanupOwed {
+		return
+	}
+	stop.CleanupOwed = true
+	pm.stopped[name] = stop
+	pm.raiseStoppedWarningLocked(name, &stop)
+}
+
+// ClearStoppedCleanupOwed clears CleanupOwed on an existing stop record for
+// name and refreshes its doctor-plugin-stopped report-bus warning, keeping the
+// warning active while the plugin remains down. No-op when name has no stop
+// record or CleanupOwed is already false. Safe for concurrent use.
+func (pm *ProcessManager) ClearStoppedCleanupOwed(name string) {
+	pm.mu.Lock()
+	defer pm.mu.Unlock()
+	stop, ok := pm.stopped[name]
+	if !ok {
+		return
+	}
+	if !stop.CleanupOwed {
+		return
+	}
+	stop.CleanupOwed = false
+	pm.stopped[name] = stop
+	pm.raiseStoppedWarningLocked(name, &stop)
 }
 
 // StoppedMessage is the sentence that names a down plugin and why, shared by
-// the bus warning and the doctor row so both say the same thing.
+// the report-bus warning, daemon WARN log, and doctor row so every surface
+// says the same thing. While stop.CleanupOwed is true, it also explains that
+// ze refuses to start the plugin until its stopped predecessor finishes
+// cleanup and names DaemonRestartLastResort as the last resort.
 func StoppedMessage(name string, stop *PluginStop) string {
 	var tb textbuf.Buffer
 	tb.Str("configured plugin ").Str(name).Str(" is not running: ").Str(stop.Cause.String())
@@ -148,6 +226,16 @@ func StoppedMessage(name string, stop *PluginStop) string {
 	}
 	if stop.Detail != "" {
 		tb.Str("; ").Str(stop.Detail)
+	}
+	if !stop.Time.IsZero() {
+		tb.Str("; down since ").Str(stop.Time.UTC().Format(stoppedTimeLayout))
+	}
+	if stop.CleanupOwed {
+		tb.Str("; the cleanup of its stopped process had not finished within the restart's bound " +
+			"(it may be waiting for a call that process made into ze, or still be running), " +
+			"and ze refuses to start the plugin until it has, because that cleanup " +
+			"would remove what a new process registered under the name; " +
+			"run the restart again once this row no longer says so; ").Str(DaemonRestartLastResort())
 	}
 	return tb.String()
 }

@@ -1169,14 +1169,37 @@ func (s *Server) restartReplacementWithin(pluginName string, handshake handshake
 	}
 	// A pre-spawn refusal did not stop a live process or spawn a replacement,
 	// so preserve any existing stop record (for example StopRespawnLimit).
+	// When the refusal is because a stopped predecessor still owes cleanup,
+	// mark CleanupOwed on the preserved stop record so the bus warning and
+	// doctor row both report it.
 	if errors.Is(err, transaction.ErrRestartRefused) {
+		if errors.Is(err, errReplacedCleanupLate) {
+			if pm := s.procManager.Load(); pm != nil {
+				if s.lateCleanupOwed(pluginName) {
+					pm.SetStoppedCleanupOwed(pluginName)
+					if !s.lateCleanupOwed(pluginName) {
+						pm.ClearStoppedCleanupOwed(pluginName)
+					}
+				}
+			}
+		}
 		return replacement, err
 	}
 	// A failed restart leaves the plugin down whatever asked for it (its
 	// failure policy, a reload rollback, `request plugin restart`), so it is
 	// recorded, and doctor-plugin-stopped names it with the error.
 	if pm := s.procManager.Load(); pm != nil {
-		pm.RecordStopped(pluginName, process.PluginStop{Cause: process.StopRestartFailed, Detail: err.Error()})
+		cleanupOwed := s.lateCleanupOwed(pluginName)
+		pm.RecordStopped(pluginName, process.PluginStop{
+			Cause:       process.StopRestartFailed,
+			Detail:      err.Error(),
+			CleanupOwed: cleanupOwed,
+		})
+		if cleanupOwed {
+			if !s.lateCleanupOwed(pluginName) {
+				pm.ClearStoppedCleanupOwed(pluginName)
+			}
+		}
 	}
 	return replacement, err
 }
@@ -1195,7 +1218,7 @@ func (s *Server) restartPluginProcess(pluginName string, handshake handshakeScop
 	// A process an earlier restart stopped and could not wait for still owes
 	// its cleanup, which removes what is keyed by the plugin's name. A new
 	// generation started now would lose its routes and hook state to it.
-	if s.lateCleanups.owed(pluginName) {
+	if s.lateCleanupOwed(pluginName) {
 		return nil, fmt.Errorf("restart %s: %w: %w", pluginName, transaction.ErrRestartRefused, errReplacedCleanupLate)
 	}
 

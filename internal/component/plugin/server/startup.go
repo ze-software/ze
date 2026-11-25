@@ -549,7 +549,7 @@ func (s *Server) runPluginPhaseWithin(ctx context.Context, plugins []plugin.Plug
 	// recovery is the phase that names a plugin already started once, so a
 	// reload is what starts it again.
 	for i := range plugins {
-		if s.lateCleanups.owed(plugins[i].Name) {
+		if s.lateCleanupOwed(plugins[i].Name) {
 			return fmt.Errorf("plugin %s not started: %w; once that cleanup has finished, retry with: ze request reload",
 				plugins[i].Name, errReplacedCleanupLate)
 		}

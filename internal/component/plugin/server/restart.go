@@ -178,12 +178,20 @@ func (r *lateCleanupRecord) owe(proc *process.Process) {
 // cleanup. Processes whose cleanup has run since are dropped; the name clears
 // only once every recorded process has finished.
 func (r *lateCleanupRecord) owed(name string) bool {
+	stillOwed, _ := r.owedWithTransition(name)
+	return stillOwed
+}
+
+// owedWithTransition reports whether any stopped process of name still owes
+// its runtime cleanup and whether this call observed the owed set transition
+// from non-empty to empty.
+func (r *lateCleanupRecord) owedWithTransition(name string) (stillOwed, cleared bool) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	list := r.procs[name]
 	// refuse-by-default: guards restartPluginProcess -- a name with no late cleanup recorded owes none, so its restart may run
 	if len(list) == 0 {
-		return false
+		return false, false
 	}
 	// A probe, not a wait: an ended context answers at once, and the wait
 	// answers nil whenever the cleanup has run, even with ctx already ended.
@@ -198,10 +206,25 @@ func (r *lateCleanupRecord) owed(name string) bool {
 	if len(kept) > 0 {
 		clear(list[len(kept):])
 		r.procs[name] = kept
-		return true
+		return true, false
 	}
 	delete(r.procs, name)
-	return false
+	return false, true
+}
+
+// lateCleanupOwed reports whether any stopped process of name still owes its
+// runtime cleanup. When the owed set transitions from non-empty to empty, it
+// clears CleanupOwed on the process manager's stop record so the
+// doctor-plugin-stopped report-bus warning refreshes immediately without
+// waiting for a restart or doctor read.
+func (s *Server) lateCleanupOwed(name string) bool {
+	stillOwed, cleared := s.lateCleanups.owedWithTransition(name)
+	if cleared {
+		if pm := s.procManager.Load(); pm != nil {
+			pm.ClearStoppedCleanupOwed(name)
+		}
+	}
+	return stillOwed
 }
 
 // releasePluginRegistrations removes every engine-side registration a stopped

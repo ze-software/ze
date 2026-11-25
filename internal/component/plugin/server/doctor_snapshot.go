@@ -235,8 +235,8 @@ func (s *Server) pluginDoctorState(name string, configured bool) PluginDoctorSta
 		Configured:       configured,
 		Disabled:         pm.Disabled(name),
 	}
+	state.CleanupOwed = s.lateCleanupOwed(name)
 	state.Stop, state.Down = pm.Stopped(name)
-	state.CleanupOwed = s.lateCleanups.owed(name)
 	state.Enrichers = enricherFailures(name)
 	state.EnrichersDropped = enricherFailuresDropped(name)
 	proc := pm.GetProcess(name)

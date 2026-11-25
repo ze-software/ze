@@ -11,10 +11,14 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/ze-software/ze/internal/component/command/commandtest"
 	"github.com/ze-software/ze/internal/component/plugin"
 	plugipc "github.com/ze-software/ze/internal/component/plugin/ipc"
 	"github.com/ze-software/ze/internal/component/plugin/process"
 	"github.com/ze-software/ze/internal/component/plugin/registry"
+	"github.com/ze-software/ze/internal/core/diagnostic"
+	"github.com/ze-software/ze/internal/core/privilege"
+	"github.com/ze-software/ze/internal/core/report"
 	"github.com/ze-software/ze/pkg/plugin/rpc"
 	"github.com/ze-software/ze/pkg/plugin/sdk"
 )
@@ -373,4 +377,106 @@ func TestLateCleanupRecordTracksMultipleProcessesPerName(t *testing.T) {
 	// Finish the earlier process; now the name clears.
 	p1.RunRuntimeCleanupOnce(func() {})
 	assert.False(t, record.owed(name), "owed must clear once every recorded process has finished cleanup")
+}
+
+// TestLateCleanupClearRefreshesStoppedBusWarning verifies that when a restart
+// fails because the stopped process's cleanup outlives restartCleanupGrace,
+// the doctor-plugin-stopped report-bus warning carries the shared cleanup-owed
+// refusal and daemon-restart last resort with a bare restart command Fix, and
+// that completing the cleanup automatically refreshes the bus warning to drop
+// the cleanup-owed text while keeping the warning active.
+//
+// VALIDATES: spec-plugin-restart-bounded-and-configuration-true AC-6 --
+// restartReplacementWithin records CleanupOwed on PluginStop, cleanupProcess
+// invokes lateCleanupOwed on completion to refresh the bus warning with zero
+// new goroutines, and direct lateCleanupOwed probes also refresh when cleanup
+// finishes outside cleanupProcess.
+// PREVENTS: the report bus continuing to tell operators restarts are refused
+// after the stopped predecessor's cleanup has already completed.
+func TestLateCleanupClearRefreshesStoppedBusWarning(t *testing.T) {
+	report.ResetForTest()
+	t.Cleanup(report.ResetForTest)
+	keepCleanupHooks(t)
+	t.Cleanup(privilege.SetServiceMembershipForTest(privilege.MembershipZeService, nil))
+
+	findWarning := func(t *testing.T, name string) report.Issue {
+		t.Helper()
+		for _, w := range report.Warnings() {
+			if w.Code == diagnostic.CodeDoctorPluginStopped && w.Subject == name {
+				return w
+			}
+		}
+		t.Fatalf("no active %s warning on report bus for %s", diagnostic.CodeDoctorPluginStopped, name)
+		return report.Issue{}
+	}
+
+	const name = "restart-bus-refresh"
+	s := startRestartTarget(t, name, rpc.FailureUnspecified, nil)
+	pm := s.procManager.Load()
+	old := pm.GetProcess(name)
+
+	var wg sync.WaitGroup
+	t.Cleanup(wg.Wait)
+	entered, release := holdFirstCleanup(t, name)
+
+	answered := make(chan restartOutcome, 1)
+	wg.Go(func() {
+		resp, err := handlePluginRestart(&CommandContext{Server: s}, commandtest.Args(pluginRestartLeaf, name))
+		answered <- restartOutcome{resp: resp, err: err}
+	})
+	outcome := receiveWithin(t, answered, restartAnswerBound, "restart never answered while old cleanup was held")
+	receiveWithin(t, entered, restartAnswerBound, "stopped process cleanup never started")
+	require.NoError(t, outcome.err)
+	require.NotEqual(t, plugin.StatusDone, outcome.resp.Status)
+
+	stop, down := pm.Stopped(name)
+	require.True(t, down, "plugin must be recorded down after cleanup-owed restart failure")
+	require.True(t, stop.CleanupOwed, "stop record must carry CleanupOwed while old cleanup is held")
+
+	const refusalPhrase = "refuses to start the plugin"
+	owedWarn := findWarning(t, name)
+	assert.Contains(t, owedWarn.Message, refusalPhrase)
+	assert.Contains(t, owedWarn.Message, process.DaemonRestartLastResort())
+	assert.Equal(t, process.RestartCommand(name), owedWarn.Fix)
+
+	// Releasing old's cleanup finishes cleanupProcess, which calls
+	// lateCleanupOwed(name) directly without waiting for a doctor read.
+	release()
+	cleanupCtx, cleanupCancel := context.WithTimeout(t.Context(), restartAnswerBound)
+	defer cleanupCancel()
+	require.NoError(t, old.WaitRuntimeCleanupContext(cleanupCtx))
+
+	require.Eventually(t, func() bool {
+		st, ok := pm.Stopped(name)
+		return ok && !st.CleanupOwed
+	}, failureWait, 10*time.Millisecond, "cleanupProcess must clear CleanupOwed automatically once cleanup finishes")
+
+	refreshedWarn := findWarning(t, name)
+	assert.NotContains(t, refreshedWarn.Message, refusalPhrase,
+		"refreshed bus warning must drop cleanup-owed refusal")
+	assert.NotContains(t, refreshedWarn.Message, process.DaemonRestartLastResort(),
+		"refreshed bus warning must drop daemon-restart last resort")
+	assert.Equal(t, process.RestartCommand(name), refreshedWarn.Fix)
+
+	// Also verify direct lateCleanupOwed refresh when a process finishes
+	// cleanup outside cleanupProcess and when a preserved stop record hits a
+	// cleanup-owed pre-spawn refusal.
+	owedProc := process.NewProcess(plugin.PluginConfig{Name: name, Internal: true})
+	s.lateCleanups.owe(owedProc)
+	t.Cleanup(func() { owedProc.RunRuntimeCleanupOnce(func() {}) })
+
+	err := s.restartPlugin(name)
+	require.Error(t, err)
+	stopAfterRefusal, downAfterRefusal := pm.Stopped(name)
+	require.True(t, downAfterRefusal)
+	assert.True(t, stopAfterRefusal.CleanupOwed, "pre-spawn cleanup-owed refusal must mark CleanupOwed on preserved stop record")
+	assert.Contains(t, findWarning(t, name).Message, refusalPhrase)
+
+	owedProc.RunRuntimeCleanupOnce(func() {})
+	assert.False(t, s.lateCleanupOwed(name), "lateCleanupOwed must observe completion")
+	stopCleared, downCleared := pm.Stopped(name)
+	require.True(t, downCleared)
+	assert.False(t, stopCleared.CleanupOwed, "lateCleanupOwed must clear CleanupOwed on transition")
+	assert.NotContains(t, findWarning(t, name).Message, refusalPhrase,
+		"bus warning must refresh when lateCleanupOwed observes completion")
 }
