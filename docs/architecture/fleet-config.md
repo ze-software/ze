@@ -12,12 +12,12 @@ TLS listener that reuses the shared auth + MuxConn primitives (see "Architecture
 
 ## Design decisions
 
-The decision below is the approved target for live reload. The daemon currently
-reads the managed listener configuration at startup.
+These decisions describe the approved designs for managed listener reload and post-release fleet web editing.
 
 | Decision | It forbids | Source | Date |
 |----------|------------|--------|------|
 | A reload that changes the certificate a serving hub's managed listener presents installs it on the running listener at that reload: the next handshake presents the certificate the configuration names, the listener keeps its socket and no session is closed, as the web and looking glass listeners do. The certificate stays in the configuration's `pki` block. In Thomas's words (voice-transcribed): "Keep the certificate in the configuration." and "In that case on commit we can perform the certificate change on the listener." | Keeping a changed managed certificate until the next restart; refusing a reload because it changes the managed certificate; rebinding the managed listener or closing its sessions to change its certificate; keeping the managed certificate anywhere but the configuration's `pki` block | plan/release/features/spec-fleet-1-device-registry.md | 2026-11-23 |
+| Thomas chose “Allow first provisioning and later edits from the device’s web Config tab”. An authorized operator can commit the first or a later version of a declared device’s configuration while it is offline, through the post-release fleet web surface. | Requiring first contact or a pre-existing file for that web operation, or letting a fleet device editor write the hub configuration | plan/post-release/features/spec-fleet-ui-6-config-rollout-audit-admin.md | 2026-11-25 |
 
 ---
 
@@ -286,6 +286,8 @@ config sessions edit the hub's own configuration only.
 <!-- source: internal/component/config/cli/cmd_edit.go -- runStoredEditor -->
 <!-- source: cmd/ze/hub/session_factory.go -- buildSessionModelFactory -->
 <!-- source: internal/component/cli/editor_commit.go -- publishCommitted -->
+
+The approved post-release fleet device Config tab adds a separate, authorized named-device editor. It can provision the first version or edit a later one before the device connects. It keeps each candidate scoped to its operator and declared target. The existing general web editor continues to edit the hub configuration.
 
 The editor refuses the session when no serving block declares the client the
 file is named for, and when the daemon serves no client at all, as the import,

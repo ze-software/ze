@@ -41,7 +41,7 @@ holds it on reconnect until the difference is resolved.
 |---------|---------|
 | State line | Configuration state word (In sync, Pending, Rejected, Diverged, Never fetched), the version the device runs, the version the hub holds, the time and result of the last fetch |
 | Source | Whether the device's configuration comes from a template and its group, or is its own; a link to the template |
-| Configuration | The configuration as the hub holds it, in the YANG editor's tree, read-only for an operator who may not edit. Editing uses the existing per-user candidate and commit bar |
+| Configuration | The configuration as the hub holds it, in the YANG editor's tree, read-only for an operator who may not edit. Editing uses the shared editor and commit bar with a candidate isolated by user and device |
 | History | A table of versions the hub has held for this device: time, actor, summary, result on the device. A row's side panel shows the diff against the version before it, in the existing diff view. Row action: Roll back to this version, which stages it as a candidate |
 | Offline or newly declared device | Authorized operators can stage, review and commit the hub's configuration. The page shows the last contact time or Never fetched. A committed hub version awaits contact until the device supplies a result. |
 
@@ -139,7 +139,7 @@ candidate, pending change bar, diff and commit. Nothing is applied on save.
 | Audit | `fleet-3` | Missing |
 | Templates | `fleet-2` | Missing |
 | Administration of devices, labels, tree views, access, settings | `fleet-1`, `fleet-ui-2`; the settings page reads the alarm settings of `fleet-ui-5` and the task and stream settings of `fleet-ui-9` | Missing |
-| The editor, candidate, diff and commit bar | Available | |
+| The editor, candidate, diff and commit bar | Available for the hub’s own file. This spec adds the authorized declared-client target and first-write path. | |
 
 ## Acceptance Criteria
 
@@ -197,9 +197,13 @@ with the alarm pages.
 | Mechanism | Source | Use in this design |
 |-----------|--------|--------------------|
 | Fleet Config page and admin actions | `internal/component/web/fleetui/handler_config.go`, `configTextFragment`, `offlineBanner`, `manageActionAnswer` | The prototype disables edit when a client is away and returns a toast for a mutation. Bind the real page to the named configuration editor and show the time of last contact independently of edit rights. |
-| Declared-client write guard | `cmd/ze/hub/session_factory.go`, `undeclaredClientSessionRefusal` | A named editor session requires a declared client. Opening its desired configuration is allowed while it is offline. |
+| Declared-client write guard | `cmd/ze/hub/session_factory.go`, `undeclaredClientSessionRefusal` | The SSH-only factory verifies the declaration and refuses absent files. Its guarded existing-file behavior is the reference for authorization and change notification. The fleet web build needs its own authenticated binding and must support the proposed first commit without SSH. |
 | Rollout and audit sources | `internal/component/web/fleetui/source_config.go`, `ConfigSource`; `handler_audit.go`, `auditExport.ServeHTTP` | Show the backend's structured rollout state and audit records. Export the filtered rows within the existing `auditExportMax` bound. |
 | Divergence resolution | `docs/architecture/fleet-config.md`, “The hub's copy of a hold” | Read the held version and diff through the existing command and use the guarded adopt or revert operation. |
+
+| Target-bound editor | `internal/component/web/editor.go`, `EditorManager.GetOrCreate`, `commit` and `applyCommittedContent` | The existing manager has one configured hub filename and a session per user. Add a manager for a specific declared device with isolated sessions and the file’s own commit callback; the general web editor retains its current hub target. |
+| Route wiring | `internal/component/web/webroute.go`, `RouteDeps`; `internal/component/web/fleetui/register.go`, registered route Build | Today Build drops the supplied dependencies. Wire a typed target-editor factory and the dispatcher into the operational routes. Keep sample routes isolated and preserve mutation middleware. |
+| Secret-safe differences | `internal/component/managed/cmd_divergence_show.go`, `divergenceDiff` and `divergenceChanges` | The command’s schema-based renderer masks all secret leaves. The page consumes those structured rows and refusal messages through the dispatcher. Ensure HTML, exports, toast bodies and failure messages expose no unmasked value. |
 
 ## Design documents
 
@@ -208,13 +212,25 @@ with the alarm pages.
 | `ai/doors/system.md` | One schema, one command registry, every interface | the door every change reads | "A command is declared once and reaches every interface." | agrees | The backend owns the command and structured result across command surfaces. The web UI consumes its result with the same user rights. |
 | `docs/architecture/fleet-interface.md` | A source answers facts, the package derives | the // Design: page of internal/component/web/fleetui/handler_config.go | "A source answers facts only" | agrees | Authorization, desired and applied versions, rollout results and audit entries come from the hub. The page formats those facts. |
 | `ai/doors/api-surfaces.md` | Boundaries | the door covering internal/component/web/fleetui/handler_config.go | "The adapter reaches it through the dispatcher." | agrees | Fleet pages submit commands to their owner and show a refusal from that owner to the operator. |
-| `docs/architecture/web-interface.md` | Per-User Editor | anchored to internal/component/web/fleetui/handler_audit.go | "The `EditorManager` creates independent `cli.Editor` instances per authenticated user." | agrees | Open the named configuration in the caller’s candidate. Reviewing or committing another user’s candidate would violate the write boundary. |
+| `docs/architecture/web-interface.md` | Per-User Editor | anchored to internal/component/web/fleetui/handler_audit.go | "The `EditorManager` creates independent `cli.Editor` instances per authenticated user." | agrees | Reuse independent editor sessions per authenticated user. The general manager still serves its original file. Each registered fleet target manager additionally binds its own validated client and configuration file; it cannot open another user’s or target’s candidate. |
 | `ai/doors/le-tooling.md` | Where it sits | The door covering test/web | "A shipped `ze` never links an `internal/le` package." | agrees | The browser runner drives the shipped page through HTTP. The page imports no test tooling. |
 | `docs/architecture/fleet-interface.md` | Design decisions | Fleet interface contract | "The proposed alarm defaults apply together. A missing relay grant stays visible while the device is offline. A measured alarm uses its existing threshold duration after reconnect. Causes match within one device. Thomas selected “Use all three defaults”." | agrees | Configuration and administration pages use the hub’s alarm state if a grant or resource problem affects an action. |
 | `docs/architecture/fleet-interface.md` | Design decisions | Fleet interface contract | "Thomas chose the following rule for Resource high at reconnect. “End the old occurrence. Show a new alarm only if fresh samples qualify.”" | agrees | Historical resource alarms retain the occurrence boundary used by the hub. |
 | `docs/architecture/fleet-interface.md` | Design decisions | Fleet interface contract | "When a critical alarm becomes visible again after its cause clears, show its toast to an authorized viewer of the affected device. Thomas selected “Show the critical toast”." | agrees | The task and alarm notification provider owns delivery after checking access to the device. |
 | `docs/architecture/fleet-interface.md` | Design decisions | Fleet interface contract | "For Force complete on a staged rollout, Thomas chose “Leave unstarted devices on their prior version”." | agrees | The confirmation tells the operator that unstarted devices keep their previous version. |
 | `docs/architecture/fleet-interface.md` | Design decisions | Fleet interface contract | "Thomas chose “Add the device Alarms tab”. The post-release device page offers the same authorized alarm rows as the device filter on the estate or group Alarms tab." | agrees | Configuration and rollout administration use the shared navigation, including the device Alarms tab. |
+
+| `docs/architecture/fleet-config.md` | Config Storage (Hub Side) | The proposed fleet web editor and initial write | "The attached console, the web editor and the API config sessions edit the hub's own configuration only." | departs | Add the post-release fleet device Config tab as a separately authorized named-client editor. Ordinary web, API and attached-console sessions keep their hub scope. Permit the new fleet editor to create the direct client file on its first explicit commit. |
+| `docs/architecture/fleet-config.md` | Config Storage (Hub Side) | First configuration on the fleet web surface | "The file must exist first; an import or a restore gives it its first version." | departs | The new fleet route prepares a candidate without writing a file. An authorized, confirmed first commit can create the initial direct version even before first contact. The existing named SSH workflow keeps its documented requirement. |
+
+| `ai/rules/plugins.md` | Directives | the // Design: page of internal/component/web/webroute.go | "Every RPC MUST carry a YANG registration for the CLI" | agrees | The web feature registers routes; its backend command operations remain declared by their owning registrations. |
+| `docs/architecture/appliance/remote-operations.md` | Live configuration upload | anchored to cmd/ze/hub/service_web.go | — | silent | The new browser route does not use the appliance SSH upload subsystem. Each target still requires its appropriate commit permission. |
+| `docs/architecture/cli/command-completion.md` | The producers | anchored to cmd/ze/hub/service_web.go | "Every producer asks one predicate what its surface owes a command:" | agrees | The device selector and generic command line still use the caller-visible registered schema. Direct editor routes cannot widen command discovery. |
+| `docs/architecture/doctor-and-health-checks.md` | The runtime phase: checks only the daemon runs | anchored to cmd/ze/hub/service_web.go | "A check over such state registers in the `runtime` phase, through the same `diagnostic.RegisterDoctorCheck` every other check uses" | agrees | Runtime doctor continues to see device apply errors reported by the managed service; an offline candidate has no fabricated apply result. |
+| `docs/architecture/web-components.md` | Design Principles | anchored to cmd/ze/hub/service_web.go | "Server renders HTML, HTMX handles interaction." | agrees | Render the existing YANG tree and commit bar via templ. Submit authorized, target-bound server mutations under the existing middleware. |
+| `ai/doors/hub-engine.md` | Boundaries | the door covering cmd/ze/hub/service_web.go | "SIGHUP and a managed push both reach `doReload` (`cmd/ze/hub/main_reload.go`). A new trigger joins it rather than building a second path." | agrees | Supply the optional editor behind the fleet-web build composition. A web-only hub does not import the SSH listener. |
+| `docs/architecture/fleet-config.md` | Design decisions | Decision of 2026-11-23 | "A reload that changes the certificate a serving hub's managed listener presents installs it on the running listener at that reload: the next handshake presents the certificate the configuration names, the listener keeps its socket and no session is closed, as the web and looking glass listeners do. The certificate stays in the configuration's `pki` block. In Thomas's words (voice-transcribed): "Keep the certificate in the configuration." and "In that case on commit we can perform the certificate change on the listener."" | agrees | Client-file commits do not reload the hub or restart its listener. Its serving certificate follows the existing managed reload rule. |
+| `docs/architecture/fleet-config.md` | Design decisions | Decision of 2026-11-25 | "Thomas chose “Allow first provisioning and later edits from the device’s web Config tab”. An authorized operator can commit the first or a later version of a declared device’s configuration while it is offline, through the post-release fleet web surface." | agrees | Implement the approved post-release fleet editor extension, including first creation and subsequent offline edits. Ordinary web sessions keep their existing target. |
 
 ## Data Flow (MANDATORY)
 
@@ -232,7 +248,9 @@ with the alarm pages.
 
 ### Integration Points
 - `ConfigSource` supplies the structured facts for each page. Fleet-ui-2 supplies its optional part registrations.
-- Open the existing configuration session on the named client's stored configuration. Reuse its per-user candidate and declared-client check, including for a first configuration.
+- Resolve a device name through the authorized registry on every read and mutation. The server constructs ClientConfigKey from a validated declared identity. Reject a filename, path or caller-chosen key. Recheck declaration, editor permission and freeze state before committing. Fleet page registration must retain RouteDeps; a web-only fleet build must work with SSH excluded. The target editor factory uses the shared storage/CLI editor machinery, with its own target store and a client-file commit that never reloads the hub.
+- Key the candidate and diff by authenticated user, target and baseline version. Return pending edits for that target only. A missing direct blob starts a private candidate seeded with Fleet-2’s effective template if available, otherwise blank. Opening, comparing or discarding it writes nothing. Explicit commit resolves a declared client again and atomically checks that the direct-file absence/expected version and any seed generation still match. A concurrent initial import or edit refuses the stale candidate and offers to reload or review; never overwrite it silently. An authorized first commit creates a direct override and uses the client write observer. A failed, frozen or unauthorized commit creates no active version. Keep an offline result at awaiting contact until a genuine fetch/ACK reports an outcome.
+- A committed target may already exist. Use its current history and guarded publication on subsequent changes. Preserve SSH and hub-local editor behavior, tidy the target’s isolated candidates on expiry/logout, and handle removal or reenrollment by invalidating stale sessions. Use the masked structural diff for the candidate as well as the held-config command’s masked projection for a divergence. Never embed the unmasked effective text in page HTML sent to a read-only user.
 - Route live actions through their owner's authorized commands. A successful hub commit records a desired version. Only a device response may supply its apply result.
 
 ## Wiring Test (MANDATORY -- NOT deferrable)
@@ -250,6 +268,10 @@ with the alarm pages.
 | `TestDivergencePartReadsDivergenceCommand` | Fleet Config page's divergence provider | AC-9, including refusal from the dispatcher | |
 
 ## Files to Modify
+- `internal/component/web/editor.go` — isolate users and targets, share candidate operations and route device commits through guarded storage.
+- `internal/component/web/webroute.go` and `internal/component/web/fleetui/register.go` — pass the target editor factory, trusted identity and dispatcher to operational routes.
+- `cmd/ze/hub/service_web.go` — supply the guarded device-file editor factory from the serving hub on web builds regardless of SSH.
+- `docs/architecture/fleet-config.md` and `docs/architecture/web-interface.md` — document the new post-release named editor, first commit, distinct authorization and candidate lifecycle.
 - `internal/component/web/fleetui/handler_config.go` -- replace the prototype action and offline edit refusal with the named configuration session and its permission checks
 - `internal/component/web/fleetui/handler_rollouts.go` -- preview connected targets and show the orchestrator's result
 - `internal/component/web/fleetui/handler_audit.go` -- render and export the scoped, authorized audit result
@@ -257,6 +279,7 @@ with the alarm pages.
 - `docs/architecture/fleet-interface.md` -- record which management actions use real data and which require a device connection
 
 ## Files to Create
+- `internal/component/web/fleet_target_editor.go` and `internal/component/web/fleet_target_editor_test.go` — bound factory, target candidate session, stale-baseline refusal and authorization.
 - `test/web/fleet-config-divergence-live.wb` -- compare the banner and diff with the device's recorded hold
 - `test/web/fleet-config-offline-edit.wb` -- edit and commit on the hub, observe a later apply or hold, and preserve read-only access
 
@@ -272,15 +295,15 @@ The prototype disables Edit for a declared client that has never connected. Its 
 
 ### Alternatives set aside
 
-Making edit depend on a live device would prevent first provisioning. Sending a page's edits through a live device command would bypass the hub's configuration history and existing hold resolution. The named hub editor already checks declaration and access and provides a candidate, diff and commit.
+Making edit depend on a live device would prevent first provisioning. Sending a page's edits through a live device command would bypass the hub's configuration history and existing hold resolution. The hub already supplies client-file storage, version checks, YANG trees, candidates and masked differences. Its present general web manager needs the target-aware binding described above.
 
 ### Documents departed from
 
-None. The prototype action is explicitly a demonstration. The functional page follows the hub's declared-client write rule.
+“Config Storage (Hub Side)” in `docs/architecture/fleet-config.md` limits editing of an existing named client file to the live SSH editor, with import or restore provisioning the first version. Its ordinary web editor edits only the hub. This design adds an authorized fleet device Config tab that can create the first direct version and edit later versions. A user may do so before a declared device first connects. The ordinary hub editor, attached console, API and SSH routes keep their current targets and checks. Thomas approved both first provisioning and later edits from this device tab on 2026-11-25. The two departures describe the change from today’s implementation, now ratified by the new design decision in the same page.
 
 ### Choices for Thomas
 
-Offline configuration editing and connected-only rollout targets were settled in the fleet umbrella on 2026-11-19. The Force complete dialog states that unstarted devices keep their prior version, per the 2026-11-25 fleet-5 decision. It identifies the rollout and how many targets have yet to start before the operator confirms.
+On 2026-11-25 Thomas chose “Allow first provisioning and later edits from the device’s web Config tab”. AC-2 exercises an authorized first commit and a subsequent edit while the device is offline. Offline configuration editing and connected-only rollout targets were settled in the fleet umbrella on 2026-11-19. The Force complete dialog states that unstarted devices keep their prior version, per the 2026-11-25 fleet-5 decision. It identifies the rollout and how many targets have yet to start before the operator confirms.
 
 ## Implementation Steps
 
