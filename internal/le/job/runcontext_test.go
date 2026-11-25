@@ -77,6 +77,9 @@ func TestRunContextEndsTheWaitForASlot(t *testing.T) {
 			t.Errorf("RunContext reported admission %q for a wait its root ended, want %q",
 				report.Admission, KindUnspecified.String())
 		}
+		if report.RanSeconds != 0 {
+			t.Errorf("RunContext reported a run of %vs for a child it never started, want no run time", report.RanSeconds)
+		}
 	case <-time.After(runContextBound):
 		t.Fatal("RunContext kept waiting for a slot after its root ended")
 	}

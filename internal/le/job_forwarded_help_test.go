@@ -8,6 +8,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"regexp"
 	"slices"
 	"strings"
 	"testing"
@@ -18,6 +19,10 @@ import (
 	lepath "github.com/ze-software/ze/internal/le/le/path"
 	leroot "github.com/ze-software/ze/internal/le/le/root"
 )
+
+// forwardedHelpVerdict is the quiet answer of the forwarded child: its own exit
+// code, the time it ran (whose tenths vary), and the durable log.
+var forwardedHelpVerdict = regexp.MustCompile(`job unit-pkg: exit 23, ran \d+\.\ds, log `)
 
 const forwardedHelpOutput = "JOB_FORWARDED_HELP_OUTPUT"
 const forwardedHelpDispatchChild = "JOB_FORWARDED_HELP_DISPATCH_CHILD"
@@ -64,7 +69,7 @@ func TestJobDispatchRunsChildHelpArguments(t *testing.T) {
 			if !strings.Contains(string(logged), "forwarded-help-child-ran\n"+string(body)+"\n") {
 				t.Fatalf("quiet log lost the executed child's sentinel or exact argv:\n%s", logged)
 			}
-			if !strings.Contains(answer, "job unit-pkg: exit 23, log ") {
+			if !forwardedHelpVerdict.MatchString(answer) {
 				t.Fatalf("dispatch lost the real job verdict and durable log path:\n%s", answer)
 			}
 		})

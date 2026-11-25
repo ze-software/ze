@@ -775,7 +775,9 @@ func (a *Admission) RunContext(ctx context.Context, label string, argv []string,
 		// Without this branch, a dry run could queue behind a real job even
 		// though it will execute no heavy work.
 		report.Admission = KindUnadmitted.String()
+		started := time.Now()
 		report.Code = a.stream(ctx, argv, a.runDir(dir), environ, nil)
+		report.RanSeconds = time.Since(started).Seconds()
 		a.noteStopped(ctx, label, report.Code)
 		return report, report.Code
 	}
@@ -798,12 +800,17 @@ func (a *Admission) RunContext(ctx context.Context, label string, argv []string,
 	report.Key = ticket.Key
 	report.WaitedSeconds = int(ticket.Waited / time.Second)
 
+	// The run clock starts once admission has answered, so RanSeconds and
+	// WaitedSeconds split the job's time between them. An attached job ran
+	// nothing here and leaves RanSeconds at zero, which is how it says so.
+	started := time.Now()
 	switch ticket.Kind {
 	case KindAttached:
 		report.Code = ticket.Code
 		return report, report.Code
 	case KindInside:
 		report.Code = a.stream(ctx, argv, a.runDir(dir), environ, nil)
+		report.RanSeconds = time.Since(started).Seconds()
 		a.noteStopped(ctx, label, report.Code)
 		return report, report.Code
 	case KindUnspecified, KindUnadmitted, KindClaimed:
@@ -813,6 +820,7 @@ func (a *Admission) RunContext(ctx context.Context, label string, argv []string,
 	}
 
 	report.Code = a.runClaimed(ctx, ticket, argv, dir, environ)
+	report.RanSeconds = time.Since(started).Seconds()
 	a.noteStopped(ctx, label, report.Code)
 	return report, report.Code
 }

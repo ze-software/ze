@@ -16,7 +16,7 @@
 // with the options a host group uses. It starts no child of its own either: the
 // quiet run of internal/le/job admits and runs it. What it adds is the answer:
 // the lines under each failed test, then one summary line that counts only the
-// packages that ran a test.
+// packages that ran a test and says how much of the run they spent testing.
 package testunit
 
 import (
@@ -185,8 +185,8 @@ func answerPkg(tc gotoolchain.Toolchain, args leaction.Arguments) (any, int) {
 		report.LeftOut = leftOut
 		line.Packages = packages
 		if len(packages) == 0 {
-			empty := report.nothingToRun()
-			return empty, empty.Code
+			report.nothingToRun()
+			return &report, report.Code
 		}
 	} else if err := namedPackagesRun(line.Packages, module); err != nil {
 		return nil, metadataOnly().Refuse(pkgVerb, err)
@@ -196,7 +196,7 @@ func answerPkg(tc gotoolchain.Toolchain, args leaction.Arguments) (any, int) {
 	ran, code := quietRun(label, argv, tc.Root, tc.Environment(packageGroup.EnvOptions()))
 	report.Job = ran
 	report.read(tc.Root, code)
-	return report, report.Code
+	return &report, report.Code
 }
 
 // pkgLineOf turns the parsed keywords into the line to run. A line that does
@@ -387,7 +387,8 @@ type LeftOut struct {
 }
 
 // PkgReport is the answer of one `pkg` line: the job admission ran, what its
-// log says, and the packages left out.
+// log says, and the packages left out. It is answered and rendered by pointer,
+// because it carries the whole job report and is too large to copy per call.
 type PkgReport struct {
 	Outcome  pkgOutcome           `json:"outcome"`
 	Job      job.Report           `json:"job"`
@@ -399,16 +400,16 @@ type PkgReport struct {
 	Code     int                  `json:"code"`
 }
 
-// nothingToRun answers a `changed` line that left nothing to run: 0 when the
-// change reached no Go package, 1 when every reached package was left out,
-// because the packages the change reached were then not tested here.
-func (r PkgReport) nothingToRun() PkgReport {
+// nothingToRun records the outcome of a `changed` line that left nothing to
+// run: 0 when the change reached no Go package, 1 when every reached package
+// was left out, because the packages the change reached were then not tested
+// here.
+func (r *PkgReport) nothingToRun() {
 	if len(r.LeftOut) == 0 {
 		r.Outcome, r.Code = outcomeNothingReached, 0
-		return r
+		return
 	}
 	r.Outcome, r.Code = outcomeAllLeftOut, 1
-	return r
 }
 
 // read fills the report from the job's log. The code is the child's, with one
@@ -469,8 +470,10 @@ func readLog(path string, failed bool) (runlog.PackageCounts, []string, error) {
 }
 
 // Text renders the answer: a line for each package left out, the failure lines,
-// then one summary line.
-func (r PkgReport) Text() string {
+// then one summary line. The summary says where the run's time went: the wait
+// and the run time the quiet job measured (job.Report.WriteTiming), then, for a
+// test run, the test time its packages reported (testTime).
+func (r *PkgReport) Text() string {
 	var text textbuf.Buffer
 	for _, out := range r.LeftOut {
 		text.Str("left out ").Str(out.Package).Str(": its tests need the ").Str(out.Group).
@@ -481,9 +484,8 @@ func (r PkgReport) Text() string {
 	}
 	text.Str("test unit pkg: exit ").Int(int64(r.Code)).Str(", ")
 	r.summary(&text)
-	if r.Job.WaitedSeconds > 0 {
-		text.Str(", waited ").Int(int64(r.Job.WaitedSeconds)).Byte('s')
-	}
+	r.Job.WriteTiming(&text)
+	r.testTime(&text)
 	if r.Job.Log != "" {
 		text.Str(", log ").Str(r.Job.Log)
 	}
@@ -491,7 +493,7 @@ func (r PkgReport) Text() string {
 }
 
 // summary writes what the outcome says, between the exit code and the wait.
-func (r PkgReport) summary(text *textbuf.Buffer) {
+func (r *PkgReport) summary(text *textbuf.Buffer) {
 	switch r.Outcome {
 	case outcomeRan:
 		if r.Vet {
@@ -519,8 +521,10 @@ func (r PkgReport) summary(text *textbuf.Buffer) {
 }
 
 // counts writes the package counts: the packages ok, the failed ones on a red
-// run, and the ones that ran no test when there are any.
-func (r PkgReport) counts(text *textbuf.Buffer) {
+// run, the ones that ran no test, and the ones served from the test cache, each
+// of the last two when there are any. A cached package ran nothing in this run,
+// so it is named here rather than counted into the test time.
+func (r *PkgReport) counts(text *textbuf.Buffer) {
 	text.Int(int64(r.Packages.Passed)).Str(plural(r.Packages.Passed, " package", " packages")).Str(" ok")
 	if r.Packages.Failed > 0 || r.Code != 0 {
 		text.Str(", ").Int(int64(r.Packages.Failed)).Str(" failed")
@@ -528,6 +532,38 @@ func (r PkgReport) counts(text *textbuf.Buffer) {
 	if r.Packages.NoTest > 0 {
 		text.Str(", ").Int(int64(r.Packages.NoTest)).Str(" ran no test")
 	}
+	if r.Packages.Cached > 0 {
+		text.Str(", ").Int(int64(r.Packages.Cached)).Str(" from the test cache")
+	}
+}
+
+// testTime writes the time the packages of a test run reported on their result
+// lines, summed, and how many packages the sum covers. It follows the run time
+// so the two read side by side: a test time far below the run time says the run
+// went on building, a test time near it says it went on testing.
+//
+// The sum is the figure printed, not the longest package's time, because it is
+// the one a run time can be compared with in both directions: packages test in
+// parallel, so the run time less the sum is at least the time in which no test
+// ran. The longest package's time is only a lower bound on the testing, so a
+// run time far above it can still be many short packages testing in turn. The
+// clause says "summed" so the figure is not read as wall time, which can be
+// shorter.
+//
+// A vet, an outcome other than a run, and a run in which no result line carried
+// a time print nothing: a test time of zero would be a measurement nobody took.
+func (r *PkgReport) testTime(text *textbuf.Buffer) {
+	if r.Vet {
+		return
+	}
+	if r.Outcome != outcomeRan {
+		return
+	}
+	if r.Packages.Timed == 0 {
+		return
+	}
+	text.Str(", test time ").Float(r.Packages.TestSeconds, 3).Str("s summed over ").Int(int64(r.Packages.Timed)).
+		Str(plural(r.Packages.Timed, " package", " packages"))
 }
 
 // plural answers one when n is 1, and many otherwise.

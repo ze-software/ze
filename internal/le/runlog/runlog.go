@@ -21,6 +21,7 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
+	"time"
 )
 
 // failureLine matches the line openings that a reader of a failed run needs
@@ -162,15 +163,30 @@ func nextFailureBlock(state failureBlock, text string) failureBlock {
 	return outsideFailure
 }
 
-// PackageCounts is how many packages a `go test` log reports in each verdict.
+// PackageCounts is how many packages a `go test` log reports in each verdict,
+// and the time their result lines report.
+//
 // NoTest counts both lines on which a package ran no test: `ok` marked
 // `[no tests to run]` (a -run regex that matched nothing in it) and `?` marked
 // `[no test files]`. A package counted there was not tested, so it is never
 // counted as passed.
+//
+// Timed counts the result lines that carry the time `go test` measured for the
+// package's test binary, and TestSeconds is their sum. Packages test in
+// parallel, so the sum is not wall time: it bounds from above the time any test
+// ran, so the run's elapsed time less the sum is at least the time in which no
+// test ran, which is mostly compiling and linking. A TestSeconds of zero with
+// Timed at zero says no line carried a time, never that a package tested in no
+// time. Cached counts the result lines marked
+// `(cached)`: such a package ran nothing in this run, so it adds no time and is
+// not timed.
 type PackageCounts struct {
-	Passed int `json:"passed"`
-	NoTest int `json:"no-test"`
-	Failed int `json:"failed"`
+	Passed      int     `json:"passed"`
+	NoTest      int     `json:"no-test"`
+	Failed      int     `json:"failed"`
+	Timed       int     `json:"timed"`
+	TestSeconds float64 `json:"test-seconds"`
+	Cached      int     `json:"cached"`
 }
 
 // The package result lines `go test` prints without -v, one per package: the
@@ -186,13 +202,22 @@ var (
 // noTestsToRun is the marker on an `ok` line whose package ran no test.
 const noTestsToRun = "[no tests to run]"
 
-// PackageResults counts the package result lines of a `go test` log.
+// packageTime matches the third field of an `ok` or `FAIL<tab><pkg>` result
+// line: `(cached)` in the first group, or the time `go test` printed, as
+// `1.234s`, in the second. A `FAIL` line for a package that did not build has
+// no tab after the package, so it carries neither.
+var packageTime = regexp.MustCompile(`^(?:ok|FAIL)\s+\S+\t(?:(\(cached\))|(\d+\.\d+s))`)
+
+// PackageResults counts the package result lines of a `go test` log, and sums
+// the time they report.
 //
 // A zero count is an answer about the log, not about the run: a run that died
 // before any package reported, or a `go vet` log, holds no result line.
 func PackageResults(reader io.Reader) (PackageCounts, error) {
 	var counts PackageCounts
+	var tested time.Duration
 	err := forEachLine(reader, func(_ int, text string) bool {
+		timePackage(&counts, &tested, text)
 		if passedPackage.MatchString(text) {
 			if strings.Contains(text, noTestsToRun) {
 				counts.NoTest++
@@ -210,7 +235,30 @@ func PackageResults(reader io.Reader) (PackageCounts, error) {
 		}
 		return true
 	})
+	counts.TestSeconds = tested.Seconds()
 	return counts, err
+}
+
+// timePackage counts one log line as cached or timed when it is a result line
+// that says so, adding a timed line's time to tested. The durations are summed
+// rather than the seconds, so the sum is exact to the millisecond `go test`
+// prints. A time too large to parse is not a time the sum can hold, so its line
+// is not counted as timed, and the timed count names only the lines summed.
+func timePackage(counts *PackageCounts, tested *time.Duration, text string) {
+	match := packageTime.FindStringSubmatch(text)
+	if match == nil {
+		return
+	}
+	if match[1] != "" {
+		counts.Cached++
+		return
+	}
+	elapsed, err := time.ParseDuration(match[2])
+	if err != nil {
+		return
+	}
+	counts.Timed++
+	*tested += elapsed
 }
 
 // Head returns the first limit lines of a run log, unnumbered. A linter writes

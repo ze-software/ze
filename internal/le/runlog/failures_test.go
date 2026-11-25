@@ -123,7 +123,7 @@ func TestPackageResultsTellAPassFromNoTestRun(t *testing.T) {
 	if err != nil {
 		t.Fatalf("PackageResults: %v", err)
 	}
-	want := PackageCounts{Passed: 2, NoTest: 3, Failed: 1}
+	want := PackageCounts{Passed: 2, NoTest: 3, Failed: 1, Timed: 3, TestSeconds: 0.006, Cached: 2}
 	if got != want {
 		t.Errorf("PackageResults answered %+v, want %+v", got, want)
 	}
@@ -134,5 +134,40 @@ func TestPackageResultsTellAPassFromNoTestRun(t *testing.T) {
 	}
 	if empty != (PackageCounts{}) {
 		t.Errorf("PackageResults over an empty log answered %+v, want no package", empty)
+	}
+}
+
+// TestPackageResultsSumTheTimeOfTheTimedPackages reads the time on each result
+// line.
+//
+// VALIDATES: the time `go test` prints on an `ok` or `FAIL<tab><pkg>` line is
+// summed and its lines counted as timed, a line marked `(cached)` is counted as
+// cached and adds no time, and a line that carries no time (`[no test files]`,
+// `[build failed]`) is neither.
+// PREVENTS: a cached package read as a package that tested in zero seconds, and
+// a sum whose package count includes packages that reported no time.
+func TestPackageResultsSumTheTimeOfTheTimedPackages(t *testing.T) {
+	log := "ok  \texample.com/m/a\t1.250s\n" +
+		"ok  \texample.com/m/b\t(cached)\n" +
+		"?   \texample.com/m/c\t[no test files]\n" +
+		"FAIL\texample.com/m/d [build failed]\n" +
+		"FAIL\texample.com/m/e\t0.750s\n"
+	got, err := PackageResults(strings.NewReader(log))
+	if err != nil {
+		t.Fatalf("PackageResults: %v", err)
+	}
+	if got.Timed != 2 || got.TestSeconds != 2 {
+		t.Errorf("PackageResults timed %d packages for %vs, want 2 packages for 2s", got.Timed, got.TestSeconds)
+	}
+	if got.Cached != 1 {
+		t.Errorf("PackageResults counted %d cached packages, want 1", got.Cached)
+	}
+
+	cached, err := PackageResults(strings.NewReader("ok  \texample.com/m/b\t(cached)\n"))
+	if err != nil {
+		t.Fatalf("PackageResults over a cached log: %v", err)
+	}
+	if want := (PackageCounts{Passed: 1, Cached: 1}); cached != want {
+		t.Errorf("PackageResults over a cached log answered %+v, want %+v: nothing was timed", cached, want)
 	}
 }

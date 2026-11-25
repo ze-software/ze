@@ -98,9 +98,9 @@ func selectReached(t *testing.T, scope repochanged.ScopeReport, code int) {
 
 // pkgReportOf answers the result as the action's report, failing on any other
 // shape.
-func pkgReportOf(t *testing.T, result any) PkgReport {
+func pkgReportOf(t *testing.T, result any) *PkgReport {
 	t.Helper()
-	report, ok := result.(PkgReport)
+	report, ok := result.(*PkgReport)
 	if !ok {
 		t.Fatalf("pkg answered %#v, want a PkgReport", result)
 	}
@@ -173,7 +173,7 @@ func TestPkgActionBuildsTheToolchainArgv(t *testing.T) {
 	if code != 3 {
 		t.Fatalf("pkg answered %d, want the quiet run's 3", code)
 	}
-	report, ok := result.(PkgReport)
+	report, ok := result.(*PkgReport)
 	if !ok || report.Job.Label != testLabel || report.Job.Code != 3 {
 		t.Fatalf("pkg answered %#v, want the quiet run's report", result)
 	}
@@ -236,7 +236,7 @@ func TestPkgActionVetBuildsTheVetArgv(t *testing.T) {
 	if code != 0 {
 		t.Fatalf("pkg vet answered %d, want 0", code)
 	}
-	report, ok := result.(PkgReport)
+	report, ok := result.(*PkgReport)
 	if !ok || report.Job.Label != vetLabel {
 		t.Fatalf("pkg vet answered %#v, want the quiet run's report under %q", result, vetLabel)
 	}
@@ -327,18 +327,23 @@ func TestUnitGroupsStillSweepBesideThePkgAction(t *testing.T) {
 // TestPkgActionGreenAnswersOneLine reads AC-1's summary for a green log.
 //
 // VALIDATES: two packages that ran their tests and passed answer exit 0 and
-// one line naming the count, the wait and the log; the wait clause is shown
-// at one second and above and absent at zero.
-// PREVENTS: a green answer that streams the log, and a `waited 0s` clause.
+// one line naming the count, the one served from the test cache, the wait, the
+// test time of the one that was timed and the log; the wait clause is shown at
+// one second and above and absent at zero.
+// PREVENTS: a green answer that streams the log, a `waited 0s` clause, and a
+// cached package summed into the test time as zero seconds.
 func TestPkgActionGreenAnswersOneLine(t *testing.T) {
 	log := greenLog + "ok  \tgithub.com/ze-software/ze/internal/le/runlog\t(cached)\n"
 	for _, row := range []struct {
 		waited int
 		want   string
 	}{
-		{waited: 3, want: "test unit pkg: exit 0, 2 packages ok, waited 3s, log " + quietLogName + "\n"},
-		{waited: 1, want: "test unit pkg: exit 0, 2 packages ok, waited 1s, log " + quietLogName + "\n"},
-		{waited: 0, want: "test unit pkg: exit 0, 2 packages ok, log " + quietLogName + "\n"},
+		{waited: 3, want: "test unit pkg: exit 0, 2 packages ok, 1 from the test cache, waited 3s," +
+			" test time 0.120s summed over 1 package, log " + quietLogName + "\n"},
+		{waited: 1, want: "test unit pkg: exit 0, 2 packages ok, 1 from the test cache, waited 1s," +
+			" test time 0.120s summed over 1 package, log " + quietLogName + "\n"},
+		{waited: 0, want: "test unit pkg: exit 0, 2 packages ok, 1 from the test cache," +
+			" test time 0.120s summed over 1 package, log " + quietLogName + "\n"},
 	} {
 		recordQuietRunsWithLog(t, 0, row.waited, log)
 		_, result, code := answerPkgLine(t, pkgVerb, pathKeyword, "./internal/le/job/", pathKeyword, "./internal/le/runlog/")
@@ -349,7 +354,7 @@ func TestPkgActionGreenAnswersOneLine(t *testing.T) {
 		if text := report.Text(); text != row.want {
 			t.Errorf("waited %d: the summary is %q, want %q", row.waited, text, row.want)
 		}
-		if want := (runlog.PackageCounts{Passed: 2}); report.Packages != want {
+		if want := (runlog.PackageCounts{Passed: 2, Timed: 1, TestSeconds: 0.12, Cached: 1}); report.Packages != want {
 			t.Errorf("the counts are %+v, want %+v", report.Packages, want)
 		}
 	}
@@ -370,7 +375,8 @@ func TestPkgActionCountsOnlyPackagesThatRanATest(t *testing.T) {
 	if code != 0 {
 		t.Fatalf("a run where one package ran a test answered %d, want 0", code)
 	}
-	want := "test unit pkg: exit 0, 1 package ok, 2 ran no test, log " + quietLogName + "\n"
+	want := "test unit pkg: exit 0, 1 package ok, 2 ran no test, test time 0.130s summed over 2 packages, log " +
+		quietLogName + "\n"
 	if text := pkgReportOf(t, result).Text(); text != want {
 		t.Errorf("the summary is %q, want %q", text, want)
 	}
@@ -428,9 +434,51 @@ func TestPkgActionRedPrintsFailuresThenTheSummary(t *testing.T) {
 	}
 	want := "2:--- FAIL: TestQuietRun (0.00s)\n" +
 		"3:    quiet_test.go:41: the log named nothing\n" +
-		"test unit pkg: exit 1, 1 package ok, 1 failed, waited 2s, log " + quietLogName + "\n"
+		"test unit pkg: exit 1, 1 package ok, 1 failed, waited 2s, test time 0.140s summed over 2 packages, log " +
+		quietLogName + "\n"
 	if text := pkgReportOf(t, result).Text(); text != want {
 		t.Errorf("the red answer is:\n%s\nwant:\n%s", text, want)
+	}
+}
+
+// TestPkgSummarySaysWhereTheRunsTimeWent renders the timing clauses of the
+// answer.
+//
+// VALIDATES: a run answers how long it ran after admission and, beside it, the
+// test time summed over the packages that reported one, so a slow run reads as
+// build or as tests at once; a run whose packages all came from the test cache
+// says so and prints no test time; a vet prints its run time and no test time.
+// PREVENTS: a run time read as test time, and a test time of zero seconds
+// printed for packages that ran nothing in this run.
+func TestPkgSummarySaysWhereTheRunsTimeWent(t *testing.T) {
+	for _, row := range []struct {
+		name   string
+		report *PkgReport
+		want   string
+	}{
+		{
+			name: "timed",
+			report: &PkgReport{Outcome: outcomeRan, Packages: runlog.PackageCounts{Passed: 2, Timed: 2, TestSeconds: 1.2},
+				Job: job.Report{Log: quietLogName, WaitedSeconds: 2, RanSeconds: 170.4}},
+			want: "test unit pkg: exit 0, 2 packages ok, waited 2s, ran 170.4s, test time 1.200s summed over 2 packages, log " +
+				quietLogName + "\n",
+		},
+		{
+			name: "all cached",
+			report: &PkgReport{Outcome: outcomeRan, Packages: runlog.PackageCounts{Passed: 2, Cached: 2},
+				Job: job.Report{Log: quietLogName, RanSeconds: 5.3}},
+			want: "test unit pkg: exit 0, 2 packages ok, 2 from the test cache, ran 5.3s, log " + quietLogName + "\n",
+		},
+		{
+			name: "vet",
+			report: &PkgReport{Outcome: outcomeRan, Vet: true,
+				Job: job.Report{Log: quietLogName, RanSeconds: 12.5}},
+			want: "test unit pkg: exit 0, vet, ran 12.5s, log " + quietLogName + "\n",
+		},
+	} {
+		if got := row.report.Text(); got != row.want {
+			t.Errorf("%s: the summary is %q, want %q", row.name, got, row.want)
+		}
 	}
 }
 
@@ -811,10 +859,24 @@ func TestPkgActionReportsARedFixturePackage(t *testing.T) {
 		t.Fatalf("the red fixture answered %d, want 1: %#v", code, result)
 	}
 	report := pkgReportOf(t, result)
-	if want := (runlog.PackageCounts{Passed: 1, Failed: 1}); report.Packages != want {
-		t.Errorf("the counts are %+v, want %+v", report.Packages, want)
+	if report.Packages.Passed != 1 || report.Packages.Failed != 1 || report.Packages.NoTest != 0 {
+		t.Errorf("the counts are %+v, want 1 passed and 1 failed", report.Packages)
+	}
+	// Each of the two result lines carries the package's time, or `(cached)`
+	// for the package that passed: the real shape the timing reader reads.
+	if read := report.Packages.Timed + report.Packages.Cached; read != 2 {
+		t.Errorf("%d result lines were timed or cached (%+v), want both", read, report.Packages)
+	}
+	if report.Packages.TestSeconds <= 0 {
+		t.Errorf("the failed package's time was not summed: %+v", report.Packages)
+	}
+	if report.Job.RanSeconds <= 0 {
+		t.Errorf("the admitted run reported it ran %vs, want its elapsed time", report.Job.RanSeconds)
 	}
 	text := report.Text()
+	if !strings.Contains(text, ", ran ") || !strings.Contains(text, ", test time ") {
+		t.Errorf("the summary does not say how long the run took and how long it tested:\n%s", text)
+	}
 	failLine := strings.Index(text, "--- FAIL: TestTriple")
 	assertion := strings.Index(text, "fail_test.go:7: Triple(2) = 4, want 6")
 	summary := strings.Index(text, "test unit pkg: exit 1, 1 package ok, 1 failed")

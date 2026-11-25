@@ -2137,7 +2137,7 @@ quiet job ("`quiet`, and the pattern it replaces"), and the action answers from
 the quiet log:
 
 ```
-test unit pkg: exit 0, 2 packages ok, log tmp/session/<YYYY-MM-DD>-<HHMMSS>/scratch/job-unit-pkg-<key>.log
+test unit pkg: exit 0, 2 packages ok, ran 118.4s, test time 1.912s summed over 2 packages, log tmp/session/<YYYY-MM-DD>-<HHMMSS>/scratch/job-unit-pkg-<key>.log
 ```
 
 A package counts as ok only when it ran a test. A package whose `ok` line says
@@ -2147,8 +2147,29 @@ as `<m> ran no test`. When `go test` exits 0 and no package ran a test, a
 question that got no answer is not a pass. A red prints each failed test's
 `--- FAIL:` line with the lines indented beneath it, up to twenty lines, then
 the summary with the packages ok and failed. A green vet answers
-`test unit pkg: exit 0, vet, log <path>`. The `waited <s>s` clause appears as on
-a quiet job.
+`test unit pkg: exit 0, vet, ran <s>s, log <path>`. The `waited <s>s` and
+`ran <s>s` clauses appear as on a quiet job.
+
+The summary says where the run's time went. `ran` is the time from admission
+to the end of `go test`. `test time` is the sum of the times the packages
+printed on their result lines, and `summed over <n> packages` says how many
+lines carried one. Packages build and test in parallel, so the sum is not wall
+time and can exceed `ran`. What it does bound is the testing: `ran` less the sum is at
+least the time in which no test ran, which under the race detector is mostly
+compiling and linking. A run of `ran 118.4s` and `test time 1.912s` spent
+nearly all of its time building. The sum is printed rather than the longest
+package's time, because the longest bounds the testing only from below: a run
+far longer than it can still be many short packages testing in turn.
+
+A package that `go test` served from its test cache prints `(cached)` in place
+of a time. It ran nothing in this run, so it is counted as
+`<m> from the test cache` and is not part of the sum. When every package came
+from the cache, the `test time` clause is left out, never printed as zero.
+
+These seconds are triage on the host in hand, never a performance figure: do
+not quote, record or compare them, as "Which tests cost the most of their run"
+says of `./le test cost report`. They are in the payload too: `ran-seconds`
+under `job`, and `timed`, `test-seconds` and `cached` under `packages`.
 
 It refuses with exit 2, before it takes a slot:
 
@@ -2165,9 +2186,10 @@ It refuses with exit 2, before it takes a slot:
 A package `changed` reached under the `installer` group is left out of the run
 instead, and the answer names it with `./le test unit installer`. The race
 detector is always on.
-<!-- source: internal/le/test/unit/pkg.go -- pkgParameters, answerPkg, pkgLineOf, namedPackagesRun, changedPackages, PkgReport.read, PkgReport.Text -->
+<!-- source: internal/le/test/unit/pkg.go -- pkgParameters, answerPkg, pkgLineOf, namedPackagesRun, changedPackages, PkgReport.read, PkgReport.Text, PkgReport.counts, PkgReport.testTime -->
 <!-- source: internal/le/test/unit/groups.go -- groups, place -->
-<!-- source: internal/le/runlog/runlog.go -- PackageResults, Failures -->
+<!-- source: internal/le/runlog/runlog.go -- PackageCounts, PackageResults, timePackage, Failures -->
+<!-- source: internal/le/job/report.go -- Report.RanSeconds, Report.WriteTiming -->
 
 ### The long form, for any other command
 
@@ -2242,16 +2264,21 @@ not been tested the way the gate tests it, so put it back before the end.
 merged output to `tmp/session/<YYYY-MM-DD>-<HHMMSS>/scratch/job-<label>-<key>.log`
 instead of the terminal, where `<key>` is the first eight hex digits of the
 command's job key, and answers the exit code, how long admission waited when it
-waited a whole second or more, that log's path, and up to twenty failure lines
-from it, each with its line number. At zero wait the `waited` clause is left
-out.
+waited a whole second or more, how long the run took after admission, that
+log's path, and up to twenty failure lines from it, each with its line number.
+At zero wait the `waited` clause is left out. The `ran` clause is left out
+only when this job ran nothing: it took another session's verdict, or its
+admission was refused. The two clauses split the job's time, so a slow run
+reads apart from a run that queued. Their seconds are triage, never a
+performance figure ("Which tests cost the most of their run").
 
 ```
-job unit-pkg: exit 1, waited 42s, log tmp/session/2026-09-01-abc/scratch/job-unit-pkg-3f9a01c2.log
+job unit-pkg: exit 1, waited 42s, ran 86.2s, log tmp/session/2026-09-01-abc/scratch/job-unit-pkg-3f9a01c2.log
 412:--- FAIL: TestEAPIdentity (0.00s)
 418:FAIL	github.com/ze-software/ze/internal/core/eap	0.310s
 ```
-<!-- source: internal/le/job/report.go -- Report.Text -->
+<!-- source: internal/le/job/report.go -- Report.Text, Report.WriteTiming, Report.RanSeconds -->
+<!-- source: internal/le/job/job.go -- Admission.RunContext -->
 
 Which lines those are is one declaration, `internal/le/runlog`, shared with the
 verification failure index, so a stage log and a quiet job name the same lines.
@@ -2504,18 +2531,19 @@ the Bash hook applies to a raw command (the Go toolchain's executing verbs,
 the linters, the formatters), read the way the hook reads one: through the
 assignments and launchers in front of the program (`env`, `nice -n 5`,
 `timeout 600`) and the toolchain's `-C dir` in front of its verb, so
-`./le exec env go test ./x/` and `./le exec go -C d test ./...` are heavy on
-both sides. A word in front of the program is an assignment only when a shell
-name stands before its `=`, and the first word after a shell's `-c` options is
-the line, whatever it holds, so `bash -c 'go test -count=1 ./...'` is a shell
-handed `go test -count=1 ./...`, never a shell handed an assignment. env's
+`./le exec env go test` and `./le exec go -C d test ./...` are heavy on both
+sides: the verb decides, whatever packages follow it. A word in front of the
+program is an assignment only when a shell name stands before its `=`, and the
+first word after a shell's `-c` options is
+the line, whatever it holds, so `bash -c 'go test -count=1'` is a shell
+handed `go test -count=1`, never a shell handed an assignment. env's
 `-S` string (`env -S '<line>'`, `--split-string`) is a handed line the same
 way, with the words after it appended. A handed line is read by the hook,
 which parses it, when the launcher stands on the line itself. When the outer
 shell expands a word the line is read from (`bash -c "$X"`, `bash -c "echo
 $HOME"`), or a command in the line runs an expansion as its program (`sh -c
 '"$@"' _ go test`) or runs text as shell (`eval`, `source`, `.`: `bash -c
-'eval "go test ./..."'`), the hook cannot read what runs, and a subagent's line is
+'eval "go test"'`), the hook cannot read what runs, and a subagent's line is
 handed back; a single-quoted line (`bash -c 'echo $HOME'`) is read exactly
 and judged as its own line. `./le exec` holds no shell parser, so a shell it
 carries with `-c` (`./le exec bash -c '<line>'`), or an env with `-S`, is
@@ -2541,11 +2569,12 @@ ended (a parent `le` killed by SIGKILL) is no parent: its PID is asked, and the
 tool takes a slot of its own; an entry whose liveness cannot be read counts as
 a live parent, as the registry counts it as an occupied slot. A carried `./le` line is admitted
 by that `le`. A subagent's `./le exec <program>` is judged by the same
-program: `./le exec go version` runs, `./le exec go test ./x/` is handed back.
+program: `./le exec go version` runs, `./le exec go test` is handed back.
 <!-- source: internal/le/job/tool.go -- HoldTool -->
 <!-- source: internal/le/exec/exec.go -- holdHeavy -->
 <!-- source: internal/le/exec/register.go -- carriesHeavy -->
 <!-- source: internal/le/heavytool/program.go -- Started, StartedUnread, Split, ShellCommand, Assignment -->
+<!-- source: internal/le/heavytool/heavytool.go -- Name, goVerbs -->
 <!-- source: internal/le/hookruntime/subagent_heavy.go -- heavyWork, unreadHandedLine, unreadProgram -->
 <!-- source: internal/le/hookruntime/session.go -- shellTextTools -->
 <!-- source: internal/le/job/job.go -- forwardSignals, insideParent, parentRunning -->

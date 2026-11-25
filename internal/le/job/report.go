@@ -38,7 +38,15 @@ type Report struct {
 	// WaitedSeconds is how long admission took, which is the number that says
 	// whether the machine is oversubscribed.
 	WaitedSeconds int `json:"waited-seconds"`
-	Code          int `json:"code"`
+	// RanSeconds is how long the run took after admission, the number that
+	// tells a slow run from a run that queued. It is zero exactly when this job
+	// ran nothing: an attached job took another run's verdict, and a refused or
+	// canceled admission started nothing. A run always measures above zero, so
+	// that zero is the guard WriteTiming relies on to leave the clause out
+	// rather than print a run that did not happen. A run whose child could not
+	// start (exit 127) still measures its attempt, and its code says the rest.
+	RanSeconds float64 `json:"ran-seconds,omitempty"`
+	Code       int     `json:"code"`
 }
 
 // Text renders the summary of a quiet run, and nothing for any other run.
@@ -52,10 +60,8 @@ type Report struct {
 //
 // A quiet run wrote that output to a file instead, so its reader has seen
 // nothing yet. The summary is then the whole of what reaches the terminal:
-// the verdict, how long admission waited when it waited a whole second or
-// more, where the log is, and the lines that say what broke. The wait is what
-// tells a slow run from a run that queued; at zero the clause is left out, so
-// an uncontested run's line reads as it always did.
+// the verdict, how long admission waited and how long the child ran
+// (WriteTiming), where the log is, and the lines that say what broke.
 func (r Report) Text() string {
 	if !r.Quiet {
 		return ""
@@ -63,12 +69,29 @@ func (r Report) Text() string {
 
 	var text textbuf.Buffer
 	text.Reset().Str("job ").Str(r.Label).Str(": exit ").Int(int64(r.Code))
-	if r.WaitedSeconds > 0 {
-		text.Str(", waited ").Int(int64(r.WaitedSeconds)).Byte('s')
-	}
+	r.WriteTiming(&text)
 	text.Str(", log ").Str(r.Log).Byte('\n')
 	for _, line := range r.KeyLines {
 		text.Str(line).Byte('\n')
 	}
 	return text.String()
+}
+
+// WriteTiming writes the clauses that say where the job's time went, each led
+// by ", ": how long admission waited, when it waited a whole second or more,
+// then how long the child ran after admission, to a tenth of a second, when a
+// child ran here. The two together tell a run that queued from a run that was
+// slow. Every quiet answer carries them, `le test unit pkg`'s included, so the
+// clauses are written here once.
+//
+// The seconds are triage on the host in hand, never a performance figure.
+func (r Report) WriteTiming(text *textbuf.Buffer) {
+	if r.WaitedSeconds > 0 {
+		text.Str(", waited ").Int(int64(r.WaitedSeconds)).Byte('s')
+	}
+	// A zero RanSeconds says no child ran here (see the field), so no run is
+	// printed rather than a run of zero seconds.
+	if r.RanSeconds > 0 {
+		text.Str(", ran ").Float(r.RanSeconds, 1).Byte('s')
+	}
 }

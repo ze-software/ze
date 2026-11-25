@@ -13,6 +13,7 @@ package job
 import (
 	"os"
 	"path/filepath"
+	"regexp"
 	"strings"
 	"testing"
 	"time"
@@ -96,11 +97,18 @@ func TestAPassingQuietJobStillSaysWhereItsOutputWent(t *testing.T) {
 	if len(report.KeyLines) != 0 {
 		t.Errorf("a passing job answered key lines %v", report.KeyLines)
 	}
+	if report.RanSeconds <= 0 {
+		t.Errorf("a job whose child ran reported it ran %vs, want its elapsed time", report.RanSeconds)
+	}
 	text := report.Text()
-	if !strings.HasPrefix(text, "job unit-pkg: exit 0, log tmp/session/") {
-		t.Errorf("the answer is %q, want the verdict and the log path", text)
+	if !quietAnswerAfterARun.MatchString(text) {
+		t.Errorf("the answer is %q, want the verdict, the time the child ran and the log path", text)
 	}
 }
+
+// quietAnswerAfterARun is the summary of a quiet job whose child ran and
+// passed, with no wait: the run clause's tenths are the one part that varies.
+var quietAnswerAfterARun = regexp.MustCompile(`^job unit-pkg: exit 0, ran \d+\.\ds, log tmp/session/`)
 
 // TestALabelThatIsNotAPathComponentIsRefusedBeforeAnythingIsWritten covers the
 // order: the label becomes a filename here, so it is checked before it is used
@@ -251,5 +259,29 @@ func TestQuietSummaryShowsTheWaitWhenAboveZero(t *testing.T) {
 	streamed := Report{Label: "unit-pkg", Code: 0, WaitedSeconds: 30}
 	if got := streamed.Text(); got != "" {
 		t.Errorf("a streamed run rendered %q, want no text: its output already reached the terminal", got)
+	}
+}
+
+// TestQuietSummaryShowsHowLongTheChildRan renders the run clause.
+//
+// VALIDATES: a child that ran says how long it ran after admission, to a tenth
+// of a second, after the wait and before the log; a report with no run time
+// (an attached job, a refused admission) prints no run clause.
+// PREVENTS: a slow run that a reader cannot tell from a queued one, and a job
+// that ran nothing reported as having run for zero seconds.
+func TestQuietSummaryShowsHowLongTheChildRan(t *testing.T) {
+	for _, row := range []struct {
+		waited int
+		ran    float64
+		want   string
+	}{
+		{0, 170.44, "job unit-pkg: exit 0, ran 170.4s, log tmp/q.log\n"},
+		{42, 0.31, "job unit-pkg: exit 0, waited 42s, ran 0.3s, log tmp/q.log\n"},
+		{3, 0, "job unit-pkg: exit 0, waited 3s, log tmp/q.log\n"},
+	} {
+		report := Report{Label: "unit-pkg", Quiet: true, Log: "tmp/q.log", WaitedSeconds: row.waited, RanSeconds: row.ran}
+		if got := report.Text(); got != row.want {
+			t.Errorf("waited %d, ran %v: summary = %q, want %q", row.waited, row.ran, got, row.want)
+		}
 	}
 }
