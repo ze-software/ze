@@ -47,6 +47,7 @@ import (
 	_ "github.com/ze-software/ze/internal/le/cli/stdio"
 	_ "github.com/ze-software/ze/internal/le/commit"
 	_ "github.com/ze-software/ze/internal/le/commit/approval"
+	_ "github.com/ze-software/ze/internal/le/commit/secrets"
 	_ "github.com/ze-software/ze/internal/le/completion"
 	_ "github.com/ze-software/ze/internal/le/config"
 	_ "github.com/ze-software/ze/internal/le/config/claims"

@@ -26,6 +26,8 @@
 
 **`--no-gpg-sign`, `-c commit.gpgsign=false` and `--no-verify` MUST NOT be used, and a hook MUST NOT be disabled to make a commit pass.** What to do when signing fails is `docs/contributing/committing.md`.
 
+**Secrets, private keys, and local home-directory paths MUST NOT be committed.** API keys, credential files (`.env`, `.netrc`, `.npmrc`, `id_rsa`, `id_ed25519`, `settings.local.json`, `credentials.json`), private keys outside test fixtures, live secret-named environment values, and the committer's own home directory path are refused at commit time by `commit secrets check` (`internal/le/commit/secrets`). A deliberate test fixture carrying a synthetic token or path marks that line with `secret-scan: allow`.
+
 **Pull requests and issues MUST go through `gh`:** `gh pr list`, `gh pr create`, `gh issue list`, `gh issue create`. The repository is only at github.com/ze-software/ze, so `tea`, the Gitea client, does not reach it.
 
 ## Before Destructive Actions

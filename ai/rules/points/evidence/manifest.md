@@ -7,6 +7,7 @@ related: writing, planning, protocol
 directives ## Directives
   five-biases-that-are-invisible-from-inside
   a-measured-number-names-what-bounds-it
+  label-claims-and-carry-search-limits
 no-fabrication ## No Fabrication
   read-the-producing-code-before-claiming-behavior
   quote-an-owner-requirement-never-summarize-it

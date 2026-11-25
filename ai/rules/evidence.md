@@ -15,6 +15,9 @@
 
 **A number you measured is a claim about what ran, and before you report it, act on it, or pick a winner from it, you MUST name the resource that bounds it and rule out that it measured something else.** Ask why it is not twice as good: the answer is a core, a lock, the disk, the network, the load generator or a setting, read from a profile or system counters taken during a run, never guessed from the code. Then rule out the usual substitutes: errors or lost routes, work that never ran inside the timed region, a side left on default settings, noise larger than the gap, and a piece too small to move the end-to-end path. A number reported without its run count, its spread and its limiter MUST be labelled inconclusive. The procedure for a `./le perf` comparison is `docs/guide/benchmarking.md`, "Before you report a number".
 
+- **Separate observed facts, derived conclusions, and inferences in every report, audit, and spec.** An observed fact comes directly from read source or observed tool output; a derived conclusion follows mechanically from observations; an inference is judgment. You MUST label every inference as inferred rather than presenting it beside observed facts as settled.
+- **Carry search boundaries and truncation limits forward.** When a search, walk, or audit hits a row cap, skips build-tagged files, or inspects only a subset, the report MUST name what was excluded and MUST NOT summarize a partial scan as complete.
+
 ## No Fabrication
 
 **Before you claim code behaves a certain way, or recommend work premised on it, you MUST read the function that produces the behavior.** Naming the caller, the config that reaches it, or a comment beside it does not discharge this. A claim whose producer you have not read MUST be labelled "unverified", and you MUST NOT recommend work on it.
