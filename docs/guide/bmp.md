@@ -131,28 +131,24 @@ bgp {
 }
 ```
 
-Load the `bgp-bmp` internal plugin and attach it to each monitored peer. The
-sender configuration selects collectors; the attachment supplies the OPEN,
-session-state and UPDATE events from which the sender builds its feed:
+Load the `bgp-bmp` internal plugin as a bus endpoint. It automatically receives
+the OPEN, session-state, and UPDATE events it registered for across BGP peers;
+add a `bus` block only if you want to restrict monitoring to specific peers:
 
 ```
-plugin {
-    internal bgp-bmp {
-        use bgp-bmp;
-    }
-}
-bgp {
-    peer monitored-peer {
-        attach process bgp-bmp {
-            receive [ state update open notification keepalive refresh ]
+bus {
+    endpoint bgp-bmp {
+        internal bgp-bmp;
+        receive {
+            from [ /bgp/peer/monitored-peer ];
         }
     }
 }
 ```
 
-The peer still needs its normal connection and session configuration. Attach
+The peer still needs its normal connection and session configuration. Enable
 BMP before establishing that BGP session, because replay depends on observing
-the OPEN exchange and subsequent updates. Adding the attachment to an already
+the OPEN exchange and subsequent updates. Widening BMP monitoring to an already
 established peer requires that BGP peer to reconnect before it can be monitored.
 
 <!-- source: internal/component/bgp/plugins/bmp/yang/ze-bmp-conf.yang -- sender container -->
@@ -174,8 +170,8 @@ per RFC 7854 recommendations.
 Use the internal BMP plugin for `loc-rib true`. Runtime startup and reload
 require the live BGP RIB event bus and refuse this mode when that feed is
 unavailable, before starting BMP sessions. The current external process has
-no transport for this feed. Replace that external instance with
-`plugin { internal bmp { use bgp-bmp; } }`. Offline configuration parsing
+no transport for this feed. Replace that separate or external instance with an
+in-daemon endpoint: `bus { endpoint bmp { internal bgp-bmp; } }`. Offline configuration parsing
 checks syntax independently of this runtime capability.
 
 <!-- source: internal/component/bgp/plugins/bmp/locrib_runtime.go -- validateLocRIBRuntimeConfig -->

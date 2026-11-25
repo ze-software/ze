@@ -15,8 +15,8 @@ kinds of outside party depend on it, and none of them can be fixed by editing
 
 | Outside party | What they hold | The contract they rely on |
 |---------------|----------------|---------------------------|
-| A third-party plugin, in Go or any other language | A process Ze forks from `plugin { external <name> { run ...; } }`, or one built on `pkg/plugin/sdk` | The process protocol: YANG RPC over one connection (request lines newline-framed, answer lines width-framed), the five-stage startup, the JSON event format (`docs/architecture/api/process-protocol.md`, `docs/plugin-development/`) |
-| An ExaBGP script an operator migrated | A script written against ExaBGP's process API | The ExaBGP bridge and the text command grammar (`docs/architecture/exabgp-bridge.md`, `docs/architecture/api/commands.md`) |
+| A third-party plugin, in Go or any other language | A process Ze forks from `bus { endpoint <name> { external { run ...; } } }`, or one built on `pkg/plugin/sdk` | The process protocol: YANG RPC over one connection (request lines newline-framed, answer lines width-framed), the five-stage startup, the JSON event format (`docs/architecture/api/process-protocol.md`, `docs/plugin-development/`) |
+| An ExaBGP script an operator migrated | A script written against ExaBGP's process API, run as a bus endpoint through `ze exabgp plugin` | The ExaBGP wrapper and the text command grammar (`docs/architecture/exabgp-bridge.md`, `docs/architecture/api/commands.md`) |
 | An API client: REST, gRPC, gNMI, MCP, birdwatcher | A program speaking to a listener | The command registry and its declared answer shapes, the YANG schema, the JSON format (`docs/architecture/api/`) |
 | An operator | A config file and their muscle memory at the CLI | The YANG schema, the command grammar, the error text (`ai/rules/config.md`, `ai/rules/cli.md`, `ai/rules/user-facing-errors.md`) |
 | A protocol peer | Another router | The RFC, then ExaBGP API compatibility, then ExaBGP's behavior, in that order (`ai/rules/rfc-compliance.md`) |

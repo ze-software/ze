@@ -198,13 +198,13 @@ peer that establishes later to request the current connected prefixes.
 <!-- source: internal/component/iface/config_sysctl.go -- applyIPv6ForwardingSwitch -->
 <!-- source: internal/plugins/redistribute/register.go -- runPlugin -->
 
-Each BGP peer attaches `bgp-rib` with the grants to learn routes and advertise
-eligible selected routes. This lets r1 advertise routes between r2 and r3
-when their sessions come up in either order. The template sets an accepting
-export policy on every peer because Ze requires explicit export policy for
-learned routes. It also sets an accepting import policy on external peers to
+`bgp-rib` is declared as a bus endpoint and receives and sends its registered
+messages across every BGP peer by default, letting r1 advertise routes between
+r2 and r3 when their sessions come up in either order. The template sets an
+accepting export policy on every peer because Ze requires explicit export policy
+for learned routes. It also sets an accepting import policy on external peers to
 satisfy RFC 8212.
-<!-- source: contrib/netlab/ze/ze.j2 -- filter, attach process bgp-rib -->
+<!-- source: contrib/netlab/ze/ze.j2 -- bus endpoint bgp-rib, filter -->
 <!-- source: internal/component/bgp/plugins/rib/rib_dissemination.go -- disseminationDecls -->
 
 External peers rely on Ze's auto-appended trailing `next-hop:auto` export step,

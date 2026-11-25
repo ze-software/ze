@@ -12,12 +12,12 @@ Use this for a customer or peer that should only announce prefixes registered to
 This example accepts registered routes from customer AS 65001. Replace the addresses, ASN, and `AS-CUSTOMER` with values for your network.
 
 ```
-plugin {
-    internal bgp-adj-rib-in {
-        use bgp-adj-rib-in
+bus {
+    endpoint bgp-adj-rib-in {
+        internal bgp-adj-rib-in
     }
-    internal bgp-filter-irr {
-        use bgp-filter-irr
+    endpoint bgp-filter-irr {
+        internal bgp-filter-irr
     }
 }
 
@@ -75,19 +75,16 @@ bgp {
                 final accept;
             }
         }
-        attach process bgp-adj-rib-in {
-            receive [ update-received state ]
-        }
     }
 }
 ```
 <!-- source: internal/component/bgp/yang/ze-bgp-conf.yang -- filter-policy -->
 
-The two plugin blocks load the filter and Adj-RIB-In. The Adj-RIB-In plugin is not required to make the filter decision, but it provides `show bgp adj-rib-in` so you can verify which routes passed.
+The two bus endpoint blocks load the filter and Adj-RIB-In. The Adj-RIB-In plugin is not required to make the filter decision, but it provides `show bgp adj-rib-in` so you can verify which routes passed; it receives `bgp:update-received` and `bgp:state` by default with no per-peer wiring needed.
 
 The suffix in `bgp-filter-irr:65001` is the peer's remote ASN. It selects the dynamic list associated with AS 65001. Use the corresponding ASN in each peer's filter reference. Prefixes that do not match that list are rejected by the implicit deny.
 
-No `attach process bgp-filter-irr` block is needed. A filter reference invokes the plugin directly through the BGP import filter chain.
+No per-peer `bus` block is needed for `bgp-filter-irr`. A filter reference invokes the plugin directly through the BGP import filter chain, and `bgp-filter-irr` registers `bgp:refresh` on the bus automatically.
 
 <!-- source: internal/component/bgp/reactor/filter_chain.go -- named import filter execution -->
 <!-- source: internal/component/bgp/plugins/filter_irr/yang/ze-filter-irr.yang -- peer AS-SET configuration -->
@@ -99,7 +96,7 @@ If the stored `ze.conf` already contains the BGP peer but no IRR filter, stop Ze
 ```console
 $ sudo systemctl stop ze.service
 $ ze config cat ze.conf |
-> ze config set - plugin internal bgp-filter-irr use bgp-filter-irr |
+> ze config set - bus endpoint bgp-filter-irr internal bgp-filter-irr |
 > ze config set - system irr server whois.radb.net |
 > ze config set - system irr refresh-interval 3600 |
 > ze config set - bgp peer customer-a session irr as-set AS-CUSTOMER |
@@ -228,18 +225,15 @@ At first enrollment, do not place the session into service until `show bgp irr` 
 
 A route rejected because its ASN had no list yet, or because the list did not hold it, is kept for another evaluation. When a list arrives or a refresh changes it, the filter checks what it kept, and for each peer with a route the new list authorizes it sends a ROUTE-REFRESH for that family. The peer sends its routes again and the filter decides them against the new list. The filter itself never fetches: a fetch that failed is retried every minute by the `irr` plugin, and the list it then stores reaches the filter.
 
-The ROUTE-REFRESH needs two things. Route Refresh must be negotiated with the peer: Ze advertises it only when the peer's `capability` block, or its group's, says `route-refresh enable`, and the peer must advertise it too. The peer must also give the filter the permission to send it, with `refresh` or `*` in the `send` list:
+The ROUTE-REFRESH needs two things. Route Refresh must be negotiated with the peer: Ze advertises it only when the peer's `capability` block, or its group's, says `route-refresh enable`, and the peer must advertise it too. `bgp-filter-irr` registers `bgp:refresh` on the message bus by default, so no per-peer attachment is required unless a peer or endpoint `bus` block narrows delivery:
 
 ```text
 capability {
     route-refresh enable
 }
-attach process bgp-filter-irr {
-    send [ refresh ]
-}
 ```
 
-A `send` list on the peer replaces the group's, so a peer that states its own `send` list for the filter needs `refresh` in that list. Without either piece, the route stays rejected until the peer sends it again, and the filter logs one warning for the peer that names the missing piece. When a configuration is applied, the filter also logs one warning for each IRR-filtered peer that lacks the permission, and one for each to which Ze does not advertise Route Refresh. If the ROUTE-REFRESH fails for another reason, for example a timeout, the filter asks again on its next pass. At most 100 000 rejected prefixes are kept; past that a rejected prefix is evaluated again only when its peer sends it again, and the filter logs one warning. A withdrawal, an accepted announcement and a session that goes down each drop what was kept for that route or peer.
+If you write a custom `bus { receive { ... } }` override on a peer or group, ensure it still admits `bgp:refresh` from `/bus/endpoint/bgp-filter-irr` (a peer's `receive > from` or `receive > allow` replaces its group's). Without Route Refresh negotiated or bus permission, the route stays rejected until the peer sends it again, and the filter logs one warning for the peer that names the missing piece. When a configuration is applied, the filter also logs one warning for each IRR-filtered peer that lacks the permission, and one for each to which Ze does not advertise Route Refresh. If the ROUTE-REFRESH fails for another reason, for example a timeout, the filter asks again on its next pass. At most 100 000 rejected prefixes are kept; past that a rejected prefix is evaluated again only when its peer sends it again, and the filter logs one warning. A withdrawal, an accepted announcement and a session that goes down each drop what was kept for that route or peer.
 
 An UPDATE that announces some routes the list authorizes and some it does not keeps the authorized ones and drops the rest, in the IPv4 NLRI field and in a multiprotocol block of IPv4 or IPv6 unicast, multicast or labeled unicast alike. An UPDATE that withdraws routes keeps its withdrawals even when the filter rejects every route it announces, and even before the ASN has a list. The exception is a rejected route in a multiprotocol block of another family, a FlowSpec rule for example, which Ze cannot remove from the UPDATE: that UPDATE is rejected whole, its authorized routes and its withdrawals included. The filter then asks the peer for the authorized routes again every minute, and the peer answers with the same UPDATE, so those routes stay rejected until the peer stops announcing the refused one.
 

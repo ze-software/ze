@@ -23,8 +23,8 @@ enable the read-only Looking Glass. Save this configuration as
 `as-path-lab.conf`:
 
 ```text
-plugin {
-    internal rib { use bgp-rib; }
+bus {
+    endpoint rib { internal bgp-rib; }
 }
 
 environment {

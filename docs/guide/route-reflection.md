@@ -6,12 +6,12 @@ Ze can operate as a route server (RFC 7947) or route reflector, forwarding recei
 ## Configuration
 
 ```
-plugin {
-    internal rs {
-        use bgp-rs
+bus {
+    endpoint rs {
+        internal bgp-rs;
     }
-    internal adj-rib-in {
-        use bgp-adj-rib-in
+    endpoint adj-rib-in {
+        internal bgp-adj-rib-in;
     }
 }
 
@@ -22,14 +22,6 @@ bgp {
         router-id 10.0.0.254;
 
         family { ipv4/unicast; }
-
-        attach process rs {
-            receive [ update-received state open-received refresh ]
-            send [ update ]
-        }
-        attach process adj-rib-in {
-            receive [ update-received update-filtered-received state ]
-        }
     }
 
     peer client-b {
@@ -38,14 +30,6 @@ bgp {
         router-id 10.0.0.254;
 
         family { ipv4/unicast; }
-
-        attach process rs {
-            receive [ update-received state open-received refresh ]
-            send [ update ]
-        }
-        attach process adj-rib-in {
-            receive [ update-received update-filtered-received state ]
-        }
     }
 }
 ```
@@ -104,14 +88,6 @@ bgp {
                 final accept;
             }
         }
-
-        attach process rs {
-            receive [ update-received state open-received refresh ]
-            send [ update ]
-        }
-        attach process adj-rib-in {
-            receive [ update-received update-filtered-received state ]
-        }
     }
 }
 ```
@@ -132,7 +108,7 @@ The prefix goes on the member, inside the brackets. Keep the `final accept;` dec
 <!-- source: internal/component/bgp/plugins/role/upstream.go -- upstreamInsertions -->
 <!-- source: internal/component/bgp/yang/ze-bgp-conf.yang -- filter-policy -->
 
-A member inherits the group's whole settings, its `attach process` blocks and its per-peer plugin config included. A static peer whose address falls inside the range keeps its own session and its own settings. See [BGP peering](bgp-peering.md) for the group leaves and the reload rules.
+A member inherits the group's whole settings, its `bus` block overrides and its per-peer plugin config included. A static peer whose address falls inside the range keeps its own session and its own settings. See [BGP peering](bgp-peering.md) for the group leaves and the reload rules.
 
 ## How It Works
 
@@ -394,6 +370,13 @@ follows it removes it.
 <!-- source: internal/component/bgp/plugins/rr/rr.go -- replayForPeer -->
 <!-- source: internal/component/bgp/plugins/rr/validation.go -- replayFlowSpecs -->
 
+The reflector first checks that the receive store has applied the UPDATEs
+it already processed from each live source that can feed the new peer. Each
+check names the original peer and physical connection. A different source
+or a replacement session cannot satisfy it. If a configured store still
+owes this progress, the replay keeps its readiness report pending.
+<!-- source: internal/component/bgp/plugins/rr/replay_sources.go -- captureReplaySources, waitReplaySources -->
+
 The reflector completes its readiness report when an optional receive-store
 page read fails, after successfully completing the independent mandatory
 FlowSpec replay and its required output. Earlier successful pages have already
@@ -476,41 +459,40 @@ UPDATEs ze sends deadlocks: forwarding one raises the sent event that the forwar
 is waiting on.
 <!-- source: internal/component/bgp/plugins/rs/server.go -- SetStartupSubscriptions and the deadlock rationale -->
 
-The same two grants govern `behavior { rs-fast-path enable; }`. The fast path
-forwards in place of `bgp-rs`, so it obeys the permissions `bgp-rs` would. It
-relays an UPDATE only from a source peer that grants `bgp-rs`
-`receive [ update-received ]` (or `update`, or `*`), and only to a destination
-peer that grants `bgp-rs` `send [ update ]`. A source without the receive grant
-gets no forwarding on either path: the fast path declines it, and `bgp-rs` never
-sees its UPDATEs. A destination without the send grant is sent nothing: the fast
-path hands it back to `bgp-rs`, whose forward is refused and logged as
-`send refused`, exactly as with the fast path off. When a peer with
-`rs-fast-path` lacks either grant, Ze logs one warning for it as its session
-comes up (`rs-fast-path: this peer does not grant the route server what the
-fast path needs`), naming the missing grant and the line to add. To fix either, add
-`attach process <rs-name> { receive [ update-received ]; send [ update ]; }` to
-the peer, where `<rs-name>` is the name your `plugin { internal ... }` block
-gives `bgp-rs`.
+The same bus delivery rules govern `behavior { rs-fast-path enable; }`. The fast path
+forwards in place of `bgp-rs`, so it obeys the compiled bus filter `bgp-rs` does. By
+default, `bgp-rs` receives `bgp:update-received` from every BGP peer and sends
+`bgp:update` to every BGP peer. If an operator narrows a peer's `bus` block so the
+source peer does not deliver `bgp:update-received` to the route server, the fast path
+declines it and `bgp-rs` never sees its UPDATEs. If a destination peer's `bus` filter
+does not admit `bgp:update` from the route server, the fast path hands it back to
+`bgp-rs`, whose forward is refused and logged as `send refused`, exactly as with the
+fast path off. When a peer with `rs-fast-path` excludes the route server from either
+direction, Ze logs one warning for it as its session comes up (`rs-fast-path: this peer
+does not grant the route server what the fast path needs`), naming the missing direction.
+To fix either, remove the restricting `bus` override or include the route server
+participant (`/bgp/route-server` or `/bus/endpoint/<rs-name>`) in the peer's `send > to`
+and `receive > from` lists.
 <!-- source: internal/component/bgp/reactor/peer_forward_facts.go -- rsRelaySendProcessName, rsRelayReceiveGranted, reportRSRelayGrants -->
 <!-- source: internal/component/bgp/reactor/forward_rs.go -- reactorForwardRSSection -->
 <!-- source: internal/component/bgp/reactor/reactor_notify.go -- notifyMessageReceiver fast-path gate -->
-<!-- test: test/plugin/bgp-rs-fastpath-relay-grants.ci -- a destination without send [ update ] gets nothing and logs send refused; a source without receive [ update-received ] is relayed to nobody -->
+<!-- test: test/plugin/bgp-rs-fastpath-relay-grants.ci -- a destination excluding bgp:update gets nothing and logs send refused; a source excluding bgp:update-received is relayed to nobody -->
 
-The `bgp-adj-rib-in` plugin stores received routes for replay on peer reconnect.
-Ordinary peers need `receive [ update-received state ]`; route-server client peers (`rs-client true`) add `update-filtered-received` so ingress-denied UPDATEs are retained pre-policy without being replayed (RFC 7947 Section 2.1). When a peer comes up, the
-route server or reflector reads the stored routes from it, page by page, and
-sends them to the peer itself, so the peer's `send [ update ]` for `rs` (or the
-reflector) is the grant that covers the replay. Grant `bgp-adj-rib-in`
-`send [ update ]` yourself only for a peer no route server or reflector serves,
-where it replays on its own and sends under its own name.
+The `bgp-adj-rib-in` plugin stores received routes for replay on peer reconnect and
+registers `bgp:update-received`, `bgp:update-filtered-received`, and `bgp:state` by
+default. On route-server client peers (`rs-client true`), `bgp:update-filtered-received`
+retains ingress-denied UPDATEs pre-policy without replaying them (RFC 7947 Section 2.1).
+When a peer comes up, the route server or reflector reads the stored routes from
+`bgp-adj-rib-in`, page by page, and sends them to the peer itself, so the route server's
+(or reflector's) `bgp:update` permission covers the replay.
 <!-- source: internal/component/bgp/plugins/rs/ -- RunRouteServer; internal/component/bgp/plugins/adj_rib_in/ -- adj-rib-in for replay -->
 <!-- source: internal/core/bgp/ribevents/replay.go -- RelayReplay -->
 <!-- source: internal/component/bgp/plugins/adj_rib_in/replay_page.go -- replayRoutesCommand -->
 <!-- source: internal/component/bgp/reactor/send_permission.go -- maySend -->
 
-An attachment that grants `bgp-rs` only received updates and state keeps the
-peer as a route source. The route server skips its automatic replay and live
-output to that peer. Explicit send requests still pass through the engine's
+A peer whose `bus` override admits `bgp-rs` to receive its updates and state but
+blocks `bgp:update` toward that peer keeps the peer as a route source while skipping
+automatic replay and live output to it. Explicit send requests still pass through the engine's
 send-permission check.
 <!-- source: internal/component/bgp/plugins/rs/server_handlers.go -- handleState -->
 <!-- source: internal/component/bgp/plugins/rs/server_forward.go -- selectForwardTargets -->

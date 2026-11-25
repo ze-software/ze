@@ -317,9 +317,9 @@ A reload that changes the export chain judges the routes OSPF already holds agai
 <!-- source: internal/plugins/ospf/redistribute/source.go -- Source OnSPFChange exports OSPF routes -->
 <!-- source: internal/plugins/ospf/redist_wiring.go -- engine InjectExternal -->
 
-The `redistribute` block is the whole configuration. It needs no `plugin` block
-and no `attach process` block. `import bgp` names the daemon's own Loc-RIB, and
-each peer's delivery to it is derived from the rule. See
+The `redistribute` block is the whole configuration. It needs no `bus` endpoint
+block and no per-peer `bus` wiring. `import bgp` names the daemon's own Loc-RIB,
+and BGP peers feed it via the bus defaults. See
 [Route Filters and Redistribution](redistribution.md), "Route Redistribution".
 <!-- source: internal/component/bgp/config/redistribute_binding.go -- wireRedistributeDelivery -->
 

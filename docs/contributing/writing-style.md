@@ -602,17 +602,15 @@ and not a demand of the parser. Automatic semicolon insertion fires at a
 newline, at the end of the file, and before a closing brace
 (`internal/component/config/tokenizer.go`, scan), so a closing brace on the same
 line as the statement it closes ends that statement first. Measured with a built
-`ze config validate`: `attach process bgp-rr { receive [ update-received ] }`
-and `attach process bgp-rr { receive [ update-received ]; }` are both accepted.
+`ze config validate`: `bus { endpoint rib { internal bgp-rib } }`
+and `bus { endpoint rib { internal bgp-rib; } }` are both accepted.
 
 An operator copies what a guide shows, so a guide shows the config ze can
-run. `bgp-rr` judges what a peer sent, and a plain `update` token grants both
-directions, which deadlocks it (`internal/component/bgp/plugins/rr/rr.go`,
-SetStartupSubscriptions). That is why the example above writes
-`update-received`.
+run. `bgp-rr` registers to receive `bgp:update` with `tag direction [ received ]`
+(only what a peer sent, never sent UPDATEs, which would deadlock it).
 
 An inline mention inside a sentence or a table cell can stay on one line, and it
-then carries the semicolon: `internal rib { use bgp-rib; }`. Reflowing a phrase
+then carries the semicolon: `bus { endpoint rib { internal bgp-rib; } }`. Reflowing a phrase
 into a block would break the sentence around it.
 
 Every config example in `docs/` parses, and an excerpt parses inside the

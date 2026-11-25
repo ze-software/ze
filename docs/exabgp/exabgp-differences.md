@@ -428,6 +428,64 @@ for the same family changes nothing for it.
 <!-- source: internal/component/bgp/reactor/reactor_api_forward.go -- AnnounceEOR, announceEOR -->
 <!-- source: internal/component/bgp/reactor/peer_initial_sync.go -- sendInitialRoutes -->
 
+---
+
+## One wrapper endpoint per script (bus model differences)
+
+Each ExaBGP script runs in its own external bus endpoint
+(`bus { endpoint <name> { external { run "ze exabgp plugin ..."; } } }`) rather
+than inside a shared in-daemon fleet. The differences from ExaBGP are:
+
+- **`status` reports the wrapper's pid and uptime, not Ze's.** Each wrapper
+  answers `status` with its own process id and start time
+  (`internal/exabgp/bridge/bridge_status.go` -- `statusInfo`).
+- **`ping` answers a UUID per wrapper.** ExaBGP returns one daemon UUID to every
+  script; on Ze each wrapper process draws its own `daemonUUID`
+  (`internal/exabgp/bridge/bridge_ping.go` -- `daemonUUID`).
+- **The shutdown line names the wrapper's pid.** `ShutdownLine` writes
+  `<wrapper-pid> <ze-pid>` rather than the daemon pid alone
+  (`internal/exabgp/bridge/bridge_shutdown.go` -- `ShutdownLine`).
+- **A scoped script does not reach a peer created at run time.** A script whose
+  `bus` filter names configured neighbors does not match a peer added dynamically
+  at run time, as its compiled filter names the configured peers.
+- **`api version <v>` moves that script alone.** Because each script has its own
+  wrapper, changing API version at run time affects only that script, never
+  another script running against the same daemon.
+- **Route ownership is per participant, not last-announcer across scripts.**
+  The BGP engine holds each originated route under the endpoint participant that
+  announced it, just as it holds a peer's routes under that peer. When a script's
+  endpoint exits, the engine withdraws the routes that endpoint announced by
+  default (unless `external { on-exit keep; }` is set, which `ze exabgp migrate`
+  writes where ExaBGP retains), and leaves in place any route that another script
+  or peer also announced. In ExaBGP, last-announcer ownership means one script's
+  exit withdraws a route another script announced earlier
+  (`internal/component/bgp/reactor/origin_runtime.go` -- `EndOriginOwnerWithPolicy`).
+- **Virtual session capabilities are declared per wrapper.** Address families,
+  route-refresh, and ADD-PATH are stated at Stage 3 from the wrapper's
+  `--family`, `--route-refresh`, and `--add-path` flags (written on the `run`
+  line by `ze exabgp migrate`), never by a separate config root. Two endpoints
+  declaring the same capability code with identical payload bytes deduplicate on
+  the wire; differing values for the same capability code toward one real peer
+  are refused (`internal/plugins/exabgp/main_sdk.go` -- `runSDKMode`).
+- **Process restart limits and runtime `api version` exit behavior.** When a
+  script exits, its wrapper exits with the script's outcome, and Ze's process
+  manager restarts the endpoint according to `external { respawn }`. Ze allows
+  five restarts in a 60-second window and twenty per daemon life before
+  disabling the endpoint, whereas ExaBGP allows five forks in a 64-second bucket
+  with no lifetime cap
+  (`internal/component/plugin/process/manager.go` -- `RespawnLimit`,
+  `RespawnWindow`, `MaxTotalRespawns`, `ErrProcessDisabled`). Because route
+  retention on exit is governed by `external { on-exit keep; }` rather than by
+  an in-wrapper ledger, a script that changes its own API version at run time no
+  longer changes whether its routes are withdrawn when it exits.
+
+<!-- source: internal/exabgp/bridge/bridge_status.go -- statusInfo -->
+<!-- source: internal/exabgp/bridge/bridge_ping.go -- daemonUUID -->
+<!-- source: internal/exabgp/bridge/bridge_shutdown.go -- ShutdownLine -->
+<!-- source: internal/component/bgp/reactor/origin_runtime.go -- EndOriginOwnerWithPolicy -->
+<!-- source: internal/plugins/exabgp/main_sdk.go -- runSDKMode -->
+<!-- source: internal/component/plugin/process/manager.go -- RespawnLimit, RespawnWindow, MaxTotalRespawns, ErrProcessDisabled -->
+
 ## Template for Future Differences
 
 ### Feature Name

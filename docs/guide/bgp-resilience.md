@@ -18,13 +18,9 @@ Enhanced Route Refresh adds Begin-of-RR and End-of-RR markers so stale routes ca
 Graceful Restart requires the `bgp-gr` and `bgp-rib` plugins. The restarting speaker advertises the capability, while the receiving speaker retains stale routes until End-of-RIB or timer expiry.
 
 ```text
-plugin {
-    internal rib {
-        use bgp-rib
-    }
-    internal gr {
-        use bgp-gr
-    }
+bus {
+    endpoint rib { internal bgp-rib; }
+    endpoint gr  { internal bgp-gr; }
 }
 
 bgp {
@@ -43,21 +39,13 @@ bgp {
                 }
             }
         }
-        attach process gr {
-            receive [ open-received state eor ]
-            send [ update ]
-        }
-        attach process rib {
-            receive [ update state refresh ]
-            send [ update ]
-        }
     }
 }
 ```
 
 Long-Lived Graceful Restart extends the stale period and deprioritises stale routes. It is active only when both peers negotiate it. Routes carrying `NO_LLGR` are removed rather than retained.
 
-Load `bgp-gr` with `internal <name> { use bgp-gr }`, as the example above does, or in a child process with `run "ze plugin bgp-gr"`: the RFC 9494 egress filter and the retention verdict the route reflector reads both run over the plugin connection, so either placement behaves the same.
+Load `bgp-gr` in-daemon with `bus { endpoint gr { internal bgp-gr; } }`, as the example above does, or in a separate process by adding `process separate;`: the RFC 9494 egress filter and the retention verdict the route reflector reads both run over the plugin connection, so either placement behaves the same. Both `bgp-gr` and `bgp-rib` receive and send the bus messages they registered for by default, with no per-peer attachment needed.
 
 See [Graceful Restart](graceful-restart.md) for timers, stale levels, communities, and failure handling.
 
@@ -80,10 +68,9 @@ After restart, confirm that peers negotiated GR, stale routes were retained only
 ## RIB reconnect replay
 
 The mandatory `bgp-rib` plugin keeps sent history in process memory across peer
-disconnects. BGP loads it automatically, but replay still requires peer
-bindings that deliver received and sent UPDATEs, state and refresh events,
-and permit UPDATE sends. Source peers must feed received UPDATEs and state to
-the same RIB. The RIB restores only eligible history: source incarnation,
+disconnects. BGP loads it automatically and delivers its registered UPDATE,
+state, and refresh messages by default unless narrowed by a peer `bus` block.
+The RIB restores only eligible history: source incarnation,
 received path and revision, native NLRI identity, and the captured Initial
 replay session must remain valid. It does not overwrite a route already
 accepted on the new session.

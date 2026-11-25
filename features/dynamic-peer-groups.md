@@ -17,4 +17,4 @@
 
 ## Description
 
-A group whose `connection/remote/ip` is `dynamic` accepts a session from any address inside its `range` list and opens its own listening socket, so a configuration naming no static peer still accepts members. Each accepted connection becomes one peer that inherits the group's whole resolved settings, its families, its `attach process` blocks and its per-peer plugin config. Overlapping ranges resolve by longest prefix match. `max-peers` bounds the group (1..100000, default 1000). <!-- source: internal/component/bgp/yang/ze-bgp-conf.yang -- leaf-list range, leaf max-peers -->
+A group whose `connection/remote/ip` is `dynamic` accepts a session from any address inside its `range` list and opens its own listening socket, so a configuration naming no static peer still accepts members. Each accepted connection becomes one peer that inherits the group's whole resolved settings, its families, its `bus` block and its per-peer plugin config. Overlapping ranges resolve by longest prefix match. `max-peers` bounds the group (1..100000, default 1000). <!-- source: internal/component/bgp/yang/ze-bgp-conf.yang -- leaf-list range, leaf max-peers -->

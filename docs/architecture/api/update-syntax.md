@@ -187,7 +187,6 @@ section, the keyword is refused.
 
 <!-- source: internal/component/bgp/plugins/cmd/update/update_text.go -- kwRestoreConfigured, ParseUpdateText -->
 <!-- source: internal/component/bgp/reactor/peer_static_restore.go -- restoreConfigured, staticRouteNamesNLRI, staticRouteKey -->
-<!-- source: internal/exabgp/bridge/bridge_owner.go -- restoringWithdrawal -->
 
 #### Withdrawing everything a peer was sent
 
@@ -1075,8 +1074,9 @@ send bgp upstream1 update text mp l2vpn/evpn eor
 
 ## Raw Passthrough Commands
 
-Raw is an explicit diagnostic injection operation. The peer must attach the
-program with `send [ raw ]`; no other send type permits it. Raw UPDATE requests
+Raw is an explicit diagnostic injection operation. The participant's and peer's
+compiled bus filters must admit `bgp:raw` (for example `send { allow [ bgp:raw ]; }`);
+no other message name permits it. Raw UPDATE requests
 are not duplicate-suppressed. Recognized locally originated UPDATEs, in body
 and full-packet form, obey RFC 4271 Section 5.1.3 (an announcement is withheld
 when its next hop is the recipient's own address) and RFC 4760 Section 8 /

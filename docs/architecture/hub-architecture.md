@@ -1444,9 +1444,11 @@ module acme-monitor {
 ### Config File
 
 ```
-plugin {
-    external acme {
-        run "/opt/acme/monitor-plugin";
+bus {
+    endpoint acme {
+        external {
+            run "/opt/acme/monitor-plugin";
+        }
     }
 }
 

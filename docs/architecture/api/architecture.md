@@ -73,7 +73,7 @@ definitions. The API's private definitions are excluded from JSON metadata.
 | **RIB** | Owned by API program (use `internal/component/bgp/rib/` as reference) |
 | **Polyglot** | API programs can be Go, Python, Rust, etc. |
 | **Cache Control** | API controls cache via `bgp cache` commands |
-| **Who gets what** | The peer's `attach process` block. A peer that attaches no block for a program feeds it nothing and refuses its sends |
+| **Who gets what** | Compiled bus filters per participant. Every participant registers what it sends and receives (running by default with nothing written); operators narrow or redirect via `bus { ... }` on the participant or under `bus { endpoint | participant }` |
 
 **When to read full doc:** Writing API programs, understanding engine/API split.
 
@@ -145,60 +145,62 @@ send bgp !10.0.0.1 cached 123  # Forward to all except source
 
 ---
 
-## Attaching a Process to a Peer
+## Message Bus and Participant Wiring
 
 ### The model
 
 ```
-Process    = one program, declared once under plugin { }, started once
-Attachment = one peer's relationship with that program, stated per peer
+Participant = any party on the bus, named by its configuration path
+              (/bgp/peer/<name>, /bgp/group/<group>, /bgp/route-server, /bus/endpoint/<name>)
+Filter      = one compiled filter per participant combining its registration,
+              its own bus { } block, and any central bus { endpoint | participant } block
 ```
 
-One process serves many peers, and each peer states its own relationship with
-it. An attachment carries two independent directions:
+Everything that takes part in the bus is a participant: a BGP peer, a BGP group,
+a compiled-in plugin, a third-party external program, or an ExaBGP script.
+Events and commands are one thing: messages in a namespace (`bgp:state`,
+`bgp:update`, `system-rib:route-install`, `"cli:show bgp peer"`), each carrying
+content and tags with a mandatory bus-stamped `sender` tag.
 
-| Direction | Leaf | Meaning |
-|-----------|------|---------|
-| Inbound | `receive [ ... ]` | the event types ze hands the program for this peer |
-| Outbound | `send [ ... ]` | the message types the program may originate toward this peer |
+A participant registers what it sends and receives at compile time
+(`registry.Registration`) or Stage 1 (`declare-registration`). With nothing
+written by the operator, what the participants registered is what runs. The
+operator narrows or redirects traffic through a direction-grouped `bus { }`
+block on the participant's own configuration, inside `bus { endpoint <name> }`,
+or centrally in `bus { participant <path> }`:
 
-A peer that attaches no block for a program is fed to it never, and refuses
-every message the program aims at that peer. Silence is the default, and the
-config is what breaks it. This holds for ze's own plugins as it holds for an
-operator's program: a config that loads `bgp-rib` and attaches it to no peer
-stores no route.
+| Direction | Fields | Meaning |
+|-----------|--------|---------|
+| Inbound | `receive { allow; from; message <name> { from; tag; } }` | which message names, senders, and tag values this participant accepts (`none` means nothing/nobody; absent `allow` means all declared; absent `from` means everybody) |
+| Outbound | `send { allow; to; message <name> { to; tag; } }` | which message names, destinations, and tag values this participant may emit (`none` means nothing/nobody; a written `to` list replaces the registered destinations whole) |
 
-Peer-output ownership can be declared separately from those permissions.
+Every message is judged at the bus when received from its sender against both
+participants' compiled filters (sender declared + send allow-list + `send > to`
++ receiver declared + receive allow-list + `receive > from` + inbound/outbound
+tag filters). Writing conflicting rules for the same participant in its own
+section and in the central `bus` section, or writing a per-message `to`/`from`
+for a message excluded by the same direction's allow-list, is refused at commit
+naming both lines.
+
+Peer-output ownership can be declared separately from bus filters.
 `DisseminationDecl` names an event namespace, an opaque role and the source
-receive and destination receive/send sets one process needs. A declaration
-creates no grant. `DeliveryGraph.ResolveDisseminationOwner` requires complete
-sets on explicit blocks of the same configured instance. A process claiming
-the role wins over ordinary owners only at an eligible destination. Multiple
-eligible owners in the winning class are refused; a role at one destination
-does not stand ordinary output down at another.
-
-The parser records whole-binding provenance in `ProcessBinding.Explicit`.
-Both graph publication and the reactor API preserve it. Existing derived
-bindings stay derived, and implicit receive additions cannot complete a
-required set. These ownership lookups describe the configuration; a writer
-must still authenticate and recheck the running process lifetime. This
-declaration gate refuses partial explicit source or destination attachments at
-validate, commit and start, with the configured instance and a completed attach
-line. A complete destination also needs a complete source on that same
-instance. An explicit block that also grants the selecting RIB less than
-FlowSpec authorization or AIGP selection needs fails a second check, and
-validation reports both refusals together, each with its completing line, so
-one edit fixes every one. The gate does not change legacy derived bindings or plugin loading;
-the broader explicit-configuration ruling below remains separate work.
+receive and destination receive/send sets one process needs. The bus itself
+performs no exclusive-role arbitration: forwarders limit themselves by session
+type (`bgp-rs` serves `rs-client` peers per RFC 7947; `bgp-rr` targets internal
+peers per RFC 4456). `DeliveryGraph.ResolveDisseminationOwner` evaluates
+eligibility against the compiled bus filters of the same configured endpoint.
+A feature's required relationships are declared and checked against the compiled
+filters at validate, commit, reload, and start; an override that removes a
+required relationship (such as cutting `bgp-rib` from a peer when `redistribute`
+imports BGP, FlowSpec authorization, or explicit `aigp` requires it) is refused
+with the completing bus line.
 <!-- source: internal/component/plugin/server/dissemination_validate.go -- ValidateDisseminationBindings -->
 <!-- source: internal/component/bgp/config/dissemination.go -- validateDissemination -->
+<!-- source: internal/component/bgp/config/bus_requirements.go -- validateBGPBusRequirements -->
 <!-- source: internal/component/bgp/config/peers.go -- peersAndDynamicGroups -->
-<!-- source: internal/component/bgp/config/redistribute_binding.go -- requireSelectionFeeds -->
 <!-- source: pkg/plugin/rpc/dissemination.go -- DisseminationDecl -->
 <!-- source: internal/component/plugin/server/dissemination.go -- DisseminationOwner, ResolveDisseminationOwner, disseminationForPlugin -->
-<!-- source: internal/component/bgp/reactor/config.go -- parseProcessBindingsFromTree, EnsureProcessBinding, GrantImplicitReceive -->
 <!-- source: internal/component/bgp/reactor/delivery_graph.go -- deliveryPeersFromSettings -->
-<!-- source: internal/component/bgp/reactor/reactor_api.go -- GetPeerProcessBindings -->
 
 The selected writer reads an immutable dissemination snapshot from the exact
 destination peer's forwarding facts. It records the session and configured
@@ -256,189 +258,154 @@ grant is removed so cleanup can finish.
 <!-- source: internal/component/plugin/server/dissemination_source.go -- CheckDisseminationSource -->
 <!-- source: internal/component/bgp/reactor/source_lease.go -- sourceLeaseAdmission, sourceLeaseWithGrant -->
 
-A refused send answers the process with three lines: which process may not send
-which message type to what it addressed, that the attach block grants the
-right (followed by the `send refused: no peer this selector names attaches this
-process ...` detail a plugin matches on), and `fix: add 'attach process <name>
-{ send [ <type> ]; }' to each peer the process sends to`.
+A refused send answers the process with an operator error naming the participant,
+the refused message type and target peers, the reason the compiled bus filter
+refused it, and a `fix:` line in bus syntax showing the `bus { send { ... } }`
+or `bus { receive { ... } }` change that permits it.
 <!-- source: internal/component/bgp/reactor/send_permission.go -- sendNotPermitted -->
 
-### Owner ruling: implied and shown, or written
+### Owner ruling: registered defaults, overrides, and `| implied`
 
-On 2026-11-18, Thomas ruled how ze treats what a configuration needs and the
-operator did not write, replacing his ruling of 2026-11-16 that such a
-configuration is refused at commit. What the configuration implies, ze does
-without asking: the plugin that serves a block the operator wrote, and the
-binding a rule the operator wrote needs. One display option on the
-configuration, in the manner of Junos `display inheritance`, shows every
-implied item beside what was written, marked as implied, with what implies it.
-Where the operator has a choice, which program watches a peer and what it may
-send, the operator writes it, and silence stays the default.
+On 2026-11-23, Thomas superseded the earlier silence-by-default (`attach
+process`) and named-flow designs with a single participant bus model:
 
-One part of the earlier ruling stands. A block the operator wrote that grants
-less than a feature the operator also configured needs is refused at commit,
-with the line that completes it. Ze never widens what was written.
-
-This is implemented in part. Today ze already implies the bindings listed
-under "The Two Bindings Ze Derives" below, and two more that section does not
-list: a FlowSpec family, and AIGP, each imply the Loc-RIB's receive binding on
-every peer. It also loads a plugin for a block, a family or a type the
-configuration holds. What is missing is the display: no option shows what is
-implied, so an operator reads a configuration that names neither the plugin
-nor the binding. A redistribution rule whose process is granted too little on
-a peer still loads and moves no route from that peer, with one log line. The
-work is owned by
-[spec-explicit-plugin-and-attach-config](../../../plan/release/fixes/spec-explicit-plugin-and-attach-config.md).
-<!-- source: internal/component/bgp/config/redistribute_binding.go -- wireRedistributeDelivery -->
-<!-- source: internal/component/bgp/config/flowspec_binding.go -- requireRIBDelivery -->
+1. **Registered defaults run when nothing is written.** Every participant
+   registers what it sends and receives at compile time (`registry.Registration`)
+   or Stage 1 (`declare-registration`). With nothing written by the operator,
+   that registration is what runs; there is no default of silence.
+2. **Overrides sit near the emitter or centrally in `bus { }`.** A `bus { }`
+   grouping defined once by the bus module is augmented onto every registered
+   participant node (`bgp { group }`, `bgp { peer }`, `bgp { route-server }`,
+   and so on) and is available on `bus { endpoint <name> }` and
+   `bus { participant <path> }`. `send > to` replaces registered destinations
+   whole (`none` means nobody); `receive > from` limits senders (absent means
+   everybody, `none` means nobody); `send > allow` and `receive > allow` narrow
+   message names (absent means all declared, `none` means nothing).
+3. **One display shows everything implied.** `show config running | implied`
+   renders every registered default under `# implied by:` comments, places
+   inline `# implied:` comments on modified lines, and shows beside each
+   written list the defaults it replaced and the line that produced each
+   effective entry.
+4. **Feature requirements are checked, never silently widened.** An override
+   that removes a relationship a configured feature requires is refused at
+   commit naming the feature, the participant, and the completing bus line.
+<!-- source: internal/component/bgp/config/bus_requirements.go -- validateBGPBusRequirements -->
 <!-- source: internal/component/plugin/server/delivery_reconcile.go -- reconcileDelivery -->
-
-### Owner ruling: endpoints and flows on the bus
-
-On 2026-11-17, Thomas ruled that `attach process` comes from ExaBGP's process
-concept and no longer fits. One block names a program, grants it events and
-grants it the right to send, and it exists only under a BGP peer, while the
-bus carries many namespaces. The configuration will state two things apart:
-
-| Concept | What it states |
-|---------|----------------|
-| Endpoint | One party registered on the bus under a name: a built-in plugin, or a program ze starts. The `plugin` block becomes this half of a `bus` block, the hub listener with it |
-| Flow | One named relationship between two parties: the events that go one way, and the commands the receiver may send back. The command list is the permission for every command an external program sends |
-
-A BGP group or peer takes part in a flow by listing its name, and the list
-merges through groups as every list does. A flow that leaves the operator no
-choice is declared by its plugin and shown by a command, not written. The
-ruling above holds unchanged: a flow no peer lists moves nothing, and a
-configuration that lacks a flow a feature needs is refused at commit with the
-line that adds it.
-
-This is not implemented yet. Everything below this section describes
-`attach process` as it works today. The work is owned by
-[spec-explicit-plugin-and-attach-config](../../../plan/release/fixes/spec-explicit-plugin-and-attach-config.md),
-which carries the fields of both blocks and a before and after example.
 
 ### Configuration Syntax
 
 ```
-# The program, declared once. One process runs, whatever number of peers
-# attach it.
-plugin {
-    external looking-glass {
-        run ./looking-glass.py;
-        encoder json;
+# The program, declared once as a bus endpoint. One process runs, whatever
+# number of peers exchange messages with it.
+bus {
+    endpoint looking-glass {
+        external {
+            run ./looking-glass.py;
+        }
+        encoding json;
+        receive {
+            allow [ bgp:update bgp:state ];
+            from [ /bgp/peer/edge1 ];
+            message bgp:update {
+                tag direction [ received ];
+            }
+        }
+        send {
+            allow [ bgp:update ];
+            to [ /bgp/peer/edge1 ];
+        }
     }
 }
 
-# The relationship, stated per peer.
-peer 198.51.100.1 {
-    attach process looking-glass {
-        receive [ update-received state ]   # what the program is fed
-        send    [ update ]                  # what it may originate here
+# Or override from the participant's own section:
+bgp {
+    peer edge1 {
+        connection { remote { ip 198.51.100.1; } }
+        bus {
+            send {
+                to [ /bus/endpoint/looking-glass ];
+            }
+        }
     }
 }
 ```
 
-`receive` names an event type and the direction it is fed in. A plain type
-means both directions, `update-received` names the UPDATEs the peer sends to
-ze, and `update-sent` names the ones ze sends to the peer. `*` names every
-registered type. `send` carries no direction, because every send type is sent.
+Messages are named in their subsystem namespace (`bgp:update`, `bgp:state`,
+`bgp:refresh`, `bgp:raw`, `system-rib:route-install`, `"cli:show bgp peer"`).
+Direction for BGP UPDATEs is carried as a tag (`tag direction [ received ]` or
+`[ sent ]`) rather than a separate token name. Every list uses `none` for
+"present and empty" (combining `none` with other entries is refused at commit).
 
 ### Groups and Dynamic Peers
 
-A group's `attach process` block reaches every peer that group produces,
-because the delivery index is built from RESOLVED peer settings and not from
-the config document. Three cases and one rule:
+A group's `bus` block reaches every peer that group produces, inherited per
+item: a line a member writes (`send > to`, `receive > from`, `send > allow`,
+`receive > allow`, or a `message <name>` / `tag <t>` entry) replaces the
+group's line of that same item whole, while items the member omits continue to
+come from its group. Three cases and one rule:
 
 | The peer | What it gets |
 |----------|--------------|
-| A member that states no block of its own | its group's list |
-| A member that restates the block | its own list, which replaces the group's for that member alone |
-| A peer created by a dynamic group | its group's list, under the address its connection arrived from |
+| A member that states no `bus` line for an item | its group's line for that item (or registered default if the group omits it) |
+| A member that writes a line for an item | its own line, replacing the group's line for that item whole (`none` replaces it with nothing) |
+| A peer created by a dynamic group | its group's `bus` block, plus any central `bus { participant /bgp/ip/<address> }` rule matching its remote address |
 
-A dynamic member is named by no config document: ze generates the name
-`dyn-<address>` when it accepts the connection. The index needs no such name,
-because it is keyed on the peer address and the member carries its group's
-bindings by inheritance.
+A dynamic member has no static peer stanza in config: ze creates the peer when
+its connection arrives and applies its group's compiled filter plus any dormant
+`/bgp/ip/<address>` rule accepted under a configured dynamic group's range.
 <!-- source: internal/component/bgp/reactor/reactor_dynamic.go -- buildDynamicPeerSettings -->
 <!-- source: internal/component/bgp/config/resolve.go -- ResolveBGPTree -->
 
-### The Two Bindings Ze Derives
+### Feature Requirements (Replacing Derived Bindings)
 
-Apart from the implicit state grant below, every binding in the index is one
-an operator wrote, with two exceptions. Both come from the `redistribute` root, and each is one end of the same route's
-journey through this index.
+Derived `ProcessBinding` entries are deleted. With nothing written by the
+operator, `bgp-rib` and `redistribute-orchestrator` receive and send by their
+own participant registrations, and `show config running | implied` makes those
+registered defaults visible.
 
-| The rule | What it derives | Why there is no choice |
-|----------|-----------------|------------------------|
-| `import bgp`, or any source registered under the BGP protocol | `receive [ update state refresh ]` toward the process `bgp-rib` runs under | the source is the daemon's own Loc-RIB, and the Loc-RIB reads a peer's UPDATEs only through this index |
-| `destination bgp` | `receive [ state ]` and `send [ update ]` toward the process `redistribute-orchestrator` runs under | the route reaches a peer's wire through that plugin, and `send` is what permits it |
+When an operator writes a `bus` override that removes a relationship a
+configured feature requires, commit validation refuses it naming the feature,
+the participant, and the completing bus line:
 
-Three properties keep them from surprising a reader:
+| Configured feature | Required relationship | Why |
+|--------------------|-----------------------|-----|
+| `redistribute` importing BGP (`import bgp` or any BGP-protocol source) | `bgp-rib` receives `bgp:update`, `bgp:state`, and `bgp:refresh` from the peer | the Loc-RIB is the redistribution source and reads peer UPDATEs through the bus |
+| `redistribute` with `destination bgp` | `redistribute-orchestrator` receives `bgp:state` and may send `bgp:update` to the peer | redistributed routes reach the peer's wire through the orchestrator |
+| FlowSpec family or explicit `aigp` | `bgp-rib` receives `bgp:update` and `bgp:state` from the peer | FlowSpec validation and explicit AIGP selection read the Loc-RIB (default iBGP AIGP without explicit `aigp` activates no requirement) |
+| Peer import/export filter chain holding a plugin's filter member | that filter owner receives `bgp:state` from the peer | the plugin needs `bgp:state` (including `removed`) to free per-peer filter state; Ze never silently widens an operator's `bus` override to add it |
 
-| Property | What it means |
-|----------|---------------|
-| Each is derived from a RULE, never from the block | a `redistribute` block whose rules imply neither gains neither |
-| The operator's binding wins | a peer that already names that process keeps its own list, and gains no second binding |
-| Both are added where the operator's bindings are | one function decides precedence, so `ze config graph` and the delivery reconcile read the same set |
-
-<!-- source: internal/component/bgp/config/redistribute_binding.go -- wireRedistributeDelivery -->
-<!-- source: internal/component/bgp/reactor/config.go -- EnsureProcessBinding -->
-
-### The Implicit State Grant
-
-One grant comes from the filter chain rather than from `redistribute`, and it
-widens a block the operator wrote. A plugin whose
-filter member a peer's import or export list carries, inserted by the plugin
-or named by the operator, is granted that peer's `state`. A member can keep
-state per peer, and the `state` event with reason `removed` is how the plugin
-learns to free it, on either transport.
-The grant names the configured process, not the registration: for
-`internal gr { use bgp-gr; }`, a `bgp-gr:llgr-ingress` member grants `gr`
-the state, so its terminal cleanup reaches the same process as its filter calls.
-
-| Property | What it means |
-|----------|---------------|
-| Only `state` | the grant adds no other type and no send type |
-| The operator's block gains it | an `attach process` block for that plugin that lacks `state` gets it, because freeing the member's per-peer state is the plugin's obligation, not the operator's |
-| It is marked implicit | `show event delivery` lists it under `implicit`, and the delivery reconcile does not report it when the plugin never subscribes to `state` |
-| Delivery is still the overlap | a plugin that does not subscribe to `state` receives nothing more |
-
-<!-- source: internal/component/bgp/config/filter_state_binding.go -- grantFilterOwnersState -->
-<!-- source: internal/component/bgp/reactor/config.go -- GrantImplicitReceive -->
+<!-- source: internal/component/bgp/config/bus_requirements.go -- validateBGPBusRequirements -->
 <!-- source: internal/component/plugin/server/delivery_reconcile.go -- edgeDisagreements -->
 
-An OPEN observer has a separate, removal-only lifecycle grant.
-`wants-validate-open` receives OPENs for every peer independently of
-attachments, so a subscribed validator also receives `state down` with reason
-`removed` without a filter member or attachment. Subscription peer selectors
-still apply; ordinary state changes and all other messages retain their
-existing grants. This closes the observation lifetime even while config has
-deactivated every filter that consumes that state.
+Peer-removal delivery to OPEN validators (`wants-validate-open`) is likewise a
+registered reception governed by the compiled bus filter rather than a bypass
+around it. It appears in `show event delivery` with origin `registered`, and is
+excluded if the operator's `receive > allow` omits it.
 <!-- source: internal/component/bgp/server/validate.go -- askOpenValidators -->
-<!-- source: internal/component/bgp/server/events.go -- onPeerStateChange, addOpenRemovalObservers -->
+<!-- source: internal/component/bgp/server/events.go -- onPeerStateChange -->
 
 ### Key Differences from ExaBGP
 
 | Aspect | ExaBGP | Ze |
 |--------|--------|-------|
 | Keyword | `neighbor {` | `peer {` |
-| Binding | `api { processes [foo]; }` | `attach process foo { ... }` in the peer |
-| Direction | `receive { parsed; packets; }` | part of the type name: `update-received` |
+| Wiring | `api { processes [foo]; }` | Registered participant defaults; overrides via `bus { endpoint foo { ... } }` or `bgp { peer ... { bus { ... } } }` |
+| Direction | `receive { parsed; packets; }` | Direction tag on `bgp:update`: `message bgp:update { tag direction [ received ]; }` |
 | Output syntax | `neighbor X announce route ...` | `update text nlri ...` or `update text mp <family> ...` |
 
 ### Data Flow: Config to Delivery
 
 ```
-the config document
+the config document (bus { } + participant bus { } blocks) + participant registrations
         │
-        ▼ ResolveBGPTree: the group's block merged into each member
-PeerSettings.ProcessBindings
+        ▼ ResolveBGPTree + CompileBus: per-item group inheritance, conflict check, one filter per participant
+PeerSettings.Bus + CompiledBus
         │
-        ▼ deliveryPeersFromSettings
+        ▼ deliveryPeersFromSettings -> BuildDeliveryGraph
 Server.UpdateDeliveryGraph -> DeliveryGraph, swapped under one atomic pointer
         │
         ▼ Server.PeerScopedProcs
-the seven peer-scoped delivery sites in bgp/server/events.go
+the peer-scoped delivery sites in bgp/server/events.go
 ```
 
 The reactor pushes a new index after every peer change: `AddPeer`,
@@ -468,12 +435,13 @@ scan of every process and every subscription on every delivered message.
 <!-- source: internal/component/bgp/reactor/delivery_graph.go -- deliveryPeersFromSettings, publishDeliveryGraphLocked -->
 <!-- source: internal/component/bgp/reactor/peer_removal.go -- completeRemovals, removalLocked -->
 
-The outbound half is enforced at the command rather than in the index: each peer
-a command reached is asked whether it grants this process the message type that
-command puts on the wire. A peer the command names and the permission refuses is
-dropped and reported. A command whose every peer refuses fails. Both halves read
-the same resolved settings, so `show event delivery` cannot disagree with what
-the daemon does.
+The outbound half is enforced at the bus when a message or engine operation
+arrives from a participant: each destination peer is checked against the
+sender's and destination's compiled bus filters (`DeliveryGraph.MaySend`). A
+peer the command names and the compiled filter refuses is dropped and reported.
+A command whose every peer refuses fails. Both halves read the same compiled
+filter, so `show event delivery` and `show config running | implied` cannot
+disagree with what the daemon does.
 
 Ten commands reach a peer's wire and every one applies that check, but they do
 not all get there the same way, and reading "the selector resolver" as the whole
@@ -485,19 +453,21 @@ and `relay-stored-route` plugin RPCs and `send bgp <selector> raw` name their
 destinations directly, as an address list, one address, or one peer. All ten
 share one filter, `filterPermittedPeers`.
 
-A relay is judged on the grant of the process that sends it, and on nothing
-else: no process lends its grant to another. bgp-rr and bgp-rs own the peer-up
-replay, and the engine treats them as owning it for a peer only when that peer
-grants them `send [ update ]`. The routes are held by bgp-adj-rib-in, which the
-operator attaches with `receive` only, so the owner reads them from the store
-(`request bgp adj-rib-in replay-routes`, one page per call, each page bounded to
-half the transport frame so the answer and the owner's relay of it each fit one
-frame) and sends each page with its own `relay-stored-route` call. A
-validation change takes the same route: the owner reads the path's current
-state (`request bgp adj-rib-in replay-path`, a one-route page) and relays it
-itself. A relay bgp-adj-rib-in sends itself (its own self-replay, or the operator's
-`request bgp adj-rib-in replay`) is judged on its own grant and refused toward a
-peer that does not grant it `send [ update ]`.
+A relay is judged on the sender's compiled filter, and on nothing else: no
+process lends its compiled filter permissions to another. `bgp-rr` and `bgp-rs`
+own the peer-up replay for the peers they serve (`rs-client` peers for `bgp-rs`,
+internal peers for `bgp-rr`), and the engine treats them as owning it for a
+peer only when their compiled filter allows sending `bgp:update` to that peer.
+The routes are held by `bgp-adj-rib-in`, which registers to receive updates, so
+the owner reads them from the store (`request bgp adj-rib-in replay-routes`, one
+page per call, each page bounded to half the transport frame so the answer and
+the owner's relay of it each fit one frame) and sends each page with its own
+`relay-stored-route` call. A validation change takes the same route: the owner
+reads the path's current state (`request bgp adj-rib-in replay-path`, a
+one-route page) and relays it itself. A relay `bgp-adj-rib-in` sends itself (its
+own self-replay, or the operator's `request bgp adj-rib-in replay`) is judged
+on its own compiled filter and refused toward a peer its filter does not admit
+for `bgp:update`.
 
 An ordinary destination's export-final transition targets its captured selecting
 process and Session. That owner reoffers current learned selections and settles
@@ -531,16 +501,15 @@ re-evaluate existing routes.
 <!-- source: internal/component/bgp/plugins/rs/server_handlers.go -- replayForPeer -->
 <!-- source: internal/component/bgp/reactor/send_permission.go -- maySend -->
 
-Raw is gated on `send [ raw ]`, a word of its own. It carries a whole BGP message
-the caller chose, so no other send type describes it and `send [ update ]` does
-not imply it. Until 2026-08-30 it was gated on ATTACHMENT alone, which left a
-raw-capable binding invisible to the session-ready expectation set
-(`Peer.initialUpdateReporters`, which reads `MayPushRoutes`). That set no longer
-holds the End-of-RIB (owner ruling, 2026-09-18). Its reports lower the replay
-fence, which parks the peer's live forwards behind a fence owner's peer-up
-replay (`docs/architecture/plugin/plugin-system.md`, "Session-ready reports").
+Raw is gated on `bgp:raw` (`send { allow [ bgp:raw ]; }`), a message of its own.
+It carries a whole BGP message the caller chose, so no other message describes
+it and `bgp:update` does not imply it. `Peer.initialUpdateReporters` reads the
+compiled bus filter (`MayPushRoutes`). That set no longer holds the End-of-RIB
+(owner ruling, 2026-09-18). Its reports lower the replay fence, which parks the
+peer's live forwards behind a fence owner's peer-up replay
+(`docs/architecture/plugin/plugin-system.md`, "Session-ready reports").
 
-The send grant does not bypass export policy. Both raw UPDATE forms meet the
+The compiled filter does not bypass export policy. Both raw UPDATE forms meet the
 session's final admission before ownership or socket writes. With a rejecting
 final, only accountable explicit withdrawals and EOR survive; opaque diagnostic
 frames are suppressed because they can conceal announcements. Recognized,
@@ -550,37 +519,29 @@ complete non-UPDATE control packets retain their diagnostic contract.
 <!-- source: internal/component/bgp/reactor/reactor_api.go -- getMatchingPeersSel, SendRawMessage -->
 <!-- source: internal/component/bgp/reactor/reactor_api_forward.go -- ForwardUpdate -->
 
-### What the Plugin Declares and What the Peer Grants
+### What the Plugin Declares and What the Compiled Filter Admits
 
-A plugin declares what it CAN handle, in its ready RPC. The peer's config
-decides what it GETS. A peer-scoped event reaches a process when both halves
-name it. At plugin ready, and again after every config apply, ze names each
-peer, process and event type the two halves disagree about, and says nothing
-when they agree.
-
-A process that NO peer attaches gets its own line, because it has no peer to
-name: it declared events and no `attach process` block anywhere in the config
-mentions it, so no peer-scoped event reaches it. Loading a plugin does not
-attach it. A config path that starts one (`rs-client`, `route-reflector-client`,
-`watchdog { }`, a custom receive token) creates no delivery edge, so the peers
-it must serve MUST also name it.
+A plugin declares what it sends and receives in its registration
+(`registry.Registration` for compiled-in plugins, Stage 1 `declare-registration`
+for external programs). That registration becomes the default wiring when the
+operator writes nothing. Any `bus` block on the participant, on the endpoint, or
+under `bus { participant <path> }` compiles with the registration into one
+filter per participant. A dormant reception (whose sender is not loaded) is
+valid and is reported as dormant by `show config running | implied` and
+`show doctor`.
 <!-- source: internal/component/plugin/server/delivery_reconcile.go -- deliveryDisagreements -->
 
-A `request subscribe` typed at a running daemon is a live capability override.
-It can add an event type the process did not declare at startup only when the
-peer's `attach process` block grants that type. It cannot widen the configured
-receive authorization, and the next config apply discards it.
+A `request subscribe` typed at a running daemon is bounded by the participant's
+registered receptions and compiled receive filter. It cannot widen the
+configured receive authorization, and the next config apply discards it.
 <!-- source: internal/component/plugin/server/delivery_graph.go -- (*Server).PeerScopedProcs, (*Server).DiscardRuntimeSubscriptions -->
 
 ### Encoding
 
-Encoding belongs to the PROCESS, not to the attachment. It comes from the
-`encoder` leaf in the program's own `plugin { }` block, and the ready RPC can
-set it. One process therefore has one encoding for every peer it serves.
-
-The `content { encoding format }` block inside an attachment parses and is not
-read. Honoring it per peer needs a per-peer format cache, which is a separate
-change with its own design question.
+Encoding belongs to the endpoint. It comes from the `encoding` leaf
+(`json` or `text`, default `json`) in `bus { endpoint <name> { encoding ...; } }`,
+and the ready RPC can set it. One endpoint therefore has one encoding for every
+peer it serves.
 <!-- source: internal/component/config/loader.go -- ExtractPluginsFromTree -->
 <!-- source: internal/component/plugin/process/process.go -- Process.SetEncoding -->
 
@@ -886,9 +847,14 @@ never accepted from the client payload:
 | Transport | Identity source |
 |-----------|----------------|
 | SSH session | SSH authenticated username |
-| Plugin (internal) | Plugin process name (engine-trusted) |
-| Plugin (external) | Plugin auth token (TLS handshake) |
+| Plugin (in-daemon) | Compiled registration identity (authorized through an `authz` profile compiled from its participant bus filter) |
+| Plugin (separate / external) | TLS connect-back auth token bound to the endpoint's registration identity (for `internal ...; process separate;`) or endpoint name (for `external`), authorized through the same `authz` profile compiled from its participant bus filter |
 | Unix socket | OS peer credentials |
+
+Every plugin identity — compiled-in or external, in-daemon or forked — is
+authorized through an ordinary `authz` profile compiled from its participant
+bus filter (`send > allow` `cli:` prefixes) on either transport; no plugin
+identity bypasses authorization profiles by prefix.
 
 The `RPCParams` struct does not carry a username field. Authorization checks use
 the `CommandContext.Username` that the server sets from the transport session.
@@ -2039,12 +2005,11 @@ not hold Ze's own marker (owner ruling, 2026-09-18).
    belong to the session, so a sync can only clear its own session's facts,
    never those of the session that replaced it.
 2. **Engine names the processes that report:** `Peer.initialUpdateReporters`
-   keeps an `attach process` binding when three facts hold together. The peer
-   GRANTS it a route-push rail, which is `send [ update ]`, `send [ raw ]`, or
-   the `*` wildcard (`ProcessBinding.MayPushRoutes`). The plugin DECLARES
-   `Registration.SignalsSessionReady`. The peer TELLS it the session came up,
-   through `receive [ state ]` or the `*` wildcard
-   (`ProcessBinding.ReceivesPeerState`).
+   keeps an endpoint from the peer's compiled bus filter (`DeliveryGraph`) when
+   three facts hold together. The compiled filter admits a route-push rail
+   (`bgp:update` or `bgp:raw`, `MayPushRoutes`). The plugin DECLARES
+   `Registration.SignalsSessionReady`. The compiled filter admits `bgp:state`
+   delivery from this peer (`ReceivesPeerState`).
 3. **resetAPISync(names):** the peer stores those NAMES as the reports it
    expects for this session, and credits each report to the process that sent
    it. Names rather than a count, because a count is fungible: a process the
@@ -2129,34 +2094,19 @@ whose only failure mode is a timeout teaches nothing when it fires, and every
 report it was still waiting for is a route that arrives after the marker
 instead of before it.
 
-**The declaration is looked up under the PROCESS name, and a process name is a
-registry key only when the operator did not rename the implementation.** A peer
-names its processes with the `attach process <name>` key, and
-`plugin { internal rs { use bgp-rs } }` runs that process as `rs` while the
-compile-time registration is filed under `bgp-rs`. `registry.SignalsSessionReady`
-answers from the registration when the name is one it holds, and hands every
-other name to the runtime seam the plugin server installs
-(`(*Server).declaresSessionReady`). The seam owns the running processes, so it
-reads the Stage-1 declaration off the process and resolves the alias through the
-run/use spelling, which is the same resolution `claimsForPlugin` performs for a
-role claim. Without that resolution every aliased binding answered "declares
-nothing" and was dropped from the barrier, and the alias form is what the
-repository's own scenarios use.
-
-**One function answers which registry row a process configuration names, and
-every caller derives from it.** `plugin.RegistryNames` reads the run/use
-spelling through `ResolvePlugin`, so `use bgp-rib`, `use ze.bgp-rib`,
-`run ze.bgp-rib` and `run ze plugin bgp-rib` each answer `bgp-rib`, and the
-process name answers for a config that carries no spelling. The barrier
-(`declaresSessionReady`), the role claim (`prospectivePlugins`), dependency
-expansion (`ExpandDependencies`), the internal runner lookup
-(`(*Process).startInternal`) and the graceful-restart doctor check all read that
-one answer. They each had their own reading before, and the readings disagreed
-about the `ze.` prefix: the barrier alone dropped it, so a peer attaching
-`run ze.bgp-rib` sent its End-of-RIB while bgp-rib was still replaying.
+**The declaration is looked up under the plugin's registration identity, never
+an endpoint alias or `run` spelling.** An endpoint such as
+`bus { endpoint rs { internal bgp-rs; } }` runs under endpoint name `rs`, while
+its compiled registration identity is `bgp-rs`. `registry.SignalsSessionReady`
+reads the registration identity directly, and the runtime seam on the plugin
+server (`(*Server).declaresSessionReady`) resolves any endpoint name to its
+authenticated registration identity (for compiled-in plugins, from the
+`internal` leaf; for external programs, from its Stage 1 declaration). Identity
+and transport are separate: running `internal bgp-rs; process separate;` keeps
+the same registration identity as running in-daemon, while a foreign `external`
+endpoint named `bgp-rs` takes nothing from the compiled registration.
 
 <!-- source: internal/component/bgp/reactor/peer_run.go -- Peer.initialUpdateReporters at Established -->
-<!-- source: internal/component/bgp/reactor/peer_settings.go -- ProcessBinding.MayPushRoutes, ProcessBinding.ReceivesPeerState -->
 <!-- source: internal/component/plugin/registry/registry.go -- Registration.SignalsSessionReady, registry.SignalsSessionReady -->
 <!-- source: internal/component/plugin/server/events.go -- (*Server).declaresSessionReady -->
 <!-- source: internal/component/plugin/resolve.go -- RegistryNames, RegistryName -->
@@ -2265,3 +2215,10 @@ CLI: when `ze_gnmi` is compiled in, `show gnmi` returns server status (enabled, 
 | Decision | It forbids | Source | Date |
 |----------|------------|--------|------|
 | When `\| implied` modifies an existing config line (such as inserting automatic members into a `filters [ ... ];` list), it keeps the line intact and places an inline `# implied: ...` comment on the same line after the statement naming what was added and why, rather than placing a comment only above the line or splitting the list across multiple lines. In Thomas's words (2026-11-23): "No, it should be on the same line and say what was added". | Modifying an existing config line under `\| implied` without a same-line trailing comment naming what was added, or expanding an existing single-line list into multi-line entries to annotate implied members. | plan/release/fixes/spec-bus-2-implied-display-and-grant-refusals.md | 2026-11-23 |
+| Everything on the bus is a participant named by its configuration path. A participant registers the messages it sends and receives, events and commands alike, and with nothing written that registration is what runs | A default of silence; a second vocabulary for commands; a participant with no path name | plan/release/fixes/spec-explicit-plugin-and-attach-config.md | 2026-11-23 |
+| A `send > to` list written on a participant replaces the destinations its messages have by registration; it never adds to them. Present and empty means nobody | An add or remove form; merging a member's list into its group's | plan/release/fixes/spec-explicit-plugin-and-attach-config.md | 2026-11-23 |
+| A `receive > from` list limits who may address a participant. Absent means everybody; present and empty means nobody | A default of nobody; a deny form | plan/release/fixes/spec-explicit-plugin-and-attach-config.md | 2026-11-23 |
+| A send and a receive allow-list of message names (`send > allow`, `receive > allow`) exist on every participant: absent means everything declared, empty means nothing. The bus enforces them when it receives the message | A deny list; enforcement left to the sender | plan/release/fixes/spec-explicit-plugin-and-attach-config.md | 2026-11-23 |
+| What is written on the participant and what is written in the `bus` section compile into one filter per participant. A disagreement between the two places, or between an allow-list and a destination on one participant, is refused at commit naming both lines | Two filters for one participant; a silent precedence between the two places | plan/release/fixes/spec-explicit-plugin-and-attach-config.md | 2026-11-23 |
+| The bus does not arbitrate between participants: no exclusive-role rule, no commit refusal and no silent winner. A plugin that must not duplicate another limits itself | A role registry in the bus that picks one plugin | plan/release/fixes/spec-explicit-plugin-and-attach-config.md | 2026-11-23 |
+| One display shows every registered default beside what the operator wrote, the defaults a written list replaced, and the line that produced each effective entry | An implied relationship that no display shows | plan/release/fixes/spec-explicit-plugin-and-attach-config.md | 2026-11-23 |

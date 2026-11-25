@@ -168,10 +168,6 @@ bgp {
                 final accept;
             }
         }
-        attach process rs {
-            receive [ update-received state open-received refresh ]
-            send [ update ]
-        }
     }
 }
 ```
@@ -216,7 +212,7 @@ A member is built from the group's own resolved settings, so it inherits every l
 - import and export filter chains
 - static routes
 - MD5, BFD and capture
-- `attach process` blocks
+- `bus` block overrides
 - community send, AS override, route reflector client and cluster ID
 - the local-AS options
 
@@ -300,35 +296,37 @@ Both reconnect waits forget their history after a stable session. Ze waits 5 sec
 
 The teardown NOTIFICATION and the log line name the family that exceeded its maximum.
 
-## Attached programs
+## Message bus delivery
 
-`attach process <name>` states which events a peer feeds a program, and which message types that program can originate toward the peer. Ze reads both halves at delivery.
+Every BGP peer, BGP group, and configured plugin is a participant on Ze's message bus. With nothing written on a peer, each configured plugin automatically receives and sends the messages it registered for, and `show configuration | implied` shows those defaults beside what you wrote.
+
+Write a `bus { ... }` block on a peer or group only when you want to override defaults — to narrow allowed message names, restrict which endpoints receive the peer's events (`send { to [ ... ]; }`), limit which endpoints may address the peer (`receive { from [ ... ]; }`), or filter by message tags:
 
 ```text
 peer transit-a {
-    attach process rib {
-        receive [ update-received state refresh ]
-        send [ update ]
+    bus {
+        receive {
+            allow [ bgp:update ];
+            from  [ /bus/endpoint/rib ];
+        }
+        send {
+            allow [ bgp:update-received bgp:state bgp:refresh ];
+            to    [ /bus/endpoint/rib ];
+        }
     }
 }
 ```
 
 | Half | Meaning |
 |------|---------|
-| `receive` | The event types this peer feeds the program. |
-| `send` | The message types the program can send toward this peer. |
+| `receive` | Which messages and senders (`allow`, `from`, per-message `message <name>`) may address this peer. |
+| `send` | Which messages and destinations (`allow`, `to`, per-message `message <name>`) this peer sends on the bus. |
 
-A peer that attaches no program feeds it no peer-scoped event, and that program cannot announce to the peer. An event that carries no peer address is not peer-scoped, so an attach block describes none of them, and every subscriber still receives them.
+`send > to` replaces the registered destination set whole (there is no add form); `none` sends to nobody. `receive > from` defaults to everybody; `none` accepts from nobody. On a group, each field is inherited item by item, and any field a member peer writes replaces that field from its group whole.
 
-The BGP namespace registers `update`, `open`, `notification`, `keepalive`, `refresh`, `state`, `negotiated`, `eor`, `congested`, `resumed`, `rpki`, `listener-ready`, `update-notification`, `connected` (a peer's TCP connection is up, before OPEN), `fsm` (each FSM state change), and `signal` (each operating-system signal the daemon takes, told per peer). Plugins register more, such as `update-rpki`.
+The BGP namespace registers `bgp:update` (`bgp:update-received`, `bgp:update-sent`), `bgp:open`, `bgp:notification`, `bgp:keepalive`, `bgp:refresh`, `bgp:state`, `bgp:negotiated`, `bgp:eor`, `bgp:raw`, `bgp:congested`, `bgp:resumed`, `bgp:rpki`, `bgp:listener-ready`, `bgp:update-notification`, `bgp:connected`, `bgp:fsm`, and `bgp:signal`. Plugins register additional messages in their own namespaces, such as `rpki:update-rpki`.
 
-An event type carries the direction it is fed in. `update` means both directions. `update-received` and `update-sent` mean one. A type a plugin registers keeps its whole name, so a plugin type that ends in `-sent` is never read as a direction. `*` feeds every type in both directions. `all` is not accepted, and a bare `sent` or `received` is refused with a message that names the token to write instead.
-
-Both directions of `update` deadlock `bgp-rs` and `bgp-rr`, because forwarding an UPDATE raises the sent event the forward is waiting on. Give those programs `update-received`.
-
-Ze logs a warning when the two halves disagree: a grant the plugin never declared, a declaration no peer grants, a direction mismatch, and a plugin no peer attaches at all.
-
-An operator command is not gated by `send`. The `send` list grants authority to a program, and AAA already checks the operator.
+An operator command is not gated by a peer's `bus` block. The bus filter governs plugin and participant messages, while AAA checks the operator.
 
 ## ADD-PATH
 

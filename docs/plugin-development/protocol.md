@@ -199,6 +199,9 @@ Plugin sends `ze-plugin-engine:declare-registration` with a `DeclareRegistration
 | `enrichers` | `[]EnricherDecl` | Show enrichers the plugin provides |
 | `pipes` | `[]PipeDecl` | CLI pipe aliases the plugin names for its own commands, and the pipe operations its handler runs |
 | `claims` | `[]string` | Exclusive runtime roles the plugin takes over |
+| `participant-nodes` | `[]ParticipantNodeDecl` | YANG schema nodes whose configured entries are participants of this plugin's kind on the message bus (empty means `/bus/endpoint/<name>`) |
+| `sends` | `[]MessageSendDecl` | Bus messages (`<namespace>:<name>` or `cli:<prefix>`) this participant may send, with tags and default destinations |
+| `receives` | `[]MessageReceiveDecl` | Bus messages (`<namespace>:<name>`) this participant is willing to receive, with default senders and registered tag filters |
 | `dissemination` | `[]DisseminationDecl` | Peer-output roles and the explicit source/destination grants each needs; declaring a role grants no permission |
 | `failure-policy` | `string` | What ze does when this plugin fails: `restart`, `ignore` or `fatal`. Omitting it means `ignore` |
 | `drain-budget` | `int` | The longest time, in seconds, the plugin's drain handler takes to answer the stop drain. Declared only with `drain-handler`; a budget above the ceiling `rpc.DrainCeilingSeconds`, or one with no handler, fails Stage 1 |
@@ -239,7 +242,7 @@ directive, 2026-09-06). An operator who configures your plugin accepts its
 terms.
 
 Declaring anything other than `restart` also says your plugin must NOT be
-started again. An operator whose `plugin { external <name> }` block writes
+started again. An operator whose `bus { endpoint <name> { external { ... } } }` block writes
 `respawn true` for such a plugin gets a daemon that refuses to start, with an
 error naming your plugin and the policy it declared. Declare `restart` when
 your plugin can come back from a crash, which usually means its state lives
@@ -250,10 +253,11 @@ is out.** It is voluntary. Declare `signals-session-ready` only when your
 plugin pushes routes into a peer from that peer's peer-up event. A plugin that
 pushes on its own schedule leaves it false and owes no report.
 
-A peer counts your plugin only when three facts hold: its `attach process`
-block grants you `send [ update ]` or `send [ raw ]`, you declared
-`signals-session-ready`, and it grants you `receive [ state ]`, so you see the
-peer-up event. Once your routes for that session are sent, dispatch:
+A peer counts your plugin only when three facts hold: its compiled bus filter
+admits `bgp:update` or `bgp:raw` from your endpoint toward the peer, you
+declared `signals-session-ready`, and your endpoint receives `bgp:state` from
+the peer, so you see the peer-up event. Once your routes for that session are
+sent, dispatch:
 
 ```
 request peer <address> plugin session ready session <initial-replay>
@@ -575,13 +579,15 @@ Plugin sends `ze-plugin-engine:ready` with an optional `ReadyInput`:
 
 | Field | Type | Description |
 |-------|------|-------------|
-| `subscribe` | `SubscribeEventsInput` | Optional startup event subscription |
 | `transport` | `string` | `"bridge"` for internal plugins; pipe closed after ack |
+| `format` | `string` | Wire event format preference (`"full"`, `"parsed"`, `"json"`) |
+| `encoding` | `string` | Wire event encoding preference (`"json"` or `"text"`) |
+| `envelope` | `bool` | Wrap delivered events in `rpc.EventEnvelope` (`{namespace, event, payload}`) |
 
-The `subscribe` field allows plugins to register event subscriptions atomically with
-startup completion. This avoids a race where `SignalAPIReady` triggers route sends before
-a separate `subscribe-events` RPC could be processed.
-<!-- source: pkg/plugin/sdk/sdk_callbacks.go -- SetStartupSubscriptions -->
+The `format`, `encoding`, and `envelope` fields carry the per-process wire
+delivery parameters applied when the plugin's Stage 1 `receives` declarations
+activate atomically before `SignalAPIReady`.
+<!-- source: pkg/plugin/sdk/sdk_callbacks.go -- SetEventFormat, SetEncoding, SetEnvelope -->
 
 When `transport` is `"bridge"`, the engine publishes bridge callbacks on the
 `PluginConn` before acknowledging ready. The SDK activates that bridge, runs
@@ -593,7 +599,7 @@ MuxConn, so bridge activation alone is not initialization completion.
 **Wire example:**
 
 ```
-#3 ze-plugin-engine:ready {"subscribe":{"events":["update","state"],"peers":["*"],"format":"json"},"transport":"bridge"}
+#3 ze-plugin-engine:ready {"format":"json","encoding":"json","transport":"bridge"}
 #3 ok
 ```
 

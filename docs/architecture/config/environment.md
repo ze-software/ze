@@ -167,22 +167,25 @@ notation supported). See [configuration.md](../../guide/configuration.md).
 
 ---
 
-## ExaBGP Bridge
+## ExaBGP Compatibility Wrapper
 
 | Variable | Default | Class | Description |
 |----------|---------|-------|-------------|
-| `exabgp.api.ack` | true | YANG | Bridge emits `done`/`error` lines on plugin stdin after each dispatched command |
-| `exabgp.api.version` | auto | YANG | ExaBGP API version of the bridge's scripts: `auto` detects each script's from its first deciding command, `4` or `6` holds every script from its start |
+| `exabgp.api.ack` | true | YANG | Wrapper emits `done`/`error` lines on script stdin after each dispatched command |
+| `exabgp.api.version` | auto | YANG | ExaBGP API version of each script: `auto` detects from the script's first deciding command, `4` or `6` holds the script from its start |
 
-The bridge reads `exabgp.api.ack` and `exabgp.api.version` through `env.Get`
-(every binary that links the bridge links the config component, which
-registers them), so ExaBGP's underscore spellings `exabgp_api_ack` and
-`exabgp_api_version` reach it too, and the dotted spelling wins when both are
-set, as in ExaBGP (`Environment.setup`: "Priority: env var (dot) > env var
-(underscore) > INI file > default"). The parent Ze process writes them via `config.ApplyEnvConfig` when the operator sets
-`environment { exabgp { api { ack <bool>; version auto|4|6; } } }`. A version
-value ExaBGP refuses stops the bridge at start with ExaBGP's own reason, and
-`ze exabgp migrate` carries ExaBGP's `api.version` (its `0` written `auto`).
+The `ze exabgp plugin` wrapper reads `exabgp.api.ack` and `exabgp.api.version`
+through `env.Get` (every binary that links the wrapper links the config
+component, which registers them), so ExaBGP's underscore spellings
+`exabgp_api_ack` and `exabgp_api_version` reach it too, and the dotted spelling
+wins when both are set, as in ExaBGP (`Environment.setup`: "Priority: env var
+(dot) > env var (underscore) > INI file > default"). The parent Ze process
+writes them via `config.ApplyEnvConfig` when the operator sets
+`environment { exabgp { api { ack <bool>; version auto|4|6; } } }` (an
+`environment` subcontainer, distinct from the retired top-level `exabgp` root).
+A version value ExaBGP refuses stops the wrapper at start with ExaBGP's own
+reason, and `ze exabgp migrate` carries ExaBGP's `api.version` (its `0` written
+`auto`).
 <!-- source: internal/exabgp/bridge/bridge_ack.go -- AckMode -->
 <!-- source: internal/exabgp/bridge/bridge_version.go -- APIVersionFromEnv, ParseAPIVersion -->
 <!-- source: internal/exabgp/migration/env.go -- mapEnvKnownKey -->

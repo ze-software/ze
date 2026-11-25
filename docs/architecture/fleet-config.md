@@ -23,7 +23,7 @@ These decisions describe the approved designs for managed listener reload and po
 
 ## Vision
 
-A managed client's config contains everything: BGP sessions, plugin settings, AND the hub connection info. The `plugin { hub { client <name> { host; port; secret } } }` block declares who the client is and where its hub lives (client blocks use `host` for the remote address). After the first boot (provisioned via `ze init`), the cached config is self-describing -- `ze start` reads it and knows everything.
+A managed client's config contains everything: BGP sessions, plugin settings, AND the hub connection info. The `bus { hub { client <name> { host; port; secret } } }` block declares who the client is and where its hub lives (client blocks use `host` for the remote address). After the first boot (provisioned via `ze init`), the cached config is self-describing -- `ze start` reads it and knows everything.
 
 Every ze instance has at least one `server` block for local plugins and SSH. The hub infrastructure is universal -- managed config is just one more use of it.
 
@@ -33,7 +33,7 @@ Every ze instance has at least one `server` block for local plugins and SSH. The
 
 ### Unified Named Blocks
 
-All hub configuration uses explicit `server` and `client` keywords under `plugin { hub { } }`:
+All hub configuration uses explicit `server` and `client` keywords under `bus { hub { } }`:
 
 | Keyword | Direction | Has `ip`/`host`+`port` | Purpose |
 |---------|-----------|------------------------|---------|
@@ -46,7 +46,7 @@ All hub configuration uses explicit `server` and `client` keywords under `plugin
 **Standalone instance** (local plugins only):
 
 ```
-plugin {
+bus {
     hub {
         server local {
             ip 127.0.0.1;
@@ -60,7 +60,7 @@ plugin {
 **Central hub** (serves local plugins AND remote managed clients):
 
 ```
-plugin {
+bus {
     hub {
         server local {
             ip 127.0.0.1;
@@ -81,7 +81,7 @@ plugin {
 **Managed client** (local plugins + remote config):
 
 ```
-plugin {
+bus {
     hub {
         server local {
             ip 127.0.0.1;
@@ -1176,7 +1176,7 @@ is read for the hub address, name and secret only while no config is cached.
 The hub serves the pki store certificate its server block names:
 
 ```
-plugin {
+bus {
     hub {
         server central {
             ip 0.0.0.0;
@@ -1243,7 +1243,7 @@ pki {
     }
 }
 
-plugin {
+bus {
     hub {
         client edge-01 {
             host 10.0.0.1;

@@ -26,24 +26,24 @@ otherwise eligible. RPKI Invalid routes remain in Adj-RIB-In but cannot be selec
 or exported.
 
 ```text
-plugin {
-    internal rib {
-        use bgp-rib;
+bus {
+    endpoint rib {
+        internal bgp-rib;
     }
-    internal adj-rib-in {
-        use bgp-adj-rib-in;
+    endpoint adj-rib-in {
+        internal bgp-adj-rib-in;
     }
-    internal rpki {
-        use bgp-rpki;
+    endpoint rpki {
+        internal bgp-rpki;
     }
-    internal role {
-        use bgp-role;
+    endpoint role {
+        internal bgp-role;
     }
-    internal modify {
-        use bgp-filter-modify;
+    endpoint modify {
+        internal bgp-filter-modify;
     }
-    internal transit-filter {
-        use bgp-filter-path-asn;
+    endpoint transit-filter {
+        internal bgp-filter-path-asn;
     }
 }
 
@@ -99,21 +99,11 @@ bgp {
             import customer;
             strict false;
         }
-        attach process rpki {
-            receive [ update-received state ];
-        }
         filter {
             export {
                 filters [ reject-asn-NO-TRANSIT ];
                 final accept;
             }
-        }
-        attach process adj-rib-in {
-            receive [ update-received state ];
-            send [ update ];
-        }
-        attach process rib {
-            receive [ update state refresh ];
         }
 
         peer transit-a {

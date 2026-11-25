@@ -20,7 +20,7 @@ Manage a fleet of Ze routers from a central Ze hub over authenticated TLS connec
 The hub exposes a dedicated `server` listener for managed clients on a separate port from its local plugin listener. Every secret must be at least 32 characters (based on `docs/guide/fleet-config.md`):
 
 ```text
-plugin {
+bus {
     hub {
         server local {
             ip 127.0.0.1;
@@ -43,7 +43,7 @@ plugin {
 Save each device's full configuration on the hub as `client-<name>.conf` (for example `client-edge-01.conf`). Keep the `client edge-01` block inside the pushed config so the device stays bound to the hub after applying updates:
 
 ```text
-plugin {
+bus {
     hub {
         server local {
             ip 127.0.0.1;
@@ -136,7 +136,7 @@ ze doctor
 - **Full per-device files (no templates or canary waves):** Each managed client has its own complete `client-<name>.conf`; Ze does not render config templates or run staged canary rollouts across groups.
 - **1 MiB divergence upload cap:** Configurations larger than 1 MiB are not uploaded automatically on divergence and must be reconciled manually via `ze data cat` and `ze data import`.
 - **Running hub required for adopt/revert:** Divergence resolution commands require a running hub so audit records are always written.
-- **Keep the client block in pushed configs:** Pushing a configuration that omits `plugin { hub { client <name> { ... } } }` disconnects the device from future hub updates.
+- **Keep the client block in pushed configs:** Pushing a configuration that omits `bus { hub { client <name> { ... } } }` disconnects the device from future hub updates.
 
 ## Related guides
 

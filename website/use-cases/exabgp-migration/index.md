@@ -37,10 +37,19 @@ ze config validate ze.conf              # Validate the result
 Run existing ExaBGP process scripts with Ze using the compatibility bridge:
 
 ```
-plugin {
-    external my-exabgp-plugin {
-        run "ze exabgp plugin /path/to/my-plugin.py";
-        encoder json;
+bus {
+    endpoint my-exabgp-plugin {
+        external {
+            run "ze exabgp plugin /path/to/my-plugin.py";
+        }
+        encoding json;
+        receive {
+            allow [ bgp:update bgp:state ];
+            from  [ /bgp/peer/upstream1 ];
+        }
+        send {
+            to [ /bgp/peer/upstream1 ];
+        }
     }
 }
 
@@ -64,9 +73,6 @@ bgp {
                     prefix { maximum 10000; }
                 }
             }
-        }
-        attach process my-exabgp-plugin {
-            receive [ update state ];
         }
     }
 }
@@ -184,20 +190,29 @@ Review the generated file before starting. In particular:
 5. Review static announcements and next-hop handling.
 6. Remove capabilities that the remote peer should not negotiate.
 
-Run the existing script through the bridge:
+Run the existing script through the translator as an external bus endpoint:
 
 ```text
-plugin {
-    external inject-routes {
-        run "ze exabgp plugin python3 /opt/scripts/inject.py";
-        encoder json;
+bus {
+    endpoint inject-routes {
+        external {
+            run "ze exabgp plugin python3 /opt/scripts/inject.py";
+        }
+        encoding json;
+        receive {
+            from [ /bgp/peer/transit-a /bgp/peer/transit-b ];
+        }
+        send {
+            to [ /bgp/peer/transit-a /bgp/peer/transit-b ];
+        }
     }
 }
 ```
 
-Bind that process only to the peers whose events it should receive. The bridge
-keeps the ExaBGP JSON and text-command contract at the script boundary while Ze
-uses its native event and command model internally.
+Scope the endpoint with `receive > from` and `send > to` to the peers whose
+events it should see and announce toward. The translator keeps the ExaBGP JSON
+and text-command contract at the script boundary while Ze uses its native
+message bus internally.
 
 Start Ze and verify each boundary rather than treating an Established session
 as sufficient proof:

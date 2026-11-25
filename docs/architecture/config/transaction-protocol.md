@@ -82,17 +82,17 @@ verifier reads without owning them (`docs/architecture/plugin/plugin-system.md`)
 The server joins those roots into the roots it delivers to the plugin when the
 plugin registers, so `ConfigReads` is the one declaration and the SDK's
 `WantsConfig` does not repeat it. Static and BGP read `bfd` this way, and
-`bgp-rpki` reads `pki`. The server finds the registry entry through the plugin
-the process runs, not the operator's block name: `plugin { internal rpki { use
-bgp-rpki } }` names the process `rpki`, and its `pki` section still arrives,
-because the lookup resolves the `use` or `run` spelling first
-(`plugin.RegistryName`). An `external` block that runs a program of its own gets
-nothing from the registry, even where it shares a compiled-in plugin's name:
-`external bgp-rpki { run "/opt/x" }` names another program, so it is not handed
-the `pki` section the compiled-in `bgp-rpki` reads. That is the rule the loader
-applies to dependencies, stated once as `PluginConfig.RunsExternalProgram` and
-applied before the lookup. The recovery of a removed plugin finds its roots the
-same way.
+`bgp-rpki` reads `pki`. The server resolves the registry entry through the plugin's compiled
+registration identity, never the operator's endpoint alias or transport:
+`bus { endpoint rpki { internal bgp-rpki; } }` (whether `in-daemon` or with
+`process separate;`) runs under endpoint name `rpki` with registration identity
+`bgp-rpki`, so its `pki` section still arrives. A foreign `external` endpoint
+gets nothing from the compiled registry even where it shares a compiled-in
+plugin's name: `bus { endpoint bgp-rpki { external { run "/opt/x"; } } }` names
+another program, so it is not handed the `pki` section the compiled-in
+`bgp-rpki` reads. Identity and transport are separate (`PluginConfig.RunsExternalProgram`
+guards the lookup). The recovery of a removed plugin finds its roots the same
+way.
 
 A read root is delivered and never owned. In the transaction the server lists a
 plugin's `ConfigReads` as the participant's `WantsConfig` and the rest of its
@@ -148,8 +148,11 @@ A section verify answer may also replace its plugin's OPEN capabilities.
 The bridge stages each answer without changing the live injector. Once all
 section verifiers have answered, including those retaining their current
 declarations, it checks the complete candidate against the unchanged owners.
-This permits one transaction to transfer a capability between plugins but
-refuses duplicate candidate owners before any apply. The verifier set uses the
+This permits one transaction to transfer a capability between plugins: two
+candidate owners declaring the same capability code with identical payload
+bytes deduplicate cleanly on the wire, while differing values of one capability
+code toward one peer are refused before any apply naming both endpoints, the
+capability, the two values, and the fix. The verifier set uses the
 same participant diff filter as the coordinator, so an operation-only
 participant cannot leave this check waiting or cause it to be skipped.
 The first apply publishes the complete capability candidate atomically;
@@ -736,8 +739,14 @@ Optional plugin schemas retain the CLI selection used at startup. The loaded
 configuration owns that selector list, and both the hub's reload loader and
 the reactor's file-backed loader pass it to the same loader for each candidate. Removing and restoring a config
 root therefore does not make its selected schema disappear. Unselected optional
-schemas remain unavailable.
+schemas remain unavailable. The process record (`RecordCommandLinePlugins` in
+`internal/component/config/declared_schemas.go`) is a second holder of the
+command-line selector list, written once by the `ze` dispatcher, read by the
+verdict's selection function beside the loader's parameter, and serving the
+doors that hold no list.
 <!-- source: internal/component/config/loader.go -- LoadConfigResult, LoadConfig -->
+<!-- source: internal/component/config/declared_schemas.go -- RecordCommandLinePlugins, CommandLinePlugins -->
+<!-- source: cmd/ze/ze_core_dispatch.go -- zeDispatch -->
 <!-- source: internal/component/bgp/config/loader.go -- CreateReactor -->
 <!-- source: internal/component/bgp/config/loader_create.go -- createReloadFunc -->
 

@@ -334,21 +334,22 @@ output with the same forwarding worker as the internal plugin.
 <!-- source: internal/component/sysrib/route_view_client.go -- openRouteViewMonitoredClient -->
 <!-- source: internal/component/sysrib/route_view_worker.go -- consume -->
 
-Choose one of these plugin blocks. `rib` names the system RIB implementation,
-while `bgp-rib` names BGP route storage.
+Choose one of these `bus` endpoint blocks. `rib` names the system RIB
+implementation, while `bgp-rib` names BGP route storage.
 
 ```
-plugin {
-    internal system-rib {
-        use rib;
+bus {
+    endpoint system-rib {
+        internal rib;
     }
 }
 ```
 
 ```
-plugin {
-    external system-rib {
-        run "ze plugin rib";
+bus {
+    endpoint system-rib {
+        internal rib;
+        process separate;
     }
 }
 ```

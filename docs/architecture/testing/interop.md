@@ -5773,24 +5773,30 @@ rejects a checker that can pass without reading a peer. Each negative assertion
 must carry positive proof that its query mechanism ran.
 <!-- source: internal/le/interoplab/bgp/checkers.go -- checkers -->
 
-#### A scenario that reads the RIB attaches the RIB plugin
+#### A scenario that reads the RIB loads `bgp-rib` and keeps its bus filter open
 
-`plugin { internal rib { use bgp-rib; } }` loads the plugin. It does NOT feed it.
-A peer delivers an event to a process only where both halves agree, and the
-peer's half is its attach block (`Server.PeerScopedProcs`,
-`internal/component/plugin/server/delivery_graph.go`). A peer with no
-`attach process rib` block grants nothing, so the plugin sees no peer at all and
-every RIB question answers empty:
+`bus { endpoint rib { internal bgp-rib; } }` loads `bgp-rib`, and by its
+registered participant defaults `bgp-rib` receives `bgp:update`, `bgp:state`,
+and `bgp:refresh` from every peer (`Server.PeerScopedProcs`,
+`internal/component/plugin/server/delivery_graph.go`) with nothing extra written
+on the peers. If a scenario needs to narrow which peers feed the RIB, it writes
+a `bus` override on the endpoint or peer, for example:
 
 ```
-	attach process rib {
-		receive [ update state refresh ];
-	}
+bus {
+    endpoint rib {
+        internal bgp-rib;
+        receive {
+            from [ /bgp/peer/edge1 ];
+        }
+    }
+}
 ```
 
-The tell is `"peers": 0` from `show bgp rib status` while `show bgp peer list`
-reports both sessions Established. Ze also logs it at startup: *"the plugin
-declared events and no peer attaches it"*.
+If an override cuts `bgp-rib` off from every peer, `"peers": 0` from
+`show bgp rib status` while `show bgp peer list` reports sessions Established
+is the tell, and `show config running | implied` shows what the written filter
+replaced.
 
 #### Explicit configuration is authoritative at every start
 

@@ -1,12 +1,16 @@
-# ExaBGP Bridge Plugin
+# ExaBGP Compatibility Wrapper
 
-The bridge runs ExaBGP-API scripts against ze's BGP engine. It has two runners
-with one behavior: an external SDK-mode process, and an internal in-process
-runner. Both hand their scripts to one `bridgerun.Fleet`, so the fork, the
-event fan-out, the ack and the respawn are written once.
+The ExaBGP compatibility wrapper (`ze exabgp plugin`) runs an ExaBGP-API script
+as an ordinary external Ze bus endpoint, translating between ExaBGP's line
+protocol and Ze's native bus messages. There is no `exabgp { bridge }` config
+root and no compiled-in internal bridge runner: each script is one bus endpoint
+whose `external { run "ze exabgp plugin ..."; }` line carries its options and
+whose `receive` / `send` blocks carry its peer and message scope. A standalone
+stdin/stdout runner (`ze exabgp plugin <command>` started with no hub token)
+also remains for operators testing a script by hand.
 
-<!-- source: internal/plugins/exabgp/bridgeplugin/internal.go -- runInternalBridge, familyDecls -->
-<!-- source: internal/plugins/exabgp/bridgeplugin/config.go -- exabgp bridge config parsing -->
+<!-- source: internal/plugins/exabgp/main.go -- Run, cmdPlugin, parsePluginArgs -->
+<!-- source: internal/plugins/exabgp/main_sdk.go -- runSDKMode -->
 <!-- source: internal/plugins/exabgp/bridgerun/fleet.go -- Fleet, Script, Broadcast -->
 
 ## The bridge translates in two directions
@@ -701,72 +705,68 @@ are gone. The fact is stated once, by the builder that already knew it.
 <!-- source: internal/exabgp/bridge/bridge_command.go -- Translation, TranslateLine -->
 <!-- source: internal/exabgp/bridge/bridge.go -- pluginToZebgp -->
 
-## The bridge runs EVERY process the config declares
+## One bus endpoint per ExaBGP process
 
 An ExaBGP config declares any number of `process <name> { run ...; }` blocks,
-and a neighbor names the ones it wants in `api { processes [ a b ] }`. The ze
-side declares the same set:
+and a neighbor names the ones it wants in `api { processes [ a b ] }`. On Ze,
+each ExaBGP script is an ordinary `bus { endpoint <name> { ... } }` stanza
+running `ze exabgp plugin`:
 
 ```
-exabgp {
-    bridge {
-        process public {
-            run "./run/api-multiple-public.run"
-            encoder text
-            feed 127.0.0.1 {
-                event [ receive-update send-update ]
-            }
+bus {
+    endpoint public {
+        external {
+            run "ze exabgp plugin --encoder text ./run/api-multiple-public.run";
         }
-        process private {
-            run "./run/api-multiple-private.run"
-            respawn disable
-            feed 192.168.0.1 {
-                event [ ]
-            }
+        receive {
+            allow [ bgp:update ];
+            from [ /bgp/peer/p1 ];
+        }
+        send {
+            to [ /bgp/peer/p1 ];
+        }
+    }
+    endpoint private {
+        external {
+            run "ze exabgp plugin ./run/api-multiple-private.run";
+            respawn false;
+        }
+        receive {
+            allow none;
+        }
+        send {
+            to [ /bgp/peer/p2 ];
         }
     }
 }
 ```
 
-The block name is the ExaBGP process name, because that is the name a neighbor's
-`api { processes [ ... ] }` list refers to. A block with no `run` command is
-REFUSED and the refusal names it.
+Endpoint names must satisfy `ipc.CheckPluginName` (1 to 64 letters, digits, or
+hyphens starting with a letter or digit); `ze exabgp migrate` normalizes
+ExaBGP process names to valid endpoint names.
 
-The `run` leaf is one string, and the runner splits it into the script's argv
-the way a POSIX shell does, with no expansion: blanks separate words, and single
-or double quotes group them. An unclosed quote is refused. ExaBGP takes the
-program and every word after it on its `run` line, and hands that list to
-`subprocess.Popen` with no shell (4.2 and 5.0 `configuration/process/parser.py`
-`run`: `return [prg] + [_ for _ in tokeniser.generator]`). `ze exabgp migrate`
-therefore writes that list as a command line, quoting a word the way Python's
-`shlex.quote` does, so `run python3 /opt/inject.py "two words";` becomes
-`run "python3 /opt/inject.py 'two words'"` and the script runs with the argv
-ExaBGP would have given it.
+ExaBGP takes the program and every word after it on its `run` line and hands
+that list to `subprocess.Popen` with no shell (4.2 and 5.0
+`configuration/process/parser.py`). `ze exabgp migrate` preserves that argv by
+shell-quoting each word onto the wrapper's `run` line, so
+`run python3 /opt/inject.py "two words";` becomes
+`run "ze exabgp plugin ... python3 /opt/inject.py 'two words'"` and the script
+receives the exact argv ExaBGP would have given it.
 
 <!-- source: internal/exabgp/bridge/bridge_command_line.go -- JoinCommandLine -->
 <!-- source: internal/exabgp/bridge/bridge_neighbor.go -- SplitCommandLine -->
-<!-- source: internal/plugins/exabgp/bridgeplugin/config.go -- runArgv -->
+<!-- source: internal/plugins/exabgp/main.go -- parsePluginArgs -->
 
-The bridge forks one child for each block and reads commands from EVERY child's
-stdout. It fans each event out to the children the event's peer FEEDS. The ack is
-per child: each script writes a line and blocks for its own `done`, and
-`disable-ack` from one script silences that script alone.
+Each endpoint runs one wrapper process that forks its script child, reads
+commands from the child's stdout, and forwards events the bus delivered to it.
+Ack state is per script: each script writes a line and blocks for its own
+`done`, and `disable-ack` silences that script alone.
 
-A `run` command the daemon cannot fork, because its program is not on the
-daemon's PATH or is not executable, stops the bridge's startup and logs one
-ERROR line: `exabgp-bridge script could not start`, with the script name, the
-`run` command, the exec error, the daemon's PATH and the fix. A restart that
-fails the same way logs the same line. The error Fleet.Start answers goes to the
-engine as the answer to a startup callback, which no operator reads, so this
-line is where the operator learns why the script's routes never reach a peer.
+A script command the wrapper cannot fork, because its program is not on PATH or
+is not executable, fails startup and logs one ERROR line naming the endpoint,
+the script command, the exec error, PATH, and the fix.
 
 <!-- source: internal/plugins/exabgp/bridgerun/script.go -- script.logStartFailure -->
-
-Until 2026-09-06 the config carried one `run` leaf and the bridge forked one
-child, so a config declaring two processes ran one of them and said nothing.
-That is the silently-wrong answer `ai/rules/principles.md` exists to prevent,
-and the three ported compatibility tests that name two processes
-(`api-no-respawn`, `api-multiple-api`, `api-api`) are what measured it.
 
 ## The negotiated block rides on a granted script's message lines
 
@@ -782,19 +782,19 @@ is handed the Protocol's own session even before the OPENs are exchanged, so
 the packet line of an OPEN then carries the empty session: no family, hold time
 0, message size 4096, `asn4` false, `refresh` absent.
 
-Ze states the block once, in its own `negotiated` event, so each runner keeps it
-per peer in a `bridge.Sessions`, from that event to the peer's `down`, and hands
-it to every message of the peer. The engine emits `negotiated` on entry to
-OpenConfirm, before the KEEPALIVE that answers the peer's OPEN
-(`Peer.announceNegotiated`), so both OpenConfirm KEEPALIVE lines carry the
-session's block, as the pin writes them, and the OPEN lines of a first session
-carry the empty session. `Event.ForGrant` then follows the script's
-grant for that peer, for both API versions: granted, every line that carries the
-block carries it, the empty session where the runner holds none for the peer
-yet; not granted, no line carries it. The external runner has no per-peer feed:
-its one script is written every event of every peer, the `negotiated` event
-among them, so every peer grants it and every line carries the block. The
-`negotiated` event writes the same block inside `neighbor` too.
+Ze states the block once, in its own `bgp:negotiated` event, so the wrapper
+keeps it per `(peer, connectionID)` in `bridge.Sessions`, from that event to
+the peer's `down`, ensuring reconnects never reuse a stale `negotiated` block
+even if `bgp:state` is not delivered. `as4` and `context_id` are stamped on
+`bgp:update` events so `overlayASPath` needs no hidden `bgp:negotiated`
+subscription. The engine emits `negotiated` on entry to OpenConfirm, before the
+KEEPALIVE that answers the peer's OPEN (`Peer.announceNegotiated`), so both
+OpenConfirm KEEPALIVE lines carry the session's block, as the pin writes them,
+and the OPEN lines of a first session carry the empty session. `Event.ForGrant`
+then follows whether the endpoint's compiled filter admits `bgp:negotiated` for
+that peer, for both API versions: admitted, every line that carries the block
+carries it (the empty session where none has arrived yet); omitted, no line
+carries it. The `negotiated` event writes the same block inside `neighbor` too.
 
 The block is ExaBGP's: `message_size`, `hold_time`, `asn4`, `refresh`,
 `families` in the order ze's event carries them, the peer's OPEN order that
@@ -813,10 +813,10 @@ lists always written, each in the order of `families`.
 
 An ExaBGP direction block says how its messages are written as well as which:
 `parsed` asks for the decoded line, `packets` for the packet line, and
-`consolidate` for the decoded line carrying the packet. ExaBGP links each word
-to the process the way it links a message kind (`Configuration._link` at the
-pin), so `ze exabgp migrate` writes them into the feed as `receive-packets`,
-`receive-consolidate`, `send-packets` and their siblings. It writes `parsed`
+`consolidate` for the decoded line carrying the packet. `ze exabgp migrate`
+carries these rendering modifiers onto the wrapper's `run` line using
+repeatable `--form <[neighbor:]direction-form>` flags (`receive-packets`,
+`receive-consolidate`, `send-packets`, and their siblings). It writes `parsed`
 only beside one of the other two, because a direction that names no form is
 written the decoded line.
 
@@ -839,70 +839,61 @@ and `body` at its top; a consolidated text UPDATE writes ` header .. body ..` on
 a line of its own before `update end`. An empty body is left out everywhere but
 the packet JSON, which writes `0x`, as ExaBGP does.
 
-The bytes come from the engine: a runner subscribes with the `full` format,
-which carries each message's body beside its parsed form (`raw.update`,
-`raw.message`, `docs/architecture/api/json-format.md`), whenever some script is
-written something read off them. That is every UPDATE a script receives, in
-any form, the decoded line included, because its AS_PATH segments, extended
-community values and unknown attribute flags come from the bytes (see "Three
-UPDATE members come from the wire bytes" in `docs/exabgp/exabgp-differences.md`),
-and any message a script is granted `packets` for in either direction, or
-`consolidate` for when received. A script with no feed list receives every
-UPDATE, so it needs them too. Only when no script receives an UPDATE or a
-packet form, such as a bridge whose scripts are granted session changes
-alone, does the runner subscribe `parsed`, so the engine does not hex-encode
-every UPDATE for nothing. The internal runner decides at `OnConfigure`, which a
-reload cannot change; the external runner's one script has no feed, so it
-always subscribes `full`. The bridge derives the header from the body length
-and the type. An OPERATIONAL message has no producer, so neither form is
-written for one.
+The bytes come from the engine: the wrapper requests `full` event format
+(`raw.update`, `raw.message`, `docs/architecture/api/json-format.md`) whenever
+its compiled filter admits UPDATEs (whose AS_PATH segments, extended community
+values and unknown attribute flags come from the wire bytes — see "Three UPDATE
+members come from the wire bytes" in `docs/exabgp/exabgp-differences.md`) or
+any `--form` modifier asks for `packets` or `consolidate`. When the endpoint
+receives neither UPDATEs nor packet forms, it subscribes `parsed` so the engine
+does not hex-encode every UPDATE for nothing. The wrapper derives the header
+from the body length and the type. An OPERATIONAL message has no producer, so
+neither form is written for one.
 <!-- source: internal/plugins/exabgp/bridgerun/fleet.go -- EventFormat -->
 <!-- source: internal/exabgp/bridge/bridge_event_packets.go -- NeedsBytes, FormsFor -->
 
 Two differences from ExaBGP remain. ExaBGP reads `consolidate` and `parsed` for
-the neighbor, from any process that asked, and ze reads them per script, which
+the neighbor, from any process that asked, and ze reads them per endpoint, which
 differs only when two processes of one neighbor ask different forms. A direction
-that grants a message and names no form word is written nothing by ExaBGP and
-the decoded line by ze, so a feed written by hand need not name one. The
-external runner has no feed, so its script is written the decoded line.
+that admits a message and names no `--form` modifier is written nothing by
+ExaBGP and the decoded line by ze.
 
 <!-- source: internal/exabgp/bridge/bridge_event_packets.go -- FormsFor, Event.Lines -->
 <!-- source: internal/plugins/exabgp/bridgerun/script.go -- script.forms -->
 <!-- source: internal/exabgp/migration/migrate_api_events.go -- appendFormGrants -->
 
-## `feed` is the relation ExaBGP models on the neighbor
+## Bus scoping replaces ExaBGP's neighbor `api` block
 
 An ExaBGP `api` block names BOTH the processes a neighbor feeds and the message
-kinds it feeds them. The relation is therefore per neighbor AND per process. Two
-neighbors can grant one process different events. A per-process event list could
-not say that, and the union of two grants over-delivers to the neighbor that
-granted less. So the ze side writes one `feed` block per peer, inside the
-process block.
+kinds it feeds them. On Ze, there is no `feed` block: the bus itself filters
+per peer and per message kind using the endpoint's `receive` and `send` blocks
+(`receive > allow`, `receive > from`, `receive > message <name> > from`, and
+direction tags such as `message bgp:update { tag direction [ received ]; }`,
+plus `send > to`).
 
-The event names are ExaBGP's own api keys: `receive-update`, `send-open`,
-`send-keepalive` and their siblings, each built from the direction and
-`Message.CODE.SHORT`. The four standalone words `neighbor-changes`,
-`negotiated`, `fsm` and `signal` join them. `bridge.Event.APIKey` answers the key
-for one event, and the fan-out compares the two, so there is no second table.
+| ExaBGP API key | Bus message & tag filter |
+|----------------|--------------------------|
+| `neighbor-changes` | `bgp:state`, `bgp:connected` |
+| `receive-update` | `bgp:update` with `tag direction [ received ]` |
+| `send-update` | `bgp:update` with `tag direction [ sent ]` |
+| `receive-open` / `send-open` | `bgp:open` with `tag direction [ received ]` / `[ sent ]` |
+| `receive-notification` / `send-notification` | `bgp:notification` with direction tag |
+| `receive-keepalive` / `send-keepalive` | `bgp:keepalive` with direction tag |
+| `receive-refresh` / `send-refresh` | `bgp:refresh` with direction tag |
+| `negotiated`, `fsm`, `signal` | `bgp:negotiated`, `bgp:fsm`, `bgp:signal` |
 
-The two empties are DIFFERENT and the difference is load-bearing.
-
-| Config | What the script is fed |
-|---|---|
-| no `feed` block at all | every event of every peer, which is what one script and one neighbor means |
-| a `feed` block with an empty `event` list | nothing from that peer |
-
-The second row is ExaBGP's own answer to `api { processes [ p ]; }` with no
-direction block. Its `flatten` reads an absent message kind as a refusal, not as
-a default.
-
-Until 2026-09-06 every script got every event of every peer. `api-check` is the
-case that measured it. Its neighbor grants `receive-update` and `send-update`
-alone. Its script exits 1 on the first line that is not the announce it waits
-for, so the session's OPEN was enough to fail it.
+The bus hands each participant its compiled filter generically at Stage 2 and
+on every filter rebuild, carrying each resolved peer's remote IP beside its
+configuration path. The wrapper uses that peer list to narrow explicit
+`neighbor *` / `peer *` commands (`Translator.servedSelector`) so a script only
+addresses the peers its compiled filter admits. An ExaBGP `api { processes [ p ]; }`
+block with no direction grants translates to `receive { allow none; }` (or
+`from none;`) so the script receives nothing from that peer while retaining its
+`send > to` scope.
 
 <!-- source: internal/exabgp/migration/migrate_api_events.go -- apiBlockEvents -->
-<!-- source: internal/plugins/exabgp/bridgerun/script.go -- script.receives, grantSet -->
+<!-- source: internal/plugins/exabgp/bridgerun/script.go -- script.receives -->
+<!-- source: internal/exabgp/bridge/bridge_command.go -- Translator.servedSelector -->
 
 ## A route is acked after its flush
 
@@ -1107,45 +1098,47 @@ codes are both sent.
 <!-- source: internal/exabgp/bridge/bridge_operational.go -- convertOperational -->
 <!-- source: internal/exabgp/bridge/bridge_command.go -- Translator.servedSelector, errSelectorMatchesNoPeer -->
 
-## `encoder` says which format a script reads
+## `--encoder` says which format a script reads
 
-`encoder` is ExaBGP's leaf. Ze declares it in the same place, inside the process
-block, so one bridge can feed a text script and a JSON script at once. An absent
-leaf is `text`, ExaBGP's own default (`configuration.get('encoder', 'text')`).
+`--encoder` (`text` or `json`) is a flag on `ze exabgp plugin`, matching
+ExaBGP's `encoder` leaf. An absent flag defaults to `text`, ExaBGP's own
+default (`configuration.get('encoder', 'text')`). Each endpoint runs its own
+wrapper process, so one daemon can run text and JSON scripts side by side.
 
-The leaf is read together with the script's API version, as ExaBGP main reads it
-since e2142a435. A script is held to the API of the first command that tells
-(`command_api_version` in ExaBGP's `dispatch/version.py`, `bridge.CommandAPIVersion`
-here): a first word in `daemon`, `session`, `system`, `rib`, `peer` is API 6;
-`neighbor`, or a word ExaBGP's `translate_v4_to_v6` translates (`announce`,
-`withdraw`, `teardown`, `help`, `api version`, `show adj-rib in`, ...), is API 4;
-anything else, `group` and a typing mistake included, decides nothing. The hold
-lasts until the script exits: a respawned child starts from the setting again.
+The encoder is read together with the script's API version, as ExaBGP main
+reads it since e2142a435. The API version is strictly internal to each
+translator process (per script): it is never shared between endpoints, never a
+bus message, and never an endpoint setting. A script is held to the API of the
+first command that tells (`command_api_version` in ExaBGP's
+`dispatch/version.py`, `bridge.CommandAPIVersion` here): a first word in
+`daemon`, `session`, `system`, `rib`, `peer` is API 6; `neighbor`, or a word
+ExaBGP's `translate_v4_to_v6` translates (`announce`, `withdraw`, `teardown`,
+`help`, `api version`, `show adj-rib in`, ...), is API 4; anything else,
+`group` and a typing mistake included, decides nothing. The hold lasts until
+the script exits: when Ze's process manager restarts the endpoint, the new
+translator starts fresh from the configured environment setting.
 
-| API version | `encoder text` (or absent) | `encoder json` |
-|-------------|----------------------------|----------------|
+| API version | `--encoder text` (or absent) | `--encoder json` |
+|-------------|------------------------------|------------------|
 | undecided | 5.x text | 6.0 JSON, envelope `6.0.0` |
 | 4 | 5.x text | 5.x JSON, envelope `4.0.1` |
 | 6 | 6.0 JSON, and one warning that text is ignored | 6.0 JSON |
 
 A held script writing the other API's command is answered with the reason and
-`error`, and the line reaches no peer, as ExaBGP answers its `UnknownCommand`. `environment { exabgp {
-api { version auto|4|6; } } }` is ExaBGP's `exabgp.api.version` (read under
-ExaBGP's spellings, `exabgp.api.version` before `exabgp_api_version`): auto detects per
-script, 4 or 6 holds every script from its start, and a value ExaBGP refuses
-stops the bridge at start. A script's `api version` line answers `API version:
-<setting> (this helper: <version>)`, and `api version <v>` moves the setting for
-the scripts started afterwards, ExaBGP's answers byte for byte. The fan-out still
-renders each event once per format in use, three at most.
+`error`, and the line reaches no peer, as ExaBGP answers its `UnknownCommand`.
+`environment { exabgp { api { version auto|4|6; } } }` sets the inherited
+`exabgp.api.version` environment variable (read under ExaBGP's spellings,
+`exabgp.api.version` before `exabgp_api_version`): `auto` detects per script,
+`4` or `6` holds the script from its start, and an invalid value exits the
+wrapper at start. A script's `api version` line answers `API version:
+<setting> (this helper: <version>)`, and `api version <v>` changes the setting
+for that translator process alone.
 
-The version state is one type, `bridge.ScriptVersion`, and every runner holds
-one per script, so no runner answers a script differently from another. That
-includes the standalone runner, `ze exabgp plugin <command>` started with no hub
-token, which speaks MuxConn on its own stdin and stdout (`bridge.Bridge`). It
-reads `exabgp.api.version` from its environment at each start, detects and
-refuses as above, and answers `api version` itself. Like the external runner it
-has no process block, so its script reads JSON: 6.0 JSON while undecided or held
-to 6, 5.x JSON (envelope `4.0.1`) once held to 4.
+The version state is one type, `bridge.ScriptVersion`, shared by both the bus
+endpoint runner and the standalone runner (`ze exabgp plugin <command>` started
+with no hub token, speaking MuxConn on stdin and stdout via `bridge.Bridge`).
+The standalone runner reads `exabgp.api.version` from its environment at start,
+detects and refuses as above, and answers `api version` itself.
 
 The two APIs read an OPEN and a NOTIFICATION differently, as ExaBGP main writes
 them (`response/json.py`, `Notification.v4_data`):
@@ -1160,16 +1153,15 @@ them (`response/json.py`, `Notification.v4_data`):
 | a labeled or VPN route on a text line | `10.0.0.0/24 label 100 next-hop 1.2.3.4 rd 65000:1` (labels without raw value, next hop before the RD) | (no text) |
 
 Hex is ExaBGP's `hexstring`, `0x` and uppercase. ze's OPEN event carries each
-capability as a code, a name and a value, and the bridge rebuilds ExaBGP's body
-per code from it: the value ze structures for six capabilities, the payload in hex
-for every other one. `asn` is the two-octet My AS field, so a four-octet AS reads
-23456, AS_TRANS, as in ExaBGP. ze's event omits an ADD-PATH family whose mode RFC
-7911 does not define, which ExaBGP shows as `disabled` or `invalid (<n>)`.
+capability as a code, a name and a value, and the translator rebuilds ExaBGP's
+body per code from it: the value ze structures for six capabilities, the
+payload in hex for every other one. `asn` is the two-octet My AS field, so a
+four-octet AS reads 23456, AS_TRANS, as in ExaBGP. ze's event omits an ADD-PATH
+family whose mode RFC 7911 does not define, which ExaBGP shows as `disabled` or
+`invalid (<n>)`.
 
-A word that names neither format is REFUSED, by the config parser and by the
-migration. Each of them names the process and the word. Until 2026-09-06 the
-leaf was parsed by nothing at all: a config asking for text got JSON, with no
-error and no log line.
+A `--encoder` value that names neither `text` nor `json` is REFUSED by the
+wrapper and by `ze exabgp migrate`.
 
 <!-- source: internal/exabgp/bridge/bridge_encoder.go -- Encoder, ParseEncoder -->
 <!-- source: internal/exabgp/bridge/bridge_version.go -- CommandAPIVersion, FormatFor, APIVersionRequest.Answer -->
@@ -1179,158 +1171,81 @@ error and no log line.
 <!-- source: internal/exabgp/bridge/bridge_event_text_nlri.go -- appendPrefixExtensive, appendLabelsText -->
 <!-- source: internal/exabgp/bridge/bridge_script_version.go -- ScriptVersion.Detect, ScriptVersion.Reset, Event.Line -->
 <!-- source: internal/exabgp/bridge/bridge.go -- Bridge.Start, Bridge.dispatchBatch, Bridge.translateAndForward -->
-<!-- source: internal/plugins/exabgp/bridgeplugin/config.go -- parseEncoder, parseFeeds -->
-
 <!-- source: internal/plugins/exabgp/bridgerun/fleet.go -- Fleet.Start, Fleet.Broadcast -->
 <!-- source: internal/exabgp/bridge/bridge_lines.go -- ScriptLines.Batch, LineRunner -->
 <!-- source: internal/plugins/exabgp/bridgerun/script.go -- script.batch, scriptRunner, script.writeLoop -->
 
-## A script that exits is started again, unless `respawn` says otherwise
+## Script exit, respawn, and route ownership
 
-`respawn` is ExaBGP's leaf and ze keeps its behavior. The default is true: a
-script that exits is forked again the moment ze reads the EOF, with no backoff.
-`respawn disable` leaves the script stopped, which is what a script that does
-its work once and exits needs.
+The translator mirrors the script it runs: when the script exits, the
+translator exits with the script's outcome. The translator does not supervise
+or respawn its child; Ze's own process manager restarts the endpoint
+(translator and script together) according to the endpoint's configured
+`external { respawn }` leaf (`respawn false;` leaves it stopped, matching
+ExaBGP's `respawn disable`). The wrapper declares `failure-policy: restart` at
+Stage 1 so an endpoint without `respawn false;` is restarted by the process
+manager and re-declares its virtual session capabilities when it reconnects.
 
-The restart is rate-limited exactly as ExaBGP rate-limits it. ExaBGP buckets the
-clock into 64-second windows and refuses the sixth fork of one process inside
-one window, counting the first. A script that dies at once therefore forks five
-times, and then stays stopped with an error line naming it.
+Route ownership belongs to the BGP engine per participant, the same way the
+engine owns routes per peer: every route an endpoint announces is held under
+that endpoint's authenticated sender identity. Two endpoints announcing the
+same prefix hold two independent entries, so one exiting leaves the other's
+route intact. When an endpoint process exits, the engine withdraws its
+originated routes by default (and `bgp-watchdog` forgets any routes given by
+that endpoint upon receiving the generic bus participant-exit lifecycle
+message), restoring configured static routes where applicable.
 
-<!-- source: internal/plugins/exabgp/bridgerun/respawn.go -- respawnLimiter, respawnWindow, respawnMax -->
+Setting `external { on-exit keep; }` keeps the endpoint's originated routes
+(and skips the watchdog forget step) when its process disappears. This option
+exists for ExaBGP compatibility (`ze exabgp migrate` emits it when ExaBGP's
+`on-exit keep` or API 4 keep-on-exit behavior requires it) and is not intended
+for general use. The standalone runner (`ze exabgp plugin <command>`) mirrors
+its script's exit and writes no withdrawals to stdout.
 
-What becomes of the routes an exited script announced is ExaBGP 6.0's
-`on-exit` leaf. `keep` leaves them and `withdraw` withdraws them. Left unset, a
-script held to API 4 keeps them, as ExaBGP 4.x and 5.x did, and any other has
-them withdrawn (ExaBGP's `Processes._on_exit`). Each exit logs
-`exabgp-bridge process exited` with `routes=keep|withdraw` and
-`by=on-exit|API 4|API 6|API undecided`. The withdrawal is settled before the
-script is started again, so it reaches the wire ahead of anything the new child
-announces.
-
-Which routes are the script's is ExaBGP's owner rule: the last script to
-announce a route owns it, and a withdraw of it from any script clears it. The
-fleet keeps that record for every route command it dispatched, keyed by the
-selector and the route, and an exit withdrawing its routes sends each one the
-withdrawal its builder wrote beside the announce (`Command.Withdrawal`), then
-flushes. Each such withdrawal carries `restore-configured`, so a route that
-replaced one the peer's static config holds gives the configured route back
-rather than leaving the prefix unannounced, as ExaBGP's `withdraw_owner` does
-(`docs/architecture/api/update-syntax.md`).
-
-On an ordinary origin-intake scope,
-the real parsed `restore-configured` command first removes its accepted API
-original through the provider and joins that removal, then gives back the
-configured route. That withdrawn original cannot replay after provider restart.
-Unrelated accepted origins remain eligible. Direct scopes keep their existing
-configured restoration path.
-
-`api-on-exit-configured` is its
-case. `api-on-exit` is the case for an API 6 script, and
-`api-on-exit-v4-keep` for an API 4 one, whose route is still standing when a
-sibling script announces after it exited. `ze exabgp migrate` carries the leaf as
-written and leaves it unset when the ExaBGP block did.
-
-The standalone runner (`ze exabgp plugin <command>`, `bridge.Bridge`) follows
-the same rule with the same ledger: it notes each route command ze accepted,
-and when its one child exits it settles the exit after the child's last batch
-is dispatched. It has no process block, so `on-exit` is unset there and the API
-version the child was held to decides. It does not respawn the child.
-
-<!-- source: internal/exabgp/bridge/bridge_owner.go -- exitPolicy, OwnerLedger, OwnerLedger.Exited, restoringWithdrawal -->
-<!-- source: internal/exabgp/bridge/bridge.go -- Bridge.Run, Bridge.exited, muxRunner.Dispatched -->
+<!-- source: internal/plugins/exabgp/main_sdk.go -- runSDKMode -->
 <!-- source: internal/component/bgp/reactor/peer_static_restore.go -- restoreConfigured -->
-<!-- source: internal/plugins/exabgp/bridgerun/script.go -- script.exited -->
-<!-- source: internal/exabgp/migration/migrate.go -- exabgpOnExit -->
-
-That is the bridge restarting a SCRIPT. The bridge itself is a ze plugin, and it
-declares `failure-policy: restart` in its own Stage-1 registration, so a bridge
-process that dies is started again by the engine and its scripts come back with
-it. The two are separate mechanisms with the same intent, and both exist because
-ExaBGP respawns a process that exits.
-
-<!-- source: internal/plugins/exabgp/bridgeplugin/internal.go -- bridgeRegistration -->
 <!-- source: internal/component/plugin/server/failure_policy.go -- (*Server).applyFailurePolicy -->
+<!-- source: internal/exabgp/migration/migrate.go -- exabgpOnExit -->
 
 ## One script cannot stall another
 
-Each child has a queue of at most 1000 lines and one goroutine draining it into
-that child's stdin. A child that stops reading fills its own pipe and its own
-queue, and the lines that no longer fit are dropped and counted. Without the
-queue that child would block the write, which is the SDK event loop for an event
-and the fan-out to every sibling for the rest of the fleet.
-
-The queue is also what makes each child's stdin have exactly one writer, so an
-event and an ack never interleave inside one line.
+Each script runs in its own endpoint process with its own bounded stdin queue
+(1000 lines) and writer goroutine. A script that stops reading fills only its
+own pipe and queue, where excess lines are dropped and counted without blocking
+other endpoints or the daemon's event loop. Having one writer goroutine also
+guarantees that an event and an ack never interleave on a single line.
 
 <!-- source: internal/plugins/exabgp/bridgerun/script.go -- queueDepth, script.send -->
 
-## The internal runner cannot read the `run` line
+## Virtual session capabilities and migration output
 
-The external runner takes its script command from the process-manager `run`
-line, so it carries ONE script. A `RunEngine(conn net.Conn)` runner never sees
-that line, so the internal runner reads the whole `process` list from the
-`exabgp { bridge { ... } }` config root, delivered by the SDK `OnConfigure`
-callback at stage 2. This is the one structural difference between the two
-runners; everything after it is shared.
+A script's virtual session capabilities — address families, route refresh, and
+ADD-PATH — are declared in the plugin protocol at Stage 1 from the wrapper's
+`run`-line flags (`--family`, `--route-refresh`, `--add-path`), never from a
+bridge config section. `ze exabgp migrate` reads them from the ExaBGP
+configuration and writes them onto each endpoint's `run` line. When two
+endpoints declare the same capability code with identical payload bytes toward
+one peer, the wire OPEN deduplicates them cleanly; differing values of one
+capability code toward one real peer are refused at start and at verify naming
+both endpoints, the capability, the two values, and the fix. Because external
+endpoint declarations are fixed for the life of the daemon, editing an external
+endpoint's `run` line on reload is refused (`RefuseChangedDeclarations`),
+naming a restart of `ze`.
 
-`ze exabgp migrate` writes the internal form, so a migrated ExaBGP config always
-reaches the runner that carries every process.
+`ze exabgp migrate` emits standard `bus { endpoint ... }` stanzas alongside
+explicit import and export `final accept` policies on each migrated peer
+(including IBGP and template-expanded neighbors) to preserve ExaBGP's exchange
+intent under RFC 8212. No global or group accept is added, and a hand-written
+Ze configuration must supply explicit policy for intended EBGP exchange just
+like any native plugin.
 
-Migration also writes explicit import and export `final accept` policies on
-each migrated peer, including IBGP and template-expanded neighbors, to preserve
-ExaBGP's exchange intent under RFC 8212. No global or group accept is added.
-The bridge itself has no policy exemption: a hand-written Ze configuration
-must supply explicit policy for intended EBGP exchange, just like a native
-plugin's configuration.
+<!-- source: internal/plugins/exabgp/main_sdk.go -- buildCapabilityDecls -->
 <!-- source: internal/exabgp/migration/migrate.go -- migrateSingleNeighbor -->
 <!-- source: internal/exabgp/migration/migrate_serialize.go -- serializeTreeIndent -->
+<!-- source: internal/component/plugin/server/reload_declarations.go -- RefuseChangedDeclarations -->
 
-The external runner carries no `encoder` and no `feed` either, for the same
-reason: a process-manager command line states neither. Its one script is written
-in JSON and is fed by every peer. Both are stated at the construction site
-rather than left to a zero value.
+## Design decisions
 
-## Stage ordering constrains the family declaration
-
-Config is not available at stage-1 registration. `familyDecls` therefore
-declares the CLI-default family at stage 1, and the `family` leaf refines the
-ADD-PATH capability encoding at stage 3, once the config has arrived.
-
-A reload that changes `route-refresh` or `add-path` is accepted: the bridge's
-config-verify answer carries the new declaration for every peer, and the engine
-installs it when the reload commits, restarting a session whose peer
-advertised the changed capability code (`docs/guide/plugins.md`, "When a Reload
-Changes a Plugin's Capability"). No running script reads either leaf.
-<!-- source: internal/plugins/exabgp/bridgeplugin/internal.go -- bridgeCapabilities, capabilityDecls -->
-<!-- source: pkg/plugin/sdk/capability_declaration.go -- DeclareCapabilitiesFrom -->
-
-Every other bridge leaf is refused while the bridge runs, because the
-bridge has no live reconfigure path: its scripts keep the config they started
-with. A reload that adds or removes a `process` block, changes anything inside
-one, or edits the `family` list is refused at config-verify with one line per
-changed leaf path (`exabgp bridge process <name>`, `exabgp bridge family`)
-saying it cannot change while ze runs, then the restart steps. A family edit is
-refused under the `family` path whether or not `add-path` is set. Apply and rollback install
-nothing: a candidate verify accepted is one the running bridge already serves.
-<!-- source: internal/plugins/exabgp/bridgeplugin/config_tx.go -- verifyReload, changedBridgeLeaves -->
-<!-- source: pkg/plugin/sdk/capability_declaration.go -- composeCapabilityVerify -->
-
-## Config root
-
-The settings nest under a top-level `exabgp` root, on an owner decision of
-2026-07-09, so the root stays available for later ExaBGP-related
-configuration. The registry plugin name stays `exabgp-bridge`.
-
-The `exabgp` root auto-loads the bridge, and the bridge declares a hard
-dependency on the `bgp` plugin (`Dependencies: {"bgp"}`), because every line a
-script writes becomes a `send bgp ...` command and every event it reads is a BGP
-event. The resolver therefore starts BGP first. A config with the bridge and no
-`bgp {}` block fails at boot ("missing required bgp { } block"), and a build
-with `ze_exabgp` but without `ze_bgp` refuses to boot the bridge, naming
-`ze_bgp`. `ze config validate` does not yet resolve hard dependencies, so it
-still accepts that second config (`plan/journal/gate-excludes-part-of-its-population.md`,
-2026-10-24). The text dispatch is invisible to `./le plugin coupling check`,
-which is why the edge is declared by hand.
-<!-- source: internal/plugins/exabgp/bridgeplugin/register.go -- Dependencies -->
-<!-- source: internal/component/plugin/server/startup_autoload.go -- getConfigPathPlugins -->
+| Decision | It forbids | Source | Date |
+|----------|------------|--------|------|
+| An ExaBGP script is an ordinary bus endpoint that runs the wrapper; the bridge config section and the internal bridge mode do not exist | A second config root or a second runner for ExaBGP scripts | plan/release/fixes/spec-explicit-plugin-and-attach-config.md | 2026-11-23 |

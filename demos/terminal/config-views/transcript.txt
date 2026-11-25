@@ -1,8 +1,4 @@
 $ ze config show router.conf bgp peer transit-a
-attach process bgp-rib {
-    receive [ update state refresh ]
-    send update
-}
 connection {
     local ip 192.0.2.1
     remote ip 192.0.2.2
@@ -17,8 +13,6 @@ session {
     }
 }
 $ ze config migrate format set router.conf 2>/dev/null | ze pipe match 'bgp peer transit-a'
-set bgp peer transit-a attach process bgp-rib receive [ update state refresh ]
-set bgp peer transit-a attach process bgp-rib send update
 set bgp peer transit-a connection local ip 192.0.2.1
 set bgp peer transit-a connection remote ip 192.0.2.2
 set bgp peer transit-a session asn local 65000

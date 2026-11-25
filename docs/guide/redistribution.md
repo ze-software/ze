@@ -460,13 +460,13 @@ still running.
 <!-- source: internal/plugins/ospf/redistribute/consumer.go -- Rejudge -->
 <!-- source: internal/plugins/isis/register.go -- init, MustRegisterRouteAttachment exportAttachment -->
 
-That block is the whole configuration. It needs no `plugin` block and no
-`attach process` block. The orchestrator that dispatches the routes auto-loads
+That block is the whole configuration. It needs no `bus` endpoint block and no
+per-peer `bus` wiring. The orchestrator that dispatches the routes auto-loads
 because the `redistribute` root is present, and it installs the rules from that
 root itself. It needs no `bgp` block either: a router that runs IS-IS or OSPF
 without BGP redistributes static, connected and IGP routes between them. When a
-rule names BGP, BGP must be configured (below). The two peer bindings the rules
-depend on are derived from the rules (below).
+rule names BGP, BGP must be configured (below). The bus delivery the rules
+depend on comes from the registered defaults (below).
 
 <!-- source: internal/component/config/redistribute/yang/ze-redistribute-conf.yang -- redistribute container -->
 <!-- source: internal/component/config/loader_redistribute.go -- ExtractRedistributeRules -->
@@ -575,21 +575,21 @@ dispatch fan-out and the replay all ask one predicate.
 
 ### What the Rules Wire For You
 
-A `redistribute` rule needs no `attach process` block. Ze derives the two it
-implies, and each one only when a rule implies it.
+A `redistribute` rule needs no per-peer `bus` block. Registered bus defaults
+cover both paths automatically, and each applies only when a rule uses it.
 
-| You write | Ze grants every peer | Because |
-|-----------|----------------------|---------|
-| `import bgp` (or `ibgp`, `ebgp`) | `receive [ update state refresh ]` toward `bgp-rib` | the source is the daemon's own Loc-RIB, and a plugin sees a peer's UPDATEs only where that peer grants them |
-| `destination bgp` | `receive [ state ]` and `send [ update ]` toward `redistribute-orchestrator` | that plugin puts the route on the peer's wire, and `send` is the permission to do so |
+| You write | Effective bus delivery | Because |
+|-----------|------------------------|---------|
+| `import bgp` (or `ibgp`, `ebgp`) | peers deliver `bgp:update`, `bgp:state`, and `bgp:refresh` to `bgp-rib` | the source is the daemon's own Loc-RIB, fed by peers on the bus |
+| `destination bgp` | `redistribute-orchestrator` receives `bgp:state` and sends `bgp:update` to peers | that plugin puts the redistributed route on the peer's wire |
 
 Two things follow, and both are deliberate:
 
-- A peer that already names one of those processes keeps its own binding,
-  exactly as written. A narrower grant you typed stays narrow, and you never get
-  a second binding for one process.
-- A rule implies only its own binding. A router that only imports IS-IS into
-  OSPF gains neither.
+- A peer or endpoint whose own `bus` block narrows delivery keeps its override.
+  Do not exclude `bgp-rib` or `redistribute-orchestrator` on peers that
+  participate in BGP redistribution.
+- A rule loads only what it needs. A router that only imports IS-IS into OSPF
+  requires no BGP participants at all.
 
 <!-- source: internal/component/bgp/config/redistribute_binding.go -- wireRedistributeDelivery, processNameFor -->
 <!-- source: internal/component/bgp/reactor/send_permission.go -- Peer.maySend -->

@@ -33,9 +33,11 @@ ExaBGP compatibility is provided via external tools, not in-engine code:
 ze exabgp plugin /path/to/exabgp-plugin.py
 
 # Ze config
-plugin {
-    external exabgp-compat {
-        run "ze exabgp plugin /path/to/exabgp-plugin.py";
+bus {
+    endpoint exabgp-compat {
+        external {
+            run "ze exabgp plugin /path/to/exabgp-plugin.py";
+        }
     }
 }
 ```

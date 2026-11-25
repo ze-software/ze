@@ -120,8 +120,8 @@ selected route that survives physical DOWN. Cache ownership alone grants none.
 <!-- source: internal/component/bgp/reactor/source_receipt.go -- liveSourceReceipt, sourceReceiptLease -->
 <!-- source: internal/component/bgp/wireu/wire_update.go -- SourceReceipt, Snapshot -->
 
-The source lease RPC checks the exact original Peer's explicit receive grant
-for the authenticated configured process. Release revokes the lease before
+The source lease RPC checks the exact original Peer's compiled bus filter
+for the authenticated endpoint. Release revokes the lease before
 joining its admitted final writes. Its terminal result is the absence of this
 owner's authority, so a retry can complete after the last revoked write has
 removed the lease. It allocates no tombstone and touches no foreign lease;

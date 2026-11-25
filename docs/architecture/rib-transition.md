@@ -93,20 +93,19 @@ RFC 4271 Section 9.1.3 allows the exclusion, and BIRD has the same default.
 FRR advertises to an internal peer with no policy, so the two disagree and Ze
 takes the explicit side.
 
-Transit is explicit on the process side too. The `bgp-rib` plugin is fed a
-peer's routes, and may send to a peer, only where that peer's `attach process`
-block grants it, as for any process
-([API architecture](./api/architecture.md), "Attaching a Process to a Peer").
-Nothing derives that binding for transit. A peer that asks for learned routes
-through an export policy and lacks the grant is reported, with the line that
-adds it.
+On the bus side, `bgp-rib` receives a peer's routes and may send to a peer by
+its registered participant defaults unless a `bus` block or allow-list overrides
+it ([API architecture](./api/architecture.md), "Message Bus and Participant
+Wiring"). Learned-route forwarding toward any peer still requires an explicit
+export policy, and an override that cuts `bgp-rib` when a peer's export policy
+or configured feature requires it is reported with the completing bus line.
 
 The requirement binds learned routes only, by the same ruling. A local
 announcement (API, configured or redistributed) and a destination served by an
-explicit route-server or reflector role keep the default they have today,
-because an announcement, a redistribution rule and a role attachment are each
-already an explicit operator decision. An external session keeps RFC 8212 for
-every route.
+explicit route-server (`rs-client`) or reflector (`route-reflector-client`) role
+keep the default they have today, because an announcement, a redistribution rule
+and a role configuration are each already an explicit operator decision. An
+external session keeps RFC 8212 for every route.
 
 The export final now takes an engine-derived route kind. On an internal
 session, absent policy rejects ordinary learned output and permits explicit

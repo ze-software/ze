@@ -1889,16 +1889,17 @@ original metadata. Sizing never re-encodes or re-quotes whole payloads.
 
 ### Mandatory FlowSpec authorization
 
-FlowSpec feasibility is independent of optional RPKI validation. Enabling
-SAFI 133 or 134 makes configuration derivation feed received UPDATE and session
-events from every peer into `bgp-rib`, including the unicast routes needed to
-authorize rules. The feature-only binding is `receive [ update-received state ]`:
-it grants neither sent-UPDATE nor refresh delivery, and no send permission.
-Explicit peer bindings and BGP-source redistribution retain their separate
-grants; the authorization feed does not take ownership of a family's exporter
-replay. A missing FlowSpec provider fails closed; disabling an RPKI validator
-does not bypass this check.
-<!-- source: internal/component/bgp/config/redistribute_binding.go -- wireRedistributeDelivery -->
+FlowSpec feasibility is independent of optional RPKI validation. With nothing
+written, `bgp-rib` receives `bgp:update` and `bgp:state` from every peer by its
+registered participant defaults, including the unicast routes needed to
+authorize rules. Enabling SAFI 133 or 134 activates the declared FlowSpec bus
+requirement (`checkFlowSpecRequirements`): an operator's `bus` override that
+cuts `bgp-rib` from receiving `bgp:update` or `bgp:state` on a peer is refused
+at commit naming the completing bus line. The requirement neither adds
+sent-UPDATE/refresh delivery nor takes ownership of a family's exporter replay.
+A missing FlowSpec provider fails closed; disabling an RPKI validator does not
+bypass this check.
+<!-- source: internal/component/bgp/config/bus_requirements.go -- checkFlowSpecRequirements -->
 
 The received rule remains in its peer's RIB while infeasible. Its destination
 component must have a best covering unicast route in the same AFI. VPN FlowSpec
@@ -3849,6 +3850,16 @@ releases and permits useful fresh live work.
 
 
 ### Original source catch-up before cold membership
+
+Before its first peer-up replay page, the route reflector asks the receive
+store to cover each eligible live source's last applied UPDATE at the new
+destination's UP. The projection names the address, peer owner and physical
+connection. It carries no routes. A pending or refused projection cannot
+complete the destination's initial replay, and its retry has sent no pages.
+An unregistered receive store leaves the independent FlowSpec replay available.
+Historical GR routes keep their original retained membership checks.
+<!-- source: internal/component/bgp/plugins/rr/replay_sources.go -- captureReplaySources, waitReplaySources -->
+<!-- source: internal/component/bgp/plugins/adj_rib_in/replay_sources.go -- replaySourceProgressCommand -->
 
 The existing eligibility request may carry `after-msg-id` on a query naming
 the original peer owner and physical connection. The receive store checks its

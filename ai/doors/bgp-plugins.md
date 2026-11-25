@@ -39,7 +39,7 @@ talks to the engine is in `ai/digests/plugin-transport.md`.
 | Outside party | Contract | Page |
 |---------------|----------|------|
 | A third-party BGP plugin author | The process protocol, the Stage 1 `declare-registration` (families, filters, filter insertions, cache consumer, claims, `signals-session-ready`), capability injection, the event and command formats. The in-tree plugins are the examples such an author reads | `docs/plugin-development/protocol.md`, `docs/architecture/api/process-protocol.md`, `docs/architecture/api/capability-contract.md` |
-| An operator | Each plugin's YANG config, its commands, the `<type>:<name>` filter reference of a type that serves a filter role (`Registration.FilterTypes`), the `match` conditions through which a BGP chain reaches the `prefix-list`, `as-path-list`, `as-path-length`, `community-match` and `reject-asn` types, and the alias form `internal rs { use bgp-rs }` | `docs/guide/plugins.md`, `docs/guide/configuration.md` |
+| An operator | Each plugin's YANG config, its commands, the `<type>:<name>` filter reference of a type that serves a filter role (`Registration.FilterTypes`), the `match` conditions through which a BGP chain reaches the `prefix-list`, `as-path-list`, `as-path-length`, `community-match` and `reject-asn` types, and the endpoint form `bus { endpoint rs { internal bgp-rs; } }` (which preserves compiled registration identity under any alias or `process separate`) | `docs/guide/plugins.md`, `docs/guide/configuration.md` |
 | Another plugin | Route metadata keys a plugin sets or reads, and the dependency order on state events (`bgp-gr` before `bgp-rib`) | `docs/architecture/meta/README.md`, `docs/architecture/plugin/plugin-relationships.md` |
 | A protocol peer or server | The RFCs these plugins implement: a GR peer, an RPKI cache, a BMP collector, a route-server client | `rfc/short/`, `docs/guide/graceful-restart.md`, `docs/guide/rpki.md`, `docs/guide/bmp.md` |
 | The public catalog | Registration metadata is published as the plugin catalog | `docs/architecture/plugin/plugin-system.md`, "Registration metadata feeds the website catalog" |
@@ -97,7 +97,7 @@ talks to the engine is in `ai/digests/plugin-transport.md`.
 |------|------------|
 | `docs/architecture/plugin/plugin-system.md` | Registration fields, startup phases, claims, the barrier, session-ready, the process boundary |
 | `docs/guide/plugins.md` | What an operator configures for each BGP plugin, and how an external plugin connects |
-| `docs/architecture/api/architecture.md` | The engine and plugin split, `attach process`, the startup barrier |
+| `docs/architecture/api/architecture.md` | The engine and plugin split, the message bus and participant filters, the startup barrier |
 | `docs/architecture/api/process-protocol.md` | Every RPC and event payload a plugin sends or receives |
 | `docs/architecture/plugin/rib-storage-design.md`, `ai/digests/rib.md` | How `bgp-rib` stores routes and runs best path |
 | `docs/architecture/meta/README.md` | The route metadata keys a plugin can set or read |

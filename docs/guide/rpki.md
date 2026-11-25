@@ -23,12 +23,12 @@ is unknown.
 Add the `bgp-rpki` and `bgp-adj-rib-in` plugins, then configure one or more RTR cache servers under `bgp { rpki { ... } }`.
 
 ```
-plugin {
-    internal rpki {
-        use bgp-rpki
+bus {
+    endpoint rpki {
+        internal bgp-rpki;
     }
-    internal adj-rib-in {
-        use bgp-adj-rib-in
+    endpoint adj-rib-in {
+        internal bgp-adj-rib-in;
     }
 }
 
@@ -62,13 +62,6 @@ bgp {
                     }
                 }
             }
-        }
-
-        attach process rpki {
-            receive [ update-received state ]
-        }
-        attach process adj-rib-in {
-            receive [ update-received state ]
         }
     }
 }
@@ -268,19 +261,20 @@ Invalid. Replacing a length-only authorization with one for a different origin
 makes the retained route ineligible; restoring the correct origin can admit it
 again without another UPDATE.
 
-### Plugin Bindings
+### Bus Delivery
 
-Bind the rpki plugin with `attach process rpki { receive [ update-received state ]; }`. UPDATEs supply the received routes; state events remove a disconnected peer's tracked paths. Bind adj-rib-in with `attach process adj-rib-in { receive [ update-received state ]; }` too: it owns the validation gate and retained received routes.
+Both `bgp-rpki` and `bgp-adj-rib-in` register `bgp:update-received` and `bgp:state` on the message bus automatically when loaded, so no per-peer attachment is required. UPDATEs supply the received routes; state events remove a disconnected peer's tracked paths; `bgp-adj-rib-in` owns the validation gate and retained received routes.
 <!-- source: internal/component/bgp/plugins/rpki/register.go -- Dependencies: bgp-adj-rib-in -->
 
-Both bindings grant no send type and do not receive the OPEN, so adding them to
-a peer whose session is already up does not reset that session. A commit or
-reload that attaches them tells each newly attached process the session is up,
-then asks the peer to send its routes again with one ROUTE-REFRESH per
-negotiated family, so the routes the peer announced before the change are
-validated too. A peer that did not advertise Route Refresh and has already
-announced routes cannot be asked again, so that peer is restarted (Cease
-subcode 6) instead. The full rule is in [Config Reload](config-reload.md).
+Neither plugin sends toward peers or requires OPEN events, so widening a peer's
+receive-only `bus` filter to deliver to them while the session is already up
+does not reset that session. A commit or reload that brings an established peer
+into scope tells each newly receiving endpoint the session is up, then asks the
+peer to send its routes again with one ROUTE-REFRESH per negotiated family, so
+the routes the peer announced before the change are validated too. A peer that
+did not advertise Route Refresh and has already announced routes cannot be asked
+again, so that peer is restarted (Cease subcode 6) instead. The full rule is in
+[Config Reload](config-reload.md).
 <!-- source: internal/component/bgp/reactor/peer_derived_bindings.go -- receiveOnly, feedCatchUp -->
 
 ## How It Works
@@ -511,25 +505,21 @@ When the ROA cache is empty: `"rpki": {"status": "unavailable"}`.
 Instead of receiving separate UPDATE and rpki events, you can use the `bgp-rpki-decorator` plugin to get a single `update-rpki` event containing both the UPDATE data and the RPKI validation state:
 
 ```
-plugin {
-    internal rpki-decorator {
-        use bgp-rpki-decorator
+bus {
+    endpoint rpki {
+        internal bgp-rpki;
     }
-}
-
-bgp {
-    peer peer1 {
-        attach process my-consumer {
-            receive [ update-rpki ]
-        }
-        attach process rpki {
-            receive [ update-received state ]
-        }
-        attach process rpki-decorator {
-            receive [ update-received rpki ]
-        }
-        attach process adj-rib-in {
-            receive [ update-received state ]
+    endpoint rpki-decorator {
+        internal bgp-rpki-decorator;
+    }
+    endpoint adj-rib-in {
+        internal bgp-adj-rib-in;
+    }
+    endpoint my-consumer {
+        external { run "/usr/local/bin/my-consumer"; }
+        encoding json;
+        receive {
+            allow [ rpki:update-rpki ];
         }
     }
 }
@@ -755,7 +745,7 @@ When the rpki plugin is not loaded, routes flow directly into Adj-RIB-In without
 | Routes delayed 30s then accepted | RPKI validation callback missing or unresponsive | Check process bindings and plugin logs; an empty or expired cache returns NotFound without this delay |
 | All routes Invalid | Wrong cache server data, or origin AS mismatch | Check `show bgp rpki roa` output, verify VRP coverage |
 | No VRPs loaded | Cache empty or RTR synchronization failed | Check `show bgp rpki status` and plugin logs; for TLS, check the named credentials, certificate chains, and DNS reference name |
-| Routes accepted without validation | rpki plugin not bound to peer | Add `attach process rpki { receive [ update-received state ]; }` to peer config; the change applies to a running session without resetting it when the peer supports Route Refresh or has announced no route yet; a peer without Route Refresh that has announced routes is restarted (see Plugin Bindings) |
+| Routes accepted without validation | `bgp-rpki` endpoint not loaded or peer excluded by a `bus` filter override | Ensure `bgp-rpki` is loaded and no `bus` block excludes `/bus/endpoint/rpki` from receiving `bgp:update-received` and `bgp:state`; widening a peer's receive-only bus filter applies to a running session without resetting it when the peer supports Route Refresh or has announced no route yet; a peer without Route Refresh that has announced routes is restarted (see Bus Delivery) |
 
 
 ### Decisions queued across source cleanup

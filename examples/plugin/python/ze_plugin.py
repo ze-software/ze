@@ -575,7 +575,7 @@ class Plugin:
         # (internal/component/plugin/ipc/tls.go authenticateWithName), and
         # ZE_PLUGIN_NAME carries that name.
         name = os.environ.get("ZE_PLUGIN_NAME") or self.name
-        started_by_ze = "ze starts this program from a `plugin { external <name> { run ...; } }` block; " \
+        started_by_ze = "ze starts this program from a `bus { endpoint <name> { external { run ...; } } }` block; " \
             "run it with ZE_PLUGIN_MODE=declare to print its declaration instead"
         if not token:
             raise _Fatal("ZE_PLUGIN_HUB_TOKEN is not set, so the plugin cannot authenticate to ze: " + started_by_ze)

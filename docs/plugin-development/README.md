@@ -42,15 +42,14 @@ func main() {
 		return nil
 	})
 
-	// Subscribe to updates at startup (race-free -- registered atomically
-	// with the "ready" signal before routes start flowing).
-	p.SetStartupSubscriptions([]string{"update"}, nil, "")
-
 	// Run the 5-stage startup protocol and enter the event loop.
+	// Stage 1 Receives declares the bus messages this plugin accepts; with no
+	// operator override, registered messages flow automatically.
 	// Returns nil on clean shutdown: a bye, or the engine closing the
 	// connection, which is how a daemon stop ends every plugin.
 	if err := p.Run(context.Background(), &sdk.Registration{
 		Families: []sdk.FamilyDecl{{Name: "ipv4/unicast", Mode: "both"}},
+		Receives: []sdk.MessageReceiveDecl{{Message: "bgp:update"}},
 	}); err != nil {
 		fmt.Fprintf(os.Stderr, "error: %v\n", err)
 		os.Exit(1)
@@ -58,8 +57,8 @@ func main() {
 }
 ```
 <!-- source: pkg/plugin/sdk/sdk.go -- NewFromEnv, Run, Plugin -->
-<!-- source: pkg/plugin/sdk/sdk_callbacks.go -- OnEvent, OnConfigure, SetStartupSubscriptions -->
-<!-- source: pkg/plugin/sdk/sdk_types.go -- Registration, FamilyDecl, ConfigSection -->
+<!-- source: pkg/plugin/sdk/sdk_callbacks.go -- OnEvent, OnConfigure, SetEventFormat, SetEncoding, SetEnvelope -->
+<!-- source: pkg/plugin/sdk/sdk_types.go -- Registration, FamilyDecl, ConfigSection, MessageReceiveDecl -->
 
 ### 2. Build and Test
 
@@ -67,7 +66,7 @@ func main() {
 go build -o my-plugin
 ```
 
-`ze plugin test [options] <config-file>` inspects plugin YANG loading and config delivery. It does not validate an arbitrary plugin binary. To exercise an external binary, run ze with a config that declares it in `plugin { external ... }`, or add a functional test that starts the plugin through the normal process manager.
+`ze plugin test [options] <config-file>` inspects plugin YANG loading and config delivery. It does not validate an arbitrary plugin binary. To exercise an external binary, run ze with a config that declares it in `bus { endpoint <name> { external { run ...; } } }`, or add a functional test that starts the plugin through the normal process manager.
 <!-- source: internal/component/plugin/cli/test_cmd.go -- cmdPluginTest usage -->
 
 To check that a program in any language behaves as a plugin, run the
@@ -91,7 +90,7 @@ That a Program Is a Valid Plugin".
 ### 3. Configure Ze
 
 ```
-plugin {
+bus {
     hub {
         server local {
             ip 127.0.0.1;
@@ -100,23 +99,20 @@ plugin {
         }
     }
 
-    external my-plugin {
-        run "./my-plugin";
-        encoder json;
-    }
-}
-
-peer transit-a {
-    attach process my-plugin {
-        receive [ update state ];
+    endpoint my-plugin {
+        external {
+            run "./my-plugin";
+        }
+        encoding json;
     }
 }
 ```
 
-The `attach process` block is what feeds the plugin. A plugin the config loads
-and no peer attaches runs, subscribes, and is handed no peer event. Say in your
-plugin's documentation which `receive` list it needs, because the operator
-writes it. See `docs/guide/plugins.md`, "Binding Plugins to Peers".
+With nothing else written, the plugin receives and sends the messages it
+declared in Stage 1 (`Receives` and `Sends`). To restrict delivery to specific
+peers or messages, the operator adds a `receive` or `send` filter on the
+endpoint (for example `receive { from [ /bgp/peer/transit-a ]; allow [ bgp:update bgp:state ]; }`)
+or a `bus` block on the peer itself. See `docs/guide/plugins.md`.
 
 The engine sets these environment variables before launching the plugin process:
 
@@ -274,11 +270,12 @@ The Go SDK (`pkg/plugin/sdk`) provides:
 
 | Method | Purpose |
 |--------|---------|
-| `SetStartupSubscriptions(events, peers []string, format string)` | Race-free event subscription (included in Stage 5 ready RPC) |
+| `SetEventFormat(format string)` | Wire event format preference (`"full"`, `"parsed"`, `"json"`) applied when Stage 1 `Receives` activate |
 | `SetEncoding(enc string)` | Set event encoding preference (`"json"` or `"text"`) |
+| `SetEnvelope(enabled bool)` | Wrap delivered events in `rpc.EventEnvelope` (`{namespace, event, payload}`) |
 | `DeclareCapabilitiesFrom(extract CapabilityExtractor)` | Register the extractor whose Stage 2 output is the Stage 3 capability declaration; each reload's config-verify answer carries its output for the candidate, which the engine installs |
 
-<!-- source: pkg/plugin/sdk/sdk_callbacks.go -- SetStartupSubscriptions, SetEncoding -->
+<!-- source: pkg/plugin/sdk/sdk_callbacks.go -- SetEventFormat, SetEncoding, SetEnvelope -->
 <!-- source: pkg/plugin/sdk/capability_declaration.go -- DeclareCapabilitiesFrom -->
 
 ### Engine Calls (call after startup, typically in `OnStarted` or `OnEvent`)
@@ -365,12 +362,10 @@ p.OnExecuteCommand(func(serial, command string, args []string, peer string, pipe
     return "done", `{"status":"running"}`, nil
 })
 
-// Subscribe to updates at startup.
-p.SetStartupSubscriptions([]string{"update"}, nil, "")
-
-// Run the plugin.
+// Run the plugin (Stage 1 Receives declares which bus messages to receive).
 err = p.Run(context.Background(), &sdk.Registration{
     Families: []sdk.FamilyDecl{{Name: "ipv4/unicast", Mode: "both"}},
+    Receives: []sdk.MessageReceiveDecl{{Message: "bgp:update"}},
     Commands: []sdk.CommandDecl{{Name: "show my-plugin status", ShortHelp: "Show status"}},
     Schemas:  []sdk.SchemaDecl{{Module: "my-plugin-conf", Namespace: "urn:example:my-plugin:conf", YANGText: myYANG, Handlers: []string{"my-prefix"}}},
 })

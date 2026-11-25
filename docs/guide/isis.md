@@ -415,12 +415,12 @@ when leaking a prefix to a lower level (RFC 2966), never to mark external origin
 `destination isis { import isis }` is accepted by the schema but is a no-op:
 loop prevention rejects redistributing IS-IS into IS-IS.
 
-The block above is the whole configuration. It needs no `plugin` block and no
-`attach process` block, and a router running IS-IS without BGP needs no `bgp`
+The block above is the whole configuration. It needs no `bus` endpoint block and
+no per-peer `bus` wiring, and a router running IS-IS without BGP needs no `bgp`
 block: only a rule that names BGP does, and such a rule with no `bgp` block is
-refused at load and at commit. `import bgp` derives each peer's delivery to the
-Loc-RIB, and `destination bgp` derives the send permission the orchestrator
-needs on each peer.
+refused at load and at commit. `import bgp` uses the Loc-RIB's registered bus
+delivery, and `destination bgp` uses the orchestrator's registered send
+messages.
 
 A consumer that registers after a producer emitted is replayed the producer's
 current set. The static prefix therefore reaches the LSP whichever of the two

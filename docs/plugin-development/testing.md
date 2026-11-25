@@ -9,13 +9,14 @@ program in declare mode (`ZE_PLUGIN_MODE=declare`, described in
 [protocol.md](protocol.md), "Query Mode: Answering Without Starting") and judges
 what the program wrote. It needs no daemon and no config file.
 
-With no daemon running, the checker is the only command that starts your
-program. `ze show plugin declarations config <file>` starts no external plugin
-then: it lists your plugin with the state `not-available`, and its reason names
-this checker and the form a running Ze answers. A running Ze starts your
-program in declare mode when you type `show plugin declarations config <file>`
-in the session `ze cli` opens, and the row then carries what your plugin
-declares.
+With no daemon running, the conformance checker and offline config commands
+(`ze config validate`, `fmt`, `dump`, `diff`, `graph`) start declared external
+programs in declare mode (`ZE_PLUGIN_MODE=declare`, never their run loop) to
+read their Stage 1 YANG modules and bus declarations. `ze show plugin
+declarations config <file>` lists an external endpoint with state
+`not-available` offline and names this checker; in a `ze cli` session against a
+running daemon, `show plugin declarations config <file>` queries the program in
+declare mode and reports its declarations.
 <!-- source: internal/component/plugin/declarations.go -- configuredDeclarationRow, unavailableDeclarationRow, queriedDeclarationRow -->
 
 Two commands run the same checker and write the same rows:
@@ -31,7 +32,7 @@ ze show plugin conformance run "./my-plugin --flag" name acme-monitor
 ```
 
 The value after `run` is the run string you would configure under
-`plugin { external <name> { run ...; } }`, as one quoted token. A shell starts
+`bus { endpoint <name> { external { run ...; } } }`, as one quoted token. A shell starts
 it, and a relative path is read from the directory you typed the command in.
 `name` is the plugin name the checks use in their refusals. Without it, the
 name is the file name of the program the run string starts. The program has the
@@ -110,7 +111,7 @@ for a declaration that nobody read.
 ### What this version does not judge
 
 These rows are `not-judged` in every report. Test each behavior under a
-daemon: configure the plugin with `plugin { external <name> { run ...; } }` and
+daemon: configure the plugin with `bus { endpoint <name> { external { run ...; } } }` and
 start ze.
 
 | Check | Stage | Why the checker does not judge it |

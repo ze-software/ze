@@ -420,14 +420,18 @@ The subprocess remembers the last path it sent for each route. It skips a path
 the engine Loc-RIB would treat as unchanged, so an UPDATE that keeps the same
 best path sends no RPC.
 Failure of the mandatory metric feed terminates the subprocess connection.
-AIGP derives received-UPDATE and state delivery to the RIB from every peer.
-An explicit binding that omits these inputs is refused; no Adj-RIB-In replay
-plugin or forwarding permission is added. A reload that adds or removes this
-derived delivery does not restart the running sessions: the RIB catches up
-with a ROUTE-REFRESH, or a session restarts when its peer cannot re-send
-(`docs/architecture/core-design.md`, "BGP Peer Reload: Swap or Restart"). The feature-only binding grants
-neither sent-UPDATE nor refresh delivery. BGP-source redistribution and explicit
-peer bindings retain their separate grants.
+Derived bindings are deleted. With nothing written, `bgp-rib` receives
+`bgp:update` and `bgp:state` from every peer by its registered participant
+defaults. Only an explicitly written `aigp` configuration activates the
+declared bus requirement (`bgp-rib` receiving `bgp:update` and `bgp:state`); an
+operator's `bus` override that removes those inputs when `aigp` is explicitly
+configured is refused at commit naming the completing bus line. Default iBGP
+AIGP (where `aigp` is not written) activates no bus requirement and does not
+refuse cutting `bgp-rib` on a peer, while default best-path selection still
+compares AIGP. A reload that adds or removes `bgp-rib` receive delivery does
+not restart the running sessions: the RIB catches up with a ROUTE-REFRESH, or a
+session restarts when its peer cannot re-send
+(`docs/architecture/core-design.md`, "BGP Peer Reload: Swap or Restart").
 
 Origination uses configured metrics only. Ze does not automatically derive
 origination policy from redistribution. ACCEPT_OWN re-import is disabled;

@@ -172,7 +172,7 @@ daemon requires of every raise a plugin sends.
 ## What the functional tests drive
 
 Three `.ci` files exercise the operator path, and all three drive the daemon over
-SSH through `ze cli` rather than over a plugin channel. A `plugin { external ... }`
+SSH through `ze cli` rather than over a plugin channel. A `bus { endpoint ... { external { ... } } }`
 block would hand the fixture a channel to dispatch on and would change what the
 daemon under test is running, and the two wiring rows these files answer ask for
 the real path.

@@ -457,7 +457,7 @@ ze env get ze.log              # details for one var
 |------|---------|
 | `-d`, `--debug` | Enable debug logging (sets `ze.log=debug`) |
 | `ze config edit -f <file>` | Edit a loose file without opening its store |
-| `--plugin <name>` | Load additional plugin for YANG/native configs (repeatable). Hub/orchestrator configs reject this; use `plugin { internal ... }` or `plugin { external ... }` in the config instead. |
+| `--plugin <name>` | Load additional plugin for YANG/native configs (repeatable). Hub/orchestrator configs reject this; use `bus { endpoint ... }` in the config instead. |
 | `--pprof <addr:port>` | Start pprof HTTP server for profiling |
 | `--chaos-seed <N>` | Chaos testing seed (0=off, -1=time-based) |
 | `--chaos-rate <0-1>` | Chaos fault probability |
@@ -780,7 +780,7 @@ Symptom: session establishes briefly then NOTIFICATION received
    ze show plugin list               # list compiled-in plugins
    ```
 
-2. **Check plugin is bound to peer:** Config must have `attach process <name> { receive [...] }` on the peer
+2. **Check bus delivery for the peer:** Run `ze cli -c "show event delivery"` and confirm no `bus { send { ... } receive { ... } }` override excludes the endpoint or peer
 
 3. **Check plugin logs:** Set `ZE_LOG_PLUGIN_RELAY=debug` to see plugin stderr output
 

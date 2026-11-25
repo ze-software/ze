@@ -6,13 +6,9 @@ Graceful Restart (RFC 4724) preserves forwarding state across BGP session restar
 ## Configuration
 
 ```
-plugin {
-    internal gr {
-        use bgp-gr
-    }
-    internal rib {
-        use bgp-rib
-    }
+bus {
+    endpoint gr  { internal bgp-gr; }
+    endpoint rib { internal bgp-rib; }
 }
 
 bgp {
@@ -25,15 +21,6 @@ bgp {
                     restart-time 120;
                 }
             }
-        }
-
-        attach process gr {
-            receive [ open state eor ]
-            send [ update ]
-        }
-        attach process rib {
-            receive [ update state refresh ]
-            send [ update ]
         }
     }
 }
@@ -243,9 +230,9 @@ For example, GR value `000300010180` means three seconds and
 
 ### Running bgp-gr in a child process
 
-The examples on this page load the plugin with `internal <name> { use bgp-gr; }`.
-`external <name> { run "ze plugin bgp-gr"; }` runs the same engine in a child
-process, and it behaves the same way. The RFC 9494 procedures run in the
+The examples on this page load the plugin in-daemon with `bus { endpoint gr { internal bgp-gr; } }`.
+Adding `process separate;` runs the same engine in a child process over TLS
+connect-back, and it behaves the same way. The RFC 9494 procedures run in the
 plugin, beside the peer capability state it records, as members of the peers'
 filter lists (see "Long-Lived Stale Routes in the Filter Lists" below), and
 the families it retains for a departed peer reach `bgp-rr` and `bgp-rs` as the

@@ -33,8 +33,8 @@ Ze aims for **easy migration from ExaBGP**, not 100% compatibility.
 |------|--------|-------|-------|
 | Keyword | `neighbor` | `peer` | Migration converts |
 | API output | `community` | `communities` | Plural for consistency |
-| Config syntax | `api [<name>] { processes [...] }` | `attach process <name> { }` | The name is optional and groups the settings for a reader. A peer can carry several api blocks, and ExaBGP unions them |
-| Process selection | `processes-match [ <regex>... ]` | `attach process <name> { }` | The pattern is anchored at the start of the process name, as `re.match` anchors it. A pattern set that selects no process is refused, and the two lists are mutually exclusive |
+| Config syntax | `api [<name>] { processes [...] }` | `bus { endpoint <name> { send { to [...]; } receive { from [...]; allow [...]; } } }` | The name is optional and groups the settings for a reader. A peer can carry several api blocks, and ExaBGP unions them; migration compiles them into each script endpoint's `bus` filter |
+| Process selection | `processes-match [ <regex>... ]` | `bus { endpoint <name> { ... } }` | The pattern is anchored at the start of the process name, as `re.match` anchors it. A pattern set that selects no process is refused, and the two lists are mutually exclusive |
 | NLRI format | `announce`/`withdraw` with next-hop grouping | `<family>` array with `action: add/del` | See below |
 | RD format | `65000:1` | `0:65000:1` (with type prefix) | Disambiguates Type 0 vs Type 2 |
 
@@ -168,28 +168,42 @@ the rest of the config is converted. Ze supports neither BGP multi-session nor
 the OPERATIONAL message (`ai/META-DECISIONS.md`).
 <!-- source: internal/exabgp/migration/migrate_unimplemented.go -- untranslatedCapabilities, untranslatedCapabilityWarning -->
 
-A process block's `run` line keeps the program and every argument after it, as
-ExaBGP runs them. A quoted argument stays one argument: `run python3
-/opt/inject.py "two words";` migrates to `run "python3 /opt/inject.py 'two
-words'"`, which the bridge splits back into the same argv
-(`docs/architecture/exabgp-bridge.md`).
+Each ExaBGP `process` block becomes one ordinary external bus endpoint under
+`bus { endpoint <name> { external { run "ze exabgp plugin [options] <cmd> [args...]"; } } }`.
+There is no `exabgp` config root and no per-peer process attachment block: the endpoint's
+own `bus` filter (`send { to [...]; }`, `receive { from [...]; allow [...]; }`,
+and per-message `receive { message <name> { from [...]; tag direction [...]; } }`
+entries) carries the neighbor scope, and the wrapper's `run` line carries the
+virtual session capabilities (`--family`, `--route-refresh`, `--add-path`)
+derived from the neighbors naming the process, plus `--encoder` and `--form`
+modifiers where non-default (`docs/architecture/exabgp-bridge.md`). A quoted
+argument on the ExaBGP `run` line stays one argument: `run python3
+/opt/inject.py "two words";` preserves the argument boundary inside the wrapper
+command line.
 <!-- source: internal/exabgp/migration/migrate.go -- migrateProcesses -->
+<!-- source: internal/exabgp/migration/migrate_bus.go -- buildWrapperRunCommand, populateEndpointBusFilters -->
 
-A process block's `on-exit` leaf (`keep` or `withdraw`) is carried as written,
-and left unset when the ExaBGP block leaves it unset. The bridge then decides
-what becomes of an exited script's routes as ExaBGP 6.0 does
-(`docs/architecture/exabgp-bridge.md`).
+A process block's `respawn` leaf becomes `external { respawn false; }` when
+explicitly disabled (`true` is both ExaBGP's default and what the wrapper's
+`FailurePolicy` restart requests, so it writes nothing). Its `on-exit` leaf
+becomes `external { on-exit keep; }` for `on-exit keep` and for a process held
+to API version 4 with no `on-exit` leaf; `on-exit withdraw` is Ze's default and
+writes nothing, because the engine withdraws an exited participant's originated
+routes by default (`docs/architecture/exabgp-bridge.md`).
 <!-- source: internal/exabgp/migration/migrate.go -- exabgpOnExit -->
+<!-- source: internal/exabgp/migration/migrate_bus.go -- resolveEndpointOnExit -->
 
-A process keeps its ExaBGP name in the `exabgp { bridge { process <name> } }`
-block, underscores and dots included: every process binds the in-process
-bridge, so no ExaBGP name becomes a `plugin external` name, the one key that
-allows only letters, digits and hyphens. The bridge holds a name of at most 64
-characters, and ExaBGP sets no limit, so a longer name is cut to its first 64
-characters. A cut that another process already holds is cut shorter and given
-`-2`, then `-3`. The migration prints one warning for each name it changed,
-and the process's feed blocks follow the new name.
-<!-- source: internal/exabgp/migration/migrate_process_name.go -- bridgeProcessNames, renamedProcessWarning -->
+Every migrated process becomes a `bus { endpoint <name> }` key, which must
+satisfy `ipc.CheckPluginName` (`^[a-zA-Z0-9][a-zA-Z0-9-]{0,63}$`). Names that
+already satisfy `ipc.ValidPluginName` are reserved unchanged first. Any other
+name is sanitized deterministically: every character outside `[a-zA-Z0-9-]`
+(including `_` and `.`) becomes `-`, leading hyphens are stripped (falling back
+to `p` when nothing remains), and the result is truncated to 64 characters. A
+collision with an already-taken name appends `-2`, `-3`, ... while truncating
+the base to fit within 64 characters. The migration prints one warning for each
+name it changed, naming both the ExaBGP process name and the new endpoint name.
+<!-- source: internal/exabgp/migration/migrate_process_name.go -- endpointProcessNames, sanitizeEndpointBase, renamedProcessWarning -->
+<!-- source: internal/component/plugin/ipc/plugin_name.go -- CheckPluginName, ValidPluginName -->
 
 A neighbor with `shutdown true` migrates to the peer `shutdown {}` container,
 so the migrated peer stays held down as it was under ExaBGP, and `request peer
@@ -330,26 +344,32 @@ peer so Ze carries the 4- or 16-octet redirect target in `MP_REACH_NLRI` per
 
 ### Running ExaBGP Plugins
 
-Use `ze exabgp plugin` to run existing ExaBGP plugins with Ze:
+Use `ze exabgp plugin` to run existing ExaBGP scripts with Ze. Each script runs
+as its own external bus endpoint over TLS connect-back, or standalone on stdin
+and stdout when invoked by hand for testing:
 
 ```bash
-# Command line
+# Standalone (hand testing on stdin/stdout, no connection to Ze)
 ze exabgp plugin /path/to/exabgp-plugin.py
 
-# In Ze config
-plugin {
-    external exabgp-compat {
-        run "ze exabgp plugin /path/to/plugin.py";
+# In Ze config (one endpoint per script)
+bus {
+    endpoint exabgp-compat {
+        external {
+            run "ze exabgp plugin /path/to/plugin.py";
+        }
     }
 }
 ```
 
-The bridge translates bidirectionally:
-- Ze JSON -> ExaBGP JSON (to plugin stdin)
-- ExaBGP commands -> Ze commands (from plugin stdout)
+The wrapper translates bidirectionally:
+- Ze bus events -> ExaBGP JSON or text (to script stdin, selected by `--encoder`)
+- ExaBGP commands -> Ze commands (from script stdout)
 
-See `internal/exabgp/` for the Go library implementation.
+When the script exits, the wrapper exits with the script's outcome, and Ze's
+process manager restarts the endpoint according to `external { respawn }`. See
+`internal/exabgp/` and `internal/plugins/exabgp/` for the Go implementation.
 
 ---
 
-**Updated:** 2026-10-28
+**Updated:** 2026-11-25

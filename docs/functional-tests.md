@@ -3482,10 +3482,12 @@ log.
 walk. A `.ci` spawns it the way it spawns the engine-step executor:
 
 ```
-plugin {
-	external record-plugin {
-		run "le mock record-plugin"
-		encoder json
+bus {
+	endpoint record-plugin {
+		external {
+			run "le mock record-plugin";
+		}
+		encoding json;
 	}
 }
 ```

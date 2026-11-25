@@ -31,7 +31,7 @@ files, no package under `internal/component/plugin/` imports
 | A forked plugin | TLS connect-back: `ZE_PLUGIN_HUB_HOST`, `ZE_PLUGIN_HUB_PORT`, `ZE_PLUGIN_HUB_TOKEN`, `ZE_PLUGIN_CA_PEM`, `ZE_PLUGIN_NAME`, then `#0 auth`. It never gets `DirectBridge` | `process-protocol.md`, "Mode 2: Subprocess (TLS connect-back)" |
 | A plugin binary ze does not carry | Query mode: started with `ZE_PLUGIN_MODE=declare`, it writes its Stage 1 line to stdout and exits 0 | `process-protocol.md`, "Query Mode", and `ai/rules/plugins.md` |
 | A Go plugin outside this repository | `sdk.NewFromEnv`, `sdk.NewFromTLSEnv`, `sdk.NewWithConn`, `sdk.Registration` (an alias of `rpc.DeclareRegistrationInput`), every `On*` callback, `sdk.RunOrDeclare`, and the `pkg/ze` interfaces | `docs/plugin-development/README.md`, `component-boundaries.md` |
-| An operator | `plugin { external <name> { run ...; } }` (`internal/component/plugin/yang/ze-plugin-conf.yang`) | `docs/guide/plugins.md` |
+| An operator | `bus { endpoint <name> { external { run ...; } } }` (`internal/component/plugin/yang/ze-plugin-conf.yang`) | `docs/guide/plugins.md` |
 
 A field or method name in `rpc` is wire, not Go: renaming a JSON tag breaks
 every plugin written in another language.
@@ -41,12 +41,13 @@ daemon runs each declared external plugin before the full parse, reads its
 Stage 1 declaration and keeps the request unanswered until the plugin's startup
 tier (`pluginserver.HoldDeclaredPlugins`, `Manager.StartDeclared`). The plugin
 waits for its Stage 1 answer in the meantime, and the tier never forks it a
-second time. With no daemon running Ze starts no external plugin's program
-(owner ruling): the commands that parse a config then hold the compiled-in
-schema alone and say that a section of an external plugin is not available
-(`config.SchemaWithDeclaredPlugins`). Only the conformance check and `show
-plugin declarations` run a program in declare mode, because running the
-program the operator names is their purpose
+second time. With no daemon running, a command that parses a config
+(`config.SchemaWithDeclaredPlugins` / `config.PublishDeclaredSchemas`) starts
+each declared external program in query mode (`ze.plugin.mode=declare`, never
+its run loop), joins and publishes its Stage 1 YANG modules and bus
+declarations, and validates against them, failing closed when a program cannot
+be asked (`PublishDeclaredSchemasForInspection` lets diagnostic commands inspect
+configs naming missing binaries)
 (`docs/plugin-development/schema.md`, "What works today";
 `docs/architecture/config/yang-config-design.md`, "Who publishes").
 
@@ -63,8 +64,8 @@ declares another schema is refused at Stage 1 (`refuseChangedSchema`, the
   bus.** A rule for external plugins alone needs a transport reason or an
   arrival-order reason, and any other difference is a defect
   (`plugin-system.md`, "One plugin, two ways to reach the bus").
-- **The engine never enumerates plugins.** Families, events, send types,
-  commands and claims all arrive by declaration (`DESIGN-HISTORY.md`, Plugin
+- **The engine never enumerates plugins.** Families, messages (`Sends` and
+  `Receives`), commands and claims all arrive by declaration (`DESIGN-HISTORY.md`, Plugin
   system, the row `Plugin declares what it handles; engine never enumerates`).
 - **One engine-op entry per RPC.** The JSON path, the direct path and the typed
   bridge setter all derive from its `engineOps` entry

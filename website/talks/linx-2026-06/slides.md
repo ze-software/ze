@@ -488,8 +488,8 @@ Ze Engine Core (event bus for components and plugins)
 ## Example: route server
 
 ```
-plugin {
-    internal rs { use bgp-rs; }
+bus {
+    endpoint rs { internal bgp-rs; }
 }
 bgp {
     router-id 192.0.2.254;

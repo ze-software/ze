@@ -20,8 +20,8 @@ sender configuration as `flowspec-sender.conf`; configure the remote router as
 AS 64501 at `192.0.2.20`.
 
 ```text
-plugin {
-    internal rib { use bgp-rib; }
+bus {
+    endpoint rib { internal bgp-rib; }
 }
 
 bgp {

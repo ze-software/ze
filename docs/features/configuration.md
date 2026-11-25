@@ -200,7 +200,7 @@ External processes receive BGP events and send commands:
 `ze config graph <file>` exposes configuration groups, peers, plugin dependencies, and their relationships as machine-readable nodes and edges. Use it to identify which peers inherit a shared value before changing that group.
 
 Plugin dependency expansion keys on the REGISTERED plugin name, not on the
-operator's list label. `plugin { internal rs { use bgp-rs } }` names the instance
+operator's list label. `bus { endpoint rs { internal bgp-rs; } }` names the endpoint
 `rs` and runs the registered plugin `bgp-rs`, and the dependencies `bgp-rs`
 declares are pulled in. Keying on the label made the resolver treat the plugin as
 external and skip expansion, so both hard and optional dependencies were dropped

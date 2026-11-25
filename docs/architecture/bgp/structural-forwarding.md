@@ -102,18 +102,19 @@ enabling it cannot overtake cached work already queued for that source.
 
 The fast path forwards in place of the route server's cached forward, so it
 reaches only the destinations that forward may reach. The cached forward is
-checked against the destination's `attach process <route server> { send
-[ update ] }` grant (`filterPermittedPeers`). The fast path reads the same
-grant: a peer's forwarding snapshot records whether it grants `send [ update ]`
-to a process whose registration declares `RelaysOnRSFastPath`, resolved through
-the process's `use` spelling, and both passes of `reactorForwardRSSection`
-select no peer without it. bgp-rs is the plugin that declares it. The source
-side reads the same declaration: the cached forward relays only what the route
-server receives, and the delivery graph feeds it a source's UPDATEs only through
-the source's `attach process <route server> { receive [ update-received ] }`
-grant (or `update`, or `*`). The snapshot records that grant too, and the gate
-in `notifyMessageReceiver` declines the fast path for a source without it, so
-neither rail relays that source.
+checked against the compiled bus filter (`filterPermittedPeers`) for `bgp:update`
+toward the destination. The fast path reads the same compiled bus filter: a
+peer's forwarding snapshot records whether the compiled filter admits `bgp:update`
+from an endpoint whose compiled registration identity declares
+`RelaysOnRSFastPath`, and both passes of `reactorForwardRSSection` select no
+peer without it. `bgp-rs` is the plugin that declares it (and limits itself to
+`rs-client` peers per RFC 7947). The source side reads the same compiled bus
+filter: the cached forward relays only what the route server receives, and the
+delivery graph feeds it a source's UPDATEs only when the compiled filter admits
+`bgp:update` (direction `received`) from that source to the route server. The
+snapshot records that admission too, and the gate in `notifyMessageReceiver`
+declines the fast path for a source without it, so neither rail relays that
+source.
 <!-- source: internal/component/bgp/reactor/peer_forward_facts.go -- rsRelaySendGranted, rsRelayReceiveGranted -->
 <!-- source: internal/component/bgp/reactor/reactor_notify.go -- notifyMessageReceiver -->
 <!-- source: internal/component/bgp/reactor/forward_rs.go -- reactorForwardRSSection -->

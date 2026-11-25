@@ -7,9 +7,9 @@ Plugins declare their configuration schema using YANG (RFC 7950). This guide cov
 | Plugin kind | Its own YANG module | Config it receives |
 |-------------|---------------------|--------------------|
 | Internal plugin, compiled into `ze` (package added to `internal/component/plugin/all`) | Registered at build, parsed and validated; the operator writes config under its roots | Its `WantsConfig` roots |
-| External plugin (a separate process, SDK or any language) | Joined to the schema at `ze start`, from the modules its Stage 1 declaration lists under `schemas` (config, command and rpc modules); the operator writes config under its roots. With no daemon running Ze starts no plugin, so `ze config validate` and the other commands that parse a config then cannot check a section under those roots | The roots it declares, its own included |
+| External plugin (a separate process, SDK or any language) | Joined to the schema at `ze start` from the modules its Stage 1 declaration lists under `schemas` (config, command and rpc modules); with no daemon running, offline config commands start each declared external program in query mode (`ZE_PLUGIN_MODE=declare`, never its run loop) to join its modules and validate sections under its roots | The roots it declares, its own included |
 
-At `ze start` the daemon reads the plugin declarations first (the `plugin`
+At `ze start` the daemon reads the bus declarations first (the `bus`
 block and the plugins named on the command line), runs each declared external
 plugin, reads its Stage 1 declaration, joins every module it lists and only
 then parses the full config. The plugin waits for its Stage 1 answer in the
@@ -21,7 +21,7 @@ modules change only when `ze` restarts.
 Ze enforces that rule while it runs:
 
 - A reload whose config adds or removes an external plugin, or changes the
-  `run`, `encoder`, `respawn` or `timeout` of one, is refused whole. The
+  `run`, `encoding`, `respawn`, `timeout` or `on-exit` of one, is refused whole. The
   message names each plugin and what changed, and its fix is `restart ze`.
   The rest of the config reloads without a restart, your own section
   included.
@@ -85,71 +85,32 @@ by a warning that your module is not available with no running Ze, whose fix
 is `ze cli`: typed in that session, `show schema list` lists your module and
 `show yang tree config` shows its nodes.
 
-With no daemon running, Ze never starts an external plugin's program. Your
-module reaches Ze only when `ze start` runs your plugin, so a command that
-parses a config with no daemon holds the schemas compiled into the `ze` binary
-and nothing else. It accepts a config that declares your plugin and holds no
-section under your roots. It refuses a section under your roots as
-`unknown top-level keyword: <root>`, and the message says why and how to check
-the section.
+With no daemon running, a command that parses a config (`ze config validate`,
+`fmt`, `dump`, `diff`, `graph`, `migrate`, `completion`, `ze config edit`, and
+`ze plugin test`) calls `config.SchemaWithDeclaredPlugins` (or
+`config.PublishDeclaredSchemas`), which starts each declared external program
+in query mode (`ZE_PLUGIN_MODE=declare`, never its run loop), reads its Stage 1
+declaration, joins its `schemas` and bus declarations, and validates sections
+under its roots offline. If a declared program cannot be asked (missing binary,
+non-zero exit, bad declaration, or timeout), the command fails closed naming
+the endpoint, its `run` line, the cause, and `ze show plugin conformance run
+"<command>"` — it never accepts or prints a partial config as complete.
 
-`ze config validate <file>` asks the running Ze first when the config declares
-an external plugin: it sends the file's content, so the file may be anywhere,
-and the running Ze, which read your module when it started your plugin, judges
-the section in full. The output and the exit codes are those of a local
-verdict. With no Ze running it answers:
+Offline diagnostic commands (`ze doctor`, the support report, and `ze show
+plugin declarations config <file>`) use `PublishDeclaredSchemasForInspection`,
+so they can still inspect a config whose external binary is missing or broken
+and report the diagnostic rather than aborting before their checks run.
 
-```
-config ze.conf does not parse: it holds a name that no config schema compiled into ze defines
-the config declares external plugin "acme-monitor"; the config schema of an external plugin is not compiled into ze: ze reads it from the plugin when `ze start` runs it. This command starts no plugin, so only a running ze that started with these plugins checks a section that such a plugin defines, and none answered: no ze listens at 127.0.0.1:2222 (...). Run the command below, then `ze config validate ze.conf` again. What the parser refused: line 8: unknown top-level keyword: acme-monitor
-fix: ze start
-```
+Inside a running daemon (`yang.ModuleSetFixed()`), commands start no program:
+the daemon joined the modules of its plugins at `ze start`, and every served
+command (editor commit, web upload, served `show`, `show config supplied
+validation`) validates against that published module set. A config declaring an
+external endpoint the daemon did not start with is refused naming `restart ze`.
 
-`ze config fmt`, `dump`, `diff` and `graph`, and their `ze show config`
-spellings, ask the running Ze the same way: the answer is printed as a local
-answer is, `fmt -w` rewrites your file with the text the running Ze formatted,
-and with no Ze running the message above names the command you ran in place of
-`ze config validate`. `ze config diff` compares the resolved `bgp` block and
-the order of ordered lists, so a leaf that differs in your plugin's own section
-is not reported as a difference.
-
-The other commands ask no running Ze. Their message says so, and its fix is
-`ze config validate <file>`.
-
-| Command | A section under an external plugin's root |
-|---------|-------------------------------------------|
-| `ze config validate` | Judged by the running Ze; with none running, refused with the message above |
-| `ze config fmt`, `dump`, `diff`, `graph` | Answered by the running Ze; with none running, refused with the message above, naming the command to run again |
-| `ze config migrate`, `completion`, with no daemon | Refused, naming `ze config validate <file>` as the fix |
-| `ze config edit` | The file under edit is refused when it is opened |
-| `ze doctor`, the support report, `show crashes` readiness, `ze tacacs` probe, `show plugin declarations config`, `ze plugin test`, with no daemon | The config they read is refused, naming `ze config validate <file>` as the fix |
-
-The message names the plugins the config declares. It does not say that one of
-them owns the refused name: Ze holds no schema that could tell a section of
-your plugin from a mistyped keyword.
-
-`show config validation <file>` typed in a `ze cli` session, or sent over SSH,
-the web, MCP, REST or gRPC, reaches the running Ze too, but the daemon reads
-the file on its own host and only from its config directories. A caller that
-holds the config elsewhere sends its bytes: `show config supplied validation
-content <base64>`, which is what `ze config validate` does. `ze cli -c "show
-config validation <file>"` answers in its own process and asks no daemon.
-
-Inside a running daemon the same commands start no program either. The daemon
-joined the modules of its plugins when it started, and a command it serves (a
-web upload, an editor commit, a served `show`) is answered from that set, so a
-section under your roots is checked against your module there, ranges
-included. A config that declares a plugin the daemon did not start with is
-refused there with the restart of `ze` as the fix.
-
-Declare mode (`ZE_PLUGIN_MODE=declare`) is still worth answering.
-`ze show plugin conformance run "<command>"` starts the program that way with
-no daemon, because running the program you name is what it is for. No other
-command with no daemon starts it: `ze show plugin declarations config <file>`
-lists your plugin with the state `not-available` and names that checker. A
-running Ze starts your program in declare mode when `show plugin declarations
-config <file>` is typed in a session it serves.
-<!-- source: internal/component/config/declared_schemas.go -- SchemaWithDeclaredPlugins, PublishDeclaredSchemas, DeclaredSchemas.ParseRefusal -->
+Because offline commands rely on query mode, every external plugin that defines
+a YANG schema or bus declarations MUST answer `ZE_PLUGIN_MODE=declare` cleanly
+without starting its run loop (`sdk.RunOrDeclare` handles this automatically).
+<!-- source: internal/component/config/declared_schemas.go -- SchemaWithDeclaredPlugins, PublishDeclaredSchemas, PublishDeclaredSchemasForInspection -->
 <!-- source: internal/component/command/local_data.go -- ServeLocal -->
 <!-- source: internal/component/plugin/declarations.go -- QueryDeclaration -->
 <!-- source: internal/component/config/cli/cmd_validate.go -- runValidation -->
@@ -430,10 +391,11 @@ such a build from shipping.
 ## Example: Complete Plugin with Schema
 
 This plugin runs as an external process and defines its own root,
-`acme-monitor`. Ze joins its module when `ze start` runs the plugin; a command
-that parses the config with no daemon starts no plugin and cannot check the
-section (see "What works today" above). `sdk.RunOrDeclare` is the entry that
-also answers declare mode, which the conformance check uses.
+`acme-monitor`. Ze joins its module when `ze start` runs the plugin, and
+offline commands that parse the config start it in declare mode
+(`ZE_PLUGIN_MODE=declare`, never its run loop) to join and validate the section
+(see "What works today" above). `sdk.RunOrDeclare` is the entry that answers
+declare mode for offline validation and the conformance check alike.
 
 A complete example showing YANG schema registration with the SDK. The plugin
 reads leaves of its root, so it registers a config transaction: Stage 2

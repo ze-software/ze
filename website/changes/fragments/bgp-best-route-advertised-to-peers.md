@@ -12,12 +12,13 @@ best path for the routing table.
 
 ## After
 
-Ze now advertises selected routes between ordinary peers through one explicitly
-attached `bgp-rib` process. The source grants `receive [ update-received state ]`.
-The destination grants `send [ update ]` and `receive [ state refresh update-sent ]`
-to that same process. Ze advertises a learned route when the destination's
-configured export policy accepts it. Config validation names the peer and
-process and shows the required `attach process` block if grants are incomplete.
+Ze now advertises selected routes between ordinary peers through `bgp-rib` on
+the message bus. By default `bgp-rib` receives `bgp:update-received`,
+`bgp:update-sent`, `bgp:state`, and `bgp:refresh` and sends `bgp:update` across
+BGP peers; Ze advertises a learned route when the destination's configured
+export policy accepts it. Config validation refuses a `bus` override that
+removes a required relationship and names the peer, endpoint, and completing
+line.
 
 <!-- source: internal/component/plugin/server/dissemination_validate.go -- validateDisseminationProcess -->
 <!-- source: internal/component/bgp/reactor/dissemination_snapshot.go -- ExportKind -->

@@ -71,8 +71,8 @@ none
 
 ## Exposure
 
-A system RIB run as an external plugin (`plugin { external <name> { run "ze
-plugin rib"; } }`). On the kernel FIB writer in either placement: an IPv4
+A system RIB run as a separate process (`bus { endpoint <name> { internal rib;
+process separate; } }`). On the kernel FIB writer in either placement: an IPv4
 route with an OSPF fast-reroute backup, a route whose next hops are all
 directly connected interfaces, a Ze route in a named routing table, and a
 gateway route announced in the same update as the connected route it needs.

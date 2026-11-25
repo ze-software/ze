@@ -836,15 +836,16 @@ also announces is not owed (RFC 4271 Section 4.3), and an originated
 announcement of an owed key removes its record. With no recovery owner
 registered, the withdrawal is written as before and one warning is logged per
 destination session. A registered owner counts only for a source it receives:
-when no `attach process` block grants the owner process the owning source's
-received UPDATEs (an auto-loaded bgp-rib nobody attaches), the RIB holds none
+when the compiled bus filter excludes the owner process from the owning source's
+received UPDATEs (for example, an operator's `bus` override cutting `bgp-rib`
+from that peer), the RIB holds none
 of that source's routes, so its election is not the forwarder's and its answer
 would only queue the withdrawal behind the source's later UPDATEs. The
 withdrawal is then written as it stands, in order, and one warning per
-destination session names the source and the attach block that fixes it
+destination session names the source and the `bus` override that fixes it
 (`Session.recoveryOwedFor`). The writer takes this answer once per owning
 source per write, under the write lock, and every key of the UPDATE, in both
-filter passes, reads that one answer, so an owner attached or detached during a
+filter passes, reads that one answer, so a filter change during a
 write reaches the next write whole rather than splitting one UPDATE's keys
 between owed and written (`adjOutWrite.recoveryOwedFor`). A departure is not subject to this test: the RIB's
 own command owes its keys. A destination with ADD-PATH send keeps every path

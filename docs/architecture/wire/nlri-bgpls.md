@@ -433,8 +433,10 @@ block stops it.
 <!-- source: internal/component/bgp/plugins/epe/yang/register.go -- init -->
 
 `bgp-ls-export { }` enables the internal exporter. Collector peers negotiate the
-`bgp-ls` family and attach the plugin with `state` and `refresh` event delivery
-and UPDATE-send permission. Each peer-up or BGP-LS refresh receives the current database.
+`bgp-ls` family; by its registered participant defaults, `bgp-ls-export`
+receives `bgp:state` and `bgp:refresh` and sends `bgp:update` to collector
+peers unless narrowed by a `bus` block. Each peer-up or BGP-LS refresh receives
+the current database.
 The exporter answers refreshes from its own topology snapshots. Receive-only
 AIGP or FlowSpec inputs to `bgp-rib` do not make that RIB a replay owner for these
 locally originated routes.
@@ -539,7 +541,8 @@ is compiled out, so that case keeps the refusal above, which names the tag.
 `bgp-epe` is a separate native producer for configured PeerNode SIDs. Its `srgb`
 container names a locally assigned SRGB using inclusive lower and upper label
 bounds; each `peer` assigns a persistent `sid-index` and optional weight.
-Configured EPE sessions attach `bgp-epe` with state-event delivery. Live BGP
+Configured EPE sessions feed `bgp-epe` `bgp:state` events by its registered
+participant defaults unless narrowed by a `bus` block. Live BGP
 state supplies both session endpoints' ASNs and BGP identifiers. The connected
 TCP local endpoint is used even when the local IP is configured as `auto`.
 The producer submits the computed pop-and-forward label to the native MPLS FIB

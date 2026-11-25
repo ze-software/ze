@@ -114,7 +114,7 @@ The hub stores one full configuration for each client, under the name
 `client` block that tells the client where its hub is:
 
 ```
-plugin {
+bus {
     hub {
         server local {
             ip 127.0.0.1;

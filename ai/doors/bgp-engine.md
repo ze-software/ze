@@ -49,8 +49,8 @@ How a session and an UPDATE flow is in `ai/digests/bgp-reactor.md` and
 | A forwarding plugin (route server, reflector) | The cache: `bgp cache retain/release/expire`, `send bgp <selector> cached <id>`, and the typed SDK pair for high rates. An ack is cumulative | `docs/architecture/api/commands.md`, `docs/architecture/api/architecture.md` ("BGP Cache Control") |
 | A policy plugin | The batched `filter-update` RPC (`FilterUpdateBatchInput` of `FilterUpdateInput` routes, `FilterUpdateBatchOutput` of `FilterUpdateOutput` verdicts, in `pkg/plugin/rpc`) and the `<plugin>:<filter>` chain reference | `docs/architecture/api/process-protocol.md`, `docs/architecture/core-design.md` ("Policy Filter Chain") |
 | A capability plugin | OPEN injection through `rpc.CapabilityDecl` | `docs/architecture/api/capability-contract.md` |
-| A migrated ExaBGP script | The bridge turns each ExaBGP line into `send bgp ... update text`, so the text grammar is its contract too | `docs/architecture/exabgp-bridge.md`, `docs/exabgp/exabgp-differences.md` |
-| An operator | Which process sees which peer is the peer's `attach process` block | `docs/architecture/api/architecture.md` ("Attaching a Process to a Peer") |
+| A migrated ExaBGP script | The ExaBGP wrapper (`ze exabgp plugin`) turns each ExaBGP line into `send bgp ... update text`, so the text grammar is its contract too | `docs/architecture/exabgp-bridge.md`, `docs/exabgp/exabgp-differences.md` |
+| An operator | Which participant exchanges which messages with which peer is declared by registration and overridden by `bus { }` blocks on the peer, group, or centrally under `bus { }` | `docs/architecture/api/architecture.md` |
 
 A change to an event field, a keyword of `update text`, a command word or an
 RPC field breaks code that is not in this repository. Change it on purpose,

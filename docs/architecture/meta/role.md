@@ -85,12 +85,14 @@ set only: RFC 9234 Section 4.2 still requires a locally configured role for
 role-pair validation and Section 5 procedures.
 
 Each OPEN replaces the observation, including explicit absence. The same
-configured-peer census owns commit-time pruning. The OPEN validator's
-removal-only state grant delivers removal reports on both transports even
-while no source policy is active; generation ordering keeps an old removal
-from deleting a newer OPEN. A later source-policy activation therefore reads
-the destination's current advertised role without requiring a reconnect.
-Unconfigured roleless OPEN identities are not admitted.
+configured-peer census owns commit-time pruning. Peer-removal delivery to OPEN
+validators is a registered reception governed by the compiled bus filter (shown
+on `show event delivery` with origin `registered`, and excluded if the
+operator's `receive > allow` omits it), delivering removal reports on both
+transports even while no source policy is active; generation ordering keeps an
+old removal from deleting a newer OPEN. A later source-policy activation
+therefore reads the destination's current advertised role without requiring a
+reconnect. Unconfigured roleless OPEN identities are not admitted.
 
 <!-- source: internal/component/bgp/plugins/role/otc.go -- OTCEgressFilter -->
 <!-- source: rfc/short/rfc9234.md -- Section 5, OTC leak prevention -->
@@ -257,11 +259,12 @@ retained OPEN pair is delivered once with `provisional: false` before peer-up.
 recorded for this peer". `remoteRoleRecorded` reads that distinction for the
 drop reason. Both resolve to the configured complement for RFC 9234 gates.
 
-The reactor's removal of a peer removes its learned role. `bgp-role`
-subscribes to `state`. Every registered OPEN validator receives the peer's
-removal independently of filter membership, intersected with its state
-subscription and peer selector. This cleanup lifetime remains active while
-source policies are inactive. The
+The reactor's removal of a peer removes its learned role. `bgp-role` registers
+to receive `bgp:state` (including peer removals), governed by the compiled bus
+filter (`DeliveryGraph`). When the compiled bus filter admits `bgp:state`
+delivery (the registered default, shown on `show event delivery` with origin
+`registered`; excluded if the operator's `receive > allow` omits it), this
+cleanup lifetime remains active while source policies are inactive. The
 state `down` with reason `removed`, which the reactor emits for every removal,
 established or not, reaches `forgetRemovedPeer` (`removal.go`), which deletes
 the role under the key the peer's name maps to and under its address, and logs

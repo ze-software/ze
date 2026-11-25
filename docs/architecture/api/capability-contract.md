@@ -130,47 +130,48 @@ send bgp 192.0.2.1 raw hex <update-payload-hex> type update
 
 **Timeout configuration:**
 ```
-plugin {
-    external myapp {
-        run ./myapp;
-        timeout 10s;    # per-stage timeout (default: 5s)
+bus {
+    endpoint myapp {
+        external {
+            run ./myapp;
+            timeout 10s;    # per-stage timeout (default: 5s)
+        }
     }
 }
 ```
 <!-- source: internal/component/plugin/process/process.go -- Process timeout -->
 
-See `docs/architecture/config/syntax.md` for full plugin config options.
+See `docs/architecture/config/syntax.md` for full bus endpoint config options.
 
 ---
 
 ## Config Validation (✅ DONE)
 
-> **Status:** Implemented in `validatePeerProcessCaps`.
-<!-- source: internal/component/bgp/config/peers.go -- validatePeerProcessCaps -->
+> **Status:** Implemented in `validatePeerProcessCapsOnGraph`.
+<!-- source: internal/component/bgp/config/bus_requirements.go -- validatePeerProcessCapsOnGraph -->
 
-If a peer has `graceful-restart` or `route-refresh` and attaches no process:
+`validatePeerProcessCapsOnGraph` reads the peer's compiled bus filters (`DeliveryGraph`)
+whenever a peer enables `graceful-restart` or `route-refresh`. When a
+route-pushing plugin (declaring `bgp:update` or `bgp:raw`) is loaded, its
+registered defaults satisfy the check with nothing written. If no loaded
+participant can push routes to the peer — or if an operator's `bus` override
+cuts every route-pushing sender from that peer — validation refuses the config
+naming the overriding `bus` line and the fix:
 
 ```
-peer 192.168.1.1: route-refresh requires an attached process with send [ update ] or send [ raw ]
-  the peer attaches no process
-```
-
-Or if it attaches processes and none of them carries either word:
-
-```
-peer 192.168.1.1: route-refresh requires an attached process with send [ update ] or send [ raw ]
-  configured: attach process logger, attach process monitor - none carry either word
+peer 192.168.1.1: route-refresh requires a bus participant permitted to send bgp:update or bgp:raw to this peer
+  ...
 ```
 
 The capability needs a program that can re-advertise the routes a refresh asks
-for. Either rail is that program: ze builds the UPDATE from the process's own
-route operation (`send [ update ]`), or the process hands over a whole message
-it built itself (`send [ raw ]`). The check reads
-`ProcessBinding.MayPushRoutes`, which is the same predicate the initial-sync
-barrier counts, so a config that passes this check is a config whose announce
-will not be refused.
-<!-- source: internal/component/bgp/config/peers.go -- validatePeerProcessCaps -->
-<!-- source: internal/component/bgp/reactor/peer_settings.go -- ProcessBinding.MayPushRoutes -->
+for. Either rail satisfies that requirement: ze builds the UPDATE from the
+participant's route operation (`bgp:update`), or the participant hands over a
+whole message it built itself (`bgp:raw`). The check reads the same compiled
+bus filter predicate (`MayPushRoutes`) that `Peer.initialUpdateReporters` reads,
+so a config that passes this check is a config whose announce will not be
+refused.
+<!-- source: internal/component/bgp/config/bus_requirements.go -- validatePeerProcessCapsOnGraph -->
+<!-- source: internal/component/plugin/server/delivery_graph.go -- DeliveryGraph -->
 
 ---
 

@@ -40,24 +40,24 @@ validation, retained inbound routes, route-server forwarding, BGP Role, and a
 loopback-only Looking Glass:
 
 ```text
-plugin {
-    internal rib {
-        use bgp-rib;
+bus {
+    endpoint rib {
+        internal bgp-rib;
     }
-    internal rs {
-        use bgp-rs;
+    endpoint rs {
+        internal bgp-rs;
     }
-    internal adj-rib-in {
-        use bgp-adj-rib-in;
+    endpoint adj-rib-in {
+        internal bgp-adj-rib-in;
     }
-    internal rpki {
-        use bgp-rpki;
+    endpoint rpki {
+        internal bgp-rpki;
     }
-    internal role {
-        use bgp-role;
+    endpoint role {
+        internal bgp-role;
     }
-    internal transit-filter {
-        use bgp-filter-path-asn;
+    endpoint transit-filter {
+        internal bgp-filter-path-asn;
     }
 }
 
@@ -114,9 +114,6 @@ bgp {
             import rs;
             strict false;
         }
-        attach process rpki {
-            receive [ update-received state ];
-        }
         filter {
             import {
                 filters [ reject-asn-NO-TRANSIT ];
@@ -126,17 +123,6 @@ bgp {
                 filters [ reject-asn-NO-TRANSIT ];
                 final accept;
             }
-        }
-        attach process adj-rib-in {
-            receive [ update-received state ];
-            send [ update ];
-        }
-        attach process rib {
-            receive [ update state refresh ];
-        }
-        attach process rs {
-            receive [ update-received state open-received refresh ];
-            send [ update ];
         }
 
         peer member-a {

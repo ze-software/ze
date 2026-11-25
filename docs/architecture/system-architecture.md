@@ -156,7 +156,7 @@ Ze supports two operating modes:
 | Mode | Trigger | Description |
 |------|---------|-------------|
 | **In-process** | `bgp { }` block in config | BGP daemon with in-process plugins (simpler, default) |
-| **Hub mode** | `plugin { external ... }` block | Hub orchestrates separate plugin processes (this doc) |
+| **Hub mode** | `bus { endpoint ... { external { ... } } }` or `process separate;` | Hub orchestrates separate plugin processes (this doc) |
 
 **This document describes Hub mode.**
 
@@ -258,28 +258,33 @@ An older `env { }` block existed for a second runtime that parsed the config
 itself. That runtime is deleted, and `env { }` is not a top-level keyword: it
 fails `ze config validate` and it fails at boot, with the same message.
 
-### Section 2: Plugin Declarations
+### Section 2: Bus Endpoint Declarations
 
-Which processes to fork. Uses YANG schema from `ze-plugin-conf.yang`.
+Which endpoints to run (in-daemon or as separate processes). Uses YANG schema from `ze-plugin-conf.yang`.
 
 ```
-plugin {
-    # Built-in plugins (shipped with ze)
-    external bgp {
-        run "ze bgp";
+bus {
+    # Built-in plugins (shipped with ze, optionally forked with process separate)
+    endpoint bgp {
+        internal bgp;
+        process separate;
     }
-    external rib {
-        run "ze rib";
+    endpoint rib {
+        internal bgp-rib;
+        process separate;
     }
-    external gr {
-        run "ze gr";
+    endpoint gr {
+        internal bgp-gr;
+        process separate;
     }
 
     # Third-party plugins
-    external acme {
-        run "/opt/acme/monitor-plugin";
-        respawn true;           # Restart if it exits, if the plugin permits it
-        timeout 60;             # Startup timeout
+    endpoint acme {
+        external {
+            run "/opt/acme/monitor-plugin";
+            respawn true;           # Restart if it exits, if the plugin permits it
+            timeout 60s;            # Startup timeout
+        }
     }
 }
 ```
@@ -354,10 +359,12 @@ Shipped with Ze, same binary:
 Any executable that speaks the plugin protocol:
 
 ```
-plugin {
-    external my-plugin {
-        run "/path/to/plugin";
-        respawn true;   # Only if the plugin declares failure-policy restart
+bus {
+    endpoint my-plugin {
+        external {
+            run "/path/to/plugin";
+            respawn true;   # Only if the plugin declares failure-policy restart
+        }
     }
 }
 
@@ -569,7 +576,7 @@ ze bgp                        ze (hub)                      ze rib
 
 ```
 1. Hub parses environment { }      → Set global settings (api-socket, log level, etc.)
-2. Hub parses plugin { } block     → Build process list from ze-plugin-conf.yang
+2. Hub parses bus { } block        → Build endpoint list from ze-plugin-conf.yang
 3. Hub forks each plugin           → ze bgp, ze rib, ze gr, third-party, ...
 4. Each plugin: Stage 1            → Declare YANG module + handlers
 5. Hub registers schemas           → Build handler routing table (SchemaRegistry)
@@ -821,7 +828,7 @@ again).
 
 ### Plugin TLS Transport
 
-External plugins connect back to the engine via TLS. The engine binds TLS listeners (configured via `plugin { hub { server <name> { ip ...; port ...; secret ...; } } }`), forks child processes with `ZE_PLUGIN_HUB_HOST`/`ZE_PLUGIN_HUB_PORT`/`ZE_PLUGIN_HUB_TOKEN`/`ZE_PLUGIN_CA_PEM` env vars, and waits for authenticated connect-back. `ZE_PLUGIN_CA_PEM` carries the certificate authority root that issued the listener's certificate, and the SDK validates the chain against it and nothing else; the full contract is in [Process Protocol](api/process-protocol.md). Each plugin uses a single bidirectional TLS connection with MuxConn for concurrent RPCs.
+External plugins connect back to the engine via TLS. The engine binds TLS listeners (configured via `bus { hub { server <name> { ip ...; port ...; secret ...; } } }`), forks child processes with `ZE_PLUGIN_HUB_HOST`/`ZE_PLUGIN_HUB_PORT`/`ZE_PLUGIN_HUB_TOKEN`/`ZE_PLUGIN_CA_PEM` env vars, and waits for authenticated connect-back. `ZE_PLUGIN_CA_PEM` carries the certificate authority root that issued the listener's certificate, and the SDK validates the chain against it and nothing else; the full contract is in [Process Protocol](api/process-protocol.md). Each plugin uses a single bidirectional TLS connection with MuxConn for concurrent RPCs.
 <!-- source: internal/component/plugin/acceptor.go -- hub TLS listener -->
 <!-- source: pkg/plugin/rpc/ -- MuxConn for concurrent RPCs -->
 
