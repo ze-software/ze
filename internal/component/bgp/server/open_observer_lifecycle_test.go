@@ -61,21 +61,22 @@ func (s *openObserverSpawner) SealProcessAdmission() func() {
 
 // TestOpenObserversReceiveRemovalWithoutFilterBindings drives both producers
 // through real SDK startup and event delivery. Validators see OPENs regardless
-// of attachments; only subscribed validators see an unattached peer's removal,
-// with its generation, once. Ordinary state and non-validator subscribers gain
+// of attachments; under AC-39 / S32 a WantsValidateOpen endpoint synthesizes a
+// registered bgp:state reception by default unless narrowed by its declared
+// from-scope or a bus receive allow-list. An unsubscribed non-validator gains
 // nothing, and an existing state binding must not duplicate the removal.
 func TestOpenObserversReceiveRemovalWithoutFilterBindings(t *testing.T) {
 	snapshot := registry.Snapshot()
 	t.Cleanup(func() { registry.Restore(snapshot) })
 	ctx, cancel := context.WithTimeout(t.Context(), 15*time.Second)
 	defer cancel()
-	var delivered [4]atomic.Int64
-	var opened [4]atomic.Int64
+	var delivered [5]atomic.Int64
+	var opened [5]atomic.Int64
 	var generation atomic.Uint64
 	var plugins []plugin.PluginConfig
-	for index, name := range []string{"open-observer", "non-validator", "unsubscribed-validator", "other-peer-validator"} {
+	for index, name := range []string{"open-observer", "non-validator", "implicit-state-validator", "other-peer-validator", "unsubscribed-non-validator"} {
 		var receives []rpc.MessageReceiveDecl
-		if index != 2 {
+		if index == 0 || index == 1 || index == 3 {
 			decl := rpc.MessageReceiveDecl{Message: bgpevents.Namespace + ":" + bgpevents.EventState}
 			if index == 3 {
 				decl.From = []string{"/bgp/ip/192.0.2.99"}
@@ -88,13 +89,13 @@ func TestOpenObserversReceiveRemovalWithoutFilterBindings(t *testing.T) {
 			RunEngine: func(conn net.Conn) int {
 				p := sdk.NewWithConn(name, conn)
 				defer p.Close() //nolint:errcheck // Test connection teardown.
-				if index != 1 {
+				if index == 0 || index == 2 || index == 3 {
 					p.OnValidateOpen(func(*sdk.ValidateOpenInput) *sdk.ValidateOpenOutput {
 						opened[index].Add(1)
 						return &sdk.ValidateOpenOutput{Accept: true}
 					})
 				}
-				if index != 2 {
+				if index != 4 {
 					p.SetEventFormat("full")
 				}
 				p.OnEvent(func(payload string) error {
@@ -154,7 +155,10 @@ func TestOpenObserversReceiveRemovalWithoutFilterBindings(t *testing.T) {
 	if got := delivered[1].Load(); got != 1 {
 		t.Fatalf("non-validator declaring bgp:state received %d events; want 1", got)
 	}
-	for _, index := range []int{2, 3} {
+	if got := delivered[2].Load(); got != 1 {
+		t.Fatalf("WantsValidateOpen validator without explicit Receives received %d events; want 1 (AC-39 synthesized state)", got)
+	}
+	for _, index := range []int{3, 4} {
 		if got := delivered[index].Load(); got != 0 {
 			t.Errorf("process %s gained %d unauthorized state events", plugins[index].Name, got)
 		}
@@ -164,10 +168,11 @@ func TestOpenObserversReceiveRemovalWithoutFilterBindings(t *testing.T) {
 			t.Errorf("validator %s did not observe the OPEN", plugins[index].Name)
 		}
 	}
-	// Narrowing open-observer via receive > allow none stops subsequent removal delivery (AC-39).
+	// Narrowing open-observer and implicit-state-validator via receive > allow none stops subsequent removal delivery (AC-39).
 	srv.SetBusConfig(plugin.BusConfig{
 		Endpoints: map[string]plugin.BusBlock{
 			plugins[0].Name: {Receive: plugin.BusDirectionBlock{AllowPresent: true, AllowNone: true}},
+			plugins[2].Name: {Receive: plugin.BusDirectionBlock{AllowPresent: true, AllowNone: true}},
 		},
 	})
 	srv.UpdateDeliveryGraph(bgpevents.Namespace, []pluginserver.DeliveryPeer{{
@@ -177,7 +182,9 @@ func TestOpenObserversReceiveRemovalWithoutFilterBindings(t *testing.T) {
 		SecondaryPaths: []string{"/bgp/ip/" + peer.AddrStr()},
 	}})
 	onPeerStateChange(srv, peer, rpc.SessionStateDown, rpc.ReasonPeerRemoved)
-	if got := delivered[0].Load(); got != 1 {
-		t.Fatalf("narrowed validator received %d total events, want 1", got)
+	for _, index := range []int{0, 2} {
+		if got := delivered[index].Load(); got != 1 {
+			t.Fatalf("narrowed validator %s received %d total events, want 1", plugins[index].Name, got)
+		}
 	}
 }

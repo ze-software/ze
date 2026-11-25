@@ -318,7 +318,7 @@ var positionalMeaningChangesReviewed = map[string]string{
 		"(type empty, which takes only true) and now lands on mtu (uint16 68..16000), " +
 		"which refuses true (xfrm xfrm0 7 eth0 ipsec true 1400 xfrm7;); a line of " +
 		"three values or fewer reads the same",
-	"plugin/hub/server": "uses zt:listener is declared before secret and certificate, " +
+	"bus/hub/server": "uses zt:listener is declared before secret and certificate, " +
 		"so ip and port take the first two values, where the old rule put the list's " +
 		"own leaves first (secret, certificate, then the client list, which ends the " +
 		"slots) and the grouping's by name after them; old last:port took only a " +
@@ -332,6 +332,13 @@ var positionalMeaningChangesReviewed = map[string]string{
 		"ip 2001:0db8:0000:0000:0000:0000:0000:0001 and port 443 with no secret. " +
 		"server main 10.0.0.1 1790; parses in both orders, but its old reading " +
 		"(secret 10.0.0.1) was refused at load as shorter than 32 characters",
+	"environment/looking-glass/server": "uses zt:listener is declared before tls, " +
+		"so ip, port, last:tls take the slots where the old rule put the list's own " +
+		"leaf first (tls, ip, last:port). Refused for every usable old line: its " +
+		"first value was tls (boolean true/false) and now lands on ip (zt:ip-address), " +
+		"which refuses booleans; a two-value line's second value (ip) lands on port " +
+		"(uint16), which refuses an IP address. Census of 2026-11-25 confirmed no repo " +
+		"config writes a positional server line under environment/looking-glass",
 	"policy/match": "uses route-source-conditions sits at its position, the list's " +
 		"last statement, so the last child is now the grouping's last leaf " +
 		"(route-type) where name order ended on tag. Only a bracket reaches the last " +

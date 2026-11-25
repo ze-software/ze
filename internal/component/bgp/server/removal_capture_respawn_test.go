@@ -25,13 +25,14 @@ import (
 	sdk "github.com/ze-software/ze/pkg/plugin/sdk"
 )
 
-// The four plugins of a removal-capture server, one per combination of
-// "validates OPEN" and "subscribes to BGP state".
+// The five plugins of a removal-capture server covering "validates OPEN" and
+// "subscribes to BGP state" combinations, plus an idle unsubscribed endpoint.
 const (
 	removalCaptureStuck        = "removal-capture-stuck"        // validator, subscribed, handler waits on the gate
 	removalCaptureObserver     = "removal-capture-observer"     // validator, subscribed
-	removalCaptureUnsubscribed = "removal-capture-unsubscribed" // validator, no subscription
+	removalCaptureUnsubscribed = "removal-capture-unsubscribed" // validator, AC-39 synthesized state
 	removalCapturePlain        = "removal-capture-plain"        // subscribed, validates nothing
+	removalCaptureIdle         = "removal-capture-idle"         // no subscription, validates nothing
 )
 
 // removalCaptureServer is a started plugin server running the four plugins
@@ -77,6 +78,7 @@ func startRemovalCaptureServer(t *testing.T, gate *sync.RWMutex, inFlight chan<-
 		}},
 		{removalCaptureUnsubscribed, true, false, func(string) error { return nil }},
 		{removalCapturePlain, false, true, func(string) error { return nil }},
+		{removalCaptureIdle, false, false, func(string) error { return nil }},
 	}
 	var plugins []plugin.PluginConfig
 	for _, spec := range specs {
@@ -275,8 +277,9 @@ func TestRemovalCaptureDoesNotWaitOnRespawn(t *testing.T) {
 // recipients are determined solely by the compiled bus filter (PeerScopedProcs)
 // with no separate WantsValidateOpen bypass (AC-39, S32).
 //
-// VALIDATES: peerStateRecipients returns every subscribed endpoint that
-// declared bgp:state and omits unsubscribed or bus-narrowed endpoints.
+// VALIDATES: peerStateRecipients returns every subscribed endpoint (including
+// WantsValidateOpen endpoints with AC-39 synthesized bgp:state) and omits
+// unsubscribed non-validators or bus-narrowed endpoints.
 // PREVENTS: an OPEN validator bypassing a participant's receive allow-list.
 func TestOpenRemovalObserversFollowCompiledBus(t *testing.T) {
 	var gate sync.RWMutex
@@ -285,22 +288,24 @@ func TestOpenRemovalObserversFollowCompiledBus(t *testing.T) {
 	observer := removalCaptureProcess(t, server.srv, removalCaptureObserver)
 	unsubscribed := removalCaptureProcess(t, server.srv, removalCaptureUnsubscribed)
 	plain := removalCaptureProcess(t, server.srv, removalCapturePlain)
+	idle := removalCaptureProcess(t, server.srv, removalCaptureIdle)
 	peer := removalCapturePeer()
 
 	got, _ := peerStateRecipients(server.srv, peer, rpc.SessionStateDown, rpc.ReasonPeerRemoved)
-	for _, want := range []*process.Process{stuck, observer, plain} {
+	for _, want := range []*process.Process{stuck, observer, unsubscribed, plain} {
 		if !slices.Contains(got, want) {
 			t.Errorf("subscribed process %s did not receive removal", want.Name())
 		}
 	}
-	if slices.Contains(got, unsubscribed) {
-		t.Errorf("unsubscribed validator %s unexpectedly received removal", unsubscribed.Name())
+	if slices.Contains(got, idle) {
+		t.Errorf("unsubscribed non-validator %s unexpectedly received removal", idle.Name())
 	}
 
-	// Narrowing observer via bus > endpoint > receive > allow none excludes it.
+	// Narrowing observer and unsubscribed validator via bus > endpoint > receive > allow none excludes both.
 	server.srv.SetBusConfig(plugin.BusConfig{
 		Endpoints: map[string]plugin.BusBlock{
-			removalCaptureObserver: {Receive: plugin.BusDirectionBlock{AllowPresent: true, AllowNone: true}},
+			removalCaptureObserver:     {Receive: plugin.BusDirectionBlock{AllowPresent: true, AllowNone: true}},
+			removalCaptureUnsubscribed: {Receive: plugin.BusDirectionBlock{AllowPresent: true, AllowNone: true}},
 		},
 	})
 	server.srv.UpdateDeliveryGraph(bgpevents.Namespace, []pluginserver.DeliveryPeer{{
@@ -310,7 +315,9 @@ func TestOpenRemovalObserversFollowCompiledBus(t *testing.T) {
 		SecondaryPaths: []string{"/bgp/ip/" + peer.AddrStr()},
 	}})
 	got, _ = peerStateRecipients(server.srv, peer, rpc.SessionStateDown, rpc.ReasonPeerRemoved)
-	if slices.Contains(got, observer) {
-		t.Errorf("bus-narrowed validator %s bypassed compiled bus filter on removal", observer.Name())
+	for _, narrowed := range []*process.Process{observer, unsubscribed} {
+		if slices.Contains(got, narrowed) {
+			t.Errorf("bus-narrowed validator %s bypassed compiled bus filter on removal", narrowed.Name())
+		}
 	}
 }

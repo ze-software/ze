@@ -25,22 +25,26 @@ const duplicateRemoteIPConfig = `bgp {
 `
 
 // TestVerifyPluginConfigReportsExtractionFailureOnce proves that
-// VerifyPluginConfig reports a plugin extraction failure once, typed and
-// carrying the section whose extractor failed, and that the dependency refusal
-// does not report the same failure a second time.
+// VerifyPluginConfig reports a bus endpoint extraction failure once as a typed
+// *config.PluginExtractionError (with no duplicate copy from dependency or
+// data-plane checks) and does not relay BGP peer-resolution failures now that
+// peers no longer declare inline plugins.
 //
-// VALIDATES: a bgp tree that does not resolve yields one
-// *config.PluginExtractionError with Section "bgp" and no other copy of it.
-// PREVENTS: the editor and `ze config validate` listing the bgp failure twice,
-// and a door being unable to tell the relayed bgp copy from a plugin block
-// failure.
+// VALIDATES: a malformed bus > endpoint yields one *config.PluginExtractionError
+// with empty Section and no duplicate copy, while a BGP duplicate remote IP is
+// owned solely by validatePeersFromTree.
+// PREVENTS: the editor and `ze config validate` listing an extraction failure
+// twice, or relaying BGP peer faults through plugin verification.
 func TestVerifyPluginConfigReportsExtractionFailureOnce(t *testing.T) {
-	tree := parsedTree(t, duplicateRemoteIPConfig)
+	badBusTree := config.NewTree()
+	bus := config.NewTree()
+	bus.AddListEntry("endpoint", "empty", config.NewTree())
+	badBusTree.SetContainer("bus", bus)
 
 	var extracted []*config.PluginExtractionError
 	copies := 0
-	for _, err := range config.VerifyPluginConfig(tree) {
-		if strings.Contains(err.Error(), "duplicate remote IP") {
+	for _, err := range config.VerifyPluginConfig(badBusTree) {
+		if strings.Contains(err.Error(), "must specify either internal or external") {
 			copies++
 		}
 		if extractErr, isExtraction := errors.AsType[*config.PluginExtractionError](err); isExtraction {
@@ -49,13 +53,23 @@ func TestVerifyPluginConfigReportsExtractionFailureOnce(t *testing.T) {
 	}
 
 	if copies != 1 {
-		t.Fatalf("duplicate remote IP reported %d times, want once", copies)
+		t.Fatalf("bus endpoint extraction failure reported %d times, want once", copies)
 	}
 	if len(extracted) != 1 {
 		t.Fatalf("got %d *config.PluginExtractionError, want 1", len(extracted))
 	}
-	if extracted[0].Section != string(config.ConfigTypeBGP) {
-		t.Fatalf("extraction failure section = %q, want %q", extracted[0].Section, config.ConfigTypeBGP)
+	if extracted[0].Section != "" {
+		t.Fatalf("bus extraction failure section = %q, want empty", extracted[0].Section)
+	}
+
+	bgpTree := parsedTree(t, duplicateRemoteIPConfig)
+	for _, err := range config.VerifyPluginConfig(bgpTree) {
+		if strings.Contains(err.Error(), "duplicate remote IP") {
+			t.Fatalf("VerifyPluginConfig unexpectedly relayed BGP resolve failure: %v", err)
+		}
+	}
+	if err := validatePeersFromTree(bgpTree.Clone()); err == nil || !strings.Contains(err.Error(), "duplicate remote IP") {
+		t.Fatalf("validatePeersFromTree err = %v, want duplicate remote IP", err)
 	}
 }
 
