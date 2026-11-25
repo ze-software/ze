@@ -19,9 +19,9 @@ const (
 
 	exabgpBridgeVPNv4Prefix = "10.0.0.0/24"
 	exabgpBridgeVPNv4RD     = "65001:100"
-	// FRR's route detail prints the label it decoded as "Remote label: <n>"
-	// (bgpd/bgp_route.c, route_vty_out_detail).
-	exabgpBridgeVPNv4Label = "Remote label: 100"
+	// FRR's route detail prints the label it decoded as "Remote labels: <n>"
+	// (bgpd/bgp_route.c, route_vty_out_detail in FRR 10.7+).
+	exabgpBridgeVPNv4Label = "Remote labels: 100"
 )
 
 func init() {
