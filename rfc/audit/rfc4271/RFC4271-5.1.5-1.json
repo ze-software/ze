@@ -6,8 +6,8 @@
     "internal/component/bgp/reactor/rfc4271_reactor_a2_forward_test.go::TestRFC4271ForwardAddsLocalPrefTowardInternalPeer": "da6f68511706843f",
     "internal/component/bgp/reactor/rfc4271_reactor_a2_forward_test.go::TestRFC4271ForwardAddsLocalPrefTowardInternalPeer#2": "da6f68511706843f",
     "internal/component/bgp/reactor/rfc4271_reactor_api_origin_test.go::TestAnnounceStripsLocalPrefTowardExternalPeer": "130297db967addd6",
-    "internal/component/bgp/reactor/rfc4271_test.go::TestRFC4271LocalPrefIncludedForInternalPeers": "4e6d4c69499e564a",
-    "internal/component/bgp/reactor/rfc4271_test.go::TestRFC4271LocalPrefOmittedForExternalPeers": "4e6d4c69499e564a"
+    "internal/component/bgp/reactor/rfc4271_test.go::TestRFC4271LocalPrefIncludedForInternalPeers": "1209ca1e6ea788fe",
+    "internal/component/bgp/reactor/rfc4271_test.go::TestRFC4271LocalPrefOmittedForExternalPeers": "1209ca1e6ea788fe"
   },
   "units": {
     "internal/component/bgp/reactor/rfc4271_forward_local_pref_test.go::TestForwardLocalPrefStrippedToExternalPeer": "73e599b61c252e0c",

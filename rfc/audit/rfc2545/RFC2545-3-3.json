@@ -3,14 +3,14 @@
     "internal/component/bgp/reactor/link_scope.go::linkLocalNextHop": "718ce0e9ffa4b22e",
     "internal/component/bgp/reactor/link_scope.go::thirdPartyLinkLocal": "1e745f343aa2b660"
   },
-  "note": "Independent re-judgment against RFC 2545 Section 3 (\"The link-local address shall be included in the Next Hop field if and only if the BGP speaker shares a common subnet with the entity identified by the global IPv6 address carried in the Network Address of Next Hop field and the peer the route is being advertised to.\"). Tested: \"only if the BGP speaker shares a common subnet with the entity identified by the global IPv6 address carried in the Network Address of Next Hop field and the peer the route is being advertised to.\" Gap: \"The link-local address shall be included in the Next Hop field if\". Producer: internal/component/bgp/reactor/link_scope.go::thirdPartyLinkLocal, with internal/component/bgp/reactor/link_scope.go::linkLocalNextHop. Re-read link_scope.go, rfc2545_peer_send_test.go, rfc2545_third_party_link_local_test.go, check_rfc.go::checkRFC2545NextHops, check_rfc2545_third_party.go::checkRFC2545ThirdPartyLinkLocal, check_rfc_predicate.go::requireRouteInstalledVia, rfc/discrimination/rfc2545/RFC2545-3-3.json, and all diffs since 1a8d24e0cb. link_scope.go changed only peerAddr.Unmap() -> peerAddr.Unmap().WithZone(\"\") so scoped peer addresses compare cleanly against zone-free connected prefixes; thirdPartyLinkLocal still returns netip.Addr{} when the neighbor table has no entry, is unresolved, ambiguous, or unreadable, and routes are not re-advertised on late neighbor arrival, so the declared Gap stands. Test edits were fixture capability negotiation (negotiateForwardTestFamilies / ASN4), egressRouteFilter signature, owner-bound forwarding fixture migration, rs event declarations in test/plugin/rfc2545-joint-subnet.ci, and command constants in resolveThirdParty; assertions and expected bytes are unchanged. AC-7 judgment on checkRFC2545NextHops positive claim installation clause (assertion 5): strictly, the discrimination record citing assertion \"4\" (linkLocalNextHop mutant returning netip.Addr{}) does not independently observe assertion 5 failing, because assertion 4 precedes assertion 5 in the sequential checker and returns fail(4, ...) on the broken link-local before assertion 5 runs. However, the positive claim is NOT too wide and does not need narrowing through ze-test-judge: (1) checkRFC2545NextHops actually executes assertion 5 (requireRouteInstalledVia checking exact prefix, protocol bgp, selected, destSelected, installed, and active FIB nexthop matching linkLocal) on every green run, and requireRouteInstalledVia is independently unit-tested non-vacuous in check_oracle_contract_test.go and bgp_test.go; (2) RFC 2545 Section 3 binds the sender MP_REACH_NLRI Next Hop field, which assertion 4 and the linkLocalNextHop mutant directly discriminate; (3) no linkLocalNextHop break can reach assertion 5 past assertion 4 (same sequential pattern as checkRFC2545ThirdPartyLinkLocal, which also cites \"4\"). Verdict unchanged: partial with zero whole-requirement credit.",
+  "note": "Independent re-judgment after export-chain next-hop unification (cabc8c511e / c2d7117d05) against RFC 2545 Section 3: 'The link-local address shall be included in the Next Hop field if and only if the BGP speaker shares a common subnet with the entity identified by the global IPv6 address carried in the Network Address of Next Hop field and the peer the route is being advertised to.' Tested: \"only if the BGP speaker shares a common subnet with the entity identified by the global IPv6 address carried in the Network Address of Next Hop field and the peer the route is being advertised to.\" Gap: \"The link-local address shall be included in the Next Hop field if\". Producer: internal/component/bgp/reactor/link_scope.go::thirdPartyLinkLocal, with internal/component/bgp/reactor/link_scope.go::linkLocalNextHop. Re-read link_scope.go, forward_next_hop.go, all changed tagged tests, and rfc/discrimination/rfc2545/RFC2545-3-3.json. Neither linkLocalNextHop nor thirdPartyLinkLocal changed (only applyLinkLocalNextHop in link_scope.go moved from f.nhMode to f.selfMode); thirdPartyLinkLocal still returns netip.Addr{} on missing, unresolved, ambiguous, or unreadable neighbor entries and does not re-advertise on late neighbor arrival, so the declared Gap stands verbatim. Among the 24 tagged tests: TestRFC2545ForwardPolicyOwnGlobalJointSubnet migrated NextHopMode to exportNextHopPolicy ([own-global, next-hop:auto AutoDefault:true] and [next-hop:unchanged, own-global]) while keeping exact 32-byte on-link vs 16-byte off-link assertions, single policy call count, and untouched legacy sibling checks; TestRFC2545ReceivedPairSubnetConditions replaced NextHopMode=NextHopUnchanged with setExportNextHopUnchanged with identical 4-case unicast/VPN byte assertions; TestRFC2545StaticLabeledIPv6LinkLocalCommonSubnet body is unchanged (only sibling helpers in the file moved); test/plugin/rfc2545-joint-subnet.ci migrated config to bus + next-hop:unchanged + rs-client true with identical netns topologies and exact MP_REACH/reject assertions; all other 17 tags are unchanged. Verdict remains partial with zero whole-requirement credit. Source-level judgment only.",
   "requirement_sha": "c7e4fef2ea331dac",
   "tests": {
-    "internal/component/bgp/reactor/peer_initial_sync_test.go::TestDefaultOriginateAppendsLinkLocalWhenSection3Holds": "5d178ca68e91ae0e",
-    "internal/component/bgp/reactor/peer_initial_sync_test.go::TestDefaultOriginateOmitsLinkLocalWhenPeerOffLink": "5d178ca68e91ae0e",
-    "internal/component/bgp/reactor/rfc2545_forward_owned_policy_test.go::TestRFC2545ForwardPolicyOwnGlobalJointSubnet": "a6cac8f3d10b648f",
-    "internal/component/bgp/reactor/rfc2545_forward_subnet_test.go::TestRFC2545ReceivedPairSubnetConditions": "671753a47c4dc1cd",
-    "internal/component/bgp/reactor/rfc2545_forward_subnet_test.go::TestRFC2545ReceivedPairSubnetConditions#2": "671753a47c4dc1cd",
+    "internal/component/bgp/reactor/peer_initial_sync_test.go::TestDefaultOriginateAppendsLinkLocalWhenSection3Holds": "a3cfb5f9e9411b80",
+    "internal/component/bgp/reactor/peer_initial_sync_test.go::TestDefaultOriginateOmitsLinkLocalWhenPeerOffLink": "a3cfb5f9e9411b80",
+    "internal/component/bgp/reactor/rfc2545_forward_owned_policy_test.go::TestRFC2545ForwardPolicyOwnGlobalJointSubnet": "39ff3221ff3d3236",
+    "internal/component/bgp/reactor/rfc2545_forward_subnet_test.go::TestRFC2545ReceivedPairSubnetConditions": "db78cb8fb1fc668a",
+    "internal/component/bgp/reactor/rfc2545_forward_subnet_test.go::TestRFC2545ReceivedPairSubnetConditions#2": "db78cb8fb1fc668a",
     "internal/component/bgp/reactor/rfc2545_joint_subnet_test.go::TestRFC2545JointSubnetWriter": "437a75752d0c8b9b",
     "internal/component/bgp/reactor/rfc2545_joint_subnet_test.go::TestRFC2545JointSubnetWriter#2": "437a75752d0c8b9b",
     "internal/component/bgp/reactor/rfc2545_ordinary_joint_subnet_test.go::TestOrdinaryIPv6OwnGlobalJointSubnet": "13f6e7badf8311f0",
@@ -21,22 +21,22 @@
     "internal/component/bgp/reactor/rfc2545_third_party_link_local_test.go::TestRFC2545ThirdPartyLinkLocalAnnounce#2": "bfa7472819f7c344",
     "internal/component/bgp/reactor/rfc2545_third_party_link_local_test.go::TestRFC2545ThirdPartyLinkLocalForward": "bfa7472819f7c344",
     "internal/component/bgp/reactor/rfc2545_third_party_link_local_test.go::TestRFC2545ThirdPartyLinkLocalForward#2": "bfa7472819f7c344",
-    "internal/component/bgp/reactor/rfc4659_vpn_next_hop_rewrite_test.go::TestRFC2545StaticLabeledIPv6LinkLocalCommonSubnet": "7273db48e225dce7",
-    "internal/component/bgp/reactor/rfc4659_vpn_next_hop_rewrite_test.go::TestRFC2545StaticLabeledIPv6LinkLocalCommonSubnet#2": "7273db48e225dce7",
+    "internal/component/bgp/reactor/rfc4659_vpn_next_hop_rewrite_test.go::TestRFC2545StaticLabeledIPv6LinkLocalCommonSubnet": "78d7058e6187ace9",
+    "internal/component/bgp/reactor/rfc4659_vpn_next_hop_rewrite_test.go::TestRFC2545StaticLabeledIPv6LinkLocalCommonSubnet#2": "78d7058e6187ace9",
     "internal/le/interoplab/bgp/check_rfc.go::checkRFC2545NextHops": "7aa0ef34755a56dc",
     "internal/le/interoplab/bgp/check_rfc.go::checkRFC2545NextHops#2": "7aa0ef34755a56dc",
     "internal/le/interoplab/bgp/check_rfc2545_third_party.go::checkRFC2545ThirdPartyLinkLocal": "03e00791c6060d0d",
     "test/exabgp-compat/encoding/conf-llnh-lla-only.ci": "5d36d6e49a32f302",
     "test/exabgp-compat/encoding/conf-llnh-update.ci": "7f4eea9ed22f6382",
-    "test/plugin/rfc2545-joint-subnet.ci": "41155917ca562811",
-    "test/plugin/rfc2545-joint-subnet.ci#2": "41155917ca562811"
+    "test/plugin/rfc2545-joint-subnet.ci": "94210d3d86e44b23",
+    "test/plugin/rfc2545-joint-subnet.ci#2": "94210d3d86e44b23"
   },
   "units": {
     "internal/component/bgp/reactor/peer_initial_sync_test.go::TestDefaultOriginateAppendsLinkLocalWhenSection3Holds": "454362694c168c0a",
     "internal/component/bgp/reactor/peer_initial_sync_test.go::TestDefaultOriginateOmitsLinkLocalWhenPeerOffLink": "a4ba2dccaa169154",
-    "internal/component/bgp/reactor/rfc2545_forward_owned_policy_test.go::TestRFC2545ForwardPolicyOwnGlobalJointSubnet": "be8e0ff980070c81",
-    "internal/component/bgp/reactor/rfc2545_forward_subnet_test.go::TestRFC2545ReceivedPairSubnetConditions": "2d15e90655a5246c",
-    "internal/component/bgp/reactor/rfc2545_forward_subnet_test.go::TestRFC2545ReceivedPairSubnetConditions#2": "2d15e90655a5246c",
+    "internal/component/bgp/reactor/rfc2545_forward_owned_policy_test.go::TestRFC2545ForwardPolicyOwnGlobalJointSubnet": "971fa8797e00243e",
+    "internal/component/bgp/reactor/rfc2545_forward_subnet_test.go::TestRFC2545ReceivedPairSubnetConditions": "82b22408e1c27114",
+    "internal/component/bgp/reactor/rfc2545_forward_subnet_test.go::TestRFC2545ReceivedPairSubnetConditions#2": "82b22408e1c27114",
     "internal/component/bgp/reactor/rfc2545_joint_subnet_test.go::TestRFC2545JointSubnetWriter": "f611ff36d137d341",
     "internal/component/bgp/reactor/rfc2545_joint_subnet_test.go::TestRFC2545JointSubnetWriter#2": "f611ff36d137d341",
     "internal/component/bgp/reactor/rfc2545_ordinary_joint_subnet_test.go::TestOrdinaryIPv6OwnGlobalJointSubnet": "ce998f5fc37296a5",
@@ -54,8 +54,8 @@
     "internal/le/interoplab/bgp/check_rfc2545_third_party.go::checkRFC2545ThirdPartyLinkLocal": "36b9dc9f406cb222",
     "test/exabgp-compat/encoding/conf-llnh-lla-only.ci": "5d36d6e49a32f302",
     "test/exabgp-compat/encoding/conf-llnh-update.ci": "7f4eea9ed22f6382",
-    "test/plugin/rfc2545-joint-subnet.ci": "41155917ca562811",
-    "test/plugin/rfc2545-joint-subnet.ci#2": "41155917ca562811"
+    "test/plugin/rfc2545-joint-subnet.ci": "94210d3d86e44b23",
+    "test/plugin/rfc2545-joint-subnet.ci#2": "94210d3d86e44b23"
   },
   "verdict": "partial"
 }

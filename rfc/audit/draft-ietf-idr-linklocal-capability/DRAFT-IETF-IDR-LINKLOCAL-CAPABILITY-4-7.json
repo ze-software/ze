@@ -1,15 +1,15 @@
 {
-  "note": "Re-judged 2026-10-04 after f93a30fbfc. Forbidden: announcing to a one-hop external peer a route with no next hop included, rather than treat-as-withdraw. TestNextHopSelfWithheldRouteServerWithdraws requires the fixture reached nhSelfWithheld (next-hop self configured, no address of this speaker, so third-party is disabled and nothing remains) and asserts on the route-server rail no MP_REACH next hop and the exact MP_UNREACH_NLRI for the prefix; the client is on-link, so no other gate explains the refusal. Both rails share egressNextHopWithheld and each calls mods.SetWithdraw on any refusal, and the general-rail withdrawal is proven by the 4-1 unit. Control: TestLinkLocalRouteWithANextHopIsAnnouncedToAnExternalPeer (RIB rail, cross-rail, conformant). The RIB-rail positive alone is a zero-address builder check.",
+  "note": "Independent re-judgment after export-chain next-hop unification (cabc8c511e / c2d7117d05) against draft-ietf-idr-linklocal-capability-06 Section 4 item 2 (one-hop external default procedure): 'If no next hops are included, the route MUST NOT be announced (treat-as-withdraw).' Re-read all three tagged tests. TestNextHopSelfWithheldRouteServerWithdraws migrated NextHopSelf to policychain.BuiltinNextHopSelf; precomputeNextHop still sets nhSelfWithheld=true when next-hop:self has no local address (explicitly guarded by require.True on client.forwardFacts().nhSelfWithheld), the client is on-link with capability 77 so no other gate fires, and reactorForwardRS emits nil next hop and exact MP_UNREACH_NLRI for 2001:db8:7::/64. The two unchanged external-peer buildRIBRouteUpdate tests keep the nil vs Global (no LOCAL_PREF) control pair. Q1-Q4 satisfied; polarity pair intact. Source-level judgment only.",
   "requirement_sha": "559ca70e99101ad3",
   "tests": {
     "internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_advertise_test.go::TestLinkLocalRouteWithANextHopIsAnnouncedToAnExternalPeer": "b37f1fd5003ae834",
     "internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_advertise_test.go::TestLinkLocalRouteWithNoNextHopIsNotAnnouncedToAnExternalPeer": "b37f1fd5003ae834",
-    "internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_withhold_withdraw_test.go::TestNextHopSelfWithheldRouteServerWithdraws": "1f41fe0d3b72271c"
+    "internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_withhold_withdraw_test.go::TestNextHopSelfWithheldRouteServerWithdraws": "19b387646b7dc805"
   },
   "units": {
     "internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_advertise_test.go::TestLinkLocalRouteWithANextHopIsAnnouncedToAnExternalPeer": "65c510d00af439fa",
     "internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_advertise_test.go::TestLinkLocalRouteWithNoNextHopIsNotAnnouncedToAnExternalPeer": "2c78d9232aa3cd34",
-    "internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_withhold_withdraw_test.go::TestNextHopSelfWithheldRouteServerWithdraws": "29764c066a3d4a77"
+    "internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_withhold_withdraw_test.go::TestNextHopSelfWithheldRouteServerWithdraws": "9f3d798f9d42e778"
   },
   "verdict": "enforced"
 }

@@ -1,23 +1,23 @@
 {
   "code": {
     "internal/component/bgp/plugins/rpki/rpki.go::rPKIPlugin.validateOriginForPolicy": "9a95264d48115775",
-    "internal/component/bgp/reactor/egress_inject_filter.go::Peer.captureOriginatedFacts": "cdc3129c4eefe68f",
-    "internal/component/bgp/reactor/filter_library.go::Reactor.runPostEgressRPKIValidation": "04431a3d72aef84e",
-    "internal/component/bgp/reactor/filter_ordered.go::Reactor.runEgressPolicyChainASN4": "b8feaadfbea730d9",
+    "internal/component/bgp/reactor/egress_inject_filter.go::Peer.captureOriginatedFacts": "528a6f140940b779",
+    "internal/component/bgp/reactor/filter_library.go::Reactor.runPostEgressRPKIValidation": "3c151a7b37fc6fd0",
+    "internal/component/bgp/reactor/filter_ordered.go::Reactor.runEgressPolicyChainASN4": "824d96fedea4d70b",
     "internal/component/bgp/reactor/policy_dryrun_library.go::Reactor.traceLibraryChain": "9d6cf4f909552e8b",
     "internal/component/bgp/reactor/stale_readvertise_chain.go::Reactor.runStaleChain": "f337fd07c7be0294"
   },
-  "note": "Independent re-judgment against RFC 8893 Section 1 (\"A validating BGP speaker MUST apply Route Origin Validation policy semantics (see Section 2 of [RFC6811] and Section 4 of [RFC8481]) after applying any egress configuration and policy.\"). Re-read rfc/full/rfc8893.txt, runPostEgressRPKIValidation at HEAD, and all diffs since d103bf2cda across egress_inject_filter.go, filter_library.go, filter_ordered.go, policy_dryrun_library.go, stale_readvertise_chain.go, and rfc8893_egress_validation_test.go. Changes were strictly passing *policyview.Session by pointer (ea4b3b6f44), removing the constant FinalAccept parameter from test helper compileRFC8893ExportChain (d3fcd1cfd7), and adding ingress-only retainDenied/deniedPayload for RS-client Adj-RIB-In retention (109395f25d). Post-egress RPKI validation ordering across runEgressPolicyChainASN4, live forwarding, runStaleChain(judgeAll=true), traceLibraryChain, and bgp-rpki validateOriginForPolicy seam assertions are unchanged. Verdict unchanged: enforced.",
+  "note": "Independent re-judgment after BGP export-chain next-hop unification (cabc8c511e / c2d7117d05). Verified RFC 8893 Section 1 ('A validating BGP speaker MUST apply Route Origin Validation policy semantics (see Section 2 of [RFC6811] and Section 4 of [RFC8481]) after applying any egress configuration and policy.'), all six cited producers, and all three tagged tests. In cabc8c511e, runPostEgressRPKIValidation and runEgressPolicyChainASN4 gained export-chain NextHopIntent/rawOverride propagation while preserving strict post-egress RPKI validation ordering after non-validating egress policy and final judges; captureOriginatedFacts retained ASOverride/SecondaryAS population alongside precomputeNextHop; live-forward tests in rfc8893_egress_validation_test.go replaced NextHopMode=NextHopUnchanged with BuiltinNextHopUnchanged in the export chain. Q1: verifies bgp-rpki validateOriginForPolicy RFC 6811/8481 semantics and fail-closed inactive behavior, export-chain ordering (remove-private-as before rpki-validation-state even when listed after), live forward with as-override, multi-prefix partial drop, runStaleChain(judgeAll=true), traceLibraryChain, SessionFacts/captureOriginatedFacts, and rejection of routes turned Invalid post-egress or with covered AS_SET. Q2: running RPKI validation before egress policy/config or losing post-policy rewrites fails accept/reject and wire assertions. Q3: BuiltinNextHopUnchanged preserves unchanged next hop without touching AS_PATH or RPKI ordering. Q4: covers live forward, export chain, stale readvertise, dry-run, originated facts, and validator seam.",
   "requirement_sha": "fd66d767fd60e8ac",
   "tests": {
     "internal/component/bgp/plugins/rpki/rfc8893_policy_seam_test.go::TestRPKIPluginPublishesOriginValidatorSeam": "8ceb85cfe200ee3f",
-    "internal/component/bgp/reactor/rfc8893_egress_validation_test.go::TestRFC8893EgressValidationAppliesAfterEgressConfigAndPolicy": "a3558ce366af90ef",
-    "internal/component/bgp/reactor/rfc8893_egress_validation_test.go::TestRFC8893EgressValidationRejectsRouteInvalidAfterEgressConfigAndPolicy": "a3558ce366af90ef"
+    "internal/component/bgp/reactor/rfc8893_egress_validation_test.go::TestRFC8893EgressValidationAppliesAfterEgressConfigAndPolicy": "28dd0e4b7c3ccd49",
+    "internal/component/bgp/reactor/rfc8893_egress_validation_test.go::TestRFC8893EgressValidationRejectsRouteInvalidAfterEgressConfigAndPolicy": "28dd0e4b7c3ccd49"
   },
   "units": {
     "internal/component/bgp/plugins/rpki/rfc8893_policy_seam_test.go::TestRPKIPluginPublishesOriginValidatorSeam": "766e8cb729fddf6f",
-    "internal/component/bgp/reactor/rfc8893_egress_validation_test.go::TestRFC8893EgressValidationAppliesAfterEgressConfigAndPolicy": "063ade393253ec30",
-    "internal/component/bgp/reactor/rfc8893_egress_validation_test.go::TestRFC8893EgressValidationRejectsRouteInvalidAfterEgressConfigAndPolicy": "357a3a0ff1a5731e"
+    "internal/component/bgp/reactor/rfc8893_egress_validation_test.go::TestRFC8893EgressValidationAppliesAfterEgressConfigAndPolicy": "03ce724d9af05415",
+    "internal/component/bgp/reactor/rfc8893_egress_validation_test.go::TestRFC8893EgressValidationRejectsRouteInvalidAfterEgressConfigAndPolicy": "d75a73c5ed008e51"
   },
   "verdict": "enforced"
 }

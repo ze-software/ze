@@ -1,16 +1,16 @@
 {
   "code": {
-    "internal/component/bgp/config/filter_insertion.go::insertForPeer": "6dad988951bdd115",
+    "internal/component/bgp/config/filter_insertion.go::insertForPeer": "e0e96e827df36dbe",
     "internal/component/bgp/plugins/gr/gr_filter.go::evaluateLLGRIngress": "e96cb9047fb502d6",
     "internal/component/bgp/plugins/gr/gr_ingress.go::llgrStaleFromSource": "4ec73588124fe3c5",
     "internal/component/bgp/plugins/rib/bestpath.go::compareBeforeMED": "e475cbde55db8cc0",
     "internal/component/bgp/plugins/rib/rib_commands_community.go::attachCommunityCommand": "c4e1fb2d3bedbbc3",
     "internal/component/bgp/plugins/rib/rib_structured.go::receivedLLGRStaleFromMeta": "644fbb441941e7fd",
     "internal/component/bgp/reactor/reactor_notify.go::Reactor.notifyMessageReceiverFrom": "cc8773e0299bc8e6",
-    "internal/component/bgp/reactor/reactor_notify.go::Reactor.notifyOneMessage": "6d7190765d600cca",
+    "internal/component/bgp/reactor/reactor_notify.go::Reactor.notifyOneMessage": "224cfc986368c3cf",
     "internal/component/bgp/reactor/session_negotiate.go::negotiateWith": "e57fad37a400239c"
   },
-  "note": "Independent re-judgment against RFC 9494 Sections 4.3-4.4 after commit 109395f25d added RFC 7947 Section 2.1 partial-denied ingress retention (partialDenied / enqueueFilteredIngress on update-filtered for rs-client peers) to Reactor.notifyOneMessage. In notifyOneMessage, src.LLGRAdvertised, ingressMeta, routeMeta, msg.Meta, and ru.Meta for accepted UPDATEs are untouched; the added code runs only when res.deniedPayload != nil && retainDeniedIngress(hasPeer, src). All 16 tagged test units (GR ingress filter pair, RIB bestpath/least-preferred/received-stale/self-attach roots, reactor ingress-meta and negotiateWith roots, and test/plugin/llgr-stale-received-depreferenced.ci) and all other 8 cited producers are byte-identical to the prior enforced audit.",
+  "note": "Independent re-judgment against RFC 9494 Sections 4.3-4.4 after export-chain next-hop unification and bus/implied-filter changes (cabc8c511e, d5dc519c4e, 065e6e2d16, e37fa80411). In config/filter_insertion.go::insertForPeer, recording ImpliedFilter provenance (PrependImplied) and carrying anyPeer trigger paths as []string instead of []bool leave llgr-ingress filter insertion and validation behavior unchanged. In test/plugin/llgr-stale-received-depreferenced.ci, only the config syntax migrated from plugin/attach-process to bus { endpoint ... }, keeping the exact two-peer topology (llgr with LLGR enabled vs plain with graceful-restart disable), identical UPDATE hex, and exact BestStepStale vs BestStepLocalPref observer assertions. All 14 Go test units (GR ingress filter pair, RIB bestpath/least-preferred/received-stale/self-attach tests, reactor ingress-meta and negotiateWith tests) and all 8 other cited producers (evaluateLLGRIngress, llgrStaleFromSource, compareBeforeMED, attachCommunityCommand, receivedLLGRStaleFromMeta, notifyMessageReceiverFrom, notifyOneMessage, negotiateWith) are intact and enforce both received and self-attached LLGR_STALE least-preferred selection.",
   "requirement_sha": "1168b7e095abe221",
   "tests": {
     "internal/component/bgp/plugins/gr/rfc9494_gr_ingress_test.go::TestLLGRIngressFilter_MarksReceivedStale": "ccda16eb9f58cec3",
@@ -27,8 +27,8 @@
     "internal/component/bgp/reactor/rfc9494_llgr_ingress_meta_test.go::TestRFC9494ReceivedEventNoLLGRSessionStaysFresh": "521a3da89dd99dd2",
     "internal/component/bgp/reactor/rfc9494_llgr_trigger_test.go::TestRFC9494NegotiateWithKeysOnAdvertisedLLGR": "e390429a1895e749",
     "internal/component/bgp/reactor/rfc9494_llgr_trigger_test.go::TestRFC9494NegotiateWithKeysOnAdvertisedLLGR#2": "e390429a1895e749",
-    "test/plugin/llgr-stale-received-depreferenced.ci": "518e5c0a132285c1",
-    "test/plugin/llgr-stale-received-depreferenced.ci#2": "518e5c0a132285c1"
+    "test/plugin/llgr-stale-received-depreferenced.ci": "b03c83c4ddaddc00",
+    "test/plugin/llgr-stale-received-depreferenced.ci#2": "b03c83c4ddaddc00"
   },
   "units": {
     "internal/component/bgp/plugins/gr/rfc9494_gr_ingress_test.go::TestLLGRIngressFilter_MarksReceivedStale": "81975bcfca055113",
@@ -45,8 +45,8 @@
     "internal/component/bgp/reactor/rfc9494_llgr_ingress_meta_test.go::TestRFC9494ReceivedEventNoLLGRSessionStaysFresh": "abcb46ba4bad5fd8",
     "internal/component/bgp/reactor/rfc9494_llgr_trigger_test.go::TestRFC9494NegotiateWithKeysOnAdvertisedLLGR": "97b2ca6fc483a7c4",
     "internal/component/bgp/reactor/rfc9494_llgr_trigger_test.go::TestRFC9494NegotiateWithKeysOnAdvertisedLLGR#2": "97b2ca6fc483a7c4",
-    "test/plugin/llgr-stale-received-depreferenced.ci": "518e5c0a132285c1",
-    "test/plugin/llgr-stale-received-depreferenced.ci#2": "518e5c0a132285c1"
+    "test/plugin/llgr-stale-received-depreferenced.ci": "b03c83c4ddaddc00",
+    "test/plugin/llgr-stale-received-depreferenced.ci#2": "b03c83c4ddaddc00"
   },
   "verdict": "enforced"
 }

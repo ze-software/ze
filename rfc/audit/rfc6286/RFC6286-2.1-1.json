@@ -1,15 +1,15 @@
 {
   "code": {
     "internal/component/bgp/reactor/config.go::GlobalsFromTree": "cdda6a47a330c020",
-    "internal/component/bgp/reactor/config.go::parsePeerSettings": "4b83d7486f3ec0d7",
+    "internal/component/bgp/reactor/config.go::parsePeerSettings": "90870d4317cd488c",
     "internal/component/bgp/reactor/config.go::parseRouterID": "725c2d1de404f605",
     "internal/component/bgp/reactor/reload_globals.go::applyGlobalsJournaled": "40dbe0c4d2f50194",
-    "internal/component/bgp/reactor/session_negotiate.go::buildOpenFromSnapshot": "cc08ea7c9a65ad0f"
+    "internal/component/bgp/reactor/session_negotiate.go::buildOpenFromSnapshot": "e5af9bf2a77f2c40"
   },
-  "note": "Independent rejudgment 2026-11-24 against RFC 6286 Section 2.1 (rfc/full/rfc6286.txt): \"The BGP Identifier is a 4-octet, unsigned, non-zero integer that should be unique within an AS. The value of the BGP Identifier for a BGP speaker is determined on startup and is the same for every local interface and every BGP peer.\" Assessed on the default configuration path (one nonzero global bgp/router-id, no session override, no operator-requested reload change). Verified changes since cd2516ffa8: config.go::parsePeerSettings wrapped incomplete-config errors in IncompletePeerError and added ps.Description without touching routerID/parseRouterID; reload_globals.go touched only setGlobals (LocalAS); session_negotiate.go touched only publishNegotiation (localGR); config_test.go added/updated unrelated GR and description tests. All six tagged test entries remain intact: zero global/peer router-id rejected, nonzero accepted, identical wire OPEN BGPIdentifier (0.0.0.1, 128.0.0.0, 255.255.255.255) across IPv4/IPv6 local addresses and repeated sessions, and identity preserved across unchanged reload. Verdict stands: enforced.",
+  "note": "Independent re-judgment against RFC 6286 Section 2.1 ('The BGP Identifier is a 4-octet, unsigned, non-zero integer that should be unique within an AS. The value of the BGP Identifier for a BGP speaker is determined on startup and is the same for every local interface and every BGP peer.') after export-chain next-hop unification (cabc8c511e / c2d7117d05). Verified changes: config.go::parsePeerSettings removed only the deleted applyNextHopMode call without touching routerID/parseRouterID; session_negotiate.go::buildOpenFromSnapshot added only coalesceAddPath(caps) without touching BGPIdentifier; config_test.go removed only unrelated TestParsePeerFromTree_NextHopMode while TestParsePeerFromTreeInvalid remained byte-identical. All six tagged test entries (zero global/peer router-id rejection, 0.0.0.1 acceptance, shared wire OPEN BGPIdentifier across IPv4/IPv6 local addresses and repeated sessions, and unchanged-reload preservation) and all five cited producers remain intact on the default configuration path.",
   "requirement_sha": "922fb6533dd43d00",
   "tests": {
-    "internal/component/bgp/reactor/config_test.go::TestParsePeerFromTreeInvalid": "73eafa23e9e2c7b2",
+    "internal/component/bgp/reactor/config_test.go::TestParsePeerFromTreeInvalid": "f9fa8ddd6738d11f",
     "internal/component/bgp/reactor/rfc6286_default_identifier_test.go::TestRFC6286DefaultIdentifierSharedOnWire": "8ca21d7e602ee3da",
     "internal/component/bgp/reactor/rfc6286_default_reload_test.go::TestRFC6286DefaultIdentifierSurvivesUnchangedReload": "3fc2a1511fa4de89",
     "internal/component/bgp/reactor/rfc6286_router_id_test.go::TestRFC6286GlobalZeroRouterIDRejected": "c50ce7d9ac200072",

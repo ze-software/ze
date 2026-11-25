@@ -4,8 +4,8 @@
   "tests": {
     "internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_announce_test.go::TestLinkLocalBothAddressesSetTheWireLengthOctetToThirtyTwo": "eda240ce7fd2c20c",
     "internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_announce_test.go::TestLinkLocalSingleAddressSetsTheWireLengthOctetToSixteen": "eda240ce7fd2c20c",
-    "internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_test.go::TestLinkLocalBothAddressesUseThirtyTwoOctets": "8b6df8728f9a616d",
-    "internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_test.go::TestLinkLocalSingleAddressKeepsSixteenOctets": "8b6df8728f9a616d"
+    "internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_test.go::TestLinkLocalBothAddressesUseThirtyTwoOctets": "a934450c02e2b212",
+    "internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_test.go::TestLinkLocalSingleAddressKeepsSixteenOctets": "a934450c02e2b212"
   },
   "units": {
     "internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_announce_test.go::TestLinkLocalBothAddressesSetTheWireLengthOctetToThirtyTwo": "444d14cf9d062586",

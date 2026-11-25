@@ -1,15 +1,15 @@
 {
-  "note": "Re-judged 2026-10-04 after f93a30fbfc. Forbidden: announcing to an internal peer a route the internal-peer procedures leave with no IPv6 next hop, rather than treat-as-withdraw. TestLinkLocalOnlyRouteWithdrawnFromMultihopPeer (internal=true branch) relays a Link-Local-only fe80::1 to an internal peer more than one hop away, where the Link-Local MUST NOT be included and nothing remains, and asserts no MP_REACH next hop and the exact MP_UNREACH_NLRI for the prefix, so 'after evaluating the above procedures' is an input and the withdrawal is asserted. Control: TestLinkLocalRouteWithANextHopIsAnnouncedToAnInternalPeer announces the same route with a Global next hop and LOCAL_PREF (RIB rail, cross-rail but conformant). The RIB-rail positive alone is still only a zero-address builder check.",
+  "note": "Independent re-judgment after export-chain next-hop unification (cabc8c511e / c2d7117d05) against draft-ietf-idr-linklocal-capability-06 Section 4 item 1: 'If, after evaluating the above procedures, there are no IPv6 next hops included with the route, the route MUST NOT be announced to the remote BGP speaker. (Treat-as-withdraw.)' Re-read all three tagged tests. TestLinkLocalOnlyRouteWithdrawnFromMultihopPeer migrated NextHopUnchanged to policychain.BuiltinNextHopUnchanged; its internal=true branch sets PeerAS=65000, refreshes forward facts, restores the fixture's connected subnet scope, relays received fe80::1 with capability 77 negotiated, and asserts no MP_REACH next hop and exact MP_UNREACH_NLRI for 2001:db8:7::/64 while the attached control receives fe80::1. The two unchanged buildRIBRouteUpdate internal-peer tests retain the nil vs Global+LOCAL_PREF control pair. Q1-Q4 satisfied; polarity pair intact. Source-level judgment only.",
   "requirement_sha": "85d358b2f23809f2",
   "tests": {
     "internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_advertise_test.go::TestLinkLocalRouteWithANextHopIsAnnouncedToAnInternalPeer": "b37f1fd5003ae834",
     "internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_advertise_test.go::TestLinkLocalRouteWithNoNextHopIsNotAnnouncedToAnInternalPeer": "b37f1fd5003ae834",
-    "internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_withhold_withdraw_test.go::TestLinkLocalOnlyRouteWithdrawnFromMultihopPeer": "1f41fe0d3b72271c"
+    "internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_withhold_withdraw_test.go::TestLinkLocalOnlyRouteWithdrawnFromMultihopPeer": "19b387646b7dc805"
   },
   "units": {
     "internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_advertise_test.go::TestLinkLocalRouteWithANextHopIsAnnouncedToAnInternalPeer": "e7c0912e3ea5374e",
     "internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_advertise_test.go::TestLinkLocalRouteWithNoNextHopIsNotAnnouncedToAnInternalPeer": "69a8c4e0c2796a81",
-    "internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_withhold_withdraw_test.go::TestLinkLocalOnlyRouteWithdrawnFromMultihopPeer": "6099070f7ecdcb79"
+    "internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_withhold_withdraw_test.go::TestLinkLocalOnlyRouteWithdrawnFromMultihopPeer": "16d6e71201f60a5a"
   },
   "verdict": "enforced"
 }

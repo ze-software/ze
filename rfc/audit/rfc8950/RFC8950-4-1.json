@@ -1,11 +1,11 @@
 {
-  "note": "Independent re-judgment at HEAD (audit-b). RFC 8950 Section 4: \"A BGP speaker MUST only advertise the IPv4 or VPN-IPv4 NLRI with an IPv6 next hop to a BGP peer if the BGP speaker has first ascertained via the BGP Capability Advertisement that the BGP peer supports the Extended Next Hop Encoding capability for the relevant AFI/SAFI pair.\" All 11 tagged test functions (16 tags) and producers (Peer.canUseNextHopFor, Peer.resolveNextHop, egressNextHopLacksExtendedNextHop) verified at HEAD: covers IPv4 (1/1, 1/2, 1/4) and VPN-IPv4 (1/128) across direct batch, queued drains, static grouped, commit, export filter, and general/route-server forwarding; exact negotiated pair emits IPv6 MP_REACH next hop, while absent or wrong-SAFI pair refuses with ErrNextHopIncompatible or withholds MP_REACH while preserving withdrawals and IPv4 survivors.",
+  "note": "Independent re-judgment against RFC 8950 Section 4 after export-chain next-hop unification (cabc8c511e / c2d7117d05): \"A BGP speaker MUST only advertise the IPv4 or VPN-IPv4 NLRI with an IPv6 next hop to a BGP peer if the BGP speaker has first ascertained via the BGP Capability Advertisement that the BGP peer supports the Extended Next Hop Encoding capability for the relevant AFI/SAFI pair.\" Verified all 11 tagged test functions (16 tags) and producers (Peer.canUseNextHopFor, Peer.resolveNextHop, egressNextHopLacksExtendedNextHop via egressNextHopWithheldWithSelf): migrated fixtures in TestDefaultNextHopIPv6RequiresExactExtendedPair (setExportNextHopSelf), TestDefaultNextHopLinkLocalCandidateUsesSessionPolicy (export-chain policychain.NextHopMode* and answerTransport), and TestRFC8950ForwardWithholdsIPv6NextHopFromPeerLackingThePair (setExportNextHopUnchanged and attachExplicitNextHop, plus RS handback) preserve exact ErrNextHopIncompatible refusals, exact MP_REACH_NLRI IPv6 wire checks, withdrawal-only withholding on unpaired destinations, and IPv4 canary survivors across direct batch, queued drains, static grouped, commit, export filter, and general/route-server forwarding for IPv4 (1/1, 1/2, 1/4) and VPN-IPv4 (1/128). Sibling-only edits in next_hop_family_admission_test.go left TestFamilyNextHopOriginationAdmission intact.",
   "requirement_sha": "f608a02bce1fb9c0",
   "tests": {
-    "internal/component/bgp/reactor/default_next_hop_controls_test.go::TestDefaultNextHopIPv6RequiresExactExtendedPair": "57c618a3cf714021",
-    "internal/component/bgp/reactor/default_next_hop_controls_test.go::TestDefaultNextHopIPv6RequiresExactExtendedPair#2": "57c618a3cf714021",
-    "internal/component/bgp/reactor/next_hop_family_admission_test.go::TestFamilyNextHopOriginationAdmission": "817e9b0d9fc04a99",
-    "internal/component/bgp/reactor/next_hop_family_admission_test.go::TestFamilyNextHopOriginationAdmission#2": "817e9b0d9fc04a99",
+    "internal/component/bgp/reactor/default_next_hop_controls_test.go::TestDefaultNextHopIPv6RequiresExactExtendedPair": "2acf6fafc5774cc8",
+    "internal/component/bgp/reactor/default_next_hop_controls_test.go::TestDefaultNextHopIPv6RequiresExactExtendedPair#2": "2acf6fafc5774cc8",
+    "internal/component/bgp/reactor/next_hop_family_admission_test.go::TestFamilyNextHopOriginationAdmission": "ff037f1ca3532147",
+    "internal/component/bgp/reactor/next_hop_family_admission_test.go::TestFamilyNextHopOriginationAdmission#2": "ff037f1ca3532147",
     "internal/component/bgp/reactor/peer_static_group_next_hop_test.go::TestStaticGroupedResolvedNextHopWire": "7f66054031f69cb3",
     "internal/component/bgp/reactor/peer_test.go::TestCanUseNextHopFor_CrossFamilyNoCap": "297eece85f1cd364",
     "internal/component/bgp/reactor/peer_test.go::TestCanUseNextHopFor_ExtendedNH": "297eece85f1cd364",
@@ -13,15 +13,15 @@
     "internal/component/bgp/reactor/reactor_a_rfc8950_explicit_nexthop_test.go::TestRFC8950BatchRailIPv4UnicastIPv6NextHopUsesMPReach": "1fedf613c0499ae7",
     "internal/component/bgp/reactor/reactor_a_rfc8950_explicit_nexthop_test.go::TestRFC8950ExplicitIPv6NextHopFollowsTheNegotiatedPair": "1fedf613c0499ae7",
     "internal/component/bgp/reactor/reactor_a_rfc8950_explicit_nexthop_test.go::TestRFC8950ExplicitIPv6NextHopFollowsTheNegotiatedPair#2": "1fedf613c0499ae7",
-    "internal/component/bgp/reactor/rfc8950_default_link_local_test.go::TestDefaultNextHopLinkLocalCandidateUsesSessionPolicy": "a20f7ed4125f4d69",
+    "internal/component/bgp/reactor/rfc8950_default_link_local_test.go::TestDefaultNextHopLinkLocalCandidateUsesSessionPolicy": "6444d11db34b0436",
     "internal/component/bgp/reactor/rfc8950_nexthop_pair_test.go::TestRFC8950IPv6NextHopFollowsTheNegotiatedPair": "d594579e92237315",
     "internal/component/bgp/reactor/rfc8950_nexthop_pair_test.go::TestRFC8950IPv6NextHopFollowsTheNegotiatedPair#2": "d594579e92237315",
-    "internal/component/bgp/reactor/rfc8950_reactor_a2_forward_test.go::TestRFC8950ForwardWithholdsIPv6NextHopFromPeerLackingThePair": "468c631d807b7fe9",
-    "internal/component/bgp/reactor/rfc8950_reactor_a2_forward_test.go::TestRFC8950ForwardWithholdsIPv6NextHopFromPeerLackingThePair#2": "468c631d807b7fe9"
+    "internal/component/bgp/reactor/rfc8950_reactor_a2_forward_test.go::TestRFC8950ForwardWithholdsIPv6NextHopFromPeerLackingThePair": "53b0bdb8a6c1146a",
+    "internal/component/bgp/reactor/rfc8950_reactor_a2_forward_test.go::TestRFC8950ForwardWithholdsIPv6NextHopFromPeerLackingThePair#2": "53b0bdb8a6c1146a"
   },
   "units": {
-    "internal/component/bgp/reactor/default_next_hop_controls_test.go::TestDefaultNextHopIPv6RequiresExactExtendedPair": "1d0f144337c259fd",
-    "internal/component/bgp/reactor/default_next_hop_controls_test.go::TestDefaultNextHopIPv6RequiresExactExtendedPair#2": "1d0f144337c259fd",
+    "internal/component/bgp/reactor/default_next_hop_controls_test.go::TestDefaultNextHopIPv6RequiresExactExtendedPair": "af186facecc65475",
+    "internal/component/bgp/reactor/default_next_hop_controls_test.go::TestDefaultNextHopIPv6RequiresExactExtendedPair#2": "af186facecc65475",
     "internal/component/bgp/reactor/next_hop_family_admission_test.go::TestFamilyNextHopOriginationAdmission": "ae70c6d8892293ad",
     "internal/component/bgp/reactor/next_hop_family_admission_test.go::TestFamilyNextHopOriginationAdmission#2": "ae70c6d8892293ad",
     "internal/component/bgp/reactor/peer_static_group_next_hop_test.go::TestStaticGroupedResolvedNextHopWire": "b3c5667ddbace3ef",
@@ -31,11 +31,11 @@
     "internal/component/bgp/reactor/reactor_a_rfc8950_explicit_nexthop_test.go::TestRFC8950BatchRailIPv4UnicastIPv6NextHopUsesMPReach": "683a3fa319019dbf",
     "internal/component/bgp/reactor/reactor_a_rfc8950_explicit_nexthop_test.go::TestRFC8950ExplicitIPv6NextHopFollowsTheNegotiatedPair": "e6b8ca8a82005540",
     "internal/component/bgp/reactor/reactor_a_rfc8950_explicit_nexthop_test.go::TestRFC8950ExplicitIPv6NextHopFollowsTheNegotiatedPair#2": "e6b8ca8a82005540",
-    "internal/component/bgp/reactor/rfc8950_default_link_local_test.go::TestDefaultNextHopLinkLocalCandidateUsesSessionPolicy": "67195ba6c2e564c1",
+    "internal/component/bgp/reactor/rfc8950_default_link_local_test.go::TestDefaultNextHopLinkLocalCandidateUsesSessionPolicy": "72fffd34cedbe05b",
     "internal/component/bgp/reactor/rfc8950_nexthop_pair_test.go::TestRFC8950IPv6NextHopFollowsTheNegotiatedPair": "247c511b47d5880f",
     "internal/component/bgp/reactor/rfc8950_nexthop_pair_test.go::TestRFC8950IPv6NextHopFollowsTheNegotiatedPair#2": "247c511b47d5880f",
-    "internal/component/bgp/reactor/rfc8950_reactor_a2_forward_test.go::TestRFC8950ForwardWithholdsIPv6NextHopFromPeerLackingThePair": "8fffc1dc7285f860",
-    "internal/component/bgp/reactor/rfc8950_reactor_a2_forward_test.go::TestRFC8950ForwardWithholdsIPv6NextHopFromPeerLackingThePair#2": "8fffc1dc7285f860"
+    "internal/component/bgp/reactor/rfc8950_reactor_a2_forward_test.go::TestRFC8950ForwardWithholdsIPv6NextHopFromPeerLackingThePair": "417a447708709dc3",
+    "internal/component/bgp/reactor/rfc8950_reactor_a2_forward_test.go::TestRFC8950ForwardWithholdsIPv6NextHopFromPeerLackingThePair#2": "417a447708709dc3"
   },
   "verdict": "enforced"
 }

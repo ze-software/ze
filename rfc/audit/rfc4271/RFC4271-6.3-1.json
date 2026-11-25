@@ -4,8 +4,8 @@
   "tests": {
     "internal/component/bgp/reactor/rfc4271_established_teardown_peer_test.go::TestRFC4271EstablishedUpdateErrorReleasesTheConnection": "75930a8f452295fa",
     "internal/component/bgp/reactor/rfc4271_session_core4271_test.go::TestSessionRFC4271RetainedUpdateNotifications": "f1eef5c477ba7bae",
-    "internal/component/bgp/reactor/rfc4271_test.go::TestRFC4271ConformantUpdateSendsNoUpdateError": "4e6d4c69499e564a",
-    "internal/component/bgp/reactor/rfc4271_test.go::TestRFC4271UpdateErrorReportedAsUpdateMessageError": "4e6d4c69499e564a",
+    "internal/component/bgp/reactor/rfc4271_test.go::TestRFC4271ConformantUpdateSendsNoUpdateError": "1209ca1e6ea788fe",
+    "internal/component/bgp/reactor/rfc4271_test.go::TestRFC4271UpdateErrorReportedAsUpdateMessageError": "1209ca1e6ea788fe",
     "internal/component/bgp/reactor/session_dupmp_unreach_wire_test.go::TestSessionRFC7606DuplicateMPUnreachNotificationOnTheWire": "052daf09fdcc69d4"
   },
   "units": {

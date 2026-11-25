@@ -1,19 +1,19 @@
 {
-  "note": "Independent re-judgment at HEAD against RFC 8669 Section 3.1 ('Flags: 16 bits of flags. None are defined by this document. The Flags field MUST be clear on transmission'). Verified attribute.EncodePrefixSID and parsePrefixSIDWithSRGB (internal/core/bgp/attribute/prefixsid.go) emit Flags=0x0000, and session_prefix_sid.go::clearLabelIndexTLVs (invoked by session_egress_normalize.go::normalizeTransmittedUpdate) zeroes Label-Index Flags on IPv4/IPv6 labeled unicast while leaving unknown TLVs and Originator SRGB unmodified. Positives assert exact zero Flags on bare and SRGB-form encoders (TestRFC8669LabelIndexTLVReservedAndFlagsClearOnTransmission, TestRFC8669SRGBFormLabelIndexReservedAndFlagsClearOnTransmission), family-gated egress clearing on IPv4/IPv6 LU (TestClearTransmittedLabelIndexOnlyOnLabeledUnicast), and clean transmission across all 6 writer/relay rails (TestRFC8669LabelIndexTransmissionClearsReservedAndFlags). Negative sends dirty Flags=0x5aff across all 6 rails and asserts exact cleared wire bytes without mutating borrowed source or Originator SRGB. Q1-Q4 pass.",
+  "note": "Independent re-judgment after BGP export-chain next-hop unification (cabc8c511e / c2d7117d05). Verified RFC 8669 Section 3.1 ('Flags: 16 bits of flags. None are defined by this document. The Flags field MUST be clear on transmission'), attribute.EncodePrefixSID, session_prefix_sid.go (clearLabelIndexTLVs), and all four tagged units. TestRFC8669LabelIndexTransmissionClearsReservedAndFlags switched only its rfc8669RelayUpdate argument from NextHopUnchanged to policychain.BuiltinNextHopUnchanged, keeping all 6 writer/relay rails and clean/dirty assertions identical. Q1: bare and SRGB-form config encoders assert exact Flags=0x0000; TestClearTransmittedLabelIndexOnlyOnLabeledUnicast asserts zeroing Flags=0x5aff on IPv4/IPv6 labeled unicast (both attribute orders, 0 allocs) while leaving VPN/unicast untouched; TestRFC8669LabelIndexTransmissionClearsReservedAndFlags sends clean (0x0000) and dirty (0x5aff) Flags across all 6 rails (raw, packet, parsed, override, general, route-server) and asserts exact cleared wire bytes without mutating borrowed source or Originator SRGB. Q2: non-zero Flags emitted by either encoder or escaping any of the 6 writer/relay rails fails exact byte assertions. Q3: isolates Label-Index Flags clearing on labeled unicast while checking unknown TLV, SRGB, NLRI, and source immutability. Q4: covers origination and relay/transmission across IPv4/IPv6 labeled unicast and all writer rails.",
   "requirement_sha": "00eec3b1db3275a6",
   "tests": {
     "internal/component/bgp/config/rfc8669_test.go::TestRFC8669LabelIndexTLVReservedAndFlagsClearOnTransmission": "e3e1f3a30a4af6f1",
     "internal/component/bgp/config/rfc8669_test.go::TestRFC8669SRGBFormLabelIndexReservedAndFlagsClearOnTransmission": "e3e1f3a30a4af6f1",
     "internal/component/bgp/reactor/rfc8669_label_index_family_test.go::TestClearTransmittedLabelIndexOnlyOnLabeledUnicast": "274e120ed359a9db",
-    "internal/component/bgp/reactor/rfc8669_label_index_transmit_test.go::TestRFC8669LabelIndexTransmissionClearsReservedAndFlags": "91608d1beb8c505e",
-    "internal/component/bgp/reactor/rfc8669_label_index_transmit_test.go::TestRFC8669LabelIndexTransmissionClearsReservedAndFlags#2": "91608d1beb8c505e"
+    "internal/component/bgp/reactor/rfc8669_label_index_transmit_test.go::TestRFC8669LabelIndexTransmissionClearsReservedAndFlags": "245db3c3059238f4",
+    "internal/component/bgp/reactor/rfc8669_label_index_transmit_test.go::TestRFC8669LabelIndexTransmissionClearsReservedAndFlags#2": "245db3c3059238f4"
   },
   "units": {
     "internal/component/bgp/config/rfc8669_test.go::TestRFC8669LabelIndexTLVReservedAndFlagsClearOnTransmission": "6382e271224e1ed9",
     "internal/component/bgp/config/rfc8669_test.go::TestRFC8669SRGBFormLabelIndexReservedAndFlagsClearOnTransmission": "8b66a6174ef13b32",
     "internal/component/bgp/reactor/rfc8669_label_index_family_test.go::TestClearTransmittedLabelIndexOnlyOnLabeledUnicast": "dff529a65e1207a3",
-    "internal/component/bgp/reactor/rfc8669_label_index_transmit_test.go::TestRFC8669LabelIndexTransmissionClearsReservedAndFlags": "1915f9b37d043d53",
-    "internal/component/bgp/reactor/rfc8669_label_index_transmit_test.go::TestRFC8669LabelIndexTransmissionClearsReservedAndFlags#2": "1915f9b37d043d53"
+    "internal/component/bgp/reactor/rfc8669_label_index_transmit_test.go::TestRFC8669LabelIndexTransmissionClearsReservedAndFlags": "523959da4b1eb867",
+    "internal/component/bgp/reactor/rfc8669_label_index_transmit_test.go::TestRFC8669LabelIndexTransmissionClearsReservedAndFlags#2": "523959da4b1eb867"
   },
   "verdict": "enforced"
 }

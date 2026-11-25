@@ -1,19 +1,19 @@
 {
-  "note": "Independently rejudged against RFC 4271 Section 4.3: \"The lower-order four bits of the Attribute Flags octet are unused. They MUST be zero when sent and MUST be ignored when received.\" normalizeTransmittedUpdate clears 0x0F on every complete path-attribute header in the session's private write buffer. The four writer-rail tests assert every flag, attribute code/value and exact NLRI, including unknown optional transitive attributes and Extended Length; the clean-flags control requires byte identity. General and route-server relay tests require zero low bits and retained values/NLRI. The real-daemon CI requires both complete peer frames; explicit next-hop unchanged preserves its literal next-hop subject without changing a flags oracle. The core encoder witness covers selected locally constructed attributes, while the final session writer covers retained/raw bytes. The producer-disabling native breaks are not claimed as selective bit-corruption experiments. This verdict judges the assertions and does not claim a new execution or completion of unrelated attributes/framing requirements.",
+  "note": "Independent re-judgment against RFC 4271 Section 4.3 ('The lower-order four bits of the Attribute Flags octet are unused. They MUST be zero when sent and MUST be ignored when received.') after export-chain next-hop unification (cabc8c511e / c2d7117d05). Verified changes: TestRFC4271RelayedLowNibbleClearedOnBothRails switched only the relay helper argument from NextHopUnchanged to policychain.BuiltinNextHopUnchanged with all general and route-server flag/value/NLRI assertions intact; test/plugin/rfc4271-attr-flags-low-nibble-relay.ci migrated to bus syntax, filter { export { filters [ next-hop:unchanged ]; final accept; } }, dummy FIB + static lo route, and RFC 7947 Section 2.2 0xC0 for attr 241 on rs-client (conn 2) while keeping 0xE0 on plain eBGP (conn 3) and exact zero-low-nibble frame assertions across all attributes on both peers. Unchanged units TestRFC4271WriteClearsLowNibbleEveryAttribute (positive, all four writers including Extended Length), TestRFC4271WriteLeavesCleanFlagsUnchanged (negative, exact byte equality for clean flags), and TestRFC4271AttributeFlagsLowNibbleZeroOnSend (core encoder) remain intact. All four audit questions pass.",
   "requirement_sha": "b37ec5ac4690ae20",
   "tests": {
     "internal/component/bgp/reactor/rfc4271_attr_flags_egress_test.go::TestRFC4271WriteClearsLowNibbleEveryAttribute": "e8d082e5538b8273",
     "internal/component/bgp/reactor/rfc4271_attr_flags_egress_test.go::TestRFC4271WriteLeavesCleanFlagsUnchanged": "e8d082e5538b8273",
-    "internal/component/bgp/reactor/rfc4271_attr_flags_relay_test.go::TestRFC4271RelayedLowNibbleClearedOnBothRails": "7fcb9a72da7cbf62",
+    "internal/component/bgp/reactor/rfc4271_attr_flags_relay_test.go::TestRFC4271RelayedLowNibbleClearedOnBothRails": "9ed780b3bbcbb226",
     "internal/core/bgp/attribute/rfc4271_test.go::TestRFC4271AttributeFlagsLowNibbleZeroOnSend": "c7ba696c3128b187",
-    "test/plugin/rfc4271-attr-flags-low-nibble-relay.ci": "d8b3075406decc74"
+    "test/plugin/rfc4271-attr-flags-low-nibble-relay.ci": "20e487e42b3cbf08"
   },
   "units": {
     "internal/component/bgp/reactor/rfc4271_attr_flags_egress_test.go::TestRFC4271WriteClearsLowNibbleEveryAttribute": "69e3fdadc3a4be72",
     "internal/component/bgp/reactor/rfc4271_attr_flags_egress_test.go::TestRFC4271WriteLeavesCleanFlagsUnchanged": "30c37d25913231c0",
-    "internal/component/bgp/reactor/rfc4271_attr_flags_relay_test.go::TestRFC4271RelayedLowNibbleClearedOnBothRails": "4cc006b6bba6010d",
+    "internal/component/bgp/reactor/rfc4271_attr_flags_relay_test.go::TestRFC4271RelayedLowNibbleClearedOnBothRails": "12e8fc9f169976de",
     "internal/core/bgp/attribute/rfc4271_test.go::TestRFC4271AttributeFlagsLowNibbleZeroOnSend": "64a11a9539271936",
-    "test/plugin/rfc4271-attr-flags-low-nibble-relay.ci": "d8b3075406decc74"
+    "test/plugin/rfc4271-attr-flags-low-nibble-relay.ci": "20e487e42b3cbf08"
   },
   "verdict": "enforced"
 }

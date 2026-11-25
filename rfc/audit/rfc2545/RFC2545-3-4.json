@@ -1,9 +1,9 @@
 {
-  "note": "Independent re-judgment against RFC 2545 Section 3 (\"In all other cases a BGP speaker shall advertise to its peer in the Network Address field only the global IPv6 address of the next hop (the value of the Length of Network Address of Next Hop field shall be set to 16).\"). Re-read all changed files since 1a8d24e0cb: peer_initial_sync_test.go, rfc2545_ordinary_joint_subnet_test.go, rfc2545_peer_send_test.go, and test/plugin/rfc2545-joint-subnet.ci. Changes were strictly negotiateForwardTestFamilies, ASN4 capability and egressRouteFilter signature alignment in fixtures, and matching rs receive events in rfc2545-joint-subnet.ci. Every exact 16-octet length (0x10) global-only assertion and negative off-link/split-subnet control is unchanged. Verdict unchanged: enforced.",
+  "note": "Independent re-judgment after export-chain next-hop unification (cabc8c511e / c2d7117d05) against RFC 2545 Section 3: 'In all other cases a BGP speaker shall advertise to its peer in the Network Address field only the global IPv6 address of the next hop (the value of the Length of Network Address of Next Hop field shall be set to 16).' Re-read all changed tagged tests among the 11 tags. In rfc2545_forward_owned_policy_test.go::TestRFC2545ForwardPolicyOwnGlobalJointSubnet, NextHopMode migrated to exportNextHopPolicy while preserving exact 16-octet global-only output for recipient-off-link and exact 32-octet pair for the common-link negative control on both cached and rs-export rails. In test/plugin/rfc2545-joint-subnet.ci, config migrated to bus + export { filters [ next-hop:unchanged ]; final accept; } + rs-client true while preserving all three off-link/split-link positives (exact 0x10 global-only MP_REACH, rejecting link-local bytes and withdrawals) and the same-link 0x20 negative control. All other 8 tagged tests are unchanged. Q1-Q4 satisfied; polarity pairs intact. Source-level judgment only.",
   "requirement_sha": "f1313c30d8980ada",
   "tests": {
-    "internal/component/bgp/reactor/peer_initial_sync_test.go::TestDefaultOriginateOmitsLinkLocalWhenPeerOffLink": "5d178ca68e91ae0e",
-    "internal/component/bgp/reactor/rfc2545_forward_owned_policy_test.go::TestRFC2545ForwardPolicyOwnGlobalJointSubnet": "a6cac8f3d10b648f",
+    "internal/component/bgp/reactor/peer_initial_sync_test.go::TestDefaultOriginateOmitsLinkLocalWhenPeerOffLink": "a3cfb5f9e9411b80",
+    "internal/component/bgp/reactor/rfc2545_forward_owned_policy_test.go::TestRFC2545ForwardPolicyOwnGlobalJointSubnet": "39ff3221ff3d3236",
     "internal/component/bgp/reactor/rfc2545_joint_subnet_test.go::TestRFC2545JointSubnetWriter": "437a75752d0c8b9b",
     "internal/component/bgp/reactor/rfc2545_joint_subnet_test.go::TestRFC2545JointSubnetWriter#2": "437a75752d0c8b9b",
     "internal/component/bgp/reactor/rfc2545_ordinary_joint_subnet_test.go::TestOrdinaryIPv6OwnGlobalJointSubnet": "13f6e7badf8311f0",
@@ -11,12 +11,12 @@
     "internal/component/bgp/reactor/rfc2545_peer_send_test.go::TestSendAnnounceOmitsLinkLocalWhenPeerOffLink": "fb2943a5b9cfe752",
     "test/encode/new-v6.ci": "4ffdf2e413e62f0c",
     "test/exabgp-compat/encoding/conf-llnh-update.ci": "7f4eea9ed22f6382",
-    "test/plugin/rfc2545-joint-subnet.ci": "41155917ca562811",
-    "test/plugin/rfc2545-joint-subnet.ci#2": "41155917ca562811"
+    "test/plugin/rfc2545-joint-subnet.ci": "94210d3d86e44b23",
+    "test/plugin/rfc2545-joint-subnet.ci#2": "94210d3d86e44b23"
   },
   "units": {
     "internal/component/bgp/reactor/peer_initial_sync_test.go::TestDefaultOriginateOmitsLinkLocalWhenPeerOffLink": "a4ba2dccaa169154",
-    "internal/component/bgp/reactor/rfc2545_forward_owned_policy_test.go::TestRFC2545ForwardPolicyOwnGlobalJointSubnet": "be8e0ff980070c81",
+    "internal/component/bgp/reactor/rfc2545_forward_owned_policy_test.go::TestRFC2545ForwardPolicyOwnGlobalJointSubnet": "971fa8797e00243e",
     "internal/component/bgp/reactor/rfc2545_joint_subnet_test.go::TestRFC2545JointSubnetWriter": "f611ff36d137d341",
     "internal/component/bgp/reactor/rfc2545_joint_subnet_test.go::TestRFC2545JointSubnetWriter#2": "f611ff36d137d341",
     "internal/component/bgp/reactor/rfc2545_ordinary_joint_subnet_test.go::TestOrdinaryIPv6OwnGlobalJointSubnet": "ce998f5fc37296a5",
@@ -24,8 +24,8 @@
     "internal/component/bgp/reactor/rfc2545_peer_send_test.go::TestSendAnnounceOmitsLinkLocalWhenPeerOffLink": "0695e1af83bc47f2",
     "test/encode/new-v6.ci": "4ffdf2e413e62f0c",
     "test/exabgp-compat/encoding/conf-llnh-update.ci": "7f4eea9ed22f6382",
-    "test/plugin/rfc2545-joint-subnet.ci": "41155917ca562811",
-    "test/plugin/rfc2545-joint-subnet.ci#2": "41155917ca562811"
+    "test/plugin/rfc2545-joint-subnet.ci": "94210d3d86e44b23",
+    "test/plugin/rfc2545-joint-subnet.ci#2": "94210d3d86e44b23"
   },
   "verdict": "enforced"
 }

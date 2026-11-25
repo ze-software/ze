@@ -1,18 +1,18 @@
 {
   "code": {
     "internal/component/bgp/policyview/rpki_origin.go::View.EffectiveOriginAS": "f59a04c85ed88321",
-    "internal/component/bgp/reactor/peer_forward_facts.go::Peer.buildForwardFacts": "28aa51a6e3208489",
+    "internal/component/bgp/reactor/peer_forward_facts.go::Peer.buildForwardFacts": "c9b6ece78af0ef4c",
     "internal/component/bgp/reactor/peer_settings.go::PeerSettings.SessionFacts": "1a12bbb7f7e6c394"
   },
-  "note": "Independent re-judgment against RFC 8893 Section 1 (\"Any AS_PATH modifications resulting in effective origin AS change MUST be taken into account.\"). Re-read rfc/full/rfc8893.txt and diffs since d103bf2cda across peer_forward_facts.go, peer_settings.go, and rfc8893_egress_validation_test.go. Changes were limited to *policyview.Session pointer passing, compileRFC8893ExportChain helper cleanup, and unrelated FlowSpecRedirectNextHop opt-in settings. All five effective-origin-changing mechanisms (remove-private-as stripping, peer-as replacement, live-forwarded as-override, RFC 7705 SecondaryAS, external raw AS_PATH rewrite) and negative rejection / transit-only control assertions remain unchanged. Verdict unchanged: enforced.",
+  "note": "Independent re-judgment after BGP export-chain next-hop unification (cabc8c511e / c2d7117d05). Verified RFC 8893 Section 1 ('Any AS_PATH modifications resulting in effective origin AS change MUST be taken into account.'), policyview/rpki_origin.go (EffectiveOriginAS), peer_forward_facts.go (buildForwardFacts), peer_settings.go (SessionFacts), and both tagged tests. PeerSettings removed NextHopMode/NextHopAddress, buildForwardFacts switched to export-chain next-hop precomputation while keeping ASOverride and SecondaryAS propagation intact, and live-forward subtests in rfc8893_egress_validation_test.go replaced NextHopMode=NextHopUnchanged with BuiltinNextHopUnchanged. Q1: positive covers all five effective-origin-changing mechanisms (remove-private-as strip to empty -> LocalAS, remove-private-as peer-as replacement -> PeerAS, live-forwarded as-override -> LocalAS, RFC 7705 SecondaryAS on empty AS_PATH, and external raw AS_PATH rewrite); negative verifies live-forwarded as-override and RFC 7705 SecondaryAS flipping to unauthorized origins reject while transit-only as-override preserves rightmost Valid origin. Q2: ignoring any of the five AS_PATH modifications or miscomputing origin AS fails exact accept/reject and socket-output assertions. Q3: VRPs authorize only the expected post-modification origin (or only the stale origin on negative) and BuiltinNextHopUnchanged does not alter AS_PATH. Q4: covers every egress AS_PATH modification mechanism in Ze.",
   "requirement_sha": "3032a3a8b3da9688",
   "tests": {
-    "internal/component/bgp/reactor/rfc8893_egress_validation_test.go::TestRFC8893ASPathModificationToUnauthorizedOriginIsRejected": "a3558ce366af90ef",
-    "internal/component/bgp/reactor/rfc8893_egress_validation_test.go::TestRFC8893ASPathModificationsChangingEffectiveOriginAS": "a3558ce366af90ef"
+    "internal/component/bgp/reactor/rfc8893_egress_validation_test.go::TestRFC8893ASPathModificationToUnauthorizedOriginIsRejected": "28dd0e4b7c3ccd49",
+    "internal/component/bgp/reactor/rfc8893_egress_validation_test.go::TestRFC8893ASPathModificationsChangingEffectiveOriginAS": "28dd0e4b7c3ccd49"
   },
   "units": {
-    "internal/component/bgp/reactor/rfc8893_egress_validation_test.go::TestRFC8893ASPathModificationToUnauthorizedOriginIsRejected": "edfccd765a881a75",
-    "internal/component/bgp/reactor/rfc8893_egress_validation_test.go::TestRFC8893ASPathModificationsChangingEffectiveOriginAS": "b05ffbb279b67202"
+    "internal/component/bgp/reactor/rfc8893_egress_validation_test.go::TestRFC8893ASPathModificationToUnauthorizedOriginIsRejected": "8336066612f3e2fc",
+    "internal/component/bgp/reactor/rfc8893_egress_validation_test.go::TestRFC8893ASPathModificationsChangingEffectiveOriginAS": "7b46c60a0d6ae2d3"
   },
   "verdict": "enforced"
 }

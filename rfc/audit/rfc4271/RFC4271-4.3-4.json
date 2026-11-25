@@ -1,17 +1,17 @@
 {
-  "note": "Independently rejudged against the complete RFC 4271 Section 4.3 sentence: \"The lower-order four bits of the Attribute Flags octet are unused. They MUST be zero when sent and MUST be ignored when received.\" AttributeCode.FlagsConflict examines only Optional and Transitive; validateAttributeFlags maps those declared conflicts to exact RFC 7606 handling. Reserved-bit ORIGIN/AS_PATH/NEXT_HOP input requires ActionNone, while the defined-high-bit controls require TreatAsWithdraw and AttrCode 1. The relay test and daemon CI additionally require the useful UPDATE on both general and route-server sockets; the send-side assertions satisfy the sentence's zero-on-send clause. The actual CI observation is receipt and relay, not a separate RIB-installation query; no direct installation claim forms part of this judgment. The explicit Unchanged leaf preserves all original flag/attribute/NLRI expectations. Coarse producer-disabling records are not claimed as selective reserved-bit mutations, and no new runtime result is asserted here.",
+  "note": "Independent re-judgment against RFC 4271 Section 4.3 ('The lower-order four bits of the Attribute Flags octet are unused. They MUST be zero when sent and MUST be ignored when received.') after export-chain next-hop unification (cabc8c511e / c2d7117d05). Verified changes: TestRFC4271RelayedLowNibbleClearedOnBothRails updated only NextHopUnchanged to policychain.BuiltinNextHopUnchanged; test/plugin/rfc4271-attr-flags-low-nibble-relay.ci migrated to bus syntax and next-hop:unchanged export filter (with attr 241 0xC0 on rs-client conn 2 and 0xE0 on plain eBGP conn 3), continuing to inject 0x4F/0xCF low-nibble flags and require exact relayed UPDATE frames with 0x0F cleared on both peers. Unchanged message/rfc4271_test.go units TestRFC4271AttrFlagsLowNibbleIgnoredOnReceive (positive, ActionNone on 0x4F) and TestRFC4271AttrFlagsHighBitsNotIgnored (negative, exact TreatAsWithdraw + AttrCode 1 on 0xCF optional and 0x0F non-transitive ORIGIN) continue to isolate low-nibble ignoring from defined high bits. Both receive-ignore and send-zero clauses are proven.",
   "requirement_sha": "c348224c8014594e",
   "tests": {
     "internal/component/bgp/message/rfc4271_test.go::TestRFC4271AttrFlagsHighBitsNotIgnored": "4a52fe47930aab88",
     "internal/component/bgp/message/rfc4271_test.go::TestRFC4271AttrFlagsLowNibbleIgnoredOnReceive": "4a52fe47930aab88",
-    "internal/component/bgp/reactor/rfc4271_attr_flags_relay_test.go::TestRFC4271RelayedLowNibbleClearedOnBothRails": "7fcb9a72da7cbf62",
-    "test/plugin/rfc4271-attr-flags-low-nibble-relay.ci": "d8b3075406decc74"
+    "internal/component/bgp/reactor/rfc4271_attr_flags_relay_test.go::TestRFC4271RelayedLowNibbleClearedOnBothRails": "9ed780b3bbcbb226",
+    "test/plugin/rfc4271-attr-flags-low-nibble-relay.ci": "20e487e42b3cbf08"
   },
   "units": {
     "internal/component/bgp/message/rfc4271_test.go::TestRFC4271AttrFlagsHighBitsNotIgnored": "a8e00216f929109e",
     "internal/component/bgp/message/rfc4271_test.go::TestRFC4271AttrFlagsLowNibbleIgnoredOnReceive": "073b16ce4dd7108d",
-    "internal/component/bgp/reactor/rfc4271_attr_flags_relay_test.go::TestRFC4271RelayedLowNibbleClearedOnBothRails": "4cc006b6bba6010d",
-    "test/plugin/rfc4271-attr-flags-low-nibble-relay.ci": "d8b3075406decc74"
+    "internal/component/bgp/reactor/rfc4271_attr_flags_relay_test.go::TestRFC4271RelayedLowNibbleClearedOnBothRails": "12e8fc9f169976de",
+    "test/plugin/rfc4271-attr-flags-low-nibble-relay.ci": "20e487e42b3cbf08"
   },
   "verdict": "enforced"
 }

@@ -9,13 +9,13 @@
     "internal/component/bgp/reactor/rfc4271_reactor_a2_forward_test.go::TestRFC4271ForwardASPathUnmodifiedTowardInternalPeer": "da6f68511706843f",
     "internal/component/bgp/reactor/rfc4271_reactor_a2_forward_test.go::TestRFC4271ForwardASPathUnmodifiedTowardInternalPeer#2": "da6f68511706843f",
     "internal/component/bgp/reactor/rfc4271_reactor_batch_test.go::TestEstablishedAnnounce_ExplicitASPath_IBGPVerbatim": "bdfb0904a5ee4763",
-    "internal/component/bgp/reactor/rfc4271_rs_aspath_export_test.go::TestRouteServerIBGPASPathExportEdits": "de71ae3e556dd94f",
-    "internal/component/bgp/reactor/rfc4271_rs_aspath_export_test.go::TestRouteServerIBGPASPathExportEdits#2": "de71ae3e556dd94f",
-    "internal/component/bgp/reactor/rfc4271_rs_aspath_export_test.go::TestRouteServerIBGPASPathProtocolEdits": "de71ae3e556dd94f",
-    "internal/component/bgp/reactor/rfc4271_rs_aspath_export_test.go::TestRouteServerIBGPASPathProtocolEdits#2": "de71ae3e556dd94f",
+    "internal/component/bgp/reactor/rfc4271_rs_aspath_export_test.go::TestRouteServerIBGPASPathExportEdits": "deedd6edbfa3a6de",
+    "internal/component/bgp/reactor/rfc4271_rs_aspath_export_test.go::TestRouteServerIBGPASPathExportEdits#2": "deedd6edbfa3a6de",
+    "internal/component/bgp/reactor/rfc4271_rs_aspath_export_test.go::TestRouteServerIBGPASPathProtocolEdits": "deedd6edbfa3a6de",
+    "internal/component/bgp/reactor/rfc4271_rs_aspath_export_test.go::TestRouteServerIBGPASPathProtocolEdits#2": "deedd6edbfa3a6de",
     "internal/component/bgp/reactor/rfc4271_stale_aspath_export_test.go::TestRFC4271StaleReadvertiseASPathEditsSkipInternalPeers": "1eeaf74886edb437",
-    "internal/component/bgp/reactor/rfc4271_test.go::TestRFC4271ASPathPrependedTowardExternalPeer": "4e6d4c69499e564a",
-    "internal/component/bgp/reactor/rfc4271_test.go::TestRFC4271ASPathUnmodifiedTowardInternalPeer": "4e6d4c69499e564a"
+    "internal/component/bgp/reactor/rfc4271_test.go::TestRFC4271ASPathPrependedTowardExternalPeer": "1209ca1e6ea788fe",
+    "internal/component/bgp/reactor/rfc4271_test.go::TestRFC4271ASPathUnmodifiedTowardInternalPeer": "1209ca1e6ea788fe"
   },
   "units": {
     "internal/component/bgp/reactor/rfc4271_ibgp_aspath_export_test.go::TestRFC4271ExportASPathEditsFollowTheMigrationAwareInternalVerdict": "d95ae20500c90ef6",

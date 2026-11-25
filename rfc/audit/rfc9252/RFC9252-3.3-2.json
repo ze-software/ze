@@ -3,21 +3,21 @@
     "internal/component/bgp/reactor/forward_prefix_sid.go::applyEgressPrefixSIDNextHop": "059db8c7d1fb0b19",
     "internal/component/bgp/reactor/forward_prefix_sid.go::prefixSIDNextHopHandler": "8d0a3ba6eae13a3d"
   },
-  "note": "Re-judged 2026-11-24 (independent reader) against RFC 9252 Section 2. Tested: \"Any received Sub-TLVs and Sub-Sub-TLVs that are unrecognized MUST be removed.\" Gap: \"SHOULD be updated with the locally allocated SRv6 SID information.\" Producer: internal/component/bgp/reactor/forward_prefix_sid.go::applyEgressPrefixSIDNextHop (and prefixSIDNextHopHandler). On both cached and RS forward rails, applyEgressPrefixSIDNextHop compares the original received next-hop entity with the final effective emitted entity (after policy, configured rewrite, and scope normalization) and emits AttrModRemove for SRv6 Service TLV types 5 and 6 when changed; prefixSIDNextHopHandler removes those Service TLVs (and all their nested unrecognized Sub-TLVs 0xF0 and Sub-Sub-TLVs 0xEE) while retaining unrelated top-level TLVs (Label-Index, unknown TLV 200, SRGB) and dropping attribute 40 when no TLV remains. TestRFC9252EffectiveNextHopControlsServiceTLVs (strengthened with NextHopAuto connected-endpoint rewriting and self-equality/restoration controls), TestPrefixSIDPropagationNextHop, and TestRFC9252ServiceOnlyPrefixSIDDroppedOnANextHopChange verify removal on effective A-to-B changes (positive) and preservation on unchanged / effective A-to-A cases (negative) in actual recipient Session output, with all 5 discrimination records freshly recorded. Because Ze still allocates no local SRv6 SID information to rebuild the Service TLVs on next-hop change, the Gap stands. Verdict remains partial.",
+  "note": "Independent re-judgment against RFC 9252 Section 2 after export-chain next-hop unification (cabc8c511e / c2d7117d05). Tested: \"Any received Sub-TLVs and Sub-Sub-TLVs that are unrecognized MUST be removed.\" Gap: \"SHOULD be updated with the locally allocated SRv6 SID information.\" Producer: internal/component/bgp/reactor/forward_prefix_sid.go::applyEgressPrefixSIDNextHop (and prefixSIDNextHopHandler). Both forward rails (forward_rs.go and reactor_api_forward.go) still invoke applyEgressPrefixSIDNextHop after applyEgressNextHopIntent and applyEgressNextHopScope; on effective A-to-B next-hop change it emits AttrModRemove for SRv6 Service TLV types 5 and 6, and prefixSIDNextHopHandler strips those Service TLVs (and their nested unrecognized Sub-TLV 0xF0 and Sub-Sub-TLV 0xEE) while retaining unrelated top-level TLVs (Label-Index, unknown TLV 200, SRGB) and dropping attribute 40 when no TLV remains. Migrated TestRFC9252EffectiveNextHopControlsServiceTLVs, TestPrefixSIDPropagationNextHop, and TestRFC9252ServiceOnlyPrefixSIDDroppedOnANextHopChange verify removal on effective A-to-B changes (positive) and retention on equal effective next hops (negative) in actual cached and RS recipient output. Because Ze still allocates no local SRv6 SID information to rebuild Service TLVs on next-hop change, the Gap stands.",
   "requirement_sha": "2eaaad937d8e63dd",
   "tests": {
-    "internal/component/bgp/reactor/rfc8669_nexthop_change_defect_test.go::TestRFC9252ServiceOnlyPrefixSIDDroppedOnANextHopChange": "6adacdb5c2b444a1",
-    "internal/component/bgp/reactor/rfc9252_effective_next_hop_test.go::TestRFC9252EffectiveNextHopControlsServiceTLVs": "46a4ee02476c1d57",
-    "internal/component/bgp/reactor/rfc9252_effective_next_hop_test.go::TestRFC9252EffectiveNextHopControlsServiceTLVs#2": "46a4ee02476c1d57",
-    "internal/component/bgp/reactor/rfc9252_peer_forward_facts_test.go::TestPrefixSIDPropagationNextHop": "52077418d1974169",
-    "internal/component/bgp/reactor/rfc9252_peer_forward_facts_test.go::TestPrefixSIDPropagationNextHop#2": "52077418d1974169"
+    "internal/component/bgp/reactor/rfc8669_nexthop_change_defect_test.go::TestRFC9252ServiceOnlyPrefixSIDDroppedOnANextHopChange": "12642d6297168d34",
+    "internal/component/bgp/reactor/rfc9252_effective_next_hop_test.go::TestRFC9252EffectiveNextHopControlsServiceTLVs": "3196e4927e9a14e7",
+    "internal/component/bgp/reactor/rfc9252_effective_next_hop_test.go::TestRFC9252EffectiveNextHopControlsServiceTLVs#2": "3196e4927e9a14e7",
+    "internal/component/bgp/reactor/rfc9252_peer_forward_facts_test.go::TestPrefixSIDPropagationNextHop": "7b4e2d95efba6f22",
+    "internal/component/bgp/reactor/rfc9252_peer_forward_facts_test.go::TestPrefixSIDPropagationNextHop#2": "7b4e2d95efba6f22"
   },
   "units": {
-    "internal/component/bgp/reactor/rfc8669_nexthop_change_defect_test.go::TestRFC9252ServiceOnlyPrefixSIDDroppedOnANextHopChange": "2214ed49b4ee3c25",
-    "internal/component/bgp/reactor/rfc9252_effective_next_hop_test.go::TestRFC9252EffectiveNextHopControlsServiceTLVs": "04c94965db88face",
-    "internal/component/bgp/reactor/rfc9252_effective_next_hop_test.go::TestRFC9252EffectiveNextHopControlsServiceTLVs#2": "04c94965db88face",
-    "internal/component/bgp/reactor/rfc9252_peer_forward_facts_test.go::TestPrefixSIDPropagationNextHop": "6c50bed30bbf7b9b",
-    "internal/component/bgp/reactor/rfc9252_peer_forward_facts_test.go::TestPrefixSIDPropagationNextHop#2": "6c50bed30bbf7b9b"
+    "internal/component/bgp/reactor/rfc8669_nexthop_change_defect_test.go::TestRFC9252ServiceOnlyPrefixSIDDroppedOnANextHopChange": "34d24549e9a49363",
+    "internal/component/bgp/reactor/rfc9252_effective_next_hop_test.go::TestRFC9252EffectiveNextHopControlsServiceTLVs": "8e38ea43b61269c5",
+    "internal/component/bgp/reactor/rfc9252_effective_next_hop_test.go::TestRFC9252EffectiveNextHopControlsServiceTLVs#2": "8e38ea43b61269c5",
+    "internal/component/bgp/reactor/rfc9252_peer_forward_facts_test.go::TestPrefixSIDPropagationNextHop": "4468b7200ddbff65",
+    "internal/component/bgp/reactor/rfc9252_peer_forward_facts_test.go::TestPrefixSIDPropagationNextHop#2": "4468b7200ddbff65"
   },
   "verdict": "partial"
 }

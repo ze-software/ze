@@ -1,19 +1,19 @@
 {
-  "note": "Re-judged 2026-10-31 by an independent auditor who authored none of the change. RFC text (rfc8669): \"For future extensibility, unknown TLVs MUST be ignored and propagated unmodified.\" The only edit to test/plugin/prefixsid-malformed-receive.ci since the last judgement is f8f7628bdf, which adds a bgp-level filter { import { final accept; } export { final accept; } } with no filter refs, because RFC 8212 Section 3 now makes an EBGP direction with no explicit policy reject. No expect, reject, input or requirement-tag line changed. policy.ConcatChains keeps every peer-level ref and takes the final from the most specific configured level, so a peer-level chain still decides where one exists. An accepting final with no refs neither refuses nor rewrites a route: a withheld, stripped or discarded outcome the file asserts can still come only from the producer under test, and a delivered outcome is the eligibility the test was written under before RFC 8212; without the block the positives would fail for the wrong reason. What the unit proves is unchanged. Verdict unchanged: enforced. Earlier judgements are in this file's git history.",
+  "note": "Independent re-judgment after BGP export-chain next-hop unification (cabc8c511e / c2d7117d05). Verified RFC 8669 Sections 3 and 6 ('For future extensibility, unknown TLVs MUST be ignored and propagated unmodified.'), forward_prefix_sid.go (applyEgressPrefixSIDNextHop, prefixSIDNextHopHandler), session_prefix_sid.go (clearLabelIndexTLVs), and all four tagged units. Migrating rfc8669RelayUpdate and TestRFC8669UnknownTLVPropagatedAcrossANextHopChange from NextHopMode to ExportPolicyWithNextHop (BuiltinNextHopUnchanged / BuiltinNextHopSelf) preserves exact next-hop-unchanged and next-hop-self forwarding on both general and route-server rails; prefixsid-malformed-receive.ci migrated its config syntax to bus endpoints without changing any of its 8 sent or 8 expected wire frames. Q1: TestRFC8669UnknownTLVIsIgnored accepts unallocated TLV type 99 unchanged on receive validation; TestClearTransmittedLabelIndexOnlyOnLabeledUnicast and prefixsid-malformed-receive.ci (seq=8) verify unrecognized Label-Index TLV on IPv4 VPN leaves octet-equal with non-zero Reserved/Flags intact; TestRFC8669UnknownTLVPropagatedAcrossANextHopChange verifies unknown TLV type 200 survives byte-identical and in order across both unchanged next hop and next-hop-self on general and RS rails while only SRv6 Service TLVs 5 and 6 are removed. Q2: rejecting unknown TLVs, dropping attribute 40 on next-hop-self, clearing non-LU Label-Index octets, or reordering TLVs fails exact byte equality. Q3: explicit SR-domain settings, valid mandatory attributes, and verified NEXT_HOP before/after isolate unknown-TLV handling. Q4: covers both receive ignore and unmodified propagation (unchanged NH, next-hop-self, unit and live daemon relay).",
   "requirement_sha": "86075c5141e1f486",
   "tests": {
     "internal/component/bgp/message/rfc8669_test.go::TestRFC8669UnknownTLVIsIgnored": "43a22ffce691e1e9",
     "internal/component/bgp/reactor/rfc8669_label_index_family_test.go::TestClearTransmittedLabelIndexOnlyOnLabeledUnicast": "274e120ed359a9db",
-    "internal/component/bgp/reactor/rfc8669_nexthop_change_defect_test.go::TestRFC8669UnknownTLVPropagatedAcrossANextHopChange": "6adacdb5c2b444a1",
-    "internal/component/bgp/reactor/rfc8669_nexthop_change_defect_test.go::TestRFC8669UnknownTLVPropagatedAcrossANextHopChange#2": "6adacdb5c2b444a1",
-    "test/plugin/prefixsid-malformed-receive.ci": "5a1c2913582d390e"
+    "internal/component/bgp/reactor/rfc8669_nexthop_change_defect_test.go::TestRFC8669UnknownTLVPropagatedAcrossANextHopChange": "12642d6297168d34",
+    "internal/component/bgp/reactor/rfc8669_nexthop_change_defect_test.go::TestRFC8669UnknownTLVPropagatedAcrossANextHopChange#2": "12642d6297168d34",
+    "test/plugin/prefixsid-malformed-receive.ci": "bdd6129b3e573cee"
   },
   "units": {
     "internal/component/bgp/message/rfc8669_test.go::TestRFC8669UnknownTLVIsIgnored": "7f0ca5f0dffb7627",
     "internal/component/bgp/reactor/rfc8669_label_index_family_test.go::TestClearTransmittedLabelIndexOnlyOnLabeledUnicast": "dff529a65e1207a3",
-    "internal/component/bgp/reactor/rfc8669_nexthop_change_defect_test.go::TestRFC8669UnknownTLVPropagatedAcrossANextHopChange": "5ac8116748d03d10",
-    "internal/component/bgp/reactor/rfc8669_nexthop_change_defect_test.go::TestRFC8669UnknownTLVPropagatedAcrossANextHopChange#2": "5ac8116748d03d10",
-    "test/plugin/prefixsid-malformed-receive.ci": "5a1c2913582d390e"
+    "internal/component/bgp/reactor/rfc8669_nexthop_change_defect_test.go::TestRFC8669UnknownTLVPropagatedAcrossANextHopChange": "4792d420becb16aa",
+    "internal/component/bgp/reactor/rfc8669_nexthop_change_defect_test.go::TestRFC8669UnknownTLVPropagatedAcrossANextHopChange#2": "4792d420becb16aa",
+    "test/plugin/prefixsid-malformed-receive.ci": "bdd6129b3e573cee"
   },
   "verdict": "enforced"
 }

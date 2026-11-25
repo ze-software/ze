@@ -4,7 +4,7 @@
   "tests": {
     "internal/component/bgp/plugins/rib/storage/rfc4271_test.go::TestRFC4271PartialBitClearedOnReadvertisedWellKnown": "d8b54efb525e6be8",
     "internal/component/bgp/reactor/rfc4271_relay_partial_test.go::TestRFC4271PartialClearedOnTheRelayedWire": "71651bbb29bf74fa",
-    "internal/component/bgp/reactor/rfc4271_test.go::TestRFC4271PartialNotSetOnRecognizedOrNonTransitive": "4e6d4c69499e564a",
+    "internal/component/bgp/reactor/rfc4271_test.go::TestRFC4271PartialNotSetOnRecognizedOrNonTransitive": "1209ca1e6ea788fe",
     "internal/component/bgp/rib/rfc4271_partial_test.go::TestRFC4271PartialClearedWhenTheRailReadvertises": "f16e4cbdf16366d6",
     "internal/core/bgp/attribute/rfc4271_test.go::TestRFC4271PartialBitClearOnSend": "c7ba696c3128b187",
     "internal/core/bgp/attribute/rfc4271_test.go::TestRFC4271PartialNotStampedOnExcludedClasses": "c7ba696c3128b187"

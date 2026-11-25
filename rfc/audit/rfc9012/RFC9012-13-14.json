@@ -5,8 +5,8 @@
     "internal/component/bgp/reactor/rfc9012_filter_raw_override_test.go::TestRFC9012FilterRawOverrideRemovesInvalidTLVs": "2c2b5020b73686f3",
     "internal/component/bgp/reactor/rfc9012_receive_storage_test.go::TestRFC9012EndpointAddressRegistryStorage": "230abd4a009f1333",
     "internal/component/bgp/reactor/rfc9012_receive_storage_test.go::TestRFC9012EndpointAddressRegistryStorage#2": "230abd4a009f1333",
-    "internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go::TestRFC9012EndpointAddressRegistryPropagation": "df818fd2f69b8da0",
-    "internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go::TestRFC9012EndpointAddressRegistryPropagation#2": "df818fd2f69b8da0",
+    "internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go::TestRFC9012EndpointAddressRegistryPropagation": "94a6bd7bef88304f",
+    "internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go::TestRFC9012EndpointAddressRegistryPropagation#2": "94a6bd7bef88304f",
     "internal/component/bgp/reactor/rfc9830_tunnel_receive_test.go::TestRFC9012EndpointInvalidTLVsRemovedOnUnicast": "499ae9d00b04d7e5",
     "internal/component/bgp/reactor/rfc9830_tunnel_receive_test.go::TestRFC9012EndpointInvalidTLVsRemovedOnUnicast#2": "499ae9d00b04d7e5"
   },

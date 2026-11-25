@@ -10,8 +10,8 @@
   "note": "Independent re-judgment against RFC 8893 Section 3 (\"BGP implementations supporting RPKI-based origin validation MUST provide the same policy configuration primitives for decisions based on the validation state available for use in ingress, redistribution, and egress policies.\"). Re-read rfc/full/rfc8893.txt and diffs since d103bf2cda in rfc8893_egress_validation_test.go (no cited producer in policychain, policy, rib/policy, or redistribute changed). Test changes were strictly passing &session by pointer and removing the constant FinalAccept argument from compileRFC8893ExportChain. All four tagged units still prove the identical rpki-validation-state primitive across bgp import, redistribute import, and bgp export plus invalid-config and inactive-validator rejection. Verdict unchanged: enforced.",
   "requirement_sha": "0e0937b7f269de82",
   "tests": {
-    "internal/component/bgp/reactor/rfc8893_egress_validation_test.go::TestRFC8893SamePolicyPrimitiveAcrossIngressRedistributionAndEgress": "a3558ce366af90ef",
-    "internal/component/bgp/reactor/rfc8893_egress_validation_test.go::TestRFC8893ValidationStatePrimitiveRefusesInvalidConfigAndInactiveValidator": "a3558ce366af90ef",
+    "internal/component/bgp/reactor/rfc8893_egress_validation_test.go::TestRFC8893SamePolicyPrimitiveAcrossIngressRedistributionAndEgress": "28dd0e4b7c3ccd49",
+    "internal/component/bgp/reactor/rfc8893_egress_validation_test.go::TestRFC8893ValidationStatePrimitiveRefusesInvalidConfigAndInactiveValidator": "28dd0e4b7c3ccd49",
     "internal/plugins/redistribute/rfc8893_redistribute_validation_test.go::TestRFC8893RedistributeInactiveValidatorRefusesValidMatch": "b6bd5f9fd25a058b",
     "internal/plugins/redistribute/rfc8893_redistribute_validation_test.go::TestRFC8893RedistributePolicyFiltersByRPKIValidationState": "b6bd5f9fd25a058b"
   },
