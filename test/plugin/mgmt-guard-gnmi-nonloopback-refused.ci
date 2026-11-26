@@ -21,4 +21,4 @@ EOF_CONF
 cmd=foreground:seq=1:exec=ze -:stdin=ze-bgp:timeout=15s
 expect=exit:code=1
 expect=stderr:contains=refusing to start gNMI on non-loopback listener "0.0.0.0:9339" without authentication
-expect=stderr:contains=set ze.gnmi.token
+expect=stderr:contains=set environment gnmi token <token>

@@ -74,19 +74,36 @@ func TestCheckSemanticsFlagsGnmiExposure(t *testing.T) {
 }
 
 // TestCheckSemanticsGnmiLoopbackAndTokenAreClean is the negative half: the
-// check must not over-report, because loopback needs no token and a token
-// authenticates any address.
+// check must not over-report, because loopback needs no token, and a token
+// with TLS secures any address.
 //
 // VALIDATES: no config-gnmi-invalid for a loopback listener or an
-// authenticated one.
+// authenticated one serving TLS.
 // PREVENTS: a warning on every authenticated or loopback gNMI deployment.
 func TestCheckSemanticsGnmiLoopbackAndTokenAreClean(t *testing.T) {
 	if hasDiagCode(t, gnmiTree("127.0.0.1", ""), diagnostic.CodeConfigGNMIInvalid) {
 		t.Fatal("a loopback gNMI listener exposes nothing off-box")
 	}
-	if hasDiagCode(t, gnmiTree("0.0.0.0", "s3cret"), diagnostic.CodeConfigGNMIInvalid) {
-		t.Fatal("a token authenticates every gNMI request, so the bind address is free")
+	if hasDiagCode(t, gnmiTreeTLS("0.0.0.0", "s3cret"), diagnostic.CodeConfigGNMIInvalid) {
+		t.Fatal("a token with TLS secures every gNMI request, so the bind address is free")
 	}
+}
+
+// TestCheckSemanticsFlagsGnmiTokenWithoutTLS drives the TLS half from the
+// doctor check's entry point: the daemon refuses a non-loopback gNMI listener
+// without TLS even when a token authenticates it.
+//
+// VALIDATES: `ze doctor` reports a token-only 0.0.0.0 gNMI listener with
+// config-gnmi-invalid, naming the TLS fix.
+// PREVENTS: doctor answering "ready" on a config the daemon exits 1 on.
+func TestCheckSemanticsFlagsGnmiTokenWithoutTLS(t *testing.T) {
+	diags := checkSemantics(diagnostic.DoctorCheckContext{Tree: gnmiTree("0.0.0.0", "s3cret")})
+	for i := range diags {
+		if diags[i].Code == diagnostic.CodeConfigGNMIInvalid && diags[i].Fix == GNMITLSFix {
+			return
+		}
+	}
+	t.Fatalf("doctor must flag a token-only 0.0.0.0 gNMI listener with the TLS fix, got %+v", diags)
 }
 
 // TestCheckSemanticsIsSilentWithoutATree is the negative half: the check runs
