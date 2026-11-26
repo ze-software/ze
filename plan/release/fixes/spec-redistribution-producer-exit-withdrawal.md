@@ -26,7 +26,7 @@ lease or new lifecycle state. Design must respect
 pointer identifies the generation and the existing supervisor and run-once
 cleanup own its end. No new owner object, generation counter or source gate.
 Coordinate restart ordering with
-`plan/release/fixes/spec-plugin-restart-bounded-and-configuration-true.md`.
+`spec-plugin-restart-bounded-and-configuration-true` (closed).
 
 ## Current Behavior
 

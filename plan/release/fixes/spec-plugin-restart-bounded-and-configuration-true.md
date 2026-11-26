@@ -611,22 +611,22 @@ Each phase lands as one self-contained commit with its scoped tests and doc/jour
 ## Checklist
 
 ### Pre-Spec Verification (before the design is presented)
-- [ ] Metadata table present, with a valid Status, Depends, Phase and Updated
-- [ ] `ai/INDEX.md` keyword table checked
-- [ ] No code snippets
-- [ ] Current Behavior, Existing Mechanisms, Design documents, Data Flow, Changed-Wire Census and Design presentation sections completed
-- [ ] AC-N rows carry testable positive assertions and Permitted Survivors
-- [ ] Every assumption has a Basis and a validation method; every failure mode is a risk row
-- [ ] Required Reading carries `→ Decision:` / `→ Constraint:` checkpoints
-- [ ] Integration Checklist and Documentation Update Checklist answered Yes/No/N-A
+- [x] Metadata table present, with a valid Status, Depends, Phase and Updated
+- [x] `ai/INDEX.md` keyword table checked
+- [x] No code snippets
+- [x] Current Behavior, Existing Mechanisms, Design documents, Data Flow, Changed-Wire Census and Design presentation sections completed
+- [x] AC-N rows carry testable positive assertions and Permitted Survivors
+- [x] Every assumption has a Basis and a validation method; every failure mode is a risk row
+- [x] Required Reading carries `→ Decision:` / `→ Constraint:` checkpoints
+- [x] Integration Checklist and Documentation Update Checklist answered Yes/No/N-A
 
 ### Goal Gates (MUST pass)
-- [ ] AC-1..AC-10 all demonstrated
-- [ ] Every user story has a working path and a passing test
-- [ ] Wiring Test table complete: every row a concrete test name, none deferred
-- [ ] Targeted tests pass: `./le test unit pkg path ./internal/component/plugin/process/`, `./le test unit pkg path ./internal/component/plugin/server/`, `./le test unit pkg path ./internal/component/plugin/doctor/`, `./le test unit pkg path ./internal/core/rib/store/`, `./le test unit pkg path ./internal/core/rib/locrib/`, and `./le test functional plugin` / `./le test functional reload` on the tests this spec names. No agent runs any `./le verify` command
-- [ ] Every A-N confirmed or broken, none `unvalidated`
-- [ ] Every item this spec did not do is a spec of its own, named here, in its own bucket
+- [x] AC-1..AC-10 all demonstrated
+- [x] Every user story has a working path and a passing test
+- [x] Wiring Test table complete: every row a concrete test name, none deferred
+- [x] Targeted tests pass: `./le test unit pkg path ./internal/component/plugin/process/`, `./le test unit pkg path ./internal/component/plugin/server/`, `./le test unit pkg path ./internal/component/plugin/doctor/`, `./le test unit pkg path ./internal/core/rib/store/`, `./le test unit pkg path ./internal/core/rib/locrib/`, and `./le test functional plugin` / `./le test functional reload` on the tests this spec names. No agent runs any `./le verify` command
+- [x] Every A-N confirmed or broken, none `unvalidated`
+- [x] Every item this spec did not do is a spec of its own, named here, in its own bucket
 
 ### TDD
 - [x] Tests written (all 19 unit tests + 4 `.ci` functional tests)
@@ -635,7 +635,219 @@ Each phase lands as one self-contained commit with its scoped tests and doc/jour
 - [x] Functional `.ci` tests for end-to-end behavior, internal and forked (promoted to `test/plugin/`)
 
 ### Closure
-- [ ] Append `plan/templates/TEMPLATE-CLOSURE.md` and complete every section in it
-- [ ] `/ze-review` gate clean, recorded via `internal/le/spec/review.go`
-- [ ] **Commit A:** code + tests + docs + edited spec + any journal rows owed by the work
-- [ ] **Commit B:** `remove plan/release/fixes/spec-plugin-restart-bounded-and-configuration-true.md` only, in the same `./le commit create` script
+- [x] Append `plan/templates/TEMPLATE-CLOSURE.md` and complete every section in it
+- [x] `/ze-review` gate clean, recorded via `internal/le/spec/review.go`
+- [x] **Commit A:** code + tests + docs + edited spec + any journal rows owed by the work
+- [x] **Commit B:** `remove plan/release/fixes/spec-plugin-restart-bounded-and-configuration-true.md` only, in the same `./le commit create` script
+
+---
+
+## Implementation Summary
+
+### What Was Implemented
+- **Phase 6 (`5a0006fb97`, AC-8, D3):** Added `Store.ModifyOrDelete` in `internal/core/rib/store/store_bart.go` and `store_map.go` (`-tags maprib` parity), cached `shardIndexLabels` and `recordRemoveBatch` in `internal/core/rib/locrib/metrics.go`, updated `RIB.Remove` and added chunked per-shard `RIB.RemoveBatch` (`removeBatchChunkSize = 1024`) in `internal/core/rib/locrib/manager.go`, and wired `Server.withdrawPluginRoutes` (`internal/component/plugin/server/dispatch_route.go`) to batch withdrawals (1M routes dropped from 3.192 s to 1.806 s, well inside the 3 s `restartCleanupGrace`).
+- **Phase 3 (`ed3e6f7ad5`, AC-3, AC-5, AC-7):** Replaced manager-wide `pm.respawnMu` with per-name `respawning map[string]chan struct{}` (`acquireRespawnSlot`) and added `ConfiguredConfigs()` in `internal/component/plugin/process/manager.go`; added leaf mutex `statusMu` synchronizing `wireMetrics`'s `stageChange` against `deletePluginStatusLabel` (`manager.go`, `metric_hooks.go`); moved `pluginRestartRefusal` under `txLock`, removed premature `pm.Reenable` from `handlePluginRestart` (`register_plugin_restart.go`), added `RespawnReenabled` and `ErrManagerNotStarted` (`manager.go`, `reload_tx.go`), and preserved existing stop records on `transaction.ErrRestartRefused`.
+- **Phase 2 (`87ca99cd5b`, AC-1, AC-2, AC-10):** Extended `collectNonFIBRemovedProcesses`, `judgeReloadWriters`, `collectOrphanedDependencies`, and `stopCollectedProcessesMode` (`reload_dataplane_writer.go`, `startup_autoload.go`) to collect configured process-less plugins and defer their unconfigure on `s.unconfigureOnAccept[scope]` until `finishRemovalScope(scope, true)` (`server.go`, `startup_removal.go`); stopped rolled-back candidate auto-loads directly (`provisional = false`, `pluginRemoval.direct`) and guarded `collectOrphanedDependencies` on `AutoLoadReasonFor`; gated `RecordStopped` and `UnconfigureProcess`/`unmarkPluginLoaded` on `unconfigureFailedReloadStart` across all three `startup.go` failure sites.
+- **Phase 4 (`295f10ed26`, AC-4, AC-9, D1):** Updated `restartPluginAfterExit` (`reload_tx.go`) to acquire `txLock.acquire(ctx)` before `restartControllers.wait(ctx, name)` (releasing controller before `txLock.release`) and run `boundedRestartHandshake`; removed `lifetimeRestartHandshake`; extended `lateCleanupRecord` (`restart.go`) to track `map[string][]*process.Process` per name; replaced global `s.coordinator` nil-and-restore with an explicit per-handshake `coord *plugin.StartupCoordinator` parameter (`restart.go`, `startup.go`, `startup_wire.go`); added `!ctx.Server.startupComplete()` boot-window refusal (`register_plugin_restart.go`) and `pm.GetProcess(name) == proc` guards in `superviseProcess` (`failure_policy.go`) and Step (d) (`startup.go`).
+- **Phase 5 (`d15a406540`, AC-6, D2):** Added `PluginStop.CleanupOwed`, `DaemonRestartLastResort()`, `StoppedFix()`, `SetStoppedCleanupOwed()`, `ClearStoppedCleanupOwed()`, and `raiseStoppedWarningLocked()` in `internal/component/plugin/process/stopped.go` as the single shared producer for both report-bus warnings and `doctor/checks_runtime.go`'s `pluginStoppedRow`; wired `lateCleanupOwed` (`restart.go`, `dispatch.go`, `doctor_snapshot.go`, `reload_tx.go`, `startup.go`) to refresh the bus warning automatically on cleanup completion and reused `process.DaemonRestartLastResort()` in `pluginRestartFailure` (`register_plugin_restart.go`).
+- **Finalization & Promotion (`e6539f5950`):** Promoted all 4 `.ci` tests (`plugin-restart-removed-down.ci`, `plugin-restart-external-nonblocking.ci`, `plugin-restart-refused-keeps-disable.ci`, `reload-failed-autoload-no-stopped-row.ci`) to `test/plugin/` after 80/80 stress-repro under 64 CPU burners; restored async `ClearStopped` in `restart.go`/`startup.go` while keeping `!pm.Disabled(proc.Name())` in `superviseProcess`; fixed `cmd/ze/hub/main.go` fatal-stop double-wrap; updated 3 server tests for D1 `txLock` and post-boot `signalStartupComplete()`.
+
+### Bugs Found/Fixed
+- `cmd/ze/hub/main.go`: `apiServer.StopFailure()` was double-wrapped by `retainCleanupFailure`, causing `failure-policy-fatal.ci` to print a second error/fix wrapper; fixed in `e6539f5950` with dedicated `stopFailure *opererr.Error` preserving `exitStatus = 1` (verified by `test/plugin/failure-policy-fatal.ci`).
+- `internal/component/plugin/server/restart.go`, `startup.go`, `failure_policy.go`: synchronous `ClearStopped` added in `295f10ed26` conflicted with `TestGenerationReadyRestartIgnoresPreviousStopRecord`; restored async `superviseProcess` clearing while guarding `!pm.Disabled(proc.Name())` in `e6539f5950` (verified by both `TestGenerationReadyRestartIgnoresPreviousStopRecord` and `TestRefusedRestartPreservesDisableAndRespawnCounters`).
+
+### Documentation Updates
+- `docs/architecture/api/process-protocol.md` (updated in `295f10ed26` and `d15a406540`): documented failure-policy `txLock` + `boundedRestartHandshake` (departing from unlocked/unbounded rule), multi-process `lateCleanupRecord`, boot-window refusal, post-refusal re-enable, shared `StoppedMessage`/`StoppedFix` (`PluginStop.CleanupOwed`), and automatic bus refresh; removed `lifetimeRestartHandshake` anchor and added `SetStoppedCleanupOwed`, `ClearStoppedCleanupOwed`, `StoppedMessage`, `StoppedFix`, `DaemonRestartLastResort`, `lateCleanupOwed` anchors.
+- `docs/architecture/plugin/plugin-system.md` (updated in `295f10ed26`): updated "Startup phases and callbacks" so failure-policy restarts name `boundedRestartHandshake` under `txLock` while ad-hoc sessions retain caller lifetime.
+- `docs/architecture/doctor-and-health-checks.md` (updated in `87ca99cd5b` and `d15a406540`): updated "Plugin lifecycle checks" for acceptance-scoped unconfiguring of removed down plugins, clean unconfiguring of failed candidate reload auto-loads, and shared cleanup-owed bus/doctor declaration + bus refresh; updated source anchors.
+- `docs/guide/command-reference.md` (updated in `295f10ed26`): added the `plugin <name> cannot be restarted while startup is in progress` refusal row.
+- `website/changes/fragments/plugin-restart-bounded-and-configuration-true.md`: added operator-facing news fragment (`topic: Plugins`, `found-by: review`).
+- `plan/release/fixes/spec-redistribution-producer-exit-withdrawal.md`: cleared tracked citer to bare stem `spec-plugin-restart-bounded-and-configuration-true`.
+- `./le doc check all` result: zero findings on any page or source anchor touched by this spec (pre-existing unrelated findings only: 1 catalog drift on `plugin format`/`raw-b64`, 1 command help summary rule, and 4 unrelated pre-existing source anchor claims in `dissemination_config.go`, `sdk_callbacks.go`, `sdk_engine.go`, `resolve.go`).
+
+### Deviations from Plan
+- Added `cmd/ze/hub/main.go` fatal-stop unwrap fix in `e6539f5950` because `failure-policy-fatal.ci` (in the affected population) surfaced double-wrapped fatal stop output.
+- Added `TestLateCleanupClearRefreshesStoppedBusWarning` (`restart_test.go`, `d15a406540`) beyond the original TDD plan to prove end-to-end `cleanupProcess` -> `lateCleanupOwed` -> `ClearStoppedCleanupOwed` bus refresh with zero new goroutines.
+- Updated `docs/guide/command-reference.md` in `295f10ed26` to add the boot-window refusal row (item 9).
+
+## Mistake Log
+
+| Kind | What happened | What was true instead | How discovered | Action |
+|------|---------------|----------------------|----------------|--------|
+| approach | Phase 4 (`295f10ed26`) added synchronous `pm.ClearStopped` in `restart.go` and `startup.go` | `TestGenerationReadyRestartIgnoresPreviousStopRecord` expects `superviseProcess` to clear prior stop records asynchronously once runtime supervision starts, while `!pm.Disabled(proc.Name())` suffices to protect `StopRespawnLimit` | Full-package `plugin/server` unit test run | Restored async `ClearStopped` in `e6539f5950` keeping `pm.GetProcess(name) == proc && !pm.Disabled(name)` in `failure_policy.go` |
+
+## Implementation Audit
+
+### Requirements from Task
+| Requirement | Status | Location | Notes |
+|-------------|--------|----------|-------|
+| Item 1 (second half): process-less down plugins unconfigured on accepted reload | Done | `internal/component/plugin/server/reload_dataplane_writer.go:230-409`, `startup_autoload.go:528-584`, `startup_removal.go:144-182,356-392` | `s.unconfigureOnAccept[scope]` finalized in `finishRemovalScope(scope, true)` |
+| Item 2: rejected reload keeps pre-existing dependencies | Done | `internal/component/plugin/server/startup_autoload.go:363-395,593-678`, `startup_removal.go:199-327,474-491` | Direct non-provisional stop (`provisional=false`, `attempt.direct`) + `AutoLoadReasonFor` guard |
+| Item 3: per-name `Respawn` serialization and non-blocking readers | Done | `internal/component/plugin/process/manager.go:885-1054` | Replaced global `respawnMu` with per-name `respawning` channel map |
+| Item 4: failure-policy `txLock` + bounded handshake + multi-process `lateCleanupRecord` | Done | `internal/component/plugin/server/reload_tx.go:1107-1151`, `restart.go:109-225`, `startup.go:51-57,649-654,1122-1235` | Global lock order `txLock` -> `restartControllers`; deleted `lifetimeRestartHandshake`; slice per name in `lateCleanupRecord` |
+| Item 5: synchronized `ze_plugin_status` deletion under concurrent `SetStage` | Done | `internal/component/plugin/process/manager.go:95-114,1060-1080`, `metric_hooks.go:58-65` | Leaf `statusMu` + `proc.metricHooks.Load() == hooks`; counters preserved |
+| Item 6: shared cleanup-owed bus warning and doctor row + automatic bus refresh | Done | `internal/component/plugin/process/stopped.go:84-239`, `doctor/checks_runtime.go:65-80`, `server/dispatch.go:1066-1071`, `server/restart.go:180-228` | Single `StoppedMessage`/`StoppedFix`/`DaemonRestartLastResort` producer in `process/stopped.go` |
+| Item 7: refused restart preserves disable state, counters, and `StopRespawnLimit` | Done | `internal/component/plugin/process/manager.go:878-964`, `server/register_plugin_restart.go:150-175`, `server/reload_tx.go:1085-1240` | `pluginRestartRefusal` under `txLock`; atomic `RespawnReenabled`; `ErrRestartRefused` preserves stop record |
+| Item 8: fast large-table route withdrawal within 3 s `restartCleanupGrace` | Done | `internal/core/rib/store/store_bart.go:109-123`, `store_map.go:96-110`, `locrib/manager.go:385-690`, `locrib/metrics.go:65-115`, `server/dispatch_route.go:398-415` | 1M routes reduced from 3.192 s to 1.806 s (`CGO_ENABLED=0`) |
+| Item 9: boot-window restart refusal + coordinator isolation + Step (d) guard | Done | `internal/component/plugin/server/register_plugin_restart.go:139-143`, `restart.go:263-265`, `failure_policy.go:46-50`, `startup.go:697-715` | `!startupComplete()` refusal, explicit `coord`, `GetProcess == proc` guards |
+| Item 10: failed candidate reload auto-load leaks neither `pm.configs` nor `doctor-plugin-stopped` | Done | `internal/component/plugin/server/startup.go:662-780`, `startup_removal.go:218-228` | `unconfigureFailedReloadStart` gates all 3 failure sites; boot failures preserved |
+
+### Acceptance Criteria
+| AC ID | Status | Demonstrated By | Notes |
+|-------|--------|-----------------|-------|
+| AC-1 | Done | `TestReloadRemovingDownNonFIBPluginUnconfiguresOnAccept`, `TestReloadRemovingDownFIBPluginUnconfiguresOnAccept`, `TestRejectedReloadKeepsDownPluginConfiguredAndStopped`, `test/plugin/plugin-restart-removed-down.ci` | Both non-FIB and `ProgramsFIB` down plugins + rejected reload survivor |
+| AC-2 | Done | `TestReloadFailureKeepsPreExistingDependency` (with `s.wg.Wait()`), `TestReloadFailureStopsReloadAutoLoadedDependencyOnly` | Deterministic red-before-fix repro + `AutoLoadReason` survivor |
+| AC-3 | Done | `TestRespawnDoesNotBlockReadersOrUnrelatedRespawn`, `TestRespawnInDaemonExitNoOverlap`, `test/plugin/plugin-restart-external-nonblocking.ci` | Forked connect-back non-blocking + in-daemon exit reads |
+| AC-4 | Done | `TestFailurePolicyRestartSerializesWithReloadAndBoundsHandshake`, `TestUnbarrieredHandshakeDoesNotClobberTierCoordinator`, `TestLateCleanupRecordTracksMultipleProcessesPerName` | `txLock` ordering, `boundedRestartHandshake`, deferred peer-decl non-deadlock, multi-process owed |
+| AC-5 | Done | `TestRespawnLimitDeleteStatusLabelSurvivesConcurrentSetStage` | Tested under `-race`; status gauge stays absent while all 4 counters survive |
+| AC-6 | Done | `TestStoppedBusWarningMatchesDoctorRowWhileCleanupOwed`, `TestLateCleanupClearRefreshesStoppedBusWarning`, `TestPluginStoppedRowWhileCleanupOwed` | Shared `process/stopped.go` producer + bus refresh on cleanup completion |
+| AC-7 | Done | `TestRefusedRestartPreservesDisableAndRespawnCounters`, `test/plugin/plugin-restart-refused-keeps-disable.ci` | Controller-busy, cleanup-owed, pending-removal, `txLock`, unconfigured, and daemon-stopping refusals + admitted recovery |
+| AC-8 | Done | `TestModifyOrDeleteSinglePass`, `TestRIBRemoveBatchMatchesSerialRemove`, `TestWithdrawPluginRoutesLargeTableWithinGrace`, `BenchmarkWithdrawPluginRoutes` | 1M routes: 3.192 s -> 1.806 s (100k: 279 ms -> 190 ms, 500k: 1.608 s -> 742 ms) |
+| AC-9 | Done | `TestRestartRefusedDuringBootWindow`, `TestSuperviseStaleProcessDoesNotClearStopped`, `TestUnbarrieredHandshakeDoesNotClobberTierCoordinator` | Boot refusal + post-boot success + stale supervisor and coordinator guards |
+| AC-10 | Done | `TestFailedReloadAutoLoadLeavesNoStoppedRecordOrConfig` (`below-running`, `generation-ready`, `boot-failure-survivor`), `test/plugin/reload-failed-autoload-no-stopped-row.ci` | Refused reload leaves `doctor-config-reload-refused` only |
+
+### Tests from TDD Plan
+| Test | Status | Location | Notes |
+|------|--------|----------|-------|
+| `TestReloadRemovingDownNonFIBPluginUnconfiguresOnAccept` | Done | `internal/component/plugin/server/startup_removal_test.go:903` | Pass (`87ca99cd5b`) |
+| `TestReloadRemovingDownFIBPluginUnconfiguresOnAccept` | Done | `internal/component/plugin/server/startup_removal_test.go:995` | Pass (`87ca99cd5b`) |
+| `TestRejectedReloadKeepsDownPluginConfiguredAndStopped` | Done | `internal/component/plugin/server/startup_removal_test.go:1077` | Pass (`87ca99cd5b`) |
+| `TestReloadFailureKeepsPreExistingDependency` | Done | `internal/component/plugin/server/reload_test.go:586` | Strengthened with `s.wg.Wait()`; red -> pass (`87ca99cd5b`) |
+| `TestReloadFailureStopsReloadAutoLoadedDependencyOnly` | Done | `internal/component/plugin/server/reload_test.go:683` | Pass (`87ca99cd5b`) |
+| `TestRespawnDoesNotBlockReadersOrUnrelatedRespawn` | Done | `internal/component/plugin/process/manager_respawn_retirement_test.go:267` | Pass (`ed3e6f7ad5`) |
+| `TestRespawnInDaemonExitNoOverlap` | Done | `internal/component/plugin/process/manager_respawn_retirement_test.go:429` | Pass (`ed3e6f7ad5`) |
+| `TestFailurePolicyRestartSerializesWithReloadAndBoundsHandshake` | Done | `internal/component/plugin/server/failure_policy_test.go:617` | Pass (`295f10ed26`) |
+| `TestUnbarrieredHandshakeDoesNotClobberTierCoordinator` | Done | `internal/component/plugin/server/restart_test.go:265` | Pass (`295f10ed26`) |
+| `TestLateCleanupRecordTracksMultipleProcessesPerName` | Done | `internal/component/plugin/server/restart_test.go:358` | Pass (`295f10ed26`) |
+| `TestLateCleanupClearRefreshesStoppedBusWarning` | Done | `internal/component/plugin/server/restart_test.go:397` | Extra test added in `d15a406540` |
+| `TestRespawnLimitDeleteStatusLabelSurvivesConcurrentSetStage` | Done | `internal/component/plugin/process/manager_metrics_test.go:239` | Pass (`ed3e6f7ad5`) |
+| `TestStoppedBusWarningMatchesDoctorRowWhileCleanupOwed` | Done | `internal/component/plugin/doctor/checks_runtime_test.go:157` | Pass (`d15a406540`) |
+| `TestRefusedRestartPreservesDisableAndRespawnCounters` | Done | `internal/component/plugin/server/plugin_restart_guard_test.go:352` | Pass (`ed3e6f7ad5`) |
+| `TestModifyOrDeleteSinglePass` | Done | `internal/core/rib/store/store_bart_test.go:101` | Pass (`5a0006fb97`) |
+| `TestRIBRemoveBatchMatchesSerialRemove` | Done | `internal/core/rib/locrib/locrib_test.go:398` | Pass (`5a0006fb97`) |
+| `TestWithdrawPluginRoutesLargeTableWithinGrace` & `BenchmarkWithdrawPluginRoutes` | Done | `internal/component/plugin/server/dispatch_route_test.go:96,164` | Pass (`5a0006fb97`) |
+| `TestRestartRefusedDuringBootWindow` | Done | `internal/component/plugin/server/plugin_restart_guard_test.go:527` | Pass (`295f10ed26`) |
+| `TestSuperviseStaleProcessDoesNotClearStopped` | Done | `internal/component/plugin/server/failure_policy_test.go:780` | Pass (`295f10ed26`) |
+| `TestFailedReloadAutoLoadLeavesNoStoppedRecordOrConfig` | Done | `internal/component/plugin/server/startup_removal_test.go:1158` | Pass (`87ca99cd5b`) |
+| `test/plugin/plugin-restart-removed-down.ci` | Done | `test/plugin/plugin-restart-removed-down.ci` | 80/80 stress-repro, promoted (`e6539f5950`) |
+| `test/plugin/plugin-restart-external-nonblocking.ci` | Done | `test/plugin/plugin-restart-external-nonblocking.ci` | 80/80 stress-repro, promoted (`e6539f5950`) |
+| `test/plugin/plugin-restart-refused-keeps-disable.ci` | Done | `test/plugin/plugin-restart-refused-keeps-disable.ci` | 80/80 stress-repro, promoted (`e6539f5950`) |
+| `test/plugin/reload-failed-autoload-no-stopped-row.ci` | Done | `test/plugin/reload-failed-autoload-no-stopped-row.ci` | 80/80 stress-repro, promoted (`e6539f5950`) |
+
+### Files from Plan
+| File | Status | Notes |
+|------|--------|-------|
+| `internal/component/plugin/process/manager.go` | Done | `ed3e6f7ad5` |
+| `internal/component/plugin/process/metric_hooks.go` | Done | `ed3e6f7ad5` |
+| `internal/component/plugin/process/stopped.go` | Done | `d15a406540` |
+| `internal/component/plugin/server/register_plugin_restart.go` | Done | `ed3e6f7ad5`, `295f10ed26`, `d15a406540` |
+| `internal/component/plugin/server/reload_tx.go` | Done | `ed3e6f7ad5`, `295f10ed26`, `d15a406540` |
+| `internal/component/plugin/server/restart.go` | Done | `295f10ed26`, `d15a406540`, `e6539f5950` |
+| `internal/component/plugin/server/failure_policy.go` | Done | `295f10ed26` |
+| `internal/component/plugin/server/startup.go` | Done | `87ca99cd5b`, `295f10ed26`, `d15a406540`, `e6539f5950` |
+| `internal/component/plugin/server/startup_removal.go` | Done | `87ca99cd5b` |
+| `internal/component/plugin/server/startup_autoload.go` | Done | `87ca99cd5b` |
+| `internal/component/plugin/server/reload_dataplane_writer.go` | Done | `87ca99cd5b` |
+| `internal/component/plugin/server/dispatch_route.go` | Done | `5a0006fb97` |
+| `internal/component/plugin/server/dispatch.go`, `doctor_snapshot.go`, `server.go`, `startup_wire.go` | Done | Supporting server files (`87ca99cd5b`, `295f10ed26`, `d15a406540`) |
+| `cmd/ze/hub/main.go` | Done | Fatal-stop unwrap fix (`e6539f5950`, recorded in Deviations) |
+| `internal/component/plugin/doctor/checks_runtime.go` | Done | `d15a406540` |
+| `internal/core/rib/store/store_bart.go`, `store_map.go` | Done | `5a0006fb97` |
+| `internal/core/rib/locrib/manager.go`, `metrics.go` | Done | `5a0006fb97` |
+| `docs/architecture/api/process-protocol.md`, `plugin-system.md`, `doctor-and-health-checks.md`, `docs/guide/command-reference.md` | Done | `87ca99cd5b`, `295f10ed26`, `d15a406540` |
+| 9 journal class files under `plan/journal/` (10 owned 2026-11-12 rows) | Done | `5a0006fb97`, `ed3e6f7ad5`, `87ca99cd5b`, `295f10ed26`, `d15a406540` |
+| 4 `.ci` files under `test/plugin/` | Done | Promoted in `e6539f5950` |
+
+### Audit Summary
+- **Total items:** 10 task items, 10 ACs, 24 tests (20 unit/benchmark + 4 `.ci`), 60+ files across 6 commits
+- **Done:** All 10 task items, all 10 ACs, all 24 tests, all planned files
+- **Partial:** 0
+- **Skipped:** 0
+- **Changed:** 3 minor additions recorded in Deviations (`cmd/ze/hub/main.go`, `TestLateCleanupClearRefreshesStoppedBusWarning`, `docs/guide/command-reference.md`)
+
+## Goal Validation (BLOCKING)
+
+| Goal (from Task) | Evidence Type | Concrete Evidence |
+|------------------|---------------|-------------------|
+| Restart does not bring back what the configuration removed (including down plugins and failed reload auto-loads) | Functional + unit tests | `test/plugin/plugin-restart-removed-down.ci` & `test/plugin/reload-failed-autoload-no-stopped-row.ci` (80/80 stress-repro under 64 burners); `TestReloadRemovingDownNonFIBPluginUnconfiguresOnAccept`, `TestReloadRemovingDownFIBPluginUnconfiguresOnAccept`, `TestRejectedReloadKeepsDownPluginConfiguredAndStopped`, `TestFailedReloadAutoLoadLeavesNoStoppedRecordOrConfig` |
+| Rejected reload preserves pre-existing dependencies | Deterministic unit repro + fix | `TestReloadFailureKeepsPreExistingDependency` (reproduced 100% red with `s.wg.Wait()`, green after `87ca99cd5b`) and `TestReloadFailureStopsReloadAutoLoadedDependencyOnly` |
+| Restart does not stall daemon readers or unrelated plugin respawns across 30 s connect-back | Functional + unit tests | `test/plugin/plugin-restart-external-nonblocking.ci` (80/80 stress-repro); `TestRespawnDoesNotBlockReadersOrUnrelatedRespawn`, `TestRespawnInDaemonExitNoOverlap` |
+| Failure-policy restarts serialize with reloads, bound handshakes, and track all owed cleanups without clobbering barriers | Unit + functional suite | `TestFailurePolicyRestartSerializesWithReloadAndBoundsHandshake`, `TestUnbarrieredHandshakeDoesNotClobberTierCoordinator`, `TestLateCleanupRecordTracksMultipleProcessesPerName`; `test/plugin/failure-policy-restart.ci`, `test/plugin/failure-policy-fatal.ci` |
+| Respawn-limit disable keeps `ze_plugin_status` deleted and survives refused restarts | Functional + `-race` unit tests | `TestRespawnLimitDeleteStatusLabelSurvivesConcurrentSetStage`, `TestRefusedRestartPreservesDisableAndRespawnCounters`, `test/plugin/plugin-restart-refused-keeps-disable.ci` (80/80 stress-repro) |
+| Operator warnings and `ze show doctor` agree while cleanup is owed and refresh automatically | Unit tests | `TestStoppedBusWarningMatchesDoctorRowWhileCleanupOwed`, `TestLateCleanupClearRefreshesStoppedBusWarning`, `TestPluginStoppedRowWhileCleanupOwed` |
+| Restart answers within 3 s cleanup bound even for a 1M-route plugin | Benchmark + unit test | `BenchmarkWithdrawPluginRoutes` (`5a0006fb97`, `CGO_ENABLED=0`, 32-core host): 100k `279 ms -> 190 ms`, 500k `1.608 s -> 742 ms`, 1M `3.192 s -> 1.806 s` (1.434 s nometa); `TestWithdrawPluginRoutesLargeTableWithinGrace` |
+| Boot-window restarts are refused cleanly without racing Step (d) | Unit tests | `TestRestartRefusedDuringBootWindow`, `TestSuperviseStaleProcessDoesNotClearStopped` |
+
+## Work Not Done
+
+| What was not done | Why | The spec that now owns it |
+|-------------------|-----|---------------------------|
+| Retiring `ignore`-policy exits and making reloads restart configured down plugins | Explicitly outside this spec's 10-item scope (neighbor spec D-A, D-B) | `plan/release/fixes/spec-single-owner-lifecycle-1-plugin-process.md` |
+
+## Review Gate
+
+| Field | Value |
+|-------|-------|
+| Artifact | `tmp/review/plugin-restart-bounded-and-configuration-true-0e3a937e-b7cd-4f75-bc79-95d6dc661e0c.md` |
+| `./le spec review check` | `review_gate: OK (47 code files, clean, hashes match tmp/review/plugin-restart-bounded-and-configuration-true-0e3a937e-b7cd-4f75-bc79-95d6dc661e0c.md)` |
+| Rounds | 1 (0 BLOCKER, 0 ISSUE, 2 NOTEs) |
+| Reviewer lenses used | logic+wiring, security+edge-cases, design-docs+style+spec-completeness |
+
+### Findings fixed
+| # | Severity | Finding | Location | Fixed by |
+|---|----------|---------|----------|----------|
+| 1 | NOTE | Tracked sibling spec cited work-folder path `plan/release/fixes/spec-plugin-restart-bounded-and-configuration-true.md` | `plan/release/fixes/spec-redistribution-producer-exit-withdrawal.md:29` | Repointed to bare stem `spec-plugin-restart-bounded-and-configuration-true` in Commit A |
+| 2 | NOTE | Two unrelated 2026-11-25 decisions added to `process-protocol.md` (queue overflow losslessness) and `exabgp-bridge.md` (`raw-b64` delivery) after `cefc45adee` approval; verified unaffected by all 6 commits | `docs/architecture/api/process-protocol.md`, `docs/architecture/exabgp-bridge.md` | Verified unaffected; `## Design documents` preserved unchanged to keep Thomas's approved design digest `a56ca4f89e59` |
+
+## Pre-Commit Verification
+
+### Files Exist (ls)
+| File | Exists | Evidence |
+|------|--------|----------|
+| `test/plugin/plugin-restart-removed-down.ci` | Yes | `-rw-r--r-- 1 thomas thomas 6006 Nov 25 22:30 test/plugin/plugin-restart-removed-down.ci`; absent from `test/draft/plugin/` |
+| `test/plugin/plugin-restart-external-nonblocking.ci` | Yes | `-rw-r--r-- 1 thomas thomas 7799 Nov 25 21:37 test/plugin/plugin-restart-external-nonblocking.ci`; absent from `test/draft/plugin/` |
+| `test/plugin/plugin-restart-refused-keeps-disable.ci` | Yes | `-rw-r--r-- 1 thomas thomas 9291 Nov 25 21:37 test/plugin/plugin-restart-refused-keeps-disable.ci`; absent from `test/draft/plugin/` |
+| `test/plugin/reload-failed-autoload-no-stopped-row.ci` | Yes | `-rw-r--r-- 1 thomas thomas 4200 Nov 25 22:30 test/plugin/reload-failed-autoload-no-stopped-row.ci`; absent from `test/draft/plugin/` |
+| `website/changes/fragments/plugin-restart-bounded-and-configuration-true.md` | Yes | Created in Commit A (`topic: Plugins`, `found-by: review`, 6 headings) |
+
+### AC Verified (grep/test)
+| AC ID | Claim | Fresh Evidence |
+|-------|-------|----------------|
+| AC-1 | Process-less reload removals finalize in `finishRemovalScope(scope, true)` | `startup_removal.go:384-388` calls `s.unconfigureProcessless(name)` -> `pm.UnconfigureProcess(name)`; `test/plugin/plugin-restart-removed-down.ci` + 3 unit tests in `startup_removal_test.go` |
+| AC-2 | Rolled-back candidate auto-loads stop directly without touching pre-existing deps | `startup_autoload.go:605` calls `stopCollectedProcessesMode(stopped, false, ...)` -> `attempt.direct`; `collectOrphanedDependencies` checks `AutoLoadReasonFor`; `TestReloadFailureKeepsPreExistingDependency` (`s.wg.Wait()`) + `TestReloadFailureStopsReloadAutoLoadedDependencyOnly` |
+| AC-3 | `Respawn` serializes per name and releases `pm.mu` before join/connect-back | `process/manager.go:885-908` (`acquireRespawnSlot` per-name `respawning`); `TestRespawnDoesNotBlockReadersOrUnrelatedRespawn`, `TestRespawnInDaemonExitNoOverlap`, `test/plugin/plugin-restart-external-nonblocking.ci` |
+| AC-4 | Failure-policy restart holds `txLock` -> `restartControllers` + `boundedRestartHandshake`; multi-process `lateCleanupRecord`; zero `s.coordinator` in `restart.go` | `reload_tx.go:1107-1151`, `restart.go:153-225`; `grep 's\.coordinator' restart.go` = 0 matches; `TestFailurePolicyRestartSerializesWithReloadAndBoundsHandshake`, `TestUnbarrieredHandshakeDoesNotClobberTierCoordinator`, `TestLateCleanupRecordTracksMultipleProcessesPerName` |
+| AC-5 | Leaf `statusMu` serializes `deletePluginStatusLabel` with `SetStage` | `process/manager.go:95-100,1073-1080`; `TestRespawnLimitDeleteStatusLabelSurvivesConcurrentSetStage` |
+| AC-6 | One shared `StoppedMessage`/`StoppedFix`/`DaemonRestartLastResort` producer in `process/stopped.go` + bus refresh | `grep` confirms cleanup-owed prose only in `process/stopped.go:97-239`, called by `recordStoppedLocked`, `pluginStoppedRow`, and `pluginRestartFailure`; `dispatch.go:1070` calls `s.lateCleanupOwed`; `TestStoppedBusWarningMatchesDoctorRowWhileCleanupOwed`, `TestLateCleanupClearRefreshesStoppedBusWarning` |
+| AC-7 | Pre-spawn refusals keep disable, counters, and `StopRespawnLimit`; admitted restart lifts them atomically | `register_plugin_restart.go:158-172` -> `restartPluginReplacementReenabled` -> `pm.RespawnReenabled` (`manager.go:954-958`); `reload_tx.go:1175-1187` preserves stop record on `ErrRestartRefused`; `TestRefusedRestartPreservesDisableAndRespawnCounters`, `test/plugin/plugin-restart-refused-keeps-disable.ci` |
+| AC-8 | 1M-route `withdrawPluginRoutes` completes well inside 3 s `restartCleanupGrace` | `store_bart.go:99-113` & `store_map.go:96-110` (`ModifyOrDelete`), `locrib/manager.go:557-748` (`RemoveBatch`, chunk 1,024), `dispatch_route.go:401-411`; `BenchmarkWithdrawPluginRoutes` 1M `3.192 s -> 1.806 s`; `TestModifyOrDeleteSinglePass`, `TestRIBRemoveBatchMatchesSerialRemove`, `TestWithdrawPluginRoutesLargeTableWithinGrace` |
+| AC-9 | Boot-window restart refused cleanly; Step (d) and `superviseProcess` check `GetProcess == proc` | `register_plugin_restart.go:139-143`, `failure_policy.go:47`, `startup.go:697-715`; `TestRestartRefusedDuringBootWindow`, `TestSuperviseStaleProcessDoesNotClearStopped` |
+| AC-10 | Failed candidate reload auto-load leaves no `pm.configs` or `doctor-plugin-stopped` | `startup.go:662-780`, `startup_removal.go:218-228` (`unconfigureFailedReloadStart`); `TestFailedReloadAutoLoadLeavesNoStoppedRecordOrConfig`, `test/plugin/reload-failed-autoload-no-stopped-row.ci` |
+
+### Wiring Verified (end-to-end)
+| Entry Point | .ci File | Verified |
+|-------------|----------|----------|
+| `ze request plugin restart <name>` after reload removed down plugin | `test/plugin/plugin-restart-removed-down.ci` | Yes (read lines 1-180: reloads v2 -> restart fails -> doctor/warnings show `doctor-plugin-stopped` -> reloads v3 removing `fib vpp` -> doctor/warnings/health clean, restart refused as unconfigured) |
+| `ze request plugin restart <name>` on forked plugin stalled before connect-back | `test/plugin/plugin-restart-external-nonblocking.ci` | Yes (read lines 1-226: FIFO-stalled gen 2 -> `show doctor`, `show sibling-plugin status`, and concurrent restart refusal answer promptly -> release FIFO -> gen 2 serves cleanly) |
+| `ze request plugin restart <name>` refused on respawn-disabled plugin | `test/plugin/plugin-restart-refused-keeps-disable.ci` | Yes (read lines 1-267: 6 exits hit `RespawnLimit=5` -> `StopRespawnLimit` preserved -> FIFO-held `txLock` refuses restart -> `StopRespawnLimit` preserved -> admitted restart recovers gen 7) |
+| Refused reload auto-loading a plugin failing handshake | `test/plugin/reload-failed-autoload-no-stopped-row.ci` | Yes (read lines 1-120: reload adding invalid `mrt` refused -> `doctor-config-reload-refused` only, no `doctor-plugin-stopped` in doctor/warnings, `plugins` healthy, restart refused as unconfigured) |
+
+### Assumptions Resolved
+| ID | Final Status | Evidence |
+|----|--------------|----------|
+| A-1 | confirmed | `TestReloadFailureKeepsPreExistingDependency` with `s.wg.Wait()` reproduced 100% red before `87ca99cd5b` and passed after |
+| A-2 | confirmed | `TestRestartRefusedDuringBootWindow` (`295f10ed26`) proves boot-window refusal and post-boot success |
+| A-3 | confirmed | `BenchmarkWithdrawPluginRoutes` (`5a0006fb97`): 1M routes dropped from 3.192 s to 1.806 s (100k `279 ms -> 190 ms`, 500k `1.608 s -> 742 ms`) |
+| A-4 | confirmed | `TestRespawnDoesNotBlockReadersOrUnrelatedRespawn` and `TestRespawnInDaemonExitNoOverlap` (`ed3e6f7ad5`) |
+| A-5 | confirmed (owner D2) | `TestStoppedBusWarningMatchesDoctorRowWhileCleanupOwed` and `TestPluginStoppedRowWhileCleanupOwed` (`d15a406540`) |
+| A-6 | confirmed (owner D1) | `TestFailurePolicyRestartSerializesWithReloadAndBoundsHandshake` (`295f10ed26`) and existing `test/plugin/` lifecycle suite |
+
+### Documentation Verified
+| Documentation claim or category | Source evidence | Verified |
+|---------------------------------|-----------------|----------|
+| `docs/architecture/api/process-protocol.md` (departed row + anchors) | Read lines 1150-1280 (`295f10ed26`, `d15a406540`): matches `reload_tx.go`, `restart.go`, `stopped.go`, `register_plugin_restart.go`; `lifetimeRestartHandshake` removed; zero anchor claims in `./le doc check all` | Yes |
+| `docs/architecture/plugin/plugin-system.md` (departed row + anchors) | Read lines 693-708 (`295f10ed26`): matches `boundedRestartHandshake` under `txLock`; zero anchor claims in `./le doc check all` | Yes |
+| `docs/architecture/doctor-and-health-checks.md` (departed row + anchors) | Read lines 1685-1745 (`87ca99cd5b`, `d15a406540`): matches `finishRemovalScope`, `UnconfigureProcess`, `unconfigureFailedReloadStart`, `StoppedMessage`/`StoppedFix`, `lateCleanupOwed`; zero anchor claims in `./le doc check all` | Yes |
+| `docs/guide/command-reference.md` (boot-window refusal) | Read lines 1072-1120 (`295f10ed26`): matches `handlePluginRestart` `!startupComplete()` refusal | Yes |
+| All 10 owned journal rows across 9 class files | `grep '2026-11-12'` across all 9 files confirms all 10 owned rows marked `fixed:` (`5a0006fb97`, `ed3e6f7ad5`, `87ca99cd5b`, `295f10ed26`, `d15a406540`) | Yes |
+| All "No" categories in Documentation Update Checklist | Grep of `docs/` source anchors for all 22 modified Go files confirms no config syntax, RPC schema, wire format, RFC summary, or feature-level page became stale | Yes |
