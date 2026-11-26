@@ -1262,57 +1262,67 @@ like any native plugin.
 
 ## Measured per-script cost (Q-E7)
 
-Measured on 2026-11-25 at commit `f88708e4dc` on an Apple M4 Max (`Darwin arm64`,
-16 host cores / 64 GiB RAM) running the `ze` Colima Docker host (`4 vCPUs`,
-`7.75 GiB` RAM) via `./le perf run dut ze` with `PERF_CONFIGS_DIR` overlays.
-Each script ran as an independent external bus endpoint
+Measured on an Apple M4 Max (`Darwin arm64`, 16 host cores / 64 GiB RAM) running
+the `ze` Colima Docker host (`4 vCPUs`, `7.75 GiB` RAM, kernel `7.3.0-ze`) via
+`./le perf run dut ze` with `PERF_CONFIGS_DIR` overlays. Each script ran as an
+independent external bus endpoint
 (`ze exabgp plugin --encoder json -- /bin/sh -c 'cat >/dev/null'`) subscribed to
 `bgp:update`, `bgp:state`, and `bgp:negotiated` from `perf-sender` (`send { allow
 none; }`). Every run completed with `0` lost routes.
 
-### Full-table feed: 1,000,000 IPv4/unicast routes (`DUT_REPEAT=1` + 1 warmup)
+### Optimization progression (20 scripts)
+
+| Date | Commit | Transport / Change | 100k Live Conv. | 100k Live Throughput | 100k Peak CPU | 1M Live Conv. | 1M Live Throughput | 1M `ze` Peak VmRSS |
+|---|---|---|---:|---:|---:|---:|---:|---:|
+| 2026-11-25 | `f88708e4dc` | Baseline (`FormatFull` JSON + `map[string]any` batching/rendering) | 907 ± 22 ms | 110,253 r/s | 377.7% | 9,773 ms | 102,322 r/s | 4,143 MiB |
+| 2026-11-26 | `8e17d9a02d` | `FormatBase64` positional `upd` + pooled `MuxConn.CallBatchRPC` + direct unicast renderer | 301 ± 23 ms (**3.01×**) | 332,225 r/s (**3.01×**) | 135.6% (**−64%**) | 2,679 ms (**3.65×**) | 373,273 r/s (**3.65×**) | 3,232 MiB (**−911 MiB**) |
+
+### Full-table feed: 1,000,000 IPv4/unicast routes (`DUT_REPEAT=1` + 1 warmup, `8e17d9a02d`)
 
 | Scripts | Live Conv. | Live Throughput | Delta vs 0 | Live p99 | Live Withdraw | RIB Prop. Conv. | RIB Prop. Throughput | Peak CPU (4 vCPU) | Cgroup Mem (settled) | `ze` Peak VmRSS | Wrapper Sum Peak VmRSS |
 |---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|
-| 0 | 1,593 ms | 627,746 r/s | baseline | 1,368 ms | 1,938 ms | 5,682 ms | 175,994 r/s | 154.4% | 3.00 GiB | 3,312 MiB | — |
-| 1 | 1,503 ms | 665,335 r/s | +6.0% | 1,323 ms | 1,927 ms | 5,420 ms | 184,501 r/s | 275.5% | 3.49 GiB | 3,398 MiB | 167 MiB (167/s) |
-| 5 | 3,796 ms | 263,435 r/s | −58.0% | 3,541 ms | 3,323 ms | 5,453 ms | 183,385 r/s | 397.0% | 3.82 GiB | 3,691 MiB | 827 MiB (165/s) |
-| 20 | 9,773 ms | 102,322 r/s | −83.7% | 6,433 ms | 9,657 ms | 9,419 ms | 106,168 r/s | 422.8% | 4.40 GiB | 4,143 MiB | 2,854 MiB (143/s) |
+| 0 | 1,396 ms | 716,332 r/s | baseline | 1,187 ms | 1,882 ms | 5,461 ms | 183,116 r/s | 216.1% | 3.54 GiB | 3,425 MiB | — |
+| 1 | 1,577 ms | 634,115 r/s | −11.5% | 1,376 ms | 1,802 ms | 5,460 ms | 183,150 r/s | 301.3% | 3.73 GiB | 3,495 MiB | 158 MiB (158/s) |
+| 5 | 1,713 ms | 583,771 r/s | −18.5% | 1,481 ms | 1,932 ms | 5,470 ms | 182,815 r/s | 328.2% | 3.63 GiB | 3,471 MiB | 744 MiB (149/s) |
+| 20 | 2,679 ms | 373,273 r/s | −47.9% | 2,315 ms | 30,075 ms* | 6,178 ms | 161,864 r/s | 380.9% | 4.48 GiB | 3,232 MiB | 2,927 MiB (146/s) |
 
-### Standard `./le perf` scale: 100,000 IPv4/unicast routes (`DUT_REPEAT=3` + 1 warmup)
+*\*Two 1M passes (`1M × 5` RIB-prop `30,283 ms` and `1M × 20` live `30,075 ms`) hit the 30 s withdrawal drain bound; `1M × 20` RIB-prop withdrew in `3,529 ms`, and `100k × 20` withdrew in `737 ms`.*
+
+### Standard `./le perf` scale: 100,000 IPv4/unicast routes (`DUT_REPEAT=3` + 1 warmup, `8e17d9a02d`)
 
 | Scripts | Live Conv. | Live Throughput | Delta vs 0 | Live p99 | Live Withdraw | RIB Prop. Conv. | RIB Prop. Throughput | Peak CPU (4 vCPU) | Cgroup Mem (settled) | `ze` Peak VmRSS | Wrapper Sum Peak VmRSS |
 |---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|
-| 0 | 136 ± 9 ms | 735,294 ± 48,659 r/s | baseline | 94 ms | 597 ms | 546 ± 7 ms | 183,150 r/s | 99.2% | 403 MiB | 534 MiB | — |
-| 1 | 139 ± 17 ms | 719,424 ± 87,987 r/s | −2.2% | 113 ms | 608 ms | 568 ± 6 ms | 176,056 r/s | 82.3% | 465 MiB (+62 MiB) | 518 MiB | 153 MiB (153/s) |
-| 5 | 279 ± 9 ms | 358,422 ± 11,562 r/s | −51.3% | 214 ms | 742 ms | 554 ± 3 ms | 180,505 r/s | 189.2% | 873 MiB (+470 MiB) | 576 MiB | 787 MiB (157/s) |
-| 20 | 907 ± 22 ms | 110,253 ± 2,674 r/s | −85.0% | 855 ms | 1,366 ms | 542 ± 3 ms | 184,501 r/s | 377.7% | 2,122 MiB (+1,719 MiB) | 654 MiB | 3,018 MiB (151/s) |
+| 0 | 142 ± 12 ms | 704,225 ± 59,511 r/s | baseline | 99 ms | 617 ms | 540 ± 4 ms | 185,185 r/s | 105.8% | 410 MiB | 495 MiB | — |
+| 1 | 135 ± 14 ms | 740,740 ± 76,817 r/s | +5.2% | 88 ms | 611 ms | 536 ± 16 ms | 186,567 r/s | 112.0% | 492 MiB (+82 MiB) | 484 MiB | 137 MiB (137/s) |
+| 5 | 180 ± 20 ms | 555,555 ± 61,728 r/s | −21.1% | 120 ms | 637 ms | 544 ± 19 ms | 183,823 r/s | 114.6% | 875 MiB (+465 MiB) | 500 MiB | 723 MiB (145/s) |
+| 20 | 301 ± 23 ms | 332,225 ± 25,385 r/s | −52.8% | 240 ms | 737 ms | 528 ± 15 ms | 189,393 r/s | 135.6% | 1,970 MiB (+1,560 MiB) | 525 MiB | 2,785 MiB (139/s) |
 
 ### Cost breakdown
 
-- **CPU and forwarding backpressure:** Each script adds roughly `~1.6–1.8 µs` of
-  CPU per received UPDATE across TLS send/receive, `json.Unmarshal` into
-  `map[string]any`, wire attribute decoding, ExaBGP JSON formatting, and pipe
-  write (`~1.2` cores during a 1M-route burst). At 1 script, spare cores absorb
-  this work with negligible impact on live forwarding. At 5 and 20 scripts on
-  4 vCPUs, CPU saturates (`397%–423%`); `Process.Deliver` (`eventChan` capacity
-  64) blocks `onMessageBatchReceived`, which fills the peer's `deliverChan` and
-  throttles the BGP read goroutine (`reactorForwardRS`) linearly to
-  `~0.41 s` per script per 1M routes (`102k r/s` at 20 scripts). A slow child
-  script still drops at its 1,000-line stdin queue without blocking `ze`, whereas
-  a CPU-starved wrapper process backpressures the peer reader through
-  `eventChan`.
-- **Memory:** Per-process `VmRSS` is `~143–167 MiB` per wrapper because each
-  endpoint execs `/usr/local/bin/ze` (`~156 MiB` multi-personality binary), but
-  the read-only text/rodata pages are shared in the page cache. Actual private
-  physical memory (`docker stats` cgroup delta) is **`~72–94 MiB` per script**
-  (linked package `init()` state plus Go GC heap under JSON streaming), plus
-  `~2.4 MiB` for the child `sh`/`cat` and up to `~42 MiB` per script of transient
-  TLS/batch buffer headroom inside `ze` during a 1M-route burst.
+- **CPU and forwarding backpressure:** Moving `ze exabgp plugin` to `FormatBase64`
+  positional counted `upd` lines, pooled `MuxConn.CallBatchRPC`, and direct
+  `[]byte` unicast rendering cut 20-script live convergence by **3.65×** at 1M
+  routes (`9,773 ms` → `2,679 ms`, marginal cost falling from `~409 ms/script` to
+  `~64 ms/script`) and **3.01×** at 100k routes (`907 ms` → `301 ms`, peak CPU
+  `377.7%` → `135.6%`). Because `Process.Deliver` (`eventChan` capacity 64) still
+  runs synchronously inside `onMessageBatchReceived`, heavy multi-script bursts at
+  20 endpoints still backpressure `deliverChan` and `reactorForwardRS`; decoupling
+  bus observer delivery is tracked separately in
+  `spec-bus-observer-delivery-decoupling`. A slow child script still drops at its
+  1,000-line stdin queue without blocking `ze`.
+- **Memory:** Eliminating daemon-side `FormatFull` JSON and `map[string]any`
+  batch marshaling reduced `ze` peak `VmRSS` at 1M × 20 scripts by **911 MiB**
+  (`4,143 MiB` → `3,232 MiB`, staying below the 0-script peak). Per-wrapper
+  `VmRSS` remains `~137–158 MiB` because each endpoint execs `/usr/local/bin/ze`
+  (read-only text/rodata pages shared in the page cache), with actual private
+  physical memory (`docker stats` cgroup delta at 100k) at **`~78–93 MiB` per
+  script** plus `~2.4 MiB` for the child `sh`/`cat`.
 
 <!-- source: internal/component/bgp/server/events.go -- onMessageBatchReceived -->
 <!-- source: internal/component/plugin/process/delivery.go -- DeliverContext, deliveryLoop -->
 <!-- source: internal/component/bgp/reactor/reactor_notify.go -- deliverChan -->
+<!-- source: internal/component/bgp/format/raw_b64.go -- appendRawB64Update -->
+<!-- source: internal/exabgp/bridge/bridge_raw_render.go -- RenderRawUpdate -->
 
 ## Design decisions
 
