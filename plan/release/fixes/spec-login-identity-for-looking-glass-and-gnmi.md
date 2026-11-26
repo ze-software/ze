@@ -1,658 +1,760 @@
-# Spec: give the looking glass and gNMI a per-user login
+# Spec: Login identity and per-user authentication for Looking Glass and gNMI
 
 | Field | Value |
 |-------|-------|
 | Status | design |
-| Priority | P0 |
-| Release reason | Management access must require the approved explicit public choice or per-user authorization and its login-service gate. |
 | Scope | config |
-| Depends | `plan/release/fixes/spec-login-service-authorisation.md` |
+| Priority | P0 |
+| Release reason | `plan/release/fixes/spec-login-service-authorisation.md` gates which services a named account may log into. A gate cannot act on a surface that has no user identity, and today neither the looking glass nor gNMI authenticates a named user: both take at most a single shared bearer token, gNMI records every commit under the constant `"gnmi"`, and gNMI's default with no token on loopback serves unauthenticated read-only access without naming a user. Without per-user authentication on both surfaces, an operator cannot restrict or audit who reaches the looking glass or commits config over gNMI, and a user removed from `system authentication` or excluded from `gnmi`/`looking-glass` cannot be stopped there. |
+| RFC gaps | - |
+| Depends | `plan/release/fixes/spec-login-service-authorisation.md` (for the per-user login-service gate; per-user login and identity on both surfaces stand without it and join the gate when it lands) |
 | Phase | - |
-| Handoff | verify |
-| Updated | 2026-11-24 |
-
-Recovery after compaction: `.claude/rules/post-compaction.md`.
+| Handoff | - |
+| Design tier | strongest tier |
+| Implementation tier | strongest tier |
+| Updated | 2026-11-26 |
 
 ## Owner decisions (2026-11-24)
 
-| ID | Decision |
-|----|----------|
-| D-1 (Looking Glass missing `auth-mode`) | No default: refuse to start Looking Glass unless `auth-mode` (`open`, `token`, or `user`) is explicitly configured. |
-| D-2 (Looking Glass browser login in `user` mode) | Login form + session cookie (matching the web UI), plus header auth for scripts/programs. |
-| D-3 (Looking Glass JSON API `/api/looking-glass/*` in `user` mode) | Gate the JSON API under the same per-user authentication as HTML pages. |
-| D-4 (Looking Glass per-command RBAC) | Enforce each authenticated user's RBAC profile against the underlying `show` commands Looking Glass dispatches (instead of admitting all LG users to all LG queries). |
-| D-5 (gNMI plaintext on loopback) | Keep allowing plaintext gNMI on loopback (`127.0.0.1` / `::1`) only, while continuing to require TLS on all non-loopback listeners. |
+Thomas answered all five design decisions on 2026-11-24 (`D-1`..`D-5`), and every answer is folded into this design, its acceptance criteria, its test plan, and its implementation phases:
+
+| ID | Topic | Decision |
+|----|-------|----------|
+| D-1 | Looking glass with no `auth-mode` configured | **(b) No default: refuse to start the looking glass until the operator names `open`, `token`, or `user`.** Consistent with the 2026-11-26 "Ze always starts" ruling (`docs/architecture/core-design.md`, `## Design decisions`), `ze config validate`, commit, and reload refuse the config with `config-lg-invalid`, while `ze start` leaves the looking glass down and reports it under `doctor-service-not-started` so Ze and its other services keep running. |
+| D-2 | Browser login to looking glass in `user` mode | **(a) Login form + session cookie, matching the web UI, alongside HTTP Basic Auth (`Authorization: Basic`) for scripts and API clients.** The HTTP session store and Basic-Auth parser are extracted from `internal/component/web/auth.go` into `internal/component/aaa/httpsession` so `web` and `lg` share one implementation without cross-importing each other. |
+| D-3 | Looking glass JSON API (`/api/looking-glass/*`) in `user` mode | **(a) Gate `/api/looking-glass/*` (and `/.well-known/looking-glass/*`) under the same per-user authentication middleware as HTML pages.** API clients (Alice-LG, scripts) authenticate via HTTP Basic Auth or the session cookie; unauthenticated API requests return HTTP 401 JSON (or JSend on RFC 8522 paths) with `WWW-Authenticate: Basic realm="looking glass"`. |
+| D-4 | Looking glass command authorization in `user` mode | **(a) Enforce per-command authorization profiles for looking-glass queries (`show bgp`, `show bgp rib`, `show version`, `show uptime`, `show reload-status`, `show bmp peers`, `resolve cymru asn-name`, and RFC 8522 `show ping`/`show traceroute`/`show route`/`show route lookup`/`show bgp peer`).** Denials return HTTP 403 (JSON on birdwatcher API, JSend on RFC 8522 API, HTML/HTMX error fragment on `/lg/*`, SSE error row on `/lg/events`, graceful bare-ASN fallback for `resolve cymru asn-name`). |
+| D-5 | gNMI plaintext on loopback | **(a) Keep allowing plaintext gNMI on loopback (`127.0.0.0/8`, `::1`); keep requiring TLS on all non-loopback listeners.** Document this deliberate divergence from OpenConfig `gnmi-authentication.md` in `docs/guide/gnmi.md` and `docs/architecture/api/architecture.md`. |
 
 ## Task
 
-Two management surfaces authenticate with a shared secret and never learn who
-the caller is.
+Give both the gNMI server (`internal/component/gnmi/`) and the looking glass
+(`internal/component/lg/`) an explicit `auth-mode` leaf with per-user AAA
+authentication (`user`), shared bearer token (`token`), and explicit
+unauthenticated access (`none` on gNMI, `open` on looking glass), and thread
+every authenticated caller's identity through authorization, live-stream
+revocation, audit logging, metrics, and the reload guard.
 
-`bearerAuth` (`internal/component/lg/auth.go`) returns the handler unchanged
-when the configured token is empty, so a looking glass with no token is fully
-public. With a token set, every caller presents the same string. There is no
-user, no session and no identity, and `(*LGServer).query`
-(`internal/component/lg/server.go`) dispatches every command with a zero-value
-caller.
+Owner requirement (Thomas, 2026-10-31, recorded in `plan/release/fixes/spec-login-service-authorisation.md`):
 
-`(*Server).Serve` (`internal/component/gnmi/server.go`) installs its two
-authentication interceptors only when a token is configured, and
-`(*Server).checkAuth` returns nil for an empty token. So a gNMI server with no
-token authenticates nobody, and with a token every caller presents the same
-string. `(*Server).Set` (`internal/component/gnmi/set.go`) then enters, edits
-and commits a config session under the constant name `gnmi`, whoever called.
+> "for gnmi and looking glass, I believe we should have user login as well.
+> for looking glass it should be an option to keep it open (we should not be
+> forced to have a login). for gnmi it should behave like ssh."
 
-The owner's requirements, given 2026-08-11:
+Six concrete defects at HEAD are fixed by this work:
 
-- The looking glass MUST carry an explicit choice between open and requiring a
-  user. Today "open" is what an operator gets by leaving a leaf empty, which is
-  a default rather than a decision.
-- gNMI MUST behave like SSH, which means a per-user login against the same
-  credentials every other surface uses.
+1. **gNMI has no per-user authentication and no `auth-mode` leaf.** Today
+   `internal/component/gnmi/server.go` accepts only a single shared bearer
+   token (`environment gnmi token` / `ze.gnmi.token`). There is no way for a
+   named operator (local, TACACS+, or RADIUS) to log into gNMI with
+   `username`/`password` gRPC metadata as OpenConfig `gnmi-authentication.md`
+   and `gnmic --username --password` expect.
+2. **gNMI `Set` commits under the hardcoded string `"gnmi"` (`gnmiUsername`)
+   and checks no per-user write authorization.** Even though `Set` already
+   refuses unauthenticated loopback writes (`s.config.Token == ""` ->
+   `codes.PermissionDenied`) and writes `audit.ActionConfigCommit` under
+   `audit.GNMI`, a token-mode or user-mode caller is never checked against
+   `plugin.ConfigAuthEdit`/`Set`/`Delete`/`Commit`, `Get` and `Subscribe`
+   never check `show config running` authorization, and committed edits always
+   record actor `"gnmi"` rather than the caller's username (or
+   `aaa.ReservedSharedAPIUsername`, `"\x00ze:shared-api"`, in `token` mode).
+3. **gNMI `Subscribe` STREAM never ends when its local user is removed or
+   edited.** Once a stream opens, it continues receiving config-change
+   notifications even after `system authentication user` removes or changes
+   that user on reload.
+4. **The looking glass defaults to open with no stated choice, has no `user`
+   mode, and passes a zero-value `plugin.CallerIdentity{}` on every query.**
+   `internal/component/lg/auth.go` supports only a shared bearer token or open
+   access; `handler_ui.go`, `handler_api.go`, `handler_graph.go`,
+   `handler_rfc8522.go`, and `as_names.go` pass an empty `CallerIdentity{}`
+   with `context.Background()`, and `audit.LookingGlass` does not exist. Under
+   D-1, omitting `auth-mode` when the looking glass is enabled must be refused
+   rather than silently serving open; under D-2..D-4, `user` mode must support
+   browser login form + `ze-lg-session` cookie and HTTP Basic Auth across HTML,
+   `/api/looking-glass/*`, and `/.well-known/looking-glass/*` with per-command
+   RBAC enforcement.
+5. **Non-loopback looking-glass listeners in a credential mode (`token` or
+   `user`) can currently downgrade to plain HTTP.** `cmd/ze/hub/lg_transport.go`
+   (`planLGEndpoints`) downgrades an unset `tls` leaf to HTTP with a warning
+   when no store and no named certificate exists, and permits explicit
+   `tls false` even when `token` is configured. Credentials must never cross
+   a non-loopback network in clear text.
+6. **Reloading `environment gnmi` or `environment looking-glass` authentication
+   settings is silently accepted and ignored.** Neither gNMI nor looking glass
+   is wired into `cmd/ze/hub/mgmt_auth_reload.go` / `listener_migrate.go` /
+   `runReloadContext`, so changing `auth-mode`, `token`, or gNMI TLS files
+   appears to succeed on reload while the running listener keeps its boot
+   configuration.
 
-Once each surface knows who the caller is, it registers its login-service name
-and takes part in the login-set gate that
-`plan/release/fixes/spec-login-service-authorisation.md` builds. That spec
-covers the four surfaces that already carry a username; this one supplies the
-identity the other two lack.
-
-The spec was reviewed against the tree on 2026-11-14. The code under it had
-moved since 2026-08-11, and four things the first version assumed are false
-today. They change the design, so they are stated here and detailed below:
-
-1. "gNMI copies the gRPC surface" does not give "gNMI behaves like SSH". The
-   gRPC surface authenticates against a fixed local user slice
-   (`buildAPIAuthentication`, `cmd/ze/hub/api.go`). SSH authenticates through
-   the live AAA chain (`liveAAABundleAuthenticator`,
-   `cmd/ze/hub/aaa_lifecycle.go`). The owner's words decide: gNMI uses the
-   chain.
-2. gNMI serves no commands. Get and Subscribe read the config tree, and Set
-   drives a config session. "Passes through `(*Store).Authorize`" therefore
-   has to name the command each RPC is authorized as.
-3. A non-loopback gNMI listener with no token is already refused, at
-   validation and at boot. The criterion and the `.ci` that expected this to
-   become newly reachable could never go red against HEAD.
-4. The looking glass mode design contradicted itself, and four choices in it
-   belong to the owner. They are in "Owner decisions open".
-
-Both this spec and the gate it depends on now sit in `plan/release/fixes/`.
-The earlier paragraph that placed them in different buckets described a layout
-the tree no longer has. The dependency is unchanged: neither surface is
-complete here without joining that gate, so the gate spec lands first.
-
-## Owner decisions open
-
-Each row is a choice no RFC, agreed design or rule in `ai/META-DECISIONS.md`
-answers. The design below is written so that each row changes only the cells
-named in its last column. No phase that a row blocks starts before the row is
-answered.
-
-| ID | Decision | Evidence | Options | What each changes |
-|----|----------|----------|---------|-------------------|
-| D-1 | What a looking glass does when no auth mode is stated | The owner asked for "an explicit choice between open and requiring a user". Today the absent token leaf means open (`bearerAuth`). The looking glass can start from the environment alone (`ze.looking-glass.enabled`, `runYANGConfig` in `cmd/ze/hub/main.go`), so "no mode stated" is reachable with no config block at all. Pre-release, repository configs are converted directly, so no option needs a compatibility path | (a) no default: a looking glass that starts with no mode is refused, at validation and at boot. (b) default open. (c) default user | (a) every looking-glass config and test in the repository gains the leaf; AC-17 expects a refusal. (b) only configs that set `token` change; AC-17 expects an open looking glass, and "open" stays reachable by omission. (c) a config with no mode and no users serves nobody; AC-17 expects 401 on every route |
-| D-2 | The credential a browser presents in user mode | The HTML pages and the `/lg/events` stream are loaded by a browser, which cannot attach a bearer header to a page load or to an event stream. The same limit already applies to today's token mode: with a token set, a plain browser gets 401 on `/lg/` (`bearerAuth` wraps the whole mux, `NewLGServer`). The web UI solves it with a login form and a session cookie (`SessionStore`, `internal/component/web/auth.go`); REST solves it for programs with `Bearer user:password` (`buildAPIAuthentication`) | (a) HTTP Basic on every route: the browser prompts natively, and programs send the same header. (b) a login form and a session cookie as the web UI has, plus a header form for programs. (c) `Bearer user:password` only: programs work, a plain browser does not, as in token mode today | (a) the password is verified on every request, so AC-13's limit and a verification cache carry the cost; no logout. (b) the session store has to be shared with `web` or rebuilt, which the import table (`docs/architecture/core-design.md`, section 19) does not allow today; AC-16 gains a login step and revocation follows the web rule. (c) user mode protects the API only, and the guide has to say the pages need a proxy |
-| D-3 | What user mode does to the birdwatcher API | `/api/looking-glass/*` is registered on the same mux as the pages (`(*LGServer).registerRoutes`), so one gate covers both. Alice-LG polls that API as a program. `docs/architecture/api/birdwatcher-compat.md` states no authentication behavior. Whether Alice-LG can send a credential was not read in its source | (a) the API sits under the same per-user gate, and the client presents a user's credential. (b) the API takes the shared token while the pages take users. (c) the API stays open while the pages take users | (a) one gate, and Alice-LG needs an account; settle first whether Alice-LG can send it. (b) two credentials on one listener, and the mode leaf has to express the pair. (c) the gate no longer covers every route, so the route data stays public and only the pages are closed |
-| D-4 | Whether a looking-glass user is authorized per command, or only admitted | `(*LGServer).query` dispatches with `plugin.CallerIdentity{}`. `serverDispatcher` (`cmd/ze/hub/main_servers.go`) passes that empty username to the dispatcher's authorizer. Every other surface passes the user, and `(*Store).Authorize` then applies the user's profile | (a) admitted only: every admitted user sees everything the looking glass serves, dispatched under one reserved looking-glass identity. (b) per command: each query is dispatched as the user, and a profile can deny it | (a) a profile has no effect on the looking glass; AC-19 asserts the reserved identity. (b) a profile that lacks the looking glass's `show` commands turns its pages into refusals, so the guide has to list those commands; AC-19 asserts a denied query answers a refusal |
-| D-5 | Whether gNMI may serve clear text on loopback | The gNMI authentication text (see Required Reading) says "Fallback to unencrypted communication is prohibited." `(*Server).Serve` serves gRPC without TLS when neither TLS file is named, and `test/plugin/mgmt-guard-loopback-allowed.ci` relies on a loopback listener. This spec requires TLS wherever a credential crosses a non-loopback listener; loopback clear text is the part no rule here settles | (a) keep clear text on loopback. (b) gNMI always serves TLS | (a) nothing more changes, and the guide records the divergence from the OpenConfig text. (b) every loopback gNMI test and local tool carries a certificate, and `none` mode over clear text disappears |
+Consistent with the 2026-11-26 owner ruling ("Ze always starts",
+`docs/architecture/core-design.md`, `## Design decisions`;
+`docs/architecture/pki/tls-listeners.md`, `## Design decisions`), invalid or
+unservable gNMI or looking-glass configuration is refused by `ze config
+validate`, commit, and reload, while at `ze start` only the offending service
+(or offending looking-glass `server` endpoint) stays down and is reported with
+its fix under `doctor-service-not-started` / `reportLGServerDown` while `ze`
+and its other services keep running.
 
 ## Required Reading
 
 ### Architecture Docs
-- [ ] `docs/architecture/api/architecture.md` - "Identity and Authorization" and "gNMI Transport"
-  → Constraint: REST and gRPC classify a caller three ways, and the table in "REST and gRPC authentication flow" is the contract: per-user (the username and its authorizer), shared token (`ReservedSharedAPIUsername`, read and write), no auth (`ReservedSharedAPIUsername`, read-only).
-  → Constraint: a `ze:sensitive` leaf reaches a gNMI client in its `$9$` form. That form is an encoding, not a protection (see Key insights).
-- [ ] `docs/architecture/web-interface.md` - "Looking Glass", "LG Bearer Token", "LG Data Access", and the session rule under authentication
-  → Constraint: the looking glass holds no RIB or peer import; all data comes through the dispatcher.
-  → Decision: a web session the local backend granted is re-checked against the declared users on every request; a session a remote backend granted is not, "because that list never granted it". The stream rules below copy that split.
-- [ ] `docs/architecture/api/birdwatcher-compat.md` - the looking-glass JSON contract Alice-LG depends on
-  → Constraint: the page is normative for endpoints and bodies and says nothing about authentication. D-3 adds that statement to it.
-- [ ] `docs/architecture/core-design.md`, section 19 - allowed imports per component
-  → Constraint: `web` may import `aaa`, `audit`, `authz`; `api` may import `audit`. The table has no `lg` or `gnmi` row, so the imports this spec adds are stated in that table in the same work.
-- [ ] `ai/doors/access-security.md`, `ai/doors/api-surfaces.md`, `ai/doors/system.md`
-  → Constraint: "Login is not an SSH feature." Surfaces read one accepted generation of users, and removing a user takes effect at once on every credential surface.
-  → Constraint: "Each surface carries its own authentication and TLS. A listener that serves without it is a security defect, not a default."
-  → Constraint: always-on hub code reaches `gnmi` and `lg` only through their gated seams (`gnmi_infra.go`, `service_lg.go`).
-- [ ] `ai/rules/evidence.md` - both auth paths are guards
-  → Constraint: a surface that cannot resolve its mode MUST refuse to serve rather than serve unauthenticated. What "cannot resolve" covers for the looking glass is D-1.
-- [ ] `ai/rules/config.md` - the YANG and env var rules for the new mode leaves
-  → Constraint: an `environment/` leaf needs a matching `ze.<service>.<leaf>` registration, as the existing tokens have in `internal/component/config/environment.go`.
-- [ ] `ai/META-DECISIONS.md`, "Ze is pre-release"
-  → Decision: "A change to Ze's own config syntax converts the configs in the repository directly. No `ze config migrate` transformation, compatibility path or migrate hint is written." So no mode is inferred from the token leaf to keep an old config working.
-- [ ] `docs/guide/authentication.md`, `docs/guide/gnmi.md`, `docs/guide/looking-glass.md`, `docs/guide/looking-glass-howto.md`
-  → Constraint: each states today's token-or-open behavior and becomes wrong with this change.
+- [ ] `ai/doors/system.md`, `ai/doors/api-surfaces.md`, `ai/doors/access-security.md`, `ai/doors/config-yang.md`, `ai/doors/hub-engine.md`, `ai/doors/core.md`, `ai/doors/le-tooling.md` - component boundaries, auth seams, config resolution, hub startup/reload, and fixture conventions
+  -> Constraint: `lg` and `gnmi` are optional build-tagged components (`ze_lg`, `ze_gnmi`); always-on hub code must not import concrete `lg` or `gnmi` types, and `lg` must never import `web`.
+- [ ] `docs/architecture/core-design.md` (§19 Component Boundaries and `## Design decisions` 2026-11-26) - component import rules, AAA bundle swap, audit trail, and the "Ze always starts" ruling
+  -> Decision: `internal/component/aaa` is always-on and owns `Authenticator`, `Authorizer`, `AuthRequest`, `AuthResult`, and `UserGeneration`. Extracting the shared HTTP session store into `internal/component/aaa/httpsession` lets both `web` and `lg` share it without cross-importing each other.
+  -> Constraint: One service's unservable config never makes `ze start` exit 1; that service or endpoint stays down and is reported via `doctor-service-not-started` and `ze doctor`, while reload and `ze config validate` still refuse the config as a whole.
+- [ ] `docs/architecture/api/architecture.md` ("gNMI Transport") - gNMI RPCs, TLS/exposure guards, sensitive-value `$9$` redaction, panic boundary, and audit behavior
+  -> Constraint: `Get` and `Subscribe` return reversible `$9$` secrets, so every gNMI read must be authorized as `show config running`.
+- [ ] `docs/architecture/web-interface.md` ("Authentication", "Looking Glass", "LG TLS", "LG Bearer Token", "LG URL Scheme", "LG Data Access") - web session cookies, `UserGeneration` revocation, LG routes, error fragments, and AS-name lookups
+  -> Decision: LG `user` mode reuses the exact session-cookie contract (`HttpOnly`, `SameSite=Strict`, 32-byte hex token, 24h TTL, one session per user, `UserGeneration` revocation) under cookie name `ze-lg-session` alongside HTTP Basic Auth.
+- [ ] `docs/architecture/api/birdwatcher-compat.md` - normative birdwatcher JSON contract for `/api/looking-glass/*`
+  -> Constraint: Every `/api/looking-glass/*` endpoint is read-only HTTP GET returning `Content-Type: application/json`, and every error (including 401, 403, 429) must return a JSON error body, never HTML markup.
+- [ ] `docs/architecture/pki/tls-listeners.md` (including `## Design decisions` of 2026-11-23 and 2026-11-26) - per-`server` `tls` leaf on looking glass, no-store downgrade rule, and per-endpoint start isolation
+  -> Decision: Plain HTTP and no-store HTTP downgrade apply only to public (`auth-mode open`) or loopback looking-glass listeners; a non-loopback listener in `token` or `user` mode requires TLS.
+- [ ] `docs/guide/gnmi.md` - gNMI operator guide, auth/TLS rules, metrics, and `gnmic` examples
+- [ ] `plan/release/fixes/spec-login-service-authorisation.md` - sibling spec defining `internal/component/config/loginservice` and `aaa.AuthRequest.Service`
+  -> Constraint: Register `"gnmi"` and `"looking-glass"` login-service names in Phase 8 once the registry exists; pass `Service: "gnmi"` / `Service: "looking-glass"` in `aaa.AuthRequest` immediately.
 
-### Protocol texts (no RFC; the specification is OpenConfig's)
-- [ ] OpenConfig gNMI authentication, `rpc/gnmi/gnmi-authentication.md` in the `openconfig/reference` repository. The text is not in this repository. It was fetched on 2026-11-14 through a fetch tool that returns extracts, so each quote below MUST be re-read against the stored text before a code comment quotes it. The implementation phase stores the text first (`reference/README.md` governs where).
-  → Constraint: "All communication between gRPC client and server must be encrypted by TLS (TLS 1.2)."
-  → Constraint: "Fallback to unencrypted communication is prohibited."
-  → Constraint: "Configuration operations carried over the encrypted connection will carry credentials (username/password) in the metadata."
-  → Constraint: "Telemetry Subscribe() RPCs require a username/password credential inside the metadata."
-  → Constraint: "Each telemetry message will not be authenticated with a username/password." The stream is authenticated when it opens, which is why revocation needs its own criterion (AC-9).
-- [ ] gnmic 0.49.1, the client the lab runs (`gnmicImage`, `internal/component/gnmi/gnmic_docker_test.go`). `(*Target).appendCredentials` (`pkg/api/target/target.go` in the gnmic repository, read through the same fetch tool) adds the metadata keys `username` and `password` when `--username` and `--password` are given and no `--auth-scheme` is set. `--token` sends `authorization: Bearer <token>`, which `TestGnmicInterop` already proves against Ze.
-  → Decision: the per-user credential on gNMI is the pair of metadata keys `username` and `password`. The gNMI text asks for it and gnmic sends it.
-
-**Key insights:** (minimal context to resume after compaction)
-- `ExtractAuthUsers` is in `internal/component/config/infra/authz.go`, not `ssh.go`, and it is a pure extractor over a resolved `system` map. It is not a live source. The live sources are the atomic AAA bundle slot that `liveAAABundleAuthenticator` reads on every call, and `LocalUsersFunc` (`internal/component/aaa/types.go`).
-- `aaa.AuthRequest` already carries `Service`. SSH sets `"ssh"` (`internal/component/ssh/passwordauth.go`) and web sets `authServiceWeb` (`internal/component/web/auth.go`); TACACS+ and RADIUS read it. gNMI and the looking glass each need only to set their own name.
-- Identity is established when a stream opens and never again: `(*Server).authStreamInterceptor` for gNMI, the wrapper around the mux for `/lg/events`. A stream opened before a user is removed keeps delivering.
-- The `$9$` form is reversible by anyone. `internal/component/config/secret` documents it as "an obfuscation (not encryption)", `secret.Decode` takes no key, and `reversibleSecret` (`internal/component/config/secret_text.go`) sends every `ze:sensitive` leaf that is not `ze:bcrypt` through it. So an admitted gNMI reader recovers every such secret in clear. Reading config over gNMI is therefore authorized as reading the running config, never as a harmless read.
-- No audit surface exists for either: `internal/core/audit/audit.go` names `api`, `cli`, `grpc`, `mcp`, `rest`, `ssh`, `system` and `web`. The looking glass dispatches through the web dispatcher (`webDispatch`, `runYANGConfig`), so its queries are recorded as `web`.
-- Neither surface re-reads its authentication on reload. `gnmiBuildImpl` (`cmd/ze/hub/service_gnmi.go`) and `NewLGServer` read the token once, gNMI has no auth reloader, and the looking glass is deliberately absent from `registerMgmtAuthReloaders` (`cmd/ze/hub/mgmt_auth_reload.go`). Read, not run: a reload that changes either token is accepted and not applied.
+**Key insights:**
+- `internal/core/audit/audit.go` ALREADY defines `audit.GNMI = "gnmi"`; only `audit.LookingGlass = "looking-glass"` needs to be added.
+- `internal/component/gnmi/set.go` ALREADY refuses `Set` on unauthenticated loopback (`Token == ""`) and records `audit.ActionConfigCommit`; this work re-keys that guard to `auth-mode none`, adds per-caller write authorization via `api.AuthorizeConfigWrite`, and replaces `gnmiUsername` with the real caller username.
+- `internal/component/gnmi/register.go` and `internal/component/lg/register.go` ALREADY call `zeconfig.RegisterServiceBlock` (`environment/gnmi` and `environment/looking-glass`), so registering scoped tree validators via `zeconfig.RegisterScopedTreeValidator` on those same block paths makes strict `LoadConfig` (SIGHUP reload) refuse invalid auth config while `LoadConfigForStart` (`excludeInvalidServiceBlocks`) isolates only those blocks at `ze start`. Separately, `internal/component/config/cli/cmd_validate.go` (backing `ze config validate` and commit `ValidateContent`) calls `ExtractGNMIConfig` directly rather than `config.ValidateSemantics`, so it must also wire `gnmiCfg.Validate()` and `ExtractLGConfig` (`lgCfg.Validate()` / `lgCfg.Refusals()`).
+- `internal/component/plugin/types.go` ALREADY centralizes `ConfigAuthEdit`, `ConfigAuthSet`, `ConfigAuthDelete`, and `ConfigAuthCommit`.
+- `internal/component/gnmi/tls.go` uses `privilege.RestartRemedy()` (never `ze signal restart`, which stops without starting a new process); all reload refusals in this spec must use `privilege.RestartRemedy()`.
 
 ## Current Behavior (MANDATORY)
 
-**Source files read:** (must read BEFORE you write this spec)
-- [ ] `internal/component/lg/auth.go` - `bearerAuth` returns `next` unchanged for an empty token; otherwise it compares sha256 digests with `subtle.ConstantTimeCompare` and answers 401 with `WWW-Authenticate: Bearer realm="looking glass"`. `bearerTokenMatches` fails closed on a missing header, a wrong scheme and a bare token. No username is parsed.
-- [ ] `internal/component/lg/server.go` - `NewLGServer` builds one handler chain, security headers over `errorfragment.Middleware` over `bearerAuth` over the mux, so the gate covers the pages, the assets, `/lg/events` and `/api/looking-glass/*` alike. `(*LGServer).query` dispatches with `plugin.CallerIdentity{}`. `LGConfig.Token` is read once at construction; `Reconfigure` moves listen addresses only.
-- [ ] `internal/component/lg/handler_ui.go` - `(*LGServer).handleUIEvents` holds one long-lived response and pushes peer state every five seconds until the request context ends. Nothing re-checks the caller after the first request.
-- [ ] `internal/component/lg/yang/ze-lg-conf.yang` - `environment/looking-glass` holds `enabled`, a `server` list, `tls` (default true), `certificate` and `token`. The token description states "An empty token leaves the looking glass open, and that is the default".
-- [ ] `cmd/ze/hub/service_lg.go` - `buildLGService` passes `deps.LGToken` and the web dispatcher. When TLS is on by default, no certificate is named and the daemon has no store, it prints a warning and serves plaintext; an explicit `tls true` in that state is an error. `tls false` serves plaintext on purpose.
-- [ ] `cmd/ze/hub/service_registry.go`, `cmd/ze/hub/register_lg.go` - `serviceDeps` hands every factory generic inputs: the dispatcher, `Recorder`, `Authorizer`, `LocalUsersLive`, and for the looking glass `LGAddrs`, `LGTLS`, `LGToken`, `LGCertificate`. The `ze_lg` registration wires the listener migrator and the certificate rotation, and no authentication reloader.
-- [ ] `cmd/ze/hub/main.go` - `runYANGConfig` resolves the looking-glass token from `ze.looking-glass.token`, then from the block (`ExtractLGSettings`). It declares gNMI to the boot guard with `authenticated: gnmiToken != ""`, so a non-loopback gNMI listener with no token already stops the daemon. gNMI is absent from `markMgmtAuth` because it has no listener-migrator slot. The looking glass is never declared to the guard.
-- [ ] `cmd/ze/hub/mgmt_guard.go` - `checkMgmtListeners` refuses an unauthenticated non-loopback declaration and names no service. It judges authentication only, not TLS.
-- [ ] `cmd/ze/hub/mgmt_auth_reload.go` - `registerMgmtAuthReloaders` registers web, MCP, REST and gRPC. `mcpAuthReloader` refuses a reload that changes MCP authentication or TLS, naming the restart. gNMI and the looking glass have no reloader.
-- [ ] `internal/component/gnmi/server.go` - `Config` holds `ListenAddr`, `Token`, `CertFile`, `KeyFile`. `Serve` adds `authUnaryInterceptor` and `authStreamInterceptor` only when the token is not empty, and serves gRPC without TLS when neither TLS file is named. `checkAuth` requires `authorization: Bearer <token>`. The server holds no authorizer, no audit recorder and no identity.
-- [ ] `internal/component/gnmi/tls.go` - `loadTLSCredentials` refuses a half-named pair, an unreadable file and an invalid pair with an operator error, before anything listens.
-- [ ] `internal/component/gnmi/set.go` - `Set` calls `Enter`, `SetSegments`, `DeleteSegments` and `Commit` on the `api.ConfigSessionManager` under the constant `gnmiUsername`. It consults no authorizer. It does not reach the plugin `Dispatcher`, so the dispatcher's accounting hook (`(*Dispatcher).BeginAccounting`) never sees a gNMI write.
-- [ ] `internal/component/gnmi/get.go`, `internal/component/gnmi/subscribe.go` - `Get` and `handleSubscribeOnce` read the running tree through `zeconfig.EncodeSecrets`. `handleSubscribeStream` forwards every `ChangeNotifier` notification until the stream context ends. Neither takes the caller into account.
-- [ ] `internal/component/gnmi/metrics.go`, `internal/component/gnmi/show.go` - three metrics, `ze_gnmi_requests_total`, `ze_gnmi_errors_total` and `ze_gnmi_subscribe_active`; `show gnmi` reports `token-set` and `tls-configured` from `(*Server).Status`.
-- [ ] `cmd/ze/hub/gnmi_infra.go`, `cmd/ze/hub/service_gnmi.go` - `resolveGNMIListeners` is the one resolver of gNMI's address, token and start, used by the guard and by `gnmiBuildImpl`. `gnmiBuildInputs` carries the tree, the store, the config path and the reload hook, and no authentication input. Only the first `server` entry is bound.
-- [ ] `internal/component/config/loader_extract.go` - `GNMIListenConfig.Validate` refuses a non-loopback listener with no token and requires nothing else. `extractGNMIBlock` and `extractLGBlock` parse the blocks; `LGListenConfig` has no validation.
-- [ ] `internal/component/config/validate_semantic.go` - `ValidateSemantics` reports the MCP and gNMI validations as `config-mcp-invalid` and `config-gnmi-invalid` (`internal/core/diagnostic/codes.go`), which `ze config validate` and `ze doctor` print. It has no looking-glass entry.
-- [ ] `internal/component/config/environment.go` - registers `ze.gnmi.enabled`, `listen`, `token`, `tls.cert`, `tls.key` and `ze.looking-glass.listen`, `enabled`, `tls`, `token`, `certificate`. No mode variable exists.
-- [ ] `internal/component/gnmi/yang/ze-gnmi-conf.yang` - `environment/gnmi` holds `enabled`, `token`, `tls { cert; key }` and a `server` list. The token description states "An empty token means that the gNMI server does no authentication."
-- [ ] `internal/component/api/grpc/server.go` - `checkGRPCListenAddr` requires authentication and TLS on a non-loopback listener. `(*GRPCServer).checkAuth` reads one `api.Authentication` generation per RPC, marks a no-auth caller `ReadOnly`, and records an `auth-fail` audit entry on refusal. `(*zeConfigServiceImpl).requireWriteAccess` refuses a read-only caller, then asks the caller's authorizer about `api.ConfigAuthEdit`, `ConfigAuthSet`, `ConfigAuthDelete`, `ConfigAuthCommit` or `ConfigAuthDiscard`. `CommitSession` records a `config-commit` audit entry under the caller's name. `GetRunningConfig` dispatches `show config running` as the caller.
-- [ ] `cmd/ze/hub/api.go` - `buildAPIAuthentication` builds an `authz.LocalAuthenticator` over a fixed user slice and accepts `Bearer user:password`, or compares one shared token and returns `ReservedSharedAPIUsername`. It does not use the AAA chain, so a RADIUS or TACACS+ user cannot authenticate on REST or gRPC.
-- [ ] `cmd/ze/hub/aaa_lifecycle.go`, `cmd/ze/hub/infra_setup.go`, `cmd/ze/hub/service_web.go` - `liveAAABundleAuthenticator` reads the atomic bundle slot on every call. SSH is built with it and no fallback; web is built with it and a local fallback over the live local users. `liveAAABundleAuthorizer` fails closed when no bundle exists.
-- [ ] `internal/component/config/infra/authz.go`, `internal/component/config/infra/ssh.go` - `ExtractAuthUsers` is in `authz.go`: it reads `system/authentication/user` from a resolved map and returns sorted credentials, and a shapeless input returns no users. `ssh.go` holds `ExtractSSHConfig`, the listener settings, and no user extraction.
-- [ ] `internal/component/authz/authz.go` - `(*Store).Authorize` denies an empty username and allows `ReservedSharedAPIUsername`. Read, not run: on a daemon whose bundle carries a profile store, a looking-glass query, which carries an empty username, reaches that denial. A-6 settles it by test.
-- [ ] `internal/component/authz/auth.go` - `(*LocalAuthenticator).Authenticate` runs a bcrypt comparison against a dummy hash for an unknown user, so the unknown-user and wrong-password paths cost the same. No package on the login path limits or delays repeated failures.
-- [ ] `internal/core/audit/audit.go` - the surface names are eight constants, and `Entry` carries actor, remote address, surface, action, detail and outcome.
-- [ ] `internal/component/gnmi/gnmic_docker_test.go` - `TestGnmicInterop` drives gnmic 0.49.1 over TLS with `--token`, and asserts a missing and a wrong token are refused. No test sends `--username`.
-- [ ] `internal/test/fixture/lg_pki_fixture.go`, `internal/test/fixture/plugin_fixture_09_shell.go` - both assert the token gate with no header, a wrong token and the right token on `/api/looking-glass/status` and `/lg/peers`. The second embeds its own daemon config.
+**Source files read (rebased against HEAD):**
+- [ ] `internal/core/audit/audit.go` - defines 9 surface constants including `audit.GNMI = "gnmi"`; `audit.LookingGlass` does not exist yet.
+- [ ] `internal/component/gnmi/server.go` - `Config` holds `Token`, `TLSCertFile`, `TLSKeyFile`, `AuditRecorder`, `ChangeNotifier`, `ConfigProvider`, `Sessions`. `Serve` runs `checkGNMIListenAddr` (refusing non-loopback without TLS+token), installs panic interceptors (`containUnaryPanic`/`containStreamPanic`), and installs auth interceptors only when `s.config.Token != ""`. `checkAuth` validates `authorization: Bearer <token>` and records `audit.ActionAuthFail` under `audit.GNMI`, returning no caller identity.
+- [ ] `internal/component/gnmi/set.go` - refuses `Set` with `codes.PermissionDenied` when `s.config.Token == ""`, opens a config session under constant `gnmiUsername = "gnmi"`, applies updates/deletes, commits, and writes `audit.ActionConfigCommit` with `Actor: gnmiUsername` under `audit.GNMI`. Does not check `plugin.ConfigAuthEdit`/`Set`/`Delete`/`Commit`.
+- [ ] `internal/component/gnmi/get.go`, `internal/component/gnmi/subscribe.go` - serve `Get` and `Subscribe` (ONCE and STREAM) without calling any authorizer for `show config running` and without checking `UserGeneration` on live STREAM subscriptions.
+- [ ] `internal/component/gnmi/tls.go`, `doctor.go`, `register.go`, `metrics.go`, `show.go` - `tls.go` loads TLS files before listen and formats restart fixes via `privilege.RestartRemedy()`; `doctor.go` checks TLS material and calls `gnmiCfg.Refusals()`; `register.go` registers `environment/gnmi` as a service block and registers `gnmiTLSDoctorCheck`; `show.go` returns `ServerStatus` with `TokenSet` (no `AuthMode`).
+- [ ] `internal/component/gnmi/yang/ze-gnmi-conf.yang` - defines `enabled`, `token`, `tls { cert; key; }`, `server`; has no `auth-mode` leaf.
+- [ ] `internal/component/lg/auth.go`, `server.go`, `handler_ui.go`, `handler_api.go`, `handler_graph.go`, `handler_rfc8522.go`, `as_names.go`, `doctor.go`, `register.go`, `yang/ze-lg-conf.yang` - `auth.go` checks only `Bearer <token>` (answering JSend 401 on RFC 8522 paths and JSON 401 on `/api/looking-glass/` paths); `server.go` wraps the mux only when `cfg.Token != ""`; handlers dispatch commands with `context.Background()` and zero-value `plugin.CallerIdentity{}`; `handler_rfc8522.go` implements `/.well-known/looking-glass/v1/*` with `rfc8522RateLimiter`; `register.go` registers `environment/looking-glass` as a service block; `ze-lg-conf.yang` has per-`server` `tls` (default true) and no `auth-mode` leaf.
+- [ ] `internal/component/web/auth.go` - owns `SessionStore` (32-byte hex token, 24h TTL, `HttpOnly`, `SameSite=Strict`, one session per user, `UserGeneration` local-user revocation), `parseBasicAuth`, and `AuthMiddlewareWithAudit`.
+- [ ] `internal/component/config/loader_extract.go`, `validate_semantic.go`, `environment.go`, `service_blocks.go`, `tree_validators.go`, `internal/component/config/cli/cmd_validate.go` - `loader_extract.go` holds `ResolveGNMIListener`, `GNMIStarts`, `GNMITLSPaths`, `GNMIListenConfig` (and `Refusals()`), `GNMIExposure`, `ExtractLGSettings`, and `ExtractLGConfig`; `validate_semantic.go` calls `gnmiCfg.Refusals()` and has no looking-glass check; `cli/cmd_validate.go` (backing `ze config validate` and commit `ValidateContent`) calls `ExtractMCPConfig` and `ExtractGNMIConfig` directly (it does NOT call `ValidateSemantics` and omits `ExtractLGConfig`); `LoadConfig` (reload) and `LoadConfigForStart` (`excludeInvalidServiceBlocks`) run `validateOriginalTree` / `validateOriginalTreeAll` (registered via `RegisterScopedTreeValidator`) and `validateCustomSectionsSchema`, NOT `ValidateSemantics`; `environment.go` registers `ze.gnmi.*` and `ze.looking-glass.*` without `auth-mode` keys.
+- [ ] `internal/component/plugin/types.go`, `internal/component/plugin/server/command.go`, `internal/component/api/grpc/server.go`, `internal/component/aaa/aaa.go`, `internal/component/aaa/types.go`, `internal/component/aaa/reserved.go`, `internal/component/authz/authz.go` - `plugin/types.go` defines `ConfigAuthEdit`/`Set`/`Delete`/`Commit` and `CallerIdentity`; `command.go` returns `authorizationRefusal` implementing `interface{ PermissionDenied() bool }`; `grpc/server.go` defines `requireWriteAccess` checking `caller.ReadOnly` and `caller.Authorizer.Authorize`; `aaa` defines `Authenticator`, `Authorizer`, `BindProfiles`, `SourceLocal`, `UserGeneration`, `ReservedSharedAPIUsername = "\x00ze:shared-api"` (NUL-prefixed outside the operator config namespace; `audit.Recorder` records it verbatim).
+- [ ] `cmd/ze/hub/gnmi_infra.go`, `service_gnmi.go`, `service_lg.go`, `register_lg.go`, `lg_transport.go`, `lg_doctor.go`, `mgmt_guard.go`, `mgmt_auth_reload.go`, `listener_migrate.go`, `main_reload.go`, `main.go`, `aaa_lifecycle.go` - `mgmt_guard.go` uses `filterMgmtListener` ("Ze always starts") reporting unservable listeners via `reportServiceNotStarted`; `lg_transport.go` plans per-server HTTP/HTTPS endpoints and downgrades unset `tls` to HTTP when no store/cert exists; `mgmt_auth_reload.go` handles web, MCP, REST, and gRPC but omits LG and gNMI; `runReloadContext` in `main_reload.go` runs pre-apply reload gates before `ReloadConfigWithSelection`.
 
 **Behavior to preserve:**
-- The looking glass stays able to be genuinely public, because that is what it is for. The change makes that a stated choice, never a removed capability.
-- The shared-token mode stays available on both surfaces. This spec adds a per-user mode; it does not delete the token.
-- The constant-time digest comparison stays on both token paths.
-- A non-loopback gNMI listener with no authentication stays refused at validation and at boot (`test/plugin/mgmt-guard-gnmi-nonloopback-refused.ci`).
-- `checkMgmtListeners` keeps its verdicts for every surface it already judges, and still names no service.
-- gNMI TLS keeps its rule: naming either file asks for TLS, and the server serves TLS or nothing (`internal/component/gnmi/tls.go`).
-- The birdwatcher endpoints, envelope and bodies are unchanged in every mode in which a request is admitted.
-- A `ze:sensitive` leaf keeps reaching a gNMI client in its `$9$` form, and a Set notification keeps the same form.
+- Shared bearer token authentication on gNMI (`auth-mode token`, `authorization: Bearer <token>`, `gnmic --token`) and on looking glass (`auth-mode token`, `Authorization: Bearer <token>`), using SHA-256 + `subtle.ConstantTimeCompare`.
+- Loopback unauthenticated gNMI (`auth-mode none`) remains read-only (`Capabilities`, `Get`, `Subscribe` succeed; `Set` returns `codes.PermissionDenied`).
+- Loopback plaintext gNMI remains permitted (D-5); non-loopback gNMI still requires TLS and authentication.
+- Public unauthenticated looking glass remains supported when explicitly selected (`auth-mode open`), including plain HTTP and no-store HTTP downgrade per `tls-listeners.md`, and continues serving when `system authorization` profiles are configured.
+- All existing gNMI RPC encodings (JSON, JSON_IETF), `$9$` secret redaction, panic boundary, `doctor-gnmi-tls-material`, and `gnmiReloadNotify` STREAM notifications.
+- All existing looking-glass HTML, HTMX (`errorfragment.Middleware`), SSE (`/lg/events`), birdwatcher JSON (`/api/looking-glass/*`), RFC 8522 JSend JSON (`/.well-known/looking-glass/v1/*`), and graph endpoints.
+- Web UI authentication (`ze-session` cookie, Basic Auth, `UserGeneration` revocation, `AuthMiddlewareWithAudit`) continues behaving identically after extracting the session store into `internal/component/aaa/httpsession`.
+- "Ze always starts": one service's unservable config never makes `ze start` exit 1.
 
 **Behavior to change:**
-- Each surface gains an explicit `auth-mode` leaf and its environment variable. No mode is inferred from the token leaf.
-- gNMI gains a per-user mode that authenticates through the live AAA chain, as SSH does, with the metadata keys `username` and `password`. It is the mode an unset leaf selects.
-- A gNMI caller has an identity in every mode, and each RPC is authorized against it.
-- A gNMI caller that presented no credential, which only a loopback listener in `none` mode admits, is read-only. Today that caller can Set and commit.
-- A credential, token or password, never crosses a non-loopback listener in clear text on either surface.
-- A gNMI commit is audited under the caller's name, and a refused login is audited as a failure.
-- A stream opened by a user who is later removed ends.
-- A reload that changes either surface's authentication is applied or refused, never accepted and ignored.
-- Both surfaces register a login-service name and take part in the login-set gate.
-- The looking glass gains a per-user mode. Its credential form, its default, its effect on the birdwatcher API and its authorization depth are D-1 to D-4.
+- Add `auth-mode` (`user` default, `token`, `none`) to `environment gnmi` and `ze.gnmi.auth-mode`; add `auth-mode` (no default; `open`, `token`, `user`) to `environment looking-glass` and `ze.looking-glass.auth-mode`.
+- Authenticate gNMI `user` mode via `username`/`password` gRPC metadata against the live AAA chain (`Service: "gnmi"`), enforce `show config running` read authorization and shared `api.AuthorizeConfigWrite` write authorization, audit commits under the real actor username, delete `gnmiUsername`, and terminate STREAM subscriptions when a local user is removed or edited.
+- Authenticate looking-glass `user` mode via shared `aaa/httpsession` (`ze-lg-session` cookie + `GET/POST /lg/login` + `POST /lg/logout`) and HTTP Basic Auth across HTML, `/api/looking-glass/*`, and `/.well-known/looking-glass/*`, enforce per-command RBAC with HTTP 403 rendering, audit auth failures under `audit.LookingGlass`, and end `/lg/events` SSE streams on local-user removal/edit.
+- Require TLS on non-loopback looking-glass listeners in `token` or `user` mode (no plain HTTP and no no-store HTTP downgrade).
+- Add per-remote-IP refused-login rate limiting (`internal/core/authlimit`) and Prometheus refusal counters (`ze_gnmi_login_refused_total`, `ze_lg_login_refused_total`) on both surfaces.
+- Refuse reloads that change gNMI or looking-glass authentication settings (or put non-loopback credential-mode LG on plaintext), naming the leaf and `privilege.RestartRemedy()`.
 
 ## Existing Mechanisms (MANDATORY)
 
 | Mechanism | Where (file + symbol, or page + section) | What it does today | This spec (extends, replaces, or does not apply, with the reason) |
 |-----------|------------------------------------------|--------------------|-------------------------------------------------------------------|
-| The live AAA chain | `cmd/ze/hub/aaa_lifecycle.go` `liveAAABundleAuthenticator`, `liveAAABundleAuthorizer` | Authenticates SSH and web logins against RADIUS, TACACS+ and local users, re-reading the accepted bundle on every call, so a removed user or a rotated backend takes effect with no restart | Extends: gNMI user mode and looking-glass user mode authenticate through it. This is what "behave like SSH" means, and it is why a removed user stops authenticating on both with no new reload code |
-| The service name on a login | `internal/component/aaa/types.go` `AuthRequest.Service` | Carries `ssh` or `web` to the backends, which report the channel to RADIUS and TACACS+ | Extends: gNMI and the looking glass set their own names. The login-set gate of the sibling spec reads the same field |
-| The API authentication generation | `internal/component/api/types.go` `Authentication`, `AuthenticationProvider`; `cmd/ze/hub/api.go` `buildAPIAuthentication` | One immutable generation per request for REST and gRPC, over a fixed local user slice or one shared token | Does not apply to user mode: it cannot reach RADIUS or TACACS+ users, and its `Authenticate` takes one header string where gNMI carries two metadata keys. Its shared-token branch is the model for token mode's identity |
-| The caller identity | `internal/component/plugin/dispatch.go` `CallerIdentity` (`api.CallerIdentity`) | Carries `Username`, `RemoteAddr`, `Surface`, `ReadOnly` and the accepted `Authorizer` from the transport to dispatch | Extends: each gNMI RPC and each looking-glass query carries one. It replaces the constant `gnmiUsername` and the zero-value caller in `(*LGServer).query` |
-| The three caller classes | `docs/architecture/api/architecture.md`, "REST and gRPC authentication flow"; `(*GRPCServer).checkAuth` | Per-user, shared token as `ReservedSharedAPIUsername` with read and write, no auth as the same name read-only | Extends: gNMI's three modes map to the same three classes, so one table describes REST, gRPC and gNMI |
-| Config write authorization | `internal/component/api/grpc/server.go` `requireWriteAccess`; `internal/component/api/types.go` `ConfigAuthSet`, `ConfigAuthDelete`, `ConfigAuthCommit` | Refuses a read-only caller, then authorizes the named config command against the caller's authorizer | Extends: gNMI Set asks the same question with the same command names. The decision moves to `internal/component/api`, beside the names, so gRPC and gNMI call one function |
-| Running-config read authorization | `(*zeConfigServiceImpl).GetRunningConfig` | Dispatches `show config running` as the caller, so the dispatcher authorizes and accounts the read | Extends: gNMI Get and Subscribe are authorized as that command. The command name is declared once in `internal/component/api`, beside the config names |
-| Non-loopback listener rule for gRPC | `internal/component/api/grpc/server.go` `checkGRPCListenAddr` | Requires authentication and TLS on a non-loopback listener | Extends: gNMI and the looking glass apply the same two conditions. gNMI applies only the first today, and the looking glass applies neither |
-| The boot exposure guard | `cmd/ze/hub/mgmt_guard.go` `checkMgmtListeners`; `runYANGConfig` declarations | Refuses an unauthenticated non-loopback management listener before anything binds | Extends: gNMI's declaration computes `authenticated` from the resolved mode. The guard function is not edited |
-| The reload exposure reloaders | `cmd/ze/hub/mgmt_auth_reload.go` `registerMgmtAuthReloaders`, `mcpAuthReloader` | Re-answer each surface's authentication from a reloaded tree; MCP refuses a change it cannot apply | Extends: gNMI and the looking glass register one each, so a mode or token change is refused with the restart instruction. The comment that calls the looking glass deliberately absent is corrected |
-| The generic service inputs | `cmd/ze/hub/service_registry.go` `serviceDeps`; `cmd/ze/hub/gnmi_infra.go` `gnmiBuildInputs` | Hand each gated factory generic values: the dispatcher, the audit recorder, the authorizer, the live local users | Extends: the looking-glass factory reads the recorder and the live users that are already there and gains the chain function; `gnmiBuildInputs` gains the chain function and the recorder. No field names a surface type |
-| MCP's auth-mode leaf | `internal/component/mcp/yang/`, `MCPListenConfig.Validate` (`internal/component/config/loader_extract.go`), `mcpListenerAuthenticated` | An enumeration that selects the authenticator, validated against the token and the bind address | Extends the shape: an enumeration leaf, validated against its companion leaves. Does not copy MCP's inference of `bearer` from a set token, which exists "for backward compatibility" that pre-release rules out |
-| The audit recorder | `internal/core/audit` `Recorder`; `(*GRPCServer).recordAuthFailure`, `(*zeConfigServiceImpl).recordAudit` | Records `auth-fail` and `config-commit` entries with actor, remote address and surface | Extends: gNMI holds a recorder and writes the same two entries under a `gnmi` surface. The looking glass writes `auth-fail` under its own surface |
-| Web session re-check | `internal/component/web/auth.go` `(*SessionStore).validateToken`, `localUserDeclared` | Ends a locally granted session when its user leaves the running config; leaves a remotely granted one alone | Extends the rule to streams: gNMI STREAM and `/lg/events` re-check a locally granted identity. The session store itself applies only under D-2 option (b) |
-| The gNMI change notifier | `internal/component/gnmi/subscribe.go` `ChangeNotifier.NotifyConfigReload` | Sends every STREAM subscriber a notification after any config reload | Extends: that delivery is the point at which a stream's identity is re-checked, so a reload that removes a user ends that user's stream |
-| Dummy-hash comparison | `internal/component/authz/auth.go` `(*LocalAuthenticator).Authenticate` | Makes an unknown user cost the same as a wrong password | Does not change. Both surfaces reach it through the chain, so neither may answer before calling the chain |
-| gNMI config validation | `GNMIListenConfig.Validate`; `ValidateSemantics` (`internal/component/config/validate_semantic.go`); doctor code `config-gnmi-invalid` | Reports a non-loopback tokenless gNMI listener offline | Extends: it judges the mode, its companion leaves and TLS. The looking glass gains the equivalent validation and entry, which it lacks |
-| The login-service registry | `plan/release/fixes/spec-login-service-authorisation.md` (not built yet) | Will hold the registered login-service names and gate a login on the account's set | Extends: this spec registers `gnmi` and `looking-glass`. It builds no registry of its own |
-| The `$9$` secret form | `internal/component/config/secret_text.go` `EncodeSecrets`, `SecretValueAtPath` | Publishes each `ze:sensitive` value in a reversible encoding | Does not change. The spec treats a gNMI read as a read of the running config for authorization, because the encoding hides nothing |
+| Live AAA chain & accepted local identity generation | `cmd/ze/hub/aaa_lifecycle.go` (`aaaBundle`, `liveAcceptedLocalUsers`, `liveLocalAuthorizer`, `stampLocalIdentityGeneration`) | Composes TACACS+/RADIUS/local `aaa.ChainAuthenticator` with dummy-bcrypt non-enumeration, publishes `UserGeneration` per local user, and swaps atomically on reload | Extends: hub hands live chain-authenticate, local-user lookup, and authorizer closures to both gNMI and looking glass; neither reads `system authentication` directly |
+| HTTP session cookie store & Basic Auth parser | `internal/component/web/auth.go` (`SessionStore`, `validateToken`, `parseBasicAuth`, `AuthMiddlewareWithAudit`) | Issues 32-byte hex `ze-session` cookies (24h TTL, `HttpOnly`, `SameSite=Strict`, one session/user), revokes local sessions on `UserGeneration` change, and parses `Authorization: Basic` | Extends (by extraction): extracts `SessionStore` and `ParseBasicAuth` into `internal/component/aaa/httpsession` so both `web` (`ze-session`) and `lg` (`ze-lg-session`) use one implementation without `lg` importing `web` |
+| Config write permission strings | `internal/component/plugin/types.go` (`ConfigAuthEdit`, `ConfigAuthSet`, `ConfigAuthDelete`, `ConfigAuthCommit`) | Single source of truth for config mutation authorization strings checked by CLI, web, REST, and gRPC | Extends: `internal/component/api/config_auth.go` (`AuthorizeConfigWrite`) reads these constants and replaces duplicate `requireWriteAccess` checks across gRPC and gNMI |
+| Shared API caller identity | `internal/component/aaa/reserved.go` (`ReservedSharedAPIUsername = "\x00ze:shared-api"`), `internal/component/authz/authz.go` (`(*Store).Authorize`) | Admits shared-token and public-surface callers cleanly when `system authorization` profiles are active; NUL-prefixed so no config token can spoof it, and recorded verbatim by `audit.Recorder` | Extends: gNMI `token` mode and looking-glass `open`/`token` modes stamp `Username: aaa.ReservedSharedAPIUsername` (`"\x00ze:shared-api"`, with `ReadOnly: true` on LG and gNMI `none`), replacing LG's zero-value `CallerIdentity{}` |
+| Command RBAC refusal sentinel | `internal/component/plugin/server/command.go` (`authorizationRefusal.PermissionDenied()`) | Lets callers outside `plugin/server` distinguish RBAC refusal from engine/transport failure via `interface{ PermissionDenied() bool }` | Extends: `internal/component/lg` inspects `PermissionDenied()` in `askCtx` to return HTTP 403 (JSON/JSend/HTML/HTMX) instead of 502 Bad Gateway |
+| Audit recorder & surfaces | `internal/core/audit/audit.go` (`Recorder`, `Entry`, `audit.GNMI`, `ActionAuthFail`, `ActionConfigCommit`) | Records structured auth failures and config commits across surfaces (`gnmi` already exists) | Extends: adds `audit.LookingGlass = "looking-glass"`, wires `AuditRecorder` into `lg.LGConfig`, and replaces gNMI's constant `gnmiUsername` actor with the authenticated username (or `aaa.ReservedSharedAPIUsername` in `token` mode) |
+| Service block isolation, scoped tree validators & management exposure guard | `internal/component/config/service_blocks.go` (`RegisterServiceBlock`), `internal/component/config/tree_validators.go` (`RegisterScopedTreeValidator`), `internal/component/config/cli/cmd_validate.go`, `internal/component/gnmi/register.go`, `internal/component/lg/register.go`, `cmd/ze/hub/mgmt_guard.go` (`filterMgmtListener`), `cmd/ze/hub/service_not_started.go` (`reportServiceNotStarted`) | Enforces "Ze always starts" across all four config doors: `cmd_validate.go` runs `ze config validate`/commit checks; `RegisterScopedTreeValidator` runs in `LoadConfig` (strict reload refusal) and `LoadConfigForStart` (block-scoped isolation); `filterMgmtListener`/`planLGEndpoints` isolate env-started or per-endpoint failures at start | Extends: wires `GNMIListenConfig` and `LGListenConfig` (`Validate()` + `Refusals()`) into `cmd_validate.go`, `validate_semantic.go`, `RegisterScopedTreeValidator` in `gnmi/register.go` and `lg/register.go`, `gnmi/doctor.go` + `lg/doctor.go`, and hub start/reload guards (`filterMgmtListener`, `planLGEndpoints`, `checkLGTransport`) |
+| Per-listener LG TLS planner & reload guard | `cmd/ze/hub/lg_transport.go` (`planLGEndpoints`, `checkLGTransport`), `cmd/ze/hub/mgmt_auth_reload.go` (`registerMgmtAuthReloaders`, `mcpAuthReloader`), `cmd/ze/hub/listener_migrate.go`, `cmd/ze/hub/main_reload.go` (`runReloadContext`) | Plans HTTP/HTTPS per LG `server` entry and refuses unapplyable auth reloads on MCP while migrating safe listeners | Extends: adds `lgAuthReloader` under `svcLG`, blocks non-loopback plaintext downgrade in credential modes inside `planLGEndpoints`/`checkLGTransport`, and adds `checkGNMIAuthReload` on `listenerMigrator` invoked from `runReloadContext` before `ReloadConfigWithSelection` |
+| Bounded per-IP rate limiter pattern | `internal/component/lg/handler_rfc8522.go` (`rfc8522RateLimiter`) | Fixed-window per-client-IP counter with bounded map size and oldest-entry eviction | Extends (shared core leaf): introduces `internal/core/authlimit` (`Limiter`) using the same bounded-eviction design for refused logins on both gNMI and LG |
+| Restart remedy wording | `internal/core/privilege/restart.go` (`RestartRemedy()`) | Produces the accurate restart instruction (`sudo systemctl restart ze` under `ze.service`, else `ze signal stop` + start) | Extends: used in all gNMI and looking-glass reload-refusal messages instead of the invalid `ze signal restart` |
+| Login-service registry (sibling spec) | `plan/release/fixes/spec-login-service-authorisation.md` (`loginservice` registry, `aaa.AuthRequest.Service`) | Restricts which named services an account may authenticate into | Extends (Phase 8): gNMI and LG pass `Service: "gnmi"` / `"looking-glass"` from day one and register their service names once the sibling spec lands |
+
+## Design documents
+
+| Document | Section | Derived from | Binding statement | Verdict | How this design stands against it |
+|----------|---------|--------------|-------------------|---------|-----------------------------------|
+| `ai/doors/system.md` | Shared machinery you use rather than rebuild | the door every change reads | "An env var or a log key" | agrees | `ze.gnmi.auth-mode` and `ze.looking-glass.auth-mode` register through `env.MustRegister` in `internal/component/config/environment.go`, and shared session storage (`internal/component/aaa/httpsession`) and rate limiting (`internal/core/authlimit`) avoid rebuilding duplicate machinery |
+| `ai/doors/api-surfaces.md` | Boundaries | the door covering `internal/component/gnmi/*`, `internal/component/lg/*`, `internal/component/web/*`, `internal/component/api/*` | "Ask the dispatcher. The LG and the web UI hold no RIB or peer import" | agrees | Both `lg` and `gnmi` keep protocol/RIB isolation; `lg` dispatches all queries through `CommandDispatcher` with a real `CallerIdentity`, and `login.templ` is `.templ` with no inline script or style |
+| `ai/doors/access-security.md` | Boundaries | the door covering `internal/core/audit/audit.go`, `internal/component/aaa/httpsession/store.go` | "Explicit rejection stops the chain. A connection error moves to the next backend." | agrees | Both gNMI and looking glass call the hub-supplied `ChainAuthenticator` closure without bypassing `ErrAuthRejected`, and `httpsession` sits under `internal/component/aaa` alongside `UserGeneration` |
+| `ai/doors/config-yang.md` | Boundaries | the door covering `internal/component/config/loader_extract.go`, `validate_semantic.go`, `environment.go` | "Config text changes through a parsed tree or `set` lines only." | agrees | `auth-mode` is YANG-modeled in `ze-gnmi-conf.yang` and `ze-lg-conf.yang`, extracted from the parsed tree in `loader_extract.go` with env overrides in `environment.go`, and validated in `validate_semantic.go` |
+| `ai/doors/hub-engine.md` | Boundaries | the door covering `cmd/ze/hub/*` | "No always-on file imports a gated package." | agrees | Always-on hub files (`main.go`, `main_reload.go`, `listener_migrate.go`, `mgmt_auth_reload.go`, `lg_transport.go`) use `zeconfig` structs, `aaa` closures, and interfaces; `gnmi` and `lg` stay behind `ze_gnmi` and `ze_lg` |
+| `ai/doors/core.md` | Boundaries | the door covering `internal/core/diagnostic/codes.go`, `internal/core/authlimit/limiter.go` | "Where core needs something a component owns, the component registers into core. Do not add a row to the core import baseline." | agrees | `internal/core/authlimit` imports only Go stdlib packages (`net`, `sync`, `time`), and `internal/core/diagnostic/codes.go` adds only `config-lg-invalid` metadata |
+| `ai/doors/le-tooling.md` | Boundaries | the door covering `internal/test/fixture/lg_pki_fixture.go`, `plugin_fixture_09_shell.go` | "An action stays callable as Go and answers through the shared renderer" | agrees | Only the test fixtures' config inputs are updated to state an explicit `auth-mode`; no `le` action or renderer contract changes |
+| `docs/architecture/api/architecture.md` | gNMI Transport | `// Design:` page of `gnmi/*.go`, `api/types.go`, `api/grpc/server.go`; modified by this spec | "Configuration is YANG-modeled under `environment { gnmi { enabled; token; tls { cert; key; } server <name> { ip; port; } } }` with env var overrides (`ze.gnmi.enabled`, `ze.gnmi.listen`, `ze.gnmi.token`, `ze.gnmi.tls.cert`, `ze.gnmi.tls.key`). Non-loopback listeners require both authentication (`token`) and TLS (`cert` and `key`), enforced in `Server.Serve` (`checkGNMIListenAddr`) as defense in depth alongside the boot-time management-listener guard (`cmd/ze/hub/mgmt_guard.go`), matching gRPC's `checkGRPCListenAddr`. Loopback listeners (`127.0.0.0/8`, `::1`) may omit TLS and `token`; when `token` is empty, `Set` is refused with `PermissionDenied` so unauthenticated loopback callers are read-only." | departs | Adds `auth-mode` (`user` default, `token`, `none`) and `ze.gnmi.auth-mode`; omitting `token` no longer means unauthenticated loopback access (it selects `auth-mode user` requiring AAA login via `username`/`password` metadata). Read-only unauthenticated loopback access now requires explicit `auth-mode none`. Approved by Thomas (2026-10-31, 2026-11-24 D-5). `docs/architecture/api/architecture.md` is updated in this spec |
+| `docs/architecture/api/architecture.md` | Design decisions | decision of 2026-11-23 (`\| implied` inline comment) | "When `\| implied` modifies an existing config line (such as inserting automatic members into a `filters [ ... ];` list), it keeps the line intact and places an inline `# implied: ...` comment on the same line after the statement naming what was added and why, rather than placing a comment only above the line or splitting the list across multiple lines. In Thomas's words (2026-11-23): "No, it should be on the same line and say what was added"." | agrees | This spec does not alter `\| implied` formatting or filter-list rendering |
+| `docs/architecture/api/architecture.md` | Design decisions | decision of 2026-11-23 (bus participant registration) | "Everything on the bus is a participant named by its configuration path. A participant registers the messages it sends and receives, events and commands alike, and with nothing written that registration is what runs" | agrees | Neither gNMI nor looking glass changes bus participant registration or message routing |
+| `docs/architecture/api/architecture.md` | Design decisions | decision of 2026-11-23 (`send > to` replacement) | "A `send > to` list written on a participant replaces the destinations its messages have by registration; it never adds to them. Present and empty means nobody" | agrees | No bus `send > to` semantics are touched |
+| `docs/architecture/api/architecture.md` | Design decisions | decision of 2026-11-23 (`receive > from` limits) | "A `receive > from` list limits who may address a participant. Absent means everybody; present and empty means nobody" | agrees | No bus `receive > from` semantics are touched |
+| `docs/architecture/api/architecture.md` | Design decisions | decision of 2026-11-23 (send/receive allow-lists) | "A send and a receive allow-list of message names (`send > allow`, `receive > allow`) exist on every participant: absent means everything declared, empty means nothing. The bus enforces them when it receives the message" | agrees | No bus allow-list semantics are touched |
+| `docs/architecture/api/architecture.md` | Design decisions | decision of 2026-11-23 (compiled bus filter conflict refusal) | "What is written on the participant and what is written in the `bus` section compile into one filter per participant. A disagreement between the two places, or between an allow-list and a destination on one participant, is refused at commit naming both lines" | agrees | No bus filter compilation is touched |
+| `docs/architecture/api/architecture.md` | Design decisions | decision of 2026-11-23 (no bus arbitration) | "The bus does not arbitrate between participants: no exclusive-role rule, no commit refusal and no silent winner. A plugin that must not duplicate another limits itself" | agrees | No bus arbitration is added |
+| `docs/architecture/api/architecture.md` | Design decisions | decision of 2026-11-23 (one implied display) | "One display shows every registered default beside what the operator wrote, the defaults a written list replaced, and the line that produced each effective entry" | agrees | No bus display behavior is altered |
+| `docs/architecture/web-interface.md` | LG Bearer Token | `// Design:` page of `lg/*.go`, `web/auth.go`, `listener_migrate.go`; modified by this spec | "The looking glass is open by default, because it is a public read-only surface." | departs | Under Thomas's D-1 decision (2026-11-24), the looking glass has no default `auth-mode`: enabling it without naming `open`, `token`, or `user` is refused (`config-lg-invalid` at validate/reload; service stays down at `ze start` under `doctor-service-not-started`). Under D-2..D-4, `user` mode adds login form + `ze-lg-session` cookie + Basic Auth and per-command RBAC. `docs/architecture/web-interface.md` is updated in this spec |
+| `docs/architecture/fleet-interface.md` | The package | anchored to `internal/component/web/auth.go` | | silent | Governs the post-release fleet web UI; extracting `web/auth.go`'s session store to `aaa/httpsession` preserves `ze-session` and `web`'s request username unchanged |
+| `docs/architecture/fleet-interface.md` | Design decisions | decision of 2026-11-25 (alarm defaults) | "The proposed alarm defaults apply together. A missing relay grant stays visible while the device is offline. A measured alarm uses its existing threshold duration after reconnect. Causes match within one device. Thomas selected “Use all three defaults”." | agrees | Fleet alarms are untouched by gNMI/LG auth or `aaa/httpsession` extraction |
+| `docs/architecture/fleet-interface.md` | Design decisions | decision of 2026-11-25 (Resource high at reconnect) | "Thomas chose the following rule for Resource high at reconnect. “End the old occurrence. Show a new alarm only if fresh samples qualify.”" | agrees | Fleet alarm reconnect rules are untouched |
+| `docs/architecture/fleet-interface.md` | Design decisions | decision of 2026-11-25 (critical alarm toast) | "When a critical alarm becomes visible again after its cause clears, show its toast to an authorized viewer of the affected device. Thomas selected “Show the critical toast”." | agrees | Fleet toast notifications are untouched |
+| `docs/architecture/fleet-interface.md` | Design decisions | decision of 2026-11-25 (Force complete staged rollout) | "For Force complete on a staged rollout, Thomas chose “Leave unstarted devices on their prior version”." | agrees | Staged fleet rollouts are untouched |
+| `docs/architecture/fleet-interface.md` | Design decisions | decision of 2026-11-25 (device Alarms tab) | "Thomas chose “Add the device Alarms tab”. The post-release device page offers the same authorized alarm rows as the device filter on the estate or group Alarms tab." | agrees | Fleet device page tabs are untouched |
+| `docs/architecture/api/birdwatcher-compat.md` | 3.1 A command the engine refuses | anchored to `lg/server.go`, `lg/handler_ui.go`, `lg/handler_api.go`, `lg/handler_graph.go`; modified by this spec | "The server MUST answer `502 Bad Gateway` when the engine returns an error, and `503 Service Unavailable` when the engine returns nothing the server can parse. The body MUST be a JSON object carrying `error`, and that message MUST name the command that failed." | departs | Under Thomas's D-3 and D-4 decisions (2026-11-24), `/api/looking-glass/*` is gated by authentication (returning JSON `401` or `429` in `token`/`user` modes), and when the dispatcher refuses a command with `PermissionDenied()` in `user` mode, `askCtx` answers HTTP `403 Forbidden` with a sanitized JSON error (`<command>: permission denied`, still never leaking raw dispatcher internals or socket paths) instead of `502 Bad Gateway` with `engine error`. `docs/architecture/api/birdwatcher-compat.md` (Section 3.1 and a new authentication section) is updated in this spec |
+| `docs/architecture/pki/tls-listeners.md` | Design decisions | decision of 2026-11-23 (LG plain HTTP and no-store downgrade); modified by this spec | "The looking glass may serve plain HTTP, because what it publishes is public, and one looking glass serves HTTP and HTTPS at the same time. Thomas's words, as voice-transcribed: "We should allow the looking glass to be HTTP. The information is public." and "We should be able to serve on both HTTP and HTTPS, not either." Asked where the choice lives and what happens to `ze.looking-glass.tls`, he answered "1a 2a": the choice is the `tls` leaf of each `server` entry, default true, and the environment variable is removed. The no-store rule applies to each entry: an entry that left `tls` unset serves HTTP with a warning on a daemon with no `database/` store and no named certificate, an entry that says `tls true` there is refused at start and at reload, and a reload does what a restart with the same config does" | departs | Plain HTTP and the unset-`tls` no-store HTTP downgrade apply only when the looking glass carries no credentials (`auth-mode open`) or binds loopback. When `auth-mode` is `token` or `user`, a non-loopback `server` entry must serve TLS (explicit `tls false` or an uncertifiable unset-`tls` entry is refused at validate/reload and stays down at `ze start` under `reportLGServerDown`) so bearer tokens, passwords, and session cookies never cross a network in clear. `docs/architecture/pki/tls-listeners.md` is updated in this spec |
+| `docs/architecture/pki/tls-listeners.md` | Design decisions | decision of 2026-11-23 (shared `listenerTLSMaterial` precedence) | "The web and looking glass use the shared `listenerTLSMaterial` precedence. The approved Fleet reload design shares `managedCertificate` with startup because the daemon authority issues its unnamed leaf." | agrees | Looking-glass TLS material resolution continues to use `listenerTLSMaterial` unchanged |
+| `docs/architecture/pki/tls-listeners.md` | Design decisions | decision of 2026-11-26 (certificate failure never stops ze) | "A certificate that cannot be presented never stops ze from starting. A web server whose certificate name does not resolve is not started. The looking glass is judged one `server` entry at a time: an entry that says `tls true` with no certificate to present stays down, every entry that asks for TLS stays down when the named certificate does not resolve, and the other entries serve. Each is reported with its fix by an error line in the log under a doctor code and by `ze doctor`. A reload whose config cannot be served stays refused. This supersedes the start half of the row of 2026-11-23 above, which says a `tls true` entry "is refused at start": at start that entry stays down and the others serve, and at reload the config is still refused. Thomas's words, as voice-transcribed: "we should never not start ze as if we can not bring networking we can not fix things like web cert and the like so the only good answer is to disable the service badly configured and not start it"; "reload stay refused"; "Should only that endpoint stay down while the others serve: yes"" | agrees | At `ze start`, an unservable non-loopback plaintext credential-mode looking-glass `server` entry stays down via `reportLGServerDown` while safe (TLS or loopback) entries and the rest of Ze keep running; a reload with the same config is refused as a whole |
+| `docs/architecture/core-design.md` | 19. Component Boundaries | `// Design:` page of `audit.go`; modified by this spec | "Each component under `internal/component/` is independently removable. Cross-component coupling follows a strict hierarchy:" | agrees | Adds explicit `gnmi` (`aaa, api, command, config, plugin, plugin/server`) and `lg` (`aaa, config, pki, plugin`) rows to §19 and updates the AAA/audit prose to include both surfaces; extracting `httpsession` into `internal/component/aaa/httpsession` keeps `web` and `lg` independent |
+| `docs/architecture/core-design.md` | Design decisions | decision of 2026-11-23 (kernel features on VPP refused at commit) | "A commit fails when it configures a feature that programs only the Linux kernel, or that reads only what the Linux kernel sees of the traffic, while the interfaces run on VPP. Two host-side uses stay accepted, so that mixed setups remain possible once VRFs are added: a `fib kernel` block beside a `fib vpp` block, which programs the Linux route table for the router's own traffic, and `sysctl`, which sets the Linux kernel's own tunables. A `fib kernel` block with no `fib vpp` block beside it is refused, for now." | agrees | Neither gNMI nor looking-glass authentication programs the kernel data plane |
+| `docs/architecture/core-design.md` | Design decisions | decision of 2026-11-23 (VPP mismatch refused by one verdict) | "A configuration that holds such a mismatch is refused at daemon start as well as at commit, reload and `ze config validate`, by one verdict that is the same at each." | agrees | Unchanged; superseded for start by the 2026-11-26 row below, and unrelated to management auth |
+| `docs/architecture/core-design.md` | Design decisions | decision of 2026-11-23 (VPP firewall verifier) | "The VPP firewall verifier, not a YANG annotation, decides whether `connection-state` and `mark-set` are accepted on VPP. The `ze:backend` annotation of `flow-offload` is deleted with theirs; `flow-offload` stays refused on VPP because VPP has no flowtable and the `flowtable` list keeps its `ze:backend "kernel"` annotation." | agrees | No firewall or VPP backend rule is touched |
+| `docs/architecture/core-design.md` | Design decisions | decision of 2026-11-23 (data-plane selector naming) | "Every data-plane selector names the plane it programs, `kernel` or `vpp`: `interface backend`, `firewall backend` and `traffic control backend` take `kernel` where they took `netlink`, `nft` and `tc`, and each defaults to `kernel`; the `fib` blocks already name `kernel` and `vpp`. The plane a registration declares and the value a `ze:backend` annotation names are the same word. A second implementation on the same plane, such as eBPF, takes a value of its own when it exists. In Thomas's words (voice-transcribed): "should tc and netfilter be renamed to kernel? so we have vpp and kernel?", then "please do it"." | agrees | No data-plane selector is touched |
+| `docs/architecture/core-design.md` | Design decisions | decision of 2026-11-23 (BGP egress next-hop in export chain) | "BGP egress next-hop rewriting belongs exclusively in the export filter chain, not under session configuration (`session { next-hop }`). Ze automatically appends `next-hop auto` at the end of the export chain when no earlier export filter has already set a next-hop outcome (`self`, `unchanged`, or an explicit address), so ordinary eBGP rewrites to self while iBGP and route-server clients preserve the received next hop. In Thomas's words (voice-transcribed): "I would think that all the rewrite should be in the prefix export and not under configuration. I believe we should automatically add to the export prefix list the auto at the end of the list if not defined with something else. So if no one, for example, used a self or unchanged, we should automatically change it on eBGP. Because otherwise we have two ways to modify packets on the way out to the peer.", then "Unify into the export chain it is the way I want it."" | agrees | No BGP session or policy code is touched |
+| `docs/architecture/core-design.md` | Design decisions | decision of 2026-11-23 (egress next-hop authoring forms) | "Egress export chains configure next-hop rewriting through one underlying `policychain.Sets` next-hop intent exposed in two authoring forms: `policy { modify <name> { set { next-hop self \| unchanged \| auto \| <ip>; } } }` for matched/conditional rules, and built-in chain references `next-hop:self`, `next-hop:unchanged`, and `next-hop:auto` for peer-wide policy without a wrapper `modify` block. Selected by Thomas on 2026-11-23 ("Option A: Extend policy modify (self\|unchanged\|auto\|<ip>) AND provide built-in next-hop:self / next-hop:unchanged / next-hop:auto chain refs")." | agrees | No BGP policy chain is touched |
+| `docs/architecture/core-design.md` | Design decisions | decision of 2026-11-23 (built-in `next-hop:*` compiled engine steps) | "Built-in `next-hop:auto`, `next-hop:self`, and `next-hop:unchanged` are BGP engine steps compiled into `policychain.Chain` (parallel to `loop-detection`), never external plugin RPCs or a `pkg/plugin/rpc.FilterInsertion` tail extension. Config loading appends `next-hop:auto` at the tail of every export chain unless an unconditional `next-hop:self`, `next-hop:unchanged`, or `next-hop:auto` is already present, leaving `Policy.Configured()` false for unconfigured chains; operators override via `next-hop:unchanged`, and `inactive:next-hop:auto` is refused. Selected by Thomas on 2026-11-23 ("Option A: Built-in BGP engine step appended at config compile time (like loop-detection; zero RPC; override via next-hop:unchanged, no inactive:next-hop:auto)")." | agrees | No BGP engine step is touched |
+| `docs/architecture/core-design.md` | Design decisions | decision of 2026-11-23 (next-hop last-write-wins & provenance) | "Within an export chain, explicit next-hop sets (`self`, `unchanged`, `auto`, or an IP address) use standard last-write-wins folding while the auto-appended trailing `next-hop:auto` acts only when next-hop is still unset. For a whole-UPDATE raw override (`wireOverride`), Ze compares each emitted next-hop field against the received UPDATE (matching `forward_med.go` provenance): trailing `auto` is skipped only when the raw override changed the next-hop bytes or an earlier chain member already selected `unchanged`/`self`/explicit. Selected by Thomas on 2026-11-23 ("Option A: Provenance check on raw overrides (like MED): skip trailing auto only when the raw override changed the next-hop bytes or an earlier member set unchanged/self")." | agrees | No BGP export folding is touched |
+| `docs/architecture/core-design.md` | Design decisions | decision of 2026-11-23 (explicit next-hop IPv4/IPv6 on export and import) | "Explicit next-hop addresses in `policy { modify <name> { set { next-hop <ip>; } } }` and `policychain.Sets.NextHop` support both IPv4 (attr 3) and IPv6/MP_REACH (through `NextHopProfile` and `ValidatePeerGlobalNextHop`) on both export and import chains. Egress-only next-hop modes (`self`, `unchanged`, `auto`), whether written as built-in `next-hop:*` refs or inside `policy { modify }`, are refused on import chains at config load. Selected by Thomas on 2026-11-23 ("Option A: Support IPv4 + IPv6/MP_REACH for explicit next-hop on both export and import; refuse self/unchanged/auto on import at config load")." | agrees | No BGP next-hop validation is touched |
+| `docs/architecture/core-design.md` | Design decisions | decision of 2026-11-23 (trailing `next-hop:auto` forwarded routes only) | "Auto-appended trailing `next-hop:auto` applies only to forwarded routes and preserves the originator-chosen next hop on locally originated routes (static config routes, ExaBGP `announce`, API announcements). Explicit export-chain next-hop actions (`next-hop:self`, `modify { set { next-hop ... } }`) apply uniformly to both forwarded and locally originated routes. Selected by Thomas on 2026-11-23 ("Option A: Trailing next-hop:auto applies to forwarded routes only (preserves static/ExaBGP/API explicit next-hop); explicit next-hop:self / modify next-hop applies to both forwarded and originated routes")." | agrees | No BGP route origination is touched |
+| `docs/architecture/core-design.md` | Design decisions | decision of 2026-11-23 (implied-filter seam) | "Every automatic filter-chain member Ze inserts — both built-in BGP engine steps (`next-hop:auto` at the export tail, `loop-detection` at the import head) and plugin-declared `FilterInsertions` — is published through one queryable implied-filter seam carrying direction, position, reference and `implied-by` reason so `\| implied` displays every extra chain member alongside the operator's written filter list. In Thomas's words (2026-11-23): "Can you make sure that \| implied show the extra chain members when it displays the filter ?"." | agrees | No BGP filter insertion seam is touched |
+| `docs/architecture/core-design.md` | Design decisions | decision of 2026-11-26 (Ze always starts) | "Ze always starts. The configuration of one service never makes `ze start` exit or refuse to start: a service whose configuration cannot be served is not started, ze runs with its other services, and the service is reported with its fix by an error line in the log under a doctor code and by `ze doctor` under the same code. Examples are a web certificate name that does not resolve, a looking-glass `server` entry with no certificate to present, and a looking-glass address list that does not parse. Where a service has several endpoints, only the endpoint that cannot be served stays down and the others serve. A reload whose config cannot be served stays refused as a whole, and the running services keep what they serve. In Thomas's words (voice-transcribed): "we should never not start ze as if we can not bring networking we can not fix things like web cert and the like so the only good answer is to disable the service badly configured and not start it"; asked about a reload, "reload stay refused"; asked "Should only that endpoint stay down while the others serve", "yes". The reason is that a daemon that does not start brings up no networking, so the operator cannot reach the box to correct it." | agrees | Missing/invalid gNMI or looking-glass `auth-mode` or unservable non-loopback exposure leaves only that service (or looking-glass `server` entry) down at `ze start` under `doctor-service-not-started` / `reportLGServerDown`, while `ze config validate`, commit, and reload still refuse the config |
+| `docs/architecture/core-design.md` | Design decisions | decision of 2026-11-26 (start-time VPP mismatch superseded) | "The rule of 2026-11-23 above, that a configuration which holds a feature that programs only the Linux kernel while the interfaces run on VPP "is refused at daemon start", is superseded for the start: ze starts, that feature stays off, and `ze doctor` reports the mismatch with its fix. A commit, a reload and `ze config validate` still refuse such a configuration, by the same verdict as before. Thomas was asked whether the rule that ze always starts replaces the refusal at start, "(a) yes, ze starts, that feature stays off and ze doctor reports the mismatch, while commit and reload still refuse it; (b) no", and answered "2a" (voice-transcribed). The reason is the one of the row above: a daemon that does not start brings up no networking, so the operator cannot reach the box to correct the mismatch." | agrees | Follows the same start-isolation vs validate/reload-refusal split for gNMI and looking glass |
+| `docs/guide/gnmi.md` | Authentication | `// Design:` page of `gnmi/gnmic_docker_test.go`; modified by this spec | "When no token is configured, gNMI can bind only to a literal loopback address (`127.0.0.1` or `::1`) and runs in read-only mode." | departs | Under this spec, gNMI defaults to `auth-mode user` (requiring AAA `username`/`password` login), and read-only unauthenticated loopback access requires explicit `auth-mode none`. Also documents the D-5 loopback plaintext exception. `docs/guide/gnmi.md` is updated in this spec |
+| `docs/comparison.md` | Security | a page this spec modifies | "Ze refuses to bind any management listener on a non-loopback address with no authentication. The check covers the web server in insecure mode, MCP, gNMI, and the API server that serves REST and gRPC." | agrees | Extends the management-plane exposure guard to also cover looking-glass listeners in credential modes (`token`/`user`) and updates the gNMI/looking-glass access control rows in `docs/comparison.md` |
+| `docs/architecture/config/environment.md` | Overview | anchored to `config/environment.go` | "Each YANG `environment/<section>/<option>` leaf also has a matching env var so the operator can override it at runtime." | agrees | Registers `ze.gnmi.auth-mode` and `ze.looking-glass.auth-mode` in `environment.go` with env-over-config precedence |
+| `docs/architecture/doctor-and-health-checks.md` | The runtime phase: checks only the daemon runs | `// Design:` page of `gnmi/register.go`; anchored to `cmd/ze/hub/main.go`, `main_reload.go` | "The hub's `hub-services-not-started` check reports each service the daemon left down when it started because the configuration of that service cannot be served, and each data-plane-mismatched feature left off at start." | agrees | gNMI and looking-glass auth/mode/exposure start failures record via `reportServiceNotStarted` / `reportLGServerDown` and surface through `hub-services-not-started` and offline `gnmi`/`lg` post-config doctor checks |
+| `docs/architecture/config/yang-config-design.md` | 1. Key Principle | anchored to `gnmi/server.go`, `gnmi/set.go`, `cmd/ze/hub/main.go` | "YANG defines format. Extensions declare behavior. Implementation executes behavior." | agrees | Adds standard YANG `enumeration` `auth-mode` leaves to `ze-gnmi-conf.yang` and `ze-lg-conf.yang` without altering schema publication or `ValidateContent` |
+| `docs/architecture/config/syntax.md` | Overview | `// Design:` page of `loader_extract.go`, `validate_semantic.go`, `environment.go` | | silent | Describes config file grammar and list-key path mapping; adding two YANG `enumeration` leaves adds no syntax grammar |
+| `docs/architecture/fleet-config.md` | Vision | anchored to `loader_extract.go`, `cmd/ze/hub/main.go`, `main_reload.go` | | silent | Governs managed fleet hub/client synchronization; neither gNMI nor looking-glass authentication changes fleet config |
+| `docs/architecture/fleet-config.md` | Design decisions | decision of 2026-11-23 (managed listener cert reload) | "A reload that changes the certificate a serving hub's managed listener presents installs it on the running listener at that reload: the next handshake presents the certificate the configuration names, the listener keeps its socket and no session is closed, as the web and looking glass listeners do. The certificate stays in the configuration's `pki` block. In Thomas's words (voice-transcribed): "Keep the certificate in the configuration." and "In that case on commit we can perform the certificate change on the listener."" | agrees | Looking-glass PKI certificate hot-reload (`UpdateTLSCertificate`) is untouched; only auth-mode/token changes require restart |
+| `docs/architecture/fleet-config.md` | Design decisions | decision of 2026-11-25 (offline fleet device web config commit) | "Thomas chose “Allow first provisioning and later edits from the device’s web Config tab”. An authorized operator can commit the first or a later version of a declared device’s configuration while it is offline, through the post-release fleet web surface." | agrees | Web UI authentication behavior (`ze-session` and Basic Auth) is preserved identically via `aaa/httpsession` |
+| `docs/architecture/plugin/plugin-system.md` | Where each layer lives | anchored to `validate_semantic.go` | | silent | Governs plugin lifecycle and handshake; both gNMI and looking glass are components, not plugins |
+| `docs/architecture/plugin/plugin-system.md` | Design decisions | decision of 2026-11-23 (offline declared plugin query mode) | "With no daemon running, a command that parses a config starts each declared external program in query mode, never its run loop, and validates against its declaration" | agrees | Offline `ze config validate` continues using the existing schema loader and adds only in-process semantic checks for `environment gnmi` and `environment looking-glass` |
+| `docs/architecture/api/commands.md` | Overview | anchored to `api/grpc/server.go`, `cmd/ze/hub/main.go`, `main_reload.go` | | silent | Governs CLI command grammar and pipe operations; this spec adds no CLI verb or pipe operator |
+| `docs/architecture/api/commands.md` | Design decisions | decision of 2026-08-21 (pipe wins) | "The pipe wins: a command path names the subject and stops; scope, presentation and format are pipe operations after it, selector words included" | agrees | No CLI command path or pipe syntax is changed |
+| `docs/architecture/api/commands.md` | Design decisions | decision of 2026-11-20 (overridable generic pipe operations) | "A command may override any generic pipe operation that acts on its data, as long as the answer keeps the generic's data format: every data operator of the catalog is overridable, each held to its generic's answer shape; a format, paging, `save` and `log` are the data format or its display, and stay the generic's. In Thomas's words: "I believe it should be possible to overwrite more command as long as their data format is not changed."" | agrees | No pipe operator is added or overridden |
+| `docs/architecture/api/commands.md` | Design decisions | decision of 2026-11-23 (pipe works on command answer) | "A pipe operation works on the answer of the command before it. It may narrow the answer, extend it, transform it, or deliver it somewhere, such as saving it to a file. It never changes what the command does" | agrees | `show gnmi` keeps answering structured data; adding `auth-mode` to `ServerStatus` does not change pipe semantics |
+| `docs/features/ai-first.md` | Structured Diagnostics | `// Design:` page of `internal/core/diagnostic/codes.go` | "Codes such as `config-parse`, `config-yang-type` and `config-listener-conflict` identify the kind of failure." | agrees | Registers `config-lg-invalid` and updates `config-gnmi-invalid` in the shared diagnostic code catalog |
+| `ai/rules/plugins.md` | Directives | `// Design:` page of `cmd/ze/hub/gnmi_infra.go`, `service_gnmi.go`, `service_lg.go`, `service_registry.go`, `register_lg.go` | "A plugin MUST own its entire feature surface. Removing the plugin MUST make every one of its features disappear; every other plugin and the core MUST keep working." | agrees | `ze_gnmi` and `ze_lg` remain cleanly compile-out-able; no new cross-gate dependencies are added to always-on hub code |
+| `docs/architecture/hub-architecture.md` | Hub Architecture | `// Design:` page of `cmd/ze/hub/main.go`, `main_reload.go` | | silent | Covers plugin orchestration, store ownership, and startup tiers; gNMI/LG auth reload checks hook into `runReloadContext` alongside existing pre-apply gates without changing hub architecture |
+| `docs/architecture/aaa-tacacs.md` | Reject and unreachable are different, and the chain owns the difference | anchored to `cmd/ze/hub/main_reload.go` | "`aaa.ErrAuthRejected` stops the chain. Any other error tries the next backend." | agrees | Both gNMI and looking glass call the live `ChainAuthenticator` via hub closures, preserving explicit rejection vs backend-unreachable fallthrough unchanged |
+| `docs/architecture/config/transaction-protocol.md` | 1. Design Principles | anchored to `cmd/ze/hub/main_reload.go` | | silent | Governs the two-phase Verify/Apply/Rollback config transaction protocol; `lm.checkGNMIAuthReload` runs as a pre-apply gate in `runReloadContext` before `ReloadConfigWithSelection` begins |
+| `docs/architecture/plugin/component-boundaries.md` | The four components | anchored to `cmd/ze/hub/main_reload.go` | | silent | Documents the four-interface engine/plugin split (`Reactor`, `Server`, `Process`, `Dispatcher`); neither gNMI nor looking glass changes those interfaces |
+| `docs/architecture/api/process-protocol.md` | Overview | anchored to `cmd/ze/hub/main.go` | | silent | Governs engine-to-plugin IPC wire protocol; unchanged by management listener authentication |
+| `docs/architecture/api/process-protocol.md` | Design decisions | decision of 2026-11-23 (engine operation message names) | "Every engine operation names the message it carries or `none` with a reason, and a plugin identity is authorized by a profile compiled from its filter" | agrees | No engine-to-plugin operation or plugin profile is changed |
+| `docs/architecture/api/process-protocol.md` | Design decisions | decision of 2026-11-25 (lossless event delivery) | "Engine-to-plugin event delivery never drops events on queue overflow; endpoints expect every subscribed network event losslessly" | agrees | No event-delivery queue is touched |
+| `docs/architecture/appliance/remote-operations.md` | Decisions | anchored to `cmd/ze/hub/main.go` | | silent | Governs appliance update/remote management procedures; unaffected by gNMI/LG auth modes |
+| `docs/architecture/behavior/signals.md` | Supported Signals | anchored to `cmd/ze/hub/main.go`, `main_reload.go` | | silent | Governs UNIX signal handling; SIGHUP still runs `runReloadContext`, which already supports pre-apply reload refusal |
+| `docs/architecture/cli/command-completion.md` | The producers | anchored to `cmd/ze/hub/main.go` | | silent | Enumeration leaves (`auth-mode`) get editor completion automatically from YANG without changing completion machinery |
+| `docs/architecture/diagnostics/crash-capture.md` | The decisions | anchored to `cmd/ze/hub/main.go` | | silent | gNMI's panic boundary remains outermost in `Serve`, so crash capture behavior is unchanged |
+| `docs/architecture/pki/pki-store.md` | Decisions | anchored to `cmd/ze/hub/main.go` | | silent | PKI store layout and certificate lookup APIs are unchanged |
+| `docs/architecture/storage-backends.md` | Opening and ownership | anchored to `cmd/ze/hub/main.go` | | silent | Config storage backend interface is unchanged |
+| `docs/architecture/system-architecture.md` | Overview | anchored to `cmd/ze/hub/main.go` | | silent | High-level daemon layout is unchanged |
+| `docs/architecture/testing/ci-format.md` | Syntax Overview | anchored to `cmd/ze/hub/main.go` | | silent | New `.ci` functional tests follow the existing `.ci` format without altering it |
+| `ai/rules/evidence.md` | Directives | `// Design:` page of `cmd/ze/hub/mgmt_auth_reload.go` | "A guard is judged at the function that turns data into a verdict, never at the producer of the data it reads." | agrees | Auth-mode resolution, exposure validation, reload comparison, and runtime gates all fail closed on empty/unreadable mode or nil authenticator, and every `.ci` test exercises the running verdict |
+| `docs/architecture/mcp/overview.md` | Protocol Profile | anchored to `cmd/ze/hub/mgmt_auth_reload.go` | | silent | MCP keeps its own `auth-mode` and `Identity` scope model; this spec mirrors `mcpAuthReloader` for LG and gNMI without modifying MCP |
+| `docs/architecture/testing/interop.md` | The suites, one per protocol area | anchored to `gnmi/gnmic_docker_test.go` | | silent | Existing `docker`-tagged `TestGnmicInterop` suite gains user-mode subtests without changing the interop harness |
+| `docs/architecture/testing/interop.md` | Design decisions | decision of 2026-11-23 (minimal kernel capabilities) | "Each Docker interop suite and scenario checks only the kernel capabilities it actually requires (`Suite.KernelCapabilities` unioned with selected `ScenarioPlan.KernelCapabilities`); suites whose selected scenarios require none run without unrelated kernel features (such as SRv6 or IPsec)" | agrees | `TestGnmicInterop` requires no additional kernel capabilities |
 
 ## Data Flow (MANDATORY - see `ai/rules/architecture.md`)
 
+### Mode vocabulary and precedence
+
+Two YANG `enumeration` leaves, two env vars, zero mode inference:
+
+| Surface | YANG path | Values | Unset meaning | Env var (overrides config) |
+|---------|-----------|--------|---------------|----------------------------|
+| gNMI | `environment/gnmi/auth-mode` | `user`, `token`, `none` | `user` (behaves like SSH) | `ze.gnmi.auth-mode` |
+| Looking glass | `environment/looking-glass/auth-mode` | `open`, `token`, `user` | **none — refused (D-1)** | `ze.looking-glass.auth-mode` |
+
+Validation rules (one shared verdict in `internal/component/config/loader_extract.go` — `GNMIListenConfig.Validate()`/`Refusals()` and `LGListenConfig.Validate()`/`Refusals()` — wired into all four enforcement doors so none can drift):
+
+- **Door 1 — `ze config validate` and commit (`ValidateContent`)**: `internal/component/config/cli/cmd_validate.go` calls `gnmiCfg.Validate()` + `gnmiCfg.Refusals()` under `config-gnmi-invalid` and adds the matching `ExtractLGConfig(tree)` block calling `lgCfg.Validate()` + `lgCfg.Refusals()` under `config-lg-invalid` (because `cmd_validate.go` does not call `config.ValidateSemantics`).
+- **Door 2 — SIGHUP reload (`LoadConfig`) and `ze start` service-block isolation (`LoadConfigForStart`)**: `internal/component/gnmi/register.go` registers `zeconfig.RegisterScopedTreeValidator("gnmi-auth-config", "environment/gnmi", ...)` and `internal/component/lg/register.go` registers `zeconfig.RegisterScopedTreeValidator("lg-auth-config", "environment/looking-glass", ...)` alongside their existing `RegisterServiceBlock` registrations. Strict `LoadConfig` (SIGHUP reload) refuses the whole config on failure; `LoadConfigForStart` (`excludeInvalidServiceBlocks`) drops only the offending service block from the in-memory tree and reports `doctor-service-not-started` while Ze keeps running. Per-`server` non-loopback plaintext credential-mode isolation on LG stays in `cmd/ze/hub/lg_transport.go::planLGEndpoints` (`reportLGServerDown`) so valid TLS or loopback `server` entries still serve at `ze start` while `cmd_validate.go`, `lg/doctor.go`, and reload `checkLGTransport` refuse the whole config.
+- **Door 3 — Offline `ze doctor` and `ValidateSemantics`**: `internal/component/gnmi/doctor.go` (`gnmiExposureFindings`) runs `gnmiCfg.Validate()` + `gnmiCfg.Refusals()`; `internal/component/lg/doctor.go` adds `lgAuthExposureFindings` running `lgCfg.Validate()` + `lgCfg.Refusals()` under `config-lg-invalid`; `internal/component/config/validate_semantic.go` runs `lgCfg.Validate()` + `lgCfg.Refusals()` alongside `gnmiCfg` and `mcpCfg`.
+- **Door 4 — Hub startup for env-started listeners (no config block)**: `cmd/ze/hub/mgmt_guard.go::filterMgmtListener`, `cmd/ze/hub/service_lg.go`, and `cmd/ze/hub/lg_transport.go::planLGEndpoints` enforce the exact same mode/exposure/TLS rules when a listener is started via `ze.gnmi.*` or `ze.looking-glass.*` env vars, leaving only the offending service or endpoint down via `reportServiceNotStarted` / `reportLGServerDown`.
+
+| Condition | Validation / Reload / Offline Doctor | `ze start` ("Ze always starts") |
+|-----------|--------------------------------------|---------------------------------|
+| `auth-mode` has an unrecognized string (e.g., via env var) | Refused (`config-gnmi-invalid` / `config-lg-invalid`) naming the valid values | That service is not started; reported via `reportServiceNotStarted` (`doctor-service-not-started`) |
+| `auth-mode token` with empty `token` (neither env nor config) | Refused naming the token leaf/env var | That service is not started; reported via `reportServiceNotStarted` |
+| `auth-mode user`, `none`, or `open` with a non-empty `token` | Refused (prevents silent ignored credential) | That service is not started; reported via `reportServiceNotStarted` |
+| Looking glass enabled (config or env) with `auth-mode` unset (D-1) | Refused (`config-lg-invalid`) naming `set environment looking-glass auth-mode open\|token\|user` or `ze.looking-glass.auth-mode` | Looking glass is not started; reported via `reportServiceNotStarted` (`doctor-service-not-started`) |
+| gNMI `auth-mode none` on any non-loopback listener | Refused (`config-gnmi-invalid`) | That non-loopback listener is not started (`filterMgmtListener` / `reportServiceNotStarted`) |
+| gNMI `auth-mode user` or `token` on any non-loopback listener without both `tls.cert` and `tls.key` | Refused (`config-gnmi-invalid`) | That non-loopback listener is not started (`filterMgmtListener` / `reportServiceNotStarted`) |
+| gNMI `auth-mode user`, `token`, or `none` on loopback (`127.0.0.0/8`, `::1`) without TLS | Allowed (D-5); `none` is read-only | Starts on loopback |
+| Looking glass `auth-mode token` or `user` on any non-loopback `server` entry with `tls false` OR with unset `tls` and no cert/store (would have downgraded to HTTP) | Refused (`config-lg-invalid` / `checkLGTransport`) | Only that non-loopback plaintext `server` entry stays down (`reportLGServerDown`); TLS or loopback entries still serve |
+| Looking glass `auth-mode open` on any `server` entry | Plain HTTP (`tls false`) and no-store HTTP downgrade remain allowed per `tls-listeners.md` | Serves as today |
+
 ### Entry Point
-- A gRPC call to a gNMI service method, carrying call metadata: `username` and `password`, or `authorization: Bearer <token>`, or nothing.
-- An HTTP request to a looking-glass route, carrying the credential D-2 selects, a bearer token, or nothing.
-- A config tree read at boot or at reload, and the environment, carrying each surface's `auth-mode`.
+
+1. **gNMI RPCs (`Capabilities`, `Get`, `Set`, `Subscribe`)**:
+   - `auth-mode user`: incoming gRPC metadata keys `username` and `password` (lowercase HTTP/2 headers per OpenConfig `gnmi-authentication.md` and `gnmic --username --password`). Single non-empty value required for each; missing, empty, or multi-valued metadata is rejected before calling the chain (except unknown username with valid non-empty strings always calls the chain so `LocalAuthenticator`'s dummy bcrypt runs).
+   - `auth-mode token`: incoming gRPC metadata key `authorization` with `Bearer <token>` (case-insensitive scheme, constant-time SHA-256 compare).
+   - `auth-mode none`: no credentials required (loopback-only); caller identity stamped as unauthenticated read-only.
+2. **Looking glass HTTP requests (`/lg/*`, `/api/looking-glass/*`, `/.well-known/looking-glass/*`)**:
+   - `auth-mode open`: no credentials required; caller identity stamped as `plugin.CallerIdentity{Username: aaa.ReservedSharedAPIUsername, RemoteAddr: r.RemoteAddr, Surface: audit.LookingGlass, ReadOnly: true}`.
+   - `auth-mode token`: `Authorization: Bearer <token>` (case-insensitive scheme, constant-time SHA-256 compare); on success, caller identity stamped as `aaa.ReservedSharedAPIUsername` with `ReadOnly: true`; on failure, HTTP 401 (`WWW-Authenticate: Bearer realm="looking glass"`, JSON on `/api/looking-glass/*`, JSend on `/.well-known/looking-glass/*`, plain/error-fragment on `/lg/*`) and `audit.ActionAuthFail` under `audit.LookingGlass`.
+   - `auth-mode user` (D-2, D-3, D-4):
+     - Static `/lg/assets/` and login routes (`GET /lg/login`, `POST /lg/login`, `POST /lg/logout`) bypass the authenticated-route gate so browsers can load and submit the login form.
+     - All other routes (`/lg/*`, `/api/looking-glass/*`, `/.well-known/looking-glass/*`) pass through one outer auth middleware wrapping the mux (before security headers).
+     - Credential resolution order on a request: (1) valid `ze-lg-session` cookie in the shared `httpsession.Store` (re-validates `UserGeneration` against live local users on every request when `Source == aaa.SourceLocal`); (2) `Authorization: Basic <base64(user:password)>` via `httpsession.ParseBasicAuth`, authenticated per-request through the live AAA chain with `Service: "looking-glass"` (creates no cookie/session).
+     - On authentication failure:
+       - If the remote IP exceeds the refused-login rate limit (`internal/core/authlimit`), reject before calling the chain with HTTP `429 Too Many Requests`, `Retry-After` header (whole seconds), and `ze_lg_login_refused_total{reason="limit"}` (JSON body on `/api/looking-glass/*`, JSend on `/.well-known/looking-glass/*`, error/form on `/lg/*`).
+       - Otherwise record `audit.ActionAuthFail` under `audit.LookingGlass` (never logging password bytes), increment `ze_lg_login_refused_total{reason="credential"|"service"}`, and return one uniform HTTP `401 Unauthorized` response across wrong password, unknown user, and login-service exclusion:
+         - `/api/looking-glass/*`: HTTP 401, `Content-Type: application/json`, `WWW-Authenticate: Basic realm="looking glass"`, body `{"error":"unauthorized"}`.
+         - `/.well-known/looking-glass/*`: HTTP 401, `Content-Type: application/json`, `WWW-Authenticate: Basic realm="looking glass"`, JSend body `{"status":"error","message":"unauthorized"}`.
+         - `/lg/*` HTML/HTMX: HTTP 401 rendering the LG login page/overlay (`login.templ`, matching web UI's `page_login.templ` with no `WWW-Authenticate` header so browsers do not pop up a competing native Basic Auth dialog).
+     - On `POST /lg/login`: rate-limit check -> AAA chain authenticate (`Service: "looking-glass"`) -> create session in `httpsession.Store` (32-byte hex token, 24h TTL, one session per user, `HttpOnly`, `SameSite=Strict`, `Secure: r.TLS != nil`) -> set `ze-lg-session` cookie -> HTTP 303 redirect to sanitized relative `return_to` (default `/lg/peers`, rejecting absolute/scheme-relative URLs).
+     - On `POST /lg/logout`: delete session from `httpsession.Store`, expire `ze-lg-session` cookie, redirect to `/lg/login`.
 
 ### Transformation Path
-1. Each surface's resolver answers the mode from the environment variable first and the config leaf second, the precedence the token already has (`resolveGNMIListeners`; the looking-glass block in `runYANGConfig`). gNMI with no mode stated resolves to `user`. The looking glass with no mode stated follows D-1.
-2. Validation judges the resolved settings before anything binds: an unknown mode, a token leaf without token mode, token mode without a token, `none` on a non-loopback listener, and a credential mode on a non-loopback listener without TLS are each refused with the fix.
-3. The hub hands the gated builder an authentication function over the live AAA chain and an audit recorder. Neither surface holds a user list or imports a backend.
-4. A request arrives. In user mode the surface builds an authentication request naming itself as the service and calls the chain. In token mode it compares digests and takes the shared API identity. In `none` (gNMI) or `open` (looking glass) it takes a read-only identity without a credential.
-5. A refused login answers the surface's one refusal for every cause, writes an `auth-fail` audit entry with the attempted name, and counts toward the refused-login limit for that remote address.
-6. An admitted gNMI call is authorized per RPC: Capabilities needs admission only; Get and Subscribe are authorized as a read of the running config; Set is authorized for every operation it carries and for the commit, before the session is entered.
-7. A gNMI Set enters, edits and commits its session under the caller's name, and the commit is audited under that name.
-8. A looking-glass query is dispatched with a named identity, never an empty one. Which identity is D-4.
-9. An open stream re-checks its identity each time it delivers: gNMI STREAM at each notification, `/lg/events` at each tick. A locally granted identity whose user has left the running config ends the stream.
-10. A reload that changes a surface's mode, token or TLS is refused, naming the restart.
+
+1. **Hub startup (`cmd/ze/hub/main.go`, `gnmi_infra.go`, `service_gnmi.go`, `service_lg.go`, `lg_transport.go`)**:
+   - Hub resolves `auth-mode` (env over config) for gNMI and looking glass, runs the shared exposure/TLS checks (`filterMgmtListener` / `planLGEndpoints`), and keeps only offending services/endpoints down via `reportServiceNotStarted` / `reportLGServerDown`.
+   - Hub passes three closures into `gnmi.Config` and `lg.LGConfig` (never concrete `aaa`/`authz` store state): `Authenticate func(aaa.AuthRequest) (aaa.AuthResult, error)` backed by `aaaBundle.Load()`, `LocalUsers func() ([]aaa.UserCredential, error)` backed by `liveAcceptedLocalUsers`, and `Authorizer func() aaa.Authorizer` backed by `liveLocalAuthorizer`, plus `AuditRecorder audit.Recorder`.
+2. **Shared session store (`internal/component/aaa/httpsession/store.go`)**:
+   - Owns `Store` (cookie token generation, 24h TTL, one session per user, `UserGeneration` re-verification against `LocalUsers`, `BindProfiles` per session, logout invalidation) and `ParseBasicAuth`.
+   - `internal/component/web/auth.go` delegates to `httpsession.Store` with cookie name `ze-session`; `internal/component/lg/auth.go` uses its own `httpsession.Store` instance with cookie name `ze-lg-session`.
+3. **Shared refused-login rate limiter (`internal/core/authlimit/limiter.go`)**:
+   - Pure stdlib core leaf exporting `DefaultMaxFailures = 10`, `DefaultWindow = time.Minute`, `MaxTrackedClients = 4096`, and `Limiter` with `Allow(remoteAddr string, now time.Time) (allowed bool, retryAfter time.Duration)` and `RecordFailure(remoteAddr string, now time.Time)`.
+   - Extracts client IP via `net.SplitHostPort` (so ephemeral source ports share one bucket), uses fixed-window counting with oldest-entry eviction at `MaxTrackedClients`, checks `Allow` BEFORE invoking the AAA chain/bcrypt, and records only refused logins (never successful logins).
+   - On gNMI, exceeding the limit returns `codes.ResourceExhausted` and increments `ze_gnmi_login_refused_total{reason="limit"}`. On LG, exceeding the limit returns HTTP 429 with `Retry-After` and increments `ze_lg_login_refused_total{reason="limit"}`.
+4. **gNMI per-RPC authorization and audit (`internal/component/api/config_auth.go`, `internal/component/gnmi/server.go`, `set.go`, `get.go`, `subscribe.go`)**:
+   - `Serve` ALWAYS installs both unary and stream auth interceptors inside the panic boundary, regardless of `auth-mode`. An empty/unknown `auth-mode` or nil `Authenticate` in `user` mode fails closed (`codes.Unauthenticated`).
+   - `checkAuth` attaches a `callerContext` (`plugin.CallerIdentity` plus `authSource`, `userGeneration`) to `ctx`:
+     - `user` mode: `Username: result.Username`, `RemoteAddr`, `Surface: audit.GNMI`, `ReadOnly: false`, `Authorizer: aaa.BindProfiles(liveAuthorizer, result.Profiles)`.
+     - `token` mode: `Username: aaa.ReservedSharedAPIUsername`, `RemoteAddr`, `Surface: audit.GNMI`, `ReadOnly: false`, `Authorizer: liveAuthorizer`.
+     - `none` mode: `Username: ""`, `RemoteAddr`, `Surface: audit.GNMI`, `ReadOnly: true`, `Authorizer: nil`.
+   - `Get` and `Subscribe` authorize `show config running` (`isReadOnly: true`) against `caller.Authorizer` before reading the config tree (returning `codes.PermissionDenied` if denied; `none` mode on loopback is permitted read-only).
+   - `Set` builds the exact list of required config permission strings before entering any session: `plugin.ConfigAuthEdit`, plus `plugin.ConfigAuthSet` if any `Update`/`Replace` is present, plus `plugin.ConfigAuthDelete` if any `Delete` is present, plus `plugin.ConfigAuthCommit`. It calls shared `api.AuthorizeConfigWrite(caller, required...)` (also called by `internal/component/api/grpc/server.go::requireWriteAccess`). If denied (including `caller.ReadOnly` in `none` mode), `Set` returns `codes.PermissionDenied` before `Sessions.Enter` is called and leaves the running config unchanged. On commit, `Set` passes `caller.Username` to `Sessions.Enter`/`SetSegments`/`DeleteSegments`/`Commit` and records `audit.ActionConfigCommit` with `Actor: caller.Username` under `audit.GNMI`. The constant `gnmiUsername` is deleted.
+   - `Subscribe` STREAM records the caller's `(username, authSource, userGeneration)` at stream start. On every change-notification delivery and on a periodic check (or config-reload wake-up from `ChangeNotifier`), if `authSource == aaa.SourceLocal` and the user is no longer in `LocalUsers()` or its `UserGeneration` changed, the stream immediately returns `codes.Unauthenticated` and closes.
+5. **Looking glass per-command RBAC & SSE revocation (`internal/component/lg/server.go`, `handler_ui.go`, `handler_api.go`, `handler_graph.go`, `handler_rfc8522.go`, `as_names.go`)**:
+   - Every handler threads `r.Context()` and the request's `plugin.CallerIdentity` into `askCtx`/`queryCtx` (deleting the zero-value `CallerIdentity{}` and `context.Background()` dispatches).
+   - Complete inventory of commands dispatched by `internal/component/lg`:
+
+| Surface | Dispatched commands | Behavior on `PermissionDenied()` |
+|---------|---------------------|----------------------------------|
+| Birdwatcher JSON (`/api/looking-glass/*`) | `show bgp`, `show version`, `show uptime`, `show reload-status`, `show bmp peers`, `show bgp rib` (`received`, `sent`, `best`, `protocol bmp`) | HTTP `403 Forbidden`, `Content-Type: application/json`, `{"error":"<command>: permission denied ..."}` via `writeJSONError` |
+| RFC 8522 JSend (`/.well-known/looking-glass/v1/*`) | `show bgp`, `show bgp rib`, `show ping`, `show traceroute`, `show route`, `show route lookup`, `show bgp peer` | HTTP `403 Forbidden`, `Content-Type: application/json`, JSend `{"status":"error","message":"<command>: permission denied ..."}` |
+| HTML / HTMX (`/lg/*`, `/lg/graph`) | `show bgp`, `show bmp peers`, `show bgp rib` | HTTP `403 Forbidden` (bare status / `errorfragment.Middleware` for `HX-Request`, or rendered error state with HTTP 403 status — never HTTP 200 with empty tables) |
+| SSE (`/lg/events`) | `show bgp` | Emits an error row on RBAC denial; closes the SSE stream immediately if `authSource == aaa.SourceLocal` and `LocalUsers()` shows the user was removed or `UserGeneration` changed |
+| Optional AS-name tooltip (`as_names.go`) | `resolve cymru asn-name <asn>` | Graceful degradation: if denied by RBAC, renders bare AS numbers without org names rather than failing the page or raising a DNS resolver warning |
+
+6. **Reload refusal hook (`cmd/ze/hub/mgmt_auth_reload.go`, `listener_migrate.go`, `main_reload.go`, `lg_transport.go`) — settling A-4**:
+   - **Looking glass**: `registerMgmtAuthReloaders` registers `lgAuthReloader(in)` under `svcLG` (where `lm.hasService(svcLG)` already checks `m.lg != nil`), and `markMgmtAuth` classifies `svcLG` (`authenticated = mode != "open"`). `lgAuthReloader` compares boot-time effective LG auth settings (`auth-mode`, `token`) against candidate effective settings; any change returns an operator error naming the offending leaf and `privilege.RestartRemedy()`. `checkLGTransport` also refuses any reload that leaves a non-loopback credential-mode (`token` or `user`) LG `server` entry on plain HTTP (`tls false` or unset `tls` without cert/store).
+   - **gNMI**: because gNMI is not migrated live by `listenerMigrator`, `listenerMigrator` records `gnmiRunning bool` and `gnmiAuthBase zeconfig.GNMIListenConfig` (immutable boot snapshot of `auth-mode`, `token`, `tls.cert`, `tls.key`, and whether config drove `enabled`) when `gnmiSrv != nil` in `runYANGConfig` (using only `zeconfig` types, keeping always-on hub code free of concrete `gnmi` imports). In `cmd/ze/hub/main_reload.go::runReloadContext`, right alongside the existing pre-apply gates (`checkLGTransport`, web cert check, `prepareManagedReload`) BEFORE `s.ReloadConfigWithSelection`, `lm.checkGNMIAuthReload(parsedTree)` compares the candidate gNMI auth/TLS settings against `gnmiAuthBase`. If `gnmiRunning` is true and `auth-mode`, `token`, or `tls.cert`/`tls.key` changed, reload is refused before any plugin applies, naming the leaf and `privilege.RestartRemedy()`. If `gnmiRunning` is false, editing a dormant `environment gnmi` block is allowed.
 
 ### Boundaries Crossed
+
 | Boundary | How | Verified |
 |----------|-----|----------|
-| Environment and config tree → resolved mode | The one resolver each surface already has for its token | Yes: `resolveGNMIListeners`; `ExtractLGSettings` and the env reads in `runYANGConfig` |
-| Hub → gated surface | The authentication function and the recorder ride the existing build inputs (`gnmiBuildInputs`, `serviceDeps`), as generic types | Yes for the seam; the chain function is a new field on both, and the recorder is new on `gnmiBuildInputs` |
-| Surface → AAA chain | `aaa.AuthRequest` with `Service` set, through `liveAAABundleAuthenticator` | Yes: the path SSH and web use |
-| Surface → login-set gate | The service name on the request | Depends on the sibling spec landing first |
-| gNMI → authorization | The caller's authorizer, asked about the config command names in `internal/component/api` | The decision function exists for gRPC; gNMI calling it is new |
-| gNMI → audit | `audit.Recorder` entries with surface `gnmi` | New: no `gnmi` surface constant exists |
-| Looking glass → dispatcher | `plugin.CallerIdentity` with a username | New: the caller is zero-value today |
+| Hub <-> gNMI (`ze_gnmi`) | `gnmiBuildInputs` closures (`Authenticate`, `LocalUsers`, `Authorizer`, `Recorder`) + `zeconfig.GNMIListenConfig` | No |
+| Hub <-> Looking Glass (`ze_lg`) | `serviceDeps` closures (`Authenticate`, `LocalUsers`, `Authorizer`, `Recorder`) + `zeconfig.LGListenConfig` | No |
+| Web / LG <-> `aaa/httpsession` | Direct import of always-on `internal/component/aaa/httpsession` (no `lg` <-> `web` coupling) | No |
+| gNMI / LG <-> `internal/core/authlimit` | Direct import of stdlib-only core leaf | No |
+| gNMI / gRPC <-> `internal/component/api` | Shared `api.AuthorizeConfigWrite` calling `caller.Authorizer.Authorize` with `plugin.ConfigAuth*` | No |
+| LG <-> Plugin Dispatcher | `s.dispatch.JSON(r.Context(), caller, cmd)` returning `interface{ PermissionDenied() bool }` on RBAC denial | No |
 
 ### Changed-Wire Census
 
-**Search evidence:** searched `test`, `docs` and `etc` for a `gnmi` or `looking-glass` config block (36 files, listed in Files to Modify by directory); `internal`, `cmd` and `pkg` for `NewGNMIClient` (the fixture and four test files); `internal` and `cmd` for `ze.gnmi.token`, `ze.looking-glass.token` and `LGToken` (seven non-test files); `internal/test` for a looking-glass `Bearer` header (two fixtures). Positive control: the search for `NewGNMIClient` finds `internal/test/fixture/plugin_fixture_config_refusal.go`, which `test/plugin/gnmi-set-enum-refusal.ci` runs.
+**Search evidence:** Scanned `internal/component/gnmi/`, `internal/component/lg/`, `internal/component/web/`, `internal/component/api/`, `internal/test/fixture/`, and `test/` for `authorization`, `username`, `password`, `ze-session`, `Bearer`, `Basic`, and `gnmic`. Positive controls confirmed: `internal/component/gnmi/server.go::checkAuth` reads `authorization` metadata, `internal/component/gnmi/gnmic_docker_test.go` passes `--token` to `gnmic`, `internal/component/lg/auth.go::bearerAuth` reads `Authorization: Bearer`, `internal/component/web/auth.go::parseBasicAuth` reads `Authorization: Basic` and `ze-session` cookies, and `test/plugin/lg-token-gate.ci` + `test/plugin/mgmt-guard-gnmi-nonloopback-refused.ci` exercise live daemon auth gates. No BGP wire bytes or plugin IPC protocol frames change; only management-plane HTTP/gRPC authentication metadata/headers and `show gnmi` JSON fields change.
 
 | Wire | Role (writer / reader) | Carrier (file + producer/consumer symbol or script entry) | Source evidence | Migration or preservation disposition |
 |------|------------------------|-----------------------------------------------------------|-----------------|----------------------------------------|
-| gNMI call metadata credential | reader | `internal/component/gnmi/server.go` `(*Server).checkAuth` | Reads `authorization` only, and only when a token is set | Change: reads `username` and `password` in user mode, `authorization` in token mode, nothing in `none` |
-| gNMI call metadata credential | writer | gnmic 0.49.1 `(*Target).appendCredentials`, outside the repository | Sends `username` and `password` for `--username`/`--password`; `--token` sends a bearer header | Preserve: Ze accepts what the client sends. Proven by the gnmic interop test |
-| gNMI call metadata credential | writer | `internal/component/gnmi/gnmic_docker_test.go` `runGnmic` | Passes `--token` | Change: token cases select token mode; new cases pass `--username` and `--password` |
-| gNMI call metadata credential | writer | `internal/test/fixture/plugin_fixture_config_refusal.go` | Dials gNMI for `gnmi-set-enum-refusal.ci`, whose config sets `token "secret"` | Change: the config states `auth-mode token`, and the fixture is unchanged |
-| gNMI call metadata credential | writer | `internal/component/gnmi/server_test.go`, `integration_test.go`, `secret_test.go`, `tls_test.go` | Build `Config` with or without a token | Change: each states the mode it means |
-| Looking-glass HTTP credential | reader | `internal/component/lg/auth.go` `bearerAuth` | Reads `Authorization: Bearer <token>` when a token is set | Change: one gate that reads the mode. The user-mode form is D-2 |
-| Looking-glass HTTP credential | writer | Browsers and birdwatcher clients such as Alice-LG, outside the repository | Send nothing today unless a proxy adds a header | Per D-2 and D-3 |
-| Looking-glass HTTP credential | writer | `internal/test/fixture/lg_pki_fixture.go`, `internal/test/fixture/plugin_fixture_09_shell.go` | Send no header, a wrong token and the right token | Preserve under token mode: the configs they run, the one embedded in the second fixture included, state `auth-mode token` |
-| `environment gnmi` and `environment looking-glass` config | reader | `internal/component/config/loader_extract.go` `extractGNMIBlock`, `extractLGBlock`; `resolveGNMIListeners`; `runYANGConfig` | Read `token`, never a mode | Change: read `auth-mode`; validation judges it |
-| `environment gnmi` and `environment looking-glass` config | writer | The repository's configs: the `.ci` files under `test/plugin`, `test/parse`, `test/ui`, `test/reload`, `test/stress/scenarios/05-profile-1m/ze.conf`, and the examples in `docs/guide/gnmi.md`, `looking-glass.md`, `looking-glass-howto.md`, `configuration.md`, `docs/config-reference.md` | 36 files carry one of the two blocks | Change: each is converted directly to state the mode it relies on. No migration is written |
-| Environment variables | reader | `internal/component/config/environment.go` registrations; `resolveGNMIListeners`; `runYANGConfig` | `ze.gnmi.token` and `ze.looking-glass.token` are registered; no mode variable exists | Change: `ze.gnmi.auth-mode` and `ze.looking-glass.auth-mode` are registered and read |
-| Environment variables | writer | `.ci` files that start a surface from the environment, such as `test/plugin/mgmt-guard-gnmi-env-started-token-survives.ci` | Set the token variable alone | Change: each sets the mode variable it relies on |
-| Audit entries | writer | `internal/component/gnmi`, `internal/component/lg` | Neither writes an entry | Change: `auth-fail` on both, `config-commit` on gNMI, under new surface names |
-| Audit entries | reader | `show audit` and the audit log (`docs/guide/audit.md`) | Lists entries by surface | Preserve the format; the surface vocabulary grows by two |
+| gNMI gRPC request metadata (`username`, `password`, `authorization`) | writer | `internal/component/gnmi/gnmic_docker_test.go` (`gnmic` 0.49.1 external client); external gNMI controllers (`gnmic`, Ansible) | Existing interop passes `--token`; `gnmic --username --password` sends lowercase `username`/`password` metadata per OpenConfig `gnmi-authentication.md` | Preserve `--token` in `token` mode; add `--username`/`--password` subtests in `user` mode |
+| gNMI gRPC request metadata (`username`, `password`, `authorization`) | reader | `internal/component/gnmi/server.go` (`checkAuth`) | Currently reads `authorization` only when `Token != ""` | Change: read `username`/`password` in `auth-mode user`, `authorization: Bearer` in `auth-mode token`, neither in `auth-mode none` |
+| Looking glass HTTP request credentials (`Authorization: Bearer`/`Basic`, `Cookie: ze-lg-session`) | writer | External browsers, Alice-LG, RFC 8522 scripts, `internal/test/fixture/lg_pki_fixture.go`, `internal/test/fixture/plugin_fixture_09_shell.go`, `test/plugin/lg-*.ci` | Existing fixtures/tests send no credentials or `Authorization: Bearer` without `auth-mode` | Change: state explicit `auth-mode` in repo configs/fixtures; send `POST /lg/login` + `Cookie: ze-lg-session` or `Authorization: Basic` in `user`-mode tests |
+| Looking glass HTTP request credentials (`Authorization: Bearer`/`Basic`, `Cookie: ze-lg-session`) | reader | `internal/component/lg/auth.go` (unified mode gate) and `internal/component/aaa/httpsession/store.go` (`ParseBasicAuth`, `ValidateCookie`) | Currently `bearerAuth` reads `Authorization: Bearer` only when `Token != ""` | Change: `open` accepts all, `token` preserves `Bearer`, `user` accepts `ze-lg-session` cookie or `Authorization: Basic` |
+| Looking glass HTTP auth responses (`Set-Cookie: ze-lg-session`, `WWW-Authenticate`, 401/403/429 bodies) | writer | `internal/component/lg/auth.go`, `internal/component/lg/server.go` (`askCtx`), `internal/component/lg/handler_api.go`, `internal/component/lg/handler_rfc8522.go`, `internal/component/aaa/httpsession/store.go` | Currently emits `WWW-Authenticate: Bearer realm="looking glass"` on 401 in token mode and 502 on command refusal | Change: preserve Bearer 401 in `token` mode; in `user` mode emit `Set-Cookie: ze-lg-session` on `POST /lg/login`, `WWW-Authenticate: Basic realm="looking glass"` on API 401s, login HTML form on `/lg/*` 401s, 403 on `PermissionDenied()`, and 429 with `Retry-After` on rate-limit |
+| Looking glass HTTP auth responses (`Set-Cookie: ze-lg-session`, `WWW-Authenticate`, 401/403/429 bodies) | reader | External browsers, Alice-LG, RFC 8522 scripts, `test/plugin/lg-*.ci` | Clients parse JSON on `/api/looking-glass/*`, JSend on `/.well-known/looking-glass/*`, and HTML/cookies on `/lg/*` | Preserve JSON/JSend framing on API endpoints (never HTML on API 401/403/429); browsers follow `/lg/login` form and store `ze-lg-session` |
+| Web UI HTTP credentials and session cookie (`Cookie: ze-session`, `Authorization: Basic`) | writer | `internal/component/web/auth.go` (delegating `Set-Cookie: ze-session` to `internal/component/aaa/httpsession/store.go`); web browsers and REST/API clients sending `Cookie: ze-session` or `Authorization: Basic` | Currently writes `Set-Cookie: ze-session` (`HttpOnly`, `SameSite=Strict`, `Secure`, 24h TTL) | Preserve exact wire format, cookie name `ze-session`, attributes, and Basic Auth behavior |
+| Web UI HTTP credentials and session cookie (`Cookie: ze-session`, `Authorization: Basic`) | reader | `internal/component/web/auth.go` (`AuthMiddlewareWithAudit` -> `internal/component/aaa/httpsession/store.go`); web browsers | Currently validates `ze-session` (with `UserGeneration` re-check) and parses `Authorization: Basic` | Preserve exact validation and revocation semantics via `aaa/httpsession` |
+| `show gnmi` JSON status | writer | `internal/component/gnmi/show.go` (`ServerStatus`, `handleShowGNMI`) | Currently emits `enabled`, `listen`, `token-set`, `tls`, `subscribers` | Change: add `auth-mode` (`user`\|`token`\|`none`) alongside existing fields (additive) |
+| `show gnmi` JSON status | reader | CLI/SSH/REST/gRPC/MCP/web `show gnmi` consumers and `test/plugin/gnmi-token-mode.ci` | Currently reads `enabled`, `listen`, `token-set`, `tls`, `subscribers` | Preserve all existing fields; new test asserts `auth-mode` |
 
 ### Integration Points
-- `liveAAABundleAuthenticator` (`cmd/ze/hub/aaa_lifecycle.go`) - the authenticator both surfaces receive from the hub.
-- `gnmiBuildInputs` (`cmd/ze/hub/gnmi_infra.go`) and `serviceDeps` (`cmd/ze/hub/service_registry.go`) - the seams the authenticator and the recorder ride. No field names a concrete surface type.
-- `resolveGNMIListeners` (`cmd/ze/hub/gnmi_infra.go`) - gains the mode, so the guard and the builder still agree by construction.
-- `GNMIListenConfig.Validate` and a new `LGListenConfig` validation (`internal/component/config/loader_extract.go`), both reported by `ValidateSemantics` - the offline refusals.
-- `requireWriteAccess` (`internal/component/api/grpc/server.go`) - its decision moves to `internal/component/api` and gains gNMI as a caller.
-- `registerMgmtAuthReloaders` (`cmd/ze/hub/mgmt_auth_reload.go`) - gains the two reloaders.
-- The login-service registry of the sibling spec - gains two names.
+- `internal/component/aaa/httpsession` - shared session store & Basic Auth parser used by both `web` and `lg`.
+- `internal/core/authlimit` - shared per-remote-IP refused-login limiter used by both `gnmi` and `lg`.
+- `internal/component/api/config_auth.go` - shared `AuthorizeConfigWrite` used by both `api/grpc` and `gnmi`.
+- `cmd/ze/hub/aaa_lifecycle.go` - supplies live `Authenticate`, `LocalUsers`, and `Authorizer` closures to both `gnmi` and `lg`.
+- `cmd/ze/hub/mgmt_auth_reload.go`, `listener_migrate.go`, `main_reload.go`, `lg_transport.go` - enforce reload refusal for LG and gNMI auth changes and non-loopback credential-mode TLS rules.
+- `internal/component/gnmi/doctor.go`, `internal/component/lg/doctor.go`, `internal/core/diagnostic/codes.go` - register `config-lg-invalid` and report both surfaces' auth/exposure findings in offline `ze doctor`.
+- `plan/release/fixes/spec-login-service-authorisation.md` - Phase 8 registers `"gnmi"` and `"looking-glass"` in `loginservice`.
 
 ### Architectural Verification
 | Check | Holds? | Evidence |
 |-------|--------|----------|
-| No bypassed layers (data flows through the intended path) | Yes | Both surfaces authenticate through the chain every login surface uses, and gNMI writes are authorized by the decision gRPC uses |
-| No unintended coupling (components stay isolated) | Yes | Neither surface imports a backend or another surface. The hub hands each a function. The section 19 table gains the `lg` and `gnmi` rows |
-| No duplicated functionality (extends existing, does not recreate) | Yes | No user list, no second write-authorization rule, no registry. The Existing Mechanisms table names what each piece extends |
-| Zero-copy preserved where applicable (refs, not copies) | N-A | Login path, no wire buffers |
-| Registration over hardcoding, outbound: new commands, views, families, and handlers register, and the core discovers them. No per-feature field, switch case, or factory is added to a core/shared package (`ai/rules/plugins.md`) | Yes | Each surface registers its login-service name and its reloader from its own gated file. `checkMgmtListeners` and the chain name no surface |
-| Registration over hardcoding, inbound: no existing switch, seed map, validator, parser, runner, help string, or completion table has to learn this feature's name. Evidence names every list that was searched for the names this feature introduces, and the registry each one now derives from (`ai/rules/principles.md`) | No | The audit surface names are a hand-written constant list (`internal/core/audit/audit.go`), and this spec adds two. The sibling spec's Known Limitations records that list as one of three that disagree and leaves reconciling them out of scope. `ValidateSemantics` names each surface it validates and gains a looking-glass entry. The login-service names derive from the sibling's registry |
+| No bypassed layers (data flows through the intended path) | Yes | Both surfaces call the hub-provided AAA chain closure, authorize through `aaa.Authorizer` / `plugin/server` dispatcher, and audit through `audit.Recorder` |
+| No unintended coupling (components stay isolated) | Yes | `lg` imports `aaa` (`aaa/httpsession`) and never `web`; both import `internal/core/authlimit`; always-on `hub` imports neither `gnmi` nor `lg` directly |
+| No duplicated functionality (extends existing, does not recreate) | Yes | Session cookies extracted to `aaa/httpsession`; write auth extracted to `api.AuthorizeConfigWrite`; rate limiter shared in `internal/core/authlimit`; config validation shared in `loader_extract.go` |
+| Zero-copy preserved where applicable (refs, not copies) | N/A | Management-plane auth metadata and HTTP requests are outside BGP wire hot paths |
+| Registration over hardcoding, outbound | Yes | Doctor checks register via `diagnostic.RegisterDoctorCheck`; service blocks already register via `zeconfig.RegisterServiceBlock`; login-service names register in `loginservice` (Phase 8) |
+| Registration over hardcoding, inbound | Yes | Searched `audit.go`, `codes.go`, `environment.go`, `validate_semantic.go`, `mgmt_auth_reload.go`; only the surface-owned registries/maps learn `looking-glass`/`gnmi` auth-mode, with zero per-user lists or hardcoded credentials |
 
 ## Risks & Assumptions
 
 ### Assumptions
 | ID | Assumption | Basis (file/doc/user statement) | If wrong | Validated by | Status |
 |----|-----------|--------------------------------|----------|--------------|--------|
-| A-1 | gnmic sends the per-user credential as the metadata keys `username` and `password` | `(*Target).appendCredentials` in gnmic 0.49.1, read through a fetch tool, and the gNMI authentication text | Ze reads the wrong keys and no real client can log in | AC-11, the gnmic interop test with `--username` and `--password` | unvalidated |
-| A-2 | The hub can hand the live chain to the gated gNMI builder without the always-on code naming a gNMI type | `gnmiBuildInputs` already carries generic inputs across the seam | The seam grows a concrete type and the compile-out breaks | `./le arch tier check`, and the `ze_gnmi`-absent build tag test in `cmd/ze/hub` | unvalidated |
-| A-3 | The bundle exists before gNMI and the looking glass accept a request | Both are built in `runYANGConfig` after infra setup publishes the boot bundle | An early request finds no chain. The design answer is refusal, never admission | A unit test that calls the gNMI authentication function with an empty bundle slot and expects a refusal | unvalidated |
-| A-4 | A gNMI reload reloader can refuse a change although gNMI has no listener-migrator slot | `resolveAuthIntents` skips a name with no handle, per the comment on `markMgmtAuth` | The refusal needs a different hook, such as the config verify step; the criterion (AC-12) does not change | The implementation names the hook before Phase 6 and proves AC-12 through a real reload | unvalidated |
-| A-5 | Converting every repository config to state a mode leaves no test relying on inference | The census lists 36 files | A test passes only because the new behavior removed what it checked | Each converted `.ci` is run, and the functional suites the change reaches are run once | unvalidated |
-| A-6 | A looking-glass query with an empty username is denied on a daemon that configures authorization profiles | `(*Store).Authorize` denies an empty username; read, not run | The reserved identity of Transformation step 8 is still required for audit, and AC-14's red-before expectation changes to green | `lg-open-mode-with-authorization-profiles.ci`, run against HEAD first | unvalidated |
-| A-7 | The refused-login limit can key on the remote address | Both surfaces see the peer address (`peer.FromContext`, the HTTP remote address) | Behind a proxy every client shares one address, and the limit throttles everyone | The guide states the proxy case; AC-13 is proven on a direct connection | unvalidated |
+| A-1 | `gnmic` 0.49.1 sends lowercase `username` and `password` gRPC metadata headers when invoked with `--username` and `--password` | OpenConfig `gnmi-authentication.md`; `gnmi/gnmic_docker_test.go` | gNMI would reject real `gnmic` logins; read exact metadata keys from wire and adjust | `TestGnmicInterop` user-mode subtests | unvalidated |
+| A-2 | Always-on hub code (`service_registry.go`, `main.go`) can pass `Authenticate`, `LocalUsers`, and `Authorizer` closures to tagged `service_gnmi.go` and `service_lg.go` using only `aaa` types | `internal/component/aaa` is always-on (`core-design.md` §19); `gnmi_infra.go` and `service_registry.go` already pass `audit.Recorder` | Introduce a narrow hub-internal callback struct carrying `aaa` types | Unit compile across `-tags ze_core` and full daemon tags | confirmed-by-source |
+| A-3 | `LocalAuthenticator.Authenticate` always executes a dummy bcrypt comparison on unknown usernames so calling the chain prevents user-existence timing leaks | `internal/component/authz/auth.go` (`LocalAuthenticator.Authenticate`) | Surface would need its own dummy hash path | Unit test `TestGNMIUserLoginAlwaysCallsTheChain` and `TestLGUserLoginAlwaysCallsTheChain` | confirmed-by-source |
+| A-4 | gNMI auth/TLS reload refusal can run cleanly in `cmd/ze/hub/main_reload.go::runReloadContext` via a `listenerMigrator` snapshot check before `ReloadConfigWithSelection` without migrating gNMI listeners or importing `gnmi` | `cmd/ze/hub/main_reload.go::runReloadContext` already runs `checkLGTransport`, web cert check, and `prepareManagedReload` before `ReloadConfigWithSelection`; `listener_migrate.go` already tracks `svcLG` via `lm.setLG` | Move check into a pre-reload callback hook registered from `gnmi_infra.go` | `gnmi-auth-reload-refused` and `lg-auth-reload-refused` | confirmed-by-source |
+| A-5 | Converting all existing repository configs/fixtures that enable gNMI or looking glass to state an explicit `auth-mode` leaves no broken tests | Pre-release policy (`ai/META-DECISIONS.md`): no silent mode inference | Missed configs fail under `config-lg-invalid` or `auth-mode user` default and are converted in Phase 2 | Functional suites (`plugin`, `parse`, `ui`, `reload`) | unvalidated |
+| A-6 | Passing `Username: aaa.ReservedSharedAPIUsername` (`"\x00ze:shared-api"`) on LG `open`/`token` dispatches is admitted by `(*authz.Store).Authorize` when `system authorization` profiles exist, whereas today's zero-value `CallerIdentity{}` fails under profiles | `internal/component/authz/authz.go` (`(*Store).Authorize`) and `internal/component/aaa/reserved.go` | Add explicit open-mode exemption or adjust `ReservedSharedAPIUsername` handling in `authz` | Wiring test `lg-open-mode-with-authorization-profiles` | confirmed-by-source |
 
 ### Risks
 | ID | Risk | Early signal | Mitigation / fallback |
 |----|------|--------------|----------------------|
-| R-1 | The public looking glass is lost, and a public route viewer starts refusing | A looking-glass suite test fails on a config that selects open | AC-14 pins open as a selectable mode that serves every route with no credential |
-| R-2 | gNMI gains a username but no authorization, so any admitted user may write | An admitted caller's Set succeeds under a profile that denies it | AC-3 and AC-4 assert the refusal and the unchanged config |
-| R-3 | A password crosses the network in clear | A user-mode listener on a non-loopback address without TLS starts | AC-8 refuses it at validation and at boot, on both surfaces |
-| R-4 | A removed user keeps a stream | A STREAM or `/lg/events` connection outlives the user's removal | AC-9 and AC-18 |
-| R-5 | Per-request password verification is an unthrottled cost and an online oracle on a surface meant to face the internet | A burst of wrong passwords from one address each costs a bcrypt comparison | AC-13 limits refused logins per remote address |
-| R-6 | A read-only gNMI user decodes every `$9$` secret | A profile intended as read-only is granted the running-config read | The guide states that the read exposes every reversible secret, and AC-4 proves a profile can deny it |
-| R-7 | The two surfaces are done separately and only one lands, leaving the login-set gate with a hole | A merged change covering one surface | Both are in this spec on purpose. gNMI can land first only if the looking-glass decisions are still open, and the spec then stays open |
-| R-8 | A reload changes the mode in the config while the listener keeps the old one | `show gnmi` reports a mode the config no longer states | AC-12 |
-| R-9 | The post-release TACACS+ accounting work assumes gNMI writes have no user | `plan/post-release/features/spec-tacacs-chap-mschap-login.md` AC-18 plans a `NOT_SET` accounting record for a gNMI Set | That spec owns the journal row and the accounting. Its premise changes when this lands, and Known Limitations names it |
+| R-1 | Moving `web`'s `SessionStore` into `internal/component/aaa/httpsession` breaks a web auth test, cookie attribute, or revocation edge case | Web unit tests (`auth_test.go`, `auth_session_revocation_test.go`, `handler_golden_test.go`) fail | Preserve exact `SessionStore` semantics and run `internal/component/web` unit tests immediately after extraction |
+| R-2 | A `ze start` with missing LG `auth-mode` or exposed credential-mode LG listener exits 1 instead of isolating the service/endpoint | `lg-auth-mode-unset` or `lg-credential-mode-requires-tls` sees daemon exit instead of `Ze running` + `doctor-service-not-started` | Follow `RegisterServiceBlock` + `reportServiceNotStarted` / `reportLGServerDown` patterns already tested in `mgmt-guard-gnmi-nonloopback-refused.ci` |
+| R-3 | Denying `resolve cymru asn-name` in LG `user` mode breaks peer/graph pages with 403 even when the user is allowed `show bgp` and `show bgp rib` | `lg-user-query-authorization` fails to render peers page for a BGP-only profile | Treat `PermissionDenied()` from `resolve cymru asn-name` in `as_names.go` as silent bare-ASN degradation (no 403, no DNS warning) |
+| R-4 | A gNMI `Set` fails halfway through authorization after opening a config session or partially applying edits | `gnmi-user-set-denied` sees dirty session or mutated running config | Collect all required `plugin.ConfigAuth*` operations up front and authorize every one via `api.AuthorizeConfigWrite` BEFORE `Sessions.Enter` |
+| R-5 | A removed local user's open gNMI `Subscribe` STREAM or LG `/lg/events` SSE stream continues delivering updates after reload | `gnmi-stream-ends-on-user-removal` or `lg-events-ends-on-user-removal` receives an event after reload | Re-check `LocalUsers()` and `UserGeneration` before sending each event AND on reload/tick wake-up, closing immediately on mismatch |
 
 ## Blast Radius
 
 | Question | Answer |
 |----------|--------|
-| What breaks if this is wrong? | Too strict: a monitoring system loses gNMI, or a public looking glass starts refusing; both are visible at once. Too permissive is quieter: a local process keeps writing config with no credential, a password crosses a network in clear, or a removed user keeps a stream |
-| How is it reverted? | Single commit revert per landed piece. A config that states the new `auth-mode` leaf must be edited before an older daemon accepts it |
-| Who else touches this path? | `plan/release/fixes/spec-login-service-authorisation.md` builds the gate and lands first; its Files to Modify still plans to add the service name to the authentication request, which `aaa.AuthRequest.Service` already carries. `plan/post-release/features/spec-tacacs-chap-mschap-login.md` owns gNMI Set accounting. `plan/release/fixes/spec-improve-2-gnmi-state.md` edits `internal/component/gnmi/get.go` |
+| What breaks if this is wrong? | Management-plane auth bypass or lockout on gNMI or looking glass; broken web UI login if `httpsession` extraction regresses; broken `.ci` tests if repo configs omit `auth-mode`. BGP routing and forwarding plane are untouched. |
+| How is it reverted? | Single commit revert (pre-release); repo configs revert together with the schema changes. |
+| Who else touches this path? | `plan/release/fixes/spec-login-service-authorisation.md` (adds `loginservice` registry and `AuthRequest.Service` check; Phase 8 joins it); `plan/post-release/features/spec-tacacs-chap-mschap-login.md` (future TACACS+ accounting for gNMI Set). |
 
 ## Wiring Test (MANDATORY -- NOT deferrable)
 
-| Entry Point | → | Feature Code | Test |
-|-------------|---|--------------|------|
-| A gNMI call with `username` and `password` metadata on a daemon in user mode | → | `(*Server).checkAuth` and the hub's chain function | `test/plugin/gnmi-user-login.ci` <!-- doc-links: ignore (planned by this spec, written when the spec is implemented) --> |
-| A gNMI Set by a user whose profile denies config writes | → | the shared write decision in `internal/component/api`, called from `(*Server).Set` | `test/plugin/gnmi-user-set-denied.ci` <!-- doc-links: ignore (planned by this spec, written when the spec is implemented) --> |
-| A gNMI Set with no credential on a loopback listener in `none` mode | → | the read-only identity in `(*Server).checkAuth` | `test/plugin/gnmi-none-mode-read-only.ci` <!-- doc-links: ignore (planned by this spec, written when the spec is implemented) --> |
-| A daemon started with gNMI in user mode on a non-loopback address without TLS | → | `GNMIListenConfig.Validate` and the boot check | `test/plugin/gnmi-user-mode-requires-tls.ci` <!-- doc-links: ignore (planned by this spec, written when the spec is implemented) --> |
-| A reload that removes a user holding a gNMI STREAM | → | the re-check in `(*Server).handleSubscribeStream` | `test/reload/gnmi-stream-ends-on-user-removal.ci` <!-- doc-links: ignore (planned by this spec, written when the spec is implemented) --> |
-| gnmic with `--username` and `--password` against a user-mode server | → | `(*Server).checkAuth` | `TestGnmicInterop` (`internal/component/gnmi/gnmic_docker_test.go`), user-mode subtests |
-| A looking-glass request against a server configured open | → | the resolved mode in the looking-glass gate (`internal/component/lg/auth.go`) | `test/plugin/lg-open-mode-stays-public.ci` <!-- doc-links: ignore (planned by this spec, written when the spec is implemented) --> |
-| A looking-glass request against a server configured for users | → | the user branch of the looking-glass gate | `test/plugin/lg-user-login.ci` <!-- doc-links: ignore (planned by this spec, written when the spec is implemented) --> |
-| A reload that removes a user holding `/lg/events` | → | the re-check in `(*LGServer).handleUIEvents` | `test/reload/lg-events-ends-on-user-removal.ci` <!-- doc-links: ignore (planned by this spec, written when the spec is implemented) --> |
+| Entry Point | -> | Feature Code | Test |
+|-------------|----|--------------|------|
+| `environment gnmi` (`auth-mode user`) + gRPC `username`/`password` metadata | -> | `gnmi.Server.checkAuth` -> hub AAA chain -> `gnmi.Set` / `api.AuthorizeConfigWrite` -> `audit.Recorder` | `gnmi-user-login`, `gnmi-user-set-denied`, `gnmi-user-commit-audited` |
+| `environment gnmi` (`auth-mode none` on loopback) | -> | `gnmi.Server.checkAuth` (`ReadOnly: true`) -> `api.AuthorizeConfigWrite` refusal | `gnmi-none-mode-read-only` |
+| `environment looking-glass` (`auth-mode open`) with `system authorization` profiles | -> | `lg.Server.queryCtx` (`ReservedSharedAPIUsername`) -> `plugin/server` dispatcher | `lg-open-mode-with-authorization-profiles` |
+| `environment looking-glass` (`auth-mode user`) browser form & Basic Auth on `/lg/*`, `/api/looking-glass/*`, `/.well-known/looking-glass/*` | -> | `lg.Server.authMiddleware` -> `aaa/httpsession.Store` -> hub AAA chain -> per-command RBAC (`PermissionDenied()`) | `lg-user-login`, `lg-user-query-authorization`, `lg-user-mode-birdwatcher` |
+| `environment looking-glass` missing `auth-mode` (config or env) | -> | `LGListenConfig.Refusals()` / `service_lg.go` -> `reportServiceNotStarted` | `lg-auth-mode-unset` |
+| SIGHUP reload changing gNMI or looking-glass auth settings | -> | `runReloadContext` (`lm.checkGNMIAuthReload`) & `registerMgmtAuthReloaders` (`lgAuthReloader`) | `gnmi-auth-reload-refused`, `lg-auth-reload-refused` |
+| Local user removed on reload while gNMI STREAM or LG SSE is open | -> | `gnmi.Subscribe` / `lg.handleUIEvents` `UserGeneration` check | `gnmi-stream-ends-on-user-removal`, `lg-events-ends-on-user-removal` |
 
 ## Acceptance Criteria
 
-"Red at HEAD" says what the test shows before the change. A row with no such
-note has no HEAD behavior to compare, because the mode it needs does not exist.
-
 | AC ID | Input / Condition | Expected Behavior | Permitted Survivors and Why |
 |-------|-------------------|-------------------|-----------------------------|
-| AC-1 | gNMI in user mode over TLS. A Capabilities, a Get and a Subscribe ONCE, each with a configured user's `username` and `password` metadata | Each is answered. The daemon log names that user and the `gnmi` surface for the call | Token and `none` modes, when the config selects them: an operator may still run a shared-token collector or a loopback reader |
-| AC-2 | The same server. A call with an unknown username, one with a known username and a wrong password, one with no metadata, and one with a bearer token | Each ends `Unauthenticated` with one message, identical across the four. Each writes an `auth-fail` audit entry with surface `gnmi`, the attempted name where one was sent, and the remote address. `ze_gnmi_login_refused_total` rises by four. Red at HEAD: the two keys are not read | None. In user mode no other credential admits a caller |
-| AC-3 | User mode. A Set by a user whose profile denies `config set`, then the same Set by a user whose profile permits it | The first ends `PermissionDenied`, the running config is byte-identical, and no config session remains. The second commits. Red at HEAD: no authorizer is consulted | The denied user's reads, where the profile permits them: write and read are separate grants |
-| AC-4 | User mode. A Get and a Subscribe by a user whose profile denies `show config running` | Both end `PermissionDenied` and return no value. A user whose profile permits it is answered | Capabilities for the denied user: it publishes models and encodings, not config |
-| AC-5 | User mode. User `alice` commits a Set | `show audit` lists one `config-commit` entry with actor `alice`, surface `gnmi`, her remote address and the diff. The commit's log lines carry `user=alice`. The constant actor `gnmi` appears in neither. Red at HEAD: the actor is the constant `gnmi` and no audit entry is written | None |
-| AC-6 | gNMI with `auth-mode token` and a token, over TLS. A Get and a Set with the bearer token; a Get with a wrong token | The first two are answered and the Set commits, audited under the shared API identity. The wrong token ends `Unauthenticated` | Per-user credentials are refused in this mode: one mode is in force at a time |
-| AC-7 | gNMI with `auth-mode none` on a loopback listener. A Get, a Subscribe ONCE and a Set, with no credential | The Get and the Subscribe are answered. The Set ends `PermissionDenied` and the running config is byte-identical. Red at HEAD: the Set commits | Unauthenticated reads on loopback: that is what the mode is for, and a local process can read the config file anyway |
-| AC-8 | Six configs, each through `ze config validate` and through a daemon start: `none` with a non-loopback listener; user mode on a non-loopback listener with no TLS; token mode on a non-loopback listener with no TLS; a `token` leaf under user mode; token mode with no token; an unknown mode value | Each is refused before anything binds. `ze config validate` reports `config-gnmi-invalid`, and both name the leaf and the fix. Red at HEAD for the second to sixth; the first is today's refusal, kept | A loopback listener in any mode without TLS, pending D-5 |
-| AC-9 | User mode. Local user `bob` holds a Subscribe STREAM and local user `alice` holds another. A reload removes `bob` | `bob`'s stream ends `Unauthenticated` before the reload notification reaches it. `alice`'s stream receives that notification. Red at HEAD: both receive it | A stream whose user a remote backend (RADIUS, TACACS+) granted is not ended by a local config change, as the web rule already holds |
-| AC-10 | A user whose login set excludes `gnmi` presents a correct password; then a config naming `gnmi` and `looking-glass` in a login set is validated | The login is refused exactly as AC-2's wrong password is. The config validates, and CLI completion offers both names. Depends on the sibling spec | A user naming no login set, per that spec's default |
-| AC-11 | gnmic 0.49.1 with `--username` and `--password` against a user-mode server over TLS: capabilities, get, subscribe once, set; then a wrong password; then `--token` against a token-mode server | The first four succeed with the answers `TestGnmicInterop` already asserts. The wrong password fails with `Unauthenticated`. The token case still succeeds | None |
-| AC-12 | A running daemon. A reload whose config changes gNMI's `auth-mode` or `token`; then the same for the looking glass | Each reload is refused, the message names the leaf and `ze signal restart`, and the running listener still enforces the mode it started with. Red at HEAD: the reload is accepted and the listener keeps the old setting | A reload that changes neither surface's authentication is applied as today |
-| AC-13 | One remote address sends refused logins up to the fixed limit within the fixed window, on gNMI and then on the looking glass in user mode | The next attempt inside the window is refused with the surface's rate-limit answer (`ResourceExhausted`; HTTP 429 with `Retry-After`), and the password it carries is never compared. A correct login from another address is admitted at the same moment. The limit and window are one constant each, and the test reads them | Refused attempts below the limit: they cost a comparison each, which is the price of telling a user their password is wrong |
-| AC-14 | A looking glass with `auth-mode open`, on a daemon that also configures `system authorization` profiles | Every page and every `/api/looking-glass/*` route answers with data and with no credential | A-6 decides whether this is red at HEAD |
-| AC-15 | A looking glass with `auth-mode token`. A request with the token, one with a wrong token, one with none | The first is served; the others get 401 with the `WWW-Authenticate` header, as `lg-token-gate.ci` asserts today | None |
-| AC-16 | A looking glass in user mode, over TLS. A request with a configured user's credential in the form D-2 selects | The page is served, and the daemon log names that user and the looking-glass surface. Blocked by D-2 | Open and token modes when selected |
-| AC-17 | A looking glass that starts with no `auth-mode` stated, from a config block and then from the environment alone | The behavior D-1 selects, the same from both sources. Blocked by D-1 | None in the mode not chosen |
-| AC-18 | User mode. Local user `bob` holds `/lg/events`. A reload removes `bob` | The stream closes at the next tick, and that tick's event is the last it could have sent. Blocked by D-2 for how the stream is opened | A stream of a remotely granted user, as in AC-9 |
-| AC-19 | User mode. A query by an admitted user whose profile lacks the command the page dispatches | The answer D-4 selects: the page's data under the reserved identity, or the looking glass's refusal body. Blocked by D-4 | None in the option not chosen |
-| AC-20 | User mode. A birdwatcher request to `/api/looking-glass/status` with and without a credential | The answer D-3 selects. An admitted request's body is byte-identical to open mode's. Blocked by D-3 | None in the option not chosen |
-| AC-21 | Looking-glass validation: user or token mode on a non-loopback listener that will serve plaintext; a `token` leaf without token mode; token mode with no token; an unknown mode | Each is refused by `ze config validate` and at start, naming the leaf and the fix. The warned fallback to plaintext in `buildLGService` becomes that refusal in a credential mode. Red at HEAD: a token over plaintext on a non-loopback address starts | `open` mode over plaintext: it carries no credential, and a proxy in front may serve TLS |
-| AC-22 | `ze.gnmi.auth-mode` and `ze.looking-glass.auth-mode` set in the environment of a daemon whose config states another mode | The environment value is in force, as it is for each surface's token | None |
+| AC-1 | gNMI enabled with `auth-mode user` (or `auth-mode` omitted, since `user` is default); client sends valid `username` and `password` gRPC metadata for a local (or AAA-chain) account | `Capabilities`, `Get`, `Subscribe`, and authorized `Set` succeed under that user's identity; invalid password, unknown username, or missing metadata each return `codes.Unauthenticated` with one uniform error message and record `audit.ActionAuthFail` under `audit.GNMI` (without logging password bytes). Red at HEAD: gNMI has no `user` mode or metadata login | None: no credential-bearing error distinguishes unknown user from wrong password |
+| AC-2 | gNMI `auth-mode user` with an unknown username and non-empty password | `checkAuth` invokes the AAA chain closure (so `LocalAuthenticator` executes its dummy bcrypt comparison) before returning `codes.Unauthenticated`. Red at HEAD: no chain invocation exists | Missing/empty metadata keys or rate-limited remote IPs short-circuit before the chain because neither leaks username existence |
+| AC-3 | gNMI `auth-mode user` caller whose authorization profile denies `config set`, `config delete`, or `config commit` sends a `Set` requiring that operation | `Set` evaluates every required `plugin.ConfigAuth*` permission via shared `api.AuthorizeConfigWrite` BEFORE `Sessions.Enter`, returns `codes.PermissionDenied`, and leaves running config unchanged; an authorized caller's `Set` commits and modifies running config. Red at HEAD: `Set` checks no authorization profile | Operations a `Set` request does not contain (e.g., `config delete` on an update-only `Set`) are not required for that request |
+| AC-4 | gNMI `auth-mode user` caller whose authorization profile denies `show config running` calls `Get` or `Subscribe` | `Get` and `Subscribe` check `show config running` (`isReadOnly: true`) via `caller.Authorizer` and return `codes.PermissionDenied`; an authorized caller receives the config with `$9$`-encoded secrets. Red at HEAD: `Get` and `Subscribe` never call an authorizer | `Capabilities` remains accessible to any authenticated caller because it discloses only supported YANG models/encodings, never running config or secrets |
+| AC-5 | gNMI `auth-mode user` caller commits a `Set` | `audit.Recorder` records `audit.ActionConfigCommit` under `audit.GNMI` with `Actor` equal to the authenticated username (and `aaa.ReservedSharedAPIUsername`, `"\x00ze:shared-api"`, verbatim in `token` mode); `gnmiUsername` constant no longer exists in the codebase. Red at HEAD: actor is hardcoded `"gnmi"` | None: constant `"gnmi"` actor is deleted completely |
+| AC-6 | gNMI configured with `auth-mode token` and a non-empty `token` | Requests with `authorization: Bearer <token>` succeed as `aaa.ReservedSharedAPIUsername` (`"\x00ze:shared-api"`); requests with missing/wrong token or `username`/`password` metadata alone return `codes.Unauthenticated` and record `audit.ActionAuthFail`. Red at HEAD: `auth-mode token` leaf does not exist and actor is `"gnmi"` | Loopback `auth-mode token` without TLS remains allowed per D-5 |
+| AC-7 | gNMI configured with `auth-mode none` on loopback (`127.0.0.1` or `::1`) | `Capabilities`, `Get`, and `Subscribe` succeed without credentials; `Set` returns `codes.PermissionDenied` before opening a session, leaving running config unchanged. Preserved behavior at HEAD, re-keyed from empty `token` to explicit `auth-mode none` | Read-only loopback queries remain permitted because `auth-mode none` is an explicit loopback-only read-only mode |
+| AC-8 | Invalid gNMI auth/exposure configuration: unrecognized `auth-mode`, `token` mode with empty token, `user`/`none` mode with non-empty token, `none` mode on non-loopback, or `user`/`token` mode on non-loopback without both `tls.cert` and `tls.key` | `ze config validate`, commit, reload, and offline `ze doctor` refuse the config with `config-gnmi-invalid` naming the offending setting and its fix; at `ze start` ("Ze always starts"), gNMI (or its exposed non-loopback listener) is not started and is reported via `reportServiceNotStarted` (`doctor-service-not-started`) while `ze` keeps running. Red at HEAD: mode/companion-leaf rules do not exist | Plaintext gNMI on loopback (`127.0.0.0/8`, `::1`) remains allowed in all three modes per D-5 |
+| AC-9 | Authenticated local user opens a gNMI `Subscribe` STREAM; a config reload removes that user or changes that user's password/profiles | The stream ends promptly with `codes.Unauthenticated` and delivers no post-reload notifications; a reload editing an unrelated user keeps the stream alive. Red at HEAD: STREAM never checks `UserGeneration` | Streams authenticated by a remote AAA backend (TACACS+/RADIUS) are not checked against local `UserGeneration`, matching web UI behavior |
+| AC-10 | Sibling `spec-login-service-authorisation` lands and excludes a user from `gnmi` or `looking-glass` | Both surfaces register their login-service names (`"gnmi"`, `"looking-glass"`) and pass `aaa.AuthRequest.Service`; an excluded user receives the same uniform `codes.Unauthenticated` / HTTP 401 refusal as a wrong password and increments `ze_*_login_refused_total{reason="service"}`. Red until Phase 8 joins the sibling spec | Users whose allowed-services list includes the surface (or has no restriction) continue to log in |
+| AC-11 | `TestGnmicInterop` (tag `docker`, `gnmic` 0.49.1) runs against a Ze daemon with TLS and `auth-mode user` | Real `gnmic --username --password` succeeds for `capabilities`, `get`, `subscribe --mode once`, and `set`, and fails with wrong password; existing `--token` subtests pass in `auth-mode token`. Red at HEAD: no user-mode subtests or gNMI user auth | None: real client proves wire compatibility |
+| AC-12 | Running daemon receives a reload changing gNMI `auth-mode`, `token`, or `tls` (`cert`/`key`), or changing looking-glass `auth-mode` or `token` | Reload is refused as a whole before any plugin applies; error message names the changed leaf and `privilege.RestartRemedy()`; running listener continues enforcing its boot settings. Red at HEAD: reload is accepted and silently ignored | Reloads that do not change a running surface's auth/TLS settings, or edit a dormant (non-running) gNMI block, apply normally |
+| AC-13 | One remote IP submits more than `authlimit.DefaultMaxFailures` (10) refused logins within `authlimit.DefaultWindow` (1 minute) on gNMI or looking glass | The 11th attempt within the window is rejected BEFORE invoking the AAA chain/bcrypt, returning `codes.ResourceExhausted` on gNMI and HTTP `429 Too Many Requests` with `Retry-After` on looking glass, and incrementing `ze_gnmi_login_refused_total{reason="limit"}` / `ze_lg_login_refused_total{reason="limit"}`; another remote IP is unaffected and successful logins do not consume the budget. Red at HEAD: no refused-login rate limiter exists | Loopback/other client IPs have independent buckets; legitimate traffic after the window expires succeeds |
+| AC-14 | Looking glass configured with `auth-mode open` (including when `system authorization` profiles are active) | HTML pages, `/api/looking-glass/*`, `/.well-known/looking-glass/*`, and `/lg/events` serve without credentials using `aaa.ReservedSharedAPIUsername`, including when authorization profiles are configured. Red at HEAD: `auth-mode open` leaf does not exist and zero-value `CallerIdentity{}` is dispatched | None: public looking glass remains fully functional when explicitly selected |
+| AC-15 | Looking glass configured with `auth-mode token` and a non-empty `token` | Requests with `Authorization: Bearer <token>` succeed as `aaa.ReservedSharedAPIUsername`; missing or wrong tokens return HTTP 401 (`WWW-Authenticate: Bearer realm="looking glass"`, JSON on `/api/looking-glass/*`, JSend on `/.well-known/looking-glass/*`) and record `audit.ActionAuthFail` under `audit.LookingGlass`. Red at HEAD: `auth-mode token` leaf and `audit.LookingGlass` do not exist | Loopback `auth-mode token` without TLS remains allowed |
+| AC-16 | Looking glass configured with `auth-mode user` (D-2) | Browser `GET /lg/peers` without credentials returns HTTP 401 rendering the LG login form (no `WWW-Authenticate` header, `/lg/assets/` accessible); `POST /lg/login` with valid AAA credentials sets `ze-lg-session` (`HttpOnly`, `SameSite=Strict`, `Secure` over TLS, 24h TTL, one session/user) and redirects to `return_to` (default `/lg/peers`); `POST /lg/logout` invalidates the session; HTTP `Authorization: Basic` authenticates statelessly without creating a cookie; wrong password, unknown user, and excluded user all return the same 401 and record `audit.ActionAuthFail` under `audit.LookingGlass`. Red at HEAD: no LG `user` mode or login form exists | `/lg/assets/`, `GET/POST /lg/login`, and `POST /lg/logout` remain reachable before login so browsers can authenticate |
+| AC-17 | Looking glass enabled via config (`enabled true`) or env (`ze.looking-glass.enabled`, `ze.looking-glass.listen`) with `auth-mode` unset (D-1), or invalid mode / token companion mismatch | `ze config validate`, commit, reload, and offline `ze doctor` refuse the config with `config-lg-invalid` naming the fix (`set environment looking-glass auth-mode open\|token\|user` or `ze.looking-glass.auth-mode`); at `ze start` ("Ze always starts"), the looking glass is not started and is reported via `reportServiceNotStarted` (`doctor-service-not-started`) while `ze` keeps running. Red at HEAD: looking glass starts open by default | Disabled looking glass (neither enabled nor listen env set) needs no `auth-mode` |
+| AC-18 | Authenticated local user holds an open `ze-lg-session` cookie or `/lg/events` SSE stream in `auth-mode user`; reload removes that user or changes that user's password/profiles | Next HTTP request with that cookie is immediately refused with HTTP 401 and `/lg/events` SSE stream closes without sending post-reload events; editing an unrelated user keeps both session and SSE stream alive. Red at HEAD: LG has no sessions or SSE user re-check | Sessions/streams granted by a remote AAA backend (TACACS+/RADIUS) stay valid until TTL/disconnect, matching web UI |
+| AC-19 | Authenticated `auth-mode user` caller whose authorization profile permits some looking-glass commands (e.g., `show bgp`) and denies others (e.g., `show bgp rib` or `show ping`) (D-4) | Permitted endpoints succeed; denied commands return HTTP `403 Forbidden` (JSON error on `/api/looking-glass/*`, JSend error on `/.well-known/looking-glass/*`, HTML/HTMX error response with status 403 on `/lg/*`, error row on `/lg/events`); if only `resolve cymru asn-name` is denied, pages still succeed showing bare AS numbers without org tooltips. Red at HEAD: LG passes zero-value `CallerIdentity{}` and maps errors to 502 | `resolve cymru asn-name` degrades gracefully to bare ASNs because AS org decoration is optional |
+| AC-20 | Looking glass in `auth-mode user` receives requests on `/api/looking-glass/*` and `/.well-known/looking-glass/*` (D-3) | Unauthenticated requests return HTTP 401 JSON `{"error":"unauthorized"}` (or JSend `{"status":"error","message":"unauthorized"}` on RFC 8522) with `WWW-Authenticate: Basic realm="looking glass"` and never HTML; requests with valid HTTP Basic Auth or valid `ze-lg-session` cookie succeed subject to AC-19 RBAC. Red at HEAD: no `user` mode exists on LG APIs | None: API routes never fall through to HTML login forms |
+| AC-21 | Looking glass configured with `auth-mode token` or `auth-mode user` and a non-loopback `server` entry having `tls false` OR unset `tls` with no cert/store (which would downgrade to HTTP) | `ze config validate`, commit, reload (`checkLGTransport`), and offline `ze doctor` refuse the config with `config-lg-invalid`; at `ze start` ("Ze always starts"), that non-loopback plaintext endpoint stays down via `reportLGServerDown` while any valid TLS or loopback endpoints and the rest of Ze keep running. Red at HEAD: `planLGEndpoints` permits `tls false` and downgrades unset `tls` to HTTP even when `token` is set | `auth-mode open` and loopback listeners retain plain HTTP and no-store HTTP downgrade per `tls-listeners.md` |
+| AC-22 | `show gnmi` runs on a daemon with gNMI enabled | JSON output includes `auth-mode` (`"user"`, `"token"`, or `"none"`) alongside `enabled`, `listen`, `token-set`, `tls`, and `subscribers`, and Prometheus exposes `ze_gnmi_login_refused_total{reason}` and `ze_lg_login_refused_total{reason}` with `reason` in `{credential, service, limit}`. Red at HEAD: `ServerStatus` omits `auth-mode` and neither refusal counter exists | Existing `show gnmi` fields remain present for compatibility |
 
 ## End-to-End User Stories
 
 | # | User does | Path through system | Test proving it works |
 |---|-----------|--------------------|-----------------------|
-| 1 | points a gNMI collector at the router with a named account | metadata → chain → identity → read authorization → answer | `test/plugin/gnmi-user-login.ci` <!-- doc-links: ignore (planned by this spec, written when the spec is implemented) --> |
-| 2 | gives an account read-only rights and tries to Set with it | metadata → chain → write decision → refusal, config unchanged | `test/plugin/gnmi-user-set-denied.ci` <!-- doc-links: ignore (planned by this spec, written when the spec is implemented) --> |
-| 3 | asks who changed the config over gNMI | Set → session under the user → audit entry → `show audit` | `test/plugin/gnmi-user-commit-audited.ci` <!-- doc-links: ignore (planned by this spec, written when the spec is implemented) --> |
-| 4 | removes an account while its collector is streaming | reload → notifier → stream re-check → stream ends | `test/reload/gnmi-stream-ends-on-user-removal.ci` <!-- doc-links: ignore (planned by this spec, written when the spec is implemented) --> |
-| 5 | runs a local script against loopback gNMI with no credential | `none` mode → read-only identity → Get answered, Set refused | `test/plugin/gnmi-none-mode-read-only.ci` <!-- doc-links: ignore (planned by this spec, written when the spec is implemented) --> |
-| 6 | runs a public route viewer and says so in the config | config → open mode → unauthenticated routes | `test/plugin/lg-open-mode-stays-public.ci` <!-- doc-links: ignore (planned by this spec, written when the spec is implemented) --> |
-| 7 | puts the looking glass behind named accounts | config → user mode → chain → served request | `test/plugin/lg-user-login.ci` <!-- doc-links: ignore (planned by this spec, written when the spec is implemented) --> |
-| 8 | writes a user-mode listener on a public address and forgets TLS | validation → refusal naming the fix | `test/plugin/gnmi-user-mode-requires-tls.ci`, `test/plugin/lg-credential-mode-requires-tls.ci` <!-- doc-links: ignore (planned by this spec, written when the spec is implemented) --> |
+| 1 | Logs into gNMI with `gnmic --username alice --password ...` over TLS and runs Get + Set | `gnmic` -> `gnmi.Server.checkAuth` -> `authlimit` -> hub AAA chain -> `Get`/`Set` (`api.AuthorizeConfigWrite`) -> `ConfigSessionManager` -> `audit.Recorder` (`Actor: "alice"`) | `gnmi-user-login`, `gnmi-user-commit-audited`, `TestGnmicInterop` |
+| 2 | Attempts a gNMI Set with a read-only profile or on loopback `auth-mode none` | `gnmi.Server.checkAuth` -> `gnmi.Set` -> `api.AuthorizeConfigWrite` -> `codes.PermissionDenied` (running config untouched) | `gnmi-user-set-denied`, `gnmi-none-mode-read-only` |
+| 3 | Opens a gNMI STREAM or LG `/lg/events` SSE stream and is then removed by an admin reload | `runReloadContext` -> `stampLocalIdentityGeneration` -> `Subscribe`/`handleUIEvents` re-check -> immediate stream termination | `gnmi-stream-ends-on-user-removal`, `lg-events-ends-on-user-removal` |
+| 4 | Opens looking glass in a browser (`auth-mode user`), signs in on `/lg/login`, inspects peers, hits a profile-denied route, and logs out | Browser -> `/lg/login` -> `aaa/httpsession.Store` -> `ze-lg-session` cookie -> `lg.Server.queryCtx` -> `plugin/server` RBAC -> 200 on allowed / 403 on denied -> `/lg/logout` | `lg-user-login`, `lg-user-query-authorization` |
+| 5 | Queries `/api/looking-glass/protocols/bgp` from Alice-LG or curl with HTTP Basic Auth in `auth-mode user` | HTTP client -> `lg.authMiddleware` (`ParseBasicAuth`) -> hub AAA chain -> `handler_api.go` -> JSON 200 (or JSON 401/403) | `lg-user-mode-birdwatcher` |
+| 6 | Enables looking glass without stating `auth-mode`, or binds credential-mode LG/gNMI on non-loopback plaintext | `ze config validate` refuses (`config-lg-invalid`/`config-gnmi-invalid`); `ze start` keeps Ze running while leaving only the offending service/endpoint down under `doctor-service-not-started` | `lg-auth-mode-unset`, `lg-credential-mode-requires-tls`, `gnmi-user-mode-requires-tls` |
+| 7 | Edits `environment gnmi auth-mode` or `environment looking-glass auth-mode` and triggers reload | `runReloadContext` -> `lm.checkGNMIAuthReload` / `lgAuthReloader` -> reload refused naming leaf + `privilege.RestartRemedy()` | `gnmi-auth-reload-refused`, `lg-auth-reload-refused` |
+| 8 | Brute-forces wrong passwords from one IP against gNMI or looking glass | `authlimit.Limiter.Allow` rejects 11th failure before AAA/bcrypt -> `ResourceExhausted` / HTTP 429 + `ze_*_login_refused_total{reason="limit"}` | `gnmi-refused-login-limit`, `lg-refused-login-limit` |
 
 ## 🧪 TDD Test Plan
 
 ### Unit Tests
 | Test | File | Validates | Status |
 |------|------|-----------|--------|
-| `TestGNMIUserLoginReadsUsernameAndPasswordMetadata` | `internal/component/gnmi/server_test.go` | AC-1, AC-2: the two keys reach the authentication function with service `gnmi`; the four refusals share one status and message | |
-| `TestGNMIUserLoginAlwaysCallsTheChain` | `internal/component/gnmi/server_test.go` | AC-2: an unknown user and an empty password still reach the authentication function, so the chain's equal-cost path is never skipped | |
-| `TestGNMIRefusesWhenNoChainIsInstalled` | `internal/component/gnmi/server_test.go` | A-3: a nil authentication function refuses in user mode | |
-| `TestGNMISetAuthorizesEveryOperationBeforeTheSession` | `internal/component/gnmi/set_test.go` | AC-3: a denied delete, update or commit ends the Set with no session entered | |
-| `TestGNMIReadAuthorizedAsRunningConfigRead` | `internal/component/gnmi/get_test.go` | AC-4 | |
-| `TestGNMINoneModeCallerIsReadOnly` | `internal/component/gnmi/set_test.go` | AC-7 | |
-| `TestGNMITokenModeUsesSharedAPIIdentity` | `internal/component/gnmi/server_test.go` | AC-6 | |
-| `TestGNMIStreamEndsWhenLocalUserLeaves` | `internal/component/gnmi/subscribe_test.go` | AC-9, including the remotely granted stream that stays | |
-| `TestGNMIListenConfigValidateModes` | `internal/component/config/loader_extract_test.go` | AC-8: one case per refused config and one per accepted mode | |
-| `TestLGListenConfigValidateModes` | `internal/component/config/loader_extract_test.go` | AC-21 | |
-| `TestResolveGNMIListenersMode` | `cmd/ze/hub/gnmi_infra_test.go` | AC-22, and the unset default `user` | |
-| `TestConfigWriteDecisionSharedByGRPCAndGNMI` | `internal/component/api/config_auth_test.go` | The moved decision keeps `requireWriteAccess`'s verdicts for a read-only caller, a nil authorizer and a denying authorizer | <!-- doc-links: ignore (planned by this spec, written when the spec is implemented) --> |
-| `TestRefusedLoginLimit` | beside the limiter, whose package the implementation names | AC-13: the limit, the window, and the independence of two addresses | |
-| `TestLGOpenModeIsExplicit` | `internal/component/lg/auth_test.go` | AC-14: open is a resolved mode; an empty token no longer selects it | |
-| `TestLGUserLogin` | `internal/component/lg/auth_test.go` | AC-16, and the single 401 for every refusal cause | |
-| `TestLGEventsEndsWhenLocalUserLeaves` | `internal/component/lg/handler_ui_test.go` | AC-18 | |
-| `TestLGQueryCarriesAnIdentity` | `internal/component/lg/server_test.go` | AC-14, AC-19: no query is dispatched with an empty username | |
-| `TestBothSurfacesRegisterTheirLoginName` | `internal/component/config/loginservice/registry_test.go` | AC-10 | <!-- doc-links: ignore (planned by this spec, written when the spec is implemented) --> |
-| `TestDeletedUserLosesBothSurfaces` | `cmd/ze/hub/auth_e2e_test.go` | A removed user is refused on both surfaces through the hub's real chain wiring, with no restart | |
+| `TestStoreSessionLifecycleAndGenerationRevocation`, `TestParseBasicAuth` | `internal/component/aaa/httpsession/store_test.go` | Shared cookie store: 32-byte token, 24h TTL, one session/user, `UserGeneration` revocation, `SourceLocal` vs remote backend, `ParseBasicAuth` | |
+| `TestAuthLimiterFixedWindowEvictionAndRetryAfter` | `internal/core/authlimit/limiter_test.go` | AC-13: 10 failures allowed, 11th rejected with `retryAfter`, separate buckets per IP (ignoring port), bounded 4096 eviction, successes do not consume budget | |
+| `TestGNMIListenConfigValidateModes`, `TestLGListenConfigValidateModes`, `TestResolveGNMIListenersMode` | `internal/component/config/loader_extract_test.go` | AC-8, AC-17, AC-21: all mode values, env overrides, companion-leaf mismatches, non-loopback TLS requirements, D-1 unset refusal, D-5 loopback plaintext | |
+| `TestGNMIUserLoginReadsUsernameAndPasswordMetadata`, `TestGNMIUserLoginAlwaysCallsTheChain`, `TestGNMIRefusesWhenNoChainIsInstalled`, `TestGNMITokenModeUsesSharedAPIIdentity` | `internal/component/gnmi/auth_test.go` | AC-1, AC-2, AC-6: metadata parsing, chain invocation on unknown user, fail-closed on nil chain or empty mode, `aaa.ReservedSharedAPIUsername` (`"\x00ze:shared-api"`) identity, uniform errors, audit & metrics | |
+| `TestConfigWriteDecisionSharedByGRPCAndGNMI` | `internal/component/api/config_auth_test.go` | AC-3, AC-7: shared `api.AuthorizeConfigWrite` enforces `ReadOnly` and every `plugin.ConfigAuth*` permission | |
+| `TestGNMISetAuthorizesEveryOperationBeforeTheSession`, `TestGNMIReadAuthorizedAsRunningConfigRead`, `TestGNMINoneModeCallerIsReadOnly`, `TestGNMIStreamEndsWhenLocalUserLeaves` | `internal/component/gnmi/authz_test.go` | AC-3, AC-4, AC-5, AC-7, AC-9: pre-session multi-op Set auth, Get/Subscribe `show config running` auth, real actor audit, `UserGeneration` stream termination | |
+| `TestShowGNMIIncludesAuthMode` | `internal/component/gnmi/show_test.go` | AC-22: `show gnmi` JSON carries `auth-mode` | |
+| `TestLGAuthModesOpenTokenAndUser`, `TestLGUserLoginFormCookieAndLogout`, `TestLGUserBasicAuthAPIAndRFC8522`, `TestLGUserQueryRBACAndASNameDegradation`, `TestLGEventsStreamEndsOnUserRemoval` | `internal/component/lg/auth_test.go` | AC-14..AC-20: all three modes, `ze-lg-session` cookie attributes & logout, Basic Auth on Birdwatcher & RFC 8522, 403 HTML/HTMX/JSON/JSend rendering, bare-ASN degradation, SSE revocation, `audit.LookingGlass`, metrics | |
+| `TestLGDoctorReportsAuthModeAndPlaintextExposure` | `internal/component/lg/doctor_test.go` | AC-17, AC-21: offline `ze doctor` reports `config-lg-invalid` for unset mode and non-loopback plaintext credential mode | |
+| `TestPlanLGEndpointsRefusesPlaintextInCredentialMode`, `TestLGAndGNMIAuthReloadRefusal` | `cmd/ze/hub/mgmt_auth_reload_test.go` | AC-12, AC-21: `planLGEndpoints` / `checkLGTransport` refuse non-loopback plaintext in `token`/`user` modes; `lgAuthReloader` and `checkGNMIAuthReload` refuse auth/TLS changes with `privilege.RestartRemedy()` and allow dormant gNMI edits | |
+| `TestBothSurfacesRegisterTheirLoginName` | `cmd/ze/hub/login_service_test.go` | AC-10 (Phase 8): `"gnmi"` and `"looking-glass"` registered in `loginservice` | |
 
 ### Boundary Tests (numeric inputs)
 | Field | Range | Last Valid | Invalid Below | Invalid Above |
 |-------|-------|------------|---------------|---------------|
-| gNMI `auth-mode` | one of `user`, `token`, `none` | each of the three | an unset leaf resolves to `user` and is never an error | an unrecognized value fails validation |
-| looking-glass `auth-mode` | one of `open`, `token`, `user` | each of the three | an unset leaf follows D-1 | an unrecognized value fails validation |
-| refused logins per address in one window | 0 to the limit | the limit: that attempt is still verified | N-A | the limit plus one: refused unverified |
+| `authlimit` failure count per IP per 1m window | `1..10` allowed before block | 10th failure invokes chain and increments counter | 0 (no prior failures: allowed) | 11th failure rejected before chain (`ResourceExhausted` / HTTP 429) |
+| `authlimit` tracked client IP map capacity | `0..4096` entries | 4096 distinct IPs retained | N/A | 4097th IP evicts expired/oldest entry; map size never exceeds 4096 |
+| `httpsession` token entropy & TTL | 32 random bytes (64 hex chars), `24h` TTL | `now < created + 24h` valid | N/A | `now >= created + 24h` expired (401) |
 
 ### Functional Tests
 | Test | Location | End-User Scenario | Status |
 |------|----------|-------------------|--------|
-| `gnmi-user-login` | `test/plugin/gnmi-user-login.ci` | AC-1 and AC-2 on one daemon: a named account reads, and an unknown user, a wrong password and a bearer token are each refused | <!-- doc-links: ignore (planned by this spec, written when the spec is implemented) --> |
-| `gnmi-user-set-denied` | `test/plugin/gnmi-user-set-denied.ci` | AC-3: the denied Set leaves the active config key unchanged; the permitted Set changes it | <!-- doc-links: ignore (planned by this spec, written when the spec is implemented) --> |
-| `gnmi-user-read-denied` | `test/plugin/gnmi-user-read-denied.ci` | AC-4 | <!-- doc-links: ignore (planned by this spec, written when the spec is implemented) --> |
-| `gnmi-user-commit-audited` | `test/plugin/gnmi-user-commit-audited.ci` | AC-5: `show audit` names the user and the surface | <!-- doc-links: ignore (planned by this spec, written when the spec is implemented) --> |
-| `gnmi-token-mode` | `test/plugin/gnmi-token-mode.ci` | AC-6 | <!-- doc-links: ignore (planned by this spec, written when the spec is implemented) --> |
-| `gnmi-none-mode-read-only` | `test/plugin/gnmi-none-mode-read-only.ci` | AC-7 | <!-- doc-links: ignore (planned by this spec, written when the spec is implemented) --> |
-| `gnmi-user-mode-requires-tls` | `test/plugin/gnmi-user-mode-requires-tls.ci` | AC-8, the daemon start half: exit 1 before anything binds, naming the fix | <!-- doc-links: ignore (planned by this spec, written when the spec is implemented) --> |
-| `gnmi-auth-mode-invalid` | `test/parse/gnmi-auth-mode-invalid.ci` | AC-8, the `ze config validate` half, one case per refused config | <!-- doc-links: ignore (planned by this spec, written when the spec is implemented) --> |
-| `gnmi-stream-ends-on-user-removal` | `test/reload/gnmi-stream-ends-on-user-removal.ci` | AC-9 on a live daemon | <!-- doc-links: ignore (planned by this spec, written when the spec is implemented) --> |
-| `gnmi-deleted-user-refused` | `test/reload/gnmi-deleted-user-refused.ci` | A user who logged in, then was removed by a reload, is refused on the next call with no restart | <!-- doc-links: ignore (planned by this spec, written when the spec is implemented) --> |
-| `gnmi-login-set-excludes` | `test/plugin/gnmi-login-set-excludes.ci` | AC-10: an excluded user with a correct password is refused, and an included one is served | <!-- doc-links: ignore (planned by this spec, written when the spec is implemented) --> |
-| `gnmi-auth-reload-refused` | `test/reload/gnmi-auth-reload-refused.ci` | AC-12, gNMI half | <!-- doc-links: ignore (planned by this spec, written when the spec is implemented) --> |
-| `gnmi-refused-login-limit` | `test/plugin/gnmi-refused-login-limit.ci` | AC-13, gNMI half | <!-- doc-links: ignore (planned by this spec, written when the spec is implemented) --> |
-| `lg-open-mode-stays-public` | `test/plugin/lg-open-mode-stays-public.ci` | AC-14 without authorization profiles | <!-- doc-links: ignore (planned by this spec, written when the spec is implemented) --> |
-| `lg-open-mode-with-authorization-profiles` | `test/plugin/lg-open-mode-with-authorization-profiles.ci` | AC-14 with profiles; run against HEAD first to settle A-6 | <!-- doc-links: ignore (planned by this spec, written when the spec is implemented) --> |
-| `lg-user-login` | `test/plugin/lg-user-login.ci` | AC-16: a named account is served, and a wrong password, an unknown user and an excluded user each get the same 401, on one daemon | <!-- doc-links: ignore (planned by this spec, written when the spec is implemented) --> |
-| `lg-auth-mode-unset` | `test/plugin/lg-auth-mode-unset.ci` | AC-17, from the block and from the environment | <!-- doc-links: ignore (planned by this spec, written when the spec is implemented) --> |
-| `lg-events-ends-on-user-removal` | `test/reload/lg-events-ends-on-user-removal.ci` | AC-18 | <!-- doc-links: ignore (planned by this spec, written when the spec is implemented) --> |
-| `lg-user-query-authorization` | `test/plugin/lg-user-query-authorization.ci` | AC-19 | <!-- doc-links: ignore (planned by this spec, written when the spec is implemented) --> |
-| `lg-user-mode-birdwatcher` | `test/plugin/lg-user-mode-birdwatcher.ci` | AC-20 | <!-- doc-links: ignore (planned by this spec, written when the spec is implemented) --> |
-| `lg-credential-mode-requires-tls` | `test/plugin/lg-credential-mode-requires-tls.ci` | AC-21 | <!-- doc-links: ignore (planned by this spec, written when the spec is implemented) --> |
-| `lg-auth-reload-refused` | `test/reload/lg-auth-reload-refused.ci` | AC-12, looking-glass half | <!-- doc-links: ignore (planned by this spec, written when the spec is implemented) --> |
-| `mgmt-guard-gnmi-nonloopback-refused` | `test/plugin/mgmt-guard-gnmi-nonloopback-refused.ci` | Existing and green at HEAD. Its config and expected remedy are converted to the mode wording, and it stays the proof that the old refusal survived | |
-| `lg-token-gate` | `test/plugin/lg-token-gate.ci` | Existing. Its config states `auth-mode token`; AC-15 | |
+| `gnmi-user-login` | `test/plugin/gnmi-user-login.ci` | AC-1, AC-2: user-mode login succeeds for valid user; wrong password and unknown user get identical `Unauthenticated` + `auth-fail` audit | <!-- doc-links: ignore (planned by this spec, written when the spec is implemented) --> |
+| `gnmi-token-mode` | `test/plugin/gnmi-token-mode.ci` | AC-6, AC-22: `auth-mode token` accepts Bearer token as `aaa.ReservedSharedAPIUsername` (`"\x00ze:shared-api"`), rejects wrong/missing token, `show gnmi` shows `token` | <!-- doc-links: ignore (planned by this spec, written when the spec is implemented) --> |
+| `gnmi-none-mode-read-only` | `test/plugin/gnmi-none-mode-read-only.ci` | AC-7: loopback `auth-mode none` serves `Get`/`Capabilities`/`Subscribe` and refuses `Set` with `PermissionDenied` | <!-- doc-links: ignore (planned by this spec, written when the spec is implemented) --> |
+| `gnmi-user-set-denied` | `test/plugin/gnmi-user-set-denied.ci` | AC-3: profile denying `config set`/`delete`/`commit` gets `PermissionDenied` and running config stays unchanged | <!-- doc-links: ignore (planned by this spec, written when the spec is implemented) --> |
+| `gnmi-user-read-denied` | `test/plugin/gnmi-user-read-denied.ci` | AC-4: profile denying `show config running` gets `PermissionDenied` on `Get` and `Subscribe` | <!-- doc-links: ignore (planned by this spec, written when the spec is implemented) --> |
+| `gnmi-user-commit-audited` | `test/plugin/gnmi-user-commit-audited.ci` | AC-5: committed gNMI `Set` records `audit.ActionConfigCommit` with actor equal to the authenticated username | <!-- doc-links: ignore (planned by this spec, written when the spec is implemented) --> |
+| `gnmi-auth-mode-invalid` | `test/parse/gnmi-auth-mode-invalid.ci` | AC-8: invalid `auth-mode` and companion-leaf mismatches refused by `ze config validate` under `config-gnmi-invalid` | <!-- doc-links: ignore (planned by this spec, written when the spec is implemented) --> |
+| `gnmi-user-mode-requires-tls` | `test/plugin/gnmi-user-mode-requires-tls.ci` | AC-8: non-loopback `auth-mode user` without TLS is refused by validate and kept down at `ze start` under `doctor-service-not-started` while Ze keeps running | <!-- doc-links: ignore (planned by this spec, written when the spec is implemented) --> |
+| `gnmi-stream-ends-on-user-removal` | `test/reload/gnmi-stream-ends-on-user-removal.ci` | AC-9: removing local user on reload terminates open gNMI STREAM with `Unauthenticated` | <!-- doc-links: ignore (planned by this spec, written when the spec is implemented) --> |
+| `gnmi-deleted-user-refused` | `test/reload/gnmi-deleted-user-refused.ci` | AC-9: deleted local user cannot open a new gNMI call after reload | <!-- doc-links: ignore (planned by this spec, written when the spec is implemented) --> |
+| `gnmi-auth-reload-refused` | `test/reload/gnmi-auth-reload-refused.ci` | AC-12: reload changing gNMI `auth-mode`, `token`, or TLS files is refused naming leaf + restart remedy | <!-- doc-links: ignore (planned by this spec, written when the spec is implemented) --> |
+| `gnmi-refused-login-limit` | `test/plugin/gnmi-refused-login-limit.ci` | AC-13: 11th refused login from one IP returns `ResourceExhausted` and increments `ze_gnmi_login_refused_total{reason="limit"}` | <!-- doc-links: ignore (planned by this spec, written when the spec is implemented) --> |
+| `gnmi-login-set-excludes` | `test/plugin/gnmi-login-set-excludes.ci` | AC-10 (Phase 8): account excluded from `gnmi` login service receives uniform `Unauthenticated` and `reason="service"` | <!-- doc-links: ignore (planned by this spec, written when the spec is implemented) --> |
+| `lg-open-mode-stays-public` | `test/plugin/lg-open-mode-stays-public.ci` | AC-14: explicit `auth-mode open` serves HTML and API without credentials | <!-- doc-links: ignore (planned by this spec, written when the spec is implemented) --> |
+| `lg-open-mode-with-authorization-profiles` | `test/plugin/lg-open-mode-with-authorization-profiles.ci` | AC-14: `auth-mode open` still serves routes when `system authorization` profiles are configured (settles A-6) | <!-- doc-links: ignore (planned by this spec, written when the spec is implemented) --> |
+| `lg-user-login` | `test/plugin/lg-user-login.ci` | AC-16: `GET /lg/peers` returns 401 login form; `POST /lg/login` sets `ze-lg-session` cookie and serves pages; wrong password/unknown user return identical 401 + `audit.LookingGlass` `auth-fail`; `POST /lg/logout` revokes cookie | <!-- doc-links: ignore (planned by this spec, written when the spec is implemented) --> |
+| `lg-auth-mode-unset` | `test/plugin/lg-auth-mode-unset.ci` | AC-17 (D-1): enabled LG with unset `auth-mode` (config or env) fails `ze config validate` (`config-lg-invalid`) and stays down at `ze start` under `doctor-service-not-started` while Ze runs | <!-- doc-links: ignore (planned by this spec, written when the spec is implemented) --> |
+| `lg-events-ends-on-user-removal` | `test/reload/lg-events-ends-on-user-removal.ci` | AC-18: removing local user on reload invalidates `ze-lg-session` cookie and closes open `/lg/events` SSE stream | <!-- doc-links: ignore (planned by this spec, written when the spec is implemented) --> |
+| `lg-user-query-authorization` | `test/plugin/lg-user-query-authorization.ci` | AC-19 (D-4): profile-allowed commands return 200, profile-denied commands return HTTP 403 on HTML/JSON/RFC 8522, and denied `resolve cymru asn-name` degrades to bare ASNs | <!-- doc-links: ignore (planned by this spec, written when the spec is implemented) --> |
+| `lg-user-mode-birdwatcher` | `test/plugin/lg-user-mode-birdwatcher.ci` | AC-20 (D-3): `/api/looking-glass/*` and `/.well-known/looking-glass/*` return JSON/JSend 401 with `WWW-Authenticate: Basic` when unauthenticated and 200 with Basic Auth or `ze-lg-session` cookie | <!-- doc-links: ignore (planned by this spec, written when the spec is implemented) --> |
+| `lg-credential-mode-requires-tls` | `test/plugin/lg-credential-mode-requires-tls.ci` | AC-21: non-loopback LG `server` with `tls false` or unset `tls` without cert/store in `token` or `user` mode is refused by validate/reload and left down at `ze start` via `reportLGServerDown` | <!-- doc-links: ignore (planned by this spec, written when the spec is implemented) --> |
+| `lg-auth-reload-refused` | `test/reload/lg-auth-reload-refused.ci` | AC-12: reload changing LG `auth-mode` or `token` is refused naming leaf + restart remedy | <!-- doc-links: ignore (planned by this spec, written when the spec is implemented) --> |
+| `lg-refused-login-limit` | `test/plugin/lg-refused-login-limit.ci` | AC-13: 11th refused LG login from one IP returns HTTP 429 with `Retry-After` and increments `ze_lg_login_refused_total{reason="limit"}` | <!-- doc-links: ignore (planned by this spec, written when the spec is implemented) --> |
+| `mgmt-guard-gnmi-nonloopback-refused` | `test/plugin/mgmt-guard-gnmi-nonloopback-refused.ci` | Existing and green at HEAD: updated for `auth-mode` wording while preserving "Ze always starts" (`doctor-service-not-started`) | |
+| `lg-token-gate` | `test/plugin/lg-token-gate.ci` | Existing and green at HEAD: config states `auth-mode token`; proves AC-15 | |
 
 ### Interop Tests (Scope: protocol)
 | Scenario | Directory | Peer Daemon | What It Proves | Status |
 |----------|-----------|-------------|----------------|--------|
-| `TestGnmicInterop`, user-mode subtests | `internal/component/gnmi/gnmic_docker_test.go` (tag `docker`; `docs/architecture/testing/interop.md` describes the run) | gnmic 0.49.1 | AC-11: a real client's `--username` and `--password` log in over TLS for capabilities, get, subscribe once and set; a wrong password is refused; `--token` still works in token mode. The vacuity check is the wrong-password subtest plus a run with the user branch reverted, which turns the four success subtests red | |
-
-No interop test is planned for the looking glass until D-3 says what Alice-LG
-presents. Before that test expects Alice-LG to send a credential, its source is
-read for the function that sends it.
+| `TestGnmicInterop`, user-mode subtests | `internal/component/gnmi/gnmic_docker_test.go` (tag `docker`) | gnmic 0.49.1 | AC-11: real `gnmic --username --password` over TLS succeeds for `capabilities`, `get`, `subscribe --mode once`, and `set`, and fails with wrong password; `--token` still works in `auth-mode token` | |
 
 ## Files to Modify
-- `internal/component/gnmi/server.go` - `Config` gains the mode, the authentication function and the recorder; `Serve` always installs the authentication interceptors; `checkAuth` returns an identity for every mode
-- `internal/component/gnmi/set.go` - the constant `gnmiUsername` is deleted; the session runs under the caller, after the write decision; the commit is audited
-- `internal/component/gnmi/get.go`, `internal/component/gnmi/subscribe.go` - the read authorization, and the stream re-check
-- `internal/component/gnmi/metrics.go` - `ze_gnmi_login_refused_total`
-- `internal/component/gnmi/show.go` and `ServerStatus` - report the mode in place of `token-set` alone
-- `internal/component/gnmi/yang/ze-gnmi-conf.yang` - the `auth-mode` enumeration; the token description no longer says an empty token means no authentication
-- `internal/component/lg/auth.go` - one gate over the mux that reads the mode
-- `internal/component/lg/server.go` - `LGConfig` gains the mode, the authentication function and the recorder; `query` carries an identity
-- `internal/component/lg/handler_ui.go` - the stream re-check in `handleUIEvents`
-- `internal/component/lg/yang/ze-lg-conf.yang` - the `auth-mode` enumeration; the token description no longer says an empty token leaves the looking glass open
-- `internal/component/config/loader_extract.go` - both blocks read the mode; `GNMIListenConfig.Validate` judges it; `LGListenConfig` gains its validation
-- `internal/component/config/validate_semantic.go` - the looking-glass entry beside the gNMI and MCP ones
-- `internal/component/config/environment.go` - `ze.gnmi.auth-mode`, `ze.looking-glass.auth-mode`
-- `internal/component/api/types.go` and a new file beside it - the running-config read command name, and the write decision moved from gRPC
-- `internal/component/api/grpc/server.go` - `requireWriteAccess` calls the moved decision
-- `internal/core/audit/audit.go` - the two surface names
-- `internal/core/diagnostic/codes.go` - the looking-glass validation code, and the `config-gnmi-invalid` description, which today names only the tokenless case
-- `cmd/ze/hub/gnmi_infra.go`, `cmd/ze/hub/service_gnmi.go` - the resolver returns the mode; the build inputs carry the chain function and the recorder
-- `cmd/ze/hub/service_lg.go`, `cmd/ze/hub/service_registry.go`, `cmd/ze/hub/register_lg.go` - the same for the looking glass; no plaintext fallback in a credential mode
-- `cmd/ze/hub/main.go` - gNMI's guard declaration reads the mode; the looking-glass mode is resolved beside its token
-- `cmd/ze/hub/mgmt_auth_reload.go` - the two reloaders, and the corrected comment
-- `internal/component/gnmi/gnmic_docker_test.go`, `internal/test/fixture/lg_pki_fixture.go`, `internal/test/fixture/plugin_fixture_09_shell.go` - modes stated; user-mode subtests
-- The 36 repository configs the census found, under `test/plugin`, `test/parse`, `test/ui`, `test/reload`, `test/stress/scenarios/05-profile-1m` and `docs` - each states the mode it relies on
-- `docs/architecture/api/architecture.md` - "gNMI Transport" and the caller-class table, which gains gNMI (declared by the `// Design:` header of the gNMI server, Get, Set and Subscribe files)
-- `docs/architecture/web-interface.md` - "LG Bearer Token" and "LG Data Access" (declared by `internal/component/lg/auth.go`)
-- `docs/architecture/api/birdwatcher-compat.md` - the authentication statement D-3 selects
-- `docs/architecture/core-design.md`, section 19 - the `lg` and `gnmi` rows
-- `docs/guide/gnmi.md` (declared by `internal/component/gnmi/tls.go`), `docs/guide/authentication.md`, `docs/guide/looking-glass.md`, `docs/guide/looking-glass-howto.md`, `docs/guide/configuration.md`, `docs/guide/audit.md`
-- `docs/guide/environment-variables.md` - the two mode variables; `docs/guide/config-reload.md` - the refused authentication change and its restart instruction
-- `features/gnmi.md`, `features/looking-glass.md` - the description, and the Defect review line that calls this spec "design scope, not a defect"
-
-Three more pages are declared by the `// Design:` headers of files in this list
-and are not edited, each for the reason given:
-- `docs/architecture/config/syntax.md` (declared by `loader_extract.go`, `validate_semantic.go` and the `config/infra` files) - it describes the file grammar and mentions gNMI only for list-key paths and `Tree.ToMap`; an enumeration leaf adds no grammar
-- `docs/architecture/hub-architecture.md` (declared by `cmd/ze/hub/main.go`) - its one gNMI mention is the stop order at shutdown, which does not change
-- `docs/features/ai-first.md` (declared by `internal/core/diagnostic/codes.go`) - it names neither surface; the new diagnostic code is listed by the generated code catalog, not by this page
+- `internal/component/gnmi/server.go` - `Config` gains `AuthMode`, `Authenticate`, `LocalUsers`, `Authorizer`, and `RateLimiter`; `Serve` always installs auth interceptors inside the panic boundary; `checkAuth` resolves caller identity for all three modes with uniform errors, rate limiting, and metrics
+- `internal/component/gnmi/set.go` - delete `gnmiUsername`; authorize all required `plugin.ConfigAuth*` operations via `api.AuthorizeConfigWrite` before `Sessions.Enter`; run session and audit `ActionConfigCommit` under `caller.Username`
+- `internal/component/gnmi/get.go`, `internal/component/gnmi/subscribe.go` - authorize `show config running` before reading; re-check `LocalUsers`/`UserGeneration` on live STREAM subscriptions
+- `internal/component/gnmi/metrics.go` - add `ze_gnmi_login_refused_total{reason}`
+- `internal/component/gnmi/show.go` - add `auth-mode` to `ServerStatus` and `handleShowGNMI`
+- `internal/component/gnmi/doctor.go`, `internal/component/gnmi/register.go` - extend offline `gnmiExposureFindings` with `gnmiCfg.Validate()` and register `zeconfig.RegisterScopedTreeValidator("gnmi-auth-config", "environment/gnmi", ...)` so strict `LoadConfig` (SIGHUP reload) refuses invalid gNMI auth config while `LoadConfigForStart` isolates only `environment/gnmi`
+- `internal/component/gnmi/yang/ze-gnmi-conf.yang` - add `leaf auth-mode` (`user` default, `token`, `none`); update `token` description
+- `internal/component/web/auth.go` - delegate `SessionStore` and `parseBasicAuth` to `internal/component/aaa/httpsession` preserving `ze-session` behavior identically
+- `internal/component/lg/auth.go` - unified mode gate (`open`, `token`, `user`) wrapping the mux with `aaa/httpsession` (`ze-lg-session` cookie + Basic Auth), `/lg/login` + `/lg/logout` handlers, `authlimit`, `audit.LookingGlass`, and `ze_lg_login_refused_total{reason}`
+- `internal/component/lg/server.go` - `LGConfig` gains `AuthMode`, `Authenticate`, `LocalUsers`, `Authorizer`, `AuditRecorder`, `RateLimiter`; register `/lg/login` and `/lg/logout`; thread `r.Context()` + `plugin.CallerIdentity` into `askCtx`/`queryCtx` and classify `PermissionDenied()` as HTTP 403
+- `internal/component/lg/handler_ui.go`, `internal/component/lg/handler_api.go`, `internal/component/lg/handler_graph.go`, `internal/component/lg/handler_rfc8522.go`, `internal/component/lg/as_names.go` - thread request context and `CallerIdentity` on every command dispatch; render 403 across HTML/HTMX/JSON/JSend/SSE; degrade `resolve cymru asn-name` denial to bare ASNs; re-check `UserGeneration` in `handleUIEvents`
+- `internal/component/lg/doctor.go`, `internal/component/lg/register.go` - add offline `config-lg-invalid` check (`lgAuthExposureFindings`) for unset/invalid `auth-mode` and non-loopback credential-mode plaintext listeners, update `lgReferenceEffect`, and register `zeconfig.RegisterScopedTreeValidator("lg-auth-config", "environment/looking-glass", ...)` so strict `LoadConfig` (SIGHUP reload) refuses invalid LG auth config while `LoadConfigForStart` isolates `environment/looking-glass`
+- `internal/component/lg/yang/ze-lg-conf.yang` - add `leaf auth-mode` (`open`, `token`, `user`, no default); update `token` description
+- `internal/component/config/loader_extract.go` - read `auth-mode` (with env override) for gNMI and looking glass; enforce all mode, companion-leaf, and non-loopback TLS rules in `GNMIListenConfig.Validate()`/`Refusals()` and `LGListenConfig.Validate()`/`Refusals()`
+- `internal/component/config/validate_semantic.go` - run `LGListenConfig.Validate()`/`Refusals()` alongside `GNMIListenConfig.Validate()`/`Refusals()`
+- `internal/component/config/cli/cmd_validate.go` - call `gnmiCfg.Validate()` beside `gnmiCfg.Refusals()` under `config-gnmi-invalid`, and add the matching `ExtractLGConfig(tree)` block calling `lgCfg.Validate()` and `lgCfg.Refusals()` under `config-lg-invalid` so `ze config validate` and commit `ValidateContent` enforce both surfaces
+- `internal/component/config/environment.go` - register `ze.gnmi.auth-mode` and `ze.looking-glass.auth-mode`
+- `internal/component/api/types.go` - export running-config read command constant (`CommandShowConfigRunning = "show config running"`)
+- `internal/component/api/grpc/server.go` - call shared `api.AuthorizeConfigWrite` from `requireWriteAccess`
+- `internal/core/audit/audit.go` - add `LookingGlass = "looking-glass"` surface constant
+- `internal/core/diagnostic/codes.go` - register `config-lg-invalid` and update `config-gnmi-invalid` description
+- `cmd/ze/hub/gnmi_infra.go`, `cmd/ze/hub/service_gnmi.go` - pass `auth-mode` and AAA/authorizer closures into `gnmi.Config`
+- `cmd/ze/hub/service_lg.go`, `cmd/ze/hub/service_registry.go`, `cmd/ze/hub/register_lg.go`, `cmd/ze/hub/lg_transport.go` - resolve LG `auth-mode` (keeping LG down via `reportServiceNotStarted` if unset/invalid), refuse non-loopback plaintext/downgrade in `token` or `user` mode in `planLGEndpoints`/`checkLGTransport`, and wire AAA/authorizer/audit closures into `lg.LGConfig`
+- `cmd/ze/hub/main.go`, `cmd/ze/hub/mgmt_auth_reload.go`, `cmd/ze/hub/listener_migrate.go`, `cmd/ze/hub/main_reload.go` - classify gNMI and LG exposure by `auth-mode`, register `lgAuthReloader` under `svcLG`, record `gnmiRunning` + `gnmiAuthBase` on `listenerMigrator`, and run `lm.checkGNMIAuthReload` in `runReloadContext` before `ReloadConfigWithSelection` using `privilege.RestartRemedy()`
+- `internal/component/gnmi/gnmic_docker_test.go`, `internal/test/fixture/lg_pki_fixture.go`, `internal/test/fixture/plugin_fixture_09_shell.go`, and existing repository configs under `test/` and `docs/` that enable gNMI or looking glass - state explicit `auth-mode` and add user-mode `gnmic` subtests
+- `docs/architecture/api/architecture.md` - update "gNMI Transport" for `auth-mode`, AAA chain login, per-RPC authorization, and D-5 loopback plaintext note
+- `docs/architecture/web-interface.md` - update "Authentication", "LG Bearer Token", "LG URL Scheme", "LG Data Access", and "Starting the Looking Glass" for D-1..D-4 and `aaa/httpsession`
+- `docs/architecture/api/birdwatcher-compat.md` - update Section 3.1 (`3.1 A command the engine refuses`) for HTTP `403 Forbidden` on `PermissionDenied()` and add an authentication section documenting `open`, `token`, and `user` modes (Basic Auth / cookie, JSON 401/403/429)
+- `docs/architecture/pki/tls-listeners.md` - document that plain HTTP and no-store HTTP downgrade on non-loopback LG listeners apply only in `auth-mode open`
+- `docs/architecture/core-design.md` - add `gnmi` and `lg` rows in §19 and include both surfaces in the AAA and audit trail paragraphs
+- `docs/guide/gnmi.md`, `docs/guide/authentication.md`, `docs/guide/looking-glass.md`, `docs/guide/looking-glass-howto.md`, `docs/guide/configuration.md`, `docs/guide/audit.md`, `docs/guide/environment-variables.md`, `docs/guide/config-reload.md`, `docs/guide/monitoring.md`, `docs/guide/command-reference.md`, `docs/comparison.md`, `features/gnmi.md`, `features/looking-glass.md` - document modes, login flows, metrics, `show gnmi`, and restart-required reload refusal
 
 ## Files to Create
-- The new `.ci` files named in Functional Tests
-- `internal/component/api/config_auth.go` - the shared write decision <!-- doc-links: ignore (planned by this spec, written when the spec is implemented) -->
-- The refused-login limiter, in the package the implementation names after reading where both surfaces can reach it without a new cross-component import
+- `internal/component/aaa/httpsession/store.go` - shared HTTP session cookie store (`Store`, `Config`, `Session`, `ParseBasicAuth`) extracted from `web/auth.go` <!-- doc-links: ignore (planned by this spec, written when the spec is implemented) -->
+- `internal/core/authlimit/limiter.go` - stdlib-only per-remote-IP bounded refused-login rate limiter (`DefaultMaxFailures = 10`, `DefaultWindow = time.Minute`, `MaxTrackedClients = 4096`) <!-- doc-links: ignore (planned by this spec, written when the spec is implemented) -->
+- `internal/component/api/config_auth.go` - shared `AuthorizeConfigWrite(caller plugin.CallerIdentity, commands ...string) error` using `plugin.ConfigAuth*` <!-- doc-links: ignore (planned by this spec, written when the spec is implemented) -->
+- `internal/component/lg/login.templ` (and generated `login_templ.go`) - LG browser login form matching web UI styling <!-- doc-links: ignore (planned by this spec, written when the spec is implemented) -->
+- Unit test files: `internal/component/aaa/httpsession/store_test.go`, `internal/core/authlimit/limiter_test.go`, `internal/component/api/config_auth_test.go`, `internal/component/gnmi/auth_test.go`, `internal/component/gnmi/authz_test.go`, `internal/component/lg/auth_test.go` <!-- doc-links: ignore (planned by this spec, written when the spec is implemented) -->
+- The new `.ci` functional test files listed in Functional Tests above
 
 ### Integration Checklist
 | Integration Point | Applies? | File / reason |
 |-------------------|----------|---------------|
-| YANG schema (new RPCs/config) | Yes | An `auth-mode` leaf in `ze-gnmi-conf.yang` and in `ze-lg-conf.yang` |
-| YANG validation constraints | Yes | Each is an enumeration, so an unrecognized value fails at parse. The companion-leaf rules are semantic validation |
-| YANG custom validators | No | The value set is fixed. The login-service names are the sibling spec's validator |
-| CLI commands/flags | No | No new verb. `show gnmi` gains a field |
+| YANG schema (new RPCs/config) | Yes | `leaf auth-mode` in `internal/component/gnmi/yang/ze-gnmi-conf.yang` and `internal/component/lg/yang/ze-lg-conf.yang` |
+| YANG validation constraints | Yes | `enumeration` rejects unknown values at parse; companion-leaf and exposure rules live in semantic validation (`loader_extract.go` / `validate_semantic.go`) |
+| YANG custom validators | No | Fixed enumeration values; login-service names are validated by the sibling spec's validator |
+| CLI commands/flags | No | No new CLI verb; `show gnmi` adds `auth-mode` to its JSON payload |
 | CLI grammar (keyword before value) | No | No new command |
-| Editor autocomplete | Yes | Automatic for an enumeration leaf |
-| Functional test for new RPC/API | Yes | The `.ci` files in Functional Tests |
+| Editor autocomplete | Yes | Automatic for YANG enumeration leaves |
+| Functional test for new RPC/API | Yes | New `.ci` files listed in Functional Tests |
 | Pipe completeness | No | No new command output |
 | Env var registration | Yes | `ze.gnmi.auth-mode` and `ze.looking-glass.auth-mode` in `internal/component/config/environment.go` |
-| Doctor check for runtime dependencies | No | No new file, socket, port or binary. TLS material already has `gnmi-tls-material` |
-| Doctor code per problem class | Yes | `config-gnmi-invalid` covers the gNMI refusals. The looking glass gains its own validation code, reported by `ze doctor` and `ze config validate` before boot refuses. A refused reload names the same code |
-| Prometheus counters/metrics | Yes | `ze_gnmi_login_refused_total{reason}` and `ze_lg_login_refused_total{reason}`, with `reason` one of `credential`, `service`, `limit` |
-| BGP family surface (new SAFI / capability / attribute) | N-A | No BGP surface is touched |
+| Doctor check for runtime dependencies | No | No new file, socket, binary, or port; TLS material checks already exist (`gnmi-tls-material`, `lg-tls-certificate`) |
+| Doctor code per problem class | Yes | `config-gnmi-invalid` (updated description) and new `config-lg-invalid` in `internal/core/diagnostic/codes.go`, reported by `ze config validate`, offline `ze doctor`, and start-time `doctor-service-not-started` |
+| Prometheus counters/metrics | Yes | `ze_gnmi_login_refused_total{reason}` and `ze_lg_login_refused_total{reason}` (`reason` in `credential`, `service`, `limit`) |
+| BGP family surface (new SAFI / capability / attribute) | N-A | No BGP family or wire format is touched |
 
 ### Documentation Update Checklist (BLOCKING)
 | # | Question | Applies? | File to update |
 |---|----------|----------|---------------|
 | 1 | New user-facing feature, or a feature's scope, evidence or level changed? | Yes | `features/gnmi.md`, `features/looking-glass.md` |
-| 2 | Config syntax changed? | Yes | `docs/guide/configuration.md`; `docs/config-reference.md` if it is generated, by its generator |
-| 3 | CLI command added/changed? | Yes | `docs/guide/command-reference.md`: `show gnmi` reports the mode |
-| 4 | API/RPC added/changed? | Yes | `docs/architecture/api/architecture.md`: gNMI's authentication contract and per-RPC authorization |
-| 5 | Plugin added/changed? | No | Both are components |
-| 6 | Has a user guide page? | Yes | `docs/guide/authentication.md`, `docs/guide/gnmi.md`, `docs/guide/looking-glass.md`, `docs/guide/looking-glass-howto.md` |
-| 7 | Wire format changed? | No | gNMI metadata and HTTP headers are not Ze wire formats under `docs/architecture/wire/` |
-| 8 | Plugin SDK/protocol changed? | No | No SDK type crosses this seam |
-| 9 | RFC behavior implemented, changed, or newly proven? | N-A | The governing text is OpenConfig's, and no RFC summary is enrolled for it |
-| 10 | Test infrastructure changed? | No | Existing suites and the existing gnmic lab client |
-| 11 | Affects daemon comparison? | Yes | `docs/comparison.md`, where it describes gNMI or looking-glass access control |
-| 12 | Internal architecture changed? | Yes | `docs/architecture/core-design.md` section 19; `docs/architecture/web-interface.md` |
-| 13 | Route metadata keys added/changed? | No | No route metadata |
-| 14 | Prometheus counters added/changed? | Yes | `docs/guide/monitoring.md`: the two counters |
-| 15 | Registered plugin, event type, send type, command, capability, or inventory changed? | Yes | Two login-service registrations, in the inventory the sibling spec names |
-| 16 | Any changed source file referenced by existing doc source anchors? | Yes | Declared by `// Design:` headers: `docs/architecture/api/architecture.md` (gNMI, API), `docs/architecture/web-interface.md` (looking glass) and `docs/guide/gnmi.md` (gNMI TLS), all named above. `./le spec citation anchors spec plan/release/fixes/spec-login-identity-for-looking-glass-and-gnmi.md` lists the rest at implementation time |
-| 17 | Existing docs show config/CLI/API examples for this area? | Yes | Every gNMI and looking-glass example in the four guide pages gains a mode, and the gnmic examples in `docs/guide/gnmi.md` gain the `--username` form |
+| 2 | Config syntax changed? | Yes | `docs/guide/configuration.md` (`docs/architecture/config/syntax.md` unaffected: enum leaves add no syntax grammar) |
+| 3 | CLI command added/changed? | Yes | `docs/guide/command-reference.md` (`show gnmi` includes `auth-mode`) |
+| 4 | API/RPC added/changed? | Yes | `docs/architecture/api/architecture.md`, `docs/architecture/api/birdwatcher-compat.md` |
+| 5 | Plugin added/changed? | No | Both gNMI and looking glass are components, not plugins |
+| 6 | Has a user guide page? | Yes | `docs/guide/gnmi.md`, `docs/guide/authentication.md`, `docs/guide/looking-glass.md`, `docs/guide/looking-glass-howto.md`, `docs/guide/audit.md`, `docs/guide/environment-variables.md`, `docs/guide/config-reload.md` |
+| 7 | Wire format changed? | No | No BGP or IPC wire format changes |
+| 8 | Plugin SDK/protocol changed? | No | No SDK types or IPC messages change |
+| 9 | RFC behavior implemented, changed, or newly proven? | N-A | Auth follows OpenConfig `gnmi-authentication.md` and RFC 7617/7235 HTTP auth; RFC 8522 JSend 401/403 responses follow existing `handler_rfc8522.go` framing |
+| 10 | Test infrastructure changed? | No | Uses existing `.ci` runner and `docker`-tagged `TestGnmicInterop` |
+| 11 | Affects daemon comparison? | Yes | `docs/comparison.md` (gNMI and looking-glass access control rows) |
+| 12 | Internal architecture changed? | Yes | `docs/architecture/core-design.md` (§19 + AAA/audit), `docs/architecture/web-interface.md`, `docs/architecture/pki/tls-listeners.md` |
+| 13 | Route metadata keys added/changed? | No | No route metadata keys touched |
+| 14 | Prometheus counters added/changed? | Yes | `docs/guide/monitoring.md` (`ze_gnmi_login_refused_total`, `ze_lg_login_refused_total`) |
+| 15 | Registered plugin, event type, send type, command, capability, or inventory changed? | Yes | Phase 8 registers `"gnmi"` and `"looking-glass"` in the sibling spec's login-service registry |
+| 16 | Any changed source file referenced by existing doc source anchors? | Yes | Modified `// Design:` pages listed above (`api/architecture.md`, `web-interface.md`, `birdwatcher-compat.md`, `pki/tls-listeners.md`, `core-design.md`, `guide/gnmi.md`); unaffected `// Design:` pages (`config/syntax.md`, `hub-architecture.md`, `features/ai-first.md`, `doctor-and-health-checks.md`) justified in `## Design documents` |
+| 17 | Existing docs show config/CLI/API examples for this area? | Yes | Update every gNMI and looking-glass config snippet in guides to include `auth-mode` and add `gnmic --username --password` examples in `docs/guide/gnmi.md` |
+
+## Design presentation
+
+### What changes
+
+Both the gNMI server and the looking glass gain an explicit `auth-mode` YANG leaf and matching environment variable (`ze.gnmi.auth-mode`, `ze.looking-glass.auth-mode`) with per-user AAA authentication (`user`), shared bearer token (`token`), and explicit unauthenticated access (`none` on gNMI, `open` on looking glass). gNMI defaults to `auth-mode user` (matching SSH), authenticates via `username`/`password` gRPC metadata through the live AAA chain, enforces `show config running` read authorization and shared `api.AuthorizeConfigWrite` write authorization, audits commits under the real actor username, and terminates open STREAM subscriptions when a local user is removed or edited. The looking glass requires an explicit `auth-mode` with no default (D-1), offers browser login form + `ze-lg-session` cookie (via shared `internal/component/aaa/httpsession`) alongside HTTP Basic Auth across HTML, `/api/looking-glass/*`, and `/.well-known/looking-glass/*` (D-2, D-3), enforces per-command RBAC returning HTTP 403 (D-4), and requires TLS on non-loopback listeners in `token` or `user` mode. Both surfaces gain per-remote-IP refused-login rate limiting (`internal/core/authlimit`), refusal counters, and reload refusal naming the changed leaf and `privilege.RestartRemedy()`. Under "Ze always starts", invalid auth/exposure config is refused by `ze config validate`, commit, and reload, while `ze start` keeps only the offending service or looking-glass endpoint down under `doctor-service-not-started`.
+
+### Before and after
+
+1. **gNMI login and commit audit:**
+   - Before: `environment { gnmi { enabled true; token secret; ... } }` accepted only a shared bearer token and recorded every `Set` commit under hardcoded actor `"gnmi"` with no per-user RBAC; omitting `token` silently served read-only loopback without naming a user.
+   - After: `environment { gnmi { enabled true; ... } }` defaults to `auth-mode user`; `gnmic --username alice --password ...` authenticates through the live AAA chain, authorizes `Get`/`Subscribe` against `show config running` and `Set` against `config edit`/`set`/`delete`/`commit`, and writes `audit.ActionConfigCommit` with `Actor: "alice"`. Read-only loopback requires explicit `auth-mode none`.
+2. **Looking glass startup with no `auth-mode` (D-1):**
+   - Before: `environment { looking-glass { enabled true; server main { ip 0.0.0.0; port 8443; } } }` silently started open to the world.
+   - After: `ze config validate` and reload refuse it with `config-lg-invalid` naming `set environment looking-glass auth-mode open|token|user`; `ze start` keeps the looking glass down and reports `doctor-service-not-started` while the rest of Ze runs. Writing `auth-mode open;` explicitly restores public access.
+3. **Looking glass `user` mode across browser and API (D-2, D-3, D-4):**
+   - Before: no per-user login; all commands ran with zero-value `CallerIdentity{}`.
+   - After: browser `GET /lg/peers` gets HTTP 401 rendering the login form (`POST /lg/login` sets `ze-lg-session` cookie); `/api/looking-glass/*` and `/.well-known/looking-glass/*` accept HTTP Basic Auth or `ze-lg-session` cookie (answering JSON/JSend 401 with `WWW-Authenticate: Basic`); each dispatched command is checked against the caller's authorization profile and returns HTTP 403 on denial (with `resolve cymru asn-name` degrading gracefully to bare ASNs).
+4. **Non-loopback looking glass in a credential mode:**
+   - Before: `planLGEndpoints` allowed `tls false` or downgraded unset `tls` to plain HTTP when no store/cert existed, even with `token` set.
+   - After: in `auth-mode token` or `user`, non-loopback plaintext is refused at validate/reload and leaves only that endpoint down at `ze start` via `reportLGServerDown`; `auth-mode open` and loopback keep plain HTTP / no-store downgrade.
+5. **Reloading gNMI or looking-glass authentication settings:**
+   - Before: changing `token` (or gNMI TLS files) on reload was accepted and silently ignored until restart.
+   - After: reload is refused before any plugin applies, naming the changed leaf and `privilege.RestartRemedy()`.
+
+### Alternatives set aside
+
+| Alternative | Why set aside |
+|-------------|---------------|
+| Infer `auth-mode` from whether `token` or local users are configured | Silent mode inference is the root cause of accidentally open listeners; Thomas explicitly requested a stated option on looking glass and SSH-like default on gNMI, and Ze is pre-release so repo configs are converted directly |
+| Duplicate web's `SessionStore` inside `internal/component/lg` or import `web` from `lg` | Duplicating violates `ai/rules/no-layering.md` and splits `UserGeneration` revocation; importing `web` violates `core-design.md` §19 optional-surface isolation. Extracting `internal/component/aaa/httpsession` keeps one implementation and zero `lg` <-> `web` coupling |
+| Copy gRPC's static local-user slice authentication for gNMI | Leaves TACACS+ and RADIUS operators unable to log into gNMI even though they can log into SSH; calling the live `aaaBundle` chain matches SSH |
+| Accept `Bearer user:password` on gNMI instead of `username`/`password` metadata | OpenConfig `gnmi-authentication.md` and `gnmic --username --password` use `username` and `password` metadata keys; a custom header could not be interop-tested with `gnmic` |
+| Exit `ze start` with status 1 on invalid gNMI or looking-glass auth config | Contradicts the 2026-11-26 owner ruling "Ze always starts" (`docs/architecture/core-design.md`, `## Design decisions`), which requires leaving only the broken service/endpoint down so the operator can still reach the box |
+
+### Documents departed from
+
+1. **`docs/architecture/api/architecture.md` — `## gNMI Transport`**:
+   - Existing statement: `"Configuration is YANG-modeled under environment { gnmi { enabled; token; tls { cert; key; } server <name> { ip; port; } } } ... Non-loopback listeners require both authentication (token) and TLS (cert and key) ... Loopback listeners (127.0.0.0/8, ::1) may omit TLS and token; when token is empty, Set is refused with PermissionDenied so unauthenticated loopback callers are read-only."`
+   - After this work: `environment gnmi` gains `auth-mode` (`user` default, `token`, `none`) and `ze.gnmi.auth-mode`; omitting `token` selects `auth-mode user` (AAA chain login via `username`/`password` metadata, per-RPC authorization, real actor commit audit, and `UserGeneration` STREAM revocation), while unauthenticated read-only loopback access requires explicit `auth-mode none`. Also documents the D-5 loopback plaintext exception.
+2. **`docs/guide/gnmi.md` — `## Authentication`**:
+   - Existing statement: `"When no token is configured, gNMI can bind only to a literal loopback address (127.0.0.1 or ::1) and runs in read-only mode."`
+   - After this work: documents `auth-mode user` (default, `gnmic --username --password`), `auth-mode token` (`gnmic --token`), `auth-mode none` (explicit loopback read-only), per-RPC authorization, refused-login rate limiting, and the D-5 loopback plaintext exception.
+3. **`docs/architecture/web-interface.md` — `### LG Bearer Token`**:
+   - Existing statement: `"The looking glass is open by default, because it is a public read-only surface."`
+   - After this work: documents D-1 (no default `auth-mode`; enabling the looking glass without `open`, `token`, or `user` is refused under `config-lg-invalid` at validate/reload and leaves the looking glass down at `ze start`), D-2 (`user` mode login form + `ze-lg-session` cookie via `internal/component/aaa/httpsession` + HTTP Basic Auth), D-3 (gating `/api/looking-glass/*` and `/.well-known/looking-glass/*`), and D-4 (per-command RBAC with HTTP 403 rendering and bare-ASN degradation).
+4. **`docs/architecture/pki/tls-listeners.md` — `## Design decisions` (2026-11-23 row)**:
+   - Existing statement: `"The looking glass may serve plain HTTP, because what it publishes is public ... The no-store rule applies to each entry: an entry that left tls unset serves HTTP with a warning on a daemon with no database/ store and no named certificate..."`
+   - After this work: clarifies that plain HTTP (`tls false`) and the unset-`tls` no-store HTTP downgrade apply only when the looking glass carries no credentials (`auth-mode open`) or binds loopback; in `auth-mode token` or `user`, every non-loopback `server` entry requires TLS (refused at validate/reload; left down per endpoint at `ze start` via `reportLGServerDown`).
+5. **`docs/architecture/api/birdwatcher-compat.md` — `### 3.1 A command the engine refuses`**:
+   - Existing statement: `"The server MUST answer 502 Bad Gateway when the engine returns an error, and 503 Service Unavailable when the engine returns nothing the server can parse. The body MUST be a JSON object carrying error, and that message MUST name the command that failed."`
+   - After this work: Section 3.1 distinguishes an RBAC `PermissionDenied()` refusal from an engine/transport error — answering HTTP `403 Forbidden` with a sanitized JSON error (`<command>: permission denied`, still never carrying raw dispatcher internals or socket paths) instead of `502 Bad Gateway` with `engine error` — and a new authentication section documents `open`, `token` (`401` Bearer), and `user` (`401` Basic/cookie, `429` rate limit) JSON responses.
+
+### Choices for Thomas
+
+none
 
 ## Implementation Steps
 
-The gNMI phases need no owner decision except D-5, which changes only whether
-loopback clear text survives. The looking-glass phases wait for D-1 to D-4.
-
-1. **Phase: Wiring (MANDATORY FIRST)** -- prove today's behavior before changing it
-   - Tests: `gnmi-user-login`, `gnmi-none-mode-read-only`, `gnmi-user-set-denied`, `lg-open-mode-with-authorization-profiles`
+1. **Phase: Wiring (MANDATORY FIRST)** -- prove current behavior and settle A-6 before changing production code
+   - Tests: `gnmi-user-login`, `gnmi-user-set-denied`, `gnmi-user-commit-audited`, `lg-open-mode-with-authorization-profiles`, `lg-user-login`
    - Files: those `.ci` files
-   - Verify: each gNMI test fails for the reason its AC names as red at HEAD, not on a setup error. The looking-glass test settles A-6
-2. **Phase: Modes and validation** -- the leaves, the variables, the resolvers, the refusals
-   - Tests: `TestGNMIListenConfigValidateModes`, `TestLGListenConfigValidateModes`, `TestResolveGNMIListenersMode`, `gnmi-auth-mode-invalid`, `gnmi-user-mode-requires-tls`
-   - Files: the two YANG modules, `loader_extract.go`, `validate_semantic.go`, `environment.go`, `gnmi_infra.go`, `main.go`
-   - Verify: AC-8, AC-22, and the gNMI half of the repository configs converted in the same piece of work
-3. **Phase: gNMI identity** -- the chain, the three caller classes, the audit of refusals
-   - Tests: `TestGNMIUserLoginReadsUsernameAndPasswordMetadata`, `TestGNMIUserLoginAlwaysCallsTheChain`, `TestGNMIRefusesWhenNoChainIsInstalled`, `TestGNMITokenModeUsesSharedAPIIdentity`, `gnmi-user-login`, `gnmi-token-mode`
-   - Files: `gnmi/server.go`, `service_gnmi.go`, `gnmi_infra.go`, `audit.go`
-   - Verify: AC-1, AC-2, AC-6
-4. **Phase: gNMI authorization and audit**
-   - Tests: `TestConfigWriteDecisionSharedByGRPCAndGNMI`, `TestGNMISetAuthorizesEveryOperationBeforeTheSession`, `TestGNMIReadAuthorizedAsRunningConfigRead`, `TestGNMINoneModeCallerIsReadOnly`, `gnmi-user-set-denied`, `gnmi-user-read-denied`, `gnmi-user-commit-audited`, `gnmi-none-mode-read-only`
-   - Files: `api/config_auth.go`, `grpc/server.go`, `gnmi/set.go`, `gnmi/get.go`, `gnmi/subscribe.go`
-   - Verify: AC-3, AC-4, AC-5, AC-7. The constant `gnmiUsername` no longer exists
-5. **Phase: gNMI streams, removal and the refused-login limit**
-   - Tests: `TestGNMIStreamEndsWhenLocalUserLeaves`, `TestRefusedLoginLimit`, `gnmi-stream-ends-on-user-removal`, `gnmi-deleted-user-refused`, `gnmi-refused-login-limit`
-   - Files: `gnmi/subscribe.go`, the limiter
-   - Verify: AC-9, AC-13 for gNMI
-6. **Phase: gNMI reload and the gnmic interop**
-   - Tests: `gnmi-auth-reload-refused`, `TestGnmicInterop` user-mode subtests
-   - Files: `mgmt_auth_reload.go`, `gnmic_docker_test.go`
-   - Verify: AC-11, AC-12 for gNMI. A-4 is settled before this phase starts
-7. **Phase: Looking-glass modes and identity** -- after D-1 to D-4
-   - Tests: the looking-glass unit tests and `.ci` files
-   - Files: `lg/auth.go`, `lg/server.go`, `lg/handler_ui.go`, `service_lg.go`, `service_registry.go`, `register_lg.go`, `mgmt_auth_reload.go`
-   - Verify: AC-14 to AC-21, AC-12 and AC-13 for the looking glass
-8. **Phase: Join the login-set gate** -- after the sibling spec lands
-   - Tests: `TestBothSurfacesRegisterTheirLoginName`, `TestDeletedUserLosesBothSurfaces`, `gnmi-login-set-excludes`
-   - Files: the two registration sites
-   - Verify: AC-10
-9. **Phase: Docs and discrimination**
-   - Tests: every new `.ci`, each re-run with its producing change reverted
-   - Files: the documentation set
-   - Verify: every new `.ci` goes red without the change, and the red is recorded
+   - Verify: each new test fails for the documented reason at HEAD (not on a harness/setup error); `lg-open-mode-with-authorization-profiles` settles A-6
+2. **Phase: Shared core/AAA primitives** -- extract `httpsession`, create `authlimit`, create `api.AuthorizeConfigWrite`, add `audit.LookingGlass` and `config-lg-invalid`
+   - Tests: `TestStoreSessionLifecycleAndGenerationRevocation`, `TestParseBasicAuth`, `TestAuthLimiterFixedWindowEvictionAndRetryAfter`, `TestConfigWriteDecisionSharedByGRPCAndGNMI`, existing `internal/component/web` auth tests
+   - Files: `internal/component/aaa/httpsession/store.go`, `internal/component/web/auth.go`, `internal/core/authlimit/limiter.go`, `internal/component/api/types.go`, `internal/component/api/config_auth.go`, `internal/component/api/grpc/server.go`, `internal/core/audit/audit.go`, `internal/core/diagnostic/codes.go`
+   - Verify: web auth tests stay green over `aaa/httpsession`; new unit tests fail first then pass
+3. **Phase: Modes, YANG, and four-door validation** -- `auth-mode` leaves, env vars, `loader_extract.go`, `cmd_validate.go`, `validate_semantic.go`, scoped tree validators (`gnmi/register.go`, `lg/register.go`), offline doctor checks (`gnmi/doctor.go`, `lg/doctor.go`), hub start guards, and repository config conversion
+   - Tests: `TestGNMIListenConfigValidateModes`, `TestLGListenConfigValidateModes`, `TestResolveGNMIListenersMode`, `TestLGDoctorReportsAuthModeAndPlaintextExposure`, `gnmi-auth-mode-invalid`, `gnmi-user-mode-requires-tls`, `lg-auth-mode-unset`, `mgmt-guard-gnmi-nonloopback-refused`
+   - Files: `ze-gnmi-conf.yang`, `ze-lg-conf.yang`, `loader_extract.go`, `validate_semantic.go`, `internal/component/config/cli/cmd_validate.go`, `environment.go`, `gnmi/doctor.go`, `gnmi/register.go`, `lg/doctor.go`, `lg/register.go`, `cmd/ze/hub/main.go`, `cmd/ze/hub/gnmi_infra.go`, `cmd/ze/hub/lg_transport.go`, existing repo configs/fixtures stating explicit `auth-mode`
+   - Verify: AC-8, AC-17, AC-21 pass across `ze config validate`, commit, SIGHUP reload (`LoadConfig`), offline `ze doctor`, and `ze start` isolation (`LoadConfigForStart` / `filterMgmtListener` / `planLGEndpoints`); all converted repo configs remain valid
+4. **Phase: gNMI identity, authorization, audit, streams, and rate limiting**
+   - Tests: `TestGNMIUserLoginReadsUsernameAndPasswordMetadata`, `TestGNMIUserLoginAlwaysCallsTheChain`, `TestGNMIRefusesWhenNoChainIsInstalled`, `TestGNMITokenModeUsesSharedAPIIdentity`, `TestGNMISetAuthorizesEveryOperationBeforeTheSession`, `TestGNMIReadAuthorizedAsRunningConfigRead`, `TestGNMINoneModeCallerIsReadOnly`, `TestGNMIStreamEndsWhenLocalUserLeaves`, `TestShowGNMIIncludesAuthMode`, `gnmi-user-login`, `gnmi-token-mode`, `gnmi-none-mode-read-only`, `gnmi-user-set-denied`, `gnmi-user-read-denied`, `gnmi-user-commit-audited`, `gnmi-stream-ends-on-user-removal`, `gnmi-deleted-user-refused`, `gnmi-refused-login-limit`
+   - Files: `internal/component/gnmi/server.go`, `set.go`, `get.go`, `subscribe.go`, `metrics.go`, `show.go`, `cmd/ze/hub/service_gnmi.go`, `gnmi_infra.go`
+   - Verify: AC-1..AC-7, AC-9, AC-13 (gNMI), AC-22 pass; `gnmiUsername` constant is deleted
+5. **Phase: Looking glass modes, login form, Basic Auth, per-command RBAC, SSE revocation, and rate limiting**
+   - Tests: `TestLGAuthModesOpenTokenAndUser`, `TestLGUserLoginFormCookieAndLogout`, `TestLGUserBasicAuthAPIAndRFC8522`, `TestLGUserQueryRBACAndASNameDegradation`, `TestLGEventsStreamEndsOnUserRemoval`, `lg-open-mode-stays-public`, `lg-open-mode-with-authorization-profiles`, `lg-token-gate`, `lg-user-login`, `lg-events-ends-on-user-removal`, `lg-user-query-authorization`, `lg-user-mode-birdwatcher`, `lg-credential-mode-requires-tls`, `lg-refused-login-limit`
+   - Files: `internal/component/lg/auth.go`, `server.go`, `login.templ`, `handler_ui.go`, `handler_api.go`, `handler_graph.go`, `handler_rfc8522.go`, `as_names.go`, `cmd/ze/hub/service_lg.go`, `service_registry.go`, `register_lg.go`, `lg_transport.go`
+   - Verify: AC-13 (LG), AC-14..AC-21 pass
+6. **Phase: Reload refusal and `gnmic` interop**
+   - Tests: `TestPlanLGEndpointsRefusesPlaintextInCredentialMode`, `TestLGAndGNMIAuthReloadRefusal`, `gnmi-auth-reload-refused`, `lg-auth-reload-refused`, `TestGnmicInterop` user-mode subtests
+   - Files: `cmd/ze/hub/mgmt_auth_reload.go`, `listener_migrate.go`, `main_reload.go`, `internal/component/gnmi/gnmic_docker_test.go`
+   - Verify: AC-11, AC-12 pass; refusal messages use `privilege.RestartRemedy()`
+7. **Phase: Join the login-service gate (after sibling `spec-login-service-authorisation` lands)**
+   - Tests: `TestBothSurfacesRegisterTheirLoginName`, `gnmi-login-set-excludes`
+   - Files: gNMI and looking-glass login-service registration sites
+   - Verify: AC-10 passes
+8. **Phase: Docs and discrimination**
+   - Tests: re-run each new `.ci` with its producing change temporarily reverted to confirm vacuity resistance
+   - Files: all architecture pages, guides, and feature files listed in Files to Modify
+   - Verify: documentation matches code and every new `.ci` fails without its change
 
 ### Critical Review Checklist
 | Check | What to verify for this spec |
 |-------|------------------------------|
-| Completeness | Every AC that is not blocked by an open decision has an implementation and a `.ci`. A blocked AC is named as blocked, never dropped |
-| Feature completeness | User AND token AND the unauthenticated mode on each surface, each explicitly selectable. Dropping one changes what an operator can express |
-| Correctness | Every refusal cause on a surface produces one answer. gNMI Set checks every operation before it enters a session |
-| Naming | `auth-mode` on both, as MCP has. `open` on the looking glass says public; `none` on gNMI says no credential, as MCP's `none` does |
-| Data flow | One chain, handed in by the hub. Neither surface builds a user list, and neither reads `system authentication` |
-| Operator errors and doctor codes | Every validation refusal is an operator error with its fix on the last line and names `config-gnmi-invalid` or the looking-glass code. The reload refusal names `ze signal restart` |
-| Rule: `ai/rules/evidence.md` | No path resolves a mode it cannot read to the unauthenticated one. A nil authentication function refuses |
-| Rule: `ai/rules/no-layering.md` | The constant `gnmiUsername`, the zero-value caller in `query` and the token-means-mode inference are deleted, not kept beside their replacements |
-| Rule: `ai/META-DECISIONS.md`, pre-release | Repository configs are converted. No migration, hint or inferred mode exists |
+| Completeness | Every AC-1..AC-22 has an implementation and test; zero open owner decisions remain |
+| Feature completeness | All three modes (`user`, `token`, `none`/`open`) are explicitly selectable on each surface, with D-1..D-5 completely implemented |
+| Correctness | Every refusal cause on a surface produces one uniform error; gNMI `Set` authorizes all operations before `Sessions.Enter`; `ze start` isolates unservable services/endpoints ("Ze always starts") while validate/reload refuse |
+| Naming | `auth-mode` on both surfaces; `open` on looking glass, `none` on gNMI; `ze-lg-session` cookie distinct from `ze-session` |
+| Data flow | One AAA chain handed in by the hub; neither surface reads `system authentication` directly; `lg` never imports `web` |
+| Operator errors and doctor codes | Validation refusals carry their fix on the last line and name `config-gnmi-invalid` or `config-lg-invalid`; reload refusals use `privilege.RestartRemedy()` (never `ze signal restart`) |
+| Rule: `ai/rules/evidence.md` | No path resolves an empty/unreadable mode to unauthenticated; nil authenticator fails closed |
+| Rule: `ai/rules/no-layering.md` | `gnmiUsername`, zero-value LG `CallerIdentity{}`, duplicate `SessionStore`, and token-means-mode inference are deleted, not kept beside replacements |
+| Rule: `ai/META-DECISIONS.md` (pre-release) | Repository configs are converted directly; no backward-compatibility mode inference exists |
 
 ### Deliverables Checklist
 | Deliverable | Verification method |
 |-------------|---------------------|
-| gNMI resolves an identity in every mode | `gnmi-user-login`, `gnmi-token-mode`, `gnmi-none-mode-read-only` pass, and each fails with its change reverted |
-| A gNMI write is authorized and audited | `gnmi-user-set-denied`, `gnmi-user-commit-audited` |
-| No constant gNMI actor | `gopls references` on `gnmiUsername` finds no symbol, and `gnmi-user-commit-audited` asserts the actor |
-| No credential in clear on a non-loopback listener | `gnmi-user-mode-requires-tls`, `lg-credential-mode-requires-tls`, `gnmi-auth-mode-invalid` |
-| Streams end with their user | `gnmi-stream-ends-on-user-removal`, `lg-events-ends-on-user-removal` |
-| A real client can log in | `TestGnmicInterop` user-mode subtests |
-| The public looking glass survives | `lg-open-mode-stays-public`, `lg-open-mode-with-authorization-profiles` |
-| Lint | `./le go lint run scope "<pkg>"` for each package changed |
-| Schema and docs | `./le doc check all`, `./le cli dispatch check`, `./le yang glue check` |
+| gNMI identity, RBAC, audit, and STREAM revocation | `gnmi-user-login`, `gnmi-token-mode`, `gnmi-none-mode-read-only`, `gnmi-user-set-denied`, `gnmi-user-read-denied`, `gnmi-user-commit-audited`, `gnmi-stream-ends-on-user-removal` |
+| No constant `"gnmi"` actor | `grep -rn gnmiUsername internal/component/gnmi/` returns nothing |
+| Looking glass D-1..D-4 modes, login form, Basic Auth, RBAC, SSE revocation | `lg-auth-mode-unset`, `lg-open-mode-stays-public`, `lg-open-mode-with-authorization-profiles`, `lg-token-gate`, `lg-user-login`, `lg-user-mode-birdwatcher`, `lg-user-query-authorization`, `lg-events-ends-on-user-removal` |
+| Non-loopback TLS & reload refusal & rate limiting | `gnmi-user-mode-requires-tls`, `lg-credential-mode-requires-tls`, `gnmi-auth-reload-refused`, `lg-auth-reload-refused`, `gnmi-refused-login-limit`, `lg-refused-login-limit` |
+| Real `gnmic` user-mode interop | `TestGnmicInterop` user-mode subtests |
+| Lint, schema, and docs | `./le go lint run scope "<pkg>"` for changed packages; `./le doc check all`; `./le cli dispatch check`; `./le yang glue check` |
 
 ### Security Review Checklist
 | Check | What to look for |
 |-------|-----------------|
-| What a wrong landing exposes | A loopback process that still commits config with no credential; a password or token in clear on a network; a removed user's stream still delivering; a looking glass that resolves to open when the operator asked for a gate |
-| What proves it did not | Each `.ci` asserts both halves on one daemon: admitted with the right credential, refused with the wrong one, and for writes the active config key unchanged |
-| Fail closed | An unreadable mode, a nil chain and an empty bundle slot each refuse. Trace every error return in both gates and confirm none admits |
-| Unset is a stated behavior | gNMI unset is `user`. The looking glass unset is D-1. Neither is "whatever the token leaf is" |
-| No user enumeration | One status and one message for every refusal cause. The surface calls the chain for an unknown user, so the chain's dummy comparison runs |
-| Online guessing | The refused-login limit holds per remote address, and a refused attempt above it verifies nothing |
-| Privilege | A read-only caller cannot Set. A profile that denies `config set`, `config delete` or `config commit` denies the gNMI Set that needs it |
-| Secrets on read | A gNMI read returns every reversible secret. Confirm the read is gated by the running-config authorization, and that the guide says what the `$9$` form is |
-| Accounting | A refused login is an `auth-fail` entry, never a success. A commit names its user |
-| Transport | A credential mode on a non-loopback listener never starts without TLS, on either surface, including the looking glass's warned fallback |
+| What a wrong landing exposes | Unauthenticated gNMI writes; passwords/tokens/cookies in clear over a network; removed user's open STREAM/SSE still receiving data; looking glass silently opening when `auth-mode` is omitted; `return_to` open redirect on `/lg/login` |
+| What proves it did not | Each `.ci` proves both positive and negative paths on one daemon (admitted with valid credential, refused with wrong credential, running config unchanged on denied Set, relative-only `return_to`) |
+| Fail closed | Empty/unrecognized `auth-mode`, nil `Authenticate` closure, or empty `aaaBundle` all refuse; trace every error branch in both gates |
+| No user enumeration | One status and one message across unknown user, wrong password, and excluded service; chain is always called on unknown username so dummy bcrypt executes |
+| Online guessing | `internal/core/authlimit` bounds failures per remote IP (ignoring source port) BEFORE calling AAA/bcrypt, with 4096-entry memory cap |
+| Privilege & secret redaction | Read-only callers cannot `Set`; `Set` checks `edit`/`set`/`delete`/`commit` before opening a session; `Get`/`Subscribe` check `show config running` because `$9$` secrets are reversible; LG per-command RBAC returns 403 without leaking data |
+| Accounting & transport | Every refused login writes `audit.ActionAuthFail` without logging credential material; every gNMI commit names its real actor; non-loopback credential modes never serve plain HTTP (including LG's no-store downgrade) |
 
 ### Failure Routing
 | Failure | Route To |
 |---------|----------|
 | Compilation error | Fix in the phase that introduced it |
 | Test fails for the wrong reason | Fix the test assertion or setup |
-| Test fails on behavior mismatch | Re-read the source in Current Behavior. If misunderstood → RESEARCH |
-| Lint failure | Fix inline. If architectural → DESIGN |
-| Functional test fails | Check the AC: wrong AC → DESIGN, correct AC → IMPLEMENT |
-| A new `.ci` passes with the change reverted | The test is vacuous. Assert the identity or the unchanged config, not the response code alone |
-| gnmic does not send `username` and `password` as read | STOP. A-1 is broken. Report what the client sends, and which key Ze has to read |
-| The chain cannot cross the gated seam without a concrete type | STOP. A-2 is broken. Report the signature reached |
-| A looking-glass phase is reached with D-1 to D-4 unanswered | STOP. Land the gNMI phases, keep the spec open, and report which decision blocks |
-| Audit finds a missing AC | Back to the relevant phase and implement |
-| 3 fix attempts failed | STOP. Report all 3 approaches. Ask the user |
+| Test fails on behavior mismatch | Re-read producing source in Current Behavior; if misunderstood -> RESEARCH |
+| Lint failure | Fix inline; if architectural -> DESIGN |
+| Functional test fails | Check the AC: wrong AC -> DESIGN, correct AC -> IMPLEMENT |
+| A new `.ci` passes with its change reverted | Test is vacuous; assert identity, audit actor, or unchanged config, not status code alone |
+| `gnmic` does not send `username`/`password` metadata as expected | STOP; A-1 is broken; report actual wire headers |
+| Audit finds a missing AC | Return to the relevant phase and implement |
+| 3 fix attempts failed | STOP; report all 3 approaches and ask the owner |
 
 ## Design Insights
 
-- The two surfaces look alike and are not. A looking glass with no token is
-  public ON PURPOSE, and the owner asked to keep that while making it a stated
-  choice. A gNMI server with no token authenticates nobody by ACCIDENT.
-- The gRPC API is the model for gNMI's authorization and audit, and the wrong
-  model for its authentication. It shares gNMI's transport and its config
-  session manager, so the write decision, the read command and the audit entry
-  carry over. Its login is a fixed local user slice, which is not what SSH does.
-- The first version's "no timing signal" criterion could not be measured. The
-  property it wanted already exists in one place, the dummy comparison in
-  `(*LocalAuthenticator).Authenticate`, and the testable obligation on a
-  surface is to always call the chain.
-- A criterion that HEAD already satisfies proves nothing when it passes. The
-  non-loopback tokenless refusal is kept as preserved behavior with its
-  existing test, and the criteria that replace it are each red at HEAD for a
-  stated reason.
-- Splitting this from `plan/release/fixes/spec-login-service-authorisation.md`
-  is deliberate. That spec checks a fact the daemon already knows; this one
-  teaches it a fact it has never known. They fail differently and test
-  differently.
+- The two surfaces look alike and are not: a public looking glass is open ON PURPOSE (when the operator explicitly writes `auth-mode open`), whereas an unauthenticated gNMI listener is dangerous by ACCIDENT (`auth-mode user` default, `auth-mode none` loopback-only read-only).
+- Extracting `internal/component/aaa/httpsession` keeps web UI and looking-glass browser sessions identical (including `UserGeneration` revocation) without coupling two optional build-tagged components.
+- The 2026-11-26 "Ze always starts" ruling applies cleanly because `environment/gnmi` and `environment/looking-glass` are already registered via `zeconfig.RegisterServiceBlock` and both `mgmt_guard.go` (`filterMgmtListener`) and `lg_transport.go` (`reportLGServerDown`) already isolate unservable endpoints at start while keeping `ze config validate` and reload strict.
+- Splitting this from `plan/release/fixes/spec-login-service-authorisation.md` stays clean: that spec gates which services an account may log into, while this spec gives gNMI and looking glass the authenticated identities that gate acts on.
 
 ## Owned journal rows
 
-This spec owns no open journal row. The row that describes its gNMI defect,
-`plan/journal/invariant-enforced-by-an-absent-call-site.md` dated 2026-10-31
-("gNMI Set neither session-authorized nor accounted"), is listed by
-`plan/post-release/features/spec-tacacs-chap-mschap-login.md`.
+This spec owns no open journal row. The row describing gNMI's missing session authorization/accounting (`plan/journal/invariant-enforced-by-an-absent-call-site.md`, 2026-10-31) is listed by `plan/post-release/features/spec-tacacs-chap-mschap-login.md`.
 
 | Class file | Date | Surface (short) |
 |------------|------|-----------------|
@@ -660,48 +762,36 @@ This spec owns no open journal row. The row that describes its gNMI defect,
 ## Key Design Decisions
 | Decision | Alternatives Considered | Rationale |
 |----------|------------------------|-----------|
-| An explicit `auth-mode` leaf on each surface | Infer the mode from whether a token or users are configured | Inference is what produces today's surprise, where an empty leaf silently disables a gate. The owner asked for an option, which means a stated choice |
-| No mode is inferred from an existing token leaf | Infer token mode when the token is set and the mode is absent, as MCP does | MCP's inference exists for backward compatibility. Ze is pre-release, so repository configs are converted directly and no compatibility path is written |
-| gNMI's unset mode is `user` | Require the leaf; default to `token` or `none` | The owner's words: gNMI behaves like SSH, and SSH needs no leaf to require a user. A default of `none` would keep today's accident as the default |
-| gNMI user mode authenticates through the live AAA chain | Copy gRPC's `buildAPIAuthentication` | The owner's words again. gRPC's path reaches local users only, so a RADIUS or TACACS+ operator who can use SSH could not use gNMI |
-| The credential is the metadata keys `username` and `password` | `Bearer user:password`, as REST and gRPC take | The gNMI authentication text asks for username and password in the metadata, and gnmic sends those two keys. A form no gNMI client produces cannot be proven with a real client |
-| Keep the shared-token mode on both | Replace it with per-user | A token is the right credential for an unattended collector, and removing a capability is the owner's call, not this spec's |
-| One mode in force per surface | Accept a token and users on one listener | One gate with one answer per request. D-3 option (b) is the one place the looking glass might need a pair, and it is the owner's to choose |
-| A `none`-mode gNMI caller is read-only | Keep full access on loopback | Every surface gives the same result: gRPC already marks its no-auth caller read-only (`(*GRPCServer).checkAuth`), and an unauthenticated config write is a fail-open, not a mode |
-| A credential mode on a non-loopback listener requires TLS, on both surfaces | Require it for user mode only | gRPC already holds this rule for any authentication (`checkGRPCListenAddr`), for the reason it states: the credential that satisfies the gate would cross the network in clear. A token is such a credential too |
-| A reload that changes authentication is refused with the restart instruction | Apply the change live | MCP already does this (`mcpAuthReloader`), and it keeps the one-time construction both servers have. What is not acceptable is today's third answer, accepted and ignored |
-| gNMI reads are authorized as `show config running` | Admit every authenticated reader | The `$9$` form is reversible by anyone, so a gNMI read is a read of the running config with its secrets |
-| Both surfaces in one spec | One spec each | Either alone leaves the login-set gate with a hole, and the hole is invisible from the surface that did land |
+| Explicit `auth-mode` leaf on each surface (`user` default on gNMI; no default on looking glass per D-1) | Infer mode from `token` or users; default LG to `open` | Eliminates silent fail-open surprises; implements Thomas's 2026-10-31 and 2026-11-24 (D-1) decisions |
+| Shared `internal/component/aaa/httpsession` for web (`ze-session`) and LG (`ze-lg-session`) (D-2) | Duplicate session store in `lg`; import `web` from `lg` | Preserves `core-design.md` §19 isolation and shares `UserGeneration` revocation and `ParseBasicAuth` in one place |
+| Gate `/api/looking-glass/*` and `/.well-known/looking-glass/*` under the same `user` auth middleware with Basic Auth + cookie (D-3) | Leave Birdwatcher API open or token-only in `user` mode | One consistent security boundary across all LG endpoints; JSON/JSend 401 with `WWW-Authenticate: Basic` works cleanly with Alice-LG and scripts |
+| Enforce per-command RBAC in LG `user` mode with HTTP 403 and bare-ASN fallback (D-4) | Allow any authenticated user to run all LG queries | Matches Ze's profile-based authorization across every authenticated surface while keeping optional Team Cymru org lookups non-fatal |
+| Keep loopback plaintext gNMI allowed; require TLS on all non-loopback gNMI and credential-mode LG listeners (D-5) | Require TLS even on loopback | Implements D-5 for local tooling while preventing credentials from crossing any network in clear |
+| Shared `internal/core/authlimit` (`10 failures / 1m`, `4096` client cap) | Separate limiters per surface | One bounded, stdlib-only core leaf reachable by both gNMI and LG without cross-component imports |
+| Shared `internal/component/api/config_auth.go::AuthorizeConfigWrite` over `plugin.ConfigAuth*` | Duplicate `requireWriteAccess` in gNMI | gRPC and gNMI enforce identical config-write authorization before opening a session |
+| Refuse gNMI and LG auth reloads via `runReloadContext` (`checkGNMIAuthReload`) and `lgAuthReloader` with `privilege.RestartRemedy()` | Apply auth changes live or silently ignore | Mirrors `mcpAuthReloader` and avoids silent config drift; uses `privilege.RestartRemedy()` instead of invalid `ze signal restart` |
 
 ## Known Limitations
-- MCP keeps its own `Identity` scope model and is not covered here.
-- This spec depends on `plan/release/fixes/spec-login-service-authorisation.md`
-  for the gate itself. AC-10 and Phase 8 wait for it.
-- TACACS+ accounting of a gNMI Set (RFC 8907) is not done here.
-  `plan/post-release/features/spec-tacacs-chap-mschap-login.md` owns it as its
-  AC-18. That criterion plans a `NOT_SET` record for a write with no user;
-  after this spec a user-mode write has one.
-- REST and gRPC keep authenticating against the fixed local user slice. Moving
-  them to the chain is not part of the owner's requirement for this spec.
-- gNMI binds only the first `server` entry. That defect has its own journal
-  row and is not changed here.
-- A stream whose user a remote backend granted is not ended by a config
-  change, on gNMI or the looking glass, as the web UI already behaves.
+- MCP keeps its own `Identity` scope model and is not modified here.
+- Phase 7 (`AC-10`) depends on `plan/release/fixes/spec-login-service-authorisation.md` landing its `loginservice` registry.
+- TACACS+ command accounting for gNMI `Set` (RFC 8907) belongs to `plan/post-release/features/spec-tacacs-chap-mschap-login.md` (AC-18).
+- REST and gRPC keep authenticating against the accepted local user slice; moving them to the AAA chain is out of scope for this spec.
+- gNMI binds only its first `server` entry; multi-listener gNMI is tracked separately.
+- Streams/sessions granted by a remote AAA backend (TACACS+/RADIUS) are not terminated on local config reload, matching web UI behavior.
 
 ## Checklist
 
 ### Goal Gates (MUST pass)
-- [ ] AC-1..AC-22 all demonstrated, each blocked one after its decision is recorded here
+- [ ] AC-1..AC-22 all demonstrated (AC-10 once sibling `spec-login-service-authorisation` lands)
 - [ ] Every user story has a working path and a passing test
 - [ ] Wiring Test table complete: every row a concrete test name, none deferred
-- [ ] The targeted tests for what changed pass, run in the main checkout by the main thread: `./le test unit pkg path <dir>/` for each of `internal/component/gnmi`, `internal/component/lg`, `internal/component/api`, `internal/component/api/grpc`, `internal/component/config` and `cmd/ze/hub`; `./le test functional plugin`, `./le test functional parse` and `./le test functional reload` for the `.ci` files this spec names and converts; and any further suite `./le repo changed scope print both` reaches. The whole-tree verification is not part of this gate: GitHub CI runs it on the pushed commit, and no agent starts it
+- [ ] Targeted unit and functional tests for changed packages (`internal/component/aaa/httpsession`, `internal/core/authlimit`, `internal/component/web`, `internal/component/gnmi`, `internal/component/lg`, `internal/component/api`, `internal/component/api/grpc`, `internal/component/config`, `cmd/ze/hub`, and the `.ci` suites reached by `./le repo changed scope print both`) pass in the main checkout
 - [ ] Feature code integrated on both surfaces, not test-only
 - [ ] Integration and Documentation checklists answered Yes/No/N-A with evidence
 - [ ] Architectural Verification table filled, including registration over hardcoding
-- [ ] Critical Review passes, and `ai/rules/quality.md` is satisfied
-- [ ] Every A-N confirmed or broken, none `unvalidated`
-- [ ] D-1 to D-5 each answered by the owner and the answer written into this spec
-- [ ] Every item this spec did not do is a spec of its own, named in Known Limitations
+- [ ] Critical Review passes and `ai/rules/quality.md` is satisfied
+- [ ] Every A-N confirmed or resolved, none `unvalidated` at closure
+- [ ] Every item this spec did not do is named in Known Limitations
 
 ### TDD
 - [ ] Tests written
@@ -709,7 +799,7 @@ This spec owns no open journal row. The row that describes its gNMI defect,
 - [ ] Tests PASS (paste output)
 - [ ] Boundary tests for all numeric inputs
 - [ ] Functional `.ci` tests for end-to-end behavior
-- [ ] Interop tests for protocol features: the gNMI per-user credential proven with gnmic
+- [ ] Interop tests for protocol features: gNMI per-user credential proven with `gnmic`
 
 ### Closure
 - [ ] Append `plan/templates/TEMPLATE-CLOSURE.md` and complete every section in it
