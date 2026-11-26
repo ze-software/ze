@@ -9,26 +9,22 @@
 | Depends | - |
 | Phase | - |
 | Handoff | - |
-| Updated | 2026-11-24 |
+| Updated | 2026-11-26 |
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.
 
-## Owner decisions (2026-11-24)
+## Owner decisions (2026-09-04 to 2026-11-24)
+
+All design questions are settled by Thomas; none remain open.
 
 | ID | Decision |
 |----|----------|
-| Q2 (`show bgp peer \| extensive`) | Make `\| extensive` a server-side folded filter (like `\| limit`) so bare `show bgp peer` stays lightweight/fast on routers with many peers and the daemon only gathers/serializes full detail when requested. |
-| Q3 & Q4 (Class K display commands + YANG key naming on `\| limit`) | Use `\| limit <key> <val>` naming the YANG key explicitly (e.g. `show bgp rib \| limit peer <sel>`, `show interface \| limit name <n>`, `show bgp peer \| limit peer <sel>`) and convert the 21 Class-K display commands plus rename `show bgp rib \| peer`, **provided** the key name(s) after `\| limit ` are Tab-autocompleted from the command's registered keys / YANG schema (`internal/component/command/completer.go`). |
-| Q5 (old command forms) | No compatibility alias or migration shim (per `ai/META-DECISIONS.md` pre-release rule); old forms fail as unknown commands with existing `suggest.Command`. |
-
-## Existing Mechanisms (MANDATORY)
-
-| Mechanism | Where | What it does today | This spec |
-|-----------|-------|--------------------|-----------|
-| Pipe parsing and server-side filter folding | `internal/component/command/pipe.go` (`ParsePipe`, `foldFilters`), `pipe_filter.go` (`RegisterPipeFilters`) | Folds command-owned pipe filters (such as `show bgp rib \| peer <sel>`) into command arguments sent to the daemon | Extends for keyed `\| limit <key> <val>` and server-side `\| extensive` across display commands |
-| Pipe and sub-argument completion | `internal/component/command/completer.go` (`PipeOperators`, `pipeExtras`, `pipeSubArgs`) | Completes registered per-command pipe filters and static sub-args (`json`, `fill`) | Extends so `\| limit <TAB>` autocompletes each command's registered YANG key names |
-| Static CLI grammar checker | `internal/component/command/grammar/checker.go` (`CheckNode`, `CheckSiblings`) | Enforces R1-R9 over the merged YANG command tree | Extends with the display-selector rule forbidding ambiguous positional display selectors |
-| Peer subcommand collision deriver | `internal/component/plugin/server/rpc_register.go` (`PeerSubcommandKeywords`) | Marks verbs colliding with peer names based on mandatory positional selectors | Updates so converted display commands do not reserve ordinary words as colliding peer names |
+| Q1 (display vs action scope, 2026-09-04) | Verbatim: "no request is not a display limit it is a command limit so request is not changed". Display commands only. A pipe narrows or shapes an answer; an action has no answer to narrow. Every action command keeps its mandatory positional selector and `RequiresSelector` guard. |
+| Q1a & Q6 (action root move) | Historical ruling superseded by `spec-fixit-send-names-its-destination` (landed: `send bgp <selector> <form>`). This spec moves no action path and preserves current action paths and guards. |
+| Q7 (`delete bgp peer` and `update bgp peer prefix`) | Verbatim: "request lead to a change in the system, like create, delete or update but it is when the action is neither of the three". Both stay under `delete` and `update`, unchanged. |
+| Q2 (`show bgp peer \| extensive`, 2026-11-24) | Make `\| extensive` a server-side declared command-owned pipe operation (like `\| limit`, delivered through `partitionPipeChain` into `ValidatedArgs.PipeOperations()`, never rewriting the command line) so bare `show bgp peer` stays lightweight/fast on routers with many peers and the daemon only gathers/serializes full detail when requested. |
+| Q3 & Q4 (Class K display commands + YANG key naming on `\| limit`, 2026-11-24) | Use `\| limit <key> <val>` naming the YANG key explicitly (e.g. `show bgp rib \| limit peer <sel>`, `show interface \| limit name <n>`, `show bgp peer \| limit peer <sel>`) and convert all Class-K display commands (30 nodes across 18 YANG modules in HEAD) plus rename `show bgp rib \| peer` (and `rib best` / `rib protocol`), **provided** the key name(s) after `\| limit ` are Tab-autocompleted from the command's registered keys / YANG schema (`internal/component/command/completer.go`). |
+| Q5 (old command forms, 2026-11-24) | No compatibility alias or migration shim (per `ai/META-DECISIONS.md` pre-release rule); old forms fail as unknown commands with existing `suggest.Command`. |
 
 ## Task
 
@@ -48,138 +44,275 @@ sequence.
 | Role | Who carries it today | Who carries it under the rule |
 |------|----------------------|-------------------------------|
 | Subject: what the command is about | the command path | the command path, unchanged |
-| Narrowing: which members of the subject | a positional value in the path (`show bgp peer <sel> detail`) | for a DISPLAY command, a pipe operator that takes an argument (`\| limit <sel>`); for an ACTION command, a positional value typed before the verb (`request peer <sel> teardown <n>`) |
-| Shaping: how much of each member | a positional keyword in the path (`detail`, `list`) | a pipe operator (`\| summary`, `\| extensive`) |
+| Narrowing: which members of the subject | a positional value or typed selector in the path (`show bgp peer <sel> detail`, `show interface name <n> detail`) | for a DISPLAY command, a keyed server-side pipe operation naming its YANG key (`\| limit peer <sel>`, `\| limit name <n>`); for an ACTION command, a positional or typed value in the path (`request peer <sel> teardown <n>`) |
+| Shaping: how much of each member | a positional keyword in the path (`detail`, `list`) | bare command for the lightweight overview; server-side `\| extensive` for full detail; local pipe operators and aliases (`\| summary`, `\| display`, `\| json`, ...) for projection and formatting |
 
 Two consequences follow, and each is an acceptance criterion below. The bare
-command answers for the whole subject, so `show bgp peer` with nothing after it
-is every peer. And no slot in the path accepts both an operator-supplied name
-and a fixed keyword, which is the ambiguity the rule names.
+display command answers for the whole subject in lightweight form, so
+`show bgp peer` with nothing after it answers every peer. And no slot in a
+display command path accepts both an operator-supplied name and a fixed
+keyword, nor carries a positional selector that belongs after a pipe.
 
-### The scope, set by Thomas on 2026-09-04
+### Display-only scope and full population
 
-He was asked whether the pipe reaches action commands. His answer, verbatim and
-complete:
+**The rule governs DISPLAY commands only. A pipe works on an answer, and an
+action has no answer to narrow or extend.** Every action command keeps its
+positional or typed selector: `request peer <sel> teardown <n>`,
+`delete bgp peer <sel>`, `update bgp peer <sel> prefix`, `send bgp <sel> ...`,
+`clear bgp rib in/out/advertised <sel>`, `request interface <name> up/down/mtu/mac`,
+and every other action in the inventory. No action is converted by this spec,
+and none gains a `limit` or `extensive` pipe operation.
 
-> no request is not a display limit it is a command limit so request is not
-> changed
+The symptom that opened this is `show bgp peer list`. `container peer` under
+`show bgp` declares `leaf selector { mandatory true; }`, so the token after
+`peer` is a peer name, while `list` carries `ze:inherit "none"` so the same
+slot also accepts the fixed word `list`. Removing `leaf selector` and `list`
+from `show bgp peer` leaves `request interface migrate` as the sole remaining
+`ze:inherit "none"` node in the tree (under the action container
+`request interface`), so `extension inherit` stays.
 
-**The rule governs DISPLAY commands only. A pipe narrows an answer, and an
-action has no answer to narrow.** Every action command keeps its positional
-selector: `request peer <sel> teardown <n>`, `delete bgp peer <sel>`,
-`update bgp peer prefix`, the announce and withdraw forms, and every other
-action in the inventory. No action is converted by this spec, and none is
-recorded as future conversion work.
+By Thomas's 2026-11-24 rulings (Q2, Q3, Q4, Q5), this spec converts:
 
-The earlier action-placement ruling is retained in Q1a as history. Its proposed
-move to `request peer` was superseded by `spec-fixit-send-names-its-destination`.
-This spec changes no action path; the current `send bgp` contract is documented
-in `docs/architecture/api/commands.md`.
-
-The symptom that opened this is `show bgp peer list`. `container peer` declares
-`leaf selector { mandatory true; }`, so the token after `peer` is a peer name.
-`list` is a container under `peer` carrying `ze:inherit "none"`, so the same
-token position also accepts the fixed word `list`. The schema's own `ze:help`
-calls it "the exception". `request interface migrate` has the identical shape
-under `container interface`, and those two are the only `ze:inherit "none"`
-nodes in the tree.
-
-The goal is the rule applied to every DISPLAY command in the merged tree, not to
-those two nodes. 89 command nodes take a mandatory value; the inventory below
-places every one of them in a class, splits each class by verb, and states what
-the rule does to the display half. The action half is named so the census stays
-whole, and then left alone.
+1. **8 Class S display nodes** (6 under `show bgp peer` — collapsing `list` and `detail` into bare `show bgp peer` plus `| extensive`, and converting `capabilities`, `statistics`, `history`, `rib` — plus `show policy chain peer` and `show policy test peer`).
+2. **The RIB peer filter rename** (`show bgp rib`, `show bgp peer rib`, `show bgp rib best`, `show bgp rib protocol`): `| peer <sel>` becomes `| limit peer <sel>`.
+3. **30 Class K display nodes** across 18 YANG modules (listed in full in the inventory below — the original 21 plus 3 L2TP siblings, 4 `managed` fleet commands, `show skill`, and `show vrrp interface name` surfaced by auditing HEAD against `R10`), replacing typed selector path segments (`name <n>`, `id <id>`, `type <t>`, `key <k>`) with `| limit <key> <val>` and `| extensive` where a `detail` child existed.
+4. **Key autocompletion on `| limit `**: `PipeFilter` carries each command's registered YANG key names (`Keys`), `partitionPipeChain` validates `<key> <val>`, `PipeOperationsForCommand` publishes them, and `completer.go` autocompletes the key names after `| limit ` without hardcoding any command name.
+5. **The grammar gate (`R10`) and collision deriver (`PeerSubcommandKeywords`)**: a new static grammar rule enforces the display-selector ban across the merged YANG tree, and `PeerSubcommandKeywords` stops marking converted `show bgp peer` subcommands as colliding peer names.
 
 ## Required Reading
 
 ### Architecture Docs
-- [ ] `docs/architecture/cli/root-namespace-grammar.md` - the grammar this rule replaces
-  → Decision: the shape in force is `<verb> <noun> <selector-kind> <selector-value> <action> [<args>]`, and the rule deletes the middle two tokens from it. The page carries the shape as a fenced block and a six-row incorrect/correct table, so it is rewritten by this spec, not appended to.
-  → Constraint: seven feeders enforce R1-R9 and `./le cli grammar` runs them. The new rule is a feeder-level rule, so it lands in `internal/component/command/grammar` where R5 and R6 already live, and the static gate reads the whole YANG tree so the rule is enforced over every module at once.
-- [ ] `docs/architecture/cli/command-namespacing.md` - the Design doc `grammar/checker.go` declares
-  → Constraint: `checker.go` names this page in its `// Design:` header, so a rule added to the checker owes an edit here in the same work.
-- [ ] `ai/rules/cli.md` - the CLI grammar directives
-  → Constraint: "A command addressing one member of a set MUST type the selector with `name`, `id`, `index`, `address`, `type`, `key` ... Peer commands are the one exception: they address a peer positionally." The narrowing SPLITS this sentence rather than deleting it: a display peer command stops addressing a peer positionally, and an action peer command keeps doing so, at `request peer <sel> <verb>`. The rule file is edited by this spec to say both halves.
-  → Constraint: "A command whose action enumerates the members of a set MUST spell that action `list`." Under the rule the bare command enumerates, so `list` as an action word is deleted rather than respelled, and this directive is rewritten too.
-  → Decision: "Ze is unreleased, so an unreleased grammar MUST be replaced outright rather than deprecated." No alias, no fallback, no compatibility spelling for any converted command.
-- [ ] `ai/patterns/cli-command.md` - the structural template
-  → Constraint: the page carries "Peer commands are the explicit exception. Their public syntax keeps the peer selector immediately after `peer`", plus a worked `Peer Selector Mechanism` section and a Command Classes table naming a `Typed selector` and a `Peer-scoped` class. All four blocks state the grammar this spec changes. Under the narrowing they are rewritten rather than deleted: the peer exception survives for ACTION commands, at `request peer <sel> <verb>`, and stops applying to display commands.
-- [ ] `ai/rules/simplicity.md` - the shape of the fix
-  → Constraint: the fix cuts machinery and never correctness. `RequiresSelector` is a fail-closed guard on six action commands, so any conversion that drops it cuts correctness and is refused.
-- [ ] `ai/rules/spec-no-code.md` - spec form
-  → Constraint: no code snippet in any language; tables and prose only.
+- [ ] `docs/architecture/api/commands.md` - the Design doc for pipe parsing, partitioning, per-command pipe declarations, completion, peer handlers, RIB handlers, and policy handlers
+  → Decision: Design decision of 2026-08-21 ("The pipe wins: a command path names the subject and stops; scope, presentation and format are pipe operations after it, selector words included") and 2026-11-23 ("A pipe operation works on the answer of the command before it. It may narrow the answer, extend it, transform it, or deliver it somewhere... It never changes what the command does"). The command line is NEVER rewritten: `ReadDispatchLine` and `partitionPipeChain` split declared operations into `ValidatedArgs.PipeOperations()` / `CommandContext.PipeOperations()` / `rpc.ExecuteCommandInput.Pipe`, and leave residual operations for `ApplyPipes`.
+  → Constraint: Any new declared operation registers through `command.RegisterPipeFilters` (`pipe_filter.go`) and surfaces automatically through `PipeOperationsForCommand` (`pipe_operations.go`), `completer.go`, `show command help`, `ze help command --json`, and `WritePipeList` (MCP/REST/gRPC).
+- [ ] `docs/architecture/cli/root-namespace-grammar.md` - the command shape and the seven grammar feeders
+  → Decision: Currently publishes `<verb> <noun> <selector-kind> <selector-value> <action> [<args>]` and six incorrect/correct examples including `show interface name <name> detail` and `show l2tp session id <id> detail`. This spec departs from that unified display/action shape and updates the page so display commands stop at the subject and narrow with `| limit <key> <val>`, while action commands keep their selector in the path.
+  → Constraint: Seven feeders enforce R1-R9 and `./le cli grammar` runs them. The new display-selector rule (`R10`) lands in `internal/component/command/grammar/checker.go` beside R5/R6 and prints its checked population in `internal/le/cli/grammar/cligrammar.go`.
+- [ ] `docs/architecture/cli/command-namespacing.md` - the `// Design:` page of `grammar/checker.go` and `cligrammar.go`
+  → Constraint: `checker.go` and `cligrammar.go` name this page in their `// Design:` header. Its "Which register a token belongs to" table currently puts selectors under Command grammar and restricts Pipe operators to reducing an answer already in hand; this spec departs from that table for display selectors and updates it to match `commands.md`.
+- [ ] `docs/architecture/cli/command-verbs.md` - verb promises, action selectors, pipe layer, and L-6
+  → Constraint: Currently states "An owned filter takes the name of the field it selects on", lists L-6 ("The name of the narrowing operator is OPEN"), and states "Where the command enumerates the members of a set, spell that action `list`". Thomas's Q2/Q3/Q4 decisions settle L-6 in favor of `| limit <key> <val>` and retire `list` as a display subcommand, so this spec departs from those three lines and updates `command-verbs.md` in the same change.
+- [ ] `docs/architecture/cli/command-completion.md` - interactive completion and pipe completion
+  → Constraint: After `|`, Tab offers `PipeOperationsForCommand(command)`. Extending `completePipeArg` to offer registered `PipeFilter.Keys` after `| limit ` must derive from the registry and work across SSH, web, and `ze cli`.
+- [ ] `docs/architecture/exabgp-bridge.md` - ExaBGP `status` and warning hints
+  → Constraint: `bridge_status.go` defines `StatusPeerCommand = "show bgp peer * detail"` and `bridge_event.go` names `show bgp peer <peer> capabilities` in warnings; both must update to `show bgp peer | extensive` and `show bgp peer capabilities | limit peer <peer>` so ExaBGP `status` keeps working after old forms are removed (Q5).
+- [ ] `ai/rules/cli.md` and `ai/patterns/cli-command.md` - CLI grammar directives and structural template
+  → Constraint: Split the selector rule into display commands (bare subject + `| limit <key> <val>` / `| extensive`) and action commands (positional/typed selector before verb, keeping the peer exception on `request peer <sel> <verb>`). Retire the "`list` enumerates a set" rule for display commands. No compatibility alias for unreleased grammar.
+- [ ] `ai/rules/simplicity.md` and `ai/rules/spec-no-code.md`
+  → Constraint: Never weaken action `RequiresSelector` guards; zero code snippets in the spec.
 
 **Key insights:**
-- The pipe layer already pushes an argument-taking operator down to the handler. `foldFilters` rewrites a command-owned `PipeFilter` into positional command arguments and appends them to the command string, so `show bgp rib | peer 10.0.0.1` reaches the RIB plugin as `show bgp rib peer 10.0.0.1`. The narrowing operator this rule needs is therefore a mechanism that exists and is in production, not new machinery.
-- Chaining two operators already works. `parsePipeOps` splits on every `|`, `expandAliases` runs before `foldFilters`, so `| limit <sel> | summary` parses, folds the filter into the command and leaves the alias expansion in the local chain.
-- `summary` already exists, as a pipe alias on `show bgp`. `limit` and `extensive` do not exist anywhere.
-- `list` is a SHAPE, not a filter. `handleBgpPeerList` and `handleBgpPeerDetail` both call `filterPeersByArgs` over the same peer population; `list` builds a five-field row and `detail` the full record. Removing the word `list` therefore changes which fields the bare command answers with, and changes no filtering.
+- HEAD already retired `foldFilters` and command-line rewriting in favor of `ReadDispatchLine` (`dispatch_line.go`) and `partitionPipeChain` (`pipe_partition.go`). Declared pipe operations are delivered as structured `[]command.PipeOperation` (`Name`, `Args`) on `ValidatedArgs.PipeOperations()`, `CommandContext.PipeOperations()`, and `rpc.ExecuteCommandInput.Pipe`, while residual operators stay in `ApplyPipes`.
+- Chaining declared operations (`| limit peer edge1 | extensive`) with residual operators (`| json`, `| match ...`, `| count`) already works in `partitionPipeChain`: every declared operation in the prefix reaches the handler in chain order, and every generic/formatting operator after them stays residual for `ApplyPipes`. A declared operation typed after a residual one is already refused by `lateOperationRefusal` with the reordered line as its fix.
+- `RefusePipeOperationWords` (`argbind.go`) already refuses a command's declared pipe operation word if typed as a positional argument and prints the pipe form as its fix.
+- `list` is a presentation shape, not a filter: `handleBgpPeerList` and `handleBgpPeerDetail` both call `filterPeersByArgs` over `ctx.Reactor().Peers()`. Making `show bgp peer` lightweight by default and activating full detail via server-side `| extensive` (Q2) avoids gathering/serializing heavy detail rows on bare `show bgp peer` while keeping one command path.
+- `PipeFilter` (`pipe_filter.go`) currently has `Name`, `Description`, `Argument PipeArgKind`. Adding an optional `Keys []string` field lets any command declare the YANG key names accepted after `| limit ` once; `partitionPipeChain` validates `<key> <val>`, `PipeOperationsForCommand` publishes them, and `completer.go` autocompletes them on Tab.
 
 ## Current Behavior (MANDATORY)
 
 **Source files read:**
-- [ ] `internal/component/bgp/plugins/cmd/peer/yang/ze-peer-cmd.yang` - declares `container peer` with `leaf selector { mandatory true; }` under `show bgp`, `update bgp` and `request`; declares `list` with `ze:inherit "none"`; declares `delete bgp peer` with its own `leaf selector`.
-- [ ] `internal/component/bgp/plugins/cmd/raw/yang/ze-raw-cmd.yang` - declares `container peer` then `container raw` carrying its own `leaf selector`, so the operator types `peer raw <selector>`.
-- [ ] `internal/component/bgp/plugins/cmd/update/yang/ze-update-cmd.yang` - the same shape, `peer update <selector>`.
-- [ ] `internal/component/bgp/plugins/cmd/announce/yang/ze-cli-announce-cmd.yang` - declares `announce-forms` and `withdraw-forms` as groupings instantiated at two paths: bare (`announce unicast ...`, reaching every peer) and under `peer` with the selector (`peer <sel> announce unicast ...`).
-- [ ] `internal/component/iface/yang/ze-iface-cmd.yang` - declares `container interface` with `leaf name { mandatory true; }` under `request`, and `migrate` with `ze:inherit "none"`.
-- [ ] `internal/component/config/yang/modules/ze-extensions.yang` - `extension inherit` takes `none` or `ancestors`; `ancestors` is the default.
-- [ ] `internal/component/command/pipe_catalog.go` - the 17 global operators and their contracts. `PipeArgKind` already has `ArgText`, `ArgCount`, `ArgFields` and `ArgPath`, so argument-taking operators are the norm rather than an exception. There is no `limit`, no `extensive`. `match` is `ClassData`, `ArgText`, over `rowShapes`.
-- [ ] `internal/component/command/pipe.go` - `ParsePipe`, `parsePipeOps`, `expandAliases`, `foldFilters`, `ApplyPipes`. `foldFilters` turns an owned filter into command arguments and appends them to the command string; a `Leading` filter is appended first.
-- [ ] `internal/component/command/pipe_filter.go` - `PipeFilter` carries `Name`, `Description`, `TakesArg` and `Leading`. `RegisterPipeFilters` refuses a name a pipe alias of an overlapping path carries, with a `panic("BUG:")`. Lookup is longest registered command path, and an empty registration blocks a shorter prefix from matching.
-- [ ] `internal/component/command/alias.go` - an alias is a fixed expansion into operators, takes no argument, and names no other alias. `RegisterAliases` refuses a name a pipe operator or an overlapping path's filter already carries.
-- [ ] `internal/component/command/completer.go` - `PipeOperators` is derived from the catalog; `pipeExtras` adds a command's aliases and owned filters; `pipeSubArgs` is a hand-written map holding sub-argument completions for `json` and `fill` alone.
-- [ ] `internal/component/command/grammar/checker.go` - `CheckName` (R1, R2, R3, R7), `CheckNode` (R5 keyword-before-value, R6 value-before-keyword, R8 string identifiers), `CheckSiblings` (R9), `CheckRootNamespace`.
-- [ ] `internal/component/bgp/plugins/cmd/peer/peer.go` - `handleBgpPeerList` and `handleBgpPeerDetail` both call `filterPeersByArgs`; `registerAliases` declares `summary` and `peers` on `show bgp` and an empty alias set on every child; six RPC registrations carry `RequiresSelector: true`.
-- [ ] `internal/component/bgp/plugins/cmd/rib/rib.go` - `registerPipeFilters` declares `peer`, `family`, `prefix`, `path`, `community`, `match`, `count`, `first`, `last`, `histogram`, `graph` on `show bgp rib`, with `received` and `advertised` as `Leading`.
-- [ ] `internal/component/config/retired.go` - `retiredKeywords` and `RetiredKeywordHint` are CONFIG parser machinery. The map keys are config field names and the hint is appended to an unknown-field parse error. Nothing in it reaches the command tree.
-- [ ] `test/ui/alias-summary.ci` - the functional-test shape for a pipe alias: a `le test fixture ui/<name>` invocation asserting exit 0 and `OK` on stdout.
+- [ ] `internal/component/command/pipe.go` - `ParsePipe`, `ReadCommandPart`, `parsePipeOps`, `parsePipeChain`, `parseExecutionPipeChain`, `expandPipeChain`, `expandAliases`, `bindAddressFields`, `collectPipeMeta`, `ApplyPipes`, `ValidatePipes`. Does NOT rewrite commands (`foldFilters` is retired).
+- [ ] `internal/component/command/pipe_partition.go` - `partitionPipeChain` splits the expanded chain into `declared []PipeOperation` (prefix of operations registered via `RegisterPipeFilters` or `RegisterPluginPipeFilters`) and `residual []pipeOp` (applied by `ApplyPipes`). `validateDeclaredArgument` checks argument counts/kinds (`ArgNone`, `ArgOptional`, `ArgText`, `ArgCount`, `ArgFields`, `ArgPath`); it has no keyed `<key> <val>` validation yet. `lateOperationRefusal` refuses a declared operation typed after a residual one with a reordered fix.
+- [ ] `internal/component/command/pipe_filter.go` - `PipeFilter` holds `Name`, `Description`, `Argument PipeArgKind`. `RegisterPipeFilters` checks `aliasShadowing` and `declaredFilterRefusal`, panicking on invalid declarations or conflicts. Longest-prefix lookup via `declarationRegistry`; empty registration acts as an inheritance floor.
+- [ ] `internal/component/command/pipe_operations.go` - `PipeOperationsForCommand` and `PipeOperations` derive the single `pipe-operations` list (`generic`, `override`, `command`, `alias`) read by `show command help`, `ze help command --json`, `completer.go`, and `WritePipeList` (MCP/REST/gRPC).
+- [ ] `internal/component/command/dispatch_line.go` - `ReadDispatchLine` scans once with `scanExecution`, expands aliases, and runs `partitionPipeChain`. `DeclaredOperations()` feeds `CommandContext.PipeOperations()` and `ValidatedArgs.WithPipeOperations(declared)` in `internal/component/plugin/server/command.go`, and `pluginPipe` forwards them in `rpc.ExecuteCommandInput.Pipe`.
+- [ ] `internal/component/command/pipe_catalog.go` - the 17 global/data/stream operators (`json`, `ndjson`, `table`, `text`, `yaml`, `raw`, `no-more`, `log`, `save`, `match`, `count`, `first`, `last`, `display`, `fill`, `resolve`, `origin`). Neither `limit` nor `extensive` is a catalog operator.
+- [ ] `internal/component/command/pipe_list.go` - `PipeListSchema`, `DecodePipeList`, `WritePipeList` carry structured `pipe` lists on MCP/REST/gRPC and validate each operation name against `PipeOperationsForCommand`.
+- [ ] `internal/component/command/completer.go` - `completePipeForCommand` offers `PipeOperationsForCommand(command)` after `|`; `completePipeArg` completes `| display` from `ColumnsForCommand` and `json`/`fill` from static `pipeSubArgs`. It has no support yet for completing registered keys of a declared operation like `| limit <TAB>`.
+- [ ] `internal/component/command/grammar/checker.go` - `CheckName` (R1, R2, R3, R7), `CheckNode` (R5, R6, R8), `CheckSiblings` (R9), `CheckRootNamespace` (R9), `ExemptCategory` (E1-E3). Currently allows `selectorKinds` (`name`, `id`, `index`, `address`, `type`, `key`) on display commands and has no rule rejecting mandatory selectors on display commands.
+- [ ] `internal/le/cli/grammar/cligrammar.go` - Feeder 1 static gate over the merged YANG tree plus Feeders 4-7, printing checked population counts.
+- [ ] `internal/component/plugin/server/rpc_register.go` - `PeerSubcommandKeywords` walks every BGP `peer` container (`show bgp peer`, `request peer`, `update bgp peer`, `delete bgp peer`) and marks a child keyword `Colliding` when `reachedWithoutSelector` finds a command lacking a mandatory `ArgDef` anchored to `peer`. Today only `list` under `show bgp peer` collides; deleting `leaf selector` from `show bgp peer` without updating `isBGPPeerNode`/`readPeerContainer` would falsely mark `capabilities`, `history`, `rib`, and `statistics` as colliding peer names.
+- [ ] `internal/component/bgp/plugins/cmd/peer/yang/ze-peer-cmd.yang` - declares `container peer` under `show bgp` with mandatory `leaf selector`, `container list` with `ze:inherit "none"`, and `detail`, `capabilities`, `statistics`, `history`, `rib`. Also declares action commands under `create bgp peer`, `delete bgp peer`, `update bgp peer`, `clear bgp rib advertised`, and `request peer`.
+- [ ] `internal/component/bgp/plugins/cmd/peer/peer.go` & `summary.go` - `handleBgpPeerList`, `handleBgpPeerDetail`, `handleBgpPeerCapabilities`, `handleBgpPeerStatistics`, `handlePeerHistory` all call `filterPeersByArgs` (which reads `ctx.PeerSelector()` / `args[0]`, not `validated.PipeOperations()`). `ze-bgp:peer-history` carries `RequiresSelector: true` even though it is a display command; action handlers (`teardown`, `notify`, `disable`, `enable`, `pause`, `resume`, `flush`, `rib-clear-advertised`, `peer-create`, `peer-delete`, `update-peer-prefix`) also carry `RequiresSelector: true`. `show bgp` registers `summary` and `peers` pipe aliases and `RegisterChildBoundary(cmdBgp, isFamilyArg)`.
+- [ ] `internal/component/bgp/plugins/cmd/rib/rib.go`, `internal/component/bgp/plugins/rib/rib_pipeline.go`, `rib_pipeline_best.go` - `ribAttributeFilters` declares `peer` (`Argument: command.ArgText`) on `show bgp rib`, `show bgp peer rib`, `show bgp rib protocol`, and `show bgp rib best`; `parsePipelineOperations` and `parseBestPipelineOperations` read `operation.Name == "peer"` from `[]sdk.PipeOperation`; `ze-bgp:peer-rib` carries `RequiresSelector: true`.
+- [ ] `internal/component/bgp/plugins/cmd/policy/yang/ze-policy-cmd.yang`, `register.go`, `handler.go` - declares `show policy chain peer` (mandatory `leaf selector`) and `show policy test peer` (mandatory `leaf selector` and `leaf direction`, plus keyword groups `filter`, `update`, `route-kind`, `source-asn4`). Both handlers read `ctx.Selector("selector")` / positional `args[0]`.
+- [ ] `internal/exabgp/bridge/bridge_status.go` & `bridge_event.go` - `StatusPeerCommand` is hardcoded to `"show bgp peer * detail"`; decode warnings cite `show bgp peer <peer> capabilities`.
+- [ ] The 18 Class K YANG modules (verified on disk) and their 18 handler/registration packages (`bfd`, `l2tp`, `pki-cmd`, `pppoe`, `filter_path_asn`, `config-cli`, `config-storage`, `resolve-cmd`, `env`, `firewall/plugins/irr`, `firewall`, `iface`, `cmd/show`, `ike`, `l2tp/subscriber`, `managed`, `skills`, `vrrp`) - declare the 30 Class K display commands with mandatory `name`, `id`, `type`, or `key` path leaves (or a selector path container `name` in `ze-vrrp-cmd.yang`).
+- [ ] `internal/component/iface/yang/ze-iface-cmd.yang` - `request interface migrate` is the second (and after this spec, sole remaining) `ze:inherit "none"` node in the tree, under the action container `request interface`.
 
 **Behavior to preserve:**
-- The peer selector vocabulary: an address, a peer name, an AS pattern such as `as65001`, a glob, a comma-separated list, or `*`. `peersel.ParseDefault` reads it and this spec does not change it.
-- The six commands registered `RequiresSelector: true` MUST stay unable to run without an explicit selector, whatever spelling carries it.
-- `show bgp | summary` and `show bgp | peers` keep their current meaning and their two `.ci` tests.
-- The field sets each handler answers with. This spec moves which words select a field set; it does not change what a field set holds.
-- `show bgp rib`'s push-down filtering. Its filters reach the RIB plugin as command arguments and that route is unchanged.
+- The peer selector vocabulary (`peersel.ParseDefault`): IP address, peer name, AS pattern (`as65001` / RFC 5396 notations), glob, comma-separated list, exclusion (`!edge1`), or `*`.
+- Every action command's path, mandatory positional/typed selector, and `RequiresSelector: true` / `ResolveSinglePeer` guard (`request peer <sel> ...`, `create bgp peer`, `delete bgp peer`, `update bgp peer`, `clear bgp rib in/out/advertised`, `send bgp <sel> ...`, `request interface <name> ...`, `clear interface name <n> counters`, etc.). No action command gains `limit` or `extensive`.
+- `show bgp | summary` and `show bgp | peers` aliases and their existing `.ci` tests.
+- Server-side narrowing and streaming: narrowed display queries filter inside the daemon/plugin before serialization (`show bgp peer`, `show bgp rib`, etc.), and `show bgp rib` preserves its lazy streaming walk (`sdk.Records`) and other pipeline stages (`family`, `prefix`, `path`, `aspath`, `community`, `covering`, `exact`, `match`, `count`, `first`, `last`, `histogram`, `graph`, `reason`, and direction scopes).
+- `show bgp peer` lightweight field set (bare) and full detail field set (`| extensive`), including `bfd-sub-state`, `connect-retry-counter`, `remote-as` omission when unknown, `capabilities.paths-limit`, and `capabilities.fqdn`.
+- ExaBGP `status` command answered by `internal/exabgp/bridge/bridge_status.go`, using the updated `show bgp peer | extensive` command.
+- `ze:inherit "none"` on `request interface migrate` (the extension keeps one action user and is not deleted).
+- Structured `pipe` parameter support on MCP, REST, and gRPC (`WritePipeList` / `PipeOperationsForCommand`), which automatically exposes `limit` and `extensive` once registered.
+- Class A commands (whose mandatory value is the computation subject/input, such as `show route lookup <ip>`, `show tcp-check <host> <port>`, `show bgp irr check <peer> <prefix>`, `show bfd session address <addr>`, `show config artifact history/diff/source`, `resolve ...`) remain untouched.
 
 **Behavior to change:**
-- The eight DISPLAY command nodes in classes S-inherited and S-own lose their positional selector and gain `| limit <selector>`: the six under `show bgp peer`, plus `show policy chain peer` and `show policy test peer`.
-- `show bgp peer list` loses the `ze:inherit "none"` shape, because the ancestor it declines no longer declares a selector. `request interface migrate` KEEPS it: `container interface` keeps `leaf name`, since every command under it is an action. The extension therefore keeps one user and is not deleted.
-- `show bgp rib`'s `| peer <sel>` filter is respelled `| limit <sel>`: it is the same concept under a second name, which habit 1 of `ai/rules/writing.md` bans.
-- Class K: pending Thomas's answer to Q3, and only its 21 display nodes are candidates. Class A is untouched.
+- **8 Class S display nodes** lose their positional selector and `list`/`detail` subcommands, gaining `| limit peer <sel>` (and `| extensive` on `show bgp peer`). `show bgp peer` becomes the executable bare command returning lightweight peer rows; `show bgp peer | extensive` gathers/serializes full peer detail server-side. `show policy chain` and `show policy test` drop the `peer` container and mandatory `selector` leaf and narrow via `| limit peer <sel>`.
+- **RIB peer filter rename**: `show bgp rib`, `show bgp peer rib`, `show bgp rib protocol`, and `show bgp rib best` replace `| peer <sel>` with `| limit peer <sel>`.
+- **30 Class K display nodes** across 18 YANG modules drop their mandatory `name`/`id`/`type`/`key` path containers/leaves (and `detail` subcommand where bare lists and `| extensive` returns full detail, e.g., `show interface`, `show subscriber`) and narrow via `| limit <key> <val>` naming their YANG key.
+- **Keyed `| limit` registration, validation, and Tab completion**: `PipeFilter` gains `Keys []string`; `partitionPipeChain` validates `<key> <val>` against registered `Keys` and `maxArgLength`; `PipeOperationsForCommand` publishes `Keys`; `completePipeArg` in `completer.go` autocompletes registered key names after `| limit `.
+- **Static grammar gate (`R10`)**: `grammar.CheckNode` rejects display (`show`, `monitor`) executable command nodes (`WireMethod != ""` and `Modifier == ModifierNone`) that carry a mandatory `selector` leaf, a sole mandatory leaf in `{name, id, type, key}`, or a selector-keyword command container (`name`, `id`, `type`, `key`) carrying an `ArgDef`; `ze:modifier` child argument groups (`show metrics`'s `label <key> <value>` and `show policy test`'s `filter <name>`) and multi-input Class A commands (including detached artifact `artifact` + `name`) pass structurally, and `cligrammar.go` prints the checked population count.
+- **Collision deriver (`PeerSubcommandKeywords`)**: stops marking converted display `show bgp peer` children as colliding peer names, because no peer name can ever be typed immediately after `show bgp peer`.
+- **ExaBGP bridge status caller & docs/demos/tests**: `StatusPeerCommand` updates to `"show bgp peer | extensive"`, old command forms fail as unknown commands with `suggest.Command` (no compatibility aliases, Q5), and all docs, rules, patterns, demos, and fixtures update to the new spellings.
 
-**Behavior to preserve, added by the narrowing:**
-- Every action command keeps a positional, mandatory selector, and every `RequiresSelector: true` registration keeps refusing a selector-less invocation. No action command gains a `limit` filter.
+## Existing Mechanisms (MANDATORY)
+
+| Mechanism | Where (file + symbol, or page + section) | What it does today | This spec (extends, replaces, or does not apply, with the reason) |
+|-----------|------------------------------------------|--------------------|-------------------------------------------------------------------|
+| Pipe chain scanning and partitioning | `internal/component/command/dispatch_line.go` (`ReadDispatchLine`), `pipe_partition.go` (`partitionPipeChain`, `validateDeclaredArgument`), `pipe_filter.go` (`PipeFilter`, `RegisterPipeFilters`) | Scans a line once, expands aliases, splits command-declared pipe operations from the residual chain without rewriting the command line, and delivers `[]PipeOperation` to handlers via `ValidatedArgs.PipeOperations()`, `CommandContext.PipeOperations()`, and `rpc.ExecuteCommandInput.Pipe` | Extends: adds `Keys []string` on `PipeFilter` and keyed `<key> <val>` validation in `validateDeclaredArgument` so `\| limit <key> <val>` and server-side `\| extensive` flow through the existing partition with zero command-line rewriting |
+| Unified pipe-operation catalog & structured `pipe` lists | `internal/component/command/pipe_operations.go` (`PipeOperationsForCommand`, `PipeOperationEntry`), `pipe_list.go` (`WritePipeList`), `argbind.go` (`RefusePipeOperationWords`) | Derives one `pipe-operations` list for `show command help`, `ze help command --json`, completion, and MCP/REST/gRPC structured `pipe` lists, and refuses declared pipe words typed as command arguments | Extends: exposes registered `Keys` on `PipeOperationEntry` so help, catalog, completion, and adapters share one source of truth for `\| limit <key> <val>` |
+| Pipe and sub-argument completion | `internal/component/command/completer.go` (`completePipeForCommand`, `completePipeArg`, `pipeSubArgs`) | Completes pipe operation names from `PipeOperationsForCommand`, `\| display` fields from `ColumnsForCommand`, and static sub-args for `json` and `fill` | Extends: adds registered key completion in `completePipeArg` when completing the first argument of a keyed declared `PipeFilter` (`\| limit <TAB>`) |
+| Static CLI grammar checker | `internal/component/command/grammar/checker.go` (`CheckNode`, `CheckSiblings`), `internal/le/cli/grammar/cligrammar.go` | Enforces R1-R9 over the merged YANG command tree and prints checked population counts | Extends: adds rule R10 forbidding mandatory selector leaves on display (`show`/`monitor`) commands while exempting action commands and Class A inputs |
+| Peer subcommand collision deriver | `internal/component/plugin/server/rpc_register.go` (`PeerSubcommandKeywords`, `isBGPPeerNode`, `readPeerContainer`) | Computes `Declared` and `Colliding` peer subcommand keywords from the merged YANG tree so config validation refuses peer names that would collide with adjacent subcommands | Extends: restricts `Colliding` to `peer` containers where an operator can actually type a peer selector immediately after `peer` (actions), so converted `show bgp peer` children do not reserve ordinary words |
+| BGP peer selector parser | `internal/core/selector` (`ParseDefault`, `ParseASNSelector`) and `internal/component/bgp/plugins/cmd/peer/peer.go` (`filterPeersBySelectorValue`) | Matches peers by IP, name, ASN, glob, comma list, exclusion, or `*` | Reuses unchanged: handlers extract `<sel>` from `limit peer <sel>` in `ValidatedArgs.PipeOperations()` and pass it to the existing selector parser |
+| ExaBGP `status` peer query | `internal/exabgp/bridge/bridge_status.go` (`StatusPeerCommand`, `StatusPeers`) | Dispatches `"show bgp peer * detail"` to gather `fsm-state` and neighbor fields for ExaBGP `status` | Extends: updates `StatusPeerCommand` to `"show bgp peer \| extensive"`, keeping the same JSON row fields |
+
+## Design documents
+
+| Document | Section | Derived from | Binding statement | Verdict | How this design stands against it |
+|----------|---------|--------------|-------------------|---------|-----------------------------------|
+| `ai/doors/system.md` | One schema, one command registry, every interface | the door every change reads; covers `resolve/cmd/show_dns.go` | "The CLI, SSH, the web UI, REST, gRPC and MCP dispatch into the same command registry." | agrees | Every converted display command updates its single YANG declaration and `command.RegisterPipeFilters` call; CLI, SSH, web, REST, gRPC, and MCP derive the new paths and `\| limit` / `\| extensive` operations from the same registry without per-surface edits. |
+| `docs/architecture/api/commands.md` | The dispatcher takes the line with its pipe chain | `// Design:` and anchor of `pipe_filter.go`, `pipe_partition.go`, `pipe_operations.go`, `completer.go`, `peer.go`, `summary.go`, `rib.go`, `rib_pipeline.go`, `policy/`, `config/`, `show.go`; modified by this spec | "`Dispatch` accepts a line with a pipe chain from every caller. It reads the line once (`command.ReadDispatchLine`): the command part and the chain under the one grammar, the chain's aliases expanded, and the chain partitioned for the command (`partitionPipeChain`)." | agrees | `\| limit <key> <val>` and `\| extensive` register through `RegisterPipeFilters`, partition via `partitionPipeChain`, and reach handlers via `ValidatedArgs.PipeOperations()` / `CommandContext.PipeOperations()` / `ExecuteCommandInput.Pipe` with zero command-line rewriting; the page is updated for `PipeFilter.Keys` and the converted examples. |
+| `docs/architecture/api/commands.md` | Design decisions | decision of 2026-08-21 | "The pipe wins: a command path names the subject and stops; scope, presentation and format are pipe operations after it, selector words included" | agrees | This spec implements that decision directly across all Class S display commands, `show bgp rib`, and all 30 Class K display commands without rewriting the command line. |
+| `docs/architecture/api/commands.md` | Design decisions | decision of 2026-11-20 | "A command may override any generic pipe operation that acts on its data, as long as the answer keeps the generic's data format: every data operator of the catalog is overridable, each held to its generic's answer shape; a format, paging, `save` and `log` are the data format or its display, and stay the generic's. In Thomas's words: "I believe it should be possible to overwrite more command as long as their data format is not changed."" | agrees | `limit` and `extensive` are new command-owned pipe operations rather than overrides of formats, paging, `save`, or `log`, and all existing RIB data-operator overrides (`match`, `count`, `first`, `last`) keep their exact generic contracts and shapes. |
+| `docs/architecture/api/commands.md` | Design decisions | decision of 2026-11-23 | "A pipe operation works on the answer of the command before it. It may narrow the answer, extend it, transform it, or deliver it somewhere, such as saving it to a file. It never changes what the command does" | agrees | `\| limit <key> <val>` narrows the display answer server-side, `\| extensive` extends the display answer with full detail, and no action command is converted or given a pipe operation (Q1, Q2). |
+| `docs/architecture/cli/command-verbs.md` | Narrowing and shaping: the pipe layer | anchored to `pipe_filter.go`, `pipe_partition.go`, `pipe_operations.go`, `checker.go`, `ze-peer-cmd.yang`, `rib.go`; modified by this spec | "An owned filter takes the name of the field it selects on." | departs | Thomas's 2026-11-24 decision (Q3 & Q4) settles open position L-6 in favor of a uniform keyed operator `\| limit <key> <val>` (e.g. `show bgp rib \| limit peer <sel>`, `show interface \| limit name <n>`) rather than bare field-named filters (`\| peer <sel>`), and retires the `list` subcommand rule for display commands in favor of bare subject + `\| extensive`. This spec updates `command-verbs.md` to record that settled rule and close T-3 and L-6. |
+| `docs/architecture/cli/root-namespace-grammar.md` | The command shape, and what each feeder checks | modified by this spec | "`show interface name <name> detail`" | departs | The page currently prescribes `<verb> <noun> <selector-kind> <selector-value> <action> [<args>]` for display commands (`show interface name <name> detail`, `show interface name <name> counters`, `show l2tp session id <id> detail`, `show vpn ipsec peer name <name> detail`). Thomas's Q1/Q2/Q3/Q4 decisions replace that display shape with `<verb> <noun> [\| limit <key> <value>] [\| extensive]`, while preserving the positional/typed selector shape for action commands. This spec updates `root-namespace-grammar.md` accordingly. |
+| `docs/architecture/cli/command-namespacing.md` | Which register a token belongs to | `// Design:` page of `checker.go` and `cligrammar.go`; modified by this spec | "Does it change WHICH answer is produced: the object, the sub-section, the selector, the filter, the variant?" | departs | The register table currently places display selectors and answer variants exclusively in Command grammar and limits Pipe operators to an answer already in hand. Under Thomas's Q1-Q4 decisions and `commands.md`'s 2026-08-21 and 2026-11-23 rulings, display narrowing (`\| limit <key> <val>`) and server-side detail extension (`\| extensive`) belong to the pipe register while action selectors and Class A subject inputs stay in Command grammar. This spec updates `command-namespacing.md` to state the display/action split. |
+| `docs/architecture/cli/command-completion.md` | What Tab and `?` reveal | anchored to `completer.go`; modified by this spec | "After a pipe, Tab offers exactly the command's `pipe-operations` list, the one `show command help` answers (`PipeOperationsForCommand`), each name with the description that list carries" | agrees | `limit` and `extensive` appear automatically in `PipeOperationsForCommand`, and extending `completePipeArg` to autocomplete registered `PipeFilter.Keys` after `\| limit ` derives from the same registry; the page is updated to document keyed pipe-argument completion. |
+| `docs/architecture/behavior/fsm.md` | Reading it | anchored to `peer.go`; modified by this spec | "Prometheus publishes it as the `ze_bgp_connect_retry_counter` gauge (`docs/guide/monitoring.md`). It is a gauge rather than a counter because the zeroing clauses make the value go down, which a Prometheus counter may not do." | agrees | Preserves `bfd-sub-state`, `connect-retry-counter` (both CLI detail field and Prometheus gauge), and unnegotiated `remote-as` omission behavior in full on `show bgp peer` and `show bgp peer \| extensive`; updates only the command-spelling citations on the page (`show bgp peer list` / `show bgp peer <address> detail`) to the new display forms. |
+| `docs/architecture/exabgp-bridge.md` | `status` is answered by the bridge | anchored to `checker.go`, `bridge_status.go`, `bridge_event.go`; modified by this spec | "Each name is ExaBGP's `Neighbor.name()`, with `auto` for an absent local address or AS, and each state is the peer's `fsm-state`, the RFC 4271 Section 8.2.2 state as ExaBGP prints it (`IDLE`, `ACTIVE`, `CONNECT`, `OPENSENT`, `OPENCONFIRM`, `ESTABLISHED`)." | agrees | Preserves ExaBGP `status` output, `Neighbor.name()` formatting, `fsm-state` mapping, wire framing, and warning diagnostics while updating the internal daemon query `StatusPeerCommand` (and the page's command citations) from `show bgp peer * detail` to `show bgp peer \| extensive` and from `show bgp peer <peer> capabilities` to `show bgp peer capabilities \| limit peer <peer>`. |
+| `docs/architecture/exabgp-bridge.md` | Design decisions | decision of 2026-11-23 | "An ExaBGP script is an ordinary bus endpoint that runs the wrapper; the bridge config section and the internal bridge mode do not exist" | agrees | Touches no endpoint lifecycle or config root; only updates the CLI command string `StatusPeerCommand` sends to the daemon and the decode warning hint string. |
+| `docs/architecture/exabgp-bridge.md` | Design decisions | decision of 2026-11-26 | "ExaBGP wrapper endpoints request `base64` (`plugin.FormatBase64`) UPDATE delivery at Stage 5 `ready` using Ze's positional counted wire grammar (`upd <flags> <local-as> <remote-as> <conn-id> <n>:<peer> <n>:<local> <n>:<router-id> <n>:<extra-addpath> <n>:<b64-body>`, zero key names, `0:` when absent) over pooled `WriteBatchFrame` `MuxConn` batching while keeping low-frequency control/session events as JSON; `ze exabgp plugin` renders hot IPv4/IPv6 unicast UPDATEs directly into a `[]byte` buffer from wire bytes and falls back to the wire-backed `Event` renderer for non-unicast families and error cases" | agrees | Touches no UPDATE event wire encoding, batching, or rendering path; preserves `FormatBase64` and `RenderRawUpdate` untouched. |
+| `docs/architecture/api/birdwatcher-compat.md` | 3.2 Which direction each endpoint answers | anchored to `summary.go`, `rib_pipeline.go`, `lg/handler_api.go`; modified by this spec | "Owner decision, 2026-10-08: the looking glass shows what a peer sent Ze and what Ze sent it, each in its own field. So every route endpoint MUST name its scope and MUST NOT rely on the default." | agrees | Looking-glass route endpoints preserve explicit `received`/`sent` scopes and birdwatcher `snake_case` JSON responses unchanged while updating `lg/handler_api.go` and this page's command table from `\| peer <address>` to `\| limit peer <address>`. |
+| `docs/architecture/bfd.md` | Stage 2 complete (production transport hardening) | `// Design:` and anchor of `bfd/cmd/bfd.go`, `bfd/engine/problems.go`; modified by this spec | "A send of the same kind that lands clears that kind's raise and keeps its window (`sendRecord`: `warnAt`, `failedAt`, `raisedAt`), and the entry's removal and its loop's stop clear every kind." | agrees | Preserves BFD transport, FSM, send-failure reporting/clearing semantics, and `show bfd session address <peer>` (Class A) unchanged, converts `show bfd profile name <n>` to `show bfd profile \| limit name <n>`, and updates `sendFailedFix` and line 585's fix command citation from `ze show interface name <interface> detail` to `ze show interface \| limit name <interface> \| extensive`. |
+| `docs/architecture/bgp/filter-path-asn.md` | What an operator can ask | `// Design:` and anchor of `filter_path_asn/register_command.go` and YANG; modified by this spec | "**The value after `name` arrives as a SELECTOR.** `name` is both the last token of the command path and the leaf under it, so `matchCommandTokens` (`internal/component/plugin/server/command.go`) binds the value to that leaf and hands the handler an empty args slice. `forwardShowRejectASNName` reads `ctx.Selector("name")` and passes it to the plugin as its first argument." | departs | Under Thomas's Q3/Q4 decisions, `show bgp reject-asn name <name>` is replaced by `show bgp reject-asn \| limit name <name>`, so `name` is no longer a path selector bound by `matchCommandTokens` or read via `ctx.Selector("name")`; it arrives in `ValidatedArgs.PipeOperations()` / `ExecuteCommandInput.Pipe` as `limit name <name>`. This spec updates `filter-path-asn.md` accordingly while keeping the `reject-asn` matcher, config schema, and curated table unchanged. |
+| `docs/architecture/l2tp/subscriber-session-model.md` | Consequences worth knowing | `// Design:` and anchor of `l2tp/cmd/l2tp.go`, `subscriber/cmd/subscriber.go`; modified by this spec | "Each family's fields leave the entry when its NCP closes while the session stays up (`subevents.ClearReleasedFamily`, called by both transports before they publish `subscriber/session-ip-released`) and return when the NCP opens again." | agrees | Preserves the unified subscriber registry, per-family IPCP/IPv6CP fields, NCP release clearing, and `show subscriber summary` unchanged while converting `show subscriber id <id> detail` to `show subscriber \| limit id <id> \| extensive` and updating the command citation on line 334. |
+| `docs/architecture/pki/pki-store.md` | Decisions | `// Design:` and anchor of `pki/show.go`; modified by this spec | "Four sibling containers, each with its own `ze:command` and its own handler, put the grammar in the model instead." | agrees | Keeps the four sibling output commands (`show pki certificate`, `pem`, `bundle pem`, `fingerprint`) as separate YANG containers with their own `ze:command` and handler while replacing their mandatory `name` path container with `\| limit name <n>` and updating this page's heading citation. |
+| `docs/guide/l2tp.md` | Read commands | `// Design:` of `l2tp/cmd/l2tp.go`; modified by this spec | "A bare session ID is useful only when it identifies one original." | agrees | Preserves L2TP protocol, PPP negotiation, and optional `tunnel-id`/`listener` disambiguation while converting all five mandatory `id <id>` display paths (`show l2tp tunnel`, `show l2tp session`, `show l2tp session history`, `show l2tp session traffic`, `show l2tp observer`) to `\| limit id <id>` and updating this page's read-command table. |
+| `docs/features/interfaces.md` | Writing only what differs | `// Design:` of `iface/cmd/show_interface.go`; modified by this spec | "A state that cannot be read is written, never taken for one that matches, and a backend that does not report a setting (the VPP backend reports no STP state, no QoS maps, and no WireGuard fwmark or preshared key) keeps writing it." | agrees | Preserves interface apply/diff semantics, `doctor-iface-state-unread` reporting, netlink/VPP backends, and all action commands (`request interface`, `create`/`delete`/`clear interface`) while converting `show interface name <n> detail`, `show interface name <n> counters`, and `show interface type <t>` to `\| limit name`/`type` + `\| extensive` and updating the command citations on lines 215 and 249. |
+| `docs/features/interfaces.md` | Design decisions | decision of 2026-11-22 | "`ze init` claims every discovered device by default, including the ones another program owns. `ze init --confirm` asks about each discovered device and writes only the ones the operator confirms" | agrees | Touches no `ze init` device-claiming logic or `--confirm` flow; only converts operational `show interface` display commands. |
+| `docs/features/interfaces.md` | Design decisions | decision of 2026-11-22 | "`ze init --confirm` takes only an explicit answer: `yes`, `y`, `no` or `n`. Anything else, an empty line included, is not accepted, and the same device is asked again" | agrees | Touches no `ze init --confirm` prompt or confirmation parsing; only converts operational `show interface` display commands. |
+| `docs/architecture/bgp/on-demand-origination.md` | The decisions | anchored to `completer.go` | "`send bgp <selector> unicast <prefix>` reaches the peers the selector matches" | agrees | Every `send bgp <selector> ...` action command keeps its mandatory destination selector and `RequiresSelector: true` guard untouched (Q1, Q1a). |
+| `ai/doors/bgp-plugins.md` | Boundaries | covers `cmd/peer`, `cmd/policy`, `cmd/rib`, `rib/`, `filter_path_asn` | "A plugin declares its commands twice, and both must agree." | agrees | Every BGP command plugin registers its own `limit` / `extensive` pipe operations in its own package and keeps `registry.Registration` and Stage-1 `sdk.Registration` in sync. |
+| `ai/doors/commands-cli.md` | Boundaries | covers `internal/component/command`, `internal/component/cmd/show` | "A command lives with its owner." | agrees | `PipeFilter.Keys` and `completePipeArg` are generic registration-driven mechanisms in `internal/component/command`; every command's `limit` keys and handlers stay in their owning package with zero subsystem hardcoding in `command` or `cmd/show`. |
+| `ai/doors/system-plugins.md` | Boundaries | covers `internal/plugins/*`, `internal/exabgp/*` | "A plugin owns its whole surface." | agrees | Each system command plugin (`pki-cmd`, `config-cli`, `config-storage`, `resolve-cmd`, `env`) updates its own YANG and registers its own `limit` keys locally; `internal/exabgp/bridge` updates `StatusPeerCommand` in its own package. |
+| `ai/doors/plugin-infra.md` | Boundaries | covers `internal/component/plugin/server/rpc_register.go` | "The engine never enumerates plugins." | agrees | `PeerSubcommandKeywords` derives colliding keywords solely from the merged YANG tree structure (distinguishing action containers with a mandatory selector from converted display containers), never from a hardcoded plugin or command list. |
+| `ai/doors/api-surfaces.md` | Boundaries | covers `lg/handler_api.go`, `api/rest/server.go`, `web/fleetui/*` | "Never add a command in an adapter." | agrees | No adapter invents a command; REST (`rest/server.go`), LG (`lg/handler_api.go`), and fleet UI (`fleetui`) only update hardcoded dispatch strings to the new owner-registered display forms, while MCP/REST/gRPC structured `pipe` lists derive `limit` and `extensive` automatically from `PipeOperationsForCommand`. |
+| `ai/doors/forwarding.md` | Where it sits | covers `internal/component/iface`, `internal/component/firewall`, `internal/plugins/firewall` | "Components with a pluggable backend." | agrees | Interface and firewall display commands (`show interface`, `show firewall ruleset`, `show firewall irr prefix`) update their own YANG and handlers while keeping all action commands (`request interface`, `create/delete interface`, `clear interface`) and backend boundaries intact. |
+| `ai/doors/routing-protocols.md` | Who depends on it from outside | covers `internal/component/bfd` | "`ospf`, `isis`, `ldp`, `rsvp-te`, `bfd` config and the `show` commands" | agrees | Converts `show bfd profile name <n>` to `show bfd profile \| limit name <n>` in `bfd`'s own YANG and handler while keeping `show bfd session address <addr>` (Class A) and BFD wire behavior untouched. |
+| `ai/doors/access-security.md` | Boundaries | covers `internal/component/pki`, `internal/component/ike`, `internal/component/l2tp` | "Subscriber auth, pool and shaper reach a session through `l2tp/subscriber` handler registries" | agrees | Converts Class K display commands under `show pki certificate`, `show vpn ipsec peer`, `show l2tp tunnel/session`, `show pppoe session`, and `show subscriber` inside their owning packages without touching AAA, IKE, L2TP, or PPPoE protocol logic or action commands (`clear l2tp`, `clear vpn ipsec`). |
+| `ai/doors/config-yang.md` | Boundaries | covers `internal/component/config/cli`, `internal/component/config/storage` | "The generated YANG glue is not hand-edited." | agrees | Converts `show config cat` and `show data cat` via their own YANG and local-data registrations (preserving `NotReadOnly` authorization on both) and keeps YANG glue generated via `./le yang glue update`. |
+| `ai/doors/le-tooling.md` | Boundaries | covers `internal/le/cli/grammar`, `test/ui/*.ci` | "Never import `internal/le` from product code" | agrees | The pure R10 rule lives in `internal/component/command/grammar/checker.go`; `internal/le/cli/grammar` calls it and prints the population count; all new `.ci` fixtures live under `test/ui/`. |
+| `ai/doors/hub-engine.md` | Who depends on it from outside | covers `internal/component/managed/` | "The `pkg/fleet` envelopes and verbs, config fetch, `config-changed` push, heartbeat (`docs/architecture/fleet-config.md`, `docs/guide/fleet-config.md`)" | agrees | Touches no `pkg/fleet` wire envelopes, hub-client protocol, or action commands (`update fleet divergence`, `request fleet divergence`); only converts the 4 `show fleet` Class K display commands in `internal/component/managed/` to `\| limit name <name>`. |
+| `docs/architecture/api/process-protocol.md` | Filter Insertion | anchored to `pipe_partition.go`, `policy/handler.go`; `// Design:` of `rpc_register.go`; modified by this spec | "These are whole effective policies, not only the references declared directly on the peer." | agrees | Preserves plugin startup stages, IPC framing, `rpc.ExecuteCommandInput.Pipe` (`[]rpc.PipeOperation{Name, Args}`), and the `show policy chain` / `show policy test` payload contracts unchanged while updating line 911's command spelling from `show policy chain peer <selector> [import\|export]` to `show policy chain [import\|export] \| limit peer <sel>`. |
+| `docs/architecture/api/process-protocol.md` | Design decisions | decision of 2026-11-23 | "Every engine operation names the message it carries or `none` with a reason, and a plugin identity is authorized by a profile compiled from its filter" | agrees | Touches no engine-to-plugin message registration, bus filter compilation, or plugin identity authorization; `bgp-rib` receives `ExecuteCommandInput.Pipe` over the existing command RPC. |
+| `docs/architecture/api/process-protocol.md` | Design decisions | decision of 2026-11-25 | "Engine-to-plugin event delivery never drops events on queue overflow; endpoints expect every subscribed network event losslessly" | agrees | Touches no engine-to-plugin event queue or event delivery path; only renames CLI display pipe operations. |
+| `docs/architecture/core-design.md` | Executive Summary | anchored to `cligrammar.go`, `show.go`; `// Design:` of `bridge_event.go` | — | silent | Covers Ze's core BGP wire abstractions (`WireUpdate`, `EncodingContext`, pool dedup) and composition-root boundaries; it says nothing about display-command narrowing pipes or `show` command selectors (its Design decisions rows are judged individually below). |
+| `docs/architecture/core-design.md` | Design decisions | decision of 2026-11-23 | "A commit fails when it configures a feature that programs only the Linux kernel, or that reads only what the Linux kernel sees of the traffic, while the interfaces run on VPP. Two host-side uses stay accepted, so that mixed setups remain possible once VRFs are added: a `fib kernel` block beside a `fib vpp` block, which programs the Linux route table for the router's own traffic, and `sysctl`, which sets the Linux kernel's own tunables. A `fib kernel` block with no `fib vpp` block beside it is refused, for now." | agrees | Touches no data-plane compatibility commit validation, FIB config, or VPP/kernel backend rules. |
+| `docs/architecture/core-design.md` | Design decisions | decision of 2026-11-23 | "A configuration that holds such a mismatch is refused at daemon start as well as at commit, reload and `ze config validate`, by one verdict that is the same at each." | agrees | Touches no data-plane mismatch verdict or config validation pipeline. |
+| `docs/architecture/core-design.md` | Design decisions | decision of 2026-11-23 | "The VPP firewall verifier, not a YANG annotation, decides whether `connection-state` and `mark-set` are accepted on VPP. The `ze:backend` annotation of `flow-offload` is deleted with theirs; `flow-offload` stays refused on VPP because VPP has no flowtable and the `flowtable` list keeps its `ze:backend "kernel"` annotation." | agrees | Touches no firewall config YANG annotations or VPP firewall verifier rules; only changes operational `show firewall ruleset` display narrowing. |
+| `docs/architecture/core-design.md` | Design decisions | decision of 2026-11-23 | "Every data-plane selector names the plane it programs, `kernel` or `vpp`: `interface backend`, `firewall backend` and `traffic control backend` take `kernel` where they took `netlink`, `nft` and `tc`, and each defaults to `kernel`; the `fib` blocks already name `kernel` and `vpp`. The plane a registration declares and the value a `ze:backend` annotation names are the same word. A second implementation on the same plane, such as eBPF, takes a value of its own when it exists. In Thomas's words (voice-transcribed): "should tc and netfilter be renamed to kernel? so we have vpp and kernel?", then "please do it"." | agrees | Touches no data-plane backend config keyword or `ze:backend` annotation; only changes operational `show` command narrowing pipes. |
+| `docs/architecture/core-design.md` | Design decisions | decision of 2026-11-23 | "BGP egress next-hop rewriting belongs exclusively in the export filter chain, not under session configuration (`session { next-hop }`). Ze automatically appends `next-hop auto` at the end of the export chain when no earlier export filter has already set a next-hop outcome (`self`, `unchanged`, or an explicit address), so ordinary eBGP rewrites to self while iBGP and route-server clients preserve the received next hop. In Thomas's words (voice-transcribed): "I would think that all the rewrite should be in the prefix export and not under configuration. I believe we should automatically add to the export prefix list the auto at the end of the list if not defined with something else. So if no one, for example, used a self or unchanged, we should automatically change it on eBGP. Because otherwise we have two ways to modify packets on the way out to the peer.", then "Unify into the export chain it is the way I want it."" | agrees | Touches no BGP next-hop rewriting or export-chain compilation; `show policy chain \| limit peer <sel>` displays the exact same compiled export chain. |
+| `docs/architecture/core-design.md` | Design decisions | decision of 2026-11-23 | "Egress export chains configure next-hop rewriting through one underlying `policychain.Sets` next-hop intent exposed in two authoring forms: `policy { modify <name> { set { next-hop self \| unchanged \| auto \| <ip>; } } }` for matched/conditional rules, and built-in chain references `next-hop:self`, `next-hop:unchanged`, and `next-hop:auto` for peer-wide policy without a wrapper `modify` block. Selected by Thomas on 2026-11-23 ("Option A: Extend policy modify (self\|unchanged\|auto\|<ip>) AND provide built-in next-hop:self / next-hop:unchanged / next-hop:auto chain refs")." | agrees | Touches no policy config authoring forms or `policychain.Sets` semantics; only moves `show policy chain` / `show policy test` peer selection to `\| limit peer <sel>`. |
+| `docs/architecture/core-design.md` | Design decisions | decision of 2026-11-23 | "Built-in `next-hop:auto`, `next-hop:self`, and `next-hop:unchanged` are BGP engine steps compiled into `policychain.Chain` (parallel to `loop-detection`), never external plugin RPCs or a `pkg/plugin/rpc.FilterInsertion` tail extension. Config loading appends `next-hop:auto` at the tail of every export chain unless an unconditional `next-hop:self`, `next-hop:unchanged`, or `next-hop:auto` is already present, leaving `Policy.Configured()` false for unconfigured chains; operators override via `next-hop:unchanged`, and `inactive:next-hop:auto` is refused. Selected by Thomas on 2026-11-23 ("Option A: Built-in BGP engine step appended at config compile time (like loop-detection; zero RPC; override via next-hop:unchanged, no inactive:next-hop:auto)")." | agrees | Touches no `policychain.Chain` compilation or config loading; `show policy chain` renders the exact same chain steps. |
+| `docs/architecture/core-design.md` | Design decisions | decision of 2026-11-23 | "Within an export chain, explicit next-hop sets (`self`, `unchanged`, `auto`, or an IP address) use standard last-write-wins folding while the auto-appended trailing `next-hop:auto` acts only when next-hop is still unset. For a whole-UPDATE raw override (`wireOverride`), Ze compares each emitted next-hop field against the received UPDATE (matching `forward_med.go` provenance): trailing `auto` is skipped only when the raw override changed the next-hop bytes or an earlier chain member already selected `unchanged`/`self`/explicit. Selected by Thomas on 2026-11-23 ("Option A: Provenance check on raw overrides (like MED): skip trailing auto only when the raw override changed the next-hop bytes or an earlier member set unchanged/self")." | agrees | Touches no export-chain next-hop evaluation or raw-override provenance logic. |
+| `docs/architecture/core-design.md` | Design decisions | decision of 2026-11-23 | "Explicit next-hop addresses in `policy { modify <name> { set { next-hop <ip>; } } }` and `policychain.Sets.NextHop` support both IPv4 (attr 3) and IPv6/MP_REACH (through `NextHopProfile` and `ValidatePeerGlobalNextHop`) on both export and import chains. Egress-only next-hop modes (`self`, `unchanged`, `auto`), whether written as built-in `next-hop:*` refs or inside `policy { modify }`, are refused on import chains at config load. Selected by Thomas on 2026-11-23 ("Option A: Support IPv4 + IPv6/MP_REACH for explicit next-hop on both export and import; refuse self/unchanged/auto on import at config load")." | agrees | Touches no IPv4/IPv6 next-hop validation or import-chain refusal rules. |
+| `docs/architecture/core-design.md` | Design decisions | decision of 2026-11-23 | "Auto-appended trailing `next-hop:auto` applies only to forwarded routes and preserves the originator-chosen next hop on locally originated routes (static config routes, ExaBGP `announce`, API announcements). Explicit export-chain next-hop actions (`next-hop:self`, `modify { set { next-hop ... } }`) apply uniformly to both forwarded and locally originated routes. Selected by Thomas on 2026-11-23 ("Option A: Trailing next-hop:auto applies to forwarded routes only (preserves static/ExaBGP/API explicit next-hop); explicit next-hop:self / modify next-hop applies to both forwarded and originated routes")." | agrees | Touches no route forwarding or origination next-hop behavior. |
+| `docs/architecture/core-design.md` | Design decisions | decision of 2026-11-23 | "Every automatic filter-chain member Ze inserts — both built-in BGP engine steps (`next-hop:auto` at the export tail, `loop-detection` at the import head) and plugin-declared `FilterInsertions` — is published through one queryable implied-filter seam carrying direction, position, reference and `implied-by` reason so `\| implied` displays every extra chain member alongside the operator's written filter list. In Thomas's words (2026-11-23): "Can you make sure that \| implied show the extra chain members when it displays the filter ?"." | agrees | Touches no implied-filter publication seam or `\| implied` display behavior; `show policy chain` preserves its full chain output. |
+| `docs/architecture/core-design.md` | Design decisions | decision of 2026-11-26 | "Ze always starts. The configuration of one service never makes `ze start` exit or refuse to start: a service whose configuration cannot be served is not started, ze runs with its other services, and the service is reported with its fix by an error line in the log under a doctor code and by `ze doctor` under the same code. Examples are a web certificate name that does not resolve, a looking-glass `server` entry with no certificate to present, and a looking-glass address list that does not parse. Where a service has several endpoints, only the endpoint that cannot be served stays down and the others serve. A reload whose config cannot be served stays refused as a whole, and the running services keep what they serve. In Thomas's words (voice-transcribed): "we should never not start ze as if we can not bring networking we can not fix things like web cert and the like so the only good answer is to disable the service badly configured and not start it"; asked about a reload, "reload stay refused"; asked "Should only that endpoint stay down while the others serve", "yes". The reason is that a daemon that does not start brings up no networking, so the operator cannot reach the box to correct it." | agrees | Touches no daemon startup, service isolation, reload refusal, or doctor reporting; only converts operational display commands. |
+| `docs/architecture/core-design.md` | Design decisions | decision of 2026-11-26 | "The rule of 2026-11-23 above, that a configuration which holds a feature that programs only the Linux kernel while the interfaces run on VPP "is refused at daemon start", is superseded for the start: ze starts, that feature stays off, and `ze doctor` reports the mismatch with its fix. A commit, a reload and `ze config validate` still refuse such a configuration, by the same verdict as before. Thomas was asked whether the rule that ze always starts replaces the refusal at start, "(a) yes, ze starts, that feature stays off and ze doctor reports the mismatch, while commit and reload still refuse it; (b) no", and answered "2a" (voice-transcribed). The reason is the one of the row above: a daemon that does not start brings up no networking, so the operator cannot reach the box to correct the mismatch." | agrees | Touches no VPP/kernel startup or commit/reload verdict logic. |
+| `docs/architecture/api/architecture.md` | TL;DR (Read This First) | anchored to `rpc_register.go`, `rest/server.go`; `// Design:` of `rest/server.go` | — | silent | Covers REST/gRPC/gNMI transport architecture, authentication, and bus routing; it says nothing about display-command `\| limit` / `\| extensive` syntax (its Design decisions rows are judged individually below). |
+| `docs/architecture/api/architecture.md` | Design decisions | decision of 2026-11-23 | "When `\| implied` modifies an existing config line (such as inserting automatic members into a `filters [ ... ];` list), it keeps the line intact and places an inline `# implied: ...` comment on the same line after the statement naming what was added and why, rather than placing a comment only above the line or splitting the list across multiple lines. In Thomas's words (2026-11-23): "No, it should be on the same line and say what was added"." | agrees | Touches no `\| implied` config rendering or inline comment formatting. |
+| `docs/architecture/api/architecture.md` | Design decisions | decision of 2026-11-23 | "Everything on the bus is a participant named by its configuration path. A participant registers the messages it sends and receives, events and commands alike, and with nothing written that registration is what runs" | agrees | Touches no bus participant registration or default message routing. |
+| `docs/architecture/api/architecture.md` | Design decisions | decision of 2026-11-23 | "A `send > to` list written on a participant replaces the destinations its messages have by registration; it never adds to them. Present and empty means nobody" | agrees | Touches no bus `send > to` config semantics. |
+| `docs/architecture/api/architecture.md` | Design decisions | decision of 2026-11-23 | "A `receive > from` list limits who may address a participant. Absent means everybody; present and empty means nobody" | agrees | Touches no bus `receive > from` config semantics. |
+| `docs/architecture/api/architecture.md` | Design decisions | decision of 2026-11-23 | "A send and a receive allow-list of message names (`send > allow`, `receive > allow`) exist on every participant: absent means everything declared, empty means nothing. The bus enforces them when it receives the message" | agrees | Touches no bus allow-list enforcement. |
+| `docs/architecture/api/architecture.md` | Design decisions | decision of 2026-11-23 | "What is written on the participant and what is written in the `bus` section compile into one filter per participant. A disagreement between the two places, or between an allow-list and a destination on one participant, is refused at commit naming both lines" | agrees | Touches no bus filter compilation or commit-time disagreement checks. |
+| `docs/architecture/api/architecture.md` | Design decisions | decision of 2026-11-23 | "The bus does not arbitrate between participants: no exclusive-role rule, no commit refusal and no silent winner. A plugin that must not duplicate another limits itself" | agrees | Touches no bus arbitration rules. |
+| `docs/architecture/api/architecture.md` | Design decisions | decision of 2026-11-23 | "One display shows every registered default beside what the operator wrote, the defaults a written list replaced, and the line that produced each effective entry" | agrees | Touches no bus default/effective display command. |
+| `docs/architecture/api/wire-format.md` | Request | anchored to `rpc_register.go` | — | silent | Covers JSON-RPC request framing and record answers between daemon and plugin; no wire struct field or framing changes because `ExecuteCommandInput.Pipe` already exists, and the page says nothing about CLI narrowing operators. |
+| `docs/architecture/plugin/rib-storage-design.md` | Overview | `// Design:` and anchor of `rib_pipeline.go`, `rib_pipeline_best.go` | — | silent | Covers RIB table storage, received-route reconciliation, and route-server physical actors; it says nothing about whether the RIB peer pipeline stage is spelled `\| peer` or `\| limit peer`. |
+| `docs/architecture/route-selection.md` | Overview | anchored to `rib_pipeline.go` | — | silent | Covers BGP best-path selection phases, validation, and rejection reasons; it says nothing about CLI display-command narrowing or pipe syntax. |
+| `docs/architecture/api/json-format.md` | Overview | anchored to `bridge_event.go` | — | silent | Covers IPC JSON event message structure, namespaces, and field naming; it says nothing about display-command narrowing pipes or ExaBGP `status` query strings. |
+| `docs/architecture/web-interface.md` | Component Structure | `// Design:` and anchor of `lg/handler_api.go`; anchored to `config/cli/register.go`, `config/storage/` | — | silent | Covers web UI component layout, URL scheme, HTMX pages, and authentication; it says nothing about display-command `\| limit` / `\| extensive` syntax or CLI selector grammar. |
+| `docs/architecture/fleet-interface.md` | The package | `// Design:` and anchor of `web/fleetui/handler_device_console.go`, `handler_devices_action.go`, `sample/console.go` | — | silent | Covers the fleet web UI data-source seam, live events, and alarms; it says nothing about CLI display-command narrowing syntax beyond the preset console string updated in `fleetui` (its Design decisions rows are judged individually below). |
+| `docs/architecture/fleet-interface.md` | Design decisions | decision of 2026-11-25 | "The proposed alarm defaults apply together. A missing relay grant stays visible while the device is offline. A measured alarm uses its existing threshold duration after reconnect. Causes match within one device. Thomas selected “Use all three defaults”." | agrees | Touches no fleet alarm defaults or reconnect threshold logic; only updates the hardcoded `"show bgp peer list"` string in `fleetui` console presets to `"show bgp peer"`. |
+| `docs/architecture/fleet-interface.md` | Design decisions | decision of 2026-11-25 | "Thomas chose the following rule for Resource high at reconnect. “End the old occurrence. Show a new alarm only if fresh samples qualify.”" | agrees | Touches no fleet resource-high alarm lifecycle logic. |
+| `docs/architecture/fleet-interface.md` | Design decisions | decision of 2026-11-25 | "When a critical alarm becomes visible again after its cause clears, show its toast to an authorized viewer of the affected device. Thomas selected “Show the critical toast”." | agrees | Touches no fleet critical alarm toast behavior. |
+| `docs/architecture/fleet-interface.md` | Design decisions | decision of 2026-11-25 | "For Force complete on a staged rollout, Thomas chose “Leave unstarted devices on their prior version”." | agrees | Touches no fleet staged-rollout logic. |
+| `docs/architecture/fleet-interface.md` | Design decisions | decision of 2026-11-25 | "Thomas chose “Add the device Alarms tab”. The post-release device page offers the same authorized alarm rows as the device filter on the estate or group Alarms tab." | agrees | Touches no fleet device Alarms tab or authorization filtering. |
+| `docs/guide/mcp/overview.md` | Tools | `// Design:` of `help/help_ai.go`; anchored to `skills/agent_skill.go`; modified by this spec | "All MCP tools are **auto-generated** from the YANG command registry at `tools/list` time." | agrees | MCP tool derivation and structured `pipe` parameter support stay unchanged (automatically exposing `limit` and `extensive` on converted tools), while lines 594 and 611 update `show skill <name>` / `show skill ze` to `show skill \| limit name <name>` / `show skill \| limit name ze`. |
+| `docs/features/ai-first.md` | Bundled Skills | `// Design:` and anchor of `skills/main.go`, `skills/register.go`, `skills/agent_context.go`, `skills/agent_skill.go`, `help/help_ai.go`; modified by this spec | "The installed binary serves the workflow guides embedded when it was built." | agrees | Preserves bundled skill embedding, version-matched delivery, and agent setup commands while converting `show skill <name>` to `show skill \| limit name <name>` and updating the command examples on lines 129-141, 167, 236, and 246. |
+| `docs/architecture/fleet-config.md` | Device registry | `// Design:` and anchor of `managed/cmd_devices.go`, `cmd_reports.go`, `cmd_divergence_show.go`, `cmd_divergence.go`, `register.go`; anchored to `pki/show.go`, `config/storage/cli/main.go`; modified by this spec | "Each `ManagedDeviceRecord` also holds optional pointers to immutable `ManagedInventorySnapshot` and `ManagedHealthSnapshot` values, each pairing a validated report with the hub's UTC receipt timestamp." | agrees | Preserves the managed device registry, inventory/health snapshot persistence, divergence tracking, and action commands (`update fleet divergence name <client> adopt`, `request fleet divergence name <client> revert`) unchanged while converting the 4 Class K display commands (`show fleet device`, `show fleet device inventory`, `show fleet device health`, `show fleet divergence`) from path `name <name>` to `\| limit name <name>` and updating their command citations on lines 155, 181, 184-185, 698, and 781. |
+| `docs/architecture/fleet-config.md` | Design decisions | decision of 2026-11-23 | "A reload that changes the certificate a serving hub's managed listener presents installs it on the running listener at that reload: the next handshake presents the certificate the configuration names, the listener keeps its socket and no session is closed, as the web and looking glass listeners do. The certificate stays in the configuration's `pki` block. In Thomas's words (voice-transcribed): "Keep the certificate in the configuration." and "In that case on commit we can perform the certificate change on the listener."" | agrees | Touches no managed-listener TLS reload or `pki` config block storage; only updates operational `show pki certificate` and `show fleet` display commands. |
+| `docs/architecture/fleet-config.md` | Design decisions | decision of 2026-11-25 | "Thomas chose “Allow first provisioning and later edits from the device’s web Config tab”. An authorized operator can commit the first or a later version of a declared device’s configuration while it is offline, through the post-release fleet web surface." | agrees | Touches no fleet web Config tab or offline device provisioning workflow. |
+| `docs/architecture/doctor-and-health-checks.md` | External plugin and managed fleet checks | anchored to `managed/register.go`, `managed/doctor.go`; modified by this spec | "A client that holds is seen from its hub in that fourth row once the hub keeps its copy" | agrees | Preserves all doctor checks, codes, and hub divergence reporting unchanged while updating the `managed-diverged` fix command string in `managed/doctor.go` and line 1905 of this page from `show fleet divergence name <client>` to `show fleet divergence \| limit name <client>`. |
+| `ai/rules/repo-maintenance.md` | Directives | `// Design:` of `managed/register.go`, `managed/doctor.go` | "A change that adds or changes a surface future agents use, verify, document or avoid MUST update its discovery path in the same work" | agrees | Updates every owning architecture page, user guide, `ai/rules/cli.md`, `ai/patterns/cli-command.md`, and `R10` grammar gate in the same change. |
+| `docs/architecture/vrrp/vrrp-first-hop-redundancy.md` | Layers | `// Design:` of `plugins/vrrp/cmd_show.go` | — | silent | Covers VRRP wire codec, FSM, macvlan dataplane, and transport sockets; it says nothing about `show vrrp interface` CLI narrowing syntax. |
+| `docs/architecture/l2tp/bng-5-pppoe.md` | Decisions | `// Design:` of `pppoe/cmd/pppoe.go` | — | silent | Covers PPPoE RFC obligations, session lifecycle, and VPP recovery; it says nothing about whether `show pppoe session` takes a path leaf `id` or `\| limit id` (its Design decisions rows are judged individually below). |
+| `docs/architecture/l2tp/bng-5-pppoe.md` | Design decisions | decision of 2026-11-23 | "D-1, a VPP API loss with the process alive, is resolved by the VPP lifecycle rules: a live VPP that Ze cannot adopt is killed and restarted, so its exit proof always arrives and retires the retained owners" | agrees | Touches no VPP lifecycle or PPPoE owner-retirement logic; only converts `show pppoe session id <id>` to `show pppoe session \| limit id <id>`. |
+| `docs/architecture/l2tp/bng-5-pppoe.md` | Design decisions | decision of 2026-11-23 | "When Ze adopts the VPP, retained owners are read back by exact identity over the new connection of the same pidfd-proven process, and cleaned there (option C)" | agrees | Touches no VPP adoption or retained-owner reconciliation logic. |
+| `docs/architecture/l2tp/bng-5-pppoe.md` | Design decisions | decision of 2026-11-23 | "Adoption happens only inside the single VPP loss timer: a reconnect to the same pidfd-proven process whose full readback matches (option C) keeps the sessions. A declared loss is never adopted: Ze kills the process through the retained pidfd, waits for its exit proof, restarts and reconfigures VPP as at boot, and PPPoE tears its sessions down per OD-2 and lets subscribers redial. The provider holds the process lease, which gives the identity proof, the kill and the exit proof. This narrows the row "When Ze adopts the VPP" to the single timer, and the D-1 row's "cannot adopt" to every declared loss" | agrees | Touches no VPP loss timer or PPPoE session teardown behavior. |
+| `docs/architecture/l2tp/bng-5-pppoe.md` | Design decisions | decision of 2026-11-23 | "D-1 (a VPP API loss with the process alive) resolves on the VPP lifecycle's two recovery forms. Form (1), inside the reconnect-and-verify limit that follows the failed alive test: the same pidfd-proven process answering with the data Ze configured is enough to adopt it, and the PPPoE sessions are kept. The retained owners are read back by exact identity over the new connection of that process and cleaned there (option C), as part of the background reconciliation; a mismatch it finds is repaired, never treated as a loss. Form (2), a forced restart: Ze kills the process through the retained pidfd, waits for its exit proof, restarts and reconfigures VPP as at boot, and PPPoE tears its sessions down per OD-2 and lets subscribers redial. The provider holds the process lease, which gives the identity proof, the kill and the exit proof. This supersedes the row "Adoption happens only inside the single VPP loss timer" (the single timer, adoption on a full readback match, and "a declared loss is never adopted"), and narrows the D-1 row and the row "When Ze adopts the VPP" to these two forms" | agrees | Touches no VPP recovery or reconciliation paths; only changes `show pppoe session` CLI narrowing. |
+| `docs/architecture/config/syntax.md` | Overview | `// Design:` of `config/cli/cmd_list.go` | — | silent | Covers configuration file grammar, blocks, and retired config keywords; it says nothing about operational `show config cat` pipe syntax. |
+| `docs/architecture/storage-backends.md` | Keys and reads | anchored to `ze-storage-cli-cmd.yang`, `config/storage/cli/register.go`, `main.go` | — | silent | Covers storage backend encoding, durable publication, and key reads; it says nothing about whether `show data cat` accepts `key` in the path or via `\| limit key`. |
+| `docs/architecture/zefs-format.md` | Key Namespaces | `// Design:` and anchor of `config/storage/cli/main.go`; modified by this spec | "Keys follow a `<namespace>/<qualifier>/<path>` convention to prevent collisions between metadata and config files." | agrees | Preserves the ZeFS binary container, netcapstring format, key namespaces, and `support/archive/` key contract unchanged while updating line 245's command spelling from `show data cat <key>` to `show data cat \| limit key <key>`. |
+| `docs/architecture/diagnostics/procfs-diagnostics.md` | The decisions | `// Design:` and anchor of `resolve/cmd/show_dns.go` | — | silent | Covers procfs diagnostic collection and error handling; it says nothing about `show dns cache record` pipe narrowing syntax. |
+| `docs/architecture/firewall/firewall-irr.md` | Decisions | `// Design:` of `firewall/plugins/irr/cmd_irr.go` | — | silent | Covers IRR prefix-set fetching, storage, and firewall table merging; it says nothing about whether `show firewall irr prefix` narrows via path argument or `\| limit name`. |
+| `docs/architecture/firewall/backend-command-dispatch.md` | The move | `// Design:` and anchor of `plugins/firewall/nft/cmd_show.go` | — | silent | Covers firewall backend command dispatch and `show.Enrich` set enrichment; it says nothing about whether `show firewall ruleset` narrows via positional `<name>` or `\| limit name`. |
+| `docs/architecture/ike/ipsec-10-cli-diag.md` | Decisions | `// Design:` and anchor of `ike/cmd/show_ipsec.go` | — | silent | Covers IPsec diagnostic fields and peer-malformed-message reporting; it says nothing about whether `show vpn ipsec peer` narrows via `name <n>` in the path or `\| limit name <n>`. |
+| `docs/architecture/ike/ipsec-dataplane-inspection.md` | Decision: a failed read is an error, never an empty table | anchored to `ike/cmd/show_ipsec.go` | — | silent | Covers kernel IPsec SA/policy inspection and counter reads; it says nothing about CLI display-command narrowing pipes. |
 
 ## Data Flow (MANDATORY)
 
 ### Entry Point
-- The operator's line, arriving at `ze cli` interactively, at `ze <verb> ...` on a shell command line, or over SSH into the CLI. Format at entry: one string holding the command and, after the first `|`, the operator chain.
+- The operator's line, arriving at `ze cli` interactively, at `ze <verb> ...` on a shell command line, over SSH (`exec` or PTY), in the web CLI, or via structured `pipe` list on MCP/REST/gRPC (`WritePipeList` serializes `{"name": "limit", "args": ["peer", "edge1"]}` into `| limit peer edge1`). Format at entry: one command string and, after the first unquoted `|`, an ordered chain of pipe operations.
 
 ### Transformation Path
-1. `ParsePipe` cuts the string at the first `|`; `parsePipeOps` splits the tail on every remaining `|` into one operator and its argument each.
-2. `expandAliases` replaces each unknown-operator segment that names a registered alias with the operators the alias stands for. One pass, no nesting.
-3. `bindAddressFields` fixes address-field declarations onto `resolve` and `origin`.
-4. `foldFilters` looks the command path up in the pipe-filter registry by longest prefix. A segment naming an owned filter is REMOVED from the local chain and appended to the command string as `<filter-name> <value>`; every other segment stays local.
-5. The rewritten command string is matched against the YANG command tree. The dispatcher extracts a `peer <value>` selector positionally, removes it from the token stream, and matches what remains.
-6. The handler receives `ctx.Peer` (the extracted selector) and `args` (the trailing tokens, which now include any folded filter). `filterPeersByArgs` prefers `args[0]` over `ctx.PeerSelector()`.
-7. Whatever the handler answers is rendered through `ApplyPipes` with the local chain.
-
-Under this spec, step 5's positional extraction is deleted for the eight display commands alone, and for those eight step 4 becomes the only route by which a selector reaches step 6. Every action command keeps its existing selector handling and command path.
+1. `ReadDispatchLine` (`internal/component/command/dispatch_line.go`) scans the line once with `scanExecution` under the shared quote grammar, splits the command part from the chain at the first unquoted `|`, and calls `expandPipeChain` (expanding pipe aliases via `expandAliases` and binding declared address fields via `bindAddressFields`).
+2. `partitionPipeChain` (`internal/component/command/pipe_partition.go`) looks up the command's declared pipe operations in `pipeFilterRegistry` by longest registered prefix (matching through any action path selector via `MatchInvocationPath`).
+3. For each operation in the prefix while no residual operation has appeared:
+   - `declaredOperation` matches `limit` or `extensive` (or any other command-owned operation / data override) against `set.byName`.
+   - `validateDeclaredArgument` validates the decoded argument words:
+     - For `extensive` (`ArgNone`): refuses any argument word.
+     - For a keyed `limit` (`PipeFilter.Keys` non-empty): requires at least two words `<key> <val>`, checks `<key>` against `filter.Keys` (refusing an unknown key and naming the valid keys for that command), checks `<val>` is non-empty and within `maxArgLength` (1024 bytes), and rejects extra unquoted trailing tokens when the key expects one value.
+   - Accepted operations are appended in chain order to `part.declared` as `PipeOperation{Name, Args}` — **the command string is never rewritten**.
+   - A declared operation typed after a residual generic operator (such as `| json | limit peer edge1`) is refused by `lateOperationRefusal` naming the reordered line as its fix.
+4. Every non-declared operation (such as `| json`, `| table`, `| match`, `| count`, `| summary`, `| display`) stays in `part.residual`.
+5. `Dispatcher.Dispatch` (`internal/component/plugin/server/command.go`) runs accounting and authorization on the typed line, calls `command.RefusePipeOperationWords` (which refuses `limit` or `extensive` if typed as a positional argument and gives the `| ...` fix), validates remaining command arguments against YANG leaves via `command.ValidateArgs`, and attaches `part.declared` via `validated.WithPipeOperations(declared)` and `ctx.pipeOperations`.
+   - For local-data commands (`show config cat`, `show data cat`, `show env get`), `ServeLocal` and `loadLocalData` run the exact same `partitionPipeChain` and hand `validated.PipeOperations()` to the local-data handler.
+   - For external/internal plugin commands (`bgp-rib`), `routeToProcessWithEvents` writes `pluginPipe(ctx.PipeOperations())` into `rpc.ExecuteCommandInput.Pipe` (`{"name": "limit", "args": ["peer", "<sel>"]}`).
+6. The command handler inspects `validated.PipeOperations()` (or `sdk.PipeOperation` in `bgp-rib`):
+   - Extracts the `limit` key/value (e.g. `peer` -> `peersel.ParseDefault`, `name`/`id`/`type`/`key` -> target lookup) and narrows server-side before gathering/serializing rows.
+   - For `show bgp peer` (and Class K commands with `extensive`), checks whether `extensive` is present in `PipeOperations()` to choose between lightweight summary rows and full detail rows.
+7. `ApplyPipes` (in the daemon's answer step or the rendering surface's `ProcessPipesDefaultFormatChecked`) runs `part.residual` over the narrowed/shaped answer.
 
 ### Boundaries Crossed
 | Boundary | How | Verified |
 |----------|-----|----------|
-| Operator ↔ CLI parser | one text line; the operator chain is text until `parsePipeOps` | No |
-| CLI ↔ daemon | the rewritten command string, after `foldFilters` | No |
-| Daemon ↔ plugin | `pluginserver.CommandContext` carrying `ctx.Peer`, plus `args` | No |
-| Command tree ↔ completion | `TreeCompleter` over the merged `Node` tree, plus `pipeExtras` for the operator names | No |
+| Operator / API adapter ↔ CLI parser | One text line (or structured `pipe` list serialized via `WritePipeList` into `\| name args` stages) scanned by `ReadDispatchLine` | No |
+| CLI / SSH / Web ↔ Daemon | Raw typed line with pipes intact; daemon partitions via `partitionPipeChain` without rewriting the command string | No |
+| Daemon ↔ Builtin / local-data handler | `ValidatedArgs.PipeOperations()` and `CommandContext.PipeOperations()` carrying `[]command.PipeOperation` | No |
+| Daemon ↔ Plugin process (`bgp-rib`) | `rpc.ExecuteCommandInput.Pipe` (`[]rpc.PipeOperation{Name, Args}`) over TLS RPC or `DirectBridge` | No |
+| Command registry ↔ Tab completion | `TreeCompleter` over merged YANG `Node` tree + `PipeOperationsForCommand` + `PipeFilter.Keys` in `completePipeArg` | No |
+
+### Changed-Wire Census
+
+No network protocol wire (BGP, BFD, IKEv2, L2TP, PPPoE) and no `pkg/plugin/rpc` struct field changes: `rpc.ExecuteCommandInput.Pipe` already carries `[]rpc.PipeOperation{Name string, Args []string}`. Two internal command-text / pipe-operation vocabularies change across process boundaries (`execute-command` pipe operation names for `bgp-rib`, and `dispatch-command` display command strings sent by internal callers, external scripts, and tests).
+
+**Search evidence:** Searched `internal/` and `pkg/` with `grep -rn 'show bgp peer' internal/ --include='*.go'`, `grep -rn 'RegisterPipeFilters\|PipeDecl' internal/ pkg/`, and `grep -rn 'rowKeyPeer\|parsePipelineOperations' internal/component/bgp/plugins/rib/`. Positive controls found: `internal/exabgp/bridge/bridge_status.go:26` (`StatusPeerCommand = "show bgp peer * detail"`), `internal/component/bgp/plugins/cmd/rib/rib.go:195` (`Name: "peer"`), `internal/component/bgp/plugins/rib/rib_pipeline.go:1615` (`case rowKeyPeer:`), and `internal/component/bgp/plugins/rib/rib_pipeline_best.go:509` (`if keyword == rowKeyPeer`).
+
+| Wire | Role (writer / reader) | Carrier (file + producer/consumer symbol or script entry) | Source evidence | Migration or preservation disposition |
+|------|------------------------|-----------------------------------------------------------|-----------------|----------------------------------------|
+| `execute-command PipeOperation (bgp-rib)` | writer | `internal/component/command/pipe_partition.go` (`partitionPipeChain`) → `internal/component/plugin/server/command.go` (`pluginPipe`, `routeToProcessWithEvents`) driven by `internal/component/bgp/plugins/cmd/rib/rib.go` (`registerPipeFilters`) and `internal/component/lg/handler_api.go` (`cmdRIBBMPPeer`, `pipePeer`) | `rib.go:195` registers `PipeFilter{Name: "peer"}`; `lg/handler_api.go:78,80` builds `"show bgp rib protocol bmp \| peer "` and `" \| peer "`; `pluginPipe` copies `Name` and `Args` into `rpc.ExecuteCommandInput.Pipe` | Change: register `PipeFilter{Name: "limit", Argument: command.ArgText, Keys: []string{"peer"}}` in `rib.go` and update `lg/handler_api.go` to emit `" \| limit peer "` so `ExecuteCommandInput.Pipe` carries `{"name":"limit","args":["peer","<sel>"]}`; proven by unit + `.ci` tests |
+| `execute-command PipeOperation (bgp-rib)` | reader | `internal/component/bgp/plugins/rib/rib_pipeline.go` (`parsePipelineOperations`) and `internal/component/bgp/plugins/rib/rib_pipeline_best.go` (`parseBestPipelineOperations`) | `rib_pipeline.go:1615` and `rib_pipeline_best.go:509` switch on `operation.Name == rowKeyPeer` (`"peer"`) | Change: parse `operation.Name == "limit"` with `operation.Args == ["peer", "<sel>"]` (refusing unknown keys or wrong arity) and remove bare `"peer"`; proven by `rib` unit tests and `test/ui/` `.ci` fixtures |
+| `dispatch-command display command line` | writer | `internal/exabgp/bridge/bridge_status.go` (`StatusPeerCommand`), `internal/component/api/rest/server.go` (`handleBGPPeer`), `internal/component/lg/handler_api.go` (`cmdRIBBMPPeer`, `pipePeer`), `internal/component/web/fleetui/` (`handler_device_console.go`, `handler_devices_action.go`, `sample/console.go`), `internal/component/api/invocation.go` (`appendPipeList`), `internal/component/mcp/tools.go` (`generatedCommand`), test/interop/demo suites (`internal/test/`, `internal/le/interoplab/`, `internal/le/site/terminaldemo/`, `test/`, `demos/terminal/`), and external operators/scripts | `bridge_status.go:26` sends `"show bgp peer * detail"`; `rest/server.go:517` sends `"show bgp peer <name> detail"`; `fleetui` sends `"show bgp peer list"`; `lg/handler_api.go:78,80` sends `" \| peer "`; API/MCP derive command paths dynamically from the registry | Change: update `StatusPeerCommand` to `"show bgp peer \| extensive"`, `rest/server.go` to `"show bgp peer \| limit peer <name> \| extensive"`, `fleetui` to `"show bgp peer"`, `lg/handler_api.go` to `" \| limit peer "`, and sweep in-tree fixtures/interop/demos to new spellings; external scripts using removed pre-release forms fail cleanly with `suggest.Command` per Q5 |
+| `dispatch-command display command line` | reader | `internal/component/plugin/server/command.go` (`Dispatcher.Dispatch`) + `internal/component/command/dispatch_line.go` (`ReadDispatchLine`) + `internal/component/command/local_data.go` (`ServeLocal`) | `Dispatch` and `ServeLocal` resolve the YANG command path and partition the pipe chain via `partitionPipeChain` | Change: update YANG command paths and handler `PipeOperations()` parsing across the 8 Class S nodes, RIB, and 30 Class K nodes (including `bgp-filter-path-asn` and `vrrp` plugin forwarders reading `limit name` from `PipeOperations()`); old command forms are refused as unknown commands with `suggest.Command` (no alias, Q5) |
 
 ### Integration Points
-- `command.RegisterPipeFilters` - the registration each converted command's owner package calls to declare `limit`.
-- `command.RegisterAliases` - where `extensive` would live if Q2 answers that it is a fixed expansion rather than a distinct server call.
-- `grammar.CheckNode` - where the new rule is enforced over the YANG tree.
-- `pluginserver.RPCRegistration.RequiresSelector` - untouched. It guards action commands; this spec changes neither their registration nor their wire method.
+- `command.PipeFilter` (`internal/component/command/pipe_filter.go`) - add `Keys []string` and key validation in `declaredFilterRefusal`.
+- `command.partitionPipeChain` (`internal/component/command/pipe_partition.go`) - validate keyed `<key> <val>` arguments in `validateDeclaredArgument` (and `maxArgLength` 1024-byte cap).
+- `command.PipeOperationsForCommand` (`internal/component/command/pipe_operations.go`) - publish `Keys` on `PipeOperationEntry` (`keys,omitempty`).
+- `command.TreeCompleter` (`internal/component/command/completer.go`) - offer registered `PipeFilter.Keys` in `completePipeArg` after `| limit `.
+- `grammar.CheckNode` (`internal/component/command/grammar/checker.go`) and `internal/le/cli/grammar/cligrammar.go` - enforce rule `R10` (no mandatory selector leaves on display commands) and print population size.
+- `pluginserver.PeerSubcommandKeywords` (`internal/component/plugin/server/rpc_register.go`) - restrict `Colliding` to `peer` containers whose grammar takes a selector immediately after `peer`.
+- `pluginserver.RPCRegistration.RequiresSelector` - preserved on every action command; removed only from the two display commands that carried it (`ze-bgp:peer-history` and `ze-bgp:peer-rib`) since display commands narrow via `| limit peer <sel>`.
 
 ### Architectural Verification
 | Check | Holds? | Evidence |
@@ -188,458 +321,480 @@ Under this spec, step 5's positional extraction is deleted for the eight display
 | No unintended coupling (components stay isolated) | No | |
 | No duplicated functionality (extends existing, does not recreate) | No | |
 | Zero-copy preserved where applicable (refs, not copies) | No | |
-| Registration over hardcoding: new commands, views, families, and handlers register, and the core discovers them. No per-feature field, switch case, or factory is added to a core/shared package (`ai/rules/plugins.md`) | No | |
+| Registration over hardcoding, outbound: new commands, views, families, and handlers register, and the core discovers them. No per-feature field, switch case, or factory is added to a core/shared package (`ai/rules/plugins.md`) | No | |
+| Registration over hardcoding, inbound: no existing switch, seed map, validator, parser, runner, help string, or completion table has to learn this feature's name. Evidence names every list that was searched for the names this feature introduces, and the registry each one now derives from (`ai/rules/principles.md`) | No | |
 
 ## The Inventory
 
 Every command node in the merged YANG tree that takes a MANDATORY value, own or
-inherited from an ancestor container. 400 nodes carry `ze:command`; 89 of them
-take such a value. The classes below partition those 89.
+inherited from an ancestor container, is classified below. Implementation
+replaces this hand-listed snapshot with the same walk inside `grammar.CheckNode`
+(rule `R10`), so the static gate is the single authority (`ai/rules/principles.md`).
 
-The population is derived by walking every `*.yang` under `internal/` for
-`ze:command` nodes and collecting the mandatory leaves on the node and on its
-container ancestors. Implementation replaces this hand-listed table with the
-same walk inside `grammar.CheckNode`, so the list cannot go stale
-(`ai/rules/principles.md`, one declaration).
+Each class is split by verb, because Q1 limits conversion to the display half
+(`show`, `monitor`). Action verbs (`create`, `delete`, `update`, `clear`,
+`request`, `send`, `set`, `debug`) are left untouched.
 
-Each class is split by verb, because the narrowing reaches the display half
-alone. A command is DISPLAY when it only reports (`show`, and `monitor` when one
-exists); it is ACTION when running it changes what the router does, emits or
-forwards (`ai/rules/cli.md`, "the verb is chosen by the command's effect on live
-state").
+| Class | What the value is | Display in scope | Action (untouched) | What this spec does to the display half |
+|-------|-------------------|------------------|--------------------|-----------------------------------------|
+| S-inherited | a `selector` leaf declared on an ancestor `peer` container | 6 (`show bgp peer` subtree) | 17 (`create`/`delete`/`request`/`update`) | Delete `leaf selector` on `show bgp peer`; collapse `list` + `detail` into bare `show bgp peer` + `\| extensive`; add `\| limit peer <sel>` to all converted `show bgp peer` commands |
+| S-own | a `selector` leaf declared on the command node itself | 2 (`show policy chain peer`, `show policy test peer`) | action/send rows | Delete `container peer` and `leaf selector`; convert to `show policy chain \| limit peer <sel>` and `show policy test ... \| limit peer <sel>` |
+| RIB peer filter | existing `\| peer <sel>` declared pipe filter | 4 RIB display paths (`show bgp rib`, `show bgp peer rib`, `show bgp rib best`, `show bgp rib protocol`) | none | Rename `\| peer <sel>` to `\| limit peer <sel>` (Q4) |
+| K | a leaf named `name`, `id`, `type`, or `key` (or a selector container `name`/`id`/`type`/`key` carrying an `ArgDef`) naming one member of a set | 30 display nodes across 18 YANG modules | 15 action nodes (`clear`/`create`/`delete`/`request`/`update`/`send ... withdraw`) | Convert all 30 display nodes to `\| limit <key> <val>` (plus `\| extensive` where `detail` was a subcommand), with `<key>` Tab-autocompleted from registered `PipeFilter.Keys` (Q3 & Q4) |
+| A | a value that is the command's subject or computation input, not narrowing a set (including `ze:modifier` trailing argument groups and multi-input detached artifact commands) | untouched | untouched | Unchanged; R10 structurally exempts Class A computation inputs and `ze:modifier` child containers |
 
-| Class | What the value is | Total | Display | Action | What the rule does to the display half |
-|-------|-------------------|-------|---------|--------|-----------------------------------------|
-| S-inherited | a selector declared on an ancestor container, inherited by each command under it | 26 | 6 | 17 | the ancestor's `leaf selector` is deleted; each command gains `\| limit <value>`. Three rows are re-classified into K below, which is where the 26 loses them |
-| S-own | a leaf named `selector` declared on the command node itself | 6 | 2 | 4 | the leaf is deleted; the command gains `\| limit <value>` |
-| K | a leaf named `name`, `id`, `type` or `key` naming ONE member of a set | 31 | 18 | 13 | Q3 decides, over the 18 display nodes plus the 3 re-classified from S-inherited |
-| A | a value that is the command's subject or an argument to it, not a narrowing of a set | 26 | - | - | unchanged; the rule does not reach it, whatever the verb |
+### Exact `R10` structural predicate (in `grammar.CheckNode`)
 
-**Re-classification.** The three `show pki certificate name <n> {pem, bundle
-pem, fingerprint}` rows sat in S-inherited. Each of the three redeclares its own
-`leaf name`, and the operator types the keyword `name` before the value, so no
-slot accepts both a keyword and a name. That is the class K shape, and Q3
-decides them with the rest of class K rather than this spec converting them.
+`cligrammar.go`'s `walk` invokes `grammar.CheckNode(path, child)` only on executable command nodes (`child.WireMethod != ""`). Rule `R10` inspects executable display command nodes (`strings.HasPrefix(path, "show ")` or `strings.HasPrefix(path, "monitor ")`, skipping `node.Modifier != command.ModifierNone`) and flags a violation if any of three structural conditions holds:
 
-**In scope after the narrowing: 8 command nodes.**
+1. Any direct `ArgDef` in `node.ArgDefs` is named `selector` and has `Mandatory() == true` (catches all 8 Class S display nodes, including `show policy test` which also carries mandatory `direction`).
+2. `node.ArgDefs` has exactly one mandatory `ArgDef` and its name is in `{name, id, type, key}` (catches all Class K display nodes with a single mandatory key leaf, including `show skill <name>`, `show config cat <id>`, `show data cat <key>`, `show env get <name>`, `show dns cache record <name>`, `show firewall ruleset <name>`, `show firewall irr prefix <name>`, and the four `show fleet` commands).
+3. The executable node's own name (`node.Name`) is in `{name, id, type, key}` and `len(node.ArgDefs) > 0` (catches path-selector containers even where the leaf was not marked `mandatory true`, such as `show vrrp interface name <interface>`).
 
-| Command node | Class | Module |
-|---|---|---|
-| `show bgp peer capabilities` | S-inherited | `internal/component/bgp/plugins/cmd/peer/yang/ze-peer-cmd.yang` |
-| `show bgp peer detail` | S-inherited | same |
-| `show bgp peer history` | S-inherited | same |
-| `show bgp peer list` | S-inherited | same |
-| `show bgp peer rib` | S-inherited | same |
-| `show bgp peer statistics` | S-inherited | same |
-| `show policy chain peer` | S-own | `internal/component/bgp/plugins/cmd/policy/yang/ze-policy-cmd.yang` |
-| `show policy test peer` | S-own | same |
+What passes `R10` structurally with zero per-command allowlists:
+- **Action commands** (`request`, `create`, `delete`, `update`, `clear`, `send`, `set`, `debug`): not display verbs (Q1).
+- **`ze:modifier` child containers** (such as `show metrics`'s `label <key> <value>` with `ze:modifier "repeat"` in `ze-cli-show-cmd.yang:360`, and `show policy test`'s `filter <name>` with `ze:modifier "once"` in `ze-policy-cmd.yang:108`): a modifier container is a child `command.Node` with `WireMethod == ""` and `Modifier != command.ModifierNone`, never in its parent command's `node.ArgDefs`, so `R10` never touches it.
+- **Class A computation-input display commands**: commands whose mandatory leaf is a domain computation input (`address`, `ip`, `host`, `port`, `hostname`, `asn`, `peer`, `prefix`, `protocol`, `file`, `content`, `code`, `path`, `command`, `destination`, `direction`), and multi-input detached-workspace commands (`show config artifact history`, `show config artifact diff`, `show config artifact source` in `ze-config-artifact-cmd.yang`) where mandatory `artifact` accompanies `name` (two mandatory inputs on a non-selector container, parallel to `show config history file <file>`).
 
-`show bgp rib`'s existing `| peer <sel>` filter is a ninth surface, a rename
-rather than a conversion, and Q4 decides whether it lands here.
+### Class S display conversions (8 nodes + RIB peer filter rename)
 
-The earlier action-move inventory is superseded. `raw`, `update`, `announce`
-and `withdraw` paths are outside this display conversion; their migration and
-sender audit must not be repeated here. Q1a preserves the earlier ruling.
+| Before | After | Owner package |
+|--------|-------|---------------|
+| `show bgp peer list` | `show bgp peer` | `internal/component/bgp/plugins/cmd/peer` |
+| `show bgp peer <sel> detail` | `show bgp peer \| limit peer <sel> \| extensive` (all peers: `show bgp peer \| extensive`) | `internal/component/bgp/plugins/cmd/peer` |
+| `show bgp peer <sel> capabilities` | `show bgp peer capabilities \| limit peer <sel>` | `internal/component/bgp/plugins/cmd/peer` |
+| `show bgp peer <sel> statistics` | `show bgp peer statistics \| limit peer <sel>` | `internal/component/bgp/plugins/cmd/peer` |
+| `show bgp peer <sel> history` | `show bgp peer history \| limit peer <sel>` | `internal/component/bgp/plugins/cmd/peer` |
+| `show bgp peer <sel> rib` | `show bgp peer rib \| limit peer <sel>` | `internal/component/bgp/plugins/cmd/rib` |
+| `show bgp rib \| peer <sel>` (and `rib best`, `rib protocol`) | `show bgp rib \| limit peer <sel>` (and `rib best`, `rib protocol`) | `internal/component/bgp/plugins/cmd/rib` + `plugins/rib` |
+| `show policy chain peer <sel> [import\|export]` | `show policy chain [import\|export] \| limit peer <sel>` | `internal/component/bgp/plugins/cmd/policy` |
+| `show policy test peer <sel> <direction> update hex <x> ...` | `show policy test <direction> update hex <x> ... \| limit peer <sel>` | `internal/component/bgp/plugins/cmd/policy` |
 
-Four rows below (`id`, `tag`, `blackhole`, `unicast`) are grouping bodies in
-`ze-cli-announce-cmd.yang`, instantiated at two paths each: bare, and under
-`peer <selector>`. Their bare path is already the shape the rule asks for; the
-`peer <selector>` path is a class S-inherited instance.
+`show bgp`, `show bgp | summary`, and `show bgp | peers` are unchanged.
 
-#### Class S-inherited (26 nodes)
+### Class K display conversions (30 nodes across 18 YANG modules — complete HEAD audit)
 
-The census, unchanged. The six `show bgp peer` rows are the display half and
-convert. The three `pki certificate name` rows are re-classified into K above.
-The seventeen `create`, `delete`, `request` and `update` rows are actions and
-keep their positional selector.
+| # | Before | After | YANG key(s) on `\| limit` | YANG module |
+|---|--------|-------|---------------------------|-------------|
+| 1 | `show bfd profile name <n>` | `show bfd profile \| limit name <n>` | `name` | `internal/component/bfd/yang/ze-bfd-cmd.yang` |
+| 2 | `show l2tp session id <id>` | `show l2tp session \| limit id <id>` | `id` | `internal/component/l2tp/cmd/yang/ze-l2tp-cmd.yang` |
+| 3 | `show l2tp tunnel id <id>` | `show l2tp tunnel \| limit id <id>` | `id` | `internal/component/l2tp/cmd/yang/ze-l2tp-cmd.yang` |
+| 4 | `show l2tp session history id <id>` | `show l2tp session history \| limit id <id>` | `id` | `internal/component/l2tp/cmd/yang/ze-l2tp-cmd.yang` |
+| 5 | `show l2tp session traffic id <id>` | `show l2tp session traffic \| limit id <id>` | `id` | `internal/component/l2tp/cmd/yang/ze-l2tp-cmd.yang` |
+| 6 | `show l2tp observer id <id>` | `show l2tp observer \| limit id <id>` | `id` | `internal/component/l2tp/cmd/yang/ze-l2tp-cmd.yang` |
+| 7 | `show pki certificate name <n>` | `show pki certificate \| limit name <n>` | `name` | `internal/plugins/pki-cmd/yang/ze-pki-cmd.yang` |
+| 8 | `show pki certificate name <n> pem` | `show pki certificate pem \| limit name <n>` | `name` | `internal/plugins/pki-cmd/yang/ze-pki-cmd.yang` |
+| 9 | `show pki certificate name <n> bundle pem` | `show pki certificate bundle pem \| limit name <n>` | `name` | `internal/plugins/pki-cmd/yang/ze-pki-cmd.yang` |
+| 10 | `show pki certificate name <n> fingerprint` | `show pki certificate fingerprint \| limit name <n>` | `name` | `internal/plugins/pki-cmd/yang/ze-pki-cmd.yang` |
+| 11 | `show pppoe session id <id>` | `show pppoe session \| limit id <id>` | `id` | `internal/component/l2tp/pppoe/cmd/yang/ze-pppoe-cmd.yang` |
+| 12 | `show bgp reject-asn name <n>` | `show bgp reject-asn \| limit name <n>` | `name` | `internal/component/bgp/plugins/filter_path_asn/yang/ze-filter-path-asn-cmd.yang` |
+| 13 | `show config cat <id>` | `show config cat \| limit id <id>` | `id` | `internal/plugins/config-cli/yang/ze-config-cli-cmd.yang` |
+| 14 | `show data cat <key>` | `show data cat \| limit key <key>` | `key` | `internal/plugins/config-storage/yang/ze-storage-cli-cmd.yang` |
+| 15 | `show dns cache record <name>` | `show dns cache record \| limit name <name>` | `name` | `internal/plugins/resolve-cmd/yang/ze-resolve-cmd.yang` |
+| 16 | `show env get <name>` | `show env get \| limit name <name>` | `name` | `internal/plugins/env/yang/ze-env-cmd.yang` |
+| 17 | `show firewall irr prefix <name>` | `show firewall irr prefix \| limit name <name>` | `name` | `internal/component/firewall/plugins/irr/yang/ze-firewall-irr-cmd.yang` |
+| 18 | `show firewall ruleset <name>` | `show firewall ruleset \| limit name <name>` | `name` | `internal/component/firewall/yang/ze-firewall-cmd.yang` |
+| 19 | `show interface name <n> counters` | `show interface counters \| limit name <n>` | `name` | `internal/component/iface/yang/ze-iface-interface-cmd.yang` |
+| 20 | `show interface name <n> detail` | `show interface \| limit name <n> \| extensive` | `name`, `type` (on `show interface`) | `internal/component/iface/yang/ze-iface-interface-cmd.yang` |
+| 21 | `show interface type <t>` | `show interface \| limit type <t>` | `name`, `type` (on `show interface`) | `internal/component/iface/yang/ze-iface-interface-cmd.yang` |
+| 22 | `show metrics name <n> [label <k> <v> ...]` | `show metrics [label <k> <v> ...] \| limit name <n>` | `name` | `internal/component/cmd/show/yang/ze-cli-show-cmd.yang` |
+| 23 | `show vpn ipsec peer name <n>` | `show vpn ipsec peer \| limit name <n>` | `name` | `internal/component/ike/yang/ze-ipsec-cmd.yang` |
+| 24 | `show subscriber id <id> detail` | `show subscriber \| limit id <id> \| extensive` | `id` | `internal/component/l2tp/subscriber/cmd/yang/ze-subscriber-cmd.yang` |
+| 25 | `show fleet device name <name>` | `show fleet device \| limit name <name>` | `name` | `internal/component/managed/yang/ze-managed-cmd.yang` |
+| 26 | `show fleet device inventory name <name>` | `show fleet device inventory \| limit name <name>` | `name` | `internal/component/managed/yang/ze-managed-cmd.yang` |
+| 27 | `show fleet device health name <name>` | `show fleet device health \| limit name <name>` | `name` | `internal/component/managed/yang/ze-managed-cmd.yang` |
+| 28 | `show fleet divergence name <name>` | `show fleet divergence \| limit name <name>` | `name` | `internal/component/managed/yang/ze-managed-cmd.yang` |
+| 29 | `show skill <name> [full]` | `show skill [full] \| limit name <name>` | `name` | `internal/plugins/skills/yang/ze-skills-cmd.yang` |
+| 30 | `show vrrp interface name <iface>` | `show vrrp interface \| limit name <iface>` | `name` | `internal/plugins/vrrp/yang/ze-vrrp-cmd.yang` |
 
-| Command path | Value slot | Module |
-|---|---|---|
-| `create interface bridge name address` | `name` on `name` | `internal/component/iface/yang/ze-iface-cmd.yang` |
-| `create interface bridge name unit` | `name` on `name` | `internal/component/iface/yang/ze-iface-cmd.yang` |
-| `create interface dummy name address` | `name` on `name` | `internal/component/iface/yang/ze-iface-cmd.yang` |
-| `create interface dummy name unit` | `name` on `name` | `internal/component/iface/yang/ze-iface-cmd.yang` |
-| `delete interface name address` | `name` on `name` | `internal/component/iface/yang/ze-iface-cmd.yang` |
-| `delete interface name unit` | `name` on `name` | `internal/component/iface/yang/ze-iface-cmd.yang` |
-| `pki certificate name bundle pem` | `name` on `name` | `internal/plugins/pki-cmd/yang/ze-pki-cmd.yang` |
-| `pki certificate name fingerprint` | `name` on `name` | `internal/plugins/pki-cmd/yang/ze-pki-cmd.yang` |
-| `pki certificate name pem` | `name` on `name` | `internal/plugins/pki-cmd/yang/ze-pki-cmd.yang` |
-| `request interface down` | `name` on `interface` | `internal/component/iface/yang/ze-iface-cmd.yang` |
-| `request interface mac` | `name` on `interface` | `internal/component/iface/yang/ze-iface-cmd.yang` |
-| `request interface migrate` | `name` on `interface`, declined by `ze:inherit "none"` | `internal/component/iface/yang/ze-iface-cmd.yang` |
-| `request interface mtu` | `name` on `interface` | `internal/component/iface/yang/ze-iface-cmd.yang` |
-| `request interface up` | `name` on `interface` | `internal/component/iface/yang/ze-iface-cmd.yang` |
-| `request peer flush` | `selector` on `peer` | `internal/component/bgp/plugins/cmd/peer/yang/ze-peer-cmd.yang` |
-| `request peer pause` | `selector` on `peer` | `internal/component/bgp/plugins/cmd/peer/yang/ze-peer-cmd.yang` |
-| `request peer plugin session ready` | `selector` on `peer` | `internal/component/bgp/plugins/cmd/peer/yang/ze-peer-cmd.yang` |
-| `request peer resume` | `selector` on `peer` | `internal/component/bgp/plugins/cmd/peer/yang/ze-peer-cmd.yang` |
-| `request peer teardown` | `selector` on `peer` | `internal/component/bgp/plugins/cmd/peer/yang/ze-peer-cmd.yang` |
-| `show bgp peer capabilities` | `selector` on `peer` | `internal/component/bgp/plugins/cmd/peer/yang/ze-peer-cmd.yang` |
-| `show bgp peer detail` | `selector` on `peer` | `internal/component/bgp/plugins/cmd/peer/yang/ze-peer-cmd.yang` |
-| `show bgp peer history` | `selector` on `peer` | `internal/component/bgp/plugins/cmd/peer/yang/ze-peer-cmd.yang` |
-| `show bgp peer list` | `selector` on `peer`, declined by `ze:inherit "none"` | `internal/component/bgp/plugins/cmd/peer/yang/ze-peer-cmd.yang` |
-| `show bgp peer rib` | `selector` on `peer` | `internal/component/bgp/plugins/cmd/peer/yang/ze-peer-cmd.yang` |
-| `show bgp peer statistics` | `selector` on `peer` | `internal/component/bgp/plugins/cmd/peer/yang/ze-peer-cmd.yang` |
-| `update bgp peer prefix` | `selector` on `peer` | `internal/component/bgp/plugins/cmd/peer/yang/ze-peer-cmd.yang` |
+Notes on sibling nodes in the audited modules:
+- `show fleet devices` (`ShapeTab`), `show fleet divergence list` (`ShapeTab`), `show fleet health`, `show fleet status`, `show skills`, `show vrrp`, and `show vrrp statistics` carry no mandatory selector leaf and stay untouched (`show fleet divergence | limit name <client>` keeps its `ShapeDoc` contract and names `show fleet divergence list` in its missing-key refusal, matching `show fleet device | limit name <name>` naming `show fleet devices`).
+- `show firewall domain-group [name <n>]` (`ze-firewall-domain-group-cmd.yang`) has an optional (non-mandatory) `leaf name`; `R10` checks mandatory selectors and selector-named command containers, so it is outside `R10`.
+- `show config artifact key list` (`ze-config-artifact-cmd.yang`) names the noun `key` (listing raw storage keys inside a detached artifact), with `list` as its executable node and `artifact` as its mandatory leaf — not a Class K selector.
 
-#### Class S-own (6 nodes)
+### Action commands (untouched — Q1, Q1a, Q7)
 
-The two `show policy` rows are the display half and convert. The action rows
-below are a historical census and authorise no path changes in this spec.
+All 17 Class S-inherited action nodes (`create interface bridge/dummy name address/unit`, `delete interface name address/unit`, `request interface up/down/mac/mtu/migrate`, `request peer flush/pause/resume/teardown/plugin session ready`, `update bgp peer prefix`), all Class S-own action nodes (`create bgp peer`, `delete bgp peer`, `clear bgp rib in/out/advertised`, `send bgp <sel> ...`, `request cache forward`), and all 15 Class K action nodes (`clear dns cache record`, `clear interface name counters`, `create/delete interface ...`, `request cache expire/release/retain`, `send bgp <sel> withdraw id/tag`, `clear l2tp ...`, `clear vpn ipsec sa peer`, `request fleet divergence name <client> revert`, `update fleet divergence name <client> adopt`) retain their current paths, mandatory positional/typed selectors, and `RequiresSelector` guards.
 
-| Command path | Value slot | Module |
-|---|---|---|
-| `delete bgp peer` | `selector` | `internal/component/bgp/plugins/cmd/peer/yang/ze-peer-cmd.yang` |
-| `peer raw` | `selector` | `internal/component/bgp/plugins/cmd/raw/yang/ze-raw-cmd.yang` |
-| `peer update` | `selector` | `internal/component/bgp/plugins/cmd/update/yang/ze-update-cmd.yang` |
-| `request cache forward` | `id`, `selector` | `internal/component/bgp/plugins/cmd/cache/yang/ze-cli-cache-cmd.yang` |
-| `show policy chain peer` | `selector` | `internal/component/bgp/plugins/cmd/policy/yang/ze-policy-cmd.yang` |
-| `show policy test peer` | `selector`, `direction` | `internal/component/bgp/plugins/cmd/policy/yang/ze-policy-cmd.yang` |
+### Class A commands (untouched)
 
-#### Class K (31 nodes) -- Q3 decides
-
-18 of the 31 are display commands: the `show` rows, plus `bfd profile name`,
-`l2tp session id`, `l2tp tunnel id`, `pppoe session id` and
-`subscriber id detail`, each of which is declared under an `augment
-"/clishowcmd:show"`. The other 13 are `clear`, `create`, `delete`, `request` and
-the two withdraw forms, and the narrowing does not reach them whatever Q3
-answers. With the three `pki certificate name` export forms re-classified in,
-Q3 decides 21 display nodes.
-
-| Command path | Value slot | Module |
-|---|---|---|
-| `bfd profile name` | `name` | `internal/component/bfd/yang/ze-bfd-cmd.yang` |
-| `clear dns cache record` | `name` | `internal/plugins/resolve-cmd/yang/ze-resolve-cmd.yang` |
-| `clear interface name counters` | `name` | `internal/component/iface/yang/ze-iface-interface-cmd.yang` |
-| `create interface address` | `name`, `prefix` | `internal/component/iface/yang/ze-iface-cmd.yang` |
-| `create interface bridge name` | `name` | `internal/component/iface/yang/ze-iface-cmd.yang` |
-| `create interface dummy name` | `name` | `internal/component/iface/yang/ze-iface-cmd.yang` |
-| `create interface unit` | `name`, `vid` | `internal/component/iface/yang/ze-iface-cmd.yang` |
-| `create interface veth name` | `name`, `peer` | `internal/component/iface/yang/ze-iface-cmd.yang` |
-| `delete interface name` | `name` | `internal/component/iface/yang/ze-iface-cmd.yang` |
-| `id` (withdraw form, two paths) | `id` | `internal/component/bgp/plugins/cmd/announce/yang/ze-cli-announce-cmd.yang` |
-| `l2tp session id` | `id` | `internal/component/l2tp/cmd/yang/ze-l2tp-cmd.yang` |
-| `l2tp tunnel id` | `id` | `internal/component/l2tp/cmd/yang/ze-l2tp-cmd.yang` |
-| `pki certificate name` | `name` | `internal/plugins/pki-cmd/yang/ze-pki-cmd.yang` |
-| `pppoe session id` | `id` | `internal/component/l2tp/pppoe/cmd/yang/ze-pppoe-cmd.yang` |
-| `request cache expire` | `id` | `internal/component/bgp/plugins/cmd/cache/yang/ze-cli-cache-cmd.yang` |
-| `request cache release` | `id` | `internal/component/bgp/plugins/cmd/cache/yang/ze-cli-cache-cmd.yang` |
-| `request cache retain` | `id` | `internal/component/bgp/plugins/cmd/cache/yang/ze-cli-cache-cmd.yang` |
-| `show bgp reject-asn name` | `name` | `internal/component/bgp/plugins/filter_path_asn/yang/ze-filter-path-asn-cmd.yang` |
-| `show config cat` | `id` | `internal/plugins/config-cli/yang/ze-config-cli-cmd.yang` |
-| `show data cat` | `key` | `internal/plugins/config-storage/yang/ze-storage-cli-cmd.yang` |
-| `show dns cache record` | `name` | `internal/plugins/resolve-cmd/yang/ze-resolve-cmd.yang` |
-| `show env get` | `name` | `internal/plugins/env/yang/ze-env-cmd.yang` |
-| `show firewall irr prefix` | `name` | `internal/component/firewall/plugins/irr/yang/ze-firewall-irr-cmd.yang` |
-| `show firewall ruleset` | `name` | `internal/component/firewall/yang/ze-firewall-cmd.yang` |
-| `show interface name counters` | `name` | `internal/component/iface/yang/ze-iface-interface-cmd.yang` |
-| `show interface name detail` | `name` | `internal/component/iface/yang/ze-iface-interface-cmd.yang` |
-| `show interface type` | `type` | `internal/component/iface/yang/ze-iface-interface-cmd.yang` |
-| `show metrics name` | `name` | `internal/component/cmd/show/yang/ze-cli-show-cmd.yang` |
-| `show vpn ipsec peer name` | `name` | `internal/component/ike/yang/ze-ipsec-cmd.yang` |
-| `subscriber id detail` | `id` | `internal/component/l2tp/subscriber/cmd/yang/ze-subscriber-cmd.yang` |
-| `tag` (withdraw form, two paths) | `key` | `internal/component/bgp/plugins/cmd/announce/yang/ze-cli-announce-cmd.yang` |
-
-#### Class A (26 nodes) -- the rule does not reach these
-
-| Command path | Value slot | Module |
-|---|---|---|
-| `bfd session address` | `address` | `internal/component/bfd/yang/ze-bfd-cmd.yang` |
-| `blackhole` (announce form, two paths) | `prefix` | `internal/component/bgp/plugins/cmd/announce/yang/ze-cli-announce-cmd.yang` |
-| `clear firewall irr as-set` | `as-set` | `internal/component/firewall/plugins/irr/yang/ze-firewall-irr-cmd.yang` |
-| `clear firewall irr asn` | `asn` | `internal/component/firewall/plugins/irr/yang/ze-firewall-irr-cmd.yang` |
-| `request l2tp outgoing-call remote called` | `remote`, `called` | `internal/component/l2tp/cmd/yang/ze-l2tp-cmd.yang` |
-| `request log level` | `logger`, `target` | `internal/plugins/log/yang/ze-log-cmd.yang` |
-| `resolve cymru asn-name` | `asn` | `internal/plugins/resolve-cmd/yang/ze-resolve-cmd.yang` |
-| `resolve dns a` | `hostname` | `internal/plugins/resolve-cmd/yang/ze-resolve-cmd.yang` |
-| `resolve dns aaaa` | `hostname` | `internal/plugins/resolve-cmd/yang/ze-resolve-cmd.yang` |
-| `resolve dns ptr` | `ip-address` | `internal/plugins/resolve-cmd/yang/ze-resolve-cmd.yang` |
-| `resolve dns txt` | `hostname` | `internal/plugins/resolve-cmd/yang/ze-resolve-cmd.yang` |
-| `resolve peeringdb as-set` | `asn` | `internal/plugins/resolve-cmd/yang/ze-resolve-cmd.yang` |
-| `resolve peeringdb max-prefix` | `asn` | `internal/plugins/resolve-cmd/yang/ze-resolve-cmd.yang` |
-| `resolve ping` | `target` | `internal/plugins/ping-cmd/yang/ze-ping-cmd.yang` |
-| `resolve traceroute` | `target` | `internal/plugins/traceroute-cmd/yang/ze-traceroute-cmd.yang` |
-| `show bgp irr check` | `peer`, `prefix` | `internal/component/bgp/plugins/filter_irr/yang/ze-filter-irr-cmd.yang` |
-| `show bgp irr prefix` | `peer` | `internal/component/bgp/plugins/filter_irr/yang/ze-filter-irr-cmd.yang` |
-| `show dns lookup` | `hostname` | `internal/plugins/resolve-cmd/yang/ze-resolve-cmd.yang` |
-| `show resolve rir` | `asn` | `internal/plugins/resolve-cmd/yang/ze-resolve-cmd.yang` |
-| `show route lookup` | `ip` | `internal/component/iface/yang/ze-iface-show-cmd.yang` |
-| `show tcp-check` | `host`, `port` | `internal/plugins/diag/yang/ze-diag-cmd.yang` |
-| `unicast` (announce form, two paths) | `prefix` | `internal/component/bgp/plugins/cmd/announce/yang/ze-cli-announce-cmd.yang` |
-| `update bgp irr as-set` | `as-set` | `internal/component/bgp/plugins/filter_irr/yang/ze-filter-irr-cmd.yang` |
-| `update bgp irr asn` | `asn` | `internal/component/bgp/plugins/filter_irr/yang/ze-filter-irr-cmd.yang` |
-| `update firewall irr as-set` | `as-set` | `internal/component/firewall/plugins/irr/yang/ze-firewall-irr-cmd.yang` |
-| `update firewall irr asn` | `asn` | `internal/component/firewall/plugins/irr/yang/ze-firewall-irr-cmd.yang` |
-
-`show bgp irr check` and `show bgp irr prefix` sit in class A on a leaf name
-that reads like a selector. Their `peer` leaf names WHICH PEER'S POLICY to
-evaluate a prefix against, so it is an input to one computation rather than a
-narrowing of a set of answers. Q3 covers them.
-
-## The Grammar, Before and After
-
-The display commands, which are the whole of the pipe conversion.
-
-| Before | After |
-|--------|-------|
-| `show bgp peer list` | `show bgp peer` |
-| `show bgp peer <sel> detail` | `show bgp peer \| limit <sel> \| extensive` |
-| `show bgp peer <sel> capabilities` | `show bgp peer capabilities \| limit <sel>` |
-| `show bgp peer <sel> statistics` | `show bgp peer statistics \| limit <sel>` |
-| `show bgp peer <sel> history` | `show bgp peer history \| limit <sel>` |
-| `show bgp peer <sel> rib` | `show bgp peer rib \| limit <sel>` |
-| `show bgp rib \| peer <sel>` | `show bgp rib \| limit <sel>` (Q4) |
-| `show bgp` | `show bgp` (unchanged) |
-| `show bgp \| summary` | `show bgp \| summary` (unchanged) |
-| `show policy chain peer <sel>` | `show policy chain \| limit <sel>` |
-| `show policy test peer <sel> direction <d> update hex <x>` | `show policy test direction <d> update hex <x> \| limit <sel>` |
-
-Action commands retain their current paths and mandatory selectors. No action
-gains a `limit` filter, and the existing single-peer and selector-presence
-guards remain intact. The earlier before/after action table was superseded
-with the action-move scope.
-
-## Open Questions (BLOCKING -- Thomas decides)
-
-### Answered, and closed
-
-| ID | Question | Thomas's answer, verbatim | What it settled |
-|----|----------|---------------------------|-----------------|
-| Q1 | Does the rule reach ACTION commands, or DISPLAY commands only? | "no request is not a display limit it is a command limit so request is not changed" | Display only. The pipe narrows an answer; an action has no answer to narrow. Every action keeps its positional selector. Not to be re-opened. |
-| Q1a | Where does an action's selector sit? | "it should be request peer raw ..." then "request peer <sel> raw ..." | Historical ruling. The proposed `request peer` move was superseded by `spec-fixit-send-names-its-destination`; it is no longer an instruction or a readiness gate here. |
-| Q7 | Do `delete bgp peer <sel>` and `update bgp peer prefix` move under `request` as well? | "request lead to a change in the system, like create, delete or update but it is when the action is neither of the three" | No. `request` is the residual of the other three, so a command that deletes or updates never reaches it. `delete bgp peer <sel>` removes the peer from the running config, and `update bgp peer prefix` refetches the max-prefix limits and rewrites them. Both stay where they are. `docs/architecture/cli/command-verbs.md` carries the family test. |
-
-### Open
-
-| ID | Question | Why it cannot be answered here |
-|----|----------|--------------------------------|
-| Q2 | Is `extensive` a fixed alias over the fields the bare answer already carries, or a distinct server call returning a richer record? | `detail` today is a separate wire method answering more fields than `list`. An alias cannot fetch data the answer does not hold, so if the richer record is wanted the bare command must always fetch it and `\| extensive`/nothing selects among fields. That costs bandwidth on every bare call. The alternative is `extensive` as an owned filter that folds into the command and reaches the handler, which is cheap but makes `extensive` a server word rather than a rendering word. |
-| Q3 | Does the rule reach class K, whose value is typed by a `name`/`id`/`type`/`key` keyword? | The narrowing leaves 21 display nodes in scope for this question: the 18 display members of class K, plus the three `show pki certificate name` export forms re-classified into it. `show interface name <n> detail` already satisfies the ambiguity test, because `name` is a keyword and no slot accepts both a keyword and a name, so the rule's ambiguity clause does not bind them. Its uniformity clause arguably does: `show interface \| limit <n> \| extensive` is the same sentence as the peer one. Converting them is 21 more nodes across 15 YANG modules, against 8 nodes in 2 modules in the spec as it stands. |
-| Q4 | `show bgp rib` today has `\| peer <sel>`, which is `\| limit <sel>` under a second name. Rename it? | Recommended yes, on habit 1 of `ai/rules/writing.md`. It is listed as in-scope above; the question is whether Thomas wants it in this spec or separately. |
-| Q5 | What does an operator who types the old form see? | Ze is unreleased, so `ai/rules/cli.md` says an unreleased grammar is replaced outright, not deprecated. `internal/component/config/retired.go` is CONFIG-only and offers no mechanism here. The old form therefore fails as an unknown command with the existing `suggest.Command` hint. A message naming the replacement would be new machinery. |
-| Q6 | What becomes of the former top-level `peer` action root? | Superseded with the action move. This spec neither decides nor implements its removal; it preserves the current action grammar. |
+All Class A display and action nodes whose mandatory value is the command's subject or computation input (`show bfd session address`, `show bgp irr check`, `show bgp irr prefix`, `show dns lookup`, `show resolve rir`, `show route lookup`, `show tcp-check`, `show diagnostic`, `show config history/graph/validation`, `show config artifact history/diff/source`, `show plugin declarations config`, `show plugin conformance run`, `monitor ping`, `monitor traceroute`, `resolve ...`, `clear/update ... irr ...`, `request log level`, `request l2tp outgoing-call remote called`, `send bgp <sel> unicast/blackhole`) remain untouched.
 
 ## Risks & Assumptions
 
 ### Assumptions
 | ID | Assumption | Basis (file/doc/user statement) | If wrong | Validated by | Status |
 |----|-----------|--------------------------------|----------|--------------|--------|
-| A-1 | A command-owned pipe filter reaches the handler as a command argument | `foldFilters` in `internal/component/command/pipe.go` appends `<filter-name> <value>` to the command string; `show bgp rib \| peer <sel>` is the production instance | `limit` cannot narrow server-side and the whole design collapses to local row filtering, which cannot express a glob or `as65001` against rows the daemon never sent | a unit test over `foldFilters` asserting the rewritten command string, plus a `.ci` asserting the daemon answers only the matched peer | unvalidated |
-| A-2 | Two operators chain, with the narrowing one folding and the shaping one staying local | `parsePipeOps` splits on every `\|`; `expandAliases` runs before `foldFilters` | `\| limit <sel> \| summary` cannot be expressed and the three roles cannot be separated | `TestLimitFoldsAndSummaryStaysLocal` | unvalidated |
-| A-3 | `limit` collides with no registered alias or filter | `RegisterAliases` and `RegisterPipeFilters` each panic on an overlapping-path name collision; no catalog operator is named `limit` and no alias is | the daemon panics at init | `./le verify current mode full` starting the daemon in the functional suite; a unit test asserting the registration does not panic | unvalidated |
-| A-4 | Removing `container list` changes the field set the bare command answers, not the peer population | `handleBgpPeerList` and `handleBgpPeerDetail` both call `filterPeersByArgs` over `ctx.Reactor().Peers()` | the bare form would silently answer a different peer set, which is a correctness change nobody asked for | `TestBarePeerAnswersEveryPeer` comparing the bare answer's row count to the reactor peer count | unvalidated |
-| A-5 | The selector slot has no value completion today, so the conversion loses none | no `ValueHints` is wired for any peer or interface node; `pipeSubArgs` holds `json` and `fill` alone | the change would remove working peer-name completion, which is a regression | a `.ci` under `test/ui/` asserting what `show bgp peer <TAB>` offers before and after | unvalidated |
-| A-6 | Two components own the eight converted commands; each owns its registration | `cmd/peer` and `cmd/policy` in the display inventory | a central edit would be needed, which `ai/rules/principles.md` forbids | the implementation touches owner packages; `./le arch tier check` | unvalidated |
+| A-1 | A command-owned pipe operation reaches builtin, local-data, and plugin handlers as structured `[]PipeOperation` without rewriting the command line | `ReadDispatchLine` (`dispatch_line.go`), `partitionPipeChain` (`pipe_partition.go`), `Dispatcher.Dispatch` (`plugin/server/command.go`), `ServeLocal` (`local_data.go`), and `routeToProcessWithEvents` (`rpc.ExecuteCommandInput.Pipe`) | `limit` or `extensive` could not reach handlers on one of the three handler routes | Unit tests over `partitionPipeChain`, `Dispatch`, `ServeLocal`, and `pluginPipe` asserting `PipeOperation{Name, Args}` arrives intact | unvalidated |
+| A-2 | Multiple declared operations (`\| limit peer edge1 \| extensive`) chain with residual generic operators (`\| json`, `\| count`, `\| match`) in order | `partitionPipeChain` takes the full prefix of declared operations into `part.declared` and keeps all following generic operators in `part.residual` | Narrowing, shaping, and formatting could not compose | `TestLimitAndExtensivePartitionWithResidualFormat` | unvalidated |
+| A-3 | `limit` and `extensive` collide with no registered catalog operator, alias, or filter on overlapping paths | `pipeCatalog` holds neither name; `show bgp` aliases are `summary` and `peers`; `RegisterAliases` and `RegisterPipeFilters` panic on any overlapping collision | Daemon panics at init | `./le test unit pkg path ./internal/component/command/` and `./le test unit pkg path ./internal/component/bgp/plugins/cmd/peer/` plus `TestLimitAndExtensiveRegistrationDoesNotCollide` | unvalidated |
+| A-4 | Collapsing `show bgp peer list` and `show bgp peer <sel> detail` into `show bgp peer` + `\| extensive` preserves both field sets and peer populations | `handleBgpPeerList` and `handleBgpPeerDetail` both call `filterPeersByArgs` over `ctx.Reactor().Peers()` and differ only in the fields gathered/serialized per peer | Bare `show bgp peer` would either lose fields or pay full detail serialization cost on large peer tables | `TestBarePeerAnswersEveryPeerLightweight` and `TestPeerExtensiveReturnsDetailFields` | unvalidated |
+| A-5 | `PipeFilter.Keys` can drive `\| limit <TAB>` key completion across SSH, web, and `ze cli` with no hardcoded command names | `completePipeForCommand` already calls `PipeOperationsForCommand(command)` and `completePipeArg` already receives `(command, opName, typed, last)` | `\| limit <TAB>` would offer no key names, violating Thomas's Q3/Q4 precondition | `TestCompletionOffersLimitKeysAfterLimit` and `test/ui/limit-completes-after-pipe.ci` | unvalidated |
+| A-6 | Every converted command registers its own `limit` / `extensive` declaration in its owning package | `RegisterPipeFilters` is decentralized; each subsystem/plugin package owns its YANG and handlers | A central package would need to import or enumerate subsystem commands, violating `ai/rules/plugins.md` | `./le arch tier check` and `./le arch enumeration check` | unvalidated |
 
 ### Risks
 | ID | Risk | Early signal | Mitigation / fallback |
 |----|------|--------------|----------------------|
-| R-8 | The collision DERIVER outlives the grammar it was written for, and reserves five more names nobody can collide with | `PeerSubcommandKeywords` (`internal/component/plugin/server/rpc_register.go`) marks a verb Colliding when no mandatory `ArgDef` anchored to `peer` sits between the keyword and the verb, and config validation then refuses a peer carrying that word as its name. Today `list` alone collides under `show bgp peer`. Deleting the `show bgp peer` selector makes all six collide, so `capabilities`, `detail`, `history`, `rib` and `statistics` become unusable peer names | the derivation reads the merged tree, so it follows the change with no edit, and that is the problem rather than the reassurance. Its rule encodes an assumption the conversion removes: that a peer NAME can be typed immediately after `peer`. On a converted `show` path no name is ever typed there, because narrowing moved into the pipe, so a verb sitting next to `peer` is not a collision and refusing it costs an operator five ordinary words for nothing. The deriver was already wrong once this way, in `759246cb1`, where it read adjacency in a path string and ignored the mandatory selector between; this is the same mistake arriving from the other direction, as the selector is taken away rather than overlooked. So the conversion phase owes the deriver an edit: it asks whether a name can reach that position AT ALL for the path's class, display or action, and reports Colliding only where one can. The phase asserts the Colliding set before and after, and the expected answer for a converted `show` node is EMPTY |
-| R-2 | `limit` registered on `show bgp` shadows the RIB plugin's own filter set, or the reverse | `RegisterPipeFilters` panics at init, or `show bgp rib \| limit` reports an unknown filter | lookup is longest-prefix, so `show bgp rib` needs its own `limit` entry rather than inheriting one; Q4 settles the rename in the same edit |
-| R-3 | The grammar gate cannot express the new rule, so it is enforced by review alone | the checker has no rule id for it and `./le cli grammar` stays green over an unconverted node | the rule lands as a new rule id in `grammar.CheckNode` with the population count printed, before the first conversion |
-| R-4 | Completion offers `limit` but cannot complete its argument, so the operator gets less help than the positional form gave | `pipeSubArgs` is a hand-written map with two entries | A-5 says the positional form offers nothing either; if it turns out to, the spec gains a value-hint route for filter arguments |
-| R-5 | Documentation and demos carry the old forms in prose and in recorded terminal sessions | `./le cli grammar` reads `demos/terminal/` sources and refuses a non-verb position-1 token; the doc pages carry the six-row incorrect/correct table verbatim | the doc and demo edits land in the same phase as the YANG edit, never in a closing pass (`ai/rules/documentation.md`) |
-| R-6 | The package grows beyond its display-conversion scope | the phase list adds action-path work | Keep the eight display conversions separate from the superseded action move; class K adds 21 display nodes only if Q3 says yes |
+| R-1 | `PeerSubcommandKeywords` (`internal/component/plugin/server/rpc_register.go`) marks `capabilities`, `history`, `rib`, and `statistics` as `Colliding` once `leaf selector` leaves `show bgp peer` | Config validation refuses ordinary peer names (`capabilities`, `history`, `rib`, `statistics`) | Update `PeerSubcommandKeywords` so `Colliding` only counts `peer` containers where an operator can actually type a peer selector immediately after `peer` (action containers); assert `Colliding` is empty for converted `show bgp peer` children |
+| R-2 | Longest-prefix lookup causes `show bgp peer`'s `limit` / `extensive` declarations to leak onto child paths (`show bgp peer rib`, `show bgp peer capabilities`, etc.), or `show bgp rib`'s filters to clash | `show bgp peer capabilities \| extensive` accepted silently, or `RegisterPipeFilters` panics | Declare explicit per-path filter sets (e.g. `show bgp peer` declares `limit` + `extensive`; `capabilities`, `statistics`, `history` declare `limit` only; `show bgp peer rib` declares RIB filters with `limit` and no `extensive`), and pin with unit tests |
+| R-3 | Rule `R10` in `grammar.CheckNode` either flags Class A computation inputs / `ze:modifier` child groups (false positives) or reads a zero population | `./le cli grammar` fails on `show route lookup`, `show metrics label`, `show policy test filter`, or `show config artifact diff`, or reports population 0 | Scope `R10` to executable display nodes (`show`/`monitor`, `WireMethod != ""`, `Modifier == ModifierNone`) matching the exact 3-part structural predicate in `## The Inventory`, and print non-zero population count in `cligrammar.go`; prove red before conversions and green after |
+| R-4 | Updating `show bgp peer list` / `show bgp peer <sel> detail` breaks in-tree callers (`bridge_status.go`, functional test fixtures, interop checks, terminal demos) | `./le cli dispatch check`, `./le cli grammar`, or functional tests fail with unknown command | Update `StatusPeerCommand` in `bridge_status.go` and sweep every in-tree sender (`internal/test/`, `internal/le/interoplab/`, `internal/le/site/terminaldemo/`, `test/`, `demos/terminal/`) in the same phase as each YANG conversion |
+| R-5 | Keyed `\| limit` argument parsing breaks on quoted values containing spaces or pipes (e.g. `\| limit name "my key"`) | `validateDeclaredArgument` re-splits `Args` on whitespace instead of reading `PipeOperation.Args` as already-decoded words | Read `PipeOperation.Args` directly: `Args[0]` is `<key>` and `Args[1]` is `<val>` (already unquoted by `scanChain`); reject `len(Args) != 2` with a clear operator error naming quoting |
+| R-6 | Documentation and recorded demos drift from the converted display grammar | `./le cli grammar` or `./le doc check all` reports stale spellings | Update each affected architecture doc, guide, rule, pattern, and demo in the same phase as its YANG change (`ai/rules/documentation.md`) |
 
 ## Blast Radius
 
 | Question | Answer |
 |----------|--------|
-| What breaks if this is wrong? | Every operator command line, every script that calls `ze`, every `.ci` fixture that types a converted or moved command, every documentation example, and every recorded terminal demo. No action command loses its selector, so no wrong pipe can widen a side effect: the narrowing reaches display commands alone, and the worst display failure is an answer that shows too many rows. |
-| How is it reverted? | A single commit revert restores the YANG and the registrations. No config migration and no on-disk state is involved: the command tree is built at startup from the schema. |
-| Who else touches this path? | `spec-cli-pipe-operator-coverage` (closed 2026-09-05), `spec-cli-show-bgp-answer-shapes`, `spec-announce-grammar-stated-and-enforced` (closed 2026-10-09) and `plan/post-release/engineering/spec-cli-root-namespace-grammar-deferred-gate-reach.md` all work the command grammar or the pipe layer. `plan/journal/command-takes-an-untyped-positional-value.md` and `plan/journal/helper-bypassed-by-an-open-coded-copy.md` collect rows in this area. |
+| What breaks if this is wrong? | Display command invocations across CLI, SSH, web, MCP, REST, gRPC, `bridge_status.go`, `.ci` fixtures, interop checks, docs, and terminal demos. No action command loses its selector, so no wrong pipe can widen a side effect: the worst display failure is an answer with too many rows or an unknown-command error on an unswept caller. |
+| How is it reverted? | A single commit revert restores the YANG schemas, registrations, and handlers. No config migration and no on-disk state changes. |
+| Who else touches this path? | `spec-pipe-chain-honored-on-every-command-surface` (closed, landed `partitionPipeChain` and `PipeOperationsForCommand`), `spec-fixit-send-names-its-destination` (closed, landed `send bgp <sel>`), and `plan/post-release/engineering/spec-cli-root-namespace-grammar-deferred-gate-reach.md`. |
 
 ## Wiring Test (MANDATORY -- NOT deferrable)
 
 | Entry Point | → | Feature Code | Test |
 |-------------|---|--------------|------|
-| operator types `show bgp peer \| limit edge1` | → | `foldFilters` rewrites the command to `show bgp peer limit edge1`, `filterPeersByArgs` reads it | `TestLimitFoldsIntoTheCommandString` |
-| operator types `show bgp peer \| limit edge1 \| extensive` | → | `foldFilters` folds `limit`, the shaping operator stays in the local chain | `TestLimitFoldsAndShapingStaysLocal` |
-| operator types `show bgp peer` with no pipe | → | `handleBgpPeerList` over every peer | `test/ui/limit-bare-peer-answers-all.ci` |
-| operator types `\|` and presses Tab after `show bgp peer` | → | `pipeExtras` returns the owned `limit` filter | `TestCompletionOffersLimitUnderShowBgpPeer` |
-| a YANG node declares a mandatory selector in a path slot | → | `grammar.CheckNode` new rule | `TestCheckerRefusesAPositionalSelector` |
+| Operator types `show bgp peer \| limit peer edge1` | → | `ReadDispatchLine` → `partitionPipeChain` → `Dispatcher.Dispatch` → `handleBgpPeerList` reads `limit peer edge1` from `ValidatedArgs.PipeOperations()` and calls `filterPeersBySelectorValue` | `TestLimitPartitionsAndNarrowsPeerHandler` |
+| Operator types `show bgp peer \| limit peer edge1 \| extensive \| json` | → | `partitionPipeChain` places `limit` and `extensive` in `declared`, keeps `json` in `residual`; `handleBgpPeerList` builds detail row for `edge1` alone; `ApplyPipes` renders JSON | `TestLimitAndExtensivePartitionWithResidualFormat` |
+| Operator types `show bgp peer` with no pipe | → | `handleBgpPeerList` answers lightweight brief rows for every configured peer without gathering detail fields | `test/ui/limit-bare-peer-answers-all.ci` |
+| Operator presses Tab after `show bgp peer \| ` and after `show bgp peer \| limit ` and `show interface \| limit ` | → | `completePipeForCommand` returns `limit` & `extensive`; `completePipeArg` returns `peer` (for `show bgp peer`) and `name`, `type` (for `show interface`) from `PipeFilter.Keys` | `TestCompletionOffersLimitKeysAfterLimit` |
+| Operator types `show bgp rib \| limit peer 10.0.0.1` | → | `partitionPipeChain` → `routeToProcessWithEvents` (`rpc.ExecuteCommandInput.Pipe`) → `parsePipelineOperations` narrows RIB source by peer | `TestRIBLimitPeerNarrowsRoutes` |
+| A display YANG node declares a mandatory positional/typed selector leaf | → | `grammar.CheckNode` (rule `R10`) → `internal/le/cli/grammar/cligrammar.go` | `TestCheckerRefusesDisplaySelector` |
 
 ## Acceptance Criteria
 
-| AC ID | Input / Condition | Expected Behavior |
-|-------|-------------------|-------------------|
-| AC-1 | Any DISPLAY command node in the merged YANG tree | No slot in its path accepts both an operator-supplied value and a fixed keyword. `show bgp peer list` stops declaring `ze:inherit "none"`, because the ancestor it declined declares no selector. The extension keeps its one remaining user, `request interface migrate`, and is not deleted. |
-| AC-2 | `show bgp peer` typed with nothing after it, against a daemon with three configured peers | Answers a row for each of the three, in the one-line field set `list` answered before: name, address, ASN, state, uptime. |
-| AC-3 | `show bgp peer \| limit <sel>` for each selector kind: an address, a peer name, `as65001`, a glob, a comma list, `*` | Answers exactly the peers `peersel.ParseDefault` matches, and the narrowing happens in the daemon: the answer sent over the wire carries the matched peers alone. |
-| AC-4 | `show bgp peer \| limit <sel> \| <shape>` | Both operators take effect: the answer is narrowed to the selector AND shaped by the second operator. The chain order is honored. |
-| AC-5 | Superseded action-move criterion | No action migration is owed by this spec. The current action paths and selector guards are preserved under AC-9 |
-| AC-6 | `show bgp rib \| limit <sel>` | Narrows by peer, and `\| peer <sel>` is no longer a spelling of it. |
-| AC-7 | Tab pressed after `\|` on any converted command | `limit` is offered, with its description. |
-| AC-8 | `./le cli grammar` over the real checkout | Passes, and prints the size of the population it read for the new rule. A YANG node reintroducing a positional selector makes it fail, naming the node. |
-| AC-9 | Every action command in the inventory | Keeps a mandatory positional selector, gains no `limit` filter, and refuses a selector-less invocation exactly as it does today. No action command is reachable through a pipe. |
-| AC-10 | Every documentation page, rule file and terminal demo that showed a converted display command | Shows the new display form. `docs/architecture/cli/root-namespace-grammar.md`, `ai/rules/cli.md` and `ai/patterns/cli-command.md` state the display grammar while preserving the current action grammar |
+| AC ID | Input / Condition | Expected Behavior | Permitted Survivors and Why |
+|-------|-------------------|-------------------|-----------------------------|
+| AC-1 | Static grammar gate (`./le cli grammar`) over the merged YANG tree | `grammar.CheckNode` (`R10`) inspects every executable display (`show`, `monitor`) command node (`WireMethod != ""`, `Modifier == ModifierNone`), prints a non-zero checked population count, and passes with zero findings once all 8 Class S and 30 Class K display nodes convert; injecting a mandatory `selector` leaf, a sole mandatory `{name, id, type, key}` leaf, or a `{name, id, type, key}` command container carrying an `ArgDef` on any display node fails the gate naming that node. | Action commands (`request`, `create`, `delete`, `update`, `clear`, `send`, `set`, `debug`) keep mandatory positional/typed selectors by Q1; `request interface migrate` keeps `ze:inherit "none"` as its sole action user; `ze:modifier` child containers (`label <key> <value>`, `filter <name>`) and Class A computation-input commands (including detached-workspace `show config artifact history/diff/source`) pass structurally. |
+| AC-2 | `show bgp peer` typed with no pipe against a daemon with three configured peers | Answers one lightweight overview row for each of the three peers (name, address key, remote-as, state, uptime, hostname/domain/group/bfd-sub-state when set) without gathering or serializing full detail counters/timers/capabilities. | Bare `show bgp`, `show bgp \| summary`, and `show bgp \| peers` stay unchanged because they already follow the pipe rule. |
+| AC-3 | `show bgp peer \| limit peer <sel>` for each selector kind (IP address, peer name, `as65001`, glob, comma list, exclusion, `*`) | Answers the exact peers `peersel.ParseDefault` matches, narrowed server-side inside `handleBgpPeerList` so the wire payload carries only the matched peers; `capabilities`, `statistics`, `history`, `rib`, `show policy chain`, and `show policy test` narrow identically via `\| limit peer <sel>`. | `show bgp peer history` and `show policy test` still require the narrowed result to resolve to one peer (refusing `*` or multi-peer matches with an operator error) because their underlying data model answers one peer's history or dry-run at a time. |
+| AC-4 | `show bgp peer \| extensive` and `show bgp peer \| limit peer <sel> \| extensive \| json` | `\| extensive` runs server-side as a declared command-owned pipe operation (`ValidatedArgs.PipeOperations()`), gathering and serializing full peer detail fields (`local-as`, `router-id`, `fsm-state`, `timer`, `messages`, `capabilities`, `connect-retry-counter`, etc.) only for the narrowed peers, and composes cleanly with residual formatting/data operators (`\| json`, `\| table`, `\| match`, `\| count`) in chain order. | Placing a declared operation (`limit` or `extensive`) after a residual generic operator (`\| json \| limit peer edge1`) is refused by `lateOperationRefusal` with the reordered command as its fix, per `commands.md`. |
+| AC-5 | `show bgp rib \| limit peer <sel>` (and `show bgp peer rib`, `show bgp rib best`, `show bgp rib protocol <proto>`) | Narrows routes by peer server-side through `rpc.ExecuteCommandInput.Pipe` (`{"name":"limit","args":["peer","<sel>"]}`), composing with RIB pipeline stages (`received`, `advertised`, `family`, `prefix`, `path`, `community`, `covering`, `exact`, `match`, `count`, `first`, `last`, `histogram`, `graph`, `reason`); `\| peer <sel>` is removed and refused as an unknown pipe filter. | Other RIB attribute filters (`family`, `prefix`, `path`, `community`, `covering`, `exact`) remain unchanged because Q4 scoped the rename specifically to `\| peer <sel>` → `\| limit peer <sel>`. |
+| AC-6 | All 30 Class K display commands across their 18 YANG modules (including `show interface \| limit name <n>`, `show interface \| limit name <n> \| extensive`, `show interface \| limit type <t>`, `show interface counters \| limit name <n>`, `show bfd profile \| limit name <n>`, `show pki certificate \| limit name <n>`, `show config cat \| limit id <id>`, `show data cat \| limit key <k>`, `show env get \| limit name <n>`, `show vpn ipsec peer \| limit name <n>`, `show l2tp session \| limit id <id>` and its 4 L2TP siblings, `show subscriber \| limit id <id> \| extensive`, `show fleet device [inventory\|health] \| limit name <n>`, `show fleet divergence \| limit name <n>`, `show skill [full] \| limit name <n>`, `show vrrp interface \| limit name <iface>`, `show metrics [label <k> <v> ...] \| limit name <n>`) | Each converted Class K display command executes bare (or with its required non-selector arguments / `ze:modifier` groups) and narrows server-side via `\| limit <key> <val>` naming its registered YANG key, returning the exact same data fields and authorization checks (including `NotReadOnly` on `show config cat` and `show data cat`) as before; unknown keys or missing values are refused with the valid keys named. | Commands whose subject has no "all items" meaning (such as `show config cat`, `show data cat`, `show env get`, `show pki certificate pem`, `show fleet device`, `show fleet device inventory`, `show fleet device health`, `show fleet divergence`, `show skill`, `show vrrp interface`) require `\| limit <key> <val>` and refuse an unnarrowed call with a clear operator error naming the `\| limit <key> <val>` fix (or listing sibling); Class K action commands (`clear`, `create`, `delete`, `request`, `update`, `send ... withdraw`) stay untouched by Q1. |
+| AC-7 | Tab completion after `\|` and after `\| limit ` on any converted command (CLI, SSH, web) | Tab after `\|` offers `limit` (and `extensive` where registered) from `PipeOperationsForCommand`; Tab after `\| limit ` offers the command's registered YANG key names from `PipeFilter.Keys` (`peer` on `show bgp peer` and `show bgp rib`, `name` and `type` on `show interface`, `id` on `show l2tp session`, `key` on `show data cat`, etc.); `show command help` and `ze help command --json` publish the same keys. | Value completion for dynamic peer/interface names after `<key>` stays outside this spec's scope unless a command already wires a value completer; no existing value completion is regressed. |
+| AC-8 | Old display command spellings (`show bgp peer list`, `show bgp peer edge1 detail`, `show interface name eth0 detail`, `show bgp rib \| peer 10.0.0.1`, etc.) | Refused cleanly as unknown commands (or unknown pipe filter for `\| peer`) with existing `suggest.Command` / valid-filter hint, with zero compatibility aliases or migration shims (Q5); `PeerSubcommandKeywords` marks `Colliding` empty for converted `show bgp peer` children so peers may be named `capabilities`, `history`, `rib`, or `statistics`. | Action commands with mandatory selectors under `request peer`, `create/delete/update bgp peer`, `send bgp`, and `request interface` remain accepted at their current paths. |
+| AC-9 | Every action command in the inventory plus ExaBGP `status` (`bridge_status.go`) | Every action command retains its mandatory positional/typed selector, keeps its `RequiresSelector: true` / `ResolveSinglePeer` fail-closed guard, owns neither `limit` nor `extensive`, and refuses selector-less invocations; ExaBGP `status` calls `show bgp peer \| extensive` and produces the exact expected ExaBGP status text/JSON output. | Only `ze-bgp:peer-history` and `ze-bgp:peer-rib` (both display commands) drop `RequiresSelector: true`; every action registration keeps it. |
+| AC-10 | Architecture docs, rules, patterns, guides, terminal demos, and in-tree fixtures | `docs/architecture/cli/root-namespace-grammar.md`, `command-namespacing.md`, `command-verbs.md`, `command-completion.md`, `docs/architecture/api/commands.md`, `docs/architecture/api/process-protocol.md`, `docs/architecture/behavior/fsm.md`, `docs/architecture/exabgp-bridge.md`, `docs/architecture/bgp/filter-path-asn.md`, `docs/architecture/fleet-config.md`, `docs/architecture/zefs-format.md`, `docs/architecture/doctor-and-health-checks.md`, `docs/features/ai-first.md`, `docs/guide/mcp/overview.md`, `ai/rules/cli.md`, `ai/patterns/cli-command.md`, guides, `demos/terminal/`, and in-tree test/interop callers all reflect the new display grammar, and `./le doc check all` plus `./le cli dispatch check` pass. | Historical journal entries (`plan/journal/`) and closed-spec records keep their historical wording because they record past events, not current command documentation. |
 
 ## End-to-End User Stories
 
 | # | User does | Path through system | Test proving it works |
 |---|-----------|--------------------|-----------------------|
-| 1 | types `show bgp peer` to see every peer at a glance | CLI → tree match → `handleBgpPeerList` over every peer → `ApplyPipes` | `test/ui/limit-bare-peer-answers-all.ci` |
-| 2 | types `show bgp peer \| limit edge1` to see one peer | CLI → `foldFilters` → command string → dispatcher → `filterPeersByArgs` | `test/ui/limit-narrows-to-one-peer.ci` |
-| 3 | types `show bgp peer \| limit edge1 \| extensive` for one peer in full | CLI → `expandAliases` → `foldFilters` → daemon → `ApplyPipes` with the shaping operator | `test/ui/limit-then-shape-chains.ci` |
-| 4 | presses Tab after `show bgp peer \|` | `completePipeForCommand` → `pipeExtras` → `filterSuggestions` | `test/ui/limit-completes-after-pipe.ci` |
+| 1 | Types `show bgp peer` to see every peer at a glance | CLI → `ReadDispatchLine` → `Dispatcher.Dispatch` → `handleBgpPeerList` (lightweight) → `ApplyPipes` | `test/ui/limit-bare-peer-answers-all.ci` |
+| 2 | Types `show bgp peer \| limit peer edge1` to inspect one peer | CLI → `ReadDispatchLine` → `partitionPipeChain` (`declared: [{limit, [peer, edge1]}]`) → `handleBgpPeerList` → `filterPeersBySelectorValue` | `test/ui/limit-narrows-to-one-peer.ci` |
+| 3 | Types `show bgp peer \| limit peer edge1 \| extensive \| json` for one peer in full JSON | CLI → `partitionPipeChain` (`declared: [limit, extensive]`, `residual: [json]`) → `handleBgpPeerList` (detail branch) → `ApplyPipes` | `test/ui/limit-then-shape-chains.ci` |
+| 4 | Presses Tab after `show bgp peer \|` and `show interface \| limit ` | `TreeCompleter.Complete` → `completePipeForCommand` / `completePipeArg` → `PipeOperationsForCommand` & `PipeFilter.Keys` | `test/ui/limit-completes-after-pipe.ci` |
+| 5 | Types `show interface \| limit name eth0 \| extensive` and `show bgp rib \| limit peer 10.0.0.1` | CLI → `partitionPipeChain` → builtin / `bgp-rib` plugin handler (`ExecuteCommandInput.Pipe`) → `ApplyPipes` | `test/ui/limit-class-k-and-rib.ci` |
+| 6 | Types retired `show bgp peer list` or `show bgp peer edge1 detail` | CLI → `Dispatcher.Dispatch` → unknown command refusal + `suggest.Command` | `test/ui/limit-old-form-is-refused.ci` |
 
 ## 🧪 TDD Test Plan
 
 ### Unit Tests
 | Test | File | Validates | Status |
 |------|------|-----------|--------|
-| `TestLimitFoldsIntoTheCommandString` | `internal/component/command/pipe_test.go` | `foldFilters` rewrites `show bgp peer \| limit edge1` to `show bgp peer limit edge1` and leaves an empty local chain | |
-| `TestLimitFoldsAndShapingStaysLocal` | `internal/component/command/pipe_test.go` | a two-operator chain splits correctly between the folded half and the local half, in chain order | |
-| `TestLimitRegistrationDoesNotCollide` | `internal/component/command/alias_test.go` | registering `limit` beside the `summary` and `peers` aliases on `show bgp` does not panic | |
-| `TestCompletionOffersLimitUnderShowBgpPeer` | `internal/component/command/completer_test.go` | `pipeExtras` returns `limit` for each converted command path | |
-| `TestCheckerRefusesAPositionalSelector` | `internal/component/command/grammar/checker_test.go` | the new rule fires on a node declaring a mandatory free-form value in a path slot, and does not fire on a class A argument | |
-| `TestTheRealCheckoutHasNoPositionalSelector` | `internal/le/cligrammar/cligrammar_test.go` | the whole checkout passes the new rule, and the population count is non-zero | |
-| `TestBarePeerAnswersEveryPeer` | `internal/component/bgp/plugins/cmd/peer/peer_test.go` | the bare command's row count equals the reactor's peer count | |
-| `TestLimitSelectsEachSelectorKind` | `internal/component/bgp/plugins/cmd/peer/peer_test.go` | address, name, `as65001`, glob, comma list and `*` each match the same peers they matched positionally | |
-| `TestNoActionCommandOwnsALimitFilter` | `internal/component/command/pipe_filter_test.go` | every registered `limit` filter sits on a `show` path; an action path owns none | |
-| `TestInheritExtensionHasOneUser` | `internal/component/config/yang/...` | `request interface migrate` is the only `ze:inherit "none"` node left, so the extension stays | |
+| `TestLimitKeyedValidationAndPartition` | `internal/component/command/pipe_partition_test.go` | `partitionPipeChain` accepts valid `\| limit <key> <val>`, preserves quoted values containing spaces/pipes, rejects unknown keys naming valid keys, rejects missing values, rejects values > 1024 bytes, and rejects `limit` after a residual operator | |
+| `TestLimitAndExtensivePartitionWithResidualFormat` | `internal/component/command/pipe_partition_test.go` | `show bgp peer \| limit peer edge1 \| extensive \| json` puts `limit` and `extensive` in `declared` in order and keeps `json` in `residual`, without rewriting the command string | |
+| `TestLimitAndExtensiveRegistrationDoesNotCollide` | `internal/component/command/alias_test.go` | Registering `limit` and `extensive` beside `summary` and `peers` aliases on `show bgp` does not panic; invalid key tokens in `PipeFilter.Keys` panic at registration | |
+| `TestCompletionOffersLimitKeysAfterLimit` | `internal/component/command/completer_test.go` | `completePipeForCommand` offers `limit` and `extensive`; `completePipeArg` offers `peer` for `show bgp peer`, `name` and `type` for `show interface`, and respects typed prefixes | |
+| `TestCheckerRefusesDisplaySelector` | `internal/component/command/grammar/checker_test.go` | Rule `R10` fires on executable display (`show`/`monitor`) nodes with mandatory `selector`, a sole mandatory `{name, id, type, key}` leaf, or a `{name, id, type, key}` command container carrying an `ArgDef`; does not fire on action commands, `ze:modifier` child groups (`label <key>`, `filter <name>`), or Class A subject/multi-input commands (`show route lookup`, `show config artifact diff`) | |
+| `TestTheRealCheckoutHasNoDisplaySelector` | `internal/le/cli/grammar/cligrammar_test.go` | The real checkout passes `R10` with zero findings and prints a non-zero checked display-command population | |
+| `TestPeerSubcommandKeywordsDisplayChildrenNotColliding` | `internal/component/plugin/server/rpc_register_test.go` | After removing `leaf selector` from `show bgp peer`, `Colliding` excludes `capabilities`, `history`, `rib`, and `statistics` while still protecting action containers | |
+| `TestBarePeerAnswersEveryPeerLightweight` | `internal/component/bgp/plugins/cmd/peer/peer_test.go` | Bare `show bgp peer` returns lightweight rows for all configured peers without detail-only keys (`messages`, `timer`, `connect-retry-counter`) | |
+| `TestPeerExtensiveReturnsDetailFields` | `internal/component/bgp/plugins/cmd/peer/peer_test.go` | `show bgp peer \| extensive` and `show bgp peer \| limit peer <sel> \| extensive` return full detail fields only for matched peers | |
+| `TestLimitPartitionsAndNarrowsPeerHandler` | `internal/component/bgp/plugins/cmd/peer/peer_test.go` | Address, name, `as65001`, glob, comma list, exclusion, and `*` through `\| limit peer <sel>` match the exact peers `peersel.ParseDefault` matches across `show bgp peer`, `capabilities`, `statistics`, and `history` | |
+| `TestRIBLimitPeerNarrowsRoutes` | `internal/component/bgp/plugins/rib/rib_pipeline_test.go` | `parsePipelineOperations` and `parseBestPipelineOperations` accept `limit peer <sel>`, reject unknown keys, and reject retired `peer <sel>` | |
+| `TestPolicyLimitPeerNarrowsChainAndDryRun` | `internal/component/bgp/plugins/cmd/policy/handler_test.go` | `show policy chain \| limit peer <sel>` and `show policy test ... \| limit peer <sel>` narrow via `ValidatedArgs.PipeOperations()` while preserving `direction`, `filter`, `update`, `route-kind`, and `source-asn4` | |
+| `TestNoActionCommandOwnsLimitOrExtensive` | `internal/component/command/pipe_filter_test.go` | Every registered `limit` and `extensive` filter sits on a display (`show`/`monitor`) path; no action command owns one | |
+| `TestBridgeStatusUsesExtensive` | `internal/exabgp/bridge/bridge_status_test.go` | `StatusPeerCommand` is `"show bgp peer \| extensive"` and parses peer detail rows identically | |
+| `TestClassKDisplayCommandsLimitByKey` | per-owner `*_test.go` across the 18 Class K packages (including `managed/cmd_devices_test.go`, `cmd_reports_test.go`, `cmd_divergence_test.go`, `skills/skills_test.go`, `skills/skills_model_test.go`, `vrrp/cmd_show_test.go`) | Each converted Class K command answers bare (or refuses if single-item-only naming the `\| limit <key> <val>` fix), narrows via `\| limit <key> <val>`, rejects unknown keys, preserves `ze:modifier` arguments (`label <k> <v>` on `show metrics`) and optional leaves (`full` on `show skill`), and preserves authorization (`NotReadOnly` on `show config cat` / `show data cat`) | |
+| `TestInheritExtensionHasOneUser` | `internal/component/config/yang/command_test.go` | `request interface migrate` is the only `ze:inherit "none"` node left in the merged YANG tree | |
 
 ### Boundary Tests (numeric inputs)
 | Field | Range | Last Valid | Invalid Below | Invalid Above |
 |-------|-------|------------|---------------|---------------|
-| `limit` argument length | 1..1024 bytes (`maxArgLength`, `argvalidate.go`) | 1024 | 0 (empty argument, refused by `validateFilter`) | 1025 |
+| `limit` value length | 1..1024 bytes (`maxArgLength`, `argvalidate.go`) | 1024 | 0 (empty value, refused by `validateDeclaredArgument`) | 1025 |
+| `limit` argument word count | 2 words (`<key> <val>`) | 2 | 0 or 1 (missing key or missing value) | 3 (unquoted extra word, refused naming quote syntax) |
 
 ### Functional Tests
 | Test | Location | End-User Scenario | Status |
 |------|----------|-------------------|--------|
-| `limit-bare-peer-answers-all` | `test/ui/limit-bare-peer-answers-all.ci` | the operator types `show bgp peer` and sees every configured peer, one line each | |
-| `limit-narrows-to-one-peer` | `test/ui/limit-narrows-to-one-peer.ci` | the operator narrows to one peer with `\| limit`, and the answer carries that peer alone | |
-| `limit-then-shape-chains` | `test/ui/limit-then-shape-chains.ci` | narrowing and shaping compose in one chain | |
-| `limit-completes-after-pipe` | `test/ui/limit-completes-after-pipe.ci` | Tab after `\|` offers `limit`; Tab in the old selector position offers no peer value, because the slot is gone | |
-| `limit-old-form-is-refused` | `test/ui/limit-old-form-is-refused.ci` | `show bgp peer list` and `show bgp peer edge1 detail` are both refused, and the refusal names the command | |
+| `limit-bare-peer-answers-all` | `test/ui/limit-bare-peer-answers-all.ci` | Operator types `show bgp peer` and sees every configured peer in lightweight one-line format | |
+| `limit-narrows-to-one-peer` | `test/ui/limit-narrows-to-one-peer.ci` | Operator runs `show bgp peer \| limit peer edge1 \| raw` and the daemon wire payload contains only `edge1` | |
+| `limit-then-shape-chains` | `test/ui/limit-then-shape-chains.ci` | Operator chains `show bgp peer \| limit peer edge1 \| extensive \| json` and gets full detail for `edge1` alone formatted as JSON | |
+| `limit-completes-after-pipe` | `test/ui/limit-completes-after-pipe.ci` | Tab after `show bgp peer \|` offers `limit` and `extensive`; Tab after `show bgp peer \| limit ` offers `peer`; Tab after `show interface \| limit ` offers `name` and `type` | |
+| `limit-class-k-and-rib` | `test/ui/limit-class-k-and-rib.ci` | Operator runs `show bgp rib \| limit peer <sel>`, `show interface \| limit name <n> \| extensive`, `show bfd profile \| limit name <n>`, `show env get \| limit name <n>`, and confirms server-side narrowing | |
+| `limit-old-form-is-refused` | `test/ui/limit-old-form-is-refused.ci` | Retired `show bgp peer list`, `show bgp peer edge1 detail`, `show interface name eth0 detail`, and `show bgp rib \| peer 10.0.0.1` are refused cleanly without compatibility aliases | |
 
 ### Interop Tests (Scope: protocol)
-Not applicable. This is a CLI grammar change with no wire-visible effect on any
-protocol. `ai/rules/interop-and-goal-validation.md` exempts "tooling with no
-protocol peer" and "a config-only feature with no protocol impact"; the peer
-sessions the converted commands act on are unchanged in every byte they send.
+Not applicable. This is a CLI display-grammar change with no wire-visible effect on any routing or security protocol (`ai/rules/interop-and-goal-validation.md` exempts tooling/CLI changes with no protocol wire impact). Existing interop test helpers under `internal/le/interoplab/` that invoke converted display commands (`show bgp peer list`, `show bgp peer <ip> detail`, etc.) are updated to the new display spellings so interop checks continue reading peer state cleanly.
 
 ## Files to Modify
-- `internal/component/bgp/plugins/cmd/peer/yang/ze-peer-cmd.yang` - remove the `leaf selector` of `show bgp peer` and the `ze:inherit "none"` on `list`; rewrite the `ze:help` text that describes the positional selector. The `request peer`, `update bgp peer` and `delete bgp peer` selectors STAY: those are actions
-- `internal/component/bgp/plugins/cmd/policy/yang/ze-policy-cmd.yang` - remove the two `leaf selector` declarations
-- `internal/plugins/pki-cmd/yang/ze-pki-cmd.yang` - only if Q3 says yes
-- `internal/component/bgp/plugins/cmd/peer/peer.go` - register the `limit` filter for the six converted `show bgp peer` paths. No `RequiresSelector` registration changes
-- `internal/component/bgp/plugins/cmd/rib/rib.go` - rename the `peer` filter to `limit` (Q4)
-- `internal/component/command/grammar/checker.go` - the new rule in `CheckNode`, scoped to display commands
-- `internal/component/command/completer.go` - only if R-4 turns out to bind: a route from an owned filter to its argument completions
-- `ai/rules/cli.md` - rewrite the keyword-before-value directive and the `list` directive
-- `ai/patterns/cli-command.md` - rewrite the peer exception, the Peer Selector Mechanism section, the Command Classes table and the Full Command Inventory
-- `docs/architecture/cli/root-namespace-grammar.md` - rewrite the command shape block and the incorrect/correct table (Design doc of `grammar/checker.go`)
-- `docs/architecture/cli/command-namespacing.md` - the Design doc `grammar/checker.go` declares
-- `docs/architecture/api/commands.md` - the Design doc of `pipe.go`, `pipe_filter.go`, `pipe_catalog.go`, `alias.go`, `completer.go`, `peer.go` and `rib.go`; it carries the pipe operator language and the command-owned filter section
-- `docs/guide/command-reference.md` - every converted display command's published form
-- `demos/terminal/` - any recorded session typing a converted display command
-- `plan/journal/command-takes-an-untyped-positional-value.md` - the row this spec answers (see Known Limitations)
+- `internal/component/command/pipe_filter.go` - add `Keys []string` on `PipeFilter` and validate key tokens in `declaredFilterRefusal`
+- `internal/component/command/pipe_partition.go` - validate keyed `<key> <val>` arguments and 1024-byte value cap in `validateDeclaredArgument`
+- `internal/component/command/pipe_operations.go` - carry `Keys` (`keys,omitempty`) on `PipeOperationEntry`
+- `internal/component/command/completer.go` - extend `completePipeArg` to autocomplete registered `PipeFilter.Keys` after `| limit `
+- `internal/component/command/grammar/checker.go` - add display-selector rule `R10` in `CheckNode`
+- `internal/le/cli/grammar/cligrammar.go` - run `R10` over the merged YANG tree and print its checked population count
+- `internal/component/plugin/server/rpc_register.go` - update `PeerSubcommandKeywords` so converted display `show bgp peer` children are not marked `Colliding`
+- `internal/component/bgp/plugins/cmd/peer/yang/ze-peer-cmd.yang` - remove `leaf selector` from `show bgp peer`, remove `container list` (and `ze:inherit "none"`) and `container detail`, attach `ze:command "ze-bgp:peer-list"` to `show bgp peer`, update help text; keep all action selectors intact
+- `internal/component/bgp/plugins/cmd/peer/peer.go` - register `limit` (`Keys: []string{"peer"}`) and `extensive` (`ArgNone`) on `show bgp peer`, register `limit` (`Keys: []string{"peer"}`) on `capabilities`/`statistics`/`history`, update `handleBgpPeerList` (dispatching lightweight vs detail on `extensive`), update `handlePeerHistory` (removing `RequiresSelector: true` from display `peer-history`), update column/shape/address-field registrations
+- `internal/component/bgp/plugins/cmd/peer/summary.go` - read `limit peer <sel>` from `ValidatedArgs.PipeOperations()` in `handleBgpPeerCapabilities` and `handleBgpPeerStatistics`
+- `internal/component/bgp/plugins/cmd/rib/rib.go` - replace `peer` filter with `limit` (`Keys: []string{"peer"}`) on `show bgp rib`, `show bgp peer rib`, `show bgp rib protocol`, `show bgp rib best`; remove `RequiresSelector: true` from display `ze-bgp:peer-rib`
+- `internal/component/bgp/plugins/rib/rib_pipeline.go` - parse `limit peer <sel>` in `parsePipelineOperations` and remove bare `peer`
+- `internal/component/bgp/plugins/rib/rib_pipeline_best.go` - parse `limit peer <sel>` in `parseBestPipelineOperations` and remove bare `peer`
+- `internal/component/bgp/plugins/cmd/policy/yang/ze-policy-cmd.yang` - drop `container peer` and `leaf selector` from `show policy chain` and `show policy test`
+- `internal/component/bgp/plugins/cmd/policy/register.go` - register `limit` (`Keys: []string{"peer"}`) on `show policy chain` and `show policy test`
+- `internal/component/bgp/plugins/cmd/policy/handler.go` - read `limit peer <sel>` from `ValidatedArgs.PipeOperations()` in `handleShowPolicyChain` and `handleShowPolicyTest`
+- `internal/exabgp/bridge/bridge_status.go` - update `StatusPeerCommand` from `"show bgp peer * detail"` to `"show bgp peer | extensive"`
+- `internal/exabgp/bridge/bridge_event.go` - update decode warning hint from `show bgp peer <peer> capabilities` to `show bgp peer capabilities | limit peer <peer>`
+- `internal/component/lg/handler_api.go` - update `cmdRIBBMPPeer` and `pipePeer` from `| peer ` to `| limit peer `
+- `internal/component/api/rest/server.go` - update single-peer REST convenience route from `show bgp peer <name> detail` to `show bgp peer | limit peer <name> | extensive`
+- `internal/component/web/fleetui/handler_device_console.go` - update preset diagnostic command from `show bgp peer list` to `show bgp peer`
+- `internal/component/web/fleetui/handler_devices_action.go` - update diagnostic action label/command from `show bgp peer list` to `show bgp peer`
+- `internal/component/web/fleetui/sample/console.go` - update sample console command from `show bgp peer list` to `show bgp peer`
+- `internal/plugins/help/help_ai.go` - update RIB and peer CLI examples to `| limit peer <sel>` and `show bgp peer | extensive`
+- `internal/component/bfd/yang/ze-bfd-cmd.yang` - convert `show bfd profile name <n>` to `show bfd profile | limit name <n>`
+- `internal/component/bfd/cmd/bfd.go` - register `limit` (`Keys: []string{"name"}`) on `show bfd profile` and read `ValidatedArgs.PipeOperations()`
+- `internal/component/bfd/engine/problems.go` - update `sendFailedFix` from `ze show interface name <iface> detail` to `ze show interface | limit name <iface> | extensive`
+- `internal/component/l2tp/cmd/yang/ze-l2tp-cmd.yang` - convert `show l2tp tunnel id <id>`, `show l2tp session id <id>` (and sibling `id` display nodes flagged by `R10`) to `| limit id <id>`
+- `internal/component/l2tp/cmd/l2tp.go` - register `limit` (`Keys: []string{"id"}`) on converted L2TP display commands and read `ValidatedArgs.PipeOperations()`
+- `internal/plugins/pki-cmd/yang/ze-pki-cmd.yang` - convert `show pki certificate name <n> [pem|bundle pem|fingerprint]` to `show pki certificate [pem|bundle pem|fingerprint] | limit name <n>`
+- `internal/component/pki/show.go` - register `limit` (`Keys: []string{"name"}`) on `show pki certificate` display commands and read `ValidatedArgs.PipeOperations()`
+- `internal/component/l2tp/pppoe/cmd/yang/ze-pppoe-cmd.yang` - convert `show pppoe session id <id>` to `show pppoe session | limit id <id>`
+- `internal/component/l2tp/pppoe/cmd/pppoe.go` - register `limit` (`Keys: []string{"id"}`) on `show pppoe session` and read `ValidatedArgs.PipeOperations()`
+- `internal/component/bgp/plugins/filter_path_asn/yang/ze-filter-path-asn-cmd.yang` - convert `show bgp reject-asn name <n>` to `show bgp reject-asn | limit name <n>`
+- `internal/component/bgp/plugins/filter_path_asn/register_command.go` - register `limit` (`Keys: []string{"name"}`) on `show bgp reject-asn` and read `ValidatedArgs.PipeOperations()`
+- `internal/plugins/config-cli/yang/ze-config-cli-cmd.yang` - convert `show config cat <id>` to `show config cat | limit id <id>`
+- `internal/component/config/cli/register.go` - register `limit` (`Keys: []string{"id"}`) on `show config cat` (preserving `NotReadOnly`)
+- `internal/component/config/cli/cmd_list.go` - read `limit id <id>` from `ValidatedArgs.PipeOperations()` in `show config cat`
+- `internal/plugins/config-storage/yang/ze-storage-cli-cmd.yang` - convert `show data cat <key>` to `show data cat | limit key <key>`
+- `internal/component/config/storage/cli/register.go` - register `limit` (`Keys: []string{"key"}`) on `show data cat` (preserving `NotReadOnly`)
+- `internal/component/config/storage/cli/main.go` - read `limit key <key>` from `ValidatedArgs.PipeOperations()` in `show data cat`
+- `internal/plugins/resolve-cmd/yang/ze-resolve-cmd.yang` - convert `show dns cache record <name>` to `show dns cache record | limit name <name>`
+- `internal/component/resolve/cmd/show_dns.go` - register `limit` (`Keys: []string{"name"}`) on `show dns cache record` and read `ValidatedArgs.PipeOperations()`
+- `internal/plugins/env/yang/ze-env-cmd.yang` - convert `show env get <name>` to `show env get | limit name <name>`
+- `internal/plugins/env/register.go` - register `limit` (`Keys: []string{"name"}`) on `show env get` and read `ValidatedArgs.PipeOperations()`
+- `internal/component/firewall/plugins/irr/yang/ze-firewall-irr-cmd.yang` - convert `show firewall irr prefix <name>` to `show firewall irr prefix | limit name <name>`
+- `internal/component/firewall/plugins/irr/cmd_irr.go` - register `limit` (`Keys: []string{"name"}`) on `show firewall irr prefix` and read `ValidatedArgs.PipeOperations()`
+- `internal/component/firewall/yang/ze-firewall-cmd.yang` - convert `show firewall ruleset <name>` to `show firewall ruleset | limit name <name>`
+- `internal/plugins/firewall/nft/cmd_show.go` - register `limit` (`Keys: []string{"name"}`) on `show firewall ruleset` and read `ValidatedArgs.PipeOperations()`
+- `internal/component/iface/yang/ze-iface-interface-cmd.yang` - convert `show interface name <n> detail`, `show interface name <n> counters`, `show interface type <t>` to `show interface | limit name <n> | extensive`, `show interface counters | limit name <n>`, `show interface | limit type <t>`
+- `internal/component/iface/cmd/show_interface.go` - register `limit` (`Keys: []string{"name", "type"}`) and `extensive` on `show interface`, `limit` (`Keys: []string{"name"}`) on `show interface counters`, and read `ValidatedArgs.PipeOperations()`
+- `internal/component/cmd/show/yang/ze-cli-show-cmd.yang` - convert `show metrics name <n>` to `show metrics | limit name <n>`
+- `internal/component/cmd/show/show.go` - register `limit` (`Keys: []string{"name"}`) on `show metrics` and read `ValidatedArgs.PipeOperations()`
+- `internal/component/ike/yang/ze-ipsec-cmd.yang` - convert `show vpn ipsec peer name <n>` to `show vpn ipsec peer | limit name <n>`
+- `internal/component/ike/cmd/show_ipsec.go` - register `limit` (`Keys: []string{"name"}`) on `show vpn ipsec peer` and read `ValidatedArgs.PipeOperations()`
+- `internal/component/l2tp/subscriber/cmd/yang/ze-subscriber-cmd.yang` - convert `show subscriber id <id> detail` to `show subscriber | limit id <id> | extensive`
+- `internal/component/l2tp/subscriber/cmd/subscriber.go` - register `limit` (`Keys: []string{"id"}`) and `extensive` on `show subscriber` and read `ValidatedArgs.PipeOperations()`
+- `internal/component/managed/yang/ze-managed-cmd.yang` - convert `show fleet device name <name>`, `show fleet device inventory name <name>`, `show fleet device health name <name>`, and `show fleet divergence name <name>` to `| limit name <name>` (keeping action commands `update fleet divergence name <client> adopt` and `request fleet divergence name <client> revert` intact)
+- `internal/component/managed/register.go` - update command paths, shapes, columns, and register `limit` (`Keys: []string{"name"}`) on the 4 converted `show fleet` commands
+- `internal/component/managed/cmd_devices.go` - update `fleetDevicePath` and read `limit name <name>` from `ValidatedArgs.PipeOperations()` in `handleFleetDevice`
+- `internal/component/managed/cmd_reports.go` - update `fleetDeviceInventoryPath` / `fleetDeviceHealthPath` and read `limit name <name>` from `ValidatedArgs.PipeOperations()` in `lookupManagedDevice`
+- `internal/component/managed/cmd_divergence.go` - update `pathDivergenceShow` and `divergenceShowCommand` to `show fleet divergence | limit name <name>`
+- `internal/component/managed/cmd_divergence_show.go` - read `limit name <name>` from `ValidatedArgs.PipeOperations()` in `answerDivergenceShowWith`
+- `internal/component/managed/doctor.go` - update `managed-diverged` fix text from `show fleet divergence name <client>` to `show fleet divergence | limit name <client>`
+- `internal/plugins/skills/yang/ze-skills-cmd.yang` - convert `show skill <name> [full]` to `show skill [full] | limit name <name>`
+- `internal/plugins/skills/register.go` - register `limit` (`Keys: []string{"name"}`) on `show skill`
+- `internal/plugins/skills/main.go` - read `limit name <name>` from `ValidatedArgs.PipeOperations()` in `showSkill` and update usage text
+- `internal/plugins/skills/agent_context.go` - update `guideCommand` to `ze show skill | limit name ze`
+- `internal/plugins/skills/agent_skill.go` - update generated stub instructions to `show skill | limit name ze`
+- `internal/plugins/skills/data/` - update bundled skill docs (`ze.md`, `ze-full.md`, `ze-commands.md`) to `show skill | limit name <name>`
+- `internal/plugins/vrrp/yang/ze-vrrp-cmd.yang` - convert `show vrrp interface name <iface>` to `show vrrp interface | limit name <iface>`
+- `internal/plugins/vrrp/cmd_show.go` - register `limit` (`Keys: []string{"name"}`) on `show vrrp interface`, forward pipe operations to the plugin, and read `limit name <iface>` in `handleCommand`
+- `ai/rules/cli.md` - split display vs action selector rules and retire the display `list` rule
+- `ai/patterns/cli-command.md` - update the peer exception, Peer Selector Mechanism, Command Classes table, and Full Command Inventory
+- `docs/architecture/cli/root-namespace-grammar.md` - update the display vs action command shape and incorrect/correct table; document `R10`
+- `docs/architecture/cli/command-namespacing.md` - update "Which register a token belongs to" for display `| limit <key> <val>` and `| extensive`
+- `docs/architecture/cli/command-verbs.md` - settle L-6 and T-3, update "Narrowing and shaping: the pipe layer" and "Adding a command"
+- `docs/architecture/cli/command-completion.md` - document keyed pipe-argument completion (`| limit <TAB>`)
+- `docs/architecture/api/commands.md` - document `PipeFilter.Keys`, `| limit <key> <val>`, `| extensive`, and updated peer/RIB/Class-K command examples
+- `docs/architecture/api/process-protocol.md` - update line 911 from `show policy chain peer <selector> [import|export]` to `show policy chain [import|export] | limit peer <sel>`
+- `docs/architecture/behavior/fsm.md` - update `show bgp peer list` / `show bgp peer <address> detail` references to `show bgp peer` / `show bgp peer | extensive`
+- `docs/architecture/exabgp-bridge.md` - update `status` peer query citation from `show bgp peer * detail` to `show bgp peer | extensive` and warning hint to `show bgp peer capabilities | limit peer <peer>`
+- `docs/architecture/api/birdwatcher-compat.md` - update looking-glass RIB query citations from `| peer <address>` / `| peer <name>` to `| limit peer <address>` / `| limit peer <name>`
+- `docs/architecture/bfd.md` - update send-failure fix citation from `ze show interface name <interface> detail` to `ze show interface | limit name <interface> | extensive`
+- `docs/architecture/bgp/filter-path-asn.md` - update the command table (`show bgp reject-asn | limit name <name>`) and replace the "The value after `name` arrives as a SELECTOR" paragraph to describe `| limit name <name>` via `ValidatedArgs.PipeOperations()`
+- `docs/architecture/l2tp/subscriber-session-model.md` - update `show subscriber id <id> detail` citation to `show subscriber | limit id <id> | extensive`
+- `docs/architecture/pki/pki-store.md` - update `show pki certificate name` heading citation to `show pki certificate ... | limit name <n>`
+- `docs/architecture/fleet-config.md` - update lines 155, 181, 184-185, 698, and 781 for `show fleet device [inventory|health] | limit name <name>` and `show fleet divergence | limit name <client>`
+- `docs/architecture/zefs-format.md` - update line 245 from `show data cat <key>` to `show data cat | limit key <key>`
+- `docs/architecture/doctor-and-health-checks.md` - update line 1905 `managed-diverged` fix citation from `show fleet divergence name <client>` to `show fleet divergence | limit name <client>`
+- `docs/guide/l2tp.md` - update `show l2tp session id <id>` and `show l2tp tunnel <id>` citations to `| limit id <id>`
+- `docs/guide/mcp/overview.md` - update lines 594 and 611 from `show skill <name>` / `show skill ze` to `show skill | limit name <name>` / `show skill | limit name ze`
+- `docs/guide/ai-agent.md` - update `ze show skill <name>` examples to `ze show skill | limit name <name>`
+- `docs/guide/fleet-config.md` - update `show fleet device name` and `show fleet divergence name` examples to `| limit name <name>`
+- `docs/guide/vrrp.md` - update `show vrrp interface name <iface>` example to `show vrrp interface | limit name <iface>`
+- `docs/features/ai-first.md` - update `show skill` examples on lines 129-141, 167, 236, and 246 to `show skill | limit name <name>`
+- `docs/features/interfaces.md` - update `ze show interface <name>` (line 215) and `ze show interface name <device> detail` (line 249) citations to `ze show interface | limit name <device> | extensive`
+- `docs/guide/command-reference.md` - update published display command forms
+- `docs/guide/cli.md` - update CLI display examples
+- `docs/guide/api.md` - update API display examples
+- `docs/guide/bfd.md` - update BFD display examples
+- `docs/guide/configuration.md` - update configuration guide display examples
+- `docs/guide/netlab.md` - update netlab display examples
+- `docs/features/api-commands.md` - update feature doc display examples
+- `docs/features/cli-commands.md` - update feature doc display examples
+- `docs/features/formatting.md` - update feature doc pipe examples
+- `demos/terminal/` - update terminal demo scripts calling converted display commands
+- `internal/le/site/terminaldemo/` - update terminal demo validators calling converted display commands
+- `internal/test/` - update existing functional test fixtures calling retired display spellings
+- `internal/le/interoplab/` - update interop query helpers calling retired display spellings
 
 ## Files to Create
-- `test/ui/limit-bare-peer-answers-all.ci` - the bare form answers for all
-- `test/ui/limit-narrows-to-one-peer.ci` - narrowing through the pipe
-- `test/ui/limit-then-shape-chains.ci` - two operators compose
-- `test/ui/limit-completes-after-pipe.ci` - the completion surface follows the tree
-- `test/ui/limit-old-form-is-refused.ci` - the old display grammar is gone rather than aliased
+- `test/ui/limit-bare-peer-answers-all.ci` - bare `show bgp peer` answers lightweight rows for every configured peer
+- `test/ui/limit-narrows-to-one-peer.ci` - server-side narrowing through `| limit peer <sel>` verified on wire payload
+- `test/ui/limit-then-shape-chains.ci` - chaining `| limit peer <sel> | extensive | json`
+- `test/ui/limit-completes-after-pipe.ci` - Tab completion offers `limit`, `extensive`, and registered YANG key names after `| limit `
+- `test/ui/limit-class-k-and-rib.ci` - Class K display commands and `show bgp rib | limit peer <sel>` end-to-end
+- `test/ui/limit-old-form-is-refused.ci` - retired display spellings fail cleanly as unknown commands / unknown filters with no compatibility shim
 
 ### Integration Checklist
 | Integration Point | Applies? | File / reason |
 |-------------------|----------|---------------|
-| YANG schema (new RPCs/config) | Yes | The display modules named in Files to Modify lose a positional value slot; no action subtree moves |
-| YANG validation constraints | Yes | the deleted leaves carried `type string` with no constraint; the `limit` argument is validated by `validateFilter` and `maxArgLength` instead |
-| YANG custom validators | N-A | the selector vocabulary is parsed by `peersel.ParseDefault` at the handler, which is unchanged |
-| CLI commands/flags | Yes | `internal/component/bgp/plugins/cmd/peer/peer.go` and every other owner package registering `limit` |
-| CLI grammar (keyword before value) | Yes | this spec IS the grammar change; `grammar.CheckNode` gains the rule |
-| Editor autocomplete | Yes | `pipeExtras` reaches the editor's command mode through the shared `TreeCompleter`; `test/ui/limit-completes-after-pipe.ci` covers it |
-| Functional test for new RPC/API | Yes | the six `.ci` files under `test/ui/` |
-| Pipe completeness | Yes | `limit` is an owned filter, so it folds; every other operator keeps its catalog contract and `ApplyPipes` is unchanged |
-| Env var registration | N-A | no environment leaf is added |
-| Doctor check for runtime dependencies | N-A | no new file path, socket, port, module, binary or certificate |
-| Prometheus counters/metrics | N-A | no new observable state |
-| BGP family surface (new SAFI / capability / attribute) | N-A | no family, capability or attribute is touched |
+| YANG schema (new RPCs/config) | Yes | 20 display `-cmd.yang` modules lose positional/typed selector leaves and `list`/`detail` subcommands; `./le yang glue update` keeps embed/register glue current; no action subtree moves |
+| YANG validation constraints | Yes | Deleted leaves carried `type string`; `limit` keys are validated against `PipeFilter.Keys` and values are bounded by `maxArgLength` (1024 bytes) in `validateDeclaredArgument` |
+| YANG custom validators | N-A | Peer selector syntax is validated by `peersel.ParseDefault` and Class K values by each handler's existing lookup/parser |
+| CLI commands/flags | Yes | Each converted owner package registers `limit` (with `Keys`) and `extensive` (where applicable) via `command.RegisterPipeFilters`; no `--flag` added |
+| CLI grammar (keyword before value) | Yes | This spec defines and enforces display-selector rule `R10` in `internal/component/command/grammar/checker.go` and `internal/le/cli/grammar/cligrammar.go` |
+| Editor autocomplete | Yes | `completePipeArg` in `internal/component/command/completer.go` reads `PipeFilter.Keys`, reaching CLI, SSH, web, and editor command mode automatically |
+| Functional test for new RPC/API | Yes | Six new `.ci` files under `test/ui/` |
+| Pipe completeness | Yes | `limit` and `extensive` are declared pipe operations partitioned by `partitionPipeChain`; residual operators run unchanged in `ApplyPipes`, and MCP/REST/gRPC structured `pipe` lists (`WritePipeList`) honor them automatically |
+| Env var registration | N-A | No environment leaf is added or renamed |
+| Doctor check for runtime dependencies | N-A | No new file path, socket, port, kernel module, binary, or certificate |
+| Doctor code per problem class | N-A | Display pipe syntax refusals are operator CLI input errors (`opererr`), not box-health conditions |
+| Prometheus counters/metrics | N-A | No new observable metric or label |
+| BGP family surface (new SAFI / capability / attribute) | N-A | No BGP address family, capability, or path attribute is touched |
 
 ### Documentation Update Checklist (BLOCKING)
 | # | Question | Applies? | File to update |
 |---|----------|----------|---------------|
-| 1 | New user-facing feature? | Yes | `docs/features.md` -- `limit` is a new operator every converted command answers |
-| 2 | Config syntax changed? | No | no config keyword, container or leaf under `config true` changes |
-| 3 | CLI command added/changed? | Yes | `docs/guide/command-reference.md` |
-| 4 | API/RPC added/changed? | Yes | `docs/architecture/api/commands.md` -- the operator language and the owned-filter section |
-| 5 | Plugin added/changed? | No | no plugin is added, removed or re-homed |
-| 6 | Has a user guide page? | Yes | `docs/guide/command-reference.md`, and any `docs/guide/` page showing a converted command |
-| 7 | Wire format changed? | No | no protocol byte changes |
-| 8 | Plugin SDK/protocol changed? | Yes | `docs/architecture/api/process-protocol.md` if the plugin command surface publishes the selector; verify before answering No |
-| 9 | RFC behavior implemented, changed, or newly proven? | N-A | no RFC requirement is touched |
-| 10 | Test infrastructure changed? | Yes | `docs/functional-tests.md` -- six new `test/ui/` fixtures |
+| 1 | New user-facing feature, or a feature's scope, evidence or level changed? | Yes | `docs/features/api-commands.md`, `docs/features/cli-commands.md`, `docs/features/formatting.md` (and `features/` sources if rendered into `docs/features.md`) |
+| 2 | Config syntax changed? | No | No config keyword, container, or leaf under `config true` changes |
+| 3 | CLI command added/changed? | Yes | `docs/guide/command-reference.md`, `docs/guide/cli.md` |
+| 4 | API/RPC added/changed? | Yes | `docs/architecture/api/commands.md` — `PipeFilter.Keys`, `\| limit <key> <val>`, `\| extensive`, and converted examples |
+| 5 | Plugin added/changed? | No | No plugin is added, removed, or re-homed |
+| 6 | Has a user guide page? | Yes | `docs/guide/command-reference.md`, `docs/guide/cli.md`, `docs/guide/api.md`, `docs/guide/bfd.md`, `docs/guide/configuration.md`, `docs/guide/netlab.md`, `docs/guide/l2tp.md`, `docs/guide/mcp/overview.md`, `docs/guide/ai-agent.md`, `docs/guide/fleet-config.md`, `docs/guide/vrrp.md` |
+| 7 | Wire format changed? | No | No protocol wire bytes or `pkg/plugin/rpc` struct fields change |
+| 8 | Plugin SDK/protocol changed? | No | `rpc.ExecuteCommandInput.Pipe` already carries `[]rpc.PipeOperation{Name, Args}`; no SDK callback signature or wire field changes |
+| 9 | RFC behavior implemented, changed, or newly proven? | N-A | No RFC requirement is touched |
+| 10 | Test infrastructure changed? | Yes | `docs/functional-tests.md` — six new `test/ui/` fixtures |
 | 11 | Affects daemon comparison? | No | `docs/comparison.md` compares protocol features |
-| 12 | Internal architecture changed? | Yes | `docs/architecture/cli/root-namespace-grammar.md`, `docs/architecture/cli/command-namespacing.md` |
-| 13 | Route metadata keys added/changed? | No | no metadata key |
-| 14 | Prometheus counters added/changed? | No | none |
-| 15 | Registered plugin, event type, send type, command, capability, or inventory changed? | Yes | `docs/plugin-overview.md`, `docs/guide/status.md`: eight display commands change their published form; action paths are unchanged |
-| 16 | Any changed source file referenced by existing doc source anchors? | Yes | DERIVED: `./le spec citation anchors spec plan/release/fixes/spec-fixit-selector-narrows-through-a-pipe.md`. The `// Design:` headers of the changed Go files declare `docs/architecture/api/commands.md` and `docs/architecture/cli/command-namespacing.md`, and both are named above |
-| 17 | Existing docs show config/CLI/API examples for this area? | Yes | every example typing a converted command, in `docs/`, in `ai/`, and in `demos/terminal/` |
+| 12 | Internal architecture changed? | Yes | `docs/architecture/cli/root-namespace-grammar.md`, `docs/architecture/cli/command-namespacing.md`, `docs/architecture/cli/command-verbs.md`, `docs/architecture/cli/command-completion.md`, `docs/architecture/api/process-protocol.md`, `docs/architecture/behavior/fsm.md`, `docs/architecture/exabgp-bridge.md`, `docs/architecture/bgp/filter-path-asn.md`, `docs/architecture/fleet-config.md`, `docs/architecture/zefs-format.md`, `docs/architecture/doctor-and-health-checks.md`, `docs/features/ai-first.md` |
+| 13 | Route metadata keys added/changed? | No | No route metadata key changes |
+| 14 | Prometheus counters added/changed? | No | No Prometheus metric or label changes |
+| 15 | Registered plugin, event type, send type, command, capability, or inventory changed? | Yes | `docs/plugin-overview.md`, `docs/guide/status.md` (display command paths change; action paths unchanged) |
+| 16 | Any changed source file referenced by existing doc source anchors? | Yes | DERIVED: `./le spec citation anchors spec plan/release/fixes/spec-fixit-selector-narrows-through-a-pipe.md`. Every affected `// Design:` page (including `zefs-format.md`, `process-protocol.md`, `fleet-config.md`, `doctor-and-health-checks.md`, `ai-first.md`, `mcp/overview.md`, `filter-path-asn.md`) is listed in Files to Modify. Unaffected `// Design:` pages (design unchanged by display pipe syntax): `docs/architecture/api/architecture.md` (REST/gRPC transport architecture unchanged), `docs/architecture/config/syntax.md` (config file syntax unchanged), `docs/architecture/core-design.md` (core engine boundaries unchanged), `docs/architecture/diagnostics/procfs-diagnostics.md` (procfs diagnostics unchanged), `docs/architecture/firewall/backend-command-dispatch.md` (`show.Enrich` unchanged), `docs/architecture/firewall/firewall-irr.md` (IRR set compilation unchanged), `docs/architecture/fleet-interface.md` (fleet console UI architecture unchanged; only preset command string updated), `docs/architecture/ike/ipsec-10-cli-diag.md` (IPsec diagnostic fields unchanged), `docs/architecture/l2tp/bng-5-pppoe.md` (PPPoE/VPP recovery unchanged), `docs/architecture/plugin/rib-storage-design.md` (RIB pipeline storage/streaming design unchanged; stages already arrive via `ExecuteCommandInput.Pipe`), `docs/architecture/vrrp/vrrp-first-hop-redundancy.md` (VRRP protocol/dataplane design unchanged), and `docs/architecture/web-interface.md` (web/LG architecture unchanged). |
+| 17 | Existing docs show config/CLI/API examples for this area? | Yes | Update all converted display command examples across `docs/`, `ai/rules/cli.md`, `ai/patterns/cli-command.md`, and `demos/terminal/` |
+
+## Design presentation
+
+### What changes
+
+Every operational display command stops at its subject path (`show bgp peer`, `show bgp rib`, `show policy chain`, `show interface`, `show bfd profile`, `show pki certificate`, `show l2tp session`, etc.) and moves narrowing and full-detail shaping into server-side declared pipe operations: `| limit <key> <val>` (naming the YANG key explicitly, with Tab autocompletion of each command's registered key names after `| limit `) and `| extensive` (requesting full detail server-side so bare `show bgp peer` and `show interface` stay fast and lightweight). All action commands (`request`, `create`, `delete`, `update`, `clear`, `send`) keep their mandatory positional/typed selectors and `RequiresSelector` guards unchanged. Old display spellings are removed outright with no compatibility aliases, enforced by a new static grammar rule (`R10`) in `./le cli grammar`, and `PeerSubcommandKeywords` stops reserving converted display subcommands (`capabilities`, `history`, `rib`, `statistics`) as forbidden peer names.
+
+### Before and after
+
+1. **BGP peer overview (bare command):**
+   - Before: `show bgp peer list` (ambiguous slot beside `show bgp peer <sel> ...`, needing `ze:inherit "none"`).
+   - After: `show bgp peer` (answers lightweight overview rows for every configured peer; no `list` subcommand).
+2. **BGP peer narrowed + full detail:**
+   - Before: `show bgp peer edge1 detail` (positional selector before shaping word; `show bgp peer * detail` in ExaBGP `status`).
+   - After: `show bgp peer | limit peer edge1 | extensive` (server-side narrowing + server-side detail gathering, composable with `| json` / `| table` / `| count`; `show bgp peer | extensive` for all peers).
+3. **BGP peer subviews and RIB peer narrowing:**
+   - Before: `show bgp peer edge1 capabilities`, `show bgp peer edge1 statistics`, `show bgp peer edge1 history`, `show bgp peer edge1 rib`, `show bgp rib | peer 10.0.0.1`.
+   - After: `show bgp peer capabilities | limit peer edge1`, `show bgp peer statistics | limit peer edge1`, `show bgp peer history | limit peer edge1`, `show bgp peer rib | limit peer edge1`, `show bgp rib | limit peer 10.0.0.1`.
+4. **BGP policy inspection:**
+   - Before: `show policy chain peer edge1 import` and `show policy test peer edge1 export update hex <x>`.
+   - After: `show policy chain import | limit peer edge1` and `show policy test export update hex <x> | limit peer edge1`.
+5. **Class K display commands (30 nodes across 18 YANG modules):**
+   - Before: `show interface name eth0 detail`, `show interface name eth0 counters`, `show interface type bridge`, `show bfd profile name fast`, `show pki certificate name web pem`, `show l2tp session id 42`, `show config cat 3`, `show data cat meta/foo`, `show env get ze.bgp.openwait`, `show vpn ipsec peer name hq`, `show subscriber id 7 detail`, `show fleet device name edge-01`, `show fleet device inventory name edge-01`, `show fleet device health name edge-01`, `show fleet divergence name edge-01`, `show skill ze`, `show vrrp interface name eth0`.
+   - After: `show interface | limit name eth0 | extensive`, `show interface counters | limit name eth0`, `show interface | limit type bridge`, `show bfd profile | limit name fast`, `show pki certificate pem | limit name web`, `show l2tp session | limit id 42`, `show config cat | limit id 3`, `show data cat | limit key meta/foo`, `show env get | limit name ze.bgp.openwait`, `show vpn ipsec peer | limit name hq`, `show subscriber | limit id 7 | extensive`, `show fleet device | limit name edge-01`, `show fleet device inventory | limit name edge-01`, `show fleet device health | limit name edge-01`, `show fleet divergence | limit name edge-01`, `show skill | limit name ze`, `show vrrp interface | limit name eth0`.
+6. **Tab completion after `| limit `:**
+   - Before: `| limit` did not exist; `completePipeArg` only completed `| display`, `| json`, and `| fill`.
+   - After: pressing Tab after `show bgp peer | limit ` completes `peer`; pressing Tab after `show interface | limit ` completes `name` and `type`, derived from each command's registered `PipeFilter.Keys`.
+7. **Retired spellings and peer names:**
+   - Before: `show bgp peer list` succeeded; removing the selector naively would forbid naming a peer `capabilities`, `history`, `rib`, or `statistics`.
+   - After: `show bgp peer list` fails as an unknown command with `suggest.Command`; `PeerSubcommandKeywords` keeps `Colliding` empty for converted `show bgp peer` children.
+
+### Alternatives set aside
+
+| Alternative | Why set aside |
+|-------------|---------------|
+| Making `\| extensive` a client-side pipe alias over a heavy bare `show bgp peer` payload | Would force bare `show bgp peer` to gather and serialize full timers, counters, and capabilities for every peer on large routers even when the operator only wants a brief overview (rejected by Thomas in Q2). |
+| Using bare field-named filters (`\| peer <sel>`, `\| name <n>`, `\| id <id>`) instead of `\| limit <key> <val>` | Splits one narrowing concept across many top-level pipe operator names and diverges from Thomas's `show bgp \| limit ...` grammar (rejected by Thomas in Q3 & Q4, settling L-6). |
+| Positional `\| limit <val>` without naming the YANG key | Ambiguous on multi-key subjects like `show interface` (`name` vs `type`) and hides which key is matched (rejected by Thomas in Q3 & Q4 in favor of `\| limit <key> <val>` with Tab completion of registered keys). |
+| Converting action commands (`request peer`, `delete bgp peer`, `send bgp`) to `\| limit` | A pipe operates on an answer and can be omitted by mistake, turning a destructive action into a wildcard; Thomas ruled on 2026-09-04 (Q1) that actions keep mandatory positional selectors and `RequiresSelector` guards. |
+| Keeping compatibility aliases or a migration shim for old display spellings | Pre-release grammar is replaced outright (`ai/META-DECISIONS.md`, `ai/rules/cli.md`, confirmed by Thomas in Q5). |
+| Rewriting the command line via the retired `foldFilters` mechanism | Explicitly forbidden by `docs/architecture/api/commands.md` (decision of 2026-08-21) and already replaced in HEAD by `partitionPipeChain` + `ValidatedArgs.PipeOperations()`. |
+
+### Documents departed from
+
+1. **`docs/architecture/cli/command-verbs.md`** (`Narrowing and shaping: the pipe layer` and `Adding a command`): currently states `"An owned filter takes the name of the field it selects on."`, marks L-6 as open, and instructs `"Where the command enumerates the members of a set, spell that action list"`. After this work (per Thomas's 2026-11-24 Q2/Q3/Q4 rulings), the page states that display narrowing uses the uniform keyed operator `| limit <key> <val>` (with registered key completion), bare display commands enumerate their subject with `| extensive` for full detail, and T-3 and L-6 are closed.
+2. **`docs/architecture/cli/root-namespace-grammar.md`** (`The command shape, and what each feeder checks`): currently specifies `<verb> <noun> <selector-kind> <selector-value> <action> [<args>]` and lists `"show interface name <name> detail"` (plus `counters`, `l2tp session id`, `vpn ipsec peer name`) as the correct display shape. After this work, the page splits the shape between display commands (`<verb> <noun> [| limit <key> <value>] [| extensive]`) and action commands (keeping positional/typed selectors in the path) and documents feeder rule `R10`.
+3. **`docs/architecture/cli/command-namespacing.md`** (`Which register a token belongs to`): currently places all selectors and variants in Command grammar (`"Does it change WHICH answer is produced: the object, the sub-section, the selector, the filter, the variant?"`) and restricts Pipe operators to reducing an answer already in hand. After this work, the register table states that display narrowing (`| limit <key> <val>`) and server-side detail extension (`| extensive`) belong to the pipe register (aligning with `docs/architecture/api/commands.md`'s 2026-08-21 and 2026-11-23 decisions), while action selectors and Class A subject inputs stay in Command grammar.
+4. **`docs/architecture/bgp/filter-path-asn.md`** (`What an operator can ask`): currently specifies a path-selector mechanism (`"**The value after \`name\` arrives as a SELECTOR.** \`name\` is both the last token of the command path and the leaf under it, so \`matchCommandTokens\` (\`internal/component/plugin/server/command.go\`) binds the value to that leaf and hands the handler an empty args slice. \`forwardShowRejectASNName\` reads \`ctx.Selector(\"name\")\` and passes it to the plugin as its first argument."`) for `show bgp reject-asn name <name>`. After this work (per Thomas's Q3 & Q4 decisions), `show bgp reject-asn name <name>` is replaced by `show bgp reject-asn | limit name <name>`, `name` is no longer a command-path selector bound by `matchCommandTokens` or read via `ctx.Selector("name")`, and the handler reads `limit name <name>` from `ValidatedArgs.PipeOperations()` / `ExecuteCommandInput.Pipe`; `filter-path-asn.md` is updated to document the pipe-based narrowing form.
+
+### Choices for Thomas
+
+none
 
 ## Implementation Steps
 
-1. **Phase: Wiring (MANDATORY FIRST)** -- prove a folded `limit` reaches the handler before any command is converted
-   - Tests: `TestLimitFoldsIntoTheCommandString`, `TestLimitFoldsAndShapingStaysLocal`, `TestLimitRegistrationDoesNotCollide`
-   - Files: `internal/component/bgp/plugins/cmd/peer/peer.go` (register `limit` on one path), `internal/component/command/pipe_test.go`
-   - Verify: the filter registers, folds, and reaches `filterPeersByArgs`, while the positional selector still works. Nothing is removed yet
-2. **Phase: the gate** -- the rule before the conversions, so no converted node can regress and no unconverted node hides
-   - Tests: `TestCheckerRefusesAPositionalSelector`, `TestTheRealCheckoutHasNoPositionalSelector`
-   - Files: `internal/component/command/grammar/checker.go`, `internal/le/cligrammar/`, `docs/architecture/cli/command-namespacing.md`
-   - Verify: the rule fires on the 8 display nodes and on no action node and no class A node. It is expected RED against the unconverted tree, and the count it prints is the work remaining
-3. **Phase: the `show bgp peer` subtree** -- the six display nodes, and the `list` shape
-   - Tests: `TestBarePeerAnswersEveryPeer`, `TestLimitSelectsEachSelectorKind`, `TestNoActionCommandOwnsALimitFilter`, `test/ui/limit-bare-peer-answers-all.ci`, `test/ui/limit-narrows-to-one-peer.ci`, `test/ui/limit-then-shape-chains.ci`, `test/ui/limit-old-form-is-refused.ci`
-   - Files: `ze-peer-cmd.yang` (the `show bgp peer` selector alone), `peer.go`, `rib.go` (Q4)
-   - Verify: gate count drops by six; `show bgp | summary` and `show bgp | peers` still pass their existing `.ci`; `request peer <sel> teardown` is untouched
-4. **Phase: `show policy`** -- the two remaining display nodes
-   - Tests: one `.ci` for each, asserting `direction`, `filter`, `update` and `source-asn4` still sit in the path
-   - Files: `ze-policy-cmd.yang`, the policy handler's registration
-   - Verify: the gate reaches zero for the display half
-5. **Superseded phase: action move.** No implementation in this spec. AC-9
-   preserves action selector guards while the display paths change.
-6. **Phase: class K** -- only if Q3 answers yes, over its 21 display nodes
-   - Tests: per-component, same shape as phase 4
-   - Files: the components in the class K table that own a display node
-   - Verify: the gate reaches zero for class K's display half
-7. **Phase: the documentation** -- complete the doc edits each phase started
-   - Tests: `TestInheritExtensionHasOneUser`, `./le doc check all`
-   - Files: the pages in the Documentation checklist, `demos/terminal/`
-   - Verify: `./le cli grammar` green, `./le doc check all` green. `extension inherit` is NOT deleted: `request interface migrate` still declares it
+1. **Phase: Wiring (MANDATORY FIRST)** -- add `PipeFilter.Keys`, keyed `<key> <val>` validation in `partitionPipeChain`, `Keys` on `PipeOperationEntry`, and `| limit <TAB>` key completion in `completer.go`
+   - Tests: `TestLimitKeyedValidationAndPartition`, `TestLimitAndExtensivePartitionWithResidualFormat`, `TestLimitAndExtensiveRegistrationDoesNotCollide`, `TestCompletionOffersLimitKeysAfterLimit`
+   - Files: `internal/component/command/pipe_filter.go`, `pipe_partition.go`, `pipe_operations.go`, `completer.go`, `internal/component/bgp/plugins/cmd/peer/peer.go` (initial `limit`/`extensive` registration proof)
+   - Verify: `| limit <key> <val>` and `| extensive` partition into `ValidatedArgs.PipeOperations()`, key completion offers registered keys after `| limit `, and existing commands remain intact before conversion
+2. **Phase: Static grammar gate (`R10`) and collision deriver** -- add rule `R10` before converting commands so the gate is observed red over unconverted display nodes, and fix `PeerSubcommandKeywords`
+   - Tests: `TestCheckerRefusesDisplaySelector`, `TestTheRealCheckoutHasNoDisplaySelector`, `TestPeerSubcommandKeywordsDisplayChildrenNotColliding`
+   - Files: `internal/component/command/grammar/checker.go`, `internal/le/cli/grammar/cligrammar.go`, `internal/component/plugin/server/rpc_register.go`, `docs/architecture/cli/command-namespacing.md`, `docs/architecture/cli/root-namespace-grammar.md`
+   - Verify: `R10` fires on every unconverted Class S and Class K display node, fires on zero action nodes and zero Class A nodes, and prints its non-zero population count
+3. **Phase: `show bgp peer`, `show bgp rib`, and `show policy` (Class S + RIB rename + ExaBGP status)**
+   - Tests: `TestBarePeerAnswersEveryPeerLightweight`, `TestPeerExtensiveReturnsDetailFields`, `TestLimitPartitionsAndNarrowsPeerHandler`, `TestRIBLimitPeerNarrowsRoutes`, `TestPolicyLimitPeerNarrowsChainAndDryRun`, `TestBridgeStatusUsesExtensive`, `TestNoActionCommandOwnsLimitOrExtensive`, `test/ui/limit-bare-peer-answers-all.ci`, `test/ui/limit-narrows-to-one-peer.ci`, `test/ui/limit-then-shape-chains.ci`, `test/ui/limit-completes-after-pipe.ci`, `test/ui/limit-old-form-is-refused.ci`
+   - Files: `ze-peer-cmd.yang`, `peer.go`, `summary.go`, `cmd/rib/rib.go`, `plugins/rib/rib_pipeline.go`, `rib_pipeline_best.go`, `ze-policy-cmd.yang`, `policy/register.go`, `policy/handler.go`, `bridge_status.go`, `bridge_event.go`, `docs/architecture/api/commands.md`, `docs/architecture/behavior/fsm.md`, `docs/architecture/exabgp-bridge.md`, plus affected in-tree test/interop callers
+   - Verify: `R10` drops by 8; `show bgp | summary`, `show bgp | peers`, and `request peer <sel> teardown` stay green; ExaBGP `status` works over `show bgp peer | extensive`
+4. **Phase: Class K display commands (30 nodes across 18 YANG modules)**
+   - Tests: per-owner `TestClassKDisplayCommandsLimitByKey` unit tests across all 18 packages (including `managed`, `skills`, `vrrp`), `test/ui/limit-class-k-and-rib.ci`, `TestInheritExtensionHasOneUser`
+   - Files: all 18 Class K `-cmd.yang` modules and their owning handler/registration files, plus `./le yang glue update` where needed, affected architecture/guide docs (`fleet-config.md`, `zefs-format.md`, `doctor-and-health-checks.md`, `ai-first.md`, `mcp/overview.md`, `filter-path-asn.md`, `bfd.md`, `interfaces.md`, `pki-store.md`, `subscriber-session-model.md`, `l2tp.md`), and affected in-tree test callers
+   - Verify: `R10` reaches zero findings across the entire merged YANG tree; `| limit <TAB>` completes each command's registered YANG key(s); `NotReadOnly` authorization stays intact on `show config cat` and `show data cat`
+5. **Phase: Documentation, demos, and final sweeps**
+   - Tests: `./le cli grammar`, `./le cli dispatch check`, `./le doc yang-contract command-contract`, `./le doc check all`, `./le arch tier check`, `./le arch enumeration check`
+   - Files: `ai/rules/cli.md`, `ai/patterns/cli-command.md`, `docs/architecture/cli/command-verbs.md`, `docs/architecture/cli/command-completion.md`, `docs/architecture/api/process-protocol.md`, user guides, `demos/terminal/`, `internal/le/site/terminaldemo/`
+   - Verify: every gate green; `extension inherit` keeps `request interface migrate` as its one user
 
 ### Critical Review Checklist
 | Check | What to verify for this spec |
 |-------|------------------------------|
-| Completeness | Every one of the 8 display nodes is converted and all 8 moved nodes answer at their new path, or the scope is reduced by Thomas in writing. The gate's printed count is the evidence, not a reading of the diff |
-| Feature completeness | Each converted command answers bare, narrows with `limit`, and chains with a shaping operator. A command that only does the first is half converted |
-| Correctness | Every selector kind `peersel.ParseDefault` accepts still selects the same peers through the pipe as it did positionally |
-| Scope integrity | No action command gained a `limit` filter and none lost its mandatory positional selector. Thomas ruled on 2026-09-04 that the pipe is a display limit; an action reachable through a pipe is a rung-1 failure, not a finding |
-| Guard integrity | Every `RequiresSelector: true` registration still refuses a selector-less invocation, and `ResolveSinglePeer` still refuses the wildcard for `raw` |
-| Naming | One concept, one name: `limit` everywhere, and `\| peer <sel>` on `show bgp rib` is gone rather than kept beside it |
-| Data flow | The narrowing happens in the daemon, not locally. A `.ci` asserting the answer carries one peer must fail if the daemon sends all of them and the CLI drops the rest |
-| Rule: `ai/rules/no-layering.md` | The positional selector is DELETED before `limit` is written for that command. No command accepts both spellings at any commit |
-| Rule: `ai/rules/documentation.md` | Each phase's page edits land in that phase. `/ze-close` verifies them; it is not where they are written |
+| Completeness | All 8 Class S display nodes, the RIB peer filter rename, and all 30 Class K display nodes across 18 YANG modules are converted and proven by `./le cli grammar` printing zero findings and a non-zero population |
+| Feature completeness | Every converted command answers bare (or refuses cleanly if single-item-only), narrows server-side via `\| limit <key> <val>`, autocompletes registered key names after `\| limit `, and chains with `\| extensive` / residual formatting operators |
+| Correctness | Every selector kind `peersel.ParseDefault` accepts selects the exact same peers through `\| limit peer <sel>` as it did positionally; quoted values with spaces or pipes survive `scanChain` into `PipeOperation.Args` |
+| Scope integrity | Zero action commands gain `limit` or `extensive`, and zero action commands lose their mandatory positional/typed selector (Q1) |
+| Guard integrity | Every action `RequiresSelector: true` registration, `ResolveSinglePeer` single-peer check, and `NotReadOnly` edit-authorization check (`show config cat`, `show data cat`) remains intact |
+| Naming | Uniform `\| limit <key> <val>` everywhere; `show bgp rib \| peer <sel>` is gone; `list` and `detail` subcommands are gone from converted display paths |
+| Data flow | Narrowing and `extensive` detail gathering happen server-side inside the handler/plugin via `ValidatedArgs.PipeOperations()` / `ExecuteCommandInput.Pipe`, never via command-line rewriting (`foldFilters` stays retired) and never by over-fetching and filtering locally |
+| Rule: `ai/rules/no-layering.md` | Old display spellings are deleted outright (Q5), with zero compatibility aliases or dual-grammar handlers |
+| Rule: `ai/rules/documentation.md` | Each phase's doc, rule, pattern, and demo updates land with that phase, verified by `./le doc check all` and `./le spec citation anchors` |
 
 ### Deliverables Checklist
 | Deliverable | Verification method |
 |-------------|---------------------|
-| No DISPLAY command declares a mandatory positional selector | `./le cli grammar` prints zero findings for the new rule and a non-zero population |
-| `ze:inherit` has exactly one user | `grep -rn 'ze:inherit' internal --include='*.yang'` names `request interface migrate` and nothing else |
-| `limit` is registered for every converted command | a unit test walking the converted command paths and asserting `PipeFiltersForCommand` names `limit` |
-| The bare form answers for all | `test/ui/limit-bare-peer-answers-all.ci` |
-| Narrowing is server-side | `test/ui/limit-narrows-to-one-peer.ci` asserting the wire answer, not the rendered text |
-| The old forms are gone | `test/ui/limit-old-form-is-refused.ci` |
-| Documentation matches | `./le doc check all`; `./le spec citation anchors spec plan/release/fixes/spec-fixit-selector-narrows-through-a-pipe.md` reports no unnamed owner |
+| Zero display commands declare mandatory selector leaves | `./le cli grammar` prints zero `R10` findings and a non-zero checked population |
+| `ze:inherit` has exactly one user (`request interface migrate`) | `grep -rn 'ze:inherit' internal --include='*.yang'` names `internal/component/iface/yang/ze-iface-cmd.yang` (`request interface migrate`) alone |
+| Every converted display command registers `limit` with its YANG `Keys` | Unit test walking converted paths and asserting `PipeFiltersForCommand` names `limit` with non-empty `Keys`, and `TestNoActionCommandOwnsLimitOrExtensive` |
+| Key autocompletion after `\| limit ` works across surfaces | `TestCompletionOffersLimitKeysAfterLimit` and `test/ui/limit-completes-after-pipe.ci` |
+| Bare `show bgp peer` is lightweight; `\| extensive` gathers detail server-side | `TestBarePeerAnswersEveryPeerLightweight`, `TestPeerExtensiveReturnsDetailFields`, `test/ui/limit-bare-peer-answers-all.ci`, `test/ui/limit-then-shape-chains.ci` |
+| Narrowing is server-side | `test/ui/limit-narrows-to-one-peer.ci` asserting the `\| raw` wire payload carries only the matched peer |
+| Old display forms are refused with no shim | `test/ui/limit-old-form-is-refused.ci` |
+| `PeerSubcommandKeywords` does not reserve converted `show bgp peer` subcommands | `TestPeerSubcommandKeywordsDisplayChildrenNotColliding` |
+| ExaBGP `status` works over `show bgp peer \| extensive` | `TestBridgeStatusUsesExtensive` and `./le test functional exabgp` |
+| Documentation and dispatch references match | `./le doc check all`, `./le cli dispatch check`, and `./le spec citation anchors spec plan/release/fixes/spec-fixit-selector-narrows-through-a-pipe.md` |
 
 ### Security Review Checklist
 | Check | What to look for |
 |-------|-----------------|
-| Blast radius of an absent selector | No action command is converted, so no side effect becomes reachable without a selector. The check is that this stayed true: an action owning a `limit` filter, or an action whose mandatory selector was deleted, is the failure to look for |
-| Input validation | The `limit` argument reaches `peersel.ParseDefault` exactly as the positional value did. `validateFilter` refuses an empty argument and `maxArgLength` bounds it at 1024 bytes |
-| Authorization | Display narrowing must preserve command authorisation; no action path or inherited action permission changes |
-| Error leakage | A refusal names the filter and the command, never the peer list the operator was not allowed to see |
+| Blast radius of an absent selector | Zero action commands are converted, so no destructive or wire-emitting operation becomes reachable without a mandatory selector; `TestNoActionCommandOwnsLimitOrExtensive` enforces this |
+| Input validation | `validateDeclaredArgument` enforces registered `Keys` membership, exact `<key> <val>` arity, non-empty value, and `maxArgLength` (1024 bytes) before any handler runs; peer selectors still pass through `peersel.ParseDefault` |
+| Authorization | `IsReadOnlyPath` and `NotReadOnly` (`show config cat`, `show data cat`) remain enforced on the command path before any pipe operation or handler executes |
+| Error leakage | Refusals for unknown keys, missing values, or unmatched selectors name only the valid keys or command syntax, never peer lists or stored secret values |
 
 ### Failure Routing
 | Failure | Route To |
@@ -655,27 +810,32 @@ sessions the converted commands act on are unchanged in every byte they send.
 
 ## Design Insights
 
-- The narrowing operator needs no new pipe machinery. `foldFilters` already pushes an owned, argument-taking filter down to the handler as command arguments, and `show bgp rib | peer <sel>` has been doing exactly this narrowing for months. What the tree lacks is not the mechanism but the decision to use it uniformly.
-- `list` reads like a filter and is a format. Both `handleBgpPeerList` and `handleBgpPeerDetail` filter the same population the same way; only the field set differs. A reader who assumes `list` is a filter designs `| limit` as its replacement and loses the one-line answer entirely.
-- The positional selector is doing a second job nobody named: it is a fail-closed guard. A mandatory leaf cannot be forgotten, and a pipe segment can. That is the `zero-value-as-a-guard` shape `docs/contributing/ze-go-style.md` warns about, arriving in a grammar rather than in a type. Thomas's ruling removes the hazard rather than replacing the guard: an action keeps the mandatory leaf, so nothing has to be rebuilt at the pipe layer.
-- The narrowing and the placement are two rules, not one. "A pipe narrows an answer" decides which commands convert. "The selector is typed before the verb" decides where an action's selector sits. `peer raw <sel>` was wrong under the second rule while never being a candidate for the first, which is why the move fixes an asymmetry the conversion could not have reached.
+- HEAD's `partitionPipeChain` (`pipe_partition.go`) and `ValidatedArgs.PipeOperations()` / `rpc.ExecuteCommandInput.Pipe` already eliminate command-line rewriting (`foldFilters` is gone). Extending `PipeFilter` with `Keys []string` gives every display command keyed `| limit <key> <val>` narrowing, validation, help publication, structured MCP/REST/gRPC `pipe` support, and Tab completion from one declaration.
+- `list` reads like a filter and is a presentation shape. Making bare `show bgp peer` answer the lightweight list shape and `| extensive` gather full detail server-side (Q2) keeps bare commands fast on routers with large peer tables without needing a second command path.
+- `PeerSubcommandKeywords` (`rpc_register.go`) must distinguish action `peer` containers (where an operator types a peer name immediately after `peer`) from converted display `show bgp peer` containers (where no peer name can appear in the path); otherwise removing `leaf selector` from `show bgp peer` falsely bans ordinary words as peer names.
+
+## Owned journal rows
+
+| Class file | Date | Surface (short) |
+|------------|------|-----------------|
+| - | - | None — the 2026-09-04 row in `plan/journal/command-takes-an-untyped-positional-value.md` covers `send bgp` / `request commit` action argument schemas, outside this display-only spec |
 
 ## Key Design Decisions
+
 | Decision | Alternatives Considered | Rationale |
 |----------|------------------------|-----------|
-| `limit` is a command-owned `PipeFilter`, not a global catalog operator | a global operator in `pipeCatalog` | a global operator acts on the answer LOCALLY, after the daemon has already sent every peer. The narrowing must reach the handler, and `foldFilters` is the only route that does. It is also the route `show bgp rib` already uses |
-| `limit` is a new name rather than a reuse of `match` | reuse `match <text>` | `match` is a substring test over rendered row values. It cannot express a glob, `as65001`, or a comma list, and it cannot push down. Naming the new job `match` would give one word two meanings |
-| The bare command answers the one-line shape that `list` answered | keep `list` as a shaping pipe operator | Thomas's `show bgp (all)` says the bare form is the everything form. A shaping operator for the FULL record (`extensive`) is the additive half; a shaping operator for the SHORT record would leave the bare form undefined |
-| The old spellings are removed, not aliased | keep the positional form as a second spelling | `ai/rules/cli.md`: Ze is unreleased, so an unreleased grammar is replaced outright. `ai/rules/no-layering.md`: delete X, then write Y |
-| The rule is enforced by a checker rule before any conversion | convert first, gate afterwards | a gate written after the conversions cannot be seen to go red, so it proves nothing (`ai/rules/interop-and-goal-validation.md`, the vacuity traps) |
-| The checker rule is scoped to display commands | one rule over every command node | Thomas, 2026-09-04: the pipe is a display limit. A rule that fired on an action would report every action in the tree as a finding, and the fix it asks for is the one he ruled out |
-| The earlier action move is superseded | Implement the historical `request peer` proposal here | The narrowed header delegates it to `spec-fixit-send-names-its-destination`. This spec preserves the current action paths and their guards |
+| `limit` and `extensive` are command-owned `PipeFilter` declarations delivered via `partitionPipeChain` into `ValidatedArgs.PipeOperations()` | Global catalog operators in `pipeCatalog`, or rewriting the command line (`foldFilters`) | Global operators act locally after the daemon already gathered/serialized all rows; command-line rewriting is forbidden by `docs/architecture/api/commands.md` (2026-08-21 decision). `partitionPipeChain` delivers structured `[]PipeOperation` server-side across builtins, local-data commands, and plugins |
+| `\| limit <key> <val>` names the YANG key explicitly, with `PipeFilter.Keys` driving validation and Tab completion | Bare `\| limit <val>`, or per-field top-level operators (`\| peer`, `\| name`, `\| id`) | Decided by Thomas (Q3 & Q4, 2026-11-24): uniform narrowing verb across all display commands, unambiguous on multi-key commands (`show interface` `name` vs `type`), discoverable via `\| limit <TAB>` |
+| `\| extensive` is a server-side declared operation (`ArgNone`) rather than a client-side alias | Client-side alias over a heavy bare payload, or keeping `detail` as a subcommand | Decided by Thomas (Q2, 2026-11-24): keeps bare `show bgp peer` lightweight/fast on routers with many peers while eliminating the `list`/`detail` subcommands |
+| Old display spellings are removed outright with no compatibility alias | Compatibility aliases or migration shims | Pre-release rule (`ai/META-DECISIONS.md`, `ai/rules/cli.md`), confirmed by Thomas (Q5, 2026-11-24); old forms fail with `suggest.Command` |
+| Static gate `R10` lands before conversions and is scoped to display commands | Convert first and gate later, or include action commands | Observing `R10` red before conversion proves the gate is non-vacuous; Thomas ruled on 2026-09-04 (Q1) that action commands keep mandatory positional selectors |
+| `PeerSubcommandKeywords` scopes `Colliding` to action `peer` containers | Leave existing tree walk unchanged | Deleting `leaf selector` from `show bgp peer` without updating `PeerSubcommandKeywords` would falsely mark `capabilities`, `history`, `rib`, and `statistics` as unusable peer names (R-1) |
 
 ## Known Limitations
-- Class A is untouched by design: those 26 values are the command's subject or an argument to it, not a narrowing of a set. `show bgp irr check peer <p> prefix <x>` is the closest call and Q3 covers it.
-- **Found while reading `handleRaw`, recorded rather than fixed: a handler reads operator-typed arguments the schema does not declare.** `container raw` declares `leaf selector` alone, while `handleRaw` (`internal/component/bgp/plugins/cmd/raw/raw.go`) reads `[<type>] <encoding> <data>` from `args`. Three operator-typed arguments therefore exist in the handler and in nothing else, so the command model, the completion surface and the generated help text do not know about them. Measured width: of the ten non-test files that both take a `pluginserver.CommandContext` and index `args` past the first element, three carry the shape. `peer update` (`ze-update-cmd.yang` declares `leaf selector` alone; `update_wire.go` and `update_text.go` parse a whole route expression) and `request commit` (`ze-cli-commit-cmd.yang` declares NO leaf; `commit.go` reads `<action> <name> [args]`, and the grammar is stated in an `ze:help` sentence) are the other two. The remaining seven were not each checked, so three is a floor rather than a total. The row is in `plan/journal/command-takes-an-untyped-positional-value.md`, whose 2026-08-30 `announce` row is the same shape. This spec does not fix it: moving `raw` under `request peer` changes where the command lives, not what its schema declares.
-- The published inventory in this spec is a snapshot. Implementation replaces it with the walk inside the checker, and the count that walk prints is the authority from then on.
-- Value completion for the `limit` argument is out of scope unless A-5 is broken: no peer-name or interface-name value hints exist today at either spelling.
+
+- Class A commands (whose mandatory leaf is the computation subject/input, e.g. `show route lookup <ip>`, `show tcp-check <host> <port>`, `show bgp irr check <peer> <prefix>`, `show bfd session address <addr>`, `show config artifact history/diff/source`, `resolve ...`) are untouched by design.
+- Dynamic value completion for the `<val>` token after `| limit <key> ` (such as live peer names or interface names) is outside this spec's scope unless already wired; Thomas's Q3/Q4 precondition requires autocompleting the registered `<key>` names after `| limit `.
+- Action-command argument schemas noted in `plan/journal/command-takes-an-untyped-positional-value.md` (2026-09-04 row) are outside this display-only spec.
 
 ## Checklist
 
@@ -696,11 +856,11 @@ sessions the converted commands act on are unchanged in every byte they send.
 - [ ] AC-1..AC-10 all demonstrated
 - [ ] Every user story has a working path and a passing test
 - [ ] Wiring Test table complete: every row a concrete test name, none deferred
-- [ ] `./le verify worktree` passes. It runs every stage against a COMMIT in a throwaway worktree, which is the pre-commit gate (`ai/rules/git-safety.md`). An in-place `./le verify current` is void the moment the tree moves under it
+- [ ] The targeted tests for what changed pass, run in the main checkout by the main thread: the scoped package tests, the component groups and functional suites `./le repo changed scope print both` reaches. No agent runs any `./le verify` command: GitHub CI verifies the pushed commit, and the full verification is Thomas's release check. A red CI reports gets a fix commit
 - [ ] Feature code integrated (`internal/*`, `cmd/*`), not library-only
 - [ ] Integration and Documentation checklists answered Yes/No/N-A with evidence
 - [ ] Architectural Verification table filled, including registration over hardcoding
-- [ ] Critical Review passes (all 6 checks in `ai/rules/quality.md`)
+- [ ] Critical Review passes, and `ai/rules/quality.md` is satisfied: lint fixed rather than disabled, the focused check for the changed behavior run once with its OUTPUT PASTED, and any red named with the one-line reason it is scaffolding
 - [ ] Every A-N confirmed or broken, none `unvalidated`
 - [ ] Every item this spec did not do is a spec of its own, named here, in its own bucket
 
@@ -710,11 +870,11 @@ sessions the converted commands act on are unchanged in every byte they send.
 - [ ] Tests PASS (paste output)
 - [ ] Boundary tests for all numeric inputs
 - [ ] Functional `.ci` tests for end-to-end behavior
-- [ ] Interop tests for protocol features (or N-A with a reason)
+- [ ] Interop tests for protocol features (N-A: display CLI grammar change with no protocol wire impact)
 
 ### Closure
 - [ ] Append `plan/templates/TEMPLATE-CLOSURE.md` and complete every section in it
-- [ ] `/ze-review` gate clean, recorded via `internal/le/spec/session/review.go`
-- [ ] Learned summary written to `plan/learned/NNN-<name>.md`
-- [ ] **Commit A:** code + tests + docs + spec + learned summary
-- [ ] **Commit B:** `git rm plan/<spec>` only (commit A preserves the spec in history)
+- [ ] `/ze-review` gate clean, recorded via `internal/le/spec/review.go`
+- [ ] Any lesson routed to its governing surface under `ai/rules/planning.md`; no lesson artifact created merely for closure
+- [ ] **Commit A:** code + tests + docs + edited spec + any journal rows owed by the work
+- [ ] **Commit B:** `remove plan/release/fixes/spec-fixit-selector-narrows-through-a-pipe.md` only, in the same `./le commit create` script (commit A preserves the spec in history)

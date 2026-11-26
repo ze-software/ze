@@ -5,14 +5,14 @@
 | Status | design |
 | Scope | config |
 | Priority | P1 |
-| Release reason | Shipped config and command surfaces accept input Ze then ignores, or read it differently from what the YANG declares: a leaf commits and changes nothing, a declared rpc or notification has no handler or producer, a handler reads tokens the model never declares, a Go vocabulary and its YANG enum disagree. These are defects in implemented capabilities, so they belong before the first release |
+| Release reason | Shipped config leaves, RPCs, and notifications validate, commit, and show while nothing reads or emits them: a config leaf commits and changes nothing (`label`/`labels` on plugin families, stale `ze-bgp-api` RPC names, missing `environment/reactor` YANG env aliases, missing `vxlan` `ttl` leaf, inert config leaves), and no build-time or `ze doctor` gate catches unconsumed leaves or producer-less notifications. These are defects in shipped config and API surfaces, so they belong before the first release. |
 | RFC gaps | - |
-| Depends | Split on 2026-11-14 (owner, "Split. Pieces A, B, C become release fixes now ... D, E and F become one design spec, with the startup refusal replaced by a build gate plus `ze doctor`"). Siblings: A `plan/release/fixes/spec-review-typed-config-decode.md`, B `plan/release/fixes/spec-validation-walks-every-schema-section.md`, C `plan/release/fixes/spec-yang-defaults-applied-once.md`. Argument modelling of commands with no leaf: `plan/release/fixes/spec-declared-commands-without-leaves.md`. External plugin YANG: `spec-plugin-external-yang-at-startup`. Peer leaves the peer parser never reads: `plan/release/fixes/spec-peer-leaves-the-peer-parser-never-reads.md` |
+| Depends | Split on 2026-11-14 (A, B, C moved to `spec-review-typed-config-decode.md`, `spec-validation-walks-every-schema-section.md`, `spec-yang-defaults-applied-once.md`) and on 2026-11-26 per owner decision T-1 (2026-11-24: Piece D moved to `plan/release/fixes/spec-yang-command-arguments-by-leaf-name.md`, Piece F moved to `plan/release/fixes/spec-yang-enum-vocabulary-agreement-gate.md`, this file retains Piece E so existing cross-references stay valid). Companion owners for T-4 rows: `plan/release/fixes/spec-software-version-mode-implements-two-of-four.md` (`software-version/mode`), `plan/release/fixes/spec-bgp-rib-state-subtree-has-no-producer.md` (`bgp/rib/adj-rib-*`), `plan/post-release/features/spec-bgp-api-notification-producers.md` (the 7 `ze-bgp-api` notifications), `plan/post-release/features/spec-ipsec-remote-access.md` (`remote-access` subtree). Related: `plan/release/fixes/spec-peer-leaves-the-peer-parser-never-reads.md`, `plan/release/fixes/spec-plugin-external-yang-at-startup.md`. |
 | Phase | - |
 | Handoff | - |
 | Design tier | strongest tier |
 | Implementation tier | development tier |
-| Updated | 2026-11-24 |
+| Updated | 2026-11-26 |
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.
 
@@ -20,370 +20,506 @@ Recovery after compaction: `.claude/rules/post-compaction.md`.
 
 | ID | Decision |
 |----|----------|
-| T-1 (split vs. single spec) | Split into **three separate specs** (D: command arguments by leaf name, E: unused config leaf/RPC/notification gate, F: Go-vs-YANG enum agreement gate) so the smaller pieces D and F can land immediately without waiting on E. |
-| T-2 & T-3 (leaf-read tracking & typed SDK config accessors) | Choose T-2 option 3 + T-3 add typed accessors: add schema-bound typed config accessors to the plugin SDK so plugins stop hand-parsing raw JSON maps and read paths are recorded accurately without maintaining manual leaf lists. |
-| T-5 (temporary allowlist on leaf gate) | Allow a temporary recorded allowlist (like `claims/allowlist.json`, each entry naming a reason and owning spec) so the build gate can turn on immediately and block new unused declarations while existing rows are resolved. |
-| T-4 (per-row disposition, verified against current tree) | `rpki/cache-server/preference` and `update/watchdog/withdraw` are already implemented and tested; `remote-access` is owned by `spec-ipsec-remote-access.md`; `bgp/rib/adj-rib-*` is owned by `spec-bgp-rib-state-subtree-has-no-producer.md`. Implement `require` and `refuse` on `software-version/mode`; keep the 7 `ze-bgp-api` notifications on the temporary allowlist with a post-release spec to wire their producers; fix the 3 stale `ze-bgp-api` RPC names (`peer-show`, `peer-show-capabilities`, `peer-show-statistics`) and the `label`/`labels` plugin-family bug. |
+| T-1 (split vs. single spec) | Split into **three separate specs**: Piece D (`plan/release/fixes/spec-yang-command-arguments-by-leaf-name.md`), Piece E (this spec, unused config leaf/RPC/notification gate), and Piece F (`plan/release/fixes/spec-yang-enum-vocabulary-agreement-gate.md`) so smaller pieces D and F land independently of E. |
+| T-2 & T-3 (leaf-read tracking & typed SDK config accessors) | Choose T-2 option 3 + T-3 add typed accessors: add schema-bound typed config accessors (`sdk.ConfigReader`) to `pkg/plugin/sdk` so plugins stop hand-parsing raw JSON maps and read leaf paths are recorded accurately without maintaining manual leaf lists. Keep the Stage 2 JSON-string wire payload backward-compatible, and add an optional Stage 1 `read-leaf-paths` field so external plugins can report read paths to `ze doctor`. |
+| T-5 (temporary allowlist on leaf gate) | Allow a temporary recorded allowlist (like `claims/allowlist.json`, each entry naming `path`, `reason`, and `owner` spec/symbol) so the build gate turns on immediately and blocks new unused declarations while deferred T-4 rows are resolved. |
+| T-4 (per-row disposition, verified against current tree) | `rpki/cache-server/preference` and `update/watchdog/withdraw` are already implemented and tested (retired into Existing Mechanisms); `remote-access` is owned by `plan/post-release/features/spec-ipsec-remote-access.md`; `bgp/rib/adj-rib-*` is owned by `plan/release/fixes/spec-bgp-rib-state-subtree-has-no-producer.md`; `software-version/mode` (`require` and `refuse`) is owned solely by `plan/release/fixes/spec-software-version-mode-implements-two-of-four.md`; the 7 `ze-bgp-api` notifications sit on the temporary allowlist citing `plan/post-release/features/spec-bgp-api-notification-producers.md`; this spec fixes the 3 stale `ze-bgp-api` RPC names (`peer-show`, `peer-show-capabilities`, `peer-show-statistics`), the `label`/`labels` plugin-family bug, the `environment/reactor` YANG env aliases, the missing `vxlan` `ttl` leaf (YANG + netlink wiring), and the remaining owned inert leaves. |
 
 ## Task
 
-This spec now holds three pieces of the original root cause. Pieces A, B and C
-moved to their own specs (Depends). Each piece below needs Thomas's design pass
-before `ready`; the decisions that are his are in "Decisions that are Thomas's".
+**Problem.** Ze's existing config claim gate (`internal/component/config/claims/claims.go`) judges delivery only at config-root granularity (`bgp`, `interface`, `ddos`), while `./le config unread-leaves report` (`internal/le/config/unreadleaves/yangleafmentions.go`) is an advisory string-literal heuristic that exits 0. Because nothing enforces leaf-level consumption or YANG notification production:
 
-| Piece | Problem | Goal |
-|-------|---------|------|
-| D, command arguments | Handlers pick arguments out of `ValidatedArgs.Tokens()` by index, so the argument is not a declared leaf: usage, the web form and MCP render nothing to type, and the validator judges nothing. One leaf is also declared twice, on the `-cmd` container and on the rpc input | Every owned handler reads its arguments by leaf name through the `ValidatedArgs` accessors that already exist; each argument is declared once |
-| E, inert surface | A config leaf validates, commits and shows, and nothing reads it; a declared rpc has no handler; a declared notification has no producer | A build-time gate refuses a declared node with no consumer, extending the root claim gate to leaf granularity; `ze doctor` reports at run time what the build cannot see; each owned node is wired or deleted |
-| F, enum vocabulary | A YANG enum omits a value its Go consumer handles, or offers one it does not | The enumeration agreement gate judges every Go vocabulary that parses a YANG enum leaf, in both directions, whatever the enum's size |
+1. Config leaves validate, commit, and display while no consumer reads them (`label`/`labels` dropped in `bgp_routes_plugin.go`, 7 `environment/reactor` leaves lacking YANG-named env aliases, inert leaves across plugins, and `vxlan` `ttl` missing from `ze-iface-conf.yang` and unwired in `buildVxlan`).
+2. `ze-bgp-api.yang` still declares 3 stale RPC names (`peer-show`, `peer-show-capabilities`, `peer-show-statistics`) that no handler serves under those names, and 7 notifications (`peer-state-change`, `route-received`, `route-update-sent`, `eor-received`, `graceful-restart-state`, `session-established`, `session-closed`) with no producer, while `./le doc yang-contract command-contract` (`internal/le/doc/yangcontract/contract.go`) checks RPCs only and ignores notifications.
+3. Plugins hand-parse raw `map[string]any` JSON strings from Stage 2 `rpc.ConfigSection` with no shared typed config accessor, so read leaf paths cannot be measured accurately without hand-maintained lists.
 
-**What changed from the 2026-10-23 design.** The load-time startup refusal of an
-unconsumed node is removed: plugins load on demand, compile out by tag, or run
-external and declare after config load, so load cannot decide it. The design
-page already assigns the check to a build-time gate plus `ze doctor`
-(`docs/architecture/config/yang-config-design.md`, "Claim Completeness Gate").
-The per-leaf typed accessor is no longer assumed: it would change the plugin
-SDK's Stage 2 contract (every value a JSON string, `pkg/` public API), so it is
-an open decision (T-3). The value-type, validation-population and defaults
-work moved out: `yang_schema.go` `yangTypeToValueType`, the
-`validate_sections.go` walk, `config/yang/validator.go` and the
-`config/yang/command.go` `argDefFor` description (already fixed) are no longer
-this spec's.
+**Goal.** Implement Piece E per Thomas's T-1..T-5 decisions:
+
+1. Add schema-bound typed config accessors (`sdk.ConfigReader` in `pkg/plugin/sdk/config_reader.go`) over the existing Stage 2 `rpc.ConfigSection` JSON-string wire payload so parsers read typed leaves with automatic path recording (and optional Stage 1 `read-leaf-paths` on `rpc.DeclareRegistrationInput` validated in `stage1Checks` for external plugins).
+2. Extend `internal/component/config/claims` (`AuditLeaves`, `leaf_allowlist.json`) and `internal/component/plugin/all/config_claims_test.go` (`TestConfigSchemaLeavesConsumed`, `TestConfigLeafPhantomReads`) to refuse any writable config leaf with no recorded consumer and any phantom/stale allowlist or read-path entry; repoint `./le config unread-leaves report` onto `claims.AuditLeaves`.
+3. Extend `ze doctor` (`internal/component/doctor/checks_config_claims.go`, code `doctor-config-leaf-unread`) to report configured leaves that no running consumer reads (compiled out, failed to load, or external plugin declaring none).
+4. Extend `./le doc yang-contract command-contract` (`internal/le/doc/yangcontract/contract.go`) with a notification producer check plus temporary recorded allowlist (`notification_allowlist.json`) pointing the 7 `ze-bgp-api` notifications to `plan/post-release/features/spec-bgp-api-notification-producers.md`.
+5. Fix the owned T-4 surface defects: rename the 3 stale `ze-bgp-api.yang` RPCs (`peer-show` → `peer-detail`, `peer-show-capabilities` → `peer-capabilities`, `peer-show-statistics` → `peer-statistics`), refuse configured `attribute { label / labels }` on all 6 `InProcessConfigRouteParser` plugin families in `internal/component/bgp/config/bgp_routes_plugin.go` with `opererr` (none of the 6 plugin families accept attribute labels; labeled unicast and MPLS VPN use the standard prefix path, and EVPN/VPLS take labels inline in `nlri`), register and plumb the 7 YANG-named `environment/reactor` env aliases in `internal/component/config/environment.go` and `internal/component/config/apply_env.go`, add `leaf ttl` (`ze:backend "kernel";`, `default 64;`) to `vxlan` in `internal/component/iface/yang/ze-iface-conf.yang` and wire `spec.TTLSet`/`spec.TTL` into `buildVxlan` (`internal/plugins/iface/netlink/tunnel_linux.go`), and resolve or allowlist every remaining owned inert leaf with its reason and owner spec.
 
 ## Required Reading
 
 ### Architecture Docs
 - [ ] `docs/architecture/config/yang-config-design.md`, "Claim Completeness Gate"
-  → Decision: delivery is judged at build time by `TestConfigSchemaRootsClaimed` and `TestConfigRootsPhantomClaims`, and at run time by `ze doctor` (`doctor-config-root-unclaimed`) for a plugin compiled out or that failed to load
-  → Constraint: `./le config unread-leaves report` is a heuristic and exits 0; promoting it to a gate needs a signal that is not a string-literal match
-- [ ] `docs/architecture/api/commands.md`, "Every route validates" and "YANG-Typed Command Arguments"
-  → Constraint: a handler reads `Tokens()`, `Positional(leaf)` or `Value(leaf)`; `Keyed`, `Flag` and `PositionalTokens` also exist; a handler that passes tokens on (the `update` encoding parser) passes a slice to a helper that is not a handler type
-- [ ] `ai/rules/cli.md`, "CLI Grammar: Keywords Before Values"
-  → Constraint: peer commands address a peer positionally, the one exception; every other free-form value follows a keyword
-- [ ] `ai/META-DECISIONS.md`, "Code and dependencies"
-  → Constraint: a command path names the subject and stops; scope, presentation and format are pipe operations, never arguments
-- [ ] `ai/doors/system.md`, "`pkg/` is the public API"
-  → Constraint: a change to the Stage 2 config body or to `sdk.Registration` is a published contract change, made on purpose with its page
+  → Decision: delivery is judged at build time by `TestConfigSchemaRootsClaimed` and `TestConfigRootsPhantomClaims`, and at run time by `ze doctor` (`doctor-config-root-unclaimed`) for plugins compiled out, failed to load, or external
+  → Constraint: promoting leaf coverage to a build gate requires exact path recording through typed accessors rather than string-literal scanning (`unreadleaves`), with explicit allowlist entries carrying `path`, `reason`, and `owner`
+- [ ] `docs/architecture/api/process-protocol.md`, "5-Stage Startup Protocol", `docs/plugin-development/protocol.md`, "Stage 2", and `docs/architecture/plugin/plugin-system.md`, "One table of Stage 1 checks, and the conformance checker"
+  → Decision: `pkg/plugin/rpc` `ConfigSection` keeps every Stage 2 leaf value as a JSON string for cross-language external plugin compatibility; `DeclareRegistrationInput` (`sdk.Registration`) gains an optional `read-leaf-paths` field (`omitempty`) validated in `stage1Checks` (`internal/component/plugin/server/stage1_checks.go`)
+  → Constraint: changing `pkg/plugin/rpc` or `pkg/plugin/sdk` is a published contract change that must keep non-Go external plugins working and update `docs/plugin-development/protocol.md`, `docs/architecture/api/process-protocol.md`, and `docs/architecture/plugin-manager-wiring.md` in the same change
+- [ ] `docs/architecture/doctor-and-health-checks.md`, "The runtime phase"
+  → Constraint: `doctor-config-leaf-unread` reports configured leaves with no running reader (including external plugins that declare no `read-leaf-paths`, never assuming an undeclared external plugin reads a leaf)
+- [ ] `docs/architecture/update-building.md` and `internal/component/bgp/config/bgp_routes_plugin.go`
+  → Constraint: `ConfigRouteRequest` carries only NLRI tokens, next hop, and extended communities; none of the 6 `InProcessConfigRouteParser` families (`flowspec`, `vpls`, `mvpn`, `evpn`, `srpolicy`, `mup`) accept `attribute { label / labels }` (`ipv4/nlri-mpls`, `ipv6/nlri-mpls`, `ipv4/mpls-vpn`, `ipv6/mpls-vpn` use the standard prefix path in `bgp_routes.go`, while EVPN/VPLS read inline NLRI label tokens), so `buildConfigRouteRequest` refuses `attribute { label / labels }` with an `opererr` naming the family and fix rather than silently dropping it
+- [ ] `docs/architecture/config/environment-block.md` and `docs/architecture/config/environment.md`
+  → Constraint: reactor tuning lives under YANG `environment/reactor/<leaf>` (`environment { reactor { ... } }`); all 7 promoted leaves register canonical `ze.bgp.reactor.<leaf>` env vars in `internal/component/config/environment.go` beside legacy `ze.fwd.*`/`ze.buf.*` keys and plumb cleanly in `internal/component/config/apply_env.go`
+- [ ] `ai/doors/system.md`, `ai/doors/config-yang.md`, `ai/doors/plugin-infra.md`, `ai/doors/bgp-engine.md`, `ai/doors/bgp-plugins.md`, `ai/doors/forwarding.md`, `ai/doors/core.md`, `ai/doors/le-tooling.md`
+  → Constraint: `internal/component/config/claims` holds claim semantics only and imports no plugin registry or BGP packages; `internal/component/doctor` and `internal/component/plugin/all` supply the live inventories; VXLAN `ttl` carries `ze:backend "kernel";` and `default 64;` so VPP (whose `VxlanAddDelTunnelV3` has no TTL field) refuses it exact-or-reject at verify
 
 **Key insights:**
-- Every gate this spec needs exists at a coarser grain: root claims, the yangcontract orphan sets, the enumeration corpus of YANG enums, the per-package enum agreement tests. The work is to extend them, not to add a consumer registry beside them.
+- Keeping Stage 2 `rpc.ConfigSection.Data` as JSON strings while layering `sdk.ConfigReader` on top in `pkg/plugin/sdk` delivers T-2 option 3 + T-3 without breaking third-party non-Go plugins or changing the Stage 2 JSON wire format.
+- Verified across all 6 `InProcessConfigRouteParser` families (`flowspec`, `vpls`, `mvpn`, `evpn`, `srpolicy`, `mup`): none consumes `attribute { label / labels }` (`flowspec`, `mvpn`, `mup`, `srpolicy` have no NLRI label field; `vpls` uses inline `label-base` and `evpn` uses per-route-type inline `label`/`label1`/`label2` tokens in `req.Content`; `ipv4/nlri-mpls`, `ipv6/nlri-mpls`, `ipv4/mpls-vpn`, `ipv6/mpls-vpn` take the standard prefix path in `bgp_routes.go:178-220`). Refusing `attribute { label / labels }` in `buildConfigRouteRequest` keeps `registry.ConfigRouteRequest` unchanged and agrees with `docs/architecture/update-building.md` and `docs/architecture/plugin/plugin-system.md`.
+- Several 2026-09-03/04/05 journal items listed in the original 2026-10-23 spec are already implemented and tested in HEAD (`rpki/cache-server/preference`, `update/watchdog/withdraw`, `ze-plugin:session-ping`, `ddos/flowtriq/api-key`, `bfd/enabled`, `static/table/route/tag`, `fib/kernel/{flush-on-stop,sweep-delay}`, `ospf/reference-bandwidth`, `bmp/route-action`, `isis` per-level timers); retiring them into `## Existing Mechanisms` keeps the implementation focused on genuine remaining defects.
 
 ## Current Behavior (MANDATORY)
 
-**Source files read (producers verified 2026-11-14):**
-- [ ] `internal/component/command/argbind.go` - `ValidatedArgs` offers `Tokens`, `Positional`, `Keyed`, `Flag`, `PositionalTokens` and `Value`
-- [ ] `internal/component/bgp/plugins/rib/rib_commands.go` `injectRoute` - reads `args[0]` as the peer, `args[1]` as the family, `args[2]` as the prefix
-- [ ] `internal/component/bgp/plugins/cmd/peer/peer.go` `handleBgpPeerList` and three more handlers call `validated.Tokens()`; across `internal/` 117 non-test files call `.Tokens()`, at least 20 of them under `internal/component/bgp/` (a population census, not each a defect)
-- [ ] `internal/component/config/claims/claims.go` `Audit` and `internal/component/plugin/all/config_claims_test.go` `TestConfigSchemaRootsClaimed` - judge delivery per config root against `ConfigRoots`, `ConfigReads`, hub handler paths and `allowlist.json`
-- [ ] `internal/le/config/unreadleaves/yangleafmentions.go` - reports a leaf whose kebab name appears in no string literal of the owning package; always exits 0
-- [ ] `internal/component/doctor/checks_config_claims.go` `checkConfigClaims` - reports a configured root this binary delivers to nobody
-- [ ] `internal/le/doc/yangcontract/contract.go` `contractSatisfied` - false on orphan YANG nodes, orphan handlers, orphan local handlers, orphan rpcs and foreign prefixes; it holds no notification check
-- [ ] `internal/component/bgp/yang/ze-bgp-api.yang` - seven notifications (`peer-state-change`, `route-received`, `route-update-sent`, `eor-received`, `graceful-restart-state`, `session-established`, `session-closed`), each description saying no producer emits it
-- [ ] `internal/le/arch/enumeration/corpus.go` `yangEnumerations` - a closed corpus of YANG enum value sets: a Go literal counts as a copy only when it holds the whole set, so a Go table holding a value the enum lacks is not judged
-- [ ] `internal/component/bgp/reactor/yang_enum_agreement_test.go` - per-package agreement tests between named Go tables and the loaded model (`TestAddPathDirectionsMatchTheYANGModel`)
-- [ ] `internal/component/bgp/reactor/config_capabilities.go` `parseAddPathDirection` - accepts `send/receive` and `receive/send`; the `ze-bgp-conf.yang` `direction` enum declares `send`, `receive`, `send/receive`, so the `receive/send` arm is dead
-- [ ] `internal/component/hub/yang/ze-hub-conf.yang` leaf `backend` - `stderr`, `stdout`, `syslog`; `internal/core/slogutil/slogutil.go` also handles `kmsg`
+**Source files read (verified at HEAD):**
+- [ ] `internal/component/config/claims/claims.go` and `allowlist.json` - `Audit` and `AuditConfigured` judge config delivery at subtree/root granularity only; no leaf-level `AuditLeaves` or `leaf_allowlist.json` exists
+- [ ] `internal/component/plugin/all/config_claims_test.go` - `TestConfigSchemaRootsClaimed` and `TestConfigRootsPhantomClaims` check roots only, not leaves
+- [ ] `internal/le/config/unreadleaves/yangleafmentions.go` - scans Go source for string literals matching kebab leaf names and always exits 0
+- [ ] `internal/component/doctor/checks_config_claims.go` - `checkConfigClaims` emits `doctor-config-root-unclaimed` for unclaimed roots only; no leaf-level check exists
+- [ ] `pkg/plugin/rpc/types.go` - `DeclareRegistrationInput` (line 340) carries `WantsConfig` (root names) and no `ReadLeafPaths`; `ConfigSection` (line 994) carries `Root` and JSON string `Data`
+- [ ] `internal/component/plugin/server/stage1_checks.go` - `stage1Checks` holds the ordered Stage 1 validation table shared by the daemon and `JudgeDeclaration`, with no check yet for `ReadLeafPaths`
+- [ ] `pkg/plugin/sdk/config_tx.go` - provides transaction lifecycle helpers (`ConfigTx`), with no schema-bound typed `ConfigReader` accessor that records read leaf paths
+- [ ] `internal/le/doc/yangcontract/contract.go` - `contractSatisfied` checks orphan YANG command nodes, handlers, local handlers, and RPCs, but performs no check on YANG `notification` declarations
+- [ ] `internal/component/bgp/yang/ze-bgp-api.yang` and `internal/component/bgp/plugins/cmd/peer/yang/ze-peer-cmd.yang` - `ze-bgp-api.yang` still declares 3 stale RPC names (`peer-show` line 249, `peer-show-capabilities` line 306, `peer-show-statistics` line 340, referenced by `ze-peer-cmd.yang:97,116,133`, `schema_test.go:475`, `yang_test.go:131-132`) and 7 notifications whose descriptions state no producer emits them
+- [ ] `internal/component/bgp/config/bgp_routes_plugin.go`, `internal/component/bgp/config/bgp_routes.go`, and all 6 `internal/component/bgp/plugins/nlri/*/config.go` (`flowspec`, `vpls`, `mvpn`, `evpn`, `srpolicy`, `mup`) - `buildConfigRouteRequest` (lines 46-80) calls `applyAttributesFromTree` and `ParseRouteAttributes` (parsing `sr.Label`/`sr.Labels` into `parsed.Labels`) and silently discards them; none of the 6 plugin-registered families accepts `attribute { label / labels }` (`ipv4/nlri-mpls`, `ipv6/nlri-mpls`, `ipv4/mpls-vpn`, `ipv6/mpls-vpn` use the standard prefix path in `bgp_routes.go:178-220`)
+- [ ] `internal/component/config/environment.go` and `internal/component/config/apply_env.go` - `environment.go:108-120` registers the 7 promoted `environment/reactor` env vars under legacy keys only (`ze.fwd.chan.size`, `ze.fwd.batch.limit`, `ze.fwd.pool.maxbytes`, `ze.fwd.pool.headroom`, `ze.fwd.teardown.grace`, `ze.buf.read.size`, `ze.buf.write.size`) with no `ze.bgp.reactor.<leaf>` aliases, and `envPlumbingTable` (`apply_env.go:46-52`) plumbs `environment/reactor/<leaf>` only to those legacy keys
+- [ ] `internal/component/iface/yang/ze-iface-conf.yang`, `internal/component/iface/config.go`, `internal/plugins/iface/netlink/tunnel_linux.go`, and `internal/plugins/iface/vpp/vxlan.go` - `parseTunnelLeaves` (`config.go:863-870`) already parses `ttl` into `spec.TTL`/`spec.TTLSet`, but `container vxlan` (`ze-iface-conf.yang:1653`) omits `leaf ttl`, `buildVxlan` (`tunnel_linux.go:280-301`) does not copy `spec.TTLSet`/`spec.TTL` onto `netlink.Vxlan.TTL`, and VPP `VxlanAddDelTunnelV3` (`vxlan.go:46-53`) carries no TTL field (so VPP requires `ze:backend "kernel";` exact-or-refuse)
 
 **Behavior to preserve:**
-- Every config valid under its YANG loads with the same effect, except an owned inert leaf that is deleted, which is refused with a fix.
-- The peer selector stays positional (`request peer <selector> teardown`).
-- Command text operators type today keeps working where the YANG already declares it.
+- Existing Stage 2 `rpc.ConfigSection` JSON-string payload format stays backward-compatible for all external plugins in Go and other languages.
+- All valid existing configs continue loading with identical effect, except any genuinely inert leaf deleted under T-4 (which fails validation with an operator-facing fix) or `attribute { label / labels }` configured on one of the 6 plugin-registered families (which is now refused with an `opererr` instead of silently dropped). Standard labeled families (`ipv4/nlri-mpls`, `ipv6/nlri-mpls`, `ipv4/mpls-vpn`, `ipv6/mpls-vpn`) on the prefix path in `bgp_routes.go` stay untouched.
+- Root-level claim checks (`TestConfigSchemaRootsClaimed`, `TestConfigRootsPhantomClaims`, `doctor-config-root-unclaimed`) continue running unchanged beside the new leaf-level checks.
 
 **Behavior to change:**
-- A declared config leaf, rpc or notification with no consumer is refused at build time; at run time `ze doctor` names a configured node no running consumer reads.
-- A Go vocabulary that disagrees with its YANG enum is refused at build time.
-- Owned handlers read arguments by leaf name.
+- `pkg/plugin/sdk` gains `ConfigReader` typed accessors recording every schema-relative leaf path read, `rpc.DeclareRegistrationInput` gains optional `ReadLeafPaths` (`json:"read-leaf-paths,omitempty"`), and `stage1Checks` validates `ReadLeafPaths` bounds and control characters on both the daemon and `JudgeDeclaration`.
+- `TestConfigSchemaLeavesConsumed` and `TestConfigLeafPhantomReads` refuse any writable config leaf with no recorded reader (unless explicitly listed in `leaf_allowlist.json` with `path`, `reason`, and `owner`) and any phantom read path or stale allowlist entry.
+- `ze doctor` reports configured unread leaves under `doctor-config-leaf-unread` (covering compiled-out plugins, failed plugins, and external plugins declaring no `read-leaf-paths`).
+- `./le doc yang-contract command-contract` refuses any YANG `notification` with no registered producer (unless listed in `notification_allowlist.json` with `reason` and `owner` spec).
+- The 3 stale `ze-bgp-api` RPC names, `attribute { label / labels }` refusal on plugin-family config routes, the 7 `environment/reactor` env aliases, the `vxlan` `ttl` leaf (`ze:backend "kernel";`, `default 64;`) + `buildVxlan` netlink wiring, and remaining owned inert leaves are repaired.
 
 ## Existing Mechanisms (MANDATORY)
 
 | Mechanism | Where (file + symbol, or page + section) | What it does today | This spec (extends, replaces, or does not apply, with the reason) |
 |-----------|------------------------------------------|--------------------|-------------------------------------------------------------------|
-| Config claims gate | `config/claims/claims.go` `Audit`; `plugin/all/config_claims_test.go` `TestConfigSchemaRootsClaimed`, `TestConfigRootsPhantomClaims`; `claims/allowlist.json` | Every config root reaches a consumer; every declared root names a schema node | Extends (E): the same audit at leaf granularity, over the declaration T-2 chooses |
-| Unread-leaves report | `internal/le/config/unreadleaves` (`./le config unread-leaves report`) | Advisory string-literal heuristic | Extends or replaces (E), by T-2: it becomes the gate only if its signal stops being a text match |
-| Doctor root claim check | `doctor/checks_config_claims.go` `checkConfigClaims` (`doctor-config-root-unclaimed`) | Run-time report of a configured root delivered to nobody | Extends (E): run-time report at leaf granularity, covering a plugin compiled out, failed or external |
-| Plugin read declarations | `plugin/registry/registry.go` `Registration.ConfigRoots`, `ConfigReads`; `sdk.Registration` `WantsConfig` | Root-level declaration of what a plugin owns and reads | Extends (E), by T-2: the leaf-level declaration, if chosen, lives beside these |
-| YANG command contract | `le/doc/yangcontract/contract.go` `contractSatisfied` (`./le doc yang-contract command-contract`) | Refuses orphan nodes, handlers, local handlers and rpcs | Extends (E): adds the notification producer side; the rpc side already exists |
-| Argument binding | `command/argbind.go` `ValidateArgs`, `ValidatedArgs.Value`, `Keyed`, `Flag`, `PositionalTokens` | Judges the line against the model and answers each leaf by name | Extends (D): the owned handlers move onto it; no new accessor |
-| Argument extraction | `config/yang/command.go` `extractArgDefs`, `argDefFor`, `inheritArgDefs` | Builds `ArgDefs` from declared leaves, with `ze:help` and `description` | Extends (D): refuses a leaf declared on both the `-cmd` container and the rpc input |
-| Parameter schema | `buildParamMeta` (named by the 2026-09-15 `argument-leaf-declared-on-container-and-rpc-input.md` row) | Builds API parameters from the rpc input | Extends or replaces (D): one of the two producers derives from the other, chosen at design |
-| Enumeration gate | `le/arch/enumeration/corpus.go` `yangEnumerations` (`./le arch enumeration check`) | Refuses a Go literal that copies a whole YANG enum value set | Extends (F): a table that maps a YANG enum leaf is judged for agreement in both directions |
-| Enum agreement tests | `bgp/reactor/yang_enum_agreement_test.go` | Per-package tests of named Go tables against the model | Replaces (F): one generic agreement check over every declared mapping, so a new table needs no new test |
-| Filter insertion paths | `config.CheckFilterInsertionPaths` | Refuses a declared insertion condition that names no compiled schema node | Does not apply: already judges its own declarations; a model for the phantom check (E) |
-| Validator section coverage | `config/validate_sections.go` `ValidatorSectionCoverage`, `CheckAllValidatorsRegistered` | Validator reach and existence | Does not apply: piece B (`spec-validation-walks-every-schema-section`) |
-| Listener port table gate | `./le config ports check` | Listener defaults against YANG refines | Does not apply: piece C (`spec-yang-defaults-applied-once`) |
+| Config root claims gate | `internal/component/config/claims/claims.go` `Audit`, `AuditConfigured`; `allowlist.json`; `internal/component/plugin/all/config_claims_test.go` | Verifies every writable config root reaches a plugin or hub handler, refuses phantom claims and stale/reasonless allowlist entries | Extends: adds leaf-granularity `AuditLeaves`, `AuditConfiguredLeaves`, `leaf_allowlist.json`, `TestConfigSchemaLeavesConsumed`, and `TestConfigLeafPhantomReads` |
+| Unread-leaves report | `internal/le/config/unreadleaves/yangleafmentions.go` (`./le config unread-leaves report`) | Advisory string-literal grep heuristic that always exits 0 | Replaces: repoints onto `claims.AuditLeaves` so the CLI report and the build gate share one exact signal |
+| Doctor config claim check | `internal/component/doctor/checks_config_claims.go` `checkConfigClaims` (`doctor-config-root-unclaimed`) | Reports configured roots delivered to no running plugin or handler | Extends: adds `doctor-config-leaf-unread` for configured leaves read by no running consumer (compiled-out, failed, or external) |
+| Plugin config delivery, transactions & Stage 1 checks | `pkg/plugin/rpc/types.go` `DeclareRegistrationInput`, `ConfigSection`; `pkg/plugin/sdk/config_tx.go` `ConfigTx`; `internal/component/plugin/server/stage1_checks.go` `stage1Checks` | Delivers root-scoped JSON-string sections at Stage 2, validates Stage 1 declarations in one table shared by the daemon and `JudgeDeclaration`, and manages verify/apply/rollback transactions | Extends: adds `sdk.ConfigReader` typed leaf accessors with path recording over `ConfigSection`, optional `ReadLeafPaths` on `DeclareRegistrationInput`, and a `read-leaf-paths` entry in `stage1Checks` |
+| VXLAN tunnel parsing, netlink builder & VPP backend | `internal/component/iface/config.go` `parseTunnelLeaves`; `internal/plugins/iface/netlink/tunnel_linux.go` `buildVxlan`; `internal/plugins/iface/vpp/vxlan.go` `createVxlanTunnel` | `parseTunnelLeaves` already parses `ttl` into `spec.TTL`/`spec.TTLSet`; `buildVxlan` builds `netlink.Vxlan` without setting `TTL`; VPP `VxlanAddDelTunnelV3` has no TTL field | Extends: adds `leaf ttl` (`ze:backend "kernel";`, `default 64;`) to `container vxlan` in `ze-iface-conf.yang` and wires `spec.TTLSet`/`spec.TTL` into `buildVxlan` so kernel sets `netlink.Vxlan.TTL` while VPP refuses `vxlan/ttl` at verify |
+| Plugin-family config route dispatcher | `internal/component/bgp/config/bgp_routes_plugin.go` `buildConfigRouteRequest`; `internal/component/plugin/registry/registry.go` `ConfigRouteRequest` | Encodes generic attributes centrally and passes only NLRI tokens, next hop, and extended communities to the 6 `InProcessConfigRouteParser` families; currently drops `sr.Label`/`sr.Labels` | Extends: refuses configured `attribute { label / labels }` in `buildConfigRouteRequest` with `opererr` naming the family and fix while preserving `ConfigRouteRequest` unchanged |
+| Reactor environment variable registration & plumbing | `internal/component/config/environment.go`; `internal/component/config/apply_env.go` `envPlumbingTable` | Registers and plumbs the 7 `environment/reactor` forward/buffer leaves under legacy `ze.fwd.*`/`ze.buf.*` keys only | Extends: registers the 7 canonical `ze.bgp.reactor.<leaf>` keys with legacy `Aliases` in `environment.go` and plumbs them in `apply_env.go` with OS-env precedence over either spelling |
+| YANG command contract gate | `internal/le/doc/yangcontract/contract.go` `contractSatisfied` (`./le doc yang-contract command-contract`) | Refuses orphan YANG command nodes, handlers, local handlers, and RPCs | Extends: adds YANG `notification` producer checking with temporary recorded `notification_allowlist.json` |
+| Already-landed T-4 fixes in HEAD | `rpki/cache-server/preference` (`rpki/rpki.go` `startSessions`), `update/watchdog/withdraw` (`eb084a4b99`), `ze-plugin:session-ping` (fixed 2026-09-15), `ddos/flowtriq/api-key` + `bfd/enabled` + `static/table/route/tag` + 3 ddos timers, `fib/kernel/{flush-on-stop,sweep-delay}`, `ospf/reference-bandwidth`, `bmp/route-action` (`fa74dc4c00`), `isis` timers | Already wired and tested at HEAD (`update/watchdog/withdraw` row 2026-09-03 already marked `fixed:` in journal) | Does not apply (already fixed): retired from open work; remaining open journal rows for already-fixed items (`rpki/cache-server/preference`, `ze-plugin:session-ping`, `ddos/flowtriq/api-key` row) verified and flipped to `fixed:` at closure |
+| Sibling pieces D, F, and companion T-4 specs | `spec-yang-command-arguments-by-leaf-name.md` (D), `spec-yang-enum-vocabulary-agreement-gate.md` (F), `spec-software-version-mode-implements-two-of-four.md` (`software-version/mode`), `spec-bgp-rib-state-subtree-has-no-producer.md` (`adj-rib-*`), `spec-bgp-api-notification-producers.md` (7 notifications), `spec-ipsec-remote-access.md` (`remote-access`) | Own command argument binding, enum agreement, `software-version/mode`, `adj-rib-*`, notification producers, and IPsec `remote-access` | Does not apply: owned by those specs and cited as owners in temporary allowlist entries where deferred |
+
+## Design documents
+
+| Document | Section | Derived from | Binding statement | Verdict | How this design stands against it |
+|----------|---------|--------------|-------------------|---------|-----------------------------------|
+| `ai/doors/system.md` | One schema, one command registry, every interface | the door every change reads; the door covering `internal/component/doctor/checks_config_claims.go` | "A backend that cannot apply a config exactly refuses it at verify. It never approximates" | agrees | Enforces that every writable YANG leaf has a real consumer or explicit allowlisted owner, every YANG RPC/notification has a handler/producer, and `vxlan` `ttl` carries `ze:backend "kernel";` so VPP refuses it at verify instead of silently ignoring it |
+| `docs/architecture/api/ipc_protocol.md` | Overview | the // Design: page of `pkg/plugin/rpc/types.go`; anchored to `types.go`, `startup.go`, `ze-bgp-api.yang` | - | silent | Covers newline-framed IPC wire framing; adding optional `read-leaf-paths` (`omitempty`) to Stage 1 JSON keeps framing unchanged |
+| `docs/architecture/api/commands.md` | Overview | the // Design: page of `types.go`, `startup.go`; anchored to `ze-bgp-api.yang`, `ze-peer-cmd.yang` | - | silent | Covers verb-first command dispatch; renaming the 3 stale `ze-bgp-api.yang` RPCs aligns the API module with existing live command paths |
+| `docs/architecture/api/architecture.md` | Implementation Status | anchored to `pkg/plugin/rpc/types.go` | - | silent | Covers bus participant wiring; unaffected by optional Stage 1 `read-leaf-paths` and `sdk.ConfigReader` |
+| `docs/architecture/api/process-protocol.md` | Overview | anchored to `types.go`; the // Design: page of `startup.go`; a page this spec modifies | "The protocol is the same for all invocation modes (internal goroutine, external subprocess)." | agrees | Optional Stage 1 `read-leaf-paths` and `sdk.ConfigReader` over unchanged Stage 2 JSON strings work identically for internal and forked plugins, and this page is updated |
+| `docs/architecture/api/wire-format.md` | Transport | anchored to `types.go`, `contract.go`, `ze-bgp-api.yang` | - | silent | Covers transport wire format; unchanged by optional JSON `read-leaf-paths` or notification contract checking |
+| `docs/architecture/config/apply-ordering.md` | The requirement | anchored to `pkg/plugin/rpc/types.go` | - | silent | Covers config apply ordering across plugins; unaffected by `sdk.ConfigReader` leaf recording |
+| `docs/architecture/config/transaction-protocol.md` | 1. Design Principles | anchored to `pkg/plugin/rpc/types.go`, `internal/component/plugin/server/startup.go` | - | silent | Covers verify/apply/rollback config transactions; `sdk.ConfigReader` reads inside existing callbacks without changing transaction phases |
+| `docs/architecture/core-design.md` | Command engine and composition roots | anchored to `types.go`; the // Design: page of `internal/le/doc/yangcontract/contract.go` | - | silent | Covers core component boundaries and le/ze personality split; `yangcontract` notification checking stays inside `internal/le` |
+| `docs/architecture/doctor-and-health-checks.md` | The runtime phase: checks only the daemon runs | anchored to `types.go`, `startup.go`; a page this spec modifies | "Some readiness facts exist only in the running daemon" | agrees | `doctor-config-leaf-unread` reports configured leaves unread by running/external plugins and is documented in this page |
+| `docs/architecture/firewall/firewall-irr.md` | Decisions | anchored to `pkg/plugin/rpc/types.go` | - | silent | Covers firewall IRR prefix sets; untouched by Stage 1 `read-leaf-paths` |
+| `docs/architecture/forked-route-install.md` | The wire carries a name, the engine resolves it | anchored to `pkg/plugin/rpc/types.go` | - | silent | Covers forked route installation RPC; untouched by Stage 1 `read-leaf-paths` |
+| `docs/architecture/plugin-manager-wiring.md` | Stage 1 Registration: Config Transaction Fields | anchored to `pkg/plugin/rpc/types.go`; a page this spec modifies | "Stage 1 (`declare-registration`) includes fields for the config transaction protocol:" | agrees | Optional Stage 1 `read-leaf-paths` (`[]string`, `omitempty`) sits beside `wants-config` on `DeclareRegistrationInput` and is documented in this section's table |
+| `docs/architecture/plugin/plugin-system.md` | One table of Stage 1 checks, and the conformance checker | anchored to `pkg/plugin/rpc/types.go`, `internal/component/plugin/server/startup.go`; the // Design: page of `internal/component/plugin/server/stage1_checks.go` | "The checks a Stage 1 declaration must pass are one ordered table, `stage1Checks` in `internal/component/plugin/server/stage1_checks.go`." | agrees | Adds the `read-leaf-paths` count/length/control-character check to `stage1Checks` (so daemon and `JudgeDeclaration` agree), keeps `InProcessConfigRouteParser` unchanged (NLRI tokens, next hop, extended communities), and keeps `sdk.ConfigReader` generic |
+| `docs/architecture/system-architecture.md` | Overview | anchored to `pkg/plugin/rpc/types.go` | - | silent | High-level system architecture; untouched by leaf-level config claim checks |
+| `docs/architecture/update-cache.md` | Purpose | anchored to `pkg/plugin/rpc/types.go` | - | silent | Covers BGP UPDATE cache consumers; untouched by Stage 1 `read-leaf-paths` |
+| `docs/architecture/wire/nlri.md` | TL;DR (Read This First) | anchored to `pkg/plugin/rpc/types.go` | - | silent | Covers NLRI wire encoding; untouched by Stage 1 `read-leaf-paths` |
+| `ai/doors/plugin-infra.md` | Boundaries | the door covering `pkg/plugin/rpc/types.go`, `startup.go`, `config_claims_test.go`, `schema_test.go`, `pkg/plugin/sdk/config_reader.go` | "The SDK stays generic." | agrees | `sdk.ConfigReader` is a generic schema-bound reader over Stage 2 JSON-string sections with zero plugin-specific types or imports |
+| `docs/architecture/cli/command-completion.md` | The producers | anchored to `internal/component/plugin/server/startup.go` | - | silent | Covers CLI tab completion; unaffected by storing `ExternalReadLeafPaths` at Stage 1 |
+| `docs/architecture/firewall/table-ownership-and-shutdown-flush.md` | Rule 1: the backend loads on demand | anchored to `internal/component/plugin/server/startup.go` | - | silent | Covers nft table ownership; untouched by Stage 1 `read-leaf-paths` |
+| `docs/architecture/hub-architecture.md` | Overview | anchored to `startup.go`, `checks_config_claims.go`, `apply_env.go` | - | silent | Covers daemon boot orchestration; untouched by leaf claim diagnostics or env aliases |
+| `docs/architecture/ike/ipsec-7-ikev2-engine.md` | Decisions | anchored to `internal/component/plugin/server/startup.go` | - | silent | Covers IKEv2 engine; `remote-access` stays allowlisted under `spec-ipsec-remote-access.md` per T-4/T-5 |
+| `docs/architecture/l2tp/cpe-1-pppoe-client.md` | Decisions | anchored to `internal/component/plugin/server/startup.go` | - | silent | Covers PPPoE client; untouched by Stage 1 `read-leaf-paths` |
+| `docs/architecture/config/yang-config-design.md` | Claim Completeness Gate | the // Design: page of `claims.go`, `yangleafmentions.go`, `checks_config_claims.go`; anchored to `config_claims_test.go`, `ze-bgp-api.yang`, `ze-iface-conf.yang`; a page this spec modifies | "Validation says a config value is well formed." | agrees | Extends this section to document leaf-granularity `claims.AuditLeaves`, `leaf_allowlist.json`, `sdk.ConfigReader`, and `doctor-config-leaf-unread` |
+| `ai/doors/config-yang.md` | Who depends on it from outside | the door covering `claims.go`, `apply_env.go`, `leaf_allowlist.json`; a page this spec modifies | "Its config at Stage 2 as `rpc.ConfigSection` (a root plus a JSON body), every value a JSON string, a removed root as `{}`" | agrees | Preserves the Stage 2 JSON-string wire contract while layering `sdk.ConfigReader` on top, adds leaf-level claims, and updates this door's Gates/Traps |
+| `ai/doors/le-tooling.md` | Where it sits | the door covering `yangleafmentions.go`, `contract.go`, `notification_allowlist.json`, `test/plugin/doctor-config-leaf-unread.ci` | "`le` is allowed to link the product root `internal/component/plugin/all`" | agrees | `unreadleaves` and `yangcontract` stay inside `internal/le` reading product registries and YANG modules in the allowed direction |
+| `docs/architecture/api/update-syntax.md` | Overview | anchored to `internal/component/bgp/yang/ze-bgp-api.yang` | - | silent | Covers UPDATE text syntax; renaming 3 peer inspection RPCs in `ze-bgp-api.yang` does not touch UPDATE syntax |
+| `ai/doors/bgp-engine.md` | Where it sits | the door covering `ze-bgp-api.yang`, `bgp_routes_plugin.go`, `bgp_routes_plugin_test.go` | "The engine speaks the protocol and holds no policy." | agrees | Refuses configured `attribute { label / labels }` on all 6 `InProcessConfigRouteParser` plugin families with `opererr` without adding plugin imports to the engine or changing `ConfigRouteRequest` |
+| `docs/architecture/cli/command-verbs.md` | The axis: does the command change the system | anchored to `internal/component/bgp/plugins/cmd/peer/yang/ze-peer-cmd.yang` | - | silent | Updating `ze:rpc` targets on `show bgp peer detail/capabilities/statistics` preserves all CLI verbs and paths |
+| `ai/doors/bgp-plugins.md` | Where it sits | the door covering `internal/component/bgp/plugins/cmd/peer/yang/ze-peer-cmd.yang` | "Every one can run in another process." | agrees | Updating `ze:rpc` pointers on `ze-peer-cmd.yang` aligns `-cmd` with `ze-bgp-api.yang` without changing process boundaries |
+| `ai/doors/core.md` | Boundaries | the door covering `internal/core/ipc/yang_test.go` | "Never import upward." | agrees | Updating expected RPC names in `internal/core/ipc/yang_test.go` adds zero upward imports |
+| `docs/architecture/update-building.md` | Path 1: Build Path (Local Origination) | the // Design: page of `internal/component/bgp/config/bgp_routes_plugin.go`; anchored to `bgp_routes_plugin.go`, `bgp_routes_plugin_test.go`; a page this spec modifies | "The plugin receives only the NLRI tokens, the next hop and the extended communities, which a family reads as input (FlowSpec actions, EVPN's merged set). The load refuses a route whose plugin does not emit configured extended communities, an attribute both halves wrote (RFC 4271 Section 6.3), and a generic AS_PATH holding a set (RFC 9774 Section 3), so no configured attribute is lost in silence." | agrees | Preserves `ConfigRouteRequest` (only NLRI tokens, next hop, extended communities) because none of the 6 plugin families accepts `attribute { label / labels }`, adds an `opererr` refusal in `buildConfigRouteRequest` so configured attribute labels are never lost in silence, and updates this paragraph |
+| `docs/architecture/config/syntax.md` | TL;DR (Read This First) | the // Design: page of `internal/component/config/apply_env.go` | - | silent | Covers config file grammar; adding canonical `ze.bgp.reactor.<leaf>` env aliases for `environment/reactor` in `environment.go` and `apply_env.go` keeps config file syntax unchanged |
+| `docs/architecture/config/environment-block.md` | Sections | anchored to `internal/component/config/apply_env.go`; a page this spec modifies | "`ze.bgp.reactor.*` / `ze.fwd.*` / `ze.buf.*`" | agrees | Registers the 7 missing canonical `ze.bgp.reactor.<leaf>` env aliases in `environment.go` and plumbs `environment/reactor/<leaf>` (`environment { reactor { ... } }`) in `apply_env.go`, updating this table to reflect that all 11 `reactor` leaves have canonical `ze.bgp.reactor.*` keys |
+| `docs/architecture/config/environment.md` | Overview | anchored to `internal/component/config/apply_env.go`, `internal/component/config/environment.go`; a page this spec modifies | "Each YANG `environment/<section>/<option>` leaf also has a matching env var so the operator can override it at runtime." | agrees | Registers and honors the 7 missing canonical `ze.bgp.reactor.<leaf>` env aliases beside legacy short keys for `environment/reactor/<leaf>` and documents them on this page |
+| `docs/architecture/diagnostics/path-mtu.md` | The module is removable | anchored to `internal/component/config/apply_env.go` | - | silent | Covers `show mtu`; untouched by `environment/reactor` env aliases |
+| `docs/architecture/iface/management.md` | Two layers, not one flat list | anchored to `internal/component/iface/yang/ze-iface-conf.yang` | - | silent | Covers interface management layering; adding `leaf ttl` (`ze:backend "kernel";`, `default 64;`) to `vxlan` in `ze-iface-conf.yang` and wiring `buildVxlan` stays within the existing tunnel layer |
+| `docs/architecture/iface/offload.md` | Absence means "keep the OS default" | anchored to `internal/component/iface/yang/ze-iface-conf.yang` | - | silent | Covers interface offload flags; untouched by adding `vxlan` `ttl` |
+| `docs/architecture/iface/vlan-qos-map.md` | Decision: two maps, because the kernel has two | anchored to `internal/component/iface/yang/ze-iface-conf.yang` | - | silent | Covers VLAN QoS maps; untouched by adding `vxlan` `ttl` |
+| `ai/doors/forwarding.md` | Who depends on it from outside | the door covering `internal/component/iface/yang/ze-iface-conf.yang`, `vxlan_ttl_test.go`, `internal/plugins/iface/netlink/tunnel_linux.go`, `tunnel_vxlan_build_linux_test.go` | "The YANG schema. A node a backend cannot implement carries `ze:backend`, and the commit refuses it with the YANG path (`core-design.md`, section 14a)" | agrees | Exposes `vxlan` `leaf ttl` with `ze:backend "kernel";` and `default 64;` (matching sibling IPv4-underlay tunnels) so VPP (whose `VxlanAddDelTunnelV3` has no TTL field) refuses it exact-or-reject at verify, and wires `spec.TTLSet`/`spec.TTL` into `buildVxlan` (`netlink.Vxlan.TTL`) |
+| `docs/plugin-development/protocol.md` | Wire Format | a page this spec modifies | "Every message is a single newline-terminated line:" | agrees | Preserves newline-framed Stage 1/Stage 2 JSON wire format, adds optional `read-leaf-paths` (`omitempty`) to Stage 1, and documents `sdk.ConfigReader` on this page |
+| `docs/architecture/api/commands.md` | Design decisions | decision of 2026-08-21 | "The pipe wins: a command path names the subject and stops; scope, presentation and format are pipe operations after it, selector words included" | agrees | Does not add scope, presentation, or format command arguments |
+| `docs/architecture/api/commands.md` | Design decisions | decision of 2026-11-20 | "A command may override any generic pipe operation that acts on its data, as long as the answer keeps the generic's data format: every data operator of the catalog is overridable, each held to its generic's answer shape; a format, paging, `save` and `log` are the data format or its display, and stay the generic's. In Thomas's words: "I believe it should be possible to overwrite more command as long as their data format is not changed."" | agrees | Does not modify pipe operation overrides |
+| `docs/architecture/api/commands.md` | Design decisions | decision of 2026-11-23 | "A pipe operation works on the answer of the command before it. It may narrow the answer, extend it, transform it, or deliver it somewhere, such as saving it to a file. It never changes what the command does" | agrees | Does not alter pipe behavior |
+| `docs/architecture/api/architecture.md` | Design decisions | decision of 2026-11-23 | "When `\| implied` modifies an existing config line (such as inserting automatic members into a `filters [ ... ];` list), it keeps the line intact and places an inline `# implied: ...` comment on the same line after the statement naming what was added and why, rather than placing a comment only above the line or splitting the list across multiple lines. In Thomas's words (2026-11-23): "No, it should be on the same line and say what was added"." | agrees | Does not touch `\| implied` config rendering |
+| `docs/architecture/api/architecture.md` | Design decisions | decision of 2026-11-23 | "Everything on the bus is a participant named by its configuration path. A participant registers the messages it sends and receives, events and commands alike, and with nothing written that registration is what runs" | agrees | Does not touch bus participant registration |
+| `docs/architecture/api/architecture.md` | Design decisions | decision of 2026-11-23 | "A `send > to` list written on a participant replaces the destinations its messages have by registration; it never adds to them. Present and empty means nobody" | agrees | Does not touch `send > to` routing |
+| `docs/architecture/api/architecture.md` | Design decisions | decision of 2026-11-23 | "A `receive > from` list limits who may address a participant. Absent means everybody; present and empty means nobody" | agrees | Does not touch `receive > from` routing |
+| `docs/architecture/api/architecture.md` | Design decisions | decision of 2026-11-23 | "A send and a receive allow-list of message names (`send > allow`, `receive > allow`) exist on every participant: absent means everything declared, empty means nothing. The bus enforces them when it receives the message" | agrees | Does not touch bus allow-lists |
+| `docs/architecture/api/architecture.md` | Design decisions | decision of 2026-11-23 | "What is written on the participant and what is written in the `bus` section compile into one filter per participant. A disagreement between the two places, or between an allow-list and a destination on one participant, is refused at commit naming both lines" | agrees | Does not touch bus filter compilation |
+| `docs/architecture/api/architecture.md` | Design decisions | decision of 2026-11-23 | "The bus does not arbitrate between participants: no exclusive-role rule, no commit refusal and no silent winner. A plugin that must not duplicate another limits itself" | agrees | Does not touch bus arbitration |
+| `docs/architecture/api/architecture.md` | Design decisions | decision of 2026-11-23 | "One display shows every registered default beside what the operator wrote, the defaults a written list replaced, and the line that produced each effective entry" | agrees | Does not touch bus defaults display |
+| `docs/architecture/api/process-protocol.md` | Design decisions | decision of 2026-11-23 | "Every engine operation names the message it carries or `none` with a reason, and a plugin identity is authorized by a profile compiled from its filter" | agrees | Optional `read-leaf-paths` stays on existing Stage 1 `declare-registration` without adding an unauthorized engine operation |
+| `docs/architecture/api/process-protocol.md` | Design decisions | decision of 2026-11-25 | "Engine-to-plugin event delivery never drops events on queue overflow; endpoints expect every subscribed network event losslessly" | agrees | Does not touch event delivery queues |
+| `docs/architecture/core-design.md` | Design decisions | decision of 2026-11-23 | "A commit fails when it configures a feature that programs only the Linux kernel, or that reads only what the Linux kernel sees of the traffic, while the interfaces run on VPP. Two host-side uses stay accepted, so that mixed setups remain possible once VRFs are added: a `fib kernel` block beside a `fib vpp` block, which programs the Linux route table for the router's own traffic, and `sysctl`, which sets the Linux kernel's own tunables. A `fib kernel` block with no `fib vpp` block beside it is refused, for now." | agrees | Does not alter kernel/VPP feature gating |
+| `docs/architecture/core-design.md` | Design decisions | decision of 2026-11-23 | "A configuration that holds such a mismatch is refused at daemon start as well as at commit, reload and `ze config validate`, by one verdict that is the same at each." | agrees | Does not alter data-plane mismatch verdicts |
+| `docs/architecture/core-design.md` | Design decisions | decision of 2026-11-23 | "The VPP firewall verifier, not a YANG annotation, decides whether `connection-state` and `mark-set` are accepted on VPP. The `ze:backend` annotation of `flow-offload` is deleted with theirs; `flow-offload` stays refused on VPP because VPP has no flowtable and the `flowtable` list keeps its `ze:backend "kernel"` annotation." | agrees | Unrelated to VPP firewall verification |
+| `docs/architecture/core-design.md` | Design decisions | decision of 2026-11-23 | "Every data-plane selector names the plane it programs, `kernel` or `vpp`: `interface backend`, `firewall backend` and `traffic control backend` take `kernel` where they took `netlink`, `nft` and `tc`, and each defaults to `kernel`; the `fib` blocks already name `kernel` and `vpp`. The plane a registration declares and the value a `ze:backend` annotation names are the same word. A second implementation on the same plane, such as eBPF, takes a value of its own when it exists. In Thomas's words (voice-transcribed): "should tc and netfilter be renamed to kernel? so we have vpp and kernel?", then "please do it"." | agrees | Does not touch data-plane selector naming |
+| `docs/architecture/core-design.md` | Design decisions | decision of 2026-11-23 | "BGP egress next-hop rewriting belongs exclusively in the export filter chain, not under session configuration (`session { next-hop }`). Ze automatically appends `next-hop auto` at the end of the export chain when no earlier export filter has already set a next-hop outcome (`self`, `unchanged`, or an explicit address), so ordinary eBGP rewrites to self while iBGP and route-server clients preserve the received next hop. In Thomas's words (voice-transcribed): "I would think that all the rewrite should be in the prefix export and not under configuration. I believe we should automatically add to the export prefix list the auto at the end of the list if not defined with something else. So if no one, for example, used a self or unchanged, we should automatically change it on eBGP. Because otherwise we have two ways to modify packets on the way out to the peer.", then "Unify into the export chain it is the way I want it."" | agrees | Does not touch egress next-hop policy |
+| `docs/architecture/core-design.md` | Design decisions | decision of 2026-11-23 | "Egress export chains configure next-hop rewriting through one underlying `policychain.Sets` next-hop intent exposed in two authoring forms: `policy { modify <name> { set { next-hop self \| unchanged \| auto \| <ip>; } } }` for matched/conditional rules, and built-in chain references `next-hop:self`, `next-hop:unchanged`, and `next-hop:auto` for peer-wide policy without a wrapper `modify` block. Selected by Thomas on 2026-11-23 ("Option A: Extend policy modify (self\|unchanged\|auto\|<ip>) AND provide built-in next-hop:self / next-hop:unchanged / next-hop:auto chain refs")." | agrees | Does not touch export chain next-hop authoring |
+| `docs/architecture/core-design.md` | Design decisions | decision of 2026-11-23 | "Built-in `next-hop:auto`, `next-hop:self`, and `next-hop:unchanged` are BGP engine steps compiled into `policychain.Chain` (parallel to `loop-detection`), never external plugin RPCs or a `pkg/plugin/rpc.FilterInsertion` tail extension. Config loading appends `next-hop:auto` at the tail of every export chain unless an unconditional `next-hop:self`, `next-hop:unchanged`, or `next-hop:auto` is already present, leaving `Policy.Configured()` false for unconfigured chains; operators override via `next-hop:unchanged`, and `inactive:next-hop:auto` is refused. Selected by Thomas on 2026-11-23 ("Option A: Built-in BGP engine step appended at config compile time (like loop-detection; zero RPC; override via next-hop:unchanged, no inactive:next-hop:auto)")." | agrees | Does not touch `policychain.Chain` |
+| `docs/architecture/core-design.md` | Design decisions | decision of 2026-11-23 | "Within an export chain, explicit next-hop sets (`self`, `unchanged`, `auto`, or an IP address) use standard last-write-wins folding while the auto-appended trailing `next-hop:auto` acts only when next-hop is still unset. For a whole-UPDATE raw override (`wireOverride`), Ze compares each emitted next-hop field against the received UPDATE (matching `forward_med.go` provenance): trailing `auto` is skipped only when the raw override changed the next-hop bytes or an earlier chain member already selected `unchanged`/`self`/explicit. Selected by Thomas on 2026-11-23 ("Option A: Provenance check on raw overrides (like MED): skip trailing auto only when the raw override changed the next-hop bytes or an earlier member set unchanged/self")." | agrees | Does not touch export chain folding |
+| `docs/architecture/core-design.md` | Design decisions | decision of 2026-11-23 | "Explicit next-hop addresses in `policy { modify <name> { set { next-hop <ip>; } } }` and `policychain.Sets.NextHop` support both IPv4 (attr 3) and IPv6/MP_REACH (through `NextHopProfile` and `ValidatePeerGlobalNextHop`) on both export and import chains. Egress-only next-hop modes (`self`, `unchanged`, `auto`), whether written as built-in `next-hop:*` refs or inside `policy { modify }`, are refused on import chains at config load. Selected by Thomas on 2026-11-23 ("Option A: Support IPv4 + IPv6/MP_REACH for explicit next-hop on both export and import; refuse self/unchanged/auto on import at config load")." | agrees | Does not touch `policychain.Sets.NextHop` |
+| `docs/architecture/core-design.md` | Design decisions | decision of 2026-11-23 | "Auto-appended trailing `next-hop:auto` applies only to forwarded routes and preserves the originator-chosen next hop on locally originated routes (static config routes, ExaBGP `announce`, API announcements). Explicit export-chain next-hop actions (`next-hop:self`, `modify { set { next-hop ... } }`) apply uniformly to both forwarded and locally originated routes. Selected by Thomas on 2026-11-23 ("Option A: Trailing next-hop:auto applies to forwarded routes only (preserves static/ExaBGP/API explicit next-hop); explicit next-hop:self / modify next-hop applies to both forwarded and originated routes")." | agrees | Does not touch route origination next-hop handling |
+| `docs/architecture/core-design.md` | Design decisions | decision of 2026-11-23 | "Every automatic filter-chain member Ze inserts — both built-in BGP engine steps (`next-hop:auto` at the export tail, `loop-detection` at the import head) and plugin-declared `FilterInsertions` — is published through one queryable implied-filter seam carrying direction, position, reference and `implied-by` reason so `\| implied` displays every extra chain member alongside the operator's written filter list. In Thomas's words (2026-11-23): "Can you make sure that \| implied show the extra chain members when it displays the filter ?"." | agrees | Does not touch implied filter publication |
+| `docs/architecture/core-design.md` | Design decisions | decision of 2026-11-26 | "Ze always starts. The configuration of one service never makes `ze start` exit or refuse to start: a service whose configuration cannot be served is not started, ze runs with its other services, and the service is reported with its fix by an error line in the log under a doctor code and by `ze doctor` under the same code. Examples are a web certificate name that does not resolve, a looking-glass `server` entry with no certificate to present, and a looking-glass address list that does not parse. Where a service has several endpoints, only the endpoint that cannot be served stays down and the others serve. A reload whose config cannot be served stays refused as a whole, and the running services keep what they serve. In Thomas's words (voice-transcribed): "we should never not start ze as if we can not bring networking we can not fix things like web cert and the like so the only good answer is to disable the service badly configured and not start it"; asked about a reload, "reload stay refused"; asked "Should only that endpoint stay down while the others serve", "yes". The reason is that a daemon that does not start brings up no networking, so the operator cannot reach the box to correct it." | agrees | Unread leaves are judged at build time and reported by `ze doctor` (`doctor-config-leaf-unread`), never refusing `ze start` |
+| `docs/architecture/core-design.md` | Design decisions | decision of 2026-11-26 | "The rule of 2026-11-23 above, that a configuration which holds a feature that programs only the Linux kernel while the interfaces run on VPP "is refused at daemon start", is superseded for the start: ze starts, that feature stays off, and `ze doctor` reports the mismatch with its fix. A commit, a reload and `ze config validate` still refuse such a configuration, by the same verdict as before. Thomas was asked whether the rule that ze always starts replaces the refusal at start, "(a) yes, ze starts, that feature stays off and ze doctor reports the mismatch, while commit and reload still refuse it; (b) no", and answered "2a" (voice-transcribed). The reason is the one of the row above: a daemon that does not start brings up no networking, so the operator cannot reach the box to correct the mismatch." | agrees | Consistent with startup availability: `ze doctor` reports unread configured leaves at runtime without preventing boot |
+| `docs/architecture/plugin/plugin-system.md` | Design decisions | decision of 2026-11-23 | "With no daemon running, a command that parses a config starts each declared external program in query mode, never its run loop, and validates against its declaration" | agrees | Optional `read-leaf-paths` is carried inside the same pure Stage 1 declaration emitted in query mode |
+| `docs/architecture/update-building.md` | Design decisions | decision of 2026-11-23 | "Gate draft-simpson 0x0800 FlowSpec MP_REACH next-hop emission behind an explicit per-session opt-in (`session { flowspec-redirect-next-hop true; }`, default `false`), written automatically by `ze exabgp migrate` when a migrated neighbor uses Simpson actions or serves an API process on a FlowSpec family" | agrees | Does not touch FlowSpec redirect next-hop emission |
+| `docs/features/interfaces.md` | Outer-header TTL | the // Design: page of `internal/plugins/iface/netlink/tunnel_linux.go`; a page this spec modifies | "64 is the default because inherit blackholes a multi-hop underlay." | agrees | Brings `vxlan` into exact agreement with this section (`ze:backend "kernel";`, `default 64;`, wired into `buildVxlan`, refused on VPP at verify) and updates the `vxlan` row and anchors on this page |
+| `docs/features/interfaces.md` | Design decisions | decision of 2026-11-22 | "`ze init` claims every discovered device by default, including the ones another program owns. `ze init --confirm` asks about each discovered device and writes only the ones the operator confirms" | agrees | Does not touch `ze init` device discovery |
+| `docs/features/interfaces.md` | Design decisions | decision of 2026-11-22 | "`ze init --confirm` takes only an explicit answer: `yes`, `y`, `no` or `n`. Anything else, an empty line included, is not accepted, and the same device is asked again" | agrees | Does not touch `ze init --confirm` prompting |
 
 ## Data Flow (MANDATORY - see `ai/rules/architecture.md`)
 
 ### Entry Point
-- Build: the compiled schema and the registries a test binary links.
-- Run time: `ze doctor` over the running config.
-- Commands: CLI text, web form, MCP tool, REST.
+- Build-time gate: `TestConfigSchemaLeavesConsumed` and `TestConfigLeafPhantomReads` in `internal/component/plugin/all/config_claims_test.go`, `./le config unread-leaves report`, and `./le doc yang-contract command-contract`.
+- Runtime inspection: `ze doctor` (`internal/component/doctor/checks_config_claims.go` `checkConfigClaims`).
+- Plugin config parsing & startup: Stage 1 `declare-registration` (`ReadLeafPaths`, validated in `internal/component/plugin/server/stage1_checks.go`) and Stage 2 `ConfigSection` parsed via `sdk.ConfigReader`.
+- Config loading & interface backend: `internal/component/bgp/config/bgp_routes_plugin.go` (`buildConfigRouteRequest`), `internal/component/config/environment.go` + `internal/component/config/apply_env.go` (`ApplyEnvConfig`), and `ze-iface-conf.yang` (`vxlan` `ttl`) → `parseTunnelLeaves` → `internal/plugins/iface/netlink/tunnel_linux.go` (`buildVxlan`).
 
 ### Transformation Path
-1. E: a gate loads the schema, collects every config leaf, rpc and notification, and the consumers the registries declare; it refuses a node with no consumer and a declaration naming no node.
-2. E: `ze doctor` compares the configured nodes with what the running consumers declare.
-3. F: for each Go vocabulary declared as mapping a YANG enum leaf, the gate compares both value sets.
-4. D: the dispatcher judges the line (`ValidateArgs`); the handler reads each leaf by name.
+1. Each plugin's config parser reads its `rpc.ConfigSection` through `sdk.ConfigReader` (`String`, `Bool`, `Uint*`, `Int64`, `StringSlice`, `Child`, `List`, `Has`), which coerces the existing Stage 2 JSON-string wire representation and records every accessed schema-relative leaf path.
+2. In the composition-root test binary (`internal/component/plugin/all`), the leaf claim collector gathers every compiled-in plugin's recorded leaf reads (by running each plugin's `ConfigReader`-based parser/probe plus hub/engine config readers) and hands them with `yang.DefaultLoader()` and `leaf_allowlist.json` to `claims.AuditLeaves`.
+3. `claims.AuditLeaves` refuses any writable YANG leaf with no consumer and no valid allowlist entry, any phantom read path naming no YANG leaf, and any stale or reasonless allowlist entry.
+4. At runtime, external plugins may report their read leaf paths in Stage 1 `DeclareRegistrationInput.ReadLeafPaths`; `stage1Checks` validates count/length/control-character bounds on both the daemon and `JudgeDeclaration`, `pluginserver` records them beside `ExternalConfigRoots`, and `ze doctor` runs `claims.AuditConfiguredLeaves` over the active config tree, reporting unread leaves under `doctor-config-leaf-unread` (never assuming an external plugin with empty `ReadLeafPaths` reads a leaf).
+5. `./le doc yang-contract command-contract` extracts all YANG `notification` nodes, compares them against registered notification producers and `notification_allowlist.json`, and refuses any unproduced, unallowlisted notification.
+6. For `vxlan` `ttl`: `ze-iface-conf.yang` declares `leaf ttl` (`ze:backend "kernel";`, `type uint8;`, `default 64;`), `ze:backend` refuses `vxlan/ttl` at verify on the VPP backend (whose `VxlanAddDelTunnelV3` carries no TTL field), `parseTunnelLeaves` (`internal/component/iface/config.go`) populates `spec.TTLSet`/`spec.TTL`, and `buildVxlan` (`internal/plugins/iface/netlink/tunnel_linux.go`) sets `netlink.Vxlan.TTL = int(spec.TTL)`.
 
 ### Boundaries Crossed
 | Boundary | How | Verified |
 |----------|-----|----------|
-| Engine and plugin | Leaf-level read declaration, if T-2 chooses a Stage 1 field | No |
-| Command text to handler | `ValidatedArgs` by leaf name | No |
+| Engine ↔ external/internal plugin (Stage 1) | Optional `read-leaf-paths` (`[]string`, `omitempty`) on `rpc.DeclareRegistrationInput` (`sdk.Registration`), checked in `stage1Checks` | No |
+| Engine → plugin (Stage 2) | Existing `rpc.ConfigSection` JSON-string payload read through `pkg/plugin/sdk` `ConfigReader` (zero Stage 2 wire change) | No |
+| Composition root / `ze doctor` → `internal/component/config/claims` | Inventories passed in as pure `[]claims.LeafClaim` values so `claims` holds zero plugin/BGP imports | No |
+| BGP config → plugin family route builder | `buildConfigRouteRequest` refuses configured `attribute { label / labels }` with `opererr` before invoking `InProcessConfigRouteParser` (keeping `registry.ConfigRouteRequest` unchanged: NLRI tokens, next hop, extended communities) | No |
+| Interface config → kernel / VPP tunnel backend | `ze-iface-conf.yang` `vxlan/ttl` carries `ze:backend "kernel";` (exact-or-refuse on VPP at verify) and reaches `buildVxlan` (`netlink.Vxlan.TTL`) via `iface.TunnelSpec.TTLSet`/`TTL` | No |
 
 ### Changed-Wire Census
 
-**Search evidence:** scope `internal/`, `pkg/`, `cmd/`, `test/`; terms `ValidatedArgs`, `Tokens()`, `ConfigReads`, `DeclareRegistrationInput`, `ze:method`; positive control: `injectRoute` found reading `args[0]`. D changes no wire: the command text keeps its declared form. E changes the Stage 1 declaration only under T-2 option 1.
+**Search evidence:** scope `internal/`, `pkg/`, `cmd/`, `test/`; terms `DeclareRegistrationInput`, `ConfigSection`, `ExternalConfigRoots`, `ConfigRouteRequest`, `peer-show`, `ze-bgp-api`; positive controls: `pkg/plugin/rpc/types.go:340`, `pkg/plugin/rpc/types.go:994`, `internal/component/plugin/server/startup.go`, `internal/component/bgp/config/bgp_routes_plugin.go:65`, `internal/component/bgp/yang/ze-bgp-api.yang:249`. Stage 2 `ConfigSection` wire format does NOT change (every value stays a JSON string; `sdk.ConfigReader` reads it in-process inside the plugin). Two wires change cleanly: (1) Stage 1 `declare-registration` adds optional `read-leaf-paths` (`omitempty`, backward-compatible for third-party plugins); (2) `ze-bgp-api.yang` renames the 3 stale RPC names (`peer-show` → `peer-detail`, `peer-show-capabilities` → `peer-capabilities`, `peer-show-statistics` → `peer-statistics`) to match the existing registered handlers.
 
 | Wire | Role (writer / reader) | Carrier (file + producer/consumer symbol or script entry) | Source evidence | Migration or preservation disposition |
 |------|------------------------|-----------------------------------------------------------|-----------------|----------------------------------------|
-| Stage 1 `declare-registration` (`rpc.DeclareRegistrationInput`) | writer | every plugin's `sdk.Registration` passed to `p.Run`, in-tree and third-party | `ai/doors/plugin-infra.md`: `sdk.Registration` is an alias of `rpc.DeclareRegistrationInput` | Changes only under T-2 option 1: a new optional field; in-tree plugins declare it; documented in `docs/plugin-development/protocol.md` |
-| same | reader | `plugin/server` Stage 1 handling of the declaration | `ai/doors/plugin-infra.md`, "Who depends on it" | Reads the new field under T-2 option 1; otherwise preserved |
-| Command line to handler | writer | CLI, web form (`command.WriteInvocation`), MCP tool call | `docs/architecture/api/commands.md`, "YANG-Typed Command Arguments" | Preserved: declared forms keep working; a newly declared leaf takes its keyword |
-| same | reader | `ValidateArgs` then each owned handler | `argbind.go` | Handlers read by leaf name |
+| Stage 1 `declare-registration` (`rpc.DeclareRegistrationInput.ReadLeafPaths`) | writer | `pkg/plugin/sdk` `Plugin.Run` / `RunOrDeclare` sending `sdk.Registration` (`DeclareRegistrationInput` with optional `read-leaf-paths` JSON tag, `omitempty`) | `pkg/plugin/rpc/types.go:340`; `ai/doors/plugin-infra.md` | Additive optional field (`omitempty`): external plugins that omit it continue starting normally and are reported by `ze doctor` (`doctor-config-leaf-unread`) rather than assumed to read; documented in `docs/plugin-development/protocol.md` and `docs/architecture/api/process-protocol.md` |
+| Stage 1 `declare-registration` (`rpc.DeclareRegistrationInput.ReadLeafPaths`) | reader | `internal/component/plugin/server/stage1_checks.go` (`stage1Checks` `read-leaf-paths` check) and `internal/component/plugin/server/startup.go` Stage 1 handler storing `ExternalReadLeafPaths` for `internal/component/doctor/checks_config_claims.go` `checkConfigClaims` | `ai/doors/plugin-infra.md`; `stage1_checks.go`; `checks_config_claims.go:47` | Validates optional `ReadLeafPaths` bounds/control characters in `stage1Checks` (shared by daemon and `JudgeDeclaration`), stores non-empty paths, and feeds `claims.AuditConfiguredLeaves` in `ze doctor` |
+| `ze-bgp-api` peer inspection RPC names (`peer-detail`, `peer-capabilities`, `peer-statistics`) | writer | `internal/component/bgp/yang/ze-bgp-api.yang` RPC declarations and `internal/component/bgp/plugins/cmd/peer/yang/ze-peer-cmd.yang` `ze:rpc` pointers (`lines 97, 116, 133`) | `ze-bgp-api.yang:249,306,340`; `ze-peer-cmd.yang:97,116,133` | Renames the 3 dead RPC names (`peer-show`, `peer-show-capabilities`, `peer-show-statistics`) to match the live registered wire methods (`ze-bgp:peer-detail`, `ze-bgp:peer-capabilities`, `ze-bgp:peer-statistics`); updates `schema_test.go` and `yang_test.go` |
+| `ze-bgp-api` peer inspection RPC names (`peer-detail`, `peer-capabilities`, `peer-statistics`) | reader | `internal/component/bgp/plugins/cmd/peer/peer.go` registered handlers (`ze-bgp:peer-detail`, `ze-bgp:peer-capabilities`, `ze-bgp:peer-statistics`) and `internal/le/doc/yangcontract/contract.go` | `ze-peer-cmd.yang:96-133`; `contract.go` | Preserved: handlers already serve `peer-detail`, `peer-capabilities`, and `peer-statistics`; aligning `ze-bgp-api.yang` eliminates the 3 orphan RPC names |
 
 ### Integration Points
-- `internal/component/plugin/all` test binary (links every plugin), `ze doctor` registry, `./le arch enumeration check`, the dispatcher.
+- `pkg/plugin/sdk/config_reader.go`, `pkg/plugin/rpc/types.go`, & `internal/component/plugin/server/stage1_checks.go` - schema-bound typed config accessors, optional Stage 1 `read-leaf-paths`, and Stage 1 table validation.
+- `internal/component/config/claims` (`AuditLeaves`, `AuditConfiguredLeaves`, `leaf_allowlist.json`) & `internal/component/plugin/all/config_claims_test.go` - build-time leaf consumption gate.
+- `internal/component/doctor/checks_config_claims.go` (`doctor-config-leaf-unread`) - runtime unread-leaf report.
+- `internal/le/config/unreadleaves/yangleafmentions.go` - repointed onto `claims.AuditLeaves`.
+- `internal/le/doc/yangcontract/contract.go` - YANG notification producer check + `notification_allowlist.json`.
+- `internal/component/bgp/yang/ze-bgp-api.yang`, `internal/component/bgp/config/bgp_routes_plugin.go`, `internal/component/config/environment.go`, `internal/component/config/apply_env.go`, `internal/component/iface/yang/ze-iface-conf.yang`, & `internal/plugins/iface/netlink/tunnel_linux.go` - T-4 surface fixes.
 
 ### Architectural Verification
 | Check | Holds? | Evidence |
 |-------|--------|----------|
-| No bypassed layers (data flows through the intended path) | No | Arguments through `ValidateArgs`; delivery judged by the claims audit |
-| No unintended coupling (components stay isolated) | No | Consumers declare; gates read registries |
-| No duplicated functionality (extends existing, does not recreate) | No | Every gate is an extension (Existing Mechanisms) |
-| Zero-copy preserved where applicable (refs, not copies) | No | No hot path |
-| Registration over hardcoding, outbound | No | A consumer declares what it reads and maps |
-| Registration over hardcoding, inbound | No | Searched: per-handler index reads, per-package enum agreement tests, `allowlist.json`; each is derived or removed |
+| No bypassed layers (data flows through the intended path) | No | Plugins read Stage 2 config through `sdk.ConfigReader`; gates and `ze doctor` call `claims.AuditLeaves`/`AuditConfiguredLeaves` |
+| No unintended coupling (components stay isolated) | No | `claims` takes leaf claims as pure data and imports no plugin registry or BGP packages; `pkg/plugin/sdk` stays generic |
+| No duplicated functionality (extends existing, does not recreate) | No | Extends `claims`, `doctor/checks_config_claims.go`, and `yangcontract`; retires the ad-hoc grep heuristic in `unreadleaves` |
+| Zero-copy preserved where applicable (refs, not copies) | No | Config/control plane only; no BGP forwarding hot path touched |
+| Registration over hardcoding, outbound | No | `ConfigReader` records read paths automatically from live parser execution; notification producers register rather than hardcoding a central list |
+| Registration over hardcoding, inbound | No | Searched `yangleafmentions.go`, `claims.go`, `contract.go`, `apply_env.go`; replaces grep heuristic with recorded reads and keeps temporary allowlists strictly validated for `reason`, `owner`, and staleness |
 
 ## Risks & Assumptions
 
 ### Assumptions
 | ID | Assumption | Basis (file/doc/user statement) | If wrong | Validated by | Status |
 |----|-----------|--------------------------------|----------|--------------|--------|
-| A-1 | Every shipped leaf meant to do something has one identifiable consumer package | the owned rows name a package for each inert leaf | Some leaves are read through generic map walks, which must declare what they read | first gate run lists every unconsumed node | unvalidated |
-| A-2 | Every operator form an owned handler accepts today can be declared as leaves | `ze:rest-of-line`, `ze:modifier` and anchored leaves exist (`commands.md`) | A form no YANG shape expresses | per-handler YANG review | unvalidated |
-| A-3 | Each Go enum vocabulary can name the leaf it maps | the agreement tests already name them per package | A vocabulary shared by several leaves | the generic check lists each mapping | unvalidated |
+| A-1 | Running each compiled-in plugin's `ConfigReader`-based parser against a schema-populated probe tree exercises every conditional branch that reads a supported leaf (or explicit reader-probe fixtures cover choice/case branches) | Owner decision T-2 (option 3) + T-3; YANG schemas declare every choice/case deterministically | A leaf read only when another leaf has a specific enum value could be missed by a single-pass probe | `TestConfigSchemaLeavesConsumed` + multi-branch probe over YANG `choice`/`case` nodes | unvalidated |
+| A-2 | External plugins written in Go or other languages do not break when `DeclareRegistrationInput` adds an optional `read-leaf-paths` JSON field (`omitempty`) | `pkg/plugin/rpc/types.go` uses standard `encoding/json` with `omitempty` for all optional Stage 1 fields (`WantsConfig`, `Claims`, `DoctorChecks`, `FilterInsertions`) | Strict unknown-field decoding on an older binary | `pkg/plugin/rpc` round-trip tests + `./le mock plugin-external` | unvalidated |
+| A-3 | Every remaining inert leaf uncovered by the first run of `TestConfigSchemaLeavesConsumed` can be either wired, deleted with a fix, or recorded in `leaf_allowlist.json` with a concrete owner spec per T-5 | Owner decision T-5 (2026-11-24) | Unowned inert leaves would fail the gate | First gate run audit against all `-conf.yang` modules | unvalidated |
 
 ### Risks
 | ID | Risk | Early signal | Mitigation / fallback |
 |----|------|--------------|----------------------|
-| R-1 | The leaf gate reports hundreds of nodes at its first run | the count it prints | Each node is wired or deleted under T-4; an exception list exists only if T-5 allows it |
-| R-2 | Moving a handler off positions breaks operator text | `.ci` tests typing the old form | Keep the declared form; the keyword is added where none existed |
+| R-1 | Migrating all ~70+ plugin config parsers to `sdk.ConfigReader` in one commit could create an oversized, hard-to-review diff | Diff size exceeding one reviewable phase | Phase the migration cleanly: Phase 1 lands `sdk.ConfigReader` + `claims.AuditLeaves` + `leaf_allowlist.json` + doctor + yangcontract + T-4 surface fixes; subsequent phases migrate plugin parsers in bounded batches while shrinking `leaf_allowlist.json` until every shipped plugin uses `sdk.ConfigReader` |
+| R-2 | Deleting an inert leaf that an existing `.ci` config writes breaks that test | `.ci` parse failure naming the deleted leaf | Check `git grep` across `test/` before deleting any leaf; wire leaves that belong to shipped features and delete only truly dead leaves with a clear operator fix |
+| R-3 | An operator authoring an `l2vpn/evpn` or `l2vpn/vpls` config route writes `label` in `attribute { }` instead of inline in `nlri { }` (or a future labeled plugin family is registered later); note `ipv4/nlri-mpls`, `ipv6/nlri-mpls`, `ipv4/mpls-vpn`, and `ipv6/mpls-vpn` use the standard prefix path in `bgp_routes.go:178-220`, not `InProcessConfigRouteParser` | Config load refusal when `attribute { label / labels }` appears with a plugin-registered family | `buildConfigRouteRequest` refuses `attribute { label / labels }` with an `opererr` naming the family and directing the operator to remove `label`/`labels` from `attribute { }` (or use inline `label`/`label-base` tokens in `nlri { }` for EVPN/VPLS); any future plugin family that genuinely needs attribute labels explicitly extends `ConfigRouteRequest` instead of silently dropping them |
 
 ## Blast Radius
 
 | Question | Answer |
 |----------|--------|
-| What breaks if this is wrong? | A build gate refuses the tree; a config setting a deleted leaf is refused; a command form is refused |
-| How is it reverted? | Single commit revert per piece |
-| Who else touches this path? | `spec-declared-commands-without-leaves`, `spec-peer-leaves-the-peer-parser-never-reads`, `spec-plugin-external-yang-at-startup`, `spec-gates-share-one-semantic-population`, `spec-config-yang-when-unique-choice` |
+| What breaks if this is wrong? | Build gate (`TestConfigSchemaLeavesConsumed`) refuses the tree; `ze doctor` emits false-positive unread-leaf warnings; external plugin Stage 1 handshake fails; `ze-bgp-api` RPC callers or `vxlan`/`bgp` config parsers break |
+| How is it reverted? | Single commit revert (or per-phase revert); `read-leaf-paths` is additive `omitempty` |
+| Who else touches this path? | Siblings D (`spec-yang-command-arguments-by-leaf-name.md`) and F (`spec-yang-enum-vocabulary-agreement-gate.md`); `spec-software-version-mode-implements-two-of-four.md`; `spec-bgp-rib-state-subtree-has-no-producer.md`; `spec-bgp-api-notification-producers.md`; `spec-ipsec-remote-access.md`; `spec-peer-leaves-the-peer-parser-never-reads.md` |
 
 ## Wiring Test (MANDATORY -- NOT deferrable)
 
 | Entry Point | → | Feature Code | Test |
 |-------------|---|--------------|------|
-| A test module declaring a config leaf no consumer reads, in the composition-root test binary | → | the claims audit at leaf granularity | `TestConfigSchemaLeavesConsumed` |
-| `ze doctor` on a config setting a leaf whose plugin is compiled out | → | the doctor leaf claim check | `test/plugin/doctor-config-leaf-unread.ci` |
-| `request bgp rib inject` from the web admin form and from CLI text | → | `ValidateArgs` then `injectRoute` reading by leaf name | `test/plugin/rib-inject-named-args.ci` |
-| A Go vocabulary holding a value its YANG enum lacks | → | the extended enumeration gate | `TestEveryYANGEnumMappingAgrees` |
+| A test YANG module declaring a writable config leaf no consumer reads, inside `internal/component/plugin/all` | → | `claims.AuditLeaves` over `sdk.ConfigReader`-recorded paths + `leaf_allowlist.json` | `TestConfigSchemaLeavesConsumed` |
+| `ze doctor` on a config setting a leaf whose plugin is compiled out or external with no `read-leaf-paths` | → | `checkConfigClaims` (`doctor-config-leaf-unread`) | `test/plugin/doctor-config-leaf-unread.ci` |
+| A YANG module declaring a `notification` with no registered producer and no allowlist entry | → | `yangcontract.CheckNotifications` (`./le doc yang-contract command-contract`) | `TestNotificationWithoutProducerFailsContract` |
+| Config route with `attribute { label 100; }` on any of the 6 `InProcessConfigRouteParser` plugin families | → | `bgpconfig.buildConfigRouteRequest` (`internal/component/bgp/config/bgp_routes_plugin.go`) | `TestPluginRouteRefusesAttributeLabels` |
+| `vxlan` tunnel with `ttl 64` (kernel) and `ttl` on VPP | → | `ze-iface-conf.yang` (`ze:backend "kernel";`, `default 64;`), `parseTunnelLeaves`, and `buildVxlan` (`internal/plugins/iface/netlink/tunnel_linux.go`) | `TestVxlanTTLLeafAccepted` & `TestBuildVxlanTTL` |
 
 ## Acceptance Criteria
 
 | AC ID | Input / Condition | Expected Behavior | Permitted Survivors and Why |
 |-------|-------------------|-------------------|-----------------------------|
-| AC-1 | A config leaf no compiled-in consumer declares reading, reproduced with a test module and with each owned inert leaf before it is wired or deleted (old AC-6) | The build gate fails, naming the leaf path and the fix | Only what T-5 allows, each with a reason and an owner, as `allowlist.json` holds for roots |
-| AC-2 | A consumer declaration naming a path absent from the schema (old AC-7) | The gate fails naming the path | None |
-| AC-3 | `ze doctor` on a configured leaf no running consumer declares reading: plugin compiled out, failed to load, or external (old AC-11, run-time half) | Reports the leaf, the cause and the fix under a doctor code of its own | An external plugin that declares nothing is reported, never assumed to read |
-| AC-4 | A declared rpc with no handler, or a notification no producer emits | `./le doc yang-contract command-contract` refuses both, naming the node | None |
-| AC-5 | Each owned inert leaf, rpc and notification (Owned journal rows) | Wired, with a test through its entry point, or deleted and refused with a fix, as T-4 rules per row | A row T-4 leaves as a feature for after the first release stays a gap in its own spec, never silently accepted |
-| AC-6 | A YANG enum and the Go vocabulary its consumer parses differ in either direction (`log backend kmsg`, ADD-PATH `receive/send`, `diag` capture `protocol bfd`, softver `mode`) (old AC-8) | The gate refuses the disagreement whatever the enum size; the shipped enums and vocabularies match | A Go table carrying data the model lacks (an RFC number, a handler) keeps it; only the value set is compared |
-| AC-7 | `request bgp rib inject`, `peer teardown`, `peer disable message`, `announce`, `peer raw`, `peer update` and the five `show bgp` commands of the 2026-08-24 row (old AC-9, second half) | Each handler reads its arguments by leaf name; each works identically from CLI text, web form and MCP | The peer selector stays positional (`ai/rules/cli.md`); a handler passing tokens to an encoding parser passes them as data, not as arguments |
-| AC-8 | An argument leaf declared on both the `-cmd` container and the rpc input (old AC-9, first half) | Refused at schema build, naming both declarations; each owned command declares each argument once | None |
-| AC-9 | Each owned row's reproduction (old AC-12) | No longer reproduces; the row's Fix cell turns `fixed:` with its test | None |
-
-Old AC-10 (an argument's `description` reaches help, web and MCP) was met by
-fbbbbc5cc0 before this rewrite; its row is marked `fixed:`. Old AC-1, AC-2,
-AC-3, AC-4 and AC-5 live in the sibling specs named in Depends.
+| AC-1 | A plugin parses Stage 2 `rpc.ConfigSection` through `sdk.ConfigReader` (`pkg/plugin/sdk/config_reader.go`) or declares `read-leaf-paths` at Stage 1 | `ConfigReader` decodes typed values (`String`, `Bool`, `Uint8/16/32/64`, `Int64`, `StringSlice`, `Child`, `List`, `Has`) from the existing Stage 2 JSON-string wire payload without changing the Stage 2 wire format, and returns the exact set of schema-relative leaf paths read (`ReadPaths()`); `stage1Checks` (`internal/component/plugin/server/stage1_checks.go`) validates `ReadLeafPaths` count/length/control-character bounds identically for the daemon and `JudgeDeclaration` | Legacy parsers not yet migrated in external third-party plugins continue decoding `rpc.ConfigSection.Data` JSON directly without wire breakage |
+| AC-2 | Any writable YANG config leaf in `internal/component/plugin/all` has no consumer recording a read of that leaf path (reproduced with a synthetic test module and against every owned inert leaf) | `TestConfigSchemaLeavesConsumed` (`claims.AuditLeaves`) fails naming the exact leaf path and fix; `TestConfigLeafPhantomReads` fails on any declared read path naming no schema leaf and on any `leaf_allowlist.json` entry missing `path`/`reason`/`owner` or gone stale; `./le config unread-leaves report` uses `claims.AuditLeaves` | Temporary entries in `internal/component/config/claims/leaf_allowlist.json` per T-5, each carrying a concrete `reason` and owning spec/symbol (such as `remote-access` → `spec-ipsec-remote-access.md`, `bgp/rib/adj-rib-*` → `spec-bgp-rib-state-subtree-has-no-producer.md`) |
+| AC-3 | `ze doctor` runs on a config setting a leaf no running consumer declares reading (plugin compiled out, failed to load, or external plugin omitting `read-leaf-paths`) | `checkConfigClaims` emits a diagnostic under `doctor-config-leaf-unread` naming the leaf path, why it has no reader, and the exact fix | External plugins that declare `read-leaf-paths` in Stage 1 satisfy their declared leaves; external plugins declaring none are reported, never assumed to read |
+| AC-4 | A YANG module declares an RPC with no handler or a `notification` with no registered producer | `./le doc yang-contract command-contract` refuses both naming the node; the 3 stale `ze-bgp-api.yang` RPCs are renamed to `peer-detail`, `peer-capabilities`, `peer-statistics` matching their live handlers; the 7 `ze-bgp-api` notifications sit in `notification_allowlist.json` naming `plan/post-release/features/spec-bgp-api-notification-producers.md` | Only entries in `notification_allowlist.json` naming a concrete post-release owner spec and reason (stale entries refused) |
+| AC-5 | T-4 owned surface defects: `attribute { label / labels }` on plugin-family config routes, 7 `environment/reactor` YANG env aliases, `vxlan` `ttl` leaf in `ze-iface-conf.yang` + `buildVxlan`, and remaining owned inert leaves | `buildConfigRouteRequest` refuses configured `attribute { label / labels }` with `opererr` naming the family and fix for all 6 `InProcessConfigRouteParser` families (leaving `ConfigRouteRequest` and standard prefix-path labeled families untouched); all 7 `environment/reactor` leaves register canonical `ze.bgp.reactor.<leaf>` keys with legacy `Aliases` in `environment.go` and plumb in `apply_env.go`; `ze-iface-conf.yang` `vxlan` declares `leaf ttl` with `ze:backend "kernel";` and `default 64;` (refused on VPP at verify) and `buildVxlan` writes `spec.TTLSet`/`spec.TTL` to `netlink.Vxlan.TTL`; each remaining owned inert leaf is wired with a test, deleted with a fix, or recorded in `leaf_allowlist.json` under its owner spec per T-4/T-5 | Deferred subtrees explicitly ruled by Thomas in T-4 (`remote-access`, `bgp/rib/adj-rib-*`, 7 `ze-bgp-api` notifications) and `software-version/mode` (owned solely by `spec-software-version-mode-implements-two-of-four.md`) |
+| AC-6 | Every owned Piece E journal row's reproduction (including verifying already-landed `rpki/cache-server/preference`, `ze-plugin:session-ping`, `ddos/flowtriq/api-key` row, and `TestDispatchBGPPeerBoRR`/`EoRR`) | None of the owned Piece E defect rows reproduce; each resolved row turns `fixed:` at closure with its verifying test, and any row whose deferred subtree stays allowlisted names its owning spec | The 3 "other cause:" rows held in Owned journal rows remain flagged for main-thread transfer to their fitting specs rather than being dropped or falsely closed |
 
 ## End-to-End User Stories
 
 | # | User does | Path through system | Test proving it works |
 |---|-----------|--------------------|-----------------------|
-| 1 | Injects a route from the web admin form | form → `WriteInvocation` → dispatcher → `injectRoute` by leaf | `test/plugin/rib-inject-named-args.ci` |
-| 2 | Runs `ze doctor` with a leaf set for a missing plugin | doctor → leaf claim check → report with fix | `test/plugin/doctor-config-leaf-unread.ci` |
+| 1 | Runs `ze doctor` on a config containing a leaf whose owning plugin is compiled out or external without `read-leaf-paths` | `ze doctor` → `checkConfigClaims` → `claims.AuditConfiguredLeaves` → `doctor-config-leaf-unread` diagnostic naming leaf and fix | `test/plugin/doctor-config-leaf-unread.ci` |
+| 2 | Configures `attribute { label 100; }` on a plugin-registered BGP family (e.g., `ipv4/flow`, `l2vpn/evpn`, `l2vpn/vpls`) | Config tree → `buildConfigRouteRequest` → refused at config load with `opererr` naming the family and fix (while `ipv4/nlri-mpls`/`ipv4/mpls-vpn` continue through the standard prefix path) | `TestPluginRouteRefusesAttributeLabels` |
+| 3 | Overrides `ze.bgp.reactor.forward-queue-size` via OS env or configures `vxlan { ttl 64; }` on kernel vs. VPP | Env registration (`environment.go`) + `ApplyEnvConfig` / `ze-iface-conf.yang` (`ze:backend "kernel";`, `default 64;`) → `parseTunnelLeaves` → `buildVxlan` (`netlink.Vxlan.TTL`) | `TestReactorEnvYANGAliases`, `TestVxlanTTLLeafAccepted`, `TestBuildVxlanTTL` |
 
 ## 🧪 TDD Test Plan
 
 ### Unit Tests
 | Test | File | Validates | Status |
 |------|------|-----------|--------|
-| `TestConfigSchemaLeavesConsumed` | `internal/component/plugin/all/config_claims_test.go` | AC-1 | |
-| `TestConfigLeafPhantomReads` | `internal/component/plugin/all/config_claims_test.go` | AC-2 | |
-| `TestEveryYANGEnumMappingAgrees` | `internal/le/arch/enumeration/enumeration_test.go` | AC-6 | |
-| `TestArgDeclaredOnce` | `internal/component/config/yang/command_test.go` | AC-8 | |
+| `TestConfigReaderTypedAccessAndPathRecording` | `pkg/plugin/sdk/config_reader_test.go` | AC-1 (typed string-coerced reads for all YANG scalar/list/container shapes + exact recorded `ReadPaths()`) | |
+| `TestStage1ChecksReadLeafPathsBounds` | `internal/component/plugin/server/stage1_checks_test.go` | AC-1 (`stage1Checks` refuses oversize/control-character `ReadLeafPaths` on both daemon and `JudgeDeclaration`) | |
+| `TestConfigSchemaLeavesConsumed` | `internal/component/plugin/all/config_claims_test.go` | AC-2 (synthetic unread leaf fails; shipped schema passes with validated `leaf_allowlist.json`) | |
+| `TestConfigLeafPhantomReads` | `internal/component/plugin/all/config_claims_test.go` | AC-2 (phantom read path, stale allowlist entry, missing reason/owner all fail) | |
+| `TestDoctorReportsUnreadConfigLeaf` | `internal/component/doctor/checks_config_claims_test.go` | AC-3 (`doctor-config-leaf-unread` for compiled-out plugin and external plugin declaring no `read-leaf-paths`) | |
+| `TestNotificationWithoutProducerFailsContract` | `internal/le/doc/yangcontract/contract_test.go` | AC-4 (unallowlisted notification without producer fails; allowlisted `ze-bgp-api` notifications pass; stale entry fails) | |
+| `TestPluginRouteRefusesAttributeLabels` | `internal/component/bgp/config/bgp_routes_plugin_test.go` | AC-5 (`attribute { label / labels }` refused with `opererr` on all 6 `InProcessConfigRouteParser` families; standard prefix-path labeled families unaffected) | |
+| `TestReactorEnvYANGAliases` | `internal/component/config/apply_env_test.go` | AC-5 (all 7 `ze.bgp.reactor.<leaf>` env aliases registered in `environment.go`, honored via OS env and `environment { reactor { ... } }`, legacy keys still accepted) | |
+| `TestVxlanTTLLeafAccepted` | `internal/component/iface/yang/vxlan_ttl_test.go` | AC-5 (`vxlan` `ttl` uint8 leaf validates with `default 64` and `ze:backend "kernel"` in `ze-iface-conf.yang`, and VPP backend refuses `vxlan/ttl` at verify) | |
+| `TestBuildVxlanTTL` | `internal/plugins/iface/netlink/tunnel_vxlan_build_linux_test.go` | AC-5 (`buildVxlan` wires `spec.TTLSet`/`spec.TTL` onto `netlink.Vxlan.TTL`, including boundary values 0 and 255) | |
 
 ### Boundary Tests (numeric inputs)
 | Field | Range | Last Valid | Invalid Below | Invalid Above |
 |-------|-------|------------|---------------|---------------|
-| N-A | no numeric input added | N/A | N/A | N/A |
+| `vxlan` `ttl` | 0..255 (`uint8`) | 0, 255 | -1 | 256 |
+| `attribute` `label` | 0..1048575 (20-bit MPLS label) | 0, 1048575 | -1 | 1048576 |
 
 ### Functional Tests
 | Test | Location | End-User Scenario | Status |
 |------|----------|-------------------|--------|
-| `rib-inject-named-args` | `test/plugin/rib-inject-named-args.ci` | the same inject from CLI and web form | |
-| `doctor-config-leaf-unread` | `test/plugin/doctor-config-leaf-unread.ci` | doctor names an unread leaf | |
+| `doctor-config-leaf-unread` | `test/plugin/doctor-config-leaf-unread.ci` | `ze doctor` reports `doctor-config-leaf-unread` with leaf path and fix for an unread configured leaf | |
 
 ### Interop Tests (Scope: protocol)
-N-A: config and command surface only, no protocol wire change.
+N-A: Config claims, SDK config reader, doctor diagnostics, and YANG API alignment; no BGP protocol wire change.
 
 ## Files to Modify
-- `internal/component/config/claims/claims.go`, `internal/component/plugin/all/config_claims_test.go` - leaf-granularity audit
-- `internal/le/config/unreadleaves/yangleafmentions.go` - per T-2
-- `internal/component/doctor/checks_config_claims.go` - run-time leaf report
-- `internal/le/doc/yangcontract/contract.go` - notification producer side
-- `internal/le/arch/enumeration/corpus.go`, `internal/component/bgp/reactor/yang_enum_agreement_test.go` - mapping agreement
-- `internal/component/bgp/reactor/config_capabilities.go`, `internal/component/hub/yang/ze-hub-conf.yang`, `internal/core/slogutil/slogutil.go` - the F rows
-- `internal/component/config/yang/command.go` - one declaration per argument (AC-8)
-- `internal/component/bgp/plugins/rib/rib_commands.go`, `internal/component/bgp/plugins/cmd/peer/peer.go` and the owned command handlers - D
-- `internal/component/bgp/yang/ze-bgp-api.yang` - notifications and rpcs per T-4
-- the owning module and consumer of each owned inert leaf - per T-4
+- `pkg/plugin/rpc/types.go` - add optional `ReadLeafPaths []string` (`json:"read-leaf-paths,omitempty"`) to `DeclareRegistrationInput`
+- `internal/component/plugin/server/stage1_checks.go` and `internal/component/plugin/server/stage1_checks_test.go` - add `read-leaf-paths` count/length/control-character check to `stage1Checks` (shared by daemon and `JudgeDeclaration`) and unit test
+- `internal/component/plugin/server/startup.go` - accept and store optional `ReadLeafPaths` from Stage 1 declarations (`ExternalReadLeafPaths`)
+- `internal/component/config/claims/claims.go` - add `LeafClaim`, `AuditLeaves`, `AuditConfiguredLeaves`, and `LeafAllowlist` loading `leaf_allowlist.json`
+- `internal/component/plugin/all/config_claims_test.go` - add `TestConfigSchemaLeavesConsumed` and `TestConfigLeafPhantomReads`
+- `internal/le/config/unreadleaves/yangleafmentions.go` - repoint `./le config unread-leaves report` onto `claims.AuditLeaves`
+- `internal/component/doctor/checks_config_claims.go` - add `doctor-config-leaf-unread` check calling `claims.AuditConfiguredLeaves`
+- `internal/le/doc/yangcontract/contract.go` - add YANG notification producer verification and `notification_allowlist.json` enforcement
+- `internal/component/bgp/yang/ze-bgp-api.yang` - rename `peer-show` → `peer-detail`, `peer-show-capabilities` → `peer-capabilities`, `peer-show-statistics` → `peer-statistics`
+- `internal/component/bgp/plugins/cmd/peer/yang/ze-peer-cmd.yang` - update `ze:rpc` pointers on lines 97, 116, 133 to `peer-detail`, `peer-capabilities`, `peer-statistics`
+- `internal/component/plugin/server/schema_test.go` and `internal/core/ipc/yang_test.go` - update RPC name assertions to `peer-detail`, `peer-capabilities`, `peer-statistics`
+- `internal/component/bgp/config/bgp_routes_plugin.go` and `internal/component/bgp/config/bgp_routes_plugin_test.go` - refuse configured `attribute { label / labels }` with `opererr` on all 6 `InProcessConfigRouteParser` plugin families and add `TestPluginRouteRefusesAttributeLabels`
+- `internal/component/config/environment.go` and `internal/component/config/apply_env.go` - register the 7 canonical `ze.bgp.reactor.<leaf>` env keys with legacy `Aliases` in `environment.go` and plumb `environment/reactor/<leaf>` in `apply_env.go`
+- `internal/component/iface/yang/ze-iface-conf.yang` - add `leaf ttl` (`ze:backend "kernel";`, `type uint8;`, `default 64;`) to `container vxlan`
+- `internal/plugins/iface/netlink/tunnel_linux.go` and `internal/plugins/iface/netlink/tunnel_vxlan_build_linux_test.go` - wire `spec.TTLSet`/`spec.TTL` into `buildVxlan` (`netlink.Vxlan.TTL`) and add `TestBuildVxlanTTL`
+- `docs/architecture/config/yang-config-design.md` - document leaf-level claim gate, `leaf_allowlist.json`, and `sdk.ConfigReader` path recording under "Claim Completeness Gate"
+- `docs/architecture/doctor-and-health-checks.md` - document `doctor-config-leaf-unread`
+- `docs/plugin-development/protocol.md`, `docs/architecture/api/process-protocol.md`, and `docs/architecture/plugin-manager-wiring.md` - document optional Stage 1 `read-leaf-paths` and `sdk.ConfigReader`
+- `docs/architecture/update-building.md` - document the `attribute { label / labels }` refusal in `buildConfigRouteRequest` alongside the existing plugin-route refusal list
+- `docs/architecture/config/environment.md` and `docs/architecture/config/environment-block.md` - document canonical `ze.bgp.reactor.<leaf>` env aliases for all 11 `environment/reactor` leaves
+- `docs/features/interfaces.md` - update the `vxlan` table row and "Outer-header TTL" anchors for `vxlan` `ttl` (`default 64`, `ze:backend "kernel"`)
+- `docs/guide/configuration.md` - document `vxlan` `ttl` (`default 64`, kernel backend) and any deleted/newly wired leaves
+- `ai/doors/config-yang.md` - update Gates and Traps for leaf-level claims and `sdk.ConfigReader`
 
 ## Files to Create
-- `test/plugin/rib-inject-named-args.ci`, `test/plugin/doctor-config-leaf-unread.ci`
+- `pkg/plugin/sdk/config_reader.go` - schema-bound typed `ConfigReader` over `rpc.ConfigSection` with automatic read-leaf path recording
+- `pkg/plugin/sdk/config_reader_test.go` - unit tests for `ConfigReader` coercion and path recording
+- `internal/component/config/claims/leaf_allowlist.json` - temporary recorded leaf-gate allowlist (`path`, `reason`, `owner`) per T-5
+- `internal/le/doc/yangcontract/notification_allowlist.json` - temporary recorded notification allowlist (citing `plan/post-release/features/spec-bgp-api-notification-producers.md` for the 7 `ze-bgp-api` notifications)
+- `internal/component/iface/yang/vxlan_ttl_test.go` - unit test for `vxlan` `ttl` YANG leaf (`ze:backend "kernel"`, `default 64`, VPP verify refusal)
+- `test/plugin/doctor-config-leaf-unread.ci` - functional test verifying `ze doctor` emits `doctor-config-leaf-unread`
 
 ### Integration Checklist
 | Integration Point | Applies? | File / reason |
 |-------------------|----------|---------------|
-| YANG schema (new RPCs/config) | Yes | argument leaves (D), deleted leaves (E), enum values (F) |
-| YANG validation constraints | Yes | typed argument leaves |
+| YANG schema (new RPCs/config) | Yes | `ze-bgp-api.yang` (3 RPC renames), `ze-peer-cmd.yang`, `ze-iface-conf.yang` (`vxlan` `ttl` with `ze:backend "kernel";` and `default 64;`), plus deleted/wired inert leaves |
+| YANG validation constraints | Yes | `vxlan` `ttl` `uint8` + `ze:backend "kernel"`; `attribute { label / labels }` refusal on plugin families |
 | YANG custom validators | No | None |
-| CLI commands/flags | Yes | owned handlers |
-| CLI grammar (keyword before value) | Yes | `./le cli grammar` over every changed command |
-| Editor autocomplete | Yes | follows the declared leaves |
-| Functional test for new RPC/API | Yes | `rib-inject-named-args` |
-| Pipe completeness | No | answers unchanged |
-| Env var registration | Yes | the 2026-08-30 env alias row |
+| CLI commands/flags | No | No new CLI verb or path |
+| CLI grammar (keyword before value) | Yes | `./le cli grammar` verified over modified `ze-peer-cmd.yang` |
+| Editor autocomplete | Yes | Follows updated `ze-iface-conf.yang` (`vxlan` `ttl`) and deleted inert leaves |
+| Functional test for new RPC/API | Yes | `test/plugin/doctor-config-leaf-unread.ci` |
+| Pipe completeness | No | No command answer shape changes |
+| Env var registration | Yes | 7 canonical `ze.bgp.reactor.<leaf>` env keys with legacy `Aliases` in `environment.go` and `apply_env.go` |
 | Doctor check for runtime dependencies | No | None |
-| Doctor code per problem class | Yes | a code for the run-time unread-leaf report |
+| Doctor code per problem class | Yes | `doctor-config-leaf-unread` in `internal/component/doctor/checks_config_claims.go` |
 | Prometheus counters/metrics | No | None |
-| BGP family surface | No | None |
+| BGP family surface | No | No new BGP family added; `ConfigRouteRequest` unchanged and `buildConfigRouteRequest` refuses `attribute { label / labels }` on all 6 plugin families |
 
 ### Documentation Update Checklist (BLOCKING)
 | # | Question | Applies? | File to update |
-|---|----------|----------|---------------|
-| 1 | New user-facing feature? | No | |
-| 2 | Config syntax changed? | Yes | `docs/guide/configuration.md`: deleted or newly wired leaves |
-| 3 | CLI command added/changed? | Yes | `docs/guide/command-reference.md` |
-| 4 | API/RPC added/changed? | Yes | `docs/architecture/api/commands.md`: handlers read by leaf |
-| 5 | Plugin added/changed? | No | |
-| 6 | Has a user guide page? | No | |
-| 7 | Wire format changed? | No | |
-| 8 | Plugin SDK/protocol changed? | Depends on T-2, T-3 | `docs/plugin-development/protocol.md`, `docs/architecture/api/process-protocol.md` |
-| 9 | RFC behavior changed? | No | |
-| 10 | Test infrastructure changed? | Yes | `docs/architecture/config/yang-config-design.md`, "Claim Completeness Gate" |
-| 11 | Affects daemon comparison? | No | |
-| 12 | Internal architecture changed? | Yes | `docs/architecture/config/yang-config-design.md`; `docs/architecture/doctor-and-health-checks.md` |
-| 13 | Route metadata keys? | No | |
-| 14 | Prometheus counters? | No | |
-| 15 | Registered inventory changed? | No | |
-| 16 | Changed source referenced by doc anchors? | Yes | derive with `./le spec citation anchors spec plan/release/fixes/spec-yang-single-source-of-truth.md`. Declared by changed files: `docs/architecture/core-design.md` (updated only if E adds a registration field, T-2 option 1) and `docs/architecture/plugin/rib-storage-design.md` (unaffected: `injectRoute` changes how it reads arguments, not what it stores) |
-| 17 | Existing docs show examples for this area? | Yes | `ai/doors/config-yang.md` and `ai/doors/commands-cli.md` gate and trap rows |
+|---|----------|----------|----------------|
+| 1 | New user-facing feature, or a feature's scope, evidence or level changed? | No | Closes inert config/RPC/notification defects and adds `doctor-config-leaf-unread` |
+| 2 | Config syntax changed? | Yes | `docs/guide/configuration.md` (`vxlan` `ttl` and any deleted/wired inert leaves) |
+| 3 | CLI command added/changed? | No | Existing peer inspection CLI paths unchanged |
+| 4 | API/RPC added/changed? | Yes | `ze-bgp-api.yang` aligns 3 stale RPC names to live wire methods |
+| 5 | Plugin added/changed? | Yes | `pkg/plugin/sdk/config_reader.go` typed config reader adopted by plugins |
+| 6 | Has a user guide page? | Yes | `docs/guide/configuration.md` |
+| 7 | Wire format changed? | Yes | Optional Stage 1 `read-leaf-paths` field (`omitempty`) on `DeclareRegistrationInput` |
+| 8 | Plugin SDK/protocol changed? | Yes | `docs/plugin-development/protocol.md`, `docs/architecture/api/process-protocol.md`, `docs/architecture/plugin-manager-wiring.md` |
+| 9 | RFC behavior implemented, changed, or newly proven? | No | None |
+| 10 | Test infrastructure changed? | Yes | `docs/architecture/config/yang-config-design.md` ("Claim Completeness Gate") |
+| 11 | Affects daemon comparison? | No | None |
+| 12 | Internal architecture changed? | Yes | `docs/architecture/config/yang-config-design.md`, `docs/architecture/doctor-and-health-checks.md`, `docs/architecture/update-building.md`, `docs/architecture/plugin-manager-wiring.md`, `docs/architecture/config/environment-block.md`, `ai/doors/config-yang.md` |
+| 13 | Route metadata keys added/changed? | No | None |
+| 14 | Prometheus counters added/changed? | No | None |
+| 15 | Registered plugin, event type, send type, command, capability, or inventory changed? | Yes | Doctor code `doctor-config-leaf-unread` and 7 `ze.bgp.reactor.*` env vars |
+| 16 | Any changed source file referenced by existing doc source anchors? | Yes | Derived with `./le spec citation anchors spec plan/release/fixes/spec-yang-single-source-of-truth.md`. Updated in this spec: `docs/architecture/config/yang-config-design.md` (leaf claim gate, `leaf_allowlist.json`, `sdk.ConfigReader`), `docs/architecture/api/process-protocol.md` (optional Stage 1 `read-leaf-paths`), `docs/architecture/plugin-manager-wiring.md` (Stage 1 `read-leaf-paths` row in `DeclareRegistrationInput` table), `docs/architecture/doctor-and-health-checks.md` (`doctor-config-leaf-unread`), `docs/architecture/update-building.md` (`attribute { label / labels }` refusal in `buildConfigRouteRequest`), `docs/architecture/config/environment.md` and `docs/architecture/config/environment-block.md` (canonical `ze.bgp.reactor.<leaf>` env aliases for `environment/reactor`), `docs/features/interfaces.md` (`vxlan` `ttl` row and "Outer-header TTL" anchors). Checked and unaffected: `docs/architecture/api/commands.md` (renaming 3 stale `ze-bgp-api.yang` RPCs aligns with existing command paths), `docs/architecture/api/ipc_protocol.md` (optional `omitempty` JSON field leaves line framing unchanged), `docs/architecture/config/syntax.md` (`environment/reactor` env aliases do not change config file syntax), `docs/architecture/core-design.md` (`yangcontract` notification check stays in `internal/le`), `docs/architecture/plugin/plugin-system.md` (`stage1Checks` adds one check without changing table architecture; `InProcessConfigRouteParser` stays unchanged) |
+| 17 | Existing docs show config/CLI/API examples for this area? | Yes | `docs/guide/configuration.md`, `docs/plugin-development/protocol.md`, `ai/doors/config-yang.md` |
+
+## Design presentation
+
+### What changes
+
+This spec implements Piece E alone (after splitting Pieces D and F into their own specs per T-1). It introduces schema-bound typed config accessors (`sdk.ConfigReader`) over Stage 2 `rpc.ConfigSection` JSON strings with automatic read-leaf path recording (T-2 option 3 + T-3), adds optional Stage 1 `read-leaf-paths` validated in `stage1Checks`, extends the root claim gate (`claims.Audit`) and `ze doctor` (`doctor-config-leaf-unread`) to leaf granularity backed by a strictly validated temporary allowlist (`leaf_allowlist.json`, T-5), adds notification producer enforcement to `./le doc yang-contract command-contract`, and repairs the verified T-4 surface defects (`ze-bgp-api.yang` 3 stale RPC names, `attribute { label / labels }` refusal on the 6 `InProcessConfigRouteParser` plugin families, 7 `environment/reactor` env aliases in `environment.go` and `apply_env.go`, `vxlan` `ttl` leaf with `ze:backend "kernel";` and `default 64;` wired into `buildVxlan`, and remaining owned inert leaves).
+
+### Before and after
+
+1. **Adding a YANG config leaf that no Go code reads.**
+   Before: `TestConfigSchemaRootsClaimed` passes because the parent root is claimed; `./le config unread-leaves report` exits 0 as an advisory text grep; the operator configures the leaf and it silently does nothing.
+   After: `TestConfigSchemaLeavesConsumed` fails at build time naming the unread leaf path and fix (unless explicitly recorded in `leaf_allowlist.json` with `reason` and `owner`), and `ze doctor` reports configured unread leaves at runtime under `doctor-config-leaf-unread`.
+2. **Parsing Stage 2 config in a plugin.**
+   Before: Plugins hand-parse `map[string]any` JSON strings via ad-hoc `configvalue` helpers, leaving no accurate record of which leaf paths are read.
+   After: Plugins read through `sdk.ConfigReader` typed accessors over the unchanged Stage 2 JSON-string wire format, automatically recording read leaf paths; external plugins may also publish `read-leaf-paths` in Stage 1 (`omitempty`, validated by `stage1Checks`).
+3. **Configuring `attribute { label 100; }` on a plugin family, setting `vxlan { ttl 64; }`, or setting `ze.bgp.reactor.forward-queue-size`.**
+   Before: `buildConfigRouteRequest` silently drops `parsed.Labels` on all 6 plugin families; `vxlan` `ttl` fails YANG validation and `buildVxlan` ignores `spec.TTLSet`/`spec.TTL`; `ze.bgp.reactor.forward-queue-size` is unregistered.
+   After: `buildConfigRouteRequest` refuses `attribute { label / labels }` with an `opererr` naming the family and fix (standard prefix-path labeled families stay unaffected); `vxlan` `ttl` validates with `ze:backend "kernel";` and `default 64;` (refused exact-or-reject on VPP) and reaches `netlink.Vxlan.TTL` in `buildVxlan`; all 7 `ze.bgp.reactor.<leaf>` env aliases are registered in `environment.go` and honored via OS env or `environment { reactor { ... } }`.
+4. **Declaring a YANG notification with no producer or stale `ze-bgp-api` RPC names.**
+   Before: `./le doc yang-contract command-contract` ignores notifications and `ze-bgp-api.yang` keeps 3 stale RPC names (`peer-show`, `peer-show-capabilities`, `peer-show-statistics`).
+   After: The 3 RPCs match their live handlers (`peer-detail`, `peer-capabilities`, `peer-statistics`), and `./le doc yang-contract command-contract` enforces notification producers with the 7 `ze-bgp-api` notifications allowlisted to `plan/post-release/features/spec-bgp-api-notification-producers.md`.
+
+### Alternatives set aside
+
+| Alternative | Why set aside |
+|-------------|---------------|
+| Keep D, E, and F in one combined spec (T-1) | Rejected by Thomas on 2026-11-24: splitting lets small, self-contained Pieces D and F land immediately without waiting on E's SDK accessor and leaf-gate rollout |
+| Refuse unconsumed leaves at daemon startup (2026-10-23 design) | Plugins load on demand, compile out by feature tag, or run external and declare after config load; `yang-config-design.md` already assigns this to build-time gate + `ze doctor` |
+| Promote `unreadleaves` string-literal grep heuristic to a build gate (T-2 option 2) | Rejected by Thomas on 2026-11-24: text matching produces both false positives and false negatives |
+| Change Stage 2 `ConfigSection.Data` wire encoding from JSON strings to typed JSON numbers/booleans | Would break external non-Go plugins relying on the documented Stage 2 string contract; layering `sdk.ConfigReader` over the existing Stage 2 JSON-string payload satisfies T-2 option 3 + T-3 cleanly with zero Stage 2 wire break |
+| Extend `registry.ConfigRouteRequest` with `Labels` for plugin families | Verified all 6 `InProcessConfigRouteParser` families (`flowspec`, `vpls`, `mvpn`, `evpn`, `srpolicy`, `mup`): none consumes `attribute { label / labels }` (`ipv4/nlri-mpls`, `ipv6/nlri-mpls`, `ipv4/mpls-vpn`, `ipv6/mpls-vpn` use the standard prefix path, and EVPN/VPLS read inline NLRI tokens). Refusing `attribute { label / labels }` in `buildConfigRouteRequest` keeps `ConfigRouteRequest` minimal and agrees with `update-building.md` |
+| Default `vxlan` `ttl` to `0` (inherit) or omit `ze:backend "kernel"` | Sibling IPv4-underlay tunnels (`gre`, `gretap`, `ipip`, `sit`) all declare `ze:backend "kernel";` and `default 64;` (matching VyOS `interfaces_vxlan.xml.in` overriding `0` with `64` so outer packets carry their own underlay hop budget rather than dropping early across multi-hop underlays; `plan/journal/schema-omits-a-leaf-the-backend-supports.md:21`), and VPP's `VxlanAddDelTunnelV3` carries no TTL field so omitting `ze:backend "kernel"` would violate exact-or-refuse |
+| Zero allowlist on leaf gate (T-5) | Rejected by Thomas on 2026-11-24: a temporary allowlist (`path`, `reason`, `owner`) lets the gate turn on immediately to block new inert leaves while deferred subtrees (`remote-access`, `adj-rib-*`, 7 notifications) land in their owning specs |
+
+### Documents departed from
+
+none
+
+### Choices for Thomas
+
+none
 
 ## Implementation Steps
 
-1. **Phase: Wiring** - the four wiring tests, each failing today.
-2. **Phase: E gate** - leaf-granularity audit and doctor report over the declaration T-2 chooses (AC-1 to AC-3).
-3. **Phase: E contract** - notification producers in yangcontract (AC-4).
-4. **Phase: E rows** - wire or delete each owned node per T-4 (AC-5).
-5. **Phase: F** - mapping agreement gate, then the four F rows (AC-6).
-6. **Phase: D** - one declaration per argument (AC-8), then each owned handler onto the accessors (AC-7).
-7. **Phase: rows** - each owned reproduction (AC-9).
+1. **Phase: Wiring (MANDATORY FIRST)** -- add failing tests: `TestConfigReaderTypedAccessAndPathRecording`, `TestStage1ChecksReadLeafPathsBounds`, `TestConfigSchemaLeavesConsumed`, `TestConfigLeafPhantomReads`, `TestDoctorReportsUnreadConfigLeaf`, `TestNotificationWithoutProducerFailsContract`, `TestPluginRouteRefusesAttributeLabels`, `TestReactorEnvYANGAliases`, `TestVxlanTTLLeafAccepted`, `TestBuildVxlanTTL`, and `test/plugin/doctor-config-leaf-unread.ci`.
+2. **Phase: SDK typed config reader & Stage 1 field (AC-1)** -- implement `pkg/plugin/sdk/config_reader.go`, add optional `ReadLeafPaths` (`omitempty`) to `pkg/plugin/rpc/types.go`, add the `read-leaf-paths` count/length/control-character check to `stage1Checks` in `internal/component/plugin/server/stage1_checks.go`, and store `ExternalReadLeafPaths` in `internal/component/plugin/server/startup.go`.
+3. **Phase: Leaf claim gate, doctor check, and unreadleaves repoint (AC-2, AC-3)** -- implement `claims.AuditLeaves`, `claims.AuditConfiguredLeaves`, and `leaf_allowlist.json`; wire `TestConfigSchemaLeavesConsumed` / `TestConfigLeafPhantomReads` in `internal/component/plugin/all/config_claims_test.go`; add `doctor-config-leaf-unread` in `internal/component/doctor/checks_config_claims.go`; repoint `internal/le/config/unreadleaves/yangleafmentions.go` onto `claims.AuditLeaves`.
+4. **Phase: Notification contract & stale RPC repair (AC-4)** -- add notification producer verification and `notification_allowlist.json` in `internal/le/doc/yangcontract/contract.go`; rename `peer-show`, `peer-show-capabilities`, `peer-show-statistics` in `ze-bgp-api.yang`, `ze-peer-cmd.yang`, `schema_test.go`, and `yang_test.go`.
+5. **Phase: T-4 surface fixes & parser adoption (AC-5)** -- refuse `attribute { label / labels }` with `opererr` in `internal/component/bgp/config/bgp_routes_plugin.go`, register the 7 canonical `ze.bgp.reactor.<leaf>` env keys with legacy `Aliases` in `internal/component/config/environment.go` and plumb `environment/reactor/<leaf>` in `internal/component/config/apply_env.go`, add `leaf ttl` (`ze:backend "kernel";`, `default 64;`) to `vxlan` in `internal/component/iface/yang/ze-iface-conf.yang` and wire `spec.TTLSet`/`spec.TTL` into `buildVxlan` (`internal/plugins/iface/netlink/tunnel_linux.go`), migrate in-tree plugin parsers onto `sdk.ConfigReader`, resolve remaining owned inert leaves, and shrink `leaf_allowlist.json` to strictly T-4/T-5 deferred owners.
+6. **Phase: Docs & journal closure (AC-6)** -- update all listed architecture, protocol, guide, and door pages; verify every owned Piece E journal row no longer reproduces and mark resolved rows `fixed:` at closure.
+
+## Review Gate
 
 ### Critical Review Checklist
 | Check | What to verify for this spec |
 |-------|------------------------------|
-| Completeness | Every AC-N has an implementation at file and symbol |
-| Correctness | No handler reads an argument by index; the peer selector stays positional |
-| Data flow | Gates read registries and the schema, never a hand list |
-| Rule: no-layering | Per-package agreement tests and hand lists removed once the generic gate covers them |
+| Completeness | Every AC-1..AC-6 has concrete code, unit test, and functional verification at file + symbol |
+| Correctness | `sdk.ConfigReader` preserves Stage 2 JSON-string wire compatibility; `stage1Checks` validates `ReadLeafPaths` identically on daemon and `JudgeDeclaration`; external plugins omitting `read-leaf-paths` are reported by `ze doctor`, never assumed to read; `attribute { label / labels }` on plugin families refused with `opererr`; `vxlan` `ttl` wired to `netlink.Vxlan.TTL` and refused on VPP via `ze:backend "kernel"` |
+| Data flow | `claims` remains decoupled from plugin/BGP registries; `unreadleaves` shares `claims.AuditLeaves` with zero duplicated logic |
+| Rule: no-layering | Advisory string-literal grep heuristic retired in favor of `claims.AuditLeaves`; every allowlist entry carries `path`, `reason`, and `owner` and fails if stale |
 
 ### Deliverables Checklist
 | Deliverable | Verification method |
 |-------------|---------------------|
-| Leaf gate | `TestConfigSchemaLeavesConsumed` |
-| Handlers by name | review of each owned handler against `argbind.go` |
+| `sdk.ConfigReader`, Stage 1 `read-leaf-paths`, & `stage1Checks` | `./le test unit pkg path ./pkg/plugin/sdk/`, `./le test unit pkg path ./pkg/plugin/rpc/`, and `./le test unit pkg path ./internal/component/plugin/server/` |
+| Leaf claim gate & allowlist validation | `./le test unit pkg path ./internal/component/plugin/all/` and `./le config unread-leaves report` |
+| Doctor unread-leaf check | `./le test unit pkg path ./internal/component/doctor/` and `test/plugin/doctor-config-leaf-unread.ci` |
+| Notification contract & RPC alignment | `./le doc yang-contract command-contract` and `./le test unit pkg path ./internal/le/doc/yangcontract/` |
+| T-4 surface fixes (`label`, `environment/reactor` env aliases, `vxlan` `ttl` + netlink) | Unit tests in `bgp/config`, `config`, `iface/yang`, `plugins/iface/netlink`, `plugin/server`, `core/ipc` |
 
 ### Security Review Checklist
 | Check | What to look for |
 |-------|-----------------|
-| Input validation | A newly declared argument leaf carries its type, range and pattern, so the validator refuses before the handler runs |
+| External plugin Stage 1 validation | `stage1Checks` (`internal/component/plugin/server/stage1_checks.go`) validates `ReadLeafPaths` entries are bounded in count/length and control-character free, matching all other Stage 1 declaration checks (`ai/rules/plugins.md`) |
+| Exact-or-reject on `label`/`labels` and `vxlan` `ttl` | Plugin families refuse configured `attribute { label / labels }` at config load with `opererr`; VPP refuses `vxlan/ttl` at verify via `ze:backend "kernel"` |
 
 ### Failure Routing
-
 | Failure | Route To |
 |---------|----------|
-| Gate reports a leaf with a real reader | Fix the declaration the reader is missing |
-| Operator form lost | Re-read the handler; declare the form |
+| Gate reports a leaf that has a real reader | Migrate that reader onto `sdk.ConfigReader` (or add its schema probe branch) so the read path is recorded automatically |
+| Gate reports an inert leaf with no reader | Wire it with a test, delete it with a fix, or file/cite an owning spec in `leaf_allowlist.json` per T-5 |
 | 3 fix attempts failed | STOP. Report all 3 approaches. Ask the user |
 
 ## Design Insights
 
 ## Owned journal rows
 
-Rows of the 2026-10-23 table that moved: A (uint64) to `spec-review-typed-config-decode`; B (three rows) to `spec-validation-walks-every-schema-section`; C (three rows) to `spec-yang-defaults-applied-once`; the 2026-10-12 `bgpMandatoryFailures` choice row to `spec-config-yang-when-unique-choice`; the 2026-09-15 thirteen-commands row to `spec-declared-commands-without-leaves`; the 2026-08-29 batching row and the 2026-09-06 `manual-eor`/`auto-flush` row to `spec-peer-leaves-the-peer-parser-never-reads`; the 2026-08-13 external plugin YANG row to `spec-plugin-external-yang-at-startup`; the two presence-container value-mode rows and the goyang `ToEntry` row to `spec-config-yang-accepted-input-correctness`; Ten rows are fixed at the producer and listed in no table. Three rows of another cause, marked "other cause:" in the table, are held here until the main thread moves them: they do not share this spec's root cause and no AC of this spec covers them. Their fitting homes refused the edit this session: `spec-config-yang-loader-structural-checks` (its AC-2 remainder is the tagging work) has no functional test in its plan, which the spec hook demands; `spec-web-cli-config-one-off-defects` (which owns the goyang `ToEntry` and `ApplyDeviate` rows) needs a producer read of thirteen files before an edit; `spec-prose-cites-symbols-not-facts` owns the `hardcoded-count-in-test` class. Every other row is prefixed with its piece, D, E or F.
+Rows moved out of this spec by the 2026-11-26 T-1 split and T-4 deduplication:
+- Piece D (6 rows) → `plan/release/fixes/spec-yang-command-arguments-by-leaf-name.md`.
+- Piece F (3 rows) → `plan/release/fixes/spec-yang-enum-vocabulary-agreement-gate.md`.
+- `unwired-feature.md` 2026-09-04 (`software-version/mode` half) → `plan/release/fixes/spec-software-version-mode-implements-two-of-four.md` (its `adj-rib-*` half is owned by `plan/release/fixes/spec-bgp-rib-state-subtree-has-no-producer.md`).
+- `unwired-feature.md` 2026-09-09 (`ze-bgp-api` notifications) → `plan/post-release/features/spec-bgp-api-notification-producers.md`.
+- `declared-format-contradicts-payload.md` 2026-09-03 (`update/watchdog/withdraw`) → already marked `fixed:` in the journal (`eb084a4b99`).
+
+Three rows of another cause, marked `other cause:` below, remain held here until the main thread moves them to their fitting specs (`spec-config-yang-loader-structural-checks`, `spec-web-cli-config-one-off-defects`, `spec-prose-cites-symbols-not-facts`).
 
 | Class file | Date | Surface (short) |
 |------------|------|-----------------|
 | `zero-value-as-valid-answer.md` | 2026-10-10 | other cause: `goyang-enum-negative.patch` has no owner to drop it |
 | `zero-value-as-valid-answer.md` | 2026-10-10 | other cause: `TestGoyangNumbersAnEnumAfterANegativeValue` follow-up |
-| `hardcoded-count-in-test.md` | 2026-10-23 | other cause: `request bgp watchdog *` moved to YANG (`dcc0ab9dc5`): the wire-method snapshot half is fixed by 741d4382b7; the `published-cli-commands.json` site catalog half is still open |
-| `command-takes-an-untyped-positional-value.md` | 2026-08-24 | D: five `show bgp` commands read an untyped positional |
-| `command-takes-an-untyped-positional-value.md` | 2026-08-30 | `announce` handler reads args beyond the declared `selector` |
-| `command-takes-an-untyped-positional-value.md` | 2026-09-04 | `peer raw`, `peer update` and siblings read undeclared positionals |
-| `command-takes-an-untyped-positional-value.md` | 2026-09-04 | `request bgp rib inject` reads `args[0..2]` |
-| `command-takes-an-untyped-positional-value.md` | 2026-10-21 | `peer teardown`/`disable` read `validated.Tokens()` by position |
-| `argument-leaf-declared-on-container-and-rpc-input.md` | 2026-09-15 | D: 25 commands declare one leaf on the `-cmd` container and the rpc input |
-| `unwired-feature.md` | 2026-10-23 | E: `label`/`labels` in a config `attribute` block never reach the route |
-| `unwired-feature.md` | 2026-09-04 | `request peer <sel> borr` declared in `ze-refresh-cmd.yang`, dispatcher answers unknown command |
-| `unwired-feature.md` | 2026-09-04 | fifteen leaves incl. `l2tp/shaper/upload-rate`, `bmp/route-action` with no reader |
-| `unwired-feature.md` | 2026-09-04 | `ddos/flowtriq/api-key`, `bfd/enabled` and four more leaves with no reader |
-| `unwired-feature.md` | 2026-09-04 | `fib/p4/*`, `fib/kernel/flush-on-stop`, `sweep-delay` inert through a type mismatch |
-| `unwired-feature.md` | 2026-09-04 | IPsec `remote-access` subtree and seventeen more leaves inert |
-| `unwired-feature.md` | 2026-09-03 | `ospf/reference-bandwidth`, `max-metric` and two more inert |
-| `unwired-feature.md` | 2026-09-03 | `unit/ipv6/dhcpv6/pd` and three more iface leaves inert |
-| `unwired-feature.md` | 2026-09-03 | five `ze-bgp-api` RPCs (`peer-show`, `peer-add`, ...) with no handler |
-| `unwired-feature.md` | 2026-08-30 | `environment/bgp/reactor` leaves lack the YANG-named env alias |
-| `unwired-feature.md` | 2026-09-09 | `ze-bgp-api` notifications have no producer (the row names four; the model declares seven) |
-| `declared-format-contradicts-payload.md` | 2026-09-05 | `rpki/cache-server/preference` declares an order Ze does not perform |
-| `declared-format-contradicts-payload.md` | 2026-09-03 | `update/watchdog/withdraw` and sibling declare a meaning the producer lacks |
-| `declared-format-contradicts-payload.md` | 2026-08-31 | E: `ze-plugin:session-ping` reply leaf contradicts its handler |
-| `schema-omits-a-leaf-the-backend-supports.md` | 2026-09-14 | F: `environment/log/backend` enum omits `kmsg` |
-| `schema-omits-a-leaf-the-backend-supports.md` | 2026-09-11 | ADD-PATH `direction` enum omits `receive/send` |
-| `schema-omits-a-leaf-the-backend-supports.md` | 2026-09-14 | `diag` capture `protocol` enum omits `bfd` |
-| `unwired-feature.md` | 2026-09-04 | `software-version/mode` enum offers four values, implements two (its `adj-rib` half is E) |
-| `schema-omits-a-leaf-the-backend-supports.md` | 2026-09-05 | vxlan case has no `ttl` leaf (a missing leaf, not an enum: no agreement gate sees it, so it is fixed by adding the leaf) |
+| `hardcoded-count-in-test.md` | 2026-10-23 | other cause: `request bgp watchdog *` moved to YANG (`dcc0ab9dc5`): the wire-method snapshot half is fixed by `741d4382b7`; the `published-cli-commands.json` site catalog half is still open |
+| `unwired-feature.md` | 2026-10-23 | `label`/`labels` in a config `attribute` block never reach plugin-family routes |
+| `unwired-feature.md` | 2026-09-04 | `request peer <sel> borr` declared in `ze-refresh-cmd.yang`, dispatcher answers unknown command (verify `rfc7313_dispatch_test.go` and flip to `fixed:`) |
+| `unwired-feature.md` | 2026-09-04 | fifteen leaves incl. `l2tp/shaper/upload-rate`, `image-server/listen-interface` (`bmp/route-action` already fixed by `fa74dc4c00`) |
+| `unwired-feature.md` | 2026-09-04 | `ddos/flowtriq/api-key`, `bfd/enabled` and four more leaves (all 6 already fixed in HEAD; verify and flip to `fixed:`) |
+| `unwired-feature.md` | 2026-09-04 | `fib/p4/*`, `fib/vpp/*` (`fib/kernel/flush-on-stop`, `sweep-delay`, `policy/route/interface` already fixed in HEAD) |
+| `unwired-feature.md` | 2026-09-04 | IPsec `remote-access` subtree and seventeen more leaves inert (`remote-access` allowlisted citing `spec-ipsec-remote-access.md` + siblings) |
+| `unwired-feature.md` | 2026-09-03 | `ospf/max-metric/router-lsa/*` (`ospf/reference-bandwidth` and `accept-lifetime` already fixed in HEAD) |
+| `unwired-feature.md` | 2026-09-03 | `unit/ipv6/dhcpv6/pd`, `interface/monitor` and two more iface leaves inert |
+| `unwired-feature.md` | 2026-09-03 | three remaining stale `ze-bgp-api` RPCs (`peer-show`, `peer-show-capabilities`, `peer-show-statistics`; `peer-add`/`peer-remove` already renamed) |
+| `unwired-feature.md` | 2026-08-30 | `environment/reactor` 7 leaves lack the canonical YANG-named env alias (`ze.bgp.reactor.<leaf>`) |
+| `declared-format-contradicts-payload.md` | 2026-09-05 | `rpki/cache-server/preference` (already implemented and tested in HEAD; verify and flip `open:` row to `fixed:`) |
+| `declared-format-contradicts-payload.md` | 2026-08-31 | `ze-plugin:session-ping` reply leaf (already fixed 2026-09-15; verify and flip `open:` row to `fixed:`) |
+| `schema-omits-a-leaf-the-backend-supports.md` | 2026-09-05 | `vxlan` case in `ze-iface-conf.yang` has no `ttl` leaf |
 
 ## Key Design Decisions
 
 | Decision | Alternatives Considered | Rationale |
 |----------|------------------------|-----------|
-| Build-time gate plus `ze doctor` for unconsumed nodes | Refuse at startup (the 2026-10-23 design) | Load cannot decide: plugins load on demand, compile out, or run external and declare after config load; the design page already assigns this to the build gate and doctor |
-| D reuses `ValidatedArgs` accessors | A new typed accessor per argument | The accessors exist and every route already builds the value |
-| F extends the enumeration gate | Keep adding per-package agreement tests | A test per table is a hand list of tables |
-| Ownership with `spec-declared-commands-without-leaves`: that spec declares the leaves a command lacks (model side, the thirteen-command row); this one moves handlers that already have, or are given, leaves onto the accessors and removes double declarations | One spec for both | The model work is per-command design; the handler work is mechanical once the leaf exists. A handler whose leaf that spec has not declared waits for it |
-
-### Decisions that are Thomas's
-
-| Decision | Options | What each changes |
-|----------|---------|-------------------|
-| T-1: keep D, E and F in one spec, or split into three | One spec; three specs (D command arguments, E inert surface, F enum vocabulary) | One: one design pass and one review over three mechanisms that share no code. Three: each closes on its own; D and F are small and could land before E's gate design is settled |
-| T-2: how a consumer declares the leaves it reads, for the E gate | 1. A leaf-path field on `registry.Registration` and on the Stage 1 declaration. 2. Promote the unread-leaves heuristic to a gate. 3. Consumers read only through a schema-bound accessor that records the path (needs T-3) | 1: exact, works for external plugins at run time through doctor; a public protocol field and an edit to every plugin's registration. 2: no contract change; a text match, with the false results its own comment lists. 3: exact without a declaration; changes the SDK config contract |
-| T-3: a per-leaf typed config accessor in the SDK | Keep values as JSON strings (today's Stage 2 contract); add typed accessors bound to schema nodes | Keep: no `pkg/` change; parsers keep `configvalue` helpers. Add: a published SDK change, every plugin parser rewritten, and the basis for T-2 option 3 |
-| T-4: for each owned row no RFC or agreed design answers, wire or delete: `remote-access` subtree, `software-version/mode` values and `bgp/rib/adj-rib-*`, the seven `ze-bgp-api` notifications, the five `ze-bgp-api` rpcs, `rpki/cache-server/preference` ordering, `update/watchdog/withdraw`, `label`/`labels` on plugin families | Wire (build the behavior now); delete (refuse the config with a fix); keep as a gap owed after the first release, in a spec of its own | Wire: release scope grows. Delete: the operator surface shrinks and saved configs that set the leaf are refused. Later: the leaf stays accepted and inert until then, which is the defect, so it needs the gate's exception from T-5 |
-| T-5: whether the leaf gate allows recorded exceptions | None; an allowlist like `claims/allowlist.json`, each entry with a reason and an owner | None: every row in T-4 is wired or deleted before the gate lands. Allowlist: the gate can land first and T-4's later rows wait in it, visible |
+| Build-time leaf gate + `ze doctor` (`doctor-config-leaf-unread`) | Refuse unconsumed leaves at daemon startup | Load cannot decide: plugins load on demand, compile out, or run external and declare after config load; `yang-config-design.md` already assigns this to build gate + doctor |
+| Layer `sdk.ConfigReader` over unchanged Stage 2 JSON-string wire payload + optional Stage 1 `read-leaf-paths` validated in `stage1Checks` | Rewrite Stage 2 wire format to typed JSON; maintain manual leaf lists; grep source literals | Satisfies Thomas's T-2 option 3 + T-3 while keeping non-Go external plugins working, eliminating manual leaf lists, and keeping daemon and `JudgeDeclaration` Stage 1 validation identical |
+| Temporary recorded allowlist (`leaf_allowlist.json` + `notification_allowlist.json`) with required `path`, `reason`, `owner` and staleness check | Block gate until every deferred post-release subtree is built | Per Thomas's T-5: turns on the build gate immediately to block new inert declarations while keeping deferred items visible and owned |
+| Refuse `attribute { label / labels }` in `buildConfigRouteRequest` without modifying `ConfigRouteRequest` | Add `Labels` to `ConfigRouteRequest` | None of the 6 `InProcessConfigRouteParser` families (`flowspec`, `vpls`, `mvpn`, `evpn`, `srpolicy`, `mup`) accepts attribute labels (`ipv4/nlri-mpls`, `ipv6/nlri-mpls`, `ipv4/mpls-vpn`, `ipv6/mpls-vpn` take the standard prefix path in `bgp_routes.go`; EVPN/VPLS read inline NLRI label tokens); refusal prevents silent drops while preserving `update-building.md`'s contract |
+| `vxlan` `leaf ttl` carries `ze:backend "kernel";` and `default 64;`, wired into `buildVxlan` (`netlink.Vxlan.TTL`) | `default 0` (inherit) or omitting `ze:backend "kernel"` | Matches sibling IPv4-underlay tunnels (`gre`, `gretap`, `ipip`, `sit`) and VyOS (`interfaces_vxlan.xml.in` overriding `0` with `64` so outer packets get their own underlay hop budget; `plan/journal/schema-omits-a-leaf-the-backend-supports.md:21`), while `ze:backend "kernel";` enforces exact-or-refuse on VPP whose `VxlanAddDelTunnelV3` has no TTL field |
 
 ## Known Limitations
-- External plugin YANG compiled at startup: `spec-plugin-external-yang-at-startup` (its AC-1 holds the old AC-11 schema half).
+- External plugin YANG compiled at startup is owned by `plan/release/fixes/spec-plugin-external-yang-at-startup.md`.
+- Wiring producers for the 7 `ze-bgp-api` notifications is post-release in `plan/post-release/features/spec-bgp-api-notification-producers.md`.
+- IPsec `remote-access` is post-release in `plan/post-release/features/spec-ipsec-remote-access.md`.
 
 ## Checklist
 
@@ -400,10 +536,10 @@ Rows of the 2026-10-23 table that moved: A (uint64) to `spec-review-typed-config
 - [ ] Integration Checklist marks "CLI grammar" for every changed command
 
 ### Goal Gates (MUST pass)
-- [ ] AC-1..AC-9 all demonstrated
+- [ ] AC-1..AC-6 all demonstrated
 - [ ] Every user story has a working path and a passing test
 - [ ] Wiring Test table complete: every row a concrete test name, none deferred
-- [ ] The targeted tests pass, run by the main thread: `./le test unit pkg path ./internal/component/plugin/all/`, `./le test unit pkg path ./internal/component/config/yang/`, `./le test unit pkg path ./internal/le/arch/enumeration/`, the owned command packages, `./le test functional plugin`, `./le test functional ui`, `./le cli grammar`, `./le doc yang-contract command-contract`, and the suites `./le repo changed scope print both` reaches. No `./le verify` command
+- [ ] Targeted tests pass, run by the main thread: `./le test unit pkg path ./pkg/plugin/sdk/`, `./le test unit pkg path ./pkg/plugin/rpc/`, `./le test unit pkg path ./internal/component/config/claims/`, `./le test unit pkg path ./internal/component/plugin/all/`, `./le test unit pkg path ./internal/component/doctor/`, `./le test unit pkg path ./internal/component/bgp/config/`, `./le test unit pkg path ./internal/component/config/`, `./le test unit pkg path ./internal/component/iface/yang/`, `./le test unit pkg path ./internal/plugins/iface/netlink/`, `./le test unit pkg path ./internal/component/plugin/server/`, `./le test unit pkg path ./internal/core/ipc/`, `./le test unit pkg path ./internal/le/doc/yangcontract/`, `./le config claims`, `./le config unread-leaves report`, `./le cli grammar`, `./le doc yang-contract command-contract`, `./le test functional plugin`, `./le mock plugin-external`, and `./le doc check all`
 - [ ] Every A-N confirmed or broken, none `unvalidated`
 - [ ] Every item this spec did not do is a spec of its own, named here
 
@@ -411,11 +547,11 @@ Rows of the 2026-10-23 table that moved: A (uint64) to `spec-review-typed-config
 - [ ] Tests written
 - [ ] Tests FAIL (paste output)
 - [ ] Tests PASS (paste output)
-- [ ] Functional `.ci` tests for end-to-end behavior
+- [ ] Functional `.ci` test passes (`test/plugin/doctor-config-leaf-unread.ci`)
 - [ ] Interop tests N-A: no protocol wire change
 
 ### Closure
 - [ ] Append `plan/templates/TEMPLATE-CLOSURE.md` and complete every section in it
 - [ ] `/ze-review` gate clean, recorded via `internal/le/spec/review.go`
-- [ ] **Commit A:** code + tests + docs + edited spec + journal rows marked `fixed:`
+- [ ] **Commit A:** code + tests + docs + edited spec + resolved owned journal rows marked `fixed:`
 - [ ] **Commit B:** `remove plan/release/fixes/spec-yang-single-source-of-truth.md` only
