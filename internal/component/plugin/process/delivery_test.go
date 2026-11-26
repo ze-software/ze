@@ -271,7 +271,7 @@ func TestDrainEventsReturnsWhenTheRailIsEmpty(t *testing.T) {
 // delivery queue ceiling (65536 for non-cache-consumer endpoints, 256 for
 // CacheConsumer plugins) and explicit DeliveryQueueMax precedence.
 //
-// VALIDATES: AC-3 of spec-bus-observer-delivery-decoupling.md.
+// VALIDATES: AC-3 of spec-bus-observer-delivery-decoupling.
 // PREVENTS: Cache-consumer forwarding plugins losing tight backpressure or
 // explicit operator delivery-queue-max being overwritten by SetCacheConsumer.
 func TestProcessCacheConsumerDefaultQueueBound(t *testing.T) {
@@ -292,8 +292,8 @@ func TestProcessCacheConsumerDefaultQueueBound(t *testing.T) {
 		proc.StartDelivery(t.Context())
 		stopAndWait(t, proc)
 
-		if got := proc.eventQueue.MaxCap(); got != plugin.DefaultDeliveryQueueMax {
-			t.Fatalf("ordinary default MaxCap = %d, want %d", got, plugin.DefaultDeliveryQueueMax)
+		if got := proc.eventQueue.maxCapacity(); got != plugin.DefaultDeliveryQueueMax {
+			t.Fatalf("ordinary default maxCapacity = %d, want %d", got, plugin.DefaultDeliveryQueueMax)
 		}
 	})
 
@@ -303,8 +303,8 @@ func TestProcessCacheConsumerDefaultQueueBound(t *testing.T) {
 		proc.StartDelivery(t.Context())
 		stopAndWait(t, proc)
 
-		if got := proc.eventQueue.MaxCap(); got != plugin.DefaultCacheConsumerQueueMax {
-			t.Fatalf("cache-consumer pre-start MaxCap = %d, want %d", got, plugin.DefaultCacheConsumerQueueMax)
+		if got := proc.eventQueue.maxCapacity(); got != plugin.DefaultCacheConsumerQueueMax {
+			t.Fatalf("cache-consumer pre-start maxCapacity = %d, want %d", got, plugin.DefaultCacheConsumerQueueMax)
 		}
 	})
 
@@ -313,16 +313,16 @@ func TestProcessCacheConsumerDefaultQueueBound(t *testing.T) {
 		proc.StartDelivery(t.Context())
 		stopAndWait(t, proc)
 
-		if got := proc.eventQueue.MaxCap(); got != plugin.DefaultDeliveryQueueMax {
-			t.Fatalf("initial MaxCap = %d, want %d", got, plugin.DefaultDeliveryQueueMax)
+		if got := proc.eventQueue.maxCapacity(); got != plugin.DefaultDeliveryQueueMax {
+			t.Fatalf("initial maxCapacity = %d, want %d", got, plugin.DefaultDeliveryQueueMax)
 		}
 		proc.SetCacheConsumer(true)
-		if got := proc.eventQueue.MaxCap(); got != plugin.DefaultCacheConsumerQueueMax {
-			t.Fatalf("after SetCacheConsumer(true) MaxCap = %d, want %d", got, plugin.DefaultCacheConsumerQueueMax)
+		if got := proc.eventQueue.maxCapacity(); got != plugin.DefaultCacheConsumerQueueMax {
+			t.Fatalf("after SetCacheConsumer(true) maxCapacity = %d, want %d", got, plugin.DefaultCacheConsumerQueueMax)
 		}
 		proc.SetCacheConsumer(false)
-		if got := proc.eventQueue.MaxCap(); got != plugin.DefaultDeliveryQueueMax {
-			t.Fatalf("after SetCacheConsumer(false) MaxCap = %d, want %d", got, plugin.DefaultDeliveryQueueMax)
+		if got := proc.eventQueue.maxCapacity(); got != plugin.DefaultDeliveryQueueMax {
+			t.Fatalf("after SetCacheConsumer(false) maxCapacity = %d, want %d", got, plugin.DefaultDeliveryQueueMax)
 		}
 	})
 
@@ -332,16 +332,16 @@ func TestProcessCacheConsumerDefaultQueueBound(t *testing.T) {
 		proc.StartDelivery(t.Context())
 		stopAndWait(t, proc)
 
-		if got := proc.eventQueue.MaxCap(); got != 1024 {
-			t.Fatalf("pre-start override MaxCap = %d, want 1024", got)
+		if got := proc.eventQueue.maxCapacity(); got != 1024 {
+			t.Fatalf("pre-start override maxCapacity = %d, want 1024", got)
 		}
 		proc.SetCacheConsumer(false)
-		if got := proc.eventQueue.MaxCap(); got != 1024 {
-			t.Fatalf("after toggle override MaxCap = %d, want 1024", got)
+		if got := proc.eventQueue.maxCapacity(); got != 1024 {
+			t.Fatalf("after toggle override maxCapacity = %d, want 1024", got)
 		}
 		proc.SetCacheConsumer(true)
-		if got := proc.eventQueue.MaxCap(); got != 1024 {
-			t.Fatalf("after re-enable override MaxCap = %d, want 1024", got)
+		if got := proc.eventQueue.maxCapacity(); got != 1024 {
+			t.Fatalf("after re-enable override maxCapacity = %d, want 1024", got)
 		}
 	})
 }
@@ -351,7 +351,7 @@ func TestProcessCacheConsumerDefaultQueueBound(t *testing.T) {
 // blocking Deliver, then delivers every event in exact FIFO order in batches
 // capped at 512 and shrinks the ring back to 64 once drained.
 //
-// VALIDATES: AC-1 and AC-4 of spec-bus-observer-delivery-decoupling.md.
+// VALIDATES: AC-1 and AC-4 of spec-bus-observer-delivery-decoupling.
 // PREVENTS: Producer stalls during full-table bursts, dropped or reordered
 // events, batches exceeding 512, or retained burst memory after drain.
 func TestProcessBurstNonBlockingFIFO512Batch(t *testing.T) {

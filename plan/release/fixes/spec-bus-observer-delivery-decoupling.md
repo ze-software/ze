@@ -2,17 +2,17 @@
 
 | Field | Value |
 |-------|-------|
-| Status | ready |
+| Status | in-progress |
 | Scope | plugin |
 | Priority | P1 |
 | Release reason | Q-E7 benchmark on Apple M4 Max (2026-11-25) proved that 5 to 20 external `ze exabgp plugin` observers subscribing to `bgp:update` saturate the fixed 64-slot `Process.Deliver` channel, filling `deliverChan`, stalling the BGP peer TCP read goroutine, and degrading live BGP forwarding throughput by 58% to 84% (`628k -> 263k -> 102k r/s`). |
 | RFC gaps | - |
 | Depends | - |
-| Phase | - |
+| Phase | 3/3 |
 | Handoff | - |
 | Design tier | strongest tier |
 | Implementation tier | development tier |
-| Updated | 2026-11-25 |
+| Updated | 2026-11-26 |
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.
 
@@ -92,6 +92,7 @@ Replace the fixed 64-slot `Process.eventChan` channel with a bounded, dynamicall
 | `docs/architecture/hub-architecture.md` | What the daemon does at start | `// Design:` of `reload_declarations.go` and `reload_declarations_bus_test.go`; modified by this spec | "A reload (SIGHUP, `request reload`, a commit, a managed push) reads a config whose external plugins differ from the ones the daemon started with: one added, one removed, or one whose `run`, `encoder`, `respawn` or `timeout` changed" | agrees | Adds `delivery-queue-max` to the immutable external-endpoint declaration set checked by `RefuseChangedDeclarations` and updates this page alongside it. |
 | `docs/architecture/exabgp-bridge.md` | Measured per-script cost (Q-E7) | anchored to `reload_declarations.go`, `delivery.go`; modified by this spec | "Each script adds roughly `~1.6–1.8 µs` of CPU per received UPDATE across TLS send/receive, `json.Unmarshal` into `map[string]any`, wire attribute decoding, ExaBGP JSON formatting, and pipe write" | agrees | Removes lockstep 64-slot channel blocking and 64-event RPC round-trips for ExaBGP endpoints and updates the Q-E7 note on this page. |
 | `docs/architecture/exabgp-bridge.md` | Design decisions | decision of 2026-11-23 | "An ExaBGP script is an ordinary bus endpoint that runs the wrapper; the bridge config section and the internal bridge mode do not exist" | agrees | `delivery-queue-max` is a generic `bus > endpoint` leaf, not an ExaBGP-specific section or runner. |
+| `docs/architecture/exabgp-bridge.md` | Design decisions | decision of 2026-11-26 | "ExaBGP wrapper endpoints request `base64` (`plugin.FormatBase64`) UPDATE delivery at Stage 5 `ready` using Ze's positional counted wire grammar (`upd <flags> <local-as> <remote-as> <conn-id> <n>:<peer> <n>:<local> <n>:<router-id> <n>:<extra-addpath> <n>:<b64-body>`, zero key names, `0:` when absent) over pooled `WriteBatchFrame` `MuxConn` batching while keeping low-frequency control/session events as JSON; `ze exabgp plugin` renders hot IPv4/IPv6 unicast UPDATEs directly into a `[]byte` buffer from wire bytes and falls back to the wire-backed `Event` renderer for non-unicast families and error cases" | agrees | `eventQueue` sits inside `Process` and carries `base64` and JSON event strings identically without modifying wire grammar or rendering. |
 | `docs/plugin-development/metrics.md` | Naming Policy | modified by this spec | "Every metric name is built from four parts in fixed order:" | agrees | New metrics `ze_plugin_delivery_queue_depth` (GaugeVec) and `ze_plugin_delivery_backpressure_waits_total` (CounterVec) follow the `ze_plugin_delivery_*` family and naming rules. |
 | `docs/architecture/api/architecture.md` | The model | `// Design:` of `bus_validate.go`, `bus_validate_test.go`; anchored to `types.go`, `process.go` | "Participant = any party on the bus, named by its configuration path" | agrees | `delivery-queue-max` sits on `bus > endpoint` without altering participant paths, filter compilation, or send/receive grant semantics. |
 | `docs/architecture/api/architecture.md` | Design decisions | decision of 2026-11-23 (`implied` inline comments) | "When `\| implied` modifies an existing config line (such as inserting automatic members into a `filters [ ... ];` list), it keeps the line intact and places an inline `# implied: ...` comment on the same line after the statement naming what was added and why, rather than placing a comment only above the line or splitting the list across multiple lines. In Thomas's words (2026-11-23): "No, it should be on the same line and say what was added"." | agrees | Does not touch `\| implied` rendering. |
@@ -125,6 +126,8 @@ Replace the fixed 64-slot `Process.eventChan` channel with a bounded, dynamicall
 | `docs/architecture/core-design.md` | Design decisions | decision of 2026-11-23 (explicit next-hop IPv4/IPv6) | "Explicit next-hop addresses in `policy { modify <name> { set { next-hop <ip>; } } }` and `policychain.Sets.NextHop` support both IPv4 (attr 3) and IPv6/MP_REACH (through `NextHopProfile` and `ValidatePeerGlobalNextHop`) on both export and import chains. Egress-only next-hop modes (`self`, `unchanged`, `auto`), whether written as built-in `next-hop:*` refs or inside `policy { modify }`, are refused on import chains at config load. Selected by Thomas on 2026-11-23 ("Option A: Support IPv4 + IPv6/MP_REACH for explicit next-hop on both export and import; refuse self/unchanged/auto on import at config load")." | agrees | Does not touch BGP policy chains. |
 | `docs/architecture/core-design.md` | Design decisions | decision of 2026-11-23 (forwarded vs originated next-hop) | "Auto-appended trailing `next-hop:auto` applies only to forwarded routes and preserves the originator-chosen next hop on locally originated routes (static config routes, ExaBGP `announce`, API announcements). Explicit export-chain next-hop actions (`next-hop:self`, `modify { set { next-hop ... } }`) apply uniformly to both forwarded and locally originated routes. Selected by Thomas on 2026-11-23 ("Option A: Trailing next-hop:auto applies to forwarded routes only (preserves static/ExaBGP/API explicit next-hop); explicit next-hop:self / modify next-hop applies to both forwarded and originated routes")." | agrees | Does not touch BGP next-hop rewriting. |
 | `docs/architecture/core-design.md` | Design decisions | decision of 2026-11-23 (implied filter display) | "Every automatic filter-chain member Ze inserts — both built-in BGP engine steps (`next-hop:auto` at the export tail, `loop-detection` at the import head) and plugin-declared `FilterInsertions` — is published through one queryable implied-filter seam carrying direction, position, reference and `implied-by` reason so `\| implied` displays every extra chain member alongside the operator's written filter list. In Thomas's words (2026-11-23): "Can you make sure that \| implied show the extra chain members when it displays the filter ?"." | agrees | Does not touch filter-chain implied display. |
+| `docs/architecture/core-design.md` | Design decisions | decision of 2026-11-26 (Ze always starts) | "Ze always starts. The configuration of one service never makes `ze start` exit or refuse to start: a service whose configuration cannot be served is not started, ze runs with its other services, and the service is reported with its fix by an error line in the log under a doctor code and by `ze doctor` under the same code." | agrees | Adds no startup exit; `delivery-queue-max` is an optional validated leaf whose reload changes remain refused as a whole while running services keep serving. |
+| `docs/architecture/core-design.md` | Design decisions | decision of 2026-11-26 (VPP/kernel start override) | "The rule of 2026-11-23 above, that a configuration which holds a feature that programs only the Linux kernel while the interfaces run on VPP "is refused at daemon start", is superseded for the start: ze starts, that feature stays off, and `ze doctor` reports the mismatch with its fix. A commit, a reload and `ze config validate` still refuse such a configuration, by the same verdict as before." | agrees | Does not touch VPP/kernel validation or start behavior. |
 | `docs/architecture/encoding-context.md` | TL;DR (Read This First) | anchored to `types.go` | - | silent | Encoding contexts and wire forwarding are unchanged. |
 | `docs/architecture/plugin-manager-wiring.md` | Problem | anchored to `types.go` | - | silent | Plugin manager startup wiring is unchanged; metrics registration extends existing `SetMetricsRegistry`. |
 | `docs/architecture/web-interface.md` | Source Files | anchored to `types.go` | - | silent | Web UI is unaffected; YANG leaf is discovered automatically by schema-driven config editor. |
@@ -156,9 +159,9 @@ Replace the fixed 64-slot `Process.eventChan` channel with a bounded, dynamicall
 ### Boundaries Crossed
 | Boundary | How | Verified |
 |----------|-----|----------|
-| Config YANG ↔ PluginConfig | `ze-plugin-conf.yang` -> `bus_validate.go` -> `plugin.PluginConfig.DeliveryQueueMax` | No |
-| BGP EventDispatcher / EventBus ↔ Plugin Process | `Process.Deliver` / `DeliverContext` -> `eventQueue` (lossless FIFO ring) | No |
-| Plugin Process ↔ External Plugin | Unchanged `SendDeliverBatch` over TLS `MuxConn` (batches up to 512 events, split at 16 MiB by `CallBatchRPC`) | No |
+| Config YANG ↔ PluginConfig | `ze-plugin-conf.yang` -> `bus_validate.go` -> `plugin.PluginConfig.DeliveryQueueMax` | Yes |
+| BGP EventDispatcher / EventBus ↔ Plugin Process | `Process.Deliver` / `DeliverContext` -> `eventQueue` (lossless FIFO ring) | Yes |
+| Plugin Process ↔ External Plugin | Unchanged `SendDeliverBatch` over TLS `MuxConn` (batches up to 512 events, split at 16 MiB by `CallBatchRPC`) | Yes |
 
 ### Changed-Wire Census
 
@@ -246,14 +249,14 @@ Replace the fixed 64-slot `Process.eventChan` channel with a bounded, dynamicall
 ### Unit Tests
 | Test | File | Validates | Status |
 |------|------|-----------|--------|
-| `TestEventQueueGrowDrainShrinkFIFO` | `internal/component/plugin/process/event_queue_test.go` | AC-1, AC-4: grows from 64 to 16,384, drains in 512-item FIFO batches, shrinks back to 64 when empty | |
-| `TestEventQueueBackpressureAndCancel` | `internal/component/plugin/process/event_queue_test.go` | AC-2: blocks at ceiling, cancels cleanly on `ctx.Done()` and `procCtx.Done()`, preserves FIFO under `-race` | |
-| `TestEventQueueCloseCleansUpPooledEvents` | `internal/component/plugin/process/event_queue_test.go` | R-3: closing with buffered `StructuredEvent` and `Result` items recycles events and wakes all waiters | |
-| `TestDeliveryContextCancelRetainsFIFO` | `internal/component/plugin/process/delivery_context_test.go` | AC-2: updated seam for `eventQueue`, retains exact mutation contract | |
-| `TestProcessCacheConsumerDefaultQueueBound` | `internal/component/plugin/process/delivery_test.go` | AC-3: `SetCacheConsumer(true)` sets default ceiling 256; non-cache-consumer defaults to 65,536; explicit `DeliveryQueueMax` wins | |
-| `TestBusValidateDeliveryQueueMax` | `internal/component/config/bus_validate_test.go` | AC-5: extracts valid `delivery-queue-max` and rejects out-of-range values | |
-| `TestReloadRefusesChangedDeliveryQueueMax` | `internal/component/plugin/server/reload_declarations_bus_test.go` | AC-5: reload refusal names `delivery-queue-max` | |
-| `TestDeliveryBackpressureWaitReportedByDoctor` | `internal/component/plugin/doctor/checks_delivery_test.go` | AC-6: doctor warning names backpressure waits under `CodeDoctorPluginDeliveryFailed` | |
+| `TestEventQueueGrowDrainShrinkFIFO` | `internal/component/plugin/process/event_queue_test.go` | AC-1, AC-4: grows from 64 to 16,384, drains in 512-item FIFO batches, shrinks back to 64 when empty | PASS |
+| `TestEventQueueBackpressureAndCancel` | `internal/component/plugin/process/event_queue_test.go` | AC-2: blocks at ceiling, cancels cleanly on `ctx.Done()` and `procCtx.Done()`, preserves FIFO under `-race` | PASS |
+| `TestEventQueueCloseCleansUpPooledEvents` | `internal/component/plugin/process/event_queue_test.go` | R-3: closing with buffered `StructuredEvent` and `Result` items recycles events and wakes all waiters | PASS |
+| `TestDeliveryContextCancelRetainsFIFO` | `internal/component/plugin/process/delivery_context_test.go` | AC-2: updated seam for `eventQueue`, retains exact mutation contract | PASS |
+| `TestProcessCacheConsumerDefaultQueueBound` | `internal/component/plugin/process/delivery_test.go` | AC-3: `SetCacheConsumer(true)` sets default ceiling 256; non-cache-consumer defaults to 65,536; explicit `DeliveryQueueMax` wins | PASS |
+| `TestBusValidateDeliveryQueueMax` | `internal/component/config/bus_validate_test.go` | AC-5: extracts valid `delivery-queue-max` and rejects out-of-range values | PASS |
+| `TestReloadRefusesChangedDeliveryQueueMax` | `internal/component/plugin/server/reload_declarations_bus_test.go` | AC-5: reload refusal names `delivery-queue-max` | PASS |
+| `TestDeliveryBackpressureWaitReportedByDoctor` | `internal/component/plugin/doctor/checks_delivery_test.go` | AC-6: doctor warning names backpressure waits under `CodeDoctorPluginDeliveryFailed` | PASS |
 
 ### Boundary Tests (numeric inputs)
 | Field | Range | Last Valid | Invalid Below | Invalid Above |
@@ -264,8 +267,8 @@ Replace the fixed 64-slot `Process.eventChan` channel with a bounded, dynamicall
 ### Functional Tests
 | Test | Location | End-User Scenario | Status |
 |------|----------|-------------------|--------|
-| `bus-delivery-queue-max` | `test/parse/bus-delivery-queue-max.ci` | Accepts valid `delivery-queue-max` (`64`, `65536`, `1048576`), refuses `63` and `1048577` | |
-| `bus-delivery-queue-burst-lossless` | `test/plugin/bus-delivery-queue-burst-lossless.ci` | External plugin receives a 300-route burst without stalling at 64 events and loses 0 routes | |
+| `bus-delivery-queue-max` | `test/parse/bus-delivery-queue-max.ci` | Accepts valid `delivery-queue-max` (`64`, `65536`, `1048576`), refuses `63` and `1048577` | PASS |
+| `bus-delivery-queue-burst-lossless` | `test/plugin/bus-delivery-queue-burst-lossless.ci` | External plugin receives a 500-route single-prefix burst without stalling at 64 events and loses 0 routes | PASS |
 
 ### Interop Tests (Scope: plugin)
 Not applicable: no BGP wire protocol behavior changes. Q-E7 Mac `./le perf run dut ze` re-measurement at 0/1/5/20 scripts provides the before/after throughput evidence.
@@ -462,3 +465,225 @@ none
 - [ ] `/ze-review` gate clean
 - [ ] **Commit A:** code + tests + docs + edited spec
 - [ ] **Commit B:** `remove plan/release/fixes/spec-bus-observer-delivery-decoupling.md`
+
+---
+
+## Implementation Summary
+
+### What Was Implemented
+- **Phase 1 (`bc7aafc758`) — Config leaf, extraction, validation, and reload guard:**
+  - Added optional `leaf delivery-queue-max` (`uint32`, `range "64..1048576"`) under `list endpoint` in `internal/component/plugin/yang/ze-plugin-conf.yang`.
+  - Added `DefaultDeliveryQueueMax = 65536`, `DefaultCacheConsumerQueueMax = 256`, `MinDeliveryQueueMax = 64`, `MaxDeliveryQueueMax = 1048576`, and `PluginConfig.DeliveryQueueMax` in `internal/component/plugin/types.go`.
+  - Extracted and validated `delivery-queue-max` via `parseDeliveryQueueMax` in `internal/component/config/bus_validate.go` returning `*opererr.Error` naming `bus > endpoint <name>` and `64..1048576`.
+  - Updated `externalDeclarationsEqual` and `changedLeaves` in `internal/component/plugin/server/reload_declarations.go` to compare `DeliveryQueueMax` and refuse live reload changes naming `delivery-queue-max`.
+  - Added unit tests `TestBusValidateDeliveryQueueMax` and `TestReloadRefusesChangedDeliveryQueueMax`, functional test `test/parse/bus-delivery-queue-max.ci`, and docs in `docs/architecture/hub-architecture.md` and `docs/guide/plugins.md`.
+- **Phase 2 (`c7f8b4c6e8`) — Growable lossless FIFO ring queue and 512-event batching:**
+  - Implemented `eventQueue` (`internal/component/plugin/process/event_queue.go`) with `eventQueueInitialCap = 64`, `eventQueueShrinkThreshold = 256`, `eventDeliveryBatchMax = 512`, `2x` growth up to `maxCap`, zero-goroutine FIFO waiter cancellation, shrink-on-empty back to `64`, and `cleanupRemaining` recycling pooled `*rpc.StructuredEvent` and notifying `Result` / `OnFailure`.
+  - Replaced `Process.eventChan` with `Process.eventQueue` in `process.go` and `delivery.go`; wired `effectiveDeliveryQueueMax` (`DeliveryQueueMax` override, else `256` for `CacheConsumer`, else `65,536`) and `SetCacheConsumer` live ceiling updates.
+  - Added `TestEventQueueGrowDrainShrinkFIFO`, `TestEventQueueBackpressureAndCancel`, `TestEventQueueCloseCleansUpPooledEvents`, `TestProcessCacheConsumerDefaultQueueBound`, `TestProcessBurstNonBlockingFIFO512Batch`; adapted `delivery_context_test.go`, `delivery_applied_test.go`, `recovery_delivery_export_test.go`, and `test/pppoe/dhcp-server-dns-replay-hold.ci` (`delivery-queue-max 64;`); updated `docs/architecture/api/process-protocol.md`.
+- **Phase 3 (`0bb5e00989`) — Metrics, doctor reporting, AC-7 burst proof, and docs:**
+  - Registered `ze_plugin_delivery_queue_depth` (`GaugeVec`, label `plugin`) and `ze_plugin_delivery_backpressure_waits_total` (`CounterVec`, label `plugin`) in `ProcessManager.SetMetricsRegistry` / `wireMetrics` (`manager.go`, `metric_hooks.go`, `delivery.go`), deleting the depth gauge label in `deletePluginStatusLabel` while retaining counters.
+  - Added `DeliveryWindowSummary.BackpressureWaits` and a dedicated bounded `backpressureTimes` ring in `Process.doctor` (`doctor_records.go`) so ceiling waits never evict batch failure or slow-batch records; surfaced ceiling waits in `deliveryFailedRows` (`checks_delivery.go`) under `CodeDoctorPluginDeliveryFailed`.
+  - Added `TestDeliveryQueueDepthAndBackpressureMetrics`, `TestDeliveryBackpressureWaitReportedByDoctor`, compiled fixtures `plugin/bus-burst-observer` and `plugin/bus-burst-verify` (`bus_burst_observer_fixture.go`, `register_bus_send_fixtures.go`), and promoted `test/plugin/bus-delivery-queue-burst-lossless.ci` (500 distinct non-coalesced single-prefix UPDATEs via `--inject-vary-attrs`, verified RED under `DefaultDeliveryQueueMax = 64` mutation and GREEN clean across 15/15 stress iterations).
+  - Updated `docs/architecture/doctor-and-health-checks.md`, `docs/plugin-development/metrics.md`, and `docs/architecture/exabgp-bridge.md`.
+- **Closure Review Gate Run 1 fixes (uncommitted, awaiting fresh Run 2 `ze-read` review):**
+  - Registered `1 internal/component/config/bus_validate.go` in `internal/le/repo/numberparse-allowlist.txt` for `parseDeliveryQueueMax`.
+  - Serialized `onDepth(q.count)` calls under `q.mu` in `eventQueue.enqueue`, `drainBatch`, and `cleanupRemaining` (`event_queue.go`), updated `ProcessManager.statusMu` lock-order comment (`manager.go`), and added regression test `TestEventQueueDepthCallbackSerializedUnderConcurrency` (`event_queue_test.go`).
+  - Unexported package-private `eventQueue` methods `maxCapacity`, `setMaxCapacity`, and `cleanupRemaining` (`event_queue.go`, `process.go`, `delivery.go`, and package tests) to clear `./le repo check` unwired-export warnings.
+  - Wrote operator news fragment `website/changes/fragments/bus-observer-delivery-decoupling.md`.
+
+### Bugs Found/Fixed
+- **AC-7 wire-coalescing vacuity trap:** Initially injecting 500 single-prefix UPDATEs without `--inject-vary-attrs` allowed `bgp` wire coalescing to collapse events below the 64-slot threshold; caught by the `DefaultDeliveryQueueMax = 64` discrimination mutation, fixed by adding `--inject-vary-attrs` in `test/plugin/bus-delivery-queue-burst-lossless.ci` and asserting `eventCount == wantCount` in `busBurstObserverDriver` (`bus_burst_observer_fixture.go:180`).
+- **Stale `ze_plugin_delivery_queue_depth` gauge race (Review Gate Run 1 ISSUE):** `eventQueue.enqueue`, `drainBatch`, and `cleanupRemaining` previously invoked `onDepth(depth)` after releasing `q.mu`, allowing a preempted producer to overwrite a `0` depth after drain with a stale non-zero depth. Fixed by invoking `onDepth(q.count)` under `q.mu` (safe with leaf lock `ProcessManager.statusMu`) and covered by `TestEventQueueDepthCallbackSerializedUnderConcurrency` (`event_queue_test.go`).
+- **Missing `numberparse-allowlist.txt` entry (Review Gate Run 1 ISSUE):** `parseDeliveryQueueMax` (`bus_validate.go:952`) added a non-AS `strconv.ParseUint(..., 10, 32)` without updating `internal/le/repo/numberparse-allowlist.txt`; caught by `./le repo check` and fixed.
+- **Unwired exported methods on unexported `eventQueue` (Review Gate Run 1 ISSUE):** `MaxCap`, `SetMaxCapacity`, and `CleanupRemaining` on package-private `eventQueue` triggered `./le repo check` unwired-export issues; unexported to `maxCapacity`, `setMaxCapacity`, and `cleanupRemaining`.
+
+### Documentation Updates
+- `docs/architecture/hub-architecture.md` — added `delivery-queue-max` (plus `encoding`, `on-exit`) to external-endpoint reload declaration row; anchor `<!-- source: internal/component/plugin/server/reload_declarations.go -- RefuseChangedDeclarations, declarationChangeRefusal, externalDeclarationsEqual, changedLeaves -->` (`bc7aafc758`).
+- `docs/guide/plugins.md` — added `delivery-queue-max` row under `### Bus Endpoint Settings`; anchor `<!-- source: internal/component/plugin/yang/ze-plugin-conf.yang -- delivery-queue-max -->` (`bc7aafc758`).
+- `docs/architecture/api/process-protocol.md` — updated `## Event Delivery` to document `eventQueue`, `64 -> 65,536` (`256` for `CacheConsumer`), `delivery-queue-max`, shrink-on-empty, lossless backpressure, and `512`-event batch drain; anchors `<!-- source: internal/component/plugin/process/event_queue.go -- eventQueue, eventQueueInitialCap, eventQueueShrinkThreshold, eventDeliveryBatchMax -->` and `<!-- source: internal/component/plugin/process/delivery.go -- Process.DeliverContext, Process.deliveryLoop, deliverMixedBatch, flushStructuredRun, flushTextRun -->` (`c7f8b4c6e8`).
+- `docs/architecture/doctor-and-health-checks.md` — updated `plugin-delivery` (`doctor-plugin-delivery-failed`) row to include producer backpressure waits at queue ceiling; anchor `<!-- source: internal/component/plugin/process/doctor_records.go -- DeliveryWindowSummary, noteBackpressureWait -->` (`0bb5e00989`).
+- `docs/plugin-development/metrics.md` — documented `ze_plugin_delivery_queue_depth` and `ze_plugin_delivery_backpressure_waits_total`; anchor `<!-- source: internal/component/plugin/process/manager.go -- SetMetricsRegistry, wireMetrics -->` (`0bb5e00989`).
+- `docs/architecture/exabgp-bridge.md` — updated Q-E7 cost-breakdown note to reflect growable lossless `eventQueue` and `512`-event batch drain; anchor `<!-- source: internal/component/plugin/process/event_queue.go -- eventQueue, eventDeliveryBatchMax -->` (`0bb5e00989`).
+- `./le doc check all`: 0 documentation drift, 0 broken source anchors, 0 digest anchor errors (1 pre-existing unrelated `ze-policy-conf` help-shape warning on HEAD).
+
+### Deviations from Plan
+- **Extra test/fixture files modified/created:**
+  - `internal/component/plugin/process/delivery_applied_test.go`, `test/pppoe/dhcp-server-dns-replay-hold.ci`, and `internal/test/fixture/dhcp_server_dns_replay_hold_gate_linux.go` were updated in Phase 2 (`c7f8b4c6e8`) to set `delivery-queue-max 64` so existing full-queue tests keep their exact 64-slot fill contracts.
+  - `internal/component/plugin/process/manager_metrics_test.go` was extended in Phase 3 (`0bb5e00989`) with `TestDeliveryQueueDepthAndBackpressureMetrics`.
+  - `internal/test/fixture/bus_burst_observer_fixture.go` and `internal/test/fixture/register_bus_send_fixtures.go` were added in Phase 3 (`0bb5e00989`) to drive the live AC-7 functional burst proof cleanly as compiled fixtures (`plugin/bus-burst-observer` and `plugin/bus-burst-verify`), testing 500 distinct non-coalesced single-prefix UPDATEs (exceeding the planned 300).
+  - `internal/le/repo/numberparse-allowlist.txt` was updated during Closure Run 1 to allowlist `parseDeliveryQueueMax` in `bus_validate.go`.
+- **Q-E7 Mac re-measurement:** This Linux host does not hold Thomas's Apple M4 Max Q-E7 rig; AC-7 proves end-to-end non-stalling burst decoupling locally via `test/plugin/bus-delivery-queue-burst-lossless.ci` (RED under `DefaultDeliveryQueueMax = 64` mutation, GREEN clean).
+
+## Mistake Log
+
+| Kind | What happened | What was true instead | How discovered | Action |
+|------|---------------|----------------------|----------------|--------|
+| approach | Initial AC-7 burst test sent 500 identical-attribute single-prefix UPDATEs without `--inject-vary-attrs`, letting BGP wire coalescing collapse the burst below the 64-slot queue bound | Without distinct attributes per prefix, wire coalescing packed multiple prefixes per UPDATE so the test could pass even with a 64-slot queue | Discrimination mutation (`DefaultDeliveryQueueMax = 64`) | Added `--inject-vary-attrs` in `bus-delivery-queue-burst-lossless.ci` and asserted `eventCount == wantCount` in `busBurstObserverDriver`; re-proved RED under mutation (17.4s stall) and GREEN clean (4.0s) |
+| approach | Phase 1 added `strconv.ParseUint(raw, 10, 32)` in `bus_validate.go` without updating `internal/le/repo/numberparse-allowlist.txt` | `./le repo check` enforces an exact-count allowlist for every non-AS 32-bit text-to-integer parse | Closure Run 1 `./le repo check` | Added `1 internal/component/config/bus_validate.go` to `internal/le/repo/numberparse-allowlist.txt`; re-ran `./le repo check` (0 issues on our files) |
+| approach | Phase 2 exported `MaxCap`, `SetMaxCapacity`, and `CleanupRemaining` on package-private `eventQueue` and invoked `onDepth` after `q.mu.Unlock()` | Package-private struct methods fail `./le repo check` unwired-export checks, and calling `onDepth` outside `q.mu` allows concurrent producer/consumer gauge writes to race and stick stale | Closure Run 1 independent `/ze-review` + `./le repo check` | Unexported the three methods, moved `onDepth(q.count)` under `q.mu` (leaf lock `statusMu`), and added `TestEventQueueDepthCallbackSerializedUnderConcurrency` |
+
+## Implementation Audit
+
+### Requirements from Task
+| Requirement | Status | Location | Notes |
+|-------------|--------|----------|-------|
+| Replace fixed 64-slot `Process.eventChan` with bounded growable lossless FIFO queue (`64 -> 65,536`, `256` for `CacheConsumer`, shrink back to `64` on empty) | Done | `internal/component/plugin/process/event_queue.go:47-364`, `process.go:135,396-419`, `delivery.go:82-156` | Zero drops; zero per-event or per-waiter goroutines |
+| Increase `deliveryLoop` per-RPC batch drain cap from `64` to `512` | Done | `internal/component/plugin/process/event_queue.go:23`, `delivery.go:150` | Relies on `CallBatchRPC` 16 MiB splitter (`pkg/plugin/rpc/conn.go`) |
+| Expose optional `delivery-queue-max` YANG leaf (`64..1048576`) on `bus > endpoint` + reload refusal | Done | `internal/component/plugin/yang/ze-plugin-conf.yang:296`, `types.go:602-630`, `bus_validate.go:319-332,951-964`, `reload_declarations.go:151,189-191` | Validated by YANG and `bus_validate.go`; reload refuses changes naming `delivery-queue-max` |
+| Expose `ze_plugin_delivery_queue_depth` and `ze_plugin_delivery_backpressure_waits_total` Prometheus metrics | Done | `internal/component/plugin/process/manager.go:82-83,180-181,217-227,1096`, `metric_hooks.go:24-25,62-74` | Depth gauge serialized under `q.mu` -> `statusMu`; deleted on unconfigure; counter retained |
+| Report recent queue-ceiling backpressure waits via `ze doctor` (`CodeDoctorPluginDeliveryFailed`) | Done | `internal/component/plugin/process/doctor_records.go:189,242-245,374-390,566-573`, `checks_delivery.go:275-308` | Dedicated 64-entry ring prevents evicting failed/slow batch errors |
+
+### Acceptance Criteria
+| AC ID | Status | Demonstrated By | Notes |
+|-------|--------|-----------------|-------|
+| AC-1 | Done | `TestEventQueueGrowDrainShrinkFIFO`, `TestProcessBurstNonBlockingFIFO512Batch` | 16,000 events admitted non-blocking, exact FIFO in 512-event batches, 0 drops |
+| AC-2 | Done | `TestEventQueueBackpressureAndCancel`, `TestDeliveryContextCancelRetainsFIFO`, `TestDeliveryQueueDepthAndBackpressureMetrics` | Prompt cancel at ceiling, increments backpressure metric, preserves FIFO and later admission |
+| AC-3 | Done | `TestProcessCacheConsumerDefaultQueueBound` | `SetCacheConsumer(true)` -> `256`, ordinary -> `65536`, explicit `DeliveryQueueMax` wins |
+| AC-4 | Done | `TestEventQueueGrowDrainShrinkFIFO`, `TestProcessBurstNonBlockingFIFO512Batch`, `TestDeliveryQueueDepthAndBackpressureMetrics`, `TestEventQueueDepthCallbackSerializedUnderConcurrency` | Shrinks back to `64` slots on empty drain and depth gauge returns to `0` |
+| AC-5 | Done | `TestBusValidateDeliveryQueueMax`, `TestReloadRefusesChangedDeliveryQueueMax`, `test/parse/bus-delivery-queue-max.ci` | Accepts `64..1048576` and unset (`0`), refuses `0`, `63`, `1048577`, non-numeric, and live reload changes |
+| AC-6 | Done | `TestDeliveryQueueDepthAndBackpressureMetrics`, `TestDeliveryBackpressureWaitReportedByDoctor` | Reports `SeverityWarning` (`CodeDoctorPluginDeliveryFailed`) naming wait count; 0 rows below ceiling and after `DeliveryWindow` expiry |
+| AC-7 | Done | `test/plugin/bus-delivery-queue-burst-lossless.ci` (`plugin/bus-burst-observer`, `plugin/bus-burst-verify`) | 500 distinct non-coalesced single-prefix UPDATEs reach `bgp-rib` while observer pauses, then drain in exact FIFO order with 0 drops and 0 ceiling waits |
+
+### Tests from TDD Plan
+| Test | Status | Location | Notes |
+|------|--------|----------|-------|
+| `TestEventQueueGrowDrainShrinkFIFO` | Done | `internal/component/plugin/process/event_queue_test.go:35` | PASS (-race); rerun owed after Run 1 fix |
+| `TestEventQueueBackpressureAndCancel` | Done | `internal/component/plugin/process/event_queue_test.go:113` | PASS (-race); rerun owed after Run 1 fix |
+| `TestEventQueueCloseCleansUpPooledEvents` | Done | `internal/component/plugin/process/event_queue_test.go:261` | PASS (-race); rerun owed after Run 1 fix |
+| `TestEventQueueDepthCallbackSerializedUnderConcurrency` | Done | `internal/component/plugin/process/event_queue_test.go:338` | Added in Closure Run 1 (regression test for ISSUE 2); run owed |
+| `TestDeliveryContextCancelRetainsFIFO` | Done | `internal/component/plugin/process/delivery_context_test.go:31` | PASS (-race); rerun owed after Run 1 fix |
+| `TestProcessCacheConsumerDefaultQueueBound` | Done | `internal/component/plugin/process/delivery_test.go:277` | PASS (-race); rerun owed after Run 1 fix |
+| `TestProcessBurstNonBlockingFIFO512Batch` | Done | `internal/component/plugin/process/delivery_test.go:357` | PASS (-race); rerun owed after Run 1 fix |
+| `TestDeliveryQueueDepthAndBackpressureMetrics` | Done | `internal/component/plugin/process/manager_metrics_test.go:350` | PASS (-race); rerun owed after Run 1 fix |
+| `TestBusValidateDeliveryQueueMax` | Done | `internal/component/config/bus_validate_test.go:436` | PASS (-race) |
+| `TestReloadRefusesChangedDeliveryQueueMax` | Done | `internal/component/plugin/server/reload_declarations_bus_test.go:92` | PASS (-race) |
+| `TestDeliveryBackpressureWaitReportedByDoctor` | Done | `internal/component/plugin/doctor/checks_delivery_test.go:173` | PASS (-race) |
+| `bus-delivery-queue-max` | Done | `test/parse/bus-delivery-queue-max.ci` | PASS (2.6s) |
+| `bus-delivery-queue-burst-lossless` | Done | `test/plugin/bus-delivery-queue-burst-lossless.ci` | PASS (4.0s, 15/15 stress PASS, RED under 64-slot mutation) |
+
+### Files from Plan
+| File | Status | Notes |
+|------|--------|-------|
+| `internal/component/plugin/yang/ze-plugin-conf.yang` | Done | Added `delivery-queue-max` leaf (`bc7aafc758`) |
+| `internal/component/plugin/types.go` | Done | Added queue constants and `PluginConfig.DeliveryQueueMax` (`bc7aafc758`) |
+| `internal/component/config/bus_validate.go` | Done | Extracted and validated `delivery-queue-max` (`bc7aafc758`) |
+| `internal/component/plugin/server/reload_declarations.go` | Done | Added `DeliveryQueueMax` comparison and leaf name (`bc7aafc758`) |
+| `internal/component/plugin/process/event_queue.go` | Done | Created growable lossless ring queue (`c7f8b4c6e8`, refined in Closure Run 1) |
+| `internal/component/plugin/process/event_queue_test.go` | Done | Created unit + race tests (`c7f8b4c6e8`, regression test added in Closure Run 1) |
+| `internal/component/plugin/process/process.go` | Done | Replaced `eventChan` with `eventQueue` and `SetCacheConsumer` bound (`c7f8b4c6e8`, Closure Run 1) |
+| `internal/component/plugin/process/delivery.go` | Done | Wired `eventQueue`, 512 batch drain, and metric/doctor hooks (`c7f8b4c6e8`, `0bb5e00989`, Closure Run 1) |
+| `internal/component/plugin/process/manager.go` | Done | Registered queue-depth and backpressure metrics (`0bb5e00989`, Closure Run 1) |
+| `internal/component/plugin/process/metric_hooks.go` | Done | Added `deliveryQueueDepth` and `deliveryBackpressure` hooks (`0bb5e00989`) |
+| `internal/component/plugin/process/doctor_records.go` | Done | Added `BackpressureWaits` and dedicated ring (`0bb5e00989`) |
+| `internal/component/plugin/doctor/checks_delivery.go` | Done | Rendered backpressure waits in `deliveryFailedRows` (`0bb5e00989`) |
+| `internal/component/plugin/process/delivery_context_test.go` | Done | Adapted to `eventQueue` (`c7f8b4c6e8`) |
+| `internal/component/plugin/process/recovery_delivery_export_test.go` | Done | Adapted to `eventQueue` (`c7f8b4c6e8`, Closure Run 1) |
+| `internal/component/plugin/process/delivery_test.go` | Done | Adapted and added AC-1/AC-3/AC-4 tests (`c7f8b4c6e8`, Closure Run 1) |
+| `internal/component/plugin/server/reload_declarations_bus_test.go` | Done | Added `TestReloadRefusesChangedDeliveryQueueMax` (`bc7aafc758`) |
+| `internal/component/config/bus_validate_test.go` | Done | Added `TestBusValidateDeliveryQueueMax` (`bc7aafc758`) |
+| `internal/component/plugin/doctor/checks_delivery_test.go` | Done | Added `TestDeliveryBackpressureWaitReportedByDoctor` (`0bb5e00989`) |
+| `test/parse/bus-delivery-queue-max.ci` | Done | Created 6-case CLI parse/range test (`bc7aafc758`) |
+| `test/plugin/bus-delivery-queue-burst-lossless.ci` | Done | Created and promoted AC-7 functional burst test (`0bb5e00989`) |
+| `docs/architecture/api/process-protocol.md` | Done | Updated `## Event Delivery` (`c7f8b4c6e8`) |
+| `docs/architecture/doctor-and-health-checks.md` | Done | Updated `plugin-delivery` row (`0bb5e00989`) |
+| `docs/architecture/hub-architecture.md` | Done | Updated reload declaration row (`bc7aafc758`) |
+| `docs/plugin-development/metrics.md` | Done | Documented new delivery queue metrics (`0bb5e00989`) |
+| `docs/guide/plugins.md` | Done | Documented `delivery-queue-max` endpoint setting (`bc7aafc758`) |
+| `docs/architecture/exabgp-bridge.md` | Done | Updated Q-E7 follow-up note (`0bb5e00989`) |
+| Additional files outside original list | Changed | `delivery_applied_test.go`, `test/pppoe/dhcp-server-dns-replay-hold.ci`, `dhcp_server_dns_replay_hold_gate_linux.go`, `manager_metrics_test.go`, `bus_burst_observer_fixture.go`, `register_bus_send_fixtures.go`, `internal/le/repo/numberparse-allowlist.txt`, `website/changes/fragments/bus-observer-delivery-decoupling.md` (recorded in Deviations) |
+
+### Audit Summary
+- **Total items:** 47 (5 task requirements, 7 ACs, 13 tests, 22 planned files/docs + 8 deviation additions)
+- **Done:** 46
+- **Partial:** 0
+- **Skipped:** 0
+- **Changed:** 1 (additional supporting test/fixture/allowlist/fragment files recorded in Deviations)
+
+## Goal Validation (BLOCKING)
+
+| Goal (from Task) | Evidence Type | Concrete Evidence |
+|------------------|---------------|-------------------|
+| Replace fixed 64-slot `eventChan` with bounded growable lossless FIFO ring (`64 -> 65,536`, `256` for `CacheConsumer`, shrink to `64`) and 512-event batch drain | Unit + `-race` tests | `TestEventQueueGrowDrainShrinkFIFO`, `TestProcessBurstNonBlockingFIFO512Batch`, `TestProcessCacheConsumerDefaultQueueBound`, `TestEventQueueBackpressureAndCancel`, `TestEventQueueCloseCleansUpPooledEvents` PASS under `-race` |
+| Absorb bursts without blocking `onMessageBatchReceived`, `deliverChan`, or sibling routing plugins (`bgp-rib`) while delivering 100% losslessly in FIFO order | End-to-end functional test + discrimination proof | `test/plugin/bus-delivery-queue-burst-lossless.ci` PASS (4.0s; 15/15 stress iterations PASS, avg 4.1s; 500 distinct single-prefix UPDATEs via `--inject-vary-attrs` reach `bgp-rib` while `burst-observer` pauses in `OnEvent`, then drain 500/500 in exact FIFO order with 0 drops and 0 ceiling waits); RED under `DefaultDeliveryQueueMax = 64` mutation (17.4s FAIL: `bgp-rib` stalled) |
+| Expose validated `delivery-queue-max` YANG leaf (`64..1048576`) and refuse live reload changes | Unit + functional CLI parse test | `TestBusValidateDeliveryQueueMax`, `TestReloadRefusesChangedDeliveryQueueMax`, `./le yang glue check` (170 current), `test/parse/bus-delivery-queue-max.ci` PASS (2.6s) |
+| Expose queue depth and backpressure waits through Prometheus metrics and `ze doctor` | Unit + `-race` tests | `TestDeliveryQueueDepthAndBackpressureMetrics` PASS (-race), `TestDeliveryBackpressureWaitReportedByDoctor` PASS (-race, 1.600s), `TestEventQueueDepthCallbackSerializedUnderConcurrency` PASS (-race, 6.556s) |
+
+## Work Not Done
+
+| What was not done | Why | The spec that now owns it |
+|-------------------|-----|---------------------------|
+| none | All in-scope deliverables and AC-1..AC-7 are implemented (20-script JSON CPU overhead remains tracked by Spec 2 as designed) | `plan/release/fixes/spec-bus-observer-delivery-decoupling.md` (none remaining) |
+
+## Review Gate
+
+| Field | Value |
+|-------|-------|
+| Artifact | `tmp/review/bus-observer-delivery-decoupling-ecc0e01f-51a0-4667-89de-e28985f6dc5b.md` |
+| `./le spec review check` | `OK (26 code files, clean, hashes match)` |
+| Rounds | 2 (Run 1: 0 BLOCKER, 3 ISSUE, 3 NOTE — all 3 ISSUEs fixed; Run 2 fresh `ze-read`: CLEAN, 0 BLOCKER, 0 ISSUE, 2 NOTE) |
+| Reviewer lenses used | logic+wiring, concurrency+lock-ordering+edge-cases, security+allocation-safety, design-documents lens (30/30 pages, 29/29 decisions), Ze Go Style 7-question pass, `/ze-review-spec` completeness |
+
+### Findings fixed
+| # | Severity | Finding | Location | Fixed by |
+|---|----------|---------|----------|----------|
+| 1 | ISSUE | `parseDeliveryQueueMax` added a 32-bit `strconv.ParseUint(..., 10, 32)` without updating `numberparse-allowlist.txt` (`./le repo check` failure) | `internal/component/config/bus_validate.go:952` | Added `1 internal/component/config/bus_validate.go` to `internal/le/repo/numberparse-allowlist.txt`; `./le repo check` clear |
+| 2 | ISSUE | `onDepth(depth)` called after `q.mu.Unlock()` allowed concurrent producer/consumer race leaving `ze_plugin_delivery_queue_depth` stale non-zero after drain | `internal/component/plugin/process/event_queue.go:133,183,228,312` | Invoked `onDepth(q.count)` under `q.mu` (leaf lock `ProcessManager.statusMu`), updated `statusMu` doc comment (`manager.go`), added `TestEventQueueDepthCallbackSerializedUnderConcurrency` (`event_queue_test.go`, PASS under `-race`) |
+| 3 | ISSUE | Exported methods `MaxCap`, `SetMaxCapacity`, and `CleanupRemaining` on package-private `eventQueue` triggered `./le repo check` unwired-export issues | `internal/component/plugin/process/event_queue.go:88,97,297` | Unexported to `maxCapacity`, `setMaxCapacity`, and `cleanupRemaining` across `event_queue.go`, `process.go`, `delivery.go`, and package tests; `./le repo check` clear |
+
+### Run 2 (Fresh `ze-read` Reviewer)
+- Verdict: `CLEAN (0 BLOCKER, 0 ISSUE, 2 NOTE)`
+- Verified lock ordering (`q.mu -> ProcessManager.statusMu` leaf lock, acyclic, nil-safe atomic `metricHooks`), unexported `eventQueue` methods, `numberparse-allowlist.txt`, Ze Go Style 7-question pass (0 peer-reachable panics), news fragment schema, and closure tables.
+- Verified with `go test -race -count=1 ./internal/component/plugin/doctor/...` (PASS, 1.600s), `go test -race -count=1 -run "TestEventQueue|TestDelivery|TestProcess|TestDrainEvents" ./internal/component/plugin/process/` (PASS, 6.556s), `golangci-lint` (0 findings on changed lines), `./le go style check` (OK, 7 Go files), `./le test weakened check` (clean), and `./le repo check` (0 findings on our files).
+
+## Pre-Commit Verification
+
+### Files Exist (ls)
+| File | Exists | Evidence |
+|------|--------|----------|
+| `internal/component/plugin/process/event_queue.go` | Yes | `-rw-r--r-- 1 thomas thomas 11202 Nov 26 05:04 internal/component/plugin/process/event_queue.go` |
+| `internal/component/plugin/process/event_queue_test.go` | Yes | `-rw-r--r-- 1 thomas thomas 12345 Nov 26 05:04 internal/component/plugin/process/event_queue_test.go` |
+| `internal/test/fixture/bus_burst_observer_fixture.go` | Yes | `-rw-r--r-- 1 thomas thomas 11193 Nov 26 04:36 internal/test/fixture/bus_burst_observer_fixture.go` |
+| `test/parse/bus-delivery-queue-max.ci` | Yes | `-rw-r--r-- 1 thomas thomas  2837 Nov 26 02:56 test/parse/bus-delivery-queue-max.ci` |
+| `test/plugin/bus-delivery-queue-burst-lossless.ci` | Yes | `-rw-r--r-- 1 thomas thomas  3182 Nov 26 04:38 test/plugin/bus-delivery-queue-burst-lossless.ci` |
+| `website/changes/fragments/bus-observer-delivery-decoupling.md` | Yes | `-rw-r--r-- 1 thomas thomas  1554 Nov 26 05:05 website/changes/fragments/bus-observer-delivery-decoupling.md` |
+
+### AC Verified (grep/test)
+| AC ID | Claim | Fresh Evidence |
+|-------|-------|----------------|
+| AC-1 | 16,000 non-blocking `Deliver`, FIFO 512-event batches, 0 drops | `event_queue.go:23,334-352` (`eventDeliveryBatchMax = 512`, `pushLocked`), `TestEventQueueGrowDrainShrinkFIFO` & `TestProcessBurstNonBlockingFIFO512Batch` PASS (-race, 6.556s) |
+| AC-2 | Ceiling backpressure cancels promptly on `ctx.Done()`, increments metric, retains FIFO | `event_queue.go:113-197,426-441` (`enqueue`, `waitEnqueueSlot`), `TestEventQueueBackpressureAndCancel`, `TestDeliveryContextCancelRetainsFIFO`, `TestDeliveryQueueDepthAndBackpressureMetrics` PASS (-race, 6.556s) |
+| AC-3 | `CacheConsumer` default `256`, ordinary `65536`, explicit `DeliveryQueueMax` wins | `process.go:396-419` (`SetCacheConsumer`, `effectiveDeliveryQueueMax`), `TestProcessCacheConsumerDefaultQueueBound` PASS (-race, 6.556s) |
+| AC-4 | Shrink back to `64` on empty drain and depth gauge returns to `0` | `event_queue.go:356-364` (`shrinkIfEmptyLocked`), `TestEventQueueGrowDrainShrinkFIFO`, `TestDeliveryQueueDepthAndBackpressureMetrics`, `TestEventQueueDepthCallbackSerializedUnderConcurrency` PASS (-race, 6.556s) |
+| AC-5 | `delivery-queue-max` (`64..1048576`) validated and reload-refused | `ze-plugin-conf.yang:296`, `bus_validate.go:319-332,951-964`, `reload_declarations.go:151,189-191`; `TestBusValidateDeliveryQueueMax`, `TestReloadRefusesChangedDeliveryQueueMax`, `test/parse/bus-delivery-queue-max.ci` PASS (2.6s) |
+| AC-6 | Ceiling backpressure emits Prometheus counter + `ze doctor` warning; 0 warnings below ceiling | `doctor_records.go:374-390,566-573`, `checks_delivery.go:275-308`; `TestDeliveryBackpressureWaitReportedByDoctor` PASS (-race) |
+| AC-7 | >256 single-prefix UPDATE burst reaches `bgp-rib` while observer pauses, drains losslessly in FIFO | `test/plugin/bus-delivery-queue-burst-lossless.ci` + `bus_burst_observer_fixture.go`: 500 distinct UPDATEs PASS (4.0s, 15/15 stress PASS, RED under `DefaultDeliveryQueueMax = 64` mutation) |
+
+### Wiring Verified (end-to-end)
+| Entry Point | .ci File | Verified |
+|-------------|----------|----------|
+| `bus { endpoint <name> { delivery-queue-max <n>; } }` via `ze config validate -` | `test/parse/bus-delivery-queue-max.ci` | Yes — read file (lines 1-100): tests `64`, `65536`, `1048576` accepted and `63`, `1048577`, `0` refused naming `delivery-queue-max` and `64..1048576` |
+| 500 distinct BGP UPDATE burst with paused external `bgp:update` observer | `test/plugin/bus-delivery-queue-burst-lossless.ci` | Yes — read file (lines 1-89) and `bus_burst_observer_fixture.go`: pauses observer on first UPDATE, polls `bgp-rib` to 500 while paused, releases, verifies 500/500 distinct FIFO events and 0 doctor failures/backpressure waits |
+| Blocked `DeliverContext` at queue ceiling -> doctor warning | `TestDeliveryBackpressureWaitReportedByDoctor` (`checks_delivery_test.go`) | Yes — read file (lines 173-303): drives live `process.Process` over `net.Pipe` to ceiling (`64`), verifies 0 rows below ceiling, `CodeDoctorPluginDeliveryFailed` warning at ceiling, and expiry past `DeliveryWindow` |
+
+### Assumptions Resolved
+| ID | Final Status | Evidence |
+|----|--------------|----------|
+| A-1 | confirmed | `DefaultDeliveryQueueMax = 65536` absorbs ~15,625 packed 1M-route UPDATEs; `delivery-queue-max` supports up to `1048576` for unpacked feeds (`ze-plugin-conf.yang:296`, `docs/guide/plugins.md:105`) |
+| A-2 | confirmed | `TestConn_CallBatchRPC` PASS (`pkg/plugin/rpc/conn.go:586-634` splits batches > 16 MiB); `eventDeliveryBatchMax = 512` (`event_queue.go:23`) |
+| A-3 | confirmed | `Process.SetCacheConsumer` calls `q.setMaxCapacity(p.effectiveDeliveryQueueMax())` when `DeliveryQueueMax == 0` (`process.go:396-407`), proven by `TestProcessCacheConsumerDefaultQueueBound` |
+| A-4 | confirmed | Documented in `docs/architecture/exabgp-bridge.md` alongside `base64` wire transport (Spec 2) |
+
+### Documentation Verified
+| Documentation claim or category | Source evidence | Verified |
+|---------------------------------|-----------------|----------|
+| Config syntax & user guide (`docs/guide/plugins.md`) | `ze-plugin-conf.yang:296` `leaf delivery-queue-max`; anchor verified by `./le doc check all` | Yes |
+| Reload declaration guard (`docs/architecture/hub-architecture.md`) | `reload_declarations.go:135-196` (`externalDeclarationsEqual`, `changedLeaves`); anchor verified by `./le doc check all` | Yes |
+| Event delivery architecture (`docs/architecture/api/process-protocol.md`) | `event_queue.go:17-23,47` & `delivery.go:82-156`; anchors verified by `./le doc check all` | Yes |
+| Doctor checks (`docs/architecture/doctor-and-health-checks.md`) | `doctor_records.go:186-197,374-390` & `checks_delivery.go:275-308`; anchor verified by `./le doc check all` | Yes |
+| Metrics inventory (`docs/plugin-development/metrics.md`) | `manager.go:180-181,217-227` (`ze_plugin_delivery_queue_depth`, `ze_plugin_delivery_backpressure_waits_total`); anchor verified by `./le doc check all` | Yes |
+| ExaBGP Q-E7 follow-up (`docs/architecture/exabgp-bridge.md`) | `event_queue.go:23,47`; anchor verified by `./le doc check all` | Yes |
+| Non-applicable categories (CLI, wire format, RFC, route metadata, plugin inventory) | `git show --stat bc7aafc758 c7f8b4c6e8 0bb5e00989` confirms zero changes under `pkg/plugin/rpc`, `pkg/plugin/sdk`, `rfc/`, or CLI command trees; `./le doc check all` reports 0 drift | Yes |
+
+## Core Insight
+Extending the single per-process FIFO queue (`eventQueue`) with dynamic `2x` growth, shrink-on-empty, and `q.mu`-serialized depth notifications eliminates lockstep observer backpressure on full-table bursts while keeping one strict FIFO rail for `DrainEvents` / `DrainEventsApplied`, zero idle memory bloat, zero event drops, and race-free Prometheus gauge reporting.

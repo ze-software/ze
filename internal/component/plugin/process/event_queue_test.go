@@ -5,6 +5,7 @@ package process
 
 import (
 	"context"
+	"runtime"
 	"sync"
 	"sync/atomic"
 	"testing"
@@ -29,7 +30,7 @@ func seqLabel(prefix string, n int) string {
 // 16,000 items, FIFO batch draining capped at 512, shrink-on-empty back to 64,
 // and exact FIFO preservation across wrapped-ring growth.
 //
-// VALIDATES: AC-1 and AC-4 of spec-bus-observer-delivery-decoupling.md.
+// VALIDATES: AC-1 and AC-4 of spec-bus-observer-delivery-decoupling.
 // PREVENTS: Burst drops, reordering during ring growth, oversized batches, or
 // permanent retention of peak burst memory after drain.
 func TestEventQueueGrowDrainShrinkFIFO(t *testing.T) {
@@ -37,7 +38,7 @@ func TestEventQueueGrowDrainShrinkFIFO(t *testing.T) {
 
 	q := newEventQueue(plugin.DefaultDeliveryQueueMax)
 	require.Equal(t, eventQueueInitialCap, q.Cap())
-	require.Equal(t, plugin.DefaultDeliveryQueueMax, q.MaxCap())
+	require.Equal(t, plugin.DefaultDeliveryQueueMax, q.maxCapacity())
 
 	var backpressures atomic.Int64
 	lastDepth := -1
@@ -107,7 +108,7 @@ func TestEventQueueGrowDrainShrinkFIFO(t *testing.T) {
 // queue ceiling, prompt cancellation on caller ctx.Done() and procCtx.Done()
 // without corrupting FIFO order, and race-free concurrent producer/consumer flow.
 //
-// VALIDATES: AC-2 of spec-bus-observer-delivery-decoupling.md.
+// VALIDATES: AC-2 of spec-bus-observer-delivery-decoupling.
 // PREVENTS: Event drops at ceiling, hung waiters after cancellation, or lost
 // wakeups under concurrent contention.
 func TestEventQueueBackpressureAndCancel(t *testing.T) {
@@ -189,7 +190,7 @@ func TestEventQueueBackpressureAndCancel(t *testing.T) {
 	case <-waitCtx.Done():
 		t.Fatal("procCtx-blocked producer did not return after procCtx cancellation")
 	}
-	q.CleanupRemaining(testEventQueueProcName, nil)
+	q.cleanupRemaining(testEventQueueProcName, nil)
 
 	// Part 3: Concurrent producers, canceling waiters, and single consumer under -race.
 	stressQ := newEventQueue(ceiling)
@@ -251,11 +252,11 @@ func TestEventQueueBackpressureAndCancel(t *testing.T) {
 }
 
 // TestEventQueueCloseCleansUpPooledEvents verifies that closing a queue wakes
-// blocked producers with enqueueProcessClosed and CleanupRemaining delivers
+// blocked producers with enqueueProcessClosed and cleanupRemaining delivers
 // ErrConnectionClosed, invokes OnFailure, resets depth to zero, and recycles
 // pooled StructuredEvent pointers.
 //
-// VALIDATES: R-3 of spec-bus-observer-delivery-decoupling.md.
+// VALIDATES: R-3 of spec-bus-observer-delivery-decoupling.
 // PREVENTS: Leaked StructuredEvent pool entries or hung Result/producer waiters
 // when a process stops with buffered events.
 func TestEventQueueCloseCleansUpPooledEvents(t *testing.T) {
@@ -309,7 +310,7 @@ func TestEventQueueCloseCleansUpPooledEvents(t *testing.T) {
 	}
 
 	depthSeen := -1
-	q.CleanupRemaining(testEventQueueProcName, func(depth int) { depthSeen = depth })
+	q.cleanupRemaining(testEventQueueProcName, func(depth int) { depthSeen = depth })
 
 	require.Zero(t, depthSeen)
 	require.Zero(t, q.Len())
@@ -326,4 +327,78 @@ func TestEventQueueCloseCleansUpPooledEvents(t *testing.T) {
 	buf, ok := q.drainBatch(nil, eventDeliveryBatchMax, nil)
 	require.False(t, ok)
 	require.Empty(t, buf)
+}
+
+// TestEventQueueDepthCallbackSerializedUnderConcurrency verifies that onDepth
+// callbacks from concurrent producers and the consumer are strictly serialized
+// in queue mutation order under q.mu and always end at depth 0 once drained.
+//
+// VALIDATES: AC-4 of spec-bus-observer-delivery-decoupling (ze_plugin_delivery_queue_depth
+// returns to 0 after drain with no out-of-order producer overwrite).
+// PREVENTS: A preempted producer calling onDepth(nonZero) after drainBatch
+// called onDepth(0) and leaving ze_plugin_delivery_queue_depth permanently stale.
+func TestEventQueueDepthCallbackSerializedUnderConcurrency(t *testing.T) {
+	const (
+		producers   = 4
+		perProducer = 200
+	)
+
+	q := newEventQueue(plugin.DefaultDeliveryQueueMax)
+
+	var inOnDepth atomic.Bool
+	var overlapDetected atomic.Bool
+	var lastReportedDepth atomic.Int64
+	lastReportedDepth.Store(-1)
+
+	onDepth := func(depth int) {
+		if !inOnDepth.CompareAndSwap(false, true) {
+			overlapDetected.Store(true)
+		}
+		runtime.Gosched()
+		lastReportedDepth.Store(int64(depth))
+		inOnDepth.Store(false)
+	}
+
+	var drainedCount atomic.Int64
+	consumerDone := make(chan struct{})
+	go func() {
+		defer close(consumerDone)
+		var buf []EventDelivery
+		for {
+			var ok bool
+			buf, ok = q.drainBatch(buf, 4, onDepth)
+			if !ok {
+				return
+			}
+			drainedCount.Add(int64(len(buf)))
+		}
+	}()
+
+	var wg sync.WaitGroup
+	for range producers {
+		wg.Go(func() {
+			for range perProducer {
+				got := q.enqueue(t.Context(), t.Context(), nil, EventDelivery{Output: "ev"}, nil, onDepth)
+				if got != enqueueAdmitted {
+					t.Errorf("enqueue got %v, want admitted", got)
+					return
+				}
+			}
+		})
+	}
+	wg.Wait()
+	q.Close()
+
+	waitCtx, stopWait := context.WithTimeout(t.Context(), 5*time.Second)
+	defer stopWait()
+	select {
+	case <-consumerDone:
+	case <-waitCtx.Done():
+		t.Fatal("consumer did not exit after Close")
+	}
+
+	require.Equal(t, int64(producers*perProducer), drainedCount.Load())
+	require.False(t, overlapDetected.Load(), "onDepth ran concurrently across producer and consumer")
+	require.Zero(t, q.Len())
+	require.Zero(t, lastReportedDepth.Load(), "last reported depth must be 0 once queue is empty")
 }

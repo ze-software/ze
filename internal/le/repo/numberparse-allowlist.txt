@@ -67,6 +67,8 @@
 1 internal/component/bgp/reactor/config.go
 2 internal/component/bgp/route/route_flowspec.go
 2 internal/component/bgp/route/route_labeled.go
+# parseDeliveryQueueMax reads bus > endpoint > delivery-queue-max (a queue slot ceiling in 64..1048576), not an AS number.
+1 internal/component/config/bus_validate.go
 1 internal/component/config/cli/cmd_validate.go
 1 internal/component/config/infra/authz.go
 1 internal/component/config/infra/ssh.go

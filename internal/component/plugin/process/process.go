@@ -402,7 +402,7 @@ func (p *Process) SetCacheConsumer(enabled bool) {
 	q := p.eventQueue
 	p.eventMu.RUnlock()
 	if q != nil {
-		q.SetMaxCapacity(p.effectiveDeliveryQueueMax())
+		q.setMaxCapacity(p.effectiveDeliveryQueueMax())
 	}
 }
 

@@ -34,7 +34,7 @@ func GateRecoveryDelivery(t *testing.T, ctx context.Context, p *Process, match f
 	}
 	p.eventMu.Lock()
 	original := p.eventQueue
-	incoming := newEventQueue(original.MaxCap())
+	incoming := newEventQueue(original.maxCapacity())
 	p.eventQueue = incoming
 	p.eventMu.Unlock()
 	go gate.forward(t, incoming, original, match)

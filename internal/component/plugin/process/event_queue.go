@@ -84,17 +84,17 @@ func (q *eventQueue) Cap() int {
 	return n
 }
 
-// MaxCap returns the maximum queue ceiling.
-func (q *eventQueue) MaxCap() int {
+// maxCapacity returns the maximum queue ceiling.
+func (q *eventQueue) maxCapacity() int {
 	q.mu.Lock()
 	n := q.maxCap
 	q.mu.Unlock()
 	return n
 }
 
-// SetMaxCapacity updates the queue ceiling without dropping buffered items.
+// setMaxCapacity updates the queue ceiling without dropping buffered items.
 // If space becomes available, it wakes the next FIFO producer waiter.
-func (q *eventQueue) SetMaxCapacity(maxCap int) {
+func (q *eventQueue) setMaxCapacity(maxCap int) {
 	if maxCap < 1 {
 		panic("BUG: plugin/process: eventQueue maxCap must be positive")
 	}
@@ -110,6 +110,10 @@ func (q *eventQueue) SetMaxCapacity(maxCap int) {
 // up to maxCap as needed. When the queue is at its ceiling, enqueue blocks
 // without spawning goroutines until space frees, the queue closes, or one of
 // ctx, procCtx, or extraDone cancels.
+//
+// onDepth, when non-nil, is invoked while holding q.mu so concurrent producer
+// and consumer gauge updates serialize in exact queue mutation order; callers
+// MUST NOT re-enter eventQueue from onDepth.
 func (q *eventQueue) enqueue(
 	ctx, procCtx context.Context,
 	extraDone <-chan struct{},
@@ -130,11 +134,10 @@ func (q *eventQueue) enqueue(
 		}
 		if q.count < q.maxCap && len(q.waiters) == 0 {
 			q.pushLocked(d)
-			depth := q.count
-			q.mu.Unlock()
 			if onDepth != nil {
-				onDepth(depth)
+				onDepth(q.count)
 			}
+			q.mu.Unlock()
 			return enqueueAdmitted
 		}
 
@@ -180,18 +183,17 @@ func (q *eventQueue) enqueue(
 		}
 		if q.count < q.maxCap {
 			q.pushLocked(d)
-			depth := q.count
+			if onDepth != nil {
+				onDepth(q.count)
+			}
 			if q.count < q.maxCap {
 				q.wakeNextWaiterLocked()
 			}
 			q.mu.Unlock()
-			if onDepth != nil {
-				onDepth(depth)
-			}
 			return enqueueAdmitted
 		}
 		// Queue is still at or above maxCap (for example after a concurrent
-		// SetMaxCapacity reduction or another producer claiming a single freed
+		// setMaxCapacity reduction or another producer claiming a single freed
 		// slot); re-enqueue as a waiter on the next iteration.
 	}
 }
@@ -199,6 +201,7 @@ func (q *eventQueue) enqueue(
 // drainBatch blocks until at least one item is available or the queue is closed
 // and empty, then drains up to maxBatch items in FIFO order into buf.
 // Returns the populated slice and true, or buf[:0] and false once closed and empty.
+// onDepth, when non-nil, runs under q.mu (same contract as enqueue).
 func (q *eventQueue) drainBatch(buf []EventDelivery, maxBatch int, onDepth func(int)) ([]EventDelivery, bool) {
 	if maxBatch < 1 {
 		panic("BUG: plugin/process: eventQueue drainBatch maxBatch must be positive")
@@ -219,17 +222,16 @@ func (q *eventQueue) drainBatch(buf []EventDelivery, maxBatch int, onDepth func(
 			}
 			q.count -= n
 			q.shrinkIfEmptyLocked()
+			if onDepth != nil {
+				onDepth(q.count)
+			}
 			if q.count > 0 {
 				q.signalNotEmptyLocked()
 			}
 			if !q.closed && q.count < q.maxCap {
 				q.wakeNextWaiterLocked()
 			}
-			depth := q.count
 			q.mu.Unlock()
-			if onDepth != nil {
-				onDepth(depth)
-			}
 			return buf, true
 		}
 		if q.closed {
@@ -288,10 +290,11 @@ func (q *eventQueue) Close() {
 	q.mu.Unlock()
 }
 
-// CleanupRemaining drains any buffered items left in the queue, notifies
+// cleanupRemaining drains any buffered items left in the queue, notifies
 // waiting callers with ErrConnectionClosed (or calls OnFailure), and recycles
 // pooled StructuredEvent pointers so abnormal deliveryLoop exit never leaks.
-func (q *eventQueue) CleanupRemaining(procName string, onDepth func(int)) {
+// onDepth, when non-nil, runs under q.mu (same contract as enqueue).
+func (q *eventQueue) cleanupRemaining(procName string, onDepth func(int)) {
 	q.mu.Lock()
 	if q.count == 0 {
 		q.mu.Unlock()
@@ -309,11 +312,11 @@ func (q *eventQueue) CleanupRemaining(procName string, onDepth func(int)) {
 	}
 	q.count = 0
 	q.shrinkIfEmptyLocked()
-	q.mu.Unlock()
-
 	if onDepth != nil {
 		onDepth(0)
 	}
+	q.mu.Unlock()
+
 	for _, req := range remaining {
 		if req.Result != nil {
 			req.Result <- EventResult{

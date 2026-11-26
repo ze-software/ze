@@ -115,8 +115,9 @@ type ProcessManager struct {
 	// statusMu is a leaf lock serializing ze_plugin_status and
 	// ze_plugin_delivery_queue_depth gauge updates in wireMetrics against
 	// deletePluginStatusLabel so concurrent updates cannot re-create deleted
-	// gauge labels after clearMetricHooks. NEVER acquire pm.mu or p.stageMu
-	// while holding statusMu.
+	// gauge labels after clearMetricHooks. deliveryQueueDepth runs under
+	// eventQueue.mu to serialize depth updates in queue mutation order.
+	// NEVER acquire pm.mu, p.stageMu, or eventQueue.mu while holding statusMu.
 	statusMu sync.Mutex
 
 	ctx    context.Context

@@ -143,7 +143,7 @@ func (p *Process) deliveryLoop() {
 	if queue == nil {
 		return
 	}
-	defer queue.CleanupRemaining(p.config.Name, p.noteDeliveryQueueDepth)
+	defer queue.cleanupRemaining(p.config.Name, p.noteDeliveryQueueDepth)
 
 	for {
 		var ok bool
