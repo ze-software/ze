@@ -39,7 +39,7 @@ func init() {
 		InUseKind:     registry.DataPlaneInUsePredicate,
 		InUse:         l2tpDataPlaneInUse,
 		DisablePaths:  []string{"environment/l2tp"},
-		DisableLeaves: map[string]string{"l2tp/enabled": "false"},
+		DisableLeaves: map[string]string{"l2tp/enabled": configFalse},
 	}); err != nil {
 		panic("BUG: l2tp: data-plane feature registration failed: " + err.Error())
 	}

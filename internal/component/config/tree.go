@@ -1190,7 +1190,7 @@ func splitTreePath(path string) []string {
 	var segments []string
 	depth := 0
 	start := 0
-	for i := 0; i < len(path); i++ {
+	for i := range len(path) {
 		switch path[i] {
 		case '[':
 			depth++

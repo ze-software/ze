@@ -242,7 +242,7 @@ func containerPathSteps(relPath string) []treePathStep {
 
 // appendTreeStep appends step to a non-aliasing copy of steps.
 func appendTreeStep(steps []treePathStep, step treePathStep) []treePathStep {
-	return append(steps[:len(steps):len(steps)], step)
+	return append(slices.Clip(steps), step)
 }
 
 // withListEntryStep returns a copy of steps whose final step addresses key in

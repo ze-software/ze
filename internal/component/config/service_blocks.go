@@ -150,7 +150,7 @@ func matchWildcardServiceBlock(errPath string, reg serviceBlock) (concretePath, 
 		return "", "", false
 	}
 	rest := errPath[len(reg.prefix):]
-	if len(rest) == 0 {
+	if rest == "" {
 		return "", "", false
 	}
 	if rest[0] != '[' {

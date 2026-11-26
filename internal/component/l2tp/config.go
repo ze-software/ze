@@ -51,7 +51,7 @@ var (
 	_ = env.MustRegister(env.EnvEntry{
 		Key:         "ze.l2tp.skip-kernel-probe",
 		Type:        "bool",
-		Default:     "false",
+		Default:     configFalse,
 		Description: "Skip kernel module probe at Start (test-only; bypasses modprobe for L2TP CLI tests)",
 		Private:     true,
 	})
@@ -68,7 +68,7 @@ var (
 	_ = env.MustRegister(env.EnvEntry{
 		Key:         "ze.l2tp.disable-kernel-dataplane",
 		Type:        "bool",
-		Default:     "false",
+		Default:     configFalse,
 		Description: "Build no kernel worker, so sessions establish on the control plane only (test-only; L2TP CLI tests without CAP_NET_ADMIN)",
 		Private:     true,
 	})
@@ -109,7 +109,8 @@ const (
 	DefaultReauthIntervalSecs = 0
 	DefaultNCPTimeoutSecs     = 30
 
-	configTrue = "true"
+	configTrue  = "true"
+	configFalse = "false"
 )
 
 // Parameters is the parsed L2TP subsystem configuration.
