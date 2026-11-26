@@ -28,6 +28,18 @@ const managedCertRefusedCheckName = "managed-certificate-refused"
 // unauthenticated handshake cap was reached.
 const managedHandshakeSaturatedCheckName = "managed-handshake-saturated"
 
+// managedHistoryCheckpointCheckName reports a failed hub metric history
+// checkpoint or deletion flush.
+const managedHistoryCheckpointCheckName = "managed-history-checkpoint"
+
+// managedHistoryCapacityCheckName reports hub metric history capacity pressure
+// that shortened effective retention under a byte cap.
+const managedHistoryCapacityCheckName = "managed-history-capacity"
+
+// managedHistoryCorruptCheckName reports persisted fleet metric history shards
+// or latest records that failed validation on startup load.
+const managedHistoryCorruptCheckName = "managed-history-corrupt"
+
 // checkManagedListenerUnbound answers one error per managed listen address the
 // daemon could not bind, naming the address and the kernel's error. A
 // collision with the plugin acceptor is not among them: the local
@@ -49,7 +61,7 @@ func checkManagedListenerUnbound(_ diagnostic.DoctorCheckContext) []diagnostic.D
 }
 
 func managedUnboundRows(failures []server.ManagedListenerUnbound) []diagnostic.Diagnostic {
-	var rows []diagnostic.Diagnostic
+	rows := make([]diagnostic.Diagnostic, 0, len(failures))
 	for _, unbound := range failures {
 		var message textbuf.Buffer
 		message.Str("managed listener ").Str(unbound.Addr).Str(" did not bind: ").Str(unbound.Error).
@@ -238,7 +250,7 @@ func managedRecordUnwritableRows(failures []server.ManagedDeviceRecordFailure) [
 		if failure.UnknownDevice {
 			rows = append(rows, diagnostic.Diagnostic{
 				Code: server.CodeDoctorManagedDeviceRecordUnwritable, Severity: diagnostic.SeverityError,
-				Message: "the hub could not remove unrecognised device record " + failure.Key + ": " + failure.Error,
+				Message: "the hub could not remove unrecognized device record " + failure.Key + ": " + failure.Error,
 				Fix:     "run ze show data check, correct the store error, then delete the key with ze data rm " + failure.Key,
 			})
 			continue
@@ -260,13 +272,100 @@ func checkManagedDeviceRecordUnreadable(_ diagnostic.DoctorCheckContext) []diagn
 }
 
 func managedRecordUnreadableRows(failures []server.ManagedDeviceRecordFailure) []diagnostic.Diagnostic {
-	var rows []diagnostic.Diagnostic
+	rows := make([]diagnostic.Diagnostic, 0, len(failures))
 	for _, failure := range failures {
 		rows = append(rows, diagnostic.Diagnostic{
 			Code:     server.CodeDoctorManagedDeviceRecordUnreadable,
 			Severity: diagnostic.SeverityError,
 			Message:  "managed device " + failure.Name + " has unreadable history at " + failure.Key + ": " + failure.Error,
 			Fix:      "reconnect the device to replace its record, or forget its history with ze data rm " + failure.Key,
+		})
+	}
+	return rows
+}
+
+// checkManagedHistoryCheckpoint reports a failed hub metric history checkpoint
+// or deletion flush together with the age since the last successful checkpoint.
+func checkManagedHistoryCheckpoint(_ diagnostic.DoctorCheckContext) []diagnostic.Diagnostic {
+	record, _ := server.ManagedRuntimeHealth()
+	return managedHistoryCheckpointRows(record.History)
+}
+
+func managedHistoryCheckpointRows(health *server.ManagedHistoryHealth) []diagnostic.Diagnostic {
+	if health == nil {
+		return nil
+	}
+	if !health.CheckpointFailed {
+		return nil
+	}
+	var message textbuf.Buffer
+	message.Str("managed metric history checkpoint failed")
+	if !health.LastCheckpointFailAt.IsZero() {
+		message.Str(" at ").Str(health.LastCheckpointFailAt.UTC().Format(time.RFC3339))
+	}
+	if health.LastCheckpointOKAt.IsZero() {
+		message.Str(" (no checkpoint has succeeded yet)")
+	} else {
+		message.Str(" (last successful checkpoint ").Int(health.LastCheckpointAgeSeconds).
+			Str("s ago at ").Str(health.LastCheckpointOKAt.UTC().Format(time.RFC3339)).Str(")")
+	}
+	if health.LastCheckpointError != "" {
+		message.Str(": ").Str(health.LastCheckpointError)
+	}
+	message.Str("; dirty samples stay in memory for retry while committed shards remain readable")
+	return []diagnostic.Diagnostic{{
+		Code:     server.CodeDoctorManagedHistoryCheckpointFailed,
+		Severity: diagnostic.SeverityError,
+		Message:  message.String(),
+		Fix:      "run ze show data check and ze show fleet sample storage, then repair the store before the next checkpoint",
+	}}
+}
+
+// checkManagedHistoryCapacity reports when hub metric history shortened
+// effective retention oldest-first under its per-device or hub-wide byte cap.
+func checkManagedHistoryCapacity(_ diagnostic.DoctorCheckContext) []diagnostic.Diagnostic {
+	record, _ := server.ManagedRuntimeHealth()
+	return managedHistoryCapacityRows(record.History)
+}
+
+func managedHistoryCapacityRows(health *server.ManagedHistoryHealth) []diagnostic.Diagnostic {
+	if health == nil {
+		return nil
+	}
+	if !health.CapacityPressure {
+		return nil
+	}
+	var message textbuf.Buffer
+	message.Str("managed metric history reached its storage cap (used ").Int(health.UsedBytes).
+		Str(" of ").Int(health.HubBudgetBytes).Str(" hub bytes, per-device cap ").Int(health.DeviceBudgetBytes).
+		Str(" bytes): effective retention shortened to ").Int(health.EffectiveRetentionSeconds).
+		Str("s (configured ").Int(int64(health.ConfiguredRetentionDays)).Str(" day(s)); oldest buckets were evicted while recent samples and latest observations remain kept")
+	return []diagnostic.Diagnostic{{
+		Code:     server.CodeDoctorManagedHistoryCapacityPressure,
+		Severity: diagnostic.SeverityWarning,
+		Message:  message.String(),
+		Fix:      "raise bus hub history device-budget-bytes or hub-budget-bytes, or lower retention-days, and inspect with ze show fleet sample storage",
+	}}
+}
+
+// checkManagedHistoryCorrupt reports persisted fleet metric history shards or
+// latest observations that could not be decoded on startup load.
+func checkManagedHistoryCorrupt(_ diagnostic.DoctorCheckContext) []diagnostic.Diagnostic {
+	record, _ := server.ManagedRuntimeHealth()
+	return managedHistoryCorruptRows(record.History)
+}
+
+func managedHistoryCorruptRows(health *server.ManagedHistoryHealth) []diagnostic.Diagnostic {
+	if health == nil {
+		return nil
+	}
+	var rows []diagnostic.Diagnostic
+	for _, failure := range health.CorruptRecords {
+		rows = append(rows, diagnostic.Diagnostic{
+			Code:     server.CodeDoctorManagedHistoryCorrupt,
+			Severity: diagnostic.SeverityWarning,
+			Message:  "managed device " + failure.Name + " has unreadable metric history at " + failure.Key + ": " + failure.Error + "; healthy shards remain readable",
+			Fix:      "inspect with ze show fleet sample storage; the next valid sample report replaces the damaged record",
 		})
 	}
 	return rows

@@ -29,10 +29,13 @@ const (
 // report RPC method. Separate from pkg/fleet's producer registry so server code
 // never imports host or managed-client collectors.
 type ManagedReportReceiver struct {
-	Name        string
-	Method      string
-	MinInterval time.Duration
-	Handle      func(s *ManagedServer, device string, mc *rpc.MuxConn, payload []byte) error
+	Name            string
+	Method          string
+	MinInterval     time.Duration
+	BodyMax         int  // Optional payload byte bound; 0 defaults to fleet.ReportBodyMax.
+	SelfRateLimited bool // When true, Handle enforces its own rate limit and MinInterval may be 0.
+	OnRejected      func(s *ManagedServer)
+	Handle          func(s *ManagedServer, device string, mc *rpc.MuxConn, payload []byte) error
 }
 
 // ManagedFleetHealthDevice describes one degraded or down declared device in
@@ -77,12 +80,20 @@ func registerManagedReportReceivers() {
 		MinInterval: managedHealthMinInterval,
 		Handle:      handleHealthReportPayload,
 	})
+	MustRegisterManagedReportReceiver(ManagedReportReceiver{
+		Name:            "sample",
+		Method:          fleet.VerbSampleReport,
+		BodyMax:         fleet.SampleReportBodyMax,
+		SelfRateLimited: true,
+		OnRejected:      recordSampleReportRejected,
+		Handle:          handleSampleReportPayload,
+	})
 }
 
 // RegisterManagedReportReceiver registers r in the hub's managed report
 // receiver registry. It rejects empty Name, empty Method, non-positive
-// MinInterval, nil Handle, duplicate Name, and duplicate Method. Safe for
-// concurrent use.
+// MinInterval (unless SelfRateLimited is true), negative BodyMax, nil Handle,
+// duplicate Name, and duplicate Method. Safe for concurrent use.
 func RegisterManagedReportReceiver(r ManagedReportReceiver) error {
 	if r.Name == "" {
 		return errors.New("pluginserver: report receiver name is required")
@@ -90,8 +101,11 @@ func RegisterManagedReportReceiver(r ManagedReportReceiver) error {
 	if r.Method == "" {
 		return fmt.Errorf("pluginserver: report receiver %q method is required", r.Name)
 	}
-	if r.MinInterval <= 0 {
+	if !r.SelfRateLimited && r.MinInterval <= 0 {
 		return fmt.Errorf("pluginserver: report receiver %q min interval must be positive, got %v", r.Name, r.MinInterval)
+	}
+	if r.BodyMax < 0 {
+		return fmt.Errorf("pluginserver: report receiver %q body max cannot be negative, got %d", r.Name, r.BodyMax)
 	}
 	if r.Handle == nil {
 		return fmt.Errorf("pluginserver: report receiver %q handler is required", r.Name)
@@ -156,6 +170,24 @@ func handleHealthReportPayload(s *ManagedServer, device string, mc *rpc.MuxConn,
 	return s.recordHealthReport(device, mc, report)
 }
 
+func recordSampleReportRejected(s *ManagedServer) {
+	if s != nil && s.history != nil {
+		s.history.RecordRejected()
+	}
+}
+
+func handleSampleReportPayload(s *ManagedServer, device string, mc *rpc.MuxConn, payload []byte) error {
+	if s.history == nil {
+		return errors.New("fleet metric history is not enabled on this hub")
+	}
+	report, err := fleet.DecodeAndValidateSampleReport(payload)
+	if err != nil {
+		s.history.RecordRejected()
+		return err
+	}
+	return s.recordSampleReport(device, mc, report)
+}
+
 func (s *ManagedServer) responseContext() context.Context {
 	if s.ctx != nil {
 		return s.ctx
@@ -170,25 +202,35 @@ func (s *ManagedServer) sendReportError(ctx context.Context, name, method string
 	}
 }
 
-// handleReport enforces per-connection rate limiting and the body size bound
-// before invoking recv.Handle. A refused report never updates session state
-// (so rejected attempts never postpone the next allowed report) and never
-// mutates the device registry.
+// handleReport enforces per-connection rate limiting (unless SelfRateLimited)
+// and the body size bound before invoking recv.Handle. A refused report never
+// updates session state (so rejected attempts never postpone the next allowed
+// report) and never mutates the device registry or history store.
 func (s *ManagedServer) handleReport(name string, mc *rpc.MuxConn, req *rpc.Request, session *managedSession, recv ManagedReportReceiver) {
 	ctx := s.responseContext()
 	now := s.currentTime()
-	if session != nil && session.lastReport != nil {
+	if !recv.SelfRateLimited && session != nil && session.lastReport != nil {
 		if prev, seen := session.lastReport[recv.Method]; seen && now.Sub(prev) < recv.MinInterval {
+			if recv.OnRejected != nil {
+				recv.OnRejected(s)
+			}
 			var tb textbuf.Buffer
 			tb.Str(recv.Method).Str(" rate limited: minimum interval is ").Str(recv.MinInterval.String())
 			s.sendReportError(ctx, name, recv.Method, mc, req.ID, tb.String())
 			return
 		}
 	}
-	if len(req.Params) > fleet.ReportBodyMax {
+	bodyMax := recv.BodyMax
+	if bodyMax == 0 {
+		bodyMax = fleet.ReportBodyMax
+	}
+	if len(req.Params) > bodyMax {
+		if recv.OnRejected != nil {
+			recv.OnRejected(s)
+		}
 		var tb textbuf.Buffer
 		tb.Str(recv.Method).Str(" payload size ").Int(int64(len(req.Params))).
-			Str(" exceeds max ").Int(fleet.ReportBodyMax)
+			Str(" exceeds max ").Int(int64(bodyMax))
 		s.sendReportError(ctx, name, recv.Method, mc, req.ID, tb.String())
 		return
 	}
@@ -198,7 +240,7 @@ func (s *ManagedServer) handleReport(name string, mc *rpc.MuxConn, req *rpc.Requ
 		s.sendReportError(ctx, name, recv.Method, mc, req.ID, tb.String())
 		return
 	}
-	if session != nil {
+	if !recv.SelfRateLimited && session != nil {
 		if session.lastReport == nil {
 			session.lastReport = make(map[string]time.Time)
 		}

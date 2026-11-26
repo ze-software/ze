@@ -242,6 +242,7 @@ type ManagedDoctorRecord struct {
 	UnidentifiedForgotten int
 	DevicesByAddress      map[string][]string // Sorted device names per CertRefused Addr.
 	HandshakeSaturation   *ManagedHandshakeSaturation
+	History               *ManagedHistoryHealth
 }
 
 // managedDoctorSource is the managed server doctor reads. Start publishes it
@@ -288,10 +289,20 @@ func ManagedRuntimeHealth() (ManagedDoctorRecord, bool) {
 	if s == nil {
 		return ManagedDoctorRecord{StartupFailure: managedStartupFailure.Load()}, false
 	}
-	record := s.doctor.snapshotAt(s.currentTime())
+	now := s.currentTime()
+	record := s.doctor.snapshotAt(now)
 	s.appendDeviceRecordFailures(&record)
 	s.appendCertificateAndAddressDevices(&record)
+	s.appendHistoryHealth(&record, now)
 	return record, true
+}
+
+func (s *ManagedServer) appendHistoryHealth(record *ManagedDoctorRecord, now time.Time) {
+	if s.history == nil {
+		return
+	}
+	health := s.history.HealthSnapshot(now)
+	record.History = &health
 }
 
 // appendCertificateAndAddressDevices enriches record with the currently

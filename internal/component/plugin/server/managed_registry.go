@@ -249,7 +249,7 @@ func (s *ManagedServer) recordFetch(name, version string, resp fleet.ConfigFetch
 	case fetchErr != nil:
 		device.LastFetchResult = ManagedFetchError
 		device.LastFetchError = boundedManagedDetail(fetchErr.Error())
-	case resp.Status == "current":
+	case resp.Status == managedFetchStatusCurrent:
 		device.LastFetchResult = ManagedFetchCurrent
 	default:
 		device.LastFetchResult = ManagedFetchServed
@@ -347,7 +347,7 @@ const (
 	ManagedFetchError
 )
 
-var fetchResultWords = [...]string{"", "served", "current", "error"}
+var fetchResultWords = [...]string{"", "served", managedFetchStatusCurrent, "error"}
 
 // ManagedAckResult says what the hub recorded for the most recent config-ack.
 type ManagedAckResult uint8

@@ -18,6 +18,7 @@ import (
 	"encoding/pem"
 	"errors"
 	"fmt"
+	"maps"
 	"net"
 	"net/netip"
 	"slices"
@@ -135,6 +136,11 @@ type ManagedServerConfig struct {
 	// config, so Start logs it under that code and does not record it as
 	// unbound. The zero value names port 0, which collides with nothing.
 	Acceptor plugin.HubServerConfig
+
+	// History configures hub-side fleet metric sampling interval, retention,
+	// and per-device/hub byte budgets. The zero value uses
+	// plugin.DefaultHubHistoryConfig().
+	History plugin.HubHistoryConfig
 }
 
 // managedLeafCommonName names the managed listener in the subject of the leaf
@@ -158,6 +164,7 @@ type ManagedServer struct {
 	// devices holds one entry across all declarations of a name. Its session
 	// pointer is also the destination for config-changed. Guarded by mu.
 	recordIO             *managedRecordIO
+	history              *ManagedHistoryStore
 	detachConfigObserver func()
 	devices              map[string]*managedDevice
 	now                  func() time.Time
@@ -254,8 +261,8 @@ func NewManagedServer(cfg ManagedServerConfig) (*ManagedServer, error) {
 	for _, listen := range listens {
 		for name := range listen.Clients {
 			devices[name] = &managedDevice{
-				ManagedDeviceRecord: ManagedDeviceRecord{Name: name},
-				declared:            true, labels: listen.ClientLabels[name],
+				Name:     name,
+				declared: true, labels: listen.ClientLabels[name],
 			}
 		}
 	}
@@ -267,6 +274,10 @@ func NewManagedServer(cfg ManagedServerConfig) (*ManagedServer, error) {
 	}
 	if cfg.Clock == nil {
 		cfg.Clock = clock.RealClock{}
+	}
+	historyCfg := normalizeHistoryConfig(cfg.History)
+	if err := plugin.ValidateHubHistoryConfig(historyCfg, len(devices)); err != nil {
+		return nil, err
 	}
 	svc := newManagedConfigService(cfg.ReadConfig)
 	svc.records = newHeldRecords(cfg.Store)
@@ -301,6 +312,13 @@ func NewManagedServer(cfg ManagedServerConfig) (*ManagedServer, error) {
 		mHeld: reg.CounterVec("ze_managed_config_held_total",
 			"Copies of a held configuration managed clients sent, by result (stored|refused).", []string{managedMetricResult}),
 	}
+	srv.history = NewManagedHistoryStore(ManagedHistoryStoreConfig{
+		Config:          historyCfg,
+		Store:           cfg.Store,
+		Now:             srv.currentTime,
+		DeclaredClients: len(devices),
+	})
+	svc.sampleInterval = srv.history.IntervalSeconds
 	srv.mDeclared.Set(float64(len(devices)))
 	return srv, nil
 }
@@ -460,6 +478,14 @@ func (s *ManagedServer) Start(ctx context.Context) error {
 	if err := s.loadDeviceRecords(); err != nil {
 		return err
 	}
+	if s.history != nil {
+		if err := s.history.LoadFromStore(); err != nil {
+			if s.recordIO != nil && s.recordIO.subscription != nil {
+				s.recordIO.subscription.Unsubscribe()
+			}
+			return err
+		}
+	}
 	if s.recordIO != nil {
 		s.detachConfigObserver = s.recordIO.store.SetWriteObserver(func(key string) {
 			if name, ok := ClientNameFromConfigKey(key); ok {
@@ -473,6 +499,9 @@ func (s *ManagedServer) Start(ctx context.Context) error {
 	s.listens = nil
 	if s.recordIO != nil {
 		s.wg.Go(s.recordWriter) // long-lived: drains device history until cancellation
+	}
+	if s.history != nil {
+		s.wg.Go(func() { s.history.runCheckpointLoop(s.ctx) }) // long-lived: checkpoints metric history and drains deletes
 	}
 	for range managedNotifyWorkers {
 		s.wg.Go(s.notifyWorker) // long-lived pool: drains config-changed pushes
@@ -729,8 +758,8 @@ func (s *ManagedServer) handleRequest(name string, mc *rpc.MuxConn, req *rpc.Req
 			_ = mc.SendError(s.ctx, req.ID, tb.String())
 			return
 		}
-		if resp.Status == "current" {
-			s.mFetch.With("current").Inc()
+		if resp.Status == managedFetchStatusCurrent {
+			s.mFetch.With(managedFetchStatusCurrent).Inc()
 		} else {
 			s.mFetch.With("served").Inc()
 		}
@@ -1001,8 +1030,102 @@ func (s *ManagedServer) Stop() {
 		}
 		s.wg.Wait()
 		s.stopDeviceRecords() // final disconnects may follow writer cancellation
+		if s.history != nil {
+			if err := s.history.FlushFinal(); err != nil {
+				managedLogger().Warn("fleet metric history final shutdown flush failed",
+					"code", CodeDoctorManagedHistoryCheckpointFailed, "error", err)
+			}
+		}
 		withdrawManagedDoctor(s)
 	})
+}
+
+// History returns the server's bounded metric history store. Safe for
+// concurrent use.
+func (s *ManagedServer) History() *ManagedHistoryStore {
+	return s.history
+}
+
+func (s *ManagedServer) hasMetricHistory(name string) bool {
+	if s.history == nil {
+		return false
+	}
+	return s.history.HasDevice(name)
+}
+
+func (s *ManagedServer) recordSampleReport(name string, mc *rpc.MuxConn, report *fleet.SampleReport) error {
+	if s.history == nil {
+		return errors.New("fleet metric history is not enabled on this hub")
+	}
+	if mc == nil {
+		s.history.RecordRejected()
+		return errors.New("sample report requires an active authenticated session")
+	}
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	device := s.visibleDeviceLocked(name)
+	if device == nil {
+		s.history.RecordRejected()
+		return errors.New("sample report session is no longer active")
+	}
+	if !device.declared {
+		s.history.RecordRejected()
+		return errors.New("sample report device is not declared")
+	}
+	if device.conn != mc {
+		s.history.RecordRejected()
+		return errors.New("sample report session is superseded")
+	}
+	return s.history.Ingest(name, report, s.currentTime().UTC())
+}
+
+func (s *ManagedServer) historyDeviceMetaSnapshot() map[string]HistoryDeviceMeta {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	out := make(map[string]HistoryDeviceMeta, len(s.devices))
+	for name := range s.devices {
+		dev := s.visibleDeviceLocked(name)
+		if dev == nil {
+			continue
+		}
+		out[name] = HistoryDeviceMeta{
+			Name:      name,
+			Declared:  dev.declared,
+			Connected: dev.conn != nil,
+			Labels:    maps.Clone(dev.labels),
+		}
+	}
+	return out
+}
+
+// HistoryLatest answers a caller-scoped latest-samples query using live
+// registry labels and connection state. Safe for concurrent use.
+func (s *ManagedServer) HistoryLatest(scope FleetDeviceScope, filter HistoryLatestFilter) ([]HistoryLatestRow, error) {
+	if s.history == nil {
+		return nil, ErrManagedNotServing
+	}
+	meta := s.historyDeviceMetaSnapshot()
+	return s.history.QueryLatest(scope, meta, filter, s.currentTime().UTC())
+}
+
+// HistorySeries answers a caller-scoped dual-resolution series query using live
+// registry labels and connection state. Safe for concurrent use.
+func (s *ManagedServer) HistorySeries(scope FleetDeviceScope, query HistorySeriesQuery) ([]HistorySeriesRow, error) {
+	if s.history == nil {
+		return nil, ErrManagedNotServing
+	}
+	meta := s.historyDeviceMetaSnapshot()
+	return s.history.QuerySeries(scope, meta, query, s.currentTime().UTC())
+}
+
+// HistoryStorage answers a caller-scoped metric history storage status query.
+// Safe for concurrent use.
+func (s *ManagedServer) HistoryStorage(scope FleetDeviceScope) (HistoryStorageStatus, error) {
+	if s.history == nil {
+		return HistoryStorageStatus{}, ErrManagedNotServing
+	}
+	meta := s.historyDeviceMetaSnapshot()
+	return s.history.QueryStorage(scope, meta, s.currentTime().UTC())
 }
 
 // Per-client config key convention: a managed client's config is stored on the hub

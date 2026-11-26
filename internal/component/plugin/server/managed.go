@@ -12,6 +12,8 @@ import (
 	"github.com/ze-software/ze/pkg/fleet"
 )
 
+const managedFetchStatusCurrent = "current"
+
 // ErrClientConfigNotFound is returned when no config exists for a client name.
 var ErrClientConfigNotFound = errors.New("client config not found")
 
@@ -31,6 +33,9 @@ type ManagedConfigService struct {
 	// records holds the copy each holding client sent (heldRecords). nil
 	// keeps none: no answer names a held version and nothing is cleared.
 	records *heldRecords
+	// sampleInterval returns the hub's configured metric sample interval in
+	// seconds (0 disables sampling). nil omits sample-interval-seconds.
+	sampleInterval func() int
 }
 
 // newManagedConfigService creates a service that reads client configs via reader.
@@ -62,13 +67,20 @@ func (s *ManagedConfigService) HandleConfigFetch(clientName string, req fleet.Co
 	}
 
 	version := fleet.VersionHash(data)
+	var sampleInterval int
+	if s.sampleInterval != nil {
+		sampleInterval = s.sampleInterval()
+	}
 
 	if req.Version == version {
 		if clearErr := s.records.clear(clientName); clearErr != nil {
 			managedLogger().Warn("the hub could not remove the held copy of a managed client that is now in sync",
 				"code", diagnostic.CodeDoctorStoreIntegrity, "name", clientName, "error", clearErr)
 		}
-		return fleet.ConfigFetchResponse{Status: "current"}, nil
+		return fleet.ConfigFetchResponse{
+			Status:                managedFetchStatusCurrent,
+			SampleIntervalSeconds: sampleInterval,
+		}, nil
 	}
 
 	held, discard, heldErr := s.records.offer(clientName, req.Version, version)
@@ -77,10 +89,11 @@ func (s *ManagedConfigService) HandleConfigFetch(clientName string, req fleet.Co
 			"code", diagnostic.CodeDoctorStoreIntegrity, "name", clientName, "error", heldErr)
 	}
 	return fleet.ConfigFetchResponse{
-		Version:        version,
-		Config:         base64.StdEncoding.EncodeToString(data),
-		HeldVersion:    held,
-		DiscardVersion: discard,
+		Version:               version,
+		Config:                base64.StdEncoding.EncodeToString(data),
+		HeldVersion:           held,
+		DiscardVersion:        discard,
+		SampleIntervalSeconds: sampleInterval,
 	}, nil
 }
 

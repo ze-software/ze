@@ -58,6 +58,12 @@ const (
 	CodeDoctorManagedCertificateRefused = "doctor-managed-certificate-refused"
 	// CodeDoctorManagedHandshakeSaturated reports that the hub's unauthenticated managed handshake cap was reached.
 	CodeDoctorManagedHandshakeSaturated = "doctor-managed-handshake-saturated"
+	// CodeDoctorManagedHistoryCheckpointFailed reports that a hub metric history checkpoint or deletion flush failed.
+	CodeDoctorManagedHistoryCheckpointFailed = "doctor-managed-history-checkpoint-failed"
+	// CodeDoctorManagedHistoryCapacityPressure reports that hub metric history shortened retention under its byte cap.
+	CodeDoctorManagedHistoryCapacityPressure = "doctor-managed-history-capacity-pressure"
+	// CodeDoctorManagedHistoryCorrupt reports a stored fleet metric history record or shard that could not be decoded.
+	CodeDoctorManagedHistoryCorrupt = "doctor-managed-history-corrupt"
 	// CodeDoctorPluginRemovalUnrecovered is the doctor diagnostic code "doctor-plugin-removal-unrecovered".
 	CodeDoctorPluginRemovalUnrecovered = "doctor-plugin-removal-unrecovered"
 	// CodeDoctorPluginCapabilitiesNotRestored is the doctor diagnostic code "doctor-plugin-capabilities-not-restored".
@@ -65,6 +71,7 @@ const (
 	exampleShowDoctor                       = "ze show doctor"
 	exampleShowErrors                       = "ze show errors"
 	exampleDoctorJSON                       = "ze doctor --json"
+	exampleShowFleetSampleStorage           = "ze show fleet sample storage"
 )
 
 // doctorDiagnosticCodes is the explanation metadata for the doctor codes this package owns.
@@ -274,6 +281,27 @@ var doctorDiagnosticCodes = []diagnostic.CodeMeta{
 			"The row names when the cap was last reached, how many times it was reached, and the remote addresses holding slots.",
 		Examples:     []string{exampleShowDoctor, "ze show fleet devices", "ze show diagnostic doctor-managed-handshake-saturated"},
 		RelatedCodes: []string{CodeDoctorManagedClientRejected, "doctor-hub-handshake-failed"},
+	},
+	{
+		Code:  CodeDoctorManagedHistoryCheckpointFailed,
+		Title: "Managed metric history checkpoint failed",
+		Description: "The hub could not write one or more fleet metric history shards, latest observations, or deletion intents to its state store. " +
+			"Dirty history stays in memory for retry on the next checkpoint, healthy committed shards remain readable, and the row reports the error and the age since the last successful checkpoint.",
+		Examples: []string{exampleShowDoctor, exampleShowFleetSampleStorage, "ze show diagnostic doctor-managed-history-checkpoint-failed"},
+	},
+	{
+		Code:  CodeDoctorManagedHistoryCapacityPressure,
+		Title: "Managed metric history reached its storage cap",
+		Description: "Hub-side fleet metric history reached either its per-device or hub-wide byte budget and shortened effective retention oldest-first while preserving recent samples and each device's latest observation. " +
+			"Raise bus hub history device-budget-bytes or hub-budget-bytes, or lower retention-days to clear the pressure.",
+		Examples: []string{exampleShowDoctor, exampleShowFleetSampleStorage, "ze show diagnostic doctor-managed-history-capacity-pressure"},
+	},
+	{
+		Code:  CodeDoctorManagedHistoryCorrupt,
+		Title: "Stored managed metric history shard could not be decoded",
+		Description: "A persisted fleet metric history latest record or compressed shard failed size, version, or integrity validation on startup load and was skipped while healthy shards remained readable. " +
+			"The next valid sample report replaces the damaged key.",
+		Examples: []string{exampleShowDoctor, exampleShowFleetSampleStorage, "ze show diagnostic doctor-managed-history-corrupt"},
 	},
 	{
 		Code:  CodeDoctorPluginRemovalUnrecovered,

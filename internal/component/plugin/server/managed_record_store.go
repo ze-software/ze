@@ -112,6 +112,8 @@ func (s *ManagedServer) observeDeviceRecord(key string, removed bool) {
 		delete(s.recordIO.failed, name)
 		if device := s.devices[name]; device != nil {
 			s.forgetDeviceRecordLocked(name, device)
+		} else if s.history != nil {
+			s.history.FenceForgetDevice(name)
 		}
 		return
 	}
@@ -210,7 +212,7 @@ func (s *ManagedServer) loadDeviceRecords() (result error) {
 		s.mu.Lock()
 		device := s.devices[name]
 		if device == nil {
-			device = &managedDevice{ManagedDeviceRecord: ManagedDeviceRecord{Name: name}}
+			device = &managedDevice{Name: name}
 			s.devices[name] = device
 		}
 		device.durable = durable
@@ -396,6 +398,9 @@ func (s *ManagedServer) syncDeviceRecord(name string) {
 }
 
 func (s *ManagedServer) forgetDeviceRecordLocked(name string, device *managedDevice) {
+	if s.history != nil {
+		s.history.FenceForgetDevice(name)
+	}
 	if !device.declared {
 		if device.conn != nil {
 			// Reload is closing this session and waiting for its done channel.

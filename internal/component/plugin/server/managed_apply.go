@@ -10,6 +10,7 @@ import (
 	"strings"
 	"time"
 
+	plugin "github.com/ze-software/ze/internal/component/plugin"
 	pluginipc "github.com/ze-software/ze/internal/component/plugin/ipc"
 	"github.com/ze-software/ze/internal/core/configtext"
 	"github.com/ze-software/ze/internal/core/opererr"
@@ -37,17 +38,42 @@ func cloneManagedListeners(listens []ManagedListener) []ManagedListener {
 }
 
 // ManagedListenerPlan carries the certificate resolved against the candidate
-// PKI store and the declarations to install after configuration promotion.
+// PKI store, optional validated history settings, and the declarations to
+// install after configuration promotion.
 type ManagedListenerPlan struct {
 	listens     []ManagedListener
 	source      *managedCertSource
 	bindErr     error
 	certificate string
+	history     plugin.HubHistoryConfig
+	hasHistory  bool
 }
 
 // PrepareManagedListeners validates the next configuration without changing any
 // active listener, including when only the material behind a name changed.
 func (s *ManagedServer) PrepareManagedListeners(listens []ManagedListener, certificate string) (*ManagedListenerPlan, error) {
+	return s.prepareManagedListeners(listens, certificate, plugin.HubHistoryConfig{}, false)
+}
+
+// PrepareManagedListenersWithHistory validates the next listener declarations,
+// certificate, and hub metric history settings without changing any active
+// listener or running history store.
+func (s *ManagedServer) PrepareManagedListenersWithHistory(listens []ManagedListener, certificate string, history plugin.HubHistoryConfig) (*ManagedListenerPlan, error) {
+	return s.prepareManagedListeners(listens, certificate, history, true)
+}
+
+func (s *ManagedServer) prepareManagedListeners(listens []ManagedListener, certificate string, history plugin.HubHistoryConfig, hasHistory bool) (*ManagedListenerPlan, error) {
+	if hasHistory {
+		distinct := make(map[string]struct{})
+		for _, listen := range listens {
+			for name := range listen.Clients {
+				distinct[name] = struct{}{}
+			}
+		}
+		if err := plugin.ValidateHubHistoryConfig(history, len(distinct)); err != nil {
+			return nil, err
+		}
+	}
 	s.mu.Lock()
 	current, serving := s.source, len(s.listeners) != 0
 	s.mu.Unlock()
@@ -60,7 +86,14 @@ func (s *ManagedServer) PrepareManagedListeners(listens []ManagedListener, certi
 	if err != nil && serving && current != nil && current.name != "" {
 		return nil, managedReplacementRefusal(listens, current.name, err)
 	}
-	return &ManagedListenerPlan{listens: cloneManagedListeners(listens), source: source, bindErr: err, certificate: certificate}, nil
+	return &ManagedListenerPlan{
+		listens:     cloneManagedListeners(listens),
+		source:      source,
+		bindErr:     err,
+		certificate: certificate,
+		history:     history,
+		hasHistory:  hasHistory,
+	}, nil
 }
 
 // managedNamedCertificateRefusal names the block that selected the certificate.
@@ -140,6 +173,11 @@ func (s *ManagedServer) ApplyManagedListeners(plan *ManagedListenerPlan) {
 		}
 	}
 
+	var prevInterval int
+	if s.history != nil && plan.hasHistory {
+		prevInterval = s.history.IntervalSeconds()
+	}
+
 	s.mu.Lock()
 	if plan.bindErr == nil {
 		s.source = plan.source
@@ -160,14 +198,19 @@ func (s *ManagedServer) ApplyManagedListeners(plan *ManagedListenerPlan) {
 		done <-chan struct{}
 	}
 	var sessions []staleSession
+	var staleNames map[string]struct{}
 	for name, d := range s.devices {
 		if d.bound != nil && d.bound.clients[name] != d.secret {
 			sessions = append(sessions, staleSession{d.conn, d.sessionDone})
+			if staleNames == nil {
+				staleNames = make(map[string]struct{})
+			}
+			staleNames[name] = struct{}{}
 		}
 		if _, declared := labels[name]; !declared && d.declared {
 			d.declared, d.labels = false, nil
 			s.doctor.clearRejected(name)
-			if d.durable == nil && !d.unreadable && !d.hasSessionHistory() {
+			if d.durable == nil && !d.unreadable && !d.hasSessionHistory() && !s.hasMetricHistory(name) {
 				delete(s.devices, name)
 				continue
 			}
@@ -177,7 +220,7 @@ func (s *ManagedServer) ApplyManagedListeners(plan *ManagedListenerPlan) {
 	for name, assigned := range labels {
 		d := s.devices[name]
 		if d == nil {
-			d = &managedDevice{ManagedDeviceRecord: ManagedDeviceRecord{Name: name}}
+			d = &managedDevice{Name: name}
 			s.devices[name] = d
 		}
 		d.declared, d.labels = true, maps.Clone(assigned)
@@ -185,8 +228,28 @@ func (s *ManagedServer) ApplyManagedListeners(plan *ManagedListenerPlan) {
 			s.setRemovedAtLocked(d, time.Time{})
 		}
 	}
+	var notifyInterval []string
+	if s.history != nil && plan.hasHistory && plan.history.IntervalSeconds != prevInterval {
+		for name, d := range s.devices {
+			if d.conn == nil {
+				continue
+			}
+			if _, closing := staleNames[name]; closing {
+				continue
+			}
+			notifyInterval = append(notifyInterval, name)
+		}
+	}
 	s.mDeclared.Set(float64(len(labels)))
 	s.mu.Unlock()
+
+	if s.history != nil {
+		if plan.hasHistory {
+			s.history.UpdateConfig(plan.history, len(labels))
+		} else {
+			s.history.SetDeclaredCount(len(labels))
+		}
+	}
 
 	for _, bound := range retired {
 		_ = bound.listener.Close()
@@ -194,6 +257,9 @@ func (s *ManagedServer) ApplyManagedListeners(plan *ManagedListenerPlan) {
 	for _, session := range sessions {
 		_ = session.conn.Close()
 		<-session.done
+	}
+	for _, name := range notifyInterval {
+		s.NotifyConfigChanged(name)
 	}
 	s.doctor.mu.Lock()
 	s.doctor.unbound = nil
