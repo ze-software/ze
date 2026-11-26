@@ -15,7 +15,10 @@ const (
 	CodeDoctorHubHandshakeFailed = "doctor-hub-handshake-failed"
 	// CodeDoctorHubAuthRejected reports a managed client whose hub refused its authentication.
 	CodeDoctorHubAuthRejected = "doctor-hub-auth-rejected"
-	exampleShowDoctor         = "ze show doctor"
+	// CodeDoctorManagedReportFailed reports a managed client that failed to
+	// collect or push a periodic fleet inventory or health report to its hub.
+	CodeDoctorManagedReportFailed = "doctor-managed-report-failed"
+	exampleShowDoctor             = "ze show doctor"
 )
 
 // doctorDiagnosticCodes is the explanation metadata for the doctor codes this package owns.
@@ -79,6 +82,15 @@ var doctorDiagnosticCodes = []diagnostic.CodeMeta{
 		Examples:     []string{exampleShowDoctor, "ze show fleet status", "ze show diagnostic doctor-managed-diverged"},
 		RelatedCodes: []string{codeDoctorHubClientMissing},
 	},
+	{
+		Code:  CodeDoctorManagedReportFailed,
+		Title: "Managed client fleet report failed",
+		Description: "This managed client failed to collect or send a periodic inventory or health report to its hub " +
+			"(collection failure, oversized payload, hub refusal, or reply timeout). " +
+			"Configuration synchronization and heartbeats continue; the warning clears on the next accepted report of that kind.",
+		Examples:     []string{exampleShowDoctor, "ze show warnings", "ze show diagnostic doctor-managed-report-failed"},
+		RelatedCodes: []string{codeHubUnreachable, CodeDoctorManagedDiverged},
+	},
 }
 
 func init() {
@@ -86,5 +98,8 @@ func init() {
 		if err := diagnostic.Register(meta); err != nil {
 			panic("BUG: managed: doctor code registration refused: " + err.Error())
 		}
+	}
+	if err := diagnostic.RegisterEventCode(diagnostic.EventCode{Code: CodeDoctorManagedReportFailed}); err != nil {
+		panic("BUG: managed: doctor event code registration refused: " + err.Error())
 	}
 }

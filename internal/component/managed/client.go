@@ -3,6 +3,7 @@
 // Related: reconnect.go — backoff for connection retries
 // Related: heartbeat.go — liveness detection
 // Related: baseline.go — BaselineAccess and Diverged, which decide a hold
+// Related: report.go — per-session fleet inventory and health reporter
 
 package managed
 
@@ -125,6 +126,14 @@ type ClientConfig struct {
 	// means configFetchTimeout, which every production client uses; a test
 	// shortens it, as ManagedServer.pushTimeout, so no test waits 30 seconds.
 	fetchTimeout time.Duration
+	// reportTimeout bounds each fleet report collection and RPC round-trip
+	// (reportCallTimeout). Zero means defaultReportCallTimeout; a test
+	// shortens it so no test waits 30 seconds.
+	reportTimeout time.Duration
+	// reportProducersFn overrides fleet.ReportProducers for this client when
+	// non-nil. Tests set it to supply deterministic short-interval producers
+	// without mutating the process-wide producer registry.
+	reportProducersFn func() []fleet.ReportProducer
 }
 
 // heldUploadTimeout bounds one config-held round-trip, the write of the copy
@@ -306,6 +315,24 @@ func (cfg *ClientConfig) fetchBound() time.Duration {
 		return cfg.fetchTimeout
 	}
 	return configFetchTimeout
+}
+
+// reportCallTimeout returns the bound on one fleet report collection and RPC
+// round-trip.
+func (cfg *ClientConfig) reportCallTimeout() time.Duration {
+	if cfg.reportTimeout > 0 {
+		return cfg.reportTimeout
+	}
+	return defaultReportCallTimeout
+}
+
+// configuredReportProducers returns the fleet report producers scheduled for
+// each authenticated session of this client.
+func (cfg *ClientConfig) configuredReportProducers() []fleet.ReportProducer {
+	if cfg.reportProducersFn != nil {
+		return cfg.reportProducersFn()
+	}
+	return fleet.ReportProducers()
 }
 
 // noBaselineDefect is the message of RunManagedClient's refusal of a cfg with
@@ -495,6 +522,12 @@ func runConnection(ctx context.Context, cfg *ClientConfig, backoff *Backoff) err
 		}
 		return err
 	}
+
+	// Start periodic inventory and health reporting for this authenticated
+	// session. The defer runs before mc.Close so the worker is canceled and
+	// joined before the connection ends or the next session starts.
+	stopReporter := startSessionReporter(ctx, mc, cfg)
+	defer stopReporter()
 
 	// Start heartbeat.
 	hbDone := make(chan struct{})

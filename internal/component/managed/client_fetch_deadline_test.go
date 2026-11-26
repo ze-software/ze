@@ -144,6 +144,23 @@ func hubRequest(t *testing.T, session fetchSession) *rpc.Request {
 	}
 }
 
+// hubFetchRequest reads requests from session after the initial config-fetch,
+// replying with an unknown-method error to any concurrent fleet report RPCs
+// (just as a pre-fleet-4 hub does) and returning the next non-report request.
+func hubFetchRequest(t *testing.T, session fetchSession) *rpc.Request {
+	t.Helper()
+	for range 8 {
+		req := hubRequest(t, session)
+		if req.Method == fleet.VerbInventoryReport || req.Method == fleet.VerbHealthReport {
+			require.NoError(t, session.SendError(t.Context(), req.ID, unknownMethodPrefix+req.Method))
+			continue
+		}
+		return req
+	}
+	t.Fatal("the client sent too many fleet reports before its expected request")
+	return nil
+}
+
 // answerFetchCurrent takes the client's next request, which MUST be a
 // config-fetch, and answers that the hub holds the version it names.
 func answerFetchCurrent(t *testing.T, session fetchSession) {
@@ -259,10 +276,10 @@ func TestFetchDeadlineOnNotificationLoop(t *testing.T) {
 	answerFetchCurrent(t, hub)
 
 	require.NoError(t, pushChanged(t, hub), "the device did not answer the first config-changed")
-	require.Equal(t, fleet.VerbConfigFetch, hubRequest(t, hub).Method, "the device did not fetch after config-changed")
+	require.Equal(t, fleet.VerbConfigFetch, hubFetchRequest(t, hub).Method, "the device did not fetch after config-changed")
 	require.NoError(t, pushChanged(t, hub),
 		"the device did not answer a config-changed sent while its unanswered fetch waited")
-	require.Equal(t, fleet.VerbConfigFetch, hubRequest(t, hub).Method, "the device sent no fetch after the second config-changed")
+	require.Equal(t, fleet.VerbConfigFetch, hubFetchRequest(t, hub).Method, "the device sent no fetch after the second config-changed")
 
 	requireStillConnected(t, returned)
 	assert.Empty(t, applied, "the device applied a configuration no hub sent")
@@ -290,11 +307,11 @@ func TestFetchDeadlineDropsLateAnswer(t *testing.T) {
 	answerFetchCurrent(t, hub)
 
 	require.NoError(t, pushChanged(t, hub))
-	late := hubRequest(t, hub)
+	late := hubFetchRequest(t, hub)
 	require.Equal(t, fleet.VerbConfigFetch, late.Method)
 	// The device answers this second config-changed only once its fetch ended.
 	require.NoError(t, pushChanged(t, hub))
-	next := hubRequest(t, hub)
+	next := hubFetchRequest(t, hub)
 	require.Equal(t, fleet.VerbConfigFetch, next.Method)
 	require.NoError(t, hub.SendResult(t.Context(), late.ID, fleet.ConfigFetchResponse{
 		Version: fleet.VersionHash([]byte(holdHubConfig)),
@@ -302,7 +319,7 @@ func TestFetchDeadlineDropsLateAnswer(t *testing.T) {
 	}))
 	require.NoError(t, hub.SendResult(t.Context(), next.ID, fleet.ConfigFetchResponse{Status: fetchStatusCurrent}))
 	require.NoError(t, pushChanged(t, hub), "the device did not answer a config-changed after the late answer")
-	require.Equal(t, fleet.VerbConfigFetch, hubRequest(t, hub).Method)
+	require.Equal(t, fleet.VerbConfigFetch, hubFetchRequest(t, hub).Method)
 
 	requireStillConnected(t, returned)
 	assert.Empty(t, applied, "the device committed the answer it had given up on")
@@ -344,7 +361,7 @@ func TestFetchAtConnectAfterHubDropsPush(t *testing.T) {
 	first := nextSession(t, admitted)
 	answerFetchCurrent(t, first)
 	require.NoError(t, pushChanged(t, first))
-	require.Equal(t, fleet.VerbConfigFetch, hubRequest(t, first).Method)
+	require.Equal(t, fleet.VerbConfigFetch, hubFetchRequest(t, first).Method)
 
 	first.drop()
 
