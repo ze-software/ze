@@ -4,12 +4,12 @@
 |-------|-------|
 | Status | design |
 | Priority | P0 |
-| Release reason | Validate untrusted BGP-LS input and enforce receiver fault-management controls. |
+| Release reason | Validate untrusted BGP-LS input and prove receiver fault-management controls end to end against the live daemon and GoBGP. |
 | Scope | protocol |
 | Depends | - |
 | Phase | - |
 | Handoff | - |
-| Updated | 2026-11-24 |
+| Updated | 2026-11-26 |
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.
 
@@ -17,164 +17,130 @@ Recovery after compaction: `.claude/rules/post-compaction.md`.
 
 | Topic | Decision |
 |-------|----------|
-| Dedicated `consumer-facing` per-peer YANG role (`RFC9552-8.2.6-2`) | Drop the redundant `consumer-facing` per-peer YANG role; operators use existing `family-filter` to drop incoming BGP-LS updates (matching `rfc/short/rfc9552.md`, which already marks `RFC9552-8.2.6-2` `{not-applicable}`). Audit and close this spec around any remaining `.ci` or interop gaps, noting that NLRI syntactic validation already exists in `internal/component/bgp/message/rfc7606_bgpls_nlri.go` and `internal/component/bgp/reactor/rfc9552_nlri_test.go`. |
+| Dedicated `consumer-facing` per-peer YANG role (`RFC9552-8.2.6-2`) | Drop the redundant `consumer-facing` per-peer YANG role; operators use existing `family-filter` (`action remove`) to drop incoming BGP-LS updates (matching `rfc/short/rfc9552.md`, which already marks `RFC9552-8.2.6-2` `{not-applicable}`). Rebase and close this spec around the remaining live daemon `.ci` and GoBGP interop proof gaps, since NLRI syntactic validation, unit tests, and RFC ledger rows are already landed at HEAD. |
 
 ## Existing Mechanisms (MANDATORY)
 
-| Mechanism | Where | What it does today | This spec |
-|-----------|-------|--------------------|-----------|
-| BGP-LS NLRI syntactic validator | `internal/component/bgp/message/rfc7606_bgpls_nlri.go`, `internal/component/bgp/message/rfc7606.go` (`validateMPNLRISyntax`) | Validates BGP-LS NLRI length and TLV framing under RFC 9552 Section 8.2.2 | Audit against remaining ACs and close any `.ci`/interop gaps |
-| BGP-LS attribute validator | `internal/component/bgp/message/rfc7606_bgpls.go` (`validateBGPLSAttr`) | Validates code 29 BGP-LS Attribute TLVs with Attribute Discard | Preserved |
-| Session RFC 7606 enforcement | `internal/component/bgp/reactor/session_validation.go` (`Session.enforceRFC7606`) | Enforces NLRI discard, AFI/SAFI disable, or session reset before plugin dispatch | Preserved / audited |
-| Family import filter | `internal/component/bgp/plugins/filter_family/config.go` (`parseFamilyFilters`) | Drops or tears down incoming BGP-LS updates on a peer | Replaces the dropped `consumer-facing` YANG role |
+| Mechanism | Where (file + symbol, or page + section) | What it does today | This spec (extends, replaces, or does not apply, with the reason) |
+|-----------|------------------------------------------|--------------------|-------------------------------------------------------------------|
+| BGP-LS NLRI syntactic validator and registry registration | `internal/component/bgp/message/rfc7606_bgpls_nlri.go` (`judgeBGPLSNLRISection`, `RetainWellFormedNLRI`), `internal/component/bgp/message/register_nlrisyntax.go` (`init`), `internal/component/bgp/message/rfc7606.go` (`validateMPNLRISyntax`) | Validates BGP-LS (AFI 16388 / SAFI 71 and 72) NLRI framing and per-NLRI TLV/sub-TLV structure, ordering, and Node Descriptor uniqueness under RFC 9552 Section 8.2.2; non-skipable framing overruns reset the session with NOTIFICATION 3/9 and skipable errors discard only the malformed NLRI | Preserved as already landed at HEAD; this spec adds live daemon `.ci` and GoBGP interop proof covering this path |
+| BGP-LS attribute validator | `internal/component/bgp/message/rfc7606_bgpls.go` (`validateBGPLSAttr`) | Registered under code 29 in `attrValidators`; checks BGP-LS Attribute TLV framing and returns `RFC7606ActionAttributeDiscard` on length mismatch | Preserved as already landed at HEAD; exercised in the live daemon `.ci` test |
+| Session RFC 7606 and typed-NLRI receive enforcement | `internal/component/bgp/reactor/session_validation.go` (`Session.enforceRFC7606`, `applyRFC7606`, `rfc7606ResetNotification`), `internal/component/bgp/reactor/session_validation_nlritype.go` (`applyTypedNLRIDiscard`, `typedNLRIEdit`) | Runs `validateMPNLRISyntax` (`Judge`), strips skipable malformed Link-State NLRIs via `syntax.Retain`, drops emptied UPDATEs without relaying, applies `ATTR_TOMBSTONE` (code 252) on Attribute Discard, and sends NOTIFICATION 3/9 on non-skipable framing errors | Preserved as already landed at HEAD; exercised end to end through live sessions |
+| Family import filter | `internal/component/bgp/plugins/filter_family/config.go` (`parseFamilyFilters`) | Lets operators configure `bgp/policy/family-filter` (`action remove` or `tear-down`) to drop inbound BGP-LS updates on Consumer-facing peers (`RFC9552-8.2.6-1`) | Preserved; per the 2026-11-24 owner decision, replaces the dropped dedicated `consumer-facing` YANG role |
+| Compiled plugin test fixtures | `internal/test/fixture/plugin_fixture_13.go` (`routeServerReplay13`) | Registers compiled Go observer fixtures (`le test fixture plugin/<name>`) that verify route-server delivery and shut the daemon down cleanly after the processing fence | Extends by registering `plugin/bgp-ls-malformed-nlri` for the live daemon `.ci` test |
+| Docker BGP interop lab and GoBGP RIB reader | `internal/le/interoplab/bgp/` (`names.go`, `checkers.go`, `check_extras.go`), `test/interop/Dockerfile.gobgp` (`gobgp-paths`) | Runs multi-daemon Docker scenarios against pinned GoBGP v4.11.0 with raw injectors (`bgp-sr-policy-malformed-receive-gobgp`) and reads non-CLI AFI/SAFI tables via `gobgp-paths <afi> <safi>` | Extends with scenario `bgp-ls-receive-gobgp` reading GoBGP's AFI 16388 / SAFI 71 RIB |
+
+## Design documents
+
+| Document | Section | Derived from | Binding statement | Verdict | How this design stands against it |
+|----------|---------|--------------|-------------------|---------|-----------------------------------|
+| `ai/doors/system.md` | Ze is a platform, and other people's code runs against it | the door every change reads | "The RFC, then ExaBGP API compatibility, then ExaBGP's behavior, in that order" | agrees | The `.ci` and GoBGP interop proofs assert exact RFC 9552 Section 8.2.2 and RFC 4760 Section 7 receive behavior on the wire without altering any published API or config contract. |
+| `ai/doors/le-tooling.md` | Boundaries | the door covering `internal/test/fixture/plugin_fixture_13.go`, `internal/le/interoplab/bgp/names.go`, `internal/le/interoplab/bgp/checkers.go`, `internal/le/interoplab/bgp/check_extras.go`, `test/plugin/bgp-ls-malformed-nlri.ci`, and `test/interop/scenarios/bgp-ls-receive-gobgp/*` | "A compiled Go fixture returns an error when an assertion fails" | agrees | The new `plugin/bgp-ls-malformed-nlri` registration reuses `routeServerReplay13` in `plugin_fixture_13.go`, which reports assertion failures before shutdown, and the new `.ci` lives in `test/plugin/` where live `le test peer` + `ze -` runs are supported. |
+| `docs/architecture/testing/interop.md` | The suites, one per protocol area | the `// Design:` page of `internal/le/interoplab/bgp/names.go`, `checkers.go`, `check_extras.go`; anchored to all three; a page this spec modifies | "A scenario directory carries only declarative inputs its runner reads" | agrees | `test/interop/scenarios/bgp-ls-receive-gobgp/` holds only declarative `ze.conf`, `gobgp.toml`, `inject.msg`, and `inject-args`; all assertions live in the typed Go checker registry in `internal/le/interoplab/bgp/`. |
+| `docs/architecture/testing/interop.md` | Design decisions | decision of 2026-11-23 on `docs/architecture/testing/interop.md` | "Each Docker interop suite and scenario checks only the kernel capabilities it actually requires (`Suite.KernelCapabilities` unioned with selected `ScenarioPlan.KernelCapabilities`); suites whose selected scenarios require none run without unrelated kernel features (such as SRv6 or IPsec)" | agrees | `bgp-ls-receive-gobgp` is a pure userspace BGP scenario in the BGP suite and declares no extra kernel capabilities, running without requiring unrelated SRv6 or IPsec kernel features. |
+| `docs/architecture/testing/ci-format.md` | The compiled observer API | anchored to `internal/test/fixture/plugin_fixture_13.go` | "`runPlugin13` supplies that barrier when its shutdown flag is true." | agrees | `plugin/bgp-ls-malformed-nlri` registers with `routeServerReplay13` and `StopsDaemon`, preserving the quiesce-before-shutdown observer barrier. |
+| `docs/architecture/ospf/ospf-4-component-config.md` | Decisions | anchored to `internal/le/interoplab/bgp/check_extras.go` | - | silent | Anchored to `check_extras.go` only for `ospf-auto-cost-frr`; this spec adds a BGP-LS scenario entry to `scenarioExtras` and does not touch OSPF component registration or configuration. |
+| `docs/architecture/ospf/ospf-ext-16-ipsec-auth.md` | Decisions | anchored to `internal/le/interoplab/bgp/checkers.go` | - | silent | Anchored to `checkers.go` only for `ospfIPsecPeerSetup`; this spec adds a BGP-LS scenario entry to `scenarioOperations` and does not touch OSPFv3 IPsec authentication. |
+| `docs/functional-tests.md` | Overview | a page this spec modifies | "Functional tests exercise release-gate behavior across BGP wire encoding and decoding, plugin behavior" | agrees | `test/plugin/bgp-ls-malformed-nlri.ci` adds release-gate live-daemon coverage in the `plugin` functional suite and is documented in `docs/functional-tests.md`. |
+| `ai/doors/bgp-engine.md` | Gates | added: governing BGP-LS receive-path design | "Wire output, decoding, config parsing and plugin paths through the real daemon" | agrees | The landed unit tests cover `validateMPNLRISyntax` and `enforceRFC7606`; this spec closes the remaining real-daemon `.ci` and Docker GoBGP interop gates. |
+| `docs/architecture/wire/nlri-bgpls.md` | Receive-Path NLRI Validation (RFC 9552 Section 8.2.2) | added: governing BGP-LS receive-path design | "Ze implements no AFI/SAFI disable, so the session resets." | agrees | AC-7 and `test/plugin/bgp-ls-malformed-nlri.ci` match this landed behavior: a non-skipable Link-State NLRI framing error resets even a mixed-family session with NOTIFICATION 3/9. |
+| `docs/architecture/wire/nlri.md` | NLRI Receive Validation: the Per-Family Syntax Registry | added: governing BGP-LS receive-path design | "No receive-path file names a family." | agrees | The existing `nlrisyntax` registration in `register_nlrisyntax.go` is preserved untouched; no family-specific branch is added to `rfc7606.go` or `session_validation.go`. |
 
 ## Task
 
-Ze receives BGP-LS and performs none of the syntactic validation RFC 9552
-Section 8.2.2 requires of a receiver. `validateMPNLRISyntax`
-(`internal/component/bgp/message/rfc7606.go`) returns `nil` unless the AFI is
-IPv4 or IPv6 AND the SAFI is unicast or multicast, so AFI 16388 falls straight
-through to no validation at all. A Link-State NLRI whose TLV lengths do not sum
-to its Total NLRI Length is accepted and propagated.
+RFC 9552 Section 8.2.2 requires a BGP-LS speaker to syntactically validate Link-State NLRIs and BGP-LS Attributes on the receive path and take the error-class action the RFC prescribes ('NLRI discard' for skipable NLRI errors, 'Attribute Discard' for skipable BGP-LS Attribute errors, and 'session reset' with NOTIFICATION 3/9 for non-skipable NLRI framing errors when 'AFI/SAFI disable' is not implemented).
 
-Four rows of `rfc/short/rfc9552.md` name that hole, and this spec closes all four:
+At HEAD, the producer implementation, boundary and receive-path unit tests, RFC ledger entries, and wire architecture documentation are already landed:
 
-| Row | Level | State today |
-|-----|-------|-------------|
-| `RFC9552-8.2.2-9` | MUST | no test, no annotation. The gate errors on it |
-| `RFC9552-8.2.2-5` | MUST | `{gap}` citing `validateMPNLRISyntax` returning nil for AFI 16388 |
-| `RFC9552-8.2.2-6` | MUST | skipable malformed BGP-LS Attribute must be Attribute Discard |
-| `RFC9552-8.2.6-2` | MUST | no test, no annotation. Ze must let an operator drop all updates from a Consumer-facing peer |
+| Item | State at HEAD |
+|------|---------------|
+| Link-State NLRI syntactic validator (`judgeBGPLSNLRISection`, `RetainWellFormedNLRI`) | Landed in `internal/component/bgp/message/rfc7606_bgpls_nlri.go` and registered in `register_nlrisyntax.go` |
+| BGP-LS Attribute syntactic validator (`validateBGPLSAttr`) | Landed in `internal/component/bgp/message/rfc7606_bgpls.go` |
+| Receive-path enforcement (`enforceRFC7606`, `typedNLRIEdit`) | Landed in `internal/component/bgp/reactor/session_validation.go` and `session_validation_nlritype.go` |
+| Boundary, receive-path, and semantic-tolerance unit tests | Landed in `internal/component/bgp/message/rfc7606_bgpls_nlri_test.go`, `rfc7606_bgpls_nlri_fuzz_test.go`, `internal/component/bgp/reactor/rfc9552_nlri_test.go`, `rfc9552_test.go`, and `rfc9552_semantic_test.go` |
+| RFC 9552 ledger rows (`8.2.2-4`, `8.2.2-5`, `8.2.2-6`, `8.2.2-9`, `8.2.2-10`, `8.2.6-2`) | Already updated in `rfc/short/rfc9552.md` (`8.2.6-2` marked `{not-applicable}`; 2026-11-24 owner decision dropped the dedicated `consumer-facing` YANG role) |
+| Wire architecture doc (`Receive-Path NLRI Validation`) | Already documented in `docs/architecture/wire/nlri-bgpls.md` and `docs/architecture/wire/nlri.md` |
+| Live daemon functional `.ci` proof | **Missing** -- no `.ci` test drives malformed Link-State NLRIs (skipable discard + non-skipable session reset) and malformed BGP-LS Attribute through a running `ze` daemon |
+| GoBGP Docker interop proof (`bgp-ls-receive-gobgp`) | **Missing** -- no interop scenario proves zero false positives on valid BGP-LS NLRIs and live skipable-NLRI discard upstream of real GoBGP v4.11.0 |
 
-The first three are one mechanism: validate the NLRI, then take the action
-Section 8.2.2 prescribes for the class of error found. The fourth is a separate
-mechanism that shares this spec because it is the other half of what a BGP-LS
-receiver owes, and because Thomas chose its shape on 2026-08-26.
-
-The attribute side is already done and is the model to follow. `validateBGPLSAttr`
-(`internal/component/bgp/message/rfc7606_bgpls.go`) registers itself in
-`attrValidators` for code 29 and walks the BGP-LS Attribute's TLVs, returning
-`RFC7606ActionAttributeDiscard` on a length that does not fit. This spec is that
-work one layer over, on the NLRI.
+This spec closes those two remaining proof gaps so the P0 release fix can be verified end to end and closed.
 
 ## Required Reading
 
 ### Architecture Docs
-- [ ] `docs/architecture/wire/nlri-bgpls.md` - declared by the `// Design:` header
-      of `rfc7606_bgpls.go` and every ls file
-  → Constraint: the BGP-LS TLV header is 4 octets and is NOT padded to 4-octet
-    alignment, so a TLV occupies exactly 4 + Length octets
+- [ ] `docs/architecture/wire/nlri-bgpls.md` - Link-State NLRI framing, Receive-Path Fault Management, and Receive-Path NLRI Validation
+  → Decision: non-skipable framing boundary is drawn at Total NLRI Length (`judgeBGPLSNLRISection` -> session reset because Ze implements no AFI/SAFI disable); everything inside a well-framed NLRI is skipable (`RetainWellFormedNLRI` -> NLRI discard)
+  → Constraint: BGP-LS TLV header is 4 octets with no 4-octet padding; unknown NLRI types stay opaque and propagate whole; no TLV value octet is interpreted semantically
+- [ ] `docs/architecture/wire/nlri.md` - NLRI Receive Validation: the Per-Family Syntax Registry
+  → Decision: BGP-LS (`bgp-ls/bgp-ls` and `bgp-ls/bgp-ls-vpn`) registers its `Judge` and `Retain` callbacks in `nlrisyntax`; no receive-path file names a family
+  → Constraint: every MP NLRI session reset carries NOTIFICATION 3/9 (Optional Attribute Error) with the whole MP attribute as Data per RFC 4760 Section 7
+- [ ] `docs/architecture/testing/interop.md` - Docker interop scenario discovery, GoBGP v4.11.0 `gobgp-paths`, and malformed-receive checker conventions
+  → Decision: scenario directories contain only declarative config/injector inputs; assertions live in typed Go checkers under `internal/le/interoplab/bgp/`
+  → Constraint: absence assertions require a live positive control (`proof`) and unchanged session counters so a dropped session cannot pass vacuously
+- [ ] `docs/architecture/testing/ci-format.md` - `.ci` functional test format and suite separation
+  → Constraint: `test/decode/` strictly runs single-command offline `ze bgp decode` tests and rejects `le test peer` / `ze -`; live daemon peer tests belong in `test/plugin/`
 
 ### RFC Summaries (Scope: protocol)
-- [ ] `rfc/short/rfc9552.md` - Section 8.2.2's two validation lists and its action
-      ladder, and Section 8.2.6's two sentences
-  → Constraint: "A Link-State NLRI MUST NOT be considered malformed or invalid
-    based on the inclusion/exclusion of TLVs or contents of the TLV fields (i.e.,
-    semantic errors)". Structural length, ordering and descriptor-uniqueness
-    checks still apply. Section 5.1 orders equal-Type TLVs by Length and then
-    by opaque lexicographic Value; reading those bytes does not interpret them.
-  → Constraint: the action depends on the error class. Skipable (e.g. a TLV
-    ordering violation) is 'NLRI discard'. Unprocessable (e.g. a length-encoding
-    error) is 'AFI/SAFI disable' when another AFI/SAFI shares the session, and
-    'session reset' when the session is BGP-LS only or disable is not possible
-  → Constraint: §10 grounds §8.2.6 in operator knowledge: "Generally, an operator
-    is aware of the BGP-LS Speaker's role and link-state peerings"
+- [ ] `rfc/short/rfc9552.md` - Sections 5.1, 5.2, 5.2.1.4, 8.2.2, and 8.2.6
+  → Constraint: "A Link-State NLRI MUST NOT be considered malformed or invalid based on the inclusion/exclusion of TLVs or contents of the TLV fields (i.e., semantic errors)"; structural length, §5.1 Type/Length/opaque-Value ordering, and §5.2.1.4 Node Descriptor sub-TLV uniqueness still apply
+  → Constraint: skipable NLRI errors take 'NLRI discard'; unprocessable framing errors take 'session reset' (because Ze implements no 'AFI/SAFI disable'); skipable BGP-LS Attribute errors take 'Attribute Discard'
+  → Constraint: `RFC9552-8.2.6-2` is `{not-applicable}` (operator policy obligation satisfied by existing `bgp/policy/family-filter` under `RFC9552-8.2.6-1`)
 
 **Key insights:**
-- §8.2.2's seven NLRI bullets are: MP_REACH TLV lengths sum to the attribute
-  length; the same for MP_UNREACH; each NLRI's TLV lengths sum to its Total NLRI
-  Length; TLV and recognized sub-TLV lengths are valid; RFC 7606 field
-  correctness; the §5.1 ascending-Type ordering rule; and no repeated sub-TLV
-  inside a Local or Remote Node Descriptor.
-- Ze's action enum has no 'NLRI discard' and no 'AFI/SAFI disable' member:
-  `RFC7606Action` is `None`, `AttributeDiscard`, `TreatAsWithdraw`,
-  `SessionReset`. `enforceRFC7606` does implement an RFC 7606 §5.4 typed-NLRI
-  discard, so the mechanism may exist without an enum value. Which of the two it
-  is decides Phase 2's shape and is the first thing to establish.
-- Nothing on the wire says a peer only serves BGP-LS Consumers. There is no
-  capability, no attribute, no field. §1.1 also says the roles are not mutually
-  exclusive and mix per-speaker, so the role must be DECLARED, never inferred.
+- All producer validation code and unit tests are already landed and wired through `nlrisyntax` (`register_nlrisyntax.go`) and `attrValidators` (`rfc7606_bgpls.go`).
+- Live daemon `.ci` tests using `le test peer` + `ze -` must live under `test/plugin/` (`test/plugin/bgp-ls-malformed-nlri.ci`), not `test/decode/`, because `internal/test/runner/decoding_strict_test.go` enforces that `test/decode/` accepts only `ze bgp decode` commands.
+- `test/interop/Dockerfile.gobgp` already ships `gobgp-paths <afi> <safi>`, which queries GoBGP v4.11.0's global RIB over gRPC `ListPath` with `EnableOnlyBinary` and decodes NLRIs via `bgp.NLRIFromSlice`, matching the pattern proven by `bgp-sr-policy-malformed-receive-gobgp`.
 
 ## Current Behavior (MANDATORY)
 
 **Source files read:**
-- [ ] `internal/component/bgp/message/rfc7606.go` - `validateMPNLRISyntax(code,
-      afi, safi, nlri, addPath)` returns `nil` immediately unless the AFI is IPv4
-      or IPv6 and the SAFI is unicast or multicast; otherwise it delegates to
-      `ValidateNLRISyntaxAddPath`. AFI 16388 matches neither test, so BGP-LS is
-      unvalidated. `RFC7606Action` has four members: `None`,
-      `AttributeDiscard`, `TreatAsWithdraw`, `SessionReset`.
-- [ ] `internal/component/bgp/message/rfc7606_bgpls.go` - `init` registers
-      `validateBGPLSAttr` in `attrValidators` under `attrCodeBGPLS = 29`. The
-      validator walks TLVs bounded by the attribute length, advances by at least
-      `bgplsTLVHeaderLen = 4` each iteration so a peer cannot stall it, reads no
-      TLV type and no value byte, and returns `RFC7606ActionAttributeDiscard`
-      with `DiscardReasonInvalidLength` on a TLV that overruns.
-- [ ] `internal/component/bgp/reactor/session_validation.go` -
-      `Session.enforceRFC7606` is the receive-path entry point, called from
-      `processMessage` BEFORE callback dispatch so a malformed UPDATE never
-      reaches a plugin as a valid route. It already reads the negotiated ADD-PATH
-      set per family through `bgpctx.Registry.Get(s.recvCtxID)`, and already
-      carries an RFC 7606 §5.4 typed-NLRI discard branch that rebuilds the body.
-- [ ] `internal/component/bgp/plugins/nlri/ls/plugin.go` - both BGP-LS families
-      register `Mode: "decode"`; `errNoValidBgpLsNlrisDecoded` reaches CLI output,
-      never the session's fault-management ladder.
-- [ ] `internal/component/bgp/plugins/filter_family/config.go` -
-      `parseFamilyFilters` reads `bgp/policy/family-filter`, requires a `family`
-      that `family.LookupFamily` resolves, and an `action` of `remove` or
-      `tear-down`, with tear-down refused in any export chain.
-- [ ] `internal/core/family/family.go` - `AFIBGPLS = 16388`, and `bgp-ls` and
-      `bgp-ls-vpn` are both nameable families.
-- [ ] `internal/component/bgp/plugins/role/yang/ze-role.yang` - the shape a
-      per-peer declared role takes: a `grouping`, then `augment` onto
-      `/bgp:bgp/bgp:peer`, `/bgp:bgp/bgp:group/bgp:peer` and `/bgp:bgp/bgp:group`.
+- [ ] `internal/component/bgp/message/rfc7606_bgpls_nlri.go` - already landed: implements `RetainWellFormedNLRI` (zero-copy when nothing is dropped; handles SAFI 71, SAFI 72 8-octet RD, RFC 7911 ADD-PATH, unknown NLRI types kept opaque, TLV length walk, §5.1 Type/Length/Value ordering, §5.2.1.4 Node Descriptor 256/257 sub-TLV uniqueness and ascending order) and `judgeBGPLSNLRISection` (returns `ActionSessionReset` when Total NLRI Length overruns the section or ends inside an NLRI header).
+- [ ] `internal/component/bgp/message/register_nlrisyntax.go` - already landed: registers `judgeBGPLSNLRISection` and `RetainWellFormedNLRI` in `nlrisyntax` for both `bgp-ls/bgp-ls` and `bgp-ls/bgp-ls-vpn`.
+- [ ] `internal/component/bgp/message/rfc7606.go` - already landed: `validateMPNLRISyntax` queries `nlrisyntax.Get(fam)` first and maps `ActionSessionReset` to `RFC7606ActionSessionReset` with RFC 4760 Section 7 `MPAttributeErrorNotification(attr)` (NOTIFICATION 3/9).
+- [ ] `internal/component/bgp/message/rfc7606_bgpls.go` - already landed: registers `validateBGPLSAttr` for attribute code 29 returning `RFC7606ActionAttributeDiscard` (`DiscardReasonInvalidLength`) on TLV overrun or trailing header octets.
+- [ ] `internal/component/bgp/reactor/session_validation.go` and `internal/component/bgp/reactor/session_validation_nlritype.go` - already landed: `enforceRFC7606` runs `classifyRFC7606` (`validateMPNLRISyntax`) before plugin dispatch, applies `applyTypedNLRIDiscard` -> `typedNLRIEdit` (`syntax.Retain`), drops emptied UPDATEs without relaying, applies `ATTR_TOMBSTONE` (code 252) on Attribute Discard, and calls `rfc7606ResetNotification` on session reset.
+- [ ] `internal/component/bgp/message/rfc7606_bgpls_nlri_test.go`, `internal/component/bgp/reactor/rfc9552_nlri_test.go`, `internal/component/bgp/reactor/rfc9552_test.go`, `internal/component/bgp/reactor/rfc9552_semantic_test.go` - already landed: full boundary, receive-path, and semantic-tolerance unit coverage for RFC 9552 Section 8.2.2.
+- [ ] `internal/test/fixture/plugin_fixture_13.go` - registers compiled Go observer fixtures (`routeServerReplay13`) for live `test/plugin/*.ci` tests including `plugin/rfc7606-54-bgpls-override-propagates`.
+- [ ] `internal/le/interoplab/bgp/names.go`, `checkers.go`, `check_extras.go`, and `test/interop/scenarios/bgp-sr-policy-malformed-receive-gobgp/` - established GoBGP v4.11.0 + raw injector pattern using `gobgp-paths <afi> <safi>`, IPv4 fence synchronization, and Ze `show bgp peer <addr> detail` session-stability assertions.
+- [ ] `rfc/short/rfc9552.md` - rows `RFC9552-8.2.2-4`, `8.2.2-5`, `8.2.2-6`, `8.2.2-9`, `8.2.2-10` already proven; `RFC9552-8.2.6-2` already marked `{not-applicable}`.
 
 **Behavior to preserve:**
-- Every non-BGP-LS family's RFC 7606 verdict, byte for byte. `validateMPNLRISyntax`
-  gains a branch; its existing branches do not move.
-- `validateBGPLSAttr` and the attribute-side verdict.
-- An operator's hand-written `family-filter` on `bgp-ls` keeps working.
+- All already-landed BGP-LS NLRI and Attribute syntactic validation in `internal/component/bgp/message/` and `internal/component/bgp/reactor/` (no product code changes unless a live `.ci` or GoBGP interop test exposes a defect).
+- Zero-copy fast path for conforming BGP-LS UPDATEs (`RetainWellFormedNLRI` returns the input slice unchanged when `dropped == 0`).
+- Preservation and opaque propagation of unknown Link-State NLRI types (`test/plugin/rfc7606-54-bgpls-override-propagates.ci`) and semantically odd TLVs (`rfc9552_semantic_test.go`).
+- Existing `bgp/policy/family-filter` import-drop behavior for Consumer-facing peers.
 
 **Behavior to change:**
-- A malformed Link-State NLRI is detected and acted on instead of propagated.
-- A peer declared Consumer-facing has BGP-LS dropped on import without the
-  operator writing a filter.
+- Add live daemon functional test `test/plugin/bgp-ls-malformed-nlri.ci` (with fixture `plugin/bgp-ls-malformed-nlri` in `internal/test/fixture/plugin_fixture_13.go`) proving the complete wire-to-relay and wire-to-NOTIFICATION receive path on a running `ze` daemon.
+- Add Docker GoBGP interop scenario `bgp-ls-receive-gobgp` (`test/interop/scenarios/bgp-ls-receive-gobgp/` + checker in `internal/le/interoplab/bgp/`) proving valid BGP-LS acceptance with zero false positives and live skipable-NLRI discard upstream of GoBGP v4.11.0.
+- Document the new functional test and interop scenario in `docs/functional-tests.md`, `docs/architecture/testing/interop.md`, and `docs/features/rfc-status.md`.
 
 ## Data Flow (MANDATORY - see `ai/rules/architecture.md`)
 
 ### Entry Point
-Wire bytes: an UPDATE carrying MP_REACH_NLRI or MP_UNREACH_NLRI with AFI 16388,
-arriving on an established session. Second entry point: the operator's
-configuration, declaring a peer's BGP-LS role.
+- Wire bytes: BGP UPDATE messages carrying `MP_REACH_NLRI` or `MP_UNREACH_NLRI` for AFI 16388 / SAFI 71 (and optional BGP-LS Attribute code 29) arriving over TCP from `le test peer` (functional `.ci`) or the raw injector container (Docker GoBGP interop) into an established `ze` BGP session.
 
 ### Transformation Path
-1. `Session.enforceRFC7606` runs on the received `wireu.WireUpdate`, before
-   callback dispatch.
-2. The MP attribute walk reaches `validateMPNLRISyntax` with AFI 16388.
-3. A new BGP-LS branch walks the Link-State NLRI: Total NLRI Length against the
-   summed TLV lengths, each TLV's length against its container, the §5.1
-   Type/Length/opaque-Value ordering, and one instance per Node Descriptor
-   sub-TLV. Type inspection identifies recognised containers and repeated
-   sub-TLV types; it must not reject unknown or unexpected types.
-4. The verdict classifies the error as skipable or unprocessable, and
-   `enforceRFC7606` takes the corresponding action.
-5. Separately, at config-apply: a peer's declared BGP-LS role appends an import
-   drop for the BGP-LS families, through the same machinery `filter_family` uses.
+1. `Session.enforceRFC7606` (`internal/component/bgp/reactor/session_validation.go`) classifies the received `wireu.WireUpdate` before plugin dispatch.
+2. `validateMPNLRISyntax` (`internal/component/bgp/message/rfc7606.go`) looks up AFI 16388 / SAFI 71 in `nlrisyntax` and calls `judgeBGPLSNLRISection` (`rfc7606_bgpls_nlri.go`). If Total NLRI Length overruns the MP attribute or leaves a truncated header, `applyRFC7606` sends NOTIFICATION 3/9 (`MPAttributeErrorNotification`) and resets the session.
+3. For a walkable MP section, `validateBGPLSAttr` (`rfc7606_bgpls.go`) validates attribute code 29 TLVs and returns `RFC7606ActionAttributeDiscard` if any TLV length overruns or leaves trailing header octets.
+4. `applyTypedNLRIDiscard` -> `typedNLRIEdit` (`session_validation_nlritype.go`) invokes `RetainWellFormedNLRI` (`rfc7606_bgpls_nlri.go`) to discard skipable malformed Link-State NLRIs (TLV/sub-TLV overrun, §5.1 ordering violation, §5.2.1.4 duplicate/descending Node Descriptor sub-TLV) while preserving well-formed NLRIs and unknown NLRI types.
+5. Surviving NLRIs (with `ATTR_TOMBSTONE` code 252 if code 29 was discarded) reach `bgp-rs` / `bgp-adj-rib-in` and are relayed to the downstream peer (`le test peer` receiver connection or GoBGP v4.11.0).
 
 ### Boundaries Crossed
 | Boundary | How | Verified |
 |----------|-----|----------|
-| Wire ↔ message | the NLRI bytes are walked in `internal/component/bgp/message` with no plugin involvement | No |
-| Message ↔ reactor | the verdict is an `RFC7606ValidationResult` the session acts on | No |
-| Config ↔ reactor | the declared role becomes an import filter at config-apply | No |
+| Peer TCP ↔ `message` (`nlrisyntax` / `attrValidators`) | Raw BGP UPDATE frames validated in-process before plugin dispatch | No |
+| `message` ↔ `reactor` (`enforceRFC7606` / `typedNLRIEdit`) | `RFC7606ValidationResult`, `nlrisyntax.Judgement`, and `Retain` byte slice drive session reset, NLRI discard, or Attribute Discard | No |
+| `reactor` ↔ `bgp-rs` / downstream peer (`le test peer` or GoBGP) | Surviving NLRIs relayed over BGP TCP; GoBGP RIB queried via `gobgp-paths 16388 71` | No |
+
+### Changed-Wire Census
+
+No wire format, field layout, encoding, or RPC schema changes in this spec: all RFC 9552 Section 8.2.2 receive-path validation is already landed at HEAD (`internal/component/bgp/message/rfc7606_bgpls_nlri.go`, `rfc7606_bgpls.go`, `register_nlrisyntax.go`, `internal/component/bgp/reactor/session_validation_nlritype.go`), and this spec adds only live functional (`.ci`) and Docker interop (`bgp-ls-receive-gobgp`) tests plus documentation proving the existing wire behavior end to end.
 
 ### Integration Points
-- `internal/component/bgp/message/rfc7606.go` `validateMPNLRISyntax` - the branch
-  that stops falling through for AFI 16388.
-- `internal/component/bgp/reactor/session_validation.go` `Session.enforceRFC7606`
-  - the action ladder that acts on the verdict.
-- `internal/component/bgp/plugins/filter_family` - the import-drop mechanism the
-  declared role reuses rather than reimplements.
+- `internal/test/fixture/plugin_fixture_13.go` (`init`, `routeServerReplay13`) - registers `plugin/bgp-ls-malformed-nlri` for clean fence-driven shutdown in `test/plugin/bgp-ls-malformed-nlri.ci`.
+- `internal/le/interoplab/bgp/names.go`, `checkers.go`, `check_extras.go` - registers `bgp-ls-receive-gobgp` in the BGP interop suite's `scenarioOperations` and `scenarioExtras` maps so `Discover` (`internal/le/interoplab/discover.go`) discovers and validates it automatically.
 
 ### Architectural Verification
 | Check | Holds? | Evidence |
@@ -183,229 +149,244 @@ configuration, declaring a peer's BGP-LS role.
 | No unintended coupling (components stay isolated) | No | |
 | No duplicated functionality (extends existing, does not recreate) | No | |
 | Zero-copy preserved where applicable (refs, not copies) | No | |
-| Registration over hardcoding: new commands, views, families, and handlers register, and the core discovers them. No per-feature field, switch case, or factory is added to a core/shared package (`ai/rules/plugins.md`) | No | |
+| Registration over hardcoding, outbound: new commands, views, families, and handlers register, and the core discovers them. No per-feature field, switch case, or factory is added to a core/shared package (`ai/rules/plugins.md`) | No | |
+| Registration over hardcoding, inbound: no existing switch, seed map, validator, parser, runner, help string, or completion table has to learn this feature's name. Evidence names every list that was searched for the names this feature introduces, and the registry each one now derives from (`ai/rules/principles.md`) | No | |
 
 ## Risks & Assumptions
 
 ### Assumptions
 | ID | Assumption | Basis (file/doc/user statement) | If wrong | Validated by | Status |
 |----|-----------|--------------------------------|----------|--------------|--------|
-| A-1 | `enforceRFC7606`'s RFC 7606 §5.4 typed-NLRI discard can express §8.2.2's 'NLRI discard' | the branch exists and rebuilds the body, per the function's own comment | Phase 2 must add an action member and every switch on `RFC7606Action` grows a case | reading the §5.4 branch whole in Phase 1 | unvalidated |
-| A-2 | 'AFI/SAFI disable' has no existing mechanism in ze | `RFC7606Action` has four members and none is it | Phase 3 is larger than planned: disabling one family mid-session touches capability state | grep for a per-family disable in the reactor during Phase 1 | unvalidated |
-| A-3 | Appending an import filter at config-apply is expressible without a new core switch | `filter_family` already parses and applies per-peer import filters | the declared role needs its own apply path, which risks the coupling `ai/rules/plugins.md` forbids | reading `filter_family/handler.go` in Phase 4 | unvalidated |
-| A-4 | Ordering can be checked without interpreting TLV semantics | §5.1 explicitly requires Type, Length and opaque lexicographic Value ordering; §8.2.2 separately requires recognised-container length checks and descriptor uniqueness | A validator that treats structural inspection as forbidden omits required checks | Read §5.1 and §8.2.2 together; tests must accept well-formed unknown types and reject ordering violations | confirmed by protocol text during planning reconciliation, 2026-09-19; implementation proof remains owed |
+| A-1 | GoBGP v4.11.0 accepts `afi-safi-name = "ls"` in `gobgp.toml` and `gobgp-paths 16388 71` decodes relayed BGP-LS Node/Link NLRIs via `bgp.NLRIFromSlice` | `test/interop/Dockerfile.gobgp` uses `github.com/osrg/gobgp/v4@v4.11.0` with `gobgp-paths <afi> <safi>` calling `bgp.NLRIFromSlice(bgp.NewFamily(afi, safi), path.NlriBinary)` | If GoBGP's `gobgp.toml` spells the family differently (e.g. `ls-ls`) or `NLRIFromSlice` formatting differs, adjust `gobgp.toml` / expected substring tokens during interop phase | Running `./le test integration interop` on `bgp-ls-receive-gobgp` | unvalidated |
+| A-2 | The already-landed BGP-LS validator in `rfc7606_bgpls_nlri.go`, `rfc7606_bgpls.go`, and `session_validation_nlritype.go` needs no product code changes to pass the live `.ci` and GoBGP interop proofs | All unit tests in `rfc7606_bgpls_nlri_test.go`, `rfc9552_nlri_test.go`, `rfc9552_test.go`, and `rfc9552_semantic_test.go` are landed at HEAD | If a live daemon or GoBGP interop run uncovers a product bug (e.g., NOTIFICATION Data encoding, relay framing, or tombstone propagation), fix it in the owning `internal/component/bgp/` file with a regression unit test | Running `test/plugin/bgp-ls-malformed-nlri.ci` and `bgp-ls-receive-gobgp` | unvalidated |
+| A-3 | `test/plugin/` is the right functional suite for live malformed BGP-LS session tests | `internal/test/runner/decoding_strict_test.go` and `docs/functional-tests.md` prove `test/decode/` rejects any command other than `ze bgp decode`, while `test/plugin/rfc7606-54-bgpls-override-propagates.ci` and `test/plugin/rfc7606-reset.ci` run `le test peer` + `ze -` in `test/plugin/` | None -- verified directly in runner source | Read `internal/test/runner/decoding_strict_test.go` and `test/plugin/rfc7606-54-bgpls-override-propagates.ci` | confirmed |
 
 ### Risks
 | ID | Risk | Early signal | Mitigation / fallback |
 |----|------|--------------|----------------------|
-| R-1 | The new validator session-resets on a valid UPDATE some other implementation sends | an interop scenario tears the session where it used to establish | the interop test runs against a real peer originating real BGP-LS, and the unit tests fixture both a valid and a malformed NLRI of each shape |
-| R-2 | The validator reads a TLV's value and becomes a semantic check, which §8.2.2 forbids | a test asserts on a TLV type or a field's contents | the attribute-side precedent reads neither; the review checklist makes it an explicit row |
-| R-3 | A peer stalls the walk with a zero-length TLV | a receive path that does not terminate | every iteration advances by at least the 4-octet header, as `validateBGPLSAttr` does |
-| R-4 | The declared role drops BGP-LS from a peer that was propagating it, and a topology silently empties | an operator reports a Consumer seeing nothing after a config change | the role is declared per peer and defaults to unset, so no existing config changes behaviour; the functional test covers the omitted case as well as the declared one |
+| R-1 | The validator false-positives on a valid Link-State NLRI or BGP-LS Attribute that real GoBGP exchanges or accepts | `bgp-ls-receive-gobgp` fails to deliver valid Node/Link NLRIs to GoBGP or drops the session | Run `bgp-ls-receive-gobgp` against real GoBGP v4.11.0 and assert `connections-established: 1`, `connections-dropped: 0` alongside exact decoded NLRI fields |
+| R-2 | Interop absence check passes vacuously if GoBGP's session drops or the injector never sends | GoBGP loses the malformed NLRI only because the session reset or no routes arrived | Pair every malformed NLRI with a well-formed survivor NLRI plus an untouched control NLRI (`proof`) and assert `connections-established: 1`, `connections-dropped: 0` on Ze's GoBGP peer |
+| R-3 | Live `.ci` test has timing flake between skipable-discard relay and non-skipable session-reset phases | Receiver misses relayed survivor before reset or daemon exits early | Use deterministic TCP-order processing fence (`10.0.0.0/24` IPv4 UPDATE after BGP-LS UPDATEs, as in `rfc7606-54-bgpls-override-propagates.ci`) and a dedicated peer connection for the session-reset NOTIFICATION 3/9 assertion |
+| R-4 | A peer stalls the TLV walk with zero-length TLVs or 65535-octet claims | Hang or timeout on malformed input | Already bounded in `rfc7606_bgpls_nlri.go` (every loop advances by at least `bgplsTLVHeaderLen = 4`) and fuzzed in `rfc7606_bgpls_nlri_fuzz_test.go` |
 
 ## Blast Radius
 
 | Question | Answer |
 |----------|--------|
-| What breaks if this is wrong? | A false positive resets live BGP sessions, which is the loudest failure in the daemon. A false negative leaves today's behaviour, which is propagating malformed NLRI |
-| How is it reverted? | single commit revert; nothing outlives it, and no config migration is needed because the role leaf defaults to unset |
-| Who else touches this path? | `rfc7606.go` is shared by every family's validation; `plan/post-release/features/spec-bgp-ls-origination-and-the-scheduled-marker.md` touches the same ls plugin from the encode side |
+| What breaks if this is wrong? | A broken `.ci` or interop test causes false red or vacuous green in release gates; no production forwarding or config path changes unless a live test uncovers a real defect in the landed validator. |
+| How is it reverted? | Single commit revert removes the new `.ci` file, fixture registration, interop scenario, checker entries, and doc notes; no config migration or state change. |
+| Who else touches this path? | `internal/test/fixture/plugin_fixture_13.go` and `internal/le/interoplab/bgp/{names,checkers,check_extras}.go` are shared test registries; changes are additive single-scenario entries. |
 
 ## Wiring Test (MANDATORY -- NOT deferrable)
 
 | Entry Point | → | Feature Code | Test |
 |-------------|---|--------------|------|
-| an UPDATE with AFI 16388 and a malformed Link-State NLRI | → | `validateMPNLRISyntax` | `TestBGPLSNLRIWithOverrunningTLVIsMalformed` |
-| the same UPDATE on an established session | → | `Session.enforceRFC7606` | `TestEnforceRFC7606ActsOnAMalformedBGPLSNLRI` |
-| a valid Link-State NLRI | → | `Session.enforceRFC7606` | `TestValidBGPLSNLRIReachesThePlugins` |
-| a peer declared Consumer-facing | → | the config-apply filter append | `TestConsumerFacingPeerDropsBGPLSOnImport` |
-| an operator runs a session against a peer sending malformed BGP-LS | → | the whole receive path | `test/decode/bgp-ls-malformed-nlri.ci` <!-- doc-links: ignore (planned test this open spec has not built yet) --> |
+| an UPDATE with AFI 16388 and a malformed Link-State NLRI (already landed) | → | `validateMPNLRISyntax` / `judgeBGPLSNLRISection` / `RetainWellFormedNLRI` | `TestValidateMPNLRISyntaxJudgesLinkStateFramingOnly` (`internal/component/bgp/message/rfc7606_bgpls_nlri_test.go`) |
+| malformed and valid Link-State NLRIs on a session (already landed) | → | `Session.enforceRFC7606` / `typedNLRIEdit` | `TestRFC9552LinkStateNLRITLVOverrunIsDiscarded`, `TestRFC9552LinkStateNLRILengthOverrunResetsSession`, `TestRFC9552LinkStateNLRIWithUnknownTLVsIsPropagated` (`internal/component/bgp/reactor/rfc9552_nlri_test.go`) |
+| malformed BGP-LS Attribute on a session (already landed) | → | `Session.enforceRFC7606` / `validateBGPLSAttr` | `TestRFC9552BGPLSAttributeTLVOverrunDiscarded` (`internal/component/bgp/reactor/rfc9552_test.go`) |
+| live BGP peer sending skipable malformed NLRI, malformed BGP-LS Attribute, and non-skipable Total NLRI Length overrun to running `ze` daemon | → | full daemon receive path (`session_read` → `enforceRFC7606` → `bgp-rs` relay / NOTIFICATION 3/9) | `test/plugin/bgp-ls-malformed-nlri.ci` <!-- doc-links: ignore (planned test this open spec has not built yet) --> |
+| upstream injector + `ze` route server + GoBGP v4.11.0 exchanging valid and skipable-malformed BGP-LS NLRIs | → | full daemon receive + relay path judged by real GoBGP v4.11.0 | `bgp-ls-receive-gobgp` (`test/interop/scenarios/bgp-ls-receive-gobgp/`) <!-- doc-links: ignore (planned scenario this open spec has not built yet) --> |
 
 ## Acceptance Criteria
 
-| AC ID | Input / Condition | Expected Behavior |
-|-------|-------------------|-------------------|
-| AC-1 | a Link-State NLRI whose TLV lengths do not sum to its Total NLRI Length | it is malformed; the UPDATE is not propagated as valid |
-| AC-2 | MP_REACH_NLRI whose Link-State TLV lengths do not sum to the attribute length | malformed, per §8.2.2 bullet 1 |
-| AC-3 | MP_UNREACH_NLRI, the same | malformed, per §8.2.2 bullet 2 |
-| AC-4 | a TLV whose declared length overruns its container | malformed, per §8.2.2 bullet 4 |
-| AC-5 | Link-State NLRI TLVs violate §5.1 ordering: Type, then Length for equal Types, then opaque lexicographic Value for equal Type and Length | malformed and handled as NLRI discard, which §8.2.2 names as its example of a skipable error; correctly ordered unknown types remain accepted |
-| AC-6 | a Local or Remote Node Descriptor carrying the same sub-TLV twice | malformed, per §8.2.2 bullet 7 |
-| AC-7 | a length-encoding error on a session carrying BGP-LS AND another AFI/SAFI | AFI/SAFI disable, per §8.2.2 |
-| AC-8 | the same error on a session carrying BGP-LS only | session reset, per §8.2.2 |
-| AC-9 | a Link-State NLRI that is syntactically valid but semantically odd: an unexpected TLV, a missing optional TLV | NOT malformed. §8.2.2 forbids judging it |
-| AC-10 | a valid Link-State NLRI | it reaches the plugins unchanged, and the session stays established |
-| AC-11 | a peer declared Consumer-facing in config | every BGP-LS UPDATE from it is dropped on import, with no operator-written filter |
-| AC-12 | a peer with no declared BGP-LS role | BGP-LS is accepted and propagated, exactly as today |
-| AC-13 | a peer declared Consumer-facing | its non-BGP-LS families are unaffected |
+| AC ID | Input / Condition | Expected Behavior | Permitted Survivors and Why |
+|-------|-------------------|-------------------|-----------------------------|
+| AC-1 | A Link-State NLRI whose TLV lengths do not sum to its Total NLRI Length (body truncated inside fixed fields or trailing TLV header) beside a well-formed NLRI | `RetainWellFormedNLRI` discards the malformed NLRI ('NLRI discard') and delivers the well-formed survivor byte-identical with session remaining established | Well-formed NLRIs in the same MP attribute survive because RFC 9552 Section 8.2.2 makes per-NLRI framing errors inside a valid Total NLRI Length skipable |
+| AC-2 | `MP_REACH_NLRI` whose Link-State Total NLRI Lengths do not sum to the attribute length (overruns section or truncated 4-octet NLRI header) | `judgeBGPLSNLRISection` answers `ActionSessionReset` and `enforceRFC7606` sends NOTIFICATION 3/9 (Optional Attribute Error carrying the MP attribute) and resets the session | No NLRIs from that UPDATE survive because NLRI boundaries after the error cannot be located (RFC 9552 Section 8.2.2, RFC 7606 Section 3(j)) |
+| AC-3 | `MP_UNREACH_NLRI` whose Link-State Total NLRI Lengths do not sum to the attribute length | `judgeBGPLSNLRISection` answers `ActionSessionReset` and `enforceRFC7606` sends NOTIFICATION 3/9 and resets the session | No NLRIs from that UPDATE survive because the withdraw-side MP attribute cannot be framed (RFC 9552 Section 8.2.2 bullet 2) |
+| AC-4 | A TLV or recognized Node Descriptor (256/257) sub-TLV whose declared length overruns its container, beside a well-formed NLRI | `RetainWellFormedNLRI` discards that NLRI ('NLRI discard') and relays the well-formed survivor unchanged while keeping the session established | Well-formed NLRIs in the same UPDATE survive; the overrunning NLRI is bounded by its own valid Total NLRI Length and is therefore skipable |
+| AC-5 | A Link-State NLRI whose TLVs violate RFC 9552 Section 5.1 ordering (descending Type, or equal Type with descending Length, or equal Type and Length with descending opaque Value), beside a well-formed NLRI | `RetainWellFormedNLRI` discards the out-of-order NLRI ('NLRI discard') and relays the well-formed survivor unchanged while keeping the session established | Correctly ordered NLRIs (including unknown TLV types and identical repeated TLVs) survive because Section 5.1 forbids only ordering violations |
+| AC-6 | A Local (256) or Remote (257) Node Descriptor carrying a repeated sub-TLV type or descending sub-TLV types (RFC 9552 Section 5.2.1.4), beside a well-formed NLRI | `RetainWellFormedNLRI` discards that NLRI ('NLRI discard') and relays the well-formed survivor unchanged while keeping the session established | Well-formed NLRIs survive; Node Descriptors with strictly ascending unique sub-TLV types (including unknown sub-TLV types) survive |
+| AC-7 | A non-skipable Total NLRI Length overrun on a mixed-family session negotiating both IPv4 unicast and BGP-LS | `enforceRFC7606` sends NOTIFICATION 3/9 (Optional Attribute Error carrying the MP attribute) and resets the session, matching RFC 9552 Section 8.2.2's mandatory fallback when `'AFI/SAFI disable'` is not implemented (`rfc7606_bgpls_nlri.go`) | No route from that malformed UPDATE survives and the session resets; Ze implements no `'AFI/SAFI disable'`, so Section 8.2.2's "Alternately, the router MUST perform a 'session reset'" applies |
+| AC-8 | A non-skipable Total NLRI Length overrun on a BGP-LS-only session | `enforceRFC7606` sends NOTIFICATION 3/9 (Optional Attribute Error carrying the MP attribute) and resets the session | No route from that malformed UPDATE survives; Section 8.2.2 requires session reset for a BGP-LS-only session |
+| AC-9 | A syntactically valid Link-State NLRI or BGP-LS Attribute with semantic oddities (unknown NLRI type, unknown/unexpected TLV type, missing mandatory descriptor, unregistered Protocol-ID, non-standard fixed-length TLV size, or unordered BGP-LS Attribute TLVs) | `enforceRFC7606` takes `RFC7606ActionNone` and propagates the NLRI and attribute byte-identical to plugins and downstream peers | All syntactically valid NLRIs and attributes survive unchanged because RFC 9552 Section 8.2.2 forbids semantic rejection by a Propagator |
+| AC-10 | Valid Link-State NLRIs (Node and Link) and a skipable malformed BGP-LS Attribute (TLV overrun) sent through a live `ze` daemon and against GoBGP v4.11.0 | Valid NLRIs reach downstream peers (`le test peer` and GoBGP `gobgp-paths 16388 71`) intact with zero session drops (`connections-established: 1`, `connections-dropped: 0`); a malformed BGP-LS Attribute is replaced by `ATTR_TOMBSTONE` (code 252) while its Link-State NLRI still propagates; a skipable malformed NLRI injected beside a valid control is discarded before reaching GoBGP | Well-formed NLRIs and unaffected control routes survive on both sessions; only the malformed NLRI or malformed attribute code 29 is removed |
 
 ## End-to-End User Stories
 
 | # | User does | Path through system | Test proving it works |
 |---|-----------|--------------------|-----------------------|
-| 1 | peers with a BGP-LS speaker that sends a truncated NLRI | wire → `enforceRFC7606` → `validateMPNLRISyntax` → action ladder | `test/decode/bgp-ls-malformed-nlri.ci` <!-- doc-links: ignore (planned test this open spec has not built yet) --> |
-| 2 | peers with a healthy BGP-LS speaker | wire → `enforceRFC7606` → plugins → RIB | `bgp-ls-receive-gobgp` interop scenario |
-| 3 | declares a peer Consumer-facing and reloads | config → config-apply → import filter → no BGP-LS in the RIB | `test/decode/bgp-ls-consumer-facing.ci` <!-- doc-links: ignore (planned test this open spec has not built yet) --> |
+| 1 | Peers `ze` with a BGP-LS speaker that sends skipable malformed NLRIs (TLV overrun, out-of-order TLVs, duplicate Node Descriptor sub-TLV), a malformed BGP-LS Attribute, and a non-skipable truncated NLRI section | `le test peer` → TCP → `enforceRFC7606` → `validateMPNLRISyntax` / `validateBGPLSAttr` / `typedNLRIEdit` → `bgp-rs` relays survivors or sends NOTIFICATION 3/9 | `test/plugin/bgp-ls-malformed-nlri.ci` <!-- doc-links: ignore (planned test this open spec has not built yet) --> |
+| 2 | Runs `ze` as a BGP-LS route server in front of a real GoBGP v4.11.0 peer receiving valid BGP-LS NLRIs and a skipable malformed NLRI beside a valid survivor | injector → `ze` (`enforceRFC7606` + `bgp-rs`) → GoBGP v4.11.0 (`gobgp-paths 16388 71`) | `bgp-ls-receive-gobgp` (`test/interop/scenarios/bgp-ls-receive-gobgp/`) <!-- doc-links: ignore (planned scenario this open spec has not built yet) --> |
 
 ## 🧪 TDD Test Plan
 
-### Unit Tests
+### Unit Tests (already landed at HEAD)
 | Test | File | Validates | Status |
 |------|------|-----------|--------|
-| `TestBGPLSNLRIWithOverrunningTLVIsMalformed` | `internal/component/bgp/message/rfc7606_bgpls_nlri_test.go` | AC-1, AC-4 | | <!-- doc-links: ignore (file this open spec plans and has not created yet) -->
-| `TestBGPLSMPReachTLVLengthsMustSumToTheAttribute` | `internal/component/bgp/message/rfc7606_bgpls_nlri_test.go` | AC-2 | | <!-- doc-links: ignore (file this open spec plans and has not created yet) -->
-| `TestBGPLSMPUnreachTLVLengthsMustSumToTheAttribute` | `internal/component/bgp/message/rfc7606_bgpls_nlri_test.go` | AC-3 | | <!-- doc-links: ignore (file this open spec plans and has not created yet) -->
-| `TestBGPLSNLRITLVsOutOfOrderAreDiscarded` | `internal/component/bgp/message/rfc7606_bgpls_nlri_test.go` | AC-5 | | <!-- doc-links: ignore (file this open spec plans and has not created yet) -->
-| `TestBGPLSNodeDescriptorRefusesARepeatedSubTLV` | `internal/component/bgp/message/rfc7606_bgpls_nlri_test.go` | AC-6 | | <!-- doc-links: ignore (file this open spec plans and has not created yet) -->
-| `TestBGPLSSemanticOddityIsNotMalformed` | `internal/component/bgp/message/rfc7606_bgpls_nlri_test.go` | AC-9 | | <!-- doc-links: ignore (file this open spec plans and has not created yet) -->
-| `TestEnforceRFC7606ActsOnAMalformedBGPLSNLRI` | `internal/component/bgp/reactor/session_validation_bgpls_test.go` | AC-7, AC-8 | | <!-- doc-links: ignore (file this open spec plans and has not created yet) -->
-| `TestValidBGPLSNLRIReachesThePlugins` | `internal/component/bgp/reactor/session_validation_bgpls_test.go` | AC-10 | | <!-- doc-links: ignore (file this open spec plans and has not created yet) -->
-| `TestConsumerFacingPeerDropsBGPLSOnImport` | `internal/component/bgp/plugins/nlri/ls/role_test.go` | AC-11 | | <!-- doc-links: ignore (file this open spec plans and has not created yet) -->
-| `TestUndeclaredPeerStillPropagatesBGPLS` | `internal/component/bgp/plugins/nlri/ls/role_test.go` | AC-12 | | <!-- doc-links: ignore (file this open spec plans and has not created yet) -->
-| `TestConsumerFacingPeerKeepsItsOtherFamilies` | `internal/component/bgp/plugins/nlri/ls/role_test.go` | AC-13 | | <!-- doc-links: ignore (file this open spec plans and has not created yet) -->
+| `TestRetainWellFormedNLRIBoundaries` | `internal/component/bgp/message/rfc7606_bgpls_nlri_test.go` | AC-1, AC-4, AC-5, AC-6, AC-9 | Landed at HEAD |
+| `TestRetainWellFormedNLRIIsZeroCopyWhenNothingIsDropped` | `internal/component/bgp/message/rfc7606_bgpls_nlri_test.go` | Zero-copy fast path | Landed at HEAD |
+| `TestRetainWellFormedNLRISkipsThePathIdentifier` | `internal/component/bgp/message/rfc7606_bgpls_nlri_test.go` | ADD-PATH framing | Landed at HEAD |
+| `TestValidateMPNLRISyntaxJudgesLinkStateFramingOnly` | `internal/component/bgp/message/rfc7606_bgpls_nlri_test.go` | AC-2, AC-7, AC-8 | Landed at HEAD |
+| `TestRFC9552LinkStateNLRIWithUnknownTLVsIsPropagated` | `internal/component/bgp/reactor/rfc9552_nlri_test.go` | AC-9, AC-10 | Landed at HEAD |
+| `TestRFC9552LinkStateNLRITLVOverrunIsDiscarded` | `internal/component/bgp/reactor/rfc9552_nlri_test.go` | AC-1, AC-4 | Landed at HEAD |
+| `TestRFC9552LinkStateNodeDescriptorDuplicateSubTLVIsDiscarded` | `internal/component/bgp/reactor/rfc9552_nlri_test.go` | AC-6 | Landed at HEAD |
+| `TestRFC9552LinkStateNLRIOutOfOrderTLVsAreDiscarded` | `internal/component/bgp/reactor/rfc9552_nlri_test.go` | AC-5 | Landed at HEAD |
+| `TestRFC9552LinkStateSameTypeTLVsOutOfOrderAreDiscarded` | `internal/component/bgp/reactor/rfc9552_nlri_test.go` | AC-5 | Landed at HEAD |
+| `TestRFC9552LinkStateSameTypeTLVsInOrderArePropagated` | `internal/component/bgp/reactor/rfc9552_nlri_test.go` | AC-5 | Landed at HEAD |
+| `TestRFC9552LinkStateRecognizedTLVSubTLVOverrunIsDiscarded` | `internal/component/bgp/reactor/rfc9552_nlri_test.go` | AC-4 | Landed at HEAD |
+| `TestRFC9552LinkStateNLRIUnknownTLVOverrunIsDiscarded` | `internal/component/bgp/reactor/rfc9552_nlri_test.go` | AC-4, AC-9 | Landed at HEAD |
+| `TestRFC9552LinkStateNLRILengthOverrunResetsSession` | `internal/component/bgp/reactor/rfc9552_nlri_test.go` | AC-2, AC-7, AC-8 | Landed at HEAD |
+| `TestRFC9552LinkStateUnreachLengthOverrunResetsSession` | `internal/component/bgp/reactor/rfc9552_nlri_test.go` | AC-3, AC-7, AC-8 | Landed at HEAD |
+| `TestRFC9552LinkStateNLRISemanticErrorsAreNotMalformed` | `internal/component/bgp/reactor/rfc9552_semantic_test.go` | AC-9 | Landed at HEAD |
+| `TestRFC9552BGPLSAttributeWellFormedIsKept` / `TestRFC9552BGPLSAttributeTLVOverrunDiscarded` / `TestRFC9552BGPLSAttributeTrailingOctetsDiscarded` | `internal/component/bgp/reactor/rfc9552_test.go` | AC-10 (`RFC9552-8.2.2-6`) | Landed at HEAD |
 
-### Boundary Tests (numeric inputs)
+### Boundary Tests (numeric inputs — landed in `rfc7606_bgpls_nlri_test.go`)
 | Field | Range | Last Valid | Invalid Below | Invalid Above |
 |-------|-------|------------|---------------|---------------|
-| BGP-LS TLV Length | 0 - 65535 | the container's remaining octets | N/A | one octet past the container |
-| Total NLRI Length | 0 - 65535 | the sum of its descriptor TLVs | one below that sum | one above that sum |
-| BGP-LS NLRI TLV header | fixed 4 octets | 4 | 3 octets of tail | N/A |
+| BGP-LS TLV Length | 0 - 65535 | remaining octets in NLRI body | N/A | 1 octet past NLRI body |
+| Node Descriptor sub-TLV Length | 0 - 65535 | remaining octets in TLV 256/257 | N/A | 1 octet past TLV 256/257 |
+| Total NLRI Length (SAFI 71) | 9 - 65535 (known types 1-4) | exact sum of fixed 9 octets + TLVs | 8 octets | 1 octet past MP section (session reset) |
+| Total NLRI Length (SAFI 72) | 17 - 65535 (known types 1-4) | exact sum of 8-octet RD + 9 fixed + TLVs | 7 octets (short of RD) | 1 octet past MP section (session reset) |
+| BGP-LS NLRI / TLV header | fixed 4 octets | 4 octets | 3 octets of tail | N/A |
 
 ### Functional Tests
 | Test | Location | End-User Scenario | Status |
 |------|----------|-------------------|--------|
-| `bgp-ls-malformed-nlri` | `test/decode/bgp-ls-malformed-nlri.ci` | an operator's peer sends a truncated Link-State NLRI and ze does not propagate it | | <!-- doc-links: ignore (file this open spec plans and has not created yet) -->
-| `bgp-ls-consumer-facing` | `test/decode/bgp-ls-consumer-facing.ci` | an operator declares a peer Consumer-facing and BGP-LS from it stops reaching the RIB | | <!-- doc-links: ignore (file this open spec plans and has not created yet) -->
+| `bgp-ls-malformed-nlri` | `test/plugin/bgp-ls-malformed-nlri.ci` <!-- doc-links: ignore (file this open spec plans and has not created yet) --> | Running `ze` daemon receives (1) skipable malformed Link-State NLRIs (TLV overrun, descending TLV order, duplicate Node Descriptor sub-TLV) paired with a well-formed survivor and relays only the survivor while keeping the session up, (2) a malformed BGP-LS Attribute (code 29) and relays the Link-State NLRI without code 29 (tombstone 252), and (3) a non-skipable Total NLRI Length overrun on a mixed IPv4+BGP-LS session and resets that session with NOTIFICATION 3/9 | |
 
 ### Interop Tests (Scope: protocol)
 | Scenario | Directory | Peer Daemon | What It Proves | Status |
 |----------|-----------|-------------|----------------|--------|
-| `bgp-ls-receive-gobgp` | `test/interop/scenarios/` | GoBGP | a real peer's valid BGP-LS is accepted, the session stays established, and the new validator false-positives on nothing GoBGP sends | |
+| `bgp-ls-receive-gobgp` | `test/interop/scenarios/bgp-ls-receive-gobgp/` <!-- doc-links: ignore (planned scenario this open spec has not built yet) --> | GoBGP v4.11.0 | Real GoBGP v4.11.0 receives Ze-relayed valid BGP-LS Node/Link NLRIs via `gobgp-paths 16388 71` with zero false positives and stable session (`connections-established: 1`, `connections-dropped: 0`); a skipable malformed Link-State NLRI sent beside a valid survivor is discarded by Ze and absent from GoBGP while the survivor and control remain present | |
 
 ## Files to Modify
-- `internal/component/bgp/message/rfc7606.go` - `validateMPNLRISyntax` gains the
-  BGP-LS branch
-- `internal/component/bgp/reactor/session_validation.go` - the action ladder for
-  the skipable and unprocessable classes
-- `internal/component/bgp/plugins/nlri/ls/plugin.go` - the declared role reaches
-  the plugin's config
-- `rfc/short/rfc9552.md` - `8.2.2-9` and `8.2.6-2` gain tagged tests; the `{gap}`
-  on `8.2.2-5` and the row for `8.2.2-6` are resolved
-- `docs/features/rfc-status.md` - the RFC 9552 row, with source anchors
-- `docs/architecture/wire/nlri-bgpls.md` - declared by the `// Design:` header of
-  `rfc7606_bgpls.go`; the NLRI-side validation joins the attribute-side already
-  documented there
+- `internal/test/fixture/plugin_fixture_13.go` - register `plugin/bgp-ls-malformed-nlri` using `routeServerReplay13` (`StopsDaemon`)
+- `internal/le/interoplab/bgp/names.go` - add `scenarioBGPLSReceiveGoBGP`, `gobgpAFIBGPLS` (`"16388"`), and `gobgpSAFIBGPLS` (`"71"`)
+- `internal/le/interoplab/bgp/checkers.go` - register `scenarioBGPLSReceiveGoBGP` session establishment and IPv4 fence operations
+- `internal/le/interoplab/bgp/check_extras.go` - register `scenarioBGPLSReceiveGoBGP` GoBGP `gobgp-paths 16388 71` presence/absence assertions and Ze peer stability check
+- `docs/architecture/testing/interop.md` - document `bgp-ls-receive-gobgp` with source anchors
+- `docs/functional-tests.md` - document `test/plugin/bgp-ls-malformed-nlri.ci` in the `plugin` suite coverage
+- `docs/features/rfc-status.md` - refresh RFC 9552 proof counts if `./le rfc` updates functional/interop totals
 
 ## Files to Create
-- `internal/component/bgp/message/rfc7606_bgpls_nlri.go` - the NLRI walk, beside <!-- doc-links: ignore (file this open spec plans and has not created yet) -->
-  `rfc7606_bgpls.go` and for the same reason: `rfc7606.go` is past its line limit
-- `internal/component/bgp/message/rfc7606_bgpls_nlri_test.go` - the six NLRI tests <!-- doc-links: ignore (file this open spec plans and has not created yet) -->
-- `internal/component/bgp/reactor/session_validation_bgpls_test.go` - the two session tests <!-- doc-links: ignore (file this open spec plans and has not created yet) -->
-- `internal/component/bgp/plugins/nlri/ls/role.go` - the declared role and its filter append <!-- doc-links: ignore (file this open spec plans and has not created yet) -->
-- `internal/component/bgp/plugins/nlri/ls/role_test.go` - the three role tests <!-- doc-links: ignore (file this open spec plans and has not created yet) -->
-- `internal/component/bgp/plugins/nlri/ls/yang/ze-bgp-ls-role.yang` - the role leaf <!-- doc-links: ignore (file this open spec plans and has not created yet) -->
-- `test/decode/bgp-ls-malformed-nlri.ci` - functional test for the validator <!-- doc-links: ignore (file this open spec plans and has not created yet) -->
-- `test/decode/bgp-ls-consumer-facing.ci` - functional test for the role <!-- doc-links: ignore (file this open spec plans and has not created yet) -->
+- `test/plugin/bgp-ls-malformed-nlri.ci` <!-- doc-links: ignore (file this open spec plans and has not created yet) --> - live daemon functional test proving skipable NLRI discard, Attribute Discard, and non-skipable mixed-session NOTIFICATION 3/9 reset
+- `test/interop/scenarios/bgp-ls-receive-gobgp/ze.conf` <!-- doc-links: ignore (file this open spec plans and has not created yet) --> - Ze route-server configuration peering with raw injector and GoBGP over `ipv4/unicast` and `bgp-ls/bgp-ls`
+- `test/interop/scenarios/bgp-ls-receive-gobgp/gobgp.toml` <!-- doc-links: ignore (file this open spec plans and has not created yet) --> - GoBGP v4.11.0 neighbor configuration negotiating `ipv4-unicast` and `ls`
+- `test/interop/scenarios/bgp-ls-receive-gobgp/inject.msg` <!-- doc-links: ignore (file this open spec plans and has not created yet) --> - raw BGP injector sending valid Link-State NLRIs and a skipable malformed NLRI beside a well-formed survivor, synchronized by GoBGP's IPv4 fence
+- `test/interop/scenarios/bgp-ls-receive-gobgp/inject-args` <!-- doc-links: ignore (file this open spec plans and has not created yet) --> - raw injector CLI flags (`--asn 65004`)
 
 ### Integration Checklist
 | Integration Point | Applies? | File / reason |
 |-------------------|----------|---------------|
-| YANG schema (new RPCs/config) | Yes | `internal/component/bgp/plugins/nlri/ls/yang/ze-bgp-ls-role.yang`, augmenting peer, group/peer and group as `ze-role.yang` does | <!-- doc-links: ignore (file this open spec plans and has not created yet) -->
-| YANG validation constraints | Yes | an `enumeration`, so an unknown role is refused by the schema rather than by a handler |
-| YANG custom validators | No | the enumeration is the whole constraint |
-| CLI commands/flags | No | configuration only |
-| CLI grammar (keyword before value) | N-A | no new command |
-| Editor autocomplete | Yes | automatic for a YANG enumeration leaf |
-| Functional test for new RPC/API | Yes | both `.ci` files above |
-| Pipe completeness | N-A | no new command output |
-| Env var registration | No | per-peer config, not an environment default |
-| Doctor check for runtime dependencies | No | no new file, socket, port, module or binary |
-| Prometheus counters/metrics | Yes | a counter for malformed BGP-LS NLRI by action taken, so an operator can see a peer misbehaving |
-| BGP family surface (new SAFI / capability / attribute) | No | no new family, capability or attribute; the families are registered already |
+| YANG schema (new RPCs/config) | No | Consumer-facing YANG role dropped by 2026-11-24 owner decision; operators use existing `bgp/policy/family-filter` |
+| YANG validation constraints | N-A | No YANG schema change |
+| YANG custom validators | N-A | No YANG schema change |
+| CLI commands/flags | No | No CLI command added or changed |
+| CLI grammar (keyword before value) | N-A | No new command |
+| Editor autocomplete | N-A | No config or CLI addition |
+| Functional test for new RPC/API | Yes | `test/plugin/bgp-ls-malformed-nlri.ci` proves the live receive-path enforcement end to end |
+| Pipe completeness | N-A | No command output added or changed |
+| Env var registration | No | No new environment variable |
+| Doctor check for runtime dependencies | No | No new file path, socket, port, module, or binary |
+| Doctor code per problem class | No | Existing RFC 7606 / RFC 9552 session diagnostics and logs already cover malformed BGP-LS receive paths |
+| Prometheus counters/metrics | No | No new metric added in this closure pass; existing session drop and RFC 7606 diagnostic surfaces remain intact |
+| BGP family surface (new SAFI / capability / attribute) | No | `bgp-ls/bgp-ls` and `bgp-ls/bgp-ls-vpn` and code 29 are already registered |
 
 ### Documentation Update Checklist (BLOCKING)
 | # | Question | Applies? | File to update |
 |---|----------|----------|---------------|
-| 1 | New user-facing feature? | Yes | `docs/features.md` for the declared BGP-LS role |
-| 2 | Config syntax changed? | Yes | `docs/guide/configuration.md` for the role leaf |
-| 3 | CLI command added/changed? | No | no new verb |
-| 4 | API/RPC added/changed? | No | no new RPC |
-| 5 | Plugin added/changed? | Yes | `docs/guide/plugins.md`, the ls plugin gains config |
-| 6 | Has a user guide page? | Yes | `docs/guide/bgp-ls.md` | <!-- doc-links: ignore (page this open spec plans and has not written yet) -->
-| 7 | Wire format changed? | No | no byte ze writes changes; what changes is which received bytes it refuses |
-| 8 | Plugin SDK/protocol changed? | No | no SDK change |
-| 9 | RFC behavior implemented, changed, or newly proven? | Yes | `rfc/short/rfc9552.md` and the RFC 9552 row of `docs/features/rfc-status.md`, with source anchors |
-| 10 | Test infrastructure changed? | Yes | `docs/functional-tests.md` for the new scenario |
-| 11 | Affects daemon comparison? | Yes | `docs/comparison.md`, ze gains BGP-LS fault management |
-| 12 | Internal architecture changed? | Yes | `docs/architecture/wire/nlri-bgpls.md`. Two more docs are DECLARED by changed files and are unaffected: `docs/architecture/wire/messages.md` is `rfc7606.go`'s design doc and describes the RFC 7606 engine, which gains a caller for AFI 16388 and no new stage or action; `docs/architecture/core-design.md` is `plugin.go`'s and describes the registration pattern, which the ls plugin still follows unchanged -- its families and Mode do not move in this spec |
-| 13 | Route metadata keys added/changed? | No | no new metadata key |
-| 14 | Prometheus counters added/changed? | Yes | `docs/plugin-development/metrics.md` |
-| 15 | Registered plugin, event type, send type, command, capability, or inventory changed? | No | nothing new registers; the ls plugin's registration is unchanged |
-| 16 | Any changed source file referenced by existing doc source anchors? | DERIVED | run `./le spec citation anchors spec plan/release/fixes/spec-bgp-ls-receiver-fault-management.md` at implementation time |
-| 17 | Existing docs show config/CLI/API examples for this area? | Yes | verify every BGP-LS example against the new YANG |
+| 1 | New user-facing feature, or a feature's scope, evidence or level changed? | No | BGP-LS fault management is already implemented and `features/` requires no new feature id; consumer-facing role was dropped |
+| 2 | Config syntax changed? | No | No config or YANG change after dropping consumer-facing role |
+| 3 | CLI command added/changed? | No | No CLI verb changed |
+| 4 | API/RPC added/changed? | No | No RPC changed |
+| 5 | Plugin added/changed? | No | `bgp-nlri-ls` plugin unchanged |
+| 6 | Has a user guide page? | No | No new user-facing knob; existing `family-filter` already documented |
+| 7 | Wire format changed? | No | Wire validation is already landed and unchanged |
+| 8 | Plugin SDK/protocol changed? | No | No SDK or process protocol change |
+| 9 | RFC behavior implemented, changed, or newly proven? | Yes | Refresh `docs/features/rfc-status.md` if `./le rfc` updates RFC 9552 proof totals; `rfc/short/rfc9552.md` rows `8.2.2-4..10` and `8.2.6-2` are already current |
+| 10 | Test infrastructure changed? | Yes | `docs/functional-tests.md` and `docs/architecture/testing/interop.md` for `bgp-ls-malformed-nlri.ci` and `bgp-ls-receive-gobgp` |
+| 11 | Affects daemon comparison? | No | BGP-LS fault management is already landed at HEAD |
+| 12 | Internal architecture changed? | No | `docs/architecture/wire/nlri-bgpls.md` and `docs/architecture/wire/nlri.md` already document the landed `nlrisyntax` and `validateBGPLSAttr` architecture; `docs/architecture/testing/interop.md` is updated under row 10 |
+| 13 | Route metadata keys added/changed? | No | No metadata key changed |
+| 14 | Prometheus counters added/changed? | No | No counter added or changed |
+| 15 | Registered plugin, event type, send type, command, capability, or inventory changed? | No | No product registration changed |
+| 16 | Any changed source file referenced by existing doc source anchors? | DERIVED | Checked via `./le spec citation anchors`: `docs/architecture/testing/interop.md` (updated), `docs/architecture/testing/ci-format.md` (unaffected: reuses existing `routeServerReplay13` / `runPlugin13` barrier unchanged), `docs/architecture/ospf/ospf-4-component-config.md`, `docs/architecture/ospf/ospf-ext-16-ipsec-auth.md`, `docs/guide/bmp.md`, and `docs/guide/vrrp.md` (all unaffected: unrelated OSPF/BMP/VRRP scenario anchors in shared `checkers.go`/`check_extras.go`); re-run at closure |
+| 17 | Existing docs show config/CLI/API examples for this area? | No | No config, CLI, or API syntax changes |
+
+## Design presentation
+
+### What changes
+
+All RFC 9552 Section 8.2.2 BGP-LS receive-path validation code (`rfc7606_bgpls_nlri.go`, `rfc7606_bgpls.go`, `register_nlrisyntax.go`, `session_validation_nlritype.go`), its unit tests, `rfc/short/rfc9552.md`, and `docs/architecture/wire/nlri-bgpls.md` are already landed at HEAD, and the 2026-11-24 owner decision dropped the dedicated `consumer-facing` per-peer YANG role in favor of the existing `family-filter`. This spec closes the two remaining end-to-end proof gaps: a live daemon functional test (`test/plugin/bgp-ls-malformed-nlri.ci`) and a Docker GoBGP v4.11.0 interop scenario (`bgp-ls-receive-gobgp`), plus their documentation in `docs/functional-tests.md`, `docs/architecture/testing/interop.md`, and `docs/features/rfc-status.md`.
+
+### Before and after
+
+1. Live daemon functional coverage:
+   - Before: RFC 9552 Section 8.2.2 BGP-LS NLRI and Attribute fault management is proven only by in-process unit tests (`rfc7606_bgpls_nlri_test.go`, `rfc9552_nlri_test.go`, `rfc9552_test.go`, `rfc9552_semantic_test.go`); no `.ci` test exercises skipable NLRI discard, Attribute Discard, or non-skipable mixed-session NOTIFICATION 3/9 reset through a running `ze` daemon.
+   - After: `./le test bgp plugin bgp-ls-malformed-nlri` runs `test/plugin/bgp-ls-malformed-nlri.ci` against the real `ze` binary and `le test peer`, proving skipable malformed NLRI discard with survivor relay, BGP-LS Attribute Discard with NLRI preservation, and NOTIFICATION 3/9 session reset on a mixed IPv4 + BGP-LS session.
+2. Live GoBGP interop coverage:
+   - Before: No interop scenario tests Ze receiving and relaying BGP-LS NLRIs to or from GoBGP v4.11.0 (`./le test integration interop` has no `bgp-ls-receive-gobgp` scenario).
+   - After: `./le test integration interop` runs `bgp-ls-receive-gobgp`, proving via `gobgp-paths 16388 71` and Ze's peer detail counters that GoBGP accepts Ze-relayed valid BGP-LS NLRIs with zero false positives and zero session drops while Ze strips a skipable malformed NLRI before it reaches GoBGP.
+
+### Alternatives set aside
+
+| Alternative | Why set aside |
+|-------------|---------------|
+| Keep the live `.ci` test under `test/decode/bgp-ls-malformed-nlri.ci` | `internal/test/runner/decoding_strict_test.go` enforces that `test/decode/` accepts only single-command offline `ze bgp decode` directives and rejects `le test peer` and `ze -`. Live receive-path tests belong in `test/plugin/`. |
+| Implement per-family `'AFI/SAFI disable'` for AC-7 | `rfc7606_bgpls_nlri.go` and `docs/architecture/wire/nlri-bgpls.md` already land RFC 9552 Section 8.2.2's explicit `"Alternately, the router MUST perform a 'session reset' ... if 'AFI/SAFI disable' action is not possible"` fallback; adding mid-session capability teardown is a separate feature, not a P0 closure fix. |
+| Add a dedicated `consumer-facing` per-peer YANG role (`ze-bgp-ls-role.yang`, `role.go`) | Explicitly dropped by Thomas's 2026-11-24 owner decision; operators use existing `bgp/policy/family-filter` (`action remove`) and `rfc/short/rfc9552.md` already marks `RFC9552-8.2.6-2` `{not-applicable}`. |
+
+### Documents departed from
+
+none
+
+### Choices for Thomas
+
+none
 
 ## Implementation Steps
 
-1. **Phase: Wiring (MANDATORY FIRST)** -- the branch exists and is reached
-   - Tests: `TestBGPLSNLRIWithOverrunningTLVIsMalformed`, `TestValidBGPLSNLRIReachesThePlugins`
-   - Files: `internal/component/bgp/message/rfc7606.go`, `rfc7606_bgpls_nlri.go`
-   - Verify: AFI 16388 no longer falls through. The walk is a stub, so the malformed test fails and the valid one passes
-   - Also settle A-1, A-2 and A-4 here: read the §5.4 typed-NLRI discard branch whole, grep the reactor for a per-family disable, and read §5.1's ordering sentence against §8.2.2's opening constraint. All three change what the next phases build
-2. **Phase: The length walk** -- the four length bullets
-   - Tests: `TestBGPLSMPReachTLVLengthsMustSumToTheAttribute`, `TestBGPLSMPUnreachTLVLengthsMustSumToTheAttribute`, `TestBGPLSSemanticOddityIsNotMalformed`
-   - Files: `internal/component/bgp/message/rfc7606_bgpls_nlri.go` <!-- doc-links: ignore (file this open spec plans and has not created yet) -->
-   - Verify: each malformed shape is caught and the semantically odd one is not
-3. **Phase: Ordering and descriptor uniqueness** -- the two structural bullets
-   - Tests: `TestBGPLSNLRITLVsOutOfOrderAreDiscarded`, `TestBGPLSNodeDescriptorRefusesARepeatedSubTLV`
-   - Files: `internal/component/bgp/message/rfc7606_bgpls_nlri.go` <!-- doc-links: ignore (file this open spec plans and has not created yet) -->
-   - Verify: Type ordering, equal-Type Length/opaque-Value ordering and duplicate descriptor sub-TLVs are covered with valid controls, including unknown types. Skipable ordering errors reach NLRI discard.
-4. **Phase: The action ladder** -- skipable, disable, reset
-   - Tests: `TestEnforceRFC7606ActsOnAMalformedBGPLSNLRI`, `bgp-ls-malformed-nlri`
-   - Files: `internal/component/bgp/reactor/session_validation.go`
-   - Verify: a BGP-LS-only session resets and a mixed session disables the family
-5. **Phase: The declared role** -- §8.2.6 enforced rather than documented
-   - Tests: `TestConsumerFacingPeerDropsBGPLSOnImport`, `TestUndeclaredPeerStillPropagatesBGPLS`, `TestConsumerFacingPeerKeepsItsOtherFamilies`, `bgp-ls-consumer-facing`
-   - Files: `internal/component/bgp/plugins/nlri/ls/role.go`, `yang/ze-bgp-ls-role.yang`, `plugin.go` <!-- doc-links: ignore (file this open spec plans and has not created yet) -->
-   - Verify: declaring the role drops BGP-LS on import with no filter written, and omitting it changes nothing
-6. **Phase: Interop and the ledger** -- proof against a real peer
-   - Tests: `bgp-ls-receive-gobgp`
-   - Files: `test/interop/scenarios/`, `rfc/short/rfc9552.md`, `docs/features/rfc-status.md`
-   - Verify: GoBGP's valid BGP-LS is accepted, and the four rows are proven rather than annotated
+1. **Phase: Wiring (MANDATORY FIRST)** -- register the live `.ci` fixture and interop scenario skeleton
+   - Tests: `test/plugin/bgp-ls-malformed-nlri.ci`, `bgp-ls-receive-gobgp`
+   - Files: `internal/test/fixture/plugin_fixture_13.go`, `internal/le/interoplab/bgp/names.go`, `internal/le/interoplab/bgp/checkers.go`, `internal/le/interoplab/bgp/check_extras.go`
+   - Verify: fixture name `plugin/bgp-ls-malformed-nlri` is registered and `Discover` finds `bgp-ls-receive-gobgp` with a registered checker (fails until scenario files are populated).
+2. **Phase: Live daemon functional test (`test/plugin/bgp-ls-malformed-nlri.ci`)** -- prove skipable NLRI discard, Attribute Discard, and non-skipable mixed-session reset through real `ze`
+   - Tests: `test/plugin/bgp-ls-malformed-nlri.ci` (drafted outside `test/`, proved under load, then promoted per `/ze-test`)
+   - Files: `test/plugin/bgp-ls-malformed-nlri.ci`, `internal/test/fixture/plugin_fixture_13.go`
+   - Verify: receiver peer observes only the well-formed Link-State survivor NLRI (malformed TLV overrun, descending TLV order, and duplicate Node Descriptor sub-TLV discarded), observes the Link-State NLRI surviving malformed BGP-LS Attribute code 29 discard, and the offending mixed-family peer receives exact NOTIFICATION 3/9 carrying the overrunning `MP_REACH_NLRI` attribute; prove red when each check is temporarily reverted.
+3. **Phase: GoBGP Docker interop scenario (`bgp-ls-receive-gobgp`)** -- prove zero false positives and live skipable-NLRI discard upstream of GoBGP v4.11.0
+   - Tests: `bgp-ls-receive-gobgp` via `./le test integration interop`
+   - Files: `test/interop/scenarios/bgp-ls-receive-gobgp/{ze.conf,gobgp.toml,inject.msg,inject-args}`, `internal/le/interoplab/bgp/{names.go,checkers.go,check_extras.go}`
+   - Verify: GoBGP receives valid BGP-LS Node/Link NLRIs in `gobgp-paths 16388 71`, loses no session (`connections-established: 1`, `connections-dropped: 0`), and never receives the skipable malformed NLRI injected beside the survivor; prove red when the malformed-NLRI discard is reverted.
+4. **Phase: Documentation and RFC ledger refresh** -- update test documentation and verify anchors and RFC gate
+   - Tests: `./le doc check all`, `./le rfc check`
+   - Files: `docs/architecture/testing/interop.md`, `docs/functional-tests.md`, `docs/features/rfc-status.md`
+   - Verify: all doc anchors resolve and RFC 9552 checks pass cleanly.
 
 ### Critical Review Checklist
 | Check | What to verify for this spec |
 |-------|------------------------------|
-| Completeness | Every AC-N has an implementation at file:line |
-| Feature completeness | Every user story has a working path, no broken links |
-| Correctness | The NLRI walk reads Types to check ordering, identify recognised sub-TLV containers and detect repeated descriptor sub-TLV types (§8.2.2 bullets 4, 6 and 7). Equal-Type ordering compares Length and then opaque Value bytes (§5.1). It never validates field meanings, permissible values, mandatory TLV presence or whether a type belongs with an NLRI. Unknown and unexpected types remain valid when structurally well formed. The existing attribute-only length walk is unchanged. |
-| Correctness | every loop iteration advances by at least the 4-octet header, so a zero-length TLV cannot stall the receive path |
-| Correctness | the skipable class reaches NLRI discard and the unprocessable class reaches disable or reset. Collapsing the two into session reset is a conformance failure that reads as caution |
-| Naming | the role enumeration names the ROLE (`consumer-facing`), never the action it causes |
-| Data flow | the role's import drop goes through the existing filter machinery; no per-feature branch is added to the reactor |
-| Rule: `ai/rules/interop-and-goal-validation.md` | each test is proven to FAIL with its check reverted, and the vacuity trap here is specific: a conforming peer never sends a malformed NLRI, so the interop scenario alone proves nothing about the validator |
+| Completeness | Every AC-1..AC-10 maps to landed unit proof and/or new `.ci` / GoBGP interop proof at file:line |
+| Feature completeness | Both user stories run through the real `ze` daemon with no skipped or stubbed assertions |
+| Correctness | Live `.ci` test verifies exact surviving NLRI wire bytes, `ATTR_TOMBSTONE` (252) on Attribute Discard, and exact NOTIFICATION 3/9 with full `MP_REACH_NLRI` Data on mixed-session reset |
+| Correctness | `bgp-ls-receive-gobgp` asserts positive controls (`proof`) and `connections-established: 1`, `connections-dropped: 0` so a dropped session cannot pass vacuously |
+| Naming | Scenario directory `bgp-ls-receive-gobgp` matches `scenarioBGPLSReceiveGoBGP` in `internal/le/interoplab/bgp/names.go` with no numeric prefix |
+| Data flow | Tests exercise the existing `nlrisyntax` and `attrValidators` paths without adding family branches to `rfc7606.go` or `session_validation.go` |
+| Operator errors and doctor codes | Existing RFC 7606 / RFC 9552 diagnostics and NOTIFICATIONs remain untouched |
+| Rule: `ai/rules/interop-and-goal-validation.md` | Prove both `test/plugin/bgp-ls-malformed-nlri.ci` and `bgp-ls-receive-gobgp` fail when the behavior under test is reverted (counterfactual discrimination) |
 
 ### Deliverables Checklist
 | Deliverable | Verification method |
 |-------------|---------------------|
-| BGP-LS NLRI is validated | `grep -n 'AFIBGPLS' internal/component/bgp/message/rfc7606.go` names the branch |
-| the four rows are proven | `./le rfc check` exits 0 on rfc9552's 8.2.2 and 8.2.6 rows |
-| the role enforces itself | `test/decode/bgp-ls-consumer-facing.ci` PASS with no `family-filter` in its config | <!-- doc-links: ignore (file this open spec plans and has not created yet) -->
-| no false positive against a real peer | `./le test integration interop` with `bgp-ls-receive-gobgp` PASS |
+| Live daemon `.ci` test exists and passes | `ls test/plugin/bgp-ls-malformed-nlri.ci` and `./le test bgp plugin bgp-ls-malformed-nlri` PASS |
+| GoBGP interop scenario exists and passes | `ls test/interop/scenarios/bgp-ls-receive-gobgp/` and `./le test integration interop` with `bgp-ls-receive-gobgp` PASS |
+| RFC 9552 ledger stays clean | `./le rfc check` exits 0 on `rfc/short/rfc9552.md` |
+| Docs and source anchors stay clean | `./le doc check all` exits 0 |
 
 ### Security Review Checklist
 | Check | What to look for |
 |-------|-----------------|
-| Input validation | every length is peer-controlled and every one is bounds-checked against its container before use; no length is trusted to index |
-| Resource exhaustion | a zero-length TLV, a TLV claiming 65535 octets, and a deeply repeated descriptor must each terminate the walk in bounded time |
-| Error leakage | the diagnostic names the offending offset and the RFC section, never the peer's whole UPDATE in a log line an operator cannot rotate |
-| Authorization failing open | an unrecognised declared role must refuse the config, never fall back to accepting BGP-LS |
+| Input validation | Landed validator bounds-checks every peer-controlled length before slicing (`rfc7606_bgpls_nlri.go`, `rfc7606_bgpls.go`); live `.ci` proves untrusted overrunning TLVs and Total NLRI Lengths never crash or bypass validation |
+| Resource exhaustion | Zero-length TLV and 65535-octet length claims terminate in bounded time (verified by `rfc7606_bgpls_nlri_fuzz_test.go` and live `.ci`) |
+| Error leakage | Non-skipable reset emits standard RFC 4760 Section 7 NOTIFICATION 3/9 with the offending MP attribute; no panic or fatal error on stderr |
 
 ### Failure Routing
 | Failure | Route To |
 |---------|----------|
 | Compilation error | Fix in the phase that introduced it |
 | Test fails for the wrong reason | Fix the test assertion or setup |
-| Test fails on behavior mismatch | Re-read the source in Current Behavior. If misunderstood → RESEARCH |
+| Test fails on behavior mismatch | Re-read `rfc7606_bgpls_nlri.go` and `session_validation_nlritype.go`; if a real product defect surfaces, add a regression unit test and fix the producer |
 | Lint failure | Fix inline. If architectural → DESIGN |
 | Functional test fails | Check the AC: wrong AC → DESIGN, correct AC → IMPLEMENT |
 | Audit finds a missing AC | Back to the relevant phase and implement |
@@ -413,62 +394,91 @@ configuration, declaring a peer's BGP-LS role.
 
 ## Design Insights
 
-- §8.2.2's hardest constraint is not what to check but what NOT to. It opens by
-  forbidding a malformed verdict based on the inclusion, exclusion or contents of
-  TLVs, then lists seven checks that are all about lengths and structure. A
-  validator that grows a `switch` on TLV type has crossed the line, whatever it
-  does in the cases.
+- RFC 9552 Section 8.2.2 splits syntactic failures cleanly at the Total NLRI Length boundary: framing errors that prevent locating subsequent NLRI boundaries reset the session with NOTIFICATION 3/9 (since Ze has no AFI/SAFI disable), while errors inside a well-framed NLRI discard only that NLRI so surviving routes and the session remain intact.
+- `test/decode/` is strictly for offline single-command `ze bgp decode` tests (`internal/test/runner/decoding_strict_test.go`); live daemon peer tests belong in `test/plugin/`.
+
+## Owned journal rows
+
+| Class file | Date | Surface (short) |
+|------------|------|-----------------|
 
 ## Key Design Decisions
 
 | Decision | Alternatives Considered | Rationale |
 |----------|------------------------|-----------|
-| The BGP-LS role is DECLARED per peer, never inferred | infer it from an unconditional import drop on every BGP-LS peer; infer it from RFC 9234 OTC Role | nothing on the wire says a peer only serves Consumers, and §1.1 says the roles mix per speaker, so an unconditional drop would break the Propagator role ze plays today. RFC 9234 cannot carry it either: its five roles name a commercial relationship, it is eBGP-only, and §5 says its procedures "MUST NOT be applied to other address families by default" |
-| The role drives an automatic import drop, rather than documenting a filter | a tagged test over a hand-written `family-filter` on `bgp-ls` | Thomas chose this on 2026-08-26. A test over a hand-written filter proves only that a policy is expressible; an automatic drop makes the MUST enforced, and the operator cannot write it wrong. `internal/component/bgp/plugins/role` is the precedent: a declared role driving non-overridable filtering |
-| The NLRI walk lives in its own file | extend `rfc7606.go` | the same reason `rfc7606_bgpls.go` gives for the attribute side: `rfc7606.go` is already past the 1000-line limit |
-| Interop is a NEGATIVE-space test | rely on the interop scenario as the validator's proof | a conforming peer never sends a malformed NLRI, so the scenario proves the validator false-positives on nothing. The validator's own proof is the unit fixtures, and the spec says so rather than letting a green interop run imply coverage it does not have |
+| Place live malformed BGP-LS test at `test/plugin/bgp-ls-malformed-nlri.ci` | `test/decode/bgp-ls-malformed-nlri.ci` | The `decode` suite runner strictly refuses any directive other than a single `ze bgp decode` command; `test/plugin/` is the suite that runs live `le test peer` + `ze -` daemon sessions (matching `rfc7606-54-bgpls-override-propagates.ci` and `rfc7606-reset.ci`). |
+| Use `gobgp-paths 16388 71` and a raw injector upstream of Ze in `bgp-ls-receive-gobgp` | Rely only on GoBGP originating valid BGP-LS routes | Combining valid Node/Link NLRIs with a skipable malformed NLRI beside a well-formed survivor proves both zero false positives against GoBGP v4.11.0 and live receive-path discard before GoBGP, with `connections-established: 1` / `connections-dropped: 0` preventing vacuous passes. |
+| Keep AC-7 aligned with landed session-reset behavior | Build per-family `'AFI/SAFI disable'` | RFC 9552 Section 8.2.2 explicitly mandates session reset when `'AFI/SAFI disable'` is not possible; `rfc7606_bgpls_nlri.go` and `docs/architecture/wire/nlri-bgpls.md` already establish this contract. |
+| Drop the `consumer-facing` per-peer YANG role | Add `ze-bgp-ls-role.yang` and `role.go` | Thomas's 2026-11-24 owner decision: operators already have `bgp/policy/family-filter` (`action remove`), and `rfc/short/rfc9552.md` marks `RFC9552-8.2.6-2` `{not-applicable}`. |
 
 ## Known Limitations
 
-- Recognized sub-TLV lengths (§8.2.2 bullet 4, second half) are checked only for
-  TLVs the walk can bound without reading a type. `validateBGPLSAttr` already made
-  that call on the attribute side and recorded why: §8.2.2 lists fixed-length TLV
-  correctness among the SEMANTIC validations a Propagator does not perform.
-- The Consumer-facing role governs import only. §8.2.3's SHOULD-level export
-  controls, and its advertisement-rate and RIB-size limits, are out of scope.
+- Ze implements no per-family `'AFI/SAFI disable'` mechanism; non-skipable Link-State NLRI framing errors take RFC 9552 Section 8.2.2's mandatory `'session reset'` fallback on both BGP-LS-only and mixed-family sessions.
+- Recognized sub-TLV lengths (§8.2.2 bullet 4) are checked for the two recognized Node Descriptor containers (TLVs 256 and 257); semantic fixed-length TLV checks are deliberately omitted per RFC 9552 Section 8.2.2.
+- RFC 9552 Section 8.2.3 SHOULD-level export controls (advertisement rate limits, abstracted topologies) are outside this receiver fault-management spec.
 
 ## RFC Documentation (Scope: protocol)
 
-Add `// RFC 9552 Section 8.2.2: "<quoted requirement>"` above each check, quoting
-the bullet it implements, and one above the action ladder quoting the paragraph
-that assigns 'NLRI discard', 'AFI/SAFI disable' and 'session reset' to their error
-classes. The declared role's apply path quotes §8.2.6 and §10.
+The enforcing code in `internal/component/bgp/message/rfc7606_bgpls_nlri.go`, `rfc7606_bgpls.go`, `rfc7606.go`, and `internal/component/bgp/reactor/session_validation_nlritype.go` already carries verbatim `// RFC 9552 Section 8.2.2` / `Section 5.1` / `Section 5.2.1.4` and `// RFC 4760 Section 7` quotes.
+
+| RFC / section | Default configuration and required behavior | Explicit options / extensions to preserve | Tests of default behavior | Tests preserving options / extensions |
+|---------------|---------------------------------------------|-------------------------------------------|---------------------------|---------------------------------------|
+| RFC 9552 §8.2.2 (NLRI syntactic validation & actions) | Default BGP-LS session validates every received Link-State NLRI on ingress: discards skipable malformed NLRIs (`RetainWellFormedNLRI`), resets session with NOTIFICATION 3/9 on non-skipable framing overruns (`judgeBGPLSNLRISection`) | Unknown NLRI types propagate opaque (§5.2); unknown/semantically odd TLVs survive (§5.1, §8.2.2); ADD-PATH path IDs skipped when negotiated | `rfc9552_nlri_test.go`, `rfc7606_bgpls_nlri_test.go`, `test/plugin/bgp-ls-malformed-nlri.ci`, `bgp-ls-receive-gobgp` | `TestRFC9552LinkStateNLRIWithUnknownTLVsIsPropagated`, `TestRFC9552LinkStateNLRISemanticErrorsAreNotMalformed`, `TestRetainWellFormedNLRISkipsThePathIdentifier`, `test/plugin/rfc7606-54-bgpls-override-propagates.ci` |
+| RFC 9552 §8.2.2 (BGP-LS Attribute syntactic validation) | Default BGP-LS session discards malformed code 29 BGP-LS Attributes with `ATTR_TOMBSTONE` (252) while preserving the Link-State NLRI | Unordered and semantically odd BGP-LS Attribute TLVs survive unchanged | `rfc9552_test.go`, `test/plugin/bgp-ls-malformed-nlri.ci` | `TestRFC9552BGPLSAttributeSemanticErrorsAreNotMalformed` |
+| RFC 9552 §8.2.6 (Consumer-facing inbound drop) | Operator configures existing `bgp/policy/family-filter` with `action remove` on Consumer-facing peers (`RFC9552-8.2.6-1`); `RFC9552-8.2.6-2` is `{not-applicable}` | Existing `family-filter` (`remove` and `tear-down`) preserved unchanged | Existing `filter_family` unit and functional tests | Existing `filter_family` tests |
+
+## Review Gate
+
+| Field | Value |
+|-------|-------|
+| Artifact | - |
+| `./le spec review check` | not run |
+| Rounds | 0 |
+| Reviewer lenses used | - |
+
+### Findings fixed
+
+| # | Severity | Finding | Location | Fixed by |
+|---|----------|---------|----------|----------|
 
 ## Checklist
 
+### Pre-Spec Verification (before the design is presented)
+- [ ] Metadata table present, with a valid Status, Depends, Phase and Updated
+- [ ] `ai/INDEX.md` keyword table checked
+- [ ] An `rfc/short/` summary exists for every RFC referenced
+- [ ] Template format followed: the 🧪 emoji, tables rather than prose, `[ ]` never `[x]`
+- [ ] No code snippets
+- [ ] Files to Modify names code under `internal/*`, not only docs
+- [ ] Current Behavior and Data Flow sections completed
+- [ ] AC-N rows carry testable positive assertions and Permitted Survivors
+- [ ] Every assumption has a Basis and a validation method; every failure mode is a risk row
+- [ ] Required Reading carries `→ Decision:` / `→ Constraint:` checkpoints
+- [ ] Integration Checklist answered Yes/No/N-A on every row
+
 ### Goal Gates (MUST pass)
-- [ ] AC-1..AC-13 all demonstrated
+- [ ] AC-1..AC-10 all demonstrated
 - [ ] Every user story has a working path and a passing test
 - [ ] Wiring Test table complete: every row a concrete test name, none deferred
-- [ ] `./le verify worktree` passes. It is the pre-commit gate (`ai/rules/git-safety.md`)
-- [ ] Feature code integrated (`internal/*`, `cmd/*`), not library-only
+- [ ] The targeted tests for what changed pass, run in the main checkout by the main thread: the scoped package tests, `test/plugin/bgp-ls-malformed-nlri.ci`, and `bgp-ls-receive-gobgp` via `./le test integration interop`. No agent runs any `./le verify` command
+- [ ] Feature and test code integrated (`internal/*`, `test/*`), not library-only
 - [ ] Integration and Documentation checklists answered Yes/No/N-A with evidence
 - [ ] Architectural Verification table filled, including registration over hardcoding
-- [ ] Critical Review passes (all 6 checks in `ai/rules/quality.md`)
+- [ ] Critical Review passes, and `ai/rules/quality.md` is satisfied
 - [ ] Every A-N confirmed or broken, none `unvalidated`
-- [ ] Every item this spec did not do is a spec of its own, named here, in its own bucket
+- [ ] Every item this spec did not do is a spec of its own, named here, in its own bucket (none remaining after 2026-11-24 owner decision)
 
 ### TDD
 - [ ] Tests written
 - [ ] Tests FAIL (paste output)
 - [ ] Tests PASS (paste output)
-- [ ] Boundary tests for all numeric inputs
-- [ ] Functional `.ci` tests for end-to-end behavior
-- [ ] Interop tests for protocol features (or N-A with a reason)
+- [ ] Boundary tests for all numeric inputs (already landed in `rfc7606_bgpls_nlri_test.go`)
+- [ ] Functional `.ci` test (`test/plugin/bgp-ls-malformed-nlri.ci`) for end-to-end behavior
+- [ ] Interop test (`bgp-ls-receive-gobgp`) for protocol behavior
 
 ### Closure
 - [ ] Append `plan/templates/TEMPLATE-CLOSURE.md` and complete every section in it
-- [ ] `/ze-review` gate clean, recorded via `internal/le/spec/session/review.go`
-- [ ] Learned summary written to `plan/learned/NNN-<name>.md`
-- [ ] **Commit A:** code + tests + docs + spec + learned summary
-- [ ] **Commit B:** `git rm plan/<spec>` only (commit A preserves the spec in history)
+- [ ] `/ze-review` gate clean, recorded via `./le spec review record`
+- [ ] Any lesson routed to its governing surface under `ai/rules/planning.md`; no lesson artifact created merely for closure
+- [ ] **Commit A:** code + tests + docs + edited spec + any journal rows owed by the work
+- [ ] **Commit B:** `remove plan/release/fixes/spec-bgp-ls-receiver-fault-management.md` only, in the same `./le commit create` script (commit A preserves the spec in history)
