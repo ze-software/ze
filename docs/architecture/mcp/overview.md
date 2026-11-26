@@ -456,10 +456,11 @@ directory or a device, and a loop are refused, and each refusal names the
 entry, why it matters and the command that fixes it. A listener off
 loopback needs authentication (`bearer`, `bearer-list`, `oauth`) and TLS. The
 rule is the management-listener exposure rule gNMI follows, declared for MCP
-once (`config.MCPExposure`): the boot guard refuses daemon start on a breach
-(`mcpMgmtListener`, `checkMgmtListeners`), `ze config validate` and `ze doctor`
-report it offline (`MCPListenConfig.Refusals`), and live address migration
-refuses it (`mcpServerHandle.Reconfigure`). Bind is all-or-nothing: if
+once (`config.MCPExposure`): at start, the boot guard filters out each exposed
+address and reports it under `doctor-service-not-started` while safe addresses
+and ze keep running (`mcpMgmtListener`, `filterMgmtListener`), `ze config
+validate` and `ze doctor` report it offline (`MCPListenConfig.Refusals`), and
+live address migration refuses it (`mcpServerHandle.Reconfigure`). Bind is all-or-nothing: if
 any listener fails, the already-bound listeners are closed. Shutdown calls
 `http.Server.Shutdown`, and the caller must also call `Close` on the handler so
 the task-registry GC goroutine exits.

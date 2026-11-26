@@ -72,10 +72,10 @@ environment {
 | Plain HTTP | Write `tls false` in the entry, for port 80 or behind a proxy that terminates TLS. The other entries are not affected. |
 | No certificate to present | HTTPS needs a named `certificate` or the live store, where Ze keeps its self-signed certificate. With neither, an entry that left `tls` unset serves plain HTTP, and Ze prints a warning that names the entry: run `ze init` and restart for HTTPS, or write `tls false` to serve HTTP on purpose. An entry that says `tls true` cannot be served: Ze starts, leaves that entry down, and serves the other entries. The log names the entry at error level with the fix, under `doctor-lg-tls-unservable`. A reload of such a config is refused, with the same message, and the running entries keep what they serve. A `certificate` that cannot be presented is treated the same way: Ze starts, every entry that asks for TLS stays down, and the `tls false` entries serve. Ze never stops over the looking glass, so that you can still reach it and correct the configuration. `ze doctor` reports each case before you start, as `doctor-lg-plain-http`, `doctor-lg-tls-unservable` and `doctor-tls-reference`. An explicit-file start creates a live store. |
 | Reload | Change `tls` on an entry, add an entry, or remove one, and reload. An endpoint that stays keeps its socket: open connections finish on the protocol they started with, and the next connection takes the new one. A reload serves what a restart with the same config serves. |
-| `ze.looking-glass.listen` | An address from this variable has no entry, so it serves HTTPS. Write the `server` entry to serve HTTP on it. |
+| `ze.looking-glass.listen` | An address from this variable has no entry, so it serves HTTPS. Write the `server` entry to serve HTTP on it. If `ze.looking-glass.listen` does not parse, Ze starts without the looking glass. The log and `ze doctor` report the problem and fix under `doctor-lg-listen-unreadable`. |
 | RFC 8522 API | `/.well-known/looking-glass/` answers on HTTPS endpoints only. See [RFC 8522](#rfc-8522-looking-glass-command-set-api). |
 
-<!-- source: cmd/ze/hub/lg_transport.go -- planLGTransports, resolveLGListeners -->
+<!-- source: cmd/ze/hub/lg_transport.go -- planLGTransports, resolveLGListeners, reportLGNotStarted -->
 <!-- source: internal/component/lg/server.go -- ListenAddr, UpdateListenerTLS -->
 
 ### Serve your own certificate
@@ -97,7 +97,7 @@ environment {
 | Rule | Detail |
 |------|--------|
 | Default | No `certificate` leaf means Ze generates and serves a self-signed certificate, which is the behavior of every release before this leaf existed. |
-| Fail closed | A name the store does not hold, or an entry with no `private { key }`, refuses the start: Ze exits and names the missing certificate. A reload that names one is rejected as a whole, and the running looking glass keeps the chain it is serving. Ze never falls back to a self-signed certificate for a name you configured. |
+| Fail closed | At start, Ze keeps running and never falls back to a self-signed certificate. When `environment looking-glass certificate` is not defined in `pki`, `ze start` drops the `looking-glass` block in memory without rewriting the stored file. The log and `ze doctor` report the problem and fix under `doctor-service-not-started`. When an entry has no `private { key }`, or `ze.looking-glass.certificate` does not resolve, endpoints that ask for TLS stay down while `tls false` endpoints serve. The log reports each down endpoint under `doctor-lg-tls-unservable`, and `ze doctor` reports the name under `doctor-tls-reference`. A reload that names an unusable certificate is still refused as a whole, and the running looking glass keeps its chain. |
 | Rotation | Load new material under the same name and reload: the listener serves the new chain from the next handshake, with no rebind, so a viewer's open connection survives. |
 | Removal | Delete the `certificate` leaf and reload: the listener serves its self-signed certificate from the next handshake, with no rebind, as a restart would. Without a `database/` store there is no self-signed certificate to return to. An entry that left `tls` unset then serves plain HTTP from its next connection, with a warning, and an entry that says `tls true` refuses the reload: run `ze init` and restart, or name a certificate. |
 | TLS off | When every entry says `tls false` no endpoint presents a certificate, so the leaf is inert. Neither the start nor a reload reads the name. One HTTPS entry is enough for the name to be read. |
@@ -108,8 +108,11 @@ environment {
 | Env override | `ze.looking-glass.certificate` takes precedence over the config file. |
 
 <!-- source: internal/component/lg/yang/ze-lg-conf.yang -- leaf certificate -->
+<!-- source: internal/component/config/loader.go -- LoadConfigForStart -->
+<!-- source: internal/component/lg/register.go -- init, RegisterServiceBlock -->
 <!-- source: cmd/ze/hub/service_tls.go -- listenerTLSMaterial (fail-closed selection) -->
-<!-- source: cmd/ze/hub/main.go -- runYANGConfig, the looking-glass certificate startup gate -->
+<!-- source: cmd/ze/hub/service_lg.go -- startLGService -->
+<!-- source: cmd/ze/hub/main.go -- runYANGConfig, lgListenerConfigFrom -->
 <!-- source: cmd/ze/hub/main_reload.go -- lgCertificateName and the reload refusal -->
 <!-- source: cmd/ze/hub/listener_migrate.go -- updateLGTransport (rotation and protocol change without rebind) -->
 
@@ -187,6 +190,7 @@ environment {
 | Limits | 256 entries at most. A name takes 1 to 64 characters from `A-Z a-z 0-9 . _ -` and starts with a letter or a digit |
 | Reload | A reload replaces the whole list on the running server. The listener keeps its socket, so an open connection reads the new names on its next request. A reload that fails after that step and is rolled back puts the previous list back |
 | `enabled` | The list is read whether or not the block says `enabled true`, so a looking glass started by `ze.looking-glass.enabled` or `ze.looking-glass.listen` shows the names too. The list has no environment variable |
+| Startup | When `next-hop-range` cannot be used as written, Ze starts and the looking glass serves without range names. The log and `ze doctor` report the problem and fix under `doctor-service-not-started`, while `ze config validate`, commit, and reload still refuse the list |
 
 The peers table has a Description column. It shows the text of the peer's own
 `description` leaf, written on the peer or inherited from its group, and it is
@@ -201,6 +205,8 @@ read, or set `token`.
 
 <!-- source: internal/component/config/lg_next_hop_ranges.go -- ExtractLGNextHopRanges: the reader, the one-range-one-name refusal, the 256 bound -->
 <!-- source: internal/component/lg/nexthop_ranges.go -- nextHopRanges.nameOf (longest prefix), UpdateNextHopRanges, validateNextHopRanges -->
+<!-- source: internal/component/lg/register.go -- RegisterServiceBlock, RegisterScopedTreeValidator -->
+<!-- source: cmd/ze/hub/service_not_started.go -- lgRangesUnused -->
 <!-- source: internal/component/lg/handler_ui.go -- extractPeers, peerInfoFrom read description and group -->
 
 ### Route age

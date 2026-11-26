@@ -384,8 +384,12 @@ environment {
 }
 ```
 
-Both fields must be set together. Minimum TLS version is 1.2. Startup fails if
-an authenticated non-loopback gRPC listener is configured without TLS.
+Both fields must be set together, and the minimum TLS version is 1.2. At
+`ze start`, an authenticated non-loopback gRPC listener without TLS leaves only
+gRPC down and reported under `doctor-service-not-started`, while REST and Ze
+keep running. Reloads still refuse that configuration.
+<!-- source: internal/component/api/grpc/server.go -- NewGRPCServer -->
+<!-- source: cmd/ze/hub/main.go -- runYANGConfig, grpcBuild -->
 
 ## CORS
 
@@ -418,6 +422,28 @@ Precedence: env > YANG config. Values set in env override YANG.
 
 <!-- source: cmd/ze/hub/main.go -- runYANGConfig API block -->
 <!-- source: internal/component/config/environment.go -- env var registrations -->
+
+## Startup and Reload Behavior
+
+Ze always starts even when an API transport cannot be served. Only the failing
+transport or breaching address stays down, while the other transport and Ze
+keep running. Ze logs an error with the fix and reports it in `ze doctor` under
+`doctor-service-not-started`.
+
+| Startup problem | What `ze start` does |
+|-----------------|----------------------|
+| `ze.api-server.rest.listen` or `ze.api-server.grpc.listen` does not parse | That transport is not started, and the other transport still serves |
+| The REST or gRPC server cannot be built (for example, a non-loopback REST address or a non-loopback gRPC address without TLS) | That transport is not started, and the other transport still serves |
+| A non-loopback REST or gRPC address has no authentication | Only the breaching address is not started, while loopback addresses and other services keep running |
+| A registered `rest` or `grpc` block fails schema or reference validation | `LoadConfigForStart` drops only that block in memory while leaving the stored file untouched |
+
+A reload carrying any of these problems is refused as a whole, and every
+running listener keeps what it serves.
+<!-- source: cmd/ze/hub/api_infra.go -- planAPIListeners, resolveAPIListeners -->
+<!-- source: cmd/ze/hub/mgmt_guard.go -- filterMgmtListener, filterAPIConfig -->
+<!-- source: cmd/ze/hub/main.go -- runYANGConfig, restBuild, grpcBuild -->
+<!-- source: cmd/ze/hub/service_not_started.go -- reportServiceNotStarted, buildFailed, listenUnreadable -->
+<!-- source: internal/component/config/loader.go -- LoadConfigForStart -->
 
 ## Input Validation
 

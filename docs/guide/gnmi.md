@@ -42,15 +42,22 @@ YANG config (in ze.conf):
 
 When `ze.gnmi.token` is set, every gNMI request must include a `Bearer` token in the `authorization` gRPC metadata header. The token is compared using constant-time comparison (SHA-256 hash with `subtle.ConstantTimeCompare`) to prevent timing attacks.
 
-When no token is configured, gNMI may bind only to a literal loopback address (`127.0.0.1` or `::1`) and runs in read-only mode: `Capabilities`, `Get`, and `Subscribe` succeed, while `Set` is refused with `PermissionDenied` (matching REST and gRPC read-only loopback enforcement). Non-loopback listeners without a token are refused.
+When no token is configured, gNMI can bind only to a literal loopback address (`127.0.0.1` or `::1`) and runs in read-only mode. `Capabilities`, `Get`, and `Subscribe` succeed, while `Set` is refused with `PermissionDenied` (matching REST and gRPC read-only loopback enforcement). At `ze start`, a non-loopback listener without a token leaves gNMI unstarted and reported in the log and `ze doctor` under `doctor-service-not-started`, while the rest of Ze keeps running. `ze config validate` and offline `ze doctor` still report `config-gnmi-invalid`.
 
 Failed bearer token checks record `auth-fail` audit entries (without logging any rejected token bytes) and committed `Set` operations record `config-commit` audit entries under the `gnmi` audit surface.
 <!-- source: internal/component/gnmi/server.go -- checkGNMIListenAddr, checkAuth, recordAuthFailure -->
 <!-- source: internal/component/gnmi/set.go -- Set read-only refusal and audit recording -->
+<!-- source: cmd/ze/hub/mgmt_guard.go -- filterMgmtListener -->
+<!-- source: cmd/ze/hub/gnmi_infra.go -- gnmiMgmtListener -->
+<!-- source: internal/component/config/cli/cmd_validate.go -- ValidateContent -->
 
 ## TLS
 
-TLS is **required** on every non-loopback gNMI listener: both the boot-time management-listener guard and `Server.Serve` refuse to start a non-loopback listener without both a token and TLS credentials so credentials and configuration never cross the network in clear text. Loopback listeners (`127.0.0.1` or `::1`) may run without TLS.
+TLS is **required** on every non-loopback gNMI listener. Both the boot-time management-listener guard and `Server.Serve` refuse to start a non-loopback listener without both a token and TLS credentials, so credentials and configuration never cross the network in clear text. At `ze start`, gNMI is not started and the refusal is reported in the log and `ze doctor` under `doctor-service-not-started`, while the rest of Ze keeps running. `ze config validate` and offline `ze doctor` still report `config-gnmi-invalid`. Loopback listeners (`127.0.0.1` or `::1`) can run without TLS.
+<!-- source: cmd/ze/hub/main.go -- runYANGConfig, gnmiAllowed -->
+<!-- source: cmd/ze/hub/mgmt_guard.go -- filterMgmtListener -->
+<!-- source: cmd/ze/hub/gnmi_infra.go -- gnmiMgmtListener -->
+<!-- source: internal/component/config/cli/cmd_validate.go -- ValidateContent -->
 
 To enable TLS on the gNMI gRPC transport:
 

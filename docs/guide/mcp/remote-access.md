@@ -311,15 +311,20 @@ environment {
 
 The two exposure rows are the management-listener rule gNMI follows
 ([Remote management listener guard](../authentication.md#remote-management-listener-guard)).
-The daemon applies them at start to the address it actually binds, from the
-config, `--mcp` or `ze.mcp.listen`, and refuses to start, so `ze config
-validate`, `ze doctor` and `ze start` agree. Live address migration
-(`Reconfigure`) refuses to move a listener off loopback without them. A
-remote authenticated listener cannot silently fall back to plaintext, and a
-partial TLS configuration is never ignored.
+At `ze start`, Ze applies that rule to the addresses MCP would bind from the
+config, `--mcp`, or `ze.mcp.listen`. An exposed non-loopback address is not
+started, while safe loopback or protected addresses and Ze keep running. An
+unparseable `ze.mcp.listen` or an inconsistent `environment mcp` block leaves
+MCP down while Ze keeps running. In each case, Ze logs an error with the fix
+and reports it in `ze doctor` under `doctor-service-not-started`. `ze config
+validate`, reloads, and live address migration (`Reconfigure`) still refuse the
+configuration. A remote authenticated listener never falls back to plaintext,
+and a partial TLS configuration is never ignored.
 
 <!-- source: internal/component/config/loader_extract.go -- MCPListenConfig.Validate, MCPListenConfig.Refusals, MCPExposure -->
-<!-- source: cmd/ze/hub/mgmt_guard.go -- mcpMgmtListener -->
+<!-- source: cmd/ze/hub/main.go -- runYANGConfig, mcpListenProblem, mcpCfg.Validate, filterMgmtListener -->
+<!-- source: cmd/ze/hub/mgmt_guard.go -- filterMgmtListener, mcpMgmtListener -->
+<!-- source: cmd/ze/hub/service_not_started.go -- reportServiceNotStarted, listenUnreadable, blockUnservable -->
 <!-- source: cmd/ze/hub/service_mcp.go -- checkMCPMigrationExposure -->
 
 ## Security Notes

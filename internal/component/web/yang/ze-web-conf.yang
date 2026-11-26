@@ -76,9 +76,10 @@ module ze-web-conf {
                      When this leaf is not set, ze generates a self-signed
                      certificate and serves that.
                      If the store holds no entry with that name, or the entry
-                     holds no private key, ze exits with an error and rejects a
-                     reload. ze never falls back to a self-signed certificate
-                     for a configured name.
+                     holds no private key, ze starts without the web server and
+                     reports it with its fix, and rejects a reload. ze never
+                     falls back to a self-signed certificate for a configured
+                     name.
                      Environment variable: ze.web.certificate.";
                 ze:help
                     "Name of the PKI store certificate served on the HTTPS listener (ze.web.certificate).";

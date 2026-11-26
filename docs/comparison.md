@@ -366,12 +366,14 @@ their corresponding behavior was not verified.
 | Memory-safe language | Yes | No | No | No | No | Yes | Yes | Yes | Yes | Yes | Yes |
 | Boot-time management-plane exposure guard | Yes | Unclear | Unclear | Unclear | Unclear | Unclear | Unclear | Unclear | Unclear | Unclear | Unclear |
 
-**Boot-time management-plane exposure guard:** Ze refuses to start when a
-management service would bind a non-loopback address with no authentication. The
+**Boot-time management-plane exposure guard:** Ze refuses to bind any
+management listener on a non-loopback address with no authentication. The
 check covers the web server in insecure mode, MCP, gNMI, and the API server that
 serves REST and gRPC. It runs once, after every address and credential is
-resolved and before anything binds, so a refusal leaves nothing bound and the
-process exits 1. A wildcard address, an empty address, a DNS name, and
+resolved and before anything binds: exposed addresses stay down and are
+reported under `doctor-service-not-started` with their fix, while loopback or
+protected addresses and the rest of ze keep running. A wildcard address, an
+empty address, a DNS name, and
 `localhost` all count as non-loopback, and a surface that declares itself
 unauthenticated with no resolved address is refused rather than passed. A
 non-loopback MCP or gNMI listener must also serve TLS: without both TLS files it
@@ -388,8 +390,8 @@ The other ten daemons are marked `Unclear` because this claim was not checked
 against their source. Several of them expose no comparable management plane, so
 `Unclear` here says the comparison was not made, not that the guard is missing
 from something that needs one.
-<!-- source: cmd/ze/hub/mgmt_guard.go -- checkMgmtListeners --> <!-- source: internal/core/network/exposure.go -- ListenAddrIsLoopback, Exposure.Refusals -->
-<!-- source: cmd/ze/hub/main.go -- mgmtListeners declaration sites, exit on refusal -->
+<!-- source: cmd/ze/hub/mgmt_guard.go -- filterMgmtListener, filterAPIConfig --> <!-- source: internal/core/network/exposure.go -- ListenAddrIsLoopback, Exposure.Plan, Exposure.Refusals -->
+<!-- source: cmd/ze/hub/main.go -- filterMgmtListener call sites -->
 <!-- source: internal/component/web/yang/ze-web-conf.yang -- leaf certificate -->
 
 ## Monitoring & Observability

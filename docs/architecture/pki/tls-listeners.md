@@ -107,10 +107,24 @@ with its other services.
 
 | At start | What ze does | Reported under |
 |----------|--------------|----------------|
-| The web certificate name does not resolve | The web server is not started | `doctor-tls-reference` |
-| The looking-glass certificate name does not resolve | Every entry that asks for TLS stays down, and the `tls false` entries serve | `doctor-lg-tls-unservable` for each entry in the log, `doctor-tls-reference` for the name in `ze doctor` |
+| A `certificate` leaf names an entry `pki` does not define (`ze:reference` failure) | `LoadConfigForStart` drops only that service's registered block from the in-memory tree while leaving the stored config file untouched, and the rest of ze starts | `doctor-service-not-started` in the log and runtime `ze doctor`, `doctor-tls-reference` in offline `ze doctor` |
+| The web certificate cannot be presented (for example, missing `private { key }` or an unresolved `ze.web.certificate`) | The web server is not started | `doctor-tls-reference` |
+| The looking-glass certificate cannot be presented (for example, missing `private { key }` or an unresolved `ze.looking-glass.certificate`) | Every entry that asks for TLS stays down, and the `tls false` entries serve | `doctor-lg-tls-unservable` for each entry in the log, `doctor-tls-reference` for the name in `ze doctor` |
 | A looking-glass entry says `tls true` with no store and no name | That entry stays down, and the other entries serve | `doctor-lg-tls-unservable` |
 | `ze.looking-glass.listen` does not parse | The looking glass is not started | `doctor-lg-listen-unreadable` |
+
+Each TLS consumer registers its config block with `RegisterServiceBlock`
+(`environment/web`, `environment/looking-glass`, `bus/hub/server[*]`,
+`service/as112`, `service/geodns`). When a `certificate` leaf names an entry
+`pki` does not define, `LoadConfigForStart` (`excludeInvalidServiceBlocks`)
+drops only that service block from the in-memory tree. It records each dropped
+block in `LoadConfigResult.ExcludedBlocks`. `runYANGConfig` reports each
+dropped block through `reportServiceNotStarted` under
+`doctor-service-not-started`. It also passes `saveToStore = false` to
+`applyEvolutions`, so schema evolution never rewrites the stored file without
+the dropped block. `ze config validate`, commit, and reload still call
+`LoadConfig` or `ReadConfig` and refuse the undefined name through
+`ze:reference`.
 
 `runYANGConfig` resolves the web name against the loaded store before it builds
 any service (`webCertificateProblem`). The looking glass resolves its own name
@@ -125,7 +139,11 @@ restart of ze. A looking glass that runs with one entry down binds that entry at
 the reload that corrects it, because a reload binds an address the running
 looking glass does not hold yet.
 
-<!-- source: cmd/ze/hub/main.go -- runYANGConfig, the web certificate startup gate and the looking-glass listener read -->
+<!-- source: internal/component/config/loader.go -- LoadConfigForStart, LoadConfig, ReadConfig, LoadConfigResult.ExcludedBlocks -->
+<!-- source: internal/component/config/service_blocks.go -- RegisterServiceBlock, excludeInvalidServiceBlocks -->
+<!-- source: cmd/ze/hub/main.go -- runYANGConfig, LoadConfigForStart, webCertificateProblem, lgListenerConfigFrom -->
+<!-- source: cmd/ze/hub/main_evolve.go -- applyEvolutions, unsavedExcludedEvolution -->
+<!-- source: cmd/ze/hub/service_not_started.go -- reportServiceNotStarted, blockUnservable -->
 <!-- source: cmd/ze/hub/service_tls.go -- webCertificateProblem, reportWebNotStarted -->
 <!-- source: cmd/ze/hub/lg_transport.go -- lgCertificateProblem, reportLGServerDown, reportLGNotStarted -->
 

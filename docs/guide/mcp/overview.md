@@ -184,13 +184,21 @@ only the older appended discovery path cannot be used with this configuration.
 
 <!-- source: internal/component/mcp/as_metadata.go -- fetchASMetadata, asMetadataURL -->
 
-`ze config validate` rejects internally inconsistent configurations (`bearer`,
-`bearer-list`, or `oauth` without TLS on a remote bind, `oauth` without
-`authorization-server`, `bind-remote` without auth, etc.) before the daemon
-starts. A remote listener without authentication or TLS also refuses daemon
-start, with the same message, whatever supplied its address
-([Remote management listener guard](../authentication.md#remote-management-listener-guard)). See [`rules/exact-or-reject.md`](../../../ai/rules/protocol.md) for the
-contract.
+`ze config validate` and config reloads refuse inconsistent MCP configurations
+(`bearer`, `bearer-list`, or `oauth` without TLS on a remote bind, `oauth`
+without `authorization-server`, or `bind-remote` without authentication). At
+`ze start`, an unparseable `ze.mcp.listen` or an inconsistent `environment mcp`
+block leaves only MCP down while Ze and its other services keep running. A
+non-loopback listener without authentication or TLS leaves only the breaching
+address down, whatever supplied its address
+([Remote management listener guard](../authentication.md#remote-management-listener-guard)).
+In each case, Ze logs an error with the fix and reports it in `ze doctor` under
+`doctor-service-not-started`. See [`ai/rules/protocol.md`](../../../ai/rules/protocol.md)
+for the exact-or-reject contract.
+
+<!-- source: cmd/ze/hub/main.go -- runYANGConfig, mcpListenProblem, mcpCfg.Validate, filterMgmtListener -->
+<!-- source: cmd/ze/hub/mgmt_guard.go -- filterMgmtListener, mcpMgmtListener -->
+<!-- source: cmd/ze/hub/service_not_started.go -- reportServiceNotStarted, listenUnreadable, blockUnservable -->
 
 RFC 9728 metadata: when `auth-mode oauth`, the server publishes a document
 listing the authorization server(s) and supported scopes. Its path is the

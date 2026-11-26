@@ -72,6 +72,24 @@ environment {
 ```
 <!-- source: internal/component/web/yang/ze-web-conf.yang -- web container, server list -->
 
+### When the web server cannot start
+
+Ze always starts so you can still reach the router to fix its configuration. When the web configuration cannot be served, only the web server or the breaching address stays down. Ze and its other services keep running, and Ze logs an error with the fix and reports it in `ze doctor`.
+
+| Startup problem | What `ze start` does | Reported under |
+|-----------------|----------------------|----------------|
+| `ze.web.listen` does not parse | The web server is not started, even when `environment web` names addresses | `doctor-service-not-started` |
+| `environment web certificate` is not defined in `pki` | `LoadConfigForStart` drops the `environment web` block in memory without rewriting the stored file, and the web server is not started | `doctor-service-not-started` (and `doctor-tls-reference` offline) |
+| The named `certificate` cannot be presented (for example, missing `private { key }` or an unresolved `ze.web.certificate`) | The web server is not started, and Ze never falls back to a self-signed certificate | `doctor-tls-reference` |
+| An insecure web listener binds a non-loopback address | Only the breaching address is not started, while loopback addresses keep running | `doctor-service-not-started` |
+
+A reload carrying any of these problems is refused as a whole, and the running web server keeps its current configuration. `ze config validate` and commit also refuse an undefined `certificate` name.
+<!-- source: cmd/ze/hub/main.go -- runYANGConfig, webListenProblem, webCertificateProblem, filterMgmtListener -->
+<!-- source: cmd/ze/hub/service_not_started.go -- reportServiceNotStarted, listenUnreadable -->
+<!-- source: cmd/ze/hub/service_tls.go -- webCertificateProblem, reportWebNotStarted -->
+<!-- source: cmd/ze/hub/mgmt_guard.go -- filterMgmtListener -->
+<!-- source: internal/component/config/loader.go -- LoadConfigForStart -->
+
 ## Offline backup workspace
 
 Choose **Services → Backup workspace**, or open `/backups/`, to edit a `.zefs`

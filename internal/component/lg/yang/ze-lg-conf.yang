@@ -67,8 +67,9 @@ module ze-lg-conf {
                                  self-signed one kept in the database store. On a daemon
                                  with no database store and no named certificate, an
                                  endpoint that leaves this leaf unset serves HTTP with a
-                                 warning, and an endpoint that says true is refused, at
-                                 start and at reload. The RFC 8522 API under
+                                 warning, and an endpoint that says true stays down at
+                                 start while the other entries serve, and is refused at
+                                 reload. The RFC 8522 API under
                                  /.well-known/looking-glass/ answers on HTTPS endpoints
                                  only. No environment variable sets this leaf.";
                     ze:help "Serve HTTPS on this endpoint (default); false serves plain HTTP.";
@@ -90,7 +91,9 @@ module ze-lg-conf {
                      When this leaf is not set, ze generates a self-signed
                      certificate and serves that.
                      If the store holds no entry with that name, or the entry
-                     holds no private key, ze exits with an error and rejects a
+                     holds no private key, ze starts and leaves every TLS
+                     endpoint down (or drops the block when the name is not
+                     defined in pki) while reporting the fix, and rejects a
                      reload. ze never falls back to a self-signed certificate
                      for a configured name.
                      A named certificate comes from the pki container.

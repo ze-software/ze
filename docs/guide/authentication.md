@@ -421,20 +421,23 @@ published only in the daemon's environment is caught at startup.
 <!-- source: internal/component/config/loader_extract.go -- GNMIListenConfig.Refusals, GNMIExposure, ResolveGNMIListener, MCPListenConfig.Refusals, MCPExposure -->
 <!-- source: internal/component/gnmi/doctor.go -- gnmiExposureFindings -->
 
-<!-- source: cmd/ze/hub/mgmt_guard.go -- checkMgmtListeners, mcpMgmtListener --> <!-- source: internal/core/network/exposure.go -- ListenAddrIsLoopback, Exposure.Refusals -->
+<!-- source: cmd/ze/hub/mgmt_guard.go -- filterMgmtListener, filterAPIConfig, mcpMgmtListener --> <!-- source: internal/core/network/exposure.go -- ListenAddrIsLoopback, Exposure.Plan, Exposure.Refusals -->
 <!-- source: cmd/ze/hub/main.go -- management listener declarations and remedies -->
 <!-- source: cmd/ze/hub/listener_migrate.go -- reload refusal -->
 
 #### Upgrading from a release without the guard
 
-The guard is a boot refusal, so a config that started a daemon yesterday can
-stop one today. Four changes break an upgrade. Read them before you upgrade.
+The guard leaves exposed management listeners down at start while ze keeps
+running, so a listener that served unauthenticated yesterday will not bind
+today. Four changes affect an upgrade. Read them before you upgrade.
 
-**A remote unauthenticated management listener now refuses to boot.** ze exits
-with status 1 and prints one block of three lines for each refusal: the
-problem with the service and the address, the reason, and the fix. Nothing
-binds, so the daemon does not half-start. A gNMI listener on the
-`0.0.0.0:9339` default with neither a token nor TLS gets two blocks:
+**A remote unauthenticated management listener is not started.** ze starts
+normally so networking stays reachable, leaves only the exposed listener down,
+and logs and prints one block of three lines per breach under
+`doctor-service-not-started`: the problem with the service and the address, the
+reason, and the fix. Safe loopback listeners and other services keep running. A
+gNMI listener on the `0.0.0.0:9339` default with neither a token nor TLS gets
+two blocks:
 
 ```
 refusing to start gNMI on non-loopback listener "0.0.0.0:9339" without authentication
@@ -447,13 +450,13 @@ fix: set environment gnmi tls cert <cert.pem> and set environment gnmi tls key <
 
 Apply the fix, or bind the service to `127.0.0.1`.
 
-**A remote MCP listener without TLS now refuses to boot.** A non-loopback MCP
-listener with a bearer token, a `bearer-list` or `oauth`, and no TLS used to
-start the daemon with MCP disabled and a warning. It now refuses like gNMI,
+**A remote MCP listener without TLS is not started.** A non-loopback MCP
+listener with a bearer token, a `bearer-list` or `oauth`, and no TLS stays down
+at start while ze keeps running, reported under `doctor-service-not-started`
 with the same block (`refusing to start MCP on non-loopback listener ...
 without TLS`) and the fix `set environment mcp tls cert <cert.pem> and set
 environment mcp tls key <key.pem>`. `ze config validate` and `ze doctor` print
-the same block for the same config.
+the same block for the same config, and a live reload refuses the migration.
 
 **The looking glass serves TLS by default.** A `looking-glass` server entry
 with no `tls` leaf now serves `https://`, so a plaintext client fails the
@@ -482,7 +485,7 @@ Run `ze config validate` or `ze doctor --json` over the config first. Both
 report the same exposure offline. Neither reads the daemon's environment, so
 check `ze.gnmi.listen`, `ze.mcp.listen`, and `ze.web.insecure` by hand.
 
-<!-- source: cmd/ze/hub/mgmt_guard.go -- checkMgmtListeners refusal message -->
+<!-- source: cmd/ze/hub/mgmt_guard.go -- filterMgmtListener refusal message -->
 <!-- source: cmd/ze/hub/api_infra.go -- resolveAPIListeners settings/listener split -->
 <!-- source: cmd/ze/hub/service_lg.go -- buildLGService TLS default, explicit-vs-inherited fallback -->
 <!-- source: cmd/ze/hub/main.go -- ExtractWebSettings branch, insecure exclusion and its WARN -->
