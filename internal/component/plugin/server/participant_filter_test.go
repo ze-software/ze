@@ -7,6 +7,7 @@ package server
 import (
 	"context"
 	"encoding/json"
+	"sync"
 	"testing"
 	"time"
 
@@ -332,5 +333,59 @@ func TestUpdateDeliveryGraphWithEndpointsPushesFilterToRunningPlugins(t *testing
 	case <-minimalSeen:
 	case <-time.After(2 * time.Second):
 		t.Fatal("minimal plugin did not receive push attempt")
+	}
+}
+
+// TestRefreshDeliveryGraphDoesNotClobberConcurrentPeerPublish verifies that
+// concurrent RefreshDeliveryGraph calls (as happen during Phase 1 Stage 2
+// handshakes) cannot overwrite a peer set published by SetDeliveryGraph with a
+// stale empty snapshot.
+//
+// VALIDATES: deliveryGraphMu serializes RefreshDeliveryGraph read-modify-write
+// cycles against SetDeliveryGraph so resolved peer addresses are never lost.
+// PREVENTS: Stage2FilterFor delivering empty Target.Address under CPU load.
+func TestRefreshDeliveryGraphDoesNotClobberConcurrentPeerPublish(t *testing.T) {
+	t.Parallel()
+
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	s := &Server{
+		config:        &ServerConfig{},
+		registry:      plugin.NewPluginRegistry(),
+		ctx:           ctx,
+		loadedPlugins: make(map[string]bool),
+	}
+	t.Cleanup(s.Stop)
+
+	peerPath := "/" + graphNS + "/entry/peer1"
+	const peerAddr = "192.0.2.10"
+	peers := []DeliveryPeer{{Addr: peerAddr, Name: "peer1", Path: peerPath}}
+
+	for range 64 {
+		s.deliveryGraph.Store(emptyDeliveryGraph)
+		var wg sync.WaitGroup
+		start := make(chan struct{})
+		for range 4 {
+			wg.Add(1)
+			go func() {
+				defer wg.Done()
+				<-start
+				s.RefreshDeliveryGraph()
+			}()
+		}
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			<-start
+			require.NoError(t, s.SetDeliveryGraph(graphNS, peers))
+		}()
+		close(start)
+		wg.Wait()
+
+		got := s.DeliveryGraph()
+		require.Equal(t, graphNS, got.namespace, "concurrent RefreshDeliveryGraph clobbered namespace")
+		require.Len(t, got.disseminationPeers, 1, "concurrent RefreshDeliveryGraph clobbered published peer set")
+		require.Equal(t, peerAddr, got.pathToAddr[peerPath], "resolved peer address lost after concurrent refresh")
 	}
 }

@@ -1347,9 +1347,16 @@ func (s *Server) PreviewDeliveryGraph(namespace string, peers []DeliveryPeer) (*
 // declared endpoints, and peers, then atomically swaps the resulting
 // DeliveryGraph into s.
 func (s *Server) SetDeliveryGraph(namespace string, peers []DeliveryPeer) error {
+	s.deliveryGraphMu.Lock()
 	busCfg := s.BusConfig()
 	endpoints := s.collectBusEndpointInputs(namespace, busCfg)
-	return s.UpdateDeliveryGraphWithEndpoints(namespace, peers, endpoints)
+	g, err := s.swapDeliveryGraphLocked(namespace, peers, busCfg, endpoints)
+	s.deliveryGraphMu.Unlock()
+	if err != nil {
+		return err
+	}
+	s.publishDeliveryGraphPostSwap(namespace, g)
+	return nil
 }
 
 // UpdateDeliveryGraph compiles and atomically publishes a new DeliveryGraph
@@ -1367,8 +1374,19 @@ func (s *Server) UpdateDeliveryGraph(namespace string, peers []DeliveryPeer) {
 // when no protocol participants have been published yet), swaps the new
 // snapshot in atomically, and publishes the updated plugin command profiles.
 func (s *Server) RefreshDeliveryGraph() {
+	s.deliveryGraphMu.Lock()
 	cur := s.DeliveryGraph()
-	s.UpdateDeliveryGraph(cur.namespace, cur.disseminationPeers)
+	namespace := cur.namespace
+	busCfg := s.BusConfig()
+	endpoints := s.collectBusEndpointInputs(namespace, busCfg)
+	g, err := s.swapDeliveryGraphLocked(namespace, cur.disseminationPeers, busCfg, endpoints)
+	s.deliveryGraphMu.Unlock()
+	if err != nil {
+		logger().Warn("delivery graph compilation failed; retaining previous index",
+			"namespace", namespace, "err", err, "code", CodeDoctorPluginDeliveryDisagreement)
+		return
+	}
+	s.publishDeliveryGraphPostSwap(namespace, g)
 }
 
 // participantFilterPushTimeout bounds each asynchronous participant-filter
@@ -1382,18 +1400,42 @@ func (s *Server) UpdateDeliveryGraphWithEndpoints(
 	peers []DeliveryPeer,
 	extraEndpoints []BusParticipantInput,
 ) error {
-	g, err := BuildDeliveryGraph(namespace, peers, s.BusConfig(), extraEndpoints)
+	s.deliveryGraphMu.Lock()
+	g, err := s.swapDeliveryGraphLocked(namespace, peers, s.BusConfig(), extraEndpoints)
+	s.deliveryGraphMu.Unlock()
 	if err != nil {
 		return err
+	}
+	s.publishDeliveryGraphPostSwap(namespace, g)
+	return nil
+}
+
+// swapDeliveryGraphLocked builds and atomically installs a new DeliveryGraph.
+// The caller MUST hold s.deliveryGraphMu so concurrent RefreshDeliveryGraph
+// calls cannot overwrite a fresher peer set with an older snapshot.
+func (s *Server) swapDeliveryGraphLocked(
+	namespace string,
+	peers []DeliveryPeer,
+	busCfg plugin.BusConfig,
+	extraEndpoints []BusParticipantInput,
+) (*DeliveryGraph, error) {
+	g, err := BuildDeliveryGraph(namespace, peers, busCfg, extraEndpoints)
+	if err != nil {
+		return nil, err
 	}
 	if prev := s.deliveryGraph.Swap(g); prev != nil {
 		s.prevDeliveryGraph.Store(prev)
 	}
+	return g, nil
+}
+
+// publishDeliveryGraphPostSwap runs lock-free post-swap publications after a
+// new DeliveryGraph is installed.
+func (s *Server) publishDeliveryGraphPostSwap(namespace string, g *DeliveryGraph) {
 	publishPluginProfileServer(s)
 	logger().Debug("delivery graph published", "namespace", namespace, "entries", g.Len())
 	s.reconcileDelivery(nil)
 	s.enqueueParticipantFilterPush(g)
-	return nil
 }
 
 // enqueueParticipantFilterPush schedules an asynchronous push of updated
