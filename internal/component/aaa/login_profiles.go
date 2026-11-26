@@ -108,6 +108,27 @@ func (a acceptedGenerationAuthorizer) AuthorizeCommandArgs(
 	return a.next.Authorize(username, remoteAddr, CanonicalCommand(command, args, peer), isReadOnly)
 }
 
+// AuthorizeLocalScope implements LocalScopeAuthorizer. No positive scope
+// survives an authorization generation change of the authenticated local user,
+// and an unsupported underlying authorizer fails closed.
+func (a acceptedGenerationAuthorizer) AuthorizeLocalScope(
+	username, command string,
+	args []string,
+	isReadOnly bool,
+) bool {
+	if !acceptedLocalUserHolds(username, a.generation) {
+		return false
+	}
+	if a.next == nil {
+		return true
+	}
+	allowed, supported := AuthorizeLocalScope(a.next, username, command, args, isReadOnly)
+	if !supported {
+		return false
+	}
+	return allowed
+}
+
 // resultAuthorizingAuthenticator rejects reserved identities and binds
 // authorization to each successful authentication result.
 type resultAuthorizingAuthenticator struct {

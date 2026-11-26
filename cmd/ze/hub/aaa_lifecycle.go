@@ -29,6 +29,7 @@ import (
 type acceptedLocalIdentityState struct {
 	users                 []aaa.UserCredential
 	authorizer            *authz.Store
+	authzGeneration       uint64
 	resolveCandidateUsers func() ([]aaa.UserCredential, error)
 	apiToken              string
 	apiAuthentication     api.Authentication
@@ -39,6 +40,7 @@ var (
 	aaaBundleBootClaimed    atomic.Bool
 	acceptedLocalIdentity   atomic.Pointer[acceptedLocalIdentityState]
 	localIdentityGeneration atomic.Uint64
+	localAuthzGeneration    atomic.Uint64
 )
 
 // Accounting references live for one entered command, including a streaming
@@ -250,10 +252,14 @@ func stampLocalIdentityGeneration(state *acceptedLocalIdentityState) {
 		}
 		state.users[i].UserGeneration = localUserGenerationFor(accepted, state.users[i])
 	}
+	state.authzGeneration = localAuthzGeneration.Add(1)
 	state.apiAuthentication = buildAPIAuthentication(
 		state.users,
 		state.apiToken,
-		acceptedLocalGenerationAuthorizer{store: state.authorizer},
+		acceptedLocalGenerationAuthorizer{
+			store:      state.authorizer,
+			generation: state.authzGeneration,
+		},
 	)
 }
 
@@ -402,6 +408,24 @@ func (liveLocalAuthorizer) AuthorizeCommandArgs(username, remoteAddr, command st
 		AuthorizeCommandArgs(username, remoteAddr, command, args, peer, isReadOnly)
 }
 
+// AuthorizeLocalScope implements aaa.LocalScopeAuthorizer.
+// An absent or retired accepted local identity fails closed. A live accepted
+// policy-free installation (state != nil with a nil store) preserves explicit
+// no-RBAC reads for human and trusted internal identities while still enforcing
+// compiled bus profiles for plugins.
+func (liveLocalAuthorizer) AuthorizeLocalScope(username, command string, args []string, isReadOnly bool) bool {
+	state := acceptedLocalIdentity.Load()
+	if state == nil {
+		return false
+	}
+	if state.authorizer == nil {
+		return (authz.StoreAuthorizer{Store: nil}).
+			AuthorizeCommandArgs(username, "", command, args, "", isReadOnly)
+	}
+	return (authz.StoreAuthorizer{Store: state.authorizer}).
+		AuthorizeLocalScope(username, command, args, isReadOnly)
+}
+
 // BindProfiles returns an authorizer that keeps one authentication result's
 // profile names while reading the accepted profile definitions on each command.
 func (liveLocalAuthorizer) BindProfiles(profiles []string) aaa.Authorizer {
@@ -447,13 +471,58 @@ func (a liveLocalProfileAuthorizer) AuthorizeCommandArgs(
 	) != authz.Deny
 }
 
+// AuthorizeLocalScope implements aaa.LocalScopeAuthorizer.
+// A missing accepted identity, empty bound profile list, or missing local store
+// fails closed rather than treating an unmapped remote session as no-RBAC.
+// Local break-glass recovery sessions on a policy-free box retain scope only
+// while their accepted identity and user generation hold.
+func (a liveLocalProfileAuthorizer) AuthorizeLocalScope(username, command string, args []string, isReadOnly bool) bool {
+	state := acceptedLocalIdentity.Load()
+	if state == nil {
+		return false
+	}
+	if len(a.profiles) == 0 {
+		return false
+	}
+	if state.authorizer == nil {
+		if slices.Contains(a.profiles, aaa.ReservedRecoveryProfile) {
+			return (authz.StoreAuthorizer{Store: nil}).
+				AuthorizeCommandArgs(username, "", command, args, "", isReadOnly)
+		}
+		return false
+	}
+	allowed, supported := aaa.AuthorizeLocalScope(
+		(authz.StoreAuthorizer{Store: state.authorizer}).BindProfiles(a.profiles),
+		username,
+		command,
+		args,
+		isReadOnly,
+	)
+	if !supported {
+		return false
+	}
+	return allowed
+}
+
 // acceptedLocalGenerationAuthorizer binds API fallback authorization to the
 // store from the authentication generation while keeping the selected external
 // bundle authorizer live.
 type acceptedLocalGenerationAuthorizer struct {
 	store         *authz.Store
+	generation    uint64
 	profiles      []string
 	profilesBound bool
+}
+
+func (a acceptedLocalGenerationAuthorizer) generationHolds() bool {
+	if a.generation == 0 {
+		return false
+	}
+	live := acceptedLocalIdentity.Load()
+	if live == nil {
+		return false
+	}
+	return live.authzGeneration == a.generation
 }
 
 func (a acceptedLocalGenerationAuthorizer) Authorize(username, remoteAddr, command string, isReadOnly bool) bool {
@@ -480,6 +549,46 @@ func (a acceptedLocalGenerationAuthorizer) AuthorizeCommandArgs(username, remote
 	)
 }
 
+// AuthorizeLocalScope implements aaa.LocalScopeAuthorizer.
+// No positive scope survives an authorization generation change or bundle
+// retirement, and an unmapped external provider fails closed without calling
+// any remote server.
+func (a acceptedLocalGenerationAuthorizer) AuthorizeLocalScope(username, command string, args []string, isReadOnly bool) bool {
+	if !a.generationHolds() {
+		return false
+	}
+	bundle := aaaBundle.Load()
+	if bundle == nil {
+		return false
+	}
+	var local aaa.Authorizer = authz.StoreAuthorizer{Store: a.store}
+	if a.profilesBound {
+		local = acceptedLocalGenerationProfileFallback{
+			store:      a.store,
+			generation: a.generation,
+			profiles:   a.profiles,
+		}
+	}
+	authorizer := bundle.AuthorizerWithLocalFallback(local)
+	if authorizer == nil {
+		return false
+	}
+	if a.profilesBound {
+		authorizer = aaa.BindProfiles(authorizer, a.profiles)
+	}
+	if !a.profilesBound && a.store == nil {
+		if _, isLocalStore := authorizer.(authz.StoreAuthorizer); isLocalStore {
+			return (authz.StoreAuthorizer{Store: nil}).
+				AuthorizeCommandArgs(username, "", command, args, "", isReadOnly)
+		}
+	}
+	allowed, supported := aaa.AuthorizeLocalScope(authorizer, username, command, args, isReadOnly)
+	if !supported {
+		return false
+	}
+	return allowed
+}
+
 // BindProfiles keeps the successful result's profiles with its accepted store.
 func (a acceptedLocalGenerationAuthorizer) BindProfiles(profiles []string) aaa.Authorizer {
 	a.profiles = append([]string(nil), profiles...)
@@ -495,16 +604,18 @@ func (a acceptedLocalGenerationAuthorizer) currentAuthorizer() aaa.Authorizer {
 	var local aaa.Authorizer = authz.StoreAuthorizer{Store: a.store}
 	if a.profilesBound {
 		local = acceptedLocalGenerationProfileFallback{
-			store:    a.store,
-			profiles: a.profiles,
+			store:      a.store,
+			generation: a.generation,
+			profiles:   a.profiles,
 		}
 	}
 	return bundle.AuthorizerWithLocalFallback(local)
 }
 
 type acceptedLocalGenerationProfileFallback struct {
-	store    *authz.Store
-	profiles []string
+	store      *authz.Store
+	generation uint64
+	profiles   []string
 }
 
 func (a acceptedLocalGenerationProfileFallback) Authorize(username, _, command string, isReadOnly bool) bool {
@@ -530,6 +641,43 @@ func (a acceptedLocalGenerationProfileFallback) AuthorizeCommandArgs(
 		aaa.CanonicalCommand(command, args, peer),
 		isReadOnly,
 	) != authz.Deny
+}
+
+// AuthorizeLocalScope implements aaa.LocalScopeAuthorizer.
+// Generation retirement, an empty profile binding, or a missing local store
+// fails closed.
+func (a acceptedLocalGenerationProfileFallback) AuthorizeLocalScope(username, command string, args []string, isReadOnly bool) bool {
+	if a.generation == 0 {
+		return false
+	}
+	live := acceptedLocalIdentity.Load()
+	if live == nil {
+		return false
+	}
+	if live.authzGeneration != a.generation {
+		return false
+	}
+	if len(a.profiles) == 0 {
+		return false
+	}
+	if a.store == nil {
+		if slices.Contains(a.profiles, aaa.ReservedRecoveryProfile) {
+			return (authz.StoreAuthorizer{Store: nil}).
+				AuthorizeCommandArgs(username, "", command, args, "", isReadOnly)
+		}
+		return false
+	}
+	allowed, supported := aaa.AuthorizeLocalScope(
+		(authz.StoreAuthorizer{Store: a.store}).BindProfiles(a.profiles),
+		username,
+		command,
+		args,
+		isReadOnly,
+	)
+	if !supported {
+		return false
+	}
+	return allowed
 }
 
 // liveAAABundleAuthenticator authenticates against the live AAA bundle's chain
@@ -636,6 +784,27 @@ func (liveAAABundleAuthorizer) AuthorizeCommandArgs(
 	)
 }
 
+// AuthorizeLocalScope implements aaa.LocalScopeAuthorizer.
+// A retired or absent bundle denies; a live bundle whose selected authorizer is
+// nil preserves explicit no-RBAC mode for human and trusted internal identities
+// while still enforcing compiled bus profiles for plugins; an unsupported
+// provider fails closed.
+func (liveAAABundleAuthorizer) AuthorizeLocalScope(username, command string, args []string, isReadOnly bool) bool {
+	bundle := aaaBundle.Load()
+	if bundle == nil {
+		return false
+	}
+	if bundle.Authorizer == nil {
+		return (authz.StoreAuthorizer{Store: nil}).
+			AuthorizeCommandArgs(username, "", command, args, "", isReadOnly)
+	}
+	allowed, supported := aaa.AuthorizeLocalScope(bundle.Authorizer, username, command, args, isReadOnly)
+	if !supported {
+		return false
+	}
+	return allowed
+}
+
 // BindProfiles keeps one authentication result's profile names with the live
 // bundle authorizer. Without it, aaa.BindProfiles returns this value unchanged
 // and a bound session is authorized by USERNAME instead, which is the lookup
@@ -698,6 +867,31 @@ func (a liveAAABundleProfileAuthorizer) AuthorizeCommandArgs(
 		aaa.CanonicalCommand(command, args, peer),
 		isReadOnly,
 	)
+}
+
+// AuthorizeLocalScope implements aaa.LocalScopeAuthorizer.
+// A retired or absent bundle denies; a live bundle whose selected authorizer is
+// nil permits only local break-glass recovery profiles (never treating an
+// unmapped remote session as no-RBAC); otherwise profiles are bound to the
+// current bundle authorizer and evaluated strictly locally.
+func (a liveAAABundleProfileAuthorizer) AuthorizeLocalScope(username, command string, args []string, isReadOnly bool) bool {
+	bundle := aaaBundle.Load()
+	if bundle == nil {
+		return false
+	}
+	if bundle.Authorizer == nil {
+		if slices.Contains(a.profiles, aaa.ReservedRecoveryProfile) {
+			return (authz.StoreAuthorizer{Store: nil}).
+				AuthorizeCommandArgs(username, "", command, args, "", isReadOnly)
+		}
+		return false
+	}
+	authorizer := aaa.BindProfiles(bundle.Authorizer, a.profiles)
+	allowed, supported := aaa.AuthorizeLocalScope(authorizer, username, command, args, isReadOnly)
+	if !supported {
+		return false
+	}
+	return allowed
 }
 
 // liveAAABundleAccountant records commands against the AAA bundle installed at

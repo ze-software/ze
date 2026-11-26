@@ -35,6 +35,41 @@ type CommandArgsAuthorizer interface {
 	AuthorizeCommandArgs(username, remoteAddr, command string, args []string, peer string, isReadOnly bool) bool
 }
 
+// LocalScopeAuthorizer evaluates canonical command-argument read tokens
+// strictly locally against the caller's authenticated policy or profile
+// binding. Implementations MUST NEVER perform remote network authorization
+// (such as TACACS+ AUTHOR requests).
+type LocalScopeAuthorizer interface {
+	AuthorizeLocalScope(username, command string, args []string, isReadOnly bool) bool
+}
+
+// AuthorizeLocalScope evaluates canonical command-argument tokens strictly
+// locally when authorizer implements LocalScopeAuthorizer. When authorizer is
+// nil or does not implement LocalScopeAuthorizer, it returns (false, false) so
+// callers fail closed without falling back to remote authorization.
+func AuthorizeLocalScope(authorizer Authorizer, username, command string, args []string, isReadOnly bool) (allowed, supported bool) {
+	localScope, ok := authorizer.(LocalScopeAuthorizer)
+	if !ok {
+		return false, false
+	}
+	return localScope.AuthorizeLocalScope(username, command, args, isReadOnly), true
+}
+
+const (
+	// FleetDeviceReadCommand is the canonical read command evaluated locally to
+	// project per-device fleet visibility.
+	FleetDeviceReadCommand = "show fleet device"
+	// FleetDeviceNameArg is the canonical argument keyword naming a device in
+	// FleetDeviceReadCommand.
+	FleetDeviceNameArg = "name"
+)
+
+// FleetDeviceReadTokens returns the canonical command and argument tokens
+// evaluated locally when projecting fleet visibility for deviceName.
+func FleetDeviceReadTokens(deviceName string) (command string, args []string) {
+	return FleetDeviceReadCommand, []string{FleetDeviceNameArg, deviceName}
+}
+
 // CanonicalCommandTokens returns the authorization token stream for a typed
 // command dispatch. It mirrors the dispatcher's legacy string authorization
 // shape: explicit peer scoping contributes a leading "peer" token, but not the

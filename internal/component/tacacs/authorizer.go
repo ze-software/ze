@@ -50,6 +50,8 @@ type tacacsAuthorizer struct {
 	local          aaa.Authorizer
 	logger         *slog.Logger
 	strictFallback bool
+	profilesBound  bool
+	hasProfiles    bool
 }
 
 // newTacacsAuthorizer creates a tacacsAuthorizer with the default logger.
@@ -88,7 +90,34 @@ func (a *tacacsAuthorizer) BindProfiles(profiles []string) aaa.Authorizer {
 	}
 	bound := *a
 	bound.local = aaa.BindProfiles(a.local, profiles)
+	bound.profilesBound = true
+	bound.hasProfiles = len(profiles) > 0
 	return &bound
+}
+
+// AuthorizeLocalScope implements aaa.LocalScopeAuthorizer.
+// Local scope projection evaluates strictly locally against the session's
+// bound local profile mapping (or the local policy for unbound local,
+// internal-RPC, and shared-API callers) and MUST NEVER send a remote TACACS+
+// authorization request. A profile-bound remote session with no mapped
+// profiles fails closed.
+func (a *tacacsAuthorizer) AuthorizeLocalScope(username, command string, args []string, isReadOnly bool) bool {
+	if a == nil {
+		return false
+	}
+	if a.profilesBound {
+		if !a.hasProfiles {
+			return false
+		}
+	}
+	if a.local == nil {
+		return false
+	}
+	allowed, supported := aaa.AuthorizeLocalScope(a.local, username, command, args, isReadOnly)
+	if !supported {
+		return false
+	}
+	return allowed
 }
 
 // Authorize sends an AUTHOR REQUEST to the TACACS+ server for the given command.

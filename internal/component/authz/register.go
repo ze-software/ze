@@ -82,6 +82,19 @@ func (a boundStoreAuthorizer) AuthorizeCommandArgs(username, _, command string, 
 	return a.store.AuthorizeWithProfiles(username, a.profiles, canonical, isReadOnly) != Deny
 }
 
+// AuthorizeLocalScope implements aaa.LocalScopeAuthorizer. A missing store or
+// empty profile binding fails closed rather than falling back to no-RBAC.
+func (a boundStoreAuthorizer) AuthorizeLocalScope(username, command string, args []string, isReadOnly bool) bool {
+	if a.store == nil {
+		return false
+	}
+	if len(a.profiles) == 0 {
+		return false
+	}
+	canonical := canonicalCommandForIdentity(username, command, args, "")
+	return a.store.AuthorizeWithProfiles(username, a.profiles, canonical, isReadOnly) != Deny
+}
+
 // Authorize implements aaa.Authorizer.
 func (a StoreAuthorizer) Authorize(username, remoteAddr, command string, isReadOnly bool) bool {
 	if a.Store == nil {
@@ -98,6 +111,17 @@ func (a StoreAuthorizer) AuthorizeCommandArgs(username, _, command string, args 
 	if a.Store == nil {
 		return authorizeWithNilStore(username, canonical, isReadOnly)
 	}
+	return a.Store.Authorize(username, canonical, isReadOnly) != Deny
+}
+
+// AuthorizeLocalScope implements aaa.LocalScopeAuthorizer. It evaluates
+// canonical command-argument tokens strictly locally against a.Store and fails
+// closed when a.Store is nil.
+func (a StoreAuthorizer) AuthorizeLocalScope(username, command string, args []string, isReadOnly bool) bool {
+	if a.Store == nil {
+		return false
+	}
+	canonical := canonicalCommandForIdentity(username, command, args, "")
 	return a.Store.Authorize(username, canonical, isReadOnly) != Deny
 }
 

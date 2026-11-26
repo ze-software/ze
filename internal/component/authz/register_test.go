@@ -87,3 +87,81 @@ func TestStoreAuthorizerNilStoreAllowsAll(t *testing.T) {
 	assert.True(t, auth.Authorize("", "", "router bgp", false))
 	assert.True(t, auth.AuthorizeCommandArgs("anyone", "", "show bgp rib", nil, "10.0.0.1", true))
 }
+
+// VALIDATES: StoreAuthorizer.AuthorizeLocalScope evaluates mixed device rules
+// locally and fails closed when Store is nil.
+// PREVENTS: a nil StoreAuthorizer silently acting as wildcard fleet scope.
+func TestStoreAuthorizerAuthorizeLocalScope(t *testing.T) {
+	store := NewStore()
+	store.AddProfile(Profile{
+		Name: "fleet-west",
+		Run: Section{
+			Default: Deny,
+			Entries: []Entry{
+				{Number: 10, Action: Allow, Match: "^show fleet device name edge-.*$", Regex: true},
+			},
+		},
+	})
+	store.AssignProfiles("operator", []string{"fleet-west"})
+
+	edgeCmd, edgeArgs := aaa.FleetDeviceReadTokens("edge-01")
+	coreCmd, coreArgs := aaa.FleetDeviceReadTokens("core-01")
+
+	auth := StoreAuthorizer{Store: store}
+	assert.True(t, auth.AuthorizeLocalScope("operator", edgeCmd, edgeArgs, true))
+	assert.False(t, auth.AuthorizeLocalScope("operator", coreCmd, coreArgs, true))
+	assert.False(t, auth.AuthorizeLocalScope("unassigned", edgeCmd, edgeArgs, true))
+
+	nilAuth := StoreAuthorizer{Store: nil}
+	assert.False(t, nilAuth.AuthorizeLocalScope("operator", edgeCmd, edgeArgs, true))
+}
+
+// VALIDATES: boundStoreAuthorizer.AuthorizeLocalScope uses only the bound
+// profile list and fails closed on nil store, empty profiles, or unknown names.
+// PREVENTS: a remote session with an unmapped or unknown profile gaining scope.
+func TestBoundStoreAuthorizerAuthorizeLocalScope(t *testing.T) {
+	store := NewStore()
+	store.AddProfile(Profile{
+		Name: "admin",
+		Run:  Section{Default: Allow},
+		Edit: Section{Default: Allow},
+	})
+	store.AddProfile(Profile{
+		Name: "fleet-west",
+		Run: Section{
+			Default: Deny,
+			Entries: []Entry{
+				{Number: 10, Action: Allow, Match: "^show fleet device name edge-.*$", Regex: true},
+			},
+		},
+	})
+	store.AssignProfiles("alice", []string{"admin"})
+
+	edgeCmd, edgeArgs := aaa.FleetDeviceReadTokens("edge-01")
+	coreCmd, coreArgs := aaa.FleetDeviceReadTokens("core-01")
+
+	base := StoreAuthorizer{Store: store}
+	bound := base.BindProfiles([]string{"fleet-west"})
+	allowed, supported := aaa.AuthorizeLocalScope(bound, "alice", edgeCmd, edgeArgs, true)
+	assert.True(t, supported)
+	assert.True(t, allowed)
+
+	allowed, supported = aaa.AuthorizeLocalScope(bound, "alice", coreCmd, coreArgs, true)
+	assert.True(t, supported)
+	assert.False(t, allowed, "bound profile must override static username admin assignment")
+
+	unknownBound := base.BindProfiles([]string{"does-not-exist"})
+	allowed, supported = aaa.AuthorizeLocalScope(unknownBound, "alice", edgeCmd, edgeArgs, true)
+	assert.True(t, supported)
+	assert.False(t, allowed, "unknown remote profile name must fail closed")
+
+	emptyBound := base.BindProfiles(nil)
+	allowed, supported = aaa.AuthorizeLocalScope(emptyBound, "alice", edgeCmd, edgeArgs, true)
+	assert.True(t, supported)
+	assert.False(t, allowed, "empty bound profiles must fail closed")
+
+	nilStoreBound := (StoreAuthorizer{Store: nil}).BindProfiles([]string{"fleet-west"})
+	allowed, supported = aaa.AuthorizeLocalScope(nilStoreBound, "alice", edgeCmd, edgeArgs, true)
+	assert.True(t, supported)
+	assert.False(t, allowed, "missing local store on bound profile must fail closed")
+}
