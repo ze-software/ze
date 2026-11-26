@@ -101,7 +101,7 @@ falls into:
 | Boundary test: clock leeway | 1 |
 | Key decision: move the MCP verifier to a core leaf | 1 |
 | Key decision: map subject to a Ze user | 2 |
-| Blast radius: the two Depends specs, `spec-mcp-protected-resource-metadata-path.md` | 1, 2, 3 |
+| Blast radius: the two Depends specs, `spec-mcp-protected-resource-metadata-path` (superseded by `d8e084c3eb`) | 1, 2, 3 |
 | Known limitation: mTLS client certificates | referenced by 3 and 6; absorbed by none |
 | Known limitation: certificate-bound tokens (RFC 8705 Section 3) | 6 |
 | Required reading, Current Behavior files, Files to Modify, Integration and Documentation checklists, Security Review rows, targeted runs | each row is carried by the child that changes that file or owns that check |
@@ -217,7 +217,7 @@ falls into:
 |----------|--------|
 | What breaks if this is wrong? | nothing in the product; the umbrella is planning only |
 | How is it reverted? | single commit revert |
-| Who else touches this path? | the six children; `spec-mgmt-mtls-client-certificate.md`; `plan/release/fixes/spec-mcp-protected-resource-metadata-path.md` |
+| Who else touches this path? | the six children; `spec-mgmt-mtls-client-certificate.md`; `spec-mcp-protected-resource-metadata-path` (superseded by `d8e084c3eb`) |
 
 ## Wiring Test (MANDATORY -- NOT deferrable)
 

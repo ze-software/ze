@@ -7,14 +7,14 @@
 | Priority | P0 |
 | Release reason | Security fail-open boundary: every plugin process, a program Ze did not ship included, is stamped with `aaa.ReservedInternalPrefix` on `dispatch-command` and `dispatch-command-args`, which the authorizer allows before any profile lookup, so any configured plugin runs any daemon command; and `route-install`, `route-remove` and `inject-wire-route` check no caller permission at all |
 | RFC gaps | - |
-| Depends | `plan/release/fixes/spec-explicit-plugin-and-attach-config.md` |
+| Depends | `spec-explicit-plugin-and-attach-config` (closed; superseded this skeleton) |
 | Phase | Design drafted 2026-11-23 on rulings R6 and R7. The check each operation makes today and the static fixture census are recorded (2026-11-23). Owed before the status moves to design: the capability of each operation, the design questions Q-T1 to Q-T4, the runtime capture of the per-fixture command set, the full Design documents verdicts and the changed-wire census |
 | Handoff | - |
 | Design tier | strongest tier |
 | Implementation tier | development tier |
-| Updated | 2026-11-23 |
+| Updated | 2026-11-26 |
 
-Child 3 of 3, split from `plan/release/fixes/spec-explicit-plugin-and-attach-config.md` (Child 1). The file keeps its name; the check it designs is no longer for external programs alone.
+Child 3 of 3, split from `spec-explicit-plugin-and-attach-config` (Child 1, closed). The file keeps its name; the check it designs is no longer for external programs alone.
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.
 
@@ -215,7 +215,7 @@ The full verdict table is owed before the status moves to design. The rows alrea
 |----------|---------|--------------|-------------------|---------|-----------------------------------|
 | `docs/architecture/plugin/plugin-system.md` | One plugin, two ways to reach the bus | page the plugin door names | "A behaviour that differs between the two kinds with no reason of this kind is a defect." | agrees | The check is the same for both kinds |
 | `docs/architecture/api/architecture.md` | Other command transports | page of `plugin/server` | "User identity for authorization is injected by the transport layer and is never accepted from the client payload:" | agrees | The plugin identity is still injected by the engine; what changes is that it is authorized, not waved through |
-| `docs/architecture/api/architecture.md` | Owner ruling: endpoints and flows on the bus | same page | "The command list is the permission for every command an external program sends" | departs | R6 and R7: the list is an allow-list that narrows what any plugin declared, compiled-in or external, and it is one list on the plugin's endpoint, not a list on a flow; page updated in the same work |
+| `docs/architecture/api/architecture.md` | Owner ruling: registered defaults, overrides, and `\| implied` | same page | "Registered defaults run when nothing is written." | agrees | Landed in closed `spec-explicit-plugin-and-attach-config`, which supersedes this skeleton |
 | `ai/doors/plugin-infra.md` | Boundaries | covering door | "One engine-op entry per RPC." | agrees | The capability is a field of that entry; no second path |
 | `ai/doors/access-security.md` | Who depends on it from outside | covering door | "Login is not an SSH feature." | agrees | Plugin profiles join the one policy generation every surface reads |
 

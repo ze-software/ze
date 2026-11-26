@@ -7,7 +7,7 @@
 | Priority | P1 |
 | Release reason | Shipped builds read a config node differently from what its YANG declares. With `ze_cos` built, the schema keeps the CoS module's copy of `interface ethernet`, `veth`, `dummy` and `bridge` and drops the interface module's list-level declarations (help, description, `ze:required`, `ze:suggest`, `unique`, related tools). The help of `system`, `environment`, `service`, `l2tp` and `interface` is the help of whichever module sorts first by name. The cause is the merge of a second definition, which has no guard, so the next shared leaf is replaced in silence too. This is a configuration defect in implemented capabilities (`plan/README.md`, `release/fixes/`, P1), not an absent feature. The defect is fixed first, in its own phase and commit (AC-1). The one-rule conversion that removes the cause follows in the same spec, because it is the same mechanism and the same release category, so `plan/README.md`, "Split fixes from features", calls for no split |
 | RFC gaps | - |
-| Depends | Moved here from `spec-plugin-external-yang-at-startup` (its D-6 and AC-44) by the owner's "ok" of 2026-11-17. Related: `plan/release/fixes/spec-config-yang-definition-order.md` decides the print order of augmented and merged children (its row "Contributed by another `-conf` module to a shared container") |
+| Depends | Moved here from `spec-plugin-external-yang-at-startup` (its D-6 and AC-44) by the owner's "ok" of 2026-11-17. Related: `spec-config-yang-definition-order` (landed) decides the print order of augmented and merged children (its row "Contributed by another `-conf` module to a shared container") |
 | Phase | - |
 | Handoff | - |
 | Design tier | development tier |

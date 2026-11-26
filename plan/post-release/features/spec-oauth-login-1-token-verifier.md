@@ -147,7 +147,7 @@ timeout: AC-6).
 |----------|--------|
 | What breaks if this is wrong? | MCP admits a token it should refuse, or refuses every token |
 | How is it reverted? | Single commit revert; config under the new provider container would then be refused |
-| Who else touches this path? | `plan/release/fixes/spec-mcp-protected-resource-metadata-path.md`; children 3 to 6 consume it |
+| Who else touches this path? | `spec-mcp-protected-resource-metadata-path` (superseded by `d8e084c3eb`); children 3 to 6 consume it |
 
 ## Wiring Test (MANDATORY -- NOT deferrable)
 | Entry Point | → | Feature Code | Test |

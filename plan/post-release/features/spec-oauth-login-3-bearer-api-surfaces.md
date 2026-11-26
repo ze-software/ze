@@ -138,7 +138,7 @@ mTLS was off (GHSA-4w7q-wwx4-6973): AC-3.
 |----------|--------|
 | What breaks if this is wrong? | A management surface admits a caller it should refuse |
 | How is it reverted? | Single commit revert; config selecting the OAuth mode would then be refused |
-| Who else touches this path? | The login-identity spec; `plan/release/fixes/spec-mcp-protected-resource-metadata-path.md`; `plan/post-release/features/spec-mgmt-mtls-client-certificate.md` (shares AC-3's header rule) |
+| Who else touches this path? | The login-identity spec; `spec-mcp-protected-resource-metadata-path` (superseded by `d8e084c3eb`); `plan/post-release/features/spec-mgmt-mtls-client-certificate.md` (shares AC-3's header rule) |
 
 ## Wiring Test (MANDATORY -- NOT deferrable)
 | Entry Point | → | Feature Code | Test |

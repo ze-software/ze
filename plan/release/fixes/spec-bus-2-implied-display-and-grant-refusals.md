@@ -7,14 +7,14 @@
 | Priority | P1 |
 | Release reason | Configuration correctness and transparency of shipped behavior: what a plugin registered and Ze runs on the operator's behalf is invisible on the CLI, editor, web UI and API; a config whose allow-list gives a feature less than it needs loads and moves nothing; and AIGP at its default makes validation demand a Loc-RIB feed the operator never asked for |
 | RFC gaps | - |
-| Depends | `plan/release/fixes/spec-explicit-plugin-and-attach-config.md` |
+| Depends | `spec-explicit-plugin-and-attach-config` (closed; superseded this skeleton) |
 | Phase | Design drafted 2026-11-23 on rulings R1 to R7. Owed before the status moves to design: the full Design documents verdicts, the changed-wire census, and the read of `rfc/short/rfc7311.md` |
 | Handoff | - |
 | Design tier | strongest tier |
 | Implementation tier | development tier |
-| Updated | 2026-11-23 |
+| Updated | 2026-11-26 |
 
-Child 2 of 3, split from `plan/release/fixes/spec-explicit-plugin-and-attach-config.md` (Child 1).
+Child 2 of 3, split from `spec-explicit-plugin-and-attach-config` (Child 1, closed).
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.
 
@@ -179,7 +179,7 @@ The full verdict table is owed before the status moves to design. The rows alrea
 |----------|---------|--------------|-------------------|---------|-----------------------------------|
 | `docs/architecture/api/architecture.md` | Owner ruling: implied and shown, or written | page of `bgp/config`, `plugin/server` | "A block the operator wrote that grants less than a feature the operator also configured needs is refused at commit, with the line that completes it." | agrees | The requirement check refuses it for every feature, redistribution included |
 | `docs/architecture/api/architecture.md` | The Implicit State Grant | same page | "an `attach process` block for that plugin that lacks `state` gets it, because freeing the member's per-peer state is the plugin's obligation, not the operator's" | agrees | Kept; restated as a declared requirement and shown with the `required` origin |
-| `docs/architecture/api/architecture.md` | The Two Bindings Ze Derives | same page | "Each is derived from a RULE, never from the block" | departs | Child 1 deletes the derived bindings; the rule now activates a declared requirement. Page updated in the same work |
+| `docs/architecture/api/architecture.md` | Feature Requirements (Replacing Derived Bindings) | same page | "Derived `ProcessBinding` entries are deleted." | agrees | Landed in closed `spec-explicit-plugin-and-attach-config`, which supersedes this skeleton |
 | `ai/doors/plugin-infra.md` | Boundaries | covering door | "The engine never enumerates plugins." | agrees | The three literals in `requireRIBDelivery` are deleted |
 | `ai/doors/commands-cli.md` | Boundaries | covering door | "A handler answers data, never text." | agrees | The implied view is data with an `implied-by` field; the text renderer and the envelope are presentations of it |
 | `docs/architecture/core-design.md` | Design decisions | decision rows on the page of `bgp/reactor/config.go` | "A configuration that holds such a mismatch is refused at daemon start as well as at commit, reload and `ze config validate`, by one verdict that is the same at each." | agrees | The requirement check gives one verdict at the same four points; it does not touch the data-plane guard |
@@ -350,7 +350,7 @@ The full verdict table is owed before the status moves to design. The rows alrea
 ## Known Limitations
 - gNMI `Get` returns the written configuration only.
 - The offline implied view refuses a config whose external program cannot be asked for its declaration.
-- The check on every command a plugin sends is owned by `plan/release/fixes/spec-bus-3-external-command-gating.md`.
+- The check on every command a plugin sends was owned by `spec-bus-3-external-command-gating` (superseded by closed `spec-explicit-plugin-and-attach-config`).
 
 ## Checklist
 

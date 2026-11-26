@@ -19,7 +19,7 @@ Family S3 of the journal backlog analysis (2026-10-23), part 2 of 3.
 
 | Topic | Decision |
 |-------|----------|
-| AC-10 (reload starting newly declared `external` plugins) | Dropped and superseded by `RefuseChangedDeclarations` (`ai/doors/plugin-infra.md`). External plugin declarations stay fixed while the daemon runs; `plan/release/fixes/spec-reload-starts-declared-external-programs.md` is likewise superseded and marked for removal. |
+| AC-10 (reload starting newly declared `external` plugins) | Dropped and superseded by `RefuseChangedDeclarations` (`ai/doors/plugin-infra.md`). External plugin declarations stay fixed while the daemon runs; `spec-reload-starts-declared-external-programs` is likewise superseded and removed. |
 
 ## Task
 

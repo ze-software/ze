@@ -6,7 +6,7 @@
 | Priority | P3 |
 | Release reason | Release-independent config yang compiled at build time work; historical findings do not establish a current product defect. |
 | Scope | config |
-| Depends | `plan/release/fixes/spec-config-yang-definition-order.md` and `plan/release/fixes/spec-config-yang-one-definer-per-node.md` land first (working order of 2026-11-18, "Order against the two release fixes") |
+| Depends | `spec-config-yang-definition-order` (landed) and `plan/release/fixes/spec-config-yang-one-definer-per-node.md` land first (working order of 2026-11-18, "Order against the two release fixes") |
 | Phase | - |
 | Handoff | - |
 | Updated | 2026-11-18 |
@@ -224,7 +224,7 @@ own checks under 4%. The lowering adds about 7% more.
 | The Stage 1 schema comparison | `plugin/server/stage1_schema.go` `refuseChangedSchema` | Compares a restarted plugin's declaration with the published set | Does not apply a change: it compares declarations |
 | Values kept for the process | `plugin/server/server.go` `NewServer`, `gnmi/server.go` `NewServer`, the backend gate schemas, `iface.ValidateIfaceName`, `cli/client` `loadYANGState`, `cli/testing/headless.go`, `Completer.valueSchema` | Built once from the module set; each keeper records itself or keys on the `Resolved` | Extends: each reads the linked value; C3 measures the other caches and deletes those with no measured need |
 | Resolve error census | `config/yang/schema_census_test.go` | Refuses a caller that drops the schema's error | Extends: narrows to the external compile in C3 |
-| The D-1 order function | `plan/release/fixes/spec-config-yang-definition-order.md` (replaces `sortedKeys` and `yangChildOrder`) | Orders a block's children by D-1 over goyang entries, once that fix lands | Extends: the emitter uses it for declared children, `Link` orders grafts by the same key, and it is the reference of the equivalence test |
+| The D-1 order function | `spec-config-yang-definition-order` (landed: `internal/component/config/yang_schema_order.go` `definitionOrder`, replaced `sortedKeys` and `yangChildOrder`) | Orders a block's children by D-1 over goyang entries | Extends: the emitter uses it for declared children, `Link` orders grafts by the same key, and it is the reference of the equivalence test |
 | One definer per config node | `plan/release/fixes/spec-config-yang-one-definer-per-node.md` (`Schema.Define` refuses a second definition) | Converts the shared roots to `augment`, once that fix lands | Does not apply a change: the compiled form compiles the converted roots as grafts and carries no merge |
 | goyang with vendor patches | `vendor/github.com/openconfig/goyang`, `internal/le/vendorpatch/patches/goyang-*.patch` | Upstream goyang with Ze's fixes applied at build time | Does not apply at run time for compiled-in modules after C3; the compiler keeps it |
 | Design history entry | `plan/learned/DESIGN-HISTORY.md`, Configuration, Abandoned approaches, "Generating a Go schema from YANG at build time" (166) | Records the reversal of 2026-10-16 | Does not apply a further change |
@@ -418,7 +418,7 @@ modules leave `config/yang` for `coreyang`.
 
 State on 2026-11-18: neither fix is built. `plan/release/fixes/spec-config-yang-one-definer-per-node.md`
 is at `design` (last commit `7504b8c5d2`); `Schema.Define` still merges
-(`config/schema.go` `mergeContainer`). `plan/release/fixes/spec-config-yang-definition-order.md`
+(`config/schema.go` `mergeContainer`). `spec-config-yang-definition-order` (landed)
 is at `ready` (last commits `c340d79ea1`, `07be15f079`, the latter building the
 sibling list-entry order, not D-1); `sortedKeys` and `yangChildOrder` still
 order children. Neither is in progress or claimed (`./le spec wip`). Working
@@ -778,7 +778,7 @@ Re-estimated 2026-11-18 from the re-measured reach.
 |------|------|
 | Joining external plugin YANG at startup, the offline rule, the restart rule | Built by `spec-plugin-external-yang-at-startup` |
 | One definer per config node, and the CoS-over-interface defect | `plan/release/fixes/spec-config-yang-one-definer-per-node.md` (lands first) |
-| Printing children in D-1 order | `plan/release/fixes/spec-config-yang-definition-order.md` (lands first) |
+| Printing children in D-1 order | `spec-config-yang-definition-order` (landed) |
 | The structural checks owed by the loader | `plan/release/fixes/spec-config-yang-loader-structural-checks.md` (Q6) |
 | Judging `ze:decorate` and `ze:backend` names at the join | `plan/post-release/features/spec-plugin-external-yang-judges-decorate-and-backend.md` |
 | `deviation`, `if-feature`, `identityref` | `plan/post-release/features/spec-config-yang-deviation.md`, `spec-config-yang-if-feature.md`, `spec-config-yang-type-identityref.md` (the generator refuses them until those land) |

@@ -16,7 +16,7 @@ Nothing is pushed and nothing is on main.
 | `0bd72d74ab` | Journal: two hook defects met in a nested worktree |
 | `43b03dcca6`, `0290d55afe`, `81ff5ecf79`, `f7cbd72b27` | The definition-order fix: audit, the order function and every producer, unit tests on every printer, three functional tests |
 
-## Definition order (`plan/release/fixes/spec-config-yang-definition-order.md`)
+## Definition order (`spec-config-yang-definition-order`, landed and closed)
 
 Built and proven. Not closed: the spec's closure (review gate, the two closing
 commits) has not been run.
