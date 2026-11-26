@@ -11,8 +11,6 @@
 package hub
 
 import (
-	"fmt"
-
 	zeconfig "github.com/ze-software/ze/internal/component/config"
 	"github.com/ze-software/ze/internal/component/engine"
 	"github.com/ze-software/ze/internal/component/l2tp"
@@ -20,42 +18,75 @@ import (
 	_ "github.com/ze-software/ze/internal/component/l2tp/pppoeclient"
 )
 
+const (
+	bngBlockL2TP  = "l2tp"
+	bngBlockPPPoE = "pppoe"
+)
+
 func init() {
 	bngRegister = registerBNGSubsystems
 }
 
-// registerBNGSubsystems is the moved main.go construction block: it registers
-// the L2TP subsystem when the operator asked for it (Enabled or at least one
-// listener configured) and the PPPoE subsystem always (it starts idle when the
-// config does not enable it), and returns the web portal entries to advertise.
-func registerBNGSubsystems(loadTree *zeconfig.Tree, configTree map[string]any, eng *engine.Engine) ([]webPortalService, error) {
+// registerBNGSubsystems extracts the L2TP and PPPoE parameters and registers
+// each subsystem independently with the engine: L2TP when the operator asked
+// for it (Enabled or at least one listener configured) and PPPoE always (it
+// starts idle when the config does not enable it). A parse or registration
+// error in one subsystem records it in the returned not-started slice and never
+// prevents the other from registering.
+func registerBNGSubsystems(loadTree *zeconfig.Tree, configTree map[string]any, configPath string, eng *engine.Engine) ([]webPortalService, []serviceNotStarted) {
 	var portals []webPortalService
+	var down []serviceNotStarted
 
-	// L2TP subsystem. ExtractParameters returns a zero-value struct when the
-	// config tree has no l2tp block; we only register with the engine when
-	// the operator actually asked for L2TP.
+	portal, l2tpDown := registerL2TPSubsystem(loadTree, configPath, eng)
+	if l2tpDown != nil {
+		down = append(down, *l2tpDown)
+	}
+	if portal != nil {
+		portals = append(portals, *portal)
+	}
+
+	if pppoeDown := registerPPPoESubsystem(configTree, configPath, eng); pppoeDown != nil {
+		down = append(down, *pppoeDown)
+	}
+
+	return portals, down
+}
+
+// registerL2TPSubsystem extracts the l2tp block and registers the L2TP
+// subsystem when the operator asked for it. ExtractParameters returns a
+// zero-value struct when the config tree has no l2tp block, in which case both
+// returned pointers are nil.
+func registerL2TPSubsystem(loadTree *zeconfig.Tree, configPath string, eng *engine.Engine) (*webPortalService, *serviceNotStarted) {
 	l2tpParams, l2tpErr := l2tp.ExtractParameters(loadTree)
 	if l2tpErr != nil {
-		return nil, fmt.Errorf("parse l2tp config: %w", l2tpErr)
+		d := notStarted(serviceNameL2TP, blockUnservable(serviceNameL2TP, bngBlockL2TP, configPath, l2tpErr))
+		return nil, &d
 	}
-	if l2tpParams.Enabled || len(l2tpParams.ListenAddrs) > 0 {
-		if regErr := eng.RegisterSubsystem(l2tp.NewSubsystem(&l2tpParams)); regErr != nil {
-			return nil, fmt.Errorf("register l2tp subsystem: %w", regErr)
-		}
-		portals = append(portals, webPortalService{Key: "l2tp", Title: "L2TP Sessions", Path: "/l2tp"})
+	if !l2tpParams.Enabled && len(l2tpParams.ListenAddrs) == 0 {
+		return nil, nil
 	}
+	if regErr := eng.RegisterSubsystem(l2tp.NewSubsystem(&l2tpParams)); regErr != nil {
+		d := notStarted(serviceNameL2TP, buildFailed(serviceNameL2TP, bngBlockL2TP, regErr))
+		return nil, &d
+	}
+	return &webPortalService{Key: bngBlockL2TP, Title: "L2TP Sessions", Path: "/l2tp"}, nil
+}
 
-	// PPPoE subsystem. It is registered whatever the boot config says: a
-	// subsystem that is disabled, or names no access interface, starts idle,
-	// and its Reload starts it when a commit enables it. Registering it only
-	// for a boot config that already enabled it left a later `pppoe` commit
-	// with no Reload to reach, accepted and never applied.
+// registerPPPoESubsystem extracts the pppoe block and registers the PPPoE
+// subsystem whatever the boot config says: a subsystem that is disabled, or
+// names no access interface, starts idle, and its Reload starts it when a
+// commit enables it. Registering it only for a boot config that already enabled
+// it left a later `pppoe` commit with no Reload to reach, accepted and never
+// applied.
+func registerPPPoESubsystem(configTree map[string]any, configPath string, eng *engine.Engine) *serviceNotStarted {
 	pppoeParams, pppoeErr := pppoe.ExtractParameters(configTree)
 	if pppoeErr != nil {
-		return nil, fmt.Errorf("parse pppoe config: %w", pppoeErr)
+		d := notStarted(serviceNamePPPoE, blockUnservable(serviceNamePPPoE, bngBlockPPPoE, configPath, pppoeErr))
+		return &d
 	}
 	if regErr := eng.RegisterSubsystem(pppoe.NewSubsystem(pppoeParams)); regErr != nil {
-		return nil, fmt.Errorf("register pppoe subsystem: %w", regErr)
+		d := notStarted(serviceNamePPPoE, buildFailed(serviceNamePPPoE, bngBlockPPPoE, regErr))
+		return &d
 	}
-	return portals, nil
+	return nil
 }

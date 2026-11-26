@@ -1,0 +1,87 @@
+# Test: ze starts when a service block names an undefined PKI certificate.
+#
+# The one question: does `ze start` reach "Ze running", leave the web server
+# down and reported under doctor-service-not-started, serve the looking-glass
+# HTTP endpoint, and leave the config file on disk untouched when
+# `environment web certificate` names an undefined PKI certificate
+# (`no-such-cert`), while `ze config validate` and `ze doctor` still refuse the
+# same file?
+#
+# VALIDATES: the owner ruling of 2026-11-26, Answer 1a
+#            (plan/records/ruling-ze-always-starts.md): a validation or
+#            ze:reference failure scoped to a registered service block drops
+#            only that block from the in-memory tree at start and reports it
+#            under doctor-service-not-started, while the stored file stays
+#            untouched and `ze config validate` stays strict. `ze init` seeds a
+#            real store so the web server would bind 127.0.0.1:$PORT if the
+#            block were not excluded.
+# PREVENTS: a typo in one service's certificate name stopping `ze start` at
+#           "load config" and bringing up no networking; and a start that
+#           rewrites the stored config file without the excluded block.
+#
+# RED before the change: `ze start` exits 1 at "load config" with
+# "no-such-cert" and never prints "Ze running".
+
+option=timeout:value=90s
+option=env:var=ZE_CONFIG_DIR:value=.
+
+stdin=init-answers:terminator=EOF_INIT
+admin
+secret123
+127.0.0.1
+$PORT3
+EOF_INIT
+
+tmpfs=undefined-cert.conf:terminator=EOF_CONF
+environment {
+	web {
+		enabled true
+		certificate no-such-cert
+		server main {
+			ip 127.0.0.1
+			port $PORT
+		}
+	}
+	looking-glass {
+		enabled true
+		server public {
+			ip 127.0.0.1
+			port $PORT2
+			tls false
+		}
+	}
+}
+EOF_CONF
+
+# Seed the store so the web server would bind 127.0.0.1:$PORT if not excluded.
+cmd=foreground:seq=1:exec=ze init:stdin=init-answers:exit=0
+
+# `ze config validate` stays strict and refuses the undefined certificate.
+cmd=foreground:seq=2:exec=ze config validate undefined-cert.conf
+expect=exit:code=1
+expect=stdout:contains=no-such-cert
+
+# `ze doctor` refuses the config through ReadConfig and names the bad reference.
+cmd=foreground:seq=3:exec=ze doctor --json config undefined-cert.conf
+expect=exit:code=1
+expect=stdout:contains=doctor-config-parse
+expect=stdout:contains=no-such-cert
+
+# The daemon starts: "Ze running" is printed only after every service was built.
+cmd=background:seq=4:exec=ze start undefined-cert.conf:name=daemon:ready=Ze running
+expect=stderr:contains=the web server is not started; ze and its other services keep running
+expect=stderr:contains=no-such-cert
+expect=stderr:contains=code=doctor-service-not-started
+expect=stderr:contains=looking glass listening on http://127.0.0.1:
+reject=stderr:contains=web server listening
+reject=stderr:contains=msg="startup failed"
+
+# The looking glass answers HTTP, and the excluded web block is not bound.
+cmd=foreground:seq=5:exec=le test http-get http://127.0.0.1:$PORT2/lg/search:exit=0
+cmd=foreground:seq=6:exec=le test http-get http://127.0.0.1:$PORT/:exit=1
+cmd=stop:seq=7:name=daemon:signal=term
+
+# The config file on disk stays untouched: validate still sees no-such-cert.
+cmd=foreground:seq=8:exec=ze config validate undefined-cert.conf
+expect=exit:code=1
+expect=stdout:contains=no-such-cert

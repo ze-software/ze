@@ -19,6 +19,7 @@ package hub
 
 import (
 	"bytes"
+	"context"
 	"errors"
 	"os"
 	"path/filepath"
@@ -33,6 +34,7 @@ import (
 	"github.com/ze-software/ze/internal/component/config/storage"
 	"github.com/ze-software/ze/internal/component/engine"
 	"github.com/ze-software/ze/internal/core/env"
+	"github.com/ze-software/ze/pkg/ze"
 )
 
 const (
@@ -96,6 +98,17 @@ func registerStartEvolution(t *testing.T) {
 	t.Cleanup(func() { resetEvolutions(t) })
 }
 
+// evolveStartStopSubsystem halts engine startup immediately after the BNG
+// registration seam has captured the evolved tree and boot bytes.
+type evolveStartStopSubsystem struct{}
+
+func (*evolveStartStopSubsystem) Name() string { return "evolve-start-stop" }
+func (*evolveStartStopSubsystem) Start(context.Context, ze.EventBus, ze.ConfigProvider) error {
+	return errEvolveStartReached
+}
+func (*evolveStartStopSubsystem) Stop(context.Context) error                      { return nil }
+func (*evolveStartStopSubsystem) Reload(context.Context, ze.ConfigProvider) error { return nil }
+
 // evolveStart is what one start answered up to the BNG registration seam.
 type evolveStart struct {
 	exit   int
@@ -118,14 +131,15 @@ func startUntilBNG(t *testing.T, store storage.Storage, configPath string, data 
 	t.Cleanup(func() { bngRegister = oldBNG })
 
 	var start evolveStart
-	bngRegister = func(tree *zeconfig.Tree, _ map[string]any, _ *engine.Engine) ([]webPortalService, error) {
+	bngRegister = func(tree *zeconfig.Tree, _ map[string]any, _ string, eng *engine.Engine) ([]webPortalService, []serviceNotStarted) {
 		start.tree = tree
 		booted, err := store.ReadFile(configPath)
 		if err != nil {
 			t.Errorf("read the boot bytes at the BNG registration: %v", err)
 		}
 		start.booted = booted
-		return nil, errEvolveStartReached
+		require.NoError(t, eng.RegisterSubsystem(&evolveStartStopSubsystem{}))
+		return nil, nil
 	}
 
 	output, err := os.CreateTemp(t.TempDir(), "evolve-start-stderr-")
@@ -222,4 +236,77 @@ func TestStartLeavesACurrentFileAlone(t *testing.T) {
 	require.True(t, bytes.Equal(original, disk), "a current file is not written back:\n%s", disk)
 	require.True(t, bytes.Equal(original, start.booted), "a current file boots as written:\n%s", start.booted)
 	require.False(t, strings.Contains(start.stderr, evolveStartWarned), "a current file is warned of no change:\n%s", start.stderr)
+}
+
+// TestApplyEvolutionsSkipsWriteBackWhenSaveToStoreFalse checks that when start
+// excluded invalid service blocks (saveToStore == false), applyEvolutions still
+// returns the evolved tree in memory while leaving the stored file on disk and
+// its history untouched, and warns that the evolution was not saved.
+func TestApplyEvolutionsSkipsWriteBackWhenSaveToStoreFalse(t *testing.T) {
+	// VALIDATES: applyEvolutions with saveToStore == false runs evolutions in
+	// memory, returns the evolved tree, keeps data and the file on disk
+	// byte-for-byte identical, writes no version to the store, and logs a
+	// warning under doctor-config-evolved naming why it was not saved.
+	// PREVENTS: writing a pruned in-memory tree back to disk during schema
+	// evolution, which would erase the excluded service block from the
+	// operator's config file.
+	t.Run("behavior-changing evolution with notice", func(t *testing.T) {
+		defer evolveTestSetup(t)()
+		registerStartEvolution(t)
+
+		configPath := filepath.Join(t.TempDir(), "config.conf")
+		original := []byte("# ze-schema: " + evolveStartOld + "\n" + evolveStartBody)
+		require.NoError(t, os.WriteFile(configPath, original, 0o600))
+		store := newTestFileStore(t, configPath)
+		tree, err := parseTestConfig(t, string(original))
+		require.NoError(t, err)
+
+		var logged bytes.Buffer
+		outcome, evolveErr := applyEvolutions(defaultLevelLogger(&logged), store, configPath, original, tree, evolveStartOld, false)
+		require.NoError(t, evolveErr)
+		require.Equal(t, []string{evolveStartName}, outcome.applied)
+		require.Equal(t, "error", evolveStartLevel(outcome.tree), "the running daemon receives the evolved tree in memory")
+		require.True(t, bytes.Equal(original, outcome.data), "returned bytes stay untouched")
+
+		disk, err := os.ReadFile(configPath)
+		require.NoError(t, err)
+		require.True(t, bytes.Equal(original, disk), "the stored file on disk must stay byte-for-byte untouched:\n%s", disk)
+
+		entries, err := store.ListVersions(configPath)
+		require.NoError(t, err)
+		require.Empty(t, entries, "no version is written to the store when saveToStore is false")
+
+		for _, want := range []string{"level=WARN", "code=" + codeDoctorConfigEvolved, configPath, evolveStartName, "not saved", "excluded"} {
+			require.Contains(t, logged.String(), want)
+		}
+	})
+
+	t.Run("shape-only evolution without notice", func(t *testing.T) {
+		defer evolveTestSetup(t)()
+		defer registerTestEvolution(t, "26.06.01", "shape-excluded")()
+
+		configPath := filepath.Join(t.TempDir(), "config.conf")
+		original := []byte("# ze-schema: " + evolveStartOld + "\n" + evolveStartBody)
+		require.NoError(t, os.WriteFile(configPath, original, 0o600))
+		store := newTestFileStore(t, configPath)
+		tree, err := parseTestConfig(t, string(original))
+		require.NoError(t, err)
+
+		var logged bytes.Buffer
+		outcome, evolveErr := applyEvolutions(defaultLevelLogger(&logged), store, configPath, original, tree, evolveStartOld, false)
+		require.NoError(t, evolveErr)
+		require.Equal(t, []string{"shape-excluded"}, outcome.applied)
+		val, ok := outcome.tree.Get("evolved-shape-excluded")
+		require.True(t, ok, "the shape evolution still applies in memory")
+		require.Equal(t, "yes", val)
+		require.True(t, bytes.Equal(original, outcome.data), "returned bytes stay untouched")
+
+		disk, err := os.ReadFile(configPath)
+		require.NoError(t, err)
+		require.True(t, bytes.Equal(original, disk), "the stored file on disk must stay byte-for-byte untouched:\n%s", disk)
+
+		for _, want := range []string{"level=WARN", "code=" + codeDoctorConfigEvolved, configPath, "not saved", "excluded", "ze config validate " + configPath} {
+			require.Contains(t, logged.String(), want)
+		}
+	})
 }

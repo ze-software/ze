@@ -1,12 +1,14 @@
-# Test: the boot guard refuses an unauthenticated non-loopback gNMI listener
-# VALIDATES: spec-fixit-mgmt-listener-auth-guard AC-1 -- gNMI enabled with no
-# token and no listen override binds the 0.0.0.0:9339 default, which serves
-# unauthenticated Get AND Set (gNMI installs its auth interceptors only when a
-# token is set, and checkAuth allows on an empty token). The daemon must exit 1
-# before anything binds, naming the service, the offending address, and the
-# remedy.
+# Test: the boot guard leaves an unauthenticated non-loopback gNMI listener down while ze starts
+# VALIDATES: spec-fixit-mgmt-listener-auth-guard AC-1 and the 2026-11-26 ruling
+# (plan/records/ruling-ze-always-starts.md) -- gNMI enabled with no token and no
+# listen override binds the 0.0.0.0:9339 default, which serves unauthenticated
+# Get AND Set (gNMI installs its auth interceptors only when a token is set, and
+# checkAuth allows on an empty token). The daemon must start, keep gNMI down,
+# and report the breach under doctor-service-not-started naming the service, the
+# offending address, and the remedy.
 # PREVENTS: an operator writing four lines of config and publishing a full
-# read-write configuration surface on every interface with no credential.
+# read-write configuration surface on every interface with no credential, or
+# locking the operator out of the box by refusing to start ze.
 
 option=exclusive:group=mgmt-guard
 
@@ -18,7 +20,9 @@ environment {
 }
 EOF_CONF
 
-cmd=foreground:seq=1:exec=ze -:stdin=ze-bgp:timeout=15s
-expect=exit:code=1
+cmd=background:seq=1:name=daemon:exec=ze -:stdin=ze-bgp:ready=Ze running
 expect=stderr:contains=refusing to start gNMI on non-loopback listener "0.0.0.0:9339" without authentication
 expect=stderr:contains=set environment gnmi token <token>
+expect=stderr:contains=code=doctor-service-not-started
+reject=stderr:contains=gNMI server listening
+cmd=stop:seq=2:name=daemon:signal=term

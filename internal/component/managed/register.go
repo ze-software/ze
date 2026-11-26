@@ -11,6 +11,7 @@ package managed
 import (
 	"github.com/ze-software/ze/internal/component/command"
 	"github.com/ze-software/ze/internal/component/command/registry"
+	"github.com/ze-software/ze/internal/component/config"
 	pluginserver "github.com/ze-software/ze/internal/component/plugin/server"
 	"github.com/ze-software/ze/internal/core/audit"
 	"github.com/ze-software/ze/internal/core/diagnostic"
@@ -21,6 +22,13 @@ import (
 const commandModeOffline = "offline"
 
 func init() {
+	if err := config.RegisterServiceBlock("bus/hub/server[*]", "managed fleet server"); err != nil {
+		panic("BUG: managed: server service block registration: " + err.Error())
+	}
+	if err := config.RegisterServiceBlock("bus/hub/client[*]", "managed fleet client"); err != nil {
+		panic("BUG: managed: client service block registration: " + err.Error())
+	}
+
 	pluginserver.RegisterRPCs(
 		pluginserver.RPCRegistration{WireMethod: "ze-managed:fleet-devices", Handler: handleFleetDevices},
 		pluginserver.RPCRegistration{WireMethod: "ze-managed:fleet-device", Handler: handleFleetDevice, Complete: completeFleetDevices},

@@ -9,6 +9,11 @@
 
 package hub
 
+import zeconfig "github.com/ze-software/ze/internal/component/config"
+
 func init() {
+	if err := zeconfig.RegisterServiceBlock("environment/api-server/rest", serviceNameREST); err != nil {
+		panic("BUG: hub-rest: service block registration: " + err.Error())
+	}
 	restBuild = restBuildImpl
 }

@@ -43,6 +43,10 @@ type LoadConfigResult struct {
 	// publishes a recovered rollback re-stamped with this binary's release, so
 	// only this field still says which release saved the rollback.
 	StampRelease string
+	// ExcludedBlocks records every registered service block LoadConfigForStart
+	// dropped from the in-memory Tree because its configuration failed
+	// validation. Always nil for LoadConfig and ReadConfig.
+	ExcludedBlocks []ExcludedBlock
 }
 
 // LoadConfig parses config with CLI plugin YANG schemas, extracts and resolves
@@ -54,7 +58,17 @@ type LoadConfigResult struct {
 // command, a doctor or support report, a candidate's validation) calls
 // ReadConfig instead, or a read changes the running process's settings.
 func LoadConfig(input, configPath string, cliPlugins []string) (*LoadConfigResult, error) {
-	return loadConfig(input, configPath, cliPlugins, applyParsedEnvironment)
+	return loadConfig(input, configPath, cliPlugins, applyParsedEnvironment, false)
+}
+
+// LoadConfigForStart parses and validates config for daemon startup. Unlike
+// LoadConfig, a validation failure scoped to a registered service block drops
+// only that block from the returned in-memory tree and records it in
+// LoadConfigResult.ExcludedBlocks, so the daemon starts its remaining services
+// and reports the excluded ones. Any unscoped failure still refuses the load
+// with the same error LoadConfig returns.
+func LoadConfigForStart(input, configPath string, cliPlugins []string) (*LoadConfigResult, error) {
+	return loadConfig(input, configPath, cliPlugins, applyParsedEnvironment, true)
 }
 
 // ReadConfig answers what LoadConfig answers for the same input, through the
@@ -62,7 +76,7 @@ func LoadConfig(input, configPath string, cliPlugins []string) (*LoadConfigResul
 // running process: the file's `environment { }` block stays in the returned
 // tree and never reaches this process's log or env layers.
 func ReadConfig(input, configPath string, cliPlugins []string) (*LoadConfigResult, error) {
-	return loadConfig(input, configPath, cliPlugins, nil)
+	return loadConfig(input, configPath, cliPlugins, nil, false)
 }
 
 // LoadRunningConfig reconstructs an already validated canonical running map and
@@ -90,11 +104,13 @@ func LoadRunningConfig(running map[string]any, configPath string, cliPlugins []s
 	return result, nil
 }
 
-// loadConfig is the one body of LoadConfig and ReadConfig. publish is called
-// with the validated tree at the point where refusal by the validators is no
-// longer possible; nil publishes nothing, which is ReadConfig's whole
-// difference.
-func loadConfig(input, configPath string, cliPlugins []string, publish func(*Tree)) (*LoadConfigResult, error) {
+// loadConfig is the one body of LoadConfig, LoadConfigForStart, and ReadConfig.
+// publish is called with the validated tree at the point where refusal by the
+// validators is no longer possible; nil publishes nothing, which is
+// ReadConfig's whole difference. When startMode is true, failures scoped to a
+// registered service block drop that block from the in-memory tree instead of
+// refusing the whole load.
+func loadConfig(input, configPath string, cliPlugins []string, publish func(*Tree), startMode bool) (*LoadConfigResult, error) {
 	// The module texts of the compiled-in plugins named on the command line.
 	// A plugin whose module its yang package's init() registered adds nothing:
 	// the process's module set holds that text already, and the join leaves it
@@ -120,13 +136,25 @@ func loadConfig(input, configPath string, cliPlugins []string, publish func(*Tre
 	// start and at SIGHUP reload and a hand-edited value reached the wire
 	// unvalidated (spec-fixit-config-validators-bypassed-at-startup).
 	//
-	// Refusing here is also what makes the reload refuse, with no machinery of
-	// its own: runReload (cmd/ze/hub/main_reload.go) turns this error into
-	// "reload: ", clears the staged candidate and returns before
-	// ReloadConfig, the provider refresh and engine.Reload run, so the daemon
-	// keeps serving the config it already has (Thomas, 2026-08-11).
-	if err := refuseInvalidCustomSections(tree); err != nil {
-		return nil, err
+	// Refusing here when startMode is false is also what makes the reload
+	// refuse, with no machinery of its own: runReload (cmd/ze/hub/main_reload.go)
+	// turns this error into "reload: ", clears the staged candidate and returns
+	// before ReloadConfig, the provider refresh and engine.Reload run, so the
+	// daemon keeps serving the config it already has (Thomas, 2026-08-11).
+	//
+	// When startMode is true (LoadConfigForStart), failures scoped to a
+	// registered service block drop only that block from the in-memory tree and
+	// record it in ExcludedBlocks; unscoped failures still refuse identically.
+	var excluded []ExcludedBlock
+	if startMode {
+		excluded, err = excludeInvalidServiceBlocks(tree)
+		if err != nil {
+			return nil, err
+		}
+	} else {
+		if err := refuseInvalidCustomSections(tree); err != nil {
+			return nil, err
+		}
 	}
 	// A config that needs a plugin this build lacks is refused here, before any
 	// plugin starts, by the same check the validate and commit doors run
@@ -192,6 +220,7 @@ func loadConfig(input, configPath string, cliPlugins []string, publish func(*Tre
 	result.CandidateSelection = selection
 	result.HasCandidateSelection = true
 	result.StampRelease = ScanStampRelease([]byte(input))
+	result.ExcludedBlocks = excluded
 	return result, nil
 }
 

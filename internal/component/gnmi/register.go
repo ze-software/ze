@@ -9,10 +9,15 @@
 package gnmi
 
 import (
+	zeconfig "github.com/ze-software/ze/internal/component/config"
 	"github.com/ze-software/ze/internal/core/diagnostic"
 )
 
 func init() {
+	if err := zeconfig.RegisterServiceBlock("environment/gnmi", "gNMI server"); err != nil {
+		panic("BUG: gnmi: service block registration: " + err.Error())
+	}
+
 	// A refusal is a programmer error in the declaration beside it -- a
 	// duplicate name, a phase that does not exist, a code without the doctor
 	// prefix -- and none of them can be reached from a config or a peer, so it

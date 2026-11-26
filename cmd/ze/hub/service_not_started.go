@@ -12,6 +12,7 @@
 // its config: the local `ze doctor` process holds none of that.
 //
 // Related: register_services_not_started.go -- the doctor check that reads the record
+// Related: register_l2tp.go -- registerBNGSubsystems, which returns per-subsystem serviceNotStarted records
 // Related: service_tls.go -- reportWebNotStarted, the certificate form of the same report
 // Related: lg_transport.go -- reportLGNotStarted and reportLGServerDown, the looking-glass forms
 // Related: doctor_codes.go -- the explanation of codeDoctorServiceNotStarted
@@ -33,10 +34,12 @@ import (
 
 // The names a report gives the services the start path can leave down.
 const (
-	serviceNameWeb  = "web server"
-	serviceNameMCP  = "MCP server"
-	serviceNameREST = "REST API"
-	serviceNameGRPC = "gRPC API"
+	serviceNameWeb   = "web server"
+	serviceNameMCP   = "MCP server"
+	serviceNameREST  = "REST API"
+	serviceNameGRPC  = "gRPC API"
+	serviceNameL2TP  = "L2TP subsystem"
+	serviceNamePPPoE = "PPPoE subsystem"
 )
 
 // keepsRunning ends every effect: the operator reads that ze itself is up.
@@ -161,6 +164,29 @@ func splitListenHostPort(service, key, value, example string) (host, port string
 		return "", "", listenUnreadable(service, key, value, example, err)
 	}
 	return host, port, nil
+}
+
+// configBlockDisplay formats a config tree path such as "environment/web" or
+// "bus/hub/server[main]" in the space-separated syntax an operator writes in
+// configuration and commands ("environment web", "bus hub server main").
+func configBlockDisplay(path string) string {
+	var tb textbuf.Buffer
+	needSpace := false
+	for i := range len(path) {
+		switch ch := path[i]; ch {
+		case '/', '[', ']':
+			if tb.Len() > 0 {
+				needSpace = true
+			}
+		default:
+			if needSpace {
+				tb.Byte(' ')
+				needSpace = false
+			}
+			tb.Byte(ch)
+		}
+	}
+	return tb.String()
 }
 
 // blockUnservable answers the operator error of a service whose config block

@@ -12,17 +12,23 @@ import (
 )
 
 func init() {
+	if err := config.RegisterServiceBlock(SubsystemName, "L2TP subsystem"); err != nil {
+		panic("BUG: l2tp: service block registration: " + err.Error())
+	}
+	if err := config.RegisterServiceBlock("environment/l2tp", "L2TP subsystem"); err != nil {
+		panic("BUG: l2tp: environment service block registration: " + err.Error())
+	}
 	// UDPListener.Start (listener.go) binds every IPv6 listener with
 	// IPV6_V6ONLY, so `0.0.0.0` and `::` on one port both bind. Conflict
 	// validation must know it, or it refuses the pair as a dual-stack overlap.
-	config.RegisterListenerV6Only("l2tp")
-	if err := config.RegisterTreeValidator("l2tp-mru-policy", validateMRUPolicy); err != nil {
+	config.RegisterListenerV6Only(SubsystemName)
+	if err := config.RegisterScopedTreeValidator("l2tp-mru-policy", SubsystemName, validateMRUPolicy); err != nil {
 		panic("BUG: registering l2tp MRU policy: " + err.Error())
 	}
-	if err := config.RegisterTreeValidator("l2tp-auth-policy", validateAuthPolicy); err != nil {
+	if err := config.RegisterScopedTreeValidator("l2tp-auth-policy", SubsystemName, validateAuthPolicy); err != nil {
 		panic("BUG: registering l2tp authentication policy: " + err.Error())
 	}
-	if err := config.RegisterTreeValidator("l2tp-parameters", validateParameters); err != nil {
+	if err := config.RegisterScopedTreeValidator("l2tp-parameters", SubsystemName, validateParameters); err != nil {
 		panic("BUG: registering l2tp parameters: " + err.Error())
 	}
 	if err := registry.RegisterDataPlaneFeature(registry.DataPlaneFeature{

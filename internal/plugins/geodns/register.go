@@ -94,6 +94,10 @@ func init() {
 	// 5300 is held by something else.
 	config.RegisterListenerProtocols("service-geodns-listener", config.ProtocolUDP, config.ProtocolTCP)
 
+	if err := config.RegisterServiceBlock("service/geodns", "GeoDNS service"); err != nil {
+		panic("BUG: geodns: service block registration: " + err.Error())
+	}
+
 	pluginserver.RegisterRPCs(pluginserver.RPCRegistration{
 		WireMethod: "ze-geodns:show-geodns",
 		Handler:    handleShowGeoDNS,

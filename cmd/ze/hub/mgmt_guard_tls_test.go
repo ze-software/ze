@@ -1,5 +1,5 @@
 // Design: ai/rules/evidence.md -- boot-time management-listener TLS exposure guard
-// Related: mgmt_guard.go -- checkMgmtListeners, checkMgmtListenerTLS
+// Related: mgmt_guard.go -- filterMgmtListener
 // Related: gnmi_infra.go -- gnmiMgmtListener
 
 package hub
@@ -13,103 +13,114 @@ import (
 	zeconfig "github.com/ze-software/ze/internal/component/config"
 )
 
-// VALIDATES: checkMgmtListeners refuses any non-loopback listener that marks
-// requireTLS without TLS configured, allows loopback without TLS, allows
-// non-loopback when both auth and TLS are configured, and fails closed when an
-// unencrypted requireTLS listener carries no resolved addresses.
+// VALIDATES: filterMgmtListener refuses any non-loopback listener that marks
+// requireTLS without TLS configured (while keeping loopback addresses in
+// allowed), allows loopback without TLS, allows non-loopback when both auth
+// and TLS are configured, and fails closed when an unencrypted requireTLS
+// listener carries no resolved addresses.
 // PREVENTS: bearer tokens and management traffic crossing the network in clear
 // text on a non-loopback listener.
-// Method: table-drives checkMgmtListeners directly across all address/auth/TLS
+// Method: table-drives filterMgmtListener directly across all address/auth/TLS
 // combinations.
 func TestCheckMgmtListenersRequireTLS(t *testing.T) {
 	tests := []struct {
 		name        string
-		listeners   []mgmtListener
+		listener    mgmtListener
 		wantRefused bool
+		wantAllowed []string
 	}{
 		{
 			name: "non-loopback authenticated without TLS refused",
-			listeners: []mgmtListener{{
+			listener: mgmtListener{
 				service:       "gNMI",
 				addrs:         []string{"0.0.0.0:9339"},
 				authenticated: true,
 				requireTLS:    true,
 				tlsConfigured: false,
 				tlsRemedy:     "set TLS cert and key",
-			}},
+			},
 			wantRefused: true,
+			wantAllowed: nil,
 		},
 		{
 			name: "non-loopback unauthenticated without TLS refused",
-			listeners: []mgmtListener{{
+			listener: mgmtListener{
 				service:       "gNMI",
 				addrs:         []string{"0.0.0.0:9339"},
 				authenticated: false,
 				requireTLS:    true,
 				tlsConfigured: false,
-			}},
+			},
 			wantRefused: true,
+			wantAllowed: nil,
 		},
 		{
 			name: "loopback unauthenticated without TLS allowed",
-			listeners: []mgmtListener{{
+			listener: mgmtListener{
 				service:       "gNMI",
 				addrs:         []string{"127.0.0.1:9339"},
 				authenticated: false,
 				requireTLS:    true,
 				tlsConfigured: false,
-			}},
+			},
 			wantRefused: false,
+			wantAllowed: []string{"127.0.0.1:9339"},
 		},
 		{
 			name: "loopback authenticated without TLS allowed",
-			listeners: []mgmtListener{{
+			listener: mgmtListener{
 				service:       "gNMI",
 				addrs:         []string{"[::1]:9339"},
 				authenticated: true,
 				requireTLS:    true,
 				tlsConfigured: false,
-			}},
+			},
 			wantRefused: false,
+			wantAllowed: []string{"[::1]:9339"},
 		},
 		{
 			name: "non-loopback authenticated with TLS allowed",
-			listeners: []mgmtListener{{
+			listener: mgmtListener{
 				service:       "gNMI",
 				addrs:         []string{"0.0.0.0:9339"},
 				authenticated: true,
 				requireTLS:    true,
 				tlsConfigured: true,
-			}},
+			},
 			wantRefused: false,
+			wantAllowed: []string{"0.0.0.0:9339"},
 		},
 		{
 			name: "requireTLS without TLS and no resolved addresses refused",
-			listeners: []mgmtListener{{
+			listener: mgmtListener{
 				service:       "gNMI",
 				addrs:         nil,
 				authenticated: true,
 				requireTLS:    true,
 				tlsConfigured: false,
-			}},
+			},
 			wantRefused: true,
+			wantAllowed: nil,
 		},
 		{
 			name: "mixed loopback and non-loopback without TLS refused",
-			listeners: []mgmtListener{{
+			listener: mgmtListener{
 				service:       "gNMI",
 				addrs:         []string{"127.0.0.1:9339", "10.0.0.1:9339"},
 				authenticated: true,
 				requireTLS:    true,
 				tlsConfigured: false,
-			}},
+			},
 			wantRefused: true,
+			wantAllowed: []string{"127.0.0.1:9339"},
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			assert.Equal(t, tt.wantRefused, checkMgmtListeners(tt.listeners))
+			allowed, down := filterMgmtListener(tt.listener)
+			assert.Equal(t, tt.wantRefused, len(down) > 0)
+			assert.Equal(t, tt.wantAllowed, allowed)
 		})
 	}
 }
@@ -121,7 +132,7 @@ func TestCheckMgmtListenersRequireTLS(t *testing.T) {
 // PREVENTS: drift between gNMI's config/env resolution and the boot-time
 // exposure guard.
 // Method: builds config trees with and without TLS paths, calls
-// gnmiMgmtListener, and passes the declaration to checkMgmtListeners.
+// gnmiMgmtListener, and passes the declaration to filterMgmtListener.
 func TestGNMIMgmtListenerDeclaration(t *testing.T) {
 	resetEnv := func(t *testing.T) {
 		t.Helper()
@@ -149,7 +160,9 @@ func TestGNMIMgmtListenerDeclaration(t *testing.T) {
 		require.True(t, ok)
 		assert.True(t, decl.requireTLS)
 		assert.False(t, decl.tlsConfigured)
-		assert.True(t, checkMgmtListeners([]mgmtListener{decl}))
+		allowed, down := filterMgmtListener(decl)
+		assert.Empty(t, allowed)
+		assert.NotEmpty(t, down)
 	})
 
 	t.Run("non-loopback with token and cert only is refused", func(t *testing.T) {
@@ -164,7 +177,9 @@ func TestGNMIMgmtListenerDeclaration(t *testing.T) {
 		decl, ok := gnmiMgmtListener(tree)
 		require.True(t, ok)
 		assert.False(t, decl.tlsConfigured)
-		assert.True(t, checkMgmtListeners([]mgmtListener{decl}))
+		allowed, down := filterMgmtListener(decl)
+		assert.Empty(t, allowed)
+		assert.NotEmpty(t, down)
 	})
 
 	t.Run("non-loopback with token and both TLS paths is allowed", func(t *testing.T) {
@@ -181,7 +196,9 @@ func TestGNMIMgmtListenerDeclaration(t *testing.T) {
 		require.True(t, ok)
 		assert.True(t, decl.authenticated)
 		assert.True(t, decl.tlsConfigured)
-		assert.False(t, checkMgmtListeners([]mgmtListener{decl}))
+		allowed, down := filterMgmtListener(decl)
+		assert.Equal(t, []string{"0.0.0.0:9339"}, allowed)
+		assert.Empty(t, down)
 	})
 
 	t.Run("non-loopback with env TLS overrides is allowed", func(t *testing.T) {
@@ -194,7 +211,9 @@ func TestGNMIMgmtListenerDeclaration(t *testing.T) {
 		decl, ok := gnmiMgmtListener(zeconfig.NewTree())
 		require.True(t, ok)
 		assert.True(t, decl.tlsConfigured)
-		assert.False(t, checkMgmtListeners([]mgmtListener{decl}))
+		allowed, down := filterMgmtListener(decl)
+		assert.Equal(t, []string{"0.0.0.0:9339"}, allowed)
+		assert.Empty(t, down)
 	})
 
 	t.Run("loopback without token or TLS is allowed", func(t *testing.T) {
@@ -211,6 +230,8 @@ func TestGNMIMgmtListenerDeclaration(t *testing.T) {
 		require.True(t, ok)
 		assert.False(t, decl.authenticated)
 		assert.False(t, decl.tlsConfigured)
-		assert.False(t, checkMgmtListeners([]mgmtListener{decl}))
+		allowed, down := filterMgmtListener(decl)
+		assert.Equal(t, []string{"127.0.0.1:9339"}, allowed)
+		assert.Empty(t, down)
 	})
 }

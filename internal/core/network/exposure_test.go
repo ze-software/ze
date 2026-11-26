@@ -1,9 +1,10 @@
 // Design: docs/guide/authentication.md -- the management-listener exposure rule
-// Related: exposure.go -- ListenAddrIsLoopback, Exposure.Refusals
+// Related: exposure.go -- ListenAddrIsLoopback, Exposure.Plan, Exposure.Refusals
 
 package network
 
 import (
+	"slices"
 	"strings"
 	"testing"
 )
@@ -85,4 +86,160 @@ func TestExposureRefusals(t *testing.T) {
 	if refusals := noAddr.Refusals(); len(refusals) != 1 {
 		t.Fatalf("no resolved address: refusals = %d, want 1", len(refusals))
 	}
+}
+
+// TestExposurePlan verifies the per-address split between allowed listeners
+// and exposure breaches, and that Plan and Refusals report identical errors.
+//
+// VALIDATES: loopback listeners stay in Allowed in declared order while each
+// non-loopback listener missing authentication or required TLS lands in
+// Breaches (authentication before TLS) with its exact address and refusal,
+// authenticated+TLS listeners allow all addresses as a cloned slice, and an
+// empty address list without protection fails closed with Addr == "".
+// PREVENTS: dropping safe loopback listeners alongside a breaching remote
+// address, losing the breaching address or error order, or Plan diverging from
+// Refusals.
+func TestExposurePlan(t *testing.T) {
+	assertPlanMatchesRefusals := func(t *testing.T, e Exposure, plan ExposurePlan) {
+		t.Helper()
+		refusals := e.Refusals()
+		if len(plan.Breaches) != len(refusals) {
+			t.Fatalf("len(plan.Breaches) = %d, len(Refusals()) = %d", len(plan.Breaches), len(refusals))
+		}
+		for i, breach := range plan.Breaches {
+			if breach.Refusal.Error() != refusals[i].Error() {
+				t.Errorf("breach[%d].Refusal = %q, want %q", i, breach.Refusal.Error(), refusals[i].Error())
+			}
+		}
+	}
+
+	t.Run("loopback-only without auth or TLS", func(t *testing.T) {
+		e := Exposure{
+			Service:    "gNMI",
+			Addrs:      []string{"[::1]:9339", "127.0.0.1:9339"},
+			RequireTLS: true,
+		}
+		plan := e.Plan()
+		wantAllowed := []string{"[::1]:9339", "127.0.0.1:9339"}
+		if !slices.Equal(plan.Allowed, wantAllowed) {
+			t.Errorf("Allowed = %v, want %v", plan.Allowed, wantAllowed)
+		}
+		if len(plan.Breaches) != 0 {
+			t.Errorf("Breaches = %d, want 0", len(plan.Breaches))
+		}
+		assertPlanMatchesRefusals(t, e, plan)
+	})
+
+	t.Run("mixed loopback and non-loopback without auth", func(t *testing.T) {
+		e := Exposure{
+			Service: "REST API",
+			Addrs:   []string{"127.0.0.1:8080", "10.0.0.1:8080", "[::1]:8080"},
+			AuthFix: "set environment api-server rest token <token>",
+		}
+		plan := e.Plan()
+		wantAllowed := []string{"127.0.0.1:8080", "[::1]:8080"}
+		if !slices.Equal(plan.Allowed, wantAllowed) {
+			t.Errorf("Allowed = %v, want %v", plan.Allowed, wantAllowed)
+		}
+		if len(plan.Breaches) != 1 {
+			t.Fatalf("Breaches = %d, want 1", len(plan.Breaches))
+		}
+		if plan.Breaches[0].Addr != "10.0.0.1:8080" {
+			t.Errorf("Breaches[0].Addr = %q, want %q", plan.Breaches[0].Addr, "10.0.0.1:8080")
+		}
+		if want := `"10.0.0.1:8080" without authentication`; !strings.Contains(plan.Breaches[0].Refusal.Problem(), want) {
+			t.Errorf("problem = %q, want it to contain %q", plan.Breaches[0].Refusal.Problem(), want)
+		}
+		if plan.Breaches[0].Refusal.Why() != exposureAuthWhy {
+			t.Errorf("why = %q, want %q", plan.Breaches[0].Refusal.Why(), exposureAuthWhy)
+		}
+		if plan.Breaches[0].Refusal.Fix() != e.AuthFix {
+			t.Errorf("fix = %q, want %q", plan.Breaches[0].Refusal.Fix(), e.AuthFix)
+		}
+		assertPlanMatchesRefusals(t, e, plan)
+	})
+
+	t.Run("mixed loopback and non-loopback with RequireTLS and neither auth nor TLS", func(t *testing.T) {
+		e := Exposure{
+			Service:    "gNMI",
+			Addrs:      []string{"[::1]:9339", "[2001:db8::1]:9339", "127.0.0.1:9339"},
+			RequireTLS: true,
+			AuthFix:    "a",
+			TLSFix:     "t",
+		}
+		plan := e.Plan()
+		wantAllowed := []string{"[::1]:9339", "127.0.0.1:9339"}
+		if !slices.Equal(plan.Allowed, wantAllowed) {
+			t.Errorf("Allowed = %v, want %v", plan.Allowed, wantAllowed)
+		}
+		if len(plan.Breaches) != 2 {
+			t.Fatalf("Breaches = %d, want 2 (authentication then TLS)", len(plan.Breaches))
+		}
+		if plan.Breaches[0].Addr != "[2001:db8::1]:9339" {
+			t.Errorf("Breaches[0].Addr = %q, want %q", plan.Breaches[0].Addr, "[2001:db8::1]:9339")
+		}
+		if want := `"[2001:db8::1]:9339" without authentication`; !strings.Contains(plan.Breaches[0].Refusal.Problem(), want) {
+			t.Errorf("Breaches[0].Problem = %q, want it to contain %q", plan.Breaches[0].Refusal.Problem(), want)
+		}
+		if plan.Breaches[0].Refusal.Fix() != "a" {
+			t.Errorf("Breaches[0].Fix = %q, want %q", plan.Breaches[0].Refusal.Fix(), "a")
+		}
+		if plan.Breaches[1].Addr != "[2001:db8::1]:9339" {
+			t.Errorf("Breaches[1].Addr = %q, want %q", plan.Breaches[1].Addr, "[2001:db8::1]:9339")
+		}
+		if want := `"[2001:db8::1]:9339" without TLS`; !strings.Contains(plan.Breaches[1].Refusal.Problem(), want) {
+			t.Errorf("Breaches[1].Problem = %q, want it to contain %q", plan.Breaches[1].Refusal.Problem(), want)
+		}
+		if plan.Breaches[1].Refusal.Fix() != "t" {
+			t.Errorf("Breaches[1].Fix = %q, want %q", plan.Breaches[1].Refusal.Fix(), "t")
+		}
+		assertPlanMatchesRefusals(t, e, plan)
+	})
+
+	t.Run("non-loopback authenticated with TLS", func(t *testing.T) {
+		e := Exposure{
+			Service:       "gNMI",
+			Addrs:         []string{"0.0.0.0:9339", "[2001:db8::1]:9339"},
+			Authenticated: true,
+			RequireTLS:    true,
+			TLSConfigured: true,
+		}
+		plan := e.Plan()
+		wantAllowed := []string{"0.0.0.0:9339", "[2001:db8::1]:9339"}
+		if !slices.Equal(plan.Allowed, wantAllowed) {
+			t.Errorf("Allowed = %v, want %v", plan.Allowed, wantAllowed)
+		}
+		if len(plan.Breaches) != 0 {
+			t.Errorf("Breaches = %d, want 0", len(plan.Breaches))
+		}
+		plan.Allowed[0] = "mutated"
+		if e.Addrs[0] != "0.0.0.0:9339" {
+			t.Errorf("mutating plan.Allowed mutated e.Addrs[0] to %q", e.Addrs[0])
+		}
+		assertPlanMatchesRefusals(t, e, plan)
+	})
+
+	t.Run("empty Addrs without auth", func(t *testing.T) {
+		e := Exposure{Service: "gNMI"}
+		plan := e.Plan()
+		if plan.Allowed != nil {
+			t.Errorf("Allowed = %v, want nil", plan.Allowed)
+		}
+		if len(plan.Breaches) != 1 {
+			t.Fatalf("Breaches = %d, want 1", len(plan.Breaches))
+		}
+		if plan.Breaches[0].Addr != "" {
+			t.Errorf("Breaches[0].Addr = %q, want empty", plan.Breaches[0].Addr)
+		}
+		if want := "without authentication and with no resolved listen address"; !strings.Contains(plan.Breaches[0].Refusal.Problem(), want) {
+			t.Errorf("problem = %q, want it to contain %q", plan.Breaches[0].Refusal.Problem(), want)
+		}
+		if plan.Breaches[0].Refusal.Why() != exposureNoAddrWhy {
+			t.Errorf("why = %q, want %q", plan.Breaches[0].Refusal.Why(), exposureNoAddrWhy)
+		}
+		if plan.Breaches[0].Refusal.Fix() != exposureNoAddrFix {
+			t.Errorf("fix = %q, want %q", plan.Breaches[0].Refusal.Fix(), exposureNoAddrFix)
+		}
+		assertPlanMatchesRefusals(t, e, plan)
+	})
 }

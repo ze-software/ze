@@ -33,8 +33,9 @@ func TestHubCleanupStartupFailureJoinsBuiltAPI(t *testing.T) {
 			oldREST, oldGRPC, oldBNG := restBuild, grpcBuild, bngRegister
 			t.Cleanup(func() { restBuild, grpcBuild, bngRegister = oldREST, oldGRPC, oldBNG })
 			var calls []string
-			bngRegister = func(_ *zeconfig.Tree, _ map[string]any, e *engine.Engine) ([]webPortalService, error) {
-				return nil, e.RegisterSubsystem(&cleanupResultSubsystem{calls: &calls})
+			bngRegister = func(_ *zeconfig.Tree, _ map[string]any, _ string, e *engine.Engine) ([]webPortalService, []serviceNotStarted) {
+				require.NoError(t, e.RegisterSubsystem(&cleanupResultSubsystem{calls: &calls}))
+				return nil, nil
 			}
 			cleanupFailure := errors.New("startup API cleanup sentinel")
 			restBuild = func(in *apiBuildInputs, _ *apiShared) (apiServerHandle, error) {

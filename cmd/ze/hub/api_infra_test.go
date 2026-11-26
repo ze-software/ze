@@ -65,10 +65,10 @@ func dormantAPIBlock(t *testing.T, withServers bool) *zeconfig.Tree {
 // VALIDATES: the token and the listen address of an environment.api-server
 // block reach the resolver even when no transport says `enabled true`, so an
 // env-started REST listener authenticates and binds where the config asked.
-// PREVENTS: the boot refusal an operator cannot act on. Reading the settings
+// PREVENTS: a listener refusal an operator cannot act on. Reading the settings
 // through the enable gate discarded them, the resolver fell back to
-// 0.0.0.0:8081 with an empty token, and checkMgmtListeners refused to start
-// while telling the operator to set the very token they had written.
+// 0.0.0.0:8081 with an empty token, and filterMgmtListener refused the
+// listener while telling the operator to set the very token they had written.
 func TestResolveAPIListenersKeepsSettingsFromDormantBlock(t *testing.T) {
 	clearAPIEnv(t)
 	require.NoError(t, env.Set("ze.api-server.rest.enabled", "1"))
@@ -82,11 +82,13 @@ func TestResolveAPIListenersKeepsSettingsFromDormantBlock(t *testing.T) {
 	assert.Equal(t, "api-s3cret", cfg.Token, "the block's token must survive the enable gate")
 	require.Len(t, cfg.REST, 1)
 	assert.Equal(t, "127.0.0.1:18095", cfg.REST[0].Listen(), "the block's server must survive the enable gate")
-	assert.False(t, checkMgmtListeners([]mgmtListener{{
+	allowed, down := filterMgmtListener(mgmtListener{
 		service:       "API",
 		addrs:         apiGuardAddrs(cfg),
 		authenticated: cfg.Token != "",
-	}}), "an API listener whose config named a token must not be refused")
+	})
+	assert.Empty(t, down, "an API listener whose config named a token must not be refused")
+	assert.Equal(t, []string{"127.0.0.1:18095"}, allowed)
 }
 
 // VALIDATES: the gRPC TLS pair of a dormant block reaches the resolver, so an

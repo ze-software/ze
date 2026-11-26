@@ -1,31 +1,32 @@
 // Design: ai/rules/evidence.md -- boot-time management-listener exposure guard
 //
 // The unifying fix for the 2026-07-16 management-surface audit: a single,
-// always-on, fail-closed guard that refuses to start any management listener
-// bound to a non-loopback address without authentication, or without TLS where
-// the service requires it (gNMI and MCP do). Each management
-// surface appends its own mgmtListener declaration next to the code that
-// resolves its (address, auth) pair; checkMgmtListeners iterates the slice and
-// names no service. It subsumes the API server's prior inline refusal
-// (apiHasNonLoopback, folded into network.ListenAddrIsLoopback).
+// always-on, fail-closed guard that filters out any management listener bound
+// to a non-loopback address without authentication, or without TLS where the
+// service requires it (gNMI and MCP do). Each management surface feeds its
+// resolved (address, auth) pair to filterMgmtListener; safe addresses
+// (loopback or protected) keep starting, while each exposed address stays down
+// and is reported through reportServiceNotStarted so ze itself always starts.
+// It subsumes the API server's prior inline refusal (apiHasNonLoopback, folded
+// into network.ListenAddrIsLoopback).
 //
-// See plan/spec-fixit-mgmt-listener-auth-guard.md.
+// See plan/spec-fixit-mgmt-listener-auth-guard.md and
+// plan/records/ruling-ze-always-starts.md.
 
 package hub
 
 import (
-	"fmt"
-	"os"
+	"slices"
 
 	zeconfig "github.com/ze-software/ze/internal/component/config"
 	"github.com/ze-software/ze/internal/core/network"
-	"github.com/ze-software/ze/internal/core/opererr"
+	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
 // mgmtListener is one management surface's declaration for the boot-time
-// exposure guard. A surface appends its own declaration next to its resolution
-// code so checkMgmtListeners stays generic (registration over hardcoding):
-// the guard function names no service.
+// exposure guard. Each surface constructs its own declaration next to its
+// resolution code so filterMgmtListener stays generic (registration over
+// hardcoding): the guard function names no service.
 type mgmtListener struct {
 	service       string   // human name for the refusal message (e.g. "gNMI")
 	addrs         []string // resolved listen addresses ("host:port" or bare host)
@@ -36,26 +37,62 @@ type mgmtListener struct {
 	tlsRemedy     string   // actionable fix printed when requireTLS fails (never a secret)
 }
 
-// checkMgmtListeners refuses to start when any declared management surface
-// breaches the exposure rule (network.Exposure.Refusals): a non-loopback bind
-// without authentication, or a non-loopback bind without TLS when requireTLS is
-// set. It prints one operator error per breach (problem, why, fix) and returns
-// true (refused); the caller returns a non-zero exit code before anything
-// binds. The rule itself lives in internal/core/network so `ze config
+// filterMgmtListener applies the management-listener exposure rule per address
+// (network.Exposure.Plan). Loopback addresses (and every address when the
+// listener satisfies authentication and TLS) are returned in allowed. Each
+// breach becomes a serviceNotStarted record naming the offending address (when
+// one was resolved) and carrying the operator error (problem, why, fix) from
+// network.Exposure; the daemon leaves only the refused listener down and keeps
+// running. The rule itself lives in internal/core/network so `ze config
 // validate` and `ze doctor` apply the same one offline. The refusal never
 // prints a token or other secret.
-func checkMgmtListeners(listeners []mgmtListener) bool {
-	refused := false
-	// Declared with its type, and assigned by the range below rather than
-	// defined there, so each line printed is visibly an operator error.
-	var refusal *opererr.Error
-	for _, l := range listeners {
-		for _, refusal = range l.exposure().Refusals() {
-			fmt.Fprintln(os.Stderr, refusal.Error())
-			refused = true
+func filterMgmtListener(l mgmtListener) (allowed []string, down []serviceNotStarted) {
+	plan := l.exposure().Plan()
+	if len(plan.Breaches) == 0 {
+		return plan.Allowed, nil
+	}
+	down = make([]serviceNotStarted, 0, len(plan.Breaches))
+	for _, b := range plan.Breaches {
+		var effect textbuf.Buffer
+		effect.Str("the ").Str(l.service).Str(" listener")
+		if b.Addr != "" {
+			effect.Byte(' ').Str(b.Addr)
+		}
+		effect.Str(" is not started").Str(keepsRunning)
+		down = append(down, serviceNotStarted{
+			service: l.service,
+			effect:  effect.String(),
+			problem: b.Refusal,
+		})
+	}
+	return plan.Allowed, down
+}
+
+// filterAPIConfig narrows each enabled API transport to the listen addresses
+// the exposure guard allowed, disabling a transport whose addresses were all
+// refused. A transport that was already disabled stays disabled. The boolean
+// reports whether either transport still has a listener to bind.
+func filterAPIConfig(cfg zeconfig.APIConfig, allowed []string) (zeconfig.APIConfig, bool) {
+	if cfg.RESTOn {
+		cfg.REST = filterAPIListen(cfg.REST, allowed)
+		cfg.RESTOn = len(cfg.REST) > 0
+	}
+	if cfg.GRPCOn {
+		cfg.GRPC = filterAPIListen(cfg.GRPC, allowed)
+		cfg.GRPCOn = len(cfg.GRPC) > 0
+	}
+	return cfg, cfg.RESTOn || cfg.GRPCOn
+}
+
+// filterAPIListen returns the entries whose Listen() address is in allowed.
+func filterAPIListen(entries []zeconfig.APIListenConfig, allowed []string) []zeconfig.APIListenConfig {
+	var kept []zeconfig.APIListenConfig
+	for _, ep := range entries {
+		if slices.Contains(allowed, ep.Listen()) {
+			kept = append(kept, ep)
 		}
 	}
-	return refused
+	return kept
 }
 
 // exposure converts the declaration into the shared rule's input.
@@ -91,8 +128,9 @@ func mgmtListenerFor(e network.Exposure) mgmtListener {
 // environment or config), and authentication follows the server's effective
 // mode (mcpListenerAuthenticated). TLS comes only from the environment.mcp
 // block, so a listener with no block (cfgOK false) has none. A non-loopback
-// MCP listener without authentication or without TLS refuses daemon start,
-// as a gNMI one does (zeconfig.MCPExposure).
+// MCP listener without authentication or without TLS is filtered out and
+// reported via doctor-service-not-started, as a gNMI one is
+// (zeconfig.MCPExposure).
 func mcpMgmtListener(addrs []string, cfgOK bool, cfg zeconfig.MCPListenConfig, token string) mgmtListener {
 	tlsSet := false
 	if cfgOK {
@@ -128,8 +166,8 @@ func mcpListenerAuthenticated(cfgOK bool, authMode, token string) bool {
 // serviceFactoryRegistered reports whether a construction-registry factory with
 // the given name is compiled in. The guard consults it so a surface whose
 // feature-gate is off (its ze_<feature> registration file was not compiled, so
-// it can never bind) is not declared -- refusing to boot on config a binary
-// cannot serve would break working deployments for zero exposure reduction.
+// it can never bind) is not checked -- reporting an unbuilt surface as not
+// started for exposure would be false noise for zero exposure reduction.
 func serviceFactoryRegistered(name string) bool {
 	for _, nf := range serviceFactories {
 		if nf.name == name {

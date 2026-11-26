@@ -83,8 +83,9 @@ type Parameters struct {
 // the map by hand in a shape no producer emits.
 //
 // The error is returned for a configuration that cannot be honored, so the hub
-// refuses to start rather than running an access concentrator that admits
-// everybody. Invalid authentication policy is refused rather than defaulted.
+// leaves the PPPoE subsystem down at start (and refuses reload) rather than
+// running an access concentrator that admits everybody. Invalid authentication
+// policy is refused rather than defaulted.
 func ExtractParameters(tree map[string]any) (Parameters, error) {
 	p := Parameters{
 		ACName:            DefaultACName,

@@ -91,7 +91,7 @@ const defaultWebListen = "0.0.0.0:3443"
 // defaultWebListen; the web service builder applies the same fallback, so the
 // two must not diverge (both call this).
 //
-// This exists so the fallback happens BEFORE checkMgmtListeners rather than
+// This exists so the fallback happens BEFORE filterMgmtListener rather than
 // inside the builder afterwards. Web is the only management surface that binds
 // a default when its address list is empty (MCP, LG and REST all skip), so it
 // was the only one whose guard declaration could be an empty slice while the
@@ -296,9 +296,6 @@ func readStdinConfig() (data []byte, stdinOpen bool, err error) {
 // runYANGConfig handles all YANG-based configs. Plugins are auto-loaded
 // via ConfigRoots matching: bgp {} loads BGP, interface {} loads iface, etc.
 // This is the unified startup path for all ze configs (except hub orchestrator mode).
-// errUnauthenticatedMgmtListener summarizes the mgmt-listener refusal for the
-// slog mirror; the per-listener detail is on stderr from checkMgmtListeners.
-var errUnauthenticatedMgmtListener = errors.New("refusing unauthenticated non-loopback management listener (detail on stderr)")
 
 // logDaemonCapabilities logs the generic capability inventory privilege.CheckPrivileges
 // takes of the daemon, at debug: the capabilities of privilege.DaemonCapabilities it
@@ -569,7 +566,7 @@ func runYANGConfig(store storage.Storage, configPath string, data []byte, plugin
 	// existed, with no plugin run early.
 
 	// Phase 1: Parse config and resolve plugins.
-	loadResult, err := zeconfig.LoadConfig(string(data), configPath, plugins)
+	loadResult, err := zeconfig.LoadConfigForStart(string(data), configPath, plugins)
 	if err != nil {
 		var recovered *zeconfig.LoadConfigResult
 		ok := false
@@ -652,13 +649,21 @@ func runYANGConfig(store storage.Storage, configPath string, data []byte, plugin
 		return 1
 	}
 
+	for _, excl := range loadResult.ExcludedBlocks {
+		reportServiceNotStarted(slogutil.Logger("hub.config"), os.Stderr,
+			notStarted(excl.Service, blockUnservable(excl.Service, configBlockDisplay(excl.Path), configPath, excl.Cause)))
+	}
+
 	// Phase 1b: Schema evolution. Apply registered evolutions newer than the
-	// config's stamped release, then re-stamp and write back. The release is the
-	// stamp of the content LoadConfig parsed: after a recovery, data holds the
-	// rollback re-stamped with this binary's release, and scanning it would skip
-	// every evolution the rollback is owed.
+	// config's stamped release, then re-stamp and write back unless start
+	// excluded invalid service blocks (writing back a pruned tree would erase
+	// those blocks from disk). The release is the stamp of the content
+	// LoadConfigForStart parsed: after a recovery, data holds the rollback
+	// re-stamped with this binary's release, and scanning it would skip every
+	// evolution the rollback is owed.
 	evolveLogger := slogutil.Logger("hub.evolve")
-	outcome, evolveErr := applyEvolutions(evolveLogger, store, configPath, data, loadResult.Tree, loadResult.StampRelease)
+	saveToStore := len(loadResult.ExcludedBlocks) == 0
+	outcome, evolveErr := applyEvolutions(evolveLogger, store, configPath, data, loadResult.Tree, loadResult.StampRelease, saveToStore)
 	if evolveErr != nil {
 		var b textbuf.Buffer
 		b.Str("error: ").Str(opererr.Wrap(evolveErr, "the config could not be brought to this release's schema",
@@ -1216,15 +1221,15 @@ func runYANGConfig(store storage.Storage, configPath string, data []byte, plugin
 
 	// L2TP / PPPoE (BNG) subsystem construction is gated on ze_l2tp: the
 	// register_l2tp.go init sets bngRegister (bng_infra.go), which extracts
-	// the l2tp/pppoe parameters and registers the subsystems with the engine.
+	// the l2tp/pppoe parameters and registers each subsystem independently with
+	// the engine. A subsystem whose config cannot be parsed or registered stays
+	// down and is reported with its fix, while the other and ze keep running.
 	// With the tag off the seam stays nil and the schema rejects l2tp/pppoe
 	// config at parse, so nothing is silently skipped here.
 	if bngRegister != nil {
-		portals, bngErr := bngRegister(loadResult.Tree, configTree, eng)
-		if bngErr != nil {
-			fmt.Fprintf(os.Stderr, "error: %v\n", bngErr)
-			logStartupFailure("register bng subsystems", bngErr)
-			return 1
+		portals, bngDown := bngRegister(loadResult.Tree, configTree, configPath, eng)
+		for _, down := range bngDown {
+			reportServiceNotStarted(slogutil.Logger("hub.bng"), os.Stderr, down)
 		}
 		webPortalServices = append(webPortalServices, portals...)
 	}
@@ -1468,10 +1473,11 @@ func runYANGConfig(store storage.Storage, configPath string, data []byte, plugin
 	}
 
 	// Boot-time management-listener exposure guard (mgmt_guard.go): one
-	// fail-closed check that refuses to serve any management surface bound
-	// non-loopback without authentication. Each surface declares its resolved
-	// (address, auth) pair; the guard function names no service. A surface whose
-	// feature-gate is compiled out never declares (it cannot bind).
+	// fail-closed check that filters out any management listener bound
+	// non-loopback without authentication (or without TLS where required),
+	// reporting each breach via reportServiceNotStarted while safe addresses
+	// and other services keep running. A surface whose feature-gate is
+	// compiled out never declares (it cannot bind).
 	webFactoryOn := serviceFactoryRegistered("web")
 	mcpFactoryOn := serviceFactoryRegistered("mcp")
 	// A secure web listener carries auth middleware (and its own no-users
@@ -1513,26 +1519,43 @@ func runYANGConfig(store storage.Storage, configPath string, data []byte, plugin
 		}
 	}
 
-	var mgmtListeners []mgmtListener
 	if webFactoryOn && webEnabled {
-		mgmtListeners = append(mgmtListeners, mgmtListener{
+		allowed, down := filterMgmtListener(mgmtListener{
 			service:       "web (insecure)",
 			addrs:         webAddrs,
 			authenticated: webAuthed,
 			remedy:        "bind ze.web.listen to 127.0.0.1/::1, or drop ze.web.insecure and configure users",
 		})
+		for _, d := range down {
+			reportServiceNotStarted(slogutil.Logger("hub.web"), os.Stderr, d)
+		}
+		webAddrs = allowed
+		if len(webAddrs) == 0 {
+			webEnabled = false
+		}
 	}
-	// Declared only when MCP will actually bind: buildMCPService skips on an
+	// Filtered only when MCP will actually bind: buildMCPService skips on an
 	// empty address list, and a declaration that binds nothing must not reach
 	// the guard's no-addresses refusal. MCP's declaration (mcpMgmtListener,
 	// from zeconfig.MCPExposure) requires authentication and TLS off loopback,
 	// the same rule as gNMI's.
 	if mcpFactoryOn && len(mcpAddrs) > 0 {
-		mgmtListeners = append(mgmtListeners, mcpMgmtListener(mcpAddrs, mcpCfgOK, mcpCfg, mcpToken))
+		allowed, down := filterMgmtListener(mcpMgmtListener(mcpAddrs, mcpCfgOK, mcpCfg, mcpToken))
+		for _, d := range down {
+			reportServiceNotStarted(slogutil.Logger("hub.mcp"), os.Stderr, d)
+		}
+		mcpAddrs = allowed
 	}
+	gnmiAllowed := true
 	if gnmiBuild != nil {
 		if decl, ok := gnmiMgmtListener(loadResult.Tree); ok {
-			mgmtListeners = append(mgmtListeners, decl)
+			allowed, down := filterMgmtListener(decl)
+			for _, d := range down {
+				reportServiceNotStarted(slogutil.Logger("hub.gnmi"), os.Stderr, d)
+			}
+			if len(allowed) == 0 {
+				gnmiAllowed = false
+			}
 		}
 	}
 	if apiCfgOK && (restBuild != nil || grpcBuild != nil) {
@@ -1541,19 +1564,17 @@ func runYANGConfig(store storage.Storage, configPath string, data []byte, plugin
 		// when their endpoint list is empty, so an empty declaration binds
 		// nothing and must not trip the no-addresses refusal.
 		if len(apiAddrs) > 0 {
-			mgmtListeners = append(mgmtListeners, mgmtListener{
+			allowed, down := filterMgmtListener(mgmtListener{
 				service:       "API",
 				addrs:         apiAddrs,
 				authenticated: apiAuthed,
 				remedy:        "set ze.api-server.token, run ze init, or bind to 127.0.0.1/::1 only",
 			})
+			for _, d := range down {
+				reportServiceNotStarted(slogutil.Logger("hub.api"), os.Stderr, d)
+			}
+			apiCfg, apiCfgOK = filterAPIConfig(apiCfg, allowed)
 		}
-	}
-
-	if checkMgmtListeners(mgmtListeners) {
-		// checkMgmtListeners printed the per-listener refusals to stderr.
-		logStartupFailure("management listener guard", errUnauthenticatedMgmtListener)
-		return 1
 	}
 
 	// Hand the guard's classification to the listener migrator, BEFORE any
@@ -1569,7 +1590,7 @@ func runYANGConfig(store storage.Storage, configPath string, data []byte, plugin
 	// A surface the daemon never builds is handled at RELOAD time instead, in
 	// resolveAuthIntents, which needs no startup ordering to be correct.
 	//
-	// gNMI is deliberately absent from this map though checkMgmtListeners
+	// gNMI is deliberately absent from this map though filterMgmtListener
 	// classifies it above. It has no listenerMigrator slot, so buildChanges can
 	// never move its listener and there is no migration for the guard to judge.
 	markMgmtAuth(lm, map[string]bool{
@@ -1613,7 +1634,7 @@ func runYANGConfig(store storage.Storage, configPath string, data []byte, plugin
 	}
 	if apiCfgOK {
 		// bootUsers and the auth-mode report were resolved above; the boot-time
-		// management-listener guard has already refused any non-loopback API
+		// management-listener guard has already filtered out any non-loopback API
 		// listener without authentication (the former apiHasNonLoopback inline
 		// refusal is folded into the single shared classifier).
 
@@ -1662,7 +1683,7 @@ func runYANGConfig(store storage.Storage, configPath string, data []byte, plugin
 	// Start gNMI through the compile-out seam (gnmi_infra.go). When ze_gnmi is
 	// absent, gnmiBuild is nil and gNMI is skipped without naming the package.
 	var gnmiSrv gnmiServer
-	if gnmiBuild != nil {
+	if gnmiBuild != nil && gnmiAllowed {
 		gnmiSrv = gnmiBuild(&gnmiBuildInputs{
 			Tree:              loadResult.Tree,
 			TreeFn:            func() *zeconfig.Tree { return loadResult.Tree },

@@ -242,8 +242,9 @@ func checkMCPMigrationExposure(mode zemcp.AuthMode, useTLS bool, addrs []string)
 // MCPListenConfig.Validate rejects at verify time; loadMCPTLSConfig refuses
 // it here too, so a half-named pair never serves plain HTTP. Exposure (a
 // non-loopback address without authentication or TLS) is not judged here: the
-// boot guard (mcpMgmtListener) refuses daemon start on it before any service
-// is built, and Reconfigure applies the same rule to a listener migration.
+// boot guard (filterMgmtListener over mcpMgmtListener) filters it out and
+// reports it before any service is built, and Reconfigure applies the same
+// rule to a listener migration.
 //
 // Speaks the MCP 2026-07-28 Streamable HTTP profile: POST-only and stateless,
 // with per-request metadata, headers and authentication, and no handshake,

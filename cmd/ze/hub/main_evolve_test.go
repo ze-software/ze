@@ -67,7 +67,7 @@ func TestApplyEvolutionsBackupCreated(t *testing.T) {
 	}
 
 	logger := slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: slog.LevelError}))
-	outcome, evolveErr := applyEvolutions(logger, store, configPath, originalData, tree, "26.05.01")
+	outcome, evolveErr := applyEvolutions(logger, store, configPath, originalData, tree, "26.05.01", true)
 	if evolveErr != nil {
 		t.Fatal(evolveErr)
 	}
@@ -114,7 +114,7 @@ func TestApplyEvolutionsDataUpdated(t *testing.T) {
 	}
 
 	logger := slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: slog.LevelError}))
-	outcome, evolveErr := applyEvolutions(logger, store, configPath, originalData, tree, "26.05.01")
+	outcome, evolveErr := applyEvolutions(logger, store, configPath, originalData, tree, "26.05.01", true)
 	if evolveErr != nil {
 		t.Fatal(evolveErr)
 	}
@@ -141,7 +141,7 @@ func TestApplyEvolutionsNoEvolutionsNeeded(t *testing.T) {
 
 	store := newTestStore(t)
 	logger := slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: slog.LevelError}))
-	outcome, evolveErr := applyEvolutions(logger, store, "", originalData, tree, "26.05.01")
+	outcome, evolveErr := applyEvolutions(logger, store, "", originalData, tree, "26.05.01", true)
 	if evolveErr != nil {
 		t.Fatal(evolveErr)
 	}
@@ -166,7 +166,7 @@ func TestApplyEvolutionsStdinConfig(t *testing.T) {
 
 	store := newTestStore(t)
 	logger := slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: slog.LevelError}))
-	outcome, evolveErr := applyEvolutions(logger, store, "-", originalData, tree, "26.05.01")
+	outcome, evolveErr := applyEvolutions(logger, store, "-", originalData, tree, "26.05.01", true)
 	if evolveErr != nil {
 		t.Fatal(evolveErr)
 	}
@@ -197,7 +197,7 @@ func TestApplyEvolutionsWriteBackMatchesDisk(t *testing.T) {
 	}
 
 	logger := slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: slog.LevelError}))
-	outcome, evolveErr := applyEvolutions(logger, store, configPath, originalData, tree, "26.05.01")
+	outcome, evolveErr := applyEvolutions(logger, store, configPath, originalData, tree, "26.05.01", true)
 	if evolveErr != nil {
 		t.Fatal(evolveErr)
 	}

@@ -6,6 +6,7 @@ package network
 import (
 	"net"
 	"net/netip"
+	"slices"
 
 	"github.com/ze-software/ze/internal/core/opererr"
 	"github.com/ze-software/ze/internal/core/textbuf"
@@ -50,6 +51,22 @@ type Exposure struct {
 	TLSFix        string   // the command that configures TLS
 }
 
+// ExposureBreach pairs one refused listen address (empty when no address was
+// resolved) with the operator error explaining what protection it lacks.
+type ExposureBreach struct {
+	Addr    string
+	Refusal *opererr.Error
+}
+
+// ExposurePlan is the per-address verdict of the management-listener exposure
+// rule: Allowed holds the addresses that may bind (in their declared order),
+// and Breaches holds one entry per missing protection on each refused address
+// (or on an empty address list when protection is required).
+type ExposurePlan struct {
+	Allowed  []string
+	Breaches []ExposureBreach
+}
+
 // The why texts are shared by every surface that applies the rule, so the boot
 // refusal, `ze config validate` and `ze doctor` say the same thing.
 const (
@@ -63,6 +80,36 @@ const (
 	exposureLoopFix   = "bind the listener to 127.0.0.1 or ::1 only"
 )
 
+// Plan applies the management-listener exposure rule per address:
+//
+//   - when the listener is authenticated and satisfies RequireTLS, every
+//     declared address is allowed and Breaches is empty;
+//   - otherwise, loopback addresses stay in Allowed in their declared order,
+//     each non-loopback address gets one breach per missing protection
+//     (authentication first, then TLS), and an empty address list gets one
+//     breach per missing protection with Addr == "" (fail-closed,
+//     ai/rules/evidence.md).
+func (e Exposure) Plan() ExposurePlan {
+	missingAuth := !e.Authenticated
+	missingTLS := e.RequireTLS && !e.TLSConfigured
+	if !missingAuth && !missingTLS {
+		return ExposurePlan{Allowed: slices.Clone(e.Addrs)}
+	}
+	var plan ExposurePlan
+	for _, addr := range e.Addrs {
+		if ListenAddrIsLoopback(addr) {
+			plan.Allowed = append(plan.Allowed, addr)
+		}
+	}
+	if missingAuth {
+		plan.Breaches = append(plan.Breaches, e.breaches("authentication", exposureAuthWhy, e.AuthFix)...)
+	}
+	if missingTLS {
+		plan.Breaches = append(plan.Breaches, e.breaches("TLS", exposureTLSWhy, e.TLSFix)...)
+	}
+	return plan
+}
+
 // Refusals applies the management-listener exposure rule and answers one
 // operator error per breach, or none when the listener may serve:
 //
@@ -74,31 +121,32 @@ const (
 //
 // A loopback-only listener passes whatever its authentication and TLS.
 func (e Exposure) Refusals() []*opererr.Error {
-	var refusals []*opererr.Error
-	if !e.Authenticated {
-		refusals = append(refusals, e.breaches("authentication", exposureAuthWhy, e.AuthFix)...)
+	plan := e.Plan()
+	if len(plan.Breaches) == 0 {
+		return nil
 	}
-	if e.RequireTLS {
-		if !e.TLSConfigured {
-			refusals = append(refusals, e.breaches("TLS", exposureTLSWhy, e.TLSFix)...)
-		}
+	refusals := make([]*opererr.Error, len(plan.Breaches))
+	for i, breach := range plan.Breaches {
+		refusals[i] = breach.Refusal
 	}
 	return refusals
 }
 
-// breaches answers one refusal per non-loopback address for one missing
+// breaches answers one breach per non-loopback address for one missing
 // protection, named by what ("authentication" or "TLS").
-func (e Exposure) breaches(what, why, fix string) []*opererr.Error {
+func (e Exposure) breaches(what, why, fix string) []ExposureBreach {
 	if len(e.Addrs) == 0 {
 		var problem textbuf.Buffer
 		problem.Str("refusing to start ").Str(e.Service).Str(": declared without ").Str(what).
 			Str(" and with no resolved listen address")
-		return []*opererr.Error{opererr.New(problem.String(), exposureNoAddrWhy, exposureNoAddrFix)}
+		return []ExposureBreach{{
+			Refusal: opererr.New(problem.String(), exposureNoAddrWhy, exposureNoAddrFix),
+		}}
 	}
 	if fix == "" {
 		fix = exposureLoopFix
 	}
-	var refusals []*opererr.Error
+	var breaches []ExposureBreach
 	for _, addr := range e.Addrs {
 		if ListenAddrIsLoopback(addr) {
 			continue
@@ -106,7 +154,10 @@ func (e Exposure) breaches(what, why, fix string) []*opererr.Error {
 		var problem textbuf.Buffer
 		problem.Str("refusing to start ").Str(e.Service).Str(" on non-loopback listener ").Quoted(addr).
 			Str(" without ").Str(what)
-		refusals = append(refusals, opererr.New(problem.String(), why, fix))
+		breaches = append(breaches, ExposureBreach{
+			Addr:    addr,
+			Refusal: opererr.New(problem.String(), why, fix),
+		})
 	}
-	return refusals
+	return breaches
 }

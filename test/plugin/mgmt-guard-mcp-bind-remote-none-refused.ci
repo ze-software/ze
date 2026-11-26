@@ -1,11 +1,11 @@
-# Test: MCP bind-remote with auth-mode none is refused at daemon startup
-# VALIDATES: spec-fixit-mgmt-listener-auth-guard AC-2(a) -- MCPListenConfig.
-# Validate already rejected `bind-remote true` with `auth-mode none`, but its
-# only callers were `ze config validate` and doctor. `ze start` ran neither:
-# LoadConfig does no semantic validation, so this config booted an accept-all
-# server. The boot path now runs the same check and reports the same message.
-# PREVENTS: a config the operator can validate as bad still starting, so the
-# offline checker and the daemon disagree about what is acceptable.
+# Test: MCP bind-remote with auth-mode none leaves MCP down at daemon startup
+# VALIDATES: the owner ruling of 2026-11-26 (plan/records/ruling-ze-always-starts.md)
+# and spec-fixit-mgmt-listener-auth-guard AC-2(a) -- MCPListenConfig.Validate
+# rejects `bind-remote true` with `auth-mode none`. At daemon start, `ze`
+# runs that check, keeps running without MCP, and reports the refusal under
+# doctor-service-not-started; `ze config validate` and reloads keep refusing it.
+# PREVENTS: an inconsistent `environment.mcp` block booting an accept-all
+# server or taking down the rest of `ze`.
 
 option=exclusive:group=mgmt-guard
 
@@ -23,6 +23,9 @@ environment {
 }
 EOF_CONF
 
-cmd=foreground:seq=1:exec=ze -:stdin=ze-bgp:timeout=15s
-expect=exit:code=1
+cmd=background:seq=1:exec=ze -:stdin=ze-bgp:name=daemon:ready=Ze running:timeout=15s
+expect=stderr:contains=the MCP server is not started; ze and its other services keep running
 expect=stderr:contains=environment.mcp: bind-remote requires auth-mode != none
+expect=stderr:contains=code=doctor-service-not-started
+reject=stderr:contains=MCP server listening
+cmd=stop:seq=2:name=daemon:signal=term

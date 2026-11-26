@@ -23,9 +23,12 @@ type evolveOutcome struct {
 	applied []string
 }
 
-// applyEvolutions runs schema evolutions on tree and writes back if any applied.
+// applyEvolutions runs schema evolutions on tree and writes back if any applied
+// and saveToStore is true. When saveToStore is false (for example, when start
+// excluded invalid service blocks from the in-memory tree), the evolved tree is
+// returned in memory while the stored config file and data stay untouched.
 // Returns the (possibly updated) tree and data. On error, returns the originals.
-func applyEvolutions(logger *slog.Logger, store storage.Storage, configPath string, data []byte, tree *zeconfig.Tree, stampRelease string) (evolveOutcome, error) {
+func applyEvolutions(logger *slog.Logger, store storage.Storage, configPath string, data []byte, tree *zeconfig.Tree, stampRelease string, saveToStore bool) (evolveOutcome, error) {
 	result, err := migration.Evolve(tree, stampRelease)
 	if err != nil {
 		return evolveOutcome{tree: tree, data: data}, err
@@ -42,6 +45,9 @@ func applyEvolutions(logger *slog.Logger, store storage.Storage, configPath stri
 	}
 	if configPath == "-" {
 		return unsavedEvolution(logger, result, data), nil
+	}
+	if !saveToStore {
+		return unsavedExcludedEvolution(logger, configPath, result, data), nil
 	}
 
 	if backupErr := initializeConfigSource(store, configPath, data); backupErr != nil {
@@ -70,6 +76,28 @@ func applyEvolutions(logger *slog.Logger, store storage.Storage, configPath stri
 // which has no file to write back, after warning of each behavior change.
 func unsavedEvolution(logger *slog.Logger, result *migration.EvolveResult, data []byte) evolveOutcome {
 	warnEvolutionNotices(logger, "stdin", "not saved: the config came on stdin, so this change repeats at every start until the source carries it", result.Notices)
+	return evolveOutcome{tree: result.Tree, data: data, applied: result.Applied}
+}
+
+// unsavedExcludedEvolution answers the evolved tree of a config whose start
+// excluded invalid service blocks, leaving the stored file untouched so those
+// blocks are not erased from disk, after warning that the evolution was not
+// saved.
+func unsavedExcludedEvolution(logger *slog.Logger, configPath string, result *migration.EvolveResult, data []byte) evolveOutcome {
+	const unsavedReason = "not saved: start excluded one or more invalid service blocks, so the stored file stays untouched until those blocks are corrected"
+	warnEvolutionNotices(logger, configPath, unsavedReason, result.Notices)
+	if len(result.Notices) == 0 {
+		fix := "correct the excluded service blocks reported by `ze config validate " + configPath + "`, then restart ze"
+		report.RaiseWarningFix(evolveEventSource, codeDoctorConfigEvolved, configPath,
+			"schema evolutions applied in memory were not saved because start excluded invalid service blocks",
+			fix, map[string]any{"config": configPath, "saved": unsavedReason})
+		logger.Warn("config evolution was not saved because start excluded invalid service blocks",
+			"code", codeDoctorConfigEvolved,
+			"config", configPath,
+			"evolutions", result.Applied,
+			"saved", unsavedReason,
+			"fix", fix)
+	}
 	return evolveOutcome{tree: result.Tree, data: data, applied: result.Applied}
 }
 

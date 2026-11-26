@@ -159,17 +159,31 @@ func (t *Tree) ClearLeafInactive(name string) {
 // removal that misses one of these leaves the tree internally inconsistent
 // (e.g. a valuesOrder entry with no value, which Values() would still report).
 //
-// Unexported because leaf state is package-internal: the exported API removes
-// containers (RemoveContainer), list entries (RemoveListEntry) and leaf-list
-// members (RemoveMultiValueMember), but never a whole leaf.
+// Unexported because leaf state is package-internal: callers outside config
+// remove nodes by kind (RemoveContainer, RemoveList, RemoveListEntry,
+// RemoveMultiValueMember) or by path (RemovePath).
 func (t *Tree) removeValue(name string) {
+	t.removeValuePresent(name)
+}
+
+func (t *Tree) removeValuePresent(name string) bool {
 	t.mu.Lock()
 	defer t.mu.Unlock()
+	_, hasValue := t.values[name]
+	_, hasMulti := t.multiValues[name]
+	_, hasInactive := t.inactiveValues[name]
+	_, hasInactiveMembers := t.inactiveMembers[name]
+	_, hasStoredSecret := t.storedSecrets[name]
+	existed := hasValue || hasMulti || hasInactive || hasInactiveMembers || hasStoredSecret
+	if !existed {
+		return false
+	}
 	delete(t.values, name)
 	delete(t.multiValues, name)
 	delete(t.mirrored, name)
 	delete(t.inactiveValues, name)
 	delete(t.inactiveMembers, name)
+	delete(t.storedSecrets, name)
 	t.dropLeafCommentsLocked(name)
 	if len(t.valuesOrder) > 0 {
 		filtered := t.valuesOrder[:0]
@@ -180,6 +194,7 @@ func (t *Tree) removeValue(name string) {
 		}
 		t.valuesOrder = filtered
 	}
+	return true
 }
 
 // pruneInactiveLeaves removes every leaf entry whose name appears in
@@ -953,6 +968,144 @@ func (t *Tree) RemoveListEntry(listName, key string) *Tree {
 	t.listOrder[listName] = newOrder
 
 	return entry
+}
+
+// RemoveList removes a nested list and its recorded entry order.
+func (t *Tree) RemoveList(name string) {
+	t.removeListPresent(name)
+}
+
+func (t *Tree) removeListPresent(name string) bool {
+	t.mu.Lock()
+	defer t.mu.Unlock()
+	existed := len(t.lists[name]) > 0
+	delete(t.lists, name)
+	delete(t.listOrder, name)
+	return existed
+}
+
+func (t *Tree) getListEntry(name, key string) *Tree {
+	t.mu.RLock()
+	defer t.mu.RUnlock()
+	list := t.lists[name]
+	if list == nil {
+		return nil
+	}
+	return list[key]
+}
+
+// RemovePath removes the node addressed by path from the tree and reports
+// whether a matching node existed and was removed.
+//
+// Segments are separated by PathSep ("/"), with any leading separator trimmed.
+// Each segment is either a plain name or "listName[key]". Intermediate segments
+// descend through containers and list entries; the terminal segment removes a
+// list entry (for "listName[key]") or a matching container, whole list, or leaf.
+func (t *Tree) RemovePath(path string) bool {
+	if t == nil {
+		return false
+	}
+	trimmed := strings.TrimLeft(path, PathSep)
+	if trimmed == "" {
+		return false
+	}
+	segments := splitTreePath(trimmed)
+	if len(segments) == 0 {
+		return false
+	}
+
+	cur := t
+	for _, seg := range segments[:len(segments)-1] {
+		name, key, isList, ok := parseTreePathSegment(seg)
+		if !ok {
+			return false
+		}
+		if isList {
+			cur = cur.getListEntry(name, key)
+		} else {
+			cur = cur.GetContainer(name)
+		}
+		if cur == nil {
+			return false
+		}
+	}
+
+	name, key, isList, ok := parseTreePathSegment(segments[len(segments)-1])
+	if !ok {
+		return false
+	}
+	if isList {
+		return cur.RemoveListEntry(name, key) != nil
+	}
+	if cur.RemoveContainer(name) != nil {
+		return true
+	}
+	if cur.removeListPresent(name) {
+		return true
+	}
+	return cur.removeValuePresent(name)
+}
+
+// splitTreePath splits a leading-slash-trimmed tree path on PathSep, keeping
+// separators inside "[...]" list keys intact (e.g. CIDR prefixes as keys).
+// Returns nil if any segment is empty or brackets are unbalanced.
+func splitTreePath(path string) []string {
+	var segments []string
+	depth := 0
+	start := 0
+	for i := 0; i < len(path); i++ {
+		switch path[i] {
+		case '[':
+			depth++
+		case ']':
+			if depth == 0 {
+				return nil
+			}
+			depth--
+		case '/':
+			if depth == 0 {
+				if i == start {
+					return nil
+				}
+				segments = append(segments, path[start:i])
+				start = i + 1
+			}
+		}
+	}
+	if depth != 0 {
+		return nil
+	}
+	if start >= len(path) {
+		return nil
+	}
+	segments = append(segments, path[start:])
+	return segments
+}
+
+// parseTreePathSegment parses one path segment as either "name" or
+// "listName[key]". Returns ok=false for empty or malformed segments.
+func parseTreePathSegment(seg string) (name, key string, isList, ok bool) {
+	if seg == "" {
+		return "", "", false, false
+	}
+	openIdx := strings.IndexByte(seg, '[')
+	if openIdx < 0 {
+		if strings.IndexByte(seg, ']') >= 0 {
+			return "", "", false, false
+		}
+		return seg, "", false, true
+	}
+	if openIdx == 0 {
+		return "", "", false, false
+	}
+	if seg[len(seg)-1] != ']' {
+		return "", "", false, false
+	}
+	key = seg[openIdx+1 : len(seg)-1]
+	if key == "" {
+		return "", "", false, false
+	}
+	return seg[:openIdx], key, true, true
 }
 
 // errListEntryExists refuses a rename or copy onto a list entry that exists.

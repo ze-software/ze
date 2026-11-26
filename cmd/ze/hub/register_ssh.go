@@ -9,7 +9,12 @@
 
 package hub
 
+import zeconfig "github.com/ze-software/ze/internal/component/config"
+
 func init() {
+	if err := zeconfig.RegisterServiceBlock("environment/ssh", "SSH server"); err != nil {
+		panic("BUG: hub-ssh: service block registration: " + err.Error())
+	}
 	sshBuild = sshBuildImpl
 	sshWirePostStart = sshWireImpl
 	sshBuildStandalone = sshBuildStandaloneImpl

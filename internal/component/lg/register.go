@@ -36,11 +36,18 @@ func init() {
 		panic("BUG: lg: doctor check registration: " + err.Error())
 	}
 
+	if err := zeconfig.RegisterServiceBlock("environment/looking-glass", "looking glass"); err != nil {
+		panic("BUG: lg: service block registration: " + err.Error())
+	}
+	if err := zeconfig.RegisterServiceBlock("environment/looking-glass/next-hop-range", "looking glass next-hop range names"); err != nil {
+		panic("BUG: lg: next-hop range service block registration: " + err.Error())
+	}
+
 	// The named next-hop ranges are refused at commit, by `ze config validate`,
-	// at start and on reload through this one validator (nexthop_ranges.go).
-	// Without it a config with two entries for one range would load, and the
-	// name shown would depend on the order of the entries.
-	if err := zeconfig.RegisterTreeValidator("lg-next-hop-range", validateNextHopRanges); err != nil {
+	// and on reload through this one validator (nexthop_ranges.go). At daemon
+	// start it is scoped to environment/looking-glass/next-hop-range so a
+	// duplicate range drops only the range-name block rather than stopping ze.
+	if err := zeconfig.RegisterScopedTreeValidator("lg-next-hop-range", "environment/looking-glass/next-hop-range", validateNextHopRanges); err != nil {
 		panic("BUG: lg: next-hop range validator registration: " + err.Error())
 	}
 }

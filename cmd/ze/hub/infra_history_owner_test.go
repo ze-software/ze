@@ -167,8 +167,8 @@ func testInfraSSHHistoryOwner(t *testing.T, startupFailure bool) {
 	failStartup := make(chan struct{})
 	var fail, release sync.Once
 	failure := errors.New("injected engine startup refusal after real infrastructure construction")
-	bngRegister = func(_ *zeconfig.Tree, _ map[string]any, eng *engine.Engine) ([]webPortalService, error) {
-		err := eng.RegisterSubsystem(&infraHistoryStartupFailure{start: func(bus ze.EventBus) error {
+	bngRegister = func(_ *zeconfig.Tree, _ map[string]any, _ string, eng *engine.Engine) ([]webPortalService, []serviceNotStarted) {
+		if err := eng.RegisterSubsystem(&infraHistoryStartupFailure{start: func(bus ze.EventBus) error {
 			infra.Run(infra.HookParams{
 				Reactor: reactor.New(&reactor.Config{}), Store: borrowed,
 				ConfigDir: dir, ConfigPath: path,
@@ -190,8 +190,10 @@ func testInfraSSHHistoryOwner(t *testing.T, startupFailure bool) {
 			}
 			apiServer.SignalShutdownRequested()
 			return nil
-		}})
-		return nil, err
+		}}); err != nil {
+			t.Errorf("register test subsystem: %v", err)
+		}
+		return nil, nil
 	}
 	ended := make(chan struct{})
 	exit := make(chan int, 1)

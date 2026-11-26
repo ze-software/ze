@@ -1,17 +1,19 @@
 # Test: a remote bearer MCP listener without TLS is refused by `ze config
-# validate` and by `ze start`, with the same refusal
+# validate` and `ze doctor`, and left down by `ze start` under
+# doctor-service-not-started with the same refusal and fix
 # VALIDATES: MCP follows the management-listener exposure rule the way gNMI
-# does (config.MCPExposure). The daemon used to start with MCP disabled and a
-# warning ("warning: MCP server disabled") while `ze config validate` refused
-# the same file: the operator's config passed one check and behaved otherwise
-# at boot. Now boot refuses before anything binds, exit 1, and prints the same
-# problem and fix that validation prints.
-# PREVENTS: a daemon that keeps running with a management surface silently
-# off, and validate and boot disagreeing about one config.
-# Why a .ci: the question is what the `ze` binary does at start (exit code,
-# stderr) for a config file, through its real command line, beside what
-# `ze config validate` prints for the same file. The unit tests decide the
-# rule; only the binaries show both entry points agree.
+# does (config.MCPExposure) and the 2026-11-26 ruling
+# (plan/records/ruling-ze-always-starts.md). `ze config validate` and `ze doctor`
+# still refuse the config offline, while `ze start` always starts ze, keeps the
+# exposed MCP listener down, and reports the same problem and fix under
+# doctor-service-not-started without printing the secret token.
+# PREVENTS: a remote bearer MCP listener binding without TLS, silently turning
+# off without a doctor code, leaking its token, or preventing ze from starting.
+# Why a .ci: the question is what the `ze` binary does at start (reaches
+# "Ze running", stderr, no listener bound) for a config file, through its real
+# command line, beside what `ze config validate` and `ze doctor` print for the
+# same file. The unit tests decide the rule; only the binaries show all three
+# entry points agree.
 
 tmpfs=exposed.conf:refused=config-mcp-invalid:terminator=EOF_CONF
 environment {
@@ -41,10 +43,11 @@ expect=stdout:pattern=refusing to start MCP on non-loopback listener .{0,4}0\.0\
 expect=stdout:contains=set environment mcp tls cert
 reject=stdout:contains=s3cret-token
 
-cmd=foreground:seq=3:exec=ze start exposed.conf:timeout=15s
-expect=exit:code=1
+cmd=background:seq=3:name=daemon:exec=ze start exposed.conf:ready=Ze running
 expect=stderr:pattern=refusing to start MCP on non-loopback listener .0\.0\.0\.0:[0-9]+. without TLS
 expect=stderr:contains=set environment mcp tls cert <cert.pem> and set environment mcp tls key <key.pem>
+expect=stderr:contains=code=doctor-service-not-started
 reject=stderr:contains=MCP server disabled
 reject=stderr:contains=MCP server listening
 reject=stderr:contains=s3cret-token
+cmd=stop:seq=4:name=daemon:signal=term

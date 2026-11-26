@@ -161,3 +161,79 @@ func TestLGRangesUnusedKeepsTheListsOwnFix(t *testing.T) {
 	require.Contains(t, down.problem.Fix(), "next-hop-range not-a-prefix")
 	require.Contains(t, down.problem.Fix(), "then restart ze.")
 }
+
+func TestConfigBlockDisplay(t *testing.T) {
+	// VALIDATES: configBlockDisplay converts internal slash/bracket config tree
+	// paths into the space-separated block syntax operators write in commands
+	// and configuration files, with no leading, trailing, or doubled spaces.
+	// PREVENTS: raw tree paths like "bus/hub/server[main]" leaking into
+	// operator-facing error messages and doctor findings.
+	cases := []struct {
+		path string
+		want string
+	}{
+		{path: "environment/web", want: "environment web"},
+		{path: "/environment/web", want: "environment web"},
+		{path: "bus/hub/server[main]", want: "bus hub server main"},
+		{path: "bus/hub/server[main]/tls", want: "bus hub server main tls"},
+		{path: "bgp/rpki/cache-server[rtr1]", want: "bgp rpki cache-server rtr1"},
+		{path: "environment/looking-glass/next-hop-range", want: "environment looking-glass next-hop-range"},
+		{path: "l2tp", want: "l2tp"},
+		{path: "", want: ""},
+	}
+	for _, tc := range cases {
+		require.Equal(t, tc.want, configBlockDisplay(tc.path), "path %q", tc.path)
+	}
+}
+
+func TestReportExcludedBlockLogsPrintsAndFeedsDoctor(t *testing.T) {
+	// VALIDATES: an ExcludedBlock returned by LoadConfigForStart is reported
+	// through reportServiceNotStarted with operator-readable block syntax, the
+	// original validation cause, doctor-service-not-started on the log, console
+	// stderr text stating ze keeps running, and a runtime doctor finding whose
+	// fix names `ze config validate <path>`.
+	// PREVENTS: a service block dropped at start staying silent in logs or
+	// missing from `ze doctor`.
+	resetServicesNotStarted()
+	t.Cleanup(resetServicesNotStarted)
+
+	excl := zeconfig.ExcludedBlock{
+		Path:    "environment/web",
+		Service: serviceNameWeb,
+		Cause:   errors.New(`environment/web/certificate: certificate "no-such-cert" is not defined`),
+	}
+	const cfgPath = "/etc/ze/ze.conf"
+
+	var logged, console bytes.Buffer
+	log := slog.New(slog.NewTextHandler(&logged, nil))
+	reportServiceNotStarted(log, &console,
+		notStarted(excl.Service, blockUnservable(excl.Service, configBlockDisplay(excl.Path), cfgPath, excl.Cause)))
+
+	for _, want := range []string{
+		"level=ERROR",
+		"code=" + codeDoctorServiceNotStarted,
+		`service="web server"`,
+		"the web server is not started; ze and its other services keep running",
+		"environment web",
+		"no-such-cert",
+	} {
+		require.Contains(t, logged.String(), want)
+	}
+	for _, want := range []string{
+		"error: the web server is not started; ze and its other services keep running: ",
+		"`environment web` cannot be served as written",
+		"Correct `environment web` as `ze config validate " + cfgPath + "` reports, then restart ze.",
+		"no-such-cert",
+	} {
+		require.Contains(t, console.String(), want)
+	}
+
+	diags := checkServicesNotStarted(diagnostic.DoctorCheckContext{})
+	require.Len(t, diags, 1)
+	require.Equal(t, codeDoctorServiceNotStarted, diags[0].Code)
+	require.Equal(t, diagnostic.SeverityError, diags[0].Severity)
+	require.Contains(t, diags[0].Message, "`environment web` cannot be served as written")
+	require.Contains(t, diags[0].Message, "the web server is not started")
+	require.Equal(t, "Correct `environment web` as `ze config validate "+cfgPath+"` reports, then restart ze.", diags[0].Fix)
+	require.Equal(t, excl.Cause.Error(), diags[0].Actual)
+}

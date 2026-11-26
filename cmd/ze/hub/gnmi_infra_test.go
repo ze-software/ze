@@ -55,10 +55,10 @@ func disabledGNMIBlockTokenOnly(t *testing.T) *zeconfig.Tree {
 // VALIDATES: the token of an environment.gnmi block reaches the resolver even
 // when the block does not say `enabled true`, so an env-started gNMI listener
 // authenticates the way the operator's config asked.
-// PREVENTS: the boot refusal an operator cannot act on. Reading the token
+// PREVENTS: a listener refusal an operator cannot act on. Reading the token
 // through the enable gate discarded it, the resolver fell back to the
-// 0.0.0.0:9339 default with an empty token, and checkMgmtListeners refused to
-// start while telling the operator to set the very token they had written.
+// 0.0.0.0:9339 default with an empty token, and filterMgmtListener refused the
+// listener while telling the operator to set the very token they had written.
 func TestResolveGNMIListenersKeepsTokenFromDisabledBlock(t *testing.T) {
 	setGNMIEnv(t, "ze.gnmi.enabled", "1")
 	setGNMIEnv(t, "ze.gnmi.listen", "")
@@ -71,11 +71,13 @@ func TestResolveGNMIListenersKeepsTokenFromDisabledBlock(t *testing.T) {
 	// The block names no server, so the synthesized default binds. With the
 	// token honored the guard passes it.
 	assert.Equal(t, "0.0.0.0:9339", addr)
-	assert.False(t, checkMgmtListeners([]mgmtListener{{
+	allowed, down := filterMgmtListener(mgmtListener{
 		service:       "gNMI",
 		addrs:         []string{addr},
 		authenticated: token != "",
-	}}), "a gNMI listener whose config named a token must not be refused")
+	})
+	assert.Empty(t, down, "a gNMI listener whose config named a token must not be refused")
+	assert.Equal(t, []string{addr}, allowed)
 }
 
 // VALIDATES: the address of an environment.gnmi block reaches the resolver even

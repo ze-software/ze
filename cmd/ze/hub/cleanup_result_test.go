@@ -138,8 +138,9 @@ func runCleanupResult(t *testing.T, line string, engineFailure, first, second er
 	oldREST, oldGRPC, oldBNG := restBuild, grpcBuild, bngRegister
 	t.Cleanup(func() { restBuild, grpcBuild, bngRegister = oldREST, oldGRPC, oldBNG })
 	var calls []string
-	bngRegister = func(_ *zeconfig.Tree, _ map[string]any, e *engine.Engine) ([]webPortalService, error) {
-		return nil, e.RegisterSubsystem(&cleanupResultSubsystem{failure: engineFailure, calls: &calls})
+	bngRegister = func(_ *zeconfig.Tree, _ map[string]any, _ string, e *engine.Engine) ([]webPortalService, []serviceNotStarted) {
+		require.NoError(t, e.RegisterSubsystem(&cleanupResultSubsystem{failure: engineFailure, calls: &calls}))
+		return nil, nil
 	}
 	for _, input := range []struct {
 		name    string

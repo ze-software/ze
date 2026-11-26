@@ -206,6 +206,10 @@ func init() {
 	config.RegisterListenerFreebind("service-as112-ipv4-anycast-listener")
 	config.RegisterListenerFreebind("service-as112-ipv6-anycast-listener")
 
+	if err := config.RegisterServiceBlock("service/as112", "AS112 DNS service"); err != nil {
+		panic("BUG: as112: service block registration: " + err.Error())
+	}
+
 	pluginserver.RegisterRPCs(pluginserver.RPCRegistration{
 		WireMethod: "ze-as112:show-as112",
 		Handler:    handleShowAS112,

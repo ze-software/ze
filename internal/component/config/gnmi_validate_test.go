@@ -74,10 +74,11 @@ func TestGNMIListenConfigValidateMultiListener(t *testing.T) {
 // and fix the daemon's boot refusal prints; loopback with a token and no TLS
 // passes.
 //
-// VALIDATES: `ze config validate` and `ze doctor` refuse what boot refuses
-// (cmd/ze/hub checkMgmtListeners over the same GNMIExposure rule).
-// PREVENTS: a config that validates clean and then exits 1 at boot because
-// gNMI would send its token and config in clear text.
+// VALIDATES: `ze config validate` and `ze doctor` apply the same rule the
+// daemon's start-time listener filter applies (cmd/ze/hub filterMgmtListener
+// over the same GNMIExposure rule).
+// PREVENTS: a config that validates clean and then leaves gNMI down at boot
+// because gNMI would send its token and config in clear text.
 func TestGNMIListenConfigValidateRequiresTLS(t *testing.T) {
 	certOnly := gnmiCfg("10.0.0.1", "s3cret-token")
 	certOnly.TLS.Cert = "/etc/ze/gnmi.crt"

@@ -3,6 +3,7 @@ package rpki
 import (
 	rpkiyang "github.com/ze-software/ze/internal/component/bgp/plugins/rpki/yang"
 	"github.com/ze-software/ze/internal/component/bgp/retention"
+	"github.com/ze-software/ze/internal/component/config"
 	"github.com/ze-software/ze/internal/component/plugin/cli"
 	"github.com/ze-software/ze/internal/component/plugin/registry"
 	bgpevents "github.com/ze-software/ze/internal/core/bgp/events"
@@ -85,5 +86,8 @@ func init() {
 	// readiness check that asks whether any of them can be reached (doctor.go).
 	if err := diagnostic.RegisterDoctorCheck(rpkiDoctorCheck); err != nil {
 		panic("BUG: bgp-rpki: doctor check registration failed: " + err.Error())
+	}
+	if err := config.RegisterServiceBlock("bgp/rpki/cache-server[*]", "RPKI cache server"); err != nil {
+		panic("BUG: bgp-rpki: service block registration: " + err.Error())
 	}
 }

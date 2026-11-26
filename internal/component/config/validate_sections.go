@@ -160,6 +160,14 @@ func ValidateCustomSections(tree *Tree) ([]SectionValidationError, error) {
 	if err := validateOriginalTree(tree); err != nil {
 		return nil, fmt.Errorf("%w: %w", ErrCustomValidation, err)
 	}
+	return validateCustomSectionsSchema(tree)
+}
+
+// validateCustomSectionsSchema runs the schema, mandatory, and reference walks
+// of ValidateCustomSections without running original-tree validators, so
+// ValidateCustomSections (strict) and excludeInvalidServiceBlocks (start mode)
+// share one walk.
+func validateCustomSectionsSchema(tree *Tree) ([]SectionValidationError, error) {
 	validator, err := YANGValidator()
 	if err != nil {
 		return nil, fmt.Errorf("build YANG validator: %w", err)

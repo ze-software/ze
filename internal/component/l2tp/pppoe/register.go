@@ -8,10 +8,13 @@ import (
 )
 
 func init() {
-	if err := config.RegisterTreeValidator("pppoe-backend", validateBackendGate); err != nil {
+	if err := config.RegisterServiceBlock(SubsystemName, "PPPoE subsystem"); err != nil {
+		panic("BUG: pppoe: service block registration: " + err.Error())
+	}
+	if err := config.RegisterScopedTreeValidator("pppoe-backend", SubsystemName, validateBackendGate); err != nil {
 		panic("BUG: register PPPoE backend validation: " + err.Error())
 	}
-	if err := config.RegisterTreeValidator("pppoe-authentication-policy", validateAuthPolicy); err != nil {
+	if err := config.RegisterScopedTreeValidator("pppoe-authentication-policy", SubsystemName, validateAuthPolicy); err != nil {
 		panic("BUG: register PPPoE authentication policy: " + err.Error())
 	}
 }

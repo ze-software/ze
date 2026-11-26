@@ -14,6 +14,7 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/ze-software/ze/internal/component/config"
 	"github.com/ze-software/ze/internal/component/iface"
 	"github.com/ze-software/ze/internal/component/ike/dataplane"
 	"github.com/ze-software/ze/internal/component/ike/ipsec"
@@ -470,6 +471,9 @@ func init() {
 	}
 	if err := registry.Register(reg); err != nil {
 		panic("BUG: ike: registration failed: " + err.Error())
+	}
+	if err := config.RegisterServiceBlock("vpn/ipsec", "IPsec VPN"); err != nil {
+		panic("BUG: ike: service block registration: " + err.Error())
 	}
 }
 

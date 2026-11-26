@@ -51,11 +51,13 @@ func TestCheckMgmtListeners(t *testing.T) {
 		name        string
 		listeners   []mgmtListener
 		wantRefused bool
+		wantAllowed [][]string
 	}{
 		{
 			name:        "no listeners",
 			listeners:   nil,
 			wantRefused: false,
+			wantAllowed: nil,
 		},
 		{
 			// AC-4: loopback + unauthenticated is allowed.
@@ -65,6 +67,7 @@ func TestCheckMgmtListeners(t *testing.T) {
 				{service: "MCP", addrs: []string{"127.0.0.1:8080"}, authenticated: false},
 			},
 			wantRefused: false,
+			wantAllowed: [][]string{{"127.0.0.1:9339"}, {"127.0.0.1:8080"}},
 		},
 		{
 			// AC-1: gNMI non-loopback without token is refused.
@@ -73,6 +76,7 @@ func TestCheckMgmtListeners(t *testing.T) {
 				{service: "gNMI", addrs: []string{"0.0.0.0:9339"}, authenticated: false},
 			},
 			wantRefused: true,
+			wantAllowed: [][]string{nil},
 		},
 		{
 			// Authenticated non-loopback is allowed regardless of address.
@@ -81,14 +85,17 @@ func TestCheckMgmtListeners(t *testing.T) {
 				{service: "gNMI", addrs: []string{"0.0.0.0:9339"}, authenticated: true},
 			},
 			wantRefused: false,
+			wantAllowed: [][]string{{"0.0.0.0:9339"}},
 		},
 		{
-			// AC-3: web-insecure with a non-loopback listen is refused.
+			// AC-3: web-insecure with a non-loopback listen refuses the
+			// non-loopback address while keeping the loopback one.
 			name: "web insecure non-loopback refused",
 			listeners: []mgmtListener{
 				{service: "web (insecure)", addrs: []string{"127.0.0.1:3443", "0.0.0.0:3443"}, authenticated: false},
 			},
 			wantRefused: true,
+			wantAllowed: [][]string{{"127.0.0.1:3443"}},
 		},
 		{
 			// AC-3 fail-closed backstop: an unauthenticated surface with no
@@ -99,6 +106,7 @@ func TestCheckMgmtListeners(t *testing.T) {
 				{service: "web (insecure)", addrs: nil, authenticated: false},
 			},
 			wantRefused: true,
+			wantAllowed: [][]string{nil},
 		},
 		{
 			// An authenticated surface with no address is still fine: the
@@ -108,11 +116,20 @@ func TestCheckMgmtListeners(t *testing.T) {
 				{service: "API", addrs: nil, authenticated: true},
 			},
 			wantRefused: false,
+			wantAllowed: [][]string{nil},
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			assert.Equal(t, tt.wantRefused, checkMgmtListeners(tt.listeners))
+			refused := false
+			for i, l := range tt.listeners {
+				allowed, down := filterMgmtListener(l)
+				if len(down) > 0 {
+					refused = true
+				}
+				assert.Equal(t, tt.wantAllowed[i], allowed)
+			}
+			assert.Equal(t, tt.wantRefused, refused)
 		})
 	}
 }
@@ -248,12 +265,131 @@ func TestResolveWebListenersClosesTheGuardHole(t *testing.T) {
 
 	t.Run("insecure web with no configured address is refused", func(t *testing.T) {
 		// The declaration main.go builds for `ze.web.enabled=1 ze.web.insecure=1`.
-		refused := checkMgmtListeners([]mgmtListener{{
+		allowed, down := filterMgmtListener(mgmtListener{
 			service:       "web (insecure)",
 			addrs:         resolveWebListeners(true, nil),
 			authenticated: false,
-		}})
-		assert.True(t, refused,
+		})
+		assert.Empty(t, allowed,
 			"an insecure web server that will bind 0.0.0.0 must not start")
+		require.Len(t, down, 1)
+		assert.Equal(t, "web (insecure)", down[0].service)
+		assert.Contains(t, down[0].problem.Error(), defaultWebListen)
+	})
+}
+
+// VALIDATES: filterMgmtListener keeps loopback addresses in allowed while
+// turning every exposure breach into a serviceNotStarted record naming the
+// offending address (or the unnamed listener when addrs is empty) and carrying
+// the exact operator error (problem, why, fix) from network.Exposure.Plan.
+// PREVENTS: a single exposed address taking down a safe loopback listener or
+// stopping ze, and ensures multi-breach (auth + TLS) surfaces report every
+// missing protection.
+func TestFilterMgmtListener(t *testing.T) {
+	t.Run("mixed loopback and non-loopback keeps loopback and reports breach", func(t *testing.T) {
+		allowed, down := filterMgmtListener(mgmtListener{
+			service:       "API",
+			addrs:         []string{"127.0.0.1:8081", "0.0.0.0:8081", "[::1]:8082"},
+			authenticated: false,
+			remedy:        "set ze.api-server.token",
+		})
+		assert.Equal(t, []string{"127.0.0.1:8081", "[::1]:8082"}, allowed)
+		require.Len(t, down, 1)
+		assert.Equal(t, "API", down[0].service)
+		assert.Equal(t, "the API listener 0.0.0.0:8081 is not started"+keepsRunning, down[0].effect)
+		assert.Equal(t, `refusing to start API on non-loopback listener "0.0.0.0:8081" without authentication`, down[0].problem.Problem())
+		assert.Equal(t, "set ze.api-server.token", down[0].problem.Fix())
+	})
+
+	t.Run("empty addrs without auth fails closed without address in effect", func(t *testing.T) {
+		allowed, down := filterMgmtListener(mgmtListener{
+			service:       "web (insecure)",
+			addrs:         nil,
+			authenticated: false,
+			remedy:        "bind ze.web.listen to 127.0.0.1/::1",
+		})
+		assert.Empty(t, allowed)
+		require.Len(t, down, 1)
+		assert.Equal(t, "web (insecure)", down[0].service)
+		assert.Equal(t, "the web (insecure) listener is not started"+keepsRunning, down[0].effect)
+		assert.Contains(t, down[0].problem.Problem(), "no resolved listen address")
+	})
+
+	t.Run("multi-breach auth and TLS reports both while keeping loopback", func(t *testing.T) {
+		allowed, down := filterMgmtListener(mgmtListener{
+			service:       "MCP",
+			addrs:         []string{"127.0.0.1:8080", "0.0.0.0:18081"},
+			authenticated: false,
+			remedy:        "set environment mcp auth-mode bearer and set environment mcp token <token>",
+			requireTLS:    true,
+			tlsConfigured: false,
+			tlsRemedy:     "set environment mcp tls cert <cert.pem> and set environment mcp tls key <key.pem>",
+		})
+		assert.Equal(t, []string{"127.0.0.1:8080"}, allowed)
+		require.Len(t, down, 2)
+		assert.Equal(t, "MCP", down[0].service)
+		assert.Equal(t, "the MCP listener 0.0.0.0:18081 is not started"+keepsRunning, down[0].effect)
+		assert.Equal(t, `refusing to start MCP on non-loopback listener "0.0.0.0:18081" without authentication`, down[0].problem.Problem())
+		assert.Equal(t, "set environment mcp auth-mode bearer and set environment mcp token <token>", down[0].problem.Fix())
+		assert.Equal(t, "MCP", down[1].service)
+		assert.Equal(t, "the MCP listener 0.0.0.0:18081 is not started"+keepsRunning, down[1].effect)
+		assert.Equal(t, `refusing to start MCP on non-loopback listener "0.0.0.0:18081" without TLS`, down[1].problem.Problem())
+		assert.Equal(t, "set environment mcp tls cert <cert.pem> and set environment mcp tls key <key.pem>", down[1].problem.Fix())
+	})
+}
+
+// VALIDATES: filterAPIConfig preserves enabled transports' allowed endpoints,
+// turns off any transport whose endpoints were all filtered out, leaves
+// already-disabled transports off, and reports whether either transport still
+// has a listener to bind.
+// PREVENTS: an exposed gRPC bind disabling a safe loopback REST listener, or a
+// dormant transport waking up because its parsed address matched allowed.
+func TestFilterAPIConfig(t *testing.T) {
+	t.Run("REST loopback survives while gRPC non-loopback is filtered out", func(t *testing.T) {
+		in := zeconfig.APIConfig{
+			RESTOn: true,
+			REST: []zeconfig.APIListenConfig{
+				{Host: "127.0.0.1", Port: "8081"},
+				{Host: "0.0.0.0", Port: "8082"},
+			},
+			GRPCOn: true,
+			GRPC: []zeconfig.APIListenConfig{
+				{Host: "0.0.0.0", Port: "50051"},
+			},
+		}
+		got, ok := filterAPIConfig(in, []string{"127.0.0.1:8081"})
+		assert.True(t, ok)
+		assert.True(t, got.RESTOn)
+		assert.Equal(t, []zeconfig.APIListenConfig{{Host: "127.0.0.1", Port: "8081"}}, got.REST)
+		assert.False(t, got.GRPCOn)
+		assert.Empty(t, got.GRPC)
+	})
+
+	t.Run("both transports filtered out returns ok false", func(t *testing.T) {
+		in := zeconfig.APIConfig{
+			RESTOn: true,
+			REST:   []zeconfig.APIListenConfig{{Host: "0.0.0.0", Port: "8081"}},
+			GRPCOn: true,
+			GRPC:   []zeconfig.APIListenConfig{{Host: "0.0.0.0", Port: "50051"}},
+		}
+		got, ok := filterAPIConfig(in, nil)
+		assert.False(t, ok)
+		assert.False(t, got.RESTOn)
+		assert.Empty(t, got.REST)
+		assert.False(t, got.GRPCOn)
+		assert.Empty(t, got.GRPC)
+	})
+
+	t.Run("dormant transport stays off even when its parsed address is in allowed", func(t *testing.T) {
+		in := zeconfig.APIConfig{
+			RESTOn: false,
+			REST:   []zeconfig.APIListenConfig{{Host: "127.0.0.1", Port: "8081"}},
+			GRPCOn: true,
+			GRPC:   []zeconfig.APIListenConfig{{Host: "127.0.0.1", Port: "8081"}},
+		}
+		got, ok := filterAPIConfig(in, []string{"127.0.0.1:8081"})
+		assert.True(t, ok)
+		assert.False(t, got.RESTOn)
+		assert.True(t, got.GRPCOn)
 	})
 }

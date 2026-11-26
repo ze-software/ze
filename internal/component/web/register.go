@@ -10,9 +10,16 @@
 
 package web
 
-import "github.com/ze-software/ze/internal/core/diagnostic"
+import (
+	"github.com/ze-software/ze/internal/component/config"
+	"github.com/ze-software/ze/internal/core/diagnostic"
+)
 
 func init() {
+	if err := config.RegisterServiceBlock("environment/web", "web server"); err != nil {
+		panic("BUG: web: service block registration: " + err.Error())
+	}
+
 	check := diagnostic.DoctorCheck{
 		Name:         "web-tls-certificate",
 		Phase:        diagnostic.DoctorPhasePostConfig,

@@ -115,13 +115,26 @@ from the daemon's own environment and command line as well as its config.
 | The `environment mcp` block is inconsistent for a listener that would bind | MCP is not started |
 | The REST or gRPC listener cannot be built | That transport is not started, and the other one serves |
 | The looking-glass next-hop range list cannot be used | The looking glass serves without the range names |
+| The `l2tp` or `pppoe` block cannot be served, or its subsystem cannot be registered | That subsystem is not started, and the other BNG subsystem and ze keep running |
+| A management listener (web in insecure mode, MCP, gNMI, or REST/gRPC API) binds a non-loopback address without authentication, or gNMI/MCP binds non-loopback without TLS | Only the exposed listener address is not started; safe (loopback or protected) addresses and other services keep running |
+| A registered service block fails validation or a `ze:reference` check (for example, `environment web certificate` naming an undefined PKI certificate) | Only that service block is dropped from the in-memory tree for this start; the stored config file stays untouched (schema evolution does not write back), other services keep running, and `ze config validate` and reload still refuse the file |
 
 A reload that carries the same configuration is refused as a whole.
-<!-- source: cmd/ze/hub/service_not_started.go -- reportServiceNotStarted, checkServicesNotStarted, serviceNotStartedDiagnostic, listenUnreadable, blockUnservable, buildFailed, lgRangesUnused -->
+<!-- source: cmd/ze/hub/service_not_started.go -- reportServiceNotStarted, checkServicesNotStarted, serviceNotStartedDiagnostic, listenUnreadable, configBlockDisplay, blockUnservable, buildFailed, lgRangesUnused -->
 <!-- source: cmd/ze/hub/register_services_not_started.go -- init -->
+<!-- source: cmd/ze/hub/register_l2tp.go -- registerBNGSubsystems -->
 <!-- source: cmd/ze/hub/api_infra.go -- planAPIListeners, resolveAPIListeners -->
+<!-- source: cmd/ze/hub/mgmt_guard.go -- filterMgmtListener, filterAPIConfig -->
+<!-- source: internal/component/config/service_blocks.go -- RegisterServiceBlock, excludeInvalidServiceBlocks -->
+<!-- source: internal/component/config/loader.go -- LoadConfigForStart -->
+<!-- source: cmd/ze/hub/main_evolve.go -- applyEvolutions, unsavedExcludedEvolution -->
 <!-- test: cmd/ze/hub/service_not_started_test.go TestReportServiceNotStartedLogsPrintsAndFeedsDoctor -->
+<!-- test: cmd/ze/hub/service_not_started_test.go TestReportExcludedBlockLogsPrintsAndFeedsDoctor -->
 <!-- test: cmd/ze/hub/service_not_started_test.go TestPlanAPIListenersLeavesOnlyTheUnreadableTransportDown -->
+<!-- test: cmd/ze/hub/service_bng_unserved_test.go TestRegisterBNGSubsystemsInvalidL2TPLeavesPPPoERegistered -->
+<!-- test: cmd/ze/hub/main_evolve_start_test.go TestApplyEvolutionsSkipsWriteBackWhenSaveToStoreFalse -->
+<!-- test: cmd/ze/hub/mgmt_guard_test.go TestFilterMgmtListener -->
+<!-- test: cmd/ze/hub/mgmt_guard_test.go TestFilterAPIConfig -->
 
 The BGP RIB's `bgp-rib-selected-output` callback reads a failed selected-route
 capture where that RIB runs. It declares `doctor-bgp-selected-output`, retains

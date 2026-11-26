@@ -70,7 +70,7 @@ func TestApplyEvolutionsWarnsANoticeForAFile(t *testing.T) {
 	}
 
 	var buf bytes.Buffer
-	if _, err := applyEvolutions(defaultLevelLogger(&buf), store, configPath, originalData, tree, "26.05.01"); err != nil {
+	if _, err := applyEvolutions(defaultLevelLogger(&buf), store, configPath, originalData, tree, "26.05.01", true); err != nil {
 		t.Fatal(err)
 	}
 	logged := buf.String()
@@ -98,7 +98,7 @@ func TestApplyEvolutionsWarnsANoticeForStdin(t *testing.T) {
 	}
 
 	var buf bytes.Buffer
-	if _, err := applyEvolutions(defaultLevelLogger(&buf), newTestStore(t), "-", originalData, tree, "26.05.01"); err != nil {
+	if _, err := applyEvolutions(defaultLevelLogger(&buf), newTestStore(t), "-", originalData, tree, "26.05.01", true); err != nil {
 		t.Fatal(err)
 	}
 	logged := buf.String()
@@ -123,7 +123,7 @@ func TestApplyEvolutionsKeepsAShapeChangeQuiet(t *testing.T) {
 	}
 
 	var buf bytes.Buffer
-	outcome, err := applyEvolutions(defaultLevelLogger(&buf), newTestStore(t), "-", originalData, tree, "26.05.01")
+	outcome, err := applyEvolutions(defaultLevelLogger(&buf), newTestStore(t), "-", originalData, tree, "26.05.01", true)
 	if err != nil {
 		t.Fatal(err)
 	}
