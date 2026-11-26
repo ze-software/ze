@@ -43,9 +43,10 @@ per-collector selection for native metric groups so an operator can scrape BGP
 without the OS and pool metrics, or the reverse.
 
 The inherited prefix-count mode ambiguity is a correctness obligation owned by
-`plan/release/fixes/spec-bgp-per-peer-received-counter.md`. It is independent of
-these optional descriptive labels and native-collector controls. Per-family
-staleness visibility remains owned here.
+`plan/release/fixes/spec-bgp-prefix-count-mode-metric.md` (split from
+`plan/release/fixes/spec-bgp-per-peer-received-counter.md` on 2026-11-24). It is
+independent of these optional descriptive labels and native-collector controls.
+Per-family staleness visibility remains owned here.
 
 Already covered, and not in scope:
 
@@ -373,9 +374,10 @@ Expose per-family prefix staleness dates on an operator surface. The spec stores
 ### From `fixit-prefix-count-metric-does-not-say-its-mode.md`, 2026-08-08
 
 Deferred by `spec-bgp-per-peer-received-counter` after the `installed` mode was
-rewritten to count a set. Reconciled on 2026-09-19: the obligation returns to
-`plan/release/fixes/spec-bgp-per-peer-received-counter.md`, whose Task and ACs now
-own it separately from received-count redesign.
+rewritten to count a set. Reconciled on 2026-09-19 to
+`plan/release/fixes/spec-bgp-per-peer-received-counter.md`, and split on
+2026-11-24 into `plan/release/fixes/spec-bgp-prefix-count-mode-metric.md` as its
+own v1.0 release fix.
 
 `setPrefixCountMetric` in `session_prefix.go` publishes the selected enforcement
 count with peer and family labels. `offered` counts events and `installed`
