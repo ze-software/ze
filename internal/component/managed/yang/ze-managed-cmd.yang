@@ -3,6 +3,7 @@ module ze-managed-cmd {
     prefix managedcmd;
     import ze-extensions { prefix ze; }
     description "Fleet commands of a managed device. Owned by the managed component, which reads the managed flag, the hub block and the baseline these commands report. See ai/rules/plugins.md.";
+    revision 2026-11-26 { description "Added show fleet device inventory name, show fleet device health name, and show fleet health to inspect managed device inventory and component health stored on the hub."; }
     revision 2026-11-19 { description "Added show fleet status, which the caller's own process answers from the store and the daemon serves under the same path, and request fleet disable and enable, which take the device out of the fleet and put it back. Added the hub's fleet divergence commands: show fleet divergence list and name, update fleet divergence name adopt and request fleet divergence name revert, which show and resolve a managed client that holds."; }
 
     container request {
@@ -192,6 +193,49 @@ module ze-managed-cmd {
                         ze:help "Managed device name";
                     }
                 }
+
+                container inventory {
+                    config false;
+                    description "Inspect a managed device's reported hardware and software inventory.";
+                    ze:help "Inspect a managed device's hardware and software inventory.";
+                    container name {
+                        config false;
+                        ze:command "ze-managed:fleet-device-inventory";
+                        description "Show the named managed device's latest reported hardware and software inventory, or report that none has been received.";
+                        ze:help "Show one managed device's reported inventory.";
+                        leaf name {
+                            type string { length "1..64"; }
+                            mandatory true;
+                            description "The device name declared or recorded on this hub.";
+                            ze:help "Managed device name";
+                        }
+                    }
+                }
+
+                container health {
+                    config false;
+                    description "Inspect a managed device's reported component health.";
+                    ze:help "Inspect a managed device's component health.";
+                    container name {
+                        config false;
+                        ze:command "ze-managed:fleet-device-health";
+                        description "Show the named managed device's latest reported component health status and per-component results, or report that none has been received.";
+                        ze:help "Show one managed device's reported component health.";
+                        leaf name {
+                            type string { length "1..64"; }
+                            mandatory true;
+                            description "The device name declared or recorded on this hub.";
+                            ze:help "Managed device name";
+                        }
+                    }
+                }
+            }
+
+            container health {
+                config false;
+                ze:command "ze-managed:fleet-health";
+                description "Show aggregated component health across declared managed devices, including healthy, degraded, down, and unreported counts plus the degraded or down devices.";
+                ze:help "Show aggregated component health across declared managed devices.";
             }
 
             container status {

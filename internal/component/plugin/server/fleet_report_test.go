@@ -644,9 +644,16 @@ func TestReportRefusalsPreserveLastValue(t *testing.T) {
 	require.True(t, ok)
 	require.Equal(t, "unknown method: unknown-future-verb", rpcErr.Message)
 
-	// Subsequent ping succeeds on the same connection.
+	// Subsequent ping and config-fetch both succeed on the same connection (AC-10).
 	_, err = callReportRPC(t, mc, fleet.VerbPing, nil)
 	require.NoError(t, err)
+
+	fetchRaw, err := callReportRPC(t, mc, fleet.VerbConfigFetch, fleet.ConfigFetchRequest{})
+	require.NoError(t, err)
+	var fetchResp fleet.ConfigFetchResponse
+	require.NoError(t, json.Unmarshal(fetchRaw, &fetchResp))
+	require.Equal(t, fleet.VersionHash([]byte(testClientConfig)), fetchResp.Version)
+	require.NotEmpty(t, fetchResp.Config)
 }
 
 func TestFleetHealthAggregation(t *testing.T) {

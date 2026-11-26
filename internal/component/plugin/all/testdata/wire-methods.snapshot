@@ -311,12 +311,15 @@ ze-log:bgp-log-levels
 ze-log:bgp-log-recent
 ze-log:bgp-log-set
 ze-managed:fleet-device
+ze-managed:fleet-device-health
+ze-managed:fleet-device-inventory
 ze-managed:fleet-devices
 ze-managed:fleet-disable
 ze-managed:fleet-divergence-adopt
 ze-managed:fleet-divergence-revert
 ze-managed:fleet-divergence-show
 ze-managed:fleet-enable
+ze-managed:fleet-health
 ze-meta:bgp-command-complete
 ze-meta:bgp-command-help
 ze-meta:bgp-command-list

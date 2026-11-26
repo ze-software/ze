@@ -172,6 +172,26 @@ be decoded. Name completion reads the sorted names from memory.
 <!-- source: internal/component/plugin/server/managed_held.go -- HeldClients -->
 <!-- source: internal/component/managed/cmd_devices.go -- rowForDevice, deviceConfigState -->
 
+Each `ManagedDeviceRecord` also holds optional pointers to immutable
+`ManagedInventorySnapshot` and `ManagedHealthSnapshot` values, each pairing a
+validated report with the hub's UTC receipt timestamp. Both snapshots survive
+disconnect and hub restart, remain absent (`nil`) for older records or devices
+that have never reported, and are deep-cloned on snapshot so callers cannot
+mutate live or writer-retained state. Three read-only commands expose them on
+every command surface: `show fleet device inventory name <name>`, `show fleet
+device health name <name>`, and `show fleet health`. Both per-device commands
+report explicit `reported` and `status` fields alongside `connected` and
+`received-at`: `show fleet device inventory name <name>` sets `status` to
+`reported` or `not-reported`, whereas `show fleet device health name <name>`
+sets `status` to `not-reported`, `healthy`, `degraded`, or `down`. The estate
+summary classifies each
+declared device once into `healthy`, `degraded`, `down`, or `unreported`,
+retains a disconnected device's last reported health with `connected` set to
+false, and lists degraded or down devices in name order.
+<!-- source: internal/component/plugin/server/managed_registry.go -- ManagedInventorySnapshot, ManagedHealthSnapshot, recordInventoryReport, recordHealthReport -->
+<!-- source: internal/component/plugin/server/fleet_report.go -- ManagedFleetHealth, FleetHealthSummary -->
+<!-- source: internal/component/managed/cmd_reports.go -- handleFleetDeviceInventory, handleFleetDeviceHealth, handleFleetHealth -->
+
 ### Roles
 
 | Role | Config | Description |
@@ -394,7 +414,12 @@ The writer publishes its own successful save directly into the registry under
 the same guard. A repair of malformed history restores the retained original
 bytes. If the original read failed, doctor reports the failure until the
 operator removes the key or a device event supplies new facts.
-<!-- source: internal/component/plugin/server/managed_record_store.go -- loadDeviceRecords, syncDeviceRecord -->
+Optional `inventory` and `health` snapshots ride on the same `ManagedDeviceRecord`
+value as immutable pointers so older records without either field load cleanly
+as unreported, restart validation applies the same strict report checks as live
+receivers, and operator deletion reconciliation retains reports that arrived
+after the deletion was observed while dropping earlier ones.
+<!-- source: internal/component/plugin/server/managed_record_store.go -- loadDeviceRecords, syncDeviceRecord, decodeDeviceRecord -->
 
 ### Config Storage (Client Side)
 
@@ -923,6 +948,8 @@ After `#0 auth`, the hub knows the client's name. All RPCs are scoped to that na
 | `config-changed` | Hub to client | `{"version":"<hash>"}` | `ok {}` |
 | `config-ack` | Client to hub | `{"version":"<hash>","ok":true}` or `{"version":"<hash>","ok":false,"error":"..."}`, and `"holding":true` on a hold | `ok {}` |
 | `config-held` | Client to hub | `{"version":"<hash>","config":"<base64>","edited-at":"<RFC 3339 time>"}` | `ok {}`; an error with code `config-held-refused` for a copy the hub refused; any other error from a hub that does not take the verb |
+| `inventory-report` | Client to hub | Compact JSON `InventoryReport` (max 64 KiB, per-section `available` flags, optional ECC counters, no raw SMART or drive serials) | `ok {}`; RPC error on invalid, oversized, stale-session, or rate-limited report |
+| `health-report` | Client to hub | Compact JSON `HealthReport` (max 64 KiB, matching `/health` JSON status and component rows) | `ok {}`; RPC error on invalid, oversized, stale-session, or rate-limited report |
 | `ping` | Either direction | `{}` | `ok {}` |
 
 The `config-fetch` answer that carries a configuration may also carry
@@ -962,6 +989,56 @@ configurations larger than `HeldConfigMax`.
 <!-- source: internal/component/plugin/server/managed_serve.go -- managedMaxHandshakes, managedReadMax, handleConn -->
 <!-- source: pkg/fleet/envelope.go -- AckErrorMax, BoundAckError -->
 <!-- source: internal/component/managed/client.go -- SendConfigAck -->
+
+### Inventory and health reporting
+
+Managed clients push bounded hardware summaries (`inventory-report`) and
+component health snapshots (`health-report`) over the authenticated `MuxConn`
+session. Both payloads are compact JSON capped at 64 KiB (`fleet.ReportBodyMax`)
+before sending and before decoding, carry no client identity (the hub scopes
+each report to the authenticated connection), and use separate producer and
+receiver registries so `plugin/server` imports neither `host` nor `managed`.
+`host` registers the hardware summary producer (`FleetInventoryInterval`, 24
+hours) excluding raw SMART readings and block-device serials while marking
+per-section availability and optional ECC counters; `managed` registers the
+health producer (`FleetHealthInterval`, 5 minutes) matching `/health`'s JSON
+shape.
+<!-- source: pkg/fleet/envelope.go -- VerbInventoryReport, VerbHealthReport -->
+<!-- source: pkg/fleet/report.go -- ReportBodyMax, InventoryReport, HealthReport, ReportProducer, RegisterReportProducer, EncodeInventoryReport, DecodeInventoryReport, EncodeHealthReport, DecodeHealthReport -->
+<!-- source: internal/component/host/register.go -- init -->
+<!-- source: internal/component/host/fleet_inventory.go -- FleetInventoryInterval, ProjectFleetInventory, collectFleetInventory -->
+<!-- source: internal/component/managed/register_report.go -- init -->
+
+After the initial `config-fetch` succeeds on an authenticated connection
+(including when the client holds local edits), `startSessionReporter` starts one
+per-session worker that sends each registered report immediately and repeats it
+on its own interval (24 hours for inventory, 5 minutes for health). Each report
+RPC uses a 30-second reply timeout (`defaultReportCallTimeout`) so a stalled or
+refused report never blocks `ping` or `config-changed`, and the worker is
+cancelled and joined before the connection ends. When a pre-Fleet-4 hub answers
+`unknown method: <verb>`, the client suppresses only that report kind for the
+rest of that connection and retries it on the next connection. Any collection,
+encoding, transport, or hub-refusal failure raises a warning under
+`doctor-managed-report-failed` (`CodeDoctorManagedReportFailed`) on the report
+bus and clears it on the next accepted report of that kind.
+<!-- source: internal/component/managed/report.go -- FleetHealthInterval, defaultReportCallTimeout, ProjectFleetHealth, startSessionReporter -->
+<!-- source: internal/component/managed/register_doctor_codes.go -- CodeDoctorManagedReportFailed -->
+<!-- source: internal/component/managed/client.go -- runConnection -->
+
+On the hub, `ManagedServer.handleRequest` dispatches registered
+`ManagedReportReceiver` handlers after the configuration verbs and before its
+unknown-method refusal. The hub accepts the first inventory and health report on
+each new connection and then enforces per-connection minimum intervals of 24
+hours for inventory (`managedInventoryMinInterval`) and 1 minute for health
+(`managedHealthMinInterval`). A rejected, invalid, oversized, rate-limited, or
+superseded-session report returns an RPC error, leaves the previous accepted
+`ManagedInventorySnapshot` or `ManagedHealthSnapshot` intact, and never
+postpones the next permitted report interval. Each accepted report records the
+hub's UTC receipt time, marks the device record dirty for Fleet-1 persistence,
+and survives disconnect and hub restart.
+<!-- source: internal/component/plugin/server/managed_serve.go -- handleRequest -->
+<!-- source: internal/component/plugin/server/fleet_report.go -- ManagedReportReceiver, RegisterManagedReportReceiver, handleReport, managedInventoryMinInterval, managedHealthMinInterval -->
+<!-- source: internal/component/plugin/server/managed_registry.go -- ManagedInventorySnapshot, ManagedHealthSnapshot, recordInventoryReport, recordHealthReport -->
 
 ### Version Hash
 

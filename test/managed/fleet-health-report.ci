@@ -1,0 +1,13 @@
+# QUESTION: Does a managed device push its component health to the hub, appear
+# in the hub's device health and fleet summary commands while leaving unreported
+# devices counted separately, and preserve its last health after disconnect?
+# WHY NOT A UNIT TEST: component health is collected by the real managed daemon,
+# pushed over the authenticated TLS MuxConn session, aggregated on the hub, and
+# queried through the hub's SSH CLI.
+# VALIDATES: fleet-4 AC-3, AC-4, AC-6, AC-7, AC-8, AC-14, AC-16. The fixture
+# queries device health and fleet summary online and after disconnect, checks an
+# unreported device, and checks the unknown-device refusal.
+option=timeout:value=180s
+cmd=foreground:seq=1:exec=le test fixture managed/fleet-health-report $PORT $PORT2 $PORT3:timeout=180s
+expect=exit:code=0
+expect=stdout:contains=OK: fleet health report stored, aggregated, preserved offline, and refused unknown device

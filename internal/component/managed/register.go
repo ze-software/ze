@@ -5,6 +5,7 @@
 // Related: cmd_fleet.go -- the three fleet command handlers registered here
 // Related: cmd_divergence.go -- the four fleet divergence command handlers registered here
 // Related: cmd_devices.go -- the hub device registry commands
+// Related: cmd_reports.go -- the hub device inventory, health, and estate summary commands
 
 package managed
 
@@ -32,9 +33,15 @@ func init() {
 	pluginserver.RegisterRPCs(
 		pluginserver.RPCRegistration{WireMethod: "ze-managed:fleet-devices", Handler: handleFleetDevices},
 		pluginserver.RPCRegistration{WireMethod: "ze-managed:fleet-device", Handler: handleFleetDevice, Complete: completeFleetDevices},
+		pluginserver.RPCRegistration{WireMethod: "ze-managed:fleet-device-inventory", Handler: handleFleetDeviceInventory, Complete: completeFleetDevices},
+		pluginserver.RPCRegistration{WireMethod: "ze-managed:fleet-device-health", Handler: handleFleetDeviceHealth, Complete: completeFleetDevices},
+		pluginserver.RPCRegistration{WireMethod: "ze-managed:fleet-health", Handler: handleFleetHealth},
 	)
 	command.RegisterShape([]string{"show fleet devices"}, command.ShapeTab)
 	command.RegisterShape([]string{"show fleet device name"}, command.ShapeDoc)
+	command.RegisterShape([]string{"show fleet device inventory name"}, command.ShapeDoc)
+	command.RegisterShape([]string{"show fleet device health name"}, command.ShapeDoc)
+	command.RegisterShape([]string{"show fleet health"}, command.ShapeDoc)
 	rowColumns := command.ColumnOrder{
 		"name", "connected", "config-state", "labels", "hub-version", "device-version", "last-fetch", "last-fetch-result",
 		"connected-since", "last-seen", "source-address", "ever-connected", "diverged", "removed",
@@ -42,6 +49,16 @@ func init() {
 	command.RegisterColumns([]string{"show fleet devices"}, rowColumns)
 	command.RegisterColumns([]string{"show fleet device name"}, append(rowColumns,
 		"first-connected", "last-ack", "ack-version", "ack-result", "ack-error", "last-fetch-error", "persisted", "unreadable", "removed-at"))
+	command.RegisterColumns([]string{"show fleet device inventory name"}, command.ColumnOrder{
+		"name", "connected", "reported", "status", colReceivedAt, "collected-at",
+		"software-version", "model", "serial", "cpu", "nic", "memory", "storage", "dmi",
+	})
+	command.RegisterColumns([]string{"show fleet device health name"}, command.ColumnOrder{
+		"name", "connected", "reported", "status", colReceivedAt, "checked-at", "components",
+	})
+	command.RegisterColumns([]string{"show fleet health"}, command.ColumnOrder{
+		"total", "healthy", "degraded", "down", "unreported", "devices",
+	})
 	command.RegisterPipeFilters([]string{"show fleet devices"}, command.PipeFilter{
 		Name: "label", Description: "Select devices with this key=value label", Argument: command.ArgText,
 	})
@@ -102,7 +119,7 @@ func init() {
 	command.RegisterShape([]string{"show fleet divergence list"}, command.ShapeTab)
 	command.RegisterShape([]string{"show fleet divergence name"}, command.ShapeDoc)
 	command.RegisterColumns([]string{"show fleet divergence list"}, command.ColumnOrder{
-		"client", "declared", "device-version", "hub-version", "edited-at", "received-at", "revert", "unreadable",
+		"client", "declared", "device-version", "hub-version", "edited-at", colReceivedAt, "revert", "unreadable",
 	})
 	// The daemon serves the show of one client as a builtin over the same
 	// handler, as `show doctor` serves `ze doctor`, so that the show declares
@@ -129,3 +146,7 @@ func init() {
 		Mode:      commandModeOffline,
 	})
 }
+
+// colReceivedAt is the hub receipt-timestamp column shared by report and
+// divergence command outputs.
+const colReceivedAt = "received-at"

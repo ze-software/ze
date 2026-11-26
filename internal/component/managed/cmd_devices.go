@@ -163,12 +163,17 @@ func registryReadRefusal(path string, cause error) *plugin.Response {
 		"the hub could not supply its managed device records", "ze show doctor"))
 }
 
+// completeFleetDevices offers every managed device name when completing the
+// single name argument, either directly after the command path (`completed`
+// empty) or after an explicit `name` keyword (`completed` = ["name"]).
 func completeFleetDevices(_ *pluginserver.Server, completed []string) []pluginserver.Completion {
-	if len(completed) != 1 {
-		return nil
-	}
-	if completed[0] != "name" {
-		return nil
+	if len(completed) > 0 {
+		if len(completed) != 1 {
+			return nil
+		}
+		if completed[0] != fleetDeviceNameLeaf {
+			return nil
+		}
 	}
 	devices := pluginserver.ManagedDeviceNames()
 	names := make([]pluginserver.Completion, 0, len(devices))

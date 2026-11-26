@@ -4642,32 +4642,50 @@ unreadable chain never reads as an empty answer.
 
 ## Managed Config RPCs
 
-The hub's device registry exposes two builtin RPCs. `ze-managed:fleet-devices`
-serves `show fleet devices` as a table. `ze-managed:fleet-device` serves
-`show fleet device name <name>` as a document. Name completion reads the hub's
-registry in memory. The table declares the `label` pipe operation with a
-`key=value` argument. Multiple label operations select rows matching every
-pair. The published column order supplies the table headings and field
-completion for generic pipe operations. Both commands report a read error when the
-registry or the required device data is unavailable.
+The hub's device registry and fleet reporting surface expose five builtin RPCs
+on every command surface: `ze-managed:fleet-devices` serves `show fleet devices`
+as a table; `ze-managed:fleet-device` serves `show fleet device name <name>` as
+a document; `ze-managed:fleet-device-inventory` serves `show fleet device
+inventory name <name>` as a document; `ze-managed:fleet-device-health` serves
+`show fleet device health name <name>` as a document; and
+`ze-managed:fleet-health` serves `show fleet health` as a document. Name
+completion reads the hub's registry in memory for all three per-device commands.
+The device table declares the `label` pipe operation with a `key=value`
+argument; multiple label operations select rows matching every pair. The
+per-device inventory and health commands return explicit `reported`, `status`
+(`reported` or `not-reported`, or the device's health status), `connected`, and
+`received-at` fields, preserving the last accepted snapshot after disconnect.
+`show fleet health` aggregates declared devices into `total`, `healthy`,
+`degraded`, `down`, and `unreported` counts alongside the degraded or down
+`devices` list. The published column orders supply table headings and field
+completion for generic pipe operations. All five commands report a read error
+when the registry or required device data is unavailable, and the per-device
+commands refuse unknown device names with `show fleet devices` as the fix.
 <!-- source: internal/component/managed/register.go -- init -->
 <!-- source: internal/component/managed/cmd_devices.go -- handleFleetDevices, handleFleetDevice, completeFleetDevices -->
+<!-- source: internal/component/managed/cmd_reports.go -- handleFleetDeviceInventory, handleFleetDeviceHealth, handleFleetHealth -->
 
-RPCs for hub-client managed configuration. These operate over MuxConn after auth,
-separate from the plugin 5-stage protocol.
+RPCs for hub-client managed configuration and device reporting. These operate
+over MuxConn after auth, separate from the plugin 5-stage protocol.
 
 | Verb | Direction | Payload | Response |
 |------|-----------|---------|----------|
 | `config-fetch` | Client to hub | `{"version":"<hash-or-empty>"}` | `{"version":"<hash>","config":"<base64>"}` or `{"status":"current"}` |
 | `config-changed` | Hub to client | `{"version":"<hash>"}` | `{}` |
 | `config-ack` | Client to hub | `{"version":"<hash>","ok":true}` or `{"version":"<hash>","ok":false,"error":"..."}` | `{}` |
+| `config-held` | Client to hub | `{"version":"<hash>","config":"<base64>","edited-at":"<RFC 3339 time>"}` | `{}` |
+| `inventory-report` | Client to hub | Compact JSON `InventoryReport` (max 64 KiB, no SMART or drive serials) | `{}` |
+| `health-report` | Client to hub | Compact JSON `HealthReport` (max 64 KiB, matching `/health` JSON shape) | `{}` |
 | `ping` | Either direction | `{}` | `{}` |
 
 Version hash is truncated SHA-256 (16 hex characters) of config bytes.
 
 <!-- source: pkg/fleet/envelope.go -- RPC payload types -->
+<!-- source: pkg/fleet/report.go -- InventoryReport, HealthReport, ReportBodyMax -->
 <!-- source: internal/component/plugin/server/managed.go -- hub-side handlers -->
+<!-- source: internal/component/plugin/server/fleet_report.go -- handleReport, ManagedFleetHealth -->
 <!-- source: internal/component/managed/client.go -- client-side handlers -->
+<!-- source: internal/component/managed/report.go -- startSessionReporter -->
 
 ---
 
