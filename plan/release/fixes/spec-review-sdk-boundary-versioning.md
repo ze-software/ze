@@ -3,11 +3,16 @@
 | Field | Value |
 |-------|-------|
 | Status | design |
+| Scope | plugin |
 | Priority | P1 |
-| Release reason | Shipped external-plugin protocol and public SDK must detect mismatches and expose usable types. |
+| Release reason | Shipped external-plugin protocol and public SDK must enforce a supported version range at Stage 1 and expose only public, nameable types across `pkg/plugin/**`. |
+| RFC gaps | - |
 | Depends | - |
 | Phase | - |
-| Updated | 2026-11-24 |
+| Handoff | - |
+| Updated | 2026-11-26 |
+
+Recovery after compaction: `.claude/rules/post-compaction.md`.
 
 ## Owner decisions (2026-11-24)
 
@@ -15,404 +20,498 @@
 |-------|----------|
 | Stage-1 protocol version matching policy | Use a **supported version range** (`MinSupportedProtocolVersion .. CurrentProtocolVersion`): accept any plugin version within the supported range, and reject missing (`0`), below-minimum, or future/above-current versions at Stage 1 with a clear diagnostic error. |
 
-## Existing Mechanisms (MANDATORY)
-
-| Mechanism | Where | What it does today | This spec |
-|-----------|-------|--------------------|-----------|
-| Shared Stage-1 startup handshake | `internal/component/plugin/server/startup_driver.go` (`runStartupHandshake`), `pkg/plugin/rpc/types.go` (`DeclareRegistrationInput`), `pkg/plugin/sdk/sdk.go` | Decodes Stage-1 registration for both engine and hub topologies with no protocol version check | Adds `ProtocolVersion` and supported-range validation in `runStartupHandshake` before trusting later structs |
-| In-process route update fast path | `pkg/plugin/rpc/bridge.go` (`UpdateRouteSelHandler`, `DirectBridge.UpdateRouteSel`), `pkg/plugin/sdk/sdk_engine.go` (`UpdateRouteSel`, `UpdateRouteSelWithMeta`) | Exposes `*internal/core/selector.Selector` in exported `pkg/plugin/**` signatures | Relocates typed fast path to an internal in-process seam; keeps string `UpdateRoute` public and adds a mechanical boundary guard |
-| Transport write deadline & watchdog | `pkg/plugin/rpc/conn.go` (`defaultWriteDeadline`, `fireWatchdog`) | Bounds stalled writes on plugin connections | Preserved; version mismatch diagnostics must stay distinct from write-watchdog closes |
-
-## Post-Compaction Recovery
-
-**Re-read these after context compaction:**
-1. This spec file (you're reading it now)
-2. `.claude/rules/planning.md` - workflow rules
-3. ~~`DESIGN-REVIEW.md` finding 7 ("The public SDK boundary is not real") and its verification notes~~ (2026-07-22: ephemeral session artifact, never committed; the finding is restated inline in this spec. Both defects re-verified still open 2026-07-22: `*selector.Selector` leaks at `bridge.go,303` and `sdk_engine.go,31`; no `ProtocolVersion` anywhere in `pkg/plugin/`)
-4. `pkg/plugin/rpc/types.go`, `pkg/plugin/sdk/sdk.go`, `pkg/plugin/rpc/bridge.go`,
-   `pkg/plugin/sdk/sdk_engine.go`, `internal/component/plugin/server/{startup,subsystem}.go`
-
 ## Task
 
-Close DESIGN-REVIEW finding 7, using the corrected framing established during the finding
-review (the original finding's build-failure claim was disproved; the real defects are
-sharper). Two independent, verified problems:
+Close DESIGN-REVIEW finding 7 with the verified HEAD baseline and the 2026-11-24 owner decision. Two concrete defects remain open on HEAD:
 
-1. **The wire protocol has no version field (silent cross-binary break).** No
-   `ProtocolVersion` / `apiVersion` field exists anywhere in `pkg/plugin/` (broad non-test
-   search empty; only Stage-5 transport "negotiation" exists, `pkg/plugin/rpc/enums.go`
-   `EventKindNegotiated`, which is not a protocol version). `DeclareRegistrationInput` (Stage 1,
-   `types.go`) carries no version. Any struct change in `pkg/plugin/rpc/types.go` is a
-   silent mis-decode for a separately-compiled plugin process not rebuilt in lockstep. This
-   bites any out-of-process plugin binary, in-tree or not.
+1. **Stage-1 protocol version negotiation silently downgrades future versions instead of enforcing a supported range.** The Stage-1 `protocol-version` wire field, `DeclareRegistrationOutput.ProtocolVersion`, `rpc.NegotiateProtocolVersion`, `stage1Checks[0]`, and `sdk.acceptProtocolVersion` already landed on HEAD (`ProtocolVersion = 1`). However, `rpc.NegotiateProtocolVersion` (`pkg/plugin/rpc/declaration.go`) currently rejects only `declared < 1` and silently accepts any future version (`declared > ProtocolVersion`, such as `2` or `1000`) by returning `min(declared, ProtocolVersion)`. In addition, `rpc.DecodeDeclaration` only defers unknown-key errors for `lenient.ProtocolVersion < 1`, so a future-version plugin sending a newer Stage-1 field gets an unknown-key error instead of a version-mismatch refusal. Per the 2026-11-24 owner decision, Ze must enforce an explicit supported version range (`MinSupportedProtocolVersion .. CurrentProtocolVersion`, today `1 .. 1`): accept versions within the range and reject missing (`0`), below-minimum, and future/above-current versions at Stage 1 across both engine and hub startup topologies (and query/conformance inspection) with a clear diagnostic distinct from write-watchdog closes.
 
-2. **The exported "public" SDK surface leaks un-nameable internal types.** `pkg/plugin/sdk`
-   transitively depends on 5 internal packages (`internal/core/stringsx`, `.../textbuf`,
-   `.../selector`, `internal/component/plugin/ipc`, `internal/core/env`; `go list -deps
-   ./pkg/plugin/sdk`), and `*internal/core/selector.Selector` appears in EXPORTED signatures:
-   `pkg/plugin/rpc/bridge.go` (`UpdateRouteSelHandler`), `pkg/plugin/sdk/sdk_engine.go,32`
-   (`Plugin.UpdateRouteSel` / `UpdateRouteSelWithMeta`). An out-of-tree module CAN blank-import
-   the SDK (verified: it builds), but CANNOT import `internal/core/selector` ("use of internal
-   package ... not allowed", verified), so it cannot construct the argument and those exported
-   methods are uncallable out-of-tree. A public API with un-nameable parameter types is not a
-   real boundary.
+2. **The advertised public `pkg/plugin/**` API leaks un-nameable `internal/` types across four surfaces, with no mechanical guard.** While an out-of-tree Go module can import `pkg/plugin/sdk` and compile (Go's `internal` check applies only to the importing package), an external caller cannot import `internal/` packages and therefore cannot name those exported parameter, return, or aliased types. Full inspection of every non-test file in `pkg/plugin/**` on HEAD confirmed four exported internal-type leaks (disproving the earlier assumption that `*selector.Selector` was the only leak):
+   - **`*internal/core/selector.Selector`** in `pkg/plugin/rpc/bridge.go` (`UpdateRouteSelHandler`, `UpdateRouteSelResultHandler`, `SetUpdateRouteSel`, `SetUpdateRouteSelResult`, `UpdateRouteSel`, `UpdateRouteSelResult`, `HasUpdateRouteSel`, `HasUpdateRouteSelResult`) and `pkg/plugin/sdk/sdk_engine.go` (`UpdateRouteSel`, `UpdateRouteSelResult`, `UpdateRouteSelWithMeta`, `UpdateRouteSelWithMetaResult`).
+   - **`internal/core/metrics` interfaces and custody types** in `pkg/plugin/sdk/metrics.go` (`(*Plugin).MetricsRegistry() metrics.Registry`, `(*MetricsPublisher).Counter/Gauge/Histogram/CounterVec/GaugeVec/HistogramVec`), `pkg/plugin/sdk/metrics_series.go` (`SeriesRetainer`, `SeriesLease` aliases), and `pkg/plugin/rpc/panic_guard.go` (`SetPanicMetrics(reg metrics.Registry)`).
+   - **`internal/core/bgp/routeaction.Action`** in `pkg/plugin/rpc/route_view.go` (`type RouteViewAction = routeaction.Action` and typed `RouteViewActionAdd/Update/Withdraw` constants).
+   - **No mechanical guard**: `./le plugin boundary check` (`internal/le/plugin/boundary/pluginboundary.go`) only guards same-process-effect calls (`iface`/`trafficstat`) in plugin implementations; nothing inspects exported `pkg/plugin/**` signatures for `internal/` types.
 
-Goal: (1) add a negotiated protocol version at the Stage-1 handshake so a version mismatch is
-rejected loudly instead of silently mis-decoding; (2) make the advertised public boundary
-honest, so no exported `pkg/plugin/**` symbol names an `internal/` type, with a mechanical
-guard preventing regression.
-
-**Corrected-framing note (verified during review):** The original finding said an out-of-tree
-author "cannot actually build against `pkg/` alone." That is FALSE: Go's internal rule checks
-where the import statement lives, and every `sdk -> internal` edge is inside the ze module, so
-an external module builds cleanly (empirically confirmed). The true defect is the exported
-internal-typed API (above), not a build failure. This spec fixes the real defect.
+Goal:
+1. Enforce the owner-decided supported version range (`MinSupportedProtocolVersion .. CurrentProtocolVersion`) in `rpc.NegotiateProtocolVersion` and `rpc.DecodeDeclaration`, shared by `engineStartupSink`, `hubStartupSink`, query inspection, and conformance checks, with clear Stage-1 rejection diagnostics distinct from transport write-watchdog closes.
+2. Eliminate every exported `internal/` type reference from `pkg/plugin/**` by (a) relocating the in-process `*selector.Selector` fast path onto the existing `DirectBridge.DispatchNative` / `Plugin.TryEngineNative` seam via an internal helper, (b) publishing the stdlib-only metric interfaces and series custody types in `pkg/plugin/metrics` and aliasing them from `internal/core/metrics` (matching the existing `DoctorCheckPhase` pattern), and (c) defining `rpc.RouteViewAction` directly in `pkg/plugin/rpc/route_view.go`.
+3. Add a mechanical `go/types` guard (`TestPublicPkgAPIHasNoInternalTypes` in `pkg/plugin/boundary_test.go`) that fails whenever any exported symbol under `./pkg/plugin/...` (functions, methods, types, aliases, struct fields, interface methods, vars, consts) references a type whose defining package sits under `internal/`.
 
 **Explicitly out of scope (referenced, not duplicated):**
-- Unifying the two daemon startup topologies: the closed `spec-unify-startup`
-  delivered `runStartupHandshake` in `server/startup_driver.go`, shared by
-  `engineStartupSink` and `hubStartupSink`. This spec owns version validation
-  in that common Stage-1 path and evidence through both callers.
-- The `pkg/plugin/rpc` command-envelope wire types: owned by `spec-unify-response-envelope.md`
-  (its A-2 already documents `pkg/plugin/rpc` as the cross-process wire layer).
-
-### Post-wave corrections (2026-07-10)
-
-Two notes from the 2026-07 implementation wave (verified against current code):
-
-1. **The ProtocolVersion handshake must coexist with new write-timeout wire behavior.**
-   `pkg/plugin/rpc/conn.go` now applies a default 30s write deadline when the context carries
-   none (`defaultWriteDeadline`, conn.go; applied in `writeAppended`, conn.go,
-   :309) and, on transports without `SetWriteDeadline` (stdio, SSH channels), arms a
-   fail-fast write watchdog that closes the connection on a stalled write (`fireWatchdog`,
-   conn.go; transport selection at conn.go; hook `SetWriteWatchdogHook`,
-   conn.go; counter `ze_plugin_write_watchdog_total` wired in
-   `internal/component/plugin/server/server.go`). Consequences for this spec: the
-   Stage-1 declare-registration write and the engine's version-rejection diagnostic write are
-   both subject to this deadline/watchdog, and AC-2's "clear error, not a hang" now has an
-   interacting mechanism, since the transport already converts some write stalls into
-   fail-fast closes. The version design and its tests must not attribute a watchdog-triggered
-   close to a version mismatch (or vice versa).
-
-2. **`./le plugin boundary check` does NOT satisfy AC-5, despite the name.** The verify gate
-   `./le plugin boundary check` (the native action tables under `internal/le/`:287, :294, :319) runs
-   `internal/le/plugin/boundary/pluginboundary.go`, which guards same-process-effect direct calls
-   that bypass DirectBridge/DispatchCommand (its header, plugin_process_boundary.go). It
-   does not inspect exported `pkg/plugin/**` signatures for `internal/` types. AC-5 still
-   requires its own new mechanical guard; name it distinctly to avoid collision with the
-   existing gate.
+- Removing all internal *implementation* imports from `pkg/plugin/sdk` and `pkg/plugin/rpc` (such as `internal/component/plugin/ipc`, `internal/core/env`, `internal/core/opererr`, `internal/core/textbuf`, `internal/core/taskguard`, `internal/core/privilege`, `internal/core/report` untyped constants): those do not appear in exported signatures and do not block out-of-tree compilation or calling.
+- Unifying engine and hub startup topologies (already delivered by `runStartupHandshake` in `internal/component/plugin/server/startup_driver.go`).
+- Command-envelope wire format changes (owned by record-answer specs).
 
 ## Required Reading
 
 ### Architecture Docs
-- [ ] `docs/architecture/api/ipc_protocol.md` - correlated, bidirectional RPC between the engine and its plugins
-<!-- NEVER tick [ ] to [x] — checkboxes are template markers, not progress trackers. -->
-- [ ] `docs/architecture/api/process-protocol.md` - the 5-stage plugin handshake and wire framing
-  → Decision: Stage 1 is plugin-initiated declare-registration; it is the earliest structured message and the natural version-negotiation point.
-  → Constraint: the wire framing must stay backward-parseable enough to emit a version-mismatch error rather than a raw decode failure.
-- [ ] `ai/rules/architecture.md` - tier axes; where `pkg/` sits relative to `internal/`
-  → Constraint: `pkg/` is the advertised external surface; a public package exposing internal types defeats the tier intent.
-- [ ] `ai/rules/plugins.md` - the plugin SDK/protocol contract
-  → Constraint: out-of-process plugins interact only via the wire protocol and the exported SDK; both must be self-describing.
+- [ ] `ai/doors/system.md` - platform contracts, public `pkg/` boundary, process split
+  → Decision: `pkg/plugin/sdk`, `pkg/plugin/rpc`, `pkg/ze`, `pkg/zefs`, and `pkg/fleet` are published external contracts; changes to types, fields, and wire semantics must be deliberate and documented on their owning pages.
+  → Constraint: DirectBridge is an in-process optimization of the same protocol, never a second protocol, and every feature must survive running in a forked process.
+- [ ] `ai/doors/plugin-infra.md` - plugin server, Stage-1 checks, `DirectBridge`, SDK boundaries
+  → Decision: `engineOps` in `dispatch_registry.go` is the single source of truth per runtime RPC, and `stage1Checks` in `stage1_checks.go` is the single ordered Stage-1 check table shared by live startup and offline conformance.
+  → Constraint: Never add a second path for one engine op or a second Stage-1 validator outside `stage1Checks`.
+- [ ] `docs/architecture/api/process-protocol.md` - 5-stage startup protocol, Stage-1 version negotiation, `DirectBridge` and native engine operations, `update-route` results
+  → Decision: Stage 1 (`declare-registration`) is the earliest structured message and already carries `protocol-version`; this spec departs from the prior "lower of the two" downgrade rule in favor of the owner-approved supported version range and updates the page accordingly.
+  → Constraint: Version mismatch rejection must run before `sink.onRegistration` trusts any later field, and must stay distinct from `rpc.Conn` write-watchdog closes.
+- [ ] `docs/architecture/api/ipc_protocol.md` - correlated RPC framing and `RouteView*` values
+  → Constraint: `RouteViewAction` wire tokens (`add`, `update`, `withdraw`) and framing must remain byte-for-byte compatible when decoupling from `internal/core/bgp/routeaction`.
+- [ ] `docs/architecture/plugin/plugin-system.md` - Stage-1 check table, `DirectBridge.DispatchNative`, process boundary, SDK genericity
+  → Decision: Native internal-typed operations use `EngineOperation.Native` / `DirectBridge.DispatchNative` alongside the public JSON RPC handler rather than adding internal-typed slots to `DirectBridge`.
+  → Constraint: `pkg/plugin/sdk` stays generic with no plugin-specific code.
+- [ ] `docs/architecture/module-tiers.md` - tier dependency direction and ownership checks
+  → Constraint: `pkg/plugin/metrics` must import only stdlib so `internal/core/metrics` can alias its types without introducing any import cycle or core-to-component violation.
+- [ ] `docs/architecture/decisions/001-pull-model-metrics.md` - push-model `metrics.Registry` and additive `SeriesRetainer` custody
+  → Constraint: Preserve exact push-model `Registry`, vector, and `SeriesRetainer`/`SeriesLease` semantics when lifting the interfaces to `pkg/plugin/metrics` and aliasing from `internal/core/metrics`.
+- [ ] `ai/rules/plugins.md` - plugin ownership, self-contained cross-boundary values, declare-mode purity
+  → Constraint: Out-of-process plugins interact solely through the wire protocol and exported SDK; query mode (`ZE_PLUGIN_MODE=declare`) must emit the same Stage-1 `protocol-version` and pass the same `stage1Checks` range check.
 
-**Key insights:** the wire boundary (separately-compiled binaries) and the source boundary
-(what `pkg/` exports) are two different contracts; finding 7 conflates them. Version fixes the
-first; API cleanup + a guard fixes the second.
+**Key insights:**
+- Wire compatibility (separately-compiled binaries negotiating Stage 1) and source API boundary (exported `pkg/plugin/**` types nameable out-of-tree) are distinct contracts.
+- Most of the Stage-1 version wire plumbing already landed on HEAD; the remaining wire defect is that `NegotiateProtocolVersion` downgrades future versions (`> CurrentProtocolVersion`) instead of enforcing the owner-decided supported version range `[MinSupportedProtocolVersion, CurrentProtocolVersion]`.
+- Four exported `internal/` type leaks exist on HEAD (`selector.Selector`, `metrics.*` on `sdk`, `metrics.Registry` on `rpc.SetPanicMetrics`, and `routeaction.Action` alias on `rpc.RouteViewAction`), and every one has a clean resolution that reuses existing Ze patterns (`DirectBridge.DispatchNative` and the `DoctorCheckPhase` public-contract-aliased-by-internal-core pattern).
 
 ## Current Behavior (MANDATORY)
 
-**Source files read:** (must read BEFORE writing this spec)
-- [ ] `pkg/plugin/rpc/types.go` - `DeclareRegistrationInput` (Stage 1, :27-43) carries no protocol
-  version; no version field anywhere in the file.
-- [ ] `pkg/plugin/sdk/sdk.go` - Stage 1 declare-registration (:332), preceded by `SendAuth`
-  (:212); Stages 2-5 follow. No version is sent.
-- [ ] `pkg/plugin/rpc/bridge.go` - imports `internal/core/selector` (:14);
-  `UpdateRouteSelHandler` (:294) and `DirectBridge.UpdateRouteSel` (:303) take `*selector.Selector`.
-- [ ] `pkg/plugin/sdk/sdk_engine.go` - imports `internal/core/selector` (:14); `Plugin.UpdateRouteSel`
-  (:27) / `UpdateRouteSelWithMeta` (:32) are the in-process-only typed fast path (comment :24-26)
-  exposing `*selector.Selector`, with a `sel.String()` fallback (:36) external plugins already
-  reach via the string `UpdateRoute` (:20).
-- [ ] `internal/component/plugin/server/startup_driver.go` - `runStartupHandshake` reads and decodes Stage 1 once for both startup topologies, then calls the sink's `onRegistration`
-- [ ] `internal/component/plugin/server/startup.go` and `subsystem.go` - engine and hub sinks supplying caller-specific effects
+**Source files read:**
+- [ ] `pkg/plugin/rpc/types.go` - already defines `const ProtocolVersion = 1` (line 337) and `DeclareRegistrationInput.ProtocolVersion int` (`json:"protocol-version,omitempty"`, line 344). Also defines `DoctorCheckPhase` (line 635) as the established pattern where `pkg/plugin/rpc` owns a public type that `internal/core/*` aliases.
+- [ ] `pkg/plugin/rpc/declaration.go` - defines `WriteDeclaration`, `DecodeDeclaration`, `DeclareRegistrationOutput{ProtocolVersion, PluginName}`, and `NegotiateProtocolVersion`. Currently `NegotiateProtocolVersion` rejects `declared < 1` and returns `min(declared, ProtocolVersion), nil` for any `declared >= 1` (accepting future versions like `2` or `1000`). `DecodeDeclaration` defers unknown-key rejection only when `lenient.ProtocolVersion < 1`, not when `lenient.ProtocolVersion > ProtocolVersion`.
+- [ ] `pkg/plugin/sdk/sdk.go` and `pkg/plugin/sdk/sdk_version.go` and `pkg/plugin/sdk/sdk_query.go` - `Plugin.Run` sets `reg.ProtocolVersion = rpc.ProtocolVersion`, sends `MethodDeclareRegistration`, and validates the response via `acceptProtocolVersion(answer)` (refusing any answer other than `rpc.ProtocolVersion`). `runOrDeclare` also sets `answer.ProtocolVersion = rpc.ProtocolVersion`.
+- [ ] `internal/component/plugin/server/startup_driver.go` and `stage1_checks.go` - `runStartupHandshake` (shared by `engineStartupSink` in `startup.go` and `hubStartupSink` in `subsystem.go`) decodes Stage 1 with `rpc.DecodeDeclaration`, runs `refuseDriverChecks` (whose first entry `stage1Checks[0]` `"protocol-version"` calls `rpc.NegotiateProtocolVersion`), calls `NegotiateProtocolVersion` for the answer version, invokes `sink.onRegistration`, and replies with `DeclareRegistrationOutput{ProtocolVersion: version, PluginName: sink.pluginName()}`. `JudgeDeclaration` runs the same `stage1Checks` table for `show plugin declarations` and conformance checks.
+- [ ] `internal/component/plugin/server/startup.go` and `subsystem.go` - implement `engineStartupSink` and `hubStartupSink`, both delegating Stage 1 to `runStartupHandshake`. `startup_version_test.go` currently tests `recordingSink` (not `hubStartupSink`) and asserts that `declared = 2, 7, 1000` negotiate down to `1`.
+- [ ] `internal/component/plugin/server/early_stage1.go` - `readEarlyDeclaration` reads the held Stage-1 request via `rpc.DecodeDeclaration` before config parse; version checks run when `runStartupHandshake` resumes the held connection.
+- [ ] `pkg/plugin/rpc/bridge.go` and `pkg/plugin/rpc/bridge_native.go` - `bridge.go` imports `internal/core/selector` and exports `UpdateRouteSelHandler`, `UpdateRouteSelResultHandler`, `SetUpdateRouteSel`, `SetUpdateRouteSelResult`, `UpdateRouteSel`, `UpdateRouteSelResult`, `HasUpdateRouteSel`, `HasUpdateRouteSelResult`. `bridge_native.go` already provides `SetDispatchNative` / `DispatchNative` for internal typed engine ops without exporting internal types.
+- [ ] `pkg/plugin/sdk/sdk_engine.go` and `pkg/plugin/sdk/sdk_native.go` - `sdk_engine.go` imports `internal/core/selector` and exports `UpdateRouteSel`, `UpdateRouteSelResult`, `UpdateRouteSelWithMeta`, `UpdateRouteSelWithMetaResult` (no production plugin calls them; only tests and `dispatch_registry.go` wire/call them). `sdk_native.go` already provides `Plugin.TryEngineNative`.
+- [ ] `internal/component/plugin/server/dispatch_registry.go` and `dispatch.go` - `engineOps` entry for `rpc.MethodUpdateRoute` currently sets `typedWire` calling `b.SetUpdateRouteSelResult`, which invokes `s.handleUpdateRouteSelResultDirect` (which stringifies `sel.String()` and dispatches `send bgp <peer> <command>`). `internal/le/cli/dispatch/plugin_sends.go` lists `UpdateRouteSel*` in `sdkEngineOpMessage`.
+- [ ] `pkg/plugin/rpc/panic_guard.go` and `internal/component/plugin/server/panic_guard.go` - `rpc.SetPanicMetrics(reg metrics.Registry)` exports `internal/core/metrics.Registry` in `pkg/plugin/rpc`; its sole caller is `internal/component/plugin/server/panic_guard.go`.
+- [ ] `pkg/plugin/sdk/metrics.go`, `pkg/plugin/sdk/metrics_series.go`, `internal/core/metrics/metrics.go`, `internal/core/metrics/series_custody.go` - `sdk/metrics.go` exports `(*Plugin).MetricsRegistry() metrics.Registry` and `(*MetricsPublisher).Counter/Gauge/Histogram/CounterVec/GaugeVec/HistogramVec` returning `internal/core/metrics` interfaces; `sdk/metrics_series.go` aliases `metrics.SeriesRetainer` and `metrics.SeriesLease`. `internal/core/metrics` has zero imports of any Ze package (stdlib + prometheus backend only).
+- [ ] `pkg/plugin/rpc/route_view.go` and `internal/core/bgp/routeaction/routeaction.go` - `route_view.go` exports `type RouteViewAction = routeaction.Action` and typed constants from `internal/core/bgp/routeaction`. Every caller in `internal/component/sysrib` compares only against `rpc.RouteViewActionAdd/Update/Withdraw`.
+- [ ] `pkg/plugin/rpc/conn.go` - applies `defaultWriteDeadline` (30s) and fail-fast `fireWatchdog` on transports without `SetWriteDeadline`; Stage-1 version rejection diagnostics must remain clearly distinguishable from write-watchdog closes.
+- [ ] `examples/plugin/python/ze_plugin.py` and `test/plugin/filter-wire-version-negotiated.ci` - Python reference SDK sends `protocol-version: 1` and requires exact `1` back; `filter-wire-version-negotiated.ci` currently tests `pynewer` sending `protocol-version: 2` and receiving `1`.
 
-**Behavior to preserve:** (unless user explicitly said to change)
-- In-tree plugins (rebuilt in lockstep) keep working across all 5 stages unchanged.
-- The in-process DirectBridge fast path stays available to in-process plugins (it just stops
-  being part of the advertised public surface if option (a) is chosen).
-- External plugins keep the string `UpdateRoute` / `UpdateRouteWithMeta` API unchanged.
-- The wire protocol JSON framing and existing message types stay compatible for a matching version.
-- `SendAuth` / TLS handshake behavior unchanged.
+**Behavior to preserve:**
+- In-tree and external plugins declaring a version within `MinSupportedProtocolVersion .. CurrentProtocolVersion` (today `1`) complete Stages 1–5 unchanged, over both engine and hub topologies and in query mode (`ZE_PLUGIN_MODE=declare`).
+- External plugins keep `UpdateRoute`, `UpdateRouteResult`, `UpdateRouteWithMeta`, `UpdateRouteWithMetaResult`, `UpdateRouteRequest`, and `UpdateRouteRequestResult` unchanged.
+- In-process callers keep a typed `*selector.Selector` fast path through the internal seam (`internal/component/plugin/updatesel`) backed by `DirectBridge.DispatchNative` / `Plugin.TryEngineNative`, with the same admission results, bus-send authorization, and error semantics.
+- All in-tree callers of `internal/core/metrics` (`Registry`, `Counter`, `Gauge`, `Histogram`, `CounterVec`, `GaugeVec`, `HistogramVec`, `SeriesRetainer`, `SeriesLease`, `SeriesCustody`) keep compiling unchanged via Go type aliases to `pkg/plugin/metrics`.
+- `RouteViewEntry.Action` keeps exact wire tokens (`"add"`, `"update"`, `"withdraw"`) and refusal of unspecified/unknown values.
+- `SendAuth` / TLS handshake, `rpc.Conn` write deadline/watchdog behavior, and `./le plugin boundary check` remain intact.
 
-**Behavior to change:** (only if user explicitly requested)
-- Stage 1 carries a plugin protocol version; the engine rejects an incompatible version with a
-  specific diagnostic instead of silently mis-decoding later structs.
-- No exported `pkg/plugin/**` symbol names an `internal/` type; a mechanical guard enforces it.
+**Behavior to change:**
+- `rpc.NegotiateProtocolVersion` enforces `[MinSupportedProtocolVersion, CurrentProtocolVersion]`: versions inside the range succeed (returning the agreed version); missing (`0`), negative/below-minimum, and future/above-current versions (`> CurrentProtocolVersion`) are rejected at Stage 1 with a diagnostic error naming the plugin, declared version, supported range, and `docs/plugin-development/protocol.md`.
+- `rpc.DecodeDeclaration` defers unknown-field refusal when `lenient.ProtocolVersion < MinSupportedProtocolVersion || lenient.ProtocolVersion > CurrentProtocolVersion` so out-of-range plugins receive the protocol-version refusal rather than an unknown-key error.
+- Zero exported symbols in `./pkg/plugin/...` reference any type from `internal/`; a mechanical `go/types` test (`TestPublicPkgAPIHasNoInternalTypes`) enforces this invariant permanently.
+
+## Existing Mechanisms (MANDATORY)
+
+| Mechanism | Where (file + symbol, or page + section) | What it does today | This spec (extends, replaces, or does not apply, with the reason) |
+|-----------|------------------------------------------|--------------------|-------------------------------------------------------------------|
+| Stage-1 protocol version carrier & negotiation | `pkg/plugin/rpc/types.go` (`ProtocolVersion`, `DeclareRegistrationInput.ProtocolVersion`), `pkg/plugin/rpc/declaration.go` (`DeclareRegistrationOutput`, `DecodeDeclaration`, `NegotiateProtocolVersion`, `WriteDeclaration`), `pkg/plugin/sdk/sdk.go` (`Plugin.Run`), `pkg/plugin/sdk/sdk_version.go` (`acceptProtocolVersion`), `pkg/plugin/sdk/sdk_query.go` (`runOrDeclare`) | Already sends and reads `protocol-version` at Stage 1 and in query mode, refusing `< 1` and downgrading `> 1` via `min(declared, ProtocolVersion)`. | Extends: retires the original spec's "add version field from scratch" work as already landed; tightens `NegotiateProtocolVersion` and `DecodeDeclaration` to enforce the owner-decided supported range `MinSupportedProtocolVersion .. CurrentProtocolVersion` and reject future versions cleanly. |
+| Single ordered Stage-1 check table & shared startup driver | `internal/component/plugin/server/stage1_checks.go` (`stage1Checks[0]` `"protocol-version"`, `refuseDriverChecks`, `JudgeDeclaration`), `internal/component/plugin/server/startup_driver.go` (`runStartupHandshake`), `startup.go` (`engineStartupSink`), `subsystem.go` (`hubStartupSink`) | Runs `protocol-version` first before any sink sees the declaration, shared across live engine startup, live hub startup, `show plugin declarations`, and `show plugin conformance`. | Extends: inherits the tightened `NegotiateProtocolVersion` range check automatically across all callers; adds explicit test proof driving both `engineStartupSink` and `hubStartupSink`. |
+| Native internal-typed bridge dispatch | `pkg/plugin/rpc/bridge_native.go` (`DirectBridge.SetDispatchNative`, `DirectBridge.DispatchNative`), `pkg/plugin/sdk/sdk_native.go` (`Plugin.TryEngineNative`), `internal/component/plugin/server/dispatch_registry.go` (`engineOp.native`) | Carries in-process typed Go values across `DirectBridge` without JSON and without putting internal types in `pkg/plugin/**` signatures. | Extends: relocates the in-process `*selector.Selector` route-update fast path onto `engineOp.native` for `rpc.MethodUpdateRoute` and `Plugin.TryEngineNative`, removing `*selector.Selector` from `pkg/plugin/rpc` and `pkg/plugin/sdk`. |
+| Public contract type aliased by `internal/core` | `pkg/plugin/rpc/types.go` (`DoctorCheckPhase`) aliased in `internal/core/diagnostic/doctor_registry.go` (`type DoctorCheckPhase = rpc.DoctorCheckPhase`) | Keeps one canonical public contract type under `pkg/plugin/` while letting `internal/core/*` and all in-tree callers keep using their `internal/core` package name via Go type aliases. | Extends: applies the same pattern to metric interfaces and series custody by placing them in `pkg/plugin/metrics` and aliasing them from `internal/core/metrics`, eliminating all `internal/core/metrics` leaks from `pkg/plugin/sdk` and `pkg/plugin/rpc`. |
+| Transport write deadline & fail-fast watchdog | `pkg/plugin/rpc/conn.go` (`defaultWriteDeadline`, `writeAppended`, `fireWatchdog`, `SetWriteWatchdogHook`), `internal/component/plugin/server/server.go` (`ze_plugin_write_watchdog_total`) | Bounds stalled writes on plugin connections and closes stalled non-deadline transports cleanly. | Preserves (does not replace): Stage-1 version refusals travel over `rpc.Conn`, and tests verify version-mismatch diagnostics stay distinct from write-watchdog closes. |
+| Plugin process-boundary heuristic gate | `internal/le/plugin/boundary/pluginboundary.go` (`./le plugin boundary check`) | Scans plugin implementations under `PluginSearchRoots` for unguarded same-process-effect calls to `iface`/`trafficstat`. | Does not apply to exported `pkg/plugin/**` signatures: kept unchanged for its own job; AC-5 adds a distinct `go/types` test `TestPublicPkgAPIHasNoInternalTypes` in `pkg/plugin/boundary_test.go`. |
+
+## Design documents
+
+| Document | Section | Derived from | Binding statement | Verdict | How this design stands against it |
+|----------|---------|--------------|-------------------|---------|-----------------------------------|
+| ai/doors/system.md | Ze is a platform, and other people's code runs against it | the door every change reads | "`pkg/plugin/sdk`, `pkg/plugin/rpc`, `pkg/ze`, `pkg/zefs` and `pkg/fleet` are imported by code outside this repository." | agrees | Makes the `pkg/plugin/**` public boundary honest so external callers can name every exported type and receive loud Stage-1 version-range rejections, updating the owning docs alongside the change. |
+| ai/doors/plugin-infra.md | Boundaries | the door covering pkg/plugin/* and internal/component/plugin/* | "The JSON path, the direct path and the typed bridge setter all derive from its `engineOps` entry" | agrees | Keeps `rpc.MethodUpdateRoute` as one `engineOps` entry, replacing `typedWire` with `native` on that same entry, and keeps Stage-1 version validation in the single `stage1Checks` entry. |
+| ai/doors/le-tooling.md | Boundaries | the door covering internal/le/cli/dispatch/plugin_sends.go and test/plugin/*.ci | "Never import `internal/le` from product code" | agrees | Product packages (`pkg/plugin/*`, `internal/component/plugin/*`, `internal/core/metrics`) import nothing from `internal/le`; `internal/le/cli/dispatch/plugin_sends.go` is updated only to track the relocated internal helper name, and `.ci` tests follow the runner contract. |
+| ai/doors/core.md | Who depends on it from outside | the door covering internal/core/metrics/metrics.go and internal/core/metrics/series_custody.go; modified by this spec | "Go does not let another module import `internal/`, so that plugin reaches the type only through what `pkg/` exposes" | agrees | Eliminates the exact un-nameable `internal/` type leaks (`*selector.Selector`, `internal/core/metrics`, `routeaction.Action`) from `pkg/plugin/**` and updates `ai/doors/core.md` to reflect that `pkg/plugin/sdk` and `pkg/plugin/rpc` no longer expose `internal/core/selector`. |
+| ai/doors/bgp-engine.md | Boundaries | the door covering internal/component/bgp/reactor/selected_origin_result_test.go | "Never name a plugin package from the reactor." | agrees | `selected_origin_result_test.go` is a reactor test updated only to call the relocated internal `updatesel` seam instead of the removed `sdk.Plugin.UpdateRouteSelResult` method; no production reactor file imports any plugin package. |
+| docs/architecture/api/process-protocol.md | 5-Stage Startup Protocol | the // Design: page of pkg/plugin/rpc/declaration.go, pkg/plugin/sdk/sdk.go, internal/component/plugin/server/startup_driver.go, pkg/plugin/rpc/bridge.go, pkg/plugin/sdk/sdk_engine.go, pkg/plugin/rpc/panic_guard.go, pkg/plugin/rpc/route_view.go, internal/component/plugin/server/dispatch_registry.go; modified by this spec | "Every `declare-registration` carries `protocol-version`, the highest plugin protocol version the plugin speaks, and the engine's Stage 1 answer includes `protocol-version`, the version both sides speak from then on: the lower of the two (`rpc.NegotiateProtocolVersion`)." | departs | Per Thomas's 2026-11-24 owner decision, Stage-1 version matching switches from accepting any `>= 1` via `min(declared, ProtocolVersion)` to enforcing a supported version range `MinSupportedProtocolVersion .. CurrentProtocolVersion` and rejecting future/above-current versions at Stage 1 with a diagnostic error; this spec updates `process-protocol.md` ("5-Stage Startup Protocol" and "Update-route command and admission results") in the same change. |
+| docs/architecture/api/process-protocol.md | Design decisions | decision row on docs/architecture/api/process-protocol.md | "Every engine operation names the message it carries or `none` with a reason, and a plugin identity is authorized by a profile compiled from its filter" | agrees | `rpc.MethodUpdateRoute` retains its `busMsgDynamicUpdateRoute` declaration and `checkEngineOpBusSend` authorization on both the public RPC path and the relocated native `*selector.Selector` fast path. |
+| docs/architecture/api/process-protocol.md | Design decisions | decision row on docs/architecture/api/process-protocol.md | "Engine-to-plugin event delivery never drops events on queue overflow; endpoints expect every subscribed network event losslessly" | agrees | This spec does not alter engine-to-plugin event delivery queues or backpressure; lossless event delivery is preserved unchanged. |
+| docs/plugin-development/protocol.md | Stage 1: Registration (Plugin to Engine) | the // Design: page of pkg/plugin/sdk/sdk_update_route_result_test.go; modified by this spec | "The engine answers Stage 1 with the version both sides speak from then on: the lower of the plugin's `protocol-version` and its own. A plugin declaring a version above the engine's speaks the answered version." | departs | Per Thomas's 2026-11-24 owner decision, a plugin declaring a version above `CurrentProtocolVersion` is rejected at Stage 1 with a supported-range diagnostic rather than downgraded; this spec updates `docs/plugin-development/protocol.md` in the same change. |
+| docs/architecture/api/ipc_protocol.md | Authoritative routing values | the // Design: page of pkg/plugin/rpc/types.go; anchored to pkg/plugin/rpc/* and pkg/plugin/sdk/* | "Public `RouteView*Input` and `RouteView*Output` values carry sessions, cursors, bounded selected pages, candidate snapshots, distance declarations and forwarding acknowledgments." | agrees | Defining `rpc.RouteViewAction` directly in `pkg/plugin/rpc/route_view.go` preserves the exact `RouteView*` structs and wire tokens (`add`, `update`, `withdraw`) while removing the internal type alias. |
+| docs/architecture/api/commands.md | Overview | the // Design: page of pkg/plugin/rpc/types.go (PipeDecl); anchored to pkg/plugin/rpc/bridge.go and pkg/plugin/sdk/sdk_engine.go | | silent | Covers command paths, pipe aliases/operations, and answer rendering; does not specify Stage-1 protocol version matching or exported `pkg/plugin/**` Go type boundaries (and `PipeDecl` / `ExecuteCommand` are untouched). |
+| docs/architecture/api/commands.md | Design decisions | decision row on docs/architecture/api/commands.md | "The pipe wins: a command path names the subject and stops; scope, presentation and format are pipe operations after it, selector words included" | agrees | This spec adds or modifies no CLI command paths or pipe syntax; existing pipe semantics remain untouched. |
+| docs/architecture/api/commands.md | Design decisions | decision row on docs/architecture/api/commands.md | "A command may override any generic pipe operation that acts on its data, as long as the answer keeps the generic's data format: every data operator of the catalog is overridable, each held to its generic's answer shape; a format, paging, `save` and `log` are the data format or its display, and stay the generic's. In Thomas's words: "I believe it should be possible to overwrite more command as long as their data format is not changed."" | agrees | This spec does not touch pipe overrides, answer shapes, or generic pipe operators. |
+| docs/architecture/api/commands.md | Design decisions | decision row on docs/architecture/api/commands.md | "A pipe operation works on the answer of the command before it. It may narrow the answer, extend it, transform it, or deliver it somewhere, such as saving it to a file. It never changes what the command does" | agrees | This spec does not modify pipe operation behavior or command semantics. |
+| docs/architecture/api/architecture.md | Implementation Status | anchored to pkg/plugin/rpc/types.go, pkg/plugin/rpc/bridge.go, internal/component/plugin/server/dispatch_registry.go | | silent | Describes the message bus, participant routing, and command surfaces; silent on Stage-1 protocol version ranges and `pkg/plugin/**` exported Go type hygiene. |
+| docs/architecture/api/architecture.md | Design decisions | decision row on docs/architecture/api/architecture.md | "When `\| implied` modifies an existing config line (such as inserting automatic members into a `filters [ ... ];` list), it keeps the line intact and places an inline `# implied: ...` comment on the same line after the statement naming what was added and why, rather than placing a comment only above the line or splitting the list across multiple lines. In Thomas's words (2026-11-23): "No, it should be on the same line and say what was added"." | agrees | This spec does not alter `\| implied` rendering or config output formatting. |
+| docs/architecture/api/architecture.md | Design decisions | decision row on docs/architecture/api/architecture.md | "Everything on the bus is a participant named by its configuration path. A participant registers the messages it sends and receives, events and commands alike, and with nothing written that registration is what runs" | agrees | `internal/le/cli/dispatch/plugin_sends.go` continues to track the relocated internal route-update helper so participant bus send declarations stay accurate. |
+| docs/architecture/api/architecture.md | Design decisions | decision row on docs/architecture/api/architecture.md | "A `send > to` list written on a participant replaces the destinations its messages have by registration; it never adds to them. Present and empty means nobody" | agrees | Bus delivery filter compilation and destination lists are untouched by this spec. |
+| docs/architecture/api/architecture.md | Design decisions | decision row on docs/architecture/api/architecture.md | "A `receive > from` list limits who may address a participant. Absent means everybody; present and empty means nobody" | agrees | Bus `receive > from` enforcement is untouched by this spec. |
+| docs/architecture/api/architecture.md | Design decisions | decision row on docs/architecture/api/architecture.md | "A send and a receive allow-list of message names (`send > allow`, `receive > allow`) exist on every participant: absent means everything declared, empty means nothing. The bus enforces them when it receives the message" | agrees | Relocating `UpdateRouteSel*` onto `engineOp.native` preserves `checkEngineOpBusSend` enforcement on every route update. |
+| docs/architecture/api/architecture.md | Design decisions | decision row on docs/architecture/api/architecture.md | "What is written on the participant and what is written in the `bus` section compile into one filter per participant. A disagreement between the two places, or between an allow-list and a destination on one participant, is refused at commit naming both lines" | agrees | Bus filter compilation and commit validation are untouched by this spec. |
+| docs/architecture/api/architecture.md | Design decisions | decision row on docs/architecture/api/architecture.md | "The bus does not arbitrate between participants: no exclusive-role rule, no commit refusal and no silent winner. A plugin that must not duplicate another limits itself" | agrees | Bus participant arbitration rules are untouched by this spec. |
+| docs/architecture/api/architecture.md | Design decisions | decision row on docs/architecture/api/architecture.md | "One display shows every registered default beside what the operator wrote, the defaults a written list replaced, and the line that produced each effective entry" | agrees | Bus effective-configuration display is untouched by this spec. |
+| docs/architecture/api/wire-format.md | Transport | anchored to pkg/plugin/rpc/types.go | | silent | Covers BGP wire message framing and encoding; silent on plugin Stage-1 version ranges and `pkg/plugin/**` Go API hygiene. |
+| docs/architecture/api/json-format.md | Overview | anchored to pkg/plugin/rpc/bridge.go | | silent | Documents BGP/event JSON schemas; `RouteViewAction` wire tokens (`add`, `update`, `withdraw`) remain identical and no event JSON shape changes. |
+| docs/architecture/config/apply-ordering.md | The requirement | anchored to pkg/plugin/rpc/types.go | | silent | Covers config transaction apply ordering between plugins; silent on Stage-1 protocol version ranges and `pkg/plugin/**` exported Go types. |
+| docs/architecture/config/transaction-protocol.md | 1. Design Principles | anchored to pkg/plugin/rpc/types.go, pkg/plugin/sdk/sdk.go | | silent | Covers Stage-2/reload verify-apply-rollback transactions; silent on Stage-1 version range matching and exported `pkg/plugin/**` Go types. |
+| docs/architecture/core-design.md | 6. Plugin API Communication | the // Design: page of internal/core/metrics/metrics.go; anchored to pkg/plugin/rpc/types.go, pkg/plugin/rpc/bridge.go, pkg/plugin/sdk/sdk_engine.go; modified by this spec | "Ze engine communicates with plugins via newline-framed YANG RPC over a single bidirectional connection. Internal plugins start on `net.Pipe()` and switch supported hot paths to DirectBridge after Stage 5. External plugins connect back to the plugin hub over TLS." | agrees | Preserves the single-connection YANG RPC + post-Stage-5 `DirectBridge` model, documents the public `pkg/plugin/**` no-internal-types boundary invariant and its `go/types` guard, and keeps `internal/core/metrics` source-compatible via aliases to `pkg/plugin/metrics`. |
+| docs/architecture/core-design.md | Design decisions | decision row on docs/architecture/core-design.md | "A commit fails when it configures a feature that programs only the Linux kernel, or that reads only what the Linux kernel sees of the traffic, while the interfaces run on VPP. Two host-side uses stay accepted, so that mixed setups remain possible once VRFs are added: a `fib kernel` block beside a `fib vpp` block, which programs the Linux route table for the router's own traffic, and `sysctl`, which sets the Linux kernel's own tunables. A `fib kernel` block with no `fib vpp` block beside it is refused, for now." | agrees | Data-plane backend validation is untouched by this spec. |
+| docs/architecture/core-design.md | Design decisions | decision row on docs/architecture/core-design.md | "A configuration that holds such a mismatch is refused at daemon start as well as at commit, reload and `ze config validate`, by one verdict that is the same at each." | agrees | Superseded for daemon start by the 2026-11-26 row below; this spec does not touch data-plane mismatch validation. |
+| docs/architecture/core-design.md | Design decisions | decision row on docs/architecture/core-design.md | "The VPP firewall verifier, not a YANG annotation, decides whether `connection-state` and `mark-set` are accepted on VPP. The `ze:backend` annotation of `flow-offload` is deleted with theirs; `flow-offload` stays refused on VPP because VPP has no flowtable and the `flowtable` list keeps its `ze:backend "kernel"` annotation." | agrees | Firewall VPP verification and YANG annotations are untouched by this spec. |
+| docs/architecture/core-design.md | Design decisions | decision row on docs/architecture/core-design.md | "Every data-plane selector names the plane it programs, `kernel` or `vpp`: `interface backend`, `firewall backend` and `traffic control backend` take `kernel` where they took `netlink`, `nft` and `tc`, and each defaults to `kernel`; the `fib` blocks already name `kernel` and `vpp`. The plane a registration declares and the value a `ze:backend` annotation names are the same word. A second implementation on the same plane, such as eBPF, takes a value of its own when it exists. In Thomas's words (voice-transcribed): "should tc and netfilter be renamed to kernel? so we have vpp and kernel?", then "please do it"." | agrees | Data-plane selector naming is untouched by this spec. |
+| docs/architecture/core-design.md | Design decisions | decision row on docs/architecture/core-design.md | "BGP egress next-hop rewriting belongs exclusively in the export filter chain, not under session configuration (`session { next-hop }`). Ze automatically appends `next-hop auto` at the end of the export chain when no earlier export filter has already set a next-hop outcome (`self`, `unchanged`, or an explicit address), so ordinary eBGP rewrites to self while iBGP and route-server clients preserve the received next hop. In Thomas's words (voice-transcribed): "I would think that all the rewrite should be in the prefix export and not under configuration. I believe we should automatically add to the export prefix list the auto at the end of the list if not defined with something else. So if no one, for example, used a self or unchanged, we should automatically change it on eBGP. Because otherwise we have two ways to modify packets on the way out to the peer.", then "Unify into the export chain it is the way I want it."" | agrees | BGP egress next-hop export-chain behavior is untouched by this spec. |
+| docs/architecture/core-design.md | Design decisions | decision row on docs/architecture/core-design.md | "Egress export chains configure next-hop rewriting through one underlying `policychain.Sets` next-hop intent exposed in two authoring forms: `policy { modify <name> { set { next-hop self \| unchanged \| auto \| <ip>; } } }` for matched/conditional rules, and built-in chain references `next-hop:self`, `next-hop:unchanged`, and `next-hop:auto` for peer-wide policy without a wrapper `modify` block. Selected by Thomas on 2026-11-23 ("Option A: Extend policy modify (self\|unchanged\|auto\|<ip>) AND provide built-in next-hop:self / next-hop:unchanged / next-hop:auto chain refs")." | agrees | Policy next-hop authoring forms are untouched by this spec. |
+| docs/architecture/core-design.md | Design decisions | decision row on docs/architecture/core-design.md | "Built-in `next-hop:auto`, `next-hop:self`, and `next-hop:unchanged` are BGP engine steps compiled into `policychain.Chain` (parallel to `loop-detection`), never external plugin RPCs or a `pkg/plugin/rpc.FilterInsertion` tail extension. Config loading appends `next-hop:auto` at the tail of every export chain unless an unconditional `next-hop:self`, `next-hop:unchanged`, or `next-hop:auto` is already present, leaving `Policy.Configured()` false for unconfigured chains; operators override via `next-hop:unchanged`, and `inactive:next-hop:auto` is refused. Selected by Thomas on 2026-11-23 ("Option A: Built-in BGP engine step appended at config compile time (like loop-detection; zero RPC; override via next-hop:unchanged, no inactive:next-hop:auto)")." | agrees | `FilterInsertion` and BGP export-chain compilation are untouched by this spec. |
+| docs/architecture/core-design.md | Design decisions | decision row on docs/architecture/core-design.md | "Within an export chain, explicit next-hop sets (`self`, `unchanged`, `auto`, or an IP address) use standard last-write-wins folding while the auto-appended trailing `next-hop:auto` acts only when next-hop is still unset. For a whole-UPDATE raw override (`wireOverride`), Ze compares each emitted next-hop field against the received UPDATE (matching `forward_med.go` provenance): trailing `auto` is skipped only when the raw override changed the next-hop bytes or an earlier chain member already selected `unchanged`/`self`/explicit. Selected by Thomas on 2026-11-23 ("Option A: Provenance check on raw overrides (like MED): skip trailing auto only when the raw override changed the next-hop bytes or an earlier member set unchanged/self")." | agrees | Export-chain next-hop folding and provenance checks are untouched by this spec. |
+| docs/architecture/core-design.md | Design decisions | decision row on docs/architecture/core-design.md | "Explicit next-hop addresses in `policy { modify <name> { set { next-hop <ip>; } } }` and `policychain.Sets.NextHop` support both IPv4 (attr 3) and IPv6/MP_REACH (through `NextHopProfile` and `ValidatePeerGlobalNextHop`) on both export and import chains. Egress-only next-hop modes (`self`, `unchanged`, `auto`), whether written as built-in `next-hop:*` refs or inside `policy { modify }`, are refused on import chains at config load. Selected by Thomas on 2026-11-23 ("Option A: Support IPv4 + IPv6/MP_REACH for explicit next-hop on both export and import; refuse self/unchanged/auto on import at config load")." | agrees | Policy explicit next-hop validation is untouched by this spec. |
+| docs/architecture/core-design.md | Design decisions | decision row on docs/architecture/core-design.md | "Auto-appended trailing `next-hop:auto` applies only to forwarded routes and preserves the originator-chosen next hop on locally originated routes (static config routes, ExaBGP `announce`, API announcements). Explicit export-chain next-hop actions (`next-hop:self`, `modify { set { next-hop ... } }`) apply uniformly to both forwarded and locally originated routes. Selected by Thomas on 2026-11-23 ("Option A: Trailing next-hop:auto applies to forwarded routes only (preserves static/ExaBGP/API explicit next-hop); explicit next-hop:self / modify next-hop applies to both forwarded and originated routes")." | agrees | Forwarded vs originated next-hop policy is untouched by this spec. |
+| docs/architecture/core-design.md | Design decisions | decision row on docs/architecture/core-design.md | "Every automatic filter-chain member Ze inserts — both built-in BGP engine steps (`next-hop:auto` at the export tail, `loop-detection` at the import head) and plugin-declared `FilterInsertions` — is published through one queryable implied-filter seam carrying direction, position, reference and `implied-by` reason so `\| implied` displays every extra chain member alongside the operator's written filter list. In Thomas's words (2026-11-23): "Can you make sure that \| implied show the extra chain members when it displays the filter ?"." | agrees | Implied-filter display and `FilterInsertions` are untouched by this spec. |
+| docs/architecture/core-design.md | Design decisions | decision row on docs/architecture/core-design.md | "Ze always starts. The configuration of one service never makes `ze start` exit or refuse to start: a service whose configuration cannot be served is not started, ze runs with its other services, and the service is reported with its fix by an error line in the log under a doctor code and by `ze doctor` under the same code. Examples are a web certificate name that does not resolve, a looking-glass `server` entry with no certificate to present, and a looking-glass address list that does not parse. Where a service has several endpoints, only the endpoint that cannot be served stays down and the others serve. A reload whose config cannot be served stays refused as a whole, and the running services keep what they serve. In Thomas's words (voice-transcribed): "we should never not start ze as if we can not bring networking we can not fix things like web cert and the like so the only good answer is to disable the service badly configured and not start it"; asked about a reload, "reload stay refused"; asked "Should only that endpoint stay down while the others serve", "yes". The reason is that a daemon that does not start brings up no networking, so the operator cannot reach the box to correct it." | agrees | Rejecting an incompatible plugin at Stage 1 fails that plugin's handshake cleanly through the existing `startup_driver.go` error path and does not alter service-startup resilience rules. |
+| docs/architecture/core-design.md | Design decisions | decision row on docs/architecture/core-design.md | "The rule of 2026-11-23 above, that a configuration which holds a feature that programs only the Linux kernel while the interfaces run on VPP "is refused at daemon start", is superseded for the start: ze starts, that feature stays off, and `ze doctor` reports the mismatch with its fix. A commit, a reload and `ze config validate` still refuse such a configuration, by the same verdict as before. Thomas was asked whether the rule that ze always starts replaces the refusal at start, "(a) yes, ze starts, that feature stays off and ze doctor reports the mismatch, while commit and reload still refuse it; (b) no", and answered "2a" (voice-transcribed). The reason is the one of the row above: a daemon that does not start brings up no networking, so the operator cannot reach the box to correct the mismatch." | agrees | Data-plane start vs commit/reload handling is untouched by this spec. |
+| docs/architecture/doctor-and-health-checks.md | BGP policy absences in the supplied configuration | anchored to pkg/plugin/rpc/types.go | | silent | Covers doctor check phases, registration, and diagnostic codes; `DoctorCheckPhase` remains defined in `pkg/plugin/rpc/types.go` unchanged. |
+| docs/architecture/firewall/firewall-irr.md | Decisions | anchored to pkg/plugin/rpc/types.go | | silent | Covers firewall IRR prefix resolution; silent on Stage-1 protocol version ranges and `pkg/plugin/**` Go API boundaries. |
+| docs/architecture/forked-route-install.md | The wire carries a name, the engine resolves it | anchored to pkg/plugin/rpc/types.go | | silent | Covers `route-install`/`route-remove` RPCs; untouched by this spec. |
+| docs/architecture/plugin-manager-wiring.md | Phase 2: Protocol Handshake (Server owns) | anchored to pkg/plugin/rpc/types.go, internal/component/plugin/server/startup_driver.go | "Runs 5-stage protocol per tier (registration → config → capabilities → registry → ready)" | agrees | Preserves Server's ownership of the 5-stage handshake in `runStartupHandshake` and enforces the supported version range at Stage 1 before Stage 2. |
+| docs/architecture/plugin/plugin-system.md | Communication patterns | the // Design: page of internal/le/cli/dispatch/plugin_sends.go; anchored to pkg/plugin/rpc/types.go, pkg/plugin/sdk/sdk.go | "An owner operation can instead declare `EngineOperation.Native` beside its required public JSON handler. The server binds the actual process generation through one generic `DirectBridge.DispatchNative` dispatcher, using the same operation registry." | agrees | Relocates the in-process `*selector.Selector` fast path onto `DirectBridge.DispatchNative` / `engineOp.native` beside the public `update-route` JSON handler, and keeps `stage1Checks` as the single Stage-1 validation table. |
+| docs/architecture/plugin/plugin-system.md | Design decisions | decision row on docs/architecture/plugin/plugin-system.md | "With no daemon running, a command that parses a config starts each declared external program in query mode, never its run loop, and validates against its declaration" | agrees | Query-mode declarations continue to carry `protocol-version` and are judged by `JudgeDeclaration` using the same supported version range as live startup. |
+| docs/architecture/system-architecture.md | System RIB process boundary | anchored to pkg/plugin/rpc/types.go | | silent | High-level system architecture overview; silent on Stage-1 version ranges and `pkg/plugin/**` exported Go type hygiene. |
+| docs/architecture/update-cache.md | Purpose | anchored to pkg/plugin/rpc/types.go | | silent | Covers UPDATE cache consumer handles and acks; untouched by this spec. |
+| docs/architecture/wire/nlri.md | TL;DR (Read This First) | anchored to pkg/plugin/rpc/types.go | | silent | Covers BGP NLRI wire encoding/decoding; silent on plugin protocol version ranges and `pkg/plugin/**` Go API boundaries. |
+| docs/architecture/cli/plugin-modes.md | Query Mode (`ZE_PLUGIN_MODE=declare`) | anchored to pkg/plugin/sdk/sdk.go | "The answer is the Stage 1 `declare-registration` message, in the protocol's own newline framing, written to stdout instead of to the hub connection." | agrees | Query mode keeps emitting `#1 ze-plugin-engine:declare-registration` with `protocol-version: 1` through `rpc.WriteDeclaration` and is judged by the same Stage-1 version range check. |
+| docs/architecture/ike/ipsec-8-ikev2-child-xfrm.md | Redistribution source identity | anchored to pkg/plugin/sdk/sdk.go, pkg/plugin/rpc/bridge.go | | silent | Covers IPsec IKEv2 child SA XFRM installation; silent on plugin Stage-1 version ranges and `pkg/plugin/**` exported Go types. |
+| docs/architecture/module-tiers.md | The three tiers | anchored to pkg/plugin/sdk/sdk.go | "A library you cannot run as a plugin. Foundational, with no config-driven lifecycle" | agrees | `pkg/plugin/metrics` is a stdlib-only public contract leaf aliased by `internal/core/metrics`, preserving tier direction with zero core-to-component imports or cycles. |
+| docs/architecture/rib/forward-handle.md | The decisions | anchored to pkg/plugin/sdk/sdk.go | | silent | Covers Loc-RIB forward handles; untouched by this spec. |
+| docs/architecture/rib/unified-locrib.md | Owner requirement: internal and external system RIB | anchored to pkg/plugin/rpc/route_view.go, internal/component/plugin/server/dispatch_registry.go | | silent | Covers the unified Loc-RIB and system-RIB routing-view behavior; `RouteViewAction` wire tokens (`add`, `update`, `withdraw`) remain unchanged and no Loc-RIB behavior changes. |
+| docs/architecture/rib-transition.md | Executive Summary | the // Design: page of internal/component/bgp/reactor/selected_origin_result_test.go | | silent | Covers moving RIB ownership into plugins; `selected_origin_result_test.go` is updated only to call `internal/component/plugin/updatesel` instead of removed `sdk.Plugin.UpdateRouteSelResult`, with no BGP RIB behavior change. |
+| docs/architecture/plugin/show-enrichers.md | The decisions | anchored to pkg/plugin/rpc/bridge.go | | silent | Covers `show` command enrichers; untouched by this spec. |
+| docs/plugin-development/metrics.md | Implementation Pattern | the // Design: page of pkg/plugin/sdk/metrics.go and pkg/plugin/sdk/metrics_series.go | "The callback receives a typed `metrics.Registry`; no assertion is needed." | agrees | Aliasing `internal/core/metrics.Registry` (and vector/custody types) to `pkg/plugin/metrics` keeps `ConfigureMetrics` and `Plugin.MetricsRegistry()` identically typed for in-tree plugins while making every returned interface publicly nameable for external Go plugins. |
+| docs/architecture/decisions/001-pull-model-metrics.md | Additive series custody | the // Design: page of internal/core/metrics/series_custody.go | "This is series cleanup in the existing push model, not a new collection model. Existing Registry, GaugeVec and HistogramVec interfaces remain unchanged." | agrees | Moving the stdlib-only metric interfaces and `SeriesCustody`/`SeriesLease`/`SeriesRetainer` definitions into `pkg/plugin/metrics` and type-aliasing them from `internal/core/metrics` preserves every method signature and push-model behavior unchanged. |
 
 ## Data Flow (MANDATORY - see `ai/rules/architecture.md`)
 
 ### Entry Point
-- A plugin process connects, runs `SendAuth` (`sdk.go`), then sends Stage-1
-  declare-registration (`DeclareRegistrationInput`, `sdk.go`) to the engine.
-- Format at entry: a JSON `DeclareRegistrationInput` over the process transport.
+- **Wire handshake entry**: A plugin process connects (`net.Pipe` internal or TLS + `#0 auth` external) and sends Stage 1 `#1 ze-plugin-engine:declare-registration <json>` (`DeclareRegistrationInput` carrying `protocol-version`). In query mode (`ZE_PLUGIN_MODE=declare`), the plugin writes the same Stage-1 line to stdout.
+- **Public Go SDK entry**: An external or internal Go module imports `pkg/plugin/sdk`, `pkg/plugin/rpc`, or `pkg/plugin/metrics` and calls exported functions/methods (`Plugin.Run`, `Plugin.UpdateRoute*`, `Plugin.MetricsRegistry`, `rpc.RouteViewEntry`, etc.).
 
 ### Transformation Path
-1. Plugin authenticates via `SendAuth`, then emits Stage-1 `DeclareRegistrationInput`.
-2. `runStartupHandshake` in `server/startup_driver.go` reads and decodes Stage 1,
-   then calls `onRegistration` on the engine or hub sink.
-3. Today: no version is present, so a struct-shape drift decodes into wrong/zero fields silently.
-4. Separately, at runtime an in-process plugin may call `Plugin.UpdateRouteSel(*selector.Selector)`
-   (`sdk_engine.go`) into `DirectBridge.UpdateRouteSel` (`bridge.go`) - an exported path
-   naming an internal type.
-5. An out-of-tree importer builds against the SDK (allowed) but cannot name `*selector.Selector`
-   (internal import rejected), so step 4's exported API is uncallable for it.
+1. Plugin sends Stage-1 `DeclareRegistrationInput` carrying `ProtocolVersion: rpc.CurrentProtocolVersion` (`1`) — or a foreign/stale plugin sends missing (`0`), negative, below-minimum, or future (`> CurrentProtocolVersion`) version.
+2. `runStartupHandshake` (`internal/component/plugin/server/startup_driver.go`) reads Stage 1 once for both `engineStartupSink` (`startup.go`) and `hubStartupSink` (`subsystem.go`), and decodes it via `rpc.DecodeDeclaration` (`pkg/plugin/rpc/declaration.go`).
+3. If strict decoding hits an unknown key while `lenient.ProtocolVersion` is outside `[MinSupportedProtocolVersion, CurrentProtocolVersion]`, `DecodeDeclaration` returns `lenient` so `stage1Checks[0]` (`"protocol-version"`) emits the version-range refusal first instead of a misleading unknown-key error.
+4. `refuseDriverChecks` runs `stage1Checks[0]` -> `rpc.NegotiateProtocolVersion(plugin, declared)`.
+   - If `declared < MinSupportedProtocolVersion` (including `0`/missing) or `declared > CurrentProtocolVersion`, it returns a diagnostic error naming the plugin, the declared version (or missing), the supported range (`MinSupportedProtocolVersion .. CurrentProtocolVersion`), and `docs/plugin-development/protocol.md`. `runStartupHandshake` sends `#1 error <diagnostic>` over `rpc.Conn` and returns before `sink.onRegistration` runs.
+   - If `declared` is inside `[MinSupportedProtocolVersion, CurrentProtocolVersion]`, it returns `declared, nil`; `sink.onRegistration` runs and `runStartupHandshake` replies `#1 ok {"protocol-version": <declared>, "plugin-name": ...}`.
+5. On the SDK side, `Plugin.Run` reads the Stage-1 answer and verifies it through `acceptProtocolVersion`, surfacing any engine error or unsupported answer as a `*StartupError` at Stage 1 (distinct from transport write-watchdog closes).
+6. At compile/call time for Go plugins, `pkg/plugin/**` exposes only public types:
+   - In-process callers needing `*selector.Selector` call `internal/component/plugin/updatesel` (`UpdateRouteSel*`), which dispatches through `Plugin.TryEngineNative` -> `DirectBridge.DispatchNative` -> `engineOp.native` on `rpc.MethodUpdateRoute` (with fallback to `Plugin.UpdateRouteWithMetaResult(ctx, sel.String(), ...)` when not bridged).
+   - Metric callers use `pkg/plugin/metrics` interfaces directly (and in-tree packages keep using `internal/core/metrics`, which type-aliases `pkg/plugin/metrics`).
+   - Routing-view callers use `rpc.RouteViewAction` defined directly in `pkg/plugin/rpc/route_view.go`.
 
 ### Boundaries Crossed
 | Boundary | How | Verified |
 |----------|-----|----------|
-| Plugin process ↔ engine (wire) | JSON `DeclareRegistrationInput`, no version | [ ] |
-| Separately-compiled binaries | `pkg/plugin/rpc/types.go` structs exchanged, no version guard | [ ] |
-| External importer ↔ exported SDK API | `*internal/core/selector.Selector` in exported signatures (un-nameable out-of-tree) | [ ] |
-| pkg/ ↔ internal/ | `pkg/plugin/sdk` transitively imports 5 internal packages | [ ] |
+| Plugin process ↔ engine/hub (Stage-1 wire) | `#1 ze-plugin-engine:declare-registration` carrying `protocol-version`; engine replies `#1 ok` with agreed version or `#1 error` range diagnostic | No |
+| Query-mode subprocess ↔ offline reader (`show plugin declarations` / `conformance`) | Same Stage-1 line on stdout decoded by `rpc.DecodeDeclaration` and judged by `JudgeDeclaration` (`stage1Checks[0]`) | No |
+| External Go module ↔ `pkg/plugin/**` | Exported Go API across `pkg/plugin`, `pkg/plugin/rpc`, `pkg/plugin/sdk`, `pkg/plugin/metrics` — zero `internal/` types in any exported signature, verified by `TestPublicPkgAPIHasNoInternalTypes` | No |
+| In-process plugin ↔ engine `UpdateRouteSel` | `internal/component/plugin/updatesel` -> `Plugin.TryEngineNative` -> `DirectBridge.DispatchNative` -> `engineOp.native` (same `checkEngineOpBusSend` + `handleUpdateRouteSelResultDirect`) | No |
+
+### Changed-Wire Census
+
+**Search evidence:** Ran `git grep -n "declare-registration\|MethodDeclareRegistration\|WriteDeclaration\|DecodeDeclaration\|NegotiateProtocolVersion\|acceptProtocolVersion" -- pkg/ internal/ cmd/ examples/ test/` and `git grep -n "protocol-version" -- examples/ test/ cmd/ pkg/ internal/`. Positive controls confirmed: Go SDK live and query writers (`pkg/plugin/sdk/sdk.go:637`, `sdk_query.go:62`), compiled-in query writer (`internal/component/plugin/cli/main.go:73`), Python SDK (`examples/plugin/python/ze_plugin.py:504,523,545`), `.ci` Python/shell fixtures (`test/plugin/filter-wire-version-negotiated.ci:32,55,139`, `plugin-conformance-declare.ci`, `plugin-declarations-*.ci`), and all five Go readers (`startup_driver.go:167,183`, `stage1_checks.go:138`, `early_stage1.go:193`, `declarations.go:975`, `conformance/checks.go:220`). Note: `RouteViewAction` wire tokens (`add`, `update`, `withdraw`) and `update-route` JSON wire format do not change.
+
+| Wire | Role (writer / reader) | Carrier (file + producer/consumer symbol or script entry) | Source evidence | Migration or preservation disposition |
+|------|------------------------|-----------------------------------------------------------|-----------------|----------------------------------------|
+| Stage-1 declare-registration (protocol-version) | writer | `pkg/plugin/sdk/sdk.go` (`Plugin.Run`) | Sets `reg.ProtocolVersion = rpc.ProtocolVersion` (:636) and sends `rpc.MethodDeclareRegistration` (:637) | Preserve wire JSON key; sends `rpc.CurrentProtocolVersion` (`1`), inside supported range `[1..1]` |
+| Stage-1 declare-registration (protocol-version) | writer | `pkg/plugin/sdk/sdk_query.go` (`runOrDeclare`) | Sets `answer.ProtocolVersion = rpc.ProtocolVersion` (:61) and calls `rpc.WriteDeclaration` (:62) | Preserve wire JSON key; emits `CurrentProtocolVersion` (`1`) in query mode |
+| Stage-1 declare-registration (protocol-version) | writer | `internal/component/plugin/cli/main.go` (`answerQuery`) | Sets `ProtocolVersion: rpc.ProtocolVersion` (:66) and calls `rpc.WriteDeclaration` (:73) | Preserve; emits `1` for compiled-in plugin query mode |
+| Stage-1 declare-registration (protocol-version) | writer | `internal/test/fixture/fixture.go` (`Run`) and `internal/test/localdatacoverage/localdatacoverage.go` | Calls `rpc.WriteDeclaration` (:521, :1111) with `ProtocolVersion: 1` | Preserve; sends `1`, inside supported range |
+| Stage-1 declare-registration (protocol-version) | writer | `examples/plugin/python/ze_plugin.py` (`Plugin.registration`, `Plugin.run`, `Plugin._serve`) | Writes `{"protocol-version": PROTOCOL_VERSION}` (`1`) on stdout (:523) and wire (:545) | Preserve; sends `1`, compatible with range `[1..1]` |
+| Stage-1 declare-registration (protocol-version) | writer | `test/plugin/filter-wire-version-negotiated.ci` (`pyplug.run`) and other `test/plugin/*.ci` Python/shell fixtures | `filter-wire-version-negotiated.ci` sends `"protocol-version": 2` (:32, :55) and `1` (:50); other `.ci` fixtures send `1` or omit it (`filter-wire-text-contract-refused.ci`, `plugin-conformance-declare.ci`) | Change `filter-wire-version-negotiated.ci` to assert that `protocol-version: 2` is rejected at Stage 1 per the 2026-11-24 owner decision while `1` succeeds; preserve all `1` and text-era-refusal fixtures |
+| Stage-1 declare-registration (protocol-version) | writer | `internal/component/plugin/server/startup_driver.go` (`runStartupHandshake`) | Writes `#1 ok {"protocol-version": version, "plugin-name": ...}` (:192) or `#1 error <err>` (:178, :185) | Change refusal boundary: reject `declared > CurrentProtocolVersion` with `#1 error` instead of replying `#1 ok` with downgraded version |
+| Stage-1 declare-registration (protocol-version) | writer | Out-of-repo third-party plugins (Go or non-Go) | Speak `#1 ze-plugin-engine:declare-registration {"protocol-version": <n>, ...}` per `docs/plugin-development/protocol.md` | Plugins declaring `1` keep working unchanged; plugins declaring `0` or future `> CurrentProtocolVersion` receive clear Stage-1 rejection diagnostic |
+| Stage-1 declare-registration (protocol-version) | reader | `internal/component/plugin/server/startup_driver.go` (`runStartupHandshake`) + `stage1_checks.go` (`stage1Checks[0]`, `refuseDriverChecks`) + `pkg/plugin/rpc/declaration.go` (`DecodeDeclaration`, `NegotiateProtocolVersion`) | Decodes Stage 1 (:167), runs `refuseDriverChecks` (:177) and `NegotiateProtocolVersion` (:183) for both `engineStartupSink` and `hubStartupSink` | Change `NegotiateProtocolVersion` to enforce `[MinSupportedProtocolVersion, CurrentProtocolVersion]` and update `DecodeDeclaration` to defer unknown-key errors when `ProtocolVersion` is outside that range |
+| Stage-1 declare-registration (protocol-version) | reader | `internal/component/plugin/server/early_stage1.go` (`readEarlyDeclaration`) | Decodes held Stage-1 request via `rpc.DecodeDeclaration` (:193) before full config parse | Inherits `DecodeDeclaration` range defer; live tier handshake then refuses out-of-range version via `runStartupHandshake` |
+| Stage-1 declare-registration (protocol-version) | reader | `internal/component/plugin/declarations.go` (`declarationFromStdout` / `queriedDeclarationRow`) and `internal/component/plugin/conformance/checks.go` | Calls `rpc.DecodeDeclaration` (:975, :220) and `JudgeDeclaration` (`stage1Checks[0]`) | Inherits range refusal automatically via `stage1Checks[0]` so `show plugin declarations` and `show plugin conformance` match daemon startup |
+| Stage-1 declare-registration (protocol-version) | reader | `pkg/plugin/sdk/sdk_version.go` (`acceptProtocolVersion`) | Unmarshals `#1 ok` `DeclareRegistrationOutput` (:20) and checks `out.ProtocolVersion != rpc.ProtocolVersion` (:24) | Preserve exact check against `CurrentProtocolVersion` (SDK speaks version `1` and refuses any other engine answer) |
+| Stage-1 declare-registration (protocol-version) | reader | `examples/plugin/python/ze_plugin.py` (`Plugin._serve`) | Reads `answer.get("protocol-version")` (:546) and raises `_Fatal` on mismatch | Preserve; already checks exact match against `PROTOCOL_VERSION` (`1`) |
+| Stage-1 declare-registration (protocol-version) | reader | Out-of-repo third-party plugins (Go or non-Go) | Read `#1 ok {"protocol-version": ...}` or `#1 error <diagnostic>` per `docs/plugin-development/protocol.md` | Receive explicit supported-range diagnostic on version mismatch instead of silent downgrade or mis-decode |
 
 ### Integration Points
-- `pkg/plugin/rpc.DeclareRegistrationInput` and a new `ProtocolVersion` constant - the version carrier.
-- `pkg/plugin/sdk` Stage-1 send path - where the plugin declares its version.
-- `server/startup_driver.go` `runStartupHandshake` - shared Stage-1 version validation before caller-specific registration effects
-- `pkg/plugin/rpc/bridge.go` / `pkg/plugin/sdk/sdk_engine.go` - the exported internal-typed surface.
-- `./le verify current mode full` - where the new boundary guard runs.
+- `pkg/plugin/rpc/types.go` and `pkg/plugin/rpc/declaration.go` — `MinSupportedProtocolVersion`, `CurrentProtocolVersion`, `ProtocolVersion`, `DecodeDeclaration`, `NegotiateProtocolVersion`.
+- `internal/component/plugin/server/startup_driver.go` and `stage1_checks.go` — shared Stage-1 version validation for `engineStartupSink`, `hubStartupSink`, and `JudgeDeclaration`.
+- `internal/component/plugin/server/dispatch_registry.go` (`engineOps` `MethodUpdateRoute` `native` hook) and `internal/component/plugin/updatesel/` — relocated in-process `*selector.Selector` fast path via `DirectBridge.DispatchNative` / `Plugin.TryEngineNative`.
+- `pkg/plugin/metrics` and `internal/core/metrics` — public stdlib-only metric interfaces/custody aliased by `internal/core/metrics`.
+- `pkg/plugin/rpc/route_view.go` — self-contained public `RouteViewAction`.
+- `pkg/plugin/boundary_test.go` — `go/types` mechanical guard run in scoped `./pkg/plugin/...` unit tests and CI.
 
 ### Architectural Verification
-- [ ] No bypassed layers (version checked at the handshake, before typed struct exchange)
-- [ ] No unintended coupling (exported public API names no internal type)
-- [ ] No duplicated functionality (one version constant; guard reuses existing check tooling)
-- [ ] Zero-copy preserved where applicable (in-process DirectBridge fast path retained)
-- [ ] Registration over hardcoding — the version and the boundary guard are declared once and
-  discovered by the handshake / verify pipeline, not special-cased per plugin
-  (`ai/rules/plugins.md`)
+| Check | Holds? | Evidence |
+|-------|--------|----------|
+| No bypassed layers (data flows through the intended path) | No | Verify at implementation that Stage-1 range check runs in `stage1Checks[0]` / `runStartupHandshake` before `sink.onRegistration`, and relocated `UpdateRouteSel` flows through `DirectBridge.DispatchNative` -> `handleUpdateRouteSelResultDirect` (keeping `checkEngineOpBusSend`). |
+| No unintended coupling (components stay isolated) | No | Verify at implementation that `pkg/plugin/metrics` imports only stdlib, `internal/core/metrics` aliases it with zero cycles, and `TestPublicPkgAPIHasNoInternalTypes` confirms zero `internal/` types in exported `pkg/plugin/**` signatures. |
+| No duplicated functionality (extends existing, does not recreate) | No | Verify at implementation that range validation extends `rpc.NegotiateProtocolVersion` + `stage1Checks[0]`, typed selector fast path reuses `DirectBridge.DispatchNative` / `Plugin.TryEngineNative`, and metric interfaces reuse the `DoctorCheckPhase` alias pattern. |
+| Zero-copy preserved where applicable (refs, not copies) | No | Verify at implementation that `DirectBridge.DispatchNative` passes `*selector.Selector` in-process with zero JSON marshaling, and `SeriesLease` stays value-copyable without extra allocation. |
+| Registration over hardcoding, outbound: new commands, views, families, and handlers register, and the core discovers them. No per-feature field, switch case, or factory is added to a core/shared package (`ai/rules/plugins.md`) | No | Verify at implementation that no per-plugin switch or special case is added: one version-range rule in `stage1Checks[0]`, one `engineOp.native` entry on `MethodUpdateRoute`, and one `go/types` walk discovering every package under `./pkg/plugin/...`. |
+| Registration over hardcoding, inbound: no existing switch, seed map, validator, parser, runner, help string, or completion table has to learn this feature's name. Evidence names every list that was searched for the names this feature introduces, and the registry each one now derives from (`ai/rules/principles.md`) | No | Searched `internal/le/cli/dispatch/plugin_sends.go` (`sdkEngineOpMessage`, which currently hardcodes `UpdateRouteSel*` — updated to match the relocated internal helper), `internal/component/plugin/server/stage1_checks.go` (`stage1Checks` already owns `"protocol-version"`), and `internal/component/plugin/server/dispatch_registry.go` (`engineOps` already owns `MethodUpdateRoute`). No other hardcoded list names `UpdateRouteSel` or `ProtocolVersion`. |
 
 ## Risks & Assumptions
 
 ### Assumptions
 | ID | Assumption | Basis (file/doc/user statement) | If wrong | Validated by | Status |
 |----|-----------|--------------------------------|----------|--------------|--------|
-| A-1 | All in-tree plugins rebuild in lockstep with the engine, so a mandatory version field does not break them | in-tree plugins compiled with the engine | A staged rollout needs a tolerant/optional version first | build + full plugin `.ci` suite after adding the field | unvalidated |
-| A-2 | `*selector.Selector` is the only internal type in an exported `pkg/plugin/**` signature | `go list`/grep found selector; only reviewed selector + ipc | Other leaks exist; the guard must find them all | the AC-5 boundary guard run across all pkg/plugin exported signatures | unvalidated |
-| A-3 | The in-process `UpdateRouteSel*` fast path has only in-tree callers, so moving it to an internal seam breaks nobody external | `sdk_engine.go` comment "in-process plugins use this"; external plugins use the string path | An external caller relied on it (it could not, being un-nameable) | grep callers of `UpdateRouteSel`/`UpdateRouteSelWithMeta` | unvalidated |
+| A-1 | All in-tree plugins rebuild in lockstep and declare `ProtocolVersion = 1` via `sdk.Plugin.Run` or `rpc.WriteDeclaration` | Verified via `git grep` of `sdk.go:636`, `sdk_query.go:61`, `cli/main.go:66`, `examples/plugin/python/ze_plugin.py:504` | Any in-tree plugin declaring another version would fail Stage 1 | Scoped plugin unit and `.ci` test runs | unvalidated |
+| A-2 | The four verified leaks (`selector.Selector`, `internal/core/metrics` on `sdk`, `internal/core/metrics.Registry` on `rpc.SetPanicMetrics`, and `internal/core/bgp/routeaction.Action` on `rpc.RouteViewAction`) are the complete set of exported `internal/` types in `pkg/plugin/**` on HEAD | Verified via `git grep '"github.com/ze-software/ze/internal/' -- pkg/plugin/` across all non-test Go files | Any additional exported leak (including transitive field or interface method types) is caught immediately | `TestPublicPkgAPIHasNoInternalTypes` walking all exported symbols in `./pkg/plugin/...` with `go/types` | unvalidated |
+| A-3 | No external caller invokes `UpdateRouteSel*` (un-nameable out-of-tree) and no in-tree production plugin calls it directly (`git grep` found only tests, `dispatch_registry.go`, and `plugin_sends.go`) | Verified via `git grep -n "UpdateRouteSel" -- pkg/ internal/ cmd/ test/` | Any missed in-tree caller fails to compile and is repointed to `internal/component/plugin/updatesel` | Scoped build & test of `./internal/... ./pkg/... ./cmd/...` | unvalidated |
+| A-4 | Every in-tree caller of `rpc.RouteViewAction` uses `rpc.RouteViewAction*` constants rather than calling `routeaction.Action`-only methods (such as `.Verb()`) on `RouteViewEntry.Action` | Verified via `git grep -n "RouteViewAction" -- internal/ pkg/` | Any caller expecting `routeaction.Action` fails to compile and gets an explicit conversion at the boundary | Scoped build & test of `./internal/component/sysrib/... ./pkg/plugin/...` | unvalidated |
 
 ### Risks
 | ID | Risk | Early signal | Mitigation / fallback |
 |----|------|--------------|----------------------|
-| R-1 | Version validation is placed in one sink and bypassed by the other | one topology rejects, the other accepts | Validate in `runStartupHandshake`; tests drive both engine and hub callers |
-| R-2 | Strict version match is too rigid for future minor-compatible changes | every minor bump breaks all plugins | Decide match policy (exact vs min-supported range) as a Key Design Decision |
-| R-3 | Moving the exported internal-typed API breaks in-process plugin callers | compile break in in-tree plugins | Relocate to an internal in-process seam the in-tree callers import (allowed); update callers |
+| R-1 | Updating `NegotiateProtocolVersion` to reject future versions (`> CurrentProtocolVersion`) breaks existing tests expecting the old downgrade behavior (`filter-wire-version-negotiated.ci`, `startup_version_test.go`) | Those exact tests fail when range rejection lands | Update both tests in the same change to assert the owner-decided supported-range policy (accept `1`, reject `0` and `2`), keeping `1` end-to-end filter delivery proof intact |
+| R-2 | Version validation is bypassed by one startup topology (`hubStartupSink` vs `engineStartupSink`) or diverges between live startup and offline query/conformance checks | One caller accepts an out-of-range version that another rejects | Keep all range validation in `rpc.NegotiateProtocolVersion` called via `stage1Checks[0]` and `runStartupHandshake`; add `TestProtocolVersionBothTopologies` driving both `engineStartupSink` and `hubStartupSink` |
+| R-3 | A future-version plugin sending a newer Stage-1 JSON field hits `DecodeDeclaration`'s unknown-field error instead of the version-mismatch diagnostic | Test with `{"protocol-version":2,"future-field":true}` gets "carries a key ze does not know" | Extend `DecodeDeclaration`'s lenient fallback condition to `lenient.ProtocolVersion < MinSupportedProtocolVersion || lenient.ProtocolVersion > CurrentProtocolVersion` |
+| R-4 | A write-watchdog close in `pkg/plugin/rpc/conn.go` is confused with a Stage-1 version rejection (or vice versa) | Diagnostic text or test assertions conflate transport close with protocol refusal | Keep version refusals explicit `#1 error` RPC responses (`*rpc.RPCCallError` wrapped in `*sdk.StartupError`), distinct from `conn.go` write-watchdog close errors; assert error text and no watchdog increment in tests |
+| R-5 | Moving metric interfaces to `pkg/plugin/metrics` accidentally introduces an import cycle or breaks `./le arch tier check` | Compile error or `./le arch tier check` failure | Keep `pkg/plugin/metrics` strictly stdlib-only (`slices`, `strconv`, `sync`) and alias all types in `internal/core/metrics`; verify with `./le arch tier check` |
+
+## Blast Radius
+
+| Question | Answer |
+|----------|--------|
+| What breaks if this is wrong? | Plugins fail Stage-1 startup handshake (if valid version `1` is wrongly rejected), or in-tree metric/route-view/selector callers fail to compile at build time. |
+| How is it reverted? | Single commit revert; wire format for version `1` plugins is unchanged and no persisted state or config syntax changes. |
+| Who else touches this path? | `internal/component/plugin/server` startup/dispatch specs, `internal/component/sysrib` route-view consumers, and any spec adding exported symbols to `pkg/plugin/**`. |
 
 ## Wiring Test (MANDATORY — NOT deferrable)
 
 | Entry Point | → | Feature Code | Test |
 |-------------|---|--------------|------|
-| a plugin declares an incompatible protocol version at Stage 1 | → | engine rejects with a specific diagnostic, no silent decode | `test/plugin/plugin-version-mismatch.ci` |
-| an out-of-tree module calls every advertised public SDK method | → | no exported signature names an internal type | `TestPublicPkgAPIHasNoInternalTypes` |
+| External plugin sends out-of-range `protocol-version` (`0` or `2`) at Stage 1 | → | `runStartupHandshake` -> `stage1Checks[0]` -> `rpc.NegotiateProtocolVersion` rejects with range diagnostic before Stage 2 | `test/plugin/plugin-version-mismatch.ci` |
+| External plugin sends in-range `protocol-version` (`1`) at Stage 1 | → | `runStartupHandshake` -> `rpc.NegotiateProtocolVersion` accepts and completes Stages 1–5 | `test/plugin/plugin-version-match.ci` |
+| Engine (`engineStartupSink`) and hub (`hubStartupSink`) handshakes receive out-of-range versions | → | Shared `runStartupHandshake` rejects both topologies identically | `TestProtocolVersionBothTopologies` |
+| Out-of-tree Go consumer inspects every exported symbol across `./pkg/plugin/...` | → | `go/types` boundary walk confirms zero `internal/` types in any exported signature, alias, field, or interface method | `TestPublicPkgAPIHasNoInternalTypes` |
 
 ## Acceptance Criteria
 
-| AC ID | Input / Condition | Expected Behavior |
-|-------|-------------------|-------------------|
-| AC-1 | Plugin and engine at the same protocol version | Stage-1 declare-registration carries a `ProtocolVersion`; handshake proceeds normally through Stage 5 |
-| AC-2 | Plugin declares a protocol version the engine does not support | Engine rejects at Stage 1 with a specific, logged diagnostic BEFORE any later typed struct is trusted; the plugin sees a clear error, not a hang or silent mis-decode |
-| AC-3 | Engine and hub startup topologies receive an incompatible version | Both reject through the shared `runStartupHandshake` Stage-1 validation; a test drives each caller |
-| AC-4 | Inspect the advertised public `pkg/plugin/**` exported API | No exported func/method/type/handler signature names a type from any `internal/` package (`*selector.Selector` no longer appears in the public surface) |
-| AC-5 | Run `./le verify current mode full` | A mechanical guard fails the build if any exported `pkg/plugin/**` signature references an `internal/` type, preventing regression |
+| AC ID | Input / Condition | Expected Behavior | Permitted Survivors and Why |
+|-------|-------------------|-------------------|-----------------------------|
+| AC-1 | Plugin declares a `protocol-version` within `MinSupportedProtocolVersion .. CurrentProtocolVersion` (today `1`) | Stage-1 `declare-registration` succeeds, engine answers `#1 ok` with the agreed `protocol-version` (`1`) and `plugin-name`, and the handshake completes through Stage 5 so the plugin runs normally | None: every version inside `[MinSupportedProtocolVersion, CurrentProtocolVersion]` must complete Stage 1 and proceed. |
+| AC-2 | Plugin declares missing (`0`), negative, below-minimum (`< MinSupportedProtocolVersion`), or future/above-current (`> CurrentProtocolVersion`, e.g. `2`, including with unknown future JSON fields) at Stage 1 | Engine rejects at Stage 1 before `sink.onRegistration` runs, logs and sends an explicit `#1 error` diagnostic naming the plugin, the declared version (or absence), the supported range, and `docs/plugin-development/protocol.md`, and the SDK surfaces that refusal as a Stage-1 `*StartupError` without hanging and without firing the `rpc.Conn` write watchdog | None: missing, below-minimum, and above-current versions are all rejected at Stage 1; only versions inside `[MinSupportedProtocolVersion, CurrentProtocolVersion]` are admitted. |
+| AC-3 | Both engine (`engineStartupSink`) and hub (`hubStartupSink`) startup topologies, plus offline query/conformance (`JudgeDeclaration`), receive in-range (`1`) and out-of-range (`0`, `2`) declarations | All three paths enforce the identical `rpc.NegotiateProtocolVersion` supported-range rule and return the same Stage-1 acceptance or refusal | None: no topology or query reader may bypass `NegotiateProtocolVersion`. |
+| AC-4 | Inspect every exported function, method, type, type alias, struct field, interface method, variable, and constant across `./pkg/plugin/...` (`pkg/plugin`, `pkg/plugin/rpc`, `pkg/plugin/sdk`, `pkg/plugin/metrics`) | Every exported type resolves exclusively to predeclared, standard-library, or public `pkg/` packages; external Go code can name every exported parameter, return, field, and constant type, while in-process `*selector.Selector` route updates continue working via `internal/component/plugin/updatesel` + `DirectBridge.DispatchNative` | Unexported implementation imports inside `pkg/plugin/sdk` and `pkg/plugin/rpc` function bodies (e.g., `internal/component/plugin/ipc`, `internal/core/env`, `internal/core/opererr`, `internal/core/textbuf`, `internal/core/taskguard`, `internal/core/privilege`, untyped `internal/core/report` constants) remain permitted because Go allows in-module private implementation imports without affecting external callers' compilation or call-site type nameability. |
+| AC-5 | Run scoped package test `./le test unit pkg path ./pkg/plugin/...` (including a negative self-test fixture that deliberately reintroduces an `internal/` type in an exported signature) | `TestPublicPkgAPIHasNoInternalTypes` passes on the clean tree and fails with the offending package, exported symbol, and `internal/` type path when an exported signature or alias references any `internal/` package | Test-only `_test.go` files under `pkg/plugin/**` are excluded from the exported public API scan because external modules never compile or import another module's `_test.go` files. |
 
-## End-to-End User Stories (MANDATORY for new features)
+## End-to-End User Stories
 
 | # | User does | Path through system | Test proving it works |
 |---|-----------|--------------------|-----------------------|
-| 1 | runs a plugin binary built against an older protocol | Stage-1 version check -> clean rejection | `test/plugin/plugin-version-mismatch.ci` |
-| 2 | (external author) builds and calls the public SDK | import -> exported API (no internal types) | `TestPublicPkgAPIHasNoInternalTypes` |
-| 3 | a matching-version plugin registers | Stage 1..5 unchanged | existing plugin handshake `.ci` still green |
+| 1 | Runs an external plugin built for an unsupported protocol version (`0` or `2`, including with unknown future keys) | TLS connect-back -> `#0 auth` -> Stage-1 `declare-registration` -> `DecodeDeclaration` -> `stage1Checks[0]` -> `NegotiateProtocolVersion` -> `#1 error` diagnostic, plugin exits cleanly | `test/plugin/plugin-version-mismatch.ci` |
+| 2 | Runs an external plugin speaking supported protocol version `1` | TLS connect-back -> `#0 auth` -> Stage-1..5 -> plugin serves commands/filters | `test/plugin/plugin-version-match.ci` |
+| 3 | External Go author imports `pkg/plugin/sdk`, `pkg/plugin/rpc`, `pkg/plugin/metrics` and names exported types (including `MetricsRegistry`, `SeriesRetainer`, `RouteViewAction`, `UpdateRoute*`) | Out-of-tree Go type inspection across `./pkg/plugin/...` confirms every exported symbol uses only public types | `TestPublicPkgAPIHasNoInternalTypes` |
 
 ## 🧪 TDD Test Plan
 
 ### Unit Tests
 | Test | File | Validates | Status |
 |------|------|-----------|--------|
-| `TestProtocolVersionNegotiated` | `internal/component/plugin/server/startup_test.go` | matching version proceeds; mismatch rejected with diagnostic | |
-| `TestProtocolVersionBothTopologies` | `internal/component/plugin/server/startup_driver_test.go` | engine and hub callers both enforce the common version policy | |
-| `TestPublicPkgAPIHasNoInternalTypes` | `pkg/plugin/boundary_test.go` | no exported pkg/plugin signature names an internal type | |
+| `TestNegotiateProtocolVersion` | `internal/component/plugin/server/startup_version_test.go` | Supported range `[MinSupportedProtocolVersion..CurrentProtocolVersion]` accepts `1` and rejects `-1`, `0`, `CurrentProtocolVersion+1`, `1000` with diagnostic naming range and protocol doc | |
+| `TestDeclareRegistrationVersionAnswer` | `internal/component/plugin/server/startup_version_test.go` | Stage-1 handshake accepts `1` (replying `1`), refuses `0` and `2` before `sink.onRegistration` with `#1 error` and zero write-watchdog fires | |
+| `TestProtocolVersionBothTopologies` | `internal/component/plugin/server/startup_version_test.go` | Both `engineStartupSink` and `hubStartupSink` enforce the shared supported-range policy on `0`, `1`, and `2` | |
+| `TestDecodeDeclarationDefersOutOfRangeVersion` | `pkg/plugin/rpc/declaration_decode_test.go` | Stage-1 JSON carrying `protocol-version: 2` plus an unknown future key passes decode so `NegotiateProtocolVersion` emits the version refusal instead of an unknown-key error | |
+| `TestRouteViewActionPublicRoundTrip` | `pkg/plugin/rpc/route_view_test.go` | Public `rpc.RouteViewAction` marshals/unmarshals `add`, `update`, `withdraw` and rejects unspecified/unknown tokens identically | |
+| `TestUpdateRouteSelInternalSeam` | `internal/component/plugin/updatesel/updatesel_test.go` | Relocated internal `*selector.Selector` helper routes via `DirectBridge.DispatchNative` in-process and falls back to `UpdateRouteWithMetaResult` when unbridged/external, preserving bus-send authorization and full `UpdateRouteOutput` | |
+| `TestPublicPkgAPIHasNoInternalTypes` | `pkg/plugin/boundary_test.go` | Walks all exported declarations across `./pkg/plugin/...` via `go/types` (including alias targets, struct fields, interface methods, params, results) and verifies zero `internal/` types, plus a negative subtest proving a deliberately leaked `internal/` type fails the check | |
 
-### Boundary Tests (MANDATORY for numeric inputs)
+### Boundary Tests (numeric inputs)
 | Field | Range | Last Valid | Invalid Below | Invalid Above |
 |-------|-------|------------|---------------|---------------|
-| ProtocolVersion | 1 .. current | current | 0 (unset, rejected) | future/unknown rejected with diagnostic |
+| `DeclareRegistrationInput.ProtocolVersion` | `MinSupportedProtocolVersion` (`1`) .. `CurrentProtocolVersion` (`1`) | `1` (`CurrentProtocolVersion`) | `0` (missing/text-era) and `-1` — rejected at Stage 1 with range diagnostic | `2` (`CurrentProtocolVersion + 1`) and `1000` — rejected at Stage 1 with range diagnostic |
 
 ### Functional Tests
 | Test | Location | End-User Scenario | Status |
 |------|----------|-------------------|--------|
-| `plugin-version-mismatch` | `test/plugin/plugin-version-mismatch.ci` | old-protocol plugin rejected cleanly | |
-| `plugin-version-match` | `test/plugin/plugin-version-match.ci` | matching-version plugin registers and runs | |
+| `plugin-version-mismatch` | `test/plugin/plugin-version-mismatch.ci` | External plugins declaring missing (`0`) and future (`2`, including an unknown future field) versions are rejected cleanly at Stage 1 with clear range diagnostics before Stage 2 | |
+| `plugin-version-match` | `test/plugin/plugin-version-match.ci` | External plugin declaring supported version `1` completes Stages 1–5 and runs | |
+| `filter-wire-version-negotiated` | `test/plugin/filter-wire-version-negotiated.ci` | Updated to verify version `1` filter runs end-to-end while version `2` is rejected at Stage 1 under the owner-decided supported-range policy | |
 
-### Interop Tests (MANDATORY for protocol features)
-Not applicable to peer wire protocols (BGP/IPsec/L2TP): this is the ze plugin RPC protocol, not
-a peer-facing protocol. The functional `.ci` tests above are the cross-binary protocol gate.
-
-### Future (if deferring any tests)
-- A true out-of-tree example plugin module under `test/` that exercises the public SDK end to
-  end is a strong follow-on if external plugins become a supported product.
+### Interop Tests
+Not applicable to peer wire protocols (BGP/IPsec/L2TP): this is Ze's internal/external plugin RPC protocol, not a peer-facing RFC wire protocol. The functional `.ci` tests above are the cross-binary protocol gate.
 
 ## Files to Modify
-- `pkg/plugin/rpc/types.go` - add a `ProtocolVersion` constant and field on
-  `DeclareRegistrationInput` (Stage 1).
-- `pkg/plugin/sdk/sdk.go` - send `ProtocolVersion` at Stage 1; surface the engine's rejection.
-- `internal/component/plugin/server/startup_driver.go` - validate Stage-1 protocol compatibility before `sink.onRegistration`; reject incompatible versions with the AC-2 diagnostic
-- `pkg/plugin/rpc/bridge.go` - move the `*selector.Selector` typed fast path out of the exported
-  public surface (option a) so no exported signature names an internal type.
-- `pkg/plugin/sdk/sdk_engine.go` - relocate `UpdateRouteSel`/`UpdateRouteSelWithMeta` to an
-  internal in-process seam the in-tree callers import; keep the string `UpdateRoute` public.
+- `pkg/plugin/rpc/types.go` - define `MinSupportedProtocolVersion = 1` and `CurrentProtocolVersion = 1` alongside `ProtocolVersion = CurrentProtocolVersion`.
+- `pkg/plugin/rpc/declaration.go` - enforce `[MinSupportedProtocolVersion, CurrentProtocolVersion]` in `NegotiateProtocolVersion` (rejecting `< MinSupportedProtocolVersion` and `> CurrentProtocolVersion` with clear range diagnostics) and defer unknown-field refusal in `DecodeDeclaration` for out-of-range versions so version mismatch is reported first.
+- `pkg/plugin/rpc/bridge.go` - remove `*selector.Selector` fast-path types/methods (`UpdateRouteSel*`) and the `internal/core/selector` import.
+- `pkg/plugin/rpc/panic_guard.go` - take `pluginmetrics.Registry` (`pkg/plugin/metrics`) in `SetPanicMetrics` instead of `internal/core/metrics.Registry`.
+- `pkg/plugin/rpc/route_view.go` - define `RouteViewAction` directly as a public `uint8` type with `String`/`MarshalText`/`UnmarshalText` (`add`/`update`/`withdraw`) and remove the `internal/core/bgp/routeaction` import.
+- `pkg/plugin/sdk/sdk.go` - send `rpc.CurrentProtocolVersion` at Stage 1 and preserve distinct Stage-1 `*StartupError` surfacing for range refusals.
+- `pkg/plugin/sdk/sdk_engine.go` - remove `UpdateRouteSel`, `UpdateRouteSelResult`, `UpdateRouteSelWithMeta`, `UpdateRouteSelWithMetaResult`, and the `internal/core/selector` import; preserve string `UpdateRoute*` methods.
+- `pkg/plugin/sdk/metrics.go` - use `pkg/plugin/metrics` interfaces in exported signatures (`MetricsRegistry`, `Counter`, `Gauge`, `Histogram`, `CounterVec`, `GaugeVec`, `HistogramVec`).
+- `pkg/plugin/sdk/metrics_series.go` - alias `SeriesRetainer` and `SeriesLease` from `pkg/plugin/metrics` instead of `internal/core/metrics`.
+- `internal/core/metrics/metrics.go` - alias `Counter`, `Gauge`, `Histogram`, `CounterVec`, `GaugeVec`, `HistogramVec`, and `Registry` to `pkg/plugin/metrics`.
+- `internal/core/metrics/series_custody.go` - alias `SeriesRetainer`, `SeriesLease`, and `SeriesCustody` to `pkg/plugin/metrics`.
+- `internal/component/plugin/server/startup_driver.go` - ensure `runStartupHandshake` enforces the supported-range refusal before `sink.onRegistration` for both `engineStartupSink` and `hubStartupSink` and logs version mismatch distinctly from write-watchdog closes.
+- `internal/component/plugin/server/dispatch_registry.go` - wire the relocated internal `*selector.Selector` fast path via `engineOp.native` on `rpc.MethodUpdateRoute` instead of `DirectBridge.SetUpdateRouteSelResult`.
+- `internal/le/cli/dispatch/plugin_sends.go` - update `sdkEngineOpMessage` to track the relocated internal `updatesel` helper instead of removed `sdk.Plugin.UpdateRouteSel*` methods.
+- `internal/component/plugin/server/startup_version_test.go` - update version tests for supported-range rejection of future versions and add `TestProtocolVersionBothTopologies`.
+- `internal/component/plugin/server/dispatch_registry_test.go`, `internal/component/plugin/server/dispatch_update_result_test.go`, `internal/component/plugin/server/peer_declaration_admission_test.go`, `internal/component/bgp/reactor/selected_origin_result_test.go`, `pkg/plugin/sdk/sdk_update_route_result_test.go` - point in-tree `UpdateRouteSel*` test callers at `internal/component/plugin/updatesel` (or public `UpdateRoute*` in `pkg/plugin/sdk`).
+- `test/plugin/filter-wire-version-negotiated.ci` - update `v2` expectation from downgrade to Stage-1 supported-range rejection while keeping version `1` filter delivery proof.
+- `docs/architecture/api/process-protocol.md` - update "5-Stage Startup Protocol" ("Protocol version") for the supported-range policy and "Update-route command and admission results" for relocated `UpdateRouteSel*`.
+- `docs/plugin-development/protocol.md` - document the supported-range `protocol-version` policy and rejection diagnostic.
+- `docs/architecture/core-design.md` - document the public `pkg/plugin/**` no-internal-types boundary and its mechanical guard.
+- `ai/doors/core.md` - update the stale `UpdateRouteSel` / `internal/core/selector` SDK example once `*selector.Selector` is removed from `pkg/plugin/**`.
+- `ai/rules/plugins.md` - document the supported-range version contract and the no-internal-types-in-public-SDK rule.
+
+## Files to Create
+- `pkg/plugin/metrics/metrics.go` - public stdlib-only metric interfaces (`Counter`, `Gauge`, `Histogram`, `CounterVec`, `GaugeVec`, `HistogramVec`, `Registry`) and series custody (`SeriesRetainer`, `SeriesLease`, `SeriesCustody`), aliased by `internal/core/metrics`.
+- `internal/component/plugin/updatesel/updatesel.go` - internal in-process `*selector.Selector` fast path (`UpdateRouteSel`, `UpdateRouteSelResult`, `UpdateRouteSelWithMeta`, `UpdateRouteSelWithMetaResult`) using `Plugin.TryEngineNative` with fallback to `Plugin.UpdateRouteWithMetaResult`.
+- `internal/component/plugin/updatesel/updatesel_test.go` - unit tests for the relocated internal seam on bridged and unbridged transports.
+- `pkg/plugin/boundary_test.go` - `go/types` guard `TestPublicPkgAPIHasNoInternalTypes` (plus negative self-test) ensuring zero exported `pkg/plugin/**` symbols reference `internal/` types.
+- `test/plugin/plugin-version-mismatch.ci` - functional test proving missing (`0`) and future (`2`, including unknown keys) versions are rejected cleanly at Stage 1 before Stage 2.
+- `test/plugin/plugin-version-match.ci` - functional test proving a plugin declaring supported version `1` registers and runs through Stage 5.
 
 ### Integration Checklist
-| Integration Point | Needed? | File |
-|-------------------|---------|------|
-| Boundary guard in verify | [ ] | `internal/le/repository/` or `pkg/plugin/boundary_test.go`, wired into `./le verify current mode full` |
-| Functional test for handshake | [ ] | `test/plugin/plugin-version-mismatch.ci`, `plugin-version-match.ci` |
-| Prometheus counter (version rejections) | [ ] | plugin server telemetry, if a rejection metric is wanted |
+| Integration Point | Applies? | File / reason |
+|-------------------|----------|---------------|
+| YANG schema (new RPCs/config) | No | No new YANG RPC or config leaf; `protocol-version` already exists in the Stage-1 handshake and `update-route` wire format is unchanged. |
+| YANG validation constraints | N-A | No YANG leaves added or changed. |
+| YANG custom validators | N-A | No YANG leaves added or changed. |
+| CLI commands/flags | No | No CLI command or flag added; `show plugin declarations` and `show plugin conformance` inherit the updated `stage1Checks[0]` check automatically. |
+| CLI grammar (keyword before value) | N-A | No CLI command added or changed. |
+| Editor autocomplete | N-A | No config schema or CLI completion changed. |
+| Functional test for new RPC/API | Yes | `test/plugin/plugin-version-mismatch.ci`, `test/plugin/plugin-version-match.ci`, and updated `test/plugin/filter-wire-version-negotiated.ci`. |
+| Pipe completeness | N-A | No command output added or changed. |
+| Env var registration | No | No new environment variable added (`ZE_PLUGIN_MODE` and `ze.plugin.hub.*` unchanged). |
+| Doctor check for runtime dependencies | No | No new runtime dependency (file, socket, service, port, binary, or certificate) introduced. |
+| Doctor code per problem class | No | Refused Stage-1 handshakes already record `process.StopHandshakeFailed` and report under the existing `diagnostic.CodeDoctorPluginStopped` code (`internal/component/plugin/server/stage1_checks.go`). |
+| Prometheus counters/metrics | No | No new Prometheus counter added; existing `ze_plugin_write_watchdog_total` and `ze_task_panics_total` remain wired and distinct from Stage-1 version refusals. |
+| BGP family surface (new SAFI / capability / attribute) | N-A | Plugin infrastructure fix; no BGP family surface touched. |
 
 ### Documentation Update Checklist (BLOCKING)
 | # | Question | Applies? | File to update |
 |---|----------|----------|---------------|
-| 8 | Plugin SDK/protocol changed? | [ ] | `ai/rules/plugins.md`, `docs/architecture/api/process-protocol.md` (version handshake) |
-| 12 | Internal architecture changed? | [ ] | `docs/architecture/core-design.md` plugin boundary section |
-| 16 | Changed source referenced by doc anchors? | [ ] | grep `docs/` for `source: .../pkg/plugin/rpc/types.go`, `sdk.go` |
+| 1 | New user-facing feature, or a feature's scope, evidence or level changed? | No | Bug/contract fix on existing plugin protocol and SDK; no `features/*.md` level change. |
+| 2 | Config syntax changed? | No | No config syntax changed. |
+| 3 | CLI command added/changed? | No | No CLI command added or changed. |
+| 4 | API/RPC added/changed? | No | `docs/architecture/api/commands.md` is declared by `pkg/plugin/rpc/types.go` (`PipeDecl` and `execute-command` pipe list) and is unaffected because this spec changes neither `PipeDecl` nor `execute-command` nor command/pipe routing. |
+| 5 | Plugin added/changed? | No | No new plugin added. |
+| 6 | Has a user guide page? | No | `docs/guide/plugins.md` covers operator `bus { endpoint ... }` configuration, unaffected by Go SDK type relocation or Stage-1 range bounds. |
+| 7 | Wire format changed? | No | `docs/architecture/wire/*.md` covers BGP/L2TP wire formats, not plugin RPC; plugin RPC Stage-1 semantics are covered under #8. |
+| 8 | Plugin SDK/protocol changed? | Yes | `docs/architecture/api/process-protocol.md` (supported version range + relocated `UpdateRouteSel*`), `docs/plugin-development/protocol.md` (supported version range), `ai/rules/plugins.md` (version range & public SDK boundary rule). |
+| 9 | RFC behavior implemented, changed, or newly proven? | No | Ze plugin RPC protocol, not an IETF RFC wire protocol. |
+| 10 | Test infrastructure changed? | No | Uses existing `.ci` runner and `go test` package tests. |
+| 11 | Affects daemon comparison? | No | No daemon comparison row affected. |
+| 12 | Internal architecture changed? | Yes | `docs/architecture/core-design.md` (document public `pkg/plugin/**` no-internal-types boundary and `pkg/plugin/metrics` alias pattern). |
+| 13 | Route metadata keys added/changed? | No | No route metadata key touched. |
+| 14 | Prometheus counters added/changed? | No | `docs/plugin-development/metrics.md` (declared by `pkg/plugin/sdk/metrics.go`, `metrics_series.go`) and `docs/architecture/decisions/001-pull-model-metrics.md` (declared by `internal/core/metrics/series_custody.go`) are unaffected in behavior because `internal/core/metrics` aliases `pkg/plugin/metrics` identically; update any source anchor if symbols move to `pkg/plugin/metrics/metrics.go`. |
+| 15 | Registered plugin, event type, send type, command, capability, or inventory changed? | No | No registration inventory change. |
+| 16 | Any changed source file referenced by existing doc source anchors? | Yes | Checked via `./le spec citation anchors`: declared `// Design:` pages are `docs/architecture/api/process-protocol.md` (updated), `docs/plugin-development/protocol.md` (updated), `docs/architecture/core-design.md` (updated), `docs/architecture/api/ipc_protocol.md` (unaffected: `RouteView*` wire contract unchanged), `docs/architecture/api/commands.md` (unaffected: `PipeDecl` and `execute-command` unchanged), `docs/architecture/plugin/plugin-system.md` (unaffected: `DirectBridge.DispatchNative` and `stage1Checks` already documented), `docs/architecture/rib-transition.md` (unaffected: `selected_origin_result_test.go` only repoints its test call to `internal/component/plugin/updatesel`), `docs/plugin-development/metrics.md` and `docs/architecture/decisions/001-pull-model-metrics.md` (unaffected in design; verify source anchors after moving interface definitions to `pkg/plugin/metrics/metrics.go` with `./le doc check all`). |
+| 17 | Existing docs show config/CLI/API examples for this area? | Yes | Verify Stage-1 `protocol-version` examples in `docs/plugin-development/protocol.md` and `docs/architecture/api/process-protocol.md` match the supported-range policy. |
 
-## Files to Create
-- `test/plugin/plugin-version-mismatch.ci` - proves an incompatible plugin is rejected cleanly.
-- `test/plugin/plugin-version-match.ci` - proves a matching plugin registers and runs.
-- `pkg/plugin/boundary_test.go` - the mechanical no-internal-types-in-public-API guard.
+## Design presentation
+
+### What changes
+
+External and in-tree plugins now negotiate Stage-1 protocol compatibility against an explicit supported version range (`MinSupportedProtocolVersion .. CurrentProtocolVersion`, today `1 .. 1`) instead of silently downgrading future versions: missing (`0`), below-minimum, and future (`> CurrentProtocolVersion`) declarations are rejected loudly at Stage 1 across both engine and hub startup topologies, offline declaration queries, and conformance checks, with a diagnostic distinct from transport write-watchdog closes. In parallel, every exported symbol across `pkg/plugin/**` becomes genuinely public and nameable by out-of-tree Go callers by relocating the in-process `*selector.Selector` fast path onto the existing `DirectBridge.DispatchNative` / `Plugin.TryEngineNative` seam (`internal/component/plugin/updatesel`), lifting the stdlib-only metric interfaces and series custody types into `pkg/plugin/metrics` (aliased by `internal/core/metrics`), and defining `rpc.RouteViewAction` directly in `pkg/plugin/rpc/route_view.go`, backed by a permanent `go/types` boundary test (`TestPublicPkgAPIHasNoInternalTypes`).
+
+### Before and after
+
+1. **Future-version plugin at Stage 1**
+   - Before: A plugin sending `#1 ze-plugin-engine:declare-registration {"protocol-version":2}` receives `#1 ok {"protocol-version":1,...}` via `min(declared, ProtocolVersion)` (and if it includes a newer Stage-1 JSON field, it fails with a generic unknown-key error instead of a version diagnostic).
+   - After: `runStartupHandshake` rejects it at Stage 1 before `sink.onRegistration` with `#1 error` stating that plugin `<name>` declared protocol version `2`, outside the supported range `1..1`, and pointing to `docs/plugin-development/protocol.md` — identically for engine startup, hub startup, `show plugin declarations`, and `show plugin conformance`.
+2. **External Go plugin naming exported `pkg/plugin/**` types**
+   - Before: Exported `pkg/plugin/**` APIs name un-nameable `internal/` types (`*internal/core/selector.Selector` on `DirectBridge`/`Plugin.UpdateRouteSel*`, `internal/core/metrics.Registry` and vector interfaces on `Plugin.MetricsRegistry()`/`MetricsPublisher`/`rpc.SetPanicMetrics`, and `internal/core/bgp/routeaction.Action` alias on `rpc.RouteViewAction`), so out-of-tree callers cannot write typed variables or wrappers for those signatures.
+   - After: Every exported symbol in `pkg/plugin`, `pkg/plugin/rpc`, `pkg/plugin/sdk`, and `pkg/plugin/metrics` names only stdlib or public `pkg/` types, in-process `*selector.Selector` callers use `internal/component/plugin/updatesel` over `DirectBridge.DispatchNative`, and `TestPublicPkgAPIHasNoInternalTypes` fails the scoped `./pkg/plugin/...` test run on any future regression.
+
+### Alternatives set aside
+
+| Alternative | Why set aside |
+|-------------|---------------|
+| Keep `min(declared, ProtocolVersion)` downgrade for future plugin versions | Rejected by Thomas on 2026-11-24: a future plugin should fail loudly at Stage 1 when outside `[MinSupportedProtocolVersion, CurrentProtocolVersion]` rather than silently downgrading across an unknown contract. |
+| Move the entire plugin SDK under `internal/` and abandon public `pkg/plugin/**` | Contradicts `ai/doors/system.md` ("`pkg/plugin/sdk`, `pkg/plugin/rpc` ... are imported by code outside this repository") and breaks third-party Go plugins. |
+| Relocate `internal/core/selector` into `pkg/` | Large blast radius across BGP/CLI/internal packages for a single in-process-only optimization (`UpdateRouteSel*`) that already has a zero-JSON internal mechanism (`DirectBridge.DispatchNative`). |
+| Leave `internal/core/metrics` and `routeaction.Action` aliases in `pkg/plugin/**` and guard only `selector` | Leaves real un-nameable `internal/` types (`metrics.Registry`, `metrics.Counter`, etc.) in the public SDK and would require permanent allowlist exceptions in the boundary guard. |
+
+### Documents departed from
+
+- `docs/architecture/api/process-protocol.md`, section `5-Stage Startup Protocol` ("Protocol version"): currently states `"Every declare-registration carries protocol-version, the highest plugin protocol version the plugin speaks, and the engine's Stage 1 answer includes protocol-version, the version both sides speak from then on: the lower of the two (rpc.NegotiateProtocolVersion)."` After this work, that section states that the engine enforces the supported version range `MinSupportedProtocolVersion .. CurrentProtocolVersion` (`rpc.NegotiateProtocolVersion`), accepting versions in range and rejecting missing (`0`), below-minimum, and future/above-current versions at Stage 1 with a diagnostic naming the plugin, declared version, supported range, and `docs/plugin-development/protocol.md`.
+- `docs/plugin-development/protocol.md`, section `Stage 1: Registration (Plugin to Engine)`: currently states `"The engine answers Stage 1 with the version both sides speak from then on: the lower of the plugin's protocol-version and its own. A plugin declaring a version above the engine's speaks the answered version."` After this work, that section states that the engine enforces the supported version range `MinSupportedProtocolVersion .. CurrentProtocolVersion`, accepting versions within range and rejecting missing (`0`), below-minimum, and future/above-current versions at Stage 1 with a diagnostic error.
+
+### Choices for Thomas
+
+none
 
 ## Implementation Steps
 
-### /implement Stage Mapping
-| /implement Stage | Spec Section |
-|------------------|--------------|
-| 1. Read spec | This file |
-| 2. Audit | Files to Modify, TDD Test Plan |
-| 3. Wiring phase | Wiring Test table |
-| 4. Implement (TDD) | Implementation Phases below |
-| 5. /ze-review gate | Review Gate |
-| 6. Full verification | `./le verify current mode full` |
+1. **Phase: Wiring (MANDATORY FIRST)** — add `MinSupportedProtocolVersion` / `CurrentProtocolVersion` constants, add `TestPublicPkgAPIHasNoInternalTypes` in `pkg/plugin/boundary_test.go`, add `TestProtocolVersionBothTopologies`, and draft `test/plugin/plugin-version-mismatch.ci` and `test/plugin/plugin-version-match.ci`.
+   - Tests: `TestPublicPkgAPIHasNoInternalTypes`, `TestProtocolVersionBothTopologies`, `test/plugin/plugin-version-mismatch.ci`, `test/plugin/plugin-version-match.ci`.
+   - Files: `pkg/plugin/rpc/types.go`, `pkg/plugin/boundary_test.go`, `internal/component/plugin/server/startup_version_test.go`, `test/plugin/plugin-version-mismatch.ci`, `test/plugin/plugin-version-match.ci`.
+   - Verify: `TestPublicPkgAPIHasNoInternalTypes` fails listing the four existing `internal/` leaks; version-mismatch tests fail on future version `2` because `NegotiateProtocolVersion` still downgrades.
+2. **Phase: Stage-1 supported-range version enforcement** — update `rpc.NegotiateProtocolVersion` and `rpc.DecodeDeclaration` to enforce `[MinSupportedProtocolVersion, CurrentProtocolVersion]`, ensure `runStartupHandshake` and `sdk.Plugin.Run` keep version refusals distinct from `rpc.Conn` write-watchdog closes, and update `startup_version_test.go`, `declaration_decode_test.go`, and `test/plugin/filter-wire-version-negotiated.ci`.
+   - Tests: `TestNegotiateProtocolVersion`, `TestDeclareRegistrationVersionAnswer`, `TestProtocolVersionBothTopologies`, `TestDecodeDeclarationDefersOutOfRangeVersion`, `plugin-version-mismatch.ci`, `plugin-version-match.ci`, `filter-wire-version-negotiated.ci`.
+   - Files: `pkg/plugin/rpc/types.go`, `pkg/plugin/rpc/declaration.go`, `pkg/plugin/sdk/sdk.go`, `internal/component/plugin/server/startup_driver.go`, `internal/component/plugin/server/startup_version_test.go`, `pkg/plugin/rpc/declaration_decode_test.go`, `test/plugin/filter-wire-version-negotiated.ci`.
+   - Verify: scoped tests in `./pkg/plugin/...` and `./internal/component/plugin/...` and the `.ci` tests pass.
+3. **Phase: Public `pkg/plugin/**` API boundary cleanup** — (a) create `pkg/plugin/metrics/metrics.go` and alias from `internal/core/metrics/{metrics,series_custody}.go`, updating `pkg/plugin/sdk/{metrics,metrics_series}.go` and `pkg/plugin/rpc/panic_guard.go`; (b) define `RouteViewAction` directly in `pkg/plugin/rpc/route_view.go`; (c) create `internal/component/plugin/updatesel/` using `Plugin.TryEngineNative`, wire `engineOp.native` on `rpc.MethodUpdateRoute` in `dispatch_registry.go`, remove `UpdateRouteSel*` from `pkg/plugin/rpc/bridge.go` and `pkg/plugin/sdk/sdk_engine.go`, and update in-tree callers/tests and `internal/le/cli/dispatch/plugin_sends.go`.
+   - Tests: `TestPublicPkgAPIHasNoInternalTypes`, `TestRouteViewActionPublicRoundTrip`, `TestUpdateRouteSelInternalSeam`, plus existing `pkg/plugin/...`, `internal/component/plugin/...`, `internal/core/metrics/...`, `internal/component/sysrib/...`, `internal/component/bgp/reactor/...`, `internal/le/cli/dispatch/...` tests.
+   - Files: `pkg/plugin/metrics/metrics.go`, `internal/core/metrics/{metrics,series_custody}.go`, `pkg/plugin/sdk/{metrics,metrics_series,sdk_engine}.go`, `pkg/plugin/rpc/{bridge,panic_guard,route_view}.go`, `internal/component/plugin/updatesel/*`, `internal/component/plugin/server/dispatch_registry.go`, `internal/le/cli/dispatch/plugin_sends.go`, and in-tree test callers.
+   - Verify: `TestPublicPkgAPIHasNoInternalTypes` passes (including negative subtest proving a deliberately introduced leak fails); `./le arch tier check` and `./le plugin boundary check` pass.
+4. **Phase: Documentation updates** — update `docs/architecture/api/process-protocol.md`, `docs/plugin-development/protocol.md`, `docs/architecture/core-design.md`, and `ai/rules/plugins.md`, and check anchors with `./le doc check all`.
+5. **Phase: Scoped verification (main thread)** — run the scoped unit tests, `./le arch tier check`, `./le cli dispatch check`, `./le doc check all`, and targeted `.ci` suites (`./le test plugin` for the version tests).
+6. **Phase: Review Gate & closure** — independent `/ze-review` + `/ze-review-spec`, then two-commit closure per `ai/rules/planning.md`.
 
-### Implementation Phases
-
-1. **Phase: Wiring (MANDATORY FIRST)** — add the `ProtocolVersion` constant + Stage-1 field and
-   the boundary guard skeleton; write `plugin-version-mismatch.ci` and
-   `TestPublicPkgAPIHasNoInternalTypes` expecting the end state (both fail now).
-   - Files: `pkg/plugin/rpc/types.go`, `pkg/plugin/boundary_test.go`, the `.ci` files.
-   - Verify: version test fails (no field), boundary test fails (selector leak present).
-2. **Phase: Version negotiation**: the plugin sends its version; the common
-   Stage-1 driver enforces the selected policy for both callers.
-   - Tests: `TestProtocolVersionNegotiated`, `TestProtocolVersionBothTopologies`,
-     `plugin-version-mismatch.ci`, `plugin-version-match.ci`.
-3. **Phase: Boundary cleanup** — relocate the internal-typed `UpdateRouteSel*` fast path out of
-   the public surface; update in-tree callers; boundary guard passes.
-   - Tests: `TestPublicPkgAPIHasNoInternalTypes`; existing in-process plugin tests still green.
-4. **Phase: Guard in verify** — wire the boundary guard into `./le verify current mode full`.
-5. **Full verification** → `./le verify current mode full`.
-6. **Complete spec** → learned summary `plan/learned/NNN-sdk-boundary-versioning.md`; two commits.
-
-### Critical Review Checklist (/implement stage 6)
+### Critical Review Checklist
 | Check | What to verify for this spec |
 |-------|------------------------------|
-| Completeness | Every AC-N has implementation with file:line |
-| Correctness | Version mismatch rejected before any typed struct is trusted; both topologies enforce it |
-| Data flow | Version checked at the handshake, not after decode |
-| Registration over hardcoding | One version constant + one guard, discovered by handshake/verify; no per-plugin special case |
-| Rule: no-layering | Old un-versioned path removed; internal-typed public API fully relocated, not duplicated |
+| Completeness | Every AC-1..AC-5 has implementation with file:line and passing scoped proof |
+| Feature completeness | Every End-to-End User Story has a live path and passing test |
+| Correctness | Missing (`0`), negative, below-minimum, and future (`> CurrentProtocolVersion`) versions are rejected before `sink.onRegistration`, including when carrying unknown future Stage-1 keys; both `engineStartupSink` and `hubStartupSink` enforce the same check |
+| Boundary honesty | `TestPublicPkgAPIHasNoInternalTypes` walks all exported `pkg/plugin/**` declarations (including aliases, fields, interface methods) with zero allowlist exceptions and fails on a negative leak fixture |
+| Data flow | Relocated `UpdateRouteSel` flows through `DirectBridge.DispatchNative` -> `engineOp.native` -> `handleUpdateRouteSelResultDirect`, preserving `checkEngineOpBusSend` |
+| Operator errors and doctor codes | Version mismatch diagnostics name the plugin, declared version, supported range, and `docs/plugin-development/protocol.md`; failed startup records `StopHandshakeFailed` under `CodeDoctorPluginStopped`; never confused with `rpc.Conn` write-watchdog closes |
+| Rule: no-layering | Old `UpdateRouteSel*` slots on `DirectBridge` and `sdk.Plugin` are removed (not left beside the internal seam); old `min(declared, ProtocolVersion)` downgrade path is replaced cleanly |
 
-### Deliverables Checklist (/implement stage 10)
+### Deliverables Checklist
 | Deliverable | Verification method |
 |-------------|---------------------|
-| Version field + check | `plugin-version-mismatch.ci` rejects; `plugin-version-match.ci` passes |
-| No internal types in public API | `TestPublicPkgAPIHasNoInternalTypes` passes; grep for `selector.` in exported pkg/plugin signatures empty |
-| Guard in verify | `./le verify current mode full` fails on a deliberately-reintroduced leak |
+| Supported-range Stage-1 check (`MinSupportedProtocolVersion .. CurrentProtocolVersion`) | `./le test unit pkg path ./pkg/plugin/...`, `./le test unit pkg path ./internal/component/plugin/...`, `plugin-version-mismatch.ci`, `plugin-version-match.ci`, `filter-wire-version-negotiated.ci` |
+| Zero `internal/` types in exported `pkg/plugin/**` API | `TestPublicPkgAPIHasNoInternalTypes` (passes on tree, fails on negative fixture); `git grep` confirms zero `selector.Selector`, `internal/core/metrics`, or `internal/core/bgp/routeaction` in exported `pkg/plugin/**` |
+| Tier and dispatch hygiene | `./le arch tier check`, `./le plugin boundary check`, `./le cli dispatch check`, `./le doc check all` |
 
-### Security Review Checklist (/implement stage 11)
+### Security Review Checklist
 | Check | What to look for |
 |-------|-----------------|
-| Input validation | A malformed/absent version is rejected, not defaulted into "compatible" |
-| Error leakage | The rejection diagnostic does not leak auth token or internal path detail |
+| Input validation | Missing (`0`), negative, non-numeric, and above-current (`> CurrentProtocolVersion`) versions are rejected before any sink registration or schema publication runs |
+| Error leakage | Stage-1 rejection diagnostic names only the plugin name, declared version, supported range, and doc path — never auth tokens, CA material, or host filesystem paths |
+| Authorization preservation | Relocated in-process `UpdateRouteSel` still passes through `RequirePeerDeclarations`, `validateUpdateRouteSubcommand`, and `checkEngineOpBusSend` |
 
 ### Failure Routing
 | Failure | Route To |
 |---------|----------|
-| One topology accepts a bad version | Trace its path through the shared driver; remove any sink-only version check (Phase 2, R-1) |
-| In-process caller breaks after relocation | Point it at the internal seam (Phase 3, R-3) |
-| Guard flags a leak beyond selector | Fix that signature too (A-2) |
-| 3 fix attempts fail | STOP. Report all 3 approaches. Ask user. |
-
-## Mistake Log
-
-### Wrong Assumptions
-| What was assumed | What was true | How discovered | Impact |
-|------------------|---------------|----------------|--------|
-| (original finding) out-of-tree author cannot build against pkg/ | External module builds cleanly; the leak is at the call site | Empirical external-module build during finding-7 review | Corrected the spec framing to the real defect |
-
-### Failed Approaches
-| Approach | Why abandoned | Replacement |
-|----------|---------------|-------------|
-
-### Escalation Candidates
-| Mistake | Frequency | Proposed rule | Action |
-|---------|-----------|---------------|--------|
+| One startup topology accepts an out-of-range version | Trace its path through `runStartupHandshake` and remove any sink-only bypass (Phase 2, R-2) |
+| Future-version payload with unknown keys gets unknown-key error | Check `DecodeDeclaration` range defer condition before `opererr.Wrap` (Phase 2, R-3) |
+| Boundary test flags an additional leaked `internal/` type | Relocate or lift that signature too (Phase 3, A-2) |
+| Import cycle or `./le arch tier check` failure on `pkg/plugin/metrics` | Verify `pkg/plugin/metrics` imports stdlib only and `internal/core/metrics` uses `=` aliases (Phase 3, R-5) |
+| 3 fix attempts failed | STOP. Report all 3 approaches. Ask the user |
 
 ## Design Insights
-<!-- LIVE — write IMMEDIATELY when you learn something -->
-- The wire boundary (separately-compiled binaries) and the source boundary (what `pkg/`
-  exports) are distinct contracts; finding 7 conflated them. Versioning fixes the first; API
-  cleanup fixes the second. Neither remedy alone suffices.
+- The wire boundary (separately-compiled binaries negotiating Stage 1) and the Go source boundary (exported types in `pkg/plugin/**`) are distinct contracts; both must hold independently.
+- On HEAD, the Stage-1 `protocol-version` carrier already exists (`ProtocolVersion = 1`), so this spec retires that baseline into Existing Mechanisms and focuses wire work on enforcing the owner-decided supported version range (`MinSupportedProtocolVersion .. CurrentProtocolVersion`) and deferring unknown-key errors for future versions.
+- Full HEAD audit disproved assumption A-2: besides `*selector.Selector`, `pkg/plugin/**` also leaks `internal/core/metrics` (`sdk/metrics.go`, `sdk/metrics_series.go`, `rpc/panic_guard.go`) and `internal/core/bgp/routeaction.Action` (`rpc/route_view.go`). Reusing `DirectBridge.DispatchNative` and the `DoctorCheckPhase` public-contract-aliased-by-internal-core pattern clears all four leaks with minimal churn.
+
+## Owned journal rows
+| Class file | Date | Surface (short) |
+|------------|------|-----------------|
 
 ## Key Design Decisions
 | Decision | Alternatives Considered | Rationale |
 |----------|------------------------|-----------|
-| Relocate the in-process `UpdateRouteSel*` internal-typed API out of public `pkg/` (option a) | (b) move the whole SDK under `internal/` and drop the public claim; (c) relocate `selector` to `pkg/` | (a) keeps the in-process fast path while making the public surface honest; (c) has a large blast radius (selector is used across internal); (b) is the honest-retreat fallback if external plugins are never intended |
-| Version at Stage-1 declare-registration | Version in `SendAuth`, or a separate Stage-0 hello | Stage 1 is the first structured message and matches the finding's proposal; avoids a new stage |
-| Match policy remains OPEN before readiness | strict equality vs a supported-version range | Record the selected policy and the treatment of missing, older and future versions before implementation; AC-2's incompatible-version refusal remains required |
+| Enforce supported version range `MinSupportedProtocolVersion .. CurrentProtocolVersion` at Stage 1, rejecting missing (`0`), below-minimum, and above-current versions | Keep `min(declared, ProtocolVersion)` silent downgrade for future versions; or strict single-version equality | Owner decision (2026-11-24): range matching allows deliberate multi-version support later while failing loudly on missing, retired, or unknown future versions instead of silently downgrading. |
+| Relocate in-process `*selector.Selector` fast path onto `DirectBridge.DispatchNative` / `Plugin.TryEngineNative` via `internal/component/plugin/updatesel` | Move the whole SDK under `internal/`; or move `selector` into `pkg/` | Reuses the existing zero-JSON native dispatch mechanism (`bridge_native.go`, `sdk_native.go`), keeps external `UpdateRoute*` public, and avoids moving `selector` across the codebase. |
+| Lift stdlib-only metric interfaces and series custody into `pkg/plugin/metrics` and type-alias them in `internal/core/metrics` | Leave `internal/core/metrics` un-nameable in `pkg/plugin/sdk`; or duplicate incompatible interface types | Matches Ze's established `DoctorCheckPhase` pattern: external plugins can name `Registry`/`Counter`/`SeriesRetainer`/`SeriesLease` cleanly while every in-tree `internal/core/metrics` caller keeps compiling unchanged. |
+| Define `RouteViewAction` directly in `pkg/plugin/rpc/route_view.go` | Keep `type RouteViewAction = routeaction.Action` alias to `internal/core/bgp/routeaction` | Removes the `internal/` canonical type from `pkg/plugin/rpc` while preserving identical wire tokens (`add`, `update`, `withdraw`) and zero sysrib caller churn. |
+| Enforce the public API boundary with a `go/types` package test `TestPublicPkgAPIHasNoInternalTypes` in `pkg/plugin/boundary_test.go` | Extend `./le plugin boundary check` (which checks runtime same-process-effect calls) | Distinct concern with zero false positives: `go/types` inspects resolved types across every exported symbol under `./pkg/plugin/...` and runs in scoped `./pkg/plugin/...` unit tests and CI. |
 
 ## Known Limitations
-- This spec does not make `pkg/plugin/sdk` free of ALL internal imports (it may still use
-  `internal/component/plugin/ipc` for transport as implementation); it only guarantees no
-  internal type appears in the EXPORTED signatures and that the wire protocol is versioned.
-  A fully self-contained `pkg/` (zero internal imports) is a larger, separate effort.
-- If option (b) is chosen (SDK under `internal/`), AC-4/AC-5 are satisfied trivially and the
-  version work still applies to any separately-compiled in-tree plugin process.
-
-## Implementation Summary
-
-### What Was Implemented
-- [filled during /implement]
-
-### Bugs Found/Fixed
-- [any silent-decode case surfaced by adding the version]
-
-### Documentation Updates
-- [process-protocol.md version handshake + plugins.md, or "None" with grep evidence]
+- This spec guarantees that no exported `pkg/plugin/**` symbol references an `internal/` type and that Stage-1 enforces `[MinSupportedProtocolVersion, CurrentProtocolVersion]`. It does not remove private *implementation* imports inside `pkg/plugin/sdk` or `pkg/plugin/rpc` function bodies (such as `internal/component/plugin/ipc`, `internal/core/env`, `internal/core/opererr`, `internal/core/textbuf`), which Go permits for out-of-tree importers inside the same module boundary.
 
 ## Review Gate
-
-<!-- BLOCKING (ai/rules/planning.md Review Gate). Filled by /ze-implement's /ze-review gate: -->
-<!-- the final review before closure, run AFTER the inline critical/security/doc reviews, over the complete diff. -->
-<!-- Every BLOCKER and ISSUE (severity > NOTE) must be fixed, then re-run /ze-review. -->
-<!-- Loop until the review returns 0 BLOCKER/0 ISSUE (only NOTEs, or nothing). Paste the final clean run. -->
-<!-- NOTE-only findings do not block — record them and proceed. -->
 
 ### Run 1 (initial)
 | # | Severity | Finding | Location | Action |
 |---|----------|---------|----------|--------|
-|   | BLOCKER / ISSUE / NOTE | [what /ze-review reported] | file:line | fixed in <commit/line> / deferred (id) / acknowledged |
+|   | BLOCKER / ISSUE / NOTE | [filled by /ze-review] | file:line | fixed / acknowledged |
 
 ### Fixes applied
 - [short bullet per BLOCKER/ISSUE, naming the file and change]
 
 ### Run 2+ (re-runs until clean)
-<!-- Add a new block per re-run. Final run MUST show zero BLOCKER/ISSUE. -->
 | # | Severity | Finding | Location | Action |
 |---|----------|---------|----------|--------|
 
@@ -422,37 +521,39 @@ a peer-facing protocol. The functional `.ci` tests above are the cross-binary pr
 
 ## Checklist
 
+### Pre-Spec Verification (before the design is presented)
+- [ ] Metadata table present, with a valid Status, Scope, Priority, Depends, Phase and Updated
+- [ ] `ai/INDEX.md` keyword table checked
+- [ ] Template format followed: the 🧪 emoji, tables rather than prose, `[ ]` never `[x]`
+- [ ] No code snippets
+- [ ] Files to Modify names feature code, not only tests
+- [ ] Current Behavior, Existing Mechanisms, Design documents, Data Flow (with Changed-Wire Census), and Design presentation completed
+- [ ] AC-N rows carry positive Expected Behavior and non-empty Permitted Survivors and Why
+- [ ] Every assumption has a Basis and a validation method; every failure mode is a risk row
+- [ ] Required Reading carries `→ Decision:` / `→ Constraint:` checkpoints
+- [ ] Integration and Documentation checklists answered Yes/No/N-A with source evidence
+
 ### Goal Gates (MUST pass)
 - [ ] AC-1..AC-5 all demonstrated
 - [ ] End-to-End User Stories: every story has a working path and a passing test
 - [ ] Wiring Test table complete — every row has a concrete test name, none deferred
-- [ ] `/ze-review` gate clean (0 BLOCKER, 0 ISSUE)
-- [ ] `./le verify worktree` passes (lint + all ze tests)
+- [ ] The targeted tests for what changed pass, run in the main checkout by the main thread (`./le test unit pkg path ./pkg/plugin/...`, `./le test unit pkg path ./internal/component/plugin/...`, `./le test unit pkg path ./internal/core/metrics/...`, `./le test unit pkg path ./internal/component/sysrib/...`, `./le test unit pkg path ./internal/le/cli/dispatch/...`, `./le arch tier check`, `./le plugin boundary check`, `./le cli dispatch check`, `./le doc check all`, and targeted `test/plugin/` `.ci` tests)
 - [ ] Feature code integrated (`pkg/*`, `internal/*`)
-- [ ] Documentation Update Checklist answered Yes/No with source evidence
-
-### Quality Gates (SHOULD pass — defer with user approval)
-- [ ] Implementation Audit complete
-- [ ] Mistake Log escalation reviewed
-
-### Design
-- [ ] No premature abstraction (one version constant; reuse existing check tooling)
-- [ ] No speculative features (two named defects only)
-- [ ] Explicit > implicit behavior (loud version rejection; honest public surface)
-- [ ] Minimal coupling
+- [ ] Integration and Documentation checklists answered Yes/No/N-A with source evidence
+- [ ] Architectural Verification table filled, including registration over hardcoding
+- [ ] Every A-N confirmed or broken, none `unvalidated`
 
 ### TDD
 - [ ] Tests written
 - [ ] Tests FAIL (paste output)
 - [ ] Tests PASS (paste output)
-- [ ] Boundary tests for all numeric inputs (ProtocolVersion)
-- [ ] Functional tests for end-to-end behavior
-- [ ] Interop tests N/A (plugin RPC protocol, not a peer wire protocol; `.ci` is the gate)
+- [ ] Boundary tests for `ProtocolVersion` (`-1`, `0`, `1`, `2`, `1000`)
+- [ ] Functional `.ci` tests for end-to-end Stage-1 version match and mismatch
+- [ ] Interop tests N-A (Ze plugin RPC protocol, not a peer RFC wire protocol; `.ci` is the cross-binary gate)
 
-### Completion (BLOCKING — before ANY commit)
-- [ ] Critical Review passes — all 6 checks in `ai/rules/quality.md`
-- [ ] Partial/Skipped items have user approval
-- [ ] Implementation Summary filled
-- [ ] Write learned summary to `plan/learned/NNN-sdk-boundary-versioning.md`
-- [ ] **Commit A:** code + tests + docs + spec + learned summary + counter bump
-- [ ] **Commit B:** `git rm plan/release/fixes/spec-review-sdk-boundary-versioning.md`
+### Closure
+- [ ] Append `plan/templates/TEMPLATE-CLOSURE.md` and complete every section in it
+- [ ] `/ze-review` gate clean, recorded via `internal/le/spec/review.go`
+- [ ] Any lesson routed to its governing surface under `ai/rules/planning.md`; no lesson artifact created merely for closure
+- [ ] **Commit A:** code + tests + docs + edited spec + any journal rows owed by the work
+- [ ] **Commit B:** `remove plan/release/fixes/spec-review-sdk-boundary-versioning.md` only, in the same `./le commit create` script
