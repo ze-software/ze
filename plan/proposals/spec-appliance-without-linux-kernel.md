@@ -1,0 +1,583 @@
+# Spec: appliance-without-linux-kernel
+
+<!-- DESIGN-TIME template: everything that must exist BEFORE code is written.
+     The closure half (Implementation Summary, Audit, Goal Validation, Review
+     Gate, Pre-Commit Verification, Mistake Log) lives in
+     plan/templates/TEMPLATE-CLOSURE.md and is APPENDED by /ze-close at step 1.
+     Do not copy it in advance: sections copied 300 lines ahead of their use
+     reach closure untouched, the ones created when needed get filled. -->
+
+| Field | Value |
+|-------|-------|
+| Status | skeleton |
+| Scope | tooling, appliance |
+| Priority | P3 |
+| Release reason | Unapproved idea under watch: a QEMU/KVM appliance that runs Ze without a Linux kernel. Nothing is scheduled. |
+| RFC gaps | - |
+| Depends | - |
+| Phase | Watch record written 2026-11-26; review owed during 2027 |
+| Handoff | - |
+| Design tier | strongest tier |
+| Implementation tier | development tier |
+| Updated | 2026-11-26 |
+
+<!-- Handoff: `verify` splits the work over two sessions -- the implementation session commits and stops at Status `verification`, a later session reviews that commit and closes. `-` closes in the same session. -->
+
+<!-- Design tier / Implementation tier: the model tier for the agents that design and review the design, and for the agents that implement, test and review the implementation. Name a tier, never a vendor's model name; each harness maps the tier to its own model. A row fixes the tier for every agent of that phase. An absent row leaves it to the kind of work: the strongest tier for design and the creative parts of implementation, the development tier for legwork. -->
+
+
+<!-- Scope drives which optional blocks below apply. Say which one this is, so
+     an absent section reads as "inapplicable" rather than "skipped".
+     The file's DIRECTORY carries its work category (plan/README.md): release
+     fixes, validation or delivery; post-release features, engineering or
+     kernel; or proposals. Split mixed fixes and feature expansion into separate specs. -->
+
+Recovery after compaction: `.claude/rules/post-compaction.md`.
+
+## Task
+
+Decide whether Ze can ship a QEMU/KVM appliance that runs on something lighter
+than a Linux kernel, and watch the projects that would make it possible.
+
+Owner question, 2026-11-25 (transcribed from voice): could Ze build an
+appliance for QEMU/KVM that does not use Linux but a more lightweight kernel,
+with virtio support. Owner request, 2026-11-26: record the eggshell project in
+the repository "so we can check it next year and see how it goes".
+
+This is a watch record and an unapproved proposal. It authorizes no work. The
+neighbouring proposal `plan/proposals/spec-virtual-machine-kernel-profiles.md`
+keeps Linux and trims it for virtual machines; this one asks whether Linux can
+go.
+
+### What is settled
+
+Ze uses Linux as its forwarding plane, not only as its host. Routes, nftables,
+XFRM, WireGuard and traffic control are programmed into the kernel, and VPP
+itself needs Linux. A kernel-less appliance is therefore a control-plane box
+only: a route server, a route reflector or a collector, with the `fib dummy`
+writer (`internal/plugins/fib/dummy/`) and no forwarding. It never replaces
+the router appliance.
+
+### Candidates, as read on 2026-11-26
+
+| Project | What it is | State read | Fit for Ze |
+|---------|------------|------------|------------|
+| eggshell (`github.com/usbarmory/eggshell`) | A Go kernel on TamaGo that implements the Linux system call ABI, so an unmodified static Linux binary runs on it. virtio-net through `go-net`, gVisor netstack, an SSH server in the kernel | Created 2026-11-03, last push 2026-11-23, README says "early stages and therefore experimental". BSD-style license | Would run the existing `ze` binary with no port. Too young to build on. The project to re-check |
+| Nanos (`github.com/nanovms/nanos`) | A C unikernel that runs an unmodified Linux binary. Apache-2.0 | Active (push 2026-11-08). `src/unix/netlink.c` defines route-netlink message types | The mature way to run the same experiment today |
+| TamaGo (`github.com/usbarmory/tamago`) | The Go runtime on bare metal, no kernel at all. Targets QEMU microvm, Firecracker, Cloud Hypervisor, UEFI | Active (push 2026-11-24). Needs a forked Go toolchain: upstream proposal `golang/go#73608` (bare metal support) is still open | A real port of Ze to `GOOS=tamago`, with no processes and no filesystem |
+| Unikraft, OSv | Unikernels with Linux binary compatibility | Both run Go binaries per their documentation | No netlink support found; not read in source |
+| `alesha-pro/llm.asm`, `02-baremetal-os` | A 24 KB assembly kernel for one fixed program | README lists serial, VGA and keyboard only | Not a base: no network device |
+
+### What eggshell's README rules out today
+
+| Stated limitation | What Ze would lose |
+|-------------------|--------------------|
+| IPv4 only | All IPv6: transport, link-local peering, RA, DHCPv6 |
+| No raw sockets | OSPF, IS-IS, VRRP, RSVP-TE, ping, traceroute. BGP and LDP over TCP remain |
+| Kernel serialized by one lock | Ze is bound by system calls, so extra cores bring little |
+| In-memory filesystem only | Configuration and state are lost at reboot |
+| No `inotify`, `timerfd`, `signalfd`, namespaces, mounts | Unknown: Ze's start path was not checked against these |
+
+### Unverified, and what would settle each
+
+- Whether eggshell answers netlink at all. Its README is silent and its source
+  was not read; the file list shows one socket file and one gVisor file.
+  Settled by reading `kernel/net.go` or by the experiment below.
+- Whether gVisor's netstack and Nanos's lwIP offer TCP-MD5, TCP-AO and the
+  minimum-TTL check GTSM needs. This decides whether BGP sessions to real
+  peers are possible. Settled by reading each stack's socket option table.
+- How much of Nanos's route-netlink is honoured rather than only defined.
+
+### The experiment, if this is ever scheduled
+
+Boot the existing static `ze` binary as an IPv4 BGP route server with
+`fib dummy` under Nanos and under eggshell in QEMU, with eggshell's `strace`
+boot option on, and list the system calls and socket options that fail. The
+list is the distance to a usable appliance and the input to any design.
+
+### Review during 2027
+
+Re-read eggshell's README, its "Current limitations" list and its commit
+activity, and answer these in this section:
+
+| Question | Answer on 2026-11-26 |
+|----------|----------------------|
+| Is the project still active, and still marked experimental? | Active, experimental |
+| Does it have IPv6? | No |
+| Does it have raw sockets? | No |
+| Does it answer route-netlink? | Unverified, expected no |
+| Is there a persistent filesystem (virtio-blk)? | No |
+| Is the kernel still behind one lock? | Yes |
+| Has `golang/go#73608` been accepted upstream? | Open |
+
+If IPv6 and persistent storage have both landed, run the experiment above and
+put the result to Thomas. If the project has stalled, record that here and
+keep Nanos as the only candidate.
+
+## Required Reading
+
+<!-- NEVER tick [ ] to [x] -- these checkboxes are template markers, not progress.
+     Capture what you learned as -> Decision: / -> Constraint: annotations, which
+     survive compaction; track reading progress in the session state file. -->
+
+### Architecture Docs
+- [ ] `docs/architecture/<doc>.md` - [why relevant]
+  → Decision: [specific architectural decision that constrains this spec]
+  → Constraint: [specific rule from the doc that applies here]
+
+### RFC Summaries (Scope: protocol)
+- [ ] `rfc/short/rfcNNNN.md` - [why relevant]
+  → Constraint: [specific RFC rule that applies here]
+
+**Key insights:** (minimal context to resume after compaction)
+- [insight from docs]
+
+## Current Behavior (MANDATORY)
+
+**Source files read:** (must read BEFORE you write this spec)
+- [ ] `path/to/file.go` - [what it currently does]
+
+**Behavior to preserve:** (unless the user explicitly said to change it)
+- [output format, function signature, or `.ci` expectation callers depend on]
+
+**Behavior to change:** (only what the user asked for)
+- [list, or "None - preserve all existing behavior"]
+
+## Existing Mechanisms (MANDATORY)
+
+Watch-record entries, written before any design:
+
+- The gokrazy appliance (`internal/appliance`, `ai/doors/appliance.md`) is the
+  existing answer to "a minimal system around Ze": a Linux kernel, a Go init
+  and Go binaries only. A kernel-less image would be a second image target
+  beside it, never a replacement.
+- The kernel profile registry (`docs/architecture/appliance/kernel-profiles.md`)
+  already trims Linux per target, and
+  `plan/proposals/spec-virtual-machine-kernel-profiles.md` proposes a
+  VM-only profile. That is the alternative this idea is measured against.
+- The `fib dummy` writer (`internal/plugins/fib/dummy/`) already gives a
+  control-plane-only daemon that programs no kernel route.
+- Data-plane selection (`docs/guide/dataplane-features.md`) registers `kernel`
+  and `vpp` backends. A platform with neither would have to register as a
+  third plane or refuse every governed root at verify, never approximate.
+
+A design starts from the mechanisms Ze already has. One row per existing Ze
+mechanism that already does part of this job, found in the doors
+(`ai/doors/`), the architecture pages (`docs/architecture/`) and
+`plan/learned/DESIGN-HISTORY.md`. A design proposed beside an existing
+mechanism, instead of extending it, is refused at review.
+
+Example, in prose: the DirectBridge (`pkg/plugin/rpc/bridge.go`) is the
+in-process path for a compiled-in plugin, so a spec adding a plugin hot path
+extends it rather than building a second path.
+
+From `design` onward the spec tooling refuses this section when it is missing
+or its table holds no data row (`internal/le/spec/mechanisms`). A skeleton may
+leave the placeholder row.
+
+| Mechanism | Where (file + symbol, or page + section) | What it does today | This spec (extends, replaces, or does not apply, with the reason) |
+|-----------|------------------------------------------|--------------------|-------------------------------------------------------------------|
+| [mechanism] | [file + symbol, or page + section] | [what it does today] | [extends / replaces / does not apply: why] |
+
+## Design documents
+
+One row per design page the spec's files link and per decision those pages
+carry, each with a verdict. DERIVED, do not fill from memory:
+`./le spec design documents spec plan/<work-folder>/spec-<name>.md` lists the
+system door, every `// Design:` page of the source files in Files to Modify
+and Files to Create, the architecture pages the doc index anchors to them,
+the doors covering them, the design pages this spec modifies, and every row
+of their `## Design decisions` sections. A row may be added beyond the
+derivation (an owner rule, a rule file); none of the derived rows may be left
+out.
+
+- Section: the heading of the page's section the verdict stands against, as
+  the page writes it; `Design decisions` for a decision row.
+- Binding statement: for `agrees` and `departs`, a verbatim span of that
+  section, in double quotes; a decision row quotes its Decision cell.
+- Verdict: `agrees`, `departs` or `silent`. A page this spec modifies and a
+  decision row are never `silent`.
+- How this design stands against it: why the verdict holds; required for
+  `silent`.
+
+`./le spec design check spec <path>` judges the table against the
+derivation. A `departs` row reaches implementation only with Thomas's approval.
+
+| Document | Section | Derived from | Binding statement | Verdict | How this design stands against it |
+|----------|---------|--------------|-------------------|---------|-----------------------------------|
+| [page] | [section heading] | [what derived it] | "[verbatim span]" | [agrees / departs / silent] | [why] |
+
+## Data Flow (MANDATORY - see `ai/rules/architecture.md`)
+
+### Entry Point
+- [Where data enters: wire bytes, API command, config, plugin message]
+- [Format at entry]
+
+### Transformation Path
+1. [Stage 1: for example "Wire parsing in internal/component/bgp/message/"]
+2. [Stage 2: ...]
+
+### Boundaries Crossed
+| Boundary | How | Verified |
+|----------|-----|----------|
+| Engine ↔ Plugin | [JSON format, command syntax] | No |
+
+### Changed-Wire Census
+
+For each changed wire, search its format, old and new fields, encode/write and
+decode/read entry points, then follow the actual carriers. Include every writer
+and reader site, even when unchanged or written in shell, Python or another
+language; include embedded scripts and repository-carried outside-language
+consumers. Files to Modify is the edit set, not this population.
+Record the search scope, terms and a known producer/consumer control. If no
+wire changes, give the source-supported reason instead of a fictitious census.
+The harness-model design judgment compares these rows with current source
+evidence; the source-read hook alone does not establish completeness.
+From `design` onward the spec tooling refuses this census when it is missing,
+holds rows with no filled search evidence, or names a wire with no writer row
+or no reader row (`internal/le/spec/mechanisms`). A reader outside the
+repository, such as a peer or a third-party plugin, is still a row.
+
+**Search evidence:** [scope, terms, positive control and source findings]
+
+| Wire | Role (writer / reader) | Carrier (file + producer/consumer symbol or script entry) | Source evidence | Migration or preservation disposition |
+|------|------------------------|-----------------------------------------------------------|-----------------|----------------------------------------|
+| [format] | [role] | [source site] | [search finding and actual encode/write or decode/read path] | [change or preserve, with reason and proof] |
+
+### Integration Points
+- [Existing function/type this connects to] - [how it integrates]
+
+### Architectural Verification
+| Check | Holds? | Evidence |
+|-------|--------|----------|
+| No bypassed layers (data flows through the intended path) | No | |
+| No unintended coupling (components stay isolated) | No | |
+| No duplicated functionality (extends existing, does not recreate) | No | |
+| Zero-copy preserved where applicable (refs, not copies) | No | |
+| Registration over hardcoding, outbound: new commands, views, families, and handlers register, and the core discovers them. No per-feature field, switch case, or factory is added to a core/shared package (`ai/rules/plugins.md`) | No | |
+| Registration over hardcoding, inbound: no existing switch, seed map, validator, parser, runner, help string, or completion table has to learn this feature's name. Evidence names every list that was searched for the names this feature introduces, and the registry each one now derives from (`ai/rules/principles.md`) | No | |
+
+## Risks & Assumptions
+
+<!-- LIVE: written during RESEARCH/DESIGN, statuses updated during implementation.
+     Gate answers from /ze-spec (assumption challenge, Failure Mode Analysis)
+     land HERE, not only in conversation. -->
+
+### Assumptions
+<!-- Every row needs a validation method. `unvalidated` is not a valid final
+     status: closure re-checks each one. A broken assumption also gets a
+     Mistake Log row and a Deviations entry. -->
+| ID | Assumption | Basis (file/doc/user statement) | If wrong | Validated by | Status |
+|----|-----------|--------------------------------|----------|--------------|--------|
+| A-1 | [what this design assumes] | [where the assumption comes from] | [impact on design] | [test/grep/user confirmation] | unvalidated |
+
+### Risks
+| ID | Risk | Early signal | Mitigation / fallback |
+|----|------|--------------|----------------------|
+| R-1 | [what goes wrong] | [how we notice it] | [what we do about it] |
+
+## Blast Radius
+
+<!-- What a wrong landing costs, and how to get out. A reviewer reads this first. -->
+| Question | Answer |
+|----------|--------|
+| What breaks if this is wrong? | [live sessions dropped / routes mis-encoded / config rejected / nothing user-visible] |
+| How is it reverted? | [single commit revert / needs config migration / not revertible once peers see it] |
+| Who else touches this path? | [other plugins, components, or specs working the same files] |
+
+## Wiring Test (MANDATORY -- NOT deferrable)
+
+<!-- BLOCKING: proves the feature is reachable from its intended entry point.
+     Without it the feature exists in isolation: unit tests pass, nothing calls it.
+     Every row needs a concrete test name. "Deferred"/"TODO"/empty is rejected
+     by `internal/le/hookruntime/lifecycle.go`, which is the point: an unedited row fails. -->
+| Entry Point | → | Feature Code | Test |
+|-------------|---|--------------|------|
+| [config/CLI/event that triggers it] | → | [function that actually runs] | [test name proving the chain] |
+
+## Acceptance Criteria
+
+<!-- Define BEFORE implementation. Each row states positive observable behavior,
+     never only the mechanism or the absence of the defect. Name what remains
+     permitted and why; if there are no permitted survivors, state the reason.
+     Dropping or rejecting every input must not satisfy an AC for useful output.
+     The harness-model design judgment checks meaning, not acceptance words.
+     From `design` onward the spec tooling also refuses a row whose Expected
+     Behavior states only an absence, or whose Permitted Survivors cell is
+     empty (`internal/le/spec/mechanisms`). -->
+| AC ID | Input / Condition | Expected Behavior | Permitted Survivors and Why |
+|-------|-------------------|-------------------|-----------------------------|
+| AC-1 | [what triggers the behavior] | [positive observable outcome] | [what remains permitted and why, or why none] |
+
+## End-to-End User Stories
+
+<!-- One row per user-facing operation the feature enables. ACs verify that
+     components work; stories verify the chain is connected. A broken link in a
+     path is a spec gap: add the missing component to ACs, Files, and Test Plan
+     before proceeding. Delete this section when Scope is tooling or docs. -->
+| # | User does | Path through system | Test proving it works |
+|---|-----------|--------------------|-----------------------|
+| 1 | [for example "receives SR-Policy UPDATE from peer"] | [wire -> mpnlri -> splitter -> Parse -> RIB] | [test name] |
+
+## 🧪 TDD Test Plan
+
+### Unit Tests
+| Test | File | Validates | Status |
+|------|------|-----------|--------|
+| `TestXxx` | `internal/.../xxx_test.go` | [description] | |
+
+### Boundary Tests (numeric inputs)
+| Field | Range | Last Valid | Invalid Below | Invalid Above |
+|-------|-------|------------|---------------|---------------|
+| [field] | [min-max] | [value] | [value or N/A] | [value or N/A] |
+
+### Functional Tests
+<!-- REQUIRED: a unit test proves the algorithm, a .ci proves the user can reach
+     the feature. New RPCs/APIs are never covered by unit tests alone.
+     Structure: ai/patterns/functional-test.md -->
+| Test | Location | End-User Scenario | Status |
+|------|----------|-------------------|--------|
+| `test-xxx` | `test/.../*.ci` | [what the user expects to happen] | |
+
+### Interop Tests (Scope: protocol)
+<!-- REQUIRED when wire-visible behavior changes. See
+     ai/rules/interop-and-goal-validation.md, including the vacuity traps: prove
+     the test FAILS when the behavior under test is reverted. -->
+| Scenario | Directory | Peer Daemon | What It Proves | Status |
+|----------|-----------|-------------|----------------|--------|
+| `feature-peer` | `test/interop/scenarios/` | [FRR/BIRD/GoBGP/strongSwan] | [protocol behavior validated] | |
+
+## Files to Modify
+<!-- MUST include feature code (internal/*, cmd/*), not only test files.
+     Check each file's // Design: annotation: if the change alters behavior the
+     referenced architecture doc describes, list that doc here too. -->
+- `internal/...` - [feature changes]
+
+## Files to Create
+- `internal/...` - [new feature file]
+- `test/.../*.ci` - [functional test for end-user behavior]
+
+### Integration Checklist
+<!-- Answer every row Yes / No / N-A. Never leave a bare marker: an unanswered
+     row is indistinguishable from a forgotten one. N-A needs a reason. -->
+| Integration Point | Applies? | File / reason |
+|-------------------|----------|---------------|
+| YANG schema (new RPCs/config) | | `internal/component/<name>/yang/` or the owning plugin's `yang/`. Read `ai/rules/config.md` (YANG vs env var) and `ai/rules/config.md` (naming) |
+| YANG validation constraints | | Every leaf takes maximum native validation: `range`, `length`, `pattern`, `enumeration`, `type` from `ze-types.yang`. See `ai/patterns/config-option.md` |
+| YANG custom validators | | Where native constraints are insufficient: `ze:validate` + `ValidateFn` + `CompleteFn` for completion |
+| CLI commands/flags | | `cmd/ze/*/main.go` or subcommand files |
+| CLI grammar (keyword before value) | | `ai/rules/cli.md` |
+| Editor autocomplete | | Automatic for YANG enum/type leaves. Dynamic values need `CompleteFn` |
+| Functional test for new RPC/API | | `test/plugin/*.ci` or `test/decode/*.ci` |
+| Pipe completeness | | Route output through `ApplyPipes`/`ProcessPipes` per `ai/rules/cli.md` |
+| Env var registration | | YANG leaves under `environment/` need a matching `ze.<name>.<leaf>` via `env.MustRegister()` |
+| Doctor check for runtime dependencies | | Any new file path, socket, service, kernel module, listen port, procfs/sysctl, netlink socket, binary, or certificate: owning-package check + owning-package `diagnostic.Register` (`register_doctor_codes.go` or `register.go`) + unit and functional test (`ai/rules/repo-maintenance.md`) |
+| Doctor code per problem class | | For each problem class the feature can produce (refusal, `Warn`/`Error` log line, transient report-bus event): the doctor check, its code and its phase (`ai/rules/user-facing-errors.md`, `docs/architecture/doctor-and-health-checks.md`) |
+| Prometheus counters/metrics | | Observable state: define, register, and list the metric names and labels here |
+| BGP family surface (new SAFI / capability / attribute) | | The 12-section checklist in `ai/patterns/bgp-family.md` -- read it and record the answers there, not inline |
+
+### Documentation Update Checklist (BLOCKING)
+<!-- Answer every row Yes / No / N-A. A No must be backed by a source-aware
+     check, not a guess: at minimum grep docs/ for source anchors pointing at the
+     files you changed. Any factual doc change carries a source anchor. -->
+| # | Question | Applies? | File to update |
+|---|----------|----------|---------------|
+| 1 | New user-facing feature, or a feature's scope, evidence or level changed? | | `features/<id>.md` (renders `docs/features.md`); `./le feature report` shows its level and the gap to the next |
+| 2 | Config syntax changed? | | `docs/guide/configuration.md`, `docs/architecture/config/syntax.md` |
+| 3 | CLI command added/changed? | | `docs/guide/command-reference.md` |
+| 4 | API/RPC added/changed? | | `docs/architecture/api/commands.md` |
+| 5 | Plugin added/changed? | | `docs/guide/plugins.md` |
+| 6 | Has a user guide page? | | `docs/guide/<topic>.md` |
+| 7 | Wire format changed? | | `docs/architecture/wire/*.md` |
+| 8 | Plugin SDK/protocol changed? | | `ai/rules/plugins.md`, `docs/architecture/api/process-protocol.md` |
+| 9 | RFC behavior implemented, changed, or newly proven? | | `rfc/short/rfcNNNN.md` and the `docs/features/rfc-status.md` row, with source anchors |
+| 10 | Test infrastructure changed? | | `docs/functional-tests.md` |
+| 11 | Affects daemon comparison? | | `docs/comparison.md` |
+| 12 | Internal architecture changed? | | `docs/architecture/core-design.md` or subsystem doc |
+| 13 | Route metadata keys added/changed? | | `docs/architecture/meta/README.md`, `docs/architecture/meta/<plugin>.md` |
+| 14 | Prometheus counters added/changed? | | `docs/plugin-development/metrics.md` or subsystem telemetry doc |
+| 15 | Registered plugin, event type, send type, command, capability, or inventory changed? | | `docs/plugin-overview.md`, `docs/features/plugins.md`, `docs/guide/status.md` |
+| 16 | Any changed source file referenced by existing doc source anchors? | | DERIVED, do not answer from memory: `./le spec citation anchors spec plan/<work-folder>/spec-<name>.md` lists them. A doc DECLARED by a changed file's `// Design:` header BLOCKS until named here; a doc that only `<!-- source: -->` mentions it is advisory. Naming it as unaffected, with the reason, satisfies the check |
+| 17 | Existing docs show config/CLI/API examples for this area? | | Verify examples against YANG/parser/handler and update stale syntax |
+
+## Design presentation
+
+What the main session presents to Thomas, whole, before the spec moves to
+`ready`. `./le spec design check spec <path>` owes every subsection below with
+content, and `### Documents departed from` naming the page of every `departs`
+row (or `none` when no row departs). Thomas approves the design from his own
+terminal, after the `ze-design-judge` agent recorded its verdict, with
+`./le spec design approve spec <path> words "<what he said>"`. Only then does
+the main session set Status `ready`: `ready` means he approved this design,
+or, while he is recorded away, that it is a judged fix spec with no `departs`
+row (`docs/contributing/spec-workflow.md`, "Design approval"). The design
+digest he approves covers `## Task`, `## Acceptance Criteria`,
+`## Design documents` and this section without `### Choices for Thomas`, so
+recording his answers there does not send the spec back to him.
+
+### What changes
+
+[The design in a paragraph: what the user sees afterwards]
+
+### Before and after
+
+[One numbered example per change a user sees: the message, the command, the output, before and after]
+
+### Alternatives set aside
+
+| Alternative | Why set aside |
+|-------------|---------------|
+| [alternative] | [why] |
+
+### Documents departed from
+
+[For each `departs` row: the page, the section, the statement, and what the page says after this work. `none` when no row departs]
+
+### Choices for Thomas
+
+| # | Choice | Options | Decision |
+|---|--------|---------|----------|
+| C-1 | [choice] | (a) [recommended]; (b) [other] | [his answer, once given] |
+
+## Implementation Steps
+
+<!-- Concrete phases of work, not a restatement of the /ze-implement stages
+     (those live in the skill). Phase 1 is ALWAYS wiring. Order by dependency:
+     schema before resolution, resolution before CLI. Each phase follows TDD
+     (write test -> fail -> implement -> pass) and ends with a self-critical
+     review; fix what it finds before starting the next phase. -->
+
+1. **Phase: Wiring (MANDATORY FIRST)** -- register entry points, write failing wiring tests
+   - Tests: [wiring test names from the Wiring Test table]
+   - Files: [register.go, handler skeleton, route registration]
+   - Verify: the entry point exists and is reachable. The wiring test fails because the feature is a stub
+2. **Phase: [name]** -- [what to implement]
+   - Tests: [test names from the TDD Plan]
+   - Files: [files from Files to Modify]
+   - Verify: tests fail → implement → tests pass → wiring test progresses
+
+### Critical Review Checklist
+
+<!-- Feature-SPECIFIC checks. The generic ones in ai/rules/quality.md always
+     apply and are not repeated here. A row that would read the same on any spec
+     is not worth a row. -->
+| Check | What to verify for this spec |
+|-------|------------------------------|
+| Completeness | Every AC-N has an implementation at file:line |
+| Feature completeness | Every user story has a working path, no broken links |
+| Correctness | [feature-specific, for example "merge order correct", "error messages name the offending value"] |
+| Naming | [feature-specific, for example "JSON keys kebab-case", "YANG leaf matches env var leaf"] |
+| Data flow | [feature-specific, for example "resolution in X only, reactor unaware of Y"] |
+| Operator errors and doctor codes | Every refusal is an `opererr` error with its fix on the last line, every `Warn`/`Error` line and raise names the code the Integration Checklist's doctor row lists, and each doctor check carries `Fix` at the phase that holds its state (`ai/rules/user-facing-errors.md`) |
+| Rule: [relevant rule] | [what to check] |
+
+### Deliverables Checklist
+
+<!-- Every deliverable with a command that proves it. "Looks done" is not a
+     verification method. -->
+| Deliverable | Verification method |
+|-------------|---------------------|
+| [concrete thing that must exist] | [grep/ls/test command] |
+
+### Security Review Checklist
+
+<!-- Feature-specific: untrusted input, injection, resource exhaustion, error
+     leakage, authorization that could fail open. -->
+| Check | What to look for |
+|-------|-----------------|
+| Input validation | [what inputs need validation and how] |
+
+### Failure Routing
+
+| Failure | Route To |
+|---------|----------|
+| Compilation error | Fix in the phase that introduced it |
+| Test fails for the wrong reason | Fix the test assertion or setup |
+| Test fails on behavior mismatch | Re-read the source in Current Behavior. If misunderstood → RESEARCH |
+| Lint failure | Fix inline. If architectural → DESIGN |
+| Functional test fails | Check the AC: wrong AC → DESIGN, correct AC → IMPLEMENT |
+| Audit finds a missing AC | Back to the relevant phase and implement |
+| 3 fix attempts failed | STOP. Report all 3 approaches. Ask the user |
+
+## Design Insights
+<!-- LIVE: write immediately when you learn something. Route each lesson to its
+     governing surface under ai/rules/planning.md. A problem-class journal row
+     is appropriate only when no surface governs the lesson yet; closure alone
+     requires no lesson artifact. -->
+
+## Owned journal rows
+<!-- Every open journal row this spec will fix, one line each; `./le commit create`
+     refuses an open row no spec lists (plan/journal/README.md, "Owned rows"). -->
+| Class file | Date | Surface (short) |
+|------------|------|-----------------|
+
+## Key Design Decisions
+<!-- "Chose X over Y because Z." The rejected alternative is the valuable half. -->
+| Decision | Alternatives Considered | Rationale |
+|----------|------------------------|-----------|
+
+## Known Limitations
+<!-- Deliberate scope boundaries. Anything here that is actually outstanding work
+     is not a limitation: write it as its own spec, in the bucket that item
+     belongs to, and name that spec here (ai/rules/planning.md). -->
+- [What was deliberately not done and why]
+
+## RFC Documentation (Scope: protocol)
+
+Add `// RFC NNNN Section X.Y: "<quoted requirement>"` above enforcing code.
+MUST document: validation rules, error conditions, state transitions, timer
+constraints, message ordering, and every MUST/MUST NOT.
+
+Treat the RFC as the required baseline, not a ceiling on explicit operator
+control. Assess compliance on the default configuration path. Preserve explicit
+options for more specific behavior and extensions, including behavior that differs from
+the RFC. Their availability does not make a compliant default path fail.
+Name the configuration covered by each claim and test both paths. RFC work does
+not remove existing features to improve a conformance figure.
+
+| RFC / section | Default configuration and required behavior | Explicit options / extensions to preserve | Tests of default behavior | Tests preserving options / extensions |
+|---------------|---------------------------------------------|-------------------------------------------|---------------------------|---------------------------------------|
+| [RFC and section] | [exact configuration and observable behavior] | [option paths and behavior, or none with reason] | [test names and proof] | [test names, including any difference from the RFC] |
+
+## Checklist
+
+### Pre-Spec Verification (before the design is presented)
+- [ ] Metadata table present, with a valid Status, Depends, Phase and Updated
+- [ ] `ai/INDEX.md` keyword table checked
+- [ ] An `rfc/short/` summary exists for every RFC referenced
+- [ ] Template format followed: the 🧪 emoji, tables rather than prose, `[ ]` never `[x]`
+- [ ] No code snippets
+- [ ] Files to Modify names feature code, not only tests
+- [ ] Current Behavior and Data Flow sections completed
+- [ ] AC-N rows carry testable assertions
+- [ ] Every assumption has a Basis and a validation method; every failure mode is a risk row
+- [ ] Required Reading carries `→ Decision:` / `→ Constraint:` checkpoints
+- [ ] Integration Checklist marks "CLI grammar" when a command is added, "Doctor check" when a runtime dependency is
+
+### Goal Gates (MUST pass)
+- [ ] AC-1..AC-N all demonstrated
+- [ ] Every user story has a working path and a passing test (N-A when Scope is tooling or docs, which delete that section)
+- [ ] Wiring Test table complete: every row a concrete test name, none deferred
+- [ ] The targeted tests for what changed pass, run in the main checkout by the main thread: the scoped package tests, the component groups and functional suites `./le repo changed scope print both` reaches. No agent runs any `./le verify` command: GitHub CI verifies the pushed commit, and the full verification is Thomas's release check. A red CI reports gets a fix commit
+- [ ] If the experiment is scheduled, its proof is a named QEMU boot action, `./le test qemu <name>`, that boots the image and asserts an established BGP session. A watch-only review owes no test
+- [ ] Feature code integrated (`internal/*`, `cmd/*`), not library-only
+- [ ] Integration and Documentation checklists answered Yes/No/N-A with evidence
+- [ ] Architectural Verification table filled, including registration over hardcoding
+- [ ] Critical Review passes, and `ai/rules/quality.md` is satisfied: lint fixed rather than disabled, the focused check for the changed behavior run once with its OUTPUT PASTED, and any red named with the one-line reason it is scaffolding
+- [ ] Every A-N confirmed or broken, none `unvalidated`
+- [ ] Every item this spec did not do is a spec of its own, named here, in its own bucket
+
+### TDD
+- [ ] Tests written
+- [ ] Tests FAIL (paste output)
+- [ ] Tests PASS (paste output)
+- [ ] Boundary tests for all numeric inputs (or N-A when the feature takes none)
+- [ ] Functional `.ci` tests for end-to-end behavior
+- [ ] Interop tests for protocol features (or N-A with a reason)
+
+### Closure
+- [ ] Append `plan/templates/TEMPLATE-CLOSURE.md` and complete every section in it
+- [ ] `/ze-review` gate clean, recorded via `internal/le/spec/review.go`
+- [ ] Any lesson routed to its governing surface under `ai/rules/planning.md`; no lesson artifact created merely for closure
+- [ ] **Commit A:** code + tests + docs + edited spec + any journal rows owed by the work
+- [ ] **Commit B:** `remove <the spec's path in its bucket>` only, in the same `./le commit create` script (commit A preserves the spec in history)
