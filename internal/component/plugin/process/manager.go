@@ -74,11 +74,13 @@ var (
 // pluginMetrics holds Prometheus metrics for plugin health.
 // Created by SetMetricsRegistry; nil when metrics are disabled.
 type pluginMetrics struct {
-	status    metrics.GaugeVec   // ze_plugin_status: current stage per plugin
-	restarts  metrics.CounterVec // ze_plugin_restarts_total: cumulative restart count
-	delivered metrics.CounterVec // ze_plugin_events_delivered_total: events enqueued
-	failed    metrics.CounterVec // ze_plugin_delivery_failures_total: fire-and-forget batches that failed
-	slow      metrics.CounterVec // ze_plugin_delivery_slow_batches_total: batches over DeliverySlowThreshold
+	status            metrics.GaugeVec   // ze_plugin_status: current stage per plugin
+	restarts          metrics.CounterVec // ze_plugin_restarts_total: cumulative restart count
+	delivered         metrics.CounterVec // ze_plugin_events_delivered_total: events enqueued
+	failed            metrics.CounterVec // ze_plugin_delivery_failures_total: fire-and-forget batches that failed
+	slow              metrics.CounterVec // ze_plugin_delivery_slow_batches_total: batches over DeliverySlowThreshold
+	queueDepth        metrics.GaugeVec   // ze_plugin_delivery_queue_depth: current queued event count per plugin
+	backpressureWaits metrics.CounterVec // ze_plugin_delivery_backpressure_waits_total: producer waits at queue ceiling
 }
 
 // ProcessManager manages multiple external processes.
@@ -110,10 +112,11 @@ type ProcessManager struct {
 	// Plugin health metrics (nil when metrics disabled).
 	pmetrics *pluginMetrics
 
-	// statusMu is a leaf lock serializing ze_plugin_status gauge updates in
-	// wireMetrics against deletePluginStatusLabel so a concurrent SetStage
-	// cannot re-create a deleted status label after clearMetricHooks. NEVER
-	// acquire pm.mu or p.stageMu while holding statusMu.
+	// statusMu is a leaf lock serializing ze_plugin_status and
+	// ze_plugin_delivery_queue_depth gauge updates in wireMetrics against
+	// deletePluginStatusLabel so concurrent updates cannot re-create deleted
+	// gauge labels after clearMetricHooks. NEVER acquire pm.mu or p.stageMu
+	// while holding statusMu.
 	statusMu sync.Mutex
 
 	ctx    context.Context
@@ -169,11 +172,13 @@ func (pm *ProcessManager) SetMetricsRegistry(reg metrics.Registry) {
 		return
 	}
 	pm.pmetrics = &pluginMetrics{
-		status:    reg.GaugeVec("ze_plugin_status", "Current plugin stage (0=init, 6=running)", []string{reportSourcePlugin}),
-		restarts:  reg.CounterVec("ze_plugin_restarts_total", "Total plugin restart attempts (process started)", []string{reportSourcePlugin}),
-		delivered: reg.CounterVec("ze_plugin_events_delivered_total", "Total events delivered to plugin", []string{reportSourcePlugin}),
-		failed:    reg.CounterVec("ze_plugin_delivery_failures_total", "Event batches sent with no caller waiting that the plugin failed to take", []string{reportSourcePlugin}),
-		slow:      reg.CounterVec("ze_plugin_delivery_slow_batches_total", "Event batches that took over 500ms to deliver to the plugin", []string{reportSourcePlugin}),
+		status:            reg.GaugeVec("ze_plugin_status", "Current plugin stage (0=init, 6=running)", []string{reportSourcePlugin}),
+		restarts:          reg.CounterVec("ze_plugin_restarts_total", "Total plugin restart attempts (process started)", []string{reportSourcePlugin}),
+		delivered:         reg.CounterVec("ze_plugin_events_delivered_total", "Total events delivered to plugin", []string{reportSourcePlugin}),
+		failed:            reg.CounterVec("ze_plugin_delivery_failures_total", "Event batches sent with no caller waiting that the plugin failed to take", []string{reportSourcePlugin}),
+		slow:              reg.CounterVec("ze_plugin_delivery_slow_batches_total", "Event batches that took over 500ms to deliver to the plugin", []string{reportSourcePlugin}),
+		queueDepth:        reg.GaugeVec("ze_plugin_delivery_queue_depth", "Current number of events queued for delivery to the plugin", []string{reportSourcePlugin}),
+		backpressureWaits: reg.CounterVec("ze_plugin_delivery_backpressure_waits_total", "Producer waits when the plugin event delivery queue reached its ceiling", []string{reportSourcePlugin}),
 	}
 }
 
@@ -208,6 +213,17 @@ func (pm *ProcessManager) wireMetrics(proc *Process) {
 		},
 		deliverySlow: func() {
 			m.slow.With(name).Inc()
+		},
+		deliveryQueueDepth: func(depth int) {
+			pm.statusMu.Lock()
+			defer pm.statusMu.Unlock()
+			if proc.metricHooks.Load() != hooks {
+				return
+			}
+			m.queueDepth.With(name).Set(float64(depth))
+		},
+		deliveryBackpressure: func() {
+			m.backpressureWaits.With(name).Inc()
 		},
 	}
 	proc.metricHooks.Store(hooks)
@@ -1063,13 +1079,14 @@ func (pm *ProcessManager) clearProcessCallbacks(name string) {
 	}
 }
 
-// deletePluginStatusLabel removes the status gauge label for a plugin under
-// leaf lock statusMu, serialized with wireMetrics's stageChange callback so an
-// in-flight SetStage cannot re-create ze_plugin_status after clearMetricHooks.
-// Called when a plugin is disabled (respawn limit exceeded) or unconfigured.
-// Only deletes the status gauge; restarts, delivered, failed, and slow
-// counters are preserved for post-mortem monitoring (counters must not be
-// deleted mid-lifetime as it breaks rate() and increase() queries).
+// deletePluginStatusLabel removes the per-plugin gauge labels (status and
+// delivery queue depth) under leaf lock statusMu, serialized with wireMetrics's
+// gauge callbacks so concurrent updates cannot re-create deleted gauge series
+// after clearMetricHooks. Called when a plugin is disabled (respawn limit
+// exceeded) or unconfigured. Only deletes gauges; restarts, delivered, failed,
+// slow, and backpressure-wait counters are preserved for post-mortem
+// monitoring (counters must not be deleted mid-lifetime as it breaks rate()
+// and increase() queries).
 func (pm *ProcessManager) deletePluginStatusLabel(name string) {
 	if pm.pmetrics == nil {
 		return
@@ -1077,6 +1094,7 @@ func (pm *ProcessManager) deletePluginStatusLabel(name string) {
 	pm.statusMu.Lock()
 	defer pm.statusMu.Unlock()
 	pm.pmetrics.status.Delete(name)
+	pm.pmetrics.queueDepth.Delete(name)
 }
 
 // DrainEventDelivery joins application of prior events and each live process's
@@ -1087,9 +1105,9 @@ func (pm *ProcessManager) deletePluginStatusLabel(name string) {
 //
 // Without it a barrier built on quiesce is unsound in one direction. A command
 // that reaches a plugin through the event rail, such as an RPKI validation
-// decision returning to the adj-RIB-in, is still in a 64-deep channel when
-// quiesce answers, so a caller told "settled" reads state the decision has not
-// reached yet.
+// decision returning to the adj-RIB-in, is still in the event delivery queue
+// when quiesce answers, so a caller told "settled" reads state the decision
+// has not reached yet.
 //
 // Every process is drained concurrently: they are independent, and a serial
 // walk would charge the slowest plugin's timeout to each of the others.

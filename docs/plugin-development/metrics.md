@@ -241,6 +241,8 @@ Use labels for runtime dimensions. Never encode variable data in metric names.
 | `ze_plugin_write_watchdog_total` | CounterVec | transport | plugin (server) |
 | `ze_plugin_delivery_failures_total` | CounterVec | plugin | plugin (process): event batches sent with no caller waiting that failed to reach the plugin |
 | `ze_plugin_delivery_slow_batches_total` | CounterVec | plugin | plugin (process): event batches that took over 500 ms to deliver, on any transport |
+| `ze_plugin_delivery_queue_depth` | GaugeVec | plugin | plugin (process): current number of events queued in the plugin's lossless `eventQueue` waiting for delivery |
+| `ze_plugin_delivery_backpressure_waits_total` | CounterVec | plugin | plugin (process): producer waits when the plugin event delivery queue reached its configured ceiling |
 | `ze_plugin_filter_batch_routes` | Histogram | | plugin (ipc): the routes one filter-update exchange with a forked plugin carried, buckets 1 to 64 (`rpc.FilterUpdateBatchMax`); a plugin running internal is called through its filter slot and observes nothing |
 | `ze_plugin_filter_slot_routes_total` | Counter | | plugin (ipc): routes for which the typed in-process filter slot returned a non-nil verdict without an error; closed slots and evaluator errors do not count. The batch histogram's `_sum` counts routes sent through the encoded transport instead |
 | `ze_plugin_filter_route_enqueues_total` | Counter | | plugin (ipc): routes successfully sent to the encoded filter-update queue, including routes whose later exchange fails. Closed connections and canceled waits that enqueue nothing do not count. Unlike the batch histogram, this advances while an earlier exchange is still in flight |
@@ -300,6 +302,7 @@ transition never arrived at all.
 <!-- source: internal/plugins/iface/ra/ifacera.go -- SetMetricsRegistry, incSent, incSolicited -->
 <!-- source: internal/component/plugin/server/managed_serve.go -- NewManagedServer metric registration -->
 <!-- source: internal/component/plugin/server/server.go -- NewServer write-watchdog hook -->
+<!-- source: internal/component/plugin/process/manager.go -- SetMetricsRegistry, wireMetrics -->
 <!-- source: pkg/plugin/rpc/conn.go -- fireWatchdog, SetWriteWatchdogHook -->
 
 The two `iface-ra` counters carry one `interface` label each.

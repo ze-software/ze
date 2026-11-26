@@ -69,6 +69,13 @@ func (p *Process) Deliver(d EventDelivery) bool {
 	return p.DeliverContext(context.Background(), d)
 }
 
+// onDeliveryBackpressure records a producer wait at the eventQueue ceiling in
+// both Prometheus metrics and the per-process doctor delivery window.
+func (p *Process) onDeliveryBackpressure() {
+	p.noteDeliveryBackpressure()
+	p.noteBackpressureWait()
+}
+
 // DeliverContext preserves the existing FIFO delivery rail while allowing a
 // bounded cold caller to cancel queue admission. A refused structured delivery
 // remains owned by its caller; an admitted delivery belongs to the worker.
@@ -85,7 +92,7 @@ func (p *Process) DeliverContext(ctx context.Context, d EventDelivery) bool {
 		return false
 	}
 
-	switch q.enqueue(ctx, p.ctx, nil, d, nil, nil) {
+	switch q.enqueue(ctx, p.ctx, nil, d, p.onDeliveryBackpressure, p.noteDeliveryQueueDepth) {
 	case enqueueAdmitted:
 		p.noteDelivered()
 		return true
@@ -136,11 +143,11 @@ func (p *Process) deliveryLoop() {
 	if queue == nil {
 		return
 	}
-	defer queue.CleanupRemaining(p.config.Name, nil)
+	defer queue.CleanupRemaining(p.config.Name, p.noteDeliveryQueueDepth)
 
 	for {
 		var ok bool
-		batchBuf, ok = queue.drainBatch(batchBuf, eventDeliveryBatchMax, nil)
+		batchBuf, ok = queue.drainBatch(batchBuf, eventDeliveryBatchMax, p.noteDeliveryQueueDepth)
 		if !ok {
 			return
 		}
@@ -468,7 +475,7 @@ func (p *Process) admitAppliedBarrier(ctx context.Context, result chan<- EventRe
 	if err != nil {
 		return err
 	}
-	switch q.enqueue(ctx, p.ctx, p.engineDone, EventDelivery{Barrier: true, Result: result}, nil, nil) {
+	switch q.enqueue(ctx, p.ctx, p.engineDone, EventDelivery{Barrier: true, Result: result}, p.onDeliveryBackpressure, p.noteDeliveryQueueDepth) {
 	case enqueueAdmitted:
 		p.noteDelivered()
 		return nil

@@ -184,14 +184,15 @@ type DeliveryProblem struct {
 
 // DeliveryWindowSummary is the delivery problems inside DeliveryWindow.
 type DeliveryWindowSummary struct {
-	Failures  int
-	Slow      int
-	Slowest   time.Duration
-	LastError string
-	Window    time.Duration
-	// Truncated is true when the ring overwrote a problem that is still
-	// inside the window: Failures and Slow count the kept problems only, so
-	// the plugin had at least that many.
+	Failures          int
+	Slow              int
+	BackpressureWaits int
+	Slowest           time.Duration
+	LastError         string
+	Window            time.Duration
+	// Truncated is true when either ring overwrote a record that is still
+	// inside the window: counts reflect the kept records only, so the plugin
+	// had at least that many.
 	Truncated bool
 }
 
@@ -235,7 +236,14 @@ type doctorRecords struct {
 	// overwrittenNewest is the time of the newest problem the ring
 	// overwrote, zero while it overwrote none.
 	overwrittenNewest time.Time
-	configCommit      ConfigCommit
+	// backpressureTimes tracks producer waits at the eventQueue ceiling in a
+	// dedicated ring so ceiling waits never evict batch failure or slow-batch
+	// records from problems.
+	backpressureTimes             [deliveryProblemMax]time.Time
+	backpressureNext              int
+	backpressureCount             int
+	backpressureOverwrittenNewest time.Time
+	configCommit                  ConfigCommit
 }
 
 // RecordCommandRefusal records a command or alias the registry refused. The
@@ -357,6 +365,27 @@ func (p *Process) noteBatch(elapsed time.Duration, events int, err error, unwait
 	r.problemNext = (r.problemNext + 1) % deliveryProblemMax
 	if r.problemCount < deliveryProblemMax {
 		r.problemCount++
+	}
+}
+
+// noteBackpressureWait records one producer wait at the eventQueue ceiling in
+// a dedicated bounded ring so ceiling waits never evict batch failure or
+// slow-batch records. Safe for concurrent use.
+func (p *Process) noteBackpressureWait() {
+	now := time.Now()
+	r := &p.doctor
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	if r.backpressureCount == deliveryProblemMax {
+		victim := r.backpressureTimes[r.backpressureNext]
+		if victim.After(r.backpressureOverwrittenNewest) {
+			r.backpressureOverwrittenNewest = victim
+		}
+	}
+	r.backpressureTimes[r.backpressureNext] = now
+	r.backpressureNext = (r.backpressureNext + 1) % deliveryProblemMax
+	if r.backpressureCount < deliveryProblemMax {
+		r.backpressureCount++
 	}
 }
 
@@ -533,6 +562,14 @@ func (p *Process) DoctorRecord(now time.Time) DoctorRecord {
 	since := now.Add(-DeliveryWindow)
 	if !r.overwrittenNewest.IsZero() {
 		record.Delivery.Truncated = !r.overwrittenNewest.Before(since)
+	}
+	if !r.backpressureOverwrittenNewest.IsZero() && !r.backpressureOverwrittenNewest.Before(since) {
+		record.Delivery.Truncated = true
+	}
+	for i := range r.backpressureCount {
+		if !r.backpressureTimes[i].Before(since) {
+			record.Delivery.BackpressureWaits++
+		}
 	}
 	var newest time.Time
 	for i := range r.problemCount {

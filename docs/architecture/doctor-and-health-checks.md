@@ -1968,21 +1968,25 @@ check answers one warning saying it could not read the plugin state.
 | `plugin-claims` | `doctor-plugin-claim-unbacked` (error) | each exclusive role with no claimant running, naming the claimants | computed at the snapshot | `ze request plugin restart <claimant>` |
 | `plugin-poststartup` | `doctor-plugin-poststartup-undelivered` (error) | each running plugin whose post-startup callback failed; one still starting, or whose callback is in flight, is not reported | `recordPostStartupOutcome` | `ze request plugin restart <name>` |
 | `plugin-panic` | `doctor-plugin-panic` (error) | a plugin's first failed event application (`projectionErr`), and each recovered engine handler panic with its namespace and event type | `deliverBatch`, `safeDeliverBatch`, `invokeHandler` | the restart, or `ze show log recent level err component plugin.server` for an engine handler, whose panics are logged and not raised on the report bus |
-| `plugin-delivery` | `doctor-plugin-delivery-failed` (warning) | the batches that failed with no caller waiting, and the batches over 500 ms, in the last five minutes (`DeliveryWindow`), with the last error of a failure it counts (a slow batch whose error went to a waiting caller keeps none) | `noteBatch`, timed in `deliverBatch` for every transport | `ze request plugin restart <name>` |
+| `plugin-delivery` | `doctor-plugin-delivery-failed` (warning) | the batches that failed with no caller waiting, the batches over 500 ms, and producer backpressure waits at the delivery queue ceiling, in the last five minutes (`DeliveryWindow`), with the last error of a failure it counts (a slow batch whose error went to a waiting caller keeps none) | `noteBatch`, timed in `deliverBatch` for every transport; `noteBackpressureWait`, called on `eventQueue` ceiling waits | `ze request plugin restart <name>` |
 | `plugin-enrichers` | `doctor-plugin-enricher-unavailable` (warning) | each `show` enricher that failed to register, or whose last call failed | `registerProxyEnrichers`, `makeProxyCall` | remove the plugin holding the same field, or the restart |
 | `plugin-config-commit` | `doctor-plugin-config-unapplied` (warning) | each running plugin whose last config-committed callback failed or had no connection to go on, with the daemon's last committed transaction | `dispatchCommitted`, `subscribeCommitted` | `ze request plugin restart <name>` |
 
 A batch of exactly 500 ms is not slow; one of 501 ms is (`DeliverySlow`). The
-window keeps the 64 newest problems and counts only those inside it, so a
-failure at boot stops counting five minutes later. While a problem the ring
-overwrote would still be inside the window, the summary is `Truncated` and the
-row says "at least" before each count. A stopped stderr relay is an
-event, not a state: the relay logs it at ERROR and raises
-`doctor-plugin-stderr-relay-stopped` naming the plugin and the cause, with the
-restart as its fix; the end where a descendant holds stderr after the plugin
-exited stays at Debug.
-<!-- source: internal/component/plugin/process/doctor_records.go -- DeliverySlow, raiseRelayStopped, noteBatch -->
+window keeps the 64 newest batch problems and, in a separate 64-entry ring so
+ceiling waits never evict batch failures or slow batches, the 64 newest
+producer backpressure waits at the `eventQueue` ceiling (`BackpressureWaits`),
+counting only entries inside `DeliveryWindow` so a failure or stall at boot
+stops counting five minutes later. While a record either ring overwrote would
+still be inside the window, the summary is `Truncated` and `deliveryFailedRows`
+says "at least" before each count. A stopped stderr relay is an event, not a
+state: the relay logs it at ERROR and raises `doctor-plugin-stderr-relay-stopped`
+naming the plugin and the cause, with the restart as its fix; the end where a
+descendant holds stderr after the plugin exited stays at Debug.
+<!-- source: internal/component/plugin/process/doctor_records.go -- DeliverySlow, DeliveryWindowSummary, raiseRelayStopped, noteBatch, noteBackpressureWait -->
+<!-- source: internal/component/plugin/doctor/checks_delivery.go -- deliveryFailedRows -->
 <!-- test: internal/component/plugin/process/doctor_records_test.go TestDeliverySlowBoundary -->
+<!-- test: internal/component/plugin/doctor/checks_delivery_test.go TestDeliveryBackpressureWaitReportedByDoctor -->
 <!-- test: internal/component/plugin/process/doctor_records_bounds_test.go TestDeliveryWindowSaysWhenTheRingOverwrote -->
 
 A `plugin-config-commit` record clears when the plugin is told of a later

@@ -1,0 +1,89 @@
+# Test: A paused external bgp:update observer absorbs a 500-UPDATE single-prefix burst in its growable lossless eventQueue without stalling bgp-rib, then receives every prefix in exact FIFO order with zero drops.
+# QUESTION: on a running daemon receiving 500 single-prefix IPv4 BGP UPDATEs from
+# a real peer while an external `bgp:update` observer is paused inside `OnEvent`
+# on the first UPDATE, does `bgp-rib` receive all 500 routes without stalling
+# while the observer remains paused (impossible under the old 64-slot `eventChan`
+# + 256-slot `deliverChan` bound), and once released, does the external observer
+# receive all 500 prefixes in exact FIFO order with zero drops and zero duplicates?
+# A unit test cannot decide this because the path spans a live TCP BGP peer
+# streaming 500 UPDATEs through the reactor's `deliverChan`, `onMessageBatchReceived`,
+# `bgp-rib`'s DirectBridge, `Process.eventQueue` growth and 512-batch TLS RPC
+# delivery, and the external SDK plugin's `OnEvent` loop.
+#
+# VALIDATES: spec-bus-observer-delivery-decoupling AC-7.
+# PREVENTS: a temporarily paused external observer stalling live BGP route
+# delivery to `bgp-rib` past 64/320 events or dropping/reordering burst UPDATEs.
+
+option=timeout:value=90s
+option=env:var=ZE_CONFIG_DIR:value=.
+option=env:var=XDG_DATA_HOME:value=.
+option=env:var=ze.ssh.password:value=testpass
+option=env:var=ZE_PLUGIN_DELIVERY_TIMEOUT:value=30s
+
+stdin=init-answers:terminator=EOF_INIT
+admin
+testpass
+127.0.0.1
+$PORT2
+EOF_INIT
+
+tmpfs=running.conf:terminator=EOF_CONF
+system {
+	authentication {
+		# bcrypt cost-4 hash of "testpass".
+		user admin {
+			password "$2a$04$UlwuiuH82Unfsq.XEMPGJeDkXwbm3KW.nvVaVXOd/JeFK8VjMjrQO"
+		}
+	}
+}
+environment {
+	ssh {
+		enabled true
+		server main {
+			ip 127.0.0.1;
+			port $PORT2;
+		}
+	}
+}
+bus {
+	endpoint burst-observer {
+		external {
+			run "le test fixture plugin/bus-burst-observer observer.paused observer.release 10.0.0.0/32 500 observer.done";
+		}
+		encoding json;
+	}
+}
+bgp {
+	filter {
+		import { final accept; }
+		export { final accept; }
+	}
+	router-id 192.0.2.254;
+	session {
+		asn { local 65000; }
+	}
+	peer burst-peer {
+		connection {
+			remote { ip 127.0.0.1; connect false; }
+			local { ip 127.0.0.1; port $PORT; accept true; }
+		}
+		session {
+			asn { remote 65001; }
+			family { ipv4/unicast { prefix { maximum 10000; } } }
+			capability { graceful-restart disable; }
+		}
+	}
+}
+EOF_CONF
+
+cmd=foreground:seq=1:exec=ze init:stdin=init-answers:exit=0
+cmd=background:seq=2:name=daemon:exec=ze start running.conf:ready=Ze running.
+reject=stderr:pattern=ZE-OBSERVER-FAIL
+reject=stderr:pattern=panic
+
+cmd=background:seq=3:name=burst-peer:exec=le test peer --mode inject --dial 127.0.0.1:$PORT --inject-prefix 10.0.0.0/32 --inject-count 500 --inject-nexthop 192.0.2.1 --inject-asn 65001 --inject-per-update 1 --inject-vary-attrs --inject-dwell 60s
+cmd=foreground:seq=4:exec=le test fixture plugin/bus-burst-verify observer.paused observer.release 500 observer.done:exit=0
+expect=stdout:contains=OK: bgp-rib reached 500 routes while observer paused; observer received 500/500 prefixes in exact FIFO order
+
+cmd=stop:seq=5:name=daemon:signal=term
+cmd=stop:seq=6:name=burst-peer

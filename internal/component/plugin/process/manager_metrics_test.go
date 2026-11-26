@@ -9,12 +9,14 @@ import (
 	"sync"
 	"sync/atomic"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
 	"github.com/ze-software/ze/internal/component/plugin"
 	"github.com/ze-software/ze/internal/core/metrics"
+	"github.com/ze-software/ze/pkg/plugin/rpc"
 )
 
 // scrapeMetrics returns the Prometheus text exposition from the given registry.
@@ -331,4 +333,124 @@ func TestRespawnLimitDeleteStatusLabelSurvivesConcurrentSetStage(t *testing.T) {
 
 		pm.Stop()
 	}
+}
+
+// TestDeliveryQueueDepthAndBackpressureMetrics verifies that
+// ze_plugin_delivery_queue_depth tracks queued events while a consumer is
+// paused, returns to 0 once drained, and that
+// ze_plugin_delivery_backpressure_waits_total stays 0 below the queue ceiling
+// and increments when a producer blocks at the ceiling.
+//
+// VALIDATES: spec-bus-observer-delivery-decoupling AC-4, AC-6 -- queue depth
+// gauge rises/falls with queue occupancy, backpressure counter counts only
+// ceiling waits, and unconfiguring deletes the depth gauge while retaining
+// the backpressure counter.
+// PREVENTS: missing queue-depth or backpressure-wait Prometheus series or
+// stale depth gauges after plugin removal.
+func TestDeliveryQueueDepthAndBackpressureMetrics(t *testing.T) {
+	const name = "queue-metrics-plugin"
+
+	reg := metrics.NewPrometheusRegistry()
+	pm := NewProcessManager([]plugin.PluginConfig{{
+		Name:             name,
+		Internal:         true,
+		DeliveryQueueMax: plugin.MinDeliveryQueueMax,
+	}})
+	pm.SetMetricsRegistry(reg)
+
+	entered := make(chan struct{})
+	release := make(chan struct{})
+	var enterOnce sync.Once
+	var released atomic.Bool
+	releaseBridge := func() {
+		if released.CompareAndSwap(false, true) {
+			close(release)
+		}
+	}
+	defer releaseBridge()
+
+	proc := NewProcess(plugin.PluginConfig{
+		Name:             name,
+		DeliveryQueueMax: plugin.MinDeliveryQueueMax,
+	})
+	proc.bridge = rpc.NewDirectBridge()
+	proc.bridge.SetDeliverEvents(func([]string) error {
+		enterOnce.Do(func() { close(entered) })
+		<-release
+		return nil
+	})
+	proc.bridge.SetReady()
+
+	require.NoError(t, pm.AddProcess(name, proc))
+	proc.StartDelivery(t.Context())
+	defer func() {
+		releaseBridge()
+		proc.Stop()
+		waitCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
+		_ = proc.Wait(waitCtx)
+	}()
+
+	// Park deliveryLoop inside the first DirectBridge delivery.
+	require.True(t, proc.Deliver(EventDelivery{Output: "ev-0"}))
+	<-entered
+
+	// Enqueue 10 items below ceiling: depth must reflect 10, backpressure waits 0.
+	const partialBurst = 10
+	for range partialBurst {
+		require.True(t, proc.Deliver(EventDelivery{Output: "ev-below"}))
+	}
+	body := scrapeMetrics(t, reg)
+	assert.Contains(t, body, `ze_plugin_delivery_queue_depth{plugin="`+name+`"} 10`)
+	assert.NotContains(t, body, `ze_plugin_delivery_backpressure_waits_total{plugin="`+name+`"}`)
+
+	// Fill the remaining slots up to MinDeliveryQueueMax: still 0 backpressure waits.
+	for range plugin.MinDeliveryQueueMax - partialBurst {
+		require.True(t, proc.Deliver(EventDelivery{Output: "ev-fill"}))
+	}
+	body = scrapeMetrics(t, reg)
+	assert.Contains(t, body, `ze_plugin_delivery_queue_depth{plugin="`+name+`"} 64`)
+	assert.NotContains(t, body, `ze_plugin_delivery_backpressure_waits_total{plugin="`+name+`"}`)
+
+	// One more DeliverContext hits the ceiling, increments the backpressure
+	// counter, and returns false promptly once canceled.
+	waitCtx, cancelWait := context.WithCancel(t.Context())
+	done := make(chan bool, 1)
+	go func() {
+		done <- proc.DeliverContext(waitCtx, EventDelivery{Output: "ev-blocked"})
+	}()
+	require.Eventually(t, func() bool {
+		return proc.DoctorRecord(time.Now()).Delivery.BackpressureWaits == 1
+	}, 5*time.Second, time.Millisecond)
+	cancelWait()
+	require.False(t, <-done)
+
+	body = scrapeMetrics(t, reg)
+	assert.Contains(t, body, `ze_plugin_delivery_backpressure_waits_total{plugin="`+name+`"} 1`)
+
+	// Release the consumer, wait for deliveryLoop to begin draining the full
+	// queue so DrainEvents's own barrier does not hit the ceiling, then drain
+	// completely: depth must return to 0 with backpressure waits still at 1.
+	releaseBridge()
+	require.Eventually(t, func() bool {
+		return proc.eventQueue.Len() < plugin.MinDeliveryQueueMax
+	}, 5*time.Second, time.Millisecond)
+	require.NoError(t, proc.DrainEvents(t.Context()))
+
+	body = scrapeMetrics(t, reg)
+	assert.Contains(t, body, `ze_plugin_delivery_queue_depth{plugin="`+name+`"} 0`)
+	assert.Contains(t, body, `ze_plugin_delivery_backpressure_waits_total{plugin="`+name+`"} 1`)
+
+	// Stopping and unconfiguring deletes the depth gauge while preserving the counter.
+	proc.clearMetricHooks()
+	proc.Stop()
+	stopCtx, stopCancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer stopCancel()
+	require.NoError(t, proc.Wait(stopCtx))
+	pm.RemoveProcess(name)
+	pm.UnconfigureProcess(name)
+
+	body = scrapeMetrics(t, reg)
+	assert.NotContains(t, body, `ze_plugin_delivery_queue_depth{plugin="`+name+`"}`)
+	assert.Contains(t, body, `ze_plugin_delivery_backpressure_waits_total{plugin="`+name+`"} 1`)
 }

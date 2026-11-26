@@ -17,4 +17,6 @@ func init() {
 	Register("plugin/bus-send-allow-list-reload", busSendAllowListReloadDriver)
 	Register("plugin/bus-send-allow-list-namespaces", busSendAllowListNamespacesDriver)
 	Register("plugin/bus-send-refusal-doctor", busSendRefusalDoctorDriver)
+	Register("plugin/bus-burst-observer", busBurstObserverDriver)
+	Register("plugin/bus-burst-verify", busBurstVerifyDriver)
 }

@@ -1,14 +1,21 @@
 package doctor
 
 import (
+	"context"
+	"net"
 	"slices"
 	"strings"
+	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 
+	"github.com/ze-software/ze/internal/component/plugin"
+	"github.com/ze-software/ze/internal/component/plugin/ipc"
 	"github.com/ze-software/ze/internal/component/plugin/process"
 	"github.com/ze-software/ze/internal/component/plugin/server"
 	"github.com/ze-software/ze/internal/core/diagnostic"
+	"github.com/ze-software/ze/pkg/plugin/rpc"
 )
 
 // runningState is a configured plugin whose process runs, carrying records.
@@ -151,4 +158,146 @@ func TestDoctorClassChecks(t *testing.T) {
 func TestDeliveryChecksAnswerNotPublished(t *testing.T) {
 	rows := snapshotCheck(process.CodeDoctorPluginDeliveryFailed, deliveryFailedRows)(diagnostic.DoctorCheckContext{})
 	oneRow(t, rows, process.CodeDoctorPluginDeliveryFailed, diagnostic.SeverityWarning, "cannot")
+}
+
+// TestDeliveryBackpressureWaitReportedByDoctor drives a real Process to its
+// eventQueue ceiling while its consumer is paused, then feeds its DoctorRecord
+// into deliveryFailedRows (AC-6).
+//
+// VALIDATES: spec-bus-observer-delivery-decoupling AC-6 -- a producer wait at
+// the queue ceiling emits a CodeDoctorPluginDeliveryFailed warning naming the
+// plugin and backpressure wait count with a non-empty fix; bursts below the
+// ceiling emit zero waits and zero rows; waits older than DeliveryWindow expire.
+// PREVENTS: silent producer stalls at the delivery queue ceiling with no
+// doctor visibility, or spurious warnings on ordinary below-ceiling bursts.
+func TestDeliveryBackpressureWaitReportedByDoctor(t *testing.T) {
+	const name = "slow-observer"
+
+	engineEnd, pluginEnd := net.Pipe()
+	engineMux := rpc.NewMuxConn(rpc.NewConn(engineEnd, engineEnd))
+	pluginMux := rpc.NewMuxConn(rpc.NewConn(pluginEnd, pluginEnd))
+
+	entered := make(chan struct{})
+	release := make(chan struct{})
+	var enterOnce sync.Once
+	var released atomic.Bool
+	releaseConsumer := func() {
+		if released.CompareAndSwap(false, true) {
+			close(release)
+		}
+	}
+
+	exited := make(chan struct{})
+	go func() {
+		defer close(exited)
+		for req := range pluginMux.Requests() {
+			enterOnce.Do(func() { close(entered) })
+			select {
+			case <-release:
+			case <-t.Context().Done():
+				return
+			}
+			if err := pluginMux.SendOK(t.Context(), req.ID); err != nil {
+				return
+			}
+		}
+	}()
+
+	proc := process.NewProcess(plugin.PluginConfig{
+		Name:             name,
+		Encoder:          "json",
+		DeliveryQueueMax: plugin.MinDeliveryQueueMax,
+	})
+	proc.SetConn(ipc.NewMuxPluginConn(engineMux))
+	proc.StartDelivery(t.Context())
+	t.Cleanup(func() {
+		releaseConsumer()
+		proc.Stop()
+		stopCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
+		if err := proc.Wait(stopCtx); err != nil {
+			t.Errorf("wait for delivery worker: %v", err)
+		}
+		_ = pluginMux.Close() //nolint:errcheck // test transport teardown
+		<-exited
+	})
+
+	// Park deliveryLoop on the first SendDeliverBatch RPC.
+	if !proc.Deliver(process.EventDelivery{Output: "ev-0"}) {
+		t.Fatal("initial Deliver failed")
+	}
+	<-entered
+
+	// Fill up to the ceiling (64 items) without blocking: must emit 0 waits and 0 rows.
+	for range plugin.MinDeliveryQueueMax {
+		if !proc.Deliver(process.EventDelivery{Output: "ev-burst"}) {
+			t.Fatal("below-ceiling Deliver failed")
+		}
+	}
+	belowRecord := proc.DoctorRecord(time.Now())
+	if belowRecord.Delivery.BackpressureWaits != 0 {
+		t.Fatalf("below-ceiling BackpressureWaits = %d, want 0", belowRecord.Delivery.BackpressureWaits)
+	}
+	belowSnap := &server.DoctorSnapshot{
+		Plugins: []server.PluginDoctorState{runningState(name, belowRecord)},
+	}
+	if rows := deliveryFailedRows(belowSnap); len(rows) != 0 {
+		t.Fatalf("below-ceiling burst emitted unexpected doctor rows: %+v", rows)
+	}
+
+	// One more DeliverContext hits the ceiling, records a backpressure wait, and
+	// exits promptly on caller cancellation.
+	waitCtx, cancelWait := context.WithCancel(t.Context())
+	done := make(chan bool, 1)
+	go func() {
+		done <- proc.DeliverContext(waitCtx, process.EventDelivery{Output: "ev-ceiling"})
+	}()
+
+	deadline := time.NewTimer(5 * time.Second)
+	defer deadline.Stop()
+	ticker := time.NewTicker(time.Millisecond)
+	defer ticker.Stop()
+	for proc.DoctorRecord(time.Now()).Delivery.BackpressureWaits == 0 {
+		select {
+		case <-deadline.C:
+			cancelWait()
+			t.Fatal("timed out waiting for backpressure wait to be recorded")
+		case <-ticker.C:
+		}
+	}
+	cancelWait()
+	if <-done {
+		t.Fatal("canceled ceiling DeliverContext returned true, want false")
+	}
+
+	now := time.Now()
+	afterRecord := proc.DoctorRecord(now)
+	if afterRecord.Delivery.BackpressureWaits != 1 {
+		t.Fatalf("BackpressureWaits = %d, want 1", afterRecord.Delivery.BackpressureWaits)
+	}
+	afterSnap := &server.DoctorSnapshot{
+		Plugins: []server.PluginDoctorState{runningState(name, afterRecord)},
+	}
+	oneRow(t, deliveryFailedRows(afterSnap), process.CodeDoctorPluginDeliveryFailed,
+		diagnostic.SeverityWarning, name, "1 producer backpressure waits at queue ceiling")
+
+	// After DeliveryWindow elapses, the wait expires and produces 0 rows.
+	expiredRecord := proc.DoctorRecord(now.Add(process.DeliveryWindow + time.Second))
+	if expiredRecord.Delivery.BackpressureWaits != 0 {
+		t.Fatalf("expired BackpressureWaits = %d, want 0", expiredRecord.Delivery.BackpressureWaits)
+	}
+	expiredSnap := &server.DoctorSnapshot{
+		Plugins: []server.PluginDoctorState{runningState(name, expiredRecord)},
+	}
+	if rows := deliveryFailedRows(expiredSnap); len(rows) != 0 {
+		t.Fatalf("expired backpressure wait emitted unexpected doctor rows: %+v", rows)
+	}
+
+	// Unblock consumer so cleanup drains cleanly.
+	releaseConsumer()
+	drainCtx, drainCancel := context.WithTimeout(t.Context(), 5*time.Second)
+	defer drainCancel()
+	if err := proc.DrainEvents(drainCtx); err != nil {
+		t.Fatalf("DrainEvents after release: %v", err)
+	}
 }

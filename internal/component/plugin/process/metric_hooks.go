@@ -17,10 +17,12 @@ import "github.com/ze-software/ze/internal/component/plugin"
 // through the set it loaded. A nil member is a callback this set does not
 // carry, which only a test builds.
 type processMetricHooks struct {
-	stageChange    func(plugin.PluginStage) // after a stage transition
-	delivered      func()                   // after a successful Deliver enqueue
-	deliveryFailed func()                   // after a fire-and-forget batch failed
-	deliverySlow   func()                   // after a batch took over DeliverySlowThreshold
+	stageChange          func(plugin.PluginStage) // after a stage transition
+	delivered            func()                   // after a successful Deliver enqueue
+	deliveryFailed       func()                   // after a fire-and-forget batch failed
+	deliverySlow         func()                   // after a batch took over DeliverySlowThreshold
+	deliveryQueueDepth   func(int)                // after eventQueue depth changes
+	deliveryBackpressure func()                   // when a producer blocks at the eventQueue ceiling
 }
 
 // noteStageChange calls the stage-change metrics callback, when one is set.
@@ -55,14 +57,31 @@ func (p *Process) noteDeliverySlow() {
 	}
 }
 
+// noteDeliveryQueueDepth calls the queue-depth gauge callback, when one is set.
+// Safe for concurrent use.
+func (p *Process) noteDeliveryQueueDepth(depth int) {
+	if hooks := p.metricHooks.Load(); hooks != nil && hooks.deliveryQueueDepth != nil {
+		hooks.deliveryQueueDepth(depth)
+	}
+}
+
+// noteDeliveryBackpressure calls the backpressure-wait counter callback, when
+// one is set. Safe for concurrent use.
+func (p *Process) noteDeliveryBackpressure() {
+	if hooks := p.metricHooks.Load(); hooks != nil && hooks.deliveryBackpressure != nil {
+		hooks.deliveryBackpressure()
+	}
+}
+
 // clearMetricHooks takes the metrics callbacks back from a process the manager
-// let go or disabled. The status-gauge callback (wireMetrics) re-checks
-// metricHooks under ProcessManager.statusMu, serialized with
-// deletePluginStatusLabel, so an in-flight SetStage cannot re-create a deleted
-// ze_plugin_status label after this call. Counter callbacks (delivered,
-// deliveryFailed, deliverySlow) are never deleted mid-lifetime, and a reader
-// that loaded the set before this call may still make one last counter
-// increment through it. Safe for concurrent use.
+// let go or disabled. The gauge callbacks (stageChange and deliveryQueueDepth
+// in wireMetrics) re-check metricHooks under ProcessManager.statusMu,
+// serialized with deletePluginStatusLabel, so concurrent updates cannot
+// re-create deleted ze_plugin_status or ze_plugin_delivery_queue_depth labels
+// after this call. Counter callbacks (delivered, deliveryFailed, deliverySlow,
+// deliveryBackpressure) are never deleted mid-lifetime, and a reader that
+// loaded the set before this call may still make one last counter increment
+// through it. Safe for concurrent use.
 func (p *Process) clearMetricHooks() {
 	p.metricHooks.Store(nil)
 }

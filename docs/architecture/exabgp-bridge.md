@@ -1304,12 +1304,16 @@ none; }`). Every run completed with `0` lost routes.
   `[]byte` unicast rendering cut 20-script live convergence by **3.65×** at 1M
   routes (`9,773 ms` → `2,679 ms`, marginal cost falling from `~409 ms/script` to
   `~64 ms/script`) and **3.01×** at 100k routes (`907 ms` → `301 ms`, peak CPU
-  `377.7%` → `135.6%`). Because `Process.Deliver` (`eventChan` capacity 64) still
-  runs synchronously inside `onMessageBatchReceived`, heavy multi-script bursts at
-  20 endpoints still backpressure `deliverChan` and `reactorForwardRS`; decoupling
-  bus observer delivery is tracked separately in
-  `spec-bus-observer-delivery-decoupling`. A slow child script still drops at its
-  1,000-line stdin queue without blocking `ze`.
+  `377.7%` → `135.6%`). The `8e17d9a02d` tables above were measured while
+  `Process.Deliver` still used a fixed 64-slot `eventChan` and 64-event RPC
+  batches, so heavy multi-script bursts backpressured `deliverChan` and
+  `reactorForwardRS`. `Process` now uses a bounded, dynamically growable,
+  lossless `eventQueue` (`64` initial slots growing up to `65,536` by default,
+  configurable via `bus > endpoint > delivery-queue-max`, shrinking back to `64`
+  once drained) with a `512`-event batch drain (`eventDeliveryBatchMax`),
+  absorbing full-table packed UPDATE bursts without stalling BGP forwarding or
+  dropping events. A slow child script still drops at its 1,000-line stdin queue
+  without blocking `ze`.
 - **Memory:** Eliminating daemon-side `FormatFull` JSON and `map[string]any`
   batch marshaling reduced `ze` peak `VmRSS` at 1M × 20 scripts by **911 MiB**
   (`4,143 MiB` → `3,232 MiB`, staying below the 0-script peak). Per-wrapper
@@ -1320,6 +1324,7 @@ none; }`). Every run completed with `0` lost routes.
 
 <!-- source: internal/component/bgp/server/events.go -- onMessageBatchReceived -->
 <!-- source: internal/component/plugin/process/delivery.go -- DeliverContext, deliveryLoop -->
+<!-- source: internal/component/plugin/process/event_queue.go -- eventQueue, eventDeliveryBatchMax -->
 <!-- source: internal/component/bgp/reactor/reactor_notify.go -- deliverChan -->
 <!-- source: internal/component/bgp/format/raw_b64.go -- appendRawB64Update -->
 <!-- source: internal/exabgp/bridge/bridge_raw_render.go -- RenderRawUpdate -->

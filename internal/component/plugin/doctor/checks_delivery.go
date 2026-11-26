@@ -269,13 +269,14 @@ func panicRows(snapshot *server.DoctorSnapshot) []diagnostic.Diagnostic {
 	return rows
 }
 
-// deliveryFailedRows answers one warning per plugin with failed or slow
-// event batches inside the recent delivery window (AC-19).
+// deliveryFailedRows answers one warning per plugin with failed batches, slow
+// batches, or producer backpressure waits at the queue ceiling inside the
+// recent delivery window (AC-19).
 func deliveryFailedRows(snapshot *server.DoctorSnapshot) []diagnostic.Diagnostic {
 	var rows []diagnostic.Diagnostic
 	withProcess(snapshot, func(state *server.PluginDoctorState) {
 		window := &state.Records.Delivery
-		if window.Failures == 0 && window.Slow == 0 {
+		if window.Failures == 0 && window.Slow == 0 && window.BackpressureWaits == 0 {
 			return
 		}
 		// A truncated window counts the problems the ring kept, so each
@@ -290,6 +291,10 @@ func deliveryFailedRows(snapshot *server.DoctorSnapshot) []diagnostic.Diagnostic
 			Str(floor).Int(int64(window.Slow)).Str(" took over ").Str(process.DeliverySlowThreshold.String())
 		if window.Slow != 0 {
 			message.Str(" (slowest ").Str(window.Slowest.String()).Str(")")
+		}
+		if window.BackpressureWaits != 0 {
+			message.Str(", ").Str(floor).Int(int64(window.BackpressureWaits)).
+				Str(" producer backpressure waits at queue ceiling")
 		}
 		if window.LastError != "" {
 			message.Str("; last error: ").Str(window.LastError)
