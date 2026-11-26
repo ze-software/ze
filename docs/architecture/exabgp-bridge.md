@@ -1270,57 +1270,63 @@ independent external bus endpoint
 `bgp:update`, `bgp:state`, and `bgp:negotiated` from `perf-sender` (`send { allow
 none; }`). Every run completed with `0` lost routes.
 
-### Optimization progression (20 scripts)
+### Optimization progression (5 and 20 scripts)
 
-| Date | Commit | Transport / Change | 100k Live Conv. | 100k Live Throughput | 100k Peak CPU | 1M Live Conv. | 1M Live Throughput | 1M `ze` Peak VmRSS |
+| Date | Commit | Transport / Change | 100k × 5 Live | 100k × 20 Live | 1M × 5 Live | 1M × 20 Live | 1M × 20 RIB Prop. | 1M `ze` Peak VmRSS (20s) |
 |---|---|---|---:|---:|---:|---:|---:|---:|
-| 2026-11-25 | `f88708e4dc` | Baseline (`FormatFull` JSON + `map[string]any` batching/rendering) | 907 ± 22 ms | 110,253 r/s | 377.7% | 9,773 ms | 102,322 r/s | 4,143 MiB |
-| 2026-11-26 | `8e17d9a02d` | `FormatBase64` positional `upd` + pooled `MuxConn.CallBatchRPC` + direct unicast renderer | 301 ± 23 ms (**3.01×**) | 332,225 r/s (**3.01×**) | 135.6% (**−64%**) | 2,679 ms (**3.65×**) | 373,273 r/s (**3.65×**) | 3,232 MiB (**−911 MiB**) |
+| 2026-11-25 | `f88708e4dc` | Baseline (`FormatFull` JSON + `map[string]any` + 64-slot `eventChan`) | 279 ms (358k r/s) | 907 ms (110k r/s) | 3,796 ms (263k r/s) | 9,773 ms (102k r/s) | 9,419 ms (106k r/s) | 4,143 MiB |
+| 2026-11-26 | `8e17d9a02d` | `FormatBase64` positional `upd` + pooled `MuxConn.CallBatchRPC` + direct unicast renderer | 180 ms (556k r/s) | 301 ms (332k r/s) | 1,713 ms (584k r/s) | 2,679 ms (373k r/s) | 6,178 ms (162k r/s) | 3,232 MiB |
+| 2026-11-26 | `9c5da9e2b8` | + Growable lossless `eventQueue` (64→65,536) & 512-event batch drain | **136 ms (735k r/s, 2.05×)** | **266 ms (376k r/s, 3.41×)** | **1,504 ms (665k r/s, 2.52×)** | **2,654 ms (377k r/s, 3.68×)** | **5,490 ms (182k r/s, 1.72×)** | *(not re-sampled)* |
 
-### Full-table feed: 1,000,000 IPv4/unicast routes (`DUT_REPEAT=1` + 1 warmup, `8e17d9a02d`)
+### Full-table feed: 1,000,000 IPv4/unicast routes (`DUT_REPEAT=1` + 1 warmup, `9c5da9e2b8`)
 
-| Scripts | Live Conv. | Live Throughput | Delta vs 0 | Live p99 | Live Withdraw | RIB Prop. Conv. | RIB Prop. Throughput | Peak CPU (4 vCPU) | Cgroup Mem (settled) | `ze` Peak VmRSS | Wrapper Sum Peak VmRSS |
-|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|
-| 0 | 1,396 ms | 716,332 r/s | baseline | 1,187 ms | 1,882 ms | 5,461 ms | 183,116 r/s | 216.1% | 3.54 GiB | 3,425 MiB | — |
-| 1 | 1,577 ms | 634,115 r/s | −11.5% | 1,376 ms | 1,802 ms | 5,460 ms | 183,150 r/s | 301.3% | 3.73 GiB | 3,495 MiB | 158 MiB (158/s) |
-| 5 | 1,713 ms | 583,771 r/s | −18.5% | 1,481 ms | 1,932 ms | 5,470 ms | 182,815 r/s | 328.2% | 3.63 GiB | 3,471 MiB | 744 MiB (149/s) |
-| 20 | 2,679 ms | 373,273 r/s | −47.9% | 2,315 ms | 30,075 ms* | 6,178 ms | 161,864 r/s | 380.9% | 4.48 GiB | 3,232 MiB | 2,927 MiB (146/s) |
+| Scripts | Live Conv. | Live Throughput | Delta vs 0 | Live p99 | Live Withdraw | RIB Prop. Conv. | RIB Prop. Throughput | RIB Prop. Withdraw |
+|---:|---:|---:|---:|---:|---:|---:|---:|---:|
+| 0 | 1,257 ms | 795,544 r/s | baseline | 1,078 ms | 30,070 ms* | 5,534 ms | 180,701 r/s | 1,880 ms |
+| 1 | 1,285 ms | 778,210 r/s | −2.2% | 1,084 ms | 1,737 ms | 5,260 ms | 190,114 r/s | 1,834 ms |
+| 5 | 1,504 ms | 664,893 r/s | −16.4% | 1,253 ms | 1,932 ms | 5,391 ms | 185,494 r/s | 2,028 ms |
+| 20 | 2,654 ms | 376,789 r/s | −52.6% | 2,396 ms | 2,924 ms | 5,490 ms | 182,149 r/s | 31,176 ms* |
 
-*\*Two 1M passes (`1M × 5` RIB-prop `30,283 ms` and `1M × 20` live `30,075 ms`) hit the 30 s withdrawal drain bound; `1M × 20` RIB-prop withdrew in `3,529 ms`, and `100k × 20` withdrew in `737 ms`.*
+*\*An occasional 30 s withdrawal drain spike occurs at 1M routes even at 0 scripts (`1M × 0` live `30,070 ms`; `1M × 20` RIB-prop `31,176 ms`), while `1M × 1/5/20` live withdrawals completed in `1,737 / 1,932 / 2,924 ms`.*
 
-### Standard `./le perf` scale: 100,000 IPv4/unicast routes (`DUT_REPEAT=3` + 1 warmup, `8e17d9a02d`)
+### Standard `./le perf` scale: 100,000 IPv4/unicast routes (`DUT_REPEAT=3` + 1 warmup, `9c5da9e2b8`)
 
-| Scripts | Live Conv. | Live Throughput | Delta vs 0 | Live p99 | Live Withdraw | RIB Prop. Conv. | RIB Prop. Throughput | Peak CPU (4 vCPU) | Cgroup Mem (settled) | `ze` Peak VmRSS | Wrapper Sum Peak VmRSS |
-|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|
-| 0 | 142 ± 12 ms | 704,225 ± 59,511 r/s | baseline | 99 ms | 617 ms | 540 ± 4 ms | 185,185 r/s | 105.8% | 410 MiB | 495 MiB | — |
-| 1 | 135 ± 14 ms | 740,740 ± 76,817 r/s | +5.2% | 88 ms | 611 ms | 536 ± 16 ms | 186,567 r/s | 112.0% | 492 MiB (+82 MiB) | 484 MiB | 137 MiB (137/s) |
-| 5 | 180 ± 20 ms | 555,555 ± 61,728 r/s | −21.1% | 120 ms | 637 ms | 544 ± 19 ms | 183,823 r/s | 114.6% | 875 MiB (+465 MiB) | 500 MiB | 723 MiB (145/s) |
-| 20 | 301 ± 23 ms | 332,225 ± 25,385 r/s | −52.8% | 240 ms | 737 ms | 528 ± 15 ms | 189,393 r/s | 135.6% | 1,970 MiB (+1,560 MiB) | 525 MiB | 2,785 MiB (139/s) |
+| Scripts | Live Conv. | Live Throughput | Delta vs 0 | Live p99 | Live Withdraw | RIB Prop. Conv. | RIB Prop. Throughput | RIB Prop. Withdraw |
+|---:|---:|---:|---:|---:|---:|---:|---:|---:|
+| 0 | 128 ± 1 ms | 781,250 ± 6,103 r/s | baseline | 85 ms | 596 ms | 513 ± 6 ms | 194,931 r/s | 597 ms |
+| 1 | 125 ± 11 ms | 800,000 ± 70,400 r/s | +2.4% | 89 ms | 591 ms | 515 ± 0 ms | 194,174 r/s | 594 ms |
+| 5 | 136 ± 16 ms | 735,294 ± 86,505 r/s | −5.9% | 102 ms | 612 ms | 529 ± 4 ms | 189,035 r/s | 624 ms |
+| 20 | 266 ± 20 ms | 375,939 ± 28,266 r/s | −51.9% | 209 ms | 726 ms | 543 ± 13 ms | 184,162 r/s | 721 ms |
 
 ### Cost breakdown
 
-- **CPU and forwarding backpressure:** Moving `ze exabgp plugin` to `FormatBase64`
-  positional counted `upd` lines, pooled `MuxConn.CallBatchRPC`, and direct
-  `[]byte` unicast rendering cut 20-script live convergence by **3.65×** at 1M
-  routes (`9,773 ms` → `2,679 ms`, marginal cost falling from `~409 ms/script` to
-  `~64 ms/script`) and **3.01×** at 100k routes (`907 ms` → `301 ms`, peak CPU
-  `377.7%` → `135.6%`). The `8e17d9a02d` tables above were measured while
-  `Process.Deliver` still used a fixed 64-slot `eventChan` and 64-event RPC
-  batches, so heavy multi-script bursts backpressured `deliverChan` and
-  `reactorForwardRS`. `Process` now uses a bounded, dynamically growable,
-  lossless `eventQueue` (`64` initial slots growing up to `65,536` by default,
-  configurable via `bus > endpoint > delivery-queue-max`, shrinking back to `64`
-  once drained) with a `512`-event batch drain (`eventDeliveryBatchMax`),
-  absorbing full-table packed UPDATE bursts without stalling BGP forwarding or
-  dropping events. A slow child script still drops at its 1,000-line stdin queue
-  without blocking `ze`.
-- **Memory:** Eliminating daemon-side `FormatFull` JSON and `map[string]any`
-  batch marshaling reduced `ze` peak `VmRSS` at 1M × 20 scripts by **911 MiB**
-  (`4,143 MiB` → `3,232 MiB`, staying below the 0-script peak). Per-wrapper
-  `VmRSS` remains `~137–158 MiB` because each endpoint execs `/usr/local/bin/ze`
-  (read-only text/rodata pages shared in the page cache), with actual private
-  physical memory (`docker stats` cgroup delta at 100k) at **`~78–93 MiB` per
-  script** plus `~2.4 MiB` for the child `sh`/`cat`.
+- **CPU and forwarding backpressure:** Combining `FormatBase64` positional
+  counted `upd` lines, pooled `MuxConn.CallBatchRPC`, direct `[]byte` unicast
+  rendering (`8e17d9a02d`), and the growable lossless `eventQueue` (`64` initial
+  slots growing up to `65,536` by default, configurable via
+  `bus > endpoint > delivery-queue-max`, shrinking back to `64` once drained,
+  with `512`-event `eventDeliveryBatchMax` drains at `9c5da9e2b8`) eliminated
+  lockstep channel blocking on `onMessageBatchReceived`:
+  - At **1–5 scripts**, live forwarding is now within `2–6%` of 0 scripts at
+    100k (`735k–800k r/s`, **2.05×** baseline at 5 scripts) and **665k r/s** at
+    1M × 5 (**2.52×** baseline, faster than the original 0-script baseline of
+    `628k r/s`).
+  - At **20 scripts**, 1M RIB propagation fully recovered to 0-script speed
+    (`182,149 r/s` vs `180,701 r/s`, **1.72×** baseline), 1M live withdrawal
+    dropped from `9,657 ms` to `2,924 ms` (**3.3×** faster), and live
+    convergence reached **266 ± 20 ms** at 100k (**3.41×** baseline, p99 `855` →
+    `209 ms`) and **2,654 ms** at 1M (**3.68×** baseline, `376,789 r/s`). The
+    remaining 20-script live delta reflects 4-vCPU contention across `ze` plus 20
+    concurrent wrapper processes rather than channel blocking. A slow child
+    script still drops at its 1,000-line stdin queue without blocking `ze`.
+- **Memory (measured at `8e17d9a02d`):** Eliminating daemon-side `FormatFull`
+  JSON and `map[string]any` batch marshaling reduced `ze` peak `VmRSS` at
+  1M × 20 scripts by **911 MiB** (`4,143 MiB` → `3,232 MiB`, staying below the
+  0-script peak) and cut 100k × 20 peak CPU from `377.7%` to `135.6%`.
+  Per-wrapper `VmRSS` remains `~137–158 MiB` because each endpoint execs
+  `/usr/local/bin/ze` (read-only text/rodata pages shared in the page cache),
+  with actual private physical memory (`docker stats` cgroup delta at 100k) at
+  **`~78–93 MiB` per script** plus `~2.4 MiB` for the child `sh`/`cat`.
 
 <!-- source: internal/component/bgp/server/events.go -- onMessageBatchReceived -->
 <!-- source: internal/component/plugin/process/delivery.go -- DeliverContext, deliveryLoop -->
