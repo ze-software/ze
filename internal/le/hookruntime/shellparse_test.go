@@ -916,7 +916,7 @@ func TestParsedCommandsMatchBash(t *testing.T) {
 // wordNotRead. Phase 3 adds the predicate's property: it never answers
 // "reader line" for a line holding a command outside the reader set; and no
 // walk of the line (the reader line with and without the identity line, the
-// after-line identity walk, the deletion guard's two readings) panics. Phase 4
+// after-line identity walk, the deletion guard's per-command reading) panics. Phase 4
 // adds its walks: the reader line with every write recorded, the tree
 // judgments of the raw-job and piped-command guards, and the scratch guard's
 // here-document blanking.
@@ -935,8 +935,7 @@ func FuzzShellParse(f *testing.F) {
 		// target instead of being answered on the refusing side.
 		readReaderLine(line, parse, "", readerWalk{source: line, admit: readerAdmit})
 		readReaderLine(line, parse, "", readerWalk{source: line, admit: readerAdmit, recordWrites: true})
-		readPlainRmArguments(line, parse)
-		readDeletionWords(line, parse)
+		readDeletionReach(line, parse, 0)
 		readTreeRawHeavy(line, parse, t.TempDir())
 		readTreeLossyPipe(line, parse)
 		readWithoutReaderData(line, parse, "")

@@ -811,9 +811,10 @@ func TestTestDeletionFixNamesThePathAndTheRoute(t *testing.T) {
 // It exists because the check matched regexps across the whole line: an
 // `rm -rf bin/le-hookchk` followed by a `git status` that named
 // docs/architecture/testing was asked about as a recursive test deletion. The
-// fix narrows only what a test PATH is, so every way of reaching an rm that the
-// line-wide check caught, through eval, a loop, a brace group or a redirect, is
-// still asked about.
+// fix narrows what a test PATH is, and the guard judges each simple command by
+// what it deletes (TestTestDeletionJudgesEachCommandByWhatItDeletes), so every
+// way of reaching an rm of a test, through eval, a loop, a brace group, a
+// redirect, a launcher, xargs or a shell handed a line, is still asked about.
 func TestTestDeletionAsksOnlyForATestPath(t *testing.T) {
 	allowed := []string{
 		`cd /Users/thomas/Code/github.com/ze-software/ze/main; rm -rf bin/le-hookchk; git status --short internal/le/commit internal/le/hookruntime docs/contributing/navigating-the-code.md docs/architecture/testing/verify-freshness-scope.md | cat; git diff --stat docs/contributing/navigating-the-code.md docs/architecture/testing/verify-freshness-scope.md`,
@@ -849,7 +850,9 @@ func TestTestDeletionAsksOnlyForATestPath(t *testing.T) {
 		`git checkout -- internal/foo/foo_test.go`,
 		`rm 'unclosed_quote`,
 		`rm bin/x \`,
-		// The line-wide check cannot tell a named rm from a run one, and asks.
+		// A command's words cannot tell a named rm from one a launcher runs,
+		// so a command naming rm is judged as deleting, with what its
+		// pipeline feeds it.
 		`grep -n rm internal/foo/foo_test.go`,
 		`git log -- internal/foo/foo_test.go | grep rm`,
 		// Ways of reaching an rm that a per-command parser missed.
@@ -879,21 +882,27 @@ func TestTestDeletionAsksOnlyForATestPath(t *testing.T) {
 }
 
 // TestTestDeletionJudgesOnlyTheArgumentsOfAPlainRm drives the pretool-bash
-// hook with lines whose rm is a plain command beside readers (AC-14).
+// hook with lines whose rm is a plain command beside other commands (AC-14).
 //
-// VALIDATES: on a line of plain rm commands with literal arguments and
-// readers, only the rm arguments are judged, so a scratch delete beside a
-// read of a test file passes, and a plain rm of a test is still refused.
-// PREVENTS: the narrowing reaching a line whose deletes the hook cannot see
-// whole: a variable, a substitution, find, xargs, a loop, eval, a shell
-// handed a string, a cd, a redirect into a file, and a reader naming rm each
-// keep the line-wide judgment.
+// VALIDATES: only what an rm reaches is judged, so a scratch delete beside a
+// read of a test file passes, a delete whose operand the line does not give
+// passes beside a test path another command names, and a plain rm of a test
+// is still refused.
+// PREVENTS: the per-command reading losing a delete it cannot see in the rm
+// itself: a variable the line gives a test path, a substitution naming one,
+// find, xargs, a loop, eval, a shell handed a string, a cd, and a reader
+// naming rm each still reach the test path.
 func TestTestDeletionJudgesOnlyTheArgumentsOfAPlainRm(t *testing.T) {
 	allowed := []string{
 		`rm -f tmp/session/2026-11-11-021635/scratch/out.log && grep x internal/a_test.go`,
 		`rm -f bin/x; cat internal/foo/foo_test.go`,
 		`rm -f bin/x && ls test/plugin`,
 		`rm -f bin/x bin/y && wc -l internal/foo/foo_test.go | sort`,
+		// The test path is grep's or cat's argument, and the rm's operand
+		// is a name the line never gives a value or a file it reads.
+		`rm -f "$f" && grep x internal/a_test.go`,
+		`rm -f $(cat list) && grep x internal/a_test.go`,
+		`rm -f x && cat a > internal/a_test.go`,
 	}
 	for _, command := range allowed {
 		if asked, message := testDeletionAsked(t, command); asked {
@@ -902,17 +911,76 @@ func TestTestDeletionJudgesOnlyTheArgumentsOfAPlainRm(t *testing.T) {
 	}
 	refused := []string{
 		`rm -f bin/x && rm internal/a_test.go`,
-		`rm -f "$f" && grep x internal/a_test.go`,
-		`rm -f $(cat list) && grep x internal/a_test.go`,
+		`f=internal/a_test.go; rm -f "$f" && grep x internal/a_test.go`,
+		`rm -f $(ls internal/*_test.go) && grep x a`,
 		`rm -f x && find internal -name '*_test.go' -delete`,
 		`rm -f x && find . -name '*_test.go' | xargs rm`,
 		`rm -f x; for f in internal/a_test.go; do rm "$f"; done`,
 		`rm -f x && eval rm internal/a_test.go`,
 		`rm -f x && bash -c 'rm internal/a_test.go'`,
 		`rm -f x && cd internal/x_test_dir && rm a.go`,
-		`rm -f x && cat a > internal/a_test.go`,
 		`rm -f x && grep -n rm internal/a_test.go`,
 		`rm -f x && git rm internal/a_test.go`,
+	}
+	for _, command := range refused {
+		if asked, message := testDeletionAsked(t, command); !asked {
+			t.Errorf("%q was not refused as a test deletion: %s", command, message)
+		}
+	}
+}
+
+// commitAndRunScript is the line a session runs to commit through `./le
+// commit create` and its printed script in one call: the test paths are
+// `file` operands of `./le commit create`, and the one rm removes the spent
+// script and message the line read from the output.
+const commitAndRunScript = `./le commit create subject "rfc: implemented" body "b" file internal/le/rfc/implemented.go file internal/le/rfc/implemented_test.go file internal/le/site/owner_rulings_test.go > tmp/session/x/scratch/cc.txt 2>&1; S=$(grep -o '^script=.*' tmp/session/x/scratch/cc.txt | cut -d= -f2); M=$(grep -o '^message=.*' tmp/session/x/scratch/cc.txt | cut -d= -f2); if [ -n "$S" ]; then bash "$S" 2>&1 | tail -3; rm -f "$S" "$M"; else head -40 tmp/session/x/scratch/cc.txt; fi`
+
+// TestTestDeletionJudgesEachCommandByWhatItDeletes drives the pretool-bash
+// hook with lines where a test path is an argument of one command and a
+// delete is another command of the same line.
+//
+// VALIDATES: a test path counts only when a deleting command reaches it: as
+// its own word, through a name the line gives a value (an assignment, a `for`
+// loop), through a substitution or an earlier pipeline stage, under a
+// directory the line changes to, or in a line handed to a shell. A path that
+// is only an argument of another command passes, so committing test files
+// and removing the spent commit script in one line passes, and the same line
+// with an rm of a test anywhere in it is refused.
+// PREVENTS: the false refusal of the commit line (2026-11-23), and the
+// per-command reading dropping a delete the line-wide check caught.
+func TestTestDeletionJudgesEachCommandByWhatItDeletes(t *testing.T) {
+	allowed := []string{
+		commitAndRunScript,
+		`git ls-tree HEAD internal/a_test.go | git update-index --index-info; rm -f tmp/commit-x.index`,
+		`for f in internal/a_test.go internal/b_test.go; do grep -c x "$f"; done; rm -f tmp/session/x/scratch/out.log`,
+		`rm -f tmp/session/x/scratch/out.log && mv test/draft/plugin/a.ci test/plugin/a.ci`,
+		"cat >> tmp/session/x/scratch/state.md <<'EOF'\nran rm on internal/a_test.go\nEOF",
+		"./le commit create subject s body-file - file internal/a_test.go <<'EOF'\nze data rm\nEOF",
+		`( rm -f scratch ); grep x internal/a_test.go`,
+		`cd x && rm -f scratch && grep x internal/a_test.go`,
+	}
+	for _, command := range allowed {
+		if asked, message := testDeletionAsked(t, command); asked {
+			t.Errorf("%q was refused as a test deletion: %s", command, message)
+		}
+	}
+	refused := []string{
+		commitAndRunScript + `; rm internal/le/rfc/implemented_test.go`,
+		strings.Replace(commitAndRunScript, `rm -f "$S" "$M"`, `rm -f "$S" "$M" internal/le/site/owner_rulings_test.go`, 1),
+		`S=internal/le/rfc/implemented_test.go; ./le commit create subject s file a.go; rm -f "$S"`,
+		`T=internal/le/rfc; S="$T"/implemented_test.go; rm -f "$S"`,
+		`M=$(ls internal/x/*_test.go); rm $M`,
+		`for f in internal/a_test.go; do :; done; rm -f $f`,
+		`ls internal/x/*_test.go | xargs -r rm -f`,
+		`xargs rm <<< internal/x/foo_test.go`,
+		"xargs rm <<EOF\ninternal/x/foo_test.go\nEOF",
+		`( rm -f internal/a_test.go ); grep x b`,
+		`cd test && rm -rf plugin`,
+		`bash -c 'rm internal/x/foo_test.go'`,
+		`sh -c "eval 'rm internal/x/foo_test.go'"`,
+		"bash -s <<'EOF'\nrm -f internal/x/foo_test.go\nEOF",
+		"cat <<EOF\n$(rm internal/x/foo_test.go)\nEOF",
+		`echo "$(rm -f internal/x/foo_test.go)"`,
 	}
 	for _, command := range refused {
 		if asked, message := testDeletionAsked(t, command); !asked {

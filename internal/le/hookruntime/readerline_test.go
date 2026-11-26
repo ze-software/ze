@@ -482,20 +482,25 @@ func TestSystemTmpJudgesEveryWordOfAReaderLine(t *testing.T) {
 	})
 }
 
-// VALIDATES: AC-18 and fail-open hole H-3. The deletion guard reads a plain
-// rm line from the tree, judging only the rm arguments; an rm inside a
-// construct, with an expanded word or beside a cd keeps the line-wide
-// judgment; a here-document body's words reach the line-wide list; a line
-// that does not parse is judged by its text.
+// VALIDATES: AC-18 and fail-open hole H-3. The deletion guard reads each rm
+// from the tree, judging what the rm reaches: inside a construct, with an
+// expanded word, or under a directory a cd changes to, an rm of a scratch
+// file beside a read of a test passes and an rm of the test is refused; the
+// body of a here-document a shell runs is read as a line; a line that does
+// not parse is judged by its text.
 // PREVENTS: `bash <<EOF` with `rm a_test.go` in its body passing because the
 // body is one word of the tree.
 func TestTestDeletionReadsThePlainRmFromTheTree(t *testing.T) {
 	judgeGuardRows(t, t.TempDir(), []guardRow{
 		{"deletion", bashTestDeletion, `rm -f scratch && grep x internal/a_test.go`, false},
 		{"deletion", bashTestDeletion, `rm -f scratch; cat internal/a_test.go 2>/dev/null`, false},
-		{"deletion", bashTestDeletion, `( rm -f scratch ); grep x internal/a_test.go`, true},
-		{"deletion", bashTestDeletion, `rm -f $f && grep x internal/a_test.go`, true},
-		{"deletion", bashTestDeletion, `cd x && rm -f scratch && grep x internal/a_test.go`, true},
+		{"deletion", bashTestDeletion, `( rm -f scratch ); grep x internal/a_test.go`, false},
+		{"deletion", bashTestDeletion, `( rm -f internal/a_test.go ); grep x b`, true},
+		{"deletion", bashTestDeletion, `rm -f $f && grep x internal/a_test.go`, false},
+		{"deletion", bashTestDeletion, `f=internal/a_test.go; rm -f $f`, true},
+		{"deletion", bashTestDeletion, `cd x && rm -f scratch && grep x internal/a_test.go`, false},
+		{"deletion", bashTestDeletion, `cd internal/x && rm -f a_test.go`, true},
+		{"deletion", bashTestDeletion, `cd test && rm -rf plugin`, true},
 		{"deletion", bashTestDeletion, "bash <<EOF\nrm a_test.go\nEOF", true},
 		// Review B5: a body is split as shell text, so a quote, a `;` or a
 		// bracket around the rm does not hide it.
@@ -504,13 +509,13 @@ func TestTestDeletionReadsThePlainRmFromTheTree(t *testing.T) {
 		{"deletion", bashTestDeletion, "bash <<EOF\n(rm internal/a_test.go)\nEOF", true},
 		{"deletion", bashTestDeletion, `rm a_test.go 'oops`, true},
 		{"deletion", bashTestDeletion, `find . -name a_test.go -delete; fi`, true},
-		// The journal row of 2026-11-11: cmp is a reader, so a test path it
-		// compares beside an rm of a scratch file is no rm argument, and an rm
-		// of the test path it compared is still refused.
+		// The journal row of 2026-11-11: a test path cmp compares beside an
+		// rm of a scratch file is no rm argument, whatever options cmp is
+		// given, and an rm of the test path it compared is still refused.
 		{"deletion", bashTestDeletion, `cmp tmp/x internal/a_test.go; rm tmp/x`, false},
 		{"deletion", bashTestDeletion, `cmp -s tmp/x internal/a_test.go && rm -f tmp/x`, false},
 		{"deletion", bashTestDeletion, `cmp x internal/a_test.go; rm internal/a_test.go`, true},
-		{"deletion", bashTestDeletion, `cmp --frobnicate tmp/x internal/a_test.go; rm tmp/x`, true},
+		{"deletion", bashTestDeletion, `cmp --frobnicate tmp/x internal/a_test.go; rm tmp/x`, false},
 	})
 }
 

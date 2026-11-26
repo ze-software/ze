@@ -723,7 +723,7 @@ func (judge *worktreeCopyJudge) copyWords(words []worktreeWord, directory worktr
 	case "popd":
 		flow.directory = worktreeDirectory{}
 		return flow
-	case "eval":
+	case evalCommand:
 		flow.reads = judge.copyLine(worktreeJoined(arguments), arguments, runs)
 		return flow
 	case "ssh":

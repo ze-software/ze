@@ -101,12 +101,14 @@ var environmentTools = joinedTools(map[string]bool{
 	"env": true, "exec": true, "sudo": true, "set": true,
 }, shellTextTools)
 
+const evalCommand = "eval"
+
 // shellTextTools are the commands that run text as shell in this shell: the
 // string eval is given, the file source and `.` read. The identity guard
 // refuses them (environmentTools), and the heavy-work check cannot read what
 // they run, so a subagent's line handed to a shell that runs one is handed
 // back (unreadProgram).
-var shellTextTools = map[string]bool{"eval": true, "source": true, ".": true}
+var shellTextTools = map[string]bool{evalCommand: true, "source": true, ".": true}
 
 // joinedTools answers tools with every name of more added. It writes into
 // tools, which it owns: it is called once, to initialize a package table.

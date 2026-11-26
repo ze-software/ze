@@ -9,6 +9,7 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"slices"
 	"strings"
 	"time"
 	"unicode"
@@ -859,15 +860,15 @@ const testElement = "test"
 // ze point: testing/directives/write-the-test-first-and-never-weaken-it
 // bashTestDeletion refuses a command that deletes a test. A deleted test is
 // indistinguishable from a test that never existed, and its coverage goes with it.
-// It fails closed: it refuses when the line runs a delete ANYWHERE and names a
-// test path ANYWHERE, without deciding which command deletes which path, because
-// a shell has more ways to reach an rm than a hook can parse. The one line it
-// reads closer is a line of plain rm commands and readers (plainRmArguments),
-// where only the rm arguments are judged, so `rm -f <scratch> && grep x
-// internal/a_test.go` passes. Only the path test is exact, so a test path is a
-// path the rule guards and not any path spelling "test". The words come from
-// the call's one parse (deletionWords); a line that does not parse, and that
-// runs rm, is refused.
+// It judges each simple command of the line on its own (deletionReach): a test
+// path counts only when a deleting command can reach it, as its own word, a
+// value the line gives a name it expands, the output of an earlier stage of its
+// pipeline, or an operand under a directory the line changes to. A test path
+// that is only an argument of another command (`./le commit create ... file
+// a_test.go; rm -f "$script"`) is never judged. Only the path test is exact, so
+// a test path is a path the rule guards and not any path spelling "test". A
+// line, or a line it hands to a shell, that does not parse and runs rm is
+// refused.
 func bashTestDeletion(ctx context) *verdict {
 	command := stringInput(ctx.input, "command")
 	errors := make([]string, 0, 2)
@@ -875,21 +876,23 @@ func bashTestDeletion(ctx context) *verdict {
 	// git checkout that discards test changes: the fix differs for the two.
 	deleted := make([]string, 0, 2)
 	discarded := false
-	words, parsed := deletionWords(command, ctx.commandParse())
-	if !parsed && rmWord.MatchString(command) {
-		errors = append(errors, "The command does not parse as bash, so what its rm deletes is unknown: "+command)
+	reading := deletionReach(command, ctx.commandParse())
+	unreadRm := false
+	if reading.unread != "" {
+		unreadRm = rmWord.MatchString(reading.unread)
 	}
-	if runsDeletion(words) {
-		judged := words
-		if arguments, plain := plainRmArguments(command, ctx.commandParse()); plain {
-			judged = arguments
+	if unreadRm {
+		errors = append(errors, "The command does not parse as bash, so what its rm deletes is unknown: "+reading.unread)
+	}
+	for _, word := range reading.words {
+		if !testPath(word) {
+			continue
 		}
-		for _, word := range judged {
-			if testPath(word) {
-				errors = append(errors, "Attempting to delete test path "+word+" via: "+command)
-				deleted = append(deleted, word)
-			}
+		if slices.Contains(deleted, word) {
+			continue
 		}
+		errors = append(errors, "Attempting to delete test path "+word+" via: "+command)
+		deleted = append(deleted, word)
 	}
 	if regexp.MustCompile(`git checkout.*(_test\.go|\.ci)`).MatchString(command) && regexp.MustCompile(`git checkout (--|[.])`).MatchString(command) {
 		errors = append(errors, "Attempting to discard test file changes: "+command)
@@ -906,7 +909,7 @@ func bashTestDeletion(ctx context) *verdict {
 	}
 	lines = append(lines, "",
 		"  -- A deleted test takes its coverage with it, and the agent that deletes it cannot approve that (ai/rules/testing.md).")
-	if len(deleted) != 0 || !parsed {
+	if len(deleted) != 0 || unreadRm {
 		lines = append(lines,
 			"  -- A tracked test that the agreed work removes is deleted by the commit that lands the work. Leave the file in place and name it:")
 		if len(deleted) == 0 {

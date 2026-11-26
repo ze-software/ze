@@ -197,6 +197,7 @@ var corpusSourceTests = []func(*testing.T){
 	TestTestDeletionFixNamesThePathAndTheRoute,
 	TestTestDeletionAsksOnlyForATestPath,
 	TestTestDeletionJudgesOnlyTheArgumentsOfAPlainRm,
+	TestTestDeletionJudgesEachCommandByWhatItDeletes,
 	TestTestDeletionRefusalNamesTheNextAction,
 	TestGuardsKeepTheTextVerdictOfHead,
 	TestGuardsKeepTheTextVerdictBesideAReaderItsJudgeRefuses,
@@ -616,15 +617,17 @@ func TestReaderLineRowWaivesOnlyTheChecksAReaderLineLifts(t *testing.T) {
 // TestReaderLiftableChecksAreTheReaderGuards reads the set readerLiftableChecks
 // derives from the source.
 //
-// VALIDATES: the nine guards that ask the reader set are in it (the
+// VALIDATES: the eight guards that ask the reader set are in it (the
 // identity exemption, the lifts of the raw-job, lossy-pipe, /tmp and scratch
-// guards, the build guard's reader+build line, the plain-rm narrowing, the
-// subagent heavy-work check, which opens with the same exemption, and the
-// owner-record guard, whose ownerRecordAdmit is readerAdmit plus a literal
-// `./le commit create`, so `cat` of a record passes and a write does not), and
-// every other pretool-bash check is not: the git guards, bashGovernedWrite
-// and bashPollLoop, which the spec says never lift, and the checks that never
-// read the reader judgment (bashDocumentRead judges its text alone). The
+// guards, the build guard's reader+build line, the subagent heavy-work
+// check, which opens with the same exemption, and the owner-record guard,
+// whose ownerRecordAdmit is readerAdmit plus a literal `./le commit create`,
+// so `cat` of a record passes and a write does not), and every other
+// pretool-bash check is not: the git guards, bashGovernedWrite and
+// bashPollLoop, which the spec says never lift, the test-deletion guard,
+// which judges each simple command by what it deletes and never asks whether
+// the line is a reader line, and the checks that never read the reader
+// judgment (bashDocumentRead judges its text alone). The
 // scratch guard refuses only a write at the tmp/ root, and a reader line
 // writes no file, so it lifts there (hook defect (b) of AC-36).
 // PREVENTS: a derivation that follows a shared helper, or a local whose name
@@ -632,13 +635,13 @@ func TestReaderLineRowWaivesOnlyTheChecksAReaderLineLifts(t *testing.T) {
 // refusal.
 func TestReaderLiftableChecksAreTheReaderGuards(t *testing.T) {
 	liftable := readerLiftableChecks(t)
-	readers := []string{"bashAgentIdentity", "bashRawHeavy", "bashLossyPipe", "bashSystemTmp", "bashScratch", "bashRootBuild", "bashTestDeletion", "bashSubagentHeavy", "bashOwnerRecord"}
+	readers := []string{"bashAgentIdentity", "bashRawHeavy", "bashLossyPipe", "bashSystemTmp", "bashScratch", "bashRootBuild", "bashSubagentHeavy", "bashOwnerRecord"}
 	for _, name := range readers {
 		if !liftable[name] {
 			t.Errorf("%s asks the reader set and is not in the liftable set %v", name, liftable)
 		}
 	}
-	for _, name := range []string{"bashWorktreeCopy", "bashDestructiveGit", "bashBranchMove", "bashGovernedWrite", "bashPollLoop"} {
+	for _, name := range []string{"bashWorktreeCopy", "bashDestructiveGit", "bashBranchMove", "bashGovernedWrite", "bashPollLoop", "bashTestDeletion"} {
 		if liftable[name] {
 			t.Errorf("%s never lifts on a reader line and is in the liftable set %v", name, liftable)
 		}

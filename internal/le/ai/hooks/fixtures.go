@@ -689,11 +689,19 @@ var (
 	// each (destructiveGitVerbs, branchMoveVerbs) with no other verb changed.
 	// Pinned by the cherry-pick rows of TestEveryBranchMovingVerbIsRefused and
 	// TestReadingBranchesIsNotMovingThem in hookruntime/bash_git_test.go.
+	// Re-sealed 2026-11-23 for the owner-ordered fix of a false test-deletion
+	// refusal: bashTestDeletion judges each simple command by what it deletes
+	// (deletionReach, hookruntime/testdeletion.go), so a test path that is
+	// only an argument of another command on the line, such as a `file`
+	// operand of `./le commit create` beside an rm of the spent script, is no
+	// longer refused. plainRmArguments and the line-wide word list are gone;
+	// parsedcommands.go gains stagesFeed. Pinned by
+	// TestTestDeletionJudgesEachCommandByWhatItDeletes in hookruntime/bash_test.go.
 	hookSourcesDigest = [sha256.Size]byte{
-		0x3b, 0x0f, 0x9a, 0xef, 0xb3, 0x18, 0xe0, 0x0b,
-		0xad, 0xe9, 0x1b, 0x35, 0x3d, 0x74, 0x57, 0x2a,
-		0xbb, 0x29, 0x57, 0x80, 0x20, 0x57, 0x38, 0xc2,
-		0x83, 0x46, 0xf2, 0x3b, 0x6f, 0xf9, 0xa2, 0x84,
+		0x2c, 0x21, 0x16, 0x37, 0xf0, 0xaa, 0x0c, 0x8d,
+		0x8a, 0xd8, 0x72, 0xf2, 0xd3, 0x58, 0x7d, 0x53,
+		0x5f, 0xc9, 0xb0, 0x9c, 0x5f, 0xbd, 0x02, 0x17,
+		0x59, 0xf3, 0x99, 0x59, 0xee, 0xe0, 0x54, 0xc0,
 	}
 )
 

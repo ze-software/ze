@@ -80,8 +80,15 @@ func (command parsedCommand) commandWord() string {
 // feeds reports whether command runs in an earlier stage of a pipeline that
 // later runs in too, so that later reads what command prints.
 func (command parsedCommand) feeds(later parsedCommand) bool {
-	for _, own := range command.stages {
-		for _, other := range later.stages {
+	return stagesFeed(command.stages, later.stages)
+}
+
+// stagesFeed reports whether a command running in the stages feeder runs in
+// an earlier stage of a pipeline that a command running in the stages fed
+// runs in too, so that the second reads what the first prints.
+func stagesFeed(feeder, fed []pipelineStage) bool {
+	for _, own := range feeder {
+		for _, other := range fed {
 			if own.pipeline != other.pipeline {
 				continue
 			}
