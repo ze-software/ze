@@ -61,8 +61,9 @@ const (
 	// ones, which would open the gate in silence, so the scenario fails first.
 	replayHoldGateBudget = 4 * time.Second
 	// replayHoldGateQueue is the engine's per-process delivery queue depth
-	// (process.eventDeliveryCapacity). The queue is full once more answers
-	// than that were delivered past the batch the handler holds.
+	// (configured via delivery-queue-max 64 on the fixture endpoint). The queue
+	// is full once more answers than that were delivered past the batch the
+	// handler holds.
 	replayHoldGateQueue = 64
 	// replayHoldGateEmitsMax bounds the filler: an engine that answered this
 	// many snapshot-requests without blocking does not gate as described.

@@ -23,15 +23,20 @@ func TestProcessDrainBatchReusesBuffer(t *testing.T) {
 	proc.ctx, proc.cancel = context.WithCancel(context.Background())
 	defer proc.cancel()
 
-	proc.eventChan = make(chan EventDelivery, 4)
-	proc.eventChan <- EventDelivery{Output: "a"}
-	proc.eventChan <- EventDelivery{Output: "b"}
-
-	first := EventDelivery{Output: "first"}
+	proc.eventQueue = newEventQueue(4)
+	for _, out := range []string{"first", "a", "b"} {
+		if got := proc.eventQueue.enqueue(context.Background(), proc.ctx, nil, EventDelivery{Output: out}, nil, nil); got != enqueueAdmitted {
+			t.Fatalf("enqueue %q: %v", out, got)
+		}
+	}
 
 	// First call: buffer grows from nil.
 	var buf []EventDelivery
-	buf = drainBatch(proc.eventChan, buf, first)
+	var ok bool
+	buf, ok = proc.eventQueue.drainBatch(buf, eventDeliveryBatchMax, nil)
+	if !ok {
+		t.Fatal("expected first drainBatch to succeed")
+	}
 
 	if len(buf) != 3 {
 		t.Fatalf("expected 3 items, got %d", len(buf))
@@ -39,9 +44,15 @@ func TestProcessDrainBatchReusesBuffer(t *testing.T) {
 	firstPtr := unsafe.SliceData(buf)
 
 	// Second call: reuse existing buffer.
-	proc.eventChan <- EventDelivery{Output: "c"}
-	first2 := EventDelivery{Output: "second"}
-	buf = drainBatch(proc.eventChan, buf, first2)
+	for _, out := range []string{"second", "c"} {
+		if got := proc.eventQueue.enqueue(context.Background(), proc.ctx, nil, EventDelivery{Output: out}, nil, nil); got != enqueueAdmitted {
+			t.Fatalf("enqueue %q: %v", out, got)
+		}
+	}
+	buf, ok = proc.eventQueue.drainBatch(buf, eventDeliveryBatchMax, nil)
+	if !ok {
+		t.Fatal("expected second drainBatch to succeed")
+	}
 
 	if len(buf) != 2 {
 		t.Fatalf("expected 2 items, got %d", len(buf))
@@ -212,8 +223,8 @@ func TestDeliverBatchAnswersBarrierAndSendsNothing(t *testing.T) {
 // answers at once for a process whose rail is closed.
 //
 // VALIDATES: the inbound half of `request quiesce`.
-// PREVENTS: a barrier that returns while a command is still in the 64-deep
-// channel, which is what let a caller read state the command had not reached.
+// PREVENTS: a barrier that returns while a command is still in the delivery
+// queue, which is what let a caller read state the command had not reached.
 func TestDrainEventsReturnsWhenTheRailIsEmpty(t *testing.T) {
 	proc := NewProcess(plugin.PluginConfig{Name: "test-drain"})
 	proc.ctx, proc.cancel = context.WithCancel(context.Background())
@@ -230,7 +241,7 @@ func TestDrainEventsReturnsWhenTheRailIsEmpty(t *testing.T) {
 	})
 	bridge.SetReady()
 	proc.bridge = bridge
-	proc.eventChan = make(chan EventDelivery, eventDeliveryCapacity)
+	proc.eventQueue = newEventQueue(plugin.DefaultDeliveryQueueMax)
 	go proc.deliveryLoop()
 
 	for i := range 8 {
@@ -253,5 +264,195 @@ func TestDrainEventsReturnsWhenTheRailIsEmpty(t *testing.T) {
 	proc.stopEventChan()
 	if err := proc.DrainEvents(ctx); err != nil {
 		t.Errorf("a closed rail reported a drain failure: %v", err)
+	}
+}
+
+// TestProcessCacheConsumerDefaultQueueBound verifies the role-based default
+// delivery queue ceiling (65536 for non-cache-consumer endpoints, 256 for
+// CacheConsumer plugins) and explicit DeliveryQueueMax precedence.
+//
+// VALIDATES: AC-3 of spec-bus-observer-delivery-decoupling.md.
+// PREVENTS: Cache-consumer forwarding plugins losing tight backpressure or
+// explicit operator delivery-queue-max being overwritten by SetCacheConsumer.
+func TestProcessCacheConsumerDefaultQueueBound(t *testing.T) {
+	stopAndWait := func(t *testing.T, p *Process) {
+		t.Helper()
+		t.Cleanup(func() {
+			p.Stop()
+			ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+			defer cancel()
+			if err := p.Wait(ctx); err != nil {
+				t.Errorf("wait %s: %v", p.Name(), err)
+			}
+		})
+	}
+
+	t.Run("ordinary-default", func(t *testing.T) {
+		proc := NewProcess(plugin.PluginConfig{Name: "ordinary"})
+		proc.StartDelivery(t.Context())
+		stopAndWait(t, proc)
+
+		if got := proc.eventQueue.MaxCap(); got != plugin.DefaultDeliveryQueueMax {
+			t.Fatalf("ordinary default MaxCap = %d, want %d", got, plugin.DefaultDeliveryQueueMax)
+		}
+	})
+
+	t.Run("cache-consumer-before-start", func(t *testing.T) {
+		proc := NewProcess(plugin.PluginConfig{Name: "cc-before"})
+		proc.SetCacheConsumer(true)
+		proc.StartDelivery(t.Context())
+		stopAndWait(t, proc)
+
+		if got := proc.eventQueue.MaxCap(); got != plugin.DefaultCacheConsumerQueueMax {
+			t.Fatalf("cache-consumer pre-start MaxCap = %d, want %d", got, plugin.DefaultCacheConsumerQueueMax)
+		}
+	})
+
+	t.Run("cache-consumer-after-start", func(t *testing.T) {
+		proc := NewProcess(plugin.PluginConfig{Name: "cc-after"})
+		proc.StartDelivery(t.Context())
+		stopAndWait(t, proc)
+
+		if got := proc.eventQueue.MaxCap(); got != plugin.DefaultDeliveryQueueMax {
+			t.Fatalf("initial MaxCap = %d, want %d", got, plugin.DefaultDeliveryQueueMax)
+		}
+		proc.SetCacheConsumer(true)
+		if got := proc.eventQueue.MaxCap(); got != plugin.DefaultCacheConsumerQueueMax {
+			t.Fatalf("after SetCacheConsumer(true) MaxCap = %d, want %d", got, plugin.DefaultCacheConsumerQueueMax)
+		}
+		proc.SetCacheConsumer(false)
+		if got := proc.eventQueue.MaxCap(); got != plugin.DefaultDeliveryQueueMax {
+			t.Fatalf("after SetCacheConsumer(false) MaxCap = %d, want %d", got, plugin.DefaultDeliveryQueueMax)
+		}
+	})
+
+	t.Run("explicit-override-wins", func(t *testing.T) {
+		proc := NewProcess(plugin.PluginConfig{Name: "cc-override", DeliveryQueueMax: 1024})
+		proc.SetCacheConsumer(true)
+		proc.StartDelivery(t.Context())
+		stopAndWait(t, proc)
+
+		if got := proc.eventQueue.MaxCap(); got != 1024 {
+			t.Fatalf("pre-start override MaxCap = %d, want 1024", got)
+		}
+		proc.SetCacheConsumer(false)
+		if got := proc.eventQueue.MaxCap(); got != 1024 {
+			t.Fatalf("after toggle override MaxCap = %d, want 1024", got)
+		}
+		proc.SetCacheConsumer(true)
+		if got := proc.eventQueue.MaxCap(); got != 1024 {
+			t.Fatalf("after re-enable override MaxCap = %d, want 1024", got)
+		}
+	})
+}
+
+// TestProcessBurstNonBlockingFIFO512Batch verifies that a non-cache-consumer
+// Process absorbs a 16,000-event burst while its consumer is paused without
+// blocking Deliver, then delivers every event in exact FIFO order in batches
+// capped at 512 and shrinks the ring back to 64 once drained.
+//
+// VALIDATES: AC-1 and AC-4 of spec-bus-observer-delivery-decoupling.md.
+// PREVENTS: Producer stalls during full-table bursts, dropped or reordered
+// events, batches exceeding 512, or retained burst memory after drain.
+func TestProcessBurstNonBlockingFIFO512Batch(t *testing.T) {
+	const burstSize = 16000
+
+	proc := NewProcess(plugin.PluginConfig{Name: "test-burst-fifo"})
+	entered := make(chan struct{})
+	release := make(chan struct{})
+	var first sync.Once
+	var mu sync.Mutex
+	delivered := make([]string, 0, burstSize+1)
+	var maxBatchSeen int
+
+	bridge := rpc.NewDirectBridge()
+	bridge.SetDeliverEvents(func(events []string) error {
+		first.Do(func() {
+			close(entered)
+			<-release
+		})
+		mu.Lock()
+		if len(events) > maxBatchSeen {
+			maxBatchSeen = len(events)
+		}
+		delivered = append(delivered, events...)
+		mu.Unlock()
+		return nil
+	})
+	bridge.SetReady()
+	proc.bridge = bridge
+	proc.StartDelivery(t.Context())
+	t.Cleanup(func() {
+		select {
+		case <-release:
+		default:
+			close(release)
+		}
+		proc.Stop()
+		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
+		if err := proc.Wait(ctx); err != nil {
+			t.Errorf("wait: %v", err)
+		}
+	})
+
+	ctx, cancel := context.WithTimeout(t.Context(), 10*time.Second)
+	defer cancel()
+
+	// Pause deliveryLoop inside DeliverEvents on the first event.
+	if !proc.Deliver(EventDelivery{Output: "trigger"}) {
+		t.Fatal("trigger event not admitted")
+	}
+	select {
+	case <-entered:
+	case <-ctx.Done():
+		t.Fatal("consumer did not enter DeliverEvents")
+	}
+
+	for i := range burstSize {
+		if !proc.Deliver(EventDelivery{Output: seqLabel("burst-", i)}) {
+			t.Fatalf("burst event %d was not admitted", i)
+		}
+	}
+	if got := proc.eventQueue.Len(); got != burstSize {
+		t.Fatalf("queued depth = %d, want %d", got, burstSize)
+	}
+	if got := proc.eventQueue.Cap(); got < 16384 {
+		t.Fatalf("grown cap = %d, want >= 16384", got)
+	}
+
+	close(release)
+	if err := proc.DrainEvents(ctx); err != nil {
+		t.Fatalf("DrainEvents: %v", err)
+	}
+
+	mu.Lock()
+	gotDelivered := append([]string(nil), delivered...)
+	gotMaxBatch := maxBatchSeen
+	mu.Unlock()
+
+	if len(gotDelivered) != burstSize+1 {
+		t.Fatalf("delivered %d events, want %d", len(gotDelivered), burstSize+1)
+	}
+	if gotDelivered[0] != "trigger" {
+		t.Fatalf("first delivered event = %q, want trigger", gotDelivered[0])
+	}
+	for i := range burstSize {
+		want := seqLabel("burst-", i)
+		if gotDelivered[i+1] != want {
+			t.Fatalf("event %d = %q, want %q", i, gotDelivered[i+1], want)
+		}
+	}
+	if gotMaxBatch > eventDeliveryBatchMax {
+		t.Fatalf("max batch size = %d, exceeds cap %d", gotMaxBatch, eventDeliveryBatchMax)
+	}
+	if gotMaxBatch != eventDeliveryBatchMax {
+		t.Fatalf("max batch size = %d, want %d during 16k burst drain", gotMaxBatch, eventDeliveryBatchMax)
+	}
+	if got := proc.eventQueue.Len(); got != 0 {
+		t.Fatalf("post-drain len = %d, want 0", got)
+	}
+	if got := proc.eventQueue.Cap(); got != eventQueueInitialCap {
+		t.Fatalf("post-drain cap = %d, want %d", got, eventQueueInitialCap)
 	}
 }

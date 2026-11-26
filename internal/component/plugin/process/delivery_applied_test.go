@@ -264,7 +264,11 @@ func TestDrainEventsAppliedCancellation(t *testing.T) {
 			name = "full-queue"
 		}
 		t.Run(name, func(t *testing.T) {
-			proc := NewProcess(plugin.PluginConfig{Name: t.Name()})
+			cfg := plugin.PluginConfig{Name: t.Name()}
+			if full {
+				cfg.DeliveryQueueMax = plugin.MinDeliveryQueueMax
+			}
+			proc := NewProcess(cfg)
 			entered := make(chan struct{})
 			release := make(chan struct{})
 			var first sync.Once
@@ -293,7 +297,7 @@ func TestDrainEventsAppliedCancellation(t *testing.T) {
 				t.Fatal("handler did not start")
 			}
 			if full {
-				for range eventDeliveryCapacity {
+				for range plugin.MinDeliveryQueueMax {
 					if !proc.Deliver(EventDelivery{Output: "queued"}) {
 						t.Fatal("queue fill rejected")
 					}

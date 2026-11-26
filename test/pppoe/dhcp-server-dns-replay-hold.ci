@@ -85,6 +85,7 @@ bus {
 			run "le test fixture pppoe/dhcp-server-dns-replay-hold config2.conf";
 		}
 		encoding json;
+		delivery-queue-max 64;
 	}
 }
 
@@ -145,6 +146,7 @@ bus {
 			run "le test fixture pppoe/dhcp-server-dns-replay-hold config2.conf";
 		}
 		encoding json;
+		delivery-queue-max 64;
 	}
 }
 

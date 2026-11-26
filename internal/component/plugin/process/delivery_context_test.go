@@ -31,8 +31,8 @@ func (ctx *deliveryAdmissionContext) Done() <-chan struct{} {
 func TestDeliveryContextCancelRetainsFIFO(t *testing.T) {
 	processCtx, stopProcess := context.WithCancel(t.Context())
 	admission := &deliveryAdmissionContext{Context: processCtx, entered: make(chan struct{})}
-	p := &Process{ctx: admission, eventChan: make(chan EventDelivery, 1)}
-	p.eventChan <- EventDelivery{Output: "previous"}
+	p := &Process{ctx: admission, eventQueue: newEventQueue(1)}
+	require.Equal(t, enqueueAdmitted, p.eventQueue.enqueue(t.Context(), processCtx, nil, EventDelivery{Output: "previous"}, nil, nil))
 	alreadyCanceled, cancelAlready := context.WithCancel(t.Context())
 	cancelAlready()
 	require.False(t, p.DeliverContext(alreadyCanceled, EventDelivery{Output: "already canceled"}))
@@ -68,7 +68,7 @@ func TestDeliveryContextCancelRetainsFIFO(t *testing.T) {
 	// queue is still full and both contexts are live, so admission must wait.
 	require.NoError(t, ctx.Err())
 	require.NoError(t, processCtx.Err())
-	require.Len(t, p.eventChan, 1)
+	require.Equal(t, 1, p.eventQueue.Len())
 	cancel()
 	select {
 	case delivered := <-result:
@@ -77,7 +77,11 @@ func TestDeliveryContextCancelRetainsFIFO(t *testing.T) {
 	case <-wait.Done():
 		t.Fatal("blocked FIFO admission did not return after caller cancellation", wait.Err())
 	}
-	require.Equal(t, "previous", (<-p.eventChan).Output)
+	prev, ok := p.eventQueue.pop()
+	require.True(t, ok)
+	require.Equal(t, "previous", prev.Output)
 	require.True(t, p.DeliverContext(t.Context(), EventDelivery{Output: "next"}))
-	require.Equal(t, "next", (<-p.eventChan).Output)
+	next, ok := p.eventQueue.pop()
+	require.True(t, ok)
+	require.Equal(t, "next", next.Output)
 }

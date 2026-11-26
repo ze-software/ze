@@ -128,9 +128,11 @@ type Process struct {
 	bridge *rpc.DirectBridge
 
 	// Long-lived event delivery goroutine (see rules/goroutine-lifecycle.md).
-	// Events are enqueued via Deliver() and processed by deliveryLoop().
-	// eventMu protects channel close: Deliver holds RLock, stopEventChan holds Lock.
-	eventChan   chan EventDelivery
+	// Events are enqueued via Deliver() into a bounded growable lossless FIFO
+	// ring queue and processed in batches by deliveryLoop().
+	// eventMu protects queue publication and close: Deliver holds RLock only to
+	// snapshot eventQueue, stopEventChan holds Lock to mark eventClosed.
+	eventQueue  *eventQueue
 	eventClosed bool
 	eventMu     sync.RWMutex
 
@@ -389,8 +391,31 @@ func (p *Process) IsCacheConsumer() bool {
 }
 
 // SetCacheConsumer marks whether this plugin participates in cache consumer tracking.
+// When no explicit delivery-queue-max was configured, updates the live delivery
+// queue ceiling to the role-appropriate default (256 for cache consumers, 65536 otherwise).
 func (p *Process) SetCacheConsumer(enabled bool) {
 	p.cacheConsumer.Store(enabled)
+	if p.config.DeliveryQueueMax > 0 {
+		return
+	}
+	p.eventMu.RLock()
+	q := p.eventQueue
+	p.eventMu.RUnlock()
+	if q != nil {
+		q.SetMaxCapacity(p.effectiveDeliveryQueueMax())
+	}
+}
+
+// effectiveDeliveryQueueMax returns the configured delivery queue ceiling, or
+// the role-appropriate default (256 for CacheConsumer plugins, 65536 otherwise).
+func (p *Process) effectiveDeliveryQueueMax() int {
+	if p.config.DeliveryQueueMax > 0 {
+		return p.config.DeliveryQueueMax
+	}
+	if p.IsCacheConsumer() {
+		return plugin.DefaultCacheConsumerQueueMax
+	}
+	return plugin.DefaultDeliveryQueueMax
 }
 
 // HasStructuredHandler reports whether this process supports structured event delivery.
@@ -1211,7 +1236,7 @@ func (p *Process) Stop() {
 		p.cancel()
 	}
 
-	// Close event channel first — delivery goroutine drains remaining items
+	// Close event queue first — delivery goroutine drains remaining items
 	// (which fail fast since context is canceled) then exits.
 	p.stopEventChan()
 

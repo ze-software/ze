@@ -3467,17 +3467,28 @@ up.
 <!-- source: internal/component/bgp/server/events.go -- onPeerBound, onPeerUnbound -->
 <!-- source: internal/component/plugin/server/delivery_reconcile.go -- deliveryDisagreements -->
 
-Events that pass both halves are enqueued into a per-process channel.
-The delivery goroutine drains all available events into a batch and sends them
-in a single `deliver-batch` RPC, reducing syscalls and goroutine churn. Single
-events are delivered as a batch of 1. An internal plugin with a structured
-handler receives a batch holding both structured and text events as one bridge
-call per run of same-kind events, in queue order, so a process always handles
-its events in the order they were queued. That order is what lets a bus event
-a plugin emits inside its state handler (`bgp-gr/retention` inside `bgp-gr`'s
-DOWN handler) reach another plugin ahead of the state event the engine
-delivers after it.
-<!-- source: internal/component/plugin/process/delivery.go -- deliverMixedBatch, flushStructuredRun, flushTextRun -->
+Events that pass both halves are enqueued into a per-process bounded,
+dynamically growable, lossless FIFO ring queue (`eventQueue`). The ring starts
+at `64` slots, doubles on demand up to its configured ceiling (`65,536` by
+default for ordinary endpoints, `256` for `CacheConsumer` plugins such as
+`bgp-rs` and `bgp-rr`, overridable per endpoint via `delivery-queue-max` in
+`64..1048576`), and shrinks back to `64` slots once drained empty from
+capacities above `256`. Engine-to-plugin event delivery never drops events: when
+the queue reaches its ceiling, producers block with backpressure (cancellable
+via `DeliverContext` or process stop) until the consumer frees slots.
+
+The single long-lived delivery goroutine drains up to `512` available events
+into a batch and sends them in a single `deliver-batch` RPC (relying on
+`CallBatchRPC` to split frames exceeding 16 MiB), reducing syscalls and
+goroutine churn. Single events are delivered as a batch of 1. An internal
+plugin with a structured handler receives a batch holding both structured and
+text events as one bridge call per run of same-kind events, in queue order, so
+a process always handles its events in the order they were queued. That order
+is what lets a bus event a plugin emits inside its state handler
+(`bgp-gr/retention` inside `bgp-gr`'s DOWN handler) reach another plugin ahead
+of the state event the engine delivers after it.
+<!-- source: internal/component/plugin/process/event_queue.go -- eventQueue, eventQueueInitialCap, eventQueueShrinkThreshold, eventDeliveryBatchMax -->
+<!-- source: internal/component/plugin/process/delivery.go -- Process.DeliverContext, Process.deliveryLoop, deliverMixedBatch, flushStructuredRun, flushTextRun -->
 
 ### Batched Delivery
 

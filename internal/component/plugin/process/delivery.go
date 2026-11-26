@@ -1,5 +1,6 @@
 // Design: docs/architecture/api/process-protocol.md — event delivery pipeline
 // Overview: process.go — Process struct and lifecycle
+// Detail: event_queue.go — bounded growable lossless FIFO event delivery queue
 // Related: manager.go — multi-process coordination and respawn
 
 package process
@@ -38,7 +39,8 @@ func safeBridgeCall(fn func() error) (err error) {
 }
 
 // EventDelivery represents a work item for the per-process delivery goroutine.
-// The long-lived goroutine reads these from Process.eventChan and calls SendDeliverEvent.
+// The long-lived goroutine drains these from Process.eventQueue and delivers them
+// via DirectBridge or SendDeliverBatch.
 // For DirectBridge consumers, Event is set (structured delivery, no text formatting).
 // For text/JSON consumers, Output is set (pre-formatted at observation time).
 type EventDelivery struct {
@@ -60,16 +62,9 @@ type EventResult struct {
 	CacheConsumer bool   // true if delivery succeeded AND process is a cache consumer
 }
 
-const (
-	// eventDeliveryCapacity is the buffer size for per-process event delivery channels.
-	// Each item is small (string + channel pointer). 64 provides headroom without
-	// excessive memory use. If a plugin is slow, backpressure propagates naturally.
-	eventDeliveryCapacity = 64
-)
-
 // Deliver enqueues an event for the long-lived delivery goroutine.
 // Returns true if the event was enqueued, false if the process is stopping.
-// Thread-safe: uses RLock to allow parallel sends from multiple callers.
+// Thread-safe: uses RLock only to snapshot eventQueue before lossless admission.
 func (p *Process) Deliver(d EventDelivery) bool {
 	return p.DeliverContext(context.Background(), d)
 }
@@ -79,20 +74,27 @@ func (p *Process) Deliver(d EventDelivery) bool {
 // remains owned by its caller; an admitted delivery belongs to the worker.
 func (p *Process) DeliverContext(ctx context.Context, d EventDelivery) bool {
 	p.eventMu.RLock()
-	defer p.eventMu.RUnlock()
+	closed := p.eventClosed
+	q := p.eventQueue
+	p.eventMu.RUnlock()
 
-	if ctx.Err() != nil || p.eventClosed || p.eventChan == nil {
+	if closed {
+		return false
+	}
+	if q == nil {
 		return false
 	}
 
-	select {
-	case <-ctx.Done():
-		return false
-	case p.eventChan <- d:
+	switch q.enqueue(ctx, p.ctx, nil, d, nil, nil) {
+	case enqueueAdmitted:
 		p.noteDelivered()
 		return true
-	case <-p.ctx.Done():
+	case enqueueCallerCanceled, enqueueProcessClosed:
 		return false
+	case enqueueOutcomeUnspecified:
+		panic("BUG: plugin/process: unspecified enqueue outcome")
+	default:
+		panic("BUG: plugin/process: unknown enqueue outcome")
 	}
 }
 
@@ -116,19 +118,32 @@ func deliveryTimeoutFromEnv() time.Duration {
 }
 
 // deliveryLoop is the long-lived goroutine that processes event deliveries.
-// Drains all available events from eventChan into a batch and delivers them
-// in a single RPC call, reducing syscalls and goroutine churn.
-// Exits when eventChan is closed (by stopEventChan during Stop).
+// Drains up to eventDeliveryBatchMax available events from eventQueue into a
+// batch and delivers them in a single RPC call, reducing syscalls and goroutine
+// churn. Exits once eventQueue is closed (by stopEventChan during Stop) and
+// drained empty.
 func (p *Process) deliveryLoop() {
 	timeout := deliveryTimeoutFromEnv()
 
 	var batchBuf []EventDelivery
 	var eventsBuf []string
 
-	// The range and its batch drain MUST consume the same lifecycle queue.
-	queue := p.eventChan
-	for first := range queue {
-		batchBuf = drainBatch(queue, batchBuf, first)
+	// Capture the lifecycle queue once so DrainEvents and test gates observe
+	// the same queue instance for this worker's lifetime.
+	p.eventMu.RLock()
+	queue := p.eventQueue
+	p.eventMu.RUnlock()
+	if queue == nil {
+		return
+	}
+	defer queue.CleanupRemaining(p.config.Name, nil)
+
+	for {
+		var ok bool
+		batchBuf, ok = queue.drainBatch(batchBuf, eventDeliveryBatchMax, nil)
+		if !ok {
+			return
+		}
 		eventsBuf = p.safeDeliverBatch(batchBuf, eventsBuf, timeout)
 	}
 }
@@ -169,24 +184,6 @@ func (p *Process) safeDeliverBatch(batch []EventDelivery, eventsBuf []string, ti
 		}
 	}()
 	return p.deliverBatch(batch, eventsBuf, timeout)
-}
-
-// drainBatch collects the first event plus any additional events available
-// without blocking. Returns when the channel is empty or closed.
-// buf is a reusable slice from the caller — reset to [:0] and returned for reuse.
-func drainBatch(queue <-chan EventDelivery, buf []EventDelivery, first EventDelivery) []EventDelivery {
-	buf = append(buf[:0], first)
-	for {
-		select {
-		case req, ok := <-queue:
-			if !ok {
-				return buf
-			}
-			buf = append(buf, req)
-		default: // non-blocking drain complete
-			return buf
-		}
-	}
 }
 
 // deliverBatch sends a batch of events and notifies callers.
@@ -268,22 +265,33 @@ func hasUnwaited(carried []EventDelivery) bool {
 	return false
 }
 
-// stopEventChan closes the event channel, causing deliveryLoop to drain and exit.
-// Uses write lock to prevent concurrent Deliver calls from sending to a closed channel.
+// stopEventChan closes the event queue, causing deliveryLoop to drain and exit.
+// Safe for concurrent use and idempotent.
 func (p *Process) stopEventChan() {
 	p.eventMu.Lock()
-	defer p.eventMu.Unlock()
-
-	if !p.eventClosed && p.eventChan != nil {
-		p.eventClosed = true
-		close(p.eventChan)
+	if p.eventClosed {
+		p.eventMu.Unlock()
+		return
 	}
+	q := p.eventQueue
+	if q == nil {
+		p.eventMu.Unlock()
+		return
+	}
+	p.eventClosed = true
+	p.eventMu.Unlock()
+
+	q.Close()
 }
 
 // startDeliveryLocked starts the event delivery goroutine.
 // Caller must hold p.mu.
 func (p *Process) startDeliveryLocked() {
-	p.eventChan = make(chan EventDelivery, eventDeliveryCapacity)
+	q := newEventQueue(p.effectiveDeliveryQueueMax())
+	p.eventMu.Lock()
+	p.eventQueue = q
+	p.eventClosed = false
+	p.eventMu.Unlock()
 	p.wg.Go(p.deliveryLoop)
 }
 
@@ -291,7 +299,7 @@ func (p *Process) startDeliveryLocked() {
 // Used by tests that inject connections via SetConn without starting a real process.
 func (p *Process) StartDelivery(ctx context.Context) {
 	p.eventMu.Lock()
-	if p.eventChan != nil {
+	if p.eventQueue != nil {
 		p.eventMu.Unlock()
 		return
 	}
@@ -299,6 +307,13 @@ func (p *Process) StartDelivery(ctx context.Context) {
 
 	p.mu.Lock()
 	defer p.mu.Unlock()
+
+	p.eventMu.Lock()
+	if p.eventQueue != nil {
+		p.eventMu.Unlock()
+		return
+	}
+	p.eventMu.Unlock()
 
 	if p.ctx == nil {
 		p.ctx, p.cancel = context.WithCancel(ctx)
@@ -322,7 +337,7 @@ func (p *Process) sendBatch(batch []EventDelivery, events []string, timeout time
 
 // deliverMixedBatch handles batches with both structured and text events. It
 // delivers them in batch order, one run of consecutive same-kind items per
-// bridge call: the FIFO of the process's one event channel is what orders a
+// bridge call: the FIFO of the process's one event queue is what orders a
 // bus event a plugin emitted inside its state handler (a text item, such as
 // bgp-gr/retention) ahead of the state event the engine delivers next (a
 // structured item), and gathering each kind into one call would reverse them.
@@ -443,24 +458,28 @@ func (p *Process) DrainEventsApplied(ctx context.Context) error {
 // admitAppliedBarrier bounds queue admission by the caller's context too.
 // Deliver's ordinary fire-and-forget admission semantics remain unchanged.
 func (p *Process) admitAppliedBarrier(ctx context.Context, result chan<- EventResult) error {
-	p.eventMu.RLock()
-	defer p.eventMu.RUnlock()
 	if err := ctx.Err(); err != nil {
 		return err
 	}
-	if err := p.deliveryOwnerError(); err != nil {
+	p.eventMu.RLock()
+	err := p.deliveryOwnerError()
+	q := p.eventQueue
+	p.eventMu.RUnlock()
+	if err != nil {
 		return err
 	}
-	select {
-	case p.eventChan <- EventDelivery{Barrier: true, Result: result}:
+	switch q.enqueue(ctx, p.ctx, p.engineDone, EventDelivery{Barrier: true, Result: result}, nil, nil) {
+	case enqueueAdmitted:
 		p.noteDelivered()
 		return nil
-	case <-ctx.Done():
+	case enqueueCallerCanceled:
 		return ctx.Err()
-	case <-p.ctx.Done():
+	case enqueueProcessClosed:
 		return ErrConnectionClosed
-	case <-p.engineDone:
-		return ErrConnectionClosed
+	case enqueueOutcomeUnspecified:
+		panic("BUG: plugin/process: unspecified enqueue outcome")
+	default:
+		panic("BUG: plugin/process: unknown enqueue outcome")
 	}
 }
 
@@ -470,7 +489,7 @@ func (p *Process) deliveryOwnerError() error {
 	if p.eventClosed {
 		return ErrConnectionClosed
 	}
-	if p.eventChan == nil {
+	if p.eventQueue == nil {
 		return ErrConnectionClosed
 	}
 	if p.ctx == nil {

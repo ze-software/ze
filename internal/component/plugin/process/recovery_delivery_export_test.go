@@ -21,8 +21,8 @@ type RecoveryDeliveryGate struct {
 }
 
 // GateRecoveryDelivery drains the real loop before replacing its producer queue.
-// The answered drain proves deliveryLoop already captured the original channel
-// in its range expression. No production handler or transport is replaced.
+// The answered drain proves deliveryLoop already captured the original queue.
+// No production handler or transport is replaced.
 func GateRecoveryDelivery(t *testing.T, ctx context.Context, p *Process, match func(EventDelivery) bool) *RecoveryDeliveryGate {
 	t.Helper()
 	if err := p.DrainEvents(ctx); err != nil {
@@ -33,9 +33,9 @@ func GateRecoveryDelivery(t *testing.T, ctx context.Context, p *Process, match f
 		release: make(chan struct{}), done: make(chan struct{}),
 	}
 	p.eventMu.Lock()
-	original := p.eventChan
-	incoming := make(chan EventDelivery, eventDeliveryCapacity)
-	p.eventChan = incoming
+	original := p.eventQueue
+	incoming := newEventQueue(original.MaxCap())
+	p.eventQueue = incoming
 	p.eventMu.Unlock()
 	go gate.forward(t, incoming, original, match)
 	return gate
@@ -44,24 +44,46 @@ func GateRecoveryDelivery(t *testing.T, ctx context.Context, p *Process, match f
 // forward runs until Stop closes incoming. Every admitted item, including every
 // Result and Barrier, transfers unchanged exactly once to the real deliveryLoop.
 // A fixed pending bound makes overload a fixture failure, never a dropped item.
-func (gate *RecoveryDeliveryGate) forward(t *testing.T, incoming <-chan EventDelivery, original chan<- EventDelivery, match func(EventDelivery) bool) {
+func (gate *RecoveryDeliveryGate) forward(t *testing.T, incoming, original *eventQueue, match func(EventDelivery) bool) {
 	defer close(gate.done)
-	defer close(original)
+	defer original.Close()
+
+	incomingCh := make(chan EventDelivery)
+	go func() {
+		defer close(incomingCh)
+		var buf []EventDelivery
+		for {
+			var ok bool
+			buf, ok = incoming.drainBatch(buf, eventDeliveryBatchMax, nil)
+			if !ok {
+				return
+			}
+			for _, item := range buf {
+				incomingCh <- item
+			}
+		}
+	}()
+
 	pending := make([]EventDelivery, 0, 128)
 	release := gate.release
 	held := false
 	matched := false
-	for incoming != nil || len(pending) != 0 {
-		var output chan<- EventDelivery
-		var next EventDelivery
+	for incomingCh != nil || len(pending) != 0 {
 		if !held && len(pending) != 0 {
-			output = original
-			next = pending[0]
+			for len(pending) != 0 {
+				if got := original.enqueue(context.Background(), nil, nil, pending[0], nil, nil); got != enqueueAdmitted {
+					t.Errorf("recovery fixture failed to forward delivery: %v", got)
+				}
+				copy(pending, pending[1:])
+				pending[len(pending)-1] = EventDelivery{}
+				pending = pending[:len(pending)-1]
+			}
+			continue
 		}
 		select {
-		case delivery, open := <-incoming:
+		case delivery, open := <-incomingCh:
 			if !open {
-				incoming = nil
+				incomingCh = nil
 				held = false
 				continue
 			}
@@ -82,16 +104,14 @@ func (gate *RecoveryDeliveryGate) forward(t *testing.T, incoming <-chan EventDel
 				// Preserve ownership even on failure; unblock and forward rather
 				// than losing a Result or returning a pooled event prematurely.
 				held = false
-				original <- pending[0]
+				if got := original.enqueue(context.Background(), nil, nil, pending[0], nil, nil); got != enqueueAdmitted {
+					t.Errorf("recovery fixture failed to forward overflow delivery: %v", got)
+				}
 				copy(pending, pending[1:])
 				pending[len(pending)-1] = EventDelivery{}
 				pending = pending[:len(pending)-1]
 			}
 			pending = append(pending, delivery)
-		case output <- next:
-			copy(pending, pending[1:])
-			pending[len(pending)-1] = EventDelivery{}
-			pending = pending[:len(pending)-1]
 		case <-release:
 			held = false
 			release = nil
