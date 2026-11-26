@@ -509,6 +509,58 @@ module ze-plugin-conf {
                     ze:help "Name of the pki ca entry holding the hub certificate authority root.";
                 }
             }
+
+            container history {
+                description "Configures periodic device metric sampling and the bounded hub-side metric history store.
+                    The hub advertises the configured interval to managed clients on each successful config fetch.
+                    Setting interval to 0 disables sample collection while leaving configuration sync intact.";
+                ze:help "Managed device sample interval, retention, and storage budgets.";
+
+                leaf interval {
+                    type uint32 {
+                        range "0..3600";
+                    }
+                    default 60;
+                    units "seconds";
+                    description "Interval in seconds between periodic metric sample reports advertised to connected
+                        managed clients. Setting 0 disables metric sampling. Allowed range is 0..3600.";
+                    ze:help "Sample report interval in seconds (0 disables sampling).";
+                }
+
+                leaf retention-days {
+                    type uint8 {
+                        range "1..7";
+                    }
+                    default 7;
+                    units "days";
+                    description "Maximum number of days the hub retains coarse metric history per managed device
+                        before expiring older buckets. Allowed range is 1..7.";
+                    ze:help "Maximum metric history retention in days (1..7).";
+                }
+
+                leaf device-budget-bytes {
+                    type uint64 {
+                        range "4096..max";
+                    }
+                    default 1048576;
+                    units "bytes";
+                    description "Hard persisted byte cap for one managed device's metric history, including indices,
+                        the retained latest observation, and write headroom. Older buckets are evicted first when
+                        this budget is reached.";
+                    ze:help "Maximum persisted history bytes per managed device.";
+                }
+
+                leaf hub-budget-bytes {
+                    type uint64 {
+                        range "4096..max";
+                    }
+                    default 2147483648;
+                    units "bytes";
+                    description "Hard persisted byte cap across all managed devices on the hub. Must reserve at least
+                        4096 bytes per declared managed device for latest observations and metadata.";
+                    ze:help "Maximum total persisted history bytes across the hub.";
+                }
+            }
         }
     }
 }

@@ -16,6 +16,7 @@ import (
 	"errors"
 	"fmt"
 	"iter"
+	"math"
 	"net/netip"
 	"strings"
 	"time"
@@ -23,6 +24,7 @@ import (
 	"github.com/ze-software/ze/internal/component/plugin/registry"
 	"github.com/ze-software/ze/internal/core/opererr"
 	"github.com/ze-software/ze/internal/core/textbuf"
+	"github.com/ze-software/ze/pkg/fleet"
 	"github.com/ze-software/ze/pkg/plugin/rpc"
 )
 
@@ -566,11 +568,100 @@ func (c HubClientConfig) Address() string {
 	return b.Reset().Str(c.Host).Byte(':').Uint16(c.Port).String()
 }
 
-// HubConfig holds bus hub transport configuration.
-// Extracted from: bus { hub { server ...; client ...; } }.
+// HubHistoryConfig holds hub-side fleet metric sampling and history storage
+// settings extracted from: bus { hub { history { ... } } }.
+// IntervalSeconds == 0 disables sampling.
+type HubHistoryConfig struct {
+	IntervalSeconds   int
+	RetentionDays     int
+	DeviceBudgetBytes int64
+	HubBudgetBytes    int64
+}
+
+// DefaultHubHistoryConfig returns the default fleet metric sampling and history
+// storage settings matching ze-plugin-conf.yang defaults.
+func DefaultHubHistoryConfig() HubHistoryConfig {
+	return HubHistoryConfig{
+		IntervalSeconds:   fleet.DefaultSampleIntervalSeconds,
+		RetentionDays:     fleet.DefaultHistoryRetentionDays,
+		DeviceBudgetBytes: fleet.DefaultHistoryPerDeviceBytes,
+		HubBudgetBytes:    fleet.DefaultHistoryHubBytes,
+	}
+}
+
+// ValidateHubHistoryConfig validates sampling interval, retention horizon, and
+// per-device and hub-wide byte budgets against the number of distinct declared
+// managed devices. When HubBudgetBytes is too small to reserve latest-sample
+// space for the declared estate, the returned operator error states the exact
+// minimum required space in bytes.
+func ValidateHubHistoryConfig(cfg HubHistoryConfig, declaredClients int) error {
+	var tb textbuf.Buffer
+	if declaredClients < 0 {
+		what := tb.Reset().Str("invalid declared managed client count ").Int(int64(declaredClients)).String()
+		return opererr.New(what, "declared managed client count cannot be negative", "check bus hub server client declarations")
+	}
+	if cfg.IntervalSeconds < 0 {
+		what := tb.Reset().Str("bus hub history interval ").Int(int64(cfg.IntervalSeconds)).Str(" is negative").String()
+		return opererr.New(what, "sample interval must be 0 (disabled) or between 1 and 3600 seconds", "set bus hub history interval 60")
+	}
+	if cfg.IntervalSeconds > 0 {
+		if cfg.IntervalSeconds < fleet.MinSampleIntervalSeconds {
+			what := tb.Reset().Str("bus hub history interval ").Int(int64(cfg.IntervalSeconds)).Str(" is below minimum ").Int(fleet.MinSampleIntervalSeconds).Str(" seconds").String()
+			fix := tb.Reset().Str("set bus hub history interval ").Int(fleet.MinSampleIntervalSeconds).String()
+			return opererr.New(what, "sample interval must be 0 (disabled) or at least the minimum interval", fix)
+		}
+	}
+	if cfg.IntervalSeconds > fleet.MaxSampleIntervalSeconds {
+		what := tb.Reset().Str("bus hub history interval ").Int(int64(cfg.IntervalSeconds)).Str(" exceeds maximum ").Int(fleet.MaxSampleIntervalSeconds).Str(" seconds").String()
+		fix := tb.Reset().Str("set bus hub history interval ").Int(fleet.MaxSampleIntervalSeconds).String()
+		return opererr.New(what, "sample interval cannot exceed one hour", fix)
+	}
+	if cfg.RetentionDays < fleet.MinHistoryRetentionDays {
+		what := tb.Reset().Str("bus hub history retention-days ").Int(int64(cfg.RetentionDays)).Str(" is below minimum ").Int(fleet.MinHistoryRetentionDays).String()
+		fix := tb.Reset().Str("set bus hub history retention-days ").Int(fleet.MinHistoryRetentionDays).String()
+		return opererr.New(what, "history retention must be between 1 and 7 days", fix)
+	}
+	if cfg.RetentionDays > fleet.MaxHistoryRetentionDays {
+		what := tb.Reset().Str("bus hub history retention-days ").Int(int64(cfg.RetentionDays)).Str(" exceeds maximum ").Int(fleet.MaxHistoryRetentionDays).String()
+		fix := tb.Reset().Str("set bus hub history retention-days ").Int(fleet.MaxHistoryRetentionDays).String()
+		return opererr.New(what, "history retention cannot exceed 7 days", fix)
+	}
+	const (
+		minReserve            = int64(fleet.MinHistoryLatestReservePerDeviceBytes)
+		hubHistoryBytesSuffix = " bytes"
+	)
+	if cfg.DeviceBudgetBytes < minReserve {
+		what := tb.Reset().Str("bus hub history device-budget-bytes ").Int(cfg.DeviceBudgetBytes).Str(" is below minimum required ").Int(minReserve).Str(hubHistoryBytesSuffix).String()
+		why := tb.Reset().Str("each device requires at least ").Int(minReserve).Str(" bytes to retain its latest observation and metadata").String()
+		fix := tb.Reset().Str("set bus hub history device-budget-bytes ").Int(minReserve).String()
+		return opererr.New(what, why, fix)
+	}
+	if int64(declaredClients) > math.MaxInt64/minReserve {
+		return opererr.New("bus hub declared managed client count exceeds budget accounting range",
+			"hub history reserve calculation overflowed",
+			"reduce declared bus hub server client entries")
+	}
+	minHubBytes := max(minReserve, int64(declaredClients)*minReserve)
+	if cfg.HubBudgetBytes < minHubBytes {
+		what := tb.Reset().Str("bus hub history hub-budget-bytes ").Int(cfg.HubBudgetBytes).Str(" is below minimum required ").Int(minHubBytes).Str(hubHistoryBytesSuffix).String()
+		var why string
+		if declaredClients > 0 {
+			why = tb.Reset().Str("the hub must reserve at least ").Int(minReserve).Str(" bytes per declared managed device (").Int(int64(declaredClients)).Str(" declared devices require at least ").Int(minHubBytes).Str(" bytes)").String()
+		} else {
+			why = tb.Reset().Str("the hub history budget must be at least ").Int(minHubBytes).Str(hubHistoryBytesSuffix).String()
+		}
+		fix := tb.Reset().Str("set bus hub history hub-budget-bytes ").Int(minHubBytes).String()
+		return opererr.New(what, why, fix)
+	}
+	return nil
+}
+
+// HubConfig holds bus hub transport and metric history configuration.
+// Extracted from: bus { hub { server ...; client ...; history { ... } } }.
 type HubConfig struct {
 	Servers []HubServerConfig // Named server blocks (listeners)
 	Clients []HubClientConfig // Hub-level client blocks (outbound)
+	History HubHistoryConfig  // Managed device sample interval, retention, and storage budgets
 }
 
 // RespawnRequest is what a plugin block's `respawn` leaf asks for. The leaf is

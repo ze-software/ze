@@ -147,3 +147,27 @@ const ManagedHubTrustFirstUse = "first-use"
 
 // KeyFleetDeviceRecord holds one managed device's durable hub-side history.
 var KeyFleetDeviceRecord = MustRegister(KeyEntry{Pattern: "meta/fleet/device/{name}/record", Description: "Managed device connection, fetch and acknowledgement history (JSON)"})
+
+// Per-key value byte bounds and ListKeys prefixes for the hub-side fleet metric
+// history store (internal/component/plugin/server/managed_history.go). The
+// prefixes include their trailing slash because callers enumerate keys through
+// storage.Storage.ListKeys, which translates directory prefixes for the store
+// backend.
+const (
+	FleetHistoryLatestValueMax       = 16 << 10
+	FleetHistoryShardValueMax        = 2 << 20
+	FleetHistoryDeleteIntentValueMax = 4 << 10
+
+	FleetHistoryLatestPrefix       = "meta/fleet/history/latest/"
+	FleetHistoryShardPrefix        = "meta/fleet/history/shard/"
+	FleetHistoryDeleteIntentPrefix = "meta/fleet/history/delete-intent/"
+)
+
+// Hub-side fleet metric history raw state keys. Each key family is Private and
+// bounded by its ValueMax constant; the history writer enforces these limits
+// before WriteKey and before decoding bytes read back from storage.
+var (
+	KeyFleetHistoryLatest       = MustRegister(KeyEntry{Pattern: "meta/fleet/history/latest/{name}", Description: "Latest accepted fleet metric sample observation for one managed device (JSON)", Private: true, ValueMax: FleetHistoryLatestValueMax})
+	KeyFleetHistoryShard        = MustRegister(KeyEntry{Pattern: "meta/fleet/history/shard/{name}/{shard}", Description: "Bounded compressed fleet metric history shard for one managed device (binary)", Private: true, ValueMax: FleetHistoryShardValueMax})
+	KeyFleetHistoryDeleteIntent = MustRegister(KeyEntry{Pattern: "meta/fleet/history/delete-intent/{name}", Description: "Durable deletion intent fencing fleet metric history writers for a forgotten device (JSON)", Private: true, ValueMax: FleetHistoryDeleteIntentValueMax})
+)

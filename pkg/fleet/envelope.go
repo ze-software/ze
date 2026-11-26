@@ -25,6 +25,9 @@ const (
 	// VerbHealthReport is sent by a managed client to push its component health
 	// statuses to its hub.
 	VerbHealthReport = "health-report"
+	// VerbSampleReport is sent by a managed client to push its periodic fixed
+	// set of scalar metric readings to its hub.
+	VerbSampleReport = "sample-report"
 )
 
 // ConfigFetchRequest is sent by a managed client to request its config.
@@ -37,18 +40,21 @@ type ConfigFetchRequest struct {
 // If the client's version matches, Status is "current" and Config is empty.
 // Otherwise, Version is the new hash and Config is base64-encoded config bytes.
 //
-// HeldVersion and DiscardVersion are optional, so a client built before them
-// decodes the answer as before and ignores both. HeldVersion is the version
-// hash of the configuration the hub holds as this client's held copy, and is
-// absent when the hub holds none. DiscardVersion is present only when the
-// hub's operator decided that a client running exactly that version drops it
-// and applies Config.
+// HeldVersion, DiscardVersion, and SampleIntervalSeconds are optional, so a
+// client built before them decodes the answer as before and ignores them.
+// HeldVersion is the version hash of the configuration the hub holds as this
+// client's held copy, and is absent when the hub holds none. DiscardVersion is
+// present only when the hub's operator decided that a client running exactly
+// that version drops it and applies Config. SampleIntervalSeconds advertises
+// the hub's configured metric sample interval in seconds on both changed and
+// current replies; zero (omitted) disables sampling.
 type ConfigFetchResponse struct {
-	Version        string `json:"version,omitempty"`
-	Config         string `json:"config,omitempty"`
-	Status         string `json:"status,omitempty"`
-	HeldVersion    string `json:"held-version,omitempty"`
-	DiscardVersion string `json:"discard-version,omitempty"`
+	Version               string `json:"version,omitempty"`
+	Config                string `json:"config,omitempty"`
+	Status                string `json:"status,omitempty"`
+	HeldVersion           string `json:"held-version,omitempty"`
+	DiscardVersion        string `json:"discard-version,omitempty"`
+	SampleIntervalSeconds int    `json:"sample-interval-seconds,omitempty"`
 }
 
 // ConfigChanged is sent by the hub to notify a connected client

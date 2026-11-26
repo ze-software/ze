@@ -328,3 +328,78 @@ func TestOldPeerIgnoresNewFields(t *testing.T) {
 		t.Fatalf("plain ack: got %s, want %s", plainAck, want)
 	}
 }
+
+func TestConfigFetchSampleIntervalRoundTrip(t *testing.T) {
+	// VALIDATES: ConfigFetchResponse encodes sample-interval-seconds when
+	// positive on both full and current replies, omits it when zero, and
+	// remains decodable by an older peer that does not know the field.
+	// PREVENTS: Breaking old managed clients or losing advertised sampling
+	// intervals across config-fetch replies.
+	if VerbSampleReport != "sample-report" {
+		t.Fatalf("VerbSampleReport = %q, want %q", VerbSampleReport, "sample-report")
+	}
+
+	full := ConfigFetchResponse{
+		Version:               "1111111111111111",
+		Config:                "cGx1Z2luIHsgfQ==",
+		SampleIntervalSeconds: 60,
+	}
+	fullJSON, err := json.Marshal(full)
+	if err != nil {
+		t.Fatalf("marshal full: %v", err)
+	}
+	wantFull := `{"version":"1111111111111111","config":"cGx1Z2luIHsgfQ==","sample-interval-seconds":60}`
+	if string(fullJSON) != wantFull {
+		t.Fatalf("full json: got %s, want %s", fullJSON, wantFull)
+	}
+	var fullBack ConfigFetchResponse
+	if err := json.Unmarshal(fullJSON, &fullBack); err != nil {
+		t.Fatalf("unmarshal full: %v", err)
+	}
+	if fullBack != full {
+		t.Fatalf("full round-trip: got %+v, want %+v", fullBack, full)
+	}
+
+	current := ConfigFetchResponse{
+		Status:                "current",
+		SampleIntervalSeconds: 30,
+	}
+	currentJSON, err := json.Marshal(current)
+	if err != nil {
+		t.Fatalf("marshal current: %v", err)
+	}
+	wantCurrent := `{"status":"current","sample-interval-seconds":30}`
+	if string(currentJSON) != wantCurrent {
+		t.Fatalf("current json: got %s, want %s", currentJSON, wantCurrent)
+	}
+	var currentBack ConfigFetchResponse
+	if err := json.Unmarshal(currentJSON, &currentBack); err != nil {
+		t.Fatalf("unmarshal current: %v", err)
+	}
+	if currentBack != current {
+		t.Fatalf("current round-trip: got %+v, want %+v", currentBack, current)
+	}
+
+	// Older client ignores sample-interval-seconds cleanly.
+	type legacyFetchResponse struct {
+		Version string `json:"version,omitempty"`
+		Config  string `json:"config,omitempty"`
+		Status  string `json:"status,omitempty"`
+	}
+	var legacy legacyFetchResponse
+	if err := json.Unmarshal(fullJSON, &legacy); err != nil {
+		t.Fatalf("legacy decode failed: %v", err)
+	}
+	if legacy.Version != full.Version || legacy.Config != full.Config {
+		t.Fatalf("legacy decode mismatch: got %+v", legacy)
+	}
+
+	// Older hub omits sample-interval-seconds, which decodes to 0 (disabled).
+	var fromOldHub ConfigFetchResponse
+	if err := json.Unmarshal([]byte(`{"status":"current"}`), &fromOldHub); err != nil {
+		t.Fatalf("decode old hub reply: %v", err)
+	}
+	if fromOldHub.SampleIntervalSeconds != 0 {
+		t.Fatalf("old hub interval = %d, want 0", fromOldHub.SampleIntervalSeconds)
+	}
+}

@@ -986,9 +986,13 @@ func extractGNMIBlock(tree *Tree) (GNMIListenConfig, bool, bool) {
 // minTokenLength is the minimum length for hub auth tokens.
 const minTokenLength = 32
 
-// ExtractHubConfig extracts bus hub transport config from a parsed config tree.
-// Returns zero-value HubConfig with no servers/clients if no hub block is present.
+// ExtractHubConfig extracts bus hub transport and history config from a parsed
+// config tree. Returns zero-value HubConfig with no servers/clients if no hub
+// block is present.
 func ExtractHubConfig(tree *Tree) (plugin.HubConfig, error) {
+	if tree == nil {
+		return plugin.HubConfig{}, nil
+	}
 	busContainer := tree.GetContainer("bus")
 	if busContainer == nil {
 		return plugin.HubConfig{}, nil
@@ -1002,7 +1006,9 @@ func ExtractHubConfig(tree *Tree) (plugin.HubConfig, error) {
 	if err != nil {
 		return plugin.HubConfig{}, err
 	}
-	var hub plugin.HubConfig
+	hub := plugin.HubConfig{
+		History: plugin.DefaultHubHistoryConfig(),
+	}
 
 	for _, entry := range hubContainer.GetListOrdered("server") {
 		srv, err := extractHubServerConfig(entry.Key, entry.Value, labels)
@@ -1024,7 +1030,77 @@ func ExtractHubConfig(tree *Tree) (plugin.HubConfig, error) {
 		hub.Clients = append(hub.Clients, cli)
 	}
 
+	historyContainer := hubContainer.GetContainer("history")
+	if historyContainer != nil {
+		historyCfg, err := extractHubHistoryConfig(historyContainer)
+		if err != nil {
+			return plugin.HubConfig{}, err
+		}
+		hub.History = historyCfg
+	}
+
+	needsHistoryValidation := len(hub.Servers) > 0
+	if historyContainer != nil {
+		needsHistoryValidation = true
+	}
+	if needsHistoryValidation {
+		if err := plugin.ValidateHubHistoryConfig(hub.History, countDeclaredManagedClients(hub.Servers)); err != nil {
+			return plugin.HubConfig{}, err
+		}
+	}
+
 	return hub, nil
+}
+
+func extractHubHistoryConfig(tree *Tree) (plugin.HubHistoryConfig, error) {
+	cfg := plugin.DefaultHubHistoryConfig()
+	if raw, ok := tree.Get("interval"); ok {
+		val, err := strconv.ParseInt(raw, 10, 32)
+		if err != nil {
+			return cfg, opererr.New("invalid bus hub history interval "+QuoteIfNeeded(raw),
+				"interval must be an integer number of seconds between 0 and 3600",
+				"set bus hub history interval 60")
+		}
+		cfg.IntervalSeconds = int(val)
+	}
+	if raw, ok := tree.Get("retention-days"); ok {
+		val, err := strconv.ParseInt(raw, 10, 32)
+		if err != nil {
+			return cfg, opererr.New("invalid bus hub history retention-days "+QuoteIfNeeded(raw),
+				"retention-days must be an integer between 1 and 7",
+				"set bus hub history retention-days 7")
+		}
+		cfg.RetentionDays = int(val)
+	}
+	if raw, ok := tree.Get("device-budget-bytes"); ok {
+		val, err := strconv.ParseInt(raw, 10, 64)
+		if err != nil {
+			return cfg, opererr.New("invalid bus hub history device-budget-bytes "+QuoteIfNeeded(raw),
+				"device-budget-bytes must be a positive byte count within signed 64-bit range",
+				"set bus hub history device-budget-bytes 1048576")
+		}
+		cfg.DeviceBudgetBytes = val
+	}
+	if raw, ok := tree.Get("hub-budget-bytes"); ok {
+		val, err := strconv.ParseInt(raw, 10, 64)
+		if err != nil {
+			return cfg, opererr.New("invalid bus hub history hub-budget-bytes "+QuoteIfNeeded(raw),
+				"hub-budget-bytes must be a positive byte count within signed 64-bit range",
+				"set bus hub history hub-budget-bytes 2147483648")
+		}
+		cfg.HubBudgetBytes = val
+	}
+	return cfg, nil
+}
+
+func countDeclaredManagedClients(servers []plugin.HubServerConfig) int {
+	seen := make(map[string]struct{})
+	for i := range servers {
+		for name := range servers[i].Clients {
+			seen[name] = struct{}{}
+		}
+	}
+	return len(seen)
 }
 
 // checkManagedCertificateAgreement refuses a config whose managed-client server

@@ -10,6 +10,8 @@ import (
 	"github.com/stretchr/testify/require"
 
 	configyang "github.com/ze-software/ze/internal/component/config/yang"
+	"github.com/ze-software/ze/internal/component/plugin"
+	"github.com/ze-software/ze/pkg/fleet"
 
 	// Blank imports trigger init() registration of service YANG modules so
 	// YANGSchema() picks up environment/{api-server,web,mcp,looking-glass}
@@ -1385,4 +1387,148 @@ func TestExtractHubConfigRefusesUnsafeClientName(t *testing.T) {
 		_, err := LoadConfig(strings.Replace(hubLabelConfig(""), "edge-01", name, 1), path, nil)
 		require.ErrorContains(t, err, "store key segment")
 	}
+}
+
+// VALIDATES: bus/hub/history extracts defaults when omitted, distinguishes
+// explicit interval 0 (disabled) from omitted interval (default 60s), carries
+// custom bounds through YANG and ExtractHubConfig, and refuses hub budgets that
+// cannot reserve latest-sample space for the distinct declared estate.
+// PREVENTS: Omitted interval disabling sampling, explicit interval 0 falling
+// back to 60s, or impossible hub budgets passing config validation.
+func TestExtractHubConfigHistory(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "hub-history.conf")
+
+	t.Run("defaults when history block omitted", func(t *testing.T) {
+		result, err := LoadConfig(hubLabelConfig(""), path, nil)
+		require.NoError(t, err)
+		hub, err := ExtractHubConfig(result.Tree)
+		require.NoError(t, err)
+		assert.Equal(t, plugin.DefaultHubHistoryConfig(), hub.History)
+	})
+
+	t.Run("explicit interval 0 disables sampling while omitted interval stays 60", func(t *testing.T) {
+		disabledCfg := `bus { hub { history { interval 0; } } }`
+		result, err := LoadConfig(disabledCfg, path, nil)
+		require.NoError(t, err)
+		hub, err := ExtractHubConfig(result.Tree)
+		require.NoError(t, err)
+		assert.Equal(t, 0, hub.History.IntervalSeconds)
+		assert.Equal(t, fleet.DefaultHistoryRetentionDays, hub.History.RetentionDays)
+		assert.Equal(t, int64(fleet.DefaultHistoryPerDeviceBytes), hub.History.DeviceBudgetBytes)
+		assert.Equal(t, int64(fleet.DefaultHistoryHubBytes), hub.History.HubBudgetBytes)
+
+		omittedIntervalCfg := `bus { hub { history { retention-days 3; } } }`
+		result, err = LoadConfig(omittedIntervalCfg, path, nil)
+		require.NoError(t, err)
+		hub, err = ExtractHubConfig(result.Tree)
+		require.NoError(t, err)
+		assert.Equal(t, fleet.DefaultSampleIntervalSeconds, hub.History.IntervalSeconds)
+		assert.Equal(t, 3, hub.History.RetentionDays)
+	})
+
+	t.Run("custom values extracted", func(t *testing.T) {
+		customCfg := `bus {
+			hub {
+				server central {
+					client edge-01 { secret ` + labelTestSecret + `; }
+				}
+				history {
+					interval 15;
+					retention-days 5;
+					device-budget-bytes 262144;
+					hub-budget-bytes 10485760;
+				}
+			}
+		}`
+		result, err := LoadConfig(customCfg, path, nil)
+		require.NoError(t, err)
+		hub, err := ExtractHubConfig(result.Tree)
+		require.NoError(t, err)
+		assert.Equal(t, plugin.HubHistoryConfig{
+			IntervalSeconds:   15,
+			RetentionDays:     5,
+			DeviceBudgetBytes: 262144,
+			HubBudgetBytes:    10485760,
+		}, hub.History)
+	})
+
+	t.Run("YANG range bounds enforced", func(t *testing.T) {
+		for _, tc := range []struct {
+			name string
+			leaf string
+		}{
+			{"interval above max", "interval 3601;"},
+			{"retention below min", "retention-days 0;"},
+			{"retention above max", "retention-days 8;"},
+			{"device budget below min", "device-budget-bytes 4095;"},
+			{"hub budget below min", "hub-budget-bytes 4095;"},
+		} {
+			t.Run(tc.name, func(t *testing.T) {
+				_, err := LoadConfig("bus { hub { history { "+tc.leaf+" } } }", path, nil)
+				require.Error(t, err)
+			})
+		}
+	})
+
+	t.Run("refuses hub budget smaller than distinct declared estate reserve", func(t *testing.T) {
+		estateCfg := func(budget int64) string {
+			return `bus {
+				hub {
+					server north {
+						client edge-01 { secret ` + labelTestSecret + `; }
+						client edge-02 { secret ` + labelTestSecret + `; }
+					}
+					server south {
+						client edge-01 { secret ` + labelTestSecret + `; }
+						client edge-03 { secret ` + labelTestSecret + `; }
+					}
+					history {
+						hub-budget-bytes ` + strconv.FormatInt(budget, 10) + `;
+					}
+				}
+			}`
+		}
+		// 3 distinct devices require at least 3 * 4096 = 12288 bytes.
+		result, err := LoadConfig(estateCfg(8192), path, nil)
+		require.NoError(t, err)
+		_, err = ExtractHubConfig(result.Tree)
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "12288")
+		assert.Contains(t, err.Error(), "set bus hub history hub-budget-bytes 12288")
+
+		// Exact minimum succeeds.
+		result, err = LoadConfig(estateCfg(12288), path, nil)
+		require.NoError(t, err)
+		hub, err := ExtractHubConfig(result.Tree)
+		require.NoError(t, err)
+		assert.Equal(t, int64(12288), hub.History.HubBudgetBytes)
+	})
+
+	t.Run("ValidateHubHistoryConfig direct bounds", func(t *testing.T) {
+		base := plugin.DefaultHubHistoryConfig()
+		require.NoError(t, plugin.ValidateHubHistoryConfig(base, 0))
+		require.NoError(t, plugin.ValidateHubHistoryConfig(base, 4096))
+
+		bad := []struct {
+			name    string
+			cfg     plugin.HubHistoryConfig
+			clients int
+			wantErr string
+		}{
+			{"negative clients", base, -1, "negative"},
+			{"negative interval", plugin.HubHistoryConfig{IntervalSeconds: -1, RetentionDays: 7, DeviceBudgetBytes: 4096, HubBudgetBytes: 4096}, 0, "negative"},
+			{"interval too high", plugin.HubHistoryConfig{IntervalSeconds: 3601, RetentionDays: 7, DeviceBudgetBytes: 4096, HubBudgetBytes: 4096}, 0, "3600"},
+			{"retention too low", plugin.HubHistoryConfig{IntervalSeconds: 60, RetentionDays: 0, DeviceBudgetBytes: 4096, HubBudgetBytes: 4096}, 0, "retention-days"},
+			{"retention too high", plugin.HubHistoryConfig{IntervalSeconds: 60, RetentionDays: 8, DeviceBudgetBytes: 4096, HubBudgetBytes: 4096}, 0, "retention-days"},
+			{"device budget too low", plugin.HubHistoryConfig{IntervalSeconds: 60, RetentionDays: 7, DeviceBudgetBytes: 2048, HubBudgetBytes: 4096}, 0, "4096"},
+			{"hub budget too low for zero clients", plugin.HubHistoryConfig{IntervalSeconds: 60, RetentionDays: 7, DeviceBudgetBytes: 4096, HubBudgetBytes: 2048}, 0, "4096"},
+			{"hub budget too low for 10 clients", plugin.HubHistoryConfig{IntervalSeconds: 60, RetentionDays: 7, DeviceBudgetBytes: 4096, HubBudgetBytes: 40959}, 10, "40960"},
+		}
+		for _, tc := range bad {
+			t.Run(tc.name, func(t *testing.T) {
+				err := plugin.ValidateHubHistoryConfig(tc.cfg, tc.clients)
+				require.ErrorContains(t, err, tc.wantErr)
+			})
+		}
+	})
 }
