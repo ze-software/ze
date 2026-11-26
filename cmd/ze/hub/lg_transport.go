@@ -5,16 +5,22 @@
 // both ask this file which listeners a config describes and which protocol each
 // one serves, so a restart and a reload cannot disagree about one config.
 //
-// Related: service_lg.go -- buildLGService applies the plan at start
+// Related: service_lg.go -- startLGService applies the plan at start
 // Related: listener_migrate.go -- updateLGTransport applies it at reload
 // Related: service_tls.go -- listenerTLSMaterial, the certificate a TLS entry presents
 
 package hub
 
 import (
+	"context"
+	"io"
+	"log/slog"
+
 	zeconfig "github.com/ze-software/ze/internal/component/config"
+	zepki "github.com/ze-software/ze/internal/component/pki"
 	"github.com/ze-software/ze/internal/core/env"
 	"github.com/ze-software/ze/internal/core/opererr"
+	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
 // lgDefaultListen is the endpoint of a looking glass no config names an address
@@ -125,14 +131,26 @@ type lgBinding struct {
 	tls  bool
 }
 
-// lgTransportPlan is the protocol each described listener serves on this
-// daemon, and the listeners that serve HTTP only because TLS has nothing to
-// present.
+// lgUnservable is one described listener this daemon cannot serve, with the
+// operator error that says why and how to fix it.
+type lgUnservable struct {
+	addr    string
+	problem *opererr.Error
+}
+
+// lgTransportPlan is what this daemon does with each described listener: the
+// protocol of the ones it serves, the ones that serve HTTP only because TLS has
+// nothing to present, and the ones it cannot serve at all.
 type lgTransportPlan struct {
+	// bindings holds the listeners that are served, in the order of the config.
 	bindings []lgBinding
 	// downgraded holds the addresses whose entry left tls unset and that serve
 	// HTTP for want of a certificate. Each one owes the operator a warning.
 	downgraded []string
+	// unservable holds the listeners that ask for TLS and have no certificate
+	// to present. A start leaves each one down and serves the others; a reload
+	// is refused over the first (refusal).
+	unservable []lgUnservable
 }
 
 // servesTLS reports whether one binding of the plan serves TLS, which is when
@@ -156,22 +174,44 @@ func (p lgTransportPlan) tlsByAddr() map[string]bool {
 	return out
 }
 
-// planLGTransports decides the protocol of every listener a config describes.
-// It is the one place the rule is written, and start and reload both call it.
+// refusal answers the operator error of the first listener the plan cannot
+// serve, which is what refuses a reload. It answers nil when every described
+// listener is served.
+func (p lgTransportPlan) refusal() error {
+	if len(p.unservable) == 0 {
+		return nil
+	}
+	return p.unservable[0].problem
+}
+
+// planLGEndpoints decides what this daemon does with every listener a config
+// describes. It is the one place the rule is written: the start path, the
+// reload path and `ze doctor` all read its plan.
 //
 // An entry that says `tls false` serves HTTP. Any other entry serves TLS when
 // there is a certificate to present: a named one, which comes from the pki
 // container, or the self-signed pair, which needs the database store
-// (hasStore). With neither:
+// (hasStore).
+//
+// certProblem is why the named certificate cannot be presented, and nil when
+// it can or when certName is empty (lgCertificateProblem). A named certificate
+// fails closed: every entry that asks for TLS is unservable then, whatever the
+// store holds, and never served on the self-signed pair or on HTTP.
+//
+// With no name and no store:
 //
 //   - an entry that left tls unset serves HTTP, and is reported in downgraded:
 //     the default must not turn a working looking glass into a missing one;
-//   - an entry whose operator wrote `tls true` is refused, because that
+//   - an entry whose operator wrote `tls true` is unservable, because that
 //     instruction cannot be met and is never approximated.
-func planLGTransports(listeners []lgListener, certName string, hasStore bool) (lgTransportPlan, error) {
+//
+// An unservable entry never takes its siblings down: they keep their binding.
+func planLGEndpoints(listeners []lgListener, certName string, certProblem error, hasStore bool) lgTransportPlan {
 	hasCertificate := hasStore
+	namedUnpresentable := false
 	if certName != "" {
 		hasCertificate = true
+		namedUnpresentable = certProblem != nil
 	}
 
 	plan := lgTransportPlan{bindings: make([]lgBinding, 0, len(listeners))}
@@ -180,11 +220,20 @@ func planLGTransports(listeners []lgListener, certName string, hasStore bool) (l
 		switch listener.tls {
 		case zeconfig.LGServerTLSOff:
 		case zeconfig.LGServerTLSRequired:
+			if namedUnpresentable {
+				plan.unservable = append(plan.unservable, lgUnservable{listener.addr, lgCertificateUnpresentable(listener.addr, certName, certProblem)})
+				continue
+			}
 			if !hasCertificate {
-				return lgTransportPlan{}, lgTLSNeedsCertificate(listener.addr)
+				plan.unservable = append(plan.unservable, lgUnservable{listener.addr, lgTLSNeedsCertificate(listener.addr)})
+				continue
 			}
 			serveTLS = true
 		case zeconfig.LGServerTLSInherited:
+			if namedUnpresentable {
+				plan.unservable = append(plan.unservable, lgUnservable{listener.addr, lgCertificateUnpresentable(listener.addr, certName, certProblem)})
+				continue
+			}
 			serveTLS = hasCertificate
 			if !hasCertificate {
 				plan.downgraded = append(plan.downgraded, listener.addr)
@@ -194,17 +243,88 @@ func planLGTransports(listeners []lgListener, certName string, hasStore bool) (l
 		}
 		plan.bindings = append(plan.bindings, lgBinding{addr: listener.addr, tls: serveTLS})
 	}
+	return plan
+}
+
+// planLGTransports is planLGEndpoints for a config that must be served whole,
+// which is what a reload asks: it answers the plan when every described
+// listener is served, and the refusal of the first one that is not, with no
+// plan. The named certificate is taken as presentable: the reload gate resolves
+// the name against the new store before it asks (main_reload.go).
+func planLGTransports(listeners []lgListener, certName string, hasStore bool) (lgTransportPlan, error) {
+	plan := planLGEndpoints(listeners, certName, nil, hasStore)
+	if refusal := plan.refusal(); refusal != nil {
+		return lgTransportPlan{}, refusal
+	}
 	return plan, nil
 }
 
-// lgTLSNeedsCertificate is the refusal of a server entry whose operator wrote
-// `tls true` on a daemon that has no certificate to present there.
-func lgTLSNeedsCertificate(addr string) error {
+// lgCertificateProblem answers why the looking glass cannot present the
+// certificate certName names, resolved against the installed pki store as the
+// listener resolves it. It answers nil when the name resolves, and for an empty
+// name, which is the self-signed pair and names nothing to resolve.
+func lgCertificateProblem(certName string) error {
+	if certName == "" {
+		return nil
+	}
+	_, _, err := zepki.ServerTLSMaterial(certName)
+	return err
+}
+
+// lgTLSNeedsCertificate is the operator error of a server entry whose operator
+// wrote `tls true` on a daemon that has no certificate to present there.
+func lgTLSNeedsCertificate(addr string) *opererr.Error {
 	return opererr.New(
 		"The looking glass server "+addr+" cannot serve TLS.",
 		"Its entry says `tls true`, no certificate is named, and the self-signed certificate is kept in the database store, which this daemon runs without.",
 		"Name a pki certificate in `environment looking-glass certificate`, or run `ze init` and restart ze, or write `tls false` in that server entry to serve HTTP.",
 	)
+}
+
+// lgCertificateUnpresentable is the operator error of a server entry that asks
+// for TLS while the certificate the looking glass names cannot be presented.
+func lgCertificateUnpresentable(addr, certName string, cause error) *opererr.Error {
+	return opererr.Wrap(cause,
+		"The looking glass server "+addr+" cannot serve TLS: the certificate "+certName+" cannot be presented.",
+		"`environment looking-glass certificate` names it, and ze never serves a self-signed certificate or plain HTTP in place of a named certificate",
+		"Define it with `edit pki certificate "+certName+"`, or delete `environment looking-glass certificate`, then restart ze.",
+	)
+}
+
+// reportLGNotStarted tells the operator that a start runs without the looking
+// glass because the addresses it binds cannot be read (lgListenUnreadable): an
+// error line on log under the doctor code `ze doctor` reports the value with,
+// and the same text on console.
+func reportLGNotStarted(log *slog.Logger, console io.Writer, cause error) {
+	const effect = "the looking glass is not started; ze and its other services keep running"
+	log.Error("The looking glass cannot read the addresses it binds.",
+		"code", codeDoctorLGListenUnreadable, "effect", effect, "error", cause)
+	var line textbuf.Buffer
+	line.Str("error: ").Str(effect).Str(": ").Err(cause).Byte('\n')
+	if _, err := console.Write(line.Bytes()); err != nil {
+		log.Warn("the looking glass report could not be written to the terminal",
+			"code", codeDoctorLGListenUnreadable, "error", err)
+	}
+}
+
+// lgServerDownEffect is what a start does with a listener it cannot serve. The
+// log line and the terminal line both carry it, so the operator reads that ze
+// itself is running.
+const lgServerDownEffect = "this looking glass server is not started; ze and its other services keep running"
+
+// reportLGServerDown tells the operator that a start left one looking-glass
+// listener down: an error line on log under the doctor code `ze doctor`
+// reports the same entry with, and the same text on console.
+func reportLGServerDown(log *slog.Logger, console io.Writer, down lgUnservable) {
+	log.LogAttrs(context.Background(), slog.LevelError, down.problem.Problem(),
+		down.problem.LogAttrs(slog.String("code", codeDoctorLGTLSUnservable),
+			slog.String("address", down.addr), slog.String("effect", lgServerDownEffect))...)
+	var line textbuf.Buffer
+	line.Str("error: ").Str(lgServerDownEffect).Str(": ").Str(down.problem.Error()).Byte('\n')
+	if _, err := console.Write(line.Bytes()); err != nil {
+		log.Warn("the looking glass report could not be written to the terminal",
+			"code", codeDoctorLGTLSUnservable, "address", down.addr, "error", err)
+	}
 }
 
 // lgDowngradeWarning is the warning of a listener whose entry left tls unset

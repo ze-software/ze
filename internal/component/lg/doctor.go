@@ -51,11 +51,33 @@ func lgTLSDiagnostic(tree *zeconfig.Tree, now time.Time) []diagnostic.Diagnostic
 	var tb textbuf.Buffer
 	for _, p := range problems {
 		tb.Reset()
-		out = append(out, diagnostic.Diagnostic{
-			Code:     p.Code,
-			Severity: diagnostic.Severity(p.Severity),
-			Message:  tb.Str("environment.looking-glass.certificate: ").Str(p.Message).String(),
-		})
+		tb.Str("environment.looking-glass.certificate: ").Str(p.Message)
+		// An expired or soon-expiring certificate still serves: renewing it and
+		// committing installs it without a restart.
+		fix := "replace the material with `edit pki certificate " + cfg.Certificate + "`, then commit: the looking glass presents it at the next handshake"
+		// A reference that cannot serve does not stop ze: the daemon starts
+		// and leaves down each looking-glass server that asks for TLS, so that
+		// the operator can still reach it and correct the name
+		// (docs/architecture/core-design.md, "Design decisions"). The finding
+		// says so, with the fix.
+		if p.Code == diagnostic.CodeDoctorTLSReference {
+			tb.Str(". ").Str(lgReferenceEffect)
+			fix = lgReferenceFix(cfg.Certificate)
+		}
+		diag := diagnostic.Diagnostic{Code: p.Code, Severity: diagnostic.Severity(p.Severity), Message: tb.String(), Fix: fix}
+		out = append(out, diag)
 	}
 	return out
+}
+
+// lgReferenceEffect is what ze does with a looking-glass certificate reference
+// that cannot serve TLS.
+const lgReferenceEffect = "ze starts and leaves down each looking-glass server that asks for TLS, the servers that say `tls false` serve, and a reload that names this certificate is refused"
+
+// lgReferenceFix is the fix of a looking-glass certificate reference that
+// cannot serve TLS, naming the certificate the operator configured.
+func lgReferenceFix(name string) string {
+	var tb textbuf.Buffer
+	return tb.Str("Define it with `edit pki certificate ").Str(name).
+		Str("`, or delete `environment looking-glass certificate`, then restart ze.").String()
 }

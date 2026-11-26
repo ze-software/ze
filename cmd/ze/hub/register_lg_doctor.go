@@ -25,14 +25,15 @@ var lgDoctorCodes = []diagnostic.CodeMeta{
 		Code:  codeDoctorLGListenUnreadable,
 		Title: "ze.looking-glass.listen does not parse",
 		Description: "The environment variable ze.looking-glass.listen names the addresses the looking glass binds, and its value is not a list of listen endpoints. " +
-			"ze refuses to start, and a reload is refused. Set it to endpoints such as 0.0.0.0:8443, or unset it and name the addresses in `environment looking-glass server`.",
+			"ze starts without the looking glass, and a reload is refused. Set it to endpoints such as 0.0.0.0:8443, or unset it and name the addresses in `environment looking-glass server`.",
 		Examples: []string{lgDoctorExample, "ze show diagnostic doctor-lg-listen-unreadable"},
 	},
 	{
 		Code:  codeDoctorLGTLSUnservable,
-		Title: "Looking-glass server entry says tls true with no certificate",
-		Description: "A looking-glass server entry says `tls true`, no certificate is named, and the self-signed certificate is kept in the database store, which the daemon runs without. " +
-			"ze refuses to start, and a reload is refused. Name a pki certificate in `environment looking-glass certificate`, or run `ze init` and restart ze, or write `tls false` in that server entry to serve HTTP.",
+		Title: "Looking-glass server entry asks for TLS with no certificate to present",
+		Description: "A looking-glass server entry asks for TLS and has no certificate to present. Either it says `tls true`, no certificate is named, and the self-signed certificate is kept in the database store, which the daemon runs without; " +
+			"or `environment looking-glass certificate` names a certificate that cannot be presented. " +
+			"ze starts and leaves that server down, the other looking-glass servers serve, and a reload is refused. Name a pki certificate that exists in `environment looking-glass certificate`, or run `ze init` and restart ze, or write `tls false` in that server entry to serve HTTP.",
 		Examples:     []string{lgDoctorExample, "ze init", "ze show diagnostic doctor-lg-tls-unservable"},
 		RelatedCodes: []string{codeDoctorLGPlainHTTP},
 	},

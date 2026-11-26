@@ -6,7 +6,7 @@
 // registers only under ze_lg (register_lg_doctor.go), so `ze doctor` never
 // names a looking glass the binary does not carry.
 //
-// Related: lg_transport.go -- lgListenerConfigFrom and planLGTransports, the rule this reports
+// Related: lg_transport.go -- lgListenerConfigFrom and planLGEndpoints, the rule this reports
 // Related: register_lg_doctor.go -- the doctor check and the code explanations
 
 package hub
@@ -24,10 +24,12 @@ import (
 // lgListenerConfigFrom or planLGTransports can give that an operator has to
 // act on.
 const (
-	// codeDoctorLGListenUnreadable: ze.looking-glass.listen does not parse.
+	// codeDoctorLGListenUnreadable: ze.looking-glass.listen does not parse, so
+	// a start runs without the looking glass and a reload is refused.
 	codeDoctorLGListenUnreadable = "doctor-lg-listen-unreadable"
-	// codeDoctorLGTLSUnservable: an entry says `tls true` and there is no
-	// certificate to present, so ze refuses to start or reload.
+	// codeDoctorLGTLSUnservable: an entry asks for TLS and there is no
+	// certificate to present, so a start leaves that entry down and serves the
+	// others, and a reload is refused.
 	codeDoctorLGTLSUnservable = "doctor-lg-tls-unservable"
 	// codeDoctorLGPlainHTTP: an entry left tls unset and serves plain HTTP
 	// for want of a certificate.
@@ -37,18 +39,24 @@ const (
 // lgListenerDiagnostics reports what the looking-glass listeners of tree
 // serve on a daemon that has a database store when hasStore is set. It asks
 // the functions the start path and the reload path ask (lgListenerConfigFrom,
-// planLGTransports), so `ze doctor` cannot disagree with what ze does with the
+// planLGEndpoints), so `ze doctor` cannot disagree with what ze does with the
 // same config. A config that starts no looking glass reports nothing.
+//
+// Every entry a start would leave down is reported, each with its own address.
+// The named certificate is taken as presentable here: a name the pki block
+// does not define is reported by the looking glass's own reference check
+// (internal/component/lg/doctor.go), which reads the pki block of the same
+// tree and names the entries that stay down for it.
 func lgListenerDiagnostics(tree *zeconfig.Tree, hasStore bool) []diagnostic.Diagnostic {
 	cfg, err := lgListenerConfigFrom(tree)
 	if err != nil {
 		return []diagnostic.Diagnostic{lgListenerDiagnostic(codeDoctorLGListenUnreadable, diagnostic.SeverityError, err)}
 	}
-	plan, err := planLGTransports(cfg.listeners, cfg.certName, hasStore)
-	if err != nil {
-		return []diagnostic.Diagnostic{lgListenerDiagnostic(codeDoctorLGTLSUnservable, diagnostic.SeverityError, err)}
+	plan := planLGEndpoints(cfg.listeners, cfg.certName, nil, hasStore)
+	diags := make([]diagnostic.Diagnostic, 0, len(plan.unservable)+len(plan.downgraded))
+	for _, down := range plan.unservable {
+		diags = append(diags, lgListenerDiagnostic(codeDoctorLGTLSUnservable, diagnostic.SeverityError, down.problem))
 	}
-	diags := make([]diagnostic.Diagnostic, 0, len(plan.downgraded))
 	for _, addr := range plan.downgraded {
 		diags = append(diags, lgListenerDiagnostic(codeDoctorLGPlainHTTP, diagnostic.SeverityWarning, lgDowngradeWarning(addr)))
 	}
@@ -59,9 +67,9 @@ func lgListenerDiagnostics(tree *zeconfig.Tree, hasStore bool) []diagnostic.Diag
 // listeners to a doctor finding: the problem and why as the message, the fix
 // on its own line, and the cause, when there is one, as what was found.
 //
-// Every error lgListenerConfigFrom and planLGTransports answer is an operator
-// error (lgListenUnreadable, lgTLSNeedsCertificate), so any other error is a
-// Ze defect.
+// Every error lgListenerConfigFrom answers and every problem planLGEndpoints
+// records is an operator error (lgListenUnreadable, lgTLSNeedsCertificate,
+// lgCertificateUnpresentable), so any other error is a Ze defect.
 func lgListenerDiagnostic(code string, severity diagnostic.Severity, err error) diagnostic.Diagnostic {
 	failure, isOperatorError := errors.AsType[*opererr.Error](err)
 	if !isOperatorError {

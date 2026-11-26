@@ -1,0 +1,90 @@
+# Test: ze starts when a web or looking-glass certificate cannot be presented.
+#
+# The one question: does `ze start` reach "Ze running" and serve the
+# looking-glass HTTP entry when the web certificate and the looking-glass
+# certificate both name a pki entry that cannot serve TLS, and does `ze doctor`
+# name both leaves with what ze does and the fix? A unit test decides each
+# piece (cmd/ze/hub/service_unserved_test.go, service_lg_unserved_test.go); only
+# the daemon decides that runYANGConfig does not exit and that the HTTP entry
+# answers a request while its HTTPS sibling stays unbound.
+#
+# VALIDATES: the owner ruling of 2026-11-26 (docs/architecture/core-design.md,
+#            "Design decisions"): a service whose configuration cannot be
+#            served is not started and never stops ze. The pki entry `lan`
+#            has no private key, so the reference validates and
+#            pki.ServerTLSMaterial refuses it. The web server is not started
+#            (doctor-tls-reference). The looking-glass entry `secure`, which
+#            asks for TLS, stays down (doctor-lg-tls-unservable), and the entry
+#            `public`, which says `tls false`, answers plain HTTP.
+# PREVENTS: a daemon that exits over one service's certificate, which brings
+#           up no networking and leaves the operator no route to the box; and
+#           a self-signed certificate or plain HTTP served on a listener whose
+#           config names a certificate.
+#
+# RED before the change: `ze start` exits 1 with
+# "error: environment.web.certificate:" and never prints "Ze running".
+
+option=timeout:value=90s
+option=env:var=ZE_CONFIG_DIR:value=.
+
+tmpfs=always-starts.conf:terminator=EOF_CONF
+pki {
+	ca web-ca {
+		certificate MIIBgDCCASWgAwIBAgIUN8tmPUUL2Ec/2cVjYvX05q2i+QEwCgYIKoZIzj0EAwIwFTETMBEGA1UEAwwKemUtdGVzdC1jYTAeFw0yNjA4MDMyMTIyMDFaFw0zNjA3MzEyMTIyMDFaMBUxEzARBgNVBAMMCnplLXRlc3QtY2EwWTATBgcqhkjOPQIBBggqhkjOPQMBBwNCAATN9NaXzwmSRYDK2D74maehpcicub6tEvETMBE/LIJojtnRALX71x1KovqCz+9LffIy0AOFVTP+/A8anJUkFYEWo1MwUTAdBgNVHQ4EFgQUBQPnmMeLjJEwa6rsZviFJpmHdswwHwYDVR0jBBgwFoAUBQPnmMeLjJEwa6rsZviFJpmHdswwDwYDVR0TAQH/BAUwAwEB/zAKBggqhkjOPQQDAgNJADBGAiEAtUbaI4yvaJ/KruZs+nMnOPZJi0Ib6rqQFoEOUlwADZwCIQDuDJmTlfDJHsDNcZ2HPGDKmJeG7G9EH+oIoll3jk6cLg==
+	}
+	certificate lan {
+		certificate MIIBnjCCAUSgAwIBAgIUWVT7slD2/AmhaxwNbOY9qMifRwwwCgYIKoZIzj0EAwIwFTETMBEGA1UEAwwKemUtdGVzdC1jYTAeFw0yNjA4MDMyMTIyMDFaFw0zNjA3MzEyMTIyMDFaMBQxEjAQBgNVBAMMCWxvY2FsaG9zdDBZMBMGByqGSM49AgEGCCqGSM49AwEHA0IABPbo4UfgLsjaYwpavcEt3z4OLCw4diWHYly0YodhA1QzSQIRUBEOkW6ocHUjJ2VJjwQbqDW7dU+lPo3K0chdFYSjczBxMBoGA1UdEQQTMBGCCWxvY2FsaG9zdIcEfwAAATATBgNVHSUEDDAKBggrBgEFBQcDATAdBgNVHQ4EFgQUYe9xoQJZ+g+2cBU6E0Ujr2KDvT8wHwYDVR0jBBgwFoAUBQPnmMeLjJEwa6rsZviFJpmHdswwCgYIKoZIzj0EAwIDSAAwRQIhAO+/G55WJP26P4lVzGvIPPRCrk5KPWgjcGFhWIYL321JAiAmlw29VZUWmYA2geAIFN0m8G77Z7I8/v31cOm4VE8V4Q==
+	}
+}
+
+environment {
+	web {
+		enabled true
+		certificate lan
+		server main {
+			ip 127.0.0.1
+			port $PORT
+		}
+	}
+	looking-glass {
+		enabled true
+		certificate lan
+		server public {
+			ip 127.0.0.1
+			port $PORT2
+			tls false
+		}
+		server secure {
+			ip 127.0.0.1
+			port $PORT3
+		}
+	}
+}
+EOF_CONF
+
+# Doctor names both leaves before the start, with what ze does and the fix.
+cmd=foreground:seq=1:exec=ze doctor --json config always-starts.conf
+expect=exit:code=1
+expect=stdout:contains=doctor-tls-reference
+expect=stdout:contains=environment.web.certificate: certificate lan has no private key
+expect=stdout:contains=ze starts without the web server
+expect=stdout:contains=environment.looking-glass.certificate: certificate lan has no private key
+expect=stdout:contains=ze starts and leaves down each looking-glass server that asks for TLS
+expect=stdout:contains=edit pki certificate lan
+
+# The daemon starts: "Ze running" is printed only after every service was built.
+cmd=background:seq=2:exec=ze start always-starts.conf:name=daemon:ready=Ze running
+expect=stderr:contains=the web server is not started; ze and its other services keep running
+expect=stderr:contains=code=doctor-tls-reference
+expect=stderr:contains=this looking glass server is not started; ze and its other services keep running
+expect=stderr:contains=code=doctor-lg-tls-unservable
+expect=stderr:contains=looking glass listening on http://127.0.0.1:
+reject=stderr:contains=looking glass listening on https://
+reject=stderr:contains=web server listening
+reject=stderr:contains=msg="startup failed"
+
+# The `tls false` entry answers a request, and the entry that asks for TLS is
+# not bound.
+cmd=foreground:seq=3:exec=le test http-get http://127.0.0.1:$PORT2/lg/search:exit=0
+cmd=foreground:seq=4:exec=le test http-get http://127.0.0.1:$PORT3/lg/search:exit=1
+cmd=stop:seq=5:name=daemon:signal=term

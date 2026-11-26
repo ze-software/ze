@@ -14,15 +14,21 @@
 package hub
 
 import (
+	"context"
+	"io"
+	"log/slog"
+
 	zepki "github.com/ze-software/ze/internal/component/pki"
+	"github.com/ze-software/ze/internal/core/diagnostic"
 	"github.com/ze-software/ze/internal/core/opererr"
 	"github.com/ze-software/ze/internal/core/selfcert"
+	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
 // errSelfSignedNeedsStore refuses the self-signed branch for a listener that has
 // no store to keep the pair in. Startup never reaches it: the web server is
-// disabled without a store, and the looking glass decides HTTP or an error for
-// each of its entries before it asks (planLGTransports). A reload of a config
+// disabled without a store, and the looking glass decides HTTP or a server
+// left down for each of its entries before it asks (planLGEndpoints). A reload of a config
 // that describes the looking-glass listeners never reaches it either, for the
 // same reason. It is reached when a reloaded config no longer starts a looking
 // glass and names no certificate, while the running one serves TLS on a named
@@ -70,4 +76,48 @@ func listenerTLSMaterial(certName string, certStore selfcert.CertStore, listenAd
 		return nil, nil, errSelfSignedNeedsStore
 	}
 	return selfcert.LoadOrGenerateCert(certStore, listenAddr)
+}
+
+// webCertificateProblem answers the operator error of a web server whose named
+// certificate cannot be presented, resolved against the installed pki store as
+// the listener resolves it. The second result is false when certName resolves,
+// and the error is then nil. Callers MUST pass a name that is not empty: an
+// empty name is the self-signed pair and names nothing to resolve.
+//
+// The start path reads it before it builds any service. A web server that
+// cannot present the certificate its config names is not started, and ze runs:
+// the operator reaches the daemon over its other surfaces and corrects the
+// name. Serving the self-signed pair in its place would read as a working
+// deployment (docs/architecture/pki/tls-listeners.md, "a named certificate
+// fails closed").
+func webCertificateProblem(certName string) (problem *opererr.Error, unpresentable bool) {
+	_, _, err := zepki.ServerTLSMaterial(certName)
+	if err == nil {
+		return nil, false
+	}
+	return opererr.Wrap(err,
+		"The web server cannot serve TLS: the certificate "+certName+" cannot be presented.",
+		"`environment web certificate` or ze.web.certificate names it, and ze never serves a self-signed certificate in place of a named certificate",
+		"Define it with `edit pki certificate "+certName+"`, or delete `environment web certificate`, then restart ze.",
+	), true
+}
+
+// webNotStartedEffect is what a start does with a web server it cannot serve.
+// The log line and the terminal line both carry it, so the operator reads that
+// ze itself is running.
+const webNotStartedEffect = "the web server is not started; ze and its other services keep running"
+
+// reportWebNotStarted tells the operator that a start runs without the web
+// server: an error line on log under the doctor code the web certificate
+// reference check reports the same name with (internal/component/web), and the
+// same text on console.
+func reportWebNotStarted(log *slog.Logger, console io.Writer, problem *opererr.Error) {
+	log.LogAttrs(context.Background(), slog.LevelError, problem.Problem(),
+		problem.LogAttrs(slog.String("code", diagnostic.CodeDoctorTLSReference), slog.String("effect", webNotStartedEffect))...)
+	var line textbuf.Buffer
+	line.Str("error: ").Str(webNotStartedEffect).Str(": ").Str(problem.Error()).Byte('\n')
+	if _, err := console.Write(line.Bytes()); err != nil {
+		log.Warn("the web server report could not be written to the terminal",
+			"code", diagnostic.CodeDoctorTLSReference, "error", err)
+	}
 }

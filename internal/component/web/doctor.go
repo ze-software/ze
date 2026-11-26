@@ -48,11 +48,32 @@ func webTLSDiagnostic(tree *zeconfig.Tree, now time.Time) []diagnostic.Diagnosti
 	var tb textbuf.Buffer
 	for _, p := range problems {
 		tb.Reset()
-		out = append(out, diagnostic.Diagnostic{
-			Code:     p.Code,
-			Severity: diagnostic.Severity(p.Severity),
-			Message:  tb.Str("environment.web.certificate: ").Str(p.Message).String(),
-		})
+		tb.Str("environment.web.certificate: ").Str(p.Message)
+		// An expired or soon-expiring certificate still serves: renewing it and
+		// committing installs it without a restart.
+		fix := "replace the material with `edit pki certificate " + cfg.Certificate + "`, then commit: the web server presents it at the next handshake"
+		// A reference that cannot serve does not stop ze: the daemon starts
+		// without the web server, so that the operator can still reach it and
+		// correct the name (docs/architecture/core-design.md, "Design
+		// decisions"). The finding says so, with the fix.
+		if p.Code == diagnostic.CodeDoctorTLSReference {
+			tb.Str(". ").Str(webReferenceEffect)
+			fix = webReferenceFix(cfg.Certificate)
+		}
+		diag := diagnostic.Diagnostic{Code: p.Code, Severity: diagnostic.Severity(p.Severity), Message: tb.String(), Fix: fix}
+		out = append(out, diag)
 	}
 	return out
+}
+
+// webReferenceEffect is what ze does with a web certificate reference that
+// cannot serve TLS.
+const webReferenceEffect = "ze starts without the web server and keeps its other services running, and a reload that names this certificate is refused"
+
+// webReferenceFix is the fix of a web certificate reference that cannot serve
+// TLS, naming the certificate the operator configured.
+func webReferenceFix(name string) string {
+	var tb textbuf.Buffer
+	return tb.Str("Define it with `edit pki certificate ").Str(name).
+		Str("`, or delete `environment web certificate`, then restart ze.").String()
 }

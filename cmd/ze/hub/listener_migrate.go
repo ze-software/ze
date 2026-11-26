@@ -118,6 +118,18 @@ type serviceChange struct {
 	remove  []string
 }
 
+// storePresence is whether the daemon runs with the database store, as the
+// listener migrator knows it.
+type storePresence uint8
+
+const (
+	// storeUnspecified: nobody told the migrator. Only a migrator built outside
+	// the daemon's start path is in this state.
+	storeUnspecified storePresence = iota
+	storePresent
+	storeAbsent
+)
+
 // listenerMigrator coordinates listener reconfiguration across services on
 // config reload. It detects cross-service address conflicts and sequences
 // migrations to minimize downtime.
@@ -133,10 +145,15 @@ type listenerMigrator struct {
 	// lgNextHopRanges is the running looking glass as the holder of the named
 	// next-hop ranges. Nil while no looking glass runs.
 	lgNextHopRanges nextHopRangesUpdatable
-	mcp             Reconfigurable
-	rest            Reconfigurable
-	grpc            Reconfigurable
-	logger          *slog.Logger
+	// daemonStore is whether the daemon runs with the database store, told once
+	// at start (setDaemonStore). The reload gate reads it to judge the
+	// looking-glass entries of a config while no looking glass runs, which is
+	// the state a start leaves when it could serve none of them.
+	daemonStore storePresence
+	mcp         Reconfigurable
+	rest        Reconfigurable
+	grpc        Reconfigurable
+	logger      *slog.Logger
 
 	// ssh is set from the infrastructure hook (setupInfraHook), which runs
 	// during plugin startup on another goroutine than the reload workers, so
@@ -387,19 +404,40 @@ func (m *listenerMigrator) updateLGNextHopRanges(ranges map[netip.Prefix]string)
 	return restore, nil
 }
 
-// checkLGTransport refuses a config the running looking glass cannot serve,
-// before the reload applies anything: a server entry whose operator wrote
-// `tls true` on a daemon with no certificate to present there. It is the
-// refusal buildLGService gives the same config at start (planLGTransports), so
-// a reload and a restart agree.
+// setDaemonStore records whether the daemon runs with the database store. The
+// start path MUST call it once, before the first reload.
+func (m *listenerMigrator) setDaemonStore(hasStore bool) {
+	m.daemonStore = storeAbsent
+	if hasStore {
+		m.daemonStore = storePresent
+	}
+}
+
+// checkLGTransport refuses a config whose looking-glass entries this daemon
+// cannot all serve, before the reload applies anything: a server entry whose
+// operator wrote `tls true` on a daemon with no certificate to present there.
+// A start leaves such an entry down and serves the others (service_lg.go); a
+// reload is refused, and the running listeners keep what they serve. Both read
+// planLGEndpoints, so they name the same entry with the same words.
 //
-// With no handle no looking glass is running, and there is nothing to refuse.
+// The store is the running looking glass's own when one runs. When none runs,
+// which is also what a start leaves when it could serve no entry, it is the
+// daemon's (setDaemonStore), so a reload of the config that start could not
+// serve is still refused. A migrator nobody told about the store has no
+// looking glass to judge for, and refuses nothing.
 func (m *listenerMigrator) checkLGTransport(cfg lgListenerConfig) error {
-	if m.lgTransport == nil {
+	hasStore := false
+	switch {
+	case m.lgTransport != nil:
+		certStore, _ := m.lgTransport.selfSignedSource()
+		hasStore = certStore != nil
+	case m.daemonStore == storePresent:
+		hasStore = true
+	case m.daemonStore == storeAbsent:
+	case m.daemonStore == storeUnspecified:
 		return nil
 	}
-	certStore, _ := m.lgTransport.selfSignedSource()
-	_, err := planLGTransports(cfg.listeners, cfg.certName, certStore != nil)
+	_, err := planLGTransports(cfg.listeners, cfg.certName, hasStore)
 	return err
 }
 
@@ -411,27 +449,20 @@ func (m *listenerMigrator) checkLGTransport(cfg lgListenerConfig) error {
 // a commit that changes one entry's protocol takes effect on that listener's
 // next connection, and an address the commit adds is bound with its own
 // protocol: the looking glass records the protocol of an address it has not
-// bound yet, and refuses to bind one it has no record for. A rollback calls it
-// with the running config before it moves the listeners back, for the same
-// reason.
+// bound yet, and refuses to bind one it has no record for.
 //
 // It reads its OWN handle and its OWN name. The web listener and the looking
 // glass hold separate certificates, and one migrator carries both, so a method
 // that shared either would serve one listener's identity on the other (R-1).
 //
 // The result is the one a restart with the same config would give:
-// planLGTransports decides each listener's protocol, as it does at start, and
+// planLGEndpoints decides each listener's protocol, as it does at start, and
 // listenerTLSMaterial decides the certificate. So an entry that left tls unset
 // moves to HTTP, with a warning, when a commit drops the certificate name on a
 // daemon without a store, and moves back to HTTPS when a commit names one. A
 // name that does not resolve is an ERROR that fails the reload, never a silent
-// downgrade to the self-signed certificate (R-5).
-//
-// The certificate is installed first, and only when a listener will present
-// one. A config that describes the listeners answers that by its own plan. A
-// config that starts no looking glass describes none: the running listeners
-// keep their protocol, and the ones that serve TLS take the certificate that
-// config names.
+// downgrade to the self-signed certificate (R-5), and so is an entry that
+// cannot be served: a reloaded config is served whole or refused.
 //
 // With no handle no looking glass is running, and there is nothing to change.
 func (m *listenerMigrator) updateLGTransport(cfg lgListenerConfig) error {
@@ -443,13 +474,49 @@ func (m *listenerMigrator) updateLGTransport(cfg lgListenerConfig) error {
 	if err != nil {
 		return err
 	}
+	return m.applyLGPlan(plan, cfg.certName)
+}
 
+// restoreLGTransport returns the running looking glass to what the running
+// config describes, after a reload that was rolled back. The caller MUST have
+// put the running pki store back first, and calls it before it moves the
+// listeners back.
+//
+// It differs from updateLGTransport in one way: the running config is the one
+// the daemon started with, so it may hold entries that start left down. Those
+// stay down, and the entries that serve take their protocol and certificate
+// back. Refusing here, as a reload of that config is refused, would fail every
+// rollback on a daemon that started with one such entry.
+//
+// With no handle no looking glass is running, and there is nothing to restore.
+func (m *listenerMigrator) restoreLGTransport(cfg lgListenerConfig) error {
+	if m.lgTransport == nil {
+		return nil
+	}
+	certStore, _ := m.lgTransport.selfSignedSource()
+	plan := planLGEndpoints(cfg.listeners, cfg.certName, lgCertificateProblem(cfg.certName), certStore != nil)
+	return m.applyLGPlan(plan, cfg.certName)
+}
+
+// applyLGPlan installs plan on the running looking glass. The certificate is
+// installed first, and only when a listener will present one. A config that
+// describes the listeners answers that by its own plan. A config that starts no
+// looking glass describes none: the running listeners keep their protocol, and
+// the ones that serve TLS take the certificate that config names.
+//
+// Callers MUST hold a looking-glass handle (m.lgTransport is not nil).
+func (m *listenerMigrator) applyLGPlan(plan lgTransportPlan, certName string) error {
 	presentsCertificate := plan.servesTLS()
+	// A plan with no binding and no unservable entry is a config that describes
+	// no listener, so the running listeners answer whether a certificate is
+	// presented.
 	if len(plan.bindings) == 0 {
-		presentsCertificate = slices.Contains(slices.Collect(maps.Values(m.lgTransport.ListenerTLS())), true)
+		if len(plan.unservable) == 0 {
+			presentsCertificate = slices.Contains(slices.Collect(maps.Values(m.lgTransport.ListenerTLS())), true)
+		}
 	}
 	if presentsCertificate {
-		if err := installListenerCertificate(m.lgTransport, "looking glass", cfg.certName); err != nil {
+		if err := installListenerCertificate(m.lgTransport, "looking glass", certName); err != nil {
 			return err
 		}
 	}

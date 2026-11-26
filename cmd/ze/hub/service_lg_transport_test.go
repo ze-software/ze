@@ -8,6 +8,7 @@ import (
 	"context"
 	"crypto/tls"
 	"crypto/x509"
+	"maps"
 	"net"
 	"net/http"
 	"slices"
@@ -312,9 +313,7 @@ func TestReloadAddsHTTPEntry(t *testing.T) {
 			t.Fatalf("split %s: %v", addr, err)
 		}
 		out := map[string]any{"ip": host, "port": port}
-		for leaf, value := range leaves {
-			out[leaf] = value
-		}
+		maps.Copy(out, leaves)
 		return out
 	}
 	tree := lgEntriesTree(map[string]any{"enabled": "true", "certificate": "lg-cert"}, map[string]any{

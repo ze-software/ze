@@ -23,6 +23,7 @@ certificate.
 |----------|------------|--------|------|
 | The looking glass may serve plain HTTP, because what it publishes is public, and one looking glass serves HTTP and HTTPS at the same time. Thomas's words, as voice-transcribed: "We should allow the looking glass to be HTTP. The information is public." and "We should be able to serve on both HTTP and HTTPS, not either." Asked where the choice lives and what happens to `ze.looking-glass.tls`, he answered "1a 2a": the choice is the `tls` leaf of each `server` entry, default true, and the environment variable is removed. The no-store rule applies to each entry: an entry that left `tls` unset serves HTTP with a warning on a daemon with no `database/` store and no named certificate, an entry that says `tls true` there is refused at start and at reload, and a reload does what a restart with the same config does | A `tls` leaf on the `looking-glass` container, or any other setting that gives every listener of the looking glass one protocol. An environment variable that chooses the looking glass's protocol. A fallback that still reads either. A reload that leaves a listener on a protocol a restart with the same config would not serve. Serving the RFC 8522 API on a connection that is not TLS | plan/records/ruling-looking-glass-http-and-https.md | 2026-11-23 |
 | The web and looking glass use the shared `listenerTLSMaterial` precedence. The approved Fleet reload design shares `managedCertificate` with startup because the daemon authority issues its unnamed leaf. | Independent certificate selection at startup and reload | plan/release/features/spec-fleet-1-device-registry.md | 2026-11-23 |
+| A certificate that cannot be presented never stops ze from starting. A web server whose certificate name does not resolve is not started. The looking glass is judged one `server` entry at a time: an entry that says `tls true` with no certificate to present stays down, every entry that asks for TLS stays down when the named certificate does not resolve, and the other entries serve. Each is reported with its fix by an error line in the log under a doctor code and by `ze doctor`. A reload whose config cannot be served stays refused. This supersedes the start half of the row of 2026-11-23 above, which says a `tls true` entry "is refused at start": at start that entry stays down and the others serve, and at reload the config is still refused. Thomas's words, as voice-transcribed: "we should never not start ze as if we can not bring networking we can not fix things like web cert and the like so the only good answer is to disable the service badly configured and not start it"; "reload stay refused"; "Should only that endpoint stay down while the others serve: yes" | A daemon that exits over a web or looking-glass certificate. A looking glass that does not start because one entry cannot be served. A self-signed certificate or plain HTTP served in place of a named certificate. A reload accepted with an entry that cannot be served | plan/records/ruling-ze-always-starts.md | 2026-11-26 |
 
 <!-- source: internal/component/pki/tls.go -- ServerTLSMaterial, chainPEM, CheckCertReference -->
 <!-- source: cmd/ze/hub/service_tls.go -- listenerTLSMaterial -->
@@ -63,30 +64,72 @@ each entry chooses HTTPS or HTTP in its own `tls` leaf.
 
 | Looking glass entry, no store, no named certificate | Result |
 |------------------------------------------------------|--------|
-| `tls true` written by the operator | the looking glass is refused at start, and the reload is refused |
+| `tls true` written by the operator | at start that entry stays down, is reported, and the other entries serve; a reload is refused |
 | `tls` left unset, so the default, true | a warning, and plain HTTP on that entry |
 | `tls false` | plain HTTP, with no warning |
 
 With a named certificate every entry but a `tls false` one serves the named
-chain over TLS, store or no store.
+chain over TLS, store or no store. When that name does not resolve, every entry
+but a `tls false` one stays down at start, store or no store: the self-signed
+pair and plain HTTP are never served in place of a named certificate.
 
-`planLGTransports` is the one place this rule is written. The start path and the
-reload path both call it, so a restart and a reload give one config the same
-protocol on every entry.
+`planLGEndpoints` is the one place this rule is written. It answers a plan: the
+protocol of each entry that is served, the entries that serve HTTP for want of a
+certificate, and the entries that cannot be served, each with the operator
+error that names it and its fix. The start path, the reload path and `ze doctor`
+all read that plan, and they differ only in what they do with an entry that
+cannot be served:
 
-The web server refuses to start without the store for the whole listener earlier still.
+| Reader | An entry that cannot be served |
+|--------|--------------------------------|
+| Start (`startLGService`) | stays down and is reported; the other entries are bound and serve. When no entry can be served, no looking glass is built |
+| Reload (`checkLGTransport`, through `planLGTransports`) | refuses the reload as a whole; the running listeners keep what they serve |
+| `ze doctor` (`lgListenerDiagnostics`) | one `doctor-lg-tls-unservable` finding for each such entry |
+
+The reload gate reads the store of the running looking glass. When no looking
+glass runs, which is what a start leaves when it could serve no entry, the gate
+reads the store the daemon was started with (`setDaemonStore`), so a reload of
+the config that start could not serve is still refused.
+
+The web server is not started without the store, for the whole listener, earlier still.
 Its credentials and its config live there whatever it serves.
 
-<!-- source: cmd/ze/hub/lg_transport.go -- planLGTransports, lgTLSNeedsCertificate, resolveLGListeners -->
-<!-- source: cmd/ze/hub/service_lg.go -- buildLGService, the plan applied at start -->
+<!-- source: cmd/ze/hub/lg_transport.go -- planLGEndpoints, planLGTransports, lgTLSNeedsCertificate, lgCertificateUnpresentable, resolveLGListeners -->
+<!-- source: cmd/ze/hub/service_lg.go -- startLGService, the plan applied at start -->
+<!-- source: cmd/ze/hub/listener_migrate.go -- checkLGTransport, setDaemonStore -->
 
-The web and looking-glass names are checked before the daemon starts either listener. `runYANGConfig`
-resolves each configured name against the loaded store, and a name that does not
-resolve makes the daemon exit non-zero. A daemon that started and served a
-self-signed certificate instead would look healthy while it presents the wrong
+## Decision: a certificate that cannot be presented never stops ze
+
+Ze always starts. A daemon that exits brings up no networking, and the operator
+then has no route to the box to correct the name that stopped it. So a
+certificate that cannot be presented leaves its listener unstarted, and ze runs
+with its other services.
+
+| At start | What ze does | Reported under |
+|----------|--------------|----------------|
+| The web certificate name does not resolve | The web server is not started | `doctor-tls-reference` |
+| The looking-glass certificate name does not resolve | Every entry that asks for TLS stays down, and the `tls false` entries serve | `doctor-lg-tls-unservable` for each entry in the log, `doctor-tls-reference` for the name in `ze doctor` |
+| A looking-glass entry says `tls true` with no store and no name | That entry stays down, and the other entries serve | `doctor-lg-tls-unservable` |
+| `ze.looking-glass.listen` does not parse | The looking glass is not started | `doctor-lg-listen-unreadable` |
+
+`runYANGConfig` resolves the web name against the loaded store before it builds
+any service (`webCertificateProblem`). The looking glass resolves its own name
+when it starts (`lgCertificateProblem`). Each one writes an error line in the
+log under the code above, with the fix, and the same text on the terminal, and
+says that ze keeps running. Ze never serves a self-signed certificate in place
+of a named one: such a listener would look healthy while it presents the wrong
 identity to every client.
 
-<!-- source: cmd/ze/hub/main.go -- runYANGConfig, the web and looking-glass certificate startup gates -->
+A listener that was left down takes a corrected configuration at the next
+restart of ze. A looking glass that runs with one entry down binds that entry at
+the reload that corrects it, because a reload binds an address the running
+looking glass does not hold yet.
+
+<!-- source: cmd/ze/hub/main.go -- runYANGConfig, the web certificate startup gate and the looking-glass listener read -->
+<!-- source: cmd/ze/hub/service_tls.go -- webCertificateProblem, reportWebNotStarted -->
+<!-- source: cmd/ze/hub/lg_transport.go -- lgCertificateProblem, reportLGServerDown, reportLGNotStarted -->
+
+## Decision: a reload refuses what a start leaves down
 
 The reload path refuses the same two names against the just-installed store and
 asks the managed server to prepare its certificate (`prepareManagedReload`) at
@@ -94,9 +137,11 @@ the same gate. The check runs before any consumer applies, so the reload fails
 as a whole rather than leaving a listener on a certificate the config no longer
 describes. `restorePKIAfter` puts the prior store back on failure. The looking
 glass reads its listeners and its name through `lgListenerConfigFrom`, which
-the startup gate calls too, so a restart and a reload cannot disagree about
+the start path calls too, so a restart and a reload cannot disagree about
 which certificate one config asks for. The same gate refuses, through
 `checkLGTransport`, a `tls true` entry that has no certificate to present.
+A start leaves a listener down where a reload refuses the config: the daemon
+that reloads is already running and reachable, and keeps what it serves.
 
 The startup gate of `runYANGConfig` does not read the managed name: at startup
 an unresolved managed certificate leaves the managed server built with nothing
@@ -120,7 +165,9 @@ listener has under the running config, through the same two readers
 of its listeners with it. Once `rollbackReload` has put the prior store
 back, it reinstalls those names on every listener whose install succeeded, so
 the listener serves the certificate of the config that stays in force, and each
-looking-glass listener serves HTTPS or HTTP as that config says. A
+looking-glass listener serves HTTPS or HTTP as that config says
+(`restoreLGTransport`). An entry of that config that the start left down stays
+down: the restore applies the entries that serve and refuses nothing. A
 listener whose install failed kept what it was serving, so nothing is
 reinstalled on it. A reinstall that fails is reported with the refusal as a
 failed `certificate restore`. The managed listener needs no reinstall: its
@@ -133,6 +180,7 @@ that was rolled back.
 <!-- source: cmd/ze/hub/main_reload.go -- lgCertificateName -->
 <!-- source: cmd/ze/hub/listener_migrate.go -- checkLGTransport -->
 <!-- source: cmd/ze/hub/main_reload.go -- runningListenerCertificates, restoreOn, the restoreCertificates undo -->
+<!-- source: cmd/ze/hub/listener_migrate.go -- restoreLGTransport, applyLGPlan -->
 
 ## Decision: each looking-glass listener serves HTTPS or HTTP
 
@@ -179,8 +227,9 @@ gate nor the reload reads the `certificate` leaf. A commit refused over a name
 that no listener reads would reject a config the same daemon starts without a
 complaint.
 
-One entry that serves TLS is enough for the name to be read, resolved and
-refused when it does not resolve.
+One entry that asks for TLS is enough for the name to be read and resolved.
+When it does not resolve, a start leaves the entries that ask for TLS down, and
+a reload is refused.
 
 A listener that serves HTTP because its entry left `tls` unset, on a daemon with
 no store and no named certificate, is not that case: the config asks for TLS
@@ -309,19 +358,23 @@ and DoH check, because the operator fix is the same whatever the source of the
 certificate.
 
 Each consumer registers its own check, and each prefixes its messages with the
-leaf it read, so `ze doctor` names the listener the operator must fix.
+leaf it read, so `ze doctor` names the listener the operator must fix. The web
+and looking-glass findings of `doctor-tls-reference` also say what ze does with
+the name, which is to start without that listener, and carry the fix.
 
 The looking glass has a second check, `lg-listener-protocol`, which reports
 what each listener serves on this box. It asks the functions the start and
-reload paths ask (`lgListenerConfigFrom`, `planLGTransports`), with the store
+reload paths ask (`lgListenerConfigFrom`, `planLGEndpoints`), with the store
 doctor opened standing for the daemon's store, so it cannot disagree with what
-ze does with the same config:
+ze does with the same config. It takes the named certificate as presentable:
+the reference check above reports a name the pki block does not define, and
+its finding says which listeners stay down for it and gives the fix.
 
 | Code | Severity | When |
 |------|----------|------|
 | `doctor-lg-plain-http` | warning | an entry left `tls` unset, no certificate is named and there is no `database/` store, so it serves plain HTTP. The start path prints the same warning, and a reload logs it under this code |
-| `doctor-lg-tls-unservable` | error | an entry says `tls true` with no certificate to present: ze refuses to start, and a reload is refused |
-| `doctor-lg-listen-unreadable` | error | `ze.looking-glass.listen` does not parse: ze refuses to start, and a reload is refused |
+| `doctor-lg-tls-unservable` | error | an entry says `tls true` with no certificate to present, one finding for each such entry: ze starts and leaves that entry down, the other entries serve, and a reload is refused. The start path logs each entry it leaves down under this code, also when the cause is a named certificate that does not resolve |
+| `doctor-lg-listen-unreadable` | error | `ze.looking-glass.listen` does not parse: ze starts without the looking glass, and a reload is refused |
 
 <!-- source: internal/component/web/doctor.go -- the web certificate reference check -->
 <!-- source: internal/component/lg/doctor.go -- the looking-glass certificate reference check -->

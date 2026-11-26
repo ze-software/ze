@@ -765,7 +765,8 @@ func runReloadContext(ctx context.Context, source reloadSource, s *pluginserver.
 		}
 	}
 	// A server entry that says `tls true` with no certificate to present is
-	// refused here, before anything is applied, as a start refuses it.
+	// refused here, before anything is applied. A start leaves that entry down
+	// and serves the others; a reload keeps what runs and refuses the config.
 	if lm != nil {
 		if err := lm.checkLGTransport(lgConfig); err != nil {
 			return restorePKIAfter(priorPKI, clearCandidate, fmt.Errorf("reload: %w", err))
@@ -1260,7 +1261,7 @@ func (names *listenerCertificateNames) restoreOn(lm *listenerMigrator, lookingGl
 		if !lookingGlass {
 			return err
 		}
-		return errors.Join(err, lm.updateLGTransport(names.lg))
+		return errors.Join(err, lm.restoreLGTransport(names.lg))
 	}
 }
 

@@ -871,11 +871,16 @@ func runYANGConfig(store storage.Storage, configPath string, data []byte, plugin
 	// config (lg_transport.go). Each server entry chooses HTTPS or HTTP in its
 	// own tls leaf, and no environment variable does. The name is empty when
 	// every listener serves HTTP, because none presents a certificate.
+	//
+	// A looking glass whose addresses cannot be read (ze.looking-glass.listen
+	// does not parse) is not started, and ze runs: no service's configuration
+	// stops the daemon, because an operator who cannot reach it cannot correct
+	// it (docs/architecture/core-design.md, "Design decisions"). The empty
+	// config below describes no listener, so nothing builds a looking glass.
 	lgConfig, lgConfigErr := lgListenerConfigFrom(loadResult.Tree)
 	if lgConfigErr != nil {
-		fmt.Fprintf(os.Stderr, "error: %v\n", lgConfigErr)
-		logStartupFailure("looking glass listeners", lgConfigErr)
-		return 1
+		reportLGNotStarted(slogutil.Logger("lg.server"), os.Stderr, lgConfigErr)
+		lgConfig = lgListenerConfig{}
 	}
 	lgCertificate := lgConfig.certName
 	// The token is a SETTING: it applies whenever the block exists, whatever
@@ -918,32 +923,29 @@ func runYANGConfig(store storage.Storage, configPath string, data []byte, plugin
 		return 1
 	}
 
-	// Fail closed on a broken web certificate reference (AC-3, R-5). The check
-	// runs the SAME resolution the listener will run, so a name that passes here
-	// is a name the listener can serve. Refusing to start is the point: a daemon
-	// that booted and served a self-signed certificate instead would look
-	// healthy while presenting the wrong identity to every client.
+	// Fail closed on a broken web certificate reference (AC-3, R-5), without
+	// stopping ze. The check runs the SAME resolution the listener will run, so
+	// a name that passes here is a name the listener can serve. A name that
+	// does not resolve leaves the web server unstarted and reported, under the
+	// doctor code its reference check reports the name with: a daemon that
+	// served a self-signed certificate instead would look healthy while
+	// presenting the wrong identity to every client, and a daemon that exited
+	// would leave the operator nothing to reach it and correct the name with
+	// (docs/architecture/core-design.md, "Design decisions"). Every later read
+	// of webEnabled sees a web server this start does not build: the
+	// management-listener guard declares none, and the factory skips.
 	if webEnabled && webCertificate != "" {
-		if _, _, certErr := zepki.ServerTLSMaterial(webCertificate); certErr != nil {
-			fmt.Fprintf(os.Stderr, "error: environment.web.certificate: %v\n", certErr)
-			logStartupFailure("web certificate", certErr)
-			return 1
+		if problem, unpresentable := webCertificateProblem(webCertificate); unpresentable {
+			reportWebNotStarted(slogutil.Logger("hub.web"), os.Stderr, problem)
+			webEnabled = false
 		}
 	}
 
-	// The same refusal for the looking glass (AC-3, AC-4). A listener is what
-	// starts it, so that is the enable condition. lgCertificate is already
-	// empty when every listener serves HTTP, because none of them presents a
-	// certificate to resolve.
-	if len(lgConfig.listeners) > 0 && lgCertificate != "" {
-		if _, _, certErr := zepki.ServerTLSMaterial(lgCertificate); certErr != nil {
-			var tb textbuf.Buffer
-			tb.Str("error: environment.looking-glass.certificate: ").Str(certErr.Error()).Byte('\n')
-			tb.StdErr() //nolint:errcheck // the process is exiting on the next line
-			logStartupFailure("looking glass certificate", certErr)
-			return 1
-		}
-	}
+	// The looking glass resolves its own name when it starts (service_lg.go,
+	// startLGService): a name that does not resolve leaves down each entry that
+	// asks for TLS, the entries that say `tls false` serve, and ze runs.
+	// lgCertificate is already empty when every listener serves HTTP, because
+	// none of them presents a certificate to resolve.
 
 	system.RegisterConntrackManagedKeys()
 	// Register infrastructure hook before engine starts.
@@ -1103,6 +1105,9 @@ func runYANGConfig(store storage.Storage, configPath string, data []byte, plugin
 	// The listener migrator exists before the infrastructure hook, which hands
 	// it the SSH server it builds (setupInfraHook).
 	lm := newListenerMigrator()
+	// The reload gate judges the looking-glass entries of a config against the
+	// store this daemon runs with, also when no looking glass runs.
+	lm.setDaemonStore(store != nil)
 	setupInfraHook(apiServer, auditLog, sessionMutations, liveAcceptedLocalUsers, lm)
 	apiServer.SetProcessSpawner(pm)
 	apiServer.Dispatcher().SetAuditRecorder(auditLog)

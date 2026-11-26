@@ -18,6 +18,8 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"io"
+	"log/slog"
 	"net/http"
 	"os"
 	"time"
@@ -59,13 +61,24 @@ func (s lgService) selfSignedSource() (certStore selfcert.CertStore, listenAddr 
 // the registration hook (register_lg.go) as the only place that noticed.
 var _ nextHopRangesUpdatable = lgService{}
 
-// buildLGService builds and starts the looking-glass HTTP server from deps. It
-// returns a nil Service (not an error) when lg is not configured or fails to
-// start -- preserving the prior best-effort, non-fatal behavior of
-// startLGServer. Every entry in deps.LGListeners becomes a bound listener, on
-// HTTPS or HTTP as planLGTransports decides for it; Shutdown closes all of
-// them.
+// buildLGService is the looking-glass factory: startLGService reporting to the
+// daemon's log and terminal.
 func buildLGService(deps *serviceDeps) (Service, error) {
+	return startLGService(deps, slogutil.Logger("lg.server"), os.Stderr)
+}
+
+// startLGService builds and starts the looking-glass HTTP server from deps. It
+// never stops ze: a nil Service with no error is a looking glass that is not
+// configured, and an error is a looking glass that could not start, which
+// buildServices logs before it moves on. Every servable entry in
+// deps.LGListeners becomes a bound listener, on HTTPS or HTTP as
+// planLGEndpoints decides for it; Shutdown closes all of them.
+//
+// An entry that cannot be served stays down and is reported on log and console
+// under the code `ze doctor` reports it with (reportLGServerDown), and the
+// other entries serve. When no entry can be served the looking glass does not
+// start, and the error joins the operator error of each entry.
+func startLGService(deps *serviceDeps, log *slog.Logger, console io.Writer) (Service, error) {
 	// Not configured: a skip, not a failure. buildServices treats a nil service
 	// as "feature absent" and moves on.
 	if len(deps.LGListeners) == 0 {
@@ -85,14 +98,21 @@ func buildLGService(deps *serviceDeps) (Service, error) {
 	// Each entry chooses HTTPS or HTTP. A daemon without a store cannot keep a
 	// self-signed certificate, so with no named one an entry that left tls
 	// unset serves HTTP with the warning below, and an entry whose operator
-	// wrote `tls true` refuses the looking glass. A reload decides with the
-	// same function (listener_migrate.go, updateLGTransport).
-	plan, err := planLGTransports(deps.LGListeners, deps.LGCertificate, certStore != nil)
-	if err != nil {
-		return nil, err
+	// wrote `tls true` stays down. A named certificate that cannot be presented
+	// leaves every entry that asks for TLS down. A reload decides with the same
+	// function, and refuses what a start leaves down (listener_migrate.go,
+	// checkLGTransport).
+	plan := planLGEndpoints(deps.LGListeners, deps.LGCertificate, lgCertificateProblem(deps.LGCertificate), certStore != nil)
+	var down []error
+	for _, unservable := range plan.unservable {
+		reportLGServerDown(log, console, unservable)
+		down = append(down, unservable.problem)
 	}
 	for _, addr := range plan.downgraded {
-		fmt.Fprintln(os.Stderr, "warning: "+lgDowngradeWarning(addr).Error())
+		fmt.Fprintln(console, "warning: "+lgDowngradeWarning(addr).Error()) //nolint:errcheck // a terminal notice; the log line carries the same report
+	}
+	if len(plan.bindings) == 0 {
+		return nil, errors.Join(down...)
 	}
 
 	listen := make([]lg.ListenAddr, 0, len(plan.bindings))
@@ -117,8 +137,7 @@ func buildLGService(deps *serviceDeps) (Service, error) {
 
 	// When a listener serves TLS, resolve the material it presents through the
 	// selector the web listener shares. Build failures are returned as errors;
-	// buildServices logs them and leaves lg unstarted (best-effort, matching the
-	// prior non-fatal behavior).
+	// buildServices logs them and leaves lg unstarted, and ze keeps running.
 	if plan.servesTLS() {
 		certPEM, keyPEM, err := listenerTLSMaterial(deps.LGCertificate, certStore, sanHint)
 		if err != nil {
@@ -149,7 +168,7 @@ func buildLGService(deps *serviceDeps) (Service, error) {
 		if plan.bindings[i].tls {
 			scheme = "https"
 		}
-		fmt.Fprintf(os.Stderr, "looking glass listening on %s://%s/\n", scheme, addr)
+		fmt.Fprintf(console, "looking glass listening on %s://%s/\n", scheme, addr) //nolint:errcheck // a terminal notice; nothing acts on its delivery
 	}
 	return lgService{LGServer: srv, certStore: certStore, sanHint: sanHint}, nil
 }
