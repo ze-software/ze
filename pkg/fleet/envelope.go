@@ -1,5 +1,6 @@
 // Design: docs/architecture/fleet-config.md — managed config RPC payloads
 // Related: version.go — version hash computation
+// Related: report.go — inventory and health report payloads and producer registry
 
 package fleet
 
@@ -18,6 +19,12 @@ const (
 	// existed answers it with an unknown-method error.
 	VerbConfigHeld = "config-held"
 	VerbPing       = "ping"
+	// VerbInventoryReport is sent by a managed client to push its bounded
+	// hardware and software summary to its hub.
+	VerbInventoryReport = "inventory-report"
+	// VerbHealthReport is sent by a managed client to push its component health
+	// statuses to its hub.
+	VerbHealthReport = "health-report"
 )
 
 // ConfigFetchRequest is sent by a managed client to request its config.
