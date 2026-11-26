@@ -1,5 +1,11 @@
 # BGP Reactions to Interface Address Changes
 
+## Design decisions
+
+| Decision | It forbids | Source | Date |
+|----------|------------|--------|------|
+| Interface and neighbor change re-advertisement runs the first flip immediately, then coalesces bursts behind a per-peer cooldown with at most one queued trailing re-pass; BGP route flap dampening (RFC 2439) is a separate concept and, if ever implemented, must be an option off by default ("flap dampening should be an option and off by default as since the RFC it was found to not help. 1A is fine.") | Adding an unconditional settle delay before the first re-advertisement pass, omitting per-peer burst coalescing on active-pass flaps, or enabling RFC 2439 route flap dampening by default | plan/release/fixes/spec-rfc2545-readvertise-on-condition-flip.md | 2026-11-22 |
+
 BGP assumed a configured IP always existed. Listeners were created at startup
 and never adjusted. The reactor now watches the kernel interface address table
 and reacts: it starts a listener when a passive peer's local address appears,
