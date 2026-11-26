@@ -556,6 +556,7 @@ func (o *owner) fetchDue(ctx context.Context) {
 		o.discoverASN(ctx, asn)
 	}
 	o.plan()
+	now = o.clock()
 	wanted := o.wantedSets()
 	// fetched is a guard: a set a moving binding made the worker fetch early
 	// in this pass is not fetched a second time when the loop reaches it.
