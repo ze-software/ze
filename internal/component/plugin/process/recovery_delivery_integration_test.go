@@ -26,6 +26,7 @@ import (
 	_ "github.com/ze-software/ze/internal/component/bgp/plugins/cmd/peer"
 	_ "github.com/ze-software/ze/internal/component/bgp/plugins/cmd/update"
 	bgprib "github.com/ze-software/ze/internal/component/bgp/plugins/rib"
+	"github.com/ze-software/ze/internal/component/bgp/policychain"
 	"github.com/ze-software/ze/internal/component/bgp/reactor"
 	bgptypes "github.com/ze-software/ze/internal/component/bgp/types"
 	"github.com/ze-software/ze/internal/component/plugin"
@@ -691,7 +692,6 @@ func recoveryDeliveryRouter(t *testing.T, ctx context.Context, observers ...regi
 		settings.Connection = reactor.ConnectionPassive
 		settings.LocalAddress = local.Addr()
 		settings.ReceiveHoldTime = 90 * time.Second
-		settings.NextHopMode = reactor.NextHopUnchanged
 		settings.RSClient = true
 		settings.RSFastPath = true
 		// The sessions are EBGP, and RFC 8212 Section 3 rejects every route
@@ -701,8 +701,17 @@ func recoveryDeliveryRouter(t *testing.T, ctx context.Context, observers ...regi
 		if err != nil {
 			t.Fatal(err)
 		}
+		exportRefs := []routepolicy.Ref{{Name: policychain.BuiltinNextHopUnchanged}}
+		exportChain, err := policychain.Compile("bgp export", nil, []policychain.Member{{Name: policychain.BuiltinNextHopUnchanged}}, routepolicy.FinalAccept, policychain.Bases{})
+		if err != nil {
+			t.Fatal(err)
+		}
+		exportPolicy, err := filterapi.NewPolicy(exportRefs, routepolicy.FinalAccept)
+		if err != nil {
+			t.Fatal(err)
+		}
 		settings.ImportPolicy = accept
-		settings.ExportPolicy = accept
+		settings.ExportPolicy = exportPolicy.WithLibrary(exportChain)
 		settings.Capabilities = []capability.Capability{&capability.ASN4{ASN: 65000}, &capability.Multiprotocol{AFI: capability.AFIIPv4, SAFI: capability.SAFIUnicast}}
 		if err := r.AddPeer(settings); err != nil {
 			t.Fatal(err)
