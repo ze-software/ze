@@ -6,6 +6,7 @@
 // Related: cmd_divergence.go -- the four fleet divergence command handlers registered here
 // Related: cmd_devices.go -- the hub device registry commands
 // Related: cmd_reports.go -- the hub device inventory, health, and estate summary commands
+// Related: cmd_history.go -- the hub metric history query commands and pipe filters
 
 package managed
 
@@ -37,31 +38,33 @@ func init() {
 		pluginserver.RPCRegistration{WireMethod: "ze-managed:fleet-device-health", Handler: handleFleetDeviceHealth, Complete: completeFleetDevices},
 		pluginserver.RPCRegistration{WireMethod: "ze-managed:fleet-health", Handler: handleFleetHealth},
 	)
-	command.RegisterShape([]string{"show fleet devices"}, command.ShapeTab)
+	command.RegisterShape([]string{fleetDevicesPath}, command.ShapeTab)
 	command.RegisterShape([]string{"show fleet device name"}, command.ShapeDoc)
 	command.RegisterShape([]string{"show fleet device inventory name"}, command.ShapeDoc)
 	command.RegisterShape([]string{"show fleet device health name"}, command.ShapeDoc)
 	command.RegisterShape([]string{"show fleet health"}, command.ShapeDoc)
-	rowColumns := command.ColumnOrder{
-		"name", "connected", "config-state", "labels", "hub-version", "device-version", "last-fetch", "last-fetch-result",
-		"connected-since", "last-seen", "source-address", "ever-connected", "diverged", "removed",
-	}
-	command.RegisterColumns([]string{"show fleet devices"}, rowColumns)
+	rowColumns := make(command.ColumnOrder, 0, 23)
+	rowColumns = append(rowColumns,
+		"name", connectionUp, "config-state", colLabels, "hub-version", "device-version", "last-fetch", "last-fetch-result",
+		"connected-since", "last-seen", "source-address", "ever-connected", colDiverged, "removed",
+	)
+	command.RegisterColumns([]string{fleetDevicesPath}, rowColumns)
 	command.RegisterColumns([]string{"show fleet device name"}, append(rowColumns,
 		"first-connected", "last-ack", "ack-version", "ack-result", "ack-error", "last-fetch-error", "persisted", "unreadable", "removed-at"))
 	command.RegisterColumns([]string{"show fleet device inventory name"}, command.ColumnOrder{
-		"name", "connected", "reported", "status", colReceivedAt, "collected-at",
+		"name", connectionUp, "reported", colStatus, colReceivedAt, "collected-at",
 		"software-version", "model", "serial", "cpu", "nic", "memory", "storage", "dmi",
 	})
 	command.RegisterColumns([]string{"show fleet device health name"}, command.ColumnOrder{
-		"name", "connected", "reported", "status", colReceivedAt, "checked-at", "components",
+		"name", connectionUp, "reported", colStatus, colReceivedAt, "checked-at", "components",
 	})
 	command.RegisterColumns([]string{"show fleet health"}, command.ColumnOrder{
 		"total", "healthy", "degraded", "down", "unreported", "devices",
 	})
-	command.RegisterPipeFilters([]string{"show fleet devices"}, command.PipeFilter{
+	command.RegisterPipeFilters([]string{fleetDevicesPath}, command.PipeFilter{
 		Name: "label", Description: "Select devices with this key=value label", Argument: command.ArgText,
 	})
+	registerHistoryCommands()
 
 	for _, check := range []diagnostic.DoctorCheck{hubDoctorCheck, hubClientDoctorCheck, managedDivergedDoctorCheck, hubDivergedDoctorCheck, hubSessionDoctorCheck} {
 		if err := diagnostic.RegisterDoctorCheck(check); err != nil {
@@ -80,7 +83,7 @@ func init() {
 	command.RegisterShape([]string{"show fleet status"}, command.ShapeDoc)
 	command.RegisterColumns([]string{"show fleet status"}, command.ColumnOrder{
 		"managed", "frozen", "hub-declared", "hub-name", "hub-address",
-		"baseline-recorded", "baseline-hash", "active-recorded", "active-hash", "diverged",
+		"baseline-recorded", "baseline-hash", "active-recorded", "active-hash", colDiverged,
 		"daemon-answered", "client", "connection", "holding", "held-by-hub", "revert-offered",
 	})
 
@@ -147,6 +150,10 @@ func init() {
 	})
 }
 
-// colReceivedAt is the hub receipt-timestamp column shared by report and
-// divergence command outputs.
-const colReceivedAt = "received-at"
+// Shared column names and status words across managed command outputs.
+const (
+	colReceivedAt = "received-at"
+	colLabels     = "labels"
+	colStatus     = "status"
+	colDiverged   = "diverged"
+)

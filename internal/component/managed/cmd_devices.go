@@ -60,10 +60,10 @@ func deviceTime(t time.Time) string {
 	return t.UTC().Format(time.RFC3339Nano)
 }
 
-func deviceConfigState(device pluginserver.ManagedDevice) string {
+func deviceConfigState(device *pluginserver.ManagedDevice) string {
 	switch {
 	case device.Diverged:
-		return "diverged"
+		return colDiverged
 	case device.LastFetch.IsZero():
 		return "never-fetched"
 	case device.AckResult == pluginserver.ManagedAckRefused:
@@ -75,7 +75,7 @@ func deviceConfigState(device pluginserver.ManagedDevice) string {
 	}
 }
 
-func rowForDevice(device pluginserver.ManagedDevice) fleetDeviceRow {
+func rowForDevice(device *pluginserver.ManagedDevice) fleetDeviceRow {
 	labels := device.Labels
 	if !device.Declared || labels == nil {
 		labels = map[string]string{}
@@ -102,14 +102,26 @@ func splitFleetLabel(pair string) (key, value string, valid bool) {
 	return key, value, key != "" && value != ""
 }
 
-func handleFleetDevices(_ *pluginserver.CommandContext, validated command.ValidatedArgs) (*plugin.Response, error) {
+func unknownFleetDeviceRefusal(path, name string) *plugin.Response {
+	return plugin.OperatorErrorResponse(opererr.New(
+		path+" "+name+": unknown device",
+		"the hub has no declaration or record for this device",
+		fleetDevicesPath,
+	))
+}
+
+func handleFleetDevices(ctx *pluginserver.CommandContext, validated command.ValidatedArgs) (*plugin.Response, error) {
+	scope := pluginserver.ResolveFleetDeviceScope(ctx)
 	devices, err := pluginserver.ManagedRegistrySnapshot()
 	if err != nil {
 		return registryReadRefusal(fleetDevicesPath, err), nil
 	}
 	rows := make(plugin.Slice[fleetDeviceRow], 0, len(devices))
-	for _, device := range devices {
-		rows = append(rows, rowForDevice(device))
+	for i := range devices {
+		if !scope.AllowsDevice(devices[i].Name) {
+			continue
+		}
+		rows = append(rows, rowForDevice(&devices[i]))
 	}
 	// The only command-owned operation is label. Successive filters narrow
 	// the same sorted rows, so their order is preserved and an empty answer is [].
@@ -125,9 +137,9 @@ func handleFleetDevices(_ *pluginserver.CommandContext, validated command.Valida
 				"each managed device label has a key and a value", "show fleet devices | label site=lon")), nil
 		}
 		matched := rows[:0]
-		for _, row := range rows {
-			if actual, ok := row.Labels[key]; ok && actual == value {
-				matched = append(matched, row)
+		for i := range rows {
+			if actual, ok := rows[i].Labels[key]; ok && actual == value {
+				matched = append(matched, rows[i])
 			}
 		}
 		rows = matched
@@ -135,22 +147,24 @@ func handleFleetDevices(_ *pluginserver.CommandContext, validated command.Valida
 	return plugin.NewResponse(plugin.StatusDone, rows), nil
 }
 
-func handleFleetDevice(_ *pluginserver.CommandContext, validated command.ValidatedArgs) (*plugin.Response, error) {
+func handleFleetDevice(ctx *pluginserver.CommandContext, validated command.ValidatedArgs) (*plugin.Response, error) {
 	name, ok := validated.Value("name")
 	if !ok {
 		return plugin.OperatorErrorResponse(opererr.New(fleetDevicePath+": a device name is required",
 			"the command reads the history of one managed device", fleetDevicesPath)), nil
 	}
+	if !pluginserver.ResolveFleetDeviceScope(ctx).AllowsDevice(name) {
+		return unknownFleetDeviceRefusal(fleetDevicePath, name), nil
+	}
 	device, err := pluginserver.ManagedDeviceByName(name)
 	if errors.Is(err, pluginserver.ErrManagedDeviceUnknown) {
-		return plugin.OperatorErrorResponse(opererr.New(fleetDevicePath+" "+name+": unknown device",
-			"the hub has no declaration or record for this device", fleetDevicesPath)), nil
+		return unknownFleetDeviceRefusal(fleetDevicePath, name), nil
 	}
 	if err != nil {
 		return registryReadRefusal(fleetDevicePath+" "+name, err), nil
 	}
 	detail := fleetDeviceDetail{
-		fleetDeviceRow: rowForDevice(device), FirstConnected: deviceTime(device.FirstConnected),
+		fleetDeviceRow: rowForDevice(&device), FirstConnected: deviceTime(device.FirstConnected),
 		LastAck: deviceTime(device.LastAck), AckResult: device.AckResult.String(),
 		AckVersion: device.AckVersion, AckError: device.AckError, LastFetchError: device.LastFetchError,
 		Persisted: device.Persisted, Unreadable: device.Unreadable, RemovedAt: deviceTime(device.RemovedAt),

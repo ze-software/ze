@@ -1,0 +1,19 @@
+# QUESTION: Does tightening the hub's metric history byte cap evict oldest
+# buckets first while preserving recent live readings and raising capacity
+# pressure in storage status and show doctor, keep history when the device is
+# undeclared, and erase it durably across hub restart when the device record is
+# deleted?
+# WHY NOT A UNIT TEST: live hub reload budget enforcement, doctor runtime
+# capacity reporting, undeclaration retention, delete data key observer fencing,
+# durable shard erasure, and hub restart recovery run through the real ze hub
+# daemon, its ZeFS store, and SSH CLI.
+# VALIDATES: fleet-8 AC-5, AC-7, AC-15. The fixture seeds older coarse history,
+# pushes a fresh live sample, tightens device-budget-bytes and hub-budget-bytes
+# via live reload, checks capacity-pressure and oldest-first eviction with
+# recent point retention, undeclares the device to prove history survives, then
+# deletes the device record and restarts the hub to confirm complete erasure.
+option=storage:value=disk
+option=timeout:value=180s
+cmd=foreground:seq=1:exec=le test fixture managed/fleet-history-cap $PORT $PORT2 $PORT3:timeout=180s
+expect=exit:code=0
+expect=stdout:contains=OK: fleet metric history evicted oldest buckets under cap pressure, preserved undeclared history, and stayed erased after deletion and hub restart

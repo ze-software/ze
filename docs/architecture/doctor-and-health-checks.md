@@ -1850,7 +1850,7 @@ configured plugin, saying which run (`completePluginRestart`, served through
 
 ### External plugin and managed fleet checks
 
-Two checks judge the `plugin external` blocks the daemon cannot start, and six
+Two checks judge the `plugin external` blocks the daemon cannot start, and nine
 runtime checks read what the managed config server recorded. The name check runs on the
 parsed tree, before `ReadConfig`, because the commit now refuses a name of the
 wrong form and the load would hide the block; a run that hands it no tree gets
@@ -1858,14 +1858,14 @@ a row saying the names were not checked, never the empty answer. The
 in-process check reads `Registration.RunsInProcessOnly` of the registration
 each external block resolves to. The managed server publishes its record when
 `Start` applies its initial listeners (`ApplyManagedListeners`), and `Stop`
-withdraws it; all six managed runtime checks read `ManagedRuntimeHealth`. With
+withdraws it; all nine managed runtime checks read `ManagedRuntimeHealth`. With
 no managed server running, `checkManagedListenerUnbound` still reports any
 recorded `StartupFailure` (`doctor-managed-server-unavailable`), and all other
 managed checks stay silent because no listener was asked for and no client was
 served.
 <!-- source: internal/component/plugin/doctor/register_external.go -- init -->
 <!-- source: internal/component/plugin/doctor/check_external.go -- checkExternalPluginNames, checkExternalInProcess -->
-<!-- source: internal/component/plugin/doctor/check_managed_runtime.go -- checkManagedListenerUnbound, checkManagedClientRejected, checkManagedDeviceRecordUnwritable, checkManagedDeviceRecordUnreadable, checkManagedCertificateRefused, checkManagedHandshakeSaturated -->
+<!-- source: internal/component/plugin/doctor/check_managed_runtime.go -- checkManagedListenerUnbound, checkManagedClientRejected, checkManagedDeviceRecordUnwritable, checkManagedDeviceRecordUnreadable, checkManagedCertificateRefused, checkManagedHandshakeSaturated, checkManagedHistoryCheckpoint, checkManagedHistoryCapacity, checkManagedHistoryCorrupt -->
 <!-- source: internal/component/plugin/server/managed_doctor.go -- ManagedRuntimeHealth, managedDoctorState, authRefused -->
 
 | Check | Phase | Code | Reports | Fix |
@@ -1879,6 +1879,9 @@ served.
 | `managed-device-record-unreadable` | runtime | `doctor-managed-device-record-unreadable` (error) | each stored device record the hub could not read or decode, with the key and the cause | reconnect the device to replace its record, or use `ze data rm meta/fleet/device/<name>/record` to delete its history |
 | `managed-certificate-refused` | runtime | `doctor-managed-certificate-refused` (warning) | each remote address whose TLS handshake ended with one of the six RFC 8446 / IANA certificate-rejection alerts (`bad_certificate`, `unsupported_certificate`, `certificate_revoked`, `certificate_expired`, `certificate_unknown`, `unknown_ca`), naming the address, count, first/last times, alert, presented certificate, and devices last seen from that address (up to 16 addresses kept for one hour, cleared on authentication, plus a forgotten-count row) | run `ze doctor` on the device at that address, or have the hub present a certificate its devices verify (`bus hub server <block> certificate`); `show fleet devices` lists every device not connected |
 | `managed-handshake-saturated` | runtime | `doctor-managed-handshake-saturated` (warning) | that all 32 unauthenticated handshake slots on the managed listener were occupied at once, naming the last time, count, and remote addresses holding slots | check firewall rules and the listed addresses for stalled or abusive connections, and run `ze show fleet devices` |
+| `managed-history-checkpoint` | runtime | `doctor-managed-history-checkpoint-failed` (error) | a failed hub metric history checkpoint or deletion flush, with the failure time, error detail, and age since the last successful checkpoint; dirty samples stay in memory for retry while committed shards remain readable | run `ze show data check` and `ze show fleet sample storage`, then repair the store before the next checkpoint |
+| `managed-history-capacity` | runtime | `doctor-managed-history-capacity-pressure` (warning) | that hub metric history reached its per-device or hub-wide byte budget and shortened effective retention oldest-first while retaining recent samples and latest observations | raise `bus hub history device-budget-bytes` or `hub-budget-bytes`, or lower `retention-days`, and inspect with `ze show fleet sample storage` |
+| `managed-history-corrupt` | runtime | `doctor-managed-history-corrupt` (warning) | each persisted fleet metric history latest record or compressed shard that failed size, version, or integrity validation on startup load while healthy shards remained readable | inspect with `ze show fleet sample storage`; the next valid sample report replaces the damaged record |
 
 The managed client has four checks of its own, and its hub one more, all
 registered by `internal/component/managed`. The first four are post-config checks,

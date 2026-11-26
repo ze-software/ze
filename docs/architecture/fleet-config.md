@@ -281,7 +281,7 @@ A startup failure that prevents publication remains visible with its cause.
 When a configuration drops a client, its last named rejection clears.
 <!-- source: cmd/ze/hub/managed_server.go -- startManagedServer -->
 <!-- source: internal/component/plugin/server/managed_doctor.go -- ManagedRuntimeHealth, managedDoctorState, notifyDropped -->
-<!-- source: internal/component/plugin/doctor/check_managed_runtime.go -- checkManagedListenerUnbound, checkManagedClientRejected -->
+<!-- source: internal/component/plugin/doctor/check_managed_runtime.go -- checkManagedListenerUnbound, checkManagedClientRejected, checkManagedHistoryCheckpoint, checkManagedHistoryCapacity, checkManagedHistoryCorrupt -->
 
 | Event | Recorded as | Doctor code |
 |-------|-------------|-------------|
@@ -298,6 +298,9 @@ When a configuration drops a client, its last named rejection clears.
 | All 32 unauthenticated handshake slots occupied at once (`managedMaxHandshakes`) | saturation time, count, and the remote addresses holding slots | `doctor-managed-handshake-saturated` (warning) |
 | A device history write failure under `meta/fleet/device/<name>/record` (or failed removal of a foreign key) | per-device failure with key and store error, cleared by the next successful write or removal | `doctor-managed-device-record-unwritable` (error) |
 | A stored device record that fails read or strict JSON decode at startup | per-device failure with key and decode error, cleared when a new event replaces it or `ze data rm` deletes it | `doctor-managed-device-record-unreadable` (error) |
+| A hub metric history checkpoint or deletion-intent flush fails | failure timestamp, error detail, and age since the last successful checkpoint; dirty samples stay in memory for retry | `doctor-managed-history-checkpoint-failed` (error) |
+| Hub metric history shortens retention oldest-first under per-device or hub-wide byte caps | used bytes, configured budgets, and shortened effective retention while recent samples and latest observations remain kept | `doctor-managed-history-capacity-pressure` (warning) |
+| A persisted fleet metric history latest record or compressed shard fails startup validation | per-device failure with key and decode error; healthy shards stay readable and the next valid sample report replaces it | `doctor-managed-history-corrupt` (warning) |
 | A `config-changed` a connected client was not given (the notification could not be built, or the client did not accept it) | an event on the report bus naming the client and the cause | `doctor-managed-client-notify-dropped` |
 
 ### Config Storage (Hub Side)
@@ -950,23 +953,27 @@ After `#0 auth`, the hub knows the client's name. All RPCs are scoped to that na
 | `config-held` | Client to hub | `{"version":"<hash>","config":"<base64>","edited-at":"<RFC 3339 time>"}` | `ok {}`; an error with code `config-held-refused` for a copy the hub refused; any other error from a hub that does not take the verb |
 | `inventory-report` | Client to hub | Compact JSON `InventoryReport` (max 64 KiB, per-section `available` flags, optional ECC counters, no raw SMART or drive serials) | `ok {}`; RPC error on invalid, oversized, stale-session, or rate-limited report |
 | `health-report` | Client to hub | Compact JSON `HealthReport` (max 64 KiB, matching `/health` JSON status and component rows) | `ok {}`; RPC error on invalid, oversized, stale-session, or rate-limited report |
+| `sample-report` | Client to hub | Compact JSON `SampleReport` (max 8 KiB, `schema-version: 1`, optional diagnostic `device-time`, up to 16 registered finite scalar readings) | `ok {}`; RPC error on invalid, oversized, disabled, stale-session, clock-regression, or rate-limited report |
 | `ping` | Either direction | `{}` | `ok {}` |
 
 The `config-fetch` answer that carries a configuration may also carry
-`"held-version":"<hash>"` and `"discard-version":"<hash>"`. Every field added
-after the first four verbs is optional and omitted when unset, and the
-payload of `config-held` names no client: the hub takes the name from the
+`"held-version":"<hash>"` and `"discard-version":"<hash>"`, and any successful
+`config-fetch` answer (both full-config and `"current"`) may carry
+`"sample-interval-seconds":<N>` when hub-side metric sampling is enabled. Every
+field added after the first four verbs is optional and omitted when unset, and the
+payload of `config-held` and every report verb names no client: the hub takes the name from the
 authenticated session. A peer built before them decodes each message as it
 did, because Go's JSON decoder ignores a key its type does not declare, and a
-hub built before `config-held` answers it with an unknown-method error.
+hub built before `config-held` or `sample-report` answers it with an unknown-method error.
 
 | Field | Message | Meaning |
 |-------|---------|---------|
 | `held-version` | `config-fetch` answer | The version hash of the configuration the hub holds as this client's held copy. Absent when the hub holds none |
 | `discard-version` | `config-fetch` answer | Present only when the hub's operator decided that a client running exactly this version drops it and applies the configuration of the answer |
+| `sample-interval-seconds` | `config-fetch` answer (full or `current`) | Hub-configured periodic metric sample interval in seconds (`1..3600`). Omitted when sampling is disabled (`interval 0`) or by older hubs |
 | `holding` | `config-ack` | `true` when the client refused because it holds a configuration of its own, not because the hub's one is invalid |
 | `edited-at` | `config-held` | When the version the client runs was written into its store (the stamp of its active version). Absent when the client's store records no such stamp |
-<!-- source: pkg/fleet/envelope.go -- VerbConfigHeld, ConfigHeld, ConfigFetchResponse, ConfigAck -->
+<!-- source: pkg/fleet/envelope.go -- VerbConfigHeld, VerbSampleReport, ConfigHeld, ConfigFetchResponse, ConfigAck -->
 <!-- test: pkg/fleet/envelope_test.go TestConfigHeldEnvelopeRoundTrip, TestOldPeerIgnoresNewFields -->
 
 The hub caps concurrent unauthenticated handshakes at 32 (`managedMaxHandshakes`)
@@ -1039,6 +1046,160 @@ and survives disconnect and hub restart.
 <!-- source: internal/component/plugin/server/managed_serve.go -- handleRequest -->
 <!-- source: internal/component/plugin/server/fleet_report.go -- ManagedReportReceiver, RegisterManagedReportReceiver, handleReport, managedInventoryMinInterval, managedHealthMinInterval -->
 <!-- source: internal/component/plugin/server/managed_registry.go -- ManagedInventorySnapshot, ManagedHealthSnapshot, recordInventoryReport, recordHealthReport -->
+
+### Device metric sampling and hub-side history
+
+Managed devices push a fixed vocabulary of 15 scalar operational figures over
+the authenticated `MuxConn` session using `sample-report`, and the hub keeps up
+to one week of bounded, dual-resolution history in its state store so every
+command surface can query latest readings, time series, rankings, estate
+reductions, and storage health. Arbitrary metrics and long-term retention stay
+with Prometheus; the hub's history store is bounded to this fixed sample set.
+
+#### Registered sample vocabulary
+
+`pkg/fleet/sample.go` owns the fixed 15-figure vocabulary, units, valid numeric
+domains, owning producer names, and cross-device aggregation rules:
+
+| Figure | Unit | Owner | Aggregation |
+|--------|------|-------|-------------|
+| `cpu-used` | `percent` (`0..100`) | `host` | mean |
+| `memory-used` | `bytes` | `host` | sum (paired capacity ratio with `memory-total`) |
+| `memory-total` | `bytes` | `host` | sum |
+| `storage-used` | `bytes` | `host` | sum (paired capacity ratio with `storage-total`) |
+| `storage-total` | `bytes` | `host` | sum |
+| `load-1m` | `number` | `host` | mean |
+| `uptime` | `seconds` | `host` | mean |
+| `interfaces-up` | `count` | `iface` | sum |
+| `interfaces-configured` | `count` | `iface` | sum |
+| `traffic-in` | `bps` | `iface` | sum |
+| `traffic-out` | `bps` | `iface` | sum |
+| `bgp-peers-established` | `count` | `bgp-peer` | sum |
+| `bgp-peers-configured` | `count` | `bgp-peer` | sum |
+| `routes-held` | `count` | `bgp-rib` | sum |
+| `subscriber-sessions` | `count` | `l2tp` + `pppoe` (additive) | sum |
+
+<!-- source: pkg/fleet/sample.go -- AllSampleFigures, LookupSampleFigure, SampleReport, EncodeSampleReport, DecodeAndValidateSampleReport, SourceSnapshot, ValidateSourceSnapshot -->
+
+#### Interval negotiation and device-side hidden source producers
+
+On every successful `config-fetch` answer (both changed-config and `"current"`),
+`ManagedConfigService.HandleConfigFetch` advertises `sample-interval-seconds`
+from `bus hub history interval` (default `60`, range `0..3600`; omitted when
+`0`). A standalone device creates no sampler, starts no sampling ticker, and
+never invokes sample producers. On an authenticated managed session,
+`sessionSampler` stays idle until a positive interval is negotiated, supports
+live interval updates on `config-changed`, drops late collector results by
+generation, skips empty snapshots, disables sampling for that session without
+interrupting configuration sync when an older hub answers
+`unknown method: sample-report`, and never buffers offline samples across
+disconnect.
+
+Each feature that supplies readings registers a hidden read-only command under
+`show fleet source <owner>` (`host`, `iface`, `bgp-peer`, `bgp-rib`, `l2tp`,
+`pppoe`) in its own YANG schema and, for forkable plugins (`iface`, `bgp-rib`),
+in its Stage 1 `CommandDecl` list with `Hidden: true`. `FleetSampleCollector`
+enumerates live owners from the device dispatcher's full registry (including
+hidden entries), dispatches each owner once per tick with a bounded per-source
+timeout across either the in-process handler or `PluginConn` execute-command
+transport (zero Go pointers cross processes), validates each `SourceSnapshot`
+against the vocabulary and owner rules, sums additive `l2tp` and `pppoe`
+contributions into `subscriber-sessions`, omits absent or compiled-out owners
+rather than synthesizing zeros, and preserves real measured zeros. The Linux
+host sampler reads `/proc` and `statfs("/")` directly in `internal/component/host`
+without importing `telemetry/collector`; CPU percentage and interface traffic
+rates skip their first tick until they have a monotonic baseline and reset on
+counter rollback or physical interface membership change.
+<!-- source: internal/component/managed/sample.go -- sessionSampler, SampleCollectorFunc, FleetSampleMetrics -->
+<!-- source: internal/component/plugin/server/fleet_sample_sources.go -- FleetSampleSourcePrefix, FleetSampleCollector, CollectFleetSampleReportFromServer -->
+<!-- source: internal/component/host/fleet_samples_linux.go -- FleetSampler, SampleFleetMetrics -->
+<!-- source: internal/component/iface/fleet_samples.go -- FleetSourceCommand, fleetSampleTracker -->
+<!-- source: internal/component/bgp/plugins/cmd/peer/fleet_samples.go -- handleFleetSourceBGPPeer -->
+<!-- source: internal/component/bgp/plugins/rib/fleet_samples.go -- fleetSourceCommand -->
+<!-- source: internal/component/l2tp/cmd/fleet_samples.go -- handleFleetSourceL2TP -->
+<!-- source: internal/component/l2tp/pppoe/cmd/fleet_samples.go -- handleFleetSourcePPPoE -->
+
+#### Hub dual-resolution store, persistence, budgets, and deletion fencing
+
+The hub registers `sample-report` on `ManagedReportReceiver` with an 8 KiB body
+cap (`fleet.SampleReportBodyMax`) and custom UTC-slot rate limiting. Every
+accepted report is stamped with the hub's own UTC receipt time (`device-time`
+is diagnostic only), admitted at most once per device per configured UTC
+interval slot across reconnects, and rejected whole without mutating history on
+malformed payloads, replaced sessions, or backwards hub wall-clock steps.
+
+`ManagedHistoryStore` allocates device and figure rings lazily on first report
+(zero preallocation for offline declared devices):
+
+- **Latest observation:** kept independently of series buckets so bucket
+  eviction never erases a device's last-seen values or receipt timestamp, and
+  disconnect retains the prior measurement and age without inserting synthetic
+  points.
+- **Fine ring (`1m` for `1d`):** up to 1,440 strictly ascending 1-minute UTC
+  buckets per reported figure (`sum`, `max`, `count`).
+- **Coarse ring (`15m` for `retention-days`, default `7d`):** up to 672
+  15-minute UTC buckets (`sum`, `max`, `count`, 15-bit minute mask) paired with
+  a flat packed circular buffer of per-minute contributions so set queries
+  derive exact estate peaks from aligned minutes observed together. Queries
+  crossing the 1-day seam align on a 15-minute UTC boundary so each period is
+  counted once, and empty intervals stay explicit gaps (`gap: true`).
+- **Persistence and checkpointing:** flushed every 5 minutes by a long-lived
+  worker and joined on graceful shutdown (`FlushFinal`) before releasing the
+  borrowed hub store. Each device persists versioned JSON latest data under
+  `meta/fleet/history/latest/{name}` and `ZEH1` zlib-compressed fine/coarse
+  shards under `meta/fleet/history/shard/{name}/{shard}`, enforcing registered
+  `ValueMax` limits before write and before decode. Failed writes keep dirty
+  state for retry and surface `doctor-managed-history-checkpoint-failed` with
+  checkpoint age; corrupt keys on startup are skipped while healthy shards stay
+  readable and surface `doctor-managed-history-corrupt`.
+- **Budgets:** defaults are 1 MiB per device (`device-budget-bytes`) and 2 GiB
+  across the hub (`hub-budget-bytes`), charging latest bytes, key names, write
+  headroom, and compressed shard bytes while reserving at least 4 KiB per
+  declared device (`MinHistoryLatestReservePerDeviceBytes`). Reaching either cap
+  evicts oldest buckets first without evicting latest observations, shortens
+  effective retention, sets `capacity-pressure: true`, and raises
+  `doctor-managed-history-capacity-pressure`.
+- **Undeclaration vs. deletion fencing:** undeclaring a client preserves its
+  remembered registry record and metric history across reload and restart.
+  Deleting `meta/fleet/device/<name>/record` invokes `FenceForgetDevice`,
+  bumping the device's generation to cancel any in-flight flush, writing a
+  durable `meta/fleet/history/delete-intent/{name}` key, erasing latest and
+  shard keys, and removing the intent (replayed first on `LoadFromStore` if
+  interrupted by a crash).
+<!-- source: internal/component/plugin/server/managed_history.go -- ManagedHistoryStore, Ingest, QueryLatest, ReduceLatestRows, RankLatestRows, QuerySeries, QueryStorage, CheckpointOnce, FlushFinal, LoadFromStore, FenceForgetDevice -->
+<!-- source: internal/component/plugin/server/managed_record_store.go -- observeDeviceRecord, forgetDeviceRecordLocked -->
+<!-- source: internal/component/plugin/server/managed_apply.go -- PrepareManagedListenersWithHistory, ApplyManagedListeners -->
+<!-- source: pkg/zefs/keys.go -- KeyFleetHistoryLatest, KeyFleetHistoryShard, KeyFleetHistoryDeleteIntent -->
+
+#### Device-scope visibility projection and query commands
+
+Three argument-free read commands expose metric history identically across CLI,
+SSH, MCP, REST, gRPC, and the web command line: `show fleet sample latest`,
+`show fleet sample series`, and `show fleet sample storage`. Selection, time
+bounds, reduction, point budgeting, and ranking use command-specific pipe
+operations (`device`, `label`, `figure`, `from`, `until`, `reduce`, `points`,
+`rank`), bounded to 4,096 output rows and 4 MiB serialized JSON per answer.
+
+The daemon authorizes the submitted history command once through its normal
+authorizer (including TACACS+), then resolves a request-bound
+`FleetDeviceScope` via `aaa.AuthorizeLocalScope` before computing totals,
+rankings, or per-device rows. Each candidate device is checked strictly locally
+against canonical `show fleet device name <value>` read tokens using the
+authenticated session's accepted local generation or bound remote profile
+mapping — never issuing per-device remote TACACS+ calls. A retired or absent
+AAA bundle, an authorization generation change, an unsupported provider, or a
+missing or unknown remote profile mapping fails closed; only a live
+policy-free installation with a nil authorizer permits reads without RBAC.
+Absent and denied devices produce the same empty answer, and
+`show fleet sample storage` additionally requires authorization on that exact
+command path before exposing hub-wide totals while still filtering its
+per-device rows through the same local scope.
+<!-- source: internal/component/aaa/command_args.go -- LocalScopeAuthorizer, AuthorizeLocalScope, FleetDeviceReadTokens -->
+<!-- source: internal/component/plugin/server/fleet_visibility.go -- FleetDeviceScope, ResolveFleetDeviceScope, AuthorizeFleetDevice -->
+<!-- source: internal/component/managed/cmd_history.go -- registerHistoryCommands, handleFleetSampleLatest, handleFleetSampleSeries, handleFleetSampleStorage -->
+<!-- source: cmd/ze/hub/aaa_lifecycle.go -- liveLocalAuthorizer, liveAAABundleAuthorizer -->
+<!-- test: test/managed/fleet-history-reconnect.ci -->
+<!-- test: test/managed/fleet-history-cap.ci -->
 
 ### Version Hash
 
@@ -1191,17 +1352,27 @@ The store now has the cached config. On subsequent boots, the config itself prov
 
 | Path | Type | Description |
 |------|------|-------------|
-| `plugin/hub` | container | Hub configuration |
-| `plugin/hub/server` | list, keyed by name | Hub server instances |
-| `plugin/hub/server/<name>/ip` | string | Listen address |
-| `plugin/hub/server/<name>/port` | uint16 | Listen port |
-| `plugin/hub/server/<name>/secret` | string (min 32 chars) | Shared secret for plugins connecting to this server |
-| `plugin/hub/server/<name>/client` | list, keyed by name | Accepted remote managed clients |
-| `plugin/hub/server/<name>/client/<name>/secret` | string (min 32 chars) | Per-client auth token |
-| `plugin/hub/client` | list, keyed by name | Outbound hub connections |
-| `plugin/hub/client/<name>/host` | string | Remote hub address |
-| `plugin/hub/client/<name>/port` | uint16 | Remote hub port |
-| `plugin/hub/client/<name>/secret` | string (min 32 chars) | Auth token |
+| `bus/hub` | container | Hub transport, managed listeners, client connections, and metric history settings |
+| `bus/hub/server` | list, keyed by name | Hub server instances (TLS listeners) |
+| `bus/hub/server/<name>/ip` | string | Listen address |
+| `bus/hub/server/<name>/port` | uint16 | Listen port |
+| `bus/hub/server/<name>/secret` | string (min 32 chars) | Shared secret for plugins connecting to this server |
+| `bus/hub/server/<name>/certificate` | string (`pki-certificate`) | Optional PKI certificate served by the managed-client listener |
+| `bus/hub/server/<name>/client` | list, keyed by name | Accepted remote managed clients |
+| `bus/hub/server/<name>/client/<name>/secret` | string (min 32 chars) | Per-client auth token |
+| `bus/hub/server/<name>/client/<name>/label` | list, keyed by key | Operator labels (`key` + `value`, max 32 per client) |
+| `bus/hub/client` | list, keyed by name | Outbound hub connections |
+| `bus/hub/client/<name>/host` | string | Remote hub address |
+| `bus/hub/client/<name>/port` | uint16 | Remote hub port |
+| `bus/hub/client/<name>/secret` | string (min 32 chars) | Auth token |
+| `bus/hub/client/<name>/source-address` | ip-address | Optional local source IP for outbound hub connections |
+| `bus/hub/client/<name>/ca` | string (`pki-ca`) | Optional PKI CA entry anchoring the hub certificate |
+| `bus/hub/history` | container | Managed device metric sampling and hub-side history store settings |
+| `bus/hub/history/interval` | uint32 (`0..3600`, default `60`) | Advertised sample report interval in seconds (`0` disables sampling) |
+| `bus/hub/history/retention-days` | uint8 (`1..7`, default `7`) | Maximum coarse history retention in days |
+| `bus/hub/history/device-budget-bytes` | uint64 (`4096..max`, default `1048576`) | Hard persisted byte cap per managed device |
+| `bus/hub/history/hub-budget-bytes` | uint64 (`4096..max`, default `2147483648`) | Hard total persisted byte cap across the hub |
+<!-- source: internal/component/plugin/yang/ze-plugin-conf.yang -- container bus -->
 
 ### Client Side
 

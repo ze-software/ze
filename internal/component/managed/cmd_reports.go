@@ -80,17 +80,22 @@ type fleetHealthSummaryDoc struct {
 	Devices    []fleetHealthDeviceRow `json:"devices"`
 }
 
-func lookupManagedDevice(path, purpose string, validated command.ValidatedArgs) (pluginserver.ManagedDevice, *plugin.Response) {
+func lookupManagedDevice(
+	ctx *pluginserver.CommandContext,
+	path, purpose string,
+	validated command.ValidatedArgs,
+) (pluginserver.ManagedDevice, *plugin.Response) {
 	name, ok := validated.Value(fleetDeviceNameLeaf)
 	if !ok {
 		return pluginserver.ManagedDevice{}, plugin.OperatorErrorResponse(opererr.New(
 			path+": a device name is required", purpose, fleetDevicesPath))
 	}
+	if !pluginserver.ResolveFleetDeviceScope(ctx).AllowsDevice(name) {
+		return pluginserver.ManagedDevice{}, unknownFleetDeviceRefusal(path, name)
+	}
 	device, err := pluginserver.ManagedDeviceByName(name)
 	if errors.Is(err, pluginserver.ErrManagedDeviceUnknown) {
-		return pluginserver.ManagedDevice{}, plugin.OperatorErrorResponse(opererr.New(
-			path+" "+name+": unknown device",
-			"the hub has no declaration or record for this device", fleetDevicesPath))
+		return pluginserver.ManagedDevice{}, unknownFleetDeviceRefusal(path, name)
 	}
 	if err != nil {
 		return pluginserver.ManagedDevice{}, registryReadRefusal(path+" "+name, err)
@@ -98,8 +103,9 @@ func lookupManagedDevice(path, purpose string, validated command.ValidatedArgs) 
 	return device, nil
 }
 
-func handleFleetDeviceInventory(_ *pluginserver.CommandContext, validated command.ValidatedArgs) (*plugin.Response, error) {
+func handleFleetDeviceInventory(ctx *pluginserver.CommandContext, validated command.ValidatedArgs) (*plugin.Response, error) {
 	device, refusal := lookupManagedDevice(
+		ctx,
 		fleetDeviceInventoryPath,
 		"the command reads the reported inventory of one managed device",
 		validated,
@@ -137,8 +143,9 @@ func handleFleetDeviceInventory(_ *pluginserver.CommandContext, validated comman
 	return plugin.NewResponse(plugin.StatusDone, doc), nil
 }
 
-func handleFleetDeviceHealth(_ *pluginserver.CommandContext, validated command.ValidatedArgs) (*plugin.Response, error) {
+func handleFleetDeviceHealth(ctx *pluginserver.CommandContext, validated command.ValidatedArgs) (*plugin.Response, error) {
 	device, refusal := lookupManagedDevice(
+		ctx,
 		fleetDeviceHealthPath,
 		"the command reads the reported component health of one managed device",
 		validated,
@@ -167,33 +174,59 @@ func handleFleetDeviceHealth(_ *pluginserver.CommandContext, validated command.V
 	return plugin.NewResponse(plugin.StatusDone, doc), nil
 }
 
-func handleFleetHealth(_ *pluginserver.CommandContext, _ command.ValidatedArgs) (*plugin.Response, error) {
-	summary, err := pluginserver.ManagedFleetHealth()
+func fleetHealthRowFromDevice(device *pluginserver.ManagedDevice) fleetHealthDeviceRow {
+	report := device.Health.Report.Clone()
+	components := report.Components
+	if components == nil {
+		components = []fleet.HealthComponent{}
+	}
+	return fleetHealthDeviceRow{
+		Name:       device.Name,
+		Status:     report.Status.String(),
+		Connected:  device.Connected,
+		ReceivedAt: deviceTime(device.Health.ReceivedAt),
+		CheckedAt:  report.CheckedAt,
+		Components: components,
+	}
+}
+
+func handleFleetHealth(ctx *pluginserver.CommandContext, _ command.ValidatedArgs) (*plugin.Response, error) {
+	scope := pluginserver.ResolveFleetDeviceScope(ctx)
+	devices, err := pluginserver.ManagedRegistrySnapshot()
 	if err != nil {
 		return registryReadRefusal(fleetHealthPath, err), nil
 	}
-	devices := make([]fleetHealthDeviceRow, 0, len(summary.Devices))
-	for _, device := range summary.Devices {
-		components := device.Components
-		if components == nil {
-			components = []fleet.HealthComponent{}
-		}
-		devices = append(devices, fleetHealthDeviceRow{
-			Name:       device.Name,
-			Status:     device.Status.String(),
-			Connected:  device.Connected,
-			ReceivedAt: deviceTime(device.ReceivedAt),
-			CheckedAt:  device.CheckedAt,
-			Components: components,
-		})
-	}
 	doc := fleetHealthSummaryDoc{
-		Total:      summary.Total,
-		Healthy:    summary.Healthy,
-		Degraded:   summary.Degraded,
-		Down:       summary.Down,
-		Unreported: summary.Unreported,
-		Devices:    devices,
+		Devices: []fleetHealthDeviceRow{},
+	}
+	for i := range devices {
+		device := &devices[i]
+		if !device.Declared {
+			continue
+		}
+		if !scope.AllowsDevice(device.Name) {
+			continue
+		}
+		doc.Total++
+		if device.Health == nil {
+			doc.Unreported++
+			continue
+		}
+		switch device.Health.Report.Status {
+		case fleet.HealthStatusHealthy:
+			doc.Healthy++
+		case fleet.HealthStatusDegraded:
+			doc.Degraded++
+			doc.Devices = append(doc.Devices, fleetHealthRowFromDevice(device))
+		case fleet.HealthStatusDown:
+			doc.Down++
+			doc.Devices = append(doc.Devices, fleetHealthRowFromDevice(device))
+		case fleet.HealthStatusUnspecified:
+			doc.Unreported++
+		default:
+			// Open enum from pkg/fleet: treat an unrecognized status as unreported.
+			doc.Unreported++
+		}
 	}
 	return plugin.NewResponse(plugin.StatusDone, doc), nil
 }

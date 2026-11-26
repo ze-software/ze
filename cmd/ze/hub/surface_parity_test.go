@@ -244,16 +244,27 @@ func dispatcherServes(d *pluginserver.Dispatcher) func(path string) bool {
 	}
 }
 
-// treeHasPath answers whether each word of path is a child of the one before.
+// treeHasPath answers whether each word of path is a visible child of the one
+// before, matching how SSH completion, web admin navigation, and `ze cli` omit
+// nodes marked Hidden (and their descendants) from operators.
 func treeHasPath(tree *command.Node, path string) bool {
 	node := tree
 	for word := range strings.FieldsSeq(path) {
-		if node == nil || node.Children == nil {
+		if node == nil {
+			return false
+		}
+		if node.Hidden {
+			return false
+		}
+		if node.Children == nil {
 			return false
 		}
 		node = node.Children[word]
 	}
-	return node != nil
+	if node == nil {
+		return false
+	}
+	return !node.Hidden
 }
 
 // completionOffers answers whether completing the words before the last one

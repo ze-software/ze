@@ -16,6 +16,8 @@ ze-bgp:cache-list
 ze-bgp:cache-release
 ze-bgp:cache-retain
 ze-bgp:commit
+ze-bgp:fleet-source-bgp-peer
+ze-bgp:fleet-source-bgp-rib
 ze-bgp:monitor
 ze-bgp:overview
 ze-bgp:peer-borr
@@ -208,6 +210,7 @@ ze-host:set-system-file-descriptors
 ze-host:show-all
 ze-host:show-cpu
 ze-host:show-dmi
+ze-host:show-fleet-source-host
 ze-host:show-kernel
 ze-host:show-memory
 ze-host:show-nic
@@ -233,6 +236,7 @@ ze-iface:interface-up
 ze-iface:monitor-interface-rate
 ze-iface:monitor-system-netlink
 ze-iface:show-arp
+ze-iface:show-fleet-source-iface
 ze-iface:show-interface
 ze-iface:show-interface-brief
 ze-iface:show-interface-counters
@@ -278,6 +282,8 @@ ze-isis:show-spf-log
 ze-l2tp:config
 ze-l2tp:cqm
 ze-l2tp:echo
+ze-l2tp:fleet-source-l2tp
+ze-l2tp:fleet-source-pppoe
 ze-l2tp:listeners
 ze-l2tp:observer
 ze-l2tp:outgoing-call
@@ -320,6 +326,9 @@ ze-managed:fleet-divergence-revert
 ze-managed:fleet-divergence-show
 ze-managed:fleet-enable
 ze-managed:fleet-health
+ze-managed:show-fleet-sample-latest
+ze-managed:show-fleet-sample-series
+ze-managed:show-fleet-sample-storage
 ze-meta:bgp-command-complete
 ze-meta:bgp-command-help
 ze-meta:bgp-command-list

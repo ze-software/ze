@@ -261,7 +261,7 @@ func TestShowFleetReportsUnreportedAndReportedAndDisconnected(t *testing.T) {
 		} {
 			validated, validateErr := command.ValidateModelArgs(cmd.path, sel.args, sel.preMatched)
 			require.NoError(t, validateErr, "%s (%s)", cmd.path, sel.label)
-			resp, handleErr := cmd.handler(nil, validated)
+			resp, handleErr := cmd.handler(&pluginserver.CommandContext{}, validated)
 			require.NoError(t, handleErr, "%s (%s)", cmd.path, sel.label)
 			require.Equal(t, plugin.StatusDone, resp.Status, "%s (%s): %s", cmd.path, sel.label, resp.Error)
 			gotJSON, jsonErr := plugin.ResponseJSON(resp, nil)
@@ -374,7 +374,7 @@ func TestShowFleetReportsRefusalsAndCompletion(t *testing.T) {
 		{"inventory", handleFleetDeviceInventory},
 		{"health", handleFleetDeviceHealth},
 	} {
-		resp, err := tc.handler(nil, command.ValidatedArgs{})
+		resp, err := tc.handler(&pluginserver.CommandContext{}, command.ValidatedArgs{})
 		require.NoError(t, err, tc.label)
 		require.Equal(t, plugin.StatusError, resp.Status, tc.label)
 		require.Contains(t, resp.Error, "a device name is required", tc.label)

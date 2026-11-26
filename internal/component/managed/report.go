@@ -299,9 +299,9 @@ func (w *sessionReporter) reportFailure(kind, step string, err error) {
 		"fix", reportFailedFix)
 	report.RaiseWarningFix(doctorComponent, CodeDoctorManagedReportFailed, subject, text, reportFailedFix,
 		map[string]any{
-			"device": device,
-			"report": kind,
-			"step":   step,
+			pipeOpDevice: device,
+			"report":     kind,
+			"step":       step,
 		})
 }
 

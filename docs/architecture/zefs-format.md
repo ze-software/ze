@@ -236,6 +236,9 @@ Keys follow a `<namespace>/<qualifier>/<path>` convention to prevent collisions 
 | `meta/` | Instance metadata (credentials, identity, flags) | `meta/auth/local/username`, `meta/instance/managed` |
 | `meta/plugin/last-stop` | Why ze last stopped itself because of a plugin (a `fatal` failure policy, a boot refusal, a start refused for a config, command or rpc YANG module an external plugin declared) or ran a stop-time cleanup late: JSON entries of reason, plugin, detail, the fix the refusal named when it named one, and time, with `run`, the start time of the ze process that wrote the record, written by the plugin server before the stop, deleted on the next clean start, read by the next `ze doctor` | `meta/plugin/last-stop` |
 | `meta/fleet/device/{name}/record` | The hub's JSON history of one managed device, including its sessions, fetches and acknowledgements. An operator can delete this runtime key on a running hub to forget the device's history | `meta/fleet/device/edge-01/record` |
+| `meta/fleet/history/latest/{name}` | Latest accepted fleet metric sample observation for one managed device (`KeyFleetHistoryLatest`, JSON, `Private: true`, `ValueMax: 16 KiB`) | `meta/fleet/history/latest/edge-01` |
+| `meta/fleet/history/shard/{name}/{shard}` | Bounded `ZEH1` zlib-compressed fine or coarse metric history shard for one managed device (`KeyFleetHistoryShard`, binary, `Private: true`, `ValueMax: 2 MiB`) | `meta/fleet/history/shard/edge-01/fine` |
+| `meta/fleet/history/delete-intent/{name}` | Durable deletion intent fencing fleet metric history checkpoint writers while erasing a forgotten device's history (`KeyFleetHistoryDeleteIntent`, JSON, `Private: true`, `ValueMax: 4 KiB`) | `meta/fleet/history/delete-intent/edge-01` |
 | `meta/managed/base-version` | The baseline of a managed client: the version hash (`fleet.VersionHash`) of the last configuration its hub gave it. `show fleet status` reports it beside the hash of the configuration the device runs. An absent key is a valid state, no baseline recorded. It sits under `meta/managed/`, beside the hub bootstrap keys, because `meta/instance/managed` is a value and the store refuses a key below a value | `meta/managed/base-version` |
 | `meta/config/client-<name>.conf/held` | The hub's copy of the configuration a managed client holds (`KeyConfigHeld`), one record per client, written only on the hub: a JSON value of the configuration bytes the client uploaded with `config-held`, their version hash, when that configuration became active on the client, and any revert decision an operator recorded. It sits under the client's own configuration name, beside its version pointers, so the running daemon's `update data key` and `delete data key` refuse it (`storage.RuntimeKey`). It is Private, so `show data registered` hides it, and it carries the client's secrets as `client-<name>.conf` does | `meta/config/client-edge1.conf/held` |
 | `file/active/` | Current committed config files | `file/active/router.conf` |
@@ -316,6 +319,19 @@ daemon, and `ze-plugin-engine.yang` models the largest one
 store itself bounds no value by key.
 <!-- source: pkg/zefs/keys.go -- IRRDatasetValueMax, KeyIRRDataset -->
 <!-- source: pkg/plugin/rpc/state.go -- StateDataMaxFor, StateDataLargest -->
+
+Hub-side fleet metric history registers three `Private: true` raw state key
+families with explicit `ValueMax` bounds enforced by the history store before
+`WriteKey` and before decoding bytes read back from storage:
+`KeyFleetHistoryLatest` (`meta/fleet/history/latest/{name}`,
+`FleetHistoryLatestValueMax` = 16 KiB), `KeyFleetHistoryShard`
+(`meta/fleet/history/shard/{name}/{shard}`, `FleetHistoryShardValueMax` = 2 MiB),
+and `KeyFleetHistoryDeleteIntent` (`meta/fleet/history/delete-intent/{name}`,
+`FleetHistoryDeleteIntentValueMax` = 4 KiB). Each family also exports a
+trailing-slash `ListKeys` prefix constant (`FleetHistoryLatestPrefix`,
+`FleetHistoryShardPrefix`, `FleetHistoryDeleteIntentPrefix`) for directory
+enumeration through `storage.Storage.ListKeys`.
+<!-- source: pkg/zefs/keys.go -- FleetHistoryLatestValueMax, FleetHistoryShardValueMax, FleetHistoryDeleteIntentValueMax, FleetHistoryLatestPrefix, FleetHistoryShardPrefix, FleetHistoryDeleteIntentPrefix, KeyFleetHistoryLatest, KeyFleetHistoryShard, KeyFleetHistoryDeleteIntent -->
 
 `KeyEntry.Matches` is the one rule that says whether a concrete key is an
 instance of a pattern: literal parts match exactly and each `{param}` matches

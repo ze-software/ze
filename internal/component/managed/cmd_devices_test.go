@@ -122,7 +122,7 @@ func TestShowFleetDevicesLabelFilter(t *testing.T) {
 	}
 	var args command.ValidatedArgs
 	args = args.WithPipeOperations([]command.PipeOperation{{Name: "other", Args: []string{"site=lon"}}})
-	resp, err := handleFleetDevices(nil, args)
+	resp, err := handleFleetDevices(&pluginserver.CommandContext{}, args)
 	require.NoError(t, err)
 	require.Equal(t, plugin.StatusError, resp.Status)
 	require.Contains(t, resp.Error, "unknown fleet device pipe operation other")
@@ -186,22 +186,22 @@ func TestShowFleetDevicesConfigState(t *testing.T) {
 	device := pluginserver.ManagedDevice{ManagedDeviceRecord: pluginserver.ManagedDeviceRecord{
 		AckResult: pluginserver.ManagedAckRefused, AckVersion: "v1",
 	}, HubVersion: "v1", Diverged: true}
-	require.Equal(t, "diverged", deviceConfigState(device))
+	require.Equal(t, "diverged", deviceConfigState(&device))
 	device.Diverged = false
-	require.Equal(t, "never-fetched", deviceConfigState(device))
+	require.Equal(t, "never-fetched", deviceConfigState(&device))
 	device.LastFetch = time.Now()
-	require.Equal(t, "rejected", deviceConfigState(device))
+	require.Equal(t, "rejected", deviceConfigState(&device))
 	device.AckResult = pluginserver.ManagedAckHolding
-	require.Equal(t, "pending", deviceConfigState(device))
+	require.Equal(t, "pending", deviceConfigState(&device))
 	device.AckResult = pluginserver.ManagedAckApplied
-	require.Equal(t, "in-sync", deviceConfigState(device))
+	require.Equal(t, "in-sync", deviceConfigState(&device))
 	device.HubVersion = "v2"
-	require.Equal(t, "pending", deviceConfigState(device))
+	require.Equal(t, "pending", deviceConfigState(&device))
 	device.AckVersion, device.HubVersion = "", ""
-	require.Equal(t, "pending", deviceConfigState(device))
+	require.Equal(t, "pending", deviceConfigState(&device))
 
 	device.Labels = map[string]string{"site": "lon"}
-	row := rowForDevice(device)
+	row := rowForDevice(&device)
 	require.True(t, row.Removed)
 	require.Empty(t, row.Labels)
 }
@@ -210,11 +210,11 @@ func TestShowFleetDevicesEverConnectedAfterForgettingHistory(t *testing.T) {
 	device := pluginserver.ManagedDevice{Persisted: true, ManagedDeviceRecord: pluginserver.ManagedDeviceRecord{
 		ConnectedSince: time.Now().UTC(), LastSeen: time.Now().UTC(),
 	}}
-	require.True(t, rowForDevice(device).EverConnected)
+	require.True(t, rowForDevice(&device).EverConnected)
 	device.ConnectedSince = time.Time{}
-	require.True(t, rowForDevice(device).EverConnected)
+	require.True(t, rowForDevice(&device).EverConnected)
 	device.LastSeen = time.Time{}
-	require.False(t, rowForDevice(device).EverConnected)
+	require.False(t, rowForDevice(&device).EverConnected)
 }
 
 func TestShowFleetDeviceCompletion(t *testing.T) {

@@ -1,0 +1,17 @@
+# QUESTION: Does a managed device push metric samples to a real hub over TLS
+# MuxConn, preserve its latest reading across disconnect while leaving an actual
+# offline gap bucket in the series, record a fresh reading on reconnect, and
+# retain both latest and series across a hub restart?
+# WHY NOT A UNIT TEST: sample interval negotiation, sample-report push, UTC slot
+# ingestion, gap preservation, shutdown checkpoint flush, startup reload, and
+# query execution run across the real ze hub daemon, its ZeFS store, and SSH CLI.
+# VALIDATES: fleet-8 AC-1, AC-3, AC-4, AC-11, AC-12. The fixture checks an
+# unreported device, sends measured figures (including explicit zero while
+# omitting absent owners), disconnects across a full UTC minute, reconnects with
+# updated readings, verifies the gap bucket in show fleet sample series, and
+# restarts the hub to confirm persisted latest, series, and gap survive.
+option=storage:value=disk
+option=timeout:value=240s
+cmd=foreground:seq=1:exec=le test fixture managed/fleet-history-reconnect $PORT $PORT2 $PORT3:timeout=240s
+expect=exit:code=0
+expect=stdout:contains=OK: fleet metric history retained across disconnect, showed offline gap, updated on reconnect, and persisted across hub restart

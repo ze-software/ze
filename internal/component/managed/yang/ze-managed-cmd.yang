@@ -3,7 +3,7 @@ module ze-managed-cmd {
     prefix managedcmd;
     import ze-extensions { prefix ze; }
     description "Fleet commands of a managed device. Owned by the managed component, which reads the managed flag, the hub block and the baseline these commands report. See ai/rules/plugins.md.";
-    revision 2026-11-26 { description "Added show fleet device inventory name, show fleet device health name, and show fleet health to inspect managed device inventory and component health stored on the hub."; }
+    revision 2026-11-26 { description "Added show fleet device inventory name, show fleet device health name, show fleet health, and show fleet sample latest, series, and storage commands for managed device inventory, component health, and hub metric history."; }
     revision 2026-11-19 { description "Added show fleet status, which the caller's own process answers from the store and the daemon serves under the same path, and request fleet disable and enable, which take the device out of the fleet and put it back. Added the hub's fleet divergence commands: show fleet divergence list and name, update fleet divergence name adopt and request fleet divergence name revert, which show and resolve a managed client that holds."; }
 
     container request {
@@ -236,6 +236,33 @@ module ze-managed-cmd {
                 ze:command "ze-managed:fleet-health";
                 description "Show aggregated component health across declared managed devices, including healthy, degraded, down, and unreported counts plus the degraded or down devices.";
                 ze:help "Show aggregated component health across declared managed devices.";
+            }
+
+            container sample {
+                config false;
+                description "Inspect metric samples and history that managed devices report to this hub.";
+                ze:help "Managed device metric samples and history.";
+
+                container latest {
+                    config false;
+                    ze:command "ze-managed:show-fleet-sample-latest";
+                    description "Show the latest metric observations reported by authorized managed devices, with hub receipt time, age, availability status, and registered figures. Narrow, rank, or fold observations with command-specific pipe filters such as device, label, figure, reduce, and rank.";
+                    ze:help "Show the latest metric observations reported by managed devices.";
+                }
+
+                container series {
+                    config false;
+                    ze:command "ze-managed:show-fleet-sample-series";
+                    description "Show dual-resolution metric history series across authorized managed devices over a half-open UTC time range, preserving offline gaps, bucket coverage, weighted averages, and exact aligned peaks. Narrow or fold observations with command-specific pipe filters such as device, label, figure, from, until, reduce, and points.";
+                    ze:help "Show metric history time series for managed devices.";
+                }
+
+                container storage {
+                    config false;
+                    ze:command "ze-managed:show-fleet-sample-storage";
+                    description "Show hub-wide metric history storage usage, configured and effective retention, budget caps, capacity pressure, checkpoint health, and caller-scoped per-device byte usage.";
+                    ze:help "Show hub metric history storage usage and retention.";
+                }
             }
 
             container status {
