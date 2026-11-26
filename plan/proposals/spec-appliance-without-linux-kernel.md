@@ -82,9 +82,8 @@ the router appliance.
 
 ### Unverified, and what would settle each
 
-- Whether Nanos's lwIP offers TCP-MD5, TCP-AO and the minimum-TTL check GTSM
-  needs. Settled by reading its socket option table.
-- How much of Nanos's route-netlink is honoured rather than only defined.
+- Whether Nanos supports raw sockets. Its socket call was read only through a
+  search for names, which found none for `SOCK_RAW`.
 
 ### Settled by reading source on 2026-11-26
 
@@ -100,6 +99,13 @@ the router appliance.
   was found either. On this stack a BGP session cannot be authenticated and
   GTSM cannot be enforced, which rules out peering with most real networks
   until it is added upstream.
+
+- Nanos (release 0.1.56, 2026-09) has IPv6 and a route-netlink socket that
+  answers reads of links, addresses and routes; every write is refused with
+  `EOPNOTSUPP` (`src/unix/netlink.c`). Its TCP socket options
+  (`src/net/netsyscall.c`) include no `TCP_MD5SIG` and no `IP_MINTTL`, so it
+  meets the same TCP authentication wall as gVisor and lwIP. It is a
+  single-process system with no fork, so Ze's external plugins could not run.
 
 ### The experiment, if this is ever scheduled
 
