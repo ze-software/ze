@@ -52,4 +52,4 @@ expect=exit:code=0
 expect=stdout:contains=probe status=200 code=ok
 expect=stdout:pattern="name":"ze_system_command"
 # One property, both texts, in the key order Go's JSON encoder writes them.
-expect=stdout:pattern="name":\{"description":"The full command name, as command-list prints it\. A name in\\nneither registry fails with unknown command\.","title":"Command name","type":"string"\}
+expect=stdout:pattern="name":\{"description":"The full command name, as command list prints it\. A name in\\nneither registry fails with unknown command\.","title":"Command name","type":"string"\}
