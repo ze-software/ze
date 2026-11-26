@@ -64,6 +64,7 @@ the router appliance.
 |---------|------------|------------|------------|
 | eggshell (`github.com/usbarmory/eggshell`) | A Go kernel on TamaGo that implements the Linux system call ABI, so an unmodified static Linux binary runs on it. virtio-net through `go-net`, gVisor netstack, an SSH server in the kernel | Created 2026-11-03, last push 2026-11-23, README says "early stages and therefore experimental". BSD-style license | Would run the existing `ze` binary with no port. Too young to build on. The project to re-check |
 | Nanos (`github.com/nanovms/nanos`) | A C unikernel that runs an unmodified Linux binary. Apache-2.0 | Active (push 2026-11-08). `src/unix/netlink.c` defines route-netlink message types | The mature way to run the same experiment today |
+| go-net (`github.com/usbarmory/go-net`) | The glue between a TamaGo network device (virtio-net among them) and a pure-Go stack, gVisor or lneto. It hooks Go's own `net` package | Active (push 2026-11-23). Its gVisor stack registers IPv4 and ARP only, and its socket hook answers TCP and UDP over IPv4 only | The layer eggshell and any TamaGo port inherit their network limits from. IPv6 and raw sockets must land here first |
 | TamaGo (`github.com/usbarmory/tamago`) | The Go runtime on bare metal, no kernel at all. Targets QEMU microvm, Firecracker, Cloud Hypervisor, UEFI | Active (push 2026-11-24). Needs a forked Go toolchain: upstream proposal `golang/go#73608` (bare metal support) is still open | A real port of Ze to `GOOS=tamago`, with no processes and no filesystem |
 | Unikraft, OSv | Unikernels with Linux binary compatibility | Both run Go binaries per their documentation | No netlink support found; not read in source |
 | `alesha-pro/llm.asm`, `02-baremetal-os` | A 24 KB assembly kernel for one fixed program | README lists serial, VGA and keyboard only | Not a base: no network device |
@@ -80,13 +81,24 @@ the router appliance.
 
 ### Unverified, and what would settle each
 
-- Whether eggshell answers netlink at all. Its README is silent and its source
-  was not read; the file list shows one socket file and one gVisor file.
-  Settled by reading `kernel/net.go` or by the experiment below.
-- Whether gVisor's netstack and Nanos's lwIP offer TCP-MD5, TCP-AO and the
-  minimum-TTL check GTSM needs. This decides whether BGP sessions to real
-  peers are possible. Settled by reading each stack's socket option table.
+- Whether Nanos's lwIP offers TCP-MD5, TCP-AO and the minimum-TTL check GTSM
+  needs. Settled by reading its socket option table.
 - How much of Nanos's route-netlink is honoured rather than only defined.
+
+### Settled by reading source on 2026-11-26
+
+- eggshell has no netlink. Its socket call (`kernel/net.go`) answers the
+  `AF_UNIX` and `AF_INET` families and refuses every other with
+  `EAFNOSUPPORT`. Ze's interface and route code would fail at start, so even
+  the route-server experiment needs a Ze start path that asks the kernel for
+  nothing.
+- gVisor's netstack has no TCP-MD5 and no minimum-TTL check. `TCP_MD5SIG`,
+  `IP_MINTTL` and `IPV6_MINHOPCOUNT` are named only in the socket-option
+  lists of gVisor's Linux layer (`pkg/sentry/socket/netstack/netstack.go`) and
+  nowhere in the TCP endpoint or the stack's own option set. No TCP-AO name
+  was found either. On this stack a BGP session cannot be authenticated and
+  GTSM cannot be enforced, which rules out peering with most real networks
+  until it is added upstream.
 
 ### The experiment, if this is ever scheduled
 
@@ -105,7 +117,8 @@ activity, and answer these in this section:
 | Is the project still active, and still marked experimental? | Active, experimental |
 | Does it have IPv6? | No |
 | Does it have raw sockets? | No |
-| Does it answer route-netlink? | Unverified, expected no |
+| Does it answer route-netlink? | No |
+| Does its TCP stack offer TCP-MD5, TCP-AO and a minimum-TTL check? | No |
 | Is there a persistent filesystem (virtio-blk)? | No |
 | Is the kernel still behind one lock? | Yes |
 | Has `golang/go#73608` been accepted upstream? | Open |
