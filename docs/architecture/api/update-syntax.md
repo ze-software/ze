@@ -420,9 +420,9 @@ peer 10.0.0.1 remote as 65001 received update 123 attr-99 400101... nlri ipv4/un
 bgp plugin encoding json        # Structured JSON (default)
 bgp plugin encoding text        # Human-readable text
 
-# Set wire bytes format (JSON mode only)
+# Set wire bytes format
 bgp plugin format hex           # Wire bytes as hex string
-bgp plugin format base64        # Wire bytes as base64
+bgp plugin format base64        # Positional counted base64 UPDATE lines; JSON for control events
 bgp plugin format parsed        # Decoded fields only (default)
 bgp plugin format full          # Both parsed AND wire bytes
 

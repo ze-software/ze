@@ -1592,7 +1592,7 @@ func buildAnnounceUpdate(route RouteSpec, localAS uint32,
 | `bgp plugin encoding json` | Set event encoding to JSON (default) |
 | `bgp plugin encoding text` | Set event encoding to human-readable text |
 | `bgp plugin format hex` | Wire bytes as hex string |
-| `bgp plugin format base64` | Wire bytes as base64 |
+| `bgp plugin format base64` | Positional counted base64 UPDATE lines (`upd ...`); JSON with `raw.message` for control events |
 | `bgp plugin format parsed` | Decoded fields only (default) |
 | `bgp plugin format full` | Both parsed AND wire bytes |
 | `bgp plugin ack sync` | Wait for wire transmission |

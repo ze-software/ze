@@ -314,6 +314,107 @@ func (m *MuxConn) CallRPC(ctx context.Context, method string, params any) (json.
 	}
 }
 
+// CallBatchRPC writes deliver-batch frame(s) using pooled rpc.WriteBatchFrame
+// and waits for the matching response(s). If the events would produce a frame
+// exceeding MaxMessageSize, the batch is split into sequential FIFO chunks that
+// each fit within the limit. Any single event that alone cannot fit within
+// MaxMessageSize is refused before registering a pending call or writing bytes.
+// Safe for concurrent use by multiple goroutines.
+func (m *MuxConn) CallBatchRPC(ctx context.Context, events [][]byte) (json.RawMessage, error) {
+	if len(events) == 0 {
+		return nil, nil
+	}
+	if errPtr := m.readerErr.Load(); errPtr != nil {
+		return nil, fmt.Errorf("mux conn read error: %w", *errPtr)
+	}
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
+
+	maxSingleEvent := MaxMessageSize - eventDeliveryPrefix
+	frameSize := batchFrameOverhead
+	for i, e := range events {
+		if len(e) > maxSingleEvent {
+			return nil, fmt.Errorf("batch event %d (%d bytes) exceeds maximum frame size %d: %w", i, len(e), MaxMessageSize, ErrMessageTooLong)
+		}
+		if i > 0 {
+			frameSize++ // comma separator
+		}
+		frameSize += len(e)
+	}
+
+	// Fast path: single frame (common case).
+	if frameSize <= MaxMessageSize {
+		return m.callBatchOnce(ctx, events)
+	}
+
+	// Slow path: split into sequential FIFO sub-batches fitting within MaxMessageSize.
+	maxPayload := MaxMessageSize - batchFrameOverhead
+	var lastResp json.RawMessage
+	start := 0
+
+	for start < len(events) {
+		end := start
+		size := 0
+
+		for end < len(events) {
+			eventSize := len(events[end])
+			if end > start {
+				eventSize++ // comma separator
+			}
+			if size+eventSize > maxPayload {
+				if end > start {
+					break
+				}
+			}
+			size += eventSize
+			end++
+		}
+
+		resp, err := m.callBatchOnce(ctx, events[start:end])
+		if err != nil {
+			return nil, err
+		}
+		lastResp = resp
+		start = end
+	}
+
+	return lastResp, nil
+}
+
+// callBatchOnce writes one deliver-batch frame via pooled WriteBatchFrame under
+// m.conn.mu and waits for its correlated response.
+func (m *MuxConn) callBatchOnce(ctx context.Context, events [][]byte) (json.RawMessage, error) {
+	if errPtr := m.readerErr.Load(); errPtr != nil {
+		return nil, fmt.Errorf("mux conn read error: %w", *errPtr)
+	}
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
+
+	id := m.conn.NextID()
+	idStr := pendingKey(id)
+
+	respCh := make(chan []byte, 1)
+	m.pending.Store(idStr, respCh)
+
+	if writeErr := m.conn.writeBatchWithDeadline(ctx, id, events); writeErr != nil {
+		m.pending.Delete(idStr)
+		return nil, fmt.Errorf("send batch: %w", writeErr)
+	}
+
+	select {
+	case body := <-respCh:
+		return interpretResponse(body)
+	case <-ctx.Done():
+		m.pending.Delete(idStr)
+		return nil, ctx.Err()
+	case <-m.done:
+		m.pending.Delete(idStr)
+		return m.queuedResponse(respCh)
+	}
+}
+
 // queuedResponse returns the response routed before the reader stopped, or the
 // terminal error when none was delivered. readLoop queues its response before
 // closing done, so reader completion cannot discard a peer's last response.

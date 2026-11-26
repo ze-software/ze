@@ -249,18 +249,24 @@ Ze's own JSON states three members lossily: the AS_PATH flattened to its AS
 numbers, each extended community as its text alone, and an attribute Ze has no
 parser for as `attr-<code>`. ExaBGP writes the AS_PATH's segments and their
 types, the numeric value beside each extended community, and the flag octet in
-the unknown attribute's `attribute-0xCC-0xFF` name. The bridge subscribes at
-`FormatFull` whenever a script receives UPDATEs, in any form, `parsed`
-included, so every UPDATE event carries `raw.update` beside its parsed body,
-and the one UPDATE renderer, `Event.exabgpJSON`, reads those three members off
-the UPDATE's own path attributes. `WireUpdateToExabgpJSON`, which the ExaBGP
-compatibility fixtures go through, hands its bytes to the same renderer, so a
-fixture checks what a live process receives.
+the unknown attribute's `attribute-0xCC-0xFF` name. In `ze_bgp` builds, live
+`ze exabgp plugin` endpoints subscribe at `FormatBase64` whenever a script
+receives UPDATEs, in any form, `parsed` included, so every UPDATE arrives as a
+positional counted `upd` wire line carrying the base64 UPDATE body directly
+(non-`ze_bgp` builds and standalone JSON inputs continue using `FormatFull` and
+`raw.update`). `Sessions.RenderRawUpdate` decodes those three members straight
+off the wire path attributes on both the direct unicast buffer renderer and the
+wire-backed `Event.exabgpJSON` fallback. `WireUpdateToExabgpJSON`, which the
+ExaBGP compatibility fixtures go through, produces the same ExaBGP output from
+wire bytes, so a fixture checks what a live process receives.
 
-The AS_PATH is read with the session's AS number width, which the runner takes
-from the session's `negotiated` event (RFC 6793). An UPDATE that reaches the
-renderer before any `negotiated` event of its session keeps Ze's flattened path;
-a running session always states one first.
+The AS_PATH is read with the session's AS number width: live `base64` UPDATEs
+carry the negotiated ASN4 and per-family ADD-PATH flags directly on the `upd`
+line (so decoding works even when `bgp:negotiated` is excluded from the
+endpoint's receive allow-list), while the JSON path takes the width from the
+session's `negotiated` event (RFC 6793). An UPDATE on the JSON path that reaches
+the renderer before any `negotiated` event of its session keeps Ze's flattened
+path; a running session always states one first.
 
 The community value is read for both widths, RFC 4360's 8 octets and RFC 5701's
 20, and it is built exactly and rounded once. RFC 5701's community is 160 bits
@@ -275,6 +281,7 @@ and non-transitive, differing by one bit of the type octet. Ze states that bit
 in the text instead, since it carries every extended community in one flat list
 and has no `scope` block to put it in.
 <!-- source: internal/exabgp/bridge/bridge_event_wire.go -- overlayWire, overlayASPath, overlayCommunityWidth, overlayUnknownAttributes -->
+<!-- source: internal/exabgp/bridge/bridge_raw_b64.go -- ReadRawB64Update, Sessions.RenderRawUpdate -->
 <!-- source: internal/exabgp/bridge/bridge_wire_json.go -- WireUpdateToExabgpJSON -->
 <!-- source: internal/exabgp/bridge/bridge_negotiated.go -- Sessions.Note, sessionAttrContext -->
 

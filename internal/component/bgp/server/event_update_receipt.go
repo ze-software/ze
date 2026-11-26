@@ -54,7 +54,7 @@ func (cache *updateEnvelopeCache) wrap(peer *plugin.PeerInfo, message *bgptypes.
 		cache.metadata = metadata
 	}
 	var payload json.RawMessage
-	if subscriber.Encoding() == plugin.EncodingText {
+	if needsQuotedEnvelopePayload(subscriber) {
 		encoded, err := json.Marshal(output)
 		if err != nil {
 			return "", fmt.Errorf("quote BGP UPDATE text payload: %w", err)
@@ -80,4 +80,17 @@ func (cache *updateEnvelopeCache) wrap(peer *plugin.PeerInfo, message *bgptypes.
 	result := string(encoded)
 	cache.outputs.set(key, result)
 	return result, nil
+}
+
+// needsQuotedEnvelopePayload reports whether an UPDATE payload for subscriber
+// is plain text rather than a JSON value and must be JSON-quoted before
+// embedding in rpc.EventEnvelope.Payload.
+func needsQuotedEnvelopePayload(subscriber *process.Process) bool {
+	if subscriber.Encoding() == plugin.EncodingText {
+		return true
+	}
+	if subscriber.Format() == plugin.FormatBase64 {
+		return true
+	}
+	return false
 }

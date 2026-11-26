@@ -4,9 +4,12 @@
 package bridgerun
 
 import (
+	"encoding/base64"
+	"encoding/hex"
 	"encoding/json"
 	"log/slog"
 	"reflect"
+	"strconv"
 	"testing"
 
 	"github.com/ze-software/ze/internal/component/plugin"
@@ -79,12 +82,14 @@ func TestParseFormSpecsAndLookup(t *testing.T) {
 }
 
 // TestEventFormatAsksForBytesWheneverAScriptReadsThem proves the wrapper
-// subscribes to `full` events whenever its filter delivers `bgp:update` or its
-// `--form` specs request raw bytes, and `parsed` otherwise.
+// subscribes to wire-bearing events (`base64` when compiled with `ze_bgp`,
+// `full` otherwise) whenever its filter delivers `bgp:update`, `full` when its
+// `--form` specs request raw bytes for non-update messages, and `parsed`
+// otherwise.
 //
 // VALIDATES: EventFormat over nil/filtered BusParticipantFilter and FormSpecs.
 // PREVENTS: a script granted parsed UPDATEs losing wire AS_PATH/extcomm, or
-// hex-encoding every UPDATE for a script receiving only session changes.
+// wire-encoding every UPDATE for a script receiving only session changes.
 func TestEventFormatAsksForBytesWheneverAScriptReadsThem(t *testing.T) {
 	mustForms := func(raw ...string) FormSpecs {
 		t.Helper()
@@ -98,13 +103,18 @@ func TestEventFormatAsksForBytesWheneverAScriptReadsThem(t *testing.T) {
 		return &rpc.BusParticipantFilter{ReceiveRules: rules}
 	}
 
+	wantUpdate := plugin.FormatFull
+	if bridge.SupportsRawWire() {
+		wantUpdate = plugin.FormatBase64
+	}
+
 	cases := []struct {
 		name   string
 		filter *rpc.BusParticipantFilter
 		forms  FormSpecs
 		want   string
 	}{
-		{"nil filter (unscoped)", nil, FormSpecs{}, plugin.FormatFull},
+		{"nil filter (unscoped)", nil, FormSpecs{}, wantUpdate},
 		{"receive none", &rpc.BusParticipantFilter{ReceiveNone: true}, FormSpecs{}, plugin.FormatParsed},
 		{"receive from none", &rpc.BusParticipantFilter{ReceiveFromNone: true}, FormSpecs{}, plugin.FormatParsed},
 		{"session changes only", recvFilter(rpc.BusFilterRule{Message: "bgp:state", Allowed: true, TargetAll: true}), FormSpecs{}, plugin.FormatParsed},
@@ -112,8 +122,8 @@ func TestEventFormatAsksForBytesWheneverAScriptReadsThem(t *testing.T) {
 		{"sent consolidate alone", recvFilter(rpc.BusFilterRule{Message: "bgp:open", Allowed: true, TargetAll: true}), mustForms("send-consolidate"), plugin.FormatParsed},
 		{"update disallowed", recvFilter(rpc.BusFilterRule{Message: "bgp:update", Allowed: false}), FormSpecs{}, plugin.FormatParsed},
 		{"update target none", recvFilter(rpc.BusFilterRule{Message: "bgp:update", Allowed: true, TargetNone: true}), FormSpecs{}, plugin.FormatParsed},
-		{"update allowed", recvFilter(rpc.BusFilterRule{Message: "bgp:update", Allowed: true, TargetAll: true}), FormSpecs{}, plugin.FormatFull},
-		{"update allowed with parsed form", recvFilter(rpc.BusFilterRule{Message: "bgp:update", Allowed: true, TargetAll: true}), mustForms("receive-parsed", "send-parsed"), plugin.FormatFull},
+		{"update allowed", recvFilter(rpc.BusFilterRule{Message: "bgp:update", Allowed: true, TargetAll: true}), FormSpecs{}, wantUpdate},
+		{"update allowed with parsed form", recvFilter(rpc.BusFilterRule{Message: "bgp:update", Allowed: true, TargetAll: true}), mustForms("receive-parsed", "send-parsed"), wantUpdate},
 		{"received packets", recvFilter(rpc.BusFilterRule{Message: "bgp:open", Allowed: true, TargetAll: true}), mustForms("receive-packets"), plugin.FormatFull},
 		{"sent packets", recvFilter(rpc.BusFilterRule{Message: "bgp:open", Allowed: true, TargetAll: true}), mustForms("send-packets"), plugin.FormatFull},
 		{"received consolidate", recvFilter(rpc.BusFilterRule{Message: "bgp:open", Allowed: true, TargetAll: true}), mustForms("receive-consolidate"), plugin.FormatFull},
@@ -126,6 +136,55 @@ func TestEventFormatAsksForBytesWheneverAScriptReadsThem(t *testing.T) {
 		}
 	}
 }
+
+// TestEventFormat_SelectsRawB64 proves AC-4 format selection: `base64` when
+// bridge.SupportsRawWire() is true and `bgp:update` is allowed (or filter is
+// unscoped), `parsed` when `bgp:update` is denied with no packet form, and
+// `full` for non-update packet-only filters or non-`ze_bgp` builds.
+//
+// VALIDATES: AC-4 -- EventFormat selection across base64, full, and parsed.
+// PREVENTS: requesting FormatFull for live UPDATEs in ze_bgp builds, or
+// requesting FormatBase64 when bgp:update is disallowed.
+func TestEventFormat_SelectsRawB64(t *testing.T) {
+	wantUpdate := plugin.FormatFull
+	if bridge.SupportsRawWire() {
+		wantUpdate = plugin.FormatBase64
+	}
+
+	pktForms, err := ParseFormSpecs([]string{"receive-packets"})
+	if err != nil {
+		t.Fatalf("ParseFormSpecs: %v", err)
+	}
+
+	allowAll := &rpc.BusParticipantFilter{ReceiveAll: true, ReceiveFromAll: true}
+	allowUpdate := &rpc.BusParticipantFilter{
+		ReceiveRules: []rpc.BusFilterRule{{Message: "bgp:update", Allowed: true, TargetAll: true}},
+	}
+	denyUpdate := &rpc.BusParticipantFilter{
+		ReceiveRules: []rpc.BusFilterRule{
+			{Message: "bgp:update", Allowed: false},
+			{Message: "bgp:open", Allowed: true, TargetAll: true},
+		},
+	}
+
+	if got := EventFormat(nil, FormSpecs{}); got != wantUpdate {
+		t.Errorf("nil filter: got %q, want %q", got, wantUpdate)
+	}
+	if got := EventFormat(allowAll, FormSpecs{}); got != wantUpdate {
+		t.Errorf("ReceiveAll+ReceiveFromAll: got %q, want %q", got, wantUpdate)
+	}
+	if got := EventFormat(allowUpdate, pktForms); got != wantUpdate {
+		t.Errorf("update allowed + packets: got %q, want %q", got, wantUpdate)
+	}
+	if got := EventFormat(denyUpdate, FormSpecs{}); got != plugin.FormatParsed {
+		t.Errorf("update denied + parsed: got %q, want %q", got, plugin.FormatParsed)
+	}
+	if got := EventFormat(denyUpdate, pktForms); got != plugin.FormatFull {
+		t.Errorf("update denied + packets: got %q, want %q", got, plugin.FormatFull)
+	}
+}
+
+const testWireUpdateHex = "0000" + "0018" + "40010100" + "40020602010000FDE9" + "C010080002004800000001"
 
 // engineUpdate is the event the engine writes for one received UPDATE from
 // 10.0.0.1 in the given subscription format.
@@ -146,7 +205,7 @@ func engineUpdate(format string) map[string]any {
 	}
 	if format == plugin.FormatFull {
 		event["raw"] = map[string]any{
-			"update": "0000" + "0018" + "40010100" + "40020602010000FDE9" + "C010080002004800000001",
+			"update": testWireUpdateHex,
 		}
 	}
 	return map[string]any{"type": "bgp", "bgp": event}
@@ -156,7 +215,7 @@ func engineUpdate(format string) map[string]any {
 // UPDATEs alone is written the AS_PATH segment and extended community value
 // ExaBGP reads off the message's wire bytes.
 //
-// VALIDATES: EventFormat + FormSpecs + bridge.Event.Lines give a parsed-only
+// VALIDATES: EventFormat + FormSpecs + bridge rendering give a parsed-only
 // UPDATE subscriber ExaBGP's structured AS_PATH and numeric extended community.
 // PREVENTS: subscribing `parsed` for UPDATEs and losing wire attributes.
 func TestParsedScriptIsWrittenTheWireASPath(t *testing.T) {
@@ -177,11 +236,28 @@ func TestParsedScriptIsWrittenTheWireASPath(t *testing.T) {
 	negotiated := bridge.Event{Kind: "negotiated", Peer: "10.0.0.1",
 		Payload: map[string]any{"negotiated": map[string]any{"asn4": true}}}
 	sessions.Note(&negotiated)
-	event := bridge.ReadEvent(engineUpdate(format))
-	sessions.Note(&event)
 
 	forms := formSpecs.For("10.0.0.1", "receive")
-	rendered := event.Lines(bridge.FormatV4JSON, forms, slog.New(slog.DiscardHandler))
+	var rendered []byte
+	if format == plugin.FormatBase64 {
+		wireBytes, hexErr := hex.DecodeString(testWireUpdateHex)
+		if hexErr != nil {
+			t.Fatalf("hex decode test wire update: %v", hexErr)
+		}
+		b64Body := base64.StdEncoding.EncodeToString(wireBytes)
+		// Flags 14 = hasASN4(2) | asn4(4) | hasRemoteAS(8).
+		updLine := "upd 14 65002 65001 0 8:10.0.0.1 8:10.0.0.2 0: 0: " +
+			strconv.Itoa(len(b64Body)) + ":" + b64Body
+		raw, parseErr := bridge.ReadRawB64Update(updLine, nil)
+		if parseErr != nil {
+			t.Fatalf("ReadRawB64Update: %v", parseErr)
+		}
+		rendered = sessions.RenderRawUpdate(raw, bridge.FormatV4JSON, forms, false, slog.New(slog.DiscardHandler))
+	} else {
+		event := bridge.ReadEvent(engineUpdate(format))
+		sessions.Note(&event)
+		rendered = event.Lines(bridge.FormatV4JSON, forms, slog.New(slog.DiscardHandler))
+	}
 	var line map[string]any
 	if err := json.Unmarshal(rendered, &line); err != nil {
 		t.Fatalf("subscribed %q: the script was written %q, not one JSON line: %v", format, rendered, err)

@@ -19,8 +19,9 @@ const jsonKeyRaw = "raw"
 // ROUTE-REFRESH message, or "" for any other type: an UPDATE has its own
 // formatter (AppendMessage), and a type ze does not decode has no event.
 //
-// fmtMode is the subscriber's format. A `full` subscriber's event also carries
-// the message body, the octets after the 19-octet header, in hexadecimal:
+// fmtMode is the subscriber's format. A `full` or `base64` subscriber's event
+// also carries the message body, the octets after the 19-octet header, in
+// hexadecimal:
 //
 //	{"type":"bgp","bgp":{"message":{...},"peer":{...},"open":{...},"raw":{"message":"04fc..."}}}
 //
@@ -48,8 +49,19 @@ func (e *JSONEncoder) Message(peer *plugin.PeerInfo, msg bgptypes.RawMessage, fm
 		// Message types are an open wire set; ze has no event for this one.
 		return ""
 	}
-	if fmtMode == plugin.FormatFull {
+	if attachesRawMessage(fmtMode) {
 		payload[jsonKeyRaw] = map[string]any{jsonKeyMessage: hex.EncodeToString(msg.RawBytes)}
 	}
 	return e.marshal(payload)
+}
+
+// attachesRawMessage reports whether non-UPDATE JSON events carry the
+// `"raw":{"message":"<hex>"}` wire-body member for fmtMode.
+func attachesRawMessage(fmtMode string) bool {
+	switch fmtMode {
+	case plugin.FormatFull, plugin.FormatBase64:
+		return true
+	default:
+		return false
+	}
 }

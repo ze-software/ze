@@ -199,7 +199,11 @@ func TestWrapperScopeFromFilter(t *testing.T) {
 	assert.True(t, noPeers)
 	assert.Nil(t, fleet.CapabilityPeers())
 	assert.False(t, fleet.GrantsNegotiated("192.0.2.1"))
-	assert.Equal(t, plugin.FormatFull, bridgerun.EventFormat(rebuilt, bridgerun.FormSpecs{}))
+	wantUpdateFormat := plugin.FormatFull
+	if bridge.SupportsRawWire() {
+		wantUpdateFormat = plugin.FormatBase64
+	}
+	assert.Equal(t, wantUpdateFormat, bridgerun.EventFormat(rebuilt, bridgerun.FormSpecs{}))
 }
 
 // TestWrapperIdentityIsEndpointName verifies that the wrapper authenticates

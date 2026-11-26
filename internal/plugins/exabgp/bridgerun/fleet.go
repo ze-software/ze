@@ -13,6 +13,7 @@ import (
 	"log/slog"
 	"net/netip"
 	"slices"
+	"strings"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -26,6 +27,7 @@ import (
 const (
 	busCmdSendBGP    = events.NamespaceCLI + ":send bgp"
 	busMsgNegotiated = bgpevents.Namespace + ":" + bgpevents.EventNegotiated
+	rawUpdatePrefix  = "upd "
 )
 
 // Dispatcher is the engine surface a Fleet needs: one command in, one answer
@@ -213,6 +215,11 @@ func (f *Fleet) Start(ctx context.Context, d Dispatcher) error {
 // message it receives, applying each script's `bgp:negotiated` grant and
 // `--form` settings.
 func (f *Fleet) Broadcast(event string) {
+	if strings.HasPrefix(event, rawUpdatePrefix) {
+		f.broadcastRawUpdate(event)
+		return
+	}
+
 	var zebgp map[string]any
 	if err := json.Unmarshal([]byte(event), &zebgp); err != nil {
 		f.log.Warn("exabgp-bridge: invalid JSON event", "error", err)
@@ -242,6 +249,51 @@ func (f *Fleet) Broadcast(event string) {
 		}
 		s.send(line)
 	}
+}
+
+// broadcastRawUpdate parses one positional counted `base64` UPDATE line and
+// queues the rendered ExaBGP line(s) for each script in this Fleet, caching
+// per (grant, forms, format) slot identically to Broadcast.
+func (f *Fleet) broadcastRawUpdate(event string) {
+	var scratch [4096]byte
+	raw, err := bridge.ReadRawB64Update(event, scratch[:0])
+	if err != nil {
+		f.log.Warn("exabgp-bridge: invalid base64 update event", "code", codeDoctorInvalidBase64Update, "error", err)
+		return
+	}
+
+	var rendered [2][bridge.FormsCount][bridge.FormatCount][]byte
+	for _, s := range f.scripts {
+		forms := s.forms.For(raw.Peer, raw.Direction())
+		grantNegotiated := s.grantsNegotiated(raw.Peer)
+		grant := 0
+		if !grantNegotiated {
+			grant = 1
+		}
+		cache := &rendered[grant][forms]
+		line, ok := f.renderRaw(cache, s.api.Format(), forms, grantNegotiated, raw)
+		if !ok {
+			continue
+		}
+		s.send(line)
+	}
+}
+
+// renderRaw answers one base64 UPDATE in one format, rendering on the first
+// script that asks for it and reusing the answer for any sibling script in the
+// same (grant, forms, format) slot.
+func (f *Fleet) renderRaw(cache *[bridge.FormatCount][]byte, format bridge.Format, forms bridge.Forms, grantNegotiated bool, raw bridge.RawUpdate) ([]byte, bool) {
+	slot := format.Slot()
+	if cache[slot] != nil {
+		return cache[slot], len(cache[slot]) > 0
+	}
+
+	line := f.sessions.RenderRawUpdate(raw, format, forms, grantNegotiated, f.log)
+	if line == nil {
+		line = []byte{}
+	}
+	cache[slot] = line
+	return line, len(line) > 0
 }
 
 // render answers the event in one format, rendering it on the first script that

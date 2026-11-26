@@ -194,7 +194,7 @@ Replace the fixed 64-slot `Process.eventChan` channel with a bounded, dynamicall
 | A-1 | A 1,000,000-route full table in `./le perf` produces ~15,625 packed BGP UPDATEs, well below the `65,536` default ceiling | Observed `message-id=15619` in Mac Q-E7 1M run (`fb9fce5cb8`) | Unpacked 1-prefix-per-UPDATE feeds (1M individual UPDATEs) exceed 65,536 and will hit lossless backpressure unless operator raises `delivery-queue-max` | Document `delivery-queue-max` (up to `1048576`) for unpacked full-table feeds | confirmed |
 | A-2 | `pkg/plugin/rpc/conn.go` (`CallBatchRPC`) safely handles 512-event batches even when serialized JSON exceeds 16 MiB | Read `conn.go:586-634` (`TestConn_CallBatchRPC_OversizedSplit`) | Oversized batch write fails instead of splitting | Verified in `conn.go:604-632`; run `go test ./pkg/plugin/rpc/...` | confirmed |
 | A-3 | `SetCacheConsumer(true)` is called during Stage 1 registration before peer traffic arrives, so adjusting the default ceiling to `256` takes effect before any burst | Checked `rs/server.go:1120`, `rr/rr.go:1297`, `startup.go` Stage 1 | Cache-consumer could run with 65,536 ceiling if `SetCacheConsumer` did not update the live queue ceiling | Have `SetCacheConsumer` call `eventQueue.SetMaxCapacity` under lock when no explicit `DeliveryQueueMax` was configured | confirmed |
-| A-4 | On a 4-vCPU host with 20 JSON-parsing `ze exabgp plugin` wrappers, CPU contention across the 20 OS processes remains until Spec 2 eliminates JSON/reflection overhead | Q-E7 Mac physics analysis (`fb9fce5cb8`) | Expecting Spec 1 alone to restore 628k r/s at 20 scripts on 4 vCPUs would misread the CPU bottleneck | Documented in Spec 1 AC-6 and paired with Spec 2 (`spec-exabgp-raw-text-event-transport.md`) | confirmed |
+| A-4 | On a 4-vCPU host with 20 JSON-parsing `ze exabgp plugin` wrappers, CPU contention across the 20 OS processes remains until Spec 2 eliminates JSON/reflection overhead | Q-E7 Mac physics analysis (`fb9fce5cb8`) | Expecting Spec 1 alone to restore 628k r/s at 20 scripts on 4 vCPUs would misread the CPU bottleneck | Documented in Spec 1 AC-6 and paired with Spec 2 (`spec-exabgp-raw-text-event-transport`) | confirmed |
 
 ### Risks
 | ID | Risk | Early signal | Mitigation / fallback |
@@ -211,7 +211,7 @@ Replace the fixed 64-slot `Process.eventChan` channel with a bounded, dynamicall
 |----------|--------|
 | What breaks if this is wrong? | A bug in `eventQueue` wakeup/close logic could deadlock `Process.Deliver` or lose FIFO order on `DrainEvents` barriers; caught immediately by `-race` unit tests and `test/plugin` functional tests |
 | How is it reverted? | Single commit revert; `delivery-queue-max` is optional with safe defaults |
-| Who else touches this path? | `internal/component/plugin/process`, `internal/component/plugin/doctor`, `internal/component/config`, `internal/component/plugin/server`; coordinates with `spec-exabgp-raw-text-event-transport.md` |
+| Who else touches this path? | `internal/component/plugin/process`, `internal/component/plugin/doctor`, `internal/component/config`, `internal/component/plugin/server`; coordinates with `spec-exabgp-raw-text-event-transport` |
 
 ## Wiring Test (MANDATORY -- NOT deferrable)
 
@@ -424,7 +424,7 @@ none
 | Optional `delivery-queue-max` YANG leaf (`64..1048576`) on `bus > endpoint` | Hardcoded internal constant | Lets operators tune burst headroom for unpacked full-table feeds through validated YANG config |
 
 ## Known Limitations
-- On CPU-constrained hosts (e.g. 4 vCPUs with 20 JSON-parsing `ze exabgp plugin` wrappers), OS process CPU contention during burst drain is addressed by Spec 2 (`plan/release/fixes/spec-exabgp-raw-text-event-transport.md`), which removes the 20x JSON/reflection overhead.
+- On CPU-constrained hosts (e.g. 4 vCPUs with 20 JSON-parsing `ze exabgp plugin` wrappers), OS process CPU contention during burst drain is addressed by Spec 2 (`spec-exabgp-raw-text-event-transport`), which removes the 20x JSON/reflection overhead.
 
 ## Checklist
 

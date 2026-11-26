@@ -409,21 +409,40 @@ inside `bgp.raw`, alongside `bgp.update`.
 }
 ```
 
-The OPEN, NOTIFICATION, KEEPALIVE and ROUTE-REFRESH events of a `full`
-subscriber carry their bytes too, beside the parsed object, under the name the
-`raw` format gives them: `"raw": {"message": "<hex>"}`, the body after the
-19-octet header. A KEEPALIVE has no body, so its member is the empty string; a
-subscriber of any other format is written no `raw` member. An End-of-RIB marker
-of a `full` subscriber is the `eor` object, as for a `parsed` one, with
+The OPEN, NOTIFICATION, KEEPALIVE and ROUTE-REFRESH events of a `full` or
+`base64` subscriber carry their bytes too, beside the parsed object, under the
+name the `raw` format gives them: `"raw": {"message": "<hex>"}`, the body after
+the 19-octet header. A KEEPALIVE has no body, so its member is the empty string;
+a subscriber of any other format is written no `raw` member. An End-of-RIB
+marker of a `full` subscriber is the `eor` object, as for a `parsed` one, with
 `"raw": {"update": "<hex>"}` beside it. The header is not delivered: RFC 4271
 Section 4.1 fixes it as the Marker, the Length and the Type, which the body and
-the event state. The ExaBGP bridge subscribes `full` whenever a script
-receives an UPDATE or a packet form: it writes ExaBGP's `packets` and
-`consolidate` lines from these members, and reads every UPDATE's AS_PATH,
-extended community values and unknown attribute flags from `raw.update`
+the event state.
+
+Under `format=base64`, BGP UPDATEs (including End-of-RIB markers) skip JSON
+formatting and attribute/NLRI parsing altogether and are emitted as one
+quote-free positional counted ASCII line following Ze's Answer Protocol counted
+grammar:
+
+```
+upd <flags> <local-as> <remote-as> <conn-id> <n>:<peer> <n>:<local> <n>:<router-id> <n>:<extra-addpath> <n>:<b64-body>
+```
+
+Each line ends with a single `\n`, writes `0:` for any absent counted field,
+packs direction, ASN4, remote-AS presence, and IPv4/IPv6 unicast ADD-PATH state
+into the 6-bit `<flags>` bitmask, lists any non-unicast ADD-PATH families in
+`<extra-addpath>`, and carries the raw BGP UPDATE body (after the 19-octet
+header) in standard base64. Low-frequency control and session events (`state`,
+`negotiated`, `open`, `notification`, `keepalive`, `refresh`) remain JSON
+objects. In `ze_bgp` builds, `ze exabgp plugin` subscribes `base64` whenever a
+script receives an UPDATE (keeping `full` for `!ze_bgp` builds and for
+non-update packet-only filters): it writes ExaBGP's `packets` and `consolidate`
+lines from these bytes, and decodes every UPDATE's AS_PATH, extended community
+values and unknown attribute flags directly off the wire bytes
 (`docs/architecture/exabgp-bridge.md`).
 
 <!-- source: internal/component/bgp/format/json_message.go -- JSONEncoder.Message -->
+<!-- source: internal/component/bgp/format/raw_b64.go -- appendRawB64Update -->
 <!-- source: internal/component/bgp/format/text_update.go -- appendEORUpdateJSON -->
 <!-- source: internal/component/bgp/format/text_json.go -- appendFilterResultJSON -->
 <!-- source: internal/component/bgp/format/text_update.go -- appendFullFromResult -->

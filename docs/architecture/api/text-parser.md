@@ -210,7 +210,10 @@ identifier separately from its native bytes.
 <!-- source: internal/component/bgp/format/text_human.go -- appendTextFamilyNLRIs, appendTextNativeNLRI -->
 
 With no attribute filter, the actual received TEXT path requests all attributes
-through `AttributeFilter.ApplyToUpdate` and `AttributesWire.All` before rendering.
+through `AttributeFilter.ApplyToUpdate` and `AttributesWire.All` before rendering
+(only opt-in `format=base64` short-circuits `appendMessageTyped` ahead of
+`ApplyToUpdate` to emit the positional counted `upd` wire line instead of parsed
+TEXT).
 The standard community member therefore carries NO_LLGR when present. A
 selective attribute view does not establish its absence and must not authorize
 a retention decision. OPEN uses the same original peer-owner and connection-id

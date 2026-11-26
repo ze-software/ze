@@ -390,7 +390,9 @@ flows (`sdk.Plugin.AddStartupSubscriptionsIn`). `bgp-rr` and `bgp-rs` use it to
 hear `bgp-gr/retention` and `bgp-rib/validation-change` beside their `bgp`
 events, the same way internal and forked; `bgp-rib` uses it to hear
 `bgp-rib/validation-change` beside its own. Format, encoding and envelope stay
-per process, set by the first block.
+per process, set by the first block (`ReadyInput.format` accepts `parsed`,
+`full`, `hex`, or `base64`, where `base64` delivers BGP UPDATEs as positional
+counted `upd` lines while keeping control/session events as JSON).
 <!-- source: internal/component/plugin/server/startup.go -- onReady -->
 <!-- source: pkg/plugin/sdk/sdk_callbacks.go -- AddStartupSubscriptionsIn -->
 <!-- source: internal/component/bgp/plugins/rib/rib_validation.go -- dispatchText -->
@@ -3631,13 +3633,13 @@ opted in, preserving the lazy-marshal-once cost of the default path.
 
 The optional `metadata` member is opaque to the generic event transport. Its
 namespace owns its shape and meaning; an event with no such metadata omits it.
-A text payload is a JSON string inside the envelope, not text interpolated into
-a JSON object. The SDK's single-event and batch callbacks carry both forms
-unchanged.
+A text payload (`encoding=text`) or a `base64` UPDATE line (`format=base64`)
+is a JSON string inside the envelope, not text interpolated into a JSON object.
+The SDK's single-event and batch callbacks carry both forms unchanged.
 
 **BGP UPDATE forwarding receipts.** An enveloped `bgp/update` carries the
 engine's per-message receipt in `metadata`, beside the unchanged JSON payload or
-quoted text payload:
+quoted text / `base64` payload:
 
 | Member | Type | Meaning |
 |--------|------|---------|
@@ -3920,7 +3922,7 @@ or event fields are required.
 |-------|------|-------------|
 | `events` | `[]string` | Event types (e.g., `["update","state"]`); `"*"` expands to all event types of the namespace |
 | `peers` | `[]string` | Peer filter (e.g., `["*"]` for all) |
-| `format` | `string` | Format preference (e.g., `"json"`) |
+| `format` | `string` | Format preference (`"parsed"`, `"full"`, `"hex"`, or `"base64"`) |
 | `encoding` | `string` | `"json"` (default) or `"text"` |
 | `namespace` | `string` | Event namespace; empty resolves to the protocol component's default (`bgp`), non-empty (e.g. `vpn-ipsec`) subscribes to another namespace (see Subscription Namespace) |
 | `envelope` | `bool` | When true, deliveries are wrapped in an `EventEnvelope` (see Enveloped Delivery); default false = bare payload |

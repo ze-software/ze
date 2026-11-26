@@ -1143,6 +1143,7 @@ When a process binding requests JSON output, the engine sends formatted BGP even
 Plugin can:
 - Use formatted `attr` and `nlri` fields for decisions
 - Use raw fields when the binding format includes them
+- Opt in to `format=base64` to receive BGP UPDATEs inside `deliver-batch` as quote-free positional counted `upd` lines (`upd <flags> <local-as> <remote-as> <conn-id> <n>:<peer> <n>:<local> <n>:<router-id> <n>:<extra-addpath> <n>:<b64-body>`) while keeping low-frequency control and session events as JSON objects
 - Forward by ID: `"send bgp !10.0.0.1 cached 12345"` (or batch: `"send bgp !10.0.0.1 cached 1,2,3"`)
 
 ### What Engine Stores vs Plugin Stores

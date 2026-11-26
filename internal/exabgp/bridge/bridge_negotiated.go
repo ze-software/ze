@@ -6,6 +6,7 @@
 package bridge
 
 import (
+	"strconv"
 	"sync"
 
 	bgpctx "github.com/ze-software/ze/internal/core/bgp/context"
@@ -15,12 +16,16 @@ import (
 // which ends what Sessions keeps of it.
 const sessionStateDown = "down"
 
-// peerSession holds the cached negotiated block and attribute encoding context
-// for one peer's physical connection.
+// peerSession holds the cached negotiated block, its pre-serialized ExaBGP JSON
+// bytes, and the attribute encoding context for one peer's physical connection.
 type peerSession struct {
-	connID string
-	block  map[string]any
-	ctx    bgpctx.ContextID
+	connID    string
+	connIDNum uint64
+	block     map[string]any
+	blockJSON []byte
+	ctx       bgpctx.ContextID
+	hasASN4   bool
+	asn4      bool
 }
 
 // Sessions is what a runner keeps of each peer's session, so an event can be
@@ -68,14 +73,29 @@ func (s *Sessions) Note(e *Event) {
 	case msgTypeNegotiated:
 		block := convertNegotiated(e.negotiatedData())
 		contextID := sessionAttrContext(block)
+		blockJSON, err := marshalExabgpJSON(block)
+		if err != nil {
+			bridgeLog().Warn("exabgp-bridge: marshal negotiated block failed", "peer", e.Peer, "error", err)
+		}
+		var connIDNum uint64
+		if e.ConnectionID != "" {
+			if parsed, parseErr := strconv.ParseUint(e.ConnectionID, 10, 64); parseErr == nil {
+				connIDNum = parsed
+			}
+		}
+		asn4Val, hasASN4 := block[negotiatedASN4].(bool)
 		s.mu.Lock()
 		if s.peers == nil {
 			s.peers = make(map[string]peerSession)
 		}
 		s.peers[e.Peer] = peerSession{
-			connID: e.ConnectionID,
-			block:  block,
-			ctx:    contextID,
+			connID:    e.ConnectionID,
+			connIDNum: connIDNum,
+			block:     block,
+			blockJSON: blockJSON,
+			ctx:       contextID,
+			hasASN4:   hasASN4,
+			asn4:      asn4Val,
 		}
 		s.mu.Unlock()
 	case msgTypeState:
@@ -127,6 +147,7 @@ func sessionAttrContext(block map[string]any) bgpctx.ContextID {
 // 4-byte or 2-byte ASN session width (RFC 6793 Section 4).
 func attrContextForASN4(asn4 bool) bgpctx.ContextID {
 	contextID, err := bgpctx.Registry.Register(bgpctx.EncodingContextForASN4(asn4))
+	// refuse-by-default: guards overlayWire -- zero ContextID marks unknown AS width so overlayWire skips AS_PATH overlay.
 	if err != nil {
 		bridgeLog().Warn("exabgp-bridge: no encoding context for the session, so its UPDATE lines state the AS path as ze flattens it",
 			"error", err)

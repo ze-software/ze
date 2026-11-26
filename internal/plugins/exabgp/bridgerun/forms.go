@@ -124,40 +124,56 @@ func (f FormSpecs) NeedsBytes() bool {
 }
 
 // EventFormat answers the wire event format the wrapper requests from the
-// engine (`plugin.FormatFull` or `plugin.FormatParsed`) given its compiled
-// participant filter and configured `--form` modifiers.
+// engine (`plugin.FormatBase64`, `plugin.FormatFull`, or `plugin.FormatParsed`)
+// given its compiled participant filter and configured `--form` modifiers.
 //
-// It returns `full` when filter is nil (unscoped endpoint), when forms requests
-// raw packet bytes (`NeedsBytes`), or when filter allows receiving `bgp:update`
-// (because decoded UPDATE lines read AS_PATH segments and extended community
-// values off the message's wire bytes). Otherwise it returns `parsed`.
+// When filter allows receiving `bgp:update` (including a nil unscoped filter),
+// it returns `base64` in builds with `bridge.SupportsRawWire()` and `full`
+// otherwise (because `base64` carries wire UPDATE bytes directly and also
+// attaches `raw.message` on non-UPDATE JSON events). When `bgp:update` is not
+// allowed, it returns `full` if forms requests raw packet bytes (`NeedsBytes`),
+// and `parsed` otherwise.
 func EventFormat(filter *rpc.BusParticipantFilter, forms FormSpecs) string {
 	if filter == nil {
-		return plugin.FormatFull
+		return updateFormat()
+	}
+	if filterAllowsUpdate(filter) {
+		return updateFormat()
 	}
 	if forms.NeedsBytes() {
 		return plugin.FormatFull
 	}
+	return plugin.FormatParsed
+}
+
+// updateFormat returns the wire format used for UPDATE delivery in this build.
+func updateFormat() string {
+	if bridge.SupportsRawWire() {
+		return plugin.FormatBase64
+	}
+	return plugin.FormatFull
+}
+
+// filterAllowsUpdate reports whether a non-nil filter allows receiving
+// `bgp:update` from at least one peer.
+func filterAllowsUpdate(filter *rpc.BusParticipantFilter) bool {
 	if filter.ReceiveNone {
-		return plugin.FormatParsed
+		return false
 	}
 	if filter.ReceiveFromNone {
-		return plugin.FormatParsed
+		return false
 	}
 	for _, rule := range filter.ReceiveRules {
 		if rule.Message != busMsgUpdate {
 			continue
 		}
 		if !rule.Allowed {
-			return plugin.FormatParsed
+			return false
 		}
 		if rule.TargetNone {
-			return plugin.FormatParsed
+			return false
 		}
-		return plugin.FormatFull
+		return true
 	}
-	if filter.ReceiveAll && filter.ReceiveFromAll {
-		return plugin.FormatFull
-	}
-	return plugin.FormatParsed
+	return filter.ReceiveAll && filter.ReceiveFromAll
 }

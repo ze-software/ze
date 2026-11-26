@@ -130,9 +130,10 @@ func (pc *PluginConn) CallRPC(ctx context.Context, method string, params any) (j
 // Raw JSON events MUST remain embedded values, not base64-encoded byte slices.
 func (pc *PluginConn) CallBatchRPC(ctx context.Context, events [][]byte) (json.RawMessage, error) {
 	if pc.bridge.Load() == nil {
-		if pc.mux == nil {
-			return pc.Conn.CallBatchRPC(ctx, events)
+		if pc.mux != nil {
+			return pc.mux.CallBatchRPC(ctx, events)
 		}
+		return pc.Conn.CallBatchRPC(ctx, events)
 	}
 	rawEvents := make([]json.RawMessage, len(events))
 	for i, e := range events {

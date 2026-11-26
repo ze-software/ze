@@ -659,6 +659,9 @@ func (c *Conn) callBatchOnce(ctx context.Context, events [][]byte) (json.RawMess
 // writeFailure, with the error WriteBatchFrame wrapped as "write batch frame:
 // %w", so a closed peer reads the same on event delivery as on CallRPC.
 func (c *Conn) writeBatchWithDeadline(ctx context.Context, id uint64, events [][]byte) error {
+	if err := ctx.Err(); err != nil {
+		return err
+	}
 	dl, hasDeadline := ctx.Deadline()
 	deadline := dl
 	if !hasDeadline {
@@ -666,9 +669,15 @@ func (c *Conn) writeBatchWithDeadline(ctx context.Context, id uint64, events [][
 	}
 
 	c.mu.Lock()
+	joinCancellation, err := c.armWriteCancellation(ctx)
+	if err != nil {
+		c.mu.Unlock()
+		return err
+	}
 	dlWriter, hasDL := c.writeCloser.(writeDeadliner)
 	if hasDL {
 		if err := dlWriter.SetWriteDeadline(deadline); err != nil {
+			joinCancellation()
 			c.mu.Unlock()
 			return fmt.Errorf("set write deadline: %w", err)
 		}
@@ -682,6 +691,7 @@ func (c *Conn) writeBatchWithDeadline(ctx context.Context, id uint64, events [][
 	} else {
 		watchdogFired = c.disarmWatchdogLocked()
 	}
+	joinCancellation()
 	c.mu.Unlock()
 
 	if writeErr == nil {

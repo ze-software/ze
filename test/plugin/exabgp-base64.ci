@@ -1,0 +1,350 @@
+# Test: `ze exabgp plugin` negotiates `base64` at Stage 5 and renders exact ExaBGP JSON, text, and `--form receive-consolidate` output for live IPv4 ADD-PATH, IPv6 unicast, EOR, OPEN, and state events.
+# QUESTION: when a real `ze` daemon connects to a BGP peer sending IPv4/unicast ADD-PATH,
+# IPv6/unicast MP_REACH_NLRI, and IPv4 End-of-RIB UPDATEs and fans them out to three external
+# `ze exabgp plugin` endpoints (`--encoder json`, `--encoder text`, and `--encoder json --form receive-consolidate`),
+# does Stage 5 `base64` negotiation deliver UPDATEs over pooled `MuxConn.CallBatchRPC` and
+# non-UPDATE control events as JSON (with `raw.message`), producing exact ExaBGP JSON spacing,
+# segmented AS_PATH, ADD-PATH `path-information`, IPv6 unicast NLRI, EOR, text lines, and
+# consolidated `header`/`body` hex fields with zero malformed-event warnings?
+# A unit test cannot decide this because the path spans a live `ze` daemon, three external TLS
+# `ze exabgp plugin` subprocesses negotiating `FormatBase64` at Stage 5 `ready`, real BGP OPEN
+# capability negotiation (MP IPv6 + IPv4 ADD-PATH), pooled `MuxConn.CallBatchRPC` `deliver-batch`
+# framing, and end-to-end ExaBGP script stdin delivery.
+#
+# VALIDATES: spec-exabgp-raw-text-event-transport AC-1, AC-2, AC-3, AC-4, AC-5, AC-8.
+# PREVENTS: Stage 5 `base64` negotiation regressing, `JSONEncoder.Message` omitting `raw.message`
+# on OPEN under `base64`, ADD-PATH or IPv6 unicast wire decode drift, or consolidated `header`/`body`
+# loss between `ze` and `ze exabgp plugin`.
+
+option=timeout:value=90s
+
+tmpfs=ze-base64.conf:terminator=EOF_CONF
+bus {
+	endpoint exabgp-json {
+		external {
+			run "ze exabgp plugin --encoder json --family ipv4/unicast --family ipv6/unicast ./json-sink.sh";
+		}
+		encoding json;
+		receive {
+			from [ /bgp/peer/peer1 ];
+			allow [ bgp:state bgp:negotiated bgp:open bgp:update ];
+			message bgp:open {
+				tag direction {
+					value [ received ];
+				}
+			}
+			message bgp:update {
+				tag direction {
+					value [ received ];
+				}
+			}
+		}
+		send { to none; }
+	}
+	endpoint exabgp-text {
+		external {
+			run "ze exabgp plugin --encoder text --family ipv4/unicast --family ipv6/unicast ./text-sink.sh";
+		}
+		encoding json;
+		receive {
+			from [ /bgp/peer/peer1 ];
+			allow [ bgp:state bgp:open bgp:update ];
+			message bgp:open {
+				tag direction {
+					value [ received ];
+				}
+			}
+			message bgp:update {
+				tag direction {
+					value [ received ];
+				}
+			}
+		}
+		send { to none; }
+	}
+	endpoint exabgp-consolidate {
+		external {
+			run "ze exabgp plugin --encoder json --form receive-consolidate --family ipv4/unicast --family ipv6/unicast ./consolidate-sink.sh";
+		}
+		encoding json;
+		receive {
+			from [ /bgp/peer/peer1 ];
+			allow [ bgp:state bgp:negotiated bgp:open bgp:update ];
+			message bgp:open {
+				tag direction {
+					value [ received ];
+				}
+			}
+			message bgp:update {
+				tag direction {
+					value [ received ];
+				}
+			}
+		}
+		send { to none; }
+	}
+}
+bgp {
+	router-id 1.1.1.1;
+	filter {
+		import { final accept; }
+		export { final accept; }
+	}
+	peer peer1 {
+		connection {
+			remote { ip 127.0.0.2; }
+			local { ip 127.0.0.1; accept false; }
+		}
+		session {
+			asn { local 65001; remote 65002; }
+			family {
+				ipv4/unicast { prefix { maximum 10000; } }
+				ipv6/unicast { prefix { maximum 10000; } }
+			}
+			capability {
+				graceful-restart disable;
+				add-path {
+					direction receive;
+					family {
+						ipv4/unicast;
+					}
+				}
+			}
+		}
+		behavior {
+			group-updates disable;
+		}
+	}
+}
+EOF_CONF
+
+tmpfs=json-sink.sh:mode=755:terminator=EOF_JSON_SINK
+#!/bin/sh
+set -eu
+done_marked=0
+while IFS= read -r line; do
+	printf '%s\n' "$line" >> json.events
+	if [ "$done_marked" -eq 0 ]; then
+		case "$line" in
+			*'"eor"'*)
+				le test fixture plugin/bus-touch-file json.done >/dev/null
+				done_marked=1
+				;;
+		esac
+	fi
+done
+EOF_JSON_SINK
+
+tmpfs=text-sink.sh:mode=755:terminator=EOF_TEXT_SINK
+#!/bin/sh
+set -eu
+seen_eor=0
+while IFS= read -r line; do
+	printf '%s\n' "$line" >> text.events
+	case "$line" in
+		*"route eor 1/1 (ipv4 unicast)"*)
+			seen_eor=1
+			;;
+		*"receive update end"*)
+			if [ "$seen_eor" -eq 1 ]; then
+				le test fixture plugin/bus-touch-file text.done >/dev/null
+				seen_eor=2
+			fi
+			;;
+	esac
+done
+EOF_TEXT_SINK
+
+tmpfs=consolidate-sink.sh:mode=755:terminator=EOF_CONSOL_SINK
+#!/bin/sh
+set -eu
+done_marked=0
+while IFS= read -r line; do
+	printf '%s\n' "$line" >> consolidate.events
+	if [ "$done_marked" -eq 0 ]; then
+		case "$line" in
+			*'"eor"'*)
+				le test fixture plugin/bus-touch-file consolidate.done >/dev/null
+				done_marked=1
+				;;
+		esac
+	fi
+done
+EOF_CONSOL_SINK
+
+tmpfs=verify-base64.py:mode=755:terminator=EOF_VERIFY
+#!/usr/bin/env python3
+import json
+
+V4_HEADER = "0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF003702"
+V4_BODY = "0x000000184001010040020A02020000FDEA0000FE4C400304C000020100000007180A0A00"
+V6_HEADER = "0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF004702"
+V6_BODY = "0x000000304001010040020602010000FDEA800E200002011020010DB800000000000000000000000100000000093020010DB80001"
+EOR_HEADER = "0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF001702"
+EOR_BODY = "0x00000000"
+
+
+def load_json_events(path):
+    with open(path, encoding="utf-8") as fh:
+        raw_lines = [ln.rstrip("\n") for ln in fh if ln.strip()]
+    return raw_lines, [json.loads(ln) for ln in raw_lines]
+
+
+def check_json_stream(path, expect_consolidated):
+    raw_lines, events = load_json_events(path)
+    state_up = False
+    open_ev = None
+    v4_ev = None
+    v4_raw = None
+    v6_ev = None
+    eor_ev = None
+
+    for raw, ev in zip(raw_lines, events):
+        ev_type = ev.get("type")
+        nbr = ev.get("neighbor", {})
+        if ev_type == "state" and nbr.get("state") == "up":
+            if nbr.get("address", {}).get("peer") != "127.0.0.2":
+                raise SystemExit(f"{path}: unexpected state peer: {ev}")
+            state_up = True
+        elif ev_type == "open":
+            open_ev = ev
+        elif ev_type == "update":
+            msg = nbr.get("message", {})
+            if "eor" in msg:
+                eor_ev = ev
+                continue
+            upd = msg.get("update", {})
+            ann = upd.get("announce", {})
+            if "ipv4 unicast" in ann:
+                v4_ev = ev
+                v4_raw = raw
+            if "ipv6 unicast" in ann:
+                v6_ev = ev
+
+    if not state_up:
+        raise SystemExit(f"{path}: missing state up event: {events}")
+    if open_ev is None:
+        raise SystemExit(f"{path}: missing open event: {events}")
+    open_msg = open_ev.get("neighbor", {}).get("open", {})
+    if open_msg.get("asn") != 65002 or open_msg.get("router_id") != "192.0.2.1":
+        raise SystemExit(f"{path}: unexpected open payload: {open_ev}")
+
+    if v4_ev is None or v4_raw is None:
+        raise SystemExit(f"{path}: missing IPv4 unicast UPDATE: {events}")
+    if not v4_raw.startswith("{ ") or not v4_raw.endswith(" }"):
+        raise SystemExit(f"{path}: ExaBGP JSON spacing missing: {v4_raw}")
+    if "negotiated" not in v4_ev.get("neighbor", {}):
+        raise SystemExit(f"{path}: missing negotiated block on IPv4 UPDATE: {v4_ev}")
+    v4_upd = v4_ev["neighbor"]["message"]["update"]
+    v4_as = v4_upd.get("attribute", {}).get("as-path", {}).get("0")
+    if v4_as != {"element": "as-sequence", "value": [65002, 65100]}:
+        raise SystemExit(f"{path}: wrong IPv4 as-path: {v4_upd}")
+    if v4_upd.get("attribute", {}).get("origin") != "igp":
+        raise SystemExit(f"{path}: wrong IPv4 origin: {v4_upd}")
+    v4_routes = v4_upd["announce"]["ipv4 unicast"].get("192.0.2.1")
+    if v4_routes != [{"nlri": "10.10.0.0/24", "path-information": "0.0.0.7"}]:
+        raise SystemExit(f"{path}: wrong IPv4 ADD-PATH routes: {v4_upd}")
+
+    if v6_ev is None:
+        raise SystemExit(f"{path}: missing IPv6 unicast UPDATE: {events}")
+    v6_upd = v6_ev["neighbor"]["message"]["update"]
+    v6_as = v6_upd.get("attribute", {}).get("as-path", {}).get("0")
+    if v6_as != {"element": "as-sequence", "value": [65002]}:
+        raise SystemExit(f"{path}: wrong IPv6 as-path: {v6_upd}")
+    v6_routes = v6_upd["announce"]["ipv6 unicast"].get("2001:db8::1")
+    if v6_routes != [{"nlri": "2001:db8:1::/48", "path-information": "0.0.0.9"}]:
+        raise SystemExit(f"{path}: wrong IPv6 routes: {v6_upd}")
+
+    if eor_ev is None:
+        raise SystemExit(f"{path}: missing IPv4 EOR: {events}")
+    if eor_ev["neighbor"]["message"]["eor"] != {"afi": "ipv4", "safi": "unicast"}:
+        raise SystemExit(f"{path}: wrong EOR payload: {eor_ev}")
+
+    if expect_consolidated:
+        oh = open_ev.get("header", "")
+        ob = open_ev.get("body", "")
+        if not (oh.startswith("0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF") and oh.endswith("01")):
+            raise SystemExit(f"{path}: missing/wrong consolidated OPEN header: {open_ev}")
+        if not (ob.startswith("0x") and len(ob) > 2):
+            raise SystemExit(f"{path}: missing consolidated OPEN body: {open_ev}")
+        if v4_ev.get("header") != V4_HEADER or v4_ev.get("body") != V4_BODY:
+            raise SystemExit(f"{path}: wrong consolidated IPv4 header/body: {v4_ev}")
+        if v6_ev.get("header") != V6_HEADER or v6_ev.get("body") != V6_BODY:
+            raise SystemExit(f"{path}: wrong consolidated IPv6 header/body: {v6_ev}")
+        if eor_ev.get("header") != EOR_HEADER or eor_ev.get("body") != EOR_BODY:
+            raise SystemExit(f"{path}: wrong consolidated EOR header/body: {eor_ev}")
+    else:
+        for ev in (open_ev, v4_ev, v6_ev, eor_ev):
+            if "header" in ev or "body" in ev:
+                raise SystemExit(f"{path}: unexpected header/body in parsed JSON mode: {ev}")
+
+
+def check_text_stream(path):
+    with open(path, encoding="utf-8") as fh:
+        lines = [ln.rstrip("\n") for ln in fh if ln.strip()]
+
+    if "neighbor 127.0.0.2 up" not in lines:
+        raise SystemExit(f"{path}: missing state up line: {lines}")
+    if not any(ln.startswith("neighbor 127.0.0.2 receive open version 4 asn 65002 ") for ln in lines):
+        raise SystemExit(f"{path}: missing receive open line: {lines}")
+
+    want_v4 = (
+        "neighbor 127.0.0.2 receive update announced 10.10.0.0/24 "
+        "path-information 0.0.0.7 next-hop 192.0.2.1 origin igp as-path [ 65002 65100 ]"
+    )
+    want_v6 = (
+        "neighbor 127.0.0.2 receive update announced 2001:db8:1::/48 "
+        "path-information 0.0.0.9 next-hop 2001:db8::1 origin igp as-path [ 65002 ]"
+    )
+    want_eor = "neighbor 127.0.0.2 receive update route eor 1/1 (ipv4 unicast)"
+
+    for want in (want_v4, want_v6, want_eor):
+        if want not in lines:
+            raise SystemExit(f"{path}: missing expected text line {want!r} in:\n" + "\n".join(lines))
+
+    starts = sum(1 for ln in lines if ln == "neighbor 127.0.0.2 receive update start")
+    ends = sum(1 for ln in lines if ln == "neighbor 127.0.0.2 receive update end")
+    if starts != 3 or ends != 3:
+        raise SystemExit(f"{path}: expected 3 update start/end pairs, got {starts}/{ends}: {lines}")
+
+
+check_json_stream("json.events", expect_consolidated=False)
+check_json_stream("consolidate.events", expect_consolidated=True)
+check_text_stream("text.events")
+print("OK: base64 delivered exact ExaBGP JSON, text, and consolidated header/body events")
+EOF_VERIFY
+
+# Peer 1 (127.0.0.2, AS 65002): mirrors ipv4/unicast (ADD-PATH send) and ipv6/unicast,
+# then sends IPv4 ADD-PATH UPDATE, IPv6 unicast UPDATE, and IPv4 End-of-RIB in sequence.
+stdin=peer1:terminator=EOF_PEER1
+option=tcp_connections:value=1
+option=asn:value=65002
+option=open:value=router-id:id=192.0.2.1
+option=linger:value=true
+# seq=1: IPv4 unicast UPDATE with ADD-PATH (path-id=7, 10.10.0.0/24, ORIGIN=IGP, AS_PATH=[65002, 65100], NEXT_HOP=192.0.2.1).
+action=send:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF003702000000184001010040020A02020000FDEA0000FE4C400304C000020100000007180A0A00
+# seq=2: IPv6 unicast MP_REACH_NLRI UPDATE with ADD-PATH (path-id=9, 2001:db8:1::/48, ORIGIN=IGP, AS_PATH=[65002], NEXT_HOP=2001:db8::1).
+action=send:conn=1:seq=2:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF004702000000304001010040020602010000FDEA800E200002011020010DB800000000000000000000000100000000093020010DB80001
+# seq=3: IPv4 unicast End-of-RIB marker (RFC 4724 empty UPDATE).
+action=send:conn=1:seq=3:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
+EOF_PEER1
+
+cmd=foreground:seq=1:exec=ze config validate ze-base64.conf:exit=0
+cmd=background:seq=2:name=peer1:exec=le test peer --bind 127.0.0.2 --port $PORT:stdin=peer1
+cmd=background:seq=3:name=daemon:exec=ze start ze-base64.conf:ready=Ze running.
+reject=stderr:pattern=panic
+reject=stderr:pattern=exabgp-bridge: malformed
+reject=stderr:pattern=exabgp-bridge: invalid
+
+cmd=foreground:seq=4:exec=le test fixture plugin/bus-wait-file json.done:exit=0
+expect=stdout:contains=OK: marker file json.done appeared
+cmd=foreground:seq=5:exec=le test fixture plugin/bus-wait-file text.done:exit=0
+expect=stdout:contains=OK: marker file text.done appeared
+cmd=foreground:seq=6:exec=le test fixture plugin/bus-wait-file consolidate.done:exit=0
+expect=stdout:contains=OK: marker file consolidate.done appeared
+
+cmd=stop:seq=7:name=daemon:signal=term
+cmd=stop:seq=8:name=peer1
+
+cmd=foreground:seq=9:exec=python3 verify-base64.py:exit=0
+expect=stdout:contains=OK: base64 delivered exact ExaBGP JSON, text, and consolidated header/body events

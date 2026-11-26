@@ -104,13 +104,22 @@ sends the same words under `del`. Both SAFI words are rows of `bridgeSAFI`.
 <!-- source: internal/exabgp/bridge/bridge_family.go -- bridgeSAFI -->
 
 
-Inside `ze`, the BGP event dispatcher formats Ze's bus JSON once per distinct
+Inside `ze`, the BGP event dispatcher formats each event once per distinct
 format across all matching external endpoints (`fmtCache` in
-`internal/component/bgp/server/events.go`). Because each ExaBGP script runs as
-its own `ze exabgp plugin` endpoint process (E-1), TLS delivery, `json.Unmarshal`,
-wire decoding, and ExaBGP line rendering happen once per script process rather
-than once across a shared fleet. The measured cost of 1, 5, and 20 full-table
-scripts is recorded in [Measured per-script cost (Q-E7)](#measured-per-script-cost-q-e7).
+`internal/component/bgp/server/events.go`). In `ze_bgp` builds, each
+`ze exabgp plugin` endpoint requests `format=base64` at Stage 5 `ready`, so
+BGP UPDATEs travel inside pooled `WriteBatchFrame` `deliver-batch` frames as
+quote-free positional counted `upd` lines while low-frequency control and
+session events (`state`, `negotiated`, `open`, `notification`, `keepalive`,
+`refresh`) remain JSON. Because each ExaBGP script runs as its own
+`ze exabgp plugin` endpoint process (E-1), TLS delivery, positional `upd`
+parsing (`ReadRawB64Update`, avoiding `json.Unmarshal`), direct unicast
+`[]byte` rendering (`Sessions.RenderRawUpdate`), and wire-backed `Event`
+fallback for non-unicast families and split/decode errors happen once per
+script process rather than once across a shared fleet. The measured cost of 1,
+5, and 20 full-table scripts is recorded in [Measured per-script cost (Q-E7)](#measured-per-script-cost-q-e7).
+<!-- source: internal/exabgp/bridge/bridge_raw_b64.go -- ReadRawB64Update, Sessions.RenderRawUpdate -->
+<!-- source: internal/plugins/exabgp/bridgerun/fleet.go -- Fleet.Broadcast -->
 
 The ExaBGP side is an external contract. An operator writes a script against
 ExaBGP, so a change to ze's own CLI does not reach that script through the
@@ -842,17 +851,21 @@ and `body` at its top; a consolidated text UPDATE writes ` header .. body ..` on
 a line of its own before `update end`. An empty body is left out everywhere but
 the packet JSON, which writes `0x`, as ExaBGP does.
 
-The bytes come from the engine: the wrapper requests `full` event format
-(`raw.update`, `raw.message`, `docs/architecture/api/json-format.md`) whenever
-its compiled filter admits UPDATEs (whose AS_PATH segments, extended community
-values and unknown attribute flags come from the wire bytes — see "Three UPDATE
-members come from the wire bytes" in `docs/exabgp/exabgp-differences.md`) or
-any `--form` modifier asks for `packets` or `consolidate`. When the endpoint
-receives neither UPDATEs nor packet forms, it subscribes `parsed` so the engine
-does not hex-encode every UPDATE for nothing. The wrapper derives the header
-from the body length and the type. An OPERATIONAL message has no producer, so
-neither form is written for one.
-<!-- source: internal/plugins/exabgp/bridgerun/fleet.go -- EventFormat -->
+The bytes come from the engine: in `ze_bgp` builds, the wrapper requests
+`base64` (`FormatBase64`, `docs/architecture/api/json-format.md`) whenever its
+compiled filter admits `bgp:update` (carrying wire UPDATE bytes directly on
+positional counted `upd` lines and `"raw": {"message": "<hex>"}` on non-UPDATE
+JSON events, so AS_PATH segments, extended community values, unknown attribute
+flags, and packet forms all come from wire bytes — see "Three UPDATE members
+come from the wire bytes" in `docs/exabgp/exabgp-differences.md`). In
+non-`ze_bgp` builds, or when `bgp:update` is not admitted and a `--form`
+modifier asks for `packets` or `consolidate`, the wrapper requests `full`
+(`FormatFull`). When the endpoint receives neither UPDATEs nor packet forms, it
+subscribes `parsed` so the engine does not encode wire bytes for nothing. The
+wrapper derives the header from the body length and the type. An OPERATIONAL
+message has no producer, so neither form is written for one.
+<!-- source: internal/plugins/exabgp/bridgerun/forms.go -- EventFormat -->
+<!-- source: internal/exabgp/bridge/bridge_raw_b64.go -- SupportsRawWire -->
 <!-- source: internal/exabgp/bridge/bridge_event_packets.go -- NeedsBytes, FormsFor -->
 
 Two differences from ExaBGP remain. ExaBGP reads `consolidate` and `parsed` for
@@ -1306,3 +1319,4 @@ none; }`). Every run completed with `0` lost routes.
 | Decision | It forbids | Source | Date |
 |----------|------------|--------|------|
 | An ExaBGP script is an ordinary bus endpoint that runs the wrapper; the bridge config section and the internal bridge mode do not exist | A second config root or a second runner for ExaBGP scripts | plan/release/fixes/spec-explicit-plugin-and-attach-config.md | 2026-11-23 |
+| ExaBGP wrapper endpoints request `base64` (`plugin.FormatBase64`) UPDATE delivery at Stage 5 `ready` using Ze's positional counted wire grammar (`upd <flags> <local-as> <remote-as> <conn-id> <n>:<peer> <n>:<local> <n>:<router-id> <n>:<extra-addpath> <n>:<b64-body>`, zero key names, `0:` when absent) over pooled `WriteBatchFrame` `MuxConn` batching while keeping low-frequency control/session events as JSON; `ze exabgp plugin` renders hot IPv4/IPv6 unicast UPDATEs directly into a `[]byte` buffer from wire bytes and falls back to the wire-backed `Event` renderer for non-unicast families and error cases | Requiring operator config changes for raw UPDATE transport, keyword-value wire headers on the UPDATE hot path, adding a duplicate `raw-b64` wire-format enum beside `base64`, or routing high-volume unicast UPDATEs through `FormatFull` JSON and `map[string]any` reflection | website/changes/fragments/exabgp-raw-text-event-transport.md | 2026-11-26 |

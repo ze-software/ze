@@ -218,6 +218,17 @@ closes without responding still fails the call. Waiting calls remain cancelable
 through their context.
 <!-- source: pkg/plugin/rpc/mux.go -- MuxConn.CallRPC, MuxConn.queuedResponse -->
 
+Batched event delivery (`ze-plugin-callback:deliver-batch`) on external TLS
+connections runs through `MuxConn.CallBatchRPC`, which formats frames into a
+pooled buffer via `rpc.WriteBatchFrame` without intermediate `map[string]any`
+marshaling. Batches that would exceed `MaxMessageSize` are split sequentially in
+FIFO order so every frame stays within the limit, while any single event larger
+than the frame budget is refused upfront before registering a pending call or
+writing bytes.
+<!-- source: pkg/plugin/rpc/mux.go -- MuxConn.CallBatchRPC -->
+<!-- source: pkg/plugin/rpc/batch.go -- WriteBatchFrame -->
+<!-- source: internal/component/plugin/ipc/rpc.go -- PluginConn.CallBatchRPC -->
+
 Operations that explicitly support acknowledged cancellation use
 `MuxConn.CallRPCCancellable`. Their receiver enrolls the request on its
 authenticated connection before concurrent dispatch. On context cancellation
@@ -950,20 +961,34 @@ This fence does not delay Ze's independently owned End-of-RIB.
 | Command | Description |
 |---------|-------------|
 | `bgp plugin encoding json\|text` | Set event encoding format |
-| `bgp plugin format hex\|base64\|parsed\|full` | Set wire bytes format (JSON only) |
+| `bgp plugin format hex\|base64\|parsed\|full` | Set wire bytes format |
 | `bgp plugin ack sync\|async` | Set ACK timing |
 <!-- source: internal/component/bgp/yang/ze-bgp-api.yang -- plugin-encoding, plugin-format, plugin-ack -->
 
 Format relationship:
 - `encoding text` → always parsed (human readable)
-- `encoding json` → format applies (hex, base64, parsed, or full)
+- `encoding json` → format applies (`hex`, `base64`, `parsed`, or `full`; under `base64`, BGP UPDATEs use the positional counted `upd` wire line below while low-frequency control/session events stay JSON with `raw.message`)
 
 | Format | Wire Bytes | Parsed Fields | Use Case |
 |--------|------------|---------------|----------|
 | `hex` | ✅ as hex string | ❌ | Wire-level debugging |
-| `base64` | ✅ as base64 | ❌ | Binary transport |
+| `base64` | ✅ as base64 (`upd` line) / hex (`raw.message`) | ❌ (UPDATEs) / ✅ (control) | High-throughput wire consumers (e.g. `ze exabgp plugin`) |
 | `parsed` | ❌ | ✅ | Most plugins (default) |
 | `full` | ✅ as hex | ✅ | Debugging + analysis |
+
+**Positional counted `base64` UPDATE line:**
+
+```
+upd <flags> <local-as> <remote-as> <conn-id> <n>:<peer> <n>:<local> <n>:<router-id> <n>:<extra-addpath> <n>:<b64-body>
+```
+
+Following Ze's Answer Protocol counted grammar, each line uses zero key names, a
+4-byte `"upd "` kind prefix, decimal integers (`<flags>` packing direction,
+`has-asn4`, `asn4`, `has-remote-as`, and IPv4/IPv6 unicast ADD-PATH bits),
+`<byte-len>:<bytes>` counted fields (`0:` when absent), standard base64 of the
+UPDATE body after the 19-octet header (up to RFC 8654's 65,516 octets), zero
+quotes or backslashes, and one trailing `\n`.
+<!-- source: internal/component/bgp/format/raw_b64.go -- appendRawB64Update -->
 
 **Timing:** Encoding applies at event delivery time. Subscribe first, configure encoding later—events use current encoding when delivered.
 

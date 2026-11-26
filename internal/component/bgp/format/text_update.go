@@ -159,6 +159,12 @@ func appendMessageTyped(buf []byte, peer *plugin.PeerInfo, msg bgptypes.RawMessa
 		direction = dirOverride
 	}
 
+	if content.Format == plugin.FormatBase64 {
+		if msg.Type == msgtype.TypeUPDATE {
+			return appendRawB64Update(buf, peer, msg, direction)
+		}
+	}
+
 	if content.Format == plugin.FormatSummary && msg.Type == msgtype.TypeUPDATE {
 		return appendSummary(buf, peer, msg.RawBytes, msg.MessageID, msg.SourcePolicyEpoch, msg.SourceReceipt, direction, messageType)
 	}

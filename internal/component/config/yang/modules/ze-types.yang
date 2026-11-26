@@ -387,7 +387,7 @@ module ze-types {
     typedef wire-format {
         type enumeration {
             enum hex { ze:help "Hex bytes"; }
-            enum base64 { ze:help "Base64 bytes"; }
+            enum base64 { ze:help "Positional counted base64 UPDATE lines beside JSON control events"; }
             enum parsed { ze:help "Parsed JSON"; }
             enum full { ze:help "Full detail JSON"; }
         }

@@ -12,6 +12,7 @@ import (
 	"os"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/ze-software/ze/internal/core/bgp/attribute"
@@ -378,12 +379,13 @@ func (e Event) exabgpEnvelope(format Format) (result, neighbor map[string]any) {
 	default:
 		panic("BUG: invalid bridge format")
 	}
+	host, pid, ppid := cachedProcessIdentity()
 	result = map[string]any{
 		"exabgp":         envelope,
 		exabgpMemberTime: float64(time.Now().Unix()),
-		"host":           hostname(),
-		"pid":            os.Getpid(),
-		"ppid":           os.Getppid(),
+		"host":           host,
+		"pid":            pid,
+		"ppid":           ppid,
 		"type":           e.Kind,
 	}
 
@@ -406,6 +408,24 @@ func (e Event) exabgpEnvelope(format Format) (result, neighbor map[string]any) {
 		neighbor["router-id"] = e.RouterID
 	}
 	return result, neighbor
+}
+
+var (
+	processIdentityOnce sync.Once
+	processHost         string
+	processPID          int
+	processPPID         int
+)
+
+// cachedProcessIdentity returns the process hostname, PID, and PPID resolved
+// once per process lifetime for ExaBGP JSON event envelopes.
+func cachedProcessIdentity() (host string, pid, ppid int) {
+	processIdentityOnce.Do(func() {
+		processHost = hostname()
+		processPID = os.Getpid()
+		processPPID = os.Getppid()
+	})
+	return processHost, processPID, processPPID
 }
 
 func hostname() string {
@@ -1114,25 +1134,14 @@ func normalizeOutgoingAttributes(attrObj map[string]any, withdrawing bool) map[s
 	// only when the path has hops, so an `"as-path": []` is a member its readers
 	// never see. Both were measured against test/exabgp-compat/api/api-api.ci,
 	// which states the exact document ExaBGP produces for one announce.
-	_, hasNextHop := attrObj["next-hop"]
-	if withdrawing {
-		hasNextHop = false
-	}
 	emptyPath := false
 	if path, ok := attrObj["as-path"].([]any); ok && len(path) == 0 {
 		emptyPath = true
 	}
-	renameable := false
-	for zeName := range exabgpAttributeNames {
-		if _, held := attrObj[zeName]; held {
-			renameable = true
-			break
-		}
-	}
-	if !changed && !hasNextHop && !emptyPath && !renameable {
-		return attrObj
-	}
 
+	// Always clone attrObj: callers (such as appendUpdateText -> overlayWire)
+	// mutate the returned attribute map in place and must never corrupt
+	// e.Data["attr"].
 	cloned := make(map[string]any, len(attrObj))
 	maps.Copy(cloned, attrObj)
 	if changed {
