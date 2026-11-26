@@ -286,7 +286,7 @@
       "external": false,
       "chips": [
         {
-          "text": "Netlink",
+          "text": "Kernel",
           "mode": false
         },
         {

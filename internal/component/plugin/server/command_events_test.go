@@ -28,7 +28,7 @@ func TestEnsureRollbackFailureRaisesEvent(t *testing.T) {
 		return &plugin.Response{Status: plugin.StatusDone, Data: plugin.Map{"created": true}}, nil
 	}
 	remove := func(_ *CommandContext, _ command.ValidatedArgs) (*plugin.Response, error) {
-		return nil, errors.New("netlink: device busy")
+		return nil, errors.New("netlink error: device busy")
 	}
 	leaf := func(_ *CommandContext, _ command.ValidatedArgs) (*plugin.Response, error) {
 		return nil, errors.New("unit refused")
@@ -63,7 +63,7 @@ func TestEnsureRollbackFailureRaisesEvent(t *testing.T) {
 	}
 	require.NotNil(t, found, "no ensure-rollback event on the bus: %v", report.Errors(0))
 	require.Equal(t, "interface create dummy name", found.Subject)
-	require.Contains(t, found.Message, "netlink: device busy")
+	require.Contains(t, found.Message, "netlink error: device busy")
 	require.Equal(t, "ze interface delete name", found.Fix)
 }
 

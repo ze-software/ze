@@ -17,7 +17,7 @@ import (
 
 // watchAddressTable is the watch addressWatchWorker starts. It is
 // network.WatchAddresses; a test replaces it and restores it in t.Cleanup,
-// because the watcher registry is a one-shot slot filled by the netlink
+// because the watcher registry is a one-shot slot filled by the kernel
 // backend's init().
 var watchAddressTable = network.WatchAddresses
 
@@ -105,7 +105,7 @@ const (
 // not watched because of err.
 func addressWatchFix(err error) string {
 	if errors.Is(err, network.ErrAddressWatchNotRegistered) {
-		return "run ze on Linux, where the netlink interface backend watches the address table; on another platform restart the BGP sessions after an address change"
+		return "run ze on Linux, where the kernel interface backend watches the address table; on another platform restart the BGP sessions after an address change"
 	}
 	return "none if the watch starts again, which ze logs; if this repeats, look for the netlink error ze logged just before this line, and for kernel messages with: dmesg | grep -i netlink"
 }

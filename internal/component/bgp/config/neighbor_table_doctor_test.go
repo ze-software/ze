@@ -39,7 +39,7 @@ func TestDoctorNeighbourTableUnreadable(t *testing.T) {
 		fix  string
 	}{
 		{"no-reader", network.ErrNeighborTableNotRegistered, "interface component"},
-		{"no-backend", errors.New("no interface backend is loaded: not supported on this platform"), "netlink interface backend"},
+		{"no-backend", errors.New("no interface backend is loaded: not supported on this platform"), "kernel interface backend"},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			replaceNeighborTableRead(t, func() ([]network.Neighbor, error) { return nil, tc.err })

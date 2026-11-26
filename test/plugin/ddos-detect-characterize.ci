@@ -31,7 +31,7 @@
 #     (internal/plugins/trafficusage/attach_linux.go:33,46). On the unprivileged
 #     GitHub runner the rlimit call failed with "need CAP_BPF/CAP_SYS_RESOURCE",
 #     eBPF accounting ran inert, and no incident was ever opened.
-#   - net-admin: AttachTCX programs the interface's tc hooks, a privileged
+#   - net-admin: AttachTCX programs the interface's traffic control hooks, a privileged
 #     network operation.
 # Declaring only one of the two would fail OPEN: a host holding just that one
 # passes the gate and the test fails exactly as it did with no marker at all

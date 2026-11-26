@@ -75,7 +75,7 @@ func NeighborTableFix(err error) string {
 	if errors.Is(err, network.ErrNeighborTableNotRegistered) {
 		return "use a ze build that includes the interface component, which reads and watches the kernel neighbor table"
 	}
-	return "run ze on Linux with the netlink interface backend, the default when no interface block names one; check with: show neighbor ipv6"
+	return "run ze on Linux with the kernel interface backend, the default when no interface block names one; check with: show neighbor ipv6"
 }
 
 // neighborWatchFix is the operator's next step for a neighbor table that is
@@ -87,7 +87,7 @@ func neighborWatchFix(err error) string {
 	if errors.Is(err, errNeighborWatchEnded) {
 		return "none if the watch starts again, which ze logs; if this repeats, look for the netlink error ze logged just before this line, and for kernel messages with: dmesg | grep -i -e netlink -e neigh"
 	}
-	return "if the interface backend is vpp, which reports no neighbor changes, this is a known limit: a router's link-local is read again at session establishment, at a config reload and on an interface address change; otherwise run ze on Linux with the netlink interface backend, the default when no interface block names one; ze tries the watch again at least once a minute"
+	return "if the interface backend is vpp, which reports no neighbor changes, this is a known limit: a router's link-local is read again at session establishment, at a config reload and on an interface address change; otherwise run ze on Linux with the kernel interface backend, the default when no interface block names one; ze tries the watch again at least once a minute"
 }
 
 // neighborView is one read of the kernel neighbor table, kept beside the

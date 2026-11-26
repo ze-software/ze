@@ -183,7 +183,7 @@ func TestAddressSyncRetriesAnAddressNotUsableYet(t *testing.T) {
 }
 
 // TestAddressWatchStartFailureRetries proves a watch that cannot start (no
-// watcher registered, as on a platform without netlink) is started again after
+// watcher registered, as on a platform without netlink sockets) is started again after
 // the retry delay, and that the worker returns once the wait reports the end.
 //
 // MUTATION: return from addressWatchWorker when the first start fails: the

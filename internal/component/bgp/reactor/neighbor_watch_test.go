@@ -359,7 +359,7 @@ func TestThirdPartyMissWarningTellsTheTruth(t *testing.T) {
 		{
 			name: "unwatched, watch failed",
 			view: neighborView{links: noEntry, watch: neighborWatchState{status: neighborWatchStopped, err: errors.New("subscribe to kernel neighbor changes: permission denied")}},
-			want: []string{"the neighbor table is not watched", "permission denied", "netlink interface backend"},
+			want: []string{"the neighbor table is not watched", "permission denied", "kernel interface backend"},
 		},
 		{
 			name: "unwatched, never started",

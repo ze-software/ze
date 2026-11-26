@@ -33,7 +33,7 @@ func TestEnsureRollbackLongErrorStillRaises(t *testing.T) {
 		return &plugin.Response{Status: plugin.StatusDone, Data: plugin.Map{"created": true}}, nil
 	}
 	remove := func(_ *CommandContext, _ command.ValidatedArgs) (*plugin.Response, error) {
-		return nil, errors.New("netlink: " + strings.Repeat("device busy, ", 160))
+		return nil, errors.New("netlink error: " + strings.Repeat("device busy, ", 160))
 	}
 	leaf := func(_ *CommandContext, _ command.ValidatedArgs) (*plugin.Response, error) {
 		return nil, errors.New("unit refused")
@@ -68,7 +68,7 @@ func TestEnsureRollbackLongErrorStillRaises(t *testing.T) {
 	}
 	require.NotNil(t, found, "a long handler error lost the ensure-rollback event: %v", report.Errors(0))
 	require.LessOrEqual(t, len(found.Message), report.MessageMax)
-	require.Contains(t, found.Message, "netlink: device busy")
+	require.Contains(t, found.Message, "netlink error: device busy")
 	require.Equal(t, "ze interface delete name", found.Fix)
 }
 
@@ -149,7 +149,7 @@ func TestLongFixFallsBackToItsOwnList(t *testing.T) {
 		Path:         []string{"interface", "create", "dummy", "name"},
 		RollbackPath: []string{"interface", "delete", "name", selector},
 	}
-	ensureRollbackFailed(nil, step, errors.New("netlink: device busy"))
+	ensureRollbackFailed(nil, step, errors.New("netlink error: device busy"))
 	var rollback *report.Issue
 	for _, issue := range report.Errors(0) {
 		if issue.Code == CodeDoctorCommandEnsureRollbackFailed {
@@ -160,7 +160,7 @@ func TestLongFixFallsBackToItsOwnList(t *testing.T) {
 	require.Equal(t, fixShowErrors, rollback.Fix)
 	// Red: the carried command in ensureRollbackFailed's message.
 	require.Contains(t, rollback.Message, "`ze interface delete name "+selector+"`", "the message does not carry the whole delete command")
-	require.Contains(t, rollback.Message, "netlink: device busy")
+	require.Contains(t, rollback.Message, "netlink error: device busy")
 
 	newName := "show " + strings.Repeat("y", report.FixMax)
 	deprecatedUsed("show old", newName)

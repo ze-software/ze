@@ -73,7 +73,7 @@ func TestNoNeighbourReaderWarnsOncePerPeer(t *testing.T) {
 	lines = unreadLines(sink.String())
 	require.Len(t, lines, 3, "a failure after a good read warns again:\n%s", sink.String())
 	assert.Contains(t, lines[2], "peer=2001:db8:1::2")
-	assert.Contains(t, lines[2], "netlink interface backend", "the line names the fix for a missing backend")
+	assert.Contains(t, lines[2], "kernel interface backend", "the line names the fix for a missing backend")
 }
 
 // unreadLines answers the log lines that warn of an unreadable neighbor table.

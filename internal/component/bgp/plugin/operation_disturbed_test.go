@@ -25,10 +25,10 @@ import (
 // one address from zdiag0 to zdiag1. Every other address stays where it is, so
 // the commit disturbs 10.90.0.1 and nothing else.
 const (
-	ifaceRootAddressOnZdiag0 = `{"interface":{"backend":"netlink","dummy":{` +
+	ifaceRootAddressOnZdiag0 = `{"interface":{"backend":"kernel","dummy":{` +
 		`"zdiag0":{"unit":{"0":{"ipv4":{"address":["10.80.0.1/24","10.90.0.1/24"]}}}},` +
 		`"zdiag1":{"unit":{"0":{"ipv4":{"address":["10.91.0.1/24"]}}}}}}}`
-	ifaceRootAddressOnZdiag1 = `{"interface":{"backend":"netlink","dummy":{` +
+	ifaceRootAddressOnZdiag1 = `{"interface":{"backend":"kernel","dummy":{` +
 		`"zdiag0":{"unit":{"0":{"ipv4":{"address":["10.80.0.1/24"]}}}},` +
 		`"zdiag1":{"unit":{"0":{"ipv4":{"address":["10.91.0.1/24","10.90.0.1/24"]}}}}}}}`
 	ifaceAddressMoveDiff = `{"interface/dummy/zdiag0/unit/0/ipv4/address/1":{"old":"10.90.0.1/24","new":null},` +
@@ -129,8 +129,8 @@ func TestBGPStopsThePeerBoundToAnAddressThatChangesInterface(t *testing.T) {
 // PREVENTS: a fail-safe default so wide that every interface edit bounces every session.
 func TestBGPLeavesThePeerAloneWhenTheAddressRowIsIntact(t *testing.T) {
 	const (
-		activeMTU    = `{"interface":{"backend":"netlink","dummy":{"zdiag0":{"mtu":"1500","unit":{"0":{"ipv4":{"address":["10.90.0.1/24"]}}}}}}}`
-		candidateMTU = `{"interface":{"backend":"netlink","dummy":{"zdiag0":{"mtu":"9000","unit":{"0":{"ipv4":{"address":["10.90.0.1/24"]}}}}}}}`
+		activeMTU    = `{"interface":{"backend":"kernel","dummy":{"zdiag0":{"mtu":"1500","unit":{"0":{"ipv4":{"address":["10.90.0.1/24"]}}}}}}}`
+		candidateMTU = `{"interface":{"backend":"kernel","dummy":{"zdiag0":{"mtu":"9000","unit":{"0":{"ipv4":{"address":["10.90.0.1/24"]}}}}}}}`
 		mtuDiff      = `{"interface/dummy/zdiag0/mtu":{"old":"1500","new":"9000"}}`
 	)
 
@@ -190,7 +190,7 @@ func TestBGPStopsThePeerWhoseSourceAddressTheKernelPicks(t *testing.T) {
 // The two trees for a commit that DELETES an address rather than moving it.
 // Nothing puts 10.90.0.1 back, so no create produces it anywhere in the plan.
 const (
-	ifaceRootAddressDeleted = `{"interface":{"backend":"netlink","dummy":{` +
+	ifaceRootAddressDeleted = `{"interface":{"backend":"kernel","dummy":{` +
 		`"zdiag0":{"unit":{"0":{"ipv4":{"address":["10.80.0.1/24"]}}}},` +
 		`"zdiag1":{"unit":{"0":{"ipv4":{"address":["10.91.0.1/24"]}}}}}}}`
 	ifaceAddressDeleteDiff = `{"interface/dummy/zdiag0/unit/0/ipv4/address/1":{"old":"10.90.0.1/24","new":null}}`

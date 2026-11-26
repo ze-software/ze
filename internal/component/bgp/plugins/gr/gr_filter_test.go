@@ -45,7 +45,7 @@ type llgrCase struct {
 	sets    []rpc.FilterSet
 }
 
-// judgeBoth runs tc through the evaluator on the fast path and forked, and
+// judgeBoth runs the case through the evaluator on the fast path and forked, and
 // asserts both answer the verdict the case names.
 func judgeBoth(t *testing.T, tc *llgrCase) {
 	t.Helper()
