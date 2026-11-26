@@ -9,7 +9,7 @@
 | Depends | - |
 | Phase | - |
 | Handoff | verify |
-| Updated | 2026-11-24 |
+| Updated | 2026-11-26 |
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.
 
@@ -17,352 +17,475 @@ Recovery after compaction: `.claude/rules/post-compaction.md`.
 
 | Topic | Decision |
 |-------|----------|
-| Rollback verdict on VPP reply timeout (Open Question) | **Way 2:** attempt rollback on VPP reply timeouts too, everywhere (keeping firewall and interface rollback behavior uniform, accepting the second timeout wait if VPP remains wedged). |
-
-## Existing Mechanisms (MANDATORY)
-
-| Mechanism | Where | What it does today | This spec |
-|-----------|-------|--------------------|-----------|
-| Shared VPP channel factory | `internal/component/vpp/conn.go` (`(*Connector).NewChannel`) | Returns govpp channels with `DefaultReplyTimeout == 0` (unbounded wait) | Installs a clamped positive reply deadline by construction on every channel obtained from the connector |
-| Firewall & traffic VPP reply timeout | `internal/plugins/firewall/vpp/timeout_linux.go`, `internal/plugins/traffic/vpp/timeout_linux.go` (`newGovppOps`) | Clamps and applies reply timeout in a per-plugin constructor and rolls back firewall config via `sdk.Journal` on failure | Preserves firewall rollback behavior across both firewall and iface (Way 2) and aligns with the shared mechanism |
-| VPP dataplane plugins | `internal/plugins/iface/vpp/ifacevpp.go`, `internal/component/iface/config_apply.go`, `internal/plugins/fib/vpp/fibvpp.go`, `internal/plugins/static/inject.go` | Unbounded VPP calls; fib logs and continues with no operator surface; static tracks skipped routes | Distinguishes `core.ErrReplyTimeout` as a wedged dataplane, reports failures to the operator, and preserves static per-route isolation |
+| Rollback verdict on VPP reply timeout | **Way 2:** attempt rollback on VPP reply timeouts too, everywhere (keeping firewall and interface rollback behavior uniform, accepting the second timeout wait if VPP remains wedged; nothing in the firewall changes). |
 
 ## Task
 
-`newGovppOps` (`internal/plugins/firewall/vpp/timeout_linux.go`) is the only
-production `SetReplyTimeout` call in the tree. Every other plugin that takes a
-govpp channel off the shared connector leaves the deadline at
-`core.DefaultReplyTimeout`, which is `time.Duration(0)`
-(`vendor/go.fd.io/govpp/core/connection.go`).
-`(*Channel).receiveReplyInternal` (`vendor/go.fd.io/govpp/core/channel.go`)
-reads a non-positive timeout as `maxInt64`, and `ReceiveReply` has no context
-arm, so the caller's context cannot break the wait. A VPP that accepts a request
-and goes silent blocks the caller for about 292 years, holding whatever lock the
-caller took.
+Only two VPP backends currently call `SetReplyTimeout`: `firewall/vpp` (`internal/plugins/firewall/vpp/timeout_linux.go`) and `traffic/vpp` (`internal/plugins/traffic/vpp/timeout_linux.go`), each through its own `newGovppOps` constructor. Every other caller that takes a GoVPP channel from the shared connector (`(*Connector).NewChannel` in `internal/component/vpp/conn.go`) inherits `core.DefaultReplyTimeout`, which is `time.Duration(0)` (`vendor/go.fd.io/govpp/core/connection.go`). `(*Channel).receiveReplyInternal` (`vendor/go.fd.io/govpp/core/channel.go`) interprets any non-positive timeout as `maxInt64`, and `ReceiveReply` accepts no context, so a caller's context cannot interrupt the wait. Furthermore, `(*Channel).Reset` drains the channel's request and reply buffers without resetting `replyTimeout`, so pooled channels retain whatever timeout (or unbounded zero) their previous owner held. A VPP that accepts a binary-API request and goes silent blocks the caller for roughly 292 years while holding its locks.
 
-Three plugins are affected, each with a different blast radius, and none of them
-reports a dataplane failure the way the firewall does.
+Three VPP dataplane paths remain unbounded today — `iface/vpp`, `fib/vpp`, and `static/vpp` — each holding a different lock with a different blast radius, and none of them distinguishes a wedged VPP reply timeout (`core.ErrReplyTimeout`) from an ordinary VPP rejection (`api.VPPApiError` / non-zero `Retval`) or reports a wedged dataplane consistently to the operator:
 
-The owner's requirement, given 2026-08-11: the interface path gets a deadline,
-the error is reported to the operator, and the operator-visible outcome on a
-timeout matches the firewall's, rollback included.
+- **iface (`internal/plugins/iface/vpp`, `internal/component/iface`)**: holds `applyMu` and `reconcileMu` across backend calls; a wedged reply stalls all config commits, VPP-ready reconciles, and owned-address/device reconciles indefinitely.
+- **fib-vpp (`internal/plugins/fib/vpp`)**: holds `fibMu` and `f.mu` synchronously inside the `(system-rib, best-change)` handler; a wedged reply stalls sysrib event dispatch for all subscribers, and a failed route install only writes an Error log line and continues, leaving RIB-versus-dataplane divergence invisible in `show fib vpp`, `show doctor`, and Prometheus metrics.
+- **static (`internal/plugins/static`, `internal/plugins/static/vpp`)**: holds `rm.mu` across named-table VPP route programming; a wedged reply stalls static route applies, BFD watchers, link watches, and `show static`. Per-route isolation already records failed routes in `rm.skipped` for `show static` and `doctor-static-route-skipped`, but does not distinguish a wedged VPP reply timeout from a route rejection, does not raise the wedged-dataplane failure on the daemon report bus (`rm.issues`), and exposes no timeout metric.
 
-## Open Question for the Owner
-
-The firewall does not have ONE outcome to match. It has two, and they disagree.
-
-- **The config reload path rolls back.** The undo function recorded in the
-  `sdk.Journal` by the firewall engine (`internal/component/firewall/engine.go`)
-  re-registers the previous tables and calls `ApplyAll` again. On a timeout that
-  second apply goes through the same silent dataplane and burns a second full
-  deadline before failing the same way. The operator waits twice as long to be
-  told it did not work.
-- **The DDoS responder skips its rollback**, on exactly this sentinel
-  (`internal/plugins/ddos/local/responder.go`). Its comment states the reason: a
-  registry rollback has already made the desired state correct, and a second
-  apply can only burn another deadline while an attack stays unmitigated.
-
-- **Way 1 (recommended):** on a TIMEOUT specifically, do not roll back. Fail
-  fast, say the dataplane is wedged and its state is now behind, and keep
-  rollback for ordinary rejections where the dataplane is answering. This makes
-  the firewall config path change too, which is wider than the owner asked for.
-- **Way 2:** roll back on a timeout as well, everywhere. Nothing in the firewall
-  changes, and every caller pays a second deadline before reporting.
-
-**Which way do you want this fixed?** The deadline and the report land either
-way. Only the rollback verdict is in question, and it must be the SAME verdict
-in the firewall and in the interface path, or the consistency the owner asked
-for does not exist.
+Per the owner's requirements (2026-08-11 and 2026-11-24 Way 2 ruling):
+1. Every channel obtained from `(*Connector).NewChannel` receives a clamped positive reply deadline by construction (`ze.vpp.reply-timeout`, default `10s`, clamped to `[1s, 60s]`, refusing zero), matching the bounds already shipped by `firewall/vpp` and `traffic/vpp` while preserving those two backends' per-plugin env overrides (`ze.firewall.vpp.reply-timeout` and `ze.traffic.vpp.reply-timeout`).
+2. `iface/vpp`, `fib/vpp`, and `static/vpp` each distinguish a wedged dataplane (`core.ErrReplyTimeout`) from an ordinary VPP API rejection (`api.VPPApiError` / non-zero `Retval`) without violating the `ze_vpp` compile-out boundary and without importing the `firewall` package.
+3. All three paths report wedged-dataplane failures to operator-visible surfaces (actionable commit error on `iface`; `show fib vpp` skipped entries plus a `fib-vpp-route-failures` runtime doctor check on `fib-vpp`; `rm.skipped`, `show static`, `doctor-static-route-skipped`, and the SDK report bus on `static`; plus per-plugin Prometheus timeout counters).
+4. Under the owner's **Way 2** ruling (2026-11-24), rollback on VPP reply timeouts is attempted everywhere — in `iface` (`internal/component/iface/config_apply.go` step-wise `sdk.Journal` partial-apply undo and `OnConfigRollback`) matching firewall's partial-apply undo (`internal/plugins/firewall/vpp/backend_linux.go` `(*backend).reconcileWithOps`) and transaction rollback (`internal/component/firewall/engine.go` `OnConfigRollback`), leaving `firewall` unchanged and accepting the second bounded timeout wait if VPP remains wedged.
 
 ## Required Reading
 
 ### Architecture Docs
-- [ ] `docs/architecture/static-routes.md` - the static plugin, which programs operator-declared routes straight into the FIB
-- [ ] `docs/features/interfaces.md` - interface management through pure netlink sockets, with no iproute2 shell-outs
-- [ ] `docs/research/vpp-deployment-reference.md` - the VPP deployment reference drawn from 83 ipng.ch articles
-- [ ] `ai/rules/evidence.md` - the rule this change is governed by: the deadline is a guard
-  → Constraint: a computed-but-uninstalled deadline is indistinguishable from having none. The test MUST prove the deadline is installed BEFORE the first request, not that a helper computed it.
-- [ ] `ai/rules/goroutine-lifecycle.md` - the lock held across an unbounded wait is the failure, not the wait itself
-  → Constraint: name the lock each path holds, and state what else contends for it.
-- [ ] `docs/architecture/core-design.md` - the "Firewall reconcile concurrency" anchor of `internal/plugins/firewall/vpp/timeout_linux.go`
-  → Decision: the deadline is bound inside the constructor so no call site can forget it. That rationale is what this spec generalises.
+- [ ] `docs/architecture/static-routes.md` - the static plugin, per-route isolation (`rm.skipped`), and VPP named-table backend selection
+  → Decision: keep per-route isolation intact (`applyRoutes` returns nil and records failed routes in `rm.skipped`); named-table VPP routes never fall back to the Linux kernel.
+  → Constraint: always-on `internal/plugins/static` files must not import `ze_vpp`-gated packages or `go.fd.io/govpp`.
+- [ ] `docs/features/interfaces.md` - interface management, VPP lazy channel acquisition, and `ErrBackendNotReady` deferral
+  → Decision: preserve `ErrBackendNotReady` startup deferral while treating `ErrBackendTimeout` as an apply failure that rolls back through `sdk.Journal` (Way 2).
+  → Constraint: `internal/component/iface` is always-on and must not import `go.fd.io/govpp` or `internal/component/vpp`.
+- [ ] `docs/research/vpp-deployment-reference.md` - GoVPP connection management, socket transport, and VPP failure-lifecycle owner decisions
+  → Decision: bound per-request GoVPP channel reply waits at `(*Connector).NewChannel` without altering VPP process supervision, pidfd ownership, or crash recovery owned by `spec-vpp-failure-lifecycle.md`.
+- [ ] `docs/architecture/core-design.md` - "Firewall reconcile concurrency", Operational Report Bus, and FIB VPP
+  → Decision: generalize the `[1s, 60s]` default `10s` reply deadline and zero refusal from `firewall/vpp` to `(*Connector).NewChannel` so no `NewChannel` caller can forget the bound; preserve firewall's `ze.firewall.vpp.reply-timeout`, `firewall.ErrKernelTimeout`, `ddos-local`'s fast-path rollback skip, `firewall/vpp` `(*backend).reconcileWithOps` partial-apply undo, and `firewall/engine.go` `OnConfigRollback` (Way 2).
+- [ ] `docs/architecture/doctor-and-health-checks.md` - runtime doctor checks declared in Stage 1 `sdk.Registration.DoctorChecks` and answered via `OnDoctorCheck`
+  → Constraint: a plugin runtime check that reads plugin-process state MUST register via `sdk.Registration.DoctorChecks` and `OnDoctorCheck` (never `registry.DoctorCheckDef` in runtime phase) so it works both internal and forked, and every finding carries `fix`.
+- [ ] `docs/architecture/fib/fib-vpp-route-ownership.md` - `ze-fib-vpp` FIB source and `sendRoute`
+  → Constraint: a timed-out `sendRoute` must leave `s.stale` untouched and preserve `errVPPMutationUncertain` alongside `core.ErrReplyTimeout`.
+- [ ] `ai/rules/evidence.md` - the deadline is a guard
+  → Constraint: a computed-but-uninstalled deadline is indistinguishable from having none. Tests MUST prove `SetReplyTimeout` is called with a positive duration BEFORE the first request, not only that a helper computed a number.
+- [ ] `ai/rules/goroutine-lifecycle.md` - the lock held across an unbounded wait is the failure
+  → Constraint: name the lock each path holds (`applyMu`/`reconcileMu` in `iface`, `fibMu`/`f.mu` in `fib-vpp`, `rm.mu` in `static`) and verify release once the bounded reply expires.
 
 ### RFC Summaries (Scope: protocol)
-- N-A. The govpp binary API is a vendor protocol with no RFC. No wire format
-  Ze owns is touched.
+- N-A. The GoVPP binary API is a vendor IPC interface with no RFC. No wire format Ze owns is touched.
 
 **Key insights:** (minimal context to resume after compaction)
-- govpp exports `core.ErrReplyTimeout`, so no new sentinel is needed: `errors.Is` against it identifies a wedged dataplane in any package.
-- The firewall's clamp ceiling is `firewall.MaxBackendDeadline`. Importing the firewall package from iface, fib or static is a tier smell; the shared bound belongs where the connector lives.
-- All three plugins already have test fakes whose `SetReplyTimeout` is an empty method, so the seam exists and nobody used it.
-- fib and static do not report a dataplane failure to the operator at all today. That half of the owner's requirement is larger than the deadline half.
+- `go.fd.io/govpp/core` exports `core.ErrReplyTimeout`. Inside `ze_vpp`-gated packages (`vpp`, `iface/vpp`, `fib/vpp`, `static/vpp`, `static/backend_vpp_linux.go`), `errors.Is(err, core.ErrReplyTimeout)` identifies a wedged dataplane directly.
+- Always-on packages (`internal/component/iface` and non-VPP `internal/plugins/static`) MUST NOT import `go.fd.io/govpp` (`ze_vpp` compile-out rule in `ai/doors/system.md`). `iface` defines `iface.ErrBackendTimeout` in `internal/component/iface/backend.go` (parallel to `iface.ErrBackendNotReady`), and `static` defines package-private `errBackendReplyTimeout` in `internal/plugins/static/backend.go`; each VPP-gated layer wraps BOTH that sentinel AND `core.ErrReplyTimeout` with `%w` so both always-on callers and VPP-tagged tests match cleanly.
+- `(*Channel).Reset` in `vendor/go.fd.io/govpp/core/channel.go` does not clear `replyTimeout`. Calling `ch.SetReplyTimeout(vppReplyTimeout())` inside `(*Connector).NewChannel` guarantees every fresh AND recycled channel receives the shared clamped deadline, and prevents a custom firewall/traffic timeout from leaking into another plugin.
+- `firewall/vpp` and `traffic/vpp` keep their own `newGovppOps` constructors and env vars (`ze.firewall.vpp.reply-timeout`, `ze.traffic.vpp.reply-timeout`), overriding the connector's default on their own channels without conflict.
+- Every `NewChannel` call site in HEAD was audited (`firewall/vpp`, `traffic/vpp`, `iface/vpp`, `fib/vpp` `register.go` and `mplsforwarding.go`, `static` `backend_vpp_linux.go`, `ike/dataplane/vpp.go`, `vpp/startup_runtime.go`): binding at `(*Connector).NewChannel` reaches all of them in one place.
 
 ## Current Behavior (MANDATORY)
 
-**Source files read:** (must read BEFORE you write this spec)
-- [ ] `internal/plugins/firewall/vpp/timeout_linux.go` - `newGovppOps` calls `ch.SetReplyTimeout(vppReplyTimeout())` before returning the facade; `vppReplyTimeout` reads `ze.firewall.vpp.reply-timeout` and clamps to `[minReplyTimeout, maxReplyTimeout]`, rejecting zero because it is govpp's spelling of "no deadline". `asDataplaneTimeout` tags `core.ErrReplyTimeout` as `firewall.ErrKernelTimeout`.
-- [ ] `vendor/go.fd.io/govpp/core/channel.go` - `(*Channel).receiveReplyInternal` reads a non-positive `replyTimeout` as `maxInt64`; `SetReplyTimeout` is the only writer.
-- [ ] `vendor/go.fd.io/govpp/core/connection.go` - `DefaultReplyTimeout = time.Duration(0)`, documented as disabling the timeout.
-- [ ] `internal/component/vpp/conn.go` - `(*Connector).NewChannel`, the one place every plugin obtains a channel from the pooled connection.
-- [ ] `internal/plugins/iface/vpp/ifacevpp.go` - `(*vppBackendImpl).ensureChannel` caches a channel under `chMu` and returns a sentinel without caching when the connector is not ready. Requests run under `reconcileMu`, taken by `reconcileOnReadyWithJournal` (`internal/component/iface/config_apply.go`), which is process-wide for interface reconciles.
-- [ ] `internal/component/iface/config_apply.go` - `reconcileOnReadyWithJournal` holds `reconcileMu` across every backend call, records per-method errors and rolls the whole commit back through the journal.
-- [ ] `internal/plugins/fib/vpp/fibvpp.go` - `(*fibVPP).processEvent` holds `mu` for a whole batch and, on a failed install, logs `fib-vpp: add route failed` at Error and `continue`s. There is no error return and no failure metric, so the RIB and the dataplane diverge with nothing reported.
-- [ ] `internal/plugins/fib/vpp/backend.go` - `(*govppBackend).routeAddDel` and `.richRouteAddDel` issue the requests; `newGovppBackend` takes the channel.
-- [ ] `internal/plugins/static/inject.go` - `(*routeManager).applyRoutes` holds `mu`, logs `static: route skipped, kept rest of section` at Warn, records the key in `rm.skipped`, and returns nil. Per-route isolation is deliberate and carries a spec reference.
-- [ ] `internal/plugins/static/vpp/backend.go` - `(*Backend).routeAddDel` issues the request on a shared channel.
-- [ ] `internal/component/firewall/engine.go` - the journal `Record` call whose undo re-registers the previous tables and calls `ApplyAll` again. This is the rollback the Open Question is about.
-- [ ] `internal/plugins/ddos/local/responder.go` - skips the rollback reconcile on `firewall.ErrKernelTimeout`, with the reasoning stated in a comment.
+**Source files read:** (verified against HEAD on 2026-11-26)
+- [ ] `internal/component/vpp/conn.go` - `(*Connector).NewChannel` calls `c.conn.NewAPIChannel()` and returns the channel without calling `SetReplyTimeout`, leaving govpp's disabled default (`0`) or whatever timeout a prior pooled-channel owner set. `NewStream` / `NewStreamForGeneration` already take a `context.Context`; `WaitConnected` already bounds connection establishment.
+- [ ] `vendor/go.fd.io/govpp/core/connection.go` - `DefaultReplyTimeout = time.Duration(0)`, documented as disabling the reply timeout.
+- [ ] `vendor/go.fd.io/govpp/core/channel.go` - `(*Channel).receiveReplyInternal` reads a non-positive `replyTimeout` as `maxInt64`; `SetReplyTimeout` is the only writer; `(*Channel).Reset` drains `reqChan` and `replyChan` without touching `replyTimeout`.
+- [ ] `internal/plugins/firewall/vpp/timeout_linux.go` - already landed: `newGovppOps` calls `ch.SetReplyTimeout(vppReplyTimeout())` using `ze.firewall.vpp.reply-timeout` (default `10s`, clamped `[1s, firewall.MaxBackendDeadline]` = `[1s, 60s]`, zero refused) and `asDataplaneTimeout` tags `core.ErrReplyTimeout` as `firewall.ErrKernelTimeout`.
+- [ ] `internal/plugins/traffic/vpp/timeout_linux.go` - already landed (closed 2026-10-15): `newGovppOps` calls `ch.SetReplyTimeout(vppReplyTimeout())` using `ze.traffic.vpp.reply-timeout` (default `10s`, clamped `[1s, 60s]`, zero refused).
+- [ ] `internal/plugins/iface/vpp/ifacevpp.go` - `(*vppBackendImpl).ensureChannel` caches a channel from `connector.NewChannel()` under `chMu` (returning `iface.ErrBackendNotReady` without caching while disconnected). Binary-API calls wrap raw govpp errors without distinguishing `core.ErrReplyTimeout` from `api.VPPApiError` or non-zero `Retval`, and without surfacing an operator-facing wedged-dataplane error.
+- [ ] `internal/component/iface/backend.go` - defines backend contract sentinels (`ErrBackendNotReady`, `ErrInterfaceExists`, `ErrInterfaceNotFound`, `ErrCountersNotResettable`) but no `ErrBackendTimeout`.
+- [ ] `internal/component/iface/config_apply.go` - `applyConfig` holds `applyMu` across `applyConfigPass`, and `reconcileOnReadyWithJournal` holds `reconcileMu` across backend calls (shared with VPP-ready and registry-change reconcile workers). On any non-`ErrBackendNotReady` error, `applyConfigPass` aborts and runs `journal.Rollback()`, which already matches Way 2 rollback behavior, but reports raw backend errors with no wedged-dataplane distinction or timeout counter.
+- [ ] `internal/component/iface/rate.go` - `bindMetricsRegistry` registers `ifaceMetrics` (including `configApplies`), with no backend-timeout counter.
+- [ ] `internal/plugins/fib/vpp/fibvpp.go` - `(*fibVPP).processEvent` holds `f.mu` (called under `fibMu` from `subscribeFibVPP` in `register.go`) across the batch. On add/replace/del/MPLS errors, it logs at Error and continues without recording the failed prefix, updating `showInstalled` (`show fib vpp`), exposing a runtime doctor finding, or incrementing a timeout counter.
+- [ ] `internal/plugins/fib/vpp/backend.go` and `internal/plugins/fib/vpp/routesource.go` - `govppBackend` delegates IP route adds/deletes to `(*routeSource).sendRoute`, which wraps `ReceiveReply` errors as `fmt.Errorf("%s: %w: %w", op, errVPPMutationUncertain, err)` (preserving `core.ErrReplyTimeout` in the error chain, while non-zero `reply.Retval` returns a plain error). `openFibVPPWriter` (`register.go`) and `readMPLSForwarding` (`mplsforwarding.go`) obtain channels from `connector.NewChannel()` with no deadline.
+- [ ] `internal/plugins/fib/vpp/stats.go`, `register.go`, `register_doctor.go` - `stats.go` registers route install/update/removal counters and installed gauge (no timeout counter); `register.go` declares three runtime doctor checks (`fib-vpp-label-entries`, `fib-vpp-stale-routes`, `fib-vpp-srv6`) in `engineRegistration().DoctorChecks` and dispatches them in `answerDoctorCheck`, with code explanations registered in `register_doctor.go`.
+- [ ] `internal/plugins/static/inject.go`, `backend.go`, `backend_vpp_linux.go`, `doctor.go`, `register.go`, `register_doctor_codes.go` - `(*routeManager).applyRoutes` holds `rm.mu` across named-table backend writes (opened via `connector.NewChannel()` in `backend_vpp_linux.go`). On failure, `applyRouteLocked` logs a warning, isolates the route in `rm.skipped` (surfaced by `show static` and `doctor-static-route-skipped`), and `applyRoutes` returns `nil`. It does not distinguish `core.ErrReplyTimeout` from a VPP rejection, does not raise a wedged-dataplane issue on `rm.issues` (so a forked static plugin has no daemon-side warning/error for a timed-out write), and registers no `ConfigureMetrics` timeout counter.
+- [ ] `internal/plugins/static/vpp/backend.go` - `(*Backend).routeAddDel` issues `IPRouteAddDel` on the shared channel without distinguishing `core.ErrReplyTimeout` from `reply.Retval != 0` / `api.VPPApiError`.
+- [ ] `internal/plugins/firewall/vpp/backend_linux.go` - `(*backend).reconcileWithOps` accumulates per-step `undo` closures during `applyAll` and replays `slices.Backward(undo)` on any `applyErr` — including `core.ErrReplyTimeout` — before `applyWithOps` tags it as `firewall.ErrKernelTimeout`. Unchanged under Way 2.
+- [ ] `internal/component/firewall/engine.go` and `pkg/plugin/sdk/journal.go` - `(*Journal).Record` does not store `undo` when `apply()` returns an error, so `engine.go`'s `j.Rollback()` in `OnConfigApply` is a no-op when `registerConfigTables(cfg)` itself fails with `ErrKernelTimeout`; `OnConfigRollback` replays `registerConfigTables(previous)` through `sdk.Journal` after a succeeded `OnConfigApply` when another transaction participant aborts. Unchanged under Way 2.
+- [ ] `internal/plugins/ddos/local/responder.go` - skips its rollback reconcile on `firewall.ErrKernelTimeout` because it is a fast-path DDoS mitigation responder whose detector re-fires every second. Unchanged under Way 2.
 
 **Behavior to preserve:**
-- The firewall keeps its own deadline value and its own env key. This spec does not retune it.
-- Static keeps per-route isolation: one route the backend refuses does not fail the section. Only the operator-visible reporting changes.
-- The iface commit journal keeps rolling back on ordinary backend errors. Only the timeout verdict is in question.
-- A channel obtained by a test that injects its own fake keeps working; the fakes' empty `SetReplyTimeout` must stay valid.
-- No plugin gains a dependency on the firewall package.
+- `firewall/vpp` and `traffic/vpp` keep their own reply-timeout env vars (`ze.firewall.vpp.reply-timeout`, `ze.traffic.vpp.reply-timeout`), their `newGovppOps` constructors, and their existing timeout/error behavior. Nothing in `firewall` (`firewall/vpp/backend_linux.go`, `firewall/engine.go`, `ddos/local`) changes.
+- `iface` keeps `ErrBackendNotReady` startup deferral unchanged: an absent or not-yet-connected VPP is never reported as a wedged dataplane.
+- `iface` keeps `sdk.Journal` rollback on ordinary backend rejections AND applies the same rollback on VPP reply timeouts (Way 2).
+- `static` keeps per-route isolation (`applyRoutes` returns `nil`, unaffected routes stay programmed, skipped routes retry on the next apply) and keeps refusing kernel fallback under `interface backend vpp`.
+- `fib-vpp` keeps `ze-fib-vpp` FIB source ownership, `errVPPMutationUncertain` wrapping for SRv6 fallback fail-closed reconciliation, and existing `fib-vpp-stale-routes`, `fib-vpp-srv6`, and `fib-vpp-label-entries` checks.
+- Existing test fakes with empty `SetReplyTimeout(time.Duration)` methods keep compiling unchanged.
+- Always-on packages (`internal/component/iface`, non-VPP `internal/plugins/static`) never import `go.fd.io/govpp` or `internal/component/vpp`, and no plugin imports `internal/component/firewall`.
 
 **Behavior to change:**
-- Every channel from the shared connector carries a reply deadline by construction.
-- A timed-out request is identifiable as a wedged dataplane, distinct from a rejected request.
-- iface, fib and static each report a wedged dataplane to the operator.
-- The rollback verdict on a timeout becomes the same in the firewall and in the interface path, per the owner's answer.
+- `(*Connector).NewChannel` installs the clamped positive reply deadline (`ze.vpp.reply-timeout`, default `10s`, `[1s, 60s]`, zero refused) on every returned channel (fresh or recycled) before returning it.
+- `iface/vpp`, `fib/vpp`, and `static/vpp` distinguish `core.ErrReplyTimeout` (wedged dataplane) from VPP rejections (`api.VPPApiError` / non-zero `Retval`), release their locks promptly when the deadline fires, and increment per-plugin Prometheus timeout counters.
+- `iface` fails the commit with an operator-facing wedged-dataplane error naming the problem, why, and fix, while attempting `sdk.Journal` rollback (Way 2, matching `firewall/vpp` `(*backend).reconcileWithOps` partial-apply undo and `firewall/engine.go` `OnConfigRollback`).
+- `fib-vpp` records failed/wedged routes, exposes them in `show fib vpp` (`skipped` and `skip-reason` fields mirroring `show static`) and in a new Stage 1 runtime doctor check (`fib-vpp-route-failures`, code `doctor-fib-vpp-route-failed`), and clears each entry once a subsequent install, replace, or withdrawal succeeds.
+- `static` labels wedged-dataplane skips clearly in `rm.skipped` / `show static` / `doctor-static-route-skipped`, raises an issue on the SDK report bus (`rm.issues`) under a registered diagnostic code so both in-process and forked deployments surface it in `show errors`/`show warnings` and `show doctor`, and preserves per-route isolation.
+
+## Existing Mechanisms (MANDATORY)
+
+| Mechanism | Where (file + symbol, or page + section) | What it does today | This spec (extends, replaces, or does not apply, with the reason) |
+|-----------|------------------------------------------|--------------------|-------------------------------------------------------------------|
+| Shared VPP channel factory | `internal/component/vpp/conn.go` (`(*Connector).NewChannel`) | Acquires a pooled GoVPP channel from `c.conn.NewAPIChannel()` with `DefaultReplyTimeout == 0` (unbounded wait) | Extends: installs the clamped positive reply deadline (`ze.vpp.reply-timeout`, `[1s, 60s]`, default `10s`, zero refused) on every channel before returning it |
+| Per-plugin VPP reply timeout constructors | `internal/plugins/firewall/vpp/timeout_linux.go` (`newGovppOps`), `internal/plugins/traffic/vpp/timeout_linux.go` (`newGovppOps`) | Clamp and apply `ze.firewall.vpp.reply-timeout` and `ze.traffic.vpp.reply-timeout` (`10s` default, `[1s, 60s]`) on their channels | Does not apply (preserved as overrides): both plugins keep their per-plugin env vars and constructors, overriding the connector's default for their own calls |
+| Interface backend sentinels and journal rollback | `internal/component/iface/backend.go` (`ErrBackendNotReady`), `internal/component/iface/config_apply.go` (`applyConfigPass`, `reconcileOnReadyWithJournal`) | Defers `ErrBackendNotReady` and rolls back prior completed steps on all other failures through `sdk.Journal` | Extends: adds `iface.ErrBackendTimeout` beside `ErrBackendNotReady`, wraps `core.ErrReplyTimeout` in `iface/vpp`, keeps Way 2 `sdk.Journal` partial-apply rollback matching `firewall/vpp` `reconcileWithOps` and `firewall/engine.go` `OnConfigRollback`, and reports wedged-dataplane errors |
+| Interface metrics registry | `internal/component/iface/rate.go` (`bindMetricsRegistry`, `ifaceMetrics`) | Registers `ze_interface_*` gauges/counters and `configApplies` through `metrics.Registry` | Extends: registers `ze_iface_backend_timeouts_total` on `ifaceMetrics` inside `bindMetricsRegistry` |
+| Firewall partial-apply and config rollback | `internal/plugins/firewall/vpp/backend_linux.go` (`(*backend).reconcileWithOps`), `internal/component/firewall/engine.go` (`OnConfigRollback`), `pkg/plugin/sdk/journal.go` (`(*Journal).Record`, `Rollback`) | `reconcileWithOps` replays per-step `undo` closures in reverse on `applyAll` failure including `core.ErrReplyTimeout`; `(*Journal).Record` skips storing `undo` on a failed `apply()` (so `engine.go` `OnConfigApply`'s `j.Rollback()` is a no-op when `registerConfigTables` itself fails with `ErrKernelTimeout`), while `engine.go` `OnConfigRollback` replays `registerConfigTables(previous)` after a succeeded apply when another participant aborts | Does not apply (preserved as the Way 2 reference): left untouched per Thomas's 2026-11-24 Way 2 ruling; AC-7 asserts `iface` matches this partial-apply and transaction-rollback verdict |
+| FIB VPP route source, metrics, and runtime doctor checks | `internal/plugins/fib/vpp/routesource.go` (`sendRoute`), `stats.go` (`SetMetricsRegistry`), `register.go` (`engineRegistration`, `answerDoctorCheck`), `register_doctor.go` | Wraps transport reply failures with `errVPPMutationUncertain`; exposes route counters and three Stage 1 runtime doctor checks | Extends: tracks failed/wedged route entries on `fibVPP`, surfaces them in `show fib vpp` and a new Stage 1 runtime doctor check (`fib-vpp-route-failures`), and adds `ze_fibvpp_reply_timeouts_total` |
+| Static per-route isolation, doctor check, metrics, and SDK report queue | `internal/plugins/static/inject.go` (`rm.skipped`, `rm.issues`), `doctor.go` (`checkRouteSkipped`), `register.go` (`ConfigureMetrics`), `register_doctor_codes.go` | Isolates failing routes in `rm.skipped` for `show static` and `doctor-static-route-skipped`; raises `doctor-static-vpp-channel` via `issuequeue`; `register.go` registers `static` without `ConfigureMetrics` | Extends: distinguishes `core.ErrReplyTimeout` via `errBackendReplyTimeout`, records wedged-dataplane skip reason, raises `doctor-static-vpp-timeout` on `rm.issues`, and wires `ConfigureMetrics` in `register.go` for `ze_static_vpp_reply_timeouts_total` |
+| Env var and diagnostic code registries | `internal/core/env` (`env.MustRegister`), `internal/core/diagnostic` (`diagnostic.Register`, `diagnostic.RegisterEventCode`) | Central registration for runtime env knobs and `ze show diagnostic` code metadata | Extends: registers `ze.vpp.reply-timeout` and the new fib-vpp and static doctor/event codes |
+
+## Design documents
+
+| Document | Section | Derived from | Binding statement | Verdict | How this design stands against it |
+|----------|---------|--------------|-------------------|---------|-----------------------------------|
+| `ai/doors/system.md` | The core knows nothing, and everything registers | the door every change reads | "Always-on code MUST NOT import a gated package." | agrees | Always-on `internal/component/iface` and non-VPP `internal/plugins/static` never import `go.fd.io/govpp` or `internal/component/vpp`; they inspect local sentinels (`iface.ErrBackendTimeout`, `errBackendReplyTimeout`) wrapped alongside `core.ErrReplyTimeout` inside `ze_vpp`-gated files. |
+| `ai/doors/forwarding.md` | Boundaries | the door covering `internal/component/vpp/conn.go`, `internal/plugins/iface/vpp/ifacevpp.go`, `internal/component/iface/backend.go`, `internal/component/iface/config_apply.go`, `internal/component/iface/rate.go`, `internal/plugins/fib/vpp/fibvpp.go`, `internal/plugins/fib/vpp/backend.go`, `internal/plugins/fib/vpp/routesource.go`, `internal/plugins/fib/vpp/stats.go`, `internal/plugins/fib/vpp/register.go`, `internal/plugins/fib/vpp/register_doctor.go` | "A plugin raises or clears issues through SDK `RaiseIssue` or `ClearIssue`, whose `report-issue` RPC reaches the daemon's store (`pkg/plugin/sdk/report.go`, `internal/component/plugin/server/dispatch_report.go`)." | agrees | `static` raises wedged-dataplane failures through `rm.issues` (`issuequeue` over the SDK report RPC), `fib-vpp` reports runtime route failures through its Stage 1 `OnDoctorCheck` callback, and all `ze_vpp` compile-out boundaries remain intact. |
+| `ai/doors/system-plugins.md` | Boundaries | the door covering `internal/plugins/static/inject.go`, `internal/plugins/static/backend.go`, `internal/plugins/static/backend_vpp_linux.go`, `internal/plugins/static/vpp/backend.go`, `internal/plugins/static/doctor.go`, `internal/plugins/static/register.go`, `internal/plugins/static/register_doctor_codes.go` | "Its commands, YANG, doctor checks and help live in its folder." | agrees | Static owns its timeout sentinel, doctor code metadata, report-bus raises, `show static` skip surface, and Prometheus counter inside `internal/plugins/static/`, and keeps `go.fd.io/govpp` confined to `ze_vpp`-gated files. |
+| `ai/doors/le-tooling.md` | Where it sits | the door covering `test/plugin/vpp-wedged-iface-commit-reports.ci`, `test/plugin/vpp-wedged-fib-reports.ci`, `test/plugin/vpp-wedged-static-reports.ci` | "Functional `.ci` files live under `test/<suite>/` and run through `./le test <suite>` on the functional runner (`internal/test/runner`, `docs/architecture/testing/runner-architecture.md`)." | agrees | The three new functional tests land under `test/plugin/` using the standard functional runner and compiled Go fixtures that return errors on assertion failure, with no changes to `internal/le`. |
+| `docs/research/vpp-deployment-reference.md` | GoVPP Connection | the `// Design:` page of `internal/component/vpp/conn.go`, `internal/plugins/iface/vpp/ifacevpp.go`, `internal/plugins/fib/vpp/fibvpp.go`, `internal/plugins/fib/vpp/backend.go`, `internal/plugins/fib/vpp/stats.go` | "Resource owners capture `Connector.ConnectionGeneration` when they acquire VPP state and use `NewStreamForGeneration` for later operations. The epoch changes on successful connection publication and every close." | agrees | `(*Connector).NewChannel` installs the clamped reply deadline on the returned `api.Channel` without altering `ConnectionGeneration`, `NewStreamForGeneration`, `Close`, or the connector lock protocol. |
+| `docs/research/vpp-deployment-reference.md` | Design decisions | `docs/research/vpp-deployment-reference.md`, decision of 2026-11-23 | "Ze refuses to run VPP unmanaged. When VPP is external, the operator accepts that Ze may terminate and restart it" | agrees | This spec bounds GoVPP binary-API reply waits and reports wedged-dataplane errors; it does not introduce or expand any unmanaged VPP mode, leaving VPP lifecycle supervision to `spec-vpp-failure-lifecycle.md`. |
+| `docs/research/vpp-deployment-reference.md` | Design decisions | `docs/research/vpp-deployment-reference.md`, decision of 2026-11-23 | "Ze knows how to manage and restart an external VPP: through a systemd unit, or by starting the binary directly, as it does with the embedded runtime" | agrees | Bounding per-request reply waits does not alter how Ze starts or restarts VPP processes or systemd units. |
+| `docs/research/vpp-deployment-reference.md` | Design decisions | `docs/research/vpp-deployment-reference.md`, decision of 2026-11-23 | "After a failure, when the VPP process is alive, forwarding continued, and Ze reconnects and can read the state it configured, Ze continues from where it is" | agrees | A bounded reply timeout fails only the unanswered API call and reports the wedged dataplane; it never kills VPP or tears down sessions on its own. |
+| `docs/research/vpp-deployment-reference.md` | Design decisions | `docs/research/vpp-deployment-reference.md`, decision of 2026-11-23 | "When VPP could have crashed or stopped forwarding, Ze reflects it in its own model and makes sure IGP and BGP peers are updated" | agrees | This spec does not inhibit or bypass VPP-loss detection or route withdrawal; by releasing locks on timeout it prevents control-plane workers from stalling indefinitely during a VPP hang. |
+| `docs/research/vpp-deployment-reference.md` | Design decisions | `docs/research/vpp-deployment-reference.md`, decision of 2026-11-23 | "One timer: the alive test and the loss declaration use the same time, and a probe missed inside it is not a loss. This narrows the row "After a failure, when the VPP process is alive": Ze continues from where it is only through form (1) below, inside the timer, and a declared loss is never adopted" | agrees | The GoVPP channel reply deadline bounds individual binary-API requests on `NewChannel` and does not alter the connector health-probe alive timer or loss declaration policy. |
+| `docs/research/vpp-deployment-reference.md` | Design decisions | `docs/research/vpp-deployment-reference.md`, decision of 2026-11-23 | "As soon as a loss is declared, Ze makes sure the process is terminal (kill through the retained pidfd, then wait for the exit proof), then restarts and reconfigures VPP. Ze is the only restarter: a systemd unit it drives does not restart VPP itself (Restart=no)" | agrees | A channel reply timeout never restarts VPP, kills by PID, or alters pidfd termination semantics. |
+| `docs/research/vpp-deployment-reference.md` | Design decisions | `docs/research/vpp-deployment-reference.md`, decision of 2026-11-23 | ""Recovered" has exactly two forms. (1) Inside the single timer Ze reconnects to the same pidfd-proven process and a full readback of what it installed (interfaces, LCP pairs, owned routes, PPPoE sessions) matches: Ze continues, with no kill and no withdrawal. Any mismatch means form (1) failed. (2) A forced restart (kill through the retained pidfd, exit proof) followed by a correct reconfiguration, exactly as at boot. Routes are withdrawn only when neither form succeeds within the recovery deadline and the crash-loop limit" | agrees | This spec adds no third recovery path and withdraws no routes on a single request timeout; it keeps VPP recovery semantics intact for `spec-vpp-failure-lifecycle.md`. |
+| `docs/research/vpp-deployment-reference.md` | Design decisions | `docs/research/vpp-deployment-reference.md`, decision of 2026-11-23 | "Blackholing during the restart is accepted. Routes are withdrawn (VPP-backed interfaces down in Ze's model, so IGP and BGP react) only when neither recovery form succeeds within the recovery deadline and the crash-loop limit. This narrows the row "When VPP could have crashed or stopped forwarding": Ze updates IGP and BGP peers only then" | agrees | A timed-out request does not take VPP-backed interfaces down or trigger premature BGP/IGP withdrawal while VPP recovers. |
+| `docs/research/vpp-deployment-reference.md` | Design decisions | `docs/research/vpp-deployment-reference.md`, decision of 2026-11-23 | "systemd configuration: Ze cannot be sure that an OS update will not change the unit's settings, so it detects the settings and adapts. No unit policy is required: Ze reads the unit's effective settings each time it acts on VPP, and adapts its restart to them. This supersedes the second sentence of the row "As soon as a loss is declared" (Ze the only restarter, Restart=no) and its forbids clause "or leaving the restart to systemd or another supervisor"; correcting that row needs Thomas's decision-change" | agrees | This spec does not read, require, or constrain any systemd unit setting. |
+| `docs/research/vpp-deployment-reference.md` | Design decisions | `docs/research/vpp-deployment-reference.md`, decision of 2026-11-23 | "Two limits. The alive test and the loss declaration use the same time: a probe missed inside it is not a loss, and a failed alive test is the loss declaration. A second, separate limit then bounds the reconnect-and-verify attempt of form (1). When that limit expires without form (1), Ze makes the process terminal (kill through the retained pidfd, then wait for the exit proof), then restarts and reconfigures VPP. This supersedes the row "One timer" (its single timer, "a declared loss is never adopted" and its forbids clause "a second window after the declaration"), and narrows the row "As soon as a loss is declared": the kill follows the second limit, not the declaration" | agrees | Per-request GoVPP reply deadlines operate on `api.Channel` calls only and do not modify the alive-test limit, the reconnect-and-verify limit, or pidfd kill ordering. |
+| `docs/research/vpp-deployment-reference.md` | Design decisions | `docs/research/vpp-deployment-reference.md`, decision of 2026-11-23 | "Form (1) adopts on the presence of data ("We should take the presence of data as a sign that the software is still running and reconciliation may be then happening in the background."). Inside the reconnect-and-verify limit, the same pidfd-proven process answering over the API with the data Ze configured is the sign it is alive: Ze adopts it, with no kill and no withdrawal, and reconciles in the background, as the fib-vpp replay and sweep and the iface reconcile do. A mismatch the background reconciliation finds is repaired, not treated as a loss. Form (2) stays a forced restart followed by a correct reconfiguration, exactly as at boot. This narrows the row "Recovered has exactly two forms": a full readback match is no longer required, and a mismatch no longer fails form (1)" | agrees | Keeping `fib-vpp` replay/sweep and `iface` reconcile bounded with a reply deadline ensures background reconciliation terminates cleanly rather than wedging indefinitely, without altering form (1) adoption criteria. |
+| `docs/research/vpp-deployment-reference.md` | Design decisions | `docs/research/vpp-deployment-reference.md`, decision of 2026-11-23 | "A recovery deadline and a crash-loop limit (N restarts inside a window) bound recovery. Past either, Ze withdraws: VPP-backed interfaces go down in Ze's model, so IGP and BGP react, and ze doctor reports it. Blackholing while Ze restarts inside both limits is accepted. The default values are proposed at design review for Thomas's approval. This adopts the recovery deadline and the crash-loop limit that the rows "Recovered has exactly two forms" and "Blackholing during the restart is accepted" carried as proposals, and narrows the row "When VPP could have crashed or stopped forwarding": Ze updates IGP and BGP peers only past a limit" | agrees | Per-request channel deadlines do not alter recovery deadlines, crash-loop limits, or withdrawal triggers. |
+| `docs/research/vpp-deployment-reference.md` | Design decisions | `docs/research/vpp-deployment-reference.md`, decision of 2026-11-23 | "After a withdrawal Ze keeps retrying recovery with a growing backoff. When VPP recovers, the VPP-backed interfaces come up in Ze's model and the routes return by themselves, and ze doctor reports the state throughout. This narrows the crash-loop limit: past it Ze withdraws and keeps restarting" | agrees | Bounded reply waits allow failed route/interface operations to clear automatically once VPP recovers and answers subsequent applies/replays, without halting recovery retries. |
+| `docs/research/vpp-deployment-reference.md` | Design decisions | `docs/research/vpp-deployment-reference.md`, decision of 2026-11-23 | "The VPP loss itself triggers no withdrawal: no VPP-backed interface goes down in Ze's model while Ze recovers. Ze's own protocol timers (BFD detection, OSPF and IS-IS dead intervals, BGP hold) keep running during recovery, as their RFCs say" | agrees | This spec never alters, pauses, or extends BFD, OSPF, IS-IS, or BGP protocol timers, nor takes VPP-backed interfaces down on a request timeout. |
+| `docs/research/vpp-deployment-reference.md` | Design decisions | `docs/research/vpp-deployment-reference.md`, decision of 2026-11-23 | "A process on VPP's API socket whose pidfd does not resolve to the configured systemd unit is reported, never refused or killed ("We should report but not refuse if the customers have changed the software, for example. It may mean that we have an out of date configuration. We should make sure the customer updates it but not cause a routing outage."). ze doctor names the process, the configured unit, that the configuration may be out of date, and the exact fix, and Ze keeps working with that process" | agrees | Channel reply deadlines act identically on any connected VPP API socket and never refuse or kill a process over systemd unit mismatch. |
+| `docs/architecture/doctor-and-health-checks.md` | The runtime phase: checks only the daemon runs | anchored to `internal/component/vpp/conn.go`; the `// Design:` page of `internal/plugins/static/register_doctor_codes.go` | "A plugin's runtime check reads state that lives in the plugin's own process, so its one route is the doctor callback, which reaches a forked plugin as well as an internal one." | agrees | `fib-vpp-route-failures` registers through `sdk.Registration.DoctorChecks` and is answered in `answerDoctorCheck` (`OnDoctorCheck`), carrying `fix` on every finding; `static`'s new event code is registered in `register_doctor_codes.go` and raised via `issuequeue`. |
+| `docs/architecture/traffic/fw-7-traffic-vpp.md` | Hard-fail on a missing connection | anchored to `internal/component/vpp/conn.go` | "`Apply` calls `Connector.WaitConnected(ctx, 5s)` and returns `vpp not connected after 5s` on timeout." | agrees | `Connector.WaitConnected` is unchanged, keeping an absent VPP distinct from a wedged VPP; `traffic/vpp` keeps its own `newGovppOps` override (`ze.traffic.vpp.reply-timeout`). |
+| `docs/architecture/traffic/cos-dynamic.md` | Decisions | anchored to `internal/plugins/iface/vpp/ifacevpp.go` | - | silent | Anchored to `ifacevpp.go` only for `UpdateVLANQoSMap` and CoA VLAN QoS capture; this spec does not alter CoS profiles, session ownership, or VLAN QoS semantics. |
+| `docs/features/interfaces.md` | VPP (opt-in, via GoVPP) | the `// Design:` page of `internal/component/iface/config_apply.go`, `internal/component/iface/backend.go`, `internal/component/iface/rate.go` | "An apply whose step meets that answer is deferred whole rather than failed: it creates nothing, reports no error, logs `iface config: apply deferred, the vpp backend has not connected yet` at info level, and the plugin performs it in full (loopbacks and their LCP pairs, MTU, admin state, addresses) when `vppevents.EventConnected` fires, then logs `iface config: deferred apply performed` at info level. A commit that arrives first replaces the deferred apply. Any other error still fails the apply." | agrees | `ErrBackendNotReady` deferral stays completely unchanged; `ErrBackendTimeout` is a real apply error (not `ErrBackendNotReady`), so it fails the apply, rolls back via `sdk.Journal` (Way 2), and reports the wedged dataplane. |
+| `docs/features/interfaces.md` | Design decisions | `docs/features/interfaces.md`, decision of 2026-11-22 | "`ze init` claims every discovered device by default, including the ones another program owns. `ze init --confirm` asks about each discovered device and writes only the ones the operator confirms" | agrees | This spec touches only VPP reply deadlines and runtime failure reporting, leaving `ze init` device discovery and claiming untouched. |
+| `docs/features/interfaces.md` | Design decisions | `docs/features/interfaces.md`, decision of 2026-11-22 | "`ze init --confirm` takes only an explicit answer: `yes`, `y`, `no` or `n`. Anything else, an empty line included, is not accepted, and the same device is asked again" | agrees | This spec does not touch `ze init --confirm` prompting or input validation. |
+| `docs/architecture/appliance/kernel-profiles.md` | Go owns the guarantee | anchored to `internal/component/iface/config_apply.go` | - | silent | Anchored to `config_apply.go` only incidentally; this spec makes no change to kernel profiles, kernel builds, or the PPP original-resource ABI. |
+| `docs/architecture/core-design.md` | Firewall reconcile concurrency | anchored to `internal/component/iface/config_apply.go`, `internal/component/iface/backend.go`, `internal/plugins/fib/vpp/fibvpp.go`, `internal/plugins/fib/vpp/backend.go`, `internal/plugins/fib/vpp/routesource.go`, `internal/plugins/fib/vpp/register.go`, `internal/plugins/static/inject.go` | "Both default to 10s and clamp to 1..60s. Zero is refused rather than honored: it is each library's spelling of "no deadline", which is the defect the bound exists to remove." | agrees | `(*Connector).NewChannel` adopts the same `10s` default and `[1s, 60s]` clamp refusing zero via `ze.vpp.reply-timeout`, and preserves `ze.firewall.vpp.reply-timeout` and `firewall.ErrKernelTimeout`. `ddos-local` keeps its rollback-reconcile skip on `ErrKernelTimeout` as documented on lines 2748–2752 (it is a fast-path mitigation responder whose detector re-fires every second, not a multi-step config commit), while multi-step config-commit rollback in `iface/config_apply.go` via `sdk.Journal` attempts rollback on timeout — matching `firewall/vpp` `(*backend).reconcileWithOps` partial-step undo and `firewall/engine.go` `OnConfigRollback` per Thomas's 2026-11-24 Way 2 ruling. |
+| `docs/architecture/core-design.md` | Design decisions | `docs/architecture/core-design.md`, decision of 2026-11-23 | "A commit fails when it configures a feature that programs only the Linux kernel, or that reads only what the Linux kernel sees of the traffic, while the interfaces run on VPP. Two host-side uses stay accepted, so that mixed setups remain possible once VRFs are added: a `fib kernel` block beside a `fib vpp` block, which programs the Linux route table for the router's own traffic, and `sysctl`, which sets the Linux kernel's own tunables. A `fib kernel` block with no `fib vpp` block beside it is refused, for now." | agrees | This spec does not change data-plane mismatch validation or allow kernel-only features under VPP. |
+| `docs/architecture/core-design.md` | Design decisions | `docs/architecture/core-design.md`, decision of 2026-11-23 | "A configuration that holds such a mismatch is refused at daemon start as well as at commit, reload and `ze config validate`, by one verdict that is the same at each." | agrees | This spec does not touch data-plane mismatch verdicts at commit, reload, or validate (and stays consistent with the 2026-11-26 start supersession below). |
+| `docs/architecture/core-design.md` | Design decisions | `docs/architecture/core-design.md`, decision of 2026-11-23 | "The VPP firewall verifier, not a YANG annotation, decides whether `connection-state` and `mark-set` are accepted on VPP. The `ze:backend` annotation of `flow-offload` is deleted with theirs; `flow-offload` stays refused on VPP because VPP has no flowtable and the `flowtable` list keeps its `ze:backend "kernel"` annotation." | agrees | This spec does not modify any firewall YANG annotation or the VPP firewall verifier. |
+| `docs/architecture/core-design.md` | Design decisions | `docs/architecture/core-design.md`, decision of 2026-11-23 | "Every data-plane selector names the plane it programs, `kernel` or `vpp`: `interface backend`, `firewall backend` and `traffic control backend` take `kernel` where they took `netlink`, `nft` and `tc`, and each defaults to `kernel`; the `fib` blocks already name `kernel` and `vpp`. The plane a registration declares and the value a `ze:backend` annotation names are the same word. A second implementation on the same plane, such as eBPF, takes a value of its own when it exists. In Thomas's words (voice-transcribed): "should tc and netfilter be renamed to kernel? so we have vpp and kernel?", then "please do it"." | agrees | All new env vars, doctor codes, metrics, and error messages use the `vpp` data-plane name and add no legacy `netlink`/`nft`/`tc` selector names. |
+| `docs/architecture/core-design.md` | Design decisions | `docs/architecture/core-design.md`, decision of 2026-11-23 | "BGP egress next-hop rewriting belongs exclusively in the export filter chain, not under session configuration (`session { next-hop }`). Ze automatically appends `next-hop auto` at the end of the export chain when no earlier export filter has already set a next-hop outcome (`self`, `unchanged`, or an explicit address), so ordinary eBGP rewrites to self while iBGP and route-server clients preserve the received next hop. In Thomas's words (voice-transcribed): "I would think that all the rewrite should be in the prefix export and not under configuration. I believe we should automatically add to the export prefix list the auto at the end of the list if not defined with something else. So if no one, for example, used a self or unchanged, we should automatically change it on eBGP. Because otherwise we have two ways to modify packets on the way out to the peer.", then "Unify into the export chain it is the way I want it."" | agrees | This spec touches no BGP session config or export filter chain behavior. |
+| `docs/architecture/core-design.md` | Design decisions | `docs/architecture/core-design.md`, decision of 2026-11-23 | "Egress export chains configure next-hop rewriting through one underlying `policychain.Sets` next-hop intent exposed in two authoring forms: `policy { modify <name> { set { next-hop self \| unchanged \| auto \| <ip>; } } }` for matched/conditional rules, and built-in chain references `next-hop:self`, `next-hop:unchanged`, and `next-hop:auto` for peer-wide policy without a wrapper `modify` block. Selected by Thomas on 2026-11-23 ("Option A: Extend policy modify (self\|unchanged\|auto\|<ip>) AND provide built-in next-hop:self / next-hop:unchanged / next-hop:auto chain refs")." | agrees | This spec does not touch policy modify or BGP export next-hop chain references. |
+| `docs/architecture/core-design.md` | Design decisions | `docs/architecture/core-design.md`, decision of 2026-11-23 | "Built-in `next-hop:auto`, `next-hop:self`, and `next-hop:unchanged` are BGP engine steps compiled into `policychain.Chain` (parallel to `loop-detection`), never external plugin RPCs or a `pkg/plugin/rpc.FilterInsertion` tail extension. Config loading appends `next-hop:auto` at the tail of every export chain unless an unconditional `next-hop:self`, `next-hop:unchanged`, or `next-hop:auto` is already present, leaving `Policy.Configured()` false for unconfigured chains; operators override via `next-hop:unchanged`, and `inactive:next-hop:auto` is refused. Selected by Thomas on 2026-11-23 ("Option A: Built-in BGP engine step appended at config compile time (like loop-detection; zero RPC; override via next-hop:unchanged, no inactive:next-hop:auto)")." | agrees | This spec does not touch BGP policychain compilation or `pkg/plugin/rpc.FilterInsertion`. |
+| `docs/architecture/core-design.md` | Design decisions | `docs/architecture/core-design.md`, decision of 2026-11-23 | "Within an export chain, explicit next-hop sets (`self`, `unchanged`, `auto`, or an IP address) use standard last-write-wins folding while the auto-appended trailing `next-hop:auto` acts only when next-hop is still unset. For a whole-UPDATE raw override (`wireOverride`), Ze compares each emitted next-hop field against the received UPDATE (matching `forward_med.go` provenance): trailing `auto` is skipped only when the raw override changed the next-hop bytes or an earlier chain member already selected `unchanged`/`self`/explicit. Selected by Thomas on 2026-11-23 ("Option A: Provenance check on raw overrides (like MED): skip trailing auto only when the raw override changed the next-hop bytes or an earlier member set unchanged/self")." | agrees | This spec does not touch BGP UPDATE forwarding or next-hop folding. |
+| `docs/architecture/core-design.md` | Design decisions | `docs/architecture/core-design.md`, decision of 2026-11-23 | "Explicit next-hop addresses in `policy { modify <name> { set { next-hop <ip>; } } }` and `policychain.Sets.NextHop` support both IPv4 (attr 3) and IPv6/MP_REACH (through `NextHopProfile` and `ValidatePeerGlobalNextHop`) on both export and import chains. Egress-only next-hop modes (`self`, `unchanged`, `auto`), whether written as built-in `next-hop:*` refs or inside `policy { modify }`, are refused on import chains at config load. Selected by Thomas on 2026-11-23 ("Option A: Support IPv4 + IPv6/MP_REACH for explicit next-hop on both export and import; refuse self/unchanged/auto on import at config load")." | agrees | This spec does not touch BGP next-hop attributes or import/export chain validation. |
+| `docs/architecture/core-design.md` | Design decisions | `docs/architecture/core-design.md`, decision of 2026-11-23 | "Auto-appended trailing `next-hop:auto` applies only to forwarded routes and preserves the originator-chosen next hop on locally originated routes (static config routes, ExaBGP `announce`, API announcements). Explicit export-chain next-hop actions (`next-hop:self`, `modify { set { next-hop ... } }`) apply uniformly to both forwarded and locally originated routes. Selected by Thomas on 2026-11-23 ("Option A: Trailing next-hop:auto applies to forwarded routes only (preserves static/ExaBGP/API explicit next-hop); explicit next-hop:self / modify next-hop applies to both forwarded and originated routes")." | agrees | Static route redistribution into BGP (`emitRouteChange`) is unchanged by this spec; only VPP named-table reply timeout handling and reporting change. |
+| `docs/architecture/core-design.md` | Design decisions | `docs/architecture/core-design.md`, decision of 2026-11-23 | "Every automatic filter-chain member Ze inserts — both built-in BGP engine steps (`next-hop:auto` at the export tail, `loop-detection` at the import head) and plugin-declared `FilterInsertions` — is published through one queryable implied-filter seam carrying direction, position, reference and `implied-by` reason so `\| implied` displays every extra chain member alongside the operator's written filter list. In Thomas's words (2026-11-23): "Can you make sure that \| implied show the extra chain members when it displays the filter ?"." | agrees | This spec does not touch filter chains or the `\| implied` pipe display. |
+| `docs/architecture/core-design.md` | Design decisions | `docs/architecture/core-design.md`, decision of 2026-11-26 | "Ze always starts. The configuration of one service never makes `ze start` exit or refuse to start: a service whose configuration cannot be served is not started, ze runs with its other services, and the service is reported with its fix by an error line in the log under a doctor code and by `ze doctor` under the same code. Examples are a web certificate name that does not resolve, a looking-glass `server` entry with no certificate to present, and a looking-glass address list that does not parse. Where a service has several endpoints, only the endpoint that cannot be served stays down and the others serve. A reload whose config cannot be served stays refused as a whole, and the running services keep what they serve. In Thomas's words (voice-transcribed): "we should never not start ze as if we can not bring networking we can not fix things like web cert and the like so the only good answer is to disable the service badly configured and not start it"; asked about a reload, "reload stay refused"; asked "Should only that endpoint stay down while the others serve", "yes". The reason is that a daemon that does not start brings up no networking, so the operator cannot reach the box to correct it." | agrees | Bounding VPP reply waits supports availability: `iface` defers `ErrBackendNotReady` at start and fails reloads cleanly on a wedged VPP (Way 2), `fib-vpp` logs and reports runtime failures via `ze doctor` without exiting, and `static` isolates skipped routes so the daemon stays reachable. |
+| `docs/architecture/core-design.md` | Design decisions | `docs/architecture/core-design.md`, decision of 2026-11-26 | "The rule of 2026-11-23 above, that a configuration which holds a feature that programs only the Linux kernel while the interfaces run on VPP "is refused at daemon start", is superseded for the start: ze starts, that feature stays off, and `ze doctor` reports the mismatch with its fix. A commit, a reload and `ze config validate` still refuse such a configuration, by the same verdict as before. Thomas was asked whether the rule that ze always starts replaces the refusal at start, "(a) yes, ze starts, that feature stays off and ze doctor reports the mismatch, while commit and reload still refuse it; (b) no", and answered "2a" (voice-transcribed). The reason is the one of the row above: a daemon that does not start brings up no networking, so the operator cannot reach the box to correct the mismatch." | agrees | This spec leaves startup mismatch handling untouched and follows the same principle of surfacing dataplane failures through `ze doctor` with actionable fixes rather than wedging or silently hiding them. |
+| `docs/architecture/iface/logical-name-resolution.md` | The config apply path translates, and does not go through the resolver | anchored to `internal/component/iface/config_apply.go`, `internal/component/iface/backend.go` | - | silent | Anchored to `config_apply.go` and `backend.go` for selector binding (`bindDevices`, `EnsureBackend`); this spec does not alter logical-to-OS name resolution or caching. |
+| `docs/architecture/iface/offload.md` | Three kernel interfaces behind one container | anchored to `internal/component/iface/config_apply.go` | - | silent | Anchored to `config_apply.go` for `applyOffloads` in Phase 2; this spec does not modify ethtool offload or RPS/RFS behavior. |
+| `docs/architecture/plugin/plugin-system.md` | The process boundary | anchored to `internal/component/iface/config_apply.go` | "Plugin code reaches the engine through the SDK's RPC layer, which hides the transport difference." | agrees | `fib-vpp`'s runtime doctor check runs via `OnDoctorCheck`, `static` reports wedged-dataplane issues via `issuequeue` over the SDK `report-issue` RPC, and metrics publish through `ConfigureMetrics`, so every new surface works identically in-process and forked. |
+| `docs/architecture/plugin/plugin-system.md` | Design decisions | `docs/architecture/plugin/plugin-system.md`, decision of 2026-11-23 | "With no daemon running, a command that parses a config starts each declared external program in query mode, never its run loop, and validates against its declaration" | agrees | This spec adds no offline config-parse external-program invocation and introduces no run-loop dependency during validation. |
+| `docs/architecture/traffic/cos-plugin.md` | Decisions | anchored to `internal/component/iface/config_apply.go` | - | silent | Anchored to `config_apply.go` for `indexUnitQoS`; this spec does not change named CoS profile parsing, resolution, or reconciliation. |
+| `docs/architecture/fib/fib-depth-4-srv6.md` | Ownership and restart | anchored to `internal/plugins/fib/vpp/fibvpp.go`, `internal/plugins/fib/vpp/backend.go`, `internal/plugins/fib/vpp/register.go` | "A lost API reply or failed durable confirmation leaves unconfirmed IP ownership and blocks further mutation pending operator reconciliation." | agrees | `(*routeSource).sendRoute` preserves `errVPPMutationUncertain` alongside `core.ErrReplyTimeout`, so a timed-out SRv6-to-IP transition still fails closed as an uncertain mutation while bounded by the reply deadline. |
+| `docs/architecture/fib/fib-vpp-route-ownership.md` | The mark: a VPP FIB source of fib-vpp's own | the `// Design:` page of `internal/plugins/fib/vpp/routesource.go`; anchored to `internal/plugins/fib/vpp/fibvpp.go`, `internal/plugins/fib/vpp/routesource.go`, `internal/plugins/fib/vpp/register.go` | "`fib-vpp` therefore installs every IP route, labeled pushes included, under a source of its own named `ze-fib-vpp`" | agrees | `sendRoute` continues installing and removing routes under `ze-fib-vpp`, leaves `s.stale` unchanged on a timed-out call, and preserves `core.ErrReplyTimeout` alongside `errVPPMutationUncertain`. |
+| `docs/architecture/mpls/mpls-kernel.md` | Doctor checks | the `// Design:` page of `internal/plugins/fib/vpp/register_doctor.go`; anchored to `internal/plugins/fib/vpp/fibvpp.go`, `internal/plugins/fib/vpp/register.go` | "Every label source and the VPP writer answer a runtime doctor check from their own process, declared in the `DoctorChecks` of the Stage 1 registration they send, so `ze show doctor` reaches them whether they run in the daemon or forked" | agrees | `fib-vpp-route-failures` follows this exact pattern — declared in `engineRegistration().DoctorChecks`, answered by `answerDoctorCheck`, capped at `labelFindingsMax` findings plus an overflow count, and silent while no writer is open. |
+| `docs/architecture/static-routes.md` | One bad route does not drop the section | the `// Design:` page of `internal/plugins/static/inject.go`, `internal/plugins/static/backend.go`, `internal/plugins/static/backend_vpp_linux.go`, `internal/plugins/static/vpp/backend.go`, `internal/plugins/static/doctor.go`, `internal/plugins/static/register.go`; anchored to all six | "The skip is visible, never silent: `static show` reports `skipped` with a `skip-reason`, and the `doctor-static-route-skipped` check reports it too." | agrees | A wedged VPP reply timeout keeps per-route isolation (`applyRoutes` returns nil, other routes stay programmed), records a wedged-dataplane `skip-reason` in `rm.skipped` for `show static` and `doctor-static-route-skipped`, and additionally raises `doctor-static-vpp-timeout` on the SDK report bus. |
+| `docs/architecture/forked-route-install.md` | Scope | anchored to `internal/plugins/static/register.go` | "Static validates and retains its initial route set during configuration, then applies it from `OnAllPluginsReady`, after its BFD setup and all startup subscriptions." | agrees | Adding `ConfigureMetrics` on `static`'s registration does not alter startup staging, `OnAllPluginsReady` sequencing, or forked `route-install` RPCs. |
+| `docs/architecture/config/apply-ordering.md` | Phases 2 and 5, for BGP | anchored to `internal/component/iface/backend.go` | "`ifacevpp` answers `ErrBackendNotReady` until the GoVPP handshake completes." | agrees | `ErrBackendNotReady` keeps its exact startup-deferral meaning; `ErrBackendTimeout` is a distinct sentinel used only for `core.ErrReplyTimeout` on an established channel. |
+| `docs/architecture/decisions/001-pull-model-metrics.md` | Consequences | anchored to `internal/component/iface/rate.go` | "New Ze Prometheus metrics should follow the registry-backed push model unless this decision is explicitly reopened." | agrees | `ze_iface_backend_timeouts_total`, `ze_fibvpp_reply_timeouts_total`, and `ze_static_vpp_reply_timeouts_total` all register through `metrics.Registry` (`bindMetricsRegistry` / `ConfigureMetrics`) following `ze_<subsystem>_<thing>_<unit>`. |
+| `docs/architecture/ddos/ddos-detect-enhancements.md` | The bandwidth trigger is a second baseline instance | anchored to `internal/component/iface/rate.go` | - | silent | Anchored to `rate.go` only for `rateDelta`/`RxBps` bandwidth detection; this spec does not modify interface rate sampling or DDoS bandwidth baselines. |
+| `docs/architecture/flowexport/flow-export-0-umbrella.md` | Single collection, many consumers | anchored to `internal/component/iface/rate.go` | - | silent | Anchored to `rate.go` only for `SubscribeCollectNotify`; this spec does not change flow-export counter snapshots or datagram encoding. |
 
 ## Data Flow (MANDATORY - see `ai/rules/architecture.md`)
 
 ### Entry Point
-- A config commit or an interface event reaching `reconcileOnReadyWithJournal`.
-- A sysrib best-change event reaching `(*fibVPP).processEvent`.
-- A static route apply, or a BFD state change, reaching `(*routeManager).applyRoutes`.
+- A config commit or reconcile event reaching `applyConfig` / `reconcileOnReadyWithJournal` (`internal/component/iface/config_apply.go`) against the VPP interface backend.
+- A `(system-rib, best-change)` event reaching `(*fibVPP).processEvent` (`internal/plugins/fib/vpp/fibvpp.go`) under `fibMu` and `f.mu`.
+- A static route apply, BFD state change, or link-watch change reaching `(*routeManager).applyRoutes` / `programRouteLocked` (`internal/plugins/static/inject.go`) for a named-table route on VPP.
 
 ### Transformation Path
-1. A plugin asks the connector for a channel.
-2. The channel is returned with a reply deadline already installed.
-3. The plugin issues a binary-API request while holding its own lock.
-4. VPP answers, or the deadline expires and govpp returns `core.ErrReplyTimeout`.
-5. The plugin distinguishes that error from a rejection, releases its lock, and reports.
-6. The rollback verdict follows the owner's answer to the Open Question.
+1. A plugin requests a GoVPP channel from `(*Connector).NewChannel()` (`internal/component/vpp/conn.go`).
+2. `(*Connector).NewChannel()` obtains a channel from `c.conn.NewAPIChannel()` and calls `ch.SetReplyTimeout(vppReplyTimeout())` BEFORE returning it, reading `ze.vpp.reply-timeout` (default `10s`, clamped to `[1s, 60s]`, zero refused). Because `SetReplyTimeout` runs on every `NewChannel` call, recycled pooled channels cannot retain zero or another plugin's custom timeout. (`firewall/vpp` and `traffic/vpp` subsequently apply their own `newGovppOps` overrides.)
+3. The plugin issues a GoVPP binary-API request while holding its own lock (`applyMu`/`reconcileMu` in `iface`, `fibMu`/`f.mu` in `fib-vpp`, `rm.mu` in `static`).
+4. Either VPP answers (success or `api.VPPApiError` / non-zero `Retval`), OR the reply deadline expires and govpp returns `core.ErrReplyTimeout`.
+5. Each VPP backend distinguishes `core.ErrReplyTimeout` (wedged dataplane) from an ordinary VPP rejection:
+   - `iface/vpp` wraps `core.ErrReplyTimeout` with `iface.ErrBackendTimeout` (preserving both via `%w`) and returns an actionable wedged-dataplane error; `iface/config_apply.go` increments `ze_iface_backend_timeouts_total`, runs `sdk.Journal` partial-apply rollback of previously succeeded steps (Way 2, matching `firewall/vpp` `(*backend).reconcileWithOps` partial-apply undo and `firewall/engine.go` `OnConfigRollback`), releases `reconcileMu` and `applyMu`, and returns the wedged-dataplane failure to the operator.
+   - `fib/vpp` detects `errors.Is(err, core.ErrReplyTimeout)` (preserved alongside `errVPPMutationUncertain` by `sendRoute`), increments `ze_fibvpp_reply_timeouts_total`, records the failed route with its wedged-dataplane cause in `fibVPP`'s failed-route map (cleared on a later successful install, replace, or withdrawal), surfaces it in `show fib vpp` (`skipped`/`skip-reason`) and `fib-vpp-route-failures` (`ze show doctor`, code `doctor-fib-vpp-route-failed`), and releases `f.mu`/`fibMu`.
+   - `static/backend_vpp_linux.go` wraps `core.ErrReplyTimeout` with `errBackendReplyTimeout` (preserving both via `%w`); `static/inject.go` increments `ze_static_vpp_reply_timeouts_total`, records the wedged-dataplane reason in `rm.skipped` (surfaced by `show static` and `doctor-static-route-skipped`), raises `doctor-static-vpp-timeout` on `rm.issues` (SDK report bus -> `show errors` / `show doctor`), releases `rm.mu`, and keeps per-route isolation intact (`applyRoutes` returns `nil`, other routes stay programmed).
 
 ### Boundaries Crossed
 | Boundary | How | Verified |
 |----------|-----|----------|
-| Plugin → connector | `(*Connector).NewChannel` (`internal/component/vpp/conn.go`) returns a channel; no plugin builds one | Yes: all three obtain channels there |
-| Plugin → govpp | `SendRequest`/`ReceiveReply` on the channel; the deadline is channel state, not a call argument | Yes: `SetReplyTimeout` is the only writer of `replyTimeout` |
-| Plugin → operator | fib and static have no failure surface today; iface reports through the commit journal | To be established: this is the half the owner's requirement adds |
+| Plugin → `vpp.Connector` | `(*Connector).NewChannel()` (`internal/component/vpp/conn.go`) is the single channel factory; deadline installed there before returning | Yes: all production `NewChannel` call sites audited (`firewall/vpp`, `traffic/vpp`, `iface/vpp`, `fib/vpp`, `static`, `ike/dataplane`, `vpp/startup_runtime`) |
+| `ze_vpp` backend → always-on component/plugin | `iface/vpp` wraps `iface.ErrBackendTimeout` + `core.ErrReplyTimeout`; `static/backend_vpp_linux.go` wraps `errBackendReplyTimeout` + `core.ErrReplyTimeout` | Yes: preserves `ze_vpp` compile-out isolation (`ai/doors/system.md`) |
+| Plugin → govpp | `SetReplyTimeout` sets `ch.replyTimeout` read by `(*Channel).receiveReplyInternal` | Yes: verified in `vendor/go.fd.io/govpp/core/channel.go` |
+| Plugin → operator | `iface`: commit error + `ze_iface_backend_timeouts_total`; `fib-vpp`: `show fib vpp` + `fib-vpp-route-failures` (`OnDoctorCheck`) + `ze_fibvpp_reply_timeouts_total`; `static`: `show static` + `doctor-static-route-skipped` + `rm.issues` (`report-issue` RPC) + `ze_static_vpp_reply_timeouts_total` | Yes: every surface crosses the forked plugin boundary |
+
+### Changed-Wire Census
+
+**Search evidence:** Searched `internal/`, `pkg/`, `cmd/`, `test/`, and `docs/` for `show fib vpp`, `showInstalled`, `answerShowFibVPP`, `show static`, `showRoute`, and GoVPP `SetReplyTimeout` / `NewChannel`. Positive control: `internal/plugins/fib/vpp/register.go:227` (`show fib vpp` handler calling `answerShowFibVPP` -> `(*fibVPP).showInstalled`) and `internal/test/fixture/vpp_fixture_ecmp.go:186` (`fixture06DispatchDone(ctx, p, "show fib vpp")`). No GoVPP binary-API wire message, BGP wire message, or plugin RPC framing changes (`OnDoctorCheck` emits standard `[]rpc.DoctorCheckDiagnostic` rows and `rm.issues` sends over the unchanged SDK `report-issue` RPC); the ONLY external-facing payload change is two additive `omitempty` fields (`skipped`, `skip-reason`) on `show fib vpp` JSON entries (matching `show static`'s existing `showRoute` JSON fields).
+
+| Wire | Role (writer / reader) | Carrier (file + producer/consumer symbol or script entry) | Source evidence | Migration or preservation disposition |
+|------|------------------------|-----------------------------------------------------------|-----------------|----------------------------------------|
+| `show fib vpp` JSON array | writer | `internal/plugins/fib/vpp/fibvpp.go` (`(*fibVPP).showInstalled`) via `internal/plugins/fib/vpp/register.go` (`answerShowFibVPP`) | `fibvpp.go:551-571` returns `[]entry` with `prefix`, `next-hop`, `mpls`, `table-id` | Change (additive, backwards-compatible): add `skipped` (`bool`, `omitempty`) and `skip-reason` (`string`, `omitempty`) for failed/wedged routes, mirroring `static`'s `showRoute` (`inject.go:692-693`); healthy rows serialize identically |
+| `show fib vpp` JSON array | reader | `internal/test/fixture/vpp_fixture_ecmp.go` (`fixture06DispatchDone`) and unit tests `internal/plugins/fib/vpp/apply_test.go`, `register_answer_test.go` | `vpp_fixture_ecmp.go:186` checks command completion; unit tests inspect installed rows | Preserve: healthy installed entries keep identical JSON fields; new tests assert `skipped` and `skip-reason` on wedged/failed routes |
+| `show fib vpp` JSON array | reader | External CLI / REST / gRPC / MCP / web UI clients (`docs/guide/vpp.md`, "Observing what VPP is doing") | `docs/guide/vpp.md:547-552` documents the JSON array shape | Preserve compatibility: `omitempty` fields appear only on failed/wedged route entries; update `docs/guide/vpp.md` to document the new fields |
 
 ### Integration Points
-- `(*Connector).NewChannel` (`internal/component/vpp/conn.go`) - the one seam every plugin already passes through. Binding here is what makes forgetting impossible.
-- `core.ErrReplyTimeout` (govpp) - the sentinel every package can test without importing another plugin.
-- `rm.skipped` (`internal/plugins/static/inject.go`) - the existing operator-visible surface for a route the backend refused. fib's report should copy this shape rather than invent one.
+- `(*Connector).NewChannel` (`internal/component/vpp/conn.go`) - installs the shared clamped reply deadline on every returned channel.
+- `env.MustRegister` (`internal/core/env`) - registers `ze.vpp.reply-timeout` (duration, default `10s`).
+- `iface.ErrBackendTimeout` (`internal/component/iface/backend.go`) and `errBackendReplyTimeout` (`internal/plugins/static/backend.go`) - always-on sentinels wrapped alongside `core.ErrReplyTimeout` inside `ze_vpp`-gated code.
+- `(*fibVPP).showInstalled`, `engineRegistration().DoctorChecks`, `answerDoctorCheck`, `register_doctor.go`, and `stats.go` (`internal/plugins/fib/vpp/`) - operator-visible FIB failure reporting and timeout counter.
+- `rm.skipped`, `rm.issues`, `checkRouteSkipped`, `register_doctor_codes.go`, and `ConfigureMetrics` (`internal/plugins/static/`) - operator-visible static wedged-dataplane reporting and timeout counter.
 
 ### Architectural Verification
 | Check | Holds? | Evidence |
 |-------|--------|----------|
-| No bypassed layers (data flows through the intended path) | Yes | The bound sits at the channel seam every plugin already uses |
-| No unintended coupling (components stay isolated) | Yes | No plugin imports the firewall package. The sentinel comes from the vendor library |
-| No duplicated functionality (extends existing, does not recreate) | Yes | One bound, not three copies of `newGovppOps` |
-| Zero-copy preserved where applicable (refs, not copies) | N-A | Control path, no wire buffers |
-| Registration over hardcoding: new commands, views, families, and handlers register, and the core discovers them (`ai/rules/plugins.md`) | Yes | Nothing new registers. The bound is a property of an existing seam |
+| No bypassed layers (data flows through the intended path) | Yes | The shared reply deadline sits at `(*Connector).NewChannel`, which every VPP plugin passes through |
+| No unintended coupling (components stay isolated) | Yes | No plugin imports `internal/component/firewall`; always-on `iface` and `static` never import `go.fd.io/govpp` or `internal/component/vpp` |
+| No duplicated functionality (extends existing, does not recreate) | Yes | One shared bound at `(*Connector).NewChannel` instead of three more copies of `newGovppOps`; `fib-vpp` reuses `static`'s `skipped`/`skip-reason` shape and its own Stage 1 `DoctorChecks` / `OnDoctorCheck` route |
+| Zero-copy preserved where applicable (refs, not copies) | N-A | Control-plane binary API calls and diagnostic state, no wire packet buffers |
+| Registration over hardcoding, outbound: new commands, views, families, and handlers register, and the core discovers them. No per-feature field, switch case, or factory is added to a core/shared package (`ai/rules/plugins.md`) | Yes | `ze.vpp.reply-timeout` registers via `env.MustRegister`, `fib-vpp-route-failures` declares itself in `fib-vpp`'s `sdk.Registration.DoctorChecks`, doctor/event codes register via `diagnostic.Register` / `diagnostic.RegisterEventCode` in their owning packages, and metrics register via `metrics.Registry` |
+| Registration over hardcoding, inbound: no existing switch, seed map, validator, parser, runner, help string, or completion table has to learn this feature's name. Evidence names every list that was searched for the names this feature introduces, and the registry each one now derives from (`ai/rules/principles.md`) | Yes | Checked `internal/component/doctor/` (discovers checks via `diagnostic.RegisterDoctorCheck` and Stage 1 `DoctorChecks`), `internal/core/env/` (`env.MustRegister`), `internal/core/diagnostic/` (`diagnostic.Register`), and `internal/component/cmd/show/` (`show fib vpp` and `show static` dispatch to the owning plugins); no central list requires an edit |
 
 ## Risks & Assumptions
 
 ### Assumptions
 | ID | Assumption | Basis (file/doc/user statement) | If wrong | Validated by | Status |
 |----|-----------|--------------------------------|----------|--------------|--------|
-| A-1 | Binding at `(*Connector).NewChannel` reaches every production path | All three plugins obtain channels there, and the firewall's own facade takes a channel it was given | A plugin builds a channel another way and stays unbounded | Grep every `NewChannel` caller and every `api.Channel` construction before implementing | unvalidated |
-| A-2 | A shared default deadline suits all three | The firewall chose 10s for a reconcile that holds a process-wide lock; these hold narrower locks | One plugin needs a longer bound and gets spurious timeouts under load | A per-plugin override on top of the shared default, exercised by AC-6 | unvalidated |
-| A-3 | `core.ErrReplyTimeout` is returned for a request VPP accepted and never answered, and not for other failures | `receiveReplyInternal` returns it from the timeout arm only | The three plugins report a wedged dataplane for an ordinary rejection | A unit test that drives a fake channel to the timeout arm and to a rejection arm, asserting different verdicts | unvalidated |
-| A-4 | govpp pools channels and `(*Channel).Reset` does not clear `replyTimeout` | Stated in the firewall's own comment as the reason it binds in the constructor | A recycled channel loses its deadline and the guard silently stops working | A test that obtains, releases and re-obtains a channel, asserting the deadline survives | unvalidated |
-| A-5 | The three test fakes keep compiling with an empty `SetReplyTimeout` | The interface they satisfy is unchanged | Every fake needs editing, widening the diff | Compile the three packages before changing any production file | unvalidated |
+| A-1 | Binding at `(*Connector).NewChannel` reaches every production GoVPP `api.Channel` path | Grep of `NewChannel` across `internal/` on 2026-11-26 found only `firewall/vpp`, `traffic/vpp`, `iface/vpp`, `fib/vpp` (`register.go`, `mplsforwarding.go`), `static` (`backend_vpp_linux.go`), `ike/dataplane/vpp.go`, and `vpp/startup_runtime.go` | A plugin constructs an `api.Channel` directly via `NewAPIChannel` and stays unbounded | Grep for `NewAPIChannel` and `NewChannel` across `internal/` during implementation and deliverables check | confirmed |
+| A-2 | The shared `[1s, 60s]` clamp with `10s` default suits iface, fib, and static while firewall and traffic retain their own env overrides | `firewall/vpp` (`docs/architecture/core-design.md`) and `traffic/vpp` (`docs/architecture/traffic/fw-7b-backend-hardening.md`) both use `10s` default and `[1s, 60s]` clamp | One plugin needs a different value under load | `ze.vpp.reply-timeout` tunes the shared bound within `[1s, 60s]` (AC-6), and firewall/traffic keep their own overrides | unvalidated |
+| A-3 | `core.ErrReplyTimeout` is returned only when VPP accepts a request and never replies, never for VPP `Retval != 0` rejections or connect failures | Verified in `vendor/go.fd.io/govpp/core/channel.go`: `receiveReplyInternal` returns `ErrReplyTimeout` only from the timer arm; `Retval != 0` returns `api.VPPApiError`; connect failures occur before a channel exists | Plugins misclassify ordinary VPP rejections or absent VPP as a wedged dataplane | Unit tests driving fake channels through timeout arm, rejection arm, and disconnected state (AC-2, AC-9) | unvalidated |
+| A-4 | Calling `ch.SetReplyTimeout(vppReplyTimeout())` in `(*Connector).NewChannel` guarantees a recycled pooled channel carries the clamped deadline | Verified in `vendor/go.fd.io/govpp/core/channel.go:433-455`: `(*Channel).Reset` drains buffers without touching `replyTimeout`, so re-applying in `NewChannel` resets both zero and any prior owner's override | A recycled channel returns with zero or a stale timeout | `TestRecycledChannelKeepsItsDeadline` obtains, closes, and re-obtains a pooled channel and asserts `SetReplyTimeout` runs again (AC-8) | unvalidated |
+| A-5 | Existing test fakes across `iface/vpp`, `fib/vpp`, and `static` keep compiling with their empty `SetReplyTimeout(time.Duration)` methods | Verified via grep on 2026-11-26: all fakes already implement `api.Channel` including `SetReplyTimeout(time.Duration)` | Fakes fail to compile and widen the diff | Scoped `go test` compile across all modified packages in Phase 1 | confirmed |
 
 ### Risks
 | ID | Risk | Early signal | Mitigation / fallback |
 |----|------|--------------|----------------------|
-| R-1 | A deadline that is too short turns a slow-but-healthy VPP into a failed commit | Timeouts under load in the functional suite | The clamp has a floor and a ceiling, and the value is an env var, as the firewall's already is |
-| R-2 | The bound is added and no test proves it was INSTALLED, so a later refactor silently drops it | No recording-channel assertion in the diff | AC-1: a recording fake asserts `SetReplyTimeout` was called before the first request, per plugin |
-| R-3 | fib keeps silently diverging because the reporting half is skipped as "not the timeout work" | A diff that adds a deadline to fib and changes nothing else | AC-4 is not optional. The owner asked for the report, not only the deadline |
-| R-4 | The rollback verdict is answered differently in the firewall and in iface, so the inconsistency the owner named survives the fix | Two different verdicts in one diff | AC-7 asserts the SAME verdict on both paths in one test run |
-| R-5 | Static's per-route isolation is broken while adding the report, making one bad route section-fatal | The static suite fails on a config with one unprogrammable route | The isolation is deliberate and documented. AC-5 pins it |
-| R-6 | A timeout leaves the plugin's cached channel in a bad state and every later request fails | The second commit after a timeout fails differently from the first | A test that drives a timeout and then a successful request on the same backend |
+| R-1 | A deadline too short turns a slow-but-healthy VPP into a failed commit | Timeouts under load in the VPP functional suite | Clamp floor `1s`, ceiling `60s`, default `10s`, tunable via `ze.vpp.reply-timeout`; AC-10 verifies no spurious timeout on a healthy VPP |
+| R-2 | The bound is added without proving it was INSTALLED before the first request, so a later refactor silently drops it | Missing recording-channel assertion in tests | AC-1 uses a recording fake channel to assert `SetReplyTimeout` was called with a positive duration BEFORE the first `SendRequest` / `SendMultiRequest` |
+| R-3 | `fib-vpp` keeps silently diverging because only the deadline is implemented without operator surfaces | Diff adds deadline to `conn.go` without `show fib vpp` / doctor / metric changes | AC-4 requires `show fib vpp`, `fib-vpp-route-failures` (`ze show doctor`), and `ze_fibvpp_reply_timeouts_total` |
+| R-4 | `iface` and `firewall` diverge on rollback behavior on a reply timeout | `iface` skips rollback on timeout while `firewall/vpp` `(*backend).reconcileWithOps` and `firewall/engine.go` `OnConfigRollback` roll back | AC-7 asserts Way 2 partial-apply rollback on BOTH `iface` and `firewall/vpp` (and transaction `OnConfigRollback`) in one test run |
+| R-5 | Static's per-route isolation breaks while adding wedged-dataplane reporting, making one bad route section-fatal | Static suite fails on a config containing one unprogrammable route | AC-5 pins per-route isolation (`applyRoutes` returns `nil`, unaffected routes remain programmed) |
+| R-6 | A timeout leaves a plugin's cached channel (`iface/vpp` `b.ch`, `fib/vpp` `ch`, `static` `v.ch`) unable to serve a later request once VPP recovers | Second apply after a timeout fails unexpectedly on the same backend | Unit tests drive a timeout followed by a successful request on the same backend and verify recovery and clearing of skipped/failed state |
+| R-7 | Adding `core.ErrReplyTimeout` checks in always-on packages breaks `ze_vpp` compile-out | `./le arch tier check` or untagged build fails | Always-on `iface` and `static` inspect local sentinels (`iface.ErrBackendTimeout`, `errBackendReplyTimeout`); `go.fd.io/govpp` stays strictly inside `ze_vpp`-gated files |
 
 ## Blast Radius
 
 | Question | Answer |
 |----------|--------|
-| What breaks if this is wrong? | Too long a deadline keeps today's behaviour, which is a wedged router that reports nothing. Too short a deadline fails healthy commits under load. Getting the rollback verdict wrong makes an operator wait a second deadline for a failure they were already going to get, on a router whose dataplane is not answering |
-| How is it reverted? | Single commit revert. No config migration and no persisted state. The env var becomes unknown and is ignored |
-| Who else touches this path? | spec-traffic-vpp-deferred-reply-timeout (closed 2026-10-15) covered the traffic backend, the fourth plugin in this class, with a per-plugin constructor: `newGovppOps` in `internal/plugins/traffic/vpp/timeout_linux.go`, described in `docs/architecture/traffic/fw-7b-backend-hardening.md`. This spec must not choose a different mechanism |
+| What breaks if this is wrong? | Too long or missing a deadline preserves today's defect: a wedged VPP holds control-plane locks forever and reports nothing. Too short a deadline fails healthy commits under load. Breaking Way 2 rollback leaves `iface` inconsistent with `firewall`. Importing `govpp` from always-on code breaks non-VPP builds. |
+| How is it reverted? | Single commit revert. No config migration, no YANG leaf change, and no persisted state. `ze.vpp.reply-timeout` becomes unknown and is ignored. |
+| Who else touches this path? | `firewall/vpp` (`internal/plugins/firewall/vpp/timeout_linux.go`) and `traffic/vpp` (`internal/plugins/traffic/vpp/timeout_linux.go`, landed 2026-10-15, `docs/architecture/traffic/fw-7b-backend-hardening.md`) already call `SetReplyTimeout` via their own `newGovppOps` constructors and per-plugin env vars (`ze.firewall.vpp.reply-timeout`, `ze.traffic.vpp.reply-timeout`). Both remain intact and override the shared connector default installed by `(*Connector).NewChannel`. `ike/dataplane/vpp.go` and `vpp/startup_runtime.go` also obtain channels from `NewChannel()` and automatically receive the shared bound. |
 
 ## Wiring Test (MANDATORY -- NOT deferrable)
 
 | Entry Point | → | Feature Code | Test |
 |-------------|---|--------------|------|
-| A config commit changing an interface, against a VPP that accepts and never answers | → | `reconcileOnReadyWithJournal` (`internal/component/iface/config_apply.go`) through the iface VPP backend | `TestIfaceCommitFailsOnWedgedDataplane` (`internal/plugins/iface/vpp/apply_test.go`) |
-| A best-change event installing a route, same wedged VPP | → | `(*fibVPP).processEvent` (`internal/plugins/fib/vpp/fibvpp.go`) | `TestFibReportsWedgedDataplane` (`internal/plugins/fib/vpp/apply_test.go`) |
-| A static route apply, same wedged VPP | → | `(*routeManager).applyRoutes` (`internal/plugins/static/inject.go`) | `TestStaticReportsWedgedDataplaneAndKeepsIsolation` (`internal/plugins/static/vpp/apply_test.go`) |
 | A channel obtained from the connector | → | `(*Connector).NewChannel` (`internal/component/vpp/conn.go`) | `TestNewChannelInstallsReplyDeadline` (`internal/component/vpp/conn_test.go`) |
+| A config commit changing an interface against a VPP that accepts and never answers | → | `applyConfig` / `reconcileOnReadyWithJournal` (`internal/component/iface/config_apply.go`) through `iface/vpp` (`internal/plugins/iface/vpp/ifacevpp.go`) | `TestIfaceCommitFailsOnWedgedDataplane` (`internal/plugins/iface/vpp/apply_test.go`) |
+| A best-change event installing a route against a wedged VPP | → | `(*fibVPP).processEvent` (`internal/plugins/fib/vpp/fibvpp.go`), `showInstalled`, and `fib-vpp-route-failures` (`internal/plugins/fib/vpp/doctor_reply_timeout.go`) | `TestFibReportsWedgedDataplane` (`internal/plugins/fib/vpp/apply_test.go`) |
+| A named-table static route apply against a wedged VPP | → | `(*routeManager).applyRoutes` (`internal/plugins/static/inject.go`) through `vppStaticBackend` (`internal/plugins/static/backend_vpp_linux.go`) and `staticvpp.Backend` (`internal/plugins/static/vpp/backend.go`) | `TestStaticReportsWedgedDataplaneAndKeepsIsolation` (`internal/plugins/static/backend_vpp_linux_test.go`) |
 
 ## Acceptance Criteria
 
-| AC ID | Input / Condition | Expected Behavior |
-|-------|-------------------|-------------------|
-| AC-1 | A channel obtained from the connector, in each of iface, fib and static | `SetReplyTimeout` has been called with a positive value BEFORE the first request. A recording fake proves the ordering, per plugin |
-| AC-2 | A VPP that accepts a request and never answers, on each of the three paths | The call returns within the deadline, the lock is released, and the error is identifiable as a wedged dataplane rather than a rejection |
-| AC-3 | The iface path, same condition | The commit fails, the operator sees a message naming a wedged dataplane, and the interface is left in the state the owner's answer to the Open Question prescribes |
-| AC-4 | The fib path, same condition | The failure is reported to the operator through a surface an operator actually reads, not only an Error log line. The RIB-versus-dataplane divergence is visible |
-| AC-5 | The static path, same condition | The failure is reported, AND per-route isolation is intact: other routes in the section stay programmed and the apply still returns nil |
-| AC-6 | The env var for the deadline set below the floor, above the ceiling, and to zero | Each clamps rather than disabling the bound. Zero is refused, because it is govpp's spelling of "no deadline" |
-| AC-7 | A timeout on the firewall config path and a timeout on the iface path, in one test run | Both produce the SAME rollback verdict, whichever the owner chose. A difference between them is the defect this spec exists to remove |
-| AC-8 | A channel released to the pool after a timeout, then obtained again | The deadline is still installed. A recycled channel never comes back unbounded |
-| AC-9 | A request VPP REJECTS, on each of the three paths | The existing behaviour is unchanged: not reported as a wedged dataplane, and the rollback verdict for a rejection is what it is today |
-| AC-10 | A healthy VPP under the functional suite | No spurious timeout. The deadline does not turn a slow reply into a failure |
+| AC ID | Input / Condition | Expected Behavior | Permitted Survivors and Why |
+|-------|-------------------|-------------------|-----------------------------|
+| AC-1 | A channel obtained from `(*Connector).NewChannel` for `iface/vpp`, `fib/vpp`, and `static/vpp` | `SetReplyTimeout` is called with the clamped positive duration BEFORE the first `SendRequest` or `SendMultiRequest`, proven by a recording fake channel per path | `firewall/vpp` and `traffic/vpp` continue calling `SetReplyTimeout` again in `newGovppOps` with their own per-plugin env vars (`ze.firewall.vpp.reply-timeout`, `ze.traffic.vpp.reply-timeout`) so their existing tuning knobs keep precedence |
+| AC-2 | A VPP that accepts a binary-API request and never answers, on each of `iface/vpp`, `fib/vpp`, and `static/vpp` | The call returns within the configured reply deadline, releases the path's lock (`applyMu`/`reconcileMu`, `fibMu`/`f.mu`, `rm.mu`), increments the path's timeout counter (`ze_iface_backend_timeouts_total`, `ze_fibvpp_reply_timeouts_total`, `ze_static_vpp_reply_timeouts_total`), and produces an error identifiable as a wedged dataplane (`iface.ErrBackendTimeout` / `errBackendReplyTimeout` wrapping `core.ErrReplyTimeout`, or `core.ErrReplyTimeout` in `fib/vpp`) | Wait duration equals the clamped per-round-trip deadline (plus rollback round trips on `iface` under Way 2), because `govpp` `ReceiveReply` bounds each request rather than cancelling mid-round-trip |
+| AC-3 | An interface config commit against a wedged VPP (`iface/vpp` + `internal/component/iface/config_apply.go`) | The commit fails with an actionable error naming the wedged VPP dataplane and fix, attempts `sdk.Journal` rollback of prior steps (Way 2), and releases `reconcileMu` and `applyMu` so subsequent operations proceed | Rollback calls against the same wedged VPP each pay up to one bounded reply deadline (explicitly accepted by Thomas's 2026-11-24 Way 2 ruling) |
+| AC-4 | A `(system-rib, best-change)` route install/replace/delete against a wedged VPP (`fib/vpp`) | `show fib vpp` lists the failed prefix with `skipped: true` and a `skip-reason` naming the wedged VPP dataplane; `show doctor` (`fib-vpp-route-failures`, code `doctor-fib-vpp-route-failed`) reports the failed prefix with an actionable `fix`; `ze_fibvpp_reply_timeouts_total` increments; and a later successful install, replace, or withdrawal clears that prefix from both surfaces | Doctor output caps individual route findings at `labelFindingsMax` (32) plus one overflow count finding, matching `fib-vpp-stale-routes` and `fib-vpp-srv6`; SRv6 uncertain-mutation fail-closed behavior (`errVPPMutationUncertain`) remains intact |
+| AC-5 | A named-table static route apply against a wedged VPP (`static` + `static/vpp`) | `applyRoutes` returns `nil`, unaffected routes in the section remain programmed, the timed-out prefix is recorded in `rm.skipped` with a wedged-dataplane reason visible in `show static` and `doctor-static-route-skipped`, `doctor-static-vpp-timeout` is raised on `rm.issues` (reaching `show errors`/`show warnings` in both internal and forked placements), `ze_static_vpp_reply_timeouts_total` increments, and a subsequent successful apply clears the skip | Main-table static routes continue flowing through the Loc-RIB and `fib-vpp` (covered by AC-4), not through `static`'s named-table VPP backend |
+| AC-6 | `ze.vpp.reply-timeout` unset, set below `1s`, set to `0s`, set negative, or set above `60s` | Unset yields `10s`; values below `1s` (including `0s` and negative values) clamp to `1s`; values above `60s` clamp to `60s`; zero never disables the reply bound | Valid durations in `[1s, 60s]` are honored as configured |
+| AC-7 | A partial-apply VPP reply timeout on `firewall/vpp` (`internal/plugins/firewall/vpp/backend_linux.go` `(*backend).reconcileWithOps`, plus transaction `OnConfigRollback` in `internal/component/firewall/engine.go`) and a partial-apply VPP reply timeout on `iface` (`internal/component/iface/config_apply.go` step-wise `sdk.Journal` rollback) in one test run | Both paths execute rollback of previously applied steps on reply timeout (Way 2), producing the identical rollback verdict | `ddos/local` (`internal/plugins/ddos/local/responder.go`) is a fast-path mitigation responder whose detector re-fires every second (not a multi-step config commit) and keeps its rollback-reconcile skip per `docs/architecture/core-design.md`, "Firewall reconcile concurrency"; `firewall/engine.go` `OnConfigApply` relies on `reconcileWithOps` for partial-apply undo because `(*sdk.Journal).Record` does not append `undo` on a failed `apply()` |
+| AC-8 | A channel obtained from `(*Connector).NewChannel`, closed back to the pool (including after a prior caller modified its timeout or timed out), and obtained again | `(*Connector).NewChannel` calls `SetReplyTimeout(vppReplyTimeout())` again on the re-obtained channel so a recycled channel carries the configured positive deadline and never comes back unbounded or with a leaked custom timeout | None — every `NewChannel` call re-installs the deadline unconditionally |
+| AC-9 | A request VPP rejects with `api.VPPApiError` or non-zero `Retval`, OR an absent/disconnected VPP (`ErrBackendNotReady` / `errVppNotConnected`), on each of `iface/vpp`, `fib/vpp`, and `static/vpp` | Each path keeps its existing non-timeout behavior: the error does NOT match `core.ErrReplyTimeout` / `iface.ErrBackendTimeout` / `errBackendReplyTimeout`, timeout counters do NOT increment, `iface` still defers `ErrBackendNotReady` and rolls back ordinary rejections, and `static` keeps its ordinary skip reason without raising `doctor-static-vpp-timeout` | Ordinary rejections on `fib/vpp` still record the failed prefix in `show fib vpp` / `fib-vpp-route-failures` as a VPP rejection (distinct from a wedged-dataplane timeout) so RIB divergence is never silent |
+| AC-10 | A healthy VPP answering requests within the deadline under the VPP functional suite and unit recovery tests (timeout followed by healthy reply on the same backend) | All operations succeed with zero spurious timeouts, timeout counters remain unchanged on healthy calls, and a backend recovers cleanly on the next successful call after a prior timeout | None — healthy replies within `[1s, 60s]` never trip the deadline |
 
 ## End-to-End User Stories
 
 | # | User does | Path through system | Test proving it works |
 |---|-----------|--------------------|-----------------------|
-| 1 | commits an interface change while VPP is wedged | config commit → iface reconcile → VPP backend → deadline → reported failure | `test/plugin/vpp-wedged-iface-commit-reports.ci` <!-- doc-links: ignore (planned by this spec, written when the spec is implemented) --> |
-| 2 | watches routes fail to install while VPP is wedged | best-change event → fib → deadline → operator-visible report | `test/plugin/vpp-wedged-fib-reports.ci` <!-- doc-links: ignore (planned by this spec, written when the spec is implemented) --> |
-| 3 | applies static routes while VPP is wedged | static apply → deadline → report, other routes intact | `test/plugin/vpp-wedged-static-reports.ci` <!-- doc-links: ignore (planned by this spec, written when the spec is implemented) --> |
-| 4 | tunes the deadline for a slow lab dataplane | env var → clamp → effective deadline | `TestReplyDeadlineClamps` |
+| 1 | commits an interface change while VPP is wedged | config commit → `iface` `applyConfig` → `iface/vpp` → `Connector.NewChannel` deadline → `ErrBackendTimeout` → `sdk.Journal` rollback (Way 2) → reported commit error + counter | `test/plugin/vpp-wedged-iface-commit-reports.ci` <!-- doc-links: ignore (planned by this spec, written when the spec is implemented) --> |
+| 2 | inspects FIB state when VPP wedges during route programming | `(system-rib, best-change)` → `fib-vpp` `processEvent` → `Connector.NewChannel` deadline → `show fib vpp` skipped entry + `show doctor` (`fib-vpp-route-failures`) + counter | `test/plugin/vpp-wedged-fib-reports.ci` <!-- doc-links: ignore (planned by this spec, written when the spec is implemented) --> |
+| 3 | applies named-table static routes while VPP is wedged | config apply → `static` `applyRoutes` → `vppStaticBackend` → `Connector.NewChannel` deadline → `show static` skipped entry + `doctor-static-route-skipped` + report bus `doctor-static-vpp-timeout` + counter, other routes intact | `test/plugin/vpp-wedged-static-reports.ci` <!-- doc-links: ignore (planned by this spec, written when the spec is implemented) --> |
+| 4 | tunes `ze.vpp.reply-timeout` for a slow lab dataplane | env var `ze.vpp.reply-timeout` → clamp `[1s, 60s]` → `SetReplyTimeout` in `(*Connector).NewChannel` | `TestReplyDeadlineClamps` (`internal/component/vpp/conn_test.go`) |
 
 ## 🧪 TDD Test Plan
 
 ### Unit Tests
 | Test | File | Validates | Status |
 |------|------|-----------|--------|
-| `TestNewChannelInstallsReplyDeadline` | `internal/component/vpp/conn_test.go` | AC-1: the bound is installed at the seam, before any request | |
-| `TestReplyDeadlineClamps` | `internal/component/vpp/conn_test.go` | AC-6: floor, ceiling and the refusal of zero | |
-| `TestIfaceCommitFailsOnWedgedDataplane` | `internal/plugins/iface/vpp/apply_test.go` | AC-2, AC-3: bounded wait, lock released, wedged-dataplane verdict | |
-| `TestFibReportsWedgedDataplane` | `internal/plugins/fib/vpp/apply_test.go` | AC-2, AC-4: the report exists where an operator reads it | |
-| `TestStaticReportsWedgedDataplaneAndKeepsIsolation` | `internal/plugins/static/vpp/apply_test.go` | AC-2, AC-5: report added, isolation unbroken | |
-| `TestRejectionIsNotAWedgedDataplane` | one per plugin, beside the above | AC-9: the two failure kinds stay distinguishable | |
-| `TestRecycledChannelKeepsItsDeadline` | `internal/component/vpp/conn_test.go` | AC-8: the pool cannot hand back an unbounded channel | |
-| `TestRollbackVerdictMatchesFirewall` | `internal/component/iface/config_apply_test.go` | AC-7: one verdict, two paths | |
+| `TestNewChannelInstallsReplyDeadline` | `internal/component/vpp/conn_test.go` | AC-1: `(*Connector).NewChannel` calls `SetReplyTimeout` with positive clamped duration before returning the channel | |
+| `TestReplyDeadlineClamps` | `internal/component/vpp/conn_test.go` | AC-6: default `10s`, floor `1s`, ceiling `60s`, refusal of `0s` and negative values | |
+| `TestRecycledChannelKeepsItsDeadline` | `internal/component/vpp/conn_test.go` | AC-8: pooled channel re-obtained from `NewChannel` gets `SetReplyTimeout` re-applied and never returns unbounded or with a leaked custom timeout | |
+| `TestIfaceCommitFailsOnWedgedDataplane` | `internal/plugins/iface/vpp/apply_test.go` | AC-1, AC-2, AC-3, AC-10: `SetReplyTimeout` ordered before first request, bounded return on `core.ErrReplyTimeout`, wraps `iface.ErrBackendTimeout`, releases locks, increments counter, recovers on subsequent healthy call | |
+| `TestFibReportsWedgedDataplane` | `internal/plugins/fib/vpp/apply_test.go` | AC-1, AC-2, AC-4, AC-10: `SetReplyTimeout` ordered before first request, bounded return, `show fib vpp` reports `skipped`/`skip-reason`, `fib-vpp-route-failures` doctor check reports code + fix, counter increments, clears on later successful install/withdraw | |
+| `TestStaticReportsWedgedDataplaneAndKeepsIsolation` | `internal/plugins/static/backend_vpp_linux_test.go` | AC-1, AC-2, AC-5, AC-10: `SetReplyTimeout` ordered before first request, bounded return, per-route isolation (`applyRoutes` returns `nil`, good routes programmed), `show static` and `doctor-static-route-skipped` report wedged dataplane, `rm.issues` raises `doctor-static-vpp-timeout`, counter increments, clears on later healthy apply | |
+| `TestRejectionIsNotAWedgedDataplane` | `internal/plugins/iface/vpp/apply_test.go`, `internal/plugins/fib/vpp/apply_test.go`, `internal/plugins/static/backend_vpp_linux_test.go` | AC-9: VPP `api.VPPApiError` / non-zero `Retval` and absent/disconnected VPP never match timeout sentinels or increment timeout counters | |
+| `TestRollbackVerdictMatchesFirewall` | `internal/component/iface/config_apply_test.go` (paired with `TestFirewallVPPRollsBackOnReplyTimeout` in `internal/plugins/firewall/vpp/timeout_linux_test.go`, run together in one `go test` invocation so `iface` never imports `firewall`) | AC-7: both `iface` (`applyConfig` step-wise `sdk.Journal` undo on `ErrBackendTimeout`) and `firewall/vpp` (`(*backend).reconcileWithOps` partial-step undo on `core.ErrReplyTimeout`, alongside `firewall/engine.go` `OnConfigRollback`) attempt rollback on timeout (Way 2) | |
 
 ### Boundary Tests (numeric inputs)
 | Field | Range | Last Valid | Invalid Below | Invalid Above |
 |-------|-------|------------|---------------|---------------|
-| reply deadline | floor to ceiling, both to be fixed in the design phase | the ceiling | zero and any negative value, which are govpp's "no deadline" and MUST clamp to the floor | anything above the ceiling, which clamps down rather than disabling the bound |
+| `ze.vpp.reply-timeout` | `1s` to `60s` (default `10s`) | `60s` | `0s`, `-1s`, `999ms` (all clamp to `1s`; zero is refused rather than disabling the deadline) | `61s`, `5m` (clamp to `60s`) |
 
 ### Functional Tests
 | Test | Location | End-User Scenario | Status |
 |------|----------|-------------------|--------|
-| `vpp-wedged-iface-commit-reports` | `test/plugin/vpp-wedged-iface-commit-reports.ci` | A commit against a wedged dataplane fails inside the deadline and says why | <!-- doc-links: ignore (planned by this spec, written when the spec is implemented) --> |
-| `vpp-wedged-fib-reports` | `test/plugin/vpp-wedged-fib-reports.ci` | A route that cannot be installed is visible to the operator | <!-- doc-links: ignore (planned by this spec, written when the spec is implemented) --> |
-| `vpp-wedged-static-reports` | `test/plugin/vpp-wedged-static-reports.ci` | The bad route is reported, the good ones stay programmed | <!-- doc-links: ignore (planned by this spec, written when the spec is implemented) --> |
+| `vpp-wedged-iface-commit-reports` | `test/plugin/vpp-wedged-iface-commit-reports.ci` | An interface commit against a wedged VPP fails inside the deadline, attempts rollback (Way 2), and reports the wedged dataplane | <!-- doc-links: ignore (planned by this spec, written when the spec is implemented) --> |
+| `vpp-wedged-fib-reports` | `test/plugin/vpp-wedged-fib-reports.ci` | A route install that times out on a wedged VPP is visible to the operator in `show fib vpp` and `show doctor` | <!-- doc-links: ignore (planned by this spec, written when the spec is implemented) --> |
+| `vpp-wedged-static-reports` | `test/plugin/vpp-wedged-static-reports.ci` | A named-table static route that times out on a wedged VPP is reported in `show static`, `show doctor`, and `show errors` while good routes stay programmed | <!-- doc-links: ignore (planned by this spec, written when the spec is implemented) --> |
 
 ### Interop Tests (Scope: protocol)
-N-A. The govpp binary API is a vendor interface with no second implementation
-to test against. The wedged-dataplane condition is produced by a fake channel
-that accepts a request and never answers, which is the only way to reach the
-timeout arm deterministically.
+N-A. The GoVPP binary API is a vendor IPC interface with no second protocol implementation to test against. The wedged-dataplane condition is produced deterministically by a stub/fake channel that accepts a request and never answers.
 
 ## Files to Modify
-- `internal/component/vpp/conn.go` - install the deadline in `(*Connector).NewChannel`, with the clamp and the env var
-- `internal/plugins/iface/vpp/ifacevpp.go` - identify a wedged dataplane and pass that verdict up
-- `internal/component/iface/config_apply.go` - the rollback verdict on a timeout, per the owner's answer
-- `internal/plugins/fib/vpp/fibvpp.go` - report a wedged dataplane to the operator instead of logging and continuing
-- `internal/plugins/fib/vpp/backend.go` - surface the sentinel from the request path
-- `internal/plugins/static/inject.go` - report a wedged dataplane while keeping per-route isolation
-- `internal/plugins/static/vpp/backend.go` - surface the sentinel from the request path
-- `internal/component/firewall/engine.go` - under Way 1 only: skip the rollback on a timeout, matching the DDoS responder
-- `docs/guide/vpp.md` or the equivalent operator page - the new env var and what a wedged-dataplane report means
+- `internal/component/vpp/conn.go` - register `ze.vpp.reply-timeout` (default `10s`, clamped `[1s, 60s]`, zero refused) and call `ch.SetReplyTimeout(vppReplyTimeout())` in `(*Connector).NewChannel` before returning every channel
+- `internal/component/iface/backend.go` - define `ErrBackendTimeout` sentinel beside `ErrBackendNotReady` so always-on `iface` code identifies wedged-dataplane timeouts without importing `go.fd.io/govpp`
+- `internal/component/iface/rate.go` - register `ze_iface_backend_timeouts_total` counter in `bindMetricsRegistry`
+- `internal/component/iface/config_apply.go` - recognize `ErrBackendTimeout`, increment `ze_iface_backend_timeouts_total`, format actionable wedged-dataplane operator error, and preserve Way 2 step-wise `sdk.Journal` partial-apply rollback matching `firewall/vpp` `(*backend).reconcileWithOps` and `firewall/engine.go` `OnConfigRollback`
+- `internal/plugins/iface/vpp/ifacevpp.go` - wrap `core.ErrReplyTimeout` with `iface.ErrBackendTimeout` (preserving both via `%w`) across VPP binary-API calls while leaving `api.VPPApiError`, non-zero `Retval`, and `ErrBackendNotReady` untouched
+- `internal/plugins/fib/vpp/routesource.go` - keep `core.ErrReplyTimeout` wrapped alongside `errVPPMutationUncertain` in `sendRoute` and document the timeout distinction
+- `internal/plugins/fib/vpp/backend.go` - preserve `core.ErrReplyTimeout` propagation across plain, rich, and MPLS route operations
+- `internal/plugins/fib/vpp/fibvpp.go` - track failed/wedged routes on `fibVPP`, distinguish `core.ErrReplyTimeout` from VPP rejections, increment `ze_fibvpp_reply_timeouts_total`, clear entries on subsequent success/withdraw, and emit `skipped`/`skip-reason` in `showInstalled`
+- `internal/plugins/fib/vpp/stats.go` - register `ze_fibvpp_reply_timeouts_total` Prometheus counter
+- `internal/plugins/fib/vpp/register.go` - declare `fib-vpp-route-failures` in `engineRegistration().DoctorChecks` and dispatch it in `answerDoctorCheck`
+- `internal/plugins/fib/vpp/register_doctor.go` - register `routeFailureCodeMeta` (`doctor-fib-vpp-route-failed`) in `init()`
+- `internal/plugins/static/backend.go` - define package-private `errBackendReplyTimeout` sentinel for always-on static code
+- `internal/plugins/static/backend_vpp_linux.go` - wrap `core.ErrReplyTimeout` with `errBackendReplyTimeout` (preserving both via `%w`) on named-table VPP route calls
+- `internal/plugins/static/vpp/backend.go` - keep `core.ErrReplyTimeout` unwrapped cleanly from `IPRouteAddDel` distinct from `reply.Retval != 0` / `api.VPPApiError`
+- `internal/plugins/static/inject.go` - recognize `errBackendReplyTimeout`, increment `ze_static_vpp_reply_timeouts_total`, record wedged-dataplane skip reason in `rm.skipped` while keeping per-route isolation (`applyRoutes` returns `nil`), and raise `doctor-static-vpp-timeout` via `rm.issues`
+- `internal/plugins/static/doctor.go` - surface wedged-dataplane skip reason cleanly in `checkRouteSkipped`
+- `internal/plugins/static/register.go` - wire `ConfigureMetrics` on the `static` plugin registration for `ze_static_vpp_reply_timeouts_total`
+- `internal/plugins/static/register_doctor_codes.go` - register `doctor-static-vpp-timeout` diagnostic code metadata and event code
+- `docs/guide/vpp.md` - document `ze.vpp.reply-timeout`, Way 2 rollback on VPP reply timeout, `show fib vpp` skipped entries, `doctor-fib-vpp-route-failed`, `doctor-static-vpp-timeout`, and the per-plugin reply-timeout counters
+- `docs/research/vpp-deployment-reference.md` - note the shared reply deadline installed by `(*Connector).NewChannel` in `GoVPP Connection`
+- `docs/architecture/doctor-and-health-checks.md` - list `fib-vpp-route-failures` (`doctor-fib-vpp-route-failed`) in the runtime plugin doctor checks table
 
 ## Files to Create
-- the three `.ci` files named in Functional Tests
+- `internal/plugins/fib/vpp/doctor_reply_timeout.go` - Stage 1 runtime doctor check (`fib-vpp-route-failures`) and code metadata (`doctor-fib-vpp-route-failed`) reporting failed/wedged VPP FIB routes with actionable fixes
+- `test/plugin/vpp-wedged-iface-commit-reports.ci` - functional test proving an interface commit against a wedged VPP fails inside the deadline, rolls back (Way 2), and reports the wedged dataplane
+- `test/plugin/vpp-wedged-fib-reports.ci` - functional test proving a wedged VPP FIB route failure is visible in `show fib vpp` and `show doctor`
+- `test/plugin/vpp-wedged-static-reports.ci` - functional test proving a wedged VPP static named-table route is reported in `show static`, `show doctor`, and `show errors` while preserving per-route isolation
 
 ### Integration Checklist
 | Integration Point | Applies? | File / reason |
 |-------------------|----------|---------------|
-| YANG schema (new RPCs/config) | No | The deadline is an env var, matching `ze.firewall.vpp.reply-timeout` |
-| YANG validation constraints | No | No leaf |
-| YANG custom validators | No | No leaf |
-| CLI commands/flags | Maybe | AC-4 needs an operator-visible surface for fib. If `fib show` is the chosen surface, its output changes |
-| CLI grammar (keyword before value) | No | No new command |
-| Editor autocomplete | No | No config leaf |
-| Functional test for new RPC/API | Yes | The three `.ci` files |
-| Pipe completeness | Maybe | Only if a show command's output gains a column |
-| Env var registration | Yes | The new deadline key through `env.MustRegister()`, as `ze.firewall.vpp.reply-timeout` already is |
-| Doctor check for runtime dependencies | Yes | A wedged dataplane is exactly what a doctor check should surface, and static already reports skipped routes there |
-| Prometheus counters/metrics | Yes | A timeout counter per plugin, matching `ze_firewall_apply_timeout_total`. fib and static have no failure metric today |
-| BGP family surface (new SAFI / capability / attribute) | N-A | No BGP surface is touched |
+| YANG schema (new RPCs/config) | No | The deadline is an env var (`ze.vpp.reply-timeout`), matching `ze.firewall.vpp.reply-timeout` and `ze.traffic.vpp.reply-timeout` |
+| YANG validation constraints | No | No new YANG leaf |
+| YANG custom validators | No | No new YANG leaf |
+| CLI commands/flags | No | Reuses existing `show fib vpp`, `show static`, `show doctor`, `show errors`, and `show warnings`; `show fib vpp` gains additive `omitempty` JSON fields (`skipped`, `skip-reason`) |
+| CLI grammar (keyword before value) | No | No new CLI command |
+| Editor autocomplete | No | No new config leaf |
+| Functional test for new RPC/API | Yes | `test/plugin/vpp-wedged-iface-commit-reports.ci`, `test/plugin/vpp-wedged-fib-reports.ci`, `test/plugin/vpp-wedged-static-reports.ci` |
+| Pipe completeness | No | `show fib vpp` and `show static` already pass through the standard plugin command pipe pipeline; additive JSON fields work with existing pipes unchanged |
+| Env var registration | Yes | `ze.vpp.reply-timeout` registered via `env.MustRegister()` in `internal/component/vpp/conn.go` |
+| Doctor check for runtime dependencies | Yes | New Stage 1 runtime check `fib-vpp-route-failures` (`internal/plugins/fib/vpp/doctor_reply_timeout.go`, declared in `register.go`, metadata in `register_doctor.go`); `static-route-skipped` (`internal/plugins/static/doctor.go`) updated to surface wedged-dataplane reasons |
+| Doctor code per problem class | Yes | `fib-vpp` route failure / wedged dataplane: `doctor-fib-vpp-route-failed` (runtime phase, `fib-vpp-route-failures`, `internal/plugins/fib/vpp/doctor_reply_timeout.go`); `static` VPP reply timeout: `doctor-static-vpp-timeout` (report-bus event code + `doctor-static-route-skipped` post-config/runtime skip reporting, `internal/plugins/static/register_doctor_codes.go`) |
+| Prometheus counters/metrics | Yes | `ze_iface_backend_timeouts_total` (`internal/component/iface/rate.go`), `ze_fibvpp_reply_timeouts_total` (`internal/plugins/fib/vpp/stats.go`), `ze_static_vpp_reply_timeouts_total` (`internal/plugins/static/register.go`) |
+| BGP family surface (new SAFI / capability / attribute) | N-A | No BGP family, capability, or wire attribute is touched |
 
 ### Documentation Update Checklist (BLOCKING)
 | # | Question | Applies? | File to update |
 |---|----------|----------|---------------|
-| 1 | New user-facing feature? | Yes | The operator now learns that the dataplane is wedged. That is new behaviour to document |
-| 2 | Config syntax changed? | No | Env var only |
-| 3 | CLI command added/changed? | Maybe | Only if a show command carries the fib report |
-| 4 | API/RPC added/changed? | No | No API surface |
-| 5 | Plugin added/changed? | Yes | Three plugins change behaviour on a dataplane failure |
-| 6 | Has a user guide page? | Yes | The VPP operator page |
-| 7 | Wire format changed? | No | No Ze wire format |
-| 8 | Plugin SDK/protocol changed? | No | No SDK type crosses this seam |
-| 9 | RFC behavior implemented, changed, or newly proven? | N-A | No RFC |
-| 10 | Test infrastructure changed? | No | Existing `test/plugin` suite |
-| 11 | Affects daemon comparison? | No | No claim in `docs/comparison.md` about dataplane deadlines |
-| 12 | Internal architecture changed? | Yes | The deadline moves from a per-plugin choice to a property of the channel seam |
-| 13 | Route metadata keys added/changed? | No | No route metadata |
-| 14 | Prometheus counters added/changed? | Yes | The per-plugin timeout counters |
-| 15 | Registered plugin, event type, send type, command, capability, or inventory changed? | Yes | The new env var joins the registered set |
-| 16 | Any changed source file referenced by existing doc source anchors? | Yes | Grep `docs/` for anchors naming the three plugins' backends and `internal/component/vpp/conn.go` |
-| 17 | Existing docs show config/CLI/API examples for this area? | Yes | Any page showing the firewall deadline env var should name its siblings |
+| 1 | New user-facing feature, or a feature's scope, evidence or level changed? | Yes | `docs/guide/vpp.md` — operators now get bounded VPP reply waits and visible wedged-dataplane diagnostics across `iface`, `fib-vpp`, and `static` |
+| 2 | Config syntax changed? | No | Env var `ze.vpp.reply-timeout` only; no config syntax or YANG leaf change |
+| 3 | CLI command added/changed? | Yes | `docs/guide/vpp.md` — documents additive `skipped` and `skip-reason` fields on `show fib vpp` |
+| 4 | API/RPC added/changed? | No | No new RPC; `show fib vpp` keeps its existing JSON array shape with additive `omitempty` fields |
+| 5 | Plugin added/changed? | Yes | `docs/guide/vpp.md` — covers `iface/vpp`, `fib-vpp`, and `static` VPP timeout behavior |
+| 6 | Has a user guide page? | Yes | `docs/guide/vpp.md` |
+| 7 | Wire format changed? | No | No Ze protocol wire format changed |
+| 8 | Plugin SDK/protocol changed? | No | Uses existing `sdk.Registration.DoctorChecks`, `OnDoctorCheck`, `issuequeue`, and `ConfigureMetrics` |
+| 9 | RFC behavior implemented, changed, or newly proven? | N-A | Vendor GoVPP binary API, no RFC |
+| 10 | Test infrastructure changed? | No | Uses existing `test/plugin` functional harness |
+| 11 | Affects daemon comparison? | No | `docs/comparison.md` makes no claim about VPP reply deadlines |
+| 12 | Internal architecture changed? | Yes | `docs/research/vpp-deployment-reference.md` (note shared reply deadline in `GoVPP Connection`) and `docs/architecture/doctor-and-health-checks.md` (list `fib-vpp-route-failures` in the runtime plugin doctor checks table); `docs/architecture/core-design.md` unaffected because its table covers the two firewall backends only |
+| 13 | Route metadata keys added/changed? | No | No route metadata keys changed |
+| 14 | Prometheus counters added/changed? | Yes | `docs/guide/vpp.md` — lists `ze_iface_backend_timeouts_total`, `ze_fibvpp_reply_timeouts_total`, and `ze_static_vpp_reply_timeouts_total` |
+| 15 | Registered plugin, event type, send type, command, capability, or inventory changed? | Yes | `ze.vpp.reply-timeout` env var and new doctor/event codes (`doctor-fib-vpp-route-failed`, `doctor-static-vpp-timeout`) documented in `docs/guide/vpp.md` |
+| 16 | Any changed source file referenced by existing doc source anchors? | Yes | Derived from `./le spec citation anchors`: **declared `// Design:` pages** — `docs/research/vpp-deployment-reference.md` (update GoVPP Connection note), `docs/architecture/doctor-and-health-checks.md` (update runtime checks table with `fib-vpp-route-failures`), `docs/features/interfaces.md` (unaffected: `ErrBackendNotReady` deferral unchanged, timeout fails apply as already stated), `docs/architecture/static-routes.md` (unaffected: per-route isolation and `rm.skipped` contract unchanged), `docs/architecture/fib/fib-vpp-route-ownership.md` (unaffected: `ze-fib-vpp` ownership and sweep unchanged), `docs/architecture/mpls/mpls-kernel.md` (unaffected: MPLS label checks unchanged); **advisory anchored pages** — `docs/guide/vpp.md` (updated), and unaffected by this change: `docs/architecture.md`, `docs/architecture/appliance/kernel-profiles.md`, `docs/architecture/config/apply-ordering.md`, `docs/architecture/core-design.md`, `docs/architecture/ddos/ddos-detect-enhancements.md`, `docs/architecture/decisions/001-pull-model-metrics.md`, `docs/architecture/fib/fib-depth-4-srv6.md`, `docs/architecture/flowexport/flow-export-0-umbrella.md`, `docs/architecture/forked-route-install.md`, `docs/architecture/iface/logical-name-resolution.md`, `docs/architecture/iface/offload.md`, `docs/architecture/plugin/plugin-system.md`, `docs/architecture/traffic/cos-dynamic.md`, `docs/architecture/traffic/cos-plugin.md`, `docs/architecture/traffic/fw-7-traffic-vpp.md`, `docs/guide/appliance.md`, `docs/guide/bfd.md`, `docs/guide/configuration.md`, `docs/guide/netlab.md`, `docs/guide/pppoe.md`, `docs/guide/quickstart.md`, `docs/guide/redistribution.md`, `docs/guide/route-policy.md`, `docs/guide/static-routes.md`, `docs/guide/traffic-control.md`, `docs/features/srv6.md`, `docs/plugin-development/metrics.md` |
+| 17 | Existing docs show config/CLI/API examples for this area? | Yes | `docs/guide/vpp.md` — add `ze.vpp.reply-timeout` example and `show fib vpp` skipped-entry description |
+
+## Design presentation
+
+### What changes
+
+Every GoVPP API channel obtained from `(*Connector).NewChannel` now receives a clamped positive reply deadline by construction (`ze.vpp.reply-timeout`, default `10s`, clamped to `[1s, 60s]`, zero refused), so `iface/vpp`, `fib/vpp`, `static/vpp`, and every other `NewChannel` caller can no longer block forever holding locks when VPP accepts a request and stops answering. `firewall/vpp` and `traffic/vpp` retain their existing per-plugin env overrides (`ze.firewall.vpp.reply-timeout`, `ze.traffic.vpp.reply-timeout`). All three affected paths distinguish a wedged dataplane (`core.ErrReplyTimeout`) from an ordinary VPP rejection (`api.VPPApiError` / non-zero `Retval`) or an absent VPP (`ErrBackendNotReady`), release their locks promptly, increment per-plugin Prometheus timeout counters, and surface the failure to the operator: `iface` fails the commit with an actionable wedged-dataplane error and attempts step-wise `sdk.Journal` rollback matching `firewall/vpp` `(*backend).reconcileWithOps` partial-apply undo and `firewall/engine.go` `OnConfigRollback` (Thomas's 2026-11-24 Way 2 ruling); `fib-vpp` records failed/wedged routes for `show fib vpp` (`skipped` / `skip-reason`) and a new Stage 1 runtime doctor check (`fib-vpp-route-failures`, code `doctor-fib-vpp-route-failed`); and `static` preserves per-route isolation while surfacing wedged-dataplane skips in `show static`, `doctor-static-route-skipped`, and the SDK report bus (`doctor-static-vpp-timeout`).
+
+### Before and after
+
+1. **Interface commit against a wedged VPP (`iface/vpp`)**
+   - Before: `applyConfig` hangs indefinitely holding `applyMu` and `reconcileMu` (GoVPP waits ~292 years because `DefaultReplyTimeout == 0`), stalling every subsequent commit and reconcile with no error returned.
+   - After: the request returns within `ze.vpp.reply-timeout` (default `10s`), `iface` attempts step-wise `sdk.Journal` rollback (Way 2, matching `firewall/vpp` `(*backend).reconcileWithOps` partial-apply undo and `firewall/engine.go` `OnConfigRollback`), releases `reconcileMu` and `applyMu`, increments `ze_iface_backend_timeouts_total`, and fails the commit with an error naming the wedged VPP dataplane and remediation.
+
+2. **FIB route install against a wedged VPP (`fib-vpp`)**
+   - Before: `(*fibVPP).processEvent` hangs indefinitely holding `fibMu` and `f.mu` (stalling `(system-rib, best-change)` dispatch), and on any route failure only writes an Error log line while `show fib vpp` and `show doctor` report nothing wrong.
+   - After: the request returns within `ze.vpp.reply-timeout`, releases `f.mu` and `fibMu`, increments `ze_fibvpp_reply_timeouts_total`, lists the failed prefix in `show fib vpp` with `skipped: true` and a `skip-reason` naming the wedged dataplane, and reports `doctor-fib-vpp-route-failed` with an actionable `fix` in `ze show doctor` until a subsequent install, replace, or withdrawal succeeds.
+
+3. **Named-table static route apply against a wedged VPP (`static/vpp`)**
+   - Before: `(*routeManager).applyRoutes` hangs indefinitely holding `rm.mu` (stalling static reloads, BFD watchers, link watches, and `show static`).
+   - After: the request returns within `ze.vpp.reply-timeout`, releases `rm.mu`, preserves per-route isolation (`applyRoutes` returns `nil`, unaffected routes remain programmed), records the wedged-dataplane `skip-reason` in `rm.skipped` (visible in `show static` and `doctor-static-route-skipped`), raises `doctor-static-vpp-timeout` on the SDK report bus (`show errors` / `show doctor`, working internal and forked), and increments `ze_static_vpp_reply_timeouts_total`.
+
+4. **Channel reuse and tuning (`ze.vpp.reply-timeout`)**
+   - Before: `(*Connector).NewChannel` returns unbounded channels (`0`) or channels carrying another plugin's leftover pooled timeout; no shared env knob exists.
+   - After: `(*Connector).NewChannel` installs `ze.vpp.reply-timeout` clamped to `[1s, 60s]` (default `10s`, zero refused) on every fresh and recycled channel; `firewall/vpp` and `traffic/vpp` keep their per-plugin overrides.
+
+### Alternatives set aside
+
+| Alternative | Why set aside |
+|-------------|---------------|
+| Way 1: skip partial-apply rollback on VPP reply timeouts in both `iface` (`config_apply.go`) and `firewall/vpp` (`reconcileWithOps`) | Rejected by Thomas on 2026-11-24 in favor of **Way 2**: attempt rollback on VPP reply timeouts too, everywhere, keeping `firewall` unchanged (`reconcileWithOps` partial-apply undo and `engine.go` `OnConfigRollback`, with `ddos-local` keeping its fast-path skip) and `iface` uniform with it, accepting the second bounded timeout wait if VPP remains wedged. |
+| Copy `newGovppOps` into `iface/vpp`, `fib/vpp`, and `static/vpp` instead of binding at `(*Connector).NewChannel` | Leaves future `NewChannel` callers (such as `ike/dataplane` and `startup_runtime`) unbounded and repeats the constructor pattern three more times; binding at `NewChannel` protects every caller by construction while letting `firewall/vpp` and `traffic/vpp` keep their per-plugin overrides. |
+| Import `internal/component/firewall` (`firewall.ErrKernelTimeout`) or `go.fd.io/govpp/core` from always-on `iface` and `static` | Violates module tier isolation (`iface`/`static` must not depend on `firewall`) and the `ze_vpp` compile-out boundary (`ai/doors/system.md`); local always-on sentinels wrapped alongside `core.ErrReplyTimeout` inside `ze_vpp`-gated code keep clean boundaries. |
+| Invent a new failure-report shape for `fib-vpp` instead of mirroring `static`'s `skipped`/`skip-reason` + Stage 1 runtime doctor check | Operators already read `skipped`/`skip-reason` in `show static` and runtime doctor findings in `show doctor`; matching both avoids a second failure vocabulary and works identically when `fib-vpp` runs forked. |
+
+### Documents departed from
+
+none
+
+### Choices for Thomas
+
+none
 
 ## Implementation Steps
 
-1. **Phase: Wiring (MANDATORY FIRST)** -- prove the wait is unbounded today
-   - Tests: `TestIfaceCommitFailsOnWedgedDataplane`, `TestFibReportsWedgedDataplane`, `TestStaticReportsWedgedDataplaneAndKeepsIsolation`, each written to fail
-   - Files: the three `apply_test.go` files
-   - Verify: each HANGS or fails on the deadline never firing, not on a compile error. A test that fails for another reason proves nothing about the bound
-2. **Phase: The bound at the seam**
+1. **Phase: Wiring (MANDATORY FIRST)** -- prove the wait is unbounded and unreported today
+   - Tests: `TestNewChannelInstallsReplyDeadline`, `TestIfaceCommitFailsOnWedgedDataplane`, `TestFibReportsWedgedDataplane`, `TestStaticReportsWedgedDataplaneAndKeepsIsolation`, each written to fail before production edits
+   - Files: `internal/component/vpp/conn_test.go`, `internal/plugins/iface/vpp/apply_test.go`, `internal/plugins/fib/vpp/apply_test.go`, `internal/plugins/static/backend_vpp_linux_test.go`
+   - Verify: each fails because `SetReplyTimeout` is never called or because the wedged-dataplane report is absent (never on a compile error)
+2. **Phase: The bound at the connector seam**
    - Tests: `TestNewChannelInstallsReplyDeadline`, `TestReplyDeadlineClamps`, `TestRecycledChannelKeepsItsDeadline`
    - Files: `internal/component/vpp/conn.go`
-   - Verify: AC-1, AC-6, AC-8. Every `NewChannel` caller is bounded, and no call site had to remember anything
-3. **Phase: Identify the failure kind**
-   - Tests: `TestRejectionIsNotAWedgedDataplane`, one per plugin
-   - Files: the three backends
-   - Verify: AC-2, AC-9. A rejection and a silence are different verdicts
-4. **Phase: Report to the operator** -- the half fib and static do not have at all
-   - Tests: `TestFibReportsWedgedDataplane`, `TestStaticReportsWedgedDataplaneAndKeepsIsolation`
-   - Files: `internal/plugins/fib/vpp/fibvpp.go`, `internal/plugins/static/inject.go`
-   - Verify: AC-4, AC-5. The report reaches a surface an operator reads, and static's isolation is intact
-5. **Phase: The rollback verdict** -- the owner's answer, applied to BOTH paths
-   - Tests: `TestRollbackVerdictMatchesFirewall`
-   - Files: `internal/component/iface/config_apply.go`, and `internal/component/firewall/engine.go` under Way 1
-   - Verify: AC-7. One verdict, proven on both paths in one run
-6. **Phase: Functional proof and discrimination**
-   - Tests: the three `.ci` files, each re-run with the bound reverted
-   - Files: the three `.ci` files, the docs, the counters
-   - Verify: AC-3, AC-10, and every new `.ci` goes red when the bound is removed
+   - Verify: AC-1, AC-6, AC-8 pass; every `NewChannel` caller receives the clamped positive deadline before any request, including recycled pooled channels
+3. **Phase: Identify wedged dataplane vs rejection (preserving `ze_vpp` compile-out)**
+   - Tests: `TestRejectionIsNotAWedgedDataplane` (across `iface/vpp`, `fib/vpp`, `static`)
+   - Files: `internal/component/iface/backend.go`, `internal/plugins/iface/vpp/ifacevpp.go`, `internal/plugins/fib/vpp/routesource.go`, `internal/plugins/fib/vpp/backend.go`, `internal/plugins/static/backend.go`, `internal/plugins/static/backend_vpp_linux.go`, `internal/plugins/static/vpp/backend.go`
+   - Verify: AC-2, AC-9 pass; `core.ErrReplyTimeout` is distinct from `api.VPPApiError`, non-zero `Retval`, and `ErrBackendNotReady`; `./le arch tier check` stays clean
+4. **Phase: Operator reporting, doctor checks, and Prometheus counters**
+   - Tests: `TestIfaceCommitFailsOnWedgedDataplane`, `TestFibReportsWedgedDataplane`, `TestStaticReportsWedgedDataplaneAndKeepsIsolation`
+   - Files: `internal/component/iface/rate.go`, `internal/component/iface/config_apply.go`, `internal/plugins/fib/vpp/fibvpp.go`, `internal/plugins/fib/vpp/stats.go`, `internal/plugins/fib/vpp/doctor_reply_timeout.go`, `internal/plugins/fib/vpp/register.go`, `internal/plugins/fib/vpp/register_doctor.go`, `internal/plugins/static/inject.go`, `internal/plugins/static/doctor.go`, `internal/plugins/static/register.go`, `internal/plugins/static/register_doctor_codes.go`
+   - Verify: AC-3, AC-4, AC-5 pass; all three plugins surface wedged-dataplane failures across CLI, doctor/report bus, and Prometheus counters; static per-route isolation stays intact
+5. **Phase: Way 2 rollback parity**
+   - Tests: `TestRollbackVerdictMatchesFirewall` (`internal/component/iface/config_apply_test.go`) paired with `TestFirewallVPPRollsBackOnReplyTimeout` (`internal/plugins/firewall/vpp/timeout_linux_test.go`)
+   - Files: `internal/component/iface/config_apply_test.go`, `internal/plugins/firewall/vpp/timeout_linux_test.go` (verifying `iface` `config_apply.go` step-wise `sdk.Journal` undo and unchanged `firewall/vpp` `(*backend).reconcileWithOps` partial-step undo together without adding a cross-component import)
+   - Verify: AC-7 passes; both `iface` and `firewall/vpp` execute partial-apply rollback on reply timeout in one `go test -race -tags ze_vpp ./internal/component/iface/... ./internal/plugins/firewall/vpp/...` run
+6. **Phase: Functional proof, discrimination, and docs**
+   - Tests: `test/plugin/vpp-wedged-iface-commit-reports.ci`, `test/plugin/vpp-wedged-fib-reports.ci`, `test/plugin/vpp-wedged-static-reports.ci`, each verified to fail when the bound or reporting is reverted
+   - Files: the three `.ci` files, `docs/guide/vpp.md`, `docs/research/vpp-deployment-reference.md`, `docs/architecture/doctor-and-health-checks.md`
+   - Verify: AC-3, AC-4, AC-5, AC-10 pass; docs and source anchors stay consistent
 
 ### Critical Review Checklist
 | Check | What to verify for this spec |
 |-------|------------------------------|
-| Completeness | All three plugins, and the report as well as the deadline. A deadline with no report is half the owner's requirement |
-| Feature completeness | The bound survives the channel pool. A guard that a recycled channel loses is not a guard |
-| Correctness | A rejection is never reported as a wedged dataplane, and a wedged dataplane is never reported as a rejection |
-| Naming | The env var names the dataplane, not the plugin's own domain, since one value covers three plugins |
-| Data flow | One bound at one seam. Three copies of the firewall's constructor is the shape this spec exists to avoid |
-| Rule: `ai/rules/evidence.md` | The test proves the deadline was INSTALLED before the first request. A test that only proves it was computed proves nothing |
-| Rule: `ai/rules/simplicity.md` | No new sentinel type: govpp already exports one. No import of the firewall package from any of the three |
+| Completeness | All three plugins (`iface/vpp`, `fib/vpp`, `static/vpp`) get both the connector deadline AND operator-visible reporting, doctor/report codes, and metrics |
+| Feature completeness | Recycled pooled channels re-install the deadline on every `(*Connector).NewChannel` call (AC-8); a backend recovers cleanly on the next healthy call after a timeout (AC-10) |
+| Correctness | A VPP rejection (`api.VPPApiError` / non-zero `Retval`) or absent VPP (`ErrBackendNotReady`) is never classified as a wedged dataplane, and a wedged dataplane is never masked as a rejection (AC-9) |
+| Naming | Shared env var `ze.vpp.reply-timeout` names the dataplane; Prometheus counters follow `ze_<subsystem>_<thing>_total`; JSON keys use kebab-case (`skipped`, `skip-reason`) |
+| Data flow | One shared bound in `(*Connector).NewChannel` (`firewall/vpp` and `traffic/vpp` keep their per-plugin overrides); no always-on package imports `go.fd.io/govpp` or `internal/component/vpp`; no plugin imports `firewall` |
+| Operator errors and doctor codes | Every refusal carries problem, why, and fix; `doctor-fib-vpp-route-failed` and `doctor-static-vpp-timeout` are registered via `diagnostic.Register` / `diagnostic.RegisterEventCode`; `fib-vpp-route-failures` runs via Stage 1 `DoctorChecks` / `OnDoctorCheck` with `Fix` populated |
+| Rule: `ai/rules/evidence.md` | Recording-channel tests prove `SetReplyTimeout` is called BEFORE the first request, not only that a helper computes a duration |
+| Rule: `ai/rules/simplicity.md` | Reuses `core.ErrReplyTimeout` directly inside `ze_vpp` packages and narrow local sentinels only across the `ze_vpp` compile-out boundary |
 
 ### Deliverables Checklist
 | Deliverable | Verification method |
 |-------------|---------------------|
-| No unbounded channel remains | `grep -rn 'NewChannel' internal/` reviewed against the bound, and `grep -rn 'SetReplyTimeout' internal/ --include=*.go` showing the seam plus any deliberate override |
-| All three plugins report | The three `.ci` files pass and fail with the bound reverted |
-| Static isolation intact | The static suite passes with one unprogrammable route in the config |
-| One rollback verdict | `TestRollbackVerdictMatchesFirewall` |
-| Lint | `./le repo changed scope` |
-| Packages | `go test -race ./...` for the three plugin packages and `internal/component/vpp` |
+| No unbounded `NewChannel` remains | `grep -rn 'NewChannel\|NewAPIChannel' internal/` reviewed against `(*Connector).NewChannel` bound; `grep -rn 'SetReplyTimeout' internal/ --include='*.go'` shows `conn.go` plus `firewall/vpp` and `traffic/vpp` overrides |
+| All three plugins report wedged dataplane | The three `.ci` functional tests pass and fail when the bound or report is reverted |
+| Static per-route isolation intact | `go test -race -tags ze_vpp ./internal/plugins/static/...` passes with unprogrammable and timed-out routes |
+| Way 2 rollback parity | `TestRollbackVerdictMatchesFirewall` and `TestFirewallVPPRollsBackOnReplyTimeout` pass together in `go test -race -tags ze_vpp ./internal/component/iface/... ./internal/plugins/firewall/vpp/...` |
+| Compile-out and boundaries clean | `./le arch tier check` and `./le plugin boundary check` pass; `go test -race ./internal/component/iface/... ./internal/plugins/static/...` (without `ze_vpp`) passes |
+| Scoped package tests | `go test -race -tags ze_vpp ./internal/component/vpp/... ./internal/component/iface/... ./internal/plugins/iface/vpp/... ./internal/plugins/fib/vpp/... ./internal/plugins/static/...` run by main thread |
 
 ### Security Review Checklist
 | Check | What to look for |
 |-------|-----------------|
-| What a wrong landing exposes | A router whose control plane is wedged and says nothing, which is today. The change cannot make that worse, but a too-short deadline can fail healthy commits, which an operator may work around by disabling the bound |
-| What proves it did not | The clamp refuses zero, so the bound cannot be disabled through the env var. AC-6 asserts it |
-| Fail closed | A timeout fails the operation. It never reports success for a request VPP did not confirm |
-| Denial of service | An unbounded wait under a process-wide lock IS the denial of service this fixes. Name the lock each path holds in the review |
-| No secret in output | The report names a prefix, an interface and a deadline. No credential is on this path |
+| What a wrong landing exposes | A control plane wedged indefinitely holding locks with no operator report (today's defect), or an operator disabling the deadline with `0s` to work around slow replies |
+| What proves it did not | `vppReplyTimeout` refuses `0s` and negative values by clamping to `[1s, 60s]`; AC-6 proves the clamp |
+| Fail closed | A reply timeout fails the operation and never records a route or interface change as installed; `fib-vpp` preserves `errVPPMutationUncertain` for SRv6 transitions |
+| Denial of service | Eliminates unbounded waits under `applyMu`/`reconcileMu` (`iface`), `fibMu`/`f.mu` (`fib-vpp`), and `rm.mu` (`static`) |
+| No secret in output | Diagnostic messages, `show fib vpp`, `show static`, and doctor findings name only prefixes, interface names, table IDs, error causes, and deadlines — never credentials or WireGuard keys |
 
 ### Failure Routing
 | Failure | Route To |
@@ -370,69 +493,77 @@ timeout arm deterministically.
 | Compilation error | Fix in the phase that introduced it |
 | Test fails for the wrong reason | Fix the test assertion or setup |
 | Test fails on behavior mismatch | Re-read the source in Current Behavior. If misunderstood → RESEARCH |
-| Lint failure | Fix inline. If architectural → DESIGN |
+| Lint or tier-check failure | Fix inline. If architectural → DESIGN |
 | Functional test fails | Check the AC: wrong AC → DESIGN, correct AC → IMPLEMENT |
-| A new `.ci` passes with the bound reverted | The test is vacuous. It must HANG or fail without the bound |
-| Binding at the connector misses a path | A `NewChannel` caller or an `api.Channel` built another way. Name it and bind it; do not add a second mechanism |
+| A new `.ci` passes with the bound reverted | The test is vacuous. It must hang or fail without the bound |
+| Binding at the connector misses a path | A `NewChannel` or `NewAPIChannel` caller built another way; bind it at the seam rather than adding a second mechanism |
 | Audit finds a missing AC | Back to the relevant phase and implement |
 | 3 fix attempts failed | STOP. Report all 3 approaches. Ask the user |
 
 ## Design Insights
 
-- The firewall's own comment states why it binds inside the constructor: a
-  computed-but-uninstalled deadline is indistinguishable from having none. That
-  argument does not stop at the firewall, and it is the reason this spec binds at
-  the connector rather than writing `newGovppOps` three more times.
-- The deferral row that homed this work argued for a per-backend bound, because
-  the three have different callers, locks and blast radii. Those differences
-  govern the VALUE and the REPORT, not the mechanism. A shared bound with a
-  per-plugin override keeps both: nobody can forget it, and anybody can tune it.
-- fib is the worst of the three and the least visible. Its handler runs
-  synchronously in the engine's serial dispatch, so one wedged route stalls the
-  sysrib emitter and every later subscriber, and its only report today is a log
-  line at Error.
+- The firewall's own comment states why it binds inside the constructor: a computed-but-uninstalled deadline is indistinguishable from having none. Binding at `(*Connector).NewChannel` generalizes that guarantee to every GoVPP channel consumer (`iface/vpp`, `fib/vpp`, `static/vpp`, `ike/dataplane`, `startup_runtime`) while letting `firewall/vpp` and `traffic/vpp` keep their per-plugin env overrides.
+- `(*Channel).Reset` in vendored GoVPP does not reset `replyTimeout`. Re-applying `SetReplyTimeout` inside `(*Connector).NewChannel` therefore protects both fresh and recycled pooled channels against carrying zero or another plugin's custom deadline.
+- Always-on packages (`internal/component/iface` and non-VPP `internal/plugins/static`) cannot import `go.fd.io/govpp` without violating `ze_vpp` compile-out (`ai/doors/system.md`). Local sentinels (`iface.ErrBackendTimeout`, `errBackendReplyTimeout`) wrapped alongside `core.ErrReplyTimeout` inside `ze_vpp`-gated code solve this cleanly with zero cross-tier coupling.
+- `fib-vpp` has the widest blast radius and least visibility today: its handler runs synchronously under `fibMu` and `f.mu` during `(system-rib, best-change)` dispatch, so one wedged route stalls sysrib delivery for every subscriber while only emitting an Error log line.
 
 ## Key Design Decisions
+
 | Decision | Alternatives Considered | Rationale |
 |----------|------------------------|-----------|
-| Bind at `(*Connector).NewChannel` | Three per-plugin constructors mirroring `newGovppOps` | The firewall's stated rationale generalises: bind where it cannot be forgotten. Three copies is three chances to forget, and the fourth plugin proves the pattern already failed once |
-| Use `core.ErrReplyTimeout` directly | A new shared sentinel, or importing `firewall.ErrKernelTimeout` | govpp already exports one. Importing the firewall package from iface, fib or static is a tier violation for no gain |
-| Copy static's `skipped` surface for fib's report | A new report shape for fib | An operator already knows where to look for a route the backend refused. A second shape is a second thing to learn |
-| The rollback verdict is one decision, applied to both paths | Fix iface and leave the firewall inconsistent | The owner asked for the same operator-visible outcome. Fixing one side and not the other leaves exactly the inconsistency the request names |
+| Bind shared default deadline in `(*Connector).NewChannel` (`ze.vpp.reply-timeout`, `10s`, `[1s, 60s]`) | Copy `newGovppOps` three more times into `iface/vpp`, `fib/vpp`, and `static/vpp` | Protects every current and future `NewChannel` caller (fresh and recycled pooled channels) by construction while preserving `firewall/vpp` and `traffic/vpp` per-plugin overrides |
+| Way 2 rollback on VPP reply timeout (owner decision 2026-11-24) | Way 1: skip partial-apply rollback on timeout in both `iface` (`config_apply.go`) and `firewall/vpp` (`reconcileWithOps`) | Thomas ruled on 2026-11-24 to attempt rollback on VPP reply timeouts too, everywhere, keeping `firewall` unchanged (`reconcileWithOps` partial-apply undo and `engine.go` `OnConfigRollback`; `ddos-local` keeps its fast-path responder skip) and `iface` uniform with it |
+| Wrap `core.ErrReplyTimeout` with local always-on sentinels (`iface.ErrBackendTimeout`, `errBackendReplyTimeout`) across the `ze_vpp` boundary | Import `firewall.ErrKernelTimeout` or import `go.fd.io/govpp/core` from always-on packages | Preserves module tier isolation (no dependency on `firewall`) and `ze_vpp` compile-out while keeping `errors.Is(err, core.ErrReplyTimeout)` true in all VPP-tagged code and tests |
+| Surface `fib-vpp` route failures via `show fib vpp` (`skipped`/`skip-reason`) + Stage 1 runtime doctor check (`fib-vpp-route-failures`) + Prometheus counter | Log-only, or invent a new CLI command / in-process-only doctor check | Mirrors `static`'s existing operator vocabulary (`skipped`/`skip-reason`) and `fib-vpp`'s existing Stage 1 runtime doctor check pattern (`fib-vpp-stale-routes`, `fib-vpp-srv6`), working identically internal and forked |
 
 ## Known Limitations
-- The traffic backend is the fourth plugin in this class. spec-traffic-vpp-deferred-reply-timeout
-  (closed 2026-10-15) landed a per-plugin constructor, `newGovppOps` in
-  `internal/plugins/traffic/vpp/timeout_linux.go`, so this spec must reuse that
-  mechanism rather than add a second.
-- The connect phase already bounds its own wait, and this spec does not change
-  it. An absent VPP and a wedged VPP stay different conditions.
+
+- `firewall/vpp` (`internal/plugins/firewall/vpp/timeout_linux.go`) and `traffic/vpp` (`internal/plugins/traffic/vpp/timeout_linux.go`, landed 2026-10-15) already have their own per-plugin env vars (`ze.firewall.vpp.reply-timeout`, `ze.traffic.vpp.reply-timeout`) and `newGovppOps` constructors; they continue overriding the shared connector deadline for their own channels.
+- The GoVPP connect phase (`Connector.Connect`, `Connector.WaitConnected`) already bounds its own wait and is unchanged by this spec. An absent VPP and a wedged VPP remain distinct operational conditions.
+- VPP process supervision, alive/reconnect limits, pidfd termination, and withdrawal after crash-loop limits belong to `plan/post-release/features/spec-vpp-failure-lifecycle.md` and are outside this spec.
+
+## Review Gate
+
+Populated during `/ze-review` and `/ze-review-spec` before closure (`plan/templates/TEMPLATE-CLOSURE.md`).
 
 ## Checklist
+
+### Pre-Spec Verification (before the design is presented)
+- [ ] Metadata table present, with a valid Status, Depends, Phase and Updated
+- [ ] `ai/INDEX.md` keyword table checked
+- [ ] An `rfc/short/` summary exists for every RFC referenced (N-A: vendor GoVPP binary API, no RFC)
+- [ ] Template format followed: the 🧪 emoji, tables rather than prose, `[ ]` never `[x]`
+- [ ] No code snippets
+- [ ] Files to Modify names feature code, not only tests
+- [ ] Current Behavior, Existing Mechanisms, Design documents, Data Flow, Changed-Wire Census, and Design presentation completed
+- [ ] AC-N rows carry positive observable Expected Behavior and non-empty Permitted Survivors
+- [ ] Every assumption has a Basis and a validation method; every failure mode is a risk row
+- [ ] Required Reading carries `→ Decision:` / `→ Constraint:` checkpoints
+- [ ] Integration Checklist marks every row Yes / No / N-A with evidence, including Doctor code per problem class
 
 ### Goal Gates (MUST pass)
 - [ ] AC-1..AC-10 all demonstrated
 - [ ] Every user story has a working path and a passing test
 - [ ] Wiring Test table complete: every row a concrete test name, none deferred
-- [ ] `./le verify worktree` passes. It is the pre-commit gate (`ai/rules/git-safety.md`)
-- [ ] Feature code integrated in all three plugins, not test-only
+- [ ] The targeted tests for what changed pass, run in the main checkout by the main thread: the scoped package tests (`go test -race -tags ze_vpp` and untagged compile-out checks), architecture/boundary checks (`./le arch tier check`, `./le plugin boundary check`), and the component groups and functional suites `./le repo changed scope print both` reaches; GitHub CI verifies the pushed commit
+- [ ] Feature code integrated across `vpp`, `iface`, `fib-vpp`, and `static`, not test-only
 - [ ] Integration and Documentation checklists answered Yes/No/N-A with evidence
-- [ ] Architectural Verification table filled, including registration over hardcoding
-- [ ] Critical Review passes (all 6 checks in `ai/rules/quality.md`)
+- [ ] Architectural Verification table filled, including outbound and inbound registration checks
+- [ ] Critical Review passes (`ai/rules/quality.md`)
 - [ ] Every A-N confirmed or broken, none `unvalidated`
-- [ ] The owner has answered the Open Question, and the answer is recorded here
+- [ ] Owner decision (2026-11-24 Way 2) unfolded and proven by `TestRollbackVerdictMatchesFirewall`
 
 ### TDD
 - [ ] Tests written
 - [ ] Tests FAIL (paste output)
 - [ ] Tests PASS (paste output)
-- [ ] Boundary tests for all numeric inputs
+- [ ] Boundary tests for `ze.vpp.reply-timeout`
 - [ ] Functional `.ci` tests for end-to-end behavior
 - [ ] Interop tests for protocol features (N-A: vendor binary API, no second implementation)
 
 ### Closure
 - [ ] Append `plan/templates/TEMPLATE-CLOSURE.md` and complete every section in it
 - [ ] `/ze-review` gate clean, recorded via `internal/le/spec/session/review.go`
-- [ ] Learned summary written to `plan/learned/NNN-<name>.md`
-- [ ] **Commit A:** code + tests + docs + spec + learned summary
-- [ ] **Commit B:** `git rm plan/<spec>` only (commit A preserves the spec in history)
+- [ ] Any lesson routed to its governing surface under `ai/rules/planning.md`; no lesson artifact created merely for closure
+- [ ] **Commit A:** code + tests + docs + edited spec + any journal rows owed by the work
+- [ ] **Commit B:** `remove plan/release/fixes/spec-vpp-reply-deadline-iface-fib-static.md` only, in the same `./le commit create` script (commit A preserves the spec in history)
