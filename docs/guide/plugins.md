@@ -102,7 +102,9 @@ forwarding and recovery behavior.
 | `external > timeout` | `external` endpoint | Startup stall timeout for this endpoint (e.g., `10s`, `1m`) |
 | `external > on-exit` | `external` endpoint | Disposition of routes originated by this endpoint on exit: `withdraw` (default) or `keep` (ExaBGP compatibility) |
 | `encoding` | endpoint | Wire encoding of delivered events: `json` (default) or `text` |
+| `delivery-queue-max` | endpoint | Optional upper bound (`64..1048576`) on the bounded lossless FIFO delivery queue; defaults to `65536` for ordinary endpoints and `256` for cache-consumer forwarding plugins (`bgp-rs`, `bgp-rr`) |
 | `receive`, `send` | endpoint | Optional direction-grouped bus filters (`allow`, `from`/`to`, per-message `message <name>`) |
+<!-- source: internal/component/plugin/yang/ze-plugin-conf.yang -- delivery-queue-max -->
 
 An `external` endpoint needs a shell on the host, because the `run` string is
 given to `/bin/sh -c`. A gokrazy appliance image carries none, so an appliance

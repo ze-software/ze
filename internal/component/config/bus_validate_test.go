@@ -7,6 +7,7 @@ package config
 import (
 	"errors"
 	"net"
+	"path/filepath"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -421,4 +422,118 @@ func TestRetiredKeywordsBusHints(t *testing.T) {
 		assert.NotEmpty(t, hint, "keyword %q must have a retired hint", kw)
 		assert.Contains(t, hint, "bus", "hint for %q must point to bus syntax", kw)
 	}
+}
+
+// TestBusValidateDeliveryQueueMax verifies parsing, boundary validation, and
+// extraction of bus > endpoint > delivery-queue-max across ValidateBusConfig,
+// ExtractPluginsFromTree, LoadConfig, and FirstPass.
+//
+// VALIDATES: AC-5 -- delivery-queue-max accepts 64..1048576 (and unset -> 0)
+// into PluginConfig.DeliveryQueueMax and refuses values outside 64..1048576 or
+// non-numeric input with an operator error.
+// PREVENTS: Out-of-range queue ceilings slipping past validation or valid
+// endpoint queue ceilings failing to reach PluginConfig.DeliveryQueueMax.
+func TestBusValidateDeliveryQueueMax(t *testing.T) {
+	registerBusTestPlugins(t)
+
+	t.Run("unset_defaults_to_zero", func(t *testing.T) {
+		tree := makeBusTree(map[string]*Tree{
+			"em": internalEndpointTree("test-emitter"),
+		}, nil)
+		require.NoError(t, ValidateBusConfig(tree))
+		eps, err := ExtractPluginsFromTree(tree)
+		require.NoError(t, err)
+		require.Len(t, eps, 1)
+		assert.Equal(t, 0, eps[0].DeliveryQueueMax)
+	})
+
+	t.Run("valid_values_internal_and_external", func(t *testing.T) {
+		validCases := []struct {
+			raw  string
+			want int
+		}{
+			{"64", plugin.MinDeliveryQueueMax},
+			{"4096", 4096},
+			{"1048576", plugin.MaxDeliveryQueueMax},
+		}
+		for _, tc := range validCases {
+			t.Run("internal_"+tc.raw, func(t *testing.T) {
+				ep := internalEndpointTree("test-emitter")
+				ep.Set(busLeafDeliveryQueueMax, tc.raw)
+				tree := makeBusTree(map[string]*Tree{"em": ep}, nil)
+				require.NoError(t, ValidateBusConfig(tree))
+				eps, err := ExtractPluginsFromTree(tree)
+				require.NoError(t, err)
+				require.Len(t, eps, 1)
+				assert.Equal(t, tc.want, eps[0].DeliveryQueueMax)
+			})
+			t.Run("external_"+tc.raw, func(t *testing.T) {
+				ep := NewTree()
+				ext := NewTree()
+				ext.Set("run", "/bin/true")
+				ep.SetContainer("external", ext)
+				ep.Set(busLeafDeliveryQueueMax, tc.raw)
+				tree := makeBusTree(map[string]*Tree{"obs": ep}, nil)
+				require.NoError(t, ValidateBusConfig(tree))
+				eps, err := ExtractPluginsFromTree(tree)
+				require.NoError(t, err)
+				require.Len(t, eps, 1)
+				assert.Equal(t, tc.want, eps[0].DeliveryQueueMax)
+			})
+		}
+	})
+
+	t.Run("invalid_values_refused", func(t *testing.T) {
+		invalidVals := []string{"0", "63", "-1", "abc", "+64", "1048577"}
+		for _, raw := range invalidVals {
+			t.Run(raw, func(t *testing.T) {
+				ep := internalEndpointTree("test-emitter")
+				ep.Set(busLeafDeliveryQueueMax, raw)
+				tree := makeBusTree(map[string]*Tree{"obs": ep}, nil)
+				assertOperErrContains(t, ValidateBusConfig(tree), "bus > endpoint obs", "64..1048576")
+				_, err := ExtractPluginsFromTree(tree)
+				assertOperErrContains(t, err, "bus > endpoint obs", "64..1048576")
+			})
+		}
+	})
+
+	t.Run("yang_load_and_first_pass", func(t *testing.T) {
+		cfgPath := filepath.Join(t.TempDir(), "bus.conf")
+		validInputs := []struct {
+			name string
+			line string
+			want int
+		}{
+			{"unset", "", 0},
+			{"min", "\t\tdelivery-queue-max 64;\n", plugin.MinDeliveryQueueMax},
+			{"mid", "\t\tdelivery-queue-max 4096;\n", 4096},
+			{"max", "\t\tdelivery-queue-max 1048576;\n", plugin.MaxDeliveryQueueMax},
+		}
+		for _, tc := range validInputs {
+			t.Run("valid_"+tc.name, func(t *testing.T) {
+				input := "bus {\n\tendpoint obs {\n\t\texternal {\n\t\t\trun \"/bin/true\";\n\t\t}\n" + tc.line + "\t}\n}\n"
+				result, err := LoadConfig(input, cfgPath, nil)
+				require.NoError(t, err)
+				eps, err := ExtractPluginsFromTree(result.Tree)
+				require.NoError(t, err)
+				require.Len(t, eps, 1)
+				assert.Equal(t, tc.want, eps[0].DeliveryQueueMax)
+
+				fp, err := FirstPass(input, cfgPath, nil)
+				require.NoError(t, err)
+				require.Len(t, fp.External, 1)
+				assert.Equal(t, tc.want, fp.External[0].DeliveryQueueMax)
+			})
+		}
+
+		invalidInputs := []string{"0", "63", "1048577"}
+		for _, raw := range invalidInputs {
+			t.Run("invalid_"+raw, func(t *testing.T) {
+				input := "bus {\n\tendpoint obs {\n\t\texternal {\n\t\t\trun \"/bin/true\";\n\t\t}\n\t\tdelivery-queue-max " + raw + ";\n\t}\n}\n"
+				_, err := LoadConfig(input, cfgPath, nil)
+				require.Error(t, err)
+				assert.Contains(t, err.Error(), "64..1048576")
+			})
+		}
+	})
 }

@@ -599,21 +599,36 @@ const (
 	RespawnDeclined RespawnRequest = 2
 )
 
+const (
+	// DefaultDeliveryQueueMax is the default lossless FIFO delivery queue
+	// ceiling for non-cache-consumer endpoints when delivery-queue-max is unset.
+	DefaultDeliveryQueueMax = 65536
+	// DefaultCacheConsumerQueueMax is the default lossless FIFO delivery queue
+	// ceiling for CacheConsumer forwarding plugins (such as bgp-rs and bgp-rr)
+	// when delivery-queue-max is unset.
+	DefaultCacheConsumerQueueMax = 256
+	// MinDeliveryQueueMax is the minimum permitted value of delivery-queue-max.
+	MinDeliveryQueueMax = 64
+	// MaxDeliveryQueueMax is the maximum permitted value of delivery-queue-max.
+	MaxDeliveryQueueMax = 1048576
+)
+
 // PluginConfig holds endpoint process configuration. Bus send/receive filter
 // blocks live outside PluginConfig so live filter reloads never trip
 // external-process declaration change refusals.
 type PluginConfig struct {
-	Name            string         // Endpoint identifier.
-	CompiledPlugin  string         // Explicit compiled registration name; identifies the compiled plugin regardless of Name or SeparateProcess.
-	SeparateProcess bool           // Run a compiled-in plugin as a separate forked process over TLS connect-back.
-	Run             string         // Command to execute (empty for compiled-in plugins unless using legacy Internal+Run spelling).
-	Encoder         string         // "json" or "text".
-	Respawn         RespawnRequest // What the block's `respawn` leaf asked for.
-	OnExit          string         // "" or "withdraw" withdraws originated routes on exit; "keep" keeps them (ExaBGP compatibility).
-	WorkDir         string         // Working directory for plugin execution.
-	ReceiveUpdate   bool           // Forward received UPDATEs to plugin stdin.
-	StageTimeout    time.Duration  // Startup stall timeout: how long a stage may go with no plugin progress (0 = use default 5s).
-	Internal        bool           // In-daemon compiled flag.
+	Name             string         // Endpoint identifier.
+	CompiledPlugin   string         // Explicit compiled registration name; identifies the compiled plugin regardless of Name or SeparateProcess.
+	SeparateProcess  bool           // Run a compiled-in plugin as a separate forked process over TLS connect-back.
+	Run              string         // Command to execute (empty for compiled-in plugins unless using legacy Internal+Run spelling).
+	Encoder          string         // "json" or "text".
+	Respawn          RespawnRequest // What the block's `respawn` leaf asked for.
+	OnExit           string         // "" or "withdraw" withdraws originated routes on exit; "keep" keeps them (ExaBGP compatibility).
+	WorkDir          string         // Working directory for plugin execution.
+	ReceiveUpdate    bool           // Forward received UPDATEs to plugin stdin.
+	StageTimeout     time.Duration  // Startup stall timeout: how long a stage may go with no plugin progress (0 = use default 5s).
+	DeliveryQueueMax int            // Bounded lossless FIFO delivery queue ceiling (0 = role-appropriate default).
+	Internal         bool           // In-daemon compiled flag.
 }
 
 // CompiledIdentity returns the compiled registration identity this config

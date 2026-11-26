@@ -293,6 +293,18 @@ module ze-plugin-conf {
                 ze:help "Wire encoding format for events delivered to this endpoint (json or text).";
             }
 
+            leaf delivery-queue-max {
+                type uint32 {
+                    range "64..1048576";
+                }
+                description "Upper bound on the bounded lossless FIFO event delivery queue for this
+                    endpoint. When unset, ordinary endpoints default to 65536 events and cache-consumer
+                    forwarding plugins (such as bgp-rs and bgp-rr) default to 256 events. Events are
+                    never dropped; producers wait when the queue reaches this ceiling. Allowed range
+                    is 64..1048576.";
+                ze:help "Maximum queued events before lossless delivery backpressure (64..1048576).";
+            }
+
             uses participant-bus;
         }
 

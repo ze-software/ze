@@ -10,6 +10,7 @@ import (
 	"errors"
 	"maps"
 	"slices"
+	"strconv"
 	"strings"
 	"time"
 
@@ -22,22 +23,23 @@ import (
 )
 
 const (
-	busContainerName      = "bus"
-	busListEndpoint       = "endpoint"
-	busListParticipant    = "participant"
-	busLeafInternal       = "internal"
-	busLeafProcess        = "process"
-	busContainerExternal  = "external"
-	busLeafEncoding       = "encoding"
-	busLeafOnExit         = "on-exit"
-	busProcessInDaemon    = "in-daemon"
-	busProcessSeparate    = "separate"
-	busDirectionReceive   = "receive"
-	busDirectionSend      = "send"
-	busTargetKeyFrom      = "from"
-	busTargetKeyTo        = "to"
-	busLabelNone          = "none"
-	busEndpointPrefixHint = "/bus/endpoint"
+	busContainerName        = "bus"
+	busListEndpoint         = "endpoint"
+	busListParticipant      = "participant"
+	busLeafInternal         = "internal"
+	busLeafProcess          = "process"
+	busContainerExternal    = "external"
+	busLeafEncoding         = "encoding"
+	busLeafDeliveryQueueMax = "delivery-queue-max"
+	busLeafOnExit           = "on-exit"
+	busProcessInDaemon      = "in-daemon"
+	busProcessSeparate      = "separate"
+	busDirectionReceive     = "receive"
+	busDirectionSend        = "send"
+	busTargetKeyFrom        = "from"
+	busTargetKeyTo          = "to"
+	busLabelNone            = "none"
+	busEndpointPrefixHint   = "/bus/endpoint"
 )
 
 // participantNodeTemplate describes one registered participant schema node
@@ -312,6 +314,21 @@ func parseSingleEndpointConfig(name string, ep *Tree) (plugin.PluginConfig, stri
 		if v == plugin.EncodingText {
 			pc.ReceiveUpdate = true
 		}
+	}
+
+	if v, ok := ep.Get(busLeafDeliveryQueueMax); ok && v != "" {
+		qMax, err := parseDeliveryQueueMax(v)
+		if err != nil {
+			var problem, why, fix textbuf.Buffer
+			problem.Str("bus > endpoint ").Str(name).Str(": invalid ").Str(busLeafDeliveryQueueMax).Str(" value ").Quoted(v)
+			why.Str(busLeafDeliveryQueueMax).Str(" must be an integer in range ").
+				Int(plugin.MinDeliveryQueueMax).Str("..").Int(plugin.MaxDeliveryQueueMax)
+			fix.Str("set ").Str(busLeafDeliveryQueueMax).Str(" to an integer in ").
+				Int(plugin.MinDeliveryQueueMax).Str("..").Int(plugin.MaxDeliveryQueueMax).
+				Str(" in bus { endpoint ").Str(name).Str(" { ... } }")
+			return plugin.PluginConfig{}, "", opererr.New(problem.String(), why.String(), fix.String())
+		}
+		pc.DeliveryQueueMax = qMax
 	}
 
 	return pc, kind, nil
@@ -929,4 +946,19 @@ func parsePositiveDuration(raw string) (time.Duration, error) {
 		return 0, errors.New("timeout must be positive")
 	}
 	return d, nil
+}
+
+func parseDeliveryQueueMax(raw string) (int, error) {
+	n, err := strconv.ParseUint(raw, 10, 32)
+	if err != nil {
+		return 0, err
+	}
+	qMax := int(n)
+	if qMax < plugin.MinDeliveryQueueMax {
+		return 0, errors.New("delivery-queue-max is below minimum")
+	}
+	if qMax > plugin.MaxDeliveryQueueMax {
+		return 0, errors.New("delivery-queue-max exceeds maximum")
+	}
+	return qMax, nil
 }

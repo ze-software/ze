@@ -79,3 +79,44 @@ func TestRefuseChangedDeclarationsAllowsLiveBusFilterReload(t *testing.T) {
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "on-exit")
 }
+
+// TestReloadRefusesChangedDeliveryQueueMax verifies that changing an external
+// endpoint's delivery-queue-max across a reload is refused naming
+// "delivery-queue-max", while identical values pass.
+//
+// VALIDATES: AC-5 -- declarationChangeRefusal refuses delivery-queue-max
+// transitions (0 -> 4096, 4096 -> 8192, 4096 -> 0) naming "delivery-queue-max"
+// and allows unchanged values.
+// PREVENTS: Live reloads silently ignoring a changed delivery-queue-max leaf
+// without requesting a daemon restart.
+func TestReloadRefusesChangedDeliveryQueueMax(t *testing.T) {
+	makeDecl := func(queueMax int) []plugin.PluginConfig {
+		return []plugin.PluginConfig{{
+			Name:             "collector",
+			Run:              "/usr/local/bin/collector",
+			StageTimeout:     5 * time.Second,
+			DeliveryQueueMax: queueMax,
+		}}
+	}
+
+	assert.NoError(t, declarationChangeRefusal(makeDecl(0), makeDecl(0)))
+	assert.NoError(t, declarationChangeRefusal(makeDecl(4096), makeDecl(4096)))
+
+	cases := []struct {
+		name   string
+		before int
+		after  int
+	}{
+		{"unset_to_explicit", 0, 4096},
+		{"explicit_to_explicit", 4096, 8192},
+		{"explicit_to_unset", 4096, 0},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			err := declarationChangeRefusal(makeDecl(tc.before), makeDecl(tc.after))
+			require.Error(t, err)
+			assert.Contains(t, err.Error(), "delivery-queue-max")
+			assert.Contains(t, err.Error(), "collector")
+		})
+	}
+}

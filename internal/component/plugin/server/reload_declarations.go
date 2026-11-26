@@ -129,9 +129,9 @@ func declarationNamed(declarations []plugin.PluginConfig, name string) (plugin.P
 }
 
 // externalDeclarationsEqual compares only the external process declaration
-// fields (run, encoding, respawn, timeout, on-exit). Bus send/receive filters
-// live outside these fields so filter reloads proceed live without restarting
-// ze.
+// fields (run, encoding, respawn, timeout, on-exit, delivery-queue-max). Bus
+// send/receive filters live outside these fields so filter reloads proceed live
+// without restarting ze.
 func externalDeclarationsEqual(before, after plugin.PluginConfig) bool {
 	if before.Run != after.Run {
 		return false
@@ -145,7 +145,10 @@ func externalDeclarationsEqual(before, after plugin.PluginConfig) bool {
 	if before.StageTimeout != after.StageTimeout {
 		return false
 	}
-	return canonicalOnExit(before.OnExit) == canonicalOnExit(after.OnExit)
+	if canonicalOnExit(before.OnExit) != canonicalOnExit(after.OnExit) {
+		return false
+	}
+	return before.DeliveryQueueMax == after.DeliveryQueueMax
 }
 
 func canonicalEncoding(enc string) string {
@@ -162,9 +165,9 @@ func canonicalOnExit(onExit string) string {
 	return onExit
 }
 
-// changedLeaves names the leaves of the `external` block in which after
-// differs from before. A difference in a field no leaf below names is still a
-// changed declaration, and is said as such: the list is never empty for two
+// changedLeaves names the endpoint declaration leaves in which after differs
+// from before. A difference in a field no leaf below names is still a changed
+// declaration, and is said as such: the list is never empty for two
 // declarations that differ.
 func changedLeaves(before, after plugin.PluginConfig) []string {
 	var leaves []string
@@ -182,6 +185,9 @@ func changedLeaves(before, after plugin.PluginConfig) []string {
 	}
 	if canonicalOnExit(before.OnExit) != canonicalOnExit(after.OnExit) {
 		leaves = append(leaves, "on-exit")
+	}
+	if before.DeliveryQueueMax != after.DeliveryQueueMax {
+		leaves = append(leaves, "delivery-queue-max")
 	}
 	if len(leaves) == 0 {
 		leaves = append(leaves, "another part of its declaration")

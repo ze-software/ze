@@ -1,0 +1,100 @@
+# Test: bus endpoint delivery-queue-max range validation (AC-5) accepts 64..1048576 and refuses out-of-range values.
+# QUESTION: does `ze config validate` accept valid `bus > endpoint > delivery-queue-max`
+# values (`64`, `65536`, `1048576`) and refuse out-of-range values (`63`, `1048577`, `0`)
+# naming `delivery-queue-max` and the `64..1048576` range? A unit test cannot decide this
+# because it proves the real `ze config validate` CLI entry point, embedded YANG schema
+# range enforcement, and exit-code / stdout rendering end-to-end.
+#
+# VALIDATES: spec-bus-observer-delivery-decoupling AC-5 (`delivery-queue-max` range 64..1048576).
+# PREVENTS: `delivery-queue-max` leaf missing from embedded YANG schema or out-of-range
+# values passing `ze config validate`.
+
+option=env:var=ZE_CONFIG_DIR:value=.
+option=env:var=XDG_DATA_HOME:value=.
+
+# --- Case 1: minimum valid value (64) ---
+stdin=valid-min:terminator=EOF_VALID_MIN
+bus {
+	endpoint bgp-rib {
+		internal bgp-rib;
+		delivery-queue-max 64;
+	}
+}
+EOF_VALID_MIN
+
+cmd=foreground:seq=1:exec=ze config validate -:stdin=valid-min
+expect=exit:code=0
+expect=stdout:contains=configuration valid
+
+# --- Case 2: default-sized valid value (65536) ---
+stdin=valid-default:terminator=EOF_VALID_DEFAULT
+bus {
+	endpoint bgp-rib {
+		internal bgp-rib;
+		delivery-queue-max 65536;
+	}
+}
+EOF_VALID_DEFAULT
+
+cmd=foreground:seq=2:exec=ze config validate -:stdin=valid-default
+expect=exit:code=0
+expect=stdout:contains=configuration valid
+
+# --- Case 3: maximum valid value (1048576) ---
+stdin=valid-max:terminator=EOF_VALID_MAX
+bus {
+	endpoint bgp-rib {
+		internal bgp-rib;
+		delivery-queue-max 1048576;
+	}
+}
+EOF_VALID_MAX
+
+cmd=foreground:seq=3:exec=ze config validate -:stdin=valid-max
+expect=exit:code=0
+expect=stdout:contains=configuration valid
+
+# --- Case 4: invalid below minimum (63) ---
+stdin=invalid-below:terminator=EOF_INVALID_BELOW
+bus {
+	endpoint bgp-rib {
+		internal bgp-rib;
+		delivery-queue-max 63;
+	}
+}
+EOF_INVALID_BELOW
+
+cmd=foreground:seq=4:exec=ze config validate -:stdin=invalid-below
+expect=exit:code=1
+expect=stdout:contains=delivery-queue-max
+expect=stdout:contains=64..1048576
+
+# --- Case 5: invalid above maximum (1048577) ---
+stdin=invalid-above:terminator=EOF_INVALID_ABOVE
+bus {
+	endpoint bgp-rib {
+		internal bgp-rib;
+		delivery-queue-max 1048577;
+	}
+}
+EOF_INVALID_ABOVE
+
+cmd=foreground:seq=5:exec=ze config validate -:stdin=invalid-above
+expect=exit:code=1
+expect=stdout:contains=delivery-queue-max
+expect=stdout:contains=64..1048576
+
+# --- Case 6: invalid zero (0) ---
+stdin=invalid-zero:terminator=EOF_INVALID_ZERO
+bus {
+	endpoint bgp-rib {
+		internal bgp-rib;
+		delivery-queue-max 0;
+	}
+}
+EOF_INVALID_ZERO
+
+cmd=foreground:seq=6:exec=ze config validate -:stdin=invalid-zero
+expect=exit:code=1
+expect=stdout:contains=delivery-queue-max
+expect=stdout:contains=64..1048576
