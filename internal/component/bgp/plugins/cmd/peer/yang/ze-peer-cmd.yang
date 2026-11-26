@@ -7,6 +7,7 @@ module ze-peer-cmd {
     // and delete bgp peer command surface. Its show, create and delete subtrees
     // container-merge onto the show, create and delete verb roots.
     description "BGP peer operations: create, show, delete, and control peer sessions.";
+    revision 2026-11-26 { description "Added hidden show fleet source bgp-peer read-only sample producer."; }
     revision 2026-11-20 { description "show bgp peer rib declares no scope leaf: the direction of the routes is a pipe operation the RIB command declares, typed after a pipe, and the argument form is refused with the pipe form as its fix."; }
     revision 2026-10-23 { description "The request peer selector states which commands act on every peer it matches and which refuse all but one, delete bgp peer refuses a selector that is not one peer, disable states the communication Ze sends when no message is given, and teardown names RFC 9003."; }
     revision 2026-10-21 { description "clear bgp rib advertised withdraws the Adj-RIB-Out of the selected peers; show bgp health points at bgp-health in ze-bgp-api, its owner. request peer disable and enable hold a peer administratively down and release it. request peer notify closes a session with a NOTIFICATION of any code and subcode, its Data field given as text or, after the keyword hex, as octets."; }
@@ -188,6 +189,25 @@ up and advertised nothing: it separates a hold that is working from a daemon tha
 many are not Established. Much faster than 'show bgp peer *' when
 you just need a status overview.";
                 ze:help "Quick health check for all your BGP peers.";
+            }
+        }
+
+        container fleet {
+            config false;
+
+            container source {
+                config false;
+                ze:hidden true;
+                description "Hidden device-local read-only sample producers queried by the managed fleet sampler.";
+                ze:help "Device-local fleet metric sample sources.";
+
+                container bgp-peer {
+                    config false;
+                    ze:hidden true;
+                    ze:command "ze-bgp:fleet-source-bgp-peer";
+                    description "Returns the current established and configured BGP peer counts for the fleet sample collector when the BGP reactor is running.";
+                    ze:help "Read BGP peer counts for fleet sampling.";
+                }
             }
         }
     }

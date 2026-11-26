@@ -4,6 +4,7 @@
 // Related: heartbeat.go — liveness detection
 // Related: baseline.go — BaselineAccess and Diverged, which decide a hold
 // Related: report.go — per-session fleet inventory and health reporter
+// Related: sample.go — per-session fleet metric sample sender
 
 package managed
 
@@ -116,6 +117,10 @@ type ClientConfig struct {
 	OnSessionFailure func(failure HubSessionFailure)
 	OnHold           func(holding bool)
 	OnHubAnswer      func(answer HubAnswer)
+	// SampleCollector collects device-local metric readings for periodic
+	// VerbSampleReport pushes when the hub advertises a positive sample
+	// interval. Nil leaves sampling idle.
+	SampleCollector SampleCollectorFunc
 
 	// held is what this run of the client remembers of the copies it sent
 	// its hub (heldUploads). It is state, not configuration: a caller leaves
@@ -134,6 +139,14 @@ type ClientConfig struct {
 	// non-nil. Tests set it to supply deterministic short-interval producers
 	// without mutating the process-wide producer registry.
 	reportProducersFn func() []fleet.ReportProducer
+	// sampleIntervalUnit scales SampleIntervalSeconds into a time.Duration.
+	// Zero means time.Second; tests shorten it so interval tests run quickly.
+	sampleIntervalUnit time.Duration
+	// sampleTimeout bounds one sample collection and RPC round-trip when
+	// positive; zero derives the bound from the negotiated interval.
+	sampleTimeout time.Duration
+	// sampleNow overrides time.Now for sample collection timestamps when non-nil.
+	sampleNow func() time.Time
 }
 
 // heldUploadTimeout bounds one config-held round-trip, the write of the copy
@@ -516,7 +529,8 @@ func runConnection(ctx context.Context, cfg *ClientConfig, backoff *Backoff) err
 	// (errActiveChangedTwice) is logged here, once, and ends the connection:
 	// the reconnect's fetch decides again over what the device then runs, so
 	// a device that still differs holds, uploads its copy and acks holding.
-	if err := fetchAndProcess(ctx, mc, cfg); err != nil {
+	outcome, err := fetchAndProcessOutcome(ctx, mc, cfg)
+	if err != nil {
 		if errors.Is(err, errActiveChangedTwice) {
 			logLocalCommitTwice(cfg, err)
 		}
@@ -528,6 +542,15 @@ func runConnection(ctx context.Context, cfg *ClientConfig, backoff *Backoff) err
 	// joined before the connection ends or the next session starts.
 	stopReporter := startSessionReporter(ctx, mc, cfg)
 	defer stopReporter()
+
+	// Create the per-session metric sampler and activate it only when the hub
+	// advertised a positive sample interval. The defer runs before mc.Close so
+	// the sampler worker is canceled and joined before the connection ends.
+	sampler := newSessionSampler(ctx, mc, cfg)
+	defer sampler.Stop()
+	if outcome.hasHubReply {
+		sampler.UpdateInterval(outcome.sampleIntervalSeconds)
+	}
 
 	// Start heartbeat.
 	hbDone := make(chan struct{})
@@ -559,7 +582,7 @@ func runConnection(ctx context.Context, cfg *ClientConfig, backoff *Backoff) err
 	}()
 
 	// Notification loop: handle hub-initiated RPCs.
-	return notificationLoop(ctx, mc, cfg, hbDone)
+	return notificationLoopWithSampler(ctx, mc, cfg, hbDone, sampler)
 }
 
 // fetchStatusCurrent is the status of a config-fetch answer that says the hub
@@ -571,6 +594,15 @@ const fetchStatusCurrent = "current"
 // hub stores the text as that client's last refusal and parses nothing in it.
 const holdRefusalPrefix = "holding: the configuration this device runs differs from the last one this hub sent"
 
+// fetchOutcome carries hub-advertised session settings returned by a
+// successful config-fetch reply. hasHubReply distinguishes an explicit zero
+// (or omitted) interval from a fetch that never reached the hub (such as a
+// local baseline read failure).
+type fetchOutcome struct {
+	sampleIntervalSeconds int
+	hasHubReply           bool
+}
+
 // fetchAndProcess fetches config from hub, validates, commits, and ACKs the result.
 // Each fetch it makes, the one made again over a local commit included, is
 // bounded by cfg's fetchBound (configFetchTimeout). It returns errEndpointChanged or errHubClientRemoved when the config it
@@ -580,6 +612,13 @@ const holdRefusalPrefix = "holding: the configuration this device runs differs f
 // nil: the connection is kept. cfg.Baseline MUST NOT be nil, which
 // RunManagedClient guarantees.
 func fetchAndProcess(ctx context.Context, mc *rpc.MuxConn, cfg *ClientConfig) error {
+	_, err := fetchAndProcessOutcome(ctx, mc, cfg)
+	return err
+}
+
+// fetchAndProcessOutcome is fetchAndProcess returning the hub's advertised
+// sample interval alongside the fetch result.
+func fetchAndProcessOutcome(ctx context.Context, mc *rpc.MuxConn, cfg *ClientConfig) (fetchOutcome, error) {
 	return fetchAgainstBaseline(ctx, mc, cfg, cfg.Baseline, refetchOnce)
 }
 
@@ -595,16 +634,21 @@ func fetchAndProcess(ctx context.Context, mc *rpc.MuxConn, cfg *ClientConfig) er
 // configuration of this device, and the device holds. refetch says whether a
 // push or a revert that meets a local commit landed during this fetch may
 // fetch once more over that newer edit (refetchOverLocalCommit).
-func fetchAgainstBaseline(ctx context.Context, mc *rpc.MuxConn, cfg *ClientConfig, access *BaselineAccess, refetch revertRefetch) error {
+func fetchAgainstBaseline(ctx context.Context, mc *rpc.MuxConn, cfg *ClientConfig, access *BaselineAccess, refetch revertRefetch) (fetchOutcome, error) {
 	active, baseline, err := access.read()
+	// refuse-by-default: guards fetchAndProcessOutcome -- refuseUncompared logged and acked the store read error; keep the session open with hasHubReply false.
 	if err != nil {
 		refuseUncompared(ctx, mc, cfg, err)
 		cfg.reportHold(true)
-		return nil
+		return fetchOutcome{}, nil
 	}
 	resp, err := fetchConfigWithin(ctx, mc, active.Hash(), cfg.fetchBound())
 	if err != nil {
-		return fmt.Errorf("fetch: %w", err)
+		return fetchOutcome{}, fmt.Errorf("fetch: %w", err)
+	}
+	outcome := fetchOutcome{
+		sampleIntervalSeconds: resp.SampleIntervalSeconds,
+		hasHubReply:           true,
 	}
 	cfg.reportHubAnswer(hubAnswerOf(resp, active))
 	if resp.Status == fetchStatusCurrent {
@@ -616,11 +660,11 @@ func fetchAgainstBaseline(ctx context.Context, mc *rpc.MuxConn, cfg *ClientConfi
 			sendAck(ctx, mc, fleet.ConfigAck{Version: active.Hash(), OK: true})
 		}
 		cfg.reportHold(false)
-		return nil
+		return outcome, nil
 	}
 	if resp.Config == "" {
 		logger().Debug("the hub sent no config", "version", active.Hash())
-		return nil
+		return outcome, nil
 	}
 	// Diverged holds only when both hashes are recorded, so an answer with no
 	// discard-version never matches the active hash here.
@@ -647,7 +691,7 @@ func fetchAgainstBaseline(ctx context.Context, mc *rpc.MuxConn, cfg *ClientConfi
 // the new baseline, and a confirmed-commit window open on the device refuses
 // it. The hold is reported from the store read again after the apply: a
 // refused apply leaves the device holding.
-func applyReverted(ctx context.Context, mc *rpc.MuxConn, cfg *ClientConfig, access *BaselineAccess, resp fleet.ConfigFetchResponse, active ConfigVersion, refetch revertRefetch) error {
+func applyReverted(ctx context.Context, mc *rpc.MuxConn, cfg *ClientConfig, access *BaselineAccess, resp fleet.ConfigFetchResponse, active ConfigVersion, refetch revertRefetch) (fetchOutcome, error) {
 	logger().Info("this device held, and its hub's operator decided that it drops the configuration it runs and takes the hub's",
 		"name", cfg.Name, "discarded", active.Hash(), "offered", resp.Version)
 	applyErr := applyFetched(ctx, mc, cfg, resp, active)
@@ -656,7 +700,10 @@ func applyReverted(ctx context.Context, mc *rpc.MuxConn, cfg *ClientConfig, acce
 	}
 	after, baseline, readErr := access.read()
 	cfg.reportHold(readErr != nil || Diverged(after, baseline))
-	return applyErr
+	return fetchOutcome{
+		sampleIntervalSeconds: resp.SampleIntervalSeconds,
+		hasHubReply:           true,
+	}, applyErr
 }
 
 // revertRefetch says whether a push or a revert refused because a local
@@ -685,14 +732,14 @@ var errActiveChangedTwice = errors.New("the configuration this device runs chang
 // its copy and its ack, or an apply) answers a fetch of that version. decided
 // is the version the refused commit was decided over. On the fetch made again
 // (refetchNone) it fetches no more and answers errActiveChangedTwice.
-func refetchOverLocalCommit(ctx context.Context, mc *rpc.MuxConn, cfg *ClientConfig, access *BaselineAccess, decided ConfigVersion, refetch revertRefetch) error {
+func refetchOverLocalCommit(ctx context.Context, mc *rpc.MuxConn, cfg *ClientConfig, access *BaselineAccess, decided ConfigVersion, refetch revertRefetch) (fetchOutcome, error) {
 	if refetch == refetchNone {
 		// The hold is reported from the store read again, as applyReverted
 		// reports it: a later local commit may have put the device back on
 		// its baseline, and a device there does not hold.
 		after, baseline, readErr := access.read()
 		cfg.reportHold(readErr != nil || Diverged(after, baseline))
-		return fmt.Errorf("%w (the first fetch was decided over %s)", errActiveChangedTwice, decided.Hash())
+		return fetchOutcome{}, fmt.Errorf("%w (the first fetch was decided over %s)", errActiveChangedTwice, decided.Hash())
 	}
 	logger().Info("this device's configuration changed while its hub's configuration was fetched, so it keeps the newer local edit, "+
 		"applies nothing from that fetch, and fetches again over that edit",
@@ -740,18 +787,22 @@ func activeCheck(decided ConfigVersion) func(active []byte) error {
 // again over that edit (refetchOverLocalCommit, bounded by refetch). The hold
 // is reported after the outcome, so a push that turns into a hold never
 // reports "not holding" first.
-func holdOrApply(ctx context.Context, mc *rpc.MuxConn, cfg *ClientConfig, access *BaselineAccess, resp fleet.ConfigFetchResponse, active, baseline ConfigVersion, refetch revertRefetch) error {
+func holdOrApply(ctx context.Context, mc *rpc.MuxConn, cfg *ClientConfig, access *BaselineAccess, resp fleet.ConfigFetchResponse, active, baseline ConfigVersion, refetch revertRefetch) (fetchOutcome, error) {
+	outcome := fetchOutcome{
+		sampleIntervalSeconds: resp.SampleIntervalSeconds,
+		hasHubReply:           true,
+	}
 	if Diverged(active, baseline) {
 		holdFetched(ctx, mc, cfg, access, resp, active, baseline)
 		cfg.reportHold(true)
-		return nil
+		return outcome, nil
 	}
 	applyErr := applyFetched(ctx, mc, cfg, resp, active)
 	if errors.Is(applyErr, errActiveChanged) {
 		return refetchOverLocalCommit(ctx, mc, cfg, access, active, refetch)
 	}
 	cfg.reportHold(false)
-	return applyErr
+	return outcome, applyErr
 }
 
 // settleBaseline records active as the baseline after the hub answered
@@ -949,13 +1000,17 @@ func applyFetched(ctx context.Context, mc *rpc.MuxConn, cfg *ClientConfig, resp 
 
 // notificationLoop reads hub-initiated RPCs until disconnect or shutdown.
 func notificationLoop(ctx context.Context, mc *rpc.MuxConn, cfg *ClientConfig, hbDone <-chan struct{}) error {
+	return notificationLoopWithSampler(ctx, mc, cfg, hbDone, nil)
+}
+
+func notificationLoopWithSampler(ctx context.Context, mc *rpc.MuxConn, cfg *ClientConfig, hbDone <-chan struct{}, sampler *sessionSampler) error {
 	for {
 		select {
 		case req, ok := <-mc.Requests():
 			if !ok {
 				return errConnectionClosed
 			}
-			if err := handleHubRequest(ctx, mc, req, cfg); err != nil {
+			if err := handleHubRequestWithSampler(ctx, mc, req, cfg, sampler); err != nil {
 				return err
 			}
 
@@ -971,12 +1026,12 @@ func notificationLoop(ctx context.Context, mc *rpc.MuxConn, cfg *ClientConfig, h
 	}
 }
 
-// handleHubRequest dispatches an inbound request from the hub. A non-nil
-// error means the connection MUST end (handleConfigChangedRequest).
-func handleHubRequest(ctx context.Context, mc *rpc.MuxConn, req *rpc.Request, cfg *ClientConfig) error {
+// handleHubRequestWithSampler dispatches an inbound request from the hub. A
+// non-nil error means the connection MUST end (handleConfigChangedRequest).
+func handleHubRequestWithSampler(ctx context.Context, mc *rpc.MuxConn, req *rpc.Request, cfg *ClientConfig, sampler *sessionSampler) error {
 	switch req.Method {
 	case fleet.VerbConfigChanged:
-		return handleConfigChangedRequest(ctx, mc, req, cfg)
+		return handleConfigChangedRequestWithSampler(ctx, mc, req, cfg, sampler)
 
 	case fleet.VerbPing:
 		_ = mc.SendOK(ctx, req.ID)
@@ -995,6 +1050,10 @@ func handleHubRequest(ctx context.Context, mc *rpc.MuxConn, req *rpc.Request, cf
 // both of its fetches (errActiveChangedTwice) is logged at Info, under no hub
 // code, because the hub answered both, and is returned like the two above.
 func handleConfigChangedRequest(ctx context.Context, mc *rpc.MuxConn, req *rpc.Request, cfg *ClientConfig) error {
+	return handleConfigChangedRequestWithSampler(ctx, mc, req, cfg, nil)
+}
+
+func handleConfigChangedRequestWithSampler(ctx context.Context, mc *rpc.MuxConn, req *rpc.Request, cfg *ClientConfig, sampler *sessionSampler) error {
 	var n fleet.ConfigChanged
 	if err := json.Unmarshal(req.Params, &n); err != nil {
 		logger().Warn("bad config-changed payload", "error", err)
@@ -1004,7 +1063,7 @@ func handleConfigChangedRequest(ctx context.Context, mc *rpc.MuxConn, req *rpc.R
 	_ = mc.SendOK(ctx, req.ID)
 
 	// Fetch the new config.
-	err := fetchAndProcess(ctx, mc, cfg)
+	outcome, err := fetchAndProcessOutcome(ctx, mc, cfg)
 	if errors.Is(err, errEndpointChanged) {
 		return err
 	}
@@ -1022,6 +1081,10 @@ func handleConfigChangedRequest(ctx context.Context, mc *rpc.MuxConn, req *rpc.R
 			"so it keeps the configuration it runs and fetches again at the hub's next change or the next connection; "+
 			"check that the hub is reachable and answers with: ze doctor",
 			"code", codeHubUnreachable, "name", cfg.Name, "server", cfg.Server, "error", err, "fix", "ze doctor")
+		return nil
+	}
+	if outcome.hasHubReply && sampler != nil {
+		sampler.UpdateInterval(outcome.sampleIntervalSeconds)
 	}
 	return nil
 }

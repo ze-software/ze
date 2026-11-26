@@ -8,6 +8,10 @@ module ze-pppoe-cmd {
     description
         "PPPoE access concentrator sessions and statistics.";
 
+    revision 2026-11-26 {
+        description "Add hidden show fleet source pppoe read-only sample producer.";
+    }
+
     revision 2026-05-08 {
         description "Initial revision (spec-bng-5-pppoe).";
     }
@@ -70,6 +74,35 @@ completing.";
                 description "Lists each PPPoE-enabled interface with its service
 name, session limit, and how many sessions are active now.";
                 ze:help "Show which interfaces are accepting PPPoE sessions.";
+            }
+        }
+    }
+
+    // -----------------------------------------------------------------
+    // Hidden fleet sample source: `show fleet source pppoe`.
+    // Declared under top-level `container show` rather than augmenting
+    // `/clishowcmd:show` so multiple source owners merge cleanly in
+    // BuildCommandTree without colliding on `clishowcmd:show/fleet`.
+    // -----------------------------------------------------------------
+    container show {
+        config false;
+
+        container fleet {
+            config false;
+
+            container source {
+                config false;
+                ze:hidden true;
+                description "Hidden device-local read-only sample producers queried by the managed fleet sampler.";
+                ze:help "Device-local fleet metric sample sources.";
+
+                container pppoe {
+                    config false;
+                    ze:hidden true;
+                    ze:command "ze-l2tp:fleet-source-pppoe";
+                    description "Returns the current active PPPoE access-concentrator subscriber session count for the fleet sample collector when the PPPoE subsystem is running.";
+                    ze:help "Read PPPoE subscriber sessions for fleet sampling.";
+                }
             }
         }
     }

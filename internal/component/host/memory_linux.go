@@ -15,18 +15,23 @@ import (
 	"strings"
 )
 
+const (
+	meminfoKeyTotal     = "MemTotal"
+	meminfoKeyAvailable = "MemAvailable"
+)
+
 // meminfoFields maps /proc/meminfo keys (trailing colon stripped) to
 // the MemoryInfo setter. Values are reported in kB by the kernel and
 // converted to bytes here.
 var meminfoFields = map[string]func(*MemoryInfo, uint64){
-	"MemTotal":     func(m *MemoryInfo, v uint64) { m.TotalBytes = v },
-	"MemFree":      func(m *MemoryInfo, v uint64) { m.FreeBytes = v },
-	"MemAvailable": func(m *MemoryInfo, v uint64) { m.AvailableBytes = v },
-	"Buffers":      func(m *MemoryInfo, v uint64) { m.BuffersBytes = v },
-	"Cached":       func(m *MemoryInfo, v uint64) { m.CachedBytes = v },
-	"SwapTotal":    func(m *MemoryInfo, v uint64) { m.SwapTotalBytes = v },
-	"SwapFree":     func(m *MemoryInfo, v uint64) { m.SwapFreeBytes = v },
-	"Hugepagesize": func(m *MemoryInfo, v uint64) { m.HugepageSizeBytes = v },
+	meminfoKeyTotal:     func(m *MemoryInfo, v uint64) { m.TotalBytes = v },
+	"MemFree":           func(m *MemoryInfo, v uint64) { m.FreeBytes = v },
+	meminfoKeyAvailable: func(m *MemoryInfo, v uint64) { m.AvailableBytes = v },
+	"Buffers":           func(m *MemoryInfo, v uint64) { m.BuffersBytes = v },
+	"Cached":            func(m *MemoryInfo, v uint64) { m.CachedBytes = v },
+	"SwapTotal":         func(m *MemoryInfo, v uint64) { m.SwapTotalBytes = v },
+	"SwapFree":          func(m *MemoryInfo, v uint64) { m.SwapFreeBytes = v },
+	"Hugepagesize":      func(m *MemoryInfo, v uint64) { m.HugepageSizeBytes = v },
 }
 
 // meminfoCounts maps the /proc/meminfo keys whose value is a PAGE COUNT, not a
@@ -75,9 +80,9 @@ func (d *Detector) readMeminfo() (*MemoryInfo, error) {
 // answer of `show host memory` keeps its shape: SUnreclaim is not one of its
 // keys.
 var kernelMemoryFields = map[string]func(*KernelMemory, uint64){
-	"MemTotal":     func(m *KernelMemory, v uint64) { m.TotalBytes = v },
-	"MemAvailable": func(m *KernelMemory, v uint64) { m.AvailableBytes = v },
-	"SUnreclaim":   func(m *KernelMemory, v uint64) { m.UnreclaimableBytes = v },
+	meminfoKeyTotal:     func(m *KernelMemory, v uint64) { m.TotalBytes = v },
+	meminfoKeyAvailable: func(m *KernelMemory, v uint64) { m.AvailableBytes = v },
+	"SUnreclaim":        func(m *KernelMemory, v uint64) { m.UnreclaimableBytes = v },
 }
 
 // errMeminfoLineMissing names a /proc/meminfo line DetectKernelMemory needs

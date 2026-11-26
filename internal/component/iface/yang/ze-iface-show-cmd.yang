@@ -3,6 +3,7 @@ module ze-iface-show-cmd {
     prefix ifaceshowcmd;
     import ze-extensions { prefix ze; }
     description "show route / show neighbor / show arp command tree. Owned by the iface component because these handlers read the kernel neighbor and routing tables through the iface backend. Commands are object-rooted (no shared 'ip' container); see ai/rules/plugin-self-containment.md and docs/architecture/cli/command-namespacing.md.";
+    revision 2026-11-26 { description "Added hidden read-only show fleet source iface command for fleet metric history sampling."; }
     revision 2026-08-29 { description "Declare the value the description spelled in prose, so the model states the grammar and the generated usage line reads it."; }
     revision 2026-06-26 { description "Object-rooted the kernel-table reads: show ip route -> show route, show ip arp -> show neighbor (with show arp as an IPv4 alias); dropped the show ip container and the show neighbors / show kernel-routes aliases."; }
     revision 2026-06-03 { description "Relocated show ip / neighbors / kernel-routes out of the central show schema (plugin self-containment)."; }
@@ -75,6 +76,24 @@ when it is absent is both families.";
 IPv4-only. Use 'show neighbor' for both families or 'show neighbor ipv6' for
 the IPv6 ND table.";
             ze:help "Show the IPv4 ARP table (shortcut for 'show neighbor ipv4').";
+        }
+
+        container fleet {
+            config false;
+
+            container source {
+                config false;
+                ze:hidden true;
+                ze:help "Device-local fleet metric sample sources.";
+
+                container iface {
+                    config false;
+                    ze:hidden true;
+                    ze:command "ze-iface:show-fleet-source-iface";
+                    description "Returns bounded physical interface counts and aggregate traffic rates for fleet metric reporting.";
+                    ze:help "Return local physical interface metric readings for fleet sampling.";
+                }
+            }
         }
     }
 }

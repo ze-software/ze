@@ -18,5 +18,10 @@ func init() {
 			WireMethod: "ze-iface:monitor-interface-rate",
 			Handler:    handleMonitorInterfaceRate,
 		},
+		pluginserver.RPCRegistration{
+			WireMethod:    "ze-iface:show-fleet-source-iface",
+			Handler:       handleShowFleetSourceIface,
+			PluginCommand: iface.FleetSourceCommand,
+		},
 	)
 }

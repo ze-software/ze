@@ -23,6 +23,7 @@ import (
 	"github.com/ze-software/ze/internal/component/plugin"
 	pluginserver "github.com/ze-software/ze/internal/component/plugin/server"
 	"github.com/ze-software/ze/internal/core/textbuf"
+	"github.com/ze-software/ze/pkg/fleet"
 )
 
 // errNoDispatcher refuses a rate call made with no command dispatcher, the
@@ -126,6 +127,55 @@ func rateRefusal(err error) *plugin.Response {
 // console get the rates rather than an echo of the request.
 func handleMonitorInterfaceRate(ctx *pluginserver.CommandContext, validated command.ValidatedArgs) (*plugin.Response, error) {
 	return rateResponse(ctx, validated.Tokens())
+}
+
+// forwardFleetSource reaches the iface plugin's FleetSourceCommand through the
+// dispatcher. It is a variable only so unit tests can stand in for the plugin
+// process; production never reassigns it.
+var forwardFleetSource = forwardToIfacePlugin(iface.FleetSourceCommand)
+
+// fleetSourceOf asks the iface plugin for its fleet sample snapshot through
+// the dispatcher, decodes it, and validates it against the fleet schema.
+func fleetSourceOf(ctx *pluginserver.CommandContext) (fleet.SourceSnapshot, error) {
+	resp, err := forwardFleetSource(ctx)
+	if errors.Is(err, pluginserver.ErrUnknownCommand) {
+		var tb textbuf.Buffer
+		return fleet.SourceSnapshot{}, errors.New(tb.Str("interface fleet source unavailable: ").Err(iface.ErrRatePluginAbsent).String())
+	}
+	if err != nil {
+		var tb textbuf.Buffer
+		return fleet.SourceSnapshot{}, errors.New(tb.Str("interface fleet source unavailable: ").Err(err).String())
+	}
+	if resp.Status == plugin.StatusError {
+		return fleet.SourceSnapshot{}, errors.New(resp.Error)
+	}
+	raw, ok := resp.Data.(plugin.RawJSON)
+	if !ok {
+		return fleet.SourceSnapshot{}, errors.New("interface fleet source unavailable: the interface plugin answered no document")
+	}
+	var snap fleet.SourceSnapshot
+	if err := json.Unmarshal([]byte(raw), &snap); err != nil {
+		return fleet.SourceSnapshot{}, fmt.Errorf("interface fleet source unavailable: the interface plugin's answer does not decode: %w", err)
+	}
+	if err := fleet.ValidateSourceSnapshot(fleet.SampleOwnerIface, &snap); err != nil {
+		return fleet.SourceSnapshot{}, fmt.Errorf("interface fleet source unavailable: %w", err)
+	}
+	return snap, nil
+}
+
+// handleShowFleetSourceIface serves `show fleet source iface` by forwarding to
+// the live iface plugin process so built-in and forked modes read the owning
+// plugin's physical-interface baseline and counters.
+func handleShowFleetSourceIface(ctx *pluginserver.CommandContext, _ command.ValidatedArgs) (*plugin.Response, error) {
+	snap, err := fleetSourceOf(ctx)
+	if err != nil {
+		return rateRefusal(err), nil
+	}
+	encoded, err := json.Marshal(snap)
+	if err != nil {
+		return nil, err
+	}
+	return &plugin.Response{Status: plugin.StatusDone, Data: plugin.RawJSON(encoded)}, nil
 }
 
 // streamInterfaceRate prints one sample a second, each asked of the iface

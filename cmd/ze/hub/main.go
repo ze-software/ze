@@ -56,6 +56,7 @@ import (
 	"github.com/ze-software/ze/internal/core/slogutil"
 	"github.com/ze-software/ze/internal/core/statestore"
 	"github.com/ze-software/ze/internal/core/textbuf"
+	"github.com/ze-software/ze/pkg/fleet"
 	"github.com/ze-software/ze/pkg/plugin/rpc"
 	"github.com/ze-software/ze/pkg/plugin/sdk"
 )
@@ -1632,6 +1633,9 @@ func runYANGConfig(store storage.Storage, configPath string, data []byte, plugin
 		if store != nil {
 			clientOwner = newManagedClientOwner(buildClient, func(client *managed.ClientConfig) {
 				wireManagedCommit(client, store, configPath, reloadAfterCommit, auditLog, daemonConfirmWindow.Load)
+				client.SampleCollector = func(ctx context.Context, now time.Time) (fleet.SampleReport, error) {
+					return pluginserver.CollectFleetSampleReportFromServer(ctx, apiServer, now)
+				}
 			})
 		}
 	}

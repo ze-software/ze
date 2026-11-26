@@ -47,6 +47,9 @@ const (
 	// cmdBgpPeerRib is the peer-scoped spelling of cmdRibShow. It forwards to
 	// the same plugin command with a selector, so it answers the same rows.
 	cmdBgpPeerRib = "show bgp peer rib"
+	// cmdFleetSourceBGPRIB is the hidden read-only fleet metric source forwarded
+	// to the live bgp-rib plugin process.
+	cmdFleetSourceBGPRIB = "show fleet source bgp-rib"
 )
 
 // The keys of a route row, as the bgp-rib plugin writes them and as the column
@@ -96,6 +99,7 @@ func init() {
 		pluginserver.RPCRegistration{WireMethod: "ze-bgp:rib-rpf", Handler: forwardRibRPF, PluginCommand: cmdRibRPF},
 		pluginserver.RPCRegistration{WireMethod: "ze-bgp:rib-protocol", Handler: forwardRibProtocol, PluginCommand: cmdRibProtocol},
 		pluginserver.RPCRegistration{WireMethod: "ze-bgp:rib-fastpath", Handler: forwardRibFastpath, PluginCommand: cmdRibFastpath},
+		pluginserver.RPCRegistration{WireMethod: "ze-bgp:fleet-source-bgp-rib", Handler: forwardFleetSourceBGPRIB, PluginCommand: cmdFleetSourceBGPRIB},
 	)
 }
 
@@ -329,6 +333,11 @@ func registerRibAnswerShapes() {
 	// The two status answers hold peer addresses as the KEYS of a map and in no
 	// field, so neither operator has anything to decorate.
 	command.RegisterAddressFields([]string{cmdRibStatus, cmdRibBestStatus})
+
+	// Hidden fleet source returns one SourceSnapshot document with no address
+	// fields.
+	command.RegisterShape([]string{cmdFleetSourceBGPRIB}, command.ShapeDoc)
+	command.RegisterAddressFields([]string{cmdFleetSourceBGPRIB})
 }
 
 func forwardRibStatus(ctx *pluginserver.CommandContext, validated command.ValidatedArgs) (*plugin.Response, error) {
@@ -599,4 +608,9 @@ func forwardRibProtocol(ctx *pluginserver.CommandContext, validated command.Vali
 func forwardRibFastpath(ctx *pluginserver.CommandContext, validated command.ValidatedArgs) (*plugin.Response, error) {
 	args := validated.Tokens()
 	return ctx.Dispatcher().ForwardToPlugin(ctx, cmdRibFastpath, args, ctx.PeerSelector())
+}
+
+func forwardFleetSourceBGPRIB(ctx *pluginserver.CommandContext, validated command.ValidatedArgs) (*plugin.Response, error) {
+	args := validated.Tokens()
+	return ctx.Dispatcher().ForwardToPlugin(ctx, cmdFleetSourceBGPRIB, args, ctx.PeerSelector())
 }

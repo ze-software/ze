@@ -8,4 +8,5 @@ func init() {
 	registerShowKernelLog()
 	registerSetFD()
 	registerStorageGrow()
+	registerFleetSamples()
 }

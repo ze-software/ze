@@ -4,6 +4,7 @@ module ze-rib-cmd {
     import ze-extensions { prefix ze; }
     import ze-types { prefix zt; }
     description "BGP RIB operations: query routes, manage Adj-RIB, inject test routes";
+    revision 2026-11-26 { description "Added hidden show fleet source bgp-rib read-only sample producer."; }
     revision 2026-11-20 { description "show bgp rib and show bgp rib protocol name their pipe operations: the scope, the filters and the reductions are typed after a pipe, and show bgp rib protocol takes no scope."; }
     revision 2026-10-17 { description "clear bgp rib in and clear bgp rib out declare their peer selector as a mandatory leaf, so the bare prefix is refused rather than reaching the plugin, and * is the explicit form for every peer. clear bgp rib out declares the optional family it already read from the second token."; }
     revision 2026-09-15 { description "show bgp rib protocol and request bgp rib fastpath are declared here, each stating its own argument. Both were reachable only through the plugin dispatch fallback, and each spelled its grammar in the summary sentence because the model declared no argument. The protocol leaf is a string the bgp-rib plugin checks against the protocol registry, which is the one list of the protocols this binary carries. The fastpath action is a closed set of three words, so it is an enumeration and the dispatcher refuses any other word by name."; }
@@ -88,6 +89,25 @@ peers, and a scope such as | advertised is refused.";
 name the protocol registry does not hold and names the registered ones.";
                         ze:help "Registered protocol name";
                     }
+                }
+            }
+        }
+
+        container fleet {
+            config false;
+
+            container source {
+                config false;
+                ze:hidden true;
+                description "Hidden device-local read-only sample producers queried by the managed fleet sampler.";
+                ze:help "Device-local fleet metric sample sources.";
+
+                container bgp-rib {
+                    config false;
+                    ze:hidden true;
+                    ze:command "ze-bgp:fleet-source-bgp-rib";
+                    description "Returns the current total inbound path count held by the BGP RIB plugin for the fleet sample collector.";
+                    ze:help "Read BGP RIB route count for fleet sampling.";
                 }
             }
         }

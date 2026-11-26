@@ -762,3 +762,335 @@ func TestSendConfigAckBoundsError(t *testing.T) {
 	require.LessOrEqual(t, len(gotMulti.Error), fleet.AckErrorMax)
 	require.True(t, strings.HasSuffix(gotMulti.Error, fleet.AckErrorTruncatedSuffix))
 }
+
+// TestManagedClientOldHubOmitsSampleInterval proves that an old hub whose
+// config-fetch JSON omits sample-interval-seconds still delivers and ACKs
+// configuration normally while leaving the metric sample sender idle.
+//
+// VALIDATES: AC-9 and Changed-Wire Census backward compatibility with old hubs.
+// PREVENTS: new clients failing to decode old fetch replies or starting
+// sampling against hubs that did not advertise an interval.
+func TestManagedClientOldHubOmitsSampleInterval(t *testing.T) {
+	// Not parallel: checks process-wide FleetSampleMetrics delta.
+	before := FleetSampleMetrics()
+	addr, admitted := fetchHub(t)
+	cfg, _, applied := fetchClient(t, addr)
+	cfg.reportProducersFn = func() []fleet.ReportProducer { return nil }
+	cfg.sampleIntervalUnit = 20 * time.Millisecond
+	var collectCalls atomic.Int32
+	cfg.SampleCollector = func(_ context.Context, now time.Time) (fleet.SampleReport, error) {
+		collectCalls.Add(1)
+		return testSampleReport(12.5, now), nil
+	}
+	_ = runClient(t, cfg)
+
+	hub := nextSession(t, admitted)
+	fetchReq := hubRequest(t, hub)
+	require.Equal(t, fleet.VerbConfigFetch, fetchReq.Method)
+
+	// Send the exact older wire JSON shape with no sample-interval-seconds key.
+	oldReply, err := json.Marshal(struct {
+		Version string `json:"version"`
+		Config  string `json:"config"`
+	}{
+		Version: fleet.VersionHash([]byte(holdHubConfig)),
+		Config:  base64.StdEncoding.EncodeToString([]byte(holdHubConfig)),
+	})
+	require.NoError(t, err)
+	require.NotContains(t, string(oldReply), "sample-interval-seconds")
+	require.NoError(t, hub.SendResult(t.Context(), fetchReq.ID, json.RawMessage(oldReply)))
+
+	ackReq := hubRequest(t, hub)
+	require.Equal(t, fleet.VerbConfigAck, ackReq.Method)
+	var ack fleet.ConfigAck
+	require.NoError(t, json.Unmarshal(ackReq.Params, &ack))
+	assert.True(t, ack.OK)
+	require.NoError(t, hub.SendOK(t.Context(), ackReq.ID))
+
+	select {
+	case got := <-applied:
+		assert.Equal(t, holdHubConfig, string(got))
+	case <-time.After(holdWait):
+		t.Fatal("client did not apply config from old hub")
+	}
+
+	// No sample-report should arrive over several intervals.
+	select {
+	case unexpected, ok := <-hub.Requests():
+		if ok {
+			t.Fatalf("old hub received unexpected RPC %q", unexpected.Method)
+		}
+	case <-time.After(80 * time.Millisecond):
+	}
+	after := FleetSampleMetrics()
+	assert.Zero(t, collectCalls.Load())
+	assert.Equal(t, before.ClockStarts, after.ClockStarts)
+}
+
+// TestManagedClientSampleIntervalOnFullAndCurrentReplies proves that a hub
+// advertising sample-interval-seconds on either a full-config reply or a
+// "current" reply starts periodic valid sample-report frames.
+//
+// VALIDATES: AC-1 and Changed-Wire Census negotiation on both reply forms.
+// PREVENTS: sampling only activating on full-config pushes and staying idle
+// when the device reconnects with an up-to-date config ("current").
+func TestManagedClientSampleIntervalOnFullAndCurrentReplies(t *testing.T) {
+	t.Run("full-config reply", func(t *testing.T) {
+		addr, admitted := fetchHub(t)
+		cfg, _, applied := fetchClient(t, addr)
+		cfg.reportProducersFn = func() []fleet.ReportProducer { return nil }
+		cfg.sampleIntervalUnit = 25 * time.Millisecond
+		cfg.SampleCollector = func(_ context.Context, now time.Time) (fleet.SampleReport, error) {
+			return testSampleReport(21.5, now), nil
+		}
+		_ = runClient(t, cfg)
+
+		hub := nextSession(t, admitted)
+		fetchReq := hubRequest(t, hub)
+		require.Equal(t, fleet.VerbConfigFetch, fetchReq.Method)
+		require.NoError(t, hub.SendResult(t.Context(), fetchReq.ID, fleet.ConfigFetchResponse{
+			Version:               fleet.VersionHash([]byte(holdHubConfig)),
+			Config:                base64.StdEncoding.EncodeToString([]byte(holdHubConfig)),
+			SampleIntervalSeconds: 1,
+		}))
+
+		ackReq := hubRequest(t, hub)
+		require.Equal(t, fleet.VerbConfigAck, ackReq.Method)
+		require.NoError(t, hub.SendOK(t.Context(), ackReq.ID))
+		<-applied
+
+		sampleReq := hubRequest(t, hub)
+		require.Equal(t, fleet.VerbSampleReport, sampleReq.Method)
+		rep, err := fleet.DecodeAndValidateSampleReport(sampleReq.Params)
+		require.NoError(t, err)
+		require.Len(t, rep.Samples, 1)
+		assert.Equal(t, fleet.FigureCPUUsed, rep.Samples[0].Figure)
+		assert.Equal(t, 21.5, rep.Samples[0].Value)
+		require.NoError(t, hub.SendOK(t.Context(), sampleReq.ID))
+	})
+
+	t.Run("current reply", func(t *testing.T) {
+		addr, admitted := fetchHub(t)
+		cfg, _, _ := fetchClient(t, addr)
+		cfg.reportProducersFn = func() []fleet.ReportProducer { return nil }
+		cfg.sampleIntervalUnit = 25 * time.Millisecond
+		cfg.SampleCollector = func(_ context.Context, now time.Time) (fleet.SampleReport, error) {
+			return testSampleReport(44.0, now), nil
+		}
+		_ = runClient(t, cfg)
+
+		hub := nextSession(t, admitted)
+		fetchReq := hubRequest(t, hub)
+		require.Equal(t, fleet.VerbConfigFetch, fetchReq.Method)
+		require.NoError(t, hub.SendResult(t.Context(), fetchReq.ID, fleet.ConfigFetchResponse{
+			Status:                fetchStatusCurrent,
+			SampleIntervalSeconds: 1,
+		}))
+
+		sampleReq := hubRequest(t, hub)
+		require.Equal(t, fleet.VerbSampleReport, sampleReq.Method)
+		rep, err := fleet.DecodeAndValidateSampleReport(sampleReq.Params)
+		require.NoError(t, err)
+		require.Len(t, rep.Samples, 1)
+		assert.Equal(t, 44.0, rep.Samples[0].Value)
+		require.NoError(t, hub.SendOK(t.Context(), sampleReq.ID))
+	})
+}
+
+// TestManagedClientSampleUnknownMethodDisablesUntilReconnect proves that if a
+// hub refuses sample-report with "unknown method: sample-report", the client
+// disables sampling for that session while keeping config-fetch and ACK alive,
+// and negotiates sampling again after reconnect.
+//
+// VALIDATES: Changed-Wire Census unknown-method fallback and reconnect
+// re-negotiation.
+// PREVENTS: an older hub breaking config sync or a client permanently
+// disabling sampling across reconnects after a hub upgrade.
+func TestManagedClientSampleUnknownMethodDisablesUntilReconnect(t *testing.T) {
+	addr, admitted := fetchHub(t)
+	cfg, _, applied := fetchClient(t, addr)
+	cfg.reportProducersFn = func() []fleet.ReportProducer { return nil }
+	cfg.sampleIntervalUnit = 25 * time.Millisecond
+	var seq atomic.Int32
+	cfg.SampleCollector = func(_ context.Context, now time.Time) (fleet.SampleReport, error) {
+		return testSampleReport(float64(seq.Add(1)*10), now), nil
+	}
+	_ = runClient(t, cfg)
+
+	// Session 1: hub advertises interval, then rejects sample-report as unknown method.
+	first := nextSession(t, admitted)
+	fetch1 := hubRequest(t, first)
+	require.Equal(t, fleet.VerbConfigFetch, fetch1.Method)
+	require.NoError(t, first.SendResult(t.Context(), fetch1.ID, fleet.ConfigFetchResponse{
+		Status:                fetchStatusCurrent,
+		SampleIntervalSeconds: 1,
+	}))
+
+	sample1 := hubRequest(t, first)
+	require.Equal(t, fleet.VerbSampleReport, sample1.Method)
+	require.NoError(t, first.SendError(t.Context(), sample1.ID, unknownMethodPrefix+fleet.VerbSampleReport))
+
+	// Sampling must remain disabled for the rest of session 1.
+	select {
+	case unexpected, ok := <-first.Requests():
+		if ok {
+			t.Fatalf("unexpected RPC %q after unknown-method refusal", unexpected.Method)
+		}
+	case <-time.After(80 * time.Millisecond):
+	}
+
+	// Config-changed -> config-fetch -> config-ack still works on session 1.
+	require.NoError(t, pushChanged(t, first))
+	refetch := hubRequest(t, first)
+	require.Equal(t, fleet.VerbConfigFetch, refetch.Method)
+	require.NoError(t, first.SendResult(t.Context(), refetch.ID, fleet.ConfigFetchResponse{
+		Version:               fleet.VersionHash([]byte(holdHubConfig)),
+		Config:                base64.StdEncoding.EncodeToString([]byte(holdHubConfig)),
+		SampleIntervalSeconds: 1,
+	}))
+	ackReq := hubRequest(t, first)
+	require.Equal(t, fleet.VerbConfigAck, ackReq.Method)
+	require.NoError(t, first.SendOK(t.Context(), ackReq.ID))
+	select {
+	case got := <-applied:
+		assert.Equal(t, holdHubConfig, string(got))
+	case <-time.After(holdWait):
+		t.Fatal("config push failed after sample-report unknown-method disable")
+	}
+
+	// Drop session 1 so the client reconnects and negotiates sampling again.
+	first.drop()
+
+	second := nextSession(t, admitted)
+	fetch2 := hubRequest(t, second)
+	require.Equal(t, fleet.VerbConfigFetch, fetch2.Method)
+	require.NoError(t, second.SendResult(t.Context(), fetch2.ID, fleet.ConfigFetchResponse{
+		Status:                fetchStatusCurrent,
+		SampleIntervalSeconds: 1,
+	}))
+
+	sample2 := hubRequest(t, second)
+	require.Equal(t, fleet.VerbSampleReport, sample2.Method)
+	rep2, err := fleet.DecodeAndValidateSampleReport(sample2.Params)
+	require.NoError(t, err)
+	require.Len(t, rep2.Samples, 1)
+	assert.Equal(t, 20.0, rep2.Samples[0].Value, "reconnect must collect a fresh sample rather than replaying session 1")
+	require.NoError(t, second.SendOK(t.Context(), sample2.ID))
+}
+
+// TestManagedClientSampleRefusalKeepsSampling proves that a hub rate-limit or
+// content refusal rejects only that sample and does not disable subsequent
+// ticks.
+//
+// VALIDATES: AC-8, AC-13 per-sample refusal handling on the managed client.
+// PREVENTS: a transient rate-limit or content error silencing future samples.
+func TestManagedClientSampleRefusalKeepsSampling(t *testing.T) {
+	addr, admitted := fetchHub(t)
+	cfg, _, _ := fetchClient(t, addr)
+	cfg.reportProducersFn = func() []fleet.ReportProducer { return nil }
+	cfg.sampleIntervalUnit = 25 * time.Millisecond
+	var seq atomic.Int32
+	cfg.SampleCollector = func(_ context.Context, now time.Time) (fleet.SampleReport, error) {
+		return testSampleReport(float64(seq.Add(1)*15), now), nil
+	}
+	_ = runClient(t, cfg)
+
+	hub := nextSession(t, admitted)
+	fetchReq := hubRequest(t, hub)
+	require.Equal(t, fleet.VerbConfigFetch, fetchReq.Method)
+	require.NoError(t, hub.SendResult(t.Context(), fetchReq.ID, fleet.ConfigFetchResponse{
+		Status:                fetchStatusCurrent,
+		SampleIntervalSeconds: 1,
+	}))
+
+	// First sample is refused for rate limit; client must continue on next tick.
+	first := hubRequest(t, hub)
+	require.Equal(t, fleet.VerbSampleReport, first.Method)
+	require.NoError(t, hub.SendError(t.Context(), first.ID, "sample rate limit exceeded"))
+
+	second := hubRequest(t, hub)
+	require.Equal(t, fleet.VerbSampleReport, second.Method)
+	rep2, err := fleet.DecodeAndValidateSampleReport(second.Params)
+	require.NoError(t, err)
+	require.Len(t, rep2.Samples, 1)
+	assert.Equal(t, 30.0, rep2.Samples[0].Value)
+	require.NoError(t, hub.SendOK(t.Context(), second.ID))
+}
+
+// TestManagedClientDynamicConfigChangedSampleInterval proves that live
+// config-changed replies dynamically start sampling (0 -> active) and stop
+// sampling (active -> 0) within the same session.
+//
+// VALIDATES: live sample-interval-seconds updates via config-changed.
+// PREVENTS: operators needing to bounce sessions for hub interval changes.
+func TestManagedClientDynamicConfigChangedSampleInterval(t *testing.T) {
+	addr, admitted := fetchHub(t)
+	cfg, _, _ := fetchClient(t, addr)
+	cfg.reportProducersFn = func() []fleet.ReportProducer { return nil }
+	cfg.sampleIntervalUnit = 25 * time.Millisecond
+	var seq atomic.Int32
+	cfg.SampleCollector = func(_ context.Context, now time.Time) (fleet.SampleReport, error) {
+		return testSampleReport(float64(seq.Add(1)), now), nil
+	}
+	_ = runClient(t, cfg)
+
+	hub := nextSession(t, admitted)
+	// Start with sampling disabled (0).
+	answerFetchCurrent(t, hub)
+	select {
+	case unexpected, ok := <-hub.Requests():
+		if ok {
+			t.Fatalf("unexpected RPC %q while interval is 0", unexpected.Method)
+		}
+	case <-time.After(60 * time.Millisecond):
+	}
+
+	// Hub announces change and enables sampling (0 -> 1).
+	require.NoError(t, pushChanged(t, hub))
+	refetchEnable := hubRequest(t, hub)
+	require.Equal(t, fleet.VerbConfigFetch, refetchEnable.Method)
+	require.NoError(t, hub.SendResult(t.Context(), refetchEnable.ID, fleet.ConfigFetchResponse{
+		Status:                fetchStatusCurrent,
+		SampleIntervalSeconds: 1,
+	}))
+
+	sampleReq := hubRequest(t, hub)
+	require.Equal(t, fleet.VerbSampleReport, sampleReq.Method)
+	require.NoError(t, hub.SendOK(t.Context(), sampleReq.ID))
+
+	// Hub announces change and disables sampling (1 -> 0).
+	require.NoError(t, pushChanged(t, hub))
+	for {
+		req := hubRequest(t, hub)
+		if req.Method == fleet.VerbSampleReport {
+			// A tick may have been in flight concurrently with config-changed.
+			require.NoError(t, hub.SendOK(t.Context(), req.ID))
+			continue
+		}
+		require.Equal(t, fleet.VerbConfigFetch, req.Method)
+		require.NoError(t, hub.SendResult(t.Context(), req.ID, fleet.ConfigFetchResponse{
+			Status:                fetchStatusCurrent,
+			SampleIntervalSeconds: 0,
+		}))
+		break
+	}
+
+	// Drain at most one already-queued sample sent before UpdateInterval(0) ran,
+	// then confirm no further sample-report arrives.
+	deadline := time.After(100 * time.Millisecond)
+	seenAfterDisable := 0
+	for {
+		select {
+		case req, ok := <-hub.Requests():
+			if !ok {
+				t.Fatal("client closed session unexpectedly after disabling sampling")
+			}
+			require.Equal(t, fleet.VerbSampleReport, req.Method)
+			require.NoError(t, hub.SendOK(t.Context(), req.ID))
+			seenAfterDisable++
+			require.LessOrEqual(t, seenAfterDisable, 1, "sampling kept firing after interval changed to 0")
+		case <-deadline:
+			return
+		}
+	}
+}

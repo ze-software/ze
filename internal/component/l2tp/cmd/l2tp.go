@@ -72,6 +72,7 @@ const (
 var errSubsystemUnavailable = errors.New("l2tp: subsystem not running")
 
 func init() {
+	registerFleetSourceL2TP()
 	pluginserver.RegisterRPCs(
 		pluginserver.RPCRegistration{WireMethod: "ze-l2tp:summary", Handler: handleSummary},
 		pluginserver.RPCRegistration{WireMethod: "ze-l2tp:tunnels", Handler: handleTunnels},

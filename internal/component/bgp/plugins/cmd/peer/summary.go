@@ -30,6 +30,7 @@ var (
 
 func init() {
 	registerPeerRowShapes()
+	registerFleetSourceBGPPeer()
 
 	pluginserver.RegisterRPCs(
 		pluginserver.RPCRegistration{WireMethod: "ze-bgp:overview", Handler: handleBgpOverview},

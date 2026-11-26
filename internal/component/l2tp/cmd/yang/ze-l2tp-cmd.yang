@@ -12,6 +12,10 @@ module ze-l2tp-cmd {
          Adds 'show l2tp' commands for inspection, 'clear l2tp' commands
          for teardown, and 'request l2tp' operator actions.";
 
+    revision 2026-11-26 {
+        description "Add hidden show fleet source l2tp read-only sample producer.";
+    }
+
     revision 2026-10-21 {
         description "show l2tp health points at l2tp-health in ze-l2tp-api, its owner.";
     }
@@ -274,6 +278,35 @@ times. Rising loss or high RTT indicates a degraded line.";
 and retransmit queue depth. Check here when tunnel control messages stop
 moving.";
                 ze:help "Show the reliable transport window for a tunnel.";
+            }
+        }
+    }
+
+    // -----------------------------------------------------------------
+    // Hidden fleet sample source: `show fleet source l2tp`.
+    // Declared under top-level `container show` rather than augmenting
+    // `/clishowcmd:show` so multiple source owners merge cleanly in
+    // BuildCommandTree without colliding on `clishowcmd:show/fleet`.
+    // -----------------------------------------------------------------
+    container show {
+        config false;
+
+        container fleet {
+            config false;
+
+            container source {
+                config false;
+                ze:hidden true;
+                description "Hidden device-local read-only sample producers queried by the managed fleet sampler.";
+                ze:help "Device-local fleet metric sample sources.";
+
+                container l2tp {
+                    config false;
+                    ze:hidden true;
+                    ze:command "ze-l2tp:fleet-source-l2tp";
+                    description "Returns the current active L2TP subscriber session count for the fleet sample collector when the L2TP subsystem is running.";
+                    ze:help "Read L2TP subscriber sessions for fleet sampling.";
+                }
             }
         }
     }

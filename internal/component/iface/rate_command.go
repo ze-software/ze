@@ -66,34 +66,45 @@ func commandDecls() []sdk.CommandDecl {
 			Name:      DelegatedPrefixCommand,
 			ShortHelp: "Show the /64 each LAN unit takes from a delegated prefix, and its source.",
 		},
+		{
+			Name:      FleetSourceCommand,
+			ShortHelp: "Return local physical interface metric readings for fleet sampling.",
+			Hidden:    true,
+		},
 	}
 }
 
 // executeCommand answers a command the dispatcher routed to this plugin.
 func executeCommand(command string, args []string) (string, any, error) {
-	if strings.EqualFold(command, PPPoEClientCommand) {
+	switch {
+	case strings.EqualFold(command, PPPoEClientCommand):
 		statuses, err := pppoeClientAnswer(globalPPPoEClients.Load())
 		if err != nil {
 			return rpc.StatusError, nil, err
 		}
 		return rpc.StatusDone, statuses, nil
-	}
-	if strings.EqualFold(command, DelegatedPrefixCommand) {
+	case strings.EqualFold(command, DelegatedPrefixCommand):
 		rows, err := delegatedPrefixAnswer(globalDelegatedUnits.Load(), time.Now())
 		if err != nil {
 			return rpc.StatusError, nil, err
 		}
 		return rpc.StatusDone, rows, nil
-	}
-	if !strings.EqualFold(command, RateCommand) {
+	case strings.EqualFold(command, FleetSourceCommand):
+		snap, err := fleetSampleAnswer(globalTracker.Load(), defaultFleetSampler)
+		if err != nil {
+			return rpc.StatusError, nil, err
+		}
+		return rpc.StatusDone, snap, nil
+	case strings.EqualFold(command, RateCommand):
+		data, err := rateAnswer(globalTracker.Load(), args)
+		if err != nil {
+			return rpc.StatusError, nil, err
+		}
+		return rpc.StatusDone, data, nil
+	default:
 		var tb textbuf.Buffer
 		return rpc.StatusError, nil, errors.New(tb.Str("interface plugin serves no command ").Quoted(command).String())
 	}
-	data, err := rateAnswer(globalTracker.Load(), args)
-	if err != nil {
-		return rpc.StatusError, nil, err
-	}
-	return rpc.StatusDone, data, nil
 }
 
 // rateAnswer is the answer of RateCommand over tracker: one interface when

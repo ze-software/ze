@@ -1834,10 +1834,11 @@ func GetYANG() string {
 	return yang.ZeRibYANG
 }
 
-// shapeMap and shapeTab are the wire spellings of what an answer holds
-// (pkg/plugin/rpc/types.go, CommandDecl.Shape): rows that carry their own keys,
-// and rows read against a declared column order.
+// shapeDoc, shapeMap and shapeTab are the wire spellings of what an answer holds
+// (pkg/plugin/rpc/types.go, CommandDecl.Shape): one document, rows that carry
+// their own keys, and rows read against a declared column order.
 const (
+	shapeDoc = "doc"
 	shapeMap = "map"
 	shapeTab = "tab"
 )
@@ -1886,6 +1887,8 @@ func commandDecls() []sdk.CommandDecl {
 		// Plugin-to-plugin plumbing: a process that cannot read this RIB's
 		// FlowSpec lookup in memory asks it here (flowSpecGateCommand).
 		{Name: flowSpecGateCommand, Hidden: true, Shape: shapeMap},
+		// Hidden device-local read-only source for managed fleet metric sampling.
+		{Name: cmdFleetSourceBGPRIB, Hidden: true, Shape: shapeDoc},
 		// LLGR uses these through the engine dispatcher, not private handlers.
 		{Name: "request bgp rib attach-community"},
 		{Name: "request bgp rib delete-with-community"},

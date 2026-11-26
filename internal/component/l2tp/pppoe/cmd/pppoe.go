@@ -28,6 +28,7 @@ var (
 var errSubsystemUnavailable = errors.New("pppoe: subsystem not running")
 
 func init() {
+	registerFleetSourcePPPoE()
 	pluginserver.RegisterRPCs(
 		pluginserver.RPCRegistration{WireMethod: "ze-l2tp:pppoe-summary", Handler: handleSummary},
 		pluginserver.RPCRegistration{WireMethod: "ze-l2tp:pppoe-sessions", Handler: handleSessions},
