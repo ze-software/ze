@@ -1,0 +1,64 @@
+# Test: ze starts when the address variable of a service does not parse.
+#
+# The one question: does `ze start` reach "Ze running" and serve the looking
+# glass when ze.web.listen and ze.mcp.listen both hold a value that is no list
+# of listen endpoints, with each service reported under a doctor code and its
+# fix? Unit tests decide the report and the record the doctor check reads
+# (cmd/ze/hub/service_not_started_test.go); only the daemon decides that
+# runYANGConfig does not exit, that the web block of the same config does not
+# start the web server on its own address, and that another service answers.
+#
+# VALIDATES: the owner ruling of 2026-11-26 (docs/architecture/core-design.md,
+#            "Design decisions"): a service whose configuration cannot be
+#            served is not started and never stops ze. The web server and MCP
+#            are not started (doctor-service-not-started, each with the export
+#            that corrects it), and the looking-glass HTTP entry answers.
+# PREVENTS: a daemon that exits over one service's address variable, and a web
+#           server bound on the block's address in place of the variable that
+#           outranks it.
+#
+# RED before the change: `ze start` exits 1 with "error: ze.web.listen:" and
+# msg="startup failed" stage=ze.web.listen, and never prints "Ze running".
+
+option=timeout:value=90s
+option=env:var=ZE_CONFIG_DIR:value=.
+option=env:var=ze.web.listen:value=not-a-listen-address
+option=env:var=ze.mcp.listen:value=also-not-an-address
+
+tmpfs=unreadable-listen.conf:terminator=EOF_CONF
+environment {
+	web {
+		enabled true
+		server main {
+			ip 127.0.0.1
+			port $PORT
+		}
+	}
+	looking-glass {
+		enabled true
+		server public {
+			ip 127.0.0.1
+			port $PORT2
+			tls false
+		}
+	}
+}
+EOF_CONF
+
+# The daemon starts: "Ze running" is printed only after every service was built.
+cmd=background:seq=1:exec=ze start unreadable-listen.conf:name=daemon:ready=Ze running
+expect=stderr:contains=error: the web server is not started; ze and its other services keep running
+expect=stderr:contains=ze.web.listen holds "not-a-listen-address"
+expect=stderr:contains=Set ze.web.listen to endpoints such as 0.0.0.0:3443, or unset it, then restart ze.
+expect=stderr:contains=error: the MCP server is not started; ze and its other services keep running
+expect=stderr:contains=ze.mcp.listen holds "also-not-an-address"
+expect=stderr:contains=code=doctor-service-not-started
+expect=stderr:contains=looking glass listening on http://127.0.0.1:
+reject=stderr:contains=web server listening
+reject=stderr:contains=msg="startup failed"
+
+# The looking glass answers a request, and the address the web block names is
+# not bound.
+cmd=foreground:seq=2:exec=le test http-get http://127.0.0.1:$PORT2/lg/search:exit=0
+cmd=foreground:seq=3:exec=le test http-get http://127.0.0.1:$PORT/:exit=1
+cmd=stop:seq=4:name=daemon:signal=term

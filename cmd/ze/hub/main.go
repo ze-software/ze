@@ -496,6 +496,9 @@ func runYANGConfig(store storage.Storage, configPath string, data []byte, plugin
 	if refuseWronglyBuilt() {
 		return 1
 	}
+	// The record of the services this start leaves down is this start's own
+	// (service_not_started.go).
+	resetServicesNotStarted()
 	pm := pluginmgr.NewManager()
 	var caRoot *zepki.Root
 	var declarations []pluginserver.EarlyDeclaration
@@ -739,18 +742,25 @@ func runYANGConfig(store storage.Storage, configPath string, data []byte, plugin
 		webEnabled = true
 	}
 
+	// An address variable that does not parse (ze.web.listen here,
+	// ze.mcp.listen below) leaves its service down and ze running: no
+	// service's configuration stops the daemon, because an operator who cannot
+	// reach it cannot correct it (docs/architecture/core-design.md, "Design
+	// decisions"). The problem is kept until the config block has been read,
+	// and applied after it, so that the block cannot start on its own
+	// addresses a service whose variable outranks them.
+	var webListenProblem, mcpListenProblem *opererr.Error
 	if listen := env.Get("ze.web.listen"); listen != "" && len(webAddrs) == 0 {
 		endpoints, parseErr := zeconfig.ParseCompoundListen(listen)
-		if parseErr != nil {
-			fmt.Fprintf(os.Stderr, "error: ze.web.listen: %v\n", parseErr)
-			logStartupFailure("ze.web.listen", parseErr)
-			return 1
+		if parseErr == nil {
+			webAddrs = make([]string, 0, len(endpoints))
+			for _, ep := range endpoints {
+				webAddrs = append(webAddrs, ep.String())
+			}
+			webEnabled = true
+		} else {
+			webListenProblem = listenUnreadable(serviceNameWeb, "ze.web.listen", listen, "0.0.0.0:3443", parseErr)
 		}
-		webAddrs = make([]string, 0, len(endpoints))
-		for _, ep := range endpoints {
-			webAddrs = append(webAddrs, ep.String())
-		}
-		webEnabled = true
 	}
 	if env.IsEnabled("ze.web.enabled") && !webEnabled {
 		webEnabled = true
@@ -763,14 +773,13 @@ func runYANGConfig(store storage.Storage, configPath string, data []byte, plugin
 	}
 	if listen := env.Get("ze.mcp.listen"); listen != "" && len(mcpAddrs) == 0 {
 		endpoints, parseErr := zeconfig.ParseCompoundListen(listen)
-		if parseErr != nil {
-			fmt.Fprintf(os.Stderr, "error: ze.mcp.listen: %v\n", parseErr)
-			logStartupFailure("ze.mcp.listen", parseErr)
-			return 1
-		}
-		mcpAddrs = make([]string, 0, len(endpoints))
-		for _, ep := range endpoints {
-			mcpAddrs = append(mcpAddrs, ep.String())
+		if parseErr == nil {
+			mcpAddrs = make([]string, 0, len(endpoints))
+			for _, ep := range endpoints {
+				mcpAddrs = append(mcpAddrs, ep.String())
+			}
+		} else {
+			mcpListenProblem = listenUnreadable(serviceNameMCP, "ze.mcp.listen", listen, "127.0.0.1:8080", parseErr)
 		}
 	}
 	if env.IsEnabled("ze.mcp.enabled") && len(mcpAddrs) == 0 {
@@ -837,6 +846,12 @@ func runYANGConfig(store storage.Storage, configPath string, data []byte, plugin
 			)
 		}
 	}
+	// ze.web.listen did not parse: the web server is not started, whatever the
+	// block or ze.web.enabled said above, and is reported with its fix.
+	if webListenProblem != nil {
+		reportServiceNotStarted(slogutil.Logger("hub.web"), os.Stderr, notStarted(serviceNameWeb, webListenProblem))
+		webEnabled = false
+	}
 	// Two questions, deliberately asked separately (see ExtractMCPSettings).
 	//
 	// ADDRESSES come only from a config block that asks for a listener, so
@@ -849,6 +864,15 @@ func runYANGConfig(store storage.Storage, configPath string, data []byte, plugin
 		if len(mcpAddrs) == 0 {
 			mcpAddrs = endpointsToAddrs(mcpListenCfg.Servers)
 		}
+	}
+	// ze.mcp.listen did not parse: MCP is not started, whatever the block or
+	// ze.mcp.enabled supplied above, and is reported with its fix. The variable
+	// supplied the address, so it owns MCP enablement for the life of the
+	// process, as a variable that parses does.
+	if mcpListenProblem != nil {
+		reportServiceNotStarted(slogutil.Logger("hub.mcp"), os.Stderr, notStarted(serviceNameMCP, mcpListenProblem))
+		mcpAddrs = nil
+		mcpFollowsConfig = false
 	}
 	// SETTINGS (auth-mode, token, identities, oauth, tls) apply whenever the
 	// block exists, whatever supplied the address. Gating these on `enabled`
@@ -896,10 +920,17 @@ func runYANGConfig(store storage.Storage, configPath string, data []byte, plugin
 	// or ze.looking-glass.listen shows them too. The reader takes no `enabled`
 	// answer, so the names cannot be gated on it, and the reload path calls the
 	// same reader (main_reload.go).
+	//
+	// A list that cannot be used as written does not stop ze, and does not take
+	// the looking glass down either: the names only label next hops the looking
+	// glass shows anyway, so it serves without them, and the list is reported
+	// with its fix. Config validation refuses the same list before this point
+	// (the looking glass registers this reader as a tree validator), so this is
+	// reached only for a list the loaded tree gained afterwards.
 	lgNextHopRanges, lgNextHopRangesErr := zeconfig.ExtractLGNextHopRanges(loadResult.Tree)
 	if lgNextHopRangesErr != nil {
-		fmt.Fprintf(os.Stderr, "error: %v\n", lgNextHopRangesErr)
-		return 1
+		reportServiceNotStarted(slogutil.Logger("lg.server"), os.Stderr, lgRangesUnused(lgNextHopRangesErr))
+		lgNextHopRanges = nil
 	}
 
 	// Phase 2: Populate ConfigProvider.
@@ -967,11 +998,12 @@ func runYANGConfig(store storage.Storage, configPath string, data []byte, plugin
 		logStartupFailure("resolve boot users", bootUsersErr)
 		return 1
 	}
-	apiCfg, apiCfgOK, apiResolveErr := resolveAPIListeners(loadResult.Tree)
-	if apiResolveErr != nil {
-		fmt.Fprintf(os.Stderr, "error: %v\n", apiResolveErr)
-		logStartupFailure("api-server listen", apiResolveErr)
-		return 1
+	// One transport at a time: a REST or gRPC listen variable that does not
+	// parse leaves that transport down and reported, the other transport
+	// resolves, and ze runs (planAPIListeners, api_infra.go).
+	apiCfg, apiCfgOK, apiDown := planAPIListeners(loadResult.Tree)
+	for _, down := range apiDown {
+		reportServiceNotStarted(slogutil.Logger("hub.api"), os.Stderr, down)
 	}
 	apiTokenEnv := env.Get("ze.api-server.token")
 	if apiTokenEnv != "" && apiCfg.Token == "" {
@@ -1456,6 +1488,31 @@ func runYANGConfig(store storage.Storage, configPath string, data []byte, plugin
 	// times. buildWebService applies the same fallback.
 	webAddrs = resolveWebListeners(webEnabled, webAddrs)
 
+	// Run the existing precise MCP semantic checks on the boot path too:
+	// bind-remote without auth, bearer without token, a half TLS pair.
+	// They catch config-level inconsistencies that the exposure guard alone
+	// does not find, and `ze config validate` prints the same causes.
+	// Exposure itself (a non-loopback listener without authentication or TLS)
+	// is the guard's, through mcpMgmtListener below.
+	//
+	// The gate is the listener that binds, not the block that exists.
+	// ExtractMCPSettings returns a config for any environment.mcp block. Without
+	// the address check, a dormant block is reported over an inconsistency that
+	// harms nobody. A dormant block is one with enabled false, where MCP never
+	// starts.
+	//
+	// An inconsistent block leaves MCP down and ze running, reported with its
+	// fix. It is judged before MCP declares its listener to the guard, so the
+	// guard and the factory both see an MCP this start does not build: the
+	// factory skips on an empty address list.
+	if mcpFactoryOn && mcpCfgOK && len(mcpAddrs) > 0 {
+		if err := mcpCfg.Validate(); err != nil {
+			reportServiceNotStarted(slogutil.Logger("hub.mcp"), os.Stderr,
+				notStarted(serviceNameMCP, blockUnservable(serviceNameMCP, "environment mcp", configPath, err)))
+			mcpAddrs = nil
+		}
+	}
+
 	var mgmtListeners []mgmtListener
 	if webFactoryOn && webEnabled {
 		mgmtListeners = append(mgmtListeners, mgmtListener{
@@ -1490,26 +1547,6 @@ func runYANGConfig(store storage.Storage, configPath string, data []byte, plugin
 				authenticated: apiAuthed,
 				remedy:        "set ze.api-server.token, run ze init, or bind to 127.0.0.1/::1 only",
 			})
-		}
-	}
-
-	// Run the existing precise MCP semantic checks on the boot path too:
-	// bind-remote without auth, bearer without token, a half TLS pair.
-	// They catch config-level inconsistencies that the exposure guard alone
-	// does not find. They print the same messages as `ze config validate`.
-	// Exposure itself (a non-loopback listener without authentication or TLS)
-	// is the guard's, through mcpMgmtListener above.
-	//
-	// The gate is the listener that binds, not the block that exists.
-	// ExtractMCPSettings returns a config for any environment.mcp block. Without
-	// the address check, a dormant block refuses boot over an inconsistency that
-	// harms nobody. A dormant block is one with enabled false, where MCP never
-	// starts.
-	if serviceFactoryRegistered("mcp") && mcpCfgOK && len(mcpAddrs) > 0 {
-		if err := mcpCfg.Validate(); err != nil {
-			fmt.Fprintf(os.Stderr, "error: %v\n", err)
-			logStartupFailure("mcp config", err)
-			return 1
 		}
 	}
 
@@ -1596,15 +1633,14 @@ func runYANGConfig(store storage.Storage, configPath string, data []byte, plugin
 			}
 			shared := buildAPIShared(apiIn)
 			if restBuild != nil {
+				// A transport that cannot be built stays down and is reported
+				// with its fix; the other transport and ze keep running.
 				h, apiErr := restBuild(apiIn, shared)
 				if apiErr != nil {
-					fmt.Fprintf(os.Stderr, "error: %v\n", apiErr)
-					logStartupFailure("start rest api", apiErr)
-					stopAPI()
-					retainCleanupFailure("engine shutdown", stopEngineBounded(eng))
-					return 1
+					reportServiceNotStarted(slogutil.Logger("hub.api"), os.Stderr,
+						notStarted(serviceNameREST, buildFailed(serviceNameREST, "environment api-server rest", apiErr)))
 				}
-				if h.Server != nil {
+				if apiErr == nil && h.Server != nil {
 					lm.setREST(h.Server)
 					apiShutdowns = append(apiShutdowns, h.Shutdown)
 				}
@@ -1612,13 +1648,10 @@ func runYANGConfig(store storage.Storage, configPath string, data []byte, plugin
 			if grpcBuild != nil {
 				h, apiErr := grpcBuild(apiIn, shared)
 				if apiErr != nil {
-					fmt.Fprintf(os.Stderr, "error: %v\n", apiErr)
-					logStartupFailure("start grpc api", apiErr)
-					stopAPI()
-					retainCleanupFailure("engine shutdown", stopEngineBounded(eng))
-					return 1
+					reportServiceNotStarted(slogutil.Logger("hub.api"), os.Stderr,
+						notStarted(serviceNameGRPC, buildFailed(serviceNameGRPC, "environment api-server grpc", apiErr)))
 				}
-				if h.Server != nil {
+				if apiErr == nil && h.Server != nil {
 					lm.setGRPC(h.Server)
 					apiShutdowns = append(apiShutdowns, h.Shutdown)
 				}

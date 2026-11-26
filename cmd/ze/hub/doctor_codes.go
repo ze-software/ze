@@ -9,6 +9,10 @@ const (
 	codeDoctorWebNetworkCleanup     = "doctor-web-network-cleanup"
 	codeDoctorWebCleanupOverdue     = "doctor-web-cleanup-overdue"
 	codeDoctorConfigEvolved         = "doctor-config-evolved"
+	// codeDoctorServiceNotStarted: the start left one service down because its
+	// configuration cannot be served, and ze runs without it
+	// (service_not_started.go).
+	codeDoctorServiceNotStarted = "doctor-service-not-started"
 )
 
 // doctorDiagnosticCodes is the explanation metadata for the doctor codes this package owns.
@@ -38,6 +42,14 @@ var doctorDiagnosticCodes = []diagnostic.CodeMeta{
 		Title:       "Config rewritten at start changed behavior",
 		Description: "The config was written for an older release, and a schema evolution rewrote it at start in a way that changes how the router behaves. The log line names the evolution, what it wrote and why, and whether the file was saved. Review the change; to keep the old behavior, write the setting the line names explicitly.",
 		Examples:    []string{"ze show log recent level warn component hub.evolve", "ze config migrate --dry-run <file>"},
+	},
+	{
+		Code:  codeDoctorServiceNotStarted,
+		Title: "A service was not started because its configuration cannot be served",
+		Description: "When ze started, the configuration of one service could not be served: an environment variable that names its addresses does not parse, its config block is inconsistent, or its listener could not be built. " +
+			"ze started without that service and runs its other services, so that the box stays reachable. A reload that carries the same configuration is refused. " +
+			"The finding names the service, what is wrong and the fix. Apply the fix, then restart ze.",
+		Examples: []string{"ze doctor", "ze show doctor", "ze show diagnostic doctor-service-not-started"},
 	},
 }
 

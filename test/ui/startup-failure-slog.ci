@@ -8,9 +8,13 @@
 # PREVENTS: regressing to stderr-only fatal startup errors that crash-loop
 #   invisibly under the gokrazy supervisor.
 
-# An unparsable compound listen address fails startup after config load, on the
-# same fatal pre-serve path as every other startup failure.
-option=env:var=ze.web.listen:value=not-a-listen-address
+# A config that holds a keyword no schema defines cannot be parsed, so no part
+# of it can be applied and the start ends at "load config", on the same fatal
+# pre-serve path as every other startup failure. The trigger used to be an
+# unparsable ze.web.listen: since the ruling of 2026-11-26
+# (docs/architecture/core-design.md, "Design decisions") that leaves the web
+# server down and ze running, so it is no startup failure any more
+# (test/draft/ui/start-serves-around-unreadable-listen.ci).
 
 tmpfs=startup-failure-slog.conf:terminator=EOF_CONF
 environment {
@@ -18,10 +22,12 @@ environment {
         level info
     }
 }
+no-schema-defines-this-keyword {
+}
 EOF_CONF
 
 cmd=foreground:seq=1:exec=ze start startup-failure-slog.conf:timeout=10s
 expect=exit:code=1
-expect=stderr:contains=error: ze.web.listen
+expect=stderr:contains=error: load config
 expect=stderr:contains=msg="startup failed"
-expect=stderr:contains=stage=ze.web.listen
+expect=stderr:contains=stage="load config"

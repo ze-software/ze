@@ -23,8 +23,6 @@ package hub
 
 import (
 	"context"
-	"fmt"
-	"net"
 
 	"github.com/ze-software/ze/internal/component/api"
 	zeconfig "github.com/ze-software/ze/internal/component/config"
@@ -45,7 +43,28 @@ import (
 // ok=true means at least one transport will bind. ze.api-server.token is
 // applied by the caller, which keeps that env value for the reload path
 // (mgmt_auth_reload.go); the config token wins over it, unchanged.
+//
+// It is the strict form, which a reload uses: a transport whose listen
+// variable does not parse refuses the whole answer, so a reload that carries
+// it is refused and the running listeners keep what they serve. The start path
+// asks planAPIListeners, which leaves that transport down and answers the
+// other.
 func resolveAPIListeners(tree *zeconfig.Tree) (zeconfig.APIConfig, bool, error) {
+	cfg, ok, down := planAPIListeners(tree)
+	if len(down) > 0 {
+		return zeconfig.APIConfig{}, false, down[0].problem
+	}
+	return cfg, ok, nil
+}
+
+// planAPIListeners is the one rule resolveAPIListeners states, judged one
+// transport at a time for a daemon start. A transport whose listen variable
+// (ze.api-server.rest.listen, ze.api-server.grpc.listen) does not parse is not
+// started: it is answered off, with no address, and named in down with its
+// fix. The other transport is answered as it resolves, and ok says whether any
+// transport will bind. A start never binds the addresses the config names in
+// place of a variable that outranks them.
+func planAPIListeners(tree *zeconfig.Tree) (cfg zeconfig.APIConfig, ok bool, down []serviceNotStarted) {
 	// Two questions, deliberately asked separately (see ExtractAPISettings).
 	//
 	// SETTINGS (token, cors-origin, the gRPC TLS pair, and the addresses each
@@ -56,16 +75,14 @@ func resolveAPIListeners(tree *zeconfig.Tree) (zeconfig.APIConfig, bool, error) 
 	// had written, bound the 0.0.0.0 default over the loopback address the
 	// block named, or served gRPC in clear while that token crossed the wire
 	// (ai/rules/protocol.md).
-	cfg, _ := zeconfig.ExtractAPISettings(tree)
+	cfg, _ = zeconfig.ExtractAPISettings(tree)
 
 	// START comes only from a transport that asks for a listener, so a block
 	// whose rest{} says nothing still means "config does not start REST".
-	// cfg.RESTOn / cfg.GRPCOn carry the config half of that answer.
-	enabled := cfg.RESTOn || cfg.GRPCOn
-
+	// cfg.RESTOn / cfg.GRPCOn carry the config half of that answer, and the
+	// two enable variables below the environment half.
 	if env.IsEnabled("ze.api-server.rest.enabled") && !cfg.RESTOn {
 		cfg.RESTOn = true
-		enabled = true
 		// No rest{} block at all, so nothing named an address: bind the same
 		// default extractAPIServerList synthesizes for a transport that names
 		// no server.
@@ -74,30 +91,35 @@ func resolveAPIListeners(tree *zeconfig.Tree) (zeconfig.APIConfig, bool, error) 
 		}
 	}
 	if listen := env.Get("ze.api-server.rest.listen"); listen != "" && cfg.RESTOn {
-		host, port, parseErr := net.SplitHostPort(listen)
-		if parseErr != nil {
-			return zeconfig.APIConfig{}, false, fmt.Errorf("ze.api-server.rest.listen: %w", parseErr)
+		host, port, problem := splitListenHostPort(serviceNameREST, "ze.api-server.rest.listen", listen, "0.0.0.0:8081")
+		if problem == nil {
+			// Env-var override replaces the config-provided list with one entry.
+			cfg.REST = []zeconfig.APIListenConfig{{Host: host, Port: port}}
+		} else {
+			down = append(down, notStarted(serviceNameREST, problem))
+			cfg.RESTOn = false
+			cfg.REST = nil
 		}
-		// Env-var override replaces the config-provided list with one entry.
-		cfg.REST = []zeconfig.APIListenConfig{{Host: host, Port: port}}
 	}
 
 	if env.IsEnabled("ze.api-server.grpc.enabled") && !cfg.GRPCOn {
 		cfg.GRPCOn = true
-		enabled = true
 		if len(cfg.GRPC) == 0 {
 			cfg.GRPC = []zeconfig.APIListenConfig{{Host: "0.0.0.0", Port: "50051"}}
 		}
 	}
 	if listen := env.Get("ze.api-server.grpc.listen"); listen != "" && cfg.GRPCOn {
-		host, port, parseErr := net.SplitHostPort(listen)
-		if parseErr != nil {
-			return zeconfig.APIConfig{}, false, fmt.Errorf("ze.api-server.grpc.listen: %w", parseErr)
+		host, port, problem := splitListenHostPort(serviceNameGRPC, "ze.api-server.grpc.listen", listen, "0.0.0.0:50051")
+		if problem == nil {
+			cfg.GRPC = []zeconfig.APIListenConfig{{Host: host, Port: port}}
+		} else {
+			down = append(down, notStarted(serviceNameGRPC, problem))
+			cfg.GRPCOn = false
+			cfg.GRPC = nil
 		}
-		cfg.GRPC = []zeconfig.APIListenConfig{{Host: host, Port: port}}
 	}
 
-	return cfg, enabled, nil
+	return cfg, cfg.RESTOn || cfg.GRPCOn, down
 }
 
 // apiGuardAddrs returns the addresses the API will actually bind: a transport

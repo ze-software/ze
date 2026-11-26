@@ -162,8 +162,10 @@ func TestResolveAPIListenersEnvListenWins(t *testing.T) {
 	assert.Equal(t, "127.0.0.1:18096", cfg.REST[0].Listen(), "the env address wins over the block's server")
 }
 
-// VALIDATES: an unparseable listen address is a startup error, never a silent
-// fallback to a wildcard default.
+// VALIDATES: the strict form, which a reload uses, refuses an unparseable
+// listen address, never a silent fallback to a wildcard default. A start
+// leaves that transport down instead (planAPIListeners,
+// TestPlanAPIListenersLeavesOnlyTheUnreadableTransportDown).
 func TestResolveAPIListenersRejectsBadListen(t *testing.T) {
 	clearAPIEnv(t)
 	require.NoError(t, env.Set("ze.api-server.rest.enabled", "1"))

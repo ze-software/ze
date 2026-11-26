@@ -97,6 +97,32 @@ runs the `runtime` phase itself (`runChecks` runs the four config phases
 only), because in its process that state is empty and the check would report
 a box it never looked at as healthy. It asks the daemon instead (next section).
 
+The hub's `hub-services-not-started` check reports each service the daemon
+left down when it started because the configuration of that service cannot be
+served. Ze always starts (`core-design.md`, "Design decisions"), so such a
+service is not started and ze runs with its other services. The start path
+records the service, logs one error line under `doctor-service-not-started`
+and prints the same text on the terminal. The check answers one error finding
+per recorded service, with the problem, why, what the start did, the fix, and
+the cause as what was found. It is a runtime check because the decision comes
+from the daemon's own environment and command line as well as its config.
+
+| At start | What ze does |
+|----------|--------------|
+| `ze.web.listen` does not parse | The web server is not started, also when `environment web` names addresses |
+| `ze.mcp.listen` does not parse | MCP is not started, also when `environment mcp` names addresses |
+| `ze.api-server.rest.listen` or `ze.api-server.grpc.listen` does not parse | That transport is not started, and the other one serves |
+| The `environment mcp` block is inconsistent for a listener that would bind | MCP is not started |
+| The REST or gRPC listener cannot be built | That transport is not started, and the other one serves |
+| The looking-glass next-hop range list cannot be used | The looking glass serves without the range names |
+
+A reload that carries the same configuration is refused as a whole.
+<!-- source: cmd/ze/hub/service_not_started.go -- reportServiceNotStarted, checkServicesNotStarted, serviceNotStartedDiagnostic, listenUnreadable, blockUnservable, buildFailed, lgRangesUnused -->
+<!-- source: cmd/ze/hub/register_services_not_started.go -- init -->
+<!-- source: cmd/ze/hub/api_infra.go -- planAPIListeners, resolveAPIListeners -->
+<!-- test: cmd/ze/hub/service_not_started_test.go TestReportServiceNotStartedLogsPrintsAndFeedsDoctor -->
+<!-- test: cmd/ze/hub/service_not_started_test.go TestPlanAPIListenersLeavesOnlyTheUnreadableTransportDown -->
+
 The BGP RIB's `bgp-rib-selected-output` callback reads a failed selected-route
 capture where that RIB runs. It declares `doctor-bgp-selected-output`, retains
 the first cause, and names the configured instance's restart command as its
