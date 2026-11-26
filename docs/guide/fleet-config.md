@@ -26,7 +26,7 @@ What you get, and what you do not:
 |--------------------------|------------------------------|
 | Keep one full configuration for each client, on the hub | Build a configuration from a template: each client has its own file |
 | Push a change to the one client it belongs to | Roll a change out to a group of clients in stages |
-| Track each device's connection state, labels, version, and configuration state (`show fleet devices`, `show fleet device name <name>`) | Automatically enroll undeclared devices |
+| Track each device's connection state, labels, version, configuration state, hardware inventory, and component health (`show fleet devices`, `show fleet device name <name>`, `show fleet device inventory name <name>`, `show fleet device health name <name>`, `show fleet health`) | Automatically enroll undeclared devices |
 | Keep a client running when the hub is down | Run a device without its hub-served or cached configuration |
 
 This guide follows the order of a first deployment:
@@ -695,20 +695,35 @@ On the hub, `show fleet devices` lists every declared device (plus any removed
 device whose history record still exists) with its connection state,
 configuration state (`in-sync`, `pending`, `rejected`, `diverged`,
 `never-fetched`), declared labels, hub and device versions, fetch timestamps,
-and remote address. Both commands work on every command surface (CLI, SSH, MCP,
-REST, gRPC, and the web command line):
+and remote address. Managed devices also push bounded hardware inventory
+summaries (on connect and every 24 hours, excluding raw SMART data and
+block-device serials) and per-component health reports (on connect and every 5
+minutes, matching `/health`) to the hub. All five hub commands work on every
+command surface (CLI, SSH, MCP, REST, gRPC, and the web command line):
 
 ```
 show fleet devices
 show fleet devices | label site=lon
 show fleet device name edge-01
+show fleet device inventory name edge-01
+show fleet device health name edge-01
+show fleet health
 ```
+
+Devices that have not yet sent a report appear explicitly with `reported: false`
+and `status: not-reported` (and are counted separately under `unreported` in
+`show fleet health`). Disconnecting does not erase a device's last accepted
+inventory or health snapshot, nor does it mark components down: the hub retains
+the last snapshot and its UTC `received-at` timestamp across disconnects and
+hub restarts alongside `connected: false`.
 
 A hub declares up to 4,096 distinct clients across its serving blocks, bounds
 concurrent unauthenticated handshakes at 32 (releasing each slot as soon as
 authentication completes), and supports 2,000+ simultaneous authenticated
 sessions.
 <!-- source: internal/component/managed/cmd_devices.go -- handleFleetDevices, handleFleetDevice -->
+<!-- source: internal/component/managed/cmd_reports.go -- handleFleetDeviceInventory, handleFleetDeviceHealth, handleFleetHealth -->
+<!-- source: internal/component/plugin/server/fleet_report.go -- handleReport, FleetHealthSummary -->
 <!-- source: internal/component/plugin/server/managed_serve.go -- managedMaxHandshakes, managedReadMax -->
 <!-- source: internal/component/plugin/types.go -- ManagedClientsMax -->
 
@@ -766,6 +781,7 @@ Start with `show doctor` on the hub, and `ze doctor` on the client.
 | The first start fails with `context deadline exceeded` after 30 seconds | The hub did not send the first configuration in time. The client writes no configuration | Check the link to the hub, then run `ze start` again |
 | `doctor-hub-client-missing` on the client | The client applied a configuration with no `client` block, so it follows no hub | Add the `client` block to its configuration on the hub. Then run `ze init --managed --force` on the client, and start it |
 | `doctor-managed-diverged` on the client | The client runs a configuration that is not the last one its hub gave it, so it holds | See [When a Client Holds](#when-a-client-holds) |
+| `doctor-managed-report-failed` on the client | A periodic `inventory-report` or `health-report` failed to collect, exceeded 64 KiB, timed out after 30 seconds, or was refused by the hub (configuration sync and heartbeats continue) | Run `ze show doctor` and verify hub connectivity and hub version; the warning clears automatically on the next accepted report of that kind |
 | `doctor-managed-client-rejected` on the hub, the reason starts with `holding:` | The same: that client holds | See [When a Client Holds](#when-a-client-holds) |
 | A client holds after `request fleet enable` | The client was changed while it was out of the fleet | See [When a Client Holds](#when-a-client-holds) |
 | `request fleet enable` is refused: the configuration names no hub | The client's configuration has no `client` block, so the client has no hub to rejoin | Add the `client` block to its configuration on the hub. Then run `ze init --managed --force` on the client, and start it |
@@ -778,6 +794,8 @@ Start with `show doctor` on the hub, and `ze doctor` on the client.
 <!-- source: cmd/ze/hub/managed_owner.go -- startAtBoot, state -->
 <!-- source: internal/component/plugin/server/managed_doctor.go -- authRefused, notifyDropped -->
 <!-- source: internal/component/managed/doctor.go -- checkHubReachable, checkHubClientDeclared, checkManagedDiverged -->
+<!-- source: internal/component/managed/register_doctor_codes.go -- CodeDoctorManagedReportFailed -->
+<!-- source: internal/component/managed/report.go -- startSessionReporter, ProjectFleetHealth -->
 <!-- source: internal/component/managed/client.go -- configFetchTimeout, handleConfigChangedRequest -->
 <!-- source: internal/component/managed/cmd_fleet.go -- noDeclaredHub, daemonClientReport, reportOf -->
 

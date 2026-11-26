@@ -7,7 +7,7 @@
 | Priority | P3 |
 | Release reason | Thomas ruled on 2026-11-23 that the fleet features of the first release are reached through commands on every command surface, and that their web pages, the hub's task model and panel, notifications and live page updates come after the first release (`ai/META-DECISIONS.md`, "Goal and scope"). Split out of `plan/release/features/spec-fleet-ui-5-alarm-list.md` and `plan/release/features/spec-fleet-ui-8-alarm-causes.md`, which keep the alarm model and its commands; existing supported behavior and its obligations remain required. |
 | RFC gaps | - |
-| Depends | plan/release/features/spec-fleet-ui-5-alarm-list.md, plan/release/features/spec-fleet-ui-8-alarm-causes.md, plan/post-release/features/spec-fleet-ui-2-estate-tree-and-device-tables.md, spec-fleet-1-device-registry (closed 2026-11-25), plan/release/features/spec-fleet-4-inventory-health.md, plan/release/features/spec-fleet-8-metric-history.md |
+| Depends | plan/release/features/spec-fleet-ui-5-alarm-list.md, plan/release/features/spec-fleet-ui-8-alarm-causes.md, plan/post-release/features/spec-fleet-ui-2-estate-tree-and-device-tables.md, spec-fleet-1-device-registry (closed 2026-11-25), spec-fleet-4-inventory-health (closed 2026-11-26), plan/release/features/spec-fleet-8-metric-history.md |
 | Phase | 9/9 of plan/post-release/features/spec-fleet-ui-0-umbrella.md |
 | Handoff | - |
 | Updated | 2026-11-25 |

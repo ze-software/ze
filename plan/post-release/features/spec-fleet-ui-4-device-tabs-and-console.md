@@ -7,7 +7,7 @@
 | Priority | P3 |
 | Release reason | Adds a capability absent from the supported release; existing supported behavior and its obligations remain required. |
 | RFC gaps | - |
-| Depends | spec-fleet-ui-2-estate-tree-and-device-tables.md, spec-fleet-9-device-command-relay.md, plan/release/features/spec-fleet-4-inventory-health.md, plan/release/features/spec-fleet-8-metric-history.md |
+| Depends | spec-fleet-ui-2-estate-tree-and-device-tables.md, spec-fleet-9-device-command-relay.md, spec-fleet-4-inventory-health (closed 2026-11-26; documented in `docs/architecture/fleet-config.md`, "Inventory and health reporting"), plan/release/features/spec-fleet-8-metric-history.md |
 | Phase | 4/9 of plan/post-release/features/spec-fleet-ui-0-umbrella.md |
 | Handoff | - |
 | Updated | 2026-11-25 |
@@ -170,7 +170,7 @@ Thomas ruled (voice-transcribed answer "1 b") that the fleet features of the
 first release are reached through commands on every command surface, and that
 their web pages and views come after the first release (`ai/META-DECISIONS.md`,
 "Goal and scope"). The device detail view that
-`plan/release/features/spec-fleet-4-inventory-health.md` named (its AC-12,
+`spec-fleet-4-inventory-health` named (its AC-12,
 "device detail page with full inventory/health") is this spec's System tab;
 `fleet-4` keeps `show fleet device inventory name <name>` and
 `show fleet device health name <name>`.

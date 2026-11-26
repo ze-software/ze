@@ -7,15 +7,15 @@
 | Priority | P2 |
 | Release reason | Thomas put this fleet capability (the hub's metric history of its devices) in the first release; existing supported behavior and its obligations remain required. |
 | RFC gaps | - |
-| Depends | plan/release/features/spec-fleet-4-inventory-health.md |
+| Depends | spec-fleet-4-inventory-health (closed 2026-11-26; documented in `docs/architecture/fleet-config.md`, "Inventory and health reporting") |
 | Phase | 8/10 of plan/post-release/features/spec-fleet-0-umbrella.md |
 | Handoff | - |
-| Updated | 2026-11-25 |
+| Updated | 2026-11-26 |
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.
 
 **Re-read after compaction:** this file, `plan/post-release/features/spec-fleet-0-umbrella.md`,
-`plan/release/features/spec-fleet-4-inventory-health.md`, `internal/component/l2tp/cqm.go` (a
+`docs/architecture/fleet-config.md`, "Inventory and health reporting" (`spec-fleet-4-inventory-health`, closed 2026-11-26), `internal/component/l2tp/cqm.go` (a
 bounded bucket ring), `docs/architecture/fleet-config.md`.
 
 ## Task

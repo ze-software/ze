@@ -2,12 +2,12 @@
 
 | Field | Value |
 |-------|-------|
-| Status | ready |
+| Status | in-progress |
 | Priority | P2 |
 | Release reason | Thomas put this fleet capability (device health and inventory reports to the hub) in the first release; existing supported behavior and its obligations remain required. |
 | Depends | spec-fleet-1-device-registry (closed 2026-11-25; documented in `docs/architecture/fleet-config.md`, "Device registry") |
 | Phase | 4/10 of plan/post-release/features/spec-fleet-0-umbrella.md |
-| Updated | 2026-11-25 |
+| Updated | 2026-11-26 |
 
 ## Post-Compaction Recovery
 
@@ -202,23 +202,23 @@ AC-8 (the Task section's ruling table).
 ### Unit Tests
 | Test | File | Validates | Status |
 |------|------|-----------|--------|
-| `TestInventoryReportPayload` | `pkg/fleet/report_test.go` | Inventory report JSON marshal/unmarshal | |
-| `TestHealthReportPayload` | `pkg/fleet/report_test.go` | Health report JSON marshal/unmarshal | |
-| `TestInventoryReportHandler` | `internal/component/plugin/server/fleet_report_test.go` | Hub stores inventory from report | |
-| `TestHealthReportHandler` | `internal/component/plugin/server/fleet_report_test.go` | Hub stores health from report | |
-| `TestClientSendsInventoryReport` | `internal/component/managed/report_test.go` | Client sends inventory after config-fetch | |
-| `TestClientSendsHealthReport` | `internal/component/managed/report_test.go` | Client sends health periodically | |
-| `TestReportDisconnectRestart` | `internal/component/plugin/server/fleet_report_test.go` | A disconnected snapshot survives hub restart, old records remain unreported and a new report replaces the old one | |
-| `TestReportStoreSnapshotOwnership` | `internal/component/plugin/server/fleet_report_test.go` | AC-18: pause the writer after it observes a report, replace that report, mutate a caller snapshot and delete the record with a later report pending; prove the right report persists and earlier data is forgotten | |
-| `TestReportRefusalsPreserveLastValue` | `internal/component/plugin/server/fleet_report_test.go` | Invalid, oversized, stale-session and rate-limited requests preserve earlier data and acknowledge nothing | |
-| `TestReportUnknownMethodAndTimeout` | `internal/component/managed/report_test.go` | Independent report schedules, unknown-method handling, no reply, reconnect and concurrent ping/config notification | |
-| `TestFleetHealthAggregation` | `internal/component/plugin/server/fleet_report_test.go` | Aggregate health across multiple devices | |
+| `TestInventoryReportPayload` | `pkg/fleet/report_test.go` | Inventory report JSON marshal/unmarshal | PASS |
+| `TestHealthReportPayload` | `pkg/fleet/report_test.go` | Health report JSON marshal/unmarshal | PASS |
+| `TestInventoryReportHandler` | `internal/component/plugin/server/fleet_report_test.go` | Hub stores inventory from report | PASS |
+| `TestHealthReportHandler` | `internal/component/plugin/server/fleet_report_test.go` | Hub stores health from report | PASS |
+| `TestClientSendsInventoryReport` | `internal/component/managed/report_test.go` | Client sends inventory after config-fetch | PASS |
+| `TestClientSendsHealthReport` | `internal/component/managed/report_test.go` | Client sends health periodically | PASS |
+| `TestReportDisconnectRestart` | `internal/component/plugin/server/fleet_report_test.go` | A disconnected snapshot survives hub restart, old records remain unreported and a new report replaces the old one | PASS |
+| `TestReportStoreSnapshotOwnership` | `internal/component/plugin/server/fleet_report_test.go` | AC-18: pause the writer after it observes a report, replace that report, mutate a caller snapshot and delete the record with a later report pending; prove the right report persists and earlier data is forgotten | PASS |
+| `TestReportRefusalsPreserveLastValue` | `internal/component/plugin/server/fleet_report_test.go` | Invalid, oversized, stale-session and rate-limited requests preserve earlier data and acknowledge nothing | PASS |
+| `TestReportUnknownMethodAndTimeout` | `internal/component/managed/report_test.go` | Independent report schedules, unknown-method handling, no reply, reconnect and concurrent ping/config notification | PASS |
+| `TestFleetHealthAggregation` | `internal/component/plugin/server/fleet_report_test.go` | Aggregate health across multiple devices | PASS |
 
 ### Functional Tests
 | Test | Location | End-User Scenario | Status |
 |------|----------|-------------------|--------|
-| `fleet-inventory-report` | `test/managed/fleet-inventory-report.ci` | Device connects, reports inventory, queryable via CLI | |
-| `fleet-health-report` | `test/managed/fleet-health-report.ci` | Device reports health, aggregated view via CLI | |
+| `fleet-inventory-report` | `test/managed/fleet-inventory-report.ci` | Device connects, reports inventory, queryable via CLI | PASS |
+| `fleet-health-report` | `test/managed/fleet-health-report.ci` | Device reports health, aggregated view via CLI | PASS |
 
 ## Files to Modify
 - `pkg/fleet/envelope.go` -- add VerbInventoryReport, VerbHealthReport constants
@@ -310,45 +310,229 @@ The first-release command surfaces, data flow and reporting intervals follow the
 | Rate limiting | Accept inventory at connection and daily thereafter. Accept the first health report at connection and subsequent reports at least one minute apart. |
 | Information exposure | Inventory summary only (no raw SMART data, no serial numbers beyond what DMI provides) |
 
-## Review Gate
-
-<!-- BLOCKING (ai/rules/planning.md Review Gate). Filled by /ze-implement's /ze-review gate: -->
-<!-- the final review before closure, run AFTER the inline critical/security/doc reviews, over the complete diff. -->
-<!-- Every BLOCKER and ISSUE (severity > NOTE) must be fixed, then re-run /ze-review. -->
-<!-- Loop until the review returns 0 BLOCKER/0 ISSUE (only NOTEs, or nothing). Paste the final clean run. -->
-<!-- NOTE-only findings do not block — record them and proceed. -->
-
-### Run 1 (initial)
-| # | Severity | Finding | Location | Action |
-|---|----------|---------|----------|--------|
-|   | BLOCKER / ISSUE / NOTE | [what /ze-review reported] | file:line | fixed in <commit/line> / deferred (id) / acknowledged |
-
-### Fixes applied
-- [short bullet per BLOCKER/ISSUE, naming the file and change]
-
-### Run 2+ (re-runs until clean)
-<!-- Add a new block per re-run. Final run MUST show zero BLOCKER/ISSUE. -->
-| # | Severity | Finding | Location | Action |
-|---|----------|---------|----------|--------|
-
-### Final status
-- [ ] `/ze-review` re-run shows 0 BLOCKER, 0 ISSUE
-- [ ] All NOTEs recorded above (or explicitly "none")
-
 ## Checklist
 
 ### Goal Gates (MUST pass)
-- [ ] AC-1..AC-11 and AC-13..AC-18 all demonstrated (AC-12 moved to `fleet-ui-2` AC-16 and `fleet-ui-4` AC-8)
-- [ ] Wiring Test table complete
-- [ ] The targeted tests for what changed pass, run in the main checkout by the main thread. No agent runs any `./le verify` command: GitHub CI verifies the pushed commit
-- [ ] Feature code integrated (`internal/*`, `cmd/*`)
+- [x] AC-1..AC-11 and AC-13..AC-18 all demonstrated (AC-12 moved to `fleet-ui-2` AC-16 and `fleet-ui-4` AC-8)
+- [x] Wiring Test table complete
+- [x] The targeted tests for what changed pass, run in the main checkout by the main thread. No agent runs any `./le verify` command: GitHub CI verifies the pushed commit
+- [x] Feature code integrated (`internal/*`, `cmd/*`)
 
 ### Design
-- [ ] No premature abstraction
-- [ ] No speculative features
-- [ ] Single responsibility per component
+- [x] No premature abstraction
+- [x] No speculative features
+- [x] Single responsibility per component
 
 ### TDD
-- [ ] Tests written
-- [ ] Tests FAIL (paste output)
-- [ ] Tests PASS (paste output)
+- [x] Tests written
+- [x] Tests FAIL (observed before implementation of reporting phases)
+- [x] Tests PASS (verified by main thread across all 4 `Spec-work: fleet-4-inventory-health` commits)
+
+---
+
+## Implementation Summary
+
+### What Was Implemented
+- **Phase 1 (`5e50b70671`) — Wire payloads and producer registry (`pkg/fleet/`):** Added `VerbInventoryReport` and `VerbHealthReport` in `pkg/fleet/envelope.go`; added `InventoryReport`, `HealthReport`, typed `HealthStatus`, strict 64 KiB `Encode*`/`Decode*` codecs (`ReportBodyMax`), `Clone()` deep copies, and concurrent `ReportProducer` registry in `pkg/fleet/report.go` with unit tests in `pkg/fleet/report_test.go`.
+- **Phase 2 (`cdc5dfeed5`) — Hub receivers, immutable snapshots, and fleet health aggregation (`internal/component/plugin/server/`):** Added `ManagedReportReceiver` registry (24h inventory, 1m health per-connection rate limits, 64 KiB body bound), `handleReport`, and `ManagedFleetHealth`/`FleetHealthSummary` in `fleet_report.go`; wired registration in `register.go` and dispatch in `managed_serve.go` (`handleRequest`); added immutable `ManagedInventorySnapshot` and `ManagedHealthSnapshot` pointers with `Clone()` and active-session checks (`recordInventoryReport`, `recordHealthReport`) in `managed_registry.go`; extended `decodeDeviceRecord` and added `afterObserve` test hook in `managed_record_store.go`; added unit tests in `fleet_report_test.go`.
+- **Phase 3 (`9101bad6fe`) — Host inventory producer and client report worker (`internal/component/host/`, `internal/component/managed/`):** Added `ProjectFleetInventory`/`collectFleetInventory` (`FleetInventoryInterval` 24h, per-section availability, ECC presence semantics, raw SMART and drive serial exclusion) in `host/fleet_inventory.go` and registered it in `host/register.go`; added `ProjectFleetHealth`/`collectFleetHealth` (`FleetHealthInterval` 5m, `/health` JSON parity) and single-goroutine `startSessionReporter` worker (30s call timeout, independent schedules, unknown-method per-session suppression, `CodeDoctorManagedReportFailed` report-bus warnings, cancel+join stop) in `managed/report.go`, `managed/register_report.go`, `managed/register_doctor_codes.go`, and `managed/client.go` (`runConnection`), with unit tests in `host/fleet_inventory_test.go`, `managed/report_test.go`, and `managed/client_fetch_deadline_test.go`.
+- **Phase 4 (`18e0f40199`) — Commands, live functional tests, and architecture docs:** Declared `show fleet device inventory name`, `show fleet device health name`, and `show fleet health` in `internal/component/managed/yang/ze-managed-cmd.yang`; implemented builtin RPC handlers in `managed/cmd_reports.go` and registered handlers, shapes, column orders, and device-name completion in `managed/register.go` and `managed/cmd_devices.go`; updated `internal/component/plugin/all/testdata/wire-methods.snapshot`; added unit tests in `managed/cmd_reports_test.go` and live functional drivers/tests in `internal/test/fixture/register_managed_fleet_reports.go`, `internal/test/fixture/misc_fixture_managed_fleet_reports.go`, `test/managed/fleet-inventory-report.ci`, and `test/managed/fleet-health-report.ci`; updated `docs/architecture/fleet-config.md` and `docs/architecture/api/commands.md`.
+
+### Bugs Found/Fixed
+- `completeFleetDevices` (`internal/component/managed/cmd_devices.go`) rejected interactive Tab completion directly after the command path (`len(completed) == 0`); fixed in `18e0f40199` to accept both direct Tab and explicit `name` keyword, covered by live `TreeCompleter` assertions in `TestShowFleetReportsRefusalsAndCompletion` (`internal/component/managed/cmd_reports_test.go`).
+- `TestReportRefusalsPreserveLastValue` (`internal/component/plugin/server/fleet_report_test.go`) initially checked only `ping` after an unknown-method refusal; extended in `18e0f40199` to also assert `config-fetch` succeeds on the same session (AC-10).
+
+### Documentation Updates
+- `docs/architecture/fleet-config.md` (commit `18e0f40199`): documented `ManagedInventorySnapshot`/`ManagedHealthSnapshot` on `ManagedDeviceRecord`, the three commands, `inventory-report`/`health-report` RPC rows, and `### Inventory and health reporting` with source anchors (`pkg/fleet/envelope.go`, `pkg/fleet/report.go`, `internal/component/host/fleet_inventory.go`, `internal/component/managed/report.go`, `internal/component/managed/register_doctor_codes.go`, `internal/component/plugin/server/fleet_report.go`, `internal/component/plugin/server/managed_registry.go`).
+- `docs/architecture/api/commands.md` (commit `18e0f40199`): updated `## Managed Config RPCs` with `ze-managed:fleet-device-inventory`, `ze-managed:fleet-device-health`, `ze-managed:fleet-health`, and `inventory-report`/`health-report` RPC table rows with source anchors (`internal/component/managed/cmd_reports.go`, `internal/component/managed/register.go`).
+- Closure documentation sweep (Commit A): updated `features/fleet-management.md` (added `fleet-inventory-report.ci` and `fleet-health-report.ci`), `docs/features/fleet-management.md`, `docs/features/cli-commands.md`, `docs/guide/fleet-config.md` (capability table, `## Inspect the Fleet`, `doctor-managed-report-failed` in `## Troubleshooting`), `docs/guide/status.md`, `docs/guide/command-reference.md`, and `docs/architecture/doctor-and-health-checks.md` (`doctor-managed-report-failed`), each with verified `<!-- source: -->` anchors.
+- `./le doc check all`: 0 fleet-4 source anchor errors, 564/564 command-contract and usage-contract checks OK, 0 fleet-4 help-shape errors (pre-existing unrelated `ze-policy-conf` char-cap and stale pre-`18e0f40199` `le` binary wiki catalog drift; main thread owed `./le doc check all` re-check after Commit A edits).
+
+### Deviations from Plan
+- Fleet-1's runtime store observation mechanism (`ObserveDeviceRecordKey` / `managedRecordObservation.afterDelete`) had been unified onto `storage.RuntimeSubscription` (`observeDeviceRecord` and `forgetDeviceRecordLocked` in `internal/component/plugin/server/managed_record_store.go`) before Fleet-4 landed; Fleet-4 preserves the exact AC-18 deletion and concurrent-write reconciliation semantics on top of that mechanism, proven by `TestReportStoreSnapshotOwnership`.
+- `internal/component/managed/register_report.go` and `internal/component/managed/register_doctor_codes.go` were added/updated alongside `internal/component/host/register.go` and `internal/component/plugin/server/register.go` so all `init()` registrations live in `register*.go` per Ze Go style.
+
+## Mistake Log
+
+| Kind | What happened | What was true instead | How discovered | Action |
+|------|---------------|----------------------|----------------|--------|
+| approach | Phase 4 updated `docs/architecture/fleet-config.md` and `docs/architecture/api/commands.md` but left operator guides (`docs/guide/fleet-config.md`, `docs/guide/command-reference.md`, `docs/guide/status.md`), feature pages (`features/fleet-management.md`, `docs/features/fleet-management.md`, `docs/features/cli-commands.md`), and `docs/architecture/doctor-and-health-checks.md` without the new commands and `doctor-managed-report-failed` code. | All user-facing docs and feature declarations citing fleet commands or doctor codes must reflect the new surface in the same work. | Closure Step 4 documentation review (`git grep "show fleet" docs/ features/`). | Updated all 7 doc pages with verified source anchors in Commit A. |
+
+## Implementation Audit
+
+### Requirements from Task
+| Requirement | Status | Location | Notes |
+|-------------|--------|----------|-------|
+| `inventory-report` and `health-report` RPC verbs on existing `#id verb [json]\n` MuxConn framing | Done | `pkg/fleet/envelope.go` (`VerbInventoryReport`, `VerbHealthReport`), `internal/component/plugin/server/managed_serve.go` (`handleRequest`) | Bounded at 64 KiB (`fleet.ReportBodyMax`), compact JSON |
+| Client pushes hardware inventory on connect + 24h and component health on connect + 5m | Done | `internal/component/host/register.go` (`init`), `internal/component/host/fleet_inventory.go` (`FleetInventoryInterval`, `collectFleetInventory`), `internal/component/managed/register_report.go` (`init`), `internal/component/managed/report.go` (`FleetHealthInterval`, `startSessionReporter`), `internal/component/managed/client.go` (`runConnection`) | Independent schedules, 30s call bound, cancel+join on session end |
+| Hub stores per-device inventory and health in DeviceRegistry across disconnect and restart | Done | `internal/component/plugin/server/fleet_report.go` (`handleReport`, `handleInventoryReportPayload`, `handleHealthReportPayload`), `managed_registry.go` (`ManagedInventorySnapshot`, `ManagedHealthSnapshot`, `recordInventoryReport`, `recordHealthReport`), `managed_record_store.go` (`decodeDeviceRecord`) | Active-session check, per-connection rate limits, deep-copy snapshots |
+| Expose `show fleet device inventory name <name>`, `show fleet device health name <name>`, and `show fleet health` on every command surface | Done | `internal/component/managed/yang/ze-managed-cmd.yang`, `internal/component/managed/register.go` (`init`), `internal/component/managed/cmd_reports.go` (`handleFleetDeviceInventory`, `handleFleetDeviceHealth`, `handleFleetHealth`) | Verified across all surfaces by `TestEveryCommandOnEverySurface` |
+| Web pages and `InventoryHealthPart` | Changed | Moved to `fleet-ui-2`, `fleet-ui-3`, `fleet-ui-4` | Per owner ruling of 2026-11-23; recorded in Work Not Done |
+
+### Acceptance Criteria
+| AC ID | Status | Demonstrated By | Notes |
+|-------|--------|-----------------|-------|
+| AC-1 | Done | `TestClientSendsInventoryReport`, `test/managed/fleet-inventory-report.ci` | Immediate send after config-fetch + 24h repeat (`FleetInventoryInterval`) |
+| AC-2 | Done | `TestInventoryReportHandler`, `test/managed/fleet-inventory-report.ci` | Stored in `ManagedDeviceRecord.Inventory` with UTC `ReceivedAt` |
+| AC-3 | Done | `TestClientSendsHealthReport`, `TestHealthReportJSONMatchesHealthHandler`, `test/managed/fleet-health-report.ci` | Immediate send + 5m repeat (`FleetHealthInterval`), `/health` JSON parity |
+| AC-4 | Done | `TestHealthReportHandler`, `TestFleetHealthAggregation`, `TestShowFleetReportsUnreportedAndReportedAndDisconnected`, `test/managed/fleet-health-report.ci` | Command half done; web dashboard half moved to `fleet-ui-3` AC-8 |
+| AC-5 | Done | `TestShowFleetReportsUnreportedAndReportedAndDisconnected`, `test/managed/fleet-inventory-report.ci` | CPU, NIC, memory/ECC, storage, DMI summary |
+| AC-6 | Done | `TestShowFleetReportsUnreportedAndReportedAndDisconnected`, `test/managed/fleet-health-report.ci` | Per-component healthy/degraded/down status and reasons |
+| AC-7 | Done | `TestFleetHealthAggregation`, `TestShowFleetReportsUnreportedAndReportedAndDisconnected`, `test/managed/fleet-health-report.ci` | Total, healthy, degraded, down, unreported counts + degraded/down device list |
+| AC-8 | Done | `TestShowFleetReportsUnreportedAndReportedAndDisconnected`, `test/managed/fleet-inventory-report.ci`, `test/managed/fleet-health-report.ci` | Explicit `reported: false`, `status: not-reported`, empty `components: []` |
+| AC-9 | Done | `TestInventoryReportHandler`, `TestHealthReportHandler`, `TestManagedUnknownNameEmptyTokenRefused` | Scoped to authenticated session; undeclared names refused at auth |
+| AC-10 | Done | `TestReportRefusalsPreserveLastValue` | `unknown method: <verb>` reply preserves connection for `ping` and `config-fetch` |
+| AC-11 | Done | `TestReportUnknownMethodAndTimeout` | Unknown method disables only that kind until reconnect; timeout leaves ping/config-changed working |
+| AC-12 | Changed | Moved to `plan/post-release/features/spec-fleet-ui-2-estate-tree-and-device-tables.md` AC-16 and `plan/post-release/features/spec-fleet-ui-4-device-tabs-and-console.md` AC-8 | Owner ruling of 2026-11-23 |
+| AC-13 | Done | `TestEveryCommandOnEverySurface`, `TestShowFleetReportsUnreportedAndReportedAndDisconnected`, `TestShowFleetReportsRefusalsAndCompletion` | 0 fleet failures across all 8 surfaces; positional/keyed/prematched selector parity + Tab completion |
+| AC-14 | Done | `TestReportDisconnectRestart`, `TestShowFleetReportsUnreportedAndReportedAndDisconnected`, `test/managed/fleet-inventory-report.ci`, `test/managed/fleet-health-report.ci` | Snapshots and `received-at` survive disconnect and hub restart; pre-Fleet-4 records stay unreported |
+| AC-15 | Done | `TestInventoryReportPayload`, `TestHealthReportPayload`, `TestReportRefusalsPreserveLastValue` | Invalid, oversized, rate-limited, and superseded-session reports refused without mutating last snapshot or postponing next interval |
+| AC-16 | Done | `TestProjectFleetInventory`, `TestHealthReportJSONMatchesHealthHandler`, `TestFleetHealthAggregation`, `TestShowFleetReportsUnreportedAndReportedAndDisconnected`, `test/managed/fleet-health-report.ci` | Per-section `available: false`, inapplicable health check omitted, unreported counted separately |
+| AC-17 | Done | `TestProjectFleetInventory`, `TestInventoryReportPayload`, `TestInventoryReportHandler`, `TestShowFleetReportsUnreportedAndReportedAndDisconnected`, `test/managed/fleet-inventory-report.ci` | Model, DMI serial, software version, ECC counters present; raw SMART and drive serials absent |
+| AC-18 | Done | `TestReportStoreSnapshotOwnership` | Delayed write cannot mark newer identical/different report durable; deletion forgets old occurrence and retains later reports; caller mutations isolated |
+
+### Tests from TDD Plan
+| Test | Status | Location | Notes |
+|------|--------|----------|-------|
+| `TestInventoryReportPayload` | Done | `pkg/fleet/report_test.go` | PASS (`./le test unit pkg path ./pkg/fleet/`) |
+| `TestHealthReportPayload` | Done | `pkg/fleet/report_test.go` | PASS (`./le test unit pkg path ./pkg/fleet/`) |
+| `TestInventoryReportHandler` | Done | `internal/component/plugin/server/fleet_report_test.go` | PASS |
+| `TestHealthReportHandler` | Done | `internal/component/plugin/server/fleet_report_test.go` | PASS |
+| `TestClientSendsInventoryReport` | Done | `internal/component/managed/report_test.go` | PASS |
+| `TestClientSendsHealthReport` | Done | `internal/component/managed/report_test.go` | PASS |
+| `TestReportDisconnectRestart` | Done | `internal/component/plugin/server/fleet_report_test.go` | PASS |
+| `TestReportStoreSnapshotOwnership` | Done | `internal/component/plugin/server/fleet_report_test.go` | PASS |
+| `TestReportRefusalsPreserveLastValue` | Done | `internal/component/plugin/server/fleet_report_test.go` | PASS |
+| `TestReportUnknownMethodAndTimeout` | Done | `internal/component/managed/report_test.go` | PASS |
+| `TestFleetHealthAggregation` | Done | `internal/component/plugin/server/fleet_report_test.go` | PASS |
+| `fleet-inventory-report` | Done | `test/managed/fleet-inventory-report.ci` | PASS (`./le --name fleet4 test managed --pattern fleet-inventory-report`, 48.5s) |
+| `fleet-health-report` | Done | `test/managed/fleet-health-report.ci` | PASS (`./le --name fleet4 test managed --pattern fleet-health-report`, 11.2s) |
+
+### Files from Plan
+| File | Status | Notes |
+|------|--------|-------|
+| `pkg/fleet/envelope.go` | Done | Modified in `5e50b70671` |
+| `pkg/fleet/report.go` | Done | Created in `5e50b70671` |
+| `pkg/fleet/report_test.go` | Done | Created in `5e50b70671` |
+| `internal/component/host/fleet_inventory.go` | Done | Created in `9101bad6fe` (+ `host/register.go`, `host/fleet_inventory_test.go`) |
+| `internal/component/managed/client.go` | Done | Modified in `9101bad6fe` (+ `client_fetch_deadline_test.go`) |
+| `internal/component/managed/report.go` | Done | Created in `9101bad6fe` (+ `register_report.go`, `register_doctor_codes.go`) |
+| `internal/component/managed/report_test.go` | Done | Created in `9101bad6fe` |
+| `internal/component/managed/cmd_reports.go` | Done | Created in `18e0f40199` (+ `cmd_reports_test.go`, `cmd_devices.go`) |
+| `internal/component/managed/register.go` | Done | Modified in `18e0f40199` |
+| `internal/component/managed/yang/ze-managed-cmd.yang` | Done | Modified in `18e0f40199` (+ `wire-methods.snapshot`) |
+| `internal/component/plugin/server/managed_serve.go` | Done | Modified in `cdc5dfeed5` (+ `server/register.go`) |
+| `internal/component/plugin/server/managed_registry.go` | Done | Modified in `cdc5dfeed5` |
+| `internal/component/plugin/server/managed_record_store.go` | Done | Modified in `cdc5dfeed5` |
+| `internal/component/plugin/server/fleet_report.go` | Done | Created in `cdc5dfeed5` |
+| `internal/component/plugin/server/fleet_report_test.go` | Done | Created in `cdc5dfeed5`, extended in `18e0f40199` |
+| `test/managed/fleet-inventory-report.ci` | Done | Created in `18e0f40199` (+ fixture drivers) |
+| `test/managed/fleet-health-report.ci` | Done | Created in `18e0f40199` (+ fixture drivers) |
+| `docs/architecture/fleet-config.md` | Done | Modified in `18e0f40199` |
+| `docs/architecture/api/commands.md` | Done | Modified in `18e0f40199` |
+
+### Audit Summary
+- **Total items:** 54 (5 Task requirements, 18 ACs, 13 TDD tests, 19 planned files)
+- **Done:** 52
+- **Partial:** 0
+- **Skipped:** 0
+- **Changed:** 2 (AC-12 and web half of AC-4 moved to post-release fleet-ui specs by owner ruling of 2026-11-23)
+
+## Goal Validation (BLOCKING)
+
+| Goal (from Task) | Evidence Type | Concrete Evidence |
+|------------------|---------------|-------------------|
+| Managed devices push bounded hardware inventory (`inventory-report`, on connect + daily, excluding raw SMART/drive serials) and hub stores it across disconnect/restart | functional + unit | `test/managed/fleet-inventory-report.ci` (`./le --name fleet4 test managed --pattern fleet-inventory-report`, PASS 48.5s); `TestProjectFleetInventory` (`internal/component/host/fleet_inventory_test.go`, PASS 1.040s); `TestInventoryReportHandler` and `TestReportDisconnectRestart` (`internal/component/plugin/server/fleet_report_test.go`, PASS) |
+| Managed devices push component health (`health-report`, on connect + 5m, matching `/health`) and hub stores and aggregates it across declared devices | functional + unit | `test/managed/fleet-health-report.ci` (`./le --name fleet4 test managed --pattern fleet-health-report`, PASS 11.2s); `TestHealthReportJSONMatchesHealthHandler` and `TestClientSendsHealthReport` (`internal/component/managed/report_test.go`, PASS); `TestHealthReportHandler` and `TestFleetHealthAggregation` (`internal/component/plugin/server/fleet_report_test.go`, PASS) |
+| Operators inspect per-device inventory, per-device health, and fleet health summary on every command surface (CLI, SSH, MCP, REST, gRPC, web CLI), including explicit `not-reported` state and offline preservation | functional + surface parity | `TestEveryCommandOnEverySurface` (`cmd/ze/hub/surface_parity_test.go`, 0 failures on any fleet command across all 8 surfaces); `TestShowFleetReportsUnreportedAndReportedAndDisconnected` and `TestShowFleetReportsRefusalsAndCompletion` (`internal/component/managed/cmd_reports_test.go`, PASS 24.856s); `test/managed/fleet-inventory-report.ci` and `test/managed/fleet-health-report.ci` (PASS) |
+| Input bounds, per-connection rate limits, forward compatibility with pre-Fleet-4 hubs, and concurrent store ownership hold without disrupting config sync or heartbeats | security / fault-injection unit | `TestInventoryReportPayload` and `TestHealthReportPayload` (`pkg/fleet/report_test.go`, PASS 1.054s); `TestReportRefusalsPreserveLastValue` (`internal/component/plugin/server/fleet_report_test.go`, PASS 40.935s); `TestReportStoreSnapshotOwnership` (PASS); `TestReportUnknownMethodAndTimeout` (`internal/component/managed/report_test.go`, PASS) |
+
+## Work Not Done
+
+| What was not done | Why | The spec that now owns it |
+|-------------------|-----|---------------------------|
+| AC-4 web half ("fleet dashboard shows degraded") | Owner ruling of 2026-11-23 ("1 b"): first-release fleet features ship through commands on every command surface; web pages come after first release | `plan/post-release/features/spec-fleet-ui-3-dashboards-and-charts.md` (AC-8) |
+| AC-12 device table inventory/health columns and side panel | Owner ruling of 2026-11-23 ("1 b"): web views move to post-release fleet-ui specs | `plan/post-release/features/spec-fleet-ui-2-estate-tree-and-device-tables.md` (AC-16) |
+| AC-12 device detail page with full inventory and health | Owner ruling of 2026-11-23 ("1 b"): web views move to post-release fleet-ui specs | `plan/post-release/features/spec-fleet-ui-4-device-tabs-and-console.md` (AC-8) |
+| `InventoryHealthPart` web source registration | Owner ruling of 2026-11-23 ("1 b"): web source parts over first-release commands move to the post-release fleet-ui spec that first reads them | `plan/post-release/features/spec-fleet-ui-2-estate-tree-and-device-tables.md` (AC-17) |
+
+## Review Gate
+
+| Field | Value |
+|-------|-------|
+| Artifact | `tmp/review/fleet-4-inventory-health-0d4a383c-79d8-4d26-887f-bf4fda8abb1c.md` |
+| `./le spec review check` | `review_gate: OK (27 code files, clean, hashes match tmp/review/fleet-4-inventory-health-0d4a383c-79d8-4d26-887f-bf4fda8abb1c.md)` |
+| Rounds | 1 |
+| Reviewer lenses used | logic+wiring, security+allocation+edge-cases, spec-completeness (`/ze-review-spec`), design-documents, Ze Go style 7 questions |
+
+### Run 1 (independent closure review over commits `5e50b70671`, `cdc5dfeed5`, `9101bad6fe`, `18e0f40199`)
+- **Automated pre-checks:** `./le repo check` (0 issues on fleet-4 files; 2 unrelated pre-existing `numberparse-allowlist` issues in `bgp/plugins/rib/aggregate.go` and `internal/le/test/deployment/vppevidencecleartext.go`); `./le test weakened check base origin/main` (`clean`, 28 changed test files examined); `./le doc check all` (0 fleet-4 source anchor errors, 564/564 command-contract and usage-contract OK).
+- **Ze Go Style 7-question pass:** Ran over all 24 changed/created Go files — 0 socket-reachable panics (`MustRegister*` and `RegisterEventCode` called only from `init()` in `register*.go`), all loops/maps/payloads bounded (`ReportBodyMax`, `InventoryDriversMax`, `HealthComponentsMax`, `ManagedClientsMax`, `defaultReportCallTimeout`), lifecycle obligations stated with `MUST` on `startSessionReporter` and `Snapshot*`, deep copies prevent snapshot aliasing, zero values refused (`HealthStatusUnspecified`), names carry concepts.
+- **Design documents lens:** Verified all 12 derived design pages and decision rows (`agrees`; 0 `departs` rows; no conflict with the 2026-11-26 `Ze always starts` and listener-certificate decisions).
+- **Verdict:** 0 BLOCKER, 0 ISSUE, 1 NOTE.
+
+| # | Severity | Finding | Location | Action |
+|---|----------|---------|----------|--------|
+| 1 | NOTE | `(*ManagedServer).FleetHealthSummary()` returns `(ManagedFleetHealthSummary, error)` with a constant `nil` error (matching `ManagedFleetHealth()`'s signature). Does not affect correctness or callers. | `internal/component/plugin/server/fleet_report.go` (`FleetHealthSummary`) | acknowledged |
+
+### Findings fixed
+| # | Severity | Finding | Location | Fixed by |
+|---|----------|---------|----------|----------|
+| none | — | Run 1 independent review over all 27 code files returned 0 BLOCKER and 0 ISSUE (all Phase 4 review findings were already fixed before closure in commit `18e0f40199`) | — | — |
+
+## Pre-Commit Verification
+
+### Files Exist (ls)
+| File | Exists | Evidence |
+|------|--------|----------|
+| `pkg/fleet/report.go` | Yes | `-rw-r--r-- 1 thomas thomas 19849 Nov 26 12:45 pkg/fleet/report.go` |
+| `pkg/fleet/report_test.go` | Yes | `-rw-r--r-- 1 thomas thomas 22799 Nov 26 12:39 pkg/fleet/report_test.go` |
+| `internal/component/host/fleet_inventory.go` | Yes | `-rw-r--r-- 1 thomas thomas 5208 Nov 26 13:09 internal/component/host/fleet_inventory.go` |
+| `internal/component/host/fleet_inventory_test.go` | Yes | `-rw-r--r-- 1 thomas thomas 7919 Nov 26 12:54 internal/component/host/fleet_inventory_test.go` |
+| `internal/component/managed/report.go` | Yes | `-rw-r--r-- 1 thomas thomas 9566 Nov 26 12:52 internal/component/managed/report.go` |
+| `internal/component/managed/report_test.go` | Yes | `-rw-r--r-- 1 thomas thomas 21119 Nov 26 13:09 internal/component/managed/report_test.go` |
+| `internal/component/managed/register_report.go` | Yes | `-rw-r--r-- 1 thomas thomas 452 Nov 26 12:52 internal/component/managed/register_report.go` |
+| `internal/component/managed/cmd_reports.go` | Yes | `-rw-r--r-- 1 thomas thomas 7355 Nov 26 13:14 internal/component/managed/cmd_reports.go` |
+| `internal/component/managed/cmd_reports_test.go` | Yes | `-rw-r--r-- 1 thomas thomas 17870 Nov 26 17:16 internal/component/managed/cmd_reports_test.go` |
+| `internal/component/plugin/server/fleet_report.go` | Yes | `-rw-r--r-- 1 thomas thomas 10000 Nov 26 13:09 internal/component/plugin/server/fleet_report.go` |
+| `internal/component/plugin/server/fleet_report_test.go` | Yes | `-rw-r--r-- 1 thomas thomas 31071 Nov 26 16:52 internal/component/plugin/server/fleet_report_test.go` |
+| `internal/test/fixture/register_managed_fleet_reports.go` | Yes | `-rw-r--r-- 1 thomas thomas 374 Nov 26 13:15 internal/test/fixture/register_managed_fleet_reports.go` |
+| `internal/test/fixture/misc_fixture_managed_fleet_reports.go` | Yes | `-rw-r--r-- 1 thomas thomas 16046 Nov 26 13:18 internal/test/fixture/misc_fixture_managed_fleet_reports.go` |
+| `test/managed/fleet-inventory-report.ci` | Yes | `-rw-r--r-- 1 thomas thomas 866 Nov 26 13:16 test/managed/fleet-inventory-report.ci` |
+| `test/managed/fleet-health-report.ci` | Yes | `-rw-r--r-- 1 thomas thomas 914 Nov 26 13:16 test/managed/fleet-health-report.ci` |
+| `website/changes/fragments/fleet-4-inventory-health.md` | Yes | `-rw-r--r-- 1 thomas thomas 1881 Nov 26 17:40 website/changes/fragments/fleet-4-inventory-health.md` |
+
+### AC Verified (grep/test)
+| AC ID | Claim | Fresh Evidence |
+|-------|-------|----------------|
+| AC-1, AC-2 | Client sends `inventory-report` after config-fetch + 24h; hub stores it | Verified `runConnection` (`internal/component/managed/client.go`) calls `startSessionReporter` after `fetchAndProcess`, `host/register.go` registers `FleetInventoryInterval` (24h), `server/fleet_report.go` `handleInventoryReportPayload` stores via `recordInventoryReport`; `TestClientSendsInventoryReport`, `TestInventoryReportHandler`, `fleet-inventory-report.ci` PASS |
+| AC-3, AC-4 | Client sends `health-report` after fetch + 5m; hub stores and aggregates degraded component | Verified `managed/register_report.go` registers `FleetHealthInterval` (5m), `ProjectFleetHealth` matches `/health`, `recordHealthReport` and `FleetHealthSummary` aggregate status; `TestClientSendsHealthReport`, `TestHealthReportJSONMatchesHealthHandler`, `TestHealthReportHandler`, `TestFleetHealthAggregation`, `fleet-health-report.ci` PASS |
+| AC-5, AC-6, AC-7, AC-8 | Three commands show inventory, health, estate aggregate, and explicit `not-reported` | Verified `handleFleetDeviceInventory`, `handleFleetDeviceHealth`, `handleFleetHealth` (`internal/component/managed/cmd_reports.go`) and `ze-managed-cmd.yang`; `TestShowFleetReportsUnreportedAndReportedAndDisconnected` (PASS 24.856s), `fleet-inventory-report.ci` (PASS 48.5s), `fleet-health-report.ci` (PASS 11.2s) |
+| AC-9, AC-10, AC-11 | Session-scoped auth, old-hub `unknown method:` preserving ping + config-fetch, client per-session suppression and 30s call timeout | Verified `managed_registry.go` (`device.conn == mc`), `managed_serve.go` (`handleRequest` default), `managed/report.go` (`isUnknownMethodError`, `defaultReportCallTimeout`); `TestReportRefusalsPreserveLastValue` (PASS 40.935s), `TestReportUnknownMethodAndTimeout` (PASS) |
+| AC-13 | All three commands offered on CLI, SSH, MCP, REST, gRPC, web CLI | Verified `managed/register.go` `RegisterRPCs`, `ze-managed-cmd.yang`, `wire-methods.snapshot`; `TestRegisteredWireMethods` (PASS 1.148s), `TestEveryCommandOnEverySurface` (0 failures on fleet commands across all 8 surfaces), `./le doc yang-contract command-contract` (564 commands OK) |
+| AC-14, AC-15 | Disconnect + restart preserve snapshots and `received-at`; refusals preserve prior data and interval | Verified `decodeDeviceRecord` (`managed_record_store.go`), `handleReport` (`fleet_report.go`); `TestReportDisconnectRestart` and `TestReportRefusalsPreserveLastValue` PASS |
+| AC-16, AC-17, AC-18 | Per-section availability, inapplicable health omitted, ECC/DMI/version included, SMART/drive serials excluded, concurrent store ownership and deletion reconciliation | Verified `host/fleet_inventory.go` (`ProjectFleetInventory`), `pkg/fleet/report.go` (`Validate`, `Clone`), `managed_record_store.go` (`syncDeviceRecord`, `observeDeviceRecord`, `forgetDeviceRecordLocked`); `TestProjectFleetInventory` (PASS 1.040s), `TestInventoryReportPayload` (PASS 1.054s), `TestReportStoreSnapshotOwnership` (PASS) |
+
+### Wiring Verified (end-to-end)
+| Entry Point | .ci File | Verified |
+|-------------|----------|----------|
+| Client connects, completes `config-fetch`, sends `inventory-report`, queried via `show fleet device inventory name` online and after disconnect | `test/managed/fleet-inventory-report.ci` | Read `.ci` and `managedFleetInventoryReportDriver` (`internal/test/fixture/misc_fixture_managed_fleet_reports.go`): checks unreported `edge-par`, waits for live inventory report over TLS MuxConn, checks absence of SMART/drive-serials, verifies offline retention with identical `received-at`, checks unknown-device refusal; PASS (48.5s) |
+| Client sends `health-report`, queried via `show fleet device health name` and `show fleet health` online and after disconnect | `test/managed/fleet-health-report.ci` | Read `.ci` and `managedFleetHealthReportDriver` (`internal/test/fixture/misc_fixture_managed_fleet_reports.go`): waits for live health report, verifies unreported `edge-par`, checks `show fleet health` aggregate (`total: 2`, `unreported: 1`), verifies disconnect preserves status/`received-at`/`checked-at` with `connected: false`, checks unknown-device refusal; PASS (11.2s) |
+| The three commands on CLI, SSH, MCP, REST, gRPC, and web CLI | `cmd/ze/hub/surface_parity_test.go` (`TestEveryCommandOnEverySurface`) | Verified `ze-managed-cmd.yang`, `managed/register.go` (`RegisterRPCs`), `wire-methods.snapshot`; `TestEveryCommandOnEverySurface` reported 0 failures on any fleet command across all 8 surfaces |
+
+### Assumptions Resolved
+| ID | Final Status | Evidence |
+|----|--------------|----------|
+| R-1 (report RPC never gets an answer) | confirmed | `defaultReportCallTimeout` (30s) bounds each call in `sessionReporter.sendOnce` (`internal/component/managed/report.go`), `stopReporter` cancels and joins before `mc.Close()`; proven by `TestReportUnknownMethodAndTimeout` (missing reply times out while `ping` and `config-changed` succeed) |
+| R-2 (stale/superseded connection tries to write report) | confirmed | `recordInventoryReport` and `recordHealthReport` (`internal/component/plugin/server/managed_registry.go`) require `device.conn == mc` under `s.mu`; proven by `TestReportRefusalsPreserveLastValue` |
+| R-3 (partial hardware inventory or hub restart between report kinds) | confirmed | Per-section `Available` flags in `pkg/fleet/report.go` + `host/fleet_inventory.go` and optional `Inventory`/`Health` pointers in `managed_record_store.go` (`decodeDeviceRecord`); proven by `TestProjectFleetInventory`, `TestInventoryReportPayload`, `TestReportDisconnectRestart` |
+| R-4 (slow health callbacks delaying liveness/config) | confirmed | `startSessionReporter` runs a single session-scoped worker separate from `notificationLoop` and heartbeat goroutines in `internal/component/managed/client.go`; proven by `TestReportUnknownMethodAndTimeout` |
+
+### Documentation Verified
+| Documentation claim or category | Source evidence | Verified |
+|---------------------------------|-----------------|----------|
+| Architecture / wire protocol (`docs/architecture/fleet-config.md`) | Updated in `18e0f40199` with `ManagedInventorySnapshot`/`ManagedHealthSnapshot`, RPC table rows, and `### Inventory and health reporting` anchored to `pkg/fleet/report.go`, `host/fleet_inventory.go`, `managed/report.go`, `plugin/server/fleet_report.go` | Verified against source and `./le doc check all` (0 fleet-4 anchor errors) |
+| Command & API surface (`docs/architecture/api/commands.md`, `docs/guide/command-reference.md`, `docs/features/cli-commands.md`) | Updated in `18e0f40199` (`commands.md`) and Commit A (`command-reference.md`, `cli-commands.md`) anchored to `managed/cmd_reports.go`, `managed/register.go`, `ze-managed-cmd.yang` | Verified against `ze-managed-cmd.yang` and `./le doc yang-contract command-contract` (564 commands OK) |
+| User guide & status (`docs/guide/fleet-config.md`, `docs/guide/status.md`, `docs/features/fleet-management.md`, `features/fleet-management.md`) | Updated in Commit A with the 3 commands, `not-reported`/disconnect semantics, `doctor-managed-report-failed`, and `fleet-inventory-report.ci` / `fleet-health-report.ci` | Verified against `cmd_reports.go`, `report.go`, `register_doctor_codes.go`, and `ls` of `.ci` files |
+| Doctor & report bus (`docs/architecture/doctor-and-health-checks.md`) | Updated in Commit A with `doctor-managed-report-failed` (`CodeDoctorManagedReportFailed`) anchored to `register_doctor_codes.go` and `report.go` | Verified against `register_doctor_codes.go` and `./le arch doctor-coverage check` (0 findings on fleet-4) |
+| Config syntax / RFC compliance / comparison table | No config YANG (`-conf`) leaves or RFC wire protocols changed; `git grep` confirms no stale claims in `docs/guide/configuration.md` or `docs/comparison.md` | Verified (N/A) |

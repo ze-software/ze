@@ -73,7 +73,7 @@ Back-end work the interface needs, owned by the `fleet` set:
 | Spec | What the interface needs from it |
 |------|----------------------------------|
 | `spec-fleet-1-device-registry` (closed 2026-11-25; `docs/architecture/fleet-config.md`) | The persistent registry, labels, groups, `show fleet` commands. Every page reads it |
-| `plan/release/features/spec-fleet-4-inventory-health.md` | Inventory and health per device. Dashboards, alarms and the System tab read it |
+| `spec-fleet-4-inventory-health` (closed 2026-11-26; `docs/architecture/fleet-config.md`, "Inventory and health reporting") | Inventory and health per device. Dashboards, alarms and the System tab read it |
 | `plan/release/features/spec-fleet-8-metric-history.md` | The sample reports and the bounded history every chart reads |
 | `plan/post-release/features/spec-fleet-9-device-command-relay.md` | The relay every device tab and the per-device CLI use |
 | `plan/post-release/features/spec-fleet-2-config-templates.md`, `spec-fleet-3-audit-trail.md`, `spec-fleet-5-staged-rollout.md`, `spec-fleet-7-config-reconnect-resolution` | The data behind the config, rollout and audit pages of `fleet-ui-6` |
@@ -430,7 +430,7 @@ censused in the specs that own them: the report and history verbs in
 `plan/post-release/features/spec-fleet-9-device-command-relay.md`, and the
 `show fleet` answer shapes in
 `spec-fleet-1-device-registry` (`docs/architecture/fleet-config.md`) and
-`plan/release/features/spec-fleet-4-inventory-health.md`.
+`spec-fleet-4-inventory-health` (`docs/architecture/fleet-config.md`, "Inventory and health reporting").
 
 **Search evidence:** `pkg/fleet/envelope.go` was read whole and holds four verb constants (`config-fetch`, `config-changed`, `config-ack`, `ping`); a search of `internal` and `pkg` for `fleet` in YANG files returns nothing, so no fleet command or answer shape exists yet for this set to change. Positive control: the same search for `managed` finds the client and server packages.
 

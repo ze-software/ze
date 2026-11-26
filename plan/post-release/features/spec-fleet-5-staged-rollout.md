@@ -5,9 +5,9 @@
 | Status | ready |
 | Priority | P3 |
 | Release reason | Adds a capability absent from the supported release; existing supported behavior and its obligations remain required. |
-| Depends | spec-fleet-2-config-templates, plan/release/features/spec-fleet-4-inventory-health.md |
+| Depends | spec-fleet-2-config-templates, spec-fleet-4-inventory-health (closed 2026-11-26; documented in `docs/architecture/fleet-config.md`, "Inventory and health reporting") |
 | Phase | 5/10 of plan/post-release/features/spec-fleet-0-umbrella.md |
-| Updated | 2026-11-25 |
+| Updated | 2026-11-26 |
 
 ## Post-Compaction Recovery
 
@@ -18,7 +18,7 @@
 4. `spec-fleet-0-umbrella.md` -- umbrella design decisions
 5. `docs/architecture/fleet-config.md`, "Device registry" (`spec-fleet-1-device-registry`, closed 2026-11-25) -- device registry
 6. `spec-fleet-2-config-templates.md` -- config templates and groups (dependency)
-7. `plan/release/features/spec-fleet-4-inventory-health.md` -- health reporting (dependency)
+7. `docs/architecture/fleet-config.md`, "Inventory and health reporting" (`spec-fleet-4-inventory-health`, closed 2026-11-26) -- health reporting (dependency)
 
 ## Task
 

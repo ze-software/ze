@@ -7,7 +7,7 @@
 | Priority | P2 |
 | Release reason | Thomas put this fleet capability (alarm causes: an alarm hidden while the alarm that causes it is open) in the first release, reached through `show fleet alarm` on every command surface (`ai/META-DECISIONS.md`, "Goal and scope"); existing supported behavior and its obligations remain required. How the pages show a hidden alarm comes after the first release, in `plan/post-release/features/spec-fleet-ui-9-tasks-notifications-and-alarm-pages.md`. |
 | RFC gaps | - |
-| Depends | plan/release/features/spec-fleet-ui-5-alarm-list.md, spec-fleet-1-device-registry (closed 2026-11-25; documented in `docs/architecture/fleet-config.md`, "Device registry"), plan/release/features/spec-fleet-4-inventory-health.md, plan/release/features/spec-fleet-8-metric-history.md |
+| Depends | plan/release/features/spec-fleet-ui-5-alarm-list.md, spec-fleet-1-device-registry (closed 2026-11-25; documented in `docs/architecture/fleet-config.md`, "Device registry"), spec-fleet-4-inventory-health (closed 2026-11-26; documented in `docs/architecture/fleet-config.md`, "Inventory and health reporting"), plan/release/features/spec-fleet-8-metric-history.md |
 | Phase | 8/9 of plan/post-release/features/spec-fleet-ui-0-umbrella.md |
 | Handoff | - |
 | Design tier | strongest tier |
@@ -185,7 +185,7 @@ stay here are unchanged.
   → Constraint: "A source answers facts, the package derives": `hidden-behind` is a fact the hub answers; the counts are derived by the pages (`fleet-ui-9`)
 - [ ] `plan/post-release/features/spec-fleet-ui-2-estate-tree-and-device-tables.md` (moved from `spec-fleet-1-device-registry`) - the `ActivityPart` contract
   → Constraint: the part's methods, arguments and bounds stay as `fleet-1` fixes them
-- [ ] `plan/release/features/spec-fleet-4-inventory-health.md`, `plan/release/features/spec-fleet-8-metric-history.md` - the health reports and samples the caused kinds read
+- [ ] `docs/architecture/fleet-config.md` ("Inventory and health reporting", `spec-fleet-4-inventory-health`, closed 2026-11-26), `plan/release/features/spec-fleet-8-metric-history.md` - the health reports and samples the caused kinds read
   → Constraint: assumption A-1 is settled with these two specs
 
 **Key insights:**

@@ -1913,6 +1913,18 @@ above.
 <!-- test: internal/component/managed/doctor_test.go TestDivergedDoctorCheck -->
 <!-- test: internal/component/managed/doctor_test.go TestDivergedDoctorSilentWhenUnmanaged -->
 
+Periodic fleet report failures on a managed client (collection error, oversized
+payload, hub refusal, or reply timeout on `inventory-report` or `health-report`)
+raise a warning under `doctor-managed-report-failed`
+(`CodeDoctorManagedReportFailed`) on the report bus (`recent-events`) with the
+device name, report kind, cause, and fix
+(`ze show doctor; verify hub connectivity and hub version`). Configuration
+synchronization and heartbeats continue unaffected, and the warning clears on
+the next accepted report of that kind (an older hub answering `unknown method:`
+disables that report kind for the session without raising a warning).
+<!-- source: internal/component/managed/register_doctor_codes.go -- CodeDoctorManagedReportFailed -->
+<!-- source: internal/component/managed/report.go -- startSessionReporter, ProjectFleetHealth -->
+
 The managed server authenticates with per-client secrets and no shared
 secret. `AuthenticateWithLookup` refuses an empty expected token, so a name
 with no client entry is refused whatever token it sends; before that guard, an
