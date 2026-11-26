@@ -147,8 +147,9 @@ const managedLeafCommonName = "ze-managed-hub"
 const managedLoopbackHost = "127.0.0.1"
 
 // ManagedServer authenticates managed fleet clients (per-client secret), answers
-// config-fetch/config-ack/config-held/ping over MuxConn, and pushes config-changed to connected
-// clients. It owns its listeners and one goroutine per connection.
+// config-fetch/config-ack/config-held/ping and registered fleet reports over MuxConn,
+// and pushes config-changed to connected clients. It owns its listeners and one goroutine
+// per connection.
 type ManagedServer struct {
 	svc *ManagedConfigService
 	// listens is ManagedServerConfig.Listeners, each with its own copy of the
@@ -683,6 +684,9 @@ type managedSession struct {
 	// this connection, the configuration it runs; empty before its first
 	// fetch.
 	fetched string
+	// lastReport records the hub time of the last accepted report per RPC
+	// method on this connection so handleReport can enforce MinInterval.
+	lastReport map[string]time.Time
 }
 
 // serve reads inbound RPCs from a connected client until disconnect or shutdown.
@@ -754,6 +758,10 @@ func (s *ManagedServer) handleRequest(name string, mc *rpc.MuxConn, req *rpc.Req
 		_ = mc.SendOK(s.ctx, req.ID)
 
 	default:
+		if recv, ok := lookupManagedReportReceiver(req.Method); ok {
+			s.handleReport(name, mc, req, session, recv)
+			return
+		}
 		// Unknown methods are answered with an error, for forward compatibility.
 		var tb textbuf.Buffer
 		tb.Str("unknown method: ").Str(req.Method)

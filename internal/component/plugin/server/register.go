@@ -44,6 +44,7 @@ var serverEventCodes = []diagnostic.EventCode{
 
 func init() {
 	registerDoctorCodes()
+	registerManagedReportReceivers()
 	for _, event := range serverEventCodes {
 		if err := diagnostic.RegisterEventCode(event); err != nil {
 			panic("BUG: plugin server event code registration refused: " + err.Error())

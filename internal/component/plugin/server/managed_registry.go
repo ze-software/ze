@@ -5,6 +5,7 @@
 package server
 
 import (
+	"errors"
 	"fmt"
 	"maps"
 	"net/netip"
@@ -17,23 +18,65 @@ import (
 	"github.com/ze-software/ze/pkg/plugin/rpc"
 )
 
+// ManagedInventorySnapshot is an immutable hub-side record of one accepted
+// inventory report together with its UTC receipt timestamp.
+type ManagedInventorySnapshot struct {
+	Report     fleet.InventoryReport `json:"report"`
+	ReceivedAt time.Time             `json:"received-at"`
+}
+
+// Clone returns a deep copy of s, or nil when s is nil.
+func (s *ManagedInventorySnapshot) Clone() *ManagedInventorySnapshot {
+	// refuse-by-default: guards snapshotLocked -- absent inventory remains nil for unreported devices
+	if s == nil {
+		return nil
+	}
+	return &ManagedInventorySnapshot{
+		Report:     s.Report.Clone(),
+		ReceivedAt: s.ReceivedAt,
+	}
+}
+
+// ManagedHealthSnapshot is an immutable hub-side record of one accepted health
+// report together with its UTC receipt timestamp.
+type ManagedHealthSnapshot struct {
+	Report     fleet.HealthReport `json:"report"`
+	ReceivedAt time.Time          `json:"received-at"`
+}
+
+// Clone returns a deep copy of s, or nil when s is nil.
+func (s *ManagedHealthSnapshot) Clone() *ManagedHealthSnapshot {
+	// refuse-by-default: guards snapshotLocked -- absent health remains nil for unreported devices
+	if s == nil {
+		return nil
+	}
+	return &ManagedHealthSnapshot{
+		Report:     s.Report.Clone(),
+		ReceivedAt: s.ReceivedAt,
+	}
+}
+
 // ManagedDeviceRecord contains the facts that survive the end of a connection.
-// Result and time fields stay absent until the corresponding event.
+// Result and time fields stay absent until the corresponding event. Inventory
+// and Health hold pointers to immutable snapshots so the struct remains
+// comparable and each accepted report installs a distinct reference.
 type ManagedDeviceRecord struct {
-	Name            string             `json:"name"`
-	FirstConnected  time.Time          `json:"first-connected,omitzero"`
-	ConnectedSince  time.Time          `json:"connected-since,omitzero"`
-	LastSeen        time.Time          `json:"last-seen,omitzero"`
-	SourceAddress   netip.Addr         `json:"source-address,omitzero"`
-	LastFetch       time.Time          `json:"last-fetch,omitzero"`
-	DeviceVersion   string             `json:"device-version,omitempty"`
-	LastFetchResult ManagedFetchResult `json:"last-fetch-result,omitzero"`
-	LastFetchError  string             `json:"last-fetch-error,omitempty"`
-	LastAck         time.Time          `json:"last-ack,omitzero"`
-	AckResult       ManagedAckResult   `json:"ack-result,omitzero"`
-	AckVersion      string             `json:"ack-version,omitempty"`
-	AckError        string             `json:"ack-error,omitempty"`
-	RemovedAt       time.Time          `json:"removed-at,omitzero"`
+	Name            string                    `json:"name"`
+	FirstConnected  time.Time                 `json:"first-connected,omitzero"`
+	ConnectedSince  time.Time                 `json:"connected-since,omitzero"`
+	LastSeen        time.Time                 `json:"last-seen,omitzero"`
+	SourceAddress   netip.Addr                `json:"source-address,omitzero"`
+	LastFetch       time.Time                 `json:"last-fetch,omitzero"`
+	DeviceVersion   string                    `json:"device-version,omitempty"`
+	LastFetchResult ManagedFetchResult        `json:"last-fetch-result,omitzero"`
+	LastFetchError  string                    `json:"last-fetch-error,omitempty"`
+	LastAck         time.Time                 `json:"last-ack,omitzero"`
+	AckResult       ManagedAckResult          `json:"ack-result,omitzero"`
+	AckVersion      string                    `json:"ack-version,omitempty"`
+	AckError        string                    `json:"ack-error,omitempty"`
+	RemovedAt       time.Time                 `json:"removed-at,omitzero"`
+	Inventory       *ManagedInventorySnapshot `json:"inventory,omitempty"`
+	Health          *ManagedHealthSnapshot    `json:"health,omitempty"`
 }
 
 // ManagedDevice is a caller-owned snapshot. The live fields die with the server.
@@ -120,9 +163,14 @@ func (s *ManagedServer) visibleDeviceLocked(name string) *managedDevice {
 }
 
 // snapshotLocked copies the current session facts while the caller holds s.mu.
+// Inventory and Health snapshots are deep-cloned so callers cannot mutate live
+// or writer-retained state.
 func (entry *managedDevice) snapshotLocked() ManagedDevice {
+	record := entry.ManagedDeviceRecord
+	record.Inventory = entry.Inventory.Clone()
+	record.Health = entry.Health.Clone()
 	return ManagedDevice{
-		ManagedDeviceRecord: entry.ManagedDeviceRecord,
+		ManagedDeviceRecord: record,
 		Connected:           entry.conn != nil, Declared: entry.declared,
 		Labels:    maps.Clone(entry.labels),
 		Persisted: entry.persisted, Unreadable: entry.unreadable,
@@ -224,6 +272,58 @@ func (s *ManagedServer) recordAck(name string, ack fleet.ConfigAck, result Manag
 		device.AckError = boundedManagedDetail(ack.Error)
 	}
 	s.dirtyDeviceLocked(name)
+}
+
+func (s *ManagedServer) recordInventoryReport(name string, mc *rpc.MuxConn, report fleet.InventoryReport) error {
+	if mc == nil {
+		return errors.New("inventory report requires an active authenticated session")
+	}
+	if err := report.Validate(); err != nil {
+		return err
+	}
+	cloned := report.Clone()
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	device := s.visibleDeviceLocked(name)
+	if device == nil {
+		return errors.New("inventory report session is no longer active")
+	}
+	if device.conn != mc {
+		return errors.New("inventory report session is superseded")
+	}
+	device.Inventory = &ManagedInventorySnapshot{
+		Report:     cloned,
+		ReceivedAt: s.currentTime().UTC(),
+	}
+	device.persisted = false
+	s.dirtyDeviceLocked(name)
+	return nil
+}
+
+func (s *ManagedServer) recordHealthReport(name string, mc *rpc.MuxConn, report fleet.HealthReport) error {
+	if mc == nil {
+		return errors.New("health report requires an active authenticated session")
+	}
+	if err := report.Validate(); err != nil {
+		return err
+	}
+	cloned := report.Clone()
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	device := s.visibleDeviceLocked(name)
+	if device == nil {
+		return errors.New("health report session is no longer active")
+	}
+	if device.conn != mc {
+		return errors.New("health report session is superseded")
+	}
+	device.Health = &ManagedHealthSnapshot{
+		Report:     cloned,
+		ReceivedAt: s.currentTime().UTC(),
+	}
+	device.persisted = false
+	s.dirtyDeviceLocked(name)
+	return nil
 }
 
 func boundedManagedDetail(detail string) string {

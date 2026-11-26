@@ -34,7 +34,8 @@ type managedRecordIO struct {
 	wake         chan struct{}
 	loaded       bool
 	closed       bool
-	saving       string // Active until Release returns or an operator deletes the key.
+	saving       string            // Active until Release returns or an operator deletes the key.
+	afterObserve func(name string) // Optional test hook invoked after observing a pending record and unlocking mu.
 }
 
 type managedRecordFailure struct {
@@ -138,6 +139,28 @@ func decodeDeviceRecord(name string, data []byte) (ManagedDeviceRecord, error) {
 	}
 	if max(len(record.LastFetchError), len(record.AckError)) > managedDetailMax {
 		return record, errors.New("device record error detail exceeds its byte limit")
+	}
+	if record.Inventory != nil {
+		if record.Inventory.ReceivedAt.IsZero() {
+			return record, errors.New("device record inventory snapshot is missing received-at")
+		}
+		if _, err := fleet.EncodeInventoryReport(record.Inventory.Report); err != nil {
+			return record, fmt.Errorf("device record inventory snapshot: %w", err)
+		}
+		cloned := record.Inventory.Clone()
+		cloned.ReceivedAt = cloned.ReceivedAt.UTC()
+		record.Inventory = cloned
+	}
+	if record.Health != nil {
+		if record.Health.ReceivedAt.IsZero() {
+			return record, errors.New("device record health snapshot is missing received-at")
+		}
+		if _, err := fleet.EncodeHealthReport(record.Health.Report); err != nil {
+			return record, fmt.Errorf("device record health snapshot: %w", err)
+		}
+		cloned := record.Health.Clone()
+		cloned.ReceivedAt = cloned.ReceivedAt.UTC()
+		record.Health = cloned
 	}
 	return record, nil
 }
@@ -285,6 +308,7 @@ func (s *ManagedServer) syncDeviceRecord(name string) {
 		s.recordIO.saving = name
 	}
 	dirty = dirty || s.recordIO.failed[name].dirty
+	afterObserve := s.recordIO.afterObserve
 	device := s.devices[name]
 	var record ManagedDeviceRecord
 	var original []byte
@@ -306,6 +330,9 @@ func (s *ManagedServer) syncDeviceRecord(name string) {
 			managedLogger().Error("cannot release unused managed device record guard", "code", diagnostic.CodeDoctorStoreIntegrity, "key", key, "error", err)
 		}
 		return
+	}
+	if afterObserve != nil {
+		afterObserve(name)
 	}
 
 	encoded := original
