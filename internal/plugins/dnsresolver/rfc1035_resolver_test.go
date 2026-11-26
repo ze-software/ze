@@ -298,7 +298,7 @@ func TestRFC1035ResolverDatagramBound(t *testing.T) {
 	// on messages carried by UDP: the TCP reply for the same 50-record RRset
 	// carries all 50 records, packs to more than 512 octets and has TC clear.
 	if len(stream.Answer) != records || stream.Truncated || len(streamWire) <= dns.MinMsgSize {
-		t.Fatalf("TCP reply of %d octets with %d records, tc=%v, want all %d records, over %d octets, TC clear",
+		t.Fatalf("TCP reply of %d octets with %d records, TC=%v, want all %d records, over %d octets, TC clear",
 			len(streamWire), len(stream.Answer), stream.Truncated, records, dns.MinMsgSize)
 	}
 }

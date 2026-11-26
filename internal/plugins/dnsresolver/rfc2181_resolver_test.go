@@ -71,7 +71,7 @@ func TestRFC2181TruncatedWhenRRSetDoesNotFit(t *testing.T) {
 		t.Fatal("no TCP reply for big.test")
 	}
 	if reply.Truncated || len(reply.Answer) != len(big) {
-		t.Fatalf("TCP reply tc=%v with %d records, want TC clear and %d", reply.Truncated, len(reply.Answer), len(big))
+		t.Fatalf("TCP reply TC=%v with %d records, want TC clear and %d", reply.Truncated, len(reply.Answer), len(big))
 	}
 }
 
