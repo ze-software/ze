@@ -1,19 +1,22 @@
-# Test: daemon start refuses fib kernel alone (without fib vpp) under interface backend vpp.
+# Test: daemon start leaves fib kernel alone off under interface backend vpp and reports doctor-dataplane-mismatch.
 # Question: does `ze start` on a file with `interface backend vpp` and
-#           `fib kernel` alone (no `fib vpp` block) exit 1 before any plugin
-#           starts, naming `fib kernel` and `set fib vpp`?
-#           A unit test exercises the verdict over synthetic registrations;
-#           only a real daemon start proves the composition-root `fib-kernel`
-#           and `fib-vpp` registrations refuse boot ahead of plugin start.
-# VALIDATES: spec-dataplane-compatibility-guard AC-14 (P-1b at start) --
-#            a host-side FIB writer of another plane alone under VPP leaves
-#            VPP's FIB with no route and is refused at daemon start.
-# PREVENTS: a VPP daemon booting with only `fib kernel` and forwarding traffic
-#           with an empty VPP FIB.
+#           `fib kernel` alone (no `fib vpp` block) reach "Ze running", leave
+#           `fib kernel` off and reported under `doctor-dataplane-mismatch`
+#           naming `fib kernel` and `set fib vpp`, and keep the config file
+#           untouched, while `ze config validate` still refuses the file?
+# VALIDATES: 2026-11-26 owner ruling, Answer 2a
+#            (plan/records/ruling-ze-always-starts.md) and
+#            spec-dataplane-compatibility-guard AC-14 -- a host-side FIB writer
+#            of another plane alone under VPP is left off at daemon start and
+#            reported under `doctor-dataplane-mismatch`, while `ze config
+#            validate` stays strict.
+# PREVENTS: `fib kernel` alone blocking a VPP daemon from starting, or loading
+#           `fib-kernel` without `fib-vpp` at boot, or rewriting disk config.
 
 option=needs-build-tag:value=ze_vpp:state=present
+option=env:var=ze.log.fib.kernel:value=info
 
-stdin=ze-bgp:refused=config-plugin-verify:terminator=EOF_CONF
+tmpfs=vpp-fib-kernel-alone.conf:refused=config-plugin-verify:terminator=EOF_CONF
 interface {
 	backend vpp;
 }
@@ -23,10 +26,26 @@ fib {
 }
 EOF_CONF
 
-cmd=foreground:seq=1:exec=ze -:stdin=ze-bgp:timeout=30s
+# `ze config validate` stays strict and refuses the mismatch.
+cmd=foreground:seq=1:exec=ze config validate vpp-fib-kernel-alone.conf:timeout=20s
 expect=exit:code=1
-expect=stderr:contains=error: load config:
+expect=stdout:contains=fib kernel
+expect=stdout:contains=set fib vpp
+
+# Daemon start succeeds, leaves fib kernel off, and reports doctor-dataplane-mismatch.
+cmd=background:seq=2:name=daemon:exec=ze start vpp-fib-kernel-alone.conf:ready=Ze running
+expect=stderr:contains=that feature is left off; ze and its other services keep running
+expect=stderr:contains=code=doctor-dataplane-mismatch
 expect=stderr:contains=fib kernel
 expect=stderr:contains=set fib vpp
-reject=stderr:contains=interface backend loaded
+reject=stderr:contains=error: load config:
+reject=stderr:contains=fib-kernel: running
+reject=stderr:contains=fib-kernel:
 reject=stderr:pattern=panic
+
+cmd=stop:seq=3:name=daemon:signal=term
+
+# Stored config file on disk stays untouched: validate still sees the mismatch.
+cmd=foreground:seq=4:exec=ze config validate vpp-fib-kernel-alone.conf:timeout=20s
+expect=exit:code=1
+expect=stdout:contains=set fib vpp

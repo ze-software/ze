@@ -32,12 +32,14 @@ func init() {
 		panic("BUG: registering l2tp parameters: " + err.Error())
 	}
 	if err := registry.RegisterDataPlaneFeature(registry.DataPlaneFeature{
-		Name:       SubsystemName,
-		ConfigPath: "environment l2tp server",
-		Why:        "L2TP programs Linux PPP interfaces in the kernel only",
-		Planes:     []string{"kernel"},
-		InUseKind:  registry.DataPlaneInUsePredicate,
-		InUse:      l2tpDataPlaneInUse,
+		Name:          SubsystemName,
+		ConfigPath:    "environment l2tp server",
+		Why:           "L2TP programs Linux PPP interfaces in the kernel only",
+		Planes:        []string{"kernel"},
+		InUseKind:     registry.DataPlaneInUsePredicate,
+		InUse:         l2tpDataPlaneInUse,
+		DisablePaths:  []string{"environment/l2tp"},
+		DisableLeaves: map[string]string{"l2tp/enabled": "false"},
 	}); err != nil {
 		panic("BUG: l2tp: data-plane feature registration failed: " + err.Error())
 	}

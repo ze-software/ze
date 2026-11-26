@@ -1,18 +1,20 @@
-# Test: ze --plugin ze.flowspec-firewall config validate agrees with daemon start, while validate without --plugin accepts.
+# Test: ze --plugin ze.flowspec-firewall config validate refuses interface backend vpp, validate without --plugin accepts, and daemon start leaves flowspec-firewall off with doctor-dataplane-mismatch.
 # Question: does `ze --plugin ze.flowspec-firewall config validate` on a file
-#           setting only `interface backend vpp` refuse it with the same words
-#           as `ze --plugin ze.flowspec-firewall start`, naming `--plugin
-#           ze.flowspec-firewall` and `set firewall backend vpp`, while
-#           `ze config validate` without `--plugin` accepts the same file?
-#           A unit test sets the process record manually; only invoking the
-#           real `ze` binary proves `zeDispatch` records global `--plugin`
-#           flags ahead of both `config validate` and `start`.
-# VALIDATES: spec-dataplane-compatibility-guard AC-3, AC-18 (Q-2) -- global
-#            `--plugin` arguments are honored by `ze config validate` and
-#            `ze start` with identical data-plane refusal wording, and omitted
+#           setting only `interface backend vpp` refuse it naming `--plugin
+#           ze.flowspec-firewall`, `set firewall backend vpp`, and `start
+#           without --plugin ze.flowspec-firewall`, while `ze config validate`
+#           without `--plugin` accepts, and `ze --plugin ze.flowspec-firewall
+#           start` reaches "Ze running" with flowspec-firewall left off and
+#           reported under `doctor-dataplane-mismatch`?
+# VALIDATES: spec-dataplane-compatibility-guard AC-3, AC-18 (Q-2) and the
+#            2026-11-26 owner ruling, Answer 2a
+#            (plan/records/ruling-ze-always-starts.md) -- global `--plugin`
+#            arguments are refused by `ze config validate` and stripped at
+#            daemon start under `doctor-dataplane-mismatch`, while omitted
 #            `--plugin` leaves the file valid.
-# PREVENTS: `ze config validate` dropping global `--plugin` flags and reporting
-#           valid for a file that `ze --plugin ... start` refuses.
+# PREVENTS: `ze config validate` dropping global `--plugin` flags, or a
+#           mismatched `--plugin` flag either stopping `ze start` or starting
+#           on the wrong data plane.
 
 option=needs-build-tag:value=ze_vpp:state=present
 
@@ -30,10 +32,14 @@ expect=stdout:contains=start without --plugin ze.flowspec-firewall
 cmd=foreground:seq=2:exec=ze config validate vpp-only.conf:exit=0:timeout=20s
 expect=stdout:contains=configuration valid
 
-cmd=foreground:seq=3:exec=ze --plugin ze.flowspec-firewall start vpp-only.conf:timeout=20s
-expect=exit:code=1
-expect=stderr:contains=error: load config:
+cmd=background:seq=3:name=daemon:exec=ze --plugin ze.flowspec-firewall start vpp-only.conf:ready=Ze running
+expect=stderr:contains=that feature is left off; ze and its other services keep running
+expect=stderr:contains=code=doctor-dataplane-mismatch
 expect=stderr:contains=--plugin ze.flowspec-firewall
 expect=stderr:contains=set firewall backend vpp
 expect=stderr:contains=start without --plugin ze.flowspec-firewall
-reject=stderr:contains=interface backend loaded
+reject=stderr:contains=error: load config:
+reject=stderr:contains=flowspec-firewall plugin
+reject=stderr:pattern=panic
+
+cmd=stop:seq=4:name=daemon:signal=term

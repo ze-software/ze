@@ -31,6 +31,11 @@ func init() {
 		Planes:     []string{"kernel"},
 		InUseKind:  registry.DataPlaneInUsePredicate,
 		InUse:      gtsmDataPlaneInUse,
+		DisablePaths: []string{
+			"bgp/peer[*]/connection/ttl",
+			"bgp/group[*]/connection/ttl",
+			"bgp/group[*]/peer[*]/connection/ttl",
+		},
 	}); err != nil {
 		panic("BUG: gtsm: data-plane feature registration failed: " + err.Error())
 	}

@@ -8,7 +8,10 @@
 
 package hub
 
-import "github.com/ze-software/ze/internal/core/diagnostic"
+import (
+	zeconfig "github.com/ze-software/ze/internal/component/config"
+	"github.com/ze-software/ze/internal/core/diagnostic"
+)
 
 // servicesNotStartedOrder prints these rows before the environment values and
 // the recent events of the runtime phase: a service that is down is the first
@@ -23,7 +26,7 @@ func init() {
 		Component:    "hub",
 		Dependencies: []string{"service-configuration"},
 		Platforms:    []string{diagnostic.DoctorPlatformAny},
-		Codes:        []string{codeDoctorServiceNotStarted},
+		Codes:        []string{codeDoctorServiceNotStarted, zeconfig.CodeDoctorDataPlaneMismatch},
 		Check:        checkServicesNotStarted,
 	}); err != nil {
 		panic("BUG: hub: services-not-started doctor registration refused: " + err.Error())

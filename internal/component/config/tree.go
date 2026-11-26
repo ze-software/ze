@@ -1046,6 +1046,143 @@ func (t *Tree) RemovePath(path string) bool {
 	return cur.removeValuePresent(name)
 }
 
+// RemoveWildcardPath removes every node matching path from the tree and
+// reports whether at least one matching node existed and was removed.
+//
+// Segments follow RemovePath syntax, plus "listName[*]" to descend into every
+// entry of listName (or remove the entire list when terminal). Paths with no
+// "[*]" segment delegate directly to RemovePath.
+func (t *Tree) RemoveWildcardPath(path string) bool {
+	if t == nil {
+		return false
+	}
+	trimmed := strings.TrimLeft(path, PathSep)
+	if trimmed == "" {
+		return false
+	}
+	if !strings.Contains(trimmed, "[*]") {
+		return t.RemovePath(trimmed)
+	}
+	segments := splitTreePath(trimmed)
+	if len(segments) == 0 {
+		return false
+	}
+	return removeWildcardSegments(t, segments)
+}
+
+// removeWildcardSegments walks segments recursively across wildcard list
+// entries. Recursion depth is bounded by len(segments) from a single path.
+func removeWildcardSegments(cur *Tree, segments []string) bool {
+	if cur == nil {
+		return false
+	}
+	if len(segments) == 0 {
+		return false
+	}
+	name, key, isList, ok := parseTreePathSegment(segments[0])
+	if !ok {
+		return false
+	}
+	if len(segments) == 1 {
+		if isList {
+			if key == "*" {
+				return cur.removeListPresent(name)
+			}
+			return cur.RemoveListEntry(name, key) != nil
+		}
+		if cur.RemoveContainer(name) != nil {
+			return true
+		}
+		if cur.removeListPresent(name) {
+			return true
+		}
+		return cur.removeValuePresent(name)
+	}
+
+	tail := segments[1:]
+	if !isList {
+		return removeWildcardSegments(cur.GetContainer(name), tail)
+	}
+	if key != "*" {
+		return removeWildcardSegments(cur.getListEntry(name, key), tail)
+	}
+	entries := cur.listEntriesSnapshot(name)
+	removed := false
+	for _, entry := range entries {
+		if removeWildcardSegments(entry, tail) {
+			removed = true
+		}
+	}
+	return removed
+}
+
+// listEntriesSnapshot returns a deterministic slice copy of all entry trees
+// stored under list name.
+func (t *Tree) listEntriesSnapshot(name string) []*Tree {
+	t.mu.RLock()
+	defer t.mu.RUnlock()
+	list := t.lists[name]
+	if len(list) == 0 {
+		return nil
+	}
+	keys := make([]string, 0, len(list))
+	for k := range list {
+		keys = append(keys, k)
+	}
+	slices.Sort(keys)
+	entries := make([]*Tree, 0, len(keys))
+	for _, k := range keys {
+		entries = append(entries, list[k])
+	}
+	return entries
+}
+
+// SetLeafPath sets the leaf addressed by path to value when its parent
+// container or list entry already exists in the tree, reporting whether the
+// leaf was written. It never creates missing parent containers so setting a
+// disable leaf (for example, "l2tp/enabled": "false") leaves an absent subtree
+// absent.
+func (t *Tree) SetLeafPath(path, value string) bool {
+	if t == nil {
+		return false
+	}
+	trimmed := strings.TrimLeft(path, PathSep)
+	if trimmed == "" {
+		return false
+	}
+	segments := splitTreePath(trimmed)
+	if len(segments) == 0 {
+		return false
+	}
+
+	cur := t
+	for _, seg := range segments[:len(segments)-1] {
+		name, key, isList, ok := parseTreePathSegment(seg)
+		if !ok {
+			return false
+		}
+		if isList {
+			cur = cur.getListEntry(name, key)
+		} else {
+			cur = cur.GetContainer(name)
+		}
+		if cur == nil {
+			return false
+		}
+	}
+
+	leafName, _, isList, ok := parseTreePathSegment(segments[len(segments)-1])
+	if !ok {
+		return false
+	}
+	if isList {
+		return false
+	}
+	cur.ClearLeafInactive(leafName)
+	cur.Set(leafName, value)
+	return true
+}
+
 // splitTreePath splits a leading-slash-trimmed tree path on PathSep, keeping
 // separators inside "[...]" list keys intact (e.g. CIDR prefixes as keys).
 // Returns nil if any segment is empty or brackets are unbalanced.

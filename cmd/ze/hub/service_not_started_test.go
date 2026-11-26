@@ -82,15 +82,16 @@ func TestReportServiceNotStartedLogsPrintsAndFeedsDoctor(t *testing.T) {
 }
 
 func TestServicesNotStartedCheckIsRegisteredWithItsCode(t *testing.T) {
-	// VALIDATES: the runtime phase holds the check that declares
-	// doctor-service-not-started, so `show doctor` runs it and the log lines
-	// under that code name a code a registered check declares.
+	// VALIDATES: the runtime phase holds the check that declares both
+	// doctor-service-not-started and doctor-dataplane-mismatch, so
+	// `show doctor` runs it and the log lines under those codes name codes a
+	// registered check declares.
 	// PREVENTS: a code that is logged and that no doctor check reports.
 	for _, check := range diagnostic.DoctorChecksForPhase(diagnostic.DoctorPhaseRuntime) {
 		if check.Name != "hub-services-not-started" {
 			continue
 		}
-		require.Equal(t, []string{codeDoctorServiceNotStarted}, check.Codes)
+		require.Equal(t, []string{codeDoctorServiceNotStarted, zeconfig.CodeDoctorDataPlaneMismatch}, check.Codes)
 		return
 	}
 	t.Fatal("the runtime phase holds no hub-services-not-started check")
@@ -236,4 +237,54 @@ func TestReportExcludedBlockLogsPrintsAndFeedsDoctor(t *testing.T) {
 	require.Contains(t, diags[0].Message, "the web server is not started")
 	require.Equal(t, "Correct `environment web` as `ze config validate "+cfgPath+"` reports, then restart ze.", diags[0].Fix)
 	require.Equal(t, excl.Cause.Error(), diags[0].Actual)
+}
+
+func TestDataPlaneExcludedLogsPrintsAndFeedsDoctor(t *testing.T) {
+	// VALIDATES: an ExcludedDataPlane record returned by LoadConfigForStart is
+	// reported under doctor-dataplane-mismatch on the log, on the terminal
+	// with the effect stating the feature is left off while ze keeps running,
+	// and as a runtime doctor error finding with the exact fix.
+	// PREVENTS: a data-plane-mismatched feature left off at start staying
+	// silent in logs, logged under the wrong doctor code, or missing from
+	// `ze doctor` / `show doctor`.
+	resetServicesNotStarted()
+	t.Cleanup(resetServicesNotStarted)
+
+	excl := zeconfig.ExcludedDataPlane{
+		Problem: `firewall uses firewall backend "kernel", and interface backend is "vpp"`,
+		Why:     `interface backend "vpp" forwards the packets, so firewall on "kernel" would act on a different data plane`,
+		Fix:     "set firewall backend vpp",
+	}
+
+	var logged, console bytes.Buffer
+	log := slog.New(slog.NewTextHandler(&logged, nil))
+	reportServiceNotStarted(log, &console, dataPlaneExcluded(excl))
+
+	for _, want := range []string{
+		"level=ERROR",
+		"code=" + zeconfig.CodeDoctorDataPlaneMismatch,
+		`service="data-plane feature"`,
+		"that feature is left off; ze and its other services keep running",
+		"set firewall backend vpp",
+	} {
+		require.Contains(t, logged.String(), want)
+	}
+	for _, want := range []string{
+		"error: that feature is left off; ze and its other services keep running: ",
+		excl.Problem,
+		excl.Why,
+		excl.Fix,
+	} {
+		require.Contains(t, console.String(), want)
+	}
+
+	diags := checkServicesNotStarted(diagnostic.DoctorCheckContext{})
+	require.Len(t, diags, 1)
+	require.Equal(t, zeconfig.CodeDoctorDataPlaneMismatch, diags[0].Code)
+	require.Equal(t, diagnostic.SeverityError, diags[0].Severity)
+	require.Contains(t, diags[0].Message, excl.Problem)
+	require.Contains(t, diags[0].Message, excl.Why)
+	require.Contains(t, diags[0].Message, "that feature is left off")
+	require.Equal(t, excl.Fix, diags[0].Fix)
+	require.Empty(t, diags[0].Actual)
 }

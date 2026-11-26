@@ -1,19 +1,22 @@
-# Test: daemon start refuses a kernel firewall under interface backend vpp.
+# Test: daemon start leaves a kernel firewall off under interface backend vpp and reports doctor-dataplane-mismatch.
 # Question: does `ze start` on a file with `interface backend vpp` and a
-#           `firewall` block on the default `kernel` backend (with no IPsec)
-#           exit 1 in `LoadConfig` before any plugin starts, with the same
-#           words `ze config validate` gives?
-#           A unit test calls `LoadConfig` directly; only a real daemon launch
-#           proves `ze start` refuses the file before any plugin starts.
-# VALIDATES: spec-dataplane-compatibility-guard AC-3, AC-16 -- a data-plane
-#            mismatch refuses daemon start naming `firewall` and the fix
-#            `set firewall backend vpp`.
-# PREVENTS: a VPP daemon booting and installing firewall rules onto the Linux
-#           kernel where VPP-forwarded packets never pass.
+#           `firewall` block on the default `kernel` backend reach "Ze running",
+#           leave `firewall` off and reported under `doctor-dataplane-mismatch`
+#           with `set firewall backend vpp`, and keep the config file untouched,
+#           while `ze config validate` still refuses the same file?
+# VALIDATES: 2026-11-26 owner ruling, Answer 2a
+#            (plan/records/ruling-ze-always-starts.md) and
+#            spec-dataplane-compatibility-guard AC-3 -- at daemon start a
+#            data-plane-mismatched firewall is left off and reported under
+#            `doctor-dataplane-mismatch` with `set firewall backend vpp`, while
+#            `ze config validate` stays strict.
+# PREVENTS: a kernel firewall blocking a VPP daemon from starting and bringing
+#           up networking, or silently programming Linux nftables rules where
+#           VPP-forwarded packets never pass, or rewriting the config on disk.
 
 option=needs-build-tag:value=ze_vpp:state=present
 
-stdin=ze-bgp:refused=config-plugin-verify:terminator=EOF_CONF
+tmpfs=vpp-kernel-firewall.conf:refused=config-plugin-verify:terminator=EOF_CONF
 interface {
 	backend vpp;
 }
@@ -39,10 +42,25 @@ firewall {
 }
 EOF_CONF
 
-cmd=foreground:seq=1:exec=ze -:stdin=ze-bgp:timeout=30s
+# `ze config validate` stays strict and refuses the mismatch.
+cmd=foreground:seq=1:exec=ze config validate vpp-kernel-firewall.conf:timeout=20s
 expect=exit:code=1
-expect=stderr:contains=error: load config:
+expect=stdout:contains=firewall
+expect=stdout:contains=set firewall backend vpp
+
+# Daemon start succeeds, leaves firewall off, and reports doctor-dataplane-mismatch.
+cmd=background:seq=2:name=daemon:exec=ze start vpp-kernel-firewall.conf:ready=Ze running
+expect=stderr:contains=that feature is left off; ze and its other services keep running
+expect=stderr:contains=code=doctor-dataplane-mismatch
 expect=stderr:contains=firewall
 expect=stderr:contains=set firewall backend vpp
-reject=stderr:contains=interface backend loaded
+reject=stderr:contains=error: load config:
+reject=stderr:contains=firewall backend loaded
 reject=stderr:pattern=panic
+
+cmd=stop:seq=3:name=daemon:signal=term
+
+# Stored config file on disk stays untouched: validate still sees the mismatch.
+cmd=foreground:seq=4:exec=ze config validate vpp-kernel-firewall.conf:timeout=20s
+expect=exit:code=1
+expect=stdout:contains=set firewall backend vpp

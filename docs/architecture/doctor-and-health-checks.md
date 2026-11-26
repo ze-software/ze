@@ -99,13 +99,15 @@ a box it never looked at as healthy. It asks the daemon instead (next section).
 
 The hub's `hub-services-not-started` check reports each service the daemon
 left down when it started because the configuration of that service cannot be
-served. Ze always starts (`core-design.md`, "Design decisions"), so such a
-service is not started and ze runs with its other services. The start path
-records the service, logs one error line under `doctor-service-not-started`
-and prints the same text on the terminal. The check answers one error finding
-per recorded service, with the problem, why, what the start did, the fix, and
-the cause as what was found. It is a runtime check because the decision comes
-from the daemon's own environment and command line as well as its config.
+served, and each data-plane-mismatched feature left off at start. Ze always
+starts (`core-design.md`, "Design decisions"), so such a service or feature is
+not started and ze runs with its other services. The start path records the
+entry, logs one error line under `doctor-service-not-started` (or
+`doctor-dataplane-mismatch` for a data-plane mismatch) and prints the same text
+on the terminal. The check answers one error finding per recorded entry, with
+the problem, why, what the start did, the fix, and the cause as what was found.
+It is a runtime check because the decision comes from the daemon's own
+environment and command line as well as its config.
 
 | At start | What ze does |
 |----------|--------------|
@@ -118,23 +120,27 @@ from the daemon's own environment and command line as well as its config.
 | The `l2tp` or `pppoe` block cannot be served, or its subsystem cannot be registered | That subsystem is not started, and the other BNG subsystem and ze keep running |
 | A management listener (web in insecure mode, MCP, gNMI, or REST/gRPC API) binds a non-loopback address without authentication, or gNMI/MCP binds non-loopback without TLS | Only the exposed listener address is not started; safe (loopback or protected) addresses and other services keep running |
 | A registered service block fails validation or a `ze:reference` check (for example, `environment web certificate` naming an undefined PKI certificate) | Only that service block is dropped from the in-memory tree for this start; the stored config file stays untouched (schema evolution does not write back), other services keep running, and `ze config validate` and reload still refuse the file |
+| A configured feature, FIB writer, secondary backend selector, `--plugin` selection, or `ze:backend` node targets a different data plane than the primary selector (for example, kernel `firewall`, `vpn ipsec`, `fib kernel` alone, `l2tp`, `gtsm`, or `--plugin ze.flowspec-firewall` under `interface backend vpp`) | That feature is left off in memory (never programmed on either data plane) and reported under `doctor-dataplane-mismatch`; the stored config file stays untouched (schema evolution does not write back), `ze` starts on its active data plane, and commit, reload, and `ze config validate` still refuse the mismatch; unreadable or retired selector names (`netlink`, `nft`, `tc`), `fib dummy` beside another FIB writer, and empty-backend host verdicts still refuse start |
 
 A reload that carries the same configuration is refused as a whole.
-<!-- source: cmd/ze/hub/service_not_started.go -- reportServiceNotStarted, checkServicesNotStarted, serviceNotStartedDiagnostic, listenUnreadable, configBlockDisplay, blockUnservable, buildFailed, lgRangesUnused -->
+<!-- source: cmd/ze/hub/service_not_started.go -- reportServiceNotStarted, checkServicesNotStarted, serviceNotStartedDiagnostic, dataPlaneExcluded, listenUnreadable, configBlockDisplay, blockUnservable, buildFailed, lgRangesUnused -->
 <!-- source: cmd/ze/hub/register_services_not_started.go -- init -->
 <!-- source: cmd/ze/hub/register_l2tp.go -- registerBNGSubsystems -->
 <!-- source: cmd/ze/hub/api_infra.go -- planAPIListeners, resolveAPIListeners -->
 <!-- source: cmd/ze/hub/mgmt_guard.go -- filterMgmtListener, filterAPIConfig -->
 <!-- source: internal/component/config/service_blocks.go -- RegisterServiceBlock, excludeInvalidServiceBlocks -->
+<!-- source: internal/component/config/dataplane_start_exclude.go -- ExcludedDataPlane, excludeDataPlaneMismatches -->
 <!-- source: internal/component/config/loader.go -- LoadConfigForStart -->
 <!-- source: cmd/ze/hub/main_evolve.go -- applyEvolutions, unsavedExcludedEvolution -->
 <!-- test: cmd/ze/hub/service_not_started_test.go TestReportServiceNotStartedLogsPrintsAndFeedsDoctor -->
 <!-- test: cmd/ze/hub/service_not_started_test.go TestReportExcludedBlockLogsPrintsAndFeedsDoctor -->
+<!-- test: cmd/ze/hub/service_not_started_test.go TestDataPlaneExcludedLogsPrintsAndFeedsDoctor -->
 <!-- test: cmd/ze/hub/service_not_started_test.go TestPlanAPIListenersLeavesOnlyTheUnreadableTransportDown -->
 <!-- test: cmd/ze/hub/service_bng_unserved_test.go TestRegisterBNGSubsystemsInvalidL2TPLeavesPPPoERegistered -->
 <!-- test: cmd/ze/hub/main_evolve_start_test.go TestApplyEvolutionsSkipsWriteBackWhenSaveToStoreFalse -->
 <!-- test: cmd/ze/hub/mgmt_guard_test.go TestFilterMgmtListener -->
 <!-- test: cmd/ze/hub/mgmt_guard_test.go TestFilterAPIConfig -->
+<!-- test: internal/component/config/dataplane_start_exclude_test.go TestLoadConfigForStartExcludesKernelFirewallOnVPP -->
 
 The BGP RIB's `bgp-rib-selected-output` callback reads a failed selected-route
 capture where that RIB runs. It declares `doctor-bgp-selected-output`, retains

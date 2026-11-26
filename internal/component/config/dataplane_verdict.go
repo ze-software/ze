@@ -1,4 +1,5 @@
 // Design: docs/architecture/doctor-and-health-checks.md -- parsed-config readiness checks and diagnostic codes
+// Related: dataplane_start_exclude.go -- LoadConfigForStart exclusion of mismatched features
 // Related: backend_gate.go -- engine-owned whole-tree ze:backend walk called by evaluateDataPlaneVerdict
 // Related: loader.go -- loadConfig door calling refuseDataPlaneMismatches
 // Related: plugin_verify.go -- verifyTree door calling refuseDataPlaneMismatches
@@ -87,10 +88,25 @@ type pluginSelectionSource struct {
 // activeFeatureMatch is one in-use DataPlaneFeature resolved against a
 // candidate configuration tree and plugin selection.
 type activeFeatureMatch struct {
+	owner      *registry.Registration
 	feat       registry.DataPlaneFeature
 	configPath string
 	secondFix  string
 	source     pluginSelectionSource
+}
+
+// dataPlaneVerdictEntry pairs one dataPlaneFinding with its start-time
+// exclusion plan. Entries with hardRefusal == true are never excluded at start
+// (unreadable/unknown selectors, retired backend names, fib dummy conflicts,
+// and host-verdict empty backends).
+type dataPlaneVerdictEntry struct {
+	finding       dataPlaneFinding
+	hardRefusal   bool
+	removeRoots   []string
+	stripPlugin   string
+	removePath    string
+	disablePaths  []string
+	disableLeaves map[string]string
 }
 
 // lazyLoweredTree caches Tree.ToPluginMap so predicate-bearing features lower
@@ -259,12 +275,19 @@ func checkDataPlaneCompatibility(ctx diagnostic.DoctorCheckContext) []diagnostic
 // This is the single reader of CommandLinePlugins that decides the verdict's
 // plugin selection.
 func candidatePluginSelection(tree *Tree, cliPlugins []string) ([]plugin.PluginConfig, error) {
+	combined := mergeCommandLinePluginLists(CommandLinePlugins(), cliPlugins)
+	return pluginSelectionWithCLI(tree, combined)
+}
+
+// pluginSelectionWithCLI extracts the plugins declared in tree and merges them
+// with an explicit command-line plugin list without re-reading
+// CommandLinePlugins.
+func pluginSelectionWithCLI(tree *Tree, cliPlugins []string) ([]plugin.PluginConfig, error) {
 	declared, err := ExtractPluginsFromTree(tree)
 	if err != nil {
 		return nil, err
 	}
-	combined := mergeCommandLinePluginLists(CommandLinePlugins(), cliPlugins)
-	merged, err := MergeCliPlugins(declared, combined)
+	merged, err := MergeCliPlugins(declared, cliPlugins)
 	if err != nil {
 		return nil, fmt.Errorf("resolve plugins: %w", err)
 	}
@@ -343,6 +366,44 @@ func findingsToDiagnostics(findings []dataPlaneFinding) []diagnostic.Diagnostic 
 // selections; both config doors (loadConfig and verifyTree) and the
 // dataplane-compatibility doctor check share this single evaluator.
 func evaluateDataPlaneVerdict(tree *Tree, schema *Schema, selection []plugin.PluginConfig) []dataPlaneFinding {
+	return verdictFindings(evaluateDataPlaneEntries(tree, schema, selection))
+}
+
+// verdictFindings projects the operator-facing findings out of entries in
+// evaluation order.
+func verdictFindings(entries []dataPlaneVerdictEntry) []dataPlaneFinding {
+	if len(entries) == 0 {
+		return nil
+	}
+	findings := make([]dataPlaneFinding, len(entries))
+	for i := range entries {
+		findings[i] = entries[i].finding
+	}
+	return findings
+}
+
+// hardVerdictEntries wraps hard-refusal findings so start-time exclusion never
+// drops them.
+func hardVerdictEntries(findings []dataPlaneFinding) []dataPlaneVerdictEntry {
+	if len(findings) == 0 {
+		return nil
+	}
+	out := make([]dataPlaneVerdictEntry, len(findings))
+	for i, f := range findings {
+		out[i] = dataPlaneVerdictEntry{
+			finding:     f,
+			hardRefusal: true,
+		}
+	}
+	return out
+}
+
+// evaluateDataPlaneEntries is the single shared evaluator behind strict
+// refusal (evaluateDataPlaneVerdict) and start-time exclusion
+// (excludeDataPlaneMismatches). Every finding is paired with either
+// hardRefusal=true or the exact in-memory exclusion action that leaves the
+// mismatched feature off.
+func evaluateDataPlaneEntries(tree *Tree, schema *Schema, selection []plugin.PluginConfig) []dataPlaneVerdictEntry {
 	// refuse-by-default: guards refuseDataPlaneMismatches -- a nil tree holds no configuration to evaluate
 	if tree == nil {
 		return nil
@@ -354,10 +415,13 @@ func evaluateDataPlaneVerdict(tree *Tree, schema *Schema, selection []plugin.Plu
 		return nil
 	}
 	if schema == nil {
-		return []dataPlaneFinding{{
-			problem: "data-plane compatibility could not be evaluated: config schema is unavailable",
-			why:     "ze requires the YANG schema to read selector defaults and judge data-plane compatibility",
-			fix:     fixValidateCmd,
+		return []dataPlaneVerdictEntry{{
+			finding: dataPlaneFinding{
+				problem: "data-plane compatibility could not be evaluated: config schema is unavailable",
+				why:     "ze requires the YANG schema to read selector defaults and judge data-plane compatibility",
+				fix:     fixValidateCmd,
+			},
+			hardRefusal: true,
 		}}
 	}
 
@@ -366,32 +430,30 @@ func evaluateDataPlaneVerdict(tree *Tree, schema *Schema, selection []plugin.Plu
 	standalone := registry.StandaloneDataPlaneFeatures()
 	producersBySelector := collectFollowsSelectorMatches(tree, regs, standalone, presentPaths, selection, lowered)
 
-	var findings []dataPlaneFinding
-	primaryFindings := resolveSelectorEntry(tree, schema, regs, primary)
-	findings = append(findings, primaryFindings...)
+	var entries []dataPlaneVerdictEntry
+	entries = append(entries, hardVerdictEntries(resolveSelectorEntry(tree, schema, regs, primary))...)
 
 	for _, sec := range secondaries {
 		_, written := selectorLeafWritten(tree, sec.sel.LeafPath)
 		if !written && !selectorHasPresentRoot(sec, presentPaths) && len(producersBySelector[sec.reg.Name]) == 0 {
 			continue
 		}
-		secFindings := resolveSelectorEntry(tree, schema, regs, sec)
-		findings = append(findings, secFindings...)
+		entries = append(entries, hardVerdictEntries(resolveSelectorEntry(tree, schema, regs, sec))...)
 	}
 
 	// Stop before plane-mismatch comparisons when the primary selector is
 	// unreadable, unknown, or covered by an unmet ConfigNeed: comparing
 	// features against a nonexistent plane would only produce noise.
 	if !primary.valid {
-		return findings
+		return entries
 	}
 
-	findings = append(findings, evaluateSecondarySelectors(primary, secondaries, presentPaths, producersBySelector)...)
-	findings = append(findings, evaluateFixedPlaneFeatures(tree, regs, standalone, primary, presentPaths, selection, lowered)...)
-	findings = append(findings, evaluateFIBWriters(regs, primary, presentPaths)...)
-	findings = append(findings, evaluateNoPlaneFIBChoice(tree, regs, presentPaths, selection)...)
-	findings = append(findings, evaluateBackendFeatureWalk(lowered.get(), schema, primary, secondaries)...)
-	return findings
+	entries = append(entries, evaluateSecondarySelectors(primary, secondaries, presentPaths, producersBySelector)...)
+	entries = append(entries, evaluateFixedPlaneFeatures(tree, regs, standalone, primary, presentPaths, selection, lowered)...)
+	entries = append(entries, evaluateFIBWriters(regs, primary, presentPaths)...)
+	entries = append(entries, hardVerdictEntries(evaluateNoPlaneFIBChoice(tree, regs, presentPaths, selection))...)
+	entries = append(entries, evaluateBackendFeatureWalkEntries(lowered.get(), schema, primary, secondaries)...)
+	return entries
 }
 
 // evaluateBackendFeatureWalk runs the single engine-owned ze:backend walk over
@@ -403,6 +465,17 @@ func evaluateBackendFeatureWalk(
 	primary *registeredSelector,
 	secondaries []*registeredSelector,
 ) []dataPlaneFinding {
+	return verdictFindings(evaluateBackendFeatureWalkEntries(treeMap, schema, primary, secondaries))
+}
+
+// evaluateBackendFeatureWalkEntries runs the engine-owned ze:backend walk and
+// pairs each non-hostVerdict mismatch with its concrete Tree.RemovePath target.
+func evaluateBackendFeatureWalkEntries(
+	treeMap map[string]any,
+	schema *Schema,
+	primary *registeredSelector,
+	secondaries []*registeredSelector,
+) []dataPlaneVerdictEntry {
 	toWalkSelector := func(s *registeredSelector) backendWalkSelector {
 		return backendWalkSelector{
 			leafPath:   s.sel.LeafPath,
@@ -421,7 +494,7 @@ func evaluateBackendFeatureWalk(
 	if len(raw) == 0 {
 		return nil
 	}
-	findings := make([]dataPlaneFinding, 0, len(raw))
+	entries := make([]dataPlaneVerdictEntry, 0, len(raw))
 	for i := range raw {
 		f := &raw[i]
 		if f.hostVerdict {
@@ -429,11 +502,14 @@ func evaluateBackendFeatureWalk(
 			if f.selector.defaultVal != "" {
 				fix = fixPrefixSet + f.selector.display + " " + f.selector.defaultVal
 			}
-			findings = append(findings, dataPlaneFinding{
-				problem:     "backend feature gate: no backend configured at " + f.selector.leafPath,
-				why:         f.selector.display + " has no configured backend and no default on this host",
-				fix:         fix,
-				hostVerdict: true,
+			entries = append(entries, dataPlaneVerdictEntry{
+				finding: dataPlaneFinding{
+					problem:     "backend feature gate: no backend configured at " + f.selector.leafPath,
+					why:         f.selector.display + " has no configured backend and no default on this host",
+					fix:         fix,
+					hostVerdict: true,
+				},
+				hardRefusal: true,
 			})
 			continue
 		}
@@ -444,13 +520,16 @@ func evaluateBackendFeatureWalk(
 		if len(f.mismatch.supporting) > 0 {
 			fix = fixPrefixSet + f.selector.display + " " + f.mismatch.supporting[0]
 		}
-		findings = append(findings, dataPlaneFinding{
-			problem: formatBackendError(f.mismatch.path, f.mismatch.active, f.mismatch.supporting).Error(),
-			why:     why.String(),
-			fix:     fix,
+		entries = append(entries, dataPlaneVerdictEntry{
+			finding: dataPlaneFinding{
+				problem: formatBackendError(f.mismatch.path, f.mismatch.active, f.mismatch.supporting).Error(),
+				why:     why.String(),
+				fix:     fix,
+			},
+			removePath: backendMismatchRemovalPath(f.mismatch.steps),
 		})
 	}
-	return findings
+	return entries
 }
 
 // collectRegisteredSelectors partitions all registered DataPlaneSelectors into
@@ -539,8 +618,8 @@ func evaluateSecondarySelectors(
 	secondaries []*registeredSelector,
 	presentPaths map[string]bool,
 	producersBySelector map[string][]activeFeatureMatch,
-) []dataPlaneFinding {
-	var findings []dataPlaneFinding
+) []dataPlaneVerdictEntry {
+	var entries []dataPlaneVerdictEntry
 	for _, sec := range secondaries {
 		if !sec.valid {
 			continue
@@ -550,14 +629,50 @@ func evaluateSecondarySelectors(
 		}
 		presentRoot, hasRoot := firstPresentSelectorRoot(sec, presentPaths)
 		if hasRoot || sec.explicit {
-			findings = append(findings, secondarySelectorMismatchFinding(primary, sec, presentRoot))
+			roots := append(slices.Clone(sec.sel.Roots), sec.sel.LeafPath)
+			entries = append(entries, dataPlaneVerdictEntry{
+				finding:     secondarySelectorMismatchFinding(primary, sec, presentRoot),
+				removeRoots: roots,
+				stripPlugin: sec.reg.Name,
+			})
 		}
 		matches := producersBySelector[sec.reg.Name]
 		for i := range matches {
-			findings = append(findings, followsSelectorProducerFinding(primary, sec, matches[i]))
+			entries = append(entries, featureMatchVerdictEntry(
+				followsSelectorProducerFinding(primary, sec, matches[i]),
+				matches[i],
+			))
 		}
 	}
-	return findings
+	return entries
+}
+
+// featureMatchVerdictEntry pairs a feature mismatch finding with the in-memory
+// exclusion action derived from match.feat.InUseKind.
+func featureMatchVerdictEntry(finding dataPlaneFinding, match activeFeatureMatch) dataPlaneVerdictEntry {
+	entry := dataPlaneVerdictEntry{finding: finding}
+	switch match.feat.InUseKind {
+	case registry.DataPlaneInUseConfigRoot:
+		if match.owner != nil {
+			entry.removeRoots = slices.Clone(match.owner.ConfigRoots)
+			entry.stripPlugin = match.owner.Name
+		}
+	case registry.DataPlaneInUseSelectedPlugin:
+		if match.source.matched && match.source.blockKind != "" {
+			entry.removePath = busContainerName + PathSep + match.source.blockKind + "[" + match.source.blockKey + "]"
+		}
+		if match.owner != nil {
+			entry.stripPlugin = match.owner.Name
+		}
+	case registry.DataPlaneInUsePredicate:
+		entry.disablePaths = slices.Clone(match.feat.DisablePaths)
+		entry.disableLeaves = match.feat.DisableLeaves
+	case registry.DataPlaneInUseUnspecified:
+		// Never returned by evaluateFeatureInUse.
+	default:
+		// Open set: DataPlaneInUseKind comes from another package.
+	}
+	return entry
 }
 
 // secondarySelectorMismatchFinding builds the AC-3 / AC-4 refusal when a
@@ -631,8 +746,8 @@ func evaluateFixedPlaneFeatures(
 	presentPaths map[string]bool,
 	selection []plugin.PluginConfig,
 	lowered *lazyLoweredTree,
-) []dataPlaneFinding {
-	var findings []dataPlaneFinding
+) []dataPlaneVerdictEntry {
+	var entries []dataPlaneVerdictEntry
 	for _, reg := range regs {
 		if reg.HostSideDataPlane {
 			continue
@@ -648,7 +763,7 @@ func evaluateFixedPlaneFeatures(
 			if slices.Contains(feat.Planes, primary.value) {
 				continue
 			}
-			findings = append(findings, fixedPlaneFeatureFinding(primary, match))
+			entries = append(entries, featureMatchVerdictEntry(fixedPlaneFeatureFinding(primary, match), match))
 		}
 	}
 	for _, feat := range standalone {
@@ -662,9 +777,9 @@ func evaluateFixedPlaneFeatures(
 		if slices.Contains(feat.Planes, primary.value) {
 			continue
 		}
-		findings = append(findings, fixedPlaneFeatureFinding(primary, match))
+		entries = append(entries, featureMatchVerdictEntry(fixedPlaneFeatureFinding(primary, match), match))
 	}
-	return findings
+	return entries
 }
 
 // fixedPlaneFeatureFinding builds the AC-5 / AC-15 refusal for an in-use
@@ -703,7 +818,7 @@ func evaluateFIBWriters(
 	regs []*registry.Registration,
 	primary *registeredSelector,
 	presentPaths map[string]bool,
-) []dataPlaneFinding {
+) []dataPlaneVerdictEntry {
 	var selectedPlaneFIBRoot string
 	hasSelectedPlaneFIB := false
 
@@ -736,7 +851,7 @@ func evaluateFIBWriters(
 		})
 	}
 
-	var findings []dataPlaneFinding
+	var entries []dataPlaneVerdictEntry
 	for _, fib := range configured {
 		if fib.reg.DataPlane == primary.value {
 			continue
@@ -748,10 +863,14 @@ func evaluateFIBWriters(
 			var why textbuf.Buffer
 			why.Str(`its routes target "`).Str(fib.reg.DataPlane).
 				Str(`" while `).Str(primary.display).Str(` "`).Str(primary.value).Str(`" forwards the packets`)
-			findings = append(findings, dataPlaneFinding{
-				problem: problem.String(),
-				why:     why.String(),
-				fix:     fixPrefixSet + primary.display + " " + fib.reg.DataPlane,
+			entries = append(entries, dataPlaneVerdictEntry{
+				finding: dataPlaneFinding{
+					problem: problem.String(),
+					why:     why.String(),
+					fix:     fixPrefixSet + primary.display + " " + fib.reg.DataPlane,
+				},
+				removeRoots: slices.Clone(fib.reg.ConfigRoots),
+				stripPlugin: fib.reg.Name,
 			})
 			continue
 		}
@@ -765,23 +884,31 @@ func evaluateFIBWriters(
 			var why textbuf.Buffer
 			why.Str(primary.display).Str(` "`).Str(primary.value).
 				Str(`" forwards the packets, and with no `).Str(selectedPlaneFIBRoot).Str(" block its FIB gets no route")
-			findings = append(findings, dataPlaneFinding{
-				problem: problem.String(),
-				why:     why.String(),
-				fix:     fixPrefixSet + selectedPlaneFIBRoot,
+			entries = append(entries, dataPlaneVerdictEntry{
+				finding: dataPlaneFinding{
+					problem: problem.String(),
+					why:     why.String(),
+					fix:     fixPrefixSet + selectedPlaneFIBRoot,
+				},
+				removeRoots: slices.Clone(fib.reg.ConfigRoots),
+				stripPlugin: fib.reg.Name,
 			})
 			continue
 		}
 		var why textbuf.Buffer
 		why.Str(primary.display).Str(` "`).Str(primary.value).
 			Str(`" forwards the packets, and no FIB writer for "`).Str(primary.value).Str(`" is configured`)
-		findings = append(findings, dataPlaneFinding{
-			problem: problem.String(),
-			why:     why.String(),
-			fix:     fixPrefixSet + primary.display + " " + fib.reg.DataPlane,
+		entries = append(entries, dataPlaneVerdictEntry{
+			finding: dataPlaneFinding{
+				problem: problem.String(),
+				why:     why.String(),
+				fix:     fixPrefixSet + primary.display + " " + fib.reg.DataPlane,
+			},
+			removeRoots: slices.Clone(fib.reg.ConfigRoots),
+			stripPlugin: fib.reg.Name,
 		})
 	}
-	return findings
+	return entries
 }
 
 // fibUseKind describes how a candidate configuration or command line selected
@@ -1048,6 +1175,7 @@ func evaluateFeatureInUse(
 			return activeFeatureMatch{}, false
 		}
 		return activeFeatureMatch{
+			owner:      owner,
 			feat:       feat,
 			configPath: configPathDisplay(feat.ConfigPath),
 		}, true
@@ -1064,6 +1192,7 @@ func evaluateFeatureInUse(
 			cfgPath = use.ConfigPath
 		}
 		return activeFeatureMatch{
+			owner:      owner,
 			feat:       feat,
 			configPath: configPathDisplay(cfgPath),
 			secondFix:  use.SecondFix,
@@ -1077,6 +1206,7 @@ func evaluateFeatureInUse(
 			return activeFeatureMatch{}, false
 		}
 		return activeFeatureMatch{
+			owner:      owner,
 			feat:       feat,
 			configPath: configPathDisplay(feat.ConfigPath),
 			source:     src,

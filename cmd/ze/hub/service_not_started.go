@@ -27,6 +27,7 @@ import (
 	"net"
 	"sync"
 
+	zeconfig "github.com/ze-software/ze/internal/component/config"
 	"github.com/ze-software/ze/internal/core/diagnostic"
 	"github.com/ze-software/ze/internal/core/opererr"
 	"github.com/ze-software/ze/internal/core/textbuf"
@@ -48,12 +49,22 @@ const keepsRunning = "; ze and its other services keep running"
 // serviceNotStarted is one service, or one part of a service, that this start
 // left down because its configuration cannot be served.
 type serviceNotStarted struct {
+	// code is the doctor diagnostic code logged and reported for this record.
+	// Empty defaults to codeDoctorServiceNotStarted.
+	code string
 	// service names what is down, as the operator knows it.
 	service string
 	// effect is what the start did about it, as one clause.
 	effect string
 	// problem is what is wrong, why, and the fix.
 	problem *opererr.Error
+}
+
+func (d serviceNotStarted) doctorCode() string {
+	if d.code != "" {
+		return d.code
+	}
+	return codeDoctorServiceNotStarted
 }
 
 // notStarted answers the record of a service the start does not start.
@@ -63,6 +74,18 @@ func notStarted(service string, problem *opererr.Error) serviceNotStarted {
 		service: service,
 		effect:  "the " + service + " is not started" + keepsRunning,
 		problem: problem,
+	}
+}
+
+// dataPlaneExcluded answers the record of one data-plane-mismatched feature
+// that LoadConfigForStart left off in memory so the daemon starts on its active
+// data plane and reports the mismatch under doctor-dataplane-mismatch.
+func dataPlaneExcluded(e zeconfig.ExcludedDataPlane) serviceNotStarted {
+	return serviceNotStarted{
+		code:    zeconfig.CodeDoctorDataPlaneMismatch,
+		service: "data-plane feature",
+		effect:  "that feature is left off" + keepsRunning,
+		problem: opererr.New(e.Problem, e.Why, e.Fix),
 	}
 }
 
@@ -99,9 +122,15 @@ func reportServiceNotStarted(log *slog.Logger, console io.Writer, down serviceNo
 	servicesNotStarted.list = append(servicesNotStarted.list, down)
 	servicesNotStarted.Unlock()
 
-	log.LogAttrs(context.Background(), slog.LevelError, down.problem.Problem(),
-		down.problem.LogAttrs(slog.String("code", codeDoctorServiceNotStarted),
-			slog.String("service", down.service), slog.String("effect", down.effect))...)
+	if down.code == zeconfig.CodeDoctorDataPlaneMismatch {
+		log.LogAttrs(context.Background(), slog.LevelError, down.problem.Problem(),
+			down.problem.LogAttrs(slog.String("code", zeconfig.CodeDoctorDataPlaneMismatch),
+				slog.String("service", down.service), slog.String("effect", down.effect))...)
+	} else {
+		log.LogAttrs(context.Background(), slog.LevelError, down.problem.Problem(),
+			down.problem.LogAttrs(slog.String("code", codeDoctorServiceNotStarted),
+				slog.String("service", down.service), slog.String("effect", down.effect))...)
+	}
 	var line textbuf.Buffer
 	line.Str("error: ").Str(down.effect).Str(": ").Str(down.problem.Error()).Byte('\n')
 	if _, err := console.Write(line.Bytes()); err != nil {
@@ -131,7 +160,7 @@ func checkServicesNotStarted(diagnostic.DoctorCheckContext) []diagnostic.Diagnos
 func serviceNotStartedDiagnostic(down serviceNotStarted) diagnostic.Diagnostic {
 	var message textbuf.Buffer
 	diag := diagnostic.Diagnostic{
-		Code:     codeDoctorServiceNotStarted,
+		Code:     down.doctorCode(),
 		Severity: diagnostic.SeverityError,
 		Message:  message.Str(down.problem.Problem()).Byte(' ').Str(down.problem.Why()).Str("; ").Str(down.effect).String(),
 		Fix:      down.problem.Fix(),

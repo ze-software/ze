@@ -653,16 +653,19 @@ func runYANGConfig(store storage.Storage, configPath string, data []byte, plugin
 		reportServiceNotStarted(slogutil.Logger("hub.config"), os.Stderr,
 			notStarted(excl.Service, blockUnservable(excl.Service, configBlockDisplay(excl.Path), configPath, excl.Cause)))
 	}
+	for _, excl := range loadResult.ExcludedDataPlane {
+		reportServiceNotStarted(slogutil.Logger("hub.config"), os.Stderr, dataPlaneExcluded(excl))
+	}
 
 	// Phase 1b: Schema evolution. Apply registered evolutions newer than the
 	// config's stamped release, then re-stamp and write back unless start
-	// excluded invalid service blocks (writing back a pruned tree would erase
-	// those blocks from disk). The release is the stamp of the content
-	// LoadConfigForStart parsed: after a recovery, data holds the rollback
-	// re-stamped with this binary's release, and scanning it would skip every
-	// evolution the rollback is owed.
+	// excluded invalid service blocks or data-plane-mismatched features
+	// (writing back a pruned tree would erase those blocks from disk). The
+	// release is the stamp of the content LoadConfigForStart parsed: after a
+	// recovery, data holds the rollback re-stamped with this binary's release,
+	// and scanning it would skip every evolution the rollback is owed.
 	evolveLogger := slogutil.Logger("hub.evolve")
-	saveToStore := len(loadResult.ExcludedBlocks) == 0
+	saveToStore := len(loadResult.ExcludedBlocks) == 0 && len(loadResult.ExcludedDataPlane) == 0
 	outcome, evolveErr := applyEvolutions(evolveLogger, store, configPath, data, loadResult.Tree, loadResult.StampRelease, saveToStore)
 	if evolveErr != nil {
 		var b textbuf.Buffer

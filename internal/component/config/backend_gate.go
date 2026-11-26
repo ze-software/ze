@@ -28,11 +28,22 @@ import (
 	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
+// treePathStep records one structural step along the walked config tree path
+// so start-time exclusion can build a concrete Tree.RemovePath target directly
+// from schema node kinds without reparsing display strings.
+type treePathStep struct {
+	name        string
+	listKey     string
+	isListEntry bool
+	isLeaf      bool
+}
+
 // backendMismatch is one ze:backend exclusion emitted by the walker.
 type backendMismatch struct {
 	path       string
 	active     string
 	supporting []string
+	steps      []treePathStep
 }
 
 // backendWalkSelector describes one declared selector that governs a set of
@@ -207,14 +218,79 @@ func walkSubtreeUnderSelector(
 	}
 	var pb textbuf.Buffer
 	pb.Byte('/').Str(relPath)
+	initSteps := containerPathSteps(relPath)
 	var mismatches []backendMismatch
-	walkBackendNode(node, data, pb.String(), sel.active, &mismatches)
+	walkBackendNode(node, data, pb.String(), initSteps, sel.active, &mismatches)
 	for _, m := range mismatches {
 		*findings = append(*findings, backendWalkFinding{
 			selector: sel,
 			mismatch: m,
 		})
 	}
+}
+
+// containerPathSteps builds the initial container step slice for a
+// PathSep-separated root path (for example, "interface" or "traffic/control").
+func containerPathSteps(relPath string) []treePathStep {
+	parts := SplitPath(strings.TrimPrefix(relPath, PathSep))
+	steps := make([]treePathStep, len(parts))
+	for i, seg := range parts {
+		steps[i] = treePathStep{name: seg}
+	}
+	return steps
+}
+
+// appendTreeStep appends step to a non-aliasing copy of steps.
+func appendTreeStep(steps []treePathStep, step treePathStep) []treePathStep {
+	return append(steps[:len(steps):len(steps)], step)
+}
+
+// withListEntryStep returns a copy of steps whose final step addresses key in
+// the current list.
+func withListEntryStep(steps []treePathStep, key string) []treePathStep {
+	out := slices.Clone(steps)
+	if len(out) == 0 {
+		return out
+	}
+	out[len(out)-1].listKey = key
+	out[len(out)-1].isListEntry = true
+	return out
+}
+
+// backendMismatchRemovalPath turns a mismatch's structured tree steps into a
+// concrete Tree.RemovePath target for start-time exclusion.
+//
+// A mismatched container or list entry removes that exact node. A mismatched
+// leaf inside a list entry (such as a firewall rule leaf or a tunnel leaf)
+// removes the nearest enclosing list entry so Ze never approximates a rule or
+// tunnel by stripping one leaf. A leaf outside any list entry removes the leaf
+// itself.
+func backendMismatchRemovalPath(steps []treePathStep) string {
+	if len(steps) == 0 {
+		return ""
+	}
+	end := len(steps)
+	if steps[len(steps)-1].isLeaf {
+		for i := len(steps) - 2; i >= 0; i-- {
+			if steps[i].isListEntry {
+				end = i + 1
+				break
+			}
+		}
+	}
+	var tb textbuf.Buffer
+	for i, step := range steps[:end] {
+		if i > 0 {
+			tb.Str(PathSep)
+		}
+		tb.Str(step.name)
+		if step.isListEntry {
+			if step.listKey != "" {
+				tb.Byte('[').Str(step.listKey).Byte(']')
+			}
+		}
+	}
+	return tb.String()
 }
 
 // validateBackendFeatures walks the parsed JSON config tree under
@@ -275,7 +351,7 @@ func validateBackendFeatures(
 	var pb textbuf.Buffer
 	pb.Byte('/').Str(componentRoot)
 	var mismatches []backendMismatch
-	walkBackendNode(rootNode, subtree, pb.String(), activeBackend, &mismatches)
+	walkBackendNode(rootNode, subtree, pb.String(), containerPathSteps(componentRoot), activeBackend, &mismatches)
 	if len(mismatches) == 0 {
 		return nil
 	}
@@ -317,7 +393,7 @@ func treeAtPath(tree map[string]any, path string) (map[string]any, bool) {
 // Lists are evaluated per-entry: if the list has a rejecting annotation,
 // each entry is independently checked; an override inside entry A cannot
 // mask a missing override inside entry B.
-func walkBackendNode(node Node, data any, path, active string, mismatches *[]backendMismatch) (spoke, accepts bool) {
+func walkBackendNode(node Node, data any, path string, steps []treePathStep, active string, mismatches *[]backendMismatch) (spoke, accepts bool) {
 	var tb textbuf.Buffer
 	if data == nil {
 		return false, false
@@ -339,15 +415,16 @@ func walkBackendNode(node Node, data any, path, active string, mismatches *[]bac
 					continue
 				}
 				childPath := tb.Reset().Str(path).Byte('/').Str(key).String()
-				cs, ca := walkBackendNode(childNode, m[key], childPath, active, mismatches)
+				childSteps := appendTreeStep(steps, treePathStep{name: key})
+				cs, ca := walkBackendNode(childNode, m[key], childPath, childSteps, active, mismatches)
 				descSpoke = descSpoke || cs
 				descAccepts = descAccepts || ca
 			}
 		}
 	case *ListNode:
-		descSpoke, descAccepts, emittedAtList = walkBackendListMap(n, hasOwn, ownAccepts, ownAnnotation, data, path, active, mismatches)
+		descSpoke, descAccepts, emittedAtList = walkBackendListMap(n, hasOwn, ownAccepts, ownAnnotation, data, path, steps, active, mismatches)
 	case *InlineListNode:
-		descSpoke, descAccepts, emittedAtList = walkBackendInlineList(n, hasOwn, ownAccepts, ownAnnotation, data, path, active, mismatches)
+		descSpoke, descAccepts, emittedAtList = walkBackendInlineList(n, hasOwn, ownAccepts, ownAnnotation, data, path, steps, active, mismatches)
 	case *FlexNode:
 		if m, ok := data.(map[string]any); ok {
 			for _, key := range sortedKeysAny(m) {
@@ -356,7 +433,8 @@ func walkBackendNode(node Node, data any, path, active string, mismatches *[]bac
 					continue
 				}
 				childPath := tb.Reset().Str(path).Byte('/').Str(key).String()
-				cs, ca := walkBackendNode(childNode, m[key], childPath, active, mismatches)
+				childSteps := appendTreeStep(steps, treePathStep{name: key})
+				cs, ca := walkBackendNode(childNode, m[key], childPath, childSteps, active, mismatches)
 				descSpoke = descSpoke || cs
 				descAccepts = descAccepts || ca
 			}
@@ -370,10 +448,17 @@ func walkBackendNode(node Node, data any, path, active string, mismatches *[]bac
 	// accounted for via emittedAtList to avoid double-emitting from the
 	// list helpers.
 	if !emittedAtList && hasOwn && !ownAccepts && !descSpoke {
+		mismatchSteps := slices.Clone(steps)
+		if len(mismatchSteps) > 0 {
+			if _, isLeaf := node.(*LeafNode); isLeaf {
+				mismatchSteps[len(mismatchSteps)-1].isLeaf = true
+			}
+		}
 		*mismatches = append(*mismatches, backendMismatch{
 			path:       path,
 			active:     active,
 			supporting: ownAnnotation,
+			steps:      mismatchSteps,
 		})
 	}
 
@@ -399,7 +484,9 @@ func walkBackendListMap(
 	listHasOwn, listOwnAccepts bool,
 	listAnnotation []string,
 	data any,
-	path, active string,
+	path string,
+	steps []treePathStep,
+	active string,
 	mismatches *[]backendMismatch,
 ) (descSpoke, descAccepts, emittedAtList bool) {
 	var tb textbuf.Buffer
@@ -407,14 +494,15 @@ func walkBackendListMap(
 	case map[string]any:
 		for _, key := range sortedKeysAny(v) {
 			entryPath := tb.Reset().Str(path).Byte('/').Str(key).String()
-			entrySpoke, entryAccepts := walkBackendListEntry(list, v[key], entryPath, active, mismatches)
+			entrySteps := withListEntryStep(steps, key)
+			entrySpoke, entryAccepts := walkBackendListEntry(list, v[key], entryPath, entrySteps, active, mismatches)
 			if entrySpoke {
 				descSpoke = true
 			}
 			if entryAccepts {
 				descAccepts = true
 			}
-			if emitListEntryError(listHasOwn, listOwnAccepts, listAnnotation, entryPath, active, entrySpoke, mismatches) {
+			if emitListEntryError(listHasOwn, listOwnAccepts, listAnnotation, entryPath, entrySteps, active, entrySpoke, mismatches) {
 				emittedAtList = true
 			}
 		}
@@ -422,14 +510,24 @@ func walkBackendListMap(
 		for i, item := range v {
 			var bp textbuf.Buffer
 			entryPath := bp.Reset().Str(path).Byte('[').Int(int64(i)).Byte(']').String()
-			entrySpoke, entryAccepts := walkBackendListEntry(list, item, entryPath, active, mismatches)
+			entrySteps := slices.Clone(steps)
+			if itemMap, ok := item.(map[string]any); ok {
+				if list.KeyName != "" {
+					if rawKey, ok := itemMap[list.KeyName].(string); ok {
+						if rawKey != "" {
+							entrySteps = withListEntryStep(steps, rawKey)
+						}
+					}
+				}
+			}
+			entrySpoke, entryAccepts := walkBackendListEntry(list, item, entryPath, entrySteps, active, mismatches)
 			if entrySpoke {
 				descSpoke = true
 			}
 			if entryAccepts {
 				descAccepts = true
 			}
-			if emitListEntryError(listHasOwn, listOwnAccepts, listAnnotation, entryPath, active, entrySpoke, mismatches) {
+			if emitListEntryError(listHasOwn, listOwnAccepts, listAnnotation, entryPath, entrySteps, active, entrySpoke, mismatches) {
 				emittedAtList = true
 			}
 		}
@@ -447,7 +545,9 @@ func walkBackendInlineList(
 	listHasOwn, listOwnAccepts bool,
 	listAnnotation []string,
 	data any,
-	path, active string,
+	path string,
+	steps []treePathStep,
+	active string,
 	mismatches *[]backendMismatch,
 ) (descSpoke, descAccepts, emittedAtList bool) {
 	var tb textbuf.Buffer
@@ -461,14 +561,15 @@ func walkBackendInlineList(
 		if !ok {
 			continue
 		}
-		entrySpoke, entryAccepts := walkInlineListEntryFields(list, entry, entryPath, active, mismatches)
+		entrySteps := withListEntryStep(steps, key)
+		entrySpoke, entryAccepts := walkInlineListEntryFields(list, entry, entryPath, entrySteps, active, mismatches)
 		if entrySpoke {
 			descSpoke = true
 		}
 		if entryAccepts {
 			descAccepts = true
 		}
-		if emitListEntryError(listHasOwn, listOwnAccepts, listAnnotation, entryPath, active, entrySpoke, mismatches) {
+		if emitListEntryError(listHasOwn, listOwnAccepts, listAnnotation, entryPath, entrySteps, active, entrySpoke, mismatches) {
 			emittedAtList = true
 		}
 	}
@@ -479,7 +580,7 @@ func walkBackendInlineList(
 // the entry's leaves and sub-containers). The entry's schema is the
 // ListNode's child map, treated as an implicit ContainerNode for walking
 // purposes. Returns (spoke, accepts) -- see walkBackendNode godoc.
-func walkBackendListEntry(list *ListNode, entry any, path, active string, mismatches *[]backendMismatch) (spoke, accepts bool) {
+func walkBackendListEntry(list *ListNode, entry any, path string, steps []treePathStep, active string, mismatches *[]backendMismatch) (spoke, accepts bool) {
 	var tb textbuf.Buffer
 	m, ok := entry.(map[string]any)
 	if !ok {
@@ -491,7 +592,8 @@ func walkBackendListEntry(list *ListNode, entry any, path, active string, mismat
 			continue
 		}
 		childPath := tb.Reset().Str(path).Byte('/').Str(key).String()
-		cs, ca := walkBackendNode(childNode, m[key], childPath, active, mismatches)
+		childSteps := appendTreeStep(steps, treePathStep{name: key})
+		cs, ca := walkBackendNode(childNode, m[key], childPath, childSteps, active, mismatches)
 		if cs {
 			spoke = true
 		}
@@ -506,7 +608,7 @@ func walkBackendListEntry(list *ListNode, entry any, path, active string, mismat
 // walkBackendListEntry: iterates the entry's field data, dispatching each
 // field to walkBackendNode against the inline list's child schema.
 // Extracted so walkBackendInlineList stays symmetric with walkBackendListMap.
-func walkInlineListEntryFields(list *InlineListNode, entry map[string]any, path, active string, mismatches *[]backendMismatch) (spoke, accepts bool) {
+func walkInlineListEntryFields(list *InlineListNode, entry map[string]any, path string, steps []treePathStep, active string, mismatches *[]backendMismatch) (spoke, accepts bool) {
 	var tb textbuf.Buffer
 	for _, key := range sortedKeysAny(entry) {
 		childNode := list.Get(key)
@@ -514,7 +616,8 @@ func walkInlineListEntryFields(list *InlineListNode, entry map[string]any, path,
 			continue
 		}
 		childPath := tb.Reset().Str(path).Byte('/').Str(key).String()
-		cs, ca := walkBackendNode(childNode, entry[key], childPath, active, mismatches)
+		childSteps := appendTreeStep(steps, treePathStep{name: key})
+		cs, ca := walkBackendNode(childNode, entry[key], childPath, childSteps, active, mismatches)
 		if cs {
 			spoke = true
 		}
@@ -533,7 +636,9 @@ func walkInlineListEntryFields(list *InlineListNode, entry map[string]any, path,
 func emitListEntryError(
 	listHasOwn, listOwnAccepts bool,
 	listAnnotation []string,
-	entryPath, active string,
+	entryPath string,
+	entrySteps []treePathStep,
+	active string,
 	entrySpoke bool,
 	mismatches *[]backendMismatch,
 ) bool {
@@ -550,6 +655,7 @@ func emitListEntryError(
 		path:       entryPath,
 		active:     active,
 		supporting: listAnnotation,
+		steps:      slices.Clone(entrySteps),
 	})
 	return true
 }

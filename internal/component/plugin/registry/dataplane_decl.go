@@ -93,6 +93,16 @@ type DataPlaneFeature struct {
 	// InUse evaluates whether the feature is active in a lowered candidate
 	// tree. Required iff InUseKind == DataPlaneInUsePredicate.
 	InUse func(tree map[string]any) DataPlaneFeatureUse
+	// DisablePaths lists concrete or wildcard ("[*]") config tree paths to
+	// remove from the in-memory start tree when this predicate feature
+	// mismatches the active data plane (for example, "flow-export/sampling" or
+	// "bgp/peer[*]/connection/ttl").
+	DisablePaths []string
+	// DisableLeaves maps concrete config tree leaf paths to explicit disabled
+	// values (for example, "l2tp/enabled": "false") applied at daemon start
+	// when deleting the whole container would break a sibling consumer on the
+	// active data plane.
+	DisableLeaves map[string]string
 }
 
 var (
@@ -266,6 +276,14 @@ func validateDataPlaneFeature(owner string, feat DataPlaneFeature, ownerConfigRo
 	}
 	if hasPlanes && slices.Contains(feat.Planes, "") {
 		return fmt.Errorf("%w: %q feature %q has an empty plane name",
+			ErrInvalidDataPlaneDecl, owner, feat.ConfigPath)
+	}
+	if slices.Contains(feat.DisablePaths, "") {
+		return fmt.Errorf("%w: %q feature %q has an empty DisablePaths entry",
+			ErrInvalidDataPlaneDecl, owner, feat.ConfigPath)
+	}
+	if _, hasEmpty := feat.DisableLeaves[""]; hasEmpty {
+		return fmt.Errorf("%w: %q feature %q has an empty DisableLeaves key",
 			ErrInvalidDataPlaneDecl, owner, feat.ConfigPath)
 	}
 	switch feat.InUseKind {

@@ -47,6 +47,11 @@ type LoadConfigResult struct {
 	// dropped from the in-memory Tree because its configuration failed
 	// validation. Always nil for LoadConfig and ReadConfig.
 	ExcludedBlocks []ExcludedBlock
+	// ExcludedDataPlane records every data-plane-mismatched feature
+	// LoadConfigForStart left off in memory so the daemon starts on its active
+	// data plane and reports the mismatch under doctor-dataplane-mismatch.
+	// Always nil for LoadConfig and ReadConfig.
+	ExcludedDataPlane []ExcludedDataPlane
 }
 
 // LoadConfig parses config with CLI plugin YANG schemas, extracts and resolves
@@ -64,9 +69,12 @@ func LoadConfig(input, configPath string, cliPlugins []string) (*LoadConfigResul
 // LoadConfigForStart parses and validates config for daemon startup. Unlike
 // LoadConfig, a validation failure scoped to a registered service block drops
 // only that block from the returned in-memory tree and records it in
-// LoadConfigResult.ExcludedBlocks, so the daemon starts its remaining services
-// and reports the excluded ones. Any unscoped failure still refuses the load
-// with the same error LoadConfig returns.
+// LoadConfigResult.ExcludedBlocks, and a data-plane-mismatched feature is left
+// off in memory and recorded in LoadConfigResult.ExcludedDataPlane, so the
+// daemon starts its remaining services and reports the excluded ones. Unscoped
+// validation failures and hard data-plane refusals (unreadable or retired
+// selectors, fib dummy conflicts, empty-backend host verdicts) still refuse
+// the load with the same error LoadConfig returns.
 func LoadConfigForStart(input, configPath string, cliPlugins []string) (*LoadConfigResult, error) {
 	return loadConfig(input, configPath, cliPlugins, applyParsedEnvironment, true)
 }
@@ -166,12 +174,27 @@ func loadConfig(input, configPath string, cliPlugins []string, publish func(*Tre
 	// Check data-plane compatibility before publishing environment settings or
 	// hashing credentials, using the candidate plugin selection (declared
 	// plugin blocks merged with process-wide recorded and caller CLI plugins).
-	selection, selErr := candidatePluginSelection(tree, cliPlugins)
-	if selErr != nil {
-		return nil, selErr
-	}
-	if err := refuseDataPlaneMismatches(tree, schema, selection); err != nil {
-		return nil, err
+	// At daemon start (startMode == true), excludable data-plane mismatches
+	// are left off in memory and reported under doctor-dataplane-mismatch;
+	// LoadConfig and ReadConfig stay strictly refusing.
+	var selection []plugin.PluginConfig
+	var excludedDataPlane []ExcludedDataPlane
+	effectiveCLI := cliPlugins
+	if startMode {
+		var dpErr error
+		effectiveCLI, selection, excludedDataPlane, dpErr = excludeDataPlaneMismatches(tree, schema, cliPlugins)
+		if dpErr != nil {
+			return nil, dpErr
+		}
+	} else {
+		var selErr error
+		selection, selErr = candidatePluginSelection(tree, cliPlugins)
+		if selErr != nil {
+			return nil, selErr
+		}
+		if err := refuseDataPlaneMismatches(tree, schema, selection); err != nil {
+			return nil, err
+		}
 	}
 	// A redistribute rule that cannot act is refused here, before any plugin
 	// starts, by the same check the validate and commit doors run.
@@ -213,7 +236,7 @@ func loadConfig(input, configPath string, cliPlugins []string, publish func(*Tre
 	warnPlaintextOnDisk(configPath, hashed)
 	warnWeakPassword(hashed)
 
-	result, err := finalizeConfigLoad(tree, configPath, cliPlugins)
+	result, err := finalizeConfigLoad(tree, configPath, effectiveCLI)
 	if err != nil {
 		return nil, err
 	}
@@ -221,6 +244,7 @@ func loadConfig(input, configPath string, cliPlugins []string, publish func(*Tre
 	result.HasCandidateSelection = true
 	result.StampRelease = ScanStampRelease([]byte(input))
 	result.ExcludedBlocks = excluded
+	result.ExcludedDataPlane = excludedDataPlane
 	return result, nil
 }
 

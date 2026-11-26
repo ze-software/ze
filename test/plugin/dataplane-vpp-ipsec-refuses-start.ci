@@ -1,19 +1,22 @@
-# Test: daemon start refuses vpn ipsec under interface backend vpp.
+# Test: daemon start leaves vpn ipsec off under interface backend vpp and reports doctor-dataplane-mismatch.
 # Question: does `ze start` on a file holding `interface backend vpp` and
-#           `vpn ipsec` exit 1 before any plugin starts, naming `vpn ipsec`
-#           and `set interface backend kernel` with no start exception?
-#           A unit test cannot prove `LoadConfig` at daemon start applies the
-#           same verdict to IPsec as `ze config validate` with no boot bypass.
-# VALIDATES: spec-dataplane-compatibility-guard AC-16 (C-5) -- a stored
-#            configuration with IPsec under VPP refuses to boot, naming
-#            `vpn ipsec` and `set interface backend kernel`.
-# PREVENTS: a VPP daemon booting with kernel XFRM IPsec tunnels that carry no
-#           VPP-forwarded traffic.
+#           `vpn ipsec` reach "Ze running", leave `vpn ipsec` off and reported
+#           under `doctor-dataplane-mismatch` naming `vpn ipsec` and
+#           `set interface backend kernel`, and keep the config file untouched,
+#           while `ze config validate` still refuses the file?
+# VALIDATES: 2026-11-26 owner ruling, Answer 2a
+#            (plan/records/ruling-ze-always-starts.md) and
+#            spec-dataplane-compatibility-guard AC-16 -- IPsec under VPP is
+#            left off at daemon start and reported under
+#            `doctor-dataplane-mismatch`, while `ze config validate` stays
+#            strict.
+# PREVENTS: IPsec blocking a VPP daemon from starting, or starting kernel XFRM
+#           IPsec tunnels beside VPP interfaces, or rewriting disk config.
 
 option=needs-build-tag:value=ze_vpp:state=present
 option=needs-build-tag:value=ze_ike:state=present
 
-stdin=ze-bgp:refused=config-plugin-verify:terminator=EOF_CONF
+tmpfs=vpp-ipsec.conf:refused=config-plugin-verify:terminator=EOF_CONF
 interface {
 	backend vpp;
 }
@@ -48,10 +51,25 @@ vpn {
 }
 EOF_CONF
 
-cmd=foreground:seq=1:exec=ze -:stdin=ze-bgp:timeout=30s
+# `ze config validate` stays strict and refuses the mismatch.
+cmd=foreground:seq=1:exec=ze config validate vpp-ipsec.conf:timeout=20s
 expect=exit:code=1
-expect=stderr:contains=error: load config:
+expect=stdout:contains=vpn ipsec
+expect=stdout:contains=set interface backend kernel
+
+# Daemon start succeeds, leaves vpn ipsec off, and reports doctor-dataplane-mismatch.
+cmd=background:seq=2:name=daemon:exec=ze start vpp-ipsec.conf:ready=Ze running
+expect=stderr:contains=that feature is left off; ze and its other services keep running
+expect=stderr:contains=code=doctor-dataplane-mismatch
 expect=stderr:contains=vpn ipsec
 expect=stderr:contains=set interface backend kernel
-reject=stderr:contains=interface backend loaded
+reject=stderr:contains=error: load config:
+reject=stderr:contains=ike peers started
 reject=stderr:pattern=panic
+
+cmd=stop:seq=3:name=daemon:signal=term
+
+# Stored config file on disk stays untouched: validate still sees the mismatch.
+cmd=foreground:seq=4:exec=ze config validate vpp-ipsec.conf:timeout=20s
+expect=exit:code=1
+expect=stdout:contains=set interface backend kernel

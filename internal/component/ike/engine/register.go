@@ -312,8 +312,9 @@ func init() {
 		// does. firewall is ungated, so every build with ike carries it: a hard edge.
 		Dependencies: []string{"firewall"},
 		// IPsec tunnels are installed into Linux XFRM only (via the vpn config root;
-		// pki alone and OSPF's XFRM use do not write vpn). No start exception applies:
-		// a data-plane mismatch refuses commit, validate, reload, and daemon start.
+		// pki alone and OSPF's XFRM use do not write vpn). A data-plane mismatch
+		// refuses commit, validate, and reload; at daemon start IPsec is left off
+		// and reported under doctor-dataplane-mismatch.
 		DataPlaneFeatures: []registry.DataPlaneFeature{{
 			ConfigPath: "vpn ipsec",
 			Why:        "IPsec programs kernel XFRM only, and VPP forwards the packets, so the tunnels would carry no traffic",
