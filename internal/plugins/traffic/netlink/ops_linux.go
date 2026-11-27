@@ -9,6 +9,7 @@ import "github.com/vishvananda/netlink"
 
 type tcOps interface {
 	linkByName(name string) (netlink.Link, error)
+	linkList() ([]netlink.Link, error)
 	qdiscList(link netlink.Link) ([]netlink.Qdisc, error)
 	qdiscReplace(qdisc netlink.Qdisc) error
 	// qdiscAdd adds a qdisc without disturbing one already there. Used for the
@@ -31,6 +32,7 @@ type tcOps interface {
 type netlinkOps struct{}
 
 func (netlinkOps) linkByName(name string) (netlink.Link, error) { return netlink.LinkByName(name) }
+func (netlinkOps) linkList() ([]netlink.Link, error)            { return netlink.LinkList() }
 func (netlinkOps) qdiscList(link netlink.Link) ([]netlink.Qdisc, error) {
 	return netlink.QdiscList(link)
 }

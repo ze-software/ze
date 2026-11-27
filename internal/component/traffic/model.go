@@ -245,22 +245,52 @@ func (p Policer) Validate() error {
 	return nil
 }
 
-// Qdisc is the backend input for a root discipline. RateBps is the classless
-// TBF rate; Classes carries classful traffic control configuration or VPP class policers.
+// QdiscStats holds live runtime counters and queue depth for a qdisc or class.
+// A nil *QdiscStats means the backend does not report queue statistics (for
+// example VPP or a kernel qdisc with nil netlink statistics), distinct from
+// real zero counters.
+type QdiscStats struct {
+	Bytes      uint64
+	Packets    uint64
+	Qlen       uint32
+	Backlog    uint32
+	Drops      uint32
+	Requeues   uint32
+	Overlimits uint32
+}
+
+// Qdisc is the backend input and readback model for a root discipline. RateBps
+// is the classless TBF rate; Classes carries classful traffic control
+// configuration or VPP class policers. Kind, Handle, and Stats are populated on
+// live readback; Stats is nil when the backend does not report queue stats.
 type Qdisc struct {
 	Type         QdiscType
+	Kind         string // raw kernel qdisc kind (e.g., "fq_codel", "noqueue"); empty when built from config
+	Handle       string // formatted tc handle (e.g., "1:0")
 	RateBps      uint64 // root TBF rate in bits/s; zero means absent
 	DefaultClass string // name of the default class
 	Classes      []TrafficClass
+	Stats        *QdiscStats // nil when backend does not report queue stats
+}
+
+// KindName returns the raw kernel qdisc kind when populated, falling back to
+// Type.String() when constructed from Ze config.
+func (q Qdisc) KindName() string {
+	if q.Kind != "" {
+		return q.Kind
+	}
+	return q.Type.String()
 }
 
 // TrafficClass represents one class within a classful qdisc.
 type TrafficClass struct {
 	Name     string
+	Handle   string // formatted tc handle (e.g., "1:1")
 	Rate     uint64 // guaranteed rate in bps
 	Ceil     uint64 // maximum rate in bps (>= Rate)
 	Priority uint8  // scheduling priority (lower = higher priority)
 	Filters  []TrafficFilter
+	Stats    *QdiscStats // nil when backend does not report queue stats
 }
 
 // TrafficFilter matches packets to a class.

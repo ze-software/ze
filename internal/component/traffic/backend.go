@@ -5,6 +5,7 @@ package traffic
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log/slog"
 	"maps"
@@ -59,6 +60,27 @@ type OriginalStateRestorer interface {
 	RestoreOriginal(ctx context.Context, ifaceName string) error
 }
 
+// QdiscReader provides read-only access to live traffic control state for one
+// interface or all interfaces. Implemented by backends that support bulk
+// readback and by stateless platform readers registered via RegisterReader.
+type QdiscReader interface {
+	// ListQdiscs returns current traffic control state for an interface.
+	ListQdiscs(ifaceName string) (InterfaceQoS, error)
+
+	// ListAllQdiscs returns current traffic control state for all interfaces.
+	ListAllQdiscs() ([]InterfaceQoS, error)
+}
+
+// ErrNoBackendAvailable is returned when neither an active traffic backend nor
+// a read-only reader for the platform's default backend is registered.
+var ErrNoBackendAvailable = errors.New("traffic control not available on this platform")
+
+var (
+	errReaderEmptyName = errors.New("traffic: reader name must not be empty")
+	errReaderNil       = errors.New("traffic: reader must not be nil")
+	errBulkReadNotImpl = errors.New("traffic: active backend does not support listing all qdiscs")
+)
+
 // DefaultBackendName returns the backend name used when the config does not
 // specify one. It is the exported view of the package-private
 // defaultBackendName constant, selected at build time via
@@ -79,12 +101,16 @@ func DefaultBackendName() string { return defaultBackendName }
 // requires per-value logic, which lives in a Verifier.
 type Verifier func(desired map[string]InterfaceQoS) error
 
-// backendsMu protects the backends map, activeBackend, and verifiers.
+// backendsMu protects backends, readers, activeBackend, and verifiers.
 var backendsMu sync.Mutex
 
 // backends maps backend names to factory functions. Populated by
 // RegisterBackend calls in init() from backend packages.
 var backends = map[string]func() (Backend, error){}
+
+// readers maps backend names to stateless read-only QdiscReader
+// implementations. Populated by RegisterReader calls in init().
+var readers = map[string]QdiscReader{}
 
 // verifiers maps backend names to verifier functions. Populated by
 // RegisterVerifier calls in init(). Missing names mean "no extra checks".
@@ -93,6 +119,71 @@ var verifiers = map[string]Verifier{}
 // activeBackend is the currently loaded backend. Set by LoadBackend
 // during OnConfigure. Nil until a backend is loaded.
 var activeBackend Backend
+
+// RegisterReader registers a stateless read-only QdiscReader under name.
+// Called from init() in backend packages (e.g., trafficnetlink) so read-only
+// queries work even when traffic control is not configured. Empty names, nil
+// readers, and duplicate names are rejected. Safe for concurrent use.
+func RegisterReader(name string, r QdiscReader) error {
+	if name == "" {
+		return errReaderEmptyName
+	}
+	if r == nil {
+		return errReaderNil
+	}
+
+	backendsMu.Lock()
+	defer backendsMu.Unlock()
+
+	if _, exists := readers[name]; exists {
+		return fmt.Errorf("traffic: reader %q already registered", name)
+	}
+	readers[name] = r
+	return nil
+}
+
+// ReadQdiscs returns current traffic control state for ifaceName. It uses the
+// active backend when one is loaded, otherwise falls back to the registered
+// read-only reader for defaultBackendName. Returns ErrNoBackendAvailable when
+// neither is present. Safe for concurrent use.
+func ReadQdiscs(ifaceName string) (InterfaceQoS, error) {
+	backendsMu.Lock()
+	active := activeBackend
+	reader := readers[defaultBackendName]
+	backendsMu.Unlock()
+
+	if active != nil {
+		return active.ListQdiscs(ifaceName)
+	}
+	if reader != nil {
+		return reader.ListQdiscs(ifaceName)
+	}
+	return InterfaceQoS{}, ErrNoBackendAvailable
+}
+
+// ReadAllQdiscs returns current traffic control state for all interfaces. It
+// uses the active backend when loaded (requiring it to implement QdiscReader),
+// otherwise falls back to the registered read-only reader for
+// defaultBackendName. Returns ErrNoBackendAvailable when neither is present.
+// Safe for concurrent use.
+func ReadAllQdiscs() ([]InterfaceQoS, error) {
+	backendsMu.Lock()
+	active := activeBackend
+	reader := readers[defaultBackendName]
+	backendsMu.Unlock()
+
+	if active != nil {
+		qr, ok := active.(QdiscReader)
+		if !ok {
+			return nil, errBulkReadNotImpl
+		}
+		return qr.ListAllQdiscs()
+	}
+	if reader != nil {
+		return reader.ListAllQdiscs()
+	}
+	return nil, ErrNoBackendAvailable
+}
 
 // RegisterBackend registers a backend factory under the given name.
 // Called from init() in backend packages (e.g., trafficnetlink).
@@ -196,10 +287,36 @@ func CloseBackend() error {
 	backendsMu.Lock()
 	defer backendsMu.Unlock()
 
+	// refuse-by-default: guards runEngine -- CloseBackend is a deferred teardown that runs even when no traffic config loaded a backend
 	if activeBackend == nil {
 		return nil
 	}
 	err := activeBackend.Close()
 	activeBackend = nil
 	return err
+}
+
+// ResetBackendsForTest snapshots and clears the package-level traffic backend,
+// reader, verifier, and active-backend registries, returning a restore closure
+// for use with t.Cleanup. Safe for concurrent use.
+func ResetBackendsForTest() func() {
+	backendsMu.Lock()
+	savedBackends := maps.Clone(backends)
+	savedReaders := maps.Clone(readers)
+	savedVerifiers := maps.Clone(verifiers)
+	savedActive := activeBackend
+	backends = map[string]func() (Backend, error){}
+	readers = map[string]QdiscReader{}
+	verifiers = map[string]Verifier{}
+	activeBackend = nil
+	backendsMu.Unlock()
+
+	return func() {
+		backendsMu.Lock()
+		backends = savedBackends
+		readers = savedReaders
+		verifiers = savedVerifiers
+		activeBackend = savedActive
+		backendsMu.Unlock()
+	}
 }

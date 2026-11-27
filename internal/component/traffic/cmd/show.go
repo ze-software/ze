@@ -15,13 +15,16 @@ func FormatQoS(qos traffic.InterfaceQoS) string {
 	var b textbuf.Buffer
 	b.Reset()
 	b.Str("interface ").Str(qos.Interface).Str(" {\n")
-	b.Str("  qdisc ").Str(qos.Qdisc.Type.String())
+	b.Str("  qdisc ").Str(qos.Qdisc.KindName())
 	if qos.Qdisc.DefaultClass != "" {
 		b.Str(" default ").Str(qos.Qdisc.DefaultClass)
 	}
 	b.Str(" {\n")
 	if qos.Qdisc.RateBps != 0 {
 		b.Str("    rate ").Str(formatRate(qos.Qdisc.RateBps)).Str(";\n")
+	}
+	if qos.Qdisc.Stats != nil {
+		formatStatsLine(&b, "    ", qos.Qdisc.Stats)
 	}
 	for _, c := range qos.Qdisc.Classes {
 		formatClass(&b, &c)
@@ -61,7 +64,21 @@ func formatClass(b *textbuf.Buffer, c *traffic.TrafficClass) {
 	for _, f := range c.Filters {
 		b.Str("      match ").Str(f.Type.String()).Str(" 0x").Str(strconv.FormatUint(uint64(f.Value), 16)).Str(";\n")
 	}
+	if c.Stats != nil {
+		formatStatsLine(b, "      ", c.Stats)
+	}
 	b.Str("    }\n")
+}
+
+func formatStatsLine(b *textbuf.Buffer, indent string, s *traffic.QdiscStats) {
+	b.Str(indent).Str("stats bytes ").Uint(s.Bytes).
+		Str(" packets ").Uint(s.Packets).
+		Str(" qlen ").Uint32(s.Qlen).
+		Str(" backlog ").Uint32(s.Backlog).
+		Str(" drops ").Uint32(s.Drops).
+		Str(" overlimits ").Uint32(s.Overlimits).
+		Str(" requeues ").Uint32(s.Requeues).
+		Str(";\n")
 }
 
 func formatRate(bps uint64) string {

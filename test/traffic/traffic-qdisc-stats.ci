@@ -1,0 +1,99 @@
+# Test: do `show traffic control` and Prometheus `/metrics` report live Linux
+# kernel qdisc statistics when neither `traffic { control { } }` nor
+# `interface { }` is configured, and with `netdata { enabled false; }`?
+#
+# A unit test cannot boot a real `ze` daemon with netlink qdisc readback,
+# dispatch `ze-traffic:show-traffic` over SSH (`ze cli -c`), and scrape live
+# `ze_traffic_qdisc_*` series from `/metrics` on Linux.
+#
+# VALIDATES: spec-traffic-qdisc-stats AC-3, AC-5, User Stories 1 & 3:
+#   - Story 1 (unshaped): with no `traffic { control { } }` and no `interface { }`
+#     block, `show traffic control` and `show traffic control lo` succeed via
+#     the read-only `kernel` QdiscReader and report real kernel qdisc kind
+#     (`noqueue`), handle (`0:0`), and all 7 live counter fields.
+#   - Story 3 (/metrics): with `telemetry { prometheus { enabled true; netdata { enabled false; } } }`,
+#     HTTP `GET /metrics` exposes all 7 `ze_traffic_qdisc_*` series for `lo`
+#     (`noqueue`, `handle="0:0"`).
+# PREVENTS: regressions where unconfigured Linux routers fail `show traffic control`,
+#           kernel qdiscs misreport as `htb`, or the 1s push collector fails to
+#           publish on `/metrics` when `netdata` is disabled.
+option=needs-linux
+option=timeout:value=60s
+option=env:var=ZE_CONFIG_DIR:value=.
+option=env:var=XDG_DATA_HOME:value=.
+option=env:var=ze.ssh.password:value=testpass
+
+stdin=init-answers:terminator=EOF_INIT
+admin
+testpass
+127.0.0.1
+$PORT
+EOF_INIT
+
+tmpfs=unshaped.conf:terminator=EOF_CONF
+system {
+	authentication {
+		# bcrypt cost-4 hash of "testpass".
+		user admin {
+			password "$2a$04$UlwuiuH82Unfsq.XEMPGJeDkXwbm3KW.nvVaVXOd/JeFK8VjMjrQO"
+		}
+	}
+}
+environment {
+	ssh {
+		enabled true
+		server main {
+			ip 127.0.0.1;
+			port $PORT;
+		}
+	}
+}
+telemetry {
+	prometheus {
+		enabled true
+		netdata {
+			enabled false
+		}
+		server main {
+			ip 127.0.0.1;
+			port $PORT2;
+		}
+	}
+}
+EOF_CONF
+
+cmd=foreground:seq=1:exec=ze init:stdin=init-answers:exit=0
+cmd=background:seq=2:exec=ze start unshaped.conf:name=daemon:ready=Ze running.
+
+cmd=foreground:seq=3:exec=ze cli -c "show traffic control | json":exit=0
+expect=stdout:contains="interface": "lo"
+expect=stdout:contains="qdisc": "noqueue"
+expect=stdout:contains="handle": "0:0"
+expect=stdout:contains="bytes":
+expect=stdout:contains="packets":
+expect=stdout:contains="qlen":
+expect=stdout:contains="backlog":
+expect=stdout:contains="drops":
+expect=stdout:contains="overlimits":
+expect=stdout:contains="requeues":
+
+cmd=foreground:seq=4:exec=ze cli -c "show traffic control lo | json":exit=0
+expect=stdout:contains="interface": "lo"
+expect=stdout:contains="qdisc": "noqueue"
+expect=stdout:contains="handle": "0:0"
+expect=stdout:contains="stats":
+expect=stdout:contains="bytes":
+expect=stdout:contains="packets":
+expect=stdout:contains="qlen":
+expect=stdout:contains="backlog":
+expect=stdout:contains="drops":
+expect=stdout:contains="overlimits":
+expect=stdout:contains="requeues":
+
+http=wait:seq=1:url=http://127.0.0.1:$PORT2/metrics:status=200:contains=ze_traffic_qdisc_bytes_total{handle="0:0",interface="lo",qdisc="noqueue"}:timeout=15s
+http=get:seq=1:url=http://127.0.0.1:$PORT2/metrics:status=200:contains=ze_traffic_qdisc_packets_total{handle="0:0",interface="lo",qdisc="noqueue"}
+http=get:seq=2:url=http://127.0.0.1:$PORT2/metrics:status=200:contains=ze_traffic_qdisc_qlen{handle="0:0",interface="lo",qdisc="noqueue"}
+http=get:seq=3:url=http://127.0.0.1:$PORT2/metrics:status=200:contains=ze_traffic_qdisc_backlog_bytes{handle="0:0",interface="lo",qdisc="noqueue"}
+http=get:seq=4:url=http://127.0.0.1:$PORT2/metrics:status=200:contains=ze_traffic_qdisc_drops_total{handle="0:0",interface="lo",qdisc="noqueue"}
+http=get:seq=5:url=http://127.0.0.1:$PORT2/metrics:status=200:contains=ze_traffic_qdisc_overlimits_total{handle="0:0",interface="lo",qdisc="noqueue"}
+http=get:seq=6:url=http://127.0.0.1:$PORT2/metrics:status=200:contains=ze_traffic_qdisc_requeues_total{handle="0:0",interface="lo",qdisc="noqueue"}

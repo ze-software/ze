@@ -1082,3 +1082,100 @@ func TestRootTBFRateRefusedBeforeVPPMutation(t *testing.T) {
 		}
 	}
 }
+
+// VALIDATES: spec-traffic-qdisc-stats AC-4 -- trafficvpp implements
+// traffic.QdiscReader, returning tracked output-policer and classify-policer
+// interfaces sorted by name with sorted class names and Stats left nil.
+// PREVENTS: VPP fabricating synthetic zero Linux queue statistics on show
+// traffic control or Prometheus scrape.
+func TestVPPListAllQdiscsLeavesStatsNil(t *testing.T) {
+	b := newOpsBackend()
+	var reader traffic.QdiscReader = b
+
+	empty, err := reader.ListAllQdiscs()
+	if err != nil {
+		t.Fatalf("ListAllQdiscs on empty backend: %v", err)
+	}
+	if len(empty) != 0 {
+		t.Fatalf("empty backend ListAllQdiscs len = %d, want 0", len(empty))
+	}
+
+	fake := newFakeOps(map[string]interface_types.InterfaceIndex{
+		"eth0": 5,
+		"eth1": 6,
+	})
+	desired := map[string]traffic.InterfaceQoS{
+		"eth1": {
+			Interface: "eth1",
+			Qdisc: traffic.Qdisc{
+				Type:    traffic.QdiscHTB,
+				Classes: []traffic.TrafficClass{{Name: "c1", Rate: 1_000_000}},
+			},
+		},
+		"eth0": {
+			Interface: "eth0",
+			Qdisc: traffic.Qdisc{
+				Type: traffic.QdiscHTB,
+				Classes: []traffic.TrafficClass{
+					{Name: "web", Rate: 10_000_000, Filters: []traffic.TrafficFilter{{Type: traffic.FilterProtocol, Value: 6}}},
+					{Name: "dns", Rate: 1_000_000, Filters: []traffic.TrafficFilter{{Type: traffic.FilterProtocol, Value: 17}}},
+				},
+			},
+		},
+	}
+	if err := applyWithOpsLocked(b, fake, desired); err != nil {
+		t.Fatalf("Apply: %v", err)
+	}
+
+	all, err := reader.ListAllQdiscs()
+	if err != nil {
+		t.Fatalf("ListAllQdiscs: %v", err)
+	}
+	if len(all) != 2 {
+		t.Fatalf("ListAllQdiscs len = %d, want 2: %+v", len(all), all)
+	}
+	if all[0].Interface != "eth0" || all[1].Interface != "eth1" {
+		t.Fatalf("ListAllQdiscs order = [%s, %s], want [eth0, eth1]", all[0].Interface, all[1].Interface)
+	}
+
+	// eth0: classify policers sorted by name, zero Stats fabricated.
+	if all[0].Qdisc.Type != traffic.QdiscHTB {
+		t.Fatalf("eth0 qdisc type = %v, want HTB", all[0].Qdisc.Type)
+	}
+	if all[0].Qdisc.Stats != nil {
+		t.Fatalf("eth0 Qdisc.Stats = %+v, want nil on VPP", all[0].Qdisc.Stats)
+	}
+	gotEth0Classes := make([]string, 0, len(all[0].Qdisc.Classes))
+	for _, cls := range all[0].Qdisc.Classes {
+		if cls.Stats != nil {
+			t.Fatalf("eth0 class %q Stats = %+v, want nil on VPP", cls.Name, cls.Stats)
+		}
+		gotEth0Classes = append(gotEth0Classes, cls.Name)
+	}
+	if !equalSlices(gotEth0Classes, []string{"ze/eth0/dns", "ze/eth0/web"}) {
+		t.Fatalf("eth0 classes = %v, want [ze/eth0/dns ze/eth0/web]", gotEth0Classes)
+	}
+
+	// eth1: output policer, zero Stats fabricated.
+	if all[1].Qdisc.Type != traffic.QdiscHTB {
+		t.Fatalf("eth1 qdisc type = %v, want HTB", all[1].Qdisc.Type)
+	}
+	if all[1].Qdisc.Stats != nil {
+		t.Fatalf("eth1 Qdisc.Stats = %+v, want nil on VPP", all[1].Qdisc.Stats)
+	}
+	if len(all[1].Qdisc.Classes) != 1 || all[1].Qdisc.Classes[0].Name != "ze/eth1/c1" {
+		t.Fatalf("eth1 classes = %+v, want [ze/eth1/c1]", all[1].Qdisc.Classes)
+	}
+	if all[1].Qdisc.Classes[0].Stats != nil {
+		t.Fatalf("eth1 class Stats = %+v, want nil on VPP", all[1].Qdisc.Classes[0].Stats)
+	}
+
+	// Single-interface ListQdiscs matches and leaves Stats nil.
+	single, err := reader.ListQdiscs("eth0")
+	if err != nil {
+		t.Fatalf("ListQdiscs(eth0): %v", err)
+	}
+	if single.Qdisc.Stats != nil || len(single.Qdisc.Classes) != 2 {
+		t.Fatalf("ListQdiscs(eth0) = %+v, want 2 classes and nil Stats", single.Qdisc)
+	}
+}

@@ -167,6 +167,28 @@ The kernel keeps exactly one `tcf_proto` per (parent, priority), and that instan
 Ze therefore allocates one priority per link-layer protocol: the IPv4 (`ETH_P_IP`) and IPv6 (`ETH_P_IPV6`) halves of a DSCP or protocol match get distinct priorities, as does a mark filter (`ETH_P_ALL`). With a shared priority the qdisc and class were created, the IPv4 filter was accepted, and the IPv6 filter at the same priority was refused.
 <!-- source: internal/plugins/traffic/netlink/translate_linux.go -- u32FilterPair, FilterMark -->
 
+## Live Qdisc and Class Statistics
+
+Ze reads live queueing discipline and per-class runtime statistics (`bytes`, `packets`, `qlen`, `backlog`, `drops`, `overlimits`, and `requeues`) from the Linux kernel via netlink (`RTM_GETQDISC` and `RTM_GETTCLASS`):
+
+```
+ze show traffic control                      # Summary across all interfaces
+ze show traffic control eth0 | json          # Root stats and per-class stats for eth0
+ze traffic control show interface eth0       # Offline human-readable QoS + stats view
+```
+
+- **Works without `traffic { control { } }` on Linux.** The `kernel` backend registers a stateless read-only `QdiscReader` at startup. Even without `traffic { control { } }` or `interface { }`, `show traffic control` reports every Linux interface with its real kernel qdisc kind and live counters.
+- **Configured class names on HTB/HFSC.** When `traffic { control { } }` programs classes, readback labels each kernel class with its configured Ze class name. Unmanaged classes fall back to their tc handle (such as `1:1`). HTB class rates convert from bytes/s to bits/s (`rate-bps`, `ceil-bps`).
+- **Prometheus `/metrics` export.** When `telemetry { prometheus { enabled true; } }` is active, a 1-second push collector runs independently of `netdata.enabled` and `traffic { control { } }`. It exports 7 `ze_traffic_qdisc_*` `GaugeVec` series (`interface`, `qdisc`, `handle`) and 7 `ze_traffic_class_*` `GaugeVec` series (`interface`, `qdisc`, `class`, `handle`). Stale label tuples are removed when interfaces or classes disappear.
+- **VPP omits queue stats.** VPP has no Linux egress qdisc queue (`qlen`/`backlog`/`requeues`). Under `backend vpp`, `show traffic control` keeps configured qdisc types and class names, and omits `stats`. Prometheus emits no `ze_traffic_qdisc_*` or `ze_traffic_class_*` series rather than fake zeros.
+
+<!-- source: internal/component/traffic/backend.go -- QdiscReader, RegisterReader, ReadQdiscs, ReadAllQdiscs -->
+<!-- source: internal/component/traffic/metrics.go -- newStatsGaugeSet, qdiscMetricsPoller -->
+<!-- source: internal/component/traffic/cmd/traffic.go -- handleShowTraffic, buildTrafficDetail, buildTrafficSummaryRow -->
+<!-- source: internal/component/traffic/cmd/show.go -- FormatQoS, formatStatsLine -->
+<!-- source: internal/plugins/traffic/netlink/backend_linux.go -- readOnlyReader, ListQdiscs, ListAllQdiscs, extractQdiscStats -->
+<!-- source: internal/plugins/traffic/vpp/backend_linux.go -- ListQdiscs, ListAllQdiscs -->
+
 ## VPP Backend: Compatibility Matrix
 
 The VPP backend rejects qdisc and filter types that cannot be represented

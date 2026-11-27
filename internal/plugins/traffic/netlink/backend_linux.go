@@ -7,14 +7,17 @@
 package trafficnetlink
 
 import (
+	"cmp"
 	"context"
 	"errors"
 	"fmt"
+	"maps"
 	"math"
 	"slices"
 	"sync"
 
 	"github.com/vishvananda/netlink"
+	"golang.org/x/sys/unix"
 
 	"github.com/ze-software/ze/internal/component/iface"
 	"github.com/ze-software/ze/internal/component/traffic"
@@ -45,13 +48,42 @@ func resolveOSName(name string) string {
 	return name
 }
 
-// backend implements traffic.Backend using vishvananda/netlink traffic control API.
+// classMeta holds the Ze-configured class names and default class name for one
+// OS interface so live netlink readback can label kernel handles with operator
+// names.
+type classMeta struct {
+	names        map[uint32]string
+	defaultClass string
+}
+
+// readOnlyReader implements traffic.QdiscReader directly against netlink
+// without mutating state or touching snapshot persistence. Safe for concurrent
+// use.
+type readOnlyReader struct {
+	ops tcOps
+}
+
+// backend implements traffic.Backend and traffic.QdiscReader using
+// vishvananda/netlink traffic control API. Safe for concurrent use.
 type backend struct {
 	mu               sync.Mutex
 	ops              tcOps
 	snapshotReadyErr error
 	bootID           string
 	snapshots        map[string]tcInterfaceSnapshot
+	classNames       map[string]map[uint32]string // osName -> handle -> Ze class name
+	defaultClasses   map[string]string            // osName -> Ze default class name
+}
+
+var (
+	_ traffic.QdiscReader = (*backend)(nil)
+	_ traffic.QdiscReader = readOnlyReader{}
+)
+
+func registerReadOnlyReader() {
+	if err := traffic.RegisterReader(backendName, readOnlyReader{ops: netlinkOps{}}); err != nil {
+		panic("BUG: trafficnetlink: reader registration failed: " + err.Error())
+	}
 }
 
 func newBackend() (traffic.Backend, error) {
@@ -72,7 +104,14 @@ func newBackendWithOps(ops tcOps, snapshotReadyErr error, bootID string, snapsho
 	if snapshots == nil {
 		snapshots = map[string]tcInterfaceSnapshot{}
 	}
-	return &backend{ops: ops, snapshotReadyErr: snapshotReadyErr, bootID: bootID, snapshots: snapshots}
+	return &backend{
+		ops:              ops,
+		snapshotReadyErr: snapshotReadyErr,
+		bootID:           bootID,
+		snapshots:        snapshots,
+		classNames:       map[string]map[uint32]string{},
+		defaultClasses:   map[string]string{},
+	}
 }
 
 // Apply programs traffic control configuration on each named interface: snapshot the original
@@ -128,8 +167,16 @@ func (b *backend) applyInterface(link netlink.Link, qos *traffic.InterfaceQoS) e
 		return fmt.Errorf("qdisc replace: %w", err)
 	}
 
+	// Replacing the root qdisc drops every prior class in the kernel; clear
+	// cached class metadata now so a partial class-install failure never
+	// leaves stale Ze names behind.
+	osName := link.Attrs().Name
+	delete(b.classNames, osName)
+	delete(b.defaultClasses, osName)
+
 	// Add classes under root qdisc (for classful qdiscs like HTB/HFSC).
 	rootHandle := rootQdisc.Attrs().Handle
+	names := make(map[uint32]string, len(qos.Qdisc.Classes))
 	for i, tc := range qos.Qdisc.Classes {
 		class, err := translateClass(qos.Qdisc.Type, tc, linkIdx, rootHandle, uint32(i+1))
 		if err != nil {
@@ -141,6 +188,7 @@ func (b *backend) applyInterface(link netlink.Link, qos *traffic.InterfaceQoS) e
 
 		// Add filters for this class.
 		classHandle := class.Attrs().Handle
+		names[classHandle] = tc.Name
 		for _, f := range tc.Filters {
 			filters, err := translateFilter(f, linkIdx, rootHandle, classHandle)
 			if err != nil {
@@ -151,6 +199,13 @@ func (b *backend) applyInterface(link netlink.Link, qos *traffic.InterfaceQoS) e
 					return fmt.Errorf("class %q filter add: %w", tc.Name, err)
 				}
 			}
+		}
+	}
+
+	if len(names) > 0 {
+		b.classNames[osName] = names
+		if qos.Qdisc.DefaultClass != "" {
+			b.defaultClasses[osName] = qos.Qdisc.DefaultClass
 		}
 	}
 
@@ -317,6 +372,8 @@ func (b *backend) restoreOriginalLocked(ifaceName string) error {
 		b.snapshots[ifaceName] = snap
 		return err
 	}
+	delete(b.classNames, ifaceName)
+	delete(b.defaultClasses, ifaceName)
 	return nil
 }
 
@@ -324,30 +381,263 @@ func (b *backend) saveSnapshots() error {
 	return saveTCSnapshots(b.snapshots)
 }
 
-// ListQdiscs returns current traffic control state for an interface.
+func (b *backend) snapshotMetaFor(osName string) classMeta {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	return classMeta{
+		names:        maps.Clone(b.classNames[osName]),
+		defaultClass: b.defaultClasses[osName],
+	}
+}
+
+func (b *backend) snapshotAllMeta() map[string]classMeta {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	if len(b.classNames) == 0 && len(b.defaultClasses) == 0 {
+		return nil
+	}
+	out := make(map[string]classMeta, max(len(b.classNames), len(b.defaultClasses)))
+	for osName, names := range b.classNames {
+		out[osName] = classMeta{
+			names:        maps.Clone(names),
+			defaultClass: b.defaultClasses[osName],
+		}
+	}
+	for osName, def := range b.defaultClasses {
+		if _, ok := out[osName]; !ok {
+			out[osName] = classMeta{defaultClass: def}
+		}
+	}
+	return out
+}
+
+// ListQdiscs returns current traffic control state and live statistics for an
+// interface.
 func (b *backend) ListQdiscs(ifaceName string) (traffic.InterfaceQoS, error) {
-	link, err := b.ops.linkByName(resolveOSName(ifaceName))
+	osName := resolveOSName(ifaceName)
+	return readQdiscForInterface(b.ops, ifaceName, osName, b.snapshotMetaFor(osName))
+}
+
+// ListAllQdiscs returns current traffic control state and live statistics for
+// all kernel links using one bulk qdisc dump.
+func (b *backend) ListAllQdiscs() ([]traffic.InterfaceQoS, error) {
+	return readAllQdiscs(b.ops, b.snapshotAllMeta())
+}
+
+// ListQdiscs returns current traffic control state and live statistics for an
+// interface without Ze class-name metadata.
+func (r readOnlyReader) ListQdiscs(ifaceName string) (traffic.InterfaceQoS, error) {
+	osName := resolveOSName(ifaceName)
+	return readQdiscForInterface(r.ops, ifaceName, osName, classMeta{})
+}
+
+// ListAllQdiscs returns current traffic control state and live statistics for
+// all kernel links without Ze class-name metadata.
+func (r readOnlyReader) ListAllQdiscs() ([]traffic.InterfaceQoS, error) {
+	return readAllQdiscs(r.ops, nil)
+}
+
+func readQdiscForInterface(ops tcOps, ifaceName, osName string, meta classMeta) (traffic.InterfaceQoS, error) {
+	link, err := ops.linkByName(osName)
 	if err != nil {
 		return traffic.InterfaceQoS{}, fmt.Errorf("trafficnetlink: interface %q: %w", ifaceName, err)
 	}
 
-	qdiscs, err := b.ops.qdiscList(link)
+	qdiscs, err := ops.qdiscList(link)
 	if err != nil {
 		return traffic.InterfaceQoS{}, fmt.Errorf("trafficnetlink: list qdiscs: %w", err)
 	}
 
-	qos := traffic.InterfaceQoS{Interface: ifaceName}
-	if root, err := rootQdisc(qdiscs); err == nil {
-		qos.Qdisc.Type = raiseQdiscType(root)
-		if tbf, ok := root.(*netlink.Tbf); ok {
-			if tbf.Rate > math.MaxUint64/8 {
-				return traffic.InterfaceQoS{}, fmt.Errorf("trafficnetlink: tbf readback rate %d bytes/s overflows bits/s", tbf.Rate)
-			}
-			qos.Qdisc.RateBps = tbf.Rate * 8
+	var root netlink.Qdisc
+	for _, q := range qdiscs {
+		if q.Attrs().Parent == netlink.HANDLE_ROOT {
+			root = q
+			break
 		}
 	}
 
+	qos, err := buildInterfaceQoS(ops, link, ifaceName, root, meta.names, meta.defaultClass)
+	if err != nil {
+		return traffic.InterfaceQoS{}, fmt.Errorf("trafficnetlink: interface %q: %w", ifaceName, err)
+	}
 	return qos, nil
+}
+
+func readAllQdiscs(ops tcOps, allMeta map[string]classMeta) ([]traffic.InterfaceQoS, error) {
+	links, err := ops.linkList()
+	if err != nil {
+		return nil, fmt.Errorf("trafficnetlink: list links: %w", err)
+	}
+	qdiscs, err := ops.qdiscList(nil)
+	if err != nil {
+		return nil, fmt.Errorf("trafficnetlink: list qdiscs: %w", err)
+	}
+
+	rootsByIndex := make(map[int]netlink.Qdisc, len(links))
+	for _, q := range qdiscs {
+		attrs := q.Attrs()
+		if attrs.Parent == netlink.HANDLE_ROOT {
+			rootsByIndex[attrs.LinkIndex] = q
+		}
+	}
+
+	slices.SortFunc(links, func(a, b netlink.Link) int {
+		return cmp.Compare(a.Attrs().Name, b.Attrs().Name)
+	})
+
+	result := make([]traffic.InterfaceQoS, 0, len(links))
+	for _, link := range links {
+		attrs := link.Attrs()
+		meta := allMeta[attrs.Name]
+		qos, err := buildInterfaceQoS(ops, link, attrs.Name, rootsByIndex[attrs.Index], meta.names, meta.defaultClass)
+		if err != nil {
+			if isLinkVanishedErr(err) {
+				continue
+			}
+			return nil, fmt.Errorf("trafficnetlink: interface %q: %w", attrs.Name, err)
+		}
+		result = append(result, qos)
+	}
+	return result, nil
+}
+
+func isLinkVanishedErr(err error) bool {
+	return errors.Is(err, unix.ENOENT) || errors.Is(err, unix.ENODEV)
+}
+
+// extractQdiscStats converts kernel tc netlink statistics to traffic.QdiscStats.
+// Returns nil when netlink provided no statistics, keeping absent telemetry
+// distinct from real zero counters.
+func extractQdiscStats(s *netlink.ClassStatistics) *traffic.QdiscStats {
+	if s == nil {
+		return nil
+	}
+	if s.Basic == nil && s.Queue == nil {
+		return nil
+	}
+	stats := &traffic.QdiscStats{}
+	if s.Basic != nil {
+		stats.Bytes = s.Basic.Bytes
+		stats.Packets = uint64(s.Basic.Packets)
+	}
+	if s.Queue != nil {
+		stats.Qlen = s.Queue.Qlen
+		stats.Backlog = s.Queue.Backlog
+		stats.Drops = s.Queue.Drops
+		stats.Requeues = s.Queue.Requeues
+		stats.Overlimits = s.Queue.Overlimits
+	}
+	return stats
+}
+
+func buildInterfaceQoS(
+	ops tcOps,
+	link netlink.Link,
+	ifaceName string,
+	root netlink.Qdisc,
+	classNames map[uint32]string,
+	defaultClass string,
+) (traffic.InterfaceQoS, error) {
+	qos := traffic.InterfaceQoS{Interface: ifaceName}
+	if root == nil {
+		return qos, nil
+	}
+
+	rootAttrs := root.Attrs()
+	qos.Qdisc.Kind = root.Type()
+	qos.Qdisc.Type = raiseQdiscType(root)
+	qos.Qdisc.Handle = formatTCHandle(rootAttrs.Handle)
+	qos.Qdisc.Stats = extractQdiscStats((*netlink.ClassStatistics)(rootAttrs.Statistics))
+
+	if tbf, ok := root.(*netlink.Tbf); ok {
+		if tbf.Rate > math.MaxUint64/8 {
+			return traffic.InterfaceQoS{}, fmt.Errorf("tbf readback rate %d bytes/s overflows bits/s", tbf.Rate)
+		}
+		qos.Qdisc.RateBps = tbf.Rate * 8
+	}
+
+	if !isClasslessQdisc(root) {
+		classes, err := readClassesForRoot(ops, link, rootAttrs.Handle, classNames)
+		if err != nil {
+			return traffic.InterfaceQoS{}, err
+		}
+		qos.Qdisc.Classes = classes
+	}
+
+	qos.Qdisc.DefaultClass = resolveDefaultClass(root, classNames, defaultClass)
+	return qos, nil
+}
+
+func readClassesForRoot(
+	ops tcOps,
+	link netlink.Link,
+	rootHandle uint32,
+	classNames map[uint32]string,
+) ([]traffic.TrafficClass, error) {
+	kernelClasses, err := ops.classList(link, rootHandle)
+	if err != nil {
+		return nil, fmt.Errorf("list classes: %w", err)
+	}
+	if len(kernelClasses) == 0 {
+		return []traffic.TrafficClass{}, nil
+	}
+	slices.SortFunc(kernelClasses, func(a, b netlink.Class) int {
+		return cmp.Compare(a.Attrs().Handle, b.Attrs().Handle)
+	})
+
+	classes := make([]traffic.TrafficClass, 0, len(kernelClasses))
+	for _, cls := range kernelClasses {
+		attrs := cls.Attrs()
+		handle := formatTCHandle(attrs.Handle)
+		name := classNames[attrs.Handle]
+		if name == "" {
+			name = handle
+		}
+		tc := traffic.TrafficClass{
+			Name:   name,
+			Handle: handle,
+			Stats:  extractQdiscStats(attrs.Statistics),
+		}
+		if htb, ok := cls.(*netlink.HtbClass); ok {
+			if htb.Rate > math.MaxUint64/8 {
+				return nil, fmt.Errorf("htb class %s readback rate %d bytes/s overflows bits/s", handle, htb.Rate)
+			}
+			if htb.Ceil > math.MaxUint64/8 {
+				return nil, fmt.Errorf("htb class %s readback ceil %d bytes/s overflows bits/s", handle, htb.Ceil)
+			}
+			tc.Rate = htb.Rate * 8
+			tc.Ceil = htb.Ceil * 8
+			tc.Priority = uint8(min(htb.Prio, math.MaxUint8))
+		}
+		classes = append(classes, tc)
+	}
+	return classes, nil
+}
+
+func resolveDefaultClass(root netlink.Qdisc, classNames map[uint32]string, defaultClass string) string {
+	if defaultClass != "" {
+		return defaultClass
+	}
+	var defMinor uint32
+	switch q := root.(type) {
+	case *netlink.Htb:
+		defMinor = q.Defcls
+	case *netlink.Hfsc:
+		defMinor = uint32(q.Defcls)
+	default:
+		return ""
+	}
+	if defMinor == 0 {
+		return ""
+	}
+	defHandle := tcHandle(defMinor)
+	if major := root.Attrs().Handle & 0xFFFF0000; major != 0 {
+		defHandle = major | (defMinor & 0xFFFF)
+	}
+	if name := classNames[defHandle]; name != "" {
+		return name
+	}
+	return formatTCHandle(defHandle)
 }
 
 // Close restores qdiscs still owned by this backend instance. Snapshots that
@@ -368,6 +658,8 @@ func (b *backend) Close() error {
 			errs = append(errs, saveErr)
 		}
 	}
+	clear(b.classNames)
+	clear(b.defaultClasses)
 	return errors.Join(errs...)
 }
 

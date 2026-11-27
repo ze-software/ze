@@ -256,3 +256,56 @@ func TestPolicerBurstDoesNotWrapMaximumRate(t *testing.T) {
 		t.Fatalf("maximum-rate burst = %d, want %d bytes", got, want)
 	}
 }
+
+// TestQdiscKindNamePreservesKernelKind verifies Qdisc.KindName prefers the raw
+// kernel Kind string when populated and falls back to Type.String() otherwise.
+//
+// VALIDATES: AC-1 (kernel default qdiscs like noqueue, pfifo_fast, and mq keep
+// their real kind name instead of being collapsed into a fallback enum).
+// PREVENTS: misreporting unrecognized kernel qdiscs as "htb" or "unknown".
+func TestQdiscKindNamePreservesKernelKind(t *testing.T) {
+	tests := []struct {
+		name  string
+		qdisc Qdisc
+		want  string
+	}{
+		{
+			name:  "raw kernel noqueue without enum type",
+			qdisc: Qdisc{Kind: "noqueue"},
+			want:  "noqueue",
+		},
+		{
+			name:  "raw kernel pfifo_fast without enum type",
+			qdisc: Qdisc{Kind: "pfifo_fast"},
+			want:  "pfifo_fast",
+		},
+		{
+			name:  "raw kernel mq overrides unknown type",
+			qdisc: Qdisc{Type: QdiscType(0), Kind: "mq"},
+			want:  "mq",
+		},
+		{
+			name:  "raw kernel fq_codel with matching enum",
+			qdisc: Qdisc{Type: QdiscFQCodel, Kind: "fq_codel"},
+			want:  "fq_codel",
+		},
+		{
+			name:  "config constructed htb falls back to Type.String",
+			qdisc: Qdisc{Type: QdiscHTB},
+			want:  "htb",
+		},
+		{
+			name:  "empty kind and zero type reports unknown",
+			qdisc: Qdisc{},
+			want:  "unknown",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := tt.qdisc.KindName(); got != tt.want {
+				t.Errorf("KindName() = %q, want %q", got, tt.want)
+			}
+		})
+	}
+}

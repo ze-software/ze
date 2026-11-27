@@ -7,6 +7,7 @@ package trafficnetlink
 import (
 	"fmt"
 	"math"
+	"strconv"
 
 	"github.com/vishvananda/netlink"
 	"github.com/vishvananda/netlink/nl"
@@ -371,7 +372,10 @@ func u32FilterPair(v4Key, v6Key nl.TcU32Key, linkIdx int, parentHandle, classHan
 	}, nil
 }
 
-// raiseQdiscType maps a netlink.Qdisc to a ze QdiscType.
+// raiseQdiscType maps a netlink.Qdisc to a ze QdiscType. Returns 0
+// (qdiscUnknown) for kernel qdiscs outside Ze's configured set (such as
+// noqueue, pfifo_fast, mq, or cake) rather than misreporting them as htb;
+// Qdisc.Kind carries root.Type() verbatim.
 func raiseQdiscType(q netlink.Qdisc) traffic.QdiscType {
 	switch q.(type) {
 	case *netlink.Htb:
@@ -395,5 +399,27 @@ func raiseQdiscType(q netlink.Qdisc) traffic.QdiscType {
 	case *netlink.Ingress:
 		return traffic.QdiscIngress
 	}
-	return traffic.QdiscHTB // fallback
+	return 0
+}
+
+// formatTCHandle formats a 32-bit tc handle as lowercase "<major>:<minor>" hex.
+func formatTCHandle(h uint32) string {
+	var buf [16]byte
+	b := strconv.AppendUint(buf[:0], uint64(h>>16), 16)
+	b = append(b, ':')
+	b = strconv.AppendUint(b, uint64(h&0xFFFF), 16)
+	return string(b)
+}
+
+// isClasslessQdisc reports whether q is a classless kernel queueing discipline
+// that holds no tc classes, allowing readback to skip a wasted ClassList call.
+func isClasslessQdisc(q netlink.Qdisc) bool {
+	switch q.Type() {
+	case qdiscTypeNoqueue, "fq_codel", "pfifo_fast", "fq", "tbf", "sfq",
+		"netem", "clsact", "ingress", "pfifo", "bfifo", "codel",
+		"pie", "red", "choke":
+		return true
+	default:
+		return false
+	}
 }

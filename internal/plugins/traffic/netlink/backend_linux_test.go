@@ -38,12 +38,15 @@ type fakeTCOps struct {
 	tcProtoOwner map[tcProtoKey]uint16
 
 	// addedQdiscs records every qdisc accepted by qdiscAdd, and deletedFilters
-	// every filter accepted by filterDel. The two errno fields let a test drive
-	// the kernel answers the ingress-policer path has to tolerate.
+	// every filter accepted by filterDel. The error fields let a test drive
+	// kernel answers for readback and ingress-policer error paths.
 	addedQdiscs    []netlink.Qdisc
 	deletedFilters []netlink.Filter
 	qdiscAddErr    error
 	filterDelErr   error
+	linkListErr    error
+	qdiscListErr   error
+	classListErr   map[string]error
 }
 
 // tcProtoKey identifies one kernel tcf_proto instance: the kernel indexes the
@@ -62,6 +65,7 @@ func newFakeTCOps() *fakeTCOps {
 		classes:      map[string][]netlink.Class{},
 		filters:      map[string][]netlink.Filter{},
 		tcProtoOwner: map[tcProtoKey]uint16{},
+		classListErr: map[string]error{},
 	}
 }
 
@@ -74,10 +78,33 @@ func (f *fakeTCOps) linkByName(name string) (netlink.Link, error) {
 	return link, nil
 }
 
+func (f *fakeTCOps) linkList() ([]netlink.Link, error) {
+	f.calls = append(f.calls, "linkList")
+	if f.linkListErr != nil {
+		return nil, f.linkListErr
+	}
+	links := make([]netlink.Link, 0, len(f.links))
+	for _, link := range f.links {
+		links = append(links, link)
+	}
+	return links, nil
+}
+
 func (f *fakeTCOps) qdiscList(link netlink.Link) ([]netlink.Qdisc, error) {
-	name := link.Attrs().Name
-	f.calls = append(f.calls, "qdiscList:"+name)
-	return append([]netlink.Qdisc(nil), f.qdiscs[name]...), nil
+	if f.qdiscListErr != nil {
+		return nil, f.qdiscListErr
+	}
+	if link != nil {
+		name := link.Attrs().Name
+		f.calls = append(f.calls, "qdiscList:"+name)
+		return append([]netlink.Qdisc(nil), f.qdiscs[name]...), nil
+	}
+	f.calls = append(f.calls, "qdiscList:all")
+	var all []netlink.Qdisc
+	for _, qdiscs := range f.qdiscs {
+		all = append(all, qdiscs...)
+	}
+	return all, nil
 }
 
 func (f *fakeTCOps) qdiscReplace(qdisc netlink.Qdisc) error {
@@ -96,6 +123,7 @@ func (f *fakeTCOps) qdiscReplace(qdisc netlink.Qdisc) error {
 			}
 		}
 		f.qdiscs[name] = append(kept, qdisc)
+		delete(f.classes, name)
 	}
 	return nil
 }
@@ -127,11 +155,20 @@ func (f *fakeTCOps) qdiscDel(qdisc netlink.Qdisc) error {
 func (f *fakeTCOps) classList(link netlink.Link, _ uint32) ([]netlink.Class, error) {
 	name := link.Attrs().Name
 	f.calls = append(f.calls, "classList:"+name)
+	if err, ok := f.classListErr[name]; ok {
+		return nil, err
+	}
 	return append([]netlink.Class(nil), f.classes[name]...), nil
 }
 
 func (f *fakeTCOps) classAdd(class netlink.Class) error {
 	f.calls = append(f.calls, "classAdd:"+class.Type())
+	for name, link := range f.links {
+		if link.Attrs().Index == class.Attrs().LinkIndex {
+			f.classes[name] = append(f.classes[name], class)
+			break
+		}
+	}
 	return nil
 }
 

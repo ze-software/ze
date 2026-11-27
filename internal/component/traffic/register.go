@@ -138,6 +138,7 @@ func init() {
 	if err := registry.Register(reg); err != nil {
 		panic("BUG: traffic: registration failed: " + err.Error())
 	}
+	registerQdiscMetricsCollector()
 }
 
 func verifyTrafficConfig(sections []sdk.ConfigSection) error {

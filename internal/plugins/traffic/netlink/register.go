@@ -10,4 +10,5 @@ func init() {
 	if err := traffic.RegisterBackend(backendName, newBackend); err != nil {
 		panic("BUG: trafficnetlink: registration failed: " + err.Error())
 	}
+	registerReadOnlyReader()
 }

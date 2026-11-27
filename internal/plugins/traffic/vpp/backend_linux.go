@@ -512,13 +512,64 @@ func (b *backend) reconcileRemovals(
 // returning the last-applied desired is a pragmatic stub that keeps the
 // CLI `ze cli traffic show` useful against a VPP backend. The qdisc
 // type comes from interfaceQdiscTypes so the returned shape matches
-// what the operator actually configured (HTB vs TBF).
+// what the operator actually configured (HTB vs TBF). Stats remain nil
+// because VPP has no Linux egress qdisc queue.
 func (b *backend) ListQdiscs(ifaceName string) (traffic.InterfaceQoS, error) {
 	b.mu.Lock()
 	defer b.mu.Unlock()
-	policers := b.interfaceOutputPolicers[ifaceName]
-	classes := make([]traffic.TrafficClass, 0, len(policers))
-	for name := range policers {
+	return b.listQdiscsLocked(ifaceName), nil
+}
+
+// ListAllQdiscs returns the tracked QoS state for every VPP interface managed
+// by this backend, sorted by interface name. Stats remain nil so callers never
+// receive synthetic zeros for Linux queue metrics VPP does not expose.
+func (b *backend) ListAllQdiscs() ([]traffic.InterfaceQoS, error) {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+
+	ifaceSet := make(map[string]struct{}, len(b.interfaceQdiscTypes)+len(b.interfaceOutputPolicers)+len(b.interfaceClassifyBindings))
+	for name := range b.interfaceQdiscTypes {
+		ifaceSet[name] = struct{}{}
+	}
+	for name := range b.interfaceOutputPolicers {
+		ifaceSet[name] = struct{}{}
+	}
+	for name := range b.interfaceClassifyBindings {
+		ifaceSet[name] = struct{}{}
+	}
+	ifaces := make([]string, 0, len(ifaceSet))
+	for name := range ifaceSet {
+		ifaces = append(ifaces, name)
+	}
+	slices.Sort(ifaces)
+
+	out := make([]traffic.InterfaceQoS, 0, len(ifaces))
+	for _, name := range ifaces {
+		out = append(out, b.listQdiscsLocked(name))
+	}
+	return out, nil
+}
+
+var _ traffic.QdiscReader = (*backend)(nil)
+
+func (b *backend) listQdiscsLocked(ifaceName string) traffic.InterfaceQoS {
+	outputPolicers := b.interfaceOutputPolicers[ifaceName]
+	classifyPolicers := b.interfaceClassifyBindings[ifaceName].policers
+	nameSet := make(map[string]struct{}, len(outputPolicers)+len(classifyPolicers))
+	for name := range outputPolicers {
+		nameSet[name] = struct{}{}
+	}
+	for name := range classifyPolicers {
+		nameSet[name] = struct{}{}
+	}
+	names := make([]string, 0, len(nameSet))
+	for name := range nameSet {
+		names = append(names, name)
+	}
+	slices.Sort(names)
+
+	classes := make([]traffic.TrafficClass, 0, len(names))
+	for _, name := range names {
 		classes = append(classes, traffic.TrafficClass{Name: name})
 	}
 	qdiscType, ok := b.interfaceQdiscTypes[ifaceName]
@@ -533,7 +584,7 @@ func (b *backend) ListQdiscs(ifaceName string) (traffic.InterfaceQoS, error) {
 			Type:    qdiscType,
 			Classes: classes,
 		},
-	}, nil
+	}
 }
 
 // Close releases backend resources. The VPP connection itself is owned by

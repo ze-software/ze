@@ -14,3 +14,5 @@ import (
 func newBackend() (traffic.Backend, error) {
 	return nil, fmt.Errorf("trafficnetlink: not supported on %s", runtime.GOOS)
 }
+
+func registerReadOnlyReader() {}

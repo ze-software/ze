@@ -54,7 +54,18 @@ ze_{scope}_{subject}_{detail}
 | Gauge | `ze_{scope}_{subject}_{qualifier}` | Never `_total` | `ze_gr_active_peers`, `ze_fibkernel_routes_installed` |
 | Histogram | `ze_{scope}_{subject}_{action}_seconds` | Always unit suffix | `ze_peer_dial_seconds` |
 | CounterVec | Same as Counter, labels for dimensions | `_total` | `ze_rpki_validation_outcomes_total` with `{result}` label |
-| GaugeVec | Same as Gauge, labels for dimensions | No `_total` | `ze_rib_routes_in` with `{peer}` label |
+| GaugeVec | Same as Gauge, labels for dimensions | No `_total` (exception: raw cumulative OS/kernel counters below) | `ze_rib_routes_in` with `{peer}` label |
+
+**Raw cumulative OS/kernel counters (`GaugeVec` with `_total`):** Counters read
+from the OS kernel (`ze_interface_*_total`, `ze_traffic_qdisc_*_total`, and
+`ze_traffic_class_*_total`) can reset to zero on link bounce or qdisc replace
+and can wrap at `uint32`. Prometheus `Counter` values must increase
+monotonically within a process. Ze therefore exports raw kernel counters as
+`GaugeVec` with the `_total` suffix so resets do not panic. Instantaneous queue
+depth and byte-backlog gauges (`qlen`, `backlog_bytes`) carry no `_total`
+suffix.
+<!-- source: internal/component/iface/rate.go -- bindMetricsRegistry -->
+<!-- source: internal/component/traffic/metrics.go -- newStatsGaugeSet -->
 
 ### Subject Rules
 
@@ -235,6 +246,20 @@ Use labels for runtime dimensions. Never encode variable data in metric names.
 | `ze_traffic_usage_ingress_bytes_total` | GaugeVec | interface, src_ip | traffic-usage (track-ip) |
 | `ze_traffic_usage_egress_bytes_total` | GaugeVec | interface, dst_ip | traffic-usage (track-ip) |
 | `ze_traffic_usage_map_entries` | GaugeVec | interface, map | traffic-usage |
+| `ze_traffic_qdisc_bytes_total` | GaugeVec | interface, qdisc, handle | traffic (1s push collector): qdisc transmitted bytes (raw kernel counter) <!-- source: internal/component/traffic/metrics.go -- newStatsGaugeSet, qdiscMetricsPoller --> |
+| `ze_traffic_qdisc_packets_total` | GaugeVec | interface, qdisc, handle | traffic (1s push collector): qdisc transmitted packets (raw kernel counter) |
+| `ze_traffic_qdisc_qlen` | GaugeVec | interface, qdisc, handle | traffic (1s push collector): qdisc instantaneous queued packets |
+| `ze_traffic_qdisc_backlog_bytes` | GaugeVec | interface, qdisc, handle | traffic (1s push collector): qdisc instantaneous queued bytes |
+| `ze_traffic_qdisc_drops_total` | GaugeVec | interface, qdisc, handle | traffic (1s push collector): qdisc dropped packets (raw kernel counter) |
+| `ze_traffic_qdisc_overlimits_total` | GaugeVec | interface, qdisc, handle | traffic (1s push collector): qdisc rate-limit overlimit events (raw kernel counter) |
+| `ze_traffic_qdisc_requeues_total` | GaugeVec | interface, qdisc, handle | traffic (1s push collector): qdisc requeued packets (raw kernel counter) |
+| `ze_traffic_class_bytes_total` | GaugeVec | interface, qdisc, class, handle | traffic (1s push collector): class transmitted bytes (raw kernel counter) |
+| `ze_traffic_class_packets_total` | GaugeVec | interface, qdisc, class, handle | traffic (1s push collector): class transmitted packets (raw kernel counter) |
+| `ze_traffic_class_qlen` | GaugeVec | interface, qdisc, class, handle | traffic (1s push collector): class instantaneous queued packets |
+| `ze_traffic_class_backlog_bytes` | GaugeVec | interface, qdisc, class, handle | traffic (1s push collector): class instantaneous queued bytes |
+| `ze_traffic_class_drops_total` | GaugeVec | interface, qdisc, class, handle | traffic (1s push collector): class dropped packets (raw kernel counter) |
+| `ze_traffic_class_overlimits_total` | GaugeVec | interface, qdisc, class, handle | traffic (1s push collector): class rate-limit overlimit events (raw kernel counter) |
+| `ze_traffic_class_requeues_total` | GaugeVec | interface, qdisc, class, handle | traffic (1s push collector): class requeued packets (raw kernel counter) |
 | `ze_managed_clients_declared` | Gauge | | managed (hub server): managed clients declared in the running configuration |
 | `ze_managed_clients_connected` | Gauge | | managed (hub server) |
 | `ze_managed_handshakes_pending` | Gauge | | managed (hub server): unauthenticated managed handshakes in progress (capped at 32) |
