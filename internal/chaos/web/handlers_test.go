@@ -50,7 +50,7 @@ func TestHandleIndex(t *testing.T) {
 		"hx-sse.min.js",
 		"style.css",
 		"hx-sse:connect=\"/events\"",
-		"Ze Chaos",
+		"Le Chaos",
 		"peer-tbody",
 	} {
 		if !strings.Contains(body, want) {

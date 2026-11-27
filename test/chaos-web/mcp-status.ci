@@ -32,7 +32,7 @@ tmpfs=discover.json:terminator=EOF_DISCOVER
 {"jsonrpc":"2.0","id":1,"method":"server/discover","params":{"_meta":{"io.modelcontextprotocol/protocolVersion":"2026-07-28","io.modelcontextprotocol/clientCapabilities":{}}}}
 EOF_DISCOVER
 
-http=post:seq=1:url=http://127.0.0.1:$PORT2/mcp:status=200:contains=ze-chaos-mcp:sendfile=discover.json:header=MCP-Protocol-Version: 2026-07-28:header=Mcp-Method: server/discover
+http=post:seq=1:url=http://127.0.0.1:$PORT2/mcp:status=200:contains=le-chaos-mcp:sendfile=discover.json:header=MCP-Protocol-Version: 2026-07-28:header=Mcp-Method: server/discover
 http=post:seq=2:url=http://127.0.0.1:$PORT2/mcp:status=200:contains="supportedVersions":["2026-07-28"]:sendfile=discover.json:header=MCP-Protocol-Version: 2026-07-28:header=Mcp-Method: server/discover
 
 # tools/list returns chaos tools

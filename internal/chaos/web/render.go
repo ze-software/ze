@@ -103,7 +103,7 @@ func writeLayout(w io.Writer, d *Dashboard) {
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Ze Chaos</title>
+<title>Le Chaos</title>
 <link rel="stylesheet" href="/assets/style.css">
 `)
 
@@ -195,7 +195,7 @@ function tpSync(){
 <div class="layout" hx-sse:connect="/events">
 
 <div class="header">
-  <h1><img class="ze-logo" src="/assets/ze.svg" alt="Ze" width="24" height="24"> Ze Chaos</h1>
+  <h1><img class="ze-logo" src="/assets/ze.svg" alt="Ze" width="24" height="24"> Le Chaos</h1>
   <span class="run-info">peers: ` + itoa(s.PeerCount) + ` | uptime: `)
 	writeUptime(w, s.StartTime, now, pagePanel)
 	h.write(`</span>

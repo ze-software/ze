@@ -110,7 +110,7 @@ type Provider struct {
 	PeerCount   int
 }
 
-func (p *Provider) ServerName() string { return "ze-chaos-mcp" }
+func (p *Provider) ServerName() string { return "le-chaos-mcp" }
 
 func (p *Provider) Tools() []map[string]any {
 	return chaosTools
