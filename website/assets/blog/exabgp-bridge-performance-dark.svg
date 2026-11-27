@@ -1,0 +1,100 @@
+<svg xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="title desc" viewBox="0 0 1200 675">
+  <title id="title">Skip JSON on the BGP hot path</title>
+  <desc id="desc">Ze replaces double JSON serialisation on the ExaBGP bridge with a positional netstring-style wire line carrying base64 BGP UPDATE bytes, lifting twenty-script throughput 3.68 times with zero parser allocations.</desc>
+  <defs>
+    <linearGradient id="bg" x1="0" x2="1" y1="0" y2="1">
+      <stop offset="0" stop-color="#0b1524"/>
+      <stop offset="0.5" stop-color="#101f33"/>
+      <stop offset="1" stop-color="#0d2229"/>
+    </linearGradient>
+    <linearGradient id="rail" x1="0" x2="1">
+      <stop offset="0" stop-color="#5bc4f0"/>
+      <stop offset="0.55" stop-color="#42d8bd"/>
+      <stop offset="1" stop-color="#b990ff"/>
+    </linearGradient>
+    <filter id="shadow" x="-16%" y="-20%" width="132%" height="148%">
+      <feDropShadow dx="0" dy="12" stdDeviation="16" flood-color="#040911" flood-opacity="0.45"/>
+    </filter>
+    <marker id="arrow-teal" viewBox="0 0 10 10" refX="8.5" refY="5" markerWidth="7" markerHeight="7" orient="auto">
+      <path d="M0 0L10 5L0 10Z" fill="#42d8bd"/>
+    </marker>
+    <style>
+      text { font-family: Lato, "Avenir Next", sans-serif; fill: #edf4fc; }
+      .eyebrow { font-family: Poppins, Avenir, sans-serif; font-size: 13px; font-weight: 800; letter-spacing: 1.8px; fill: #9badc1; }
+      .headline { font-family: Poppins, Avenir, sans-serif; font-size: 42px; font-weight: 800; letter-spacing: -1.1px; }
+      .mono { font-family: ui-monospace, "SFMono-Regular", Menlo, monospace; font-size: 17px; font-weight: 700; }
+      .tag { font-family: Poppins, Avenir, sans-serif; font-size: 12px; font-weight: 800; letter-spacing: 1.1px; }
+      .card-title { font-family: Poppins, Avenir, sans-serif; font-size: 22px; font-weight: 800; }
+      .metric { font-family: Poppins, Avenir, sans-serif; font-size: 36px; font-weight: 800; letter-spacing: -0.8px; }
+      .body { font-size: 15px; font-weight: 700; fill: #b2c0d2; }
+    </style>
+  </defs>
+
+  <rect width="1200" height="675" rx="40" fill="url(#bg)"/>
+  <circle cx="1070" cy="110" r="150" fill="#1676ce" opacity="0.18"/>
+  <circle cx="130" cy="590" r="170" fill="#39bba8" opacity="0.14"/>
+
+  <g filter="url(#shadow)">
+    <rect x="54" y="48" width="1092" height="579" rx="34" fill="#111d2d" stroke="#29394d" stroke-width="2"/>
+    <rect x="54" y="48" width="1092" height="10" rx="5" fill="url(#rail)"/>
+  </g>
+
+  <text x="90" y="98" class="eyebrow">EXABGP BRIDGE · POSITIONAL WIRE FORMAT</text>
+  <text x="90" y="150" class="headline">Skip JSON on the BGP hot path.</text>
+
+  <!-- Wire line anatomy box -->
+  <g transform="translate(90 182)">
+    <rect width="1020" height="148" rx="22" fill="#091322" stroke="#29394d" stroke-width="2"/>
+    <text x="24" y="34" class="tag" fill="#71bcff">ONE QUOTE-FREE ASCII WIRE LINE PER BGP UPDATE</text>
+
+    <!-- Highlighted token pills -->
+    <rect x="24" y="52" width="70" height="40" rx="10" fill="#152d47" stroke="#5bc4f0" stroke-width="2"/>
+    <text x="59" y="78" text-anchor="middle" class="mono" fill="#71bcff">upd</text>
+
+    <rect x="106" y="52" width="218" height="40" rx="10" fill="#222747" stroke="#b990ff" stroke-width="2"/>
+    <text x="215" y="78" text-anchor="middle" class="mono" fill="#c0a7e6">14 65000 65001 42</text>
+
+    <rect x="336" y="52" width="322" height="40" rx="10" fill="#13322f" stroke="#42d8bd" stroke-width="2"/>
+    <text x="497" y="78" text-anchor="middle" class="mono" fill="#60d6a2">8:10.0.0.1 8:10.0.0.2 7:1.1.1.1</text>
+
+    <rect x="670" y="52" width="326" height="40" rx="10" fill="#32291f" stroke="#ffda63" stroke-width="2"/>
+    <text x="833" y="78" text-anchor="middle" class="mono" fill="#ffe087">36:AAAbQAEBAAJAAgAEAA...</text>
+
+    <!-- Labels underneath -->
+    <text x="59" y="118" text-anchor="middle" class="tag" fill="#5bc4f0">4B WORD</text>
+    <text x="215" y="118" text-anchor="middle" class="tag" fill="#b990ff">FUSED UINTS · 3.2 NS</text>
+    <text x="497" y="118" text-anchor="middle" class="tag" fill="#42d8bd">NETSTRING LENGTH-SLICED</text>
+    <text x="833" y="118" text-anchor="middle" class="tag" fill="#ffda63">RAW BASE64 WIRE BODY</text>
+  </g>
+
+  <!-- Before card -->
+  <g transform="translate(90 362)">
+    <rect width="450" height="226" rx="24" fill="#172539" stroke="#556f8a" stroke-width="2" stroke-dasharray="8 6"/>
+    <text x="28" y="38" class="tag" fill="#ff9f7d">BASELINE · FULL JSON BRIDGE</text>
+    <text x="28" y="74" class="card-title">Double JSON + generic maps</text>
+    <text x="28" y="106" class="body">1M routes × 20 ExaBGP scripts</text>
+
+    <text x="28" y="162" class="metric" fill="#ff9f7d">102k r/s</text>
+    <text x="224" y="154" class="body">9,773 ms live</text>
+    <text x="224" y="178" class="body">4,143 MiB peak RSS</text>
+    <text x="28" y="204" class="body">Codec CPU saturated 4 vCPUs</text>
+  </g>
+
+  <!-- Arrow -->
+  <path d="M554 475 H626" fill="none" stroke="#42d8bd" stroke-width="5" stroke-linecap="round" marker-end="url(#arrow-teal)"/>
+  <rect x="556" y="434" width="66" height="26" rx="13" fill="#13322f" stroke="#42d8bd" stroke-width="1.5"/>
+  <text x="589" y="451" text-anchor="middle" class="tag" fill="#42d8bd">3.68×</text>
+
+  <!-- After card -->
+  <g transform="translate(642 362)">
+    <rect width="468" height="226" rx="24" fill="#132e2c" stroke="#42d8bd" stroke-width="2.5"/>
+    <text x="28" y="38" class="tag" fill="#42d8bd">REDESIGN · DIRECT RENDER + GROWABLE RING</text>
+    <text x="28" y="74" class="card-title">Zero-alloc textbuf.Buffer parser</text>
+    <text x="28" y="106" class="body">Pooled RPC batches · direct unicast output</text>
+
+    <text x="28" y="162" class="metric" fill="#60d6a2">377k r/s</text>
+    <text x="220" y="154" class="body" fill="#edf4fc">2,654 ms live · −64% CPU</text>
+    <text x="220" y="178" class="body" fill="#edf4fc">−911 MiB ze peak RSS</text>
+    <text x="28" y="204" class="tag" fill="#60d6a2">0 B/OP · 0 ALLOCS/OP WIRE PARSER</text>
+  </g>
+</svg>

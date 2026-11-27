@@ -1,0 +1,102 @@
+<svg xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="title desc" viewBox="0 0 1200 675">
+  <title id="title">Validate together. Roll back automatically.</title>
+  <desc id="desc">Ze combines plugin YANG schemas with shared validators and references, orders live apply across interfaces and routing protocols, and protects remote edits with a daemon-owned commit confirmed timer.</desc>
+  <defs>
+    <linearGradient id="bg" x1="0" x2="1" y1="0" y2="1">
+      <stop offset="0" stop-color="#f5f3fc"/>
+      <stop offset="0.5" stop-color="#edf7ff"/>
+      <stop offset="1" stop-color="#eefbf7"/>
+    </linearGradient>
+    <linearGradient id="rail" x1="0" x2="1">
+      <stop offset="0" stop-color="#7c4de6"/>
+      <stop offset="0.5" stop-color="#0086cc"/>
+      <stop offset="1" stop-color="#13a688"/>
+    </linearGradient>
+    <filter id="shadow" x="-16%" y="-20%" width="132%" height="148%">
+      <feDropShadow dx="0" dy="12" stdDeviation="16" flood-color="#122841" flood-opacity="0.12"/>
+    </filter>
+    <marker id="arrow-sky" viewBox="0 0 10 10" refX="8.5" refY="5" markerWidth="7" markerHeight="7" orient="auto">
+      <path d="M0 0L10 5L0 10Z" fill="#0086cc"/>
+    </marker>
+    <marker id="arrow-amber" viewBox="0 0 10 10" refX="8.5" refY="5" markerWidth="7" markerHeight="7" orient="auto">
+      <path d="M0 0L10 5L0 10Z" fill="#b76a00"/>
+    </marker>
+    <style>
+      text { font-family: Lato, "Avenir Next", sans-serif; fill: #152538; }
+      .eyebrow { font-family: Poppins, Avenir, sans-serif; font-size: 13px; font-weight: 800; letter-spacing: 1.8px; fill: #4a627a; }
+      .headline { font-family: Poppins, Avenir, sans-serif; font-size: 41px; font-weight: 800; letter-spacing: -1.1px; }
+      .step { font-family: Poppins, Avenir, sans-serif; font-size: 12px; font-weight: 800; letter-spacing: 1.4px; }
+      .card-title { font-family: Poppins, Avenir, sans-serif; font-size: 22px; font-weight: 800; }
+      .body { font-size: 15px; font-weight: 700; fill: #485e75; }
+      .mono { font-family: ui-monospace, "SFMono-Regular", Menlo, monospace; font-size: 13px; font-weight: 700; }
+    </style>
+  </defs>
+
+  <rect width="1200" height="675" rx="40" fill="url(#bg)"/>
+  <circle cx="1090" cy="108" r="150" fill="#dcc8ff" opacity="0.4"/>
+  <circle cx="110" cy="590" r="170" fill="#bfe3ff" opacity="0.4"/>
+
+  <g filter="url(#shadow)">
+    <rect x="54" y="48" width="1092" height="579" rx="34" fill="#ffffff" stroke="#d0deec" stroke-width="2"/>
+    <rect x="54" y="48" width="1092" height="10" rx="5" fill="url(#rail)"/>
+  </g>
+
+  <text x="90" y="98" class="eyebrow">YANG ENGINE · COORDINATED APPLY &amp; ROLLBACK</text>
+  <text x="90" y="150" class="headline">Validate together. Roll back safely.</text>
+
+  <g transform="translate(86 196)">
+    <rect width="310" height="316" rx="24" fill="#f5f0ff" stroke="#8c5ce8" stroke-width="2.5"/>
+    <text x="24" y="38" class="step" fill="#6b3cd6">1 · SHARED YANG</text>
+    <text x="24" y="72" class="card-title">Cross-plugin checks</text>
+    <text x="24" y="100" class="body">Refused before a socket opens</text>
+
+    <rect x="24" y="122" width="262" height="46" rx="12" fill="#ffffff" stroke="#c8b2f5" stroke-width="1.5"/>
+    <text x="38" y="150" class="mono" fill="#5b2ec2">ze:validate "router-id"</text>
+
+    <rect x="24" y="182" width="262" height="46" rx="12" fill="#ffffff" stroke="#c8b2f5" stroke-width="1.5"/>
+    <text x="38" y="210" class="mono" fill="#5b2ec2">ze:reference "bfd-profile"</text>
+
+    <rect x="24" y="242" width="262" height="46" rx="12" fill="#ffffff" stroke="#c8b2f5" stroke-width="1.5"/>
+    <text x="38" y="270" class="mono" fill="#485e75">port 1..65535 · plugin schema</text>
+  </g>
+
+  <path d="M402 354 H438" fill="none" stroke="#0086cc" stroke-width="4.5" stroke-linecap="round" marker-end="url(#arrow-sky)"/>
+
+  <g transform="translate(445 196)">
+    <rect width="310" height="316" rx="24" fill="#ecf6fe" stroke="#0086cc" stroke-width="2.5"/>
+    <text x="24" y="38" class="step" fill="#0069b4">2 · ORDERED APPLY</text>
+    <text x="24" y="72" class="card-title">Move IP without breaks</text>
+    <text x="24" y="100" class="body">Engine sequences components</text>
+
+    <rect x="24" y="122" width="262" height="46" rx="12" fill="#ffffff" stroke="#a6d4f5" stroke-width="1.5"/>
+    <text x="38" y="150" class="mono" fill="#005d99">1. stop dependent BGP peer</text>
+
+    <rect x="24" y="182" width="262" height="46" rx="12" fill="#ffffff" stroke="#a6d4f5" stroke-width="1.5"/>
+    <text x="38" y="210" class="mono" fill="#005d99">2. move address to iface B</text>
+
+    <rect x="24" y="242" width="262" height="46" rx="12" fill="#ffffff" stroke="#6ed4be" stroke-width="1.5"/>
+    <text x="38" y="270" class="mono" fill="#0a6d59">3. restart peer &amp; re-announce</text>
+  </g>
+
+  <path d="M761 354 H797" fill="none" stroke="#0086cc" stroke-width="4.5" stroke-linecap="round" marker-end="url(#arrow-sky)"/>
+
+  <g transform="translate(804 196)">
+    <rect width="310" height="316" rx="24" fill="#e8faf4" stroke="#13a688" stroke-width="2.5"/>
+    <text x="24" y="38" class="step" fill="#0a6d59">3 · CONFIRMED COMMIT</text>
+    <text x="24" y="72" class="card-title">Safe over live SSH</text>
+    <text x="24" y="100" class="body">Timer owned by the daemon</text>
+
+    <rect x="24" y="124" width="262" height="54" rx="12" fill="#ffffff" stroke="#13a688" stroke-width="2"/>
+    <text x="38" y="157" class="mono" fill="#0a6d59">commit confirmed 120</text>
+
+    <rect x="24" y="196" width="262" height="40" rx="10" fill="#d8f5ec" stroke="#13a688" stroke-width="1.5"/>
+    <text x="38" y="221" class="mono" fill="#0a6d59">✓ commit accept → keep</text>
+
+    <rect x="24" y="248" width="262" height="40" rx="10" fill="#fff4d6" stroke="#c97d00" stroke-width="1.5"/>
+    <text x="38" y="273" class="mono" fill="#8c5400">↺ timeout / drop → restore</text>
+  </g>
+
+  <path d="M959 518 V556 H241 V522" fill="none" stroke="#b76a00" stroke-width="3" stroke-dasharray="9 6" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrow-amber)"/>
+  <rect x="370" y="541" width="460" height="28" rx="14" fill="#fff8e6" stroke="#b76a00" stroke-width="1.5"/>
+  <text x="600" y="560" text-anchor="middle" class="step" fill="#8c5400">AUTOMATIC ROLLBACK ON APPLY ERROR OR TIMEOUT</text>
+</svg>

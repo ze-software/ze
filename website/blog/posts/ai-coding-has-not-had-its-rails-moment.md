@@ -1,4 +1,5 @@
 ---
+topic: development-methodology
 title: AI coding has not had its Rails moment
 date: 2026-08-10
 author: Thomas Mangin

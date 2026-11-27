@@ -79,6 +79,8 @@ website/
     milestones.json                       -- landmarks grouped into monthly cards: date, title,
                                               category, blurb, and the source report
     topics.json                           -- controlled tag vocabulary for Changes chips
+    blog-topics.json                      -- ordered editorial blog topics (id, title, summary)
+                                              used to group blog/index.html and blog/index.md
     audience.json                         -- homepage audience cards
     dependencies.json                     -- the third-party credits declaration: direct Go
                                               dependency explanations with licence and copyright,
@@ -1014,7 +1016,12 @@ untitled authored HTML stays whole. The generated title block stays flat: its
 first closing `div` marks where the reading layout begins. Articles group the byline with the title, retain their
 themed illustration, and place the section outline and related navigation
 beside the complete article and key points. Narrow screens return these parts
-to document order. Both outlines use native disclosures, open without scripts;
+to document order. The blog index (`/blog/` and `/blog/index.md`) groups
+articles into the ordered topic sections declared in `data/blog-topics.json`,
+with jump links at the top and newest-first order within each topic; the RSS
+feed (`/blog/feed.xml`) stays newest-first across all dated articles. Each
+source post names its topic with `topic:` front matter, and the build refuses
+a missing or unknown topic when `data/blog-topics.json` is present. Both outlines use native disclosures, open without scripts;
 the shared script initially collapses them on narrow screens and then respects
 the reader's choice. Neither layout removes content for readers without scripts.
 <!-- source: internal/le/site/markdown.go -- insertDocTOC -->

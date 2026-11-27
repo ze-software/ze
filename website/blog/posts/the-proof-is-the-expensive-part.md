@@ -1,10 +1,15 @@
 ---
+topic: testing-and-verification
 title: The proof is the expensive part
 date: 2026-08-06
 author: Thomas Mangin
 description: Ze aims to meet every applicable mandatory RFC requirement. Interoperability labs and tests tied to the RFC text help establish what the running router does and which claims remain unverified.
 
 deck: Tests can pass while the router still does the wrong thing.
+
+image: assets/blog/the-proof-is-the-expensive-part.svg
+image-dark: assets/blog/the-proof-is-the-expensive-part-dark.svg
+image-alt: Diagram tracing a public RFC 7606 support claim back to its requirement ID, positive and negative tests, disclosed partial status, and commit snapshot.
 
 ---
 

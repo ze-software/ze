@@ -115,6 +115,9 @@
     .blog-article-shell, .blog-article-shell.has-visual { gap: 2rem; }
 }
 @media (max-width: 960px) {
+    .blog-topic { grid-template-columns: minmax(0, 1fr); gap: 1.25rem; }
+    .blog-topic-head { position: static; }
+    .blog-topic-head p { max-width: 52rem; }
     .site-header { border-radius: 20px; }
     .site-header .nav { padding: 0.65rem 1rem; }
     .nav-links { background: var(--panel); border-color: var(--line); }
@@ -139,7 +142,7 @@
     .feature-catalog[data-enhanced="true"] .feature-filters .legend button { width: auto; border-color: var(--line); }
     .feature-results .cards { grid-template-columns: repeat(2, minmax(0, 1fr)); }
     .blog-article-shell, .blog-article-shell.has-visual { grid-template-columns: minmax(0, 1fr); gap: 1.5rem; padding: 2rem 0; }
-    .blog-article-shell .blog-article-visual { grid-column: 1; grid-row: auto; max-width: 40rem; }
+    .blog-article-shell .blog-article-visual { grid-column: 1; grid-row: auto; max-width: none; }
     .blog-article-shell .blog-article-heading .journey-hero.blog-article-hero :is(h1, h2) { font-size: clamp(2rem, 5vw, 2.6rem); }
     .site-home .usp-grid, .site-home .capability-grid, .site-home .reference-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
     .site-home .home-section-panel-map .capability-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
@@ -172,6 +175,16 @@
     .site-home .why-lead { padding: 1.2rem; gap: 1.8rem; }
     .site-home .interface-map > div:first-child { flex-wrap: wrap; }
     .site-home .interface-map span { flex-basis: 5rem; }
+    .blog-topic .blog-card,
+    .blog-topic .blog-card:first-child,
+    .blog-topic .blog-card:first-child.has-media {
+        grid-template-columns: minmax(0, 1fr);
+        grid-template-rows: auto;
+        grid-template-areas: "media" "meta" "title" "copy" "more";
+        padding: 0.85rem 0.85rem 1.1rem;
+    }
+    .blog-topic .blog-card .blog-card-meta,
+    .blog-topic .blog-card:first-child.has-media .blog-card-meta { margin-top: 0.85rem; }
 }
 @media (max-width: 560px) {
     main, main.site-main-wide, main.has-page-sidebar { width: calc(100% - 2rem); }

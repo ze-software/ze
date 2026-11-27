@@ -1,0 +1,19 @@
+{
+  "topics": [
+    {
+      "id": "architecture-and-performance",
+      "title": "Architecture and performance",
+      "summary": "Memory reuse, wire formats, and configuration design inside Ze."
+    },
+    {
+      "id": "testing-and-verification",
+      "title": "Testing and verification",
+      "summary": "How Ze establishes protocol compliance, chaos resilience, and reproducible failure proofs."
+    },
+    {
+      "id": "development-methodology",
+      "title": "Development methodology",
+      "summary": "How Ze is built with AI: repository conventions, development rules, and generated documentation."
+    }
+  ]
+}

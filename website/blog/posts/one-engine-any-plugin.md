@@ -1,11 +1,16 @@
 ---
 category: platform
+topic: architecture-and-performance
 title: One configuration engine, many protocols
 date: 2026-11-22
 author: Thomas Mangin
 description: How Ze uses YANG to validate changes across plugins, orders their application and lets operators roll back an unconfirmed remote change.
 
 deck: A remote configuration change needs a way back even after the SSH session drops.
+
+image: assets/blog/one-engine-any-plugin.svg
+image-dark: assets/blog/one-engine-any-plugin-dark.svg
+image-alt: Three-stage configuration pipeline showing shared YANG validation, ordered cross-plugin apply, and automatic rollback via commit confirmed.
 
 ---
 

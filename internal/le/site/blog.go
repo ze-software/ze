@@ -4,6 +4,7 @@
 package site
 
 import (
+	"errors"
 	"fmt"
 	"html"
 	"os"
@@ -26,6 +27,7 @@ func init() {
 // site root.
 const (
 	blogSourceDirectory = "blog/posts"
+	blogTopicsFile      = "blog-topics.json"
 	blogDirectory       = "blog"
 	blogIndexDest       = blogDirectory + "/" + pageIndexFile
 	blogIndexRoot       = "../"
@@ -33,6 +35,24 @@ const (
 	blogFeedDest        = blogDirectory + "/feed.xml"
 	blogURL             = siteBase + blogDirectory + "/"
 )
+
+// blogTopicsDocument is the JSON file declaring the ordered blog topics.
+type blogTopicsDocument struct {
+	Topics []blogTopic `json:"topics"`
+}
+
+// blogTopic is one curated topic section on the blog index.
+type blogTopic struct {
+	ID      string `json:"id"`
+	Title   string `json:"title"`
+	Summary string `json:"summary"`
+}
+
+// blogTopicGroup pairs a declared topic with the articles assigned to it.
+type blogTopicGroup struct {
+	Topic    blogTopic
+	Articles []blogArticle
+}
 
 // blogIndexLead is the sentence the index hero and its mirror both open with.
 // The link is the one difference between the two, so it is a parameter.
@@ -53,6 +73,8 @@ type blogArticle struct {
 	Author      string
 	Description string
 	Category    string
+	Topic       string
+	TopicTitle  string
 	// Deck is the hero lead, and it wins over Description, which is written
 	// for the index card and the feed entry rather than for the page.
 	Deck string
@@ -109,6 +131,14 @@ func renderBlog(paths Paths) ([]string, error) {
 	if err != nil {
 		return nil, err
 	}
+	topics, err := loadBlogTopics(paths.Source)
+	if err != nil {
+		return nil, err
+	}
+	groups, err := groupBlogArticles(articles, topics)
+	if err != nil {
+		return nil, err
+	}
 	tokens, err := loadSiteFactSnapshot(paths.Output)
 	if err != nil {
 		return nil, err
@@ -137,13 +167,89 @@ func renderBlog(paths Paths) ([]string, error) {
 		Wide: true,
 	}
 	if err := writePublishedPage(paths.Output, blogIndexDest,
-		shell.render(blogIndexBody(articles)), blogIndexMirror(articles)); err != nil {
+		shell.render(blogIndexBodyGrouped(articles, groups)),
+		blogIndexMirrorGrouped(articles, groups)); err != nil {
 		return nil, err
 	}
 	if err := writeNamedArtifact(paths.Output, blogFeedDest, blogFeed(articles)); err != nil {
 		return nil, err
 	}
 	return append(routes, "/"+blogDirectory+"/"), nil
+}
+
+// loadBlogTopics reads the declared blog topics when the source tree provides
+// data/blog-topics.json. A tree without that file returns nil so fixtures that
+// test article rendering alone stay independent of topic curation.
+func loadBlogTopics(source string) ([]blogTopic, error) {
+	var doc blogTopicsDocument
+	err := readSourceJSON(source, blogTopicsFile, &doc)
+	if err != nil {
+		if errors.Is(err, os.ErrNotExist) {
+			return nil, nil
+		}
+		return nil, err
+	}
+	seen := make(map[string]bool, len(doc.Topics))
+	for _, topic := range doc.Topics {
+		if topic.ID == "" {
+			return nil, fmt.Errorf("%s: topic entry has an empty id", blogTopicsFile)
+		}
+		if topic.Title == "" {
+			return nil, fmt.Errorf("%s: topic %q has an empty title", blogTopicsFile, topic.ID)
+		}
+		if seen[topic.ID] {
+			return nil, fmt.Errorf("%s: duplicate topic id %q", blogTopicsFile, topic.ID)
+		}
+		seen[topic.ID] = true
+	}
+	return doc.Topics, nil
+}
+
+// groupBlogArticles validates each article's topic against the declared set and
+// returns non-empty topic sections in declared order, with articles newest
+// first inside each section. It also populates TopicTitle on each article.
+func groupBlogArticles(articles []blogArticle, topics []blogTopic) ([]blogTopicGroup, error) {
+	if len(topics) == 0 {
+		for index := range articles {
+			if articles[index].Topic != "" {
+				return nil, fmt.Errorf("blog article %s declares topic %q, but %s is absent",
+					articles[index].Slug, articles[index].Topic, blogTopicsFile)
+			}
+		}
+		return nil, nil
+	}
+
+	byID := make(map[string]int, len(topics))
+	validIDs := make([]string, len(topics))
+	buckets := make([]blogTopicGroup, len(topics))
+	for index, topic := range topics {
+		byID[topic.ID] = index
+		validIDs[index] = topic.ID
+		buckets[index].Topic = topic
+	}
+
+	for index := range articles {
+		topicID := articles[index].Topic
+		if topicID == "" {
+			return nil, fmt.Errorf("blog article %s has no topic in front matter; expected one of: %s",
+				articles[index].Slug, strings.Join(validIDs, ", "))
+		}
+		bucketIndex, ok := byID[topicID]
+		if !ok {
+			return nil, fmt.Errorf("blog article %s has unknown topic %q; expected one of: %s",
+				articles[index].Slug, topicID, strings.Join(validIDs, ", "))
+		}
+		articles[index].TopicTitle = topics[bucketIndex].Title
+		buckets[bucketIndex].Articles = append(buckets[bucketIndex].Articles, articles[index])
+	}
+
+	groups := make([]blogTopicGroup, 0, len(buckets))
+	for _, bucket := range buckets {
+		if len(bucket.Articles) > 0 {
+			groups = append(groups, bucket)
+		}
+	}
+	return groups, nil
 }
 
 // loadBlogArticles reads every article, newest first.
@@ -220,6 +326,7 @@ func readBlogArticle(sourcePath string) (blogArticle, error) {
 		Author:      metadata["author"],
 		Description: metadata["description"],
 		Category:    category,
+		Topic:       metadata["topic"],
 		Deck:        metadata["deck"],
 		Image:       metadata["image"],
 		ImageDark:   metadata["image-dark"],
@@ -335,7 +442,12 @@ func blogArticleMeta(article *blogArticle) string {
 		meta.Str(`<time datetime="`).Str(html.EscapeString(article.Date)).Str(`">`).
 			Str(html.EscapeString(article.Date)).Str("</time>")
 	}
-	meta.Str("<span>by ").Str(html.EscapeString(article.Author)).Str("</span></div>")
+	meta.Str("<span>by ").Str(html.EscapeString(article.Author)).Str("</span>")
+	if article.Topic != "" && article.TopicTitle != "" {
+		meta.Str(`<a class="blog-article-topic" href="../#topic-`).Str(html.EscapeString(article.Topic)).
+			Str(`">`).Str(html.EscapeString(article.TopicTitle)).Str("</a>")
+	}
+	meta.Str("</div>")
 	return meta.String()
 }
 
@@ -457,16 +569,53 @@ func blogArticleMirror(article *blogArticle, body string) string {
 // blogIndexBody renders the index between <main> and </main>: one card for each
 // article, newest first.
 func blogIndexBody(articles []blogArticle) string {
+	return blogIndexBodyGrouped(articles, nil)
+}
+
+// blogIndexBodyGrouped renders the index either grouped into declared topic
+// sections with jump links at the top, or as one flat list when no topics are
+// configured.
+func blogIndexBodyGrouped(articles []blogArticle, groups []blogTopicGroup) string {
 	var page textbuf.Buffer
 	page.Str(`            <section class="blog-index" aria-labelledby="blog-title">`).Byte('\n')
 	page.Str(pageHero("The Ze blog.", blogIndexLead(`<a href="../project/changes/">changelog</a>`),
 		"Blog", ` id="blog-title"`, "journey-hero blog-index-hero reveal")).Byte('\n')
-	page.Str("                <h2 class=\"sr-only\">Articles</h2>\n")
-	page.Str(`                <div class="blog-list reveal">`).Byte('\n')
-	for index := range articles {
-		page.Str(blogIndexCard(&articles[index]))
+	if len(groups) == 0 {
+		page.Str("                <h2 class=\"sr-only\">Articles</h2>\n")
+		page.Str(`                <div class="blog-list reveal">`).Byte('\n')
+		for index := range articles {
+			page.Str(blogIndexCard(&articles[index]))
+		}
+		page.Str("                </div>\n            </section>\n")
+		return page.String()
 	}
-	page.Str("                </div>\n            </section>\n")
+
+	page.Str(`                <nav class="blog-topic-nav reveal" aria-label="Blog topics">`).Byte('\n')
+	for _, group := range groups {
+		page.Str(`                    <a href="#topic-`).Str(html.EscapeString(group.Topic.ID)).Str(`">`).
+			Str(html.EscapeString(group.Topic.Title)).
+			Str(` <span class="blog-topic-count">`).Int(int64(len(group.Articles))).Str("</span></a>\n")
+	}
+	page.Str("                </nav>\n")
+
+	for _, group := range groups {
+		id := html.EscapeString(group.Topic.ID)
+		page.Str(`                <section class="blog-topic reveal" id="topic-`).Str(id).
+			Str(`" aria-labelledby="topic-`).Str(id).Str(`-title">`).Byte('\n')
+		page.Str(`                    <div class="blog-topic-head">`).Byte('\n')
+		page.Str(`                        <h2 id="topic-`).Str(id).Str(`-title">`).
+			Str(html.EscapeString(group.Topic.Title)).Str("</h2>\n")
+		if group.Topic.Summary != "" {
+			page.Str("                        <p>").Str(html.EscapeString(group.Topic.Summary)).Str("</p>\n")
+		}
+		page.Str("                    </div>\n")
+		page.Str(`                    <div class="blog-list">`).Byte('\n')
+		for index := range group.Articles {
+			page.Str(blogIndexCard(&group.Articles[index]))
+		}
+		page.Str("                    </div>\n                </section>\n")
+	}
+	page.Str("            </section>\n")
 	return page.String()
 }
 
@@ -499,9 +648,31 @@ func blogIndexCard(article *blogArticle) string {
 // blogIndexMirror renders the Markdown sibling of the index: one line for each
 // article, linking the article's own mirror rather than its page.
 func blogIndexMirror(articles []blogArticle) string {
+	return blogIndexMirrorGrouped(articles, nil)
+}
+
+// blogIndexMirrorGrouped renders the Markdown sibling grouped by topic when
+// topic sections are active, or as one flat list otherwise.
+func blogIndexMirrorGrouped(articles []blogArticle, groups []blogTopicGroup) string {
 	var mirror textbuf.Buffer
 	mirror.Str("# The Ze blog\n\n")
 	mirror.Str(blogIndexLead("[changelog](../project/changes/)")).Str("\n\n")
+	if len(groups) == 0 {
+		writeBlogIndexMirrorList(&mirror, articles)
+		return strings.TrimSpace(mirror.String()) + "\n"
+	}
+	for _, group := range groups {
+		mirror.Str("## ").Str(group.Topic.Title).Str("\n\n")
+		if group.Topic.Summary != "" {
+			mirror.Str(group.Topic.Summary).Str("\n\n")
+		}
+		writeBlogIndexMirrorList(&mirror, group.Articles)
+		mirror.Byte('\n')
+	}
+	return strings.TrimSpace(mirror.String()) + "\n"
+}
+
+func writeBlogIndexMirrorList(mirror *textbuf.Buffer, articles []blogArticle) {
 	for index := range articles {
 		article := &articles[index]
 		mirror.Str("- [").Str(article.Title).Str("](").Str(article.Slug).Byte('/').Str(pageMirrorFile).Byte(')')
@@ -513,7 +684,6 @@ func blogIndexMirror(articles []blogArticle) string {
 		}
 		mirror.Byte('\n')
 	}
-	return strings.TrimSpace(mirror.String()) + "\n"
 }
 
 // blogFeed renders the RSS feed over the articles that carry a date.

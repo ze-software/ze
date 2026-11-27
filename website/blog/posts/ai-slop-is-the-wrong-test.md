@@ -1,4 +1,5 @@
 ---
+topic: development-methodology
 title: AI slop is human slop
 date: 2026-08-03
 author: Thomas Mangin

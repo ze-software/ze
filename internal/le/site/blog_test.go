@@ -477,3 +477,131 @@ func TestTheBlogClaimsOnlyPublishedRoutes(t *testing.T) {
 		}
 	}
 }
+
+// writeBlogTopicsFixture writes website/data/blog-topics.json inside a test
+// source tree.
+func writeBlogTopicsFixture(t *testing.T, source, content string) {
+	t.Helper()
+	target := filepath.Join(source, "data", blogTopicsFile)
+	if err := os.MkdirAll(filepath.Dir(target), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(target, []byte(content), 0o644); err != nil {
+		t.Fatal(err)
+	}
+}
+
+// blogTopicPostSource writes one minimal article carrying a topic field.
+func blogTopicPostSource(topic, title, date string) string {
+	return "---\ntopic: " + topic + "\ntitle: " + title + "\nauthor: Thomas Mangin\ndate: " + date + "\n---\n\nBody of " + title + ".\n"
+}
+
+// VALIDATES: when data/blog-topics.json is present, the blog index groups
+// articles into declared topic sections in HTML and Markdown, links each
+// article back to its topic, and keeps the RSS feed chronological.
+func TestBlogIndexGroupsArticlesByDeclaredTopics(t *testing.T) {
+	source := blogPostsFixture(t, map[string]string{
+		"alpha.md": blogTopicPostSource("architecture", "Alpha design", "2026-08-22"),
+		"beta.md":  blogTopicPostSource("testing", "Beta proof", "2026-08-10"),
+		"gamma.md": blogTopicPostSource("architecture", "Gamma memory", "2026-08-04"),
+	})
+	writeBlogTopicsFixture(t, source, `{
+  "topics": [
+    {"id": "architecture", "title": "Architecture", "summary": "Internal design."},
+    {"id": "testing", "title": "Testing", "summary": "Verification work."}
+  ]
+}`)
+	output := t.TempDir()
+	copyFixture(t, filepath.Join("testdata", "published-site-facts.json"),
+		filepath.Join(output, "data", "site-facts.json"))
+	paths := Paths{Repository: repositoryRoot(t), Source: source, Output: output}
+
+	if _, err := renderBlog(paths); err != nil {
+		t.Fatal(err)
+	}
+
+	index := readArtifact(t, output, blogIndexDest)
+	for _, want := range []string{
+		`<nav class="blog-topic-nav reveal" aria-label="Blog topics">`,
+		`<a href="#topic-architecture">Architecture <span class="blog-topic-count">2</span></a>`,
+		`<a href="#topic-testing">Testing <span class="blog-topic-count">1</span></a>`,
+		`id="topic-architecture"`,
+		`id="topic-testing"`,
+	} {
+		if !strings.Contains(index, want) {
+			t.Errorf("grouped blog index is missing %q", want)
+		}
+	}
+	if strings.Index(index, "Alpha design") > strings.Index(index, "Gamma memory") ||
+		strings.Index(index, "Gamma memory") > strings.Index(index, "Beta proof") {
+		t.Errorf("grouped index did not preserve topic order and newest-first within topics")
+	}
+
+	article := readArtifact(t, output, "blog/alpha/"+pageIndexFile)
+	wantTopicLink := `<a class="blog-article-topic" href="../#topic-architecture">Architecture</a>`
+	if !strings.Contains(article, wantTopicLink) {
+		t.Errorf("article page is missing topic link %q", wantTopicLink)
+	}
+
+	mirror := readArtifact(t, output, blogDirectory+"/"+pageMirrorFile)
+	for _, want := range []string{"## Architecture\n\nInternal design.", "## Testing\n\nVerification work."} {
+		if !strings.Contains(mirror, want) {
+			t.Errorf("grouped mirror is missing %q", want)
+		}
+	}
+
+	feed := readArtifact(t, output, blogFeedDest)
+	if !(strings.Index(feed, "/alpha/") < strings.Index(feed, "/beta/") &&
+		strings.Index(feed, "/beta/") < strings.Index(feed, "/gamma/")) {
+		t.Errorf("RSS feed was not kept in chronological order across topics")
+	}
+}
+
+// VALIDATES: topic configuration mismatches fail the build by naming the
+// offending article rather than silently dropping or misfiling it.
+func TestBlogTopicValidationRefusesMissingOrUnknownTopic(t *testing.T) {
+	const topicsJSON = `{"topics": [{"id": "architecture", "title": "Architecture", "summary": "Design."}]}`
+
+	for _, tc := range []struct {
+		name       string
+		withTopics bool
+		post       string
+		want       string
+	}{
+		{
+			name:       "missing topic",
+			withTopics: true,
+			post:       blogPostSource("Untagged", "2026-08-10"),
+			want:       "no topic",
+		},
+		{
+			name:       "unknown topic",
+			withTopics: true,
+			post:       blogTopicPostSource("bogus", "Misfiled", "2026-08-10"),
+			want:       "unknown topic",
+		},
+		{
+			name:       "topic without config",
+			withTopics: false,
+			post:       blogTopicPostSource("architecture", "Orphan", "2026-08-10"),
+			want:       blogTopicsFile,
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			source := blogPostsFixture(t, map[string]string{"probe.md": tc.post})
+			if tc.withTopics {
+				writeBlogTopicsFixture(t, source, topicsJSON)
+			}
+			output := t.TempDir()
+			copyFixture(t, filepath.Join("testdata", "published-site-facts.json"),
+				filepath.Join(output, "data", "site-facts.json"))
+			_, err := renderBlog(Paths{Repository: repositoryRoot(t), Source: source, Output: output})
+			if err == nil {
+				t.Fatalf("%s was accepted", tc.name)
+			}
+			if !strings.Contains(err.Error(), tc.want) || !strings.Contains(err.Error(), "probe") {
+				t.Fatalf("got refusal %q, want it to mention probe and %q", err, tc.want)
+			}
+		})
+	}
+}

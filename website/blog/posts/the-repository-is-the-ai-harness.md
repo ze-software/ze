@@ -1,4 +1,5 @@
 ---
+topic: development-methodology
 title: The repository is half the AI harness
 date: 2026-08-09
 author: Thomas Mangin

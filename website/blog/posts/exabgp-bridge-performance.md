@@ -1,11 +1,16 @@
 ---
 category: platform
+topic: architecture-and-performance
 title: Giving ExaBGP scripts the performance Python could not
 date: 2026-11-27
 author: Thomas Mangin
-description: How Ze redesigned its ExaBGP bridge around a positional netstring-style wire line, direct unicast rendering and a zero-allocation text buffer parser so ExaBGP scripts handle full routing tables.
+description: How Ze redesigned its ExaBGP bridge around a positional ASCII wire line, direct unicast rendering and a zero-allocation text buffer parser so ExaBGP scripts handle full routing tables.
 
 deck: Codecs often take more CPU than the protocol they serve, and sending a full BGP table to twenty scripts made that cost hard to ignore.
+
+image: assets/blog/exabgp-bridge-performance.svg
+image-dark: assets/blog/exabgp-bridge-performance-dark.svg
+image-alt: Anatomy of Ze's positional base64 wire line for BGP UPDATEs alongside the 3.68x throughput speedup over full JSON across twenty ExaBGP scripts.
 
 ---
 
@@ -33,23 +38,25 @@ Binary protocols avoid most codec overhead by laying fields out in a fixed order
 
 Plain text and JSON give you immediate readability on a pipe, while charging the scanning and key-name tax on every message. That experience comes straight from ExaBGP, whose API has long used a line-based text protocol so an engineer can watch a pipe and see what happened without reaching for a decoder. Keeping a line-based text format for Ze's high-volume internal links, and moving the UPDATE hot path off JSON once the bridge behaviour was settled, was the plan all along; the `base64` wire format had even been reserved in Ze's plugin schema ahead of time. I wanted the middle ground: a line format that stays readable in a capture while letting the parser work much like a binary TLV reader.
 
-That design borrows directly from Daniel J. Bernstein's [netstrings](https://cr.yp.to/proto/netstrings.txt) and from the positional grammar Ze already uses for streamed command answers. Under `base64` delivery, each BGP UPDATE crosses the boundary as one quote-free ASCII line:
+That design shares the positional grammar Ze already uses for streamed command answers, alongside Daniel J. Bernstein's [netstrings](https://cr.yp.to/proto/netstrings.txt) where payloads can carry arbitrary characters. Under `base64` delivery, each BGP UPDATE crosses the boundary as one quote-free, space-delimited ASCII line:
 
 ```text
-upd <flags> <local-as> <remote-as> <conn-id> <n>:<peer> <n>:<local> <n>:<router-id> <n>:<extra-addpath> <n>:<b64-body>
+upd <flags> <local-as> <remote-as> <conn-id> <peer> <local> <router-id> <extra-addpath> <n>:<b64-body>
 ```
 
 A concrete IPv4 unicast UPDATE looks like this on the wire:
 
 ```text
-upd 14 65000 65001 42 8:10.0.0.1 8:10.0.0.2 7:1.1.1.1 0: 36:AAAbQAEBAAJAAgAEAAH96EADAQoAAAEAAhgKAAA=
+upd 14 65000 65001 42 10.0.0.1 10.0.0.2 1.1.1.1 - 40:AAAbQAEBAAJAAgAEAAH96EADAQoAAAEAAhgKAAA=
 ```
 
 Position replaces the Type field of a binary TLV record. Every line opens with a three-letter verb closed by a space (`upd ` here, and `top `, `row `, `bad `, `end `, `wrn ` or `nay ` on Ze's streamed command answers), so the reader loads four bytes as a single 32-bit integer and dispatches in one comparison. Because the field order after the verb is fixed, no key name ever crosses the wire.
 
-Variable text and binary fields carry their byte length in front of a colon (`<n>:<bytes>`), following the netstring idea with space separators in place of the trailing comma. An absent field writes `0:`, keeping the positional field count constant. The parser reads the count, checks that at least that many bytes remain in the line and slices straight over the value by integer arithmetic, without scanning inside the payload for delimiters or worrying about embedded spaces or newlines.
+Each field uses the simplest framing its content and size warrant. Large or arbitrary payloads keep a byte length in front of a colon (`<n>:<bytes>`, with `0:` when empty), following the netstring idea with space separators in place of the trailing comma. On Ze's streamed command answers, that covers JSON rows and error messages that can hold spaces, quotes or raw newlines. On an `upd` line, it covers the base64 UPDATE body: while the leading metadata fields are short and bounded enough for a small fixed scratch buffer, the UPDATE body can reach 65,516 raw bytes (over 87 KiB in base64 under RFC 8654). Writing `<n>:` ahead of the payload costs the writer nothing because `base64.StdEncoding.EncodedLen` is known upfront, and it lets the reader check the length, size a buffer if needed and slice over the whole body in one bounds check instead of scanning every byte for a delimiter.
 
-Plain unsigned integers (`flags`, `local-as`, `remote-as`, `conn-id`) omit the length prefix and end at the space after them. Because decimal digits can never contain a space, a count in front of a number buys the parser nothing: one fused loop accumulates `val = val*10 + digit` while walking to the space. In earlier measurements on Ze's command-answer framing, that plain fused form took 3.2 ns against 8.6 ns for a length-prefixed number, while saving two bytes per field.
+The short metadata fields ahead of the body drop the length prefix altogether. Plain unsigned integers (`flags`, `local-as`, `remote-as`, `conn-id`) run in one fused base-10 loop (`val = val*10 + digit`) straight to the space, which took 3.2 ns against 8.6 ns for a length-prefixed number in earlier measurements on Ze's command-answer framing while saving two bytes per field. The same single-pass idea applies to dotted-quad IPv4 addresses when a caller wants a 32-bit integer, accumulating each base-10 octet and shifting the accumulator left by eight bits on each dot.
+
+For `peer`, `local`, `router-id` and `extra-addpath`, plain space-delimited tokens with `-` for an absent field are cheaper on both sides. On the daemon side, `ze` appends its cached peer address strings and router ID directly into the output buffer without formatting into a temporary buffer first just to count bytes. On the wrapper side, the hot path writes `peer`, `local` and `router-id` straight back out as text into ExaBGP's JSON or line output anyway, so taking zero-copy string views directly out of the incoming line avoids both parsing and re-formatting for IPv4 and IPv6 alike.
 
 The BGP UPDATE body itself (everything after the 19-octet BGP header, up to RFC 8654's 65,516-byte extended message limit) travels in standard base64. Base64 keeps the line printable and free of quotes or backslashes, so embedding it in a batched RPC frame requires no JSON escaping pass, and it is a third smaller than hexadecimal. The daemon encodes the raw UPDATE bytes straight into a stack-local scratch buffer without decoding attributes or NLRIs.
 
@@ -87,9 +94,9 @@ What remains at twenty scripts is the hardware ceiling of the test VM and the pr
 
 ## Folding the parser into `textbuf.Buffer`
 
-Looking closely at the new `upd` parser after the benchmarks landed revealed a duplication inside Ze. The ExaBGP bridge had gained a single-pass fused accumulator parser for positional counted lines, while Ze's streamed command-answer protocol still parsed the exact same grammar with separate helpers that scanned each number twice (counting digits first, then calling `strconv.ParseUint`) and copied payloads into strings before slicing them.
+Looking closely at the new `upd` parser after the benchmarks landed revealed a duplication inside Ze. The ExaBGP bridge had gained a single-pass fused accumulator parser for positional wire lines, while Ze's streamed command-answer protocol still parsed its positional counted lines with separate helpers that scanned each number twice (counting digits first, then calling `strconv.ParseUint`) and copied payloads into strings before slicing them.
 
-In [How Ze reuses memory for BGP UPDATEs](../how-ze-manages-memory/), Ze's text buffer borrowed from DJB's [`stralloc`](https://cr.yp.to/lib/stralloc.html) to build text inside reusable storage. Bringing the netstring-style reader directly into that same buffer type completes the other half of the idea: one object builds and parses positional counted lines without copying or allocating.
+In [How Ze reuses memory for BGP UPDATEs](../how-ze-manages-memory/), Ze's text buffer borrowed from DJB's [`stralloc`](https://cr.yp.to/lib/stralloc.html) to build text inside reusable storage. Bringing the wire readers directly into that same buffer type completes the other half of the idea: one object builds and parses positional wire lines without copying or allocating, covering fused decimal integers (`ReadUint*`), single-pass dotted-quad IPv4 (`ReadIPv4*`), space-delimited tokens (`ReadToken*`) and netstring-counted payloads (`ReadCounted*`).
 
 To avoid allocating a fresh buffer when a wire line arrives from a socket or an RPC frame, the buffer can take ownership of an existing `[]byte` (or wrap an immutable `string` read-only) and advance an internal cursor across it:
 
@@ -108,10 +115,10 @@ if word != wordUpd {
 	return errInvalidPrefix
 }
 flags, err := b.ReadUintSpace()
-peer, err := b.ReadCountedBytesSpace()
+peer, err := b.ReadTokenBytesSpace()
 body, err := b.ReadCountedBytesEnd()
 ```
 
-Go has no borrow checker like Rust, so the language cannot prove at compile time that a caller will never keep a returned slice past a buffer reset. Putting the parser inside the text buffer itself lets the type enforce the boundaries Go can check at runtime. The first read freezes the buffer against writes, so any accidental write panics immediately instead of overwriting bytes behind borrowed slices. Counted byte reads return three-index slices capped at the field's exact length, so appending to one parsed field allocates fresh memory rather than trampling the next field in the line. Wrapping an immutable string marks the buffer read-only, panicking if anything asks for a mutable byte slice and detaching the backing storage on reset or release so Go string memory can never be mutated.
+Go has no borrow checker like Rust, so the language cannot prove at compile time that a caller will never keep a returned slice past a buffer reset. Putting the parser inside the text buffer itself lets the type enforce the boundaries Go can check at runtime. The first read freezes the buffer against writes, so any accidental write panics immediately instead of overwriting bytes behind borrowed slices. Token and counted byte reads return three-index slices capped at the field's exact length, so appending to one parsed field allocates fresh memory rather than trampling the next field in the line. Wrapping an immutable string marks the buffer read-only, panicking if anything asks for a mutable byte slice and detaching the backing storage on reset or release so Go string memory can never be mutated.
 
-Allocation tests confirm zero heap allocations (`0 B/op`, `0 allocs/op`) for parsing a full `upd` line from either a byte slice or a string, and fuzzing exercises hostile counts, overflows and malformed frames across the shared reader. Moving both the ExaBGP bridge and Ze's command-answer parser onto that single buffer type removed over 180 lines of duplicated parsing code so every high-volume text wire path shares one implementation.
+Allocation tests confirm zero heap allocations (`0 B/op`, `0 allocs/op`) for parsing a full `upd` line from either a byte slice or a string, and fuzzing exercises hostile counts, overflows, IPv4 edge cases and malformed frames across the shared reader. Moving both the ExaBGP bridge and Ze's command-answer parser onto that single buffer type removed over 180 lines of duplicated parsing code so every high-volume text wire path shares one implementation.
