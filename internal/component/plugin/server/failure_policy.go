@@ -33,10 +33,12 @@ var errRespawnDisagreement = errors.New("the configuration and the plugin disagr
 // time rather than a growing chain, and ProcessManager.Respawn bounds how many
 // generations there can be.
 func (s *Server) superviseProcess(proc *process.Process) {
-	// The generation's drain caller lives exactly as long as the generation:
-	// it is out of the caller set and has returned before the failure policy
-	// can respawn the plugin, so a respawn never meets the old caller.
+	// The generation's drain caller and doctor worker live exactly as long as
+	// the generation: both are out of their sets and have returned before the
+	// failure policy can respawn the plugin, so a respawn never meets an old
+	// worker.
 	stopDrainCaller := s.startDrainCaller(proc)
+	stopDoctorWorker := s.startDoctorWorker(proc)
 	// This generation reached running, so the plugin is no longer down: a
 	// stop record from the generation before it (a failed handshake, the
 	// respawn that started this one) is cleared with its bus warning. Clear
@@ -49,6 +51,7 @@ func (s *Server) superviseProcess(proc *process.Process) {
 		}
 	}
 	s.handleSingleProcessCommandsRPC(proc)
+	stopDoctorWorker()
 	stopDrainCaller()
 	s.applyFailurePolicy(proc)
 }

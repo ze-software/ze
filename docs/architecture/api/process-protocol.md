@@ -952,7 +952,8 @@ direction's final stay distinct.
 Plugins may include a `doctor-checks` list in their `declare-registration` to provide
 runtime health checks. Each entry declares a check name, phase, ordering, and the
 diagnostic codes it may emit. The engine stores declarations in `PluginRegistration`
-and invokes them via the `doctor-check` callback when `show doctor` runs.
+and invokes them concurrently across plugins via per-generation doctor workers
+(and serially within one plugin) through the `doctor-check` callback when `show doctor` runs.
 
 | Field | Type | Description |
 |-------|------|-------------|
@@ -963,9 +964,10 @@ and invokes them via the `doctor-check` callback when `show doctor` runs.
 | `doctor-checks[].platforms` | list | Platform filter (empty defaults to `any`) |
 | `doctor-checks[].codes` | list | Diagnostic codes (1-16, must start with `doctor-`) |
 
-Offline `ze doctor` does not invoke plugin doctor checks (plugins are runtime
-processes). Plugin checks cover runtime health; Go-registered checks cover
-pre-start readiness.
+Local `ze doctor` asks the running daemon for `show doctor | raw` over SSH first,
+so plugin doctor checks run whenever a daemon answers. When no daemon answers,
+`ze doctor` runs only its local config-phase checks and adds one
+`doctor-runtime-not-checked` warning naming the reason and fix.
 
 The `doctor-check` answer (`DoctorCheckOutput`) lists `diagnostics`, each with
 `code`, `severity` (`error`, `warning` or `info`), `message`, and `fix`: the
@@ -2146,12 +2148,17 @@ produced no operation for is applied through `config-apply` rather than
 <!-- source: internal/component/config/transaction/operation.go -- ValidateOperations -->
 <!-- source: pkg/plugin/sdk/sdk_callbacks.go -- initCallbackDefaults -->
 
-**doctor-check:** Engine invokes a plugin's declared doctor check by name.
-Plugin runs the check and returns diagnostics (code, severity, message).
-Declared during Stage 1 via `doctor-checks` field in `declare-registration`.
-Only invoked at runtime via `show doctor`; offline `ze doctor` does not reach plugins.
+**doctor-check:** Engine invokes a plugin's declared doctor check by name, and the plugin returns diagnostics (`code`, `severity`, `message`, optional `fix`).
+A plugin declares these checks during Stage 1 through `doctor-checks` in `declare-registration`.
+On `show doctor`, `RunDoctorChecks` runs plugins concurrently through per-generation `doctorWorker` workers and runs one plugin's checks serially in `(order, name)` order.
+Local `ze doctor` asks the running daemon for `show doctor | raw` over SSH first.
+When no daemon answers, `ze doctor` runs local config-phase checks and adds `doctor-runtime-not-checked`.
 
 <!-- source: pkg/plugin/rpc/types.go -- DoctorCheckDecl, DoctorCheckInput, DoctorCheckOutput -->
+<!-- source: pkg/plugin/sdk/sdk_callbacks.go -- OnDoctorCheck -->
+<!-- source: internal/component/plugin/server/doctor_worker.go -- doctorWorker, startDoctorWorker, RunDoctorChecks -->
+<!-- source: internal/component/plugin/server/server.go -- DoctorCheckPlugins -->
+<!-- source: internal/component/doctor/cmd/show.go -- HandleDoctor, collectDoctorChecksFrom -->
 
 **resolver-cache-clear:** Engine asks a plugin to clear one resolver cache it
 declared in the Stage 1 `resolver-caches` list (`peeringdb`, `irr` or `cymru`;
@@ -2164,9 +2171,6 @@ naming the plugin.
 
 <!-- source: pkg/plugin/rpc/resolver_cache.go -- MethodResolverCacheClear, ResolverCacheClearInput, ResolverCacheClearOutput -->
 <!-- source: pkg/plugin/sdk/sdk_resolver_cache.go -- OnResolverCacheClear -->
-<!-- source: pkg/plugin/sdk/sdk_callbacks.go -- OnDoctorCheck -->
-<!-- source: internal/component/plugin/server/server.go -- CallDoctorCheck, DoctorCheckPlugins -->
-<!-- source: internal/component/doctor/cmd/show.go -- HandleDoctor plugin integration -->
 
 **enrich-show:** Engine invokes a plugin's declared show enricher at show time.
 Plugin receives the command, key, mode ("detail" or "brief"), and base data map as

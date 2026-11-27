@@ -295,18 +295,40 @@ uses the configured instance name acknowledged by the daemon:
 When a declared callback can no longer answer because its plugin stopped or
 lost its connection, the daemon retains the `doctor-plugin-unreachable`
 finding and its cause, with the same configured instance's restart command.
+
+Each plugin generation that declares Stage 1 `DoctorChecks` owns one `doctorWorker`.
+`superviseProcess` starts it through `startDoctorWorker` and joins it before
+`applyFailurePolicy` (like `drainCaller`). A plugin that declares no checks
+starts no worker. On `show doctor`, `collectDoctorChecksFrom` skips the calling
+plugin, orders each plugin's checks by `(order, name)`, and calls
+`Server.RunDoctorChecks` with no per-request goroutines.
+
+Different plugins run concurrently across their workers, while one plugin's
+checks run serially to match the SDK loop. Each worker buffers 16 requests
+(`doctorWorkerQueueDepth`, twice SSH's `defaultMaxSessions = 8`). Concurrent
+`show doctor` calls queue and run each check once per request. A request past
+`doctorQueueWait` (5 s) or on a stopped worker reports `doctor-plugin-unreachable`
+with fix `ze request plugin restart <plugin>`.
+
+The worker discards already-expired requests unrun. Each picked-up check runs
+under a fresh `perCheckTimeout` (5 s) from pickup, and a failed check adds no
+`ownedCodes` so `recent-events` stays visible. Finally, `collectDoctorChecksFrom`
+sorts all assembled plugin findings by `(Order, plugin, check)`.
 <!-- source: internal/component/sysrib/doctor_route_view.go -- routeViewDoctorDeclarations, findings -->
 <!-- source: internal/component/sysrib/register.go -- runRouteViewPlugin -->
-<!-- source: internal/component/doctor/cmd/show.go -- collectDoctorChecksFrom -->
+<!-- source: internal/component/plugin/server/doctor_worker.go -- doctorWorker, startDoctorWorker, doctorWorkerQueueDepth, RunDoctorChecks -->
+<!-- source: internal/component/plugin/server/failure_policy.go -- superviseProcess -->
+<!-- source: internal/component/doctor/cmd/show.go -- HandleDoctor, answerDaemonDoctor, collectDoctorChecksFrom, perCheckTimeout, doctorQueueWait -->
 <!-- source: pkg/plugin/rpc/types.go -- DoctorPhaseRuntime -->
 <!-- source: internal/component/doctor/registry.go -- RunRuntimeChecks -->
-<!-- source: internal/component/doctor/cmd/show.go -- HandleDoctor, answerDaemonDoctor, collectDoctorChecksFrom -->
 <!-- source: internal/component/plugin/registry/doctor.go -- validateDoctorCheckDef -->
 <!-- source: internal/component/plugin/server/startup.go -- refuseDoctorCheckDeclaredTwice -->
 <!-- source: internal/component/config/system/doctor_dns_source.go -- dnsSourceDoctorCheck, dnsSourceFindings -->
 <!-- test: internal/component/doctor/registry_test.go TestDoctorRuntimePhaseRunsOnlyThroughTheRuntimeRunner -->
 <!-- test: internal/component/doctor/cmd/show_test.go TestDoctorRuntimePhaseRunsOnDaemonRoute -->
 <!-- test: internal/component/doctor/cmd/show_test.go TestDoctorPluginRuntimeCheckRunsOnce -->
+<!-- test: internal/component/doctor/cmd/show_test.go TestCollectDoctorChecksConcurrent -->
+<!-- test: internal/component/plugin/server/doctor_worker_test.go TestDoctorWorkerLifecycle -->
 <!-- test: internal/component/plugin/server/startup_doctor_test.go TestRefuseDoctorCheckDeclaredTwice -->
 <!-- test: internal/component/config/system/doctor_dns_source_test.go TestDNSSourceChecksRegisterRuntimePhase -->
 
@@ -327,6 +349,16 @@ steps are one function, `sshclient.ReachDaemon`, which answers the step it
 stopped at; `ze config validate` takes the same walk before it sends a config
 to the daemon, and each command words its own fix per step.
 
+`askDaemonOverSSH` bounds the SSH ask to 22 s (`daemonDoctorTimeout`) through
+`sshclient.ExecCommandRawContext`. That 22 s budget covers `dialTimeout` (10 s),
+`doctorQueueWait` (5 s), `perCheckTimeout` (5 s), and a 2 s margin.
+`dialDaemonContext` sets a raw connection deadline of `min(ctx deadline,
+dialTimeout)` across TCP dial, SSH key exchange, and password auth. It checks
+context expiry and timeouts before `*LoginRefused`, so an auth timeout never
+reads as a refused login. Once connected, `execCommandContext` clears the
+handshake deadline and closes the client via `context.AfterFunc` if `ctx` ends
+during exec.
+
 When no daemon answers, the local route runs its own checks and adds one
 `doctor-runtime-not-checked` warning. Its message says the runtime checks need
 the running daemon and why none answered; its fix line is the command that
@@ -335,7 +367,7 @@ gets an answer:
 | Why no daemon answered | Fix |
 |------------------------|-----|
 | Nothing listens at the daemon's SSH address | `ze start` |
-| A daemon listens, but this account has no stored credentials, or the login or the ask failed | `ze cli --user <name> -c "show doctor"` |
+| A daemon listens, but this account has no stored credentials, or the login or the ask failed (including a `daemonDoctorTimeout` expiry) | `ze cli --user <name> -c "show doctor"` |
 | The daemon's answer is not a doctor result this `ze` reads | `ze show doctor` |
 | The daemon's SSH address could not be read from the store | `ze status` |
 | `config <file>` names standard input or a file outside the daemon's config directories | `ze doctor` |
@@ -351,12 +383,15 @@ a warning, so it never makes a box not ready on its own.
 WARN  [doctor-runtime-not-checked] runtime checks did not run: they need the running daemon, and none answered: no daemon listens at 127.0.0.1:2222 (...); this answer holds only the checks ze doctor runs in its own process
       fix: ze start
 ```
-<!-- source: internal/component/doctor/local_route.go -- answerLocalWith, askDaemonDoctor, askDaemonOverSSH, runtimeNotChecked -->
-<!-- source: internal/component/cli/sshclient/client.go -- DaemonAddress, ProbeDaemon -->
+<!-- source: internal/component/doctor/local_route.go -- answerLocalWith, askDaemonDoctor, askDaemonOverSSH, askDaemonOverSSHWithTimeout, daemonDoctorTimeout, runtimeNotChecked -->
+<!-- source: internal/component/cli/sshclient/client.go -- DaemonAddress, ProbeDaemon, ExecCommandRawContext, execCommandContext -->
+<!-- source: internal/component/cli/sshclient/answer.go -- dialDaemonContext -->
 <!-- source: internal/component/cli/sshclient/reach.go -- ReachDaemon -->
 <!-- test: internal/component/doctor/answer_test.go TestDoctorRuntimePhaseNotRunLocally -->
 <!-- test: internal/component/doctor/answer_test.go TestDoctorLocalRouteAsksReachableDaemon -->
 <!-- test: internal/component/doctor/answer_test.go TestDoctorLocalRouteNoCredentialsAnswersLocally -->
+<!-- test: internal/component/doctor/answer_test.go TestAskDaemonOverSSHTimeoutFallsBackLocally -->
+<!-- test: internal/component/cli/sshclient/exec_timeout_test.go TestExecCommandRawContextBoundsHandshakeAndExec -->
 
 ## Three severities
 

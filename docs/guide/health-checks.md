@@ -296,8 +296,12 @@ p.OnDoctorCheck(func(name string) ([]rpc.DoctorCheckDiagnostic, error) {
 })
 ```
 
-The engine invokes plugin checks only at runtime (`show doctor`), not
-during offline `ze doctor`. Set `Fix` to the command that clears the finding,
+The daemon invokes plugin checks during `show doctor`, and local `ze doctor`
+asks the running daemon over SSH first. When no daemon answers, `ze doctor`
+runs local checks and adds `doctor-runtime-not-checked`
+(`docs/architecture/doctor-and-health-checks.md`).
+
+Set `Fix` to the command that clears the finding,
 alone, with no `fix:` label. A check that reads live state the daemon holds
 (not the config file) declares `Phase: rpc.DoctorPhaseRuntime`; the same phase
 is open to an in-tree check registered with `diagnostic.RegisterDoctorCheck`,

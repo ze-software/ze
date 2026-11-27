@@ -19,12 +19,15 @@ package sshclient
 
 import (
 	"bufio"
+	"context"
 	"errors"
 	"fmt"
 	"io"
 	"net"
+	"os"
 	"strings"
 	"sync/atomic"
+	"time"
 
 	"golang.org/x/crypto/ssh"
 
@@ -246,20 +249,61 @@ func answerMessage(answer Answer, text string) string {
 
 // dialDaemon opens the SSH connection every helper in this package works over.
 // The caller MUST close the returned client.
+func dialDaemon(creds Credentials) (*ssh.Client, error) {
+	return dialDaemonContext(context.Background(), creds)
+}
+
+// dialDaemonContext opens the SSH connection to the daemon bounded by ctx
+// across TCP connect, SSH key exchange, and authentication. The caller MUST
+// close the returned client.
 //
 // A failure after the client accepted the server's host key is a
 // *LoginRefused: key exchange, and so the host key check, comes before the
 // login, so a daemon that presented an accepted key answered, and only the
-// login can have failed after it. Any earlier failure (nothing listening, a
-// timeout, a refused host key) is the wrapped dial error, as before. The SSH
-// library words a refused login as text alone, so the accepted key is the
-// typed fact the two are told apart by.
-func dialDaemon(creds Credentials) (*ssh.Client, error) {
+// login can have failed after it. A context cancellation or deadline timeout
+// is checked before keyAccepted so a slow authentication exchange never reads
+// as a refused login. Any earlier failure (nothing listening, a timeout, a
+// refused host key) is the wrapped dial error, as before. The SSH library
+// words a refused login as text alone, so the accepted key is the typed fact
+// the two are told apart by.
+func dialDaemonContext(ctx context.Context, creds Credentials) (*ssh.Client, error) {
 	addr := net.JoinHostPort(creds.Host, creds.Port)
 	hkCb, err := hostKeyCallback(addr)
 	if err != nil {
 		return nil, err
 	}
+
+	handshakeDeadline := time.Now().Add(dialTimeout)
+	ctxBoundedHandshake := false
+	if ctxDeadline, ok := ctx.Deadline(); ok {
+		if !ctxDeadline.After(handshakeDeadline) {
+			handshakeDeadline = ctxDeadline
+			ctxBoundedHandshake = true
+		}
+	}
+
+	dialCtx, cancelDial := context.WithDeadline(ctx, handshakeDeadline)
+	defer cancelDial()
+
+	dialer := net.Dialer{Timeout: dialTimeout}
+	conn, err := dialer.DialContext(dialCtx, "tcp", addr)
+	if err != nil {
+		if ctxErr := ctx.Err(); ctxErr != nil {
+			return nil, fmt.Errorf("connect to %s: %w", addr, ctxErr)
+		}
+		if ctxBoundedHandshake {
+			if isTimeoutError(err) {
+				return nil, fmt.Errorf("connect to %s: %w", addr, context.DeadlineExceeded)
+			}
+		}
+		return nil, fmt.Errorf("connect to %s: %w", addr, err)
+	}
+
+	if err := conn.SetDeadline(handshakeDeadline); err != nil {
+		conn.Close() //nolint:errcheck // best-effort cleanup
+		return nil, fmt.Errorf("connect to %s: %w", addr, err)
+	}
+
 	// The library runs the host key check on its key-exchange goroutine, so
 	// the flag it sets is read here only through the atomic.
 	var keyAccepted atomic.Bool
@@ -278,12 +322,48 @@ func dialDaemon(creds Credentials) (*ssh.Client, error) {
 		Timeout: dialTimeout,
 	}
 
-	client, err := ssh.Dial("tcp", addr, config)
+	stopClose := context.AfterFunc(ctx, func() {
+		conn.Close() //nolint:errcheck,gosec // context ended; unblock handshake or auth
+	})
+	c, chans, reqs, err := ssh.NewClientConn(conn, addr, config)
+	stopped := stopClose()
 	if err != nil {
+		conn.Close() //nolint:errcheck // best-effort cleanup
+		if ctxErr := ctx.Err(); ctxErr != nil {
+			return nil, fmt.Errorf("connect to %s: %w", addr, ctxErr)
+		}
+		if isTimeoutError(err) {
+			if ctxBoundedHandshake {
+				return nil, fmt.Errorf("connect to %s: %w", addr, context.DeadlineExceeded)
+			}
+			return nil, fmt.Errorf("connect to %s: %w", addr, err)
+		}
 		if keyAccepted.Load() {
 			return nil, &LoginRefused{Address: addr, User: creds.Username, Cause: err}
 		}
 		return nil, fmt.Errorf("connect to %s: %w", addr, err)
 	}
-	return client, nil
+	if !stopped {
+		c.Close() //nolint:errcheck // context ended right as handshake completed
+		if ctxErr := ctx.Err(); ctxErr != nil {
+			return nil, fmt.Errorf("connect to %s: %w", addr, ctxErr)
+		}
+		return nil, fmt.Errorf("connect to %s: %w", addr, context.Canceled)
+	}
+	if err := conn.SetDeadline(time.Time{}); err != nil {
+		c.Close() //nolint:errcheck // best-effort cleanup
+		return nil, fmt.Errorf("connect to %s: %w", addr, err)
+	}
+	return ssh.NewClient(c, chans, reqs), nil
+}
+
+// isTimeoutError reports whether err is a deadline or network timeout error.
+func isTimeoutError(err error) bool {
+	if errors.Is(err, os.ErrDeadlineExceeded) {
+		return true
+	}
+	if netErr, ok := errors.AsType[net.Error](err); ok {
+		return netErr.Timeout()
+	}
+	return false
 }

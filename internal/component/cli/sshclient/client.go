@@ -74,38 +74,7 @@ type Credentials struct {
 // A failure is reported from stderr, and readAnswerFrame is what reads it, so
 // this call and ExecCommandStream report one message from one parser.
 func ExecCommand(creds Credentials, command string) (string, error) {
-	client, err := dialDaemon(creds)
-	if err != nil {
-		return "", err
-	}
-	defer client.Close() //nolint:errcheck // best-effort cleanup
-
-	session, err := client.NewSession()
-	if err != nil {
-		return "", fmt.Errorf("create session: %w", err)
-	}
-	defer session.Close() //nolint:errcheck // best-effort cleanup
-
-	if err := session.Setenv(EnvAnswerFrame, AnswerFrameEnabled); err != nil {
-		return "", fmt.Errorf("request answer framing: %w", err)
-	}
-
-	var frame textbuf.Buffer
-	session.Stderr = &frame
-	output, err := session.Output(command)
-	rendered := strings.TrimSpace(string(output))
-	if err != nil {
-		answer, text := readAnswerFrame(strings.NewReader(frame.String()))
-		if answer.Message != "" {
-			return rendered, errors.New(answer.Message)
-		}
-		if text != "" {
-			return rendered, errors.New(trimErrorPrefix(text))
-		}
-		return rendered, err
-	}
-
-	return rendered, nil
+	return execCommandContext(context.Background(), creds, command)
 }
 
 // rawPipe is the pipe operator that asks the daemon to answer with the
@@ -136,7 +105,65 @@ func RawCommand(command string) string {
 // such caller a table to unmarshal. Each one degrades quietly, so the failure
 // is invisible until somebody asks why completion stopped offering peers.
 func ExecCommandRaw(creds Credentials, command string) (string, error) {
-	return ExecCommand(creds, RawCommand(command))
+	return execCommandContext(context.Background(), creds, RawCommand(command))
+}
+
+// ExecCommandRawContext is ExecCommandRaw bounded by ctx across TCP connect,
+// SSH handshake, authentication, session setup, and command execution.
+func ExecCommandRawContext(ctx context.Context, creds Credentials, command string) (string, error) {
+	return execCommandContext(ctx, creds, RawCommand(command))
+}
+
+// execCommandContext connects to the daemon via SSH and runs command under ctx.
+func execCommandContext(ctx context.Context, creds Credentials, command string) (string, error) {
+	client, err := dialDaemonContext(ctx, creds)
+	if err != nil {
+		return "", err
+	}
+	defer client.Close() //nolint:errcheck // best-effort cleanup
+
+	// Closing the client unblocks NewSession, Setenv, and Output when ctx
+	// ends, even when the daemon never answers channel teardown.
+	stopOnEnd := context.AfterFunc(ctx, func() {
+		client.Close() //nolint:errcheck,gosec // context ended; unblock SSH operation
+	})
+	defer stopOnEnd()
+
+	session, err := client.NewSession()
+	if err != nil {
+		if ctxErr := ctx.Err(); ctxErr != nil {
+			return "", fmt.Errorf("create session: %w", ctxErr)
+		}
+		return "", fmt.Errorf("create session: %w", err)
+	}
+	defer session.Close() //nolint:errcheck // best-effort cleanup
+
+	if err := session.Setenv(EnvAnswerFrame, AnswerFrameEnabled); err != nil {
+		if ctxErr := ctx.Err(); ctxErr != nil {
+			return "", fmt.Errorf("request answer framing: %w", ctxErr)
+		}
+		return "", fmt.Errorf("request answer framing: %w", err)
+	}
+
+	var frame textbuf.Buffer
+	session.Stderr = &frame
+	output, err := session.Output(command)
+	rendered := strings.TrimSpace(string(output))
+	if err != nil {
+		if ctxErr := ctx.Err(); ctxErr != nil {
+			return rendered, fmt.Errorf("run command: %w", ctxErr)
+		}
+		answer, text := readAnswerFrame(strings.NewReader(frame.String()))
+		if answer.Message != "" {
+			return rendered, errors.New(answer.Message)
+		}
+		if text != "" {
+			return rendered, errors.New(trimErrorPrefix(text))
+		}
+		return rendered, err
+	}
+
+	return rendered, nil
 }
 
 // errorPrefix is how the daemon's ssh exec handler formats a failure on the

@@ -189,6 +189,15 @@ type Server struct {
 	drainMu      sync.Mutex
 	drainCallers map[*process.Process]*drainCaller
 
+	// doctorWorkers holds one doctor check worker per live plugin generation
+	// whose registration declared DoctorChecks (doctor_worker.go).
+	// superviseProcess adds and removes each entry; RunDoctorChecks looks up
+	// the live worker for each plugin. doctorWorkersNotify is closed and reset
+	// on every addDoctorWorker so a caller racing startup wakes promptly.
+	doctorWorkersMu     sync.Mutex
+	doctorWorkers       map[*process.Process]*doctorWorker
+	doctorWorkersNotify chan struct{}
+
 	txLock txLock // Transaction exclusion (one config transaction at a time)
 
 	// reloadGen is the monotonic "reload processed" fence surfaced by
@@ -710,23 +719,6 @@ func (s *Server) CallFilterUpdate(ctx context.Context, pluginName string, route 
 			route.Filter(), pluginName, err)
 	}
 	return out, err
-}
-
-// CallDoctorCheck invokes a plugin's doctor check callback and returns diagnostics.
-func (s *Server) CallDoctorCheck(ctx context.Context, pluginName, checkName string) (*rpc.DoctorCheckOutput, error) {
-	pm := s.procManager.Load()
-	if pm == nil {
-		return nil, fmt.Errorf("doctor-check: no process manager")
-	}
-	proc := pm.GetProcess(pluginName)
-	if proc == nil {
-		return nil, fmt.Errorf("doctor-check: unknown plugin %q", pluginName)
-	}
-	conn := proc.Conn()
-	if conn == nil {
-		return nil, fmt.Errorf("doctor-check: plugin %q not connected", pluginName)
-	}
-	return conn.SendDoctorCheck(ctx, checkName)
 }
 
 // DoctorCheckPlugins returns plugin names and their doctor check registrations.

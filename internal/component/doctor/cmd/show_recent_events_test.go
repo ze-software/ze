@@ -1,16 +1,17 @@
 package cmd
 
 import (
-	"context"
 	"encoding/json"
 	"errors"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/require"
 
 	"github.com/ze-software/ze/internal/component/command/commandtest"
 	"github.com/ze-software/ze/internal/component/plugin"
+	pluginserver "github.com/ze-software/ze/internal/component/plugin/server"
 	"github.com/ze-software/ze/internal/core/diagnostic"
 	"github.com/ze-software/ze/internal/core/report"
 	"github.com/ze-software/ze/pkg/plugin/rpc"
@@ -45,13 +46,28 @@ func (owningDoctorCheckSource) DoctorCheckPlugins() map[string][]plugin.DoctorCh
 	}
 }
 
-func (s owningDoctorCheckSource) CallDoctorCheck(context.Context, string, string) (*rpc.DoctorCheckOutput, error) {
-	if s.fail {
-		return nil, errors.New("fixture-owning-connection-lost")
+func (s owningDoctorCheckSource) RunDoctorChecks(requests []pluginserver.DoctorCheckPluginRequest, _, _ time.Duration) []pluginserver.DoctorCheckPluginResult {
+	results := make([]pluginserver.DoctorCheckPluginResult, len(requests))
+	for i, req := range requests {
+		outcomes := make([]pluginserver.DoctorCheckOutcome, len(req.Checks))
+		for j, check := range req.Checks {
+			if s.fail {
+				outcomes[j] = pluginserver.DoctorCheckOutcome{
+					Check: check,
+					Err:   errors.New("fixture-owning-connection-lost"),
+				}
+				continue
+			}
+			outcomes[j] = pluginserver.DoctorCheckOutcome{
+				Check: check,
+				Output: &rpc.DoctorCheckOutput{Diagnostics: []rpc.DoctorCheckDiagnostic{{
+					Code: ownedWarningCode, Severity: "warning", Message: ownedCheckMessage,
+				}}},
+			}
+		}
+		results[i] = pluginserver.DoctorCheckPluginResult{Plugin: req.Plugin, Outcomes: outcomes}
 	}
-	return &rpc.DoctorCheckOutput{Diagnostics: []rpc.DoctorCheckDiagnostic{{
-		Code: ownedWarningCode, Severity: "warning", Message: ownedCheckMessage,
-	}}}, nil
+	return results
 }
 
 // TestShowDoctorListsAPluginOwnedWarningOnce raises a warning on the report

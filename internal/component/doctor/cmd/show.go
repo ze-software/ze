@@ -3,8 +3,8 @@
 package cmd
 
 import (
-	"context"
-	"sort"
+	"cmp"
+	"slices"
 	"time"
 
 	"github.com/ze-software/ze/internal/component/command"
@@ -19,6 +19,7 @@ import (
 
 const (
 	perCheckTimeout        = 5 * time.Second
+	doctorQueueWait        = 5 * time.Second
 	maxDiagnosticsPerCheck = 64
 )
 
@@ -60,12 +61,12 @@ func answerDaemonDoctor(source doctorCheckSource, callerName string, validated c
 }
 
 // doctorCheckSource is the running-plugin set the daemon route asks for doctor
-// checks: the declarations of the plugins it runs and the callback that runs
-// one of them. *pluginserver.Server is the one implementation; a test holds a
-// fixture.
+// checks: the declarations of the plugins it runs and the batch runner that
+// executes them concurrently across plugin generations. *pluginserver.Server is
+// the one production implementation; tests hold a fixture.
 type doctorCheckSource interface {
 	DoctorCheckPlugins() map[string][]plugin.DoctorCheckRegistration
-	CallDoctorCheck(ctx context.Context, pluginName, checkName string) (*rpc.DoctorCheckOutput, error)
+	RunDoctorChecks(requests []pluginserver.DoctorCheckPluginRequest, checkTimeout, queueWait time.Duration) []pluginserver.DoctorCheckPluginResult
 }
 
 // doctorCheckSourceOf answers the running-plugin set of a command context and
@@ -95,15 +96,21 @@ type pluginCheckAnswer struct {
 }
 
 // collectDoctorChecksFrom runs every doctor check the source's plugins
-// declared, skipping callerName's, in declared order, and answers their
-// findings with the fix each plugin named, and the codes of the checks that
-// answered.
+// declared, skipping callerName's, and answers their findings with the fix
+// each plugin named and the codes of the checks that answered.
 //
 // It calls every check a running plugin declared, whatever its phase: inside
 // the daemon a plugin's live state is there to read, so a runtime check and a
 // config-phase check are both answered here, and this is the only route that
 // runs a declared check.
 func collectDoctorChecksFrom(source doctorCheckSource, callerName string) pluginCheckAnswer {
+	return collectDoctorChecksWithTimeouts(source, callerName, perCheckTimeout, doctorQueueWait)
+}
+
+// collectDoctorChecksWithTimeouts is collectDoctorChecksFrom with explicit
+// check and queue-wait bounds so tests can exercise concurrency and timeouts
+// without mutating package globals.
+func collectDoctorChecksWithTimeouts(source doctorCheckSource, callerName string, checkTimeout, queueWait time.Duration) pluginCheckAnswer {
 	plugins := source.DoctorCheckPlugins()
 	if len(plugins) == 0 {
 		return pluginCheckAnswer{}
@@ -111,51 +118,108 @@ func collectDoctorChecksFrom(source doctorCheckSource, callerName string) plugin
 
 	platform, _ := host.DetectPlatform()
 
-	type pendingCheck struct {
+	type checkKey struct {
 		plugin string
-		check  plugin.DoctorCheckRegistration
+		check  string
 	}
-	var pending []pendingCheck
+	meta := make(map[checkKey]plugin.DoctorCheckRegistration)
+	requests := make([]pluginserver.DoctorCheckPluginRequest, 0, len(plugins))
 	for pluginName, checks := range plugins {
 		if pluginName == callerName {
 			continue
 		}
+		var matched []plugin.DoctorCheckRegistration
 		for _, check := range checks {
 			if !platformMatches(check.Platforms, platform) {
 				continue
 			}
-			pending = append(pending, pendingCheck{pluginName, check})
+			matched = append(matched, check)
+		}
+		if len(matched) == 0 {
+			continue
+		}
+		slices.SortFunc(matched, func(a, b plugin.DoctorCheckRegistration) int {
+			if c := cmp.Compare(a.Order, b.Order); c != 0 {
+				return c
+			}
+			return cmp.Compare(a.Name, b.Name)
+		})
+		names := make([]string, len(matched))
+		for i, check := range matched {
+			names[i] = check.Name
+			meta[checkKey{plugin: pluginName, check: check.Name}] = check
+		}
+		requests = append(requests, pluginserver.DoctorCheckPluginRequest{
+			Plugin: pluginName,
+			Checks: names,
+		})
+	}
+	if len(requests) == 0 {
+		return pluginCheckAnswer{}
+	}
+	slices.SortFunc(requests, func(a, b pluginserver.DoctorCheckPluginRequest) int {
+		return cmp.Compare(a.Plugin, b.Plugin)
+	})
+
+	results := source.RunDoctorChecks(requests, checkTimeout, queueWait)
+
+	type completedCheck struct {
+		plugin string
+		check  plugin.DoctorCheckRegistration
+		output *rpc.DoctorCheckOutput
+		err    error
+	}
+	var completed []completedCheck
+	for _, res := range results {
+		for _, outcome := range res.Outcomes {
+			reg := meta[checkKey{plugin: res.Plugin, check: outcome.Check}]
+			if reg.Name == "" {
+				reg.Name = outcome.Check
+			}
+			completed = append(completed, completedCheck{
+				plugin: res.Plugin,
+				check:  reg,
+				output: outcome.Output,
+				err:    outcome.Err,
+			})
 		}
 	}
-	sort.Slice(pending, func(i, j int) bool {
-		return pending[i].check.Order < pending[j].check.Order
+	slices.SortFunc(completed, func(a, b completedCheck) int {
+		if c := cmp.Compare(a.check.Order, b.check.Order); c != 0 {
+			return c
+		}
+		if c := cmp.Compare(a.plugin, b.plugin); c != 0 {
+			return c
+		}
+		return cmp.Compare(a.check.Name, b.check.Name)
 	})
 
 	var answer pluginCheckAnswer
-	for _, pc := range pending {
-		ctx, cancel := context.WithTimeout(context.Background(), perCheckTimeout)
-		out, err := source.CallDoctorCheck(ctx, pc.plugin, pc.check.Name)
-		cancel()
-		if err != nil {
+	for _, entry := range completed {
+		if entry.err != nil {
 			answer.diagnostics = append(answer.diagnostics, diagnostic.Diagnostic{
 				Code:     "doctor-plugin-unreachable",
 				Severity: diagnostic.SeverityWarning,
-				Message:  "plugin " + pc.plugin + " doctor check " + pc.check.Name + " failed: " + err.Error(),
-				Fix:      "ze request plugin restart " + pc.plugin,
+				Message:  "plugin " + entry.plugin + " doctor check " + entry.check.Name + " failed: " + entry.err.Error(),
+				Fix:      "ze request plugin restart " + entry.plugin,
 			})
 			continue
 		}
-		answer.addCodes(pc.check.Codes)
-		count := len(out.Diagnostics)
+		answer.addCodes(entry.check.Codes)
+		if entry.output == nil {
+			continue
+		}
+		count := len(entry.output.Diagnostics)
 		if count > maxDiagnosticsPerCheck {
 			count = maxDiagnosticsPerCheck
 			answer.diagnostics = append(answer.diagnostics, diagnostic.Diagnostic{
 				Code:     "doctor-plugin-excessive-diagnostics",
 				Severity: diagnostic.SeverityWarning,
-				Message:  "plugin " + pc.plugin + " check " + pc.check.Name + " returned too many diagnostics, truncated",
+				Message:  "plugin " + entry.plugin + " check " + entry.check.Name + " returned too many diagnostics, truncated",
+				Fix:      "ze show log recent component " + pluginserver.LogSubsystem,
 			})
 		}
-		for _, d := range out.Diagnostics[:count] {
+		for _, d := range entry.output.Diagnostics[:count] {
 			diag := doctor.PluginDiagnostic(d)
 			diag.Severity = normalizeSeverity(d.Severity)
 			answer.diagnostics = append(answer.diagnostics, diag)

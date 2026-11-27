@@ -14,10 +14,12 @@
 package doctor
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"strconv"
 	"sync/atomic"
+	"time"
 
 	"github.com/ze-software/ze/internal/component/cli/sshclient"
 	"github.com/ze-software/ze/internal/component/command"
@@ -27,6 +29,10 @@ import (
 
 // showDoctorCommand is the daemon form of ze doctor the local route sends.
 const showDoctorCommand = "show doctor"
+
+// daemonDoctorTimeout bounds the local route's SSH ask to the running daemon:
+// dialTimeout (10 s) + doctorQueueWait (5 s) + perCheckTimeout (5 s) + 2 s margin.
+const daemonDoctorTimeout = 22 * time.Second
 
 // The fix line of the doctor-runtime-not-checked row, one per reason no
 // daemon answered.
@@ -129,18 +135,32 @@ func askDaemonDoctor(tokens []string, configPath string, ask daemonAsk) (diagnos
 // askDaemonOverSSH is the production daemonAsk. It probes the daemon's SSH
 // listener before it loads any credential, so "no daemon runs" and "this
 // account cannot log in" get different fixes, then asks over SSH for the
-// dispatcher's JSON (`| raw`), whatever display format the operator set.
+// dispatcher's JSON (`| raw`) under daemonDoctorTimeout, whatever display
+// format the operator set.
 func askDaemonOverSSH(line string) (diagnostic.DoctorResult, error) {
+	return askDaemonOverSSHWithTimeout(line, daemonDoctorTimeout)
+}
+
+// askDaemonOverSSHWithTimeout is askDaemonOverSSH with an explicit deadline so
+// tests can prove timeout fallback without waiting for daemonDoctorTimeout.
+func askDaemonOverSSHWithTimeout(line string, timeout time.Duration) (diagnostic.DoctorResult, error) {
 	// The walk is sshclient.ReachDaemon, which `ze config validate` takes too;
 	// the stored credential is read with no prompt.
 	reached, err := sshclient.ReachDaemon("")
 	if err != nil {
 		return diagnostic.DoctorResult{}, daemonUnreached(err)
 	}
-	output, err := sshclient.ExecCommandRaw(reached.Credentials, line)
+	ctx, cancel := context.WithTimeout(context.Background(), timeout)
+	defer cancel()
+
+	output, err := sshclient.ExecCommandRawContext(ctx, reached.Credentials, line)
 	if err != nil {
 		var why textbuf.Buffer
-		why.Str("the daemon at ").Str(reached.Address).Str(" did not answer ").Str(line).Str(" (").Err(err).Str(")")
+		why.Str("the daemon at ").Str(reached.Address).Str(" did not answer ").Str(line)
+		if errors.Is(err, context.DeadlineExceeded) {
+			why.Str(" within ").Str(timeout.String())
+		}
+		why.Str(" (").Err(err).Str(")")
 		return diagnostic.DoctorResult{}, &daemonUnanswered{why: why.String(), fix: fixAskAsAccount}
 	}
 	return decodeDaemonDoctor(output, reached.Address)

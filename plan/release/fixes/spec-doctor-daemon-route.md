@@ -2,7 +2,7 @@
 
 | Field | Value |
 |-------|-------|
-| Status | ready |
+| Status | in-progress |
 | Scope | cli |
 | Priority | P1 |
 | Release reason | Doctor must run plugin checks concurrently in deterministic order without hanging on a slow SSH daemon exchange or leaving contradictory protocol docs. |
@@ -10,7 +10,7 @@
 | Depends | - |
 | Phase | - |
 | Handoff | - |
-| Updated | 2026-11-26 |
+| Updated | 2026-11-27 |
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.
 
@@ -116,7 +116,7 @@ unchanged.
 | Document | Section | Derived from | Binding statement | Verdict | How this design stands against it |
 |----------|---------|--------------|-------------------|---------|-----------------------------------|
 | `ai/doors/system.md` | Shared machinery you use rather than rebuild | the door every change reads; covering `internal/component/doctor/` | "A long-lived worker on a channel, never one per event" | agrees | Each live plugin generation declaring `DoctorChecks` owns one long-lived `doctorWorker` on a buffered-16 channel, started and stopped in `superviseProcess`; `show doctor` spawns zero goroutines per request |
-| `docs/architecture/api/process-protocol.md` | Engine to Plugin (Callbacks) | `// Design:` and anchors of `server.go`, `failure_policy.go`, `show.go`; modified by this spec | "Engine invokes a plugin's declared doctor check by name." | agrees | Preserves the Stage-1 `doctor-checks` declaration and `ze-plugin-callback:doctor-check` RPC contract while running different plugins' checks concurrently via per-generation workers; updates two stale sentences (lines 966, 2152) that already contradicted shipped `local_route.go` and `docs/architecture/doctor-and-health-checks.md` |
+| `docs/architecture/api/process-protocol.md` | Engine to Plugin (Callbacks) | `// Design:` and anchors of `server.go`, `failure_policy.go`, `show.go`; modified by this spec | "Engine invokes a plugin's declared doctor check by name, and the plugin returns diagnostics (`code`, `severity`, `message`, optional `fix`)." | agrees | Preserves the Stage-1 `doctor-checks` declaration and `ze-plugin-callback:doctor-check` RPC contract while running different plugins' checks concurrently via per-generation workers; updates two stale sentences (lines 966, 2152) that already contradicted shipped `local_route.go` and `docs/architecture/doctor-and-health-checks.md` |
 | `docs/architecture/api/architecture.md` | Implementation Status | anchored to `internal/component/plugin/server/server.go` | - | silent | Covers bus participant topology, delivery filters, and `\| implied`; silent on plugin doctor worker scheduling and SSH client exec deadlines |
 | `docs/architecture/api/commands.md` | Dispatch keys are YANG paths | `// Design:` of `show.go`; anchored to `server.go`, `show.go`, `sshclient/answer.go` | "The daemon registers each built-in handler under its YANG command path, derived from the tree" | agrees | `show doctor` remains registered under `ze-doctor:show-doctor` with unchanged YANG path, arguments, and pipe dispatch |
 | `docs/architecture/config/yang-config-design.md` | 1. Key Principle | anchored to `internal/component/plugin/server/server.go` | - | silent | Covers YANG module loading, validation layers, and config schema publication; silent on plugin doctor worker concurrency and SSH client exec deadlines |
@@ -147,7 +147,7 @@ unchanged.
 | `docs/architecture/api/commands.md` | Design decisions | `// Design:` of `show.go`; anchored to `server.go`, `show.go`, `sshclient/answer.go` | "A command may override any generic pipe operation that acts on its data, as long as the answer keeps the generic's data format: every data operator of the catalog is overridable, each held to its generic's answer shape; a format, paging, `save` and `log` are the data format or its display, and stay the generic's. In Thomas's words: "I believe it should be possible to overwrite more command as long as their data format is not changed."" | agrees | `show doctor` overrides no generic pipe operator and keeps its existing `DoctorResult` answer format |
 | `docs/architecture/api/commands.md` | Design decisions | `// Design:` of `show.go`; anchored to `server.go`, `show.go`, `sshclient/answer.go` | "A pipe operation works on the answer of the command before it. It may narrow the answer, extend it, transform it, or deliver it somewhere, such as saving it to a file. It never changes what the command does" | agrees | `\| raw` on `askDaemonOverSSH` selects raw JSON rendering of `show doctor`'s answer without altering what `show doctor` executes |
 | `docs/architecture/exabgp-bridge.md` | Design decisions | anchored to `internal/component/plugin/server/failure_policy.go` | "An ExaBGP script is an ordinary bus endpoint that runs the wrapper; the bridge config section and the internal bridge mode do not exist" | agrees | ExaBGP wrapper endpoints and config are untouched; any external endpoint declaring `DoctorChecks` uses the same `doctorWorker` path |
-| `docs/architecture/exabgp-bridge.md` | Design decisions | anchored to `internal/component/plugin/server/failure_policy.go` | "ExaBGP wrapper endpoints request `base64` (`plugin.FormatBase64`) UPDATE delivery at Stage 5 `ready` using Ze's positional counted wire grammar (`upd <flags> <local-as> <remote-as> <conn-id> <n>:<peer> <n>:<local> <n>:<router-id> <n>:<extra-addpath> <n>:<b64-body>`, zero key names, `0:` when absent) over pooled `WriteBatchFrame` `MuxConn` batching while keeping low-frequency control/session events as JSON; `ze exabgp plugin` renders hot IPv4/IPv6 unicast UPDATEs directly into a `[]byte` buffer from wire bytes and falls back to the wire-backed `Event` renderer for non-unicast families and error cases" | agrees | ExaBGP UPDATE encoding and batching are untouched by this spec |
+| `docs/architecture/exabgp-bridge.md` | Design decisions | anchored to `internal/component/plugin/server/failure_policy.go` | "ExaBGP wrapper endpoints request `base64` (`plugin.FormatBase64`) UPDATE delivery at Stage 5 `ready` using Ze's positional wire grammar (`upd <flags> <local-as> <remote-as> <conn-id> <peer> <local> <router-id> <extra-addpath> <n>:<b64-body>`, zero key names, `-` for absent metadata tokens, `0:` for an empty body) over pooled `WriteBatchFrame` `MuxConn` batching while keeping low-frequency control/session events as JSON; `ze exabgp plugin` renders hot IPv4/IPv6 unicast UPDATEs directly into a `[]byte` buffer from wire bytes and falls back to the wire-backed `Event` renderer for non-unicast families and error cases" | agrees | ExaBGP UPDATE encoding and batching are untouched by this spec |
 
 ## Data Flow (MANDATORY - see `ai/rules/architecture.md`)
 
@@ -175,9 +175,9 @@ unchanged.
 ### Boundaries Crossed
 | Boundary | How | Verified |
 |----------|-----|----------|
-| Operator process ↔ daemon | SSH exec of `show doctor \| raw` (or `show doctor config <resolved> \| raw`) through `sshclient.ExecCommandRawContext` under 22 s context deadline; `DoctorResult` JSON returned | No |
-| Daemon `doctor/cmd` ↔ `plugin/server` | `doctorCheckSource.RunDoctorChecks` dispatching ordered per-plugin batches to generation-scoped `doctorWorker` channels | No |
-| Daemon ↔ plugin (internal or forked) | Existing `ze-plugin-callback:doctor-check` RPC via `conn.SendDoctorCheck(ctx, checkName)`, unchanged on wire | No |
+| Operator process ↔ daemon | SSH exec of `show doctor \| raw` (or `show doctor config <resolved> \| raw`) through `sshclient.ExecCommandRawContext` under 22 s context deadline; `DoctorResult` JSON returned | Yes (`TestExecCommandRawContextBoundsHandshakeAndExec`, `TestAskDaemonOverSSHTimeoutFallsBackLocally`) |
+| Daemon `doctor/cmd` ↔ `plugin/server` | `doctorCheckSource.RunDoctorChecks` dispatching ordered per-plugin batches to generation-scoped `doctorWorker` channels | Yes (`TestCollectDoctorChecksConcurrent`, `TestDoctorWorkerLifecycle`) |
+| Daemon ↔ plugin (internal or forked) | Existing `ze-plugin-callback:doctor-check` RPC via `conn.SendDoctorCheck(ctx, checkName)`, unchanged on wire | Yes (`test/plugin/api-doctor-check.ci`, `test/plugin/doctor-owner-check-show.ci`) |
 
 ### Changed-Wire Census
 
@@ -209,7 +209,7 @@ No wire format, RPC method, YANG node, or JSON envelope changes in this spec. `s
 |----|-----------|--------------------------------|----------|--------------|--------|
 | A-1 | `Server.CallDoctorCheck` has no callers outside `internal/component/doctor/cmd/show.go` (and its three test doubles), so replacing it with `Server.RunDoctorChecks` leaves no broken callers or unwired exports | Repo-wide grep of `internal/`, `cmd/`, `pkg/`, `docs/`, and `ai/` on 2026-11-26 found only `server.go:716`, `show.go:68,137`, `show_test.go`, `show_unreachable_test.go`, `show_recent_events_test.go`, and the doc anchor `docs/architecture/api/process-protocol.md:2168` | Any extra caller would fail to compile and be migrated to `RunDoctorChecks` | `go test` across `internal/component/doctor/...` and `internal/component/plugin/server/...` | confirmed |
 | A-2 | The SDK processes `ze-plugin-callback:doctor-check` serially per plugin process, so serial execution within one plugin worker avoids premature sibling timeouts | Read `pkg/plugin/sdk/sdk_dispatch.go` (`bridgeEventLoop`, `eventLoop`) on 2026-11-26: both loops invoke ordinary callbacks inline | If SDK ever gained concurrent doctor callbacks, a plugin with many checks would still run safely serially in its worker | `pkg/plugin/sdk/sdk_dispatch.go` lines 194-255 | confirmed |
-| A-3 | Setting `conn.SetDeadline(handshakeDeadline)` on the raw TCP `net.Conn` before `ssh.NewClientConn` and clearing it after preserves `*LoginRefused` detection while bounding SSH handshake and password authentication | Read `internal/component/cli/sshclient/answer.go:257-289`: `keyAccepted` atomic bool is flipped in `HostKeyCallback` before authentication; `ssh.NewClientConn` runs both handshake and auth over `conn` | A timeout before `HostKeyCallback` returns a deadline error (not `LoginRefused`); a timeout during auth after host-key acceptance must surface `context.DeadlineExceeded`, NOT `LoginRefused` (check `ctx.Err()` before `keyAccepted.Load()`) | `TestExecCommandRawContextBoundsHandshakeAndExec` | unvalidated |
+| A-3 | Setting `conn.SetDeadline(handshakeDeadline)` on the raw TCP `net.Conn` before `ssh.NewClientConn` and clearing it after preserves `*LoginRefused` detection while bounding SSH handshake and password authentication | Read `internal/component/cli/sshclient/answer.go:257-289`: `keyAccepted` atomic bool is flipped in `HostKeyCallback` before authentication; `ssh.NewClientConn` runs both handshake and auth over `conn` | A timeout before `HostKeyCallback` returns a deadline error (not `LoginRefused`); a timeout during auth after host-key acceptance must surface `context.DeadlineExceeded`, NOT `LoginRefused` (check `ctx.Err()` before `keyAccepted.Load()`) | `TestExecCommandRawContextBoundsHandshakeAndExec` | confirmed |
 
 ### Risks
 | ID | Risk | Early signal | Mitigation / fallback |
@@ -495,3 +495,157 @@ none
 - [ ] Any lesson routed to its governing surface under `ai/rules/planning.md`; no lesson artifact created merely for closure
 - [ ] **Commit A:** code + tests + docs + edited spec + any journal rows owed by the work
 - [ ] **Commit B:** `remove plan/release/fixes/spec-doctor-daemon-route.md` only, in the same `./le commit create` script
+
+
+---
+
+## Implementation Summary
+
+### What Was Implemented
+- Added per-generation `doctorWorker` (`doctorWorkerQueueDepth = 16`, atomic queued/picked-up/expired CAS state, discard-expired-unrun, fresh per-check timeout from pickup, capacity-1 reply channel) and two-pass non-blocking fan-out `(*Server).RunDoctorChecks` in `internal/component/plugin/server/doctor_worker.go`.
+- Wired `startDoctorWorker(proc)` and `stopDoctorWorker()` before `applyFailurePolicy` in `(*Server).superviseProcess` (`internal/component/plugin/server/failure_policy.go`), added `doctorWorkersMu` / `doctorWorkers` / `doctorWorkersNotify` on `Server`, and deleted obsolete serial `(*Server).CallDoctorCheck` (`internal/component/plugin/server/server.go`).
+- Replaced the serial check loop in `collectDoctorChecksFrom` (`internal/component/doctor/cmd/show.go`) with `collectDoctorChecksWithTimeouts` submitting per-plugin ordered batches through `doctorCheckSource.RunDoctorChecks` (preserving caller-skip, platform filtering, `ownedCodes` exclusion on failure, `maxDiagnosticsPerCheck` truncation, `PluginDiagnostic` fix preservation, and `normalizeSeverity`) and sorting final entries deterministically by `(Order, plugin, check)`.
+- Adapted the three test doubles in `internal/component/doctor/cmd/show_test.go`, `show_unreachable_test.go`, and `show_recent_events_test.go` to `RunDoctorChecks` (approved by `ze-test-judge`) and added `TestCollectDoctorChecksConcurrent` and `TestDoctorWorkerLifecycle`.
+- Added context-bounded `dialDaemonContext` (`net.Dialer.DialContext`, `conn.SetDeadline`, `context.AfterFunc`, checking `ctx.Err()` and `isTimeoutError` before `keyAccepted.Load()` so timeouts are never misclassified as `*LoginRefused`) in `internal/component/cli/sshclient/answer.go` and `ExecCommandRawContext` / `execCommandContext` (registering `context.AfterFunc(ctx, func() { client.Close() })`) in `internal/component/cli/sshclient/client.go`, with `ExecCommand` and `ExecCommandRaw` delegating to `execCommandContext(context.Background(), ...)`.
+- Added `daemonDoctorTimeout = 22 * time.Second` and `askDaemonOverSSHWithTimeout` calling `sshclient.ExecCommandRawContext` in `internal/component/doctor/local_route.go`, naming the daemon address, command, timeout bound, and cause with `fixAskAsAccount` (`ze cli --user <name> -c "show doctor"`), plus `TestExecCommandRawContextBoundsHandshakeAndExec` and `TestAskDaemonOverSSHTimeoutFallsBackLocally`.
+- Updated `docs/architecture/api/process-protocol.md`, `docs/guide/health-checks.md`, and `docs/architecture/doctor-and-health-checks.md`, wrote `website/changes/fragments/doctor-daemon-route.md`, and cleared all external citations in `plan/release/fixes/spec-vrrp-owner-arp-rfc-defects.md`.
+
+### Bugs Found/Fixed
+- None beyond the three defects specified in Task.
+
+### Documentation Updates
+- `docs/architecture/api/process-protocol.md`: updated Stage-1 `Doctor Check Declaration` and `doctor-check` callback sections to describe concurrent per-generation doctor workers and the shipped local `ze doctor` SSH route; replaced stale `CallDoctorCheck` anchor with `doctor_worker.go -- doctorWorker, startDoctorWorker, RunDoctorChecks`, `server.go -- DoctorCheckPlugins`, `sdk_callbacks.go -- OnDoctorCheck`, and `show.go -- HandleDoctor, collectDoctorChecksFrom`.
+- `docs/guide/health-checks.md`: replaced stale "not during offline `ze doctor`" sentence under `External plugins (RPC)` with the shipped local-route behavior referencing `docs/architecture/doctor-and-health-checks.md`.
+- `docs/architecture/doctor-and-health-checks.md`: documented per-generation `doctorWorker`, `doctorWorkerQueueDepth = 16`, `doctorQueueWait = 5 s`, `perCheckTimeout = 5 s` from pickup, deterministic `(Order, plugin, check)` ordering, and `daemonDoctorTimeout = 22 s` bounded SSH ask (`ExecCommandRawContext`, `dialDaemonContext`), updating source and test anchors.
+- `./le doc check all`: zero issues on all three edited docs and all added source/test anchors (one unrelated pre-existing catalog drift on `plugin format` from another concurrent session in the shared checkout).
+
+### Deviations from Plan
+- Added `doctorWorkersNotify` channel on `Server` (`server.go`, `doctor_worker.go` `doctorWorkerOrNotify` / `awaitingDoctorWorkerStart`) so a `RunDoctorChecks` call arriving in the brief startup window between `StageRunning` and `superviseProcess` reaching `startDoctorWorker` wakes promptly on registration (bounded by `queueWait`) instead of failing spuriously.
+- Added unexported helpers `collectDoctorChecksWithTimeouts` (`show.go`) and `askDaemonOverSSHWithTimeout` (`local_route.go`) so unit tests exercise short timeouts without mutating package globals.
+
+## Mistake Log
+
+| Kind | What happened | What was true instead | How discovered | Action |
+|------|---------------|----------------------|----------------|--------|
+| none | | | | |
+
+## Implementation Audit
+
+### Requirements from Task
+| Requirement | Status | Location | Notes |
+|-------------|--------|----------|-------|
+| 1. Concurrent per-plugin-generation doctor checks and deterministic `(Order, plugin, check)` ordering | Done | `internal/component/plugin/server/doctor_worker.go:87-483`, `internal/component/plugin/server/failure_policy.go:41-56`, `internal/component/plugin/server/server.go:197-199`, `internal/component/doctor/cmd/show.go:106-229` | Replaces serial `CallDoctorCheck` loop completely; zero per-request goroutines |
+| 2. Bounded SSH handshake, authentication, and command execution on local `ze doctor` route (22 s) | Done | `internal/component/cli/sshclient/answer.go:269-369`, `internal/component/cli/sshclient/client.go:113-167`, `internal/component/doctor/local_route.go:35,140-167` | `ExecCommandRawContext` + `dialDaemonContext` + `daemonDoctorTimeout` = 22 s; preserves `*LoginRefused` and `fixAskAsAccount` |
+| 3. Fix stale protocol/guide docs and document worker concurrency and SSH bound | Done | `docs/architecture/api/process-protocol.md:955-970,2151-2161`, `docs/guide/health-checks.md:299-304`, `docs/architecture/doctor-and-health-checks.md:299-325,352-395` | Stale doc grep returns 0 matches; all new source/test anchors resolve |
+
+### Acceptance Criteria
+| AC ID | Status | Demonstrated By | Notes |
+|-------|--------|-----------------|-------|
+| AC-1 | Done | `TestDoctorWorkerLifecycle`, `TestCollectDoctorChecksConcurrent`, `test/plugin/api-doctor-check.ci` | Concurrent across plugins, serial within one plugin with fresh pickup timeout, depth-16 queue, 5 s `doctorQueueWait` with discard-expired-unrun, unreachable isolation excluding `ownedCodes`, deterministic `(Order, plugin, check)` sort |
+| AC-2 | Done | `TestCollectDoctorChecksConcurrent/caller-skip-omits-calling-plugin` (`internal/component/doctor/cmd/show_test.go:470-510`) | `collectDoctorChecksWithTimeouts` skips `pluginName == callerName` before `RunDoctorChecks` |
+| AC-3 | Done | `TestExecCommandRawContextBoundsHandshakeAndExec`, `TestAskDaemonOverSSHTimeoutFallsBackLocally` | Bounds TCP dial, SSH banner/handshake, password auth, and exec; preserves `*LoginRefused`; local fallback appends `doctor-runtime-not-checked` naming address, command, bound, cause, and `fixAskAsAccount` |
+| AC-4 | Done | `docs/architecture/api/process-protocol.md`, `docs/guide/health-checks.md`, `docs/architecture/doctor-and-health-checks.md`, stale grep + `./le doc check all` | All three docs updated and verified with zero stale claims |
+
+### Tests from TDD Plan
+| Test | Status | Location | Notes |
+|------|--------|----------|-------|
+| `TestCollectDoctorChecksConcurrent` | Done | `internal/component/doctor/cmd/show_test.go:201-511` | Exact name; 6 subtests covering all AC-1 and AC-2 scenarios; PASS under `-race` |
+| `TestDoctorWorkerLifecycle` | Done | `internal/component/plugin/server/doctor_worker_test.go:96-402` | Exact name; 4 subtests covering generation lifecycle/respawn, stopped worker, full queue expiry/discard, late callback exit; PASS under `-race` |
+| `TestExecCommandRawContextBoundsHandshakeAndExec` | Done | `internal/component/cli/sshclient/exec_timeout_test.go:28-287` | Exact name; 4 subtests covering banner stall, auth stall, exec stall, and refused login classification; PASS under `-race` |
+| `TestAskDaemonOverSSHTimeoutFallsBackLocally` | Done | `internal/component/doctor/answer_test.go:312-396` | Exact name; proves bounded fallback, warning fields, no credential leak, local checks retained; PASS under `-race` |
+
+### Files from Plan
+| File | Status | Notes |
+|------|--------|-------|
+| `internal/component/plugin/server/doctor_worker.go` | Done (created) | `doctorWorker`, `startDoctorWorker`, `RunDoctorChecks` |
+| `internal/component/plugin/server/doctor_worker_test.go` | Done (created) | `TestDoctorWorkerLifecycle` |
+| `internal/component/plugin/server/server.go` | Done (modified) | `doctorWorkersMu`, `doctorWorkers`, `doctorWorkersNotify`; removed `CallDoctorCheck` |
+| `internal/component/plugin/server/failure_policy.go` | Done (modified) | `superviseProcess` starts/stops `doctorWorker` beside `drainCaller` |
+| `internal/component/doctor/cmd/show.go` | Done (modified) | `doctorCheckSource.RunDoctorChecks`, `collectDoctorChecksWithTimeouts`, deterministic sort |
+| `internal/component/doctor/cmd/show_test.go` | Done (modified) | Adapted doubles (`ze-test-judge` approved) + `TestCollectDoctorChecksConcurrent` |
+| `internal/component/doctor/cmd/show_unreachable_test.go` | Done (modified) | Adapted `unreachableDoctorSource` (`ze-test-judge` approved) |
+| `internal/component/doctor/cmd/show_recent_events_test.go` | Done (modified) | Adapted `owningDoctorCheckSource` (`ze-test-judge` approved) |
+| `internal/component/cli/sshclient/client.go` | Done (modified) | `ExecCommandRawContext`, `execCommandContext` with `context.AfterFunc` |
+| `internal/component/cli/sshclient/answer.go` | Done (modified) | `dialDaemonContext`, `isTimeoutError`; `ctx.Err()` checked before `keyAccepted` |
+| `internal/component/cli/sshclient/exec_timeout_test.go` | Done (created) | `TestExecCommandRawContextBoundsHandshakeAndExec` |
+| `internal/component/doctor/local_route.go` | Done (modified) | `daemonDoctorTimeout` (22 s), `askDaemonOverSSHWithTimeout` |
+| `internal/component/doctor/answer_test.go` | Done (modified) | `TestAskDaemonOverSSHTimeoutFallsBackLocally` |
+| `docs/architecture/api/process-protocol.md` | Done (modified) | Fixed stale claims, updated anchors |
+| `docs/guide/health-checks.md` | Done (modified) | Fixed stale offline `ze doctor` sentence |
+| `docs/architecture/doctor-and-health-checks.md` | Done (modified) | Documented workers, deterministic sort, 22 s bounded SSH ask, anchors |
+
+### Audit Summary
+- **Total items:** 27 (3 Task requirements, 4 ACs, 4 TDD unit tests, 16 planned files)
+- **Done:** 27
+- **Partial:** 0
+- **Skipped:** 0
+- **Changed:** 0 (minor additive startup-notification & timeout-helper refinements noted in Deviations)
+
+## Goal Validation (BLOCKING)
+
+| Goal (from Task) | Evidence Type | Concrete Evidence |
+|------------------|---------------|-------------------|
+| Run plugin doctor checks concurrently across plugins via per-generation workers (zero per-request goroutines) in deterministic `(Order, plugin, check)` order without self-deadlock | Unit tests (`-race`) + functional `.ci` | `TestDoctorWorkerLifecycle` (PASS 3.19s, `-race`), `TestCollectDoctorChecksConcurrent` (PASS 3.15s, `-race`), `test/plugin/api-doctor-check.ci` (PASS 1.1s), `test/plugin/doctor-owner-check-show.ci` (PASS 1.6s) |
+| Bound local `ze doctor` SSH connect, handshake, auth, and exec to 22 s and degrade cleanly to local checks plus `doctor-runtime-not-checked` | Unit tests (`-race`) | `TestExecCommandRawContextBoundsHandshakeAndExec` (PASS 8.64s, `-race`), `TestAskDaemonOverSSHTimeoutFallsBackLocally` (PASS 100%, full Ze build tags) |
+| Eliminate contradictory stale documentation across protocol, guide, and architecture docs | Doc grep + `./le doc check all` + `./le doc ste check` | Stale grep returned 0 matches in `docs/architecture/api/process-protocol.md` and `docs/guide/health-checks.md`; all edited anchors resolved in `./le doc check all`; `./le doc ste check` OK |
+
+## Work Not Done
+
+| What was not done | Why | The spec that now owns it |
+|-------------------|-----|---------------------------|
+| none | All Task items, ACs (AC-1..AC-4), tests, docs, news fragment, and citer cleanups are complete | - |
+
+## Review Gate
+
+| Field | Value |
+|-------|-------|
+| Artifact | `tmp/review/doctor-daemon-route-b2a10001-1111-4000-8000-000000000001.md` |
+| `./le spec review check` | `review_gate: OK (13 code files, clean, hashes match tmp/review/doctor-daemon-route-b2a10001-1111-4000-8000-000000000001.md)` |
+| Rounds | 1 (0 BLOCKER, 0 ISSUE, 0 NOTE) |
+| Reviewer lenses used | Inline independent 3-lens `/ze-review` + `/ze-review-spec` (logic + wiring + spec completeness; security + edge cases + Ze Go style 7-question pass; concurrency/goroutine lifecycle + design documents + docs) |
+
+### Findings fixed
+| # | Severity | Finding | Location | Fixed by |
+|---|----------|---------|----------|----------|
+| - | none | Clean on Round 1 (0 BLOCKER, 0 ISSUE, 0 NOTE) | - | - |
+
+## Pre-Commit Verification
+
+### Files Exist (ls)
+| File | Exists | Evidence |
+|------|--------|----------|
+| `internal/component/plugin/server/doctor_worker.go` | Yes | `-rw-r--r-- 1 thomas thomas 14675 Nov 27 08:55 internal/component/plugin/server/doctor_worker.go` |
+| `internal/component/plugin/server/doctor_worker_test.go` | Yes | `-rw-r--r-- 1 thomas thomas 14777 Nov 27 08:53 internal/component/plugin/server/doctor_worker_test.go` |
+| `internal/component/cli/sshclient/exec_timeout_test.go` | Yes | `-rw-r--r-- 1 thomas thomas 7859 Nov 27 09:05 internal/component/cli/sshclient/exec_timeout_test.go` |
+| `website/changes/fragments/doctor-daemon-route.md` | Yes | `-rw-r--r-- 1 thomas thomas 1538 Nov 27 09:39 website/changes/fragments/doctor-daemon-route.md` |
+| `test/plugin/api-doctor-check.ci` | Yes | `-rw-r--r-- 1 thomas thomas 1706 Nov 24 19:37 test/plugin/api-doctor-check.ci` |
+| `test/plugin/doctor-owner-check-show.ci` | Yes | `-rw-r--r-- 1 thomas thomas 1739 Nov 24 19:37 test/plugin/doctor-owner-check-show.ci` |
+
+### AC Verified (grep/test)
+| AC ID | Claim | Fresh Evidence |
+|-------|-------|----------------|
+| AC-1 | Per-generation `doctorWorker`, depth-16 queue, 5 s `doctorQueueWait` discarding expired unrun, fresh `perCheckTimeout` at pickup, concurrent across plugins, serial within one plugin, deterministic `(Order, plugin, check)` sort, `CallDoctorCheck` deleted | `doctor_worker.go:21,87-483`, `failure_policy.go:41,54`, `show.go:106-229`; `git grep CallDoctorCheck internal/ cmd/ pkg/ docs/ ai/` returned 0 matches; `TestDoctorWorkerLifecycle` PASS (3.19s, `-race`); `TestCollectDoctorChecksConcurrent` PASS (3.15s, `-race`) |
+| AC-2 | Caller skip omits calling plugin before `RunDoctorChecks` | `show.go:128` (`if pluginName == callerName { continue }`) before `RunDoctorChecks`; `TestCollectDoctorChecksConcurrent/caller-skip-omits-calling-plugin` PASS (`-race`) |
+| AC-3 | 22 s bounded SSH ask via `ExecCommandRawContext` / `dialDaemonContext` preserving `*LoginRefused` and local fallback with `fixAskAsAccount` | `local_route.go:35,140-167`, `client.go:113-167`, `answer.go:269-369`; `TestExecCommandRawContextBoundsHandshakeAndExec` PASS (8.64s, `-race`); `TestAskDaemonOverSSHTimeoutFallsBackLocally` PASS (`-race`, full tags) |
+| AC-4 | Stale protocol and guide statements fixed; architecture doc updated with anchors | `grep -n "does not invoke plugin doctor checks\|does not reach plugins\|not during offline" docs/architecture/api/process-protocol.md docs/guide/health-checks.md` returned 0 matches; `./le doc check all` resolved all new anchors; `./le doc ste check` OK |
+
+### Wiring Verified (end-to-end)
+| Entry Point | .ci File | Verified |
+|-------------|----------|----------|
+| `show doctor` invoking Stage-1 plugin doctor check through daemon `HandleDoctor` -> `collectDoctorChecksFrom` -> `Server.RunDoctorChecks` -> `doctorWorker` | `test/plugin/api-doctor-check.ci` (read lines 1-64: configures `doctor-provider` declaring Stage-1 check and `doctor-checker` dispatching `show doctor`) | Yes (PASS 1.1s via `./le --name b2work test bgp plugin`) |
+| `show doctor` owner-registered check through `HandleDoctor` | `test/plugin/doctor-owner-check-show.ci` (read lines 1-70: configures `doctor-owner-check-show` dispatching `show doctor` against `doctor-missing-plugin.conf`) | Yes (PASS 1.6s via `./le --name b2work test bgp plugin`) |
+
+### Assumptions Resolved
+| ID | Final Status | Evidence |
+|----|--------------|----------|
+| A-1 | confirmed | `git grep -n CallDoctorCheck internal/ cmd/ pkg/ docs/ ai/` returned 0 matches; all packages compile and pass tests after removing `Server.CallDoctorCheck` |
+| A-2 | confirmed | `pkg/plugin/sdk/sdk_dispatch.go:194-255` processes callbacks serially per plugin; `TestCollectDoctorChecksConcurrent/serial-within-one-plugin-fresh-bound` confirms non-overlapping serial execution per plugin |
+| A-3 | confirmed | `TestExecCommandRawContextBoundsHandshakeAndExec` (`stalled-before-ssh-banner`, `stalled-during-password-auth`, `stalled-during-exec-command`, `refused-login-stays-login-refused`) PASS under `-race`: auth timeout returns `context.DeadlineExceeded`, refused password returns `*LoginRefused` |
+
+### Documentation Verified
+| Documentation claim or category | Source evidence | Verified |
+|---------------------------------|-----------------|----------|
+| `docs/architecture/api/process-protocol.md` (Plugin SDK/protocol) | `doctor_worker.go` (`doctorWorker`, `startDoctorWorker`, `RunDoctorChecks`), `show.go` (`HandleDoctor`, `collectDoctorChecksFrom`), `local_route.go` (`askDaemonOverSSH`); stale grep returned 0 matches | Yes |
+| `docs/guide/health-checks.md` (User guide) | `local_route.go` (`answerLocalWith`, `askDaemonOverSSH`, `runtimeNotChecked`); stale grep returned 0 matches | Yes |
+| `docs/architecture/doctor-and-health-checks.md` (Internal architecture) | `doctor_worker.go` (`doctorWorkerQueueDepth = 16`, `RunDoctorChecks`), `show.go` (`doctorQueueWait = 5 s`, `perCheckTimeout = 5 s`, deterministic sort), `local_route.go` (`daemonDoctorTimeout = 22 s`), `answer.go` (`dialDaemonContext`), `client.go` (`ExecCommandRawContext`); all anchors resolved in `./le doc check all` | Yes |
+| Non-applicable categories (config/YANG, CLI grammar, wire format, RFC, metrics, inventory) | Changed-Wire Census and `git diff --stat`: zero `.yang`, wire codec, metric, or plugin registry files changed | Yes |

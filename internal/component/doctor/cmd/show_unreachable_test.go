@@ -2,12 +2,13 @@
 package cmd
 
 import (
-	"context"
 	"errors"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/ze-software/ze/internal/component/plugin"
+	pluginserver "github.com/ze-software/ze/internal/component/plugin/server"
 	"github.com/ze-software/ze/internal/core/diagnostic"
 	"github.com/ze-software/ze/pkg/plugin/rpc"
 )
@@ -18,9 +19,20 @@ func (*unreachableDoctorSource) DoctorCheckPlugins() map[string][]plugin.DoctorC
 	return map[string][]plugin.DoctorCheckRegistration{"forwarding-west": {{Name: "fixture-check", Phase: rpc.DoctorPhaseRuntime, Platforms: []string{"any"}}}}
 }
 
-func (source *unreachableDoctorSource) CallDoctorCheck(_ context.Context, name, _ string) (*rpc.DoctorCheckOutput, error) {
-	source.called = name
-	return nil, errors.New("fixture-runtime-connection-lost")
+func (source *unreachableDoctorSource) RunDoctorChecks(requests []pluginserver.DoctorCheckPluginRequest, _, _ time.Duration) []pluginserver.DoctorCheckPluginResult {
+	results := make([]pluginserver.DoctorCheckPluginResult, len(requests))
+	for i, req := range requests {
+		source.called = req.Plugin
+		outcomes := make([]pluginserver.DoctorCheckOutcome, len(req.Checks))
+		for j, check := range req.Checks {
+			outcomes[j] = pluginserver.DoctorCheckOutcome{
+				Check: check,
+				Err:   errors.New("fixture-runtime-connection-lost"),
+			}
+		}
+		results[i] = pluginserver.DoctorCheckPluginResult{Plugin: req.Plugin, Outcomes: outcomes}
+	}
+	return results
 }
 
 func TestCollectUnreachablePluginDoctorCheckNamesRecovery(t *testing.T) {

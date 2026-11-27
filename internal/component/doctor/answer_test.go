@@ -3,10 +3,14 @@
 package doctor
 
 import (
+	"context"
 	"errors"
+	"net"
 	"path/filepath"
 	"strings"
+	"sync"
 	"testing"
+	"time"
 
 	"github.com/ze-software/ze/internal/component/command"
 	"github.com/ze-software/ze/internal/component/command/commandtest"
@@ -217,5 +221,100 @@ func TestDecodeDaemonDoctorRefusesAForeignAnswer(t *testing.T) {
 	}
 	if len(result.Diagnostics) != 1 || result.Diagnostics[0].Fix != "ze start" || !result.Ready {
 		t.Errorf("decoded %+v, want the one diagnostic with its fix, ready", result)
+	}
+}
+
+// TestAskDaemonOverSSHTimeoutFallsBackLocally proves AC-3 on the local ze
+// doctor route: when a listener accepts TCP connections (so ProbeDaemon
+// succeeds) but stalls before completing the SSH exchange, askDaemonOverSSH
+// expires at its bound and answerLocalWith falls back to local checks plus one
+// doctor-runtime-not-checked warning naming the timeout and login fix.
+//
+// VALIDATES: bounded askDaemonOverSSH fallback on a stalled SSH listener.
+// PREVENTS: ze doctor hanging indefinitely when a daemon accepts TCP but does
+// not answer show doctor.
+func TestAskDaemonOverSSHTimeoutFallsBackLocally(t *testing.T) {
+	isolateDoctorStore(t)
+
+	var listen net.ListenConfig
+	listener, err := listen.Listen(t.Context(), "tcp4", "127.0.0.1:0")
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, port, err := net.SplitHostPort(listener.Addr().String())
+	if err != nil {
+		t.Fatal(err)
+	}
+	address := net.JoinHostPort("127.0.0.1", port)
+
+	done := make(chan struct{})
+	var connsMu sync.Mutex
+	var accepted []net.Conn
+	go func() {
+		defer close(done)
+		for {
+			conn, acceptErr := listener.Accept()
+			if acceptErr != nil {
+				return
+			}
+			connsMu.Lock()
+			accepted = append(accepted, conn)
+			connsMu.Unlock()
+		}
+	}()
+	t.Cleanup(func() {
+		_ = listener.Close()
+		<-done
+		connsMu.Lock()
+		for _, conn := range accepted {
+			_ = conn.Close()
+		}
+		connsMu.Unlock()
+	})
+
+	t.Setenv("ze_ssh_host", "127.0.0.1")
+	t.Setenv("ze_ssh_port", port)
+	t.Setenv("ze_ssh_username", "operator")
+	t.Setenv("ze_ssh_password", "test-pass")
+	env.ResetCache()
+
+	const bound = 150 * time.Millisecond
+	start := time.Now()
+	result := localAnswer(t, func(line string) (diagnostic.DoctorResult, error) {
+		return askDaemonOverSSHWithTimeout(line, bound)
+	}, "--json")
+	elapsed := time.Since(start)
+
+	if elapsed >= 2*time.Second {
+		t.Fatalf("local route against stalled SSH listener took %v, want return near %v", elapsed, bound)
+	}
+	rows := notCheckedRows(result)
+	if len(rows) != 1 {
+		t.Fatalf("doctor-runtime-not-checked rows = %d, want 1: %+v", len(rows), result.Diagnostics)
+	}
+	row := rows[0]
+	if row.Severity != diagnostic.SeverityWarning {
+		t.Errorf("severity = %q, want warning", row.Severity)
+	}
+	if !strings.Contains(row.Message, address) {
+		t.Errorf("message %q does not name daemon address %q", row.Message, address)
+	}
+	if !strings.Contains(row.Message, showDoctorCommand) {
+		t.Errorf("message %q does not name command %q", row.Message, showDoctorCommand)
+	}
+	if !strings.Contains(row.Message, bound.String()) {
+		t.Errorf("message %q does not name timeout bound %q", row.Message, bound.String())
+	}
+	if !strings.Contains(row.Message, context.DeadlineExceeded.Error()) {
+		t.Errorf("message %q does not name deadline exceeded cause", row.Message)
+	}
+	if strings.Contains(row.Message, "test-pass") {
+		t.Errorf("message %q leaked SSH password credential", row.Message)
+	}
+	if row.Fix != fixAskAsAccount {
+		t.Errorf("fix = %q, want %q", row.Fix, fixAskAsAccount)
+	}
+	if len(result.Diagnostics) < 2 {
+		t.Errorf("fallback answered only the not-checked row, not the local checks: %+v", result.Diagnostics)
 	}
 }
