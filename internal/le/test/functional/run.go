@@ -18,9 +18,11 @@ import (
 	"fmt"
 	"io/fs"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"slices"
 	"strings"
+	"syscall"
 	"time"
 
 	"github.com/ze-software/ze/internal/core/env"
@@ -29,6 +31,7 @@ import (
 	gotoolchain "github.com/ze-software/ze/internal/le/go/toolchain"
 	"github.com/ze-software/ze/internal/le/job"
 	lepath "github.com/ze-software/ze/internal/le/le/path"
+	"github.com/ze-software/ze/internal/test/runner"
 )
 
 // killedByBudget is what `timeout` answers when it killed the command.
@@ -47,7 +50,7 @@ func sessionScratch(root string) (string, error) {
 // commandLine is the full argv one suite runs: the cap, then the binary, then
 // the suite.
 //
-// `timeout` heads the process group Execute starts it in (gaterun.StreamContext
+// `timeout` heads the process group Execute starts it in (runner.StartServerProcess
 // sets it up, and timeout's own setpgid keeps it) and signals the whole group on
 // expiry, so leaked grandchildren (ze daemons, tacacs mocks) die with it.
 func commandLine(suite Suite, set BinarySet) []string {
@@ -60,12 +63,11 @@ func commandLine(suite Suite, set BinarySet) []string {
 	return append(full, argv...)
 }
 
-// suiteGroupBound is how long an interrupted suite's process group is given to
-// empty once the cancel's SIGKILL has reached every member. A killed process
-// exits as soon as the kernel schedules it, so the bound is only the margin a
-// loaded host needs, and it stays inside the seconds an operator waits after a
-// Ctrl-C.
-const suiteGroupBound = 5 * time.Second
+// suiteStopGrace is how long an interrupted suite is given after SIGTERM to
+// reap children it started in their own process groups before Execute
+// escalates to SIGKILL on the suite's group. It stays short enough that a
+// TERM-ignoring runner still stops promptly on Ctrl-C.
+const suiteStopGrace = 3 * time.Second
 
 // interruptedCode is what a functional action answers when SIGINT or SIGTERM
 // stopped it, the shell's number for an interrupt and the verify engine's too.
@@ -73,28 +75,67 @@ const interruptedCode = 130
 
 // Execute runs one suite and answers its exit status and how long it took.
 //
-// The suite's `timeout` heads a process group of its own (gaterun.StreamContext),
-// and the runner it starts is in that group. A canceled ctx SIGKILLs the whole
-// group, so a runner that ignores SIGTERM stops with it. The runner's children
-// are not in that group: the runner puts each one in a process group of its own
-// (startWithETXTBSYRetry in internal/test/runner). On Linux each child carries
-// a parent-death signal, so the kernel kills it when the runner dies. One child
-// escapes: a netns-mode ze is a setcap'd binary, its exec clears that signal,
-// and it can outlive the runner. Execute then waits for the suite's group to
-// empty and says so when it does not. The caller MUST read ctx after the call:
-// a canceled run's code is the kill's (137), never a verdict of the suite.
+// The suite's `timeout` heads an owned process group (runner.StartServerProcess),
+// and the runner it starts is in that group. A canceled ctx sends SIGTERM to the
+// suite's group first so `le test bgp` can cancel its context and kill the
+// separate process groups of its children (such as a foreground helper and its
+// uv/python grandchild, where Linux Pdeathsig reaches only the direct child).
+// After suiteStopGrace, StopGroup escalates to SIGKILL on the suite's group and
+// joins the sole reaper, which waits for the group to empty before returning.
+// The caller MUST read ctx after the call: a canceled run's code is the stop's,
+// never a verdict of the suite.
 func Execute(ctx context.Context, tc gotoolchain.Toolchain, suite Suite, set BinarySet, cover string) (code, seconds int) {
-	environ := coverEnvironment(set.Environment(tc), cover)
-	started := time.Now()
-	code, group := gaterun.StreamContext(ctx, commandLine(suite, set), tc.Root, environ)
 	if ctx.Err() != nil {
-		if err := group.AwaitExit(context.WithoutCancel(ctx), suiteGroupBound); err != nil {
+		return gaterun.CannotStart, 0
+	}
+	argv := commandLine(suite, set)
+	//nolint:gosec // argv comes from the suite table and isolated BinarySet built by le
+	cmd := exec.CommandContext(context.WithoutCancel(ctx), argv[0], argv[1:]...)
+	cmd.Dir = tc.Root
+	cmd.Env = coverEnvironment(set.Environment(tc), cover)
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
+	started := time.Now()
+	owner, err := runner.StartServerProcess(cmd)
+	if err != nil {
+		var tb textbuf.Buffer
+		gaterun.Note(tb.Str("  cannot run ").Str(argv[0]).Str(": ").Err(err).String())
+		return gaterun.CannotStart, int(time.Since(started).Seconds())
+	}
+	defer func() {
+		_ = owner.Close() //nolint:errcheck // StopGroup already ran on cancel; Wait below reports the exit and any lifecycle error
+	}()
+
+	select {
+	case <-ctx.Done():
+		if stopErr := owner.StopGroup(syscall.SIGTERM, suiteStopGrace, interruptedCode); isSuiteCleanupError(stopErr) {
 			var tb textbuf.Buffer
-			gaterun.Note(tb.Str("      suite ").Str(suite.Name).Str(" was stopped, but its ").Err(err).
+			gaterun.Note(tb.Str("      suite ").Str(suite.Name).Str(" was stopped, but its ").Err(stopErr).
 				Str("; list them with `ps -A -o pid,pgid,command` and stop them by hand").String())
 		}
+	case <-owner.Done():
 	}
-	return code, int(time.Since(started).Seconds())
+
+	waitErr := owner.Wait()
+	if isSuiteCleanupError(waitErr) {
+		var tb textbuf.Buffer
+		gaterun.Note(tb.Str("      suite ").Str(suite.Name).Str(" cleanup failed: ").Err(waitErr).String())
+	}
+	return gaterun.ExitCode(waitErr), int(time.Since(started).Seconds())
+}
+
+// isSuiteCleanupError distinguishes process-group lifecycle or signaling
+// failures from a bare *exec.ExitError produced by an ordinary non-zero exit.
+func isSuiteCleanupError(err error) bool {
+	if err == nil {
+		return false
+	}
+	var joined interface{ Unwrap() []error }
+	if errors.As(err, &joined) {
+		return slices.ContainsFunc(joined.Unwrap(), isSuiteCleanupError)
+	}
+	var exit *exec.ExitError
+	return !errors.As(err, &exit) || errors.Unwrap(err) != nil
 }
 
 // coverEnvironment answers the environment one suite runs under: the binary

@@ -22,7 +22,8 @@
 
 # Linux-only: static `next { interface lo { } }` resolves loopback `lo` via the Linux netlink socket.
 option=needs-linux
-option=timeout:value=90s
+# 150s covers a cold `uv` wheel build after a pin change (~78s) plus BGP exchange.
+option=timeout:value=150s
 option=env:var=ze.log.bgp.rs:value=info
 
 tmpfs=exabgp.conf:terminator=EOF_EXABGP_CONF
@@ -204,6 +205,11 @@ def main():
             sys.stderr.flush()
             sys.stdout.write("shutdown\n")
             sys.stdout.flush()
+            # Keep the helper alive until ExaBGP processes shutdown and closes
+            # stdin so exabgp_api_terminate=true never mistakes a clean exit for
+            # a lost helper.
+            for _ in sys.stdin:
+                pass
             return 0
 
     if not completed:
@@ -226,6 +232,7 @@ unset PYTHONPATH
 export exabgp_tcp_port="$1"
 export exabgp_api_cli=false
 export exabgp_api_ack=false
+export exabgp_api_terminate=true
 export exabgp_debug_rotate=true
 export exabgp_debug_configuration=true
 export exabgp_api_socketname="exabgp-lsvpn-$1"
@@ -243,10 +250,10 @@ EOF_EXABGP_RUN
 
 stdin=source:terminator=EOF_SOURCE
 option=tcp_connections:value=1
-option=timeout:value=90s
+option=timeout:value=150s
 option=asn:value=65001
 option=linger:value=true
-option=await-file:path=exabgp.up:timeout=60s
+option=await-file:path=exabgp.up:timeout=120s
 # 1. LS72 Node 1 (RD 65001:7, Router-ID 192.0.2.9, received NH [8x00][192.0.2.9]):
 #    unmatched by modify:ls-nh6 -> trailing next-hop:auto rewrites to 12B [8x00][127.0.0.4].
 action=send:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF006902000000524001010040020602010000FDE9800E424004480C0000000000000000C0000209000001002D0000FDE90000000703000000000000010001000018020000040000FDE9020100041234567802030004C0000209
@@ -345,7 +352,7 @@ EOF_CONF
 
 cmd=background:seq=1:exec=le test peer --port $PORT:stdin=source
 cmd=background:seq=2:name=daemon:exec=ze -:stdin=ze-bgp:ready=Ze running.
-cmd=foreground:seq=3:exec=./run-exabgp.sh $PORT2:timeout=90s
+cmd=foreground:seq=3:exec=./run-exabgp.sh $PORT2:timeout=150s
 expect=exit:code=0
 expect=stderr:contains=OK: exabgp decoded ls72 ipv4=127.0.0.4 ipv6=2001:db8::fe withdraw=65001:7 control=10.88.1.0/24
 reject=stderr:pattern=panic

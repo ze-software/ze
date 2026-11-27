@@ -108,6 +108,74 @@ func TestGatingStopReapsSuiteGroupAndReleasesSet(t *testing.T) {
 	}
 }
 
+// gracefulStopStub models a real `le test bgp` runner: it places its own child
+// in a separate process group (as startWithETXTBSYRetry does), that child spawns
+// a sleeping grandchild (as uv spawns python/ExaBGP), and the runner's SIGTERM
+// handler kills the child's process group before exiting. An immediate SIGKILL
+// of the suite's group kills the runner before its handler can run, leaving the
+// grandchild orphaned outside the suite's group.
+const gracefulStopStub = `#!/bin/sh
+trap 'pgid=$(cat "%DIR%/child.pid" 2>/dev/null); [ -n "$pgid" ] && kill -KILL -"$pgid" 2>/dev/null; exit 130' TERM
+setsid sh -c 'sleep 300 & echo $! > "%DIR%/grandchild.pid"; echo $$ > "%DIR%/child.pid"; wait' &
+wait
+`
+
+// TestGatingStopLetsRunnerReapChildProcessGroup proves that canceling a gating
+// run signals the suite with SIGTERM before escalating to SIGKILL, giving the
+// suite's runner a chance to reap children it started in their own process
+// groups (such as a foreground test helper and its uv/python grandchild).
+//
+// MUTATION: Execute back on gaterun.StreamContext (immediate SIGKILL to the
+// suite group) kills the stub before its TERM trap runs, so the grandchild in
+// child_pgid survives past runPrepared and this test goes red.
+func TestGatingStopLetsRunnerReapChildProcessGroup(t *testing.T) {
+	scratch := t.TempDir()
+	testbin := filepath.Join(scratch, "testbin-pid-1-functional")
+	set := BinarySet{Dir: filepath.Join(testbin, "bin"), Remove: true}
+	if err := os.MkdirAll(set.Dir, 0o750); err != nil {
+		t.Fatal(err)
+	}
+	stub := strings.ReplaceAll(gracefulStopStub, "%DIR%", scratch)
+	if err := os.WriteFile(set.lePath(), []byte(stub), 0o700); err != nil { //nolint:gosec // an executable stub is the subject
+		t.Fatal(err)
+	}
+	covers := filepath.Join(scratch, "covdata")
+	suites := []Suite{{Name: "graceful", Args: []string{"graceful"}}}
+	tc := gotoolchain.Toolchain{Root: scratch}
+
+	ctx, cancel := context.WithCancel(t.Context())
+	defer cancel()
+	type answer struct{ code int }
+	done := make(chan answer, 1)
+	go func() {
+		_, code := runPrepared(ctx, tc, suites, set, covers, NewRun(len(suites)), newSuiteRecording("test"))
+		done <- answer{code: code}
+	}()
+
+	child := waitForPid(t, filepath.Join(scratch, "child.pid"))
+	grandchild := waitForPid(t, filepath.Join(scratch, "grandchild.pid"))
+	t.Cleanup(func() {
+		_ = syscall.Kill(-child, syscall.SIGKILL)
+		_ = syscall.Kill(grandchild, syscall.SIGKILL)
+	})
+	cancel()
+
+	var got answer
+	select {
+	case got = <-done:
+	case <-time.After(10 * time.Second):
+		t.Fatal("the canceled gating run did not return within 10s")
+	}
+	if got.code != interruptedCode {
+		t.Errorf("code = %d, want the interrupt's %d", got.code, interruptedCode)
+	}
+	for name, pid := range map[string]int{"child": child, "grandchild": grandchild} {
+		if !processGone(pid, 2*time.Second) {
+			t.Errorf("%s %d survived the canceled gating run", name, pid)
+		}
+	}
+}
+
 // waitForPid reads the pid the stub writes, failing after ten seconds.
 func waitForPid(t *testing.T, path string) int {
 	t.Helper()

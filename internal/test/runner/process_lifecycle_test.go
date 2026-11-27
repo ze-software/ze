@@ -336,3 +336,87 @@ func TestOwnedCancellationJoinsLifetime(t *testing.T) {
 		t.Fatalf("canceled child exit=%v", p.Wait())
 	}
 }
+
+// TestForegroundHelperGrandchildReapedOnEveryExit proves that a foreground
+// helper's process group — including a grandchild that outlives the direct
+// child (as python/ExaBGP outlives uv when only the direct child is signaled)
+// — is reaped on pass, failure, and timeout.
+func TestForegroundHelperGrandchildReapedOnEveryExit(t *testing.T) {
+	zero := 0
+	for _, tc := range []struct {
+		name      string
+		script    string
+		timeout   string
+		wantPass  bool
+		wantError string
+	}{
+		{
+			name: "pass",
+			script: `sleep 300 &
+echo $! > "$GRANDCHILD_PID_FILE"
+exit 0
+`,
+			timeout:  "5s",
+			wantPass: true,
+		},
+		{
+			name: "fail",
+			script: `sleep 300 &
+echo $! > "$GRANDCHILD_PID_FILE"
+exit 17
+`,
+			timeout:   "5s",
+			wantPass:  false,
+			wantError: "expected exit code 0, got 17",
+		},
+		{
+			name: "timeout",
+			script: `sleep 300 &
+echo $! > "$GRANDCHILD_PID_FILE"
+wait
+`,
+			timeout:   "300ms",
+			wantPass:  false,
+			wantError: "foreground helper did not exit within 300ms",
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			pidFile := filepath.Join(t.TempDir(), "grandchild.pid")
+			script := filepath.Join(t.TempDir(), "helper.sh")
+			if err := os.WriteFile(script, []byte(tc.script), 0o600); err != nil {
+				t.Fatal(err)
+			}
+			r, rec := lastHelperRecord(t, "fg-grandchild-"+tc.name, tc.timeout, &RunCommand{
+				Mode: modeForeground, Seq: 1, Exec: `sh "` + script + `"`, ExitCode: &zero,
+			})
+			rec.EnvVars = append(rec.EnvVars, "GRANDCHILD_PID_FILE="+pidFile)
+			if tc.wantPass {
+				rec.ExpectExitCode = &zero
+			}
+			passed := r.runTest(t.Context(), rec, &RunOptions{})
+			if passed != tc.wantPass {
+				t.Fatalf("passed=%v, want %v (error=%v)", passed, tc.wantPass, rec.Error)
+			}
+			if tc.wantError != "" && (rec.Error == nil || !strings.Contains(rec.Error.Error(), tc.wantError)) {
+				t.Errorf("error=%v, want %q", rec.Error, tc.wantError)
+			}
+			raw, err := os.ReadFile(pidFile)
+			if err != nil {
+				t.Fatalf("grandchild pid not written: %v", err)
+			}
+			pid, err := strconv.Atoi(strings.TrimSpace(string(raw)))
+			if err != nil || pid <= 0 {
+				t.Fatalf("invalid grandchild pid %q: %v", raw, err)
+			}
+			t.Cleanup(func() { _ = syscall.Kill(pid, syscall.SIGKILL) })
+			deadline := time.Now().Add(2 * time.Second)
+			for !errors.Is(syscall.Kill(pid, 0), syscall.ESRCH) {
+				if !time.Now().Before(deadline) {
+					t.Errorf("foreground helper grandchild %d survived %s exit", pid, tc.name)
+					break
+				}
+				time.Sleep(10 * time.Millisecond)
+			}
+		})
+	}
+}

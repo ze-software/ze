@@ -145,7 +145,10 @@ second `Cmd.Wait`. `Close` immediately kills the owned group. `Stop` instead
 sends the caller's signal to the leader under the retirement lock, waits for its
 explicit grace, then kills the group and joins if needed. `StopGroup` uses the
 same ownership and cleanup, sending the initial signal to the whole group.
-The QEMU suite deadline uses it for TERM and a fifteen-second KILL grace.
+The QEMU suite deadline uses it for TERM and a fifteen-second KILL grace, and
+functional suite `Execute` (`internal/le/test/functional/run.go`) uses it for
+TERM and a three-second KILL grace so `le test bgp` can cancel its context and
+reap children started in their own process groups before escalation.
 Browser cleanup retains TERM and the
 canonical ten-second `TeardownGraceTimeout`; normal hugepage VM shutdown retains
 INT and its existing ten-second grace. Deliberate native PPP peer departure
