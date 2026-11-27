@@ -135,6 +135,7 @@ func send(w dns.ResponseWriter, msg *dns.Msg, datagramLimit int, log *slog.Logge
 		transport = transportDatagram
 		msg.Truncate(datagramLimit)
 	}
+	// refuse-by-default: guards recordWriteFailure -- per-query reply write failures are counted in ze_dns_reply_write_failure_total; logging WARN per dropped query would flood the log
 	if err := w.WriteMsg(msg); err != nil {
 		recordWriteFailure(transport)
 		log.Debug("dnsserver: reply write failed", "transport", transport, logKeyError, err)

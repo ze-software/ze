@@ -624,7 +624,9 @@ func (m *Manager) dohHandler(localAddr net.Addr) http.HandlerFunc {
 		var tb textbuf.Buffer
 		w.Header().Set("Cache-Control", tb.Str("max-age=").Uint(uint64(dohFreshness(rw.msg))).String())
 		w.WriteHeader(http.StatusOK)
+		// refuse-by-default: guards recordWriteFailure -- per-query DoH reply write failures are counted in ze_dns_reply_write_failure_total; logging WARN per dropped query would flood the log
 		if _, werr := w.Write(out); werr != nil {
+			recordWriteFailure(transportStream)
 			m.log.Debug("dnsserver: doh response write", logKeyError, werr)
 		}
 	}

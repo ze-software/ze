@@ -21,6 +21,10 @@ const (
 // doctor-conntrack-procfs` answers.
 const codeConntrackProcfs = "doctor-conntrack-procfs"
 
+// codeUpdateHistoryPersistFailed names a failure to persist the self-update
+// history ring to the daemon's zefs store under meta/config/update-history.
+const codeUpdateHistoryPersistFailed = "doctor-update-history-persist-failed"
+
 // doctorDiagnosticCodes is the explanation metadata for the doctor codes this package owns.
 var doctorDiagnosticCodes = []diagnostic.CodeMeta{
 	{
@@ -59,6 +63,12 @@ var doctorDiagnosticCodes = []diagnostic.CodeMeta{
 		Description: "The configured firmware update-check URL did not respond to an HTTP HEAD probe within the timeout.",
 		Examples:    []string{exampleDoctorJSON, "ze show diagnostic doctor-update-check-unreachable"},
 	},
+	{
+		Code:        codeUpdateHistoryPersistFailed,
+		Title:       "Update history failed to persist",
+		Description: "The self-updater could not write the update event history to the daemon store under meta/config/update-history, so recent update events stay in memory and will not survive a daemon restart. Check store health and disk space with ze show data check.",
+		Examples:    []string{exampleShowDoctor, "ze show data check", "ze show diagnostic doctor-update-history-persist-failed"},
+	},
 }
 
 func init() {
@@ -66,5 +76,8 @@ func init() {
 		if err := diagnostic.Register(meta); err != nil {
 			panic("BUG: system: doctor code registration refused: " + err.Error())
 		}
+	}
+	if err := diagnostic.RegisterEventCode(diagnostic.EventCode{Code: codeUpdateHistoryPersistFailed}); err != nil {
+		panic("BUG: system: doctor event code registration refused: " + err.Error())
 	}
 }

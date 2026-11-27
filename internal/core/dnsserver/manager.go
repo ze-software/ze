@@ -234,6 +234,7 @@ func (m *Manager) bind(ep string, listen netip.AddrPort) error {
 	}
 	ln, err := lc.Listen(context.Background(), "tcp", ep)
 	if err != nil {
+		// refuse-by-default: guards bindListeners -- the TCP bind error is returned to the caller; closing the already-bound UDP socket is teardown cleanup nobody can act on
 		if cerr := pc.Close(); cerr != nil {
 			m.log.Debug("dnsserver: closing udp after tcp bind failure", "endpoint", ep, logKeyError, cerr)
 		}
@@ -340,6 +341,7 @@ func (m *Manager) Stop() {
 
 	for _, s := range m.servers {
 		ctx, cancel := context.WithTimeout(context.Background(), drainTimeout)
+		// refuse-by-default: guards reconcile -- listener teardown continues across remaining servers after generation++ and any port left bound is reported by the next bindListeners
 		if err := s.ShutdownContext(ctx); err != nil {
 			m.log.Debug("dnsserver: listener shutdown", logKeyError, err)
 		}
@@ -347,6 +349,7 @@ func (m *Manager) Stop() {
 	}
 	for _, hs := range m.httpServers {
 		ctx, cancel := context.WithTimeout(context.Background(), drainTimeout)
+		// refuse-by-default: guards reconcile -- DoH listener teardown continues across remaining servers after generation++ and any port left bound is reported by the next bindListeners
 		if err := hs.Shutdown(ctx); err != nil {
 			m.log.Debug("dnsserver: doh listener shutdown", logKeyError, err)
 		}

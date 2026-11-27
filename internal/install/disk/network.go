@@ -93,9 +93,13 @@ func waitForCarrier(ifName string) {
 }
 
 func fallbackDHCP() error {
-	entries, err := os.ReadDir("/sys/class/net")
+	return fallbackDHCPIn("/sys/class/net")
+}
+
+func fallbackDHCPIn(sysnetDir string) error {
+	entries, err := os.ReadDir(sysnetDir)
 	if err != nil {
-		return fmt.Errorf("read /sys/class/net: %w", err)
+		return fmt.Errorf("read %s: %w", sysnetDir, err)
 	}
 
 	for _, entry := range entries {
@@ -104,7 +108,12 @@ func fallbackDHCP() error {
 			continue
 		}
 		if upErr := linkUp(name); upErr != nil {
-			slog.Debug("network: linkUp failed", "iface", name, "error", upErr)
+			slog.Warn(
+				"network: link bring-up failed; cannot detect carrier or acquire an install lease on this interface",
+				"iface", name,
+				"fix", "check NIC hardware/driver or pin a working interface with ze.mac=<mac>",
+				"error", upErr,
+			)
 		}
 	}
 
@@ -117,7 +126,7 @@ func fallbackDHCP() error {
 				continue
 			}
 			var tb textbuf.Buffer
-			carrierPath := tb.Str("/sys/class/net/").Str(name).Str("/carrier").String()
+			carrierPath := tb.Str(sysnetDir).Byte('/').Str(name).Str("/carrier").String()
 			data, readErr := os.ReadFile(carrierPath) //nolint:gosec // sysfs path
 			if readErr == nil && strings.TrimSpace(string(data)) == "1" {
 				carrierFound = true

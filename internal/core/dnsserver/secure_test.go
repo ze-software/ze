@@ -7,7 +7,9 @@ import (
 	"crypto/x509"
 	"encoding/base64"
 	"encoding/binary"
+	"errors"
 	"io"
+	"log/slog"
 	"net"
 	"net/http"
 	"net/netip"
@@ -19,6 +21,7 @@ import (
 
 	"github.com/miekg/dns"
 
+	"github.com/ze-software/ze/internal/core/metrics"
 	"github.com/ze-software/ze/internal/core/selfcert"
 )
 
@@ -745,5 +748,68 @@ func TestDoTRobustToIdleConnectionClose(t *testing.T) {
 	}
 	if len(resp.Answer) != 1 {
 		t.Fatalf("expected 1 answer after reconnect, got %d", len(resp.Answer))
+	}
+}
+
+type failingHTTPResponseWriter struct {
+	header http.Header
+	status int
+	err    error
+}
+
+func (w *failingHTTPResponseWriter) Header() http.Header { return w.header }
+
+func (w *failingHTTPResponseWriter) WriteHeader(code int) { w.status = code }
+
+func (w *failingHTTPResponseWriter) Write([]byte) (int, error) { return 0, w.err }
+
+// VALIDATES: AC-3 -- when http.ResponseWriter.Write fails in Manager.dohHandler,
+// ze_dns_reply_write_failure_total{transport="stream"} increments by 1 and the
+// handler returns cleanly without emitting per-query Warn or Error logs.
+// PREVENTS: DoH response write failures being silently dropped at Debug with no
+// Prometheus counter increment.
+//
+// Not parallel: swaps the package metrics registry shared by this package.
+func TestDoHHandlerWriteFailureCountsMetric(t *testing.T) {
+	rec := newCountingRegistry()
+	SetMetricsRegistry(rec)
+	t.Cleanup(func() { SetMetricsRegistry(metrics.NopRegistry{}) })
+
+	var logged bytes.Buffer
+	log := slog.New(slog.NewTextHandler(&logged, &slog.HandlerOptions{Level: slog.LevelDebug}))
+	mgr := New(log, echoHandler("10.0.0.8"), Options{})
+	h := mgr.dohHandler(&net.TCPAddr{IP: net.IPv4(127, 0, 0, 1), Port: 443})
+
+	req, err := http.NewRequestWithContext(context.Background(), http.MethodPost,
+		"https://127.0.0.1/dns-query", bytes.NewReader(mustPack(t, "doh-write-fail.test")))
+	if err != nil {
+		t.Fatalf("new request: %v", err)
+	}
+	req.Header.Set("Content-Type", dohContentType)
+	req.RemoteAddr = "192.0.2.10:54321"
+
+	fw := &failingHTTPResponseWriter{
+		header: make(http.Header),
+		err:    errors.New("write: broken pipe"),
+	}
+	h(fw, req)
+
+	if fw.status != http.StatusOK {
+		t.Fatalf("status = %d, want %d so w.Write(out) is exercised", fw.status, http.StatusOK)
+	}
+	const streamKey = "ze_dns_reply_write_failure_total{stream}"
+	if got := rec.get(streamKey); got != 1 {
+		t.Errorf("%s = %v, want 1 after one failed DoH response write", streamKey, got)
+	}
+	const datagramKey = "ze_dns_reply_write_failure_total{datagram}"
+	if got := rec.get(datagramKey); got != 0 {
+		t.Errorf("%s = %v, want 0 for a stream DoH transport", datagramKey, got)
+	}
+	logOut := logged.String()
+	if strings.Contains(logOut, "level=WARN") || strings.Contains(logOut, "level=ERROR") {
+		t.Errorf("DoH write failure emitted per-query Warn/Error log (flood risk):\n%s", logOut)
+	}
+	if !strings.Contains(logOut, "level=DEBUG") {
+		t.Errorf("DoH write failure missing Debug diagnostic line:\n%s", logOut)
 	}
 }

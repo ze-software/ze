@@ -311,6 +311,7 @@ func readStdinConfig() (data []byte, stdinOpen bool, err error) {
 // (internal/component/doctor/checks_daemon_capabilities.go) shows the same inventory.
 func logDaemonCapabilities(missing []privilege.Capability, err error) {
 	hubLog := slogutil.Logger("hub")
+	// refuse-by-default: guards privilege.CheckPrivileges -- capability inventory at boot is informational before config loads; each configured feature checks its own capability and doctor daemon-capabilities reports the same read failure at info severity
 	if err != nil {
 		hubLog.Debug("ze cannot determine the capabilities it runs with; each configured feature that needs one checks for it and reports its own impact",
 			"err", err)

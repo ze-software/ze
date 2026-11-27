@@ -8,16 +8,20 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"net/http"
 	"net/http/httptest"
 	"os"
 	"path/filepath"
 	"runtime"
+	"slices"
 	"strings"
 	"testing"
 	"time"
 
 	"github.com/ze-software/ze/internal/component/config/storage"
+	"github.com/ze-software/ze/internal/core/diagnostic"
+	"github.com/ze-software/ze/internal/core/report"
 	"github.com/ze-software/ze/internal/core/statestore"
 	"github.com/ze-software/ze/pkg/zefs"
 )
@@ -990,5 +994,130 @@ func TestRedirectWithinOriginFollowed(t *testing.T) {
 	}
 	if !bytes.Equal(staged, binary) {
 		t.Error("staged binary is not the one behind the same-origin redirect")
+	}
+}
+
+type failingWriteStore struct {
+	statestore.Storage
+	writeErr error
+}
+
+func (s *failingWriteStore) WriteKey(string, []byte) error {
+	return s.writeErr
+}
+
+// VALIDATES: AC-2 -- doctor-update-history-persist-failed is registered in both
+// diagnostic metadata (ze show diagnostic) and diagnostic.EventCodes (the
+// recent-events doctor check).
+// PREVENTS: a self-update history persistence Warn log carrying a code that
+// doctor-coverage refuses or that ze show doctor / ze show diagnostic cannot
+// report.
+func TestSelfUpdateHistoryDoctorCodeRegistered(t *testing.T) {
+	meta := diagnostic.Lookup(codeUpdateHistoryPersistFailed)
+	if meta == nil {
+		t.Fatalf("diagnostic.Lookup(%q) = nil, want registered CodeMeta", codeUpdateHistoryPersistFailed)
+	}
+	if meta.Code != codeUpdateHistoryPersistFailed {
+		t.Errorf("CodeMeta.Code = %q, want %q", meta.Code, codeUpdateHistoryPersistFailed)
+	}
+	if meta.Title == "" || meta.Description == "" {
+		t.Errorf("CodeMeta for %q has empty title or description: %+v", codeUpdateHistoryPersistFailed, meta)
+	}
+	if !slices.Contains(diagnostic.EventCodes(), codeUpdateHistoryPersistFailed) {
+		t.Errorf("diagnostic.EventCodes() does not contain %q", codeUpdateHistoryPersistFailed)
+	}
+}
+
+// VALIDATES: AC-2 -- when statestore.Put fails during selfUpdater.recordEvent,
+// saveHistory logs at Warn with code=doctor-update-history-persist-failed,
+// names meta/config/update-history and the fix (ze show data check), raises one
+// bounded transient event on internal/core/report, keeps the event in memory,
+// and leaks neither the configured update URL nor its credentials.
+// PREVENTS: silent loss of update history persistence errors at default WARN
+// log level or credential leakage into logs and the report bus.
+func TestSelfUpdateSaveHistoryFailureWarnsAndRaisesEvent(t *testing.T) {
+	const (
+		wantFix  = "ze show data check"
+		wantHost = "updates.example.test"
+	)
+
+	prevStore := statestore.Store()
+	statestore.SetStore(&failingWriteStore{writeErr: errors.New("disk full: read-only filesystem")})
+	t.Cleanup(func() { statestore.SetStore(prevStore) })
+
+	report.ResetForTest()
+	t.Cleanup(report.ResetForTest)
+
+	su := newSelfUpdater(withUserinfo("https://"+wantHost+"/version.json"), 86400, SelfUpdateConfig{}, nil)
+	su.nowFunc = func() time.Time { return time.Date(2026, 5, 21, 12, 0, 0, 0, time.UTC) }
+
+	logged := captureStderr(t, func() {
+		su.recordEvent("26.01.01", "26.05.20", "success")
+	})
+
+	events := su.History()
+	if len(events) != 1 || events[0].Result != "success" {
+		t.Fatalf("in-memory history = %+v, want 1 success event kept despite persist failure", events)
+	}
+
+	if !strings.Contains(logged, "level=WARN") {
+		t.Errorf("stderr log missing level=WARN:\n%s", logged)
+	}
+	if !strings.Contains(logged, "code="+codeUpdateHistoryPersistFailed) {
+		t.Errorf("stderr log missing code=%s:\n%s", codeUpdateHistoryPersistFailed, logged)
+	}
+	if !strings.Contains(logged, zefs.KeyConfigUpdateHistory.Pattern) {
+		t.Errorf("stderr log missing key %q:\n%s", zefs.KeyConfigUpdateHistory.Pattern, logged)
+	}
+	if !strings.Contains(logged, wantFix) {
+		t.Errorf("stderr log missing fix %q:\n%s", wantFix, logged)
+	}
+	if !strings.Contains(logged, "disk full") {
+		t.Errorf("stderr log missing underlying store error:\n%s", logged)
+	}
+	requireNoCredential(t, "self-update history warn log", logged)
+	if strings.Contains(logged, wantHost) {
+		t.Errorf("self-update history warn log leaked update URL host %q:\n%s", wantHost, logged)
+	}
+
+	var matched []report.Issue
+	for _, issue := range report.Errors(0) {
+		if issue.Code == codeUpdateHistoryPersistFailed {
+			matched = append(matched, issue)
+		}
+	}
+	if len(matched) != 1 {
+		t.Fatalf("report.Errors count for %q = %d, want 1 (all=%+v)", codeUpdateHistoryPersistFailed, len(matched), report.Errors(0))
+	}
+	got := matched[0]
+	if got.Fix != wantFix {
+		t.Errorf("report issue Fix = %q, want %q", got.Fix, wantFix)
+	}
+	if !strings.Contains(got.Subject, zefs.KeyConfigUpdateHistory.Pattern) && !strings.Contains(got.Message, zefs.KeyConfigUpdateHistory.Pattern) {
+		t.Errorf("report issue neither Subject (%q) nor Message (%q) names %q", got.Subject, got.Message, zefs.KeyConfigUpdateHistory.Pattern)
+	}
+	requireNoCredential(t, "report issue message", got.Message)
+	requireNoCredential(t, "report issue subject", got.Subject)
+	requireNoCredential(t, "report issue fix", got.Fix)
+	if strings.Contains(got.Message, wantHost) || strings.Contains(got.Subject, wantHost) {
+		t.Errorf("report issue leaked update URL host %q: subject=%q message=%q", wantHost, got.Subject, got.Message)
+	}
+
+	// Repeated failure inside the 1-minute deduplication window must not add a
+	// second report-bus entry while still keeping the new event in memory.
+	_ = captureStderr(t, func() {
+		su.recordEvent("26.05.20", "26.05.21", "success")
+	})
+	if len(su.History()) != 2 {
+		t.Errorf("in-memory history len = %d, want 2 after second event", len(su.History()))
+	}
+	afterCount := 0
+	for _, issue := range report.Errors(0) {
+		if issue.Code == codeUpdateHistoryPersistFailed {
+			afterCount++
+		}
+	}
+	if afterCount != 1 {
+		t.Errorf("report.Errors count after immediate retry = %d, want 1 (deduplicated)", afterCount)
 	}
 }

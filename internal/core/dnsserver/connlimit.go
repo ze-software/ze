@@ -68,6 +68,7 @@ func (l *connLimitListener) Accept() (net.Conn, error) {
 		default:
 		}
 		hmetrics().tcpConnRefused.Inc()
+		// refuse-by-default: guards hmetrics -- connection-cap refusal is already counted in tcpConnRefused; closing the shed socket cannot be retried and a peer reset on close is not actionable
 		if cerr := c.Close(); cerr != nil {
 			l.log.Debug("dnsserver: closing a connection past the cap", "remote", c.RemoteAddr().String(), logKeyError, cerr)
 		}

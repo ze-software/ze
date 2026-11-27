@@ -2,7 +2,7 @@
 
 | Field | Value |
 |-------|-------|
-| Status | ready |
+| Status | in-progress |
 | Scope | plugin |
 | Priority | P1 |
 | Release reason | 11 errors across the DNS server core, the hub startup capability inventory, the managed client's doctor probe, self-update history persistence and the on-device installer's DHCP fallback are caught and logged only below WARN, leaving a DoH reply write failure uncounted, a self-update history save failure invisible at the default log level, and an installer fallback link-up failure hidden on the serial console |
@@ -10,7 +10,7 @@
 | Depends | - |
 | Phase | - |
 | Handoff | - |
-| Updated | 2026-11-26 |
+| Updated | 2026-11-27 |
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.
 
@@ -214,8 +214,8 @@ Each instance is resolved by exactly one answer, judged in this order
 ### Boundaries Crossed
 | Boundary | How | Verified |
 |----------|-----|----------|
-| Daemon ↔ operator | `Warn` log with registered doctor `code`, `internal/core/report` transient event (`show doctor`, `show errors`), and Prometheus counter `ze_dns_reply_write_failure_total{transport="stream"}` | No |
-| Initrd PID 1 ↔ operator | `slog.Warn` on the serial console | No |
+| Daemon ↔ operator | `Warn` log with registered doctor `code`, `internal/core/report` transient event (`show doctor`, `show errors`), and Prometheus counter `ze_dns_reply_write_failure_total{transport="stream"}` | Yes |
+| Initrd PID 1 ↔ operator | `slog.Warn` on the serial console | Yes |
 
 ### Changed-Wire Census
 
@@ -241,10 +241,10 @@ No wire format, storage key schema, RPC envelope, or external API payload change
 ### Assumptions
 | ID | Assumption | Basis (file/doc/user statement) | If wrong | Validated by | Status |
 |----|-----------|--------------------------------|----------|--------------|--------|
-| A-1 | The 11 findings across 9 files are the current population under these three doors | `./le arch refuse-by-default report` run on 2026-11-26 | Work from the fresh report before the first edit | Re-run `./le arch refuse-by-default report '|' json` filtered to this child's paths at wiring | unvalidated |
-| A-2 | `recordWriteFailure(transportStream)` is safe to call from `Manager.dohHandler` without adding a new label or changing metric cardinality | `internal/core/dnsserver/metrics.go` (`transportStream = "stream"`, `hmetrics()` lazy Nop default) | Would register an unexpected label series | `TestDoHHandlerWriteFailureCountsMetric` asserting `ze_dns_reply_write_failure_total{transport="stream"}` | unvalidated |
-| A-3 | Registering `codeUpdateHistoryPersistFailed` via `diagnostic.Register` + `diagnostic.RegisterEventCode` in `internal/component/config/system/register_doctor_codes.go` satisfies `./le arch doctor-coverage check` | `internal/le/arch/doctorcoverage/codes.go` and `internal/component/managed/register_doctor_codes.go` (`CodeDoctorManagedReportFailed`) | Commit gate refuses the new `Warn` site in `selfupdate.go` | `./le arch doctor-coverage check` and `TestSelfUpdateHistoryDoctorCodeRegistered` | unvalidated |
-| A-4 | `internal/install/disk/network.go` is outside `doctor-coverage`'s `siteRoots` so its console `slog.Warn` requires no doctor-code registration | `internal/le/arch/doctorcoverage/doctorcoverage.go:59` (`siteRoots = []string{"internal/component", "internal/plugins", "cmd/ze"}`) | Commit gate refuses `network.go` | `./le arch doctor-coverage check` after editing `network.go` | unvalidated |
+| A-1 | The 11 findings across 9 files are the current population under these three doors | `./le arch refuse-by-default report` run on 2026-11-26 | Work from the fresh report before the first edit | Filtered `./le arch refuse-by-default report '|' json` under door paths returned `unannotated: 0, annotated: 9` after resolving the 11 sites | confirmed |
+| A-2 | `recordWriteFailure(transportStream)` is safe to call from `Manager.dohHandler` without adding a new label or changing metric cardinality | `internal/core/dnsserver/metrics.go` (`transportStream = "stream"`, `hmetrics()` lazy Nop default) | Would register an unexpected label series | `TestDoHHandlerWriteFailureCountsMetric` passed under `-race` (`ze_dns_reply_write_failure_total{stream}` = 1, `{datagram}` = 0) | confirmed |
+| A-3 | Registering `codeUpdateHistoryPersistFailed` via `diagnostic.Register` + `diagnostic.RegisterEventCode` in `internal/component/config/system/register_doctor_codes.go` satisfies `./le arch doctor-coverage check` | `internal/le/arch/doctorcoverage/codes.go` and `internal/component/managed/register_doctor_codes.go` (`CodeDoctorManagedReportFailed`) | Commit gate refuses the new `Warn` site in `selfupdate.go` | `./le arch doctor-coverage check` returned OK and `TestSelfUpdateHistoryDoctorCodeRegistered` passed with `-tags ze_distro -race` | confirmed |
+| A-4 | `internal/install/disk/network.go` is outside `doctor-coverage`'s `siteRoots` so its console `slog.Warn` requires no doctor-code registration | `internal/le/arch/doctorcoverage/doctorcoverage.go:59` (`siteRoots = []string{"internal/component", "internal/plugins", "cmd/ze"}`) | Commit gate refuses `network.go` | `./le arch doctor-coverage check` returned OK after elevating `fallbackDHCPIn` `linkUp` failure to `slog.Warn` | confirmed |
 
 ### Risks
 | ID | Risk | Early signal | Mitigation / fallback |
@@ -288,11 +288,11 @@ No wire format, storage key schema, RPC envelope, or external API payload change
 ### Unit Tests
 | Test | File | Validates | Status |
 |------|------|-----------|--------|
-| `TestSelfUpdateSaveHistoryFailureWarnsAndRaisesEvent` | `internal/component/config/system/selfupdate_test.go` | AC-2: `saveHistory` logs `Warn` with `code`, what/why/fix, raises `doctor-update-history-persist-failed` on `report`, and never leaks update URL/credentials | |
-| `TestSelfUpdateHistoryDoctorCodeRegistered` | `internal/component/config/system/selfupdate_test.go` | AC-2: `doctor-update-history-persist-failed` is registered in `diagnostic` metadata and `diagnostic.EventCodes()` | |
-| `TestDoHHandlerWriteFailureCountsMetric` | `internal/core/dnsserver/secure_test.go` | AC-3: failing `http.ResponseWriter.Write` in `Manager.dohHandler` increments `ze_dns_reply_write_failure_total{transport="stream"}` by 1 | |
-| `TestFallbackDHCPWarnsOnLinkUpFailure` | `internal/install/disk/network_test.go` | AC-4: `fallbackDHCPIn` logs `Warn` with interface, what/why/fix when `linkUp` fails on one NIC and continues to lease the healthy NIC | |
-| Existing regression guards (`TestLogDaemonCapabilitiesNeverWarns`, `TestHubDoctorCheckUnreachable`, `TestHubReachableProbe`, `TestManager_TCPConnMaxRefusesPastTheCap`) | `cmd/ze/hub/capabilities_log_test.go`, `internal/component/managed/doctor_test.go`, `internal/core/dnsserver/connlimit_test.go` | AC-5: existing capability-inventory, unreachable-hub doctor, and TCP-cap contracts stay green | |
+| `TestSelfUpdateSaveHistoryFailureWarnsAndRaisesEvent` | `internal/component/config/system/selfupdate_test.go` | AC-2: `saveHistory` logs `Warn` with `code`, what/why/fix, raises `doctor-update-history-persist-failed` on `report`, and never leaks update URL/credentials | PASS (`-tags ze_distro -race`, 4.43s pkg) |
+| `TestSelfUpdateHistoryDoctorCodeRegistered` | `internal/component/config/system/selfupdate_test.go` | AC-2: `doctor-update-history-persist-failed` is registered in `diagnostic` metadata and `diagnostic.EventCodes()` | PASS (`-tags ze_distro -race`, 4.43s pkg) |
+| `TestDoHHandlerWriteFailureCountsMetric` | `internal/core/dnsserver/secure_test.go` | AC-3: failing `http.ResponseWriter.Write` in `Manager.dohHandler` increments `ze_dns_reply_write_failure_total{transport="stream"}` by 1 | PASS (`-race`, 10.58s pkg) |
+| `TestFallbackDHCPWarnsOnLinkUpFailure` | `internal/install/disk/network_test.go` | AC-4: `fallbackDHCPIn` logs `Warn` with interface, what/why/fix when `linkUp` fails on one NIC and continues to lease the healthy NIC | PASS (`-race`, 1.45s pkg + `./le test unit installer` 0.953s) |
+| Existing regression guards (`TestLogDaemonCapabilitiesNeverWarns`, `TestHubDoctorCheckUnreachable`, `TestHubReachableProbe`, `TestManager_TCPConnMaxRefusesPastTheCap`) | `cmd/ze/hub/capabilities_log_test.go`, `internal/component/managed/doctor_test.go`, `internal/core/dnsserver/connlimit_test.go` | AC-5: existing capability-inventory, unreachable-hub doctor, and TCP-cap contracts stay green | PASS (`cmd/ze/hub` 1.15s, `managed` 1.07s, `dnsserver` 10.58s) |
 
 ### Boundary Tests (numeric inputs)
 | Field | Range | Last Valid | Invalid Below | Invalid Above |
@@ -303,7 +303,7 @@ No wire format, storage key schema, RPC envelope, or external API payload change
 ### Functional Tests
 | Test | Location | End-User Scenario | Status |
 |------|----------|-------------------|--------|
-| Scoped `.ci` suites selected by `./le repo changed scope print both` (DNS, managed, self-update history restart, installer) | `test/` | Unchanged DNS, managed doctor, and installer behavior; self-update history restart remains green | |
+| Scoped `.ci` suites selected by `./le repo changed scope print both` (`test/plugin/as112-doh.ci`, `test/plugin/system-update-backend-show.ci`) | `test/plugin/` | Unchanged DNS DoH listener wiring and self-update backend command path remain green | PASS (`as112-doh` 1.3s, `system-update-backend-show` 1.1s) |
 
 ## Files to Modify
 - `cmd/ze/hub/main.go` - 1: `logDaemonCapabilities` 311 (Answer 3 guard annotation `guards privilege.CheckPrivileges`)
@@ -488,3 +488,173 @@ The class row for the whole population is owned by the umbrella.
 - [ ] `/ze-review` gate clean, recorded via `internal/le/spec/review.go`
 - [ ] **Commit A:** code + tests + docs + edited spec
 - [ ] **Commit B:** `remove plan/release/fixes/spec-dropped-error-8-core-hub-appliance.md` only, in the same `./le commit create` script
+
+---
+
+## Implementation Summary
+
+### What Was Implemented
+- Registered doctor event code `codeUpdateHistoryPersistFailed` (`doctor-update-history-persist-failed`) in `internal/component/config/system/register_doctor_codes.go` (`init`, via `diagnostic.Register` and `diagnostic.RegisterEventCode`).
+- Upgraded `selfUpdater.saveHistory` (`internal/component/config/system/selfupdate.go`) from `Debug` to `Warn` carrying `code=doctor-update-history-persist-failed`, `key=meta/config/update-history`, `fix="ze show data check"`, and `error`, and raised a 1-minute deduplicated transient error on `internal/core/report` via `report.RaiseErrorFixOnce` with `report.FitMessage` and zero URL/credential leakage.
+- Added `recordWriteFailure(transportStream)` in `Manager.dohHandler` (`internal/core/dnsserver/secure.go`) so DoH response write failures count in `ze_dns_reply_write_failure_total{transport="stream"}` alongside cleartext TCP and DoT, guarded by `// refuse-by-default: guards recordWriteFailure`.
+- Extracted `fallbackDHCPIn(sysnetDir string)` from `fallbackDHCP` (`internal/install/disk/network.go`) and upgraded `linkUp` failures from `slog.Debug` to `slog.Warn` on the initrd serial console naming the interface, impact on carrier detection and install lease acquisition, and the `ze.mac=<mac>` / NIC driver fix while continuing across remaining NICs without exiting PID 1.
+- Added verified `// refuse-by-default: guards <Symbol> -- <why>` annotations across the 9 justified below-WARN branches (`cmd/ze/hub/main.go:314`, `internal/component/managed/doctor.go:539`, `internal/core/dnsserver/connlimit.go:71`, `handler.go:138`, `manager.go:237,344,352`, `secure.go:627`, `signed.go:150`).
+- Added 4 targeted unit tests: `TestSelfUpdateHistoryDoctorCodeRegistered` and `TestSelfUpdateSaveHistoryFailureWarnsAndRaisesEvent` (`internal/component/config/system/selfupdate_test.go`), `TestDoHHandlerWriteFailureCountsMetric` (`internal/core/dnsserver/secure_test.go`), and `TestFallbackDHCPWarnsOnLinkUpFailure` (`internal/install/disk/network_test.go`).
+- Added release note fragment `website/changes/fragments/dropped-error-8-core-hub-appliance.md` (STE check OK) and updated row 86 of `plan/release/fixes/spec-dropped-error-0-umbrella.md` to bare stem `spec-dropped-error-8-core-hub-appliance` with status `closed` and count `0`.
+
+### Bugs Found/Fixed
+- None beyond the planned observability gaps (`Manager.dohHandler` uncounted write failure, `selfUpdater.saveHistory` hidden persistence failure, `fallbackDHCP` hidden `linkUp` failure).
+
+### Documentation Updates
+- None required in `docs/`: grep of `docs/` for `source:` anchors referencing all 10 changed source files confirmed every anchored claim in `docs/architecture/appliance/self-update.md` (`selfUpdater`), `docs/architecture/appliance/on-device-installer.md` (`network fallback`), `docs/architecture/appliance/installer-initrd.md` (`fallbackDHCP`), `docs/architecture/dns/server-harness.md` (`send`, `Manager`, `connLimitListener`, `sendUnchanged`), `docs/architecture/dns/secure-transports.md` (`dohFreshness`, `ApplyWithSecure`), `docs/architecture/doctor-and-health-checks.md`, `docs/architecture/system-architecture.md`, and `docs/architecture/hub-architecture.md` remains accurate.
+- `./le doc check all` verified 0 broken source anchors and 3177/3177 digest anchors resolving (the 2 unrelated failures in that run come from another session's uncommitted `plugin format` YANG change).
+- Created `website/changes/fragments/dropped-error-8-core-hub-appliance.md`; `./le doc ste check file website/changes/fragments/dropped-error-8-core-hub-appliance.md` exited 0 (`ste check: OK -- no habit grew in 1 changed document(s)`).
+
+### Deviations from Plan
+- `internal/component/managed/doctor.go:539` (`hubReachable`, `// refuse-by-default: guards diagnoseHubReachability -- ...`) was already committed on HEAD in `5b59287672` (`Spec-work: fleet-10-drift-hash-chain`) by a sibling session carrying the same shared file, so `git diff HEAD -- internal/component/managed/doctor.go` is empty. Commit A therefore carries the 12 modified Go code/test files plus the release fragment, umbrella row update, and this spec (15 files total).
+
+## Mistake Log
+
+| Kind | What happened | What was true instead | How discovered | Action |
+|------|---------------|----------------------|----------------|--------|
+| none | | | | |
+
+## Implementation Audit
+
+### Requirements from Task
+| Requirement | Status | Location | Notes |
+|-------------|--------|----------|-------|
+| Instance 1: `logDaemonCapabilities` guard annotation | Done | `cmd/ze/hub/main.go:314` | `guards privilege.CheckPrivileges`; `TestLogDaemonCapabilitiesNeverWarns` PASS |
+| Instance 2: `selfUpdater.saveHistory` Warn + doctor code + report raise | Done | `internal/component/config/system/selfupdate.go:1055-1075`, `register_doctor_codes.go:26,67-71,80-82` | Emits `doctor-update-history-persist-failed`, fix `ze show data check`, `report.RaiseErrorFixOnce` |
+| Instance 3: `hubReachable` guard annotation | Done | `internal/component/managed/doctor.go:539` | `guards diagnoseHubReachability`; already landed on HEAD in `5b59287672` |
+| Instance 4: `connLimitListener.Accept` guard annotation | Done | `internal/core/dnsserver/connlimit.go:71` | `guards hmetrics` (`tcpConnRefused`) |
+| Instance 5: `send` guard annotation | Done | `internal/core/dnsserver/handler.go:138` | `guards recordWriteFailure` |
+| Instance 6: `Manager.bind` guard annotation | Done | `internal/core/dnsserver/manager.go:237` | `guards bindListeners` |
+| Instances 7–8: `Manager.Stop` guard annotations (DNS + DoH) | Done | `internal/core/dnsserver/manager.go:344,352` | `guards reconcile` |
+| Instance 9: `Manager.dohHandler` count + guard annotation | Done | `internal/core/dnsserver/secure.go:627-631` | Calls `recordWriteFailure(transportStream)` + `guards recordWriteFailure` |
+| Instance 10: `sendUnchanged` guard annotation | Done | `internal/core/dnsserver/signed.go:150` | `guards recordWriteFailure` |
+| Instance 11: `fallbackDHCP` Warn + `fallbackDHCPIn` test seam | Done | `internal/install/disk/network.go:95-118` | `slog.Warn` with iface/what/why/fix; PID 1 never exits |
+
+### Acceptance Criteria
+| AC ID | Status | Demonstrated By | Notes |
+|-------|--------|-----------------|-------|
+| AC-1 | Done | Filtered `./le arch refuse-by-default report '|' json` under door paths | `unannotated: 0, annotated: 9` |
+| AC-2 | Done | `TestSelfUpdateSaveHistoryFailureWarnsAndRaisesEvent`, `TestSelfUpdateHistoryDoctorCodeRegistered` (`-tags ze_distro -race`), `./le arch doctor-coverage check` | PASS (4.43s pkg); doctor-coverage OK |
+| AC-3 | Done | `TestDoHHandlerWriteFailureCountsMetric` (`-race`) | PASS (`ze_dns_reply_write_failure_total{stream}` = 1, `{datagram}` = 0, no Warn/Error) |
+| AC-4 | Done | `TestFallbackDHCPWarnsOnLinkUpFailure` (`-race` + `./le test unit installer`) | PASS (1.45s + 0.953s) |
+| AC-5 | Done | `./le arch refuse-by-default report`, `TestLogDaemonCapabilitiesNeverWarns`, `TestHubDoctorCheckUnreachable`, `TestHubReachableProbe`, `TestManager_TCPConnMaxRefusesPastTheCap` | All 9 guards verified non-enclosing; all regression tests PASS |
+| AC-6 | Done | Main-thread `-race` package tests, 7-flavor scoped lint (0 issues), `./le arch doctor-coverage check`, `./le arch tier check`, `./le go style check`, and functional `.ci` runs (`as112-doh`, `system-update-backend-show`) | All PASS |
+
+### Tests from TDD Plan
+| Test | Status | Location | Notes |
+|------|--------|----------|-------|
+| `TestSelfUpdateSaveHistoryFailureWarnsAndRaisesEvent` | Done | `internal/component/config/system/selfupdate_test.go:164` | PASS (`-tags ze_distro -race`) |
+| `TestSelfUpdateHistoryDoctorCodeRegistered` | Done | `internal/component/config/system/selfupdate_test.go:141` | PASS (`-tags ze_distro -race`) |
+| `TestDoHHandlerWriteFailureCountsMetric` | Done | `internal/core/dnsserver/secure_test.go:366` | PASS (`-race`) |
+| `TestFallbackDHCPWarnsOnLinkUpFailure` | Done | `internal/install/disk/network_test.go:553` | PASS (`-race`, `./le test unit installer`) |
+| Existing regression guards (`TestLogDaemonCapabilitiesNeverWarns`, `TestHubDoctorCheckUnreachable`, `TestHubReachableProbe`, `TestManager_TCPConnMaxRefusesPastTheCap`) | Done | `cmd/ze/hub/capabilities_log_test.go`, `internal/component/managed/doctor_test.go`, `internal/core/dnsserver/connlimit_test.go` | All PASS |
+
+### Files from Plan
+| File | Status | Notes |
+|------|--------|-------|
+| `cmd/ze/hub/main.go` | Done | Guard annotation at line 314 |
+| `internal/component/config/system/register_doctor_codes.go` | Done | Registers `codeUpdateHistoryPersistFailed` metadata and event code |
+| `internal/component/config/system/selfupdate.go` | Done | Warn log + `report.RaiseErrorFixOnce` in `saveHistory` |
+| `internal/component/config/system/selfupdate_test.go` | Done | Added 2 AC-2 unit tests |
+| `internal/component/managed/doctor.go` | Done | Guard annotation at line 539 already landed on HEAD in `5b59287672` |
+| `internal/core/dnsserver/connlimit.go` | Done | Guard annotation at line 71 |
+| `internal/core/dnsserver/handler.go` | Done | Guard annotation at line 138 |
+| `internal/core/dnsserver/manager.go` | Done | Guard annotations at lines 237, 344, 352 |
+| `internal/core/dnsserver/secure.go` | Done | `recordWriteFailure(transportStream)` + guard annotation at lines 627–629 |
+| `internal/core/dnsserver/secure_test.go` | Done | Added `TestDoHHandlerWriteFailureCountsMetric` |
+| `internal/core/dnsserver/signed.go` | Done | Guard annotation at line 150 |
+| `internal/install/disk/network.go` | Done | `fallbackDHCPIn` + `slog.Warn` at lines 95–118 |
+| `internal/install/disk/network_test.go` | Done | Added `TestFallbackDHCPWarnsOnLinkUpFailure` |
+
+### Audit Summary
+- **Total items:** 34 (10 task rows + 6 AC rows + 5 test rows + 13 file rows)
+- **Done:** 34
+- **Partial:** 0
+- **Skipped:** 0
+- **Changed:** 1 (`internal/component/managed/doctor.go:539` already landed in `5b59287672`, recorded in Deviations)
+
+## Goal Validation (BLOCKING)
+
+| Goal (from Task) | Evidence Type | Concrete Evidence |
+|------------------|---------------|-------------------|
+| Zero unannotated `error-dropped-below-warn` findings under the `core`, `hub-engine`, and `appliance` doors | Arch report gate | Filtered `./le arch refuse-by-default report '|' json`: `unannotated: 0, annotated: 9` |
+| Self-update history persistence failures surface at `Warn` with registered doctor code and bounded report-bus event | Unit test (`-tags ze_distro -race`) + arch gate | `TestSelfUpdateSaveHistoryFailureWarnsAndRaisesEvent` + `TestSelfUpdateHistoryDoctorCodeRegistered` PASS (4.43s pkg); `./le arch doctor-coverage check` OK |
+| DoH response write failures increment `ze_dns_reply_write_failure_total{transport="stream"}` without per-query log floods | Unit test (`-race`) + `.ci` functional test | `TestDoHHandlerWriteFailureCountsMetric` PASS (10.58s pkg); `test/plugin/as112-doh.ci` PASS (1.3s) |
+| Initrd installer DHCP fallback logs `linkUp` failures at `Warn` with fix while scanning remaining NICs without exiting PID 1 | Unit test (`-race` + installer tag) | `TestFallbackDHCPWarnsOnLinkUpFailure` PASS (`internal/install/disk` 1.45s + `./le test unit installer` 0.953s) |
+| Existing daemon capability, managed hub probe, TCP cap, and self-update command contracts preserved | Unit tests + `.ci` functional test + 7-flavor lint | `TestLogDaemonCapabilitiesNeverWarns` (1.15s), `TestHubDoctorCheckUnreachable` + `TestHubReachableProbe` (1.07s), `system-update-backend-show.ci` (1.1s), 7-flavor lint 0 issues |
+
+## Work Not Done
+
+| What was not done | Why | The spec that now owns it |
+|-------------------|-----|---------------------------|
+| none | All 11 in-scope dropped-error instances across the three doors are resolved | none |
+
+## Review Gate
+
+| Field | Value |
+|-------|-------|
+| Artifact | `tmp/review/dropped-error-8-core-hub-appliance-b3a10001-1111-4000-8000-000000000001.md` |
+| `./le spec review check` | `review_gate: OK (12 code files, clean, hashes match tmp/review/dropped-error-8-core-hub-appliance-b3a10001-1111-4000-8000-000000000001.md)` |
+| Rounds | 1 |
+| Reviewer lenses used | logic+wiring, security+edge-cases, design-documents+style+spec-completeness |
+
+### Findings fixed
+| # | Severity | Finding | Location | Fixed by |
+|---|----------|---------|----------|----------|
+| none | - | 0 BLOCKER, 0 ISSUE, 1 NOTE (`internal/component/managed/doctor.go:539` guard annotation already committed on HEAD in `5b59287672`, recorded in Deviations) | - | - |
+
+### Run 1
+- Independent `/ze-review` + `/ze-review-spec` over all 12 uncommitted Go files (`cmd/ze/hub/main.go`, `internal/component/config/system/{register_doctor_codes,selfupdate,selfupdate_test}.go`, `internal/core/dnsserver/{connlimit,handler,manager,secure,secure_test,signed}.go`, `internal/install/disk/{network,network_test}.go`) and HEAD `internal/component/managed/doctor.go:539`: **CLEAN (0 BLOCKER, 0 ISSUE, 1 NOTE)**.
+- Verified: `ze show data check` is an executable YANG `ze:command` (`internal/plugins/config-storage/yang/ze-storage-cli-cmd.yang:94-104`, `internal/component/config/storage/cli/register.go:60`); `report.RaiseErrorFixOnce` fields stay strictly within bounds (`Source`=6<=64, `Code`=36<=64, `Subject`=26<=256, `Message` via `report.FitMessage`<=1024, `Fix`=18<=256); zero URL/credential leakage; zero per-query `Warn` log floods; zero `fmt.Sprintf`; style pass clean; `./le test weakened check` has 0 findings on spec files; `./le spec design check` reports `ready to present`.
+
+## Pre-Commit Verification
+
+### Files Exist (ls)
+| File | Exists | Evidence |
+|------|--------|----------|
+| `internal/component/config/system/selfupdate_test.go` | Yes | `-rw-rw-r-- 1 thomas thomas 36167 Nov 27 10:49 internal/component/config/system/selfupdate_test.go` |
+| `internal/core/dnsserver/secure_test.go` | Yes | `-rw-rw-r-- 1 thomas thomas 32085 Nov 27 10:49 internal/core/dnsserver/secure_test.go` |
+| `internal/install/disk/network_test.go` | Yes | `-rw-rw-r-- 1 thomas thomas 6807 Nov 27 10:49 internal/install/disk/network_test.go` |
+| `website/changes/fragments/dropped-error-8-core-hub-appliance.md` | Yes | Created and passed `./le doc ste check file` (`ste check: OK -- no habit grew in 1 changed document(s)`) |
+| `test/plugin/as112-doh.ci` | Yes | `-rw-rw-r-- 1 thomas thomas 1671 Nov 24 19:37 test/plugin/as112-doh.ci` |
+| `test/plugin/system-update-backend-show.ci` | Yes | `-rw-rw-r-- 1 thomas thomas 1218 Nov 24 19:37 test/plugin/system-update-backend-show.ci` |
+
+### AC Verified (grep/test)
+| AC ID | Claim | Fresh Evidence |
+|-------|-------|----------------|
+| AC-1 | 0 unannotated findings, 9 annotated guards under door paths | Main-thread filtered `./le arch refuse-by-default report '|' json`: `unannotated: 0, annotated: 9` |
+| AC-2 | `selfUpdater.saveHistory` warns with `doctor-update-history-persist-failed`, raises on `report`, registered in `diagnostic`, passes `doctor-coverage` | Verified `selfupdate.go:1055-1075` and `register_doctor_codes.go:26,67-82`; `TestSelfUpdateSaveHistoryFailureWarnsAndRaisesEvent` + `TestSelfUpdateHistoryDoctorCodeRegistered` PASS (`-tags ze_distro -race`, 4.43s); `./le arch doctor-coverage check` OK |
+| AC-3 | `Manager.dohHandler` counts write failure in `ze_dns_reply_write_failure_total{transport="stream"}` | Verified `secure.go:627-631`; `TestDoHHandlerWriteFailureCountsMetric` PASS (`-race`, 10.58s pkg) |
+| AC-4 | `fallbackDHCPIn` warns on `linkUp` failure with iface/what/why/fix and continues across remaining NICs | Verified `network.go:99-118`; `TestFallbackDHCPWarnsOnLinkUpFailure` PASS (`-race` 1.45s + `./le test unit installer` 0.953s) |
+| AC-5 | All 9 guard annotations resolve to non-enclosing symbols and regression tests stay green | Verified all 9 source annotations; `TestLogDaemonCapabilitiesNeverWarns` (1.15s), `TestHubDoctorCheckUnreachable` + `TestHubReachableProbe` (1.07s), `internal/core/dnsserver` (10.58s) PASS |
+| AC-6 | Scoped package tests, 7-flavor lint, arch checks, and functional `.ci` tests pass | Main-thread runs: all 5 package suites PASS under `-race`, 7-flavor lint 0 issues, `doctor-coverage`/`tier`/`go style` OK, `as112-doh` PASS (1.3s), `system-update-backend-show` PASS (1.1s) |
+
+### Wiring Verified (end-to-end)
+| Entry Point | .ci File | Verified |
+|-------------|----------|----------|
+| DoH listener config + `dnsserver.ApplyWithSecure` → `bindDoH` → `Manager.dohHandler` | `test/plugin/as112-doh.ci` | Yes (read lines 1–83: starts real `ze` with `service { as112 { enabled true; doh { enabled true; listen-port $PORT2 } } }`; PASS 1.3s) |
+| `show system update` backend identity through daemon command path | `test/plugin/system-update-backend-show.ci` | Yes (read lines 1–68: runs `le test fixture plugin/system-update-backend-show` against real `ze`; PASS 1.1s) |
+| Self-update history persistence across restart (`selfUpdater.saveHistory` / `loadHistory`) | `test/plugin/storage-history-restart.ci` | Yes (read lines 1–11: runs `le test fixture storage/consumer-restart history` exercising `meta/config/update-history` persistence) |
+
+### Assumptions Resolved
+| ID | Final Status | Evidence |
+|----|--------------|----------|
+| A-1 | confirmed | Filtered `./le arch refuse-by-default report '|' json` under door paths returned `unannotated: 0, annotated: 9` |
+| A-2 | confirmed | `TestDoHHandlerWriteFailureCountsMetric` proved `ze_dns_reply_write_failure_total{stream}` = 1 and `{datagram}` = 0 with no new label |
+| A-3 | confirmed | `TestSelfUpdateHistoryDoctorCodeRegistered` PASS and `./le arch doctor-coverage check` OK |
+| A-4 | confirmed | `./le arch doctor-coverage check` OK with `slog.Warn` in `internal/install/disk/network.go:111` |
+
+### Documentation Verified
+| Documentation claim or category | Source evidence | Verified |
+|---------------------------------|-----------------|----------|
+| `docs/architecture/dns/server-harness.md` (`ze_dns_reply_write_failure_total`) | Reuses existing `ze_dns_reply_write_failure_total{transport="stream"}` counter in `internal/core/dnsserver/secure.go:629` | Yes |
+| `docs/architecture/appliance/self-update.md` (`meta/config/update-history`, 20-event circular buffer) | `internal/component/config/system/selfupdate.go:1044-1076` preserves key, buffer size, and best-effort continuation | Yes |
+| `docs/architecture/appliance/on-device-installer.md` & `installer-initrd.md` (`fallbackDHCP`, PID 1 non-exit) | `internal/install/disk/network.go:95-118` preserves `/sys/class/net` scan, zero external tools, and non-fatal `linkUp` Warn | Yes |
+| `docs/architecture/system-architecture.md` (`logDaemonCapabilities` stays Debug) | `cmd/ze/hub/main.go:314-319` adds guard comment only; `TestLogDaemonCapabilitiesNeverWarns` PASS | Yes |
+| `website/changes/fragments/dropped-error-8-core-hub-appliance.md` | `./le doc ste check file website/changes/fragments/dropped-error-8-core-hub-appliance.md` exited 0 (`ste check: OK`) | Yes |
+| `plan/release/fixes/spec-dropped-error-0-umbrella.md` row 86 citer cleared | Bare stem `spec-dropped-error-8-core-hub-appliance` (closed 2026-11-27), status `closed`, count `0` | Yes |

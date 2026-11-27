@@ -147,6 +147,7 @@ func sendUnchanged(w dns.ResponseWriter, r *dns.Msg, reply []byte, log *slog.Log
 			return
 		}
 	}
+	// refuse-by-default: guards recordWriteFailure -- per-query pass-through reply write failures are counted in ze_dns_reply_write_failure_total; logging WARN per dropped query would flood the log
 	if _, err := w.Write(reply); err != nil {
 		recordWriteFailure(transportOf(w))
 		log.Debug("dnsserver: pass-through reply write failed", logKeyError, err)

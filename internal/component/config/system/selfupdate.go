@@ -47,6 +47,9 @@ const (
 	selfUpdateCode    = "self-update"
 	selfUpdateSubject = "firmware"
 
+	updateHistoryPersistFix    = "ze show data check"
+	updateHistoryPersistWindow = time.Minute
+
 	downloadMaxBytes = 500 << 20 // 500 MB hard cap
 	historyMaxEvents = 20
 	drainDelay       = 5 * time.Second
@@ -1050,7 +1053,25 @@ func (su *selfUpdater) saveHistory() {
 	}
 
 	if _, perr := statestore.Put(zefs.KeyConfigUpdateHistory.Pattern, data); perr != nil {
-		slogutil.Logger("self-update").Debug("history persist failed", "error", perr)
+		key := zefs.KeyConfigUpdateHistory.Pattern
+		slogutil.Logger("self-update").Warn(
+			"self-update history failed to persist; recent update events will not survive a daemon restart",
+			"code", codeUpdateHistoryPersistFailed,
+			"key", key,
+			"fix", updateHistoryPersistFix,
+			"error", perr,
+		)
+		var msg textbuf.Buffer
+		msg.Str("self-update history failed to persist to ").Str(key).
+			Str("; recent update events will not survive a daemon restart: ").Str(perr.Error())
+		report.RaiseErrorFixOnce(
+			selfUpdateSource,
+			codeUpdateHistoryPersistFailed,
+			key,
+			report.FitMessage(msg.String()),
+			updateHistoryPersistFix,
+			updateHistoryPersistWindow,
+		)
 	}
 }
 
