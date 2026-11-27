@@ -694,6 +694,7 @@ func (s *LGServer) handleUIEvents(w http.ResponseWriter, r *http.Request) {
 
 	// Disable write timeout for SSE (long-lived connection).
 	rc := http.NewResponseController(w)
+	// refuse-by-default: guards writeStreamMessage -- SetWriteDeadline fails only with http.ErrNotSupported (HTTP/2 or ResponseRecorder) or on an already-closed connection that writeStreamMessage terminates
 	if err := rc.SetWriteDeadline(time.Time{}); err != nil {
 		s.logger.Debug("SSE: cannot clear write deadline", "error", err)
 	}

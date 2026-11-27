@@ -18,6 +18,7 @@ import (
 	"github.com/ze-software/ze/internal/component/config/confirm"
 	"github.com/ze-software/ze/internal/component/config/storage"
 	"github.com/ze-software/ze/internal/core/opererr"
+	"github.com/ze-software/ze/internal/core/report"
 	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
@@ -912,6 +913,13 @@ func (m *EditorManager) ActiveSessions() []string {
 	return result
 }
 
+const (
+	webEditorEvictEventSource  = "web-editor"
+	webEditorEvictEventSubject = "evict-discard"
+	webEditorEvictEventFix     = webShowDoctorCommand
+	webEditorEvictEventMsg     = "failed to discard candidate configuration while evicting an idle web editor session; session slot was freed"
+)
+
 // evictInactive removes sessions with lastActivity older than idleTimeout.
 // Caller MUST hold m.mu in write mode.
 func (m *EditorManager) evictInactive() {
@@ -920,7 +928,13 @@ func (m *EditorManager) evictInactive() {
 		if us.lastActivity.Before(cutoff) {
 			us.mu.Lock()
 			if discardErr := us.editor.Discard(); discardErr != nil {
-				serverLogger.Debug("evict discard failed", "user", name, "error", discardErr)
+				report.RaiseErrorFixOnce(webEditorEvictEventSource, codeDoctorWebEditorEvictDiscardFailed, webEditorEvictEventSubject,
+					webEditorEvictEventMsg, webEditorEvictEventFix, time.Minute)
+				serverLogger.Warn(webEditorEvictEventMsg,
+					"code", codeDoctorWebEditorEvictDiscardFailed,
+					"fix", webEditorEvictEventFix,
+					"user", name,
+					"error", discardErr)
 			}
 			us.mu.Unlock()
 			delete(m.sessions, name)

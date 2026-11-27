@@ -6,7 +6,6 @@ package command
 import (
 	"context"
 	"encoding/json"
-	"log/slog"
 	"net"
 	"net/netip"
 	"slices"
@@ -14,9 +13,21 @@ import (
 	"sync"
 	"time"
 
-	"github.com/ze-software/ze/internal/core/textbuf"
-
+	"github.com/ze-software/ze/internal/core/report"
 	"github.com/ze-software/ze/internal/core/slogutil"
+	"github.com/ze-software/ze/internal/core/textbuf"
+)
+
+// CodeDoctorResolvePTRFailed is the doctor diagnostic code emitted when
+// ReverseLookup encounters a system DNS resolver error. Registered in
+// internal/component/resolve/cmd/register_doctor_codes.go because
+// internal/core/diagnostic imports plugin -> command (import cycle).
+const CodeDoctorResolvePTRFailed = "doctor-resolve-ptr-failed"
+
+const (
+	resolvePTRFailedSource  = "command"
+	resolvePTRFailedSubject = "ptr-resolve"
+	resolvePTRFailedFix     = "ze show system dns"
 )
 
 // PTRResolver performs reverse DNS lookups for IP addresses.
@@ -58,9 +69,17 @@ func ReverseLookup(ip string) string {
 	if r != nil {
 		records, err := r.ResolvePTR(ip)
 		if err != nil {
-			resolveLog.Debug("PTR lookup failed", slog.String("ip", ip), slog.String("error", err.Error()))
+			msg := report.FitMessage("reverse DNS lookup failed for " + ip + ": " + err.Error() + "; pipe resolve returned an empty hostname")
+			if report.RaiseErrorFixOnce(resolvePTRFailedSource, CodeDoctorResolvePTRFailed, resolvePTRFailedSubject, msg, resolvePTRFailedFix, time.Minute) {
+				resolveLog.Warn("reverse DNS lookup failed; pipe resolve returned empty hostname",
+					"code", CodeDoctorResolvePTRFailed,
+					"fix", resolvePTRFailedFix,
+					"ip", ip,
+					"error", err)
+			}
+			return ""
 		}
-		if err == nil && len(records) > 0 {
+		if len(records) > 0 {
 			return strings.TrimSuffix(records[0], ".")
 		}
 		return ""

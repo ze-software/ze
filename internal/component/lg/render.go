@@ -189,6 +189,7 @@ func (s *LGServer) writeHTML(w http.ResponseWriter, body []byte) {
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	w.Header().Set("Cache-Control", "no-cache")
 
+	// refuse-by-default: guards renderPage -- full templ page is already buffered before writeHTML; w.Write fails only when public client disconnects or times out
 	if _, err := w.Write(body); err != nil {
 		s.logger.Debug("write html failed", "error", err)
 	}

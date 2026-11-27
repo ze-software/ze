@@ -299,6 +299,7 @@ func writeEmpty(w http.ResponseWriter, format, msg string) {
 // writeText writes a plain text response.
 func writeText(w http.ResponseWriter, text string) {
 	w.Header().Set("Content-Type", "text/plain; charset=utf-8")
+	// refuse-by-default: guards handleGraph -- public HTTP text response write after headers sent; fails only when client disconnects or times out
 	if _, err := fmt.Fprint(w, text); err != nil {
 		lgLogger.Debug("write text response failed", "error", err)
 	}

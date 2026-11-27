@@ -25,6 +25,9 @@ func init() {
 	if err := diagnostic.RegisterEventCode(diagnostic.EventCode{Code: codeDoctorWebHistoryResponse}); err != nil {
 		panic("BUG: browser recall response event registration refused: " + err.Error())
 	}
+	if err := diagnostic.RegisterEventCode(diagnostic.EventCode{Code: codeDoctorWebEditorEvictDiscardFailed}); err != nil {
+		panic("BUG: web editor eviction discard event registration refused: " + err.Error())
+	}
 }
 
 // reportBrowserHistoryUnavailable records the request boundary, including an

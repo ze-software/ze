@@ -2,7 +2,10 @@
 
 package cmd
 
-import "github.com/ze-software/ze/internal/core/diagnostic"
+import (
+	"github.com/ze-software/ze/internal/component/command"
+	"github.com/ze-software/ze/internal/core/diagnostic"
+)
 
 // doctorDiagnosticCodes is the explanation metadata for the doctor codes this package owns.
 var doctorDiagnosticCodes = []diagnostic.CodeMeta{
@@ -12,6 +15,16 @@ var doctorDiagnosticCodes = []diagnostic.CodeMeta{
 		Description: "A `system/rir/delegation-source` block names a URL that `update resolve rir` refuses, so that registry's file is never fetched and the ASN-to-registry table stays as it is. A source is read over HTTPS, or over plain HTTP only when its host is the router itself; the host is compared after parsing, so a name that merely starts with 127.0.0.1 is not loopback. The config editor refuses such a URL at commit time, so a running config carrying one came from an older binary, a restored backup, or an edit made outside the editor.",
 		Examples:    []string{"ze doctor --json", "ze show diagnostic doctor-rir-source-refused"},
 	},
+	{
+		Code:  command.CodeDoctorResolvePTRFailed,
+		Title: "Reverse DNS lookup failed in pipe resolve",
+		Description: "The | resolve pipe operator could not query the configured system DNS resolver for a PTR record " +
+			"(no DNS server configured, invalid address, or every resolver timed out or failed). " +
+			"The upstream command still returns every row with an empty -name field. " +
+			"At most one warning and report-bus event are emitted per minute. " +
+			"Inspect configured and learned DNS servers with ze show system dns.",
+		Examples: []string{"ze show system dns", "ze show doctor", "ze show diagnostic doctor-resolve-ptr-failed"},
+	},
 }
 
 func init() {
@@ -19,5 +32,8 @@ func init() {
 		if err := diagnostic.Register(meta); err != nil {
 			panic("BUG: cmd: doctor code registration refused: " + err.Error())
 		}
+	}
+	if err := diagnostic.RegisterEventCode(diagnostic.EventCode{Code: command.CodeDoctorResolvePTRFailed}); err != nil {
+		panic("BUG: cmd: doctor event code registration refused: " + err.Error())
 	}
 }

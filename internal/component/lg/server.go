@@ -979,7 +979,8 @@ func (s *LGServer) askCtx(ctx context.Context, command string) (map[string]any, 
 func writeJSONError(w http.ResponseWriter, status int, message string) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(status)
-	msgBytes, _ := json.Marshal(message)                                //nolint:errcheck // marshal of string cannot fail
+	msgBytes, _ := json.Marshal(message) //nolint:errcheck // marshal of string cannot fail
+	// refuse-by-default: guards registerRoutes -- HTTP status and JSON Content-Type headers are already written; response write fails only when public client disconnects or times out
 	if _, err := fmt.Fprintf(w, `{"error":%s}`, msgBytes); err != nil { //nolint:errcheck // output
 		lgLogger.Debug("write error response failed", "error", err)
 	}
@@ -1006,6 +1007,7 @@ func securityHeaders(next http.Handler) http.Handler {
 // writeSVG writes an SVG response with the correct Content-Type.
 func writeSVG(w http.ResponseWriter, svg string) {
 	w.Header().Set("Content-Type", "image/svg+xml")
+	// refuse-by-default: guards handleGraph -- SVG output is already rendered before writeSVG; response write fails only when public client disconnects or times out
 	if _, err := fmt.Fprint(w, svg); err != nil {
 		lgLogger.Debug("write svg response failed", "error", err)
 	}

@@ -7,7 +7,6 @@ import (
 	"errors"
 	"flag"
 	"fmt"
-	"log/slog"
 	"os"
 
 	"github.com/ze-software/ze/internal/component/command"
@@ -61,9 +60,23 @@ func cmdDump(args []string) int {
 		return code
 	}
 
-	printConfig(res.bgpTree, res.declaredPlugins(), res.sensitiveKeys, res.mode)
+	if err := printConfig(res.bgpTree, res.declaredPlugins(), res.sensitiveKeys, res.mode); err != nil {
+		opErr, isOperErr := errors.AsType[*opererr.Error](err)
+		if !isOperErr {
+			opErr = opererr.Wrap(err,
+				"failed to render configuration dump",
+				"no configuration dump was produced",
+				"ze config dump --strip-private")
+		}
+		fmt.Fprintln(os.Stderr, "error:", opErr.Error())
+		return 1
+	}
 	return 0
 }
+
+// dumpEncodeSecret encodes a sensitive leaf with JunOS-compatible $9$ encoding.
+// Tests replace it to inject encoding failures.
+var dumpEncodeSecret = secret.Encode
 
 // dumpPlugin is one external plugin declaration as printConfig prints it. A
 // leaf the declaration does not hold is not printed.
@@ -78,42 +91,51 @@ type dumpPlugin struct {
 // maskMapValues recursively replaces sensitive values in a map. A value already
 // equal to SecretDataPlaceholder (e.g. a ze:bcrypt leaf masked by MaskBcrypt) is
 // left as-is, never re-encoded as $9$.
-func maskMapValues(m map[string]any, sensitiveKeys map[string]bool, mode config.DisplayMode) {
+func maskMapValues(m map[string]any, sensitiveKeys map[string]bool, mode config.DisplayMode) error {
 	if mode == config.DisplayPlain {
-		return
+		return nil
 	}
 	for k, v := range m {
 		switch val := v.(type) {
 		case map[string]any:
-			maskMapValues(val, sensitiveKeys, mode)
+			if err := maskMapValues(val, sensitiveKeys, mode); err != nil {
+				return err
+			}
 		case string:
 			if sensitiveKeys[k] && val != config.SecretDataPlaceholder {
-				m[k] = maskValue(val, mode)
+				masked, err := maskValue(val, mode)
+				if err != nil {
+					return err
+				}
+				m[k] = masked
 			}
 		}
 	}
+	return nil
 }
 
 // maskValue applies the display mode to a sensitive value.
-func maskValue(v string, mode config.DisplayMode) string {
+func maskValue(v string, mode config.DisplayMode) (string, error) {
 	switch mode {
 	case config.DisplayStrip:
-		return config.SecretDataPlaceholder
+		return config.SecretDataPlaceholder, nil
 	case config.DisplayEncode:
-		encoded, err := secret.Encode(v)
+		encoded, err := dumpEncodeSecret(v)
 		if err != nil {
-			slog.Debug("secret encode failed", "error", err)
-			return config.SecretDataPlaceholder
+			return config.SecretDataPlaceholder, opererr.Wrap(err,
+				"failed to encode sensitive value in configuration dump",
+				"no configuration dump was produced because a sensitive value could not be $9$-encoded",
+				"ze config dump --strip-private")
 		}
-		return encoded
+		return encoded, nil
 	case config.DisplayPlain:
-		return v
+		return v, nil
 	default:
 		panic("BUG: unknown config dump display mode")
 	}
 }
 
-func printConfig(bgpTree map[string]any, plugins []dumpPlugin, sensitiveKeys map[string]bool, mode config.DisplayMode) {
+func printConfig(bgpTree map[string]any, plugins []dumpPlugin, sensitiveKeys map[string]bool, mode config.DisplayMode) error {
 	// Global BGP settings.
 	if v, ok := bgpTree["router-id"]; ok {
 		fmt.Printf("router-id: %s\n", v)
@@ -136,13 +158,15 @@ func printConfig(bgpTree map[string]any, plugins []dumpPlugin, sensitiveKeys map
 			continue
 		}
 		fmt.Printf("peer %s:\n", addr)
-		printTreeMap(peer, "  ", sensitiveKeys, mode)
+		if err := printTreeMap(peer, "  ", sensitiveKeys, mode); err != nil {
+			return err
+		}
 		fmt.Println()
 	}
 
 	// The external plugin declarations (dumpResult.declaredPlugins).
 	if len(plugins) == 0 {
-		return
+		return nil
 	}
 	var list textbuf.Buffer
 	list.Str("plugins:\n")
@@ -156,23 +180,31 @@ func printConfig(bgpTree map[string]any, plugins []dumpPlugin, sensitiveKeys map
 		}
 	}
 	list.StdOut() //nolint:errcheck // CLI output, nothing to report a stdout failure to
+	return nil
 }
 
 // printTreeMap prints a map[string]any tree in a readable key-value format.
-func printTreeMap(m map[string]any, indent string, sensitiveKeys map[string]bool, mode config.DisplayMode) {
+func printTreeMap(m map[string]any, indent string, sensitiveKeys map[string]bool, mode config.DisplayMode) error {
 	for k, v := range m {
 		switch val := v.(type) {
 		case map[string]any:
 			fmt.Printf("%s%s:\n", indent, k)
-			printTreeMap(val, indent+"  ", sensitiveKeys, mode)
+			if err := printTreeMap(val, indent+"  ", sensitiveKeys, mode); err != nil {
+				return err
+			}
 		default:
 			display := fmt.Sprintf("%v", val)
 			if sensitiveKeys[k] {
-				display = maskValue(display, mode)
+				var err error
+				display, err = maskValue(display, mode)
+				if err != nil {
+					return err
+				}
 			}
 			fmt.Printf("%s%s: %s\n", indent, k, display)
 		}
 	}
+	return nil
 }
 
 // dumpResult is everything the two callers of dumpAsking need from one dump:
@@ -284,7 +316,9 @@ func resolveDumpBytes(data []byte, stripPrivate bool, diag *textbuf.Buffer) (dum
 
 	dumpMap := tree.ToMap()
 	dumpMap["bgp"] = bgpTree
-	maskMapValues(dumpMap, sensitiveKeys, mode)
+	if err := maskMapValues(dumpMap, sensitiveKeys, mode); err != nil {
+		return dumpResult{}, err
+	}
 	return dumpResult{
 		dumpMap:       dumpMap,
 		bgpTree:       bgpTree,
