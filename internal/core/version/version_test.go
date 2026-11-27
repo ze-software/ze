@@ -1,6 +1,9 @@
 package version
 
 import (
+	"encoding/json"
+	"os"
+	"path/filepath"
 	"runtime"
 	"strings"
 	"testing"
@@ -124,4 +127,117 @@ func TestHTTPHeaderHidden(t *testing.T) {
 			}
 		})
 	}
+}
+
+// TestBuildIdentityFields checks BuildIdentity returns structured provenance
+// including stamped release metadata, Go runtime fields, and optional appliance
+// image manifest data.
+//
+// VALIDATES: AC-4 -- BuildIdentity() exposes release, build-date, go, os, arch,
+// and optional image manifest fields as a structured Identity value.
+// PREVENTS: show system triage falling back to parsing multi-line version text
+// or omitting stamped build and appliance provenance.
+func TestBuildIdentityFields(t *testing.T) {
+	prevRelease, prevDate := Release(), BuildDate()
+	t.Cleanup(func() { Stamp(prevRelease, prevDate) })
+
+	prevManifest := imageManifestPath
+	t.Cleanup(func() { imageManifestPath = prevManifest })
+
+	const (
+		wantRelease   = "26.11.27"
+		wantBuildDate = "2026-11-27T05:00:00Z"
+	)
+	Stamp(wantRelease, wantBuildDate)
+
+	manifestDir := t.TempDir()
+	manifestPath := filepath.Join(manifestDir, "build.json")
+	manifestJSON := `{"appliance":"ze-router","timestamp":"2026-11-27T04:55:00Z","ze-version":"26.11.27","arch":"amd64","image":"ze-26.11.27.img","image-sha256":"deadbeef"}`
+	if err := os.WriteFile(manifestPath, []byte(manifestJSON), 0o600); err != nil {
+		t.Fatalf("write manifest: %v", err)
+	}
+
+	t.Run("with image manifest", func(t *testing.T) {
+		imageManifestPath = manifestPath
+
+		got := BuildIdentity()
+		if got.Release != wantRelease {
+			t.Errorf("Release = %q, want %q", got.Release, wantRelease)
+		}
+		if got.BuildDate != wantBuildDate {
+			t.Errorf("BuildDate = %q, want %q", got.BuildDate, wantBuildDate)
+		}
+		if !strings.HasPrefix(got.Go, "go") {
+			t.Errorf("Go = %q, want prefix %q", got.Go, "go")
+		}
+		if got.OS != runtime.GOOS {
+			t.Errorf("OS = %q, want %q", got.OS, runtime.GOOS)
+		}
+		if got.Arch != runtime.GOARCH {
+			t.Errorf("Arch = %q, want %q", got.Arch, runtime.GOARCH)
+		}
+		if got.CGO != "" && got.CGO != "enabled" && got.CGO != "disabled" {
+			t.Errorf("CGO = %q, want empty, enabled, or disabled", got.CGO)
+		}
+		if got.Image == nil {
+			t.Fatalf("Image = nil, want manifest from %s", manifestPath)
+		}
+		if got.Image.Image != "ze-26.11.27.img" {
+			t.Errorf("Image.Image = %q, want %q", got.Image.Image, "ze-26.11.27.img")
+		}
+		if got.Image.Appliance != "ze-router" {
+			t.Errorf("Image.Appliance = %q, want %q", got.Image.Appliance, "ze-router")
+		}
+		if got.Image.Timestamp != "2026-11-27T04:55:00Z" {
+			t.Errorf("Image.Timestamp = %q, want %q", got.Image.Timestamp, "2026-11-27T04:55:00Z")
+		}
+		if got.Image.ZeVersion != wantRelease {
+			t.Errorf("Image.ZeVersion = %q, want %q", got.Image.ZeVersion, wantRelease)
+		}
+		if got.Image.Arch != "amd64" {
+			t.Errorf("Image.Arch = %q, want %q", got.Image.Arch, "amd64")
+		}
+		if got.Image.SHA256 != "deadbeef" {
+			t.Errorf("Image.SHA256 = %q, want %q", got.Image.SHA256, "deadbeef")
+		}
+
+		raw, err := json.Marshal(got)
+		if err != nil {
+			t.Fatalf("marshal Identity: %v", err)
+		}
+		var wire map[string]any
+		if err := json.Unmarshal(raw, &wire); err != nil {
+			t.Fatalf("unmarshal Identity: %v", err)
+		}
+		if wire["build-date"] != wantBuildDate {
+			t.Errorf("JSON build-date = %v, want %q", wire["build-date"], wantBuildDate)
+		}
+		if _, ok := wire["image"]; !ok {
+			t.Errorf("JSON missing image field when manifest present: %s", raw)
+		}
+	})
+
+	t.Run("without image manifest", func(t *testing.T) {
+		imageManifestPath = filepath.Join(manifestDir, "missing.json")
+
+		withoutImage := BuildIdentity()
+		if withoutImage.Release != wantRelease {
+			t.Errorf("Release = %q, want %q", withoutImage.Release, wantRelease)
+		}
+		if withoutImage.Image != nil {
+			t.Errorf("Image = %+v when manifest missing, want nil", withoutImage.Image)
+		}
+
+		raw, err := json.Marshal(withoutImage)
+		if err != nil {
+			t.Fatalf("marshal Identity without image: %v", err)
+		}
+		var wire map[string]any
+		if err := json.Unmarshal(raw, &wire); err != nil {
+			t.Fatalf("unmarshal Identity without image: %v", err)
+		}
+		if _, ok := wire["image"]; ok {
+			t.Errorf("JSON included image field when manifest absent: %s", raw)
+		}
+	})
 }

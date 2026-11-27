@@ -781,6 +781,7 @@ ze show system cpu                 # goroutine count, logical CPUs, GOMAXPROCS +
 ze show system date                # wall-clock time: RFC3339, Unix, timezone
 ze show system platform            # runtime platform type and capabilities
 ze show system dns                 # learned resolver records and each dns-source consumer's selection
+ze show system triage              # single-call bounded live triage snapshot (10 sections)
 ```
 
 Each response is a flat JSON map with kebab-case keys:
@@ -793,6 +794,7 @@ Each response is a flat JSON map with kebab-case keys:
 | `show system dns` | `records` (each learned record: `origin`, `rank`, `interface`, `unit`, `addresses`, `received`, `expires`, and when set `fallback`, `priority`, `name`, `transport`, `port`, `path`), `consumers` (each: `consumer`, `selections` with `path`, `instance`, `sources`, `mode`, `default`, `received-interfaces`, `used`, `servers`, `self`, `serves`); the router is first, as consumer `system` (`docs/features/dns-resolver.md`) |
 | `show system platform` | `type` (gokrazy, systemd, container, plain-linux, darwin), `read-only-root`, `perm-available`, `systemd-available`, `gokrazy-update-socket`, `gokrazy-ui-available`, `reboot-allowed`, `persistent-storage-writable`, `fd-limit-soft-current`, `fd-limit-hard-max`, `fd-limit-raisable` |
 | `show system conntrack` | `count`, `max`, `buckets`, `expect-max`, `accounting`, `timestamp`, `checksum`, `log-invalid`, `modules` (loaded nf_conntrack_* list), `helpers` (one row per assigned kernel helper: `module`, `kernel-helper`, `protocol`, `ports`, `families`), `timeouts` (per-protocol), `tcp-behavior` (be-liberal, loose, max-retrans, ignore-invalid-rst) |
+| `show system triage` | `version`, `health`, `doctor`, `errors`, `warnings`, `crashes`, `plugins`, `reload`, `recent-logs`, `runtime` (bounded newest-first lists with `total-count` and `truncated`; unavailable sources return `available: false`) |
 
 `show system date` refuses when the NTP state provider is unavailable, including
 a build without NTP support. Install a build with NTP support and retry
@@ -826,6 +828,7 @@ correct; pick `show system *` when you want runtime-first with hardware
 as context, `show host *` when you want hardware-first.
 
 <!-- source: internal/component/cmd/show/system.go -- handleShowSystemMemory/CPU/Date -->
+<!-- source: internal/component/cmd/show/triage.go -- handleShowSystemTriage -->
 
 ### show plugin list
 

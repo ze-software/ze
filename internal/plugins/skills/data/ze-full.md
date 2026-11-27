@@ -11,6 +11,7 @@ SSH-accessible CLI, HTMX web UI, and agent-facing tooling.
 ## Agent Entry Points
 
 ```sh
+ze cli -c "show system triage | json"
 ze cli -c "show config validation <file> | json"
 ze show diagnostic [--json] <diagnostic-code>
 ze config fix --plan <file>
@@ -27,10 +28,17 @@ ze show skill <name> [--full] [--json]
 4. Run `ze config fix --plan <file>` for repair candidates.
 5. Apply the smallest fix, then re-validate.
 
+## Live Runtime Triage Loop
+
+1. Run `ze cli -c "show system triage | json"` (or MCP `ze_show_system` action `triage`) to capture build provenance, `health`, `doctor`, `errors`, `warnings`, `crashes`, `plugins`, `reload`, `recent-logs`, and `runtime` in one call.
+2. Inspect `doctor`, `errors`, `crashes`, and `recent-logs` first (including any `doctor-internal-defect` raised by a recovered panic).
+3. Drill down only into the sections triage flags: `show crashes name <file>`, `show log recent level err`, `show event recent`, `show system goroutines mode blocked`, `show system profile`, `show reload-status`, or `show plugin list`.
+4. Load `ze show skill ze-diagnostics` for the full runtime triage playbook and bug report checklist.
+
 ## Skills
 
 Use `ze show skills` to see all bundled skills.
-Use `ze show skill ze-diagnostics` for the diagnostic workflow.
+Use `ze show skill ze-diagnostics` for config diagnostics and live runtime triage.
 Use `ze show skill ze-config` for config syntax and common errors.
 Use `ze show skill ze-commands` for CLI and dispatch key reference.
 Use `ze show skill ze-agent` for the agent edit loop.

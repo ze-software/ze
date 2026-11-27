@@ -101,6 +101,10 @@ func init() {
 			Handler:    handleShowSystemPlatform,
 		},
 		pluginserver.RPCRegistration{
+			WireMethod: "ze-cmd:show-system-triage",
+			Handler:    handleShowSystemTriage,
+		},
+		pluginserver.RPCRegistration{
 			WireMethod: "ze-cmd:show-metrics-query",
 			Handler:    handleShowMetricsQuery,
 		},

@@ -84,7 +84,7 @@ produce continuously-updating output.
 |----------|----------|
 | Daemon | shutdown, reload, restart, status |
 | Session | ack, sync, reset, ping, bye |
-| System | help, version, api version |
+| System | help, version, api version, show system triage (single-call bounded live triage snapshot) |
 | Peer | list, detail, capabilities, statistics, set (add/save), delete, teardown, notify, flush |
 | Announce | route, flow, vpls, eor, operational |
 | Withdraw | route, flow, vpls, watchdog |
@@ -99,6 +99,7 @@ produce continuously-updating output.
 | OSPF | show ospf neighbor, interface, database, route, border-routers, spf; for OSPFv3, show ospf ipv6 neighbor, interface, database, route, spf, graceful-restart, segment-routing, each answering every running address family and taking `address-family <af>` to narrow |
 | Reports | show warnings, show errors (cross-subsystem operational report bus) |
 <!-- source: internal/component/plugin/server/command.go -- AllBuiltinRPCs -->
+<!-- source: internal/component/cmd/show/triage.go -- handleShowSystemTriage -->
 <!-- source: internal/component/sysrib/register.go -- commandDecls, routeViewCommandHandler -->
 <!-- source: internal/plugins/fib/dummy/register.go -- commandDecls -->
 <!-- source: internal/plugins/fib/dummy/show.go -- routeRow, countersSnapshot -->

@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"io"
 	"os"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -175,5 +176,103 @@ func TestSkillsHelpIsReturned(t *testing.T) {
 		assert.Equal(t, 0, result.Code)
 		assert.Nil(t, result.Payload)
 		assert.Contains(t, result.Diagnostic, "ze show skill <name> [--full] [--json]")
+	}
+}
+
+// TestSkillsDiagnosticsIncludesLiveTriagePlaybook proves the bundled
+// ze-diagnostics, ze, and ze full skills teach live runtime bug triage via
+// show system triage while keeping existing config-validation and setup text.
+//
+// VALIDATES: AC-6 -- show skill ze-diagnostics, show skill ze, and show skill
+// ze full contain show system triage and live runtime triage guidance while
+// preserving show config validation, Diagnostic Shape, and ze create agent skill.
+// PREVENTS: bundled agent skills omitting live runtime triage entry points or
+// dropping existing config validation and agent setup instructions.
+func TestSkillsDiagnosticsIncludesLiveTriagePlaybook(t *testing.T) {
+	const (
+		cmdShowSystemTriage     = "show system triage"
+		cmdShowConfigValidation = "show config validation"
+		cmdCreateAgentSkill     = "ze create agent skill"
+	)
+
+	cases := []struct {
+		name     string
+		tokens   []string
+		required []string
+	}{
+		{
+			name:   "ze-diagnostics",
+			tokens: []string{"ze-diagnostics"},
+			required: []string{
+				cmdShowSystemTriage,
+				"## Live Runtime Triage",
+				"doctor-internal-defect",
+				"show crashes name",
+				"show errors",
+				"show warnings",
+				"show log recent",
+				"show event recent",
+				"show event delivery",
+				"show system goroutines",
+				"show system profile",
+				"show doctor",
+				"show reload-status",
+				"show plugin list",
+				"Bug Report Essentials",
+				cmdShowConfigValidation,
+				"show diagnostic",
+				"ze config fix",
+				"Diagnostic Shape",
+			},
+		},
+		{
+			name:   "ze",
+			tokens: []string{"ze"},
+			required: []string{
+				"## Agent Entry Points",
+				cmdShowSystemTriage,
+				"ze show skill ze-diagnostics",
+				cmdShowConfigValidation,
+				"show diagnostic",
+				"ze config fix",
+				cmdCreateAgentSkill,
+			},
+		},
+		{
+			name:   "ze full",
+			tokens: []string{"ze", "full"},
+			required: []string{
+				"## Diagnostic Loop",
+				"## Live Runtime Triage Loop",
+				cmdShowSystemTriage,
+				"show crashes name",
+				"show log recent",
+				"show event recent",
+				"show system goroutines",
+				cmdShowConfigValidation,
+				cmdCreateAgentSkill,
+			},
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			validated, err := command.ValidateModelArgs("show skill", tc.tokens, nil)
+			require.NoError(t, err, "model refused show skill %q", tc.tokens)
+
+			var result command.LocalAnswer
+			written := captureOutput(t, func() { result = showSkill(validated) })
+			assert.Empty(t, written, "handler wrote to stdout or stderr")
+			require.Equal(t, 0, result.Code, "show skill %q: %s", tc.tokens, result.Diagnostic)
+
+			answer, ok := result.Payload.(skillAnswer)
+			require.True(t, ok, "show skill %q answered %T", tc.tokens, result.Payload)
+			for _, want := range tc.required {
+				assert.Contains(t, answer.Skill.Content, want)
+			}
+			lower := strings.ToLower(answer.Skill.Content)
+			assert.Contains(t, lower, "triage")
+			assert.Contains(t, lower, "runtime")
+		})
 	}
 }

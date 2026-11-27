@@ -10,6 +10,7 @@ Ze is a network OS with its own BGP implementation, YANG-modeled config, and age
 ## Agent Entry Points
 
 ```sh
+ze cli -c "show system triage | json"
 ze cli -c "show config validation <file> | json"
 ze show diagnostic [--json] <diagnostic-code>
 ze config fix --plan <file>
@@ -17,6 +18,8 @@ ze help ai --json
 ze show skills
 ze show skill <name> [--full]
 ```
+
+Start live runtime bug triage with `show system triage` (over CLI or MCP `ze_show_system` action `triage`), then load `ze show skill ze-diagnostics` for the full drill-down playbook.
 
 Driving ze over MCP instead of the CLI? Call the `ze_reference` tool (it appears
 in `tools/list` on connect) for the same `ze help ai --json` reference. <!-- doc-links: ignore (JSON-RPC method name, not a path) -->

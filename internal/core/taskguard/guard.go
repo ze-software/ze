@@ -5,13 +5,16 @@
 // so a Ze defect a peer happens to reach ends the unit that input belongs to and
 // not the process.
 //
-// A recovered panic is never silent. The guard writes one ERROR line naming the
-// component, the task, the unit, the message type where the task tracks one,
-// the panic value, the stack, what restarts the unit and the `show crashes`
-// command; it counts the panic in ze_task_panics_total{component,task}; and it
-// writes a crash record through crashlog. It then hands control to the caller's
-// end function, which tears the unit down through its existing path. The guard
-// starts no goroutine and restarts nothing: the component's own backoff does.
+// A recovered panic is never silent. The guard writes one ERROR line carrying
+// code=doctor-internal-defect along with the component, the task, the unit,
+// the message type where the task tracks one, the panic value, the stack, what
+// restarts the unit and the `show crashes` command; it counts the panic in
+// ze_task_panics_total{component,task}; it writes a crash record through
+// crashlog; and it raises a bounded error event on internal/core/report under
+// doctor-internal-defect so show errors, show doctor and show system triage
+// surface the defect. It then hands control to the caller's end function,
+// which tears the unit down through its existing path. The guard starts no
+// goroutine and restarts nothing: the component's own backoff does.
 //
 // The guard goes once at the top of a task, never inside a decode function or
 // per message inside a read loop.
@@ -22,9 +25,11 @@ import (
 	"log/slog"
 	"runtime/debug"
 	"sync"
+	"unicode/utf8"
 
 	"github.com/ze-software/ze/internal/core/crashlog"
 	"github.com/ze-software/ze/internal/core/metrics"
+	"github.com/ze-software/ze/internal/core/report"
 )
 
 // MetricName is the counter every guard increments, labeled by component and
@@ -37,6 +42,14 @@ const metricHelp = "Panics recovered at a network-input task boundary; each ende
 // showCrashesCommand is the command that lists and prints the crash records the
 // guard writes.
 const showCrashesCommand = "ze show crashes"
+
+// fallbackFixCommand is the report-bus fix command used when no crash record
+// could be written, so the fix never points at a nonexistent crash file.
+const fallbackFixCommand = "ze show log recent level err"
+
+// unknownField substitutes for an empty report-bus source or subject so
+// report.RaiseErrorFix never drops a recovered panic for a missing identity.
+const unknownField = "unknown"
 
 // Guard is the panic boundary of one component. A component builds one with New,
 // declares each guarded task with Task, and defers Task.Contain at the top of
@@ -160,7 +173,8 @@ func (t Task) Contain(describe func() Context, end func(*Panic)) {
 	}
 }
 
-// record counts p, writes its crash record and logs it, in that order, so the
+// record counts p, writes its crash record, raises an internal-defect error on
+// the report bus and logs it, in that order, so both the report event and the
 // log line can name the record the operator reads.
 func (g *Guard) record(restart string, p *Panic) {
 	g.mu.Lock()
@@ -170,7 +184,10 @@ func (g *Guard) record(restart string, p *Panic) {
 	}
 	g.mu.Unlock()
 
+	panicText := fmt.Sprint(p.Value)
+
 	attrs := []any{
+		slog.String("code", report.CodeInternalDefect),
 		slog.String("component", p.Component),
 		slog.String("task", p.Task),
 		slog.String("unit", p.Unit),
@@ -179,13 +196,25 @@ func (g *Guard) record(restart string, p *Panic) {
 		attrs = append(attrs, slog.String("message-type", p.MessageType))
 	}
 	attrs = append(attrs,
-		slog.String("panic", fmt.Sprint(p.Value)),
+		slog.String("panic", panicText),
 		slog.String("restart", restart),
 	)
 
+	detail := map[string]any{
+		"task":  p.Task,
+		"unit":  p.Unit,
+		"panic": panicText,
+	}
+	if p.MessageType != "" {
+		detail["message-type"] = p.MessageType
+	}
+
+	fix := fallbackFixCommand
 	name, err := crashlog.RecordRecoveredPanic(p.origin(), p.Value, p.Stack)
 	if err == nil {
 		p.Report = name
+		detail["crash-report"] = name
+		fix = boundReportField(showCrashesCommand+" name "+name, report.FixMax, showCrashesCommand)
 		attrs = append(attrs, slog.String("next", showCrashesCommand+" name "+name))
 	} else {
 		attrs = append(attrs,
@@ -195,7 +224,35 @@ func (g *Guard) record(restart string, p *Panic) {
 	}
 	attrs = append(attrs, slog.String("stack", string(p.Stack)))
 
+	report.RaiseErrorFix(
+		boundReportField(p.Component, report.SourceMax, unknownField),
+		report.CodeInternalDefect,
+		boundReportField(p.origin(), report.SubjectMax, unknownField),
+		report.FitMessage(p.Error()),
+		fix,
+		detail,
+	)
+
 	g.log.Error("an internal Ze defect ended this unit; the rest of Ze keeps running", attrs...)
+}
+
+// boundReportField fits s to maxBytes at a valid UTF-8 rune boundary,
+// substituting fallback when s is empty or cannot fit a single rune.
+func boundReportField(s string, maxBytes int, fallback string) string {
+	if s == "" {
+		return fallback
+	}
+	if len(s) <= maxBytes {
+		return s
+	}
+	cut := maxBytes
+	for cut > 0 && !utf8.RuneStart(s[cut]) {
+		cut--
+	}
+	if cut == 0 {
+		return fallback
+	}
+	return s[:cut]
 }
 
 // Panic is a panic a Task contained. It is an error, so a task that returns an

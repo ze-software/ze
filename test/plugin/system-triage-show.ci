@@ -1,0 +1,74 @@
+# Question: Does a live ze daemon dispatch `show system triage` end-to-end through
+# the YANG command registry and plugin dispatcher, returning all 10 bounded triage
+# sections (version, health, doctor, errors, warnings, crashes, plugins, reload,
+# recent-logs, runtime)?
+# Why a unit test cannot decide it: Unit tests call handleShowSystemTriage directly
+# without a running daemon, external plugin transport, or live nested `show doctor`
+# dispatch; only a live daemon proves YANG routing, wire JSON framing, and nested
+# doctor execution without deadlocking the calling plugin.
+
+# ze-peer: accepts connection
+stdin=peer:terminator=EOF_PEER
+option=tcp_connections:value=1
+option=timeout:value=15s
+option=asn:value=65001
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
+EOF_PEER
+
+
+stdin=ze-bgp:terminator=EOF_CONF
+bus {
+	endpoint system-triage-show-test {
+		external {
+			run "le test fixture plugin/system-triage-show";
+		}
+		encoding json;
+	}
+}
+
+bgp {
+	filter {
+		import {
+			final accept
+		}
+		export {
+			final accept
+		}
+	}
+	peer peer1 {
+		connection {
+			remote {
+				ip 127.0.0.1
+			}
+			local {
+				ip 127.0.0.1
+				accept false
+			}
+		}
+		session {
+			asn {
+				local 65000
+				remote 65001
+			}
+			router-id 1.2.3.4
+			family {
+				ipv4/unicast {
+					prefix {
+						maximum 10000
+					}
+				}
+			}
+			capability {
+				graceful-restart disable
+			}
+		}
+		behavior {
+			group-updates disable
+		}
+	}
+}
+EOF_CONF
+
+cmd=background:seq=1:exec=le test peer --port $PORT:stdin=peer
+cmd=foreground:seq=2:exec=ze -:stdin=ze-bgp:timeout=15s
+expect=exit:code=0

@@ -162,18 +162,21 @@ neighbor, the request, the connection), and the process keeps running.
 <!-- source: internal/core/taskguard/guard.go -- Guard, Task.Contain, record -->
 <!-- source: internal/core/crashlog/recovered.go -- RecordRecoveredPanic, rotateRecoveredFiles -->
 
-**A recovered panic is never silent.** The boundary does three things before it
+**A recovered panic is never silent.** The boundary does four things before it
 hands control back to the task:
 
 | Output | What it carries |
 |--------|-----------------|
-| One ERROR log line | `component`, `task`, `unit`, `message-type` when the task tracks one, `panic`, `restart` (what brings the unit back), `next` (the `ze show crashes name <file>` command), `stack` |
+| One ERROR log line | `code` (`doctor-internal-defect`), `component`, `task`, `unit`, `message-type` when the task tracks one, `panic`, `restart` (what brings the unit back), `next` (the `ze show crashes name <file>` command), `stack` |
 | `ze_task_panics_total{component,task}` | One increment. The peer or client is in the log line, not a label, so the series count stays bounded |
 | A crash record | Written by `crashlog.RecordRecoveredPanic`, named `crash-<time>-recovered.log`, listed by `show crashes` with kind `recovered` |
+| One report-bus error event | Raised through `report.RaiseErrorFix` on `internal/core/report` with code `doctor-internal-defect`, structured detail (`task`, `unit`, `panic`, plus `message-type` and `crash-report` when present), and `fix` set to `ze show crashes name <file>` (or `ze show log recent level err` when no crash file was written), so `show errors`, `show doctor` (`recent-events`), and `show system triage` surface it immediately |
+<!-- source: internal/core/taskguard/guard.go -- Guard.record -->
 
 When no record can be written (no crash directory, a failed write), the log
 line carries `crash-record-error` with the reason instead of the `show crashes`
-command, so it never points at a file that does not exist.
+command, and the report-bus event's `fix` falls back to `ze show log recent
+level err`, so neither output points at a file that does not exist.
 
 **The boundary goes at the task entry, never in a decode function.** One
 deferred call per session, goroutine or dispatched event costs nothing

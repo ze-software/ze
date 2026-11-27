@@ -108,6 +108,16 @@ darwin, along with platform-specific capabilities.";
                 ze:help "Show what kind of platform the daemon is running on.";
             }
 
+            container triage {
+                config false;
+                ze:command "ze-cmd:show-system-triage";
+                description "Returns a single bounded JSON snapshot combining build identity, component
+health, daemon doctor findings, recent errors, active warnings, crash records,
+unhealthy plugins, reload status, recent warning/error logs, and runtime vitals.
+Start here when investigating a runtime bug.";
+                ze:help "Show a single-call live runtime triage snapshot of the daemon.";
+            }
+
             container subsystem {
                 config false;
                 description "A subsystem is a registered component of the daemon. What is listed

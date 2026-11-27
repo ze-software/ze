@@ -13,7 +13,7 @@ is part of the binary.
 
 Every diagnostic is a YANG RPC registered as a CLI command. The MCP tool list
 is generated from the registered RPCs, so a new diagnostic appears to an AI
-agent with no MCP code change. This held across all seven diagnostic areas and
+agent with no MCP code change. This held across all eight diagnostic areas and
 is the reason none of them needed a bespoke transport.
 
 | Area | What it exposes |
@@ -25,6 +25,27 @@ is the reason none of them needed a bespoke transport.
 | Active probes | ping, traceroute, route lookup (`active-probes.md`) |
 | Health | component health registry, HTTP `/health` returning 200 or 503 |
 | Log query | slog ring handler filtered by level, component and count |
+| Live triage | single-call bounded daemon snapshot (`show system triage`) across version, health, doctor, reports, crashes, plugins, reload, recent logs and runtime |
+
+### Single-call live triage (`show system triage`)
+
+`show system triage` aggregates ten bounded sections in one read-only YANG RPC
+(`ze-cmd:show-system-triage`): `version`, `health`, `doctor`, `errors`,
+`warnings`, `crashes`, `plugins`, `reload`, `recent-logs`, and `runtime`.
+Because it registers under the shared `show system` YANG tree, CLI, SSH, web,
+REST, gRPC, and MCP all expose it automatically with no MCP-specific code.
+
+List sections cap their payloads newest-first (`32` errors, `64` warnings, `16`
+crashes, `32` warn/error log entries) and report `total-count` and `truncated`
+so operators and agents know when to drill into full listings. `plugins`
+reports summary counts and expands only unhealthy or fault-bearing plugins.
+When an optional runtime source (`doctor`, `plugins`, or `reload`) cannot
+answer, that section returns `"available": false` with its `reason` or `error`
+while every other section still succeeds. `version` reads structured build and
+appliance provenance from `version.BuildIdentity`.
+
+<!-- source: internal/component/cmd/show/triage.go -- handleShowSystemTriage -->
+<!-- source: internal/core/version/version.go -- BuildIdentity -->
 
 ### Structured log fields
 

@@ -159,6 +159,52 @@ type ImageInfo struct {
 	SHA256    string `json:"image-sha256"`
 }
 
+// Identity holds structured build and appliance provenance for machine-readable
+// diagnostics such as `show system triage`.
+type Identity struct {
+	Release   string     `json:"release"`
+	BuildDate string     `json:"build-date"`
+	Commit    string     `json:"commit,omitempty"`
+	Modified  bool       `json:"modified,omitempty"`
+	VCSTime   string     `json:"vcs-time,omitempty"`
+	Go        string     `json:"go"`
+	OS        string     `json:"os"`
+	Arch      string     `json:"arch"`
+	CGO       string     `json:"cgo,omitempty"`
+	Image     *ImageInfo `json:"image,omitempty"`
+}
+
+// BuildIdentity returns the running binary's structured build provenance,
+// reading stamped release metadata, Go build info, and any baked appliance
+// manifest. Safe for concurrent use.
+func BuildIdentity() Identity {
+	mu.RLock()
+	v, d := release, buildDate
+	mu.RUnlock()
+	i := readInfo()
+
+	id := Identity{
+		Release:   v,
+		BuildDate: d,
+		Commit:    i.commit,
+		Modified:  i.modified,
+		VCSTime:   i.vcsTime,
+		Go:        i.goVer,
+		OS:        runtime.GOOS,
+		Arch:      runtime.GOARCH,
+	}
+	if i.cgo != "" {
+		id.CGO = "disabled"
+		if i.cgo == "1" {
+			id.CGO = "enabled"
+		}
+	}
+	if img, ok := readImageManifest(); ok {
+		id.Image = &img
+	}
+	return id
+}
+
 // readImageManifest loads the build manifest baked into the running image, if
 // any. Returns ok=false on a dev box (no /perm) or a malformed/empty manifest.
 func readImageManifest() (ImageInfo, bool) {

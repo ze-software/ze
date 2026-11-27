@@ -673,6 +673,7 @@ Aggregates: `plan/learned/DESIGN-HISTORY.md`, `plan/learned/HOOK-FRICTION.md`, `
 | top run, top set, root completion, LineBehindTop | `docs/architecture/cli/command-completion.md` |
 | offline flag completion, FlagValueText, registered flag values, completion flag-value | `docs/architecture/cli/plugin-modes.md` (Offline flag completion), `docs/architecture/cli/command-completion.md` |
 | diagnostic, doctor, health, readiness, plugin setup, setup outcome, show plugin list, why is this feature absent | `docs/architecture/doctor-and-health-checks.md`, `docs/architecture/diagnostics/production-diagnostics.md`, `ai/rules/repo-maintenance.md` |
+| show system triage, live triage, triage snapshot, runtime bug triage, single-call diagnostics | `internal/component/cmd/show/triage.go`, `docs/architecture/diagnostics/production-diagnostics.md` |
 | BGP OPEN connection refusal, strict-BFD BGP hold expiry, doctor-bgp-open-connection-refused, doctor-bgp-bfd-wait-hold-expired | `docs/architecture/behavior/fsm-open-sent.md` (Connection diagnostics), `internal/component/bgp/reactor/session_problem_diagnostic.go` |
 | error inventory, user-visible messages, which errors name a fix, surface writer, ./le arch error-inventory | `docs/contributing/error-inventory.md`, `ai/rules/user-facing-errors.md` |
 | EventBus, event, pub/sub, subscribe, emit | `pkg/ze/eventbus.go`, `ai/rules/plugins.md` (EventBus Typed Payloads), `internal/core/events/typed.go` |
