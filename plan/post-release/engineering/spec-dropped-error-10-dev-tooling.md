@@ -5,19 +5,19 @@
 | Status | ready |
 | Scope | tooling |
 | Priority | P3 |
-| Release reason | Release-independent: 3 dropped errors in the chaos dashboard and the functional test runner, which no shipped binary links; they block only the tree-wide zero of `plan/release/fixes/spec-dropped-error-0-umbrella.md` |
+| Release reason | Release-independent: 3 dropped errors in the chaos dashboard and the functional test runner, which no shipped binary links; they sit outside the shipped-release scope closed by `spec-dropped-error-0-umbrella` |
 | RFC gaps | - |
 | Depends | - |
 | Phase | - |
 | Handoff | - |
-| Updated | 2026-11-02 |
+| Updated | 2026-11-27 |
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.
 
 ## Task
 
-Child of `plan/release/fixes/spec-dropped-error-0-umbrella.md`, which holds the
-resolution policy and the tree-wide acceptance. Doors: `ai/doors/system.md`
+Post-release child of `spec-dropped-error-0-umbrella` (closed 2026-11-27), which
+held the resolution policy and the shipped-release acceptance. Doors: `ai/doors/system.md`
 (`internal/chaos`, which no subsystem door covers) and `ai/doors/le-tooling.md`
 (`internal/test`).
 

@@ -2,7 +2,7 @@
 
 | Field | Value |
 |-------|-------|
-| Status | ready |
+| Status | in-progress |
 | Scope | tooling |
 | Priority | P1 |
 | Release reason | Shipped release code catches 276 errors (281 tree-wide, down from 328 on 2026-11-02) whose only record is a debug or info line that the default WARN level hides, so a failed operation reads as done and leaves no trace; this umbrella owns the release-wide zero across shipped paths |
@@ -10,7 +10,7 @@
 | Depends | - |
 | Phase | - |
 | Handoff | - |
-| Updated | 2026-11-26 |
+| Updated | 2026-11-27 |
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.
 
@@ -174,8 +174,8 @@ child (children 1–5 and 7–9).
 ### Boundaries Crossed
 | Boundary | How | Verified |
 |----------|-----|----------|
-| Function ↔ caller | Returned error | Per child |
-| Daemon ↔ operator | Log at `Warn` with doctor `code`, `show warnings` / `show errors` / `show doctor`, subsystem metric | Per child |
+| Function ↔ caller | Returned error | Yes (verified per child 1–9) |
+| Daemon ↔ operator | Log at `Warn` with doctor `code`, `show warnings` / `show errors` / `show doctor`, subsystem metric | Yes (verified per child 1–9) |
 
 ### Changed-Wire Census
 
@@ -200,8 +200,8 @@ child (children 1–5 and 7–9).
 ### Assumptions
 | ID | Assumption | Basis (file/doc/user statement) | If wrong | Validated by | Status |
 |----|-----------|--------------------------------|----------|--------------|--------|
-| A-1 | The tree-wide population is 281 unannotated instances (276 release across children 1–5 and 7–9, 0 in closed child 6, 2 in post-release `mobike.go`, 3 in post-release child 10) | `./le arch refuse-by-default report '|' json` run on 2026-11-26 | A child's table is stale; it re-runs the report and works from the fresh output | Each child runs the report filtered to its paths before its first edit | unvalidated |
-| A-2 | Every child's paths plus the `mobike.go` exclusion partition the population with no overlap and no orphan | Longest `door-base` prefix per path (`ai/doors/README.md`) plus commit `58c46e854f` moving `mobike.go` to `spec-ipsec-11-mobike.md` | An instance owned twice or never | Sum of release children (276) + post-release child 10 (3) + `mobike.go` (2) equals the report total (281) | unvalidated |
+| A-1 | The tree-wide population is 281 unannotated instances (276 release across children 1–5 and 7–9, 0 in closed child 6, 2 in post-release `mobike.go`, 3 in post-release child 10) | `./le arch refuse-by-default report '|' json` run on 2026-11-26 | A child's table is stale; it re-runs the report and works from the fresh output | Each child re-ran the report filtered to its paths before its first edit and closed at 0 | confirmed |
+| A-2 | Every child's paths plus the `mobike.go` exclusion partition the population with no overlap and no orphan | Longest `door-base` prefix per path (`ai/doors/README.md`) plus commit `58c46e854f` moving `mobike.go` to `spec-ipsec-11-mobike.md` | An instance owned twice or never | Tree-wide report at closure lists 0 release-path findings and exactly the 5 post-release survivors (`mobike.go` x2 + `dropped-error-10` x3) | confirmed |
 
 ### Risks
 | ID | Risk | Early signal | Mitigation / fallback |
@@ -441,3 +441,132 @@ none
 - [ ] Any lesson routed to its governing surface under `ai/rules/planning.md`; no lesson artifact created merely for closure
 - [ ] **Commit A:** edited spec + any journal rows owed by the work
 - [ ] **Commit B:** `remove plan/release/fixes/spec-dropped-error-0-umbrella.md` only, in the same `./le commit create` script
+
+---
+
+## Implementation Summary
+
+### What Was Implemented
+- All 9 shipped-release children of this umbrella closed on `main`, eliminating every `error-dropped-below-warn` finding across shipped release paths (0 remaining release findings tree-wide; 352 annotated guard sites):
+  - Child 1 (`spec-dropped-error-1-bgp-engine`, 48 sites): `f49458370c4` + `7f0416c961f`
+  - Child 2 (`spec-dropped-error-2-bgp-plugins`, 63 sites): `9d583df3295` + `3c7535e4c6a`
+  - Child 3 (`spec-dropped-error-3-access-security`, 60 sites minus 2 post-release `mobike.go` sites): `048e653e294` + `c2dcf595751`
+  - Child 4 (`spec-dropped-error-4-system-plugins`, 50 sites): `7cb035c6c43` + `3637d0be01d`
+  - Child 5 (`spec-dropped-error-5-forwarding`, 36 sites): `09b67e0323a` + `c25c37f8716`
+  - Child 6 (`spec-dropped-error-6-routing-protocols`, 28 sites): `f126ead44e`
+  - Child 7 (`spec-dropped-error-7-plugin-infra`, 20 sites): `c8751ff9052` + `7d7fc77bab0`
+  - Child 8 (`spec-dropped-error-8-core-hub-appliance`, 11 sites): `b282d3d0cb2` + `78ef5d79e16`
+  - Child 9 (`spec-dropped-error-9-api-cli-config`, 8 sites): `4ff83d07f12` + `0c388957aec`
+- Updated owned journal row in `plan/journal/dropped-error-logged-below-warn.md` from `open:` to `fixed:` and updated external citations in `plan/post-release/engineering/spec-dropped-error-10-dev-tooling.md` to bare stem `spec-dropped-error-0-umbrella`.
+
+### Bugs Found/Fixed
+- Resolved real latent bugs uncovered across the 9 children (each covered by dedicated unit/functional tests in its child commit), including BMP `bounceMonitoredPeers` RFC 8671 §7.2 missing `abortAdjReplay` + BMP Stage-2 handshake `awaitingHandshake`/`OnStarted` gate (`bmp-locrib.ci`), `tftpserver` strict reload rollback, `ntp` worker teardown, `flowexport` overlapping reload, and `config dump` fail-closed `$9$` encoding error propagation.
+
+### Documentation Updates
+- Umbrella modifies zero code and owes no standalone documentation page (`git grep 'spec-dropped-error-0-umbrella'` confirms only bare-stem historical citations remain). Each child spec updated its own architecture/guide pages and `website/changes/fragments/` entry when landing.
+
+### Deviations from Plan
+- None in the umbrella policy; individual child layout refinements were documented in each closed child spec.
+
+## Mistake Log
+
+| Kind | What happened | What was true instead | How discovered | Action |
+|------|---------------|----------------------|----------------|--------|
+| none | | | | |
+
+## Implementation Audit
+
+### Requirements from Task
+| Requirement | Status | Location | Notes |
+|-------------|--------|----------|-------|
+| All 9 release children (1–9) resolved under the 3-answer policy and closed on `main` | Done | Commits `f126ead44e` through `0c388957aec` | Every release child closed cleanly with its own Review Gate and scoped tests |
+| Tree-wide `./le arch refuse-by-default report` shows 0 release-path `error-dropped-below-warn` findings | Done | `./le arch refuse-by-default report '\|' json` on 2026-11-27 | Exactly 5 post-release survivors remain (3 `dropped-error-10`, 2 `mobike.go`) |
+| Every newly added `Warn` under doctor-coverage site roots carries a declared doctor code | Done | Enforced by `./le arch doctor-coverage check` on every child commit | 0 uncovered sites introduced by children 1–9 |
+
+### Acceptance Criteria
+| AC ID | Status | Demonstrated By | Notes |
+|-------|--------|-----------------|-------|
+| AC-1 | Done | `./le arch refuse-by-default report '\|' json` (2026-11-27): `error-dropped-below-warn: 5` (`internal/chaos/web/handlers.go:346,384`, `internal/test/runner/peer_contract.go:386`, `internal/component/ike/engine/mobike.go:590,607`) — 0 release-path findings | Exact permitted post-release survivors only |
+| AC-2 | Done | `git log --oneline --grep='dropped-error'` + `ls plan/release/fixes/spec-dropped-error-*.md` | All 9 release children closed; zero release children remain open |
+| AC-3 | Done | `./le arch refuse-by-default report '\|' json` (`annotated count: 352`) and per-child 0 `annotation-names-no-guard` verification | Every child verified 0 invalid annotations on its files |
+| AC-4 | Done | `./le test unit pkg path ./internal/le/arch/refusebydefault/ path ./internal/le/arch/doctorcoverage/` (`exit 0, 2 packages ok`) + per-child `./le commit create` doctor-coverage gate | All 9 children passed doctor-coverage at commit time |
+
+### Tests from TDD Plan
+| Test | Status | Location | Notes |
+|------|--------|----------|-------|
+| `TestRefuseByDefaultRefusesEachRuleFixture`, `TestRefuseByDefaultReportListsTree` | Done | `internal/le/arch/refusebydefault/refusebydefault_test.go` | PASS via `./le test unit pkg` (`exit 0`) |
+| `TestCommitCreateRefusesUncoveredProblemSite`, `TestDoctorCoverageRefusesAddedUncoveredSite`, `TestDoctorCoverageAcceptsCoveredSite`, `TestDoctorCoverageCommitAdmitsCheckAddedWithItsSite` | Done | `internal/le/arch/doctorcoverage/{register,check,judge}_test.go` | PASS via `./le test unit pkg` (`exit 0`) |
+
+### Files from Plan
+| File | Status | Notes |
+|------|--------|-------|
+| Code files | Done (none) | Umbrella modifies zero source files by design |
+| `plan/journal/dropped-error-logged-below-warn.md` | Done | Owned row updated from `open:` to `fixed:` |
+| `plan/post-release/engineering/spec-dropped-error-10-dev-tooling.md` | Done | Path citations updated to bare stem `spec-dropped-error-0-umbrella` |
+
+### Audit Summary
+- **Total items:** 9 release children (276 release sites), 4 ACs, 2 detector test packages, 1 owned journal row
+- **Done:** All 9 release children, all 4 ACs, both detector test packages, owned journal row updated
+- **Partial:** 0
+- **Skipped:** 0
+- **Changed:** 0
+
+## Goal Validation (BLOCKING)
+
+| Goal (from Task) | Evidence Type | Concrete Evidence |
+|------------------|---------------|-------------------|
+| Zero unannotated `error-dropped-below-warn` findings across every shipped release path (children 1–9) | Architecture report | `./le arch refuse-by-default report '\|' json` on 2026-11-27 lists `error-dropped-below-warn: 5`, strictly consisting of the 3 post-release dev-tooling sites (`internal/chaos/web/handlers.go:346,384`, `internal/test/runner/peer_contract.go:386`) and 2 post-release MOBIKE sites (`internal/component/ike/engine/mobike.go:590,607`); 0 shipped release sites remain |
+| Detectors (`refuse-by-default` and `doctor-coverage`) remain intact and green | Unit tests | `./le test unit pkg path ./internal/le/arch/refusebydefault/ path ./internal/le/arch/doctorcoverage/` -> `exit 0, 2 packages ok, test time 152.390s` |
+
+## Work Not Done
+
+| What was not done | Why | The spec that now owns it |
+|-------------------|-----|---------------------------|
+| 3 unshipped dev-tooling sites (`internal/chaos/web/handlers.go:346,384`, `internal/test/runner/peer_contract.go:386`) | Unshipped dev tooling outside release scope | `plan/post-release/engineering/spec-dropped-error-10-dev-tooling.md` |
+| 2 opt-in unreleased MOBIKE sites (`internal/component/ike/engine/mobike.go:590,607`) | Owner ruling `58c46e854f` (2026-11-23) moved opt-in MOBIKE out of first release | `plan/post-release/features/spec-ipsec-11-mobike.md` |
+
+## Review Gate
+
+| Field | Value |
+|-------|-------|
+| Artifact | `tmp/review/dropped-error-0-umbrella-b5d40004-4444-4000-8000-000000000004.md` |
+| `./le spec review check` | `clean` (umbrella policy spec; 0 code files modified; all 9 child reviews CLEAN and landed) |
+| Rounds | 1 (umbrella closure audit + independent `ze-design-judge` APPROVE `b084078708fc`) |
+| Reviewer lenses used | spec-completeness, tree-wide acceptance gate, citation hygiene |
+
+### Findings fixed
+| # | Severity | Finding | Location | Fixed by |
+|---|----------|---------|----------|----------|
+
+## Pre-Commit Verification
+
+### Files Exist (ls)
+| File | Exists | Evidence |
+|------|--------|----------|
+| `plan/journal/dropped-error-logged-below-warn.md` | Yes | Tracked journal file read and updated (`row 12` marked `fixed:`) |
+| `plan/post-release/engineering/spec-dropped-error-10-dev-tooling.md` | Yes | Tracked post-release child spec read and citations updated |
+
+### AC Verified (grep/test)
+| AC ID | Claim | Fresh Evidence |
+|-------|-------|----------------|
+| AC-1 | 0 shipped release `error-dropped-below-warn` findings | `./le arch refuse-by-default report '\|' json`: `error-dropped-below-warn: 5` (only `chaos/web/handlers.go:346,384`, `test/runner/peer_contract.go:386`, `ike/engine/mobike.go:590,607`) |
+| AC-2 | All 9 release children closed on `main` | `git log --oneline --grep='dropped-error'` shows closed commits for children 1–9 (`f126ead44e`, `c2dcf595751`, `c25c37f8716`, `78ef5d79e16`, `7f0416c961f`, `3637d0be01d`, `7d7fc77bab0`, `3c7535e4c6a`, `0c388957aec`) |
+| AC-3 | Annotations valid across tree | `./le arch refuse-by-default report '\|' json` reports `annotated count: 352` and 0 invalid annotations on every closed child |
+| AC-4 | Detector suites green and doctor-coverage enforced | `./le test unit pkg path ./internal/le/arch/refusebydefault/ path ./internal/le/arch/doctorcoverage/` exited `0` (2 packages ok) |
+
+### Wiring Verified (end-to-end)
+| Entry Point | .ci File | Verified |
+|-------------|----------|----------|
+| `./le arch refuse-by-default report` + `./le arch doctor-coverage check` | `internal/le/arch/refusebydefault/refusebydefault_test.go`, `internal/le/arch/doctorcoverage/{register,check,judge}_test.go` (offline tooling; no `.ci` daemon) | Yes (read and executed via `./le test unit pkg`, `exit 0`) |
+
+### Assumptions Resolved
+| ID | Final Status | Evidence |
+|----|--------------|----------|
+| A-1 | confirmed | All 9 release children reconciled their path-filtered reports before editing and landed at 0 |
+| A-2 | confirmed | Post-closure tree-wide report has 0 release findings and exactly the 5 post-release survivors (3 dev tooling + 2 MOBIKE) |
+
+### Documentation Verified
+| Documentation claim or category | Source evidence | Verified |
+|---------------------------------|-----------------|----------|
+| External spec citations | `git grep 'spec-dropped-error-0-umbrella'` after edits shows zero live path citations; only bare stems in `plan/journal/dropped-error-logged-below-warn.md` and `spec-dropped-error-10-dev-tooling.md` | Yes |
+| No umbrella-owned code or doc pages | `## Files to Modify` is empty; each child spec updated its own docs and news fragment | Yes |
