@@ -31,7 +31,7 @@ Written 2026-11-27 after completing Items 1 and 2 of Thomas's instruction ("You 
 - **Remaining:**
   - **8 open P0 specs in `plan/release/fixes/` (all need Thomas's approval or design rulings before implementation):**
     1. `plan/release/fixes/spec-config-archive-location-credentials.md` (`design`, judged `APPROVE` at `f10224e6641b`) — 2 honest `departs` rows on `docs/guide/config-archive.md` (loopback-only `http://`, refuse userinfo in `location`) plus choices C-1 (flat `username`/`password` vs nested `authentication`) and C-2 (ignore vs refuse credentials on `file://`).
-    2. `plan/release/fixes/spec-login-identity-for-looking-glass-and-gnmi.md` (`design`) — dependency on `spec-login-service-authorisation` is now satisfied; carries `departs` rows waiting for `./le spec design approve`.
+    2. `plan/release/fixes/spec-login-identity-for-looking-glass-and-gnmi.md` (`design`, judged `APPROVE` at `d2ea30c9a7b5`, `ready to present`) — aligned with landed `spec-login-service-authorisation` (`3f90b4e3f4`); carries 5 honest `departs` rows waiting for `./le spec design approve`.
     3. `plan/release/fixes/spec-selfupdate-manifest-authenticity.md` (`ready`) — 1 `departs` row on `self-update.md` waiting for `./le spec design approve` (also note `./le spec design check` previously flagged a newly anchored row `docs/architecture/diagnostics/production-diagnostics.md` after a later commit).
     4. `plan/release/fixes/spec-fixit-ca-root-location.md` (`design`) — carries `departs` rows waiting for `./le spec design approve`.
     5. `plan/release/fixes/spec-plugin-runner-inertness.md` (`design`) — carries `departs` rows waiting for `./le spec design approve`.
@@ -69,16 +69,16 @@ EDIT 3: If Thomas answers A-1/A-4/A-5 on `plan/release/fixes/spec-ddos-direction
 - Action: Upgrade `plan/release/fixes/spec-ddos-direction-allowlist-deferred-flowspec-withdraw.md` from `skeleton` to `design` with his answers, judge via `ze-design-judge`, and commit the judged design spec.
 
 EDIT 4: If Thomas directs work onto Item 3 (P1 release fixes)
-- Action: Pick up to 3 specs from the 24 judged `0-departs` P1 list above (re-running `./le spec design check <spec>` first on each to verify digest freshness against HEAD), claim them, and implement through TDD + independent `/ze-close` Review Gate.
+- Action: Pick up to 3 specs from the 24 judged `0-departs` P1 list above (re-running `./le spec design check spec <spec>` first on each to verify digest freshness against HEAD), claim them, and implement through TDD + independent `/ze-close` Review Gate.
 
 ### Then
 
 Before starting the next spec in a fresh session, verify repo cleanliness and design-gate status on your chosen targets:
 
 ```bash
-./le spec current
-./le spec design check plan/release/fixes/spec-config-archive-location-credentials.md
-./le spec design check plan/release/fixes/spec-login-identity-for-looking-glass-and-gnmi.md
+./le spec current && \
+./le spec design check spec plan/release/fixes/spec-config-archive-location-credentials.md && \
+./le spec design check spec plan/release/fixes/spec-login-identity-for-looking-glass-and-gnmi.md && \
 git log --oneline origin/main..HEAD
 ```
 
