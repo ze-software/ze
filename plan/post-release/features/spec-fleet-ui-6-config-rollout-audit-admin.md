@@ -172,7 +172,7 @@ their web pages and views come after the first release (`ai/META-DECISIONS.md`,
 The Config tab of a device stays here, after the first release, beside
 `plan/post-release/features/spec-fleet-2-config-templates.md`, which owns the
 `DeviceConfigPart` the tab reads. The first-release alarm Configuration resync
-failed (`plan/release/features/spec-fleet-10-drift-hash-chain.md`) points at a
+failed (`spec-fleet-10-drift-hash-chain`, closed 2026-11-27; `docs/architecture/fleet-alarms.md`, "Alarm kinds") points at a
 command, not at this tab; its web binding to the Config tab is homed by
 `fleet-10` in `plan/post-release/features/spec-fleet-ui-9-tasks-notifications-and-alarm-pages.md`,
 with the alarm pages.

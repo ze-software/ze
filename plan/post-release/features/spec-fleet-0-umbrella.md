@@ -199,7 +199,7 @@ Out of Scope table above are superseded, and two children are added to this set.
 |-------|------|-------|---------|
 | 8 | `spec-fleet-8-metric-history` (closed 2026-11-27; design in `docs/architecture/fleet-config.md`, "Device metric sampling and hub-side history") | Devices report a fixed 15-figure sample set over `sample-report`; the hub keeps a bounded, persisted dual-resolution history and answers `show fleet sample latest`, `show fleet sample series`, and `show fleet sample storage` on every command surface | fleet-4 |
 | 9 | `plan/post-release/features/spec-fleet-9-device-command-relay.md` | The hub relays an operator's command to a device over the managed channel, under a profile the device grants, with streaming, deadline, cancellation and audit on both sides | fleet-1, fleet-3 |
-| 10 | `plan/release/features/spec-fleet-10-drift-hash-chain.md` | Added 2026-11-23. Hub and client fold every applied hub change into a SHA-1 chain and compare its head on every reply; a mismatch on a client that holds no local edit resyncs by diff, with a full replay as fallback. A local edit still holds for `fleet-7`'s adopt or revert. When both fail, a Configuration resync failed alarm opens through `fleet-ui-5`'s alarm kind registry | fleet-1, fleet-7, fleet-ui-5, fleet-ui-8 |
+| 10 | `spec-fleet-10-drift-hash-chain` (closed 2026-11-27; design in `docs/architecture/fleet-config.md`, "Configuration hash chain and diff-based resync", and `docs/architecture/fleet-alarms.md`, "Alarm kinds") | Added 2026-11-23. Hub and client fold every applied hub change into a SHA-1 chain and compare its head on every reply; a mismatch on a client that holds no local edit resyncs by diff, with a full replay as fallback. A local edit still holds for `fleet-7`'s adopt or revert. When both fail, a Configuration resync failed alarm opens through `fleet-ui-5`'s alarm kind registry | fleet-1, fleet-7, fleet-ui-5, fleet-ui-8 |
 
 The command answers the interface reads are proposed by the sample answers of
 the fleet interface's sample source, `internal/component/web/fleetui/sample`
@@ -520,7 +520,8 @@ longer plans, the child wins.
    - Depends: phase 1
    - Tests and files: settled by the child's design
 
-10. **Phase: Drift Hash Chain (fleet-10, `plan/release/features/spec-fleet-10-drift-hash-chain.md`)** -- hub and client fold every applied hub change into a chain, compare its head on every reply, resync a client that holds no local edit, and open a Configuration resync failed alarm when repair fails
+10. **Phase: Drift Hash Chain (fleet-10, `spec-fleet-10-drift-hash-chain`, closed 2026-11-27)** -- hub and client fold every applied hub change into a chain, compare its head on every reply, resync a client that holds no local edit, and open a Configuration resync failed alarm when repair fails
+   - Design: `docs/architecture/fleet-config.md`, "Configuration hash chain and diff-based resync", and `docs/architecture/fleet-alarms.md`, "Alarm kinds"
    - Depends: phases 1 and 7, `spec-fleet-ui-5-alarm-list` (closed 2026-11-27; `docs/architecture/fleet-alarms.md`), `spec-fleet-ui-8-alarm-causes` (closed 2026-11-27; `docs/architecture/fleet-alarms.md`, "Alarm causes")
    - Tests and files: settled by the child's design
 
