@@ -319,7 +319,8 @@ the meaning.
 | Simple tenses only | Simple present, simple past, simple future. No auxiliary stacks |
 | No auxiliary chains | "The peer sends", never "the peer will have been sending" |
 | Past participle as an adjective | "the configured peer" is correct |
-| `-ing` only as a noun or a modifier | `routing table`, `forwarding worker`, and the heading `Troubleshooting` are correct. A gerund clause is not: write `before you install`, never `before installing` |
+| `-ing` only as a noun or a modifier | `routing table`, `forwarding worker`, and the heading `Troubleshooting` are correct. A gerund clause is not: write `before you install`, never `before installing`. Never use a gerund phrase as the grammatical subject: write `Drawing on X, we built Y, which showed Z`, never `Drawing on X pushed Y and also showed Z` |
+| State cause and consequence in order | Name the actor, the action, and what followed as a consequence in that order. When a second consequence follows, put it in a second sentence rather than chaining `and also showed` onto an abstract subject |
 | One instruction in a sentence | Two actions in one sentence hide the second one. Two actions that happen at the same time are the exception: `Withdraw and release the route` is correct |
 
 ## Articles and demonstratives
