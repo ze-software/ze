@@ -36,7 +36,8 @@ This adds `environment { mcp { port 9718; } }` to the generated Ze config.
 
 Full snapshot of the chaos test state: peer counts, route counts, convergence
 statistics (min/avg/max/p50/p90/p99 with histogram), per-family convergence,
-throughput, property results.
+throughput, scheduler `control` state (`status`, `paused`, `rate`), and
+property results.
 
 ### chaos_problems
 
@@ -55,8 +56,18 @@ Static scenario metadata: seed, peer count.
 
 ### chaos_control
 
-Control chaos scheduling. Actions: pause, resume, trigger, rate, stop.
-The description steers AI to check status before changing anything.
+Control chaos scheduling and trigger synchronous faults in both fork and
+`--in-process` modes. Actions: `pause`, `resume`, `trigger`, `rate`, `stop`.
+For `trigger`, pass `chaos-action` (any registered action name), optional
+`peer` (single index) or `peers` (index list, mutually exclusive with `peer`),
+and optional `params` (string map of action parameters such as `count`,
+`cycles`, `interval`, `drift`, `delay`, `duration`, `family`, `iface`, `addr`).
+The call waits for the scheduler's verdict and returns JSON naming `dispatched`,
+`blocked` (with reasons), and `dropped` peers; a trigger that reaches zero peers
+or targets an unknown action or out-of-range peer fails with an MCP tool error.
+<!-- source: internal/chaos/mcp/tools.go -- Provider.toolControl, chaosTools -->
+<!-- source: internal/chaos/orchestrator/scheduler.go -- newControlDispatcher -->
+<!-- source: internal/chaos/inprocess/chaos.go -- DispatchManualTrigger -->
 
 ### chaos_execute
 

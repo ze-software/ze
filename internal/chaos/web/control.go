@@ -22,6 +22,13 @@ const (
 	cssStatusDown    = "status-down"
 	cssReconnecting  = "status-reconnecting"
 
+	// Control command names shared by HTTP control handlers and ApplyControl.
+	ctrlCmdPause   = "pause"
+	ctrlCmdResume  = "resume"
+	ctrlCmdRate    = "rate"
+	ctrlCmdTrigger = "trigger"
+	ctrlCmdStop    = "stop"
+
 	// Sort/label column name for chaos events.
 	sortChaos = "chaos"
 )

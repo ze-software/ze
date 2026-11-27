@@ -20,6 +20,7 @@ import (
 	"github.com/ze-software/ze/internal/chaos/report"
 	"github.com/ze-software/ze/internal/chaos/route"
 	"github.com/ze-software/ze/internal/chaos/scenario"
+	"github.com/ze-software/ze/internal/chaos/web"
 	bgpconfig "github.com/ze-software/ze/internal/component/bgp/config"
 	bgpreactor "github.com/ze-software/ze/internal/component/bgp/reactor"
 	"github.com/ze-software/ze/internal/component/config/storage"
@@ -111,6 +112,21 @@ type RunConfig struct {
 	// BaseRoutes is the base route count per peer for churn calculations.
 	// Defaults to the first profile's RouteCount if zero.
 	BaseRoutes int
+
+	// EnabledActions lists opt-in v2 chaos actions enabled for automatic scheduling.
+	EnabledActions []engine.ActionType
+
+	// Control receives live chaos control commands (pause, resume, rate, trigger, stop)
+	// from the web dashboard or MCP server. When non-nil, the chaos scheduler and
+	// per-peer reconnect loop are enabled even when ChaosRate is 0.
+	Control <-chan web.ControlCommand
+
+	// RouteControl receives live route dynamics control commands (pause, resume, rate, stop).
+	// When non-nil, the route dynamics scheduler is enabled even when RouteRate is 0.
+	RouteControl <-chan web.ControlCommand
+
+	// OnChaosSchedulerDone is called once when the chaos scheduler goroutine exits.
+	OnChaosSchedulerDone func()
 }
 
 // peerEstablished reports whether the reactor considers the peer at addr to be
@@ -272,9 +288,9 @@ func Run(ctx context.Context, cfg RunConfig) (*RunResult, error) {
 	peerConns := make([]net.Conn, len(cfg.Profiles))
 	peerCount := len(cfg.Profiles)
 
-	// Set up chaos/route scheduling infrastructure when rates > 0.
-	chaosEnabled := cfg.ChaosRate > 0
-	routeEnabled := cfg.RouteRate > 0
+	// Set up chaos/route scheduling infrastructure when rates > 0 or control channels are wired.
+	chaosEnabled := cfg.ChaosRate > 0 || cfg.Control != nil
+	routeEnabled := cfg.RouteRate > 0 || cfg.RouteControl != nil
 
 	var chaosChannels []chan engine.ChaosAction
 	var routeChannels []chan route.Action
@@ -464,13 +480,14 @@ func Run(ctx context.Context, cfg RunConfig) (*RunResult, error) {
 		}
 		chaosTick = make(chan time.Time, 1)
 		chaosSched := engine.NewScheduler(engine.SchedulerConfig{
-			Seed:      cfg.Seed,
-			PeerCount: peerCount,
-			Rate:      cfg.ChaosRate,
-			Interval:  chaosInterval,
-			Warmup:    warmup,
+			Seed:           cfg.Seed,
+			PeerCount:      peerCount,
+			Rate:           cfg.ChaosRate,
+			Interval:       chaosInterval,
+			Warmup:         warmup,
+			EnabledActions: cfg.EnabledActions,
 		})
-		go chaosSchedulerLoop(simCtx, chaosSched, peerGuard, es, chaosChannels, chaosTick, chaosProg)
+		go chaosSchedulerLoop(simCtx, chaosSched, peerGuard, es, chaosChannels, chaosTick, cfg.Control, chaosProg, cfg.OnChaosSchedulerDone)
 	}
 	if routeEnabled {
 		routeInterval := cfg.RouteInterval
@@ -494,7 +511,7 @@ func Run(ctx context.Context, cfg RunConfig) (*RunResult, error) {
 			Warmup:     warmup,
 			BaseRoutes: baseRoutes,
 		})
-		go routeSchedulerLoop(simCtx, routeSched, peerGuard, es, routeChannels, routeTick)
+		go routeSchedulerLoop(simCtx, routeSched, peerGuard, es, routeChannels, routeTick, cfg.RouteControl)
 	}
 
 	// Advance virtual time in 1-second steps with real-time pauses

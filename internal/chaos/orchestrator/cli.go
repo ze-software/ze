@@ -17,6 +17,7 @@ import (
 	"os"
 	"os/signal"
 	"strings"
+	"sync"
 	"sync/atomic"
 	"syscall"
 	"time"
@@ -654,17 +655,45 @@ Control:
 			}
 		}
 
+		// SIGINT and SIGTERM are caught BEFORE the run starts. The in-process
+		// reactor installs its own SIGTERM handler, and once any handler is
+		// registered the signal no longer kills the process: without this
+		// context the reactor alone would take the signal, Ze would stop, and
+		// the run would keep pacing until a second signal.
+		sigCtx, sigStop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
+		defer sigStop()
+		ipCtx, ipCancel := context.WithTimeout(sigCtx, *duration+30*time.Second)
+		defer ipCancel()
+
+		var controlCh, routeControlCh chan web.ControlCommand
+		var schedDone chan struct{}
+		var finishSched func()
+		if *webAddr != "" {
+			controlCh = make(chan web.ControlCommand, 16)
+			routeControlCh = make(chan web.ControlCommand, 16)
+			schedDone = make(chan struct{})
+			var schedDoneOnce sync.Once
+			finishSched = func() { schedDoneOnce.Do(func() { close(schedDone) }) }
+			defer finishSched()
+		}
+
 		// When --web is set, start the web dashboard before the simulation
 		// so HTTP endpoints are accessible during the run.
 		var wd *web.Dashboard
 		if *webAddr != "" {
 			var webErr error
 			wd, webErr = web.New(web.Config{
-				Addr:               *webAddr,
-				PeerCount:          len(profiles),
-				Seed:               *seed,
-				InitialSpeedFactor: 1,
-				PeerFamilyTargets:  PeerFamilyTargets(profiles),
+				Addr:                *webAddr,
+				PeerCount:           len(profiles),
+				Seed:                *seed,
+				Control:             controlCh,
+				RouteControl:        routeControlCh,
+				ChaosRate:           *chaosRate,
+				RouteRate:           *routeRate,
+				WarmupDuration:      *warmup,
+				ConvergenceDeadline: *convergenceDeadline,
+				InitialSpeedFactor:  1,
+				PeerFamilyTargets:   PeerFamilyTargets(profiles),
 			})
 			if webErr != nil {
 				fmt.Fprintf(os.Stderr, "error: starting web dashboard: %v\n", webErr)
@@ -688,6 +717,7 @@ Control:
 				State:       wd.State(),
 				Watchdog:    ipWatchdog,
 				Convergence: ep.Convergence,
+				Control:     newControlDispatcher(ipCtx, controlCh, schedDone, wd),
 				Seed:        *seed,
 				StartTime:   time.Now(),
 				PeerCount:   len(profiles),
@@ -722,28 +752,23 @@ Control:
 			ipConsumer = &reporterConsumer{r: report.NewReporter(wd, ipWatchdog)}
 		}
 
-		// SIGINT and SIGTERM are caught BEFORE the run starts. The in-process
-		// reactor installs its own SIGTERM handler, and once any handler is
-		// registered the signal no longer kills the process: without this
-		// context the reactor alone would take the signal, Ze would stop, and
-		// the run would keep pacing until a second signal.
-		sigCtx, sigStop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
-		defer sigStop()
-		ipCtx, ipCancel := context.WithTimeout(sigCtx, *duration+30*time.Second)
-		defer ipCancel()
 		ipCfg := inprocess.RunConfig{
-			Profiles:      profiles,
-			Seed:          *seed,
-			Duration:      *duration,
-			LocalAS:       65000,
-			RouterID:      netip.MustParseAddr("10.0.0.1"),
-			LocalAddr:     *localAddr,
-			ChaosRate:     *chaosRate,
-			ChaosInterval: *chaosInterval,
-			RouteRate:     *routeRate,
-			RouteInterval: *routeInterval,
-			Warmup:        *warmup,
-			BaseRoutes:    *routes,
+			Profiles:             profiles,
+			Seed:                 *seed,
+			Duration:             *duration,
+			LocalAS:              65000,
+			RouterID:             netip.MustParseAddr("10.0.0.1"),
+			LocalAddr:            *localAddr,
+			ChaosRate:            *chaosRate,
+			ChaosInterval:        *chaosInterval,
+			RouteRate:            *routeRate,
+			RouteInterval:        *routeInterval,
+			Warmup:               *warmup,
+			BaseRoutes:           *routes,
+			EnabledActions:       parseChaosActions(*chaosActions),
+			Control:              controlCh,
+			RouteControl:         routeControlCh,
+			OnChaosSchedulerDone: finishSched,
 		}
 		if wd != nil {
 			if ipConsumer != nil {

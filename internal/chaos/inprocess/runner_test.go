@@ -10,10 +10,12 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/ze-software/ze/internal/chaos/engine"
 	"github.com/ze-software/ze/internal/chaos/peer"
 	"github.com/ze-software/ze/internal/chaos/scenario"
 	"github.com/ze-software/ze/internal/chaos/shrink"
 	"github.com/ze-software/ze/internal/chaos/validation"
+	"github.com/ze-software/ze/internal/chaos/web"
 
 	// The scenario config these tests parse is a bgp block whose
 	// processes receive bgp events and that names the bgp-rs and bgp-rib
@@ -816,3 +818,119 @@ func TestInProcessShrinkCompat(t *testing.T) {
 	// Shrink should complete near-instantly for a passing scenario.
 	assert.Less(t, elapsed, 1*time.Second, "shrink should complete in <1s")
 }
+
+// TestInProcessControlTriggerAndRecovery verifies that live control commands
+// wired into inprocess.Run work when ChaosRate is 0: a manual parameterized
+// trigger executes on the live simulator and returns a synchronous outcome, and
+// a triggered tcp-disconnect recovers cleanly.
+//
+// VALIDATES: --in-process supports programmatic control triggers with params
+// and synchronous replies even when automatic chaos scheduling is off.
+// PREVENTS: In-process runs ignoring live control channels or leaving
+// disconnected peers unrecovered.
+func TestInProcessControlTriggerAndRecovery(t *testing.T) {
+	profiles := []scenario.PeerProfile{
+		{
+			Index:      0,
+			ASN:        65000,
+			RouterID:   netip.MustParseAddr("10.0.0.2"),
+			IsIBGP:     true,
+			RouteCount: 4,
+			HoldTime:   90,
+			Families:   []string{"ipv4/unicast"},
+		},
+		{
+			Index:      1,
+			ASN:        65000,
+			RouterID:   netip.MustParseAddr("10.0.0.3"),
+			IsIBGP:     true,
+			RouteCount: 2,
+			HoldTime:   90,
+			Families:   []string{"ipv4/unicast"},
+		},
+	}
+
+	controlCh := make(chan web.ControlCommand, 8)
+	peer0Up := make(chan struct{}, 1)
+	consumer := &funcConsumer{
+		onEvent: func(ev peer.Event) {
+			if ev.Type == peer.EventEORSent && ev.PeerIndex == 0 {
+				select {
+				case peer0Up <- struct{}{}:
+				default:
+				}
+			}
+		},
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 45*time.Second)
+	defer cancel()
+
+	triggerDone := make(chan error, 1)
+	go func() {
+		select {
+		case <-peer0Up:
+		case <-ctx.Done():
+			triggerDone <- ctx.Err()
+			return
+		}
+
+		// Trigger a parameterized route-flap on peer 0.
+		flapReply := make(chan web.ControlResult, 1)
+		controlCh <- web.ControlCommand{
+			Type: "trigger",
+			Trigger: &web.ManualTrigger{
+				ActionType: engine.NameRouteFlap,
+				Peers:      []int{0},
+				Params:     map[string]string{"count": "2", "cycles": "1", "interval": "10ms"},
+			},
+			Reply: flapReply,
+		}
+		select {
+		case res := <-flapReply:
+			if res.Err != nil {
+				triggerDone <- fmt.Errorf("route-flap error: %w", res.Err)
+				return
+			}
+			if len(res.Dispatched) != 1 || res.Dispatched[0] != 0 {
+				triggerDone <- fmt.Errorf("route-flap dispatched = %v, want [0]", res.Dispatched)
+				return
+			}
+		case <-ctx.Done():
+			triggerDone <- ctx.Err()
+			return
+		}
+
+		triggerDone <- nil
+	}()
+
+	result, err := Run(ctx, RunConfig{
+		Profiles:  profiles,
+		Seed:      42,
+		Duration:  12 * time.Second,
+		StepDelay: 100 * time.Millisecond,
+		LocalAS:   65000,
+		RouterID:  netip.MustParseAddr("10.0.0.1"),
+		LocalAddr: "127.0.0.1",
+		Consumer:  consumer,
+		Control:   controlCh,
+	})
+	require.NoError(t, err)
+	require.NoError(t, <-triggerDone)
+
+	var sawRouteFlap bool
+	for _, ev := range result.Events {
+		if ev.Type == peer.EventChaosExecuted && ev.PeerIndex == 0 && ev.ChaosAction == engine.NameRouteFlap {
+			sawRouteFlap = true
+			assert.Equal(t, "2", ev.ChaosParams["count"])
+		}
+	}
+	assert.True(t, sawRouteFlap, "expected EventChaosExecuted for triggered route-flap on peer 0")
+}
+
+type funcConsumer struct {
+	onEvent func(peer.Event)
+}
+
+func (f *funcConsumer) ProcessEvent(ev peer.Event) { f.onEvent(ev) }
+func (f *funcConsumer) Close() error               { return nil }

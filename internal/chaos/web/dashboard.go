@@ -177,6 +177,56 @@ func (d *Dashboard) StepDelay() time.Duration {
 	return time.Duration(n)
 }
 
+// ApplyControl updates dashboard control state and logs a control command
+// applied through a non-HTTP surface such as MCP. Safe for concurrent use.
+func (d *Dashboard) ApplyControl(cmd ControlCommand) {
+	if d == nil {
+		return
+	}
+	d.state.mu.Lock()
+	switch cmd.Type {
+	case ctrlCmdPause:
+		d.state.Control.Paused = true
+		d.state.Control.Status = statusPaused
+		d.state.dirtyGlobal = true
+	case ctrlCmdResume:
+		d.state.Control.Paused = false
+		d.state.Control.Status = statusRunning
+		d.state.dirtyGlobal = true
+	case ctrlCmdRate:
+		d.state.Control.Rate = cmd.Rate
+		if cmd.Rate == 0 {
+			d.state.Control.Paused = true
+			d.state.Control.Status = statusPaused
+		} else {
+			d.state.Control.Paused = false
+			d.state.Control.Status = statusRunning
+		}
+		d.state.dirtyGlobal = true
+	case ctrlCmdStop:
+		d.state.Control.Status = statusStopped
+		d.state.dirtyGlobal = true
+	case ctrlCmdTrigger:
+		// Trigger does not alter scheduler run state.
+	default:
+		d.state.mu.Unlock()
+		return
+	}
+	d.state.mu.Unlock()
+
+	switch cmd.Type {
+	case ctrlCmdPause, ctrlCmdResume, ctrlCmdStop:
+		d.logControl(cmd.Type, "")
+	case ctrlCmdRate:
+		var tb textbuf.Buffer
+		d.logControl(ctrlCmdRate, tb.Float2(cmd.Rate).String())
+	case ctrlCmdTrigger:
+		if cmd.Trigger != nil {
+			d.logControl(ctrlCmdTrigger, cmd.Trigger.ActionType)
+		}
+	}
+}
+
 // setSpeedFactor updates the time acceleration factor and the corresponding step delay.
 // Valid factors: 1, 10, 100, 1000. Returns false for invalid factors.
 func (d *Dashboard) setSpeedFactor(factor int) bool {

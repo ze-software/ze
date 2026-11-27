@@ -80,6 +80,21 @@ func TestV2ActionNamesComplete(t *testing.T) {
 	assert.Contains(t, names, NameIfaceAddrRemove)
 }
 
+// TestAllActionNamesComplete verifies AllActionNames returns every chaos action, sorted.
+//
+// VALIDATES: MCP schemas and validation errors derive their action list from actionNames.
+// PREVENTS: A newly added chaos action missing from MCP tool discovery or validation errors.
+func TestAllActionNamesComplete(t *testing.T) {
+	names := AllActionNames()
+
+	assert.Len(t, names, len(actionNames))
+	assert.IsIncreasing(t, names)
+	assert.Contains(t, names, NameTCPDisconnect)
+	assert.Contains(t, names, NameRouteFlap)
+	assert.Contains(t, names, NameIfaceLinkFlap)
+	assert.Contains(t, names, NameIfaceAddrRemove)
+}
+
 // TestActionNeedsReconnect verifies reconnect classification for each action type.
 //
 // VALIDATES: Disconnect-type actions require reconnect; withdrawal actions do not.

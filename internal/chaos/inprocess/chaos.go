@@ -4,6 +4,9 @@ package inprocess
 
 import (
 	"context"
+	"errors"
+	"fmt"
+	"math/rand/v2"
 	"net"
 	"sync"
 	"time"
@@ -12,6 +15,16 @@ import (
 	"github.com/ze-software/ze/internal/chaos/guard"
 	"github.com/ze-software/ze/internal/chaos/mocknet"
 	"github.com/ze-software/ze/internal/chaos/route"
+	"github.com/ze-software/ze/internal/chaos/web"
+	"github.com/ze-software/ze/internal/core/textbuf"
+)
+
+const (
+	ctrlPause   = "pause"
+	ctrlResume  = "resume"
+	ctrlRate    = "rate"
+	ctrlTrigger = "trigger"
+	ctrlStop    = "stop"
 )
 
 // establishedState tracks which peers are in Established state.
@@ -284,14 +297,184 @@ func (rd *reconnectDialer) DialContext(_ context.Context, _, _ string) (net.Conn
 	return peerEnd, nil
 }
 
-// chaosSchedulerLoop ticks the chaos scheduler using virtual time and
-// dispatches actions to per-peer channels. Runs until ctx is canceled.
-func chaosSchedulerLoop(ctx context.Context, sched *engine.Scheduler, g *guard.Guard, es *establishedState, channels []chan engine.ChaosAction, tickCh <-chan time.Time, inFlight *chaosProgress) {
+// ReplyControl delivers res to reply when non-nil without blocking.
+func ReplyControl(reply chan<- web.ControlResult, res web.ControlResult) {
+	if reply == nil {
+		return
+	}
+	select {
+	case reply <- res:
+	default:
+	}
+}
+
+// DispatchManualTrigger validates and dispatches a manual chaos trigger across
+// the target peers, returning a synchronous ControlResult with per-peer outcomes.
+func DispatchManualTrigger(
+	t *web.ManualTrigger,
+	peerCount int,
+	snap []bool,
+	g *guard.Guard,
+	channels []chan engine.ChaosAction,
+	onDispatch func(int, engine.ActionType),
+	quiet bool,
+) web.ControlResult {
+	if t == nil {
+		return web.ControlResult{Action: ctrlTrigger, Err: errors.New("missing trigger payload")}
+	}
+	actionType, ok := engine.ActionTypeFromString(t.ActionType)
+	if !ok {
+		err := fmt.Errorf("unknown chaos action %q (valid: %s)", t.ActionType, textbuf.Join(engine.AllActionNames(), ", "))
+		if !quiet {
+			var tb textbuf.Buffer
+			tb.Str("le chaos run | scheduler | ").Err(err).Byte('\n').StdErr() //nolint:errcheck // CLI diagnostic
+		}
+		return web.ControlResult{Action: ctrlTrigger, ChaosAction: t.ActionType, Err: err}
+	}
+
+	targets, targetErr := resolveTriggerTargets(t.Peers, peerCount, snap)
+	if targetErr != nil {
+		return web.ControlResult{Action: ctrlTrigger, ChaosAction: actionType.String(), Err: targetErr}
+	}
+
+	res := web.ControlResult{
+		Action:      ctrlTrigger,
+		ChaosAction: actionType.String(),
+	}
+	for _, idx := range targets {
+		if !snap[idx] {
+			res.Blocked = append(res.Blocked, web.ControlTargetOutcome{Peer: idx, Reason: "peer not established"})
+			if !quiet {
+				var tb textbuf.Buffer
+				tb.Str("le chaos run | scheduler | blocked manual ").Str(actionType.String()).
+					Str(" for peer ").Int(int64(idx)).Str(" (peer not established)\n").StdErr() //nolint:errcheck // CLI diagnostic
+			}
+			continue
+		}
+		if allowed, reason := g.AllowChaos(idx, actionType); !allowed {
+			res.Blocked = append(res.Blocked, web.ControlTargetOutcome{Peer: idx, Reason: reason})
+			if !quiet {
+				var tb textbuf.Buffer
+				tb.Str("le chaos run | scheduler | blocked manual ").Str(actionType.String()).
+					Str(" for peer ").Int(int64(idx)).Str(" (").Str(reason).Str(")\n").StdErr() //nolint:errcheck // CLI diagnostic
+			}
+			continue
+		}
+		action := engine.ChaosAction{Type: actionType, Params: t.Params}
+		if !quiet {
+			var tb textbuf.Buffer
+			tb.Str("le chaos run | scheduler | manual ").Str(actionType.String()).
+				Str(" -> peer ").Int(int64(idx)).Byte('\n').StdErr() //nolint:errcheck // CLI diagnostic
+		}
+		select {
+		case channels[idx] <- action:
+			res.Dispatched = append(res.Dispatched, idx)
+			if actionType == engine.ActionHoldTimerExpiry {
+				g.OnHoldTimerExpiry(idx)
+			}
+			if onDispatch != nil {
+				onDispatch(idx, actionType)
+			}
+		default:
+			res.Dropped = append(res.Dropped, idx)
+			if !quiet {
+				var tb textbuf.Buffer
+				tb.Str("le chaos run | scheduler | dropped manual ").Str(actionType.String()).
+					Str(" for peer ").Int(int64(idx)).Str(" (busy)\n").StdErr() //nolint:errcheck // CLI diagnostic
+			}
+		}
+	}
+	return res
+}
+
+func resolveTriggerTargets(requested []int, peerCount int, snap []bool) ([]int, error) {
+	if len(requested) > 0 {
+		seen := make(map[int]bool, len(requested))
+		targets := make([]int, 0, len(requested))
+		for _, idx := range requested {
+			if idx < 0 {
+				return nil, fmt.Errorf("peer index must be non-negative, got %d", idx)
+			}
+			if idx >= peerCount {
+				return nil, fmt.Errorf("peer index %d out of range [0, %d)", idx, peerCount)
+			}
+			if seen[idx] {
+				continue
+			}
+			seen[idx] = true
+			targets = append(targets, idx)
+		}
+		return targets, nil
+	}
+
+	var established []int
+	for i, est := range snap {
+		if est {
+			established = append(established, i)
+		}
+	}
+	if len(established) == 0 {
+		return nil, errors.New("no established peers available for trigger")
+	}
+	return []int{established[rand.IntN(len(established))]}, nil //nolint:gosec // chaos simulator, not crypto
+}
+
+// chaosSchedulerLoop ticks the chaos scheduler using virtual time, processes
+// live control commands, and dispatches actions to per-peer channels.
+func chaosSchedulerLoop(
+	ctx context.Context,
+	sched *engine.Scheduler,
+	g *guard.Guard,
+	es *establishedState,
+	channels []chan engine.ChaosAction,
+	tickCh <-chan time.Time,
+	controlCh <-chan web.ControlCommand,
+	inFlight *chaosProgress,
+	onDone func(),
+) {
+	defer func() {
+		if onDone != nil {
+			onDone()
+		}
+	}()
+
+	paused := false
 	for {
 		select {
 		case <-ctx.Done():
 			return
+		case cmd, ok := <-controlCh:
+			if !ok {
+				return
+			}
+			switch cmd.Type {
+			case ctrlPause:
+				paused = true
+				ReplyControl(cmd.Reply, web.ControlResult{Action: ctrlPause})
+			case ctrlResume:
+				paused = false
+				ReplyControl(cmd.Reply, web.ControlResult{Action: ctrlResume})
+			case ctrlRate:
+				sched.SetRate(cmd.Rate)
+				paused = cmd.Rate == 0
+				rate := cmd.Rate
+				ReplyControl(cmd.Reply, web.ControlResult{Action: ctrlRate, Rate: &rate})
+			case ctrlTrigger:
+				res := DispatchManualTrigger(cmd.Trigger, len(channels), es.Snapshot(), g, channels, inFlight.Dispatched, true)
+				ReplyControl(cmd.Reply, res)
+			case ctrlStop:
+				ReplyControl(cmd.Reply, web.ControlResult{Action: ctrlStop})
+				return
+			default:
+				ReplyControl(cmd.Reply, web.ControlResult{
+					Action: cmd.Type,
+					Err:    fmt.Errorf("unknown control command %q", cmd.Type),
+				})
+			}
 		case now := <-tickCh:
+			if paused {
+				continue
+			}
 			actions := sched.Tick(now, es.Snapshot())
 			for _, a := range actions {
 				if ok, _ := g.AllowChaos(a.PeerIndex, a.Action.Type); !ok {
@@ -312,14 +495,51 @@ func chaosSchedulerLoop(ctx context.Context, sched *engine.Scheduler, g *guard.G
 	}
 }
 
-// routeSchedulerLoop ticks the route scheduler using virtual time and
-// dispatches actions to per-peer channels. Runs until ctx is canceled.
-func routeSchedulerLoop(ctx context.Context, sched *route.Scheduler, g *guard.Guard, es *establishedState, channels []chan route.Action, tickCh <-chan time.Time) {
+// routeSchedulerLoop ticks the route scheduler using virtual time, processes
+// live route-control commands, and dispatches actions to per-peer channels.
+func routeSchedulerLoop(
+	ctx context.Context,
+	sched *route.Scheduler,
+	g *guard.Guard,
+	es *establishedState,
+	channels []chan route.Action,
+	tickCh <-chan time.Time,
+	controlCh <-chan web.ControlCommand,
+) {
+	paused := false
 	for {
 		select {
 		case <-ctx.Done():
 			return
+		case cmd, ok := <-controlCh:
+			if !ok {
+				return
+			}
+			switch cmd.Type {
+			case ctrlPause:
+				paused = true
+				ReplyControl(cmd.Reply, web.ControlResult{Action: ctrlPause})
+			case ctrlResume:
+				paused = false
+				ReplyControl(cmd.Reply, web.ControlResult{Action: ctrlResume})
+			case ctrlRate:
+				sched.SetRate(cmd.Rate)
+				paused = cmd.Rate == 0
+				rate := cmd.Rate
+				ReplyControl(cmd.Reply, web.ControlResult{Action: ctrlRate, Rate: &rate})
+			case ctrlStop:
+				ReplyControl(cmd.Reply, web.ControlResult{Action: ctrlStop})
+				return
+			default:
+				ReplyControl(cmd.Reply, web.ControlResult{
+					Action: cmd.Type,
+					Err:    fmt.Errorf("unknown route control command %q", cmd.Type),
+				})
+			}
 		case now := <-tickCh:
+			if paused {
+				continue
+			}
 			actions := sched.Tick(now, es.Snapshot())
 			for _, a := range actions {
 				if ok, _ := g.AllowRoute(a.PeerIndex, a.Action.Type); !ok {

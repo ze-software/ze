@@ -1,0 +1,58 @@
+# mcp-control - chaos_control over MCP drives pause, rate, trigger (with params),
+# and stop end-to-end in --in-process mode and reports synchronous outcomes.
+#
+# VALIDATES:
+# - MCP chaos_control is wired in production (--in-process --web --mcp) instead of
+#   returning "control not available".
+# - Pause and rate update scheduler control state reflected in chaos_status.
+# - Trigger accepts peer + chaos-action + params and dispatches synchronously.
+# - Out-of-range peers and commands sent after stop fail loudly with isError:true.
+
+cmd=background:seq=1:exec=le chaos run --in-process --web :$PORT --mcp :$PORT2 --duration 30s --peers 2 --seed 42 --routes 5 --chaos-rate 0 --quiet
+
+# Readiness: MCP endpoint answers 405 on GET, and peer 0 reaches Established.
+http=wait:seq=1:url=http://127.0.0.1:$PORT2/mcp:status=405:contains=method not allowed:timeout=20s
+http=wait:seq=2:url=http://127.0.0.1:$PORT/peers?status=up:status=200:contains=peer-0:timeout=20s
+
+# Pause via MCP chaos_control, then confirm chaos_status reports paused control state.
+tmpfs=pause.json:terminator=EOF_PAUSE
+{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"chaos_control","arguments":{"action":"pause"},"_meta":{"io.modelcontextprotocol/protocolVersion":"2026-07-28","io.modelcontextprotocol/clientCapabilities":{}}}}
+EOF_PAUSE
+
+http=post:seq=1:url=http://127.0.0.1:$PORT2/mcp:status=200:contains=\"ok\":true:sendfile=pause.json:header=MCP-Protocol-Version: 2026-07-28:header=Mcp-Method: tools/call:header=Mcp-Name: chaos_control
+
+tmpfs=status.json:terminator=EOF_STATUS
+{"jsonrpc":"2.0","id":2,"method":"tools/call","params":{"name":"chaos_status","arguments":{},"_meta":{"io.modelcontextprotocol/protocolVersion":"2026-07-28","io.modelcontextprotocol/clientCapabilities":{}}}}
+EOF_STATUS
+
+http=post:seq=2:url=http://127.0.0.1:$PORT2/mcp:status=200:contains=\"paused\":true:sendfile=status.json:header=MCP-Protocol-Version: 2026-07-28:header=Mcp-Method: tools/call:header=Mcp-Name: chaos_status
+
+# Setting a positive rate resumes the scheduler and updates chaos_status.
+tmpfs=rate.json:terminator=EOF_RATE
+{"jsonrpc":"2.0","id":3,"method":"tools/call","params":{"name":"chaos_control","arguments":{"action":"rate","value":0.25},"_meta":{"io.modelcontextprotocol/protocolVersion":"2026-07-28","io.modelcontextprotocol/clientCapabilities":{}}}}
+EOF_RATE
+
+http=post:seq=3:url=http://127.0.0.1:$PORT2/mcp:status=200:contains=\"rate\":0.25:sendfile=rate.json:header=MCP-Protocol-Version: 2026-07-28:header=Mcp-Method: tools/call:header=Mcp-Name: chaos_control
+http=post:seq=4:url=http://127.0.0.1:$PORT2/mcp:status=200:contains=\"paused\":false:sendfile=status.json:header=MCP-Protocol-Version: 2026-07-28:header=Mcp-Method: tools/call:header=Mcp-Name: chaos_status
+
+# Trigger a parameterized route-flap on peer 0 and assert synchronous dispatch.
+tmpfs=trigger.json:terminator=EOF_TRIGGER
+{"jsonrpc":"2.0","id":4,"method":"tools/call","params":{"name":"chaos_control","arguments":{"action":"trigger","peer":0,"chaos-action":"route-flap","params":{"count":"2","cycles":"1","interval":"10ms"}},"_meta":{"io.modelcontextprotocol/protocolVersion":"2026-07-28","io.modelcontextprotocol/clientCapabilities":{}}}}
+EOF_TRIGGER
+
+http=post:seq=5:url=http://127.0.0.1:$PORT2/mcp:status=200:contains=\"dispatched\":[0]:sendfile=trigger.json:header=MCP-Protocol-Version: 2026-07-28:header=Mcp-Method: tools/call:header=Mcp-Name: chaos_control
+
+# Negative control: out-of-range peer index must fail loudly with isError:true.
+tmpfs=badpeer.json:terminator=EOF_BADPEER
+{"jsonrpc":"2.0","id":5,"method":"tools/call","params":{"name":"chaos_control","arguments":{"action":"trigger","peer":99,"chaos-action":"route-flap"},"_meta":{"io.modelcontextprotocol/protocolVersion":"2026-07-28","io.modelcontextprotocol/clientCapabilities":{}}}}
+EOF_BADPEER
+
+http=post:seq=6:url=http://127.0.0.1:$PORT2/mcp:status=200:contains="isError":true:sendfile=badpeer.json:header=MCP-Protocol-Version: 2026-07-28:header=Mcp-Method: tools/call:header=Mcp-Name: chaos_control
+
+# Stop scheduler, then confirm subsequent control fails cleanly instead of hanging.
+tmpfs=stop.json:terminator=EOF_STOP
+{"jsonrpc":"2.0","id":6,"method":"tools/call","params":{"name":"chaos_control","arguments":{"action":"stop"},"_meta":{"io.modelcontextprotocol/protocolVersion":"2026-07-28","io.modelcontextprotocol/clientCapabilities":{}}}}
+EOF_STOP
+
+http=post:seq=7:url=http://127.0.0.1:$PORT2/mcp:status=200:contains=\"action\":\"stop\":sendfile=stop.json:header=MCP-Protocol-Version: 2026-07-28:header=Mcp-Method: tools/call:header=Mcp-Name: chaos_control
+http=post:seq=8:url=http://127.0.0.1:$PORT2/mcp:status=200:contains="isError":true:sendfile=pause.json:header=MCP-Protocol-Version: 2026-07-28:header=Mcp-Method: tools/call:header=Mcp-Name: chaos_control

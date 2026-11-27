@@ -58,6 +58,7 @@ func TestChaosToolStatus(t *testing.T) {
 	assert.Equal(t, float64(95), status["routes-received"])
 	assert.Equal(t, float64(5), status["routes-missing"])
 	assert.NotNil(t, status["convergence"])
+	assert.Contains(t, status, "control")
 }
 
 func TestChaosToolProblems(t *testing.T) {
@@ -141,9 +142,9 @@ func TestChaosToolScenario(t *testing.T) {
 func TestChaosToolControl(t *testing.T) {
 	var dispatched web.ControlCommand
 	p := newTestProvider()
-	p.Control = func(cmd web.ControlCommand) error {
+	p.Control = func(cmd web.ControlCommand) (web.ControlResult, error) {
 		dispatched = cmd
-		return nil
+		return web.ControlResult{Action: cmd.Type}, nil
 	}
 
 	args, err := json.Marshal(map[string]string{"action": "pause"})
@@ -152,6 +153,96 @@ func TestChaosToolControl(t *testing.T) {
 	require.NotNil(t, result)
 	assert.Nil(t, result["isError"])
 	assert.Equal(t, "pause", dispatched.Type)
+
+	var body map[string]any
+	require.NoError(t, json.Unmarshal([]byte(extractText(t, result)), &body))
+	assert.Equal(t, true, body["ok"])
+	assert.Equal(t, "pause", body["action"])
+}
+
+// TestChaosToolControlTriggerParamsAndOutcomes verifies trigger passes params and
+// peer lists through and surfaces synchronous dispatch/block/drop outcomes.
+//
+// VALIDATES: Programmatic callers can trigger parameterized actions and tell
+// whether a fault was dispatched or blocked.
+// PREVENTS: Fire-and-forget triggers hiding blocked or dropped faults behind "ok".
+func TestChaosToolControlTriggerParamsAndOutcomes(t *testing.T) {
+	var dispatched web.ControlCommand
+	p := newTestProvider()
+	p.Control = func(cmd web.ControlCommand) (web.ControlResult, error) {
+		dispatched = cmd
+		return web.ControlResult{
+			Action:      cmd.Type,
+			ChaosAction: cmd.Trigger.ActionType,
+			Dispatched:  []int{0},
+			Blocked:     []web.ControlTargetOutcome{{Peer: 1, Reason: "peer not established"}},
+		}, nil
+	}
+
+	args, err := json.Marshal(map[string]any{
+		"action":       "trigger",
+		"peers":        []int{0, 1},
+		"chaos-action": "route-flap",
+		"params":       map[string]string{"count": "10", "cycles": "2", "interval": "50ms"},
+	})
+	require.NoError(t, err)
+	result := p.CallTool("chaos_control", args)
+	require.NotNil(t, result)
+	assert.Nil(t, result["isError"])
+	require.NotNil(t, dispatched.Trigger)
+	assert.Equal(t, []int{0, 1}, dispatched.Trigger.Peers)
+	assert.Equal(t, map[string]string{"count": "10", "cycles": "2", "interval": "50ms"}, dispatched.Trigger.Params)
+
+	var body map[string]any
+	require.NoError(t, json.Unmarshal([]byte(extractText(t, result)), &body))
+	assert.Equal(t, true, body["ok"])
+	assert.Equal(t, "route-flap", body["chaos-action"])
+	assert.Equal(t, []any{float64(0)}, body["dispatched"])
+	assert.Len(t, body["blocked"], 1)
+
+	// When zero peers receive the trigger, MCP must report an error rather than ok.
+	p.Control = func(cmd web.ControlCommand) (web.ControlResult, error) {
+		return web.ControlResult{
+			Action:      cmd.Type,
+			ChaosAction: cmd.Trigger.ActionType,
+			Blocked:     []web.ControlTargetOutcome{{Peer: 0, Reason: "hold-timer expiry already pending"}},
+		}, nil
+	}
+	blockedArgs, err := json.Marshal(map[string]any{
+		"action":       "trigger",
+		"peer":         0,
+		"chaos-action": "hold-timer-expiry",
+	})
+	require.NoError(t, err)
+	blockedRes := p.CallTool("chaos_control", blockedArgs)
+	require.NotNil(t, blockedRes)
+	assert.Equal(t, true, blockedRes["isError"])
+	assert.Contains(t, extractText(t, blockedRes), "hold-timer expiry already pending")
+
+	// Supplying both peer and peers must be rejected.
+	conflictArgs, err := json.Marshal(map[string]any{
+		"action":       "trigger",
+		"peer":         0,
+		"peers":        []int{1},
+		"chaos-action": "tcp-disconnect",
+	})
+	require.NoError(t, err)
+	conflictRes := p.CallTool("chaos_control", conflictArgs)
+	require.NotNil(t, conflictRes)
+	assert.Equal(t, true, conflictRes["isError"])
+	assert.Contains(t, extractText(t, conflictRes), "not both")
+
+	// Unknown chaos-action must be rejected before dispatch.
+	unknownArgs, err := json.Marshal(map[string]any{
+		"action":       "trigger",
+		"peer":         0,
+		"chaos-action": "bogus-fault",
+	})
+	require.NoError(t, err)
+	unknownRes := p.CallTool("chaos_control", unknownArgs)
+	require.NotNil(t, unknownRes)
+	assert.Equal(t, true, unknownRes["isError"])
+	assert.Contains(t, extractText(t, unknownRes), "unknown chaos-action")
 }
 
 func TestChaosToolErrors(t *testing.T) {

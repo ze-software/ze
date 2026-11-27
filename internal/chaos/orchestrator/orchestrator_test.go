@@ -14,8 +14,11 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/ze-software/ze/internal/chaos/engine"
+	"github.com/ze-software/ze/internal/chaos/guard"
 	"github.com/ze-software/ze/internal/chaos/peer"
 	"github.com/ze-software/ze/internal/chaos/validation"
+	"github.com/ze-software/ze/internal/chaos/web"
 )
 
 func TestEstablishedStateSetAndSnapshot(t *testing.T) {
@@ -254,4 +257,98 @@ func TestSchedulerStopTime(t *testing.T) {
 	// 9s run with 5s warmup (4s active) caps settle at active/2 (2s) -> stops at +7s.
 	stop9 := schedulerStopTime(start.Add(9*time.Second), true, start, 5*time.Second)
 	assert.Equal(t, start.Add(7*time.Second), stop9)
+}
+
+// TestControlDispatcherSynchronousOutcomes verifies that newControlDispatcher
+// and runScheduler answer pause, rate, trigger (with params and guard/state
+// checks), and stop synchronously, and reject commands after stop.
+//
+// VALIDATES: Programmatic MCP control receives real scheduler outcomes rather
+// than fire-and-forget enqueue acknowledgments.
+// PREVENTS: Triggers silently dropped by guards or unestablished peers, positive
+// rate leaving the scheduler paused, or control calls hanging after stop.
+func TestControlDispatcherSynchronousOutcomes(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	es := newEstablishedState(2)
+	es.Set(0, true)
+	g := guard.New(2)
+	g.OnEstablished(0)
+
+	channels := []chan engine.ChaosAction{
+		make(chan engine.ChaosAction, 1),
+		make(chan engine.ChaosAction, 1),
+	}
+	controlCh := make(chan web.ControlCommand, 16)
+	schedDone := make(chan struct{})
+	var doneOnce sync.Once
+	finish := func() { doneOnce.Do(func() { close(schedDone) }) }
+
+	go runScheduler(ctx, ChaosConfig{
+		Rate:     0,
+		Interval: 50 * time.Millisecond,
+		Warmup:   time.Hour,
+	}, 42, 2, es, g, channels, controlCh, time.Time{}, true, finish)
+	defer func() {
+		cancel()
+		<-schedDone
+	}()
+
+	dispatch := newControlDispatcher(ctx, controlCh, schedDone, nil)
+
+	// Pause and rate commands return synchronously.
+	res, err := dispatch(web.ControlCommand{Type: "pause"})
+	require.NoError(t, err)
+	require.NoError(t, res.Err)
+	assert.Equal(t, "pause", res.Action)
+
+	res, err = dispatch(web.ControlCommand{Type: "rate", Rate: 0.4})
+	require.NoError(t, err)
+	require.NoError(t, res.Err)
+	require.NotNil(t, res.Rate)
+	assert.Equal(t, 0.4, *res.Rate)
+
+	// Trigger on peer 0 (up) and peer 1 (down): peer 0 dispatches with params, peer 1 blocked.
+	res, err = dispatch(web.ControlCommand{
+		Type: "trigger",
+		Trigger: &web.ManualTrigger{
+			ActionType: engine.NameRouteFlap,
+			Peers:      []int{0, 1},
+			Params:     map[string]string{"count": "3", "cycles": "1"},
+		},
+	})
+	require.NoError(t, err)
+	require.NoError(t, res.Err)
+	assert.Equal(t, []int{0}, res.Dispatched)
+	require.Len(t, res.Blocked, 1)
+	assert.Equal(t, 1, res.Blocked[0].Peer)
+	assert.Contains(t, res.Blocked[0].Reason, "not established")
+
+	select {
+	case got := <-channels[0]:
+		assert.Equal(t, engine.ActionRouteFlap, got.Type)
+		assert.Equal(t, "3", got.Params["count"])
+	case <-time.After(time.Second):
+		t.Fatal("expected route-flap action on peer 0 channel")
+	}
+
+	// Out-of-range peer returns a clear error.
+	res, err = dispatch(web.ControlCommand{
+		Type:    "trigger",
+		Trigger: &web.ManualTrigger{ActionType: engine.NameTCPDisconnect, Peers: []int{9}},
+	})
+	require.NoError(t, err)
+	require.Error(t, res.Err)
+	assert.Contains(t, res.Err.Error(), "out of range")
+
+	// Stop exits the scheduler; a follow-up command fails immediately instead of hanging.
+	res, err = dispatch(web.ControlCommand{Type: "stop"})
+	require.NoError(t, err)
+	require.NoError(t, res.Err)
+	<-schedDone
+
+	_, err = dispatch(web.ControlCommand{Type: "pause"})
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "stopped")
 }

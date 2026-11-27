@@ -4,13 +4,15 @@ package orchestrator
 
 import (
 	"context"
+	"errors"
 	"fmt"
-	"math/rand/v2"
 	"os"
 	"time"
 
 	"github.com/ze-software/ze/internal/chaos/engine"
 	"github.com/ze-software/ze/internal/chaos/guard"
+	"github.com/ze-software/ze/internal/chaos/inprocess"
+	chaosmcp "github.com/ze-software/ze/internal/chaos/mcp"
 	"github.com/ze-software/ze/internal/chaos/peer"
 	"github.com/ze-software/ze/internal/chaos/route"
 	"github.com/ze-software/ze/internal/chaos/web"
@@ -23,6 +25,15 @@ const (
 	// reconnectBackoff, re-synchronize EOR, and let withdrawals/announcements
 	// converge before the observation cutoff.
 	desiredSettleWindow = 4 * time.Second
+
+	// controlDispatchTimeout bounds synchronous control replies over MCP.
+	controlDispatchTimeout = 10 * time.Second
+
+	ctrlTypePause   = "pause"
+	ctrlTypeResume  = "resume"
+	ctrlTypeRate    = "rate"
+	ctrlTypeTrigger = "trigger"
+	ctrlTypeStop    = "stop"
 )
 
 // schedulerStopTime computes when automatic chaos/route ticks pause before a
@@ -63,8 +74,84 @@ func runPeerLoop(ctx context.Context, cfg peer.SimulatorConfig, peerIndex int, e
 	}
 }
 
+// newControlDispatcher returns a synchronous chaosmcp.ControlDispatcher backed by
+// controlCh and schedDone. When wd is non-nil, successful commands also update
+// dashboard control state so web and MCP views agree.
+func newControlDispatcher(
+	ctx context.Context,
+	controlCh chan<- web.ControlCommand,
+	schedDone <-chan struct{},
+	wd *web.Dashboard,
+) chaosmcp.ControlDispatcher {
+	return func(cmd web.ControlCommand) (web.ControlResult, error) {
+		select {
+		case <-schedDone:
+			return web.ControlResult{}, errors.New("chaos scheduler is stopped")
+		case <-ctx.Done():
+			return web.ControlResult{}, errors.New("chaos run has ended")
+		default:
+		}
+
+		reply := make(chan web.ControlResult, 1)
+		cmd.Reply = reply
+
+		select {
+		case controlCh <- cmd:
+		case <-schedDone:
+			return web.ControlResult{}, errors.New("chaos scheduler is stopped")
+		case <-ctx.Done():
+			return web.ControlResult{}, errors.New("chaos run has ended")
+		default:
+			return web.ControlResult{}, errors.New("chaos control channel is busy")
+		}
+
+		timer := time.NewTimer(controlDispatchTimeout)
+		defer timer.Stop()
+
+		select {
+		case res := <-reply:
+			if res.Err == nil && wd != nil {
+				wd.ApplyControl(cmd)
+			}
+			return res, nil
+		case <-schedDone:
+			select {
+			case res := <-reply:
+				if res.Err == nil && wd != nil {
+					wd.ApplyControl(cmd)
+				}
+				return res, nil
+			default:
+				return web.ControlResult{}, errors.New("chaos scheduler stopped before answering")
+			}
+		case <-ctx.Done():
+			return web.ControlResult{}, errors.New("chaos run ended before control completed")
+		case <-timer.C:
+			return web.ControlResult{}, errors.New("timed out waiting for chaos scheduler response")
+		}
+	}
+}
+
 // runScheduler runs the chaos scheduler goroutine.
-func runScheduler(ctx context.Context, cfg ChaosConfig, seed uint64, peerCount int, es *establishedState, guard *guard.Guard, channels []chan engine.ChaosAction, controlCh <-chan web.ControlCommand, stopTicksAt time.Time, quiet bool) {
+func runScheduler(
+	ctx context.Context,
+	cfg ChaosConfig,
+	seed uint64,
+	peerCount int,
+	es *establishedState,
+	g *guard.Guard,
+	channels []chan engine.ChaosAction,
+	controlCh <-chan web.ControlCommand,
+	stopTicksAt time.Time,
+	quiet bool,
+	onDone func(),
+) {
+	defer func() {
+		if onDone != nil {
+			onDone()
+		}
+	}()
+
 	sched := engine.NewScheduler(engine.SchedulerConfig{
 		Seed:           seed,
 		PeerCount:      peerCount,
@@ -80,7 +167,7 @@ func runScheduler(ctx context.Context, cfg ChaosConfig, seed uint64, peerCount i
 	paused := false
 
 	dispatchAction := func(a engine.ScheduledAction) {
-		if ok, reason := guard.AllowChaos(a.PeerIndex, a.Action.Type); !ok {
+		if ok, reason := g.AllowChaos(a.PeerIndex, a.Action.Type); !ok {
 			if !quiet {
 				fmt.Fprintf(os.Stderr, "le chaos run | scheduler | blocked %s for peer %d (%s)\n",
 					a.Action.Type, a.PeerIndex, reason)
@@ -94,7 +181,7 @@ func runScheduler(ctx context.Context, cfg ChaosConfig, seed uint64, peerCount i
 		select {
 		case channels[a.PeerIndex] <- a.Action:
 			if a.Action.Type == engine.ActionHoldTimerExpiry {
-				guard.OnHoldTimerExpiry(a.PeerIndex)
+				g.OnHoldTimerExpiry(a.PeerIndex)
 			}
 		default:
 			if !quiet {
@@ -106,30 +193,40 @@ func runScheduler(ctx context.Context, cfg ChaosConfig, seed uint64, peerCount i
 
 	handleControl := func(cmd web.ControlCommand) bool {
 		switch cmd.Type {
-		case "pause":
+		case ctrlTypePause:
 			paused = true
 			if !quiet {
 				fmt.Fprintf(os.Stderr, "le chaos run | scheduler | paused\n")
 			}
-		case "resume":
+			inprocess.ReplyControl(cmd.Reply, web.ControlResult{Action: ctrlTypePause})
+		case ctrlTypeResume:
 			paused = false
 			if !quiet {
 				fmt.Fprintf(os.Stderr, "le chaos run | scheduler | resumed\n")
 			}
-		case "rate":
+			inprocess.ReplyControl(cmd.Reply, web.ControlResult{Action: ctrlTypeResume})
+		case ctrlTypeRate:
 			sched.SetRate(cmd.Rate)
+			paused = cmd.Rate == 0
 			if !quiet {
 				fmt.Fprintf(os.Stderr, "le chaos run | scheduler | rate -> %.2f\n", cmd.Rate)
 			}
-		case "trigger":
-			if cmd.Trigger != nil {
-				handleManualTrigger(cmd.Trigger, peerCount, es, guard, channels, quiet)
-			}
-		case "stop":
+			rate := cmd.Rate
+			inprocess.ReplyControl(cmd.Reply, web.ControlResult{Action: ctrlTypeRate, Rate: &rate})
+		case ctrlTypeTrigger:
+			res := inprocess.DispatchManualTrigger(cmd.Trigger, peerCount, es.Snapshot(), g, channels, nil, quiet)
+			inprocess.ReplyControl(cmd.Reply, res)
+		case ctrlTypeStop:
 			if !quiet {
 				fmt.Fprintf(os.Stderr, "le chaos run | scheduler | stopped by dashboard\n")
 			}
+			inprocess.ReplyControl(cmd.Reply, web.ControlResult{Action: ctrlTypeStop})
 			return true
+		default:
+			inprocess.ReplyControl(cmd.Reply, web.ControlResult{
+				Action: cmd.Type,
+				Err:    fmt.Errorf("unknown control command %q", cmd.Type),
+			})
 		}
 		return false
 	}
@@ -155,60 +252,6 @@ func runScheduler(ctx context.Context, cfg ChaosConfig, seed uint64, peerCount i
 			actions := sched.Tick(now, es.Snapshot())
 			for _, a := range actions {
 				dispatchAction(a)
-			}
-		}
-	}
-}
-
-// handleManualTrigger dispatches a manually-triggered chaos action.
-func handleManualTrigger(t *web.ManualTrigger, peerCount int, es *establishedState, guard *guard.Guard, channels []chan engine.ChaosAction, quiet bool) {
-	actionType, ok := engine.ActionTypeFromString(t.ActionType)
-	if !ok {
-		if !quiet {
-			fmt.Fprintf(os.Stderr, "le chaos run | scheduler | unknown trigger action: %s\n", t.ActionType)
-		}
-		return
-	}
-
-	targets := t.Peers
-	if len(targets) == 0 {
-		snap := es.Snapshot()
-		var established []int
-		for i, est := range snap {
-			if est {
-				established = append(established, i)
-			}
-		}
-		if len(established) > 0 {
-			targets = []int{established[rand.IntN(len(established))]} //nolint:gosec // chaos simulator, not crypto
-		}
-	}
-
-	for _, idx := range targets {
-		if idx < 0 || idx >= peerCount {
-			continue
-		}
-		if ok, reason := guard.AllowChaos(idx, actionType); !ok {
-			if !quiet {
-				fmt.Fprintf(os.Stderr, "le chaos run | scheduler | blocked manual %s for peer %d (%s)\n",
-					actionType, idx, reason)
-			}
-			continue
-		}
-		action := engine.ChaosAction{Type: actionType, Params: t.Params}
-		if !quiet {
-			fmt.Fprintf(os.Stderr, "le chaos run | scheduler | manual %s -> peer %d\n",
-				actionType, idx)
-		}
-		select {
-		case channels[idx] <- action:
-			if actionType == engine.ActionHoldTimerExpiry {
-				guard.OnHoldTimerExpiry(idx)
-			}
-		default:
-			if !quiet {
-				fmt.Fprintf(os.Stderr, "le chaos run | scheduler | dropped manual %s for peer %d (busy)\n",
-					actionType, idx)
 			}
 		}
 	}

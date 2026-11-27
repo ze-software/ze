@@ -163,6 +163,17 @@ func V2ActionNames() []string {
 	return names
 }
 
+// AllActionNames returns the sorted kebab-case names of every chaos action.
+// Derived from actionNames so MCP schemas and errors never drift from the real set.
+func AllActionNames() []string {
+	names := make([]string, 0, len(actionNames))
+	for _, name := range actionNames {
+		names = append(names, name)
+	}
+	slices.Sort(names)
+	return names
+}
+
 // ChaosAction describes a chaos event to execute on a peer.
 type ChaosAction struct {
 	// Type identifies what kind of chaos to perform.

@@ -70,7 +70,12 @@ func RunOrchestrator(ctx context.Context, cfg *orchestratorConfig) int {
 		}
 	}
 
-	rr, err := setupReporting(cfg, ep.Convergence, ibgp, families)
+	schedDone := make(chan struct{})
+	var schedDoneOnce sync.Once
+	finishSched := func() { schedDoneOnce.Do(func() { close(schedDone) }) }
+	defer finishSched()
+
+	rr, err := setupReporting(ctx, cfg, ep.Convergence, ibgp, families, schedDone)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "error: setting up reporting: %v\n", err)
 		return 1
@@ -176,7 +181,7 @@ func RunOrchestrator(ctx context.Context, cfg *orchestratorConfig) int {
 	routeStopAt := schedulerStopTime(observationEnd, hasDeadline, syncStart, cfg.RouteCfg.Warmup)
 
 	if chaosEnabled {
-		go runScheduler(ctx, cfg.ChaosCfg, cfg.Seed, n, established, guard, chaosChannels, rr.controlCh, chaosStopAt, cfg.Quiet)
+		go runScheduler(ctx, cfg.ChaosCfg, cfg.Seed, n, established, guard, chaosChannels, rr.controlCh, chaosStopAt, cfg.Quiet, finishSched)
 	}
 
 	if routeEnabled {
@@ -334,7 +339,7 @@ func replayPeerProfiles(cfg *orchestratorConfig) ([]bool, [][]string) {
 	return ibgp, families
 }
 
-func setupReporting(cfg *orchestratorConfig, convergence *validation.Convergence, ibgp []bool, families [][]string) (*reportingResult, error) {
+func setupReporting(ctx context.Context, cfg *orchestratorConfig, convergence *validation.Convergence, ibgp []bool, families [][]string, schedDone <-chan struct{}) (*reportingResult, error) {
 	peerCount := len(cfg.Profiles)
 	var eventLog *report.JSONLog
 	var consumers []report.Consumer
@@ -500,6 +505,7 @@ func setupReporting(cfg *orchestratorConfig, convergence *validation.Convergence
 			State:       webDashRef.State(),
 			Watchdog:    wd,
 			Convergence: convergence,
+			Control:     newControlDispatcher(ctx, controlCh, schedDone, webDashRef),
 			Seed:        cfg.Seed,
 			StartTime:   cfg.Start,
 			PeerCount:   peerCount,

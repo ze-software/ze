@@ -927,10 +927,13 @@ Each phase is independently testable and deployable. Phase 1 delivers a complete
 
 The `--mcp :PORT` flag starts an MCP JSON-RPC server that exposes chaos state to AI assistants. Six tools: `chaos_status`, `chaos_problems`, `chaos_peers`, `chaos_scenario`, `chaos_control`, `chaos_execute`.
 
-The MCP server reads from `DashboardState` (via `RWMutex`) and the `Watchdog` consumer. It shares the same JSON-RPC protocol layer as the ze daemon's MCP server (`internal/component/mcp`), parameterized by the `ToolProvider` interface.
+The MCP server reads from `DashboardState` (via `RWMutex`) and the `Watchdog` consumer, and dispatches `chaos_control` synchronously through `newControlDispatcher` in both fork and `--in-process` modes (keeping `DashboardState.Control` updated via `Dashboard.ApplyControl`). It shares the same JSON-RPC protocol layer as the ze daemon's MCP server (`internal/component/mcp`), parameterized by the `ToolProvider` interface.
 
 Implementation: `internal/chaos/mcp/tools.go`.
 <!-- source: internal/chaos/mcp/tools.go -- ToolProvider implementation for chaos -->
+<!-- source: internal/chaos/orchestrator/scheduler.go -- newControlDispatcher -->
+<!-- source: internal/chaos/inprocess/chaos.go -- DispatchManualTrigger, chaosSchedulerLoop -->
+<!-- source: internal/chaos/web/dashboard.go -- Dashboard.ApplyControl -->
 
 `ToolProvider` (`ServerName()`, `Tools()`, `CallTool()`) is what lets both MCP
 servers share one JSON-RPC layer instead of duplicating the HTTP and JSON-RPC

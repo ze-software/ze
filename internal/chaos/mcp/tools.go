@@ -12,8 +12,10 @@ import (
 
 	zemcp "github.com/ze-software/ze/internal/component/mcp"
 	"github.com/ze-software/ze/internal/component/plugin"
+	"github.com/ze-software/ze/internal/core/opererr"
 	"github.com/ze-software/ze/internal/core/textbuf"
 
+	"github.com/ze-software/ze/internal/chaos/engine"
 	"github.com/ze-software/ze/internal/chaos/validation"
 	"github.com/ze-software/ze/internal/chaos/watchdog"
 	"github.com/ze-software/ze/internal/chaos/web"
@@ -23,18 +25,21 @@ import (
 // are the protocol's grammar, not this package's data: an MCP client looks each
 // one up by name.
 const (
-	schemaKeyName        = "name"
-	schemaKeyDescription = "description"
-	schemaKeyInputSchema = "inputSchema"
-	schemaKeyType        = "type"
-	schemaKeyProperties  = "properties"
-	schemaKeyEnum        = "enum"
-	schemaKeyRequired    = "required"
+	schemaKeyName                 = "name"
+	schemaKeyDescription          = "description"
+	schemaKeyInputSchema          = "inputSchema"
+	schemaKeyType                 = "type"
+	schemaKeyProperties           = "properties"
+	schemaKeyEnum                 = "enum"
+	schemaKeyRequired             = "required"
+	schemaKeyItems                = "items"
+	schemaKeyAdditionalProperties = "additionalProperties"
 )
 
 // JSON Schema type values, as the inputSchema of a chaos tool declares them.
 const (
 	schemaTypeObject  = "object"
+	schemaTypeArray   = "array"
 	schemaTypeString  = "string"
 	schemaTypeInteger = "integer"
 	schemaTypeNumber  = "number"
@@ -51,8 +56,12 @@ const (
 // resultKeyType is the `type` member of a chaos result record: a watchdog
 // problem's kind, or a peer event's kind. It is a member of the answer this
 // package builds, not of the schema that describes the question, so it is not
-// schemaKeyType.
-const resultKeyType = "type"
+// schemaKeyType. resultKeyStatus is the shared `status` key in status and peer
+// payloads.
+const (
+	resultKeyType   = "type"
+	resultKeyStatus = "status"
+)
 
 // Control actions a chaos_control call can ask for. The set is declared three
 // times -- as the validity map, as the schema enum, and as the dispatch switch
@@ -79,8 +88,9 @@ var sortedControlActions = func() string {
 	return textbuf.Join(keys, ", ")
 }()
 
-// ControlDispatcher sends control commands to the chaos scheduler.
-type ControlDispatcher func(cmd web.ControlCommand) error
+// ControlDispatcher sends control commands to the chaos scheduler and returns
+// the scheduler's synchronous execution outcome.
+type ControlDispatcher func(cmd web.ControlCommand) (web.ControlResult, error)
 
 // CommandDispatcher executes a chaos orchestrator command and returns the
 // typed response. It is an alias for the unified plugin.CommandDispatcher; the
@@ -178,7 +188,7 @@ func (p *Provider) toolStatus(_ json.RawMessage) map[string]any {
 	for i, prop := range p.State.Properties {
 		properties[i] = map[string]any{
 			"name":            prop.Name,
-			"status":          statusStr(prop.Pass),
+			resultKeyStatus:   statusStr(prop.Pass),
 			"violation-count": len(prop.Violations),
 		}
 	}
@@ -200,7 +210,12 @@ func (p *Provider) toolStatus(_ json.RawMessage) map[string]any {
 		"throughput-in":    web.FormatBitRate(p.State.AggregateThroughput(false)),
 		"throughput-out":   web.FormatBitRate(p.State.AggregateThroughput(true)),
 		"dropped-events":   p.State.TotalDropped,
-		"properties":       properties,
+		"control": map[string]any{
+			resultKeyStatus: p.State.Control.Status,
+			"paused":        p.State.Control.Paused,
+			"rate":          p.State.Control.Rate,
+		},
+		"properties": properties,
 	}
 
 	data, err := json.Marshal(result)
@@ -318,7 +333,7 @@ func peerDetail(ps *web.PeerState, detail bool) map[string]any {
 
 	m := map[string]any{
 		"index":           ps.Index,
-		"status":          ps.Status.String(),
+		resultKeyStatus:   ps.Status.String(),
 		"routes-sent":     ps.RoutesSent,
 		"routes-received": ps.RoutesRecv,
 		"missing":         ps.Missing,
@@ -374,10 +389,12 @@ func (p *Provider) toolControl(args json.RawMessage) map[string]any {
 	}
 
 	var input struct {
-		Action      string   `json:"action"`
-		Peer        *int     `json:"peer"`
-		ChaosAction string   `json:"chaos-action"`
-		Value       *float64 `json:"value"`
+		Action      string            `json:"action"`
+		Peer        *int              `json:"peer"`
+		Peers       []int             `json:"peers"`
+		ChaosAction string            `json:"chaos-action"`
+		Params      map[string]string `json:"params"`
+		Value       *float64          `json:"value"`
 	}
 	if err := json.Unmarshal(args, &input); err != nil {
 		var tb textbuf.Buffer
@@ -387,6 +404,13 @@ func (p *Provider) toolControl(args json.RawMessage) map[string]any {
 	if !validControlActions[input.Action] {
 		var tb textbuf.Buffer
 		return zemcp.ErrResult(tb.Str("action must be one of: ").Str(sortedControlActions).Str("; got ").Str(strconv.Quote(input.Action)).String())
+	}
+	if input.Peer != nil && len(input.Peers) > 0 {
+		return zemcp.ErrResult(opererr.New(
+			"chaos_control received both peer and peers",
+			"A trigger accepts either one peer index or a list of peer indices, not both.",
+			`call chaos_control with either "peer": 0 or "peers": [0, 1]`,
+		).Error())
 	}
 
 	cmd := web.ControlCommand{Type: input.Action}
@@ -403,20 +427,96 @@ func (p *Provider) toolControl(args json.RawMessage) map[string]any {
 		if input.ChaosAction == "" {
 			return zemcp.ErrResult("trigger action requires chaos-action")
 		}
-		trigger := &web.ManualTrigger{ActionType: input.ChaosAction}
+		if _, ok := engine.ActionTypeFromString(input.ChaosAction); !ok {
+			var tb textbuf.Buffer
+			valid := tb.Join(engine.AllActionNames(), ", ").String()
+			tb.Reset()
+			return zemcp.ErrResult(opererr.New(
+				tb.Str("unknown chaos-action ").Str(strconv.Quote(input.ChaosAction)).String(),
+				"The chaos engine only executes registered action names.",
+				tb.Reset().Str("choose one of: ").Str(valid).String(),
+			).Error())
+		}
+		trigger := &web.ManualTrigger{
+			ActionType: input.ChaosAction,
+			Params:     input.Params,
+		}
 		if input.Peer != nil {
 			trigger.Peers = []int{*input.Peer}
+		}
+		if len(input.Peers) > 0 {
+			trigger.Peers = input.Peers
 		}
 		cmd.Trigger = trigger
 	}
 
-	if err := p.Control(cmd); err != nil {
+	res, err := p.Control(cmd)
+	if err != nil {
 		var tb textbuf.Buffer
-		return zemcp.ErrResult(tb.Str("control: ").Err(err).String())
+		return zemcp.ErrResult(opererr.New(
+			tb.Str("control command failed: ").Err(err).String(),
+			"The chaos scheduler did not accept or complete the control command.",
+			"check chaos_status to confirm the chaos run and scheduler are active",
+		).Error())
+	}
+	if res.Err != nil {
+		var tb textbuf.Buffer
+		return zemcp.ErrResult(opererr.New(
+			tb.Str("control command rejected: ").Err(res.Err).String(),
+			"The chaos scheduler refused the command parameters or target state.",
+			"check chaos_peers and retry with a valid action and peer index",
+		).Error())
+	}
+	if input.Action == controlActionTrigger && len(res.Dispatched) == 0 {
+		return zemcp.ErrResult(opererr.New(
+			formatNoDispatchError(res),
+			"Every targeted peer was blocked by session state or guards, or its action queue was busy.",
+			"call chaos_peers to wait until the target peer is established and idle, then retry",
+		).Error())
 	}
 
+	payload := map[string]any{
+		"ok":     true,
+		"action": input.Action,
+	}
+	if res.ChaosAction != "" {
+		payload["chaos-action"] = res.ChaosAction
+	}
+	if res.Rate != nil {
+		payload["rate"] = *res.Rate
+	}
+	if len(res.Dispatched) > 0 {
+		payload["dispatched"] = res.Dispatched
+	}
+	if len(res.Blocked) > 0 {
+		payload["blocked"] = res.Blocked
+	}
+	if len(res.Dropped) > 0 {
+		payload["dropped"] = res.Dropped
+	}
+
+	data, err := json.Marshal(payload)
+	if err != nil {
+		var tb textbuf.Buffer
+		return zemcp.ErrResult(opererr.New(
+			tb.Str("encoding control result: ").Err(err).String(),
+			"The chaos MCP server could not serialize the control response.",
+			"inspect chaos_status and retry the control command",
+		).Error())
+	}
+	return zemcp.TextResult(string(data))
+}
+
+func formatNoDispatchError(res web.ControlResult) string {
 	var tb textbuf.Buffer
-	return zemcp.TextResult(tb.Str("ok: ").Str(input.Action).String())
+	tb.Str("trigger ").Str(res.ChaosAction).Str(" dispatched to 0 peers")
+	for _, b := range res.Blocked {
+		tb.Str("; peer ").Int(int64(b.Peer)).Str(" blocked: ").Str(b.Reason)
+	}
+	for _, peerIdx := range res.Dropped {
+		tb.Str("; peer ").Int(int64(peerIdx)).Str(" dropped: busy")
+	}
+	return tb.String()
 }
 
 func (p *Provider) toolExecute(args json.RawMessage) *zemcp.ToolResult {
@@ -480,7 +580,7 @@ var chaosTools = []map[string]any{
 	},
 	{
 		schemaKeyName:        "chaos_control",
-		schemaKeyDescription: "Control chaos scheduling. Use chaos_problems or chaos_status first to understand the situation before changing anything.",
+		schemaKeyDescription: "Control chaos scheduling and trigger synchronous faults. Use chaos_problems or chaos_status first to understand the situation before changing anything.",
 		schemaKeyInputSchema: map[string]any{
 			schemaKeyType: schemaTypeObject,
 			schemaKeyProperties: map[string]any{
@@ -492,9 +592,26 @@ var chaosTools = []map[string]any{
 					},
 					schemaKeyDescription: "Control action to perform.",
 				},
-				schemaPropPeer: map[string]any{schemaKeyType: schemaTypeInteger, schemaKeyDescription: "Peer index for trigger action."},
-				"chaos-action": map[string]any{schemaKeyType: schemaTypeString, schemaKeyDescription: "Chaos action name for trigger (e.g. tcp-disconnect)."},
-				"value":        map[string]any{schemaKeyType: schemaTypeNumber, schemaKeyDescription: "New rate for rate action (0.0-1.0)."},
+				schemaPropPeer: map[string]any{
+					schemaKeyType:        schemaTypeInteger,
+					schemaKeyDescription: "Single peer index for trigger action. Mutually exclusive with peers.",
+				},
+				"peers": map[string]any{
+					schemaKeyType:        schemaTypeArray,
+					schemaKeyItems:       map[string]any{schemaKeyType: schemaTypeInteger},
+					schemaKeyDescription: "List of peer indices for trigger action. Mutually exclusive with peer.",
+				},
+				"chaos-action": map[string]any{
+					schemaKeyType:        schemaTypeString,
+					schemaKeyEnum:        engine.AllActionNames(),
+					schemaKeyDescription: "Chaos action name for trigger (e.g. tcp-disconnect, route-flap).",
+				},
+				"params": map[string]any{
+					schemaKeyType:                 schemaTypeObject,
+					schemaKeyAdditionalProperties: map[string]any{schemaKeyType: schemaTypeString},
+					schemaKeyDescription:          "Action-specific string parameters for trigger (e.g. count, cycles, interval, drift, delay, duration, family, iface, addr).",
+				},
+				"value": map[string]any{schemaKeyType: schemaTypeNumber, schemaKeyDescription: "New rate for rate action (0.0-1.0)."},
 			},
 			schemaKeyRequired: []string{schemaPropAction},
 		},

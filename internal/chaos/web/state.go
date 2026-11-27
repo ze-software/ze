@@ -17,7 +17,24 @@ import (
 	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
-// ControlCommand represents a command from the web dashboard to the orchestrator.
+// ControlTargetOutcome records why a manually triggered action did not reach a peer.
+type ControlTargetOutcome struct {
+	Peer   int    `json:"peer"`
+	Reason string `json:"reason"`
+}
+
+// ControlResult reports the scheduler's synchronous outcome for a ControlCommand.
+type ControlResult struct {
+	Action      string                 `json:"action"`
+	ChaosAction string                 `json:"chaos-action,omitempty"`
+	Rate        *float64               `json:"rate,omitempty"`
+	Dispatched  []int                  `json:"dispatched,omitempty"`
+	Blocked     []ControlTargetOutcome `json:"blocked,omitempty"`
+	Dropped     []int                  `json:"dropped,omitempty"`
+	Err         error                  `json:"-"`
+}
+
+// ControlCommand represents a command from the web dashboard or MCP server to the orchestrator.
 type ControlCommand struct {
 	// Type identifies the command: "pause", "resume", "rate", "trigger", "stop".
 	Type string
@@ -27,6 +44,10 @@ type ControlCommand struct {
 
 	// Trigger holds details for "trigger" commands.
 	Trigger *ManualTrigger
+
+	// Reply receives the scheduler's synchronous execution outcome when non-nil.
+	// Callers MUST supply a buffered channel (capacity >= 1) so the scheduler never blocks.
+	Reply chan<- ControlResult
 }
 
 // ManualTrigger describes a manually-triggered chaos action.
