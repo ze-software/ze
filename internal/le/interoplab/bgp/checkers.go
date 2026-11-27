@@ -856,6 +856,16 @@ var scenarioOperations = map[string][]operation{
 	scenarioSRPolicyGoBGP: {
 		{kind: opGoBGPSession, argument: zeLabAddress},
 	},
+	// RFC 9552 Section 8.2.2, judged by GoBGP downstream of Ze. peerPrefixFence
+	// (10.20.0.0/24) wakes the injector once GoBGP is established, and
+	// injectPrefixFirst (10.10.0.0/24) is the injector's trailing fence proving
+	// Ze processed and relayed every preceding BGP-LS UPDATE. The BGP-LS NLRI
+	// and session-stability assertions are in scenarioExtras.
+	scenarioBGPLSReceiveGoBGP: {
+		{kind: opGoBGPSession, argument: zeLabAddress},
+		{kind: opExec, peer: peerGoBGP, command: []string{cmdGoBGP, gobgpGlobal, gobgpRIB, gobgpAdd, peerPrefixFence, "-a", gobgpFamilyIPv4, gobgpNextHop, gobgpLabAddress}},
+		{kind: opGoBGPRoute, argument: injectPrefixFirst, timeout: 120 * time.Second},
+	},
 	// RFC 9830 Section 5, judged by GoBGP downstream of Ze. The route added
 	// here is the injector's barrier: Ze relays it upstream once GoBGP is up.
 	// The SR Policy assertions are in scenarioExtras.

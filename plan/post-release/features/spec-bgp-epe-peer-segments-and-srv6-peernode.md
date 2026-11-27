@@ -26,7 +26,7 @@ automatic-start behavior are documented in `docs/architecture/behavior/peer-life
 No existing spec could absorb these rows: the BGP-LS specs in the tree
 (`plan/post-release/features/spec-bgp-ls-origination-and-the-scheduled-marker.md`,
 `plan/release/fixes/spec-bgp-ls-receiver-accept-and-limit-controls.md`,
-`plan/release/fixes/spec-bgp-ls-receiver-fault-management.md`) own RFC 9552 node keys
+and closed `spec-bgp-ls-receiver-fault-management`) own RFC 9552 node keys
 and receiver fault handling, and none names RFC 9086, RFC 9514 §7.2 or the EPE
 plugin (grep, 2026-10-11).
 

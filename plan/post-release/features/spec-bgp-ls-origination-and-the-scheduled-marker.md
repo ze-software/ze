@@ -17,6 +17,13 @@ Recovery after compaction: `.claude/rules/post-compaction.md`.
 
 Own native BGP-LS origination and its inherited producer controls (original Phase 2). The owner authorized the capability as later work; this move does not schedule implementation. Existing receiving behavior is not described as absent.
 
+## Existing Mechanisms (MANDATORY)
+
+| Mechanism | Where (file + symbol, or page + section) | What it does today | This spec (extends, replaces, or does not apply, with the reason) |
+|-----------|------------------------------------------|--------------------|-------------------------------------------------------------------|
+| BGP-LS NLRI wire codec and family registration | `internal/core/bgp/nlri/bgpls/`, `internal/component/bgp/plugins/nlri/ls/`, `docs/architecture/wire/nlri-bgpls.md` | Encodes, decodes, and validates received BGP-LS (AFI 16388 / SAFI 71 and 72) Link-State NLRIs and BGP-LS Attributes | Extends: native BGP-LS origination reuses the existing BGP-LS wire codec and family registration rather than defining a second encoder |
+| RFC scheduled-debt marker | `plan/release/validation/spec-rfc-scheduled-debt-marker.md` | Owns Phase 1 `{scheduled: ...}` marker validation and debt reporting for RFC conformance tooling | Does not replace: Phase 1 stays owned by `plan/release/validation/spec-rfc-scheduled-debt-marker.md` |
+
 ## Acceptance Criteria
 
 The original criterion ids are retained below for this file’s slice only. Cross-cutting criteria are partitioned by the ownership table; the companion owns the other portion, not a duplicate implementation.
@@ -231,7 +238,7 @@ Two, one per phase.
 |----------|--------|
 | What breaks if this is wrong? | Phase 1: the RFC gate mis-reports coverage for every enrolled RFC, which is a claim about compliance rather than a runtime failure. Phase 2: ze originates link-state into a BGP-LS mesh, and a wrong key corrupts every Consumer's topology, which is the worst outcome in this spec |
 | How is it reverted? | Phase 1 is a single commit revert; no data outlives it. Phase 2 is not revertible once peers have seen the NLRI: withdrawal is itself an origination act |
-| Who else touches this path? | `internal/le/rfc/rfc.go` is edited by every RFC enrolment; the ls plugin is touched by `plan/release/fixes/spec-bgp-ls-receiver-fault-management.md` |
+| Who else touches this path? | `internal/le/rfc/rfc.go` is edited by every RFC enrolment; receive-side BGP-LS validation was closed by `spec-bgp-ls-receiver-fault-management` (documented in `docs/architecture/wire/nlri-bgpls.md`) |
 
 ### Wiring Test (MANDATORY -- NOT deferrable)
 
@@ -465,7 +472,7 @@ Two, one per phase.
   A priority field would be a second record with nothing re-checking it, which is
   the thing this design refuses.
 - `RFC9552-8.2.6-2` and `RFC9552-8.2.2-9` are NOT here. They are receiver-side and
-  belong to `plan/release/fixes/spec-bgp-ls-receiver-fault-management.md`.
+  were closed by `spec-bgp-ls-receiver-fault-management` (documented in `docs/architecture/wire/nlri-bgpls.md` and `rfc/short/rfc9552.md`).
 
 ### RFC Documentation (Scope: protocol)
 

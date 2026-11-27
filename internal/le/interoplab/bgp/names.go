@@ -126,12 +126,15 @@ const (
 // SR Policy RIB is read with gobgp-paths, the gRPC ListPath reader
 // test/interop/Dockerfile.gobgp builds, which takes a numeric AFI and SAFI
 // and prints each path's NLRI and attributes through GoBGP's own String().
-// A Route Target membership (SAFI 132) is read the same way, so the checker
-// matches the NLRI GoBGP decoded rather than the client's table layout.
+// BGP-LS (AFI 16388 / SAFI 71) and Route Target membership (SAFI 132) are read
+// the same way, so the checker matches the NLRI GoBGP decoded rather than the
+// client's table layout.
 const (
 	cmdGoBGPPaths     = "gobgp-paths"
 	gobgpAFIIPv4      = "1"
 	gobgpAFIIPv6      = "2"
+	gobgpAFIBGPLS     = "16388"
+	gobgpSAFIBGPLS    = "71"
 	gobgpSAFISRPolicy = "73"
 	gobgpSAFIRTC      = "132"
 )
@@ -597,6 +600,7 @@ const (
 	scenarioAS112OriginASFRR                 = "as112-origin-as-frr"
 	scenarioAddPathFRR                       = "bgp-addpath-frr"
 	scenarioAddPathZeroIDFRR                 = "addpath-zero-id-frr"
+	scenarioBGPLSReceiveGoBGP                = "bgp-ls-receive-gobgp"
 	scenarioEVPNFRR                          = "bgp-evpn-frr"
 	scenarioEVPNGoBGP                        = "bgp-evpn-gobgp"
 	scenarioFlowspecFRR                      = "bgp-flowspec-frr"
@@ -979,6 +983,20 @@ const (
 	srPolicyReceivedA          = "Color 100, Endpoint: 10.0.0.1 "
 	srPolicyReceivedB          = "Color 300, Endpoint: 10.0.0.3 "
 	srPolicyReceivedControl    = "Color 400, Endpoint: 10.0.0.5 "
+)
+
+// RFC 9552 BGP-LS NLRI tokens as gobgp-paths 16388 71 prints them through
+// GoBGP's packet decoder (LsNodeNLRI.String and LsLinkNLRI.String in GoBGP
+// pkg/packet/bgp/bgp.go). Control Node and Link NLRIs prove zero false
+// positives on valid BGP-LS routes and name the full decoded NLRI fields so
+// 10.95.52.1 cannot match 10.95.52.11 by prefix; the survivor arrives in the
+// same UPDATE as the skipable malformed NLRI so Ze discards only the malformed
+// one and keeps the session up.
+const (
+	bgplsReceivedNodeControl   = "NODE { AS:65004 BGP-LS ID:0 10.95.52.1 OSPFv2:0"
+	bgplsReceivedLinkControl   = "LINK { LOCAL_NODE: 10.95.52.11 REMOTE_NODE: 10.95.52.12 LINK: 10.95.52.11->10.95.52.12 OSPFv2:0"
+	bgplsReceivedNodeSurvivor  = "NODE { AS:65004 BGP-LS ID:0 10.95.52.3 OSPFv2:0"
+	bgplsReceivedNodeMalformed = "10.95.52.9"
 )
 
 // The DHCPv4 scenarios' dnsmasq sidecars: the file that selects each server,

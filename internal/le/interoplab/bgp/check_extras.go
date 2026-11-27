@@ -129,6 +129,19 @@ var scenarioExtras = map[string][]operation{
 		{kind: opWaitContains, peer: peerGoBGP, command: []string{cmdGoBGPPaths, gobgpAFIIPv6, gobgpSAFISRPolicy}, contains: []string{srPolicyOriginatedIPv6, srPolicyBindingSIDTop, srPolicySegmentLabel16, srPolicySegmentLabelTop, srPolicyRouteTargetGoBGP}, timeout: 60 * time.Second},
 		{kind: opGoBGPSession, argument: zeLabAddress},
 	},
+	// RFC 9552 Section 8.2.2: valid BGP-LS Node and Link NLRIs reach GoBGP
+	// intact with zero false positives, while a skipable malformed Link-State
+	// NLRI sent beside a well-formed survivor is discarded by Ze before it can
+	// reach GoBGP. Both valid controls and the survivor act as positive proofs
+	// on the absence check, and Ze's peer detail counters require one
+	// established connection with zero drops so a reset cannot pass vacuously.
+	scenarioBGPLSReceiveGoBGP: {
+		{kind: opWaitContains, peer: peerGoBGP, command: []string{cmdGoBGPPaths, gobgpAFIBGPLS, gobgpSAFIBGPLS}, contains: []string{bgplsReceivedNodeControl, bgplsReceivedLinkControl, bgplsReceivedNodeSurvivor}, timeout: 120 * time.Second},
+		{kind: opRequireAbsent, peer: peerGoBGP, command: []string{cmdGoBGPPaths, gobgpAFIBGPLS, gobgpSAFIBGPLS}, absent: []string{bgplsReceivedNodeMalformed}, proof: []string{bgplsReceivedNodeControl, bgplsReceivedLinkControl, bgplsReceivedNodeSurvivor}},
+		{kind: opGoBGPSession, argument: zeLabAddress},
+		// RFC 9552 Section 8.2.2
+		{kind: opRequireJSONFields, peer: "ze", command: zeCommand("show bgp peer " + gobgpLabAddress + " detail"), fields: map[string]string{zeFieldConnectionsEstablished: "1", zeFieldConnectionsDropped: "0"}},
+	},
 	// RFC 9830 Section 5: A, B and the control C arrive well-formed; A beside
 	// a 13-octet NLRI is treat-as-withdraw, then B without attribute 23 is.
 	// Each absence carries C as its proof, so a dead Ze-GoBGP session or a

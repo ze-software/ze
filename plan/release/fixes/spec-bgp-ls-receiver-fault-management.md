@@ -2,14 +2,14 @@
 
 | Field | Value |
 |-------|-------|
-| Status | design |
+| Status | in-progress |
 | Priority | P0 |
 | Release reason | Validate untrusted BGP-LS input and prove receiver fault-management controls end to end against the live daemon and GoBGP. |
 | Scope | protocol |
 | Depends | - |
-| Phase | - |
+| Phase | 4/4 |
 | Handoff | - |
-| Updated | 2026-11-26 |
+| Updated | 2026-11-27 |
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.
 
@@ -130,9 +130,9 @@ This spec closes those two remaining proof gaps so the P0 release fix can be ver
 ### Boundaries Crossed
 | Boundary | How | Verified |
 |----------|-----|----------|
-| Peer TCP ↔ `message` (`nlrisyntax` / `attrValidators`) | Raw BGP UPDATE frames validated in-process before plugin dispatch | No |
-| `message` ↔ `reactor` (`enforceRFC7606` / `typedNLRIEdit`) | `RFC7606ValidationResult`, `nlrisyntax.Judgement`, and `Retain` byte slice drive session reset, NLRI discard, or Attribute Discard | No |
-| `reactor` ↔ `bgp-rs` / downstream peer (`le test peer` or GoBGP) | Surviving NLRIs relayed over BGP TCP; GoBGP RIB queried via `gobgp-paths 16388 71` | No |
+| Peer TCP ↔ `message` (`nlrisyntax` / `attrValidators`) | Raw BGP UPDATE frames validated in-process before plugin dispatch | Yes (`TestValidateMPNLRISyntaxJudgesLinkStateFramingOnly`, `TestRetainWellFormedNLRIBoundaries`, `test/plugin/bgp-ls-malformed-nlri.ci`) |
+| `message` ↔ `reactor` (`enforceRFC7606` / `typedNLRIEdit`) | `RFC7606ValidationResult`, `nlrisyntax.Judgement`, and `Retain` byte slice drive session reset, NLRI discard, or Attribute Discard | Yes (`TestRFC9552*` in `internal/component/bgp/reactor/`, `test/plugin/bgp-ls-malformed-nlri.ci`, counterfactual red on `RetainWellFormedNLRI`) |
+| `reactor` ↔ `bgp-rs` / downstream peer (`le test peer` or GoBGP) | Surviving NLRIs relayed over BGP TCP; GoBGP RIB queried via `gobgp-paths 16388 71` | Yes (`test/plugin/bgp-ls-malformed-nlri.ci` PASS 3.1s + 80/80 stress-repro; `bgp-ls-receive-gobgp` PASS 6m8s against real GoBGP v4.11.0) |
 
 ### Changed-Wire Census
 
@@ -145,21 +145,21 @@ No wire format, field layout, encoding, or RPC schema changes in this spec: all 
 ### Architectural Verification
 | Check | Holds? | Evidence |
 |-------|--------|----------|
-| No bypassed layers (data flows through the intended path) | No | |
-| No unintended coupling (components stay isolated) | No | |
-| No duplicated functionality (extends existing, does not recreate) | No | |
-| Zero-copy preserved where applicable (refs, not copies) | No | |
-| Registration over hardcoding, outbound: new commands, views, families, and handlers register, and the core discovers them. No per-feature field, switch case, or factory is added to a core/shared package (`ai/rules/plugins.md`) | No | |
-| Registration over hardcoding, inbound: no existing switch, seed map, validator, parser, runner, help string, or completion table has to learn this feature's name. Evidence names every list that was searched for the names this feature introduces, and the registry each one now derives from (`ai/rules/principles.md`) | No | |
+| No bypassed layers (data flows through the intended path) | Yes | Live `.ci` (`test/plugin/bgp-ls-malformed-nlri.ci`) and Docker interop (`bgp-ls-receive-gobgp`) drive raw TCP BGP UPDATEs through `Session.enforceRFC7606` (`session_validation.go`), `validateMPNLRISyntax` (`rfc7606.go`), `nlrisyntax` (`register_nlrisyntax.go`), `validateBGPLSAttr` (`rfc7606_bgpls.go`), and `typedNLRIEdit` (`session_validation_nlritype.go`) before `bgp-rs` relay or NOTIFICATION 3/9. |
+| No unintended coupling (components stay isolated) | Yes | No product package edited; `internal/test/fixture/plugin_fixture_13.go` and `internal/le/interoplab/bgp/` stay strictly inside test/tooling packages and respect `TestNormalZeLinksNoInternalLe`. |
+| No duplicated functionality (extends existing, does not recreate) | Yes | Reuses `routeServerReplay13` (`plugin_fixture_13.go`), `gobgp-paths` (`test/interop/Dockerfile.gobgp`), `opWaitContains`/`opRequireAbsent`/`opRequireJSONFields` (`internal/le/interoplab/bgp/`), and the existing `nlrisyntax`/`attrValidators` registries. |
+| Zero-copy preserved where applicable (refs, not copies) | Yes | `RetainWellFormedNLRI` (`rfc7606_bgpls_nlri.go:166-168`) returns `section` unchanged when `dropped == 0`, pinned by `TestRetainWellFormedNLRIIsZeroCopyWhenNothingIsDropped`; `validateBGPLSAttr` allocates nothing. |
+| Registration over hardcoding, outbound: new commands, views, families, and handlers register, and the core discovers them. No per-feature field, switch case, or factory is added to a core/shared package (`ai/rules/plugins.md`) | Yes | BGP-LS syntax rules register via `nlrisyntax.Register` (`register_nlrisyntax.go:23-30`) and `attrValidators[29]` (`rfc7606_bgpls.go:32`); `plugin/bgp-ls-malformed-nlri` registers via `fixture.Register` (`plugin_fixture_13.go:18`); `bgp-ls-receive-gobgp` registers in `scenarioOperations`/`scenarioExtras` discovered by `interoplab.Discover`. |
+| Registration over hardcoding, inbound: no existing switch, seed map, validator, parser, runner, help string, or completion table has to learn this feature's name. Evidence names every list that was searched for the names this feature introduces, and the registry each one now derives from (`ai/rules/principles.md`) | Yes | No core switch, CLI parser, YANG schema, or completion table names `bgp-ls-malformed-nlri` or `bgp-ls-receive-gobgp`; `.ci` runner discovers `test/plugin/*.ci` from disk, `fixture.Run` resolves `plugin/bgp-ls-malformed-nlri` from `fixture.Register`, and `interoplab.Discover` joins `test/interop/scenarios/bgp-ls-receive-gobgp/` against `scenarioOperations`/`scenarioExtras` (`TestCheckerPopulationMatchesProducer` PASS). |
 
 ## Risks & Assumptions
 
 ### Assumptions
 | ID | Assumption | Basis (file/doc/user statement) | If wrong | Validated by | Status |
 |----|-----------|--------------------------------|----------|--------------|--------|
-| A-1 | GoBGP v4.11.0 accepts `afi-safi-name = "ls"` in `gobgp.toml` and `gobgp-paths 16388 71` decodes relayed BGP-LS Node/Link NLRIs via `bgp.NLRIFromSlice` | `test/interop/Dockerfile.gobgp` uses `github.com/osrg/gobgp/v4@v4.11.0` with `gobgp-paths <afi> <safi>` calling `bgp.NLRIFromSlice(bgp.NewFamily(afi, safi), path.NlriBinary)` | If GoBGP's `gobgp.toml` spells the family differently (e.g. `ls-ls`) or `NLRIFromSlice` formatting differs, adjust `gobgp.toml` / expected substring tokens during interop phase | Running `./le test integration interop` on `bgp-ls-receive-gobgp` | unvalidated |
-| A-2 | The already-landed BGP-LS validator in `rfc7606_bgpls_nlri.go`, `rfc7606_bgpls.go`, and `session_validation_nlritype.go` needs no product code changes to pass the live `.ci` and GoBGP interop proofs | All unit tests in `rfc7606_bgpls_nlri_test.go`, `rfc9552_nlri_test.go`, `rfc9552_test.go`, and `rfc9552_semantic_test.go` are landed at HEAD | If a live daemon or GoBGP interop run uncovers a product bug (e.g., NOTIFICATION Data encoding, relay framing, or tombstone propagation), fix it in the owning `internal/component/bgp/` file with a regression unit test | Running `test/plugin/bgp-ls-malformed-nlri.ci` and `bgp-ls-receive-gobgp` | unvalidated |
-| A-3 | `test/plugin/` is the right functional suite for live malformed BGP-LS session tests | `internal/test/runner/decoding_strict_test.go` and `docs/functional-tests.md` prove `test/decode/` rejects any command other than `ze bgp decode`, while `test/plugin/rfc7606-54-bgpls-override-propagates.ci` and `test/plugin/rfc7606-reset.ci` run `le test peer` + `ze -` in `test/plugin/` | None -- verified directly in runner source | Read `internal/test/runner/decoding_strict_test.go` and `test/plugin/rfc7606-54-bgpls-override-propagates.ci` | confirmed |
+| A-1 | GoBGP v4.11.0 accepts `afi-safi-name = "ls"` in `gobgp.toml` and `gobgp-paths 16388 71` decodes relayed BGP-LS Node/Link NLRIs via `bgp.NLRIFromSlice` | `test/interop/Dockerfile.gobgp` builds `github.com/osrg/gobgp/v4@v4.11.0` with `gobgp-paths <afi> <safi>` calling `bgp.NLRIFromSlice(bgp.NewFamily(uint16(afi), uint8(safi)), path.NlriBinary)` under `EnableOnlyBinary: true` | Adjusted `bgplsReceived*` tokens in `names.go` to match GoBGP's exact `LsNodeNLRI.String()` / `LsLinkNLRI.String()` format | `INTEROP_SCENARIO=bgp-ls-receive-gobgp ./le test integration interop` PASS (6m8s): GoBGP v4.11.0 negotiated `ls`, `gobgp-paths 16388 71` decoded `NODE 10.95.52.1`, `LINK 10.95.52.11->10.95.52.12`, and `NODE 10.95.52.3`, omitted malformed `10.95.52.9`, with `connections-established: 1`, `connections-dropped: 0` | confirmed |
+| A-2 | The already-landed BGP-LS validator in `rfc7606_bgpls_nlri.go`, `rfc7606_bgpls.go`, and `session_validation_nlritype.go` needs no product code changes to pass the live `.ci` and GoBGP interop proofs | All unit tests in `rfc7606_bgpls_nlri_test.go`, `rfc9552_nlri_test.go`, `rfc9552_test.go`, and `rfc9552_semantic_test.go` are landed at HEAD | None -- no product defect surfaced | `test/plugin/bgp-ls-malformed-nlri.ci` PASS (3.1s, 80/80 under 64 CPU burners, counterfactual red proved) and `INTEROP_SCENARIO=bgp-ls-receive-gobgp ./le test integration interop` PASS (6m8s) with zero edits to `internal/component/bgp/` | confirmed |
+| A-3 | `test/plugin/` is the right functional suite for live malformed BGP-LS session tests | `internal/test/runner/decoding_strict_test.go` and `docs/functional-tests.md` prove `test/decode/` rejects any command other than `ze bgp decode`, while `test/plugin/rfc7606-54-bgpls-override-propagates.ci` and `test/plugin/rfc7606-reset.ci` run `le test peer` + `ze -` in `test/plugin/` | None -- verified directly in runner source | Read `internal/test/runner/decoding_strict_test.go` and `test/plugin/rfc7606-54-bgpls-override-propagates.ci`; `TestCIFrameLengthsWellFormed`, `TestCIFrameStructureWellFormed`, and `TestPluginObserversWaitForTheScriptedPeer` PASS on `test/plugin/bgp-ls-malformed-nlri.ci` | confirmed |
 
 ### Risks
 | ID | Risk | Early signal | Mitigation / fallback |
@@ -184,8 +184,8 @@ No wire format, field layout, encoding, or RPC schema changes in this spec: all 
 | an UPDATE with AFI 16388 and a malformed Link-State NLRI (already landed) | → | `validateMPNLRISyntax` / `judgeBGPLSNLRISection` / `RetainWellFormedNLRI` | `TestValidateMPNLRISyntaxJudgesLinkStateFramingOnly` (`internal/component/bgp/message/rfc7606_bgpls_nlri_test.go`) |
 | malformed and valid Link-State NLRIs on a session (already landed) | → | `Session.enforceRFC7606` / `typedNLRIEdit` | `TestRFC9552LinkStateNLRITLVOverrunIsDiscarded`, `TestRFC9552LinkStateNLRILengthOverrunResetsSession`, `TestRFC9552LinkStateNLRIWithUnknownTLVsIsPropagated` (`internal/component/bgp/reactor/rfc9552_nlri_test.go`) |
 | malformed BGP-LS Attribute on a session (already landed) | → | `Session.enforceRFC7606` / `validateBGPLSAttr` | `TestRFC9552BGPLSAttributeTLVOverrunDiscarded` (`internal/component/bgp/reactor/rfc9552_test.go`) |
-| live BGP peer sending skipable malformed NLRI, malformed BGP-LS Attribute, and non-skipable Total NLRI Length overrun to running `ze` daemon | → | full daemon receive path (`session_read` → `enforceRFC7606` → `bgp-rs` relay / NOTIFICATION 3/9) | `test/plugin/bgp-ls-malformed-nlri.ci` <!-- doc-links: ignore (planned test this open spec has not built yet) --> |
-| upstream injector + `ze` route server + GoBGP v4.11.0 exchanging valid and skipable-malformed BGP-LS NLRIs | → | full daemon receive + relay path judged by real GoBGP v4.11.0 | `bgp-ls-receive-gobgp` (`test/interop/scenarios/bgp-ls-receive-gobgp/`) <!-- doc-links: ignore (planned scenario this open spec has not built yet) --> |
+| live BGP peer sending skipable malformed NLRI, malformed BGP-LS Attribute, and non-skipable Total NLRI Length overrun to running `ze` daemon | → | full daemon receive path (`session_read` → `enforceRFC7606` → `bgp-rs` relay / NOTIFICATION 3/9) | `test/plugin/bgp-ls-malformed-nlri.ci` |
+| upstream injector + `ze` route server + GoBGP v4.11.0 exchanging valid and skipable-malformed BGP-LS NLRIs | → | full daemon receive + relay path judged by real GoBGP v4.11.0 | `bgp-ls-receive-gobgp` (`test/interop/scenarios/bgp-ls-receive-gobgp/`) |
 
 ## Acceptance Criteria
 
@@ -206,8 +206,8 @@ No wire format, field layout, encoding, or RPC schema changes in this spec: all 
 
 | # | User does | Path through system | Test proving it works |
 |---|-----------|--------------------|-----------------------|
-| 1 | Peers `ze` with a BGP-LS speaker that sends skipable malformed NLRIs (TLV overrun, out-of-order TLVs, duplicate Node Descriptor sub-TLV), a malformed BGP-LS Attribute, and a non-skipable truncated NLRI section | `le test peer` → TCP → `enforceRFC7606` → `validateMPNLRISyntax` / `validateBGPLSAttr` / `typedNLRIEdit` → `bgp-rs` relays survivors or sends NOTIFICATION 3/9 | `test/plugin/bgp-ls-malformed-nlri.ci` <!-- doc-links: ignore (planned test this open spec has not built yet) --> |
-| 2 | Runs `ze` as a BGP-LS route server in front of a real GoBGP v4.11.0 peer receiving valid BGP-LS NLRIs and a skipable malformed NLRI beside a valid survivor | injector → `ze` (`enforceRFC7606` + `bgp-rs`) → GoBGP v4.11.0 (`gobgp-paths 16388 71`) | `bgp-ls-receive-gobgp` (`test/interop/scenarios/bgp-ls-receive-gobgp/`) <!-- doc-links: ignore (planned scenario this open spec has not built yet) --> |
+| 1 | Peers `ze` with a BGP-LS speaker that sends skipable malformed NLRIs (TLV overrun, out-of-order TLVs, duplicate Node Descriptor sub-TLV), a malformed BGP-LS Attribute, and a non-skipable truncated NLRI section | `le test peer` → TCP → `enforceRFC7606` → `validateMPNLRISyntax` / `validateBGPLSAttr` / `typedNLRIEdit` → `bgp-rs` relays survivors or sends NOTIFICATION 3/9 | `test/plugin/bgp-ls-malformed-nlri.ci` |
+| 2 | Runs `ze` as a BGP-LS route server in front of a real GoBGP v4.11.0 peer receiving valid BGP-LS NLRIs and a skipable malformed NLRI beside a valid survivor | injector → `ze` (`enforceRFC7606` + `bgp-rs`) → GoBGP v4.11.0 (`gobgp-paths 16388 71`) | `bgp-ls-receive-gobgp` (`test/interop/scenarios/bgp-ls-receive-gobgp/`) |
 
 ## 🧪 TDD Test Plan
 
@@ -243,12 +243,12 @@ No wire format, field layout, encoding, or RPC schema changes in this spec: all 
 ### Functional Tests
 | Test | Location | End-User Scenario | Status |
 |------|----------|-------------------|--------|
-| `bgp-ls-malformed-nlri` | `test/plugin/bgp-ls-malformed-nlri.ci` <!-- doc-links: ignore (file this open spec plans and has not created yet) --> | Running `ze` daemon receives (1) skipable malformed Link-State NLRIs (TLV overrun, descending TLV order, duplicate Node Descriptor sub-TLV) paired with a well-formed survivor and relays only the survivor while keeping the session up, (2) a malformed BGP-LS Attribute (code 29) and relays the Link-State NLRI without code 29 (tombstone 252), and (3) a non-skipable Total NLRI Length overrun on a mixed IPv4+BGP-LS session and resets that session with NOTIFICATION 3/9 | |
+| `bgp-ls-malformed-nlri` | `test/plugin/bgp-ls-malformed-nlri.ci` | Running `ze` daemon receives (1) skipable malformed Link-State NLRIs (TLV overrun, descending TLV order, duplicate Node Descriptor sub-TLV) paired with a well-formed survivor and relays only the survivor while keeping the session up, (2) a malformed BGP-LS Attribute (code 29) and relays the Link-State NLRI without code 29 (tombstone 252), and (3) a non-skipable Total NLRI Length overrun on a mixed IPv4+BGP-LS session and resets that session with NOTIFICATION 3/9 | PASS (3.1s; 80/80 under 64 CPU burners; counterfactual red proved) |
 
 ### Interop Tests (Scope: protocol)
 | Scenario | Directory | Peer Daemon | What It Proves | Status |
 |----------|-----------|-------------|----------------|--------|
-| `bgp-ls-receive-gobgp` | `test/interop/scenarios/bgp-ls-receive-gobgp/` <!-- doc-links: ignore (planned scenario this open spec has not built yet) --> | GoBGP v4.11.0 | Real GoBGP v4.11.0 receives Ze-relayed valid BGP-LS Node/Link NLRIs via `gobgp-paths 16388 71` with zero false positives and stable session (`connections-established: 1`, `connections-dropped: 0`); a skipable malformed Link-State NLRI sent beside a valid survivor is discarded by Ze and absent from GoBGP while the survivor and control remain present | |
+| `bgp-ls-receive-gobgp` | `test/interop/scenarios/bgp-ls-receive-gobgp/` | GoBGP v4.11.0 | Real GoBGP v4.11.0 receives Ze-relayed valid BGP-LS Node/Link NLRIs via `gobgp-paths 16388 71` with zero false positives and stable session (`connections-established: 1`, `connections-dropped: 0`); a skipable malformed Link-State NLRI sent beside a valid survivor is discarded by Ze and absent from GoBGP while the survivor and control remain present | PASS (6m8s against real GoBGP v4.11.0) |
 
 ## Files to Modify
 - `internal/test/fixture/plugin_fixture_13.go` - register `plugin/bgp-ls-malformed-nlri` using `routeServerReplay13` (`StopsDaemon`)
@@ -260,11 +260,11 @@ No wire format, field layout, encoding, or RPC schema changes in this spec: all 
 - `docs/features/rfc-status.md` - refresh RFC 9552 proof counts if `./le rfc` updates functional/interop totals
 
 ## Files to Create
-- `test/plugin/bgp-ls-malformed-nlri.ci` <!-- doc-links: ignore (file this open spec plans and has not created yet) --> - live daemon functional test proving skipable NLRI discard, Attribute Discard, and non-skipable mixed-session NOTIFICATION 3/9 reset
-- `test/interop/scenarios/bgp-ls-receive-gobgp/ze.conf` <!-- doc-links: ignore (file this open spec plans and has not created yet) --> - Ze route-server configuration peering with raw injector and GoBGP over `ipv4/unicast` and `bgp-ls/bgp-ls`
-- `test/interop/scenarios/bgp-ls-receive-gobgp/gobgp.toml` <!-- doc-links: ignore (file this open spec plans and has not created yet) --> - GoBGP v4.11.0 neighbor configuration negotiating `ipv4-unicast` and `ls`
-- `test/interop/scenarios/bgp-ls-receive-gobgp/inject.msg` <!-- doc-links: ignore (file this open spec plans and has not created yet) --> - raw BGP injector sending valid Link-State NLRIs and a skipable malformed NLRI beside a well-formed survivor, synchronized by GoBGP's IPv4 fence
-- `test/interop/scenarios/bgp-ls-receive-gobgp/inject-args` <!-- doc-links: ignore (file this open spec plans and has not created yet) --> - raw injector CLI flags (`--asn 65004`)
+- `test/plugin/bgp-ls-malformed-nlri.ci` - live daemon functional test proving skipable NLRI discard, Attribute Discard, and non-skipable mixed-session NOTIFICATION 3/9 reset
+- `test/interop/scenarios/bgp-ls-receive-gobgp/ze.conf` - Ze route-server configuration peering with raw injector and GoBGP over `ipv4/unicast` and `bgp-ls/bgp-ls`
+- `test/interop/scenarios/bgp-ls-receive-gobgp/gobgp.toml` - GoBGP v4.11.0 neighbor configuration negotiating `ipv4-unicast` and `ls`
+- `test/interop/scenarios/bgp-ls-receive-gobgp/inject.msg` - raw BGP injector sending valid Link-State NLRIs and a skipable malformed NLRI beside a well-formed survivor, synchronized by GoBGP's IPv4 fence
+- `test/interop/scenarios/bgp-ls-receive-gobgp/inject-args` - raw injector CLI flags (`--asn 65004`)
 
 ### Integration Checklist
 | Integration Point | Applies? | File / reason |
@@ -427,20 +427,6 @@ The enforcing code in `internal/component/bgp/message/rfc7606_bgpls_nlri.go`, `r
 | RFC 9552 §8.2.2 (BGP-LS Attribute syntactic validation) | Default BGP-LS session discards malformed code 29 BGP-LS Attributes with `ATTR_TOMBSTONE` (252) while preserving the Link-State NLRI | Unordered and semantically odd BGP-LS Attribute TLVs survive unchanged | `rfc9552_test.go`, `test/plugin/bgp-ls-malformed-nlri.ci` | `TestRFC9552BGPLSAttributeSemanticErrorsAreNotMalformed` |
 | RFC 9552 §8.2.6 (Consumer-facing inbound drop) | Operator configures existing `bgp/policy/family-filter` with `action remove` on Consumer-facing peers (`RFC9552-8.2.6-1`); `RFC9552-8.2.6-2` is `{not-applicable}` | Existing `family-filter` (`remove` and `tear-down`) preserved unchanged | Existing `filter_family` unit and functional tests | Existing `filter_family` tests |
 
-## Review Gate
-
-| Field | Value |
-|-------|-------|
-| Artifact | - |
-| `./le spec review check` | not run |
-| Rounds | 0 |
-| Reviewer lenses used | - |
-
-### Findings fixed
-
-| # | Severity | Finding | Location | Fixed by |
-|---|----------|---------|----------|----------|
-
 ## Checklist
 
 ### Pre-Spec Verification (before the design is presented)
@@ -482,3 +468,164 @@ The enforcing code in `internal/component/bgp/message/rfc7606_bgpls_nlri.go`, `r
 - [ ] Any lesson routed to its governing surface under `ai/rules/planning.md`; no lesson artifact created merely for closure
 - [ ] **Commit A:** code + tests + docs + edited spec + any journal rows owed by the work
 - [ ] **Commit B:** `remove plan/release/fixes/spec-bgp-ls-receiver-fault-management.md` only, in the same `./le commit create` script (commit A preserves the spec in history)
+
+---
+
+## Implementation Summary
+
+### What Was Implemented
+- Registered compiled observer fixture `plugin/bgp-ls-malformed-nlri` (`routeServerReplay13("shutdown-after-up", "10.0.0.0/24", false)`, `StopsDaemon`) in `internal/test/fixture/plugin_fixture_13.go` (`init`).
+- Created live daemon functional test `test/plugin/bgp-ls-malformed-nlri.ci` (drafted under `test/draft/plugin/`, verified 80/80 under 64 CPU burners, counterfactual red verified by short-circuiting `RetainWellFormedNLRI`, then promoted) covering non-skipable Total NLRI Length overrun on a mixed IPv4 + BGP-LS session (NOTIFICATION 3/9 with full offending `MP_REACH_NLRI` Data), skipable malformed Link-State NLRI discard (TLV length overrun, Section 5.1 descending TLV order, Section 5.2.1.4 duplicate Node Descriptor sub-TLV) with exact byte-identical survivor relay, malformed BGP-LS Attribute code 29 Attribute Discard via `ATTR_TOMBSTONE` (code 252) while preserving the Link-State NLRI, and the `10.0.0.0/24` processing fence.
+- Registered Docker GoBGP interop scenario `bgp-ls-receive-gobgp` in `internal/le/interoplab/bgp/names.go` (`scenarioBGPLSReceiveGoBGP`, `gobgpAFIBGPLS`, `gobgpSAFIBGPLS`, `bgplsReceivedNodeControl`, `bgplsReceivedLinkControl`, `bgplsReceivedNodeSurvivor`, `bgplsReceivedNodeMalformed`), `internal/le/interoplab/bgp/checkers.go` (`scenarioOperations`), and `internal/le/interoplab/bgp/check_extras.go` (`scenarioExtras`), backed by declarative scenario inputs `test/interop/scenarios/bgp-ls-receive-gobgp/{ze.conf,gobgp.toml,inject-args,inject.msg}`.
+- Documented `bgp-ls-receive-gobgp` in `docs/architecture/testing/interop.md` (row 72 + source anchors) and `test/plugin/bgp-ls-malformed-nlri.ci` in `docs/functional-tests.md` (`Plugin` suite inventory + source anchor).
+- Cleared all external citations to `plan/release/fixes/spec-bgp-ls-receiver-fault-management.md` across `plan/post-release/features/spec-bgp-epe-peer-segments-and-srv6-peernode.md`, `plan/post-release/features/spec-bgp-ls-origination-and-the-scheduled-marker.md`, and `plan/release/fixes/spec-bgp-ls-receiver-accept-and-limit-controls.md` using the bare stem `spec-bgp-ls-receiver-fault-management` and durable doc pointers.
+
+### Bugs Found/Fixed
+- None in product code: the already-landed BGP-LS validators (`internal/component/bgp/message/rfc7606_bgpls_nlri.go`, `rfc7606_bgpls.go`, `register_nlrisyntax.go`) and receive-path enforcement (`internal/component/bgp/reactor/session_validation.go`, `session_validation_nlritype.go`) passed both live daemon `.ci` and real GoBGP v4.11.0 interop proofs without edits.
+- During Phase 3 authoring, refined `bgplsReceived*` tokens in `internal/le/interoplab/bgp/names.go` to GoBGP's exact `LsNodeNLRI.String()` / `LsLinkNLRI.String()` format so `"10.95.52.1"` cannot match `"10.95.52.11"` by substring prefix, and added the distinct trailing `10.10.0.0/24` (`injectPrefixFirst`) fence in `checkers.go` / `inject.msg` separate from GoBGP's locally originated `10.20.0.0/24` (`peerPrefixFence`) startup barrier.
+
+### Documentation Updates
+- `docs/architecture/testing/interop.md`: added row 72 (`bgp-ls-receive-gobgp`) in the BGP interop scenario table and `<!-- source: ... -->` anchors for `internal/le/interoplab/bgp/names.go`, `checkers.go`, and `check_extras.go`.
+- `docs/functional-tests.md`: updated `Functional Suite Inventory` `Plugin` row documenting `test/plugin/bgp-ls-malformed-nlri.ci` beside `test/plugin/rfc7606-54-bgpls-override-propagates.ci` and added `<!-- source: internal/test/fixture/plugin_fixture_13.go -- routeServerReplay13 -->`.
+- `docs/features/rfc-status.md`: unchanged (generated by `./le rfc update`; `rfc/short/rfc9552.md` rows `RFC9552-8.2.2-4..10` and `8.2.6-2` were already current with 0 stale/unproven rows under `./le rfc check`).
+- `./le doc check all`: 0 errors on any file touched by this spec (`./le doc ste check` OK on both edited doc pages; the single unrelated drift item in the shared tree is another session's `show fleet alarm` wiki catalog entry).
+
+### Deviations from Plan
+- `docs/features/rfc-status.md` was listed conditionally ("if `./le rfc` updates functional/interop totals") and required no edit because `rfc/short/rfc9552.md` proof rows were already landed and verified clean by `./le rfc check`.
+- Per the 2026-11-24 owner decision, no `consumer-facing` per-peer YANG role was built; operators use existing `bgp/policy/family-filter` (`action remove`).
+
+## Mistake Log
+
+| Kind | What happened | What was true instead | How discovered | Action |
+|------|---------------|----------------------|----------------|--------|
+| none | | | | |
+
+## Implementation Audit
+
+### Requirements from Task
+| Requirement | Status | Location | Notes |
+|-------------|--------|----------|-------|
+| Landed Link-State NLRI & Attribute syntactic validation preserved unchanged | Done | `internal/component/bgp/message/rfc7606_bgpls_nlri.go`, `rfc7606_bgpls.go`, `register_nlrisyntax.go`, `internal/component/bgp/reactor/session_validation_nlritype.go` | Verified against source; unit tests PASS (`TestRetainWellFormedNLRI`, `TestValidateMPNLRISyntax`, `TestRFC9552`) |
+| Live daemon `.ci` functional proof for skipable NLRI discard, Attribute Discard, and non-skipable mixed-session NOTIFICATION 3/9 reset | Done | `test/plugin/bgp-ls-malformed-nlri.ci`, `internal/test/fixture/plugin_fixture_13.go` | PASS (3.1s), 80/80 under 64 CPU burners, counterfactual red proved |
+| GoBGP v4.11.0 Docker interop proof for zero false positives and live skipable-NLRI discard with session stability | Done | `test/interop/scenarios/bgp-ls-receive-gobgp/*`, `internal/le/interoplab/bgp/{names,checkers,check_extras}.go` | PASS (6m8s) against real GoBGP v4.11.0 (`connections-established: 1`, `connections-dropped: 0`) |
+| Test documentation and source anchors updated | Done | `docs/architecture/testing/interop.md`, `docs/functional-tests.md` | `./le doc ste check` OK; `./le doc check all` 0 errors on our files |
+
+### Acceptance Criteria
+| AC ID | Status | Demonstrated By | Notes |
+|-------|--------|-----------------|-------|
+| AC-1 | Done | `RetainWellFormedNLRI` / `bgplsNLRIWellFormed` (`rfc7606_bgpls_nlri.go:140,227`), `TestRetainWellFormedNLRIBoundaries`, `TestRFC9552LinkStateNLRITLVOverrunIsDiscarded`, `test/plugin/bgp-ls-malformed-nlri.ci` (Case 1a), `bgp-ls-receive-gobgp` (Frame 3) | Exact survivor relay + counterfactual red proved |
+| AC-2 | Done | `judgeBGPLSNLRISection` (`rfc7606_bgpls_nlri.go:378`), `validateMPNLRISyntax` (`rfc7606.go:1101`), `TestValidateMPNLRISyntaxJudgesLinkStateFramingOnly`, `TestRFC9552LinkStateNLRILengthOverrunResetsSession`, `test/plugin/bgp-ls-malformed-nlri.ci` (Case 3) | Exact NOTIFICATION 3/9 carrying full 25B `MP_REACH_NLRI` Data |
+| AC-3 | Done | `judgeBGPLSNLRISection` (`rfc7606_bgpls_nlri.go:378`), `validateMPNLRISyntax` (`rfc7606.go:1101`), `TestRFC9552LinkStateUnreachLengthOverrunResetsSession` | Withdraw-side Total NLRI Length overrun resets session with NOTIFICATION 3/9 |
+| AC-4 | Done | `bgplsNLRIWellFormed` / `bgplsNodeDescriptorWellFormed` (`rfc7606_bgpls_nlri.go:265,347`), `TestRFC9552LinkStateNLRITLVOverrunIsDiscarded`, `TestRFC9552LinkStateRecognizedTLVSubTLVOverrunIsDiscarded`, `TestRFC9552LinkStateNLRIUnknownTLVOverrunIsDiscarded`, `test/plugin/bgp-ls-malformed-nlri.ci` (Case 1a), `bgp-ls-receive-gobgp` (Frame 3) | TLV and Node Descriptor 256/257 sub-TLV overrun discarded; survivor preserved |
+| AC-5 | Done | `bgplsTLVOrdered` (`rfc7606_bgpls_nlri.go:307`), `TestRFC9552LinkStateNLRIOutOfOrderTLVsAreDiscarded`, `TestRFC9552LinkStateSameTypeTLVsOutOfOrderAreDiscarded`, `TestRFC9552LinkStateSameTypeTLVsInOrderArePropagated`, `test/plugin/bgp-ls-malformed-nlri.ci` (Case 1b) | Descending TLV order (257 before 256) discarded live; survivor Node 2 relayed |
+| AC-6 | Done | `bgplsNodeDescriptorWellFormed` (`rfc7606_bgpls_nlri.go:335`), `TestRFC9552LinkStateNodeDescriptorDuplicateSubTLVIsDiscarded`, `test/plugin/bgp-ls-malformed-nlri.ci` (Case 1c) | Duplicate sub-TLV 512 in TLV 256 discarded live; survivor Node 3 relayed |
+| AC-7 | Done | `judgeBGPLSNLRISection` (`rfc7606_bgpls_nlri.go:378`), `mpNLRIJudgementResult` (`rfc7606.go:1130`), `TestValidateMPNLRISyntaxJudgesLinkStateFramingOnly`, `TestRFC9552LinkStateNLRILengthOverrunResetsSession`, `test/plugin/bgp-ls-malformed-nlri.ci` (Case 3, mixed IPv4 + BGP-LS `reset-peer`) | Mixed-family session resets with NOTIFICATION 3/9 (no AFI/SAFI disable) |
+| AC-8 | Done | `judgeBGPLSNLRISection` (`rfc7606_bgpls_nlri.go:378`), `TestRFC9552LinkStateNLRILengthOverrunResetsSession`, `TestRFC9552LinkStateUnreachLengthOverrunResetsSession` | BGP-LS-only session resets with NOTIFICATION 3/9 |
+| AC-9 | Done | `bgplsNLRIWellFormed` (`rfc7606_bgpls_nlri.go:229`), `validateBGPLSAttr` (`rfc7606_bgpls.go:84`), `TestRFC9552LinkStateNLRIWithUnknownTLVsIsPropagated`, `TestRFC9552LinkStateNLRISemanticErrorsAreNotMalformed`, `TestRFC9552BGPLSAttributeWellFormedIsKept`, `test/plugin/rfc7606-54-bgpls-override-propagates.ci` | Unknown NLRI types and semantic oddities propagate byte-identical |
+| AC-10 | Done | `validateBGPLSAttr` (`rfc7606_bgpls.go:84`), `RetainWellFormedNLRI` (`rfc7606_bgpls_nlri.go:140`), `test/plugin/bgp-ls-malformed-nlri.ci` (Case 2: `ATTR_TOMBSTONE` 252 replaces code 29 while Node 4 propagates), `bgp-ls-receive-gobgp` (GoBGP v4.11.0 receives valid Node + Link + survivor, omits malformed `10.95.52.9`, `connections-established: 1`, `connections-dropped: 0`) | Both live daemon `.ci` and Docker GoBGP interop pass |
+
+### Tests from TDD Plan
+| Test | Status | Location | Notes |
+|------|--------|----------|-------|
+| `TestRetainWellFormedNLRI*` / `TestValidateMPNLRISyntax*` | Done | `internal/component/bgp/message/rfc7606_bgpls_nlri_test.go` | PASS (landed at HEAD, re-verified by main thread) |
+| `TestRFC9552*` | Done | `internal/component/bgp/reactor/rfc9552_nlri_test.go`, `rfc9552_test.go`, `rfc9552_semantic_test.go` | PASS (landed at HEAD, re-verified by main thread) |
+| `bgp-ls-malformed-nlri` | Done | `test/plugin/bgp-ls-malformed-nlri.ci` | PASS (3.1s), 80/80 under load, counterfactual red proved; runner & fixture static checks PASS |
+| `bgp-ls-receive-gobgp` | Done | `test/interop/scenarios/bgp-ls-receive-gobgp/`, `internal/le/interoplab/bgp/` | PASS (6m8s) against real GoBGP v4.11.0; `internal/le/interoplab/bgp` unit tests PASS (186.3s) |
+
+### Files from Plan
+| File | Status | Notes |
+|------|--------|-------|
+| `internal/test/fixture/plugin_fixture_13.go` | Done | Registered `plugin/bgp-ls-malformed-nlri` (`routeServerReplay13`, `StopsDaemon`) |
+| `internal/le/interoplab/bgp/names.go` | Done | Added `scenarioBGPLSReceiveGoBGP`, `gobgpAFIBGPLS`, `gobgpSAFIBGPLS`, and GoBGP decoded NLRI tokens |
+| `internal/le/interoplab/bgp/checkers.go` | Done | Added `scenarioOperations[scenarioBGPLSReceiveGoBGP]` with GoBGP session, startup barrier, and trailing IPv4 fence |
+| `internal/le/interoplab/bgp/check_extras.go` | Done | Added `scenarioExtras[scenarioBGPLSReceiveGoBGP]` with `gobgp-paths 16388 71` presence/absence + proof and Ze peer stability counters |
+| `test/plugin/bgp-ls-malformed-nlri.ci` | Done | Created and promoted live daemon functional test |
+| `test/interop/scenarios/bgp-ls-receive-gobgp/ze.conf` | Done | Created Ze route-server config |
+| `test/interop/scenarios/bgp-ls-receive-gobgp/gobgp.toml` | Done | Created GoBGP v4.11.0 config (`afi-safi-name = "ls"`) |
+| `test/interop/scenarios/bgp-ls-receive-gobgp/inject-args` | Done | Created raw injector CLI flags (`--asn 65004`) |
+| `test/interop/scenarios/bgp-ls-receive-gobgp/inject.msg` | Done | Created raw BGP-LS UPDATE injector script |
+| `docs/architecture/testing/interop.md` | Done | Added row 72 + source anchors |
+| `docs/functional-tests.md` | Done | Documented `test/plugin/bgp-ls-malformed-nlri.ci` + source anchor |
+| `docs/features/rfc-status.md` | Changed | Conditional on RFC proof count changes; no change needed (`./le rfc check` clean on RFC 9552) |
+
+### Audit Summary
+- **Total items:** 26 (4 Task requirements, 10 ACs, 4 TDD test groups, 12 planned files, deduplicated across sections)
+- **Done:** 25
+- **Partial:** 0
+- **Skipped:** 0
+- **Changed:** 1 (`docs/features/rfc-status.md` needed no hand edit or regeneration because `rfc/short/rfc9552.md` was already current and verified clean)
+
+## Goal Validation (BLOCKING)
+
+| Goal (from Task) | Evidence Type | Concrete Evidence |
+|------------------|---------------|-------------------|
+| Prove RFC 9552 Section 8.2.2 receive-path NLRI discard, Attribute Discard, and non-skipable NOTIFICATION 3/9 session reset through a running `ze` daemon | functional test + counterfactual red | `test/plugin/bgp-ls-malformed-nlri.ci` PASS (3.1s), 80/80 clean under 64 CPU burners (`stress-repro`); counterfactual red proved by short-circuiting `RetainWellFormedNLRI` (`internal/component/bgp/message/rfc7606_bgpls_nlri.go`) to return `section, 0, true`, causing immediate failure (`Expected UPDATE len=73 ... Received UPDATE len=94` leaking malformed NLRI `0001001102...aabbccdd`), then green on restore |
+| Prove zero false positives on valid BGP-LS NLRIs and live skipable-NLRI discard upstream of real GoBGP v4.11.0 with zero session drops | Docker interop test | `INTEROP_SCENARIO=bgp-ls-receive-gobgp ./le test integration interop` PASS (6m8s) against GoBGP v4.11.0: `gobgp-paths 16388 71` returned `NODE 10.95.52.1`, `LINK 10.95.52.11->10.95.52.12`, and `NODE 10.95.52.3`, omitted malformed `10.95.52.9`, and Ze `show bgp peer 172.30.0.5 detail` reported `connections-established: 1`, `connections-dropped: 0` |
+| Preserve already-landed RFC 9552 Section 8.2.2 unit coverage and RFC ledger cleanliness | unit tests + RFC gate | `TestRetainWellFormedNLRI\|TestValidateMPNLRISyntax` PASS, `TestRFC9552` PASS, `./le rfc discriminate stem rfc9552` & `./le rfc check` 0 stale/unproven rows on `RFC9552-8.2.2-4..10` and `8.2.6-2` |
+
+## Work Not Done
+
+| What was not done | Why | The spec that now owns it |
+|-------------------|-----|---------------------------|
+| none | All in-scope deliverables completed (dedicated `consumer-facing` per-peer YANG role dropped by Thomas's 2026-11-24 owner decision in favor of existing `bgp/policy/family-filter`) | - |
+
+## Review Gate
+
+| Field | Value |
+|-------|-------|
+| Artifact | `tmp/review/bgp-ls-receiver-fault-management-7c8b4e11-2a0f-4b5d-9c31-6e2f8a10d4b2.md` |
+| `./le spec review check` | clean (`review_gate: OK (5 code files, clean, hashes match tmp/review/bgp-ls-receiver-fault-management-7c8b4e11-2a0f-4b5d-9c31-6e2f8a10d4b2.md)`) |
+| Rounds | 1 |
+| Reviewer lenses used | logic+wiring, security+edge-cases+allocations, style (`docs/contributing/ze-go-style.md` 7-question pass)+design-documents+RFC-compliance+spec-completeness (`/ze-review` + `/ze-review-spec`) |
+
+### Findings fixed
+| # | Severity | Finding | Location | Fixed by |
+|---|----------|---------|----------|----------|
+| - | none | 0 BLOCKER, 0 ISSUE, 0 NOTE in Round 1 over all 11 spec files (`./le repo check`, `./le test weakened check`, `./le go style check`, `./le doc check all` all 0 findings on spec files; style pass clean on all 4 Go files; all 7 design pages + 1 decision row verified agreeing) | - | - |
+
+## Pre-Commit Verification
+
+### Files Exist (ls)
+| File | Exists | Evidence |
+|------|--------|----------|
+| `test/plugin/bgp-ls-malformed-nlri.ci` | Yes | `ls -la`: `-rw-r--r-- 1 thomas thomas 11511 Nov 27 04:38 test/plugin/bgp-ls-malformed-nlri.ci` |
+| `test/interop/scenarios/bgp-ls-receive-gobgp/ze.conf` | Yes | `ls -la`: `-rw-r--r-- 1 thomas thomas 1463 Nov 27 04:12 ze.conf` |
+| `test/interop/scenarios/bgp-ls-receive-gobgp/gobgp.toml` | Yes | `ls -la`: `-rw-r--r-- 1 thomas thomas 509 Nov 27 04:12 gobgp.toml` |
+| `test/interop/scenarios/bgp-ls-receive-gobgp/inject-args` | Yes | `ls -la`: `-rw-r--r-- 1 thomas thomas 12 Nov 27 04:13 inject-args` |
+| `test/interop/scenarios/bgp-ls-receive-gobgp/inject.msg` | Yes | `ls -la`: `-rw-r--r-- 1 thomas thomas 4419 Nov 27 04:47 inject.msg` |
+
+### AC Verified (grep/test)
+| AC ID | Claim | Fresh Evidence |
+|-------|-------|----------------|
+| AC-1 | Skipable TLV sum mismatch discarded; survivor relayed byte-identical | Verified in `RetainWellFormedNLRI` / `bgplsNLRIWellFormed` (`rfc7606_bgpls_nlri.go:140,227`); `TestRetainWellFormedNLRIBoundaries` PASS; `test/plugin/bgp-ls-malformed-nlri.ci` Case 1a (`conn=2 seq=1` -> `conn=3 seq=1` exact 73B) PASS + counterfactual red proved |
+| AC-2 | `MP_REACH_NLRI` Total NLRI Length overrun resets session with NOTIFICATION 3/9 | Verified in `judgeBGPLSNLRISection` (`rfc7606_bgpls_nlri.go:378`) + `mpNLRIJudgementResult` (`rfc7606.go:1130`); `TestValidateMPNLRISyntaxJudgesLinkStateFramingOnly` & `TestRFC9552LinkStateNLRILengthOverrunResetsSession` PASS; `test/plugin/bgp-ls-malformed-nlri.ci` Case 3 (`conn=1 seq=2` exact 46B NOTIFICATION 3/9) PASS |
+| AC-3 | `MP_UNREACH_NLRI` Total NLRI Length overrun resets session with NOTIFICATION 3/9 | Verified in `judgeBGPLSNLRISection` (`rfc7606_bgpls_nlri.go:378`) + `validateMPNLRISyntax` (`rfc7606.go:1101`); `TestRFC9552LinkStateUnreachLengthOverrunResetsSession` PASS |
+| AC-4 | TLV / Node Descriptor 256/257 sub-TLV overrun discarded; survivor relayed | Verified in `bgplsNLRIWellFormed` / `bgplsNodeDescriptorWellFormed` (`rfc7606_bgpls_nlri.go:265,347`); `TestRFC9552LinkStateRecognizedTLVSubTLVOverrunIsDiscarded` PASS; `test/plugin/bgp-ls-malformed-nlri.ci` Case 1a & `bgp-ls-receive-gobgp` Frame 3 PASS |
+| AC-5 | RFC 9552 Section 5.1 TLV ordering violation discarded; survivor relayed | Verified in `bgplsTLVOrdered` (`rfc7606_bgpls_nlri.go:307`); `TestRFC9552LinkStateNLRIOutOfOrderTLVsAreDiscarded` PASS; `test/plugin/bgp-ls-malformed-nlri.ci` Case 1b (`conn=2 seq=2` -> `conn=3 seq=2` exact 73B) PASS |
+| AC-6 | RFC 9552 Section 5.2.1.4 duplicate/descending Node Descriptor sub-TLV discarded; survivor relayed | Verified in `bgplsNodeDescriptorWellFormed` (`rfc7606_bgpls_nlri.go:335`); `TestRFC9552LinkStateNodeDescriptorDuplicateSubTLVIsDiscarded` PASS; `test/plugin/bgp-ls-malformed-nlri.ci` Case 1c (`conn=2 seq=3` -> `conn=3 seq=3` exact 73B) PASS |
+| AC-7 | Non-skipable Total NLRI Length overrun on mixed IPv4 + BGP-LS session sends NOTIFICATION 3/9 | Verified in `judgeBGPLSNLRISection` (`rfc7606_bgpls_nlri.go:378`); `test/plugin/bgp-ls-malformed-nlri.ci` Case 3 (`reset-peer` negotiates `ipv4/unicast` + `bgp-ls/bgp-ls`, receives exact NOTIFICATION 3/9) PASS |
+| AC-8 | Non-skipable Total NLRI Length overrun on BGP-LS-only session sends NOTIFICATION 3/9 | Verified in `judgeBGPLSNLRISection` (`rfc7606_bgpls_nlri.go:378`); `TestRFC9552LinkStateNLRILengthOverrunResetsSession` PASS |
+| AC-9 | Semantic oddities and unknown NLRI types propagate byte-identical | Verified in `bgplsNLRIWellFormed` (`rfc7606_bgpls_nlri.go:229`) and `validateBGPLSAttr` (`rfc7606_bgpls.go:84`); `TestRFC9552LinkStateNLRISemanticErrorsAreNotMalformed` & `TestRFC9552LinkStateNLRIWithUnknownTLVsIsPropagated` PASS |
+| AC-10 | Valid Node/Link NLRIs reach GoBGP with 0 drops; malformed code 29 replaced by `ATTR_TOMBSTONE` 252 while NLRI propagates; malformed NLRI omitted at GoBGP | `test/plugin/bgp-ls-malformed-nlri.ci` Case 2 (`conn=3 seq=4` exact 88B with `80FC0C1D02...`) PASS; `bgp-ls-receive-gobgp` PASS (6m8s: `NODE 10.95.52.1`, `LINK 10.95.52.11->10.95.52.12`, `NODE 10.95.52.3` present; `10.95.52.9` absent; `connections-established: 1`, `connections-dropped: 0`) |
+
+### Wiring Verified (end-to-end)
+| Entry Point | .ci File | Verified |
+|-------------|----------|----------|
+| Live BGP peers sending skipable malformed Link-State NLRIs, malformed BGP-LS Attribute code 29, and non-skipable Total NLRI Length overrun to running `ze` daemon | `test/plugin/bgp-ls-malformed-nlri.ci` | Yes (read all 250 lines; invokes `le test fixture plugin/bgp-ls-malformed-nlri` registered in `internal/test/fixture/plugin_fixture_13.go:18`; PASS 3.1s, 80/80 stress-repro, counterfactual red proved) |
+| Upstream raw injector + `ze` route server + real GoBGP v4.11.0 exchanging valid and skipable-malformed BGP-LS NLRIs | `test/interop/scenarios/bgp-ls-receive-gobgp/` (`internal/le/interoplab/bgp/{names,checkers,check_extras}.go`) | Yes (read all 4 declarative scenario files and checker registrations; `TestCheckerPopulationMatchesProducer` PASS; Docker interop PASS 6m8s) |
+
+### Assumptions Resolved
+| ID | Final Status | Evidence |
+|----|--------------|----------|
+| A-1 | confirmed | `INTEROP_SCENARIO=bgp-ls-receive-gobgp ./le test integration interop` PASS (6m8s) against GoBGP v4.11.0: `afi-safi-name = "ls"` negotiated and `gobgp-paths 16388 71` decoded `NODE 10.95.52.1`, `LINK 10.95.52.11->10.95.52.12`, and `NODE 10.95.52.3` while omitting malformed `10.95.52.9` |
+| A-2 | confirmed | Zero product code changes required under `internal/component/bgp/`; both `test/plugin/bgp-ls-malformed-nlri.ci` (PASS + counterfactual red) and `bgp-ls-receive-gobgp` (PASS 6m8s) succeeded against landed HEAD code |
+| A-3 | confirmed | `test/plugin/bgp-ls-malformed-nlri.ci` passed `TestCIFrameLengthsWellFormed`, `TestCIFrameStructureWellFormed`, and `TestPluginObserversWaitForTheScriptedPeer` in `test/plugin/` |
+
+### Documentation Verified
+| Documentation claim or category | Source evidence | Verified |
+|---------------------------------|-----------------|----------|
+| Test infrastructure: `docs/architecture/testing/interop.md` row 72 (`bgp-ls-receive-gobgp`) | Matches `names.go` (`scenarioBGPLSReceiveGoBGP`, `gobgpAFIBGPLS`, `gobgpSAFIBGPLS`, `bgplsReceived*`), `checkers.go` (`scenarioOperations`), `check_extras.go` (`scenarioExtras`), and `test/interop/scenarios/bgp-ls-receive-gobgp/*`; `./le doc ste check` OK | Yes |
+| Test infrastructure: `docs/functional-tests.md` `Plugin` suite row (`test/plugin/bgp-ls-malformed-nlri.ci`) | Matches `test/plugin/bgp-ls-malformed-nlri.ci` and `internal/test/fixture/plugin_fixture_13.go` (`routeServerReplay13`); `./le doc ste check` OK | Yes |
+| RFC compliance: `rfc/short/rfc9552.md` and `docs/features/rfc-status.md` | `./le rfc discriminate stem rfc9552` and `./le rfc check` reported 0 stale/unproven rows on `RFC9552-8.2.2-4..10` and `8.2.6-2`; no hand edit to generated `docs/features/rfc-status.md` | Yes |
+| Existing doc source anchors (`grep -rn "source:.*(plugin_fixture_13|interoplab/bgp/(names|checkers|check_extras))" docs/`) | All 21 anchor hits checked: `docs/architecture/testing/interop.md` and `docs/functional-tests.md` updated; `ci-format.md` (`runPlugin13`), `ospf-4-component-config.md`, `ospf-ext-16-ipsec-auth.md`, `bmp.md`, and `vrrp.md` unaffected; `./le doc check all` 0 errors on our files | Yes |
+| Other categories (feature list, config/YANG, CLI, API/RPC, plugin SDK, wire format, metrics, comparison table) | Confirmed No: diff touches only test fixtures, interop lab checkers, `.ci` / interop scenario files, and test docs (`git diff --name-only` verified) | Yes |

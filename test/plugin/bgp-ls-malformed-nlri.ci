@@ -1,0 +1,250 @@
+# bgp-ls-malformed-nlri -- RFC 9552 Section 8.2.2 BGP-LS receive-path fault management
+# through a running ze daemon (live TCP receive -> enforceRFC7606 -> bgp-rs relay / NOTIFICATION 3/9).
+#
+# One question this test answers (and why unit tests cannot decide it):
+# Unit tests (rfc7606_bgpls_nlri_test.go, rfc9552_nlri_test.go, rfc9552_test.go) call
+# RetainWellFormedNLRI and Session.enforceRFC7606 directly in-process without the live daemon's
+# TCP reader, plugin composition root (plugin/all/all_ze_bgp.go), bgp-rs route-server relay,
+# or wire NOTIFICATION writer. This test proves all three RFC 9552 Section 8.2.2 actions end
+# to end on live BGP TCP sessions through the real ze binary:
+#   1. Non-skipable Total NLRI Length overrun on a mixed IPv4 + BGP-LS session (conn=1,
+#      reset-peer 127.0.0.1, AS 65001) -> ze emits exact NOTIFICATION 3/9 (Optional Attribute
+#      Error carrying the full offending MP_REACH_NLRI attribute per RFC 4760 Section 7) and
+#      resets that session, because ze implements no 'AFI/SAFI disable'.
+#   2. Skipable malformed Link-State NLRIs paired with well-formed survivors (conn=2,
+#      source-peer 127.0.0.2, AS 65002 -> conn=3, receiver-peer 127.0.0.3, AS 65003):
+#      (a) TLV length overrun inside a well-framed NLRI (AC-1, AC-4),
+#      (b) RFC 9552 Section 5.1 descending TLV type order (TLV 257 before TLV 256) (AC-5),
+#      (c) RFC 9552 Section 5.2.1.4 duplicate Node Descriptor sub-TLV (sub-TLV 512 twice in
+#          TLV 256) (AC-6).
+#      In each UPDATE, ze discards only the malformed NLRI and relays the well-formed survivor
+#      byte-identical while keeping both sessions established.
+#   3. Malformed BGP-LS Attribute (code 29, TLV length overrun) attached to a valid Link-State
+#      Node NLRI (conn=2 -> conn=3) -> ze performs 'Attribute Discard', stamping ATTR_TOMBSTONE
+#      (code 252 = 0xFC, original code 29 = 0x1D, reason 2 = DiscardReasonInvalidLength,
+#      remaining octets zeroed) in place of code 29 while propagating the Link-State NLRI intact
+#      and keeping both sessions established (AC-10).
+#   4. Processing fence (conn=2 seq=5 -> conn=3 seq=5, IPv4 unicast 10.0.0.0/24): ze reads
+#      conn=2 in TCP order on one goroutine, so forwarding 10.0.0.0/24 to conn=3 proves both
+#      sessions survived all four malformed BGP-LS UPDATEs and triggers routeServerReplay13
+#      quiesce + clean daemon shutdown.
+#
+# Connection ordering under conn_map=remote-ip:
+#   conn=1 (127.0.0.1) = reset-peer   (AS 65001, plain eBGP) -> runs first, triggers 3/9 reset
+#   conn=2 (127.0.0.2) = source-peer  (AS 65002, rs-client)  -> sends Cases 1a..1c, Case 2, fence
+#   conn=3 (127.0.0.3) = receiver-peer(AS 65003, rs-client)  -> asserts exact relayed wire frames
+# Running reset-peer as conn=1 ensures the session-reset assertion completes BEFORE source-peer
+# sends the 10.0.0.0/24 fence that releases the shutdown observer.
+
+option=timeout:value=20s
+
+stdin=peer:terminator=EOF_PEER
+option=tcp_connections:value=3
+option=linger:value=true
+option=bind:value=0.0.0.0
+option=conn_map:value=remote-ip
+option=await_eor:value=true
+
+# --- Case 3 (conn=1, reset-peer 127.0.0.1, AS 65001): non-skipable Total NLRI Length overrun ---
+# Mixed IPv4 + BGP-LS session; MP_REACH_NLRI carries one 13-byte Node NLRI whose Total NLRI Length
+# declares 20 (0x0014) > 9 remaining octets:
+#   MP_REACH: 800E16 4004 47 04 01010101 00 0001 0014 020000000000000000  (25 bytes)
+#   ORIGIN:   40010100                                                    (4 bytes)
+#   AS_PATH:  40020602010000FDE9  AS_SEQUENCE[65001]                      (9 bytes)
+# attr len = 38 (0x0026); total = 19+2+2+38 = 61 (0x003D).
+action=send:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF003D0200000026800E16400447040101010100000100140200000000000000004001010040020602010000FDE9
+
+# Expect exact NOTIFICATION code=3 (UPDATE Message Error), subcode=9 (Optional Attribute Error),
+# Data = full offending MP_REACH_NLRI attribute (25 bytes); total = 19+2+25 = 46 (0x002E).
+expect=bgp:conn=1:seq=2:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF002E030309800E1640044704010101010000010014020000000000000000
+
+# --- Case 1a (conn=2 seq=1): skipable TLV overrun NLRI + well-formed survivor Node 1 ---
+#   NLRI 1 (malformed, 21B): type=1, total_len=17 (0x0011), proto=2, id=0x11,
+#                            TLV 256 declares len=12 (0x000C) with only 4 bytes (AABBCCDD) left
+#   NLRI 2 (survivor, 25B):  type=1, total_len=21 (0x0015), proto=2, id=0x01,
+#                            TLV 256 (len=8) -> sub-TLV 512 (len=4, AS 65002 = 0000FDEA)
+#   MP_REACH value = 9+21+25 = 55 (0x37); attr = 58B; + ORIGIN(4) + AS_PATH[65002](9) = 71 (0x0047);
+#   total = 19+4+71 = 94 (0x005E).
+action=send:conn=2:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF005E0200000047800E37400447040101010100000100110200000000000000110100000CAABBCCDD0001001502000000000000000101000008020000040000FDEA4001010040020602010000FDEA
+
+# --- Case 1b (conn=2 seq=2): skipable RFC 9552 S5.1 descending TLV order + survivor Node 2 ---
+#   NLRI 1 (malformed, 37B): type=2 (Link), total_len=33 (0x0021), proto=2, id=0x12,
+#                            TLV 257 (Remote Node Desc, len=8, sub-TLV 512) BEFORE
+#                            TLV 256 (Local Node Desc, len=8, sub-TLV 512) -- 257 > 256
+#   NLRI 2 (survivor, 25B):  type=1 (Node), total_len=21 (0x0015), proto=2, id=0x02,
+#                            TLV 256 (len=8) -> sub-TLV 512 (AS 65002)
+#   MP_REACH value = 9+37+25 = 71 (0x47); attr = 74B; + ORIGIN(4) + AS_PATH(9) = 87 (0x0057);
+#   total = 19+4+87 = 110 (0x006E).
+action=send:conn=2:seq=2:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF006E0200000057800E474004470401010101000002002102000000000000001201010008020000040000FDEA01000008020000040000FDEA0001001502000000000000000201000008020000040000FDEA4001010040020602010000FDEA
+
+# --- Case 1c (conn=2 seq=3): skipable RFC 9552 S5.2.1.4 duplicate sub-TLV + survivor Node 3 ---
+#   NLRI 1 (malformed, 33B): type=1 (Node), total_len=29 (0x001D), proto=2, id=0x13,
+#                            TLV 256 (len=16) carrying sub-TLV 512 twice (AS 65002 then AS 65003)
+#   NLRI 2 (survivor, 25B):  type=1 (Node), total_len=21 (0x0015), proto=2, id=0x03,
+#                            TLV 256 (len=8) -> sub-TLV 512 (AS 65002)
+#   MP_REACH value = 9+33+25 = 67 (0x43); attr = 70B; + ORIGIN(4) + AS_PATH(9) = 83 (0x0053);
+#   total = 19+4+83 = 106 (0x006A).
+action=send:conn=2:seq=3:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF006A0200000053800E434004470401010101000001001D02000000000000001301000010020000040000FDEA020000040000FDEB0001001502000000000000000301000008020000040000FDEA4001010040020602010000FDEA
+
+# --- Case 2 (conn=2 seq=4): valid Node 4 NLRI + malformed BGP-LS Attribute code 29 ---
+#   MP_REACH (37B): valid Node 4 (id=0x04, TLV 256 -> sub-TLV 512 AS 65002)
+#   ORIGIN (4B) + AS_PATH[65002] (9B)
+#   BGP_LS attr (15B): flags=0x80, code=29 (0x1D), len=12 (0x0C):
+#     TLV 1024 (Node Flag Bits, len=1, val=0x40): 0400 0001 40
+#     TLV 1026 (Node Name, declares len=16=0x0010 with only 3 bytes 7A6531 remaining): 0402 0010 7A6531
+#   attr len = 37+4+9+15 = 65 (0x0041); total = 19+4+65 = 88 (0x0058).
+action=send:conn=2:seq=4:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00580200000041800E224004470401010101000001001502000000000000000401000008020000040000FDEA4001010040020602010000FDEA801D0C0400000140040200107A6531
+
+# --- Processing fence (conn=2 seq=5): IPv4 unicast 10.0.0.0/24 ---
+#   ORIGIN(4) + AS_PATH[65002](9) + NEXT_HOP 1.1.1.1(7) = 20 (0x0014); NLRI 10.0.0.0/24 (4B);
+#   total = 19+4+20+4 = 47 (0x002F).
+action=send:conn=2:seq=5:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF002F02000000144001010040020602010000FDEA40030401010101180A0000
+
+# --- Receiver expectations (conn=3, receiver-peer 127.0.0.3, AS 65003, rs-client true) ---
+# Exact wire equality on every frame proves each malformed NLRI was removed in full, each
+# well-formed survivor arrived byte-identical, code 29 was replaced in place by ATTR_TOMBSTONE
+# (code 252 = 0xFC, original=0x1D, reason=0x02, zero-padded), and the session stayed up through
+# the 10.0.0.0/24 fence.
+# seq=1: Case 1a survivor ONLY (Node 1, id=0x01); MP_REACH len=34 (0x22), attr len=50 (0x0032), total=73 (0x0049).
+expect=bgp:conn=3:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00490200000032800E224004470401010101000001001502000000000000000101000008020000040000FDEA4001010040020602010000FDEA
+# seq=2: Case 1b survivor ONLY (Node 2, id=0x02); total=73 (0x0049).
+expect=bgp:conn=3:seq=2:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00490200000032800E224004470401010101000001001502000000000000000201000008020000040000FDEA4001010040020602010000FDEA
+# seq=3: Case 1c survivor ONLY (Node 3, id=0x03); total=73 (0x0049).
+expect=bgp:conn=3:seq=3:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00490200000032800E224004470401010101000001001502000000000000000301000008020000040000FDEA4001010040020602010000FDEA
+# seq=4: Case 2 Node 4 NLRI intact, code 29 replaced by ATTR_TOMBSTONE (80 FC 0C 1D 02 00..00); total=88 (0x0058).
+expect=bgp:conn=3:seq=4:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00580200000041800E224004470401010101000001001502000000000000000401000008020000040000FDEA4001010040020602010000FDEA80FC0C1D0200000000000000000000
+# seq=5: Processing fence 10.0.0.0/24 arrives byte-identical, proving session stability.
+expect=bgp:conn=3:seq=5:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF002F02000000144001010040020602010000FDEA40030401010101180A0000
+EOF_PEER
+
+stdin=ze-bgp:terminator=EOF_CONF
+bus {
+	endpoint bgp-rib {
+		internal bgp-rib;
+		receive {
+			allow none;
+		}
+		send {
+			allow none;
+		}
+	}
+	endpoint rs {
+		internal bgp-rs;
+	}
+	endpoint adj-rib-in {
+		internal bgp-adj-rib-in;
+		send {
+			message bgp:update {
+				to none;
+			}
+		}
+	}
+	endpoint shutdown-after-up {
+		external {
+			run "le test fixture plugin/bgp-ls-malformed-nlri";
+		}
+		encoding json;
+	}
+}
+bgp {
+	# RFC 8212: an EBGP direction with no policy is refused; this test exchanges routes.
+	filter {
+		import { final accept; }
+		export { final accept; }
+	}
+	peer reset-peer {
+		connection {
+			remote {
+				ip 127.0.0.1
+			}
+			local {
+				ip 127.0.0.1
+				accept false
+			}
+		}
+		session {
+			asn {
+				local 65000
+				remote 65001
+			}
+			router-id 1.2.3.4
+			family {
+				ipv4/unicast { prefix { maximum 10000; } }
+				bgp-ls/bgp-ls { prefix { maximum 10000; } }
+			}
+			capability {
+				graceful-restart disable
+			}
+		}
+		behavior {
+			group-updates disable
+		}
+	}
+	peer source-peer {
+		connection {
+			remote {
+				ip 127.0.0.2
+			}
+			local {
+				ip 127.0.0.2
+				accept false
+			}
+		}
+		session {
+			rs-client true;
+			asn {
+				local 65000
+				remote 65002
+			}
+			router-id 1.2.3.4
+			family {
+				ipv4/unicast { prefix { maximum 10000; } }
+				bgp-ls/bgp-ls { prefix { maximum 10000; } }
+			}
+			capability {
+				graceful-restart disable
+			}
+		}
+		behavior {
+			group-updates disable
+		}
+	}
+	peer receiver-peer {
+		connection {
+			remote {
+				ip 127.0.0.3
+			}
+			local {
+				ip 127.0.0.3
+				accept false
+			}
+		}
+		session {
+			rs-client true;
+			asn {
+				local 65000
+				remote 65003
+			}
+			router-id 1.2.3.4
+			family {
+				ipv4/unicast { prefix { maximum 10000; } }
+				bgp-ls/bgp-ls { prefix { maximum 10000; } }
+			}
+			capability {
+				graceful-restart disable
+			}
+		}
+		behavior {
+			group-updates disable
+		}
+	}
+}
+EOF_CONF
+
+cmd=background:seq=1:exec=le test peer --port $PORT:stdin=peer
+cmd=foreground:seq=2:exec=ze -:stdin=ze-bgp:timeout=20s
+expect=exit:code=0
+reject=stderr:pattern=panic
+reject=stderr:pattern=fatal error
+reject=stderr:pattern=forward-cached failed
+reject=stderr:pattern=release-cached failed

@@ -60,7 +60,7 @@ in `rfc/short/rfc9552.md` are unannotated and untested today.
   counted by their own TLV framing (`RFC9552-8.2.6-1` carries no `{gap}`).
   Receive-path NLRI syntactic validation (`judgeBGPLSNLRISection`,
   `RetainWellFormedNLRI`) is landed, `RFC9552-8.2.6-2` is `{not-applicable}`,
-  and sibling `plan/release/fixes/spec-bgp-ls-receiver-fault-management.md`
+  and closed sibling `spec-bgp-ls-receiver-fault-management`
   dropped the redundant `consumer-facing` per-peer YANG role (owner decision,
   2026-11-24). Route D of `spec-plugin-ownership-imports` also landed
   (`internal/core/bgp/nlri/bgpls/`), and this spec touches nothing under
@@ -111,7 +111,7 @@ unfolded across this spec:
 | Family-less peer fallback (`session_negotiate.go`) | Land `RFC9552-8.2.3-1` now with scoped evidence ("peers with an explicit `family` block"), naming the no-family-block fallback as a gap against RFC 9552 Section 8.1.2's off-by-default. |
 | Action when router-wide ceiling is crossed | Drop the crossing UPDATE without dispatching it and keep every session established (no NOTIFICATION), because the crossing peer is not necessarily the one that filled the RIB. |
 | Counting semantics and Graceful Restart | Count installed paths summed across active sessions; under-counting stale paths held in `bgp-rib` during a Graceful Restart window is an accepted Known Limitation. |
-| Sibling fault-management spec overlap | Re-scope the sibling rather than building a redundant role (subsequently executed in `plan/release/fixes/spec-bgp-ls-receiver-fault-management.md` via the 2026-11-24 owner decision). |
+| Sibling fault-management spec overlap | Re-scope the sibling rather than building a redundant role (subsequently executed in closed `spec-bgp-ls-receiver-fault-management` via the 2026-11-24 owner decision). |
 | Interop peer daemon | Try GoBGP first (`test/interop/Dockerfile.gobgp`, pinned GoBGP v4.11.0; FRR originates BGP-LS only from 10.7). |
 | Ceiling YANG placement and shape | Mirror the per-peer `prefix` container shape at `bgp` level (`bgp > prefix-limit > family <afi/safi> { maximum; warning; }`), citing the IETF BGP-LS YANG draft's `max-number` as the external name in the description. |
 
@@ -342,7 +342,7 @@ No BGP wire format, capability TLV, NOTIFICATION code/subcode, plugin RPC payloa
 ### Risks
 | ID | Risk | Early signal | Mitigation / fallback |
 |----|------|--------------|----------------------|
-| R-1 | Duplicate per-peer BGP-LS accept mechanism from sibling spec | resolved: `plan/release/fixes/spec-bgp-ls-receiver-fault-management.md` dropped the `consumer-facing` role (2026-11-24 owner decision) | this spec builds no role; `family` block + `family-filter` remain the sole controls |
+| R-1 | Duplicate per-peer BGP-LS accept mechanism from sibling spec | resolved: closed `spec-bgp-ls-receiver-fault-management` dropped the `consumer-facing` role (2026-11-24 owner decision) | this spec builds no role; `family` block + `family-filter` remain the sole controls |
 | R-2 | Router-wide counter leaks on a session teardown path (NOTIFICATION, hold-timer, GR, BFD down, collision, admin stop, reload restart, panic) and permanently refuses later NLRIs | `ze_bgp_family_ceiling_count` stays above zero with all sessions down | idempotent `Session.releaseRouterCeiling()` in both `Session.Run` exit defer and `Peer.runOnce` teardown defer; `TestRouterCeilingReleasesOnSessionTeardown` tests every close-path class and asserts count returns to zero |
 | R-3 | Two sessions race past the ceiling between check and increment | count exceeds `maximum` under concurrent UPDATEs | atomic CAS loop (`reserve`) checks `current + delta <= maximum` and commits in one atomic step; `TestRouterCeilingConcurrentReserve` runs under `-race` |
 | R-4 | Tracking installed sets on every session for a ceiling family uses memory proportional to each session's held keys for that family | RSS growth after enabling a ceiling on a large feed | only families explicitly configured in `bgp > prefix-limit` pay (`AC-9`); cost is documented in YANG description and `docs/guide/configuration.md` |
@@ -358,7 +358,7 @@ No BGP wire format, capability TLV, NOTIFICATION code/subcode, plugin RPC payloa
 |----------|--------|
 | What breaks if this is wrong? | A leaked or racy router ceiling counter refuses BGP-LS (or any ceiling-configured family) from every peer while sessions remain Established, silently halting topology updates |
 | How is it reverted? | Single commit revert; `bgp > prefix-limit` defaults to unset and the accept/advertise proof adds no runtime code |
-| Who else touches this path? | `session_prefix.go` is the per-peer prefix-limit path for every family; `reload_globals.go` handles BGP global reloads; `plan/release/fixes/spec-bgp-ls-receiver-fault-management.md` touches only `.ci` / GoBGP interop for §8.2.2 (no file overlap on reactor code) |
+| Who else touches this path? | `session_prefix.go` is the per-peer prefix-limit path for every family; `reload_globals.go` handles BGP global reloads; closed `spec-bgp-ls-receiver-fault-management` touched only `.ci` / GoBGP interop for §8.2.2 (no file overlap on reactor code) |
 
 ## Wiring Test (MANDATORY -- NOT deferrable)
 

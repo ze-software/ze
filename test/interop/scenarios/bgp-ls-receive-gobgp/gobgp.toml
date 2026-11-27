@@ -1,0 +1,18 @@
+# RFC 9552 Section 8.2.2, judged by GoBGP v4.11.0, which negotiates BGP-LS
+# (AFI 16388 / SAFI 71) and keeps a decoded RIB of the Link-State NLRIs Ze
+# relays to it.
+[global.config]
+  as = 65002
+  router-id = "172.30.0.5"
+  port = 179
+
+[[neighbors]]
+  [neighbors.config]
+    neighbor-address = "172.30.0.2"
+    peer-as = 65001
+  [[neighbors.afi-safis]]
+    [neighbors.afi-safis.config]
+      afi-safi-name = "ipv4-unicast"
+  [[neighbors.afi-safis]]
+    [neighbors.afi-safis.config]
+      afi-safi-name = "ls"
