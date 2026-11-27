@@ -1221,6 +1221,7 @@ func parseMasqPorts(s string) (uint16, uint16, error) {
 }
 
 // tcpFlagNames maps symbolic TCP flag names to bitmask values.
+// enumeration: gated by internal/component/firewall/yang:TestTCPFlagsYANGPatternMatchesGo
 var tcpFlagNames = map[string]TCPFlags{
 	"fin": TCPFlagFIN,
 	"syn": TCPFlagSYN,
@@ -1228,6 +1229,13 @@ var tcpFlagNames = map[string]TCPFlags{
 	"psh": TCPFlagPSH,
 	"ack": TCPFlagACK,
 	"urg": TCPFlagURG,
+}
+
+// TCPFlagNames answers the TCP flag names Ze accepts, sorted, so the YANG
+// typedef parity test checks the schema pattern against the single Go
+// declaration.
+func TCPFlagNames() []string {
+	return slices.Sorted(maps.Keys(tcpFlagNames))
 }
 
 // ParseTCPFlags parses a comma-separated list of TCP flag names

@@ -19,6 +19,7 @@ import (
 
 	sysctlevents "github.com/ze-software/ze/internal/component/sysctl/events"
 	"github.com/ze-software/ze/internal/core/diagnostic"
+	"github.com/ze-software/ze/internal/core/opererr"
 	"github.com/ze-software/ze/pkg/plugin/sdk"
 	"github.com/ze-software/ze/pkg/ze"
 )
@@ -334,6 +335,86 @@ func emitGlobalOptionsSysctlDefaults(eb ze.EventBus, data string, reload bool, l
 	}
 }
 
+// configureAtStart applies the initial firewall configuration delivered by
+// OnConfigure at daemon boot and records activeCfg. Under `Ze always starts`,
+// a parse or validation refusal leaves the firewall unstarted (idle activeCfg,
+// no partial or approximated tables applied), logs an ERROR under
+// diagnostic.CodeConfigPluginVerify with the operator fix, and returns nil so
+// Ze starts with its other services while `ze doctor` (`config-semantics`)
+// reports the same fault.
+func configureAtStart(sections []sdk.ConfigSection, activeCfg *atomic.Pointer[firewallConfig], eb ze.EventBus, log *slog.Logger) error {
+	cfg, err := parseConfigSections(sections, nil)
+	// refuse-by-default: guards runEngine -- Ze always starts leaves an invalid firewall unstarted, logs ERROR under config-plugin-verify, and returns nil so OnConfigure lets other services start
+	if err != nil {
+		logStartConfigFailure(log, err)
+		activeCfg.Store(idleFirewallConfig())
+		return nil
+	}
+	if !cfg.Configured && len(cfg.HelperTables) == 0 {
+		log.Debug("firewall: no configuration, plugin idle")
+		activeCfg.Store(cfg)
+		// No one-time legacy sweep here. This branch is reached only when
+		// the plugin was started with nothing to install: an explicit
+		// `bus { endpoint firewall { internal firewall; } }` block, or a `system conntrack`
+		// block that lists no helper. getConfigPathPlugins
+		// (internal/component/plugin/server/startup_autoload.go) starts
+		// this plugin for a PRESENT config root and there is no always-load
+		// phase. The owners of the legacy names run that reconcile instead,
+		// at their own startup, where the state is reachable and tested
+		// (legacy_tables.go).
+		return nil
+	}
+	if cfg.Backend == "" {
+		return errFirewallNoBackendConfiguredAndNo
+	}
+
+	// refuse-by-default: guards runEngine -- Ze always starts leaves an invalid firewall unstarted, logs ERROR under config-plugin-verify, and returns nil so OnConfigure lets other services start
+	if err := validateConfiguredFirewallTables(cfg); err != nil {
+		logStartConfigFailure(log, err)
+		activeCfg.Store(idleFirewallConfig())
+		return nil
+	}
+	setFlushOnShutdown(cfg.FlushOnShutdown)
+
+	// Without a `firewall {}` block the OS default backend is the one
+	// ApplyAll loads on demand, as it does for copp's tables, so a
+	// backend another owner already loaded is not replaced.
+	if cfg.Configured {
+		if err := LoadBackend(cfg.Backend); err != nil {
+			return fmt.Errorf("firewall backend %q: %w", cfg.Backend, err)
+		}
+		log.Info("firewall backend loaded", "backend", cfg.Backend)
+	}
+
+	// ApplyAll runs the backend's verifier over the merged set before it
+	// applies, so a helper the backend cannot hold stops the boot here.
+	if err := registerConfigTables(cfg); err != nil {
+		return fmt.Errorf("firewall config apply: %w", err)
+	}
+	activeCfg.Store(cfg)
+	log.Info("firewall config applied", "tables", len(cfg.Tables), "conntrack-helpers", cfg.Helpers)
+
+	emitGlobalOptionsSysctlDefaults(eb, cfg.RawData, false, log)
+	return nil
+}
+
+func idleFirewallConfig() *firewallConfig {
+	return &firewallConfig{Backend: defaultBackendName, FlushOnShutdown: true}
+}
+
+func logStartConfigFailure(log *slog.Logger, err error) {
+	if opErr, ok := errors.AsType[*opererr.Error](err); ok {
+		log.LogAttrs(context.Background(), slog.LevelError,
+			"firewall: configuration invalid, leaving firewall unstarted: "+opErr.Problem(),
+			opErr.LogAttrs(slog.String("code", diagnostic.CodeConfigPluginVerify))...)
+		return
+	}
+	log.Error("firewall: configuration invalid, leaving firewall unstarted",
+		"code", diagnostic.CodeConfigPluginVerify,
+		"error", err,
+		"fix", "run `ze config validate` and fix the reported firewall configuration error, then reload")
+}
+
 // runEngine is the engine-mode entry point for the firewall plugin.
 // Mirrors the traffic plugin's 5-stage lifecycle: the first Apply
 // happens in OnConfigure; subsequent reloads go through
@@ -357,53 +438,7 @@ func runEngine(conn net.Conn) int {
 	var activeJournal *sdk.Journal
 
 	p.OnConfigure(func(sections []sdk.ConfigSection) error {
-		cfg, err := parseConfigSections(sections, nil)
-		if err != nil {
-			return err
-		}
-		if !cfg.Configured && len(cfg.HelperTables) == 0 {
-			log.Debug("firewall: no configuration, plugin idle")
-			activeCfg.Store(cfg)
-			// No one-time legacy sweep here. This branch is reached only when
-			// the plugin was started with nothing to install: an explicit
-			// `bus { endpoint firewall { internal firewall; } }` block, or a `system conntrack`
-			// block that lists no helper. getConfigPathPlugins
-			// (internal/component/plugin/server/startup_autoload.go) starts
-			// this plugin for a PRESENT config root and there is no always-load
-			// phase. The owners of the legacy names run that reconcile instead,
-			// at their own startup, where the state is reachable and tested
-			// (legacy_tables.go).
-			return nil
-		}
-		if cfg.Backend == "" {
-			return errFirewallNoBackendConfiguredAndNo
-		}
-		setFlushOnShutdown(cfg.FlushOnShutdown)
-
-		if err := validateConfiguredFirewallTables(cfg); err != nil {
-			return err
-		}
-
-		// Without a `firewall {}` block the OS default backend is the one
-		// ApplyAll loads on demand, as it does for copp's tables, so a
-		// backend another owner already loaded is not replaced.
-		if cfg.Configured {
-			if err := LoadBackend(cfg.Backend); err != nil {
-				return fmt.Errorf("firewall backend %q: %w", cfg.Backend, err)
-			}
-			log.Info("firewall backend loaded", "backend", cfg.Backend)
-		}
-
-		// ApplyAll runs the backend's verifier over the merged set before it
-		// applies, so a helper the backend cannot hold stops the boot here.
-		if err := registerConfigTables(cfg); err != nil {
-			return fmt.Errorf("firewall config apply: %w", err)
-		}
-		activeCfg.Store(cfg)
-		log.Info("firewall config applied", "tables", len(cfg.Tables), "conntrack-helpers", cfg.Helpers)
-
-		emitGlobalOptionsSysctlDefaults(eb, cfg.RawData, false, log)
-		return nil
+		return configureAtStart(sections, &activeCfg, eb, log)
 	})
 
 	p.OnConfigVerify(func(sections []sdk.ConfigSection) error {
@@ -485,6 +520,7 @@ func runEngine(conn net.Conn) int {
 	p.OnConfigRollback(func(_ string) error {
 		j := activeJournal
 		activeJournal = nil
+		// refuse-by-default: guards OnConfigRollback -- nil activeJournal means no apply journal was recorded to roll back
 		if j == nil {
 			return nil
 		}

@@ -87,7 +87,7 @@ func deepCopyTables(src []Table) []Table {
 			dst[i].Sets = make([]Set, len(src[i].Sets))
 			for j := range src[i].Sets {
 				s := src[i].Sets[j]
-				ns := Set{Name: s.Name, Type: s.Type, Flags: s.Flags}
+				ns := Set{Name: s.Name, Type: s.Type, Flags: s.Flags, RawIntervals: s.RawIntervals}
 				if len(s.Elements) > 0 {
 					ns.Elements = make([]SetElement, len(s.Elements))
 					copy(ns.Elements, s.Elements)

@@ -2,15 +2,15 @@
 
 | Field | Value |
 |-------|-------|
-| Status | design |
+| Status | in-progress |
 | Scope | config |
 | Priority | P0 |
 | Release reason | Accepted firewall set flags, CIDR interval elements, and term `tcp-flags` matching must match their YANG schema and reach the kernel faithfully or be refused at verify instead of silently truncating or failing validation. |
 | RFC gaps | - |
 | Depends | - |
-| Phase | - |
+| Phase | 4/4 |
 | Handoff | - |
-| Updated | 2026-11-26 |
+| Updated | 2026-11-27 |
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.
 
@@ -176,10 +176,10 @@ Work assigned to `plan/post-release/features/spec-firewall-dynamic-address-group
 ### Boundaries Crossed
 | Boundary | How | Verified |
 |----------|-----|----------|
-| Config / CLI ↔ Firewall component | YANG schema `ze-firewall-conf.yang` -> `Tree.ToPluginMap` JSON `sdk.ConfigSection` -> `VerifyConfig` / `OnConfigure` / `OnConfigVerify` | No |
-| Firewall component ↔ `firewall/nft` backend | In-process `firewall.Backend.Apply([]Table)` carrying `firewall.Set` (`Flags`, `RawIntervals`, `Elements`) and `firewall.MatchTCPFlags` | No |
-| `firewall/nft` backend ↔ Linux kernel nftables | Netlink `NFT_MSG_NEWSET` / `NFT_MSG_NEWSETELEM` (`NFT_SET_INTERVAL`, `NFT_SET_ELEM_INTERVAL_END`, `NFTA_SET_ELEM_TIMEOUT`) and `NFT_MSG_NEWRULE` (`meta l4proto tcp` + payload/bitwise/cmp) via `google/nftables` | No |
-| `copp` plugin ↔ Firewall component | In-process `firewall.RegisterTables` with `Set{Flags: SetFlagInterval, RawIntervals: true}` | No |
+| Config / CLI ↔ Firewall component | YANG schema `ze-firewall-conf.yang` -> `Tree.ToPluginMap` JSON `sdk.ConfigSection` -> `VerifyConfig` / `OnConfigure` / `OnConfigVerify` | Yes |
+| Firewall component ↔ `firewall/nft` backend | In-process `firewall.Backend.Apply([]Table)` carrying `firewall.Set` (`Flags`, `RawIntervals`, `Elements`) and `firewall.MatchTCPFlags` | Yes |
+| `firewall/nft` backend ↔ Linux kernel nftables | Netlink `NFT_MSG_NEWSET` / `NFT_MSG_NEWSETELEM` (`NFT_SET_INTERVAL`, `NFT_SET_ELEM_INTERVAL_END`, `NFTA_SET_ELEM_TIMEOUT`) and `NFT_MSG_NEWRULE` (`meta l4proto tcp` + payload/bitwise/cmp) via `google/nftables` | Yes |
+| `copp` plugin ↔ Firewall component | In-process `firewall.RegisterTables` with `Set{Flags: SetFlagInterval, RawIntervals: true}` | Yes |
 
 ### Changed-Wire Census
 
@@ -221,10 +221,10 @@ Work assigned to `plan/post-release/features/spec-firewall-dynamic-address-group
 ### Assumptions
 | ID | Assumption | Basis (file/doc/user statement) | If wrong | Validated by | Status |
 |----|-----------|--------------------------------|----------|--------------|--------|
-| A-1 | Linux kernel `nft_set_rbtree` accepts adjacent half-open intervals `[A, B)` and `[B, C)` emitted in ascending numeric order in one `AddSet` batch (e.g. `192.0.2.0/25` and `192.0.2.128/25`, or `10.0.0.1` and `10.0.0.2`), and accepts a trailing top-of-space open-ended interval with no `IntervalEnd` | `internal/plugins/copp/translate.go:247-289`, `internal/plugins/firewall/nft/lower_linux.go:836-848` | Adjacent intervals would fail `Flush` with `EEXIST` and require merging or explicit refusal | Kernel integration test in `internal/plugins/firewall/nft/integration_linux_test.go` | unvalidated |
-| A-2 | Linux kernel `nft` accepts a per-element `Timeout` on the interval start element (with `Timeout: 0` on the `IntervalEnd` closing element) when `flags-interval` and `flags-timeout` are both set | `vendor/github.com/google/nftables/set.go:420-423`, Linux `nf_tables_newsetelem` | Combining `flags-interval` + `flags-timeout` + element `timeout` would fail at `Flush` | Kernel integration test in `internal/plugins/firewall/nft/integration_linux_test.go` | unvalidated |
-| A-3 | Adding `meta l4proto tcp` in `lowerTCPFlagsMatch` keeps `test/policy/policy-tcp-flags.ci` green even when `protocol tcp` is also present in the same term | `test/policy/policy-tcp-flags.ci:39` (`expect=stdout:contains=tcp flags`) and `lowerICMPTypeMatch` precedent | `nft` could reject duplicate `meta l4proto tcp` or alter output format | Run `test/policy/policy-tcp-flags.ci` and `test/firewall/firewall-tcp-flags.ci` on Linux | unvalidated |
-| A-4 | No existing `.ci` or Go test writes a valid config that sets `element ... { timeout N }` without `flags-timeout`, a CIDR prefix without `flags-interval`, or contradictory `flags-constant` + `flags-dynamic`/`flags-timeout` through `ValidateTables` | Grep across `test/` and `internal/component/firewall/` (`firewall-set-element-timeout.ci` already sets `flags-timeout;`; `lower_linux_test.go:130,1991` bypass `ValidateTables`) | An existing test would fail `ValidateTables` and reveal a hidden fixture gap | Scoped unit tests + `test/firewall/` suite run by main thread | unvalidated |
+| A-1 | Linux kernel `nft_set_rbtree` accepts adjacent half-open intervals `[A, B)` and `[B, C)` emitted in ascending numeric order in one `AddSet` batch (e.g. `192.0.2.0/25` and `192.0.2.128/25`, or `10.0.0.1` and `10.0.0.2`), and accepts a trailing top-of-space open-ended interval with no `IntervalEnd` | `internal/plugins/copp/translate.go:247-289`, `internal/plugins/firewall/nft/lower_linux.go:836-848` | Adjacent intervals would fail `Flush` with `EEXIST` and require merging or explicit refusal | Kernel integration test in `internal/plugins/firewall/nft/integration_linux_test.go` | confirmed |
+| A-2 | Linux kernel `nft` accepts a per-element `Timeout` on the interval start element (with `Timeout: 0` on the `IntervalEnd` closing element) when `flags-interval` and `flags-timeout` are both set | `vendor/github.com/google/nftables/set.go:420-423`, Linux `nf_tables_newsetelem` | Combining `flags-interval` + `flags-timeout` + element `timeout` would fail at `Flush` | Kernel integration test in `internal/plugins/firewall/nft/integration_linux_test.go` | confirmed |
+| A-3 | Adding `meta l4proto tcp` in `lowerTCPFlagsMatch` keeps `test/policy/policy-tcp-flags.ci` green even when `protocol tcp` is also present in the same term | `test/policy/policy-tcp-flags.ci:39` (`expect=stdout:contains=tcp flags`) and `lowerICMPTypeMatch` precedent | `nft` could reject duplicate `meta l4proto tcp` or alter output format | Run `test/policy/policy-tcp-flags.ci` and `test/firewall/firewall-tcp-flags.ci` on Linux | confirmed |
+| A-4 | No existing `.ci` or Go test writes a valid config that sets `element ... { timeout N }` without `flags-timeout`, a CIDR prefix without `flags-interval`, or contradictory `flags-constant` + `flags-dynamic`/`flags-timeout` through `ValidateTables` | Grep across `test/` and `internal/component/firewall/` (`firewall-set-element-timeout.ci` already sets `flags-timeout;`; `lower_linux_test.go:130,1991` bypass `ValidateTables`) | An existing test would fail `ValidateTables` and reveal a hidden fixture gap | Scoped unit tests + `test/firewall/` suite run by main thread | confirmed |
 
 ### Risks
 | ID | Risk | Early signal | Mitigation / fallback |
@@ -275,13 +275,13 @@ Work assigned to `plan/post-release/features/spec-firewall-dynamic-address-group
 ### Unit Tests
 | Test | File | Validates | Status |
 |------|------|-----------|--------|
-| `TestSetValidateFlagsAndElements` | `internal/component/firewall/model_test.go` | Contradictory flags (`flags-constant` + `flags-dynamic`, `flags-constant` + `flags-timeout`), element `Timeout > 0` without `SetFlagTimeout`, `IntervalEnd` without `SetFlagInterval`, CIDR prefix without `SetFlagInterval`, non-canonical CIDR host bits, IP family mismatch, overlapping vs adjacent intervals, valid combinations, and `RawIntervals` passthrough | |
-| `TestConfigureAtStartLeavesFirewallDownAndLogsDoctorCode` | `internal/component/firewall/engine_test.go` | Invalid firewall set config at `ze start` (`configureAtStart`) returns `nil`, applies no tables, stores idle `activeCfg`, and logs `ERROR` with `code=config-plugin-verify` and fix; `VerifyConfig`, `parseAndVerifyFirewallSections` (reload), and `config.ValidateSemantics` (`ze doctor`) still refuse/report under `config-plugin-verify` | |
-| `TestTCPFlagsYANGPatternMatchesGo` | `internal/component/firewall/yang/tcp_flags_test.go` | `typedef tcp-flags` alternation in `ze-firewall-conf.yang` equals `firewall.TCPFlagNames()` | |
-| `TestLowerSetIntervalCIDRExpansion` | `internal/plugins/firewall/nft/lower_linux_test.go` | IPv4 and IPv6 CIDR prefixes, mixed CIDR + bare host IP, lexicographically unsorted inputs sorted numerically, top-of-space prefixes (`255.255.255.0/24`, `0.0.0.0/0`, `ffff::/16`) without `IntervalEnd` wrap, timeout placed only on start element, pre-expanded IRR and `RawIntervals` CoPP passthrough | |
-| `TestEncodeSetElementKeyRejectsCIDRAndWrongFamily` | `internal/plugins/firewall/nft/lower_linux_test.go` | `encodeSetElementKey` rejects IPv4/IPv6 CIDR strings and family-mismatched addresses (no silent mask strip, no `As4()`/`As16()` panic) | |
-| `TestLowerTCPFlagsMatchEmitsL4ProtoGuard` | `internal/plugins/firewall/nft/lower_linux_test.go` | `lowerTCPFlagsMatch` emits `meta l4proto tcp` followed by transport-header offset-13 payload, bitwise mask, and compare | |
-| `TestNftIntegration_IntervalCIDRSetAndTCPFlags` | `internal/plugins/firewall/nft/integration_linux_test.go` | Real Linux nftables accepts and reads back a `flags-interval` IPv4+IPv6 CIDR set (with adjacent prefixes, top-of-space prefix, and `flags-timeout` element timeout) and a `MatchTCPFlags` rule | |
+| `TestSetValidateFlagsAndElements` | `internal/component/firewall/model_test.go` | Contradictory flags (`flags-constant` + `flags-dynamic`, `flags-constant` + `flags-timeout`), element `Timeout > 0` without `SetFlagTimeout`, `IntervalEnd` without `SetFlagInterval`, CIDR prefix without `SetFlagInterval`, non-canonical CIDR host bits, IP family mismatch, overlapping vs adjacent intervals, valid combinations, and `RawIntervals` passthrough | PASS |
+| `TestConfigureAtStartLeavesFirewallDownAndLogsDoctorCode` | `internal/component/firewall/engine_test.go` | Invalid firewall set config at `ze start` (`configureAtStart`) returns `nil`, applies no tables, stores idle `activeCfg`, and logs `ERROR` with `code=config-plugin-verify` and fix; `VerifyConfig`, `parseAndVerifyFirewallSections` (reload), and `config.ValidateSemantics` (`ze doctor`) still refuse/report under `config-plugin-verify` | PASS |
+| `TestTCPFlagsYANGPatternMatchesGo` | `internal/component/firewall/yang/tcp_flags_test.go` | `typedef tcp-flags` alternation in `ze-firewall-conf.yang` equals `firewall.TCPFlagNames()` | PASS |
+| `TestLowerSetIntervalCIDRExpansion` | `internal/plugins/firewall/nft/lower_linux_test.go` | IPv4 and IPv6 CIDR prefixes, mixed CIDR + bare host IP, lexicographically unsorted inputs sorted numerically, top-of-space prefixes (`255.255.255.0/24`, `0.0.0.0/0`, `ffff::/16`) without `IntervalEnd` wrap, timeout placed only on start element, pre-expanded IRR and `RawIntervals` CoPP passthrough | PASS |
+| `TestEncodeSetElementKeyRejectsCIDRAndWrongFamily` | `internal/plugins/firewall/nft/lower_linux_test.go` | `encodeSetElementKey` rejects IPv4/IPv6 CIDR strings and family-mismatched addresses (no silent mask strip, no `As4()`/`As16()` panic) | PASS |
+| `TestLowerTCPFlagsMatchEmitsL4ProtoGuard` | `internal/plugins/firewall/nft/lower_linux_test.go` | `lowerTCPFlagsMatch` emits `meta l4proto tcp` followed by transport-header offset-13 payload, bitwise mask, and compare | PASS |
+| `TestNftIntegration_IntervalCIDRSetAndTCPFlags` | `internal/plugins/firewall/nft/integration_linux_test.go` | Real Linux nftables accepts and reads back a `flags-interval` IPv4+IPv6 CIDR set (with adjacent prefixes, top-of-space prefix, and `flags-timeout` element timeout) and a `MatchTCPFlags` rule | PASS |
 
 ### Boundary Tests (numeric inputs)
 | Field | Range | Last Valid | Invalid Below | Invalid Above |
@@ -294,9 +294,9 @@ Work assigned to `plan/post-release/features/spec-firewall-dynamic-address-group
 ### Functional Tests
 | Test | Location | End-User Scenario | Status |
 |------|----------|-------------------|--------|
-| `firewall-set-interval-cidr` | `test/firewall/firewall-set-interval-cidr.ci` | Operator configures `flags-interval` IPv4 and IPv6 sets with CIDR prefixes and bare host addresses; `nft list table` displays the programmed prefix intervals | |
-| `firewall-tcp-flags` | `test/firewall/firewall-tcp-flags.ci` | Operator configures firewall terms with `from { tcp-flags syn; }` and `from { tcp-flags syn,ack; }`; `nft list table` displays `tcp flags` matches | |
-| `firewall-set-flags-validate` | `test/firewall/firewall-set-flags-validate.ci` | Operator runs `ze config validate` against CIDR without `flags-interval`, element `timeout` without `flags-timeout`, and contradictory `flags-constant` + `flags-dynamic`/`flags-timeout` (each refused with exit 1 and a clear fix), and starts `ze` with an invalid set config verifying the daemon stays up and logs `config-plugin-verify` with the fix instead of exiting 1 | |
+| `firewall-set-interval-cidr` | `test/firewall/firewall-set-interval-cidr.ci` | Operator configures `flags-interval` IPv4 and IPv6 sets with CIDR prefixes and bare host addresses; `nft list table` displays the programmed prefix intervals | PASS (80/80 under load) |
+| `firewall-tcp-flags` | `test/firewall/firewall-tcp-flags.ci` | Operator configures firewall terms with `from { tcp-flags syn; }` and `from { tcp-flags syn,ack; }`; `nft list table` displays `tcp flags` matches | PASS (80/80 under load) |
+| `firewall-set-flags-validate` | `test/firewall/firewall-set-flags-validate.ci` | Operator runs `ze config validate` against CIDR without `flags-interval`, element `timeout` without `flags-timeout`, and contradictory `flags-constant` + `flags-dynamic`/`flags-timeout` (each refused with exit 1 and a clear fix), and starts `ze` with an invalid set config verifying the daemon stays up and logs `config-plugin-verify` with the fix instead of exiting 1 | PASS (80/80 under load) |
 
 ### Interop Tests (Scope: protocol)
 N-A: Scope is `config` (local nftables/YANG configuration fidelity, no routing protocol wire exchange).
@@ -482,16 +482,6 @@ none
 - Packet-triggered runtime insertion into `flags-dynamic` sets (`expr.Dynset`) is deliberately out of scope and owned by `plan/post-release/features/spec-firewall-dynamic-address-group.md`.
 - Named sets remain kernel-only (VPP ACL verifier continues to reject all named sets at verify).
 
-## Review Gate
-
-### Run 1 (initial)
-| # | Severity | Finding | Location | Action |
-|---|----------|---------|----------|--------|
-
-### Final status
-- [ ] `/ze-review` re-run shows 0 BLOCKER, 0 ISSUE
-- [ ] All NOTEs recorded above (or explicitly "none")
-
 ## Checklist
 
 ### Pre-Spec Verification (before the design is presented)
@@ -533,3 +523,177 @@ none
 - [ ] Any lesson routed to its governing surface under `ai/rules/planning.md`; no lesson artifact created merely for closure
 - [ ] **Commit A:** code + tests + docs + edited spec + any journal rows owed by the work
 - [ ] **Commit B:** `remove plan/release/fixes/spec-firewall-dynamic-set-config-fidelity.md` only, in the same `./le commit create` script (commit A preserves the spec in history)
+
+---
+
+## Implementation Summary
+
+### What Was Implemented
+- Added `Set.RawIntervals` (`internal/component/firewall/model.go`) and preserved it in `deepCopyTables` (`internal/component/firewall/accessor.go`), marking CoPP's pre-expanded `neighborSet` with `RawIntervals: true` (`internal/plugins/copp/translate.go`) so a lone top-of-space CoPP range (`0.0.0.0/0`) is never treated as a bare `/32` host address.
+- Strengthened `Set.Validate()` (`internal/component/firewall/model.go` `validateFlags`, `validateElements`, `validatePreExpandedAddressElements`, `validateAddressElements`, `validateCIDRElement`, `validateAddrFamily`, `validateNoOverlappingIntervals`) to return `*opererr.Error` refusals for contradictory flags (`flags-constant` with `flags-dynamic` or `flags-timeout`), per-element `timeout` without `flags-timeout`, `IntervalEnd` without `flags-interval`, CIDR prefixes without `flags-interval`, non-canonical CIDR prefixes with host bits set, wrong-family/zoned/IPv4-in-IPv6 elements, and overlapping intervals.
+- Implemented `Ze always starts` startup isolation for firewall config failures: registered `config.RegisterServiceBlock(ConfigRoot, "firewall")` (`internal/component/firewall/register_producer_verify.go`) and extracted `configureAtStart` / `idleFirewallConfig` / `logStartConfigFailure` (`internal/component/firewall/engine.go`) so parse or validation failures at `ze start` leave the firewall unstarted (idle `activeCfg`, zero partial/approximated tables applied), log an `ERROR` record carrying `code=config-plugin-verify` (`diagnostic.CodeConfigPluginVerify`) and the `opererr` fix, and return `nil`, while `VerifyConfig`, commit, reload (`OnConfigVerify`), and `ze doctor` (`config.ValidateSemantics`) remain strictly refusing/reporting under `config-plugin-verify`.
+- Declared `typedef tcp-flags` and `leaf tcp-flags` (without `ze:backend`, so both `kernel` and `vpp` accept it) in `grouping from-block` of `internal/component/firewall/yang/ze-firewall-conf.yang`, updated set-flag and `element/timeout` YANG descriptions, exported `TCPFlagNames()` (`internal/component/firewall/config.go`), and added `TestTCPFlagsYANGPatternMatchesGo` (`internal/component/firewall/yang/tcp_flags_test.go`).
+- Updated `lowerSet` (`shouldExpandAddressIntervals`, `lowerAddressIntervalElements`, `parseIntervalElement`, `validateSetAddrFamily`, `lastPrefixAddr`, `addrKeyBytes`), `encodeSetElementKey`, and `lowerTCPFlagsMatch` (`internal/plugins/firewall/nft/lower_linux.go`) to expand unexpanded IPv4/IPv6 `flags-interval` sets to numerically sorted half-open `[start, exclusiveEnd)` nftables elements with `IntervalEnd: true` (omitting `IntervalEnd` at top of space, attaching `Timeout` only on start elements, passing pre-expanded `copp`/`irr` sets through unchanged), refuse CIDR and family mismatches in `encodeSetElementKey` before `As4()`/`As16()`, and prepend `meta l4proto tcp` in `lowerTCPFlagsMatch`.
+- Registered table snapshot fixtures (`firewall/firewall-set-interval-cidr`, `firewall/firewall-tcp-flags`) in `internal/test/fixture/netfilter_fixture.go` and promoted three functional `.ci` tests (`test/firewall/firewall-set-interval-cidr.ci`, `test/firewall/firewall-tcp-flags.ci`, `test/firewall/firewall-set-flags-validate.ci`) after 80/80 stress-repro under load.
+- Updated both owned journal rows (`plan/journal/validated-value-discarded-by-its-caller.md` 2026-11-07 and `plan/journal/unwired-feature.md` 2026-11-07) to `fixed:`, cleared citations in `plan/post-release/features/spec-firewall-dynamic-address-group.md`, and wrote `website/changes/fragments/firewall-dynamic-set-config-fidelity.md`.
+
+### Bugs Found/Fixed
+- `deepCopyTables` (`internal/component/firewall/accessor.go:90`) copied `Set` field-by-field and would have dropped `Set.RawIntervals` in `LastApplied()` snapshots; fixed to copy `RawIntervals: s.RawIntervals`.
+- `encodeSetElementKey` (`internal/plugins/firewall/nft/lower_linux.go`) previously stripped CIDR masks and called `As4()`/`As16()` without checking address family; fixed and covered by `TestEncodeSetElementKeyRejectsCIDRAndWrongFamily`.
+
+### Documentation Updates
+- `docs/guide/firewall.md`: added `### TCP Flags` (anchors `ze-firewall-conf.yang -- typedef tcp-flags, leaf tcp-flags`, `config.go -- ParseTCPFlags, parseFromBlock`, `lower_linux.go -- lowerTCPFlagsMatch`, `vpp/translate.go -- applyMatch`) and updated `## Named Sets` to add `flags-timeout;`, add a `flags-interval` CIDR example, document verify-time set-flag/element rules, and document `Ze always starts` (`config-plugin-verify`) (anchors `ze-firewall-conf.yang -- list set, flags-interval, flags-timeout`, `lower_linux.go -- lowerSet, lowerAddressIntervalElements`, `model.go -- Set.Validate, validateFlags, validateElements, validateCIDRElement, validateNoOverlappingIntervals`, `engine.go -- configureAtStart, VerifyConfig`).
+- `docs/guide/migrating-from-vyos.md`: replaced the conditional one-term-per-prefix `network-group` workaround with `set ... flags-interval` (`equivalent`), removed the defect paragraph and interim-rewrite entry citing this spec, and updated the stale `tcp-flags` note (anchors `lower_linux.go -- lowerSet, lowerAddressIntervalElements`, `model.go -- Set.Validate`, `ze-firewall-conf.yang -- leaf tcp-flags, tcp-mss-set, tcp-mss-clamp-to-pmtu`).
+- `./le doc check all`: 0 errors on all firewall/copp/VyOS-guide pages and source anchors (34 pre-existing anchor errors and 2 unrelated checks belong to other sessions' BGP/fleet/policy files). `./le doc ste check` on `docs/guide/firewall.md` and `docs/guide/migrating-from-vyos.md`: OK (0 errors).
+
+### Deviations from Plan
+- Modified `internal/component/firewall/accessor.go` (`deepCopyTables` preserves `RawIntervals`) — not listed in original Files to Modify; caught during Phase 1 wiring audit so `LastApplied()` keeps `RawIntervals`.
+- Modified `internal/plugins/copp/translate_test.go` (added `RawIntervals` assertion in `TestTranslatePolicyNeighborSetIntervals` and added `TestTranslatePolicyLoneTopOfSpaceNeighborSet`) — extra regression coverage for R-1 beyond the original Files to Modify list.
+- `internal/component/firewall/yang/embed.go` and `register.go` needed no changes after `./le yang glue check` (already embed `ze-firewall-conf.yang` via `//go:embed`).
+
+## Mistake Log
+
+| Kind | What happened | What was true instead | How discovered | Action |
+|------|---------------|----------------------|----------------|--------|
+| none | | | | |
+
+## Implementation Audit
+
+### Requirements from Task
+| Requirement | Status | Location | Notes |
+|-------------|--------|----------|-------|
+| 1. Lower IPv4/IPv6 CIDR prefixes and bare hosts in `flags-interval` sets to sorted half-open `[start, exclusiveEnd)` with `IntervalEnd`, refuse CIDR without `flags-interval`, update VyOS migration guide | Done | `internal/plugins/firewall/nft/lower_linux.go` (`lowerSet`, `shouldExpandAddressIntervals`, `lowerAddressIntervalElements`, `encodeSetElementKey`), `internal/component/firewall/model.go` (`Set.Validate`), `docs/guide/migrating-from-vyos.md` | Preserves pre-expanded `copp`/`irr` sets via `Set.RawIntervals`/`hasIntervalEnd` |
+| 2. Declare `typedef tcp-flags` and `leaf tcp-flags` in `ze-firewall-conf.yang` `grouping from-block` with YANG-to-Go parity test, and add `meta l4proto tcp` guard in `lowerTCPFlagsMatch` | Done | `internal/component/firewall/yang/ze-firewall-conf.yang`, `internal/component/firewall/config.go` (`TCPFlagNames`), `internal/component/firewall/yang/tcp_flags_test.go`, `internal/plugins/firewall/nft/lower_linux.go` (`lowerTCPFlagsMatch`) | No `ze:backend` annotation so both `kernel` and `vpp` accept it |
+| 3. Enforce verify-time set-flag and element validation in `Set.Validate()` with `Ze always starts` startup isolation in `OnConfigure` and `config.RegisterServiceBlock` | Done | `internal/component/firewall/model.go` (`Set.Validate`), `internal/component/firewall/engine.go` (`configureAtStart`, `idleFirewallConfig`, `logStartConfigFailure`), `internal/component/firewall/register_producer_verify.go` | Validate/commit/reload strictly refuse; `ze start` leaves firewall down and logs `ERROR` under `code=config-plugin-verify` matching `ze doctor` |
+
+### Acceptance Criteria
+| AC ID | Status | Demonstrated By | Notes |
+|-------|--------|-----------------|-------|
+| AC-1 | Done | `TestLowerSetIntervalCIDRExpansion`, `TestNftIntegration_IntervalCIDRSetAndTCPFlags`, `test/firewall/firewall-set-interval-cidr.ci` | Verified against real Linux nftables (`nft list table` displays `192.0.2.0/24`, `198.51.100.1`, `2001:db8::/32`); `copp` and `irr` preserved |
+| AC-2 | Done | `TestSetValidateFlagsAndElements`, `TestEncodeSetElementKeyRejectsCIDRAndWrongFamily`, `TestConfigureAtStartLeavesFirewallDownAndLogsDoctorCode`, `test/firewall/firewall-set-flags-validate.ci` | Rejects CIDR without `flags-interval`, host bits set, wrong family/zone/IPv4-in-IPv6, overlapping intervals; leaves firewall down at `ze start` under `config-plugin-verify` |
+| AC-3 | Done | `TestSetValidateFlagsAndElements`, `TestConfigureAtStartLeavesFirewallDownAndLogsDoctorCode`, `test/firewall/firewall-set-flags-validate.ci`, `test/firewall/firewall-set-element-timeout.ci` | Rejects `flags-constant` + `flags-dynamic`/`flags-timeout` and element `timeout` without `flags-timeout`; preserves valid combinations and direct `lowerSet` unit tests |
+| AC-4 | Done | `TestTCPFlagsYANGPatternMatchesGo`, `TestLowerTCPFlagsMatchEmitsL4ProtoGuard`, `TestNftIntegration_IntervalCIDRSetAndTCPFlags`, `test/firewall/firewall-tcp-flags.ci`, `test/policy/policy-tcp-flags.ci` | `nft list table` shows `tcp flags` without `@th`; `arp` refusal preserved by `validate.go` `ipHeaderMatchLeaf` |
+| AC-5 | Done | `docs/guide/firewall.md`, `docs/guide/migrating-from-vyos.md`, `internal/component/firewall/yang/ze-firewall-conf.yang`, `./le doc ste check`, `./le doc check all`, `./le yang glue check`, `./le config claims` | All doc claims anchored to producing symbols and STE clean |
+
+### Tests from TDD Plan
+| Test | Status | Location | Notes |
+|------|--------|----------|-------|
+| `TestSetValidateFlagsAndElements` | Done | `internal/component/firewall/model_test.go` | PASS (`./le test unit pkg path ./internal/component/firewall/`) |
+| `TestConfigureAtStartLeavesFirewallDownAndLogsDoctorCode` | Done | `internal/component/firewall/engine_test.go` | PASS (`./le test unit pkg path ./internal/component/firewall/`) |
+| `TestTCPFlagsYANGPatternMatchesGo` | Done | `internal/component/firewall/yang/tcp_flags_test.go` | PASS (`./le test unit pkg path ./internal/component/firewall/yang/ run TestTCPFlagsYANGPatternMatchesGo`) |
+| `TestLowerSetIntervalCIDRExpansion` | Done | `internal/plugins/firewall/nft/lower_linux_test.go` | PASS (`./le test unit pkg path ./internal/plugins/firewall/nft/`) |
+| `TestEncodeSetElementKeyRejectsCIDRAndWrongFamily` | Done | `internal/plugins/firewall/nft/lower_linux_test.go` | PASS (`./le test unit pkg path ./internal/plugins/firewall/nft/`) |
+| `TestLowerTCPFlagsMatchEmitsL4ProtoGuard` | Done | `internal/plugins/firewall/nft/lower_linux_test.go` | PASS (`./le test unit pkg path ./internal/plugins/firewall/nft/`) |
+| `TestNftIntegration_IntervalCIDRSetAndTCPFlags` | Done | `internal/plugins/firewall/nft/integration_linux_test.go` | PASS against real Linux kernel nftables (19.5s) |
+| `firewall-set-interval-cidr` | Done | `test/firewall/firewall-set-interval-cidr.ci` | PASS (699ms, 80/80 under load) |
+| `firewall-tcp-flags` | Done | `test/firewall/firewall-tcp-flags.ci` | PASS (714ms, 80/80 under load) |
+| `firewall-set-flags-validate` | Done | `test/firewall/firewall-set-flags-validate.ci` | PASS (2.4s, 80/80 under load) |
+
+### Files from Plan
+| File | Status | Notes |
+|------|--------|-------|
+| `internal/component/firewall/model.go` | Done | Added `RawIntervals` and full `Set.Validate()` checks |
+| `internal/component/firewall/engine.go` | Done | Extracted `configureAtStart`, `idleFirewallConfig`, `logStartConfigFailure` |
+| `internal/component/firewall/register_producer_verify.go` | Done | Registered `config.RegisterServiceBlock(ConfigRoot, "firewall")` |
+| `internal/component/firewall/config.go` | Done | Exported `TCPFlagNames()` + enumeration gate marker |
+| `internal/component/firewall/accessor.go` | Done (added) | `deepCopyTables` copies `RawIntervals` |
+| `internal/component/firewall/yang/ze-firewall-conf.yang` | Done | Added `typedef tcp-flags`, `leaf tcp-flags`, updated set-flag/element descriptions |
+| `internal/component/firewall/yang/tcp_flags_test.go` | Done | Created YANG-to-Go parity test |
+| `internal/component/firewall/model_test.go` | Done | Added `TestSetValidateFlagsAndElements` |
+| `internal/component/firewall/engine_test.go` | Done | Added `TestConfigureAtStartLeavesFirewallDownAndLogsDoctorCode` |
+| `internal/plugins/copp/translate.go` | Done | Set `RawIntervals: true` on `neighborSet` |
+| `internal/plugins/copp/translate_test.go` | Done (added) | Added `RawIntervals` assertion + `TestTranslatePolicyLoneTopOfSpaceNeighborSet` |
+| `internal/plugins/firewall/nft/lower_linux.go` | Done | Interval CIDR expansion in `lowerSet`, fail-closed `encodeSetElementKey`, `meta l4proto tcp` in `lowerTCPFlagsMatch` |
+| `internal/plugins/firewall/nft/lower_linux_test.go` | Done | Added 3 unit test suites |
+| `internal/plugins/firewall/nft/integration_linux_test.go` | Done | Added `TestNftIntegration_IntervalCIDRSetAndTCPFlags` |
+| `internal/test/fixture/netfilter_fixture.go` | Done | Registered `firewall-set-interval-cidr` and `firewall-tcp-flags` snapshot fixtures |
+| `test/firewall/firewall-set-interval-cidr.ci` | Done | Created and promoted after 80/80 stress-repro |
+| `test/firewall/firewall-tcp-flags.ci` | Done | Created and promoted after 80/80 stress-repro |
+| `test/firewall/firewall-set-flags-validate.ci` | Done | Created and promoted after 80/80 stress-repro |
+| `docs/guide/firewall.md` | Done | Added TCP Flags section, updated Named Sets examples and validation/startup docs |
+| `docs/guide/migrating-from-vyos.md` | Done | Replaced `network-group` workaround, updated stale `tcp-flags` note |
+
+### Audit Summary
+- **Total items:** 28 (3 Task requirements, 5 ACs, 10 TDD tests, 10+ planned/supporting files)
+- **Done:** 28
+- **Partial:** 0
+- **Skipped:** 0
+- **Changed:** 2 (added `accessor.go` `deepCopyTables` preservation of `RawIntervals` and `copp/translate_test.go` R-1 regression test; recorded in Deviations)
+
+## Goal Validation (BLOCKING)
+
+| Goal (from Task) | Evidence Type | Concrete Evidence |
+|------------------|---------------|-------------------|
+| 1. Lower IPv4 and IPv6 CIDR prefixes and bare host addresses in `flags-interval` sets to sorted half-open `[start, exclusiveEnd)` intervals with `IntervalEnd`, refuse CIDR without `flags-interval`, and drop the VyOS workaround | functional + kernel integration | `test/firewall/firewall-set-interval-cidr.ci` PASS (699ms, 80/80 under load; real `nft list table` displays `192.0.2.0/24`, `198.51.100.1`, `2001:db8::/32`), `TestNftIntegration_IntervalCIDRSetAndTCPFlags` PASS (real kernel readback incl. adjacent + top-of-space + timeout), `test/firewall/firewall-set-flags-validate.ci` PASS (refuses CIDR without `flags-interval`), `docs/guide/migrating-from-vyos.md` updated |
+| 2. Declare `typedef tcp-flags` and `leaf tcp-flags` in `ze-firewall-conf.yang` `from-block` with YANG-to-Go parity and `meta l4proto tcp` guard in `lowerTCPFlagsMatch` | functional + kernel integration + unit | `TestTCPFlagsYANGPatternMatchesGo` PASS, `TestLowerTCPFlagsMatchEmitsL4ProtoGuard` PASS, `TestNftIntegration_IntervalCIDRSetAndTCPFlags` PASS (`requireTCPFlagsRuleGuarded`), `test/firewall/firewall-tcp-flags.ci` PASS (714ms, 80/80 under load; `tcp flags`, `syn`, `ack`, no `@th`), `test/policy/policy-tcp-flags.ci` PASS (671ms) |
+| 3. Enforce verify-time set-flag and element validation in `Set.Validate()` with `Ze always starts` startup isolation under `code=config-plugin-verify` | functional + unit | `TestSetValidateFlagsAndElements` PASS, `TestConfigureAtStartLeavesFirewallDownAndLogsDoctorCode` PASS (`configureAtStart` returns `nil`, applies 0 tables, logs `ERROR` with `code=config-plugin-verify` and fix; `VerifyConfig`, reload, and `config.ValidateSemantics` refuse/report), `test/firewall/firewall-set-flags-validate.ci` PASS (2.4s, 80/80 under load; 4 `ze config validate` exit-1 refusals + `ze -` exit-0 boot logging `code=config-plugin-verify`) |
+
+## Work Not Done
+
+| What was not done | Why | The spec that now owns it |
+|-------------------|-----|---------------------------|
+| Packet-triggered dynamic set insertion (`expr.Dynset`), action validation, and action-inserted entry expiry | Split into post-release feature scope on 2026-10-22; explicitly out of scope for this release fix spec | `plan/post-release/features/spec-firewall-dynamic-address-group.md` |
+
+## Review Gate
+
+| Field | Value |
+|-------|-------|
+| Artifact | `tmp/review/firewall-dynamic-set-config-fidelity-5df1d1e6-ffed-4b7c-9294-8a109bfad051.md` |
+| `./le spec review check` | clean (18 code files pinned in artifact, verdict=clean, rounds=2) |
+| Rounds | 2 |
+| Reviewer lenses used | logic+wiring, security+edge-cases, design-docs+style, spec-completeness (`/ze-review` + `/ze-review-spec`) |
+
+### Findings fixed
+| # | Severity | Finding | Location | Fixed by |
+|---|----------|---------|----------|----------|
+| - | none | 0 BLOCKER, 0 ISSUE (2 NOTEs: NOTE-1 `./le repo check` reports `TCPFlagNames` at `internal/component/firewall/config.go:1237` as having no cross-package non-test caller — intentional per approved spec as the `enumeration: gated by internal/component/firewall/yang:TestTCPFlagsYANGPatternMatchesGo` parity helper; NOTE-2 tiny private `hasIntervalEnd`/`lastPrefixAddr` helpers exist in both `model.go` and `lower_linux.go` to keep internal helpers unexported across the component/backend boundary) | `internal/component/firewall/config.go:1237`, `internal/component/firewall/model.go`, `internal/plugins/firewall/nft/lower_linux.go` | none needed (NOTE-only; style pass run over all 13 changed Go files: zero peer-reachable panics, bounded loops, clean naming) |
+
+### Run 2 (post-gate style fixes)
+| Scope | Verdict | Findings | Checks |
+|-------|---------|----------|--------|
+| `internal/component/firewall/model.go` (`textbuf.Buffer` replacing 28 `fmt.Sprintf` calls; `SetTypeIPv4`/`SetTypeIPv6` guard replacing switch) and `internal/component/firewall/engine.go` (`refuse-by-default: guards runEngine` on `configureAtStart` boot-isolation branches and `guards OnConfigRollback` on nil journal) | CLEAN | 0 BLOCKER, 0 ISSUE (all `textbuf.Buffer` calls properly `Reset()` + `.String()` with no dangling slices or message drift; `SetType` check preserves `unknown(99)` diagnostic in `validateMatch`; annotations name callers) | `./le go style check` OK on both files; `./le arch refuse-by-default check` OK (0 refused); main-thread `./le test unit pkg path ./internal/component/firewall/` PASS and `./le go lint run scope ./internal/component/firewall/...` 0 issues |
+
+## Pre-Commit Verification
+
+### Files Exist (ls)
+| File | Exists | Evidence |
+|------|--------|----------|
+| `internal/component/firewall/yang/tcp_flags_test.go` | Yes | `-rw-r--r-- 1 thomas thomas 3688 Nov 27 04:16 internal/component/firewall/yang/tcp_flags_test.go` |
+| `test/firewall/firewall-set-interval-cidr.ci` | Yes | `-rw-r--r-- 1 thomas thomas 1870 Nov 27 04:14 test/firewall/firewall-set-interval-cidr.ci` |
+| `test/firewall/firewall-tcp-flags.ci` | Yes | `-rw-r--r-- 1 thomas thomas 1642 Nov 27 04:46 test/firewall/firewall-tcp-flags.ci` |
+| `test/firewall/firewall-set-flags-validate.ci` | Yes | `-rw-r--r-- 1 thomas thomas 2773 Nov 27 05:42 test/firewall/firewall-set-flags-validate.ci` |
+| `website/changes/fragments/firewall-dynamic-set-config-fidelity.md` | Yes | `-rw-r--r-- 1 thomas thomas 2576 Nov 27 07:00 website/changes/fragments/firewall-dynamic-set-config-fidelity.md` |
+
+### AC Verified (grep/test)
+| AC ID | Claim | Fresh Evidence |
+|-------|-------|----------------|
+| AC-1 | `flags-interval` IPv4/IPv6 CIDR + bare host lowering with sorted `[start, exclusiveEnd)` and `IntervalEnd`, preserving `copp`/`irr` | `internal/plugins/firewall/nft/lower_linux.go` (`lowerSet`, `shouldExpandAddressIntervals`, `lowerAddressIntervalElements`), `internal/plugins/copp/translate.go` (`neighborSet` `RawIntervals: true`); main-thread verified `TestLowerSetIntervalCIDRExpansion`, `TestNftIntegration_IntervalCIDRSetAndTCPFlags`, `firewall-set-interval-cidr.ci` PASS (699ms, 80/80) |
+| AC-2 | Refusal of CIDR without `flags-interval`, host bits set, wrong family/zone/IPv4-in-IPv6, overlapping intervals + `Ze always starts` boot isolation + fail-closed `encodeSetElementKey` | `internal/component/firewall/model.go` (`Set.Validate`, `validateAddressElements`, `validateCIDRElement`, `validateAddrFamily`, `validateNoOverlappingIntervals`), `engine.go` (`configureAtStart`), `lower_linux.go` (`encodeSetElementKey`); main-thread verified `TestSetValidateFlagsAndElements`, `TestEncodeSetElementKeyRejectsCIDRAndWrongFamily`, `TestConfigureAtStartLeavesFirewallDownAndLogsDoctorCode`, `firewall-set-flags-validate.ci` PASS (2.4s, 80/80) |
+| AC-3 | Refusal of `flags-constant` with `flags-dynamic`/`flags-timeout` and element `timeout` without `flags-timeout` + `Ze always starts` boot isolation | `internal/component/firewall/model.go` (`validateFlags`, `validateElements`), `engine.go` (`configureAtStart`, `logStartConfigFailure`); main-thread verified `TestSetValidateFlagsAndElements`, `TestConfigureAtStartLeavesFirewallDownAndLogsDoctorCode`, `firewall-set-flags-validate.ci` PASS, `firewall-set-element-timeout.ci` PASS (639ms) |
+| AC-4 | `typedef tcp-flags` + `leaf tcp-flags` in `from-block` without `ze:backend` + `meta l4proto tcp` guard in `lowerTCPFlagsMatch` | `internal/component/firewall/yang/ze-firewall-conf.yang` (`leaf tcp-flags`), `lower_linux.go` (`lowerTCPFlagsMatch`), `validate.go` (`ipHeaderMatchLeaf`); main-thread verified `TestTCPFlagsYANGPatternMatchesGo`, `TestLowerTCPFlagsMatchEmitsL4ProtoGuard`, `TestNftIntegration_IntervalCIDRSetAndTCPFlags`, `firewall-tcp-flags.ci` PASS (714ms, 80/80), `policy-tcp-flags.ci` PASS (671ms) |
+| AC-5 | `docs/guide/firewall.md`, `docs/guide/migrating-from-vyos.md`, and YANG descriptions match enforced behavior | Read both doc diffs and `ze-firewall-conf.yang`; `./le doc ste check` OK (0 errors); `./le doc check all` 0 errors on firewall/copp/VyOS docs; `./le yang glue check` and `./le config claims` PASS |
+
+### Wiring Verified (end-to-end)
+| Entry Point | .ci File | Verified |
+|-------------|----------|----------|
+| `flags-interval` IPv4/IPv6 CIDR + bare host set via `ze -` -> kernel nftables | `test/firewall/firewall-set-interval-cidr.ci` | Yes (read file: runs `ze -`, fixture `firewall/firewall-set-interval-cidr` asserts `table inet ze_fw_cidr`, `flags interval`, `192.0.2.0/24`, `198.51.100.1`, `2001:db8::/32`; PASS 80/80) |
+| `from { tcp-flags syn; }` and `from { protocol tcp; tcp-flags syn,ack; }` via `ze -` -> kernel nftables | `test/firewall/firewall-tcp-flags.ci` | Yes (read file: runs `ze -`, fixture `firewall/firewall-tcp-flags` asserts `table inet ze_fw_tcpflags`, `tcp flags`, `syn`, `ack`, rejects `@th`; PASS 80/80) |
+| Invalid set flags/elements via `ze config validate` (4 refusal cases) and `ze -` boot (`Ze always starts`) | `test/firewall/firewall-set-flags-validate.ci` | Yes (read file: runs 4 `ze config validate -` exit-1 checks + `ze -` exit-0 awaiting `code=config-plugin-verify` and rejecting `firewall config applied` and `refusing to start`; PASS 80/80) |
+
+### Assumptions Resolved
+| ID | Final Status | Evidence |
+|----|--------------|----------|
+| A-1 | confirmed | `TestNftIntegration_IntervalCIDRSetAndTCPFlags` PASS against real Linux nftables with adjacent `192.0.2.0/25` + `192.0.2.128/25` and trailing top-of-space `255.255.255.0/24` and `ffff::/16` (no `IntervalEnd` wrap) |
+| A-2 | confirmed | `TestNftIntegration_IntervalCIDRSetAndTCPFlags` PASS against real Linux nftables with `SetFlagInterval|SetFlagTimeout` and `Timeout: 3600` / `600` on start elements and `Timeout: 0` on every `IntervalEnd` element |
+| A-3 | confirmed | `test/policy/policy-tcp-flags.ci` PASS (671ms in Linux userns) and `test/firewall/firewall-tcp-flags.ci` PASS (714ms, 80/80 under load) |
+| A-4 | confirmed | Grep across `test/` and `internal/component/firewall/` plus full `internal/component/firewall/`, `internal/plugins/copp/`, `internal/plugins/firewall/nft/`, and `test/firewall/` test runs all PASS with zero fixture failures |
+
+### Documentation Verified
+| Documentation claim or category | Source evidence | Verified |
+|---------------------------------|-----------------|----------|
+| `docs/guide/firewall.md` (`### TCP Flags`, `## Named Sets`) | Anchored to `ze-firewall-conf.yang`, `config.go`, `lower_linux.go`, `vpp/translate.go`, `model.go`, `engine.go`; `./le doc ste check` OK (0 errors), `./le doc check all` 0 firewall errors | Yes |
+| `docs/guide/migrating-from-vyos.md` (`### Firewall and NAT`, `## Interim rewrites`, `### Conversion record`) | Anchored to `ze-firewall-conf.yang`, `lower_linux.go`, `model.go`; stale workaround and spec citation removed; `./le doc ste check` OK (0 errors) | Yes |
+| `internal/component/firewall/yang/ze-firewall-conf.yang` (`typedef tcp-flags`, `leaf tcp-flags`, `list set`) | Matches `ParseTCPFlags` / `Set.Validate` / `lowerSet`; `./le yang glue check` PASS, `./le config claims` PASS | Yes |
+| `plan/post-release/features/spec-firewall-dynamic-address-group.md` (citer cleanup) | `git grep spec-firewall-dynamic-set-config-fidelity plan/ docs/ test/ internal/` shows 0 remaining path citations outside this spec itself | Yes |
+| `website/changes/fragments/firewall-dynamic-set-config-fidelity.md` | Front matter (`spec: firewall-dynamic-set-config-fidelity`, `topic: Firewall`, `feature: firewall`, `found-by: review`) and all 6 fixed headings present | Yes |
+| All other `docs/` pages anchored to changed files (`core-design.md`, `cp-survival-2-copp-port179.md`, `firewall-irr.md`, `fw-6-firewall-vpp.md`, `table-ownership-and-shutdown-flush.md`, etc.) | Verified via `./le spec design documents` and `## Design documents` table: all `agrees` or `silent`, zero `departs`, zero stale source anchors | Yes |

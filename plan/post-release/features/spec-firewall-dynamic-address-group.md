@@ -38,16 +38,16 @@ The 2026-10-22 portfolio split changes planning ownership only. Status, existing
 | Work | Implementation owner |
 |------|----------------------|
 | Original AC-1 through AC-7, packet-triggered insertion, action validation and action-inserted entry expiry | `plan/post-release/features/spec-firewall-dynamic-address-group.md` |
-| Existing dynamic/timeout/constant flag parsing-to-apply fidelity, including `Dynamic`, `HasTimeout` and `Constant` lowering | `plan/release/fixes/spec-firewall-dynamic-set-config-fidelity.md` |
+| Existing dynamic/timeout/constant flag parsing-to-apply fidelity, including `Dynamic`, `HasTimeout` and `Constant` lowering | `spec-firewall-dynamic-set-config-fidelity` (closed) |
 
-Work assigned to `plan/release/fixes/spec-firewall-dynamic-set-config-fidelity.md` is not performed or closed by this spec. Implementation uses the original design constraints and evidence below only for this spec's owned behavior.
+Work assigned to `spec-firewall-dynamic-set-config-fidelity` is already closed and is not performed or closed by this spec. Implementation uses the original design constraints and evidence below only for this spec's owned behavior.
 
 ## Existing Mechanisms
 
 | Mechanism | Where (file + symbol, or page + section) | What it does today | This spec (extends, replaces, or does not apply, with the reason) |
 |-----------|------------------------------------------|--------------------|------------------------------------------------------------------|
 | Firewall rule action model and nftables lowering | `internal/component/firewall/model.go`, `internal/plugins/firewall/nft/lower_linux.go` (`lowerAction`) | Models rule actions and lowers each `firewall.Action` case into nftables rule expressions | Extends: adds a new add-to-group `Action` case in `lowerAction` that emits `expr.Dynset` for source or destination addresses |
-| Firewall named-set schema and kernel apply | `internal/component/firewall/yang/ze-firewall-conf.yang` (`list set`), `internal/plugins/firewall/nft/backend_linux.go` (`applySet`) | Declares named sets with `flags-dynamic`/`flags-timeout` containers and applies kernel `nftables.Set` definitions | Extends: validates dynamic/family compatibility against existing named sets (shared flag lowering fidelity is owned separately by `plan/release/fixes/spec-firewall-dynamic-set-config-fidelity.md`) |
+| Firewall named-set schema and kernel apply | `internal/component/firewall/yang/ze-firewall-conf.yang` (`list set`), `internal/plugins/firewall/nft/backend_linux.go` (`applySet`) | Declares named sets with `flags-dynamic`/`flags-timeout` containers and applies kernel `nftables.Set` definitions | Extends: validates dynamic/family compatibility against existing named sets (shared flag lowering fidelity was closed by `spec-firewall-dynamic-set-config-fidelity`) |
 
 ## Historical Combined Specification
 

@@ -2274,3 +2274,325 @@ func TestLowerIPv6HopLimitBelow(t *testing.T) {
 		t.Error("floor 0 lowered; want a refusal")
 	}
 }
+
+// VALIDATES: spec-firewall-dynamic-set-config-fidelity AC-1 -- operator-configured
+// IPv4 and IPv6 flags-interval sets expand canonical CIDR prefixes and bare host
+// addresses into numerically sorted half-open [start, exclusiveEnd) nftables
+// elements, omitting IntervalEnd at the top of the address space, placing Timeout
+// only on start elements, preserving pre-expanded IRR and RawIntervals CoPP sets,
+// and rejecting overlapping, non-canonical, or family-mismatched elements.
+// PREVENTS: encodeSetElementKey discarding CIDR prefix lengths, wrapped 0.0.0.0/::
+// IntervalEnd sentinels at top of address space, Timeout on IntervalEnd elements,
+// and CoPP lone top-of-space 0.0.0.0/0 narrowed to /32.
+func TestLowerSetIntervalCIDRExpansion(t *testing.T) {
+	table := &nftables.Table{Name: "ze_t", Family: nftables.TableFamilyINet}
+
+	addrBytes := func(s string) []byte {
+		a := netip.MustParseAddr(s)
+		if a.Is4() {
+			b := a.As4()
+			return b[:]
+		}
+		b := a.As16()
+		return b[:]
+	}
+
+	assertElems := func(t *testing.T, got, want []nftables.SetElement) {
+		t.Helper()
+		if len(got) != len(want) {
+			t.Fatalf("got %d elements, want %d:\n got: %+v\nwant: %+v", len(got), len(want), got, want)
+		}
+		for i := range want {
+			if !bytes.Equal(got[i].Key, want[i].Key) ||
+				got[i].IntervalEnd != want[i].IntervalEnd ||
+				got[i].Timeout != want[i].Timeout {
+				t.Errorf("elem[%d] = {Key:%x IntervalEnd:%v Timeout:%v}, want {Key:%x IntervalEnd:%v Timeout:%v}",
+					i, got[i].Key, got[i].IntervalEnd, got[i].Timeout,
+					want[i].Key, want[i].IntervalEnd, want[i].Timeout)
+			}
+		}
+	}
+
+	t.Run("ipv4 unsorted cidr and bare hosts sorted numerically", func(t *testing.T) {
+		s := &firewall.Set{
+			Name:  "nets_v4",
+			Type:  firewall.SetTypeIPv4,
+			Flags: firewall.SetFlagInterval,
+			Elements: []firewall.SetElement{
+				{Value: "198.51.100.1"},
+				{Value: "10.0.0.10"},
+				{Value: "10.0.0.2"},
+				{Value: "192.0.2.0/24"},
+			},
+		}
+		nftSet, elems, err := lowerSet(table, s)
+		if err != nil {
+			t.Fatalf("lowerSet: %v", err)
+		}
+		if !nftSet.Interval {
+			t.Fatal("Interval must be true")
+		}
+		assertElems(t, elems, []nftables.SetElement{
+			{Key: addrBytes("10.0.0.2")},
+			{Key: addrBytes("10.0.0.3"), IntervalEnd: true},
+			{Key: addrBytes("10.0.0.10")},
+			{Key: addrBytes("10.0.0.11"), IntervalEnd: true},
+			{Key: addrBytes("192.0.2.0")},
+			{Key: addrBytes("192.0.3.0"), IntervalEnd: true},
+			{Key: addrBytes("198.51.100.1")},
+			{Key: addrBytes("198.51.100.2"), IntervalEnd: true},
+		})
+	})
+
+	t.Run("ipv4 adjacent prefixes accepted without overlap", func(t *testing.T) {
+		s := &firewall.Set{
+			Name:  "adj_v4",
+			Type:  firewall.SetTypeIPv4,
+			Flags: firewall.SetFlagInterval,
+			Elements: []firewall.SetElement{
+				{Value: "192.0.2.128/25"},
+				{Value: "192.0.2.0/25"},
+			},
+		}
+		_, elems, err := lowerSet(table, s)
+		if err != nil {
+			t.Fatalf("lowerSet: %v", err)
+		}
+		assertElems(t, elems, []nftables.SetElement{
+			{Key: addrBytes("192.0.2.0")},
+			{Key: addrBytes("192.0.2.128"), IntervalEnd: true},
+			{Key: addrBytes("192.0.2.128")},
+			{Key: addrBytes("192.0.3.0"), IntervalEnd: true},
+		})
+	})
+
+	t.Run("ipv4 top-of-space 255.255.255.0/24 and 0.0.0.0/0 omit IntervalEnd", func(t *testing.T) {
+		s := &firewall.Set{
+			Name:  "top_v4",
+			Type:  firewall.SetTypeIPv4,
+			Flags: firewall.SetFlagInterval | firewall.SetFlagTimeout,
+			Elements: []firewall.SetElement{
+				{Value: "255.255.255.0/24", Timeout: 600},
+				{Value: "192.0.2.0/24", Timeout: 3600},
+			},
+		}
+		nftSet, elems, err := lowerSet(table, s)
+		if err != nil {
+			t.Fatalf("lowerSet: %v", err)
+		}
+		if !nftSet.HasTimeout {
+			t.Fatal("HasTimeout must be true")
+		}
+		assertElems(t, elems, []nftables.SetElement{
+			{Key: addrBytes("192.0.2.0"), Timeout: time.Hour},
+			{Key: addrBytes("192.0.3.0"), IntervalEnd: true},
+			{Key: addrBytes("255.255.255.0"), Timeout: 10 * time.Minute},
+		})
+
+		defaultSet := &firewall.Set{
+			Name:     "any_v4",
+			Type:     firewall.SetTypeIPv4,
+			Flags:    firewall.SetFlagInterval,
+			Elements: []firewall.SetElement{{Value: "0.0.0.0/0"}},
+		}
+		_, defElems, err := lowerSet(table, defaultSet)
+		if err != nil {
+			t.Fatalf("lowerSet(0.0.0.0/0): %v", err)
+		}
+		assertElems(t, defElems, []nftables.SetElement{
+			{Key: addrBytes("0.0.0.0")},
+		})
+	})
+
+	t.Run("ipv6 cidr bare host and top-of-space ffff::/16", func(t *testing.T) {
+		s := &firewall.Set{
+			Name:  "nets_v6",
+			Type:  firewall.SetTypeIPv6,
+			Flags: firewall.SetFlagInterval,
+			Elements: []firewall.SetElement{
+				{Value: "ffff::/16"},
+				{Value: "2001:db9::5"},
+				{Value: "2001:db8::/32"},
+			},
+		}
+		_, elems, err := lowerSet(table, s)
+		if err != nil {
+			t.Fatalf("lowerSet(v6): %v", err)
+		}
+		assertElems(t, elems, []nftables.SetElement{
+			{Key: addrBytes("2001:db8::")},
+			{Key: addrBytes("2001:db9::"), IntervalEnd: true},
+			{Key: addrBytes("2001:db9::5")},
+			{Key: addrBytes("2001:db9::6"), IntervalEnd: true},
+			{Key: addrBytes("ffff::")},
+		})
+	})
+
+	t.Run("pre-expanded IRR IntervalEnd set passes through verbatim", func(t *testing.T) {
+		s := &firewall.Set{
+			Name:  "irr_v4_as65001",
+			Type:  firewall.SetTypeIPv4,
+			Flags: firewall.SetFlagInterval,
+			Elements: []firewall.SetElement{
+				{Value: "192.0.2.0"},
+				{Value: "192.0.3.0", IntervalEnd: true},
+			},
+		}
+		_, elems, err := lowerSet(table, s)
+		if err != nil {
+			t.Fatalf("lowerSet(irr): %v", err)
+		}
+		assertElems(t, elems, []nftables.SetElement{
+			{Key: addrBytes("192.0.2.0")},
+			{Key: addrBytes("192.0.3.0"), IntervalEnd: true},
+		})
+	})
+
+	t.Run("pre-expanded CoPP RawIntervals lone 0.0.0.0 passes through verbatim", func(t *testing.T) {
+		s := &firewall.Set{
+			Name:         "bgp-neighbor-ipv4",
+			Type:         firewall.SetTypeIPv4,
+			Flags:        firewall.SetFlagInterval,
+			RawIntervals: true,
+			Elements:     []firewall.SetElement{{Value: "0.0.0.0"}},
+		}
+		_, elems, err := lowerSet(table, s)
+		if err != nil {
+			t.Fatalf("lowerSet(copp): %v", err)
+		}
+		assertElems(t, elems, []nftables.SetElement{
+			{Key: addrBytes("0.0.0.0")},
+		})
+	})
+
+	t.Run("rejects overlapping non-canonical and wrong-family elements", func(t *testing.T) {
+		badSets := []struct {
+			name string
+			set  *firewall.Set
+		}{
+			{
+				name: "overlapping ipv4",
+				set: &firewall.Set{
+					Name:     "overlap",
+					Type:     firewall.SetTypeIPv4,
+					Flags:    firewall.SetFlagInterval,
+					Elements: []firewall.SetElement{{Value: "10.0.0.0/24"}, {Value: "10.0.0.128/25"}},
+				},
+			},
+			{
+				name: "host bits set",
+				set: &firewall.Set{
+					Name:     "noncanon",
+					Type:     firewall.SetTypeIPv4,
+					Flags:    firewall.SetFlagInterval,
+					Elements: []firewall.SetElement{{Value: "192.0.2.5/24"}},
+				},
+			},
+			{
+				name: "ipv6 prefix in ipv4 set",
+				set: &firewall.Set{
+					Name:     "wrongfam4",
+					Type:     firewall.SetTypeIPv4,
+					Flags:    firewall.SetFlagInterval,
+					Elements: []firewall.SetElement{{Value: "2001:db8::/32"}},
+				},
+			},
+			{
+				name: "ipv4 prefix in ipv6 set",
+				set: &firewall.Set{
+					Name:     "wrongfam6",
+					Type:     firewall.SetTypeIPv6,
+					Flags:    firewall.SetFlagInterval,
+					Elements: []firewall.SetElement{{Value: "192.0.2.0/24"}},
+				},
+			},
+		}
+		for _, tc := range badSets {
+			if _, _, err := lowerSet(table, tc.set); err == nil {
+				t.Errorf("%s: lowerSet succeeded, want error", tc.name)
+			}
+		}
+	})
+}
+
+// VALIDATES: spec-firewall-dynamic-set-config-fidelity AC-2 -- encodeSetElementKey
+// refuses CIDR prefixes instead of stripping the mask and checks IPv4/IPv6 family
+// before calling As4()/As16().
+// PREVENTS: silent CIDR truncation on non-interval sets and netip.Addr.As4()/As16()
+// panics on IPv4/IPv6 mismatches.
+func TestEncodeSetElementKeyRejectsCIDRAndWrongFamily(t *testing.T) {
+	rejectCases := []struct {
+		name  string
+		typ   firewall.SetType
+		value string
+	}{
+		{"ipv4 cidr", firewall.SetTypeIPv4, "192.0.2.0/24"},
+		{"ipv6 cidr", firewall.SetTypeIPv6, "2001:db8::/32"},
+		{"ipv6 addr in ipv4 set", firewall.SetTypeIPv4, "2001:db8::1"},
+		{"ipv4-in-ipv6 addr in ipv4 set", firewall.SetTypeIPv4, "::ffff:192.0.2.1"},
+		{"ipv4 addr in ipv6 set", firewall.SetTypeIPv6, "192.0.2.1"},
+		{"ipv4-in-ipv6 addr in ipv6 set", firewall.SetTypeIPv6, "::ffff:192.0.2.1"},
+		{"zoned ipv6 addr in ipv6 set", firewall.SetTypeIPv6, "fe80::1%eth0"},
+	}
+	for _, tc := range rejectCases {
+		if got, err := encodeSetElementKey(tc.typ, tc.value); err == nil {
+			t.Errorf("%s: encodeSetElementKey(%v, %q) = %x, want error", tc.name, tc.typ, tc.value, got)
+		}
+	}
+
+	gotV4, err := encodeSetElementKey(firewall.SetTypeIPv4, "192.0.2.1")
+	if err != nil || !bytes.Equal(gotV4, []byte{192, 0, 2, 1}) {
+		t.Fatalf("bare ipv4 encode = (%x, %v), want ([c0 00 02 01], nil)", gotV4, err)
+	}
+	wantV6 := netip.MustParseAddr("2001:db8::1").As16()
+	gotV6, err := encodeSetElementKey(firewall.SetTypeIPv6, "2001:db8::1")
+	if err != nil || !bytes.Equal(gotV6, wantV6[:]) {
+		t.Fatalf("bare ipv6 encode = (%x, %v), want (%x, nil)", gotV6, err, wantV6)
+	}
+}
+
+// VALIDATES: spec-firewall-dynamic-set-config-fidelity AC-4 -- lowerTCPFlagsMatch
+// prepends a `meta l4proto tcp` dependency ahead of the transport-header byte-13
+// masked comparison so a term omitting `protocol tcp` only inspects TCP headers.
+// PREVENTS: a `from { tcp-flags syn; }` term reading byte 13 of UDP or ICMP
+// payloads as TCP flags.
+func TestLowerTCPFlagsMatchEmitsL4ProtoGuard(t *testing.T) {
+	cases := []struct {
+		name      string
+		match     firewall.MatchTCPFlags
+		wantFlags byte
+		wantMask  byte
+	}{
+		{
+			name:      "syn with explicit mask",
+			match:     firewall.MatchTCPFlags{Flags: firewall.TCPFlagSYN, Mask: firewall.TCPFlagSYN | firewall.TCPFlagACK},
+			wantFlags: byte(firewall.TCPFlagSYN),
+			wantMask:  byte(firewall.TCPFlagSYN | firewall.TCPFlagACK),
+		},
+		{
+			name:      "syn with zero mask defaults mask to flags",
+			match:     firewall.MatchTCPFlags{Flags: firewall.TCPFlagSYN},
+			wantFlags: byte(firewall.TCPFlagSYN),
+			wantMask:  byte(firewall.TCPFlagSYN),
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			got, err := lowerMatch(inetCtx(nil), tc.match)
+			if err != nil {
+				t.Fatalf("lowerMatch: %v", err)
+			}
+			want := []expr.Any{
+				&expr.Meta{Key: expr.MetaKeyL4PROTO, Register: 1},
+				&expr.Cmp{Op: expr.CmpOpEq, Register: 1, Data: []byte{unix.IPPROTO_TCP}},
+				&expr.Payload{DestRegister: 1, Base: expr.PayloadBaseTransportHeader, Offset: 13, Len: 1},
+				&expr.Bitwise{SourceRegister: 1, DestRegister: 1, Len: 1, Mask: []byte{tc.wantMask}, Xor: []byte{0}},
+				&expr.Cmp{Op: expr.CmpOpEq, Register: 1, Data: []byte{tc.wantFlags}},
+			}
+			if !reflect.DeepEqual(got, want) {
+				t.Fatalf("lowerMatch(TCPFlags) =\n got: %#v\nwant: %#v", got, want)
+			}
+		})
+	}
+}

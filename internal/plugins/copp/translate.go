@@ -207,10 +207,11 @@ func neighborChainTerms(rateLimit *coppRateLimit) []firewall.Term {
 // neighborSet builds one family's interval set of neighbor prefixes.
 func neighborSet(name string, setType firewall.SetType, prefixes []netip.Prefix) firewall.Set {
 	return firewall.Set{
-		Name:     name,
-		Type:     setType,
-		Flags:    firewall.SetFlagInterval,
-		Elements: intervalElements(outermostPrefixes(prefixes)),
+		Name:         name,
+		Type:         setType,
+		Flags:        firewall.SetFlagInterval,
+		RawIntervals: true,
+		Elements:     intervalElements(outermostPrefixes(prefixes)),
 	}
 }
 

@@ -39,8 +39,10 @@ func init() {
 	registerTableSnapshot("firewall/firewall-nat-exclude", "ip", "ze_fw8_014")
 	Register("firewall/firewall-reload", firewallReload)
 	Register("firewall/firewall-set-element-timeout", firewallSetElementTimeout)
+	registerTableSnapshot("firewall/firewall-set-interval-cidr", "inet", "ze_fw_cidr")
 	registerTableSnapshot("firewall/firewall-setdscp-inet", "inet", "ze_fw10_007")
 	registerTableSnapshot("firewall/firewall-snat-addr-range", "ip", "ze_fw10_011")
+	registerTableSnapshot("firewall/firewall-tcp-flags", "inet", "ze_fw_tcpflags")
 	registerTableSnapshot("firewall/firewall-tcp-mss-clamp-to-pmtu", "inet", "ze_mss_pmtu")
 	Register("firewall/flush-crash", func(ctx context.Context, _ []string) error {
 		return firewallPersist(ctx, "ze_fwcrash", syscall.SIGKILL, "CRASH")

@@ -32,6 +32,7 @@ import (
 	"errors"
 	"fmt"
 	"net/netip"
+	"slices"
 	"strconv"
 	"strings"
 	"time"
@@ -245,6 +246,16 @@ func lowerSetType(st firewall.SetType) (nftables.SetDatatype, error) {
 	}
 }
 
+// loweredInterval holds the inclusive address bounds and metadata of one
+// operator-configured IPv4 or IPv6 interval element before numeric sorting
+// and half-open [start, exclusiveEnd) emission.
+type loweredInterval struct {
+	first   netip.Addr
+	last    netip.Addr
+	timeout uint32
+	raw     string
+}
+
 // lowerSet translates a ze Set into the nftables.Set plus its elements,
 // ready for conn.AddSet. SetFlagTimeout MUST lower to HasTimeout: the
 // library emits NFTA_SET_ELEM_TIMEOUT for an element only when the parent
@@ -258,6 +269,13 @@ func lowerSetType(st firewall.SetType) (nftables.SetDatatype, error) {
 // A flag that is parsed, displayed and read back but never programmed is a
 // setting that does nothing and says nothing: the operator has no way to learn
 // that the kernel never received it.
+//
+// Operator-configured IPv4 and IPv6 `flags-interval` sets carry CIDR strings
+// and bare host addresses in Set.Elements so CLI and web views stay readable;
+// lowerSet expands them into numerically sorted half-open [start, exclusiveEnd)
+// elements with IntervalEnd. Pre-expanded interval sets from copp
+// (RawIntervals: true) and firewall-irr (carrying IntervalEnd markers) pass
+// through verbatim.
 func lowerSet(t *nftables.Table, s *firewall.Set) (*nftables.Set, []nftables.SetElement, error) {
 	keyType, err := lowerSetType(s.Type)
 	if err != nil {
@@ -271,6 +289,13 @@ func lowerSet(t *nftables.Table, s *firewall.Set) (*nftables.Set, []nftables.Set
 		HasTimeout: s.Flags&firewall.SetFlagTimeout != 0,
 		Constant:   s.Flags&firewall.SetFlagConstant != 0,
 		Dynamic:    s.Flags&firewall.SetFlagDynamic != 0,
+	}
+	if shouldExpandAddressIntervals(s) {
+		elements, err := lowerAddressIntervalElements(s.Type, s.Elements)
+		if err != nil {
+			return nil, nil, err
+		}
+		return nftSet, elements, nil
 	}
 	var elements []nftables.SetElement
 	for _, e := range s.Elements {
@@ -287,6 +312,162 @@ func lowerSet(t *nftables.Table, s *firewall.Set) (*nftables.Set, []nftables.Set
 		elements = append(elements, el)
 	}
 	return nftSet, elements, nil
+}
+
+// shouldExpandAddressIntervals reports whether lowerSet must expand CIDR
+// prefixes and bare host addresses into sorted half-open [start, exclusiveEnd)
+// elements. Pre-expanded sets from copp (RawIntervals: true) and firewall-irr
+// (carrying IntervalEnd markers) bypass expansion so their boundary pairs —
+// including a lone top-of-space range with no IntervalEnd — pass through
+// untouched.
+func shouldExpandAddressIntervals(s *firewall.Set) bool {
+	if s.Flags&firewall.SetFlagInterval == 0 {
+		return false
+	}
+	// Only IPv4 and IPv6 sets hold CIDR prefixes requiring half-open expansion.
+	//exhaustive:ignore
+	switch s.Type {
+	case firewall.SetTypeIPv4, firewall.SetTypeIPv6:
+	default:
+		return false
+	}
+	if s.RawIntervals {
+		return false
+	}
+	return !hasIntervalEnd(s.Elements)
+}
+
+func hasIntervalEnd(elems []firewall.SetElement) bool {
+	return slices.ContainsFunc(elems, func(e firewall.SetElement) bool {
+		return e.IntervalEnd
+	})
+}
+
+// lowerAddressIntervalElements expands operator-configured IPv4 or IPv6
+// interval elements (canonical CIDR prefixes and bare host addresses) into
+// numerically sorted half-open [start, exclusiveEnd) nftables elements.
+//
+// Per-element timeouts attach only to the interval start element: nftables
+// rejects NFTA_SET_ELEM_TIMEOUT on IntervalEnd markers. A prefix reaching the
+// top of its address space (255.255.255.255 or ffff:...:ffff) has no address
+// after it, so no IntervalEnd element is emitted — in nftables an unclosed
+// trailing start runs to the top of the key space.
+func lowerAddressIntervalElements(st firewall.SetType, elems []firewall.SetElement) ([]nftables.SetElement, error) {
+	if len(elems) == 0 {
+		return nil, nil
+	}
+	intervals := make([]loweredInterval, 0, len(elems))
+	for _, e := range elems {
+		first, last, err := parseIntervalElement(st, e.Value)
+		if err != nil {
+			return nil, fmt.Errorf("element %q: %w", e.Value, err)
+		}
+		intervals = append(intervals, loweredInterval{
+			first:   first,
+			last:    last,
+			timeout: e.Timeout,
+			raw:     e.Value,
+		})
+	}
+	slices.SortFunc(intervals, func(a, b loweredInterval) int {
+		if cmp := a.first.Compare(b.first); cmp != 0 {
+			return cmp
+		}
+		return a.last.Compare(b.last)
+	})
+	for i := 1; i < len(intervals); i++ {
+		prev := intervals[i-1]
+		curr := intervals[i]
+		if curr.first.Compare(prev.last) <= 0 {
+			return nil, fmt.Errorf("overlapping interval elements %q and %q", prev.raw, curr.raw)
+		}
+	}
+	out := make([]nftables.SetElement, 0, len(intervals)*2)
+	for _, iv := range intervals {
+		startEl := nftables.SetElement{Key: addrKeyBytes(iv.first)}
+		if iv.timeout != 0 {
+			startEl.Timeout = time.Duration(iv.timeout) * time.Second
+		}
+		out = append(out, startEl)
+		next := iv.last.Next()
+		if !next.IsValid() {
+			continue
+		}
+		out = append(out, nftables.SetElement{
+			Key:         addrKeyBytes(next),
+			IntervalEnd: true,
+		})
+	}
+	return out, nil
+}
+
+func parseIntervalElement(st firewall.SetType, value string) (netip.Addr, netip.Addr, error) {
+	if strings.Contains(value, "/") {
+		p, err := netip.ParsePrefix(value)
+		if err != nil {
+			return netip.Addr{}, netip.Addr{}, fmt.Errorf("invalid CIDR prefix %q: %w", value, err)
+		}
+		if err := validateSetAddrFamily(st, value, p.Addr()); err != nil {
+			return netip.Addr{}, netip.Addr{}, err
+		}
+		network := p.Masked()
+		if p != network {
+			return netip.Addr{}, netip.Addr{}, fmt.Errorf("CIDR prefix %q has host bits set (canonical: %s)", value, network)
+		}
+		return network.Addr(), lastPrefixAddr(network), nil
+	}
+	addr, err := netip.ParseAddr(value)
+	if err != nil {
+		return netip.Addr{}, netip.Addr{}, fmt.Errorf("invalid address %q: %w", value, err)
+	}
+	if err := validateSetAddrFamily(st, value, addr); err != nil {
+		return netip.Addr{}, netip.Addr{}, err
+	}
+	return addr, addr, nil
+}
+
+func validateSetAddrFamily(st firewall.SetType, value string, addr netip.Addr) error {
+	if addr.Zone() != "" {
+		return fmt.Errorf("address %q includes an IPv6 zone identifier", value)
+	}
+	if st == firewall.SetTypeIPv4 {
+		if !addr.Is4() {
+			return fmt.Errorf("address %q is not IPv4", value)
+		}
+		return nil
+	}
+	if !addr.Is6() {
+		return fmt.Errorf("address %q is not IPv6", value)
+	}
+	if addr.Is4In6() {
+		return fmt.Errorf("address %q is IPv4-mapped IPv6, not native IPv6", value)
+	}
+	return nil
+}
+
+func lastPrefixAddr(p netip.Prefix) netip.Addr {
+	p = p.Masked()
+	if p.Addr().Is4() {
+		b := p.Addr().As4()
+		for bit := p.Bits(); bit < 32; bit++ {
+			b[bit/8] |= 0x80 >> (bit % 8)
+		}
+		return netip.AddrFrom4(b)
+	}
+	b := p.Addr().As16()
+	for bit := p.Bits(); bit < 128; bit++ {
+		b[bit/8] |= 0x80 >> (bit % 8)
+	}
+	return netip.AddrFrom16(b)
+}
+
+func addrKeyBytes(addr netip.Addr) []byte {
+	if addr.Is4() {
+		b := addr.As4()
+		return b[:]
+	}
+	b := addr.As16()
+	return b[:]
 }
 
 // lowerCtx carries the nftables Conn + parent Table to helpers that need to
@@ -1456,12 +1637,17 @@ func setDSCPv6(dscp uint8) []expr.Any {
 // lowerTCPFlagsMatch matches TCP header flags. TCP flags occupy byte 13
 // of the TCP header (offset from transport header base). The mask
 // selects which flag bits to inspect; the value specifies which of those
-// bits must be set. nftables equivalent: `tcp flags & <mask> == <flags>`.
+// bits must be set. A leading `meta l4proto tcp` dependency ensures a term
+// omitting `protocol tcp` inspects only TCP headers and never reads byte 13
+// of UDP or ICMP payloads. nftables equivalent:
+// `tcp flags & <mask> == <flags>`.
 func lowerTCPFlagsMatch(flags, mask firewall.TCPFlags) ([]expr.Any, error) {
 	if mask == 0 {
 		mask = flags
 	}
 	return []expr.Any{
+		&expr.Meta{Key: expr.MetaKeyL4PROTO, Register: 1},
+		&expr.Cmp{Op: expr.CmpOpEq, Register: 1, Data: []byte{unix.IPPROTO_TCP}},
 		&expr.Payload{
 			DestRegister: 1,
 			Base:         expr.PayloadBaseTransportHeader,
@@ -1813,26 +1999,28 @@ func maskedAddr(addr, mask []byte) []byte {
 func encodeSetElementKey(st firewall.SetType, value string) ([]byte, error) {
 	switch st {
 	case firewall.SetTypeIPv4:
-		// Value is an IPv4 address or prefix. Parse as addr (ignore prefix bits for element key).
+		if strings.Contains(value, "/") {
+			return nil, fmt.Errorf("CIDR prefix %q cannot be encoded as a single IPv4 address (requires an interval set)", value)
+		}
 		addr, err := netip.ParseAddr(value)
 		if err != nil {
-			// Try as prefix and use the address part.
-			p, perr := netip.ParsePrefix(value)
-			if perr != nil {
-				return nil, fmt.Errorf("invalid IPv4 address %q: %w", value, err)
-			}
-			addr = p.Addr()
+			return nil, fmt.Errorf("invalid IPv4 address %q: %w", value, err)
+		}
+		if err := validateSetAddrFamily(st, value, addr); err != nil {
+			return nil, err
 		}
 		b := addr.As4()
 		return b[:], nil
 	case firewall.SetTypeIPv6:
+		if strings.Contains(value, "/") {
+			return nil, fmt.Errorf("CIDR prefix %q cannot be encoded as a single IPv6 address (requires an interval set)", value)
+		}
 		addr, err := netip.ParseAddr(value)
 		if err != nil {
-			p, perr := netip.ParsePrefix(value)
-			if perr != nil {
-				return nil, fmt.Errorf("invalid IPv6 address %q: %w", value, err)
-			}
-			addr = p.Addr()
+			return nil, fmt.Errorf("invalid IPv6 address %q: %w", value, err)
+		}
+		if err := validateSetAddrFamily(st, value, addr); err != nil {
+			return nil, err
 		}
 		b := addr.As16()
 		return b[:], nil

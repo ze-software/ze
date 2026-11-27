@@ -175,7 +175,7 @@ lands, its row changes.
 | `default-log` | the final term of the chain carries `counter`, `log prefix "[<family>-<chain>-default-<A>]"` and the verdict of `default-action` (`drop`, `accept` or `reject`) in one `then` block | VyOS writes this rule itself; `<A>` is the first letter of the action in upper case. `log` does not decide the packet, so a term holding only `counter` and `log` lets it through to the chain policy, which never rejects | equivalent | - |
 | `firewall group address-group <g> address <a>` | `set <g> type ipv4` with one `element <a>` per address, in every table that names the group; the term writes `@<g>` | a set belongs to one table, so declare it in each table that uses it | equivalent | - |
 | `address-group` holding a range `<a>-<b>` | one element per address of the range | a set element in Ze config is one address | equivalent | - |
-| `firewall group network-group <g> network <p>` | one term per prefix, each with `source-address <p>` or `destination-address <p>` | do not use a set: Ze programs a prefix element as its bare address | conditional | firewall-dynamic-set-config-fidelity |
+| `firewall group network-group <g> network <p>` | `set <g> type ipv4` (or `ipv6`) with `flags-interval` and one `element <p>` per canonical prefix, in every table that names the group, and the term writes `@<g>` | Ze lowers each prefix to a sorted nftables half-open interval, matching VyOS's `flags interval` set. Declare the set in each table that uses it, and keep prefixes canonical and non-overlapping | equivalent | - |
 | `firewall group port-group <g> port <x>` | the ports inline in the term: `destination-port 22,80,8000-8080` | a Ze `inet-service` set element is one port, and the inline list also takes ranges | equivalent | - |
 | `firewall global-options all-ping`, `broadcast-ping`, `syn-cookies`, `receive-redirects`, `send-redirects`, `source-validation`, `log-martians`, `ipv6-receive-redirects`, `ipv6-src-route` | the same leaf under `firewall global-options` | | not read | - |
 | `firewall global-options ip-src-route disable` | `sysctl setting net.ipv4.conf.all.accept_source_route value 0` | Ze has no IPv4 source-route leaf | not read | - |
@@ -187,16 +187,10 @@ lands, its row changes.
 | `system conntrack modules nfs\|sqlnet` | none: dropped | no kernel module provides them and Ze has no user-space helper, so Ze refuses the names | behavior change | - |
 
 <!-- source: internal/component/firewall/yang/ze-firewall-conf.yang -- table family, chain type/hook/priority/policy, term, from-block, then-block, set, global-options -->
-<!-- source: internal/plugins/firewall/nft/lower_linux.go -- encodeSetElementKey -->
+<!-- source: internal/plugins/firewall/nft/lower_linux.go -- lowerSet, lowerAddressIntervalElements -->
+<!-- source: internal/component/firewall/model.go -- Set.Validate -->
 <!-- source: internal/component/sysctl/yang/ze-sysctl-conf.yang -- setting value -->
 <!-- source: internal/component/config/system/yang/ze-system-conf.yang -- conntrack module -->
-
-The network-group row is conditional because of a Ze defect. A Ze set accepts
-a prefix as an element and the set schema says it takes prefixes under
-`flags-interval`, but `encodeSetElementKey` keeps only the address, so
-`element 192.0.2.0/24` matches 192.0.2.0 alone. Until
-`spec-firewall-dynamic-set-config-fidelity` lands, write one term per prefix.
-<!-- source: internal/plugins/firewall/nft/lower_linux.go -- encodeSetElementKey -->
 
 #### Interface names in firewall rules
 
@@ -216,10 +210,11 @@ lands, check on the router that each converted ethernet name is also its
 kernel name (`ip link show <n>`).
 <!-- source: internal/plugins/firewall/nft/lower_linux.go -- lowerIfaceMatch -->
 
-The firewall YANG declares no `tcp-flags` leaf in a term's `from` block, so
-the conversion never writes one. An MSS clamp needs none: only a SYN carries
-the MSS option, and a packet without the option is not changed.
-<!-- source: internal/component/firewall/yang/ze-firewall-conf.yang -- tcp-mss-set, tcp-mss-clamp-to-pmtu -->
+A firewall term can match TCP header flags with `tcp-flags` in its `from`
+block, for example `tcp-flags syn;` or `tcp-flags syn,ack;`. An MSS clamp
+needs no `tcp-flags` match: only a SYN carries the MSS option, and a packet
+without the option is not changed.
+<!-- source: internal/component/firewall/yang/ze-firewall-conf.yang -- leaf tcp-flags, tcp-mss-set, tcp-mss-clamp-to-pmtu -->
 
 ### Services and VPN
 
@@ -350,7 +345,6 @@ its row here.
 | Rewrite | Removed by |
 |---------|------------|
 | a LAN numbered from the delegated prefix is not yet proven against a LAN host; check its /64 on the router | child 8 |
-| a network-group becomes one term per prefix, not a set | `spec-firewall-dynamic-set-config-fidelity`, the fix of the set element defect (`encodeSetElementKey`) |
 | a firewall, NAT or MSS rule names an ethernet by a name that must also be its kernel name | `spec-iface-resolution-across-the-plugin-boundary` |
 
 ## Worked example
@@ -572,7 +566,7 @@ system {
 |---|------|----|-------|------|
 | 10 | `set interfaces pppoe pppoe0 ip adjust-mss 'clamp-mss-to-pmtu'` | `firewall table wan-mss family inet chain mss term pppoe0-clamp then tcp-mss-clamp-to-pmtu` | conditional | one inet table, because the IPv6 value is the same; the condition holds, because Ze creates a `pppoe-client` device under its configured name |
 | 11 | `set interfaces pppoe pppoe0 ipv6 adjust-mss 'clamp-mss-to-pmtu'` | the same term as line 10 | conditional | the same condition as line 10 |
-| 31 | `set firewall group network-group TRUSTED network '192.0.2.0/24'` | `firewall table v4-input chain input term rule-20-a from source-address 192.0.2.0/24` | conditional | one term per prefix, not a set |
+| 31 | `set firewall group network-group TRUSTED network '192.0.2.0/24'` | `firewall table v4-input set TRUSTED type ipv4 flags-interval element 192.0.2.0/24` | equivalent | rule 20 matches `source-address @TRUSTED` |
 | 35 | `set firewall ipv4 input filter default-action 'drop'` | `firewall table v4-input chain input policy drop`; `term default-action then drop` | equivalent | |
 | 36 | `set firewall ipv4 input filter default-log` | `firewall table v4-input chain input term default-action then { counter; log prefix "[ipv4-input-default-D]"; drop; }` | equivalent | the same term as line 35 |
 | 50 | `set firewall ipv4 input filter rule 50 protocol 'all'` | none | equivalent | no `protocol` match |

@@ -227,6 +227,9 @@ func TestTranslatePolicyNeighborSetIntervals(t *testing.T) {
 		if set.Flags&firewall.SetFlagInterval == 0 {
 			t.Errorf("set %s has no interval flag; a range cannot be held", set.Name)
 		}
+		if !set.RawIntervals {
+			t.Errorf("set %s has RawIntervals=false; pre-expanded CoPP interval sets must set RawIntervals", set.Name)
+		}
 	}
 	got := setElementPrefixes(t, table.Sets)
 	want := []netip.Prefix{
@@ -238,6 +241,33 @@ func TestTranslatePolicyNeighborSetIntervals(t *testing.T) {
 	}
 	if !slices.Equal(got, want) {
 		t.Errorf("set prefixes = %v, want %v", got, want)
+	}
+}
+
+// VALIDATES: spec-firewall-dynamic-set-config-fidelity R-1 -- a lone
+// top-of-space CoPP neighbor prefix (`0.0.0.0/0`) emits one open-ended element
+// with `RawIntervals: true` and passes `firewall.ValidateTables` so lowering
+// never mistakes it for a bare `/32` host address.
+// PREVENTS: `0.0.0.0/0` neighbor group being narrowed to `0.0.0.0/32` or
+// rejected by `Set.Validate`.
+func TestTranslatePolicyLoneTopOfSpaceNeighborSet(t *testing.T) {
+	policy := limitedPolicy(overPolicyDrop)
+	policy.Neighbors = []netip.Prefix{netip.MustParsePrefix("0.0.0.0/0")}
+
+	table := translatePolicy(policy)
+	if err := firewall.ValidateTables([]firewall.Table{table}); err != nil {
+		t.Fatalf("ValidateTables refused lone top-of-space CoPP neighbor set: %v", err)
+	}
+	if len(table.Sets) != 1 {
+		t.Fatalf("sets len = %d, want 1", len(table.Sets))
+	}
+	set := table.Sets[0]
+	if !set.RawIntervals {
+		t.Errorf("set %s RawIntervals = false, want true", set.Name)
+	}
+	wantElems := []firewall.SetElement{{Value: "0.0.0.0"}}
+	if !slices.Equal(set.Elements, wantElems) {
+		t.Errorf("set %s elements = %+v, want %+v", set.Name, set.Elements, wantElems)
 	}
 }
 

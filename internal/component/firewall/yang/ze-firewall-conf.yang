@@ -92,6 +92,13 @@ module ze-firewall-conf {
         description "Comma-separated connection tracking states";
     }
 
+    typedef tcp-flags {
+        type string {
+            pattern '(fin|syn|rst|psh|ack|urg)(,(fin|syn|rst|psh|ack|urg))*';
+        }
+        description "Comma-separated TCP header flags (fin, syn, rst, psh, ack, urg)";
+    }
+
     typedef reject-type {
         type enumeration {
             enum icmp { ze:help "Answer with an ICMP destination unreachable message."; }
@@ -262,6 +269,15 @@ module ze-firewall-conf {
             description "ICMPv6 type. It accepts symbolic names from nftables, such as echo-request, nd-neighbor-solicit and
                 packet-too-big. It also accepts a numeric byte value 0..255.";
             ze:help "ICMPv6 type, as an nftables symbolic name or a byte value 0..255.";
+        }
+        leaf tcp-flags {
+            type tcp-flags;
+            description "Comma-separated TCP header flags that MUST be set in the packet (fin, syn, rst,
+                psh, ack, urg). Ze builds the mask from the same list, so flags omitted from the leaf
+                are not checked. The kernel backend guards the match with meta l4proto tcp so a term
+                omitting protocol tcp only inspects TCP headers. The vpp backend maps it to TCP ACL
+                flag masks. Valid in ip, ip6 and inet tables. Verify refuses it in arp tables.";
+            ze:help "Comma-separated TCP flags to match (fin, syn, rst, psh, ack, urg).";
         }
     }
 
@@ -892,41 +908,47 @@ module ze-firewall-conf {
 
                 container flags-interval {
                     presence "Enable interval ranges";
-                    description "Ze programs the kernel set with the interval flag. An element written in config
-                        still carries one value: Ze drops the length of a prefix written there and
-                        programs the bare address. The irr plugin is what fills an interval set with
-                        ranges today.";
+                    description "Ze programs the kernel set with the interval flag. For ipv4 and ipv6 sets,
+                        Ze expands canonical CIDR prefixes and bare host addresses into sorted
+                        half-open intervals in nftables. Verify refuses a CIDR prefix when this flag
+                        is absent, a prefix with host bits set, a wrong address family, or
+                        overlapping intervals.";
                     ze:help "Enable interval ranges";
                 }
 
                 container flags-timeout {
                     presence "Enable per-element timeouts";
-                    description "The flag MUST be set for a per-element timeout to reach the kernel. The netlink library
-                        writes the element timeout attribute only when the parent set carries
-                        the flag, so a timeout under a set without it is dropped on the way down.";
+                    description "Ze programs the kernel set with the timeout flag so elements can carry
+                        per-element timeouts. Verify refuses any element with a non-zero timeout when
+                        this flag is absent. Verify also refuses combining flags-timeout with
+                        flags-constant.";
                     ze:help "Enable per-element timeouts";
                 }
 
                 container flags-constant {
                     presence "Immutable after creation";
-                    description "Ze programs the kernel set with the constant flag. The elements of a ze set come
-                        from config, and Ze writes no rule that adds one at runtime.";
+                    description "Ze programs the kernel set with the constant flag so the kernel keeps the
+                        set immutable after creation. Verify refuses combining flags-constant with
+                        flags-dynamic or flags-timeout. The elements of a ze set come from config,
+                        and Ze writes no rule that adds one at runtime.";
                     ze:help "Immutable after creation";
                 }
 
                 container flags-dynamic {
                     presence "Dynamically populated";
-                    description "Ze programs the kernel set with the dynamic flag. Ze writes no rule that adds an
-                        element, so the elements still come from config.";
+                    description "Ze programs the kernel set with the dynamic flag. Verify refuses combining
+                        flags-dynamic with flags-constant. Ze writes no packet-triggered rule that
+                        adds an element today, so the elements still come from config.";
                     ze:help "Dynamically populated";
                 }
 
                 list element {
                     key "value";
                     ordered-by user;
-                    description "Static set elements. The value form is interpreted per set type. ipv4 and ipv6 accept addresses, or
-                        prefixes when flags-interval is set. inet-service accepts port numbers. mark accepts a numeric or
-                        0x-prefixed value. ether accepts aa:bb:cc:dd:ee:ff. ifname accepts an interface name.";
+                    description "Static set elements. The value form follows the set type. ipv4 and ipv6
+                        accept bare addresses, or canonical CIDR prefixes when flags-interval is set.
+                        inet-service accepts port numbers. mark accepts a numeric or 0x-prefixed
+                        value. ether accepts aa:bb:cc:dd:ee:ff. ifname accepts an interface name.";
                     ze:help "Static set elements, whose value form follows the set type.";
 
                     leaf value {
@@ -940,9 +962,10 @@ module ze-firewall-conf {
 
                     leaf timeout {
                         type uint32;
-                        description "The kernel deletes the element when the timeout runs out. The enclosing set
-                            MUST carry flags-timeout, and the timeout reaches the kernel only under that
-                            flag.";
+                        description "The kernel deletes the element when the timeout expires. The enclosing
+                            set MUST carry flags-timeout, and verify refuses a non-zero timeout when
+                            flags-timeout is absent. On a flags-interval set, Ze attaches the timeout
+                            to the interval start element.";
                         ze:help "Per-element timeout in seconds, where 0 means no timeout.";
                     }
                 }

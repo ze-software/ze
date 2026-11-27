@@ -1,0 +1,97 @@
+# Test: Does `ze config validate` refuse invalid firewall set flag/element
+# combinations while `ze start` stays up and logs `config-plugin-verify` with
+# the fix under `Ze always starts`?
+# QUESTION: does the installed `ze config validate` CLI refuse CIDR without
+# `flags-interval`, element `timeout` without `flags-timeout`, and
+# `flags-constant` combined with `flags-dynamic` or `flags-timeout` with exit 1
+# and an actionable fix, and does `ze -` booting an invalid firewall set config
+# keep running without exiting 1 while logging `code=config-plugin-verify`? A
+# unit test calls `VerifyConfig` and `configureAtStart` directly; only the real
+# `ze` binary proves CLI exit codes and boot-time service isolation end to end.
+# VALIDATES: spec-firewall-dynamic-set-config-fidelity AC-2, AC-3.
+# PREVENTS: invalid firewall set flags/elements slipping past offline
+# validation or crashing `ze start` on boot.
+
+stdin=cidr-no-interval:refused=config-plugin-verify:terminator=EOF_CIDR
+firewall {
+	backend kernel;
+	table wan {
+		family inet;
+		set hosts {
+			type ipv4;
+			element 192.0.2.0/24 {}
+		}
+	}
+}
+EOF_CIDR
+
+stdin=timeout-no-flag:refused=config-plugin-verify:terminator=EOF_TIMEOUT
+firewall {
+	backend kernel;
+	table wan {
+		family inet;
+		set blocked {
+			type ipv4;
+			element 10.0.0.1 { timeout 3600; }
+		}
+	}
+}
+EOF_TIMEOUT
+
+stdin=const-dynamic:refused=config-plugin-verify:terminator=EOF_CONST_DYN
+firewall {
+	backend kernel;
+	table wan {
+		family inet;
+		set conflicting {
+			type ipv4;
+			flags-constant;
+			flags-dynamic;
+		}
+	}
+}
+EOF_CONST_DYN
+
+stdin=const-timeout:refused=config-plugin-verify:terminator=EOF_CONST_TO
+firewall {
+	backend kernel;
+	table wan {
+		family inet;
+		set conflicting {
+			type ipv4;
+			flags-constant;
+			flags-timeout;
+		}
+	}
+}
+EOF_CONST_TO
+
+cmd=foreground:seq=1:exec=ze config validate -:stdin=cidr-no-interval
+expect=exit:code=1
+expect=stdout:contains=192.0.2.0/24
+expect=stdout:contains=flags-interval
+
+cmd=foreground:seq=2:exec=ze config validate -:stdin=timeout-no-flag
+expect=exit:code=1
+expect=stdout:contains=10.0.0.1
+expect=stdout:contains=flags-timeout
+
+cmd=foreground:seq=3:exec=ze config validate -:stdin=const-dynamic
+expect=exit:code=1
+expect=stdout:contains=flags-constant
+expect=stdout:contains=flags-dynamic
+
+cmd=foreground:seq=4:exec=ze config validate -:stdin=const-timeout
+expect=exit:code=1
+expect=stdout:contains=flags-constant
+expect=stdout:contains=flags-timeout
+
+option=env:var=ze.log.firewall:value=info
+
+cmd=foreground:seq=5:exec=ze -:stdin=timeout-no-flag:timeout=20s
+expect=exit:code=0
+await=stderr:contains=config-plugin-verify
+expect=stderr:contains=code=config-plugin-verify
+expect=stderr:contains=flags-timeout
+reject=stderr:contains=firewall config applied
+reject=stderr:contains=refusing to start

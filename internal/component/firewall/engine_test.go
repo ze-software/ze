@@ -4,11 +4,20 @@
 package firewall
 
 import (
+	"bytes"
+	"encoding/json"
+	"errors"
+	"log/slog"
+	"strings"
+	"sync/atomic"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/ze-software/ze/internal/component/config"
+	"github.com/ze-software/ze/internal/core/diagnostic"
+	"github.com/ze-software/ze/internal/core/opererr"
 	"github.com/ze-software/ze/pkg/plugin/sdk"
 )
 
@@ -181,4 +190,107 @@ func TestConfigureAcceptsIRRTableTermWithOneFamily(t *testing.T) {
 			assert.Equal(t, in.ProvidedType, got, "set %q type disagrees with what the match expects", in.SetName)
 		}
 	}
+}
+
+// VALIDATES: spec-firewall-dynamic-set-config-fidelity AC-2, AC-3 and the
+// 2026-11-26 `Ze always starts` ruling -- an invalid firewall set config at
+// `ze start` (configureAtStart) returns nil so the daemon keeps running with
+// its other services, applies no partial tables, stores an idle activeCfg so
+// a later valid reload recovers, and logs an ERROR record carrying
+// `code=config-plugin-verify` and the opererr fix; meanwhile VerifyConfig
+// (`ze config validate`), parseAndVerifyFirewallSections (reload), and
+// `config.ValidateSemantics` (`ze doctor` config-semantics) all refuse/report
+// the same fault under `config-plugin-verify`.
+// PREVENTS: an invalid firewall set config crashing `ze start` with exit 1,
+// applying a partial approximation at boot, or going unreported by `ze doctor`.
+func TestConfigureAtStartLeavesFirewallDownAndLogsDoctorCode(t *testing.T) {
+	resetBackends()
+	resetTables()
+	StoreLastApplied(nil)
+	t.Cleanup(func() {
+		resetBackends()
+		resetTables()
+		StoreLastApplied(nil)
+	})
+
+	applyCalls := 0
+	require.NoError(t, RegisterBackend("kernel", func() (Backend, error) {
+		return &countingBackend{onApply: func(_ []Table) { applyCalls++ }}, nil
+	}))
+
+	// Invalid set: element carries timeout without flags-timeout on the set.
+	data := `{"firewall":{"backend":"kernel","table":{"wan":{"family":"inet","set":{"blocked":{"type":"ipv4","element":{"10.0.0.1":{"timeout":"3600"}}}},"chain":{"input":{"type":"filter","hook":"input","priority":"0","policy":"accept","term":{"block":{"from":{"source-address":"@blocked"},"then":{"drop":""}}}}}}}}}`
+	sections := []sdk.ConfigSection{{Root: ConfigRoot, Data: data}}
+
+	var activeCfg atomic.Pointer[firewallConfig]
+	var logged bytes.Buffer
+	log := slog.New(slog.NewTextHandler(&logged, nil))
+
+	err := configureAtStart(sections, &activeCfg, nil, log)
+	require.NoError(t, err, "configureAtStart must return nil on invalid firewall config under Ze always starts")
+	assert.Equal(t, 0, applyCalls, "invalid firewall config must not apply any partial or approximated tables")
+	assert.Nil(t, LastApplied(), "invalid firewall config must not record applied tables")
+
+	idle := activeCfg.Load()
+	require.NotNil(t, idle, "configureAtStart must store an idle activeCfg so a later valid reload recovers")
+	assert.False(t, idle.Configured, "idle activeCfg must mark firewall unconfigured")
+	assert.Empty(t, idle.Tables, "idle activeCfg must hold no active tables")
+
+	logText := logged.String()
+	assert.Contains(t, logText, "level=ERROR", "start failure must log at ERROR level")
+	assert.Contains(t, logText, "code="+diagnostic.CodeConfigPluginVerify, "start log must carry doctor code config-plugin-verify")
+	assert.Contains(t, logText, "fix=", "start log must carry the opererr fix")
+	assert.Contains(t, logText, "flags-timeout", "start log must name the missing flags-timeout fix")
+
+	// Strict offline validate must still refuse with *opererr.Error.
+	verifyErr := VerifyConfig(sections)
+	require.Error(t, verifyErr, "VerifyConfig must refuse invalid firewall set config")
+	_, isOperErr := errors.AsType[*opererr.Error](verifyErr)
+	assert.True(t, isOperErr, "VerifyConfig error must wrap *opererr.Error, got %T: %v", verifyErr, verifyErr)
+
+	// Strict reload verify must still refuse with *opererr.Error.
+	_, reloadErr := parseAndVerifyFirewallSections(sections, idle)
+	require.Error(t, reloadErr, "reload verify must refuse invalid firewall set config")
+	_, reloadIsOperErr := errors.AsType[*opererr.Error](reloadErr)
+	assert.True(t, reloadIsOperErr, "reload verify error must wrap *opererr.Error, got %T: %v", reloadErr, reloadErr)
+
+	// A subsequent valid reload onto the idle activeCfg must verify cleanly.
+	validData := `{"firewall":{"backend":"kernel","table":{"wan":{"family":"inet","set":{"blocked":{"type":"ipv4","flags-timeout":"","element":{"10.0.0.1":{"timeout":"3600"}}}},"chain":{"input":{"type":"filter","hook":"input","priority":"0","policy":"accept","term":{"block":{"from":{"source-address":"@blocked"},"then":{"drop":""}}}}}}}}}`
+	validCfg, validErr := parseAndVerifyFirewallSections([]sdk.ConfigSection{{Root: ConfigRoot, Data: validData}}, idle)
+	require.NoError(t, validErr, "valid reload after invalid start must verify cleanly")
+	assert.True(t, validCfg.Configured)
+	assert.Len(t, validCfg.Tables, 1)
+
+	// A parseConfigSections failure at `ze start` (non-canonical source-address
+	// prefix with host bits set) must follow the same `Ze always starts` rule.
+	parseFailData := `{"firewall":{"backend":"kernel","table":{"wan":{"family":"inet","chain":{"input":{"type":"filter","hook":"input","priority":"0","policy":"accept","term":{"bad":{"from":{"source-address":"192.0.2.5/24"},"then":{"drop":""}}}}}}}}}`
+	var parseActive atomic.Pointer[firewallConfig]
+	var parseLogged bytes.Buffer
+	parseLog := slog.New(slog.NewTextHandler(&parseLogged, nil))
+
+	err = configureAtStart([]sdk.ConfigSection{{Root: ConfigRoot, Data: parseFailData}}, &parseActive, nil, parseLog)
+	require.NoError(t, err, "configureAtStart must return nil on parse failure under Ze always starts")
+	assert.Equal(t, 0, applyCalls, "parse failure at start must not apply any tables")
+	require.NotNil(t, parseActive.Load())
+	assert.False(t, parseActive.Load().Configured)
+	assert.Contains(t, parseLogged.String(), "level=ERROR")
+	assert.Contains(t, parseLogged.String(), "code="+diagnostic.CodeConfigPluginVerify)
+	assert.Contains(t, parseLogged.String(), "fix=")
+	assert.Contains(t, parseLogged.String(), "192.0.2.0/24")
+
+	// `ze doctor` (config-semantics -> config.ValidateSemantics -> firewall.VerifyConfig)
+	// must report the same fault under config-plugin-verify.
+	var raw map[string]any
+	require.NoError(t, json.Unmarshal([]byte(data), &raw))
+	tree, err := config.TreeFromPluginMap(raw)
+	require.NoError(t, err)
+
+	var found []diagnostic.Diagnostic
+	for _, d := range config.ValidateSemantics(tree) {
+		if d.Code == diagnostic.CodeConfigPluginVerify && strings.Contains(d.Message, "flags-timeout") {
+			found = append(found, d)
+		}
+	}
+	require.Len(t, found, 1, "config.ValidateSemantics must emit one config-plugin-verify finding for the invalid set")
+	assert.Equal(t, diagnostic.SeverityError, found[0].Severity)
 }

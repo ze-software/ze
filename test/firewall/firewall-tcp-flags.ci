@@ -1,0 +1,60 @@
+# Test: Does `from { tcp-flags ...; }` in a firewall term validate through
+# ze-firewall-conf.yang and program a TCP-guarded `tcp flags` match in kernel
+# nftables?
+# QUESTION: does the full YANG schema -> parseFromBlock -> ValidateTables ->
+# lowerTCPFlagsMatch -> kernel nftables path accept `tcp-flags syn` (without
+# an explicit `protocol tcp`) and `tcp-flags syn,ack` and render `tcp flags`
+# in `nft list table`? A unit test checks the YANG pattern and netlink structs
+# separately; only a daemon run against real nftables proves end-to-end wiring
+# and kernel expression acceptance.
+# VALIDATES: spec-firewall-dynamic-set-config-fidelity AC-4.
+# PREVENTS: `tcp-flags` missing from `grouping from-block` in YANG or missing
+# the `meta l4proto tcp` guard in kernel lowering.
+#
+# Requires CAP_NET_ADMIN.
+
+option=needs-linux:caps=net-admin
+
+stdin=ze-bgp:terminator=EOF_CONF
+firewall {
+	backend kernel;
+	table fw_tcpflags {
+		family inet;
+		chain input {
+			type filter;
+			hook input;
+			priority 0;
+			policy accept;
+			term syn-only {
+				from {
+					tcp-flags syn;
+				}
+				then {
+					accept;
+				}
+			}
+			term syn-ack {
+				from {
+					protocol tcp;
+					tcp-flags syn,ack;
+				}
+				then {
+					accept;
+				}
+			}
+		}
+	}
+}
+EOF_CONF
+
+option=env:var=ze.log.firewall:value=info
+
+cmd=background:seq=1:exec=ze -:stdin=ze-bgp
+expect=stderr:contains=firewall config applied
+cmd=foreground:seq=2:exec=le test fixture firewall/firewall-tcp-flags:timeout=10s
+expect=exit:code=0
+expect=stdout:contains=table inet ze_fw_tcpflags
+expect=stdout:contains=tcp flags
+expect=stdout:contains=syn
+expect=stdout:contains=ack
+reject=stdout:contains=@th

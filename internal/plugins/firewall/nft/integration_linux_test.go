@@ -3,7 +3,9 @@
 package firewallnft
 
 import (
+	"bytes"
 	"runtime"
+	"slices"
 	"strings"
 	"testing"
 	"time"
@@ -11,6 +13,7 @@ import (
 	"github.com/google/nftables"
 	"github.com/google/nftables/expr"
 	"github.com/vishvananda/netns"
+	"golang.org/x/sys/unix"
 
 	"github.com/ze-software/ze/internal/component/firewall"
 	"github.com/ze-software/ze/internal/test/kernelfeature"
@@ -860,4 +863,215 @@ func TestTCPMSSClampToPMTU(t *testing.T) {
 			}
 		}
 	})
+}
+
+// VALIDATES: spec-firewall-dynamic-set-config-fidelity AC-1, AC-4, A-1, and A-2 --
+// real Linux nftables accepts and reads back a flags-interval IPv4+IPv6 CIDR set
+// (including unsorted inputs, adjacent prefixes, a top-of-space open-ended prefix,
+// and flags-timeout element timeouts) alongside a MatchTCPFlags rule guarded by
+// `meta l4proto tcp` without an explicit `protocol tcp` match.
+// PREVENTS: kernel EEXIST on adjacent intervals, EINVAL on interval element
+// timeouts or wrapped top-of-space IntervalEnd markers, or unguarded TCP flag
+// byte-13 payload reads.
+func TestNftIntegration_IntervalCIDRSetAndTCPFlags(t *testing.T) {
+	if !userns.Enter(t) {
+		return
+	}
+	withNftNetNS(t, func() {
+		desired := []firewall.Table{{
+			Name:   "ze_fw_cidr_tcp",
+			Family: firewall.FamilyInet,
+			Sets: []firewall.Set{
+				{
+					Name:  "nets_v4",
+					Type:  firewall.SetTypeIPv4,
+					Flags: firewall.SetFlagInterval | firewall.SetFlagTimeout,
+					Elements: []firewall.SetElement{
+						{Value: "198.51.100.1"},
+						{Value: "192.0.2.0/25", Timeout: 3600},
+						{Value: "192.0.2.128/25"},
+						{Value: "255.255.255.0/24", Timeout: 600},
+					},
+				},
+				{
+					Name:  "nets_v6",
+					Type:  firewall.SetTypeIPv6,
+					Flags: firewall.SetFlagInterval,
+					Elements: []firewall.SetElement{
+						{Value: "ffff::/16"},
+						{Value: "2001:db8::/32"},
+						{Value: "2001:db9::1"},
+					},
+				},
+			},
+			Chains: []firewall.Chain{{
+				Name:     "input",
+				IsBase:   true,
+				Type:     firewall.ChainFilter,
+				Hook:     firewall.HookInput,
+				Priority: 0,
+				Policy:   firewall.PolicyAccept,
+				Terms: []firewall.Term{
+					{
+						Name:    "block-v4",
+						Matches: []firewall.Match{firewall.MatchInSet{SetName: "nets_v4", MatchField: firewall.SetFieldSourceAddr}},
+						Actions: []firewall.Action{firewall.Drop{}},
+					},
+					{
+						Name:    "block-v6",
+						Matches: []firewall.Match{firewall.MatchInSet{SetName: "nets_v6", MatchField: firewall.SetFieldSourceAddr}},
+						Actions: []firewall.Action{firewall.Drop{}},
+					},
+					{
+						Name:    "syn-only",
+						Matches: []firewall.Match{firewall.MatchTCPFlags{Flags: firewall.TCPFlagSYN, Mask: firewall.TCPFlagSYN}},
+						Actions: []firewall.Action{firewall.Accept{}},
+					},
+					{
+						Name: "syn-ack",
+						Matches: []firewall.Match{
+							firewall.MatchProtocol{Protocol: "tcp"},
+							firewall.MatchTCPFlags{
+								Flags: firewall.TCPFlagSYN | firewall.TCPFlagACK,
+								Mask:  firewall.TCPFlagSYN | firewall.TCPFlagACK,
+							},
+						},
+						Actions: []firewall.Action{firewall.Accept{}},
+					},
+				},
+			}},
+		}}
+
+		if err := firewall.ValidateTables(desired); err != nil {
+			t.Fatalf("ValidateTables: %v", err)
+		}
+		b := newNftIntegrationBackend(t)
+		if err := b.Apply(desired); err != nil {
+			t.Fatalf("Apply interval CIDR + TCP flags table: %v", err)
+		}
+
+		readBack, err := b.ListTables()
+		if err != nil {
+			t.Fatalf("ListTables: %v", err)
+		}
+		var tbl *firewall.Table
+		for i := range readBack {
+			if readBack[i].Name == "ze_fw_cidr_tcp" {
+				tbl = &readBack[i]
+				break
+			}
+		}
+		if tbl == nil {
+			t.Fatal("table ze_fw_cidr_tcp absent from ListTables")
+		}
+
+		setsByName := make(map[string]firewall.Set, len(tbl.Sets))
+		for _, s := range tbl.Sets {
+			setsByName[s.Name] = s
+		}
+
+		v4, ok := setsByName["nets_v4"]
+		if !ok {
+			t.Fatal("set nets_v4 absent from readback")
+		}
+		if v4.Flags&(firewall.SetFlagInterval|firewall.SetFlagTimeout) != (firewall.SetFlagInterval | firewall.SetFlagTimeout) {
+			t.Errorf("nets_v4 flags = %v, want Interval|Timeout", v4.Flags)
+		}
+		requireSetElementsPresent(t, "nets_v4", v4.Elements, []firewall.SetElement{
+			{Value: "192.0.2.0", Timeout: 3600},
+			{Value: "192.0.2.128", IntervalEnd: true},
+			{Value: "192.0.2.128"},
+			{Value: "192.0.3.0", IntervalEnd: true},
+			{Value: "198.51.100.1"},
+			{Value: "198.51.100.2", IntervalEnd: true},
+			{Value: "255.255.255.0", Timeout: 600},
+		})
+		for _, el := range v4.Elements {
+			if el.IntervalEnd && el.Timeout != 0 {
+				t.Errorf("nets_v4 IntervalEnd element %q carries non-zero timeout %d", el.Value, el.Timeout)
+			}
+		}
+
+		v6, ok := setsByName["nets_v6"]
+		if !ok {
+			t.Fatal("set nets_v6 absent from readback")
+		}
+		if v6.Flags&firewall.SetFlagInterval == 0 {
+			t.Errorf("nets_v6 flags = %v, want Interval", v6.Flags)
+		}
+		requireSetElementsPresent(t, "nets_v6", v6.Elements, []firewall.SetElement{
+			{Value: "2001:db8::"},
+			{Value: "2001:db9::", IntervalEnd: true},
+			{Value: "2001:db9::1"},
+			{Value: "2001:db9::2", IntervalEnd: true},
+			{Value: "ffff::"},
+		})
+
+		requireTCPFlagsRuleGuarded(t, "ze_fw_cidr_tcp", "input", "syn-only", byte(firewall.TCPFlagSYN), byte(firewall.TCPFlagSYN))
+		if got := nftIntegrationRuleCount(t, "ze_fw_cidr_tcp", "input"); got != 4 {
+			t.Fatalf("chain input holds %d rules, want 4", got)
+		}
+	})
+}
+
+func requireSetElementsPresent(t *testing.T, setName string, got, want []firewall.SetElement) {
+	t.Helper()
+	for _, w := range want {
+		if !slices.Contains(got, w) {
+			t.Errorf("set %q missing expected element %+v (readback: %+v)", setName, w, got)
+		}
+	}
+}
+
+func requireTCPFlagsRuleGuarded(t *testing.T, tableName, chainName, termName string, wantFlags, wantMask byte) {
+	t.Helper()
+
+	conn, err := nftables.New()
+	if err != nil {
+		t.Fatalf("nftables.New: %v", err)
+	}
+	tables, err := conn.ListTables()
+	if err != nil {
+		t.Fatalf("list nft tables: %v", err)
+	}
+	for _, table := range tables {
+		if table.Name != tableName {
+			continue
+		}
+		rules, err := conn.GetRules(table, &nftables.Chain{Name: chainName, Table: table})
+		if err != nil {
+			t.Fatalf("get rules of %q/%q: %v", tableName, chainName, err)
+		}
+		for _, rule := range rules {
+			if string(rule.UserData) != termName {
+				continue
+			}
+			if len(rule.Exprs) < 5 {
+				t.Fatalf("rule %q has %d expressions, want at least 5: %#v", termName, len(rule.Exprs), rule.Exprs)
+			}
+			meta, ok := rule.Exprs[0].(*expr.Meta)
+			if !ok || meta.Key != expr.MetaKeyL4PROTO {
+				t.Fatalf("rule %q expr[0] = %#v, want Meta(L4PROTO)", termName, rule.Exprs[0])
+			}
+			protoCmp, ok := rule.Exprs[1].(*expr.Cmp)
+			if !ok || protoCmp.Op != expr.CmpOpEq || !bytes.Equal(protoCmp.Data, []byte{unix.IPPROTO_TCP}) {
+				t.Fatalf("rule %q expr[1] = %#v, want Cmp(Eq, IPPROTO_TCP)", termName, rule.Exprs[1])
+			}
+			payload, ok := rule.Exprs[2].(*expr.Payload)
+			if !ok || payload.Base != expr.PayloadBaseTransportHeader || payload.Offset != 13 || payload.Len != 1 {
+				t.Fatalf("rule %q expr[2] = %#v, want Payload(Transport, 13, 1)", termName, rule.Exprs[2])
+			}
+			bw, ok := rule.Exprs[3].(*expr.Bitwise)
+			if !ok || !bytes.Equal(bw.Mask, []byte{wantMask}) {
+				t.Fatalf("rule %q expr[3] = %#v, want Bitwise(mask=%x)", termName, rule.Exprs[3], wantMask)
+			}
+			flagsCmp, ok := rule.Exprs[4].(*expr.Cmp)
+			if !ok || flagsCmp.Op != expr.CmpOpEq || !bytes.Equal(flagsCmp.Data, []byte{wantFlags}) {
+				t.Fatalf("rule %q expr[4] = %#v, want Cmp(Eq, %x)", termName, rule.Exprs[4], wantFlags)
+			}
+			return
+		}
+		t.Fatalf("term %q not found in %q/%q", termName, tableName, chainName)
+	}
+	t.Fatalf("nft table %q is absent", tableName)
 }

@@ -421,6 +421,23 @@ Symbolic names for `icmpv6-type`: `destination-unreachable`, `packet-too-big`,
 `nd-neighbor-advert`, `nd-redirect`, `mld2-listener-report`.
 Numeric values (0-255) are also accepted.
 
+### TCP Flags
+
+`tcp-flags` accepts a comma-separated list of flag names from `fin`, `syn`,
+`rst`, `psh`, `ack`, and `urg`, for example `tcp-flags syn;` or
+`tcp-flags syn,ack;`. Ze builds the bitmask from the listed flags, so flags
+omitted from the leaf are not checked.
+
+On the `kernel` backend, Ze prepends a `meta l4proto tcp` guard before it checks
+TCP flags, so terms without `protocol tcp;` match TCP only. On the `vpp`
+backend, Ze lowers `tcp-flags` to TCP ACL flag masks. The
+leaf is valid in `ip`, `ip6`, and `inet` tables, and verify refuses it in
+`arp` tables.
+<!-- source: internal/component/firewall/yang/ze-firewall-conf.yang -- typedef tcp-flags, leaf tcp-flags -->
+<!-- source: internal/component/firewall/config.go -- ParseTCPFlags, parseFromBlock -->
+<!-- source: internal/plugins/firewall/nft/lower_linux.go -- lowerTCPFlagsMatch -->
+<!-- source: internal/plugins/firewall/vpp/translate.go -- applyMatch -->
+
 ### Interface Wildcard
 
 A trailing `*` on an interface name produces a prefix match. For example,
@@ -599,14 +616,31 @@ firewall {
         family inet;
         set blocked {
             type ipv4;
-            element 10.0.0.1;
-            element 10.0.0.2 { timeout 3600; }
+            flags-timeout;
+            element 10.0.0.1 {}
+            element 10.0.0.2 {
+                timeout 3600;
+            }
+        }
+        set trusted-nets {
+            type ipv4;
+            flags-interval;
+            element 192.0.2.0/24 {}
+            element 198.51.100.1 {}
         }
         chain input {
             type filter;
             hook input;
             priority 0;
             policy drop;
+            term allow-trusted {
+                from {
+                    source-address @trusted-nets;
+                }
+                then {
+                    accept;
+                }
+            }
             term block-list {
                 from {
                     source-address @blocked;
@@ -619,6 +653,43 @@ firewall {
     }
 }
 ```
+<!-- source: internal/component/firewall/yang/ze-firewall-conf.yang -- list set, flags-interval, flags-timeout -->
+
+`flags-interval` enables CIDR prefix ranges on `ipv4` and `ipv6` sets. A
+`flags-interval` set accepts canonical CIDR prefixes (for example
+`192.0.2.0/24` or `2001:db8::/32`), bare host addresses (for example
+`198.51.100.1`), and adjacent non-overlapping prefixes. The `kernel` backend
+expands each element into numerically sorted half-open intervals in nftables.
+When a set combines `flags-interval` and `flags-timeout`, Ze attaches each
+per-element timeout to the interval start element.
+<!-- source: internal/plugins/firewall/nft/lower_linux.go -- lowerSet, lowerAddressIntervalElements -->
+
+`ze config validate`, commit, and reload enforce set-flag and element rules
+before apply:
+
+- **Contradictory flags:** `flags-constant` cannot combine with `flags-dynamic`
+  or `flags-timeout`.
+- **Element timeout without `flags-timeout`:** Any element with a non-zero
+  `timeout` requires `flags-timeout;` on the enclosing set.
+- **CIDR prefix without `flags-interval`:** A CIDR prefix element on an `ipv4`
+  or `ipv6` set requires `flags-interval;`.
+- **Canonical prefixes:** A CIDR prefix with host bits set (for example
+  `192.0.2.5/24`) is refused with its canonical network (`192.0.2.0/24`).
+- **Address family and zones:** Every element in an `ipv4` or `ipv6` set must
+  match the set type, with no IPv6 zone identifier and no IPv4-mapped IPv6
+  address.
+- **Non-overlapping intervals:** Overlapping prefixes or host addresses inside
+  a `flags-interval` set are refused. Adjacent non-overlapping intervals (for
+  example `192.0.2.0/25` and `192.0.2.128/25`) are accepted.
+
+<!-- source: internal/component/firewall/model.go -- Set.Validate, validateFlags, validateElements, validateCIDRElement, validateNoOverlappingIntervals -->
+
+If a startup configuration file holds an invalid firewall set, `ze start`
+leaves the firewall unstarted rather than exiting. It logs an `ERROR` line
+under `config-plugin-verify` with the fix, and `ze doctor` reports the same
+code and fix. A reload with an invalid set is refused as a whole so active
+rules stay in force.
+<!-- source: internal/component/firewall/engine.go -- configureAtStart, VerifyConfig -->
 
 ## Control-plane protection (CoPP)
 

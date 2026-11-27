@@ -12,8 +12,11 @@ import (
 	"errors"
 	"fmt"
 	"net/netip"
+	"slices"
+	"strings"
 
 	"github.com/ze-software/ze/internal/core/naming"
+	"github.com/ze-software/ze/internal/core/opererr"
 	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
@@ -905,15 +908,29 @@ type Term struct {
 }
 
 // Set represents a named nftables set within a table.
+//
+// RawIntervals marks a SetFlagInterval set whose Elements are already
+// pre-expanded half-open boundary markers (such as CoPP's neighbor sets,
+// where a top-of-space range carries no closing IntervalEnd element) rather
+// than operator-configured CIDR strings or host addresses.
 type Set struct {
-	Name     string
-	Type     SetType
-	Flags    SetFlags
-	Elements []SetElement
+	Name         string
+	Type         SetType
+	Flags        SetFlags
+	RawIntervals bool
+	Elements     []SetElement
 }
 
-// Validate checks that the set has a valid name. Type 0 is rejected so
-// an uninitialised Set cannot slip through OnConfigVerify.
+// setAddrInterval holds the inclusive address bounds and operator-written text
+// of one IPv4 or IPv6 set element for overlap detection.
+type setAddrInterval struct {
+	first netip.Addr
+	last  netip.Addr
+	raw   string
+}
+
+// Validate checks that the set has a valid name, a non-zero element type,
+// mutually compatible nftables flags, and valid elements for its type and flags.
 func (s Set) Validate() error {
 	if err := ValidateName(s.Name); err != nil {
 		return fmt.Errorf("firewall: set: %w", err)
@@ -921,7 +938,256 @@ func (s Set) Validate() error {
 	if s.Type == 0 {
 		return fmt.Errorf("firewall: set %q: type required", s.Name)
 	}
+	if err := s.validateFlags(); err != nil {
+		return err
+	}
+	return s.validateElements()
+}
+
+func (s Set) validateFlags() error {
+	if s.Flags&SetFlagConstant == 0 {
+		return nil
+	}
+	var tb textbuf.Buffer
+	if s.Flags&SetFlagDynamic != 0 {
+		return opererr.New(
+			tb.Reset().Str("firewall set ").Quoted(s.Name).Str(" combines flags-constant and flags-dynamic").String(),
+			"A constant set cannot be modified after creation, so nftables rejects combining flags-constant with flags-dynamic.",
+			tb.Reset().Str("remove flags-constant; or flags-dynamic; from set ").Str(s.Name).String(),
+		)
+	}
+	if s.Flags&SetFlagTimeout != 0 {
+		return opererr.New(
+			tb.Reset().Str("firewall set ").Quoted(s.Name).Str(" combines flags-constant and flags-timeout").String(),
+			"A constant set cannot expire elements after creation, so nftables rejects combining flags-constant with flags-timeout.",
+			tb.Reset().Str("remove flags-constant; or flags-timeout; from set ").Str(s.Name).String(),
+		)
+	}
 	return nil
+}
+
+func (s Set) validateElements() error {
+	var tb textbuf.Buffer
+	for _, elem := range s.Elements {
+		if elem.Timeout > 0 {
+			if s.Flags&SetFlagTimeout == 0 {
+				return opererr.New(
+					tb.Reset().Str("firewall set ").Quoted(s.Name).Str(" element ").Quoted(elem.Value).Str(" sets timeout ").Uint(uint64(elem.Timeout)).Str("s without flags-timeout").String(),
+					"Per-element timeouts require flags-timeout on the set; without it nftables cannot track element expiry.",
+					tb.Reset().Str("add flags-timeout; to set ").Str(s.Name).Str(", or remove timeout from element ").Str(elem.Value).String(),
+				)
+			}
+		}
+		if elem.IntervalEnd {
+			if s.Flags&SetFlagInterval == 0 {
+				return opererr.New(
+					tb.Reset().Str("firewall set ").Quoted(s.Name).Str(" element ").Quoted(elem.Value).Str(" sets interval-end without flags-interval").String(),
+					"Interval end markers require an interval set in nftables.",
+					tb.Reset().Str("add flags-interval; to set ").Str(s.Name).String(),
+				)
+			}
+		}
+	}
+
+	// Only IPv4 and IPv6 sets validate IP address, CIDR, and interval semantics;
+	// other set types (and unknown set types diagnosed later by validateMatch) are
+	// handled outside address-element validation.
+	if s.Type != SetTypeIPv4 && s.Type != SetTypeIPv6 {
+		return nil
+	}
+	if s.RawIntervals {
+		return s.validatePreExpandedAddressElements()
+	}
+	if hasIntervalEnd(s.Elements) {
+		return s.validatePreExpandedAddressElements()
+	}
+	return s.validateAddressElements()
+}
+
+func (s Set) validatePreExpandedAddressElements() error {
+	for _, elem := range s.Elements {
+		addr, err := netip.ParseAddr(elem.Value)
+		if err != nil {
+			return s.invalidAddrError(elem.Value, err)
+		}
+		if err := s.validateAddrFamily(elem.Value, addr); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (s Set) validateAddressElements() error {
+	isInterval := s.Flags&SetFlagInterval != 0
+	var intervals []setAddrInterval
+	if isInterval {
+		intervals = make([]setAddrInterval, 0, len(s.Elements))
+	}
+
+	for _, elem := range s.Elements {
+		if strings.Contains(elem.Value, "/") {
+			interval, err := s.validateCIDRElement(elem.Value, isInterval)
+			if err != nil {
+				return err
+			}
+			intervals = append(intervals, interval)
+			continue
+		}
+		addr, err := netip.ParseAddr(elem.Value)
+		if err != nil {
+			return s.invalidAddrError(elem.Value, err)
+		}
+		if err := s.validateAddrFamily(elem.Value, addr); err != nil {
+			return err
+		}
+		if isInterval {
+			intervals = append(intervals, setAddrInterval{first: addr, last: addr, raw: elem.Value})
+		}
+	}
+
+	if !isInterval {
+		return nil
+	}
+	if len(intervals) < 2 {
+		return nil
+	}
+	return s.validateNoOverlappingIntervals(intervals)
+}
+
+func (s Set) validateCIDRElement(value string, isInterval bool) (setAddrInterval, error) {
+	var tb textbuf.Buffer
+	p, err := netip.ParsePrefix(value)
+	if err != nil {
+		family := s.addressFamilyName()
+		return setAddrInterval{}, opererr.Wrap(
+			err,
+			tb.Reset().Str("firewall set ").Quoted(s.Name).Str(" element ").Quoted(value).Str(" is not a valid CIDR prefix").String(),
+			tb.Reset().Str("Set ").Quoted(s.Name).Str(" has type ").Str(s.Type.String()).Str(" and requires valid ").Str(family).Str(" prefixes.").String(),
+			tb.Reset().Str("replace element ").Str(value).Str(" in set ").Str(s.Name).Str(" with a valid ").Str(family).Str(" CIDR prefix").String(),
+		)
+	}
+	if err := s.validateAddrFamily(value, p.Addr()); err != nil {
+		return setAddrInterval{}, err
+	}
+	if !isInterval {
+		return setAddrInterval{}, opererr.New(
+			tb.Reset().Str("firewall set ").Quoted(s.Name).Str(" element ").Quoted(value).Str(" is a CIDR prefix but set lacks flags-interval").String(),
+			"Without flags-interval, nftables matches only single addresses and cannot hold CIDR prefix ranges.",
+			tb.Reset().Str("add flags-interval; to set ").Str(s.Name).Str(", or replace element ").Str(value).Str(" with a bare host address").String(),
+		)
+	}
+	network := p.Masked()
+	if p != network {
+		netStr := network.String()
+		return setAddrInterval{}, opererr.New(
+			tb.Reset().Str("firewall set ").Quoted(s.Name).Str(" element ").Quoted(value).Str(" has host bits set").String(),
+			tb.Reset().Str("This prefix matches network ").Str(netStr).Str("; write its canonical network address explicitly.").String(),
+			tb.Reset().Str("element ").Str(netStr).String(),
+		)
+	}
+	return setAddrInterval{
+		first: network.Addr(),
+		last:  lastPrefixAddr(network),
+		raw:   value,
+	}, nil
+}
+
+func (s Set) addressFamilyName() string {
+	if s.Type == SetTypeIPv4 {
+		return "IPv4"
+	}
+	return "IPv6"
+}
+
+func (s Set) invalidAddrError(value string, cause error) error {
+	var tb textbuf.Buffer
+	family := s.addressFamilyName()
+	return opererr.Wrap(
+		cause,
+		tb.Reset().Str("firewall set ").Quoted(s.Name).Str(" element ").Quoted(value).Str(" is not a valid ").Str(family).Str(" address").String(),
+		tb.Reset().Str("Set ").Quoted(s.Name).Str(" has type ").Str(s.Type.String()).Str(" and requires valid ").Str(family).Str(" elements.").String(),
+		tb.Reset().Str("replace element ").Str(value).Str(" in set ").Str(s.Name).Str(" with a valid ").Str(family).Str(" address").String(),
+	)
+}
+
+func (s Set) validateAddrFamily(value string, addr netip.Addr) error {
+	var tb textbuf.Buffer
+	if addr.Zone() != "" {
+		return opererr.New(
+			tb.Reset().Str("firewall set ").Quoted(s.Name).Str(" element ").Quoted(value).Str(" includes an IPv6 zone identifier").String(),
+			"nftables address sets store raw network addresses and cannot match scoped zone identifiers.",
+			tb.Reset().Str("remove the zone suffix from element ").Str(value).Str(" in set ").Str(s.Name).String(),
+		)
+	}
+	if s.Type == SetTypeIPv4 {
+		if !addr.Is4() {
+			return opererr.New(
+				tb.Reset().Str("firewall set ").Quoted(s.Name).Str(" (type ipv4) element ").Quoted(value).Str(" is not an IPv4 address").String(),
+				"An ipv4 set stores 4-byte IPv4 addresses and cannot hold IPv6 or IPv4-mapped IPv6 addresses.",
+				tb.Reset().Str("use an IPv4 address in set ").Str(s.Name).Str(", or move ").Str(value).Str(" to a type ipv6 set").String(),
+			)
+		}
+		return nil
+	}
+	if !addr.Is6() {
+		return opererr.New(
+			tb.Reset().Str("firewall set ").Quoted(s.Name).Str(" (type ipv6) element ").Quoted(value).Str(" is not an IPv6 address").String(),
+			"An ipv6 set stores 16-byte IPv6 addresses and cannot hold IPv4 addresses.",
+			tb.Reset().Str("use an IPv6 address in set ").Str(s.Name).Str(", or move ").Str(value).Str(" to a type ipv4 set").String(),
+		)
+	}
+	if addr.Is4In6() {
+		return opererr.New(
+			tb.Reset().Str("firewall set ").Quoted(s.Name).Str(" (type ipv6) element ").Quoted(value).Str(" is an IPv4-mapped IPv6 address").String(),
+			"An ipv6 set requires native IPv6 addresses rather than IPv4-mapped IPv6 notation.",
+			tb.Reset().Str("use a native IPv6 address in set ").Str(s.Name).Str(", or move ").Str(value).Str(" to a type ipv4 set").String(),
+		)
+	}
+	return nil
+}
+
+func (s Set) validateNoOverlappingIntervals(intervals []setAddrInterval) error {
+	slices.SortFunc(intervals, func(a, b setAddrInterval) int {
+		if cmp := a.first.Compare(b.first); cmp != 0 {
+			return cmp
+		}
+		return a.last.Compare(b.last)
+	})
+	var tb textbuf.Buffer
+	for i := 1; i < len(intervals); i++ {
+		prev := intervals[i-1]
+		curr := intervals[i]
+		if curr.first.Compare(prev.last) <= 0 {
+			return opererr.New(
+				tb.Reset().Str("firewall set ").Quoted(s.Name).Str(" has overlapping interval elements ").Quoted(prev.raw).Str(" and ").Quoted(curr.raw).String(),
+				"nftables interval sets reject overlapping prefixes and host addresses.",
+				tb.Reset().Str("remove or narrow one of ").Str(prev.raw).Str(" and ").Str(curr.raw).Str(" in set ").Str(s.Name).Str(" so the intervals do not overlap").String(),
+			)
+		}
+	}
+	return nil
+}
+
+func hasIntervalEnd(elems []SetElement) bool {
+	return slices.ContainsFunc(elems, func(e SetElement) bool {
+		return e.IntervalEnd
+	})
+}
+
+func lastPrefixAddr(p netip.Prefix) netip.Addr {
+	p = p.Masked()
+	if p.Addr().Is4() {
+		b := p.Addr().As4()
+		for bit := p.Bits(); bit < 32; bit++ {
+			b[bit/8] |= 0x80 >> (bit % 8)
+		}
+		return netip.AddrFrom4(b)
+	}
+	b := p.Addr().As16()
+	for bit := p.Bits(); bit < 128; bit++ {
+		b[bit/8] |= 0x80 >> (bit % 8)
+	}
+	return netip.AddrFrom16(b)
 }
 
 // Flowtable represents an nftables flowtable for hardware offload.

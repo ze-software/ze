@@ -1,0 +1,63 @@
+# Test: Does an operator-configured `flags-interval` set containing IPv4 and
+# IPv6 CIDR prefixes and a bare host address program real interval ranges into
+# kernel nftables rather than bare single-host addresses?
+# QUESTION: does the full YANG -> parseSet -> Set.Validate -> lowerSet ->
+# kernel nftables apply path program `192.0.2.0/24`, `198.51.100.1`, and
+# `2001:db8::/32` as interval set elements visible in `nft list table`? A unit
+# test only checks netlink structs in memory; only kernel nftables confirms
+# half-open IntervalEnd marshaling and CIDR display.
+# VALIDATES: spec-firewall-dynamic-set-config-fidelity AC-1.
+# PREVENTS: encodeSetElementKey silently stripping CIDR prefix lengths so
+# `element 192.0.2.0/24` matches only `192.0.2.0`.
+#
+# Requires CAP_NET_ADMIN.
+
+option=needs-linux:caps=net-admin
+
+stdin=ze-bgp:terminator=EOF_CONF
+firewall {
+	backend kernel;
+	table fw_cidr {
+		family inet;
+		set nets_v4 {
+			type ipv4;
+			flags-interval;
+			element 192.0.2.0/24 {}
+			element 198.51.100.1 {}
+		}
+		set nets_v6 {
+			type ipv6;
+			flags-interval;
+			element 2001:db8::/32 {}
+		}
+		chain input {
+			type filter;
+			hook input;
+			priority 0;
+			policy accept;
+			term block-v4 {
+				from { source-address "@nets_v4"; }
+				then { drop; }
+			}
+			term block-v6 {
+				from { source-address "@nets_v6"; }
+				then { drop; }
+			}
+		}
+	}
+}
+EOF_CONF
+
+option=env:var=ze.log.firewall:value=info
+
+cmd=background:seq=1:exec=ze -:stdin=ze-bgp
+expect=stderr:contains=firewall config applied
+cmd=foreground:seq=2:exec=le test fixture firewall/firewall-set-interval-cidr:timeout=10s
+expect=exit:code=0
+expect=stdout:contains=table inet ze_fw_cidr
+expect=stdout:contains=set nets_v4
+expect=stdout:contains=flags interval
+expect=stdout:contains=192.0.2.0/24
+expect=stdout:contains=198.51.100.1
+expect=stdout:contains=set nets_v6
+expect=stdout:contains=2001:db8::/32
