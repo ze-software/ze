@@ -443,7 +443,7 @@ func busAssertRefusedSeriesDriver(ctx context.Context, args []string) error {
 }
 
 // busSIGHUPReloadDriver copies srcConf onto dstConf, sends SIGHUP to daemon.pid,
-// polls `ze cli -c "show reload-status | json"` until generation advances with
+// polls `ze cli -c "show system reload status | json"` until generation advances with
 // last-outcome "applied", and writes doneMarker.
 // Usage: plugin/bus-sighup-reload <src-conf> <dst-conf> <done-marker>.
 func busSIGHUPReloadDriver(ctx context.Context, args []string) error {
@@ -451,7 +451,7 @@ func busSIGHUPReloadDriver(ctx context.Context, args []string) error {
 }
 
 // busSIGHUPReloadRefusedDriver copies srcConf onto dstConf, sends SIGHUP to
-// daemon.pid, polls `ze cli -c "show reload-status | json"` until generation
+// daemon.pid, polls `ze cli -c "show system reload status | json"` until generation
 // advances with last-outcome "failed", and writes doneMarker.
 // Usage: plugin/bus-sighup-reload-refused <src-conf> <dst-conf> <done-marker>.
 func busSIGHUPReloadRefusedDriver(ctx context.Context, args []string) error {
@@ -515,10 +515,10 @@ func busSIGHUPReloadExpect(ctx context.Context, args []string, wantOutcome, usag
 	return tb.Str("OK: SIGHUP reload ").Str(srcConf).Byte(' ').Str(wantOutcome).Str(" at generation ").Int(gen).Byte('\n').StdOut()
 }
 
-// busReadReloadStatusCLI runs `ze cli -c "show reload-status | json"` and
+// busReadReloadStatusCLI runs `ze cli -c "show system reload status | json"` and
 // extracts its generation and last-outcome fields.
 func busReadReloadStatusCLI(ctx context.Context) (int64, string, error) {
-	code, stdout, stderr, err := runCaptured(ctx, os.Environ(), "", "ze", "cli", "-c", "show reload-status | json")
+	code, stdout, stderr, err := runCaptured(ctx, os.Environ(), "", "ze", "cli", "-c", "show system reload status | json")
 	if err != nil {
 		return -1, "", fmt.Errorf("run ze cli: %w", err)
 	}

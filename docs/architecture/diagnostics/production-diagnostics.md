@@ -25,9 +25,12 @@ is the reason none of them needed a bespoke transport.
 | Active probes | ping, traceroute, route lookup (`active-probes.md`) |
 | Health | component health registry, HTTP `/health` returning 200 or 503 |
 | Log query | slog ring handler split into `general` (512 `debug`/`info`) and `faults` (256 `warn`/`error`) buffers filtered by level, component and count |
-| Live triage | single-call bounded daemon snapshot (`show system triage`) across version, health, doctor, reports, crashes, plugins, reload, recent logs and runtime |
+| Live triage | single-call bounded daemon snapshot (`show system triage`) across version, health, doctor, reports, crashes, plugins, reload, recent logs and runtime (including watchdog and hung-handler counts) |
 | Execution trace | always-on Go flight recorder, on-demand snapshot capture, and snapshot retrieval (`show system trace`, `request system trace snapshot`) |
 | Plugin runtime | cross-process `\| plugin <name>` inspection on goroutines, profiles (`\| summary`), Go memory, OS `/proc/<pid>` memory, and plugin log rings with non-destructive host fallback |
+| Operation correlation | process-scoped `op-<N>` IDs (`internal/core/opid`) propagated across commands, reloads, logs, events, report-bus issues, and audit records, queried with `\| operation <id>` |
+| Reload history | 32-entry leaf-locked reload transaction journal (`show system reload history`) with per-plugin verify/apply/rollback timings and errors |
+| Liveness & wedge survival | bounded 60s operator handler timeouts (`doctor-command-handler-hung`) and always-on daemon liveness watchdog (`internal/core/watchdog`, `show system watchdog`, `doctor-daemon-stall-detected`) |
 
 ### Single-call live triage (`show system triage`)
 
@@ -41,12 +44,14 @@ List sections cap their payloads newest-first (`32` errors, `64` warnings, `16`
 crashes, `32` warn/error log entries) and report `total-count` and `truncated`
 so operators and agents know when to drill into full listings. `plugins`
 reports summary counts and expands only unhealthy or fault-bearing plugins.
+`runtime` also reports `watchdog-running`, `stall-count`, and
+`hung-handler-count` under leaf locks without acquiring `Server.txLock`.
 When an optional runtime source (`doctor`, `plugins`, or `reload`) cannot
 answer, that section returns `"available": false` with its `reason` or `error`
 while every other section still succeeds. `version` reads structured build and
 appliance provenance from `version.BuildIdentity`.
 
-<!-- source: internal/component/cmd/show/triage.go -- handleShowSystemTriage -->
+<!-- source: internal/component/cmd/show/triage.go -- handleShowSystemTriage, triageRuntime -->
 <!-- source: internal/core/version/version.go -- BuildIdentity -->
 
 ### Execution flight recorder (`show system trace`)
@@ -54,10 +59,11 @@ appliance provenance from `version.BuildIdentity`.
 Daemon startup starts the process-global Go execution flight recorder in
 `internal/core/flightrec` (`10s` / `4 MiB` rolling window) and stops it on
 shutdown. If `flightrec.Start` returns an error at startup, the daemon logs a
-warning and continues to start. Recovered `taskguard` panics and slow plugin
-deliveries call `flightrec.CaptureAuto` with a 30-second cooldown to freeze the
-preceding execution window into a 4-slot in-memory snapshot ring (4 MiB cap per
-snapshot).
+warning and continues to start. Recovered `taskguard` panics, slow plugin
+deliveries, hung operator command handlers (`"hung-command"`), and daemon
+liveness watchdog stalls (`"watchdog-stall"`) call `flightrec.CaptureAuto` with
+a 30-second cooldown to freeze the preceding execution window into a 4-slot
+in-memory snapshot ring (4 MiB cap per snapshot).
 
 Operators and AI agents capture a snapshot on demand with
 `request system trace snapshot` (`ze-cmd:request-system-trace-snapshot`), list
@@ -69,6 +75,118 @@ stopped recorder or an unknown identifier return an operator error naming
 
 <!-- source: internal/component/cmd/show/trace.go -- handleShowSystemTrace, handleRequestSystemTraceSnapshot -->
 <!-- source: internal/core/flightrec/flightrec.go -- Start, Stop, CaptureAuto, CaptureNow -->
+
+### Operation correlation (`internal/core/opid` and `| operation <id>`)
+
+`internal/core/opid` is a stdlib-only leaf package that mints monotonic,
+process-scoped correlation IDs (`op-<N>`) and attaches them to
+`context.Context` (`New`, `With`, `Ensure`, `From`). `Dispatcher.Dispatch`
+ensures an `operation-id` on `CommandContext.RequestContext` at dispatch entry,
+and `doReloadContext` ensures an `operation-id` for every config reload trigger
+(SIGHUP, queued SIGHUP, CLI commit, `request reload`, and confirmed-commit
+revert).
+
+The four diagnostic stores carry `operation-id` automatically without breaking
+uncorrelated callers:
+
+- `slogutil.LogRing` captures `opid.From(ctx)` (or an explicit `"operation-id"`
+  attribute) on `LogEntry.OpID` and in encoded attributes while preserving
+  redaction and `general`/`faults` sub-ring separation, and filters newest-first
+  via `SnapshotWithOp`.
+- `pluginserver.EventRing` captures `operation-id` via `appendWithOp` and
+  filters via `SnapshotWithOp` (`docs/architecture/diagnostics/event-history-rings.md`).
+- `report.Issue` carries optional `operation-id` (`omitempty`), populated by
+  `RaiseErrorContext` / `RaiseWarningContext` or promoted from
+  `detail["operation-id"]`.
+- `audit.Entry` persists optional `operation-id` (`omitempty`) in JSON-lines
+  audit logs and filters via `audit.Filter.OpID`.
+
+`show log recent` (registered alongside `| plugin <name>` in one
+`command.RegisterPipeFilters` call so both compose), `show event recent`,
+`show errors`, `show audit`, and `show system reload history` register the
+command-owned `| operation <id>` pipe filter. Because pipe filters propagate
+from the command registry, MCP exposes it automatically as
+`pipe: [{"name": "operation", "args": ["<id>"]}]` with zero MCP-specific code.
+
+<!-- source: internal/core/opid/opid.go -- New, With, Ensure, From -->
+<!-- source: internal/core/slogutil/ring.go -- LogEntry, ringHandler.Handle, SnapshotWithOp -->
+<!-- source: internal/core/report/report.go -- Issue, RaiseErrorContext, RaiseWarningContext -->
+<!-- source: internal/core/audit/audit.go -- Entry -->
+<!-- source: internal/core/audit/query.go -- Filter, Log.Query -->
+<!-- source: internal/component/cmd/show/op_pipe.go -- operation pipe filter registration and parsing -->
+<!-- source: internal/plugins/log/cmd/register.go -- RegisterPipeFilters for show log recent -->
+
+### Reload transaction history (`show system reload history`)
+
+`reloadGeneration` retains a 32-entry circular history ring protected by its
+existing leaf mutex `reloadGen.mu` (never `Server.txLock`). During
+`doReloadContext`, a context-attached `ReloadTrace` collects sorted
+`changed-roots` (capped at 32), `tx-state` (`committed`, `aborted`,
+`rolled-back`, or `no-op`), and per-plugin `verify-ms`, `apply-ms`,
+`rollback-ms`, `status`, and bounded `error` steps from
+`transaction.TxResult.PluginSteps`. When `runReloadContext` finishes (for every
+processed reload, excluding `ErrReloadInProgress`),
+`Server.MarkReloadProcessedWithRecord` advances `generation`, updates the fence,
+and appends the `ReloadRecord` (`generation`, `operation-id`, `trigger`,
+`outcome`, `started-at`, `finished-at`, `duration-ms`, `changed-roots`,
+`tx-state`, `plugins`, `error`).
+
+Read-only `show system reload history [count <N>]` (supporting
+`| operation <id>`) reads the ring newest-first under `reloadGen.mu`, while
+`show system reload status` keeps the reload fence semantics unchanged and adds
+optional `last-operation-id`.
+
+<!-- source: internal/component/plugin/server/reload_generation.go -- MarkReloadProcessedWithRecord, ReloadStatusWithOp, ReloadHistory -->
+<!-- source: internal/component/plugin/server/reload_history.go -- ReloadRecord, ReloadPluginStep, ReloadTrace, WithReloadTrace -->
+<!-- source: internal/component/config/transaction/orchestrator.go -- PluginStepResult, TxResult.PluginSteps -->
+<!-- source: internal/component/cmd/show/reload_history.go -- handleShowSystemReloadHistory -->
+<!-- source: internal/component/cmd/show/reload_status.go -- handleShowReloadStatus -->
+
+### Bounded handler timeouts and daemon liveness watchdog (`show system watchdog`)
+
+Core diagnostic commands (`show system triage`, `show system goroutines`,
+`show system profile`, `show system trace`, `show runtime memory`,
+`show system memory`, `show log recent`, `show event recent`, `show errors`,
+`show warnings`, `show system reload status`, `show system reload history`, and
+`show system watchdog`) read only leaf mutexes or atomics and never acquire
+`Server.txLock` or config-write locks, keeping diagnostics responsive even if a
+config transaction wedges.
+
+`Dispatcher` enforces a bounded execution deadline (`60s` default, configurable
+via `setHandlerTimeout` for tests) on operator/external builtin dispatches
+(`ctx == nil || ctx.Process == nil`). Command owners whose work legitimately
+takes longer declare a generic `HandlerTimeout func(command.ValidatedArgs) time.Duration`
+hook on `RPCRegistration` / `RegisterOptions` — `show system profile` declares
+`duration + 15s` — keeping command-specific logic out of generic dispatch.
+Plugin-originated internal RPC dispatches (`ctx.Process != nil`, such as RS/RR
+source-DOWN departures) stay governed solely by their plugin lifecycle context
+without an unrelated `60s` expiry. When a timed handler ignores cancellation
+past its deadline and a `100ms` grace window, `Dispatcher` returns a structured
+operator error naming `operation-id` and `ze show system goroutines mode blocked`,
+records a `HungHandlerRecord` in `Server`'s 16-slot leaf-locked ring, raises
+`doctor-command-handler-hung` on the report bus, and invokes
+`flightrec.CaptureAuto("hung-command", cmdName)`. Cooperative caller
+cancellation returns cleanly without raising `doctor-command-handler-hung`.
+
+`internal/core/watchdog` runs an always-on liveness goroutine started beside
+`flightrec.Start()` in `cmd/ze/hub/main.go` and joined on `Stop()`. Every `2s`,
+it checks scheduler wake-up drift (`5s` stall threshold) and probes registered
+via `watchdog.RegisterProbe` (preserving the core-tier boundary so
+`plugin/server` registers `"config-tx-lock"` flagging `txLock` held past `45s`
+and `"command-handlers"` flagging active hung handlers). On stall detection
+(rate-limited by a `30s` cooldown), the watchdog captures bounded goroutine
+stacks (`256 KiB` cap) and calls `flightrec.CaptureAuto("watchdog-stall", probe)`
+into an 8-slot stall ring, and raises `doctor-daemon-stall-detected`.
+`show system watchdog` (`ze-cmd:show-system-watchdog`) exposes live watchdog
+status, probe results, `hung-handlers`, and `recent-stalls`.
+
+<!-- source: internal/component/plugin/server/command.go -- Dispatcher.dispatchLine, HandlerTimeout -->
+<!-- source: internal/component/plugin/server/command_timeout.go -- HungHandlerRecord, HungHandlers, watchdog probes -->
+<!-- source: internal/component/cmd/show/profile.go -- profileHandlerTimeout -->
+<!-- source: internal/core/watchdog/watchdog.go -- Start, Stop, RegisterProbe, Status, StallRecord -->
+<!-- source: internal/core/watchdog/doctor_codes.go -- CodeDoctorDaemonStallDetected -->
+<!-- source: internal/component/cmd/show/watchdog.go -- handleShowSystemWatchdog -->
+<!-- source: cmd/ze/hub/main.go -- watchdog.Start, watchdog.Stop -->
 
 ### External plugin runtime introspection (`| plugin <name>`)
 

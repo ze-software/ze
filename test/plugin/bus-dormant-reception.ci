@@ -204,7 +204,7 @@ expect=stdout:contains=OK: implied, delivery, and doctor all report collector ac
 cmd=foreground:seq=4:exec=le test fixture plugin/bus-sighup-reload-refused with-sender.conf running.conf reload.refused:exit=0
 expect=stdout:contains=OK: SIGHUP reload with-sender.conf failed
 
-cmd=foreground:seq=5:exec=ze cli -c "show reload-status | json":exit=0
+cmd=foreground:seq=5:exec=ze cli -c "show system reload status | json":exit=0
 expect=stdout:contains="last-outcome": "failed"
 
 cmd=stop:seq=6:name=daemon1:signal=term

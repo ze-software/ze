@@ -172,7 +172,7 @@ func plugin01SaveSurvivesAReload(ctx context.Context, plugin *sdk.Plugin) error 
 		baseline = reloadGeneration(ctx, plugin)
 		return baseline >= 0
 	}) {
-		return errors.New("before the reload: show reload-status returned no generation")
+		return errors.New("before the reload: show system reload status returned no generation")
 	}
 	if err := plugin01SignalDaemonReload(); err != nil {
 		return err
@@ -190,9 +190,9 @@ func plugin01SaveSurvivesAReload(ctx context.Context, plugin *sdk.Plugin) error 
 	}) {
 		return fmt.Errorf("the reload generation never advanced past %d: got %d", baseline, generation)
 	}
-	outcome, status, err := plugin01DispatchMap(ctx, plugin, "show reload-status")
+	outcome, status, err := plugin01DispatchMap(ctx, plugin, "show system reload status")
 	if err != nil || status != rpc.StatusDone {
-		return fmt.Errorf("show reload-status after the reload: status=%s: %w", status, err)
+		return fmt.Errorf("show system reload status after the reload: status=%s: %w", status, err)
 	}
 	if outcome["last-outcome"] != "applied" {
 		return fmt.Errorf("the reload of the saved file was not applied: %v", outcome)

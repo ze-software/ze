@@ -11,7 +11,6 @@ import (
 	"encoding/base64"
 	"maps"
 	"strconv"
-	"strings"
 	"time"
 
 	"github.com/ze-software/ze/internal/component/command"
@@ -75,45 +74,17 @@ var inspectPluginHostFunc = func(s *pluginserver.Server, name string) (*pluginse
 }
 
 func extractPluginPipeTarget(validated command.ValidatedArgs, example string) (name string, present bool, refusal *plugin.Response) {
-	for _, op := range validated.PipeOperations() {
-		if !strings.EqualFold(op.Name, pipeOpPlugin) {
-			continue
-		}
-		if present {
-			return "", true, plugin.OperatorErrorResponse(opererr.New(
-				"duplicate | plugin pipe operation",
-				"only one | plugin selector may be given on a command line",
-				example,
-			))
-		}
-		present = true
-		if len(op.Args) == 0 {
-			return "", true, plugin.OperatorErrorResponse(opererr.New(
-				"| plugin requires a plugin name",
-				"an endpoint name must follow | plugin",
-				example,
-			))
-		}
-		if len(op.Args) > 1 {
-			return "", true, plugin.OperatorErrorResponse(opererr.New(
-				"| plugin takes exactly one plugin name",
-				"only one endpoint name may follow | plugin",
-				example,
-			))
-		}
-		name = strings.TrimSpace(op.Args[0])
-	}
-	if !present {
-		return "", false, nil
-	}
-	if name == "" {
-		return "", true, plugin.OperatorErrorResponse(opererr.New(
-			"| plugin requires a plugin name",
-			"an endpoint name must follow | plugin",
-			example,
-		))
-	}
-	return name, true, nil
+	return extractSingleTextPipeTarget(
+		validated,
+		pipeOpPlugin,
+		"duplicate | plugin pipe operation",
+		"only one | plugin selector may be given on a command line",
+		"| plugin requires a plugin name",
+		"an endpoint name must follow | plugin",
+		"| plugin takes exactly one plugin name",
+		"only one endpoint name may follow | plugin",
+		example,
+	)
 }
 
 func pluginServerUnavailableResponse() *plugin.Response {

@@ -7,7 +7,7 @@
 | Priority | P3 |
 | Release reason | Enables an AI over MCP to detect silent intent-vs-actual dataplane divergence, trace policy/routing decisions, pull offending bad wire packets as test reproducers, and collect live daemon snapshots via registrable support modules; existing shipped behavior and its obligations remain required. |
 | RFC gaps | - |
-| Depends | spec-ai-diagnostics-4-correlation-and-wedge-survival.md |
+| Depends | - |
 | Phase | - |
 | Handoff | - |
 | Updated | 2026-11-27 |

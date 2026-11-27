@@ -244,7 +244,7 @@ func policyFinalReload(ctx context.Context, plugin *sdk.Plugin, config, outcome 
 	if err := liveStagesReload(ctx, plugin, "policy-final-next.conf"); err != nil {
 		return err
 	}
-	value, err := done03(ctx, plugin, "show reload-status")
+	value, err := done03(ctx, plugin, "show system reload status")
 	if err != nil {
 		return err
 	}

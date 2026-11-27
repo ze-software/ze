@@ -10,7 +10,7 @@
 #
 # The change arrives as a reload (SIGHUP), which runs the same config
 # transaction a commit runs. reload/live-stages drives it from inside the
-# daemon and reads `show reload-status` between the two reloads; it asks the
+# daemon and reads `show system reload status` between the two reloads; it asks the
 # daemon to stop when its script passed.
 #
 # VALIDATES: AC-3 of spec-plugin-external-yang-at-startup.
@@ -90,9 +90,9 @@ EOF_CONF3
 
 tmpfs=stages.script:terminator=EOF_SCRIPT
 reload config2.conf
-has show reload-status => "last-outcome":"applied"
+has show system reload status => "last-outcome":"applied"
 reload config3.conf
-has show reload-status => "last-outcome":"failed"
+has show system reload status => "last-outcome":"failed"
 say EXTERNAL-YANG-COMMIT: one change applied, one refused by the plugin
 EOF_SCRIPT
 

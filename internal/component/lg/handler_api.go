@@ -49,7 +49,7 @@ const (
 	// cmdShowUptime answers the daemon start time.
 	cmdShowUptime = "show uptime"
 	// cmdShowReloadStatus answers when the last config reload finished.
-	cmdShowReloadStatus = "show reload-status"
+	cmdShowReloadStatus = "show system reload status"
 	// cmdShowBMPPeers answers the peers the BMP plugin monitors.
 	cmdShowBMPPeers = "show bmp peers"
 )
@@ -88,7 +88,7 @@ const (
 //
 // Four commands answer it, because no single command holds the whole identity:
 // `show bgp` carries the router id, `show version` the release, `show uptime`
-// the start time, and `show reload-status` the last configuration change.
+// the start time, and `show system reload status` the last configuration change.
 //
 // Every one of them must answer. The router id and the version ARE the
 // identity this endpoint publishes, so an answer that carries neither is a
@@ -124,7 +124,7 @@ func (s *LGServer) handleAPIStatus(w http.ResponseWriter, _ *http.Request) {
 	}
 
 	// last_reconfig stays empty until the daemon processes its first reload,
-	// which is what `show reload-status` reports for a router nobody has
+	// which is what `show system reload status` reports for a router nobody has
 	// reloaded. That empty is the engine's answer, not a missing one.
 	writeJSON(w, transformStatus(routerID, running,
 		getStr(started, "start-time"), getStr(reloaded, "last-reload-at")))

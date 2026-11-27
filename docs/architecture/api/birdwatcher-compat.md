@@ -76,7 +76,7 @@ when it did not.
 
 `status` reads four commands, because no single command holds the whole
 identity: `show bgp` answers the router id, `show version` the release,
-`show uptime` the start time, and `show reload-status` the last configuration
+`show uptime` the start time, and `show system reload status` the last configuration
 change. Every one of them MUST answer. The server MUST NOT build a status
 object from a command that failed.
 

@@ -16,6 +16,7 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/ze-software/ze/internal/component/aaa"
 	"github.com/ze-software/ze/internal/component/command"
@@ -26,6 +27,7 @@ import (
 	"github.com/ze-software/ze/internal/component/plugin/process"
 	"github.com/ze-software/ze/internal/core/audit"
 	"github.com/ze-software/ze/internal/core/opererr"
+	"github.com/ze-software/ze/internal/core/opid"
 	"github.com/ze-software/ze/internal/core/selector"
 	"github.com/ze-software/ze/internal/core/textbuf"
 	"github.com/ze-software/ze/pkg/plugin/rpc"
@@ -112,6 +114,7 @@ func LoadBuiltins(d *Dispatcher, wireToPath, pathToDesc, pathToHelp map[string]s
 			Owner:                     reg.WireMethod,
 			Complete:                  reg.Complete,
 			AuditAction:               reg.AuditAction,
+			HandlerTimeout:            reg.HandlerTimeout,
 		}); err != nil {
 			return err
 		}
@@ -174,6 +177,7 @@ func loadBuiltinsWithAliases(d *Dispatcher, regs []RPCRegistration, wireToPaths 
 				Owner:                     reg.WireMethod,
 				Complete:                  reg.Complete,
 				AuditAction:               reg.AuditAction,
+				HandlerTimeout:            reg.HandlerTimeout,
 			}); err != nil {
 				return err
 			}
@@ -336,6 +340,15 @@ func (c *CommandContext) Context() context.Context {
 		}
 	}
 	return context.Background()
+}
+
+// OpID returns the operation correlation ID attached to this command's context,
+// or "" when none is present. Nil-safe.
+func (c *CommandContext) OpID() string {
+	if c == nil {
+		return ""
+	}
+	return opid.From(c.Context())
 }
 
 // OriginContext captures original producer authority for local route commands.
@@ -729,7 +742,8 @@ type Command struct {
 	// AuditAction is the audit action a successful run of this command records
 	// (recordCommandAudit), from its builtin RPC registration. Empty means the
 	// command records no audit entry.
-	AuditAction string
+	AuditAction    string
+	HandlerTimeout func(command.ValidatedArgs) time.Duration
 }
 
 // TakesInlineSelector reports whether Dispatch would consume an INLINE selector
@@ -760,17 +774,18 @@ func (c *Command) TakesInlineSelector() bool {
 
 // RegisterOptions holds optional settings for command registration.
 type RegisterOptions struct {
-	Hidden                    bool             // Schema visibility, including hidden ancestors.
-	ReadOnly                  bool             // True if command only reads state
-	RequiresSelector          bool             // True if the command requires an explicit selector value
-	AcceptsPeerConnection     bool             // Registration-owned opt-in for physical peer constraints.
-	AcceptsDestinationSession bool             // Opt-in for original destination-session constraints.
-	PluginProxy               bool             // True if this builtin proxies to a plugin command (allows plugin to register same name)
-	ArgDefs                   []command.ArgDef // Typed argument definitions from YANG leaves
-	Description               string           // The long explanation the command's own help page prints (empty = none declared)
-	Owner                     string           // The wire method of the builtin RPC registering the command (empty = none declared)
-	Complete                  ArgCompleter     // The argument completer the builtin RPC declares (nil = none declared)
-	AuditAction               string           // The audit action a successful run records (empty = no audit entry)
+	Hidden                    bool                                      // Schema visibility, including hidden ancestors.
+	ReadOnly                  bool                                      // True if command only reads state
+	RequiresSelector          bool                                      // True if the command requires an explicit selector value
+	AcceptsPeerConnection     bool                                      // Registration-owned opt-in for physical peer constraints.
+	AcceptsDestinationSession bool                                      // Opt-in for original destination-session constraints.
+	PluginProxy               bool                                      // True if this builtin proxies to a plugin command (allows plugin to register same name)
+	ArgDefs                   []command.ArgDef                          // Typed argument definitions from YANG leaves
+	Description               string                                    // The long explanation the command's own help page prints (empty = none declared)
+	Owner                     string                                    // The wire method of the builtin RPC registering the command (empty = none declared)
+	Complete                  ArgCompleter                              // The argument completer the builtin RPC declares (nil = none declared)
+	AuditAction               string                                    // The audit action a successful run records (empty = no audit entry)
+	HandlerTimeout            func(command.ValidatedArgs) time.Duration // Optional per-command execution timeout.
 }
 
 // ErrCommandHeld is the refusal Dispatcher.RegisterWithOptions returns for a
@@ -779,14 +794,15 @@ var ErrCommandHeld = errors.New("command name already registered")
 
 // Dispatcher routes commands to handlers.
 type Dispatcher struct {
-	commands   map[string]*Command
-	sortedKeys []string          // sorted keys for longest-match lookup (longest first)
-	registry   *CommandRegistry  // Plugin commands
-	pending    *PendingRequests  // In-flight plugin requests
-	subsystems *SubsystemManager // Forked subsystem processes
-	authorizer aaa.Authorizer    // Authorization checker (nil = allow all)
-	accountant aaa.Accountant    // Accounting recorder (nil = disabled)
-	audit      audit.Recorder    // Local audit recorder (nil = disabled)
+	commands               map[string]*Command
+	sortedKeys             []string          // sorted keys for longest-match lookup (longest first)
+	registry               *CommandRegistry  // Plugin commands
+	pending                *PendingRequests  // In-flight plugin requests
+	subsystems             *SubsystemManager // Forked subsystem processes
+	authorizer             aaa.Authorizer    // Authorization checker (nil = allow all)
+	accountant             aaa.Accountant    // Accounting recorder (nil = disabled)
+	audit                  audit.Recorder    // Local audit recorder (nil = disabled)
+	handlerTimeoutOverride time.Duration     // Optional timeout override for tests
 }
 
 // NewDispatcher creates a new command dispatcher.
@@ -870,6 +886,7 @@ func (d *Dispatcher) RegisterWithOptions(name string, handler Handler, help stri
 		ArgDefs:                   opts.ArgDefs,
 		Complete:                  opts.Complete,
 		AuditAction:               opts.AuditAction,
+		HandlerTimeout:            opts.HandlerTimeout,
 	}
 	d.updateSortedKeys()
 
@@ -1246,6 +1263,10 @@ func (d *Dispatcher) isAuthorizedCommandArgs(ctx *CommandContext, command string
 // answer, through the same ApplyPipes the operator surfaces run, unless the
 // caller said it renders the chain itself (CommandContext.RendersResidualChain).
 func (d *Dispatcher) Dispatch(ctx *CommandContext, input string) (*plugin.Response, error) {
+	if ctx != nil {
+		enrichedCtx, _ := opid.Ensure(ctx.Context())
+		ctx.RequestContext = enrichedCtx
+	}
 	// RFC 8907 Section 8.3: "TACACS+ client devices MUST be configured to
 	// send an accounting start packet for every command entered, irrespective
 	// of how the commands were authorized." Resolution and authorization
@@ -1562,7 +1583,7 @@ func (d *Dispatcher) dispatchLine(ctx *CommandContext, line command.DispatchLine
 			return &plugin.Response{Status: plugin.StatusDone}, nil
 		}
 
-		resp, handlerErr := matchedCmd.Handler(ctx, validated)
+		resp, handlerErr := d.invokeHandlerBounded(ctx, matchedCmd, validated)
 		d.recordCommandAudit(ctx, matchedCmd.AuditAction, input, resp, handlerErr)
 		if shapeErr := checkOverrideAnswer(matchedCmd.Name, declared, resp, handlerErr); shapeErr != nil {
 			return plugin.OperatorErrorResponse(shapeErr), shapeErr
@@ -1792,6 +1813,7 @@ func (d *Dispatcher) recordCommandAudit(ctx *CommandContext, action, input strin
 	if ctx != nil {
 		entry.Actor = ctx.Username
 		entry.RemoteAddr = ctx.RemoteAddr
+		entry.OpID = ctx.OpID()
 		if ctx.Surface != "" {
 			entry.Surface = ctx.Surface
 		}

@@ -27,6 +27,10 @@ type OperationExecutor struct {
 	sectionDiffs   SectionDiffs
 	// The coordinator restores dependent sections after infrastructure undo.
 	afterRollback func(context.Context, error) error
+	// failedOwner and failedErr capture the owner and error of the first
+	// failing operation or section apply for reload-history diagnostics.
+	failedOwner string
+	failedErr   string
 }
 
 // NewOperationExecutor creates an executor for one transaction.
@@ -155,11 +159,15 @@ func (e *OperationExecutor) Execute(ctx context.Context, ops []ConfigOperation) 
 	}
 	defer unsubscribeAll(unsubs)
 
+	e.failedOwner = ""
+	e.failedErr = ""
 	executed := make([]ConfigOperation, 0, len(ops))
 	for i := range ops {
 		op := &ops[i]
 		if IsSectionApply(op) {
 			if err := e.applySection(ctx, op, sectionOKCh, sectionFailedCh, sectionFilter); err != nil {
+				e.failedOwner = op.Owner
+				e.failedErr = err.Error()
 				return e.rollbackApplied(ctx, executed, rollbackOKCh, rollbackFailedCh, rollbackFilter, err)
 			}
 			executed = append(executed, *op)
@@ -169,26 +177,35 @@ func (e *OperationExecutor) Execute(ctx context.Context, ops []ConfigOperation) 
 		if op.Owner == "" {
 			unsubWaiters(waiters)
 			err := fmt.Errorf("operation %q has no owner", op.ID)
+			e.failedErr = err.Error()
 			return e.rollbackApplied(ctx, executed, rollbackOKCh, rollbackFailedCh, rollbackFilter, err)
 		}
 		applyFilter.set(op.ID)
 		payload, err := json.Marshal(ConfigOperationApplyEvent{TransactionID: e.txID, Operation: *op, DeadlineMS: e.deadlineMS})
 		if err != nil {
 			unsubWaiters(waiters)
+			e.failedOwner = op.Owner
+			e.failedErr = err.Error()
 			return e.rollbackApplied(ctx, executed, rollbackOKCh, rollbackFailedCh, rollbackFilter, fmt.Errorf("marshal operation apply %s: %w", op.ID, err))
 		}
 		if _, err := e.gateway.EmitConfigEvent(EventOperationApplyFor(op.Owner), payload); err != nil {
 			unsubWaiters(waiters)
+			e.failedOwner = op.Owner
+			e.failedErr = err.Error()
 			return e.rollbackApplied(ctx, executed, rollbackOKCh, rollbackFailedCh, rollbackFilter, fmt.Errorf("emit operation apply %s: %w", op.ID, err))
 		}
 		if err := waitApplyAck(ctx, op.ID, applyOKCh, applyFailedCh); err != nil {
 			unsubWaiters(waiters)
+			e.failedOwner = op.Owner
+			e.failedErr = err.Error()
 			return e.rollbackApplied(ctx, executed, rollbackOKCh, rollbackFailedCh, rollbackFilter, err)
 		}
 		applyFilter.clear()
 		executed = append(executed, *op)
 		if err := waitSettlement(ctx, op.ID, waiters); err != nil {
 			unsubWaiters(waiters)
+			e.failedOwner = op.Owner
+			e.failedErr = err.Error()
 			return e.rollbackApplied(ctx, executed, rollbackOKCh, rollbackFailedCh, rollbackFilter, err)
 		}
 		unsubWaiters(waiters)

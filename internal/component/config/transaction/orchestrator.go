@@ -14,6 +14,7 @@ import (
 	"strings"
 	"sync"
 	"time"
+	"unicode/utf8"
 
 	"log/slog"
 
@@ -96,6 +97,19 @@ type Participant struct {
 	ApplyBudget      int // Estimated apply seconds.
 }
 
+// maxStepErrorBytes caps per-plugin error strings stored in PluginStepResult.
+const maxStepErrorBytes = 512
+
+// PluginStepResult records per-plugin timing and outcome for one config transaction.
+type PluginStepResult struct {
+	Plugin     string `json:"plugin"`
+	VerifyMS   int64  `json:"verify-ms,omitempty"`
+	ApplyMS    int64  `json:"apply-ms,omitempty"`
+	RollbackMS int64  `json:"rollback-ms,omitempty"`
+	Status     string `json:"status"`
+	Error      string `json:"error,omitempty"`
+}
+
 // TxResult is the outcome of a transaction execution.
 type TxResult struct {
 	State string // Final state (StateCommitted, StateAborted, StateRolledBack).
@@ -104,6 +118,9 @@ type TxResult struct {
 	// Operations retains actual applied order until the outer reload settles.
 	// The caller MUST undo these in reverse order on outer rejection.
 	Operations []ConfigOperation
+	// PluginSteps records per-plugin verify/apply/rollback timings and outcomes,
+	// sorted deterministically by plugin name.
+	PluginSteps []PluginStepResult
 }
 
 // ConfigWriter writes the config file after successful apply.
@@ -158,6 +175,12 @@ type TxCoordinator struct {
 	// absent from it was not restarted.
 	rollbackRestarts map[string]error
 
+	// Per-plugin step timing and status tracking (protected by mu).
+	pluginSteps   map[string]*PluginStepResult
+	verifyStarts  map[string]time.Time
+	applyStarts   map[string]time.Time
+	rollbackStart time.Time
+
 	// Channels for ack notification.
 	verifyOKCh     chan VerifyAck
 	verifyFailedCh chan VerifyAck
@@ -201,6 +224,9 @@ func NewTxCoordinator(gateway EventGateway, participants []Participant, restartF
 		applyAcks:        make(map[string]ApplyAck),
 		rollbackAcks:     make(map[string]RollbackAck),
 		rollbackRestarts: make(map[string]error),
+		pluginSteps:      make(map[string]*PluginStepResult, len(participants)),
+		verifyStarts:     make(map[string]time.Time, len(participants)),
+		applyStarts:      make(map[string]time.Time, len(participants)),
 		verifyOKCh:       make(chan VerifyAck, len(participants)),
 		verifyFailedCh:   make(chan VerifyAck, len(participants)),
 		applyOKCh:        make(chan ApplyAck, len(participants)),
@@ -254,8 +280,8 @@ func (o *TxCoordinator) Execute(ctx context.Context, diffs map[string][]DiffSect
 		if canceledByShutdown(ctx) {
 			return o.abortForShutdown("verify", err)
 		}
-		o.publishAbort("verify", err.Error())
-		return &TxResult{State: StateAborted, Err: err}
+		o.publishAbort(ctx, "verify", err.Error())
+		return &TxResult{State: StateAborted, Err: err, PluginSteps: o.snapshotPluginSteps(StateAborted)}
 	}
 
 	// Phase 2, ordered: every participant with a diff is a node in the
@@ -271,23 +297,23 @@ func (o *TxCoordinator) Execute(ctx context.Context, diffs map[string][]DiffSect
 			if canceledByShutdown(ctx) {
 				return o.abortForShutdown("operation planning", err)
 			}
-			o.publishAbort("operation planning", err.Error())
-			return &TxResult{State: StateAborted, Err: err}
+			o.publishAbort(ctx, "operation planning", err.Error())
+			return &TxResult{State: StateAborted, Err: err, PluginSteps: o.snapshotPluginSteps(StateAborted)}
 		}
 		// The verb and the declared resources are what the graph orders by,
 		// so an operation missing either cannot be placed. It aborts the
 		// transaction here, before anything is applied, rather than being
 		// ordered as if it depended on nothing.
 		if err := ValidateOperations(ops); err != nil {
-			o.publishAbort("operation planning", err.Error())
-			return &TxResult{State: StateAborted, Err: err}
+			o.publishAbort(ctx, "operation planning", err.Error())
+			return &TxResult{State: StateAborted, Err: err, PluginSteps: o.snapshotPluginSteps(StateAborted)}
 		}
 		// A participant that decomposed one of its roots and not another is
 		// covered as far as the synthesis below can see, and the root it left
 		// would reach nothing while this transaction committed.
 		if err := o.checkOperationRootCoverage(ops, diffs); err != nil {
-			o.publishAbort("operation planning", err.Error())
-			return &TxResult{State: StateAborted, Err: err}
+			o.publishAbort(ctx, "operation planning", err.Error())
+			return &TxResult{State: StateAborted, Err: err, PluginSteps: o.snapshotPluginSteps(StateAborted)}
 		}
 		return o.runOperationPath(ctx, o.operationNodes(ops, diffs), diffs)
 	}
@@ -303,10 +329,10 @@ func (o *TxCoordinator) Execute(ctx context.Context, diffs map[string][]DiffSect
 
 	// Phase 3: Commit.
 	o.publishCommitted()
-	saved := o.writeConfigFile()
+	saved := o.writeConfigFile(ctx)
 	o.publishApplied(saved)
 
-	return &TxResult{State: StateCommitted, Saved: saved}
+	return &TxResult{State: StateCommitted, Saved: saved, PluginSteps: o.snapshotPluginSteps(StateCommitted)}
 }
 
 // subscribeAcks registers engine handlers for all config ack event types.
@@ -480,6 +506,7 @@ func (o *TxCoordinator) runVerify(ctx context.Context, diffs map[string][]DiffSe
 		if len(pluginDiffs) == 0 {
 			continue
 		}
+		o.recordVerifyStart(p.Name, time.Now())
 		ev := VerifyEvent{
 			TransactionID: o.txID,
 			Diffs:         pluginDiffs,
@@ -487,9 +514,11 @@ func (o *TxCoordinator) runVerify(ctx context.Context, diffs map[string][]DiffSe
 		}
 		payload, err := json.Marshal(ev)
 		if err != nil {
+			o.recordVerifyResult(p.Name, true, err.Error())
 			return fmt.Errorf("marshal verify event for %s: %w", p.Name, err)
 		}
 		if _, err := o.gateway.EmitConfigEvent(EventVerifyFor(p.Name), payload); err != nil {
+			o.recordVerifyResult(p.Name, true, err.Error())
 			return fmt.Errorf("emit verify event for %s: %w", p.Name, err)
 		}
 	}
@@ -514,6 +543,7 @@ func (o *TxCoordinator) runVerify(ctx context.Context, diffs map[string][]DiffSe
 				o.updateParticipantApplyBudget(ack.Plugin, ack.ApplyBudgetSecs)
 			}
 			o.mu.Unlock()
+			o.recordVerifyResult(ack.Plugin, false, "")
 		case ack := <-o.verifyFailedCh:
 			if _, ok := expected[ack.Plugin]; !ok {
 				logger().Warn("ignoring unexpected verify-failed ack",
@@ -524,10 +554,17 @@ func (o *TxCoordinator) runVerify(ctx context.Context, diffs map[string][]DiffSe
 			o.mu.Lock()
 			o.verifyAcks[ack.Plugin] = ack
 			o.mu.Unlock()
+			o.recordVerifyResult(ack.Plugin, true, ack.Error)
 			return fmt.Errorf("plugin %s verify failed: %s", ack.Plugin, ack.Error)
 		case <-timer.C:
+			for name := range expected {
+				o.recordVerifyResult(name, true, "verify timeout")
+			}
 			return fmt.Errorf("verify timeout after %v", deadline)
 		case <-ctx.Done():
+			for name := range expected {
+				o.recordVerifyResult(name, true, ctx.Err().Error())
+			}
 			return ctx.Err()
 		}
 	}
@@ -549,7 +586,9 @@ func (o *TxCoordinator) runApply(ctx context.Context, diffs map[string][]DiffSec
 		if len(pluginDiffs) == 0 {
 			continue
 		}
+		o.recordApplyStart(p.Name, time.Now())
 		if err := emitSectionApply(o.gateway, o.txID, p.Name, pluginDiffs, deadlineMS); err != nil {
+			o.recordApplyResult(p.Name, true, err.Error())
 			return err
 		}
 	}
@@ -577,6 +616,7 @@ func (o *TxCoordinator) runApply(ctx context.Context, diffs map[string][]DiffSec
 				o.updateParticipantApplyBudget(ack.Plugin, ack.ApplyBudgetSecs)
 			}
 			o.mu.Unlock()
+			o.recordApplyResult(ack.Plugin, false, "")
 		case ack := <-o.applyFailedCh:
 			if _, ok := expected[ack.Plugin]; !ok {
 				logger().Warn("ignoring unexpected apply-failed ack",
@@ -587,10 +627,17 @@ func (o *TxCoordinator) runApply(ctx context.Context, diffs map[string][]DiffSec
 			o.mu.Lock()
 			o.applyAcks[ack.Plugin] = ack
 			o.mu.Unlock()
+			o.recordApplyResult(ack.Plugin, true, ack.Error)
 			return fmt.Errorf("plugin %s apply failed: %s", ack.Plugin, ack.Error)
 		case <-timer.C:
+			for name := range expected {
+				o.recordApplyResult(name, true, "apply timeout")
+			}
 			return fmt.Errorf("apply timeout after %v", deadline)
 		case <-ctx.Done():
+			for name := range expected {
+				o.recordApplyResult(name, true, ctx.Err().Error())
+			}
 			return ctx.Err()
 		}
 	}
@@ -668,13 +715,13 @@ func (o *TxCoordinator) sectionDiffsFor(diffs map[string][]DiffSection) SectionD
 func (o *TxCoordinator) runOperationPath(ctx context.Context, ops []ConfigOperation, diffs map[string][]DiffSection) *TxResult {
 	graph, err := BuildOperationGraph(ops, ConstraintRules())
 	if err != nil {
-		o.publishAbort("operation ordering", err.Error())
-		return &TxResult{State: StateAborted, Err: err}
+		o.publishAbort(ctx, "operation ordering", err.Error())
+		return &TxResult{State: StateAborted, Err: err, PluginSteps: o.snapshotPluginSteps(StateAborted)}
 	}
 	sorted, err := TopologicalSort(graph)
 	if err != nil {
-		o.publishAbort("operation ordering", err.Error())
-		return &TxResult{State: StateAborted, Err: err}
+		o.publishAbort(ctx, "operation ordering", err.Error())
+		return &TxResult{State: StateAborted, Err: err, PluginSteps: o.snapshotPluginSteps(StateAborted)}
 	}
 	executor := NewOperationExecutor(o.gateway, o.txID)
 	executor.SetSectionDiffs(o.sectionDiffsFor(diffs))
@@ -694,20 +741,43 @@ func (o *TxCoordinator) runOperationPath(ctx context.Context, ops []ConfigOperat
 		if canceledByShutdown(ctx) {
 			return o.abortForShutdown("operation verify", verifyErr)
 		}
-		o.publishAbort("operation verify", verifyErr.Error())
-		return &TxResult{State: StateAborted, Err: verifyErr}
+		o.publishAbort(ctx, "operation verify", verifyErr.Error())
+		return &TxResult{State: StateAborted, Err: verifyErr, PluginSteps: o.snapshotPluginSteps(StateAborted)}
 	}
 
+	applyStart := time.Now()
+	for i := range sorted {
+		if sorted[i].Owner != "" {
+			o.recordApplyStart(sorted[i].Owner, applyStart)
+		}
+	}
 	applyCtx, applyCancel := context.WithTimeout(ctx, deadline)
 	applyDeadlineAt, _ := applyCtx.Deadline()
 	executor.SetDeadlineMS(applyDeadlineAt.UnixMilli())
 	applyErr := executor.Execute(applyCtx, sorted)
 	applyCancel()
+	for i := range sorted {
+		owner := sorted[i].Owner
+		if owner == "" {
+			continue
+		}
+		if applyErr != nil {
+			if owner == executor.failedOwner {
+				errMsg := executor.failedErr
+				if errMsg == "" {
+					errMsg = applyErr.Error()
+				}
+				o.recordApplyResult(owner, true, errMsg)
+				continue
+			}
+		}
+		o.recordApplyResult(owner, false, "")
+	}
 	if applyErr != nil {
 		if canceledByShutdown(ctx) {
 			return o.abortForShutdown("operation apply", applyErr)
 		}
-		return &TxResult{State: StateRolledBack, Err: applyErr}
+		return &TxResult{State: StateRolledBack, Err: applyErr, PluginSteps: o.snapshotPluginSteps(StateRolledBack)}
 	}
 
 	// The commit phase gets an interval of its own, as long as the apply
@@ -729,12 +799,12 @@ func (o *TxCoordinator) runOperationPath(ctx context.Context, ops []ConfigOperat
 		if canceledByShutdown(ctx) {
 			return o.abortForShutdown("operation rollback", rollbackErr)
 		}
-		return &TxResult{State: StateRolledBack, Err: rollbackErr}
+		return &TxResult{State: StateRolledBack, Err: rollbackErr, PluginSteps: o.snapshotPluginSteps(StateRolledBack)}
 	}
 	o.publishCommitted()
-	saved := o.writeConfigFile()
+	saved := o.writeConfigFile(ctx)
 	o.publishApplied(saved)
-	return &TxResult{State: StateCommitted, Saved: saved, Operations: sorted}
+	return &TxResult{State: StateCommitted, Saved: saved, Operations: sorted, PluginSteps: o.snapshotPluginSteps(StateCommitted)}
 }
 
 // FilterDiffs returns the diff sections this participant receives, deduplicating
@@ -908,7 +978,7 @@ func (o *TxCoordinator) expectedParticipants(diffs map[string][]DiffSection) map
 // The stream event stays EventVerifyAbort for every phase. It is the event
 // name a plugin subscribes to for "this transaction ended before apply", which
 // is what every caller here means, and the phase is carried by the report.
-func (o *TxCoordinator) publishAbort(phase, reason string) {
+func (o *TxCoordinator) publishAbort(ctx context.Context, phase, reason string) {
 	ev := AbortEvent{TransactionID: o.txID, Reason: reason}
 	payload, err := json.Marshal(ev)
 	if err != nil {
@@ -921,11 +991,13 @@ func (o *TxCoordinator) publishAbort(phase, reason string) {
 	// Surface the abort on the operational report bus so `ze show errors`
 	// reflects commit failures alongside BGP events. The bus is a separate
 	// concern from the transaction event stream; this call is additive.
-	report.RaiseError(
+	report.RaiseErrorContext(
+		ctx,
 		reportSourceConfig,
 		reportCodeCommitAborted,
 		o.txID,
 		"config commit aborted during "+phase+": "+reason,
+		"",
 		map[string]any{"reason": reason, reportKeyPhase: phase},
 	)
 }
@@ -937,8 +1009,9 @@ func (o *TxCoordinator) abortForShutdown(phase string, err error) *TxResult {
 	logger().Info("config transaction canceled by shutdown",
 		"tx", o.txID, "phase", phase, "error", err)
 	return &TxResult{
-		State: StateAborted,
-		Err:   fmt.Errorf("%w during %s: %w", ErrShutdown, phase, err),
+		State:       StateAborted,
+		Err:         fmt.Errorf("%w during %s: %w", ErrShutdown, phase, err),
+		PluginSteps: o.snapshotPluginSteps(StateAborted),
 	}
 }
 
@@ -962,12 +1035,17 @@ func (o *TxCoordinator) rollBack(ctx context.Context, err error) *TxResult {
 // A shutdown that ended ctx leaves no running system to describe, so the
 // result is the shutdown abort and names no rollback outcome.
 func (o *TxCoordinator) rollBackWithin(ctx context.Context, err error) *TxResult {
+	o.recordRollbackStart(time.Now())
 	o.publishRollback(ctx, err.Error())
 	o.collectRollbackAcks(ctx)
 	if canceledByShutdown(ctx) {
 		return o.abortForShutdown("rollback", err)
 	}
-	return &TxResult{State: StateRolledBack, Err: fmt.Errorf("%w\n%s", err, o.rollbackOutcome())}
+	return &TxResult{
+		State:       StateRolledBack,
+		Err:         fmt.Errorf("%w\n%s", err, o.rollbackOutcome()),
+		PluginSteps: o.snapshotPluginSteps(StateRolledBack),
+	}
 }
 
 // The executor MUST finish original operation undo before restoring sections,
@@ -1056,11 +1134,13 @@ func (o *TxCoordinator) publishRollback(ctx context.Context, reason string) {
 	if _, err := o.gateway.EmitConfigEvent(EventRollback, payload); err != nil {
 		logger().Error("emit rollback event", "error", err)
 	}
-	report.RaiseError(
+	report.RaiseErrorContext(
+		ctx,
 		reportSourceConfig,
 		reportCodeCommitRollback,
 		o.txID,
 		"config commit rolled back during apply: "+reason,
+		"",
 		map[string]any{"reason": reason, reportKeyPhase: "apply"},
 	)
 }
@@ -1198,6 +1278,7 @@ func (o *TxCoordinator) handleRollbackAck(ctx context.Context, ack RollbackAck) 
 	o.mu.Lock()
 	o.rollbackAcks[ack.Plugin] = ack
 	o.mu.Unlock()
+	o.recordRollbackResult(ack.Plugin, ack.Code == CodeBroken, ack.Error)
 	if ack.Code != CodeBroken {
 		return
 	}
@@ -1219,7 +1300,7 @@ func (o *TxCoordinator) handleRollbackAck(ctx context.Context, ack RollbackAck) 
 	o.mu.Unlock()
 }
 
-func (o *TxCoordinator) writeConfigFile() bool {
+func (o *TxCoordinator) writeConfigFile(ctx context.Context) bool {
 	if o.configWriter == nil {
 		return true
 	}
@@ -1228,11 +1309,13 @@ func (o *TxCoordinator) writeConfigFile() bool {
 		// Raise a commit-save-failed error on the report bus so operators
 		// see it via `ze show errors`. Apply succeeded (runtime is live),
 		// but the config file on disk is out of sync with the running state.
-		report.RaiseError(
+		report.RaiseErrorContext(
+			ctx,
 			reportSourceConfig,
 			reportCodeCommitSaveFail,
 			o.txID,
 			"config commit succeeded but file write failed: "+err.Error(),
+			"",
 			map[string]any{"error": err.Error(), reportKeyPhase: "save"},
 		)
 		return false
@@ -1246,4 +1329,125 @@ func (o *TxCoordinator) unsubscribeAcks() {
 		unsub()
 	}
 	o.unsubs = nil
+}
+
+func (o *TxCoordinator) ensureStepLocked(plugin string) *PluginStepResult {
+	step, ok := o.pluginSteps[plugin]
+	if ok {
+		return step
+	}
+	step = &PluginStepResult{Plugin: plugin}
+	o.pluginSteps[plugin] = step
+	return step
+}
+
+func (o *TxCoordinator) recordVerifyStart(plugin string, at time.Time) {
+	o.mu.Lock()
+	defer o.mu.Unlock()
+	o.ensureStepLocked(plugin)
+	o.verifyStarts[plugin] = at
+}
+
+func (o *TxCoordinator) recordVerifyResult(plugin string, failed bool, errMsg string) {
+	o.mu.Lock()
+	defer o.mu.Unlock()
+	step := o.ensureStepLocked(plugin)
+	step.VerifyMS = elapsedStepMS(o.verifyStarts[plugin])
+	if failed {
+		step.Status = "verify-failed"
+		step.Error = truncateStepError(errMsg)
+	}
+}
+
+func (o *TxCoordinator) recordApplyStart(plugin string, at time.Time) {
+	o.mu.Lock()
+	defer o.mu.Unlock()
+	o.ensureStepLocked(plugin)
+	if o.applyStarts[plugin].IsZero() {
+		o.applyStarts[plugin] = at
+	}
+}
+
+func (o *TxCoordinator) recordApplyResult(plugin string, failed bool, errMsg string) {
+	o.mu.Lock()
+	defer o.mu.Unlock()
+	step := o.ensureStepLocked(plugin)
+	step.ApplyMS = elapsedStepMS(o.applyStarts[plugin])
+	if failed {
+		step.Status = "apply-failed"
+		step.Error = truncateStepError(errMsg)
+	}
+}
+
+func (o *TxCoordinator) recordRollbackStart(at time.Time) {
+	o.mu.Lock()
+	defer o.mu.Unlock()
+	o.rollbackStart = at
+}
+
+func (o *TxCoordinator) recordRollbackResult(plugin string, broken bool, errMsg string) {
+	o.mu.Lock()
+	defer o.mu.Unlock()
+	step := o.ensureStepLocked(plugin)
+	step.RollbackMS = elapsedStepMS(o.rollbackStart)
+	if step.Status != "apply-failed" {
+		step.Status = "rolled-back"
+	}
+	if broken {
+		if step.Error == "" {
+			step.Error = truncateStepError(errMsg)
+		}
+	}
+}
+
+func (o *TxCoordinator) snapshotPluginSteps(finalState string) []PluginStepResult {
+	o.mu.Lock()
+	defer o.mu.Unlock()
+	if len(o.pluginSteps) == 0 {
+		return nil
+	}
+	defaultStatus := "aborted"
+	switch finalState {
+	case StateCommitted:
+		defaultStatus = "committed"
+	case StateRolledBack:
+		defaultStatus = "rolled-back"
+	case StateAborted:
+		defaultStatus = "aborted"
+	}
+	steps := make([]PluginStepResult, 0, len(o.pluginSteps))
+	for _, step := range o.pluginSteps {
+		copied := *step
+		if copied.Status == "" {
+			copied.Status = defaultStatus
+		}
+		steps = append(steps, copied)
+	}
+	slices.SortFunc(steps, func(a, b PluginStepResult) int {
+		return strings.Compare(a.Plugin, b.Plugin)
+	})
+	return steps
+}
+
+func elapsedStepMS(start time.Time) int64 {
+	if start.IsZero() {
+		return 0
+	}
+	d := time.Since(start).Milliseconds()
+	if d < 0 {
+		return 0
+	}
+	return d
+}
+
+func truncateStepError(msg string) string {
+	if len(msg) <= maxStepErrorBytes {
+		return msg
+	}
+	const ellipsis = "..."
+	cut := maxStepErrorBytes - len(ellipsis)
+	for cut > 0 && !utf8.RuneStart(msg[cut]) {
+		cut--
+	}
+	return msg[:cut] + ellipsis
 }

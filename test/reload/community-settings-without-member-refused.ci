@@ -6,7 +6,7 @@
 #                 peer's `filter ingress community tag mark`.
 # Expected:       bgp-filter-community refuses at config-verify, naming the
 #                 peer, the setting and the member to add; the session is kept
-#                 and `show reload-status` reports the reload failed.
+#                 and `show system reload status` reports the reload failed.
 #
 # VALIDATES: AC-11 of spec-filter-wire-6-stage-filters (verify half; the boot
 #            half is test/parse/community-settings-without-member-refused.ci).
@@ -131,7 +131,7 @@ tmpfs=stages.script:terminator=EOF_SCRIPT
 await-file established
 reload config2.conf
 # The daemon records the reload as failed, so the running config keeps the member.
-has show reload-status => "last-outcome":"failed"
+has show system reload status => "last-outcome":"failed"
 say COMMUNITY-MEMBER-REFUSED: reload refused, session kept
 EOF_SCRIPT
 

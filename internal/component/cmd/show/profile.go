@@ -24,6 +24,7 @@ import (
 const (
 	defaultCPUProfileDuration = 10 * time.Second
 	maxCPUProfileDuration     = 60 * time.Second
+	profileTimeoutHeadroom    = 15 * time.Second
 	profileTypeCPU            = "cpu"
 	profileTypeHeap           = "heap"
 	profileTypeGoroutine      = "goroutine"
@@ -34,6 +35,7 @@ const (
 	profileFormatPprofBase64  = "pprof-base64"
 	keyFormat                 = "format"
 	keyData                   = "data"
+	keyDuration               = "duration"
 	keySamplingRate           = "sampling-rate"
 )
 
@@ -43,7 +45,11 @@ var errCPUProfileInProgress = errors.New("CPU profile already in progress")
 
 func init() {
 	pluginserver.RegisterRPCs(
-		pluginserver.RPCRegistration{WireMethod: "ze-cmd:show-system-profile", Handler: handleShowSystemProfile},
+		pluginserver.RPCRegistration{
+			WireMethod:     "ze-cmd:show-system-profile",
+			Handler:        handleShowSystemProfile,
+			HandlerTimeout: profileHandlerTimeout,
+		},
 	)
 	command.RegisterPipeFilters(
 		[]string{"show system profile"},
@@ -72,7 +78,7 @@ func handleShowSystemProfile(ctx *pluginserver.CommandContext, validated command
 			}
 		case profileTypeCPU, profileTypeHeap, profileTypeGoroutine, profileTypeAllocs, profileTypeMutex, profileTypeBlock:
 			profileType = args[i]
-		case "duration":
+		case keyDuration:
 			if i+1 < len(args) {
 				i++
 				d, err := time.ParseDuration(args[i])
@@ -114,6 +120,43 @@ func handleShowSystemProfile(ctx *pluginserver.CommandContext, validated command
 	default:
 		return profileSnapshot(profileType, wantSummary)
 	}
+}
+
+func profileHandlerTimeout(validated command.ValidatedArgs) time.Duration {
+	args := validated.Tokens()
+	profileType := profileTypeHeap
+	duration := defaultCPUProfileDuration
+	hasDuration := false
+
+	for i := 0; i < len(args); i++ {
+		switch args[i] {
+		case keyType:
+			if i+1 < len(args) {
+				i++
+				if isSupportedProfileType(args[i]) {
+					profileType = args[i]
+				}
+			}
+		case profileTypeCPU, profileTypeHeap, profileTypeGoroutine, profileTypeAllocs, profileTypeMutex, profileTypeBlock:
+			profileType = args[i]
+		case keyDuration:
+			if i+1 < len(args) {
+				i++
+				if d, err := time.ParseDuration(args[i]); err == nil && d > 0 {
+					duration = min(d, maxCPUProfileDuration)
+					hasDuration = true
+				}
+			}
+		}
+	}
+
+	if profileType == profileTypeCPU {
+		return duration + profileTimeoutHeadroom
+	}
+	if hasDuration {
+		return duration + profileTimeoutHeadroom
+	}
+	return 0
 }
 
 func isSupportedProfileType(name string) bool {

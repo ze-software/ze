@@ -58,6 +58,7 @@ import (
 	"github.com/ze-software/ze/internal/core/slogutil"
 	"github.com/ze-software/ze/internal/core/statestore"
 	"github.com/ze-software/ze/internal/core/textbuf"
+	"github.com/ze-software/ze/internal/core/watchdog"
 	"github.com/ze-software/ze/pkg/fleet"
 	"github.com/ze-software/ze/pkg/plugin/rpc"
 	"github.com/ze-software/ze/pkg/plugin/sdk"
@@ -1290,7 +1291,9 @@ func runYANGConfig(store storage.Storage, configPath string, data []byte, plugin
 	// The empty window starts before runtime binding. It cannot revert until a
 	// commit opens it. The runtime MUST retain this window after shutdown
 	// withdraws it from new editors. The deferred stop covers an early return.
-	confirmWindow := startConfirmWindow(store, configPath, reloadAfterCommit)
+	confirmWindow := startConfirmWindow(store, configPath, func() error {
+		return reloadAfterCommitContext(withReloadTrigger(context.Background(), "confirm-revert"))
+	})
 	defer stopConfirmWindow(confirmWindow)
 	if err := sessionMutations.bind(store, configPath, confirmWindow, reloadCommittedContext); err != nil {
 		panic("BUG: configuration runtime binding failed: " + err.Error())
@@ -1321,6 +1324,8 @@ func runYANGConfig(store storage.Storage, configPath string, data []byte, plugin
 	} else {
 		defer flightrec.Stop()
 	}
+	watchdog.Start()
+	defer watchdog.Stop()
 
 	startCtx := context.Background()
 	// Engine.Start joins this complete plugin startup before it starts any

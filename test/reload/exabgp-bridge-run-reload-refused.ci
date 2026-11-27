@@ -7,7 +7,7 @@
 #                 command; nothing else changes.
 # Expected:       the reload is refused before apply by
 #                 RefuseChangedDeclarations, naming plugin "helper" (run) and
-#                 `restart ze`, `show reload-status` reports failed, and the
+#                 `restart ze`, `show system reload status` reports failed, and the
 #                 session stays up on one TCP connection with the helper's
 #                 route intact.
 #
@@ -21,7 +21,7 @@
 #
 # DISCRIMINATION: the refusal is produced by RefuseChangedDeclarations
 # (internal/component/plugin/server/reload_declarations.go) comparing the
-# external endpoint's `run` field; without it `show reload-status` reads
+# external endpoint's `run` field; without it `show system reload status` reads
 # "applied" and the refusal assertions fail.
 option=timeout:value=60s
 
@@ -128,7 +128,7 @@ EOF_CONF2
 tmpfs=stages.script:terminator=EOF_SCRIPT
 await-file established
 reload config2.conf
-has show reload-status => "last-outcome":"failed"
+has show system reload status => "last-outcome":"failed"
 # The helper is a forked process whose first line reaches the daemon whenever
 # the machine lets it start, before or after the reload. The EOR and its route
 # are the two UPDATEs: this fences the shutdown behind the route, which the

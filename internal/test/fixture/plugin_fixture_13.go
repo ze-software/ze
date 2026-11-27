@@ -250,7 +250,7 @@ func reloadListenerRejected13(ctx context.Context, args []string) error {
 			return number13(listeners[0]["port"]), nil
 		}
 		readGeneration := func() int {
-			result := command13(ctx, plugin, "show reload-status")
+			result := command13(ctx, plugin, "show system reload status")
 			if !done13(result) {
 				return -1
 			}

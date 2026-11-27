@@ -323,7 +323,7 @@ func bgpBestRouteReload(ctx context.Context, plugin *sdk.Plugin, activeConfig, t
 	}) {
 		return fmt.Errorf("selected-route reload: generation did not advance from %d", baseline)
 	}
-	value, err := done03(ctx, plugin, "show reload-status")
+	value, err := done03(ctx, plugin, "show system reload status")
 	if err != nil {
 		return err
 	}

@@ -39,17 +39,6 @@ window to confirm the process restarted.";
             ze:help "Show how long the daemon has been running.";
         }
 
-        container reload-status {
-            config false;
-            ze:command "ze-cmd:show-reload-status";
-            description "Returns a generation counter, the outcome of the most recent reload
-(applied or failed), and when it finished. The counter advances on every
-processed reload, including one that rejected or changed nothing, so you
-can confirm a SIGHUP was acted on even when it deliberately left the
-running config alone.";
-            ze:help "Show how many config reloads the daemon has processed.";
-        }
-
         container runtime {
             config false;
             description "This reports the process rather than the protocol: goroutines, heap and garbage
@@ -265,6 +254,48 @@ Go execution trace bytes for 'go tool trace'.";
 metadata and base64-encoded Go trace payload.";
                     ze:help "Snapshot identifier to fetch.";
                 }
+            }
+
+            container reload {
+                config false;
+                description "Reload status and transaction history for the running daemon.";
+                ze:help "Configuration reload status and history.";
+
+                container status {
+                    config false;
+                    ze:command "ze-cmd:show-system-reload-status";
+                    description "Returns a generation counter, the outcome of the most recent reload
+(applied or failed), when it finished, and the last operation ID when recorded.
+The counter advances on every processed reload, including one that rejected or
+changed nothing, so you can confirm a SIGHUP was acted on even when it
+deliberately left the running config alone.";
+                    ze:help "Show how many config reloads the daemon has processed.";
+                }
+
+                container history {
+                    config false;
+                    ze:command "ze-cmd:show-system-reload-history";
+                    description "Returns the bounded circular history of recent configuration reload
+transactions (newest first, up to 32 entries), including generation, operation
+ID, trigger, outcome, duration, changed roots, transaction state, per-plugin
+verify/apply/rollback timings, and errors. Pipe through '| operation <id>' to
+filter to one operation.";
+                    ze:help "Show recent configuration reload transactions and per-plugin timings.";
+                    leaf count {
+                        type uint32;
+                        description "Maximum number of reload history entries to return (1 to 32, default 32).";
+                        ze:help "Limit number of reload history entries.";
+                    }
+                }
+            }
+
+            container watchdog {
+                config false;
+                ze:command "ze-cmd:show-system-watchdog";
+                description "Reports the always-on daemon liveness watchdog state, tick interval,
+stall threshold, registered health probes, active hung command handlers, and
+recent automatically captured stall records with bounded goroutine stacks.";
+                ze:help "Show daemon liveness watchdog status, probes, and stall records.";
             }
 
         }

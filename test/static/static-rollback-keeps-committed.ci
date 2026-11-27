@@ -32,7 +32,7 @@
 # (pkg/plugin/sdk/sdk_callbacks.go). Static's handler then replays the first
 # reload's journal and the rejected line is written.
 #
-# The driver runs as a plugin: it fences each reload on the `show reload-status`
+# The driver runs as a plugin: it fences each reload on the `show system reload status`
 # generation, which advances only after the candidate is promoted, so the
 # second config is never written over a staged candidate. It also reads the
 # kernel table to check the first reload removed the route, which needs a Linux

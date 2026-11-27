@@ -27,11 +27,16 @@ func RegisterAuditProvider(fn func(zeaudit.Filter) []zeaudit.Entry) {
 }
 
 func handleShowAudit(_ *pluginserver.CommandContext, validated command.ValidatedArgs) (*plugin.Response, error) {
+	opID, _, refusal := extractOperationPipeTarget(validated, "ze show audit | operation <id>")
+	if refusal != nil {
+		return refusal, nil
+	}
 	args := validated.Tokens()
 	filter, parseErr := parseAuditFilter(args)
 	if parseErr != nil {
 		return &plugin.Response{Status: plugin.StatusError, Error: parseErr.Error()}, nil //nolint:nilerr // operational error in Response
 	}
+	filter.OpID = opID
 	auditProvider.RLock()
 	fn := auditProvider.fn
 	auditProvider.RUnlock()
@@ -39,7 +44,7 @@ func handleShowAudit(_ *pluginserver.CommandContext, validated command.Validated
 	if fn != nil {
 		entries = fn(filter)
 	}
-	return &plugin.Response{Status: plugin.StatusDone, Data: plugin.Map{"entries": entries, keyCount: len(entries)}}, nil
+	return &plugin.Response{Status: plugin.StatusDone, Data: plugin.Map{triageKeyEntries: entries, keyCount: len(entries)}}, nil
 }
 
 func parseAuditFilter(args []string) (zeaudit.Filter, error) {

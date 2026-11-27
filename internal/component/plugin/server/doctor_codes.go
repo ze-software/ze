@@ -22,6 +22,8 @@ const (
 	CodeDoctorCommandEnsureRollbackFailed = "doctor-command-ensure-rollback-failed"
 	// CodeDoctorCommandDeprecatedUsed is the doctor diagnostic code "doctor-command-deprecated-used".
 	CodeDoctorCommandDeprecatedUsed = "doctor-command-deprecated-used"
+	// CodeDoctorCommandHandlerHung is the doctor diagnostic code "doctor-command-handler-hung".
+	CodeDoctorCommandHandlerHung = "doctor-command-handler-hung"
 	// CodeDoctorConfigReloadRefused is the doctor diagnostic code "doctor-config-reload-refused".
 	CodeDoctorConfigReloadRefused = "doctor-config-reload-refused"
 	// CodeDoctorHubManagedCollision is the doctor diagnostic code "doctor-hub-managed-collision".
@@ -144,6 +146,13 @@ var doctorDiagnosticCodes = []diagnostic.CodeMeta{
 		Description: "A client ran a command by a deprecated name. It still runs, as an alias of the current name, which the event names. " +
 			"Change the script or client to use the current name.",
 		Examples: []string{exampleShowDoctor, exampleShowErrors, "ze show diagnostic doctor-command-deprecated-used"},
+	},
+	{
+		Code:  CodeDoctorCommandHandlerHung,
+		Title: "Command handler timed out",
+		Description: "A builtin command handler did not return before its execution deadline, so the dispatcher returned a timeout error to the caller instead of wedging the session. " +
+			"The event names the command and operation ID. Inspect blocked goroutines and watchdog output to find what the handler is waiting on.",
+		Examples: []string{exampleShowDoctor, exampleShowErrors, "ze show system goroutines mode blocked", "ze show system watchdog", "ze show diagnostic doctor-command-handler-hung"},
 	},
 	{
 		Code:  CodeDoctorConfigReloadRefused,

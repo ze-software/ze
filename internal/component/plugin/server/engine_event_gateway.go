@@ -5,6 +5,8 @@
 package server
 
 import (
+	"context"
+
 	txevents "github.com/ze-software/ze/internal/component/config/transaction/events"
 	"github.com/ze-software/ze/pkg/plugin/rpc"
 )
@@ -26,13 +28,23 @@ import (
 // than complicating the adapter.
 type ConfigEventGateway struct {
 	server *Server
+	ctx    context.Context
 }
 
 // newConfigEventGateway creates a new adapter wrapping the given Server.
 // The Server must outlive the gateway; the gateway holds a reference but
 // does not manage Server lifecycle.
 func newConfigEventGateway(s *Server) *ConfigEventGateway {
-	return &ConfigEventGateway{server: s}
+	return newConfigEventGatewayWithContext(s, context.Background())
+}
+
+// newConfigEventGatewayWithContext creates a ConfigEventGateway bound to ctx so
+// config transaction events carry the reload's operation-id in EventRing.
+func newConfigEventGatewayWithContext(s *Server, ctx context.Context) *ConfigEventGateway {
+	if ctx == nil {
+		ctx = context.Background()
+	}
+	return &ConfigEventGateway{server: s, ctx: ctx}
 }
 
 // EmitConfigEvent publishes a stream event in the config namespace.
@@ -43,7 +55,7 @@ func (g *ConfigEventGateway) EmitConfigEvent(eventType string, payload []byte) (
 	if len(payload) == 0 {
 		return 0, &rpc.RPCCallError{Message: "emit-config-event requires non-empty payload"}
 	}
-	return g.server.EmitEngineEvent(txevents.Namespace, eventType, string(payload))
+	return g.server.EmitEngineEventContext(g.ctx, txevents.Namespace, eventType, string(payload))
 }
 
 // SubscribeConfigEvent registers a handler for a config namespace event type.

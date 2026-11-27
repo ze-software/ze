@@ -119,7 +119,7 @@ func handleArchiveTrigger(ctx *pluginserver.CommandContext, validated command.Va
 	var eventFn archive.EventEmitter
 	if ctx.Server != nil {
 		eventFn = func(_, _ string, content []byte) {
-			ctx.Server.EmitEngineEvent("config", "archive", content) //nolint:errcheck // best-effort event
+			ctx.Server.EmitEngineEventContext(ctx.Context(), "config", "archive", content) //nolint:errcheck // best-effort event
 		}
 	}
 

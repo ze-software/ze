@@ -199,7 +199,7 @@ func (a *reloadAcceptance) finishWithLock(accepted, acquire bool) (result error)
 		published[txID] = true
 		payload, err := json.Marshal(transaction.CommittedEvent{TransactionID: txID})
 		if err == nil {
-			_, err = a.server.EmitEngineEvent(txevents.Namespace, txevents.EventAccepted, string(payload))
+			_, err = a.server.EmitEngineEventContext(ctx, txevents.Namespace, txevents.EventAccepted, string(payload))
 		}
 		result = errors.Join(result, err)
 	}
@@ -420,7 +420,7 @@ func (s *Server) runTxCoordinator(ctx context.Context, affected []affectedPlugin
 		return fmt.Errorf("build transaction inputs: %w", err)
 	}
 
-	gateway := newConfigEventGateway(s)
+	gateway := newConfigEventGatewayWithContext(s, ctx)
 	bridge := newConfigTxBridge(s, gateway, participantNames(participants), verifySections)
 	// The bridge's final capability check waits for exactly the verifiers
 	// runVerify sends to, not operation-only participants with no section diff.
@@ -447,6 +447,20 @@ func (s *Server) runTxCoordinator(ctx context.Context, affected []affectedPlugin
 	coordinator.SetOperationPlanner(operationPlannerFromTrees(gateway, runningTree, candidateTree, participants))
 
 	result := coordinator.Execute(ctx, diffs)
+	if trace := reloadTraceFrom(ctx); trace != nil {
+		steps := make([]ReloadPluginStep, len(result.PluginSteps))
+		for i, step := range result.PluginSteps {
+			steps[i] = ReloadPluginStep{
+				Plugin:     step.Plugin,
+				VerifyMS:   step.VerifyMS,
+				ApplyMS:    step.ApplyMS,
+				RollbackMS: step.RollbackMS,
+				Status:     step.Status,
+				Error:      step.Error,
+			}
+		}
+		trace.recordTx(result.State, steps)
+	}
 	var restoreErr error
 	if result.State != transaction.StateCommitted {
 		// A rolled-back or aborted transaction leaves no capability

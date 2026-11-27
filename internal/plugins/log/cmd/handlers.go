@@ -18,11 +18,13 @@ import (
 // The CLI keyword the handlers accept, which is also the JSON key they answer
 // with. One spelling for each so a rename cannot reach only one of the two.
 const (
-	fieldCount     = "count"
-	fieldLevel     = "level"
-	fieldComponent = "component"
-	fieldEntries   = "entries"
-	pipeOpPlugin   = "plugin"
+	fieldCount       = "count"
+	fieldLevel       = "level"
+	fieldComponent   = "component"
+	fieldEntries     = "entries"
+	fieldOperationID = "operation-id"
+	pipeOpPlugin     = "plugin"
+	pipeOpOperation  = "operation"
 )
 
 // inspectLogPluginFunc routes plugin log inspection through Server.InspectPlugin.
@@ -79,6 +81,10 @@ func handleLogRecent(ctx *pluginserver.CommandContext, validated command.Validat
 	if refusal != nil {
 		return refusal, nil
 	}
+	opID, _, opRefusal := extractLogOperationPipeTarget(validated)
+	if opRefusal != nil {
+		return opRefusal, nil
+	}
 
 	args := validated.Tokens()
 	level, component, limit := "", "", 0
@@ -127,11 +133,11 @@ func handleLogRecent(ctx *pluginserver.CommandContext, validated command.Validat
 	}
 
 	if hasPlugin {
-		return inspectPluginLogRecent(ctx, pluginName, level, component, limit)
+		return inspectPluginLogRecent(ctx, pluginName, level, component, limit, opID)
 	}
 
 	ring := slogutil.GlobalLogRing()
-	entries, err := ring.Snapshot(limit, level, component)
+	entries, err := ring.SnapshotWithOp(limit, level, component, opID)
 	if err != nil {
 		return &plugin.Response{Status: plugin.StatusError, Error: "log recent: " + err.Error()}, nil //nolint:nilerr // the operator's error travels in the Response, the transport succeeded
 	}
@@ -141,13 +147,17 @@ func handleLogRecent(ctx *pluginserver.CommandContext, validated command.Validat
 		if err != nil {
 			return nil, err
 		}
-		out = append(out, map[string]any{
+		row := map[string]any{
 			"timestamp":    entries[i].Timestamp.UTC().Format("2006-01-02T15:04:05Z07:00"),
 			fieldLevel:     entries[i].Level,
 			fieldComponent: entries[i].Component,
 			"message":      entries[i].Message,
 			"attributes":   attributes,
-		})
+		}
+		if entries[i].OpID != "" {
+			row[fieldOperationID] = entries[i].OpID
+		}
+		out = append(out, row)
 	}
 	return &plugin.Response{
 		Status: plugin.StatusDone,
@@ -155,53 +165,68 @@ func handleLogRecent(ctx *pluginserver.CommandContext, validated command.Validat
 	}, nil
 }
 
-func extractLogPluginPipeTarget(validated command.ValidatedArgs) (name string, present bool, refusal *plugin.Response) {
-	const example = "ze show log recent | plugin <name>"
+func extractLogSinglePipeTarget(
+	validated command.ValidatedArgs,
+	pipeName, duplicateMsg, duplicateWhy, requiredMsg, requiredWhy, extraMsg, extraWhy, example string,
+) (value string, present bool, refusal *plugin.Response) {
 	for _, op := range validated.PipeOperations() {
-		if !strings.EqualFold(op.Name, pipeOpPlugin) {
+		if !strings.EqualFold(op.Name, pipeName) {
 			continue
 		}
 		if present {
-			return "", true, plugin.OperatorErrorResponse(opererr.New(
-				"duplicate | plugin pipe operation",
-				"only one | plugin selector may be given on a command line",
-				example,
-			))
+			return "", true, plugin.OperatorErrorResponse(opererr.New(duplicateMsg, duplicateWhy, example))
 		}
 		present = true
 		if len(op.Args) == 0 {
-			return "", true, plugin.OperatorErrorResponse(opererr.New(
-				"| plugin requires a plugin name",
-				"an endpoint name must follow | plugin",
-				example,
-			))
+			return "", true, plugin.OperatorErrorResponse(opererr.New(requiredMsg, requiredWhy, example))
 		}
 		if len(op.Args) > 1 {
-			return "", true, plugin.OperatorErrorResponse(opererr.New(
-				"| plugin takes exactly one plugin name",
-				"only one endpoint name may follow | plugin",
-				example,
-			))
+			return "", true, plugin.OperatorErrorResponse(opererr.New(extraMsg, extraWhy, example))
 		}
-		name = strings.TrimSpace(op.Args[0])
+		value = strings.TrimSpace(op.Args[0])
 	}
 	if !present {
 		return "", false, nil
 	}
-	if name == "" {
-		return "", true, plugin.OperatorErrorResponse(opererr.New(
-			"| plugin requires a plugin name",
-			"an endpoint name must follow | plugin",
-			example,
-		))
+	if value == "" {
+		return "", true, plugin.OperatorErrorResponse(opererr.New(requiredMsg, requiredWhy, example))
 	}
-	return name, true, nil
+	return value, true, nil
+}
+
+func extractLogPluginPipeTarget(validated command.ValidatedArgs) (name string, present bool, refusal *plugin.Response) {
+	return extractLogSinglePipeTarget(
+		validated,
+		pipeOpPlugin,
+		"duplicate | plugin pipe operation",
+		"only one | plugin selector may be given on a command line",
+		"| plugin requires a plugin name",
+		"an endpoint name must follow | plugin",
+		"| plugin takes exactly one plugin name",
+		"only one endpoint name may follow | plugin",
+		"ze show log recent | plugin <name>",
+	)
+}
+
+func extractLogOperationPipeTarget(validated command.ValidatedArgs) (opID string, present bool, refusal *plugin.Response) {
+	return extractLogSinglePipeTarget(
+		validated,
+		pipeOpOperation,
+		"duplicate | operation pipe operation",
+		"only one | operation filter may be given on a command line",
+		"| operation requires an operation ID",
+		"an operation ID must follow | operation",
+		"| operation takes exactly one operation ID",
+		"only one operation ID may follow | operation",
+		"ze show log recent | operation <id>",
+	)
 }
 
 func inspectPluginLogRecent(
 	ctx *pluginserver.CommandContext,
 	pluginName, level, component string,
 	limit int,
+	opID string,
 ) (*plugin.Response, error) {
 	if ctx == nil {
 		return logPluginServerUnavailableResponse(), nil
@@ -211,6 +236,9 @@ func inspectPluginLogRecent(
 	}
 
 	cappedLimit := min(limit, rpc.RuntimeInspectMaxLogEntries)
+	if opID != "" {
+		cappedLimit = rpc.RuntimeInspectMaxLogEntries
+	}
 
 	res, opErr := inspectLogPluginFunc(ctx.Server, ctx.Context(), pluginName, rpc.RuntimeInspectInput{
 		Kind:         rpc.RuntimeInspectLogRecent,
@@ -253,13 +281,28 @@ func inspectPluginLogRecent(
 	out := make([]map[string]any, 0, len(res.Output.LogEntries))
 	for i := range res.Output.LogEntries {
 		e := &res.Output.LogEntries[i]
-		out = append(out, map[string]any{
+		entryOpID, _ := e.Attributes[fieldOperationID].(string)
+		if opID != "" {
+			if entryOpID != opID {
+				continue
+			}
+		}
+		row := map[string]any{
 			"timestamp":    e.Timestamp,
 			fieldLevel:     e.Level,
 			fieldComponent: e.Component,
 			"message":      e.Message,
 			"attributes":   e.Attributes,
-		})
+		}
+		if entryOpID != "" {
+			row[fieldOperationID] = entryOpID
+		}
+		out = append(out, row)
+		if limit > 0 {
+			if len(out) >= limit {
+				break
+			}
+		}
 	}
 	return &plugin.Response{
 		Status: plugin.StatusDone,

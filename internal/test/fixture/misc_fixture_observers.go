@@ -192,7 +192,7 @@ func restStatus(ctx context.Context, port int, token string) int {
 	return response.StatusCode
 }
 
-// reloadGeneration answers the reload generation `show reload-status`
+// reloadGeneration answers the reload generation `show system reload status`
 // reports, or -1 when it reports none. A caller that must say why reads
 // reloadGenerationAnswer instead.
 func reloadGeneration(ctx context.Context, plugin *sdk.Plugin) int64 {
@@ -205,7 +205,7 @@ func reloadGeneration(ctx context.Context, plugin *sdk.Plugin) int64 {
 // no generation. A failure message that names only "no generation" leaves the
 // next reader unable to tell a refused dispatch from a wrong answer.
 func reloadGenerationAnswer(ctx context.Context, plugin *sdk.Plugin) (int64, string) {
-	status, value, err := dispatchMap(ctx, plugin, "show reload-status")
+	status, value, err := dispatchMap(ctx, plugin, "show system reload status")
 	if err != nil {
 		return -1, "dispatch error: " + err.Error()
 	}
@@ -240,7 +240,7 @@ func runReloadRESTScenario(ctx context.Context, plugin *sdk.Plugin, mode reloadR
 		baseline = reloadGeneration(ctx, plugin)
 		return baseline >= 0
 	}) {
-		return errors.New("before SIGHUP: show reload-status returned no generation")
+		return errors.New("before SIGHUP: show system reload status returned no generation")
 	}
 	if err := os.WriteFile("observer.initial-ok", []byte("ok"), 0o600); err != nil {
 		return err

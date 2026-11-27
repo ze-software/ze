@@ -36,6 +36,7 @@ var serverEventCodes = []diagnostic.EventCode{
 	{Code: CodeDoctorPluginDrainIncomplete},
 	{Code: CodeDoctorCommandEnsureRollbackFailed},
 	{Code: CodeDoctorCommandDeprecatedUsed},
+	{Code: CodeDoctorCommandHandlerHung},
 	{Code: CodeDoctorManagedClientNotifyDropped},
 	{Code: CodeDoctorManagedConfigFetchUndelivered},
 	{Code: CodeDoctorManagedChainDrift},

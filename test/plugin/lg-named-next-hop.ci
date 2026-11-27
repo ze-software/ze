@@ -26,7 +26,7 @@
 # never left the config tree or a reload that rebuilt the listener.
 #
 # NO SLEEP: the fixture (internal/test/fixture/lg_named_next_hop.go) waits for
-# the reload through `show reload-status`, until the generation advanced and
+# the reload through `show system reload status`, until the generation advanced and
 # the outcome reads applied, then reads the pages once.
 
 # ze-peer expectations (minimal handshake)

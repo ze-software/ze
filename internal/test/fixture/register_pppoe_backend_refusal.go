@@ -209,7 +209,7 @@ func pppoeBackendReloadOutcome(ctx context.Context, plugin *sdk.Plugin, want str
 	var result struct {
 		Outcome string `json:"last-outcome"`
 	}
-	answer, err := Dispatch(ctx, plugin, "show reload-status", &result)
+	answer, err := Dispatch(ctx, plugin, "show system reload status", &result)
 	if err != nil {
 		return err
 	}

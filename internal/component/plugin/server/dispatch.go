@@ -23,6 +23,7 @@ import (
 	"github.com/ze-software/ze/internal/component/plugin/process"
 	"github.com/ze-software/ze/internal/core/diagnostic"
 	"github.com/ze-software/ze/internal/core/events"
+	"github.com/ze-software/ze/internal/core/opid"
 	"github.com/ze-software/ze/internal/core/report"
 	"github.com/ze-software/ze/internal/core/selector"
 	"github.com/ze-software/ze/internal/core/taskguard"
@@ -412,7 +413,14 @@ func (s *Server) emitEventInput(emitter *process.Process, input rpc.EmitEventInp
 // Ordinary emission excludes the emitting process to prevent self-delivery
 // loops. Applied emission refuses a matching self subscription before delivery.
 func (s *Server) deliverEvent(emitter *process.Process, namespace, eventType, direction, peerAddress string, payload any) (int, error) {
-	return s.deliverEventCaptured(context.Background(), emitter, namespace, eventType, direction, peerAddress, payload, nil)
+	return s.deliverEventWithContext(context.Background(), emitter, namespace, eventType, direction, peerAddress, payload)
+}
+
+func (s *Server) deliverEventWithContext(ctx context.Context, emitter *process.Process, namespace, eventType, direction, peerAddress string, payload any) (int, error) {
+	if ctx == nil {
+		ctx = context.Background()
+	}
+	return s.deliverEventCaptured(ctx, emitter, namespace, eventType, direction, peerAddress, payload, nil)
 }
 
 // deliverEventCaptured is the same delivery producer. Applied emission captures
@@ -498,7 +506,7 @@ func (s *Server) deliverEventCaptured(ctx context.Context, emitter *process.Proc
 		if source == "" {
 			source = "engine"
 		}
-		s.eventRing.AppendWithMeta(namespace, eventType, source, peerAddress, direction)
+		s.eventRing.appendWithOp(namespace, eventType, source, peerAddress, direction, opid.From(ctx))
 	}
 
 	// Engine-side subscribers fire regardless of whether the plugin

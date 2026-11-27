@@ -201,9 +201,15 @@ type Server struct {
 	txLock txLock // Transaction exclusion (one config transaction at a time)
 
 	// reloadGen is the monotonic "reload processed" fence surfaced by
-	// `show reload-status`. Advanced by MarkReloadProcessed once a whole
+	// `show system reload status`. Advanced by MarkReloadProcessed once a whole
 	// reload sequence completes, applied or rejected. See reload_generation.go.
 	reloadGen reloadGeneration
+
+	// hungHandlers tracks timed-out builtin command handlers under a leaf lock,
+	// and watchdogUnregs holds unregister callbacks for Server's liveness probes.
+	hungHandlers        hungHandlerTracker
+	txLockStallOverride atomic.Int64
+	watchdogUnregs      []func()
 
 	// Removal retains the callback and dependency lifetime across a refused
 	// reload, until cleanup and committed-configuration recovery both finish.
@@ -1037,6 +1043,7 @@ func (s *Server) StartWithContext(ctx context.Context) error {
 		// daemon runs that plugin.
 		registry.SetRuntimeLoadedPlugins(s.loadedPluginNames),
 	}
+	s.watchdogUnregs = s.registerWatchdogProbes()
 
 	// Start plugin phases asynchronously (non-blocking)
 	// Phase 1: Explicit plugins
@@ -1143,7 +1150,14 @@ func (s *Server) Stop() {
 	}
 	releaseSeams := s.releaseRuntimeSeams
 	s.releaseRuntimeSeams = nil
+	watchdogUnregs := s.watchdogUnregs
+	s.watchdogUnregs = nil
 	s.lifecycleMu.Unlock()
+	for _, unreg := range watchdogUnregs {
+		if unreg != nil {
+			unreg()
+		}
+	}
 	for _, release := range releaseSeams {
 		if release != nil {
 			release()

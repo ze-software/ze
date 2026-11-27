@@ -17,6 +17,7 @@ type EventRecord struct {
 	Source    string
 	Subject   string
 	Direction string
+	OpID      string `json:"operation-id,omitempty"`
 }
 
 // EventRing is a fixed-size circular buffer of EventRecord values.
@@ -54,6 +55,12 @@ func (r *EventRing) Append(namespace, eventType string) {
 // AppendWithMeta adds a record with source, subject, and direction metadata to
 // the ring, overwriting the oldest if full. O(1) with zero allocations.
 func (r *EventRing) AppendWithMeta(namespace, eventType, source, subject, direction string) {
+	r.appendWithOp(namespace, eventType, source, subject, direction, "")
+}
+
+// appendWithOp adds a record with source, subject, direction, and operation-id
+// metadata to the ring, overwriting the oldest if full. O(1) with zero allocations.
+func (r *EventRing) appendWithOp(namespace, eventType, source, subject, direction, opID string) {
 	rec := EventRecord{
 		Timestamp: time.Now(),
 		Namespace: namespace,
@@ -61,6 +68,7 @@ func (r *EventRing) AppendWithMeta(namespace, eventType, source, subject, direct
 		Source:    source,
 		Subject:   subject,
 		Direction: direction,
+		OpID:      opID,
 	}
 	r.mu.Lock()
 	r.records[r.head] = rec
@@ -79,6 +87,12 @@ func (r *EventRing) AppendWithMeta(namespace, eventType, source, subject, direct
 // returns all records. If namespace is non-empty, only matching records
 // are returned.
 func (r *EventRing) Snapshot(limit int, namespace string) []EventRecord {
+	return r.SnapshotWithOp(limit, namespace, "")
+}
+
+// SnapshotWithOp returns up to limit records, newest first. If limit <= 0,
+// returns all records. Non-empty namespace and opID narrow the returned entries.
+func (r *EventRing) SnapshotWithOp(limit int, namespace, opID string) []EventRecord {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 
@@ -90,12 +104,21 @@ func (r *EventRing) Snapshot(limit int, namespace string) []EventRecord {
 	for i := range r.count {
 		idx := (r.head - 1 - i + len(r.records)) % len(r.records)
 		rec := r.records[idx]
-		if namespace != "" && rec.Namespace != namespace {
-			continue
+		if namespace != "" {
+			if rec.Namespace != namespace {
+				continue
+			}
+		}
+		if opID != "" {
+			if rec.OpID != opID {
+				continue
+			}
 		}
 		out = append(out, rec)
-		if limit > 0 && len(out) >= limit {
-			break
+		if limit > 0 {
+			if len(out) >= limit {
+				break
+			}
 		}
 	}
 	return out

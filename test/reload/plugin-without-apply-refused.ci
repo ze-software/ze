@@ -6,7 +6,7 @@
 #                 the fixture is a participant.
 # Expected:       the SDK refuses at config-verify, naming the plugin, the
 #                 changed root and the restart routes; the session is kept
-#                 and `show reload-status` reports the reload failed, so
+#                 and `show system reload status` reports the reload failed, so
 #                 the running config does not take the description.
 #
 # VALIDATES: AC-10 of spec-plugin-reload-applies-or-refuses: a participant SDK
@@ -21,7 +21,7 @@
 #
 # DISCRIMINATION: under a ze whose SDK verify accepts a plugin with no apply
 # handler (the default before Phase 5), the reload commits and the refusal
-# line never appears, and `show reload-status` answers "last-outcome":"applied"
+# line never appears, and `show system reload status` answers "last-outcome":"applied"
 # (observed 2026-10-15 with an le built over the pre-Phase-5 sdk.go and
 # sdk_callbacks.go: LIVE-STAGES line 5 failed on that answer).
 option=timeout:value=60s
@@ -131,7 +131,7 @@ await-file established
 reload config2.conf
 # The daemon records the reload as failed, so the commit never replaced the
 # running config. Under an SDK that accepts the reload it reads "applied".
-has show reload-status => "last-outcome":"failed"
+has show system reload status => "last-outcome":"failed"
 say PLUGIN-WITHOUT-APPLY-REFUSED: reload refused, session kept
 EOF_SCRIPT
 

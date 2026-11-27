@@ -14,8 +14,8 @@ import (
 // TestHandleShowReloadStatusNilServer verifies the handler degrades to an error
 // response rather than panicking when no daemon is wired.
 //
-// VALIDATES: `show reload-status` against a context with no server returns a
-// StatusError response, exit 0 for the handler itself.
+// VALIDATES: `show system reload status` against a context with no server
+// returns a StatusError response, exit 0 for the handler itself.
 // PREVENTS: a nil-pointer panic taking down the command dispatcher when the
 // command is invoked offline, the same guard handleShowUptime carries.
 func TestHandleShowReloadStatusNilServer(t *testing.T) {
@@ -46,6 +46,8 @@ func TestHandleShowReloadStatusBeforeReload(t *testing.T) {
 	require.True(t, ok, "Data should be plugin.Map, got %T", resp.Data)
 	assert.Equal(t, uint64(0), data["generation"])
 	assert.Equal(t, pluginserver.ReloadOutcomeNone, data["last-outcome"])
+	_, hasLastOp := data["last-operation-id"]
+	assert.False(t, hasLastOp, "last-operation-id should be omitted before any correlated reload")
 }
 
 // TestHandleShowReloadStatusReportsRejectedReload is the AC-1 surface

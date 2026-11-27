@@ -8,7 +8,7 @@
 # operator uses, and its effect is the daemon's own reload status.
 #
 # reload/live-stages drives the reload from inside the daemon and reads
-# `show reload-status`. Its own plugin entry is byte-identical in both
+# `show system reload status`. Its own plugin entry is byte-identical in both
 # configs. Under a daemon that accepts the reload the status reads "applied",
 # and the `has` step fails.
 #
@@ -49,7 +49,7 @@ EOF_CONF2
 
 tmpfs=stages.script:terminator=EOF_SCRIPT
 reload config2.conf
-has show reload-status => "last-outcome":"failed"
+has show system reload status => "last-outcome":"failed"
 say EXTERNAL-YANG-RELOAD-REFUSED: the added plugin declaration was refused
 EOF_SCRIPT
 

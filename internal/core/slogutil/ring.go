@@ -11,12 +11,14 @@ import (
 	"sync"
 	"time"
 
+	"github.com/ze-software/ze/internal/core/opid"
 	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
 const (
 	defaultLogRingCapacity   = 512
 	defaultFaultRingCapacity = 256
+	attrOperationID          = "operation-id"
 )
 
 // LogEntry is one record in the log ring buffer.
@@ -26,6 +28,7 @@ type LogEntry struct {
 	// same spelling ListLevels reports and an operator types in a level word.
 	Level     string
 	Component string
+	OpID      string `json:"operation-id,omitempty"`
 	Message   string
 	// attributes is immutable JSON, captured before caller-owned values can
 	// change. Snapshots can share it without sharing mutable attribute data.
@@ -128,7 +131,7 @@ func (r *LogRing) append(entry LogEntry) {
 // Recent returns the newest entries at every level and component, newest
 // first. Limit <= 0 returns all.
 func (r *LogRing) Recent(limit int) []LogEntry {
-	return r.collect(limit, "", "")
+	return r.collect(limit, "", "", "")
 }
 
 // Snapshot returns log entries newest-first, filtered by level and component.
@@ -137,32 +140,40 @@ func (r *LogRing) Recent(limit int) []LogEntry {
 // entries stored as error. A word that names no level is refused, because an
 // empty answer would read as an empty ring.
 func (r *LogRing) Snapshot(limit int, level, component string) ([]LogEntry, error) {
+	return r.SnapshotWithOp(limit, level, component, "")
+}
+
+// SnapshotWithOp returns log entries newest-first, filtered by level,
+// component, and operation correlation ID. Empty strings mean no filter.
+// Limit <= 0 returns all. When opID is empty, the result matches Snapshot.
+func (r *LogRing) SnapshotWithOp(limit int, level, component, opID string) ([]LogEntry, error) {
 	if level == "" {
-		return r.collect(limit, "", component), nil
+		return r.collect(limit, "", component, opID), nil
 	}
 	lvl, ok := parseLevel(level)
 	if !ok {
 		return nil, fmt.Errorf("invalid level %q (valid: %s)", level, textbuf.Join(validLevelNames, ", "))
 	}
-	return r.collect(limit, levelString(lvl), component), nil
+	return r.collect(limit, levelString(lvl), component, opID), nil
 }
 
 // collect walks the matching sub-ring(s) newest-first and keeps entries whose
-// level name and component equal the non-empty filters. Limit <= 0 keeps all.
-func (r *LogRing) collect(limit int, level, component string) []LogEntry {
+// level name, component, and operation ID equal the non-empty filters.
+// Limit <= 0 keeps all.
+func (r *LogRing) collect(limit int, level, component, opID string) []LogEntry {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 
 	if level != "" {
 		if isFaultLevel(level) {
-			return collectSubRing(&r.faults, limit, level, component)
+			return collectSubRing(&r.faults, limit, level, component, opID)
 		}
-		return collectSubRing(&r.general, limit, level, component)
+		return collectSubRing(&r.general, limit, level, component, opID)
 	}
-	return mergeSubRings(&r.general, &r.faults, limit, component)
+	return mergeSubRings(&r.general, &r.faults, limit, component, opID)
 }
 
-func collectSubRing(sub *logSubRing, limit int, level, component string) []LogEntry {
+func collectSubRing(sub *logSubRing, limit int, level, component, opID string) []LogEntry {
 	if sub.count == 0 {
 		return []LogEntry{}
 	}
@@ -181,6 +192,11 @@ func collectSubRing(sub *logSubRing, limit int, level, component string) []LogEn
 				continue
 			}
 		}
+		if opID != "" {
+			if rec.OpID != opID {
+				continue
+			}
+		}
 		out = append(out, rec)
 		if limit > 0 {
 			if len(out) >= limit {
@@ -191,7 +207,7 @@ func collectSubRing(sub *logSubRing, limit int, level, component string) []LogEn
 	return out
 }
 
-func mergeSubRings(general, faults *logSubRing, limit int, component string) []LogEntry {
+func mergeSubRings(general, faults *logSubRing, limit int, component, opID string) []LogEntry {
 	total := general.count + faults.count
 	if total == 0 {
 		return []LogEntry{}
@@ -223,6 +239,11 @@ func mergeSubRings(general, faults *logSubRing, limit int, component string) []L
 				continue
 			}
 		}
+		if opID != "" {
+			if slot.entry.OpID != opID {
+				continue
+			}
+		}
 		out = append(out, slot.entry)
 		if limit > 0 {
 			if len(out) >= limit {
@@ -242,6 +263,8 @@ type ringHandler struct {
 	capture      *logAttributeCapture
 	component    string
 	hasComponent bool
+	opID         string
+	hasOpID      bool
 }
 
 func newRingHandler(inner slog.Handler, ring *LogRing) *ringHandler {
@@ -279,6 +302,25 @@ func (h *ringHandler) Handle(ctx context.Context, r slog.Record) error { //nolin
 			return true
 		})
 	}
+
+	opID := opid.From(ctx)
+	recordOpID, hasRecordOpID := findOperationIDAttr(r)
+	if opID == "" {
+		if recordOpID == "" {
+			opID = h.opID
+		} else {
+			opID = recordOpID
+		}
+	}
+	if opID != "" {
+		if !hasRecordOpID {
+			if !h.hasOpID {
+				r = r.Clone()
+				r.AddAttrs(slog.String(attrOperationID, opID))
+			}
+		}
+	}
+
 	attributes, err := h.capture.encode(ctx, h.fields, r)
 	if err != nil {
 		return err
@@ -288,11 +330,28 @@ func (h *ringHandler) Handle(ctx context.Context, r slog.Record) error { //nolin
 		Timestamp:  r.Time,
 		Level:      levelString(r.Level),
 		Component:  component,
+		OpID:       opID,
 		Message:    r.Message,
 		attributes: attributes,
 	})
 
 	return h.inner.Handle(ctx, r)
+}
+
+func findOperationIDAttr(r slog.Record) (string, bool) { //nolint:gocritic // slog records are passed by value
+	var (
+		found string
+		ok    bool
+	)
+	r.Attrs(func(a slog.Attr) bool {
+		if a.Key != attrOperationID {
+			return true
+		}
+		found = a.Value.Resolve().String()
+		ok = true
+		return false
+	})
+	return found, ok
 }
 
 func (h *ringHandler) WithAttrs(attrs []slog.Attr) slog.Handler {
@@ -306,6 +365,17 @@ func (h *ringHandler) WithAttrs(attrs []slog.Attr) slog.Handler {
 			}
 		}
 	}
+	opID, hasOpID := h.opID, h.hasOpID
+	for _, attr := range attrs {
+		if attr.Key != attrOperationID {
+			continue
+		}
+		val := attr.Value.Resolve().String()
+		hasOpID = true
+		if val != "" {
+			opID = val
+		}
+	}
 	return &ringHandler{
 		inner:        h.inner.WithAttrs(attrs),
 		ring:         h.ring,
@@ -313,6 +383,8 @@ func (h *ringHandler) WithAttrs(attrs []slog.Attr) slog.Handler {
 		capture:      h.capture,
 		component:    component,
 		hasComponent: hasComponent,
+		opID:         opID,
+		hasOpID:      hasOpID,
 	}
 }
 
@@ -327,6 +399,8 @@ func (h *ringHandler) WithGroup(name string) slog.Handler {
 		capture:      h.capture,
 		component:    h.component,
 		hasComponent: h.hasComponent,
+		opID:         h.opID,
+		hasOpID:      h.hasOpID,
 	}
 }
 

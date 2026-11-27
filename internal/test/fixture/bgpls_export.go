@@ -105,7 +105,7 @@ func bgplsReload(ctx context.Context, p *sdk.Plugin, source string) error {
 	var status string
 	var result map[string]any
 	if !Poll(ctx, WaitAttempts(40, 100*time.Millisecond, 100), 100*time.Millisecond, func() bool {
-		status, result, err = dispatchMap(ctx, p, "show reload-status")
+		status, result, err = dispatchMap(ctx, p, "show system reload status")
 		return err == nil && status == statusDone && int64(number07(result["generation"])) > baseline
 	}) {
 		return fmt.Errorf("%s: reload did not complete after generation %d: status=%s data=%v error=%v", source, baseline, status, result, err) //nolint:errorlint // The last poll error may be nil here; %w would print %!w(<nil>), and it is diagnostic context, not a cause a caller unwraps.

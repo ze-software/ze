@@ -1,5 +1,6 @@
-// Design: docs/architecture/api/commands.md -- show reload-status observability surface
+// Design: docs/architecture/api/commands.md -- show system reload status observability surface
 // Related: reload.go -- Server.reloadConfig, the plugin-server half of a reload
+// Related: reload_history.go -- ReloadRecord and ReloadTrace types stored under reloadGen.mu
 
 package server
 
@@ -38,31 +39,101 @@ type reloadGeneration struct {
 	generation uint64
 	outcome    string
 	at         time.Time
+	lastOpID   string
+	history    [maxReloadHistory]ReloadRecord
+	histHead   int
+	histCount  int
 }
+
+const reloadTriggerUnknown = "unknown"
 
 // mark records that one reload finished, whatever its outcome.
 func (g *reloadGeneration) mark(applied bool) {
+	outcome := ReloadOutcomeFailed
+	if applied {
+		outcome = ReloadOutcomeApplied
+	}
+	now := time.Now().UTC()
+	g.markWithRecord(ReloadRecord{
+		Trigger:    reloadTriggerUnknown,
+		Outcome:    outcome,
+		StartedAt:  now,
+		FinishedAt: now,
+	})
+}
+
+// markWithRecord increments generation, updates the latest status and operation-id,
+// stamps rec.Generation, appends rec into the 32-slot circular history ring,
+// and returns the assigned generation. Acquires only g.mu (leaf lock).
+func (g *reloadGeneration) markWithRecord(rec ReloadRecord) uint64 {
+	if rec.Outcome == "" {
+		if rec.Error == "" {
+			rec.Outcome = ReloadOutcomeApplied
+		} else {
+			rec.Outcome = ReloadOutcomeFailed
+		}
+	}
+	if rec.FinishedAt.IsZero() {
+		rec.FinishedAt = time.Now().UTC()
+	}
+	if rec.StartedAt.IsZero() {
+		rec.StartedAt = rec.FinishedAt
+	}
+	if rec.DurationMS < 0 {
+		rec.DurationMS = 0
+	}
+
 	g.mu.Lock()
 	defer g.mu.Unlock()
 	g.generation++
-	if applied {
-		g.outcome = ReloadOutcomeApplied
-	} else {
-		g.outcome = ReloadOutcomeFailed
+	g.outcome = rec.Outcome
+	g.at = rec.FinishedAt
+	g.lastOpID = rec.OpID
+	rec.Generation = g.generation
+	g.history[g.histHead] = cloneReloadRecord(rec)
+	g.histHead = (g.histHead + 1) % maxReloadHistory
+	if g.histCount < maxReloadHistory {
+		g.histCount++
 	}
-	g.at = time.Now()
+	return g.generation
 }
 
-// status returns a consistent snapshot of the three fields. Taken under one
-// lock so an observer can never pair a generation from one reload with the
-// outcome of another.
-func (g *reloadGeneration) status() (generation uint64, outcome string, at time.Time) {
+// statusWithOp returns a consistent snapshot of the four fields under one lock.
+func (g *reloadGeneration) statusWithOp() (generation uint64, outcome string, at time.Time, opID string) {
 	g.mu.Lock()
 	defer g.mu.Unlock()
 	if g.generation == 0 {
-		return 0, ReloadOutcomeNone, time.Time{}
+		return 0, ReloadOutcomeNone, time.Time{}, ""
 	}
-	return g.generation, g.outcome, g.at
+	return g.generation, g.outcome, g.at, g.lastOpID
+}
+
+// snapshotHistory returns up to limit records newest-first, filtered by opID
+// when non-empty. Always returns a non-nil slice.
+func (g *reloadGeneration) snapshotHistory(limit int, opID string) []ReloadRecord {
+	g.mu.Lock()
+	defer g.mu.Unlock()
+
+	if g.histCount == 0 {
+		return []ReloadRecord{}
+	}
+	out := make([]ReloadRecord, 0, g.histCount)
+	for i := range g.histCount {
+		idx := (g.histHead - 1 - i + maxReloadHistory) % maxReloadHistory
+		rec := g.history[idx]
+		if opID != "" {
+			if rec.OpID != opID {
+				continue
+			}
+		}
+		out = append(out, cloneReloadRecord(rec))
+		if limit > 0 {
+			if len(out) >= limit {
+				break
+			}
+		}
+	}
+	return out
 }
 
 // MarkReloadProcessed records that a reload sequence completed and advances the
@@ -82,6 +153,13 @@ func (s *Server) MarkReloadProcessed(applied bool) {
 	s.reloadGen.mark(applied)
 }
 
+// MarkReloadProcessedWithRecord records a processed reload with its full
+// transaction history entry, advances generation, and returns the assigned
+// generation. Safe for concurrent use; acquires only the leaf reloadGen.mu lock.
+func (s *Server) MarkReloadProcessedWithRecord(rec ReloadRecord) uint64 {
+	return s.reloadGen.markWithRecord(rec)
+}
+
 // ReloadStatus returns the number of reloads processed since daemon start, the
 // outcome of the most recent one, and when it finished. Before the first
 // reload: (0, ReloadOutcomeNone, zero time).
@@ -90,5 +168,19 @@ func (s *Server) MarkReloadProcessed(applied bool) {
 // until it advances. At that point every reload step has run, so the resulting
 // state (or the deliberate absence of a change) is safe to assert.
 func (s *Server) ReloadStatus() (generation uint64, outcome string, at time.Time) {
-	return s.reloadGen.status()
+	generation, outcome, at, _ = s.reloadGen.statusWithOp()
+	return generation, outcome, at
+}
+
+// ReloadStatusWithOp returns the latest reload generation, outcome, timestamp,
+// and operation-id under the leaf reloadGen.mu lock.
+func (s *Server) ReloadStatusWithOp() (generation uint64, outcome string, at time.Time, opID string) {
+	return s.reloadGen.statusWithOp()
+}
+
+// ReloadHistory returns the newest-first bounded reload history (up to 32 entries),
+// optionally filtered by opID and capped by limit when > 0. Always returns a
+// non-nil slice and never acquires Server.txLock.
+func (s *Server) ReloadHistory(limit int, opID string) []ReloadRecord {
+	return s.reloadGen.snapshotHistory(limit, opID)
 }

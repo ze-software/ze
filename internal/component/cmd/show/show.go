@@ -25,6 +25,7 @@ import (
 	pluginserver "github.com/ze-software/ze/internal/component/plugin/server"
 	"github.com/ze-software/ze/internal/core/health"
 	"github.com/ze-software/ze/internal/core/metrics"
+	"github.com/ze-software/ze/internal/core/opererr"
 	"github.com/ze-software/ze/internal/core/report"
 	"github.com/ze-software/ze/internal/core/textbuf"
 	zeversion "github.com/ze-software/ze/internal/core/version"
@@ -114,6 +115,14 @@ func init() {
 			Handler:    handleRequestSystemTraceSnapshot,
 		},
 		pluginserver.RPCRegistration{
+			WireMethod: "ze-cmd:show-system-reload-history",
+			Handler:    handleShowSystemReloadHistory,
+		},
+		pluginserver.RPCRegistration{
+			WireMethod: "ze-cmd:show-system-watchdog",
+			Handler:    handleShowSystemWatchdog,
+		},
+		pluginserver.RPCRegistration{
 			WireMethod: "ze-cmd:show-metrics-query",
 			Handler:    handleShowMetricsQuery,
 		},
@@ -133,6 +142,10 @@ func init() {
 			WireMethod: "ze-cmd:show-health",
 			Handler:    handleShowHealth,
 		},
+	)
+	command.RegisterPipeFilters(
+		[]string{"show event recent", "show errors", "show audit", "show system reload history"},
+		operationPipeFilter,
 	)
 }
 
@@ -181,12 +194,19 @@ func handleShowWarnings(_ *pluginserver.CommandContext, validated command.Valida
 
 // handleShowErrors returns the most-recent error events on the report bus,
 // newest first. Optional args: "source <name>" filters by source,
-// "count <N>" limits results.
+// "count <N>" limits results, and "| operation <id>" filters by operation ID.
 func handleShowErrors(_ *pluginserver.CommandContext, validated command.ValidatedArgs) (*plugin.Response, error) {
+	opID, hasOp, refusal := extractOperationPipeTarget(validated, "ze show errors | operation <id>")
+	if refusal != nil {
+		return refusal, nil
+	}
 	args := validated.Tokens()
 	issues := report.Errors(0)
 	if source := extractSourceFilter(args); source != "" {
 		issues = filterIssuesBySource(issues, source)
+	}
+	if hasOp {
+		issues = filterIssuesByOpID(issues, opID)
 	}
 	if limit := extractCountFilter(args); limit > 0 && limit < len(issues) {
 		issues = issues[:limit]
@@ -234,6 +254,16 @@ func filterIssuesBySource(issues []report.Issue, source string) []report.Issue {
 	filtered := make([]report.Issue, 0, len(issues))
 	for i := range issues {
 		if strings.EqualFold(issues[i].Source, source) {
+			filtered = append(filtered, issues[i])
+		}
+	}
+	return filtered
+}
+
+func filterIssuesByOpID(issues []report.Issue, opID string) []report.Issue {
+	filtered := make([]report.Issue, 0, len(issues))
+	for i := range issues {
+		if issues[i].OpID == opID {
 			filtered = append(filtered, issues[i])
 		}
 	}
@@ -382,17 +412,36 @@ func hasEveryLabel(line string, labelFilters []string) bool {
 }
 
 func handleShowEventRecent(ctx *pluginserver.CommandContext, validated command.ValidatedArgs) (*plugin.Response, error) {
+	opID, _, refusal := extractOperationPipeTarget(validated, "ze show event recent | operation <id>")
+	if refusal != nil {
+		return refusal, nil
+	}
 	args := validated.Tokens()
-	if ctx == nil || ctx.Server == nil {
-		return &plugin.Response{Status: plugin.StatusError, Error: msgEventRingUnavailable}, nil
+	if ctx == nil {
+		return plugin.OperatorErrorResponse(opererr.New(
+			msgEventRingUnavailable,
+			"event history is only available from a running ze daemon",
+			"ze start <config-file>",
+		)), nil
+	}
+	if ctx.Server == nil {
+		return plugin.OperatorErrorResponse(opererr.New(
+			msgEventRingUnavailable,
+			"event history is only available from a running ze daemon",
+			"ze start <config-file>",
+		)), nil
 	}
 	ring := ctx.Server.EventRing()
 	if ring == nil {
-		return &plugin.Response{Status: plugin.StatusError, Error: msgEventRingUnavailable}, nil
+		return plugin.OperatorErrorResponse(opererr.New(
+			msgEventRingUnavailable,
+			"the daemon event history ring has not been initialized",
+			"ze show system triage",
+		)), nil
 	}
 	namespace := extractNamespaceFilter(args)
 	limit := extractCountFilter(args)
-	records := ring.Snapshot(limit, namespace)
+	records := ring.SnapshotWithOp(limit, namespace, opID)
 	out := make([]map[string]any, 0, len(records))
 	for i := range records {
 		row := map[string]any{
@@ -408,6 +457,9 @@ func handleShowEventRecent(ctx *pluginserver.CommandContext, validated command.V
 		}
 		if records[i].Direction != "" {
 			row["direction"] = records[i].Direction
+		}
+		if records[i].OpID != "" {
+			row[keyOperationID] = records[i].OpID
 		}
 		out = append(out, row)
 	}

@@ -84,7 +84,7 @@ produce continuously-updating output.
 |----------|----------|
 | Daemon | shutdown, reload, restart, status |
 | Session | ack, sync, reset, ping, bye |
-| System | help, version, api version, show system triage (single-call bounded live triage snapshot), show system trace (flight-recorder status and snapshot fetch), request system trace snapshot (on-demand trace capture) |
+| System | help, version, api version, show system triage (single-call bounded live triage snapshot), show system trace (flight-recorder status and snapshot fetch), request system trace snapshot (on-demand trace capture), show system reload status (reload fence), show system reload history (32-entry reload transaction journal), show system watchdog (daemon liveness watchdog and hung handlers) |
 | Peer | list, detail, capabilities, statistics, set (add/save), delete, teardown, notify, flush |
 | Announce | route, flow, vpls, eor, operational |
 | Withdraw | route, flow, vpls, watchdog |
@@ -101,6 +101,9 @@ produce continuously-updating output.
 <!-- source: internal/component/plugin/server/command.go -- AllBuiltinRPCs -->
 <!-- source: internal/component/cmd/show/triage.go -- handleShowSystemTriage -->
 <!-- source: internal/component/cmd/show/trace.go -- handleShowSystemTrace, handleRequestSystemTraceSnapshot -->
+<!-- source: internal/component/cmd/show/reload_status.go -- handleShowReloadStatus -->
+<!-- source: internal/component/cmd/show/reload_history.go -- handleShowSystemReloadHistory -->
+<!-- source: internal/component/cmd/show/watchdog.go -- handleShowSystemWatchdog -->
 <!-- source: internal/component/sysrib/register.go -- commandDecls, routeViewCommandHandler -->
 <!-- source: internal/plugins/fib/dummy/register.go -- commandDecls -->
 <!-- source: internal/plugins/fib/dummy/show.go -- routeRow, countersSnapshot -->
@@ -191,6 +194,46 @@ after it has joined all cleanup work.
 <!-- source: internal/component/plugin/server/stop_hooks.go -- Server.OnStop, stopHooks.run -->
 <!-- source: internal/component/plugin/server/server.go -- Server.Stop, Server.StopFailure -->
 <!-- source: internal/plugins/update-cmd/cmd/serve_daemon.go -- updateServeOwner.start, updateServeOwner.endWithDaemon -->
+
+### Bounded operator handler timeouts and `| operation <id>`
+
+`Dispatcher.Dispatch` ensures a process-scoped correlation ID (`op-<N>`,
+`internal/core/opid`) on `CommandContext.RequestContext` at dispatch entry and
+passes it into audit logging and downstream handlers. Following "the pipe wins",
+`show log recent` (registered alongside `| plugin <name>` in one
+`command.RegisterPipeFilters` call so both compose), `show event recent`,
+`show errors`, `show audit`, and `show system reload history` register a
+command-owned `| operation <id>` pipe filter to narrow results to a single
+`operation-id`. Over MCP, REST, and gRPC, the structured pipe list carries it as
+`pipe: [{"name": "operation", "args": ["<id>"]}]`. Duplicate or blank
+`| operation` filters return a structured operator error (`opererr`).
+
+For operator/external builtin dispatches (`ctx == nil || ctx.Process == nil`),
+`Dispatcher` bounds handler execution to a `60s` default timeout (configurable
+via `setHandlerTimeout` for tests), tightened if `ctx.RequestContext` already
+carries an earlier deadline. Command owners whose work legitimately runs longer
+declare a generic `HandlerTimeout func(command.ValidatedArgs) time.Duration`
+hook on `RPCRegistration` / `RegisterOptions` — `show system profile` declares
+`duration + 15s` — so generic dispatch holds no command-specific names.
+Plugin-originated internal RPC dispatches (`ctx.Process != nil`, such as RS/RR
+source-DOWN departures) are exempt from the `60s` default and stay governed
+solely by their plugin lifecycle `RequestContext`.
+
+If a timed handler ignores context cancellation past its deadline and a `100ms`
+grace window, `Dispatcher` returns a structured operator error naming the
+command, elapsed bound, `operation-id`, and `ze show system goroutines mode blocked`,
+records a `HungHandlerRecord` in `Server`'s 16-slot leaf-locked ring, raises
+`doctor-command-handler-hung` on the report bus, and invokes
+`flightrec.CaptureAuto("hung-command", cmdName)`. Cooperative caller
+cancellation before the handler timeout returns the cancellation error without
+raising `doctor-command-handler-hung`.
+
+<!-- source: internal/core/opid/opid.go -- New, With, Ensure, From -->
+<!-- source: internal/component/plugin/server/command.go -- Dispatcher.Dispatch, Dispatcher.dispatchLine, HandlerTimeout -->
+<!-- source: internal/component/plugin/server/command_timeout.go -- HungHandlerRecord, HungHandlers -->
+<!-- source: internal/component/cmd/show/profile.go -- profileHandlerTimeout -->
+<!-- source: internal/component/cmd/show/op_pipe.go -- operation pipe filter registration and parsing -->
+<!-- source: internal/plugins/log/cmd/register.go -- RegisterPipeFilters for show log recent -->
 
 ### Offline fallback (read-only commands without a daemon)
 
@@ -1014,6 +1057,7 @@ errors accepts `count <N>` limit. Return a non-nil empty slice when empty.
 | `message` | string | Human-readable one-liner |
 | `detail` | object | Optional. Omitted via `omitempty` when nil or empty. Keys and values are producer-defined. |
 | `fix` | string | Optional. The command that fixes the subject, set by `RaiseWarningFix` / `RaiseErrorFix`. Omitted via `omitempty` when empty. |
+| `operation-id` | string | Optional. Operation correlation ID attached via `RaiseErrorContext` / `RaiseWarningContext` or promoted from `detail["operation-id"]`. Omitted via `omitempty` when empty. |
 | `raised` | RFC 3339 time | First appearance |
 | `updated` | RFC 3339 time | Most recent raise (warnings advance; errors equal raised) |
 
@@ -1799,8 +1843,10 @@ request data restore path <file> full                # Accept full recovery afte
 delete data key <key>    # Remove one runtime-state key (meta/ outside meta/config/) through the daemon's store
 update data key <key> content <base64>   # Write one runtime-state key from base64 bytes (at most 195,840 bytes) through the daemon's store
 update data config name <name> content <base64>   # Import one config as a new version (at most 195,840 bytes), through the reload for the daemon's own config
-show reload-status       # Show how many config reloads have been processed
-show config running      # Show the configuration the daemon applied
+show system reload status   # Show how many config reloads have been processed
+show system reload history  # Show the bounded reload transaction journal (last 32)
+show system watchdog        # Show daemon liveness watchdog status, hung handlers, and stalls
+show config running         # Show the configuration the daemon applied
 ```
 
 Standalone web mode binds the same store and full-recovery lifecycle without a
@@ -1826,12 +1872,12 @@ this command and downloads the resulting bytes directly.
 <!-- source: internal/component/config/cli/artifact_system.go -- artifactSystemSnapshot -->
 <!-- source: internal/plugins/config-cli/yang/ze-config-artifact-cmd.yang -- system, snapshot -->
 
-#### show reload-status (the reload fence)
+#### show system reload status (the reload fence)
 
 Returns the reload generation counter as JSON:
 
 ```json
-{"generation": 3, "last-outcome": "applied", "last-reload-at": "2026-07-16T09:12:44Z"}
+{"generation": 3, "last-outcome": "applied", "last-reload-at": "2026-07-16T09:12:44Z", "last-operation-id": "op-17"}
 ```
 
 | Field | Meaning |
@@ -1839,6 +1885,7 @@ Returns the reload generation counter as JSON:
 | `generation` | Reloads PROCESSED since daemon start. Starts at 0. |
 | `last-outcome` | `applied`, `failed`, or `none` before the first reload. |
 | `last-reload-at` | RFC3339 UTC completion time; empty string before the first reload. |
+| `last-operation-id` | Optional correlation ID (`op-<N>`) of the most recent processed reload; omitted before the first reload. |
 
 `generation` advances on **every** processed reload, including one that rejected
 a change or changed nothing. That is what makes it a fence rather than a
@@ -1853,11 +1900,44 @@ A reload refused with `ErrReloadInProgress` does not advance the counter: it was
 queued, not processed, and the replay advances it.
 
 The counter is observational only; nothing reads it to make a decision, so it
-cannot change what a reload accepts or rejects.
+cannot change what a reload accepts or rejects. It reads under the leaf mutex
+`reloadGen.mu` and never acquires `Server.txLock`.
 
-<!-- source: internal/component/plugin/server/reload_generation.go -- counter state, outcome vocabulary -->
+<!-- source: internal/component/plugin/server/reload_generation.go -- counter state, outcome vocabulary, ReloadStatusWithOp -->
 <!-- source: cmd/ze/hub/main_reload.go -- doReloadContext, the increment site, after engine.Reload -->
-<!-- source: internal/component/cmd/show/reload_status.go -- ze-cmd:show-reload-status handler + JSON shape -->
+<!-- source: internal/component/cmd/show/reload_status.go -- handleShowReloadStatus -->
+
+#### show system reload history
+
+Returns the newest-first bounded reload transaction journal (up to 32 entries,
+optional `count <N>` limit, and command-owned `| operation <id>` pipe filter)
+under `reloadGen.mu` without ever acquiring `Server.txLock`:
+
+| Field | Meaning |
+|-------|---------|
+| `entries` | Newest-first array of reload records; each entry carries `generation`, `operation-id`, `trigger`, `outcome`, `started-at`, `finished-at`, `duration-ms`, `changed-roots`, `tx-state` (`committed`, `aborted`, `rolled-back`, `no-op`), per-plugin `plugins` steps (`verify-ms`, `apply-ms`, `rollback-ms`, `status`, `error`), and optional top-level `error`. |
+| `count` | Number of entries returned. |
+
+<!-- source: internal/component/plugin/server/reload_history.go -- ReloadRecord, ReloadPluginStep, ReloadTrace -->
+<!-- source: internal/component/plugin/server/reload_generation.go -- ReloadHistory -->
+<!-- source: internal/component/cmd/show/reload_history.go -- handleShowSystemReloadHistory -->
+
+#### show system watchdog
+
+Returns live status from the always-on daemon liveness watchdog
+(`internal/core/watchdog`) and active/recent hung command handlers under leaf
+locks without acquiring `Server.txLock`:
+
+| Field | Meaning |
+|-------|---------|
+| `running`, `interval-ms`, `stall-threshold-ms`, `ticks`, `stall-count`, `last-tick-at` | Watchdog loop state (`2s` default tick, `5s` scheduler-drift stall threshold). |
+| `probes` | Registered subsystem probes (including `config-tx-lock` flagging `txLock` held > `45s` and `command-handlers` flagging active hung handlers). |
+| `hung-handlers` | Bounded 16-slot ring of `HungHandlerRecord` entries (`command`, `operation-id`, `started-at`, `timed-out-at`, `elapsed-ms`, `surface`, `actor`). |
+| `recent-stalls` | Bounded 8-slot ring of `StallRecord` captures (`id`, `captured-at`, `probe`, `detail`, `stall-ms`, `trace-snapshot-id`, `goroutine-count`, `stacks-truncated`, `stacks` capped at `256 KiB`). |
+
+<!-- source: internal/core/watchdog/watchdog.go -- Start, Stop, RegisterProbe, Status, StallRecord -->
+<!-- source: internal/component/plugin/server/command_timeout.go -- HungHandlerRecord, HungHandlers -->
+<!-- source: internal/component/cmd/show/watchdog.go -- handleShowSystemWatchdog -->
 
 #### show config running (the applied configuration)
 

@@ -19,6 +19,7 @@ import (
 	"github.com/ze-software/ze/internal/core/report"
 	"github.com/ze-software/ze/internal/core/slogutil"
 	zeversion "github.com/ze-software/ze/internal/core/version"
+	"github.com/ze-software/ze/internal/core/watchdog"
 )
 
 // Stated bounds for each list section in a single triage snapshot.
@@ -389,17 +390,21 @@ func triageReload(ctx *pluginserver.CommandContext) map[string]any {
 			triageKeyReason:    msgDaemonNotRunning,
 		}
 	}
-	generation, outcome, at := ctx.Server.ReloadStatus()
+	generation, outcome, at, opID := ctx.Server.ReloadStatusWithOp()
 	lastReloadAt := ""
 	if !at.IsZero() {
 		lastReloadAt = at.UTC().Format(time.RFC3339)
 	}
-	return map[string]any{
+	out := map[string]any{
 		triageKeyAvailable: true,
 		"generation":       generation,
 		"last-outcome":     outcome,
 		"last-reload-at":   lastReloadAt,
 	}
+	if opID != "" {
+		out["last-operation-id"] = opID
+	}
+	return out
 }
 
 // triageRecentLogs returns up to triageMaxLogs newest warn and error entries
@@ -459,19 +464,29 @@ func isTriageLogLevel(level string) bool {
 	return strings.EqualFold(level, triageKeyError)
 }
 
-// triageRuntime returns compact Go runtime memory, CPU, goroutine, and optional
-// reactor uptime statistics.
+// triageRuntime returns compact Go runtime memory, CPU, goroutine, watchdog,
+// and optional reactor uptime statistics.
 func triageRuntime(ctx *pluginserver.CommandContext) map[string]any {
 	var m runtime.MemStats
 	runtime.ReadMemStats(&m)
+	st := watchdog.Status()
+	hungCount := 0
+	if ctx != nil {
+		if ctx.Server != nil {
+			hungCount = ctx.Server.HungHandlerCount()
+		}
+	}
 	out := map[string]any{
-		keyNumGoroutines: runtime.NumGoroutine(),
-		keyNumCPU:        runtime.NumCPU(),
-		keyMaxProcs:      runtime.GOMAXPROCS(0),
-		keyHeapAlloc:     m.HeapAlloc,
-		keyHeapInUse:     m.HeapInuse,
-		keySys:           m.Sys,
-		keyNumGC:         m.NumGC,
+		keyNumGoroutines:     runtime.NumGoroutine(),
+		keyNumCPU:            runtime.NumCPU(),
+		keyMaxProcs:          runtime.GOMAXPROCS(0),
+		keyHeapAlloc:         m.HeapAlloc,
+		keyHeapInUse:         m.HeapInuse,
+		keySys:               m.Sys,
+		keyNumGC:             m.NumGC,
+		"watchdog-running":   st.Running,
+		"stall-count":        st.StallCount,
+		"hung-handler-count": hungCount,
 	}
 	if ctx == nil {
 		return out

@@ -19,6 +19,7 @@ import (
 	plugin "github.com/ze-software/ze/internal/component/plugin"
 	"github.com/ze-software/ze/internal/component/plugin/process"
 	"github.com/ze-software/ze/internal/core/diagnostic"
+	"github.com/ze-software/ze/internal/core/report"
 	"github.com/ze-software/ze/pkg/plugin/rpc"
 )
 
@@ -62,6 +63,7 @@ func reloadCallerFromContext(ctx context.Context) *process.Process {
 type txLock struct {
 	mu         sync.Mutex
 	locked     bool
+	acquiredAt time.Time
 	closed     bool // Terminal admission fence, captured with the in-flight owner.
 	cancel     context.CancelCauseFunc
 	done       chan struct{}
@@ -90,8 +92,27 @@ func (l *txLock) tryAcquire() bool {
 		return false
 	}
 	l.locked = true
+	l.acquiredAt = time.Now()
 	l.done = make(chan struct{})
 	return true
+}
+
+// holdDuration reports how long the transaction lock has been continuously held
+// as of now, or 0 when unlocked.
+func (l *txLock) holdDuration(now time.Time) time.Duration {
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	if !l.locked {
+		return 0
+	}
+	if l.acquiredAt.IsZero() {
+		return 0
+	}
+	d := now.Sub(l.acquiredAt)
+	if d < 0 {
+		return 0
+	}
+	return d
 }
 
 // acquire waits for the existing reload exclusion during lifecycle compensation.
@@ -231,7 +252,14 @@ func (l *txLock) release() {
 	}
 	l.cancel = nil
 	l.acceptance = nil
+	l.acquiredAt = time.Time{}
 	l.locked = false
+}
+
+// txLockHoldDuration reports how long Server.txLock has been continuously held
+// as of now, for the daemon liveness watchdog probe.
+func (s *Server) txLockHoldDuration(now time.Time) time.Duration {
+	return s.txLock.holdDuration(now)
 }
 
 // ConfigTransactionDone returns a channel that closes when the config
@@ -416,7 +444,7 @@ func (s *Server) reloadConfig(ctx context.Context, newTree map[string]any, candi
 		return err
 	}
 
-	logger().Info("config reload started")
+	logger().InfoContext(ctx, "config reload started")
 
 	// The running config, less the peers `create bgp peer` built that the
 	// candidate does not declare: the candidate was read from a file they are
@@ -427,11 +455,18 @@ func (s *Server) reloadConfig(ctx context.Context, newTree map[string]any, candi
 	// Compute diff.
 	diff := config.DiffMaps(running, newTree)
 	if len(diff.Added) == 0 && len(diff.Removed) == 0 && len(diff.Changed) == 0 {
-		logger().Info("config reload: no changes")
+		if trace := reloadTraceFrom(ctx); trace != nil {
+			trace.recordTx("no-op", nil)
+		}
+		logger().InfoContext(ctx, "config reload: no changes")
 		return nil // No changes
 	}
 
-	logger().Debug("config reload diff",
+	if trace := reloadTraceFrom(ctx); trace != nil {
+		trace.recordRoots(changedRootsFromDiff(diff))
+	}
+
+	logger().DebugContext(ctx, "config reload diff",
 		"added", len(diff.Added), "removed", len(diff.Removed), "changed", len(diff.Changed))
 
 	if err := s.reactor.VerifyConfig(newTree); err != nil {
@@ -524,6 +559,9 @@ func (s *Server) reloadConfig(ctx context.Context, newTree map[string]any, candi
 	}
 
 	if len(affected) == 0 {
+		if trace := reloadTraceFrom(ctx); trace != nil {
+			trace.recordTx("no-op", nil)
+		}
 		recordReloadCompensation(ctx, running, newTree, nil, created)
 		prevBusCfg := s.BusConfig()
 		var prevBusTree map[string]any
@@ -575,29 +613,31 @@ func (s *Server) reloadConfig(ctx context.Context, newTree map[string]any, candi
 	// closed connections into verify-failed / apply-failed / rollback-ok
 	// (CodeBroken) acks; the orchestrator reacts to those acks via the
 	// same state machine it uses for real plugin-reported failures.
-	logger().Info("config reload: verify+apply phase", "plugins", len(affected))
+	logger().InfoContext(ctx, "config reload: verify+apply phase", "plugins", len(affected))
 	if err := s.runTxCoordinator(ctx, affected, diff, running, newTree); err != nil {
 		if errors.Is(err, transaction.ErrShutdown) {
 			// Not a failure: Stop stood this transaction down. A WARN here
 			// would say the reload was refused when it was interrupted.
 			// The auto-loaded plugins below are not stopped either, because
 			// cleanup is about to kill those processes.
-			logger().Info("config reload: canceled by shutdown", "error", err)
+			logger().InfoContext(ctx, "config reload: canceled by shutdown", "error", err)
 			return err
 		}
 		// The transaction's error cannot tell a plugin's verify refusal from
 		// a plugin that did not answer, a planning refusal or an apply that
 		// rolled back: each reaches here as text. So the line carries the
 		// reload code, never config-plugin-verify.
-		logger().Warn("config reload: transaction failed", "error", err,
+		logger().WarnContext(ctx, "config reload: transaction failed", "error", err,
 			"code", CodeDoctorConfigReloadRefused)
 		if len(autoLoaded) > 0 {
-			logger().Info("config reload: stopping auto-loaded plugins after failed transaction", "plugins", autoLoaded)
+			logger().InfoContext(ctx, "config reload: stopping auto-loaded plugins after failed transaction", "plugins", autoLoaded)
 			err = errors.Join(err, s.autoStopPluginNames(autoLoaded))
 		}
-		raiseReloadRefused(reloadRefusalMessage(
-			"the configuration transaction did not commit, so ze rolls the change back and keeps the configuration it was running",
-			nil, err), err)
+		report.RaiseErrorContext(ctx, serverEventSource, CodeDoctorConfigReloadRefused, configReloadSubject,
+			report.FitMessage(reloadRefusalMessage(
+				"the configuration transaction did not commit, so ze rolls the change back and keeps the configuration it was running",
+				nil, err)),
+			reloadRefusalFix(err))
 		return err
 	}
 	recordReloadCompensation(ctx, running, newTree, affected, created)
@@ -635,8 +675,31 @@ func (s *Server) reloadConfig(ctx context.Context, newTree map[string]any, candi
 		s.setRunningSelection(candidateSelection, true)
 	}
 	s.RefreshDeliveryGraph()
-	logger().Info("config reload completed")
+	logger().InfoContext(ctx, "config reload completed")
 	return nil
+}
+
+func changedRootsFromDiff(diff *config.ConfigDiff) []string {
+	if diff == nil {
+		return nil
+	}
+	roots := make([]string, 0, len(diff.Added)+len(diff.Removed)+len(diff.Changed))
+	addKey := func(k string) {
+		root, _, _ := strings.Cut(k, config.PathSep)
+		if root != "" {
+			roots = append(roots, root)
+		}
+	}
+	for k := range diff.Added {
+		addKey(k)
+	}
+	for k := range diff.Removed {
+		addKey(k)
+	}
+	for k := range diff.Changed {
+		addKey(k)
+	}
+	return roots
 }
 
 // appendDecomposingPlugins adds every running plugin that decomposes a config

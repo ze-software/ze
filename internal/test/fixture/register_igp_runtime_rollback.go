@@ -50,7 +50,7 @@ func runIGPRuntimeRollback(ctx context.Context) error {
 			return fmt.Errorf("initial runtime: %w", err)
 		}
 		var before igpRuntimeReloadStatus
-		if err := igpRuntimeRollbackDispatch(ctx, plugin, "show reload-status", &before); err != nil {
+		if err := igpRuntimeRollbackDispatch(ctx, plugin, "show system reload status", &before); err != nil {
 			return err
 		}
 		if before.Outcome != valueNone {
@@ -80,7 +80,7 @@ func runIGPRuntimeRollback(ctx context.Context) error {
 		var after igpRuntimeReloadStatus
 		var readErr error
 		if !Poll(ctx, 100, 100*time.Millisecond, func() bool {
-			readErr = igpRuntimeRollbackDispatch(ctx, plugin, "show reload-status", &after)
+			readErr = igpRuntimeRollbackDispatch(ctx, plugin, "show system reload status", &after)
 			if readErr != nil {
 				return false
 			}

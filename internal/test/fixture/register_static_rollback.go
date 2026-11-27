@@ -23,7 +23,7 @@ func init() {
 
 // staticRollbackFailer is the plugin block of the participant that refuses
 // its section apply, and of this driver, which runs as a plugin so it can read
-// `show reload-status`. The failer's name sorts before "static", and section
+// `show system reload status`. The failer's name sorts before "static", and section
 // applies run in sorted participant order, so it fails before static applies
 // anything. The driver declares no config root and is never a participant.
 const staticRollbackFailer = `bus {
@@ -93,7 +93,7 @@ const staticRollbackRefused = `static {
 // carries the verdict, which the .ci asserts: the second reload rolls back, and
 // static runs no rollback, because it applied nothing in that transaction.
 //
-// Each reload is fenced on the `show reload-status` generation, which the hub
+// Each reload is fenced on the `show system reload status` generation, which the hub
 // advances only once the whole reload, candidate promotion included, has run
 // (Server.MarkReloadProcessed). The kernel route lands before promotion, so
 // writing the next config on the route alone met "candidate config already
@@ -158,7 +158,7 @@ func staticRollbackReload(ctx context.Context, plugin *sdk.Plugin, pid int, conf
 	var result map[string]any
 	var err error
 	if !Poll(ctx, WaitAttempts(40, 100*time.Millisecond, 100), 100*time.Millisecond, func() bool {
-		status, result, err = dispatchMap(ctx, plugin, "show reload-status")
+		status, result, err = dispatchMap(ctx, plugin, "show system reload status")
 		return err == nil && status == statusDone && int64(number07(result["generation"])) > baseline
 	}) {
 		return fmt.Errorf("reload did not complete after generation %d: status=%s data=%v error=%v", baseline, status, result, err) //nolint:errorlint // The last poll error may be nil here; it is diagnostic context

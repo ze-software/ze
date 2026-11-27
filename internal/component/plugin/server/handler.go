@@ -11,6 +11,7 @@ import (
 	"slices"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/ze-software/ze/internal/component/command"
 	"github.com/ze-software/ze/internal/core/diagnostic"
@@ -405,6 +406,10 @@ type RPCRegistration struct {
 	// audit entry. The owner declares it here, so the dispatcher never names a
 	// command by its text to decide what is audited.
 	AuditAction string
+	// HandlerTimeout optionally returns the execution timeout budget for a
+	// single invocation of this command. Nil uses the dispatcher's default
+	// operator timeout.
+	HandlerTimeout func(command.ValidatedArgs) time.Duration
 	// registrar is the import path of the package that called RegisterRPCs.
 	// Only RegisterRPCs writes it, and the field is private so that neither a
 	// struct literal nor a caller holding the slice AllBuiltinRPCs returns can

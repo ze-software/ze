@@ -1,0 +1,311 @@
+# Test: operation correlation IDs (`| operation <id>`), bounded reload history (`show system reload history`), reload status (`show system reload status`), and always-on daemon liveness watchdog (`show system watchdog`) work end-to-end on a live daemon.
+# QUESTION: on a live `ze start` daemon, does `show system watchdog` report `running: true` with `ticks > 0` and healthy probes (`config-tx-lock`, `command-handlers`), do `show system triage`, `show system reload status`, and `show system reload history` record both applied and rejected reloads with distinct generations and `operation-id`, do `show audit | operation <id>`, `show log recent | operation <id>`, and `show system reload history | operation <id>` return correlated records for that exact reload `operation-id`, and are `doctor-command-handler-hung` and `doctor-daemon-stall-detected` explainable via `ze show diagnostic`?
+# A unit test cannot decide this because the path spans live `cmd/ze/hub` startup (`watchdog.Start()`), SSH CLI command dispatch, disk audit store persistence, real `request reload` execution across valid and refused configurations, `slogutil.LogRing` context extraction, and CLI `| operation <id>` pipe parsing end-to-end.
+#
+# VALIDATES: spec-ai-diagnostics-4-correlation-and-wedge-survival AC-7, AC-8.
+# PREVENTS: missing watchdog startup in `cmd/ze/hub/main.go`, broken reload history or `operation-id` correlation across live audit/log/reload-history surfaces, or missing doctor diagnostic code registrations.
+
+option=storage:value=disk
+option=timeout:value=120s
+option=env:var=ZE_CONFIG_DIR:value=.
+option=env:var=XDG_DATA_HOME:value=.
+option=env:var=ze.ssh.username:value=admin
+option=env:var=ze.ssh.password:value=testpass
+option=env:var=ze.ssh.port:value=$PORT2
+
+tmpfs=running.conf:terminator=EOF_CONF
+environment {
+	ssh {
+		enabled true;
+		server main {
+			ip 127.0.0.1;
+			port $PORT2;
+		}
+	}
+}
+system {
+	authentication {
+		# bcrypt cost-4 hash of "testpass".
+		user admin {
+			password "$2a$04$UlwuiuH82Unfsq.XEMPGJeDkXwbm3KW.nvVaVXOd/JeFK8VjMjrQO"
+		}
+	}
+	dns {
+		resolv-conf-path "";
+	}
+	dns-source {
+		source [ received ];
+	}
+}
+bgp {
+	router-id 192.0.2.254;
+	session {
+		asn { local 65000; }
+	}
+	peer edge1 {
+		filter {
+			import { final accept; }
+			export { final accept; }
+		}
+		connection {
+			remote { ip 127.0.0.2; connect false; }
+			local { ip 127.0.0.1; port $PORT; accept true; }
+		}
+		session {
+			asn { remote 65001; }
+			family {
+				ipv4/unicast { prefix { maximum 10000; } }
+			}
+			capability { graceful-restart disable; }
+		}
+	}
+}
+EOF_CONF
+
+tmpfs=applied.conf:terminator=EOF_APPLIED
+environment {
+	ssh {
+		enabled true;
+		server main {
+			ip 127.0.0.1;
+			port $PORT2;
+		}
+	}
+}
+system {
+	authentication {
+		# bcrypt cost-4 hash of "testpass".
+		user admin {
+			password "$2a$04$UlwuiuH82Unfsq.XEMPGJeDkXwbm3KW.nvVaVXOd/JeFK8VjMjrQO"
+		}
+	}
+	dns {
+		resolv-conf-path "";
+	}
+	name-server [ 198.51.100.53 ];
+	dns-source {
+		source [ received configured ];
+		mode merge;
+	}
+}
+bgp {
+	router-id 192.0.2.254;
+	session {
+		asn { local 65000; }
+	}
+	peer edge1 {
+		filter {
+			import { final accept; }
+			export { final accept; }
+		}
+		connection {
+			remote { ip 127.0.0.2; connect false; }
+			local { ip 127.0.0.1; port $PORT; accept true; }
+		}
+		session {
+			asn { remote 65001; }
+			family {
+				ipv4/unicast { prefix { maximum 10000; } }
+			}
+			capability { graceful-restart disable; }
+		}
+	}
+}
+EOF_APPLIED
+
+tmpfs=rejected.conf:refused=config-validator-unavailable:terminator=EOF_REJECTED
+environment {
+	ssh {
+		enabled true;
+		server main {
+			ip 127.0.0.1;
+			port $PORT2;
+		}
+	}
+}
+system {
+	authentication {
+		# bcrypt cost-4 hash of "testpass".
+		user admin {
+			password "$2a$04$UlwuiuH82Unfsq.XEMPGJeDkXwbm3KW.nvVaVXOd/JeFK8VjMjrQO"
+		}
+	}
+	dns {
+		resolv-conf-path "";
+	}
+	name-server [ 198.51.100.53 ];
+	dns-source {
+		source [ received configured ];
+	}
+}
+bgp {
+	router-id 192.0.2.254;
+	session {
+		asn { local 65000; }
+	}
+	peer edge1 {
+		filter {
+			import { final accept; }
+			export { final accept; }
+		}
+		connection {
+			remote { ip 127.0.0.2; connect false; }
+			local { ip 127.0.0.1; port $PORT; accept true; }
+		}
+		session {
+			asn { remote 65001; }
+			family {
+				ipv4/unicast { prefix { maximum 10000; } }
+			}
+			capability { graceful-restart disable; }
+		}
+	}
+}
+EOF_REJECTED
+
+tmpfs=verify-diag.py:mode=755:terminator=EOF_VERIFY
+#!/usr/bin/env python3
+import json
+import shutil
+import subprocess
+import time
+
+
+def cli_json(cmd):
+    out = subprocess.check_output(["ze", "cli", "-c", cmd + " | json"], text=True)
+    return json.loads(out)
+
+
+def must(cond, msg):
+    if not cond:
+        raise SystemExit("FAIL: " + msg)
+
+
+def wait_until(fn, timeout_s, desc):
+    deadline = time.monotonic() + timeout_s
+    last = None
+    while time.monotonic() < deadline:
+        val, ok = fn()
+        last = val
+        if ok:
+            return val
+        time.sleep(0.1)
+    raise SystemExit(f"TIMEOUT waiting for {desc}: last={last}")
+
+
+# 1. Watchdog is running, ticks advance, and server probes are registered and healthy.
+wd = wait_until(
+    lambda: (
+        (s := cli_json("show system watchdog")),
+        s.get("running") is True and s.get("ticks", 0) > 0,
+    ),
+    15.0,
+    "watchdog running with ticks > 0",
+)
+probe_map = {p["name"]: p for p in wd.get("probes") or []}
+must("config-tx-lock" in probe_map and probe_map["config-tx-lock"].get("stalled") is False, f"config-tx-lock probe: {wd}")
+must("command-handlers" in probe_map and probe_map["command-handlers"].get("stalled") is False, f"command-handlers probe: {wd}")
+must(wd.get("stall-count") == 0, f"expected stall-count 0: {wd}")
+
+# 2. show system triage includes watchdog and hung-handler summary counts.
+triage = cli_json("show system triage")
+rt = triage.get("runtime") or {}
+must(rt.get("watchdog-running") is True, f"triage watchdog-running: {rt}")
+must(rt.get("stall-count") == 0, f"triage stall-count: {rt}")
+must(rt.get("hung-handler-count") == 0, f"triage hung-handler-count: {rt}")
+
+# 3. Initial reload status is generation 0.
+st0 = cli_json("show system reload status")
+must(st0.get("generation") == 0, f"initial reload status: {st0}")
+
+# 4. Trigger an applied reload via request reload.
+shutil.copyfile("applied.conf", "running.conf")
+subprocess.check_call(["ze", "cli", "-c", "request reload"])
+st1 = wait_until(
+    lambda: (
+        (s := cli_json("show system reload status")),
+        s.get("generation", 0) >= 1,
+    ),
+    15.0,
+    "applied reload generation >= 1",
+)
+must(st1.get("generation") == 1, f"st1 generation: {st1}")
+must(st1.get("last-outcome") == "applied", f"st1 outcome: {st1}")
+op_applied = st1.get("last-operation-id", "")
+must(bool(op_applied), f"st1 missing last-operation-id: {st1}")
+
+# 5. Trigger a rejected reload via request reload.
+shutil.copyfile("rejected.conf", "running.conf")
+rej_proc = subprocess.run(["ze", "cli", "-c", "request reload"], capture_output=True, text=True)
+rej_out = (rej_proc.stdout + "\n" + rej_proc.stderr).strip()
+must("dns-source" in rej_out, f"rejected reload returned unexpected output (rc={rej_proc.returncode}): {rej_out}")
+st2 = wait_until(
+    lambda: (
+        (s := cli_json("show system reload status")),
+        s.get("generation", 0) >= 2,
+    ),
+    15.0,
+    f"rejected reload generation >= 2 (request reload rc={rej_proc.returncode} out={rej_out!r})",
+)
+must(st2.get("generation") == 2, f"st2 generation: {st2}")
+must(st2.get("last-outcome") == "failed", f"st2 outcome: {st2}")
+op_failed = st2.get("last-operation-id", "")
+must(bool(op_failed) and op_failed != op_applied, f"st2 last-operation-id invalid: {st2} vs {op_applied}")
+
+# 6. Verify show system reload history returns both reloads newest-first.
+hist = cli_json("show system reload history")
+entries = hist.get("entries") or []
+must(hist.get("count") == 2 and len(entries) == 2, f"reload history count: {hist}")
+e_fail, e_ok = entries[0], entries[1]
+must(e_fail.get("generation") == 2 and e_fail.get("outcome") == "failed", f"failed entry: {e_fail}")
+must(e_fail.get("operation-id") == op_failed, f"failed entry op-id: {e_fail}")
+must(bool(e_fail.get("trigger")), f"failed entry trigger: {e_fail}")
+must(e_fail.get("duration-ms", -1) >= 0, f"failed entry duration-ms: {e_fail}")
+must(bool(e_fail.get("error")), f"failed entry error missing: {e_fail}")
+
+must(e_ok.get("generation") == 1 and e_ok.get("outcome") == "applied", f"applied entry: {e_ok}")
+must(e_ok.get("operation-id") == op_applied, f"applied entry op-id: {e_ok}")
+must(bool(e_ok.get("trigger")), f"applied entry trigger: {e_ok}")
+must(e_ok.get("duration-ms", -1) >= 0, f"applied entry duration-ms: {e_ok}")
+
+# 7. Verify | operation <id> narrows reload history, audit (applied reload), and logs (failed reload) to exact operation-id.
+hist_one = cli_json(f"show system reload history | operation {op_failed}")
+must(hist_one.get("count") == 1 and hist_one["entries"][0]["operation-id"] == op_failed, f"reload history | operation: {hist_one}")
+
+audit_ok = cli_json(f"show audit | operation {op_applied}")
+audit_entries = audit_ok.get("entries") or []
+must(len(audit_entries) >= 1, f"show audit | operation {op_applied} empty: {audit_ok}")
+must(all(e.get("operation-id") == op_applied for e in audit_entries), f"audit op-id mismatch: {audit_entries}")
+must(any(e.get("action") == "daemon-reload" for e in audit_entries), f"audit missing daemon-reload action: {audit_entries}")
+
+log_fail = cli_json(f"show log recent | operation {op_failed}")
+log_entries = log_fail.get("entries") or []
+must(len(log_entries) >= 1, f"show log recent | operation {op_failed} empty: {log_fail}")
+must(all(e.get("operation-id") == op_failed for e in log_entries), f"log op-id mismatch: {log_entries}")
+
+# Verify show errors and show event recent accept | operation <id> cleanly.
+err_q = cli_json(f"show errors | operation {op_failed}")
+must(isinstance(err_q.get("errors"), list), f"show errors | operation: {err_q}")
+ev_q = cli_json(f"show event recent | operation {op_applied}")
+must(isinstance(ev_q.get("events"), list), f"show event recent | operation: {ev_q}")
+
+# 8. Verify blank | operation returns a structured operator error refusal.
+bad_pipe = subprocess.run(["ze", "cli", "-c", "show log recent | operation"], capture_output=True, text=True)
+combined_bad = bad_pipe.stdout + bad_pipe.stderr
+must(bad_pipe.returncode != 0 or "operation" in combined_bad.lower(), f"blank | operation should refuse: {combined_bad}")
+
+# 9. Verify doctor diagnostic codes are registered and explainable.
+for code in ("doctor-command-handler-hung", "doctor-daemon-stall-detected"):
+    out = subprocess.check_output(["ze", "show", "diagnostic", code], text=True)
+    must(code in out, f"ze show diagnostic {code} missing code: {out}")
+
+print(f"OK: verified watchdog ticks={wd['ticks']} op_applied={op_applied} op_failed={op_failed}")
+EOF_VERIFY
+
+cmd=background:seq=1:name=daemon:exec=ze start running.conf:ready=Ze running.
+reject=stderr:pattern=panic
+
+cmd=foreground:seq=2:exec=python3 verify-diag.py:exit=0
+expect=stdout:contains=OK: verified watchdog ticks=
+
+cmd=stop:seq=3:name=daemon:signal=term

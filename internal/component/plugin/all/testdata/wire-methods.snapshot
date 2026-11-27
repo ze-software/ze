@@ -97,7 +97,6 @@ ze-cmd:show-event-recent
 ze-cmd:show-health
 ze-cmd:show-metrics-query
 ze-cmd:show-policy-list
-ze-cmd:show-reload-status
 ze-cmd:show-system-cpu
 ze-cmd:show-system-date
 ze-cmd:show-system-file-descriptors
@@ -106,10 +105,13 @@ ze-cmd:show-system-memory
 ze-cmd:show-system-memory-map
 ze-cmd:show-system-platform
 ze-cmd:show-system-profile
+ze-cmd:show-system-reload-history
+ze-cmd:show-system-reload-status
 ze-cmd:show-system-sockets
 ze-cmd:show-system-subsystem-list
 ze-cmd:show-system-trace
 ze-cmd:show-system-triage
+ze-cmd:show-system-watchdog
 ze-cmd:show-uptime
 ze-cmd:show-version
 ze-cmd:show-warnings

@@ -128,12 +128,12 @@ EOF_CONF3
 
 tmpfs=stages.script:terminator=EOF_SCRIPT
 reload config2.conf
-has show reload-status => "last-outcome":"failed"
+has show system reload status => "last-outcome":"failed"
 has show config running => "backend":"kernel"
 lacks show config running => "backend":"vpp"
 say DATAPLANE-MISMATCH-RELOAD: refused reload kept running config
 reload config3.conf
-has show reload-status => "last-outcome":"applied"
+has show system reload status => "last-outcome":"applied"
 say DATAPLANE-MISMATCH-RELOAD: valid reload applied
 EOF_SCRIPT
 

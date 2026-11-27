@@ -21,6 +21,7 @@ import (
 	"github.com/ze-software/ze/internal/component/plugin/process"
 	pluginserver "github.com/ze-software/ze/internal/component/plugin/server"
 	"github.com/ze-software/ze/internal/core/opererr"
+	"github.com/ze-software/ze/internal/core/opid"
 	"github.com/ze-software/ze/internal/core/procfs"
 	"github.com/ze-software/ze/internal/core/slogutil"
 	"github.com/ze-software/ze/pkg/plugin/rpc"
@@ -612,6 +613,186 @@ func TestShowLogRecentPluginPipeSuccessAndFallback(t *testing.T) {
 		tail, ok := data["stderr-tail"].([]string)
 		if !ok || len(tail) != 2 || tail[1] != "ext helper stderr line" {
 			t.Fatalf("unexpected stderr-tail: %+v", data["stderr-tail"])
+		}
+	})
+}
+
+func TestShowLogRecentOperationPipeRegistered(t *testing.T) {
+	filters := command.PipeFiltersForCommand("show log recent")
+	foundPlugin := false
+	foundOp := false
+	for _, f := range filters {
+		if f.Name == pipeOpPlugin && f.Argument == command.ArgText {
+			foundPlugin = true
+		}
+		if f.Name == pipeOpOperation && f.Argument == command.ArgText {
+			foundOp = true
+		}
+	}
+	if !foundPlugin || !foundOp {
+		t.Fatalf("command.PipeFiltersForCommand(\"show log recent\") = %+v, want both plugin and operation (ArgText)", filters)
+	}
+}
+
+func TestShowLogRecentOperationPipeLocalAndPlugin(t *testing.T) {
+	t.Run("local-ring-filters-by-operation-id", func(t *testing.T) {
+		const subsystem = "test.log.recent.operation"
+		logger := slogutil.Logger(subsystem)
+		if err := slogutil.SetLevel(subsystem, "info"); err != nil {
+			t.Fatalf("SetLevel(info): %v", err)
+		}
+		targetOp := opid.New()
+		otherOp := opid.New()
+
+		logger.InfoContext(opid.With(context.Background(), targetOp), "matched info log")
+		logger.ErrorContext(opid.With(context.Background(), otherOp), "unmatched error log")
+		logger.WarnContext(opid.With(context.Background(), targetOp), "matched warn log")
+
+		args := commandtest.Args("component", subsystem).WithPipeOperations([]command.PipeOperation{
+			{Name: pipeOpOperation, Args: []string{targetOp}},
+		})
+		resp, err := handleLogRecent(nil, args)
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		if resp.Status != plugin.StatusDone {
+			t.Fatalf("status = %v, err = %q, want StatusDone", resp.Status, resp.Error)
+		}
+		data, ok := resp.Data.(plugin.Map)
+		if !ok {
+			t.Fatalf("Data is %T, want plugin.Map", resp.Data)
+		}
+		entries, ok := data[fieldEntries].([]map[string]any)
+		if !ok {
+			t.Fatalf("entries is %T, want []map[string]any", data[fieldEntries])
+		}
+		if len(entries) != 2 {
+			t.Fatalf("got %d entries, want 2: %+v", len(entries), entries)
+		}
+		if entries[0]["message"] != "matched warn log" || entries[1]["message"] != "matched info log" {
+			t.Fatalf("unexpected entries order/content: %+v", entries)
+		}
+		if entries[0][fieldOperationID] != targetOp || entries[1][fieldOperationID] != targetOp {
+			t.Fatalf("entries missing operation-id %q: %+v", targetOp, entries)
+		}
+	})
+
+	t.Run("plugin-and-operation-compose", func(t *testing.T) {
+		srv := &pluginserver.Server{}
+		cmdCtx := &pluginserver.CommandContext{Server: srv}
+		prev := inspectLogPluginFunc
+		t.Cleanup(func() { inspectLogPluginFunc = prev })
+
+		var gotInput rpc.RuntimeInspectInput
+		inspectLogPluginFunc = func(_ *pluginserver.Server, _ context.Context, name string, input rpc.RuntimeInspectInput) (*pluginserver.PluginInspectResult, *opererr.Error) {
+			gotInput = input
+			return &pluginserver.PluginInspectResult{
+				Plugin:      name,
+				ProcessMode: "external",
+				PID:         6200,
+				Output: &rpc.RuntimeInspectOutput{
+					Kind: rpc.RuntimeInspectLogRecent,
+					PID:  6200,
+					LogEntries: []rpc.RuntimeInspectLogEntry{
+						{
+							Timestamp:  "2026-11-27T12:00:03Z",
+							Level:      "error",
+							Component:  "ddos",
+							Message:    "matched-newest",
+							Attributes: map[string]any{fieldOperationID: "op-77"},
+						},
+						{
+							Timestamp:  "2026-11-27T12:00:02Z",
+							Level:      "warn",
+							Component:  "ddos",
+							Message:    "other-op",
+							Attributes: map[string]any{fieldOperationID: "op-88"},
+						},
+						{
+							Timestamp:  "2026-11-27T12:00:01Z",
+							Level:      "info",
+							Component:  "ddos",
+							Message:    "matched-older",
+							Attributes: map[string]any{fieldOperationID: "op-77"},
+						},
+					},
+				},
+			}, nil
+		}
+
+		args := commandtest.Args("count", "1").WithPipeOperations([]command.PipeOperation{
+			{Name: pipeOpPlugin, Args: []string{"my-ddos"}},
+			{Name: pipeOpOperation, Args: []string{"op-77"}},
+		})
+		resp, err := handleLogRecent(cmdCtx, args)
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		if resp.Status != plugin.StatusDone {
+			t.Fatalf("status = %v, err = %q, want StatusDone", resp.Status, resp.Error)
+		}
+		if gotInput.LogCount != rpc.RuntimeInspectMaxLogEntries {
+			t.Fatalf("LogCount = %d, want %d when filtering plugin logs by operation-id", gotInput.LogCount, rpc.RuntimeInspectMaxLogEntries)
+		}
+		data, ok := resp.Data.(plugin.Map)
+		if !ok {
+			t.Fatalf("Data is %T, want plugin.Map", resp.Data)
+		}
+		entries, ok := data[fieldEntries].([]map[string]any)
+		if !ok {
+			t.Fatalf("entries is %T, want []map[string]any", data[fieldEntries])
+		}
+		if len(entries) != 1 || entries[0]["message"] != "matched-newest" || entries[0][fieldOperationID] != "op-77" {
+			t.Fatalf("unexpected filtered plugin entries: %+v", entries)
+		}
+	})
+
+	t.Run("duplicate-and-blank-operation-refusals", func(t *testing.T) {
+		for _, tc := range []struct {
+			name    string
+			ops     []command.PipeOperation
+			wantSub string
+		}{
+			{
+				name: "duplicate",
+				ops: []command.PipeOperation{
+					{Name: pipeOpOperation, Args: []string{"op-1"}},
+					{Name: pipeOpOperation, Args: []string{"op-2"}},
+				},
+				wantSub: "duplicate | operation",
+			},
+			{
+				name: "blank",
+				ops: []command.PipeOperation{
+					{Name: pipeOpOperation, Args: []string{"   "}},
+				},
+				wantSub: "| operation requires an operation ID",
+			},
+			{
+				name: "missing-arg",
+				ops: []command.PipeOperation{
+					{Name: pipeOpOperation},
+				},
+				wantSub: "| operation requires an operation ID",
+			},
+			{
+				name: "extra-args",
+				ops: []command.PipeOperation{
+					{Name: pipeOpOperation, Args: []string{"op-1", "op-2"}},
+				},
+				wantSub: "| operation takes exactly one operation ID",
+			},
+		} {
+			t.Run(tc.name, func(t *testing.T) {
+				args := commandtest.Args().WithPipeOperations(tc.ops)
+				resp, err := handleLogRecent(nil, args)
+				if err != nil {
+					t.Fatalf("unexpected error: %v", err)
+				}
+				if resp.Status != plugin.StatusError || !strings.Contains(resp.Error, tc.wantSub) {
+					t.Fatalf("got status=%v err=%q, want substring %q", resp.Status, resp.Error, tc.wantSub)
+				}
+			})
 		}
 	})
 }

@@ -131,7 +131,7 @@ func queryRPKIReloadJSON(ctx context.Context, lab interoplab.CheckerLab, command
 
 // applyZeReload replaces ze's running config with config, a file mounted in
 // ze's container (zeMountedReloadConfig or zeMountedConfig), sends SIGHUP, and
-// waits until `show reload-status` reports exactly one more generation with
+// waits until `show system reload status` reports exactly one more generation with
 // outcome "applied". Every scenario carrying ze-reload.conf reloads through it.
 func applyZeReload(ctx context.Context, lab interoplab.CheckerLab, config string) error {
 	type reloadStatus struct {
@@ -139,7 +139,7 @@ func applyZeReload(ctx context.Context, lab interoplab.CheckerLab, config string
 		Outcome    string  `json:"last-outcome"`
 	}
 	var before reloadStatus
-	if err := queryRPKIReloadJSON(ctx, lab, "show reload-status", &before); err != nil {
+	if err := queryRPKIReloadJSON(ctx, lab, "show system reload status", &before); err != nil {
 		return err
 	}
 	if before.Generation == nil {
@@ -155,7 +155,7 @@ func applyZeReload(ctx context.Context, lab interoplab.CheckerLab, config string
 		Timeout: 60 * time.Second, Interval: time.Second, Description: "daemon SIGHUP completion",
 	}, func(probeCtx context.Context) (reloadStatus, error) {
 		var current reloadStatus
-		err := queryRPKIReloadJSON(probeCtx, lab, "show reload-status", &current)
+		err := queryRPKIReloadJSON(probeCtx, lab, "show system reload status", &current)
 		return current, err
 	}, func(current reloadStatus) bool {
 		return current.Generation != nil && *current.Generation > *before.Generation

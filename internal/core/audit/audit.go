@@ -56,6 +56,7 @@ const (
 // Entry is one structured audit record.
 type Entry struct {
 	Timestamp  time.Time `json:"timestamp"`
+	OpID       string    `json:"operation-id,omitempty"`
 	Actor      string    `json:"actor,omitempty"`
 	RemoteAddr string    `json:"remote-addr,omitempty"`
 	Surface    string    `json:"surface"`

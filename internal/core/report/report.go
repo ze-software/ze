@@ -31,6 +31,7 @@
 package report
 
 import (
+	"context"
 	"fmt"
 	"log/slog"
 	"maps"
@@ -43,6 +44,7 @@ import (
 	"unicode/utf8"
 
 	"github.com/ze-software/ze/internal/core/env"
+	"github.com/ze-software/ze/internal/core/opid"
 	"github.com/ze-software/ze/internal/core/slogutil"
 )
 
@@ -111,11 +113,14 @@ type Issue struct {
 	Severity Severity       `json:"severity"`
 	Subject  string         `json:"subject"`
 	Message  string         `json:"message"`
+	OpID     string         `json:"operation-id,omitempty"`
 	Detail   map[string]any `json:"detail,omitempty"`
 	Fix      string         `json:"fix,omitempty"`
 	Raised   time.Time      `json:"raised"`
 	Updated  time.Time      `json:"updated"`
 }
+
+const detailKeyOperationID = "operation-id"
 
 // Default capacities. Production values may be overridden via env vars,
 // but are always clamped to the max constants below.
@@ -354,7 +359,7 @@ func FitMessage(message string) string {
 // at store and again at snapshot time; values inside the map are shared by
 // reference, so callers MUST NOT mutate values they have passed in.
 func RaiseWarning(source, code, subject, message string, detail ...map[string]any) {
-	pkg.Load().raiseWarning(source, code, subject, message, "", firstDetail(detail))
+	pkg.Load().raiseWarning(source, code, subject, message, "", "", firstDetail(detail))
 }
 
 // RaiseWarningFix is RaiseWarning for a producer that knows the command that
@@ -362,7 +367,14 @@ func RaiseWarning(source, code, subject, message string, detail ...map[string]an
 // raise is rejected like any oversized field) and a re-raise refreshes it.
 // An empty fix is the same as RaiseWarning.
 func RaiseWarningFix(source, code, subject, message, fix string, detail ...map[string]any) {
-	pkg.Load().raiseWarning(source, code, subject, message, fix, firstDetail(detail))
+	pkg.Load().raiseWarning(source, code, subject, message, fix, "", firstDetail(detail))
+}
+
+// RaiseWarningContext is RaiseWarningFix that attaches the operation
+// correlation ID from ctx (falling back to a string "operation-id" entry in
+// detail) to Issue.OpID without mutating the caller's detail map.
+func RaiseWarningContext(ctx context.Context, source, code, target, msg, fix string, detail ...map[string]any) {
+	pkg.Load().raiseWarning(source, code, target, msg, fix, opid.From(ctx), firstDetail(detail))
 }
 
 // ClearWarning removes the active warning identified by (Source, Code, Subject).
@@ -390,13 +402,20 @@ func ClearSource(source string) {
 //
 // Detail is optional and follows the same shallow-clone contract as RaiseWarning.
 func RaiseError(source, code, subject, message string, detail ...map[string]any) {
-	pkg.Load().raiseError(source, code, subject, message, "", firstDetail(detail))
+	pkg.Load().raiseError(source, code, subject, message, "", "", firstDetail(detail))
 }
 
 // RaiseErrorFix is RaiseError for a producer that knows the command that
 // fixes the subject, with the fix contract of RaiseWarningFix.
 func RaiseErrorFix(source, code, subject, message, fix string, detail ...map[string]any) {
-	pkg.Load().raiseError(source, code, subject, message, fix, firstDetail(detail))
+	pkg.Load().raiseError(source, code, subject, message, fix, "", firstDetail(detail))
+}
+
+// RaiseErrorContext is RaiseErrorFix that attaches the operation correlation
+// ID from ctx (falling back to a string "operation-id" entry in detail) to
+// Issue.OpID without mutating the caller's detail map.
+func RaiseErrorContext(ctx context.Context, source, code, target, msg, fix string, detail ...map[string]any) {
+	pkg.Load().raiseError(source, code, target, msg, fix, opid.From(ctx), firstDetail(detail))
 }
 
 // RaiseErrorFixOnce is RaiseErrorFix for an event a third party can drive,
@@ -478,29 +497,55 @@ func copyDetail(d map[string]any) map[string]any {
 	return maps.Clone(d)
 }
 
-func (s *store) raiseWarning(source, code, subject, message, fix string, detail map[string]any) {
+func extractOpID(ctxOpID string, detail map[string]any) string {
+	if ctxOpID != "" {
+		return ctxOpID
+	}
+	if detail == nil {
+		return ""
+	}
+	raw, ok := detail[detailKeyOperationID]
+	// refuse-by-default: guards raiseError -- detail maps without operation-id carry no correlation ID
+	if !ok {
+		return ""
+	}
+	id, ok := raw.(string)
+	// refuse-by-default: guards raiseError -- non-string operation-id detail values are not promoted to Issue.OpID
+	if !ok {
+		return ""
+	}
+	return id
+}
+
+func (s *store) raiseWarning(source, code, subject, message, fix, opID string, detail map[string]any) {
 	if !validFields(source, code, subject, message, fix, detail) {
 		s.logger.Debug("rejected RaiseWarning: invalid fields",
 			"source", source, "code", code, "subject_len", len(subject),
 			"message_len", len(message), "fix_len", len(fix), "detail_keys", len(detail))
 		return
 	}
+	resolvedOpID := extractOpID(opID, detail)
 	key := warningKey{source: source, code: code, subject: subject}
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	if s.resourceOwnsLocked(key) {
 		return
 	}
-	s.raiseWarningLocked(key, message, fix, detail)
+	s.raiseWarningWithOpLocked(key, message, fix, resolvedOpID, detail)
 }
 
 // raiseWarningLocked is the shared admitted ordinary writer. Caller MUST hold
 // s.mu and MUST have refused any resource-owned subject before reaching it.
 func (s *store) raiseWarningLocked(key warningKey, message, fix string, detail map[string]any) {
+	s.raiseWarningWithOpLocked(key, message, fix, extractOpID("", detail), detail)
+}
+
+func (s *store) raiseWarningWithOpLocked(key warningKey, message, fix, opID string, detail map[string]any) {
 	now := time.Now()
 	if existing, ok := s.warnings[key]; ok {
 		existing.Updated = now
 		existing.Message = message
+		existing.OpID = opID
 		existing.Detail = copyDetail(detail)
 		existing.Fix = fix
 		return
@@ -514,6 +559,7 @@ func (s *store) raiseWarningLocked(key warningKey, message, fix string, detail m
 		Severity: SeverityWarning,
 		Subject:  key.subject,
 		Message:  message,
+		OpID:     opID,
 		Detail:   copyDetail(detail),
 		Fix:      fix,
 		Raised:   now,
@@ -564,7 +610,7 @@ func (s *store) clearSource(source string) {
 	}
 }
 
-func (s *store) raiseError(source, code, subject, message, fix string, detail map[string]any) {
+func (s *store) raiseError(source, code, subject, message, fix, opID string, detail map[string]any) {
 	if !validFields(source, code, subject, message, fix, detail) {
 		s.logger.Debug("rejected RaiseError: invalid fields",
 			"source", source, "code", code, "subject_len", len(subject),
@@ -577,6 +623,7 @@ func (s *store) raiseError(source, code, subject, message, fix string, detail ma
 		Severity: SeverityError,
 		Subject:  subject,
 		Message:  message,
+		OpID:     extractOpID(opID, detail),
 		Detail:   copyDetail(detail),
 		Fix:      fix,
 	}

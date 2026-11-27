@@ -116,7 +116,7 @@ func liveStagesCover(ctx context.Context, plugin *sdk.Plugin, spec string) error
 
 // liveStagesReload copies source over the daemon's config file, sends it
 // SIGHUP, and returns once the daemon reports that reload processed: the
-// generation `show reload-status` answers advanced past the one read before
+// generation `show system reload status` answers advanced past the one read before
 // the signal. Returning at the signal let the next `reload` overwrite the file
 // while this one still ran, so two reloads overlapped and the script asserted
 // a state neither of them was meant to leave (bgp-bfd-removed-live failed one
@@ -145,7 +145,7 @@ func liveStagesReload(ctx context.Context, plugin *sdk.Plugin, source string) er
 		baseline, reason = reloadGenerationAnswer(ctx, plugin)
 		return baseline >= 0
 	}) {
-		return fmt.Errorf("before the reload: show reload-status returned no generation; last read: %s", reason)
+		return fmt.Errorf("before the reload: show system reload status returned no generation; last read: %s", reason)
 	}
 	if err := os.WriteFile(fileBGPConf, data, 0o600); err != nil {
 		return err
@@ -158,7 +158,7 @@ func liveStagesReload(ctx context.Context, plugin *sdk.Plugin, source string) er
 		generation = reloadGeneration(ctx, plugin)
 		return generation > baseline
 	}) {
-		return fmt.Errorf("the reload never finished: show reload-status generation stayed at %d", generation)
+		return fmt.Errorf("the reload never finished: show system reload status generation stayed at %d", generation)
 	}
 	return nil
 }

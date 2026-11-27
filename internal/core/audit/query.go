@@ -12,6 +12,7 @@ type Filter struct {
 	Action  string
 	Actor   string
 	Surface string
+	OpID    string
 	Limit   int
 }
 
@@ -36,6 +37,11 @@ func (l *Log) Query(filter Filter) []Entry {
 		}
 		if filter.Surface != "" && entry.Surface != filter.Surface {
 			continue
+		}
+		if filter.OpID != "" {
+			if entry.OpID != filter.OpID {
+				continue
+			}
 		}
 		entries = append(entries, entry)
 		if filter.Limit > 0 && len(entries) >= filter.Limit {

@@ -2725,7 +2725,7 @@ unchanged, and `sendZone` returning `""` with `pinsToLink` returning false
 `bgp-role-reload-frr` and `bgp-role-reload-frr-forked` keep FRR configured as
 Customer in non-strict mode. Ze starts without a Role, adds Provider through
 SIGHUP, then removes it through a second SIGHUP. Each reload must advance
-`show reload-status` by one applied generation. FRR must report a new
+`show system reload status` by one applied generation. FRR must report a new
 established-session generation and the received `remoteRole` at each step:
 `undefined`, `provider`, then `undefined`. The two scenarios use the same
 checker over the internal plugin and real TLS connect-back transports.

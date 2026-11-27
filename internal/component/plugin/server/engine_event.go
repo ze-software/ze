@@ -6,6 +6,7 @@
 package server
 
 import (
+	"context"
 	"sync"
 
 	"github.com/ze-software/ze/internal/core/diagnostic"
@@ -145,6 +146,12 @@ func (e *engineEventSubscribers) invokeHandler(ns events.NamespaceID, et events.
 // per Emit (only when at least one plugin-process subscriber exists).
 func (s *Server) EmitEngineEvent(namespace, eventType string, payload any) (int, error) {
 	return s.deliverEvent(nil, namespace, eventType, "", "", payload)
+}
+
+// EmitEngineEventContext publishes an event from the engine while carrying ctx
+// into observational taps such as EventRing (recording operation-id when present).
+func (s *Server) EmitEngineEventContext(ctx context.Context, namespace, eventType string, payload any) (int, error) {
+	return s.deliverEventWithContext(ctx, nil, namespace, eventType, "", "", payload)
 }
 
 // Emit satisfies the pkg/ze.EventBus interface. It is a thin alias for

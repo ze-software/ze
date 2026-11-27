@@ -5,14 +5,14 @@ no debug logging and no external tooling. Three rings supply it.
 
 | Ring | Records | Command |
 |------|---------|---------|
-| global event ring | every event that reaches `deliverEvent()` | `show event recent [count N] [namespace X]`, `show event namespaces` |
+| global event ring | every event that reaches `deliverEvent()` | `show event recent [count N] [namespace X] [\| operation <id>]`, `show event namespaces` |
 | per-peer BGP FSM | peer state transitions | `show bgp peer <sel> history` |
 | per-tunnel and per-session L2TP FSM | tunnel and session state transitions | `show l2tp tunnel history <tid>`, `show l2tp session history <sid>` |
 
-<!-- source: internal/component/plugin/server/event_ring.go -- EventRing, Append -->
-<!-- source: internal/component/plugin/server/event_ring.go -- EventRecord, AppendWithMeta -->
-<!-- source: internal/component/plugin/server/dispatch.go -- deliverEvent, the ring tap -->
-<!-- source: internal/component/plugin/server/dispatch.go -- deliverEventCaptured -->
+<!-- source: internal/component/plugin/server/event_ring.go -- EventRing, Append, EventRecord, AppendWithMeta, appendWithOp, SnapshotWithOp -->
+<!-- source: internal/component/plugin/server/dispatch.go -- deliverEvent, deliverEventWithContext, deliverEventCaptured -->
+<!-- source: internal/component/plugin/server/engine_event.go -- EmitEngineEventContext -->
+<!-- source: internal/component/plugin/server/engine_event_gateway.go -- newConfigEventGatewayWithContext, ConfigEventGateway.EmitConfigEvent -->
 <!-- source: internal/component/bgp/reactor/peer_history.go -- fsmHistory, FSMTransition -->
 <!-- source: internal/component/l2tp/fsm_history.go -- L2TP tunnel and session history -->
 
@@ -21,9 +21,19 @@ no debug logging and no external tooling. Three rings supply it.
 **The global ring taps `deliverEvent()`, the single dispatch point for every
 event.** One append there captures everything, with no per-namespace
 subscription to keep in sync. `deliverEventCaptured` records `EventRecord` via
-`AppendWithMeta`, filling `Source` (`stampedSender`, emitter name, or
-`"engine"`), `Subject` (`peerAddress`), and `Direction` from strings already in
-scope.
+`appendWithOp`, filling `Source` (`stampedSender`, emitter name, or `"engine"`),
+`Subject` (`peerAddress`), `Direction`, and optional `OpID` (`opid.From(ctx)`)
+from values already in scope.
+
+**Config reloads propagate their `operation-id` through `ConfigEventGateway`.**
+`Server.EmitEngineEventContext` routes through `deliverEventWithContext` without
+changing `pkg/ze.EventBus`. During a reload transaction, `reload_tx.go` binds
+the reload context into `newConfigEventGatewayWithContext(s, ctx)` so every
+`config` namespace event (`verify`, `apply`, `rollback`, `complete`) carries the
+reload's `operation-id` on `EventRecord.OpID`. Operators and AI agents filter
+the ring by operation via `show event recent | operation <id>` (over MCP:
+`pipe: [{"name": "operation", "args": ["<id>"]}]`), backed by
+`EventRing.SnapshotWithOp`.
 
 **Fixed-size circular buffer, overwrite-oldest, non-blocking append.** The emit
 path allocates nothing. Capacity is fixed at compile time per ring type, and the

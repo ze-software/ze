@@ -10,26 +10,28 @@ import (
 	"github.com/ze-software/ze/internal/component/command"
 	"github.com/ze-software/ze/internal/component/plugin"
 	pluginserver "github.com/ze-software/ze/internal/component/plugin/server"
+	"github.com/ze-software/ze/internal/core/opererr"
 )
 
-// `show reload-status` stays in the CENTRAL show package on purpose. The reload
-// generation counter is process-global daemon state with no removable owner --
-// the same class as `show warnings` and `show health` -- so it does not belong
-// to any plugin's subtree (ai/rules/plugins.md). In particular
-// it is NOT `show config reload-status`: that subtree is owned by
+// `show system reload status` stays in the CENTRAL show package on purpose. The
+// reload generation counter is process-global daemon state with no removable
+// owner -- the same class as `show warnings` and `show health` -- so it does
+// not belong to any plugin's subtree (ai/rules/plugins.md). In particular it is
+// NOT `show config reload-status`: that subtree is owned by
 // internal/plugins/config-cli, and hanging a centrally-handled command off a
 // plugin's schema inverts the removal test.
 func init() {
 	pluginserver.RegisterRPCs(
 		pluginserver.RPCRegistration{
-			WireMethod: "ze-cmd:show-reload-status",
+			WireMethod: "ze-cmd:show-system-reload-status",
 			Handler:    handleShowReloadStatus,
 		},
 	)
 }
 
 // handleShowReloadStatus returns the reload generation counter, the outcome of
-// the most recent reload, and when it finished.
+// the most recent reload, when it finished, and the last operation ID when
+// recorded.
 //
 // The counter advances on every PROCESSED reload, applied or rejected, which is
 // what makes it usable as a fence. A reload that rejects a change (l2tp
@@ -39,14 +41,22 @@ func init() {
 // generation, triggers the reload, polls until the generation advances, then
 // asserts. See internal/component/plugin/server/reload_generation.go.
 func handleShowReloadStatus(ctx *pluginserver.CommandContext, _ command.ValidatedArgs) (*plugin.Response, error) {
-	if ctx == nil || ctx.Server == nil {
-		return &plugin.Response{
-			Status: plugin.StatusError,
-			Error:  msgDaemonNotRunning,
-		}, nil
+	if ctx == nil {
+		return plugin.OperatorErrorResponse(opererr.New(
+			msgDaemonNotRunning,
+			"reload status is only available from a running ze daemon",
+			"ze start <config-file>",
+		)), nil
+	}
+	if ctx.Server == nil {
+		return plugin.OperatorErrorResponse(opererr.New(
+			msgDaemonNotRunning,
+			"reload status is only available from a running ze daemon",
+			"ze start <config-file>",
+		)), nil
 	}
 
-	generation, outcome, at := ctx.Server.ReloadStatus()
+	generation, outcome, at, opID := ctx.Server.ReloadStatusWithOp()
 	data := plugin.Map{
 		"generation":   generation,
 		"last-outcome": outcome,
@@ -58,6 +68,9 @@ func handleShowReloadStatus(ctx *pluginserver.CommandContext, _ command.Validate
 		data["last-reload-at"] = ""
 	} else {
 		data["last-reload-at"] = at.UTC().Format(time.RFC3339)
+	}
+	if opID != "" {
+		data["last-operation-id"] = opID
 	}
 
 	return &plugin.Response{Status: plugin.StatusDone, Data: data}, nil

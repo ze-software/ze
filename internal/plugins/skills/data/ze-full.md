@@ -32,7 +32,7 @@ ze show skill <name> [--full] [--json]
 
 1. Run `ze cli -c "show system triage | json"` (or MCP `ze_show_system` action `triage`) to capture build provenance, `health`, `doctor`, `errors`, `warnings`, `crashes`, `plugins`, `reload`, `recent-logs`, and `runtime` in one call.
 2. Inspect `doctor`, `errors`, `crashes`, and `recent-logs` first (including any `doctor-internal-defect` raised by a recovered panic).
-3. Drill down only into the sections triage flags: `show crashes name <file>`, `show log recent level err`, `show event recent`, `show system goroutines mode blocked`, `show system profile`, `show reload-status`, or `show plugin list`.
+3. Drill down only into the sections triage flags: `show crashes name <file>`, `show log recent level err`, `show event recent`, `show system goroutines mode blocked`, `show system profile`, `show system reload status`, `show system reload history`, `show system watchdog`, or `show plugin list`.
 4. Load `ze show skill ze-diagnostics` for the full runtime triage playbook and bug report checklist.
 
 ## Skills

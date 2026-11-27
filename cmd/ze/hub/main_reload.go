@@ -29,6 +29,7 @@ import (
 	"github.com/ze-software/ze/internal/core/diagnostic"
 	"github.com/ze-software/ze/internal/core/env"
 	"github.com/ze-software/ze/internal/core/opererr"
+	"github.com/ze-software/ze/internal/core/opid"
 	"github.com/ze-software/ze/internal/core/slogutil"
 )
 
@@ -188,9 +189,17 @@ func handleSIGHUPReload(ctx context.Context, reloadCh <-chan os.Signal, done cha
 // audits the reload, prints every error except ErrReloadInProgress, which it
 // returns unprinted so the caller can queue the reload, and announces success
 // with reloadComplete. trigger names the reload in the audit log.
+func sighupHistoryTrigger(trigger string) string {
+	if trigger == "queued SIGHUP" {
+		return "queued-sighup"
+	}
+	return "sighup"
+}
+
 func sighupReload(ctx context.Context, reloads *sync.Mutex, s *pluginserver.Server, eng *engine.Engine, cp *zeconfig.Provider, store storage.Storage, configPath string, load func() (map[string]any, *zeconfig.Tree, []zePlugin.PluginConfig, error), lm *listenerMigrator, recorder audit.Recorder, trigger string) error {
+	ctx, opID := opid.Ensure(ctx)
 	reloads.Lock()
-	err := signalReload(ctx, s, eng, cp, store, configPath, load, lm)
+	err := signalReload(withReloadTrigger(ctx, sighupHistoryTrigger(trigger)), s, eng, cp, store, configPath, load, lm)
 	reloads.Unlock()
 	if errors.Is(err, pluginserver.ErrReloadInProgress) {
 		return err
@@ -199,7 +208,7 @@ func sighupReload(ctx context.Context, reloads *sync.Mutex, s *pluginserver.Serv
 		fmt.Fprintf(os.Stderr, "reload error: %v\n", err)
 		return err
 	}
-	recordDaemonReloadAudit(recorder, "system", "signal", audit.System, trigger)
+	recordDaemonReloadAuditWithOp(recorder, "system", "signal", audit.System, trigger, opID)
 	reloadComplete()
 	return nil
 }
@@ -231,7 +240,7 @@ func newRequestReloadFunc(gate *reloadGate, reloads *sync.Mutex, ready func(cont
 		if !reloads.TryLock() {
 			return pluginserver.ErrReloadInProgress
 		}
-		err := signalReload(ctx, s, eng, cp, store, configPath, load, lm)
+		err := signalReload(withReloadTrigger(ctx, "request-reload"), s, eng, cp, store, configPath, load, lm)
 		reloads.Unlock()
 		if err != nil {
 			return stoodDownAnswer(ctx, err)
@@ -527,6 +536,10 @@ func reloadComplete() {
 }
 
 func recordDaemonReloadAudit(recorder audit.Recorder, actor, remoteAddr, surface, detail string) { //nolint:unparam // surface is always System today but callers should state intent
+	recordDaemonReloadAuditWithOp(recorder, actor, remoteAddr, surface, detail, "")
+}
+
+func recordDaemonReloadAuditWithOp(recorder audit.Recorder, actor, remoteAddr, surface, detail, opID string) {
 	if recorder == nil {
 		return
 	}
@@ -537,8 +550,39 @@ func recordDaemonReloadAudit(recorder audit.Recorder, actor, remoteAddr, surface
 		Action:     audit.ActionDaemonReload,
 		Detail:     detail,
 		Outcome:    audit.OutcomeSuccess,
+		OpID:       opID,
 	}); err != nil {
 		slogutil.Logger("hub.audit").Warn("audit record failed", "code", "doctor-audit-record-failed", "action", audit.ActionDaemonReload, "error", err)
+	}
+}
+
+type reloadTriggerContextKey struct{}
+
+func withReloadTrigger(ctx context.Context, trigger string) context.Context {
+	if trigger == "" {
+		return ctx
+	}
+	if ctx == nil {
+		ctx = context.Background()
+	}
+	return context.WithValue(ctx, reloadTriggerContextKey{}, trigger)
+}
+
+func reloadTriggerFrom(ctx context.Context, source reloadSource) string {
+	if ctx != nil {
+		if trigger, ok := ctx.Value(reloadTriggerContextKey{}).(string); ok && trigger != "" {
+			return trigger
+		}
+	}
+	switch source {
+	case reloadSourceCommit:
+		return "commit"
+	case reloadSourceSignal:
+		return "sighup"
+	case reloadSourceUnspecified:
+		return "unknown"
+	default:
+		return "unknown"
 	}
 }
 
@@ -579,7 +623,7 @@ func doReload(s *pluginserver.Server, cp *zeconfig.Provider, store storage.Stora
 }
 
 // doReloadContext performs a single config reload and records the "reload
-// processed" fence that `show reload-status` surfaces. source states who
+// processed" fence that `show system reload status` surfaces. source states who
 // authored the candidate: reloadSourceSignal from signalReload (SIGHUP and
 // `request reload`), reloadSourceCommit from every daemon-authored commit.
 //
@@ -595,9 +639,45 @@ func doReload(s *pluginserver.Server, cp *zeconfig.Provider, store storage.Stora
 // that run marks it. Marking
 // it here would fence an observer on a reload that had not been processed.
 func doReloadContext(ctx context.Context, source reloadSource, s *pluginserver.Server, eng *engine.Engine, cp *zeconfig.Provider, store storage.Storage, configPath string, load func() (map[string]any, *zeconfig.Tree, []zePlugin.PluginConfig, error), lm *listenerMigrator) error {
+	startedAt := time.Now().UTC()
+	ctx, opID := opid.Ensure(ctx)
+	trigger := reloadTriggerFrom(ctx, source)
+	trace := &pluginserver.ReloadTrace{}
+	ctx = pluginserver.WithReloadTrace(ctx, trace)
+
 	err := runReloadContext(ctx, source, s, eng, cp, store, configPath, load, lm)
-	if s != nil && !errors.Is(err, pluginserver.ErrReloadInProgress) {
-		s.MarkReloadProcessed(err == nil)
+	if s != nil {
+		if !errors.Is(err, pluginserver.ErrReloadInProgress) {
+			finishedAt := time.Now().UTC()
+			outcome := pluginserver.ReloadOutcomeApplied
+			errStr := ""
+			if err != nil {
+				outcome = pluginserver.ReloadOutcomeFailed
+				errStr = err.Error()
+			}
+			roots, txState, plugins := trace.Snapshot()
+			durationMS := max(finishedAt.Sub(startedAt).Milliseconds(), 0)
+			s.MarkReloadProcessedWithRecord(pluginserver.ReloadRecord{
+				OpID:         opID,
+				Trigger:      trigger,
+				Outcome:      outcome,
+				StartedAt:    startedAt,
+				FinishedAt:   finishedAt,
+				DurationMS:   durationMS,
+				ChangedRoots: roots,
+				TxState:      txState,
+				Plugins:      plugins,
+				Error:        errStr,
+			})
+			if err != nil {
+				slogutil.Logger("hub.reload").WarnContext(ctx, "config reload failed",
+					"code", pluginserver.CodeDoctorConfigReloadRefused,
+					"trigger", trigger, "operation-id", opID, "error", err)
+			} else {
+				slogutil.Logger("hub.reload").InfoContext(ctx, "config reload applied",
+					"trigger", trigger, "operation-id", opID)
+			}
+		}
 	}
 	return err
 }

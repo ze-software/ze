@@ -9,7 +9,7 @@
 #
 # The observer's zz- name sorts after the two protocol coarse participants.
 # Its failing apply first reads BOTH live candidate runtimes; the scenario then
-# waits for show reload-status generation to advance with outcome failed before
+# waits for show system reload status generation to advance with outcome failed before
 # reading the old runtime. This prevents a pass against a reload not yet started
 # or a shutdown that interrupts a rollback still in progress.
 # Passive lo interfaces need no protocol sockets. Their interface dependency

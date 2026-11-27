@@ -693,7 +693,11 @@ ze show warnings source bgp            # only warnings from the bgp subsystem
 ze show errors                         # JSON: {"errors":   [...], "count": N}
 ze show errors source l2tp             # only errors from the l2tp subsystem
 ze show errors source l2tp count 5     # last 5 errors from l2tp
+ze cli -c "show errors | operation <id>"  # errors correlated with one operation ID
 ```
+
+`show errors` accepts the command-owned `| operation <id>` pipe filter
+(over MCP: `pipe: [{"name": "operation", "args": ["<id>"]}]`).
 
 **Issue shape** (every entry in both responses):
 
@@ -706,6 +710,7 @@ ze show errors source l2tp count 5     # last 5 errors from l2tp
 | `message` | string | Human-readable one-liner |
 | `detail` | object | Optional structured context (family, code/subcode, reason, ...) |
 | `fix` | string | Optional: the command that fixes the subject, when the producer knows one; omitted when empty |
+| `operation-id` | string | Optional: process-scoped correlation ID (`op-<N>`) of the command or reload that raised the issue; omitted when empty |
 | `raised` | RFC 3339 time | When the issue first appeared on the bus |
 | `updated` | RFC 3339 time | Most recent raise time (warnings advance; errors equal raised) |
 
@@ -755,12 +760,15 @@ ze show audit
 ze show audit action config-commit
 ze show audit actor alice surface web count 20
 ze show audit since 2026-05-24T10:00:00Z until 2026-05-24T11:00:00Z
+ze cli -c "show audit | operation <id>"
 ze show aaa accounting
 ```
 
 `show audit` returns `entries` and `count`. Each entry includes `timestamp`,
-`actor`, `remote-addr`, `surface`, `action`, `detail`, and `outcome`.
-Filters are optional and can be combined. Time filters use RFC 3339.
+`actor`, `remote-addr`, `surface`, `action`, `detail`, `outcome`, and optional
+`operation-id`. Filters are optional and can be combined, including the
+command-owned `| operation <id>` pipe filter (over MCP:
+`pipe: [{"name": "operation", "args": ["<id>"]}]`). Time filters use RFC 3339.
 
 `show aaa accounting` currently reports TACACS+ accounting queue drops:
 `dropped-records` is the number of START/STOP accounting records that could not
@@ -783,6 +791,9 @@ ze show system date                # wall-clock time: RFC3339, Unix, timezone
 ze show system platform            # runtime platform type and capabilities
 ze show system dns                 # learned resolver records and each dns-source consumer's selection
 ze show system triage              # single-call bounded live triage snapshot (10 sections)
+ze show system reload status       # reload generation fence, last outcome, and last-operation-id
+ze show system reload history      # bounded 32-entry reload transaction journal (optional count <N> and | operation <id>)
+ze show system watchdog            # daemon liveness watchdog status, probes, hung handlers, and recent stalls
 ```
 
 Each response is a flat JSON map with kebab-case keys:
@@ -795,7 +806,10 @@ Each response is a flat JSON map with kebab-case keys:
 | `show system dns` | `records` (each learned record: `origin`, `rank`, `interface`, `unit`, `addresses`, `received`, `expires`, and when set `fallback`, `priority`, `name`, `transport`, `port`, `path`), `consumers` (each: `consumer`, `selections` with `path`, `instance`, `sources`, `mode`, `default`, `received-interfaces`, `used`, `servers`, `self`, `serves`); the router is first, as consumer `system` (`docs/features/dns-resolver.md`) |
 | `show system platform` | `type` (gokrazy, systemd, container, plain-linux, darwin), `read-only-root`, `perm-available`, `systemd-available`, `gokrazy-update-socket`, `gokrazy-ui-available`, `reboot-allowed`, `persistent-storage-writable`, `fd-limit-soft-current`, `fd-limit-hard-max`, `fd-limit-raisable` |
 | `show system conntrack` | `count`, `max`, `buckets`, `expect-max`, `accounting`, `timestamp`, `checksum`, `log-invalid`, `modules` (loaded nf_conntrack_* list), `helpers` (one row per assigned kernel helper: `module`, `kernel-helper`, `protocol`, `ports`, `families`), `timeouts` (per-protocol), `tcp-behavior` (be-liberal, loose, max-retrans, ignore-invalid-rst) |
-| `show system triage` | `version`, `health`, `doctor`, `errors`, `warnings`, `crashes`, `plugins`, `reload`, `recent-logs`, `runtime` (bounded newest-first lists with `total-count` and `truncated`; unavailable sources return `available: false`) |
+| `show system triage` | `version`, `health`, `doctor`, `errors`, `warnings`, `crashes`, `plugins`, `reload`, `recent-logs`, `runtime` (includes `watchdog-running`, `stall-count`, and `hung-handler-count`; bounded newest-first lists with `total-count` and `truncated`; unavailable sources return `available: false`) |
+| `show system reload status` | `generation`, `last-outcome`, `last-reload-at`, `last-operation-id` (optional) |
+| `show system reload history` | `entries` (newest-first, up to 32: `generation`, `operation-id`, `trigger`, `outcome`, `started-at`, `finished-at`, `duration-ms`, `changed-roots`, `tx-state`, `plugins`, `error`), `count`; accepts `count <N>` and `\| operation <id>` |
+| `show system watchdog` | `running`, `interval-ms`, `stall-threshold-ms`, `ticks`, `stall-count`, `last-tick-at`, `probes`, `hung-handlers`, `recent-stalls` |
 
 `show system date` refuses when the NTP state provider is unavailable, including
 a build without NTP support. Install a build with NTP support and retry
@@ -2753,6 +2767,55 @@ and returns the captured snapshot's `id`, `captured-at`, `trigger`, `detail`,
 and `bytes`.
 
 <!-- source: internal/component/cmd/show/trace.go -- handleShowSystemTrace, handleRequestSystemTraceSnapshot -->
+
+### show system reload status
+
+```
+ze show system reload status          # Reload generation counter, last outcome, timestamp, and last-operation-id
+```
+
+Returns `generation`, `last-outcome` (`applied`, `failed`, or `none`),
+`last-reload-at`, and optional `last-operation-id` (`op-<N>`) of the most recent
+processed reload. Reads only under a leaf lock and never acquires
+`Server.txLock`.
+
+<!-- source: internal/component/cmd/show/reload_status.go -- handleShowReloadStatus -->
+
+### show system reload history
+
+```
+ze show system reload history                              # Recent reload transactions (up to 32, newest first)
+ze show system reload history count 5                      # Last 5 reload transactions
+ze cli -c "show system reload history | operation <id>"    # Filter to one reload operation-id
+```
+
+Returns `entries` (newest-first, bounded to 32) and `count`, recording
+`generation`, `operation-id`, `trigger`, `outcome`, `started-at`, `finished-at`,
+`duration-ms`, `changed-roots`, `tx-state` (`committed`, `aborted`,
+`rolled-back`, or `no-op`), per-plugin `plugins` steps (`verify-ms`,
+`apply-ms`, `rollback-ms`, `status`, `error`), and optional top-level `error`.
+Accepts the command-owned `| operation <id>` pipe filter (over MCP:
+`pipe: [{"name": "operation", "args": ["<id>"]}]`) and never acquires
+`Server.txLock`.
+
+<!-- source: internal/component/cmd/show/reload_history.go -- handleShowSystemReloadHistory -->
+
+### show system watchdog
+
+```
+ze show system watchdog               # Liveness watchdog status, probes, hung handlers, and recent stalls
+```
+
+Returns live status from the always-on daemon liveness watchdog (`running`,
+`interval-ms`, `stall-threshold-ms`, `ticks`, `stall-count`, `last-tick-at`,
+`probes`), the 16-slot `hung-handlers` ring (operator handlers that ignored
+cancellation past their bounded timeout and raised
+`doctor-command-handler-hung`), and the 8-slot `recent-stalls` ring (captured
+goroutine stacks capped at `256 KiB` and any auto-captured `trace-snapshot-id`
+when `doctor-daemon-stall-detected` fired). Reads only under leaf locks and
+never acquires `Server.txLock`.
+
+<!-- source: internal/component/cmd/show/watchdog.go -- handleShowSystemWatchdog -->
 
 ### show system memory
 
@@ -4873,7 +4936,7 @@ Streaming command: use in interactive `ze cli` or via SSH. Press Esc to stop.
 | Command | Access | Purpose |
 |---------|--------|---------|
 | `show log levels` | read-only | List subsystems with current log levels |
-| `show log recent` | read-only | Show recent log entries from in-memory ring; supports `\| plugin <name>` to query one plugin process's log ring (with non-destructive host `stderr-tail` fallback for unreachable external plugins) |
+| `show log recent` | read-only | Show recent log entries from in-memory ring; supports `\| plugin <name>` to query one plugin process's log ring (with non-destructive host `stderr-tail` fallback for unreachable external plugins) and `\| operation <id>` (composable with `\| plugin <name>`, MCP `pipe: [{"name": "operation", "args": ["<id>"]}]`) to filter by `operation-id` |
 | `request log level <subsystem> <level>` | write | Set log level at runtime |
 
 Levels: debug, info, warn, err, disabled.
@@ -4923,7 +4986,7 @@ active after enabling debug or applying a profile.
 | `show fleet alarm history device <name>` | read-only | Retained alarm openings and clearings for one authorized managed device, with derived cause-overlap fields (`hidden`, `hidden-behind`, `hidden-unknown`), `retained-since`, `truncated`, and pagination (`\| cursor`, `\| limit`) <!-- source: internal/component/managed/yang/ze-managed-cmd.yang -- container history --> |
 | `show event list` | read-only | List available event types <!-- source: internal/plugins/meta/yang/ze-command-meta-cmd.yang -- module ze-command-meta-cmd --> |
 | `show event delivery` | read-only | Show which peers feed which attached processes <!-- source: internal/component/cmd/show/yang/ze-cli-show-cmd.yang -- container delivery --> |
-| `show event recent [namespace <name>] [count <n>]` | read-only | Show recent events from the global event ring with `timestamp`, `namespace`, `event-type`, and optional `source`, `subject`, and `direction` <!-- source: internal/component/cmd/show/show.go -- handleShowEventRecent --> |
+| `show event recent [namespace <name>] [count <n>]` | read-only | Show recent events from the global event ring with `timestamp`, `namespace`, `event-type`, and optional `source`, `subject`, `direction`, and `operation-id`; supports `\| operation <id>` (MCP `pipe: [{"name": "operation", "args": ["<id>"]}]`) <!-- source: internal/component/cmd/show/show.go -- handleShowEventRecent --> |
 
 ---
 

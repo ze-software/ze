@@ -6,6 +6,7 @@
 package server
 
 import (
+	"context"
 	"strings"
 
 	"github.com/ze-software/ze/internal/component/command"
@@ -53,7 +54,7 @@ func ensureRollbackFailed(ctx *CommandContext, step *EnsureStep, err error) {
 		message.Str(carriedFixLead).Str(fixLine).Byte('`')
 	}
 	message.Str(": ").Err(err)
-	report.RaiseErrorFix(commandEventSource, CodeDoctorCommandEnsureRollbackFailed, fitSubject(parent),
+	report.RaiseErrorContext(ctx.Context(), commandEventSource, CodeDoctorCommandEnsureRollbackFailed, fitSubject(parent),
 		report.FitMessage(message.String()), busFix(fixLine, fixShowErrors))
 }
 
@@ -97,6 +98,6 @@ func deprecatedUsed(oldName, newName string) {
 		Str("`, which a later release removes; scripts using it must move to `").Str(newName).Str("`")
 	logger().Warn("deprecated command used", "code", CodeDoctorCommandDeprecatedUsed,
 		"old", oldName, "new", newName, "hint", "use '"+newName+"' instead; old form will be removed in a future release")
-	report.RaiseWarningFix(commandEventSource, CodeDoctorCommandDeprecatedUsed, fitSubject(oldName),
+	report.RaiseWarningContext(context.Background(), commandEventSource, CodeDoctorCommandDeprecatedUsed, fitSubject(oldName),
 		report.FitMessage(message.String()), busFix(newName, fixShowWarnings))
 }
