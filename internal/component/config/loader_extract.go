@@ -986,9 +986,9 @@ func extractGNMIBlock(tree *Tree) (GNMIListenConfig, bool, bool) {
 // minTokenLength is the minimum length for hub auth tokens.
 const minTokenLength = 32
 
-// ExtractHubConfig extracts bus hub transport and history config from a parsed
-// config tree. Returns zero-value HubConfig with no servers/clients if no hub
-// block is present.
+// ExtractHubConfig extracts bus hub transport, metric history, and alarm config
+// from a parsed config tree. Returns zero-value HubConfig with no servers or
+// clients if no hub block is present.
 func ExtractHubConfig(tree *Tree) (plugin.HubConfig, error) {
 	if tree == nil {
 		return plugin.HubConfig{}, nil
@@ -1008,6 +1008,7 @@ func ExtractHubConfig(tree *Tree) (plugin.HubConfig, error) {
 	}
 	hub := plugin.HubConfig{
 		History: plugin.DefaultHubHistoryConfig(),
+		Alarms:  plugin.DefaultHubAlarmsConfig(),
 	}
 
 	for _, entry := range hubContainer.GetListOrdered("server") {
@@ -1049,7 +1050,123 @@ func ExtractHubConfig(tree *Tree) (plugin.HubConfig, error) {
 		}
 	}
 
+	alarmsContainer := hubContainer.GetContainer("alarms")
+	if alarmsContainer != nil {
+		alarmsCfg, err := extractHubAlarmsConfig(alarmsContainer)
+		if err != nil {
+			return plugin.HubConfig{}, err
+		}
+		hub.Alarms = alarmsCfg
+	}
+
+	needsAlarmsValidation := len(hub.Servers) > 0
+	if alarmsContainer != nil {
+		needsAlarmsValidation = true
+	}
+	if needsAlarmsValidation {
+		if err := plugin.ValidateHubAlarmsConfig(hub.Alarms); err != nil {
+			return plugin.HubConfig{}, err
+		}
+	}
+
 	return hub, nil
+}
+
+func extractHubAlarmsConfig(tree *Tree) (plugin.HubAlarmsConfig, error) {
+	cfg := plugin.DefaultHubAlarmsConfig()
+	if raw, ok := tree.Get("offline-delay"); ok {
+		val, err := parseHubAlarmInt("offline-delay", raw,
+			"offline-delay must be an integer number of seconds between 1 and 86400",
+			plugin.DefaultAlarmOfflineDelaySeconds)
+		if err != nil {
+			return cfg, err
+		}
+		cfg.OfflineDelaySeconds = val
+	}
+	if raw, ok := tree.Get("resource-cpu-percent"); ok {
+		val, err := parseHubAlarmInt("resource-cpu-percent", raw,
+			"resource-cpu-percent must be an integer percentage between 1 and 100",
+			plugin.DefaultAlarmResourcePercent)
+		if err != nil {
+			return cfg, err
+		}
+		cfg.ResourceCPUPercent = val
+	}
+	if raw, ok := tree.Get("resource-memory-percent"); ok {
+		val, err := parseHubAlarmInt("resource-memory-percent", raw,
+			"resource-memory-percent must be an integer percentage between 1 and 100",
+			plugin.DefaultAlarmResourcePercent)
+		if err != nil {
+			return cfg, err
+		}
+		cfg.ResourceMemoryPercent = val
+	}
+	if raw, ok := tree.Get("resource-storage-percent"); ok {
+		val, err := parseHubAlarmInt("resource-storage-percent", raw,
+			"resource-storage-percent must be an integer percentage between 1 and 100",
+			plugin.DefaultAlarmResourcePercent)
+		if err != nil {
+			return cfg, err
+		}
+		cfg.ResourceStoragePercent = val
+	}
+	if raw, ok := tree.Get("resource-duration"); ok {
+		val, err := parseHubAlarmInt("resource-duration", raw,
+			"resource-duration must be an integer number of seconds between 1 and 86400",
+			plugin.DefaultAlarmResourceDurationSeconds)
+		if err != nil {
+			return cfg, err
+		}
+		cfg.ResourceDurationSeconds = val
+	}
+	if raw, ok := tree.Get("software-behind-versions"); ok {
+		val, err := parseHubAlarmInt("software-behind-versions", raw,
+			"software-behind-versions must be an integer between 1 and 1000",
+			plugin.DefaultAlarmSoftwareBehindVersions)
+		if err != nil {
+			return cfg, err
+		}
+		cfg.SoftwareBehindVersions = val
+	}
+	if raw, ok := tree.Get("retention-days"); ok {
+		val, err := parseHubAlarmInt("retention-days", raw,
+			"retention-days must be an integer number of days between 1 and 30",
+			plugin.DefaultAlarmRetentionDays)
+		if err != nil {
+			return cfg, err
+		}
+		cfg.RetentionDays = val
+	}
+	if raw, ok := tree.Get("max-episodes-per-device"); ok {
+		val, err := parseHubAlarmInt("max-episodes-per-device", raw,
+			"max-episodes-per-device must be an integer between 1 and 512",
+			plugin.DefaultAlarmMaxEpisodesPerDevice)
+		if err != nil {
+			return cfg, err
+		}
+		cfg.MaxEpisodesPerDevice = val
+	}
+	if raw, ok := tree.Get("max-episodes-hub"); ok {
+		val, err := parseHubAlarmInt("max-episodes-hub", raw,
+			"max-episodes-hub must be an integer between 1 and 65536",
+			plugin.DefaultAlarmMaxEpisodesHub)
+		if err != nil {
+			return cfg, err
+		}
+		cfg.MaxEpisodesHub = val
+	}
+	return cfg, nil
+}
+
+func parseHubAlarmInt(leaf, raw, why string, defaultVal int) (int, error) {
+	val, err := strconv.ParseInt(raw, 10, 32)
+	if err != nil {
+		var tb textbuf.Buffer
+		what := tb.Reset().Str("invalid bus hub alarms ").Str(leaf).Byte(' ').Str(QuoteIfNeeded(raw)).String()
+		fix := tb.Reset().Str("set bus hub alarms ").Str(leaf).Byte(' ').Int(int64(defaultVal)).String()
+		return 0, opererr.New(what, why, fix)
+	}
+	return int(val), nil
 }
 
 func extractHubHistoryConfig(tree *Tree) (plugin.HubHistoryConfig, error) {

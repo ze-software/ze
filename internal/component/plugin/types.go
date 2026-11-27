@@ -656,12 +656,144 @@ func ValidateHubHistoryConfig(cfg HubHistoryConfig, declaredClients int) error {
 	return nil
 }
 
-// HubConfig holds bus hub transport and metric history configuration.
-// Extracted from: bus { hub { server ...; client ...; history { ... } } }.
+// Default and range constants for bus hub alarm settings matching
+// ze-plugin-conf.yang.
+const (
+	DefaultAlarmOfflineDelaySeconds     = 300
+	MinAlarmOfflineDelaySeconds         = 1
+	MaxAlarmOfflineDelaySeconds         = 86400
+	DefaultAlarmResourcePercent         = 90
+	MinAlarmResourcePercent             = 1
+	MaxAlarmResourcePercent             = 100
+	DefaultAlarmResourceDurationSeconds = 300
+	MinAlarmResourceDurationSeconds     = 1
+	MaxAlarmResourceDurationSeconds     = 86400
+	DefaultAlarmSoftwareBehindVersions  = 1
+	MinAlarmSoftwareBehindVersions      = 1
+	MaxAlarmSoftwareBehindVersions      = 1000
+	DefaultAlarmRetentionDays           = 7
+	MinAlarmRetentionDays               = 1
+	MaxAlarmRetentionDays               = 30
+	DefaultAlarmMaxEpisodesPerDevice    = 512
+	MinAlarmMaxEpisodesPerDevice        = 1
+	MaxAlarmMaxEpisodesPerDevice        = 512
+	DefaultAlarmMaxEpisodesHub          = 65536
+	MinAlarmMaxEpisodesHub              = 1
+	MaxAlarmMaxEpisodesHub              = 65536
+
+	alarmUnitPercent = "percent"
+)
+
+// HubAlarmsConfig holds hub-side fleet alarm threshold, grace delay, and
+// history retention settings extracted from: bus { hub { alarms { ... } } }.
+type HubAlarmsConfig struct {
+	OfflineDelaySeconds     int
+	ResourceCPUPercent      int
+	ResourceMemoryPercent   int
+	ResourceStoragePercent  int
+	ResourceDurationSeconds int
+	SoftwareBehindVersions  int
+	RetentionDays           int
+	MaxEpisodesPerDevice    int
+	MaxEpisodesHub          int
+}
+
+// DefaultHubAlarmsConfig returns the default fleet alarm threshold, delay, and
+// history retention settings matching ze-plugin-conf.yang defaults.
+func DefaultHubAlarmsConfig() HubAlarmsConfig {
+	return HubAlarmsConfig{
+		OfflineDelaySeconds:     DefaultAlarmOfflineDelaySeconds,
+		ResourceCPUPercent:      DefaultAlarmResourcePercent,
+		ResourceMemoryPercent:   DefaultAlarmResourcePercent,
+		ResourceStoragePercent:  DefaultAlarmResourcePercent,
+		ResourceDurationSeconds: DefaultAlarmResourceDurationSeconds,
+		SoftwareBehindVersions:  DefaultAlarmSoftwareBehindVersions,
+		RetentionDays:           DefaultAlarmRetentionDays,
+		MaxEpisodesPerDevice:    DefaultAlarmMaxEpisodesPerDevice,
+		MaxEpisodesHub:          DefaultAlarmMaxEpisodesHub,
+	}
+}
+
+// ValidateHubAlarmsConfig validates every hub alarm delay, threshold, and
+// episode history retention bound, returning an operator error naming the
+// exact set bus hub alarms fix command on any out-of-range value.
+func ValidateHubAlarmsConfig(cfg HubAlarmsConfig) error {
+	if err := validateAlarmIntRange("offline-delay", cfg.OfflineDelaySeconds,
+		MaxAlarmOfflineDelaySeconds, "seconds",
+		"offline delay must be between 1 and 86400 seconds"); err != nil {
+		return err
+	}
+	if err := validateAlarmIntRange("resource-cpu-percent", cfg.ResourceCPUPercent,
+		MaxAlarmResourcePercent, alarmUnitPercent,
+		"CPU resource threshold must be between 1 and 100 percent"); err != nil {
+		return err
+	}
+	if err := validateAlarmIntRange("resource-memory-percent", cfg.ResourceMemoryPercent,
+		MaxAlarmResourcePercent, alarmUnitPercent,
+		"memory resource threshold must be between 1 and 100 percent"); err != nil {
+		return err
+	}
+	if err := validateAlarmIntRange("resource-storage-percent", cfg.ResourceStoragePercent,
+		MaxAlarmResourcePercent, alarmUnitPercent,
+		"storage resource threshold must be between 1 and 100 percent"); err != nil {
+		return err
+	}
+	if err := validateAlarmIntRange("resource-duration", cfg.ResourceDurationSeconds,
+		MaxAlarmResourceDurationSeconds, "seconds",
+		"resource duration must be between 1 and 86400 seconds"); err != nil {
+		return err
+	}
+	if err := validateAlarmIntRange("software-behind-versions", cfg.SoftwareBehindVersions,
+		MaxAlarmSoftwareBehindVersions, "",
+		"software-behind threshold must be between 1 and 1000 versions"); err != nil {
+		return err
+	}
+	if err := validateAlarmIntRange("retention-days", cfg.RetentionDays,
+		MaxAlarmRetentionDays, "days",
+		"alarm history retention must be between 1 and 30 days"); err != nil {
+		return err
+	}
+	if err := validateAlarmIntRange("max-episodes-per-device", cfg.MaxEpisodesPerDevice,
+		MaxAlarmMaxEpisodesPerDevice, "",
+		"per-device retained alarm episodes must be between 1 and 512"); err != nil {
+		return err
+	}
+	return validateAlarmIntRange("max-episodes-hub", cfg.MaxEpisodesHub,
+		MaxAlarmMaxEpisodesHub, "",
+		"hub-wide retained alarm episodes must be between 1 and 65536")
+}
+
+func validateAlarmIntRange(leaf string, val, maxVal int, unit, why string) error {
+	const minVal = 1
+	var tb textbuf.Buffer
+	if val < minVal {
+		tb.Reset().Str("bus hub alarms ").Str(leaf).Byte(' ').Int(int64(val)).Str(" is below minimum ").Int(int64(minVal))
+		if unit != "" {
+			tb.Byte(' ').Str(unit)
+		}
+		what := tb.String()
+		fix := tb.Reset().Str("set bus hub alarms ").Str(leaf).Byte(' ').Int(int64(minVal)).String()
+		return opererr.New(what, why, fix)
+	}
+	if val > maxVal {
+		tb.Reset().Str("bus hub alarms ").Str(leaf).Byte(' ').Int(int64(val)).Str(" exceeds maximum ").Int(int64(maxVal))
+		if unit != "" {
+			tb.Byte(' ').Str(unit)
+		}
+		what := tb.String()
+		fix := tb.Reset().Str("set bus hub alarms ").Str(leaf).Byte(' ').Int(int64(maxVal)).String()
+		return opererr.New(what, why, fix)
+	}
+	return nil
+}
+
+// HubConfig holds bus hub transport, metric history, and alarm configuration.
+// Extracted from: bus { hub { server ...; client ...; history { ... }; alarms { ... } } }.
 type HubConfig struct {
 	Servers []HubServerConfig // Named server blocks (listeners)
 	Clients []HubClientConfig // Hub-level client blocks (outbound)
 	History HubHistoryConfig  // Managed device sample interval, retention, and storage budgets
+	Alarms  HubAlarmsConfig   // Managed device alarm thresholds, delays, and history retention
 }
 
 // RespawnRequest is what a plugin block's `respawn` leaf asks for. The leaf is

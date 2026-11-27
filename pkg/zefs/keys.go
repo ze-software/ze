@@ -171,3 +171,23 @@ var (
 	KeyFleetHistoryShard        = MustRegister(KeyEntry{Pattern: "meta/fleet/history/shard/{name}/{shard}", Description: "Bounded compressed fleet metric history shard for one managed device (binary)", Private: true, ValueMax: FleetHistoryShardValueMax})
 	KeyFleetHistoryDeleteIntent = MustRegister(KeyEntry{Pattern: "meta/fleet/history/delete-intent/{name}", Description: "Durable deletion intent fencing fleet metric history writers for a forgotten device (JSON)", Private: true, ValueMax: FleetHistoryDeleteIntentValueMax})
 )
+
+// Per-key value byte bounds and ListKeys prefix for the hub-side fleet alarm
+// store. FleetAlarmDevicePrefix includes its trailing slash because callers
+// enumerate keys through storage.Storage.ListKeys, which translates directory
+// prefixes for the store backend.
+const (
+	FleetAlarmDeviceValueMax = 256 << 10
+	FleetAlarmHubValueMax    = 64 << 10
+
+	FleetAlarmDevicePrefix = "meta/fleet/alarm/device/"
+)
+
+// Hub-side fleet alarm state keys. Each key family is Private and bounded by
+// its ValueMax constant; the alarm writer enforces these limits before
+// WriteKey and before decoding bytes read back from storage. Kept in its own
+// declaration so documentation drift checks read each key group separately.
+var (
+	KeyFleetAlarmDevice = MustRegister(KeyEntry{Pattern: "meta/fleet/alarm/device/{name}", Description: "Managed device declaration timing, active alarms, and bounded alarm history (JSON)", Private: true, ValueMax: FleetAlarmDeviceValueMax})
+	KeyFleetAlarmHub    = MustRegister(KeyEntry{Pattern: "meta/fleet/alarm/hub", Description: "Hub-scoped active alarms, occurrence sequence state, and bounded alarm history (JSON)", Private: true, ValueMax: FleetAlarmHubValueMax})
+)

@@ -561,6 +561,108 @@ module ze-plugin-conf {
                     ze:help "Maximum total persisted history bytes across the hub.";
                 }
             }
+
+            container alarms {
+                description "Configures hub-derived fleet alarm thresholds, offline grace delay, sustained resource
+                    duration, software-behind threshold, and bounded alarm episode history retention.";
+                ze:help "Managed device alarm thresholds, delays, and history retention.";
+
+                leaf offline-delay {
+                    type uint32 {
+                        range "1..86400";
+                    }
+                    default 300;
+                    units "seconds";
+                    description "Delay in seconds after device declaration or last disconnect before the hub opens
+                        Device offline. Allowed range is 1..86400.";
+                    ze:help "Seconds before a disconnected or newly declared device opens Device offline.";
+                }
+
+                leaf resource-cpu-percent {
+                    type uint8 {
+                        range "1..100";
+                    }
+                    default 90;
+                    units "percent";
+                    description "CPU usage percentage threshold at or above which sustained readings open Resource high.
+                        Allowed range is 1..100.";
+                    ze:help "CPU usage percent threshold for the Resource high alarm.";
+                }
+
+                leaf resource-memory-percent {
+                    type uint8 {
+                        range "1..100";
+                    }
+                    default 90;
+                    units "percent";
+                    description "Memory usage percentage threshold at or above which sustained readings open Resource high.
+                        Allowed range is 1..100.";
+                    ze:help "Memory usage percent threshold for the Resource high alarm.";
+                }
+
+                leaf resource-storage-percent {
+                    type uint8 {
+                        range "1..100";
+                    }
+                    default 90;
+                    units "percent";
+                    description "Storage usage percentage threshold at or above which sustained readings open Resource high.
+                        Allowed range is 1..100.";
+                    ze:help "Storage usage percent threshold for the Resource high alarm.";
+                }
+
+                leaf resource-duration {
+                    type uint32 {
+                        range "1..86400";
+                    }
+                    default 300;
+                    units "seconds";
+                    description "Sustained duration in seconds that fresh CPU, memory, or storage readings must remain
+                        at or above threshold before opening Resource high. Allowed range is 1..86400.";
+                    ze:help "Sustained seconds at or above threshold before opening Resource high.";
+                }
+
+                leaf software-behind-versions {
+                    type uint16 {
+                        range "1..1000";
+                    }
+                    default 1;
+                    description "Minimum number of ordered versions behind the newest release in the estate before
+                        opening Software behind. Allowed range is 1..1000.";
+                    ze:help "Versions behind the newest estate release before opening Software behind.";
+                }
+
+                leaf retention-days {
+                    type uint8 {
+                        range "1..30";
+                    }
+                    default 7;
+                    units "days";
+                    description "Maximum number of days the hub retains closed alarm episodes before expiring older
+                        entries. Allowed range is 1..30.";
+                    ze:help "Maximum alarm history retention in days (1..30).";
+                }
+
+                leaf max-episodes-per-device {
+                    type uint16 {
+                        range "1..512";
+                    }
+                    default 512;
+                    description "Maximum number of closed alarm episodes retained per managed device before evicting
+                        the oldest closed episode first. Allowed range is 1..512.";
+                    ze:help "Maximum closed alarm episodes retained per managed device (1..512).";
+                }
+
+                leaf max-episodes-hub {
+                    type uint32 {
+                        range "1..65536";
+                    }
+                    default 65536;
+                    description "Maximum number of closed alarm episodes retained across the entire hub before evicting
+                        the oldest closed episode first. Allowed range is 1..65536.";
+                    ze:help "Maximum closed alarm episodes retained across the hub (1..65536).";
+                }
+            }
         }
     }
 }
