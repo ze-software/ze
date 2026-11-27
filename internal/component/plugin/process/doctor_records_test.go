@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/ze-software/ze/internal/component/plugin"
+	"github.com/ze-software/ze/internal/core/flightrec"
 	"github.com/ze-software/ze/internal/core/report"
 )
 
@@ -154,5 +155,49 @@ func TestDoctorRecordsBoundedAndCopied(t *testing.T) {
 	p.RecordConfigCommit("tx-8", nil)
 	if commit := p.DoctorRecord(time.Now()).ConfigCommit; commit.Error != "" || commit.Transaction != "tx-8" {
 		t.Fatalf("a later confirmed commit did not replace the failure: %+v", commit)
+	}
+}
+
+// TestSlowDeliveryTriggersFlightRecorderCapture verifies that a batch taking
+// longer than DeliverySlowThreshold triggers an automatic flight-recorder
+// capture when enabled and remains a silent no-op when stopped.
+//
+// VALIDATES: AC-4 -- noteBatch over DeliverySlowThreshold calls
+// flightrec.CaptureAuto("slow-plugin-delivery", p.config.Name), capturing a
+// trace snapshot when flightrec is started and capturing nothing when stopped
+// or at/below the threshold.
+// PREVENTS: slow plugin stalls losing their pre-incident Go execution trace.
+func TestSlowDeliveryTriggersFlightRecorderCapture(t *testing.T) {
+	flightrec.ResetForTest()
+	t.Cleanup(flightrec.ResetForTest)
+
+	const slowPlugin = "slow-plugin"
+	p := &Process{config: plugin.PluginConfig{Name: slowPlugin}}
+	p.noteBatch(DeliverySlowThreshold+time.Millisecond, 2, nil, true)
+	if snaps := flightrec.Snapshots(); len(snaps) != 0 {
+		t.Fatalf("stopped recorder captured %d snapshots, want 0", len(snaps))
+	}
+
+	if err := flightrec.Start(); err != nil {
+		t.Fatalf("flightrec.Start() failed: %v", err)
+	}
+	p.noteBatch(DeliverySlowThreshold, 2, nil, true)
+	if snaps := flightrec.Snapshots(); len(snaps) != 0 {
+		t.Fatalf("batch at threshold captured %d snapshots, want 0", len(snaps))
+	}
+
+	p.noteBatch(DeliverySlowThreshold+time.Millisecond, 2, nil, true)
+	snaps := flightrec.Snapshots()
+	if len(snaps) != 1 {
+		t.Fatalf("slow batch captured %d snapshots, want 1", len(snaps))
+	}
+	if snaps[0].Trigger != "slow-plugin-delivery" {
+		t.Errorf("snapshot trigger = %q, want %q", snaps[0].Trigger, "slow-plugin-delivery")
+	}
+	if snaps[0].Detail != slowPlugin {
+		t.Errorf("snapshot detail = %q, want %q", snaps[0].Detail, slowPlugin)
+	}
+	if snaps[0].Bytes <= 0 {
+		t.Errorf("snapshot bytes = %d, want > 0", snaps[0].Bytes)
 	}
 }

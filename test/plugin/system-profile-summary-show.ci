@@ -1,0 +1,73 @@
+# Question: Does a live ze daemon with startup mutex/block sampling dispatch
+# `show system profile type heap|mutex|block | summary` end-to-end through the
+# YANG command tree, command-owned pipe partition, and pprof summary decoder?
+# Why a unit test cannot decide it: Unit tests invoke handleShowSystemProfile
+# and summarizePprof directly without the daemon's command-line pipe partition,
+# YANG enum validation, startup mutex/block sampling configuration, or external
+# plugin JSON RPC framing.
+
+# ze-peer: accepts connection
+stdin=peer:terminator=EOF_PEER
+option=tcp_connections:value=1
+option=timeout:value=15s
+option=asn:value=65001
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
+EOF_PEER
+
+
+stdin=ze-bgp:terminator=EOF_CONF
+bus {
+	endpoint system-profile-summary-show-test {
+		external {
+			run "le test fixture plugin/system-profile-summary-show";
+		}
+		encoding json;
+	}
+}
+
+bgp {
+	filter {
+		import {
+			final accept
+		}
+		export {
+			final accept
+		}
+	}
+	peer peer1 {
+		connection {
+			remote {
+				ip 127.0.0.1
+			}
+			local {
+				ip 127.0.0.1
+				accept false
+			}
+		}
+		session {
+			asn {
+				local 65000
+				remote 65001
+			}
+			router-id 1.2.3.4
+			family {
+				ipv4/unicast {
+					prefix {
+						maximum 10000
+					}
+				}
+			}
+			capability {
+				graceful-restart disable
+			}
+		}
+		behavior {
+			group-updates disable
+		}
+	}
+}
+EOF_CONF
+
+cmd=background:seq=1:exec=le test peer --port $PORT:stdin=peer
+cmd=foreground:seq=2:exec=ze -:stdin=ze-bgp:timeout=15s
+expect=exit:code=0

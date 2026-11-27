@@ -156,7 +156,7 @@ func buildWebService(deps *serviceDeps) (Service, error) {
 		return nil, nil //nolint:nilnil // startWebServer preserves prior best-effort skip behavior
 	}
 	if ring := deps.EventRing; ring != nil {
-		ring.Append("web", "server.started")
+		ring.AppendWithMeta("web", "server.started", "web", "", "")
 		wireEventRingToBroker(ring, broker)
 	}
 	service := newWebService(webSrv, broker, editors)
@@ -221,7 +221,7 @@ func runWebOnly(store storage.Storage, listenAddr string, insecureWeb bool) (exi
 	}()
 	bindWebOnlyRecovery(store, commands, sigCh)
 	ring := commands.EventRing()
-	ring.Append("web", "server.started")
+	ring.AppendWithMeta("web", "server.started", "web", "", "")
 	dispatch := webOnlyDispatcher(commands)
 	auditLog, auditErr := openAuditLog("")
 	if auditErr != nil {

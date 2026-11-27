@@ -162,13 +162,14 @@ neighbor, the request, the connection), and the process keeps running.
 <!-- source: internal/core/taskguard/guard.go -- Guard, Task.Contain, record -->
 <!-- source: internal/core/crashlog/recovered.go -- RecordRecoveredPanic, rotateRecoveredFiles -->
 
-**A recovered panic is never silent.** The boundary does four things before it
+**A recovered panic is never silent.** The boundary does five things before it
 hands control back to the task:
 
 | Output | What it carries |
 |--------|-----------------|
 | One ERROR log line | `code` (`doctor-internal-defect`), `component`, `task`, `unit`, `message-type` when the task tracks one, `panic`, `restart` (what brings the unit back), `next` (the `ze show crashes name <file>` command), `stack` |
 | `ze_task_panics_total{component,task}` | One increment. The peer or client is in the log line, not a label, so the series count stays bounded |
+| A flight-recorder trace snapshot | Captured via `flightrec.CaptureAuto("taskguard-panic", p.origin())` when flight recording is enabled and outside the automatic cooldown window, preserving the preceding seconds of Go execution trace in memory |
 | A crash record | Written by `crashlog.RecordRecoveredPanic`, named `crash-<time>-recovered.log`, listed by `show crashes` with kind `recovered` |
 | One report-bus error event | Raised through `report.RaiseErrorFix` on `internal/core/report` with code `doctor-internal-defect`, structured detail (`task`, `unit`, `panic`, plus `message-type` and `crash-report` when present), and `fix` set to `ze show crashes name <file>` (or `ze show log recent level err` when no crash file was written), so `show errors`, `show doctor` (`recent-events`), and `show system triage` surface it immediately |
 <!-- source: internal/core/taskguard/guard.go -- Guard.record -->

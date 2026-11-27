@@ -219,9 +219,9 @@ and appends the descriptor rows, so the output grows with the number of open fil
             container profile {
                 config false;
                 ze:command "ze-cmd:show-system-profile";
-                description "Types: cpu (requires duration, e.g. 30s), heap, goroutine, allocs
-(instant snapshots). Output is pprof format you can open with
-'go tool pprof'. Send the file to support for deep analysis.";
+                description "Types: cpu (requires duration, e.g. 30s), heap, goroutine, allocs, mutex,
+and block (instant snapshots). Bare output is pprof format you can open with
+'go tool pprof'; pipe through '| summary' for top functions in JSON.";
                 ze:help "Capture a runtime profile for performance analysis.";
                 leaf type {
                     type enumeration {
@@ -229,10 +229,13 @@ and appends the descriptor rows, so the output grows with the number of open fil
                         enum heap { ze:help "Snapshot the live heap objects at the last garbage collection."; }
                         enum goroutine { ze:help "Snapshot the stack of every goroutine now."; }
                         enum allocs { ze:help "Sample the allocations made since the daemon started."; }
+                        enum mutex { ze:help "Snapshot contended mutex wait stacks sampled since startup."; }
+                        enum block { ze:help "Snapshot goroutine blocking wait stacks sampled since startup."; }
                     }
                     description "The word is optional and the default is heap. Only cpu runs for a time
-and reads duration. The three others return at once. The response carries the pprof
-bytes as base64 in data, with format pprof-base64.";
+and reads duration. The five others return at once. Bare output carries pprof
+bytes as base64 in data with format pprof-base64; pipe through '| summary' for
+top functions in JSON.";
                     ze:help "Profile type.";
                 }
                 leaf duration {
@@ -242,6 +245,25 @@ bytes as base64 in data, with format pprof-base64.";
                     description "The value is a Go duration with a unit, from 1s to 60s, and the default
 is 10s. Only a cpu profile reads it. A second cpu profile is refused while one runs.";
                     ze:help "Profile duration.";
+                }
+            }
+
+            container trace {
+                config false;
+                ze:command "ze-cmd:show-system-trace";
+                description "Inspect the always-on Go execution flight recorder and its in-memory
+snapshot ring. Without an id, returns recorder status and snapshot metadata
+without raw trace bytes. With 'id <id>', returns one snapshot with base64
+Go execution trace bytes for 'go tool trace'.";
+                ze:help "Inspect flight-recorder status or fetch a trace snapshot.";
+                leaf id {
+                    type string {
+                        length "1..64";
+                    }
+                    description "Snapshot identifier returned by 'show system trace' or
+'request system trace snapshot'. When present, returns that snapshot's
+metadata and base64-encoded Go trace payload.";
+                    ze:help "Snapshot identifier to fetch.";
                 }
             }
 
@@ -404,9 +426,10 @@ line, so it MUST be spelled the way the exporter wrote it.";
                 config false;
                 ze:command "ze-cmd:show-event-recent";
                 ze:rpc "ze-cli-show-api:event-recent";
-                description "Each event includes timestamp, namespace, and type. Filter with
-namespace <name> to focus on one area, count <N> to limit output.
-Useful for reconstructing what happened before an incident.";
+                description "Each event includes timestamp, namespace, and event-type, plus source,
+subject, and direction when present. Filter with namespace <name> to focus
+on one area, count <N> to limit output. Useful for reconstructing what
+happened before an incident.";
                 ze:help "Show recent events, newest first.";
             }
 
@@ -491,5 +514,31 @@ when building a new policy chain to see what filters you can use.";
         // its handler. The central show schema declares no `container
         // storage`. See ai/rules/plugin-self-containment.md.
 
+    }
+
+    container request {
+        config false;
+
+        container system {
+            config false;
+            description "Actions on the system the daemon runs on. Nothing here writes
+configuration.";
+            ze:help "Actions on the system Ze runs on.";
+
+            container trace {
+                config false;
+                description "Actions on the daemon's always-on Go execution flight recorder.";
+                ze:help "Execution flight-recorder operations.";
+
+                container snapshot {
+                    config false;
+                    ze:command "ze-cmd:request-system-trace-snapshot";
+                    description "Captures an execution trace snapshot from the daemon's rolling Go
+flight recorder into the in-memory snapshot ring and returns its identifier
+and metadata. Fetch the trace bytes with 'show system trace id <id>'.";
+                    ze:help "Capture an execution trace snapshot from the flight recorder now.";
+                }
+            }
+        }
     }
 }

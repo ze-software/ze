@@ -16,6 +16,7 @@ import (
 	"time"
 	"unicode/utf8"
 
+	"github.com/ze-software/ze/internal/core/flightrec"
 	"github.com/ze-software/ze/internal/core/report"
 	"github.com/ze-software/ze/internal/core/textbuf"
 )
@@ -325,8 +326,9 @@ func (p *Process) recordProjectionErr(err error) {
 
 // noteBatch records one delivered batch when it was slow, or when it failed
 // and no caller waits for its result (unwaited): a waiting caller receives
-// the error and reports it itself. It logs the problem with its doctor code
-// and counts it in the plugin's metrics.
+// the error and reports it itself. It logs the problem with its doctor code,
+// triggers an automatic flight-recorder capture on slow delivery, and counts
+// it in the plugin's metrics.
 //
 // The problem keeps the error only when it counts the batch as failed, so the
 // row's last error is always one of the failures it counts: a slow batch whose
@@ -341,6 +343,7 @@ func (p *Process) noteBatch(elapsed time.Duration, events int, err error, unwait
 			"threshold", DeliverySlowThreshold, "error", err,
 			"code", CodeDoctorPluginDeliveryFailed)
 		p.noteDeliverySlow()
+		flightrec.CaptureAuto("slow-plugin-delivery", p.config.Name)
 	}
 	if failed {
 		p.noteDeliveryFailed()

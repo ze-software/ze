@@ -2709,8 +2709,8 @@ Bare output returns base64-encoded pprof bytes (`format: "pprof-base64"`) for
 `go tool pprof`. Pipe through `| summary` to decode the profile inside the
 daemon and return up to 32 top functions sorted by cumulative then flat total
 (`format: "summary"`, `sample-type`, `sample-unit`, `total`, `top-functions`,
-and `truncated`). `mutex` responses also include `sampling-rate`. CPU profiling
-is mutex-protected: concurrent requests return an error.
+and `truncated`). `mutex` and `block` responses also include `sampling-rate`.
+CPU profiling is mutex-protected: concurrent requests return an error.
 
 <!-- source: internal/component/cmd/show/profile.go -- handleShowSystemProfile -->
 <!-- source: internal/component/cmd/show/profile_summary.go -- summarizePprof -->

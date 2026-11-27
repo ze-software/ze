@@ -14,6 +14,9 @@ type EventRecord struct {
 	Timestamp time.Time
 	Namespace string
 	EventType string
+	Source    string
+	Subject   string
+	Direction string
 }
 
 // EventRing is a fixed-size circular buffer of EventRecord values.
@@ -45,8 +48,20 @@ func (r *EventRing) SetOnAppend(fn func(EventRecord)) {
 
 // Append adds a record to the ring, overwriting the oldest if full.
 func (r *EventRing) Append(namespace, eventType string) {
-	now := time.Now()
-	rec := EventRecord{Timestamp: now, Namespace: namespace, EventType: eventType}
+	r.AppendWithMeta(namespace, eventType, "", "", "")
+}
+
+// AppendWithMeta adds a record with source, subject, and direction metadata to
+// the ring, overwriting the oldest if full. O(1) with zero allocations.
+func (r *EventRing) AppendWithMeta(namespace, eventType, source, subject, direction string) {
+	rec := EventRecord{
+		Timestamp: time.Now(),
+		Namespace: namespace,
+		EventType: eventType,
+		Source:    source,
+		Subject:   subject,
+		Direction: direction,
+	}
 	r.mu.Lock()
 	r.records[r.head] = rec
 	r.head = (r.head + 1) % len(r.records)

@@ -406,7 +406,16 @@ func (s *Server) deliverEventCaptured(ctx context.Context, emitter *process.Proc
 	}
 
 	if s.eventRing != nil {
-		s.eventRing.Append(namespace, eventType)
+		source := stampedSender
+		if source == "" {
+			if emitter != nil {
+				source = emitter.Name()
+			}
+		}
+		if source == "" {
+			source = "engine"
+		}
+		s.eventRing.AppendWithMeta(namespace, eventType, source, peerAddress, direction)
 	}
 
 	// Engine-side subscribers fire regardless of whether the plugin

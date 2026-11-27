@@ -66,8 +66,9 @@ One round-trip returns build provenance (`version`), component `health`, daemon 
 
 - **Crashes and recovered panics (`doctor-internal-defect`)**: inspect the saved crash report named in `crashes` or the error `fix` field with `show crashes name <file>`.
 - **Report-bus errors and warnings**: fetch full lists with `show errors` or `show warnings`, and explain any unfamiliar code with `ze show diagnostic <code>`.
-- **Logs and event history**: query `show log recent level err` (or `level warn`, `component <name>`, `count <N>`), `show event recent`, and `show event delivery`.
-- **Hangs, deadlocks, or memory growth**: inspect waiting goroutines with `show system goroutines mode blocked` (use `mode full` only for a hang), and capture a pprof snapshot with `show system profile` (`type heap`, `type goroutine`, `type allocs`, or `type cpu duration 10s`).
+- **Logs and event history**: query `show log recent level err` (reads the dedicated fault ring, immune to `info` bursts; also supports `level warn`, `component <name>`, and `count <N>`), `show event recent` (includes `source`, `subject`, and `direction` when present), and `show event delivery`.
+- **Hangs, deadlocks, or memory growth**: inspect waiting goroutines with `show system goroutines mode blocked` (use `mode full` only for a hang), and capture AI-readable top-function JSON profile summaries without `go tool pprof` using `show system profile type heap | summary`, `type cpu duration 10s | summary`, `type mutex | summary`, `type block | summary`, `type goroutine | summary`, or `type allocs | summary` (over MCP, pass `pipe: [{"name": "summary"}]`). Bare `show system profile` without `| summary` returns raw `pprof-base64` bytes for `go tool pprof`.
+- **Pre-incident execution traces**: list auto-captured and manual Go flight-recorder snapshots with `show system trace`, capture one immediately with `request system trace snapshot`, and fetch a snapshot's trace bytes with `show system trace id <id>`.
 - **Plugin and reload issues**: run `show doctor`, `show reload-status`, and `show plugin list`.
 
 ### 3. Bug Report Essentials

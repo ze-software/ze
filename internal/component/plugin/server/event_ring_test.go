@@ -99,3 +99,54 @@ func TestGlobalEventRingNamespaceCounts(t *testing.T) {
 		t.Errorf("l2tp = %d, want 1", counts["l2tp"])
 	}
 }
+
+// TestEventRingAppendWithMeta verifies that AppendWithMeta stores Source,
+// Subject, and Direction on each EventRecord, preserves Append and SetOnAppend
+// compatibility, and performs zero allocations on append.
+//
+// VALIDATES: AC-6 -- EventRing.AppendWithMeta retains Source, Subject, and
+// Direction in newest-first order, delivers them to SetOnAppend, keeps Append
+// compatible, and allocates 0 times per append.
+// PREVENTS: emitter, peer subject, or direction metadata being dropped or
+// introducing heap allocations on the event emit path.
+func TestEventRingAppendWithMeta(t *testing.T) {
+	r := NewEventRing(10)
+	var observed EventRecord
+	r.SetOnAppend(func(rec EventRecord) {
+		observed = rec
+	})
+
+	r.Append("bgp", "open")
+	r.AppendWithMeta("bgp", "update", "engine", "192.0.2.1", "receive")
+	r.AppendWithMeta("bgp", "state", "bgp-peer", "192.0.2.2", "send")
+
+	if observed.Source != "bgp-peer" || observed.Subject != "192.0.2.2" || observed.Direction != "send" {
+		t.Errorf("SetOnAppend saw {Source:%q Subject:%q Direction:%q}, want {bgp-peer 192.0.2.2 send}",
+			observed.Source, observed.Subject, observed.Direction)
+	}
+
+	snap := r.Snapshot(0, "")
+	if len(snap) != 3 {
+		t.Fatalf("count = %d, want 3", len(snap))
+	}
+	if snap[0].Source != "bgp-peer" || snap[0].Subject != "192.0.2.2" || snap[0].Direction != "send" {
+		t.Errorf("newest record metadata = {Source:%q Subject:%q Direction:%q}, want {bgp-peer 192.0.2.2 send}",
+			snap[0].Source, snap[0].Subject, snap[0].Direction)
+	}
+	if snap[1].Source != "engine" || snap[1].Subject != "192.0.2.1" || snap[1].Direction != "receive" {
+		t.Errorf("middle record metadata = {Source:%q Subject:%q Direction:%q}, want {engine 192.0.2.1 receive}",
+			snap[1].Source, snap[1].Subject, snap[1].Direction)
+	}
+	if snap[2].Source != "" || snap[2].Subject != "" || snap[2].Direction != "" {
+		t.Errorf("Append compatibility record metadata = {Source:%q Subject:%q Direction:%q}, want empty",
+			snap[2].Source, snap[2].Subject, snap[2].Direction)
+	}
+
+	r.SetOnAppend(nil)
+	allocs := testing.AllocsPerRun(100, func() {
+		r.AppendWithMeta("bgp", "update", "engine", "192.0.2.1", "receive")
+	})
+	if allocs != 0 {
+		t.Errorf("AppendWithMeta allocated %.2f times per run, want 0", allocs)
+	}
+}

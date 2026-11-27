@@ -45,7 +45,25 @@ and share one result.
 
 **The CPU profile guard is `sync.Mutex.TryLock()`.** It gives a clean
 "already in progress" error path with no channel bookkeeping.
-<!-- source: internal/component/cmd/show/profile.go -- runtime profiling -->
+`show system profile` supports six profile types (`cpu`, `heap`, `goroutine`,
+`allocs`, `mutex`, and `block`). Daemon startup enables low-overhead mutex and block sampling
+(`runtime.SetMutexProfileFraction(10)` and `flightrec.SetBlockProfileRate(100_000)`),
+and both `mutex` and `block` profile responses report `sampling-rate`. Bare `show system profile` returns
+base64-encoded pprof bytes (`format: "pprof-base64"`) for `go tool pprof`.
+The command-owned `| summary` pipe operation (`command.RegisterPipeFilters` on
+`"show system profile"`) decodes the gzipped pprof protobuf in pure Go stdlib
+(`summarizePprof`, bounded at 32 MiB decompressed and 32 top functions) and
+returns structured JSON (`format: "summary"`) with flat and cumulative totals
+per function.
+<!-- source: internal/component/cmd/show/profile.go -- handleShowSystemProfile, profileCPU, profileSnapshot -->
+<!-- source: internal/component/cmd/show/profile_summary.go -- summarizePprof -->
+
+**Always-on Go execution trace capture lives in `internal/core/flightrec`.**
+It wraps `runtime/trace.FlightRecorder` with a 10-second / 4 MiB rolling
+window, a bounded 4-slot in-memory snapshot ring (4 MiB per snapshot), and a
+30-second cooldown for automatic captures so pre-incident execution traces
+require no external tools or disk writes.
+<!-- source: internal/core/flightrec/flightrec.go -- Start, Stop, Status, Snapshots, SnapshotByID, CaptureAuto, CaptureNow, SetBlockProfileRate, BlockProfileRate -->
 
 **BFD raw capture is reached through a provider published in `bfd/api`, not a
 type assertion on the reactor.** BFD is a separate plugin with no reactor

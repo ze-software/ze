@@ -14,7 +14,10 @@ import (
 	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
-const defaultLogRingCapacity = 512
+const (
+	defaultLogRingCapacity   = 512
+	defaultFaultRingCapacity = 256
+)
 
 // LogEntry is one record in the log ring buffer.
 type LogEntry struct {
@@ -46,29 +49,78 @@ func (e LogEntry) Attributes() (map[string]any, error) {
 	return record.Attributes, nil
 }
 
-// LogRing is a fixed-size circular buffer of log entries.
-// Safe for concurrent use.
-type LogRing struct {
-	mu      sync.Mutex
-	records []LogEntry
+// logRingSlot pairs a monotonic ring sequence number with its LogEntry so
+// general and fault sub-rings merge newest-first without altering LogEntry.
+type logRingSlot struct {
+	seq   uint64
+	entry LogEntry
+}
+
+// logSubRing is a fixed-size circular buffer of sequenced log entries.
+// NOT safe for concurrent use; callers MUST hold LogRing.mu.
+type logSubRing struct {
+	records []logRingSlot
 	head    int
 	count   int
 }
 
-// newLogRing creates a ring with the given capacity.
+// LogRing is a severity-split fixed-size circular buffer of log entries.
+// Debug and info records rotate in general while warn and error records rotate
+// in faults so high-volume info bursts cannot evict earlier faults.
+// Safe for concurrent use.
+type LogRing struct {
+	mu      sync.Mutex
+	seq     uint64
+	general logSubRing
+	faults  logSubRing
+}
+
+func (s *logSubRing) append(slot logRingSlot) {
+	s.records[s.head] = slot
+	s.head = (s.head + 1) % len(s.records)
+	if s.count < len(s.records) {
+		s.count++
+	}
+}
+
+func (s *logSubRing) atNewest(offset int) logRingSlot {
+	idx := (s.head - 1 - offset + len(s.records)) % len(s.records)
+	return s.records[idx]
+}
+
+func isFaultLevel(level string) bool {
+	if level == levelWarn {
+		return true
+	}
+	return level == levelError
+}
+
+// newLogRing creates a severity-split ring with the given general capacity.
+// Capacities smaller than defaultLogRingCapacity apply to both sub-rings so
+// small test rings retain exact capacity semantics; larger capacities use
+// defaultFaultRingCapacity for warn/error entries.
 func newLogRing(capacity int) *LogRing {
 	if capacity <= 0 {
 		capacity = defaultLogRingCapacity
 	}
-	return &LogRing{records: make([]LogEntry, capacity)}
+	faultCap := defaultFaultRingCapacity
+	if capacity < defaultLogRingCapacity {
+		faultCap = capacity
+	}
+	return &LogRing{
+		general: logSubRing{records: make([]logRingSlot, capacity)},
+		faults:  logSubRing{records: make([]logRingSlot, faultCap)},
+	}
 }
 
 func (r *LogRing) append(entry LogEntry) {
 	r.mu.Lock()
-	r.records[r.head] = entry
-	r.head = (r.head + 1) % len(r.records)
-	if r.count < len(r.records) {
-		r.count++
+	r.seq++
+	slot := logRingSlot{seq: r.seq, entry: entry}
+	if isFaultLevel(entry.Level) {
+		r.faults.append(slot)
+	} else {
+		r.general.append(slot)
 	}
 	r.mu.Unlock()
 }
@@ -95,29 +147,87 @@ func (r *LogRing) Snapshot(limit int, level, component string) ([]LogEntry, erro
 	return r.collect(limit, levelString(lvl), component), nil
 }
 
-// collect walks the ring newest-first and keeps the entries whose level name
-// and component equal the non-empty filters. Limit <= 0 keeps all.
+// collect walks the matching sub-ring(s) newest-first and keeps entries whose
+// level name and component equal the non-empty filters. Limit <= 0 keeps all.
 func (r *LogRing) collect(limit int, level, component string) []LogEntry {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 
-	if r.count == 0 {
+	if level != "" {
+		if isFaultLevel(level) {
+			return collectSubRing(&r.faults, limit, level, component)
+		}
+		return collectSubRing(&r.general, limit, level, component)
+	}
+	return mergeSubRings(&r.general, &r.faults, limit, component)
+}
+
+func collectSubRing(sub *logSubRing, limit int, level, component string) []LogEntry {
+	if sub.count == 0 {
 		return []LogEntry{}
 	}
-
-	out := make([]LogEntry, 0, r.count)
-	for i := range r.count {
-		idx := (r.head - 1 - i + len(r.records)) % len(r.records)
-		rec := r.records[idx]
-		if level != "" && rec.Level != level {
+	capHint := sub.count
+	if limit > 0 {
+		capHint = min(limit, sub.count)
+	}
+	out := make([]LogEntry, 0, capHint)
+	for i := range sub.count {
+		rec := sub.atNewest(i).entry
+		if rec.Level != level {
 			continue
 		}
-		if component != "" && rec.Component != component {
-			continue
+		if component != "" {
+			if rec.Component != component {
+				continue
+			}
 		}
 		out = append(out, rec)
-		if limit > 0 && len(out) >= limit {
-			break
+		if limit > 0 {
+			if len(out) >= limit {
+				break
+			}
+		}
+	}
+	return out
+}
+
+func mergeSubRings(general, faults *logSubRing, limit int, component string) []LogEntry {
+	total := general.count + faults.count
+	if total == 0 {
+		return []LogEntry{}
+	}
+	capHint := total
+	if limit > 0 {
+		capHint = min(limit, total)
+	}
+	out := make([]LogEntry, 0, capHint)
+	gi, fi := 0, 0
+	for gi < general.count || fi < faults.count {
+		var slot logRingSlot
+		switch {
+		case gi >= general.count:
+			slot = faults.atNewest(fi)
+			fi++
+		case fi >= faults.count:
+			slot = general.atNewest(gi)
+			gi++
+		case faults.atNewest(fi).seq > general.atNewest(gi).seq:
+			slot = faults.atNewest(fi)
+			fi++
+		default:
+			slot = general.atNewest(gi)
+			gi++
+		}
+		if component != "" {
+			if slot.entry.Component != component {
+				continue
+			}
+		}
+		out = append(out, slot.entry)
+		if limit > 0 {
+			if len(out) >= limit {
+				break
+			}
 		}
 	}
 	return out

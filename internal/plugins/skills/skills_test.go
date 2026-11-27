@@ -276,3 +276,42 @@ func TestSkillsDiagnosticsIncludesLiveTriagePlaybook(t *testing.T) {
 		})
 	}
 }
+
+// TestSkillsDiagnosticsIncludesPart2Commands verifies the bundled
+// ze-diagnostics skill teaches profile summary pipes, mutex and block
+// contention profiling, flight-recorder trace capture commands, the dedicated
+// fault log ring, and enriched event history fields.
+//
+// VALIDATES: AC-7 -- show skill ze-diagnostics documents | summary, mutex,
+// block, show system trace, and request system trace snapshot.
+// PREVENTS: bundled runtime triage skill omitting Part 2 diagnostic commands.
+func TestSkillsDiagnosticsIncludesPart2Commands(t *testing.T) {
+	validated, err := command.ValidateModelArgs("show skill", []string{"ze-diagnostics"}, nil)
+	require.NoError(t, err)
+
+	var result command.LocalAnswer
+	written := captureOutput(t, func() { result = showSkill(validated) })
+	assert.Empty(t, written, "handler wrote to stdout or stderr")
+	require.Equal(t, 0, result.Code, "diagnostic: %s", result.Diagnostic)
+
+	answer, ok := result.Payload.(skillAnswer)
+	require.True(t, ok, "show skill answered %T", result.Payload)
+	for _, want := range []string{
+		"| summary",
+		"show system profile type heap | summary",
+		"type cpu duration 10s | summary",
+		"type mutex | summary",
+		"type block | summary",
+		`pipe: [{"name": "summary"}]`,
+		"pprof-base64",
+		"show system trace",
+		"show system trace id <id>",
+		"request system trace snapshot",
+		"fault ring",
+		"`source`",
+		"`subject`",
+		"`direction`",
+	} {
+		assert.Contains(t, answer.Skill.Content, want)
+	}
+}

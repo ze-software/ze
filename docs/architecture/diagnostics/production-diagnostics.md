@@ -24,8 +24,9 @@ is the reason none of them needed a bespoke transport.
 | Packet capture | decoded rings and raw byte capture (`packet-capture.md`) |
 | Active probes | ping, traceroute, route lookup (`active-probes.md`) |
 | Health | component health registry, HTTP `/health` returning 200 or 503 |
-| Log query | slog ring handler filtered by level, component and count |
+| Log query | slog ring handler split into `general` (512 `debug`/`info`) and `faults` (256 `warn`/`error`) buffers filtered by level, component and count |
 | Live triage | single-call bounded daemon snapshot (`show system triage`) across version, health, doctor, reports, crashes, plugins, reload, recent logs and runtime |
+| Execution trace | always-on Go flight recorder, on-demand snapshot capture, and snapshot retrieval (`show system trace`, `request system trace snapshot`) |
 
 ### Single-call live triage (`show system triage`)
 
@@ -47,6 +48,27 @@ appliance provenance from `version.BuildIdentity`.
 <!-- source: internal/component/cmd/show/triage.go -- handleShowSystemTriage -->
 <!-- source: internal/core/version/version.go -- BuildIdentity -->
 
+### Execution flight recorder (`show system trace`)
+
+Daemon startup starts the process-global Go execution flight recorder in
+`internal/core/flightrec` (`10s` / `4 MiB` rolling window) and stops it on
+shutdown. If `flightrec.Start` returns an error at startup, the daemon logs a
+warning and continues to start. Recovered `taskguard` panics and slow plugin
+deliveries call `flightrec.CaptureAuto` with a 30-second cooldown to freeze the
+preceding execution window into a 4-slot in-memory snapshot ring (4 MiB cap per
+snapshot).
+
+Operators and AI agents capture a snapshot on demand with
+`request system trace snapshot` (`ze-cmd:request-system-trace-snapshot`), list
+recorder status and retained snapshot metadata without raw trace bytes with
+`show system trace` (`ze-cmd:show-system-trace`), and fetch one snapshot's
+`go-trace-base64` payload with `show system trace id <id>`. Refusals for a
+stopped recorder or an unknown identifier return an operator error naming
+`ze show system trace`.
+
+<!-- source: internal/component/cmd/show/trace.go -- handleShowSystemTrace, handleRequestSystemTraceSnapshot -->
+<!-- source: internal/core/flightrec/flightrec.go -- Start, Stop, CaptureAuto, CaptureNow -->
+
 ### Structured log fields
 
 `show log recent` keeps each record's `timestamp`, `level`, `component` and
@@ -61,7 +83,13 @@ redaction; querying JSON must not reveal fields the configured text log hid.
 Resolution and text formatting run before shared capture locks. A standard slog
 JSON handler then captures an immutable snapshot, without retaining caller-owned
 maps, slices or attribute arrays. Attribute decoding happens only when queried.
-The fixed entry capacity and newest-first level/component/count filters are unchanged.
+`slogutil.LogRing` splits storage into two circular buffers with a shared
+sequence counter: `general` (512 entries for `debug` and `info`) and `faults`
+(256 entries for `warn` and `error`). A burst of `info` or `debug` logs rotates
+inside `general` and never evicts earlier `warn` or `error` entries from
+`faults`. Unfiltered queries merge both buffers newest-first by sequence number,
+and level-filtered queries read only the matching buffer.
+<!-- source: internal/core/slogutil/ring.go -- LogRing, GlobalLogRing -->
 
 The ring is inside the existing level and debug-filter handler chain. It does not
 bypass filtering, expand a value that its `LogValuer` redacts, or change command

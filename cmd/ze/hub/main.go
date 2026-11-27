@@ -17,6 +17,7 @@ import (
 	"log/slog"
 	"os"
 	"os/signal"
+	"runtime"
 	"sync"
 	"sync/atomic"
 	"syscall"
@@ -49,6 +50,7 @@ import (
 	"github.com/ze-software/ze/internal/core/crashlog"
 	"github.com/ze-software/ze/internal/core/diagnostic"
 	"github.com/ze-software/ze/internal/core/env"
+	"github.com/ze-software/ze/internal/core/flightrec"
 	"github.com/ze-software/ze/internal/core/opererr"
 	"github.com/ze-software/ze/internal/core/privilege"
 	"github.com/ze-software/ze/internal/core/reboot"
@@ -1306,6 +1308,18 @@ func runYANGConfig(store storage.Storage, configPath string, data []byte, plugin
 		return commitRuntimeConfig(store, configPath, path, expected, content, reloadAfterCommit, daemonConfirmWindow.Load())
 	})
 	defer commandregistry.SetRuntimeConfigCommit(nil)
+
+	// Enable runtime contention sampling and the execution flight recorder
+	// before eng.Start so startup panics, slow plugin deliveries, and early
+	// RPC requests observe an active recorder without racing daemon startup.
+	runtime.SetMutexProfileFraction(10)
+	flightrec.SetBlockProfileRate(100_000)
+	if err := flightrec.Start(); err != nil {
+		slogutil.Logger("hub").Warn("flight recorder did not start",
+			"error", err, "code", diagnostic.CodeDoctorInternalDefect)
+	} else {
+		defer flightrec.Stop()
+	}
 
 	startCtx := context.Background()
 	// Engine.Start joins this complete plugin startup before it starts any

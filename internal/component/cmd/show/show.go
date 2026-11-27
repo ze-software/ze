@@ -45,6 +45,7 @@ const (
 	keySubsystems = "subsystems"
 	keyNamespace  = "namespace"
 	keyType       = "type"
+	keySource     = "source"
 )
 
 // The error messages this package returns more than once.
@@ -103,6 +104,14 @@ func init() {
 		pluginserver.RPCRegistration{
 			WireMethod: "ze-cmd:show-system-triage",
 			Handler:    handleShowSystemTriage,
+		},
+		pluginserver.RPCRegistration{
+			WireMethod: "ze-cmd:show-system-trace",
+			Handler:    handleShowSystemTrace,
+		},
+		pluginserver.RPCRegistration{
+			WireMethod: "ze-cmd:request-system-trace-snapshot",
+			Handler:    handleRequestSystemTraceSnapshot,
 		},
 		pluginserver.RPCRegistration{
 			WireMethod: "ze-cmd:show-metrics-query",
@@ -386,11 +395,21 @@ func handleShowEventRecent(ctx *pluginserver.CommandContext, validated command.V
 	records := ring.Snapshot(limit, namespace)
 	out := make([]map[string]any, 0, len(records))
 	for i := range records {
-		out = append(out, map[string]any{
+		row := map[string]any{
 			"timestamp":  records[i].Timestamp.UTC().Format("2006-01-02T15:04:05Z07:00"),
 			keyNamespace: records[i].Namespace,
 			"event-type": records[i].EventType,
-		})
+		}
+		if records[i].Source != "" {
+			row[keySource] = records[i].Source
+		}
+		if records[i].Subject != "" {
+			row["subject"] = records[i].Subject
+		}
+		if records[i].Direction != "" {
+			row["direction"] = records[i].Direction
+		}
+		out = append(out, row)
 	}
 	return &plugin.Response{
 		Status: plugin.StatusDone,

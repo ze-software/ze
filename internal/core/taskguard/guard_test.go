@@ -12,6 +12,7 @@ import (
 	"unicode/utf8"
 
 	"github.com/ze-software/ze/internal/core/crashlog"
+	"github.com/ze-software/ze/internal/core/flightrec"
 	"github.com/ze-software/ze/internal/core/metrics"
 	"github.com/ze-software/ze/internal/core/report"
 )
@@ -455,4 +456,55 @@ func TestGuardReportRaiseBoundsOversizedFields(t *testing.T) {
 			t.Errorf("boundReportField mid-rune = %q (valid=%v), want %q", got, utf8.ValidString(got), "a")
 		}
 	})
+}
+
+// TestGuardTriggersFlightRecorderCapture verifies that a recovered panic
+// triggers an automatic flight-recorder snapshot when enabled and stays clean
+// with no snapshot when the flight recorder is stopped.
+//
+// VALIDATES: AC-4 -- Guard.record calls flightrec.CaptureAuto("taskguard-panic",
+// p.origin()), capturing a trace snapshot when flightrec is started and
+// performing a silent no-op when flightrec is stopped.
+// PREVENTS: recovered panics failing to preserve the pre-incident execution
+// trace or failing recovery when flight recording is disabled.
+func TestGuardTriggersFlightRecorderCapture(t *testing.T) {
+	flightrec.ResetForTest()
+	t.Cleanup(flightrec.ResetForTest)
+	report.ResetForTest()
+	t.Cleanup(report.ResetForTest)
+	restore := crashlog.SetCrashDirForTest(t.TempDir())
+	t.Cleanup(restore)
+
+	guard := New("bgp", slog.New(slog.DiscardHandler))
+	task := guard.Task("read", testRestart)
+
+	_, err := guardedTask(task, "boom-stopped")
+	var p *Panic
+	if !errors.As(err, &p) {
+		t.Fatalf("stopped recorder: task returned %v, want *Panic", err)
+	}
+	if snaps := flightrec.Snapshots(); len(snaps) != 0 {
+		t.Fatalf("stopped recorder captured %d snapshots, want 0", len(snaps))
+	}
+
+	if startErr := flightrec.Start(); startErr != nil {
+		t.Fatalf("flightrec.Start() failed: %v", startErr)
+	}
+	_, err = guardedTask(task, "boom-started")
+	if !errors.As(err, &p) {
+		t.Fatalf("started recorder: task returned %v, want *Panic", err)
+	}
+	snaps := flightrec.Snapshots()
+	if len(snaps) != 1 {
+		t.Fatalf("started recorder captured %d snapshots, want 1", len(snaps))
+	}
+	if snaps[0].Trigger != "taskguard-panic" {
+		t.Errorf("snapshot trigger = %q, want %q", snaps[0].Trigger, "taskguard-panic")
+	}
+	if !strings.Contains(snaps[0].Detail, "bgp read") {
+		t.Errorf("snapshot detail = %q, want origin containing %q", snaps[0].Detail, "bgp read")
+	}
+	if snaps[0].Bytes <= 0 {
+		t.Errorf("snapshot bytes = %d, want > 0", snaps[0].Bytes)
+	}
 }

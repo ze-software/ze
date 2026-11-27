@@ -10,7 +10,9 @@ no debug logging and no external tooling. Three rings supply it.
 | per-tunnel and per-session L2TP FSM | tunnel and session state transitions | `show l2tp tunnel history <tid>`, `show l2tp session history <sid>` |
 
 <!-- source: internal/component/plugin/server/event_ring.go -- EventRing, Append -->
+<!-- source: internal/component/plugin/server/event_ring.go -- EventRecord, AppendWithMeta -->
 <!-- source: internal/component/plugin/server/dispatch.go -- deliverEvent, the ring tap -->
+<!-- source: internal/component/plugin/server/dispatch.go -- deliverEventCaptured -->
 <!-- source: internal/component/bgp/reactor/peer_history.go -- fsmHistory, FSMTransition -->
 <!-- source: internal/component/l2tp/fsm_history.go -- L2TP tunnel and session history -->
 
@@ -18,7 +20,10 @@ no debug logging and no external tooling. Three rings supply it.
 
 **The global ring taps `deliverEvent()`, the single dispatch point for every
 event.** One append there captures everything, with no per-namespace
-subscription to keep in sync.
+subscription to keep in sync. `deliverEventCaptured` records `EventRecord` via
+`AppendWithMeta`, filling `Source` (`stampedSender`, emitter name, or
+`"engine"`), `Subject` (`peerAddress`), and `Direction` from strings already in
+scope.
 
 **Fixed-size circular buffer, overwrite-oldest, non-blocking append.** The emit
 path allocates nothing. Capacity is fixed at compile time per ring type, and the

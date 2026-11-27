@@ -354,3 +354,46 @@ func TestShowMetricsQueryFiltersSeriesByLabel(t *testing.T) {
 		})
 	}
 }
+
+// TestShowEventRecentIncludesEnrichedMetadata verifies handleShowEventRecent
+// surfaces Source, Subject, and Direction from EventRecord when non-empty and
+// omits empty optional fields.
+//
+// VALIDATES: AC-6 -- show event recent emits source, subject, and direction on
+// enriched event records while preserving timestamp, namespace, and event-type.
+// PREVENTS: enriched EventRing metadata being discarded when formatting show
+// event recent responses.
+func TestShowEventRecentIncludesEnrichedMetadata(t *testing.T) {
+	srv, err := pluginserver.NewServer(nil, nil)
+	require.NoError(t, err)
+	srv.EventRing().Append("system", "startup")
+	srv.EventRing().AppendWithMeta("bgp", "update", "engine", "192.0.2.1", "receive")
+
+	resp, err := handleShowEventRecent(&pluginserver.CommandContext{Server: srv}, commandtest.Args())
+	require.NoError(t, err)
+	require.NotNil(t, resp)
+	require.Equal(t, plugin.StatusDone, resp.Status)
+
+	data, ok := resp.Data.(plugin.Map)
+	require.True(t, ok, "response data is %T, want plugin.Map", resp.Data)
+	events, ok := data["events"].([]map[string]any)
+	require.True(t, ok, "events is %T, want []map[string]any", data["events"])
+	require.Len(t, events, 2)
+
+	// Newest-first: enriched record at index 0 carries source, subject, direction.
+	assert.Equal(t, "bgp", events[0][keyNamespace])
+	assert.Equal(t, "update", events[0]["event-type"])
+	assert.Equal(t, "engine", events[0][keySource])
+	assert.Equal(t, "192.0.2.1", events[0]["subject"])
+	assert.Equal(t, "receive", events[0]["direction"])
+
+	// Older plain record at index 1 omits empty optional metadata fields.
+	assert.Equal(t, "system", events[1][keyNamespace])
+	assert.Equal(t, "startup", events[1]["event-type"])
+	_, hasSource := events[1][keySource]
+	_, hasSubject := events[1]["subject"]
+	_, hasDirection := events[1]["direction"]
+	assert.False(t, hasSource, "empty source must be omitted")
+	assert.False(t, hasSubject, "empty subject must be omitted")
+	assert.False(t, hasDirection, "empty direction must be omitted")
+}

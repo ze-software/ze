@@ -7,7 +7,7 @@
 | Priority | P3 |
 | Release reason | Closes the cross-process observability blind spot so an AI over MCP can inspect goroutines, profiles, logs, and runtime stats of forked external plugins identically to in-process plugins; existing shipped behavior and its obligations remain required. |
 | RFC gaps | - |
-| Depends | spec-ai-diagnostics-2-flight-recorder-and-profiles.md |
+| Depends | - |
 | Phase | - |
 | Handoff | - |
 | Updated | 2026-11-27 |

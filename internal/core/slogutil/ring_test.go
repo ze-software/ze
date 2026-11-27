@@ -278,3 +278,75 @@ func TestRingHandlerOmittedSource(t *testing.T) {
 		}
 	}
 }
+
+// TestLogRingFaultsSurviveInfoBurst verifies that a burst of info entries
+// exceeding defaultLogRingCapacity does not evict earlier warn or error
+// entries from the log ring.
+//
+// VALIDATES: AC-5 -- warn and error entries survive a burst of
+// defaultLogRingCapacity+100 info entries in Snapshot("warn"), Snapshot("err"),
+// and Recent(0).
+// PREVENTS: high-volume info/debug traffic silently evicting pre-incident
+// warnings and errors before triage or operator inspection.
+func TestLogRingFaultsSurviveInfoBurst(t *testing.T) {
+	r := newLogRing(defaultLogRingCapacity)
+	r.append(LogEntry{Level: levelWarn, Component: "bgp", Message: "early warning"})
+	r.append(LogEntry{Level: levelError, Component: "bgp", Message: "early error"})
+
+	const infoCount = defaultLogRingCapacity + 100
+	for i := range infoCount {
+		r.append(LogEntry{Level: levelInfo, Component: "bgp", Message: "info-" + strconv.Itoa(i)})
+	}
+
+	warns, err := r.Snapshot(0, "warn", "")
+	if err != nil {
+		t.Fatalf("Snapshot(warn): %v", err)
+	}
+	if len(warns) != 1 || warns[0].Message != "early warning" {
+		t.Fatalf("Snapshot(warn) = %+v, want [early warning]", warns)
+	}
+
+	errs, err := r.Snapshot(0, "err", "")
+	if err != nil {
+		t.Fatalf("Snapshot(err): %v", err)
+	}
+	if len(errs) != 1 || errs[0].Message != "early error" {
+		t.Fatalf("Snapshot(err) = %+v, want [early error]", errs)
+	}
+
+	recent := r.Recent(0)
+	if len(recent) != defaultLogRingCapacity+2 {
+		t.Fatalf("Recent(0) len = %d, want %d", len(recent), defaultLogRingCapacity+2)
+	}
+	if recent[0].Message != "info-"+strconv.Itoa(infoCount-1) {
+		t.Errorf("Recent(0)[0] = %q, want newest info entry", recent[0].Message)
+	}
+	if recent[len(recent)-2].Message != "early error" || recent[len(recent)-1].Message != "early warning" {
+		t.Errorf("Recent(0) tail = [%q, %q], want [early error, early warning]",
+			recent[len(recent)-2].Message, recent[len(recent)-1].Message)
+	}
+
+	// Fault sub-ring rotates independently at defaultFaultRingCapacity (256),
+	// and a subsequent info burst still evicts zero faults.
+	rf := newLogRing(defaultLogRingCapacity)
+	const faultCount = defaultFaultRingCapacity + 10
+	for i := range faultCount {
+		rf.append(LogEntry{Level: levelError, Component: "bgp", Message: "fault-" + strconv.Itoa(i)})
+	}
+	for i := range infoCount {
+		rf.append(LogEntry{Level: levelInfo, Component: "bgp", Message: "burst-" + strconv.Itoa(i)})
+	}
+	faultSnap, err := rf.Snapshot(0, "err", "")
+	if err != nil {
+		t.Fatalf("Snapshot(err) after fault rotation: %v", err)
+	}
+	if len(faultSnap) != defaultFaultRingCapacity {
+		t.Fatalf("retained faults = %d, want %d", len(faultSnap), defaultFaultRingCapacity)
+	}
+	if faultSnap[0].Message != "fault-"+strconv.Itoa(faultCount-1) {
+		t.Errorf("newest retained fault = %q, want fault-%d", faultSnap[0].Message, faultCount-1)
+	}
+	if faultSnap[len(faultSnap)-1].Message != "fault-10" {
+		t.Errorf("oldest retained fault = %q, want fault-10", faultSnap[len(faultSnap)-1].Message)
+	}
+}

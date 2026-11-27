@@ -9,7 +9,8 @@
 // code=doctor-internal-defect along with the component, the task, the unit,
 // the message type where the task tracks one, the panic value, the stack, what
 // restarts the unit and the `show crashes` command; it counts the panic in
-// ze_task_panics_total{component,task}; it writes a crash record through
+// ze_task_panics_total{component,task}; it captures a flight-recorder trace
+// snapshot when flight recording is enabled; it writes a crash record through
 // crashlog; and it raises a bounded error event on internal/core/report under
 // doctor-internal-defect so show errors, show doctor and show system triage
 // surface the defect. It then hands control to the caller's end function,
@@ -28,6 +29,7 @@ import (
 	"unicode/utf8"
 
 	"github.com/ze-software/ze/internal/core/crashlog"
+	"github.com/ze-software/ze/internal/core/flightrec"
 	"github.com/ze-software/ze/internal/core/metrics"
 	"github.com/ze-software/ze/internal/core/report"
 )
@@ -173,9 +175,10 @@ func (t Task) Contain(describe func() Context, end func(*Panic)) {
 	}
 }
 
-// record counts p, writes its crash record, raises an internal-defect error on
-// the report bus and logs it, in that order, so both the report event and the
-// log line can name the record the operator reads.
+// record counts p, triggers an automatic flight-recorder capture when enabled,
+// writes its crash record, raises an internal-defect error on the report bus
+// and logs it, in that order, so both the report event and the log line can
+// name the record the operator reads.
 func (g *Guard) record(restart string, p *Panic) {
 	g.mu.Lock()
 	g.counts[p.Task]++
@@ -183,6 +186,8 @@ func (g *Guard) record(restart string, p *Panic) {
 		g.panics.With(g.component, p.Task).Inc()
 	}
 	g.mu.Unlock()
+
+	flightrec.CaptureAuto("taskguard-panic", p.origin())
 
 	panicText := fmt.Sprint(p.Value)
 
